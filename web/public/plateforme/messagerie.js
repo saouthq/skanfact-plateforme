@@ -191,18 +191,24 @@
   function fenetreModeles(o) {
     const fond = document.createElement('div');
     fond.className = 'msg-fenetre-fond';
+    // (1.182.0) Deux colonnes : les modèles de l'équipe à gauche (vide : trois exemples, leur texte déjà rempli), et à
+    // droite celui qu'on écrit, avec {client} et {mois} posés d'un clic et ce que le client lira, en direct.
     fond.innerHTML = `<div class="msg-fenetre msg-mo-fenetre" role="dialog" aria-modal="true" aria-labelledby="msg-mo-titre">
-      <h2 id="msg-mo-titre">Modèles de messages</h2>
-      <p class="small muted">Les phrases que ton cabinet écrit souvent, pour toute l'équipe. En les prenant, <b>{client}</b> devient le nom du client, et <b>{mois}</b> le mois qui vient de finir (${esc(moisPasse())}).</p>
-      <div class="msg-mo-liste" data-mo-liste><p class="small muted">Lecture des modèles…</p></div>
-      <form class="msg-mo-form" data-mo-form novalidate>
-        <h3 data-mo-form-titre>Un nouveau modèle</h3>
-        <label class="msg-ep-mot"><span>Titre</span><input type="text" maxlength="80" placeholder="Par exemple : Pièces du mois" data-mo-titre></label>
-        <label class="msg-ep-mot"><span>Texte</span><textarea rows="3" maxlength="4000" placeholder="Bonjour {client}, …" data-mo-texte></textarea></label>
-        <div class="msg-fp-gestes msg-ep-gestes"><p class="msg-refus" role="alert" data-mo-refus></p>
-          <button type="button" class="btn" data-mo-annuler hidden>Annuler la modification</button>
-          <button type="submit" class="btn" data-mo-poser>Ajouter le modèle</button></div>
-      </form>
+      <div class="msg-mo-tete"><span class="msg-mo-ic">${dessin('modele')}</span><span><h2 id="msg-mo-titre">Modèles de messages</h2>
+        <p class="small muted">Les phrases que l'équipe envoie souvent, prises d'un clic. <b>{client}</b> devient le nom du client, <b>{mois}</b> le mois qui vient de finir (${esc(moisPasse())}).</p></span></div>
+      <div class="msg-mo-corps">
+        <div class="msg-mo-liste" data-mo-liste><p class="small muted">Lecture des modèles…</p></div>
+        <form class="msg-mo-form" data-mo-form novalidate>
+          <h3 data-mo-form-titre>Un nouveau modèle</h3>
+          <label class="msg-ep-mot"><span>Titre</span><input type="text" maxlength="80" placeholder="Par exemple : Pièces du mois" data-mo-titre></label>
+          <label class="msg-ep-mot"><span>Texte</span><textarea rows="4" maxlength="4000" placeholder="Bonjour {client}, …" data-mo-texte></textarea></label>
+          <span class="msg-mo-poser-mots">Insérer : <button type="button" class="msg-mo-mot" data-mo-mot="{client}">{client}</button><button type="button" class="msg-mo-mot" data-mo-mot="{mois}">{mois}</button></span>
+          <div class="msg-mo-apercu" data-mo-apercu hidden><small>Ce que lira ${esc(o.client || 'le client')}</small><span data-mo-apercu-txt></span></div>
+          <div class="msg-fp-gestes msg-ep-gestes"><p class="msg-refus" role="alert" data-mo-refus></p>
+            <button type="button" class="btn" data-mo-annuler hidden>Annuler la modification</button>
+            <button type="submit" class="btn btn-primary" data-mo-poser>Ajouter le modèle</button></div>
+        </form>
+      </div>
       <div class="msg-fp-gestes"><button type="button" class="btn" data-fermer>Fermer</button></div>
     </div>`;
     document.body.appendChild(fond);
@@ -234,9 +240,23 @@
     document.addEventListener('keydown', echap, true);
     fermerBtn.onclick = () => fermer();
     fond.onclick = (e) => { if (e.target === fond) fermer(); };
-    const champs = () => { insiste = false; fermerBtn.textContent = 'Fermer'; refus.textContent = ''; };
+    const apercu = /** @type {HTMLElement} */ (fond.querySelector('[data-mo-apercu]'));
+    const majApercu = () => {
+      apercu.hidden = !texte.value.trim();
+      /** @type {HTMLElement} */ (apercu.querySelector('[data-mo-apercu-txt]')).textContent = remplir(texte.value, o.client || null);
+    };
+    const champs = () => { insiste = false; fermerBtn.textContent = 'Fermer'; refus.textContent = ''; majApercu(); };
     titre.addEventListener('input', champs);
     texte.addEventListener('input', champs);
+    // {client} et {mois} se posent où est le curseur.
+    fond.querySelectorAll('[data-mo-mot]').forEach((n) => {
+      /** @type {HTMLElement} */ (n).onclick = () => {
+        const mot = String(/** @type {HTMLElement} */ (n).dataset.moMot);
+        const a = texte.selectionStart ?? texte.value.length, b = texte.selectionEnd ?? a;
+        texte.value = texte.value.slice(0, a) + mot + texte.value.slice(b);
+        texte.focus(); texte.setSelectionRange(a + mot.length, a + mot.length); champs();
+      };
+    });
     const vider = () => {
       enCours = null; titre.value = ''; texte.value = ''; champs();
       poser.textContent = 'Ajouter le modèle'; annuler.hidden = true;
@@ -252,8 +272,8 @@
               : `${o.utiliser ? `<button type="button" class="btn btn-sm btn-primary" data-mo-utiliser="${esc(m.id)}">Utiliser</button>` : ''}
                 <button type="button" class="msg-lien" data-mo-modifier="${esc(m.id)}">Modifier</button>
                 <button type="button" class="msg-lien" data-mo-retirer="${esc(m.id)}">Retirer</button>`}</span></div>`).join('')
-        : `<div class="msg-vide msg-mo-vide"><b>Aucun modèle encore.</b><span>Écris en dessous la phrase que tu envoies le plus souvent, ou pars d'un exemple :</span>
-            <span class="msg-mo-exemples">${EXEMPLES.map((x, i) => `<button type="button" class="btn btn-sm" data-mo-exemple="${i}">${esc(x.titre)}</button>`).join('')}</span></div>`;
+        : `<div class="msg-vide msg-mo-vide"><b>Aucun modèle encore.</b><span>Pars d'un exemple, ou écris à droite la phrase que tu envoies le plus souvent : toute l'équipe l'aura.</span>
+            <span class="msg-mo-exemples">${EXEMPLES.map((x, i) => `<button type="button" class="msg-mo-ex" data-mo-exemple="${i}" aria-label="${esc(x.titre)}"><b>${esc(x.titre)}</b><span>${esc(remplir(x.texte, o.client || null))}</span></button>`).join('')}</span></div>`;
       liste.querySelectorAll('[data-mo-utiliser]').forEach((n) => {
         /** @type {HTMLElement} */ (n).onclick = () => {
           const m = modeles.find((x) => x.id === /** @type {HTMLElement} */ (n).dataset.moUtiliser);
@@ -458,6 +478,8 @@
     // la zone d'écriture (« Message à Sami » ou « Note pour l'équipe »).
     const avecNotes = !entreprise && !!o.suivi;
     /** @type {any[]} */ let notes = [];
+    // (1.182.0) Toutes les notes de la conversation, d'un coup (posé par la recherche du fil, qui les montre à sa place).
+    let voirNotes = () => {};
     // (1.178.0, lot 3) La promesse du client, mon rappel, les jalons du dossier (ses déclarations déposées) ; la promesse
     // proposée sous un message (son id, ou « menu ») et le jour choisi ; les propositions écartées.
     /** @type {any} */ let promesse = null;
@@ -550,7 +572,7 @@
               </div>
               </div>
               <p class="msg-refus" role="alert" data-msg-refus></p>
-              ${avecNotes ? `<p class="msg-note-pied" data-msg-note-pied hidden>${dessin('cadenas')}${o.contactPrenom ? esc(o.contactPrenom) : 'Le client'} ne lit jamais les notes ; elles restent dans le dossier, avec leur date.</p>` : ''}
+              ${avecNotes ? `<p class="msg-note-pied" data-msg-note-pied hidden>${dessin('cadenas')}<span>${o.contactPrenom ? esc(o.contactPrenom) : 'Le client'} ne lit jamais les notes ; elles restent dans le dossier, avec leur date.</span><button type="button" class="msg-lien" data-msg-voir-notes hidden></button></p>` : ''}
             </form>` : '';
       el.innerHTML = integre
         ? `<div class="msg-page msg-integre msg-cabinet">${tete}
@@ -606,6 +628,8 @@
             faire: async () => { await suivi.retirerRappel(); await apres('Elle est de nouveau dans ton « À traiter ».', null); } }] : []),
           ...(suivi && actif && !promise ? [{ texte: 'Noter une promesse…', sous: '« je vous envoie tout vendredi » : la conversation attend le client', dessin: 'reveil',
             faire: () => { promessePop = 'menu'; promesseJour = ''; dessinerFil(); const f = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-fil]')); if (f) f.scrollTop = f.scrollHeight; } }] : []),
+          // (1.182.0) Retrouver une note : toutes celles de la conversation, la plus récente d'abord ; une, et le fil y va.
+          ...(avecNotes && notes.length ? [{ texte: `Les notes de l'équipe (${notes.length})`, sous: 'toutes, la plus récente d\'abord ; le client ne les voit pas', dessin: 'cadenas', faire: () => voirNotes() }] : []),
           ...((o.menu || []).map((/** @type {any} */ x) => ({ dessin: x.dessin || 'piece', ...x }))),
           ...(o.enGrand ? [{ texte: 'Ouvrir en grand', sous: 'la conversation seule, sur sa page', dessin: 'image', faire: o.enGrand }] : []),
           ...(o.exportPdf ? [{ texte: 'Exporter la conversation (PDF)', sous: 'les messages, les pièces citées et les questions, par date', dessin: 'telecharger', faire: exporter }] : []),
@@ -754,6 +778,26 @@
           /** @type {HTMLElement} */ (b).onclick = () => { void allerAuMessage(String(/** @type {HTMLElement} */ (b).dataset.msgTrouve)); };
         });
       }
+      // (1.182.0) Les notes de l'équipe, toutes, à la place du fil ; une note choisie s'éclaire dans le fil.
+      voirNotes = () => {
+        const l = [...notes].sort((a, b) => (a.ecritLe < b.ecritLe ? 1 : -1));
+        montrer(`<p class="msg-trouves-dit msg-notes-dit">${dessin('cadenas')}<span>${l.length ? `${pl(l.length, 'note')} pour l'équipe dans cette conversation : ${esc(o.contactPrenom || 'le client')} ne les voit pas. Choisis-en une pour la voir dans le fil.` : 'Aucune note pour l\'équipe dans cette conversation.'}</span>
+          <button type="button" class="msg-lien" data-msg-notes-fermer>Revenir à la conversation</button></p>${l.map((n) => `<button type="button" class="msg-trouve msg-trouve-note" data-msg-trouve-note="${esc(n.id)}">
+            <span class="msg-trouve-tete">${esc(dateCourte(jourCle(n.ecritLe)))} · ${esc(heure(n.ecritLe))} · ${esc(n.moi ? 'Toi' : prenomDe(n.auteur))}</span>
+            <span class="msg-trouve-txt">${esc(n.texte)}</span></button>`).join('')}`);
+        const f = /** @type {HTMLElement | null} */ (trouves.querySelector('[data-msg-notes-fermer]'));
+        if (f) f.onclick = () => montrer(null);
+        trouves.querySelectorAll('[data-msg-trouve-note]').forEach((b) => {
+          /** @type {HTMLElement} */ (b).onclick = () => {
+            montrer(null);
+            const ligne = /** @type {HTMLElement | null} */ (el.querySelector(`[data-msg-note="${CSS.escape(String(/** @type {HTMLElement} */ (b).dataset.msgTrouveNote))}"]`));
+            if (!ligne) return;
+            ligne.scrollIntoView({ block: 'center' });
+            ligne.classList.remove('msg-eclaire'); void ligne.offsetWidth; ligne.classList.add('msg-eclaire');
+            setTimeout(() => ligne.classList.remove('msg-eclaire'), 2200);
+          };
+        });
+      };
       // Le message choisi se montre dans le fil : les pages plus anciennes se lisent jusqu'à lui, puis il s'éclaire.
       /** @param {string} id */
       async function allerAuMessage(id) {
@@ -833,11 +877,13 @@
               <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button>
               ${!entreprise && !moi && !m.achat && o.saisirPiece && actif ? `<button type="button" class="msg-lien" data-msg-saisir="${esc(m.id)}">Saisir cette pièce</button>` : ''}</span></span></div>`;
       }).join('');
+      // (1.182.0) « Saisir les N pièces » en lien sur la ligne de tête du lot (l'explication au survol) : en bouton, avec sa
+      // ligne grise dessous, il prenait la place d'un message de plus (Skander, 30/10/2026).
       const lotGeste = !entreprise && !moi && o.saisirLot && actif && aSaisir.length
-        ? `<div class="msg-vig-geste"><button type="button" class="btn btn-sm" data-msg-saisir-lot="${esc(aSaisir.map((m) => m.id).join(','))}">${dessin('piece')}Saisir ${aSaisir.length > 1 ? `les ${aSaisir.length} pièces` : 'la pièce'}</button><small>une par une, au brouillard du mois · elles sont aussi dans « Pièces reçues »</small></div>` : '';
+        ? `<button type="button" class="msg-lien msg-lot-saisir" data-msg-saisir-lot="${esc(aSaisir.map((m) => m.id).join(','))}" title="Une par une, au brouillard du mois ; elles sont aussi dans « Pièces reçues »">${dessin('piece')}Saisir ${aSaisir.length > 1 ? `les ${aSaisir.length} pièces` : 'la pièce'}</button>` : '';
       return `<div class="msg-ligne msg-ligne-lot${moi ? ' moi' : ''}" data-msg-id="${esc(m0.id)}">
-        <span class="msg-qui">${teteDe(m0.moi ? 'Toi' : m0.auteur, m0.ecritLe, neuf, pl(lot.length, 'pièce'))}</span>
-        <div class="msg-vigs">${vig}</div>${lotGeste}</div>`;
+        <span class="msg-qui msg-qui-lot">${teteDe(m0.moi ? 'Toi' : m0.auteur, m0.ecritLe, neuf, pl(lot.length, 'pièce'))}${lotGeste}</span>
+        <div class="msg-vigs">${vig}</div></div>`;
     }
     // Les vignettes des photos (3 Mo au plus) : le fichier lu une fois, gardé le temps de la conversation.
     /** @param {HTMLElement} fil */
@@ -891,8 +937,8 @@
           ...(m.demande.relances && !recue ? [`<li class="fait"><b>Relancée</b><small>${esc(jjmm(m.demande.relanceLe))}</small></li>`] : []),
           recue ? `<li class="fait ok"><b>Reçue</b><small>${esc(jjmm(m.demande.recueLe))}</small></li>`
             : `<li class="${retard ? 'retard' : 'attend'}"><b>${retard ? 'En retard' : entreprise ? 'À envoyer' : 'Attendue'}</b><small>${m.demande.pour ? `pour le ${esc(jjmm(m.demande.pour))}` : 'sans date'}</small></li>`].join('');
-        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>Pièce demandée${esc(parQui)}</b><span>${esc(m.demande.texte)}${recue ? ' · reçue' : ''}</span>${pour}
-          <ol class="msg-frise-d" aria-label="Où en est la pièce">${frise}</ol></span>
+        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>Pièce demandée${esc(parQui)}</b><span>${esc(m.demande.texte)}${recue ? ' · reçue' : ''}</span>${pour}</span>
+          <ol class="msg-frise-d" aria-label="Où en est la pièce">${frise}</ol>
           <span class="msg-etat">${recue ? 'Reçue' : retard ? 'En retard' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}${relances}</div>`;
       }
       if (m.fichier) {
@@ -1266,7 +1312,11 @@
           if (!copie) throw x;
           ({ r, sv } = copie);
         }
-        if (sv) { notes = sv.notes || []; promesse = sv.promesse || null; rappel = sv.rappel || null; jalons = sv.jalons || []; }
+        if (sv) {
+          notes = sv.notes || []; promesse = sv.promesse || null; rappel = sv.rappel || null; jalons = sv.jalons || [];
+          const voir = /** @type {HTMLButtonElement | null} */ (el.querySelector('[data-msg-voir-notes]'));
+          if (voir) { voir.hidden = !notes.length; voir.textContent = `Voir les ${pl(notes.length, 'note')}`; }
+        }
         // La page a changé (la racine n'est plus à l'écran) : la conversation s'arrête là.
         if (!el.isConnected) { arreter(); return; }
         if (fini) return;
@@ -1595,6 +1645,8 @@
         if (mot) mot.textContent = note ? 'Noter' : 'Envoyer';
         const pied = /** @type {HTMLElement | null} */ (form.querySelector('[data-msg-note-pied]'));
         if (pied) pied.hidden = !note;
+        const voir = /** @type {HTMLButtonElement | null} */ (form.querySelector('[data-msg-voir-notes]'));
+        if (voir) { voir.hidden = !notes.length; voir.textContent = `Voir les ${pl(notes.length, 'note')}`; voir.onclick = () => voirNotes(); }
         texte.placeholder = note ? 'Une note que seule l\'équipe lit' : placeMessage;
         if (note) { demande = false; montrerDemande(); }
         const joints = /** @type {HTMLElement} */ (form.querySelector('[data-msg-joints]'));
@@ -2046,7 +2098,10 @@
       }).join('')
         : cherche ? `<div class="msg-vide"><b>Aucun client ne s'appelle « ${esc(cherche)} ».</b><span>La recherche lit le nom de chaque client en ligne, quel que soit le filtre.</span></div>`
         : filtre === 'a_traiter' ? ''
-        : '<div class="msg-vide"><b>Aucun client ne doit de réponse.</b><span>Toutes tes questions et les pièces demandées ont leur réponse.</span></div>') + listeTenus;
+        // (1.182.0) Vide, la liste dit pourquoi c'est une bonne nouvelle, et où est le travail.
+        : `<div class="msg-calme msg-calme-attend"><span class="msg-calme-ic">${dessin('coche')}</span><b>Aucun client ne doit de réponse.</b>
+            <span>Toutes tes questions et les pièces demandées ont leur réponse.${c.aTraiter ? '' : ' Rien n\'attend la tienne non plus.'}</span>
+            ${c.aTraiter ? `<button type="button" class="btn btn-sm" data-vers-filtre="a_traiter">Voir ${c.aTraiter > 1 ? `les ${c.aTraiter} conversations` : 'la conversation'} à traiter</button>` : ''}</div>`) + listeTenus;
       const gc = liste.querySelector('[data-msg-calme-geste]');
       if (gc && geste) /** @type {HTMLElement} */ (gc).onclick = () => ecrireAPlusieurs('pieces');
       const vers = liste.querySelector('[data-vers-filtre]');
@@ -2166,8 +2221,19 @@
       if (!zone || !o.conversation) return;
       if (!choisi) {
         fermer();
-        zone.innerHTML = '<div class="msg-vide msg-conv-vide"><b>Choisis un client à gauche.</b><span>Sa conversation s\'ouvre ici, entière : ses messages, tes questions de la révision, les pièces demandées.</span></div>';
-        if (cote) cote.innerHTML = '';
+        // (1.182.0) Rien de choisi : l'accueil de la boîte, avec la prochaine conversation à ouvrir et ce qu'elle contient.
+        const tous = /** @type {any[]} */ ((lu && lu.dossiers) || []).filter((d) => dansPortee(d.entreprise));
+        const aTraiter = tous.filter((d) => d.etat === 'a_traiter').sort((a, b) => ((a.dernier && a.dernier.quand) || '') < ((b.dernier && b.dernier.quand) || '') ? 1 : -1);
+        const prochaine = aTraiter[0];
+        zone.innerHTML = `<div class="msg-conv-accueil"><span class="msg-conv-accueil-ic">${dessin('message')}</span>
+          <b>${prochaine ? `${aTraiter.length > 1 ? `${aTraiter.length} conversations attendent` : 'Une conversation attend'} ta réponse` : 'Tes clients t\'écrivent ici'}</b>
+          <span>Choisis un client à gauche : sa conversation s'ouvre ici, entière — ses messages, tes questions de la révision, les pièces demandées, et les notes de l'équipe.</span>
+          ${prochaine ? `<button type="button" class="btn btn-primary" data-conv-ouvrir="${esc(prochaine.entreprise)}">Ouvrir ${esc(prochaine.nom)}</button>
+            <small>${esc(extrait(prochaine))}</small>` : ''}
+          <span class="msg-conv-accueil-astuce"><kbd>↑</kbd><kbd>↓</kbd> d'un client à l'autre · <kbd>E</kbd> marquer traité</span></div>`;
+        const ouvrir = /** @type {HTMLElement | null} */ (zone.querySelector('[data-conv-ouvrir]'));
+        if (cote) cote.innerHTML = `<div class="msg-cote-accueil"><span>${dessin('piece')}</span><b>Le dossier du client</b><small>Son année mois par mois, ce qu'on attend de lui, ses pièces reçues : ici, dès que tu choisis sa conversation.</small></div>`;
+        if (ouvrir) ouvrir.onclick = () => { const b = /** @type {HTMLElement | null} */ (el.querySelector(`[data-dossier="${CSS.escape(String(ouvrir.dataset.convOuvrir))}"]`)); if (b) b.click(); else { choisi = String(ouvrir.dataset.convOuvrir); filtre = 'tout'; dessiner(); } };
         return;
       }
       const corpsB = /** @type {HTMLElement | null} */ (el.querySelector('[data-boite-corps]'));
@@ -2459,5 +2525,5 @@
     return { message: message && message.id, fichier: depot };
   }
   // (1.152.0) Le Cabinet ouvre aussi un fichier depuis « Pièces reçues », et ses modèles depuis la barre.
-  w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier, ouvrirFichier, fenetreModeles };
+  w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier, ouvrirFichier, fenetreModeles, dessin };
 })();

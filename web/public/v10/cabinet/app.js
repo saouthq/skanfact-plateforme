@@ -2034,8 +2034,10 @@
       e.stopPropagation();
       const ouvert = bm.parentElement.querySelector('.row-menu');
       if (ouvert) { ouvert.remove(); bm.setAttribute('aria-expanded', 'false'); return; }
-      const ITEMS = [...(api.modeles ? [['modeles', 'Les modèles de messages…', 'les phrases de l\'équipe, prises d\'un geste']] : []), ['pieces', 'Pièces reçues', 'les photos et PDF des clients, à classer']];
-      bm.insertAdjacentHTML('afterend', `<div class="row-menu msg-page-m" role="menu">${ITEMS.map(([k, ti, so]) => `<button type="button" role="menuitem" data-msg-pm="${k}"><b>${esc(ti)}</b><span>${esc(so)}</span></button>`).join('')}</div>`);
+      const ITEMS = [...(api.modeles ? [['modeles', 'Les modèles de messages…', 'les phrases de l\'équipe, prises d\'un geste', 'modele']] : []), ['pieces', 'Pièces reçues', 'les photos et PDF des clients, à classer', 'piece']];
+      // (1.182.0) Chaque entrée a son icône, comme le menu ⋯ d'une conversation.
+      const dessinMsg = (/** @type {string} */ n) => (/** @type {any} */ (window).SkanMessagerie?.dessin ? /** @type {any} */ (window).SkanMessagerie.dessin(n) : '');
+      bm.insertAdjacentHTML('afterend', `<div class="row-menu msg-page-m" role="menu">${ITEMS.map(([k, ti, so, ic]) => `<button type="button" role="menuitem" data-msg-pm="${k}"><span class="msg-page-m-ic">${dessinMsg(ic)}</span><span class="msg-page-m-t"><b>${esc(ti)}</b><span>${esc(so)}</span></span></button>`).join('')}</div>`);
       bm.setAttribute('aria-expanded', 'true');
       const m = bm.parentElement.querySelector('.row-menu');
       const fermerM = () => { m.remove(); bm.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', dehors, true); };

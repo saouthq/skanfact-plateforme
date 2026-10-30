@@ -21316,5 +21316,29 @@ prouver 'messages 23 : l'"'"'onglet de la note perd son nom entier' web/public/p
 prouver 'messages 24 : la boîte d'"'"'écriture fait défiler la page' web/public/plateforme/messagerie.js \
   "if (trop > 0) boite.style.height" "if (trop > 1e9) boite.style.height" \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'messages 25 : la note choisie ne s'"'"'éclaire pas dans le fil' web/public/plateforme/messagerie.js \
+  "ligne.classList.remove('msg-eclaire'); void ligne.offsetWidth; ligne.classList.add('msg-eclaire');" "ligne.classList.remove('msg-eclaire');" \
+  '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
+prouver 'messages 26 : les notes de l'"'"'équipe introuvables depuis le menu' web/public/plateforme/messagerie.js \
+  "...(avecNotes && notes.length ? [{ texte: \`Les notes" "...(false ? [{ texte: \`Les notes" \
+  '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
+prouver 'messages 27 : les pages de Mon cabinet plafonnées et centrées' web/public/plateforme/barre-cabinet.css \
+  "width: 100%; max-width: none; margin-inline: 0;" "width: 100%; max-width: 1600px; margin-inline: auto;" \
+  '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
+prouver 'messages 28 : le menu de la page chevauche ses entrées' web/public/plateforme/messagerie.css \
+  ".msg-page-m-t { display: flex; flex-direction: column;" ".msg-page-m-t { display: flex; flex-direction: row;" \
+  '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
+prouver 'messages 32 : le menu de la page sans ses icônes' web/public/v10/cabinet/app.js \
+  '<span class="msg-page-m-ic">${dessinMsg(ic)}</span>' '' \
+  '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
+prouver 'messages 29 : la pièce demandée sur deux étages' web/public/plateforme/messagerie.css \
+  ".msg-frise-d li { flex-direction: row; align-items: baseline;" ".msg-frise-d li { flex-direction: column; align-items: baseline;" \
+  '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
+prouver 'messages 30 : les modèles sans ce que lira le client' web/public/plateforme/messagerie.js \
+  "apercu.hidden = !texte.value.trim();" "apercu.hidden = true;" \
+  '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
+prouver 'messages 31 : l'"'"'accueil sans conversation ne propose rien' web/public/plateforme/messagerie.js \
+  "\${prochaine ? \`<button type=\"button\" class=\"btn btn-primary\" data-conv-ouvrir" "\${false ? \`<button type=\"button\" class=\"btn btn-primary\" data-conv-ouvrir" \
+  '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

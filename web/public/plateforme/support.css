@@ -1,7 +1,7 @@
 /* Le support de SkanFact dans l'application de l'entreprise (Support S1 ; plateforme/support.js). Les couleurs sont
    celles de la page (style.css), en clair comme en sombre : la conversation parle le langage de « Mon comptable »
    (plateforme/messagerie.css) — mes messages à droite, sur la couleur de l'application ; ceux de l'équipe à gauche. */
-.sup-page { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1600px; margin-inline: auto; box-sizing: border-box; }
+.sup-page { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: none; margin-inline: 0; box-sizing: border-box; }
 .sup-page .page-head { margin-bottom: 0; }
 .sup-intro { margin: 0; color: var(--muted); font-size: 14px; max-width: 72ch; }
 .sup-cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

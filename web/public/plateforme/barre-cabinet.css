@@ -78,7 +78,9 @@ body.barre-repliee #barre .nav-dossier .dossier .lib, body.barre-repliee #barre 
 /* ── Les pages du Cabinet : Priorités et Pièces reçues ── */
 /* (1.172.0) La page prend la largeur de l'écran (la maquette), jusqu'à 1 600 px, centrée au-delà : elle ne reste plus collée à
    gauche sur un grand écran (Skander, 29/10/2026). */
-.cab-page { display: flex; flex-direction: column; gap: 18px; width: 100%; max-width: 1600px; margin-inline: auto; box-sizing: border-box; font-family: var(--sb-police); color: var(--sb-encre); }
+/* (1.182.0) Les pages de Mon cabinet prennent toute la largeur, comme les autres (Pièces reçues, Échéances, la saisie) :
+   plafonnées à 1 600 points, elles se centraient barre repliée, avec deux bandes vides (Skander, 30/10/2026). */
+.cab-page { display: flex; flex-direction: column; gap: 18px; width: 100%; max-width: none; margin-inline: 0; box-sizing: border-box; font-family: var(--sb-police); color: var(--sb-encre); }
 .ctx-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--sb-gris); }
 .ctx-cab b { color: var(--sb-encre); font-weight: 600; }
 .ctx-cab .ctx-ic { display: flex; color: var(--sb-gris-2); }

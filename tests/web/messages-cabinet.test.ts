@@ -407,4 +407,90 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);
+
+  it('(1.182.0) retrouver les notes, l\'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur', async () => {
+    const leila = await personne('Leïla Jlassi');
+    const cab = (await api('POST', '/cabinets', leila, { nom: 'Jlassi Conseil' })).corps as { id: string; code: string };
+    const yasmine = await personne('Yasmine Dridi');
+    const ent = String((await api('POST', '/entreprises', yasmine, { raisonSociale: 'Institut Yasmine' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, yasmine, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, leila)).statut).toBe(200);
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, leila, { contenu: { contact: 'Yasmine Dridi' }, revision: null })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/messages`, leila, { cote: 'cabinet', texte: '', demande: 'Une photo lisible de IMG_0412.jpg' })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/messages`, yasmine, { cote: 'entreprise', texte: 'Je la reprends ce soir.' })).statut).toBe(201);
+    expect((await api('POST', `/cabinets/${cab.id}/notes/${ent}`, leila, { texte: 'Note : elle envoie toujours le soir, relancer le matin.' })).statut).toBe(201);
+
+    const cx = await navigateur.newContext({ viewport: { width: 1920, height: 1080 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.clock.setFixedTime(LE_29);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, leila);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
+    await p.locator('#page-msg .msg-filtres').waitFor({ timeout: 25_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    // La page prend toute la largeur : plus de plafond qui la centrait (barre repliée, deux bandes vides).
+    expect(await p.locator('.cab-page').first().evaluate((e) => getComputedStyle(e).maxWidth)).toBe('none');
+    // Le menu ⋯ de la page : chaque entrée, son nom au-dessus de ce qu'elle fait (ils se chevauchaient).
+    await p.locator('#msg-page-menu').click();
+    const entree = p.locator('.msg-page-m button').first();
+    const [b, sous] = [await entree.locator('.msg-page-m-t > b').boundingBox(), await entree.locator('.msg-page-m-t > span').boundingBox()];
+    expect(b && sous && sous.y >= b.y + b.height - 1).toBe(true);
+    // Chaque entrée a son icône, comme le menu ⋯ d'une conversation.
+    expect(await p.locator('.msg-page-m button .msg-page-m-ic svg').count()).toBe(await p.locator('.msg-page-m button').count());
+    await p.keyboard.press('Escape');
+    await p.mouse.click(10, 1000);
+
+    // La pièce demandée : ses étapes sur une ligne, sous la carte.
+    await expect.poll(async () => net(await p.locator('.msg-tete-integre h2').innerText().catch(() => ''))).toBe('Institut Yasmine');
+    const etapes = p.locator('.msg-demande-carte .msg-frise-d li');
+    await etapes.first().waitFor();
+    const hauts = await etapes.evaluateAll((l) => l.map((x) => Math.round(x.getBoundingClientRect().top)));
+    expect(hauts.length).toBe(2);
+    expect(new Set(hauts).size).toBe(1);
+    // Une ligne d'étapes, pas deux étages (le nom, sa date dessous) : la carte prenait la hauteur d'un message de plus.
+    expect((await p.locator('.msg-demande-carte .msg-frise-d').boundingBox())?.height ?? 99).toBeLessThanOrEqual(24);
+    expect(net(await p.locator('.msg-demande-carte .msg-frise-d').innerText())).toMatch(/^Demandée \d\d\/\d\d Attendue sans date$/);
+
+    // Les notes de l'équipe : toutes, depuis le menu ⋯ ; une, et le fil l'éclaire.
+    await p.getByRole('button', { name: 'Les autres gestes de cette conversation' }).click();
+    await p.getByRole('menuitem', { name: /^Les notes de l'équipe \(1\)/ }).click();
+    expect(await p.locator('[data-msg-fil]').isHidden()).toBe(true);
+    expect(net(await p.locator('.msg-notes-dit').innerText())).toMatch(/^1 note pour l'équipe dans cette conversation : Yasmine ne les voit pas\./);
+    await p.locator('[data-msg-trouve-note]').click();
+    expect(await p.locator('[data-msg-fil]').isVisible()).toBe(true);
+    await expect.poll(() => p.locator('.msg-ligne-note.msg-eclaire').count()).toBe(1);
+    // En mode Note, sous la boîte d'écriture : « Voir les 1 note ».
+    await p.getByRole('tab', { name: 'Note pour l\'équipe' }).click();
+    expect(net(await p.locator('[data-msg-voir-notes]').innerText())).toBe('Voir les 1 note');
+    await p.getByRole('tab', { name: 'Message à Yasmine' }).click();
+
+    // Les modèles : vides, trois exemples au texte déjà rempli ; un exemple pris, ce que lira la cliente, en direct.
+    await p.getByRole('button', { name: 'Modèles de messages', exact: true }).click();
+    const fm = p.getByRole('dialog', { name: 'Modèles de messages' });
+    await expect.poll(async () => net(await fm.locator('[data-mo-liste]').innerText())).toMatch(/^Aucun modèle encore\./);
+    expect(net(await fm.locator('.msg-mo-ex').first().innerText())).toMatch(/^Pièces du mois Bonjour Institut Yasmine, pour boucler [a-zéû]+ \d{4}, il me manque des pièces\./);
+    expect(await fm.locator('[data-mo-apercu]').isHidden()).toBe(true);
+    await fm.getByRole('button', { name: 'Bien reçu', exact: true }).click();
+    expect(await fm.locator('[data-mo-apercu]').isVisible()).toBe(true);
+    expect(await fm.locator('[data-mo-apercu] small').textContent()).toBe('Ce que lira Institut Yasmine');
+    expect(await fm.locator('[data-mo-apercu-txt]').textContent()).toBe('Bien reçu, merci Institut Yasmine. Je m\'en occupe.');
+    await fm.locator('[data-mo-texte]').fill('Bonjour , ');
+    await fm.locator('[data-mo-texte]').evaluate((t: HTMLTextAreaElement) => t.setSelectionRange(8, 8));
+    await fm.getByRole('button', { name: '{client}', exact: true }).click();
+    expect(await fm.locator('[data-mo-texte]').inputValue()).toBe('Bonjour {client}, ');
+    await fm.getByRole('button', { name: 'Fermer', exact: true }).click();
+    await fm.getByRole('button', { name: /^Fermer/ }).click();
+    expect(await fm.count()).toBe(0);
+
+    // « Attend le client », vide : la carte dit pourquoi c'est une bonne nouvelle, et mène au travail ; au milieu,
+    // l'accueil propose la prochaine conversation.
+    await p.getByRole('tab', { name: /^Attend le client/ }).click();
+    await expect.poll(async () => net(await p.locator('.msg-calme-attend').innerText().catch(() => ''))).toMatch(/^Aucun client ne doit de réponse\./);
+    expect(net(await p.locator('.msg-conv-accueil > b').innerText())).toBe('Une conversation attend ta réponse');
+    await p.getByRole('button', { name: 'Ouvrir Institut Yasmine', exact: true }).click();
+    await expect.poll(async () => net(await p.locator('.msg-tete-integre h2').innerText().catch(() => ''))).toBe('Institut Yasmine');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
 });

@@ -10,7 +10,7 @@
   font-family: 'IBM Plex Mono'; font-style: normal; font-display: swap; font-weight: 500;
   src: url(polices/ibm-plex-mono-latin-500-normal.woff2) format('woff2');
 }
-.msg-page { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1600px; margin-inline: auto; box-sizing: border-box; }
+.msg-page { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: none; margin-inline: 0; box-sizing: border-box; }
 .msg-retour { align-self: flex-start; padding: 6px 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--primary); cursor: pointer; }
 .msg-retour:hover { text-decoration: underline; }
 .msg-tete { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -460,7 +460,7 @@
 
 /* (27/10/2026, maquette « Mon comptable », docs/maquettes/complements.html) La page avant tout cabinet : ce que le comptable
    fait ici, les deux chemins pour l'inviter, ce qu'il ne fait jamais ; puis l'invitation qui attend (plateforme/pont.js). */
-.cpt-page { display: grid; gap: 18px; width: 100%; max-width: 1600px; margin-inline: auto; box-sizing: border-box; }
+.cpt-page { display: grid; gap: 18px; width: 100%; max-width: none; margin-inline: 0; box-sizing: border-box; }
 .cpt-tete h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.03em; }
 .cpt-tete span { font-size: 13px; color: var(--sb-gris); }
 .cpt { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
@@ -539,6 +539,15 @@
 .msg-page-cab .page-head .actions > .btn { display: inline-flex; align-items: center; gap: 6px; }
 .msg-page-menu { position: relative; }
 .msg-page-menu .row-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 260px; }
+/* (1.182.0) Chaque entrée : son nom, et dessous ce qu'elle fait (les deux se chevauchaient, sur une ligne de 260 points). */
+.msg-page-m { width: 300px; padding: 6px; }
+.msg-page-m button { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; width: 100%; padding: 9px 12px; border: 0; border-radius: 8px; background: none; font: inherit; text-align: left; cursor: pointer; white-space: normal; }
+.msg-page-m button:hover, .msg-page-m button:focus-visible { background: var(--ink-soft); outline: none; }
+.msg-page-m-ic { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); }
+.msg-page-m-ic svg { width: 16px; height: 16px; }
+.msg-page-m-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.msg-page-m-t b { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.msg-page-m-t span { font-size: 12px; color: var(--muted); }
 .msg-filtre { display: inline-flex; align-items: center; gap: 6px; }
 .msg-pl-court { display: none; }
 @media (max-width: 760px) {
@@ -917,3 +926,76 @@
 }
 /* (1.181.0) Les messages d'un même groupe se serrent (le fil espace ses lignes de 18 points). */
 .msg-fil > .msg-ligne.suite { margin-top: -13px; }
+/* (1.182.0) La fenêtre des modèles en deux colonnes : les modèles (ou les exemples) à gauche, celui qu'on écrit à droite,
+   avec ce que lira le client. */
+.msg-mo-fenetre { width: min(920px, 100%); }
+.msg-mo-tete { display: flex; align-items: flex-start; gap: 12px; }
+.msg-mo-tete h2 { margin: 0 0 2px; }
+.msg-mo-tete p { margin: 0; }
+.msg-mo-ic { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); }
+.msg-mo-ic svg { width: 20px; height: 20px; }
+.msg-mo-corps { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin-top: 16px; }
+.msg-mo-corps .msg-mo-liste { max-height: min(56vh, 460px); padding-right: 2px; }
+.msg-mo-corps .msg-mo-form { padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); align-self: start; }
+.msg-mo-vide { align-items: flex-start; text-align: left; padding: 4px 0; }
+.msg-mo-vide .msg-mo-exemples { flex-direction: column; align-items: stretch; width: 100%; margin-top: 10px; }
+.msg-mo-ex { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px dashed var(--primary-soft-2, var(--border)); border-radius: 12px; background: var(--panel); font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background .15s; }
+.msg-mo-ex:hover, .msg-mo-ex:focus-visible { border-style: solid; border-color: var(--primary); background: var(--primary-soft); outline: none; }
+.msg-mo-ex b { font-size: 13.5px; color: var(--primary); }
+.msg-mo-ex span { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.msg-mo-poser-mots { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: -4px; }
+.msg-mo-mot { border: 1px solid var(--border); border-radius: 999px; background: var(--panel); padding: 2px 9px; font: 600 12px ui-monospace, monospace; color: var(--primary); cursor: pointer; }
+.msg-mo-mot:hover { border-color: var(--primary); }
+.msg-mo-apercu { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px 12px 4px 12px; background: var(--primary-soft); font-size: 13px; line-height: 1.45; white-space: pre-line; }
+.msg-mo-apercu[hidden] { display: none; }
+.msg-mo-apercu small { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--primary); }
+@media (max-width: 760px) { .msg-mo-corps { grid-template-columns: minmax(0, 1fr); } }
+/* (1.182.0) La pièce demandée suit ses étapes sur une ligne, reliées d'un trait (Demandée — Relancée — Attendue ou
+   Reçue), la date à côté de chaque étape : la frise en deux étages prenait la hauteur d'un message de plus. L'état se lit
+   en pastille, à droite. */
+.msg-demande-carte { align-items: center; padding-block: 10px; }
+.msg-frise-d { align-items: center; gap: 0; margin: 6px 0 0; row-gap: 6px; }
+.msg-frise-d li { flex-direction: row; align-items: baseline; gap: 5px; padding: 0; white-space: nowrap; }
+.msg-frise-d li::before { position: static; align-self: center; flex: none; width: 8px; height: 8px; }
+.msg-frise-d li:not(:last-child)::after { content: ''; align-self: center; width: 26px; height: 2px; margin: 0 8px; border-radius: 2px; background: color-mix(in srgb, var(--primary) 40%, transparent); }
+.msg-frise-d li.attend::before { background: var(--panel); box-shadow: inset 0 0 0 2px var(--warning); }
+.msg-frise-d li.retard::before { background: var(--panel); box-shadow: inset 0 0 0 2px var(--danger); }
+.msg-frise-d li.ok::before { background: var(--success, var(--primary)); }
+.msg-frise-d small { font-size: 11.5px; color: var(--muted); }
+.msg-demande-carte .msg-etat { flex: none; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: var(--warning-soft); }
+.msg-demande-carte.recue .msg-etat { background: var(--primary-soft); }
+.msg-demande-carte.retard .msg-etat { background: color-mix(in srgb, var(--danger) 12%, var(--panel)); }
+/* (1.182.0) Les notes de l'équipe, toutes, à la place du fil. */
+.msg-notes-dit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--note-fond, #fffbeb); color: var(--note-encre, #6b5314); }
+.msg-notes-dit svg { width: 14px; height: 14px; flex: none; }
+.msg-notes-dit span { flex: 1 1 260px; }
+.msg-trouve-note { border-color: var(--note-bord, #f3dd94); background: var(--note-fond, #fffbeb); }
+.msg-note-pied .msg-lien { margin-left: auto; font-size: 11.5px; }
+/* (1.182.0) L'accueil de la conversation, rien de choisi : la prochaine à ouvrir, d'un bouton. */
+.msg-conv-accueil { margin: auto; max-width: 440px; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.msg-conv-accueil-ic { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: linear-gradient(145deg, var(--primary-soft), color-mix(in srgb, var(--primary) 18%, var(--panel))); color: var(--primary); margin-bottom: 6px; }
+.msg-conv-accueil-ic svg { width: 30px; height: 30px; }
+.msg-conv-accueil > b { font-size: 18px; }
+.msg-conv-accueil > span { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+.msg-conv-accueil .btn-primary { margin-top: 8px; }
+.msg-conv-accueil small { font-size: 12px; color: var(--muted); max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-conv-accueil-astuce { margin-top: 14px; font-size: 12px !important; }
+.msg-conv-accueil kbd { display: inline-block; min-width: 18px; padding: 0 4px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; font: 11px ui-monospace, monospace; background: var(--panel); }
+/* (1.182.0) « Saisir les N pièces » sur la ligne de tête du lot. */
+.msg-qui-lot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.msg-lot-saisir { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; }
+.msg-lot-saisir svg { width: 13px; height: 13px; }
+.msg-demande-carte { min-width: min(520px, 100%); }
+.msg-demande-carte .msg-frise-d { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+@media (max-width: 760px) { .msg-demande-carte { min-width: 0; } .msg-demande-carte .msg-frise-d { flex-wrap: wrap; } }
+/* La frise sous toute la carte, en pleine largeur (alignée sur le texte) ; la note des relances dessous. */
+.msg-demande-carte { flex-wrap: wrap; }
+.msg-demande-carte .msg-frise-d { order: 5; flex: 1 1 100%; margin: 2px 0 0 28px; }
+.msg-demande-carte .msg-carte-sous { order: 6; margin-left: 28px; }
+[data-conv]:has(> .msg-conv-accueil) { display: flex; flex-direction: column; justify-content: center; }
+.msg-cote-accueil { margin: 24px 16px; padding: 18px 16px; border: 1px dashed var(--border); border-radius: 14px; display: flex; flex-direction: column; gap: 6px; color: var(--muted); }
+.msg-cote-accueil span { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--ink-soft); }
+.msg-cote-accueil span svg { width: 16px; height: 16px; }
+.msg-cote-accueil b { color: var(--text); font-size: 13.5px; }
+.msg-cote-accueil small { font-size: 12px; line-height: 1.45; }
+.msg-conv-accueil { min-height: 100%; box-sizing: border-box; justify-content: center; margin-block: 0; }

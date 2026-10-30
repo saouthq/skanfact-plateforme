@@ -1,7 +1,7 @@
 /* (1.170.0) La fiche du dossier, telle que la maquette (docs/maquettes/cabinet/fiche-du-dossier.html) : ses règles, reprises
    telles quelles ; celles du téléphone sous 760 px. */
 .fd-page { position: relative; }
-.cab-page.cd-page.fd-page { max-width: 1600px; }
+.cab-page.cd-page.fd-page { max-width: none; }
 .fd-page a.btn { text-decoration: none; }
 .fd-tete { align-items: flex-start; gap: 16px; }
 .fd-id { display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
