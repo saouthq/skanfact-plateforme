@@ -21432,3 +21432,15 @@ prouver 'demander 3 : la conversation ne reçoit pas la pièce nommée' web/publ
 prouver 'demander 4 : la ligne de l'"'"'achat ne demande pas sur place' web/public/v10/cabinet/app.js \
   "fenDemanderCl(dossier, { piece, mois: String(e.date).slice(0, 7)," "void (dossier, { piece, mois: String(e.date).slice(0, 7)," \
   'Hatem et les justificatifs'
+prouver 'question-ligne 1 : une écriture ne propose pas la question au client' web/public/v10/cabinet/app.js \
+  "if (!dossier.manual && api.messagerie && api.question && e.statut !== 'extournee') {" "if (false) {" \
+  '(1.189.0) une question depuis une écriture'
+prouver 'question-ligne 2 : un dossier tenu propose une question sans conversation' web/public/v10/cabinet/app.js \
+  "if (!dossier.manual && api.messagerie && api.question && e.statut !== 'extournee') {" "if (api.messagerie && api.question && e.statut !== 'extournee') {" \
+  '(1.189.0) une question depuis une écriture'
+prouver 'question-ligne 3 : la ligne du relevé ne se demande pas' web/public/v10/cabinet/app.js \
+  "if (!dossier.manual && api.messagerie && api.question) actions.push({ icon: 'email', label: 'Demander au client ce" "if (false) actions.push({ icon: 'email', label: 'Demander au client ce" \
+  '(1.189.0) une question depuis une écriture'
+prouver 'question-ligne 4 : la phrase ne cite pas ce que la question vise' web/public/v10/cabinet/app.js \
+  "if (b.quoi) return b.quoi;" "if (false) return b.quoi;" \
+  '(1.189.0) une question depuis une écriture'

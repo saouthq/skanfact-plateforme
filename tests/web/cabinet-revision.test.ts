@@ -236,4 +236,69 @@ describe('la révision et les questions au client, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-revision-2-arretee.png') });
     expect(erreurs).toEqual([]);
   }, 240_000);
+
+  it('(1.189.0) une question depuis une écriture du livre et depuis une ligne du relevé, sur place ; un dossier tenu n\'en a pas', async () => {
+    const client = await personne('client');
+    const ent = String((await api('POST', '/entreprises', client, { raisonSociale: 'Garage Triki' })).corps.id);
+    const associe = await personne('associe');
+    const cab = await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' });
+    const cabinet = String(cab.corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, client, { codeCabinet: String(cab.corps.code) })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cabinet}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
+    const od = String((await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, { date: '2026-03-18', journal: 'OD', piece: 'OD-1', libelle: 'Honoraires du mois',
+      lignes: [{ compte: '6226', debit: '300.125' }, { compte: '4286', credit: '300.125' }] })).corps.id);
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids: [od] })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/compta/releves`, associe, { annee: 2026, compte: '532', banque: 'BIAT', fichier: 'mars.csv', empreinte: 'a'.repeat(64),
+      soldeDebut: '1000', soldeFin: '512.5', lignes: [{ date: '2026-03-14', libelle: 'VIR SARL ATLAS', reference: 'R9', montant: '-487.5' }] })).statut).toBe(201);
+    const questions = async () => (await api('GET', `/entreprises/${ent}/compta/questions?annee=2026`, associe)).corps.questions as Question[];
+    const erreurs: string[] = [];
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    const aller = async (h: string, qui = ent) => {
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${qui}/comptabilite/${h}`);
+      await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(800);
+      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    };
+    const fenetre = p.locator('#modal-root .modal').last();
+    const menu = async (prefixe: string, geste: string) => expect.poll(async () => {
+      if (!await p.getByRole('menuitem').filter({ hasText: geste }).count()) await p.locator(`[data-rowmenu^="${prefixe}"]`).first().click({ timeout: 2_000 }).catch(() => {});
+      return p.getByRole('menuitem').filter({ hasText: geste }).count();
+    }, { timeout: 20_000 }).toBe(1).then(() => p.getByRole('menuitem').filter({ hasText: geste }).click());
+
+    // L'écriture du livre-journal : la fenêtre la nomme, sa phrase la cite ; gardée, elle porte l'écriture et sa période.
+    await aller('journal/2026');
+    await menu('E:', 'Poser une question au client');
+    expect(await fenetre.locator('.qf-sujet b').innerText()).toBe('OD OD-1');
+    expect(await fenetre.locator('#qf-texte').inputValue()).toMatch(/^Peux-tu m'envoyer la pièce justificative de l'écriture OD-1 du 18\/03\/2026 \(« Honoraires du mois »\), de 300,125\sDT \?$/);
+    await fenetre.locator('#qf-garder').click();
+    await expect.poll(async () => (await questions()).map((q) => [q.statut, q.piece, q.attendu]), { timeout: 15_000 }).toEqual([['ouverte', 'OD-1', 'piece']]);
+    expect(p.url()).toContain('/comptabilite/journal');
+
+    // La ligne du relevé qu'on ne sait pas expliquer : une explication demandée, envoyée tout de suite (avec la prête).
+    await aller('banque');
+    await menu('LIG:', 'Demander au client ce qu\'est cette ligne');
+    expect(await fenetre.locator('.qf-sujet b').innerText()).toBe('VIR SARL ATLAS');
+    expect(await fenetre.locator('[data-qf-attendu][aria-pressed="true"]').innerText()).toBe('Une explication');
+    expect(await fenetre.locator('#qf-texte').inputValue()).toMatch(/^Peux-tu m'expliquer ce mouvement de 487,500\sDT sorti le 14\/03\/2026 sur ton relevé \(« VIR SARL ATLAS »\) \?$/);
+    expect(await fenetre.locator('#qf-envoyer').innerText()).toBe('Envoyer les 2 maintenant');
+    await fenetre.locator('#qf-envoyer').click();
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/^2\squestions envoyées à Garage Triki/);
+    const recues = (await api('GET', `/entreprises/${ent}/compta/questions?annee=2026`, client)).corps.questions as Question[];
+    expect(recues.map((q) => [q.statut, q.attendu, q.objet]).sort()).toEqual([['envoyee', 'explication', 'Relevé du 14/03/2026 : VIR SARL ATLAS'], ['envoyee', 'piece', 'OD-1 du 18/03/2026']]);
+
+    // Un dossier tenu sans SkanFact n'a pas de conversation : ni la question d'une écriture, ni celle d'une ligne.
+    const tenu = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie du Sahel' })).corps.entreprise);
+    const e2 = String((await api('POST', `/entreprises/${tenu}/compta/ecritures`, associe, { date: '2026-03-18', journal: 'OD', piece: 'OD-9', libelle: 'Loyer',
+      lignes: [{ compte: '6132', debit: '500' }, { compte: '401', credit: '500' }] })).corps.id);
+    expect((await api('POST', `/entreprises/${tenu}/compta/ecritures/valider`, associe, { ids: [e2] })).statut).toBe(200);
+    // Créé après l'ouverture du Cabinet : la page se recharge pour le connaître.
+    await p.goto('about:blank');
+    await aller('journal/2026', tenu);
+    await p.locator('[data-rowmenu^="E:"]').first().click({ timeout: 20_000 });
+    await expect.poll(() => p.getByRole('menuitem').count()).toBeGreaterThan(0);
+    expect(await p.getByRole('menuitem').filter({ hasText: 'Poser une question au client' }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

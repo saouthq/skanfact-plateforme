@@ -9370,16 +9370,21 @@
   // solde sont déjà là, ce qu'on attend se choisit d'une pastille, la phrase est proposée. Deux issues : « Envoyer
   // maintenant » (elle part, avec celles qui attendaient), ou « Garder pour l'envoi groupé » (elle attend, prête, dans la
   // conversation du client, et part avec le prochain message). Plus de fenêtre d'envoi ni de confirmation à part.
-  const questionsPretes = s => ((s.revision && s.revision.questions) || []).filter(q => q.statut === 'ouverte' && !(q.envois || []).length);
+  // Les questions prêtes : celles de la révision lue, sinon celles du livre (la Banque, la Saisie ne lisent pas la révision).
+  const questionsPretes = s => ((s.revision && s.revision.questions) || (s.livre && s.livre.questions) || []).filter(q => q.statut === 'ouverte' && !(q.envois || []).length);
   function questionForm(root, dossier, base, id) {
     const s = livresState;
     const q = id ? (s.revision.questions || []).find(x => x.id === id) : null;
+    // (plateforme) 1.189.0 — posée aussi d'une écriture (livre-journal, brouillard) ou d'une ligne de relevé (Banque) :
+    // `titre`, `sous` disent ce qu'elle vise ; `quoi` la phrase de l'objet (« ce virement de 1 200,000 DT du 12/03 ») ;
+    // `ecritureId`, `periode`, `objet` vont avec la question ; `apres` relit l'écran d'où l'on vient.
     const b = base || {};
     const nom = dossier.name || 'ce client';
     const relie = !dossier.manual;
-    let attendu = (q && q.attendu) || (b.compte ? 'piece' : 'explication');
+    let attendu = (q && q.attendu) || b.attendu || (b.compte || b.ecritureId ? 'piece' : 'explication');
     // « ce montant de 3 313,233 DT, au compte 6226 (Honoraires) » : la phrase dit ce que le client verra en face.
     const quoi = () => {
+      if (b.quoi) return b.quoi;
       if (!b.compte) return '';
       const au = `au compte ${b.compte}${b.libelle ? ` (${b.libelle})` : ''}`;
       return b.solde ? `ce montant de ${money(Math.abs(Number(b.solde)))}, ${au}` : `ce qui est passé ${au}`;
@@ -9391,12 +9396,14 @@
     };
     const propose = () => (quoi() ? PHRASES[attendu](quoi()) : '');
     const pretes = questionsPretes(s).filter(x => x.id !== id);
-    const per = String((s.revision && s.revision.dossier && s.revision.dossier.periode) || s.annee);
+    const per = String(b.periode || (s.revision && s.revision.dossier && s.revision.dossier.periode) || s.annee);
     const perLib = /^\d{4}-\d{2}$/.test(per) ? moisLabelCourt(per) : `exercice ${per}`;
-    const sujet = b.compte
+    const sujet = b.titre
+      ? `<div class="qf-sujet"><span class="qf-sujet-ic">${icB(b.icone || 'ecritures', 15, 2)}</span><span><b>${esc(b.titre)}</b><small>${esc(b.sous || perLib)}</small></span></div>`
+      : b.compte
       ? `<div class="qf-sujet"><span class="qf-sujet-ic">${icB('ecritures', 15, 2)}</span><span><b>Compte ${esc(b.compte)}${b.libelle ? ` · ${esc(b.libelle)}` : ''}</b><small>${b.solde ? `solde ${esc(money(Number(b.solde)))} · ` : ''}${esc(perLib)}</small></span></div>`
       : '';
-    const champsLibres = !q && !b.compte
+    const champsLibres = !q && !b.compte && !b.titre
       ? `<details class="qf-plus"><summary>Sur quel compte, quelle pièce ? <span class="muted">(facultatif)</span></summary><div class="grid-2">
           <label class="field">${lbl('Le compte', 'qf.compte')}<input type="text" id="qf-compte" inputmode="numeric" placeholder="471"></label>
           <label class="field">${lbl('La pièce', 'qf.piece')}<input type="text" id="qf-piece" placeholder="FAC-2026-014"></label></div></details>`
@@ -9442,8 +9449,9 @@
           const piece = b.piece || ($('#qf-piece', couche) ? $('#qf-piece', couche).value.trim() : '');
           const champs = {
             piece, compte, cycle: b.cycle || '', attendu, texte, montant: b.solde || 0,
-            objet: compte ? (b.libelle ? `${compte} · ${b.libelle}` : `Compte ${compte}`) : piece,
-            periode: (s.revision && s.revision.dossier.periode) || String(s.annee)
+            objet: b.objet || (compte ? (b.libelle ? `${compte} · ${b.libelle}` : `Compte ${compte}`) : piece),
+            ...(b.ecritureId ? { ecritureId: b.ecritureId } : {}),
+            periode: b.periode || (s.revision && s.revision.dossier.periode) || String(s.annee)
           };
           const r = await api.question({ dossierId: dossier.id, annee: s.annee, question: champs });
           s.livre = r.livre;
@@ -9455,8 +9463,9 @@
           } else if (relie) {
             const n = pretes.length + 1;
             toast(`Gardée : ${pl(n, 'question prête', 'questions prêtes')} pour ${nom}. Elle${n > 1 ? 's partiront' : ' partira'} avec ton prochain message.`);
-          } else toast('Question posée : elle reste dans ta révision.');
-          close(); s.revisionRev = ''; chargerRevision(root, dossier);
+          } else toast('Question posée : elle reste dans ta révision, pour la lui poser de vive voix ou par e-mail.');
+          close(); s.revisionRev = '';
+          if (b.apres) b.apres(); else chargerRevision(root, dossier);
         } catch (e) { boutons().forEach(x => { x.disabled = false; }); toast(plainError(e), 'error'); }
       };
       const g = $('#qf-garder', couche); if (g) g.onclick = () => faire(false);
@@ -11782,6 +11791,20 @@
         } });
       } else {
         actions.push({ icon: 'loupe', cle: 'choisir-en-face', label: 'Choisir l\'écriture en face', hint: 'Toutes les écritures du compte, la bonne se pointe à la main', run: () => choisirEcritureForm(root, dossier, R, l) });
+        // (plateforme) 1.189.0 — une ligne qu'on ne sait pas expliquer se demande au client, d'ici : la ligne du relevé citée.
+        if (!dossier.manual && api.messagerie && api.question) actions.push({ icon: 'email', label: 'Demander au client ce qu\'est cette ligne',
+          hint: 'Une question dans votre conversation, la ligne du relevé citée', run: () => {
+            const m = Math.abs(Number(l.montant) || 0);
+            const sens = Number(l.montant) < 0 ? 'sorti' : 'entré';
+            questionForm(root, dossier, {
+              periode: String(l.date).slice(0, 7), montant: Number(l.montant) || 0, compte: /^[0-9]{1,12}$/.test(String(R.compte || '')) ? String(R.compte) : '', piece: l.reference || '',
+              icone: 'banque', titre: `${l.libelle || 'Ligne du relevé'}`, sous: `relevé${R.banque ? ` ${R.banque}` : ''} · ${fmtJour(l.date)} · ${money(m)} ${sens}`,
+              objet: `Relevé du ${fmtJour(l.date)} : ${l.libelle || ''}`.slice(0, 200),
+              quoi: `ce mouvement de ${money(m)} ${sens} le ${fmtJour(l.date)} sur ton relevé${l.libelle ? ` (« ${l.libelle} »)` : ''}`,
+              attendu: 'explication',
+              apres: () => drawLivres(root, dossier)
+            });
+          } });
         actions.push({ icon: 'nouveau', cle: 'ecrire-manquante', label: 'Écrire l\'écriture manquante', hint: 'Un brouillon prérempli — rien n\'est enregistré tant que tu n\'as pas cliqué', run: () => ecrireDepuisBanque(root, dossier, R, l) });
       }
       return actions;
@@ -13424,6 +13447,19 @@
     if (e.pieceJointe) {
       a.push({ icon: 'ouvrir', label: 'Ouvrir le justificatif', hint: esc(e.pieceJointe),
         run: async () => { try { ditOuverture(await api.ouvrirJustificatif(dossier.id, e.pieceJointe), String(e.pieceJointe).split(/[\\/]/).pop()); } catch (x) { await infoDialog('Justificatif introuvable', plainError(x)); } } });
+    }
+    // (plateforme) 1.189.0 — une question au client sur CETTE écriture, posée d'ici (la fenêtre de la révision) : elle porte
+    // l'écriture, sa pièce et sa période ; « Envoyer maintenant » ou « Garder pour l'envoi groupé ».
+    if (!dossier.manual && api.messagerie && api.question && e.statut !== 'extournee') {
+      const total = (e.lignes || []).reduce((t, l) => t + (Number(l.debit) || 0), 0);
+      a.push({ icon: 'email', label: 'Poser une question au client', hint: 'Sur cette écriture : il la lit en face de sa pièce',
+        run: () => questionForm(root, dossier, {
+          ecritureId: e.id, periode: String(e.date).slice(0, 7), piece: e.piece || '', montant: total,
+          titre: `${e.journal || ''} ${e.piece || '(sans pièce)'}`.trim(), sous: `${fmtJour(e.date)} · ${e.libelle || ''}${total ? ` · ${money(total)}` : ''}`,
+          objet: `${e.piece || e.libelle || 'Écriture'} du ${fmtJour(e.date)}`.slice(0, 200),
+          quoi: `l'écriture ${e.piece ? `${e.piece} ` : ''}du ${fmtJour(e.date)}${e.libelle ? ` (« ${e.libelle} »)` : ''}${total ? `, de ${money(total)}` : ''}`,
+          apres: () => drawLivres(root, dossier)
+        }) });
     }
     if (detruire) a.push({ sep: true }, detruire);
     return a;
