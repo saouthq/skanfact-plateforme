@@ -227,7 +227,8 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     const { p, erreurs } = await contexte(associe);
     await ouvrir(p, cab.id, boulangerie);
     const ligne = p.locator('li[data-cl-k]').filter({ hasText: 'IMG_8850' });
-    await expect.poll(() => ligne.innerText().catch(() => '')).toMatch(/un achat du même montant existe déjà : FA-0919, sans justificatif/);
+    // (rouge GitHub de 37ca3e7) La seconde par défaut de l'attente ne suffit pas à une machine chargée : la page arrive.
+    await expect.poll(() => ligne.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/un achat du même montant existe déjà : FA-0919, sans justificatif/);
     expect(await ligne.innerText()).toMatch(/STEG[\s\S]*113,396/);
     // Le ticket, que rien ne relie à FA-0919 (ni total lu, ni numéro, ni fournisseur) : l'achat STEG ne lui est pas proposé
     // (Skander, 29/10 : « à quoi ça sert si la pièce n'a rien à voir ? ») ; joindre reste possible à la main, en second,

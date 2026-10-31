@@ -19120,8 +19120,10 @@ prouver 'la pastille de non-lus répétée en « À traiter »' web/public/plate
 prouver 'les flèches du clavier qui ne passent pas au client suivant' web/public/plateforme/messagerie.js \
   'const v = e.key === '"'"'ArrowDown'"'"' ? lignes[i + 1] : e.key === '"'"'ArrowUp'"'"' ? lignes[i - 1] : null;' 'const v = null;' \
   '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
-prouver 'la boîte plus haute que l'\''écran' web/public/plateforme/messagerie.css \
-  '  height: calc(100dvh - var(--msg-haut-boite, 210px)); min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }' '  min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; height: 100%; }' \
+# (1.181.0) La boîte va jusqu'au bas de l'écran par jusquEnBas (messagerie.js) ; la hauteur du CSS n'est plus que celle
+# d'avant le premier calage : le défaut retire les deux.
+prouver 'la boîte plus haute que l'\''écran' 'web/public/plateforme/messagerie.css|||web/public/plateforme/messagerie.css|||web/public/plateforme/messagerie.js' \
+  '  height: calc(100dvh - var(--msg-haut-boite, 210px)); min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }|||      if (c) caler(el, () => jusquEnBas(c, 520));' '  min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; height: 100%; }|||      if (c) void c;' \
   "$MW115"
 prouver 'la pièce du dossier choisie, mais pas envoyée' $MJ \
   "            await o.appel('POST', '/messages', { cote: o.cote, texte, piece: dejaLa, repondA: m.id });" "            await o.appel('POST', '/messages', { cote: o.cote, texte, piece: null, repondA: m.id });" \
@@ -19137,8 +19139,11 @@ prouver 'la question répondue sans étiquette' $MJ \
 prouver '« Mon comptable » qui ne paraît pas dans le pied du menu' web/public/v10/app.js \
   '      if (lien) lien.hidden = !avecMessagerie(a);' '      if (lien) lien.hidden = true;' \
   "$MSGW"
-prouver 'au téléphone, « Envoyer » sous l'\''écran' web/public/plateforme/messagerie.css \
-  '  .msg-corps > .msg-zone { flex-basis: 100%; height: calc(100dvh - var(--msg-haut-tel, 172px)); min-height: 360px; }' '  .msg-corps > .msg-zone { flex-basis: 100%; height: auto; }' \
+# (1.181.0) Au téléphone, la zone tient sa hauteur par trois endroits (messagerie.css, la barre des deux applications dans
+# barre.css, et jusquEnBas) : le défaut les retire tous, la zone suit alors la longueur de la conversation.
+prouver 'au téléphone, « Envoyer » sous l'\''écran' 'web/public/plateforme/messagerie.css|||web/public/plateforme/barre.css|||web/public/plateforme/messagerie.js' \
+  '  .msg-corps > .msg-zone { flex-basis: 100%; height: calc(100dvh - var(--msg-haut-tel, 172px)); min-height: 360px; }|||  body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }
+|||        if (zone) caler(el, () => jusquEnBas(zone, window.innerWidth < 760 ? 320 : 440));' '  .msg-corps > .msg-zone { flex-basis: 100%; height: auto; }||||||        if (zone) void zone;' \
   "$MSGW"
 
 # ── 1.116.0 : la messagerie après sa revue, lot 2 (pièces demandées datées et relancées, demandes groupées, le cabinet
@@ -20167,9 +20172,9 @@ prouver 'barre 23 : la visite de la barre ne montre rien' web/public/plateforme/
 prouver 'barre 24 : G puis F ne mène nulle part' web/public/plateforme/barre.js \
   '      if (!auCabinet() && (k === '"'"'f'"'"' || k === '"'"'F'"'"')) { e.preventDefault(); aller('"'"'#/factures'"'"'); return; }' '' \
   'repliée et au clavier'
-prouver 'barre 25 : « Envoyer » sous les onglets du téléphone' web/public/plateforme/barre.css \
+prouver 'barre 25 : « Envoyer » sous les onglets du téléphone' 'web/public/plateforme/barre.css|||web/public/plateforme/messagerie.js' \
   '  body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }
-' '' \
+|||    const bas = onglets && getComputedStyle(onglets).display !== '"'"'none'"'"' && onglets.getBoundingClientRect().height ? onglets.getBoundingClientRect().top - 10 : window.innerHeight - 24;' '|||    const bas = window.innerHeight - 24;' \
   'la pastille, la question répondue sur place'
 prouver 'barre cabinet 1 : le Cabinet s'"'"'ouvre sur le portefeuille, pas sur son tableau de bord' web/public/v10/cabinet/app.js \
   'if (!location.hash) location.hash = '"'"'#/production'"'"';' 'if (!location.hash) location.hash = '"'"'#/dossiers'"'"';' \
@@ -21770,8 +21775,8 @@ prouver 'banque 9 : au téléphone, le tableau du bureau reste' web/public/plate
 prouver 'banque 10 : au téléphone, le livre en face se tasse en cartes' web/public/plateforme/telephone.js \
   'document.querySelectorAll('"'"'table.list:not([data-sans-cartes])'"'"')' 'document.querySelectorAll('"'"'table.list'"'"')' \
   "$WB1"
-prouver 'banque 11 : au téléphone, l'"'"'écriture en face sort de son cadre' web/public/plateforme/banque.css \
-  '  .bq-ecran table.bq-ec { display: table; table-layout: fixed;' '  .bq-ecran table.bq-ec { table-layout: fixed;' \
+prouver 'banque 11 : au téléphone, l'"'"'écriture en face sort de son cadre' 'web/public/plateforme/banque.css|||web/public/v10/cabinet/app.js' \
+  '  .bq-ecran table.bq-ec { display: table; table-layout: fixed; width: 100%; font-size: 12px; }|||<td class="tronq" title="${esc(z.libelle || '"'"''"'"')}">' '  .bq-ecran table.bq-ec { font-size: 12px; }|||<td title="${esc(z.libelle || '"'"''"'"')}" style="white-space:nowrap">' \
   "$WB1"
 prouver 'banque 12 : au téléphone, le mois rapproché pousse l'"'"'écran' web/public/plateforme/banque.css \
   '  .bq-fini { flex-wrap: wrap; }

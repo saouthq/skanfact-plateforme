@@ -304,6 +304,11 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(c.erreurs).toEqual([]);
 
     // ── Au téléphone : rien ne déborde ───────────────────────────────────────────────────────────────────────────
+    // Une conversation plus haute que l'écran du téléphone : sans elle, « Envoyer » tient dans l'écran même quand la zone
+    // suit la longueur de la conversation, et l'essai ne voit rien.
+    for (let i = 1; i <= 10; i++) {
+      expect((await api('POST', `/entreprises/${ent}/messages`, amine, { cote: 'entreprise', texte: `Point ${i} : la facture du ${i} octobre, je la joins ou vous l'avez déjà reçue par la banque ?` })).statut).toBe(201);
+    }
     const t = await page(amine, 390, 844);
     await t.p.goto(`${serveur.adresse}/v10/?e=${ent}#/comptable`);
     await t.p.locator('.msg-page h1').waitFor({ timeout: 20_000 });

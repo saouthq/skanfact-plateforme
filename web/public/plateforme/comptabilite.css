@@ -68,6 +68,10 @@
   .cp-an { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .cp-an-t, .cp-ex { grid-column: 1 / -1; }
   .cp-modele .cp-corps { padding: 12px; border-radius: 12px; }
+  /* Au doigt, 44 points (rouge GitHub de 37ca3e7 : l'exercice faisait 34×16, « Toute l'année » 15 de haut). */
+  .cp-per { height: 44px; }
+  .cp-per select { min-height: 44px; min-width: 44px; }
+  .cp-ex { min-height: 44px; }
 }
 
 /* La comptabilité dans la barre de gauche (dossier ouvert) : son titre, les trois groupes, les écrans du groupe ouvert. */

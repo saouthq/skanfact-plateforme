@@ -124,8 +124,9 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('#page-fd h1').innerText()).toMatch(/^Menuiserie Ben Ali/);
     expect(await p.locator('.fd-nav').count()).toBe(0);
     await p.goBack();
-    await p.locator('#q').fill('');
-    await ligne('Librairie Ennour').waitFor();
+    // La liste se redessine à son retour, avec la recherche d'avant : on vide jusqu'à ce que la liste entière revienne
+    // (rouge GitHub de 37ca3e7 : vidée avant le second dessin, elle restait réduite à la Menuiserie).
+    await expect.poll(async () => { await p.locator('#q').fill(''); return p.locator('#page-tb tr[data-id]').filter({ hasText: 'Librairie Ennour' }).count(); }, { timeout: 20_000 }).toBe(1);
 
     // « Noter une relance faite… » : un appel, rangé sur sa fiche ; la vue « Pièces manquantes » le dit.
     await ligne('Librairie Ennour').getByRole('button', { name: /Les gestes de/ }).click();

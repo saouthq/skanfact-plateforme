@@ -88,7 +88,9 @@ describe('la fiche du dossier au Cabinet, à la souris', () => {
     expect(await lignes.first().innerText()).toMatch(/Août et septembre · rien reçu[\s\S]*Aucune écriture depuis le 15\/07\. Août est en retard depuis le 28\/09 ; Septembre se dépose aujourd'hui\. Hédi n'a jamais été relancé\./);
     expect(await p.locator('#page-fd .btn-primary').allInnerTexts()).toEqual(['Relancer Hédi…']);
     expect(await p.locator('.fd-phrase').innerText()).toBe('Rien reçu depuis le 15/07 · août en retard · septembre à déposer aujourd\'hui · jamais relancé');
-    expect(await p.locator('.fd-rv-rien').innerText()).toBe('Rien à réviser : aucune écriture depuis le 15/07. Elle commence dès que Hédi enregistre ses pièces.');
+    // L'espace fine avant « : » se pose un instant après le dessin (lue avant sur une machine rapide, après sur GitHub) : la
+    // phrase se lit telle qu'elle finit (rouge GitHub de 37ca3e7).
+    await expect.poll(() => p.locator('.fd-rv-rien').innerText(), { timeout: 10_000 }).toMatch(/^Rien à réviser\s: aucune écriture depuis le 15\/07\. Elle commence dès que Hédi enregistre ses pièces\.$/);
     expect(await p.locator('#page-fd .fd-sous').innerText()).toMatch(/^SARL · menuiserie bois · Ben Arous/);
     // L'en-tête prend la couleur du dossier (celle de sa pastille), pas un vert fixe (Skander, 29/10/2026).
     const couleurs = await p.evaluate(() => {
