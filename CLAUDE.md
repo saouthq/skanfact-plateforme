@@ -198,6 +198,9 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   forcée, portes dérobées fermées au public, phrases au catalogue) : deux rouges du 01/10/2026 venaient de là.
   **Reconfirmé par Skander le 01/10/2026** (« les tests prennent beaucoup de temps ») : jamais de relance
   complète sur le poste, sauf un changement qui touche tout ; jamais attendre GitHub les bras croisés.
+  **GitHub en pause pendant le développement** (Skander, 31/10/2026 : « on vérifie nous-mêmes afin de gagner du
+  temps ») : son verdict ne se lit plus à chaque envoi ; on vérifie ici (`verifier:brique`, les essais touchés, l'écran)
+  une fois le lot fini. GitHub se relit avant tout passage de `dev` vers `main`.
 - **Tester comme un humain, à l'écran** (demandé par Skander le 01/10/2026 : « comme un vrai humain, et voir l'écran
   comme un vrai humain ») : chaque brique qui touche un écran se joue aussi **à la souris et au clavier sur un écran
   virtuel**, en lisant les captures, avant d'être annoncée ou envoyée. `PG_ADMIN=… scripts/humain/lancer.sh` (écran

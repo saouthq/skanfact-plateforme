@@ -5110,6 +5110,8 @@
     } finally { clState.garderOrdre = false; }
   }
   function redessinerCl(d) {
+    // (1.210.0) La Saisie lit les mêmes pièces : elle redessine sa bande quand elles arrivent.
+    if (/\/comptabilite\/saisie/.test(location.hash)) redessinerSx(d);
     if (location.hash.replace(/\/$/, '') !== `#/dossier/${encodeURIComponent(d.id)}/classeur` || $('#modal-root').children.length) return;
     const actif = document.activeElement && document.activeElement.id === 'cl-q' ? document.activeElement.selectionStart : null;
     drawClasseur($('#view'), d);
@@ -14034,6 +14036,685 @@
     });
   }
 
+  // ===================== (1.210.0) La Saisie face à la pièce (maquette « Saisie… », lots S1 à S6) =====================
+  // Les pièces du mois que le client a envoyées et qui attendent le cabinet : une bande en haut (« Pièce 2 sur 6 »), la
+  // pièce en grand à gauche, sa fiche à droite. La fiche dépend de ce que la pièce demande : la saisir (chaque champ dit
+  // d'où il vient : lu sur la pièce, comme ses pièces d'avant, numéro suivant), la joindre à l'achat déjà au livre, la
+  // vérifier (le client l'a saisie lui-même), la déplacer (sa date n'est pas le mois de son écriture), ou la convertir
+  // (une facture en devises). « Au kilomètre » garde la grille au clavier, la pièce à côté. Rien ne s'écrit sans un geste.
+  const sxState = { sel: '', mode: '', zoom: 1, rot: 0, fiches: new Map(), saisir: new Set(), tente: new Set(), dessin: '' };
+  const SX_IC = {
+    clavier: svgBq('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>', 14),
+    lien: svgBq('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>', 16),
+    cal: svgBq('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>', 16),
+    rel: svgBq('<path d="M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3"/><path d="M4 4v4h4M20 20v-4h-4"/>', 12),
+    ok: svgBq('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 12),
+  };
+  const mtSx = v => Math.round(montantDe(v) * 1000);
+  const millimesSx = v => { const n = Number(String(v == null ? '' : v).replace(/[\s  ]/g, '').replace(',', '.')); return Number.isFinite(n) ? Math.round(n * 1000) : NaN; };
+  const dtSx = m => dtCd(m / 1000);
+  const normSx = t => sansAccentsCl(t).replace(/[^a-z0-9]/g, '');
+  const moisSx = () => (livresState.mode === 'mois' && livresState.mois ? livresState.mois : '');
+  const ecrituresSx = () => ((livresState.livre && livresState.livre.ecritures) || []).filter(e => e.statut !== 'contrepassee' && e.journal !== 'AN');
+  const achatSx = e => rubDeJournal(e.journal) === 'achats' || /^(AC|HA)/i.test(String(e.journal || ''));
+  const ligne40Sx = e => (e.lignes || []).find(l => /^40/.test(String(l.compte)) && mtSx(l.credit) > 0) || (e.lignes || []).find(l => /^40/.test(String(l.compte))) || null;
+  const nomTiersSx = e => { const l = ligne40Sx(e); return (l && l.tiers) || ''; };
+  const tvaCompteSx = () => compteRoleCl(livresState.livre, 'tvaDeductible') || '4366';
+  const sommeSx = (e, re, sens) => (e.lignes || []).filter(l => re.test(String(l.compte))).reduce((t, l) => t + mtSx(l[sens]), 0);
+  const htSx = e => sommeSx(e, /^[26]/, 'debit');
+  const tvaSx = e => (e.lignes || []).filter(l => String(l.compte).startsWith(tvaCompteSx().slice(0, 4))).reduce((t, l) => t + mtSx(l.debit) - mtSx(l.credit), 0);
+  const ttcSx = e => sommeSx(e, /^40/, 'credit');
+  // Le taux d'une écriture d'achat, lu sur ses lignes (TVA / hors taxes, au dixième) : jamais un taux écrit dans le code.
+  const tauxDeSx = e => { const h = htSx(e), t = tvaSx(e); return h > 0 && t > 0 ? String(Math.round(t * 1000 / h) / 10) : 'sans'; };
+  const journalAchatsSx = () => { const j = ((livresState.livre && livresState.livre.journaux) || []).find(x => /^(AC|HA)|achat/i.test(`${x.code} ${x.libelle || ''}`)); return j ? j.code : 'AC'; };
+  const journalBanqueSx = () => { const j = ((livresState.livre && livresState.livre.journaux) || []).find(x => /^(BQ|BAN)|banque/i.test(`${x.code} ${x.libelle || ''}`)); return j ? j.code : 'BQ'; };
+  const fichierSx = x => (x.p ? x.p.fichier : x.doc ? x.doc.fichier : null) || { nom: x.titre || 'pièce', type: '' };
+  const contenuSx = (dossier, x) => x.p ? api.pieces.contenu(dossier.id, x.p.fichier.id) : api.classeur.contenu(dossier.id, x.doc.id);
+  const deQuiSx = (dossier, x) => {
+    if (x.p) {
+      const j = jourTunisCl(x.p.recueLe), auj = K.today();
+      const quand = j === auj ? `aujourd'hui à ${heureCl(x.p.recueLe)}` : `le ${jjmm(j)}`;
+      return `envoyée par ${prenomCl(x.p.de) || prenomCl(dossier.contact) || 'le client'} ${quand}${x.p.texte ? ` · « ${String(x.p.texte).slice(0, 80)} »` : ''}`;
+    }
+    return x.doc ? `déposée par ${prenomCl(x.doc.deposeNom) || 'le cabinet'} le ${jjmm(jourTunisCl(x.doc.deposeLe))}` : '';
+  };
+  // Les taux de TVA que ce dossier a déjà écrits sur ses achats : ce que la fiche propose (et « Autre taux… »).
+  function tauxVusSx() {
+    const vus = new Set(ecrituresSx().filter(achatSx).map(tauxDeSx).filter(t => t !== 'sans'));
+    return [...vus].sort((a, b) => Number(a) - Number(b));
+  }
+  // Ce que ce fournisseur a d'habitude : combien de pièces, sa charge, son taux, son compte.
+  function habitudesSx(nom, sauf) {
+    const n = normSx(nom);
+    if (!n) return { n: 0 };
+    const es = ecrituresSx().filter(e => achatSx(e) && e.id !== sauf && normSx(nomTiersSx(e)) === n);
+    if (!es.length) return { n: 0 };
+    const comptes = {}, taux = {};
+    let c40 = '';
+    for (const e of es) {
+      const ch = (e.lignes || []).find(l => /^[26]/.test(String(l.compte)) && mtSx(l.debit) > 0);
+      if (ch) comptes[ch.compte] = (comptes[ch.compte] || 0) + 1;
+      const t = tauxDeSx(e); taux[t] = (taux[t] || 0) + 1;
+      if (!c40) c40 = String((ligne40Sx(e) || {}).compte || '');
+    }
+    const top = o => (Object.entries(o).sort((a, b) => b[1] - a[1])[0] || [''])[0];
+    return { n: es.length, compte: top(comptes), taux: top(taux), c40, es };
+  }
+  // Un fournisseur que le nom du fichier ou le message nomme (« facture-electricite » : la STEG, s'il est au livre).
+  function fournisseurDevineSx(x) {
+    const dits = new Set(motsCl(`${fichierSx(x).nom} ${(x.p && x.p.texte) || ''}`));
+    const noms = [...new Set(ecrituresSx().filter(achatSx).map(nomTiersSx).filter(Boolean))];
+    return noms.find(t => motsCl(t).some(w => dits.has(w) || (VEND_CL[w] || []).some(v => dits.has(v)))) || '';
+  }
+  // Le numéro qui suit le dernier du journal (« FA-0919 » → « FA-0920 »), jamais un numéro déjà pris.
+  function numeroSuivantSx(journal) {
+    const pris = new Set(ecrituresSx().map(e => String(e.piece || '')));
+    const der = ecrituresSx().filter(e => e.journal === journal && /\d+$/.test(String(e.piece || '')))
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.piece).localeCompare(String(b.piece))).pop();
+    if (!der) return '';
+    const m = /^(.*?)(\d+)$/.exec(String(der.piece));
+    let n = Number(m[2]) + 1, p = '';
+    for (let i = 0; i < 50; i++, n++) { p = `${m[1]}${String(n).padStart(m[2].length, '0')}`; if (!pris.has(p)) break; }
+    return p;
+  }
+  // Une ligne du relevé, sans écriture, du même montant et à dix jours au plus : la pièce a été payée par là.
+  function ligneBanqueSx(ttcM, date) {
+    if (!ttcM || !date) return null;
+    for (const R of ((livresState.livre && livresState.livre.releves) || [])) {
+      for (const l of R.lignes || []) {
+        if (l.rapprochement && l.rapprochement.ecritureId) continue;
+        if (mtSx(l.montant) !== -ttcM) continue;
+        if (Math.abs(Date.parse(`${l.date}T12:00:00Z`) - Date.parse(`${date}T12:00:00Z`)) / 864e5 > 10) continue;
+        return { R, l };
+      }
+    }
+    return null;
+  }
+  // Les fournisseurs que le cabinet ne vérifie plus pour ce dossier (un réglage de sa fiche).
+  const confianceSx = dossier => (Array.isArray(dossier.sansVerifier) ? dossier.sansVerifier : []).map(normSx);
+  const dateArriveeSx = x => {
+    const j = x.p ? jourTunisCl(x.p.recueLe) : x.doc ? jourTunisCl(x.doc.deposeLe) : K.today();
+    if (j.slice(0, 7) === x.mois) return j;
+    return new Date(Date.UTC(Number(x.mois.slice(0, 4)), Number(x.mois.slice(5, 7)), 0)).toISOString().slice(0, 10);
+  };
+
+  // Les pièces du mois regardé (toute l'année sur « Toute l'année »), et ce que chacune demande.
+  function piecesSx(dossier) {
+    const s = livresState;
+    if (!api.pieces || !api.classeur || !s.livre) return { pret: true, liste: [], lu: false };
+    chargerClasseesCl(dossier); chargerDocsCl(dossier); chargerLecturesCl(dossier);
+    const pret = !!(clState.classees && clState.classeesDe === dossier.id && (clState.docs.get(dossier.id) || {}).lu && (clState.lus.get(dossier.id) || {}).lu);
+    if (!pret) return { pret: false, liste: [] };
+    const m = moisSx();
+    const items = modeleCl(dossier, String(s.annee), s.livre);
+    const sansJustif = items.filter(x => x.sorte === 'ecr' && x.etat[1] === 'sans justificatif');
+    const conf = confianceSx(dossier);
+    const liste = items.filter(x => (x.p || x.doc) && x.etat[2] === 'traiter' && x.rub === 'achats' && !['illisible', 'à importer', 'à ranger'].includes(x.etat[1]) && (!m || x.mois === m))
+      .map(x => ({ ...x, sx: quoiSx(x, sansJustif, conf) }))
+      .sort((a, b) => (a.sx.k === 'confiance') - (b.sx.k === 'confiance') || String(a.date).localeCompare(String(b.date)));
+    return { pret: true, liste, items };
+  }
+  function quoiSx(x, sansJustif, conf) {
+    const e = x.numE ? ecrituresSx().find(y => y.id === x.numE) : null;
+    if (x.etat[1] === 'à vérifier' && e) {
+      if (x.lu && x.lu.date && String(x.lu.date).slice(0, 7) !== String(e.date).slice(0, 7)) return { k: 'mois', e, ton: 'ambre', mot: 'à reclasser' };
+      if (conf.includes(normSx(nomTiersSx(e)))) return { k: 'confiance', e, ton: 'gris', mot: 'de confiance' };
+      return { k: 'verifier', e, ton: 'ambre', mot: 'à vérifier' };
+    }
+    if (x.etat[1] === 'en double ?' && !sxState.saisir.has(x.k)) return { k: 'double', ton: 'ambre', mot: 'en double ?' };
+    const dit = { total: x.lu && (!x.lu.devise || x.lu.devise === 'TND') && x.lu.total ? x.lu.total : null, numero: x.lu && x.lu.numero, fournisseur: x.lu && x.lu.fournisseur,
+      texte: `${fichierSx(x).nom} ${(x.p && x.p.texte) || ''}`, mois: x.mois };
+    if (!sxState.saisir.has(x.k)) {
+      const c = sansJustif.map(c2 => ({ c: c2, i: indiceAchatCl({ num: c2.num, tiers: c2.titre, objet: `${c2.e.libelle || ''} ${(c2.e.lignes || []).map(l => l.libelle || '').join(' ')}`, montant: c2.montant, mois: c2.mois }, dit) }))
+        .filter(o => o.i).sort((a, b) => INDICES_CL.indexOf(a.i) - INDICES_CL.indexOf(b.i))[0];
+      if (c) return { k: 'deja', e: c.c.e, i: c.i, ton: 'bleu', mot: 'déjà saisie ?' };
+    }
+    if (x.lu && x.lu.devise && x.lu.devise !== 'TND') return { k: 'devise', ton: 'ambre', mot: 'en devises' };
+    return { k: 'saisir', ton: 'ambre', mot: 'à saisir' };
+  }
+
+  // La fiche d'une pièce à saisir : proposée une fois, puis telle que le comptable la corrige.
+  function ficheSx(x) {
+    let f = sxState.fiches.get(x.k);
+    if (f) return f;
+    const lu = x.lu || null, tnd = !lu || !lu.devise || lu.devise === 'TND';
+    const four = (lu && lu.fournisseur) || fournisseurDevineSx(x);
+    const h = habitudesSx(four);
+    const j = journalAchatsSx();
+    // Un ticket de caisse n'est pas une facture à son nom : sa TVA ne se récupère sans doute pas (À VÉRIFIER).
+    const ticket = motPiecesSx(x)[0] === 'ticket';
+    f = {
+      four, fourSrc: lu && lu.fournisseur ? 'lu' : four ? 'nom' : '',
+      date: (lu && lu.date) || dateArriveeSx(x), dateSrc: lu && lu.date ? 'lu' : 'arrivee',
+      ttc: lu && lu.total && tnd ? dtSx(millimesSx(lu.total)) : '', ttcSrc: lu && lu.total && tnd ? 'lu' : '',
+      tva: h.n ? h.taux : ticket ? 'sans' : '', tvaAutre: '', tvaSrc: h.n ? 'hab' : ticket ? 'ticket' : '',
+      compte: h.n ? h.compte : '', compteSrc: h.n ? 'hab' : '',
+      c40: h.c40 || '401', journal: j, piece: numeroSuivantSx(j), numero: (lu && lu.numero) || '',
+      paye: true, devise: tnd ? '' : String(lu.devise), montantDev: tnd ? '' : String(lu.total || '').replace('.', ','), taux: tnd ? '' : prefs.get(`sxTaux:${lu.devise}`, '') || '',
+    };
+    sxState.fiches.set(x.k, f);
+    return f;
+  }
+  const montantDevSx = f => { const n = Number(String(f.montantDev).replace(/[\s\u202f\u00a0]/g, '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? `${n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${f.devise}` : '—'; };
+  const tauxEffectifSx = f => (f.devise ? 0 : f.tva === 'autre' ? Number(String(f.tvaAutre).replace(',', '.')) || 0 : f.tva && f.tva !== 'sans' ? Number(f.tva) : 0);
+  // La contre-valeur en millimes, en entiers : le montant en centimes, le taux à quatre décimales (2 350,00 € × 3,3812).
+  function contreValeurSx(f) {
+    const c = Math.round(Number(String(f.montantDev).replace(/[\s  ]/g, '').replace(',', '.')) * 100);
+    const t = Math.round(Number(String(f.taux).replace(/[\s  ]/g, '').replace(',', '.')) * 10000);
+    return Number.isFinite(c) && Number.isFinite(t) && c > 0 && t > 0 ? Math.round(c * t / 1000) : 0;
+  }
+  // L'écriture que la fiche écrit (en millimes), et pourquoi elle ne s'écrit pas encore.
+  function ecritureSx(f) {
+    const ttc = f.devise ? contreValeurSx(f) : millimesSx(f.ttc);
+    const taux = tauxEffectifSx(f);
+    const ht = taux ? Math.round(ttc * 100 / (100 + taux)) : ttc, tva = ttc - ht;
+    const lib = `${String(f.four || '').trim()}${f.numero ? ` · ${f.numero}` : ''}${f.devise ? ` · ${f.montantDev} ${f.devise} à ${f.taux}` : ''}`.slice(0, 120);
+    const refus = !String(f.four || '').trim() ? ['four', 'Le fournisseur manque : écris son nom.']
+      : !/^\d{4}-\d{2}-\d{2}$/.test(f.date || '') ? ['date', 'La date manque : celle de la pièce.']
+        : String(f.date).slice(0, 4) !== String(livresState.annee) ? ['date', `Le ${fmtJourCourt(f.date)} n'est pas dans l'exercice ${livresState.annee}.`]
+          : f.devise && !(Number(String(f.taux).replace(',', '.')) > 0) ? ['taux', `Le taux de change manque : celui du ${fmtJourCourt(f.date)} (À VÉRIFIER).`]
+            : !(ttc > 0) ? ['ttc', f.devise ? 'Le montant en devises manque.' : 'Le total TTC manque : celui de la pièce, en dinars.']
+              : !f.devise && f.tva === '' ? ['tva', 'La TVA manque : choisis le taux de la pièce, ou « Sans TVA récupérable ».']
+                : !f.devise && f.tva === 'autre' && !(taux > 0) ? ['tva', 'Le taux de TVA manque.']
+                  : !/^\d{2,12}$/.test(String(f.compte || '').trim()) ? ['compte', 'Le compte de la charge manque : son numéro (6061, 6066…).']
+                    : null;
+    const lignes = [
+      { compte: String(f.compte || '').trim(), libelle: lib, debit: ht, credit: 0 },
+      ...(tva ? [{ compte: tvaCompteSx(), libelle: `TVA ${String(taux).replace('.', ',')} % · ${String(f.four || '').trim()}`.slice(0, 120), debit: tva, credit: 0 }] : []),
+      { compte: f.c40 || '401', libelle: lib, debit: 0, credit: ttc, tiers: String(f.four || '').trim() },
+    ];
+    return { ttc, ht, tva, taux, lib, lignes, refus };
+  }
+  const versLeLivreSx = lignes => lignes.map(l => ({ compte: l.compte, libelle: l.libelle, debit: l.debit / 1000, credit: l.credit / 1000, ...(l.tiers ? { tiers: l.tiers, tiersId: null, lettre: '' } : {}) }));
+
+  // ---------- le dessin ----------
+  const SRC_SX = { lu: ['lu', SX_IC.ok, 'lu sur la pièce'], nom: ['hab', SX_IC.rel, 'd\'après le nom du fichier'], hab: ['hab', SX_IC.rel, ''], arrivee: ['ambre', '!', 'date d\'arrivée : mets celle de la pièce'], calc: ['calc', '=', 'numéro suivant'] };
+  const srcSx = (k, t) => { const s = SRC_SX[k]; return s ? `<span class="sx-src ${s[0]}">${s[1]} ${esc(t || s[2])}</span>` : '<span class="sx-src"></span>'; };
+  const motPiecesSx = x => (x.p && x.p.genre === 'ticket') || /ticket/i.test(fichierSx(x).nom) ? ['ticket', 'tickets'] : ['facture', 'factures'];
+
+  function barreSx(P, dossier) {
+    const L = P.liste, i = Math.max(0, L.findIndex(x => x.k === sxState.sel));
+    const km = sxState.mode === 'km';
+    const m = moisSx();
+    const conf = L.filter(x => x.sx.k === 'confiance');
+    const nav = km
+      ? `<span class="sx-n"><b>${m ? `Achats ${esc(deMois(m))}` : `Achats de ${esc(livresState.annee)}`}</b><span class="mu">journal ${esc(journalAchatsSx())} · ${esc(pl(L.length, 'pièce à traiter', 'pièces à traiter'))}</span></span>`
+      : `<span class="sx-n"><button type="button" class="btn btn-sm sx-fl" id="sx-prec" aria-label="Pièce d'avant"${i ? '' : ' disabled'}>${PC_IC.g}</button><b id="sx-rang">Pièce ${i + 1} sur ${L.length}</b><button type="button" class="btn btn-sm sx-fl" id="sx-suiv" aria-label="Pièce suivante"${i < L.length - 1 ? '' : ' disabled'}>${PC_IC.d}</button></span>
+        <ol class="sx-p" aria-label="Les pièces à traiter">${L.map(x => `<li><button type="button" class="${x.k === L[i].k ? 'on ' : ''}${x.sx.ton}" data-sx-k="${esc(x.k)}" aria-pressed="${x.k === L[i].k}" title="${esc(`${x.titre} · ${x.sx.mot}`)}"><i aria-hidden="true">${x.photo ? CL_IC.photo : CL_IC.pdf}</i>${esc(courtSx(x))}</button></li>`).join('')}</ol>`;
+    return `<div class="sx-barre">${nav}<span class="sx-esp"></span>${conf.length > 1 && !km ? `<button type="button" class="btn btn-sm" id="sx-conf-tout">Marquer vérifiées les ${conf.length} de confiance</button>` : ''}
+      <div class="sx-mode" role="group" aria-label="Comment saisir"><button type="button" data-sx-mode="face" aria-pressed="${!km}">${CL_IC.pdf} Face à la pièce</button><button type="button" data-sx-mode="km" aria-pressed="${km}">${SX_IC.clavier} Au kilomètre</button></div></div>`;
+  }
+  const courtSx = x => { const t = String((x.lu && x.lu.fournisseur) || (x.sx.e && nomTiersSx(x.sx.e)) || fichierSx(x).nom.replace(/\.[a-z0-9]{2,4}$/i, '')); return t.length > 22 ? `${t.slice(0, 20)}…` : t; };
+
+  function visionneuseSx(dossier, x, petit) {
+    const f = fichierSx(x), photo = !/pdf/.test(f.type || '') && !/\.pdf$/i.test(f.nom);
+    return `<div class="sx-dv${petit ? ' petit' : ''}"><div class="sx-dv-t"><span class="sx-f-ic">${photo ? CL_IC.photo : CL_IC.pdf}</span><span class="sx-dv-n"><b>${esc(f.nom)}</b><small>${esc(deQuiSx(dossier, x))}</small></span>
+        <span class="sx-dv-z">${petit ? '' : `<button type="button" class="btn btn-sm sx-fl" data-sx-z="-1" aria-label="Plus petit">${PC_IC.moins}</button><span id="sx-zoom">${Math.round(sxState.zoom * 100)} %</span><button type="button" class="btn btn-sm sx-fl" data-sx-z="1" aria-label="Plus grand">${PC_IC.plus}</button>${photo ? `<button type="button" class="btn btn-sm" id="sx-tourner">${PC_IC.tourne} Tourner</button>` : ''}`}<button type="button" class="btn btn-sm" id="sx-grand">${PC_IC.grand} En grand</button></span></div>
+      <div class="sx-dv-f" id="sx-papier" data-k="${esc(x.k)}"><span class="mu">Ouverture de la pièce…</span></div></div>`;
+  }
+
+  function ficheSaisirSx(dossier, x) {
+    const f = ficheSx(x), E = ecritureSx(f), h = habitudesSx(f.four);
+    const [un, plusieurs] = motPiecesSx(x);
+    const hab = h.n ? `comme ${h.n > 1 ? `ses ${h.n} ${plusieurs}` : `sa ${un}`}` : '';
+    const banque = !f.devise && E.ttc > 0 ? ligneBanqueSx(E.ttc, f.date) : null;
+    const carte = banque && /CARTE|\bCB\b|TPE/i.test(banque.l.libelle || '');
+    const taux = tauxVusSx();
+    const plan = ((livresState.livre || {}).plan || []);
+    const nomC = c => ((plan.find(y => y.compte === String(c)) || {}).libelle) || KC.libelleDuPlan(String(c || '')) || '';
+    const ch = (lab, id, champ, src) => `<div class="sx-fi-r"><label class="sx-fi-l" for="${id}">${lab}</label>${champ}${src}</div>`;
+    const tvaSel = `<select id="sx-tva" class="sx-in"><option value=""${f.tva === '' ? ' selected' : ''}>À choisir</option><option value="sans"${f.tva === 'sans' ? ' selected' : ''}>Sans TVA récupérable</option>${taux.map(t => `<option value="${esc(t)}"${f.tva === t ? ' selected' : ''}>TVA ${esc(t.replace('.', ','))} %</option>`).join('')}<option value="autre"${f.tva === 'autre' ? ' selected' : ''}>Autre taux…</option></select>`;
+    const devise = f.devise ? `<div class="sx-taux"><div><small>En ${esc(f.devise)}</small><b id="sx-mdev-v">${esc(montantDevSx(f))}</b></div>
+        <div><small>Taux du ${esc(jjmm(f.date))} (À VÉRIFIER)</small><label class="sx-taux-in">× <input id="sx-taux" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.taux)}" placeholder="3,3812" aria-label="Le taux de change, en dinars pour 1 ${esc(f.devise)}"></label></div>
+        <div class="eg"><small>Au livre, en dinars</small><b id="sx-cv">${E.ttc ? `${esc(dtSx(E.ttc))} DT` : '—'}</b></div></div>
+      <ul class="sx-ck"><li class="info"><i>i</i><span><b>Au paiement, l'écart de change s'écrit à part</b><small>si le virement se fait à un autre taux : une perte (656) ou un gain (756), À VÉRIFIER</small></span></li>
+        <li class="info"><i>i</i><span><b>La TVA et les droits payés à la douane</b><small>arrivent avec la déclaration en douane du transitaire : une pièce à part, à demander</small></span>${dossier.manual ? '' : `<button type="button" class="cp-plus" id="sx-douane">Demander</button>`}</li></ul>` : '';
+    return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(f.devise ? `${f.four || fichierSx(x).nom} · facture en ${f.devise === 'EUR' ? 'euros' : f.devise}` : x.lu && x.lu.fournisseur ? `${x.lu.fournisseur}${x.lu.numero ? ` · ${un} ${x.lu.numero}` : ''}` : fichierSx(x).nom)}</b><small>${esc(x.lu ? `lue par SkanFact ${x.lu.luLe ? `le ${jjmm(jourTunisCl(x.lu.luLe))}` : ''} : chaque champ lu se vérifie sur la pièce` : 'pas encore lue : la fiche part de ses pièces d\'avant')}</small></div><span class="cl-st ambre">${esc(x.sx.mot)}</span></div>
+      <div class="sx-fi-g">
+        ${ch('Fournisseur', 'sx-four', `<input id="sx-four" class="sx-in" autocomplete="off" list="sx-fours" value="${esc(f.four)}" placeholder="Son nom"><datalist id="sx-fours">${[...new Set(ecrituresSx().filter(achatSx).map(nomTiersSx).filter(Boolean))].map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>`, f.fourSrc ? srcSx(f.fourSrc) : h.n ? srcSx('hab', `${h.n} ${h.n > 1 ? plusieurs : un} au livre`) : '<span class="sx-src ambre">nouveau fournisseur</span>')}
+        ${ch('Date', 'sx-date', `<input id="sx-date" class="sx-in" autocomplete="off" value="${esc(f.date ? fmtJourCourt(f.date) : '')}" placeholder="24/09/2026">`, srcSx(f.dateSrc, f.dateSrc === 'lu' ? 'lu' : ''))}
+        ${f.devise ? ch('Montant', 'sx-mdev', `<input id="sx-mdev" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.montantDev)}">`, `<span class="sx-src">${esc(f.devise)}</span>`)
+          : ch('Total TTC', 'sx-ttc', `<input id="sx-ttc" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.ttc)}" placeholder="85,000">`, srcSx(f.ttcSrc, 'lu'))}
+        ${f.devise ? '' : ch('TVA', 'sx-tva', `<span class="sx-tva">${tvaSel}${f.tva === 'autre' ? `<input id="sx-tva-autre" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.tvaAutre)}" placeholder="%" aria-label="Le taux de TVA, en %">` : ''}</span>`, f.tvaSrc === 'hab' && f.tva === h.taux ? srcSx('hab', hab) : f.tvaSrc === 'ticket' && f.tva === 'sans' ? '<span class="sx-src ambre">un ticket n\'est pas une facture : À VÉRIFIER</span>' : '<span class="sx-src"></span>')}
+        ${ch('Compte', 'sx-compte', `<span class="sx-cpt"><input id="sx-compte" class="sx-in mono" autocomplete="off" value="${esc(f.compte)}" placeholder="Numéro"><small id="sx-compte-nom">${esc(nomC(f.compte))}</small></span>`, f.compteSrc === 'hab' && f.compte === h.compte ? srcSx('hab', hab) : f.devise ? '<span class="sx-src">ou une immobilisation ? À VÉRIFIER</span>' : '<span class="sx-src"></span>')}
+        ${ch('Pièce', 'sx-piece', `<input id="sx-piece" class="sx-in mono" autocomplete="off" value="${esc(f.piece)}">`, f.piece && f.piece === numeroSuivantSx(f.journal) ? srcSx('calc', `numéro suivant · ${f.journal}`) : `<span class="sx-src">journal ${esc(f.journal)}</span>`)}
+      </div>
+      ${devise}
+      ${banque ? `<label class="sx-paye"><input type="checkbox" id="sx-paye"${f.paye ? ' checked' : ''}><span><b>Payée ${carte ? 'par carte ' : ''}le ${esc(jjmm(banque.l.date))}</b><small>« ${esc(banque.l.libelle)} ${esc(dtSx(-mtSx(banque.l.montant)))} » est sur le relevé ${esc(banque.R.banque || 'de banque')}, sans écriture : coché, son règlement s'écrit et se rapproche en même temps</small></span></label>` : ''}
+      <div class="sx-ec"><div class="sx-ec-t"><b>L'écriture qui s'écrit</b><button type="button" class="cp-plus" id="sx-lignes">Ouvrir en lignes</button></div>
+        <table class="sx-t"><tbody id="sx-ec-l">${lignesEcritureSx(f, banque)}</tbody></table></div>
+      <p class="sx-refus${sxState.tente.has(x.k) ? '' : ' reste'}" id="sx-refus" role="status"${E.refus ? '' : ' hidden'}>${E.refus ? esc(E.refus[1]) : ''}</p>
+      <div class="sx-gestes"><button type="button" class="btn btn-primary" id="sx-ok">Enregistrer au brouillard <kbd>↵</kbd></button><button type="button" class="btn" id="sx-autre">Autre chose…</button></div>
+      <p class="sx-touches">${SX_IC.clavier}<span><kbd>Tab</kbd> champ suivant · <kbd>↵</kbd> enregistre et ouvre la pièce suivante · <kbd>Alt</kbd>+<kbd>→</kbd> passe la pièce · <kbd>Alt</kbd>+<kbd>L</kbd> en lignes</span></p></div>`;
+  }
+  function lignesEcritureSx(f, banque) {
+    const E = ecritureSx(f), plan = ((livresState.livre || {}).plan || []);
+    const nomC = (c, l) => l.tiers || ((plan.find(y => y.compte === String(c)) || {}).libelle) || KC.libelleDuPlan(String(c || '')) || '';
+    const paye = banque && f.paye && !f.devise;
+    const r = E.lignes.map(l => `<tr><td class="mono">${esc(l.compte || '—')}</td><td>${esc(nomC(l.compte, l))}</td><td class="r">${l.debit ? esc(dtSx(l.debit)) : ''}</td><td class="r">${l.credit ? esc(dtSx(l.credit)) : ''}</td></tr>`).join('');
+    const b = paye ? `<tr class="bq"><td class="mono">${esc(f.c40 || '401')}</td><td>Règlement du ${esc(jjmm(banque.l.date))} · rapproché</td><td class="r">${esc(dtSx(E.ttc))}</td><td></td></tr><tr class="bq"><td class="mono">${esc(banque.R.compte || '532')}</td><td>${esc(banque.R.banque || 'Banque')}</td><td></td><td class="r">${esc(dtSx(E.ttc))}</td></tr>` : '';
+    return r + b;
+  }
+
+  function ficheDejaSx(dossier, x) {
+    const e = x.sx.e, lu = x.lu || null, qui = prenomCl(dossier.contact) || 'Le client';
+    const fort = x.sx.i === 'montant' || x.sx.i === 'numero';
+    const tiers = nomTiersSx(e), l40 = ligne40Sx(e) || {};
+    const ttc = ttcSx(e), tva = tvaSx(e);
+    const egal = (a, b) => a != null && b != null && a === b;
+    const rang = (lab, a, b, ok) => `<tr><td class="mu">${lab}</td><td>${a == null ? '<span class="mu">à lire sur la pièce</span>' : esc(a)}</td><td>${esc(b)}</td><td class="ok">${ok ? CL_IC.ok : ''}</td></tr>`;
+    const luTtc = lu && lu.total && (!lu.devise || lu.devise === 'TND') ? millimesSx(lu.total) : null;
+    return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(lu && lu.fournisseur ? `${lu.fournisseur}${lu.numero ? ` · facture ${lu.numero}` : ''}` : fichierSx(x).nom)}</b><small>${esc(deQuiSx(dossier, x))}</small></div><span class="cl-st bleu">${fort ? 'déjà saisie' : 'déjà saisie ?'}</span></div>
+      <div class="bandeau info sx-band">${SX_IC.lien}<span class="txt"><b>${fort ? 'Elle est déjà au livre' : 'Peut-être déjà au livre'} : ${esc(e.piece || 'un achat')}, sans justificatif</b><span>${esc(qui)} a saisi cet achat le ${esc(jjmm(e.date))} sans la pièce. ${esc(POURQUOI_CL[x.sx.i] || '')}. La saisir encore le compterait deux fois.</span></span></div>
+      <table class="sx-t sx-cmp"><thead><tr><th></th><th>La pièce dit</th><th>${esc(e.piece || 'L\'achat')} dit</th><th></th></tr></thead><tbody>
+        ${rang('Fournisseur', lu && lu.fournisseur ? lu.fournisseur : null, `${tiers || '—'}${l40.compte ? ` · ${l40.compte}` : ''}`, lu && normSx(lu.fournisseur) === normSx(tiers))}
+        ${rang('Date', lu && lu.date ? fmtJourCourt(lu.date) : null, fmtJourCourt(e.date), lu && lu.date === e.date)}
+        ${rang('Total TTC', luTtc != null ? dtSx(luTtc) : null, dtSx(ttc), egal(luTtc, ttc))}
+        ${rang('TVA', null, tva ? `${dtSx(tva)} · ${tvaCompteSx()}` : 'aucune', false)}
+        <tr><td class="mu">Justificatif</td><td>cette pièce</td><td class="ambre">aucun</td><td></td></tr></tbody></table>
+      <p class="sx-aide">La joindre complète ${esc(e.piece || 'l\'achat')}${tva ? ` : ses ${esc(dtSx(tva))} DT de TVA deviennent justifiés pour le contrôle` : ''}. ${e.statut === 'validee' ? `${esc(e.piece || 'L\'achat')} est validé : rien ne s'y modifie, la pièce s'y ajoute.` : 'Rien ne s\'y modifie : la pièce s\'y ajoute.'}</p>
+      <div class="sx-gestes"><button type="button" class="btn btn-primary" id="sx-joindre">${SX_IC.lien} Joindre à ${esc(e.piece || 'cet achat')} <kbd>↵</kbd></button><button type="button" class="btn" id="sx-pas-meme">Ce n'est pas la même : la saisir</button></div>
+      <p class="sx-touches">${SX_IC.clavier}<span><kbd>↵</kbd> joint et ouvre la pièce suivante · <kbd>Alt</kbd>+<kbd>→</kbd> la passe</span></p></div>`;
+  }
+
+  // (S1) Ce que SkanFact a contrôlé sur une pièce que le client a saisie lui-même, et ce qui reste à regarder.
+  function controlesSx(dossier, x) {
+    const e = x.sx.e, lu = x.lu || null, tiers = nomTiersSx(e), l40 = ligne40Sx(e) || {};
+    const h = habitudesSx(tiers, e.id), ttc = ttcSx(e), ht = htSx(e), tva = tvaSx(e);
+    const ch = (e.lignes || []).find(l => /^[26]/.test(String(l.compte)) && mtSx(l.debit) > 0) || {};
+    const plan = ((livresState.livre || {}).plan || []);
+    const nomC = c => ((plan.find(y => y.compte === String(c)) || {}).libelle) || KC.libelleDuPlan(String(c || '')) || '';
+    const L = [];
+    L.push(tiers || String(l40.compte || '').length > 3 ? ['ok', 'Le fournisseur et son compte', `${tiers || nomC(l40.compte)} · ${l40.compte}`, l40.compte] : ['att', 'Le fournisseur n\'est pas nommé', `la ligne ${l40.compte || '401'} n'a pas de tiers`, '']);
+    if (!h.n) L.push(['info', 'Sa première facture au livre', `la charge : ${ch.compte || '—'} ${nomC(ch.compte)}`, ch.compte || '']);
+    else if (h.compte === ch.compte) L.push(['ok', `La charge, comme ${h.n > 1 ? `ses ${h.n} factures` : 'sa facture'} d'avant`, nomC(ch.compte), ch.compte]);
+    else L.push(['att', 'La charge n\'est pas celle d\'avant', `d'habitude ${h.compte} ${nomC(h.compte)}, ici ${ch.compte || '—'}`, ch.compte || '']);
+    const luT = lu && lu.total && (!lu.devise || lu.devise === 'TND') ? millimesSx(lu.total) : null;
+    if (luT != null) L.push(luT === ttc ? ['ok', 'Le total lu = le total écrit', `${dtSx(ttc)} DT`, ''] : ['ko', 'Le total lu n\'est pas le total écrit', `la pièce dit ${dtSx(luT)}, l'écriture ${dtSx(ttc)} : à corriger avant de la marquer vérifiée`, '']);
+    L.push(tva ? [tauxVusSx().includes(tauxDeSx(e)) ? 'ok' : 'att', 'La TVA écrite', `${String(tauxDeSx(e)).replace('.', ',')} % de ${dtSx(ht)}${luT == null ? ' · à comparer à la pièce' : ''}`, dtSx(tva)] : ['info', 'Sans TVA', 'aucune TVA récupérable n\'est écrite', '']);
+    const num = (lu && lu.numero) || '';
+    const memes = ecrituresSx().filter(y => y.id !== e.id && achatSx(y) && normSx(nomTiersSx(y)) === normSx(tiers) && ((num && `${y.libelle || ''} ${y.piece || ''}`.includes(num)) || (y.piece && y.piece === e.piece)));
+    L.push(memes.length ? ['ko', `${num ? `Le numéro ${num}` : 'Ce numéro'} est saisi deux fois`, `aussi dans ${memes.map(y => y.piece || jjmm(y.date)).join(', ')}`, ''] : ['ok', `${num ? `Le numéro ${num}` : `${e.piece || 'Ce numéro'}`} n'est saisi qu'une fois`, `aucune autre pièce de ${tiers || 'ce fournisseur'} avec ce numéro`, '']);
+    // Payée : la ligne du fournisseur lettrée, ou un relevé qui la paie (au même montant, ou net d'une retenue).
+    const rel = ((livresState.livre && livresState.livre.releves) || []).flatMap(R => (R.lignes || []).map(l => ({ R, l })))
+      .find(o => o.l.rapprochement && o.l.rapprochement.ecritureId && ecrituresSx().some(y => y.id === o.l.rapprochement.ecritureId && (y.lignes || []).some(l => /^40/.test(String(l.compte)) && mtSx(l.debit) > 0 && normSx(l.tiers || '') === normSx(tiers))) && Math.abs(-mtSx(o.l.montant) - ttc) <= Math.max(1, Math.round(ttc * 0.05)));
+    // Pas encore rapprochée : une ligne du relevé qui nomme le fournisseur, du même montant ou à 5 % près (net d'une retenue).
+    const mots = motsCl(tiers);
+    const surReleve = !rel && ((livresState.livre && livresState.livre.releves) || []).flatMap(R => (R.lignes || []).map(l => ({ R, l })))
+      .find(o => !(o.l.rapprochement && o.l.rapprochement.ecritureId) && mtSx(o.l.montant) < 0 && mots.some(w => motsCl(o.l.libelle).includes(w)) && Math.abs(-mtSx(o.l.montant) - ttc) <= Math.max(1, Math.round(ttc * 0.05)));
+    L.push(l40.lettre ? ['ok', 'Payée, lettrée', `la ligne ${l40.compte} porte la lettre ${l40.lettre}`, ''] : rel ? ['ok', `Payée le ${jjmm(rel.l.date)}, rapprochée`, `${rel.l.libelle}${-mtSx(rel.l.montant) !== ttc ? ' · net de sa retenue' : ''}`, dtSx(-mtSx(rel.l.montant))]
+      : surReleve ? ['att', `Payée le ${jjmm(surReleve.l.date)}, pas encore rapprochée`, `« ${surReleve.l.libelle} » sur le relevé ${surReleve.R.banque || ''}${-mtSx(surReleve.l.montant) !== ttc ? ` : ${dtSx(ttc + mtSx(surReleve.l.montant))} de moins, sa retenue à la source ?` : ''} · se rapproche dans la Banque`, dtSx(-mtSx(surReleve.l.montant))]
+        : ['att', 'Pas encore payée dans ses livres', 'aucune ligne du relevé ne la paie encore', '']);
+    const rs = (e.lignes || []).filter(l => String(l.compte).startsWith(compteRoleCl(livresState.livre, 'rsOperee'))).reduce((t, l) => t + mtSx(l.credit), 0);
+    if (rs) L.push(['att', 'Le certificat de retenue à remettre', `${prenomCl(dossier.contact) || 'Le client'} a retenu ${dtSx(rs)} DT : ${tiers || 'le fournisseur'} attend son certificat (À VÉRIFIER : le délai)`, '']);
+    return L;
+  }
+  function ficheVerifierSx(dossier, x) {
+    const e = x.sx.e, tiers = nomTiersSx(e), qui = prenomCl(dossier.contact) || 'Le client';
+    const L = controlesSx(dossier, x), ko = L.some(c => c[0] === 'ko');
+    const conf = x.sx.k === 'confiance';
+    const ic = { ok: CL_IC.ok, info: 'i', att: '!', ko: '!' };
+    return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(tiers || e.libelle || 'Achat')}${x.lu && x.lu.numero ? ` · ${esc(x.lu.numero)}` : ''}</b><small>saisie par ${esc(qui)} le ${esc(jjmm(e.date))} dans SkanFact · ${esc(e.piece || '')}</small></div><span class="cl-st ${conf ? 'gris' : 'ambre'}">${esc(x.sx.mot)}</span></div>
+      <div class="sx-qui"><span class="sx-pers" aria-hidden="true">${esc(qui.slice(0, 1).toUpperCase())}</span><span><b>${esc(qui)} l'a saisie elle-même</b><small>la pièce est rangée dans son achat · l'écriture est ${e.statut === 'validee' ? 'validée' : 'au brouillard'} : elle ne se modifie qu'en la corrigeant</small></span></div>
+      ${conf ? `<p class="sx-aide">Tu as dit de ne plus vérifier les factures de ${esc(tiers)} : la marquer vérifiée suffit. <button type="button" class="cp-plus" id="sx-conf-non">Reprendre la vérification</button></p>` : ''}
+      <ul class="sx-ck">${L.map(([t, titre, sous, droite]) => `<li class="${t}"><i>${ic[t]}</i><span><b>${esc(titre)}</b><small>${esc(sous)}</small></span>${droite ? `<span class="mono">${esc(droite)}</span>` : ''}</li>`).join('')}</ul>
+      ${ko ? '<p class="sx-refus" role="status">Un contrôle ne passe pas : corrige l\'écriture (contre-passer et réécrire) ou demande au client avant de la marquer vérifiée.</p>' : ''}
+      <div class="sx-gestes"><button type="button" class="btn${ko ? '' : ' btn-primary'}" id="sx-verifiee">Marquer vérifiée${ko ? '' : ' <kbd>↵</kbd>'}</button>${dossier.manual ? '' : `<button type="button" class="btn" id="sx-demander">Demander à ${esc(qui)}</button>`}</div>
+      ${!conf && tiers && !ko ? `<p class="sx-conf">${CL_IC.ok}<span>Les factures de ${esc(tiers)} passent toujours ?</span><button type="button" class="cp-plus" id="sx-conf-oui">Ne plus me faire vérifier ${esc(tiers)}</button></p>` : ''}</div>`;
+  }
+
+  // (S2) La pièce au mauvais mois : la TVA d'une facture se déduit au mois de sa date (À VÉRIFIER). Ce que le geste change
+  // dans les deux mois, avant le geste.
+  function ficheMoisSx(dossier, x) {
+    const e = x.sx.e, lu = x.lu, tiers = nomTiersSx(e);
+    const mE = String(e.date).slice(0, 7), mP = String(lu.date).slice(0, 7);
+    const L = lireLivreFd(livresState.livre);
+    const declE = !!(L.decl[mE] && L.decl[mE].deposee);
+    const tva = tvaSx(e);
+    const tvaMois = m => ecrituresSx().filter(y => String(y.date).slice(0, 7) === m).reduce((t, y) => t + tvaSx(y), 0);
+    const avantE = tvaMois(mE), avantP = tvaMois(mP);
+    const horsEx = String(lu.date).slice(0, 4) !== String(livresState.annee);
+    const avantDecl = declE && mP < mE;
+    const cp = declE ? lu.date : e.date;
+    // L'écriture d'un achat du client suit sa pièce (elle ne se change pas dans les livres) : c'est le client qui corrige la
+    // date dans SkanFact, et le livre suit. Le cabinet le lui demande ; il ne réécrit rien chez lui.
+    const client = e.source && e.source !== 'saisie';
+    const qui = prenomCl(dossier.contact) || 'le client';
+    const bloque = client ? '' : horsEx ? `Le ${fmtJourCourt(lu.date)} n'est pas dans l'exercice ${livresState.annee} : à déplacer à la main.` : avantDecl ? `${cap(moisLong(mE))} est déclaré et la pièce est d'avant : la régularisation se fait à la main (À VÉRIFIER).` : '';
+    return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(tiers || 'Achat')}${lu.numero ? ` · ${esc(lu.numero)}` : ''}</b><small>saisie par ${esc(prenomCl(dossier.contact) || 'le client')} au ${esc(jjmm(e.date))} · ${esc(e.piece || '')}</small></div><span class="cl-st ambre">à reclasser</span></div>
+      <div class="bandeau info sx-band">${SX_IC.cal}<span class="txt"><b>La facture est du ${esc(jjmm(lu.date))}, l'écriture du ${esc(jjmm(e.date))}</b><span>La TVA d'une facture se déduit le mois de sa date (À VÉRIFIER) : elle compte en ${esc(moisLong(mP))}, pas en ${esc(moisLong(mE))}.</span></span></div>
+      <div class="sx-mv"><div class="de"><b>${esc(cap(moisLong(mE)))}</b><span class="r"><span>TVA déductible</span><b class="moins">${esc(dtSx(avantE))} → ${esc(dtSx(avantE - tva))}</b></span><span class="mu">${declE ? 'déposé : il ne change pas, la correction passe au mois de la pièce' : 'pas encore déposé : il se recalcule'}</span></div>
+        <span class="fl" aria-hidden="true">→</span>
+        <div class="vers"><b>${esc(cap(moisLong(mP)))}</b><span class="r"><span>TVA déductible</span><b class="plus">${esc(dtSx(avantP))} → ${esc(dtSx(avantP + tva))}</b></span><span class="r"><span>l'écriture</span><b class="mono">${esc(e.piece || '')} · ${esc(jjmm(lu.date))}</b></span></div></div>
+      <ul class="sx-ck"><li class="${declE ? 'info' : 'ok'}"><i>${declE ? 'i' : CL_IC.ok}</i><span><b>${esc(cap(moisLong(mE)))} ${declE ? 'est déposé' : 'n\'est pas déposé'}</b><small>${declE ? `rien de déclaré ne se réécrit : la contre-passation se date du ${esc(jjmm(cp))}, dans le mois de la pièce` : 'rien de déclaré ne change'}</small></span></li>
+        ${client ? `<li class="info"><i>i</i><span><b>${esc(e.piece || 'L\'écriture')} suit l'achat de ${esc(qui)}</b><small>elle ne se change pas dans les livres : ${esc(qui)} corrige la date dans SkanFact, et l'écriture suit${declE ? ` (${esc(moisLong(mE))} étant déposé, SkanFact la régularise au mois de la pièce)` : ''}</small></span></li>`
+          : `<li class="ok"><i>${CL_IC.ok}</i><span><b>${e.statut === 'validee' ? `${esc(e.piece || 'L\'écriture')} se contre-passe au ${esc(jjmm(cp))}, et s'écrit à nouveau au ${esc(jjmm(lu.date))}` : `${esc(e.piece || 'L\'écriture')} est au brouillard : sa date passe au ${esc(jjmm(lu.date))}`}</b><small>${e.statut === 'validee' ? 'une écriture validée ne se modifie pas : elle se contre-passe' : 'rien n\'est encore validé : elle se corrige'}</small></span></li>`}</ul>
+      ${bloque ? `<p class="sx-refus" role="status">${esc(bloque)}</p>` : ''}
+      <div class="sx-gestes">${client ? (dossier.manual ? '' : `<button type="button" class="btn btn-primary" id="sx-demander-date">Demander à ${esc(qui)} de la dater du ${esc(jjmm(lu.date))} <kbd>↵</kbd></button>`)
+        : `<button type="button" class="btn btn-primary" id="sx-deplacer"${bloque ? ' disabled' : ''}>Déplacer au ${esc(jjmm(lu.date))}${bloque ? '' : ' <kbd>↵</kbd>'}</button>`}<button type="button" class="btn" id="sx-verifiee">La date est la bonne : vérifiée</button></div></div>`;
+  }
+
+  function ficheDoubleSx(dossier, x) {
+    const P = sxState.dernier || { items: [] };
+    const j = (P.items || []).find(y => y.k === x.jumelle);
+    return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(fichierSx(x).nom)}</b><small>${esc(deQuiSx(dossier, x))}</small></div><span class="cl-st ambre">en double ?</span></div>
+      <div class="bandeau ambre sx-band">${EC_IC.alerte}<span class="txt"><b>La même que ${esc(j ? j.titre : 'une autre pièce')}${j && j.num ? ` (${esc(j.num)})` : ''} ?</b><span>${x.doubleProbable === 'fichier' ? 'Le même fichier, de la même taille.' : 'La même lecture : le fournisseur, le numéro et le total.'} En double, elle sort du compte et reste dans l'historique.</span></span></div>
+      <div class="sx-gestes"><button type="button" class="btn btn-primary" id="sx-double">Marquer en double <kbd>↵</kbd></button><button type="button" class="btn" id="sx-pas-double">Ce n'est pas la même : la saisir</button></div></div>`;
+  }
+
+  function zoneSx(dossier, P) {
+    if (!P.pret) return '<div class="sx-attente mu">Lecture des pièces du mois…</div>';
+    const m = moisSx();
+    if (!P.liste.length) {
+      const qui = prenomCl(dossier.contact);
+      const br = ecrituresSx().filter(e => e.statut === 'brouillard' && (!m || String(e.date).slice(0, 7) === m)).length;
+      return `<div class="sx-vide" id="sx-vide"><span class="sx-vide-ic">${CL_IC.ok}</span><span class="txt"><b>${m ? `${esc(cap(moisLong(m)))} : aucune pièce à saisir pour l'instant` : `Aucune pièce à saisir en ${esc(livresState.annee)} pour l'instant`}</b>
+        <span>${dossier.manual ? 'Ce dossier est tenu au cabinet : ses pièces se déposent dans son classeur, puis s\'ouvrent ici, face à leur fiche.' : `Quand ${esc(qui || 'le client')} envoie une facture ou un ticket, la pièce arrive ici, en grand, face à sa fiche déjà remplie.`}${br ? ` ${esc(pl(br, 'écriture attend', 'écritures attendent'))} au brouillard.` : ''}</span></span>
+        ${dossier.manual || !m ? '' : `<button type="button" class="btn btn-sm" id="sx-demander-mois">Demander les pièces ${esc(deMois(m))}${qui ? ` à ${esc(qui)}` : ''}</button>`}</div>`;
+    }
+    if (!P.liste.some(x => x.k === sxState.sel)) sxState.sel = P.liste[0].k;
+    const x = P.liste.find(y => y.k === sxState.sel);
+    if (sxState.mode === 'km') return barreSx(P, dossier);
+    const fiche = x.sx.k === 'deja' ? ficheDejaSx(dossier, x) : x.sx.k === 'verifier' || x.sx.k === 'confiance' ? ficheVerifierSx(dossier, x)
+      : x.sx.k === 'mois' ? ficheMoisSx(dossier, x) : x.sx.k === 'double' ? ficheDoubleSx(dossier, x) : ficheSaisirSx(dossier, x);
+    return `${barreSx(P, dossier)}<div class="sx-face">${visionneuseSx(dossier, x)}${fiche}</div>`;
+  }
+  // « Au kilomètre » : la pièce choisie à côté de la grille, et le geste qui la prend.
+  function cotePieceSx(dossier, P) {
+    if (!P.pret || !P.liste.length) return '';
+    const x = P.liste.find(y => y.k === sxState.sel) || P.liste[0];
+    const p = saisieState.piece || {};
+    const dc = p.depuisClasseur;
+    const prise = dc && ((x.p && dc.message === x.p.id) || (x.doc && dc.doc === x.doc.id));
+    const autres = P.liste.filter(y => y.sx.k === 'deja');
+    return `<span class="mu">${prise ? 'La pièce de l\'écriture en cours' : 'La pièce à côté'}</span>${visionneuseSx(dossier, x, true)}
+      ${prise ? '<p class="sx-aide">Enregistrée, l\'écriture la prend pour justificatif.</p>' : x.sx.k === 'saisir' || x.sx.k === 'devise' ? '<button type="button" class="btn btn-sm" id="sx-km-prendre">La saisir dans la grille</button>' : `<p class="sx-aide">${esc(cap(x.sx.mot))} : elle se traite « Face à la pièce ».</p>`}
+      ${P.liste.length > 1 ? `<span class="sx-km-nav"><button type="button" class="btn btn-sm sx-fl" id="sx-prec" aria-label="Pièce d'avant">${PC_IC.g}</button><span class="mu">${P.liste.indexOf(x) + 1} sur ${P.liste.length}</span><button type="button" class="btn btn-sm sx-fl" id="sx-suiv" aria-label="Pièce suivante">${PC_IC.d}</button></span>` : ''}
+      ${autres.length ? `<p class="sx-aide">${esc(autres.map(y => y.sx.e.piece).filter(Boolean).join(', '))} ${autres.length > 1 ? 'n\'ont' : 'n\'a'} pas de justificatif ${EC_IC.alerte} : ${autres.length > 1 ? 'leurs pièces les attendent' : 'sa pièce l\'attend'} dans « Face à la pièce ».</p>` : ''}`;
+  }
+
+  // ---------- la pièce dans la visionneuse ----------
+  async function chargerPapierSx(dossier, x, zone) {
+    if (!zone || navigator.onLine === false) { if (zone) zone.innerHTML = '<span class="mu">Sans réseau, la pièce ne s\'ouvre pas : elle est gardée sur le serveur.</span>'; return; }
+    const petit = !!zone.closest('.petit');
+    const largeur = Math.round(Math.min(petit ? 230 : 430, Math.max(180, zone.clientWidth - 40)) * (petit ? 1 : sxState.zoom));
+    let f;
+    try { f = await contenuSx(dossier, x); } catch { if (zone.isConnected) zone.innerHTML = '<span class="mu">La pièce ne s\'est pas chargée : elle se rouvre en revenant dessus.</span>'; return; }
+    try {
+      let adresse = f.adresse;
+      if (/pdf/.test(f.type)) { const img = await api.pieces.apercuPdf(f.blob, Math.max(900, largeur * 2), 1); if (!img) throw new Error('pdf'); adresse = img.adresse; }
+      else if (!/^image\//.test(f.type)) throw new Error('type');
+      if (!zone.isConnected || zone.dataset.k !== x.k) return;
+      zone.innerHTML = `<img src="${adresse}" alt="${esc(fichierSx(x).nom)}" style="width:${largeur}px;transform:rotate(${petit ? 0 : sxState.rot}deg)">`;
+    } catch { if (zone.isConnected) zone.innerHTML = '<span class="mu">Ce fichier ne se dessine pas ici : « En grand » l\'ouvre tel qu\'il est arrivé.</span>'; }
+  }
+  async function enGrandSx(dossier, x) {
+    if (x.p) { pieceState.rot = sxState.rot; return pieceEnGrand({ ...x.p, entreprise: dossier.id }); }
+    const f = await contenuSx(dossier, x).catch(err => { toast(plainError(err), 'error'); return null; });
+    if (!f) return;
+    const calque = document.createElement('div');
+    calque.className = 'pc-grand'; calque.setAttribute('role', 'dialog'); calque.setAttribute('aria-label', fichierSx(x).nom);
+    calque.innerHTML = `<div class="pc-grand-t"><b>${esc(fichierSx(x).nom)}</b><span>${esc(dossier.name)}</span><span class="pc-sep"></span><button type="button" class="btn btn-sm" id="pcg-fermer">${PC_IC.fermer} Fermer</button></div><div class="pc-grand-d" id="pcg-d"><p style="color:#fff">Ouverture…</p></div>`;
+    document.body.append(calque);
+    const fermer = () => { calque.remove(); document.removeEventListener('keydown', echap, true); };
+    const echap = e => { if (e.key === 'Escape') { e.stopPropagation(); fermer(); } };
+    document.addEventListener('keydown', echap, true);
+    $('#pcg-fermer', calque).onclick = fermer; $('#pcg-fermer', calque).focus();
+    const zone = $('#pcg-d', calque);
+    if (!/pdf/.test(f.type)) { zone.innerHTML = `<img src="${f.adresse}" alt="${esc(fichierSx(x).nom)}">`; return; }
+    const img = await api.pieces.apercuPdf(f.blob, 1600, 1);
+    zone.innerHTML = img ? `<img src="${img.adresse}" alt="${esc(fichierSx(x).nom)}">` : '<p style="color:#fff">Ce PDF ne se dessine pas ici.</p>';
+  }
+
+  // ---------- les gestes ----------
+  // Après un geste : le livre et les pièces se relisent, la pièce suivante s'ouvre.
+  async function apresSx(root, dossier, x, quoi = {}) {
+    const P = sxState.dernier || { liste: [] };
+    const i = P.liste.findIndex(y => y.k === x.k);
+    const suivante = P.liste[i + 1] || P.liste[i - 1] || null;
+    sxState.sel = suivante ? suivante.k : '';
+    sxState.fiches.delete(x.k); sxState.saisir.delete(x.k);
+    clState.docs.delete(dossier.id); clState.livres.delete(`${dossier.id}:${livresState.annee}`); clState.just.clear();
+    await Promise.all([relirePieces(), chargerClasseesCl(dossier, true), quoi.docs ? chargerDocsCl(dossier, true) : null]).catch(() => {});
+    drawLivres(root, dossier);
+  }
+  const classerSx = (dossier, x, raison) => x.p ? api.pieces.classer(dossier.id, x.p.id, true, raison) : api.classeur.classer(dossier.id, x.doc.id, true, raison);
+  const declasserSx = (dossier, x) => x.p ? api.pieces.classer(dossier.id, x.p.id, false) : api.classeur.classer(dossier.id, x.doc.id, false);
+  const joindreSx = (dossier, x, idE) => x.p ? api.pieces.joindre(dossier.id, x.p.id, idE) : api.classeur.classer(dossier.id, x.doc.id, true, 'jointe', idE);
+
+  async function enregistrerSx(root, dossier, x) {
+    const f = ficheSx(x), E = ecritureSx(f), el = $('#sx-fiche');
+    if (E.refus) {
+      const champ = { four: '#sx-four', date: '#sx-date', ttc: f.devise ? '#sx-mdev' : '#sx-ttc', tva: f.tva === 'autre' ? '#sx-tva-autre' : '#sx-tva', compte: '#sx-compte', taux: '#sx-taux' }[E.refus[0]];
+      sxState.tente.add(x.k);
+      const r = $('#sx-refus'); if (r) { r.hidden = false; r.classList.remove('reste'); r.textContent = E.refus[1]; }
+      const c = champ && $(champ); if (c) { c.focus(); c.classList.add('sx-ko'); c.setAttribute('aria-invalid', 'true'); }
+      return;
+    }
+    const s = livresState;
+    // (S4) Le même fournisseur, le même numéro : déjà au livre, on le dit avant d'écrire.
+    const deux = f.numero && ecrituresSx().find(y => achatSx(y) && normSx(nomTiersSx(y)) === normSx(f.four) && `${y.libelle || ''} ${y.piece || ''}`.includes(f.numero));
+    if (deux && !await confirmDialog('Déjà au livre ?', `<p>${esc(deux.piece || 'Une écriture')} du ${esc(fmtJourCourt(deux.date))} porte déjà le numéro <b>${esc(f.numero)}</b> de ${esc(f.four)}. L'écrire encore compterait la facture deux fois.</p>`, 'L\'écrire quand même')) return;
+    const ok = el && $('#sx-ok', el); if (ok) ok.disabled = true;
+    const banque = !f.devise && f.paye ? ligneBanqueSx(E.ttc, f.date) : null;
+    try {
+      const res = await api.saisir(dossier.id, s.annee, { date: f.date, journal: f.journal, piece: String(f.piece || '').trim(), libelle: E.lib, source: 'saisie', pieceJointe: null, lignes: versLeLivreSx(E.lignes) });
+      s.livre = res.livre;
+      if (f.devise && f.taux) prefs.set(`sxTaux:${f.devise}`, String(f.taux));
+      if (res.attente) { toast('Gardée sur ce poste, au brouillard : elle partira au retour du réseau. La pièce s\'y joindra alors, depuis le classeur.'); drawLivres(root, dossier); return; }
+      let dit = `${f.four} · ${dtSx(E.ttc)} DT : au brouillard`;
+      try { await joindreSx(dossier, x, res.id); dit += ', la pièce jointe'; } catch (err) { dit += `, mais la pièce n'a pas pu s'y joindre (${plainError(err)})`; }
+      if (banque) {
+        try {
+          const r2 = await api.saisir(dossier.id, s.annee, { date: banque.l.date, journal: journalBanqueSx(), piece: '', libelle: `Règlement ${f.four} · ${banque.l.libelle}`.slice(0, 120), source: 'saisie', pieceJointe: null,
+            lignes: versLeLivreSx([{ compte: f.c40 || '401', libelle: `Règlement ${f.four}`, debit: E.ttc, credit: 0, tiers: f.four }, { compte: banque.R.compte || '532', libelle: banque.l.libelle, debit: 0, credit: E.ttc }]) });
+          s.livre = r2.livre;
+          const x2 = await api.rapprocher({ dossierId: dossier.id, annee: s.annee, releveId: banque.R.id, ligneId: banque.l.id, choix: { ecritureId: r2.id, ligne: 1, niveau: 'certain', date: K.today() } });
+          s.livre = x2.livre;
+          dit += `, son règlement du ${jjmm(banque.l.date)} rapproché`;
+        } catch (err) { dit += ` ; le règlement n'a pas pu s'écrire (${plainError(err)})`; }
+      }
+      toast(`${dit}.`);
+      await apresSx(root, dossier, x, { docs: !!x.doc });
+    } catch (err) { if (ok) ok.disabled = false; await infoDialog('Enregistrement impossible', plainError(err)); }
+  }
+  // « Ouvrir en lignes » : la grille reçoit l'écriture de la fiche, la pièce s'y joindra à l'enregistrement.
+  function enLignesSx(root, dossier, x) {
+    const f = ficheSx(x), E = ecritureSx(f);
+    if (saisieState.dossierId === dossier.id && pieceEnCours(saisieState.piece)) { toast('Une écriture est déjà commencée dans la grille : elle t\'attend « Au kilomètre ».'); sxState.mode = 'km'; drawLivres(root, dossier); return; }
+    saisieState.dossierId = dossier.id;
+    saisieState.piece = { ...pieceVide(f.journal, /^\d{4}-\d{2}-\d{2}$/.test(f.date) ? f.date : dateProposee(livresState.annee)), piece: f.piece, libelle: E.lib, touchee: true,
+      lignes: E.lignes.filter(l => l.compte || l.debit || l.credit).map(l => ({ compte: l.compte, libelle: l.libelle, debit: l.debit ? montantChamp(l.debit / 1000) : '', credit: l.credit ? montantChamp(l.credit / 1000) : '', ...(l.tiers ? { tiers: l.tiers, tiersId: null, lettre: '' } : {}) })).concat([ligneVide()]),
+      depuisClasseur: { nom: fichierSx(x).nom, ou: 'la Saisie, face à la pièce', ...(x.p ? { message: x.p.id } : { doc: x.doc.id }) } };
+    sxState.mode = 'km';
+    drawLivres(root, dossier);
+  }
+  async function deplacerSx(root, dossier, x) {
+    const e = x.sx.e, lu = x.lu, s = livresState;
+    const L = lireLivreFd(s.livre), declE = !!(L.decl[String(e.date).slice(0, 7)] && L.decl[String(e.date).slice(0, 7)].deposee);
+    const lignes = (e.lignes || []).map(l => ({ compte: l.compte, libelle: l.libelle || '', debit: montantDe(l.debit), credit: montantDe(l.credit), ...(l.tiers ? { tiers: l.tiers, tiersId: l.tiersId || null, lettre: '' } : {}) }));
+    try {
+      if (e.statut === 'brouillard') {
+        const r = await api.modifierEcriture(dossier.id, s.annee, e.id, { date: lu.date, journal: e.journal, piece: e.piece, libelle: e.libelle, source: e.source, pieceJointe: e.pieceJointe || null, lignes });
+        s.livre = r.livre;
+      } else {
+        const r = await api.contrepasser(dossier.id, s.annee, e.id, declE ? lu.date : e.date);
+        s.livre = r.livre;
+        const r2 = await api.saisir(dossier.id, s.annee, { date: lu.date, journal: e.journal, piece: e.piece, libelle: `${e.libelle || ''} (au ${jjmm(lu.date)}, sa date)`.slice(0, 120), source: 'saisie', pieceJointe: e.pieceJointe || null, lignes });
+        s.livre = r2.livre;
+      }
+      await classerSx(dossier, x, 'verifiee').catch(() => {});
+      toast(`${e.piece || 'L\'écriture'} est au ${jjmm(lu.date)}${e.statut === 'brouillard' ? '' : ' (contre-passée, puis réécrite au brouillard)'} : la pièce est vérifiée.`);
+      await apresSx(root, dossier, x);
+    } catch (err) { await infoDialog('Déplacement impossible', plainError(err)); }
+  }
+  async function confianceSxPoser(root, dossier, nom, oui) {
+    const avant = Array.isArray(dossier.sansVerifier) ? dossier.sansVerifier.slice() : [];
+    const liste = oui ? [...avant.filter(n => normSx(n) !== normSx(nom)), nom] : avant.filter(n => normSx(n) !== normSx(nom));
+    try {
+      await api.sansVerifier(dossier.id, liste);
+      dossier.sansVerifier = liste;
+      const d2 = (S.dossiers || []).find(y => y.id === dossier.id); if (d2) d2.sansVerifier = liste;
+      if (oui) toastUndo(`${nom} : ses factures ne se vérifient plus pièce par pièce. Elles restent dans la bande, « de confiance ».`, () => confianceSxPoser(root, dossier, nom, false));
+      else toast(`${nom} : ses factures se vérifient à nouveau.`);
+      drawLivres(root, dossier);
+    } catch (err) { toast(plainError(err), 'error'); }
+  }
+
+  function brancherSx(el, root, dossier) {
+    const zone = $('#sx-zone', el);
+    if (!zone) return;
+    const P = sxState.dernier || { liste: [] };
+    const x = P.liste.find(y => y.k === sxState.sel);
+    const aller = d => { const i = P.liste.findIndex(y => y.k === sxState.sel); const y = P.liste[i + d]; if (y) { sxState.sel = y.k; sxState.zoom = 1; sxState.rot = 0; redessinerSx(dossier, true); } };
+    const on = (sel, f) => { $$(sel, el).forEach(b => { b.onclick = f; }); };
+    on('#sx-prec', () => aller(-1));
+    on('#sx-suiv', () => aller(1));
+    $$('[data-sx-k]', el).forEach(b => { b.onclick = () => { sxState.sel = b.dataset.sxK; sxState.zoom = 1; sxState.rot = 0; redessinerSx(dossier, true); }; });
+    $$('[data-sx-mode]', el).forEach(b => { b.onclick = () => {
+      sxState.mode = b.dataset.sxMode;
+      // Au kilomètre sur un mois : la grille s'ouvre aux achats de ce mois (rien n'est écrasé de ce qu'on a commencé).
+      const m = moisSx();
+      if (sxState.mode === 'km' && m && !pieceEnCours(saisieState.piece) && !(saisieState.piece && saisieState.piece.depuisClasseur)) {
+        const auj = K.today(), fin = new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10);
+        saisieState.dossierId = dossier.id;
+        saisieState.piece = pieceVide(journalAchatsSx(), auj.slice(0, 7) === m ? auj : fin);
+      }
+      drawLivres(root, dossier);
+    }; });
+    const dm = $('#sx-demander-mois', el);
+    if (dm) dm.onclick = () => fenDemanderCl(dossier, { titre: `Les pièces ${deMois(moisSx())}`, piece: `les pièces ${deMois(moisSx())} (factures d'achat, tickets, relevé)`, mois: moisSx() }, { hors: true });
+    $$('#sx-papier', el).forEach(z => { const y = P.liste.find(w => w.k === z.dataset.k); if (y) chargerPapierSx(dossier, y, z); });
+    $$('[data-sx-z]', el).forEach(b => { b.onclick = () => { sxState.zoom = Math.min(2, Math.max(0.5, sxState.zoom + Number(b.dataset.sxZ) * 0.25)); const z = $('#sx-zoom', el); if (z) z.textContent = `${Math.round(sxState.zoom * 100)} %`; if (x) chargerPapierSx(dossier, x, $('#sx-papier', zone)); }; });
+    on('#sx-tourner', () => { sxState.rot = (sxState.rot + 90) % 360; const im = $('#sx-papier img', zone); if (im) im.style.transform = `rotate(${sxState.rot}deg)`; });
+    on('#sx-grand', () => { if (x) enGrandSx(dossier, x); });
+    on('#sx-conf-tout', async () => {
+      const conf = P.liste.filter(y => y.sx.k === 'confiance');
+      try { for (const y of conf) await classerSx(dossier, y, 'verifiee'); toast(`${pl(conf.length, 'pièce marquée vérifiée', 'pièces marquées vérifiées')}.`); } catch (err) { toast(plainError(err), 'error'); }
+      await apresSx(root, dossier, conf[conf.length - 1] || { k: '' });
+    });
+    on('#sx-km-prendre', () => { if (x) enLignesSx(root, dossier, x); });
+    if (!x) return;
+    // La fiche à saisir : chaque frappe change la fiche et l'écriture montrée, sans redessiner le champ sous le curseur.
+    const f = (x.sx.k === 'saisir' || x.sx.k === 'devise') ? ficheSx(x) : null;
+    const majEcriture = () => {
+      const t = $('#sx-ec-l', zone); if (t) t.innerHTML = lignesEcritureSx(f, !f.devise && f.paye ? ligneBanqueSx(ecritureSx(f).ttc, f.date) : null);
+      const cv = $('#sx-cv', zone); if (cv) { const v = contreValeurSx(f); cv.textContent = v ? `${dtSx(v)} DT` : '—'; }
+      const md = $('#sx-mdev-v', zone); if (md) md.textContent = montantDevSx(f);
+      const r = $('#sx-refus', zone); if (r) { const E = ecritureSx(f); r.hidden = !E.refus; r.textContent = E.refus ? E.refus[1] : ''; }
+    };
+    if (f) {
+      const champ = (id, k, lire) => { const c = $(id, zone); if (c) c.addEventListener('input', () => { f[k] = lire ? lire(c.value) : c.value; c.classList.remove('sx-ko'); c.removeAttribute('aria-invalid'); if (k === 'four' || k === 'ttc' || k === 'date') { f[`${k}Src`] = ''; } majEcriture(); }); };
+      champ('#sx-four', 'four'); champ('#sx-ttc', 'ttc'); champ('#sx-mdev', 'montantDev'); champ('#sx-taux', 'taux'); champ('#sx-tva-autre', 'tvaAutre'); champ('#sx-piece', 'piece');
+      const dt = $('#sx-date', zone);
+      if (dt) dt.addEventListener('input', () => { const iso = K.dateTapee(dt.value.trim(), livresState.annee); f.date = iso || ''; f.dateSrc = ''; dt.classList.remove('sx-ko'); majEcriture(); });
+      // Un fournisseur choisi : ses habitudes remplissent ce qui est encore vide (jamais ce qu'on a tapé).
+      const four = $('#sx-four', zone);
+      if (four) four.addEventListener('change', () => { const h = habitudesSx(f.four); if (h.n) { if (!f.compte) { f.compte = h.compte; f.compteSrc = 'hab'; } if (f.tva === '') { f.tva = h.taux; f.tvaSrc = 'hab'; } f.c40 = h.c40 || f.c40; } redessinerSx(dossier, true, '#sx-ttc'); });
+      const tv = $('#sx-tva', zone); if (tv) tv.onchange = () => { f.tva = tv.value; f.tvaSrc = ''; redessinerSx(dossier, true, f.tva === 'autre' ? '#sx-tva-autre' : '#sx-compte'); };
+      const cp = $('#sx-compte', zone);
+      if (cp) {
+        cp.addEventListener('input', () => { f.compte = cp.value.trim(); f.compteSrc = ''; const n = $('#sx-compte-nom', zone); if (n) n.textContent = (((livresState.livre || {}).plan || []).find(y => y.compte === f.compte) || {}).libelle || KC.libelleDuPlan(f.compte) || ''; majEcriture(); });
+        suggererCompte(cp, () => ((livresState.livre || {}).plan || []), c => { f.compte = c.compte; f.compteSrc = ''; const n = $('#sx-compte-nom', zone); if (n) n.textContent = c.libelle || ''; majEcriture(); }, () => f.four);
+      }
+      const py = $('#sx-paye', zone); if (py) py.onchange = () => { f.paye = py.checked; majEcriture(); };
+      on('#sx-ok', () => enregistrerSx(root, dossier, x));
+      on('#sx-lignes', () => enLignesSx(root, dossier, x));
+      on('#sx-douane', () => fenDemanderCl(dossier, { titre: `La déclaration en douane · ${f.four}`, piece: `la déclaration en douane de la facture ${f.four}${f.numero ? ` ${f.numero}` : ''} (${f.montantDev} ${f.devise}), avec la TVA et les droits payés`, mois: x.mois }, { hors: true }));
+      on('#sx-autre', () => menuAutreSx(root, dossier, x, $('#sx-autre', zone)));
+    }
+    on('#sx-joindre', async () => {
+      try {
+        await joindreSx(dossier, x, x.sx.e.id);
+        toastUndo(`La pièce est jointe à ${x.sx.e.piece || 'son achat'} : l'achat a son justificatif.`, async () => { try { await declasserSx(dossier, x); await apresSx(root, dossier, { k: '' }); } catch (err) { toast(plainError(err), 'error'); } });
+        await apresSx(root, dossier, x, { docs: !!x.doc });
+      } catch (err) { toast(plainError(err), 'error'); }
+    });
+    on('#sx-pas-meme', () => { sxState.saisir.add(x.k); redessinerSx(dossier, true, '#sx-four'); });
+    on('#sx-pas-double', () => { sxState.saisir.add(x.k); x.etat = ['ambre', 'à saisir', 'traiter']; redessinerSx(dossier, true, '#sx-four'); });
+    on('#sx-double', async () => {
+      try {
+        const jum = ((sxState.dernier || {}).items || []).find(y => y.k === x.jumelle);
+        if (jum) await api.classeur.doubler(dossier.id, x.p ? 'message' : 'document', x.p ? x.p.id : x.doc.id, jum.p ? 'message' : 'document', jum.p ? jum.p.id : jum.doc.id);
+        else await classerSx(dossier, x, 'double');
+        toastUndo(`${fichierSx(x).nom} : marquée en double, hors du compte.`, async () => { try { await declasserSx(dossier, x); await apresSx(root, dossier, { k: '' }); } catch (err) { toast(plainError(err), 'error'); } });
+        await apresSx(root, dossier, x, { docs: !!x.doc });
+      } catch (err) { toast(plainError(err), 'error'); }
+    });
+    on('#sx-verifiee', async () => {
+      try {
+        await classerSx(dossier, x, 'verifiee');
+        toastUndo(`${courtSx(x)} : marquée vérifiée.`, async () => { try { await declasserSx(dossier, x); await apresSx(root, dossier, { k: '' }); } catch (err) { toast(plainError(err), 'error'); } });
+        await apresSx(root, dossier, x, { docs: !!x.doc });
+      } catch (err) { toast(plainError(err), 'error'); }
+    });
+    on('#sx-deplacer', () => deplacerSx(root, dossier, x));
+    on('#sx-demander-date', () => {
+      const e = x.sx.e, qui = prenomCl(dossier.contact);
+      fenDemanderCl(dossier, { titre: `La date de ${e.piece || 'ton achat'} · ${nomTiersSx(e)}`, piece: `la bonne date de ${e.piece || 'ton achat'} (${nomTiersSx(e)})`, mois: x.mois,
+        texte: `Bonjour${qui ? ` ${qui}` : ''}, ton achat ${e.piece || ''} (${nomTiersSx(e)}, ${dtSx(ttcSx(e))} DT) est daté du ${jjmm(e.date)}, mais la facture est du ${jjmm(x.lu.date)}. Peux-tu corriger sa date dans SkanFact ? Sa TVA compte au mois de la facture.` }, { hors: true });
+    });
+    on('#sx-demander', () => fenDemanderCl(dossier, { titre: `${courtSx(x)} · ${x.sx.e.piece || ''}`, texte: `Bonjour${prenomCl(dossier.contact) ? ` ${prenomCl(dossier.contact)}` : ''}, sur ton achat ${x.sx.e.piece || ''} (${nomTiersSx(x.sx.e)}, ${dtSx(ttcSx(x.sx.e))} DT), j'ai une question : `, mois: x.mois }, { hors: true }));
+    on('#sx-conf-oui', () => confianceSxPoser(root, dossier, nomTiersSx(x.sx.e), true));
+    on('#sx-conf-non', () => confianceSxPoser(root, dossier, nomTiersSx(x.sx.e), false));
+  }
+  // « Autre chose… » : ce qu'une pièce peut être d'autre qu'un achat à saisir.
+  function menuAutreSx(root, dossier, x, ancre) {
+    $$('.sx-menu').forEach(m => m.remove());
+    const m = document.createElement('div');
+    m.className = 'row-menu sx-menu'; m.setAttribute('role', 'menu');
+    m.innerHTML = `<button type="button" role="menuitem" data-sx-r="rien"><b>Rien à saisir</b><span>Un contrat, une attestation : gardée dans le dossier, à sa date</span></button>
+      <button type="button" role="menuitem" data-sx-r="saisie"><b>Déjà saisie</b><span>Elle est déjà dans ses livres : classée sans rien ajouter</span></button>
+      <button type="button" role="menuitem" data-sx-r="double"><b>En double</b><span>La même pièce est déjà arrivée</span></button>`;
+    document.body.append(m);
+    const r = ancre.getBoundingClientRect();
+    m.style.position = 'fixed'; m.style.left = `${Math.max(8, Math.min(window.innerWidth - 330, r.left))}px`; m.style.top = `${r.bottom + 4}px`; m.style.zIndex = '60';
+    const fermer = () => { m.remove(); document.removeEventListener('mousedown', dehors, true); };
+    const dehors = e => { if (!m.contains(e.target)) fermer(); };
+    setTimeout(() => document.addEventListener('mousedown', dehors, true), 0);
+    $$('[data-sx-r]', m).forEach(b => { b.onclick = async () => {
+      fermer();
+      try {
+        await classerSx(dossier, x, b.dataset.sxR);
+        toastUndo(`${fichierSx(x).nom} : ${b.querySelector('b').textContent.toLowerCase()}.`, async () => { try { await declasserSx(dossier, x); await apresSx(root, dossier, { k: '' }); } catch (err) { toast(plainError(err), 'error'); } });
+        await apresSx(root, dossier, x, { docs: !!x.doc });
+      } catch (err) { toast(plainError(err), 'error'); }
+    }; });
+  }
+  // Le clavier de la fiche : Entrée enregistre (ou joint, ou vérifie), Alt+→ passe, Alt+← revient, Alt+L ouvre en lignes.
+  function clavierSx(e) {
+    if (!/\/comptabilite\/saisie/.test(location.hash) || sxState.mode === 'km' || $('#modal-root').children.length || !$('#sx-fiche')) return;
+    if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { const b = $(e.key === 'ArrowRight' ? '#sx-suiv' : '#sx-prec'); if (b && !b.disabled) { e.preventDefault(); b.click(); } return; }
+    if (e.altKey && (e.key === 'l' || e.key === 'L')) { const b = $('#sx-lignes'); if (b) { e.preventDefault(); b.click(); } return; }
+    if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.tagName === 'BUTTON' || t.tagName === 'A' || t.tagName === 'TEXTAREA' || $('.sugg-pop'))) return;
+    if (t && t !== document.body && !t.closest('#sx-fiche')) return;
+    const b = $('#sx-fiche .btn-primary:not([disabled])');
+    if (b) { e.preventDefault(); b.click(); }
+  }
+  document.addEventListener('keydown', clavierSx);
+  // Redessiner la seule zone des pièces (la grille et ce qu'on y tape ne bougent pas) : à l'arrivée des pièces, ou d'un clic.
+  function redessinerSx(dossier, force, focus) {
+    const zone = $('#sx-zone');
+    if (!zone || livresState.onglet !== 'saisie' || livresState.dossierId !== dossier.id || $('#modal-root').children.length) return;
+    if (!force && zone.contains(document.activeElement) && document.activeElement !== document.body && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    const P = piecesSx(dossier);
+    const avant = sxState.mode;
+    // Les pièces sont arrivées : la Saisie passe face à la première, si rien n'est commencé dans la grille.
+    if (!sxState.mode && P.pret && P.liste.length && !pieceEnCours(saisieState.piece) && !(saisieState.piece && saisieState.piece.depuisClasseur)) sxState.mode = 'face';
+    if (P.pret && avant !== sxState.mode) { drawLivres(document, dossier); return; }
+    const html = zoneSx(dossier, P);
+    const cle = `${sxState.mode}|${sxState.sel}|${html.length}|${html}`;
+    if (!force && cle === sxState.dessin) return;
+    sxState.dessin = cle;
+    sxState.dernier = P;
+    zone.innerHTML = html;
+    const cote = $('#sx-km-d'); if (cote) cote.innerHTML = cotePieceSx(dossier, P);
+    brancherSx(document.getElementById('c-livres') || document, document, dossier);
+    if (focus) { const c = $(focus, zone); if (c) c.focus(); }
+  }
+
   function vueSaisie(dossier) {
     const s = livresState;
     const r = reglagesSaisie();
@@ -14078,10 +14759,24 @@
     // les lots proposés, eux, portent sur tout le brouillard — c'est lui qu'ils valident.
     const pagerBrouillard = pagerBar(brouillards.length, s, 'pièce');
     const brouillardsPage = paginate(brouillards, s);
+    // (1.210.0) Les pièces du mois, face à leur fiche : la grille reste dessous, cachée, pour « Au kilomètre » et « En lignes ».
+    if (sxState.dossier !== dossier.id) { Object.assign(sxState, { dossier: dossier.id, sel: '', mode: '', zoom: 1, rot: 0, dessin: '' }); sxState.fiches.clear(); sxState.saisir.clear(); }
+    const P = piecesSx(dossier);
+    sxState.dernier = P;
+    if (pieceEnCours(p) || p.depuisClasseur) sxState.mode = 'km';
+    else if (!sxState.mode && P.pret && P.liste.length) sxState.mode = 'face';
+    const face = P.pret && P.liste.length > 0 && sxState.mode === 'face';
+    const cote = P.pret && P.liste.length > 0 && !face;
+    const zoneHtml = zoneSx(dossier, P);
+    sxState.dessin = `${sxState.mode}|${sxState.sel}|${zoneHtml.length}|${zoneHtml}`;
+    const mSx = moisSx();
+    const brMois = mSx ? brouillards.filter(e => String(e.date || '').slice(0, 7) === mSx) : brouillards;
+    const aValiderMois = mSx ? brMois.filter(e => String(e.date || '') <= K.today() && !e.attente) : [];
+    const abosActifs = (Array.isArray(dossier.abonnements) ? dossier.abonnements : []).filter(a => a.actif).length;
 
     // (1.174.2) Une saisie ouverte depuis le classeur dit de quelle pièce elle vient : enregistrée, la pièce s'y joint.
     const dc = p.depuisClasseur;
-    return `${dc ? `<div class="sa-depuis" role="note"><span><b>Saisie de « ${esc(dc.nom)} »</b> · ${esc(dc.ou)} : enregistrée, l'écriture la prend pour justificatif${dc.retour ? ', et elle sort des pièces à classer' : ', et le classeur la compte saisie'}.${dc.dateArrivee ? ' La date proposée est celle de son arrivée : mets celle de la facture.' : ''}</span><a class="btn btn-sm btn-ghost" href="${dc.retour ? esc(dc.retour) : `#/dossier/${encodeURIComponent(dossier.id)}/classeur`}">${dc.retour ? 'Retour aux pièces reçues' : 'Retour au classeur'}</a></div>` : ''}<div class="sa-tete" id="sa-tete">
+    return `<div class="sx" id="sx-zone">${zoneHtml}</div><div class="sx-km${cote ? '' : ' seul'}"${face ? ' hidden' : ''}><div class="sx-km-g">${dc ? `<div class="sa-depuis" role="note"><span><b>Saisie de « ${esc(dc.nom)} »</b> · ${esc(dc.ou)} : enregistrée, l'écriture la prend pour justificatif${dc.retour ? ', et elle sort des pièces à classer' : ', et le classeur la compte saisie'}.${dc.dateArrivee ? ' La date proposée est celle de son arrivée : mets celle de la facture.' : ''}</span><a class="btn btn-sm btn-ghost" href="${dc.retour ? esc(dc.retour) : `#/dossier/${encodeURIComponent(dossier.id)}/classeur`}">${dc.retour ? 'Retour aux pièces reçues' : 'Retour au classeur'}</a></div>` : ''}<div class="sa-tete" id="sa-tete">
         <label class="field sa-j"><span class="fl">Journal ${info('sa.journal')}</span>
           <select id="sa-journal">${s.livre.journaux.map(j => `<option value="${esc(j.code)}" ${p.journal === j.code ? 'selected' : ''}>${esc(j.code)} — ${esc(j.libelle)}</option>`).join('')}</select></label>
         <label class="field sa-d"><span class="fl">Date ${info('sa.date')}</span>
@@ -14121,6 +14816,7 @@
         <div>
           <div id="sa-solde"></div>
           <div class="bandeau ambre sa-decl" id="sa-decl" role="note" hidden></div>
+          <div class="bandeau ambre sa-decl" id="sa-double" role="note" hidden></div>
           ${/* Le motif du refus se lit AVANT le bouton, jamais dessous : un avertissement sous le
                 geste arrive après la décision (règle 9.4.2). */''}
           <div class="sa-refus" id="sa-refus" hidden></div>
@@ -14135,13 +14831,15 @@
             repliables, le choix retenu. Un comptable qui les connaît n'a pas à les relire à chaque
             pièce ; un débutant les trouve à l'endroit du geste. */''}
       <details class="sa-touches" id="sa-touches"${prefs.get('saTouches', true) === false ? '' : ' open'}><summary>Les touches de la grille</summary>${aideTouches()}</details>
-      <h2 class="mt" id="sa-brouillard">Le brouillard ${info('sa.brouillard')}</h2>
+      </div>${cote ? `<div class="sx-km-d" id="sx-km-d">${cotePieceSx(dossier, P)}</div>` : ''}</div>
+      <div class="sx-bl-t"><h2 id="sa-brouillard">Le brouillard ${info('sa.brouillard')}</h2><span class="mu">${brouillards.length ? `${esc(pl(brouillards.length, 'écriture'))}${mSx ? `, dont ${brMois.length} ${esc(deMois(mSx))}` : ''} · elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées` : 'rien n\'y attend'}</span>
+        ${abosActifs ? `<button type="button" class="btn btn-sm" id="sx-abos">Écritures qui reviennent <small class="sx-nb">${abosActifs}</small></button>` : ''}${r.validerParLot && aValiderMois.length ? `<button type="button" class="btn btn-sm btn-primary" data-lot-mois="${esc(mSx)}">Valider ${aValiderMois.length > 1 ? `les ${aValiderMois.length}` : 'celle'} ${esc(deMois(mSx))}</button>` : ''}</div>
       ${/* Les lots proposés sont ceux qui EXISTENT dans le brouillard (T-29) : « Valider tout le
             journal VT » quand le seul brouillard est en BQ ouvrait une fenêtre pour dire qu'il n'y
             avait rien à faire — un bouton vif qui ne peut rien valider de ce qui est affiché. Le
             compte est connu avant le clic, donc il est écrit dessus. */''}
       ${brouillards.length ? `${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).length ? `<div class="sa-lot">
-          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
+          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).filter(l => !(l.type === 'mois' && l.cle === mSx && aValiderMois.length)).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
           <span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>` : ''}
         ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
     : a.length ? `<p class="muted small" id="sa-attend">${a.length} pièces sont datées après aujourd'hui : chacune se valide à partir de sa date.</p>` : '')(brouillards.filter(e => String(e.date || '') > K.today()))}
@@ -14208,6 +14906,9 @@
   function brancherSaisie(el, root, dossier) {
     const s = livresState;
     if (!s.livre || !saisieState.piece) return;
+    brancherSx(el, root, dossier);
+    const abos = $('#sx-abos', el);
+    if (abos) abos.onclick = () => { const c = $('#c-abos'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     // (plateforme, 1.87.7) La saisie s'ouvre le curseur dans « Pièce », comme après chaque enregistrement : elle s'ouvrait
     // sans curseur, et la saisie au clavier commençait par un clic (vu en recette le 21/10/2026). Seulement à la souris et au
     // clavier (au doigt, le clavier de l'écran s'ouvrirait), quand rien d'autre n'a le curseur ni de fenêtre ouverte.
@@ -14410,8 +15111,17 @@
     }
 
     // L'entête : chaque champ écrit dans la pièce, aucun ne redessine la grille.
+    // (1.210.0, S4) Le même numéro de pièce dans le même journal : déjà au livre. Dit pendant la frappe, et demandé avant
+    // d'enregistrer : une facture saisie deux fois compte sa charge et sa TVA deux fois.
+    const doublonDe = () => { const n = String(p.piece || '').trim(); return n ? (s.livre.ecritures || []).find(e => e.id !== p.id && e.statut !== 'contrepassee' && e.journal === p.journal && String(e.piece || '').trim() === n) || null : null; };
+    const majDouble = () => {
+      const b = $('#sa-double', el); if (!b) return;
+      const d2 = doublonDe();
+      b.hidden = !d2;
+      b.textContent = d2 ? `Déjà au livre : ${d2.journal} ${d2.piece} du ${fmtJour(d2.date)}${d2.libelle ? ` (${d2.libelle})` : ''}. Le même numéro deux fois, c'est souvent la même pièce saisie deux fois.` : '';
+    };
     const j = $('#sa-journal', el);
-    if (j) j.onchange = () => { p.journal = j.value; p.touchee = true; api.dernierJournal(dossier.id, j.value).catch(() => {}); majSolde(); };
+    if (j) j.onchange = () => { p.journal = j.value; p.touchee = true; api.dernierJournal(dossier.id, j.value).catch(() => {}); majSolde(); majDouble(); };
     // (1.174.5) Un mois dont la déclaration est déposée : l'écriture le change après coup. Dit avant le geste (la maquette
     // « Mois déjà déclaré ») ; la règle de report est À VÉRIFIER avec un comptable.
     const majDecl = () => {
@@ -14440,7 +15150,8 @@
       // parcours réel qui l'a montré, jamais la relecture.
       dt.onfocus = () => dt.select();
     }
-    const pc = $('#sa-piece', el); if (pc) pc.oninput = () => { p.piece = pc.value; p.touchee = true; signalerSaisies(); };
+    const pc = $('#sa-piece', el); if (pc) pc.oninput = () => { p.piece = pc.value; p.touchee = true; signalerSaisies(); majDouble(); };
+    majDouble();
     // 10.14.0 — l'en-tête RELIT le verdict : les lignes tapées d'abord, « Pour valider : le libellé
     // manque » restait écrit sous un libellé qu'on venait de taper, et le bouton restait éteint — un
     // état lu une fois se périme (7.1.x). Les lignes sans libellé montrent celui qu'elles reprendront.
@@ -14545,6 +15256,8 @@
       // « Enregistrer et valider » sans licence : on le dit AVANT d'écrire quoi que ce soit, et la
       // pièce reste dans la grille — elle s'enregistre en brouillard d'un clic (10.14.0).
       if (puisValider && await refusLicence('Valider une écriture')) return;
+      const deux = doublonDe();
+      if (deux && !await confirmDialog('Déjà au livre ?', `<p>${esc(deux.journal)} ${esc(deux.piece)} du ${esc(fmtJour(deux.date))} porte déjà ce numéro. L'enregistrer encore compterait la pièce deux fois.</p>`, 'L\'enregistrer quand même')) return;
       // (plateforme) 1.105.0 — sans réseau, valider attend le serveur : on le dit avant d'écrire, la pièce reste ici.
       if (puisValider && typeof api.horsLigne === 'function' && api.horsLigne()) {
         if (await confirmDialog('Valider demande le réseau', '<p>Sans réseau, une écriture se garde au brouillard de ce poste, sans numéro : elle partira seule au retour du réseau, et tu la valideras alors.</p>', 'Enregistrer en brouillard')) await enregistrer(false);

@@ -76,6 +76,8 @@ const FICHE = z.object({
   banque: z.object({ compte: z.string().regex(/^(\d{1,12})?$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
   // Le dernier journal de saisie du dossier, celui que la grille reprend (brique 50).
   dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}$/),
+  // (1.210.0) Les fournisseurs que le cabinet ne vérifie plus pièce par pièce (la Saisie, « Ne plus me faire vérifier »).
+  sansVerifier: z.array(z.string().min(1).max(200)).max(200),
   // Les abonnements du dossier (brique 51).
   abonnements: z.array(ABONNEMENT).max(50),
   // Les taux par contrat de la paie du dossier (brique 55), et les taux propres à l'entreprise (1.66.0) :

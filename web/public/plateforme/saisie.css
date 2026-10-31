@@ -1,0 +1,189 @@
+/* La Saisie du Cabinet face à la pièce (1.210.0), telle que la maquette (docs/maquettes/cabinet/comptabilite.html, états
+   « Saisie… ») : la bande des pièces du mois, la pièce en grand à gauche, sa fiche à droite ; « Au kilomètre », la grille
+   et la pièce à côté ; le brouillard du mois dessous. Les couleurs passent par les variables de la charte. */
+
+.sx { display: grid; gap: 14px; margin: 0 0 16px; line-height: 1.5; }
+.sx:empty { display: none; }
+.sx .mu, .sx-km .mu, .sx-bl-t .mu { color: var(--sb-gris-2); font-size: 12.5px; }
+.sx .mono, .sx-km-d .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
+.sx kbd { font: 600 10.5px/1 inherit; padding: 3px 6px; border-radius: 5px; border: 1px solid var(--sb-trait-fort); border-bottom-width: 2px; background: var(--sb-papier); color: var(--sb-gris); }
+.sx .btn-primary kbd { border-color: currentColor; background: none; color: inherit; opacity: .8; border-bottom-width: 1px; }
+.sx-attente { padding: 10px 2px; }
+
+/* La bande : « Pièce 2 sur 6 », les pièces du mois, et la façon de saisir. */
+.sx-barre { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sx-n { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.sx-n b { font-size: 14px; }
+.sx-esp { flex: 1; }
+.sx-fl { width: 32px; padding: 0; justify-content: center; }
+.sx-fl svg { width: 15px; height: 15px; }
+.sx-p { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.sx-p button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--sb-trait); background: var(--sb-papier); font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-gris); white-space: nowrap; cursor: pointer; }
+.sx-p button i { display: inline-grid; color: var(--sb-gris-2); font-style: normal; }
+.sx-p button i svg { width: 14px; height: 14px; }
+.sx-p button.ambre i { color: var(--sb-ambre-texte); }
+.sx-p button.bleu i { color: #3f6fd8; }
+.sx-p button.gris { opacity: .75; }
+.sx-p button.on { border-color: var(--sb-sarcelle); background: color-mix(in srgb, var(--sb-sarcelle) 9%, var(--sb-papier)); color: var(--sb-encre); }
+.sx-mode { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--sb-survol); }
+.sx-mode button { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-gris); padding: 5px 10px; border-radius: 8px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; min-height: 30px; }
+.sx-mode button svg { width: 14px; height: 14px; }
+.sx-mode button[aria-pressed="true"] { background: var(--sb-papier); color: var(--sb-encre); box-shadow: var(--sb-ombre); }
+
+/* Face à la pièce : la pièce à gauche, la fiche à droite. */
+.sx-face { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.sx-dv { border: 1px solid var(--sb-trait); border-radius: 14px; overflow: hidden; position: sticky; top: calc(var(--c-nav-h, 0px) + 8px); background: var(--sb-papier); min-width: 0; }
+.sx-dv-t { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--sb-trait); }
+.sx-f-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--sb-survol); color: var(--sb-gris); flex: none; }
+.sx-f-ic svg { width: 15px; height: 15px; }
+.sx-dv-n { min-width: 0; flex: 1; display: grid; }
+.sx-dv-n b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx-dv-n small { font-size: 11.5px; color: var(--sb-gris-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx-dv-z { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--sb-gris); white-space: nowrap; }
+.sx-dv-z .btn svg { width: 14px; height: 14px; }
+.sx-dv-f { background: #e9ecf0; padding: 22px 18px; display: grid; justify-items: center; min-height: 470px; align-content: start; overflow: auto; }
+.sx-dv-f img { max-width: none; box-shadow: 0 8px 22px rgba(20, 40, 60, .16); background: #fff; transition: transform .15s; }
+.sx-dv.petit { position: static; }
+.sx-dv.petit .sx-f-ic { display: none; }
+.sx-dv.petit .sx-dv-f { min-height: 0; padding: 14px; max-height: 420px; }
+
+.sx-fi { border: 1px solid var(--sb-trait-fort); border-radius: 14px; padding: 14px 16px; display: grid; gap: 12px; box-shadow: var(--sb-ombre); background: var(--sb-papier); min-width: 0; }
+.sx-fi > * { min-width: 0; }
+.sx-fi-t { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.sx-fi-t b { font-size: 15.5px; }
+.sx-fi-t small { display: block; font-size: 12px; color: var(--sb-gris-2); }
+.sx-fi-t .cl-st { flex: none; }
+.cl-st.bleu { background: color-mix(in srgb, #3f6fd8 12%, var(--sb-papier)); color: #2f58b8; }
+.sx-fi-g { display: grid; gap: 7px; }
+.sx-fi-r { display: grid; grid-template-columns: 92px minmax(0, 1fr) 150px; gap: 10px; align-items: center; }
+.sx-fi-l { font-size: 12.5px; color: var(--sb-gris); font-weight: 600; }
+.sx-in { width: 100%; min-height: 36px; padding: 7px 10px; border: 1px solid var(--sb-trait-fort); border-radius: 9px; font: inherit; font-size: 13.5px; background: var(--sb-papier); color: var(--sb-encre); box-sizing: border-box; }
+.sx-in:focus { outline: none; border-color: var(--sb-sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 22%, transparent); }
+.sx-in.sx-ko { border-color: var(--sb-rouge-texte); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-rouge-texte) 15%, transparent); }
+.sx-tva { display: flex; gap: 6px; }
+.sx-tva #sx-tva-autre { width: 76px; flex: none; }
+.sx-cpt { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: center; }
+.sx-cpt small { color: var(--sb-gris); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx-src { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--sb-gris-2); line-height: 1.3; }
+.sx-src svg { width: 12px; height: 12px; flex: none; }
+.sx-src.lu { color: #9a6c00; }
+.sx-src.hab { color: #3f6fd8; }
+.sx-src.ambre { color: var(--sb-ambre-texte); }
+.sx-paye { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--sb-doux) 60%, var(--sb-papier)); cursor: pointer; }
+.sx-paye input { margin-top: 3px; accent-color: var(--sb-sarcelle); width: 16px; height: 16px; }
+.sx-paye b { font-size: 13.5px; }
+.sx-paye small { display: block; font-size: 12.5px; color: var(--sb-gris); }
+.sx-ec { display: grid; gap: 4px; overflow-x: auto; }
+.sx-ec-t { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sx-ec-t b { font-size: 13px; }
+.sx-t { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.sx-t th { text-align: left; font-size: 11px; font-weight: 600; color: var(--sb-gris-2); text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--sb-trait); }
+.sx-t td { padding: 5px 8px; border-bottom: 1px solid var(--sb-trait); vertical-align: top; color: var(--sb-encre); }
+.sx-t td.r { text-align: right; white-space: nowrap; }
+.sx-t td.mono { white-space: nowrap; }
+.sx-t tr.bq td { color: var(--sb-gris); }
+.sx-cmp td.ok { color: var(--sb-doux-texte); width: 22px; }
+.sx-cmp td.ok svg { width: 14px; height: 14px; }
+.sx-cmp td.ambre { color: var(--sb-ambre-texte); font-weight: 600; }
+.sx-cmp td.mu { width: 92px; color: var(--sb-gris); }
+.sx-band { margin: 0; }
+.sx-band svg { flex: none; }
+.sx-aide { margin: 0; font-size: 12.5px; color: var(--sb-gris); line-height: 1.5; }
+.sx-refus { margin: 0; padding: 8px 10px; border-radius: 9px; background: var(--sb-rouge-doux, color-mix(in srgb, var(--sb-rouge-texte) 9%, var(--sb-papier))); color: var(--sb-rouge-texte); font-size: 12.5px; font-weight: 600; }
+.sx-gestes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.sx-touches { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--sb-gris-2); line-height: 1.9; }
+.sx-touches > svg { flex: none; margin-top: 4px; }
+.sx .cp-plus, .sx-km-d .cp-plus { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; min-height: 28px; }
+.sx .cp-plus:hover { text-decoration: underline; }
+
+/* Les contrôles d'une pièce saisie par le client (S1), et ceux d'une facture en devises (S5). */
+.sx-ck { list-style: none; margin: 0; padding: 0; display: grid; border: 1px solid var(--sb-trait); border-radius: 12px; overflow: hidden; }
+.sx-ck li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; background: var(--sb-papier); font-size: 13px; }
+.sx-ck li + li { border-top: 1px solid var(--sb-trait); }
+.sx-ck li > i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 99px; background: var(--sb-doux); color: var(--sb-doux-texte); font-style: normal; font-weight: 700; font-size: 12px; }
+.sx-ck li > i svg { width: 13px; height: 13px; }
+.sx-ck li.info > i { background: color-mix(in srgb, #3f6fd8 13%, transparent); color: #3f6fd8; font: italic 700 12px/1 Georgia, serif; }
+.sx-ck li.att > i { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.sx-ck li.ko > i { background: color-mix(in srgb, var(--sb-rouge-texte) 13%, transparent); color: var(--sb-rouge-texte); }
+.sx-ck li > span { display: grid; gap: 1px; min-width: 0; }
+.sx-ck li small { color: var(--sb-gris); font-size: 12px; line-height: 1.4; }
+.sx-ck li .mono { white-space: nowrap; }
+.sx-qui { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--sb-survol); font-size: 13px; }
+.sx-qui small { color: var(--sb-gris); display: block; font-size: 12px; }
+.sx-pers { width: 28px; height: 28px; border-radius: 99px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, #3f6fd8 14%, var(--sb-papier)); color: #2f58b8; font-weight: 700; font-size: 12px; }
+.sx-conf { margin: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12.5px; color: var(--sb-gris); }
+.sx-conf svg { width: 13px; height: 13px; color: var(--sb-doux-texte); }
+.sx-conf .cp-plus { font-size: 12.5px; }
+.sx-taux { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--sb-trait); border-radius: 12px; overflow: hidden; }
+.sx-taux > div { padding: 10px 12px; display: grid; gap: 2px; align-content: start; }
+.sx-taux > div + div { border-left: 1px solid var(--sb-trait); }
+.sx-taux small { color: var(--sb-gris); font-size: 11.5px; }
+.sx-taux b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.sx-taux .eg { background: color-mix(in srgb, var(--sb-sarcelle) 7%, var(--sb-papier)); }
+.sx-taux-in { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.sx-taux-in .sx-in { min-height: 32px; padding: 4px 8px; font-weight: 700; }
+
+/* La pièce au mauvais mois (S2) : ce que le geste change dans les deux mois. */
+.sx-mv { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); align-items: stretch; }
+.sx-mv > div { border: 1px solid var(--sb-trait); border-radius: 12px; padding: 12px; display: grid; gap: 6px; font-size: 13px; align-content: start; }
+.sx-mv > div.de { background: var(--sb-survol); }
+.sx-mv > div.vers { border-color: var(--sb-sarcelle); background: color-mix(in srgb, var(--sb-sarcelle) 5%, var(--sb-papier)); }
+.sx-mv .fl { display: grid; place-items: center; color: var(--sb-sarcelle); font-size: 20px; }
+.sx-mv .r { display: grid; gap: 1px; font-variant-numeric: tabular-nums; }
+.sx-mv .r span { color: var(--sb-gris); font-size: 12px; }
+.sx-mv .r b { white-space: nowrap; }
+.sx-mv .r b.moins { color: var(--sb-rouge-texte); }
+.sx-mv .r b.plus { color: var(--sb-doux-texte); }
+
+/* Rien à saisir ce mois (S6) : la phrase et le geste qui fait venir les pièces ; la grille reste dessous. */
+.sx-vide { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); }
+.sx-vide .txt { flex: 1; min-width: 240px; display: grid; gap: 2px; font-size: 13px; }
+.sx-vide .txt span { color: var(--sb-gris); }
+.sx-vide-ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--sb-doux); color: var(--sb-doux-texte); flex: none; }
+.sx-vide-ic svg { width: 15px; height: 15px; }
+
+/* Au kilomètre : la grille, et la pièce à côté. */
+.sx-km { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 16px; align-items: start; }
+.sx-km.seul { grid-template-columns: minmax(0, 1fr); }
+.sx-km-g { min-width: 0; }
+.sx-km-d { display: grid; gap: 8px; position: sticky; top: calc(var(--c-nav-h, 0px) + 8px); min-width: 0; }
+.sx-km-nav { display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+
+/* Le brouillard du mois. */
+.sx-bl-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 24px 0 10px; }
+.sx-bl-t h2 { margin: 0; font-size: 15px; }
+.sx-bl-t .mu { flex: 1; min-width: 220px; }
+.sx-nb { font-size: 11px; font-weight: 700; background: var(--sb-survol); color: var(--sb-gris); border-radius: 99px; padding: 1px 6px; margin-left: 2px; }
+.sx-menu { min-width: 300px; }
+
+@media (max-width: 1100px) {
+  .sx-face, .sx-km { grid-template-columns: minmax(0, 1fr); }
+  .sx-dv, .sx-km-d { position: static; }
+  .sx-dv-f { min-height: 0; max-height: 420px; }
+}
+@media (max-width: 760px) {
+  .sx-p, .sx-mode, .sx-touches, .sx-dv-z > :not(#sx-grand) { display: none; }
+  .sx-dv-f { max-height: 300px; padding: 14px; }
+  .sx-fi { padding: 12px; }
+  .sx-fi-r { grid-template-columns: 78px minmax(0, 1fr); }
+  .sx-fi-r .sx-src { grid-column: 2; margin-top: -4px; }
+  .sx-taux, .sx-mv { grid-template-columns: minmax(0, 1fr); }
+  .sx-taux > div + div { border-left: 0; border-top: 1px solid var(--sb-trait); }
+  .sx-mv .fl { transform: rotate(90deg); height: 28px; }
+  .sx-fl, .sx-gestes .btn, .sx-mode button, .sx .cp-plus { min-height: 44px; }
+  .sx-fl { width: 44px; }
+  .sx-gestes .btn { flex: 1 1 auto; justify-content: center; }
+}
+
+/* Les bandeaux de la fiche (ceux de la charte, posés ici : le Cabinet ne charge pas piece.css). */
+.sx-band { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; color: var(--sb-encre); }
+.sx-band > svg { width: 18px; height: 18px; }
+.sx-band .txt { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.sx-band .txt b { font-weight: 650; }
+.sx-band .txt span { color: var(--sb-gris); font-size: 13px; line-height: 1.45; }
+.sx-band.info { background: color-mix(in srgb, #4d7cf2 9%, var(--sb-papier)); border: 1px solid color-mix(in srgb, #4d7cf2 22%, transparent); }
+.sx-band.info > svg { color: #3f6fd8; }
+.sx-band.ambre { background: var(--sb-ambre-doux); border: 1px solid color-mix(in srgb, var(--sb-ambre-texte) 25%, transparent); }
+.sx-band.ambre > svg { color: var(--sb-ambre-texte); }
+.sx-refus.reste { background: var(--sb-survol); color: var(--sb-gris); font-weight: 500; }
+@media (max-width: 760px) { .sx kbd { display: none; } }

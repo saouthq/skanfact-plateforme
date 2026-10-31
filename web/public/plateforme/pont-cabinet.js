@@ -933,6 +933,8 @@
         ...(bq.jours != null && bq.jours !== '' ? { jours: Number(bq.jours) } : {}) };
     }
     if (f.dernierJournal != null) contenu.dernierJournal = String(f.dernierJournal).toUpperCase().slice(0, 5);
+    // (1.210.0) Les fournisseurs que le cabinet ne vérifie plus pièce par pièce, pour ce dossier (la Saisie).
+    if (Array.isArray(f.sansVerifier)) contenu.sansVerifier = f.sansVerifier.map((/** @type {unknown} */ n) => String(n).trim().slice(0, 200)).filter(Boolean).slice(0, 200);
     if (Array.isArray(f.abonnements)) {
       contenu.abonnements = f.abonnements.map((/** @type {any} */ a) => ({
         id: String(a.id || ''), nom: String(a.nom || ''), guideId: String(a.guideId || ''), actif: !!a.actif,
@@ -1856,6 +1858,12 @@
     // et ne double rien — la v10, dans son processus principal, les jouait déjà l'une après l'autre.
     genererAbonnements: (/** @type {any} */ o) => (generation = generation.then(() => genererAbonnements(o), () => genererAbonnements(o))),
 
+    // (1.210.0) « Ne plus me faire vérifier » un fournisseur : la liste de la fiche du dossier.
+    sansVerifier: async (/** @type {string} */ id, /** @type {string[]} */ liste) => {
+      const f = fiches.get(id);
+      if (!dossiers.has(id)) throw new Error('Ce dossier n\'est pas suivi par ton cabinet.');
+      await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), sansVerifier: Array.isArray(liste) ? liste : [] }, f ? f.revision : null);
+    },
     // Le journal que la grille de saisie reprend pour ce dossier : sa fiche.
     dernierJournal: async (/** @type {string} */ id, /** @type {string} */ journal) => {
       const j = String(journal || '').toUpperCase().slice(0, 5);

@@ -474,6 +474,59 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### La Saisie face à la pièce (1.210.0, 31/10/2026)
+
+La maquette de la Saisie (lots S1 à S6 de `docs/maquettes/cabinet/plan-saisie-banque.md`). Sur un mois de la frise, la
+Saisie s'ouvre sur **les pièces que le client a envoyées et qui attendent le cabinet** : une bande (« Pièce 2 sur 5 »,
+‹ ›, une pastille par pièce, sa couleur dit ce qu'elle demande), la pièce en grand à gauche (zoom, tourner, en grand),
+sa fiche à droite. La grille au clavier reste dessous, cachée tant qu'on est « Face à la pièce » ; « Au kilomètre » la
+montre, la pièce choisie à côté (« La saisir dans la grille »). Sur « Toute l'année », la bande prend les pièces de l'année.
+
+- **À saisir** (S3) : la fiche se remplit de ce qui est su, et chaque champ dit d'où il vient : « lu sur la pièce » (la
+  lecture du classeur), « comme ses 4 factures » (les écritures d'avant du même fournisseur : sa charge, son taux de
+  TVA, son compte), « numéro suivant » (le journal des achats), « date d'arrivée : mets celle de la pièce ». Aucun taux
+  n'est écrit dans le code : la liste vient des taux que ce dossier a déjà écrits sur ses achats, plus « Autre taux… ».
+  Un ticket se propose « Sans TVA récupérable » (un ticket n'est pas une facture, À VÉRIFIER). L'écriture qui s'écrit se
+  montre (hors taxe, TVA au compte de TVA déductible, fournisseur ; en millimes, la TVA étant le reste). Une ligne du
+  relevé sans écriture, du même montant et à dix jours au plus : « **Payée par carte le 24/09** », cochée : le règlement
+  s'écrit au journal de banque et se rapproche de sa ligne du même geste. Entrée enregistre au brouillard, joint la
+  pièce à l'écriture et ouvre la suivante ; « Ouvrir en lignes » passe l'écriture à la grille ; « Autre chose… » la classe
+  (rien à saisir, déjà saisie, en double). Un refus nomme le champ et y met le curseur.
+- **Déjà saisie ?** : un achat du client sans justificatif que la pièce rappelle (même total, même numéro, le fournisseur,
+  ce qu'il vend) : la comparaison « La pièce dit / FA-0919 dit », « **Joindre à FA-0919** » (Annuler) ou « Ce n'est pas
+  la même : la saisir ».
+- **À vérifier** (S1) : une pièce que le client a rangée lui-même dans son achat. Les contrôles : le fournisseur et son
+  compte, la charge comparée à ses factures d'avant, le total lu contre le total écrit, la TVA écrite, le numéro saisi une
+  seule fois chez ce fournisseur, payée (lettrée, rapprochée, ou sur le relevé pas encore rapprochée, net d'une retenue ?),
+  le certificat de retenue à remettre (À VÉRIFIER). « Marquer vérifiée » (Annuler). « **Ne plus me faire vérifier** » un
+  fournisseur : un réglage de la fiche du dossier (`sansVerifier`), ses pièces passent « de confiance », en fin de bande, et
+  « Marquer vérifiées les N de confiance » les classe d'un geste.
+- **À reclasser** (S2) : la date lue de la facture n'est pas dans le mois de son écriture. La TVA d'une facture se déduit
+  le mois de sa date (À VÉRIFIER) : la fiche montre la TVA déductible des deux mois avant et après, et si le mois de
+  l'écriture est déposé. L'écriture d'un achat du client suit sa pièce (elle ne se change pas dans les livres, la base le
+  refuse) : le geste est « **Demander à Sarra de la dater du 29/08** », un message prêt dans la conversation. Une écriture du
+  cabinet, elle, se déplace : au brouillard sa date change ; validée, elle se contre-passe (au mois de la pièce si le mois de
+  l'écriture est déclaré) et se réécrit.
+- **En devises** (S5) : le montant lu en euros, le taux tapé (le dernier retenu pour cette devise est proposé, gardé sur ce
+  poste ; la source du taux attend une décision de Skander), la contre-valeur calculée en entiers (centimes × taux à quatre
+  décimales : 2 350,00 € × 3,3812 = 7 945,820 DT), l'écriture sans TVA (payée à la douane), « Demander » la déclaration en
+  douane, l'écart de change au paiement (656, 756, À VÉRIFIER).
+- **En double ?** : la jumelle repérée, « Marquer en double » ou la saisir.
+- **Un mois sans pièce** (S6) : « Octobre : aucune pièce à saisir pour l'instant », « Demander les pièces d'octobre à
+  Sarra » (la conversation) ; la grille reste dessous, prête pour une écriture à la main.
+- **Le même numéro deux fois** (S4) : dans la grille, le même numéro de pièce dans le même journal se dit pendant la
+  frappe (« Déjà au livre : AC FA-0919 du 30/09/2026 ») et se demande avant d'enregistrer ; dans la fiche, le même
+  fournisseur avec le même numéro lu aussi.
+- **Le brouillard** dessous : son nombre, celui du mois, « Valider les N de septembre », « Écritures qui reviennent ».
+
+Écarts voulus avec la maquette : un mois sans pièce garde la grille visible sous sa phrase (au lieu d'un aperçu grisé) ;
+« Au kilomètre » est la grille d'une écriture à la fois, la pièce à côté (pas encore le journal du mois ligne à ligne) ; le
+timbre et la FODEC d'une pièce ne se lisent pas encore (la lecture ne les rend pas) ; le surlignage de ce qui a été lu sur
+la photo n'existe pas (la lecture ne rend pas de positions). Serveur : la fiche du dossier accepte `sansVerifier`
+(`serveur/cabinet/routes.ts`), le pont `sansVerifier(id, liste)`. Écran : `web/public/v10/cabinet/app.js` (« La Saisie
+face à la pièce »), `web/public/plateforme/saisie.css`. Essai : `tests/web/cabinet-saisie-piece.test.ts` ; preuves
+« saisie 1 » à « saisie 11 ».
+
 ### La Banque : l'état, les règles et l'import en pages (1.209.0, 31/10/2026)
 
 La fin de la maquette de la Banque (lots B3, B4, B5 ; écrans C2 à C7). Trois fenêtres deviennent des pages de la Banque,

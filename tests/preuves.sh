@@ -18617,8 +18617,8 @@ prouver '« Valider cette écriture » offert avant le jour de l'\''écriture' '
   'if (false) Object.assign(a[a.length - 1],' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver 'un lot qui compte la pièce de paie du 31' 'web/public/v10/cabinet/app.js' \
-  '${lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).map(' \
-  '${lotsDuBrouillard(brouillards.filter(e => !e.attente)).map(' \
+  '${lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
+  '${lotsDuBrouillard(brouillards.filter(e => !e.attente)).filter(' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver 'la pièce qui attend son jour, jamais nommée' 'web/public/v10/cabinet/app.js' \
   '(brouillards.filter(e => String(e.date || '\'''\'') > K.today()))}' \
@@ -18788,8 +18788,8 @@ prouver 'le brouillard qui ne dit pas ce qui attend le réseau' 'web/public/v10/
   '<td class="nw">${false ? (e.refus ?' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 prouver 'un lot qui compte l'\''écriture que le serveur n'\''a pas' 'web/public/v10/cabinet/app.js' \
-  'lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).map(' \
-  'lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).map(' \
+  'lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
+  'lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).filter(' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 prouver 'valider une écriture qui attend le réseau, offert' 'web/public/v10/cabinet/app.js' \
   '      if (e.attente) Object.assign(a[a.length - 1], {' \
@@ -21897,6 +21897,43 @@ prouver 'import 3 : le solde de début pris au livre plutôt qu'"'"'à la fin du
 prouver 'import 4 : « Avant d'"'"'importer » ne voit pas les lignes déjà importées' web/public/v10/cabinet/app.js \
   "          const doubles = lignes.filter(l => deja.has(cle(l))).length;" "          const doubles = lignes.length;" \
   "$WB1"
+
+# (1.210.0) La Saisie face à la pièce (tests/web/cabinet-saisie-piece.test.ts).
+WSX1="septembre, pièce par pièce : vérifier, saisir payée par carte, joindre, le mauvais mois, les euros, le mois vide"
+WSX2="au téléphone : la pièce puis sa fiche, sur toute la largeur, sans rien qui déborde"
+prouver 'saisie 1 : la contre-valeur oublie le taux de change' web/public/v10/cabinet/app.js \
+  "    return Number.isFinite(c) && Number.isFinite(t) && c > 0 && t > 0 ? Math.round(c * t / 1000) : 0;" "    return Number.isFinite(c) && Number.isFinite(t) && c > 0 && t > 0 ? Math.round(c * 10) : 0;" \
+  "$WSX1"
+prouver 'saisie 2 : un ticket compté avec sa TVA' web/public/v10/cabinet/app.js \
+  "      tva: h.n ? h.taux : ticket ? 'sans' : '', tvaAutre: '', tvaSrc: h.n ? 'hab' : ticket ? 'ticket' : ''," "      tva: h.n ? h.taux : '', tvaAutre: '', tvaSrc: h.n ? 'hab' : ''," \
+  "$WSX1"
+prouver 'saisie 3 : le paiement par carte du relevé ne se voit pas' web/public/v10/cabinet/app.js \
+  "        if (mtSx(l.montant) !== -ttcM) continue;" "        continue;" \
+  "$WSX1"
+prouver 'saisie 4 : la pièce saisie ne se joint pas à son écriture' web/public/v10/cabinet/app.js \
+  "      try { await joindreSx(dossier, x, res.id); dit += ', la pièce jointe'; }" "      try { dit += ', la pièce jointe'; }" \
+  "$WSX1"
+prouver 'saisie 5 : le refus ne montre pas le champ' web/public/v10/cabinet/app.js \
+  "      const c = champ && \$(champ); if (c) { c.focus();" "      const c = null; if (c) { c.focus();" \
+  "$WSX1"
+prouver 'saisie 6 : la pièce déjà au livre se saisit une seconde fois' web/public/v10/cabinet/app.js \
+  "      if (c) return { k: 'deja', e: c.c.e, i: c.i, ton: 'bleu', mot: 'déjà saisie ?' };" "" \
+  "$WSX1"
+prouver 'saisie 7 : la facture au mauvais mois passe pour vérifiée' web/public/v10/cabinet/app.js \
+  "      if (x.lu && x.lu.date && String(x.lu.date).slice(0, 7) !== String(e.date).slice(0, 7)) return { k: 'mois', e, ton: 'ambre', mot: 'à reclasser' };" "" \
+  "$WSX1"
+prouver 'saisie 8 : « Ne plus me faire vérifier » ne se garde pas' web/public/plateforme/pont-cabinet.js \
+  "    if (Array.isArray(f.sansVerifier)) contenu.sansVerifier =" "    if (false) contenu.sansVerifier =" \
+  "$WSX1"
+prouver 'saisie 9 : le même numéro au kilomètre se tait' web/public/v10/cabinet/app.js \
+  "    const doublonDe = () => { const n = String(p.piece || '').trim();" "    const doublonDe = () => { const n = '';" \
+  "$WSX1"
+prouver 'saisie 10 : le mois vide cache la grille' web/public/v10/cabinet/app.js \
+  "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${face ? ' hidden' : ''}>" "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${face || !P.liste.length ? ' hidden' : ''}>" \
+  "$WSX1"
+prouver 'saisie 11 : au téléphone la fiche reste à côté de la pièce' web/public/plateforme/saisie.css \
+  "  .sx-face, .sx-km { grid-template-columns: minmax(0, 1fr); }" "" \
+  "$WSX2"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -299,6 +299,7 @@ vaut pour tout le dépôt.*
     banques et les mots retenus : `cabinet.reglages` (champs comptés, révision) ; l'écran (1.206.0) en deux colonnes,
     la maquette : lignes rangées, livre en face, équation du relevé, état de rapprochement (`plateforme/banque.css`). La page
     de la comptabilité (en-tête, groupes, frise des mois, barre de gauche) : `plateforme/comptabilite.css` (1.207.0).
+    La Saisie face à la pièce (1.210.0 : la bande des pièces du mois, la pièce et sa fiche) : `plateforme/saisie.css`.
   - **La déclaration du mois** (brique 41, 0024, C22 à C24) : le moteur de la v10 la déduit, dans le
     navigateur, du livre du serveur ; le serveur garde la déclaration préparée (`compta.declaration` :
     ses cases en millimes ou vides, une par période, pas refaite une fois déposée), les pense-bêtes

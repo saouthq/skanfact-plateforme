@@ -554,3 +554,10 @@ L'état de rapprochement en page, joint au classeur du client (« Le travail du 
 définitif) ; les règles en page (sens, montant au plus, TVA à son compte, À VÉRIFIER ; ce qu'une nouvelle prendrait et la
 règle qu'elle dépasse) ; l'import en page avec « Avant d'importer » et le mois qui manque refusé avant que rien n'entre.
 Le détail : `docs/maquettes/cabinet/ecarts-banque.md` (G).
+
+## La Saisie face à la pièce (1.210.0)
+
+La bande des pièces du mois, la pièce en grand et sa fiche : à saisir (chaque champ dit d'où il vient, payée par carte
+rapprochée du même geste), déjà saisie (joindre), à vérifier (les contrôles, « Ne plus me faire vérifier »), au mauvais
+mois (la TVA des deux mois, la demande au client), en devises (la contre-valeur en entiers), le mois vide, le même numéro
+deux fois. Le détail et les écarts voulus : `docs/cabinet.md` (« La Saisie face à la pièce »).
