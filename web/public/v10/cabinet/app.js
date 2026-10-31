@@ -8100,6 +8100,9 @@
     }
     $$('#c-tabs button', el).forEach(b => { b.onclick = () => allerSousOnglet(root, dossier, b.dataset.tab); });
     // La frise : un mois ouvre ce mois (et son relevé, sur la Banque) ; « Toute l'année », l'exercice.
+    // (1.214.0) Au téléphone, la frise défile : elle s'ouvre sur le mois choisi (ou le premier en retard), pas sur janvier.
+    const fr = $('.cp-an', el);
+    if (fr && fr.scrollWidth > fr.clientWidth + 4) { const c = $('.cp-mo.on', fr) || $('.cp-mo.rouge', fr) || $('.cp-mo.ambre', fr); if (c) fr.scrollLeft = Math.max(0, c.offsetLeft - fr.offsetLeft - 60); }
     $$('[data-cp-mois]', el).forEach(b => { b.onclick = () => {
       const m = b.dataset.cpMois;
       if (!m) { s.mode = 'exercice'; }

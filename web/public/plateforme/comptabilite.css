@@ -89,3 +89,15 @@
 #barre .cp-ns.active { background: color-mix(in srgb, var(--sb-sarcelle) 12%, transparent); box-shadow: none; color: var(--sb-encre); font-weight: 600; }
 #barre .cp-ns.active::before { content: ""; position: absolute; left: 3px; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: var(--sb-sarcelle); }
 .corps-app.barre-repliee #barre .cp-nav-b, body.barre-repliee #barre .cp-nav-b { display: none; }
+
+/* (1.214.0) Revue UI/UX de la comptabilité (31/10/2026) : un état se lit entier (« en retard » devenait « en ret… » sous
+   1 240 px), « 2 mois à valider » ne se coupe plus en deux lignes, et au téléphone les douze mois tiennent sur une rangée
+   qui défile au doigt (ils prenaient trois rangées avant le contenu). */
+.cp-tete .fd-sous .warn-text { white-space: nowrap; }
+@media (max-width: 1240px) { .cp-mo small { white-space: normal; overflow: visible; line-height: 1.2; } }
+@media (max-width: 760px) {
+  .cp-an { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none; }
+  .cp-an-t { flex: 0 0 auto; }
+  .cp-mo { flex: 0 0 78px; min-height: 44px; scroll-snap-align: start; }
+  .cp-ex { flex: 0 0 auto; }
+}

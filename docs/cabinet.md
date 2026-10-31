@@ -474,6 +474,15 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### Revue UI/UX de la Saisie, de la frise et de la Banque (1.214.0, 31/10/2026)
+
+Le rapport : `docs/maquettes/cabinet/revue-ui-saisie-banque.md`. Corrigé : la pièce reste face à sa fiche jusqu'à 900 px ;
+l'état d'un mois de la frise se lit entier ; au téléphone, la frise tient sur une rangée qui défile et s'ouvre sur le mois
+choisi, en retard ou à déposer ; « 2 mois à valider » ne se coupe plus ; la bande des pièces défile au lieu de repousser le
+choix du mode ; le champ des taux de retenue est court. Gardé exprès : les deux navigations (barre et onglets, comme la
+maquette), le fil « Comptabilité › Saisir » sur la Banque (le groupe). À décider avec les autres listes : le bouton
+« Actions » de chaque ligne (la maquette dit ⋯). Preuves « saisie 35 » à « saisie 39 ».
+
 ### La Saisie : « Au kilomètre », le journal du mois (1.213.0, 31/10/2026)
 
 Le lot S9, le dernier de la revue des écarts. Sur un mois, « Au kilomètre » montre **le journal des achats du mois** : une

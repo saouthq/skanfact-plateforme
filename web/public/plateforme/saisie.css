@@ -243,3 +243,11 @@
 #sx-jm-bilan { font-size: 13px; font-weight: 600; display: inline-flex; gap: 4px; align-items: center; }
 #sx-jm-bilan svg { width: 13px; height: 13px; color: var(--sb-doux-texte); }
 @media (max-width: 700px) { .sx-jm-aide { display: none; } }
+
+/* (1.214.0) Revue UI/UX : la pièce reste face à sa fiche jusqu'à 900 px (un portable de 1 024 px les empilait, et la fiche
+   partait sous la pièce) ; la bande des pièces défile au lieu de repousser « Face à la pièce · Au kilomètre » à la ligne. */
+@media (max-width: 1100px) and (min-width: 901px) { .sx-face { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.sx-barre { flex-wrap: nowrap; }
+.sx-barre .sx-p { flex: 1 1 auto; }
+.sx-barre .sx-n, .sx-barre .sx-mode, .sx-barre #sx-conf-tout { flex: none; }
+@media (max-width: 760px) { .sx-barre { flex-wrap: wrap; } }

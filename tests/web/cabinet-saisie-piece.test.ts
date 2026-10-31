@@ -136,8 +136,8 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     } finally { await admin.end(); }
     return { associe, cab, ent, sarra, ticket, steg, farine, levure, matfer, floue, rim };
   }
-  async function ouvrir(jeton: string, cabinet: string, ent: string, tel = false) {
-    const cx = await navigateur.newContext({ viewport: tel ? { width: 390, height: 844 } : { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', ...(tel ? { isMobile: true, hasTouch: true } : {}) });
+  async function ouvrir(jeton: string, cabinet: string, ent: string, tel = false, largeur = 1440) {
+    const cx = await navigateur.newContext({ viewport: tel ? { width: 390, height: 844 } : { width: largeur, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', ...(tel ? { isMobile: true, hasTouch: true } : {}) });
     await cx.clock.setFixedTime(LE_28);
     const p = await cx.newPage();
     const erreurs: string[] = [];
@@ -373,6 +373,35 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     for (const b of await p.locator('#sx-fiche .sx-gestes .btn').all()) expect((await b.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
     await p.locator('#sx-fiche').scrollIntoViewIfNeeded();
     await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-tel.png') });
+    // (1.214.0) Les douze mois tiennent sur une rangée qui défile, ouverte sur septembre (ils prenaient trois rangées).
+    const frise = await p.locator('.cp-an').evaluate((e) => ({ h: e.getBoundingClientRect().height, defile: e.scrollWidth > e.clientWidth }));
+    expect(frise.h).toBeLessThan(80);
+    expect(frise.defile).toBe(true);
+    // Rechargée, sans un clic (un clic fait défiler la frise de lui-même) : elle s'ouvre sur le mois choisi, en retard ou à
+    // déposer, pas sur janvier.
+    await p.reload();
+    await p.locator('.cp-an').waitFor({ timeout: 25_000 });
+    await expect.poll(() => p.locator('.cp-an').evaluate((e) => {
+      const m = e.querySelector('.cp-mo.on') || e.querySelector('.cp-mo.rouge') || e.querySelector('.cp-mo.ambre'); if (!m) return false;
+      const a = e.getBoundingClientRect(), b = m.getBoundingClientRect();
+      return b.left >= a.left - 1 && b.right <= a.right + 1;
+    }), { timeout: 10_000 }).toBe(true);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
+  it('à 1 024 pixels : la pièce reste face à sa fiche, et rien ne se coupe', async () => {
+    const { associe, cab, ent } = await laBoulangerie();
+    const { p, erreurs } = await ouvrir(associe, cab.id, ent, false, 1024);
+    await puce(p, 'Total Ennasr').click();
+    await expect.poll(() => p.locator('#sx-four').inputValue()).toBe('Total Ennasr');
+    const [dv, fi] = await Promise.all([p.locator('.sx-dv').boundingBox(), p.locator('#sx-fiche').boundingBox()]);
+    expect((fi?.x ?? 0)).toBeGreaterThan((dv?.x ?? 0) + (dv?.width ?? 0) - 1);
+    // L'état d'un mois se lit entier (« en retard » devenait « en ret… »).
+    expect(await p.locator('.cp-mo small').evaluateAll((l) => l.filter((e) => e.scrollWidth > e.clientWidth + 1).length)).toBe(0);
+    // La bande des pièces ne repousse pas « Face à la pièce · Au kilomètre » à la ligne.
+    const [n, mode] = await Promise.all([p.locator('#sx-rang').boundingBox(), p.locator('.sx-mode').boundingBox()]);
+    expect(Math.abs((n?.y ?? 0) - (mode?.y ?? 0))).toBeLessThan(12);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

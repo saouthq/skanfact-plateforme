@@ -22011,6 +22011,24 @@ prouver 'saisie 34 : Entrée sur la ligne en cours n'\''enregistre rien' web/pub
   "e.preventDefault(); e.stopPropagation(); enregistrerJmSx(root, dossier); }" "e.preventDefault(); e.stopPropagation(); }" \
   "$WSX1"
 
+# (1.214.0) Revue UI/UX de la Saisie, de la frise et de la Banque (tests/web/cabinet-saisie-piece.test.ts).
+WSX4="à 1 024 pixels : la pièce reste face à sa fiche, et rien ne se coupe"
+prouver 'saisie 35 : au téléphone, les douze mois prennent trois rangées' web/public/plateforme/comptabilite.css \
+  "  .cp-an { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none; }" "" \
+  "$WSX2"
+prouver 'saisie 36 : au téléphone, la frise s'\''ouvre sur janvier' web/public/v10/cabinet/app.js \
+  "    if (fr && fr.scrollWidth > fr.clientWidth + 4) {" "    if (false) {" \
+  "$WSX2"
+prouver 'saisie 37 : à 1 024 pixels, la fiche part sous la pièce' web/public/plateforme/saisie.css \
+  "@media (max-width: 1100px) and (min-width: 901px) { .sx-face { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }" "" \
+  "$WSX4"
+prouver 'saisie 38 : l'\''état d'\''un mois se tronque (« en ret… »)' web/public/plateforme/comptabilite.css \
+  "@media (max-width: 1240px) { .cp-mo small { white-space: normal; overflow: visible; line-height: 1.2; } }" "" \
+  "$WSX4"
+prouver 'saisie 39 : la bande des pièces repousse le choix du mode à la ligne' web/public/plateforme/saisie.css \
+  ".sx-barre { flex-wrap: nowrap; }" "" \
+  "$WSX4"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
