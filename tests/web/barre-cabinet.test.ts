@@ -275,6 +275,9 @@ describe('la barre du Cabinet, à la souris', () => {
     expect((await api('POST', `/entreprises/${boulangerie.ent}/compta/ecritures`, associe, { date: `${annee}-01-15`, journal: 'OD', piece: 'OD-1', libelle: 'Ouverture',
       lignes: [{ compte: '6226', debit: '100,000' }, { compte: '4286', credit: '100,000' }] })).statut).toBe(201);
     await ouvrir(p, cab.id, `#/dossier/${boulangerie.ent}/comptabilite/saisie/${annee}`);
+    // (1.211.0) La pièce remise à classer attend : la Saisie s'ouvre face à elle, et la grille se tape « Au kilomètre »
+    // (elle restait visible sous la fiche par accident quand la page se dessinait avant que les pièces soient lues).
+    await p.locator('[data-sx-mode="km"]').click({ timeout: 15_000 });
     const libelle = p.locator('#sa-libelle, [data-champ="libelle"]').first();
     await libelle.waitFor({ timeout: 15_000 });
     await libelle.fill('Farine du Cap Bon');

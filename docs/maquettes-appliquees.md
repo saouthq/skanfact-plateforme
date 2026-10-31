@@ -555,6 +555,12 @@ définitif) ; les règles en page (sens, montant au plus, TVA à son compte, À 
 règle qu'elle dépasse) ; l'import en page avec « Avant d'importer » et le mois qui manque refusé avant que rien n'entre.
 Le détail : `docs/maquettes/cabinet/ecarts-banque.md` (G).
 
+## La Saisie : la fiche finie (1.211.0)
+
+Le lot S7 de la revue des écarts : « Enregistrer et valider » selon le droit (la saisie voit qui valide), « Lire la pièce »,
+la photo illisible dans la bande, « Corriger… », la confiance chiffrée, la TVA à payer et le dépôt au mauvais mois, le
+message de « Joindre », la pièce suivante nommée, « hier ». Le détail : `docs/cabinet.md` (« La Saisie : la fiche finie »).
+
 ## La Saisie face à la pièce (1.210.0)
 
 La bande des pièces du mois, la pièce en grand et sa fiche : à saisir (chaque champ dit d'où il vient, payée par carte

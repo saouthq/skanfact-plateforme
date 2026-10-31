@@ -187,3 +187,16 @@
 .sx-band.ambre > svg { color: var(--sb-ambre-texte); }
 .sx-refus.reste { background: var(--sb-survol); color: var(--sb-gris); font-weight: 500; }
 @media (max-width: 760px) { .sx kbd { display: none; } }
+
+/* (1.211.0) La fiche finie : la photo illisible en rouge, le compte du fournisseur à côté de son nom, la lecture proposée,
+   la confiance chiffrée, qui valide quand on n'en a pas le droit. */
+.sx-band.rouge { background: var(--sb-rouge-doux); border: 1px solid color-mix(in srgb, var(--sb-rouge-texte) 25%, transparent); }
+.sx-band.rouge > svg { color: var(--sb-rouge-texte); }
+.sx-p button.rouge { color: var(--sb-rouge-texte); }
+.sx-p button.rouge i { color: var(--sb-rouge-texte); }
+.sx-cpt.sx-cpt-f { grid-template-columns: minmax(0, 1fr) auto; }
+.sx-cpt-f small { padding: 2px 7px; border-radius: 6px; background: var(--sb-fond, #f3f4f2); color: var(--sb-gris); font-size: 12px; }
+.sx-fi-t .cl-ia-btn { margin-top: 6px; }
+.sx-fi-t .sx-aide { display: block; margin-top: 4px; }
+.sx-gestes .fd-qui { font-size: 12.5px; color: var(--sb-gris); font-weight: 600; }
+.sx-mv .mu { font-size: 12px; }

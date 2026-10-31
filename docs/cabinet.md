@@ -474,6 +474,41 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### La Saisie : la fiche finie (1.211.0, 31/10/2026)
+
+Le lot S7 de la revue des écarts (`docs/maquettes/cabinet/ecarts-saisie.md`), demandé par Skander (« go ») :
+
+- **Valider selon le droit** : la tenue et la direction ont « **Enregistrer et valider** ↵ » (l'achat et, s'il y en a un,
+  son règlement rapproché, validés du même geste ; un refus du serveur laisse l'écriture au brouillard et le dit avec sa
+  raison) et « Au brouillard » à côté. Un collaborateur en saisie (Rim) garde « Enregistrer au brouillard ↵ », et la page
+  nomme qui valide (« Leïla valide le brouillard ») ; de même « Leïla la vérifie », « Leïla relance Sarra », « Leïla la
+  demande à Sarra » à la place des gestes qui ne sont pas les siens. Le droit sur le dossier prime sur le rôle au cabinet
+  (`peutValiderCl`, comme le serveur : `compta.ecritures.valider`), et le réviseur nommé est celui du classeur (`reviseurCl`).
+- **Lire la pièce** : une pièce pas encore lue propose la lecture du classeur (avec l'accord du client : sinon la phrase dit
+  qu'il l'a coupée) ; lue, la fiche repart de ce que la pièce dit, tant que rien n'y a été tapé.
+- **La photo illisible** reste dans la bande, en rouge (« Redemandée à Sarra… Rien ne s'en saisit ») : « Relancer Sarra »
+  (le message prêt du classeur) ou « Elle se lit : la saisir ».
+- **La fiche à saisir** : le compte du fournisseur à côté de son nom (`401` ou celui de ses écritures d'avant) ; la TVA et
+  le compte reprennent **la dernière** pièce du fournisseur (avant : la plus fréquente, et un taux changé ne suivait
+  jamais) — « comme ses 4 tickets » quand toutes disent pareil, « comme son dernier ticket » sinon — et la fiche le dit :
+  « changés ici, les prochains tickets de Total les reprendront » ; un ticket prend la série des tickets du journal
+  (« TK-… ») quand le dossier en a une, jamais une inventée ; le libellé en devises met le montant en forme
+  (« 2 350,00 EUR à 3,3812 »).
+- **À vérifier** : « **Corriger…** » (et la touche C) : l'achat du client suit sa pièce, la correction se demande à Sarra, le
+  message nomme ce qui ne passe pas (d'après les contrôles) ; l'écriture suit. La confiance se chiffre : « 11 pièces de Sarra
+  déjà vérifiées en 2026, dont 4 de Minoterie du Cap Bon » (sans prétendre « sans correction » : rien ne le garde).
+- **Au mauvais mois** : la **TVA à payer** des deux mois avant → après (la collectée moins la déductible, lues sur les
+  écritures ; « crédit » quand elle est négative), et le dépôt du mois de la pièce (« Août devait se déposer le 28/09 »,
+  « se dépose aujourd'hui », la date des Échéances, À VÉRIFIER).
+- « Joindre » dit ce qu'il apporte : « La photo est jointe à FA-0919 · 21,446 DT de TVA justifiée · 3 pièces attendent ».
+- Les lignes de touches nomment la pièce suivante (« ouvre la pièce suivante (Minoterie du Cap Bon) ») sur chaque fiche ;
+  une pièce reçue la veille dit « hier à 18 h 12 ».
+
+Trouvé en l'essayant : la grille « Au kilomètre » restait visible sous la fiche quand la page s'était dessinée avant que les
+pièces soient lues (après un geste) ; elle suit désormais le mode à chaque dessin (un essai de la barre du Cabinet tapait
+dans cette grille par accident : il passe maintenant « Au kilomètre »). Essai : `tests/web/cabinet-saisie-piece.test.ts`
+(3 parcours, dont Rim en saisie ; la lecture par une fausse IA, sans appel payé) ; preuves « saisie 12 » à « saisie 23 ».
+
 ### La Saisie face à la pièce (1.210.0, 31/10/2026)
 
 La maquette de la Saisie (lots S1 à S6 de `docs/maquettes/cabinet/plan-saisie-banque.md`). Sur un mois de la frise, la

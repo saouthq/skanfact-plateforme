@@ -11,6 +11,11 @@
 //     l'achat du client, le cabinet ne la réécrit pas) ;
 //   - S5 : la facture en euros, sa contre-valeur en millimes (2 350,00 € × 3,3812 = 7 945,820) ;
 //   - S6 : le mois vide, son geste, et la grille dessous ; S4 : le même numéro dans le même journal, dit pendant la frappe.
+// Puis, le 31/10/2026 (1.211.0, lot S7 « la fiche finie ») :
+//   - la direction : « Enregistrer et valider » (l'achat et son règlement validés du même geste) ; « Au brouillard » à côté ;
+//   - la photo illisible reste dans la bande, redemandée, avec « Relancer Sarra » ;
+//   - « Joindre » dit la TVA justifiée et ce qui attend ; le mauvais mois dit la TVA à payer des deux mois et le dépôt ;
+//   - le libellé en euros mis en forme ; un collaborateur en saisie (Rim) : « Leïla valide le brouillard », « Leïla la vérifie ».
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,6 +24,7 @@ import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import type { AppelIA, ReponseIA } from '../../serveur/achats/lecture-ia.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
@@ -26,6 +32,13 @@ const PHOTOS = path.join(RACINE, 'dist/photos');
 const LE_28 = new Date('2026-10-28T10:00:00+01:00');
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const net = (t: string) => t.replace(/[\u202f\u00a0]/g, ' ').replace(/\s+/g, ' ').trim();
+// (1.211.0) Ce que l'IA « lit » sur la photo qu'on croyait illisible (le test ne paie pas l'appel : une réponse écrite ici).
+const EL_AMEN: ReponseIA = {
+  estUneFacture: true, fournisseur: 'Fournitures El Amen', matricules: [], numero: 'FA-0921', date: '2026-09-22', echeance: null, objet: null, devise: 'TND',
+  lignes: [{ designation: 'Fournitures diverses', quantite: '1', prixUnitaire: '92.300', remise: null, tauxTva: '0', totalHT: '92.300' }],
+  totalHT: '92.300', totalTVA: '0', timbre: null, fodec: null, retenue: null, totalTTC: '92.300', netAPayer: '92.300', ou: [], doutes: [],
+};
+const ia: AppelIA = async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(EL_AMEN) }] });
 
 describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
   let navigateur: Browser;
@@ -33,7 +46,7 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-saisie-piece-'));
   beforeAll(async () => {
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
-    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 }, { ia });
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
@@ -58,7 +71,7 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
 
   // La boulangerie de Sarra : ses achats de septembre saisis dans SkanFact (l'électricité sans justificatif), ses pièces
   // envoyées au cabinet, ce que SkanFact y a lu, et le relevé BIAT de septembre.
-  async function laBoulangerie() {
+  async function laBoulangerie(avecRim = false) {
     const { jeton: associe, email: courriel } = await personne('Leïla Jlassi');
     const cab = (await api('POST', '/cabinets', associe, { nom: 'Jlassi Conseil' })).corps as { id: string; code: string };
     const { jeton: sarra } = await personne('Sarra Ben Salah');
@@ -66,6 +79,17 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, sarra, { codeCabinet: cab.code })).corps.mandat);
     expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
     expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, associe, { contenu: { contact: 'Sarra', from: '2026-09' }, revision: null })).statut).toBeLessThan(300);
+    // Rim, en saisie sur ce dossier : elle saisit, la direction valide.
+    let rim = '';
+    if (avecRim) {
+      const r = await personne('Rim Toumi');
+      const inv = await api('POST', `/cabinets/${cab.id}/invitations`, associe, { email: r.email, role: 'saisie' });
+      expect((await api('POST', '/invitations/accepter', r.jeton, { jeton: inv.corps.jeton })).statut).toBeLessThan(300);
+      const membres = (await api('GET', `/cabinets/${cab.id}/equipe`, associe)).corps.membres as { membre: string; nom: string }[];
+      const id = membres.find((m) => m.nom === 'Rim Toumi')?.membre ?? '';
+      expect((await api('PUT', `/cabinets/${cab.id}/mandats/${mandat}/affectations/${id}`, associe, { role: 'saisie' })).statut).toBeLessThan(300);
+      rim = r.jeton;
+    }
     await api('GET', `/entreprises/${ent}/dossier-v10`, sarra);
     const achat = (id: string, fournisseur: string, numero: string, date: string, label: string, prix: string, tva: number, justifie: boolean) => ({
       collection: 'purchases', cle: id, rang: 1, revision: null, contenu: { id, kind: 'facture', number: numero, date, supplierId: fournisseur, currency: 'DT', category: 'Matières premières',
@@ -92,6 +116,9 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     const farine = await envoyer('facture-farine-0903.png');
     const levure = await envoyer('facture-levure.png');
     const matfer = await envoyer('Matfer-FR-26-118842.png');
+    // Une photo illisible, redemandée à Sarra : elle reste dans la bande du mois.
+    const floue = await envoyer('IMG_8790.png');
+    expect((await api('POST', `/entreprises/${ent}/messages/${floue}/classee`, associe, { classee: true, raison: 'illisible', note: 'Peux-tu la reprendre ?' })).statut).toBeLessThan(300);
     // Sarra range elle-même la farine et la levure dans leurs achats : elles sont « à vérifier ».
     expect((await api('POST', `/entreprises/${ent}/messages/${farine}/achat`, sarra, { achat: 'p-0914', libelle: 'FA-0914 · Minoterie du Cap Bon' })).statut).toBe(200);
     expect((await api('POST', `/entreprises/${ent}/messages/${levure}/achat`, sarra, { achat: 'p-0913', libelle: 'FA-0913 · Levures du Sahel' })).statut).toBe(200);
@@ -107,7 +134,7 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
       await lire(levure, 'Levures du Sahel', 'LS-7702', '2026-08-29', '406.964', 'TND');
       await lire(matfer, 'Matfer Bourgeat', 'FR-26-118842', '2026-09-20', '2350.00', 'EUR');
     } finally { await admin.end(); }
-    return { associe, cab, ent, sarra, ticket, steg, farine, levure, matfer };
+    return { associe, cab, ent, sarra, ticket, steg, farine, levure, matfer, floue, rim };
   }
   async function ouvrir(jeton: string, cabinet: string, ent: string, tel = false) {
     const cx = await navigateur.newContext({ viewport: tel ? { width: 390, height: 844 } : { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', ...(tel ? { isMobile: true, hasTouch: true } : {}) });
@@ -129,12 +156,27 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
   it('septembre, pièce par pièce : vérifier, saisir payée par carte, joindre, le mauvais mois, les euros, le mois vide', async () => {
     const { associe, cab, ent, ticket, steg, farine } = await laBoulangerie();
     const { p, erreurs } = await ouvrir(associe, cab.id, ent);
-    // La bande : cinq pièces, chacune dit ce qu'elle demande.
-    expect(await p.locator('#sx-rang').innerText()).toBe('Pièce 1 sur 5');
+    // La bande : six pièces, chacune dit ce qu'elle demande (la photo illisible comprise).
+    expect(await p.locator('#sx-rang').innerText()).toBe('Pièce 1 sur 6');
     const titres = (await p.locator('[data-sx-k]').evaluateAll((l) => l.map((b) => b.getAttribute('title') ?? ''))).sort();
-    expect(titres).toEqual(['Levures du Sahel · à reclasser', 'Matfer Bourgeat · en devises', 'Minoterie du Cap Bon · à vérifier', 'Total Ennasr · à saisir', 'facture-electricite-septembre.png · déjà saisie ?'].sort());
-    // La grille est là, cachée : « Au kilomètre » la montre.
-    expect(await p.locator('.sx-km').isHidden()).toBe(true);
+    expect(titres).toEqual(['IMG_8790.png · illisible', 'Levures du Sahel · à reclasser', 'Matfer Bourgeat · en devises', 'Minoterie du Cap Bon · à vérifier', 'Total Ennasr · à saisir', 'facture-electricite-septembre.png · déjà saisie ?'].sort());
+    // (S7) La photo illisible : redemandée, « Relancer Sarra » ; rien ne s'en saisit.
+    await puce(p, 'IMG_8790').click();
+    await expect.poll(() => fiche(p).innerText().then(net)).toMatch(/Redemandée à Sarra Marquée illisible par .* et redemandée à Sarra le \d\d\/\d\d\. Rien ne s'en saisit/);
+    expect(await p.locator('#sx-relancer').innerText()).toMatch(/^Relancer Sarra/);
+    await p.locator('#sx-relancer').click();
+    await expect.poll(() => p.locator('#pc-redem').inputValue().catch(() => '')).toMatch(/^Bonjour Sarra, la pièce « IMG_8790\.png »/);
+    await p.locator('#pc-redem-non').click();
+    // « Elle se lit : la saisir » : pas encore lue, la fiche propose « Lire la pièce » ; lue, elle repart de ce qu'elle dit.
+    await p.locator('#sx-lisible').click();
+    await expect.poll(() => p.locator('#sx-lire').innerText().catch(() => '')).toBe('Lire la pièce');
+    await p.locator('#sx-lire').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#sx-four').inputValue().catch(() => ''), { timeout: 15_000 }).toBe('Fournitures El Amen');
+    expect(net(await p.locator('#sx-ttc').inputValue())).toBe('92,300');
+    expect(await p.locator('#sx-date').inputValue()).toBe('22/09/2026');
+    // La grille est là, cachée : « Au kilomètre » la montre (1.211.0 : aussi après un geste qui relit les pièces).
+    await expect.poll(() => p.locator('.sx-km').isHidden()).toBe(true);
 
     // S1 : la farine, saisie par Sarra. Ses contrôles, et la charge « comme ses 2 factures d'avant ».
     await puce(p, 'Minoterie').click();
@@ -145,6 +187,10 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(ck).toMatch(/Le total lu = le total écrit 1 846,199 DT/);
     expect(ck).toMatch(/Le numéro F-2026-0903 n'est saisi qu'une fois/);
     await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-verifier.png') });
+    // (S7) « Corriger… » : l'achat de Sarra suit sa pièce ; la demande nomme ce qui reste à regarder, Sarra corrige, l'écriture suit.
+    await p.locator('#sx-corriger').click();
+    await expect.poll(() => p.locator('#modal-root textarea').first().inputValue().then(net).catch(() => '')).toMatch(/^Bonjour Sarra, sur ton achat FA-0914 \(Minoterie du Cap Bon, 1 846,199 DT, du 03\/09\) : .+Peux-tu le corriger dans SkanFact \? L'écriture suivra\.$/);
+    await p.keyboard.press('Escape');
     // « Ne plus me faire vérifier » : un réglage de la fiche du dossier, gardé au serveur.
     await p.locator('#sx-conf-oui').click();
     await expect.poll(async () => ((await api('GET', `/cabinets/${cab.id}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { sansVerifier?: string[] } }[])
@@ -158,7 +204,7 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
       try { return (await admin.query('select classee_raison r, jointe_ecriture j from messagerie.message where id = $1', [m])).rows[0] as { r: string | null; j: string | null }; } finally { await admin.end(); }
     };
     await expect.poll(async () => (await raison(farine)).r, { timeout: 10_000 }).toBe('verifiee');
-    await expect.poll(() => p.locator('#sx-rang').innerText()).toMatch(/sur 4$/);
+    await expect.poll(() => p.locator('#sx-rang').innerText()).toMatch(/sur 5$/);
 
     // S3 : le ticket lu. Fournisseur, date et total « lus » ; sans TVA (un ticket) ; payé par carte le 24/09.
     await puce(p, 'Total Ennasr').click();
@@ -167,7 +213,10 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(net(await p.locator('#sx-ttc').inputValue())).toBe('85,000');
     expect(await p.locator('#sx-tva').inputValue()).toBe('sans');
     expect(net(await fiche(p).innerText())).toMatch(/Payée par carte le 24\/09 « CARTE TOTAL ENNASR 24\/09 85,000 » est sur le relevé BIAT/);
-    // Sans compte, le refus nomme le champ et y met le curseur.
+    // La direction valide du même geste ; « Au brouillard » reste à côté. Sans compte, le refus nomme le champ et y met le curseur.
+    expect(await p.locator('#sx-ok-valider').innerText()).toMatch(/^Enregistrer et valider/);
+    expect(await p.locator('#sx-ok').innerText()).toBe('Au brouillard');
+    expect(await p.locator('#sx-qui-valide').count()).toBe(0);
     await p.locator('#sx-ok').click();
     expect(await p.locator('#sx-refus').innerText()).toBe('Le compte de la charge manque : son numéro (6061, 6066…).');
     expect(await p.evaluate(() => document.activeElement?.id)).toBe('sx-compte');
@@ -177,12 +226,14 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-ticket.png') });
     await p.locator('#sx-four').focus();
     await p.keyboard.press('Enter');
-    await expect.poll(() => p.locator('#toast').innerText().then(net), { timeout: 15_000 }).toBe('Total Ennasr · 85,000 DT : au brouillard, la pièce jointe, son règlement du 24/09 rapproché.');
+    await expect.poll(() => p.locator('#toast').innerText().then(net), { timeout: 15_000 }).toBe('Total Ennasr · 85,000 DT : validée, la pièce jointe, son règlement du 24/09 rapproché.');
     const ecritures = (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as Ecriture[];
     const ac = ecritures.find((e) => e.journal === 'AC' && e.lignes.some((l) => l.compte === '6066'));
     expect(ac?.lignes.map((l) => [l.compte, l.debit, l.credit, l.tiers ?? ''])).toEqual([['6066', '85.000', '0.000', ''], ['401', '0.000', '85.000', 'Total Ennasr']]);
     const bq = ecritures.find((e) => e.journal === 'BQ' && e.date === '2026-09-24');
     expect(bq?.lignes.map((l) => [l.compte, l.debit, l.credit])).toEqual([['401', '85.000', '0.000'], ['532', '0.000', '85.000']]);
+    // (S7) L'achat et son règlement : validés tous les deux.
+    expect([ac?.statut, bq?.statut]).toEqual(['validee', 'validee']);
     expect((await raison(ticket)).j).toBe(ac?.id);
     const R = (await api('GET', `/entreprises/${ent}/compta/releves?annee=2026`, associe)).corps.releves as { lignes: { rapprochement: { ecriture: string } | null }[] }[];
     expect(R[0]?.lignes[0]?.rapprochement?.ecriture).toBeTruthy();
@@ -194,6 +245,8 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await p.locator('#sx-joindre').click();
     const fa0919 = ecritures.find((e) => e.piece === 'FA-0919');
     await expect.poll(async () => (await raison(steg)).j, { timeout: 10_000 }).toBe(fa0919?.id);
+    // (S7) Le message dit la TVA que la pièce justifie (164,973 à 13 % : 21,446) et ce qui attend encore.
+    await expect.poll(() => p.locator('#toast').innerText().then(net)).toMatch(/^La photo est jointe à FA-0919 · 21,446 DT de TVA justifiée · 3 pièces attendent\./);
 
     // S2 : la levure, facturée le 29/08 et saisie au 10/09. L'effet sur la TVA des deux mois, avant le geste.
     await puce(p, 'Levures').click();
@@ -206,6 +259,12 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(millimes(s1) - millimes(s2)).toBe(26_624);
     expect(millimes(a2) - millimes(a1)).toBe(26_624);
     expect(net(await fiche(p).innerText())).toMatch(/FA-0913 suit l'achat de Sarra elle ne se change pas dans les livres/);
+    // (S7) La TVA à payer des deux mois bouge du même montant ; le dépôt d'août est dit (passé le 28/09, À VÉRIFIER).
+    const aPayer = async (id: string) => (net(await p.locator(id).innerText()).match(/TVA à payer (?:crédit )?([\d ]+,\d{3}) → (?:crédit )?([\d ]+,\d{3})/) ?? []).slice(1);
+    const [pe1, pe2] = await aPayer('#sx-mv-payer-e'), [pp1, pp2] = await aPayer('#sx-mv-payer-p');
+    expect(Math.abs(millimes(pe2) - millimes(pe1))).toBe(26_624);
+    expect(Math.abs(millimes(pp1) - millimes(pp2))).toBe(26_624);
+    expect(net(await p.locator('#sx-mv-depot').innerText())).toBe('Août devait se déposer le 28/09');
     await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-mois.png') });
     await p.locator('#sx-demander-date').click();
     await expect.poll(() => p.locator('#modal-root textarea').inputValue().catch(() => '')).toMatch(/^Bonjour Sarra, ton achat FA-0913 \(Levures du Sahel, 406,964 DT\) est daté du 10\/09, mais la facture est du 29\/08\./);
@@ -221,6 +280,10 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await p.locator('#sx-compte').press('Escape');
     expect(net(await p.locator('#sx-ec-l').innerText())).toMatch(/^6063 .* 7 945,820 401 Matfer Bourgeat 7 945,820$/);
     await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-euros.png') });
+    // (S7) Au brouillard : le libellé dit le montant en euros mis en forme et le taux.
+    await p.locator('#sx-ok').click();
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as (Ecriture & { libelle: string })[])
+      .find((e) => e.lignes.some((l) => l.compte === '6063'))?.libelle, { timeout: 15_000 }).toBe('Matfer Bourgeat · FR-26-118842 · 2 350,00 EUR à 3,3812');
 
     // S4 : au kilomètre, le même numéro dans le même journal se dit pendant la frappe.
     await p.locator('[data-sx-mode="km"]').click();
@@ -238,6 +301,23 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(await p.locator('#sa-lignes').isVisible()).toBe(true);
     expect(erreurs).toEqual([]);
   }, 240_000);
+
+  it('Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie', async () => {
+    const { rim, cab, ent } = await laBoulangerie(true);
+    const { p, erreurs } = await ouvrir(rim, cab.id, ent);
+    await puce(p, 'Total Ennasr').click();
+    await expect.poll(() => p.locator('#sx-four').inputValue()).toBe('Total Ennasr');
+    expect(await p.locator('#sx-ok-valider').count()).toBe(0);
+    expect(await p.locator('#sx-ok').innerText()).toMatch(/^Enregistrer au brouillard/);
+    expect(await p.locator('#sx-qui-valide').innerText()).toBe('Leïla valide le brouillard');
+    await puce(p, 'Minoterie').click();
+    await expect.poll(() => p.locator('#sx-qui-verifie').innerText().catch(() => '')).toBe('Leïla la vérifie');
+    expect(await p.locator('#sx-verifiee').count()).toBe(0);
+    await puce(p, 'IMG_8790').click();
+    await expect.poll(() => fiche(p).innerText().then(net)).toMatch(/Leïla relance Sarra/);
+    expect(await p.locator('#sx-relancer').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 
   it('au téléphone : la pièce puis sa fiche, sur toute la largeur, sans rien qui déborde', async () => {
     const { associe, cab, ent } = await laBoulangerie();

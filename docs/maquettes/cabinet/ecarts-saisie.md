@@ -120,6 +120,11 @@ Légende : ✅ comme la maquette · ◐ en partie · ❌ manque · ⚪ écart vo
 
 ## Le bilan
 
+**Mise à jour du 31/10/2026 (1.211.0) : le lot S7 est fait.** A2, A4, A8, B1, B3, B5, B8, B9, C3, D3, D4, D5, E2, E3, E5,
+F4, F5 et H6 passent à ✅ (B5 : la série des tickets quand le dossier en a une ; D3 : « Corriger… » demande la correction au
+client, son achat suivant sa pièce ; D4 : « déjà vérifiées », sans prétendre « sans correction »). Le détail :
+`docs/cabinet.md` (« La Saisie : la fiche finie »). Restent S8, S9 et les écarts voulus.
+
 - **Comme la maquette** : 16 lignes ; **en plus** : 4 (Autre chose…, de confiance, le même numéro, payée pas encore rapprochée).
 - **Écarts voulus** (8) : le surlignage de la lecture (A6), la TVA lue (C2), la demande au client au lieu de déplacer son
   achat (E4), la source du taux et l'écart de change (F2, F3), la grille visible sous un mois vide (J2).

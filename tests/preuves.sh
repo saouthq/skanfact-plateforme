@@ -21935,6 +21935,45 @@ prouver 'saisie 11 : au téléphone la fiche reste à côté de la pièce' web/p
   "  .sx-face, .sx-km { grid-template-columns: minmax(0, 1fr); }" "" \
   "$WSX2"
 
+# (1.211.0) Lot S7 « la fiche finie » (tests/web/cabinet-saisie-piece.test.ts).
+WSX3="Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie"
+prouver 'saisie 12 : « Enregistrer et valider » laisse au brouillard' web/public/v10/cabinet/app.js \
+  "      if (valider) {" "      if (false) {" \
+  "$WSX1"
+prouver 'saisie 13 : la saisie valide sans en avoir le droit' web/public/v10/cabinet/app.js \
+  "  const peutValiderCl = d => { const r = d && d.droits && S && d.droits[S.moi]; return r ? ['revision', 'supervision'].includes(r) : monRole() !== 'saisie'; };" "  const peutValiderCl = () => true;" \
+  "$WSX3"
+prouver 'saisie 14 : la photo illisible sort de la bande' web/public/v10/cabinet/app.js \
+  "&& (x.etat[1] !== 'illisible' || x.p) &&" "&& x.etat[1] !== 'illisible' &&" \
+  "$WSX1"
+prouver 'saisie 15 : « Joindre » tait la TVA justifiée' web/public/v10/cabinet/app.js \
+  "        const tvaJ = tvaSx(x.sx.e), reste = Math.max(0, P.liste.length - 1);" "        const tvaJ = 0, reste = Math.max(0, P.liste.length - 1);" \
+  "$WSX1"
+prouver 'saisie 16 : la TVA à payer du mois de la pièce ne bouge pas' web/public/v10/cabinet/app.js \
+  "\${esc(aPayer(payP - tva))}" "\${esc(aPayer(payP))}" \
+  "$WSX1"
+prouver 'saisie 17 : le dépôt du mois de la pièce se tait' web/public/v10/cabinet/app.js \
+  "    const depotTxt = declP ? 'déjà déposé' : !depot ? '' :" "    const depotTxt = declP ? 'déjà déposé' : true ? '' :" \
+  "$WSX1"
+prouver 'saisie 18 : « Lire la pièce » manque à une pièce pas lue' web/public/v10/cabinet/app.js \
+  "    if (L.ia) return \`<button" "    if (false) return \`<button" \
+  "$WSX1"
+prouver 'saisie 19 : lue, la fiche garde ce qu'\''elle proposait avant' web/public/v10/cabinet/app.js \
+  "      on('#sx-lire', () => fenLireCl(dossier, x, () => { if (!f.touchee) sxState.fiches.delete(x.k); redessinerSx(dossier, true); }));" "      on('#sx-lire', () => fenLireCl(dossier, x, () => { redessinerSx(dossier, true); }));" \
+  "$WSX1"
+prouver 'saisie 20 : la grille reste visible sous la fiche après un geste' web/public/v10/cabinet/app.js \
+  "    const grille = \$('.sx-km'); if (grille) grille.hidden = !!(P.pret && P.liste.length && sxState.mode === 'face');" "" \
+  "$WSX1"
+prouver 'saisie 21 : le libellé en euros garde le montant brut' web/public/v10/cabinet/app.js \
+  "\${montantDevSx(f).replace(/[\\u202f\\u00a0]/g, ' ')} à \${String(f.taux).replace('.', ',')}" "\${f.montantDev} \${f.devise} à \${f.taux}" \
+  "$WSX1"
+prouver 'saisie 22 : la saisie marque vérifiée à la place de la direction' web/public/v10/cabinet/app.js \
+  "    const gestes = enSaisie ? \`<span class=\"fd-qui\" id=\"sx-qui-verifie\">" "    const gestes = false ? \`<span class=\"fd-qui\" id=\"sx-qui-verifie\">" \
+  "$WSX3"
+prouver 'saisie 23 : « Corriger… » ne demande rien' web/public/v10/cabinet/app.js \
+  "    on('#sx-corriger', () => corrigerSx(dossier, x));" "" \
+  "$WSX1"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
