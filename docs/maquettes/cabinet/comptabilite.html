@@ -106,6 +106,7 @@ table.rdp td:first-child { font-weight: 600; }
       <li><b>Revue Saisie et Banque du 31/10</b> (comparée à la plateforme, `revue-saisie-banque.md`) : une remise de 3 chèques qui se ventile sur trois factures et les lettre (état « Banque : une remise de 3 chèques ») ; les frais de tenue avec leur TVA (À VÉRIFIER) ; le chèque émis pas encore payé dans l'écart ; plusieurs comptes en banque ; l'état de rapprochement en PDF ; les guides d'écritures. Ce que la plateforme fait déjà et qui reste (touches, refus avant le geste, mois déclaré, saisie sans réseau, validation par lot, contre-passer, extourner, défaire un rapprochement…) est listé dans la revue.</li>
       <li><b>La banque refaite (31/10, après la revue de Skander)</b> : le mode rafale est retiré (une ligne à la fois, trop lent pour un professionnel, et un écran de trop). Un seul écran, deux colonnes : <b>la banque</b> à gauche, rangée par ce qu'elle demande (proposées à confirmer, avec « Valider les 3 » ; à traiter ; en attente du client ; rapprochées, repliées), chaque ligne avec sa proposition et pourquoi ; <b>le livre</b> à droite pour la ligne choisie : les pièces qui lui correspondent, cochables (une ou plusieurs), la recherche par montant ou tiers, l'écart calculé, l'écriture et un seul bouton principal. Les touches de tout le monde (↑ ↓, Espace, Entrée, /) ; le reste dans le menu ⋯ ; l'écart du relevé toujours expliqué en bas. Au téléphone, une carte par ligne, puis le livre.</li>
       <li><b>Dernière revue de la banque (31/10)</b> : les chiffres en pastilles colorées qui filtrent (43 toutes, 35 rapprochées, 3 proposées, 4 à traiter, 1 en attente), avec une fine jauge des mêmes couleurs dessous ; un point devant chaque proposition dit sa confiance (sûre, d'après une règle, en attente du client) ; le groupe des proposées porte son total ; le livre se rattache à la ligne choisie. Deux états montrent le geste : « après Entrée » (la ligne s'en va, une ligne dit ce qui a changé avec « Annuler », la suivante est choisie, l'écart se recalcule) et « septembre rapproché ».</li>
+      <li><b>Dernière revue avant d'implémenter</b> (Skander, 31/10). Des icônes dans toutes les listes : la nature de chaque mouvement de banque (virement reçu ou émis, prélèvement, chèque, carte, frais, salaires, espèces), teintée selon le sens ; facture ou ticket pour les pièces du livre ; photo ou PDF pour les pièces de la saisie ; une icône par geste dans le menu ⋯. Une seule colonne « Montant », signée. Et les écrans qui manquaient encore : <b>les rapprochées, ouvertes</b> ; <b>l'état de rapprochement</b> tel qu'il s'imprime ; <b>un import refusé</b> (un mois manque) ; <b>une banque nouvelle</b> (ses colonnes) ; <b>une pièce de Sarra à vérifier</b> ; <b>une pièce au mauvais mois</b> ; <b>une facture en euros</b>. Le plan d'implémentation est dans <code>plan-saisie-banque.md</code>.</li>
       <li><b>Le bas de la Banque et les écrans qui manquaient</b> (Skander, 31/10). En bas, l'écart du relevé tient sur une ligne : relevé + lignes sans écriture (cliquables, elles se montrent dans la liste) − chèque pas encore payé = attendu au livre, et à droite le verdict « Écart expliqué au millime » avec l'état de rapprochement en PDF. Quand l'écart n'est pas expliqué (état « un écart non expliqué ») : le chiffre en rouge, ce que le livre dit et devrait dire, et les pistes que SkanFact a déjà cherchées (l'écriture du livre qui fait ce montant sans ligne au relevé, le relevé complet ou non). La ligne « Rapprochées » dit d'où elles viennent ; les touches tiennent sur une ligne. Nouveaux états : <b>importer le relevé d'octobre</b> (les colonnes reconnues, la période, le solde de début = fin de septembre, chaque ligne refait le solde, aucun doublon, ce qui va se rapprocher seul, avant que rien n'entre) ; <b>les règles</b> (sens, montant, compte, TVA, journal, combien de fois elle a servi, et une nouvelle qui dit à combien de lignes d'avant elle aurait servi et si une autre règle prend déjà ces lignes) ; <b>le menu ⋯ d'une ligne</b> (écrire autre chose, une autre pièce, partager, compte d'attente, demander à Sarra, retenir une règle, défaire, chacun avec sa touche).</li>
       <li><b>Les écrans vides montrent la page qu'ils deviendront</b> (Skander, 31/10) : l'aperçu grisé de la page derrière, et devant ce qui la remplit. La banque sans relevé (« Importer le relevé… », « Le demander à Sarra ») ; la saisie d'octobre sans pièce (« Demander les pièces d'octobre à Sarra », « Une écriture à la main », « Au kilomètre »). Au téléphone, une colonne.</li>
       <li><b>La navigation de la comptabilité, à deux endroits mais jamais deux fois à l'écran</b> (Skander, 31/10). <b>En haut de la page</b>, sous « Guide-moi » et « + Une écriture » : le bouton à trois positions, Saisir · Consulter · Déclarer, avec ce qui attend (13, 6), et à côté les onglets du groupe (Saisie 6, Banque 7, Paie…). <b>Dans la barre de gauche</b>, le même bouton à l'horizontale et la liste des écrans. Les deux ne se montrent jamais ensemble : tant que la barre d'onglets du haut est à l'écran, celle de gauche s'efface en glissant, et il reste seulement « Comptabilité · Saisie ↑ » ; dès que la page descend (le brouillard, une longue liste) et que la barre du haut sort de l'écran, celle de gauche revient, pour changer d'écran sans remonter. Et comme chacun a ses habitudes, <b>trois façons, au choix, à droite du titre « Comptabilité »</b> (trois petites icônes) : <b>toujours ouverte</b> (elle ne s'efface jamais) ; <b>dynamique</b> (le choix de départ : elle s'efface tant que la barre du haut est à l'écran et revient quand la page descend) ; <b>repliée</b> (le titre seul). Le choix est gardé d'une visite à l'autre, pour chaque personne. Dans les modes dynamique et repliée, un clic sur « Comptabilité · Saisie » l'ouvre quand même, le temps qu'il faut : jusqu'au prochain écran ouvert ou un second clic. Les deux sont liées : glisser l'une fait glisser l'autre. Un clic sur un groupe ouvre son dernier écran (Consulter → la Balance d'hier) ; glisser la barre (souris, doigt, trackpad) montre les autres groupes sans quitter l'écran. Au clavier : <kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> ; la page glisse dans le sens où l'on va, en 0,2 seconde. Pour le voir : « La page descend », « Mode toujours ouverte » et « Mode repliée » en haut de cette maquette, ou fais défiler l'écran et essaie les trois icônes toi-même.</li>
@@ -599,7 +600,7 @@ table.rdp td:first-child { font-weight: 600; }
   const ECRANS = { saisie: 'Saisie', banque: 'Banque', paie: 'Paie', immos: 'Immobilisations', inventaire: 'Inventaire', journal: 'Livre-journal', grandlivre: 'Grand livre', balance: 'Balance', lettrage: 'Lettrage', recherche: 'Recherche', declaration: 'Déclaration', revision: 'Révision', exercice: 'Exercice', liasse: 'Liasse' };
   const GROUPES = [['saisir', 'Saisir', ['saisie', 'banque', 'paie', 'immos', 'inventaire']], ['consulter', 'Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['cloturer', 'Déclarer et clôturer', ['declaration', 'revision', 'exercice', 'liasse']]];
   // L'état choisi en haut → l'écran qu'il montre. Les fenêtres et les états gardent l'écran de la saisie.
-  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', 'barre-ouverte': 'saisie', 'barre-repliee': 'saisie', ecrire: 'banque', ventiler: 'banque', bqvide: 'banque', savide: 'saisie', bqimport: 'banque', bqregles: 'banque', bqmenu: 'banque', bqecart: 'banque', bqapres: 'banque', bqfini: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
+  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', 'barre-ouverte': 'saisie', 'barre-repliee': 'saisie', ecrire: 'banque', ventiler: 'banque', bqvide: 'banque', savide: 'saisie', bqimport: 'banque', bqregles: 'banque', bqmenu: 'banque', bqecart: 'banque', bqfaites: 'banque', bqetat: 'banque', bqimportko: 'banque', bqcolonnes: 'banque', saverif: 'saisie', sareclasse: 'saisie', sadevise: 'saisie', bqapres: 'banque', bqfini: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
   const ecran = () => ECRAN_DE[s.etat] || (ECRANS[s.etat] ? s.etat : 'saisie');
   const groupe = () => GROUPES.find((g) => g[2].includes(ecran()));
   // Ce que chaque onglet compte : ce qui attend sur cet écran.
@@ -636,9 +637,9 @@ table.rdp td:first-child { font-weight: 600; }
     const km = s.etat === 'kilometre' && !tel();
     const nav = km ? `<span class="cp-sx-n"><b>Achats de septembre</b><span class="mu">journal AC · 5 pièces dont 1 en cours</span></span>`
       : `<span class="cp-sx-n"><button type="button" class="btn ico btn-sm" aria-label="Pièce d'avant"${i ? '' : ' disabled'}>‹</button><b>Pièce ${i + 1} sur 6</b><button type="button" class="btn ico btn-sm" aria-label="Pièce suivante">›</button></span>
-        ${tel() ? '' : `<ol class="cp-sx-p" aria-label="Les 6 pièces de septembre">${ATTEND.map(([id, sorte, , , , , [ton, mot]]) => `<li class="${id === sel ? 'on' : ''} ${ton}" title="${esc(COURT[id])} · ${mot}"><span class="pt"></span>${esc(COURT[id])}</li>`).join('')}</ol>`}`;
+        ${tel() ? '' : `<ol class="cp-sx-p" aria-label="Les 6 pièces de septembre">${ATTEND.map(([id, sorte, , , , , [ton, mot]]) => `<li class="${id === sel ? 'on' : ''} ${ton}" title="${esc(COURT[id])} · ${mot}"><span class="pt"></span><i class="ic" aria-hidden="true">${sorte === 'photo' ? IC.photo : IC.piece}</i>${esc(COURT[id])}</li>`).join('')}</ol>`}`;
     const mode = tel() ? '' : `<div class="cp-mode" role="group" aria-label="Comment saisir"><button type="button" aria-pressed="${!km}">${IC.piece} Face à la pièce</button><button type="button" aria-pressed="${km}">${IC.clavier} Au kilomètre</button></div>`;
-    return `<div class="cp-sx-bar">${nav}<span class="cp-sx-esp"></span>${mode}</div>`;
+    return `<style>.cp-sx-p li .pt { display: none; } .cp-sx-p li .ic { display: inline-grid; color: var(--sb-gris-2); } .cp-sx-p li .ic svg { width: 14px; height: 14px; } .cp-sx-p li.ambre .ic { color: #c98a1e; } .cp-sx-p li.rouge .ic { color: var(--sb-rouge-texte); }</style><div class="cp-sx-bar">${nav}<span class="cp-sx-esp"></span>${mode}</div>`;
   }
   // La pièce, comme elle est arrivée : le texte de la photo, ce que SkanFact y a lu surligné (le champ ouvert plus fort).
   const lu = (t, on) => `<mark class="lu${on ? ' on' : ''}">${t}</mark>`;
@@ -717,6 +718,112 @@ table.rdp td:first-child { font-weight: 600; }
       <table class="cp-t"><thead><tr><th>Date</th><th>Journal</th><th>Pièce</th><th>Libellé</th><th>Par</th><th class="r">Montant</th><th></th></tr></thead><tbody>
       ${BROUILLARD.map(([d, j, p, lib, qui, l]) => `<tr><td>${d}</td><td>${j}</td><td class="mono">${p}</td><td>${esc(lib)}${p === 'BQ-0914-03' ? '<small class="ambre">au compte d\'attente : Sarra n\'a pas encore dit ce que c\'est</small>' : ''}</td><td>${pers(qui, 20)}</td><td class="r">${m(tot(l))}</td><td class="r"><button type="button" class="btn ico btn-sm" aria-label="Actions">${IC.trois}</button></td></tr>`).join('')}</tbody></table></div>`;
   }
+  // ---------- La saisie : les écrans qui manquaient (31/10/2026) ----------
+  // Une pièce saisie par le client, à vérifier ; une facture en euros ; une pièce au mauvais mois.
+  const SX2_CSS = `<style>
+      .cp-sx .cp-fi { grid-template-columns: minmax(0, 1fr); min-width: 0; } .cp-sx .cp-fi > * { min-width: 0; } .cp-sx .cp-ec { overflow-x: auto; }
+      .sx2-ck { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; border: 1px solid var(--sb-trait); border-radius: 12px; overflow: hidden; }
+      .sx2-ck li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; background: var(--sb-papier); font-size: 13px; }
+      .sx2-ck li + li { border-top: 1px solid var(--sb-trait); }
+      .sx2-ck li > i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 99px; background: var(--sb-doux); color: var(--sb-doux-texte); font-style: normal; }
+      .sx2-ck li > i svg { width: 13px; height: 13px; }
+      .sx2-ck li.info > i { background: color-mix(in srgb, var(--cp-bleu, #3f6fd8) 13%, transparent); color: var(--cp-bleu, #3f6fd8); font: italic 700 12px/1 Georgia, serif; }
+      .sx2-ck li.att > i { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+      .sx2-ck li span { display: grid; gap: 1px; min-width: 0; } .sx2-ck li small { color: var(--sb-gris); font-size: 12px; line-height: 1.4; }
+      .sx2-ck li .mono { white-space: nowrap; }
+      .sx2-qui { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--sb-survol); font-size: 13px; }
+      .sx2-qui small { color: var(--sb-gris); display: block; }
+      .sx2-conf { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--sb-gris); }
+      .sx2-conf .cp-plus { font-size: 12.5px; }
+      .sx2-taux { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--sb-trait); border-radius: 12px; overflow: hidden; }
+      .sx2-taux > div { padding: 10px 12px; display: grid; gap: 2px; } .sx2-taux > div + div { border-left: 1px solid var(--sb-trait); }
+      .sx2-taux small { color: var(--sb-gris); font-size: 11.5px; } .sx2-taux b { font-size: 15px; font-variant-numeric: tabular-nums; }
+      .sx2-taux .eg { background: color-mix(in srgb, var(--sb-sarcelle) 7%, var(--sb-papier)); }
+      .sx2-taux.mob { grid-template-columns: minmax(0, 1fr); } .sx2-taux.mob > div + div { border-left: 0; border-top: 1px solid var(--sb-trait); }
+      .sx2-mv { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); align-items: stretch; gap: 0; }
+      .sx2-mv.mob { grid-template-columns: minmax(0, 1fr); }
+      .sx2-mv > div { border: 1px solid var(--sb-trait); border-radius: 12px; padding: 12px; display: grid; gap: 6px; font-size: 13px; }
+      .sx2-mv > div.de { background: var(--sb-survol); } .sx2-mv > div.vers { border-color: var(--sb-sarcelle); background: color-mix(in srgb, var(--sb-sarcelle) 5%, var(--sb-papier)); }
+      .sx2-mv .fl { display: grid; place-items: center; color: var(--sb-sarcelle); font-size: 20px; }
+      .sx2-mv.mob .fl { transform: rotate(90deg); height: 28px; }
+      .sx2-mv .r { display: grid; gap: 1px; font-variant-numeric: tabular-nums; } .sx2-mv .r span { color: var(--sb-gris); font-size: 12px; } .sx2-mv .r b { white-space: nowrap; }
+      .sx2-mv .r b.moins { color: var(--sb-rouge-texte); } .sx2-mv .r b.plus { color: var(--sb-doux-texte); }
+      .cp-fa.eur .h b { letter-spacing: .02em; }
+    </style>`;
+  const ckL = (sorte, titre, sous, droite = '') => `<li class="${sorte}"><i>${sorte === 'ok' ? IC.ok : sorte === 'info' ? 'i' : '!'}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</li>`;
+  const papierDv = (nom, de, papier) => `<div class="cp-dv"><div class="cp-dv-t"><span class="cp-f-ic">${IC.piece}</span><span class="cp-dv-n"><b>${nom}</b><small>${esc(de)}</small></span>
+        <span class="cp-dv-z"><button type="button" class="btn ico btn-sm" aria-label="Plus petit">−</button><span>100 %</span><button type="button" class="btn ico btn-sm" aria-label="Plus grand">+</button><button type="button" class="btn btn-sm">${IC.grand} En grand</button></span></div>
+      <div class="cp-dv-f">${papier}</div></div>`;
+
+  // 1. Une pièce saisie par le client, à vérifier : ce que SkanFact a contrôlé, ce qui reste à faire, un geste.
+  function saisieVerif() {
+    const papier = `<div class="cp-fa"><div class="h"><b>${lu('MINOTERIE DU CAP BON')}</b><span>Route de Kélibia · Menzel Temime · facture</span></div>
+        <div class="l"><span>Facture n° ${lu('F-2026-0903')}</span><span>du ${lu('03/09/2026')}</span></div><div class="l"><span>Boulangerie El Amal · Ariana</span><span>bon de livraison BL-4471</span></div>
+        <table><tbody><tr><td>Farine T55 · 40 sacs de 50 kg</td><td>1 551,429</td></tr>
+        <tr class="s"><td>Total hors taxes</td><td>${lu('1 551,429')}</td></tr><tr><td>TVA 19 %</td><td>${lu('294,771')}</td></tr><tr class="t"><td>Net à payer</td><td>${lu('1 846,200 DT', true)}</td></tr></tbody></table>
+        <div class="l p"><span>Règlement par virement à 30 jours</span></div></div>`;
+    const fiche = `<div class="cp-fi"><div class="cp-fi-t"><div><b>Minoterie du Cap Bon · F-2026-0903</b><small>saisie par Sarra le 03/09 dans SkanFact · FA-0914</small></div>${st('ambre', 'à vérifier')}</div>
+      <div class="sx2-qui">${pers('Sarra', 28)}<span><b>Sarra l'a saisie elle-même</b><small>la facture est jointe · l'écriture est validée chez elle, elle ne se modifie qu'en la corrigeant</small></span></div>
+      <ul class="sx2-ck">
+        ${ckL('ok', 'Le fournisseur et son compte', 'Minoterie du Cap Bon · 401MC', '<span class="mono mu">401MC</span>')}
+        ${ckL('ok', 'La charge, comme ses 11 factures d\'avant', 'Matières premières', '<span class="mono mu">6021</span>')}
+        ${ckL('ok', 'La TVA lue = la TVA écrite', '19 % de 1 551,429', `<span class="mono">${m(294771)}</span>`)}
+        ${ckL('ok', 'Le numéro F-2026-0903 n\'est saisi qu\'une fois', 'aucune autre pièce de la Minoterie avec ce numéro', '')}
+        ${ckL('ok', 'Payée le 08/09, rapprochée', 'VIR EMIS MINOTERIE CAP BON · net de sa retenue', `<span class="mono">${m(1818507)}</span>`)}
+        ${ckL('att', 'Le certificat de retenue à remettre', 'Sarra a retenu 27,693 (1,5 % du TTC, À VÉRIFIER) : la Minoterie attend son certificat', '<button type="button" class="cp-plus">Le préparer</button>')}
+      </ul>
+      <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque()}>${IC.ok} Marquer vérifiée <kbd>↵</kbd></button><button type="button" class="btn">Corriger…</button><button type="button" class="btn btn-ghost">Demander à Sarra</button></div>
+      <p class="sx2-conf">${IC.rel}<span>11 pièces de Sarra vérifiées sans correction depuis janvier.</span><button type="button" class="cp-plus">Ses achats de la Minoterie : ne plus me les faire vérifier</button></p>
+      <p class="cp-touches">${IC.clavier}<span><kbd>↵</kbd> marque vérifiée et ouvre la pièce suivante (Hygiène Plus) · <kbd>C</kbd> corriger · <kbd>Alt</kbd>+<kbd>→</kbd> la passe</span></p></div>`;
+    return `${SX2_CSS}${bandePieces('farine')}<div class="cp-sx">${papierDv('F-2026-0903.pdf', 'jointe par Sarra le 03/09', papier)}${fiche}</div>`;
+  }
+
+  // 2. Une pièce au mauvais mois : Hygiène Plus datée du 02/09, saisie au 31/08. La déplacer change la TVA d'août.
+  function saisieReclasse() {
+    const mob = tel();
+    const papier = `<div class="cp-fa"><div class="h"><b>${lu('HYGIÈNE PLUS')}</b><span>Produits d'entretien professionnels · Tunis</span></div>
+        <div class="l"><span>Facture n° HP-2209</span><span>du ${lu('02/09/2026', true)}</span></div><div class="l"><span>Boulangerie El Amal</span><span>livrée le 02/09</span></div>
+        <table><tbody><tr><td>Détergents et désinfectants · lot fournil</td><td>180,000</td></tr>
+        <tr class="s"><td>Total hors taxes</td><td>180,000</td></tr><tr><td>TVA 19 %</td><td>34,200</td></tr><tr class="t"><td>Net à payer</td><td>214,200 DT</td></tr></tbody></table></div>`;
+    const tvaAvant = 1144310, due = AOUT.tvaC;
+    const fiche = `<div class="cp-fi"><div class="cp-fi-t"><div><b>Hygiène Plus · HP-2209</b><small>saisie par Sarra au 31/08 · FA-0831</small></div>${st('ambre', 'à reclasser')}</div>
+      <div class="bandeau info cp-band">${IC.cal}<span class="txt"><b>La facture est du 02/09, l'écriture du 31/08</b><span>La TVA d'une facture se déduit le mois de sa date (À VÉRIFIER) : elle compte en septembre, pas en août.</span></span></div>
+      <div class="sx2-mv${mob ? ' mob' : ''}"><div class="de"><b>Août</b><div class="r"><span>TVA déductible</span><b class="moins">${m(tvaAvant)} → ${m(AOUT.tvaD)}</b></div><div class="r"><span>TVA à payer</span><b>${m(due - tvaAvant)} → ${m(AOUT.tva)}</b></div><small class="mu">pas encore déposé : il se recalcule</small></div>
+        <div class="fl">→</div>
+        <div class="vers"><b>Septembre</b><div class="r"><span>TVA déductible</span><b class="plus">+ ${m(HYG_TVA)}</b></div><div class="r"><span>écriture</span><b class="mono">FA-0902 · 02/09</b></div><small class="mu">se dépose aujourd'hui</small></div></div>
+      <ul class="sx2-ck">${ckL('ok', 'Août n\'est pas déposé', 'rien de déclaré ne change : sinon, SkanFact proposerait une régularisation en septembre')}${ckL('ok', 'FA-0831 se contre-passe au 31/08, FA-0902 s\'écrit au 02/09', 'une écriture validée ne se modifie pas : elle se contre-passe')}</ul>
+      <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque()}>Déplacer en septembre <kbd>↵</kbd></button><button type="button" class="btn btn-ghost">Laisser en août</button></div>
+      <p class="cp-touches">${IC.clavier}<span><kbd>↵</kbd> déplace et ouvre la pièce suivante · la déclaration d'août se met à jour toute seule</span></p></div>`;
+    return `${SX2_CSS}${bandePieces('hyg')}<div class="cp-sx">${papierDv('HP-2209.pdf', 'jointe par Sarra le 02/09', papier)}${fiche}</div>`;
+  }
+
+  // 3. Une facture en euros : le taux du jour de la facture, la contre-valeur, et ce qui se passera au paiement.
+  function saisieDevise() {
+    const mob = tel();
+    // les euros en centimes, le taux à 4 décimales : centimes × taux / 1 000 = millimes
+    const EUR = 235000, TAUX = 33812, DT = EUR * TAUX / 1000;
+    const papier = `<div class="cp-fa eur"><div class="h"><b>${lu('MATFER BOURGEAT')}</b><span>Matériel de boulangerie · Paris · France</span></div>
+        <div class="l"><span>Invoice / Facture ${lu('FR-26-118842')}</span><span>${lu('20/09/2026')}</span></div><div class="l"><span>Boulangerie El Amal · Ariana · Tunisie</span><span>export hors UE</span></div>
+        <table><tbody><tr><td>Moules à pain de mie inox 40 × 10 cm · ×40</td><td>2 350,00 €</td></tr>
+        <tr class="s"><td>Total HT</td><td>2 350,00 €</td></tr><tr><td>TVA 0 % (exportation)</td><td>0,00 €</td></tr><tr class="t"><td>Total</td><td>${lu('2 350,00 EUR', true)}</td></tr></tbody></table>
+        <div class="l p"><span>Payment: bank transfer · 30 days</span></div></div>`;
+    const ch = (lab, val, s2) => `<div class="cp-fi-r"><span class="cp-fi-l">${lab}</span><span class="cp-in">${val}</span>${s2}</div>`;
+    const fiche = `<div class="cp-fi"><div class="cp-fi-t"><div><b>Matfer Bourgeat · facture en euros</b><small>reçue ce matin · lue en 4 secondes</small></div>${st('ambre', 'à saisir')}</div>
+      <div class="cp-fi-g">
+        ${ch('Fournisseur', '<b>Matfer Bourgeat</b> <span class="mono mu">401MB</span>', src('hab', 'en euros'))}
+        ${ch('Date', '20/09/2026', src('lu', 'lu'))}
+        ${ch('Montant', '<b>2 350,00</b> EUR', src('lu', 'lu'))}
+        ${ch('Compte', '<span class="mono">6063</span> Petit matériel', src('calc', 'ou immobilisation ? À VÉRIFIER'))}
+      </div>
+      <div class="sx2-taux${mob ? ' mob' : ''}"><div><small>En euros</small><b>2 350,00 €</b></div><div><small>Taux du 20/09 · BCT (À VÉRIFIER)</small><b>× 3,3812</b></div><div class="eg"><small>Au livre, en dinars</small><b>${m(DT)} DT</b></div></div>
+      <ul class="sx2-ck">${ckL('info', 'Au paiement, l\'écart de change s\'écrit seul', 'si le virement se fait à un autre taux : perte ou gain de change (656 · 756, À VÉRIFIER)')}${ckL('info', 'La TVA et les droits payés à la douane', 'arrivent avec la déclaration en douane du transitaire : une pièce à part, à demander à Sarra', '<button type="button" class="cp-plus">Demander</button>')}</ul>
+      <div class="cp-ec"><div class="cp-ec-t"><b>L'écriture qui s'écrit</b><button type="button" class="cp-plus">Ouvrir en lignes</button></div>
+        <table class="cp-t"><tbody><tr><td class="mono">6063</td><td>Moules Matfer · 2 350,00 € à 3,3812</td><td class="r">${m(DT)}</td><td></td></tr><tr><td class="mono">401MB</td><td>Matfer Bourgeat · 2 350,00 €</td><td></td><td class="r">${m(DT)}</td></tr></tbody></table></div>
+      <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque()}>Enregistrer et valider <kbd>↵</kbd></button><button type="button" class="btn"${bloque()}>Au brouillard</button></div></div>`;
+    const barre = `<div class="cp-sx-bar"><span class="cp-sx-n" style="flex-wrap:wrap;white-space:normal;min-width:0"><b>Une pièce arrivée ce matin</b><span class="mu">envoyée par Sarra à 9 h 12 · « Les moules commandés en France »</span></span><span class="cp-sx-esp"></span></div>`;
+    return `${SX2_CSS}${barre}<div class="cp-sx">${papierDv('Matfer-FR-26-118842.pdf', 'envoyée par Sarra ce matin', papier)}${fiche}</div>`;
+  }
+
   function saisieVide() {
     const fiche = Array.from({ length: 5 }, (_, i) => `<div style="display:grid;gap:5px"><span class="apx-b" style="width:${30 + i * 7}%;height:9px"></span><span class="apx-b" style="height:30px"></span></div>`).join('');
     return `${APX_CSS}<div class="apx${tel() ? ' mob' : ''}"><div class="apx-f" aria-hidden="true"><div style="display:flex;gap:6px">${'<span class="apx-b" style="width:96px;height:28px;border-radius:99px"></span>'.repeat(6)}</div>
@@ -729,6 +836,9 @@ table.rdp td:first-child { font-weight: 600; }
   }
   function saisie() {
     if (s.etat === 'savide') return saisieVide();
+    if (s.etat === 'saverif') return saisieVerif();
+    if (s.etat === 'sareclasse') return saisieReclasse();
+    if (s.etat === 'sadevise') return saisieDevise();
     if (s.etat === 'kilometre' && !tel()) return `${bandePieces('carbu')}${kilometre()}`;
     // Au téléphone, une pièce à la fois : le kilomètre (un journal au clavier) reste au bureau.
     const kmTel = s.etat === 'kilometre' ? '<div class="bandeau gris cp-band"><span class="txt"><b>Au kilomètre se fait au bureau</b><span>Au téléphone, on saisit une pièce à la fois, face à elle. La saisie reprend où tu en étais : le ticket de carburant.</span></span></div>' : '';
@@ -827,6 +937,45 @@ table.rdp td:first-child { font-weight: 600; }
   // Les lignes se rangent par ce qu'elles demandent ; chacune porte sa proposition et pourquoi. On choisit une ligne : le livre
   // montre ce qui lui correspond, on coche une ou plusieurs pièces, l'écart se calcule, un seul bouton principal. En bas,
   // l'écart du relevé, toujours expliqué. Les touches de tout le monde : ↑ ↓, Espace, Entrée, « / ».
+  // La nature d'une ligne de banque, d'un coup d'œil : une icône, teintée selon le sens (entrée, sortie, frais).
+  const BQI = {
+    entre: svgC('<path d="M17 7 7 17"/><path d="M15 17H7V9"/>'),
+    sort: svgC('<path d="M7 17 17 7"/><path d="M9 7h8v8"/>'),
+    prlv: svgC('<path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/>'),
+    chq: svgC('<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h12M6 14h5M15 14h3"/>'),
+    carte: svgC('<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6 15h3"/>'),
+    frais: svgC('<path d="M18 6 6 18"/><circle cx="7.5" cy="7.5" r="2.2"/><circle cx="16.5" cy="16.5" r="2.2"/>'),
+    paie: svgC('<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><path d="M16 5.5a3 3 0 0 1 0 5.5M18 14c1.4.7 2.3 2.4 2.6 4.5"/>'),
+    esp: svgC('<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/>'),
+    partager: svgC('<path d="M4 12h5l4-6h7M13 18h7M9 12l4 6"/><path d="M17 3l3 3-3 3M17 15l3 3-3 3"/>'),
+    attente: svgC('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+    regle: svgC('<path d="M4 6h10M4 12h7M4 18h10"/><path d="m16 15 2 2 4-4"/><circle cx="18" cy="7" r="2.5"/>'),
+    doc: IC.piece, photo: IC.photo,
+  };
+  const NAT_DIT = { entre: 'Virement reçu', sort: 'Virement émis', prlv: 'Prélèvement', chq: 'Chèque', carte: 'Paiement par carte', frais: 'Frais de la banque', paie: 'Salaires', esp: 'Versement d\'espèces' };
+  const bqNat = (lib, credit) => {
+    const L = lib.toUpperCase();
+    if (L.startsWith('VIR SALAIRE')) return 'paie';
+    if (L.startsWith('VIR RECU')) return 'entre';
+    if (L.startsWith('VIR')) return 'sort';
+    if (/^(FRAIS|AGIOS|COM )/.test(L)) return 'frais';
+    if (L.includes('CHQ')) return 'chq';
+    if (L.startsWith('PRLV')) return 'prlv';
+    if (L.startsWith('CARTE')) return 'carte';
+    if (L.startsWith('VERS')) return 'esp';
+    return credit ? 'entre' : 'sort';
+  };
+  const bqIc = (lib, credit) => { const k = bqNat(lib, credit); return `<span class="bqx ${k === 'frais' ? 'frais' : credit ? 'in' : 'out'}" title="${NAT_DIT[k]}" aria-label="${NAT_DIT[k]}">${BQI[k]}</span>`; };
+  const docIc = (n) => `<span class="bqx doc" title="${n.startsWith('TK') ? 'Un ticket, en photo' : 'Une facture'}">${n.startsWith('TK') ? BQI.photo : BQI.doc}</span>`;
+  const BQX_CSS = `<style>
+      .bqx { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--sb-survol); color: var(--sb-gris); }
+      .bqx svg { width: 16px; height: 16px; }
+      .bqx.in { background: color-mix(in srgb, var(--sb-sarcelle) 13%, var(--sb-papier)); color: var(--sb-sarcelle-texte); }
+      .bqx.frais { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+      .bqx.doc { background: color-mix(in srgb, var(--cp-bleu, #3f6fd8) 11%, var(--sb-papier)); color: var(--cp-bleu, #3f6fd8); }
+      .bq2-lb { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+      .bq2-lb > div { min-width: 0; display: grid; gap: 1px; }
+    </style>`;
   const BQ_PROP = {
     'VIR EMIS MINOTERIE CAP BON': ['prop', 'FA-0914 · Minoterie du Cap Bon', 'net de sa retenue 27,693', 'sur'],
     'VIR RECU HOTEL DAR JERBA': ['prop', 'FV-2026-0388 · Hôtel Dar Jerba', 'net de sa retenue · certificat à demander', 'sur'],
@@ -853,7 +1002,9 @@ table.rdp td:first-child { font-weight: 600; }
   function banque() {
     if (s.etat === 'bqfini') return banqueFinie();
     if (s.etat === 'bqvide') return banqueVide();
-    if (s.etat === 'bqimport') return banqueImport();
+    if (s.etat === 'bqimport' || s.etat === 'bqimportko') return banqueImport(s.etat === 'bqimportko');
+    if (s.etat === 'bqcolonnes') return banqueColonnes();
+    if (s.etat === 'bqetat') return banqueEtat();
     if (s.etat === 'bqregles') return banqueRegles();
     // Ce qui est déjà fait dans l'état montré (après Entrée : le prélèvement STEG).
     const faites = s.etat === 'bqapres' ? ['PRLV STEG 0298 4471'] : [];
@@ -871,12 +1022,12 @@ table.rdp td:first-child { font-weight: 600; }
       const on = lib === sel;
       const coche = on;
       return `<tr class="bq2-l${on ? ' on' : ''}"><td class="bq2-c"><input type="checkbox"${coche ? ' checked' : ''} aria-label="Choisir ${esc(lib)}"></td><td class="bq2-d">${d}</td>
-        <td><span class="mono">${esc(lib)}</span><small class="bq2-p"><i class="bq2-pt ${ton}" title="${PT_DIT[ton]}"></i><b>${esc(prop)}</b> · ${esc(pq)}</small></td>
-        <td class="r">${de ? m(de) : ''}</td><td class="r">${cr ? m(cr) : ''}</td><td class="r bq2-mc"><button type="button" class="cp-plus bq2-menu${on && s.etat === 'bqmenu' ? ' ouvert' : ''}" aria-label="Plus de gestes pour ${esc(lib)}" aria-expanded="${on && s.etat === 'bqmenu'}" data-etat="${on && s.etat === 'bqmenu' ? 'banque' : on ? 'bqmenu' : s.etat}" title="Écrire autre chose · Demander à Sarra · Compte d'attente · Défaire">⋯</button>${on && s.etat === 'bqmenu' ? menuBq() : ''}</td></tr>`;
+        <td><div class="bq2-lb">${bqIc(lib, cr)}<div><span class="mono">${esc(lib)}</span><small class="bq2-p"><i class="bq2-pt ${ton}" title="${PT_DIT[ton]}"></i><b>${esc(prop)}</b> · ${esc(pq)}</small></div></div></td>
+        <td class="r bq2-mt${cr ? ' in' : ''}">${cr ? '+ ' + m(cr) : '− ' + m(de)}</td><td class="r bq2-mc"><button type="button" class="cp-plus bq2-menu${on && s.etat === 'bqmenu' ? ' ouvert' : ''}" aria-label="Plus de gestes pour ${esc(lib)}" aria-expanded="${on && s.etat === 'bqmenu'}" data-etat="${on && s.etat === 'bqmenu' ? 'banque' : on ? 'bqmenu' : s.etat}" title="Écrire autre chose · Demander à Sarra · Compte d'attente · Défaire">⋯</button>${on && s.etat === 'bqmenu' ? menuBq() : ''}</td></tr>`;
     };
     const carte = (r) => {
       const [d, lib, de, cr] = r, [, prop, pq, ton] = BQ_PROP[lib] || ['', '', '', ''];
-      return `<div class="bq2-k1${lib === sel ? ' on' : ''}"><div class="bq2-k1h"><span class="bq2-d">${d}</span><b>${de ? m(-de) : m(cr)}</b></div><span class="mono">${esc(lib)}</span><small class="bq2-p"><i class="bq2-pt ${ton}" title="${PT_DIT[ton]}"></i><b>${esc(prop)}</b> · ${esc(pq)}</small>${lib === sel && s.etat === 'bqmenu' ? menuBq() : ''}</div>`;
+      return `<div class="bq2-k1${lib === sel ? ' on' : ''}"><div class="bq2-k1h"><span class="bq2-lb">${bqIc(lib, cr)}<span class="bq2-d" style="align-self:center">${d}</span></span><b style="align-self:center">${de ? m(-de) : m(cr)}</b></div><span class="mono">${esc(lib)}</span><small class="bq2-p"><i class="bq2-pt ${ton}" title="${PT_DIT[ton]}"></i><b>${esc(prop)}</b> · ${esc(pq)}</small>${lib === sel && s.etat === 'bqmenu' ? menuBq() : ''}</div>`;
     };
     const cartes = groupes.map(([g, titre, geste]) => {
       const rs = restent.filter((r) => (BQ_PROP[r[1]] || [])[0] === g);
@@ -885,7 +1036,7 @@ table.rdp td:first-child { font-weight: 600; }
     const liste = groupes.map(([g, titre, geste]) => {
       const rs = restent.filter((r) => (BQ_PROP[r[1]] || [])[0] === g);
       if (!rs.length) return '';
-      return `<tr class="bq2-g"><td colspan="6"><b>${titre}</b> <span class="mu">${rs.length}${g === 'prop' ? ` · ${md(rs.reduce((t, x) => t + x[2] + x[3], 0))}` : ''}</span>${geste && s.etat === 'banque' ? `<button type="button" class="btn btn-sm"${bloque()}>${IC.ok} ${geste}</button>` : ''}</td></tr>${rs.map(rang).join('')}`;
+      return `<tr class="bq2-g"><td colspan="5"><b>${titre}</b> <span class="mu">${rs.length}${g === 'prop' ? ` · ${md(rs.reduce((t, x) => t + x[2] + x[3], 0))}` : ''}</span>${geste && s.etat === 'banque' ? `<button type="button" class="btn btn-sm"${bloque()}>${IC.ok} ${geste}</button>` : ''}</td></tr>${rs.map(rang).join('')}`;
     }).join('');
     const coche = face.pieces.filter((p) => p[0]).reduce((t, p) => t + p[4], 0);
     const montant = ligne[2] || ligne[3];
@@ -893,13 +1044,13 @@ table.rdp td:first-child { font-weight: 600; }
     const droite = `<div class="bq2-livre">
         <div class="bq2-lh"><b>Le livre</b><span>en face de <b class="mono">${esc(sel.split(' · ')[0])}</b> · ${md(montant)}</span></div>
         <label class="cp-ch bq2-ch">${IC.loupe}<input type="search" placeholder="Chercher un montant, un tiers, une pièce…  ( / )" aria-label="Chercher dans le livre"></label>
-        ${face.pieces.length ? `<table class="cp-t bq2-pc"><tbody>${face.pieces.map(([c, n, t, d, mt, why]) => `<tr class="${c ? 'on' : ''}"><td class="bq2-c"><input type="checkbox"${c ? ' checked' : ''} aria-label="${n}"></td><td><b class="mono">${n}</b> <small>du ${d}</small><small class="bq2-p">${esc(t)} · ${esc(why)}</small></td><td class="r">${m(mt)}</td></tr>`).join('')}</tbody></table>
+        ${face.pieces.length ? `<table class="cp-t bq2-pc"><tbody>${face.pieces.map(([c, n, t, d, mt, why]) => `<tr class="${c ? 'on' : ''}"><td class="bq2-c"><input type="checkbox"${c ? ' checked' : ''} aria-label="${n}"></td><td><div class="bq2-lb">${docIc(n)}<div><span><b class="mono">${n}</b> <small>du ${d}</small></span><small class="bq2-p">${esc(t)} · ${esc(why)}</small></div></div></td><td class="r">${m(mt)}</td></tr>`).join('')}</tbody></table>
           <div class="bq2-som ${ecart ? 'ko' : 'ok'}"><span>La ligne ${md(montant)}</span><span>cochées ${md(coche)}</span><b>${ecart ? `écart ${md(ecart)}` : `${IC.ok} écart 0`}</b></div>`
         : `<p class="bq2-rien">Rien dans le livre pour cette ligne. <b>Sa règle « ${face.regle} »</b> propose l'écriture ; elle sert aussi aux AGIOS du relevé.</p>`}
         <table class="cp-t bq2-ec"><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>${face.ec.map(([c, l, de, cr]) => `<tr><td class="mono">${c}</td><td>${esc(l)}</td><td class="r">${de ? m(de) : ''}</td><td class="r">${cr ? m(cr) : ''}</td></tr>`).join('')}</tbody></table>
         <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque()}>${rim() ? 'Au brouillard, et ' + face.bouton.toLowerCase().replace(/^rapprocher et /, '') : face.bouton} <kbd class="bq2-k">Entrée</kbd></button><button type="button" class="btn">Écrire autre chose</button></div>
       </div>`;
-    return `<style>
+    return `${BQX_CSS}<style>
       .bq2-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
       .bq2-h > div { flex: 1; min-width: 220px; display: grid; gap: 2px; }
       .bq2 { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -916,6 +1067,8 @@ table.rdp td:first-child { font-weight: 600; }
       .bq2-d { white-space: nowrap; color: var(--sb-gris); }
       .bq2-p { display: block; color: var(--sb-gris); font-size: 12px; margin-top: 2px; }
       .bq2-p b { color: var(--sb-encre); font-weight: 600; }
+      .bq2-mt { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+      .bq2-mt.in { color: var(--sb-sarcelle-texte); }
       .bq2-menu { font-size: 18px; line-height: 1; padding: 0 6px; }
       .bq2-livre { position: sticky; top: 12px; border: 1px solid var(--sb-trait-fort); border-radius: 14px; padding: 14px; display: grid; gap: 10px; background: var(--sb-papier); box-shadow: var(--sb-ombre); }
       .bq2-lh { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
@@ -934,7 +1087,7 @@ table.rdp td:first-child { font-weight: 600; }
       .bq2-h.mob > div { flex-basis: 100%; min-width: 0; }
       .bq2-km { display: grid; gap: 8px; }
       .bq2-gm { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--sb-gris); }
-      .bq2-gm .btn { margin-left: auto; text-transform: none; letter-spacing: 0; }
+      .bq2-gm .btn, .bq2-gm .cp-plus { margin-left: auto; text-transform: none; letter-spacing: 0; }
       .bq2-k1 { border: 1px solid var(--sb-trait); border-radius: 12px; padding: 10px 12px; display: grid; gap: 3px; min-width: 0; }
       .bq2-k1.on { border-color: var(--sb-sarcelle); box-shadow: inset 3px 0 0 var(--sb-sarcelle); }
       .bq2-k1h { display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
@@ -966,6 +1119,15 @@ table.rdp td:first-child { font-weight: 600; }
       .bq2-fait td { background: color-mix(in srgb, var(--sb-sarcelle) 6%, var(--sb-papier)); }
       .bq2-fait td b { color: var(--sb-sarcelle-texte); }
       .bq2-fait .cp-plus { float: right; display: inline-flex; gap: 4px; align-items: center; }
+      .bq2-fait .cp-plus[aria-expanded="true"] svg { transform: rotate(180deg); }
+      .bq2-r td { color: var(--sb-gris); }
+      .bq2-r .mono { color: var(--sb-encre); }
+      .bq2-src { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; background: var(--sb-survol); color: var(--sb-gris); white-space: nowrap; }
+      .bq2-src.sf { background: color-mix(in srgb, var(--sb-sarcelle) 11%, var(--sb-papier)); color: var(--sb-sarcelle-texte); }
+      .bq2-src.rg { background: color-mix(in srgb, var(--cp-bleu, #3f6fd8) 10%, var(--sb-papier)); color: var(--cp-bleu, #3f6fd8); }
+      .bq2-src.toi { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+      .bq2-r .cp-plus { opacity: 0; transition: opacity .15s; } .bq2-r:hover .cp-plus, .bq2-r .cp-plus:focus-visible { opacity: 1; }
+      .bq2-plus td { text-align: center; color: var(--sb-gris); font-size: 12.5px; }
       .bq2-mc { position: relative; }
       .bq2-menu.ouvert { background: var(--sb-encre); color: var(--sb-papier); border-radius: 6px; }
       .bq2-mn { position: absolute; right: 4px; top: calc(100% - 6px); z-index: 5; width: 300px; padding: 6px; border-radius: 12px; background: var(--sb-papier); border: 1px solid var(--sb-trait-fort); box-shadow: var(--sb-ombre-pop, var(--sb-ombre)); display: grid; text-align: left; animation: bq2-in .18s ease-out; }
@@ -973,6 +1135,9 @@ table.rdp td:first-child { font-weight: 600; }
       .bq2-mn button:hover:not(:disabled) { background: var(--sb-survol); }
       .bq2-mn button small { display: block; color: var(--sb-gris); font-size: 11.5px; }
       .bq2-mn button span { flex: 1; }
+      .bq2-mi { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--sb-survol); color: var(--sb-gris); align-self: flex-start; }
+      .bq2-mi svg { width: 15px; height: 15px; }
+      .bq2-mn button:hover:not(:disabled) .bq2-mi { background: var(--sb-papier); color: var(--sb-sarcelle-texte); }
       .bq2-mn button kbd { font: 600 10.5px/1 inherit; padding: 2px 5px; border-radius: 5px; border: 1px solid var(--sb-trait-fort); color: var(--sb-gris); }
       .bq2-mn button:disabled { color: var(--sb-gris-2); cursor: default; }
       .bq2-mn hr { border: 0; border-top: 1px solid var(--sb-trait); margin: 4px 6px; }
@@ -986,8 +1151,8 @@ table.rdp td:first-child { font-weight: 600; }
       return `<div class="bq2-f" role="group" aria-label="Montrer"><button type="button" class="bq2-fc tout" aria-pressed="true"><b>43</b> Toutes</button>${seg.map(([c, k, t]) => `<button type="button" class="bq2-fc ${c}" aria-pressed="false"><i></i><b>${k}</b> ${t}</button>`).join('')}
         <span class="bq2-j" aria-hidden="true">${seg.map(([c, k]) => `<i class="${c}" style="flex:${k}"></i>`).join('')}</span></div>`; })()}
     ${s.etat === 'bqapres' ? `<div class="bq2-toast" role="status">${IC.ok}<span><b>PRLV STEG rapproché.</b> FA-0919 est payée chez Sarra, lettrée au 401ST ; la ligne suivante est choisie.</span><button type="button" class="cp-plus">Annuler</button></div>` : ''}
-    <div class="bq2${mob ? ' mob' : ''}"><div>${mob ? `<div class="bq2-km">${cartes}<div class="bq2-gm"><b>Rapprochées</b> <span class="mu">${43 - restent.length}</span></div></div>` : `<table class="cp-t"><thead><tr><th></th><th>Date</th><th>La banque</th><th class="r">Débit</th><th class="r">Crédit</th><th></th></tr></thead><tbody>${liste}
-      <tr class="bq2-g bq2-fait"><td colspan="6"><i class="bq2-pt sur"></i><b>Rapprochées</b> <span class="mu">${43 - restent.length} · ${faites.length ? `${43 - restent.length - faites.length} à l'import, ${faites.length} par toi` : 'à l\'import, depuis SkanFact'}</span><button type="button" class="cp-plus">Les voir ${IC.chev}</button></td></tr></tbody></table>`}
+    <div class="bq2${mob ? ' mob' : ''}"><div>${mob ? `<div class="bq2-km">${cartes}<div class="bq2-gm"><b>Rapprochées</b> <span class="mu">${43 - restent.length}</span><button type="button" class="cp-plus" data-etat="${s.etat === 'bqfaites' ? 'banque' : 'bqfaites'}">${s.etat === 'bqfaites' ? 'Replier' : 'Les voir'}</button></div>${s.etat === 'bqfaites' ? faitesCartes() : ''}</div>` : `<table class="cp-t"><thead><tr><th></th><th>Date</th><th>La banque</th><th class="r">Montant</th><th></th></tr></thead><tbody>${liste}
+      <tr class="bq2-g bq2-fait"><td colspan="5"><i class="bq2-pt sur"></i><b>Rapprochées</b> <span class="mu">${43 - restent.length} · ${faites.length ? `${43 - restent.length - faites.length} à l'import, ${faites.length} par toi` : 'à l\'import, depuis SkanFact'}</span><button type="button" class="cp-plus" data-etat="${s.etat === 'bqfaites' ? 'banque' : 'bqfaites'}" aria-expanded="${s.etat === 'bqfaites'}">${s.etat === 'bqfaites' ? 'Replier' : 'Les voir'} ${IC.chev}</button></td></tr>${s.etat === 'bqfaites' ? faitesRangs() : ''}</tbody></table>`}
       <p class="bq2-aide${mob ? ' mob' : ''}"><kbd>↑</kbd> <kbd>↓</kbd> une ligne <span>·</span> <kbd>Espace</kbd> cocher <span>·</span> <kbd>Entrée</kbd> valider <span>·</span> <kbd>/</kbd> chercher <span>·</span> <kbd>⋯</kbd> les autres gestes</p></div>
       ${droite}</div>
     ${piedBq({ sans: SANS, n: sansEcr.length, livre: LIVRE, ecart: s.etat === 'bqecart' ? 12000 : 0 })}`;
@@ -1033,17 +1198,17 @@ table.rdp td:first-child { font-weight: 600; }
 
   // Le menu ⋯ d'une ligne : tout ce que le bouton principal ne fait pas, avec sa touche.
   function menuBq() {
-    const it = (t, k, sous = '', off = false) => `<button type="button" role="menuitem"${off ? ' disabled' : ''}><span>${t}${sous ? `<small>${sous}</small>` : ''}</span>${k ? `<kbd>${k}</kbd>` : ''}</button>`;
+    const it = (ic, t, k, sous = '', off = false) => `<button type="button" role="menuitem"${off ? ' disabled' : ''}><i class="bq2-mi">${ic}</i><span>${t}${sous ? `<small>${sous}</small>` : ''}</span>${k ? `<kbd>${k}</kbd>` : ''}</button>`;
     return `<div class="bq2-mn${tel() ? ' mob' : ''}" role="menu" aria-label="Les autres gestes">
-      ${it('Écrire autre chose…', 'E', 'une écriture à la main, au journal BQ')}
-      ${it('Choisir une autre pièce en face', 'P', '2 factures STEG ouvertes en août')}
-      ${it('Partager entre plusieurs pièces', '')}
+      ${it(IC.stylo, 'Écrire autre chose…', 'E', 'une écriture à la main, au journal BQ')}
+      ${it(IC.lien, 'Choisir une autre pièce en face', 'P', '2 factures STEG ouvertes en août')}
+      ${it(BQI.partager, 'Partager entre plusieurs pièces', '')}
       <hr>
-      ${it('Mettre au compte d\'attente (471)', 'A', 'le mois se termine, la ligne reste à régler')}
-      ${it('Demander à Sarra ce que c\'est', 'D', 'elle répond d\'un toucher dans SkanFact')}
-      ${it('Retenir une règle d\'après cette ligne', 'R', '« PRLV STEG » en a déjà une : la modifier')}
+      ${it(BQI.attente, 'Mettre au compte d\'attente (471)', 'A', 'le mois se termine, la ligne reste à régler')}
+      ${it(IC.msg, 'Demander à Sarra ce que c\'est', 'D', 'elle répond d\'un toucher dans SkanFact')}
+      ${it(BQI.regle, 'Retenir une règle d\'après cette ligne', 'R', '« PRLV STEG » en a déjà une : la modifier')}
       <hr>
-      ${it('Défaire le rapprochement', '', 'rien à défaire : la ligne n\'est pas encore rapprochée', true)}
+      ${it(IC.retour, 'Défaire le rapprochement', '', 'rien à défaire : la ligne n\'est pas encore rapprochée', true)}
     </div>`;
   }
 
@@ -1102,8 +1267,9 @@ table.rdp td:first-child { font-weight: 600; }
   }
 
   // Importer un relevé : on voit ce qui a été compris avant que rien n'entre.
-  function banqueImport() {
+  function banqueImport(ko) {
     const mob = tel();
+    if (ko) return banqueImportRefus();
     let solde = SOLDE_RELEVE;
     const lignes = [['01/10', '01/10', 'VIR RECU CAFE JASMIN', 0, 96000], ['02/10', '03/10', 'CHQ 0041207', 245000, 0], ['03/10', '03/10', 'PRLV SONEDE 0298 1180', 38640, 0], ['05/10', '05/10', 'COM CARTE TPE', 4250, 0]]
       .map(([d, v, l, de, cr]) => { solde += cr - de; return [d, v, l, de, cr, solde]; });
@@ -1145,7 +1311,7 @@ table.rdp td:first-child { font-weight: 600; }
         <b>Les colonnes reconnues</b>
         <div class="bqi-t"><table class="cp-t"><thead><tr>${cols.map((c) => `<th>${ch(c)}</th>`).join('')}</tr><tr>${['Date opération', 'Date valeur', 'Libellé', 'Débit', 'Crédit', 'Solde'].map((x, i) => `<th class="${i > 2 ? 'r' : ''}"><small>« ${x} »</small></th>`).join('')}</tr></thead>
           <tbody>${lignes.map(([d, v, l, de, cr, so]) => `<tr><td>${d}</td><td class="ign">${v}</td><td class="mono" style="white-space:nowrap">${l}</td><td class="r">${de ? m(de) : ''}</td><td class="r">${cr ? m(cr) : ''}</td><td class="r">${m(so)}</td></tr>`).join('')}
-          <tr><td colspan="6" class="mu">… et 42 autres lignes</td></tr></tbody></table></div>
+          <tr><td colspan="5" class="mu">… et 42 autres lignes</td></tr></tbody></table></div>
         <p class="bqi-n">Le modèle de la BIAT est connu : les colonnes se sont nommées seules, comme en septembre. Une banque nouvelle, tu les nommes une fois, SkanFact s'en souvient. La date de valeur ne sert pas au rapprochement.</p>
       </div>
       <div class="bqi-k"><b>Avant d'importer</b>
@@ -1169,10 +1335,10 @@ table.rdp td:first-child { font-weight: 600; }
       ['PRLV STEG', 'débit', '', '401ST · STEG', '', 9, '20/09'], ['PRLV SONEDE', 'débit', '', '401SO · SONEDE', '', 4, '03/09'],
       ['COM CARTE', 'débit', 'jusqu\'à 50,000', '6278 · Frais bancaires', '19 % · 4366', 22, '28/09'], ['VIR SALAIRE', 'débit', '', '421 · Personnel, rémunérations dues', '', 9, '05/09']];
     const ligne = ([q, sens, mt, cpt, tva, n, der]) => mob
-      ? `<div class="bqr-k"><div><b class="mono">${q}</b><span class="mu">${sens}${mt ? ' · ' + mt : ''}</span></div><span>→ <b>${cpt}</b>${tva ? ` · TVA ${tva}` : ''}</span><small>a servi ${n} fois · la dernière le ${der}</small></div>`
-      : `<tr><td><b class="mono">${q}</b></td><td>${sens}${mt ? `<small class="bq2-p">${mt}</small>` : ''}</td><td>${cpt}</td><td>${tva ? `${tva} <small class="bq2-p">À VÉRIFIER</small>` : '<span class="mu">—</span>'}</td><td class="r"><b>${n}</b> <small class="bq2-p">la dernière le ${der}</small></td><td class="r"><button type="button" class="cp-plus" aria-label="Modifier la règle ${q}">Modifier</button></td></tr>`;
+      ? `<div class="bqr-k"><div><span class="bq2-lb">${bqIc(q, sens === 'crédit')}<b class="mono" style="align-self:center">${q}</b></span><span class="mu">${sens}${mt ? ' · ' + mt : ''}</span></div><span>→ <b>${cpt}</b>${tva ? ` · TVA ${tva}` : ''}</span><small>a servi ${n} fois · la dernière le ${der}</small></div>`
+      : `<tr><td><div class="bq2-lb">${bqIc(q, sens === 'crédit')}<b class="mono" style="align-self:center">${q}</b></div></td><td>${sens}${mt ? `<small class="bq2-p">${mt}</small>` : ''}</td><td>${cpt}</td><td>${tva ? `${tva} <small class="bq2-p">À VÉRIFIER</small>` : '<span class="mu">—</span>'}</td><td class="r"><b>${n}</b> <small class="bq2-p">la dernière le ${der}</small></td><td class="r"><button type="button" class="cp-plus" aria-label="Modifier la règle ${q}">Modifier</button></td></tr>`;
     const champ = (lab, val, aide = '', mono = false) => `<label class="bqr-ch"><span>${lab}</span><span class="bqr-in${mono ? ' mono' : ''}">${val}</span>${aide ? `<small>${aide}</small>` : ''}</label>`;
-    return `<style>
+    return `${BQX_CSS}<style>
       .bq2-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
       .bq2-h > div { flex: 1; min-width: 220px; display: grid; gap: 2px; }
       .bq2-h.mob > div { flex-basis: 100%; min-width: 0; }
@@ -1207,6 +1373,138 @@ table.rdp td:first-child { font-weight: 600; }
     </div>
     ${mob ? `<div class="bqr-km">${R.map(ligne).join('')}</div>` : `<table class="cp-t"><thead><tr><th>Quand le libellé contient</th><th>Sens</th><th>Compte</th><th>TVA</th><th class="r">A servi</th><th></th></tr></thead><tbody>${R.map(ligne).join('')}</tbody></table>`}
     <p class="bqr-pied">Une règle propose ; elle n'écrit jamais sans toi. Ses lignes arrivent « À traiter » avec la règle dite, et tu valides. Quand deux règles prennent la même ligne, la plus précise passe d'abord et SkanFact le dit avant d'enregistrer. Une règle qui ne sert plus depuis six mois se signale ici.</p>`;
+  }
+
+  // Les rapprochées, ouvertes : chacune dit avec quoi et par qui (SkanFact, une règle, toi). « Défaire » au survol.
+  const RAPP = [
+    ['01/09', 'VIR RECU CAFE JASMIN', 0, 412000, 'FV-2026-0379 · Café Jasmin', ['sf', 'encaissée par Sarra dans SkanFact']],
+    ['02/09', 'CHQ 0041189', 96400, 0, 'FA-0907 · Levures du Sahel', ['sf', 'payée par Sarra dans SkanFact']],
+    ['05/09', 'VIR SALAIRE AOUT', 4820000, 0, 'Les salaires d\'août · 6 salariés', ['sf', 'la paie d\'août']],
+    ['05/09', 'PRLV SONEDE 0298 1180', 41380, 0, 'FA-0905 · SONEDE', ['rg', 'règle « PRLV SONEDE »']],
+    ['10/09', 'VERS ESP AG ENNASR', 0, 1650000, 'La caisse · Z du 09/09', ['sf', 'versement de la caisse']],
+    ['12/09', 'COM CARTE TPE', 3980, 0, '6278 + 4366', ['rg', 'règle « COM CARTE »']],
+  ];
+  function faitesRangs() {
+    const n = 43 - RELEVE.length - 0;
+    return RAPP.map(([d, lib, de, cr, avec, [src, qui]]) => `<tr class="bq2-r"><td></td><td class="bq2-d">${d}</td><td><div class="bq2-lb">${bqIc(lib, cr)}<div><span class="mono">${esc(lib)}</span><small class="bq2-p">${IC.ok} avec <b>${esc(avec)}</b><span class="bq2-src ${src}">${esc(qui)}</span></small></div></div></td><td class="r bq2-mt${cr ? ' in' : ''}">${cr ? '+ ' + m(cr) : '− ' + m(de)}</td><td class="r"><button type="button" class="cp-plus" title="Défaire ce rapprochement : la ligne revient « À traiter », l'écriture reste">Défaire</button></td></tr>`).join('')
+      + `<tr class="bq2-plus"><td colspan="5">… et ${n - RAPP.length} autres · <button type="button" class="cp-plus">Tout septembre</button> · <button type="button" class="cp-plus">Défaire tous les rapprochements du mois</button></td></tr>`;
+  }
+  function faitesCartes() {
+    return RAPP.slice(0, 4).map(([d, lib, de, cr, avec, [src, qui]]) => `<div class="bq2-k1"><div class="bq2-k1h"><span class="bq2-lb">${bqIc(lib, cr)}<span class="bq2-d" style="align-self:center">${d}</span></span><b style="align-self:center">${de ? m(-de) : m(cr)}</b></div><span class="mono">${esc(lib)}</span><small class="bq2-p">avec <b>${esc(avec)}</b></small><span><span class="bq2-src ${src}" style="margin:0">${esc(qui)}</span></span></div>`).join('');
+  }
+
+  // L'import refusé : le relevé ne suit pas le dernier (un mois manque). Ce qui est refusé, pourquoi, le bouton qui débloque.
+  function banqueImportRefus() {
+    const mob = tel();
+    return `${BQX_CSS}<style>
+      .bq2-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+      .bq2-h > div { flex: 1; min-width: 220px; display: grid; gap: 2px; } .bq2-h.mob > div { flex-basis: 100%; min-width: 0; }
+      .bqk { border: 1px solid color-mix(in srgb, var(--sb-rouge-texte) 40%, var(--sb-trait-fort)); border-radius: 16px; padding: 20px; display: grid; gap: 14px; background: var(--sb-papier); max-width: 760px; }
+      .bqk-t { display: flex; gap: 12px; align-items: flex-start; }
+      .bqk-t .bqx { width: 38px; height: 38px; border-radius: 11px; background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+      .bqk-t b { font-size: 16px; } .bqk-t p { margin: 4px 0 0; color: var(--sb-gris); line-height: 1.5; font-size: 13.5px; }
+      .bqk-f { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--sb-trait); border-radius: 12px; overflow: hidden; }
+      .bqk-f.mob { grid-template-columns: minmax(0, 1fr); }
+      .bqk-f > div { padding: 12px 14px; display: grid; gap: 3px; background: var(--sb-papier-2, var(--sb-papier)); }
+      .bqk-f > div + div { border-left: 1px solid var(--sb-trait); } .bqk-f.mob > div + div { border-left: 0; border-top: 1px solid var(--sb-trait); }
+      .bqk-f small { color: var(--sb-gris); font-size: 12px; } .bqk-f b { font-variant-numeric: tabular-nums; }
+      .bqk-f .trou { background: repeating-linear-gradient(135deg, var(--sb-rouge-doux) 0 8px, var(--sb-papier) 8px 16px); }
+      .bqk-f .trou b { color: var(--sb-rouge-texte); }
+      .bqk ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; color: var(--sb-gris); }
+      .bqk li { display: flex; gap: 8px; align-items: center; } .bqk li svg { color: var(--sb-sarcelle); flex: none; }
+    </style>
+    <div class="bq2-h${mob ? ' mob' : ''}"><div><b>Importer un relevé · 532 BIAT</b><span class="mu">Releve_BIAT_112026.xlsx · 39 mouvements</span></div><button type="button" class="btn btn-sm btn-ghost" data-etat="banque">Retour au relevé</button></div>
+    <div class="bqk"><div class="bqk-t"><span class="bqx">${IC.alerte}</span><div><b>Ce relevé est celui de novembre : celui d'octobre manque</b><p>Rien n'est importé. Le livre de la banque se rapproche mois après mois : un mois sauté laisserait un trou que personne ne verrait.</p></div></div>
+      <div class="bqk-f${mob ? ' mob' : ''}"><div><small>Dernier relevé importé</small><b>septembre · fin ${md(SOLDE_RELEVE)}</b></div><div class="trou"><small>Octobre</small><b>pas encore importé</b></div><div><small>Ce fichier</small><b>novembre · début 15 874,215 DT</b></div></div>
+      <ul><li>${IC.ok} le fichier est bien un relevé de la BIAT, 532</li><li>${IC.ok} aucun doublon</li></ul>
+      <div class="cp-gestes"><button type="button" class="btn btn-primary" data-etat="bqimport"${bloque()}>Importer d'abord celui d'octobre…</button><button type="button" class="btn">Le demander à Sarra</button><button type="button" class="btn btn-ghost">Garder ce fichier pour après</button></div>
+      <span class="mu" style="font-size:12.5px">Gardé, il s'importera seul dès qu'octobre sera là.</span></div>`;
+  }
+
+  // Une banque que SkanFact ne connaît pas encore : on nomme ses colonnes une fois.
+  function banqueColonnes() {
+    const mob = tel();
+    const COL = [['DATE OPER', 'Date', 'jj/mm/aaaa'], ['REF', 'Ignorée', ''], ['LIBELLE OPERATION', 'Libellé', ''], ['MONTANT', 'Montant : − = sortie', 'virgule, 3 décimales'], ['SOLDE', 'Solde', 'sert au contrôle']];
+    const L = [['03/09/2026', '000412', 'VERSEMENT ESPECES', '+1 200,000', '3 418,520'], ['11/09/2026', '000431', 'MANDAT CNSS 2E TRIM', '-2 145,310', '1 273,210'], ['18/09/2026', '000447', 'FRAIS CCP', '-4,500', '1 268,710']];
+    return `${BQX_CSS}<style>
+      .bq2-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+      .bq2-h > div { flex: 1; min-width: 220px; display: grid; gap: 2px; } .bq2-h.mob > div { flex-basis: 100%; min-width: 0; }
+      .bqc { border: 1px solid var(--sb-trait-fort); border-radius: 16px; padding: 18px; display: grid; gap: 14px; background: var(--sb-papier); }
+      .bqc-s { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--sb-gris); }
+      .bqc-s b { color: var(--sb-encre); }
+      .bqc-s i { font-style: normal; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; background: var(--sb-sarcelle); color: var(--sb-papier); font-size: 12px; font-weight: 700; }
+      .bqc-s i.non { background: var(--sb-trait); color: var(--sb-gris); }
+      .bqc-t { overflow-x: auto; }
+      .bqc-t table { min-width: 640px; font-size: 12.5px; }
+      .bqc-t th { vertical-align: bottom; font-weight: 500; text-transform: none; letter-spacing: 0; }
+      .bqc-sel { display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--sb-trait-fort); border-radius: 8px; background: var(--sb-papier); color: var(--sb-encre); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+      .bqc-sel.non { color: var(--sb-gris-2); font-weight: 500; border-style: dashed; }
+      .bqc-th small { display: block; color: var(--sb-gris-2); font-size: 11px; margin-top: 4px; font-family: var(--sb-mono, ui-monospace, monospace); }
+      .bqc-th em { display: block; color: var(--sb-doux-texte); font-size: 11px; font-style: normal; margin-top: 3px; min-height: 14px; }
+      .bqc-t td.ign { color: var(--sb-gris-2); text-decoration: line-through; }
+      .bqc-lu { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 10px 12px; border-radius: 10px; background: var(--sb-doux); color: var(--sb-doux-texte); }
+    </style>
+    <div class="bq2-h${mob ? ' mob' : ''}"><div><b>Un relevé de La Poste · 531 CCP</b><span class="mu">Releve_CCP_092026.csv · 18 lignes · une banque que SkanFact ne connaît pas encore</span></div><button type="button" class="btn btn-sm btn-ghost" data-etat="banque">Annuler</button></div>
+    <div class="bqc">
+      <div class="bqc-s"><i>1</i><b>Dis ce que contient chaque colonne</b><span>·</span><i class="non">2</i><span>Vérifier avant d'importer</span></div>
+      <div class="bqc-t"><table class="cp-t"><thead><tr>${COL.map(([f, v, a]) => `<th class="bqc-th"><span class="bqc-sel${v === 'Ignorée' ? ' non' : ''}">${v} ${IC.chev}</span><small>« ${f} »</small><em>${a}</em></th>`).join('')}</tr></thead>
+        <tbody>${L.map((l) => `<tr>${l.map((x, i) => `<td class="${i === 1 ? 'ign' : i > 2 ? 'r' : ''}${i === 2 ? ' mono' : ''}">${x}</td>`).join('')}</tr>`).join('')}<tr><td colspan="5" class="mu">… et 15 autres lignes</td></tr></tbody></table></div>
+      <div class="bqc-lu">${IC.ok}<span>Compris : 18 mouvements du 01/09 au 30/09 · <b>une seule colonne de montant</b>, le signe dit le sens · chaque ligne refait le solde.</span></div>
+      <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque()}>Retenir ce modèle et continuer</button><button type="button" class="btn">Recommencer</button></div>
+      <span class="mu" style="font-size:12.5px">Le modèle se retient pour La Poste, dans tous les dossiers du cabinet : le prochain relevé s'importe sans cette étape.</span>
+    </div>`;
+  }
+
+  // L'état de rapprochement, tel qu'il s'imprime pour le dossier de révision. Provisoire tant qu'il reste des lignes à écrire.
+  function banqueEtat() {
+    const mob = tel();
+    const sans = RELEVE.filter((r) => r[4][1] === 'sans écriture');
+    const bq = SOLDE_RELEVE - CHQ_EMIS;
+    const lv = SOLDE_LIVRE - SANS_ECR;
+    const l = (lab, v, cl = '') => `<tr class="${cl}"><td>${lab}</td><td class="r">${v}</td></tr>`;
+    return `<style>
+      .bq2-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+      .bq2-h > div { flex: 1; min-width: 220px; display: grid; gap: 2px; } .bq2-h.mob > div { flex-basis: 100%; min-width: 0; }
+      .bqe-fond { background: var(--sb-survol); border-radius: 16px; padding: 24px; display: grid; justify-items: center; }
+      .bqe-fond.mob { padding: 10px; }
+      .bqe { position: relative; width: 100%; max-width: 720px; aspect-ratio: auto; background: #fff; color: #1b2a2a; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 10px 30px -10px rgba(0,0,0,.25); padding: 40px 44px; display: grid; gap: 18px; font-size: 12.5px; overflow: hidden; }
+      .bqe.mob { padding: 20px 16px; }
+      .bqe::after { content: "PROVISOIRE"; position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%) rotate(-24deg); font: 800 72px/1 var(--sb-police, inherit); letter-spacing: .08em; color: rgba(200, 120, 20, .09); pointer-events: none; }
+      .bqe.mob::after { font-size: 40px; }
+      .bqe-h { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid #1b2a2a; padding-bottom: 12px; }
+      .bqe-h b { font-size: 16px; } .bqe-h span { color: #5b6b6b; }
+      .bqe-c { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+      .bqe-c.mob { grid-template-columns: 1fr; }
+      .bqe table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; align-self: start; }
+      .bqe th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5b6b6b; padding-bottom: 6px; border-bottom: 1px solid #c9d3d3; }
+      .bqe td { padding: 5px 0; border-bottom: 1px dotted #d7dfdf; vertical-align: top; } .bqe td.r { text-align: right; white-space: nowrap; padding-left: 10px; }
+      .bqe tr.st td { padding-top: 10px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: #5b6b6b; border-bottom: 0; }
+      .bqe tr.sous td { padding-left: 12px; color: #4a5a5a; font-size: 12px; }
+      .bqe tr.tot td { font-weight: 700; border-bottom: 0; border-top: 1.5px solid #1b2a2a; padding-top: 7px; }
+      .bqe-eg { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 10px; border-radius: 6px; background: #eaf6f3; color: #0f6b5f; font-weight: 700; }
+      .bqe-p { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: #5b6b6b; font-size: 11.5px; border-top: 1px solid #c9d3d3; padding-top: 10px; }
+      .bqe-sig { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 6px; } .bqe-sig span { border-top: 1px solid #9aa8a8; padding-top: 4px; color: #5b6b6b; font-size: 11px; }
+    </style>
+    <div class="bq2-h${mob ? ' mob' : ''}"><div><b>L'état de rapprochement · 532 BIAT · au 30/09/2026</b><span class="mu">provisoire : ${sans.length} lignes du relevé ne sont pas encore écrites · il deviendra définitif quand elles le seront</span></div>
+      <button type="button" class="btn btn-sm btn-ghost" data-etat="banque">Retour au relevé</button><button type="button" class="btn btn-sm">Joindre au dossier de révision</button><button type="button" class="btn btn-sm btn-primary">${IC.exporter} Télécharger le PDF</button></div>
+    <div class="bqe-fond${mob ? ' mob' : ''}"><div class="bqe${mob ? ' mob' : ''}" role="document" aria-label="L'état de rapprochement">
+      <div class="bqe-h"><div><b>État de rapprochement bancaire</b><br><span>Boulangerie El Amal · compte 532 BIAT · exercice 2026</span></div><div style="text-align:right"><b>au 30/09/2026</b><br><span>relevé n° 09/2026 · 43 mouvements</span></div></div>
+      <div class="bqe-c${mob ? ' mob' : ''}">
+        <table><thead><tr><th>Côté banque</th><th></th></tr></thead><tbody>
+          ${l('Solde du relevé au 30/09', m(SOLDE_RELEVE))}
+          <tr class="st"><td colspan="2">Moins : les chèques émis, pas encore payés</td></tr>
+          ${l('CHQ 0041207 · Hygiène Plus · 28/09', m(-CHQ_EMIS), 'sous')}
+          ${l('Solde rectifié', m(bq), 'tot')}</tbody></table>
+        <table><thead><tr><th>Côté livre (532)</th><th></th></tr></thead><tbody>
+          ${l('Solde du livre au 30/09', m(SOLDE_LIVRE))}
+          <tr class="st"><td colspan="2">Moins : au relevé, pas encore au livre</td></tr>
+          ${sans.map((r) => l(`${r[0]} · ${esc(r[1])}`, m(-(r[2] - r[3])), 'sous')).join('')}
+          ${l('Solde rectifié', m(lv), 'tot')}</tbody></table>
+      </div>
+      <div class="bqe-eg">✓ Les deux soldes rectifiés sont égaux : ${md(bq)}</div>
+      <div class="bqe-p"><span>Préparé par Anis Jlassi, Jlassi Conseil, le 31/10/2026</span><span>Relevé importé le 31/10 à 8 h 05 · 35 mouvements rapprochés à l'import</span></div>
+      <div class="bqe-sig"><span>Le comptable</span><span>Pour la Boulangerie El Amal</span></div>
+    </div></div>`;
   }
 
   function banqueAvant() {
@@ -1418,11 +1716,11 @@ table.rdp td:first-child { font-weight: 600; }
     };
     return `<p class="cl-p">${C[s.etat] || C[ecran()] || 'Sarra ne voit pas les livres du cabinet : ni le brouillard, ni la révision, ni les feuilles maîtresses. Elle voit ses ventes, ses achats, ses relevés, et ce que le cabinet lui demande ou lui dépose.'}</p>`;
   }
-  const FAMILLES = [['Saisir', ['saisie', 'savide', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'bqvide', 'bqimport', 'bqregles', 'bqmenu', 'bqecart', 'bqapres', 'bqfini', 'ecrire', 'ventiler', 'paie', 'immos', 'inventaire']],
+  const FAMILLES = [['Saisir', ['saisie', 'savide', 'saverif', 'sareclasse', 'sadevise', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'bqvide', 'bqimport', 'bqregles', 'bqmenu', 'bqecart', 'bqfaites', 'bqetat', 'bqimportko', 'bqcolonnes', 'bqapres', 'bqfini', 'ecrire', 'ventiler', 'paie', 'immos', 'inventaire']],
     ['Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['Déclarer et clôturer', ['declaration', 'deposer', 'revision', 'exercice', 'liasse']],
     ['Un autre dossier', ['nouveau']], ['La barre', ['defile', 'barre-ouverte', 'barre-repliee']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
-  const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['savide', 'Saisie : vide, octobre sans pièce'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
-    ['banque', 'Banque : le prélèvement STEG en face de sa facture'], ['bqvide', 'Banque : vide, le relevé pas encore là'], ['bqimport', 'Banque : importer le relevé d\'octobre'], ['bqregles', 'Banque : les règles, et une nouvelle'], ['bqmenu', 'Banque : le menu ⋯ d\'une ligne'], ['bqecart', 'Banque : un écart non expliqué'], ['bqapres', 'Banque : après Entrée, la ligne suivante'], ['bqfini', 'Banque : septembre rapproché'], ['ecrire', 'Banque : les frais de tenue, d\'après leur règle'], ['ventiler', 'Banque : une remise de 3 chèques'], ['paie', 'Paie'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
+  const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['savide', 'Saisie : vide, octobre sans pièce'], ['saverif', 'Saisie : une pièce de Sarra à vérifier'], ['sareclasse', 'Saisie : une pièce au mauvais mois'], ['sadevise', 'Saisie : une facture en euros'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
+    ['banque', 'Banque : le prélèvement STEG en face de sa facture'], ['bqvide', 'Banque : vide, le relevé pas encore là'], ['bqimport', 'Banque : importer le relevé d\'octobre'], ['bqregles', 'Banque : les règles, et une nouvelle'], ['bqmenu', 'Banque : le menu ⋯ d\'une ligne'], ['bqecart', 'Banque : un écart non expliqué'], ['bqfaites', 'Banque : les rapprochées, ouvertes'], ['bqetat', 'Banque : l\'état de rapprochement'], ['bqimportko', 'Banque : un import refusé (un mois manque)'], ['bqcolonnes', 'Banque : une banque nouvelle, ses colonnes'], ['bqapres', 'Banque : après Entrée, la ligne suivante'], ['bqfini', 'Banque : septembre rapproché'], ['ecrire', 'Banque : les frais de tenue, d\'après leur règle'], ['ventiler', 'Banque : une remise de 3 chèques'], ['paie', 'Paie'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
     ['journal', 'Livre-journal'], ['grandlivre', 'Grand livre : 532 BIAT'], ['balance', 'Balance'], ['lettrage', 'Lettrage : fournisseurs'], ['recherche', 'Recherche : « 1250 »'],
     ['declaration', 'Déclaration d\'août, en retard'], ['deposer', 'Marquer août déposée'], ['revision', 'Révision de septembre'], ['exercice', 'Exercice 2026'], ['liasse', 'Liasse 2025'],
     ['nouveau', 'Un livre qui n\'existe pas encore'], ['defile', 'La page descend : la barre d’onglets sort de l’écran'], ['barre-ouverte', 'Mode « toujours ouverte »'], ['barre-repliee', 'Mode « repliée »'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
@@ -1437,6 +1735,8 @@ table.rdp td:first-child { font-weight: 600; }
     ['Le brouillard : chaque écriture équilibrée', BROUILLARD.every(([, , , , , l]) => l.reduce((t, x) => t + x[2] - x[3], 0) === 0)],
     ['La banque : relevé + sans écriture − chèque pas encore payé = livre', SOLDE_RELEVE + SANS_ECR - CHQ_EMIS === SOLDE_LIVRE],
     ['La banque : chaque écriture proposée est équilibrée', Object.values(BQ_FACE).every((f) => f.ec.reduce((t, x) => t + x[2] - x[3], 0) === 0)],
+    ['L\'état de rapprochement : banque rectifiée = livre rectifié', SOLDE_RELEVE - CHQ_EMIS === SOLDE_LIVRE - SANS_ECR],
+    ['La facture Matfer : 2 350,00 € × 3,3812 = 7 945,820 DT', 235000 * 33812 / 1000 === 7945820],
     ['La remise de chèques = ses trois factures', 512000 + 610500 + 220000 === RELEVE.find((x) => x[1].startsWith('REMISE'))[3]],
     ['Les frais de tenue = leur hors taxes + leur TVA', 15546 + 2954 === RELEVE.find((x) => x[1] === 'FRAIS TENUE DE COMPTE')[2]],
     ['La déclaration : la somme des cases = le total', AOUT.tva + AOUT.rs + AOUT.tfp + AOUT.foprolos + AOUT.tcl + AOUT.timbre === AOUT.total],

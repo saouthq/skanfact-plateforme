@@ -108,3 +108,32 @@ Demande de Skander, sur une photo du bas de la Banque : « améliorer encore cet
 - **Le menu ⋯ d'une ligne** (état « Banque : le menu ⋯ d'une ligne ») : écrire autre chose, choisir une autre pièce,
   partager entre plusieurs pièces, compte d'attente, demander au client, retenir une règle, défaire (grisé avec sa raison
   quand rien n'est à défaire), chacun avec sa touche au bureau.
+
+## 7. Dernière revue avant d'implémenter (31/10/2026)
+
+Demande de Skander : « refaire une revue des écrans manquants et de ceux faits, une UX et une UI parfaites qui donnent
+envie, sans oublier les icônes dans les listes ».
+
+**Les icônes dans les listes** : chaque ligne de banque porte la nature de son mouvement (virement reçu, virement émis,
+prélèvement, chèque, carte, frais, salaires, espèces), teintée selon le sens (entrée en vert, sortie en gris, frais en
+ambre). Les pièces du livre disent facture ou ticket en photo. Les règles portent la même icône que leurs lignes. Le menu ⋯
+a une icône par geste. Les pastilles des pièces de la saisie disent photo ou PDF, en couleur selon ce qu'elles attendent.
+
+**Revu sur les écrans déjà faits** :
+- une seule colonne « Montant », signée (+ en vert, − en gris), au lieu de Débit et Crédit : le libellé et son
+  « pourquoi » ont la place de respirer ;
+- l'état de rapprochement aligne ses deux côtés ;
+- la facture en euros ne déborde plus au téléphone.
+
+**Les écrans qui manquaient encore, dessinés** :
+- Banque : les rapprochées ouvertes (avec quoi, par qui : SkanFact, une règle, toi ; « Défaire » au survol) ;
+  l'état de rapprochement tel qu'il s'imprime (provisoire tant qu'il reste des lignes à écrire, les deux soldes rectifiés
+  égaux, vérifié par la page) ; un import refusé parce qu'un mois manque (le trou d'octobre montré, « Importer d'abord
+  celui d'octobre », « Garder ce fichier pour après ») ; une banque nouvelle (nommer ses colonnes une fois, une seule
+  colonne de montant signée comprise, le modèle retenu pour tout le cabinet).
+- Saisie : une pièce de Sarra à vérifier (six contrôles, le certificat de retenue à préparer, « Marquer vérifiée », et
+  « ne plus me faire vérifier » ses achats chez ce fournisseur) ; une pièce au mauvais mois (l'effet sur la TVA d'août et
+  de septembre avant le geste, la contre-passation) ; une facture en euros (le taux, la contre-valeur en dinars au
+  millime, l'écart de change au paiement, la déclaration en douane à demander).
+
+Le plan d'implémentation : `plan-saisie-banque.md`.
