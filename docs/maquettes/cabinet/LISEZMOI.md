@@ -36,3 +36,7 @@ Pour chaque écran : la liste des écarts (maquette et plateforme côte à côte
 téléphone), le serveur d'abord s'il manque une donnée, l'écran, les tests et les preuves, l'essai à la souris avec
 une planche avant / maquette / après, puis un envoi sur `dev`. Ce que la plateforme ne sait pas encore faire n'est
 jamais montré comme fait : l'écart est signalé à Skander, qui décide (le construire, ou ne pas le montrer encore).
+
+**Règle des écrans vides (Skander, 31/10/2026)** : un écran vide montre la page qu'il deviendra, grisée derrière, et devant
+le geste qui la remplit (« Importer le relevé… », « Demander les pièces à Sarra »). Exemples dans `comptabilite.html` : la
+banque sans relevé, la saisie sans pièce. Elle vaut pour toutes les maquettes qui viennent.
