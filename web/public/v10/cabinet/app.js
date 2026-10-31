@@ -2162,6 +2162,7 @@
   // l'entreprise : plateforme/barre.js, qui lit ce que ce fichier lui dit par `__barreInfos`, `__creer` et la suite.
   const IC_BARRE = {
     priorites: '<path d="M4 21V4M4 4h11l-1.5 3.5L15 11H4"/>',
+    classeur: '<path d="M4 4h6l2 2h8v13H4z"/><path d="M4 10h16"/>',
     pieces: '<path d="M4 13V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7"/><path d="M4 13h4l1.5 3h5L16 13h4v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>',
     echeances: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     production: '<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/>',
@@ -2312,6 +2313,23 @@
   const BULLES_CAB = { priorites: 'Ce qui presse dans tes dossiers, le plus urgent d\'abord', pieces: 'Les photos et PDF déposés par tes clients, à classer',
     echeances: 'Les déclarations de tes dossiers, par date', production: 'Ce qui presse, puis où en est chaque dossier', messages: 'Les conversations avec tes clients',
     dossiers: 'Le portefeuille, ses chiffres, ses filtres', relances: 'Les clients à qui des mois manquent', ecritures: 'Le mois de tous tes clients, en un fichier', reglages: 'Le cabinet, ton compte, l\'affichage' };
+  // La comptabilité d'un dossier dans la barre (1.207.0, maquette) : son titre (« Comptabilité · Banque »), les trois groupes
+  // (Saisir, Consulter, Déclarer) et les écrans du groupe ouvert, chacun avec ce qui l'attend quand le livre de ce dossier
+  // est lu. Un groupe ouvre l'écran qu'on y avait laissé, sinon son premier.
+  function comptaDansBarre(D, base, ouvert) {
+    const memeDossier = livresState.dossierId === D.id && !!livresState.livre;
+    const g = groupeCompta(ouvert || 'saisie');
+    const n = o => (memeDossier ? ((pastilleCompta(o) || {}).n || 0) : 0);
+    const role = monRole();
+    const groupes = GROUPES_COMPTA.filter(x => role !== 'saisie' || x.id !== 'cloturer');
+    const seg = groupes.map(x => {
+      const k = x.onglets.reduce((t, o) => t + n(o), 0);
+      const cible = ((livresState.dernierParGroupe || {})[x.id] && x.onglets.includes(livresState.dernierParGroupe[x.id])) ? livresState.dernierParGroupe[x.id] : x.onglets[0];
+      return `<a href="${base}/comptabilite/${cible}" class="cp-sg${x.id === g.id ? ' vu' : ''}" data-tip="${esc(x.label)}">${esc(x.id === 'cloturer' ? 'Déclarer' : x.label)}${k ? `<small>${esc(K.nbFr(k))}</small>` : ''}</a>`;
+    }).join('');
+    const ecrans = g.onglets.map(o => `<a href="${base}/comptabilite/${o}" class="lien cp-ns${ouvert === o ? ' active' : ''}" data-route="d-${o}"${ouvert === o ? ' aria-current="page"' : ''} data-tip="${esc(ONGLETS_COMPTA[o])}">${esc(ONGLETS_COMPTA[o])}${n(o) ? `<span class="nav-count compte ${o === 'declaration' ? 'alerte' : 'calme'}">${esc(K.nbFr(n(o)))}</span>` : ''}</a>`).join('');
+    return `<div class="cp-nav-b" role="group" aria-label="La comptabilité"><p class="cp-nav-t">Comptabilité${ouvert ? `<span> · ${esc(ONGLETS_COMPTA[ouvert] || '')}</span>` : ''}</p><div class="cp-sgs">${seg}</div><div class="cp-ecr">${ecrans}</div></div>`;
+  }
   function drawNav() {
     const nav = $('#nav');
     if (!nav || !S) return;
@@ -2368,8 +2386,6 @@
       const ici = (o, s2) => dansCeDossier && (sous || 'suivi') === o && (!s2 || (hash.split('/')[3] || '') === s2);
       const n = comptesBarre.piecesParDossier.get(D.id) || 0;
       const lienD = (id, ic, nom, href, on, meta, ton) => `<a href="${href}" data-route="${id}" class="lien${on ? ' active' : ''}" data-tip="${esc(nom + (meta ? ` · ${meta}` : ''))}"><span class="ic">${icB(ic)}</span>${esc(nom)}${meta ? `<span class="nav-count compte ${ton || 'calme'}">${esc(meta)}</span>` : ''}<span class="point"></span></a>`;
-      const r = e.r;
-      const aValider = r.provisionalCount;
       const volet = `<div class="nav-fam" data-famille="Tout le dossier"><button type="button" class="lien nav-volet" data-famille="Tout le dossier" aria-expanded="false" data-tip="Tout le dossier · le classeur, les livres, la paie, la fiche"><span class="ic">${icB('plus')}</span>Tout le dossier<span class="chev">${icB('chevron', 15, 2.2)}</span><span class="point"></span></button>`
         + `<div class="panneau volet" role="dialog" aria-label="Tout le dossier" hidden><h3>${esc(D.name)}</h3><p class="sous">Tout le dossier : son classeur, ses livres, sa paie, sa clôture, sa fiche</p><div class="panneau-liste">`
         + ligneVolet('classeur', 'Le classeur', 'Chaque pièce, mois par mois, et ce qui manque', { href: `${base}/classeur`, compte: '<span class="pl-neuf">nouveau</span>' })
@@ -2382,10 +2398,14 @@
         + '</div></div></div>';
       html += `<div class="nav nav-dossier" id="nav-dossier" style="--d1:${c[0]}">`
         + `<button type="button" class="dossier" id="b-dossier" data-nom="${esc(D.name)}" aria-haspopup="menu" aria-expanded="false" data-tip="Dossier ouvert · ${esc(D.name)} · Ctrl 1 à 9 pour tes dossiers">${marqueD(D)}<span class="lib"><small>Dossier ouvert · ${typeD(D)}</small><b>${esc(D.name)}</b><small class="clos">${e.clos ? icB('cadenas', 11, 2.4) + ' ' : ''}${esc(e.texte)}</small></span><span class="chev">${icB('haut', 15, 2)}</span></button>`
-        + lienD('d-saisie', 'ecritures', 'Écritures', `${base}/comptabilite/saisie`, ici('comptabilite', 'saisie'), aValider ? `${aValider} mois à réviser` : '', 'calme')
+        // (1.207.0) Le dossier dans la barre, comme la maquette de la comptabilité : seulement les pages qui existent pour un
+        // dossier (la fiche, le classeur, ses pièces, la conversation d'un dossier relié), puis la comptabilité — ses trois
+        // groupes et les écrans du groupe ouvert, avec ce qui attend — et « Tout le dossier ».
+        + lienD('d-fiche', 'fiche', 'Fiche du dossier', base, dansCeDossier && !sous, '', '')
+        + lienD('d-classeur', 'classeur', 'Le classeur', `${base}/classeur`, ici('classeur'), '', '')
         + lienD('d-pieces', 'pieces', 'Pièces du dossier', `#/pieces/${encodeURIComponent(D.id)}`, route === 'pieces' && decodeURIComponent(arg || '') === D.id, n ? `${n} à classer` : '', 'attire')
-        + lienD('d-banque', 'banque', 'Banque', `${base}/comptabilite/banque`, ici('comptabilite', 'banque'), '', '')
-        + (role !== 'saisie' ? lienD('d-declaration', 'declaration', 'Déclarations', `${base}/comptabilite/declaration`, ici('comptabilite', 'declaration'), '', '') : '')
+        + (D.manual ? '' : lienD('d-messages', 'messages', 'Messages', `#/messages/${encodeURIComponent(D.id)}`, route === 'messages' && decodeURIComponent(arg || '') === D.id, (etatsMessages.get(D.id) || {}).nonLus ? `${etatsMessages.get(D.id).nonLus}` : '', 'attire'))
+        + comptaDansBarre(D, base, dansCeDossier && sous === 'comptabilite' ? (ONGLETS_COMPTA[hash.split('/')[3]] ? hash.split('/')[3] : livresState.onglet || 'saisie') : '')
         + volet + '</div>';
     }
     nav.innerHTML = html;
@@ -6721,6 +6741,32 @@
     const altere = packs.some(p => p.integrity && (p.integrity.bad || []).length);
     const intrus = packs.some(p => p.integrity && (p.integrity.intrus || []).length);
     const ongletBtn = (o, label, n) => `<button role="tab" data-tab="${o}" class="${onglet === o ? 'active' : ''}" aria-selected="${onglet === o}">${label}${n ? `<span class="tab-n">${n}</span>` : ''}</button>`;
+    // (plateforme) 1.207.0 — la comptabilité a l'en-tête de sa maquette (docs/maquettes/cabinet/comptabilite.html) : le fil
+    // « Dossier ouvert · … › Saisir », la pastille du dossier, le NOM DE L'ÉCRAN en titre (Banque, Saisie…), l'état du dossier
+    // dessous ; à droite l'exercice, « + Une écriture » et le menu ⋯ (la fiche, le suivi, les paquets, la relance). La fiche
+    // et ses onglets restent ceux du Suivi et des Paquets.
+    const enCompta = onglet === 'comptabilite';
+    // La ligne d'état de la maquette : ce qui est en retard (rouge), le mois qui se dépose (ambre), ce qui reste au
+    // brouillard, qui tient le dossier. « N mois à valider » se met à jour seul (`majAValider`).
+    const etatCompta = (() => {
+      if (!enCompta) return '';
+      const auj = K.today(), mc = auj.slice(0, 7), mp = moisPrecedent(mc);
+      const tard = retardsConnus().get(dossier.name) || [];
+      const eqC = equipeDe(dossier);
+      const parts = [];
+      if (tard.length) parts.push(`<span class="rouge">${esc(tard.map(moisLong).join(', '))} en retard</span>`);
+      if (!tard.includes(mp) && (!dossier.from || dossier.from <= mp) && etatMoisFd(dossier, mp, null, tard, mc)[0] !== 'fait') {
+        parts.push(`<span class="ambre">${esc(moisLong(mp))} à déposer${limiteDe(mp) === auj ? ' aujourd\'hui' : limiteDe(mp) > auj ? ` d'ici le ${esc(fmtJour(limiteDe(mp)).slice(0, 5))}` : ''}</span>`);
+      }
+      if (eqC.suit) parts.push(`tenu par ${esc(eqC.suit.id === S.moi ? 'toi' : prenomDe(eqC.suit))}`);
+      return parts.map(x => ` · ${x}`).join('') + `<span id="d-avalider"${row.provisionalCount ? '' : ' hidden'}> · <span class="warn-text">${row.provisionalCount ? `${row.provisionalCount} mois à valider` : ''}</span></span>`;
+    })();
+    const teteCompta = !enCompta ? '' : `<div class="ctx-cab cp-ctx"><span class="ctx-ic">${icB('production', 16, 2)}</span><span><b>Dossier ouvert</b> · ${esc(dossier.name)} · <span id="cp-fil">${esc(filCompta(livresState.onglet))}</span></span></div>
+      <div class="page-head cp-tete"><div class="fd-id">${marqueD(dossier, 'fd-mq')}<div><h1><span id="cp-titre">${esc(ONGLETS_COMPTA[livresState.onglet] || 'La comptabilité')}</span> ${info('lv.compta')}</h1>
+        <p class="fd-sous"><b>${esc(dossier.name)}</b>${dossier.archived ? ' <span class="badge">archivé</span>' : ''}${dossier.manual ? ' <span class="cd-li tenu">tenu au cabinet</span>' : ''}<span class="d-etat" id="d-etat">${etatCompta}</span></p></div></div>
+      <div class="actions"><label class="cp-per" title="L'exercice que montrent les livres">Exercice <select id="lv-annee" aria-label="L'exercice">${years.map(y => `<option value="${esc(y)}" ${livresState.annee === y ? 'selected' : ''}>${esc(y)}</option>`).join('')}</select>${svgBq(BQ_IC.chev, 13)}</label>
+        <button type="button" class="btn" id="cp-ecrire" title="Une écriture au brouillard, dans la saisie">${svgBq('<path d="M12 5v14M5 12h14"/>', 15)} Une écriture</button>
+        ${RowMenu.bouton('F:' + dossier.id, '⋯', 'btn btn-icone cp-menu')}</div></div>`;
 
     view.innerHTML = `
       ${/* 10.12.0 (U-01) — le bouton retour vit sur la LIGNE du titre. Posé seul au-dessus, il coûtait
@@ -6730,7 +6776,7 @@
             largeur dessous. Empilés sous le nom, ils élargissaient le titre : à 1280 px
             les gestes passaient sur une seconde rangée (126 px d'en-tête), et la grille de saisie
             tombait sous le bas de l'écran. */''}
-      <div class="page-head fiche-dossier">
+      ${enCompta ? teteCompta : `<div class="page-head fiche-dossier">
         <div class="fiche-titre"><button class="btn btn-ghost btn-sm btn-back" id="back" title="Revenir à la liste des dossiers">← Dossiers</button>
         <h1>${esc(dossier.name)}${dossier.archived ? ' <span class="badge">archivé</span>' : ''}${dossier.manual ? ' <span class="badge b-hors">pas encore sur SkanFact</span>' : ''}</h1></div>
       <div class="actions">
@@ -6747,7 +6793,7 @@
               à l'autre. */''}
         ${RowMenu.bouton('F:' + dossier.id, 'Actions', 'btn')}
       </div>
-      <div class="d-meta"><div class="d-ident">${ident}</div><div class="d-etat" id="d-etat">${etat}</div></div></div>
+      <div class="d-meta"><div class="d-ident">${ident}</div><div class="d-etat" id="d-etat">${etat}</div></div></div>`}
       <div class="print-only print-head">${esc(S.cabinet.name || 'Cabinet')} — fiche client imprimée le ${esc(fmtDay(Date.now()))}</div>
 
       ${altere
@@ -6757,11 +6803,11 @@
         ? `<div class="warn-box mb"><strong>Au moins un paquet de ce client contient un fichier que son manifeste n'annonce pas ${info('p.intrus')}</strong>
            Personne ne l'a vérifié et il ne compte pas dans les pièces intactes. Ouvre-le seulement si tu sais d'où il vient. ${onglet !== 'paquets' ? '<button class="btn btn-sm" data-vers="paquets">Voir les paquets</button>' : ''}</div>` : ''}
 
-      <div class="tabs" id="d-tabs" role="tablist" aria-label="La fiche de ${esc(dossier.name)}">
+      ${enCompta ? '' : `<div class="tabs" id="d-tabs" role="tablist" aria-label="La fiche de ${esc(dossier.name)}">
         ${ongletBtn('suivi', 'Suivi', row.missingCount)}
         ${ongletBtn('comptabilite', 'Comptabilité' + pointSale(dossier.id), 0)}
         ${ongletBtn('paquets', 'Paquets', packs.length)}
-      </div>
+      </div>`}
 
       <section data-onglet="suivi" ${onglet === 'suivi' ? '' : 'hidden'}>
       ${!dossier.manual && api.ceMois ? `<div class="panel" id="d-ce-mois" data-id="${esc(dossier.id)}"><h2>Ce mois-ci · ${esc(K.monthLabel(K.today().slice(0, 7)))}</h2>
@@ -6869,7 +6915,6 @@
             <option value="mois" ${livresState.mode === 'mois' ? 'selected' : ''}>Un mois</option>
             <option value="intervalle" ${livresState.mode === 'intervalle' ? 'selected' : ''}>Du… au…</option>
           </select>
-          <select id="lv-annee" aria-label="L'exercice" ${livresState.mode === 'exercice' ? '' : 'hidden'}>${years.map(y => `<option value="${esc(y)}" ${livresState.annee === y ? 'selected' : ''}>${esc(y)}</option>`).join('')}</select>
           <select id="lv-mois" aria-label="Le mois" ${livresState.mode === 'mois' ? '' : 'hidden'}>${months.map(m => `<option value="${esc(m.month)}" ${livresState.mois === m.month ? 'selected' : ''}>${esc(K.monthLabel(m.month))}</option>`).join('')}</select>
           <input type="month" id="lv-du" aria-label="Du mois" ${livresState.mode === 'intervalle' ? '' : 'hidden'} value="${esc(livresState.du)}">
           <input type="month" id="lv-au" aria-label="Au mois" ${livresState.mode === 'intervalle' ? '' : 'hidden'} value="${esc(livresState.au)}">
@@ -6919,12 +6964,13 @@
       </div>
       </section>`;
 
-    $('#back').onclick = () => { location.hash = '#/dossiers'; };
+    const bk = $('#back'); if (bk) bk.onclick = () => { location.hash = '#/dossiers'; };
     // Changer d'onglet, c'est changer d'adresse : « précédent » revient dessus, et une autre page
     // peut y emmener directement.
     $$('#d-tabs button', view).forEach(b => b.onclick = () => versOnglet(b.dataset.tab));
     $$('[data-vers]', view).forEach(b => b.onclick = () => versOnglet(b.dataset.vers));
-    $('#edit').onclick = () => dossierForm(dossier);
+    const ed = $('#edit'); if (ed) ed.onclick = () => dossierForm(dossier);
+    const ce = $('#cp-ecrire', view); if (ce) ce.onclick = () => { if (livresState.onglet !== 'saisie') allerSousOnglet(view, dossier, 'saisie'); const champ = $('#sa-date'); if (champ) { champ.scrollIntoView({ block: 'center' }); champ.focus(); } };
     $$('[data-ident]', view).forEach(b3 => { b3.onclick = () => dossierForm(dossier); });
     const cy = $('#ca-year');
     if (cy) cy.onchange = e => { ficheYear = e.target.value; render(); };
@@ -7040,12 +7086,21 @@
     };
     // UNE seule table d'actions par racine : `bindRowMenus` écrase le gestionnaire précédent, donc
     // une seconde table rendrait la première parfaitement inerte — sans une erreur nulle part.
-    bindRowMenus(view, cle => {
+    const actionsVue = cle => {
       // Les gestes rares de l'EN-TÊTE de fiche (9.4.8). « Imprimer » occupait une place premium à
       // côté des gestes quotidiens ; les deux gestes de contact dépendent d'un numéro qu'un dossier
       // sur deux n'a pas, donc la barre changeait de forme d'un client à l'autre.
       if (cle === 'F:' + dossier.id) {
         return [
+          // (1.207.0) Dans la comptabilité, l'en-tête de la fiche laisse sa place : ses gestes passent ici.
+          ...(enCompta ? [
+            { icon: 'modifier', label: 'Modifier la fiche', hint: 'L\'identité, le contact, la mission', run: () => dossierForm(dossier) },
+            row.missingCount ? { icon: 'email', label: 'Relancer le client', hint: pl(row.missingCount, 'mois manquant', 'mois manquants'), run: () => writeRelance(row) } : null,
+            { icon: 'horloge', label: 'Le suivi du dossier', hint: 'Les mois reçus, les relances, l\'équipe', run: () => versOnglet('suivi') },
+            packs.length ? { icon: 'dossier', label: 'Les paquets reçus', hint: pl(packs.length, 'paquet'), run: () => versOnglet('paquets') } : null,
+            { sep: true },
+            // Sur la Banque, les gestes du relevé ouvert.
+            ...(livresState.onglet === 'banque' && banqueState.gestesReleve ? [...banqueState.gestesReleve(), { sep: true }] : [])] : []),
           { icon: 'ouvrir', label: 'Imprimer la fiche', hint: 'Tout le dossier, onglets compris', run: () => window.print() },
           dossier.phone ? { sep: true } : null,
           dossier.phone ? { icon: 'telephone', label: 'Appeler le client', hint: dossier.phone,
@@ -7077,8 +7132,13 @@
         { sep: true },
         { icon: 'supprimer', label: 'Supprimer ce paquet', hint: 'Le mois redeviendra manquant pour ce client', danger: true, run: () => supprimerPaquet(p) }
       ];
-    });
+    };
+    bindRowMenus(view, actionsVue);
+    // (1.207.0) Le ⋯ de l'en-tête de la comptabilité se recalcule après chaque dessin de l'écran (ses gestes en dépendent :
+    // ceux du relevé sur la Banque) : `drawLivres` le rebranche.
+    menuEnteteCompta = enCompta ? actionsVue : null;
   }
+  let menuEnteteCompta = null;
 
   const labelOf = (list, id) => { const x = (list || []).find(o => o.id === id); return x ? x.label : ''; };
 
@@ -7689,6 +7749,29 @@
   const ONGLETS_SANS_LIVRE = ['journal', 'grand-livre', 'balance', 'lettrage'];
   const ONGLETS_DU_LIVRE = Object.keys(ONGLETS_COMPTA).filter(o => !ONGLETS_SANS_LIVRE.includes(o)).map(o => ONGLETS_COMPTA[o]);
   const groupeCompta = onglet => GROUPES_COMPTA.find(g => g.onglets.includes(onglet)) || GROUPES_COMPTA[1];
+  // Le fil de la page (1.207.0) : « Comptabilité › Saisir », le groupe de l'écran ouvert.
+  const filCompta = onglet => `Comptabilité › ${groupeCompta(onglet).label}`;
+  // La frise des douze mois de l'exercice (maquette, 1.207.0) : l'état de chaque mois lu comme sur la fiche du dossier
+  // (`etatMoisFd` : déposé, en retard, à déposer, en cours, à venir), le mois ouvert cerclé, « Toute l'année » au bout.
+  function friseCompta(dossier) {
+    const s = livresState;
+    if (!s.livre) return '';
+    const an = String(s.annee), auj = K.today(), mc = auj.slice(0, 7);
+    const L = lireLivreFd(s.livre);
+    const tard = retardsConnus().get(dossier.name) || [];
+    const cases = MOIS_CD.map((nom, i) => {
+      const m = `${an}-${String(i + 1).padStart(2, '0')}`;
+      const [cl, mot, enRetard] = etatMoisFd(dossier, m, L, tard, mc);
+      let ton = '', dit = mot;
+      if (cl === 'fait') ton = 'ok';
+      else if (enRetard) { ton = 'rouge'; dit = 'en retard'; }
+      else if (cl === 'avenir' || cl === 'hors') ton = 'vide';
+      else if (cl !== 'cours' && m <= moisPrecedent(mc)) { ton = 'ambre'; dit = m === moisPrecedent(mc) ? 'à déposer' : mot; }
+      const on = s.mode === 'mois' && s.mois === m;
+      return `<button type="button" class="cp-mo ${ton}${on ? ' on' : ''}" data-cp-mois="${m}" aria-pressed="${on}" title="${esc(`${moisLong(m)} ${an} : ${dit}`)}"><b>${esc(nom)}</b><small>${esc(dit)}</small></button>`;
+    }).join('');
+    return `<div class="cp-an" role="group" aria-label="L'année ${esc(an)}"><span class="cp-an-t">${esc(an)} ${info('fd.mois')}</span>${cases}<button type="button" class="cp-ex${s.mode === 'exercice' ? ' on' : ''}" data-cp-mois="" aria-pressed="${s.mode === 'exercice'}">Toute l'année</button></div>`;
+  }
   const ongletDispo = o => !!ONGLETS_COMPTA[o] && (!!livresState.livre || ONGLETS_SANS_LIVRE.includes(o));
 
   // L'adresse d'un écran de comptabilité : `#/dossier/<id>/comptabilite/<sous-onglet>`. Le
@@ -7967,6 +8050,10 @@
     // elle faisait SAUTER la barre de 89 px d'un groupe à l'autre — le bouton qu'on vient de cliquer
     // partait sous le pointeur. Une barre de navigation ne bouge pas quand on s'en sert.
     const alerteHtml = alerte.length ? `<div class="warn-box mb c-alerte">${alerte.map(a => `<div>${esc(a)}</div>`).join('')}${relancerManquants}</div>` : '';
+    // (1.207.0) L'en-tête dit l'écran ouvert (« Banque ») et son groupe dans le fil ; la carte de la page suit le groupe.
+    const titreEcran = $('#cp-titre'); if (titreEcran) titreEcran.textContent = ONGLETS_COMPTA[s.onglet] || 'La comptabilité';
+    const fil = $('#cp-fil'); if (fil) fil.textContent = filCompta(s.onglet);
+    const cadre = $('#c-compta'); if (cadre) { cadre.classList.add('cp-modele'); cadre.dataset.groupe = gOuvert.id; }
     el.innerHTML = `${sansLivre}
       ${/* Une pastille = « ce qui attend une décision », PARTOUT (T-10). Saisie compte les
             brouillards, Banque les lignes non rapprochées, Immobilisations les biens dont la
@@ -7982,7 +8069,7 @@
             g.id === 'saisir' ? pointSale(dossier.id) : ''}${n ? ` <span class="tab-n">${esc(K.nbFr(n))}</span>` : ''}</button>`;
         }).join('')}</div>` : ''}
         <div class="tabs" id="c-tabs" role="tablist" aria-label="${esc(gOuvert.label)}">${gOuvert.onglets.filter(ongletDispo).map(boutonOnglet).join('')}</div>
-      </div>${alerteHtml}${corps}`;
+      </div>${friseCompta(dossier)}<div class="cp-corps">${alerteHtml}${corps}</div>`;
 
     // La barre des groupes COLLE en haut quand on descend (U-06). Tout ce qu'on amène à l'écran — un
     // raccourci vers un panneau, la zone d'une visite guidée — doit donc s'arrêter SOUS elle : amené
@@ -7996,6 +8083,17 @@
       if (window.ResizeObserver) new ResizeObserver(poserHauteur).observe(navCompta);
     }
     $$('#c-tabs button', el).forEach(b => { b.onclick = () => allerSousOnglet(root, dossier, b.dataset.tab); });
+    // La frise : un mois ouvre ce mois (et son relevé, sur la Banque) ; « Toute l'année », l'exercice.
+    $$('[data-cp-mois]', el).forEach(b => { b.onclick = () => {
+      const m = b.dataset.cpMois;
+      if (!m) { s.mode = 'exercice'; }
+      else {
+        s.mode = 'mois'; s.mois = m;
+        if (s.onglet === 'banque') { const r = (s.livre.releves || []).find(x => String(x.du || '').slice(0, 7) === m || String(x.au || '').slice(0, 7) === m); if (r) banqueState.releve = r.id; }
+      }
+      s.page = 1;
+      render();
+    }; });
     // Un groupe ouvre l'écran qu'on y avait laissé, sinon son premier : on revient là où on était.
     $$('#c-groupes button', el).forEach(b => {
       b.onclick = () => {
@@ -8033,6 +8131,10 @@
     else if (s.onglet === 'revision') brancherRevision(el, root, dossier);
     else if (s.onglet === 'liasse') brancherLiasse(el, root, dossier);
     else brancherVue(el, root, dossier, lignes);
+    // La barre suit le livre lu (ses compteurs : « Banque 8 ») et l'écran ouvert.
+    if (location.hash.includes('/comptabilite')) drawNav();
+    const entete = $('.cp-tete .actions');
+    if (entete && menuEnteteCompta) RowMenu.brancherMenus(entete, menuEnteteCompta);
     // APRÈS le dessin, jamais pendant (7.27.0) : un `scrollIntoView` posé dans un gabarit est
     // effacé par le `innerHTML` qui suit.
     focaliser(el);
@@ -12092,7 +12194,7 @@
   // principal). ↑ ↓ changent de ligne, Espace coche, Entrée fait le geste principal, « / » cherche. En bas, l'écart du
   // relevé, toujours expliqué ou nommé. Le jugement reste celui du moteur (`candidatsDeLigne`, `ecritureProposee`,
   // `suspens`) : l'écran ne refait aucun calcul de son côté.
-  const banqueState = { releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {} };
+  const banqueState = { releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {}, annonce: null, gestesReleve: null };
 
   const svgBq = (d, t = 16) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const BQ_IC = {
@@ -12134,8 +12236,30 @@
     const k = natureBq(libelle, montant);
     return `<span class="bqx ${k === 'frais' ? 'frais' : Number(montant) >= 0 ? 'in' : 'out'}" title="${esc(NAT_DIT[k])}" aria-label="${esc(NAT_DIT[k])}">${svgBq(BQ_IC[k])}</span>`;
   };
+  // Une écriture se nomme par sa pièce, comme la maquette (« FA-0919 ») : le code du journal devant (« BQ BQ-0922 ») se
+  // répète sans rien dire. Sans pièce, le journal et la date la nomment.
+  const pieceBq = e => (e ? String(e.piece || '').trim() || `${e.journal || ''} du ${fmtJour(e.date || '').slice(0, 5)}`.trim() : '');
+  // Qui répond pour le client : le prénom de son contact (« En attente de Sarra »), sinon « du client ».
+  const contactBq = dossier => prenomCl((dossier || {}).contact);
+  const deClientBq = dossier => (contactBq(dossier) ? `de ${contactBq(dossier)}` : 'du client');
+  const aClientBq = dossier => (contactBq(dossier) ? `à ${contactBq(dossier)}` : 'au client');
+  // D'où vient un relevé, comme on le dit au comptable : « importé ce matin (Excel de la BIAT) ».
+  function importeBq(R) {
+    const f = String(R.fichier || '').toLowerCase();
+    const fmt = /\.xlsx?$/.test(f) ? 'Excel' : /\.csv$/.test(f) ? 'CSV' : /\.ofx$/.test(f) ? 'OFX' : '';
+    const de = fmt ? ` (${fmt}${R.banque ? ` de la ${R.banque}` : ''})` : '';
+    if (!R.importeLe) return '';
+    const t = new Date(R.importeLe);
+    if (Number.isNaN(t.getTime())) return '';
+    const jour = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const auj = new Date(), hier = new Date(auj.getTime() - 86400000);
+    const h = t.getHours();
+    const quand = jour(t) === jour(auj) ? (h < 12 ? 'ce matin' : h < 18 ? 'cet après-midi' : 'ce soir')
+      : jour(t) === jour(hier) ? 'hier' : `le ${fmtJour(jour(t))}`;
+    return `importé ${quand}${de}`;
+  }
   // Un montant signé, comme sur le relevé : + en vert ce qui entre, − ce qui sort.
-  const montantSigne = m => `<span class="bq-mt${Number(m) >= 0 ? ' in' : ''}">${Number(m) >= 0 ? '+ ' : '− '}${esc(montant(Math.abs(Number(m) || 0)))}</span>`;
+  const montantSigne = m => `<span class="bq-mt${Number(m) >= 0 ? ' in' : ''}">${Number(m) >= 0 ? '+ ' : '− '}${esc(montant(Math.abs(Number(m) || 0)))}</span>`;
 
   // Le mois d'un relevé, comme on le nomme : « septembre 2026 », ou « 08/09 → 07/10 » s'il chevauche deux mois.
   const moisDuReleve = R => String(R.du || '').slice(0, 7) === String(R.au || '').slice(0, 7) && R.du
@@ -12161,12 +12285,12 @@
       if (r.ecritureId) return { l, g: 'ok', e: ecritureDuLivre(L, r.ecritureId), rang: Number(r.ligne) };
       const q = qs.find(x => String(x.compte || '') === String(R.compte) && String(x.periode || '') === String(l.date).slice(0, 7)
         && KC.round3(Math.abs(Number(x.montant) || 0) - Math.abs(Number(l.montant) || 0)) === 0);
-      if (q) return { l, g: 'att', q, titre: q.statut === 'repondue' ? 'Le client a répondu' : 'Question au client',
+      if (q) return { l, g: 'att', q, titre: q.statut === 'repondue' ? `${contactBq(dossier) || 'Le client'} a répondu` : `Question ${aClientBq(dossier)}`,
         pq: q.statut === 'repondue' ? 'à écrire d\'après sa réponse' : `posée le ${fmtJour(new Date(q.creeLe || 0).toISOString().slice(0, 10))}`, ton: 'q' };
       const jug = KC.candidatsDeLigne(L, R.id, l.id, { jours });
       if ((jug.niveau === 'certain' || jug.niveau === 'probable') && jug.meilleur) {
         const c = jug.meilleur, e = ecritureDuLivre(L, c.ecritureId);
-        return { l, g: 'prop', jug, c, titre: `${e ? `${e.journal || ''} ${e.piece || ''}`.trim() : ''}${c.libelle ? ` · ${c.libelle}` : ''}`, pq: pourquoiBq(l, c, jug.niveau), ton: 'sur' };
+        return { l, g: 'prop', jug, c, titre: `${pieceBq(e)}${c.libelle ? `${pieceBq(e) ? ' · ' : ''}${c.libelle}` : ''}`, pq: pourquoiBq(l, c, jug.niveau), ton: 'sur' };
       }
       if (jug.niveau === 'a-confirmer') return { l, g: 'dec', jug, titre: `${jug.candidats.length} écritures au même montant`, pq: 'rien ne les départage : à toi de choisir', ton: 'choix' };
       const prop = KC.ecritureProposee(l, table, { compte: R.compte, journal: 'BQ' });
@@ -12174,7 +12298,7 @@
         const c2 = prop.lignes[1].compte;
         return { l, g: 'dec', jug, prop, titre: `${c2}${nom(c2) ? ` · ${nom(c2)}` : ''}`, pq: `sa règle « ${prop.regle} »`, ton: 'regle' };
       }
-      return { l, g: 'dec', jug, titre: 'Rien dans le livre en face', pq: 'l\'écrire, ou demander au client', ton: 'rien' };
+      return { l, g: 'dec', jug, titre: 'Rien dans le livre en face', pq: `l'écrire, ou demander ${aClientBq(dossier)}`, ton: 'rien' };
     });
   }
   // Pourquoi une écriture est proposée : le montant, l'écart de jours, les mots que la banque et le livre partagent.
@@ -12187,6 +12311,8 @@
   }
   const MOTS_BANQUE_BQ = ['virement', 'recu', 'recue', 'emis', 'emise', 'cheque', 'cheques', 'remise', 'prelevement', 'prlv', 'paiement', 'reglement', 'carte', 'facture', 'compte', 'versement', 'banque', 'agence', 'tunis', 'mois'];
   const GROUPES_BQ = [['prop', 'Proposées · à confirmer'], ['dec', 'À traiter'], ['att', 'En attente du client']];
+  // Le titre d'un groupe, avec le prénom du contact quand on le connaît (« En attente de Sarra »).
+  const titreGroupeBq = (dossier, g, titre) => (g === 'att' ? `En attente ${deClientBq(dossier)}` : titre);
   // L'écart du relevé, comme la maquette l'écrit : relevé ± ce que le livre n'a pas encore ± ce que la banque n'a pas
   // encore passé = ce que le livre devrait dire. Les lignes du livre d'AVANT le premier relevé importé ne s'expliquent
   // par aucun relevé : elles se nomment à part, dans les pistes.
@@ -12239,44 +12365,59 @@
         <td class="bq-c">${x.g === 'prop' ? `<input type="checkbox" data-bq-coche="${esc(l.id)}"${banqueState.coches.has(l.id) ? ' checked' : ''} aria-label="Choisir ${esc(l.libelle)}">` : ''}</td>
         <td class="bq-d">${esc(fmtJour(l.date).slice(0, 5))}</td>
         <td><div class="bq-lb">${icNature(l.libelle, l.montant)}<div><span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok'
-          ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(x.e ? `${x.e.journal || ''} ${x.e.piece || ''}`.trim() : '')}</b>${x.e && x.e.libelle ? ` · ${esc(x.e.libelle)}` : ''}${origineBq(x)}</small>`
+          ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(pieceBq(x.e))}</b>${x.e && x.e.libelle ? ` · ${esc(x.e.libelle)}` : ''}${origineBq(x)}</small>`
           : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(x.titre)}</b> · ${esc(x.pq)}</small>`}</div></div></td>
         <td class="r">${montantSigne(l.montant)}</td>
-        <td class="r bq-mc">${RowMenu.bouton('LIG:' + l.id, '⋯', 'bq-menu btn-ghost')}</td></tr>`;
+        <td class="r bq-mc">${x.g === 'ok' && !lect ? `<button type="button" class="cp-plus bq-defaire1" data-bq-defaire="${esc(l.id)}" title="Défaire ce rapprochement : la ligne revient « À traiter », l'écriture reste">Défaire</button>` : RowMenu.bouton('LIG:' + l.id, '⋯', 'bq-menu btn-ghost')}</td></tr>`;
     };
     const carteTel = x => {
       const l = x.l;
       return `<div class="bq-k1${l.id === banqueState.sel ? ' on' : ''}" data-bq-ligne="${esc(l.id)}" data-groupe="${x.g}" role="button" tabindex="0">
         <div class="bq-k1h"><span class="bq-lb">${icNature(l.libelle, l.montant)}<span class="bq-d">${esc(fmtJour(l.date).slice(0, 5))}</span></span>${montantSigne(l.montant)}</div>
-        <span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok' ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(x.e ? `${x.e.journal || ''} ${x.e.piece || ''}`.trim() : '')}</b></small>`
+        <span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok' ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(pieceBq(x.e))}</b></small>`
           : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(x.titre)}</b> · ${esc(x.pq)}</small>`}</div>`;
     };
     const valider = n('prop') && !lect ? `<button type="button" class="btn btn-sm" data-bq-valider>${svgBq(BQ_IC.ok, 14)} Valider ${coches.length ? `les ${coches.length} cochées` : n('prop') > 1 ? `les ${n('prop')}` : 'la proposée'}</button>` : '';
     const groupesTab = GROUPES_BQ.map(([g, titre]) => {
       const rs = lus.filter(x => x.g === g);
       if (!rs.length || !voit(g)) return '';
-      return `<tr class="bq-g"><td colspan="5"><b>${titre}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</td></tr>${rs.map(ligneTab).join('')}`;
+      return `<tr class="bq-g"><td colspan="5"><b>${esc(titreGroupeBq(dossier, g, titre))}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</td></tr>${rs.map(ligneTab).join('')}`;
     }).join('');
     const faites = lus.filter(x => x.g === 'ok');
+    const ouvertes = banqueState.voirFaites || f === 'ok';
     const faitesTab = faites.length && voit('ok') ? `<tr class="bq-g bq-fait"><td colspan="5"><i class="bq-pt sur"></i><b>Rapprochées</b> <span class="mu">${faites.length}${resumeOrigines(faites)}</span>
-      <button type="button" class="cp-plus bq-voir" id="bq-voir-faites" aria-expanded="${banqueState.voirFaites || f === 'ok'}">${banqueState.voirFaites || f === 'ok' ? 'Replier' : 'Les voir'} ${svgBq(BQ_IC.chev, 13)}</button></td></tr>${banqueState.voirFaites || f === 'ok' ? faites.map(ligneTab).join('') : ''}` : '';
+      <button type="button" class="cp-plus bq-voir" id="bq-voir-faites" aria-expanded="${ouvertes}">${ouvertes ? 'Replier' : 'Les voir'} ${svgBq(BQ_IC.chev, 13)}</button></td></tr>${ouvertes ? faites.map(ligneTab).join('')
+        + (lect ? '' : `<tr class="bq-plus"><td colspan="5"><button type="button" class="cp-plus" data-bq-defaire-tous>Défaire tous les rapprochements ${esc(moisDuReleve(R).includes('→') ? 'du relevé' : 'du mois')}</button></td></tr>`) : ''}` : '';
     const cartes = GROUPES_BQ.map(([g, titre]) => {
       const rs = lus.filter(x => x.g === g);
-      return rs.length && voit(g) ? `<div class="bq-gm"><b>${titre}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</div>${rs.map(carteTel).join('')}` : '';
+      return rs.length && voit(g) ? `<div class="bq-gm"><b>${esc(titreGroupeBq(dossier, g, titre))}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</div>${rs.map(carteTel).join('')}` : '';
     }).join('') + (faites.length && voit('ok') ? `<div class="bq-gm"><b>Rapprochées</b> <span class="mu">${faites.length}</span><button type="button" class="cp-plus bq-voir" data-bq-voir>${banqueState.voirFaites || f === 'ok' ? 'Replier' : 'Les voir'}</button></div>${banqueState.voirFaites || f === 'ok' ? faites.map(carteTel).join('') : ''}` : '');
-    const toutFait = !restent.length;
+    const toutFait = !restent.length && banqueState.revoir !== R.id;
+    if (toutFait) {
+      const mois = moisDuReleve(R).replace(/^./, c => c.toUpperCase());
+      const att = lus.filter(x => x.g === 'att').length;
+      const moisCourt = moisDuReleve(R).replace(/ \d{4}$/, '');
+      const suivant = /^\d{4}-\d{2}/.test(String(R.au || '')) ? moisLong(moisSuivant(String(R.au).slice(0, 7))) : '';
+      return `<div class="bq-ecran"><div class="bq-h"><div><b>Relevé ${esc(R.banque || 'de banque')} · ${esc(moisDuReleve(R))}</b><span class="mu">${pl(R.lignes.length, 'mouvement')}${importeBq(R) ? ` · ${esc(importeBq(R))}` : ''}</span></div></div>
+        <div class="bq-fini2" role="status"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><b>${esc(mois)} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
+          <p>${R.lignes.length - att} mouvements sur ${R.lignes.length} ont leur écriture.${att ? ` ${att > 1 ? `${att} attendent` : '1 attend'} la réponse ${esc(deClientBq(dossier))}, au compte d'attente (471) : rien ne bloque, cela se réglera de sa réponse.` : ''}</p>
+          <div class="cp-gestes"><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button>${lect ? '' : `<button type="button" class="btn" id="bq-import">Importer le relevé${suivant ? ` ${/^[aeiou]/i.test(suivant) ? 'd\'' : 'de '}${esc(suivant)}` : ''}…</button>`}<button type="button" class="btn btn-ghost" id="bq-revoir">Revoir ${esc(moisCourt)}</button></div>
+          <span class="mu">Le Tableau de bord le dit : « banque à jour au ${esc(fmtJour(R.au).slice(0, 5))} ».</span></div>
+        ${piedBanque(R, EC)}</div>`;
+    }
     return `<div class="bq-ecran"><div class="bq-h"><div><b>Relevé ${esc(R.banque || 'de banque')} · ${esc(moisDuReleve(R))}
           <label class="bq-per" title="${releves.length > 1 ? `${releves.length} relevés` : 'Le relevé'}">${esc(R.compte)}${R.banque ? ` ${esc(R.banque)}` : ''} ${svgBq(BQ_IC.chev, 13)}
             <select id="bq-releve" aria-label="Le relevé à rapprocher">${releves.map(r => `<option value="${esc(r.id)}" ${r.id === R.id ? 'selected' : ''}>${esc(r.compte)}${r.banque ? ' ' + esc(r.banque) : ''} · ${esc(moisDuReleve(r))}</option>`).join('')}</select></label></b>
-          <span class="mu">${R.importeLe ? `importé le ${esc(fmtJour(String(R.importeLe).slice(0, 10)))} · ` : ''}${pl(R.lignes.length, 'mouvement')} · du ${esc(fmtJour(R.du))} au ${esc(fmtJour(R.au))}</span></div>
+          <span class="mu" title="du ${esc(fmtJour(R.du))} au ${esc(fmtJour(R.au))}${R.fichier ? ` · ${esc(R.fichier)}` : ''}">${importeBq(R) ? `${esc(importeBq(R))} · ` : ''}${pl(R.lignes.length, 'mouvement')}</span></div>
         <button type="button" class="btn btn-sm" id="bq-regles" title="Les mots retenus : une ligne qui contient le mot se voit proposer le compte">Les règles${regles ? ` · ${regles}` : ''}</button>
         ${lect ? '' : '<button type="button" class="btn btn-sm" id="bq-import">Importer un relevé…</button>'}
-        ${lect ? '' : RowMenu.bouton('REL:' + R.id, 'Ce relevé', 'btn btn-sm btn-ghost')}</div>
-      <div class="bq-f" role="group" aria-label="Montrer">${pastille('tout', R.lignes.length, 'Toutes')}${pastille('ok', n('ok'), 'Rapprochées')}${pastille('prop', n('prop'), 'Proposées')}${pastille('dec', n('dec'), 'À traiter')}${pastille('att', n('att'), 'En attente du client')}
+</div>
+      <div class="bq-f" role="group" aria-label="Montrer">${pastille('tout', R.lignes.length, 'Toutes')}${pastille('ok', n('ok'), 'Rapprochées')}${pastille('prop', n('prop'), 'Proposées')}${pastille('dec', n('dec'), 'À traiter')}${pastille('att', n('att'), `En attente ${deClientBq(dossier)}`)}
         ${EC.nonExplique ? `<button type="button" class="bq-fc ko" id="bq-vers-ecart" title="Voir en bas : les pistes">${svgBq(BQ_IC.alerte, 14)} <b>${esc(montant(Math.abs(EC.nonExplique)))}</b> d'écart non expliqué</button>` : ''}
         <span class="bq-j" aria-hidden="true">${[['ok', n('ok')], ['prop', n('prop')], ['dec', n('dec')], ['att', n('att')]].map(([c, k]) => `<i class="${c}" style="flex:${k}"></i>`).join('')}</span></div>
-      ${toutFait ? `<div class="bq-fini"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><div><b>${esc(moisDuReleve(R).replace(/^./, c => c.toUpperCase()))} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
+      ${!restent.length ? `<div class="bq-fini"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><div><b>${esc(moisDuReleve(R).replace(/^./, c => c.toUpperCase()))} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
           <p>${pl(R.lignes.length, 'mouvement')} sur ${R.lignes.length} ont leur écriture.</p></div><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button></div>` : ''}
+      ${banqueState.annonce && banqueState.annonce.sel === banqueState.sel ? `<div class="bq-toast" role="status" id="bq-annonce">${svgBq(BQ_IC.ok, 15)}<span>${esc(banqueState.annonce.msg)}</span>${banqueState.annonce.defaire && !lect ? '<button type="button" class="cp-plus" id="bq-annuler">Annuler</button>' : ''}</div>` : ''}
       <div class="bq2">
         <div class="bq-liste">
           <table class="list compact bq-t" data-sans-cartes><thead><tr><th></th><th>Date</th><th>La banque</th><th class="r">Montant</th><th></th></tr></thead><tbody>${groupesTab}${faitesTab}</tbody></table>
@@ -12312,14 +12453,14 @@
     if (x.g === 'ok') {
       const e = x.e;
       return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
-        ${e ? `<div class="bq-ok">${svgBq(BQ_IC.ok, 15)}<span>Rapprochée avec <b>${esc(`${e.journal || ''} ${e.piece || ''}`.trim())}</b> du ${esc(fmtJour(e.date))}${(l.rapprochement || {}).par === 'auto' ? ', d\'office' : ''}</span></div>
+        ${e ? `<div class="bq-ok">${svgBq(BQ_IC.ok, 15)}<span>Rapprochée avec <b>${esc(pieceBq(e))}</b> du ${esc(fmtJour(e.date))}${(l.rapprochement || {}).par === 'auto' ? ', d\'office' : ''}</span></div>
           ${tableEcriture(e.lignes || [], x.rang)}` : '<p class="bq-rien">Cette écriture n\'est plus au livre de cet exercice.</p>'}
         <div class="cp-gestes">${e ? '<button type="button" class="btn" id="bq-voir-ecriture">Voir l\'écriture</button>' : ''}${lect ? '' : '<button type="button" class="btn btn-ghost" id="bq-defaire">Défaire</button>'}</div></aside>`;
     }
     if (x.g === 'att') {
       const q = x.q;
       return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
-        <div class="bq-q">${svgBq(BQ_IC.msg, 15)}<div><b>${esc(q.objet || 'Question au client')}</b><small>${q.statut === 'repondue' && q.reponse ? `Réponse : « ${esc(String(q.reponse.texte || '').slice(0, 160))} »` : `posée le ${esc(fmtJour(new Date(q.creeLe || 0).toISOString().slice(0, 10)))}${(q.envois || []).length > 1 ? ` · relancée ${(q.envois || []).length - 1} fois` : ''}`}</small></div></div>
+        <div class="bq-q">${svgBq(BQ_IC.msg, 15)}<div><b>${esc(q.objet || `Question ${aClientBq(dossier)}`)}</b><small>${q.statut === 'repondue' && q.reponse ? `Réponse : « ${esc(String(q.reponse.texte || '').slice(0, 160))} »` : `posée le ${esc(fmtJour(new Date(q.creeLe || 0).toISOString().slice(0, 10)))}${(q.envois || []).length > 1 ? ` · relancée ${(q.envois || []).length - 1} fois` : ''}`}</small></div></div>
         <p class="bq-rien">Tant qu'il n'a pas répondu, la ligne attend : elle ne bloque rien. ${q.statut === 'repondue' ? 'Sa réponse est là : écris la ligne d\'après elle.' : 'Tu peux aussi la mettre au compte d\'attente (471) le temps qu\'il réponde.'}</p>
         ${lect ? '' : `<div class="cp-gestes">${q.statut === 'repondue' ? '<button type="button" class="btn btn-primary" id="bq-principal">Écrire d\'après sa réponse <kbd class="bq-k">Entrée</kbd></button>' : '<button type="button" class="btn btn-primary" id="bq-principal">Ouvrir la conversation <kbd class="bq-k">Entrée</kbd></button>'}<button type="button" class="btn" id="bq-attente">Au compte d'attente</button></div>`}</aside>`;
     }
@@ -12340,12 +12481,14 @@
     const pieces = liste.length ? `<table class="list compact bq-pc"><tbody>${liste.map(c => {
       const e = ecritureDuLivre(L, c.ecritureId);
       const on = cle(c) === choisi;
-      return `<tr class="${on ? 'on' : ''}" data-bq-choix="${esc(cle(c))}"><td class="bq-c"><input type="radio" name="bq-choix" value="${esc(cle(c))}"${on ? ' checked' : ''} aria-label="${esc(`${e ? e.journal : ''} ${c.piece || ''}`)}"></td>
-        <td><div class="bq-lb"><span class="bqx doc">${svgBq(BQ_IC.doc)}</span><div><span><b class="mono">${esc(`${e ? e.journal || '' : ''} ${c.piece || ''}`.trim() || '—')}</b> <small>du ${esc(fmtJour(c.date))}${e && e.statut === 'brouillard' ? ' · brouillard' : ''}</small></span>
+      return `<tr class="${on ? 'on' : ''}" data-bq-choix="${esc(cle(c))}"><td class="bq-c"><input type="radio" name="bq-choix" value="${esc(cle(c))}"${on ? ' checked' : ''} aria-label="${esc(c.piece || pieceBq(e))}"></td>
+        <td><div class="bq-lb"><span class="bqx doc">${svgBq(BQ_IC.doc)}</span><div><span><b class="mono">${esc(c.piece || pieceBq(e) || '—')}</b> <small>du ${esc(fmtJour(c.date))}${e && e.statut === 'brouillard' ? ' · brouillard' : ''}</small></span>
           <small class="bq-p">${esc(c.libelle || '')}${enTete.some(y => cle(y) === cle(c)) ? ` · ${esc(pourquoiBq(l, c, x.c && cle(x.c) === cle(c) ? jug.niveau : 'probable').replace(/^même montant, la (seule|plus probable)/, 'même montant'))}` : ''}</small></div></div></td>
         <td class="r">${esc(montant(c.montant))}</td></tr>`;
     }).join('')}</tbody></table>
-      ${cc ? `<div class="bq-som ${ecart ? 'ko' : 'ok'}"><span>La ligne ${esc(money(l.montant))}</span><span>en face ${esc(money(cc.montant))}</span><b>${ecart ? `écart ${esc(money(ecart))}` : `${svgBq(BQ_IC.ok, 13)} écart 0`}</b></div>` : ''}` : '';
+      ${cc ? `<div class="bq-som ${ecart ? 'ko' : 'ok'}"><span>La ligne ${esc(money(l.montant))}</span><span>cochée ${esc(money(cc.montant))}</span><b>${ecart ? `écart ${esc(money(ecart))}` : `${svgBq(BQ_IC.ok, 13)} écart 0`}</b></div>`
+        // L'écriture cochée, ligne à ligne (comme la maquette montre celle qui sera passée) : on rapproche en la voyant.
+        + (() => { const e = ecritureDuLivre(L, cc.ecritureId); return e && (e.lignes || []).length ? tableEcriture(e.lignes, -1) : ''; })() : ''}` : '';
     const prop = x.prop;
     const sansRien = !liste.length;
     let corps = '', principal = '';
@@ -12356,17 +12499,18 @@
         + (cc && ecart ? `<p class="bq-rien bq-refus" id="bq-ecart-refus">Les deux montants ne sont pas égaux (écart ${esc(money(ecart))}) : une ligne du relevé se rapproche d'une écriture du même montant. Corrige l'écriture, ou « Écris autre chose » pour cette ligne.</p>` : '');
       principal = cc && !ecart ? 'Rapprocher' : '';
     } else if (prop) {
-      corps = `<p class="bq-rien">Rien dans le livre pour cette ligne. <b>Sa règle « ${esc(prop.regle)} »</b> propose l'écriture :</p>${tableEcriture([...prop.lignes].sort((u, v) => (v.debit > 0) - (u.debit > 0)), -1)}`;
+      const aussi = (R.lignes || []).filter(z => z.id !== l.id && !(z.rapprochement && z.rapprochement.ecritureId) && KC.ecritureProposee(z, Array.isArray(S.libelles) ? S.libelles : [], { compte: R.compte, journal: 'BQ' }).regle === prop.regle);
+      corps = `<p class="bq-rien">Rien dans le livre pour cette ligne. <b>Sa règle « ${esc(prop.regle)} »</b> propose l'écriture${aussi.length ? ` ; elle sert aussi ${aussi.length > 1 ? `à ${aussi.length} autres lignes` : `à « ${esc(String(aussi[0].libelle || '').slice(0, 30))} »`} du relevé` : ''}.</p>${tableEcriture([...prop.lignes].sort((u, v) => (v.debit > 0) - (u.debit > 0)), -1)}`;
       principal = 'Écrire et rapprocher';
     } else {
-      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ou demander au client ce que c'est.</p>`;
+      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ou demander ${esc(aClientBq(dossier))} ce que c'est.</p>`;
       principal = 'Écrire l\'écriture…';
     }
     return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
       <label class="bq-ch">${svgBq(BQ_IC.loupe, 15)}<input type="search" id="bq-cherche" value="${esc(banqueState.cherche)}" placeholder="Chercher un montant, un tiers, une pièce…  ( / )" aria-label="Chercher dans le livre"></label>
       ${corps}
       ${lect ? '' : `<div class="cp-gestes">${principal ? `<button type="button" class="btn btn-primary" id="bq-principal">${esc(principal)} <kbd class="bq-k">Entrée</kbd></button>` : ''}
-        ${sansRien && !prop ? (!dossier.manual && api.question ? '<button type="button" class="btn" id="bq-demander">Demander au client</button>' : '') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
+        ${sansRien && !prop ? (!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : '') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
     </aside>`;
   }
   const tableEcriture = (lignes, marque) => `<table class="list compact bq-ec" data-sans-cartes><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>${lignes.map((z, i) =>
@@ -12396,7 +12540,7 @@
     const memeMontant = EC.sus.livre.filter(x => KC.round3(Math.abs(x.montant) - Math.abs(EC.nonExplique)) === 0);
     memeMontant.slice(0, 2).forEach(x => {
       const e = ecritureDuLivre(L, x.ecritureId);
-      pistes.push(`<div class="bqp-pi"><b>Une écriture du livre fait ${esc(montant(Math.abs(EC.nonExplique)))} sans ligne au relevé</b><span>${esc(`${e ? e.journal || '' : ''} ${x.piece || ''}`.trim())} du ${esc(fmtJour(x.date))} · « ${esc(x.libelle || '')} » : écrite deux fois, ou au mauvais compte ?</span>${e ? `<button type="button" class="btn btn-sm" data-bq-voir-ecriture="${esc(x.ecritureId)}">L'ouvrir</button>` : ''}</div>`);
+      pistes.push(`<div class="bqp-pi"><b>Une écriture du livre fait ${esc(montant(Math.abs(EC.nonExplique)))} sans ligne au relevé</b><span>${esc(x.piece || pieceBq(e))} du ${esc(fmtJour(x.date))} · « ${esc(x.libelle || '')} » : écrite deux fois, ou au mauvais compte ?</span>${e ? `<button type="button" class="btn btn-sm" data-bq-voir-ecriture="${esc(x.ecritureId)}">L'ouvrir</button>` : ''}</div>`);
     });
     const d0 = KC.round3(Number(EC.premierR.soldeDebut) - EC.livreAvantPremier);
     if (d0) {
@@ -12451,9 +12595,12 @@
       const msg = await faire();
       if (msg === null) return;
       banqueState.sel = suivante; banqueState.cherche = ''; delete banqueState.choix[id]; banqueState.coches.delete(id);
+      // (1.207.0) Le message vit DANS la carte, au-dessus de la liste (maquette) : on le lit là où l'on travaille, avec son
+      // « Annuler » ; il s'efface dès qu'on choisit une autre ligne.
+      const l = (R.lignes || []).find(x => x.id === id) || {};
+      banqueState.annonce = { sel: suivante, msg: `${l.libelle ? `« ${String(l.libelle).slice(0, 40)} » : ` : ''}${msg.replace(/\.$/, '')}${suivante && suivante !== id ? ' ; la ligne suivante est choisie.' : '.'}`,
+        defaire: defaire ? async () => { await defaire(); banqueState.sel = id; } : null };
       drawLivres(root, dossier);
-      if (defaire) toastUndo(msg, async () => { try { await defaire(); banqueState.sel = id; drawLivres(root, dossier); } catch (e) { toast(plainError(e), 'error'); } });
-      else toast(msg);
     } catch (e) { toast(plainError(e), 'error'); }
   }
   const poserBq = async (dossier, R, ligneId, ecritureId, rang) => {
@@ -12490,6 +12637,7 @@
     $$('#bq-import', el).forEach(b => { b.onclick = () => releveForm(root, dossier); });
     const dem = $('#bq-demander-releve', el);
     if (dem) dem.onclick = () => fenDemanderCl(dossier, { piece: 'Le relevé de banque du mois' }, { hors: true, apres: async () => drawLivres(root, dossier) });
+    banqueState.gestesReleve = null;
     if (!R) return;
     const lus = lectureBanque(dossier, R);
     const parId = new Map(lus.map(x => [x.l.id, x]));
@@ -12561,7 +12709,7 @@
       if (cc && KC.round3(Number(l.montant) - cc.montant) !== 0) { toast('Les deux montants ne sont pas égaux : une ligne du relevé se rapproche d\'une écriture du même montant.', 'error'); return; }
       if (cc) {
         const e = ecritureDuLivre(s.livre, cc.ecritureId);
-        return gesteBanque(root, dossier, R, l.id, async () => { await poserBq(dossier, R, l.id, cc.ecritureId, cc.ligne); return `Rapprochée avec ${e ? `${e.journal || ''} ${e.piece || ''}`.trim() : 'l\'écriture'}.`; },
+        return gesteBanque(root, dossier, R, l.id, async () => { await poserBq(dossier, R, l.id, cc.ecritureId, cc.ligne); return `Rapprochée avec ${e ? pieceBq(e) : 'l\'écriture'}.`; },
           () => defaireBq(dossier, R, l.id));
       }
       if (sel.prop && !jug.candidats.length) {
@@ -12598,6 +12746,13 @@
       const n2 = $('#bq-cherche'); if (n2) { n2.scrollIntoView({ behavior: 'smooth', block: 'center' }); n2.focus(); }
     });
     sur('#bq-regles', () => reglesBanqueDialog(root, dossier));
+    sur('#bq-revoir', () => { banqueState.revoir = R.id; redessiner(); });
+    sur('#bq-annuler', async () => {
+      const a = banqueState.annonce; banqueState.annonce = null;
+      if (!a || !a.defaire) return redessiner();
+      try { await a.defaire(); } catch (e) { toast(plainError(e), 'error'); }
+      redessiner();
+    });
 
     // Le clavier : ↑ ↓ une ligne, Espace coche, Entrée le geste principal, « / » la recherche. Un seul écouteur, qui se
     // retire de lui-même quand l'écran Banque n'est plus là.
@@ -12629,42 +12784,79 @@
       } else if (ev.key === 'Enter' && !(t && t.closest && t.closest('button,a'))) {
         const b = $('#bq-principal', el);
         if (b) { ev.preventDefault(); b.click(); }
+      } else if (/^[epadr]$/i.test(ev.key) && sel && sel.g !== 'ok' && !lectureSeuleLivre()) {
+        // Les lettres du menu ⋯ (maquette) : E écrire, P une autre pièce, A au 471, D demander, R une règle.
+        const g = gestesLigneBq(sel).find(a => a.note === ev.key.toUpperCase() && !a.off);
+        if (g) { ev.preventDefault(); g.run(); }
       }
     };
     document.addEventListener('keydown', window.__bqClavier);
 
+    // Le menu ⋯ d'une ligne, comme la maquette : chaque geste avec ce qu'il fait et sa lettre au clavier ; ce qui ne se fait
+    // pas encore, grisé, dit pourquoi au clic (jamais un bouton qui ne répond rien).
+    const gestesLigneBq = x => {
+      const l = x.l;
+      const motif = KC.motifDeLibelle(l.libelle);
+      const regle = (Array.isArray(S.libelles) ? S.libelles : []).find(r => r && r.motif && motif && String(r.motif).toUpperCase() === String(motif).toUpperCase());
+      const peutDemander = !dossier.manual && api.messagerie && api.question && x.g !== 'att';
+      const n = (x.jug && x.jug.candidats ? x.jug.candidats.length : 0);
+      return [
+        { icon: 'nouveau', cle: 'ecrire-manquante', label: 'Écrire autre chose…', hint: 'une écriture à la main, au journal BQ, rapprochée du même geste', note: 'E', run: () => ecrireDepuisBanque(root, dossier, R, l) },
+        { icon: 'loupe', cle: 'choisir-en-face', label: 'Choisir une autre pièce en face', hint: n > 1 ? `${n} écritures au même montant, et tout le compte` : 'toutes les écritures du compte, la bonne se pointe à la main', note: 'P', run: () => choisirEcritureForm(root, dossier, R, l) },
+        { icon: 'copier', label: 'Partager entre plusieurs pièces', hint: 'bientôt : une ligne pour plusieurs factures (une remise de chèques)', off: true, run: () => toast('Bientôt : une ligne du relevé partagée entre plusieurs pièces (une remise de chèques, un virement groupé). En attendant, « Écrire autre chose… » écrit l\'écriture ventilée.') },
+        { sep: true },
+        { icon: 'horloge', label: 'Mettre au compte d\'attente (471)', hint: 'le mois se termine, la ligne reste à régler', note: 'A', run: () => mettreEnAttenteBq(root, dossier, R, l) },
+        peutDemander ? { icon: 'message', label: `Demander ${aClientBq(dossier)} ce que c'est`, hint: 'dans votre conversation, la ligne du relevé citée', note: 'D', run: () => demanderLigneBq(root, dossier, R, l) } : null,
+        { icon: 'texte', label: 'Retenir une règle d\'après cette ligne', hint: regle ? `« ${regle.motif} » en a déjà une (${regle.compte}) : la revoir` : motif ? `le compte se proposera aux lignes qui contiennent « ${motif} »` : 'son libellé est trop courant pour une règle', note: 'R', off: !regle && !motif, run: () => (regle ? reglesBanqueDialog(root, dossier) : motif ? ecrireDepuisBanque(root, dossier, R, l) : toast('Ce libellé est trop courant pour une règle : elle proposerait le compte à trop de lignes.')) },
+        { sep: true },
+        { icon: 'annuler', label: 'Défaire le rapprochement', hint: 'rien à défaire : la ligne n\'est pas encore rapprochée', off: true, run: () => toast('Rien à défaire : la ligne n\'est pas encore rapprochée.') }
+      ].filter(Boolean);
+    };
+
+    // Défaire tous les rapprochements d'un relevé (le pied des rapprochées ouvertes, et le menu ⋯ du relevé).
+    const defaireTous = async rel => {
+      // « Annuler » repose chaque ligne sur l'écriture qu'elle avait.
+      const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)
+        .map(l => ({ ligneId: l.id, ecritureId: l.rapprochement.ecritureId, ligne: l.rapprochement.ligne, auto: l.rapprochement.par === 'auto' }));
+      try {
+        const x = await api.derapprocher({ dossierId: dossier.id, annee: s.annee, releveId: rel.id });
+        s.livre = x.livre;
+        redessiner();
+        if (!x.defaits) { toast('Aucun rapprochement à défaire.'); return; }
+        toastUndo(`${pl(x.defaits, 'rapprochement défait', 'rapprochements défaits')}.`, async () => {
+          try { const r2 = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: rel.id, choix: avant }); s.livre = r2.livre; redessiner(); }
+          catch (e) { toast(plainError(e), 'error'); }
+        });
+      } catch (e) { toast(plainError(e), 'error'); }
+    };
+    sur('[data-bq-defaire-tous]', () => defaireTous(R));
+    // Les gestes du relevé vivent dans le ⋯ de la page (maquette : deux boutons seulement à côté du relevé). Ce qui se
+    // détruit demande, ce qui se répare se propose (règle 7.29.0).
+    banqueState.gestesReleve = lectureSeuleLivre() ? null : () => {
+      const k = R.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId).length;
+      const nR = (Array.isArray(S.libelles) ? S.libelles : []).filter(x => x && x.motif && x.compte).length;
+      return [
+        { icon: 'texte', label: 'Les règles de la banque', hint: nR ? `${pl(nR, 'règle')} : un mot du libellé, le compte qu'il propose` : 'aucune encore : elles se retiennent en écrivant une ligne', run: () => reglesBanqueDialog(root, dossier) },
+        { icon: 'non', label: 'Défaire tous les rapprochements', hint: k ? `Les ${pl(k, 'ligne rapprochée', 'lignes rapprochées')} de ce relevé se défont d'un coup ; les écritures restent au livre` : 'Aucune ligne de ce relevé n\'est rapprochée', run: () => defaireTous(R) },
+        { icon: 'supprimer', label: 'Retirer ce relevé', hint: 'Le fichier sort du livre ; les écritures qu\'il a servi à créer restent au livre', run: () => retirerReleve(root, dossier, R) }
+      ];
+    };
+    // « Défaire » au bout d'une rapprochée ouverte : la ligne revient à traiter, « Annuler » la repose.
+    $$('[data-bq-defaire]', el).forEach(b => { b.onclick = () => {
+      const x = parId.get(b.dataset.bqDefaire);
+      if (!x || lectureSeuleLivre()) return;
+      const e = x.e, rang = x.rang;
+      gesteBanque(root, dossier, R, x.l.id, async () => { await defaireBq(dossier, R, x.l.id); return 'Rapprochement défait : la ligne revient à traiter, l\'écriture reste au livre.'; }, e ? () => poserBq(dossier, R, x.l.id, e.id, rang) : null);
+    }; });
+
     // UNE seule table d'actions par racine : `bindRowMenus` écrase la précédente en silence (9.4.8).
     bindRowMenus(el, cle => {
-      if (cle.startsWith('REL:')) {
-        const rel = releves.find(x => x.id === cle.slice(4));
-        if (!rel) return [];
-        // Deux actions, donc un vrai menu (règle 7.29.0) : ce qui se détruit demande, ce qui se répare se propose.
-        return [
-          { icon: 'non', label: 'Défaire tous les rapprochements', hint: (() => { const k = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId).length;
-            return k ? `Les ${pl(k, 'ligne rapprochée', 'lignes rapprochées')} de ce relevé se défont d'un coup ; les écritures restent au livre` : 'Aucune ligne de ce relevé n\'est rapprochée'; })(), run: async () => {
-            // « Annuler » repose chaque ligne sur l'écriture qu'elle avait.
-            const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)
-              .map(l => ({ ligneId: l.id, ecritureId: l.rapprochement.ecritureId, ligne: l.rapprochement.ligne, auto: l.rapprochement.par === 'auto' }));
-            try {
-              const x = await api.derapprocher({ dossierId: dossier.id, annee: s.annee, releveId: rel.id });
-              s.livre = x.livre;
-              redessiner();
-              if (!x.defaits) { toast('Aucun rapprochement à défaire.'); return; }
-              toastUndo(`${pl(x.defaits, 'rapprochement défait', 'rapprochements défaits')}.`, async () => {
-                try { const r2 = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: rel.id, choix: avant }); s.livre = r2.livre; redessiner(); }
-                catch (e) { toast(plainError(e), 'error'); }
-              });
-            } catch (e) { toast(plainError(e), 'error'); }
-          } },
-          { icon: 'supprimer', label: 'Retirer ce relevé', hint: 'Le fichier sort du livre ; les écritures qu\'il a servi à créer restent au livre', run: () => retirerReleve(root, dossier, rel) }
-        ];
-      }
       const x = parId.get(cle.slice(4));
       if (!x) return [];
       const l = x.l;
       const actions = [];
       if (x.g === 'ok') {
-        if (x.e) actions.push({ icon: 'loupe', label: 'Voir l\'écriture en face', hint: `${x.e.journal || ''} ${x.e.piece || ''} — toutes ses lignes`, run: () => ecritureDialog(x.e, x.rang) });
+        if (x.e) actions.push({ icon: 'loupe', label: 'Voir l\'écriture en face', hint: `${pieceBq(x.e)} — toutes ses lignes`, run: () => ecritureDialog(x.e, x.rang) });
         if (!lectureSeuleLivre()) actions.push({ icon: 'non', label: 'Défaire le rapprochement', hint: 'Même « d\'office » se défait : l\'automatique propose, c\'est toi qui décides', run: () => {
           const e = x.e, rang = x.rang;
           gesteBanque(root, dossier, R, l.id, async () => { await defaireBq(dossier, R, l.id); return 'Rapprochement défait : la ligne revient à traiter.'; }, e ? () => poserBq(dossier, R, l.id, e.id, rang) : null);
@@ -12672,12 +12864,7 @@
         return actions;
       }
       if (lectureSeuleLivre()) return [];
-      actions.push({ icon: 'nouveau', cle: 'ecrire-manquante', label: 'Écrire autre chose…', hint: 'Une écriture au brouillard, préremplie, rapprochée du même geste — rien n\'est enregistré sans ton clic', run: () => ecrireDepuisBanque(root, dossier, R, l) });
-      actions.push({ icon: 'loupe', cle: 'choisir-en-face', label: 'Choisir une autre écriture en face', hint: 'Toutes les écritures du compte, la bonne se pointe à la main', run: () => choisirEcritureForm(root, dossier, R, l) });
-      actions.push({ icon: 'horloge', label: 'Mettre au compte d\'attente (471)', hint: 'Le mois se termine ; la ligne se régularisera quand on saura ce que c\'est', run: () => mettreEnAttenteBq(root, dossier, R, l) });
-      // (plateforme) 1.189.0 — une ligne qu'on ne sait pas expliquer se demande au client, d'ici : la ligne du relevé citée.
-      if (!dossier.manual && api.messagerie && api.question && x.g !== 'att') actions.push({ icon: 'email', label: 'Demander au client ce qu\'est cette ligne', hint: 'Une question dans votre conversation, la ligne du relevé citée', run: () => demanderLigneBq(root, dossier, R, l) });
-      return actions;
+      return gestesLigneBq(x);
     });
   }
 
@@ -15429,6 +15616,31 @@
       }[st];
       return { d, st, sous: prudence && st !== 'pointee' && sous ? `${sous} · compté par prudence` : sous, decl, prudence, montant: decl && decl.montant != null ? decl.montant : null };
     }).sort((a, b) => EC_ORDRE.indexOf(a.st) - EC_ORDRE.indexOf(b.st) || a.d.name.localeCompare(b.d.name, 'fr'));
+  }
+  // Les déclarations à venir : le mois en cours n'est pas terminé, rien n'est encore réclamé.
+  function echeancesAVenir() {
+    const j = K.deadlineSettings(S);
+    const auj = K.today(), cur = auj.slice(0, 7);
+    const out = [];
+    const vide = { restants: [], deposes: [], manquants: [], provisoires: [], aSaisir: [] };
+    const physiques = mesDossiers().some(d => !d.archived && K.periodeTva(S, d) === 'mensuelle' && K.personnePhysique(S, d));
+    const jourPP = K.jourTva(S, { forme: 'Personne physique' });
+    for (const m of [cur, K.addMonth(cur, 1)]) {
+      out.push({ id: 'tva-m', avenir: true, label: `TVA ${K.de(K.monthLabel(m))}`, mois: [m], date: K.dayOf(K.addMonth(m, 1), j.tvaDay), ...vide });
+      if (physiques && jourPP !== j.tvaDay) out.push({ id: 'tva-m', avenir: true, physiques: true, label: `TVA ${K.de(K.monthLabel(m))} · personnes physiques`, mois: [m], date: K.dayOf(K.addMonth(m, 1), jourPP), ...vide });
+    }
+    // (1.175.0) La déclaration annuelle d'employeur de l'année en cours : au plus tard le 28 février qui suit (À VÉRIFIER),
+    // pour les dossiers dont la paie ou les comptes disent qu'ils emploient. Un pense-bête « plus tard », jamais un retard.
+    // Janvier et février : celle de l'année écoulée est encore à venir.
+    const an = Number(cur.slice(0, 4)) - (Number(cur.slice(5, 7)) <= 2 ? 1 : 0);
+    const emp = employeursConnus();
+    const employeurs = mesDossiers().filter(d => !d.archived && Object.values(emp[d.id] || {}).some(v => v === true));
+    if (employeurs.length) out.push({ id: 'employeur', avenir: true, label: `Déclaration d'employeur ${an}`, mois: Array.from({ length: 12 }, (_, i) => `${an}-${String(i + 1).padStart(2, '0')}`), date: `${an + 1}-02-28`, employeurs: employeurs.map(d => d.id), ...vide });
+    const mm = Number(cur.slice(5, 7)), fin = `${cur.slice(0, 4)}-${String(Math.ceil(mm / 3) * 3).padStart(2, '0')}`;
+    const trim = Math.ceil(mm / 3);
+    out.push({ id: 'cnss', avenir: true, label: `CNSS du ${trim}${trim === 1 ? 'ᵉʳ' : 'ᵉ'} trimestre`, mois: [fin], date: K.dayOf(K.addMonth(fin, 1), j.cnssDay), restants: [], deposes: [], manquants: [], provisoires: [], aSaisir: [] });
+    for (const e of out) e.jours = Math.round((Date.parse(e.date + 'T00:00:00Z') - Date.parse(auj + 'T00:00:00Z')) / 86400000);
+    return out;
   }
   // Chaque déclaration : ses lignes, ses comptes, son groupe. Une déclaration pointée ici (le pense-bête de la v10) est déposée pour tous.
   function itemsEcheances(liste) {

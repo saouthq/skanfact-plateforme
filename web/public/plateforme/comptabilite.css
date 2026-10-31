@@ -1,0 +1,87 @@
+/* La page de la comptabilité d'un dossier (1.207.0), telle que sa maquette (docs/maquettes/cabinet/comptabilite.html) :
+   le fil « Dossier ouvert · … › Saisir », l'en-tête au nom de l'écran, la carte des groupes et de leurs écrans en pilules,
+   la frise des douze mois, puis l'écran dans sa carte. Les couleurs passent par les variables de la charte. */
+
+/* L'en-tête. */
+.cp-ctx { margin: 0 0 10px; }
+.cp-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.cp-tete .fd-id { flex: 1; min-width: 260px; }
+.cp-tete .marque-s { width: 46px; height: 46px; flex: none; border-radius: 13px; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 16px; letter-spacing: .01em; }
+.cp-tete h1 { display: flex; align-items: center; gap: 8px; font-size: 26px; letter-spacing: -.025em; }
+.cp-tete .fd-sous { display: block; line-height: 1.6; }
+.cp-tete .fd-id > div { display: grid; gap: 2px; min-width: 0; }
+.cp-tete .fd-sous > b { color: var(--sb-gris); font-weight: 600; }
+.cp-tete .d-etat { display: inline; color: var(--sb-gris); white-space: pre-wrap; }
+.cp-tete .d-etat .warn-text { color: var(--sb-ambre-texte); font-weight: 600; }
+.cp-tete .d-etat .rouge { color: var(--sb-rouge-texte); font-weight: 600; }
+.cp-tete .d-etat .ambre { color: var(--sb-ambre-texte); font-weight: 600; }
+.cp-tete .actions { flex: none; display: flex; gap: 8px; align-items: center; }
+.cp-tete .actions .btn { display: inline-flex; gap: 6px; align-items: center; height: 34px; }
+.cp-per { position: relative; display: inline-flex; gap: 6px; align-items: center; height: 34px; padding: 0 12px; border: 1px solid var(--sb-trait-fort); border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--sb-encre); background: var(--sb-papier); white-space: nowrap; cursor: pointer; }
+.cp-per select { appearance: none; -webkit-appearance: none; border: 0; background: none; font: inherit; font-weight: 600; color: inherit; padding: 0; margin: 0 -2px 0 0; cursor: pointer; height: auto; min-height: 0; box-shadow: none; background-image: none !important; padding-right: 0 !important; width: auto; }
+.cp-per svg { color: var(--sb-gris-2); pointer-events: none; }
+.btn.cp-menu { min-width: 34px; padding: 0 10px; font-size: 16px; line-height: 1; }
+.btn.cp-menu svg { display: none; }
+
+/* La carte de la page : sans fond, l'écran a la sienne. */
+#c-compta.cp-modele { background: none; border: 0; box-shadow: none; padding: 0; }
+.cp-modele > .c-barre { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--sb-trait); border-radius: 12px; background: var(--sb-papier); }
+#c-compta.cp-modele[data-groupe="saisir"] > .c-barre { display: none; }
+.cp-modele .cp-corps { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 16px; box-shadow: var(--sb-ombre); padding: 16px 18px; min-width: 0; }
+
+/* Les groupes (le segment) et les écrans du groupe ouvert (les pilules), dans une carte. */
+.cp-modele .c-nav { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px; margin: 4px 0 16px; padding: 6px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); box-shadow: var(--sb-ombre); }
+.cp-modele .c-groupes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(96px, auto); gap: 0; margin: 0; padding: 3px; border: 0; border-radius: 11px; background: color-mix(in srgb, var(--sb-encre) 6%, transparent); }
+.cp-modele .c-groupes button { display: flex; justify-content: center; align-items: center; gap: 4px; padding: 8px 12px 9px; border: 0; border-radius: 8px; font-size: 13px; color: var(--sb-gris); letter-spacing: -.01em; }
+.cp-modele .c-groupes button.active { background: var(--sb-papier); color: var(--sb-encre); box-shadow: 0 1px 2px rgba(20, 40, 60, .08), 0 3px 10px rgba(20, 40, 60, .08); }
+.cp-modele .c-groupes .tab-n { font-size: 10.5px; font-weight: 700; line-height: 1; padding: 2px 5px; border-radius: 99px; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.cp-modele .c-groupes button.active .tab-n { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.cp-modele #c-tabs { display: flex; flex-wrap: nowrap; gap: 6px; align-items: center; border: 0; margin: 0; overflow-x: auto; scrollbar-width: none; }
+.cp-modele #c-tabs button { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; margin: 0; border: 1px solid var(--sb-trait); border-radius: 99px; background: var(--sb-papier); font-size: 13px; font-weight: 600; color: var(--sb-gris); }
+.cp-modele #c-tabs button:hover { border-color: var(--sb-trait-fort); color: var(--sb-encre); }
+.cp-modele #c-tabs button.active { border-color: var(--sb-sarcelle); background: color-mix(in srgb, var(--sb-sarcelle) 10%, var(--sb-papier)); color: var(--sb-encre); }
+.cp-modele #c-tabs .tab-n { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 99px; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+
+/* La frise des douze mois. */
+.cp-an { display: grid; grid-template-columns: auto repeat(12, minmax(0, 1fr)) auto; gap: 6px; align-items: stretch; margin: 0 0 14px; }
+.cp-an-t { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; color: var(--sb-encre); padding-right: 4px; }
+.cp-mo { border: 1px solid var(--sb-trait); background: var(--sb-papier); border-radius: 10px; padding: 7px 6px 6px; display: grid; gap: 1px; text-align: left; font: inherit; cursor: pointer; min-width: 0; }
+.cp-mo b { font-size: 12.5px; color: var(--sb-encre); }
+.cp-mo small { font-size: 11px; color: var(--sb-gris-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-mo:hover { border-color: var(--sb-trait-fort); }
+.cp-mo.ok { background: color-mix(in srgb, var(--sb-doux) 55%, var(--sb-papier)); border-color: transparent; }
+.cp-mo.ok small { color: var(--sb-doux-texte); }
+.cp-mo.rouge { background: var(--sb-rouge-doux); border-color: color-mix(in srgb, var(--sb-rouge-texte) 35%, transparent); }
+.cp-mo.rouge small { color: var(--sb-rouge-texte); font-weight: 600; }
+.cp-mo.ambre { background: var(--sb-ambre-doux); border-color: transparent; }
+.cp-mo.ambre small { color: var(--sb-ambre-texte); font-weight: 600; }
+.cp-mo.vide { border-style: dashed; background: transparent; }
+.cp-mo.on { box-shadow: 0 0 0 2px var(--sb-sarcelle); }
+.cp-ex { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; padding: 0 2px; white-space: nowrap; }
+.cp-ex.on { text-decoration: underline; text-underline-offset: 3px; }
+
+@media (max-width: 1100px) {
+  .cp-modele .c-nav { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .cp-tete .actions { width: 100%; flex-wrap: wrap; }
+  .cp-an { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cp-an-t, .cp-ex { grid-column: 1 / -1; }
+  .cp-modele .cp-corps { padding: 12px; border-radius: 12px; }
+}
+
+/* La comptabilité dans la barre de gauche (dossier ouvert) : son titre, les trois groupes, les écrans du groupe ouvert. */
+#barre .cp-nav-b { display: grid; gap: 6px; margin: 6px 0 2px; }
+#barre .cp-nav-t { margin: 0; padding: 8px 10px 0; font-size: 11px; font-weight: 600; color: var(--sb-gris-2); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#barre .cp-nav-t span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+#barre .cp-sgs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 3px; margin: 0 4px; border-radius: 11px; background: color-mix(in srgb, var(--sb-encre) 6%, transparent); }
+#barre .cp-sg { position: relative; display: flex; justify-content: center; align-items: center; gap: 3px; padding: 7px 2px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; line-height: 1.2; letter-spacing: -.01em; color: var(--sb-gris); text-decoration: none; white-space: nowrap; min-width: 0; }
+#barre .cp-sg:hover { color: var(--sb-encre); }
+#barre .cp-sg.vu { background: var(--sb-papier); color: var(--sb-encre); box-shadow: 0 1px 2px rgba(20, 40, 60, .08), 0 3px 10px rgba(20, 40, 60, .08); }
+#barre .cp-sg small { font-size: 9.5px; font-weight: 700; line-height: 1; padding: 2px 4px; border-radius: 99px; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+#barre .cp-ecr { display: grid; gap: 1px; }
+#barre .cp-ns { position: relative; min-height: 31px; padding: 0 9px 0 12px; font-size: 13.5px; color: var(--sb-gris); }
+#barre .cp-ns:hover { background: var(--sb-survol); color: var(--sb-encre); }
+#barre .cp-ns.active { background: color-mix(in srgb, var(--sb-sarcelle) 12%, transparent); box-shadow: none; color: var(--sb-encre); font-weight: 600; }
+#barre .cp-ns.active::before { content: ""; position: absolute; left: 3px; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: var(--sb-sarcelle); }
+.corps-app.barre-repliee #barre .cp-nav-b, body.barre-repliee #barre .cp-nav-b { display: none; }

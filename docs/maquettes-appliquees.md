@@ -535,3 +535,9 @@ plusieurs chèques pour plusieurs factures (B2) ; « Joindre au dossier de révi
 fichier gardé pour plus tard, la banque nouvelle (B4) ; les règles fines (sens, fourchette, TVA, compteur) et « Retenir une
 règle » depuis une ligne (B5) ; qui a rapproché quoi au-delà de « d'office / à la main » (B6). Le relevé en PDF reste
 « bientôt » (décision de Skander sur la lecture des pièces).
+
+## La page de la comptabilité et la Banque comme leur maquette (1.207.0)
+
+En-tête au nom de l'écran, carte des groupes en pilules, frise des douze mois, barre de gauche « Comptabilité », et la
+carte de la Banque aux mesures de la maquette (tableaux, chasse fixe, sous-lignes, menu ⋯ riche, message dans la carte,
+relevé rapproché au milieu). Le détail, écart par écart : `docs/maquettes/cabinet/ecarts-banque.md`.

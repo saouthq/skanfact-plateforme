@@ -2,8 +2,17 @@
    deux colonnes, la banque à gauche rangée par ce que chaque ligne demande, le livre à droite, l'écart en bas. Les
    couleurs passent par les variables de la charte : le thème sombre suit sans une ligne de plus. */
 
-.bq-ecran { display: grid; gap: 0; }
-.bq-ecran .mono { font-family: var(--sb-mono, "IBM Plex Mono", ui-monospace, monospace); font-size: 12.5px; letter-spacing: .01em; }
+.bq-ecran { display: grid; gap: 0; line-height: 1.5; }
+/* La chasse fixe des libellés de la banque : celle du système, comme la maquette (« SF Mono » sur le Mac). */
+.bq-ecran .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; letter-spacing: .5px; font-variant-ligatures: none; }
+
+/* Les tableaux de la Banque sont ceux de la comptabilité (`.cp-t` de la maquette) : pas le cadre arrondi des listes
+   de la v10 (`table.list`), un en-tête sur le fond de la carte, des lignes de 8 pixels. */
+.bq-ecran table.list.bq-t, .bq-ecran table.list.bq-pc, .bq-ecran table.list.bq-ec, .bq-ecran table.bq-ec { border: 0; border-radius: 0; box-shadow: none; background: transparent; border-collapse: collapse; font-size: 13px; line-height: normal; overflow: visible; }
+.bq-ecran table.list.bq-t th, .bq-ecran table.bq-ec th { background: none; text-align: left; font-size: 11px; font-weight: 600; color: var(--sb-gris-2); text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--sb-trait); white-space: nowrap; }
+.bq-ecran table.bq-t th.r, .bq-ecran table.bq-ec th.r { text-align: right; }
+.bq-ecran table.list.bq-t td, .bq-ecran table.list.bq-pc td, .bq-ecran table.list.bq-t tr:last-child td, .bq-ecran table.list.bq-pc tr:last-child td { padding: 8px; border-bottom: 1px solid var(--sb-trait); vertical-align: top; color: var(--sb-encre); }
+.bq-ecran table.bq-ec td { padding: 5px 8px; border-bottom: 1px solid var(--sb-trait); vertical-align: top; color: var(--sb-encre); }
 .bq-ecran .mu { color: var(--sb-gris); font-size: 12.5px; }
 .bq-ecran .cp-plus { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; }
 .bq-ecran .cp-plus:hover { text-decoration: underline; }
@@ -13,8 +22,8 @@
 
 /* L'en-tête : le relevé, son compte (le sélecteur), les règles, l'import. */
 .bq-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0 12px; }
-.bq-h > div { flex: 1; min-width: 220px; display: grid; gap: 3px; }
-.bq-h > div > b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; }
+.bq-h > div { flex: 1; min-width: 220px; display: grid; gap: 2px; }
+.bq-h > div > b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
 .bq-per { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--sb-trait-fort); border-radius: 8px; background: var(--sb-papier); font-size: 13px; font-weight: 600; cursor: pointer; }
 .bq-per select { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
 
@@ -24,7 +33,7 @@
 .bq-fc b { color: var(--sb-encre); font-variant-numeric: tabular-nums; }
 .bq-fc i { width: 8px; height: 8px; border-radius: 99px; }
 .bq-fc.tout i { display: none; }
-.bq-fc[aria-pressed="true"] { border-color: var(--sb-encre); color: var(--sb-encre); box-shadow: inset 0 0 0 1px var(--sb-encre); }
+.bq-fc[aria-pressed="true"] { border-color: var(--sb-encre); color: var(--sb-encre); }
 .bq-fc.ok { background: color-mix(in srgb, var(--sb-sarcelle) 8%, var(--sb-papier)); } .bq-fc.ok i { background: var(--sb-sarcelle); }
 .bq-fc.prop { background: color-mix(in srgb, #3f6fd8 8%, var(--sb-papier)); } .bq-fc.prop i { background: #3f6fd8; }
 .bq-fc.dec { background: var(--sb-ambre-doux); } .bq-fc.dec i { background: var(--sb-ambre-texte); }
@@ -48,8 +57,8 @@
 .bq-liste { min-width: 0; }
 .bq-t { width: 100%; }
 .bq-t td { vertical-align: top; }
-.bq-g td { background: var(--sb-survol); padding-top: 9px !important; padding-bottom: 9px !important; }
-.bq-g td b { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--sb-gris); }
+.bq-ecran .bq-g td, .bq-ecran table.list.bq-t tr.bq-g:hover td { background: var(--sb-survol); padding-top: 9px; padding-bottom: 9px; }
+.bq-g td b { font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--sb-gris); }
 .bq-g .btn { float: right; margin-top: -4px; }
 .bq-fait td { background: color-mix(in srgb, var(--sb-sarcelle) 6%, var(--sb-papier)); }
 .bq-fait td b { color: var(--sb-sarcelle-texte); }
@@ -60,10 +69,10 @@
 .bq-l.on td { background: color-mix(in srgb, var(--sb-sarcelle) 10%, transparent); }
 .bq-l.on td:first-child { box-shadow: inset 3px 0 0 var(--sb-sarcelle); }
 .bq-c { width: 26px; }
-.bq-d { white-space: nowrap; color: var(--sb-gris); font-variant-numeric: tabular-nums; }
+.bq-d { white-space: nowrap; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
 .bq-lb { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
 .bq-lb > div { min-width: 0; display: grid; gap: 1px; }
-.bq-p { display: block; color: var(--sb-gris); font-size: 12px; margin-top: 2px; line-height: 1.4; }
+.bq-p { display: block; color: var(--sb-gris-2); font-size: 11.5px; margin-top: 2px; }
 .bq-p b { color: var(--sb-encre); font-weight: 600; }
 .bq-p svg { vertical-align: -2px; color: var(--sb-sarcelle); }
 .bq-pt { display: inline-block; width: 7px; height: 7px; border-radius: 99px; margin-right: 5px; vertical-align: 1px; background: var(--sb-sarcelle); }
@@ -89,7 +98,7 @@
 .bq-aide span { opacity: .5; }
 
 /* Le livre en face. */
-.bq-livre { position: sticky; top: 64px; border: 1px solid var(--sb-trait-fort); border-top: 3px solid var(--sb-sarcelle); border-radius: 14px; padding: 14px; display: grid; gap: 10px; background: var(--sb-papier); box-shadow: var(--sb-ombre); min-width: 0; }
+.bq-livre { position: sticky; top: 12px; border: 1px solid var(--sb-trait-fort); border-top: 3px solid var(--sb-sarcelle); border-radius: 14px; padding: 14px; display: grid; gap: 10px; background: var(--sb-papier); box-shadow: var(--sb-ombre); min-width: 0; }
 .bq-lh { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .bq-ch { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border: 1px solid var(--sb-trait-fort); border-radius: 10px; color: var(--sb-gris); }
 .bq-ch input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; color: var(--sb-encre); }
@@ -100,7 +109,7 @@
 .bq-som b { margin-left: auto; display: inline-flex; gap: 4px; align-items: center; }
 .bq-som.ok b { color: var(--sb-doux-texte); } .bq-som.ko b { color: var(--sb-rouge-texte); }
 .bq-rien { margin: 0; font-size: 13px; color: var(--sb-gris); line-height: 1.5; }
-.bq-ec { font-size: 12.5px; }
+.bq-ecran table.bq-ec { font-size: 12.5px; }
 .bq-ok, .bq-q { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
 .bq-ok { background: var(--sb-doux); color: var(--sb-doux-texte); }
 .bq-q { background: var(--sb-ambre-doux); }
@@ -168,7 +177,7 @@
 
 /* Les cartes du téléphone : cachées au bureau. */
 .bq-km { display: none; }
-.bq-gm { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--sb-gris); }
+.bq-gm { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--sb-gris); }
 .bq-gm .btn, .bq-gm .cp-plus { margin-left: auto; text-transform: none; letter-spacing: 0; }
 .bq-k1 { border: 1px solid var(--sb-trait); border-radius: 12px; padding: 10px 12px; display: grid; gap: 3px; min-width: 0; background: var(--sb-papier); cursor: pointer; }
 .bq-k1.on { border-color: var(--sb-sarcelle); box-shadow: inset 3px 0 0 var(--sb-sarcelle); }
@@ -207,3 +216,25 @@
   .bq-ecran .apx-c { margin-top: 28px; padding: 18px; }
   .bqe-fond { padding: 8px; } .bqe { padding: 20px 16px; } .bqe-c { grid-template-columns: 1fr; } .bqe.prov::after { font-size: 40px; }
 }
+
+/* Les rapprochées ouvertes : « Défaire » au survol de la ligne, et le pied qui les défait toutes (maquette, bq2-r). */
+.bq-ecran table.bq-t .bq-l[data-groupe="ok"] td { color: var(--sb-gris); }
+.bq-ecran .bq-l[data-groupe="ok"] .mono, .bq-ecran .bq-l[data-groupe="ok"] .bq-mt { color: var(--sb-encre); }
+.bq-ecran .bq-l[data-groupe="ok"] .bq-mt.in { color: var(--sb-sarcelle-texte); }
+.bq-ecran .bq-defaire1 { opacity: 0; transition: opacity .15s; font-size: 12.5px; }
+.bq-ecran .bq-l:hover .bq-defaire1, .bq-ecran .bq-l.on .bq-defaire1, .bq-ecran .bq-defaire1:focus-visible { opacity: 1; }
+.bq-ecran .bq-plus td { text-align: center; color: var(--sb-gris); font-size: 12.5px; }
+.bq-ecran .bq-plus .cp-plus { font-size: 12.5px; }
+
+/* Après un geste (Entrée) : le message dans la carte, sombre, avec « Annuler » (maquette, bq2-toast). */
+.bq-toast { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--sb-encre); color: var(--sb-papier); font-size: 13px; }
+.bq-toast svg { color: #6fd3c5; flex: none; }
+.bq-toast span { flex: 1; min-width: 0; }
+.bq-toast .cp-plus { color: #6fd3c5; }
+/* Sans animation : la carte se redessine à chaque frappe de la recherche, une entrée animée y clignoterait. */
+
+/* Le relevé rapproché en entier : la carte au milieu, comme la maquette (« Septembre est rapproché à la BIAT »). */
+.bq-fini2 { display: grid; justify-items: center; gap: 10px; text-align: center; margin: 8px auto 18px; max-width: 620px; padding: 28px 24px; border-radius: 16px; background: var(--sb-papier); }
+.bq-fini2 > b { font-size: 18px; }
+.bq-fini2 p { margin: 0; color: var(--sb-gris); font-size: 13.5px; line-height: 1.55; }
+.bq-fini2 .cp-gestes { justify-content: center; }

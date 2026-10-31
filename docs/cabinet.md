@@ -474,6 +474,36 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### La page de la comptabilité et la Banque comme leur maquette (1.207.0, 31/10/2026)
+
+Demande de Skander : « finir la maquette de banque avant de tout tester, même dans la police ». Les écarts relevés écran
+par écran sont dans `docs/maquettes/cabinet/ecarts-banque.md`, chacun avec ce qui est fait.
+
+- **La page** (commune aux quatorze écrans) : le fil « Dossier ouvert · … · Comptabilité › Saisir », la pastille du
+  dossier, **le nom de l'écran en titre** (Banque, Saisie…), la ligne d'état (ce qui est en retard en rouge, le mois qui se
+  dépose en ambre, qui tient le dossier, les mois à valider) ; à droite l'exercice, « + Une écriture » (la saisie, curseur
+  sur la date) et le ⋯ (la fiche, le suivi, les paquets, la relance ; sur la Banque, les règles et les gestes du relevé).
+  L'en-tête de la fiche et ses onglets restent ceux du Suivi et des Paquets.
+- **La carte des groupes** : le segment Saisir / Consulter / Déclarer et clôturer, les écrans du groupe en pilules ;
+  **la frise des douze mois** (lue comme la fiche du dossier : déposé, en retard, à déposer, en cours, à venir) ; un mois
+  ouvre ce mois (et son relevé sur la Banque), « Toute l'année » l'exercice. La barre de la période ne reste que pour
+  Consulter et Déclarer ; l'écran vit dans sa carte.
+- **La barre de gauche**, dossier ouvert : Fiche du dossier, Le classeur, Pièces du dossier, Messages (un dossier relié),
+  puis « Comptabilité · Banque » avec ses trois groupes et les écrans du groupe ouvert, comptés ; Tout le dossier.
+- **La Banque** : les tableaux de la comptabilité (sans cadre, en-têtes et lignes de la maquette), la chasse fixe du système
+  pour les libellés, « + 1 250,000 » ; la pièce nommée par son numéro (« CHQ-1234 », plus « BQ CHQ-1234 ») ;
+  « importé ce matin (Excel de la BIAT) · 9 mouvements » ; le prénom du contact (« En attente de Sarra ») ; l'écriture
+  cochée montrée ligne à ligne ; le menu ⋯ d'une ligne avec ce que fait chaque geste et sa lettre (E, P, A, D, R marchent au
+  clavier ; « Partager » et « Défaire » grisés disent pourquoi) ; après Entrée, le message **dans la carte**, avec
+  « Annuler » ; les rapprochées ouvertes avec « Défaire » au survol et « Défaire tous les rapprochements du mois » ;
+  le relevé rapproché en entier : la carte au milieu (l'état en PDF, importer le suivant, « Revoir ») ; la règle dit les
+  autres lignes qu'elle sert.
+
+Trouvé en l'essayant : le retrait du code mort (même jour) avait emporté `echeancesAVenir`, encore lue par les Échéances :
+le Cabinet ne démarrait plus. Remise, et chaque nom retiré recherché dans tout `web/public`.
+
+Les preuves « banque 14 » à « banque 17 » et « compta 1 ».
+
 ## Ce qui reste à décider avec Skander ou un comptable
 
 - **À VÉRIFIER** (Ordre des experts-comptables) : à qui appartient le travail d'un dossier tenu quand

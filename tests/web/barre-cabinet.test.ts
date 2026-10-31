@@ -154,13 +154,19 @@ describe('la barre du Cabinet, à la souris', () => {
     await ouvrir(p, cab.id, `#/dossier/${boulangerie.ent}`);
     const carte = p.locator('#b-dossier');
     expect(await carte.innerText()).toMatch(/^BE\nDossier ouvert · Relié\nBoulangerie El Amal\n/);
+    // (1.207.0) Le dossier dans la barre, comme la maquette de la comptabilité : les pages qui existent pour un dossier, puis
+    // la comptabilité (ses trois groupes, les écrans du groupe ouvert).
     const entrees = p.locator('#nav-dossier > a.lien');
     expect(await entrees.evaluateAll((l) => l.map((a) => [(a as HTMLElement).innerText.split('\n')[0], a.getAttribute('href')]))).toEqual([
-      ['Écritures', `#/dossier/${boulangerie.ent}/comptabilite/saisie`], ['Pièces du dossier', `#/pieces/${boulangerie.ent}`],
-      ['Banque', `#/dossier/${boulangerie.ent}/comptabilite/banque`], ['Déclarations', `#/dossier/${boulangerie.ent}/comptabilite/declaration`]]);
+      ['Fiche du dossier', `#/dossier/${boulangerie.ent}`], ['Le classeur', `#/dossier/${boulangerie.ent}/classeur`],
+      ['Pièces du dossier', `#/pieces/${boulangerie.ent}`], ['Messages', `#/messages/${boulangerie.ent}`]]);
     expect(await entrees.filter({ hasText: 'Pièces du dossier' }).locator('.compte').innerText()).toBe('2 à classer');
-    await entrees.filter({ hasText: 'Banque' }).click();
-    await expect.poll(() => entrees.filter({ hasText: 'Banque' }).getAttribute('aria-current')).toBe('page');
+    const ecrans = p.locator('#nav-dossier .cp-nav-b .cp-ns');
+    expect(await ecrans.evaluateAll((l) => l.map((a) => (a as HTMLElement).innerText.split('\n')[0]))).toEqual(['Saisie', 'Banque', 'Paie', 'Immobilisations', 'Inventaire']);
+    expect(await p.locator('#nav-dossier .cp-nav-b .cp-sg').evaluateAll((l) => l.map((a) => (a as HTMLElement).innerText.split('\n')[0]?.replace(/\d+$/, '')))).toEqual(['Saisir', 'Consulter', 'Déclarer']);
+    await ecrans.filter({ hasText: 'Banque' }).click();
+    await expect.poll(() => ecrans.filter({ hasText: 'Banque' }).getAttribute('aria-current')).toBe('page');
+    expect(await p.locator('#nav-dossier .cp-nav-t').innerText()).toMatch(/Comptabilité · Banque/i);
 
     // ── Changer de dossier : la recherche, puis Entrée ; on garde l'écran (la banque) ──
     await carte.click();

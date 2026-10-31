@@ -21424,7 +21424,7 @@ prouver 'question-ligne 2 : un dossier tenu propose une question sans conversati
   "if (!dossier.manual && api.messagerie && api.question && e.statut !== 'extournee') {" "if (api.messagerie && api.question && e.statut !== 'extournee') {" \
   '(1.189.0) une question depuis une écriture'
 prouver 'question-ligne 3 : la ligne du relevé ne se demande pas' web/public/v10/cabinet/app.js \
-  "if (!dossier.manual && api.messagerie && api.question && x.g !== 'att') actions.push({ icon: 'email', label: 'Demander au client ce" "if (false) actions.push({ icon: 'email', label: 'Demander au client ce" \
+  "const peutDemander = !dossier.manual && api.messagerie && api.question && x.g !== 'att';" "const peutDemander = false;" \
   '(1.189.0) une question depuis une écriture'
 prouver 'question-ligne 4 : la phrase ne cite pas ce que la question vise' web/public/v10/cabinet/app.js \
   "if (b.quoi) return b.quoi;" "if (false) return b.quoi;" \
@@ -21753,7 +21753,7 @@ prouver 'banque 4 : la touche Entrée ne rapproche plus' web/public/v10/cabinet/
   '        if (b) { ev.preventDefault(); b.click(); }' '        void b;' \
   "$WB1"
 prouver 'banque 5 : « Annuler » après « Défaire tous » ne repose rien' web/public/v10/cabinet/app.js \
-  '            const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)' '            const avant = [].filter(l => l)' \
+  '      const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)' '      const avant = [].filter(l => l)' \
   "$WB1"
 prouver 'banque 6 : reposées, les lignes de l'"'"'automatique passent « à la main »' web/public/plateforme/pont-cabinet.js \
   'niveau: '"'"'certain'"'"', auto: c.auto === true }' 'niveau: '"'"'certain'"'"', auto: false }' \
@@ -21785,6 +21785,23 @@ prouver 'question-ligne 5 : la question d'"'"'une ligne perd son montant' web/pu
 prouver 'banque 13 : deux montants inégaux se rapprochent quand même' web/public/v10/cabinet/app.js \
   "principal = cc && !ecart ? 'Rapprocher' : '';" "principal = cc ? 'Rapprocher' : '';" \
   "$WB1"
+
+# (1.207.0, 31/10/2026) La Banque et la page de la comptabilité comme leur maquette (docs/maquettes/cabinet/ecarts-banque.md).
+prouver 'banque 14 : la pièce redit le code du journal (« BQ CHQ-1234 »)' web/public/v10/cabinet/app.js \
+  "const pieceBq = e => (e ? String(e.piece || '').trim() ||" "const pieceBq = e => (e ? \`\${e.journal || ''} \${e.piece || ''}\`.trim() ||" \
+  "$WB1"
+prouver 'banque 15 : le geste ne se dit plus dans la carte' web/public/v10/cabinet/app.js \
+  '${banqueState.annonce && banqueState.annonce.sel === banqueState.sel ?' '${false ?' \
+  "$WB1"
+prouver 'banque 16 : les gestes du relevé absents du ⋯ de la page' web/public/v10/cabinet/app.js \
+  "...(livresState.onglet === 'banque' && banqueState.gestesReleve ?" "...(false && banqueState.gestesReleve ?" \
+  "$WB1"
+prouver 'banque 17 : le relevé rapproché reste une liste (pas la carte au milieu)' web/public/v10/cabinet/app.js \
+  "const toutFait = !restent.length && banqueState.revoir !== R.id;" "const toutFait = false;" \
+  "$WB1"
+prouver 'compta 1 : la barre perd la comptabilité du dossier ouvert' web/public/v10/cabinet/app.js \
+  "+ comptaDansBarre(D, base, dansCeDossier" "+ (() => '')(D, base, dansCeDossier" \
+  'au bureau : la tête et son menu'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

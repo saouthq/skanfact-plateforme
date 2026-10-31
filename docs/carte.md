@@ -297,7 +297,8 @@ vaut pour tout le dépôt.*
     relevé à UNE ligne d'écriture du même compte (`compta.rapprochement`, qui tombe avec la ligne d'un
     brouillard qui change) ; l'automatique juge dans le navigateur (la v10) et pose au serveur ; les
     banques et les mots retenus : `cabinet.reglages` (champs comptés, révision) ; l'écran (1.206.0) en deux colonnes,
-    la maquette : lignes rangées, livre en face, équation du relevé, état de rapprochement (`plateforme/banque.css`).
+    la maquette : lignes rangées, livre en face, équation du relevé, état de rapprochement (`plateforme/banque.css`). La page
+    de la comptabilité (en-tête, groupes, frise des mois, barre de gauche) : `plateforme/comptabilite.css` (1.207.0).
   - **La déclaration du mois** (brique 41, 0024, C22 à C24) : le moteur de la v10 la déduit, dans le
     navigateur, du livre du serveur ; le serveur garde la déclaration préparée (`compta.declaration` :
     ses cases en millimes ou vides, une par période, pas refaite une fois déposée), les pense-bêtes

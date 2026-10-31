@@ -85,6 +85,8 @@ describe('la banque, à la souris', () => {
     const groupes = async () => p.locator('table.bq-t [data-bq-ligne]').evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.groupe));
     const pied = () => p.locator('.bqp').innerText().then((t) => t.replace(/\s+/g, ' '));
     const annuler = () => p.locator('#toast').getByRole('button', { name: 'Annuler' }).click();
+    // (1.207.0) Le geste d'une ligne se dit dans la carte, au-dessus de la liste (maquette), avec son « Annuler ».
+    const annonce = () => p.locator('#bq-annonce').innerText().catch(() => '');
 
     // ── L'écran vide : l'aperçu de ce qui viendra, et l'import ──────────────────────────────────
     await aller();
@@ -112,12 +114,14 @@ describe('la banque, à la souris', () => {
       .find((f) => f.entreprise === cafe)?.contenu.banque).toEqual({ compte: '532', banque: 'BIAT' });
 
     // ── Les lignes rangées par ce qu'elles demandent, le livre en face ─────────────────────────
-    await expect.poll(() => p.locator('.bq-f').innerText().then((t) => t.replace(/\s+/g, ' '))).toMatch(/3 Toutes 1 Rapprochées 1 Proposées 1 À traiter 0 En attente du client/);
+    await expect.poll(() => p.locator('.bq-f').innerText().then((t) => t.replace(/\s+/g, ' '))).toMatch(/3 Toutes 1 Rapprochées 1 Proposées 1 À traiter 0 En attente (du client|de \S+)/);
     expect(await groupes()).toEqual(['prop', 'dec']);
-    expect(await ligne(L3).innerText()).toMatch(/BQ CHQ-1234 · Chèque 1234[\s\S]*même montant/);
+    // La pièce se nomme par son numéro, sans le code du journal devant (maquette : « FA-0919 · STEG »).
+    expect(await ligne(L3).innerText()).toMatch(/CHQ-1234 · Chèque 1234[\s\S]*même montant/);
+    expect(await ligne(L3).innerText()).not.toMatch(/BQ CHQ-1234/);
     expect(await ligne(L2).innerText()).toMatch(/Rien dans le livre en face/);
     // La proposée est choisie d'office ; le livre en face la montre, cochée, l'écart à zéro.
-    await expect.poll(() => p.locator('.bq-livre').innerText()).toMatch(/en face de\s+CHQ 1234[\s\S]*BQ CHQ-1234[\s\S]*écart 0/);
+    await expect.poll(() => p.locator('.bq-livre').innerText()).toMatch(/en face de\s+CHQ 1234[\s\S]*CHQ-1234[\s\S]*écart 0/);
     // L'équation : le relevé, les deux lignes pas encore au livre, l'écriture du chèque pas encore en banque.
     expect(await pied()).toMatch(/Relevé au 10\/03 10 405,625 \+ 2 lignes pas encore au livre 785,125 − 1 écriture pas encore en banque 700,000 = Attendu au livre 532 10 490,750 Écart expliqué au millime/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-banque-2-deux-colonnes.png') });
@@ -125,9 +129,9 @@ describe('la banque, à la souris', () => {
     // ── La touche Entrée rapproche la proposée ; « Annuler » la défait ; « Valider la proposée » la repose ─
     await p.locator('.bq-aide').click();
     await p.keyboard.press('Enter');
-    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 10_000 }).toMatch(/^Rapprochée avec BQ CHQ-1234\./);
+    await expect.poll(annonce, { timeout: 10_000 }).toMatch(/^« CHQ 1234 » : Rapprochée avec CHQ-1234/);
     await expect.poll(async () => (await releves(cafe, associe))[0]?.lignes[2]?.rapprochement).toMatchObject({ ecriture: cheque1, auto: false });
-    await annuler();
+    await p.locator('#bq-annuler').click();
     await expect.poll(async () => (await releves(cafe, associe))[0]?.lignes[2]?.rapprochement ?? null, { timeout: 10_000 }).toBeNull();
     await expect.poll(() => groupes()).toEqual(['prop', 'dec']);
     await p.locator('table.bq-t [data-bq-valider]').click();
@@ -160,12 +164,14 @@ describe('la banque, à la souris', () => {
     expect(((await api('GET', `/cabinets/${cabinet}/reglages`, associe)).corps.contenu as { libelles?: unknown }).libelles).toEqual([{ motif: 'STEG', compte: '6061' }]);
 
     // ── Tout est rapproché : le mois le dit, le pied boucle, les règles et l'état se lisent ─────────
-    await expect.poll(() => p.locator('.bq-fini').innerText()).toMatch(/Mars 2026 est rapproché à la BIAT[\s\S]*3 mouvements sur 3 ont leur écriture/);
+    // Le relevé rapproché en entier : la carte au milieu de l'écran (maquette), ses trois gestes.
+    await expect.poll(() => p.locator('.bq-fini2').innerText()).toMatch(/Mars 2026 est rapproché à la BIAT[\s\S]*3 mouvements sur 3 ont leur écriture[\s\S]*Importer le relevé d'avril…[\s\S]*Revoir mars/);
     expect(await pied()).toMatch(/Relevé au 10\/03 10 405,625 = Attendu au livre 532 10 405,625 Écart expliqué au millime plus rien à écrire/);
-    await p.locator('#bq-regles').click();
+    // Les règles se lisent aussi du ⋯ de la page : la carte du mois rapproché ne garde que ses trois gestes.
+    await (await menu(`F:${cafe}`)).filter({ hasText: 'Les règles de la banque' }).click();
     await expect.poll(() => fenetre.innerText()).toMatch(/Les règles de la banque[\s\S]*STEG[\s\S]*6061/);
     await fenetre.getByRole('button', { name: 'Fermer' }).click();
-    await p.locator('.bq-fini [data-bq-etat]').click();
+    await p.locator('.bq-fini2 [data-bq-etat]').click();
     await expect.poll(() => fenetre.innerText()).toMatch(/Solde du relevé au 10\/03\/2026\s+10\s405,625[\s\S]*Solde du livre au 10\/03\/2026\s+10\s405,625[\s\S]*Les deux soldes rectifiés sont égaux : 10\s405,625\sDT/);
     expect(await fenetre.innerText()).not.toMatch(/Provisoire/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-banque-3-etat.png') });
@@ -173,6 +179,7 @@ describe('la banque, à la souris', () => {
 
     // ── Au téléphone : des cartes ; le tableau du bureau se cache ; le livre en face garde ses tableaux ─
     await p.setViewportSize({ width: 390, height: 860 });
+    await p.locator('#bq-revoir').click();
     await expect.poll(() => p.locator('table.bq-t').isVisible()).toBe(false);
     await p.locator('.bq-km [data-bq-voir]').click();
     // Rien ne déborde : le mois rapproché (sa phrase, son bouton) tient dans la carte, la carte dans l'écran.
@@ -194,14 +201,15 @@ describe('la banque, à la souris', () => {
 
     // ── Tout défaire d'un coup ; « Annuler » repose chaque ligne sur son écriture, l'automatique gardé ─
     const avant = (await releves(cafe, associe))[0]?.lignes.map((l) => [l.rapprochement?.ecriture, l.rapprochement?.rang, l.rapprochement?.auto]);
-    await (await menu(`REL:${R?.id}`)).filter({ hasText: 'Défaire tous les rapprochements' }).click();
+    // Les gestes du relevé vivent dans le ⋯ de la page (maquette : deux boutons seulement à côté du relevé).
+    await (await menu(`F:${cafe}`)).filter({ hasText: 'Défaire tous les rapprochements' }).click();
     await expect.poll(() => p.locator('#toast').innerText()).toMatch(/^3 rapprochements défaits\./);
     expect((await releves(cafe, associe))[0]?.lignes.map((l) => l.rapprochement)).toEqual([null, null, null]);
     await annuler();
     await expect.poll(async () => (await releves(cafe, associe))[0]?.lignes.map((l) => [l.rapprochement?.ecriture, l.rapprochement?.rang, l.rapprochement?.auto]), { timeout: 10_000 }).toEqual(avant);
 
     // ── Retirer le relevé : les écritures restent ─────────────────────────────────────────────
-    await (await menu(`REL:${R?.id}`)).filter({ hasText: 'Retirer ce relevé' }).click();
+    await (await menu(`F:${cafe}`)).filter({ hasText: 'Retirer ce relevé' }).click();
     await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Retirer' }).click();
     await expect.poll(async () => (await releves(cafe, associe)).length, { timeout: 10_000 }).toBe(0);
     expect(((await api('GET', `/entreprises/${cafe}/compta/ecritures?limite=500`, associe)).corps.ecritures as unknown[]).length).toBe(5);

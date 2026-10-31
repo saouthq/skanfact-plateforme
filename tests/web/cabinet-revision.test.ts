@@ -265,7 +265,7 @@ describe('la révision et les questions au client, à la souris', () => {
       for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     };
     const fenetre = p.locator('#modal-root .modal').last();
-    const menu = async (prefixe: string, geste: string) => expect.poll(async () => {
+    const menu = async (prefixe: string, geste: string | RegExp) => expect.poll(async () => {
       if (!await p.getByRole('menuitem').filter({ hasText: geste }).count()) await p.locator(`[data-rowmenu^="${prefixe}"]`).first().click({ timeout: 2_000 }).catch(() => {});
       return p.getByRole('menuitem').filter({ hasText: geste }).count();
     }, { timeout: 20_000 }).toBe(1).then(() => p.getByRole('menuitem').filter({ hasText: geste }).click());
@@ -281,7 +281,8 @@ describe('la révision et les questions au client, à la souris', () => {
 
     // La ligne du relevé qu'on ne sait pas expliquer : une explication demandée, envoyée tout de suite (avec la prête).
     await aller('banque');
-    await menu('LIG:', 'Demander au client ce qu\'est cette ligne');
+    // (1.207.0) Le menu de la ligne nomme le contact du client, comme la maquette (« Demander à Sarra ce que c'est »).
+    await menu('LIG:', /Demander (au client|à \S+) ce que c'est/);
     expect(await fenetre.locator('.qf-sujet b').innerText()).toBe('VIR SARL ATLAS');
     expect(await fenetre.locator('[data-qf-attendu][aria-pressed="true"]').innerText()).toBe('Une explication');
     expect(await fenetre.locator('#qf-texte').inputValue()).toMatch(/^Peux-tu m'expliquer ce mouvement de 487,500\sDT sorti le 14\/03\/2026 sur ton relevé \(« VIR SARL ATLAS »\) \?$/);
