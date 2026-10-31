@@ -21690,6 +21690,17 @@ prouver 'achats 10 : l'"'"'échéance tait les jours de retard' web/public/v10/a
 prouver 'achats 11 : au téléphone, pas de cartes' web/public/plateforme/liste.css \
   "  .la .la-cartes { display: grid; gap: 8px; }" "  .la .la-cartes { display: none; }" "$LA1"
 prouver 'achats 12 : à la tablette, l'"'"'échéance garde sa colonne' web/public/plateforme/liste.css \
-  "  .la table.la-table thead th:nth-child(4), .la table.la-table tbody tr:not(.mois) td:nth-child(4) { display: none; }" "" "$LA1"
+  "  .la table.la-table thead th:nth-child(5), .la table.la-table tbody tr:not(.mois) td:nth-child(5) { display: none; }" "" "$LA1"
 prouver 'achats 13 : Entrée n'"'"'ouvre plus la pièce choisie au clavier' web/public/v10/app.js \
   "if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/achat/' + lignes[s.cur].dataset.id); }" "" "$LA1"
+# (1.203.0) Les achats, lot 1 b : choisir plusieurs pièces et les régler d'un seul virement.
+prouver 'achats 14 : « Régler ensemble » s'"'"'offre pour deux fournisseurs' web/public/v10/app.js \
+  "          : fs.size > 1 ? 'Un règlement va à un seul fournisseur : choisis des pièces du même'" "          : false ? ''" "$LA1"
+prouver 'achats 15 : le virement se répartit sans commencer par la plus ancienne' web/public/v10/app.js \
+  "const l = pieces.slice().sort((a, b) => quand(a).localeCompare(quand(b)) || String(a.date || '').localeCompare(String(b.date || '')));" "const l = pieces.slice().reverse();" "$LA1"
+prouver 'achats 16 : une pièce reçoit plus que ce qui lui reste' web/public/v10/app.js \
+  "const m = C.round3(Math.min(reste(p), Math.max(0, x)));" "const m = C.round3(Math.max(0, x));" "$LA1"
+prouver 'achats 17 : Échap ne défait plus le choix' web/public/v10/app.js \
+  "    if (e.key === 'Escape' && s.sel && s.sel.size && \$('#bc-rien')) { e.preventDefault(); \$('#bc-rien').click(); }" "" "$LA1"
+prouver 'achats 18 : la pastille du nombre étire les boutons de la barre' web/public/plateforme/liste.css \
+  ".lf .cpt { display: inline-block; grid-template-columns: none; gap: 0;" ".lf .cpt {" "$LA1"

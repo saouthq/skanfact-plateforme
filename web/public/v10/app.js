@@ -9760,6 +9760,8 @@
       return;
     }
     if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/achat/' + lignes[s.cur].dataset.id); }
+    if (e.key === ' ' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); const c = $('input[data-x]', lignes[s.cur]); if (c) { c.checked = !c.checked; c.dispatchEvent(new Event('change')); } }
+    if (e.key === 'Escape' && s.sel && s.sel.size && $('#bc-rien')) { e.preventDefault(); $('#bc-rien').click(); }
   });
 
   // Le réseau qui part ou revient redessine la liste et la fiche d'un client, et la liste des achats : leur bandeau, leurs
@@ -13879,6 +13881,9 @@
     const cats = Array.from(new Set(all.map(p => p.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr'));
     const lecture = aboBloque(true), roleLit = enLecture('purchases'), horsLigne = navigator.onLine === false;
     const peutRegler = !roleLit && !horsLigne;
+    // Les pièces choisies (cases de la liste) : elles survivent aux filtres et aux pages, pas à leur disparition.
+    if (!s.sel) s.sel = new Set();
+    s.sel.forEach(id => { if (!purchaseById(id)) s.sel.delete(id); });
     // Le statut se dit comme la maquette : « En retard », « À payer », « Payée ».
     const laBadge = st => `<span class="badge ${BUY_BADGE[st] || ''}">${h(optionStatut(st))}</span>`;
     const cols = [
@@ -13900,7 +13905,9 @@
       const objet = [contenuAchat(p) || p.subject, p.kind === 'facture' ? p.category : [sorte.toLowerCase(), p.category].filter(Boolean).join(' · ')].filter(Boolean);
       const net = `${lfMontant(netOf(p), cur)}${dev ? `<small>${h(C.money(t.netToPay, p.currency))}</small>` : t.withholding > 0.0005 ? `<small>retenue ${C.money(Math.abs(t.base.withholding), cur)}</small>` : ''}`;
       const reste = r > 0.0005 ? lfMontant(r, cur) : r < -0.0005 ? `<span class="trop" title="Ce que le fournisseur te doit : à déduire d'une facture ou à te faire rembourser">${lfMontant(-r, cur)} pour toi</span>` : '<span class="mu">—</span>';
-      return `<tr class="clickable${['payée', 'imputé', 'remboursé'].includes(st) && !sansJ ? ' solde' : ''}" data-id="${h(p.id)}">
+      const ch = s.sel.has(p.id);
+      return `<tr class="clickable${['payée', 'imputé', 'remboursé'].includes(st) && !sansJ ? ' solde' : ''}${ch ? ' choisie' : ''}" data-id="${h(p.id)}">
+        <td class="cx"><input type="checkbox" data-x="${h(p.id)}"${ch ? ' checked' : ''} aria-label="Choisir ${h(p.number || ref)}"></td>
         <td class="nw">${C.fmtDate(p.date)}</td>
         <td class="num-c">${p.number ? `<b>${h(p.number)}</b>` : '<span class="mu">sans numéro</span>'}${marqueJustif(p.attachments)}${sous.length ? `<small>${sous.join(' · ')}</small>` : ''}${justifTrouve(p.attachments, s.q)}</td>
         <td class="cl"><span class="cl-i">${pastilleClient(p.supplierId || p.id, supplierName(p.supplierId))}<span><b>${h(supplierName(p.supplierId))}</b>${objet.length ? `<small title="${h(objet.join(' · '))}">${h(objet.join(' · '))}</small>` : ''}</span></span></td>
@@ -13959,15 +13966,47 @@
       const g = {}; rows.forEach(p => { const x = g[moisDe(p)] || (g[moisDe(p)] = { n: 0, m: 0 }); x.n++; x.m += netOf(p); });
       let der = null;
       $('#list-wrap').innerHTML = rows.length ? `<div class="la-cartes">${page.map(carte).join('')}</div>
-        <div class="panel lf-tab scroll-x"><table class="list sortable lf-table la-table"><thead>${sortHead(cols, s.sort, '<th class="row-actions-h" style="width:10%"></th>')}</thead><tbody>
-          ${page.map(p => { const k = moisDe(p); const tete = parMois && k && k !== der ? `<tr class="mois"><td colspan="${cols.length + 1}"><b>${LA_MOIS[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}</b> <span>${pl(g[k].n, 'pièce')} · ${C.money(g[k].m, cur)}</span></td></tr>` : ''; der = k; return tete + ligne(p); }).join('')}
-        </tbody><tfoot><tr><td colspan="3"><span class="pied-t"><b>Total de la sélection</b><span>${pl(rows.length, 'pièce')} · ${C.money(totHT, cur)} HT · TVA ${C.money(totTVA, cur)}</span></span></td><td></td><td></td>
+        <div class="panel lf-tab scroll-x"><table class="list sortable lf-table la-table"><thead>${sortHead(cols, s.sort, '<th class="row-actions-h" style="width:10%"></th>').replace('<tr>', `<tr><th class="cx"><input type="checkbox" data-xtout aria-label="Choisir toute la page"${page.length && page.every(p => s.sel.has(p.id)) ? ' checked' : ''}></th>`)}</thead><tbody>
+          ${page.map(p => { const k = moisDe(p); const tete = parMois && k && k !== der ? `<tr class="mois"><td colspan="${cols.length + 2}"><b>${LA_MOIS[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}</b> <span>${pl(g[k].n, 'pièce')} · ${C.money(g[k].m, cur)}</span></td></tr>` : ''; der = k; return tete + ligne(p); }).join('')}
+        </tbody><tfoot><tr><td colspan="4"><span class="pied-t"><b>Total de la sélection</b><span>${pl(rows.length, 'pièce')} · ${C.money(totHT, cur)} HT · TVA ${C.money(totTVA, cur)}</span></span></td><td></td><td></td>
           <td class="r m nw">${lfMontant(totNet, cur)} <small class="dv">${h(symboleDevise(cur))}</small></td><td class="r m nw"><div>${totRest > 0.0005 ? lfMontant(totRest, cur) : '<span class="mu">—</span>'}</div>${totRet > 0.0005 ? `<div class="rouge pied-s">dont ${lfMontant(totRet, cur)} en retard</div>` : ''}</td><td></td></tr></tfoot></table>
         ${pagerBar(pg, { noun: 'pièce', grandTotal: all.length })}</div>`
         : `<div class="panel vide-f">${lfIc('recherche', 26, 1.6)}<b>${s.q ? `Aucune pièce ne correspond à « ${h(s.q)} »` : 'Aucune pièce ne correspond à ces filtres'}</b><span>La recherche lit le numéro, la référence, le fournisseur, l'objet, la catégorie, le montant et le nom des pièces jointes${nomSt ? `, parmi « ${h(nomSt)} »` : ''}.</span><span class="pr-b"><button type="button" class="btn" id="lf-tout-revoir">Tout revoir</button></span></div>`;
-      s.cur = -1;
+      // La pièce choisie au clavier le reste quand la liste se redessine (une case cochée à l'Espace, par exemple).
+      const kb = $$('#list-wrap tr.clickable[data-id]')[s.cur];
+      if (kb) kb.classList.add('kb'); else s.cur = -1;
       brancher();
+      dessinerChoix();
     });
+    // ── la barre des pièces choisies (maquette : « Régler ensemble », « Exporter », « Ne plus rien choisir ») ──
+    function dessinerChoix() {
+      const boite = $('#la-choix'); if (!boite) return;
+      const l = [...s.sel].map(purchaseById).filter(Boolean);
+      $('#la').classList.toggle('avec-choix', l.length > 0);
+      if (!l.length) { boite.innerHTML = ''; return; }
+      const r = l.reduce((a, p) => a + Math.max(0, restOf(p)), 0);
+      const aRegler = l.filter(p => C.purchaseBalance(p, company(), data).remaining > 0.0005 && !C.PURCHASE_LIES.includes(p.kind));
+      const fs = new Set(aRegler.map(p => p.supplierId || '')), devs = new Set(aRegler.map(p => p.currency || cur));
+      const pourquoi = !peutRegler ? (horsLigne ? 'Un règlement attend le réseau, pour ne jamais payer deux fois' : 'Ton rôle lit les achats sans les régler')
+        : aRegler.length < 2 ? 'Choisis au moins deux pièces qui restent à payer'
+          : fs.size > 1 ? 'Un règlement va à un seul fournisseur : choisis des pièces du même'
+            : devs.size > 1 || [...devs][0] !== cur ? 'Une pièce en devise se règle seule, au taux du jour' : '';
+      const g = (id, ic, t, n, dit) => `<button type="button" class="btn" id="${id}"${dit ? ` disabled title="${h(dit)}"` : ''}>${lfIc(ic, 15)} ${t}${n !== null ? ` <span class="cpt">${n}</span>` : ''}</button>`;
+      boite.innerHTML = `<div class="barre-choix" role="region" aria-label="Pièces choisies"><b>${pl(l.length, 'pièce choisie', 'pièces choisies')}</b><span class="mu">reste ${C.money(r, cur)}</span>
+        <span class="bc-g">${g('bc-regler', 'carte', 'Régler ensemble', aRegler.length, pourquoi)}${g('bc-export', 'exporter', 'Exporter', l.length, '')}</span>
+        <button type="button" class="btn-lien" id="bc-rien">Ne plus rien choisir</button></div>`;
+      $('#bc-rien').onclick = () => { s.sel.clear(); draw(); };
+      $('#bc-regler').onclick = () => reglerEnsemble(aRegler, () => { s.sel.clear(); render(true); });
+      $('#bc-export').onclick = async () => {
+        const colonnes = [{ key: 'date', label: 'Date' }, { key: 'numero', label: 'N° du fournisseur' }, { key: 'reference', label: 'Référence' }, { key: 'fournisseur', label: 'Fournisseur' },
+          { key: 'objet', label: 'Objet' }, { key: 'echeance', label: 'Échéance' }, { key: 'statut', label: 'Statut' }, { key: 'ht', label: 'HT', type: 'money' }, { key: 'tva', label: 'TVA', type: 'money' },
+          { key: 'net', label: 'Net à payer', type: 'money' }, { key: 'reste', label: 'Reste', type: 'money' }];
+        const lignes = l.map(p => { const t = C.purchaseTotals(p, company()); return { date: C.fmtDate(p.date), numero: p.number || '', reference: C.referenceAchat(p, data), fournisseur: supplierName(p.supplierId),
+          objet: contenuAchat(p) || p.subject || '', echeance: p.dueDate ? C.fmtDate(p.dueDate) : '', statut: optionStatut(buyStatus(p)), ht: t.base.totalHT, tva: t.base.totalVAT, net: netOf(p), reste: Math.max(0, restOf(p)) }; });
+        const fi = await bridge.saveText(`achats-choisis-${C.today()}.csv`, C.toCsv(lignes, colonnes));
+        if (fi) toast('Exporté : ' + fi.split(/[\\/]/).pop());
+      };
+    }
     function brancher() {
       const remettre = () => { Object.assign(s, { q: '', st: '', kind: '', cat: '', year: '', du: '', au: '', page: 1 }); draw(); };
       $('#q').oninput = e => { s.q = e.target.value; s.page = 1; draw(); };
@@ -13980,7 +14019,10 @@
       if ($('#reset-f')) $('#reset-f').onclick = remettre;
       if ($('#lf-tout-revoir')) $('#lf-tout-revoir').onclick = remettre;
       const w = $('#list-wrap');
-      $$('tr.clickable, .la-carte', w).forEach(tr => tr.onclick = e => { if (e.target.closest('button') && !e.target.closest('.la-carte')) return; navigate('#/achat/' + tr.dataset.id); });
+      $$('tr.clickable, .la-carte', w).forEach(tr => tr.onclick = e => { if ((e.target.closest('button') && !e.target.closest('.la-carte')) || e.target.closest('td.cx')) return; navigate('#/achat/' + tr.dataset.id); });
+      $$('input[data-x]', w).forEach(x => x.onchange = () => { if (x.checked) s.sel.add(x.dataset.x); else s.sel.delete(x.dataset.x); draw(); });
+      const tout = $('input[data-xtout]', w);
+      if (tout) tout.onchange = () => { $$('input[data-x]', w).forEach(x => { if (tout.checked) s.sel.add(x.dataset.x); else s.sel.delete(x.dataset.x); }); draw(); };
       $$('[data-payx]', w).forEach(b => b.onclick = e => { e.stopPropagation(); supplierPaymentForm(purchaseById(b.dataset.payx), () => render(true)); });
       bindRowMenus(w, actionsAchat, id => { const p = purchaseById(id); return p ? `${p.number || C.referenceAchat(p, data)} · ${supplierName(p.supplierId)}` : ''; });
       bindSort(w, draw);
@@ -14023,8 +14065,8 @@
         ['Saisis ici tes factures fournisseurs et tes dépenses : c\'est ce qui permet de récupérer la TVA que tu as payée, et de connaître ta marge réelle.',
          'Commence par joindre la photo ou le PDF de la facture : la saisie se fait en la regardant.'],
         [['vide-achat', '+ Saisir ma première facture d\'achat', true], ['vide-dep', '+ Noter une dépense']])
-      : `<div class="lf la" id="la">${laAPayer(peutRegler)}<div id="lf-barre"></div><div id="list-wrap"></div>
-          <p class="raccourcis">${lfIc('clavier', 14)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> d'une pièce à l'autre · <kbd>Entrée</kbd> l'ouvrir · <kbd>Échap</kbd> fermer</p></div>`}`;
+      : `<div class="lf la" id="la">${laAPayer(peutRegler)}<div id="lf-barre"></div><div id="list-wrap"></div><div id="la-choix"></div>
+          <p class="raccourcis">${lfIc('clavier', 14)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> d'une pièce à l'autre · <kbd>Entrée</kbd> l'ouvrir · <kbd>Espace</kbd> la choisir · <kbd>Échap</kbd> fermer</p></div>`}`;
     if ($('#new')) $('#new').onclick = () => navigate('#/achat/new');
     if ($('#new-dep')) $('#new-dep').onclick = () => navigate('#/achat/new/-/depense');
     if ($('#vide-achat')) $('#vide-achat').onclick = () => navigate('#/achat/new');
@@ -14284,6 +14326,71 @@
         else stored.payments = (stored.payments || []).concat([{ id: C.uid(), ...champs }]);
         save(true); close(); toast(rend ? (r0 ? 'Remboursement modifié' : 'Remboursement enregistré') : r0 ? 'Règlement modifié' : 'Règlement enregistré'); if (done) done();
       }; });
+  }
+
+  // (1.203.0, maquette achats-fournisseurs « Régler deux pièces ensemble ») Un virement qui paie plusieurs pièces d'un même
+  // fournisseur : un règlement par pièce, à la même date, avec la même référence ; le montant versé se répartit sur les pièces,
+  // la plus ancienne d'abord (l'échéance, sinon la date), chacune recevant au plus ce qui lui reste. La retenue de chaque
+  // pièce se calcule sur SON règlement, comme si on la réglait seule (10.14.0) : elle se dit avant d'enregistrer.
+  function reglerEnsemble(pieces, done) {
+    if (!pieces || pieces.length < 2) return;
+    const cur = pieces[0].currency || company().currency;
+    const quand = p => p.dueDate || p.date || '';
+    const l = pieces.slice().sort((a, b) => quand(a).localeCompare(quand(b)) || String(a.date || '').localeCompare(String(b.date || '')));
+    const reste = p => C.round3(Math.max(0, C.purchaseBalance(p, company(), data).remaining));
+    const total = C.round3(l.reduce((a, p) => a + reste(p), 0));
+    const repartir = v => { let x = C.round3(v); return l.map(p => { const m = C.round3(Math.min(reste(p), Math.max(0, x))); x = C.round3(x - m); return [p, m]; }); };
+    const sup = supplierById(l[0].supplierId), nom = supplierName(l[0].supplierId);
+    const modeur = (C.PAYMENT_METHODS.find(m => m[0] === 'virement') || C.PAYMENT_METHODS[0] || [''])[0];
+    const echeance = p => !p.dueDate ? '<span class="muted">—</span>' : p.dueDate < C.today() ? `${C.fmtDate(p.dueDate)}<div class="small warn-text">${pl(C.daysBetween(p.dueDate, C.today()), 'jour')} de retard</div>` : C.fmtDate(p.dueDate);
+    modal(`<h2>Régler ${pl(l.length, 'pièce')} de ${h(nom)} en un seul virement</h2>
+      <p class="small muted">Chaque pièce reçoit ce qui lui reste, la plus ancienne d'abord ; un montant plus petit laisse les dernières « payées en partie ».</p>
+      <table class="list compact" id="rge-l"><thead><tr><th>Pièce</th><th>Échéance</th><th class="r">Reste</th><th class="r">Ce virement</th></tr></thead><tbody>
+        ${l.map(p => `<tr data-id="${h(p.id)}"><td><b>${h(p.number || C.referenceAchat(p, data))}</b>${contenuAchat(p) || p.subject ? `<div class="small muted">${h(contenuAchat(p) || p.subject)}</div>` : ''}</td><td class="nw">${echeance(p)}</td><td class="r nw">${C.money(reste(p), cur)}</td><td class="r nw" data-part></td></tr>`).join('')}
+      </tbody></table>
+      <form id="rge" class="pf-charte mt" data-devise="${h(cur)}">
+        <div class="pf-montant"><label class="field obligatoire">${lbl('Montant versé', 'buy.payAmount')}<span class="pf-m"><input type="number" name="amount" value="${h(total)}" step="0.001" min="0" class="num" inputmode="decimal"><span>${h(cur)}</span></span></label></div>
+        <div class="pf-deux">${dateFieldHtml(lbl('Date', 'buy.payDate'), 'date', C.today(), { obligatoire: true })}${accountFieldHtml('')}</div>
+        <div class="choix-t pf-modes" role="group" aria-label="Mode de règlement">${C.PAYMENT_METHODS.map(([v, lb]) => `<button type="button" data-mode="${h(v)}" class="${v === modeur ? 'on' : ''}">${h(lb)}</button>`).join('')}</div>
+        <input type="hidden" name="method" value="${h(modeur)}">
+        <div class="pf-deux"><label class="field">${lbl('Référence', 'buy.payReference')}<input type="text" name="reference" placeholder="n° du virement, du chèque…"></label>
+        ${sup && sup.rib ? `<p class="small muted">Vers son RIB : <span class="mono">${h(sup.rib)}</span></p>` : ''}</div>
+        <div class="pf-rs-boite annonce-stable" id="rge-rs" aria-live="polite"></div>
+      </form>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+    (root, close) => {
+      const fS = $('#rge', root), mS = $('[name=amount]', root);
+      $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fS).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
+      const annoncer = () => {
+        const v = formValues(fS), parts = repartir(Number(v.amount) || 0), d0 = v.date || C.today();
+        parts.forEach(([p, m]) => { const td = $(`#rge-l tr[data-id="${p.id}"] [data-part]`, root); if (td) td.innerHTML = m > 0.0005 ? `<b>${C.money(m, cur)}</b>${m < reste(p) - 0.0005 ? '<div class="small muted">en partie</div>' : ''}` : '<span class="muted">—</span>'; });
+        const rs = parts.reduce((a, [p, m]) => {
+          if (!(m > 0.0005) || !(Number(p.withholdingRate) > 0)) return a;
+          const essai = { ...p, payments: (p.payments || []).concat([{ id: '__essai', date: d0, amount: m }]) };
+          return a + (C.retenueDesReglements(essai, company(), data).parts.__essai || 0);
+        }, 0);
+        $('#rge-rs', root).innerHTML = rs > 0.0005 ? `<div class="bandeau gris">${lfIc('aide', 16, 2)}<span class="txt"><b>Ce virement retient ${C.money(rs, cur)} pour l'État : tu les reverses avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + ' ' + d0.slice(0, 4))}</b><span>Chaque pièce garde sa retenue, calculée sur son règlement. Le taux et l'assiette : À VÉRIFIER avec ton comptable.</span></span></div>` : '';
+        const v2 = C.round3(Number(v.amount) || 0);
+        $('#ok', root).innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${v2 > 0 ? ` le règlement de ${C.money(v2, cur)}` : ''}`;
+      };
+      fS.addEventListener('input', annoncer); fS.addEventListener('change', annoncer); annoncer();
+      $('#ok', root).onclick = async () => {
+        const v = formValues(fS), montant = C.round3(Number(v.amount) || 0);
+        if (!(montant > 0)) return refus(mS, 'Écris le montant versé en chiffres, plus grand que zéro : par exemple 250,500.');
+        if ((String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus(mS, `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
+        if (montant > total + 0.0005) return refus(mS, `Ces pièces ne doivent plus que ${C.money(total, cur)} : un virement plus grand se règle pièce par pièce, pour dire à laquelle va le surplus.`);
+        if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
+        if (v.date > C.today() && !await confirmDialog(`La date (${C.fmtDate(v.date)}) est dans le futur. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un règlement daté dans le futur' })) return;
+        if (closedBlock(v.date, 'Ce règlement')) return;
+        const parts = repartir(montant).filter(([, m]) => m > 0.0005);
+        const note = `Un virement de ${C.money(montant, cur)} pour ${pl(parts.length, 'pièce')}`;
+        for (const [p, m] of parts) {
+          const stored = purchaseById(p.id) || p;
+          stored.payments = (stored.payments || []).concat([{ id: C.uid(), date: v.date, amount: m, method: v.method, accountId: v.accountId || '', reference: v.reference || '', note }]);
+        }
+        save(true); close(); toast(`Règlement de ${C.money(montant, cur)} enregistré sur ${pl(parts.length, 'pièce')}`); if (done) done();
+      };
+    });
   }
 
   // Éditeur d'achat. Pas d'aperçu ni de PDF : le document existe déjà, c'est celui du fournisseur.

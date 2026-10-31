@@ -167,7 +167,9 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 .lf .barre-choix .btn { display: inline-flex; align-items: center; gap: 6px; background: color-mix(in srgb, var(--sb-papier) 12%, transparent); border-color: transparent; color: var(--sb-papier); min-height: 32px; height: 32px; }
 .lf .barre-choix .btn:disabled { opacity: .4; }
 .lf .barre-choix .btn-lien { color: color-mix(in srgb, var(--sb-papier) 75%, transparent); }
-.lf .cpt { font-size: 11.5px; font-weight: 700; padding: 0 6px; border-radius: 6px; background: color-mix(in srgb, var(--sb-papier) 20%, transparent); }
+/* `.cpt` est aussi la page « Ton compte » de la messagerie (une grille de deux colonnes) : la pastille le défait, sans quoi
+   chaque bouton de la barre s'étirait de 340 px (vu le 31/10/2026 sur la liste des achats). */
+.lf .cpt { display: inline-block; grid-template-columns: none; gap: 0; font-size: 11.5px; font-weight: 700; padding: 0 6px; border-radius: 6px; background: color-mix(in srgb, var(--sb-papier) 20%, transparent); }
 
 /* ── le téléphone : la synthèse, deux puces, une feuille de filtres ── */
 .lf .t-puces { display: none; }
@@ -400,14 +402,14 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 /* À la tablette (761 à 1100 px), l'échéance cède sa place : le fournisseur et ce qu'on lui doit se lisent
    en entier ; l'échéance se lit dans « À payer » et sur la pièce. */
 @media (min-width: 761px) and (max-width: 1100px) {
-  .la table.la-table thead th:nth-child(4), .la table.la-table tbody tr:not(.mois) td:nth-child(4) { display: none; }
-  .la table.la-table thead th:nth-child(1) { width: 11% !important; }
-  .la table.la-table thead th:nth-child(2) { width: 16% !important; }
-  .la table.la-table thead th:nth-child(3) { width: 27% !important; }
-  .la table.la-table thead th:nth-child(5) { width: 11% !important; }
-  .la table.la-table thead th:nth-child(6) { width: 12% !important; }
-  .la table.la-table thead th:nth-child(7) { width: 11% !important; }
-  .la table.la-table thead th:nth-child(8) { width: 12% !important; }
+  .la table.la-table thead th:nth-child(5), .la table.la-table tbody tr:not(.mois) td:nth-child(5) { display: none; }
+  .la table.la-table thead th:nth-child(2) { width: 11% !important; }
+  .la table.la-table thead th:nth-child(3) { width: 16% !important; }
+  .la table.la-table thead th:nth-child(4) { width: 27% !important; }
+  .la table.la-table thead th:nth-child(6) { width: 11% !important; }
+  .la table.la-table thead th:nth-child(7) { width: 12% !important; }
+  .la table.la-table thead th:nth-child(8) { width: 11% !important; }
+  .la table.la-table thead th:nth-child(9) { width: 12% !important; }
   .la table.la-table tfoot td:nth-child(2) { display: none; }
   .la .la-ap-l li { grid-template-columns: 30px minmax(0, 1fr) 130px 120px 76px; }
 }

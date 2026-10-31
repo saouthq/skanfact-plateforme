@@ -19,7 +19,7 @@ perdu » — ce que fait l'écran de la v10 et où il le retrouve — et « Ce q
 | `achat.html` | L'achat, avec la lecture par l'IA (facultative, décision du 24/10/2026) |
 | `accueil.html` | L'accueil |
 | `clients.html` | Les clients : la liste et la fiche d'un client (documents, paiements, relances, affaires et contrats, matériel), la fenêtre du client, le relevé, l'import ; validée le 28/10/2026, appliquée : la liste (1.199.0), la fiche (1.200.0) |
-| `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations, le fil), et, en tête de la liste, les pièces qui restent à payer, la plus en retard d'abord, avec « Régler » sur chacune (passe 3, Skander le 30/10/2026 : plus de grandes tuiles de chiffres, ils iront à la page Statistiques) ; validée le 30/10/2026 ; la liste des achats est appliquée (1.202.0), les fournisseurs et leur fiche attendent |
+| `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations, le fil), et, en tête de la liste, les pièces qui restent à payer, la plus en retard d'abord, avec « Régler » sur chacune (passe 3, Skander le 30/10/2026 : plus de grandes tuiles de chiffres, ils iront à la page Statistiques) ; validée le 30/10/2026 ; la liste des achats est appliquée (1.202.0, 1.203.0 : régler plusieurs pièces ensemble), les fournisseurs et leur fiche attendent |
 
 ## Comment on les applique
 
@@ -400,7 +400,28 @@ preuves « achats 1 » à « achats 13 ».
 | Au téléphone | « À payer » en une carte (la somme, le retard, les pièces sans justificatif) ; la recherche ; deux puces, « En retard » et « À justifier » ; une carte par pièce (fournisseur, numéro · date, statut, objet, net ; l'échéance et le reste s'il en reste) |
 | Sans réseau | Un bandeau gris : la liste est celle que ce poste a gardée ; une dépense ou une photo partira avec le réseau ; un règlement l'attend, pour ne jamais payer deux fois (« Régler » n'est pas proposé) |
 
-**Écarts assumés (pour les lots suivants)** : choisir plusieurs pièces et les régler d'un virement (lot A1 b) ; la fiche
+**Écarts assumés (pour les lots suivants)** : choisir plusieurs pièces et les régler d'un virement (fait au lot A1 b) ; la fiche
 du fournisseur et sa liste (lots A2, A3) ; « + N de retenue » sous le reste d'une pièce payée sans sa retenue ; au téléphone,
 le bouton photo flottant et sa feuille « Ajouter » de la maquette (la barre du bas garde son « + », qui propose déjà la
 dépense et la photo).
+
+## Lot Achats 1 b : choisir plusieurs pièces, les régler d'un seul virement (1.203.0)
+
+Toujours `routes.achats` (`dessinerChoix`) et, nouvelle, `reglerEnsemble` (`web/public/v10/app.js`). Test :
+`tests/web/liste-achats.test.ts`, étape « 7 b » (photo `liste-achats-4-regler-ensemble.png`) ; preuves « achats 14 » à « achats 18 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| Les cases | Une case par ligne et « tout choisir » pour la page ; le choix survit aux filtres et aux pages. Au clavier : ↓ puis Espace coche la pièce, Échap défait tout le choix |
+| La barre des pièces choisies | En bas de l'écran : « N pièces choisies », le reste dû, « Régler ensemble », « Exporter » (les pièces choisies en tableur), « Ne plus rien choisir » |
+| « Régler ensemble » | Grisé, avec sa raison, tant qu'il n'y a pas deux pièces à payer d'un même fournisseur (« Un règlement va à un seul fournisseur : choisis des pièces du même »), pour une pièce en devise (elle se règle seule, au taux du jour), sans réseau ou pour le rôle qui lit |
+| La fenêtre | « Régler N pièces de … en un seul virement » : chaque pièce, son échéance, son reste, et ce que le virement lui donne pendant qu'on tape le montant — la plus ancienne d'abord (l'échéance, sinon la date), chacune au plus ce qui lui reste, la dernière « en partie » si le montant est plus petit. La date, le compte, le mode (virement par défaut), la référence, le RIB du fournisseur quand sa fiche l'a ; la retenue de chaque pièce, calculée sur son règlement, se dit avant d'enregistrer (À VÉRIFIER). Un montant plus grand que le total est refusé, en disant pourquoi |
+| Ce qui s'enregistre | Un règlement par pièce, à la même date, avec la même référence et la note « Un virement de … pour N pièces » : chaque pièce se lit, se corrige et se retire comme si elle avait été réglée seule |
+
+Au passage : la petite pastille du nombre dans les barres de choix (`.cpt`) reprenait la grille de la page « Ton compte » de la
+messagerie et étirait chaque bouton de 340 px, dans la liste des achats comme dans celle des factures ; elle est défaite dans
+`liste.css`.
+
+**Écarts assumés** : l'ordre de virement en PDF (celui des salaires) depuis la fenêtre ; « Télécharger les justificatifs »
+des pièces choisies (un seul fichier pour toutes) ; le geste « Régler ses N pièces » de la fiche d'un fournisseur viendra
+avec la fiche (lot A3).

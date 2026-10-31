@@ -95,7 +95,7 @@ describe('la liste des achats et dépenses, à la souris et au téléphone', () 
     await p.locator('#list-wrap tr[data-id="p-trans"]').waitFor({ timeout: 20_000 });
     await plusTard(p);
     const ids = () => p.locator('#list-wrap tbody tr[data-id]').evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.id));
-    const cellules = async (id: string) => (await p.locator(`#list-wrap tr[data-id="${id}"] td`).evaluateAll((tds) => tds.map((td) => (td as HTMLElement).innerText.replace(/\s+/g, ' ').trim()))).slice(0, 7);
+    const cellules = async (id: string) => (await p.locator(`#list-wrap tr[data-id="${id}"] td`).evaluateAll((tds) => tds.map((td) => (td as HTMLElement).innerText.replace(/\s+/g, ' ').trim()))).slice(1, 8);
 
     // 1. L'en-tête : un bouton principal, « Facture d'achat » ; pas de tuiles.
     expect(net(await p.locator('#view .la-tete').innerText())).toBe('Accueil Achats et dépenses Achats et dépenses Ce que tu achètes, ce que tu dois, la TVA que tu récupères Guide-moi Dépense Facture d\'achat');
@@ -202,6 +202,46 @@ describe('la liste des achats et dépenses, à la souris et au téléphone', () 
     await p.locator('#la-tout').click();
     await expect.poll(() => p.locator('#payables li').count()).toBe(5);
 
+    // 7 b. Choisir plusieurs pièces : la barre les compte ; « Régler ensemble » ne va qu'à un seul fournisseur.
+    const choisir = (id: string) => p.locator(`#list-wrap tr[data-id="${id}"] input[data-x]`).click();
+    await choisir('p-trans');
+    await expect.poll(async () => net(await p.locator('#la-choix .barre-choix').innerText().catch(() => ''))).toBe('1 pièce choisie reste 267,500 DT Régler ensemble 1 Exporter 1 Ne plus rien choisir');
+    expect(await p.locator('#bc-regler').getAttribute('title')).toBe('Choisis au moins deux pièces qui restent à payer');
+    await choisir('p-boites');
+    await expect.poll(() => p.locator('#bc-regler').getAttribute('title')).toBe('Un règlement va à un seul fournisseur : choisis des pièces du même');
+    await choisir('p-boites');
+    await choisir('p-plus1');
+    await expect.poll(async () => net(await p.locator('#la-choix .barre-choix').innerText())).toBe('2 pièces choisies reste 278,200 DT Régler ensemble 2 Exporter 2 Ne plus rien choisir');
+    expect(await p.locator('#bc-regler').isDisabled()).toBe(false);
+    // La barre tient sur une ligne, ses boutons à leur taille (la pastille du nombre les étirait de 340 px).
+    expect(await p.locator('#bc-regler').evaluate((b) => b.getBoundingClientRect().width)).toBeLessThan(220);
+    // Échap défait le choix ; on rechoisit.
+    await p.locator('#view h1').click();
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#la-choix .barre-choix').count()).toBe(0);
+    // Au clavier : ↓ choisit la première ligne, Espace la coche (et la ligne reste choisie au clavier).
+    await p.keyboard.press('ArrowDown');
+    await p.keyboard.press(' ');
+    await expect.poll(async () => net(await p.locator('#la-choix .barre-choix').innerText().catch(() => ''))).toMatch(/^1 pièce choisie reste 267,500 DT/);
+    expect(await p.locator('#list-wrap tr.kb').getAttribute('data-id')).toBe('p-trans');
+    await choisir('p-plus1');
+    await p.locator('#bc-regler').click();
+    const ens = p.locator('#modal-root .modal');
+    await ens.waitFor();
+    // 270,000 versés : le transport du 28/09 (sans échéance, la plus ancienne date) reçoit ses 267,500, la course PL-1 le reste.
+    await ens.locator('[name=amount]').fill('270');
+    await expect.poll(async () => (await ens.locator('#rge-l tbody tr').allInnerTexts()).map(net)).toEqual([
+      'TBS-118 Livraison farine — 267,500 DT 267,500 DT', `PL-1 Course ${new Date(Date.now() + 21 * 86_400_000).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis' })} 10,700 DT 2,500 DT en partie`]);
+    await ens.locator('[name=reference]').fill('VIR-2026-1031');
+    await p.screenshot({ path: path.join(PHOTOS, 'liste-achats-4-regler-ensemble.png') });
+    await ens.locator('#ok').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    await expect.poll(async () => JSON.stringify((await surLeServeur()).filter((o) => ['p-trans', 'p-plus1'].includes(o.cle)).sort((a, b) => a.cle.localeCompare(b.cle))
+      .map((o) => (o.contenu.payments as { amount: unknown; reference: string }[]).map((x) => [x.amount, x.reference])))).toBe(JSON.stringify([[[n('2.5'), 'VIR-2026-1031']], [[n('267.5'), 'VIR-2026-1031']]]));
+    expect(await p.locator('#la-choix .barre-choix').count()).toBe(0);
+    expect((await cellules('p-trans')).slice(4)).toEqual(['Payée', '267,500', '—']);
+    expect((await cellules('p-plus1')).slice(4)).toEqual(['Partiel', '10,700', '8,200']);
+
     // 8. Au téléphone : « À payer » en une carte, deux puces, une carte par pièce, rien ne déborde.
     await p.setViewportSize({ width: 390, height: 844 });
     await p.evaluate(() => { location.hash = '#/accueil'; location.hash = '#/achats'; });
@@ -222,7 +262,7 @@ describe('la liste des achats et dépenses, à la souris et au téléphone', () 
     await p.setViewportSize({ width: 1024, height: 768 });
     await p.evaluate(() => { location.hash = '#/achats'; });
     await p.locator('#list-wrap tr[data-id="p-trans"]').waitFor({ timeout: 20_000 });
-    expect(await p.locator('#list-wrap thead th').evaluateAll((ths) => ths.filter((t) => (t as HTMLElement).offsetParent).map((t) => (t as HTMLElement).innerText.replace(/[⇅↑↓]/g, '').trim()))).toEqual(['Date', 'N° du fournisseur', 'Fournisseur et objet', 'Statut', 'Net à payer', 'Reste', '']);
+    expect(await p.locator('#list-wrap thead th').evaluateAll((ths) => ths.filter((t) => (t as HTMLElement).offsetParent).map((t) => (t as HTMLElement).innerText.replace(/[⇅↑↓]/g, '').trim()))).toEqual(['', 'Date', 'N° du fournisseur', 'Fournisseur et objet', 'Statut', 'Net à payer', 'Reste', '']);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
     await p.screenshot({ path: path.join(PHOTOS, 'liste-achats-3-tablette.png') });
 
