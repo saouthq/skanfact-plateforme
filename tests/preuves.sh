@@ -21726,3 +21726,24 @@ prouver 'fournisseurs 8 : à la tablette, « Régler » disparaît' web/public/p
   .lc.lfo table.lfo-table td.lf-act { display: none; }" "$LFO"
 prouver 'fournisseurs 9 : au téléphone, la bulle des filtres reste seule sur sa ligne' web/public/plateforme/liste.css \
   "@media (max-width: 760px) { .lf #lf-filtres button.i.i-b { display: none; } }" "" "$LFO"
+
+# (1.205.0) Les achats, lot 3 : la fiche d'un fournisseur telle que la maquette.
+FF="l'en-tête, le bouton calculé, les bandeaux, les onglets, le fil, la colonne de droite, le menu, sans réseau, le téléphone"
+prouver 'fiche fournisseur 1 : ses pièces en retard se règlent une à une' web/public/v10/app.js \
+  "urgent.length > 1 && memeDevise(urgent) ? reglerEnsemble(urgent, refaire) : supplierPaymentForm(urgent[0], refaire)" "supplierPaymentForm(urgent[0], refaire)" "$FF"
+prouver 'fiche fournisseur 2 : « dont 137,445 en retard » sur 128,282 dus' web/public/v10/app.js \
+  "sum.late > sum.remaining - 0.0005 ? ', tout en retard'" "Math.abs(sum.late - sum.remaining) < 0.0005 ? ', tout en retard'" "$FF"
+prouver 'fiche fournisseur 3 : le retard tait la retenue à garder' web/public/v10/app.js \
+  '${rsAGarder > 0.0005 ? ` En payant' '${false ? ` En payant' "$FF"
+prouver 'fiche fournisseur 4 : les attestations à remettre ne se disent plus' web/public/v10/app.js \
+  "if (aRemettre.length) bandeaux.push(" "if (false) bandeaux.push(" "$FF"
+prouver 'fiche fournisseur 5 : l'"'"'objet d'"'"'une pièce ne lit plus ses lignes' web/public/v10/app.js \
+  "get: p => h(contenuAchat(p)) || '<span class=\"muted\">—</span>' });" "get: p => h(p.subject || '') || '<span class=\"muted\">—</span>' });" "$FF"
+prouver 'fiche fournisseur 6 : sans réseau, on règle quand même' web/public/v10/app.js \
+  "peutAcheter = !lecture && !enLecture('purchases'), peutRegler = !roleLit && !enLecture('purchases') && !horsLigne;" "peutAcheter = !lecture && !enLecture('purchases'), peutRegler = !roleLit && !enLecture('purchases');" "$FF"
+prouver 'fiche fournisseur 7 : deux boutons principaux sur une fiche sans achat' web/public/v10/app.js \
+  'class="btn" id="ff-premier"' 'class="btn btn-primary" id="ff-premier"' "$FF"
+prouver 'fiche fournisseur 8 : le fil dans le désordre' web/public/v10/app.js \
+  ".filter(x => x[0]).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);" ".filter(x => x[0]).slice(0, 6);" "$FF"
+prouver 'fiche fournisseur 9 : le RIB se casse sur deux lignes' web/public/plateforme/liste.css \
+  ".cf-dl dt.ff-rib-t, .cf-dl dd.ff-rib { grid-column: 1 / -1; }" "" "$FF"

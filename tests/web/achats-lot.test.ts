@@ -297,14 +297,13 @@ describe('le lot achats, à l\'écran', () => {
     await plusTard(p);
     const [large, visible] = await p.locator('#view').evaluate((v) => [v.scrollWidth, v.clientWidth] as const);
     expect(large).toBeLessThanOrEqual(visible + 1);
+    // (1.205.0, la maquette) Ses achats vivent dans leur carte, à gauche : le « Reste » se lit DANS la carte, sans passer
+    // sous la colonne de droite, quelle que soit la largeur des lettres (sur GitHub, une police plus étroite trompait
+    // une mesure prise contre le bord de la fenêtre, 05/10/2026).
     const reste = await p.locator('#sup-docs thead th').filter({ hasText: 'Reste' }).boundingBox();
-    expect(reste && reste.x + reste.width <= 1366).toBe(true);
-    // Sous 1620 px, la liste prend toute la largeur et les coordonnées passent dessous (ecrans.css) : ce qui se lit dans
-    // la page quelle que soit la largeur des lettres. Sur GitHub, une police plus étroite faisait tenir la liste à côté
-    // des coordonnées, et la mesure seule du « Reste » ne voyait plus rien (05/10/2026).
-    const panneau = (h: string) => p.locator('#view .dash-grid > .panel').filter({ has: p.getByRole('heading', { name: h, exact: true }) }).boundingBox();
-    const [liste, coordonnees] = [await panneau('Achats chez ce fournisseur'), await panneau('Coordonnées')];
-    expect(liste && coordonnees && coordonnees.y >= liste.y + liste.height - 1 && liste.width > coordonnees.width - 1).toBe(true);
+    const [gauche, droite] = [await p.locator('#view .cf-gauche > .cf-carte').first().boundingBox(), await p.locator('#view .cf-droite').boundingBox()];
+    expect(reste && gauche && reste.x + reste.width <= gauche.x + gauche.width + 1).toBe(true);
+    expect(gauche && droite && (droite.x >= gauche.x + gauche.width - 1 || droite.y >= gauche.y + gauche.height - 1)).toBe(true);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'achats-lot-3-fiche-fournisseur.png') });
 
     expect(erreurs).toEqual([]);

@@ -456,3 +456,38 @@ la phrase de l'import retrouve sa fin (« tous tes fournisseurs entrent d'un cou
 **Écarts assumés** : « N attestations de retenue à remettre » dans le menu (elles viendront avec l'onglet Retenues de la fiche,
 lot A3) ; le numéro de fiche d'un fournisseur (la maquette en cherche un) n'existe pas encore ; une colonne en devise
 (un fournisseur payé en euros) n'a pas encore son test ; la fiche du fournisseur vient au lot A3.
+
+## Lot Achats 3 : la fiche d'un fournisseur (1.205.0)
+
+La fiche de `achats-fournisseurs.html`, appliquée dans `routes.fournisseur` (`web/public/v10/app.js`), sur les pièces de la
+fiche d'un client (`.cf-*`, plus `.ff-fil-l` et le RIB de `liste.css`). Test : `tests/web/fiche-fournisseur.test.ts` (photos
+`fiche-fournisseur-1.png`, `-2-retenues.png`, `-3-retards.png`, `-4-telephone.png`, `-5-tablette.png`) ; preuves « fiche
+fournisseur 1 » à « fiche fournisseur 9 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Accueil › Fournisseurs › son nom », la pastille, son état (Nouveau, En retard, En ta faveur, Tu lui dois, À jour), puis sa ville, depuis quand il est fournisseur, ce que tu lui dois et ce qui est en retard (« tout en retard » quand le retard couvre ce qui est dû, un avoir compris) |
+| Le bouton principal | Calculé : « Régler FA-… » quand une seule pièce presse (en retard, ou à payer sous 7 jours) ; « Régler ses N pièces en retard · total » quand plusieurs pressent (un seul virement, lot 1 b) ; sinon « Enregistrer un achat ». À côté : « Enregistrer un achat » ou « Nouvelle commande », et le menu ⋯ |
+| Le menu ⋯ | Modifier la fiche ; Lui écrire (e-mail, WhatsApp : éteints quand la fiche n'a pas de quoi, en le disant) ; Créer chez lui (achat, dépense, commande, demande de prix) ; Exporter ses pièces dans un tableur ; Supprimer (impossible tant qu'il a des achats, en le disant) |
+| Les bandeaux | Le retard (combien, depuis quand, quelles pièces, la retenue que tu garderas, « Le prévenir » par e-mail) ; un avoir déduit de rien ou une pièce payée en trop ; une exonération de retenue qui finit dans 60 jours ; les attestations de retenue à lui remettre (« Les préparer » ouvre l'onglet Retenues) ; le matricule ou le RIB qui manque ; sans réseau, l'abonnement en lecture seule, le rôle qui lit |
+| Les onglets | Achats (ses pièces, l'objet lu dans les lignes quand la pièce n'en a pas) ; Règlements (date, pièce, moyen, versé, retenue gardée) ; Commandes (statut, livraison souhaitée, HT ; nouvelle commande, demande de prix) ; Retenues (base, retenue opérée ou à venir, « Imprimer l'attestation ») |
+| Le fil | Ses six derniers événements, du plus récent, chacun avec son icône : pièces reçues (un avoir en rouge, en moins), règlements en vert (et la retenue gardée), commandes et demandes de prix envoyées |
+| La colonne de droite | Coordonnées (et le nombre de factures reçues par El Fatoora sous le matricule) ; Ses conditions (délai, retenue ou exonération) ; Pour le payer (banque, RIB sur une ligne, « Copier le RIB ») ; Notes internes, enregistrées au fil de la frappe |
+| Sans réseau | Un bandeau gris ; aucun règlement (pour ne jamais payer deux fois), il revient avec le réseau |
+| Au téléphone, à la tablette | Le bouton principal en tête, sur toute la largeur ; les onglets se touchent (44 points) ; la colonne de droite passe dessous ; rien ne déborde |
+
+**Revue après écriture** (sur les photos) : la colonne « Objet » restait vide pour une pièce sans objet (elle lit maintenant ses
+lignes) ; « tu lui dois 128,282 DT dont 137,445 DT en retard » se contredisait quand un avoir diminue la dette (« tout en
+retard ») ; le RIB, en police machine, se cassait sur deux lignes (il prend toute la largeur de sa carte) ; une fiche sans
+adresse montrait « — » au-dessus de sa ville (la ville prend la place) ; la fiche sans achat avait deux boutons verts (celui
+de l'état vide est devenu secondaire). `tests/web/achats-lot.test.ts` mesurait l'ancienne mise en page (deux panneaux) : il
+mesure maintenant la règle (le « Reste » se lit dans la carte de gauche, la colonne de droite ne la recouvre pas).
+
+**Revue contre la maquette** : le fil gagne ses icônes et ses tons, le « − » d'un avoir et « envoyée » d'une commande ; le
+menu ⋯ gagne « Demande de prix » ; « , tout en retard » prend sa virgule.
+
+**Écarts assumés** : le numéro de fiche d'un fournisseur n'existe pas encore ; « Le prévenir » ouvre la messagerie du poste
+(pas d'envoi par le serveur) ; le fil ne compte pas encore les réceptions de marchandise ; l'onglet Commandes n'a pas encore
+les colonnes « Objet », « Reçu » et « Facture » ; « Ses conditions » ne dit pas encore la devise ni le moyen de paiement
+habituel (la fiche d'un fournisseur ne les porte pas) ; « Télécharger ses justificatifs » (un seul dossier) attend les
+pièces jointes conservées dix ans sur le serveur.
