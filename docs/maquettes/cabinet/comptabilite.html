@@ -101,7 +101,7 @@ table.rdp td:first-child { font-weight: 600; }
     <h2>Ce qui change par rapport à la page d'aujourd'hui</h2>
     <ul>
       <li><b>Les mois de l'année en tête, à la place de « Période ».</b> Douze cases : déposé (et ce qui a été payé), en retard, à déposer aujourd'hui, au brouillard, à venir. Un clic ouvre le mois ; « Toute l'année » revient à l'exercice. On sait où on en est avant d'ouvrir un écran.</li>
-      <li><b>Toute la comptabilité dans la barre de gauche</b> (Skander, 31/10 : « c'est le métier du comptable, tout doit être à portée de main »). Sous « Pièces du dossier », les trois groupes, Saisir, Consulter, Déclarer et clôturer, chacun avec <b>son anneau</b> qui se remplit à l'ouverture : Saisir, septembre fait à 86 % ; Consulter, livres équilibrés (anneau vert et coche) ; Déclarer, août en retard (anneau rouge, 40 %). Quand un groupe est fini, son anneau se ferme en vert. Le groupe ouvert se déplie sur ses écrans avec ce qui attend (Saisie 6, Banque 7…) ; un clic sur un autre groupe rouvre son dernier écran (Consulter → la Balance d'hier). <b>Concentré</b> : quand tu travailles dans une pièce (Saisie, Banque), la barre se replie d'elle-même ; il reste les trois anneaux et ce qui attend (13, 6), et la page prend toute la place. La souris au bord gauche (ou la touche <kbd>[</kbd>) la rouvre par-dessus la page, sans rien pousser ; elle se replie quand la souris repart. Réglable par personne : « toujours ouverte » ou « se replie quand je travaille ». Au clavier : <kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> pour les groupes, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> pour l'écran d'avant ou d'après ; la page glisse dans le sens où l'on va, en 0,2 seconde. Au téléphone, sans barre, le bouton à trois positions et les onglets en haut de la page.</li>
+      <li><b>La navigation de la comptabilité, à deux endroits mais jamais deux fois à l'écran</b> (Skander, 31/10). <b>En haut de la page</b>, sous « Guide-moi » et « + Une écriture » : le bouton à trois positions, Saisir · Consulter · Déclarer, avec ce qui attend (13, 6), et à côté les onglets du groupe (Saisie 6, Banque 7, Paie…). <b>Dans la barre de gauche</b>, le même bouton à l'horizontale et la liste des écrans. Les deux ne se montrent jamais ensemble : tant que la barre d'onglets du haut est à l'écran, celle de gauche s'efface en glissant, et il reste seulement « Comptabilité · Saisie ↑ » ; dès que la page descend (le brouillard, une longue liste) et que la barre du haut sort de l'écran, celle de gauche revient, pour changer d'écran sans remonter. Un clic sur « Comptabilité · Saisie ↑ » remonte la page. Les deux sont liées : glisser l'une fait glisser l'autre. Un clic sur un groupe ouvre son dernier écran (Consulter → la Balance d'hier) ; glisser la barre (souris, doigt, trackpad) montre les autres groupes sans quitter l'écran. Au clavier : <kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> ; la page glisse dans le sens où l'on va, en 0,2 seconde. Pour le voir : « La page descend » en haut de cette maquette, ou fais défiler l'écran de la maquette toi-même.</li>
       <li><b>Les trois groupes restent</b> (Saisir · Consulter · Déclarer et clôturer), avec <b>ce qui attend sur chaque écran</b> : 6 pièces dans Saisie, 7 lignes dans Banque, 2 mois dans Déclaration, 4 points dans Révision.</li>
       <li><b>Deux façons de saisir, au choix, en haut de la Saisie.</b> <b>Face à la pièce</b> : la pièce en grand à gauche, comme dans un lecteur de documents (zoom, tourner, en grand), ce que SkanFact y a lu surligné ; à droite, une fiche courte (fournisseur, date, total, TVA, compte) où chaque champ dit d'où il vient : « lu sur la pièce », « comme ses 4 tickets », « numéro suivant ». On vérifie, Entrée, la pièce suivante s'ouvre. <b>Au kilomètre</b> : le journal du mois, une pièce à la suite de l'autre au clavier ; le compte du fournisseur et le TTC suffisent, la charge et la TVA se proposent en gris, la pièce se solde seule, et la pièce de la ligne s'affiche à côté.</li>
       <li><b>Plus de grille débit/crédit à remplir pour un achat ordinaire.</b> L'écriture se montre sous la fiche, déjà faite ; « Ouvrir en lignes » donne la grille pour ventiler, et « + Une écriture » la garde pour ce qui n'a pas de pièce (OD, à-nouveaux, régularisations), avec les mêmes touches qu'aujourd'hui (Tab, Entrée, F2, F4, Ctrl+Entrée).</li>
@@ -144,7 +144,7 @@ table.rdp td:first-child { font-weight: 600; }
       <li><b>Le lecteur de la pièce dans la saisie</b> : la pièce en grand (zoom, tourner), les pastilles des pièces du mois (celles de Pièces reçues, dans le même ordre), et la zone où chaque champ a été lu (la lecture des photos d'achat existe déjà côté entreprise : elle garde la position de ce qu'elle lit).</li>
       <li><b>La fiche d'une pièce</b> : chaque champ porte sa source (lu, comme d'habitude, calculé) ; « comme d'habitude » se lit des pièces d'avant du même fournisseur ; Entrée enregistre et ouvre la suivante. La même fiche sert l'achat côté entreprise.</li>
       <li><b>Le mode « Au kilomètre »</b> : le journal du mois en grille ; la charge et la TVA proposées d'après le compte du tiers ; la pièce qui se solde seule ; les pièces rangées par date à l'enregistrement.</li>
-      <li><b>La comptabilité dans la barre</b> : les trois groupes et leurs anneaux (l'avancement du mois, lu des livres : pièces et lignes de banque traitées, étapes de déclaration, points de révision), le dernier écran ouvert gardé par personne et par dossier, le repli « concentré » et sa réouverture au bord, le réglage par personne. Validée, elle passe dans les autres maquettes du dossier (fiche, classeur, pièces).</li>
+      <li><b>La navigation de la comptabilité</b> : un seul composant (les trois groupes, ce qui attend, le dernier écran ouvert gardé par personne et par dossier, le glisser au clic, au doigt, au trackpad et au clavier), posé en haut de la page et dans la barre ; la barre de gauche guette la barre du haut et s'efface tant qu'elle est à l'écran. Validée, elle passe dans les autres maquettes du dossier (fiche, classeur, pièces).</li>
       <li><b>Les gestes en masse de la banque et ses règles</b> : confirmer les propositions, écrire d'après une règle, la liste des règles (le mot du relevé → le compte), chacune modifiable et supprimable.</li>
       <li><b>« Déjà saisie ? »</b> : un achat du même fournisseur et du même montant, sans justificatif, se propose avant la grille (« Joindre à FA-0919 »).</li>
       <li><b>La grille proposée</b> d'après la pièce et les pièces d'avant du même fournisseur (le compte, le taux de TVA lu sur la facture).</li>
@@ -588,7 +588,7 @@ table.rdp td:first-child { font-weight: 600; }
   const ECRANS = { saisie: 'Saisie', banque: 'Banque', paie: 'Paie', immos: 'Immobilisations', inventaire: 'Inventaire', journal: 'Livre-journal', grandlivre: 'Grand livre', balance: 'Balance', lettrage: 'Lettrage', recherche: 'Recherche', declaration: 'Déclaration', revision: 'Révision', exercice: 'Exercice', liasse: 'Liasse' };
   const GROUPES = [['saisir', 'Saisir', ['saisie', 'banque', 'paie', 'immos', 'inventaire']], ['consulter', 'Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['cloturer', 'Déclarer et clôturer', ['declaration', 'revision', 'exercice', 'liasse']]];
   // L'état choisi en haut → l'écran qu'il montre. Les fenêtres et les états gardent l'écran de la saisie.
-  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', focus: 'saisie', focusvue: 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
+  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
   const ecran = () => ECRAN_DE[s.etat] || (ECRANS[s.etat] ? s.etat : 'saisie');
   const groupe = () => GROUPES.find((g) => g[2].includes(ecran()));
   // Ce que chaque onglet compte : ce qui attend sur cet écran.
@@ -604,7 +604,7 @@ table.rdp td:first-child { font-weight: 600; }
   }
   function onglets() {
     const g = groupe(), e = ecran();
-    if (!tel() && s.menu === 'barre') return '';
+    if (!tel() && s.menu === 'barre') return `<div class="cp-nav-g haut">${navCompta(true)}</div>`;
     if (tel() && s.menu !== 'avant') return `<div class="cp-nav-g tel">${navCompta(true)}</div>`;
     const cpt = (o) => (COMPTE[o] && !['chargement', 'refus'].includes(s.etat) ? ` <small class="${o === 'declaration' ? 'r' : ''}">${COMPTE[o]}</small>` : '');
     const grp = GROUPES.map(([id, l, os]) => { const n = os.reduce((t, o) => t + (COMPTE[o] || 0), 0); return `<button type="button" role="tab" data-etat="${os[0]}" aria-selected="${g[0] === id}">${l}${n && !['chargement', 'refus'].includes(s.etat) ? ` <small class="${id === 'cloturer' ? 'r' : ''}">${n}</small>` : ''}</button>`; }).join('');
@@ -720,7 +720,7 @@ table.rdp td:first-child { font-weight: 600; }
   const COURT_G = { saisir: 'Saisir', consulter: 'Consulter', cloturer: 'Déclarer' };
   const DIT = { saisie: '6 pièces attendent', banque: '7 lignes du relevé à traiter', declaration: 'août en retard, septembre aujourd\'hui', revision: '4 points à reprendre', balance: 'tu y étais hier à 17 h' };
   const MEMO_G = { saisir: 'saisie', consulter: 'balance', cloturer: 'declaration' };
-  function navCompta(horiz) {
+  function navCompta(horiz, sansTitre) {
     const vide = ['chargement', 'refus'].includes(s.etat);
     const g = groupe(), e = ecran();
     const vu = s.etat === 'glisse' ? 1 : GROUPES.indexOf(g);
@@ -732,7 +732,7 @@ table.rdp td:first-child { font-weight: 600; }
       const n = !vide && COMPTE[o];
       return `<a href="#" class="${horiz ? 'cp-ph' : 'lien cp-ns'}${o === e ? ' active' : ''}" data-etat="${o}" draggable="false" title="${ECRANS[o]}${DIT[o] ? ' · ' + DIT[o] : ''}"${o === e ? ' aria-current="page"' : ''}>${ECRANS[o]}${n ? `<span class="nav-count compte ${o === 'declaration' ? 'alerte' : 'calme'}">${n}</span>` : ''}</a>`;
     }).join('')}</div>`).join('');
-    return `${horiz ? '' : '<span class="cp-nav-t">Comptabilité</span>'}<div class="cp-sgs" role="tablist" aria-label="La comptabilité" style="--i:${vu}"><span class="cp-sg-th" aria-hidden="true"></span>${segs}</div>
+    return `${horiz || sansTitre ? '' : '<span class="cp-nav-t">Comptabilité</span>'}<div class="cp-sgs" role="tablist" aria-label="La comptabilité" style="--i:${vu}"><span class="cp-sg-th" aria-hidden="true"></span>${segs}</div>
       <div class="cp-vp"><div class="cp-tr" style="--i:${vu}">${pans}</div></div>`;
   }
   // Les deux boutons (la barre et l'en-tête de la page) n'en font qu'un : glisser l'un fait glisser l'autre.
@@ -995,12 +995,12 @@ table.rdp td:first-child { font-weight: 600; }
   }
   const FAMILLES = [['Saisir', ['saisie', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'ecrire', 'paie', 'immos', 'inventaire']],
     ['Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['Déclarer et clôturer', ['declaration', 'deposer', 'revision', 'exercice', 'liasse']],
-    ['Un autre dossier', ['nouveau']], ['La barre', ['focus', 'focusvue']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
+    ['Un autre dossier', ['nouveau']], ['La barre', ['defile']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
   const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
     ['banque', 'Banque : le relevé de septembre'], ['ecrire', 'Banque : écrire le prélèvement STEG'], ['paie', 'Paie'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
     ['journal', 'Livre-journal'], ['grandlivre', 'Grand livre : 532 BIAT'], ['balance', 'Balance'], ['lettrage', 'Lettrage : fournisseurs'], ['recherche', 'Recherche : « 1250 »'],
     ['declaration', 'Déclaration d\'août, en retard'], ['deposer', 'Marquer août déposée'], ['revision', 'Révision de septembre'], ['exercice', 'Exercice 2026'], ['liasse', 'Liasse 2025'],
-    ['nouveau', 'Un livre qui n\'existe pas encore'], ['focus', 'Concentré : la barre repliée pendant la saisie'], ['focusvue', 'Concentré : la souris au bord gauche'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
+    ['nouveau', 'Un livre qui n\'existe pas encore'], ['defile', 'La page descend : la barre d’onglets sort de l’écran'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
     ['chargement', 'Chargement'], ['refus', 'Les livres ne se lisent pas'], ['hors', 'Sans réseau'], ['lecture', 'Abonnement en lecture seule']];
   // Rim ne valide pas, ne dépose pas, ne voit pas un client qu'elle ne suit pas.
   const interdit = (v) => (rim() && ['valider', 'deposer'].includes(v) ? 'Rim saisit : Anis valide et dépose' : rim() && v === 'nouveau' ? 'Un nouveau client que suit Anis' : !rim() && v === 'rimsaisie' ? 'La saisie vue par Rim' : '');
@@ -2667,6 +2667,17 @@ table.rdp td:first-child { font-weight: 600; }
     .cp-rang-a { display: flex; gap: 8px; align-items: center; flex: none; }
     .cp-exo { border: 1px solid var(--sb-trait-fort); background: var(--sb-papier); border-radius: 9px; height: 100%; min-height: 40px; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 700; color: var(--sb-encre); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
     .cp-exo svg { width: 13px; height: 13px; color: var(--sb-gris-2); }
+    /* La barre de gauche s'efface quand la barre du haut est à l'écran, et revient quand elle en sort. */
+    #barre .cp-cbx { display: grid; margin: 2px 0; }
+    #barre .cp-cbx-t { display: flex; align-items: baseline; gap: 5px; width: 100%; border: 0; background: none; padding: 8px 10px 4px; font: inherit; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--sb-gris-2); cursor: default; text-align: left; border-radius: 8px; }
+    #barre .cp-cbx-ou { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--sb-sarcelle-texte); opacity: 0; transform: translateX(-4px); transition: opacity .25s, transform .25s; white-space: nowrap; }
+    #barre .cp-cbx-ou i { font-style: normal; }
+    #barre .cp-cbx.cache .cp-cbx-t { cursor: pointer; } #barre .cp-cbx.cache .cp-cbx-t:hover { background: var(--sb-survol); }
+    #barre .cp-cbx.cache .cp-cbx-ou { opacity: 1; transform: none; }
+    #barre .cp-cbx-c { display: grid; grid-template-rows: 1fr; opacity: 1; transform: none; transition: grid-template-rows .32s cubic-bezier(.2, .8, .2, 1), opacity .24s, transform .32s cubic-bezier(.2, .8, .2, 1); }
+    #barre .cp-cbx-c > div { min-height: 0; overflow: hidden; padding: 0 1px; }
+    #barre .cp-cbx.cache .cp-cbx-c { grid-template-rows: 0fr; opacity: 0; transform: translateY(-8px) scale(.98); }
+    @media (prefers-reduced-motion: reduce) { #barre .cp-cbx-c, #barre .cp-cbx-ou { transition: none; } }
     /* La comptabilité dans la barre : un anneau par groupe, qui se remplit à l'ouverture. */
     @property --p { syntax: '<number>'; inherits: false; initial-value: 0; }
     #barre .cp-arbre { display: grid; gap: 2px; margin: 2px 0; }
@@ -2838,23 +2849,13 @@ table.rdp td:first-child { font-weight: 600; }
       ['d-saisie', 'd-banque', 'd-declaration'].forEach((r) => { const a = nd.querySelector(`a[data-route="${r}"]`); if (a) a.remove(); });
       nd.querySelectorAll('.nav-volet').forEach((v) => { v.classList.remove('active'); v.removeAttribute('aria-current'); });
       const pc = nd.querySelector('a[data-route="d-pieces"]');
-      // La comptabilité, entière dans la barre : trois groupes, chacun son anneau (le mois qui avance), ce qui attend ;
-      // le groupe ouvert déplié sur ses écrans. Un clic sur un groupe rouvre son dernier écran.
-      const vide = ['chargement', 'refus'].includes(s.etat), g = groupe(), e = ecran();
-      const MEMO = { saisir: 'saisie', consulter: 'balance', cloturer: 'declaration' };
-      const ANN = { saisir: [86, 'sarcelle', 'septembre fait à 86 %'], consulter: [100, 'vert', 'livres équilibrés'], cloturer: [40, 'rouge', 'août en retard'] };
-      const ICG = { saisir: icS, consulter: IC.loupe, cloturer: IC.decl };
-      const DIT = { saisie: '6 pièces attendent', banque: '7 lignes du relevé à traiter', declaration: 'août en retard, septembre aujourd’hui', revision: '4 points à reprendre', balance: 'tu y étais hier à 17 h' };
-      const html = GROUPES.map(([id, l, os]) => {
-        const n = vide ? 0 : os.reduce((t, o) => t + (COMPTE[o] || 0), 0);
-        const ouvert = g[0] === id, [p, ton, dit] = ANN[id];
-        const sous = ouvert ? `<div class="cp-nsous" role="group" aria-label="${l}">${os.map((o) => `<a href="#" class="lien cp-ns${o === e ? ' active' : ''}" data-etat="${o}" title="${ECRANS[o]}${DIT[o] ? ' · ' + DIT[o] : ''}"${o === e ? ' aria-current="page"' : ''}>${ECRANS[o]}${COMPTE[o] && !vide ? `<span class="nav-count compte ${o === 'declaration' ? 'alerte' : 'calme'}">${COMPTE[o]}</span>` : ''}</a>`).join('')}</div>` : '';
-        return `<a href="#" class="lien cp-gt${ouvert ? ' ouvert' : ''}" data-etat="${ouvert ? e : MEMO[id]}" title="${l} · ${dit}${n ? ` · ${n} choses attendent` : ''}" aria-expanded="${ouvert}">
-          <span class="cp-ann ${ton}" style="--p:${vide ? 0 : p}"><span class="cp-ann-c">${p === 100 && !vide ? IC.ok : ICG[id]}</span>${n ? `<i class="cp-bulle ${id === 'cloturer' ? 'r' : ''}">${n}</i>` : ''}</span>
-          <span class="cp-gt-l"><b>${l}</b><small>${vide ? 'les livres se lisent…' : dit}</small></span>${n ? `<span class="nav-count compte ${id === 'cloturer' ? 'alerte' : 'attire'}">${n}</span>` : ''}</a>${sous}`;
-      }).join('');
-      const box = document.createElement('div'); box.className = 'cp-arbre'; box.innerHTML = `<span class="cp-nav-t">Comptabilité · septembre</span>${html}`;
-      if (pc) pc.after(box);
+      // La comptabilité dans la barre : le même bouton à trois positions et la liste des écrans, à l'horizontale. Les deux
+      // navigations ne sont jamais visibles ensemble : tant que la barre d'onglets du haut de la page est à l'écran, celle-ci
+      // s'efface (il reste son titre et l'écran ouvert) ; dès que la page descend et que la barre du haut sort de l'écran,
+      // elle revient en glissant. Un clic sur le titre remonte la page.
+      const nb = document.createElement('div'); nb.className = 'cp-cbx' + (tel() ? '' : ' cache');
+      nb.innerHTML = `<button type="button" class="cp-cbx-t" title="Remonter à la barre d'onglets"><span>Comptabilité</span><span class="cp-cbx-ou">· ${ECRANS[ecran()]} <i>↑</i></span></button><div class="cp-cbx-c"><div><div class="cp-nav-g">${navCompta(false, true)}</div></div></div>`;
+      if (pc) pc.after(nb);
     }
     if (s.etat === 'nouveau') {
       const nd = root.getElementById('nav-dossier'); nd.style.setProperty('--d1', '#1fb8a8');
@@ -2882,7 +2883,7 @@ table.rdp td:first-child { font-weight: 600; }
     if (!t && s.etat === 'focus') ah.classList.add('barre-repliee');
     if (!t && s.etat === 'focusvue') ah.classList.add('cp-survole');
     // La page défile jusqu'à ce qu'on regarde : le brouillard, la fenêtre.
-    const cible = { brouillard: '.cp-bl' }[s.etat];
+    const cible = { brouillard: '.cp-bl', defile: '.cp-bl' }[s.etat];
     const sc = () => (t ? ah : [vue, ah, root.querySelector('main')].find((x) => x && x.scrollHeight > x.clientHeight + 5));
     if (cible) { const c = root.querySelector(cible), el = sc(); if (c && el) el.scrollTop += c.getBoundingClientRect().top - el.getBoundingClientRect().top - (t ? 70 : 90); }
     GK.placer(root, '#page-tb', null);
@@ -2893,6 +2894,12 @@ table.rdp td:first-child { font-weight: 600; }
     const to = root.querySelector('#toast.tb-toast'); if (to) { ah.style.position = 'relative'; ah.appendChild(to); }
     root.addEventListener('click', (ev) => { const a = ev.target.closest('a'); if (a) ev.preventDefault(); const d = ev.target.closest('[data-etat]'); if (d) ouvrir(d.dataset.etat); });
     root.querySelectorAll('.cp-nav-g').forEach(brancherNav);
+    const hautB = root.querySelector('.cp-nav-g.haut'), nbB = root.querySelector('#barre .cp-cbx');
+    if (hautB && nbB) {
+      const defil = [vue, ah, root.querySelector('main')].find((x) => x && x.scrollHeight > x.clientHeight + 5) || null;
+      new IntersectionObserver(([en]) => nbB.classList.toggle('cache', en.intersectionRatio > 0.5), { root: defil, threshold: [0, 0.5, 1] }).observe(hautB);
+      nbB.querySelector('.cp-cbx-t').addEventListener('click', () => { if (defil) defil.scrollTo({ top: 0, behavior: 'smooth' }); });
+    }
     ajuster();
     const Q = QUI[s.qui];
     $('legende').innerHTML = `<b>${Q.nom}, ${Q.role.toLowerCase()}</b> · ${ETATS_UI.find((x) => x[0] === s.etat)[1]} · ${t ? 'téléphone' : 'ordinateur'}`;
