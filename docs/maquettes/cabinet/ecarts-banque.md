@@ -36,12 +36,12 @@ se coche quand l'écran de l'application la montre comme la maquette, photo à l
 | # | Maquette | Application aujourd'hui | Fait |
 |---|---|---|---|
 | C1 | Relevé absent : le squelette grisé, la carte « Le relevé de septembre n'est pas encore là », Importer le relevé… / Le demander à Sarra, « Le relevé en PDF : bientôt (À VÉRIFIER) » | à revoir à côté (même idée) | ✅ 1.206.0 |
-| C2 | Importer : **une page**, pas une fenêtre : le fichier reconnu, les colonnes reconnues, « Avant d'importer » (la période, le solde de début, chaque ligne refait le solde, aucun doublon, ce qui va se passer), « Importer les 46 lignes » | une fenêtre (lot B4 pour les contrôles) | ⏳ lot B4 (reste une fenêtre) |
-| C3 | Import refusé : « Ce relevé est celui de novembre : celui d'octobre manque », les trois cases (dernier importé / manquant / ce fichier), « Importer d'abord celui d'octobre… », « Le demander à Sarra », « Garder ce fichier pour après » | absent (lot B4) | ⏳ lot B4 |
-| C4 | Banque nouvelle : nommer chaque colonne une fois, « Retenir ce modèle et continuer » | absent (lot B4) | ⏳ lot B4 |
-| C5 | Les règles : **une page** avec le tableau (libellé, sens, compte, TVA, a servi N fois / la dernière le …) et « Nouvelle règle » (libellé, sens, montant, compte, TVA, journal ; « aurait servi à 14 lignes depuis janvier ») | une fenêtre avec les mots retenus (lot B5 pour les règles fines) | ⏳ fenêtre (lot B5) ; aussi dans le ⋯ de la page |
-| C6 | L'état de rapprochement : **une page** avec la feuille (côté banque, côté livre, PROVISOIRE en filigrane), « Retour au relevé », « Joindre au dossier de révision », « Télécharger le PDF » | une fenêtre (« Joindre » : lot B3) | ⏳ fenêtre ; « Joindre » : lot B3 |
-| C7 | Écart non expliqué : la pastille rouge « 12,000 d'écart non expliqué » en haut, le pied rouge, les pistes avec leurs boutons (« Ouvrir OD-0931 », « Chercher 12,000 ») | pistes en texte, sans bouton par piste | ◐ « L'ouvrir » et « Chercher » par piste ; le pied rouge |
+| C2 | Importer : **une page**, pas une fenêtre : le fichier reconnu, les colonnes reconnues, « Avant d'importer » (la période, le solde de début, chaque ligne refait le solde, aucun doublon, ce qui va se passer), « Importer les 46 lignes » | une fenêtre (lot B4 pour les contrôles) | ✅ 1.209.0 (une page ; « Avant d'importer » : la période, le solde de début contre la fin du relevé d'avant, début + mouvements = fin, les lignes déjà importées) |
+| C3 | Import refusé : « Ce relevé est celui de novembre : celui d'octobre manque », les trois cases (dernier importé / manquant / ce fichier), « Importer d'abord celui d'octobre… », « Le demander à Sarra », « Garder ce fichier pour après » | absent (lot B4) | ✅ 1.209.0 (les trois cases, « Importer d'abord celui d'octobre… », « Le demander à Sarra », « L'importer quand même » au lieu de « Garder ce fichier pour après ») |
+| C4 | Banque nouvelle : nommer chaque colonne une fois, « Retenir ce modèle et continuer » | absent (lot B4) | ✅ 1.209.0 (les colonnes associées, « Retenir ce modèle et continuer » le retient pour la banque nommée) |
+| C5 | Les règles : **une page** avec le tableau (libellé, sens, compte, TVA, a servi N fois / la dernière le …) et « Nouvelle règle » (libellé, sens, montant, compte, TVA, journal ; « aurait servi à 14 lignes depuis janvier ») | une fenêtre avec les mots retenus (lot B5 pour les règles fines) | ✅ 1.209.0 (une page ; sens, montant au plus, TVA, « A servi » compté sur les relevés du dossier, ce que la nouvelle prendrait et la règle qu'elle dépasse) |
+| C6 | L'état de rapprochement : **une page** avec la feuille (côté banque, côté livre, PROVISOIRE en filigrane), « Retour au relevé », « Joindre au dossier de révision », « Télécharger le PDF » | une fenêtre (« Joindre » : lot B3) | ✅ 1.209.0 (une page ; « Joindre » range le PDF au classeur, au mois du relevé, dans « Le travail du cabinet ») |
+| C7 | Écart non expliqué : la pastille rouge « 12,000 d'écart non expliqué » en haut, le pied rouge, les pistes avec leurs boutons (« Ouvrir OD-0931 », « Chercher 12,000 ») | pistes en texte, sans bouton par piste | ✅ 1.209.0 (« Ouvrir OD-0931 », « Chercher 12,000 », le pied rouge) |
 | C8 | Septembre rapproché : la carte « Septembre est rapproché à la BIAT » au milieu, L'état de rapprochement (PDF) / Importer le relevé d'octobre / Revoir septembre, et le pied | un bandeau en haut de la liste | ✅ 1.207.0 (la carte au milieu, PDF, importer le suivant, « Revoir ») |
 | C9 | Écrire d'après une règle : « Rien dans le livre pour cette ligne. Sa règle « FRAIS TENUE » propose l'écriture ; elle sert aussi aux AGIOS du relevé », l'écriture, « Écrire et rapprocher » | proche ; la phrase et la TVA à part (« À VÉRIFIER ») à reprendre | ✅ 1.207.0 (la règle, et les autres lignes qu'elle sert) |
 
@@ -59,3 +59,13 @@ La carte, la coquille de la page et cinq écrans sont comme la maquette, photos 
 Le lot B2 est fait : une ligne du relevé paie des factures encore ouvertes (B7, B8, B12, B13 cochés). Les origines des
 rapprochées aussi (B11, lot B6). Restent, dans leur lot : « Joindre au dossier de révision » (B3), l'import en page avec
 ses contrôles (B4), les règles fines en page (B5), l'état et les pistes en page (C6, C7).
+
+## G. Le 31/10, la fin (1.209.0)
+
+Tout ce qui restait est fait, écran par écran, vu à l'écran : l'état de rapprochement en page et « Joindre au dossier de
+révision » (B3, C6), les pistes qui nomment la pièce (C7), l'import en page avec « Avant d'importer », le mois manquant
+refusé et la banque nouvelle retenue (B4, C2 à C4), les règles en page avec le sens, le montant au plus, la TVA et ce
+qu'une nouvelle règle prendrait (B5, C5). Écarts restants, voulus : « Garder ce fichier pour après » devient « L'importer
+quand même » (le trou reste dit dans les pistes) ; « aurait servi à N lignes depuis janvier » compte les relevés du
+dossier ouvert (les règles valent pour tout le cabinet, chaque dossier a ses relevés) ; l'essai de rapprochement à blanc
+avant l'import n'est pas fait (le rapprochement d'office se fait à l'import, et se dit après).

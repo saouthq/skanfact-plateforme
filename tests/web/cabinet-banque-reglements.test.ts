@@ -147,14 +147,15 @@ describe('la Banque : ce qu\'une ligne paie', () => {
     // ── Le taux de retenue se règle dans « Les règles de la banque » : un taux faux se refuse sur son champ.
     await p.locator(`[data-rowmenu="F:${ent}"]`).first().click();
     await p.getByRole('menuitem').filter({ hasText: 'Les règles de la banque' }).click();
-    const fenetre = p.locator('#modal-root .modal').last();
-    await fenetre.locator('#bq-taux').fill('1,5 ; beaucoup');
-    await fenetre.locator('#bq-taux-ok').click();
+    // (1.209.0) Les règles sont une page de la Banque ; les taux y sont, sous les règles.
+    const regles = p.locator('.bqr-page');
+    await regles.locator('#bq-taux').fill('1,5 ; beaucoup');
+    await regles.locator('#bq-taux-ok').click();
     await expect.poll(() => p.locator('body').innerText()).toContain('« beaucoup » n\'est pas un taux');
-    await fenetre.locator('#bq-taux').fill('1,5');
-    await fenetre.locator('#bq-taux-ok').click();
+    await regles.locator('#bq-taux').fill('1,5');
+    await regles.locator('#bq-taux-ok').click();
     await expect.poll(() => p.locator('#toast').innerText()).toMatch(/1 taux retenu : 1,5 %/);
-    await fenetre.getByRole('button', { name: 'Fermer' }).click();
+    await p.locator('#bqr-retour').click();
     // La Minoterie se lit maintenant au net de sa retenue : 1 846,200 − 27,693 = 1 818,507, au 4352 (opérée, une dette).
     await expect.poll(() => groupe('Minoterie')).toBe('prop');
     expect(await ligne('Minoterie').innerText()).toMatch(/FA-0914 · Minoterie du Cap Bon · net de sa retenue 27,693 · certificat à remettre/);

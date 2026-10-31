@@ -91,19 +91,22 @@ describe('la banque, à la souris', () => {
     // ── L'écran vide : l'aperçu de ce qui viendra, et l'import ──────────────────────────────────
     await aller();
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/Le relevé n'est pas encore là/);
+    // (1.209.0, maquette) L'import est une page de la Banque, avec ce qui est vérifié avant que rien n'entre.
     await p.locator('#bq-import').first().click();
-    await fenetre.locator('[name=banque]').fill('BIAT');
+    const imp = p.locator('.bqi-page');
+    await imp.locator('[name=banque]').fill('BIAT');
     const csv = ['Relevé de compte BIAT — mars 2026', 'Date;Libellé;Référence;Débit;Crédit',
       '02/03/2026;VIR CLIENT DUPONT;R1;;1 190,250', '05/03/2026;PRLV STEG;R2;85,125;', '10/03/2026;CHQ 1234;R3;700,000;'].join('\r\n');
-    const [fichier] = await Promise.all([p.waitForEvent('filechooser'), fenetre.locator('#rv-fichier').click()]);
+    const [fichier] = await Promise.all([p.waitForEvent('filechooser'), imp.locator('#rv-fichier').click()]);
     await fichier.setFiles({ name: 'releve-mars.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf8') });
-    await expect.poll(() => fenetre.locator('#rv-apercu').innerText()).toMatch(/3 lignes lues · mouvements 405,125/);
-    expect(await fenetre.locator('[name=compte]').inputValue()).toBe('532');
-    await fenetre.locator('[name=debut]').fill('10000,500');
-    await fenetre.locator('[name=fin]').fill('10405,625');
-    await expect.poll(() => fenetre.locator('#rv-fin-hint').innerText()).toMatch(/Ça tombe juste/);
+    await expect.poll(() => imp.locator('#rv-apercu').innerText()).toMatch(/3 lignes lues · mouvements 405,125/);
+    expect(await imp.locator('[name=compte]').inputValue()).toBe('532');
+    await imp.locator('[name=debut]').fill('10000,500');
+    await imp.locator('[name=fin]').fill('10405,625');
+    await expect.poll(() => imp.locator('#rv-fin-hint').innerText()).toMatch(/Ça tombe juste/);
+    await expect.poll(() => imp.locator('.bqi-av').innerText()).toMatch(/Avant d'importer[\s\S]*La période : du 02\/03\/2026 au 10\/03\/2026, 3 mouvements[\s\S]*Le premier relevé de ce compte[\s\S]*Début \+ mouvements = la fin du relevé : aucune ligne ne manque[\s\S]*Aucune ligne n'est déjà dans un relevé de ce compte/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-banque-1-import.png') });
-    await fenetre.getByRole('button', { name: 'Importer', exact: true }).click();
+    await imp.getByRole('button', { name: 'Importer', exact: true }).click();
     // Ce qui est sûr se rapproche à l'import : le virement ; le chèque de 700 (deux en face) attend qu'on le confirme.
     await expect.poll(() => p.locator('#toast').innerText(), { timeout: 10_000 }).toBe('Relevé importé : 3 lignes, dont 1 rapprochée d\'office.');
     const [R] = await releves(cafe, associe);
@@ -169,13 +172,53 @@ describe('la banque, à la souris', () => {
     expect(await pied()).toMatch(/Relevé au 10\/03 10 405,625 = Attendu au livre 532 10 405,625 Écart expliqué au millime plus rien à écrire/);
     // Les règles se lisent aussi du ⋯ de la page : la carte du mois rapproché ne garde que ses trois gestes.
     await (await menu(`F:${cafe}`)).filter({ hasText: 'Les règles de la banque' }).click();
-    await expect.poll(() => fenetre.innerText()).toMatch(/Les règles de la banque[\s\S]*STEG[\s\S]*6061/);
-    await fenetre.getByRole('button', { name: 'Fermer' }).click();
+    // (1.209.0, maquette) Les règles sont une page de la Banque : la règle, son compte, les lignes de ce dossier qu'elle prend.
+    await expect.poll(() => p.locator('.bqr-page').innerText()).toMatch(/Les règles de la banque · 1[\s\S]*STEG[\s\S]*les deux[\s\S]*6061[\s\S]*1\s*ici · la dernière le 05\/03/);
+    // Une nouvelle règle dit ce qu'elle prendrait AVANT d'être enregistrée, et à quelle règle ces lignes allaient.
+    await p.locator('#bqr-nouvelle').click();
+    await p.locator('#bqr-motif').fill('PRLV STEG');
+    await p.locator('#bqr-sens').selectOption('debit');
+    await p.locator('#bqr-compte').fill('6062');
+    await expect.poll(() => p.locator('#bqr-ap').innerText()).toMatch(/^Elle prendrait 1 ligne des relevés de ce dossier \(85,125\sDT\)\s*Les voir\s*1 ligne allait à « STEG » : celle-ci, plus précise, passe devant$/);
+    // Un mot trop courant se refuse sur son champ : il prendrait n'importe quelle ligne.
+    await p.locator('#bqr-motif').fill('VIR');
+    await p.locator('#bqr-ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/« VIR » est trop courant dans les relevés/);
+    expect(await p.locator('#bqr-motif').getAttribute('aria-invalid')).toBe('true');
+    // Enregistrée, la règle bornée (débit) va au serveur et prend sa ligne ; « STEG » n'en prend plus aucune ici.
+    await p.locator('#bqr-motif').fill('PRLV STEG');
+    await p.locator('#bqr-ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/La règle « PRLV STEG » proposera le 6062 aux lignes qui la contiennent/);
+    await expect.poll(() => p.locator('.bqr-t').innerText().then((t) => t.replace(/\s+/g, ' '))).toMatch(/STEG les deux 6061 .* 0 aucune ligne ici .* PRLV STEG débit 6062 .* 1 ici · la dernière le 05\/03/);
+    await p.locator('#bqr-retour').click();
     await p.locator('.bq-fini2 [data-bq-etat]').click();
-    await expect.poll(() => fenetre.innerText()).toMatch(/Solde du relevé au 10\/03\/2026\s+10\s405,625[\s\S]*Solde du livre au 10\/03\/2026\s+10\s405,625[\s\S]*Les deux soldes rectifiés sont égaux : 10\s405,625\sDT/);
-    expect(await fenetre.innerText()).not.toMatch(/Provisoire/);
+    // (1.209.0, maquette) L'état est une page : la feuille, « Joindre au dossier de révision », « Télécharger le PDF ».
+    const etat = p.locator('.bqe-page');
+    await expect.poll(() => etat.locator('.bqe').innerText()).toMatch(/Solde du relevé au 10\/03\/2026\s+10\s405,625[\s\S]*Solde du livre au 10\/03\/2026\s+10\s405,625[\s\S]*Les deux soldes rectifiés sont égaux : 10\s405,625\sDT/);
+    expect(await etat.locator('.bq-h').innerText()).toMatch(/définitif : chaque ligne du relevé a son écriture/);
+    expect(await etat.locator('.bqe').getAttribute('class')).not.toMatch(/prov/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-banque-3-etat.png') });
-    await fenetre.getByRole('button', { name: 'Fermer' }).click();
+    // Joint : le PDF va au classeur du client, au mois du relevé, dans « Le travail du cabinet » ; rouvert, la page le sait.
+    await etat.getByRole('button', { name: 'Joindre au dossier de révision' }).click();
+    await expect.poll(() => p.locator('#bqe-joint').innerText(), { timeout: 20_000 }).toMatch(/^\s*Joint au classeur du dossier : Mars 2026 › Le travail du cabinet\. Le voir dans le classeur$/);
+    const docs = (await api('GET', `/cabinets/${cabinet}/classeur/${cafe}/documents`, associe)).corps.documents as { titre: string; periode: string; rubrique: string; raison: string; fichier: { type: string } }[];
+    expect(docs.filter((d) => d.titre.startsWith('État de rapprochement')).map((d) => [d.titre, d.periode, d.rubrique, d.raison, d.fichier.type]))
+      .toEqual([['État de rapprochement du relevé 532 BIAT au 10/03/2026', '2026-03', 'piece', 'banque', 'application/pdf']]);
+    await p.locator('#bqe-retour').click();
+    await p.locator('.bq-fini2 [data-bq-etat]').click();
+    await expect.poll(() => p.locator('#bqe-joint').innerText()).toMatch(/^\s*Déjà au classeur depuis le \d\d\/\d\d\/\d{4}/);
+    expect(await etat.getByRole('button', { name: 'Joindre à nouveau (remplace)' }).count()).toBe(1);
+    await p.locator('#bqe-retour').click();
+    // Un relevé de mai alors qu'avril n'est pas là : refusé avant que rien n'entre, avec ce qui débloque.
+    await p.locator('.bq-fini2 #bq-import').click();
+    const mai = ['Date;Libellé;Débit;Crédit', '04/05/2026;VIR CLIENT DUPONT;;300,000'].join('\r\n');
+    const [fMai] = await Promise.all([p.waitForEvent('filechooser'), p.locator('.bqi-page #rv-fichier').click()]);
+    await fMai.setFiles({ name: 'releve-mai.csv', mimeType: 'text/csv', buffer: Buffer.from(mai, 'utf8') });
+    await expect.poll(() => p.locator('#rv-trou').innerText().catch(() => '')).toMatch(/^Ce relevé est celui de mai : celui d'avril manque[\s\S]*Dernier importé\s*02\/03\/2026 → 10\/03\/2026[\s\S]*Manquant\s*avril[\s\S]*Importer d'abord celui d'avril…/);
+    expect(await p.locator('.bqi-page #ok').isDisabled()).toBe(true);
+    // Le solde de début proposé est la fin du relevé de mars (le chiffre de la banque).
+    expect(await p.locator('.bqi-page [name=debut]').inputValue()).toMatch(/^10\s405,625$/);
+    await p.locator('.bqi-page').getByRole('button', { name: 'Retour au relevé' }).click();
 
     // ── Au téléphone : des cartes ; le tableau du bureau se cache ; le livre en face garde ses tableaux ─
     await p.setViewportSize({ width: 390, height: 860 });

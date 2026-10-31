@@ -97,7 +97,15 @@ const COLONNE = z.number().int().min(0).max(200);
 const REGLAGES = z.object({
   banques: z.record(z.string().min(1).max(60), z.object({ date: COLONNE, libelle: COLONNE, montant: COLONNE, debit: COLONNE, credit: COLONNE, reference: COLONNE }).partial().strict())
     .refine((o) => Object.keys(o).length <= 50, { message: 'cabinet.champ.banques' }),
-  libelles: z.array(z.object({ motif: z.string().min(1).max(40), compte: z.string().regex(/^\d{1,12}$/) }).strict()).max(500),
+  // (1.209.0, maquette « les règles ») Une règle peut se borner à un sens (débit : l'argent sort ; crédit : il entre) et à
+  // un montant au plus (en millimes, un entier), et séparer la TVA d'après son taux et son compte (À VÉRIFIER : le compte
+  // de TVA récupérable). Sans ces champs, elle reste ce qu'elle était : le mot du libellé, le compte.
+  libelles: z.array(z.object({
+    motif: z.string().min(1).max(40), compte: z.string().regex(/^\d{1,12}$/),
+    sens: z.enum(['debit', 'credit']).optional(),
+    auPlusMillimes: z.number().int().positive().max(1e15).optional(),
+    tva: z.object({ taux: TAUX_POUR_CENT, compte: z.string().regex(/^\d{1,12}$/) }).strict().optional(),
+  }).strict()).max(500),
   // (1.208.0) Les taux de retenue à la source que la Banque reconnaît, en %, au millime (une ligne payée au net de sa
   // retenue). Absents, rien ne se reconnaît ainsi : la règle inconnue ne fait rien. Les taux en vigueur : À VÉRIFIER.
   tauxRetenue: z.array(TAUX_POUR_CENT).max(20),

@@ -547,3 +547,10 @@ relevé rapproché au milieu). Le détail, écart par écart : `docs/maquettes/c
 Les factures non réglées en face d'une ligne, à cocher ; la remise ventilée ; le net de retenue (à un taux réglé par le
 cabinet) ; l'écriture qui sera passée ; « Rapprocher et lettrer les 3 ». Le détail : `docs/cabinet.md` (1.208.0) et
 `docs/maquettes/cabinet/ecarts-banque.md` (B7, B8, B12, B13).
+
+## La Banque : l'état, les règles et l'import en pages (1.209.0)
+
+L'état de rapprochement en page, joint au classeur du client (« Le travail du cabinet » du mois, provisoire ou
+définitif) ; les règles en page (sens, montant au plus, TVA à son compte, À VÉRIFIER ; ce qu'une nouvelle prendrait et la
+règle qu'elle dépasse) ; l'import en page avec « Avant d'importer » et le mois qui manque refusé avant que rien n'entre.
+Le détail : `docs/maquettes/cabinet/ecarts-banque.md` (G).

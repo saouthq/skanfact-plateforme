@@ -2914,7 +2914,22 @@
     return choisi.toUpperCase();
   }
 
-  function compteDuLibelle(table, libelle) {
+  // (1.209.0) Une règle bornée à un sens ou à un montant ne prend que les lignes qui y entrent : `sens` « debit » (l'argent
+  // sort, montant < 0) ou « credit » (il entre), `auPlusMillimes` le montant absolu au plus. Sans montant connu (un appel
+  // d'avant), seules les règles sans borne s'appliquent : une borne qu'on ne peut pas vérifier ne prend rien.
+  function regleAdmet(x, montant) {
+    const borne = x.sens === 'debit' || x.sens === 'credit' || num(x.auPlusMillimes) > 0;
+    if (!borne) return true;
+    if (montant === undefined || montant === null || montant === '') return false;
+    const m = round3(num(montant));
+    if (x.sens === 'debit' && !(m < 0)) return false;
+    if (x.sens === 'credit' && !(m > 0)) return false;
+    if (num(x.auPlusMillimes) > 0 && Math.round(Math.abs(m) * 1000) > num(x.auPlusMillimes)) return false;
+    return true;
+  }
+  // La précision d'une règle : le motif le plus long, puis une borne de plus (sens, montant) passe devant.
+  const precisionRegle = x => txt(x.motif).length * 4 + (x.sens ? 2 : 0) + (num(x.auPlusMillimes) > 0 ? 1 : 0);
+  function compteDuLibelle(table, libelle, montant) {
     const L = sansAccents(String(libelle || '').toLowerCase());
     const T = (Array.isArray(table) ? table : []).filter(x => x && txt(x.motif) && txt(x.compte) && !motGenerique(x.motif));
     // Le motif le plus LONG gagne : « STEG PRELEVEMENT » est plus précis que « STEG », et sans
@@ -2922,19 +2937,31 @@
     let choisi = null;
     T.forEach(x => {
       if (!L.includes(sansAccents(txt(x.motif).toLowerCase()))) return;
-      if (!choisi || txt(x.motif).length > txt(choisi.motif).length) choisi = x;
+      if (!regleAdmet(x, montant)) return;
+      if (!choisi || precisionRegle(x) > precisionRegle(choisi)) choisi = x;
     });
-    return choisi ? { compte: txt(choisi.compte), libelle: txt(choisi.libelle), motif: txt(choisi.motif) } : null;
+    if (!choisi) return null;
+    const t = choisi.tva && num(choisi.tva.taux) > 0 && txt(choisi.tva.compte) ? { taux: num(choisi.tva.taux), compte: txt(choisi.tva.compte) } : null;
+    return { compte: txt(choisi.compte), libelle: txt(choisi.libelle), motif: txt(choisi.motif), tva: t, regle: choisi };
   }
 
   function ecritureProposee(ligne, table, opts) {
     const o = opts || {};
     const l = ligne || {};
     const m = round3(num(l.montant));
-    const trouve = compteDuLibelle(table, l.libelle);
+    const trouve = compteDuLibelle(table, l.libelle, l.montant);
     const banque = txt(o.compte);
     const contre = trouve ? trouve.compte : '';
     const lib = txt(l.libelle) || 'Mouvement bancaire';
+    const a = Math.abs(m);
+    // (1.209.0) Une règle avec TVA sépare le montant : hors taxe au compte de la règle, la TVA au sien, au millime (la TVA
+    // est le reste, pour que l'écriture tombe juste). Taux et compte viennent de la règle : rien n'est écrit en dur.
+    const tva = trouve && trouve.tva ? round3(a - round3(a / (1 + trouve.tva.taux / 100))) : 0;
+    const ht = round3(a - tva);
+    const contreLignes = tva
+      ? [{ compte: contre, libelle: trouve.libelle || lib, debit: m < 0 ? ht : 0, credit: m > 0 ? ht : 0 },
+        { compte: trouve.tva.compte, libelle: `TVA ${String(trouve.tva.taux).replace('.', ',')} % · ${lib}`, debit: m < 0 ? tva : 0, credit: m > 0 ? tva : 0 }]
+      : [{ compte: contre, libelle: trouve && trouve.libelle ? trouve.libelle : lib, debit: m < 0 ? a : 0, credit: m > 0 ? a : 0 }];
     return {
       journal: txt(o.journal) || 'BQ',
       date: txt(l.date),
@@ -2943,8 +2970,8 @@
       source: 'banque',
       // L'argent entre (montant > 0) : la banque est débitée. Il sort : elle est créditée.
       lignes: [
-        { compte: banque, libelle: lib, debit: m > 0 ? Math.abs(m) : 0, credit: m < 0 ? Math.abs(m) : 0 },
-        { compte: contre, libelle: trouve && trouve.libelle ? trouve.libelle : lib, debit: m < 0 ? Math.abs(m) : 0, credit: m > 0 ? Math.abs(m) : 0 }
+        { compte: banque, libelle: lib, debit: m > 0 ? a : 0, credit: m < 0 ? a : 0 },
+        ...contreLignes
       ],
       // Sans règle connue, la contrepartie reste VIDE et `ecritureValide` refusera l'enregistrement.
       // C'est voulu : verser d'office au 471 rangerait le doute dans un compte que personne ne
@@ -7490,7 +7517,7 @@
     RELEVE_NIVEAUX, RELEVE_JOURS, AGING_BUCKETS,
     colonnesReleve, releveDepuisCsv, releveValide, releveDejaImporte, ajouterReleve, supprimerReleve,
     lignesBancaires, lignesARapprocher, candidatsDeLigne, piecesOuvertes, retenueDeReglement, reponsesDeLigne, ecritureDeReglement, rapprocherAuto, rapprocherLigne, derapprocherReleve, suspens,
-    compteDuLibelle, motifDeLibelle, ecritureProposee, lettrageAuto,
+    compteDuLibelle, regleAdmet, motifDeLibelle, ecritureProposee, lettrageAuto,
     echeancierDepuisLignes, balanceAgeeDepuisLignes,
     // La déclaration mensuelle (9.6.0)
     COMPTES_FISCAUX, CASES_A_VERIFIER, mouvementCompte, declarationMensuelle, controlesDeclaration,

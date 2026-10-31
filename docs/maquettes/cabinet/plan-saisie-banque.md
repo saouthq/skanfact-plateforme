@@ -61,7 +61,7 @@ comptable voit chaque jour : la banque qui se rapproche presque seule et l'écar
   sinon (« Annuler » la retire). Moteur : `piecesOuvertes`, `reponsesDeLigne`, `retenueDeReglement`,
   `ecritureDeReglement` (`compta.js`).
 - **B6 fait (1.208.0)** : les rapprochées disent ce qu'elles paient (la paie, la caisse, des factures, une règle).
-- Suivant : **B3** (« Joindre au dossier de révision »), **B4** (l'import en page), **B5** (les règles en page).
+- Fait le 31/10 (1.209.0) : **B3** (l'état en page, « Joindre au dossier de révision »), **B4** (l'import en page, ses contrôles, le mois manquant, la banque nouvelle), **B5** (les règles en page : sens, montant au plus, TVA, ce qu'elles prendraient). Suivant : **S1, S2, S3** (la Saisie).
 
 ## Ce qui attend une décision de Skander
 

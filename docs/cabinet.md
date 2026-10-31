@@ -474,6 +474,36 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### La Banque : l'état, les règles et l'import en pages (1.209.0, 31/10/2026)
+
+La fin de la maquette de la Banque (lots B3, B4, B5 ; écrans C2 à C7). Trois fenêtres deviennent des pages de la Banque,
+avec « Retour au relevé » :
+
+- **L'état de rapprochement** : la feuille telle qu'elle s'imprime (PROVISOIRE en filigrane tant qu'une ligne du relevé
+  n'est pas écrite), « Télécharger le PDF » et **« Joindre au dossier de révision »** : le serveur imprime la page et la
+  range dans le classeur du client, au mois du relevé, dans « Le travail du cabinet », classée (provisoire ou définitif) ;
+  rien ne passe par le poste. Joint une deuxième fois, il remplace le premier, qui reste marqué remplacé. Rouverte, la
+  page dit « Déjà au classeur depuis le … ».
+- **Les règles de la banque** : le tableau (le mot, le sens, le montant au plus, le compte, la TVA, les lignes des relevés
+  de ce dossier qu'elle prend et la dernière) et « Nouvelle règle ». Une règle peut se borner à un sens (débit : l'argent
+  sort ; crédit : il entre) et à un montant au plus (gardé en millimes, un entier), et séparer la TVA d'après son taux et
+  son compte (À VÉRIFIER : le compte de TVA récupérable, 4366 dans l'exemple) : hors taxe au compte de la règle, la TVA au
+  sien, la TVA étant le reste pour que l'écriture tombe juste au millime. La plus précise passe d'abord (le mot le plus
+  long, puis le sens, puis le montant) ; une borne qu'on ne peut pas vérifier ne prend rien. Avant d'enregistrer, la page
+  dit ce que la règle prendrait et à quelle règle ces lignes allaient. Un mot trop courant se refuse sur son champ. « Retenir
+  une règle d'après cette ligne » ouvre la page, le mot et le sens déjà remplis. Les taux de retenue y sont aussi.
+- **Importer un relevé** : « Avant d'importer » (la période ; le solde de début contre la fin du relevé d'avant ; début +
+  mouvements = fin ; les lignes déjà dans un relevé de ce compte). Le solde de début proposé est la fin du relevé d'avant
+  (le chiffre de la banque), sinon le livre. Un mois sans relevé entre le dernier et ce fichier se refuse avant que rien
+  n'entre (les trois cases, « Importer d'abord celui d'octobre… », « Le demander à … », « L'importer quand même »). Une
+  banque nouvelle : « Retenir ce modèle et continuer » garde ses colonnes pour tout le cabinet.
+
+Les pistes d'un écart nomment la pièce qu'elles ouvrent (« Ouvrir OD-0931 »). Serveur : les règles du cabinet acceptent
+`sens`, `auPlusMillimes` et `tva` (`serveur/cabinet/routes.ts`) ; le pont range un PDF imprimé par le serveur
+(`classeur.deposerPdf`). Moteur : `compteDuLibelle(table, libelle, montant)`, `regleAdmet`, `ecritureProposee` avec TVA.
+Essais : `tests/moteur/banque-regles.test.ts`, `tests/web/cabinet-banque.test.ts` ; preuves « règles 1 » à « règles 7 »,
+« état 1 », « état 2 », « import 1 » à « import 4 ».
+
 ### La Banque : ce qu'une ligne paie (1.208.0, 31/10/2026)
 
 Le lot B2 du plan (`docs/maquettes/cabinet/plan-saisie-banque.md`), maquette B7, B8, B12, B13. Quand rien n'attend la

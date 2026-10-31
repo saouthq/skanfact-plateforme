@@ -5239,9 +5239,11 @@
       }
       const le = jourTunisCl(x.deposeLe);
       const fait = x.raison ? ({ saisie: ['ok', 'saisie', 'ordre'], verifiee: ['ok', 'vérifiée', 'ordre'], rien: ['gris', 'gardée, rien à saisir', 'ordre'], double: ['gris', 'en double', 'ordre'], illisible: ['rouge', 'illisible', 'traiter'], banque: ['ok', 'rapprochée', 'ordre'] })[x.raison] : null;
-      items.push(avecLecture({ k: `d:${x.id}`, sorte: 'doc', doc: x, classee: !!x.raison, rub: /relev/i.test(`${x.titre} ${x.fichier.nom}`) ? 'banque' : 'achats', mois: x.periode, date: x.deposeLe, recue: true,
+      // (1.209.0) L'état de rapprochement joint depuis la Banque : le travail du cabinet du mois, provisoire ou définitif.
+      const etatBq = /^État de rapprochement /.test(String(x.titre || ''));
+      items.push(avecLecture({ k: `d:${x.id}`, sorte: 'doc', doc: x, classee: !!x.raison, rub: etatBq ? 'cabinet' : /relev/i.test(`${x.titre} ${x.fichier.nom}`) ? 'banque' : 'achats', mois: x.periode, date: x.deposeLe, recue: !etatBq,
         titre: x.titre, sous: x.detail || '', em: `${x.double ? `la même que ${nomJumelle(x.double)} · ` : ''}déposée ${le === K.today() ? 'aujourd\'hui' : `le ${jjmm(le)}`} par ${prenomCl(x.deposeNom) || 'le cabinet'}${x.provenance ? ` (${x.provenance})` : ''}`,
-        montant: null, etat: fait || ['ambre', 'à saisir', 'traiter'], geste: fait ? null : { lib: 'Saisir', act: 'saisir' }, photo: !/pdf/.test(x.fichier.type),
+        montant: null, etat: etatBq && x.raison ? ['ok', /^provisoire/.test(String(x.detail || '')) ? 'provisoire' : 'définitif', 'ordre'] : fait || ['ambre', 'à saisir', 'traiter'], geste: fait ? null : { lib: 'Saisir', act: 'saisir' }, photo: !/pdf/.test(x.fichier.type),
         jumelle: x.double ? `${x.double.sorte === 'message' ? 'p' : 'd'}:${x.double.id}` : '' }));
     }
     // (1.173.0) Une pièce à saisir qui répète une autre (le même fichier, ou la même lecture : fournisseur, numéro, total) :
@@ -6220,7 +6222,7 @@
         const l = clState.rub === 'retenues' ? pm.lp.filter(x => x.rs) : pm.lp.filter(x => x.rub === clState.rub);
         const nom = (CL_RUBS.find(([r]) => r === clState.rub) || ['', ''])[1];
         const o = l.filter(x => x.etat[2] === 'ordre').length, t = l.filter(x => x.etat[2] === 'traiter').length;
-        const quoiR = ({ achats: ['facture ou ticket', 'factures et tickets'], ventes: ['facture ou jour de caisse', 'factures et jours de caisse'], banque: ['relevé ou mouvement', 'relevés et mouvements'], paie: ['écriture de paie', 'écritures de paie'], retenues: ['retenue', 'retenues'], cabinet: ['écriture du cabinet', 'écritures du cabinet'] }[clState.rub] || ['pièce', 'pièces'])[l.length > 1 ? 1 : 0];
+        const quoiR = ({ achats: ['facture ou ticket', 'factures et tickets'], ventes: ['facture ou jour de caisse', 'factures et jours de caisse'], banque: ['relevé ou mouvement', 'relevés et mouvements'], paie: ['écriture de paie', 'écritures de paie'], retenues: ['retenue', 'retenues'], cabinet: ['écriture ou état du cabinet', 'écritures et états du cabinet'] }[clState.rub] || ['pièce', 'pièces'])[l.length > 1 ? 1 : 0];
         const rubs7 = CL_RUBS.filter(([r]) => r !== 'manque'), i7 = rubs7.findIndex(([r]) => r === clState.rub);
         const cleOrdre = `${d.id}:${pm.m}:${clState.rub}`;
         let trie = triAFaire(l);
@@ -6302,6 +6304,10 @@
         bloc = `<div class="cl-ap-b ok"><b>Déjà classée en double par ${esc(quiCl((p || x).classeePar))}, le ${esc(jjmm(jourTunisCl((p || x).classeeLe)))} à ${esc(heureCl((p || x).classeeLe))}</b><span>${jum ? `La même pièce que ${esc(jum.titre)}${jum.num ? ` (${esc(jum.num)})` : ''}, ${esc(jum.etat[1])}${jum.montant ? `, ${esc(dtCd(jum.montant))} DT` : ''}` : 'La même pièce est déjà arrivée'} : celle-ci ne compte pas dans ${esc(moisLong(sel.mois))}.</span></div>`;
         actions = `<button type="button" class="btn btn-sm" data-cl-ap="declasser"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Ce ne sont pas les mêmes</button>`;
         apres = `<small class="cl-ap-n">Une pièce en double sort du compte ${esc(deMois(sel.mois))} sans être effacée : elle reste dans l'historique.</small>`;
+      } else if (sel.sorte === 'doc' && /^État de rapprochement /.test(String(sel.doc.titre || ''))) {
+        // (1.209.0) L'état de rapprochement joint depuis la Banque : un papier de travail, pas une pièce à saisir. Il se refait
+        // depuis la Banque (« Joindre à nouveau » le remplace) ; rien à remettre à traiter.
+        bloc = `<div class="cl-ap-b ok"><b>Joint depuis la Banque · par ${esc(quiCl(x.classeePar))} le ${esc(jjmm(jourTunisCl(x.classeeLe)))} à ${esc(heureCl(x.classeeLe))}</b><span>${/^provisoire/.test(String(x.detail || '')) ? `Provisoire (${esc(String(x.detail).replace(/^provisoire : /, ''))}) : il deviendra définitif quand chaque ligne du relevé aura son écriture.` : 'Définitif : chaque ligne du relevé a son écriture.'} Il se refait depuis la Banque : « Joindre à nouveau » le remplace, celui-ci reste marqué remplacé.</span></div>`;
       } else if (raison) {
         const mots = { saisie: 'Saisie', verifiee: 'Vérifiée', rien: 'Gardée, rien à saisir', banque: 'Rapprochée', client: 'Saisie par le client' };
         bloc = `<div class="cl-ap-b ok"><b>${esc(mots[raison] || 'Classée')} · par ${esc(quiCl((p || x).classeePar))} le ${esc(jjmm(jourTunisCl((p || x).classeeLe)))} à ${esc(heureCl((p || x).classeeLe))}</b><span>${raison === 'rien' ? 'Elle est gardée dans le classeur ; elle ne fait aucune écriture.' : raison === 'verifiee' ? `Elle correspond à l'achat que ${esc(qui)} a saisi.` : 'Son écriture est dans ses livres.'}</span></div>`;
@@ -12196,7 +12202,7 @@
   // `suspens`) : l'écran ne refait aucun calcul de son côté.
   // `pieces` : les factures cochées en face d'une ligne (1.208.0), une liste par ligne ; `toutes` : la ligne dont on montre
   // toutes les pièces non réglées (« Partager entre plusieurs pièces »).
-  const banqueState = { releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {}, pieces: {}, toutes: '', annonce: null, gestesReleve: null };
+  const banqueState = { importer: false, etat: '', etatJoint: null, regles: '', nouvelle: null, nouvelleVoir: false, releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {}, pieces: {}, toutes: '', annonce: null, gestesReleve: null };
 
   const svgBq = (d, t = 16) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const BQ_IC = {
@@ -12362,9 +12368,12 @@
   function vueBanque(dossier) {
     const s = livresState;
     const releves = (s.livre.releves || []).slice().sort((a, b) => (b.du || '').localeCompare(a.du || ''));
+    if (banqueState.importer) return '<div class="bq-ecran bqi-page" id="bqi"></div>';
     if (!releves.length) return banqueVide(dossier);
     const R = releves.find(r => r.id === banqueState.releve) || releves[0];
     if (banqueState.releve !== R.id) { banqueState.releve = R.id; banqueState.sel = ''; banqueState.coches.clear(); banqueState.choix = {}; banqueState.pieces = {}; }
+    if (banqueState.etat === R.id) return vueEtatBq(dossier, R, ecartBanque(R), lectureSeuleLivre());
+    if (banqueState.regles === R.id) return vueReglesBq(dossier, R, lectureSeuleLivre());
     const lus = lectureBanque(dossier, R);
     const n = g => lus.filter(x => x.g === g).length;
     const restent = lus.filter(x => x.g !== 'ok');
@@ -12660,7 +12669,7 @@
     const memeMontant = EC.sus.livre.filter(x => KC.round3(Math.abs(x.montant) - Math.abs(EC.nonExplique)) === 0);
     memeMontant.slice(0, 2).forEach(x => {
       const e = ecritureDuLivre(L, x.ecritureId);
-      pistes.push(`<div class="bqp-pi"><b>Une écriture du livre fait ${esc(montant(Math.abs(EC.nonExplique)))} sans ligne au relevé</b><span>${esc(x.piece || pieceBq(e))} du ${esc(fmtJour(x.date))} · « ${esc(x.libelle || '')} » : écrite deux fois, ou au mauvais compte ?</span>${e ? `<button type="button" class="btn btn-sm" data-bq-voir-ecriture="${esc(x.ecritureId)}">L'ouvrir</button>` : ''}</div>`);
+      pistes.push(`<div class="bqp-pi"><b>Une écriture du livre fait ${esc(montant(Math.abs(EC.nonExplique)))} sans ligne au relevé</b><span>${esc(x.piece || pieceBq(e))} du ${esc(fmtJour(x.date))} · « ${esc(x.libelle || '')} » : écrite deux fois, ou au mauvais compte ?</span>${e ? `<button type="button" class="btn btn-sm" data-bq-voir-ecriture="${esc(x.ecritureId)}">Ouvrir ${esc(x.piece || pieceBq(e))}</button>` : ''}</div>`);
     });
     const d0 = KC.round3(Number(EC.premierR.soldeDebut) - EC.livreAvantPremier);
     if (d0) {
@@ -12691,17 +12700,6 @@
           <p>Importe le fichier de la banque tel qu'elle le donne (Excel ou CSV). Chaque ligne arrive avec ce qui lui répond dans le livre, et pourquoi ; ce qui est sûr se confirme d'un coup.</p>
           <div class="cp-gestes">${lectureSeuleLivre() ? '' : '<button type="button" class="btn btn-primary" id="bq-import">Importer un relevé…</button>'}${!dossier.manual && api.messagerie ? '<button type="button" class="btn" id="bq-demander-releve">Le demander au client</button>' : ''}</div>
           <span class="apx-mini">Le relevé en PDF : pas encore (À VÉRIFIER : les banques qui ne donnent que le PDF).</span></div></div></div>`;
-  }
-
-  // Les mots retenus (10.14.1) : ils proposent le compte d'une ligne que rien ne rapproche. Ils se relisent et se
-  // retirent ici ; une règle propose, elle n'écrit jamais sans le comptable.
-  function motsRetenusPanel() {
-    const table = (Array.isArray(S.libelles) ? S.libelles : []).filter(x => x && x.motif && x.compte);
-    if (!table.length) return '<div class="empty mini">Aucune règle encore : la première se retient en écrivant une ligne du relevé (« Proposer ce compte aux lignes qui contiennent… »).</div>';
-    const nom = nomDeCompte();
-    return `<div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Quand le libellé contient</th><th class="nw">Compte proposé</th><th>Intitulé</th><th></th></tr></thead>
-      <tbody>${table.map(x => `<tr><td class="nw"><div class="bq-lb">${icNature(x.motif, -1)}<b class="mono" style="align-self:center">${esc(x.motif)}</b></div>${KC.motifDeLibelle(x.motif) ? '' : ' <span class="muted small">trop courant : ne propose plus rien</span>'}</td>
-        <td class="nw mono">${esc(x.compte)}</td><td class="tronq">${esc(nom(x.compte))}</td>${RowMenu.cellule('MOT:' + x.motif)}</tr>`).join('')}</tbody></table></div>`;
   }
 
   // Le geste d'une ligne, puis la ligne SUIVANTE (celle d'après dans l'ordre des groupes) : on ne revient jamais chercher
@@ -12779,11 +12777,14 @@
     const s = livresState;
     const releves = s.livre.releves || [];
     const R = releves.find(r => r.id === banqueState.releve);
+    if (banqueState.importer) { const pg = $('#bqi', el); if (pg) releveFormDans(pg, root, dossier); return; }
     $$('#bq-import', el).forEach(b => { b.onclick = () => releveForm(root, dossier); });
     const dem = $('#bq-demander-releve', el);
     if (dem) dem.onclick = () => fenDemanderCl(dossier, { piece: 'Le relevé de banque du mois' }, { hors: true, apres: async () => drawLivres(root, dossier) });
     banqueState.gestesReleve = null;
     if (!R) return;
+    if (banqueState.etat === R.id) { brancherEtatBq(el, root, dossier, R); return; }
+    if (banqueState.regles === R.id) { brancherReglesBq(el, root, dossier, R); return; }
     const lus = lectureBanque(dossier, R);
     const parId = new Map(lus.map(x => [x.l.id, x]));
     const sel = parId.get(banqueState.sel);
@@ -12917,14 +12918,14 @@
     if (eqB) { eqB.onclick = () => { banqueState.filtre = 'reste'; redessiner(); }; eqB.onkeydown = ev => { if (ev.key === 'Enter') eqB.click(); }; }
     const eqL = $('#bq-eq-livre', el);
     if (eqL) { eqL.onclick = () => suspensLivreDialog(R); eqL.onkeydown = ev => { if (ev.key === 'Enter') eqL.click(); }; }
-    $$('[data-bq-etat]', el).forEach(b => { b.onclick = () => etatRapprochementDialog(dossier, R); });
+    $$('[data-bq-etat]', el).forEach(b => { b.onclick = () => ouvrirEtatBq(root, dossier, R); });
     sur('#bq-chercher-ecart', () => {
       const EC = ecartBanque(R);
       banqueState.cherche = montant(Math.abs(EC.nonExplique)).replace(/ /g, ' ');
       redessiner();
       const n2 = $('#bq-cherche'); if (n2) { n2.scrollIntoView({ behavior: 'smooth', block: 'center' }); n2.focus(); }
     });
-    sur('#bq-regles', () => reglesBanqueDialog(root, dossier));
+    sur('#bq-regles', () => ouvrirReglesBq(root, dossier, R));
     sur('#bq-revoir', () => { banqueState.revoir = R.id; redessiner(); });
     sur('#bq-annuler', async () => {
       const a = banqueState.annonce; banqueState.annonce = null;
@@ -12986,7 +12987,7 @@
         { sep: true },
         { icon: 'horloge', label: 'Mettre au compte d\'attente (471)', hint: 'le mois se termine, la ligne reste à régler', note: 'A', run: () => mettreEnAttenteBq(root, dossier, R, l) },
         peutDemander ? { icon: 'message', label: `Demander ${aClientBq(dossier)} ce que c'est`, hint: 'dans votre conversation, la ligne du relevé citée', note: 'D', run: () => demanderLigneBq(root, dossier, R, l) } : null,
-        { icon: 'texte', label: 'Retenir une règle d\'après cette ligne', hint: regle ? `« ${regle.motif} » en a déjà une (${regle.compte}) : la revoir` : motif ? `le compte se proposera aux lignes qui contiennent « ${motif} »` : 'son libellé est trop courant pour une règle', note: 'R', off: !regle && !motif, run: () => (regle ? reglesBanqueDialog(root, dossier) : motif ? ecrireDepuisBanque(root, dossier, R, l) : toast('Ce libellé est trop courant pour une règle : elle proposerait le compte à trop de lignes.')) },
+        { icon: 'texte', label: 'Retenir une règle d\'après cette ligne', hint: regle ? `« ${regle.motif} » en a déjà une (${regle.compte}) : la revoir` : motif ? `le compte se proposera aux lignes qui contiennent « ${motif} »` : 'son libellé est trop courant pour une règle', note: 'R', off: !regle && !motif, run: () => (regle ? ouvrirReglesBq(root, dossier, R) : motif ? ouvrirReglesBq(root, dossier, R, { motif, depuis: l.libelle, sens: Number(l.montant) < 0 ? 'debit' : 'credit' }) : toast('Ce libellé est trop courant pour une règle : elle proposerait le compte à trop de lignes.')) },
         { sep: true },
         { icon: 'annuler', label: 'Défaire le rapprochement', hint: 'rien à défaire : la ligne n\'est pas encore rapprochée', off: true, run: () => toast('Rien à défaire : la ligne n\'est pas encore rapprochée.') }
       ].filter(Boolean);
@@ -13015,7 +13016,7 @@
       const k = R.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId).length;
       const nR = (Array.isArray(S.libelles) ? S.libelles : []).filter(x => x && x.motif && x.compte).length;
       return [
-        { icon: 'texte', label: 'Les règles de la banque', hint: nR ? `${pl(nR, 'règle')} : un mot du libellé, le compte qu'il propose` : 'aucune encore : elles se retiennent en écrivant une ligne', run: () => reglesBanqueDialog(root, dossier) },
+        { icon: 'texte', label: 'Les règles de la banque', hint: nR ? `${pl(nR, 'règle')} : un mot du libellé, le compte qu'il propose` : 'aucune encore : elles se retiennent en écrivant une ligne', run: () => ouvrirReglesBq(root, dossier, R) },
         { icon: 'non', label: 'Défaire tous les rapprochements', hint: k ? `Les ${pl(k, 'ligne rapprochée', 'lignes rapprochées')} de ce relevé se défont d'un coup ; les écritures restent au livre` : 'Aucune ligne de ce relevé n\'est rapprochée', run: () => defaireTous(R) },
         { icon: 'supprimer', label: 'Retirer ce relevé', hint: 'Le fichier sort du livre ; les écritures qu\'il a servi à créer restent au livre', run: () => retirerReleve(root, dossier, R) }
       ];
@@ -13081,42 +13082,167 @@
       <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`, layer => { $('.modal', layer).classList.add('cab-moyen'); });
   }
   // Les règles (les mots retenus) dans leur fenêtre : on les relit, on retire celle qui se trompe.
-  function reglesBanqueDialog(root, dossier) {
-    modal(`<h2>Les règles de la banque</h2>
-      <p class="small muted">Pour tous tes clients : une ligne de relevé qui contient le mot se voit proposer le compte, et l'écriture d'après lui. Une règle propose ; elle n'écrit jamais sans toi. Une règle se retient en écrivant une ligne (« Proposer ce compte aux lignes qui contiennent… »).</p>
-      <div id="bq-regles-liste">${motsRetenusPanel()}</div>
+  // (1.209.0, maquette « les règles ») Les règles de la banque sont une page de la Banque : le tableau (le mot du libellé,
+  // le sens, le montant au plus, le compte, la TVA, combien de lignes de ce dossier elle prend et la dernière), « Nouvelle
+  // règle » avec ce qu'elle prendrait AVANT de l'enregistrer (et la règle qui les prenait déjà), les taux de retenue.
+  // Une règle propose ; elle n'écrit jamais sans le comptable. Les règles valent pour tous les dossiers du cabinet.
+  const reglesBq = () => (Array.isArray(S.libelles) ? S.libelles : []).filter(x => x && x.motif && x.compte);
+  const cleRegleBq = x => `${x.motif}|${x.sens || ''}|${x.auPlusMillimes || ''}`;
+  const lignesDuDossierBq = () => (livresState.livre.releves || []).flatMap(r => (r.lignes || []).map(l => ({ l, r })));
+  // Les lignes qu'une table de règles donne à chaque règle (la plus précise passe), en une passe.
+  const prisesParRegleBq = (table, lignes) => {
+    const m = new Map();
+    lignes.forEach(x => { const t = KC.compteDuLibelle(table, x.l.libelle, x.l.montant); if (t && t.regle) { const k = cleRegleBq(t.regle); if (!m.has(k)) m.set(k, []); m.get(k).push(x); } });
+    return m;
+  };
+  const sensBq = x => (x.sens === 'debit' ? 'débit' : x.sens === 'credit' ? 'crédit' : 'les deux');
+  const auPlusBq = x => (Number(x.auPlusMillimes) > 0 ? `jusqu'à ${montant(Number(x.auPlusMillimes) / 1000)}` : '');
+  function ouvrirReglesBq(root, dossier, R, brouillon) {
+    banqueState.regles = R.id; banqueState.etat = '';
+    banqueState.nouvelle = brouillon || null;
+    drawLivres(root, dossier);
+  }
+  function vueReglesBq(dossier, R, lect) {
+    const table = reglesBq();
+    const nom = nomDeCompte();
+    const lignes = lignesDuDossierBq();
+    const prises = prisesParRegleBq(table, lignes);
+    const n = banqueState.nouvelle;
+    const ligneT = (x, i) => {
+      const ps = prises.get(cleRegleBq(x)) || [];
+      const der = ps.map(y => y.l.date).sort().pop();
+      return `<tr><td><div class="bq-lb">${icNature(x.motif, x.sens === 'credit' ? 1 : -1)}<b class="mono" style="align-self:center">${esc(x.motif)}</b></div>${KC.motifDeLibelle(x.motif) ? '' : ' <small class="mu">trop courant : ne propose plus rien</small>'}</td>
+        <td>${esc(sensBq(x))}${auPlusBq(x) ? `<small class="bq-p">${esc(auPlusBq(x))}</small>` : ''}</td>
+        <td><span class="mono">${esc(x.compte)}</span> <span class="mu">${esc(nom(x.compte))}</span></td>
+        <td>${x.tva ? `${esc(String(x.tva.taux).replace('.', ','))} % · <span class="mono">${esc(x.tva.compte)}</span> <small class="bq-p">À VÉRIFIER</small>` : '<span class="mu">—</span>'}</td>
+        <td class="r"><b>${ps.length}</b><small class="bq-p">${ps.length ? `ici · la dernière le ${esc(fmtJour(der).slice(0, 5))}` : 'aucune ligne ici'}</small></td>
+        ${lect ? '<td></td>' : RowMenu.cellule('REG:' + i)}</tr>`;
+    };
+    const form = n && !lect ? formRegleBq(n, table, lignes, nom) : '';
+    return `<div class="bq-ecran bqr-page"><div class="bq-h"><div><b>Les règles de la banque · ${table.length}</b><span class="mu">elles proposent l'écriture des lignes que rien ne rapproche : frais, agios, prélèvements, salaires · pour tous les dossiers du cabinet</span></div>
+        <button type="button" class="btn btn-sm btn-ghost" id="bqr-retour">Retour au relevé</button>${lect || n ? '' : '<button type="button" class="btn btn-sm btn-primary" id="bqr-nouvelle">Nouvelle règle</button>'}</div>
+      ${form}
+      ${table.length ? `<div class="scroll-x"><table class="list compact bqr-t" data-cartes="oui"><thead><tr><th>Quand le libellé contient</th><th>Sens</th><th>Compte</th><th>TVA</th><th class="r">A servi</th><th></th></tr></thead>
+        <tbody>${table.map(ligneT).join('')}</tbody></table></div>`
+        : '<div class="empty mini">Aucune règle encore : « Nouvelle règle », ou en écrivant une ligne du relevé (« Proposer ce compte aux lignes qui contiennent… »).</div>'}
+      <p class="bqr-pied">Une règle propose ; elle n'écrit jamais sans toi. Ses lignes arrivent « À traiter » avec la règle dite, et tu valides. Quand deux règles prennent la même ligne, la plus précise passe d'abord (le mot le plus long, puis le sens, puis le montant) et la page le dit avant d'enregistrer. « A servi » compte les lignes des relevés de ce dossier qu'elle prend.</p>
       <h3 class="bq-st2">Les taux de retenue à la source</h3>
       <p class="small muted">Une ligne qui paie une facture moins sa retenue se reconnaît à ces taux, au millime près (« net de sa retenue »). Sans taux, rien ne se reconnaît ainsi : la ligne reste un écart. <b>À VÉRIFIER</b> avec le comptable : les taux en vigueur et leur assiette.</p>
-      <div class="bq-taux"><label class="field">${lbl('Taux, en %', 'bq.taux')}<input id="bq-taux" inputmode="decimal" placeholder="par exemple 1,5 ; 3" value="${esc(tauxRetenueBq().map(t => String(t).replace('.', ',')).join(' ; '))}"></label>
-        <button type="button" class="btn btn-sm" id="bq-taux-ok">Retenir ces taux</button></div>
-      <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`,
-    (layer, close) => {
-      $('.modal', layer).classList.add('cab-moyen');
-      // Les taux, séparés par « ; » (ou des espaces) ; un taux qui n'en est pas un se refuse en montrant le champ.
-      const champT = $('#bq-taux', layer);
-      $('#bq-taux-ok', layer).onclick = async () => {
-        const morceaux = String(champT.value || '').split(/[;\s]+/).map(x => x.trim()).filter(Boolean);
-        const faux = morceaux.find(x => !/^\d{1,2}([.,]\d{1,4})?$/.test(x) || !(Number(x.replace(',', '.')) > 0));
-        if (faux) { refus(champT, `« ${faux} » n'est pas un taux : écris des nombres entre 0 et 100, séparés par « ; » (par exemple 1,5 ; 3).`); return; }
-        const taux = [...new Set(morceaux.map(x => String(Number(x.replace(',', '.')))))];
-        try {
-          S = await api.saveBanque({ tauxRetenue: taux });
-          drawLivres(root, dossier);
-          toast(taux.length ? `${pl(taux.length, 'taux retenu', 'taux retenus')} : ${taux.map(t => t.replace('.', ',') + ' %').join(', ')}.` : 'Plus aucun taux : aucune ligne ne se lira « au net de sa retenue ».');
-        } catch (e) { toast(plainError(e), 'error'); }
-      };
-      bindRowMenus(layer, cle => {
-        if (!cle.startsWith('MOT:')) return [];
-        const mot = cle.slice(4);
-        return [{ icon: 'supprimer', label: 'Retirer cette règle', hint: 'Les prochains relevés ne proposeront plus ce compte ; les écritures déjà passées ne bougent pas', run: async () => {
-          const avant = Array.isArray(S.libelles) ? S.libelles.slice() : [];
+      ${lect ? `<p>${tauxRetenueBq().length ? esc(tauxRetenueBq().map(t => String(t).replace('.', ',') + ' %').join(', ')) : 'aucun taux'}</p>` : `<div class="bq-taux"><label class="field">${lbl('Taux, en %', 'bq.taux')}<input id="bq-taux" inputmode="decimal" placeholder="par exemple 1,5 ; 3" value="${esc(tauxRetenueBq().map(t => String(t).replace('.', ',')).join(' ; '))}"></label>
+        <button type="button" class="btn btn-sm" id="bq-taux-ok">Retenir ces taux</button></div>`}</div>`;
+  }
+  // Le brouillon d'une règle, tel qu'il se lit des champs (montants en millimes, entiers).
+  const regleDuBrouillonBq = n => {
+    const x = { motif: String(n.motif || '').trim(), compte: String(n.compte || '').trim() };
+    if (n.sens === 'debit' || n.sens === 'credit') x.sens = n.sens;
+    const mx = KC.nombreStrict(String(n.auPlus || '').replace(/\s/g, '').replace(',', '.'));
+    if (String(n.auPlus || '').trim() && Number.isFinite(mx) && mx > 0) x.auPlusMillimes = Math.round(mx * 1000);
+    const t = String(n.tvaTaux || '').trim().replace(',', '.');
+    if (t && String(n.tvaCompte || '').trim()) x.tva = { taux: String(Number(t)), compte: String(n.tvaCompte).trim() };
+    return x;
+  };
+  // Ce que la règle prendrait dans les relevés de ce dossier, et à quelle règle ces lignes allaient : dit avant d'enregistrer.
+  function apercuRegleBq(n, table, lignes) {
+    const x = regleDuBrouillonBq(n);
+    if (!x.motif || !x.compte) return '<span class="mu">Le mot du libellé et le compte disent ce qu\'elle prendrait.</span>';
+    const autres = table.filter((y, i) => i !== n.index);
+    const avant = new Map(lignes.map(y => [y, KC.compteDuLibelle(autres, y.l.libelle, y.l.montant)]));
+    const apres = lignes.map(y => [y, KC.compteDuLibelle([...autres, x], y.l.libelle, y.l.montant)]);
+    const prend = apres.filter(([, t]) => t && t.regle === x).map(([y]) => y);
+    const vole = prend.filter(y => avant.get(y));
+    const restent = apres.filter(([y, t]) => t && t.regle !== x && KC.compteDuLibelle([x], y.l.libelle, y.l.montant)).map(([, t]) => t.motif);
+    const somme = KC.round3(prend.reduce((s2, y) => s2 + Math.abs(Number(y.l.montant) || 0), 0));
+    const voir = banqueState.nouvelleVoir && prend.length ? `<ul class="bqr-vu">${prend.slice(0, 12).map(y => `<li><span>${esc(fmtJour(y.l.date).slice(0, 5))}</span><span class="mono">${esc(y.l.libelle || '')}</span><b>${montantSigne(y.l.montant)}</b></li>`).join('')}${prend.length > 12 ? `<li class="mu">… et ${prend.length - 12} autres</li>` : ''}</ul>` : '';
+    return `<span>Elle prendrait <b>${pl(prend.length, 'ligne')}</b> des relevés de ce dossier${prend.length ? ` (${esc(money(somme))})` : ''}</span>${prend.length ? `<button type="button" class="cp-plus" id="bqr-voir">${banqueState.nouvelleVoir ? 'Les cacher' : 'Les voir'}</button>` : ''}
+      ${vole.length ? `<span class="ambre">${pl(vole.length, 'ligne')} allai${vole.length > 1 ? 'ent' : 't'} à « ${esc([...new Set(vole.map(y => avant.get(y).motif))].join(' », « '))} » : celle-ci, plus précise, passe devant</span>`
+        : restent.length ? `<span class="ambre">${pl(restent.length, 'ligne')} qui ${restent.length > 1 ? 'contiennent' : 'contient'} le mot ${restent.length > 1 ? 'restent' : 'reste'} à « ${esc([...new Set(restent)].join(' », « '))} », plus précise</span>`
+        : `<span class="ok">${svgBq(BQ_IC.ok, 13)} aucune autre règle ne prend ces lignes</span>`}${voir}`;
+  }
+  function formRegleBq(n, table, lignes, nom) {
+    const ch = (lab, html, aide = '') => `<label class="bqr-ch"><span>${lab}</span>${html}${aide ? `<small>${aide}</small>` : ''}</label>`;
+    return `<div class="bqr-n" id="bqr-n"><b>${n.index != null ? `Modifier la règle « ${esc(n.motif)} »` : 'Nouvelle règle'}</b>
+      <div class="bqr-g">
+        ${ch('Quand le libellé contient', `<input id="bqr-motif" class="mono" maxlength="40" value="${esc(n.motif || '')}" placeholder="VERS ESP">`, n.depuis ? `tapé d'après « ${esc(n.depuis)} »` : 'un mot du libellé, au moins 4 lettres')}
+        ${ch('Sens', `<select id="bqr-sens"><option value="">Les deux</option><option value="debit"${n.sens === 'debit' ? ' selected' : ''}>Débit (sort)</option><option value="credit"${n.sens === 'credit' ? ' selected' : ''}>Crédit (entre)</option></select>`)}
+        ${ch('Montant au plus', `<input id="bqr-auplus" inputmode="decimal" value="${esc(n.auPlus || '')}" placeholder="tous">`, 'vide : tous les montants')}
+        ${ch('Compte', `<input id="bqr-compte" class="mono" inputmode="numeric" maxlength="12" value="${esc(n.compte || '')}" placeholder="6278">`, `<span id="bqr-nom">${esc(n.compte ? nom(n.compte) || 'pas dans le plan' : '')}</span>`)}
+        ${ch('TVA', `<span class="bqr-tva"><input id="bqr-tva" inputmode="decimal" value="${esc(n.tvaTaux || '')}" placeholder="aucune" aria-label="Taux de TVA, en %"><input id="bqr-tvac" class="mono" inputmode="numeric" maxlength="12" value="${esc(n.tvaCompte || '')}" placeholder="compte" aria-label="Compte de TVA"></span>`, 'le taux, en %, et son compte · À VÉRIFIER')}
+        ${ch('Journal', '<span class="bqr-in">BQ</span>')}
+      </div>
+      <div class="bqr-ap" id="bqr-ap">${apercuRegleBq(n, table, lignes)}</div>
+      <div class="cp-gestes"><button type="button" class="btn btn-primary" id="bqr-ok">Enregistrer la règle</button><button type="button" class="btn" id="bqr-annuler">Annuler</button></div></div>`;
+  }
+  function brancherReglesBq(el, root, dossier, R) {
+    const redessiner = () => drawLivres(root, dossier);
+    const sur = (q, fn) => { const b = $(q, el); if (b) b.onclick = fn; };
+    sur('#bqr-retour', () => { banqueState.regles = ''; banqueState.nouvelle = null; redessiner(); });
+    sur('#bqr-nouvelle', () => { banqueState.nouvelle = {}; banqueState.nouvelleVoir = false; redessiner(); const m = $('#bqr-motif'); if (m) m.focus(); });
+    sur('#bqr-annuler', () => { banqueState.nouvelle = null; redessiner(); });
+    const n = banqueState.nouvelle;
+    const champs = { motif: '#bqr-motif', sens: '#bqr-sens', auPlus: '#bqr-auplus', compte: '#bqr-compte', tvaTaux: '#bqr-tva', tvaCompte: '#bqr-tvac' };
+    const lire = () => { Object.entries(champs).forEach(([k, q]) => { const c = $(q, el); if (c) n[k] = c.value; }); };
+    // L'aperçu se refait à chaque frappe, sans redessiner la page (le curseur reste où il est).
+    const apercu = () => {
+      lire();
+      const ap = $('#bqr-ap', el); if (ap) ap.innerHTML = apercuRegleBq(n, reglesBq(), lignesDuDossierBq());
+      const nm = $('#bqr-nom', el); if (nm) nm.textContent = n.compte ? nomDeCompte()(n.compte.trim()) || 'pas dans le plan' : '';
+      const v = $('#bqr-voir', el); if (v) v.onclick = () => { banqueState.nouvelleVoir = !banqueState.nouvelleVoir; apercu(); };
+    };
+    if (n) { Object.values(champs).forEach(q => { const c = $(q, el); if (c) c.addEventListener(c.tagName === 'SELECT' ? 'change' : 'input', apercu); }); apercu(); }
+    sur('#bqr-ok', async () => {
+      lire();
+      const x = regleDuBrouillonBq(n);
+      // Chaque refus dit ce qui est refusé, pourquoi, et montre le champ.
+      if (!x.motif || x.motif.length < 3) { refus($('#bqr-motif', el), 'Écris un mot du libellé (au moins 3 lettres) : c\'est lui qui reconnaît les lignes.'); return; }
+      if (!KC.motifDeLibelle(x.motif)) { refus($('#bqr-motif', el), `« ${x.motif} » est trop courant dans les relevés (il prendrait n'importe quelle ligne) : choisis un mot plus précis.`); return; }
+      if (!/^\d{1,12}$/.test(x.compte)) { refus($('#bqr-compte', el), 'Le compte s\'écrit en chiffres (par exemple 6278).'); return; }
+      if (String(n.auPlus || '').trim() && !x.auPlusMillimes) { refus($('#bqr-auplus', el), `« ${n.auPlus} » n'est pas un montant : laisse vide pour tous les montants, ou écris par exemple 50,000.`); return; }
+      const tTxt = String(n.tvaTaux || '').trim();
+      if (tTxt && (!/^\d{1,2}([.,]\d{1,4})?$/.test(tTxt) || !(Number(tTxt.replace(',', '.')) > 0))) { refus($('#bqr-tva', el), `« ${tTxt} » n'est pas un taux : écris un nombre entre 0 et 100 (par exemple 19), ou laisse vide.`); return; }
+      if (tTxt && !/^\d{1,12}$/.test(String(n.tvaCompte || '').trim())) { refus($('#bqr-tvac', el), 'Une TVA va à un compte : écris-le en chiffres (À VÉRIFIER avec le plan du dossier).'); return; }
+      const avant = reglesBq();
+      const autres = avant.filter((y, i) => i !== n.index);
+      if (autres.some(y => cleRegleBq(y) === cleRegleBq(x))) { refus($('#bqr-motif', el), `Une règle « ${x.motif} » avec ce sens et ce montant existe déjà : modifie-la dans le tableau.`); return; }
+      const apres = n.index != null ? avant.map((y, i) => (i === n.index ? x : y)) : [...avant, x];
+      try {
+        S = await api.saveBanque({ libelles: apres });
+        banqueState.nouvelle = null;
+        redessiner();
+        toastUndo(n.index != null ? `La règle « ${x.motif} » est modifiée.` : `La règle « ${x.motif} » proposera le ${x.compte} aux lignes qui la contiennent.`, async () => { S = await api.saveBanque({ libelles: avant }); redessiner(); });
+      } catch (e) { toast(plainError(e), 'error'); }
+    });
+    // Les taux, séparés par « ; » (ou des espaces) ; un taux qui n'en est pas un se refuse en montrant le champ.
+    const champT = $('#bq-taux', el);
+    sur('#bq-taux-ok', async () => {
+      const morceaux = String(champT.value || '').split(/[;\s]+/).map(x => x.trim()).filter(Boolean);
+      const faux = morceaux.find(x => !/^\d{1,2}([.,]\d{1,4})?$/.test(x) || !(Number(x.replace(',', '.')) > 0));
+      if (faux) { refus(champT, `« ${faux} » n'est pas un taux : écris des nombres entre 0 et 100, séparés par « ; » (par exemple 1,5 ; 3).`); return; }
+      const taux = [...new Set(morceaux.map(x => String(Number(x.replace(',', '.')))))];
+      try {
+        S = await api.saveBanque({ tauxRetenue: taux });
+        redessiner();
+        toast(taux.length ? `${pl(taux.length, 'taux retenu', 'taux retenus')} : ${taux.map(t => t.replace('.', ',') + ' %').join(', ')}.` : 'Plus aucun taux : aucune ligne ne se lira « au net de sa retenue ».');
+      } catch (e) { toast(plainError(e), 'error'); }
+    });
+    bindRowMenus(el, cle => {
+      if (!cle.startsWith('REG:')) return [];
+      const i = Number(cle.slice(4));
+      const x = reglesBq()[i];
+      if (!x) return [];
+      return [
+        { icon: 'modifier', label: 'Modifier cette règle', hint: 'le mot, le sens, le montant, le compte, la TVA', run: () => {
+          banqueState.nouvelle = { index: i, motif: x.motif, sens: x.sens || '', auPlus: x.auPlusMillimes ? montant(x.auPlusMillimes / 1000) : '', compte: x.compte, tvaTaux: x.tva ? String(x.tva.taux).replace('.', ',') : '', tvaCompte: x.tva ? x.tva.compte : '' };
+          redessiner();
+        } },
+        { icon: 'supprimer', label: 'Retirer cette règle', hint: 'Les prochains relevés ne proposeront plus ce compte ; les écritures déjà passées ne bougent pas', run: async () => {
+          const avant = reglesBq();
           try {
-            S = await api.saveBanque({ libelles: avant.filter(x => x.motif !== mot) });
-            close(); drawLivres(root, dossier);
-            toastUndo(`« ${mot} » ne proposera plus de compte.`, async () => { S = await api.saveBanque({ libelles: avant }); drawLivres(root, dossier); });
+            S = await api.saveBanque({ libelles: avant.filter((y, j) => j !== i) });
+            redessiner();
+            toastUndo(`« ${x.motif} » ne proposera plus de compte.`, async () => { S = await api.saveBanque({ libelles: avant }); redessiner(); });
           } catch (e) { toast(plainError(e), 'error'); }
-        } }];
-      });
+        } }
+      ];
     });
   }
 
@@ -13151,22 +13277,72 @@
       <div class="bqe-p"><span>Préparé le ${esc(fmtJour(aujourdhui))}${moiNom() ? ` par ${esc(moiNom())}` : ''}</span><span>${pl(R.lignes.filter(x => x.rapprochement && x.rapprochement.ecritureId).length, 'mouvement rapproché', 'mouvements rapprochés')} sur ${R.lignes.length}${provisoire ? ` · provisoire : ${pl(aEcrire, 'ligne')} à écrire` : ''}</span></div>
       <div class="bqe-sig"><span>Le comptable</span><span>Pour ${esc(nomDossier || 'le client')}</span></div></div>`;
   }
-  function etatRapprochementDialog(dossier, R) {
+  // (1.209.0, maquette « l'état de rapprochement ») L'état est une page de la Banque, plus une fenêtre : la feuille telle
+  // qu'elle s'imprime, « Retour au relevé », « Joindre au dossier de révision » (le PDF rangé dans le classeur du client, au
+  // mois du relevé, dans « Le travail du cabinet », classé) et « Télécharger le PDF ». Joint une deuxième fois, il remplace
+  // le premier (qui reste, marqué remplacé) : le classeur garde un état par relevé, le dernier.
+  const titreEtatBq = R => `État de rapprochement du relevé ${R.compte}${R.banque ? ` ${R.banque}` : ''} au ${fmtJour(R.au)}`;
+  const nomEtatBq = R => `etat-rapprochement-${R.compte}-${R.au}.pdf`;
+  const pageEtatBq = (R, corps) => {
+    const css = [...document.styleSheets].map(f => { try { return [...f.cssRules].filter(r => /\.bqe/.test(r.cssText)).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(titreEtatBq(R))}</title><style>body{margin:24px;font:13px Helvetica,Arial,sans-serif}${css}</style></head><body>${corps}</body></html>`;
+  };
+  function vueEtatBq(dossier, R, EC, lect) {
+    const k = EC.banqueAll.filter(x => !x.ecritLe).length;
+    const j = banqueState.etatJoint && banqueState.etatJoint.releve === R.id ? banqueState.etatJoint : null;
+    const joindre = !lect && api.classeur && api.classeur.deposerPdf
+      ? `<button type="button" class="btn btn-sm" id="bqe-joindre">${j && j.doc ? 'Joindre à nouveau (remplace)' : 'Joindre au dossier de révision'}</button>` : '';
+    return `<div class="bq-ecran bqe-page"><div class="bq-h"><div><b>L'état de rapprochement · ${esc(R.compte)}${R.banque ? ` ${esc(R.banque)}` : ''} · au ${esc(fmtJour(R.au))}</b>
+        <span class="mu">${k ? `provisoire : ${pl(k, 'ligne')} du relevé ${k > 1 ? 'ne sont' : 'n\'est'} pas encore ${k > 1 ? 'écrites' : 'écrite'} · il deviendra définitif quand ${k > 1 ? 'elles le seront' : 'elle le sera'}` : 'définitif : chaque ligne du relevé a son écriture'}</span></div>
+        <button type="button" class="btn btn-sm btn-ghost" id="bqe-retour">Retour au relevé</button>${joindre}<button type="button" class="btn btn-sm btn-primary" id="bqe-pdf">${svgBq(BQ_IC.pdf, 15)} Télécharger le PDF</button></div>
+      <p class="bqe-joint${j && j.ko ? ' ko' : ''}" id="bqe-joint" role="status"${j && j.texte ? '' : ' hidden'}>${j && j.texte ? j.texte : ''}</p>
+      <div class="bqe-fond">${etatRapprochementHtml(dossier, R, EC)}</div></div>`;
+  }
+  // Ce que le classeur a déjà pour ce relevé : le dernier état joint (pas remplacé).
+  const etatDejaJointBq = (docs, R) => (docs || []).find(x => x.rubrique === 'piece' && !x.remplacePar && x.titre === titreEtatBq(R)) || null;
+  async function ouvrirEtatBq(root, dossier, R) {
+    banqueState.etat = R.id; banqueState.etatJoint = null;
+    drawLivres(root, dossier);
+    if (!api.classeur || !api.classeur.deposerPdf) return;
+    try {
+      const avant = etatDejaJointBq(((await api.classeur.documents(dossier.id)) || {}).documents, R);
+      if (avant && banqueState.etat === R.id) {
+        banqueState.etatJoint = { releve: R.id, doc: avant.id, texte: `Déjà au classeur depuis le ${esc(fmtJour(jourTunisCl(avant.deposeLe)))}${avant.deposeNom ? ` (${esc(prenomCl(avant.deposeNom))})` : ''} : le joindre à nouveau le remplace, l'ancien reste marqué remplacé.` };
+        drawLivres(root, dossier);
+      }
+    } catch (_) { /* le classeur ne se lit pas : la page reste, « Joindre » dira pourquoi s'il échoue */ }
+  }
+  function brancherEtatBq(el, root, dossier, R) {
     const EC = ecartBanque(R);
     const corps = etatRapprochementHtml(dossier, R, EC);
-    modal(`<h2>L'état de rapprochement · ${esc(R.compte)} · au ${esc(fmtJour(R.au))}</h2>
-      ${(k => (k ? `<p class="small muted">Provisoire : ${pl(k, 'ligne')} de relevé ne ${k > 1 ? 'sont' : 'est'} pas encore au livre. Il deviendra définitif quand ${k > 1 ? 'elles le seront' : 'elle le sera'}.</p>` : ''))(EC.banqueAll.filter(x => !x.ecritLe).length)}
-      <div class="bqe-fond">${corps}</div>
-      <div class="modal-actions"><button class="btn" data-close>Fermer</button><button class="btn btn-primary" id="bqe-pdf">${svgBq(BQ_IC.pdf, 15)} Télécharger le PDF</button></div>`,
-    (layer) => {
-      $('.modal', layer).classList.add('cab-large');
-      $('#bqe-pdf', layer).onclick = async () => {
-        const css = [...document.styleSheets].map(f => { try { return [...f.cssRules].filter(r => /\.bqe/.test(r.cssText)).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
-        const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>État de rapprochement ${esc(R.compte)} au ${esc(fmtJour(R.au))}</title><style>body{margin:24px;font:13px Helvetica,Arial,sans-serif}${css}</style></head><body>${corps}</body></html>`;
-        try { const f = await api.exportPdf(html, `etat-rapprochement-${R.compte}-${R.au}.pdf`); if (f) toast(`PDF enregistré : ${f}`); }
-        catch (e) { toast(plainError(e), 'error'); }
-      };
-    });
+    const html = pageEtatBq(R, corps);
+    const retour = $('#bqe-retour', el);
+    if (retour) retour.onclick = () => { banqueState.etat = ''; banqueState.etatJoint = null; drawLivres(root, dossier); };
+    const pdf = $('#bqe-pdf', el);
+    if (pdf) pdf.onclick = async () => {
+      try { const f = await api.exportPdf(html, nomEtatBq(R)); if (f) toast(`PDF enregistré : ${f}`); }
+      catch (e) { toast(plainError(e), 'error'); }
+    };
+    const joindre = $('#bqe-joindre', el);
+    if (joindre) joindre.onclick = async () => {
+      joindre.setAttribute('disabled', ''); joindre.textContent = 'Jointure…';
+      const k = EC.banqueAll.filter(x => !x.ecritLe).length;
+      const mois = String(R.au).slice(0, 7);
+      try {
+        const avant = etatDejaJointBq(((await api.classeur.documents(dossier.id)) || {}).documents, R);
+        const doc = await api.classeur.deposerPdf(dossier.id, html, nomEtatBq(R), {
+          rubrique: 'piece', periode: mois, titre: titreEtatBq(R), provenance: 'la Banque du cabinet', raison: 'banque',
+          detail: k ? `provisoire : ${pl(k, 'ligne')} du relevé à écrire` : 'définitif', remplace: avant ? avant.id : null,
+        });
+        const ou = `${cap(moisLong(mois))} ${mois.slice(0, 4)} › Le travail du cabinet`;
+        banqueState.etatJoint = { releve: R.id, doc: doc.id, texte: `${svgBq(BQ_IC.ok, 14)}<span>Joint au classeur du dossier : <b>${esc(ou)}</b>${avant ? ', à la place de celui d\'avant (gardé, marqué remplacé)' : ''}. <a href="#/dossier/${encodeURIComponent(dossier.id)}/classeur">Le voir dans le classeur</a></span>` };
+        drawLivres(root, dossier);
+        toast(`L'état de rapprochement est dans le classeur : ${ou}.`);
+      } catch (e) {
+        banqueState.etatJoint = { releve: R.id, ko: true, texte: `Pas joint : ${esc(plainError(e))} Le PDF peut se télécharger et se déposer à la main dans le classeur.` };
+        drawLivres(root, dossier);
+      }
+    };
   }
 
   // Une écriture, lue en entier, sans rien pouvoir y changer : c'est ce qu'un contrôle demande.
@@ -13338,17 +13514,26 @@
   // Le nom d'une colonne de relevé tel qu'on l'écrit, accents compris : « Debit » et « Credit »,
   // fabriqués depuis la clé technique, se lisaient comme des fautes (IMP-01).
   const NOM_COLONNE_RELEVE = { date: 'Date', libelle: 'Libellé', montant: 'Montant (signé)', debit: 'Débit', credit: 'Crédit', reference: 'Référence' };
+  // (1.209.0, maquette « importer le relevé ») L'import est une page de la Banque, plus une fenêtre : le fichier lu, les
+  // colonnes reconnues, « Avant d'importer » (la période, le solde de début contre la fin du relevé d'avant, début +
+  // mouvements = fin, aucun doublon), et un mois qui manque se dit AVANT que rien n'entre.
   function releveForm(root, dossier) {
+    banqueState.importer = true; banqueState.etat = ''; banqueState.regles = '';
+    drawLivres(root, dossier);
+  }
+  function releveFormDans(page, root, dossier) {
     const s = livresState;
     const banques = (S.banques && typeof S.banques === 'object') ? S.banques : {};
     const comptes = (s.livre.plan || []).map(c => c.compte).filter(c => /^5/.test(c)).sort();
     const defaut = (dossier.banque || {}).compte || comptes[0] || '532';
     let lu = null;
-    modal(`<h2>Importer un relevé bancaire</h2>
+    const fermer = () => { banqueState.importer = false; drawLivres(root, dossier); };
+    page.innerHTML = `<div class="bq-h"><div><b>Importer un relevé${(dossier.banque || {}).banque ? ` · ${esc(defaut)} ${esc(dossier.banque.banque)}` : ''}</b><span class="mu" id="rv-sous">le fichier tel que la banque le donne, Excel ou CSV</span></div>
+        <button type="button" class="btn btn-sm btn-ghost" data-close>Retour au relevé</button></div>
       <p class="small muted">Le fichier tel que la banque le donne — <b>Excel (.xlsx)</b> ou <b>CSV</b>, sans rien retoucher :
       les lignes au-dessus du tableau et les lignes de solde sont reconnues, et les soldes que le relevé écrit se reportent
       tout seuls. Les colonnes se reconnaissent à leur titre (Date, Libellé, Débit, Crédit…) ; si cette banque est nouvelle, tu les associes une fois et je les retiens.</p>
-      <form id="rv" class="grid-2">
+      <form id="rv" class="grid-2 bqi-f">
         <label class="field obligatoire">${lbl('Compte bancaire', 'bq.rCompte')}
           <input name="compte" value="${esc(defaut)}" list="rv-comptes" placeholder="532">
           <datalist id="rv-comptes">${comptes.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
@@ -13363,10 +13548,12 @@
         <button type="button" class="btn btn-sm" id="rv-fichier">Choisir le fichier…</button>
         <span id="rv-etat" class="small muted">Aucun fichier choisi.</span>
       </div>
+      <div id="rv-trou-z"></div>
+      <div id="rv-avant"></div>
       <div id="rv-apercu"></div>
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
-        <button class="btn btn-primary" id="ok" disabled>Importer</button></div>`,
-      (rootModal, close) => {
+      <div class="cp-gestes"><button class="btn btn-primary" id="ok" disabled>Importer</button><button class="btn" data-close>Annuler</button></div>`;
+    $$('[data-close]', page).forEach(b => { b.onclick = fermer; });
+    ((rootModal, close) => {
         const etat = $('#rv-etat', rootModal), apercu = $('#rv-apercu', rootModal), ok = $('#ok', rootModal);
         const v = n => (($(`[name=${n}]`, rootModal) || {}).value || '').trim();
         // Le solde de DÉPART se propose depuis le livre (T-04) : le solde du compte choisi, la
@@ -13399,6 +13586,7 @@
           else { hintFin.className = 'small muted'; hintFin.textContent = 'recopie le solde de fin écrit sur le relevé'; }
         };
         if (champFin) champFin.addEventListener('input', () => { finTouche = true; verdictFin(''); });
+        [champDebut, champFin].forEach(c => { if (c) c.addEventListener('input', () => { if (lu && (lu.lignes || []).length) montrer(); }); });
         // Les soldes que le RELEVÉ écrit (10.14.1, IMP-01) passent avant ceux du livre : ce sont les
         // chiffres de la banque, ceux que la fenêtre demandait de recopier du papier. Ce qu'on a
         // tapé soi-même n'est jamais écrasé.
@@ -13423,12 +13611,63 @@
           if (!champDebut || debutTouche || !lignes.length) return;
           const compte = v('compte'), premiere = lignes.map(l => l.date).filter(Boolean).sort()[0];
           if (!compte || !premiere) return;
+          // (1.209.0) Un relevé de ce compte avant celui-ci : son solde de fin est le début de celui-ci (le chiffre de la
+          // banque, pas celui du livre, que les lignes pas encore écrites décalent).
+          const prec = (s.livre.releves || []).filter(r => r.compte === compte && r.au && r.au < premiere).sort((x, y) => String(x.au).localeCompare(String(y.au))).pop();
+          if (prec && prec.soldeFin != null) {
+            champDebut.value = montantChamp(Number(prec.soldeFin)) || '0';
+            if (hint) hint.textContent = `la fin du relevé du ${fmtJour(prec.au)}`;
+            return;
+          }
           const avant = KC.lignesBancaires(s.livre, compte).filter(c => c.date < premiere);
           const solde = KC.round3(avant.reduce((a, c) => a + c.montant, 0));
           champDebut.value = montantChamp(solde) || '0';
           // Le solde s'arrête AVANT la première ligne : c'est celui du soir de la veille. « au 02/10
           // (veille de la première ligne) » sous une première ligne du 02/10 se contredisait.
           if (hint) hint.textContent = `d'après le livre : ${money(solde)} au soir du ${fmtJour(KC.ajouterJoursIso(premiere, -1))}, veille de la première ligne`;
+        };
+        let forcer = false;
+        // Les contrôles d'avant l'import, recalculés à chaque frappe d'un solde. Rend les mois sans relevé entre le dernier
+        // relevé de ce compte et ce fichier (vides : rien ne manque).
+        const controlesImport = lignes => {
+          const zone = $('#rv-avant', rootModal);
+          const dates = lignes.map(l => l.date).filter(Boolean).sort();
+          const du = dates[0] || '', au = dates[dates.length - 1] || '';
+          const compte = v('compte') || defaut;
+          const autres = (s.livre.releves || []).filter(r => r.compte === compte);
+          const prec = autres.filter(r => r.au && du && r.au < du).sort((x, y) => String(x.au).localeCompare(String(y.au))).pop();
+          const trou = [];
+          if (prec && du) { for (let m = moisSuivant(String(prec.au).slice(0, 7)); m < du.slice(0, 7); m = moisSuivant(m)) trou.push(m); }
+          const debut = KC.nombreDepuisCsv(v('debut')), fin = v('fin') ? KC.nombreDepuisCsv(v('fin')) : null;
+          const cle = l => `${l.date}|${KC.round3(Number(l.montant) || 0)}|${String(l.libelle || '').trim().toLowerCase()}`;
+          const deja = new Set(autres.flatMap(r => (r.lignes || []).map(cle)));
+          const doubles = lignes.filter(l => deja.has(cle(l))).length;
+          const juste = fin != null && KC.releveValide({ compte, soldeDebut: debut, soldeFin: fin, lignes }).ok;
+          const ok = t => `<li class="ok">${svgBq(BQ_IC.ok, 14)}<span>${t}</span></li>`, ko = t => `<li class="ko">${svgBq(BQ_IC.alerte, 14)}<span>${t}</span></li>`;
+          const sous = $('#rv-sous', rootModal);
+          if (sous) sous.textContent = `${String(lu.fichier || '').split(/[\\/]/).pop()} · ${pl(lignes.length, 'mouvement')}${du ? ` · du ${fmtJour(du)} au ${fmtJour(au)}` : ''}`;
+          const contact = contactBq(dossier) || 'le client';
+          // La boîte du mois manquant ne se redessine que si elle change : la frappe d'un solde la redessinait, et le clic
+          // sur « L'importer quand même » tombait sur une boîte déjà remplacée.
+          const htmlTrou = (trou.length && !forcer ? `<div class="bqk" id="rv-trou"><div class="bqk-t"><span class="bqx">${svgBq(BQ_IC.alerte, 18)}</span><div><b>Ce relevé est celui ${esc(deMois(du.slice(0, 7)))} : ${trou.length > 1 ? `${esc(trou.map(m => moisLong(m)).join(', '))} manquent` : `celui ${esc(deMois(trou[0]))} manque`}</b>
+                <p>Le dernier relevé de ce compte finit le ${esc(fmtJour(prec.au))}. Importé tel quel, ${trou.length > 1 ? 'ces mois resteraient' : 'ce mois resterait'} sans relevé, et l'écart de la banque ne s'expliquerait plus.</p></div></div>
+              <div class="bqk-f"><div><small>Dernier importé</small><b>${esc(fmtJour(prec.du))} → ${esc(fmtJour(prec.au))}</b><small>fin ${esc(money(prec.soldeFin))}</small></div>
+                <div class="trou"><small>Manquant</small><b>${esc(trou.map(m => moisLong(m)).join(', '))}</b><small>aucun relevé</small></div>
+                <div><small>Ce fichier</small><b>${esc(fmtJour(du))} → ${esc(fmtJour(au))}</b><small>${pl(lignes.length, 'mouvement')}</small></div></div>
+              <div class="cp-gestes"><button type="button" class="btn btn-primary" id="rv-dabord">Importer d'abord celui ${esc(deMois(trou[0]))}…</button>${!dossier.manual && api.question ? `<button type="button" class="btn" id="rv-demander">Le demander à ${esc(contact)}</button>` : ''}<button type="button" class="btn btn-ghost" id="rv-forcer">L'importer quand même</button></div></div>` : '');
+          const zoneT = $('#rv-trou-z', rootModal);
+          if (zoneT && zoneT.dataset.h !== htmlTrou) { zoneT.innerHTML = htmlTrou; zoneT.dataset.h = htmlTrou; }
+          if (zone) zone.innerHTML = `<div class="bqi-av"><b>Avant d'importer</b><ul>
+              ${du ? ok(`La période : du ${esc(fmtJour(du))} au ${esc(fmtJour(au))}, ${pl(lignes.length, 'mouvement')}.`) : ''}
+              ${prec ? (KC.round3(debut - Number(prec.soldeFin || 0)) === 0 ? ok(`Le solde de début (${esc(money(debut))}) est la fin du relevé du ${esc(fmtJour(prec.au))}.`) : ko(`Le solde de début (${esc(money(debut))}) n'est pas la fin du relevé du ${esc(fmtJour(prec.au))} (${esc(money(prec.soldeFin))}) : écart ${esc(money(KC.round3(debut - Number(prec.soldeFin || 0))))}.`)) : ok('Le premier relevé de ce compte : son solde de début se lit dans le relevé, ou dans le livre.')}
+              ${fin == null ? ko('Le solde de fin manque : recopie-le du relevé, c\'est lui qui prouve qu\'aucune ligne ne manque.') : juste ? ok('Début + mouvements = la fin du relevé : aucune ligne ne manque.') : ko('Début + mouvements ne donne pas la fin du relevé : une ligne manque peut-être au fichier.')}
+              ${doubles ? ko(`${pl(doubles, 'ligne est', 'lignes sont')} déjà dans un relevé de ce compte (même date, même montant, même libellé) : ${doubles > 1 ? 'elles seraient' : 'elle serait'} en double.`) : ok('Aucune ligne n\'est déjà dans un relevé de ce compte.')}
+              <li class="mu"><span>À l'import, ce qui ne fait aucun doute se rapproche d'office ; le reste arrive « à traiter », avec ce que SkanFact propose.</span></li></ul></div>`;
+          const sur2 = (q, fn) => { const b = $(q, rootModal); if (b) b.onclick = fn; };
+          sur2('#rv-dabord', () => $('#rv-fichier', rootModal).click());
+          sur2('#rv-demander', () => fenDemanderCl(dossier, { piece: `Le relevé de banque ${deMois(trou[0])}` }, { hors: true, apres: async () => drawLivres(root, dossier) }));
+          sur2('#rv-forcer', () => { forcer = true; montrer(); });
+          return trou;
         };
         const montrer = () => {
           if (!lu) return;
@@ -13455,13 +13694,19 @@
               <div class="grid-2">${['date', 'libelle', 'montant', 'debit', 'credit', 'reference'].map(champ =>
                 `<label class="field">${lbl(NOM_COLONNE_RELEVE[champ], 'bq.colonne')}
                   <select data-col="${champ}"><option value="">—</option>${lu.entetes.map((e, i) => `<option value="${i}">${esc(e || ('Colonne ' + (i + 1)))}</option>`).join('')}</select></label>`).join('')}</div>
-              <div class="modal-actions" style="justify-content:flex-start"><button type="button" class="btn btn-sm" id="rv-relire">Relire avec cette association</button></div>` : ''}`;
-          ok.disabled = !lignes.length || !!deja;
-          ok.title = deja ? 'Ce fichier est déjà dans le livre.' : '';
+              <div class="cp-gestes"><button type="button" class="btn btn-sm btn-primary" id="rv-relire">${v('banque') ? 'Retenir ce modèle et continuer' : 'Lire avec ces colonnes'}</button><span class="small muted">${v('banque') ? `les prochains relevés de ${esc(v('banque'))} se liront seuls` : 'nomme la banque pour que ses colonnes soient retenues'}</span></div>` : ''}`;
+          // (1.209.0) « Avant d'importer » : ce qui est vérifié, ligne à ligne, avant que rien n'entre ; un mois qui manque
+          // entre le dernier relevé et celui-ci se refuse en le nommant, avec ce qui débloque.
+          const trou = lignes.length && !deja ? controlesImport(lignes) : [];
+          const bloqueTrou = trou.length && !forcer;
+          ok.disabled = !lignes.length || !!deja || !!bloqueTrou;
+          ok.title = deja ? 'Ce fichier est déjà dans le livre.' : bloqueTrou ? `Le relevé ${trou.length > 1 ? 'des mois d\'avant manque' : `${deMois(trou[0])} manque`} : importe-le d'abord, ou « L'importer quand même ».` : '';
           const relire = $('#rv-relire', rootModal);
           if (relire) relire.onclick = async () => {
             const assoc = {};
             $$('[data-col]', rootModal).forEach(sel2 => { if (sel2.value !== '') assoc[sel2.dataset.col] = Number(sel2.value); });
+            // (1.209.0, maquette « une banque nouvelle ») Le modèle se retient dès qu'on le valide, pour cette banque.
+            if (v('banque')) { try { S = await api.saveBanque({ banques: { ...banques, [v('banque')]: assoc } }); banques[v('banque')] = assoc; } catch (e) { toast(plainError(e), 'error'); } }
             lu = { ...await api.lireReleve({ chemin: lu.fichier, assoc }), assoc };
             montrer();
           };
@@ -13521,7 +13766,7 @@
             close(); toast(`Relevé importé : ${pl(r.releve.lignes.length, 'ligne')}${poses ? `, dont ${pl(poses, 'rapprochée', 'rapprochées')} d'office` : ''}.`); drawLivres(root, dossier);
           } catch (e) { toast(plainError(e), 'error'); }
         };
-      });
+    })(page, fermer);
   }
 
   // Le fil du parcours (3/3) : depuis le livre d'UN client, rien ne menait à l'export qui regroupe

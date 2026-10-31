@@ -1378,6 +1378,20 @@
           nom: String(fichier.name || 'piece').slice(0, 200), contenu: btoa(binaire), remplace: o.remplace || null,
         });
       },
+      // (1.209.0) Ranger une page que le serveur imprime (l'état de rapprochement) : le PDF ne passe pas par le poste, il
+      // va de l'imprimeur du serveur au classeur. `raison` le classe du même geste (« rapprochée » : rien à saisir).
+      deposerPdf: async (/** @type {string} */ dossier, /** @type {string} */ html, /** @type {string} */ nom, /** @type {any} */ o) => {
+        const lu = /** @type {any} */ (await appel('POST', '/pdf', { html, nom }));
+        const doc = /** @type {any} */ (await appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents`, {
+          rubrique: o.rubrique, categorie: o.categorie || null, periode: o.periode || null, titre: String(o.titre).slice(0, 200),
+          detail: o.detail ? String(o.detail).slice(0, 300) : null, echeance: null, provenance: o.provenance ? String(o.provenance).slice(0, 100) : null,
+          nom: String(lu.nom || nom).slice(0, 200), contenu: String(lu.pdf), remplace: o.remplace || null,
+        }));
+        if (o.raison) {
+          await appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(doc.id)}/classement`, { classee: true, raison: o.raison });
+        }
+        return doc;
+      },
       classer: (/** @type {string} */ dossier, /** @type {string} */ document, /** @type {boolean} */ classee, /** @type {string | undefined} */ raison, /** @type {string | undefined} */ ecriture) =>
         appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(document)}/classement`,
           { classee, ...(classee && raison ? { raison } : {}), ...(classee && ecriture ? { ecriture } : {}) }),

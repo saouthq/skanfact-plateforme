@@ -157,7 +157,12 @@
 .bq-ecran .apx-c .cp-gestes { justify-content: center; }
 .bq-ecran .apx-mini { font-size: 12.5px; color: var(--sb-gris-2); }
 
-/* L'état de rapprochement : une feuille blanche, comme elle s'imprime (dans la fenêtre et dans le PDF). */
+/* L'état de rapprochement : une feuille blanche, comme elle s'imprime (dans sa page et dans le PDF). */
+/* (1.209.0) La page de l'état : ce qui s'est passé au classeur se lit sous l'en-tête, sans rien pousser sous le curseur. */
+.bqe-joint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--sb-sarcelle) 10%, var(--sb-papier)); color: var(--sb-encre); font-size: 13.5px; }
+.bqe-joint svg { color: var(--sb-sarcelle); flex: none; }
+.bqe-joint a { color: var(--sb-sarcelle); font-weight: 600; }
+.bqe-joint.ko { background: color-mix(in srgb, var(--danger) 10%, var(--sb-papier)); color: var(--danger); }
 .bqe-fond { background: var(--sb-survol); border-radius: 16px; padding: 24px; display: grid; justify-items: center; }
 .bqe { position: relative; width: 100%; max-width: 760px; background: #fff; color: #1b2a2a; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 10px 30px -10px rgba(0,0,0,.25); padding: 36px 40px; display: grid; gap: 18px; font-size: 12.5px; overflow: hidden; }
 .bqe.prov::after { content: "PROVISOIRE"; position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%) rotate(-24deg); font: 800 72px/1 Helvetica, Arial, sans-serif; letter-spacing: .08em; color: rgba(200, 120, 20, .09); pointer-events: none; }
@@ -250,3 +255,49 @@
 .bq-taux .field { flex: 1 1 220px; margin: 0; }
 /* (1.208.0, B6) Ce que la rapprochée paie ou porte (la paie, la caisse, une facture, une règle) : en encre, avant qui l'a posée. */
 .bq-src.quoi { background: transparent; border: 1px solid var(--sb-trait); color: var(--sb-encre); font-weight: 500; }
+
+/* (1.209.0, maquette « les règles ») La page des règles : la nouvelle règle en carte, ce qu'elle prendrait dessous, le
+   tableau des règles, les taux de retenue. */
+.bqr-n { border: 1px solid var(--sb-sarcelle); border-radius: 14px; padding: 16px; display: grid; gap: 12px; background: color-mix(in srgb, var(--sb-sarcelle) 4%, var(--sb-papier)); margin-bottom: 16px; }
+.bqr-n > b { font-size: 15px; }
+.bqr-g { display: grid; grid-template-columns: 1.3fr .9fr 1fr 1.4fr 1.2fr .5fr; gap: 10px; align-items: start; }
+.bqr-ch { display: grid; align-content: start; gap: 4px; font-size: 12.5px; color: var(--sb-gris); min-width: 0; margin: 0; }
+.bqr-ch input, .bqr-ch select, .bqr-in { width: 100%; box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--sb-trait-fort); border-radius: 8px; background: var(--sb-papier); color: var(--sb-encre); font: inherit; font-size: 13.5px; }
+.bqr-ch input.mono { font-family: var(--sb-mono, ui-monospace, monospace); }
+.bqr-in { display: flex; align-items: center; color: var(--sb-gris); }
+.bqr-ch small { font-size: 11.5px; color: var(--sb-gris-2); }
+.bqr-tva { display: grid; grid-template-columns: 1fr 1.2fr; gap: 6px; }
+.bqr-ap { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--sb-papier); border: 1px dashed var(--sb-trait-fort); font-size: 13.5px; }
+.bqr-ap b { color: var(--sb-sarcelle-texte, var(--sb-sarcelle)); }
+.bqr-ap .ok { display: inline-flex; gap: 5px; align-items: center; color: var(--sb-doux-texte, var(--sb-sarcelle)); }
+.bqr-ap .ambre { color: var(--warning); }
+.bqr-vu { flex-basis: 100%; list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-size: 12.5px; }
+.bqr-vu li { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; padding: 3px 0; border-bottom: 1px dotted var(--sb-trait); }
+.bqr-vu li span.mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bq-ecran table.bqr-t td { vertical-align: middle; }
+.bqr-t .bq-p { display: block; }
+.bqr-pied { margin: 12px 0 0; font-size: 12.5px; color: var(--sb-gris); line-height: 1.5; max-width: 72ch; }
+@media (max-width: 1100px) { .bqr-g { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .bqr-g { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .bqr-ch input, .bqr-ch select { min-height: 44px; } }
+
+/* (1.209.0, maquette « importer le relevé ») La page d'import : ce qui est vérifié avant d'importer, et le mois qui manque. */
+.bqi-page .bqi-f { max-width: 760px; }
+.bqi-av { border: 1px solid var(--sb-trait); border-radius: 14px; padding: 14px 16px; margin: 12px 0; display: grid; gap: 8px; background: var(--sb-papier); max-width: 760px; }
+.bqi-av b { font-size: 14px; }
+.bqi-av ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+.bqi-av li { display: flex; gap: 8px; align-items: flex-start; line-height: 1.45; }
+.bqi-av li svg { flex: none; margin-top: 2px; }
+.bqi-av li.ok svg { color: var(--sb-sarcelle); }
+.bqi-av li.ko { color: var(--danger); }
+.bqi-av li.mu { color: var(--sb-gris); padding-left: 22px; }
+.bqk { border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--sb-trait-fort)); border-radius: 16px; padding: 20px; display: grid; gap: 14px; background: var(--sb-papier); max-width: 760px; margin: 12px 0; }
+.bqk-t { display: flex; gap: 12px; align-items: flex-start; }
+.bqk-t .bqx { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 11px; background: color-mix(in srgb, var(--danger) 12%, var(--sb-papier)); color: var(--danger); }
+.bqk-t b { font-size: 16px; } .bqk-t p { margin: 4px 0 0; color: var(--sb-gris); line-height: 1.5; font-size: 13.5px; }
+.bqk-f { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--sb-trait); border-radius: 12px; overflow: hidden; }
+.bqk-f > div { padding: 12px 14px; display: grid; gap: 3px; }
+.bqk-f > div + div { border-left: 1px solid var(--sb-trait); }
+.bqk-f small { color: var(--sb-gris); font-size: 12px; } .bqk-f b { font-variant-numeric: tabular-nums; }
+.bqk-f .trou { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 10%, var(--sb-papier)) 0 8px, var(--sb-papier) 8px 16px); }
+.bqk-f .trou b { color: var(--danger); }
+@media (max-width: 760px) { .bqk-f { grid-template-columns: minmax(0, 1fr); } .bqk-f > div + div { border-left: 0; border-top: 1px solid var(--sb-trait); } }

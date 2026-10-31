@@ -21852,6 +21852,52 @@ prouver 'banque 18 : une rapprochée ne dit plus ce qu'"'"'elle paie' web/public
   "    const quoi = quoiBq(x);" "    const quoi = '';" \
   "$WB2"
 
+# ── 1.209.0 : la Banque comme sa maquette, la fin (B3, B4, B5, C6, C7) : l'état en page joint au classeur, les règles
+# en page (sens, montant, TVA, ce qu'elles prendraient), l'import en page avec ses contrôles et le mois qui manque ──
+MB5="le sens : une règle « débit » ne prend pas l'argent qui entre, et sans montant connu une borne ne prend rien"
+MB5M="le montant au plus, au millime : 50,000 passe, 50,001 non"
+MB5P="la plus précise passe : le mot le plus long d'abord, puis la règle bornée"
+MB5T="la TVA se sépare d'après la règle : hors taxe à son compte, la TVA au sien, l'écriture tombe juste au millime"
+prouver 'règles 1 : une règle « crédit » prend l'"'"'argent qui sort' web/public/v10/compta.js \
+  "    if (x.sens === 'credit' && !(m > 0)) return false;" "" \
+  "$MB5"
+prouver 'règles 2 : le montant au plus compté large' web/public/v10/compta.js \
+  "if (num(x.auPlusMillimes) > 0 && Math.round(Math.abs(m) * 1000) > num(x.auPlusMillimes)) return false;" "if (num(x.auPlusMillimes) > 0 && Math.round(Math.abs(m) * 1000) > num(x.auPlusMillimes) + 1) return false;" \
+  "$MB5M"
+prouver 'règles 3 : la règle bornée ne passe pas devant' web/public/v10/compta.js \
+  "  const precisionRegle = x => txt(x.motif).length * 4 + (x.sens ? 2 : 0) + (num(x.auPlusMillimes) > 0 ? 1 : 0);" "  const precisionRegle = x => txt(x.motif).length * 4;" \
+  "$MB5P"
+prouver 'règles 4 : la TVA de la règle oubliée' web/public/v10/compta.js \
+  "    const tva = trouve && trouve.tva ? round3(a - round3(a / (1 + trouve.tva.taux / 100))) : 0;" "    const tva = 0;" \
+  "$MB5T"
+prouver 'règles 5 : le serveur refuse le sens d'"'"'une règle' serveur/cabinet/routes.ts \
+  "    sens: z.enum(['debit', 'credit']).optional()," "" \
+  "$WB1"
+prouver 'règles 6 : la nouvelle règle tait la règle qui prenait ses lignes' web/public/v10/cabinet/app.js \
+  "    const vole = prend.filter(y => avant.get(y));" "    const vole = [];" \
+  "$WB1"
+prouver 'règles 7 : un mot trop courant retenu comme règle' web/public/v10/cabinet/app.js \
+  "      if (!KC.motifDeLibelle(x.motif)) {" "      if (false) {" \
+  "$WB1"
+prouver 'état 1 : l'"'"'état joint mais pas classé (à saisir dans le classeur)' web/public/v10/cabinet/app.js \
+  "          rubrique: 'piece', periode: mois, titre: titreEtatBq(R), provenance: 'la Banque du cabinet', raison: 'banque'," "          rubrique: 'piece', periode: mois, titre: titreEtatBq(R), provenance: 'la Banque du cabinet'," \
+  "$WB1"
+prouver 'état 2 : la page ne sait pas que l'"'"'état est déjà au classeur' web/public/v10/cabinet/app.js \
+  "      if (avant && banqueState.etat === R.id) {" "      if (false) {" \
+  "$WB1"
+prouver 'import 1 : le mois qui manque passe sans un mot' web/public/v10/cabinet/app.js \
+  "          if (prec && du) { for (let m = moisSuivant(String(prec.au).slice(0, 7)); m < du.slice(0, 7); m = moisSuivant(m)) trou.push(m); }" "" \
+  "$WB1"
+prouver 'import 2 : « Importer » reste ouvert quand un mois manque' web/public/v10/cabinet/app.js \
+  "          ok.disabled = !lignes.length || !!deja || !!bloqueTrou;" "          ok.disabled = !lignes.length || !!deja;" \
+  "$WB1"
+prouver 'import 3 : le solde de début pris au livre plutôt qu'"'"'à la fin du relevé d'"'"'avant' web/public/v10/cabinet/app.js \
+  "          if (prec && prec.soldeFin != null) {" "          if (false) {" \
+  "$WB1"
+prouver 'import 4 : « Avant d'"'"'importer » ne voit pas les lignes déjà importées' web/public/v10/cabinet/app.js \
+  "          const doubles = lignes.filter(l => deja.has(cle(l))).length;" "          const doubles = lignes.length;" \
+  "$WB1"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
