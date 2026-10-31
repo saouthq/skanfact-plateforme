@@ -101,7 +101,7 @@ table.rdp td:first-child { font-weight: 600; }
     <h2>Ce qui change par rapport à la page d'aujourd'hui</h2>
     <ul>
       <li><b>Les mois de l'année en tête, à la place de « Période ».</b> Douze cases : déposé (et ce qui a été payé), en retard, à déposer aujourd'hui, au brouillard, à venir. Un clic ouvre le mois ; « Toute l'année » revient à l'exercice. On sait où on en est avant d'ouvrir un écran.</li>
-      <li><b>La navigation de la comptabilité, à deux endroits mais jamais deux fois à l'écran</b> (Skander, 31/10). <b>En haut de la page</b>, sous « Guide-moi » et « + Une écriture » : le bouton à trois positions, Saisir · Consulter · Déclarer, avec ce qui attend (13, 6), et à côté les onglets du groupe (Saisie 6, Banque 7, Paie…). <b>Dans la barre de gauche</b>, le même bouton à l'horizontale et la liste des écrans. Les deux ne se montrent jamais ensemble : tant que la barre d'onglets du haut est à l'écran, celle de gauche s'efface en glissant, et il reste seulement « Comptabilité · Saisie ↑ » ; dès que la page descend (le brouillard, une longue liste) et que la barre du haut sort de l'écran, celle de gauche revient, pour changer d'écran sans remonter. Un clic sur « Comptabilité · Saisie ↑ » remonte la page. Les deux sont liées : glisser l'une fait glisser l'autre. Un clic sur un groupe ouvre son dernier écran (Consulter → la Balance d'hier) ; glisser la barre (souris, doigt, trackpad) montre les autres groupes sans quitter l'écran. Au clavier : <kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> ; la page glisse dans le sens où l'on va, en 0,2 seconde. Pour le voir : « La page descend » en haut de cette maquette, ou fais défiler l'écran de la maquette toi-même.</li>
+      <li><b>La navigation de la comptabilité, à deux endroits mais jamais deux fois à l'écran</b> (Skander, 31/10). <b>En haut de la page</b>, sous « Guide-moi » et « + Une écriture » : le bouton à trois positions, Saisir · Consulter · Déclarer, avec ce qui attend (13, 6), et à côté les onglets du groupe (Saisie 6, Banque 7, Paie…). <b>Dans la barre de gauche</b>, le même bouton à l'horizontale et la liste des écrans. Les deux ne se montrent jamais ensemble : tant que la barre d'onglets du haut est à l'écran, celle de gauche s'efface en glissant, et il reste seulement « Comptabilité · Saisie ↑ » ; dès que la page descend (le brouillard, une longue liste) et que la barre du haut sort de l'écran, celle de gauche revient, pour changer d'écran sans remonter. Et comme chacun a ses habitudes, <b>trois façons, au choix, à droite du titre « Comptabilité »</b> (trois petites icônes) : <b>toujours ouverte</b> (elle ne s'efface jamais) ; <b>dynamique</b> (le choix de départ : elle s'efface tant que la barre du haut est à l'écran et revient quand la page descend) ; <b>repliée</b> (le titre seul). Le choix est gardé d'une visite à l'autre, pour chaque personne. Dans les modes dynamique et repliée, un clic sur « Comptabilité · Saisie » l'ouvre quand même, le temps qu'il faut : jusqu'au prochain écran ouvert ou un second clic. Les deux sont liées : glisser l'une fait glisser l'autre. Un clic sur un groupe ouvre son dernier écran (Consulter → la Balance d'hier) ; glisser la barre (souris, doigt, trackpad) montre les autres groupes sans quitter l'écran. Au clavier : <kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> ; la page glisse dans le sens où l'on va, en 0,2 seconde. Pour le voir : « La page descend », « Mode toujours ouverte » et « Mode repliée » en haut de cette maquette, ou fais défiler l'écran et essaie les trois icônes toi-même.</li>
       <li><b>Les trois groupes restent</b> (Saisir · Consulter · Déclarer et clôturer), avec <b>ce qui attend sur chaque écran</b> : 6 pièces dans Saisie, 7 lignes dans Banque, 2 mois dans Déclaration, 4 points dans Révision.</li>
       <li><b>Deux façons de saisir, au choix, en haut de la Saisie.</b> <b>Face à la pièce</b> : la pièce en grand à gauche, comme dans un lecteur de documents (zoom, tourner, en grand), ce que SkanFact y a lu surligné ; à droite, une fiche courte (fournisseur, date, total, TVA, compte) où chaque champ dit d'où il vient : « lu sur la pièce », « comme ses 4 tickets », « numéro suivant ». On vérifie, Entrée, la pièce suivante s'ouvre. <b>Au kilomètre</b> : le journal du mois, une pièce à la suite de l'autre au clavier ; le compte du fournisseur et le TTC suffisent, la charge et la TVA se proposent en gris, la pièce se solde seule, et la pièce de la ligne s'affiche à côté.</li>
       <li><b>Plus de grille débit/crédit à remplir pour un achat ordinaire.</b> L'écriture se montre sous la fiche, déjà faite ; « Ouvrir en lignes » donne la grille pour ventiler, et « + Une écriture » la garde pour ce qui n'a pas de pièce (OD, à-nouveaux, régularisations), avec les mêmes touches qu'aujourd'hui (Tab, Entrée, F2, F4, Ctrl+Entrée).</li>
@@ -588,7 +588,7 @@ table.rdp td:first-child { font-weight: 600; }
   const ECRANS = { saisie: 'Saisie', banque: 'Banque', paie: 'Paie', immos: 'Immobilisations', inventaire: 'Inventaire', journal: 'Livre-journal', grandlivre: 'Grand livre', balance: 'Balance', lettrage: 'Lettrage', recherche: 'Recherche', declaration: 'Déclaration', revision: 'Révision', exercice: 'Exercice', liasse: 'Liasse' };
   const GROUPES = [['saisir', 'Saisir', ['saisie', 'banque', 'paie', 'immos', 'inventaire']], ['consulter', 'Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['cloturer', 'Déclarer et clôturer', ['declaration', 'revision', 'exercice', 'liasse']]];
   // L'état choisi en haut → l'écran qu'il montre. Les fenêtres et les états gardent l'écran de la saisie.
-  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
+  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', 'barre-ouverte': 'saisie', 'barre-repliee': 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
   const ecran = () => ECRAN_DE[s.etat] || (ECRANS[s.etat] ? s.etat : 'saisie');
   const groupe = () => GROUPES.find((g) => g[2].includes(ecran()));
   // Ce que chaque onglet compte : ce qui attend sur cet écran.
@@ -995,12 +995,12 @@ table.rdp td:first-child { font-weight: 600; }
   }
   const FAMILLES = [['Saisir', ['saisie', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'ecrire', 'paie', 'immos', 'inventaire']],
     ['Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['Déclarer et clôturer', ['declaration', 'deposer', 'revision', 'exercice', 'liasse']],
-    ['Un autre dossier', ['nouveau']], ['La barre', ['defile']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
+    ['Un autre dossier', ['nouveau']], ['La barre', ['defile', 'barre-ouverte', 'barre-repliee']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
   const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
     ['banque', 'Banque : le relevé de septembre'], ['ecrire', 'Banque : écrire le prélèvement STEG'], ['paie', 'Paie'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
     ['journal', 'Livre-journal'], ['grandlivre', 'Grand livre : 532 BIAT'], ['balance', 'Balance'], ['lettrage', 'Lettrage : fournisseurs'], ['recherche', 'Recherche : « 1250 »'],
     ['declaration', 'Déclaration d\'août, en retard'], ['deposer', 'Marquer août déposée'], ['revision', 'Révision de septembre'], ['exercice', 'Exercice 2026'], ['liasse', 'Liasse 2025'],
-    ['nouveau', 'Un livre qui n\'existe pas encore'], ['defile', 'La page descend : la barre d’onglets sort de l’écran'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
+    ['nouveau', 'Un livre qui n\'existe pas encore'], ['defile', 'La page descend : la barre d’onglets sort de l’écran'], ['barre-ouverte', 'Mode « toujours ouverte »'], ['barre-repliee', 'Mode « repliée »'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
     ['chargement', 'Chargement'], ['refus', 'Les livres ne se lisent pas'], ['hors', 'Sans réseau'], ['lecture', 'Abonnement en lecture seule']];
   // Rim ne valide pas, ne dépose pas, ne voit pas un client qu'elle ne suit pas.
   const interdit = (v) => (rim() && ['valider', 'deposer'].includes(v) ? 'Rim saisit : Anis valide et dépose' : rim() && v === 'nouveau' ? 'Un nouveau client que suit Anis' : !rim() && v === 'rimsaisie' ? 'La saisie vue par Rim' : '');
@@ -2671,8 +2671,16 @@ table.rdp td:first-child { font-weight: 600; }
     #barre .cp-cbx { display: grid; margin: 2px 0; }
     #barre .cp-cbx-t { display: flex; align-items: baseline; gap: 5px; width: 100%; border: 0; background: none; padding: 8px 10px 4px; font: inherit; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--sb-gris-2); cursor: default; text-align: left; border-radius: 8px; }
     #barre .cp-cbx-ou { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--sb-sarcelle-texte); opacity: 0; transform: translateX(-4px); transition: opacity .25s, transform .25s; white-space: nowrap; }
-    #barre .cp-cbx-ou i { font-style: normal; }
-    #barre .cp-cbx.cache .cp-cbx-t { cursor: pointer; } #barre .cp-cbx.cache .cp-cbx-t:hover { background: var(--sb-survol); }
+    #barre .cp-cbx-tr { display: flex; align-items: center; gap: 4px; padding-right: 2px; }
+    #barre .cp-cbx-tr .cp-cbx-t { flex: 1; width: auto; min-width: 0; }
+    #barre .cp-cbx.cache .cp-cbx-t, #barre .cp-cbx.vu .cp-cbx-t { cursor: pointer; }
+    #barre .cp-cbx.cache .cp-cbx-t:hover, #barre .cp-cbx.vu .cp-cbx-t:hover { background: var(--sb-survol); }
+    #barre .cp-cbx-m { flex: none; display: inline-flex; gap: 1px; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--sb-encre) 6%, transparent); opacity: .75; transition: opacity .2s; }
+    #barre .cp-cbx-tr:hover .cp-cbx-m, #barre .cp-cbx-m:focus-within { opacity: 1; }
+    #barre .cp-cbx-m button { width: 21px; height: 19px; padding: 0; border: 0; border-radius: 6px; background: none; display: grid; place-items: center; color: var(--sb-gris-2); cursor: pointer; }
+    #barre .cp-cbx-m button svg { width: 12px; height: 12px; }
+    #barre .cp-cbx-m button:hover { color: var(--sb-encre); }
+    #barre .cp-cbx-m button[aria-checked="true"] { background: var(--sb-papier); color: var(--sb-sarcelle-texte); box-shadow: 0 1px 2px rgba(20, 40, 60, .12); }
     #barre .cp-cbx.cache .cp-cbx-ou { opacity: 1; transform: none; }
     #barre .cp-cbx-c { display: grid; grid-template-rows: 1fr; opacity: 1; transform: none; transition: grid-template-rows .32s cubic-bezier(.2, .8, .2, 1), opacity .24s, transform .32s cubic-bezier(.2, .8, .2, 1); }
     #barre .cp-cbx-c > div { min-height: 0; overflow: hidden; padding: 0 1px; }
@@ -2853,8 +2861,12 @@ table.rdp td:first-child { font-weight: 600; }
       // navigations ne sont jamais visibles ensemble : tant que la barre d'onglets du haut de la page est à l'écran, celle-ci
       // s'efface (il reste son titre et l'écran ouvert) ; dès que la page descend et que la barre du haut sort de l'écran,
       // elle revient en glissant. Un clic sur le titre remonte la page.
-      const nb = document.createElement('div'); nb.className = 'cp-cbx' + (tel() ? '' : ' cache');
-      nb.innerHTML = `<button type="button" class="cp-cbx-t" title="Remonter à la barre d'onglets"><span>Comptabilité</span><span class="cp-cbx-ou">· ${ECRANS[ecran()]} <i>↑</i></span></button><div class="cp-cbx-c"><div><div class="cp-nav-g">${navCompta(false, true)}</div></div></div>`;
+      // Trois façons, au goût de chacun, choisies d'un clic dans le titre et gardées : toujours ouverte, dynamique (elle
+      // s'efface tant que la barre du haut est à l'écran), repliée (le titre seul ; un clic l'ouvre le temps qu'il faut).
+      const mode = s.etat === 'barre-ouverte' ? 'ouverte' : s.etat === 'barre-repliee' ? 'repliee' : (s.modeBarre || 'dyn');
+      const MODES = [['ouverte', svgC('<path d="M9 3h6l-1 6 3 3H7l3-3z"/><path d="M12 15v6"/>', 12, 2), 'Toujours ouverte'], ['dyn', IC.rel, 'Dynamique : elle s\'efface tant que la barre du haut est à l\'écran'], ['repliee', svgC('<path d="M5 12h14"/>', 12, 2.4), 'Repliée : le titre seul, un clic l\'ouvre le temps qu\'il faut']];
+      const nb = document.createElement('div'); nb.className = `cp-cbx${tel() || mode === 'ouverte' ? '' : ' cache'}`; nb.dataset.mode = mode;
+      nb.innerHTML = `<div class="cp-cbx-tr"><button type="button" class="cp-cbx-t" aria-expanded="${mode === 'ouverte'}"><span>Comptabilité</span><span class="cp-cbx-ou">· ${ECRANS[ecran()]}</span></button><span class="cp-cbx-m" role="radiogroup" aria-label="La barre de la comptabilité">${MODES.map(([m, ic, t]) => `<button type="button" role="radio" data-mode="${m}" aria-checked="${m === mode}" title="${t}">${ic}</button>`).join('')}</span></div><div class="cp-cbx-c"><div><div class="cp-nav-g">${navCompta(false, true)}</div></div></div>`;
       if (pc) pc.after(nb);
     }
     if (s.etat === 'nouveau') {
@@ -2897,8 +2909,29 @@ table.rdp td:first-child { font-weight: 600; }
     const hautB = root.querySelector('.cp-nav-g.haut'), nbB = root.querySelector('#barre .cp-cbx');
     if (hautB && nbB) {
       const defil = [vue, ah, root.querySelector('main')].find((x) => x && x.scrollHeight > x.clientHeight + 5) || null;
-      new IntersectionObserver(([en]) => nbB.classList.toggle('cache', en.intersectionRatio > 0.5), { root: defil, threshold: [0, 0.5, 1] }).observe(hautB);
-      nbB.querySelector('.cp-cbx-t').addEventListener('click', () => { if (defil) defil.scrollTo({ top: 0, behavior: 'smooth' }); });
+      // Le mode décide ; en dynamique, la barre du haut visible l'efface. Un clic sur le titre d'une barre effacée l'ouvre
+      // « le temps qu'il faut » (jusqu'au prochain écran) ; un second clic la referme.
+      let hautVu = true;
+      const titre = nbB.querySelector('.cp-cbx-t');
+      const appliquer = () => {
+        const m = nbB.dataset.mode, vu = nbB.classList.contains('vu');
+        nbB.classList.toggle('cache', !vu && (m === 'repliee' || (m === 'dyn' && hautVu)));
+        titre.setAttribute('aria-expanded', !nbB.classList.contains('cache'));
+        titre.title = nbB.classList.contains('cache') ? 'Afficher ici' : vu ? 'Replier' : '';
+      };
+      new IntersectionObserver(([en]) => { hautVu = en.intersectionRatio > 0.5; appliquer(); }, { root: defil, threshold: [0, 0.5, 1] }).observe(hautB);
+      titre.addEventListener('click', () => {
+        if (nbB.classList.contains('cache')) nbB.classList.add('vu');
+        else if (nbB.classList.contains('vu')) nbB.classList.remove('vu');
+        appliquer();
+      });
+      nbB.querySelectorAll('.cp-cbx-m button').forEach((b) => b.addEventListener('click', () => {
+        nbB.dataset.mode = s.modeBarre = b.dataset.mode; nbB.classList.remove('vu');
+        try { localStorage.setItem('skanfact.barre-compta', b.dataset.mode); } catch (e) { /* le choix vaut pour la séance */ }
+        nbB.querySelectorAll('.cp-cbx-m button').forEach((x) => x.setAttribute('aria-checked', x === b));
+        appliquer();
+      }));
+      appliquer();
     }
     ajuster();
     const Q = QUI[s.qui];
@@ -2965,6 +2998,8 @@ table.rdp td:first-child { font-weight: 600; }
   window.__s = s; window.__dessiner = dessiner;
   s.etat = 'saisie';
   s.menu = 'barre';
+  // Le mode de la barre de la comptabilité, gardé d'une visite à l'autre.
+  try { s.modeBarre = localStorage.getItem('skanfact.barre-compta') || 'dyn'; } catch (e) { s.modeBarre = 'dyn'; }
   dessiner();
 })();
 </script>
