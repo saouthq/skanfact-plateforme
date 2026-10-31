@@ -137,3 +137,20 @@ a une icône par geste. Les pastilles des pièces de la saisie disent photo ou P
   millime, l'écart de change au paiement, la déclaration en douane à demander).
 
 Le plan d'implémentation : `plan-saisie-banque.md`.
+
+## 8. Dernière revue, la passe complète faite (31/10/2026)
+
+Tous les états Saisie et Banque revus à l'écran, au bureau et au téléphone. Corrigé :
+
+- **Un compteur dit la même chose que sa liste** : l'onglet Banque passe de 8 à 7 après Entrée (Saisir de 14 à 13),
+  à 0 quand septembre est rapproché ou quand le relevé n'est pas encore là ; Saisie à 0 en octobre vide.
+- **Pas de total qui ne veut rien dire** : « Proposées · 3 · 5 541,407 DT » additionnait des entrées et des sorties ; le
+  total est retiré, le nombre reste.
+- **« Rapprochées 35 » dit d'où elles viennent avec les mêmes mots que la liste ouverte** : « 29 depuis SkanFact, 6 par
+  une règle » (et « 1 par toi ce matin » après Entrée), au lieu de « toutes à l'import ».
+- **L'écart non expliqué se voit en haut** (une pastille rouge à côté des filtres), pas seulement en bas de la page : un
+  avertissement se lit avant le geste.
+- **Septembre rapproché** : l'état de rapprochement n'est plus proposé deux fois (le bouton principal suffit, le pied dit
+  « plus rien à écrire ») ; les boutons mènent à l'état et à l'import d'octobre.
+- **Le menu ⋯** : les touches débordaient du menu, elles sont dedans.
+- **Les règles** : chaque ligne alignée sur son icône.
