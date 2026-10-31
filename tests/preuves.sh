@@ -21994,6 +21994,23 @@ prouver 'saisie 29 : le brouillard ne dit pas qui a saisi' web/public/v10/cabine
   "e.source === 'an' ? 'reprise' : 'le cabinet')" "e.source === 'an' ? 'reprise' : '')" \
   "$WSX1"
 
+# (1.213.0) Lot S9 « Au kilomètre, le journal du mois » (tests/web/cabinet-saisie-piece.test.ts).
+prouver 'saisie 30 : « Au kilomètre » n'\''a pas le journal du mois' web/public/v10/cabinet/app.js \
+  "return barreSx(P, dossier) + (moisSx() ? journalMoisSx(dossier, P) : '');" "return barreSx(P, dossier);" \
+  "$WSX1"
+prouver 'saisie 31 : la ligne en cours ne propose pas la charge du fournisseur' web/public/v10/cabinet/app.js \
+  "    const f = { four, date, ttc: L.ttc, tva: h.n ? h.taux : '', tvaAutre: '', compte: h.n ? h.compte : ''" "    const f = { four, date, ttc: L.ttc, tva: '', tvaAutre: '', compte: ''" \
+  "$WSX1"
+prouver 'saisie 32 : un fournisseur sans pièce d'\''avant reçoit une charge inventée' web/public/v10/cabinet/app.js \
+  "    const refus = !four ? 'Le fournisseur manque.' : !h.n ?" "    const refus = !four ? 'Le fournisseur manque.' : false ?" \
+  "$WSX1"
+prouver 'saisie 33 : le journal du mois tait le justificatif' web/public/v10/cabinet/app.js \
+  "avecJ.has(e.id) || e.justifClient === true ?" "false ?" \
+  "$WSX1"
+prouver 'saisie 34 : Entrée sur la ligne en cours n'\''enregistre rien' web/public/v10/cabinet/app.js \
+  "e.preventDefault(); e.stopPropagation(); enregistrerJmSx(root, dossier); }" "e.preventDefault(); e.stopPropagation(); }" \
+  "$WSX1"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -128,6 +128,9 @@ client, son achat suivant sa pièce ; D4 : « déjà vérifiées », sans préte
 **Mise à jour (1.212.0) : le lot S8 est fait.** H1 à H6, I1 à I3 et J3 passent à ✅ (H3 : « Par » dit le client ou le cabinet,
 pas encore la personne : le serveur ne la garde pas). Reste S9.
 
+**Mise à jour (1.213.0) : le lot S9 est fait.** G1, G2 et G4 passent à ✅ (G2 : un fournisseur sans pièce d'avant s'ouvre dans
+la grille, rien ne se propose). Les trois lots de la revue sont faits ; restent les écarts voulus et D2 (le certificat).
+
 - **Comme la maquette** : 16 lignes ; **en plus** : 4 (Autre chose…, de confiance, le même numéro, payée pas encore rapprochée).
 - **Écarts voulus** (8) : le surlignage de la lecture (A6), la TVA lue (C2), la demande au client au lieu de déplacer son
   achat (E4), la source du taux et l'écart de change (F2, F3), la grille visible sous un mois vide (J2).

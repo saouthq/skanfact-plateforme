@@ -216,3 +216,30 @@
 .sx-vide-av { display: block; margin-top: 6px; color: var(--sb-gris-2); font-size: 12.5px; }
 #sx-bl-tout { margin-left: 4px; }
 .sx-bl-t .cp-plus { display: inline-flex; align-items: center; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; min-height: 28px; }
+
+/* (1.213.0, S9) « Au kilomètre », le journal du mois : une pièce par ligne, sa charge et sa TVA dessous en gris, la ligne
+   en cours au bas du journal. */
+.sx-jm { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); }
+.sx-jm-t { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.sx-jm-t b { font-size: 15px; }
+.sx-jm-aide { flex-basis: 100%; }
+.sx-jm-l { width: 100%; border-collapse: collapse; }
+.sx-jm-l th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--sb-gris-2); padding: 6px 8px; border-bottom: 1px solid var(--sb-trait); }
+.sx-jm-l td { padding: 6px 8px; font-size: 13px; vertical-align: middle; }
+.sx-jm-l .r { text-align: right; }
+.sx-jm-e td { border-top: 1px solid var(--sb-trait); }
+.sx-jm-e.br td:not(:last-child) { font-style: italic; }
+.sx-jm-s td { color: var(--sb-gris-2); font-size: 12px; padding-top: 0; }
+.sx-jm-sj { display: inline-flex; gap: 4px; align-items: center; color: var(--sb-ambre-texte); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.sx-jm-sj svg, .sx-jm-j svg { width: 13px; height: 13px; }
+.sx-jm-j { color: var(--sb-doux-texte); }
+.sx-jm-n td { border-top: 2px solid var(--sb-sarcelle); background: color-mix(in srgb, var(--sb-sarcelle) 5%, var(--sb-papier)); }
+.sx-jm-n .sx-in { width: 100%; min-width: 0; }
+.sx-jm-n td:first-child { width: 56px; }
+.sx-jm-n td:nth-child(2) { width: 110px; }
+.sx-jm-n td:nth-child(5) { width: 120px; }
+.sx-jm-p td { font-size: 12.5px; color: var(--sb-gris); padding-top: 4px; }
+.sx-jm-pied { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+#sx-jm-bilan { font-size: 13px; font-weight: 600; display: inline-flex; gap: 4px; align-items: center; }
+#sx-jm-bilan svg { width: 13px; height: 13px; color: var(--sb-doux-texte); }
+@media (max-width: 700px) { .sx-jm-aide { display: none; } }

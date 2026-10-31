@@ -297,6 +297,32 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(await lot.getByRole('button', { name: /^Valider (l'écriture|les \d+ écritures)$/ }).count()).toBe(1);
     await lot.getByRole('button', { name: 'Annuler', exact: true }).click();
 
+    // (S9) « Au kilomètre », le journal du mois : une pièce par ligne, sa charge et sa TVA dessous, le justificatif ; la ligne
+    // en cours : le fournisseur et le TTC suffisent, la charge et la TVA reprennent sa dernière pièce.
+    await p.locator('[data-sx-mode="km"]').click();
+    await p.locator('#sx-jm').waitFor();
+    expect(net(await p.locator('#sx-jm .sx-jm-l').innerText())).toMatch(/30\/09 FA-0919 401 STEG 186,419 606 .* TVA 13 % 164,973 \+ 21,446/);
+    // FA-0919 a reçu la photo STEG plus haut : elle porte son justificatif.
+    expect(await p.locator('tr.sx-jm-e', { hasText: 'FA-0919' }).locator('.sx-jm-j').count()).toBe(1);
+    expect(await p.locator('#sx-jm-refus').isHidden()).toBe(true);
+    await p.locator('#sx-jm-jour').fill('26');
+    await p.locator('#sx-jm-four').fill('Total Ennasr');
+    await p.locator('#sx-jm-ttc').fill('70,000');
+    await expect.poll(() => p.locator('#sx-jm-prop').innerText().then(net)).toMatch(/^6066 .* 70,000 · sans TVA · 401 70,000/);
+    await p.locator('#sx-jm-ttc').press('Enter');
+    await expect.poll(() => p.locator('#toast').innerText().then(net), { timeout: 15_000 }).toBe('Total Ennasr · 70,000 DT : au brouillard.');
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as Ecriture[])
+      .find((e) => e.date === '2026-09-26')?.lignes.map((l) => [l.compte, l.debit, l.credit]), { timeout: 15_000 }).toEqual([['6066', '70.000', '0.000'], ['401', '0.000', '70.000']]);
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('sx-jm-four');
+    expect(net(await p.locator('#sx-jm-bilan').innerText())).toMatch(/pièces · débit = crédit$/);
+    // Un fournisseur sans pièce d'avant : rien ne s'invente, la grille le prend.
+    await p.locator('#sx-jm-four').fill('Emballages du Sahel');
+    await p.locator('#sx-jm-ttc').fill('50,000');
+    await expect.poll(() => p.locator('#sx-jm-refus').innerText().then(net).catch(() => '')).toBe('Emballages du Sahel n\'a pas de pièce d\'avant : rien ne se propose. « Ouvrir en lignes » la saisit dans la grille.');
+    await p.locator('#sx-jm-lignes').click();
+    await expect.poll(() => p.locator('#sa-libelle').inputValue()).toBe('Emballages du Sahel');
+    await p.locator('#sa-libelle').fill('');
+
     // S4 : au kilomètre, le même numéro dans le même journal se dit pendant la frappe.
     await p.locator('[data-sx-mode="km"]').click();
     await p.locator('#sa-piece').waitFor();

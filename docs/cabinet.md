@@ -474,6 +474,18 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### La Saisie : « Au kilomètre », le journal du mois (1.213.0, 31/10/2026)
+
+Le lot S9, le dernier de la revue des écarts. Sur un mois, « Au kilomètre » montre **le journal des achats du mois** : une
+pièce par ligne (jour, pièce, compte du fournisseur, libellé, TTC), sa charge et sa TVA dessous en gris, le justificatif de
+chaque ligne (l'attache, ou « sans justificatif » en ambre), et au pied « 5 pièces · débit = crédit ✓ ». La **ligne en
+cours** prend le jour, la pièce (le numéro suivant), le fournisseur (cherché parmi ceux du dossier) et le TTC : la charge et
+la TVA **reprennent sa dernière pièce** et la pièce se solde seule (« 6066 … 70,000 · sans TVA · 401 70,000, comme son
+dernier ticket ») ; Entrée l'enregistre au brouillard, la range à sa date et rend le curseur au fournisseur suivant. Un
+fournisseur **sans pièce d'avant** ne reçoit rien d'inventé : « Ouvrir en lignes » le passe à la grille, le TTC au 401, la
+charge à choisir. La grille au clavier reste dessous pour les écritures à plusieurs charges. Essai :
+`tests/web/cabinet-saisie-piece.test.ts` ; preuves « saisie 30 » à « saisie 34 ».
+
 ### La Saisie : le brouillard du mois (1.212.0, 31/10/2026)
 
 Le lot S8 de la revue des écarts. Sur un mois de la frise, **le brouillard est celui du mois** (« Le brouillard de

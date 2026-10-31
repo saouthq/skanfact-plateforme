@@ -14487,10 +14487,95 @@
     }
     if (!P.liste.some(x => x.k === sxState.sel)) sxState.sel = P.liste[0].k;
     const x = P.liste.find(y => y.k === sxState.sel);
-    if (sxState.mode === 'km') return barreSx(P, dossier);
+    if (sxState.mode === 'km') return barreSx(P, dossier) + (moisSx() ? journalMoisSx(dossier, P) : '');
     const fiche = x.sx.k === 'deja' ? ficheDejaSx(dossier, x) : x.sx.k === 'verifier' || x.sx.k === 'confiance' ? ficheVerifierSx(dossier, x)
       : x.sx.k === 'mois' ? ficheMoisSx(dossier, x) : x.sx.k === 'double' ? ficheDoubleSx(dossier, x) : x.sx.k === 'illisible' ? ficheIllisibleSx(dossier, x) : ficheSaisirSx(dossier, x);
     return `${barreSx(P, dossier)}<div class="sx-face">${visionneuseSx(dossier, x)}${fiche}</div>`;
+  }
+  // (1.213.0, S9) « Au kilomètre », le journal du mois : les achats du mois, une pièce par ligne (jour, pièce, compte du
+  // fournisseur, libellé, TTC), sa charge et sa TVA dessous en gris, le justificatif de chaque ligne ; puis la ligne en
+  // cours : le fournisseur et le TTC suffisent, la charge et la TVA se proposent d'après sa dernière pièce et la pièce se
+  // solde seule. Un fournisseur sans pièce d'avant s'ouvre dans la grille (rien ne s'invente). La grille reste dessous.
+  const jmSx = () => (sxState.jm = sxState.jm || { jour: '', four: '', ttc: '', piece: '' });
+  function propositionJmSx(m) {
+    const L = jmSx(), j = journalAchatsSx();
+    const four = String(L.four || '').trim(), h = habitudesSx(four);
+    const jour = /^\d{1,2}$/.test(String(L.jour).trim()) ? String(L.jour).trim().padStart(2, '0') : '';
+    const date = jour ? `${m}-${jour}` : '';
+    const f = { four, date, ttc: L.ttc, tva: h.n ? h.taux : '', tvaAutre: '', compte: h.n ? h.compte : '', c40: (h.n && h.c40) || '401', journal: j, piece: L.piece || numeroSuivantSx(j), numero: '', devise: '' };
+    const E = ecritureSx(f);
+    const dateOk = date && !Number.isNaN(Date.parse(`${date}T12:00:00Z`)) && new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) === date;
+    const refus = !four ? 'Le fournisseur manque.' : !h.n ? `${four} n'a pas de pièce d'avant : rien ne se propose. « Ouvrir en lignes » la saisit dans la grille.` : !dateOk ? `Le jour manque : 1 à ${new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).getUTCDate()}.` : E.refus ? E.refus[1] : '';
+    return { f, E, h, refus, nouveau: four && !h.n };
+  }
+  function journalMoisSx(dossier, P) {
+    const m = moisSx(), j = journalAchatsSx(), L = jmSx();
+    const plan = ((livresState.livre || {}).plan || []);
+    const nomC = c => ((plan.find(y => y.compte === String(c)) || {}).libelle) || KC.libelleDuPlan(String(c || '')) || '';
+    const es = ecrituresSx().filter(e => e.journal === j && String(e.date).slice(0, 7) === m)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.piece || '').localeCompare(String(b.piece || '')));
+    const sansJ = new Set((P.items || []).filter(x => x.sorte === 'ecr' && x.etat[1] === 'sans justificatif').map(x => x.e && x.e.id));
+    const avecJ = new Set((P.items || []).filter(x => (x.p || x.doc) && x.numE).map(x => x.numE));
+    let deb = 0, cre = 0;
+    const lignes = es.map(e => {
+      (e.lignes || []).forEach(l => { deb += mtSx(l.debit); cre += mtSx(l.credit); });
+      const l40 = ligne40Sx(e) || {}, ch = (e.lignes || []).find(l => /^[26]/.test(String(l.compte)) && mtSx(l.debit) > 0) || {};
+      const tva = tvaSx(e), tx = tauxDeSx(e);
+      const just = sansJ.has(e.id) ? `<span class="sx-jm-sj">${EC_IC.alerte} sans justificatif</span>` : avecJ.has(e.id) || e.justifClient === true ? `<span class="sx-jm-j" title="Justificatif joint">${SX_IC.lien}</span>` : '';
+      return `<tr class="sx-jm-e${e.statut === 'brouillard' ? ' br' : ''}"><td class="mono">${esc(jjmm(e.date))}</td><td class="mono">${esc(e.piece || '—')}</td><td class="mono">${esc(l40.compte || '')}</td><td>${esc(nomTiersSx(e) || e.libelle || '')}</td><td class="r mono">${esc(dtSx(ttcSx(e)))}</td><td>${just}</td></tr>
+        <tr class="sx-jm-s"><td></td><td></td><td class="mono">${esc(ch.compte || '')}</td><td>${esc(nomC(ch.compte))}${tva ? ` · TVA ${esc(String(tx).replace('.', ','))} %` : ' · sans TVA'}</td><td class="r mono">${esc(dtSx(htSx(e)))}${tva ? ` + ${esc(dtSx(tva))}` : ''}</td><td></td></tr>`;
+    }).join('');
+    const pr = propositionJmSx(m);
+    const fours = [...new Set(ecrituresSx().filter(achatSx).map(nomTiersSx).filter(Boolean))];
+    const prop = pr.h.n && pr.E.ttc > 0 ? `${esc(pr.f.compte)} ${esc(nomC(pr.f.compte))} ${esc(dtSx(pr.E.ht))}${pr.E.tva ? ` · TVA ${esc(String(pr.E.taux).replace('.', ','))} % ${esc(dtSx(pr.E.tva))}` : ' · sans TVA'} · ${esc(pr.f.c40)} ${esc(dtSx(pr.E.ttc))} <span class="sx-src hab">${SX_IC.rel} ${esc(commeSx(pr.h, pr.h.tousCompte && pr.h.tousTaux, 'pièce', 'pièces', true))}</span>`
+      : pr.h.n ? `<span class="mu">la charge ${esc(pr.h.compte)} ${esc(nomC(pr.h.compte))} et ${pr.h.taux === 'sans' ? 'sans TVA' : `la TVA à ${esc(String(pr.h.taux).replace('.', ','))} %`} se proposent : le TTC suffit</span>` : '';
+    const equi = deb === cre;
+    return `<section class="sx-jm" id="sx-jm" aria-label="Le journal du mois">
+      <div class="sx-jm-t"><b>${esc(j)} · Achats</b><span class="mu">${esc(cap(moisLong(m)))}</span><span class="mu sx-jm-aide">Le compte du fournisseur et le TTC suffisent : la charge et la TVA se proposent d'après ses pièces d'avant, la pièce se solde seule.</span></div>
+      <div class="scroll-x"><table class="sx-t sx-jm-l"><thead><tr><th>Jour</th><th>Pièce</th><th>Compte</th><th>Libellé</th><th class="r">TTC</th><th></th></tr></thead>
+        <tbody>${lignes || `<tr><td colspan="6" class="mu">Aucun achat ${esc(deMois(m))} au journal ${esc(j)} pour l'instant.</td></tr>`}
+        <tr class="sx-jm-n"><td><input id="sx-jm-jour" class="sx-in mono" inputmode="numeric" maxlength="2" autocomplete="off" value="${esc(L.jour)}" placeholder="jj" aria-label="Le jour"></td>
+          <td><input id="sx-jm-piece" class="sx-in mono" autocomplete="off" value="${esc(L.piece || numeroSuivantSx(j))}" aria-label="La pièce"></td>
+          <td class="mono" id="sx-jm-c40">${esc(pr.f.c40)}</td>
+          <td><input id="sx-jm-four" class="sx-in" list="sx-jm-fours" autocomplete="off" value="${esc(L.four)}" placeholder="Le fournisseur" aria-label="Le fournisseur"><datalist id="sx-jm-fours">${fours.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist></td>
+          <td><input id="sx-jm-ttc" class="sx-in mono r" inputmode="decimal" autocomplete="off" value="${esc(L.ttc)}" placeholder="TTC" aria-label="Le total TTC"></td>
+          <td>${pr.nouveau ? '<button type="button" class="btn btn-sm" id="sx-jm-lignes">Ouvrir en lignes</button>' : ''}</td></tr>
+        <tr class="sx-jm-p"><td colspan="6" id="sx-jm-prop">${prop}</td></tr></tbody></table></div>
+      <p class="sx-refus${sxState.jmTente ? '' : ' reste'}" id="sx-jm-refus" role="status"${pr.refus && (L.four || L.ttc || sxState.jmTente) ? '' : ' hidden'}>${esc(pr.refus)}</p>
+      <div class="sx-jm-pied"><span id="sx-jm-bilan">${esc(pl(es.length, 'pièce'))} · ${equi ? `débit = crédit ${CL_IC.ok}` : `débit ${esc(dtSx(deb))} ≠ crédit ${esc(dtSx(cre))}`}</span>
+        <p class="sx-touches">${SX_IC.clavier}<span><kbd>Tab</kbd> champ suivant · <kbd>↵</kbd> enregistre la pièce au brouillard et passe à la suivante · les pièces se rangent par date · plusieurs charges : « Ouvrir en lignes », la grille dessous (<kbd>F2</kbd>, <kbd>F4</kbd>, <kbd>Ctrl</kbd>+<kbd>↵</kbd>)</span></p></div></section>`;
+  }
+  async function enregistrerJmSx(root, dossier) {
+    const m = moisSx(), pr = propositionJmSx(m);
+    sxState.jmTente = true;
+    if (pr.nouveau) { jmEnLignesSx(root, dossier); return; }
+    if (pr.refus) {
+      const r = $('#sx-jm-refus'); if (r) { r.hidden = false; r.classList.remove('reste'); r.textContent = pr.refus; }
+      const champ = !pr.f.four ? '#sx-jm-four' : !pr.f.date ? '#sx-jm-jour' : '#sx-jm-ttc';
+      const c = $(champ); if (c) { c.focus(); c.setAttribute('aria-invalid', 'true'); }
+      return;
+    }
+    const s = livresState;
+    try {
+      const res = await api.saisir(dossier.id, s.annee, { date: pr.f.date, journal: pr.f.journal, piece: String(pr.f.piece || '').trim(), libelle: pr.E.lib, source: 'saisie', pieceJointe: null, lignes: versLeLivreSx(pr.E.lignes) });
+      s.livre = res.livre;
+      toast(`${pr.f.four} · ${dtSx(pr.E.ttc)} DT : au brouillard${res.attente ? ' (gardée sur ce poste, elle partira au retour du réseau)' : ''}.`);
+      sxState.jm = { jour: jmSx().jour, four: '', ttc: '', piece: '' };
+      sxState.jmTente = false;
+      drawLivres(root, dossier);
+      const c = $('#sx-jm-four'); if (c) c.focus();
+    } catch (err) { await infoDialog('Enregistrement impossible', plainError(err)); }
+  }
+  // Un fournisseur sans pièce d'avant : la grille reçoit le fournisseur et son TTC, la charge se choisit à la main.
+  function jmEnLignesSx(root, dossier) {
+    const m = moisSx(), pr = propositionJmSx(m), ttc = pr.E.ttc;
+    if (pieceEnCours(saisieState.piece)) { toast('Une écriture est déjà commencée dans la grille : elle t\'attend dessous.'); return; }
+    saisieState.dossierId = dossier.id;
+    saisieState.piece = { ...pieceVide(pr.f.journal, pr.f.date || `${m}-01`), piece: pr.f.piece, libelle: pr.f.four, touchee: true,
+      lignes: [{ compte: '', libelle: pr.f.four, debit: ttc ? montantChamp(ttc / 1000) : '', credit: '' }, { compte: pr.f.c40, libelle: pr.f.four, debit: '', credit: ttc ? montantChamp(ttc / 1000) : '', tiers: pr.f.four, tiersId: null, lettre: '' }, ligneVide()] };
+    sxState.jm = { jour: jmSx().jour, four: '', ttc: '', piece: '' };
+    drawLivres(root, dossier);
+    const c = $('#sa-lignes input'); if (c) c.focus();
   }
   // « Au kilomètre » : la pièce choisie à côté de la grille, et le geste qui la prend.
   function cotePieceSx(dossier, P) {
@@ -14677,6 +14762,26 @@
       await apresSx(root, dossier, conf[conf.length - 1] || { k: '' });
     });
     on('#sx-km-prendre', () => { if (x) enLignesSx(root, dossier, x); });
+    // (S9) La ligne en cours du journal du mois : chaque frappe met la proposition à jour ; Entrée enregistre.
+    const jm = $('#sx-jm', el);
+    if (jm) {
+      const majJm = () => {
+        const pr = propositionJmSx(moisSx()), z = $('#sx-jm', el); if (!z) return;
+        const html = journalMoisSx(dossier, sxState.dernier || P);
+        const tmp = document.createElement('div'); tmp.innerHTML = html;
+        ['#sx-jm-prop', '#sx-jm-c40'].forEach(id => { const a = $(id, z), b = $(id, tmp); if (a && b) a.innerHTML = b.innerHTML; });
+        const L = jmSx(), r = $('#sx-jm-refus', z); if (r) { r.hidden = !pr.refus || !(L.four || L.ttc || sxState.jmTente); r.textContent = pr.refus; }
+        const cell = $('#sx-jm-lignes', z);
+        if (pr.nouveau && !cell) { const td = $('#sx-jm-ttc', z).closest('tr').lastElementChild; td.innerHTML = '<button type="button" class="btn btn-sm" id="sx-jm-lignes">Ouvrir en lignes</button>'; $('#sx-jm-lignes', z).onclick = () => jmEnLignesSx(root, dossier); }
+        else if (!pr.nouveau && cell) cell.remove();
+      };
+      [['#sx-jm-jour', 'jour'], ['#sx-jm-piece', 'piece'], ['#sx-jm-four', 'four'], ['#sx-jm-ttc', 'ttc']].forEach(([id, k]) => {
+        const c = $(id, jm); if (!c) return;
+        c.addEventListener('input', () => { jmSx()[k] = c.value; c.removeAttribute('aria-invalid'); majJm(); });
+        c.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); enregistrerJmSx(root, dossier); } });
+      });
+      on('#sx-jm-lignes', () => jmEnLignesSx(root, dossier));
+    }
     if (!x) return;
     // La fiche à saisir : chaque frappe change la fiche et l'écriture montrée, sans redessiner le champ sous le curseur.
     const f = (x.sx.k === 'saisir' || x.sx.k === 'devise') ? ficheSx(x) : null;

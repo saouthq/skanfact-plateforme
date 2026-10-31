@@ -65,6 +65,7 @@ comptable voit chaque jour : la banque qui se rapproche presque seule et l'écar
 - Fait le 31/10 (1.210.0) : **S1 à S6** (la Saisie face à la pièce : vérifier, le mauvais mois, la fiche, le même numéro, les devises, le mois vide). Le détail et les écarts voulus : `docs/cabinet.md`. Reste : le journal du mois ligne à ligne « Au kilomètre », le timbre et la FODEC lus sur la pièce.
 - Fait le 31/10 (1.211.0) : **S7 « la fiche finie »** (la revue des écarts, `ecarts-saisie.md`). Restent S8 (le brouillard du mois) et S9 (« Au kilomètre », le journal du mois).
 - Fait le 31/10 (1.212.0) : **S8 « le brouillard du mois »** (la liste du mois, « Par », le compte d'attente, la fenêtre qui liste et vérifie).
+- Fait le 31/10 (1.213.0) : **S9 « Au kilomètre, le journal du mois »** (une pièce par ligne, la charge et la TVA reprises de la dernière pièce du fournisseur).
 
 ## Ce qui attend une décision de Skander
 
