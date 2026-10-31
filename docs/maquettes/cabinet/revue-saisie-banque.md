@@ -69,3 +69,23 @@ Ajouté à la maquette le 31/10 :
   en PDF (À VÉRIFIER, banque par banque). Le lire demande la même lecture que les pièces.
 - **Confirmer et écrire en masse** : il faut côté serveur un geste « confirmer ces N propositions » et « écrire ces N lignes
   d'après leurs règles », qui refuse ligne par ligne en nommant la ligne (comme la validation par lot).
+
+## 5. Le rapprochement, un système (31/10/2026)
+
+Skander : un comptable lui a dit « si tu veux que ton logiciel marche, il faut le meilleur système de rapprochement », et
+« ce n'est pas qu'un écran, c'est un système implémenté un peu partout ». Dessiné dans la maquette (états « Banque : le mode
+rafale » et « Banque : septembre rapproché ») :
+
+- **Trouver seul presque tout** : le règlement net de retenue à la source, une ligne pour plusieurs factures (remise de
+  chèques), plusieurs lignes pour une facture, les petits écarts (frais, arrondi) avec leur écriture ; pour un dossier relié,
+  tout ce que le client encaisse ou paie dans SkanFact est déjà une écriture. Chaque proposition dit **pourquoi**.
+- **Le mode rafale** : une ligne à la fois, en grand ; une touche par geste (Entrée valider et lettrer, E écrire autre chose,
+  Q demander au client, A compte d'attente, → plus tard) ; la barre se remplit ; la fin le dit, et l'état de rapprochement
+  s'imprime. Au téléphone, la carte passe sur une colonne et les boutons prennent la largeur.
+- **Partout** : valider passe la pièce « payée » chez le client, solde le fournisseur, lettre, fait avancer la frise du mois et
+  le Tableau de bord du cabinet ; une règle ne se crée jamais sans le comptable, et dit à combien de lignes d'avant elle aurait
+  servi.
+- **La question au client** : les lignes inconnues du mois partent en un seul message ; il répond d'un toucher (un client,
+  un prêt, un apport, autre) et l'écriture se passe d'elle-même.
+- À construire au serveur : les correspondances à plusieurs pièces et nettes de retenue, le score et le « pourquoi », les
+  gestes en masse, la réponse d'un toucher côté entreprise. Les taux de retenue : À VÉRIFIER.
