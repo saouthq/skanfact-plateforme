@@ -1121,6 +1121,19 @@ button.mandat { width: 100%; text-align: left; font: inherit; color: inherit; cu
 @keyframes cp-signal { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sarcelle) 45%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
 .cp-cbx.signal { animation: cp-signal .9s ease-out; }
 @media (prefers-reduced-motion: reduce) { .cp-sg-th, .cp-tr, .cp-pan { transition: none; } .cp-cbx.signal { animation: none; } }
+/* Ranger « Au quotidien » : la ligne tenue se soulève, les autres glissent pour lui faire la place. */
+.nav-quotidien .lien[data-nom] { touch-action: pan-y; transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s, background .2s; }
+.nav-quotidien.range { user-select: none; }
+.nav-quotidien.range .lien[data-nom] { cursor: grabbing; }
+.nav-quotidien .lien.leve { position: relative; z-index: 5; transition: box-shadow .2s, background .2s; background: var(--papier); color: var(--encre); box-shadow: 0 1px 2px rgba(20, 40, 60, .08), 0 10px 26px -6px rgba(20, 40, 60, .28); cursor: grabbing; }
+.nav-quotidien .lien.leve .prise { display: flex; color: var(--sarcelle); }
+.nav-quotidien .lien.pose { transition: transform .19s cubic-bezier(.2, .8, .2, 1), box-shadow .19s; box-shadow: var(--actif-ombre); }
+@keyframes arrive { 0% { background: color-mix(in srgb, var(--sarcelle) 22%, transparent); } 100% { background: transparent; } }
+.nav-quotidien .lien.arrive:not([aria-current]) { animation: arrive 1.2s ease-out; }
+@keyframes montre-prise { 0%, 100% { opacity: 0; } 15%, 85% { opacity: 1; } }
+.nav-quotidien.montre-prises .lien[data-nom] .prise { display: flex; animation: montre-prise 2.6s ease-in-out; opacity: 0; }
+.groupe-titre .regler { background: none; border: 0; padding: 0; font: inherit; font-size: 11.5px; }
+@media (prefers-reduced-motion: reduce) { .nav-quotidien .lien[data-nom], .nav-quotidien .lien.pose { transition: none; } .nav-quotidien .lien.arrive { animation: none; } }
 
 </style>
 
@@ -1320,7 +1333,7 @@ button.mandat { width: 100%; text-align: left; font: inherit; color: inherit; cu
   });
 
   const s = { app: 'entreprise', role: 'proprietaire', page: 'accueil', appareil: 'telephone', metier: 'commerce', neuve: false, sansCabinet: false, repliee: false,
-    creer: false, groupe: '', tel: 'accueil', abo: 'essai22', hors: false, maj: false, pop: '', epingles: {}, ordre: {}, extreme: false, panne: false, visite: 0, requete: 'fa', dossier: 0, portee: 'tous', rech: 'dossier', saisie: false, cibleDossier: 0, favoris: [0, 1], toast: null, encaissees: [], validees: [], onglets: {}, faits: [], mandat: 'attend', lot: false, question: '', selEcr: [], muets: [], compact: false, emises: false, repondues: [], saisieOk: false, rappro: [], tvaDeposee: false, lettre: 0, photo: 'viseur', payer: '', moyen: 'especes', recu: 0, charge: false, reste: 'simple', grpR: 0, pageVue: '' };
+    creer: false, groupe: '', tel: 'accueil', abo: 'essai22', hors: false, maj: false, pop: '', epingles: {}, ordre: {}, extreme: false, panne: false, visite: 0, requete: 'fa', dossier: 0, portee: 'tous', rech: 'dossier', saisie: false, cibleDossier: 0, favoris: [0, 1], toast: null, encaissees: [], validees: [], onglets: {}, faits: [], mandat: 'attend', lot: false, question: '', selEcr: [], muets: [], compact: false, emises: false, repondues: [], saisieOk: false, rappro: [], tvaDeposee: false, lettre: 0, photo: 'viseur', payer: '', moyen: 'especes', recu: 0, charge: false, reste: 'simple', grpR: 0, pageVue: '', arrive: '' };
   try { if (localStorage.getItem('barre-v3-compact') === '1') s.compact = true; } catch (e) { /* rien */ }
   // Les états de l'abonnement, dits comme l'application les dit (web/public/plateforme/abonnement.js, pastille()).
   const ABOS = {
@@ -1608,7 +1621,7 @@ button.mandat { width: 100%; text-align: left; font: inherit; color: inherit; cu
       const nom = x.dataset.pin; const l = s.epingles[cleMenu()] = s.epingles[cleMenu()] || [];
       const k = l.findIndex((y) => y[0] === nom);
       if (k >= 0) { l.splice(k, 1); montrerToast(`« ${nom} » retirée de « Au quotidien »`, false); return; }
-      l.push([nom, x.dataset.icone]); montrerToast(`« ${nom} » épinglée dans « Au quotidien »`, false);
+      l.push([nom, x.dataset.icone]); s.arrive = nom; montrerToast(`« ${nom} » épinglée dans « Au quotidien »`, false);
     }; });
     const on = b.querySelector('.cp-pan:not([inert]) [aria-current="page"]');
     if (on) on.scrollIntoView({ block: 'nearest' });
@@ -1622,6 +1635,85 @@ button.mandat { width: 100%; text-align: left; font: inherit; color: inherit; cu
     }; });
   }
   function surveillerHaut() { /* v5 : plus de barre du haut, rien à surveiller */ }
+  // ---------- Ranger « Au quotidien » : la ligne se soulève, les autres s'écartent en douceur ----------
+  // La souris : appuyer sur une ligne et la tirer (un clic sans bouger ouvre toujours la page). Le doigt : appui long.
+  // Le clavier : Alt+↑ / Alt+↓ sur la ligne. Lâcher la pose à sa place ; « Annuler » remet l'ordre d'avant.
+  let ordrePrec = null;
+  const nomsQuotidien = () => { const sec = vue().sections.find((x) => x.reglable); return sec ? quotidien(sec).map((x) => x.nom) : []; };
+  function poserOrdre(noms, dit) {
+    ordrePrec = nomsQuotidien();
+    s.ordre[cleMenu()] = noms; s.arrive = dit;
+    montrerToast(`« ${dit} » rangée`, 'ordre|1');
+  }
+  function brancherRanger() {
+    const nav = document.querySelector('#barre .nav-quotidien');
+    if (!nav) return;
+    const lignes = [...nav.querySelectorAll('.lien[data-nom]')];
+    lignes.forEach((a) => { a.draggable = false; a.ondragstart = null; a.ondragover = null; a.ondrop = null; });
+    if (s.arrive) { const n = nav.querySelector(`[data-nom="${CSS.escape(s.arrive)}"]`); if (n) n.classList.add('arrive'); s.arrive = ''; }
+    const regler = nav.querySelector('.regler');
+    if (regler) regler.onclick = (e) => { e.stopPropagation(); nav.classList.remove('montre-prises'); void nav.offsetWidth; nav.classList.add('montre-prises'); montrerToast('Attrape une ligne et glisse-la · au clavier : Alt+↑ ou Alt+↓', false); };
+    let tenu = null;
+    const debut = (a, ev) => {
+      const rects = lignes.map((l) => l.getBoundingClientRect());
+      tenu = { a, k: lignes.indexOf(a), cible: lignes.indexOf(a), y0: ev.clientY, rects, h: rects[lignes.indexOf(a)].height + 1, id: ev.pointerId };
+      a.setPointerCapture(ev.pointerId);
+      nav.classList.add('range'); a.classList.add('leve');
+    };
+    const bouger = (ev) => {
+      const t = tenu; if (!t) return;
+      const haut = t.rects[0].top - t.rects[t.k].top, bas = t.rects[lignes.length - 1].top - t.rects[t.k].top;
+      const dy = Math.max(haut - 6, Math.min(bas + 6, ev.clientY - t.y0));
+      t.a.style.transform = `translateY(${dy}px) scale(1.03)`;
+      const milieu = t.rects[t.k].top + t.rects[t.k].height / 2 + dy;
+      let c = t.k;
+      t.rects.forEach((r, n) => { if (n < t.k && milieu < r.top + r.height / 2) c = Math.min(c, n); if (n > t.k && milieu > r.top + r.height / 2) c = Math.max(c, n); });
+      t.cible = c;
+      lignes.forEach((l, n) => { if (n === t.k) return; const d = t.k < n && n <= c ? -t.h : c <= n && n < t.k ? t.h : 0; l.style.transform = d ? `translateY(${d}px)` : ''; });
+    };
+    const fin = () => {
+      const t = tenu; if (!t) return; tenu = null;
+      const dy = t.rects[t.cible].top - t.rects[t.k].top;
+      t.a.classList.add('pose'); t.a.style.transform = `translateY(${dy}px)`;
+      setTimeout(() => {
+        nav.classList.remove('range');
+        if (t.cible === t.k) { lignes.forEach((l) => { l.style.transform = ''; l.classList.remove('leve', 'pose'); }); return; }
+        const noms = lignes.map((l) => l.dataset.nom); const [x] = noms.splice(t.k, 1); noms.splice(t.cible, 0, x);
+        poserOrdre(noms, x);
+      }, 190);
+    };
+    lignes.forEach((a) => {
+      let p0 = null, minuterie = null;
+      a.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0 || vue().lecture) return;
+        p0 = { x: ev.clientX, y: ev.clientY, ev };
+        if (ev.pointerType === 'touch') minuterie = setTimeout(() => { debut(a, p0.ev); }, 350);
+      });
+      a.addEventListener('pointermove', (ev) => {
+        if (tenu) { bouger(ev); return; }
+        if (!p0 || ev.pointerType === 'touch') { if (minuterie && p0 && Math.hypot(ev.clientX - p0.x, ev.clientY - p0.y) > 8) { clearTimeout(minuterie); minuterie = null; p0 = null; } return; }
+        if (Math.abs(ev.clientY - p0.y) > 5) { debut(a, p0.ev); bouger(ev); }
+      });
+      const lacher = () => {
+        clearTimeout(minuterie); minuterie = null; p0 = null;
+        if (tenu && tenu.a === a) {
+          fin();
+          // Le clic qui suit un rangement n'ouvre pas la page.
+          const stop = (e) => { e.stopPropagation(); e.preventDefault(); }; a.addEventListener('click', stop, true); setTimeout(() => a.removeEventListener('click', stop, true), 0);
+        }
+      };
+      a.addEventListener('pointerup', lacher); a.addEventListener('pointercancel', lacher);
+      a.addEventListener('keydown', (ev) => {
+        if (!ev.altKey || (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown')) return;
+        ev.preventDefault();
+        const noms = lignes.map((l) => l.dataset.nom); const k = noms.indexOf(a.dataset.nom); const j = k + (ev.key === 'ArrowUp' ? -1 : 1);
+        if (j < 0 || j >= noms.length) return;
+        noms.splice(k, 1); noms.splice(j, 0, a.dataset.nom);
+        poserOrdre(noms, a.dataset.nom);
+        setTimeout(() => { const n = document.querySelector(`#barre .nav-quotidien [data-nom="${CSS.escape(a.dataset.nom)}"]`); if (n) n.focus(); }, 0);
+      });
+    });
+  }
 
   function dessinerBarre() {
     const V = vue();
@@ -1637,7 +1729,7 @@ button.mandat { width: 100%; text-align: left; font: inherit; color: inherit; cu
         if (s.neuve) return `<div class="nav nav-dossier vide-d"><div class="dossier" style="cursor:default"><span class="marque-s" style="background:var(--survol);color:var(--gris-2)">${ic('dossier', 15, 2)}</span><span class="lib"><small>Dossier ouvert</small><b>Pas encore de dossier</b><small>Il s'ouvre ici dès le premier</small></span></div></div>`;
         return `<div class="nav nav-dossier" style="--d1:${D[9][0]}"><button type="button" class="dossier" id="b-dossier" aria-haspopup="menu" aria-expanded="${s.pop === 'dossier'}" data-tip="Dossier ouvert · ${esc(D[0])} · Ctrl 1 à 9 pour les récents">${marqueD(D)}<span class="lib"><small>Dossier ouvert · ${typeD(D)}${s.muets.includes(s.dossier) ? ' · ' + ic('sourdine', 11, 2.2) : ''}</small><b>${esc(D[0])}</b><small class="clos">${ic('cadenas', 11, 2.4)} ${esc(D[5])} clos</small></span><span class="chev">${ic('haut', 15, 2)}</span></button>${items}<button type="button" class="lien" data-groupe="cedossier" aria-expanded="${s.groupe === 'cedossier'}" data-tip="Tout le dossier · banque, paie, bilan, fiche"><span class="ic">${ic('plus', 19)}</span><span class="lib">Tout le dossier</span><span class="chev">${ic('chevron', 15, 2.2)}</span></button></div>`;
       }
-      return `<div class="nav ${sec.reglable ? 'nav-quotidien' : ''}" ${i === 0 ? 'id="nav-1"' : ''}><p class="groupe-titre">${titre}${portee}${sec.reglable && !sec.portee ? '<span class="regler" title="Glisse les entrées pour les ranger ; épingle une page depuis « Tout le reste »">Ranger</span>' : ''}</p>
+      return `<div class="nav ${sec.reglable ? 'nav-quotidien' : ''}" ${i === 0 ? 'id="nav-1"' : ''}><p class="groupe-titre">${titre}${portee}${sec.reglable && !sec.portee ? '<button type="button" class="regler" title="Attrape une ligne et glisse-la pour la ranger (au clavier : Alt+↑ ou Alt+↓) ; épingle une page depuis « Tout le reste »">Ranger</button>' : ''}</p>
         ${i === 0 && !V.caissier && !cab() ? `<a href="#" class="lien" ${s.page === 'accueil' ? 'aria-current="page"' : ''} data-tip="Accueil"><span class="ic">${ic('accueil')}</span><span class="lib">Accueil</span><span class="point vide"></span></a>` : ''}
         ${items}${sec.comptable ? lienComptable() : ''}</div>`;
     }).join('<div class="sep"></div>');
@@ -1679,8 +1771,9 @@ button.mandat { width: 100%; text-align: left; font: inherit; color: inherit; cu
     $('b-moi').onclick = ouvrir('moi');
     if ($('b-dossier')) $('b-dossier').onclick = ouvrir('dossier');
     $('b-loupe').onclick = (e) => { e.stopPropagation(); s.pop = 'recherche'; s.creer = false; s.groupe = ''; tout(); };
+    brancherRanger();
     let tire = null;
-    document.querySelectorAll('.nav-quotidien [data-nom]').forEach((a) => {
+    [].forEach((a) => {
       a.ondragstart = (e) => { tire = a.dataset.nom; a.classList.add('glisse'); e.dataTransfer.effectAllowed = 'move'; };
       a.ondragend = () => a.classList.remove('glisse');
       a.ondragover = (e) => { e.preventDefault(); a.classList.add('cible'); };
@@ -2401,6 +2494,7 @@ button.mandat { width: 100%; text-align: left; font: inherit; color: inherit; cu
   // « Annuler » défait le dernier geste, quel qu'il soit : chaque geste réparable dit comment le défaire.
   function annuler(cle) {
     const [k, v, w] = cle.split('|');
+    if (k === 'ordre') { s.ordre[cleMenu()] = ordrePrec; montrerToast('Annulé : « Au quotidien » reprend son ordre', false); return; }
     if (k === 'fait') { s.faits = s.faits.filter((x) => x !== v); montrerToast(`Annulé : « ${v} » revient dans la liste`, false); return; }
     if (k === 'val') { const l = v.split(','); s.validees = s.validees.filter((x) => !l.includes(x)); montrerToast(`Annulé : ${l.length} écriture${l.length > 1 ? 's' : ''} à valider de nouveau`, false); return; }
     if (k === 'mandat') { s.mandat = 'attend'; if (DOSSIERS_DE.collaborateur && !mesDossiers().includes(s.dossier)) s.dossier = 0; montrerToast('Annulé : la demande de Pâtisserie Les Jasmins attend de nouveau', false); return; }
