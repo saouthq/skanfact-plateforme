@@ -2669,6 +2669,144 @@
     return { ...jugerLigne(l, dispo, prises, jours), libres: dispo.filter(c => !prises.has(c.ecritureId + '#' + c.ligne)) };
   }
 
+  // (1.208.0) Les pièces de tiers ENCORE OUVERTES, celles qu'une ligne de relevé peut payer quand le livre n'a pas encore
+  // l'écriture de banque (maquette de la Banque, B7, B12, B13). De l'argent qui entre règle une facture de client (411, au
+  // débit) ; de l'argent qui sort, une facture de fournisseur (401, au crédit). Ouverte : sa ligne n'est pas lettrée, et
+  // les règlements pas encore lettrés du même tiers ne l'ont pas déjà couverte (les plus anciennes d'abord). Sans cette
+  // dernière règle, une facture payée le mois dernier et pas encore lettrée se proposerait encore : on la paierait deux
+  // fois. `reste` porte le signe de la banque (+ un client paie, − on paie un fournisseur).
+  function piecesOuvertes(livre, sens, opts) {
+    const o = opts || {};
+    const prefixe = sens > 0 ? (txt(o.compteClients) || COMPTES_TIERS.clients) : (txt(o.compteFournisseurs) || COMPTES_TIERS.fournisseurs);
+    const groupes = new Map();
+    (livre.ecritures || []).forEach(e => {
+      const surCompte = {};
+      (e.lignes || []).forEach(l => { const c = txt(l.compte); surCompte[c] = round3((surCompte[c] || 0) + num(l.debit) - num(l.credit)); });
+      (e.lignes || []).forEach((l, i) => {
+        const compte = txt(l.compte);
+        if (!compte.startsWith(prefixe) || txt(l.lettre)) return;
+        const m = round3(num(l.debit) - num(l.credit));
+        if (!m) return;
+        const tiers = txt(l.tiers);
+        const k = compte + '|' + sansAccents(tiers.toLowerCase());
+        if (!groupes.has(k)) groupes.set(k, []);
+        // `seule` : la pièce ne porte que cette ligne sur le compte ; c'est ce qui permet de la lettrer avec son règlement
+        // (le lettrage solde TOUTES les lignes du compte des écritures qu'il relie).
+        groupes.get(k).push({ ecritureId: e.id, ligne: i, date: txt(e.date), piece: txt(e.piece), libelle: txt(l.libelle) || txt(e.libelle), journal: txt(e.journal),
+          statut: e.statut, compte, tiers, montant: m, seule: round3(surCompte[compte] - m) === 0 });
+      });
+    });
+    const out = [];
+    groupes.forEach(lignes => {
+      const factures = lignes.filter(x => Math.sign(x.montant) === sens).sort((a, b) => a.date.localeCompare(b.date) || a.piece.localeCompare(b.piece));
+      let couvert = Math.round(Math.abs(lignes.filter(x => Math.sign(x.montant) !== sens).reduce((s, x) => s + x.montant, 0)) * 1000);
+      factures.forEach(f => {
+        const due = Math.round(Math.abs(f.montant) * 1000);
+        const pris = Math.min(due, couvert);
+        couvert -= pris;
+        if (due - pris <= 0) return;
+        out.push({ ...f, reste: sens * (due - pris) / 1000, entiere: pris === 0 });
+      });
+    });
+    return out.sort((a, b) => b.date.localeCompare(a.date) || a.piece.localeCompare(b.piece));
+  }
+
+  // La retenue à la source qui explique qu'une ligne paie MOINS que ses pièces : au millime, à l'un des taux du cabinet,
+  // calculée sur le reste de chaque pièce (assiette À VÉRIFIER : TTC, timbre compris ou non). Sans taux réglé, rien ne
+  // s'explique ainsi (la règle inconnue ne fait rien : 9.1.1) — une ligne qui paie moins reste « un écart ».
+  function retenueDeReglement(pieces, montantLigne, taux) {
+    const T = (Array.isArray(taux) ? taux : []).map(Number).filter(t => t > 0 && t < 100);
+    const total = Math.round(Math.abs((pieces || []).reduce((s, p) => s + num(p.reste), 0)) * 1000);
+    const ligne = Math.round(Math.abs(num(montantLigne)) * 1000);
+    if (!(pieces || []).length || !(ligne < total)) return null;
+    for (const t of T) {
+      const rs = (pieces || []).reduce((s, p) => s + Math.round(Math.abs(num(p.reste)) * 1000 * t / 100), 0);
+      if (rs && total - rs === ligne) return { taux: t, montant: rs / 1000 };
+    }
+    return null;
+  }
+
+  // Ce qui, parmi les pièces ouvertes, répond d'une ligne de relevé, et pourquoi : une pièce du même montant (`meme`),
+  // une pièce payée au net de sa retenue (`net`), plusieurs pièces dont la somme tombe juste (`remise`, une remise de
+  // chèques). Seule une réponse UNIQUE se propose (`proposees`) : deux factures du même montant, ou deux combinaisons
+  // qui tombent juste, c'est au comptable de choisir — même règle que le rapprochement (une ambiguïté n'est jamais sûre).
+  function reponsesDeLigne(livre, releveId, ligneId, opts) {
+    const o = opts || {};
+    const R = (livre.releves || []).find(x => x.id === releveId);
+    const l = R && R.lignes.find(x => x.id === ligneId);
+    const vide = { ouvertes: [], meme: [], net: [], remise: null, proposees: [], pourquoi: '', retenue: null, duTiers: [] };
+    if (!l) return vide;
+    const m = round3(num(l.montant));
+    if (!m) return vide;
+    // `o.ouvertes` : les pièces déjà lues pour tout le relevé ({ 1: …, -1: … }), pour ne pas relire le livre à chaque ligne.
+    const ouvertes = (o.ouvertes && o.ouvertes[m > 0 ? 1 : -1]) || piecesOuvertes(livre, m > 0 ? 1 : -1, o);
+    // Le TIERS d'une pièce, sinon son libellé : « Facture STEG » partagerait « facture » avec toute ligne qui le dit.
+    const nomDe = p => p.tiers || p.libelle;
+    const mots = p => motsCommuns(nomDe(p), l.libelle);
+    const meme = ouvertes.filter(p => round3(p.reste - m) === 0);
+    const net = [];
+    ouvertes.forEach(p => { const r = retenueDeReglement([p], m, o.taux); if (r) net.push({ ...p, retenue: r }); });
+    // Le tiers que la banque nomme départage deux pièces du même montant (comme le rapprochement : STRICTEMENT plus de
+    // mots communs que toutes les autres).
+    const departage = liste => {
+      if (liste.length === 1) return liste[0];
+      const sc = liste.map(mots), haut = Math.max(0, ...sc);
+      return haut > 0 && sc.filter(x => x === haut).length === 1 ? liste[sc.indexOf(haut)] : null;
+    };
+    let remise = null;
+    if (!meme.length && !net.length) {
+      // Deux à quatre pièces parmi les vingt plus récentes : au-delà, la combinaison qui tombe juste ne prouve plus rien.
+      const C = ouvertes.slice(0, 20).map(p => ({ p, v: Math.round(Math.abs(p.reste) * 1000) }));
+      const cible = Math.round(Math.abs(m) * 1000);
+      const trouvees = [];
+      const chercher = (debut, pris, somme) => {
+        if (trouvees.length > 1) return;
+        if (pris.length >= 2 && somme === cible) { trouvees.push(pris.slice()); return; }
+        if (pris.length === 4 || somme >= cible) return;
+        for (let i = debut; i < C.length; i++) { pris.push(C[i].p); chercher(i + 1, pris, somme + C[i].v); pris.pop(); }
+      };
+      chercher(0, [], 0);
+      // Du plus ancien au plus récent : l'ordre où on les lit sur le bordereau de remise.
+      if (trouvees.length === 1) remise = trouvees[0].slice().sort((a, b) => a.date.localeCompare(b.date) || a.piece.localeCompare(b.piece));
+    }
+    const un = departage(meme);
+    const unNet = !un && departage(net);
+    const proposees = un ? [un] : unNet ? [unNet] : remise || [];
+    const seuleNonReglee = un && ouvertes.filter(p => p.compte === un.compte && sansAccents(p.tiers.toLowerCase()) === sansAccents(un.tiers.toLowerCase())).length === 1;
+    const mot = p => { const A = motsDe(l.libelle); const B = motsDe(nomDe(p)); const c = A.find(x => B.includes(x)); return c ? `« ${c.toUpperCase()} »` : ''; };
+    const pourquoi = un ? ['même montant', mot(un), seuleNonReglee && un.tiers ? 'la seule non réglée' : ''].filter(Boolean).join(' · ')
+      : unNet ? `net de sa retenue ${fmtMontant(unNet.retenue.montant)}${m > 0 ? ' · certificat à demander' : ' · certificat à remettre'}`
+        : remise ? `${remise.length} pièces : leur somme fait la ligne` : '';
+    // `duTiers` : les pièces ouvertes du tiers que la banque nomme, montrées en face même quand rien ne tombe juste.
+    const duTiers = ouvertes.filter(p => mots(p) > 0);
+    return { ouvertes, meme, net, remise, proposees, pourquoi, retenue: unNet ? unNet.retenue : null, duTiers };
+  }
+
+  // L'écriture de RÈGLEMENT d'une ligne de relevé : la banque d'un côté, chaque pièce payée de l'autre (son compte, son
+  // tiers, sa pièce dans le libellé, pour que le lettrage la retrouve), et la retenue à la source quand la ligne est le
+  // net de ses pièces — subie (4358, une créance) quand un client a retenu, opérée (4352, une dette) quand on a retenu
+  // sur un fournisseur (comptes À VÉRIFIER, ceux de COMPTES_FISCAUX). Jamais enregistrée ici : un brouillon, comme
+  // `ecritureProposee`.
+  function ecritureDeReglement(ligne, pieces, opts) {
+    const o = opts || {};
+    const l = ligne || {};
+    const m = round3(num(l.montant));
+    const lib = txt(l.libelle) || 'Règlement';
+    const rs = o.retenue && num(o.retenue.montant) > 0 ? round3(num(o.retenue.montant)) : 0;
+    const lignes = [{ compte: txt(o.compte), libelle: lib, debit: m > 0 ? Math.abs(m) : 0, credit: m < 0 ? Math.abs(m) : 0 }];
+    (pieces || []).forEach(p => {
+      const v = round3(Math.abs(num(p.reste)));
+      lignes.push({ compte: txt(p.compte), tiers: txt(p.tiers), libelle: [txt(p.tiers), p.piece ? `lettre ${txt(p.piece)}` : ''].filter(Boolean).join(' · ') || lib,
+        debit: m < 0 ? v : 0, credit: m > 0 ? v : 0 });
+    });
+    if (rs) {
+      lignes.push(m > 0 ? { compte: COMPTES_FISCAUX.rsSubie, libelle: `Retenue à la source subie${o.retenue.taux ? ` (${String(o.retenue.taux).replace('.', ',')} %)` : ''}`, debit: rs, credit: 0 }
+        : { compte: COMPTES_FISCAUX.rsOperee, libelle: `Retenue à la source opérée${o.retenue.taux ? ` (${String(o.retenue.taux).replace('.', ',')} %)` : ''}`, debit: 0, credit: rs });
+    }
+    const pieceNom = (pieces || []).map(p => txt(p.piece)).filter(Boolean);
+    return { journal: txt(o.journal) || 'BQ', date: txt(l.date), piece: txt(l.reference) || pieceNom.join(' ').slice(0, 60), libelle: lib, source: 'banque', lignes };
+  }
+
   // Poser ou défaire un rapprochement à la main. Même `certain` reste défaisable : l'automatique
   // propose, le comptable décide, et un logiciel qui ne se laisse pas contredire est un logiciel
   // qu'on finit par contourner ailleurs.
@@ -7351,7 +7489,7 @@
     // La banque (9.5.0)
     RELEVE_NIVEAUX, RELEVE_JOURS, AGING_BUCKETS,
     colonnesReleve, releveDepuisCsv, releveValide, releveDejaImporte, ajouterReleve, supprimerReleve,
-    lignesBancaires, lignesARapprocher, candidatsDeLigne, rapprocherAuto, rapprocherLigne, derapprocherReleve, suspens,
+    lignesBancaires, lignesARapprocher, candidatsDeLigne, piecesOuvertes, retenueDeReglement, reponsesDeLigne, ecritureDeReglement, rapprocherAuto, rapprocherLigne, derapprocherReleve, suspens,
     compteDuLibelle, motifDeLibelle, ecritureProposee, lettrageAuto,
     echeancierDepuisLignes, balanceAgeeDepuisLignes,
     // La déclaration mensuelle (9.6.0)

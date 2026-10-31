@@ -238,3 +238,13 @@
 .bq-fini2 > b { font-size: 18px; }
 .bq-fini2 p { margin: 0; color: var(--sb-gris); font-size: 13.5px; line-height: 1.55; }
 .bq-fini2 .cp-gestes { justify-content: center; }
+
+/* (1.208.0) Les factures non réglées en face d'une ligne, et l'écriture qui sera passée : un titre de section discret,
+   comme les « Proposées · à confirmer » de la liste. */
+.bq-st { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-top: 4px; font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--sb-gris-2); }
+.bq-st b { font-weight: 600; color: var(--sb-gris-2); }
+.bq-st .cp-plus { margin-left: auto; text-transform: none; letter-spacing: 0; }
+.bq-fo input[type=checkbox] { pointer-events: none; }
+.bq-st2 { margin: 18px 0 4px; font-size: 14px; }
+.bq-taux { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.bq-taux .field { flex: 1 1 220px; margin: 0; }

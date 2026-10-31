@@ -333,6 +333,7 @@
     // Ce que la banque apprend pour tous les clients du cabinet (0023) : la v10 le gardait dans son état.
     etat.banques = reglages.contenu.banques || {};
     etat.libelles = reglages.contenu.libelles || [];
+    etat.tauxRetenue = reglages.contenu.tauxRetenue || [];
     // Le modèle de liasse du cabinet (brique 41 ter) ; vide : celui que la v10 propose.
     etat.liasse = reglages.contenu.liasse || [];
     // Les guides d'écritures du cabinet (brique 50) : un montant ou un taux gardé en texte décimal
@@ -1725,10 +1726,11 @@
     // Les banques (l'association des colonnes) et les mots retenus : les réglages du cabinet ; le compte
     // bancaire d'un dossier : sa fiche.
     saveBanque: async (/** @type {any} */ o = {}) => {
-      if ((o.banques && typeof o.banques === 'object') || Array.isArray(o.libelles)) {
+      if ((o.banques && typeof o.banques === 'object') || Array.isArray(o.libelles) || Array.isArray(o.tauxRetenue)) {
         const contenu = { ...reglages.contenu };
         if (o.banques && typeof o.banques === 'object') contenu.banques = o.banques;
         if (Array.isArray(o.libelles)) contenu.libelles = o.libelles;
+        if (Array.isArray(o.tauxRetenue)) contenu.tauxRetenue = o.tauxRetenue.map(String);
         const r = await appel('PUT', `/cabinets/${cabinetId}/reglages`, { contenu, revision: reglages.revision });
         reglages = { contenu, revision: r.revision };
       }

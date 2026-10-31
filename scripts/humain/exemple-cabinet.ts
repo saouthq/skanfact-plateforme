@@ -252,10 +252,12 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
   ] });
   // (1.206.0) Les règles de la Banque du cabinet : « FRAIS » va aux commissions bancaires, « AGIOS » aux intérêts.
   const reg = await api('GET', `/cabinets/${cabinet}/reglages`, leila) as { contenu?: Record<string, unknown>; revision?: unknown };
-  await api('PUT', `/cabinets/${cabinet}/reglages`, leila, { contenu: { ...(reg.contenu ?? {}), libelles: [{ motif: 'FRAIS', compte: '6278' }, { motif: 'AGIOS', compte: '6511' }] },
+  await api('PUT', `/cabinets/${cabinet}/reglages`, leila, { contenu: { ...(reg.contenu ?? {}), libelles: [{ motif: 'FRAIS', compte: '6278' }, { motif: 'AGIOS', compte: '6511' }],
+    // (1.208.0) Le taux de retenue à la source que la Banque reconnaît (« net de sa retenue ») : À VÉRIFIER.
+    tauxRetenue: ['1.5'] },
     revision: reg.revision ?? null });
   // Les ventes du mois (les factures aux hôtels, la caisse), la paie, et la banque : saisies au cabinet.
-  const ecrire = (date: string, journal: string, piece: string, libelle: string, lignes: { compte: string; debit?: string; credit?: string }[]) =>
+  const ecrire = (date: string, journal: string, piece: string, libelle: string, lignes: { compte: string; debit?: string; credit?: string; tiers?: string }[]) =>
     api('POST', `/entreprises/${be}/compta/ecritures`, leila, { date, journal, piece, libelle, lignes });
   const dt = (millimes: number) => `${Math.trunc(millimes / 1000)},${String(millimes % 1000).padStart(3, '0')}`;
   const fin = (i: number) => String(new Date(Date.UTC(2026, i + 1, 0)).getUTCDate());
@@ -263,11 +265,18 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
     const m = String(i + 1).padStart(2, '0');
     const hotel = 2_118_000 + i * 41_000, caisse = 14_380_000 + i * 212_000, salaires = 4_286_300;
     const tva = (x: number) => Math.round(x * 7 / 107);
-    await ecrire(`${mois(i)}-15`, 'VT', `VT-${m}15`, 'Hôtel Dar Jerba · pains et viennoiseries', [{ compte: '411', debit: dt(hotel) }, { compte: '7071', credit: dt(hotel - tva(hotel)) }, { compte: '4367', credit: dt(tva(hotel)) }]);
+    await ecrire(`${mois(i)}-15`, 'VT', `VT-${m}15`, 'Hôtel Dar Jerba · pains et viennoiseries', [{ compte: '411', tiers: 'Hôtel Dar Jerba', debit: dt(hotel) }, { compte: '7071', credit: dt(hotel - tva(hotel)) }, { compte: '4367', credit: dt(tva(hotel)) }]);
     await ecrire(`${mois(i)}-28`, 'VT', `VT-${m}28`, 'Caisse du mois · ventes au comptoir', [{ compte: '541', debit: dt(caisse) }, { compte: '7071', credit: dt(caisse - tva(caisse)) }, { compte: '4367', credit: dt(tva(caisse)) }]);
     await ecrire(`${mois(i)}-${fin(i)}`, 'PAIE', `PAIE-${m}`, 'Salaires du mois · 4 salariés', [{ compte: '640', debit: dt(salaires) }, { compte: '421', credit: dt(salaires) }]);
     await ecrire(`${mois(i)}-${fin(i)}`, 'BQ', `BQ-${m}30`, 'VIR salaires', [{ compte: '421', debit: dt(salaires) }, { compte: '532', credit: dt(salaires) }]);
     await ecrire(`${mois(i)}-22`, 'BQ', `BQ-${m}22`, 'Versement espèces', [{ compte: '532', debit: dt(caisse - 1_000_000) }, { compte: '541', credit: dt(caisse - 1_000_000) }]);
+  }
+  // (1.208.0) Trois factures de juillet que la remise de chèques du 22/09 paie ensemble (maquette B12) : validées avec
+  // juillet, elles se lettrent du même geste que le rapprochement.
+  for (const [jour, piece, tiers, ttc] of [['2026-07-20', 'FV-2026-0379', 'Café Jasmin', 512_000], ['2026-07-24', 'FV-2026-0391', 'Hôtel Dar Jerba', 610_500],
+    ['2026-07-28', 'FV-2026-0398', 'Épicerie Ennour', 220_000]] as const) {
+    const t = Math.round(ttc * 7 / 107);
+    await ecrire(jour, 'VT', piece, `${tiers} · pains et viennoiseries`, [{ compte: '411', tiers, debit: dt(ttc) }, { compte: '7071', credit: dt(ttc - t) }, { compte: '4367', credit: dt(t) }]);
   }
   // Les mois de janvier à juillet sont tenus et validés ; août et septembre attendent au brouillard.
   await api('POST', `/entreprises/${be}/compta/valider`, leila, { jusqua: '2026-07-31' });
@@ -293,13 +302,15 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
     const lignes = [{ date: `${mois(i)}-22`, libelle: 'VERSEMENT ESPECES', reference: '', montant: dt(caisse - 1_000_000) },
       { date: `${mois(i)}-30`, libelle: `VIR SALAIRES ${m}/2026`, reference: '', montant: `-${dt(4_286_300)}` }];
     if (i === 7) lignes.push({ date: '2026-08-12', libelle: 'CHQ 4410 061', reference: '4410061', montant: '-640,000' });
-    if (i === 8) lignes.push({ date: '2026-09-08', libelle: 'VIR Minoterie du Cap Bon', reference: '', montant: '-1818,507' },
+    if (i === 8) lignes.push({ date: '2026-09-08', libelle: 'VIR Minoterie du Cap Bon', reference: '', montant: '-1818,506' }, // (1.208.0) FA-0914 (1 846,199) au net de sa retenue de 1,5 %
       { date: '2026-09-12', libelle: 'CHQ 4410 072', reference: '4410072', montant: '-406,980' },
       { date: '2026-09-14', libelle: 'VIR RECU REF 2609-14177', reference: '2609-14177', montant: '1250,000' },
-      { date: '2026-09-15', libelle: 'VIR RECU Hotel Dar Jerba', reference: '', montant: '2344,694' },
+      { date: '2026-09-15', libelle: 'VIR RECU Hotel Dar Jerba', reference: '', montant: '2409,310' },
+      { date: '2026-09-22', libelle: 'REMISE CHQ N 0118 · 3 CHQ', reference: '0118', montant: '1342,500' },
       { date: '2026-09-24', libelle: 'CARTE TOTAL ENNASR 24/09', reference: '', montant: '-85,000' },
       { date: '2026-09-26', libelle: 'FRAIS TENUE DE COMPTE', reference: '', montant: '-11,900' },
-      { date: '2026-09-30', libelle: 'AGIOS 3E TRIMESTRE', reference: '', montant: '-12,650' });
+      { date: '2026-09-30', libelle: 'AGIOS 3E TRIMESTRE', reference: '', montant: '-12,650' },
+      { date: '2026-09-30', libelle: 'PRLV STEG 0298 4471', reference: '', montant: '-186,419' });
     const soldeFin = soldeApres(solde, lignes.map((l) => l.montant));
     const r = await api('POST', `/entreprises/${be}/compta/releves`, leila, { annee: 2026, compte: '532', banque: 'BIAT', fichier: `Releve_BIAT_${m}-2026.pdf`,
       empreinte: empreinte(i + 1), soldeDebut: dt(solde), soldeFin, lignes });

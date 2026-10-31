@@ -541,3 +541,9 @@ règle » depuis une ligne (B5) ; qui a rapproché quoi au-delà de « d'office 
 En-tête au nom de l'écran, carte des groupes en pilules, frise des douze mois, barre de gauche « Comptabilité », et la
 carte de la Banque aux mesures de la maquette (tableaux, chasse fixe, sous-lignes, menu ⋯ riche, message dans la carte,
 relevé rapproché au milieu). Le détail, écart par écart : `docs/maquettes/cabinet/ecarts-banque.md`.
+
+## La Banque : ce qu'une ligne paie (1.208.0)
+
+Les factures non réglées en face d'une ligne, à cocher ; la remise ventilée ; le net de retenue (à un taux réglé par le
+cabinet) ; l'écriture qui sera passée ; « Rapprocher et lettrer les 3 ». Le détail : `docs/cabinet.md` (1.208.0) et
+`docs/maquettes/cabinet/ecarts-banque.md` (B7, B8, B12, B13).

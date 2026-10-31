@@ -21802,6 +21802,47 @@ prouver 'banque 17 : le relevé rapproché reste une liste (pas la carte au mili
 prouver 'compta 1 : la barre perd la comptabilité du dossier ouvert' web/public/v10/cabinet/app.js \
   "+ comptaDansBarre(D, base, dansCeDossier" "+ (() => '')(D, base, dansCeDossier" \
   'au bureau : la tête et son menu'
+# (1.208.0) Ce qu'une ligne du relevé PAIE : des factures encore ouvertes (moteur et écran).
+WB2="la remise se rapproche et se lettre d'un geste ; le prélèvement s'écrit au brouillard et s'annule ; la retenue se lit une fois son taux réglé ; une somme fausse se refuse"
+prouver 'règlements 1 : un règlement pas encore lettré ne couvre plus sa facture (on la paierait deux fois)' web/public/v10/compta.js \
+  "const pris = Math.min(due, couvert);" "const pris = 0;" \
+  'une facture déjà couverte par un règlement non lettré du même tiers ne se propose plus'
+prouver 'règlements 2 : deux factures du même montant, la première se propose' web/public/v10/compta.js \
+  "return haut > 0 && sc.filter(x => x === haut).length === 1 ? liste[sc.indexOf(haut)] : null;" "return liste[0] || null;" \
+  'deux factures du même montant : le tiers que la banque nomme départage, sinon rien ne se propose'
+prouver 'règlements 3 : une retenue se lit sans taux réglé (un taux écrit en dur)' web/public/v10/compta.js \
+  "const T = (Array.isArray(taux) ? taux : []).map(Number)" "const T = (Array.isArray(taux) && taux.length ? taux : [1.5]).map(Number)" \
+  'au net de sa retenue : reconnue au millime à un taux du cabinet, jamais sans taux réglé'
+prouver 'règlements 4 : un paiement partiel passe pour une retenue (à un millime près)' web/public/v10/compta.js \
+  "if (rs && total - rs === ligne) return" "if (rs && Math.abs(total - rs - ligne) <= 1) return" \
+  'au net de sa retenue : reconnue au millime à un taux du cabinet, jamais sans taux réglé'
+prouver 'règlements 5 : la retenue opérée sur un fournisseur va au compte de la retenue subie' web/public/v10/compta.js \
+  ": { compte: COMPTES_FISCAUX.rsOperee," ": { compte: COMPTES_FISCAUX.rsSubie," \
+  'au net de sa retenue : reconnue au millime à un taux du cabinet, jamais sans taux réglé'
+prouver 'règlements 6 : deux combinaisons tombent juste, la première se propose' web/public/v10/compta.js \
+  "if (trouvees.length === 1) remise = trouvees[0]" "if (trouvees.length >= 1) remise = trouvees[0]" \
+  'une remise de chèques : trois factures dont la somme fait la ligne, ventilées une par une'
+prouver 'règlements 7 : une facture au brouillard se dit « lettrée »' web/public/v10/cabinet/app.js \
+  "pieces.every(p => p.statut !== 'brouillard' && p.entiere && p.seule)" "pieces.every(p => p.entiere && p.seule)" \
+  "$WB2"
+prouver 'règlements 8 : « Rapprocher et lettrer » ne lettre pas' web/public/v10/cabinet/app.js \
+  "    if (!lettrer) return { id: r.id, msg:" "    if (lettrer || !lettrer) return { id: r.id, msg:" \
+  "$WB2"
+prouver 'règlements 9 : un règlement écrit au brouillard ne s'"'"'annule pas' web/public/v10/cabinet/app.js \
+  "rg.lettrable ? null : () => defaireEcriteBq(dossier, R, l.id, fait && fait.id));" "null);" \
+  "$WB2"
+prouver 'règlements 10 : « Valider les proposées » laisse de côté celles qui paient une facture' web/public/v10/cabinet/app.js \
+  "const factures = choisies.filter(x => !x.c && x.fact);" "const factures = [];" \
+  "$WB2"
+prouver 'règlements 11 : la même facture se propose à deux lignes' web/public/v10/cabinet/app.js \
+  "if (rep.proposees.length && !rep.proposees.some(p => proposees.has(cleP(p)))) {" "if (rep.proposees.length) {" \
+  "$WB2"
+prouver 'règlements 12 : un taux de retenue faux se retient sans un mot' web/public/v10/cabinet/app.js \
+  "if (faux) { refus(champT," "if (false) { refus(champT," \
+  "$WB2"
+prouver 'règlements 13 : le serveur ne garde pas les taux de retenue du cabinet' serveur/cabinet/routes.ts \
+  "  tauxRetenue: z.array(TAUX_POUR_CENT).max(20)," "" \
+  "$WB2"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

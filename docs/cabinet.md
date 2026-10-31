@@ -474,6 +474,33 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### La Banque : ce qu'une ligne paie (1.208.0, 31/10/2026)
+
+Le lot B2 du plan (`docs/maquettes/cabinet/plan-saisie-banque.md`), maquette B7, B8, B12, B13. Quand rien n'attend la
+ligne au compte de banque, elle paie peut-être des factures **encore ouvertes** : une facture de client pour de l'argent
+qui entre (411, au débit), de fournisseur pour de l'argent qui sort (401, au crédit). Ouverte : sa ligne n'est pas
+lettrée, et les règlements pas encore lettrés du même tiers ne l'ont pas déjà couverte (les plus anciennes d'abord) ;
+sans cette règle, une facture payée le mois dernier et pas encore lettrée se proposerait encore.
+
+- **Ce qui se propose**, seulement quand la réponse est UNIQUE (la règle du rapprochement : une ambiguïté n'est jamais
+  sûre) : la facture du même montant (le tiers que la banque nomme départage deux factures égales ; « la seule non
+  réglée » quand c'est la seule du tiers) ; la facture payée **au net de sa retenue à la source**, au millime, à l'un des
+  taux que le cabinet a réglés dans « Les règles de la banque » (aucun par défaut : sans taux, une ligne qui paie moins
+  reste un écart, jamais une retenue inventée) ; la **remise** de chèques, quand une seule combinaison de deux à quatre
+  factures tombe juste. Une facture proposée à une ligne ne l'est pas à une autre.
+- **Le livre en face** : les factures non réglées en cases à cocher (la proposée, celles du tiers nommé, ce que la
+  recherche trouve, « les voir toutes »), la somme des cochées, **l'écriture qui sera passée** (la banque ; une ligne par
+  facture, son tiers et « lettre FA-… » ; la retenue subie au 4358 ou opérée au 4352, comptes et assiette **À
+  VÉRIFIER**) et ce qui se lettre. « Partager entre plusieurs pièces » (menu ⋯ de la ligne) montre toutes les
+  factures. Une somme fausse se refuse en le disant, sans bouton principal.
+- **Le geste** : « Rapprocher et lettrer (les N) » quand toutes les factures sont validées, entières et seules sur leur
+  compte : l'écriture s'écrit, se rapproche, **se valide** (l'écran l'a dit avant : une écriture validée se contre-passe),
+  puis chaque compte de tiers se lettre (la fonction de lettrage du serveur, inchangée). Sinon « Écrire et rapprocher » :
+  au brouillard, « Annuler » la retire. « Valider les N » écrit au brouillard les proposées qui paient une facture
+  (jamais de validation en lot).
+- **Le réglage** : les taux de retenue du cabinet (`tauxRetenue` dans ses réglages, liste de taux en %, 20 au plus,
+  vérifiés par le serveur).
+
 ### La page de la comptabilité et la Banque comme leur maquette (1.207.0, 31/10/2026)
 
 Demande de Skander : « finir la maquette de banque avant de tout tester, même dans la police ». Les écarts relevés écran

@@ -53,7 +53,15 @@ comptable voit chaque jour : la banque qui se rapproche presque seule et l'écar
   Déjà fait au navigateur avec lui : le « pourquoi » d'une proposition et « Valider les N » (B2, sans la retenue à la source
   ni la remise de plusieurs factures) ; l'équation du relevé, ses pistes et l'état de rapprochement en PDF (B3, calculés au
   navigateur sur le livre du serveur, sans « Joindre au dossier de révision »).
-- Suivant : **B2** (la retenue, la remise ventilée), puis **B3** (le classeur).
+- **B2 fait (1.208.0)** : une ligne du relevé paie des factures encore ouvertes. La facture du même montant (« la seule
+  non réglée »), la facture payée au net de sa retenue à la source (au millime, à un taux réglé par le cabinet dans « Les
+  règles de la banque », aucun par défaut), la remise de chèques (plusieurs factures dont la somme fait la ligne) se
+  proposent ; on coche, on voit l'écriture qui sera passée, et « Rapprocher et lettrer » quand les factures sont validées
+  (l'écriture est validée pour être lettrée, ce que l'écran dit avant le geste), « Écrire et rapprocher » au brouillard
+  sinon (« Annuler » la retire). Moteur : `piecesOuvertes`, `reponsesDeLigne`, `retenueDeReglement`,
+  `ecritureDeReglement` (`compta.js`).
+- Suivant : **B3** (« Joindre au dossier de révision »), **B4** (l'import en page), **B5** (les règles en page), **B6**
+  (les origines des rapprochées).
 
 ## Ce qui attend une décision de Skander
 

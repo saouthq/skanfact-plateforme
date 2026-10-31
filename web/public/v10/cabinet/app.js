@@ -12194,7 +12194,9 @@
   // principal). ↑ ↓ changent de ligne, Espace coche, Entrée fait le geste principal, « / » cherche. En bas, l'écart du
   // relevé, toujours expliqué ou nommé. Le jugement reste celui du moteur (`candidatsDeLigne`, `ecritureProposee`,
   // `suspens`) : l'écran ne refait aucun calcul de son côté.
-  const banqueState = { releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {}, annonce: null, gestesReleve: null };
+  // `pieces` : les factures cochées en face d'une ligne (1.208.0), une liste par ligne ; `toutes` : la ligne dont on montre
+  // toutes les pièces non réglées (« Partager entre plusieurs pièces »).
+  const banqueState = { releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {}, pieces: {}, toutes: '', annonce: null, gestesReleve: null };
 
   const svgBq = (d, t = 16) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const BQ_IC = {
@@ -12267,6 +12269,9 @@
   // Un exercice clos ne se rapproche plus : la liste se lit, aucun geste ne s'offre.
   const lectureSeuleLivre = () => !!(livresState.livre && livresState.livre.exercice && livresState.livre.exercice.clos);
   const joursBanque = dossier => ((dossier.banque || {}).jours != null) ? dossier.banque.jours : KC.RELEVE_JOURS;
+  // (1.208.0) Les taux de retenue à la source que le cabinet a réglés (« Les règles de la banque ») : aucun par défaut, et
+  // alors aucune ligne ne se lit « au net de sa retenue ».
+  const tauxRetenueBq = () => (Array.isArray(S.tauxRetenue) ? S.tauxRetenue : []).map(Number).filter(t => t > 0 && t < 100);
 
   // Ce que chaque ligne du relevé DEMANDE. Une fonction, une table : la liste, les pastilles, le compteur de l'onglet
   // et le geste « Valider les N » la lisent ; écrits chacun de son côté, ils finiraient par ne plus dire le même chiffre.
@@ -12280,6 +12285,11 @@
     const table = Array.isArray(S.libelles) ? S.libelles : [];
     const nom = nomDeCompte();
     const qs = (L.questions || []).filter(q => q.statut !== 'close');
+    // (1.208.0) Les pièces encore ouvertes, lues une fois pour tout le relevé ; une pièce proposée à une ligne ne se propose
+    // plus à une autre (deux virements du même client du même montant ne paient pas deux fois la même facture).
+    const ouvertes = { 1: KC.piecesOuvertes(L, 1), [-1]: KC.piecesOuvertes(L, -1) };
+    const proposees = new Set();
+    const taux = tauxRetenueBq();
     return R.lignes.map(l => {
       const r = l.rapprochement || {};
       if (r.ecritureId) return { l, g: 'ok', e: ecritureDuLivre(L, r.ecritureId), rang: Number(r.ligne) };
@@ -12293,12 +12303,22 @@
         return { l, g: 'prop', jug, c, titre: `${pieceBq(e)}${c.libelle ? `${pieceBq(e) ? ' · ' : ''}${c.libelle}` : ''}`, pq: pourquoiBq(l, c, jug.niveau), ton: 'sur' };
       }
       if (jug.niveau === 'a-confirmer') return { l, g: 'dec', jug, titre: `${jug.candidats.length} écritures au même montant`, pq: 'rien ne les départage : à toi de choisir', ton: 'choix' };
+      // (1.208.0) Rien au compte de banque : la ligne paie peut-être une facture encore ouverte (la même, au net de sa
+      // retenue, ou plusieurs qui font une remise de chèques). Une réponse unique se propose, comme une écriture trouvée.
+      const rep = KC.reponsesDeLigne(L, R.id, l.id, { taux, ouvertes });
+      const cleP = p => p.ecritureId + '#' + p.ligne;
+      if (rep.proposees.length && !rep.proposees.some(p => proposees.has(cleP(p)))) {
+        rep.proposees.forEach(p => proposees.add(cleP(p)));
+        const p0 = rep.proposees[0];
+        const titre = rep.proposees.length > 1 ? `${rep.proposees.map(p => p.piece || p.tiers).join(' · ')}` : `${p0.piece || 'Une facture'}${p0.tiers ? ` · ${p0.tiers}` : ''}`;
+        return { l, g: 'prop', jug, rep, fact: rep.proposees, titre, pq: rep.pourquoi, ton: 'sur' };
+      }
       const prop = KC.ecritureProposee(l, table, { compte: R.compte, journal: 'BQ' });
       if (prop.regle) {
         const c2 = prop.lignes[1].compte;
-        return { l, g: 'dec', jug, prop, titre: `${c2}${nom(c2) ? ` · ${nom(c2)}` : ''}`, pq: `sa règle « ${prop.regle} »`, ton: 'regle' };
+        return { l, g: 'dec', jug, rep, prop, titre: `${c2}${nom(c2) ? ` · ${nom(c2)}` : ''}`, pq: `sa règle « ${prop.regle} »`, ton: 'regle' };
       }
-      return { l, g: 'dec', jug, titre: 'Rien dans le livre en face', pq: `l'écrire, ou demander ${aClientBq(dossier)}`, ton: 'rien' };
+      return { l, g: 'dec', jug, rep, titre: 'Rien dans le livre en face', pq: `l'écrire, ou demander ${aClientBq(dossier)}`, ton: 'rien' };
     });
   }
   // Pourquoi une écriture est proposée : le montant, l'écart de jours, les mots que la banque et le livre partagent.
@@ -12344,7 +12364,7 @@
     const releves = (s.livre.releves || []).slice().sort((a, b) => (b.du || '').localeCompare(a.du || ''));
     if (!releves.length) return banqueVide(dossier);
     const R = releves.find(r => r.id === banqueState.releve) || releves[0];
-    if (banqueState.releve !== R.id) { banqueState.releve = R.id; banqueState.sel = ''; banqueState.coches.clear(); banqueState.choix = {}; }
+    if (banqueState.releve !== R.id) { banqueState.releve = R.id; banqueState.sel = ''; banqueState.coches.clear(); banqueState.choix = {}; banqueState.pieces = {}; }
     const lus = lectureBanque(dossier, R);
     const n = g => lus.filter(x => x.g === g).length;
     const restent = lus.filter(x => x.g !== 'ok');
@@ -12492,26 +12512,103 @@
     const prop = x.prop;
     const sansRien = !liste.length;
     let corps = '', principal = '';
-    if (!sansRien) {
+    // (1.208.0) Les factures encore ouvertes que la ligne peut payer : la proposée, celles du tiers que la banque nomme, ce
+    // que la recherche trouve ; des cases à cocher (une remise paie plusieurs factures). Cochées, la somme, la retenue qui
+    // explique l'écart, l'écriture qui sera passée et ce qui se lettre se lisent AVANT le geste.
+    const rep = x.rep || { ouvertes: [], proposees: [], duTiers: [] };
+    const cleP = p => p.ecritureId + '#' + p.ligne;
+    const rg = reglementBq(R, x);
+    const montrees = [];
+    const ajoute = p => { if (p && !montrees.some(y => cleP(y) === cleP(p))) montrees.push(p); };
+    (rg ? rg.pieces : []).forEach(ajoute);
+    (x.fact || []).forEach(ajoute);
+    // Les autres factures du tiers nommé : trois quand une pièce est déjà cochée (l'écriture qui sera passée reste en vue),
+    // six sinon ; « les voir toutes » montre le reste.
+    if (sansRien || rg) (rep.duTiers || []).slice(0, rg ? 3 : 6).forEach(ajoute);
+    if (q) rep.ouvertes.filter(p => `${p.piece} ${p.tiers} ${p.libelle} ${montant(Math.abs(p.reste))} ${String(Math.abs(p.reste)).replace('.', ',')}`.toLowerCase().includes(q)).forEach(ajoute);
+    const toutes = banqueState.toutes === l.id;
+    if (toutes) rep.ouvertes.forEach(ajoute);
+    const vues = montrees.slice(0, toutes ? 40 : 12);
+    const deQui = Number(l.montant) >= 0 ? 'de clients' : 'de fournisseurs';
+    const voirToutes = rep.ouvertes.length > vues.length && !toutes ? '<button type="button" class="cp-plus" id="bq-toutes">les voir toutes</button>' : '';
+    const ouvertesHtml = vues.length ? `<div class="bq-st"><b>Factures ${deQui} non réglées</b><span class="mu">${vues.length < rep.ouvertes.length ? `${vues.length} sur ${rep.ouvertes.length}` : rep.ouvertes.length}</span>${voirToutes}</div>
+      <table class="list compact bq-pc bq-fo"><tbody>${vues.map(p => {
+        const on = !!rg && rg.cles.includes(cleP(p));
+        const prop1 = (x.fact || []).some(y => cleP(y) === cleP(p));
+        return `<tr class="${on ? 'on' : ''}" data-bq-piece="${esc(cleP(p))}"><td class="bq-c"><input type="checkbox"${on ? ' checked' : ''} aria-label="${esc(p.piece || p.tiers || 'la facture')}"></td>
+        <td><div class="bq-lb"><span class="bqx doc">${svgBq(BQ_IC.doc)}</span><div><span><b class="mono">${esc(p.piece || '—')}</b> <small>du ${esc(fmtJour(p.date))}${p.statut === 'brouillard' ? ' · brouillard' : ''}${p.entiere ? '' : ' · déjà payée en partie'}</small></span>
+          <small class="bq-p">${esc([p.tiers, p.compte].filter(Boolean).join(' · '))}${prop1 && rep.pourquoi ? ` · ${esc(rep.pourquoi)}` : ''}</small></div></div></td>
+        <td class="r">${esc(montant(Math.abs(p.reste)))}</td></tr>`;
+      }).join('')}</tbody></table>`
+      : (sansRien && rep.ouvertes.length ? `<p class="bq-rien">${pl(rep.ouvertes.length, 'facture', 'factures')} ${deQui} non réglée${rep.ouvertes.length > 1 ? 's' : ''} : cherche un tiers, une pièce ou un montant, ou ${voirToutes || 'les voir toutes'}.</p>` : '');
+    let reglementHtml = '';
+    if (rg) {
+      const n = rg.pieces.length, m = Number(l.montant);
+      const nomP = p => p.piece || p.tiers || 'la facture';
+      const comptes = [...new Set(rg.pieces.map(p => p.compte))].join(', ');
+      const brouillard = rg.pieces.filter(p => p.statut === 'brouillard').map(nomP);
+      const entamees = rg.pieces.filter(p => !p.entiere || !p.seule).map(nomP);
+      const phrases = [];
+      if (rg.ecart) {
+        phrases.push(`<p class="bq-rien bq-refus" id="bq-ecart-refus">${n > 1 ? `Les ${n} pièces cochées font` : 'La pièce cochée fait'} ${esc(money(Math.abs(rg.somme)))}, la ligne ${esc(money(Math.abs(m)))} (écart ${esc(money(rg.ecart))}) : coche ce que la ligne paie, ou « Écrire autre chose ».${!tauxRetenueBq().length && Math.abs(rg.somme) > Math.abs(m) ? ' Une retenue à la source ? Ses taux se règlent dans « Les règles de la banque ».' : ''}</p>`);
+      } else {
+        if (rg.retenue) {
+          const lr = rg.ec.lignes[rg.ec.lignes.length - 1];
+          const t = String(rg.retenue.taux).replace('.', ',');
+          const qui = rg.pieces[0].tiers;
+          phrases.push(m > 0
+            ? `<p class="bq-rien">${esc(qui || 'Le client')} a retenu ${esc(money(rg.retenue.montant))} (${esc(t)} %) : la retenue va au <b class="mono">${esc(lr.compte)}</b>, une créance ; son certificat est à lui demander. <b>À VÉRIFIER</b> : le taux et l'assiette.</p>`
+            : `<p class="bq-rien">${esc(contactBq(dossier) || 'Le client')} a retenu ${esc(money(rg.retenue.montant))} (${esc(t)} %)${qui ? ` sur ${esc(qui)}` : ''} : la retenue va au <b class="mono">${esc(lr.compte)}</b>, à déclarer ; son certificat est à remettre. <b>À VÉRIFIER</b> : le taux et l'assiette.</p>`);
+        }
+        if (rg.lettrable) phrases.push(`<p class="bq-rien">${n > 1 ? `Les ${n} pièces se lettrent` : `${esc(nomP(rg.pieces[0]))} se lettre`} au ${esc(comptes)} avec ce règlement : pour cela, l'écriture est validée (une écriture validée ne se modifie plus, elle se contre-passe).</p>`);
+        else if (brouillard.length) phrases.push(`<p class="bq-rien">${esc(brouillard.join(', '))} ${brouillard.length > 1 ? 'sont' : 'est'} au brouillard : l'écriture se passe au brouillard et se rapproche ; le lettrage se fera une fois tout validé.</p>`);
+        else if (entamees.length) phrases.push(`<p class="bq-rien">${esc(entamees.join(', '))} ${entamees.length > 1 ? 'sont déjà payées' : 'est déjà payée'} en partie : l'écriture se passe et se rapproche ; le lettrage se fera à la main.</p>`);
+      }
+      reglementHtml = `<div class="bq-som ${rg.ecart ? 'ko' : 'ok'}"><span>La ligne ${esc(money(l.montant))}</span><span>${n > 1 ? `${n} cochées` : 'cochée'} ${esc(money(rg.somme))}</span><b>${rg.ecart ? `écart ${esc(money(rg.ecart))}` : rg.retenue ? `${svgBq(BQ_IC.ok, 13)} net de sa retenue ${esc(montant(rg.retenue.montant))}` : `${svgBq(BQ_IC.ok, 13)} écart 0`}</b></div>`
+        + (rg.ecart ? '' : `<div class="bq-st"><b>L'écriture qui sera passée</b><span class="mu">journal BQ · ${rg.lettrable ? 'validée' : 'au brouillard'}</span></div>${tableEcriture(rg.ec.lignes, -1)}`)
+        + phrases.join('');
+    }
+    if (rg) {
+      corps = (liste.length ? pieces : '') + ouvertesHtml + reglementHtml;
+      principal = rg.ecart ? '' : rg.lettrable ? (rg.pieces.length > 1 ? `Rapprocher et lettrer les ${rg.pieces.length}` : 'Rapprocher et lettrer') : 'Écrire et rapprocher';
+    } else if (!sansRien) {
       // (1.206.0) Un rapprochement relie deux montants égaux : une écriture d'un autre montant (trouvée par la recherche) ne
       // se rapproche pas ; la phrase dit l'écart et le geste qui débloque.
       corps = pieces + (x.ton === 'choix' && !cc ? '<p class="bq-rien">Plusieurs écritures portent ce montant : coche la bonne. La date et le libellé ne les départagent pas.</p>' : '')
-        + (cc && ecart ? `<p class="bq-rien bq-refus" id="bq-ecart-refus">Les deux montants ne sont pas égaux (écart ${esc(money(ecart))}) : une ligne du relevé se rapproche d'une écriture du même montant. Corrige l'écriture, ou « Écris autre chose » pour cette ligne.</p>` : '');
+        + (cc && ecart ? `<p class="bq-rien bq-refus" id="bq-ecart-refus">Les deux montants ne sont pas égaux (écart ${esc(money(ecart))}) : une ligne du relevé se rapproche d'une écriture du même montant. Corrige l'écriture, ou « Écris autre chose » pour cette ligne.</p>` : '')
+        + ouvertesHtml;
       principal = cc && !ecart ? 'Rapprocher' : '';
     } else if (prop) {
       const aussi = (R.lignes || []).filter(z => z.id !== l.id && !(z.rapprochement && z.rapprochement.ecritureId) && KC.ecritureProposee(z, Array.isArray(S.libelles) ? S.libelles : [], { compte: R.compte, journal: 'BQ' }).regle === prop.regle);
-      corps = `<p class="bq-rien">Rien dans le livre pour cette ligne. <b>Sa règle « ${esc(prop.regle)} »</b> propose l'écriture${aussi.length ? ` ; elle sert aussi ${aussi.length > 1 ? `à ${aussi.length} autres lignes` : `à « ${esc(String(aussi[0].libelle || '').slice(0, 30))} »`} du relevé` : ''}.</p>${tableEcriture([...prop.lignes].sort((u, v) => (v.debit > 0) - (u.debit > 0)), -1)}`;
+      corps = `<p class="bq-rien">Rien dans le livre pour cette ligne. <b>Sa règle « ${esc(prop.regle)} »</b> propose l'écriture${aussi.length ? ` ; elle sert aussi ${aussi.length > 1 ? `à ${aussi.length} autres lignes` : `à « ${esc(String(aussi[0].libelle || '').slice(0, 30))} »`} du relevé` : ''}.</p>${tableEcriture([...prop.lignes].sort((u, v) => (v.debit > 0) - (u.debit > 0)), -1)}${ouvertesHtml}`;
       principal = 'Écrire et rapprocher';
     } else {
-      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ou demander ${esc(aClientBq(dossier))} ce que c'est.</p>`;
+      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ou demander ${esc(aClientBq(dossier))} ce que c'est.</p>${ouvertesHtml}`;
       principal = 'Écrire l\'écriture…';
     }
     return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
       <label class="bq-ch">${svgBq(BQ_IC.loupe, 15)}<input type="search" id="bq-cherche" value="${esc(banqueState.cherche)}" placeholder="Chercher un montant, un tiers, une pièce…  ( / )" aria-label="Chercher dans le livre"></label>
       ${corps}
       ${lect ? '' : `<div class="cp-gestes">${principal ? `<button type="button" class="btn btn-primary" id="bq-principal">${esc(principal)} <kbd class="bq-k">Entrée</kbd></button>` : ''}
-        ${sansRien && !prop ? (!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : '') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
+        ${sansRien && !prop && !rg ? (!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : '') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
     </aside>`;
+  }
+  // (1.208.0) Le règlement que la ligne choisie paierait : les factures cochées (celles qu'on a cochées, sinon la proposée),
+  // leur somme, la retenue qui explique l'écart, l'écriture qui sera passée et si elle se lettre. UNE fonction pour l'écran
+  // et pour Entrée : ce qu'on lit est ce qui s'écrit.
+  function reglementBq(R, x) {
+    const l = x.l, rep = x.rep || { ouvertes: [] };
+    const cleP = p => p.ecritureId + '#' + p.ligne;
+    const cles = banqueState.pieces[l.id] != null ? banqueState.pieces[l.id] : (x.fact || []).map(cleP);
+    const pieces = cles.map(k => rep.ouvertes.find(p => cleP(p) === k)).filter(Boolean);
+    if (!pieces.length) return null;
+    const m = KC.round3(Number(l.montant) || 0);
+    const somme = KC.round3(pieces.reduce((t, p) => t + p.reste, 0));
+    const retenue = KC.round3(m - somme) ? KC.retenueDeReglement(pieces, m, tauxRetenueBq()) : null;
+    const ecart = retenue ? 0 : KC.round3(m - somme);
+    const ec = KC.ecritureDeReglement(l, pieces, { compte: R.compte, journal: 'BQ', retenue });
+    const lettrable = !ecart && pieces.every(p => p.statut !== 'brouillard' && p.entiere && p.seule);
+    return { cles: pieces.map(cleP), pieces, somme, retenue, ecart, ec, lettrable };
   }
   const tableEcriture = (lignes, marque) => `<table class="list compact bq-ec" data-sans-cartes><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>${lignes.map((z, i) =>
     `<tr class="${i === marque ? 'br-ligne' : ''}"><td class="mono">${esc(z.compte || '')}</td><td class="tronq" title="${esc(z.libelle || '')}">${esc(z.libelle || '')}</td><td class="r">${Number(z.debit) ? esc(montant(z.debit)) : ''}</td><td class="r">${Number(z.credit) ? esc(montant(z.credit)) : ''}</td></tr>`).join('')}</tbody></table>`;
@@ -12617,6 +12714,31 @@
     await defaireBq(dossier, R, ligneId);
     if (ecritureId) livresState.livre = (await api.supprimerEcriture(dossier.id, livresState.annee, ecritureId)).livre;
   };
+  // (1.208.0) Écrire le RÈGLEMENT de factures depuis une ligne : l'écriture (la banque, chaque facture, la retenue), son
+  // rapprochement, puis — quand on l'a dit avant le geste — sa validation et le lettrage de chaque compte de tiers. Un
+  // lettrage refusé par le serveur ne défait rien : l'écriture reste rapprochée, et le message le dit.
+  async function reglerBq(dossier, R, l, rg, lettrer) {
+    const s = livresState;
+    const r = await api.saisir(dossier.id, s.annee, rg.ec);
+    s.livre = r.livre;
+    const noms = rg.pieces.map(p => p.piece || p.tiers).filter(Boolean);
+    const dit = noms.length > 2 ? `${noms.length} factures` : noms.join(' et ') || 'la facture';
+    if (!(r.livre.ecritures || []).some(x => x.id === r.id)) return { id: r.id, msg: `Le règlement de ${dit} est gardé sur ce poste : il part au serveur au retour du réseau, puis se rapproche.` };
+    await poserBq(dossier, R, l.id, r.id, 0);
+    const rs = rg.retenue ? `, retenue de ${money(rg.retenue.montant)} au ${rg.ec.lignes[rg.ec.lignes.length - 1].compte}` : '';
+    if (!lettrer) return { id: r.id, msg: `Règlement de ${dit} écrit au brouillard${rs}, et rapproché.` };
+    try {
+      s.livre = (await api.valider(dossier.id, s.annee, r.id)).livre;
+      const comptes = [...new Set(rg.pieces.map(p => p.compte))];
+      for (const c of comptes) {
+        const ids = [...new Set(rg.pieces.filter(p => p.compte === c).map(p => p.ecritureId)), r.id];
+        s.livre = (await api.lettrer({ dossierId: dossier.id, annee: s.annee, compte: c, ids })).livre;
+      }
+      return { id: r.id, msg: `Rapproché : ${dit} ${noms.length > 1 ? 'sont payées, lettrées' : 'est payée, lettrée'} au ${comptes.join(', ')}${rs}.` };
+    } catch (e) {
+      return { id: r.id, msg: `Règlement de ${dit} écrit et rapproché${rs} ; le lettrage n'a pas pu se faire (${plainError(e)}) : il se fera dans le Lettrage.` };
+    }
+  }
   // Écrire la ligne au brouillard d'après une contrepartie (la règle, le 471), et la rapprocher du même geste.
   async function ecrireEtRapprocher(dossier, R, l, compte, libelle) {
     const s = livresState;
@@ -12662,7 +12784,18 @@
       tr.addEventListener('keydown', ev => { if (ev.key === 'Enter' && tr.classList.contains('bq-k1')) { ev.preventDefault(); tr.click(); } });
     });
     $$('[data-bq-coche]', el).forEach(c => { c.onchange = () => { const id = c.dataset.bqCoche; if (c.checked) banqueState.coches.add(id); else banqueState.coches.delete(id); redessiner(); }; });
-    $$('[data-bq-choix]', el).forEach(tr => { tr.onclick = () => { if (sel) { banqueState.choix[sel.l.id] = tr.dataset.bqChoix; redessiner(); } }; });
+    $$('[data-bq-choix]', el).forEach(tr => { tr.onclick = () => { if (sel) { banqueState.choix[sel.l.id] = tr.dataset.bqChoix; banqueState.pieces[sel.l.id] = []; redessiner(); } }; });
+    // (1.208.0) Cocher une facture en face : elle s'ajoute aux cochées (une remise en paie plusieurs) ; l'écriture du compte
+    // de banque qui était choisie ne l'est plus (une ligne se rapproche d'une écriture OU paie des factures).
+    $$('[data-bq-piece]', el).forEach(tr => { tr.onclick = () => {
+      if (!sel) return;
+      const avant = (reglementBq(R, sel) || { cles: [] }).cles;
+      const k = tr.dataset.bqPiece;
+      banqueState.pieces[sel.l.id] = avant.includes(k) ? avant.filter(x => x !== k) : avant.concat(k);
+      banqueState.choix[sel.l.id] = '';
+      redessiner();
+    }; });
+    sur('#bq-toutes', () => { if (sel) { banqueState.toutes = sel.l.id; redessiner(); } });
     // La recherche relit le livre à chaque frappe, sans perdre le curseur.
     const ch = $('#bq-cherche', el);
     if (ch) {
@@ -12678,17 +12811,33 @@
     // Valider les proposées : les cochées, sinon toutes. Un seul appel, et un seul « Annuler » qui les défait toutes.
     const validerProposees = async () => {
       const coches = [...banqueState.coches].filter(id => (parId.get(id) || {}).g === 'prop');
-      const lot = (coches.length ? coches.map(id => parId.get(id)) : lus.filter(x => x.g === 'prop')).filter(x => x && x.c);
-      if (!lot.length) return;
+      const choisies = (coches.length ? coches.map(id => parId.get(id)) : lus.filter(x => x.g === 'prop')).filter(Boolean);
+      const lot = choisies.filter(x => x.c);
+      // (1.208.0) Une proposée qui paie une facture n'a pas encore d'écriture : elle s'écrit au brouillard (jamais validée
+      // en lot : le lettrage se fait ligne à ligne, ou une fois le mois validé), puis se rapproche.
+      const factures = choisies.filter(x => !x.c && x.fact);
+      if (!lot.length && !factures.length) return;
+      const ecrites = [];
       try {
-        const r = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(x => ({ ligneId: x.l.id, ecritureId: x.c.ecritureId, ligne: x.c.ligne })) });
-        s.livre = r.livre; banqueState.coches.clear();
+        if (lot.length) {
+          const r = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(x => ({ ligneId: x.l.id, ecritureId: x.c.ecritureId, ligne: x.c.ligne })) });
+          s.livre = r.livre;
+        }
+        for (const x of factures) {
+          const rg = reglementBq(R, { ...x });
+          if (rg && !rg.ecart) ecrites.push({ ligneId: x.l.id, id: (await reglerBq(dossier, R, x.l, rg, false)).id });
+        }
+        banqueState.coches.clear();
         redessiner();
-        toastUndo(`${pl(lot.length, 'ligne rapprochée', 'lignes rapprochées')} : chacune avec l'écriture proposée.`, async () => {
-          try { const r2 = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(x => ({ ligneId: x.l.id })) }); s.livre = r2.livre; redessiner(); }
-          catch (e) { toast(plainError(e), 'error'); }
+        const n = lot.length + ecrites.length;
+        toastUndo(`${pl(n, 'ligne rapprochée', 'lignes rapprochées')}${ecrites.length ? ` : ${ecrites.length === n ? '' : `${lot.length} avec l'écriture proposée, `}${pl(ecrites.length, 'règlement écrit', 'règlements écrits')} au brouillard d'après ${ecrites.length > 1 ? 'leurs factures' : 'sa facture'}` : ' : chacune avec l\'écriture proposée'}.`, async () => {
+          try {
+            if (lot.length) { const r2 = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(x => ({ ligneId: x.l.id })) }); s.livre = r2.livre; }
+            for (const e of ecrites) await defaireEcriteBq(dossier, R, e.ligneId, e.id);
+            redessiner();
+          } catch (e) { toast(plainError(e), 'error'); }
         });
-      } catch (e) { toast(plainError(e), 'error'); }
+      } catch (e) { redessiner(); toast(plainError(e), 'error'); }
     };
     // Le même bouton, dans le tableau au bureau et dans les cartes au téléphone.
     $$('[data-bq-valider]', el).forEach(b => { b.onclick = validerProposees; });
@@ -12701,6 +12850,13 @@
         if (sel.q.statut === 'repondue') return ecrireDepuisBanque(root, dossier, R, l);
         location.hash = `#/messages/${encodeURIComponent(dossier.id)}`;
         return;
+      }
+      const rg = reglementBq(R, sel);
+      if (rg) {
+        if (rg.ecart) { toast(`Les pièces cochées ne font pas la ligne (écart ${money(rg.ecart)}) : coche ce que la ligne paie.`, 'error'); return; }
+        let fait = null;
+        return gesteBanque(root, dossier, R, l.id, async () => { fait = await reglerBq(dossier, R, l, rg, rg.lettrable); return fait.msg; },
+          rg.lettrable ? null : () => defaireEcriteBq(dossier, R, l.id, fait && fait.id));
       }
       const cle = c => c.ecritureId + '#' + c.ligne;
       const jug = sel.jug || { candidats: [], libres: [] };
@@ -12803,7 +12959,7 @@
       return [
         { icon: 'nouveau', cle: 'ecrire-manquante', label: 'Écrire autre chose…', hint: 'une écriture à la main, au journal BQ, rapprochée du même geste', note: 'E', run: () => ecrireDepuisBanque(root, dossier, R, l) },
         { icon: 'loupe', cle: 'choisir-en-face', label: 'Choisir une autre pièce en face', hint: n > 1 ? `${n} écritures au même montant, et tout le compte` : 'toutes les écritures du compte, la bonne se pointe à la main', note: 'P', run: () => choisirEcritureForm(root, dossier, R, l) },
-        { icon: 'copier', label: 'Partager entre plusieurs pièces', hint: 'bientôt : une ligne pour plusieurs factures (une remise de chèques)', off: true, run: () => toast('Bientôt : une ligne du relevé partagée entre plusieurs pièces (une remise de chèques, un virement groupé). En attendant, « Écrire autre chose… » écrit l\'écriture ventilée.') },
+        { icon: 'copier', label: 'Partager entre plusieurs pièces', hint: 'toutes les factures non réglées en face : coche celles que la ligne paie (une remise de chèques)', run: () => { banqueState.sel = l.id; banqueState.toutes = l.id; banqueState.choix[l.id] = ''; redessiner(); } },
         { sep: true },
         { icon: 'horloge', label: 'Mettre au compte d\'attente (471)', hint: 'le mois se termine, la ligne reste à régler', note: 'A', run: () => mettreEnAttenteBq(root, dossier, R, l) },
         peutDemander ? { icon: 'message', label: `Demander ${aClientBq(dossier)} ce que c'est`, hint: 'dans votre conversation, la ligne du relevé citée', note: 'D', run: () => demanderLigneBq(root, dossier, R, l) } : null,
@@ -12906,9 +13062,26 @@
     modal(`<h2>Les règles de la banque</h2>
       <p class="small muted">Pour tous tes clients : une ligne de relevé qui contient le mot se voit proposer le compte, et l'écriture d'après lui. Une règle propose ; elle n'écrit jamais sans toi. Une règle se retient en écrivant une ligne (« Proposer ce compte aux lignes qui contiennent… »).</p>
       <div id="bq-regles-liste">${motsRetenusPanel()}</div>
+      <h3 class="bq-st2">Les taux de retenue à la source</h3>
+      <p class="small muted">Une ligne qui paie une facture moins sa retenue se reconnaît à ces taux, au millime près (« net de sa retenue »). Sans taux, rien ne se reconnaît ainsi : la ligne reste un écart. <b>À VÉRIFIER</b> avec le comptable : les taux en vigueur et leur assiette.</p>
+      <div class="bq-taux"><label class="field">${lbl('Taux, en %', 'bq.taux')}<input id="bq-taux" inputmode="decimal" placeholder="par exemple 1,5 ; 3" value="${esc(tauxRetenueBq().map(t => String(t).replace('.', ',')).join(' ; '))}"></label>
+        <button type="button" class="btn btn-sm" id="bq-taux-ok">Retenir ces taux</button></div>
       <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('cab-moyen');
+      // Les taux, séparés par « ; » (ou des espaces) ; un taux qui n'en est pas un se refuse en montrant le champ.
+      const champT = $('#bq-taux', layer);
+      $('#bq-taux-ok', layer).onclick = async () => {
+        const morceaux = String(champT.value || '').split(/[;\s]+/).map(x => x.trim()).filter(Boolean);
+        const faux = morceaux.find(x => !/^\d{1,2}([.,]\d{1,4})?$/.test(x) || !(Number(x.replace(',', '.')) > 0));
+        if (faux) { refus(champT, `« ${faux} » n'est pas un taux : écris des nombres entre 0 et 100, séparés par « ; » (par exemple 1,5 ; 3).`); return; }
+        const taux = [...new Set(morceaux.map(x => String(Number(x.replace(',', '.')))))];
+        try {
+          S = await api.saveBanque({ tauxRetenue: taux });
+          drawLivres(root, dossier);
+          toast(taux.length ? `${pl(taux.length, 'taux retenu', 'taux retenus')} : ${taux.map(t => t.replace('.', ',') + ' %').join(', ')}.` : 'Plus aucun taux : aucune ligne ne se lira « au net de sa retenue ».');
+        } catch (e) { toast(plainError(e), 'error'); }
+      };
       bindRowMenus(layer, cle => {
         if (!cle.startsWith('MOT:')) return [];
         const mot = cle.slice(4);
