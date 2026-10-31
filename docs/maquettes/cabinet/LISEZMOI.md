@@ -18,7 +18,11 @@ Hors de cette liste tant que Skander ne les a pas validées : **Priorités** et 
 
 **Proposée le 31/10/2026, à valider par Skander** : `comptabilite.html`, la comptabilité d'un dossier (les quatorze
 écrans de Saisir, Consulter, Déclarer et clôturer, sur Boulangerie El Amal). Elle se reconstruit depuis le socle de
-`classeur.html` ; tant qu'elle n'est pas validée, rien ne s'en applique dans la plateforme.
+`classeur.html` ; tant qu'elle n'est pas validée, rien ne s'en applique dans la plateforme. Revue le 31/10/2026 après
+la remarque de Skander (« la saisie n'est pas pratique ») : deux façons de saisir, « Face à la pièce » (la pièce en grand,
+une fiche pré-remplie dont chaque champ dit d'où il vient) et « Au kilomètre » (le journal au clavier, la charge et la
+TVA proposées) ; la banque confirme et écrit en masse d'après des règles visibles ; ce que font les concurrents est
+résumé dans la page, avec ses sources.
 
 ## L'ordre de construction (Skander, 28/10/2026)
 

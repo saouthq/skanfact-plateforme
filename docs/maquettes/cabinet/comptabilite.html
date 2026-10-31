@@ -75,6 +75,7 @@ table.rdp td:first-child { font-weight: 600; }
 #verif { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
 #verif li.ok { color: var(--sarcelle-texte); }
 #verif li.ko { color: #b42318; font-weight: 700; }
+.sources { font-size: 13px; color: var(--gris, #5b6672); line-height: 1.7; }
 </style>
 <div class="page">
   <header class="tete">
@@ -100,14 +101,27 @@ table.rdp td:first-child { font-weight: 600; }
     <ul>
       <li><b>Les mois de l'année en tête, à la place de « Période ».</b> Douze cases : déposé (et ce qui a été payé), en retard, à déposer aujourd'hui, au brouillard, à venir. Un clic ouvre le mois ; « Toute l'année » revient à l'exercice. On sait où on en est avant d'ouvrir un écran.</li>
       <li><b>Les trois groupes restent</b> (Saisir · Consulter · Déclarer et clôturer), avec <b>ce qui attend sur chaque écran</b> : 6 pièces dans Saisie, 7 lignes dans Banque, 2 mois dans Déclaration, 4 points dans Révision.</li>
-      <li><b>On saisit face à la pièce.</b> La file des pièces du mois à gauche (celles de Pièces reçues), la grille au milieu, la pièce à droite. La grille se remplit de ce que la pièce et ses pièces d'avant disent (le compte, la TVA, le fournisseur) ; elle dit si la pièce est déjà saisie (la photo STEG : « Joindre à FA-0919 », jamais une deuxième fois) et rapproche le relevé du même geste (le ticket de carburant).</li>
+      <li><b>Deux façons de saisir, au choix, en haut de la Saisie.</b> <b>Face à la pièce</b> : la pièce en grand à gauche, comme dans un lecteur de documents (zoom, tourner, en grand), ce que SkanFact y a lu surligné ; à droite, une fiche courte (fournisseur, date, total, TVA, compte) où chaque champ dit d'où il vient : « lu sur la pièce », « comme ses 4 tickets », « numéro suivant ». On vérifie, Entrée, la pièce suivante s'ouvre. <b>Au kilomètre</b> : le journal du mois, une pièce à la suite de l'autre au clavier ; le compte du fournisseur et le TTC suffisent, la charge et la TVA se proposent en gris, la pièce se solde seule, et la pièce de la ligne s'affiche à côté.</li>
+      <li><b>Plus de grille débit/crédit à remplir pour un achat ordinaire.</b> L'écriture se montre sous la fiche, déjà faite ; « Ouvrir en lignes » donne la grille pour ventiler, et « + Une écriture » la garde pour ce qui n'a pas de pièce (OD, à-nouveaux, régularisations), avec les mêmes touches qu'aujourd'hui (Tab, Entrée, F2, F4, Ctrl+Entrée).</li>
+      <li><b>Les pièces du mois en pastilles</b> au-dessus de la pièce (« Pièce 2 sur 6 », ‹ ›), au lieu d'une colonne qui mangeait la place. La saisie dit si la pièce est déjà au livre (la photo STEG : « La photo dit / FA-0919 dit », puis « Joindre à FA-0919 », jamais une deuxième fois) et rapproche le relevé du même geste (« Payée par carte le 24/09 », coché).</li>
       <li><b>Le brouillard du mois sous la grille</b>, avec un seul « Valider les 3 de septembre », qui ouvre une fenêtre qui les liste et dit ce qui reste au compte d'attente. Rim saisit au brouillard ; Anis valide.</li>
-      <li><b>La banque s'explique au millime</b> : 42 mouvements, 35 rapprochés à l'import, 2 à confirmer, 1 au compte d'attente, 4 sans écriture ; en pied, « solde du relevé + 4 mouvements sans écriture = solde du livre ». Chaque ligne a son geste (confirmer, relancer Sarra, écrire le règlement, saisir le ticket).</li>
+      <li><b>La banque s'explique au millime</b> : 42 mouvements, 35 rapprochés à l'import, 2 à confirmer, 1 au compte d'attente, 4 sans écriture ; en pied, « solde du relevé + 4 mouvements sans écriture = solde du livre ». Chaque ligne a son geste (confirmer, relancer Sarra, écrire le règlement, saisir le ticket), et les gestes répétés se font d'un coup : « Confirmer les 2 proposées », « Écrire les 2 frais d'après leurs règles ». Les règles retenues (« FRAIS TENUE » → 6278…) se lisent et se règlent sous le relevé.</li>
       <li><b>La déclaration dit ce qui a changé depuis qu'elle a été préparée</b> : Hygiène Plus déplacée d'août en septembre retire 34,200 DT de TVA déductible d'août. Une frise de quatre étapes (préparée, l'écriture du mois, déposée, payée) ; « Marquer déposée » prend l'accusé et le paiement dans la même fenêtre. Août passe avant septembre : un crédit d'août se reporterait.</li>
       <li><b>La révision du mois, point par point, lue des livres</b> (banque, compte d'attente, justificatifs, pièces reçues, TVA, caisse, paie) : chaque point a son geste ; les feuilles maîtresses de l'année en cartes, signées compte par compte.</li>
       <li><b>Consulter</b> garde ses cinq écrans, avec la même barre : la recherche, le mois, « Validées et brouillard », Exporter. La recherche lit aussi les relevés et les conversations (« 1250 » trouve l'écriture, la ligne du relevé et la question).</li>
       <li><b>Les états</b> : un livre qui n'existe pas encore (le client arrivé ce matin : reprendre ses soldes d'ouverture, choisir ses journaux, relier sa banque), le chargement, le refus, sans réseau (on saisit au brouillard ; valider, rapprocher et déposer attendent), lecture seule. Au téléphone, une colonne : les mois d'août à octobre, les groupes, les tableaux qui défilent dans leur cadre.</li>
     </ul>
+  </section>
+  <section class="bloc">
+    <h2>Ce que font les autres logiciels, et ce qu'on en prend</h2>
+    <p>Recherche du 31/10/2026, sur les pages publiques des éditeurs et des avis de cabinets (pas d'essai des logiciels eux-mêmes : à confirmer en démonstration).</p>
+    <ul>
+      <li><b>Les logiciels de cabinet classiques (Quadra, ACD, Sage, EBP) : la « saisie au kilomètre ».</b> On enchaîne les pièces dans un journal sans le quitter, tout au clavier ; dans un journal de banque ou de caisse, la contrepartie (512, 530) se met seule ; un compte qui revient avec les mêmes contreparties les propose quand on tabule. Les formations rappellent qu'une pièce à justifier se saisit pièce par pièce. <b>On prend :</b> le mode « Au kilomètre », la contrepartie proposée d'après le compte du tiers, et les touches qu'on a déjà.</li>
+      <li><b>Les logiciels récents (Pennylane, Inqom, MyUnisoft avec Yooz) : la pièce arrive déjà lue.</b> La facture est récupérée (courriel, téléphone, connecteurs), lue, catégorisée et rattachée à sa transaction ; le comptable ne traite plus que les exceptions (un cabinet estime environ 15 % des pièces), parce qu'une lecture n'est jamais fiable à 100 % et que chaque champ se vérifie. <b>On prend :</b> « Face à la pièce » avec la fiche pré-remplie, chaque champ marqué « lu » ou « comme d'habitude », et la pièce suivante d'Entrée.</li>
+      <li><b>Les logiciels qui partent du relevé (Xero, Pennylane, Odoo) : la banque propose, on dit « OK ».</b> Les propositions viennent d'une facture du même montant, d'une règle, ou de la mémoire des lignes d'avant ; Odoo range ses « modèles de rapprochement » en boutons ; la plainte la plus fréquente chez Xero est le nombre de clics, d'où les demandes de « tout confirmer ». <b>On prend :</b> « Confirmer les 2 proposées », « Écrire d'après leurs règles », et des règles visibles et modifiables ; jamais une écriture passée sans qu'on l'ait vue.</li>
+      <li><b>Ce qu'on ne prend pas :</b> la validation automatique sans regard (les avis la déconseillent), et une deuxième grille de saisie différente pour l'entreprise et pour le cabinet : c'est la même fiche des deux côtés.</li>
+    </ul>
+    <p class="sources">Sources : <a href="https://communityhub.sage.com/fr/sage-50/f/discussion-generale/252282/saisie-kilometre-facture-achat" target="_blank" rel="noopener">Sage, saisie au kilomètre</a> · <a href="https://download-aed.axess.fr/Fiches_pratiques/AED%20-%20Compta3%20-%20Saisie%20des%20%C3%A9critures.pdf" target="_blank" rel="noopener">Compta 3, saisie des écritures</a> · <a href="https://ebp.com/wp-content/uploads/2024/09/ebp-logiciel-comptabilite-cse-2025.pdf" target="_blank" rel="noopener">EBP</a> · <a href="https://www.pennylane.com/fr/toutes-nos-fonctionnalites" target="_blank" rel="noopener">Pennylane, fonctionnalités</a> · <a href="https://www.pennylane.com/fr/expert-comptable/comptabilite-de-tresorerie" target="_blank" rel="noopener">Pennylane, cabinets</a> · <a href="https://hayot-expertise.fr/blog/inqom-vs-myunisoft-pre-comptabilite-ia" target="_blank" rel="noopener">Inqom et MyUnisoft</a> · <a href="https://hayot-expertise.fr/blog/automatisation-comptable" target="_blank" rel="noopener">automatisation : les exceptions</a> · <a href="https://productideas.xero.com/forums/939198-for-small-businesses/suggestions/44988634-reconciliation-bulk-ok-for-reconciling-bank-tr" target="_blank" rel="noopener">Xero, « OK » en masse</a> · <a href="https://www.cybrosys.com/odoo/odoo-books/odoo-18-accounting/configuration/reconciliation-models/" target="_blank" rel="noopener">Odoo 18, modèles de rapprochement</a></p>
   </section>
   <section class="bloc">
     <h2>La page se vérifie</h2>
@@ -125,7 +139,10 @@ table.rdp td:first-child { font-weight: 600; }
   <section class="bloc">
     <h2>Ce qu'il faudra ajouter pour le construire</h2>
     <ul>
-      <li><b>La file des pièces du mois dans la saisie</b> : les pièces de Pièces reçues, dans le même ordre, et la pièce affichée à côté de la grille.</li>
+      <li><b>Le lecteur de la pièce dans la saisie</b> : la pièce en grand (zoom, tourner), les pastilles des pièces du mois (celles de Pièces reçues, dans le même ordre), et la zone où chaque champ a été lu (la lecture des photos d'achat existe déjà côté entreprise : elle garde la position de ce qu'elle lit).</li>
+      <li><b>La fiche d'une pièce</b> : chaque champ porte sa source (lu, comme d'habitude, calculé) ; « comme d'habitude » se lit des pièces d'avant du même fournisseur ; Entrée enregistre et ouvre la suivante. La même fiche sert l'achat côté entreprise.</li>
+      <li><b>Le mode « Au kilomètre »</b> : le journal du mois en grille ; la charge et la TVA proposées d'après le compte du tiers ; la pièce qui se solde seule ; les pièces rangées par date à l'enregistrement.</li>
+      <li><b>Les gestes en masse de la banque et ses règles</b> : confirmer les propositions, écrire d'après une règle, la liste des règles (le mot du relevé → le compte), chacune modifiable et supprimable.</li>
       <li><b>« Déjà saisie ? »</b> : un achat du même fournisseur et du même montant, sans justificatif, se propose avant la grille (« Joindre à FA-0919 »).</li>
       <li><b>La grille proposée</b> d'après la pièce et les pièces d'avant du même fournisseur (le compte, le taux de TVA lu sur la facture).</li>
       <li><b>Saisir et rapprocher d'un geste</b> : la ligne du relevé du même montant et du même jour se rapproche quand la pièce est enregistrée.</li>
@@ -568,7 +585,7 @@ table.rdp td:first-child { font-weight: 600; }
   const ECRANS = { saisie: 'Saisie', banque: 'Banque', paie: 'Paie', immos: 'Immobilisations', inventaire: 'Inventaire', journal: 'Livre-journal', grandlivre: 'Grand livre', balance: 'Balance', lettrage: 'Lettrage', recherche: 'Recherche', declaration: 'Déclaration', revision: 'Révision', exercice: 'Exercice', liasse: 'Liasse' };
   const GROUPES = [['saisir', 'Saisir', ['saisie', 'banque', 'paie', 'immos', 'inventaire']], ['consulter', 'Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['cloturer', 'Déclarer et clôturer', ['declaration', 'revision', 'exercice', 'liasse']]];
   // L'état choisi en haut → l'écran qu'il montre. Les fenêtres et les états gardent l'écran de la saisie.
-  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
+  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
   const ecran = () => ECRAN_DE[s.etat] || (ECRANS[s.etat] ? s.etat : 'saisie');
   const groupe = () => GROUPES.find((g) => g[2].includes(ecran()));
   // Ce que chaque onglet compte : ce qui attend sur cet écran.
@@ -592,53 +609,104 @@ table.rdp td:first-child { font-weight: 600; }
   const papier = (f) => `<div class="cp-papier ${f}" aria-hidden="true"><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><i class="l5"></i><i class="tot"></i></div>`;
   const ico = (sorte) => ({ photo: IC.photo, pdf: IC.piece }[sorte] || IC.piece);
 
-  // Saisir › Saisie : la pièce à gauche (la file du mois), la grille face à la pièce, le brouillard dessous.
-  function file(sel) {
-    const n = (t) => ATTEND.filter((a) => a[6][1] === t).length;
-    return `<div class="cp-file"><div class="cp-file-t"><b>Septembre · 6 pièces attendent</b><span class="mu">${pl(n('à saisir'), 'à saisir', 'à saisir')} · ${n('à vérifier')} à vérifier · ${n('à reclasser')} à reclasser</span></div>
-      <ol>${ATTEND.map(([id, sorte, qui, quoi, date, ttc, [ton, mot]]) => `<li class="${id === sel ? 'on' : ''}${ton === 'gris' ? ' calme' : ''}"><span class="cp-f-ic">${ico(sorte)}</span><span class="cp-f-t"><b>${esc(qui)}</b><small>${esc(quoi)}</small></span><span class="cp-f-d">${ttc ? md(ttc) : ''}<small>${date}</small></span>${st(ton, mot)}</li>`).join('')}</ol>
-      <p class="cp-pied">${IC.clavier} ↑ ↓ change de pièce · Entrée fait son geste. Les pièces arrivent de « Pièces du dossier » ; une pièce saisie part dans le classeur.</p></div>`;
+  // Saisir › Saisie. Deux façons de saisir, comme les logiciels des cabinets :
+  //  · « Face à la pièce » (la pièce reçue en grand à gauche, sa fiche lue et proposée à droite : on vérifie, Entrée, la suivante) ;
+  //  · « Au kilomètre » (le journal du mois, une ligne par pièce, au clavier : le compte du tiers et le TTC suffisent, la
+  //    charge et la TVA se proposent d'après les pièces d'avant ; la pièce de la ligne s'affiche à côté).
+  // La grille débit/crédit reste pour ce qui n'a pas de pièce (« + Une écriture ») et pour ventiler (« En lignes »).
+  const COURT = { steg: 'STEG', carbu: 'Carburant', farine: 'Minoterie', hyg: 'Hygiène Plus', flou: 'IMG_8790', double: 'IMG_8841' };
+  function bandePieces(sel) {
+    const i = ATTEND.findIndex((a) => a[0] === sel);
+    const km = s.etat === 'kilometre' && !tel();
+    const nav = km ? `<span class="cp-sx-n"><b>Achats de septembre</b><span class="mu">journal AC · 5 pièces dont 1 en cours</span></span>`
+      : `<span class="cp-sx-n"><button type="button" class="btn ico btn-sm" aria-label="Pièce d'avant"${i ? '' : ' disabled'}>‹</button><b>Pièce ${i + 1} sur 6</b><button type="button" class="btn ico btn-sm" aria-label="Pièce suivante">›</button></span>
+        ${tel() ? '' : `<ol class="cp-sx-p" aria-label="Les 6 pièces de septembre">${ATTEND.map(([id, sorte, , , , , [ton, mot]]) => `<li class="${id === sel ? 'on' : ''} ${ton}" title="${esc(COURT[id])} · ${mot}"><span class="pt"></span>${esc(COURT[id])}</li>`).join('')}</ol>`}`;
+    const mode = tel() ? '' : `<div class="cp-mode" role="group" aria-label="Comment saisir"><button type="button" aria-pressed="${!km}">${IC.piece} Face à la pièce</button><button type="button" aria-pressed="${km}">${IC.clavier} Au kilomètre</button></div>`;
+    return `<div class="cp-sx-bar">${nav}<span class="cp-sx-esp"></span>${mode}</div>`;
   }
-  function grilleSteg() {
-    // La photo STEG : un achat du même montant, du même fournisseur, existe déjà sans justificatif. Saisir le doublerait.
-    return `<div class="cp-pc"><div class="cp-pc-t"><span class="cp-f-ic">${IC.photo}</span><div><b>STEG · électricité et gaz</b><small>facture 0298 4471 · 30/09 · 186,420 DT · envoyée par Sarra hier à 18 h 12</small></div><button type="button" class="btn btn-sm">${IC.grand} En grand</button></div>
-      <div class="bandeau info cp-band">${IC.lien}<span class="txt"><b>Elle est déjà saisie : FA-0919, du même montant, sans justificatif</b><span>Sarra a saisi cet achat le 30/09 sans la photo. La saisir encore le compterait deux fois ; la joindre complète FA-0919, et la TVA de 29,765 DT devient récupérable.</span></span></div>
-      <div class="cp-ecr"><div class="cp-ecr-t"><b>FA-0919 · l'écriture déjà au livre</b>${st('ok', 'validée le 02/10')}<span class="mu">AC · 30/09 · par Sarra</span></div>
-        <table class="cp-t"><thead><tr><th>Compte</th><th>Intitulé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>
-          <tr><td class="mono">6061</td><td>Achats non stockés · électricité et gaz</td><td class="r">156,655</td><td></td></tr>
-          <tr><td class="mono">4366</td><td>TVA déductible · 19 % ${info('cp.taux', 'Le taux lu sur la facture')}</td><td class="r">29,765</td><td></td></tr>
-          <tr><td class="mono">401ST</td><td>STEG</td><td></td><td class="r">186,420</td></tr></tbody>
-          <tfoot><tr><td colspan="2">Équilibrée</td><td class="r">186,420</td><td class="r">186,420</td></tr></tfoot></table></div>
-      <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque('joindre')}>${IC.lien} Joindre à FA-0919</button><button type="button" class="btn"${bloque()}>Saisir quand même</button><span class="mu">Entrée joint · la pièce suivante s'ouvre</span></div></div>`;
+  // La pièce, comme elle est arrivée : le texte de la photo, ce que SkanFact y a lu surligné (le champ ouvert plus fort).
+  const lu = (t, on) => `<mark class="lu${on ? ' on' : ''}">${t}</mark>`;
+  function laPiece(id, petit) {
+    const papier = id === 'carbu'
+      ? `<div class="cp-tk"><b>${lu('TOTAL ENNASR')}</b><span>Station Ennasr 2 · Ariana</span><span>${lu('24/09/2026')} 08:12</span><hr><span>Pompe 3 · GASOIL</span><span class="g"><i>42,500 L × 2,000</i><i>85,000</i></span><hr><span class="g tot"><i>TOTAL TTC</i><i>${lu('85,000 DT', true)}</i></span><span>CARTE BIAT ****4471</span><hr><span>MERCI DE VOTRE VISITE</span></div>`
+      : `<div class="cp-fa"><div class="h"><b>${lu('STEG')}</b><span>District Ariana · facture d'énergie</span></div>
+          <div class="l"><span>Facture n° ${lu('0298 4471')}</span><span>du ${lu('30/09/2026')}</span></div><div class="l"><span>Boulangerie El Amal</span><span>période août – septembre 2026</span></div>
+          <table><tbody><tr><td>Électricité basse tension · 1 284 kWh</td><td>118,940</td></tr><tr><td>Gaz naturel · 212 m³</td><td>31,215</td></tr><tr><td>Redevances et taxes</td><td>6,500</td></tr>
+          <tr class="s"><td>Total hors taxes</td><td>156,655</td></tr><tr><td>TVA 19 %</td><td>${lu('29,765')}</td></tr><tr class="t"><td>Net à payer</td><td>${lu('186,420 DT', true)}</td></tr></tbody></table>
+          <div class="l p"><span>Payable par prélèvement BIAT</span></div></div>`;
+    const nom = id === 'carbu' ? 'ticket-carburant.jpg' : 'facture-steg.jpg';
+    const de = id === 'carbu' ? 'Sarra le 25/09 · « Le plein de mardi »' : 'Sarra hier à 18 h 12 · « La facture STEG d\'août, je l\'avais oubliée »';
+    return `<div class="cp-dv${petit ? ' petit' : ''}"><div class="cp-dv-t"><span class="cp-f-ic">${IC.photo}</span><span class="cp-dv-n"><b>${nom}</b><small>envoyée par ${esc(de)}</small></span>
+        <span class="cp-dv-z">${petit ? '' : '<button type="button" class="btn ico btn-sm" aria-label="Plus petit">−</button><span>100 %</span><button type="button" class="btn ico btn-sm" aria-label="Plus grand">+</button><button type="button" class="btn btn-sm">Tourner</button>'}<button type="button" class="btn btn-sm">${IC.grand} En grand</button></span></div>
+      <div class="cp-dv-f">${papier}</div>${petit ? '' : `<p class="cp-dv-l"><mark class="lu">surligné</mark> ce que SkanFact a lu sur la pièce · un clic sur un champ de droite montre où il l'a lu</p>`}</div>`;
   }
-  function grilleCarbu() {
-    // Rim saisit au brouillard ; elle ne valide pas.
-    const L = [['6066', 'Carburants · véhicule de livraison', '85,000', ''], ['401TO', 'Total Ennasr', '', '85,000']];
-    return `<div class="cp-pc"><div class="cp-pc-t"><span class="cp-f-ic">${IC.photo}</span><div><b>Ticket de carburant · Total Ennasr</b><small>gasoil · 24/09 · 85,000 DT · envoyé par Sarra le 25/09</small></div><button type="button" class="btn btn-sm">${IC.grand} En grand</button></div>
-      <div class="cp-champs"><label><span>Journal</span><b>AC · Achats</b></label><label><span>Date</span><b>24/09/2026</b></label><label><span>Pièce</span><b>TK-0924</b></label><label class="large"><span>Libellé</span><b>Gasoil camionnette · Total Ennasr</b></label></div>
-      <table class="cp-t cp-grille"><thead><tr><th>Compte</th><th>Intitulé</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>
-        ${L.map(([c, i, d, cr], k) => `<tr${k === 1 ? ' class="ici"' : ''}><td class="mono">${c}</td><td>${i}</td><td class="mu">Gasoil camionnette</td><td class="r">${d}</td><td class="r">${cr}${k === 1 ? '<i class="cp-cur"></i>' : ''}</td></tr>`).join('')}</tbody>
-        <tfoot><tr><td colspan="3">Équilibrée</td><td class="r">85,000</td><td class="r">85,000</td></tr></tfoot></table>
-      <p class="cp-aide">${IC.ok} Proposé d'après ses tickets d'avant : <b>6066 Carburants</b>, sans TVA récupérable sur le gasoil d'un véhicule de livraison (À VÉRIFIER avec le régime du client). Le relevé porte « CARTE TOTAL ENNASR 85,000 » le 24/09 : la grille le rapprochera en même temps.</p>
-      <div class="cp-gestes">${rim() ? `<button type="button" class="btn btn-primary"${bloque()}>Enregistrer au brouillard</button><span class="mu">${pers('Anis', 18)} Anis valide le brouillard de septembre</span>` : `<button type="button" class="btn btn-primary"${bloque()}>Enregistrer et valider</button><button type="button" class="btn"${bloque()}>Au brouillard</button><span class="mu">Ctrl + Entrée valide · F2 recopie la ligne du dessus</span>`}</div></div>`;
+  const src = (sorte, t) => `<span class="cp-src ${sorte}">${sorte === 'lu' ? IC.ok : sorte === 'hab' ? IC.rel : '='} ${t}</span>`;
+  function ficheCarbu() {
+    const ch = (lab, val, s2, cl) => `<div class="cp-fi-r${cl ? ' ' + cl : ''}"><span class="cp-fi-l">${lab}</span><span class="cp-in${cl === 'ici' ? ' focus' : ''}">${val}${cl === 'ici' ? '<i class="cp-cur"></i>' : ''}</span>${s2}</div>`;
+    return `<div class="cp-fi"><div class="cp-fi-t"><div><b>Ticket de carburant</b><small>reçu le 25/09 · lu en 3 secondes</small></div>${st('ambre', 'à saisir')}</div>
+      <div class="cp-fi-g">
+        ${ch('Fournisseur', '<b>Total Ennasr</b> <span class="mono mu">401TO</span>', src('lu', 'lu sur la pièce'))}
+        ${ch('Date', '24/09/2026', src('lu', 'lu'))}
+        ${ch('Total TTC', '<b>85,000</b> DT', src('lu', 'lu'), 'ici')}
+        ${ch('TVA', 'Sans TVA récupérable', src('hab', 'comme ses 4 tickets'))}
+        ${ch('Compte', '<span class="mono">6066</span> Carburants · véhicule de livraison', src('hab', 'comme ses 4 tickets'))}
+        ${ch('Pièce', '<span class="mono">TK-0924</span> · journal AC', src('calc', 'numéro suivant'))}
+      </div>
+      <label class="cp-paye"><input type="checkbox" checked><span><b>Payée par carte le 24/09</b><small>« CARTE TOTAL ENNASR 85,000 » est sur le relevé BIAT, sans écriture : elle se rapproche en même temps</small></span></label>
+      <div class="cp-ec"><div class="cp-ec-t"><b>L'écriture qui s'écrit</b><button type="button" class="cp-plus">Ouvrir en lignes</button></div>
+        <table class="cp-t"><tbody><tr><td class="mono">6066</td><td>Carburants</td><td class="r">85,000</td><td></td></tr><tr><td class="mono">401TO</td><td>Total Ennasr</td><td></td><td class="r">85,000</td></tr>
+        <tr class="bq"><td class="mono">401TO</td><td>Règlement par carte · rapproché</td><td class="r">85,000</td><td></td></tr><tr class="bq"><td class="mono">532</td><td>BIAT</td><td></td><td class="r">85,000</td></tr></tbody></table></div>
+      <p class="cp-aide">Le gasoil d'un véhicule de livraison : TVA récupérable ou non selon le régime du client, <b>À VÉRIFIER</b>. Une fois changé ici, les prochains tickets suivent.</p>
+      <div class="cp-gestes">${rim() ? `<button type="button" class="btn btn-primary"${bloque()}>Enregistrer au brouillard <kbd>↵</kbd></button><span class="mu">${pers('Anis', 18)} Anis valide le brouillard</span>` : `<button type="button" class="btn btn-primary"${bloque()}>Enregistrer et valider <kbd>↵</kbd></button><button type="button" class="btn"${bloque()}>Au brouillard</button>`}</div>
+      <p class="cp-touches">${IC.clavier}<span><kbd>Tab</kbd> champ suivant · <kbd>↵</kbd> enregistre et ouvre la pièce suivante (Minoterie du Cap Bon) · <kbd>Alt</kbd>+<kbd>→</kbd> passe la pièce · <kbd>Alt</kbd>+<kbd>L</kbd> en lignes</span></p></div>`;
   }
-  function apercu(id) {
-    const p = ATTEND.find((a) => a[0] === id);
-    return `<div class="cp-ap"><div class="cp-ap-t"><b>${esc(p[2])}</b><span class="mu">${p[4]}</span></div>${papier(id)}<div class="cp-ap-g"><button type="button" class="btn btn-sm">${IC.grand} En grand</button><button type="button" class="btn btn-sm">Tourner</button></div>
-      <p class="cp-ap-n">« ${id === 'steg' ? 'La facture STEG d\'août, je l\'avais oubliée' : 'Le plein de mardi'} » · Sarra</p></div>`;
+  function ficheSteg() {
+    const L = [['Fournisseur', 'STEG', 'STEG · 401ST'], ['Date', '30/09/2026', '30/09/2026'], ['Total TTC', '186,420', '186,420'], ['TVA', '29,765', '29,765 · 4366']];
+    return `<div class="cp-fi"><div class="cp-fi-t"><div><b>STEG · facture 0298 4471</b><small>reçue hier · lue en 3 secondes</small></div>${st('bleu', 'déjà saisie')}</div>
+      <div class="bandeau info cp-band">${IC.lien}<span class="txt"><b>Elle est déjà au livre : FA-0919, sans justificatif</b><span>Sarra a saisi cet achat le 30/09 sans la photo. La saisir encore le compterait deux fois.</span></span></div>
+      <table class="cp-t cp-cmp"><thead><tr><th></th><th>La photo dit</th><th>FA-0919 dit</th><th></th></tr></thead><tbody>
+        ${L.map(([l, a, b]) => `<tr><td class="mu">${l}</td><td>${a}</td><td>${b}</td><td class="ok">${IC.ok}</td></tr>`).join('')}
+        <tr><td class="mu">Justificatif</td><td>cette photo</td><td class="ambre">aucun</td><td></td></tr></tbody></table>
+      <p class="cp-aide">La joindre complète FA-0919 : ses 29,765 DT de TVA deviennent justifiés pour le contrôle. FA-0919 est validée : rien ne s'y modifie, la photo s'y ajoute.</p>
+      <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque('joindre')}>${IC.lien} Joindre à FA-0919 <kbd>↵</kbd></button><button type="button" class="btn"${bloque()}>Ce n'est pas la même : la saisir</button></div>
+      <p class="cp-touches">${IC.clavier}<span><kbd>↵</kbd> joint et ouvre la pièce suivante (le ticket de carburant) · <kbd>Alt</kbd>+<kbd>→</kbd> la passe</span></p></div>`;
+  }
+  // Au kilomètre : les achats de septembre, une pièce à la suite de l'autre ; la ligne en cours en bas.
+  const KM = [
+    ['03', 'FA-0914', '401MC', 'Minoterie du Cap Bon · F-2026-0903', 1846200, [['6021', 'Matières premières', 1551429], ['4366', 'TVA déductible 19 %', 294771]], 'pdf'],
+    ['05', 'FA-0904', '401LS', 'Levures du Sahel · LS-7702', 389900, [['6021', 'Matières premières', 327647], ['4366', 'TVA déductible 19 %', 62253]], 'pdf'],
+    ['12', 'FA-0915', '401ES', 'Emballages du Sahel · ES-3310', 412300, [['6022', 'Emballages', 346471], ['4366', 'TVA déductible 19 %', 65829]], 'pdf'],
+    ['30', 'FA-0919', '401ST', 'STEG · 0298 4471', 186420, [['6061', 'Électricité et gaz', 156655], ['4366', 'TVA déductible 19 %', 29765]], ''],
+    ['24', 'TK-0924', '401TO', 'Gasoil camionnette · Total Ennasr', 85000, [['6066', 'Carburants', 85000]], 'photo'],
+  ];
+  function kilometre() {
+    const der = KM.length - 1;
+    const rang = KM.map(([j, p, c, lib, ttc, v, pj], k) => {
+      const ici = k === der;
+      const t = `<tr class="p1${ici ? ' ici' : ''}"><td>${j}</td><td class="mono">${p}</td><td class="mono">${c}</td><td>${esc(lib)}</td><td class="r"></td><td class="r">${ici ? '<span class="cp-in focus">85,000<i class="cp-cur"></i></span>' : m(ttc)}</td><td class="pj">${pj ? `<span title="justificatif joint">${pj === 'photo' ? IC.photo : IC.piece}</span>` : `<span class="ambre" title="sans justificatif : la photo est arrivée hier">${IC.alerte}</span>`}</td></tr>`;
+      return t + v.map(([cc, ii, mt]) => `<tr class="auto${ici ? ' ici' : ''}"><td></td><td></td><td class="mono">${cc}</td><td class="mu">${ii}${ici ? ` ${src('hab', 'proposé')}` : ''}</td><td class="r">${m(mt)}</td><td class="r"></td><td></td></tr>`).join('');
+    }).join('');
+    const tot = KM.reduce((t, x) => t + x[4], 0);
+    return `<div class="cp-km-h"><span class="cp-per">AC · Achats ${IC.chev}</span><span class="cp-per">Septembre 2026 ${IC.chev}</span><span class="mu">Le compte du fournisseur et le TTC suffisent : la charge et la TVA se proposent d'après ses pièces d'avant, la pièce se solde seule. Le compte se cherche par son nom : « tot » trouve 401TO Total Ennasr.</span></div>
+      <div class="cp-km"><div class="cp-km-g"><table class="cp-t cp-livre"><thead><tr><th>Jour</th><th>Pièce</th><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th><th></th></tr></thead><tbody>${rang}</tbody>
+        <tfoot><tr><td colspan="4">5 pièces · débit = crédit ${IC.ok}</td><td class="r">${m(tot)}</td><td class="r">${m(tot)}</td><td></td></tr></tfoot></table>
+        <p class="cp-touches">${IC.clavier}<span><kbd>Tab</kbd> case suivante · <kbd>↵</kbd> pièce suivante · <kbd>F2</kbd> recopie la ligne du dessus · <kbd>F4</kbd> duplique la pièce · <kbd>↑</kbd> <kbd>↓</kbd> change de ligne · <kbd>Ctrl</kbd>+<kbd>↵</kbd> ${rim() ? 'enregistre au brouillard' : 'valide'} · les pièces se rangent par date à l'enregistrement</span></p></div>
+        <div class="cp-km-d"><span class="mu">La pièce de la ligne où tu es</span>${laPiece('carbu', true)}<p class="cp-aide">FA-0919 n'a pas de justificatif ${IC.alerte} : la photo STEG d'hier l'attend dans « Face à la pièce ».</p></div></div>`;
   }
   function brouillard() {
     const tot = (l) => l.reduce((t, x) => t + x[2], 0);
     const peut = !rim() && !hors() && !lect();
     return `<div class="cp-bl"><div class="cp-bl-t"><b>Le brouillard de septembre</b><span class="mu">3 écritures · elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées ${info('cp.brouillard', 'Le brouillard')}</span>
-        ${peut ? '<button type="button" class="btn btn-sm cp-bl-v">Valider les 3 de septembre</button>' : rim() ? `<span class="mu">${pers('Anis', 18)} Anis les valide</span>` : ''}</div>
+        <button type="button" class="btn btn-sm cp-bl-v" title="Le loyer du fournil le 1er, l'abonnement téléphone le 5">Écritures qui reviennent <small class="cp-nb">2</small></button>${peut ? '<button type="button" class="btn btn-sm">Valider les 3 de septembre</button>' : rim() ? `<span class="mu">${pers('Anis', 18)} Anis les valide</span>` : ''}</div>
       <table class="cp-t"><thead><tr><th>Date</th><th>Journal</th><th>Pièce</th><th>Libellé</th><th>Par</th><th class="r">Montant</th><th></th></tr></thead><tbody>
       ${BROUILLARD.map(([d, j, p, lib, qui, l]) => `<tr><td>${d}</td><td>${j}</td><td class="mono">${p}</td><td>${esc(lib)}${p === 'BQ-0914-03' ? '<small class="ambre">au compte d\'attente : Sarra n\'a pas encore dit ce que c\'est</small>' : ''}</td><td>${pers(qui, 20)}</td><td class="r">${m(tot(l))}</td><td class="r"><button type="button" class="btn ico btn-sm" aria-label="Actions">${IC.trois}</button></td></tr>`).join('')}</tbody></table></div>`;
   }
   function saisie() {
-    const sel = s.etat === 'rimsaisie' ? 'carbu' : 'steg';
-    const milieu = sel === 'carbu' ? grilleCarbu() : grilleSteg();
-    return `<div class="cp-saisie">${file(sel)}<div class="cp-mil">${milieu}${brouillard()}</div>${apercu(sel)}</div>`;
+    if (s.etat === 'kilometre' && !tel()) return `${bandePieces('carbu')}${kilometre()}`;
+    // Au téléphone, une pièce à la fois : le kilomètre (un journal au clavier) reste au bureau.
+    const kmTel = s.etat === 'kilometre' ? '<div class="bandeau gris cp-band"><span class="txt"><b>Au kilomètre se fait au bureau</b><span>Au téléphone, on saisit une pièce à la fois, face à elle. La saisie reprend où tu en étais : le ticket de carburant.</span></span></div>' : '';
+    const sel = ['rimsaisie', 'kilometre'].includes(s.etat) ? 'carbu' : 'steg';
+    return `${kmTel}${bandePieces(sel)}<div class="cp-sx">${laPiece(sel)}${sel === 'carbu' ? ficheCarbu() : ficheSteg()}</div>${brouillard()}`;
   }
   // Une écriture à la main, hors pièce : la grille vide reste dans « + Une écriture » (OD, à-nouveaux, régularisations).
 
@@ -659,10 +727,10 @@ table.rdp td:first-child { font-weight: 600; }
           <p class="cp-aide">Le jour où Sarra répond, « Imputer » remplace le 471 par le bon compte, d'un geste, depuis sa réponse.</p></div>`;
     return `<div class="cp-bq-h"><div><b>Relevé BIAT · septembre 2026</b><span class="mu">importé ce matin à 8 h 05 · 42 mouvements · solde au 30/09 : ${md(SOLDE_RELEVE)}</span></div>
         <div class="cp-bq-c"><span>${st('ok', '35 rapprochés à l\'import')}</span><span>${st('bleu', '2 à confirmer')}</span><span>${st('ambre', '1 au compte d\'attente')}</span><span>${st('rouge', '4 sans écriture')}</span></div>
-        <button type="button" class="btn btn-sm"${bloque()}>Importer un relevé…</button></div>
+        <span class="cp-bq-g"><button type="button" class="btn btn-sm"${bloque()}>${IC.ok} Confirmer les 2 proposées</button><button type="button" class="btn btn-sm"${bloque()}>Écrire les 2 frais d'après leurs règles</button><button type="button" class="btn btn-sm"${bloque()}>Importer un relevé…</button></span></div>
       <div class="cp-bq"><div class="cp-bq-l"><table class="cp-t"><thead><tr><th>Date</th><th>Libellé de la banque</th><th class="r">Débit</th><th class="r">Crédit</th><th>En face</th><th></th></tr></thead><tbody>
         ${RELEVE.map(([d, lib, de, cr, [ton, mot], face, g], i) => `<tr class="${i === sel ? 'on' : ''}"><td>${d}</td><td class="mono">${lib}<small>${esc(face)}</small></td><td class="r">${de ? m(de) : ''}</td><td class="r">${cr ? m(cr) : ''}</td><td>${st(ton, mot)}</td><td class="r"><button type="button" class="btn btn-sm${i === sel ? '' : ' cp-disc'}">${g}</button></td></tr>`).join('')}</tbody></table>
-        <button type="button" class="cp-plus">Voir les 35 mouvements rapprochés</button></div>${droite}</div>
+        <div class="cp-bq-r"><button type="button" class="cp-plus">Voir les 35 mouvements rapprochés</button><span class="mu">6 règles retenues : « FRAIS TENUE » → 6278, « AGIOS » → 6511, « PRLV STEG » → 401ST…</span><button type="button" class="cp-plus">Gérer les règles</button></div></div>${droite}</div>
       <div class="cp-rap"><span><small>Solde du relevé au 30/09</small><b>${md(SOLDE_RELEVE)}</b></span><span class="op">+</span><span><small>4 mouvements sans écriture</small><b>${md(SANS_ECR)}</b></span><span class="op">=</span><span><small>Solde du livre (532 BIAT)</small><b>${md(SOLDE_LIVRE)}</b></span>
         <span class="cp-rap-ok">${IC.ok} L'écart est expliqué au millime : août est rapproché, septembre le sera quand ces 4 lignes auront leur écriture.</span></div>`;
   }
@@ -852,10 +920,10 @@ table.rdp td:first-child { font-weight: 600; }
     };
     return `<p class="cl-p">${C[s.etat] || C[ecran()] || 'Sarra ne voit pas les livres du cabinet : ni le brouillard, ni la révision, ni les feuilles maîtresses. Elle voit ses ventes, ses achats, ses relevés, et ce que le cabinet lui demande ou lui dépose.'}</p>`;
   }
-  const FAMILLES = [['Saisir', ['saisie', 'rimsaisie', 'joindre', 'brouillard', 'valider', 'banque', 'ecrire', 'paie', 'immos', 'inventaire']],
+  const FAMILLES = [['Saisir', ['saisie', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'ecrire', 'paie', 'immos', 'inventaire']],
     ['Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['Déclarer et clôturer', ['declaration', 'deposer', 'revision', 'exercice', 'liasse']],
     ['Un autre dossier', ['nouveau']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
-  const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
+  const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
     ['banque', 'Banque : le relevé de septembre'], ['ecrire', 'Banque : écrire le prélèvement STEG'], ['paie', 'Paie'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
     ['journal', 'Livre-journal'], ['grandlivre', 'Grand livre : 532 BIAT'], ['balance', 'Balance'], ['lettrage', 'Lettrage : fournisseurs'], ['recherche', 'Recherche : « 1250 »'],
     ['declaration', 'Déclaration d\'août, en retard'], ['deposer', 'Marquer août déposée'], ['revision', 'Révision de septembre'], ['exercice', 'Exercice 2026'], ['liasse', 'Liasse 2025'],
@@ -865,6 +933,9 @@ table.rdp td:first-child { font-weight: 600; }
   const interdit = (v) => (rim() && ['valider', 'deposer'].includes(v) ? 'Rim saisit : Anis valide et dépose' : rim() && v === 'nouveau' ? 'Un nouveau client que suit Anis' : !rim() && v === 'rimsaisie' ? 'La saisie vue par Rim' : '');
   // La page se vérifie : le relevé, le livre et les cases tombent juste au millime.
   const VERIF = [
+    ['Au kilomètre : chaque pièce équilibrée (tiers = charge + TVA)', KM.every(([, , , , ttc, v]) => v.reduce((t, x) => t + x[2], 0) === ttc)],
+    ['La facture STEG : ses lignes = son hors taxes, + TVA = son net à payer', 118940 + 31215 + 6500 === 156655 && 156655 + 29765 === 186420],
+    ['Le ticket de carburant = sa ligne du relevé BIAT', RELEVE.find((x) => x[1] === 'CARTE TOTAL ENNASR')[2] === KM.find((x) => x[1] === 'TK-0924')[4]],
     ['Le brouillard : chaque écriture équilibrée', BROUILLARD.every(([, , , , , l]) => l.reduce((t, x) => t + x[2] - x[3], 0) === 0)],
     ['La banque : relevé + sans écriture = livre', SOLDE_RELEVE + SANS_ECR === SOLDE_LIVRE],
     ['La déclaration : la somme des cases = le total', AOUT.tva + AOUT.rs + AOUT.tfp + AOUT.foprolos + AOUT.tcl + AOUT.timbre === AOUT.total],
@@ -2393,47 +2464,89 @@ table.rdp td:first-child { font-weight: 600; }
     .cp-carte small { display: block; font-size: 12.5px; color: var(--sb-gris); }
     .cp-jauge { display: block; height: 6px; border-radius: 99px; background: var(--sb-trait); overflow: hidden; }
     .cp-jauge i { display: block; height: 100%; border-radius: 99px; background: var(--sb-sarcelle); }
-    /* Saisie : la file, la grille face à la pièce, la pièce. */
-    .cp-saisie { display: grid; grid-template-columns: 290px minmax(0, 1fr) 250px; gap: 16px; align-items: start; }
-    .cp-file { border: 1px solid var(--sb-trait); border-radius: 12px; overflow: hidden; }
-    .cp-file-t { padding: 10px 12px; display: grid; gap: 2px; border-bottom: 1px solid var(--sb-trait); }
-    .cp-file-t b { font-size: 13.5px; }
-    .cp-file ol { list-style: none; margin: 0; padding: 0; }
-    .cp-file li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 4px 8px; padding: 9px 12px; border-bottom: 1px solid var(--sb-trait); cursor: pointer; }
-    .cp-file li .cp-st { grid-column: 2 / 4; justify-self: start; height: 20px; }
-    .cp-file li.on { background: color-mix(in srgb, var(--sb-sarcelle) 9%, var(--sb-papier)); box-shadow: inset 3px 0 var(--sb-sarcelle); }
-    .cp-file li.calme { opacity: .72; }
-    .cp-f-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--sb-survol); color: var(--sb-gris); }
-    .cp-f-t { min-width: 0; display: grid; } .cp-f-t b, .cp-f-t small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cp-f-t b { font-size: 13px; } .cp-f-t small, .cp-f-d small { font-size: 11.5px; color: var(--sb-gris-2); }
-    .cp-f-d { text-align: right; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; display: grid; }
-    .cp-file .cp-pied { padding: 10px 12px; }
-    .cp-mil { display: grid; gap: 14px; min-width: 0; }
-    .cp-pc { border: 1px solid var(--sb-trait-fort); border-radius: 14px; padding: 14px; display: grid; gap: 12px; box-shadow: var(--sb-ombre); }
-    .cp-pc-t { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
-    .cp-pc-t b { font-size: 15px; } .cp-pc-t small { display: block; font-size: 12.5px; color: var(--sb-gris-2); }
-    .cp-ecr { border: 1px solid var(--sb-trait); border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; background: var(--sb-papier-2); }
-    .cp-ecr-t { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .cp-champs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-    .cp-champs .large { grid-column: 1 / -1; }
-    .cp-champs label { display: grid; gap: 3px; border: 1px solid var(--sb-trait-fort); border-radius: 9px; padding: 6px 10px; }
-    .cp-champs span { font-size: 11px; color: var(--sb-gris-2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-    .cp-champs b { font-size: 13.5px; font-weight: 500; }
-    .cp-grille tr.ici td { background: color-mix(in srgb, var(--sb-sarcelle) 7%, var(--sb-papier)); }
+    /* Saisie : la bande des pièces, puis la pièce en grand face à sa fiche (ou le journal au kilomètre). */
+    .cp-f-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--sb-survol); color: var(--sb-gris); flex: none; }
+    .cp-sx-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .cp-sx-n { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; } .cp-sx-n b { font-size: 14px; }
+    .cp-sx-n > .mu { margin-left: 2px; }
+    .cp-sx-esp { flex: 1; }
+    .cp-sx-p { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    .cp-sx-p li { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--sb-trait); font-size: 12.5px; font-weight: 600; color: var(--sb-gris); white-space: nowrap; cursor: pointer; }
+    .cp-sx-p li .pt { width: 7px; height: 7px; border-radius: 99px; background: var(--sb-gris-2); }
+    .cp-sx-p li.ambre .pt { background: #e0a43a; } .cp-sx-p li.rouge .pt { background: var(--sb-rouge-texte); } .cp-sx-p li.gris { opacity: .7; }
+    .cp-sx-p li.on { border-color: var(--sb-sarcelle); background: color-mix(in srgb, var(--sb-sarcelle) 9%, var(--sb-papier)); color: var(--sb-encre); }
+    .cp-mode { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--sb-survol); }
+    .cp-mode button { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-gris); padding: 5px 10px; border-radius: 8px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+    .cp-mode button svg { width: 14px; height: 14px; }
+    .cp-mode button[aria-pressed="true"] { background: var(--sb-papier); color: var(--sb-encre); box-shadow: var(--sb-ombre); }
+    .cp-nb { font-size: 11px; font-weight: 700; background: var(--sb-survol); color: var(--sb-gris); border-radius: 99px; padding: 1px 6px; margin-left: 2px; }
+    .cp-sx { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    /* La pièce : sa barre, puis la feuille sur un fond gris, comme un lecteur de documents. */
+    .cp-dv { border: 1px solid var(--sb-trait); border-radius: 14px; overflow: hidden; position: sticky; top: 8px; background: var(--sb-papier); }
+    .cp-dv-t { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--sb-trait); }
+    .cp-dv-n { min-width: 0; flex: 1; display: grid; } .cp-dv-n b { font-size: 13px; } .cp-dv-n small { font-size: 11.5px; color: var(--sb-gris-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cp-dv-z { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--sb-gris); white-space: nowrap; }
+    .cp-dv-f { background: #e9ecf0; padding: 22px 18px; display: grid; justify-items: center; min-height: 470px; align-content: start; }
+    .cp-dv.petit .cp-dv-t .cp-f-ic { display: none; } .cp-dv-n b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cp-dv.petit .cp-dv-f { min-height: 0; padding: 14px; }
+    .cp-dv-l { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--sb-gris); border-top: 1px solid var(--sb-trait); }
+    mark.lu { white-space: nowrap; background: rgba(255, 210, 60, .32); color: inherit; border-radius: 3px; padding: 0 2px; box-shadow: inset 0 -1.5px rgba(200, 150, 0, .55); }
+    mark.lu.on { background: rgba(255, 196, 0, .55); box-shadow: 0 0 0 2px #d29a00; }
+    .cp-tk { width: 230px; background: #fff; padding: 16px 14px 18px; display: grid; gap: 3px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #333; text-align: center; box-shadow: 0 8px 22px rgba(20, 40, 60, .16); transform: rotate(-1deg); clip-path: polygon(0 0, 100% 0, 100% 97%, 94% 100%, 88% 97%, 82% 100%, 76% 97%, 70% 100%, 64% 97%, 58% 100%, 52% 97%, 46% 100%, 40% 97%, 34% 100%, 28% 97%, 22% 100%, 16% 97%, 10% 100%, 4% 97%, 0 100%); }
+    .cp-tk b { font-size: 14px; letter-spacing: .06em; } .cp-tk hr { width: 100%; border: 0; border-top: 1px dashed #aaa; margin: 5px 0; }
+    .cp-tk .g { display: flex; justify-content: space-between; } .cp-tk .g i { font-style: normal; } .cp-tk .tot { font-weight: 700; font-size: 13px; }
+    .cp-dv.petit .cp-tk { transform: none; width: 210px; font-size: 11px; }
+    .cp-fa { width: min(400px, 100%); background: #fff; padding: 22px 22px 26px; display: grid; gap: 8px; font-size: 12px; color: #333; box-shadow: 0 8px 22px rgba(20, 40, 60, .14); transform: rotate(.5deg); }
+    .cp-fa .h { display: grid; border-bottom: 2px solid #1d4f8a; padding-bottom: 8px; margin-bottom: 4px; } .cp-fa .h b { font-size: 20px; color: #1d4f8a; letter-spacing: .04em; } .cp-fa .h span { font-size: 11px; color: #667; }
+    .cp-fa .l { display: flex; justify-content: space-between; gap: 10px; } .cp-fa .l.p { color: #667; font-size: 11px; margin-top: 6px; }
+    .cp-fa table, .cp-fa td { font-size: 12px; } .cp-fa table { border-collapse: collapse; width: 100%; margin-top: 6px; font-variant-numeric: tabular-nums; }
+    .cp-fa td { padding: 5px 0; border-bottom: 1px solid #eee; } .cp-fa td:last-child { text-align: right; }
+    .cp-fa tr.s td { border-top: 1px solid #bbb; } .cp-fa tr.t td { font-weight: 700; font-size: 13.5px; border-bottom: 0; padding-top: 8px; }
+    /* La fiche : chaque champ dit d'où il vient. */
+    .cp-fi { border: 1px solid var(--sb-trait-fort); border-radius: 14px; padding: 14px 16px; display: grid; gap: 12px; box-shadow: var(--sb-ombre); background: var(--sb-papier); min-width: 0; }
+    .cp-fi-t { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; } .cp-fi-t b { font-size: 15.5px; } .cp-fi-t small { display: block; font-size: 12px; color: var(--sb-gris-2); }
+    .cp-fi-g { display: grid; gap: 7px; }
+    .cp-fi-r { display: grid; grid-template-columns: 92px minmax(0, 1fr) 132px; gap: 10px; align-items: center; }
+    .cp-fi-l { font-size: 12.5px; color: var(--sb-gris); font-weight: 600; }
+    .cp-in { display: block; min-height: 34px; padding: 7px 10px; border: 1px solid var(--sb-trait-fort); border-radius: 9px; font-size: 13.5px; background: var(--sb-papier); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cp-in.focus { border-color: var(--sb-sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 22%, transparent); }
+    .cp-in .mono, .cp-t .cp-in { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+    .cp-src { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; white-space: nowrap; color: var(--sb-gris-2); }
+    .cp-src svg { width: 12px; height: 12px; }
+    .cp-src.lu { color: #9a6c00; } .cp-src.hab { color: var(--cp-bleu); }
+    .cp-paye { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--sb-doux) 60%, var(--sb-papier)); cursor: pointer; }
+    .cp-paye input { margin-top: 3px; accent-color: var(--sb-sarcelle); } .cp-paye b { font-size: 13.5px; } .cp-paye small { display: block; font-size: 12.5px; color: var(--sb-gris); }
+    .cp-ec { display: grid; gap: 4px; } .cp-ec-t { display: flex; justify-content: space-between; align-items: center; } .cp-ec-t b { font-size: 13px; }
+    .cp-ec .cp-t td { padding: 5px 8px; } .cp-ec tr.bq td { color: var(--sb-gris); }
+    .cp-cmp td.ok { color: var(--sb-doux-texte); width: 22px; } .cp-cmp td.ambre { color: var(--sb-ambre-texte); font-weight: 600; } .cp-cmp td.mu { width: 92px; }
+    .cp-touches { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--sb-gris-2); line-height: 1.9; }
+    .cp-touches > svg { flex: none; margin-top: 4px; }
+    .cp-page kbd { font: 700 11px/1 Inter, -apple-system, sans-serif; display: inline-block; min-width: 18px; text-align: center; padding: 3px 5px; border-radius: 5px; border: 1px solid var(--sb-trait-fort); border-bottom-width: 2px; background: var(--sb-papier); color: var(--sb-encre); }
+    .btn-primary kbd { background: transparent; color: inherit; border-color: rgba(255, 255, 255, .5); margin-left: 4px; }
     .cp-cur { display: inline-block; width: 1.5px; height: 15px; background: var(--sb-encre); vertical-align: -3px; margin-left: 2px; animation: cp-c 1s steps(1) infinite; }
     @keyframes cp-c { 50% { opacity: 0; } }
-    .cp-ap { border: 1px solid var(--sb-trait); border-radius: 12px; padding: 10px; display: grid; gap: 8px; position: sticky; top: 8px; }
-    .cp-ap-t { display: flex; justify-content: space-between; gap: 6px; font-size: 12.5px; }
-    .cp-ap-g { display: flex; gap: 6px; } .cp-ap-n { margin: 0; font-size: 12px; color: var(--sb-gris); font-style: italic; }
-    .cp-papier { aspect-ratio: 3 / 4; border-radius: 6px; background: #fbfaf6; border: 1px solid var(--sb-trait); padding: 14px 12px; display: grid; align-content: start; gap: 8px; box-shadow: 0 6px 16px rgba(20, 40, 60, .08); transform: rotate(-1.2deg); }
-    .cp-papier i { display: block; height: 7px; border-radius: 3px; background: #e3e0d6; }
-    .cp-papier .l1 { width: 55%; height: 11px; background: #1d84b5; opacity: .5; } .cp-papier .l2 { width: 80%; } .cp-papier .l3 { width: 70%; } .cp-papier .l4 { width: 88%; } .cp-papier .l5 { width: 60%; }
-    .cp-papier .tot { width: 40%; height: 12px; justify-self: end; margin-top: 18px; background: #c9c4b4; }
-    .cp-papier.carbu { aspect-ratio: 2 / 4; width: 70%; justify-self: center; transform: rotate(1.5deg); }
+    /* Au kilomètre : le journal, une pièce par groupe de lignes ; les lignes proposées en gris ; la pièce de la ligne à droite. */
+    .cp-km-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .cp-km-h .mu { flex: 1; min-width: 260px; }
+    .cp-km { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 16px; align-items: start; }
+    .cp-km-g { display: grid; gap: 10px; min-width: 0; }
+    .cp-km-d { display: grid; gap: 8px; position: sticky; top: 8px; }
+    .cp-km .cp-t tr.auto td { color: var(--sb-gris); border-bottom-color: transparent; padding-top: 2px; padding-bottom: 4px; }
+    .cp-km .cp-t tr.auto td.mono { padding-left: 22px; }
+    .cp-km .cp-t tr.ici td { background: color-mix(in srgb, var(--sb-sarcelle) 6%, var(--sb-papier)); }
+    .cp-km .cp-t tr.ici td:first-child { box-shadow: inset 3px 0 var(--sb-sarcelle); }
+    .cp-km .cp-t td.pj { width: 26px; color: var(--sb-gris-2); } .cp-km .cp-t td.pj .ambre { color: var(--sb-ambre-texte); }
+    .cp-km .cp-t td.pj svg { width: 15px; height: 15px; }
+    .cp-km .cp-t .cp-in { min-height: 0; padding: 3px 7px; display: inline-block; }
+    .cp-km .cp-t td { position: relative; }
+    .cp-ac { position: absolute; z-index: 3; left: 4px; top: calc(100% - 4px); width: 300px; background: var(--sb-papier); border: 1px solid var(--sb-trait-fort); border-radius: 10px; box-shadow: 0 10px 28px rgba(20, 40, 60, .16); padding: 4px; font-family: Inter, -apple-system, sans-serif; font-size: 13px; }
+    .cp-ac div { padding: 6px 8px; border-radius: 7px; } .cp-ac div.on { background: color-mix(in srgb, var(--sb-sarcelle) 10%, var(--sb-papier)); }
+    .cp-ac small { display: block; font-size: 11.5px; color: var(--sb-gris-2); }
     .cp-bl { display: grid; gap: 8px; }
     .cp-bl td.mono, .cp-fl .mono { white-space: nowrap; }
-    .cp-bl-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .cp-bl-t b { font-size: 14px; } .cp-bl-v { margin-left: auto; }
+    .cp-bl-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .cp-bl-t b { font-size: 14px; } .cp-bl-t .mu { flex: 1; min-width: 220px; }
     /* Banque. */
+    .cp-bq-g { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+    .cp-bq-r { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-top: 8px; } .cp-bq-r .mu { flex: 1; min-width: 240px; }
     .cp-bq-h { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
     .cp-bq-h > div:first-child { display: grid; } .cp-bq-h b { font-size: 15px; }
     .cp-bq-c { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
@@ -2509,10 +2622,11 @@ table.rdp td:first-child { font-weight: 600; }
     .cp-r label { display: flex; gap: 8px; align-items: center; }
     .cp-charge { display: grid; gap: 12px; } .cp-sq { display: block; height: 14px; border-radius: 6px; background: var(--sb-survol); }
     /* Le téléphone : une colonne ; les tableaux défilent dans leur cadre. */
-    .tel .cp-saisie, .tel .cp-bq, .tel .cp-dc, .tel .cp-li { grid-template-columns: minmax(0, 1fr); }
-    .tel .cp-saisie .cp-ap { display: none; }
+    .tel .cp-sx, .tel .cp-km, .tel .cp-bq, .tel .cp-dc, .tel .cp-li { grid-template-columns: minmax(0, 1fr); }
+    .tel .cp-dv { position: static; } .tel .cp-dv-f { min-height: 0; max-height: 300px; overflow: hidden; padding: 14px; } .tel .cp-dv-z > :not(:last-child) { display: none; } .tel .cp-dv-l { display: none; }
+    .tel .cp-fi { padding: 12px; } .tel .cp-fi-r { grid-template-columns: 78px minmax(0, 1fr); } .tel .cp-fi-r .cp-src { grid-column: 2; margin-top: -4px; } .tel .cp-touches { display: none; }
+    .tel .cp-bq-g { margin-left: 0; }
     .tel .cp-cy { grid-template-columns: 1fr 1fr; }
-    .tel .cp-champs { grid-template-columns: 1fr 1fr; } .tel .cp-champs .large { grid-column: 1 / -1; }
     .tel .cp-fr { grid-template-columns: 1fr 1fr; row-gap: 8px; } .tel .cp-fr-e::after { display: none; }
     .tel .cp-corps { overflow-x: hidden; }
     .tel .cp-corps .cp-t { display: block; overflow-x: auto; }
@@ -2592,7 +2706,9 @@ table.rdp td:first-child { font-weight: 600; }
   const RDP = [
     ['Les 14 écrans : Saisie, Banque, Paie, Immobilisations, Inventaire, Livre-journal, Grand livre, Balance, Lettrage, Recherche, Déclaration, Révision, Exercice, Liasse', 'Fiche du dossier › Comptabilité', 'Les mêmes, rangés dans les mêmes trois groupes ; la fiche n\'a plus d\'onglet Comptabilité : la barre y mène (« Écritures », « Banque », « Déclarations », « Tout le dossier »)', 'change'],
     ['La période (L\'exercice, un mois) et l\'exercice', 'En haut de la comptabilité, deux listes', 'Les douze mois de l\'année en cases, avec leur état (déposé, en retard, à déposer, au brouillard) ; l\'exercice à droite de l\'en-tête', 'change'],
-    ['La grille de saisie (journal, date, pièce, libellé, lignes, totaux, touches)', 'Saisie', 'La même grille et les mêmes touches, face à la pièce reçue ; la file des pièces du mois à gauche', 'change'],
+    ['La grille de saisie (journal, date, pièce, libellé, lignes, totaux, touches)', 'Saisie', '« Face à la pièce » : la pièce en grand et sa fiche pré-remplie ; « Au kilomètre » : le journal au clavier ; la grille et ses touches dans « Ouvrir en lignes » et « + Une écriture »', 'change'],
+    ['Les écritures qui reviennent (guides d\'écritures)', 'Saisie', 'Gardées, en tête du brouillard (« Écritures qui reviennent 2 »)', 'garde'],
+    ['« Retenir le mot » d\'une ligne du relevé', 'Banque', 'Les règles de la banque, listées et réglables sous le relevé ; « Écrire d\'après leurs règles » et « Confirmer les proposées » d\'un coup', 'change'],
     ['« Joindre un justificatif… »', 'Saisie', 'La pièce est déjà là : saisir la grille l\'y joint ; une pièce déjà saisie se joint d\'un geste (« Joindre à FA-0919 »)', 'change'],
     ['Le brouillard et « Valider la seule pièce d\'AC… », « Valider les 4 pièces de septembre »', 'Saisie', 'Le brouillard du mois sous la grille ; un seul « Valider les 3 de septembre », qui ouvre une fenêtre qui les liste', 'change'],
     ['Importer un relevé, l\'automatique, « Choisir l\'écriture en face », écrire depuis la ligne, retenir le mot', 'Banque', 'Gardés ; le relevé dit ses quatre états en tête, et le rapprochement s\'explique au millime en pied', 'garde'],
