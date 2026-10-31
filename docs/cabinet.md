@@ -474,6 +474,24 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### La Saisie : le brouillard du mois (1.212.0, 31/10/2026)
+
+Le lot S8 de la revue des écarts. Sur un mois de la frise, **le brouillard est celui du mois** (« Le brouillard de
+septembre · 13 écritures · 10 d'autres mois »), avec « Tout le brouillard (23) » pour le reste. Chaque ligne dit **qui l'a
+saisie** (« Par » : le client, le cabinet, la reprise ; le serveur ne garde pas encore la personne), son montant, et sous son
+libellé « **au compte d'attente** : ce que c'est reste à demander à Sarra » quand elle passe par le 471. « Guides N » ouvre la
+grille sur le choix du guide. Sur un mois, les autres lots se replient (« Valider un autre lot ») ; sur l'année, ils restent
+en rangée. Un collaborateur en saisie n'a aucun bouton de validation : « Leïla les valide ».
+
+**La fenêtre de validation liste** ce qu'elle valide (pièce, libellé, montant ; douze lignes, puis « et N autres »), **vérifie
+avant** (« Toutes sont équilibrées ; aucune ne tombe sur un mois déposé », ou ce qui ne passera pas), dit le **compte
+d'attente** (« validée, elle y reste jusqu'à ce que Sarra dise ce que c'est ») et le justificatif manquant, et son bouton dit
+combien : « **Valider les 13 écritures** ».
+
+Sous un mois vide : le mois d'avant (« Septembre : 6 pièces traitées · 3 écritures attendent au brouillard ») et « Ses ventes
+et sa caisse, saisies dans SkanFact, arrivent seules au livre ». Essai : `tests/web/cabinet-saisie-piece.test.ts` ; trois
+essais qui cliquaient « Valider » suivent le nouveau nom du bouton ; preuves « saisie 24 » à « saisie 29 ».
+
 ### La Saisie : la fiche finie (1.211.0, 31/10/2026)
 
 Le lot S7 de la revue des écarts (`docs/maquettes/cabinet/ecarts-saisie.md`), demandé par Skander (« go ») :

@@ -125,6 +125,9 @@ F4, F5 et H6 passent à ✅ (B5 : la série des tickets quand le dossier en a un
 client, son achat suivant sa pièce ; D4 : « déjà vérifiées », sans prétendre « sans correction »). Le détail :
 `docs/cabinet.md` (« La Saisie : la fiche finie »). Restent S8, S9 et les écarts voulus.
 
+**Mise à jour (1.212.0) : le lot S8 est fait.** H1 à H6, I1 à I3 et J3 passent à ✅ (H3 : « Par » dit le client ou le cabinet,
+pas encore la personne : le serveur ne la garde pas). Reste S9.
+
 - **Comme la maquette** : 16 lignes ; **en plus** : 4 (Autre chose…, de confiance, le même numéro, payée pas encore rapprochée).
 - **Écarts voulus** (8) : le surlignage de la lecture (A6), la TVA lue (C2), la demande au client au lieu de déplacer son
   achat (E4), la source du taux et l'écart de change (F2, F3), la grille visible sous un mois vide (J2).

@@ -285,6 +285,18 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as (Ecriture & { libelle: string })[])
       .find((e) => e.lignes.some((l) => l.compte === '6063'))?.libelle, { timeout: 15_000 }).toBe('Matfer Bourgeat · FR-26-118842 · 2 350,00 EUR à 3,3812');
 
+    // (S8) Le brouillard de septembre : ce mois seul, qui l'a saisie, et la fenêtre de validation qui liste et vérifie avant.
+    await expect.poll(() => p.locator('#sa-brouillard').innerText().then(net)).toMatch(/^Le brouillard de septembre/);
+    expect(await p.locator('.sx-bl-t + * th, table.list th').filter({ hasText: /^Par$/ }).count()).toBeGreaterThan(0);
+    expect(net(await p.locator('tr.br-ligne').filter({ hasText: 'Matfer' }).innerText())).toMatch(/le cabinet/);
+    await p.locator('.sx-bl-t [data-lot-mois]').click();
+    const lot = p.locator('#modal-root .modal').last();
+    await expect.poll(() => lot.locator('#lot-liste tr').count()).toBeGreaterThan(0);
+    expect(net(await lot.locator('#lot-liste').innerText())).toMatch(/Matfer Bourgeat · FR-26-118842 · 2 350,00 EUR à 3,3812 7 945,820/);
+    expect(net(await lot.locator('#lot-verif').innerText())).toMatch(/^(Toutes sont équilibrées ; aucune ne tombe sur un mois déposé\.|Elle est équilibrée et ne tombe pas sur un mois déposé\.)$/);
+    expect(await lot.getByRole('button', { name: /^Valider (l'écriture|les \d+ écritures)$/ }).count()).toBe(1);
+    await lot.getByRole('button', { name: 'Annuler', exact: true }).click();
+
     // S4 : au kilomètre, le même numéro dans le même journal se dit pendant la frappe.
     await p.locator('[data-sx-mode="km"]').click();
     await p.locator('#sa-piece').waitFor();
@@ -298,6 +310,8 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await p.locator('[data-cp-mois="2026-10"]').click();
     await expect.poll(() => p.locator('#sx-vide').innerText().then(net).catch(() => '')).toMatch(/^Octobre : aucune pièce à saisir pour l'instant/);
     expect(await p.locator('#sx-demander-mois').innerText()).toBe('Demander les pièces d\'octobre à Sarra');
+    // (S8) Sous le mois vide : le mois d'avant, et ce qui arrive seul.
+    expect(net(await p.locator('#sx-vide-av').innerText())).toMatch(/^Septembre : \d+ pièces? traitées?.*Ses ventes et sa caisse, saisies dans SkanFact, arrivent seules au livre\.$/);
     expect(await p.locator('#sa-lignes').isVisible()).toBe(true);
     expect(erreurs).toEqual([]);
   }, 240_000);
@@ -316,6 +330,9 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await puce(p, 'IMG_8790').click();
     await expect.poll(() => fiche(p).innerText().then(net)).toMatch(/Leïla relance Sarra/);
     expect(await p.locator('#sx-relancer').count()).toBe(0);
+    // (S8) Le brouillard du mois : la saisie n'a pas de bouton pour valider ; la page dit qui le fait.
+    await expect.poll(() => p.locator('#sx-qui-lot').innerText().catch(() => '')).toMatch(/^Leïla (les|la) valide$/);
+    expect(await p.locator('[data-lot-mois], .sa-lot button').count()).toBe(0);
     expect(erreurs).toEqual([]);
   }, 180_000);
 

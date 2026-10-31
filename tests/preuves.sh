@@ -18617,16 +18617,16 @@ prouver '« Valider cette écriture » offert avant le jour de l'\''écriture' '
   'if (false) Object.assign(a[a.length - 1],' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver 'un lot qui compte la pièce de paie du 31' 'web/public/v10/cabinet/app.js' \
-  '${lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
-  '${lotsDuBrouillard(brouillards.filter(e => !e.attente)).filter(' \
+  '    const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
+  '    const lotsBl = lotsDuBrouillard(brouillards.filter(e => !e.attente)).filter(' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver 'la pièce qui attend son jour, jamais nommée' 'web/public/v10/cabinet/app.js' \
   '(brouillards.filter(e => String(e.date || '\'''\'') > K.today()))}' \
   '([])}' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver '« Ce qui ne tombe pas juste » sous un brouillard sans lot' 'web/public/v10/cabinet/app.js' \
-  '${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).length ? `<div class="sa-lot">' \
-  '${r.validerParLot ? `<div class="sa-lot">' \
+  '${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ?' \
+  '${r.validerParLot && peutValiderCl(dossier) ?' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver 'un lot qui demande à valider la pièce de demain' 'web/public/v10/cabinet/app.js' \
   '&& (!filtre.mois || String(e.date || '\'''\'').slice(0, 7) === filtre.mois) && String(e.date || '\'''\'') <= K.today());' \
@@ -18788,8 +18788,8 @@ prouver 'le brouillard qui ne dit pas ce qui attend le réseau' 'web/public/v10/
   '<td class="nw">${false ? (e.refus ?' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 prouver 'un lot qui compte l'\''écriture que le serveur n'\''a pas' 'web/public/v10/cabinet/app.js' \
-  'lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
-  'lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).filter(' \
+  'const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
+  'const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).filter(' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 prouver 'valider une écriture qui attend le réseau, offert' 'web/public/v10/cabinet/app.js' \
   '      if (e.attente) Object.assign(a[a.length - 1], {' \
@@ -21972,6 +21972,26 @@ prouver 'saisie 22 : la saisie marque vérifiée à la place de la direction' we
   "$WSX3"
 prouver 'saisie 23 : « Corriger… » ne demande rien' web/public/v10/cabinet/app.js \
   "    on('#sx-corriger', () => corrigerSx(dossier, x));" "" \
+  "$WSX1"
+
+# (1.212.0) Lot S8 « le brouillard du mois » (tests/web/cabinet-saisie-piece.test.ts).
+prouver 'saisie 24 : le brouillard d'\''un mois montre tout l'\''exercice' web/public/v10/cabinet/app.js \
+  "    const mBl = livresState.mode === 'mois' && livresState.mois && !sxState.blTout ? livresState.mois : '';" "    const mBl = '';" \
+  "$WSX1"
+prouver 'saisie 25 : la fenêtre de validation ne liste pas ce qu'\''elle valide' web/public/v10/cabinet/app.js \
+  "      liste + verif + cas + (une" "      verif + cas + (une" \
+  "$WSX1"
+prouver 'saisie 26 : la fenêtre de validation ne vérifie rien avant' web/public/v10/cabinet/app.js \
+  "    const verif = !fausses.length && !deposes.length" "    const verif = false" \
+  "$WSX1"
+prouver 'saisie 27 : la saisie voit le bouton qui valide le mois' web/public/v10/cabinet/app.js \
+  "(peutValiderCl(dossier) ? \`<button type=\"button\" class=\"btn btn-sm btn-primary\" data-lot-mois" "(true ? \`<button type=\"button\" class=\"btn btn-sm btn-primary\" data-lot-mois" \
+  "$WSX3"
+prouver 'saisie 28 : le mois vide tait ce qui arrive seul au livre' web/public/v10/cabinet/app.js \
+  "Ses ventes et sa caisse, saisies dans SkanFact, arrivent seules au livre." "" \
+  "$WSX1"
+prouver 'saisie 29 : le brouillard ne dit pas qui a saisi' web/public/v10/cabinet/app.js \
+  "e.source === 'an' ? 'reprise' : 'le cabinet')" "e.source === 'an' ? 'reprise' : '')" \
   "$WSX1"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été

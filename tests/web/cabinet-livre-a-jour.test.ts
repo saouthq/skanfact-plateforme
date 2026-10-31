@@ -172,7 +172,7 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await expect.poll(() => aValider.isVisible(), { timeout: 15_000 }).toBe(true);
     expect(await aValider.innerText()).toMatch(/^\s*· 1 mois à valider$/);
     await p.locator('button').filter({ hasText: /^Valider (les \d+ pièces|la seule pièce) de BQ$/ }).first().click();
-    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Valider', exact: true }).click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: /^Valider (l'écriture|les \d+ écritures)$/ }).click();
     // (1.131.0) Tout entré : un message bref, plus de fenêtre à fermer.
     await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/validées? sous/);
     await expect.poll(() => aValider.isVisible(), { timeout: 15_000 }).toBe(false);

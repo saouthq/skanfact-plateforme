@@ -200,3 +200,19 @@
 .sx-fi-t .sx-aide { display: block; margin-top: 4px; }
 .sx-gestes .fd-qui { font-size: 12.5px; color: var(--sb-gris); font-weight: 600; }
 .sx-mv .mu { font-size: 12px; }
+
+/* (1.212.0, S8) Le brouillard du mois : le compte d'attente dit sous la ligne, les autres lots repliés, la fenêtre de
+   validation qui liste, le bilan du mois d'avant sous un mois vide. */
+.sx-bl-att { display: block; margin-top: 2px; font-size: 12px; color: var(--sb-ambre-texte); }
+.sa-lot-plus { margin: 4px 0 8px; }
+.sa-lot-plus > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); width: max-content; }
+.sa-lot-plus .sa-lot { margin-top: 8px; }
+.lot-l-w { max-height: 260px; overflow: auto; border: 1px solid var(--sb-trait); border-radius: 10px; margin: 4px 0 10px; }
+.lot-l { width: 100%; margin: 0; }
+.lot-l td { padding: 7px 10px; font-size: 13px; border-bottom: 1px solid var(--sb-trait); }
+.lot-l tr:last-child td { border-bottom: 0; }
+.lot-ok { color: var(--sb-doux-texte); font-weight: 600; }
+.lot-cas { padding: 8px 10px; border-radius: 8px; background: var(--sb-ambre-doux); }
+.sx-vide-av { display: block; margin-top: 6px; color: var(--sb-gris-2); font-size: 12.5px; }
+#sx-bl-tout { margin-left: 4px; }
+.sx-bl-t .cp-plus { display: inline-flex; align-items: center; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; min-height: 28px; }

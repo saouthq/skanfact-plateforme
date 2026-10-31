@@ -115,7 +115,9 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     // 4. Le lot d'octobre ne demande et ne valide que les pièces du jour : rien n'« est pas entré ».
     await lots.last().click();
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Valider 2 écritures d\'octobre 2026 ?');
-    await fenetre.getByRole('button', { name: 'Valider', exact: true }).click();
+    // (1.212.0) La fenêtre liste ce qu'elle valide, et son bouton dit combien.
+    expect(await fenetre.locator('#lot-liste tr').count()).toBe(2);
+    await fenetre.getByRole('button', { name: 'Valider les 2 écritures', exact: true }).click();
     // (1.131.0) Tout est entré : un message bref, ce qui reste au brouillard du mois (la pièce de paie, pas avant son
     // jour), et aucune fenêtre à fermer (revue du mois d'un client, point 18).
     await expect.poll(async () => (await p.locator('#toast').innerText().catch(() => '')).replace(/\s+/g, ' ').trim(), { timeout: 15_000 })

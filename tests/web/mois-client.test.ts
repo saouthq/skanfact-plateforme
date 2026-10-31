@@ -300,7 +300,7 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
       .toBe('Un achat du client n\'a pas de justificatif : GMS-26-4502. Tu peux valider quand même, ou le lui demander d\'abord (le menu de la ligne, « Demander le justificatif »).');
     // (1.131.0) Point 18 : validé quand même, le mois n'a plus rien au brouillard ; un message bref dit l'étape suivante,
     // sans fenêtre à fermer.
-    await h.p.getByRole('button', { name: 'Valider', exact: true }).click();
+    await h.p.getByRole('button', { name: 'Valider les 2 écritures', exact: true }).click();
     await expect.poll(async () => net(await h.p.locator('#toast').innerText().catch(() => '')), { timeout: 15_000 })
       .toMatch(/^2 écritures validées sous les n° \d+ à \d+\. Prochaine étape : la déclaration, dans « Déclarer et clôturer »\.$/);
     expect(await h.p.locator('#modal-root .modal').count()).toBe(0);

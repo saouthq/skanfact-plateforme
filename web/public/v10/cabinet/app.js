@@ -14472,6 +14472,7 @@
       <div class="sx-gestes">${enSaisie ? `<span class="fd-qui">${esc(cap(reviseurCl(dossier)))} relance ${esc(qui)}</span>` : `<button type="button" class="btn btn-primary" id="sx-relancer">Relancer ${esc(qui)} <kbd>↵</kbd></button>`}<button type="button" class="btn" id="sx-lisible">Elle se lit : la saisir</button></div>
       <p class="sx-touches">${SX_IC.clavier}<span>${enSaisie ? '' : `<kbd>↵</kbd> redemande la photo · `}<kbd>Alt</kbd>+<kbd>→</kbd> passe à la pièce suivante${esc(suivanteSx(x))}</span></p></div>`;
   }
+  const moisAvantSx = m => { const [a, n] = m.split('-').map(Number); return n === 1 ? `${a - 1}-12` : `${a}-${String(n - 1).padStart(2, '0')}`; };
   function zoneSx(dossier, P) {
     if (!P.pret) return '<div class="sx-attente mu">Lecture des pièces du mois…</div>';
     const m = moisSx();
@@ -14479,7 +14480,9 @@
       const qui = prenomCl(dossier.contact);
       const br = ecrituresSx().filter(e => e.statut === 'brouillard' && (!m || String(e.date).slice(0, 7) === m)).length;
       return `<div class="sx-vide" id="sx-vide"><span class="sx-vide-ic">${CL_IC.ok}</span><span class="txt"><b>${m ? `${esc(cap(moisLong(m)))} : aucune pièce à saisir pour l'instant` : `Aucune pièce à saisir en ${esc(livresState.annee)} pour l'instant`}</b>
-        <span>${dossier.manual ? 'Ce dossier est tenu au cabinet : ses pièces se déposent dans son classeur, puis s\'ouvrent ici, face à leur fiche.' : `Quand ${esc(qui || 'le client')} envoie une facture ou un ticket, la pièce arrive ici, en grand, face à sa fiche déjà remplie.`}${br ? ` ${esc(pl(br, 'écriture attend', 'écritures attendent'))} au brouillard.` : ''}</span></span>
+        <span>${dossier.manual ? 'Ce dossier est tenu au cabinet : ses pièces se déposent dans son classeur, puis s\'ouvrent ici, face à leur fiche.' : `Quand ${esc(qui || 'le client')} envoie une facture ou un ticket, la pièce arrive ici, en grand, face à sa fiche déjà remplie.`}${br ? ` ${esc(pl(br, 'écriture attend', 'écritures attendent'))} au brouillard.` : ''}</span>
+        ${m ? (() => { const av = moisAvantSx(m), faites = (P.items || []).filter(y => (y.p || y.doc) && y.mois === av && y.etat[2] === 'ordre' && y.etat[1] !== 'en double').length, brAv = ecrituresSx().filter(e => e.statut === 'brouillard' && String(e.date).slice(0, 7) === av).length;
+          return `<small class="sx-vide-av" id="sx-vide-av">${faites || brAv ? `${esc(cap(moisLong(av)))} : ${esc(pl(faites, 'pièce traitée', 'pièces traitées'))}${brAv ? ` · ${esc(pl(brAv, 'écriture attend', 'écritures attendent'))} au brouillard` : ''}. ` : ''}${dossier.manual ? '' : 'Ses ventes et sa caisse, saisies dans SkanFact, arrivent seules au livre.'}</small>`; })() : ''}</span>
         ${dossier.manual || !m ? '' : `<button type="button" class="btn btn-sm" id="sx-demander-mois">Demander les pièces ${esc(deMois(m))}${qui ? ` à ${esc(qui)}` : ''}</button>`}</div>`;
     }
     if (!P.liste.some(x => x.k === sxState.sel)) sxState.sel = P.liste[0].k;
@@ -14850,8 +14853,11 @@
     // Le brouillard d'un gros dossier comptait 3 532 pièces sous la grille : 153 000 px et deux
     // secondes à chaque redessin de la saisie (10.14.0, saturation). On pagine les PIÈCES (9.4.5) ;
     // les lots proposés, eux, portent sur tout le brouillard — c'est lui qu'ils valident.
-    const pagerBrouillard = pagerBar(brouillards.length, s, 'pièce');
-    const brouillardsPage = paginate(brouillards, s);
+    // (1.212.0, S8) Sur un mois de la frise, le brouillard montre CE mois (la maquette) ; « Tout le brouillard » le reste.
+    const mBl = livresState.mode === 'mois' && livresState.mois && !sxState.blTout ? livresState.mois : '';
+    const brVus = mBl ? brouillards.filter(e => String(e.date || '').slice(0, 7) === mBl) : brouillards;
+    const pagerBrouillard = pagerBar(brVus.length, s, 'pièce');
+    const brouillardsPage = paginate(brVus, s);
     // (1.210.0) Les pièces du mois, face à leur fiche : la grille reste dessous, cachée, pour « Au kilomètre » et « En lignes ».
     if (sxState.dossier !== dossier.id) { Object.assign(sxState, { dossier: dossier.id, sel: '', mode: '', zoom: 1, rot: 0, dessin: '' }); sxState.fiches.clear(); sxState.saisir.clear(); }
     const P = piecesSx(dossier);
@@ -14865,6 +14871,8 @@
     const mSx = moisSx();
     const brMois = mSx ? brouillards.filter(e => String(e.date || '').slice(0, 7) === mSx) : brouillards;
     const aValiderMois = mSx ? brMois.filter(e => String(e.date || '') <= K.today() && !e.attente) : [];
+    // Les lots proposés : ceux qui EXISTENT dans le brouillard, pièces du jour et déjà au serveur (le mois choisi a son bouton).
+    const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).filter(l => !(l.type === 'mois' && l.cle === mSx && aValiderMois.length));
     const abosActifs = (Array.isArray(dossier.abonnements) ? dossier.abonnements : []).filter(a => a.actif).length;
 
     // (1.174.2) Une saisie ouverte depuis le classeur dit de quelle pièce elle vient : enregistrée, la pièce s'y joint.
@@ -14925,25 +14933,27 @@
             pièce ; un débutant les trouve à l'endroit du geste. */''}
       <details class="sa-touches" id="sa-touches"${prefs.get('saTouches', true) === false ? '' : ' open'}><summary>Les touches de la grille</summary>${aideTouches()}</details>
       </div>${cote ? `<div class="sx-km-d" id="sx-km-d">${cotePieceSx(dossier, P)}</div>` : ''}</div>
-      <div class="sx-bl-t"><h2 id="sa-brouillard">Le brouillard ${info('sa.brouillard')}</h2><span class="mu">${brouillards.length ? `${esc(pl(brouillards.length, 'écriture'))}${mSx ? `, dont ${brMois.length} ${esc(deMois(mSx))}` : ''} · elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées` : 'rien n\'y attend'}</span>
-        ${abosActifs ? `<button type="button" class="btn btn-sm" id="sx-abos">Écritures qui reviennent <small class="sx-nb">${abosActifs}</small></button>` : ''}${r.validerParLot && aValiderMois.length ? `<button type="button" class="btn btn-sm btn-primary" data-lot-mois="${esc(mSx)}">Valider ${aValiderMois.length > 1 ? `les ${aValiderMois.length}` : 'celle'} ${esc(deMois(mSx))}</button>` : ''}</div>
+      <div class="sx-bl-t"><h2 id="sa-brouillard">Le brouillard${mBl ? ` ${esc(deMois(mBl))}` : ''} ${info('sa.brouillard')}</h2><span class="mu" id="sx-bl-n">${brVus.length ? `${esc(pl(brVus.length, 'écriture'))}${mBl && brouillards.length > brVus.length ? ` · ${brouillards.length - brVus.length} d'autres mois` : ''} · elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées` : mBl && brouillards.length ? `rien n'y attend ${esc(deMois(mBl))} · ${esc(pl(brouillards.length, 'écriture'))} d'autres mois` : 'rien n\'y attend'}</span>
+        ${mSx && brouillards.length > brMois.length ? `<button type="button" class="cp-plus" id="sx-bl-tout">${sxState.blTout ? `Seulement ${esc(moisLong(mSx))}` : `Tout le brouillard (${brouillards.length})`}</button>` : ''}
+        ${abosActifs ? `<button type="button" class="btn btn-sm" id="sx-abos">Écritures qui reviennent <small class="sx-nb">${abosActifs}</small></button>` : ''}${guides.length ? `<button type="button" class="btn btn-sm" id="sx-guides">Guides <small class="sx-nb">${guides.length}</small></button>` : ''}${r.validerParLot && aValiderMois.length ? (peutValiderCl(dossier) ? `<button type="button" class="btn btn-sm btn-primary" data-lot-mois="${esc(mSx)}">Valider ${aValiderMois.length > 1 ? `les ${aValiderMois.length}` : 'celle'} ${esc(deMois(mSx))}</button>` : `<span class="fd-qui" id="sx-qui-lot">${esc(cap(reviseurCl(dossier)))} ${aValiderMois.length > 1 ? 'les valide' : 'la valide'}</span>`) : ''}</div>
       ${/* Les lots proposés sont ceux qui EXISTENT dans le brouillard (T-29) : « Valider tout le
             journal VT » quand le seul brouillard est en BQ ouvrait une fenêtre pour dire qu'il n'y
             avait rien à faire — un bouton vif qui ne peut rien valider de ce qui est affiché. Le
             compte est connu avant le clic, donc il est écrit dessus. */''}
-      ${brouillards.length ? `${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).length ? `<div class="sa-lot">
-          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).filter(l => !(l.type === 'mois' && l.cle === mSx && aValiderMois.length)).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
-          <span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>` : ''}
+      ${brouillards.length ? `${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ? (lots => mSx && aValiderMois.length
+          ? `<details class="sa-lot-plus" id="sa-lot-plus"><summary>Valider un autre lot (${(lots.match(/<button/g) || []).length})</summary><div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div></details>`
+          : `<div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>`)(lotsBl.map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')) : ''}
         ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
     : a.length ? `<p class="muted small" id="sa-attend">${a.length} pièces sont datées après aujourd'hui : chacune se valide à partir de sa date.</p>` : '')(brouillards.filter(e => String(e.date || '') > K.today()))}
         <div class="scroll-x"><table class="list compact"><thead><tr>
-          <th class="nw">Date</th><th>Journal</th><th class="nw">Pièce</th><th>Libellé</th>
-          <th class="r nw">Total</th><th class="nw">État</th><th></th></tr></thead>
+          <th class="nw">Date</th><th>Journal</th><th class="nw">Pièce</th><th>Libellé</th><th class="nw">Par</th>
+          <th class="r nw">Montant</th><th class="nw">État</th><th></th></tr></thead>
         <tbody>${brouillardsPage.map(e => {
           const t = KC.soldeDeLignes(e.lignes);
           return `<tr data-br="${esc(e.id)}" class="br-ligne">
             <td class="nw">${esc(fmtJour(e.date))}</td><td>${esc(e.journal)}</td><td class="nw">${esc(e.piece || '—')}</td>
-            <td>${esc(e.libelle || '')}${e.pieceJointe ? ' <span title="Justificatif joint">📎</span>' : ''}</td>
+            <td>${esc(e.libelle || '')}${e.pieceJointe ? ' <span title="Justificatif joint">📎</span>' : ''}${attenteBl(e) ? `<small class="sx-bl-att">au compte d'attente : ce que c'est reste à ${dossier.manual ? 'éclaircir' : `demander à ${esc(prenomCl(dossier.contact) || 'le client')}`}</small>` : ''}</td>
+            <td class="nw mu">${esc(e.source === 'skanfact' ? (prenomCl(dossier.contact) || 'le client') : e.source === 'an' ? 'reprise' : 'le cabinet')}</td>
             <td class="r nw">${esc(montant(t.debit))}</td>
             <td class="nw">${e.attente ? (e.refus ? `<span class="err-inline sa-refusee" title="${esc(e.refus)}">refusée : ${esc(e.refus)}</span>` : '<span class="badge sa-attente">attend le réseau</span>')
               : t.equilibre ? '<span class="muted">équilibrée</span>' : `<span class="err-inline">écart ${esc(montant(t.ecart))}</span>`}</td>
@@ -14958,6 +14968,8 @@
       <div class="panel mt" id="c-abos"><h2>Écritures qui reviennent ${info('sa.abonnements')}</h2><div id="d-abos"></div></div>`;
   }
 
+  // (1.212.0) Une écriture qui passe par le compte d'attente (471) : ce qu'elle est reste à éclaircir.
+  const attenteBl = e => (e.lignes || []).some(l => /^471/.test(String(l.compte || '')) && (Number(l.debit) || Number(l.credit)));
   // Les périmètres qu'un lot peut valider, déduits du brouillard : par journal, puis par mois.
   function lotsDuBrouillard(brouillards) {
     const parJ = {}, parM = {};
@@ -15417,6 +15429,9 @@
 
     $$('[data-lot-journal]', el).forEach(b => { b.onclick = () => validerUnLot(root, dossier, { journal: b.dataset.lotJournal }); });
     $$('[data-lot-mois]', el).forEach(b => { b.onclick = () => validerUnLot(root, dossier, { mois: b.dataset.lotMois }); });
+    const blTout = $('#sx-bl-tout', el); if (blTout) blTout.onclick = () => { sxState.blTout = !sxState.blTout; livresState.page = 1; pageFocus = 'sa-brouillard'; drawLivres(root, dossier); };
+    // (1.212.0) « Guides » : la grille au clavier, le choix du guide ouvert.
+    const gd = $('#sx-guides', el); if (gd) gd.onclick = () => { sxState.mode = 'km'; drawLivres(root, dossier); const g = $('#sa-guide'); if (g) { g.focus(); g.scrollIntoView({ block: 'center' }); if (typeof g.showPicker === 'function') { try { g.showPicker(); } catch { /* sans geste direct : le champ a le curseur */ } } } };
     // « + Ajouter une ligne » (T-32) : le clavier reste le chemin rapide (Entrée sur la dernière
     // ligne), la souris cesse d'être un cul-de-sac — chaque ligne offrait déjà son « ✕ ».
     const aj = $('#sa-ajouter', el);
@@ -15511,11 +15526,23 @@
     // point 8) : on peut valider quand même, ou le demander d'abord depuis la ligne.
     const sansJustif = cibles.filter(e => e.justifClient === false);
     const avert = sansJustif.length ? `<p class="small" id="lot-sans-justif"><b>${sansJustif.length > 1 ? `${sansJustif.length} achats du client n'ont pas de justificatif` : 'Un achat du client n\'a pas de justificatif'}</b> : ${sansJustif.slice(0, 5).map(e => esc(e.piece || e.libelle || '—')).join(', ')}${sansJustif.length > 5 ? '…' : ''}. Tu peux valider quand même, ou le lui demander d'abord (le menu de la ligne, « Demander le justificatif »).</p>` : '';
+    // (1.212.0, S8) La fenêtre LISTE ce qu'elle valide (pièce, libellé, montant), dit les cas à part (le compte d'attente),
+    // et vérifie AVANT : l'équilibre de chacune, aucun mois déposé. Le bouton dit combien.
+    const fausses = cibles.filter(e => !KC.soldeDeLignes(e.lignes).equilibre);
+    const decl = lireLivreFd(s.livre).decl;
+    const deposes = cibles.filter(e => decl[String(e.date || '').slice(0, 7)] && decl[String(e.date || '').slice(0, 7)].deposee);
+    const enAttente = cibles.filter(attenteBl);
+    const qui = prenomCl(dossier.contact) || 'le client';
+    const liste = `<div class="lot-l-w"><table class="list compact lot-l" id="lot-liste"><tbody>${cibles.slice(0, 12).map(e => `<tr><td class="nw mono">${esc(e.piece || '—')}</td><td>${esc(e.libelle || '')}</td><td class="r nw">${esc(montant(KC.soldeDeLignes(e.lignes).debit))}</td></tr>`).join('')}${cibles.length > 12 ? `<tr><td colspan="3" class="muted small">et ${cibles.length - 12} autres</td></tr>` : ''}</tbody></table></div>`;
+    const cas = enAttente.length ? `<p class="small lot-cas" id="lot-attente"><b>${esc(enAttente.slice(0, 3).map(e => e.piece || e.libelle || '—').join(', '))}${enAttente.length > 3 ? '…' : ''} ${enAttente.length > 1 ? 'passent' : 'passe'} par le compte d'attente</b> : ${enAttente.length > 1 ? 'validées, elles y restent' : 'validée, elle y reste'} jusqu'à ce que ${dossier.manual ? 'tu saches ce que c\'est' : `${esc(qui)} dise ce que c'est`}.</p>` : '';
+    const verif = !fausses.length && !deposes.length
+      ? `<p class="small lot-ok" id="lot-verif">${une ? 'Elle est équilibrée et ne tombe pas sur un mois déposé.' : 'Toutes sont équilibrées ; aucune ne tombe sur un mois déposé.'}</p>`
+      : `<p class="small" id="lot-verif">${fausses.length ? `${pl(fausses.length, 'ne tombe pas juste', 'ne tombent pas juste')}` : ''}${fausses.length && deposes.length ? ' ; ' : ''}${deposes.length ? `${pl(deposes.length, 'tombe sur un mois déposé', 'tombent sur un mois déposé')}` : ''} : ${fausses.length + deposes.length > 1 ? 'elles ne seront pas validées, et te seront nommées' : 'elle ne sera pas validée, et te sera nommée'}.</p>`;
     const ok = await confirmDialog(`Valider ${pl(cibles.length, 'écriture')} ${quoi} ?`,
-      (une
-        ? '<p>Elle prend son numéro et ne se modifiera plus : une validée se contre-passe.</p><p>Si elle ne tombe pas juste, elle ne sera pas validée, et te sera nommée.</p>'
-        : '<p>Chacune prend son numéro et ne se modifiera plus : une validée se contre-passe.</p><p>Celles qui ne tombent pas juste ne seront pas validées, et te seront nommées.</p>') + avert,
-      'Valider');
+      liste + verif + cas + (une
+        ? '<p class="small muted">Elle prend son numéro et ne se modifiera plus : une validée se contre-passe.</p>'
+        : '<p class="small muted">Chacune prend son numéro et ne se modifiera plus : une validée se contre-passe.</p>') + avert,
+      une ? 'Valider l\'écriture' : `Valider les ${cibles.length} écritures`);
     if (!ok) return;
     try {
       const r = await api.validerLot({ dossierId: dossier.id, annee: s.annee, journal: filtre.journal, mois: filtre.mois, ids: cibles.map(e => e.id) });
