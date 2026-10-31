@@ -224,6 +224,11 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
     // Les trente et un jours d'octobre et la colonne des heures tiennent dans la page du Cabinet (vu à l'écran : elle
     // débordait de 70 pixels), sans défiler.
     expect(await p.locator('#pt-panneau .scroll-x').evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0);
+    // Et sur un portable de 1 366 pixels, la largeur où les cases serrées comptent (mesuré le 31/10/2026 : 0 avec elles,
+    // 24 pixels de trop sans elles ; à 1 440 pixels la grille tenait même sans).
+    await p.setViewportSize({ width: 1366, height: 900 });
+    await expect.poll(() => p.locator('#pt-panneau .scroll-x').evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0);
+    await p.setViewportSize({ width: 1440, height: 900 });
     // 4 heures à +50 % : 980 × 4 × 1,5 / 173,33 = 33,924.
     await ligneDe(p, 'Numéro Trois').locator('.pt-hs[data-hs="50"]').fill('4');
     await p.keyboard.press('Tab');

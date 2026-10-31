@@ -762,18 +762,6 @@
     // ni curseur, ni survol, ni flèche lisible — rien ne disait qu'on pouvait cliquer.
     return `<th class="nw sortable-h${droite ? ' r' : ''}${on ? ' sorted' : ''}" data-sort="${esc(key)}" title="Trier">${esc(label)}${help ? ' ' + info(help) : ''}<span class="sort-ar">${on ? (listState.desc ? '↓' : '↑') : '⇅'}</span></th>`;
   }
-  function bindSort(root, redraw) {
-    $$('th.sortable-h', root).forEach(th => {
-      th.onclick = () => {
-        const k = th.dataset.sort;
-        if (listState.sort === k) listState.desc = !listState.desc;
-        else { listState.sort = k; listState.desc = false; }
-        prefs.set('sort', listState.sort); prefs.set('desc', listState.desc);
-        listState.page = 1;
-        redraw();
-      };
-    });
-  }
   // Les trois aides de pagination prennent un ÉTAT, et retombent sur celui de la liste des
   // dossiers. Avant la 9.4.5 elles étaient câblées sur `listState` en dur : les vingt tableaux de
   // la comptabilité d'un dossier ne pouvaient donc pas s'en servir, et le grand livre d'un client
@@ -1653,31 +1641,12 @@
   // « À traiter », la pastille de ses messages (revue du 22/10/2026, point 11 : elle n'était que dans le menu). Un client
   // a la pastille sur sa ligne exactement quand il compte dans celle du menu (les mêmes lignes du serveur).
   let etatsMessages = new Map();
-  function majPastillesDossiers(racine) {
-    $$('tr[data-id]', racine || document).forEach(tr => {
-      const cellule = tr.querySelector('.dl-cell');
-      if (!cellule) return;
-      const avant = cellule.querySelector('.dl-msg');
-      if (avant) avant.remove();
-      const d = etatsMessages.get(tr.dataset.id);
-      if (!d || d.etat !== 'a_traiter') return;
-      const dit = d.nonLus ? (d.nonLus > 1 ? d.nonLus + ' nouveaux messages de ce client' : 'Un nouveau message de ce client') : 'Ce client t\'a répondu';
-      const a = document.createElement('a');
-      a.className = 'dl-msg';
-      a.href = '#/messages/' + encodeURIComponent(tr.dataset.id);
-      a.title = dit + ' : ouvrir la conversation';
-      a.setAttribute('aria-label', dit + ' : ouvrir la conversation');
-      a.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' + (d.nonLus ? '<span>' + d.nonLus + '</span>' : '');
-      cellule.appendChild(a);
-    });
-  }
   async function rafraichirPastilleMessages() {
     if (!api.messagerie || document.visibilityState !== 'visible') return;
     try {
       const b = await api.messagerie.lireBoite();
       etatsMessages = new Map(b.dossiers.map(d => [d.entreprise, d]));
       majPastilleMessages(aTraiterDeMaPortee(b.dossiers));
-      majPastillesDossiers();
       redessinerPrioritesSiOuvertes();
       // (1.169.0) La liste des dossiers porte la pastille de chaque client : elle se redessine (sauf pendant une saisie).
       const ici = document.activeElement;
@@ -3948,172 +3917,9 @@
     else location.hash = '#/reglages';
   }
 
-  function todoPanel(todo) {
-    if (!todo.length) {
-      const p = K.portfolio(S);
-      if (!p.surSkanfact) return '';
-      // (plateforme) 1.123.0 — rien en retard ne veut pas dire rien à valider : le mois en cours d'un client peut avoir
-      // des écritures au brouillard (sa ligne dit « à valider ») ; la phrase dit les deux (revue du mois d'un client).
-      const enCours = (S.dossiers || []).filter(d => !d.archived && !d.manual).map(d => K.dossierRow(d))
-        .filter(r => r.level === 'ok' && r.lastMonth && !r.lastDefinitive).length;
-      if (enCours) return `<div class="todo-ok">Rien en retard${p.surSkanfact > 1 ? ` chez tes ${p.surSkanfact} clients sur SkanFact` : ''}. ${enCours > 1 ? `${enCours} clients ont` : p.surSkanfact > 1 ? '1 client a' : 'Ton client a'} des écritures du mois en cours à valider.</div>`;
-      return p.surSkanfact > 1
-        // (plateforme) 1.76.0 — « chez ton dossier » ne se disait pas (recette du 20/10/2026).
-        ? `<div class="todo-ok">Tout est à jour : tes ${p.surSkanfact} clients sur SkanFact n'ont aucun mois passé vide ni à valider.</div>`
-        : `<div class="todo-ok">Tout est à jour : ton client sur SkanFact n'a aucun mois passé vide ni à valider.</div>`;
-    }
-    // 9.4.4 — repliable, et plafonné. Six lignes font 400 px : avec les cartes au-dessus, la liste
-    // des clients partait sous l'écran. Le panneau garde les DEUX plus urgentes sous les yeux (la
-    // liste est triée par urgence) et range le reste derrière un lien qui COMPTE ce qu'il cache —
-    // un « voir plus » qui ne dit pas combien ne se clique pas. Le choix de replier est mémorisé :
-    // l'app entreprise a `todo-toggle` + `prefs` depuis la 2.2.0, le Cabinet ne l'avait jamais reçu.
-    const ouvert = prefs.get('todoOpen', true) !== false;
-    const tout = prefs.get('todoAll', false) === true;
-    const VISIBLES = 2;
-    const montres = !ouvert ? [] : (tout ? todo : todo.slice(0, VISIBLES));
-    const caches = todo.length - montres.length;
-    return `<div class="panel todo">
-      <h2><button type="button" class="collapse-h" id="todo-toggle" aria-expanded="${ouvert}" aria-controls="todo-list"
-        title="${ouvert ? 'Replier' : 'Déplier'} la liste"><span class="chev">▾</span>À faire<span class="count">${todo.length}</span></button></h2>
-      <ul id="todo-list"${ouvert ? '' : ' hidden'}>${montres.map(t => `
-      <li class="lvl-${t.level}"><span class="td-dot"></span>
-        <span class="td-txt"><strong>${esc(t.label)}</strong><span class="small muted">${esc(t.detail)}</span></span>
-        <button class="btn btn-ghost btn-sm nw" data-todo="${esc(t.id)}">${esc((TODO_ACTIONS[t.id] || {}).texte || 'Voir')}</button></li>`).join('')}</ul>
-      ${ouvert && (caches > 0 || tout) ? `<button type="button" class="btn btn-ghost btn-sm" id="todo-plus">${
-    caches > 0 ? `Voir ${pl(caches, 'autre ligne', 'autres lignes')}` : 'Ne montrer que les deux plus urgentes'}</button>` : ''}</div>`;
-  }
-  function bindTodo(root) {
-    $$('[data-todo]', root || document).forEach(b => b.onclick = () => {
-      const a = TODO_ACTIONS[b.dataset.todo];
-      // Un bouton qui avale le clic en silence fait douter de soi, puis du logiciel : on le dit.
-      if (a) a.run(); else toast('Cette ligne n\'a pas encore d\'écran à ouvrir.', 'error');
-    });
-    const t = $('#todo-toggle', root || document);
-    if (t) t.onclick = () => { prefs.set('todoOpen', prefs.get('todoOpen', true) === false); render(); };
-    const p = $('#todo-plus', root || document);
-    if (p) p.onclick = () => { prefs.set('todoAll', prefs.get('todoAll', false) !== true); render(); };
-  }
 
-  // 9.4.4 — une pastille de couleur seule n'est pas une information. Rouge, orange, vert devant
-  // chaque client, et rien nulle part ne disait ce que ça voulait dire : ni apprenable au premier
-  // jour, ni lisible pour les 8 % d'hommes qui distinguent mal le rouge du vert, ni visible sur une
-  // capture imprimée. La couleur RAPPELLE, elle ne dit pas — donc elle porte son mot.
-  // Les quatre niveaux sont ceux de `dossierRow` — `danger`, `warn`, `ok`, `hors` — et pas des noms
-  // inventés ici : une légende qui nomme des couleurs que le code ne pose pas ne légende rien.
-  const NIVEAUX = {
-    danger: 'en retard : au moins un mois passé sans écriture',
-    warn: 'à valider : des écritures encore au brouillard',
-    ok: 'à jour',
-    hors: 'pas encore sur SkanFact : rien ne lui est réclamé'
-  };
-  const ORDRE_NIVEAUX = ['danger', 'warn', 'ok', 'hors'];
-  function legendeNiveaux() {
-    return ORDRE_NIVEAUX.map(n =>
-      `<span class="lg"><span class="dot-lvl ${n === 'ok' ? '' : n}"></span>${esc(NIVEAUX[n])}</span>`).join('');
-  }
 
-  // Les colonnes qui ne contiennent QUE des tirets. Sur cinq dossiers, trois d'entre elles n'avaient
-  // pas une seule valeur : elles coûtaient de la largeur à toutes les autres et serraient les noms
-  // de clients. On les masque, on le DIT, et on laisse un bouton pour les rendre — masquer sans le
-  // dire serait pire que le défaut (règle 7.12.0 : un filet ne doit pas devenir un piège).
-  // 10.12.0 — et « Tout afficher » se DÉFAIT : mémorisé, il n'avait aucun retour, et les colonnes
-  // vides restaient pour toujours — un réglage qui accepte un clic et se retire la possibilité de
-  // revenir en arrière (7.12.0). Le nombre de colonnes vides AFFICHÉES est gardé pour le dire.
-  function colonnesUtiles(rows) {
-    const c = {
-      provisoires: rows.some(r => r.provisionalCount > 0),
-      signale: rows.some(r => r.issues > 0),
-      relance: rows.some(r => r.lastRelanceAt),
-      honoraires: rows.some(r => r.fees > 0)
-    };
-    const vides = ['provisoires', 'signale', 'relance', 'honoraires'].filter(k => !c[k]).length;
-    if (prefs.get('colTout', false) === true) {
-      return { provisoires: true, signale: true, relance: true, honoraires: true, masquees: 0, videsAffichees: vides };
-    }
-    c.masquees = vides;
-    c.videsAffichees = 0;
-    return c;
-  }
 
-  // Le portefeuille d'un coup d'œil. C'est ce qui manquait pour qu'un comptable voie autre chose
-  // qu'une liste — et c'est précisément ce qui impressionne en démonstration.
-  function portfolioPanel(p) {
-    if (!p.total) return '';
-    // 9.4.4 — quatre cartes de 180 px de haut poussaient la LISTE DES CLIENTS sous la ligne de
-    // flottaison : à 1280×800, elle commençait à 800 px, c'est-à-dire exactement au bas de l'écran.
-    // Le portefeuille EST le produit ; il ne se mérite pas au défilement. Les mêmes quatre chiffres
-    // tiennent sur une rangée de 72 px — et deux d'entre eux NOMMENT un ensemble, donc ils
-    // l'ouvrent (règle 7.15.0) : « à jour » et « mois manquants » mènent là où on agit.
-    // 10.12.0 (U-25) — les QUATRE chiffres ouvrent quelque chose : deux cartes sur quatre portaient
-    // un chevron, et les deux autres ressemblaient aux premières sans rien faire. Une carte qui a
-    // l'air d'un bouton et n'en est pas un fait douter de celles qui le sont (7.15.0).
-    const item = (cle, lbl, val, sub, ton, titre) => `<button type="button" class="stat ouvre" data-pf="${cle}" title="${esc(titre)}">
-      <span class="pf-l"><b class="val${ton ? ' ' + ton : ''}">${val}</b> <span class="lbl">${lbl}</span></span>
-      <span class="sub">${sub}</span></button>`;
-    // 10.12.0 (U-04) — un mois NOMMÉ, et le nombre de clients qu'il couvre (`caDuPortefeuille`).
-    const ca = p.ca || {};
-    const caVal = !ca.mois ? '—' : ca.montant == null ? esc(pl(ca.devises, 'devise')) : esc(money(ca.montant, ca.devise));
-    // Le MOIS se lit sur la ligne du dessous, à côté du nombre de clients qu'il couvre : écrit dans
-    // l'étiquette, il poussait le chevron hors de la carte. Les honoraires ne sont pas du chiffre
-    // d'affaires : ils vivent dans la colonne « Honoraires » du tableau, avec leur total en pied.
-    const caSub = !ca.mois ? 'aucun mois écrit'
-      : [esc(K.monthLabel(ca.mois)), ca.montant == null ? 'pas de total entre deux devises' : '',
-        `${pl(ca.clients, 'client')} sur ${ca.sur}`].filter(Boolean).join(' · ');
-    // 26/09 — un portefeuille SANS aucun client sur SkanFact (le premier jour d'un comptable, qui
-    // commence par ses dossiers hors SkanFact) ne reçoit aucun paquet : « 0 / 0 à jour », « 0 mois
-    // manquant — aucun paquet reçu » et « — de CA » y sont trois cartes vides qui parlent d'un travail
-    // qu'il ne fait pas. On garde les clients, et on compte ce qu'il fait : les livres qu'il tient.
-    if (!p.surSkanfact) {
-      const sans = p.total - (p.livres || 0);
-      return `<div class="stats rangee">
-      ${item('tous', p.total > 1 ? 'clients suivis' : 'client suivi', p.total,
-    `${p.horsSkanfact} hors SkanFact`, '', 'Voir tous tes clients, par ordre alphabétique')}
-      ${item('livres', (p.livres || 0) > 1 ? 'livres tenus' : 'livre tenu', `${p.livres || 0}<span class="val-sur"> / ${p.total}</span>`,
-    sans ? `${pl(sans, 'client')} sans livre` : 'chaque client a son livre',
-    sans ? '' : 'ok', 'Voir ce que tu as saisi, mois par mois')}
-    </div>`;
-    }
-    return `<div class="stats rangee">
-      ${/* Le libellé s'accorde au chiffre qu'il suit : « 1 clients suivis » se lisait sur le tout
-            premier écran d'un cabinet qui vient d'ajouter son premier client (10.14.0). */''}
-      ${item('tous', p.total > 1 ? 'clients suivis' : 'client suivi', p.total,
-    `${p.surSkanfact} sur SkanFact${p.horsSkanfact ? ` · ${p.horsSkanfact} hors SkanFact` : ''}`, '',
-    'Voir tous tes clients, par ordre alphabétique')}
-      ${/* « 2 / 5 » : le compte et son univers, dans le même chiffre. « 2 à jour sur 5 » à côté de
-            « 6 clients suivis » se lisait comme une erreur — le 5, ce sont les clients sur
-            SkanFact, les seuls à qui l'on réclame quelque chose. */''}
-      ${item('ajour', 'à jour', `${p.aJour}<span class="val-sur"> / ${p.surSkanfact || 0}</span>`,
-    `${p.enRetard ? `${p.enRetard} en retard` : 'aucun retard'}${p.provisoires ? ` · ${p.provisoires} à valider` : ''}`,
-    p.enRetard ? '' : 'ok', 'Voir tes clients sur SkanFact, les plus urgents d\'abord')}
-      ${item('manquants', p.moisManquants > 1 ? 'mois manquants' : 'mois manquant', p.moisManquants,
-    p.paquets ? pl(p.paquets, 'mois écrit', 'mois écrits') : 'aucun mois écrit',
-    p.moisManquants ? 'due' : 'ok', 'Voir qui relancer : les mois passés sans écriture')}
-      ${item('ca', 'de CA', caVal, caSub, '', 'Classer tes clients par chiffre d\'affaires')}
-    </div>`;
-  }
-  // Chaque chiffre ouvre l'ensemble qu'il nomme. « À jour », « clients suivis » et le chiffre
-  // d'affaires n'ont pas de page à eux : ils posent le filtre ou le tri qui les montre, sur la liste
-  // qu'on a déjà sous les yeux. Une TABLE, comme `TODO_ACTIONS` : une carte ajoutée sans sa ligne
-  // ici tombe au test de couverture au lieu de devenir un bouton qui avale le clic (7.0.0).
-  const CARTES_PORTEFEUILLE = {
-    tous: { onlySkanfact: false, sort: 'nom' },
-    ajour: { onlySkanfact: true, sort: 'urgence' },
-    ca: { onlySkanfact: true, sort: 'ca' }
-  };
-  function bindPortfolio(root) {
-    $$('[data-pf]', root || document).forEach(b => {
-      b.onclick = () => {
-        const cle = b.dataset.pf;
-        if (cle === 'manquants') { location.hash = '#/relances'; return; }
-        if (cle === 'livres') { location.hash = '#/production'; return; }
-        const v = CARTES_PORTEFEUILLE[cle];
-        if (!v) { toast('Ce chiffre n\'a pas encore d\'écran à ouvrir.', 'error'); return; }
-        listState.q = ''; listState.withArchived = false; listState.page = 1;
-        listState.onlySkanfact = v.onlySkanfact; listState.sort = v.sort; listState.desc = false;
-        render();
-      };
-    });
-  }
 
   // Le pied de la colonne « CA du dernier mois ». Il additionnait le dernier mois de CHAQUE client —
   // mars de l'un, août de l'autre — et le pied d'une colonne est lu comme sa somme (9.8.8) : il
@@ -5221,7 +5027,6 @@
   const nomCompteCl = (livre, c, l) => (l && l.tiers && /^4[01]/.test(String(c))) ? l.tiers : ((((livre && livre.plan) || []).find(x => x.compte === String(c)) || {}).libelle || (l && l.libelle) || '');
   const quiCl = id => { if (!id) return 'le cabinet'; const c = (S.collaborateurs || []).find(x => x.id === id || x.utilisateur === id); return c ? String(c.nom || '').split(' ')[0] : 'le cabinet'; };
   const prenomCl = t => String(t || '').split(' ')[0] || '';
-  const PC_COURT_CL = { achat: 'à saisir', ticket: 'à saisir', rangee: 'à vérifier', releve: 'à rapprocher', doc: 'à ranger' };
 
   async function chargerClasseur(d, annee) {
     const cle = `${d.id}:${annee}`;
@@ -15624,31 +15429,6 @@
       }[st];
       return { d, st, sous: prudence && st !== 'pointee' && sous ? `${sous} · compté par prudence` : sous, decl, prudence, montant: decl && decl.montant != null ? decl.montant : null };
     }).sort((a, b) => EC_ORDRE.indexOf(a.st) - EC_ORDRE.indexOf(b.st) || a.d.name.localeCompare(b.d.name, 'fr'));
-  }
-  // Les déclarations à venir : le mois en cours n'est pas terminé, rien n'est encore réclamé.
-  function echeancesAVenir() {
-    const j = K.deadlineSettings(S);
-    const auj = K.today(), cur = auj.slice(0, 7);
-    const out = [];
-    const vide = { restants: [], deposes: [], manquants: [], provisoires: [], aSaisir: [] };
-    const physiques = mesDossiers().some(d => !d.archived && K.periodeTva(S, d) === 'mensuelle' && K.personnePhysique(S, d));
-    const jourPP = K.jourTva(S, { forme: 'Personne physique' });
-    for (const m of [cur, K.addMonth(cur, 1)]) {
-      out.push({ id: 'tva-m', avenir: true, label: `TVA ${K.de(K.monthLabel(m))}`, mois: [m], date: K.dayOf(K.addMonth(m, 1), j.tvaDay), ...vide });
-      if (physiques && jourPP !== j.tvaDay) out.push({ id: 'tva-m', avenir: true, physiques: true, label: `TVA ${K.de(K.monthLabel(m))} · personnes physiques`, mois: [m], date: K.dayOf(K.addMonth(m, 1), jourPP), ...vide });
-    }
-    // (1.175.0) La déclaration annuelle d'employeur de l'année en cours : au plus tard le 28 février qui suit (À VÉRIFIER),
-    // pour les dossiers dont la paie ou les comptes disent qu'ils emploient. Un pense-bête « plus tard », jamais un retard.
-    // Janvier et février : celle de l'année écoulée est encore à venir.
-    const an = Number(cur.slice(0, 4)) - (Number(cur.slice(5, 7)) <= 2 ? 1 : 0);
-    const emp = employeursConnus();
-    const employeurs = mesDossiers().filter(d => !d.archived && Object.values(emp[d.id] || {}).some(v => v === true));
-    if (employeurs.length) out.push({ id: 'employeur', avenir: true, label: `Déclaration d'employeur ${an}`, mois: Array.from({ length: 12 }, (_, i) => `${an}-${String(i + 1).padStart(2, '0')}`), date: `${an + 1}-02-28`, employeurs: employeurs.map(d => d.id), ...vide });
-    const mm = Number(cur.slice(5, 7)), fin = `${cur.slice(0, 4)}-${String(Math.ceil(mm / 3) * 3).padStart(2, '0')}`;
-    const trim = Math.ceil(mm / 3);
-    out.push({ id: 'cnss', avenir: true, label: `CNSS du ${trim}${trim === 1 ? 'ᵉʳ' : 'ᵉ'} trimestre`, mois: [fin], date: K.dayOf(K.addMonth(fin, 1), j.cnssDay), restants: [], deposes: [], manquants: [], provisoires: [], aSaisir: [] });
-    for (const e of out) e.jours = Math.round((Date.parse(e.date + 'T00:00:00Z') - Date.parse(auj + 'T00:00:00Z')) / 86400000);
-    return out;
   }
   // Chaque déclaration : ses lignes, ses comptes, son groupe. Une déclaration pointée ici (le pense-bête de la v10) est déposée pour tous.
   function itemsEcheances(liste) {

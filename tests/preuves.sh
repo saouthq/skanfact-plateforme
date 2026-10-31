@@ -2077,8 +2077,10 @@ prouver "une relance qui ne s'ouvre pas dans la messagerie" $PC \
 prouver "une relance qui n'est pas notée au serveur" $PC \
   "      await poserFiche(id, { ...avant, relances: [...deja, relance].slice(-50) }, f ? f.revision : null);" "      void relance;" \
   "$R1"
-prouver "« Valider » qui mène aux relances au lieu de la saisie" $CA \
-  "      location.hash = '#/dossier/' + encodeURIComponent(d.id) + '/comptabilite/saisie/' + m.slice(0, 4);" "      location.hash = '#/relances';" \
+# Réajustée le 31/10/2026 : le panneau « À faire » d'avant (todoPanel) n'est plus dessiné ; le geste vivant est
+# « Réviser » du Tableau de bord, que le test suit jusqu'à la saisie.
+prouver "« Réviser » qui mène aux relances au lieu de la saisie" $CA \
+  "          geste: 'Réviser', faire: () => { location.hash = \`#/dossier/\${encodeURIComponent(d.id)}/comptabilite/saisie\`; } });" "          geste: 'Réviser', faire: () => { location.hash = '#/relances'; } });" \
   "$R1"
 prouver "un mois écrit qui ouvre un paquet" $CA \
   "        const m = c.dataset.m, aValider = c.classList.contains('provisoire');" "        const m = c.dataset.m, aValider = c.classList.contains('provisoire'); if (m) return openPack(dossier, m);" \
@@ -2106,15 +2108,12 @@ prouver "une relance qui porte un champ de plus" serveur/cabinet/routes.ts \
 prouver "« Tenir un premier livre » caché des premiers pas" $PC \
   "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie', 'travail'];" \
   "$W2"
-prouver "un mot de paquet revenu sur le portefeuille" $CA \
-  "    p.paquets ? pl(p.paquets, 'mois écrit', 'mois écrits') : 'aucun mois écrit'," "    p.paquets ? pl(p.paquets, 'paquet') + ' reçu' + (p.paquets > 1 ? 's' : '') : 'aucun paquet reçu'," \
-  "$MO1"
-prouver "la clé de secours réclamée en ligne" $PC \
-  "    sansCleDeSecours: true," "" \
-  "$MO1"
-prouver "la clé de secours réclamée par l'écran" $CA \
-  "    if (api.sansCleDeSecours === true) return Promise.resolve();" "" \
-  "$MO1"
+# Retirée le 31/10/2026 : « un mot de paquet revenu sur le portefeuille » visait portfolioPanel, le panneau du
+# portefeuille d'avant la liste de la maquette (1.169.0), que plus rien n'appelait : il est parti avec le code mort.
+# Retirées le 31/10/2026 : « la clé de secours réclamée en ligne » et « … par l'écran » ne tombaient plus. La clé de
+# secours est tenue par DEUX gardes qui se recouvrent : `sansCleDeSecours` (rien ne se réclame) et le style de
+# pont-cabinet.js qui cache `#rec-banniere` et le panneau Sécurité. Chacune suffit seule ; aucune ne se prouve seule
+# (vu à l'écran : sans la première, le bandeau existe mais reste caché). Le test des mots (MO1) tient l'ensemble.
 prouver "une bulle visible qui parle encore de paquets" $CG \
   "Pour un client sur SkanFact, ce sont <b>les mêmes livres que les siens</b>" "Pour un client sur SkanFact, <b>à partir des paquets reçus</b>" \
   "$MO1"
@@ -17709,10 +17708,9 @@ prouver 'la page Dossiers qui ne se relit pas au retour' 'web/public/v10/cabinet
   'void 0;' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
 # (1.123.0) Ce client a des écritures du mois en cours au brouillard : la phrase qui se lit est celle de « rien en retard ».
-prouver '« ton dossier » pour dire que rien n'"'"'est en retard' 'web/public/v10/cabinet/app.js' \
-  ": 'Ton client a'} des écritures du mois en cours" \
-  ": 'Ton dossier a'} des écritures du mois en cours" \
-  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+# Retirée le 31/10/2026 : « “ton dossier” pour dire que rien n'est en retard » visait une phrase du panneau « À faire »
+# d'avant (todoPanel), que plus aucun écran ne dessine ; la liste des Dossiers dit maintenant « à réviser » sans retard,
+# et le test le lit sur sa ligne.
 prouver '« l'"'"'attente démarre à la première écriture » sous un mois écrit' 'web/public/v10/cabinet/app.js' \
   ': (dossier.packs || []).length ? `<span' \
   ': false ? `<span' \
@@ -18227,7 +18225,9 @@ prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' we
 
 prouver 'une comptable remplit toute la fiche d'\''un dossier avant d'\''apprendre qu'\''elle ne peut pas le créer' web/public/v10/cabinet/app.js \
   '    if (peut && !peut.ok) {' '    if (false) {' \
-  'inviter par l'\''adresse, rejoindre par le lien, confier un dossier, changer le rôle, retirer'
+  'Walid : en lecture seule, « Nouveau dossier client » refuse en le disant'
+# (Réajustée le 31/10/2026 : depuis la 1.169.0, la comptable non associée ne voit plus le bouton ; le refus avant la
+# saisie vit pour l'associé d'un cabinet dont la facture attend, que l'essai de l'abonnement du cabinet ouvre.)
 
 prouver 'un client refusé sans réseau, resté à l'\''écran, qui ne repart pas au retour du réseau' web/public/plateforme/pont.js \
   '(attenteGardee || nonEnregistre) && !enCours' 'attenteGardee && !enCours' \
@@ -19285,8 +19285,10 @@ prouver 'les messages trouvés sous le fil' $MJ \
 prouver 'un client cherché en majuscules, introuvable' $MJ \
   "ds.filter((d) => plier(d.nom).includes(plier(cherche)))" "ds.filter((d) => d.nom.includes(cherche))" \
   "$MW115"
+# (Réajustée le 31/10/2026 : la pastille de la ligne d'avant, `.dl-msg` posée par majPastillesDossiers, ne trouve plus
+# sa cellule depuis la liste de la maquette (1.169.0) ; la pastille vivante est `.cd-nl`, tirée de `at`.)
 prouver 'la pastille des messages sur un client sans rien à traiter' web/public/v10/cabinet/app.js \
-  "      if (!d || d.etat !== 'a_traiter') return;" "      if (!d) return;" \
+  "at: m.etat === 'a_traiter' };" "at: !!m.etat };" \
   "$MW115"
 
 # ── 1.118.0 : l'abonnement après sa revue, lot 1 (le bandeau de l'accueil, un bouton par offre, les phrases exactes, les
@@ -20894,7 +20896,9 @@ prouver 'échéances 1 : la première lecture, vide, laisse la page en squelette
   'des clients sans aucune écriture'
 prouver 'échéances 2 : la relance part sans ses demandes datées' web/public/plateforme/pont-cabinet.js \
   '{ cote: '"'"'cabinet'"'"', texte, ...(demandes.length ? { demandes } : {}),' '{ cote: '"'"'cabinet'"'"', texte,' \
-  'au bureau : la déclaration en retard'
+  '(1.175.0) une personne physique à son jour'
+# (Réajustée le 31/10/2026 : depuis la 1.193.0, le premier essai écrit la relance dans la conversation, sans passer par
+# relancerDossier ; c'est le second qui l'envoie de la fenêtre et compte les demandes chez le client.)
 prouver 'échéances 3 : « Marquer déposée » sans rien de prêt part sans choix' web/public/v10/cabinet/app.js \
   'id="ok" disabled title="Choisis d'"'"'abord' 'id="ok" title="Choisis d'"'"'abord' \
   'au bureau : la déclaration en retard'

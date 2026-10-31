@@ -395,13 +395,6 @@
 .msg-integre .msg-zone { flex: 1 1 auto; min-height: 0; border: 0; border-radius: 0; }
 
 /* Au téléphone (même seuil que telephone.css) : une colonne, le fil d'abord, sans bulle trop étroite. */
-/* (1.117.0) La pastille des messages sur la ligne d'un client « À traiter » (la liste des dossiers du Cabinet). */
-.dl-msg {
-  flex: none; display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 8px; padding: 2px 8px; border-radius: 999px;
-  background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; line-height: 18px; text-decoration: none;
-}
-.dl-msg:hover { filter: brightness(1.1); }
-.dl-msg:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 /* (1.117.0) Chercher dans un fil : la barre au-dessus du fil, les messages trouvés à sa place tant qu'on cherche. */
 .msg-chercher { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .msg-tete-integre .msg-chercher + .msg-en-grand { margin-inline-start: 0; }

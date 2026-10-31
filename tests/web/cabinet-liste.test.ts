@@ -122,12 +122,14 @@ describe('une liste de clients collée, à la souris', () => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     const toast = () => p.locator('#toast').innerText();
     const marquee = () => p.locator('#f-mat').getAttribute('aria-invalid');
-    await expect.poll(async () => {
-      // On ne reclique que si la fenêtre n'existe pas encore (1.117.1) : sur une machine lente, un second clic partait avant
-      // qu'elle ne s'affiche, et deux fenêtres s'ouvraient (rouge GitHub de la 1.118.0, Node 24).
-      if (!await p.locator('#f-mat').count()) await p.locator('#new-d').first().click({ timeout: 2_000 }).catch(() => {});
-      return p.locator('#f-mat').first().isVisible();
-    }, { timeout: 30_000 }).toBe(true);
+    // Un clic, puis on laisse 7 s à la fenêtre avant de recliquer. Recliquer à chaque tour de l'attente (1.117.1) ouvrait
+    // encore plusieurs fenêtres sur une machine lente : quatre « Nom du client » à la fois (rouge GitHub de b71c73d, Node 24).
+    for (let i = 0; i < 4 && !await p.locator('#f-mat').count(); i++) {
+      await p.locator('#new-d').first().click({ timeout: 5_000 }).catch(() => {});
+      await p.locator('#f-mat').first().waitFor({ timeout: 7_000 }).catch(() => {});
+    }
+    await expect.poll(() => p.locator('#f-mat').first().isVisible(), { timeout: 10_000 }).toBe(true);
+    expect(await p.locator('#f-mat').count()).toBe(1);
     const creer = () => p.locator('#modal-root .modal').last().locator('#ok').click();
     await p.locator('#f-name').fill('Épicerie du Port');
 

@@ -98,6 +98,13 @@ describe('la saisie du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('[data-fd-mois$="-08"]').getAttribute('aria-label')).toMatch(/^août : (à réviser|.*en retard)/);
     await p.goBack();
     await p.locator('#view tr[data-id]').first().waitFor();
+    // L'export des écritures dit août « à valider » : un mois qui a encore une écriture au brouillard n'est pas définitif.
+    // (La fiche lit les brouillards à part : c'est ici que se voit un mois compté à tort comme définitif.)
+    await aller('#/ecritures');
+    await p.locator('#e-from').selectOption('2026-08');
+    await p.locator('#e-to').selectOption('2026-08');
+    await expect.poll(() => p.locator('#view').innerText()).toMatch(/Août 2026\s+Menuiserie Ben Salah\s+\S+\s+à valider/i);
+    await aller('#/dossiers');
 
     // La grille de saisie : une OD en brouillard.
     await aller(`#/dossier/${ent}/comptabilite/saisie/2026`);
