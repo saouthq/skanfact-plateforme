@@ -102,6 +102,7 @@ table.rdp td:first-child { font-weight: 600; }
     <ul>
       <li><b>Les mois de l'année en tête, à la place de « Période ».</b> Douze cases : déposé (et ce qui a été payé), en retard, à déposer aujourd'hui, au brouillard, à venir. Un clic ouvre le mois ; « Toute l'année » revient à l'exercice. On sait où on en est avant d'ouvrir un écran.</li>
       <li><b>Le dossier dans la barre de gauche, avec les pages qui existent</b> (Skander, 31/10 : « plus de choix pertinents », puis « regarde ce qu'il existe ») : seulement ce que le Cabinet sait déjà ouvrir pour un dossier. <b>Fiche du dossier</b> (#/dossier/…), <b>Le classeur</b> (#/dossier/…/classeur, aujourd'hui caché dans « Tout le dossier »), <b>Pièces du dossier</b> (6 à classer, comme aujourd'hui), <b>Messages</b> (la conversation du dossier, #/messages/…, pour un dossier relié), puis <b>Comptabilité</b> et <b>Tout le dossier</b>. Retirés parce qu'ils n'existent pas : des « Échéances du dossier » (la page Échéances n'a pas de vue par dossier) et une page « Salariés » (les salariés vivent dans l'écran Paie de la comptabilité).</li>
+      <li><b>Revue critique du 31/10</b> : la barre de la comptabilité est <b>toujours ouverte</b> par défaut (une barre qui s'efface et revient fait bouger ce qui est dessous ; « dynamique » et « repliée » restent au choix, et le choix est gardé) ; ses trois boutons passent à 26 × 24 pixels ; les flèches ← → du clavier montrent le groupe voisin, Entrée l'ouvre ; la souris ne « tire » plus la liste (le doigt et le pavé tactile, si). Un clic sur Saisir, Consulter ou Déclarer fait la même chose à gauche et en haut : il ouvre le dernier écran du groupe.</li>
       <li><b>La navigation de la comptabilité, à deux endroits mais jamais deux fois à l'écran</b> (Skander, 31/10). <b>En haut de la page</b>, sous « Guide-moi » et « + Une écriture » : le bouton à trois positions, Saisir · Consulter · Déclarer, avec ce qui attend (13, 6), et à côté les onglets du groupe (Saisie 6, Banque 7, Paie…). <b>Dans la barre de gauche</b>, le même bouton à l'horizontale et la liste des écrans. Les deux ne se montrent jamais ensemble : tant que la barre d'onglets du haut est à l'écran, celle de gauche s'efface en glissant, et il reste seulement « Comptabilité · Saisie ↑ » ; dès que la page descend (le brouillard, une longue liste) et que la barre du haut sort de l'écran, celle de gauche revient, pour changer d'écran sans remonter. Et comme chacun a ses habitudes, <b>trois façons, au choix, à droite du titre « Comptabilité »</b> (trois petites icônes) : <b>toujours ouverte</b> (elle ne s'efface jamais) ; <b>dynamique</b> (le choix de départ : elle s'efface tant que la barre du haut est à l'écran et revient quand la page descend) ; <b>repliée</b> (le titre seul). Le choix est gardé d'une visite à l'autre, pour chaque personne. Dans les modes dynamique et repliée, un clic sur « Comptabilité · Saisie » l'ouvre quand même, le temps qu'il faut : jusqu'au prochain écran ouvert ou un second clic. Les deux sont liées : glisser l'une fait glisser l'autre. Un clic sur un groupe ouvre son dernier écran (Consulter → la Balance d'hier) ; glisser la barre (souris, doigt, trackpad) montre les autres groupes sans quitter l'écran. Au clavier : <kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> ; la page glisse dans le sens où l'on va, en 0,2 seconde. Pour le voir : « La page descend », « Mode toujours ouverte » et « Mode repliée » en haut de cette maquette, ou fais défiler l'écran et essaie les trois icônes toi-même.</li>
       <li><b>Les trois groupes restent</b> (Saisir · Consulter · Déclarer et clôturer), avec <b>ce qui attend sur chaque écran</b> : 6 pièces dans Saisie, 7 lignes dans Banque, 2 mois dans Déclaration, 4 points dans Révision.</li>
       <li><b>Deux façons de saisir, au choix, en haut de la Saisie.</b> <b>Face à la pièce</b> : la pièce en grand à gauche, comme dans un lecteur de documents (zoom, tourner, en grand), ce que SkanFact y a lu surligné ; à droite, une fiche courte (fournisseur, date, total, TVA, compte) où chaque champ dit d'où il vient : « lu sur la pièce », « comme ses 4 tickets », « numéro suivant ». On vérifie, Entrée, la pièce suivante s'ouvre. <b>Au kilomètre</b> : le journal du mois, une pièce à la suite de l'autre au clavier ; le compte du fournisseur et le TTC suffisent, la charge et la TVA se proposent en gris, la pièce se solde seule, et la pièce de la ligne s'affiche à côté.</li>
@@ -756,9 +757,16 @@ table.rdp td:first-child { font-weight: 600; }
     };
     box.__ouvrir = ouvrirGroupe;
     sgs.addEventListener('click', (ev) => { const b = ev.target.closest('.cp-sg'); if (b) { ev.stopPropagation(); ouvrirGroupe(+b.dataset.i); } });
+    // Le clavier : les flèches montrent le groupe voisin (sans rien ouvrir), Entrée l'ouvre.
+    sgs.querySelectorAll('.cp-sg').forEach((b, n) => { b.tabIndex = n === i ? 0 : -1; });
+    sgs.addEventListener('keydown', (ev) => {
+      const d = { ArrowRight: 1, ArrowLeft: -1 }[ev.key]; if (!d) return;
+      ev.preventDefault(); aller(i + d);
+      sgs.querySelectorAll('.cp-sg').forEach((b, n) => { b.tabIndex = n === i ? 0 : -1; if (n === i) b.focus(); });
+    });
     // Glisser à la souris ou au doigt : la liste suit, puis se pose sur le groupe d'à côté au-delà de 40 pixels.
     let x0 = null, dx = 0, pris = false;
-    vp.addEventListener('pointerdown', (ev) => { x0 = ev.clientX; dx = 0; pris = false; });
+    vp.addEventListener('pointerdown', (ev) => { if (ev.pointerType === 'mouse') return; x0 = ev.clientX; dx = 0; pris = false; });
     vp.addEventListener('pointermove', (ev) => {
       if (x0 == null) return; dx = ev.clientX - x0;
       if (!pris && Math.abs(dx) > 6) { pris = true; vp.setPointerCapture(ev.pointerId); tr.classList.add('tire'); }
@@ -2678,10 +2686,10 @@ table.rdp td:first-child { font-weight: 600; }
     #barre .cp-cbx-tr .cp-cbx-t { flex: 1; width: auto; min-width: 0; }
     #barre .cp-cbx.cache .cp-cbx-t, #barre .cp-cbx.vu .cp-cbx-t { cursor: pointer; }
     #barre .cp-cbx.cache .cp-cbx-t:hover, #barre .cp-cbx.vu .cp-cbx-t:hover { background: var(--sb-survol); }
-    #barre .cp-cbx-m { flex: none; display: inline-flex; gap: 1px; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--sb-encre) 6%, transparent); opacity: .75; transition: opacity .2s; }
+    #barre .cp-cbx-m { flex: none; display: inline-flex; gap: 1px; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--sb-encre) 6%, transparent); opacity: .9; transition: opacity .2s; }
     #barre .cp-cbx-tr:hover .cp-cbx-m, #barre .cp-cbx-m:focus-within { opacity: 1; }
-    #barre .cp-cbx-m button { width: 21px; height: 19px; padding: 0; border: 0; border-radius: 6px; background: none; display: grid; place-items: center; color: var(--sb-gris-2); cursor: pointer; }
-    #barre .cp-cbx-m button svg { width: 12px; height: 12px; }
+    #barre .cp-cbx-m button { width: 26px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: none; display: grid; place-items: center; color: var(--sb-gris-2); cursor: pointer; }
+    #barre .cp-cbx-m button svg { width: 14px; height: 14px; }
     #barre .cp-cbx-m button:hover { color: var(--sb-encre); }
     #barre .cp-cbx-m button[aria-checked="true"] { background: var(--sb-papier); color: var(--sb-sarcelle-texte); box-shadow: 0 1px 2px rgba(20, 40, 60, .12); }
     #barre .cp-cbx.cache .cp-cbx-ou { opacity: 1; transform: none; }
@@ -2866,7 +2874,7 @@ table.rdp td:first-child { font-weight: 600; }
       // elle revient en glissant. Un clic sur le titre remonte la page.
       // Trois façons, au goût de chacun, choisies d'un clic dans le titre et gardées : toujours ouverte, dynamique (elle
       // s'efface tant que la barre du haut est à l'écran), repliée (le titre seul ; un clic l'ouvre le temps qu'il faut).
-      const mode = s.etat === 'barre-ouverte' ? 'ouverte' : s.etat === 'barre-repliee' ? 'repliee' : (s.modeBarre || 'dyn');
+      const mode = s.etat === 'barre-ouverte' ? 'ouverte' : s.etat === 'barre-repliee' ? 'repliee' : (s.modeBarre || 'ouverte');
       const MODES = [['ouverte', svgC('<path d="M9 3h6l-1 6 3 3H7l3-3z"/><path d="M12 15v6"/>', 12, 2), 'Toujours ouverte'], ['dyn', IC.rel, 'Dynamique : elle s\'efface tant que la barre du haut est à l\'écran'], ['repliee', svgC('<path d="M5 12h14"/>', 12, 2.4), 'Repliée : le titre seul, un clic l\'ouvre le temps qu\'il faut']];
       const nb = document.createElement('div'); nb.className = `cp-cbx${tel() || mode === 'ouverte' ? '' : ' cache'}`; nb.dataset.mode = mode;
       nb.innerHTML = `<div class="cp-cbx-tr"><button type="button" class="cp-cbx-t" aria-expanded="${mode === 'ouverte'}"><span>Comptabilité</span><span class="cp-cbx-ou">· ${ECRANS[ecran()]}</span></button><span class="cp-cbx-m" role="radiogroup" aria-label="La barre de la comptabilité">${MODES.map(([m, ic, t]) => `<button type="button" role="radio" data-mode="${m}" aria-checked="${m === mode}" title="${t}">${ic}</button>`).join('')}</span></div><div class="cp-cbx-c"><div><div class="cp-nav-g">${navCompta(false, true)}</div></div></div>`;
@@ -3018,7 +3026,7 @@ table.rdp td:first-child { font-weight: 600; }
   s.etat = 'saisie';
   s.menu = 'barre';
   // Le mode de la barre de la comptabilité, gardé d'une visite à l'autre.
-  try { s.modeBarre = localStorage.getItem('skanfact.barre-compta') || 'dyn'; } catch (e) { s.modeBarre = 'dyn'; }
+  try { s.modeBarre = localStorage.getItem('skanfact.barre-compta') || 'ouverte'; } catch (e) { s.modeBarre = 'ouverte'; }
   dessiner();
 })();
 </script>
