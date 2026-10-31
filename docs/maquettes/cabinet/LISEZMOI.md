@@ -16,6 +16,10 @@ page, mêmes états (pour la direction, la tenue et la saisie ; au bureau et au 
 
 Hors de cette liste tant que Skander ne les a pas validées : **Priorités** et **Réglages du cabinet**.
 
+**Proposée le 31/10/2026, à valider par Skander** : `comptabilite.html`, la comptabilité d'un dossier (les quatorze
+écrans de Saisir, Consulter, Déclarer et clôturer, sur Boulangerie El Amal). Elle se reconstruit depuis le socle de
+`classeur.html` ; tant qu'elle n'est pas validée, rien ne s'en applique dans la plateforme.
+
 ## L'ordre de construction (Skander, 28/10/2026)
 
 0. Ces maquettes rangées ici, et les décisions écrites au journal du cadrage.
