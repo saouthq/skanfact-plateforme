@@ -1691,6 +1691,16 @@
       await appel('POST', `/entreprises/${o.dossierId}/compta/releves/${o.releveId}/rapprochements`, { poses: [pose] });
       return { ok: true, niveau: pose.niveau, livre: await livreDe(o.dossierId, o.annee) };
     },
+    // (1.206.0) Plusieurs lignes d'un geste (« Valider les 3 » de la Banque, et son « Annuler ») : UN appel, qui pose
+    // tout ou rien ; une ligne sans écriture se défait.
+    rapprocherPlusieurs: async (/** @type {any} */ o) => {
+      const livre = await livreDe(o.dossierId, o.annee);
+      const poses = (o.choix || []).map((/** @type {any} */ c) => (c.ecritureId
+        ? { ligne: c.ligneId, ecritureLigne: ligneDuLivre(livre, c.ecritureId, c.ligne), niveau: 'certain', auto: c.auto === true }
+        : { ligne: c.ligneId, ecritureLigne: null, niveau: 'aucun', auto: false }));
+      if (poses.length) await appel('POST', `/entreprises/${o.dossierId}/compta/releves/${o.releveId}/rapprochements`, { poses });
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
+    },
     rapprocherAuto: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       /** @type {any} */ const K = /** @type {any} */ (window).CabCore;

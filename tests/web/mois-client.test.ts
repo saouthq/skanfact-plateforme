@@ -349,7 +349,9 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     ] })).statut).toBe(200);
     await s.p.reload();
     await s.p.locator('#list-wrap tr', { hasText: 'HS-118' }).waitFor({ timeout: 20_000 });
-    expect(await verts.allInnerTexts()).toEqual(['Envoyer une photo à mon comptable']);
+    // (1.206.0) La page se dessine avec les achats, puis se redessine quand le mandat (« achats confiés ») est lu : on
+    // attend qu'elle ait fini. Lue d'un coup, juste après le rechargement, elle a fait tomber GitHub (Node 24, 31/10).
+    await expect.poll(() => verts.allInnerTexts(), { timeout: 15_000 }).toEqual(['Envoyer une photo à mon comptable']);
     expect(net(await s.p.locator('#achats-confies').innerText())).toBe('Tu as confié la saisie de tes achats à ton cabinet — envoie-lui la photo de chaque facture : il la saisit, elle arrive ici avec son justificatif. Tu peux aussi en saisir une toi-même.');
 
     // Le mandat ne confie plus les achats : la page redevient celle de qui saisit lui-même.

@@ -95,7 +95,9 @@
   function passer() {
     prevu = 0;
     if (!TELEPHONE.matches) return;
-    for (const t of document.querySelectorAll('table.list')) enCartes(/** @type {HTMLTableElement} */ (t));
+    // (1.206.0) Une table qui a déjà ses cartes à elle (la Banque du Cabinet) ou qui tient à l'étroit le dit :
+    // `data-sans-cartes`. La Banque montrait au téléphone son tableau du bureau tassé en cartes, à côté des siennes.
+    for (const t of document.querySelectorAll('table.list:not([data-sans-cartes])')) enCartes(/** @type {HTMLTableElement} */ (t));
     for (const c of document.querySelectorAll('.stats:not(.rangee) > .stat')) serrer(c);
   }
   // Une liste se redessine souvent (un filtre, une page, une ligne réglée) : on repasse avant le prochain affichage,

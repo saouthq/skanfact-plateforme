@@ -2311,7 +2311,7 @@ CRT=serveur/cabinet/routes.ts
 BQ1="un relevé s'importe s'il se boucle, une fois, avec son compte ; ses lignes se lisent au millime ; une voisine n'en lit rien"
 BQ2="un rapprochement : une ligne du relevé, une ligne d'écriture du même compte, qui ne répond que d'elle ; un brouillard qui change le fait tomber ; tout se défait, le relevé se retire"
 BQ3="les réglages du cabinet : les banques et les mots retenus, rien d'autre ; changés ailleurs, jamais écrasés ; un autre cabinet n'y lit rien"
-WB1="un relevé s'importe, l'automatique pose le certain et garde l'ambiguïté, qui se tranche à la main ; l'écriture manquante s'écrit depuis la ligne ; tout se défait, le relevé se retire"
+WB1="l'écran vide, puis un relevé s'importe et se rapproche d'office"
 prouver "un relevé qui ne se boucle pas, importé" $M23 \
   "  if v_debut + v_somme <> v_fin then" "  if false then" \
   "$BQ1"
@@ -3111,9 +3111,9 @@ prouver "le dernier geste sans son nom" $PC \
 prouver "l'année d'un dossier tenu qui ne commence pas en janvier" $PC \
   "if (!x.has(a)) x.set(a, { annee: a, du: \`\${a}-01-01\`," "if (!x.has(a)) x.set(a, { annee: a, du: \`\${a}-03-01\`," \
   "$WP1"
-prouver "le tableau de production lu une fois pour toutes" web/public/v10/cabinet/app.js \
-  "    if (route !== routeLue && route === 'production') { prodState.lignes = null; prodState.erreur = ''; }" "" \
-  "$WP1"
+prouver 'le tableau de production lu une fois pour toutes' web/public/v10/cabinet/app.js \
+  'if (route !== routeLue && route === '"'"'production'"'"') { prodState.lignes = null; prodState.erreur = '"'"''"'"';' 'if (route !== routeLue && route === '"'"'production'"'"') { prodState.erreur = '"'"''"'"';' \
+  'les étapes de chaque mois, « à saisir » relu en revenant, la ligne qui ouvre le client, la visite'
 prouver "le dossier tenu absent des Échéances" $PC \
   "repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares, mois: parMois };" "repondues: q.repondues, employeur, tenu: null, declares, mois: parMois };" \
   "$WP1"
@@ -4876,9 +4876,9 @@ prouver "émettre au-delà de l'encours sans le dire" web/public/v10/app.js \
 prouver "l'encours autorisé absent de la fiche du client" web/public/v10/app.js \
   "<input type=\"number\" name=\"creditLimit\"" "<input type=\"number\" name=\"creditLimitAbsent\"" \
   "$ENW"
-prouver "la page du client qui tait son encours" web/public/v10/app.js \
-  "      \${Number(c.creditLimit) > 0 ? (() => { const e = C.encoursClient(" "      \${false ? (() => { const e = C.encoursClient(" \
-  "$ENW"
+prouver 'la page du client qui tait son encours' web/public/v10/app.js \
+  'const encours = Number(c.creditLimit) > 0 ? C.encoursClient(data, c.id, co) : null;' 'const encours = null;' \
+  'Nadia plafonne l'"'"'encours de son client, puis émet quand même la facture qui le dépasse, prévenue avant'
 
 # ── Brique 92 : le prix par quantité (docs/prix-quantite.md) ──
 PQ1="le palier le plus haut que la quantité atteint ; sous le premier, le prix de l'article"
@@ -7630,8 +7630,8 @@ prouver "« Guide-moi » qui reste allumé quand l'invitation s'en va" web/publi
 " "" \
   "$ACW1"
 prouver '« la déclaration de août »' web/public/v10/app.js \
-  'tu les reverses avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + '"'"' '"'"' + d0.slice(0, 4))}</b>' 'tu les reverses avec la déclaration de ${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}</b>' \
-  "$ACW1"
+  '(${pct(p.withholdingRate)} %) : tu les reverses avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + '"'"' '"'"' + d0.slice(0, 4))}</b>' '(${pct(p.withholdingRate)} %) : tu les reverses avec la déclaration de ${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}</b>' \
+  'Nadia commande, reçoit en deux fois, saisit et règle la facture, en tire un avoir, lit une facture en photo'
 prouver 'l'"'"'attestation de retenue sans dire où elle s'"'"'établit' web/public/v10/app.js \
   ' (elle s'"'"'établit sur TEJ, la plateforme du ministère des Finances)' '' \
   "$ACW1"
@@ -9175,9 +9175,9 @@ prouver "la pièce demandée comptée deux fois dans la pastille" $MR \
 prouver "la suite d'un fil perdue (une page sans savoir qu'il en reste)" $MR \
   "avant?.[1] ?? null, PAGE + 1])" "avant?.[1] ?? null, PAGE])" \
   "$MSG3"
-prouver "« C'est traité » sans effet sur la boîte" $MR \
-  "cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 'a_traiter'" "cl.quand > coalesce(ca.quand, '-infinity') then 'a_traiter'" \
-  "$MSG4"
+prouver '« C'"'"'est traité » sans effet sur la boîte' serveur/messagerie/routes.ts \
+  'coalesce(cl.quand > greatest(coalesce(f.traite_le, '"'"'-infinity'"'"'), coalesce(ca.quand, '"'"'-infinity'"'"')), false) ecrit' 'coalesce(cl.quand > coalesce(ca.quand, '"'"'-infinity'"'"'), false) ecrit' \
+  '« À traiter », « Attend le client », « Rien à faire » : chaque client à sa place, et les compteurs sortent des mêmes lignes'
 prouver "une pièce demandée qui n'attend pas le client dans la boîte" $MR \
   "        union all
         select m.entreprise from messagerie.message m where m.cabinet = \$1 and m.demande is not null and m.demande_recue_le is null" "" \
@@ -9214,9 +9214,9 @@ prouver "la boîte qui s'ouvre sur « Rien à traiter » quand le client est att
 prouver "« Demander une pièce » qui n'ouvre pas le champ de la pièce" $MJ \
   "montrerDemande(); if (demande) demandeTxt.focus(); else texte.focus(); };" "montrerDemande(); };" \
   "$MSGW"
-prouver "un message vide parti au serveur" $MJ \
-  "        if (!t && !fichier && !d && !piece) {" "        if (false) {" \
-  "$MSGW"
+prouver 'un message vide parti au serveur' web/public/plateforme/messagerie.js \
+  'if (!t && !fichier && !d && !piece && !qs.length) {' 'if (false) {' \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 prouver "« Mon comptable » dans le menu sans cabinet" web/public/v10/app.js \
   "  const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));" "  const avecMessagerie = a => !!a;" \
   "$MSGW"
@@ -15714,9 +15714,8 @@ prouver 'le complément d'"'"'adresse d'"'"'Odoo oublié' 'web/public/v10/core.j
 ' \
   '' \
   'les titres d'"'"'Odoo et de Sage se reconnaissent'
-prouver 'l'"'"'import absent de la page vide des fournisseurs' 'web/public/v10/app.js' \
-  ', ['"'"'vide-import-f'"'"', '"'"'Importer depuis un tableur'"'"']' \
-  '' \
+prouver 'l'"'"'import absent de la page vide des fournisseurs' web/public/v10/app.js \
+  '<button class="btn" id="vide-import-f">${lfIc('"'"'importer'"'"', 15)} Importer depuis un tableur</button>' '' \
   'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
 prouver '« Annuler » qui garde les fournisseurs importés' 'web/public/v10/app.js' \
   'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'suppliers'"'"' }[type];' \
@@ -17827,11 +17826,8 @@ prouver 'le navigateur qui retient le nom comme identifiant' 'web/src/ecrans/Ins
   'type="email" autoComplete="username" inputMode="email" {...g.sur('"'"'email'"'"')}' \
   'type="email" autoComplete="email" inputMode="email" {...g.sur('"'"'email'"'"')}' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
-prouver 'la proposition d'"'"'un client sous les premiers pas d'"'"'un cabinet neuf' 'web/public/v10/cabinet/app.js' \
-  '      ${inboxBanner()}
-      ${vide ? etapesCabinetNeuf() : bloc('"'"'Urgent'"'"', pri.urgent, '"'"'u'"'"') + bloc('"'"'À voir'"'"', pri.avoir, '"'"'v'"'"') + ajour}' \
-  '      ${vide ? etapesCabinetNeuf() : bloc('"'"'Urgent'"'"', pri.urgent, '"'"'u'"'"') + bloc('"'"'À voir'"'"', pri.avoir, '"'"'v'"'"') + ajour}
-      ${inboxBanner()}' \
+prouver 'la proposition d'"'"'un client sous les premiers pas d'"'"'un cabinet neuf' web/public/v10/cabinet/app.js \
+  '${bandesTb()}${inboxBanner()}${qui}${corps}' '${bandesTb()}${qui}${corps}' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 
 # 1.78.0 : le client tenu rejoint son dossier (base 0155, routes, entrée, panneau du dossier tenu).
@@ -17974,9 +17970,8 @@ prouver 'l'"'"'accueil qui dit « 0 en retard » d'"'"'une facture échue payée
   'const late = open.filter(d => enRetard.has(d.id));' \
   "const late = open.filter(d => effStatus(d) === 'retard');" \
   'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
-prouver 'la fiche d'"'"'un client qui oublie sa facture échue payée en partie' 'web/public/v10/app.js' \
-  "const late = docs.filter(d => d.type === 'facture' && enRetardDuClient.has(d.id));" \
-  "const late = docs.filter(d => d.type === 'facture' && effStatus(d) === 'retard');" \
+prouver 'la fiche d'"'"'un client qui oublie sa facture échue payée en partie' web/public/v10/app.js \
+  'const late = C.overdueInvoices(data, co).filter(x => x.doc.clientId === c.id).sort(' 'const late = C.overdueInvoices(data, co).filter(x => x.doc.clientId === c.id && effStatus(x.doc) === '"'"'retard'"'"').sort(' \
   'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
 prouver 'Ctrl+S qui ouvre « Enregistrer la page » au lieu d'"'"'enregistrer le devis' 'web/public/plateforme/pont.js' \
   "const nom = k === 's' && !e.shiftKey ? 'save'" \
@@ -18501,12 +18496,6 @@ prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' web/public/v10/app
 prouver 'une question partie le matin, relancée le jour même' base/migrations/0162_relance_un_autre_jour.sql \
   $'     and (cardinality(envois) = 0\n          or (envois[cardinality(envois)] at time zone \'Africa/Tunis\')::date < (now() at time zone \'Africa/Tunis\')::date);' $';' \
   'posée, elle reste au cabinet ; envoyée, le client la lit et y répond ; chaque envoi se compte'
-prouver 'la fenêtre d'\''envoi du Cabinet qui tait les questions parties aujourd'\''hui' web/public/v10/cabinet/app.js \
-  $'${attendent\n        ? `<li class="muted">' $'${false\n        ? `<li class="muted">' \
-  'la révision se tient à la souris et se garde au serveur'
-prouver 'le Cabinet qui ouvre une fenêtre d'\''envoi quand rien ne partirait' web/public/v10/cabinet/app.js \
-  $'    if (!neuves && !relances) return toast(' $'    if (false) return toast(' \
-  'la révision se tient à la souris et se garde au serveur'
 prouver 'le .zip des PDF qui ne dit pas que ses noms sont en UTF-8' web/public/plateforme/pont.js \
   $'[8, 0x0800, 2], [10, 0, 2]' $'[8, 0, 2], [10, 0, 2]' \
   '« Exporter tous les PDF de la période » : un .zip des PDF du serveur'
@@ -18549,8 +18538,8 @@ prouver 'la ligne d'\''avancement de la révision plus haute avec son bouton' we
   $'align-items: center; gap: 8px 14px; min-height: 32px; }' $'align-items: baseline; gap: 8px 14px; }' \
   'la révision se tient à la souris'
 prouver '« En attente de toi » qui ne mène pas à la question' web/public/plateforme/messagerie.js \
-  $'        if (champ) champ.focus({ preventScroll: true });' $'' \
-  'Amine et son comptable s'\''écrivent'
+  '      if (champ) champ.focus({ preventScroll: true });' '' \
+  'Amine et son comptable s'"'"'écrivent'
 prouver '« Répondre » qui ne trouve pas une pièce demandée' web/public/plateforme/messagerie.js \
   $'(el.querySelector(\'.msg-question.attend, .msg-demande-carte:not(.recue)\'))' $'(el.querySelector(\'.msg-question.attend\'))' \
   'Amine et son comptable s'\''écrivent'
@@ -18564,14 +18553,11 @@ prouver 'une question fermée qui se dit encore « répondue » au Cabinet' web/
   $'${q.statut === \'close\' ? \'<span class="badge">close</span>\' : \'<span class="badge b-paid">répondue</span>\'}<div class="small">' $'<span class="badge b-paid">répondue</span><div class="small">' \
   'la révision se tient à la souris'
 prouver 'la Production sans mois fini qui promet une grille vide' web/public/v10/cabinet/app.js \
-  $'      : colonnes.length ? \'Aucun mois n\\\'attend de saisie.\'' $'      : true ? \'Aucun mois n\\\'attend de saisie.\'' \
+  ': L.length && !P.cols.length ? `${aFaireTb(pri)}' ': false ? `${aFaireTb(pri)}' \
   'sans aucun mois fini'
-prouver 'la légende des signes sous une grille sans mois' web/public/v10/cabinet/app.js \
-  $'${colonnes.length ? `<div class="prod-leg' $'${true ? `<div class="prod-leg' \
-  'sans aucun mois fini'
-prouver '« C'\''est traité » offert à un client qui n'\''est plus à traiter' web/public/plateforme/messagerie.js \
-  $'${f && f.aTraiter ? \'<button type="button" class="btn btn-sm" data-msg-traite title=' $'${true ? \'<button type="button" class="btn btn-sm" data-msg-traite title=' \
-  'Amine et son comptable s'\''écrivent'
+prouver '« C'"'"'est traité » offert à un client qui n'"'"'est plus à traiter' web/public/plateforme/messagerie.js \
+  '${f && f.aTraiter ? `<button type="button" class="btn btn-sm msg-traite" data-msg-traite' '${true ? `<button type="button" class="btn btn-sm msg-traite" data-msg-traite' \
+  'Amine et son comptable s'"'"'écrivent'
 prouver 'le fil du cabinet qui ne dit pas si le client est à traiter' serveur/messagerie/routes.ts \
   $"aTraiter: cote.data === 'cabinet' && (await etatsDesDossiers(tx, cabinet, entreprise))[0]?.etat === 'a_traiter'," $"aTraiter: cote.data === 'cabinet'," \
   'Amine et son comptable s'\''écrivent'
@@ -19128,12 +19114,12 @@ prouver 'la liste de la boîte qui ne se relit pas après un geste' $MJ \
 prouver 'le client traité qui disparaît sous le curseur' $MJ \
   "        : ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);" "        : ds.filter((d) => filtre === 'tout' || d.etat === filtre);" \
   "$MW115"
-prouver 'la pastille de non-lus répétée en « À traiter »' $MJ \
-  "          \${x.nonLus && x.etat === 'a_traiter' ? '' : \`<span" "          \${false ? '' : \`<span" \
-  "$MW115"
-prouver 'les flèches du clavier qui ne passent pas au client suivant' $MJ \
-  "          const vers = e.key === 'ArrowDown' ? lignes[i + 1] : e.key === 'ArrowUp' ? lignes[i - 1] : null;" "          const vers = null;" \
-  "$MW115"
+prouver 'la pastille de non-lus répétée en « À traiter »' web/public/plateforme/messagerie.js \
+  '${x.nonLus || x.etat !== '"'"'attend_client'"'"' || (x.promesse && !x.promesse.echue) ? '"'"''"'"' :' '${false ? '"'"''"'"' :' \
+  '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
+prouver 'les flèches du clavier qui ne passent pas au client suivant' web/public/plateforme/messagerie.js \
+  'const v = e.key === '"'"'ArrowDown'"'"' ? lignes[i + 1] : e.key === '"'"'ArrowUp'"'"' ? lignes[i - 1] : null;' 'const v = null;' \
+  '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
 prouver 'la boîte plus haute que l'\''écran' web/public/plateforme/messagerie.css \
   '  height: calc(100dvh - var(--msg-haut-boite, 210px)); min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }' '  min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; height: 100%; }' \
   "$MW115"
@@ -19241,9 +19227,9 @@ prouver '« Saisir cette pièce » qui ne mène pas à la saisie' web/public/v10
 prouver 'la demande groupée sans client' $MJ \
   "        if (!clients.length) { refus.textContent = 'Coche au moins un client.'; return; }" "" \
   "$MW115"
-prouver 'la demande groupée sans sa date' $MJ \
-  "pour: pourChamp.value || null," "pour: null," \
-  "$MW115"
+prouver 'la demande groupée sans sa date' web/public/plateforme/messagerie.js \
+  '...(mode === '"'"'pieces'"'"' ? { pour, ...(pieces.length > 1' '...(mode === '"'"'pieces'"'"' ? { pour: null, ...(pieces.length > 1' \
+  '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
 prouver 'la demande groupée absente de la conversation ouverte' $MJ \
   "        if (ouverte) void ouverte.c.relire();
         if (o.toast)" "        if (o.toast)" \
@@ -19881,7 +19867,7 @@ prouver 'mois 126 : la page Achats qui ne regarde pas le périmètre du mandat' 
   "messagerieVue.cabinet && messagerieVue.achatsConfies && bridge.messagerie" "messagerieVue.cabinet && bridge.messagerie" \
   'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
 prouver 'mois 126 : deux verts en haut de la page Achats confiés' web/public/v10/app.js \
-  "<button class=\"btn \${videAchats || confies ? '' : 'btn-primary'}\" id=\"new\">" "<button class=\"btn \${videAchats ? '' : 'btn-primary'}\" id=\"new\">" \
+  '<button class="btn ${videAchats || confies || lecture ? '"'"''"'"' : '"'"'btn-primary'"'"'}" id="new">' '<button class="btn ${videAchats || lecture ? '"'"''"'"' : '"'"'btn-primary'"'"'}" id="new">' \
   'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
 prouver 'mois 126 : la photo qui part sans dire qu'\''elle est une facture à saisir' web/public/v10/app.js \
   "bridge.messagerie.envoyerFichier(f, \`Une facture d'achat à saisir : \${f.name}\`, null)" "bridge.messagerie.envoyerFichier(f, f.name, null)" \
@@ -20030,7 +20016,7 @@ prouver 'ux2 138 : la Comptabilité refusée dont « Réessayer » ne relit rien
   "        chargerLivres(dossier).then(() => { if (\$('#c-livres')) drawLivres(document, dossier); });" "        void dossier;" \
   'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
 prouver 'ux2 138 : la Production refusée qui ne dit pas ce qui manque' web/public/v10/cabinet/app.js \
-  "<b>La production n'a pas pu se lire.</b> " "" \
+  '        : etat === '"'"'refus'"'"' ? `${aFaireTb(pri)}' '        : false ? `${aFaireTb(pri)}' \
   'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
 prouver 'ux2 138 : les Échéances qui disent « aucune échéance » d'\''une lecture refusée' web/public/v10/cabinet/app.js \
   "    if (!liste.length && questionsAttenteRefus) {" "    if (false) {" \
@@ -20065,9 +20051,6 @@ prouver 'ux2 141 : la page d’échec posée par-dessus le bandeau qui dit pourq
   "    if (close) { return; }" "" \
   'le portable retiré remet ce qu'\''il avait fait hors ligne ; accepté, ce qui a changé depuis est mis de côté et dit'
 
-prouver 'ux3 143 : le bloc « À payer » qui répète une liste où tout est à payer' web/public/v10/app.js \
-  "    if (due.length <= 8 && due.length === (data.purchases || []).length) {" "    if (false) {" \
-  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
 prouver 'ux3 143 : une carte du téléphone titrée par sa date' web/public/plateforme/telephone.js \
   "!choix(td) && !dateSeule(td) && " "!choix(td) && " \
   'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
@@ -20221,7 +20204,7 @@ prouver 'barre cabinet 9 : classer ne vide pas la boîte' web/public/v10/cabinet
 prouver 'barre cabinet 10 : une écriture commencée se laisse sans un mot' web/public/v10/cabinet/app.js \
   'if (D && D.id !== id && saleDe(D.id)) {' 'if (false) {' \
   'les pièces reçues : chaque pièce a son geste'
-prouver 'barre cabinet 11 : la base classe deux fois la même pièce' base/migrations/0180_classeur.sql \
+prouver 'barre cabinet 11 : la base classe deux fois la même pièce' base/migrations/0181_classeur_suite.sql \
   '     and (classee_le is null) = p_classee;' '     ;' \
   'le fichier d'"'"'un client arrive à classer'
 prouver 'barre cabinet 12 : la boîte montre ce que le cabinet envoie lui-même' serveur/messagerie/routes.ts \
@@ -20287,7 +20270,7 @@ prouver 'liste 5 : un client qui a trop versé, dit « Payée » sans plus' web/
   'if (st === '"'"'payée'"'"' && lfReste(d) < -0.0005) return' 'if (false) return' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 6 : le trop-perçu tu' web/public/v10/app.js \
-  ': r < -0.0005 ? `<span class="trop"' ': false ? `<span class="trop"' \
+  ': r < -0.0005 ? `<span class="trop" title="Au crédit du client' ': false ? `<span class="trop" title="Au crédit du client' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 7 : une tuile qui ne se défait pas' web/public/v10/app.js \
   '      const on = s.st === st && !s.year && !s.q;
@@ -20301,7 +20284,7 @@ prouver 'liste 9 : la pièce trouvée par son montant, sans le dire' web/public/
   'const parMontant = s.q && /^' 'const parMontant = false && /^' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 10 : les gestes du menu en vrac' web/public/v10/app.js \
-  'const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);' 'const groupe = (titre, l) => (l.length ? [...l] : []);' \
+  '    return [...tete, ...groupe('"'"'Envoyer'"'"', envoyer), ...groupe('"'"'Légal'"'"', legal), ...groupe('"'"'La pièce'"'"', piece), ...groupe('"'"'Corriger'"'"', corriger)];' '    return [...tete, ...envoyer, ...legal, ...piece, ...corriger];' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 11 : une facture en retard sans « Relancer » dans son menu' web/public/v10/app.js \
   '    if (st === '"'"'retard'"'"') {
@@ -20684,7 +20667,9 @@ prouver 'écarts facture 3 : la tuile « À encaisser » qui écrit « EUR »' w
   'dont ${devises.map(d => argentLu(lfReste(d), cur(d)))' 'dont ${devises.map(d => C.money(lfReste(d), cur(d)))' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
 prouver 'écarts facture 4 : la bulle des filtres en petit « i »' web/public/v10/app.js \
-  '.replace('"'"'>i</button>'"'"', `>${lfIc('"'"'aide'"'"', 16, 2)}</button>`)' '' \
+  '
+        ${info('"'"'list.filters'"'"').replace('"'"'class="i"'"'"', '"'"'class="i i-b"'"'"').replace('"'"'>i</button>'"'"', `>${lfIc('"'"'aide'"'"', 16, 2)}</button>`)}' '
+        ${info('"'"'list.filters'"'"').replace('"'"'class="i"'"'"', '"'"'class="i i-b"'"'"')}' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
 prouver 'écarts facture 5 : la phrase d'"'"'une facture en euros qui écrit « EUR »' web/public/v10/app.js \
   '${argentLu(recu, cur)} reçus, reste ${argentLu(bal.remaining, cur)}' '${C.money(recu, cur)} reçus, reste ${C.money(bal.remaining, cur)}' \
@@ -20889,7 +20874,7 @@ prouver 'pièces reçues 3 : la flèche du bas ne change pas de pièce' web/publ
 prouver 'pièces reçues 4 : la raison ne part pas au serveur' web/public/plateforme/pont-cabinet.js \
   '...(classee && raison ? { raison } : {}), ...(classee && note' '...(classee && note' \
   'les pièces reçues : chaque pièce a son geste'
-prouver 'pièces reçues 5 : la base oublie la raison' base/migrations/0180_classeur.sql \
+prouver 'pièces reçues 5 : la base oublie la raison' base/migrations/0181_classeur_suite.sql \
   'classee_raison = case when p_classee then p_raison end' 'classee_raison = null' \
   'le fichier d'"'"'un client arrive à classer'
 prouver 'pièces reçues 6 : une demande reçue disparaît aussitôt' serveur/messagerie/routes.ts \
@@ -21273,7 +21258,7 @@ prouver 'notes 1 : un collaborateur lit les notes d'"'"'un dossier qui ne lui es
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   'écrites et relues au cabinet, jamais par le client, ni par qui n'"'"'a pas le dossier ; elles ne se changent pas'
 prouver 'notes 2 : la note de chacun ne dit plus « moi »' serveur/cabinet/routes.ts \
-  "select id, auteur_nom, auteur = socle.moi() de_moi, texte" "select id, auteur_nom, false de_moi, texte" \
+  'const r = await tx.query(`select id, auteur_nom, auteur = socle.moi() de_moi, texte' 'const r = await tx.query(`select id, auteur_nom, false de_moi, texte' \
   'écrites et relues au cabinet, jamais par le client, ni par qui n'"'"'a pas le dossier ; elles ne se changent pas'
 prouver 'notes 3 : la note posée ne paraît pas dans le fil' web/public/plateforme/messagerie.js \
   "for (const n of notes) ev.push(" "for (const n of []) ev.push(" \
@@ -21307,7 +21292,9 @@ prouver 'messages 11 : la note pour l'"'"'équipe part dans l'"'"'export de la c
   "      lignes.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));" "      for (const n of notes) lignes.push({ quand: n.ecritLe, de: 'Note', quoi: esc(n.texte) }); lignes.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));" \
   '(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF'
 prouver 'messages 12 : hors ligne, le champ reste ouvert' web/public/plateforme/messagerie.js \
-  "const off = navigator.onLine === false;" "const off = false;" \
+  'const off = navigator.onLine === false;
+        if (off === form.classList.contains('"'"'off'"'"')) return;' 'const off = false;
+        if (off === form.classList.contains('"'"'off'"'"')) return;' \
   '(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF'
 prouver 'messages 13 : « Réessayer maintenant » ne relit pas' web/public/plateforme/messagerie.js \
   "if (b) b.onclick = async () => { b.disabled = true; await lire();" "if (b) b.onclick = async () => { b.disabled = true;" \
@@ -21393,8 +21380,6 @@ prouver 'messages 30 : les modèles sans ce que lira le client' web/public/plate
 prouver 'messages 31 : l'"'"'accueil sans conversation ne propose rien' web/public/plateforme/messagerie.js \
   "\${prochaine ? \`<button type=\"button\" class=\"btn btn-primary\" data-conv-ouvrir" "\${false ? \`<button type=\"button\" class=\"btn btn-primary\" data-conv-ouvrir" \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
-echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
-[ "$ko" -eq 0 ]
 prouver 'questions-prêtes 1 : la phrase proposée ne suit pas la pastille' web/public/v10/cabinet/app.js \
   "if (txt.value === derniere && propose()) {" "if (false) {" \
   'la révision se tient à la souris'
@@ -21435,7 +21420,7 @@ prouver 'question-ligne 2 : un dossier tenu propose une question sans conversati
   "if (!dossier.manual && api.messagerie && api.question && e.statut !== 'extournee') {" "if (api.messagerie && api.question && e.statut !== 'extournee') {" \
   '(1.189.0) une question depuis une écriture'
 prouver 'question-ligne 3 : la ligne du relevé ne se demande pas' web/public/v10/cabinet/app.js \
-  "if (!dossier.manual && api.messagerie && api.question) actions.push({ icon: 'email', label: 'Demander au client ce" "if (false) actions.push({ icon: 'email', label: 'Demander au client ce" \
+  "if (!dossier.manual && api.messagerie && api.question && x.g !== 'att') actions.push({ icon: 'email', label: 'Demander au client ce" "if (false) actions.push({ icon: 'email', label: 'Demander au client ce" \
   '(1.189.0) une question depuis une écriture'
 prouver 'question-ligne 4 : la phrase ne cite pas ce que la question vise' web/public/v10/cabinet/app.js \
   "if (b.quoi) return b.quoi;" "if (false) return b.quoi;" \
@@ -21514,7 +21499,7 @@ prouver 'tableau 10 : une case de la grille perd son détail au survol' web/publ
   '} — ${esc(detail)}">' '}">' \
   "$WP1"
 prouver 'tableau 11 : une grille refusée le reste en revenant sur la page' web/public/v10/cabinet/app.js \
-  "{ prodState.lignes = null; prodState.erreur = ''; }" "prodState.lignes = null;" \
+  'prodState.lignes = null; prodState.erreur = '"'"''"'"'; revState' 'prodState.lignes = null; revState' \
   'au Cabinet, la Comptabilité, la Production'
 # ── 1.195.0 : les écarts du Tableau de bord contre sa maquette (revue du 30/10/2026) ──
 prouver 'tableau 12 : la ligne du haut ne suit pas la personne choisie' web/public/v10/cabinet/app.js \
@@ -21747,3 +21732,57 @@ prouver 'fiche fournisseur 8 : le fil dans le désordre' web/public/v10/app.js \
   ".filter(x => x[0]).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);" ".filter(x => x[0]).slice(0, 6);" "$FF"
 prouver 'fiche fournisseur 9 : le RIB se casse sur deux lignes' web/public/plateforme/liste.css \
   ".cf-dl dt.ff-rib-t, .cf-dl dd.ff-rib { grid-column: 1 / -1; }" "" "$FF"
+
+# (1.206.0) La Banque du Cabinet en deux colonnes, comme la maquette : les gestes, l'équation, l'état, le téléphone.
+prouver 'banque 1 : l'"'"'import ne rapproche plus d'"'"'office' web/public/v10/cabinet/app.js \
+  'const a = await api.rapprocherAuto({ dossierId: dossier.id, annee: s.annee, releveId: r.releve.id, jours });' 'const a = { livre: s.livre, compte: {} }; void jours;' \
+  "$WB1"
+prouver 'banque 2 : « Valider la proposée » ne pose rien au serveur' web/public/plateforme/pont-cabinet.js \
+  '      if (poses.length) await appel('"'"'POST'"'"', `/entreprises/${o.dossierId}/compta/releves/${o.releveId}/rapprochements`, { poses });
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };' '      void poses;
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };' \
+  "$WB1"
+prouver 'banque 3 : « Annuler » ne défait pas le rapprochement' web/public/v10/cabinet/app.js \
+  '          () => defaireBq(dossier, R, l.id));' '          null);' \
+  "$WB1"
+prouver 'banque 4 : la touche Entrée ne rapproche plus' web/public/v10/cabinet/app.js \
+  '        if (b) { ev.preventDefault(); b.click(); }' '        void b;' \
+  "$WB1"
+prouver 'banque 5 : « Annuler » après « Défaire tous » ne repose rien' web/public/v10/cabinet/app.js \
+  '            const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)' '            const avant = [].filter(l => l)' \
+  "$WB1"
+prouver 'banque 6 : reposées, les lignes de l'"'"'automatique passent « à la main »' web/public/plateforme/pont-cabinet.js \
+  'niveau: '"'"'certain'"'"', auto: c.auto === true }' 'niveau: '"'"'certain'"'"', auto: false }' \
+  "$WB1"
+prouver 'banque 7 : le pied oublie les écritures pas encore en banque' web/public/v10/cabinet/app.js \
+  '    const livreRec = sus.livre.filter(x => x.date >= premier);' '    const livreRec = [];' \
+  "$WB1"
+prouver 'banque 8 : l'"'"'état dit les soldes inégaux' web/public/v10/cabinet/app.js \
+  '    const egaux = KC.round3(banqueRect - livreRect) === 0;' '    const egaux = false;' \
+  "$WB1"
+prouver 'banque 9 : au téléphone, le tableau du bureau reste' web/public/plateforme/banque.css \
+  '  .bq-ecran table.bq-t, .bq-ecran .bq-aide, .bq-ecran .bq-k { display: none; }' '  .bq-ecran .bq-aide, .bq-ecran .bq-k { display: none; }' \
+  "$WB1"
+prouver 'banque 10 : au téléphone, le livre en face se tasse en cartes' web/public/plateforme/telephone.js \
+  'document.querySelectorAll('"'"'table.list:not([data-sans-cartes])'"'"')' 'document.querySelectorAll('"'"'table.list'"'"')' \
+  "$WB1"
+prouver 'banque 11 : au téléphone, l'"'"'écriture en face sort de son cadre' web/public/plateforme/banque.css \
+  '  .bq-ecran table.bq-ec { display: table; table-layout: fixed;' '  .bq-ecran table.bq-ec { table-layout: fixed;' \
+  "$WB1"
+prouver 'banque 12 : au téléphone, le mois rapproché pousse l'"'"'écran' web/public/plateforme/banque.css \
+  '  .bq-fini { flex-wrap: wrap; }
+  .bq-fini > div { flex-basis: calc(100% - 48px); }
+  .bq-fini > .btn { flex: 1 1 100%; margin-left: 0; white-space: normal; }
+' '' \
+  "$WB1"
+prouver 'question-ligne 5 : la question d'"'"'une ligne perd son montant' web/public/v10/cabinet/app.js \
+  'montant: b.solde || b.montant || 0,' 'montant: b.solde || 0,' \
+  '(1.189.0) une question depuis une écriture'
+prouver 'banque 13 : deux montants inégaux se rapprochent quand même' web/public/v10/cabinet/app.js \
+  "principal = cc && !ecart ? 'Rapprocher' : '';" "principal = cc ? 'Rapprocher' : '';" \
+  "$WB1"
+
+# Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
+# écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
+echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
+[ "$ko" -eq 0 ]

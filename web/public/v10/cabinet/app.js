@@ -10072,7 +10072,7 @@
           const compte = b.compte || ($('#qf-compte', couche) ? $('#qf-compte', couche).value.trim() : '');
           const piece = b.piece || ($('#qf-piece', couche) ? $('#qf-piece', couche).value.trim() : '');
           const champs = {
-            piece, compte, cycle: b.cycle || '', attendu, texte, montant: b.solde || 0,
+            piece, compte, cycle: b.cycle || '', attendu, texte, montant: b.solde || b.montant || 0,
             objet: b.objet || (compte ? (b.libelle ? `${compte} · ${b.libelle}` : `Compte ${compte}`) : piece),
             ...(b.ecritureId ? { ecritureId: b.ecritureId } : {}),
             periode: b.periode || (s.revision && s.revision.dossier.periode) || String(s.annee)
@@ -12280,130 +12280,402 @@
   // Le rapprochement, et lui seul : le lettrage vit dans l'onglet d'à côté, avec son propre modèle
   // et ses propres tests. Confondre les deux est l'erreur de vocabulaire la plus courante de ce
   // métier, et un écran qui les mélange la rend définitive.
-  const banqueState = { releve: '', filtre: '', ouvert: '' };
+  // (plateforme) 1.206.0 — la Banque refaite comme la maquette (docs/maquettes/cabinet/comptabilite.html, états « Banque… ») :
+  // un seul écran, deux colonnes. À gauche le relevé, rangé par ce que chaque ligne DEMANDE (proposées, à traiter, en
+  // attente du client, rapprochées repliées), chaque ligne avec sa nature (une icône), sa proposition et pourquoi ; à
+  // droite le livre en face de la ligne choisie (les écritures du même montant, la recherche, l'écart, un seul bouton
+  // principal). ↑ ↓ changent de ligne, Espace coche, Entrée fait le geste principal, « / » cherche. En bas, l'écart du
+  // relevé, toujours expliqué ou nommé. Le jugement reste celui du moteur (`candidatsDeLigne`, `ecritureProposee`,
+  // `suspens`) : l'écran ne refait aucun calcul de son côté.
+  const banqueState = { releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {} };
 
-  const NIVEAU_LABEL = { certain: 'Rapproché', probable: 'Probable', 'a-confirmer': 'À confirmer', aucun: 'Sans réponse' };
-  // Aucune couleur d'alarme sur « sans réponse » : c'est l'état de DÉPART de toute ligne d'un relevé
-  // qu'on vient d'importer, pas une faute. Du rouge sur une situation normale apprend à ignorer le
-  // rouge, et emmène avec lui celui qui comptait (8.0.1).
-  const NIVEAU_CLASSE = { certain: 'b-paid', probable: 'b-part', 'a-confirmer': 'b-due', aucun: '' };
+  const svgBq = (d, t = 16) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const BQ_IC = {
+    entre: '<path d="M17 7 7 17"/><path d="M15 17H7V9"/>',
+    sort: '<path d="M7 17 17 7"/><path d="M9 7h8v8"/>',
+    prlv: '<path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/>',
+    chq: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h12M6 14h5M15 14h3"/>',
+    carte: '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6 15h3"/>',
+    frais: '<path d="M18 6 6 18"/><circle cx="7.5" cy="7.5" r="2.2"/><circle cx="16.5" cy="16.5" r="2.2"/>',
+    paie: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><path d="M16 5.5a3 3 0 0 1 0 5.5M18 14c1.4.7 2.3 2.4 2.6 4.5"/>',
+    esp: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/>',
+    doc: '<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h4"/>',
+    attente: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    regle: '<path d="M4 6h10M4 12h7M4 18h10"/><path d="m16 15 2 2 4-4"/><circle cx="18" cy="7" r="2.5"/>',
+    ok: '<path d="m5 12 5 5 9-10"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    loupe: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+    stylo: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    lien: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    msg: '<path d="M4 5h16v11H9l-5 4z"/>',
+    retour: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    alerte: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+    banque: '<path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
+    pdf: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>'
+  };
+  const NAT_DIT = { entre: 'Virement reçu', sort: 'Virement émis', prlv: 'Prélèvement', chq: 'Chèque', carte: 'Paiement par carte', frais: 'Frais de la banque', paie: 'Salaires', esp: 'Versement d\'espèces' };
+  // La nature d'un mouvement se lit dans son libellé, comme le comptable la lit ; le sens (le signe) départage le reste.
+  function natureBq(libelle, montant) {
+    const L = String(libelle || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    if (/^VIR(EMENT)?\s+SALAIRE|SALAIRES?\b/.test(L) && Number(montant) < 0) return 'paie';
+    if (/^(FRAIS|AGIOS|COM(MISSION)?S?\b|INTERETS|TVA\s+SUR)/.test(L)) return 'frais';
+    if (/^VERS(EMENT)?\b|ESPECES/.test(L)) return 'esp';
+    if (/\bCHQ\b|CHEQUE|REMISE/.test(L)) return 'chq';
+    if (/^PRLV|PRELEVEMENT/.test(L)) return 'prlv';
+    if (/^CARTE|\bCB\b|\bTPE\b/.test(L)) return 'carte';
+    return Number(montant) >= 0 ? 'entre' : 'sort';
+  }
+  const icNature = (libelle, montant) => {
+    const k = natureBq(libelle, montant);
+    return `<span class="bqx ${k === 'frais' ? 'frais' : Number(montant) >= 0 ? 'in' : 'out'}" title="${esc(NAT_DIT[k])}" aria-label="${esc(NAT_DIT[k])}">${svgBq(BQ_IC[k])}</span>`;
+  };
+  // Un montant signé, comme sur le relevé : + en vert ce qui entre, − ce qui sort.
+  const montantSigne = m => `<span class="bq-mt${Number(m) >= 0 ? ' in' : ''}">${Number(m) >= 0 ? '+ ' : '− '}${esc(montant(Math.abs(Number(m) || 0)))}</span>`;
+
+  // Le mois d'un relevé, comme on le nomme : « septembre 2026 », ou « 08/09 → 07/10 » s'il chevauche deux mois.
+  const moisDuReleve = R => String(R.du || '').slice(0, 7) === String(R.au || '').slice(0, 7) && R.du
+    ? `${moisLong(String(R.du).slice(0, 7))} ${String(R.du).slice(0, 4)}` : `${fmtJour(R.du)} → ${fmtJour(R.au)}`;
+  // Un exercice clos ne se rapproche plus : la liste se lit, aucun geste ne s'offre.
+  const lectureSeuleLivre = () => !!(livresState.livre && livresState.livre.exercice && livresState.livre.exercice.clos);
+  const joursBanque = dossier => ((dossier.banque || {}).jours != null) ? dossier.banque.jours : KC.RELEVE_JOURS;
+
+  // Ce que chaque ligne du relevé DEMANDE. Une fonction, une table : la liste, les pastilles, le compteur de l'onglet
+  // et le geste « Valider les N » la lisent ; écrits chacun de son côté, ils finiraient par ne plus dire le même chiffre.
+  //   ok   : rapprochée (une écriture en face) ;
+  //   att  : une question au client l'attend (posée depuis cette ligne, même compte, même montant, même mois) ;
+  //   prop : une seule écriture du même montant, ou la plus probable : à confirmer d'un geste ;
+  //   dec  : à traiter (plusieurs écritures égales, une règle qui propose l'écriture, ou rien en face).
+  function lectureBanque(dossier, R) {
+    const L = livresState.livre;
+    const jours = joursBanque(dossier);
+    const table = Array.isArray(S.libelles) ? S.libelles : [];
+    const nom = nomDeCompte();
+    const qs = (L.questions || []).filter(q => q.statut !== 'close');
+    return R.lignes.map(l => {
+      const r = l.rapprochement || {};
+      if (r.ecritureId) return { l, g: 'ok', e: ecritureDuLivre(L, r.ecritureId), rang: Number(r.ligne) };
+      const q = qs.find(x => String(x.compte || '') === String(R.compte) && String(x.periode || '') === String(l.date).slice(0, 7)
+        && KC.round3(Math.abs(Number(x.montant) || 0) - Math.abs(Number(l.montant) || 0)) === 0);
+      if (q) return { l, g: 'att', q, titre: q.statut === 'repondue' ? 'Le client a répondu' : 'Question au client',
+        pq: q.statut === 'repondue' ? 'à écrire d\'après sa réponse' : `posée le ${fmtJour(new Date(q.creeLe || 0).toISOString().slice(0, 10))}`, ton: 'q' };
+      const jug = KC.candidatsDeLigne(L, R.id, l.id, { jours });
+      if ((jug.niveau === 'certain' || jug.niveau === 'probable') && jug.meilleur) {
+        const c = jug.meilleur, e = ecritureDuLivre(L, c.ecritureId);
+        return { l, g: 'prop', jug, c, titre: `${e ? `${e.journal || ''} ${e.piece || ''}`.trim() : ''}${c.libelle ? ` · ${c.libelle}` : ''}`, pq: pourquoiBq(l, c, jug.niveau), ton: 'sur' };
+      }
+      if (jug.niveau === 'a-confirmer') return { l, g: 'dec', jug, titre: `${jug.candidats.length} écritures au même montant`, pq: 'rien ne les départage : à toi de choisir', ton: 'choix' };
+      const prop = KC.ecritureProposee(l, table, { compte: R.compte, journal: 'BQ' });
+      if (prop.regle) {
+        const c2 = prop.lignes[1].compte;
+        return { l, g: 'dec', jug, prop, titre: `${c2}${nom(c2) ? ` · ${nom(c2)}` : ''}`, pq: `sa règle « ${prop.regle} »`, ton: 'regle' };
+      }
+      return { l, g: 'dec', jug, titre: 'Rien dans le livre en face', pq: 'l\'écrire, ou demander au client', ton: 'rien' };
+    });
+  }
+  // Pourquoi une écriture est proposée : le montant, l'écart de jours, les mots que la banque et le livre partagent.
+  function pourquoiBq(l, c, niveau) {
+    const j = Math.abs(Math.round((Date.parse(l.date + 'T00:00:00Z') - Date.parse(c.date + 'T00:00:00Z')) / 86400000));
+    // Un mot partagé ne dit quelque chose que s'il n'est pas un mot de banque (« virement », « reçu », « chèque »).
+    const sansAcc = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const mots = sansAcc(l.libelle).split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !MOTS_BANQUE_BQ.includes(m) && sansAcc(c.libelle).includes(m));
+    return [niveau === 'probable' ? 'même montant, la plus probable' : 'même montant', j ? pl(j, 'jour') + ' d\'écart' : 'même jour', mots.length ? `« ${mots[0]} »` : ''].filter(Boolean).join(' · ');
+  }
+  const MOTS_BANQUE_BQ = ['virement', 'recu', 'recue', 'emis', 'emise', 'cheque', 'cheques', 'remise', 'prelevement', 'prlv', 'paiement', 'reglement', 'carte', 'facture', 'compte', 'versement', 'banque', 'agence', 'tunis', 'mois'];
+  const GROUPES_BQ = [['prop', 'Proposées · à confirmer'], ['dec', 'À traiter'], ['att', 'En attente du client']];
+  // L'écart du relevé, comme la maquette l'écrit : relevé ± ce que le livre n'a pas encore ± ce que la banque n'a pas
+  // encore passé = ce que le livre devrait dire. Les lignes du livre d'AVANT le premier relevé importé ne s'expliquent
+  // par aucun relevé : elles se nomment à part, dans les pistes.
+  // Les lignes sans écriture comptent sur TOUS les relevés du compte jusqu'à celui-ci (le chèque d'août resté sans pièce
+  // pèse encore sur le solde de septembre) ; le livre d'avant le premier relevé est porté par le solde de début de ce
+  // premier relevé.
+  function ecartBanque(R) {
+    const L = livresState.livre;
+    const sus = KC.suspens(L, R.id);
+    const rels = (L.releves || []).filter(x => x.compte === R.compte && String(x.du) <= String(R.au)).sort((a, b) => String(a.du).localeCompare(String(b.du)));
+    const premierR = rels[0] || R, premier = premierR.du;
+    // Pas encore au livre À LA DATE du relevé : sans écriture en face, ou rapprochée d'une écriture datée après (la banque
+    // paie les salaires le 30/08, le livre les écrit le 31/08 : au 30/08, le livre ne les a pas encore). `ecritLe` le dit.
+    const ecritLe = l => { const r = l.rapprochement || {}; return r.ecritureId ? String((ecritureDuLivre(L, r.ecritureId) || {}).date || '') : ''; };
+    const banqueAll = rels.flatMap(x => x.lignes.map(l => ({ ...l, releve: x, ecritLe: ecritLe(l) }))
+      .filter(l => !(l.rapprochement && l.rapprochement.ecritureId) || l.ecritLe > String(R.au)));
+    const livreRec = sus.livre.filter(x => x.date >= premier);
+    const sB = KC.round3(banqueAll.reduce((a, x) => a + Number(x.montant), 0));
+    const sLr = KC.round3(livreRec.reduce((a, x) => a + x.montant, 0));
+    const attendu = KC.round3(sus.soldeFin - sB + sLr);
+    const nonExplique = KC.round3(attendu - sus.soldeComptable);
+    const livreAvantPremier = KC.round3(KC.lignesBancaires(L, R.compte).filter(c => c.date < premier).reduce((a, c) => a + c.montant, 0));
+    const ruptures = rels.slice(1).map((x, i) => ({ avant: rels[i], apres: x })).filter(p => KC.round3(Number(p.avant.soldeFin) - Number(p.apres.soldeDebut)));
+    return { sus, premierR, premier, banqueAll, livreRec, sB, sLr, attendu, nonExplique, livreAvantPremier, ruptures };
+  }
 
   function vueBanque(dossier) {
     const s = livresState;
     const releves = (s.livre.releves || []).slice().sort((a, b) => (b.du || '').localeCompare(a.du || ''));
-    if (!releves.length) {
-      // L'état vide qui EST le corps de son écran garde sa présence, et porte son geste (9.4.7).
-      return `<div class="empty">Aucun relevé bancaire importé pour ${esc(s.annee)}.
-        <div class="small mt">Le fichier tel que la banque le donne : <b>Excel (.xlsx)</b> ou <b>CSV</b>. Les lignes que
-        la banque écrit au-dessus du tableau (son nom, le compte, la période) et les lignes de solde sont reconnues ;
-        les colonnes se reconnaissent à leur titre (Date, Libellé, Débit, Crédit…), et une banque nouvelle s'associe une fois. Ensuite le rapprochement propose, et c'est toi qui tranches.</div>
-        <div class="mt"><button class="btn btn-primary" id="bq-import">Importer un relevé…</button></div>
-        <div class="small mt">${lienArticle('banque')}</div></div>`;
-    }
+    if (!releves.length) return banqueVide(dossier);
     const R = releves.find(r => r.id === banqueState.releve) || releves[0];
-    banqueState.releve = R.id;
-    const parNiveau = { certain: 0, probable: 0, 'a-confirmer': 0, aucun: 0 };
-    R.lignes.forEach(l => { parNiveau[(l.rapprochement || {}).niveau || 'aucun']++; });
-    const sus = KC.suspens(s.livre, R.id);
+    if (banqueState.releve !== R.id) { banqueState.releve = R.id; banqueState.sel = ''; banqueState.coches.clear(); banqueState.choix = {}; }
+    const lus = lectureBanque(dossier, R);
+    const n = g => lus.filter(x => x.g === g).length;
+    const restent = lus.filter(x => x.g !== 'ok');
+    // La ligne choisie : celle qu'on a choisie, sinon la première qui demande quelque chose, dans l'ordre des groupes.
+    const ordre = GROUPES_BQ.flatMap(([g]) => lus.filter(x => x.g === g));
+    if (!lus.some(x => x.l.id === banqueState.sel)) banqueState.sel = (ordre[0] || lus[0] || { l: {} }).l.id || '';
+    const sel = lus.find(x => x.l.id === banqueState.sel);
     const f = banqueState.filtre;
-    const vues = R.lignes.filter(l => !f || ((l.rapprochement || {}).niveau || 'aucun') === f);
-    return `<div class="filters">
-      <label class="f-lab">Relevé<select id="bq-releve" aria-label="Le relevé à rapprocher">${releves.map(r =>
-        `<option value="${esc(r.id)}" ${r.id === R.id ? 'selected' : ''}>${esc(r.compte)} · ${esc(fmtJour(r.du))} → ${esc(fmtJour(r.au))}${r.banque ? ' · ' + esc(r.banque) : ''}</option>`).join('')}</select></label>
-      <label class="f-lab">Montrer<select id="bq-filtre" aria-label="Filtrer par état de rapprochement">
-        <option value="">Toutes les lignes</option>
-        ${Object.keys(NIVEAU_LABEL).map(k => `<option value="${k}" ${f === k ? 'selected' : ''}>${NIVEAU_LABEL[k]} (${parNiveau[k]})</option>`).join('')}</select></label>
-      ${info('bq.niveaux')}
-      <button class="btn btn-sm" id="bq-auto">Rapprocher automatiquement</button>
-      <button class="btn btn-sm btn-ghost" id="bq-import">Importer un relevé…</button>
-      ${RowMenu.bouton('REL:' + R.id, 'Ce relevé', 'btn btn-sm btn-ghost')}
-    </div>
-    <div class="stats">
-      <div class="stat"><div class="lbl">Rapproché</div><div class="val ok">${parNiveau.certain}</div><div class="sub">sur ${pl(R.lignes.length, 'ligne')}</div></div>
-      <div class="stat"><div class="lbl">À trancher</div><div class="val ${parNiveau.probable + parNiveau['a-confirmer'] ? 'due' : ''}">${parNiveau.probable + parNiveau['a-confirmer']}</div><div class="sub">probables et ambiguïtés</div></div>
-      <div class="stat"><div class="lbl">Sans réponse</div><div class="val ${parNiveau.aucun ? 'due' : ''}" id="bq-sans-reponse">${parNiveau.aucun}</div><div class="sub">rien dans le livre en face</div></div>
-      ${/* L'écart du rapprochement classique : le solde de fin du relevé moins le solde comptable
-            du compte à la même date (T-06). Il PEUT tomber à zéro, et c'est ce qui en fait un
-            indicateur. Ce que les suspens n'expliquent pas vient d'avant le premier relevé, et on
-            le nomme plutôt que de le laisser fondu dans le chiffre. */''}
-      <div class="stat"><div class="lbl">Écart de rapprochement</div><div class="val ${sus.ecart ? 'due' : 'ok'}">${esc(money(sus.ecart))}</div>
-        <div class="sub">relevé ${esc(money(sus.soldeFin))} − livre ${esc(money(sus.soldeComptable))} au ${esc(fmtJour(R.au))}${
-          sus.avant ? ` · dont ${esc(money(sus.avant))} d'avant les relevés` : ''}</div></div>
-    </div>
-    <div class="panel mt"><h2>Le relevé ${info('bq.releve')}</h2>
-      <div class="scroll-x"><table class="list compact"><thead><tr>
-        <th class="nw">Date</th><th>Libellé</th><th class="nw">Référence</th><th class="r nw">Montant</th><th class="nw">État</th><th class="nw">En face</th><th></th>
-      </tr></thead><tbody>
-      ${vues.map(l => {
-        const r = l.rapprochement || { niveau: 'aucun' };
-        const e = r.ecritureId ? ecritureDuLivre(s.livre, r.ecritureId) : null;
-        // « En face » montre la LIGNE appariée, avec son montant (T-12) : le moteur rapproche ligne
-        // à ligne, et deux lignes de relevé sur deux lignes d'une même pièce de paie affichaient le
-        // même texte — trait pour trait la faute que le moteur interdit. Un contrôle qu'on ne peut
-        // pas faire finit par ne plus se faire.
-        const lg = e && Array.isArray(e.lignes) ? e.lignes[Number(r.ligne)] : null;
-        const mFace = lg ? KC.round3((Number(lg.debit) || 0) - (Number(lg.credit) || 0)) : null;
-        // `data-etat` : l'état de la ligne, que la visite « Écrire une ligne du relevé » vise (10.14.1) —
-        // la première ligne venue peut être déjà rapprochée, et son menu n'a pas le geste.
-        return `<tr data-lig="${esc(l.id)}" data-etat="${esc(r.ecritureId ? 'face' : r.niveau)}">
-          <td class="nw">${esc(fmtJour(l.date))}</td>
-          <td class="tronq lg" title="${esc(l.libelle)}">${esc(l.libelle)}</td>
-          <td class="nw">${esc(l.reference)}</td>
-          <td class="r nw">${esc(money(l.montant))}</td>
-          <td class="nw"><span class="badge ${NIVEAU_CLASSE[r.niveau] || ''}">${esc(NIVEAU_LABEL[r.niveau] || r.niveau)}</span>${
-            r.par === 'auto' ? ' <span class="muted small">auto</span>' : ''}</td>
-          <td class="tronq" title="${e ? esc((e.journal || '') + ' ' + (e.piece || '') + ' — ' + (e.libelle || '') + (lg ? ` — ligne ${Number(r.ligne) + 1} (${lg.compte || ''})` : '')) : ''}">${
-            // La pièce se coupe, son montant jamais (10.12.0) : coupé avec le reste, « BQ PAIE-2026-07
-            // · −1 443,… » ne disait plus quelle ligne de la pièce répond — c'est tout T-12. Et une
-            // ambiguïté commence par ce qu'elle DEMANDE : c'est la fin d'une phrase qu'on coupe.
-            e ? `<span class="face"><span class="face-p">${esc((e.journal || '') + ' ' + (e.piece || ''))}</span>${
-              mFace != null ? `<span class="muted face-m">· ${esc(money(mFace))}</span>` : ''}</span>`
-              : r.niveau === 'probable' || r.niveau === 'a-confirmer' ? '<span class="muted">À trancher : plusieurs écritures au même montant</span>' : ''}</td>
-          ${RowMenu.cellule('LIG:' + l.id)}</tr>`;
-      }).join('')}
-      </tbody></table></div>
-      ${vues.length ? '' : '<div class="empty mini">Aucune ligne dans cet état.</div>'}
-    </div>
-    <div class="panel mt"><h2>Les suspens ${info('bq.suspens')}</h2>
-      <p class="small muted">Ce que la banque porte et que le livre n'a pas, et l'inverse. Un chèque émis qui n'est
-      pas encore encaissé vit ici : ce n'est pas une erreur, c'est ce qui explique l'écart.</p>
-      <div class="split">
-        <div><h3 class="sub-h">Côté banque · ${pl(sus.banque.length, 'ligne')}</h3>
-          ${sus.banque.length ? `<table class="list compact"><tbody>${sus.banque.map(l =>
-            `<tr><td class="nw">${esc(fmtJour(l.date))}</td><td class="tronq" title="${esc(l.libelle)}">${esc(l.libelle)}</td><td class="r nw">${esc(money(l.montant))}</td></tr>`).join('')}</tbody>
-            <tfoot><tr><td colspan="2"><strong>Total côté banque</strong></td><td class="r nw"><strong>${esc(money(sus.totalBanque))}</strong></td></tr></tfoot></table>`
-            : '<div class="empty mini">Rien : tout ce que la banque porte est dans le livre.</div>'}</div>
-        <div><h3 class="sub-h">Côté livre · ${pl(sus.livre.length, 'ligne')}</h3>
-          ${sus.livre.length ? `<table class="list compact"><tbody>${sus.livre.map(l =>
-            `<tr><td class="nw">${esc(fmtJour(l.date))}</td><td class="tronq" title="${esc(l.libelle)}">${esc(l.libelle)}</td><td class="r nw">${esc(money(l.montant))}</td></tr>`).join('')}</tbody>
-            <tfoot><tr><td colspan="2"><strong>Total côté livre</strong></td><td class="r nw"><strong>${esc(money(sus.totalLivre))}</strong></td></tr></tfoot></table>`
-            : '<div class="empty mini">Rien : tout ce que le livre porte est sur le relevé.</div>'}</div>
+    const voit = g => !f || f === g || (f === 'reste' && g !== 'ok');
+    const lect = lectureSeuleLivre();
+    const EC = ecartBanque(R);
+    const regles = (Array.isArray(S.libelles) ? S.libelles : []).filter(x => x && x.motif && x.compte).length;
+    const coches = [...banqueState.coches].filter(id => lus.some(x => x.l.id === id && x.g === 'prop'));
+    const pastille = (c, k, t) => `<button type="button" class="bq-fc ${c}" data-bq-filtre="${c === 'tout' ? '' : c}" aria-pressed="${(c === 'tout' ? '' : c) === f}"><i></i><b>${k}</b> ${t}</button>`;
+    const ligneTab = x => {
+      const l = x.l, on = l.id === banqueState.sel;
+      return `<tr class="bq-l${on ? ' on' : ''}" data-bq-ligne="${esc(l.id)}" data-groupe="${x.g}">
+        <td class="bq-c">${x.g === 'prop' ? `<input type="checkbox" data-bq-coche="${esc(l.id)}"${banqueState.coches.has(l.id) ? ' checked' : ''} aria-label="Choisir ${esc(l.libelle)}">` : ''}</td>
+        <td class="bq-d">${esc(fmtJour(l.date).slice(0, 5))}</td>
+        <td><div class="bq-lb">${icNature(l.libelle, l.montant)}<div><span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok'
+          ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(x.e ? `${x.e.journal || ''} ${x.e.piece || ''}`.trim() : '')}</b>${x.e && x.e.libelle ? ` · ${esc(x.e.libelle)}` : ''}${origineBq(x)}</small>`
+          : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(x.titre)}</b> · ${esc(x.pq)}</small>`}</div></div></td>
+        <td class="r">${montantSigne(l.montant)}</td>
+        <td class="r bq-mc">${RowMenu.bouton('LIG:' + l.id, '⋯', 'bq-menu btn-ghost')}</td></tr>`;
+    };
+    const carteTel = x => {
+      const l = x.l;
+      return `<div class="bq-k1${l.id === banqueState.sel ? ' on' : ''}" data-bq-ligne="${esc(l.id)}" data-groupe="${x.g}" role="button" tabindex="0">
+        <div class="bq-k1h"><span class="bq-lb">${icNature(l.libelle, l.montant)}<span class="bq-d">${esc(fmtJour(l.date).slice(0, 5))}</span></span>${montantSigne(l.montant)}</div>
+        <span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok' ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(x.e ? `${x.e.journal || ''} ${x.e.piece || ''}`.trim() : '')}</b></small>`
+          : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(x.titre)}</b> · ${esc(x.pq)}</small>`}</div>`;
+    };
+    const valider = n('prop') && !lect ? `<button type="button" class="btn btn-sm" data-bq-valider>${svgBq(BQ_IC.ok, 14)} Valider ${coches.length ? `les ${coches.length} cochées` : n('prop') > 1 ? `les ${n('prop')}` : 'la proposée'}</button>` : '';
+    const groupesTab = GROUPES_BQ.map(([g, titre]) => {
+      const rs = lus.filter(x => x.g === g);
+      if (!rs.length || !voit(g)) return '';
+      return `<tr class="bq-g"><td colspan="5"><b>${titre}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</td></tr>${rs.map(ligneTab).join('')}`;
+    }).join('');
+    const faites = lus.filter(x => x.g === 'ok');
+    const faitesTab = faites.length && voit('ok') ? `<tr class="bq-g bq-fait"><td colspan="5"><i class="bq-pt sur"></i><b>Rapprochées</b> <span class="mu">${faites.length}${resumeOrigines(faites)}</span>
+      <button type="button" class="cp-plus bq-voir" id="bq-voir-faites" aria-expanded="${banqueState.voirFaites || f === 'ok'}">${banqueState.voirFaites || f === 'ok' ? 'Replier' : 'Les voir'} ${svgBq(BQ_IC.chev, 13)}</button></td></tr>${banqueState.voirFaites || f === 'ok' ? faites.map(ligneTab).join('') : ''}` : '';
+    const cartes = GROUPES_BQ.map(([g, titre]) => {
+      const rs = lus.filter(x => x.g === g);
+      return rs.length && voit(g) ? `<div class="bq-gm"><b>${titre}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</div>${rs.map(carteTel).join('')}` : '';
+    }).join('') + (faites.length && voit('ok') ? `<div class="bq-gm"><b>Rapprochées</b> <span class="mu">${faites.length}</span><button type="button" class="cp-plus bq-voir" data-bq-voir>${banqueState.voirFaites || f === 'ok' ? 'Replier' : 'Les voir'}</button></div>${banqueState.voirFaites || f === 'ok' ? faites.map(carteTel).join('') : ''}` : '');
+    const toutFait = !restent.length;
+    return `<div class="bq-ecran"><div class="bq-h"><div><b>Relevé ${esc(R.banque || 'de banque')} · ${esc(moisDuReleve(R))}
+          <label class="bq-per" title="${releves.length > 1 ? `${releves.length} relevés` : 'Le relevé'}">${esc(R.compte)}${R.banque ? ` ${esc(R.banque)}` : ''} ${svgBq(BQ_IC.chev, 13)}
+            <select id="bq-releve" aria-label="Le relevé à rapprocher">${releves.map(r => `<option value="${esc(r.id)}" ${r.id === R.id ? 'selected' : ''}>${esc(r.compte)}${r.banque ? ' ' + esc(r.banque) : ''} · ${esc(moisDuReleve(r))}</option>`).join('')}</select></label></b>
+          <span class="mu">${R.importeLe ? `importé le ${esc(fmtJour(String(R.importeLe).slice(0, 10)))} · ` : ''}${pl(R.lignes.length, 'mouvement')} · du ${esc(fmtJour(R.du))} au ${esc(fmtJour(R.au))}</span></div>
+        <button type="button" class="btn btn-sm" id="bq-regles" title="Les mots retenus : une ligne qui contient le mot se voit proposer le compte">Les règles${regles ? ` · ${regles}` : ''}</button>
+        ${lect ? '' : '<button type="button" class="btn btn-sm" id="bq-import">Importer un relevé…</button>'}
+        ${lect ? '' : RowMenu.bouton('REL:' + R.id, 'Ce relevé', 'btn btn-sm btn-ghost')}</div>
+      <div class="bq-f" role="group" aria-label="Montrer">${pastille('tout', R.lignes.length, 'Toutes')}${pastille('ok', n('ok'), 'Rapprochées')}${pastille('prop', n('prop'), 'Proposées')}${pastille('dec', n('dec'), 'À traiter')}${pastille('att', n('att'), 'En attente du client')}
+        ${EC.nonExplique ? `<button type="button" class="bq-fc ko" id="bq-vers-ecart" title="Voir en bas : les pistes">${svgBq(BQ_IC.alerte, 14)} <b>${esc(montant(Math.abs(EC.nonExplique)))}</b> d'écart non expliqué</button>` : ''}
+        <span class="bq-j" aria-hidden="true">${[['ok', n('ok')], ['prop', n('prop')], ['dec', n('dec')], ['att', n('att')]].map(([c, k]) => `<i class="${c}" style="flex:${k}"></i>`).join('')}</span></div>
+      ${toutFait ? `<div class="bq-fini"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><div><b>${esc(moisDuReleve(R).replace(/^./, c => c.toUpperCase()))} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
+          <p>${pl(R.lignes.length, 'mouvement')} sur ${R.lignes.length} ont leur écriture.</p></div><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button></div>` : ''}
+      <div class="bq2">
+        <div class="bq-liste">
+          <table class="list compact bq-t" data-sans-cartes><thead><tr><th></th><th>Date</th><th>La banque</th><th class="r">Montant</th><th></th></tr></thead><tbody>${groupesTab}${faitesTab}</tbody></table>
+          <div class="bq-km">${cartes}</div>
+          ${!groupesTab && !faitesTab ? '<div class="empty mini">Aucune ligne dans cet état.</div>' : ''}
+          <p class="bq-aide"><kbd>↑</kbd> <kbd>↓</kbd> une ligne <span>·</span> <kbd>Espace</kbd> cocher <span>·</span> <kbd>Entrée</kbd> valider <span>·</span> <kbd>/</kbd> chercher <span>·</span> <kbd>⋯</kbd> les autres gestes</p>
+        </div>
+        ${sel ? livreEnFace(dossier, R, sel, lect) : ''}
       </div>
-      ${/* Le VERDICT (10.12.0, vu au test humain sur la vitrine) : un écart de −3 650,591 en rouge,
-            deux listes sans total, et rien pour dire que la banque moins le livre redonne l'écart au
-            millime. Ce qu'un comptable vient chercher ici, c'est si l'écart est EXPLIQUÉ — sinon il
-            refait l'addition à la main. Les deux termes sont écrits (9.8.8), et la part qui ne
-            s'explique par aucun suspens se nomme comme sur la carte. */''}
-      ${sus.banque.length || sus.livre.length ? `<p class="small mt">${sus.avant
-        ? `Les suspens expliquent <b>${esc(money(sus.ecartSuspens))}</b> de l'écart : ${esc(money(sus.totalBanque))} côté banque − ${esc(money(sus.totalLivre))} côté livre. Le reste, <b>${esc(money(sus.avant))}</b>, vient d'avant les relevés importés.`
-        : `Les suspens expliquent tout l'écart : <b>${esc(money(sus.totalBanque))}</b> côté banque − <b>${esc(money(sus.totalLivre))}</b> côté livre = <b>${esc(money(sus.ecartSuspens))}</b>.`}</p>` : ''}
-    </div>
-    ${motsRetenusPanel()}`;
+      ${piedBanque(R, EC)}</div>`;
   }
 
-  // 10.14.1 — Les mots retenus en écrivant depuis un relevé n'avaient AUCUN écran : une règle apprise
-  // par erreur (un mot trop courant, le mauvais compte) proposait le mauvais compte pour toujours,
-  // sans moyen de la retirer. Ils se relisent ici, sous le relevé où ils servent, et se retirent.
+  // D'où viennent les rapprochées : d'office (l'automatique), à la main, et leurs écritures nées dans SkanFact.
+  function resumeOrigines(faites) {
+    const auto = faites.filter(x => (x.l.rapprochement || {}).par === 'auto').length;
+    const sf = faites.filter(x => x.e && x.e.source === 'skanfact').length;
+    const parts = [auto ? `${auto} d'office` : '', faites.length - auto ? `${faites.length - auto} à la main` : '', sf ? `${sf} depuis SkanFact` : ''].filter(Boolean);
+    return parts.length ? ` · ${parts.join(', ')}` : '';
+  }
+  const origineBq = x => {
+    const r = x.l.rapprochement || {};
+    const chips = [];
+    if (x.e && x.e.source === 'skanfact') chips.push('<span class="bq-src sf">depuis SkanFact</span>');
+    chips.push(r.par === 'auto' ? '<span class="bq-src">d\'office</span>' : '<span class="bq-src toi">à la main</span>');
+    return chips.join('');
+  };
+
+  // Le livre en face de la ligne choisie. Une ligne rapprochée montre son écriture ; une autre, ce qui peut lui répondre.
+  function livreEnFace(dossier, R, x, lect) {
+    const L = livresState.livre;
+    const l = x.l;
+    const tete = `<div class="bq-lh"><b>Le livre</b><span>en face de <b class="mono">${esc(String(l.libelle || '').slice(0, 34))}</b> · ${esc(money(l.montant))}</span></div>`;
+    if (x.g === 'ok') {
+      const e = x.e;
+      return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
+        ${e ? `<div class="bq-ok">${svgBq(BQ_IC.ok, 15)}<span>Rapprochée avec <b>${esc(`${e.journal || ''} ${e.piece || ''}`.trim())}</b> du ${esc(fmtJour(e.date))}${(l.rapprochement || {}).par === 'auto' ? ', d\'office' : ''}</span></div>
+          ${tableEcriture(e.lignes || [], x.rang)}` : '<p class="bq-rien">Cette écriture n\'est plus au livre de cet exercice.</p>'}
+        <div class="cp-gestes">${e ? '<button type="button" class="btn" id="bq-voir-ecriture">Voir l\'écriture</button>' : ''}${lect ? '' : '<button type="button" class="btn btn-ghost" id="bq-defaire">Défaire</button>'}</div></aside>`;
+    }
+    if (x.g === 'att') {
+      const q = x.q;
+      return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
+        <div class="bq-q">${svgBq(BQ_IC.msg, 15)}<div><b>${esc(q.objet || 'Question au client')}</b><small>${q.statut === 'repondue' && q.reponse ? `Réponse : « ${esc(String(q.reponse.texte || '').slice(0, 160))} »` : `posée le ${esc(fmtJour(new Date(q.creeLe || 0).toISOString().slice(0, 10)))}${(q.envois || []).length > 1 ? ` · relancée ${(q.envois || []).length - 1} fois` : ''}`}</small></div></div>
+        <p class="bq-rien">Tant qu'il n'a pas répondu, la ligne attend : elle ne bloque rien. ${q.statut === 'repondue' ? 'Sa réponse est là : écris la ligne d\'après elle.' : 'Tu peux aussi la mettre au compte d\'attente (471) le temps qu\'il réponde.'}</p>
+        ${lect ? '' : `<div class="cp-gestes">${q.statut === 'repondue' ? '<button type="button" class="btn btn-primary" id="bq-principal">Écrire d\'après sa réponse <kbd class="bq-k">Entrée</kbd></button>' : '<button type="button" class="btn btn-primary" id="bq-principal">Ouvrir la conversation <kbd class="bq-k">Entrée</kbd></button>'}<button type="button" class="btn" id="bq-attente">Au compte d'attente</button></div>`}</aside>`;
+    }
+    // Ce qui peut répondre : les écritures du même montant à ± n jours d'abord (le jugement du moteur), puis ce que la
+    // recherche trouve dans le reste du compte (un montant, un mot, une pièce).
+    const jug = x.jug || { candidats: [], libres: [] };
+    const cle = c => c.ecritureId + '#' + c.ligne;
+    const q = banqueState.cherche.trim().toLowerCase();
+    const enTete = jug.candidats.slice().sort((a, b) => (x.c && cle(b) === cle(x.c)) - (x.c && cle(a) === cle(x.c)));
+    const trouves = q ? jug.libres.filter(c => !enTete.some(y => cle(y) === cle(c))).filter(c => {
+      const txt = `${c.libelle} ${c.piece} ${montant(Math.abs(c.montant))} ${String(Math.abs(c.montant)).replace('.', ',')}`.toLowerCase();
+      return txt.includes(q);
+    }).slice(0, 12) : [];
+    const liste = enTete.concat(trouves);
+    const choisi = banqueState.choix[l.id] != null ? banqueState.choix[l.id] : (x.c ? cle(x.c) : (enTete.length === 1 ? cle(enTete[0]) : ''));
+    const cc = liste.find(c => cle(c) === choisi);
+    const ecart = cc ? KC.round3(Number(l.montant) - cc.montant) : null;
+    const pieces = liste.length ? `<table class="list compact bq-pc"><tbody>${liste.map(c => {
+      const e = ecritureDuLivre(L, c.ecritureId);
+      const on = cle(c) === choisi;
+      return `<tr class="${on ? 'on' : ''}" data-bq-choix="${esc(cle(c))}"><td class="bq-c"><input type="radio" name="bq-choix" value="${esc(cle(c))}"${on ? ' checked' : ''} aria-label="${esc(`${e ? e.journal : ''} ${c.piece || ''}`)}"></td>
+        <td><div class="bq-lb"><span class="bqx doc">${svgBq(BQ_IC.doc)}</span><div><span><b class="mono">${esc(`${e ? e.journal || '' : ''} ${c.piece || ''}`.trim() || '—')}</b> <small>du ${esc(fmtJour(c.date))}${e && e.statut === 'brouillard' ? ' · brouillard' : ''}</small></span>
+          <small class="bq-p">${esc(c.libelle || '')}${enTete.some(y => cle(y) === cle(c)) ? ` · ${esc(pourquoiBq(l, c, x.c && cle(x.c) === cle(c) ? jug.niveau : 'probable').replace(/^même montant, la (seule|plus probable)/, 'même montant'))}` : ''}</small></div></div></td>
+        <td class="r">${esc(montant(c.montant))}</td></tr>`;
+    }).join('')}</tbody></table>
+      ${cc ? `<div class="bq-som ${ecart ? 'ko' : 'ok'}"><span>La ligne ${esc(money(l.montant))}</span><span>en face ${esc(money(cc.montant))}</span><b>${ecart ? `écart ${esc(money(ecart))}` : `${svgBq(BQ_IC.ok, 13)} écart 0`}</b></div>` : ''}` : '';
+    const prop = x.prop;
+    const sansRien = !liste.length;
+    let corps = '', principal = '';
+    if (!sansRien) {
+      // (1.206.0) Un rapprochement relie deux montants égaux : une écriture d'un autre montant (trouvée par la recherche) ne
+      // se rapproche pas ; la phrase dit l'écart et le geste qui débloque.
+      corps = pieces + (x.ton === 'choix' && !cc ? '<p class="bq-rien">Plusieurs écritures portent ce montant : coche la bonne. La date et le libellé ne les départagent pas.</p>' : '')
+        + (cc && ecart ? `<p class="bq-rien bq-refus" id="bq-ecart-refus">Les deux montants ne sont pas égaux (écart ${esc(money(ecart))}) : une ligne du relevé se rapproche d'une écriture du même montant. Corrige l'écriture, ou « Écris autre chose » pour cette ligne.</p>` : '');
+      principal = cc && !ecart ? 'Rapprocher' : '';
+    } else if (prop) {
+      corps = `<p class="bq-rien">Rien dans le livre pour cette ligne. <b>Sa règle « ${esc(prop.regle)} »</b> propose l'écriture :</p>${tableEcriture([...prop.lignes].sort((u, v) => (v.debit > 0) - (u.debit > 0)), -1)}`;
+      principal = 'Écrire et rapprocher';
+    } else {
+      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ou demander au client ce que c'est.</p>`;
+      principal = 'Écrire l\'écriture…';
+    }
+    return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
+      <label class="bq-ch">${svgBq(BQ_IC.loupe, 15)}<input type="search" id="bq-cherche" value="${esc(banqueState.cherche)}" placeholder="Chercher un montant, un tiers, une pièce…  ( / )" aria-label="Chercher dans le livre"></label>
+      ${corps}
+      ${lect ? '' : `<div class="cp-gestes">${principal ? `<button type="button" class="btn btn-primary" id="bq-principal">${esc(principal)} <kbd class="bq-k">Entrée</kbd></button>` : ''}
+        ${sansRien && !prop ? (!dossier.manual && api.question ? '<button type="button" class="btn" id="bq-demander">Demander au client</button>' : '') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
+    </aside>`;
+  }
+  const tableEcriture = (lignes, marque) => `<table class="list compact bq-ec" data-sans-cartes><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>${lignes.map((z, i) =>
+    `<tr class="${i === marque ? 'br-ligne' : ''}"><td class="mono">${esc(z.compte || '')}</td><td class="tronq" title="${esc(z.libelle || '')}">${esc(z.libelle || '')}</td><td class="r">${Number(z.debit) ? esc(montant(z.debit)) : ''}</td><td class="r">${Number(z.credit) ? esc(montant(z.credit)) : ''}</td></tr>`).join('')}</tbody></table>`;
+
+  // Le pied : l'équation à gauche, le verdict à droite. Un écart que rien n'explique se dit en rouge, avec les pistes
+  // que l'écran a déjà regardées (une écriture du livre au même montant sans ligne au relevé, les écritures d'avant le
+  // premier relevé, le relevé qui ne suit pas le précédent).
+  function piedBanque(R, EC) {
+    const t = (op, lab, v, attr = '') => `<span class="bqp-op" aria-hidden="true">${op}</span><span class="bqp-t"${attr}><small>${lab}</small><b>${esc(montant(Math.abs(v)))}</b></span>`;
+    const sgn = v => (v < 0 ? '−' : '+');
+    const nB = EC.banqueAll.length, nL = EC.livreRec.length;
+    const dAutres = EC.banqueAll.filter(x => x.releve.id !== R.id).length;
+    const dApres = EC.banqueAll.filter(x => x.ecritLe).length;
+    const dont = [dAutres ? `${dAutres} d'avant` : '', dApres ? `${dApres} écrite${dApres > 1 ? 's' : ''} après le ${fmtJour(R.au).slice(0, 5)}` : ''].filter(Boolean).join(', ');
+    const eq = [t('', `Relevé au ${fmtJour(R.au).slice(0, 5)}`, EC.sus.soldeFin),
+      nB ? t(sgn(-EC.sB), `${pl(nB, 'ligne')} pas encore au livre${dont ? ` (dont ${dont})` : ''}`, EC.sB, ' role="button" tabindex="0" id="bq-eq-banque" title="Les montrer dans la liste"') : '',
+      nL ? t(sgn(EC.sLr), `${pl(nL, 'écriture')} pas encore en banque`, EC.sLr, ' role="button" tabindex="0" id="bq-eq-livre" title="Les voir : chèques émis, virements pas encore passés"') : '',
+      t('=', `Attendu au livre ${R.compte}`, EC.attendu)].join('');
+    if (!EC.nonExplique) {
+      return `<div class="bqp" role="status" aria-label="L'écart du relevé"><div class="bqp-eq">${eq}</div>
+        <div class="bqp-v ok"><span class="bqp-i">${svgBq(BQ_IC.ok, 15)}</span><div><b>Écart expliqué au millime</b>${nB
+          ? `<button type="button" class="cp-plus bqp-pdf" data-bq-etat>L'état de rapprochement (PDF)</button>` : '<small>plus rien à écrire</small>'}</div></div></div>`;
+    }
+    const L = livresState.livre;
+    const pistes = [];
+    const memeMontant = EC.sus.livre.filter(x => KC.round3(Math.abs(x.montant) - Math.abs(EC.nonExplique)) === 0);
+    memeMontant.slice(0, 2).forEach(x => {
+      const e = ecritureDuLivre(L, x.ecritureId);
+      pistes.push(`<div class="bqp-pi"><b>Une écriture du livre fait ${esc(montant(Math.abs(EC.nonExplique)))} sans ligne au relevé</b><span>${esc(`${e ? e.journal || '' : ''} ${x.piece || ''}`.trim())} du ${esc(fmtJour(x.date))} · « ${esc(x.libelle || '')} » : écrite deux fois, ou au mauvais compte ?</span>${e ? `<button type="button" class="btn btn-sm" data-bq-voir-ecriture="${esc(x.ecritureId)}">L'ouvrir</button>` : ''}</div>`);
+    });
+    const d0 = KC.round3(Number(EC.premierR.soldeDebut) - EC.livreAvantPremier);
+    if (d0) {
+      pistes.push(`<div class="bqp-pi"><b>Le premier relevé ne part pas du solde du livre</b><span>le relevé du ${esc(fmtJour(EC.premier))} commence à ${esc(money(EC.premierR.soldeDebut))} ; le livre ${esc(R.compte)} disait ${esc(money(EC.livreAvantPremier))} la veille (${esc(money(d0))} d'écart) : le solde d'ouverture du compte, ou des relevés d'avant qui manquent.</span></div>`);
+    }
+    EC.ruptures.forEach(p => {
+      pistes.push(`<div class="bqp-pi"><b>Un relevé ne commence pas où le précédent finit</b><span>fin du ${esc(fmtJour(p.avant.au))} : ${esc(money(p.avant.soldeFin))} · début du ${esc(fmtJour(p.apres.du))} : ${esc(money(p.apres.soldeDebut))}. Des mouvements entre les deux ne sont dans aucun relevé.</span></div>`);
+    });
+    if (!d0 && !EC.ruptures.length) {
+      pistes.push(`<div class="bqp-pi ok">${svgBq(BQ_IC.ok, 14)}<span>Les relevés se suivent et se bouclent : chacun commence où le précédent finit, début + mouvements = la fin que la banque imprime.</span></div>`);
+    }
+    pistes.push(`<div class="bqp-pi"><span>Pas trouvé ? Cherche ${esc(montant(Math.abs(EC.nonExplique)))} dans les écritures du compte : une ligne oubliée, ou saisie avec une faute de frappe.</span><button type="button" class="btn btn-sm btn-ghost" id="bq-chercher-ecart">Chercher ${esc(montant(Math.abs(EC.nonExplique)))}</button></div>`);
+    return `<div class="bqp ko" role="status" aria-label="L'écart du relevé" id="bq-pied"><div class="bqp-eq">${eq}</div>
+      <div class="bqp-v ko"><b>Écart non expliqué : ${esc(money(Math.abs(EC.nonExplique)))}</b><small>Le livre ${esc(R.compte)} dit ${esc(money(EC.sus.soldeComptable))}, il devrait dire ${esc(money(EC.attendu))}</small></div>
+      <div class="bqp-pistes">${pistes.join('')}</div></div>`;
+  }
+
+  // Aucun relevé : l'écran montre la page qu'il deviendra (grisée), et le geste qui la remplit (règle des maquettes).
+  function banqueVide(dossier) {
+    const L = livresState.livre;
+    const compte = (dossier.banque || {}).compte || '532';
+    const lignesAp = n => Array.from({ length: n }, (_, i) => `<div class="apx-l"><span class="apx-b"></span><span class="t"><span class="apx-b"></span><span class="apx-b"></span></span><span class="apx-b" style="width:${60 + (i * 17) % 30}%;justify-self:end"></span></div>`).join('');
+    const nb = KC.lignesBancaires(L, compte).length;
+    return `<div class="bq-ecran"><div class="bq-h"><div><b>Banque · ${esc(livresState.annee)}</b><span class="mu">compte ${esc(compte)}${(dossier.banque || {}).banque ? ` · ${esc(dossier.banque.banque)}` : ''} · aucun relevé importé${nb ? ` · ${pl(nb, 'écriture')} au livre sur ce compte` : ''}</span></div></div>
+      <div class="apx"><div class="apx-f" aria-hidden="true"><div class="apx-pills">${'<span class="apx-b"></span>'.repeat(5)}</div>
+        <div class="apx-2"><div class="apx-r">${lignesAp(6)}</div><div class="apx-r apx-cad"><span class="apx-b" style="width:40%"></span><span class="apx-b" style="height:30px"></span>${lignesAp(2)}<span class="apx-b apx-btn"></span></div></div></div>
+        <div class="apx-c"><span class="apx-ic">${svgBq(BQ_IC.banque, 22)}</span><b>Le relevé n'est pas encore là</b>
+          <p>Importe le fichier de la banque tel qu'elle le donne (Excel ou CSV). Chaque ligne arrive avec ce qui lui répond dans le livre, et pourquoi ; ce qui est sûr se confirme d'un coup.</p>
+          <div class="cp-gestes">${lectureSeuleLivre() ? '' : '<button type="button" class="btn btn-primary" id="bq-import">Importer un relevé…</button>'}${!dossier.manual && api.messagerie ? '<button type="button" class="btn" id="bq-demander-releve">Le demander au client</button>' : ''}</div>
+          <span class="apx-mini">Le relevé en PDF : pas encore (À VÉRIFIER : les banques qui ne donnent que le PDF).</span></div></div></div>`;
+  }
+
+  // Les mots retenus (10.14.1) : ils proposent le compte d'une ligne que rien ne rapproche. Ils se relisent et se
+  // retirent ici ; une règle propose, elle n'écrit jamais sans le comptable.
   function motsRetenusPanel() {
     const table = (Array.isArray(S.libelles) ? S.libelles : []).filter(x => x && x.motif && x.compte);
-    if (!table.length) return '';
+    if (!table.length) return '<div class="empty mini">Aucune règle encore : la première se retient en écrivant une ligne du relevé (« Proposer ce compte aux lignes qui contiennent… »).</div>';
     const nom = nomDeCompte();
-    return `<div class="panel mt"><h2>Les mots retenus ${info('bq.mots')}</h2>
-      <p class="small muted">Pour tous tes clients : une ligne de relevé qui contient le mot se voit proposer le compte. Rien n'est écrit sans toi.</p>
-      <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Mot</th><th class="nw">Compte proposé</th><th>Intitulé</th><th></th></tr></thead>
-      <tbody>${table.map(x => `<tr><td class="nw"><b>${esc(x.motif)}</b>${KC.motifDeLibelle(x.motif) ? '' : ' <span class="muted small">trop courant : ne propose plus rien</span>'}</td>
-        <td class="nw">${esc(x.compte)}</td><td class="tronq">${esc(nom(x.compte))}</td>${RowMenu.cellule('MOT:' + x.motif)}</tr>`).join('')}</tbody></table></div>
-    </div>`;
+    return `<div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Quand le libellé contient</th><th class="nw">Compte proposé</th><th>Intitulé</th><th></th></tr></thead>
+      <tbody>${table.map(x => `<tr><td class="nw"><div class="bq-lb">${icNature(x.motif, -1)}<b class="mono" style="align-self:center">${esc(x.motif)}</b></div>${KC.motifDeLibelle(x.motif) ? '' : ' <span class="muted small">trop courant : ne propose plus rien</span>'}</td>
+        <td class="nw mono">${esc(x.compte)}</td><td class="tronq">${esc(nom(x.compte))}</td>${RowMenu.cellule('MOT:' + x.motif)}</tr>`).join('')}</tbody></table></div>`;
+  }
+
+  // Le geste d'une ligne, puis la ligne SUIVANTE (celle d'après dans l'ordre des groupes) : on ne revient jamais chercher
+  // sa place dans la liste. `faire` rend le message ; `defaire`, s'il y a lieu, l'« Annuler » du message.
+  async function gesteBanque(root, dossier, R, id, faire, defaire) {
+    const lus = lectureBanque(dossier, R);
+    const ordre = GROUPES_BQ.flatMap(([g]) => lus.filter(x => x.g === g)).map(x => x.l.id);
+    const i = ordre.indexOf(id);
+    const suivante = i >= 0 ? (ordre[i + 1] || ordre[i - 1] || '') : banqueState.sel;
+    try {
+      const msg = await faire();
+      if (msg === null) return;
+      banqueState.sel = suivante; banqueState.cherche = ''; delete banqueState.choix[id]; banqueState.coches.delete(id);
+      drawLivres(root, dossier);
+      if (defaire) toastUndo(msg, async () => { try { await defaire(); banqueState.sel = id; drawLivres(root, dossier); } catch (e) { toast(plainError(e), 'error'); } });
+      else toast(msg);
+    } catch (e) { toast(plainError(e), 'error'); }
+  }
+  const poserBq = async (dossier, R, ligneId, ecritureId, rang) => {
+    const x = await api.rapprocher({ dossierId: dossier.id, annee: livresState.annee, releveId: R.id, ligneId, choix: { ecritureId, ligne: Number(rang), niveau: 'certain', date: K.today() } });
+    livresState.livre = x.livre;
+  };
+  const defaireBq = async (dossier, R, ligneId) => {
+    const x = await api.rapprocher({ dossierId: dossier.id, annee: livresState.annee, releveId: R.id, ligneId, choix: {} });
+    livresState.livre = x.livre;
+  };
+  // « Annuler » d'une ligne écrite depuis la Banque : le rapprochement défait, puis l'écriture du brouillard retirée (elle
+  // vient de naître et rien d'autre ne la tient).
+  const defaireEcriteBq = async (dossier, R, ligneId, ecritureId) => {
+    await defaireBq(dossier, R, ligneId);
+    if (ecritureId) livresState.livre = (await api.supprimerEcriture(dossier.id, livresState.annee, ecritureId)).livre;
+  };
+  // Écrire la ligne au brouillard d'après une contrepartie (la règle, le 471), et la rapprocher du même geste.
+  async function ecrireEtRapprocher(dossier, R, l, compte, libelle) {
+    const s = livresState;
+    const b = KC.ecritureProposee(l, Array.isArray(S.libelles) ? S.libelles : [], { compte: R.compte, journal: 'BQ' });
+    const lib = libelle || b.libelle;
+    const ec = { ...b, libelle: lib, lignes: [{ ...b.lignes[0], libelle: lib }, { ...b.lignes[1], compte, libelle: lib }] };
+    delete ec.aChoisir; delete ec.regle;
+    const r = await api.saisir(dossier.id, s.annee, ec);
+    s.livre = r.livre;
+    if ((r.livre.ecritures || []).some(x => x.id === r.id)) await poserBq(dossier, R, l.id, r.id, 0);
+    return r.id;
   }
 
   function brancherBanque(el, root, dossier) {
@@ -12411,98 +12683,301 @@
     const releves = s.livre.releves || [];
     const R = releves.find(r => r.id === banqueState.releve);
     $$('#bq-import', el).forEach(b => { b.onclick = () => releveForm(root, dossier); });
-    const sel = $('#bq-releve', el);
-    if (sel) sel.onchange = () => { banqueState.releve = sel.value; drawLivres(root, dossier); };
-    const fil = $('#bq-filtre', el);
-    if (fil) fil.onchange = () => { banqueState.filtre = fil.value; drawLivres(root, dossier); };
-    const auto = $('#bq-auto', el);
-    if (auto && R) auto.onclick = async () => {
-      auto.disabled = true;
+    const dem = $('#bq-demander-releve', el);
+    if (dem) dem.onclick = () => fenDemanderCl(dossier, { piece: 'Le relevé de banque du mois' }, { hors: true, apres: async () => drawLivres(root, dossier) });
+    if (!R) return;
+    const lus = lectureBanque(dossier, R);
+    const parId = new Map(lus.map(x => [x.l.id, x]));
+    const sel = parId.get(banqueState.sel);
+    const redessiner = () => drawLivres(root, dossier);
+    const sur = (sel2, fn) => { const x = $(sel2, el); if (x) x.onclick = fn; };
+
+    const choixReleve = $('#bq-releve', el);
+    if (choixReleve) choixReleve.onchange = () => { banqueState.releve = choixReleve.value; redessiner(); };
+    $$('[data-bq-filtre]', el).forEach(b => { b.onclick = () => { const v = b.dataset.bqFiltre; banqueState.filtre = banqueState.filtre === v ? '' : v; redessiner(); }; });
+    sur('#bq-vers-ecart', () => { const p = $('#bq-pied', el); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    $$('#bq-voir-faites, [data-bq-voir]', el).forEach(b => { b.onclick = () => { if (banqueState.filtre === 'ok') banqueState.filtre = ''; else banqueState.voirFaites = !banqueState.voirFaites; redessiner(); }; });
+    // Choisir une ligne : le clic sur la ligne (pas sur sa case ni son menu), la carte au téléphone.
+    $$('[data-bq-ligne]', el).forEach(tr => {
+      tr.addEventListener('click', ev => {
+        if (ev.target.closest('input,button,a,.row-menu-btn')) return;
+        if (banqueState.sel === tr.dataset.bqLigne) return;
+        banqueState.sel = tr.dataset.bqLigne; banqueState.cherche = '';
+        redessiner();
+        if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) { const p = $('.bq-livre'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      });
+      tr.addEventListener('keydown', ev => { if (ev.key === 'Enter' && tr.classList.contains('bq-k1')) { ev.preventDefault(); tr.click(); } });
+    });
+    $$('[data-bq-coche]', el).forEach(c => { c.onchange = () => { const id = c.dataset.bqCoche; if (c.checked) banqueState.coches.add(id); else banqueState.coches.delete(id); redessiner(); }; });
+    $$('[data-bq-choix]', el).forEach(tr => { tr.onclick = () => { if (sel) { banqueState.choix[sel.l.id] = tr.dataset.bqChoix; redessiner(); } }; });
+    // La recherche relit le livre à chaque frappe, sans perdre le curseur.
+    const ch = $('#bq-cherche', el);
+    if (ch) {
+      let t = null;
+      ch.oninput = () => { clearTimeout(t); t = setTimeout(() => {
+        // Le choix fait parmi les résultats d'une autre recherche ne vaut plus : l'écran et la touche Entrée parlent du même.
+        banqueState.cherche = ch.value; if (sel) delete banqueState.choix[sel.l.id]; const pos = ch.selectionStart; redessiner();
+        const n2 = $('#bq-cherche'); if (n2) { n2.focus(); try { n2.setSelectionRange(pos, pos); } catch (_) { /* rien */ } }
+      }, 160); };
+      ch.onkeydown = ev => { if (ev.key === 'Escape') { ch.blur(); if (banqueState.cherche) { banqueState.cherche = ''; if (sel) delete banqueState.choix[sel.l.id]; redessiner(); } } };
+    }
+
+    // Valider les proposées : les cochées, sinon toutes. Un seul appel, et un seul « Annuler » qui les défait toutes.
+    const validerProposees = async () => {
+      const coches = [...banqueState.coches].filter(id => (parId.get(id) || {}).g === 'prop');
+      const lot = (coches.length ? coches.map(id => parId.get(id)) : lus.filter(x => x.g === 'prop')).filter(x => x && x.c);
+      if (!lot.length) return;
       try {
-        const jours = ((dossier.banque || {}).jours != null) ? dossier.banque.jours : KC.RELEVE_JOURS;
-        const r = await api.rapprocherAuto({ dossierId: dossier.id, annee: s.annee, releveId: R.id, jours });
-        s.livre = r.livre;
-        // On DIT ce qui a été posé et ce qui ne l'a pas été. « 12 lignes traitées » laisserait
-        // croire que tout est réglé alors que la moitié attend une décision.
-        // Et le cas « rien à faire » a SA phrase (T-07) : trois zéros se lisent comme un échec,
-        // alors que « tout est déjà rapproché » est la meilleure nouvelle possible. Deux riens qui
-        // ne sont pas la même nouvelle : tout rapproché, ou rien qui corresponde.
-        const c = r.compte;
-        // Le relevé se RELIT dans le livre rendu : `R` est la poignée d'avant le geste (7.17.0).
-        const apres = ((r.livre && r.livre.releves) || []).find(x => x.id === R.id) || R;
-        const total = apres.lignes.length;
-        const dejaFait = apres.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId).length;
-        const rien = !c.certain && !c.probable && !c['a-confirmer'];
-        toast(rien && dejaFait === total && total
-          ? `Tout est déjà rapproché : ${pl(total, 'ligne')} sur ${total}.`
-          : rien
-            ? `Rien à rapprocher d'office : ${pl(c.aucun, 'ligne')} sans réponse, aucune écriture au même montant dans le livre.`
-            : `${pl(c.certain, 'ligne rapprochée', 'lignes rapprochées')} d'office ; ${c.probable + c['a-confirmer']} à trancher, ${c.aucun} sans réponse.`);
-        drawLivres(root, dossier);
-      } catch (e) { toast(plainError(e), 'error'); auto.disabled = false; }
+        const r = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(x => ({ ligneId: x.l.id, ecritureId: x.c.ecritureId, ligne: x.c.ligne })) });
+        s.livre = r.livre; banqueState.coches.clear();
+        redessiner();
+        toastUndo(`${pl(lot.length, 'ligne rapprochée', 'lignes rapprochées')} : chacune avec l'écriture proposée.`, async () => {
+          try { const r2 = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(x => ({ ligneId: x.l.id })) }); s.livre = r2.livre; redessiner(); }
+          catch (e) { toast(plainError(e), 'error'); }
+        });
+      } catch (e) { toast(plainError(e), 'error'); }
     };
+    // Le même bouton, dans le tableau au bureau et dans les cartes au téléphone.
+    $$('[data-bq-valider]', el).forEach(b => { b.onclick = validerProposees; });
+
+    // Le geste principal du livre en face : rapprocher l'écriture cochée, écrire d'après la règle, ou ouvrir l'écriture.
+    const principal = async () => {
+      if (!sel || lectureSeuleLivre()) return;
+      const l = sel.l;
+      if (sel.g === 'att') {
+        if (sel.q.statut === 'repondue') return ecrireDepuisBanque(root, dossier, R, l);
+        location.hash = `#/messages/${encodeURIComponent(dossier.id)}`;
+        return;
+      }
+      const cle = c => c.ecritureId + '#' + c.ligne;
+      const jug = sel.jug || { candidats: [], libres: [] };
+      const choisi = banqueState.choix[l.id] != null ? banqueState.choix[l.id] : (sel.c ? cle(sel.c) : (jug.candidats.length === 1 ? cle(jug.candidats[0]) : ''));
+      const cc = choisi ? jug.libres.find(c => cle(c) === choisi) : null;
+      if (cc && KC.round3(Number(l.montant) - cc.montant) !== 0) { toast('Les deux montants ne sont pas égaux : une ligne du relevé se rapproche d\'une écriture du même montant.', 'error'); return; }
+      if (cc) {
+        const e = ecritureDuLivre(s.livre, cc.ecritureId);
+        return gesteBanque(root, dossier, R, l.id, async () => { await poserBq(dossier, R, l.id, cc.ecritureId, cc.ligne); return `Rapprochée avec ${e ? `${e.journal || ''} ${e.piece || ''}`.trim() : 'l\'écriture'}.`; },
+          () => defaireBq(dossier, R, l.id));
+      }
+      if (sel.prop && !jug.candidats.length) {
+        const compte = sel.prop.lignes[1].compte;
+        let ecrite = '';
+        return gesteBanque(root, dossier, R, l.id, async () => { ecrite = await ecrireEtRapprocher(dossier, R, l, compte); return `Écrite au brouillard (${compte}, d'après la règle « ${sel.prop.regle} ») et rapprochée.`; },
+          () => defaireEcriteBq(dossier, R, l.id, ecrite));
+      }
+      return ecrireDepuisBanque(root, dossier, R, l);
+    };
+    sur('#bq-principal', principal);
+    sur('#bq-autre', () => { if (sel) ecrireDepuisBanque(root, dossier, R, sel.l); });
+    sur('#bq-demander', () => { if (sel) demanderLigneBq(root, dossier, R, sel.l); });
+    sur('#bq-attente', () => { if (sel) mettreEnAttenteBq(root, dossier, R, sel.l); });
+    sur('#bq-voir-ecriture', () => { if (sel && sel.e) ecritureDialog(sel.e, sel.rang); });
+    sur('#bq-defaire', () => {
+      if (!sel || !sel.e) return;
+      const e = sel.e, rang = sel.rang, l = sel.l;
+      gesteBanque(root, dossier, R, l.id, async () => { await defaireBq(dossier, R, l.id); return 'Rapprochement défait : la ligne revient à traiter, l\'écriture reste au livre.'; },
+        () => poserBq(dossier, R, l.id, e.id, rang));
+    });
+    $$('[data-bq-voir-ecriture]', el).forEach(b => { b.onclick = () => { const e = ecritureDuLivre(s.livre, b.dataset.bqVoirEcriture); if (e) ecritureDialog(e, -1); }; });
+    // Les termes de l'équation s'ouvrent : les lignes du relevé sans écriture se montrent dans la liste ; les écritures
+    // pas encore passées en banque (chèques émis, virements en route) se listent.
+    const eqB = $('#bq-eq-banque', el);
+    if (eqB) { eqB.onclick = () => { banqueState.filtre = 'reste'; redessiner(); }; eqB.onkeydown = ev => { if (ev.key === 'Enter') eqB.click(); }; }
+    const eqL = $('#bq-eq-livre', el);
+    if (eqL) { eqL.onclick = () => suspensLivreDialog(R); eqL.onkeydown = ev => { if (ev.key === 'Enter') eqL.click(); }; }
+    $$('[data-bq-etat]', el).forEach(b => { b.onclick = () => etatRapprochementDialog(dossier, R); });
+    sur('#bq-chercher-ecart', () => {
+      const EC = ecartBanque(R);
+      banqueState.cherche = montant(Math.abs(EC.nonExplique)).replace(/ /g, ' ');
+      redessiner();
+      const n2 = $('#bq-cherche'); if (n2) { n2.scrollIntoView({ behavior: 'smooth', block: 'center' }); n2.focus(); }
+    });
+    sur('#bq-regles', () => reglesBanqueDialog(root, dossier));
+
+    // Le clavier : ↑ ↓ une ligne, Espace coche, Entrée le geste principal, « / » la recherche. Un seul écouteur, qui se
+    // retire de lui-même quand l'écran Banque n'est plus là.
+    if (window.__bqClavier) document.removeEventListener('keydown', window.__bqClavier);
+    window.__bqClavier = ev => {
+      if (!document.body.contains(el) || !$('.bq2', el)) { document.removeEventListener('keydown', window.__bqClavier); window.__bqClavier = null; return; }
+      const m = $('#modal-root');
+      if (m && m.children.length) return;
+      const t = ev.target;
+      const dansChamp = t && (t.tagName === 'INPUT' && t.type !== 'checkbox' && t.type !== 'radio' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      if (ev.key === '/' && !dansChamp) { ev.preventDefault(); const c = $('#bq-cherche', el); if (c) c.focus(); return; }
+      if (dansChamp || ev.altKey || ev.ctrlKey || ev.metaKey) return;
+      if (t && t.closest && t.closest('.row-menu, [role=menu]')) return;
+      const visibles = $$('.bq-t [data-bq-ligne]', el).map(x => x.dataset.bqLigne);
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        if (!visibles.length) return;
+        ev.preventDefault();
+        const i = visibles.indexOf(banqueState.sel);
+        const j = ev.key === 'ArrowDown' ? Math.min(visibles.length - 1, i + 1) : Math.max(0, i - 1);
+        if (visibles[j] && visibles[j] !== banqueState.sel) {
+          banqueState.sel = visibles[j]; banqueState.cherche = ''; redessiner();
+          const tr = $(`.bq-t [data-bq-ligne="${CSS.escape(visibles[j])}"]`);
+          if (tr) tr.scrollIntoView({ block: 'nearest' });
+        }
+      } else if (ev.key === ' ' && sel && sel.g === 'prop' && !(t && t.closest && t.closest('button,a'))) {
+        ev.preventDefault();
+        if (banqueState.coches.has(sel.l.id)) banqueState.coches.delete(sel.l.id); else banqueState.coches.add(sel.l.id);
+        redessiner();
+      } else if (ev.key === 'Enter' && !(t && t.closest && t.closest('button,a'))) {
+        const b = $('#bq-principal', el);
+        if (b) { ev.preventDefault(); b.click(); }
+      }
+    };
+    document.addEventListener('keydown', window.__bqClavier);
+
     // UNE seule table d'actions par racine : `bindRowMenus` écrase la précédente en silence (9.4.8).
     bindRowMenus(el, cle => {
-      if (cle.startsWith('MOT:')) {
-        const mot = cle.slice(4);
-        return [{ icon: 'supprimer', label: 'Retirer ce mot', hint: 'Les prochains relevés ne proposeront plus ce compte ; les écritures déjà passées ne bougent pas', run: async () => {
-          const avant = Array.isArray(S.libelles) ? S.libelles.slice() : [];
-          try {
-            S = await api.saveBanque({ libelles: avant.filter(x => x.motif !== mot) });
-            drawLivres(root, dossier);
-            toastUndo(`« ${mot} » ne proposera plus de compte.`, async () => { S = await api.saveBanque({ libelles: avant }); drawLivres(root, dossier); });
-          } catch (e) { toast(plainError(e), 'error'); }
-        } }];
-      }
       if (cle.startsWith('REL:')) {
         const rel = releves.find(x => x.id === cle.slice(4));
         if (!rel) return [];
-        // Deux actions, donc un vrai menu : sans la première, `rowmenu.js` transformerait le
-        // bouton en « Retirer ce relevé » nommé et visible (règle 7.29.0), c'est-à-dire un geste
-        // destructeur au premier plan, à côté du bouton d'import. Ce qui se détruit demande ; ce
-        // qui se répare se propose.
+        // Deux actions, donc un vrai menu (règle 7.29.0) : ce qui se détruit demande, ce qui se répare se propose.
         return [
-          { icon: 'non', label: 'Défaire tous les rapprochements', hint: 'Après un automatique qui s\'est trompé de compte : trente lignes se défont d\'un coup', run: async () => {
+          { icon: 'non', label: 'Défaire tous les rapprochements', hint: (() => { const k = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId).length;
+            return k ? `Les ${pl(k, 'ligne rapprochée', 'lignes rapprochées')} de ce relevé se défont d'un coup ; les écritures restent au livre` : 'Aucune ligne de ce relevé n\'est rapprochée'; })(), run: async () => {
+            // « Annuler » repose chaque ligne sur l'écriture qu'elle avait.
+            const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)
+              .map(l => ({ ligneId: l.id, ecritureId: l.rapprochement.ecritureId, ligne: l.rapprochement.ligne, auto: l.rapprochement.par === 'auto' }));
             try {
               const x = await api.derapprocher({ dossierId: dossier.id, annee: s.annee, releveId: rel.id });
               s.livre = x.livre;
-              toast(x.defaits ? `${pl(x.defaits, 'rapprochement défait', 'rapprochements défaits')}.` : 'Aucun rapprochement à défaire.');
-              drawLivres(root, dossier);
+              redessiner();
+              if (!x.defaits) { toast('Aucun rapprochement à défaire.'); return; }
+              toastUndo(`${pl(x.defaits, 'rapprochement défait', 'rapprochements défaits')}.`, async () => {
+                try { const r2 = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: rel.id, choix: avant }); s.livre = r2.livre; redessiner(); }
+                catch (e) { toast(plainError(e), 'error'); }
+              });
             } catch (e) { toast(plainError(e), 'error'); }
           } },
-          { icon: 'supprimer', label: 'Retirer ce relevé', hint: 'Le fichier sort du livre ; les écritures qu\'il a servi à créer RESTENT', run: () => retirerReleve(root, dossier, rel) }
+          { icon: 'supprimer', label: 'Retirer ce relevé', hint: 'Le fichier sort du livre ; les écritures qu\'il a servi à créer restent au livre', run: () => retirerReleve(root, dossier, rel) }
         ];
       }
-      const l = R && R.lignes.find(x => x.id === cle.slice(4));
-      if (!l) return [];
-      const r = l.rapprochement || { niveau: 'aucun' };
+      const x = parId.get(cle.slice(4));
+      if (!x) return [];
+      const l = x.l;
       const actions = [];
-      if (r.ecritureId) {
-        const e = ecritureDuLivre(s.livre, r.ecritureId);
-        if (e) actions.push({ icon: 'loupe', label: 'Voir l\'écriture en face', hint: `${e.journal || ''} ${e.piece || ''} — toutes ses lignes`, run: () => ecritureDialog(e, Number(r.ligne)) });
-        actions.push({ icon: 'non', label: 'Défaire le rapprochement', hint: 'Même « rapproché » se défait : l\'automatique propose, c\'est toi qui décides', run: async () => {
-          try { const x = await api.rapprocher({ dossierId: dossier.id, annee: s.annee, releveId: R.id, ligneId: l.id, choix: {} }); s.livre = x.livre; drawLivres(root, dossier); }
-          catch (e) { toast(plainError(e), 'error'); }
+      if (x.g === 'ok') {
+        if (x.e) actions.push({ icon: 'loupe', label: 'Voir l\'écriture en face', hint: `${x.e.journal || ''} ${x.e.piece || ''} — toutes ses lignes`, run: () => ecritureDialog(x.e, x.rang) });
+        if (!lectureSeuleLivre()) actions.push({ icon: 'non', label: 'Défaire le rapprochement', hint: 'Même « d\'office » se défait : l\'automatique propose, c\'est toi qui décides', run: () => {
+          const e = x.e, rang = x.rang;
+          gesteBanque(root, dossier, R, l.id, async () => { await defaireBq(dossier, R, l.id); return 'Rapprochement défait : la ligne revient à traiter.'; }, e ? () => poserBq(dossier, R, l.id, e.id, rang) : null);
         } });
-      } else {
-        actions.push({ icon: 'loupe', cle: 'choisir-en-face', label: 'Choisir l\'écriture en face', hint: 'Toutes les écritures du compte, la bonne se pointe à la main', run: () => choisirEcritureForm(root, dossier, R, l) });
-        // (plateforme) 1.189.0 — une ligne qu'on ne sait pas expliquer se demande au client, d'ici : la ligne du relevé citée.
-        if (!dossier.manual && api.messagerie && api.question) actions.push({ icon: 'email', label: 'Demander au client ce qu\'est cette ligne',
-          hint: 'Une question dans votre conversation, la ligne du relevé citée', run: () => {
-            const m = Math.abs(Number(l.montant) || 0);
-            const sens = Number(l.montant) < 0 ? 'sorti' : 'entré';
-            questionForm(root, dossier, {
-              periode: String(l.date).slice(0, 7), montant: Number(l.montant) || 0, compte: /^[0-9]{1,12}$/.test(String(R.compte || '')) ? String(R.compte) : '', piece: l.reference || '',
-              icone: 'banque', titre: `${l.libelle || 'Ligne du relevé'}`, sous: `relevé${R.banque ? ` ${R.banque}` : ''} · ${fmtJour(l.date)} · ${money(m)} ${sens}`,
-              objet: `Relevé du ${fmtJour(l.date)} : ${l.libelle || ''}`.slice(0, 200),
-              quoi: `ce mouvement de ${money(m)} ${sens} le ${fmtJour(l.date)} sur ton relevé${l.libelle ? ` (« ${l.libelle} »)` : ''}`,
-              attendu: 'explication',
-              apres: () => drawLivres(root, dossier)
-            });
-          } });
-        actions.push({ icon: 'nouveau', cle: 'ecrire-manquante', label: 'Écrire l\'écriture manquante', hint: 'Un brouillon prérempli — rien n\'est enregistré tant que tu n\'as pas cliqué', run: () => ecrireDepuisBanque(root, dossier, R, l) });
+        return actions;
       }
+      if (lectureSeuleLivre()) return [];
+      actions.push({ icon: 'nouveau', cle: 'ecrire-manquante', label: 'Écrire autre chose…', hint: 'Une écriture au brouillard, préremplie, rapprochée du même geste — rien n\'est enregistré sans ton clic', run: () => ecrireDepuisBanque(root, dossier, R, l) });
+      actions.push({ icon: 'loupe', cle: 'choisir-en-face', label: 'Choisir une autre écriture en face', hint: 'Toutes les écritures du compte, la bonne se pointe à la main', run: () => choisirEcritureForm(root, dossier, R, l) });
+      actions.push({ icon: 'horloge', label: 'Mettre au compte d\'attente (471)', hint: 'Le mois se termine ; la ligne se régularisera quand on saura ce que c\'est', run: () => mettreEnAttenteBq(root, dossier, R, l) });
+      // (plateforme) 1.189.0 — une ligne qu'on ne sait pas expliquer se demande au client, d'ici : la ligne du relevé citée.
+      if (!dossier.manual && api.messagerie && api.question && x.g !== 'att') actions.push({ icon: 'email', label: 'Demander au client ce qu\'est cette ligne', hint: 'Une question dans votre conversation, la ligne du relevé citée', run: () => demanderLigneBq(root, dossier, R, l) });
       return actions;
+    });
+  }
+
+  function demanderLigneBq(root, dossier, R, l) {
+    const m = Math.abs(Number(l.montant) || 0);
+    const sens = Number(l.montant) < 0 ? 'sorti' : 'entré';
+    questionForm(root, dossier, {
+      periode: String(l.date).slice(0, 7), montant: m, compte: /^[0-9]{1,12}$/.test(String(R.compte || '')) ? String(R.compte) : '', piece: l.reference || '',
+      icone: 'banque', titre: `${l.libelle || 'Ligne du relevé'}`, sous: `relevé${R.banque ? ` ${R.banque}` : ''} · ${fmtJour(l.date)} · ${money(m)} ${sens}`,
+      objet: `Relevé du ${fmtJour(l.date)} : ${l.libelle || ''}`.slice(0, 200),
+      quoi: `ce mouvement de ${money(m)} ${sens} le ${fmtJour(l.date)} sur ton relevé${l.libelle ? ` (« ${l.libelle} »)` : ''}`,
+      attendu: 'explication',
+      apres: () => drawLivres(root, dossier)
+    });
+  }
+  // Au compte d'attente : une écriture au brouillard 532 / 471, rapprochée ; elle se régularisera de la réponse. Ce qui
+  // part au 471 se DEMANDE avant (un compte d'attente qu'on remplit sans le dire, personne ne le solde).
+  async function mettreEnAttenteBq(root, dossier, R, l) {
+    const ok = await confirmDialog(`Mettre ${money(l.montant)} au compte d'attente ?`,
+      `« ${l.libelle || 'Ligne du relevé'} » du ${fmtJour(l.date)} s'écrit au brouillard en 471 (compte d'attente), rapprochée du relevé. Elle reste à régulariser quand on saura ce que c'est : la révision la montrera tant que le 471 n'est pas soldé.`,
+      'Mettre au 471');
+    if (!ok) return;
+    let ecrite = '';
+    gesteBanque(root, dossier, R, l.id, async () => { ecrite = await ecrireEtRapprocher(dossier, R, l, '471', `${l.libelle || 'Mouvement bancaire'} · en attente`); return 'Au compte d\'attente (471), au brouillard, et rapprochée.'; },
+      () => defaireEcriteBq(dossier, R, l.id, ecrite));
+  }
+  // Les écritures du livre pas encore passées en banque : les chèques émis, les virements en route.
+  function suspensLivreDialog(R) {
+    const EC = ecartBanque(R);
+    modal(`<h2>Pas encore passées en banque</h2>
+      <p class="small muted">Écrites au ${esc(R.compte)} jusqu'au ${esc(fmtJour(R.au))}, sans ligne sur ce relevé : un chèque émis que le fournisseur n'a pas encore remis, un virement en route. Ce n'est pas une erreur : c'est ce qui explique une part de l'écart.</p>
+      <div class="scroll-x" style="max-height:360px"><table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Pièce</th><th>Libellé</th><th class="r nw">Montant</th></tr></thead>
+      <tbody>${EC.livreRec.map(x => `<tr><td class="nw">${esc(fmtJour(x.date))}</td><td class="nw mono">${esc(`${x.journal || ''} ${x.piece || ''}`.trim())}</td><td class="tronq" title="${esc(x.libelle || '')}">${esc(x.libelle || '')}</td><td class="r nw">${esc(money(x.montant))}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="3"><b>Total</b></td><td class="r nw"><b>${esc(money(EC.sLr))}</b></td></tr></tfoot></table></div>
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`, layer => { $('.modal', layer).classList.add('cab-moyen'); });
+  }
+  // Les règles (les mots retenus) dans leur fenêtre : on les relit, on retire celle qui se trompe.
+  function reglesBanqueDialog(root, dossier) {
+    modal(`<h2>Les règles de la banque</h2>
+      <p class="small muted">Pour tous tes clients : une ligne de relevé qui contient le mot se voit proposer le compte, et l'écriture d'après lui. Une règle propose ; elle n'écrit jamais sans toi. Une règle se retient en écrivant une ligne (« Proposer ce compte aux lignes qui contiennent… »).</p>
+      <div id="bq-regles-liste">${motsRetenusPanel()}</div>
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`,
+    (layer, close) => {
+      $('.modal', layer).classList.add('cab-moyen');
+      bindRowMenus(layer, cle => {
+        if (!cle.startsWith('MOT:')) return [];
+        const mot = cle.slice(4);
+        return [{ icon: 'supprimer', label: 'Retirer cette règle', hint: 'Les prochains relevés ne proposeront plus ce compte ; les écritures déjà passées ne bougent pas', run: async () => {
+          const avant = Array.isArray(S.libelles) ? S.libelles.slice() : [];
+          try {
+            S = await api.saveBanque({ libelles: avant.filter(x => x.motif !== mot) });
+            close(); drawLivres(root, dossier);
+            toastUndo(`« ${mot} » ne proposera plus de compte.`, async () => { S = await api.saveBanque({ libelles: avant }); drawLivres(root, dossier); });
+          } catch (e) { toast(plainError(e), 'error'); }
+        } }];
+      });
+    });
+  }
+
+  // L'état de rapprochement, tel qu'il s'imprime pour le dossier de révision : les deux côtés, chacun rectifié, et leur
+  // égalité ; « provisoire » tant qu'il reste des lignes du relevé à écrire. La page part au serveur, qui en fait le PDF.
+  const moiNom = () => { const c = ((S && S.collaborateurs) || []).find(x => x.id === S.moi) || {}; return c.nom || c.name || ''; };
+  function etatRapprochementHtml(dossier, R, EC) {
+    const L = livresState.livre;
+    // Provisoire tant qu'une ligne du relevé n'a pas d'écriture ; une ligne écrite après la date du relevé est un décalage
+    // de dates, pas un manque.
+    const lignesB = EC.banqueAll, aEcrire = lignesB.filter(x => !x.ecritLe).length, provisoire = aEcrire > 0;
+    const banqueRect = KC.round3(EC.sus.soldeFin + EC.sLr);
+    const livreRect = KC.round3(EC.sus.soldeComptable + EC.sB);
+    const egaux = KC.round3(banqueRect - livreRect) === 0;
+    const l = (lab, v, cl = '') => `<tr class="${cl}"><td>${esc(lab)}</td><td class="r">${v == null ? '' : esc(montant(v))}</td></tr>`;
+    const nomDossier = dossier.name || '';
+    const aujourdhui = K.today();
+    return `<div class="bqe${provisoire ? ' prov' : ''}" role="document" aria-label="L'état de rapprochement">
+      <div class="bqe-h"><div><b>État de rapprochement bancaire</b><br><span>${esc(nomDossier)} · compte ${esc(R.compte)}${R.banque ? ` ${esc(R.banque)}` : ''} · exercice ${esc(String(livresState.annee))}</span></div>
+        <div style="text-align:right"><b>au ${esc(fmtJour(R.au))}</b><br><span>relevé du ${esc(fmtJour(R.du))} · ${pl(R.lignes.length, 'mouvement')}</span></div></div>
+      <div class="bqe-c">
+        <table><thead><tr><th>Côté banque</th><th></th></tr></thead><tbody>
+          ${l(`Solde du relevé au ${fmtJour(R.au)}`, EC.sus.soldeFin)}
+          ${EC.livreRec.length ? `<tr class="st"><td colspan="2">Écritures du livre pas encore passées en banque</td></tr>${EC.livreRec.map(x => l(`${fmtJour(x.date).slice(0, 5)} · ${x.piece && !String(x.libelle || '').startsWith(x.piece) ? `${x.piece} ` : ''}${x.libelle || ''}`.trim(), x.montant, 'sous')).join('')}` : ''}
+          ${l('Solde rectifié', banqueRect, 'tot')}</tbody></table>
+        <table><thead><tr><th>Côté livre (${esc(R.compte)})</th><th></th></tr></thead><tbody>
+          ${l(`Solde du livre au ${fmtJour(R.au)}`, EC.sus.soldeComptable)}
+          ${lignesB.length ? `<tr class="st"><td colspan="2">Mouvements du relevé pas encore au livre</td></tr>${lignesB.map(x => l(`${fmtJour(x.date).slice(0, 5)} · ${x.libelle || ''}${x.ecritLe ? ` (écrite le ${fmtJour(x.ecritLe).slice(0, 5)})` : ''}`, x.montant, 'sous')).join('')}` : ''}
+          ${l('Solde rectifié', livreRect, 'tot')}</tbody></table>
+      </div>
+      <div class="bqe-eg ${egaux ? '' : 'ko'}">${egaux ? `✓ Les deux soldes rectifiés sont égaux : ${esc(montant(banqueRect))} DT` : `Écart non expliqué : ${esc(montant(KC.round3(banqueRect - livreRect)))} DT`}</div>
+      <div class="bqe-p"><span>Préparé le ${esc(fmtJour(aujourdhui))}${moiNom() ? ` par ${esc(moiNom())}` : ''}</span><span>${pl(R.lignes.filter(x => x.rapprochement && x.rapprochement.ecritureId).length, 'mouvement rapproché', 'mouvements rapprochés')} sur ${R.lignes.length}${provisoire ? ` · provisoire : ${pl(aEcrire, 'ligne')} à écrire` : ''}</span></div>
+      <div class="bqe-sig"><span>Le comptable</span><span>Pour ${esc(nomDossier || 'le client')}</span></div></div>`;
+  }
+  function etatRapprochementDialog(dossier, R) {
+    const EC = ecartBanque(R);
+    const corps = etatRapprochementHtml(dossier, R, EC);
+    modal(`<h2>L'état de rapprochement · ${esc(R.compte)} · au ${esc(fmtJour(R.au))}</h2>
+      ${(k => (k ? `<p class="small muted">Provisoire : ${pl(k, 'ligne')} de relevé ne ${k > 1 ? 'sont' : 'est'} pas encore au livre. Il deviendra définitif quand ${k > 1 ? 'elles le seront' : 'elle le sera'}.</p>` : ''))(EC.banqueAll.filter(x => !x.ecritLe).length)}
+      <div class="bqe-fond">${corps}</div>
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button><button class="btn btn-primary" id="bqe-pdf">${svgBq(BQ_IC.pdf, 15)} Télécharger le PDF</button></div>`,
+    (layer) => {
+      $('.modal', layer).classList.add('cab-large');
+      $('#bqe-pdf', layer).onclick = async () => {
+        const css = [...document.styleSheets].map(f => { try { return [...f.cssRules].filter(r => /\.bqe/.test(r.cssText)).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
+        const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>État de rapprochement ${esc(R.compte)} au ${esc(fmtJour(R.au))}</title><style>body{margin:24px;font:13px Helvetica,Arial,sans-serif}${css}</style></head><body>${corps}</body></html>`;
+        try { const f = await api.exportPdf(html, `etat-rapprochement-${R.compte}-${R.au}.pdf`); if (f) toast(`PDF enregistré : ${f}`); }
+        catch (e) { toast(plainError(e), 'error'); }
+      };
     });
   }
 
@@ -12846,7 +13321,16 @@
                 dossierId: dossier.id, banque: { compte, banque: v('banque'), jours: (dossier.banque || {}).jours }
               });
             }
-            close(); toast(`Relevé importé : ${pl(r.releve.lignes.length, 'ligne')}.`); drawLivres(root, dossier);
+            // (1.206.0) Le rapprochement se fait À L'IMPORT (la maquette : « 35 rapprochées à l'import ») : ce qui ne
+            // fait aucun doute se pose d'office, le reste arrive rangé — proposé, à traiter. Rien d'ambigu n'est posé.
+            let poses = 0;
+            try {
+              const jours = ((dossier.banque || {}).jours != null) ? dossier.banque.jours : KC.RELEVE_JOURS;
+              const a = await api.rapprocherAuto({ dossierId: dossier.id, annee: s.annee, releveId: r.releve.id, jours });
+              s.livre = a.livre; poses = (a.compte || {}).certain || 0;
+            } catch (_) { /* le relevé est là ; ses lignes sûres arrivent « proposées », à valider d'un geste */ }
+            banqueState.sel = ''; banqueState.filtre = '';
+            close(); toast(`Relevé importé : ${pl(r.releve.lignes.length, 'ligne')}${poses ? `, dont ${pl(poses, 'rapprochée', 'rapprochées')} d'office` : ''}.`); drawLivres(root, dossier);
           } catch (e) { toast(plainError(e), 'error'); }
         };
       });

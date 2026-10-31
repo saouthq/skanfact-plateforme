@@ -423,10 +423,50 @@ le compte bancaire d'un dossier et sa banque vont dans sa **fiche**. Les lit et 
 cabinet.
 
 **Les tests** : par l'API et dans la base (`tests/compta/banque.test.ts`) ; à la souris
-(`tests/web/cabinet-banque.test.ts`) : un relevé CSV importé (un titre au-dessus du tableau), les
-colonnes et le compte retenus ; l'automatique qui pose le virement et garde les deux chèques du même
-montant sans rien poser ; l'ambiguïté tranchée à la main ; l'écriture manquante écrite depuis la ligne,
-rapprochée, et son mot retenu ; tout défait, le relevé retiré, les écritures restées.
+(`tests/web/cabinet-banque.test.ts`, refait en 1.206.0 pour l'écran en deux colonnes, ci-dessous).
+
+### La Banque en deux colonnes (1.206.0, lot B1 du plan `docs/maquettes/cabinet/plan-saisie-banque.md`)
+
+L'écran de la maquette `docs/maquettes/cabinet/comptabilite.html`, sur le serveur d'avant (rien de neuf en base) :
+
+- **À l'import**, l'automatique passe d'office (ce qui est sûr se pose, l'ambigu reste) : « Relevé importé : 3 lignes,
+  dont 1 rapprochée d'office ». Le bouton « Rapprocher automatiquement » disparaît.
+- **Les lignes se rangent** par ce qu'elles demandent : *proposées* (une écriture en face, sûre ou la plus probable, et
+  pourquoi : « même montant · même jour · « steg » »), *à traiter* (plusieurs écritures égales, une règle qui propose
+  l'écriture, ou rien en face), *en attente du client* (une question ouverte sur la ligne : même compte, même mois, même
+  montant), *rapprochées* (repliées, avec leur origine : d'office ou à la main). Icône de nature, montant signé,
+  pastilles qui filtrent, jauge.
+- **Le livre en face** de la ligne choisie : ses écritures cochables et l'écart, une recherche (montant, tiers, pièce),
+  l'écriture d'après la règle, un seul bouton principal (« Rapprocher », « Écrire et rapprocher », « Écrire l'écriture… »,
+  « Ouvrir la conversation ») ; une rapprochée montre son écriture et « Défaire ». Deux montants inégaux **ne se
+  rapprochent pas** : le bouton disparaît, une phrase rouge dit l'écart et ce qui débloque (corriger l'écriture, ou
+  « Écris autre chose »), et la touche Entrée refuse aussi. Le serveur, lui, ne vérifie que le compte : un refus côté
+  serveur est proposé à Skander (il demande une migration).
+- **Les gestes** : ↑ ↓ Espace Entrée / au clavier ; « Valider les N » (les cochées, sinon toutes les proposées, un appel :
+  `api.rapprocherPlusieurs`) ; le menu ⋯ d'une ligne (écrire autre chose, choisir une autre écriture, au compte
+  d'attente 471, demander au client) et du relevé (défaire tous, retirer). Chaque geste qui se répare offre « Annuler » :
+  le rapprochement, la ligne écrite (défaite puis retirée du brouillard), « Défaire tous » (chaque ligne reposée sur son
+  écriture, l'automatique gardé).
+- **Le pied : l'équation du relevé**, au millime : solde du relevé − lignes pas encore au livre (de ce relevé et des
+  relevés d'avant du même compte) + écritures pas encore en banque = attendu au livre, comparé au solde du livre à la
+  date du relevé. Une ligne rapprochée d'une écriture datée **après** le relevé (les salaires payés le 30/08, écrits le
+  31/08) compte « pas encore au livre » à cette date : c'est un décalage de dates, pas un écart. Un écart non expliqué
+  s'affiche en rouge avec ses pistes (une écriture du même montant sans ligne, un premier relevé qui ne part pas du livre,
+  deux relevés qui ne se suivent pas).
+- **L'état de rapprochement** (aperçu, PDF du serveur) : côté banque et côté livre, leurs soldes rectifiés égaux,
+  « provisoire » tant qu'une ligne n'a pas d'écriture, qui l'a préparé.
+- **L'écran vide** montre en grisé ce qui viendra, avec « Importer un relevé… » et « Le demander au client ».
+- **Les règles** (les mots retenus) s'ouvrent dans une fenêtre, chacune se retire avec « Annuler ».
+- **Au téléphone**, des cartes ; le tableau du bureau et l'aide du clavier se cachent ; les tableaux du livre en face
+  restent des tableaux (`data-sans-cartes`, respecté par `telephone.js`).
+
+Trouvé en l'essayant : une question posée depuis une ligne du relevé ou une écriture **perdait son montant** (la fenêtre
+ne lisait que celui de la révision, depuis 1.189.0) ; elle le garde, et la ligne passe « en attente du client ».
+
+Le parcours à la souris : l'écran vide, l'import CSV et l'automatique, les groupes, le livre en face, l'équation, la
+touche Entrée qui rapproche puis « Annuler », « Valider la proposée », l'écriture manquante et sa règle, le mois
+rapproché, les règles, l'état sans « provisoire », le téléphone (rien ne déborde), « Défaire tous » puis « Annuler »,
+le relevé retiré (les écritures restent). Les preuves « banque 1 » à « banque 12 » et « question-ligne 5 ».
 
 **Reste connu** :
 - « Relevé retiré : N écritures gardées » ne compte pas les écritures nées d'un relevé (le serveur ne

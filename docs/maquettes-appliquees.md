@@ -491,3 +491,47 @@ menu ⋯ gagne « Demande de prix » ; « , tout en retard » prend sa virgule.
 les colonnes « Objet », « Reçu » et « Facture » ; « Ses conditions » ne dit pas encore la devise ni le moyen de paiement
 habituel (la fiche d'un fournisseur ne les porte pas) ; « Télécharger ses justificatifs » (un seul dossier) attend les
 pièces jointes conservées dix ans sur le serveur.
+
+## Lot Banque B1 : la Banque du Cabinet en deux colonnes (1.206.0)
+
+Les états « Banque… » de `docs/maquettes/cabinet/comptabilite.html`, appliqués dans `vueBanque` (`web/public/v10/cabinet/app.js`),
+avec leur feuille `web/public/plateforme/banque.css`. Plan : `docs/maquettes/cabinet/plan-saisie-banque.md` (lot B1, et ce qui
+se fait déjà au navigateur des lots B2 et B3). Test : `tests/web/cabinet-banque.test.ts` (photos `cabinet-banque-1-import.png`,
+`-2-deux-colonnes.png`, `-3-etat.png`, `-4-telephone.png`) ; preuves « banque 1 » à « banque 12 ». Détail : `docs/cabinet.md`.
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Relevé BIAT · septembre 2026 », le compte et la banque (choisir un autre relevé), « Les règles · N », « Importer un relevé… », « Ce relevé ⋯ » |
+| Les pastilles et la jauge | Toutes, Rapprochées, Proposées, À traiter, En attente du client : chacune filtre ; l'écart non expliqué en rouge mène au pied |
+| La liste | Groupée (proposées, à traiter, en attente, rapprochées repliées avec leur origine), icône de nature (virement reçu ou émis, chèque, carte, frais, salaires, espèces), libellé de la banque, ce qui est en face et pourquoi, montant signé, menu ⋯ ; « Valider les N » sur le groupe des proposées |
+| Le livre en face | Les écritures candidates, cochables, la recherche, l'écart ; l'écriture d'après la règle ; la question au client ; l'écriture d'une rapprochée ; un seul bouton principal, la touche Entrée |
+| Le pied | L'équation du relevé au millime, ses termes cliquables ; « Écart expliqué au millime » et l'état de rapprochement, ou l'écart rouge et ses pistes |
+| L'état de rapprochement | Aperçu en fenêtre, PDF du serveur ; « provisoire » tant qu'une ligne n'a pas d'écriture |
+| Vide, fini | L'aperçu grisé de ce qui viendra ; « Septembre 2026 est rapproché à la BIAT » et l'état en bouton principal |
+| Au téléphone | Des cartes ; le livre en face sous la liste ; le pied en colonne ; rien ne déborde |
+| Sombre | Les jetons de la charte |
+
+**Revue après écriture** (à la souris, sur l'exemple de `scripts/humain/exemple-cabinet.ts`, rendu cohérent : relevés qui se
+suivent depuis le solde du livre au 1er juillet, août rapproché sauf un chèque sans pièce, un chèque émis le 28/09 pas
+encore passé, les règles « FRAIS » et « AGIOS ») : « Valider les 3 » portait le même identifiant deux fois (bureau et
+téléphone) ; écrire d'après la règle ou au 471 n'offrait pas « Annuler » (il défait le rapprochement puis retire le
+brouillard) ; « Défaire tous » disait « trente lignes » quel que soit le relevé et ne s'annulait pas ; l'écriture proposée
+mettait la banque avant la charge (le débit d'abord) ; l'état ne disait pas qui l'a préparé, écrivait 101920,457 sans
+espace et répétait le numéro du chèque ; une question posée depuis une ligne perdait son montant (depuis 1.189.0) et la
+ligne ne passait jamais « en attente du client » ; un relevé d'août montrait 4 286,300 d'écart « non expliqué » parce que
+la banque paie les salaires le 30/08 et le livre les écrit le 31/08 (décalage de dates, plus un écart) ; au téléphone, le
+tableau du bureau se tassait en cartes à côté des vraies cartes, le mois rapproché poussait l'écran plus large que le
+téléphone, et la colonne Crédit de l'écriture en face sortait de son cadre.
+
+**Revue avant l'envoi** (relecture ligne à ligne du changement) : en cherchant une autre écriture, on pouvait rapprocher
+une ligne de 487,500 d'une écriture de 500,000 (le bouton « Rapprocher » restait, et Entrée aussi) : refusé maintenant,
+avec l'écart dit et ce qui débloque ; un choix fait pour une ligne survivait à une nouvelle recherche ou à Échap ; la
+touche Espace sur un bouton cochait la ligne au lieu de presser le bouton ; la dernière piste d'un écart parlait du compte
+471 sans raison (elle dit maintenant « cherche ce montant dans les écritures du compte : une ligne oubliée, ou saisie avec
+une faute de frappe »).
+
+**Écarts assumés** (ils viennent avec leurs lots) : la proposition nette de la retenue à la source et la remise de
+plusieurs chèques pour plusieurs factures (B2) ; « Joindre au dossier de révision » (B3) ; les contrôles de l'import, le
+fichier gardé pour plus tard, la banque nouvelle (B4) ; les règles fines (sens, fourchette, TVA, compteur) et « Retenir une
+règle » depuis une ligne (B5) ; qui a rapproché quoi au-delà de « d'office / à la main » (B6). Le relevé en PDF reste
+« bientôt » (décision de Skander sur la lecture des pièces).

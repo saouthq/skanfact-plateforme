@@ -48,7 +48,7 @@ describe('la révision et les questions au client, à la souris', () => {
 
   type Revision = { periode: string; contenu: { faite: boolean; faitePar: string; comptes: { compte: string; revuPar: string }[];
     notes: { texte: string; levee: boolean; par: string }[]; questionnaire: { question: string; reponse: string; demande?: string }[] } };
-  type Question = { id: string; statut: string; compte: string; piece: string; attendu: string; texte: string; objet: string; envois: string[] };
+  type Question = { id: string; statut: string; compte: string; piece: string; attendu: string; texte: string; objet: string; montant: string; envois: string[] };
 
   it('la révision se tient à la souris et se garde au serveur ; une question part au client à l\'envoi, et sa réponse revient', async () => {
     const client = await personne('client');
@@ -289,7 +289,11 @@ describe('la révision et les questions au client, à la souris', () => {
     await fenetre.locator('#qf-envoyer').click();
     await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/^2\squestions envoyées à Garage Triki/);
     const recues = (await api('GET', `/entreprises/${ent}/compta/questions?annee=2026`, client)).corps.questions as Question[];
-    expect(recues.map((q) => [q.statut, q.attendu, q.objet]).sort()).toEqual([['envoyee', 'explication', 'Relevé du 14/03/2026 : VIR SARL ATLAS'], ['envoyee', 'piece', 'OD-1 du 18/03/2026']]);
+    expect(recues.map((q) => [q.statut, q.attendu, q.objet, q.montant]).sort()).toEqual([['envoyee', 'explication', 'Relevé du 14/03/2026 : VIR SARL ATLAS', '487.500'], ['envoyee', 'piece', 'OD-1 du 18/03/2026', '300.125']]);
+    // (1.206.0) Son montant la relie à sa ligne : la Banque la range « En attente du client », la question en face.
+    await aller('banque');
+    await expect.poll(() => p.locator('table.bq-t [data-bq-ligne]').evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.groupe))).toEqual(['att']);
+    await expect.poll(() => p.locator('.bq-livre').innerText()).toMatch(/Relevé du 14\/03\/2026 : VIR SARL ATLAS[\s\S]*Ouvrir la conversation/);
 
     // Un dossier tenu sans SkanFact n'a pas de conversation : ni la question d'une écriture, ni celle d'une ligne.
     const tenu = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie du Sahel' })).corps.entreprise);

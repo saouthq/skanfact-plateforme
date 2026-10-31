@@ -47,6 +47,14 @@ preuves et ses photos. Il est essayé à la souris, au bureau et au téléphone,
 Ordre proposé : **B1, B2, B3**, puis **S1, S2, S3**, puis **B4, B5, B6**, puis **S4, S5, S6**. On commence par ce que le
 comptable voit chaque jour : la banque qui se rapproche presque seule et l'écart toujours expliqué.
 
+## Où on en est
+
+- **B1 fait (1.206.0)** : l'écran en deux colonnes, tel que la maquette (`docs/maquettes-appliquees.md`, « Lot Banque B1 »).
+  Déjà fait au navigateur avec lui : le « pourquoi » d'une proposition et « Valider les N » (B2, sans la retenue à la source
+  ni la remise de plusieurs factures) ; l'équation du relevé, ses pistes et l'état de rapprochement en PDF (B3, calculés au
+  navigateur sur le livre du serveur, sans « Joindre au dossier de révision »).
+- Suivant : **B2** (la retenue, la remise ventilée), puis **B3** (le classeur).
+
 ## Ce qui attend une décision de Skander
 
 1. **La lecture des pièces au Cabinet** : les pièces du client partent au service de lecture, donc c'est une donnée de

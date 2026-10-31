@@ -250,6 +250,10 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
       id, kind: 'facture', number, date, supplierId: fournisseur, currency: 'DT', category: 'Matières premières', fees: 0, withholdingRate: 0, createdAt: 1,
       attachments: justifie ? [fiches.get(id)] : [], lines: [{ id: `${id}-l`, label, qty, unitPrice: { '~n': prix }, vatRate, destination: 'charge' }] } })),
   ] });
+  // (1.206.0) Les règles de la Banque du cabinet : « FRAIS » va aux commissions bancaires, « AGIOS » aux intérêts.
+  const reg = await api('GET', `/cabinets/${cabinet}/reglages`, leila) as { contenu?: Record<string, unknown>; revision?: unknown };
+  await api('PUT', `/cabinets/${cabinet}/reglages`, leila, { contenu: { ...(reg.contenu ?? {}), libelles: [{ motif: 'FRAIS', compte: '6278' }, { motif: 'AGIOS', compte: '6511' }] },
+    revision: reg.revision ?? null });
   // Les ventes du mois (les factures aux hôtels, la caisse), la paie, et la banque : saisies au cabinet.
   const ecrire = (date: string, journal: string, piece: string, libelle: string, lignes: { compte: string; debit?: string; credit?: string }[]) =>
     api('POST', `/entreprises/${be}/compta/ecritures`, leila, { date, journal, piece, libelle, lignes });
@@ -267,7 +271,7 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
   }
   // Les mois de janvier à juillet sont tenus et validés ; août et septembre attendent au brouillard.
   await api('POST', `/entreprises/${be}/compta/valider`, leila, { jusqua: '2026-07-31' });
-  // Les relevés BIAT : juillet rapproché, août qui porte un chèque sans pièce, septembre à rapprocher.
+  // Les relevés BIAT : juillet rapproché, août aussi sauf un chèque sans pièce, septembre à rapprocher.
   const lues = (await api('GET', `/entreprises/${be}/compta/ecritures?limite=500`, leila)).ecritures as { piece: string; lignes: { id: string; compte: string }[] }[];
   const ligne532 = (piece: string) => lues.find((e) => e.piece === piece)?.lignes.find((l) => l.compte === '532')?.id ?? null;
   const empreinte = (n: number) => n.toString(16).padStart(64, '0');
@@ -276,7 +280,15 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
     const fin = montants.reduce((t, x) => t + (x.startsWith('-') ? -1 : 1) * Math.round(Number(x.replace('-', '').replace(',', '.')) * 1000), debut);
     return `${fin < 0 ? '-' : ''}${dt(Math.abs(fin))}`;
   };
-  for (const [i, rapproche] of [[6, true], [7, false], [8, false]] as const) {
+  // (1.206.0) Un chèque émis le 28/09 pour la facture d'août d'Hygiène Plus, que la banque n'a pas encore payé : le
+  // pied de la Banque l'explique (« 1 écriture pas encore en banque »).
+  await ecrire('2026-09-28', 'BQ', 'CHQ 4410 075', 'CHQ 4410 075 · Hygiène Plus FA-0908', [{ compte: '401', debit: '214,200' }, { compte: '532', credit: '214,200' }]);
+  // (1.206.0) Les relevés se suivent : celui de juillet part du solde du livre au 1er juillet (la banque et le livre
+  // ont vu les mêmes mouvements de janvier à juin), chaque relevé part de la fin du précédent. Avant, tous partaient de
+  // 8 412,605 et la Banque montrait un écart que rien n'expliquait.
+  let solde = 0;
+  for (let i = 0; i < 6; i++) solde += (14_380_000 + i * 212_000 - 1_000_000) - 4_286_300;
+  for (const [i, rapproche] of [[6, true], [7, true], [8, false]] as const) {
     const m = String(i + 1).padStart(2, '0'), caisse = 14_380_000 + i * 212_000;
     const lignes = [{ date: `${mois(i)}-22`, libelle: 'VERSEMENT ESPECES', reference: '', montant: dt(caisse - 1_000_000) },
       { date: `${mois(i)}-30`, libelle: `VIR SALAIRES ${m}/2026`, reference: '', montant: `-${dt(4_286_300)}` }];
@@ -285,13 +297,19 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
       { date: '2026-09-12', libelle: 'CHQ 4410 072', reference: '4410072', montant: '-406,980' },
       { date: '2026-09-14', libelle: 'VIR RECU REF 2609-14177', reference: '2609-14177', montant: '1250,000' },
       { date: '2026-09-15', libelle: 'VIR RECU Hotel Dar Jerba', reference: '', montant: '2344,694' },
-      { date: '2026-09-26', libelle: 'FRAIS TENUE DE COMPTE', reference: '', montant: '-11,900' });
+      { date: '2026-09-24', libelle: 'CARTE TOTAL ENNASR 24/09', reference: '', montant: '-85,000' },
+      { date: '2026-09-26', libelle: 'FRAIS TENUE DE COMPTE', reference: '', montant: '-11,900' },
+      { date: '2026-09-30', libelle: 'AGIOS 3E TRIMESTRE', reference: '', montant: '-12,650' });
+    const soldeFin = soldeApres(solde, lignes.map((l) => l.montant));
     const r = await api('POST', `/entreprises/${be}/compta/releves`, leila, { annee: 2026, compte: '532', banque: 'BIAT', fichier: `Releve_BIAT_${m}-2026.pdf`,
-      empreinte: empreinte(i + 1), soldeDebut: '8412,605', soldeFin: soldeApres(8_412_605, lignes.map((l) => l.montant)), lignes });
+      empreinte: empreinte(i + 1), soldeDebut: dt(solde), soldeFin, lignes });
+    solde = Math.round(Number(soldeFin.replace(',', '.')) * 1000);
     if (!rapproche) continue;
     const releves = (await api('GET', `/entreprises/${be}/compta/releves?annee=2026`, leila)).releves as { id: string; lignes: { id: string; libelle: string }[] }[];
     const rel = releves.find((x) => x.id === r.id);
-    const poses = (rel?.lignes ?? []).map((l) => ({ ligne: l.id, ecritureLigne: ligne532(/SALAIRES/.test(l.libelle) ? `BQ-${m}30` : `BQ-${m}22`), niveau: 'certain' as const }))
+    // Le versement et les salaires trouvent leur écriture ; le chèque d'août n'a rien en face (sa pièce manque).
+    const piece = (libelle: string) => (/SALAIRES/.test(libelle) ? `BQ-${m}30` : /VERSEMENT/.test(libelle) ? `BQ-${m}22` : '');
+    const poses = (rel?.lignes ?? []).map((l) => ({ ligne: l.id, ecritureLigne: piece(l.libelle) ? ligne532(piece(l.libelle)) : null, niveau: 'certain' as const }))
       .filter((p) => p.ecritureLigne);
     if (poses.length) await api('POST', `/entreprises/${be}/compta/releves/${r.id}/rapprochements`, leila, { poses });
   }
