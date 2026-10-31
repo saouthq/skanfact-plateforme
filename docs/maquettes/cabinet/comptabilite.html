@@ -101,7 +101,7 @@ table.rdp td:first-child { font-weight: 600; }
     <h2>Ce qui change par rapport à la page d'aujourd'hui</h2>
     <ul>
       <li><b>Les mois de l'année en tête, à la place de « Période ».</b> Douze cases : déposé (et ce qui a été payé), en retard, à déposer aujourd'hui, au brouillard, à venir. Un clic ouvre le mois ; « Toute l'année » revient à l'exercice. On sait où on en est avant d'ouvrir un écran.</li>
-      <li><b>Le menu du dossier dans la barre de gauche</b> (demande de Skander, 31/10) : sous « Pièces du dossier », « Comptabilité » et ses trois groupes, Saisir, Consulter, Déclarer et clôturer, avec ce qui attend ; le groupe ouvert se déplie sur ses écrans, un clic y mène directement. Le réglage « Menu du dossier » montre trois façons : dans la barre et sur la page, seulement dans la barre (la page gagne la hauteur des onglets et son titre dit « Saisir › Banque »), ou comme avant. Au téléphone, il n'y a pas de barre : les onglets restent sur la page.</li>
+      <li><b>Le menu du dossier dans la barre de gauche</b> (demandé et choisi par Skander le 31/10) : sous « Pièces du dossier », « Comptabilité » et ses trois groupes, Saisir, Consulter, Déclarer et clôturer, avec ce qui attend (13, 6). Le groupe ouvert se déplie sur ses écrans, l'écran ouvert marqué d'un trait ; chaque écran dit au survol ce qui l'attend. Un groupe fermé <b>rouvre l'écran où tu étais</b> (Consulter rouvre la Balance d'hier) ; le <b>survoler</b> montre ses cinq écrans à côté de la barre, avec une ligne sur chacun, pour y aller d'un clic sans déplier. Au clavier : <kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> pour les groupes, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> pour l'écran d'avant ou d'après. La page perd ses onglets : son titre est l'écran (« Saisie »), le fil du haut dit « Comptabilité › Saisir », et la saisie gagne la hauteur des onglets. Au téléphone, il n'y a pas de barre : les onglets restent sur la page. Le réglage « Menu du dossier » garde les deux autres façons pour comparer.</li>
       <li><b>Les trois groupes restent</b> (Saisir · Consulter · Déclarer et clôturer), avec <b>ce qui attend sur chaque écran</b> : 6 pièces dans Saisie, 7 lignes dans Banque, 2 mois dans Déclaration, 4 points dans Révision.</li>
       <li><b>Deux façons de saisir, au choix, en haut de la Saisie.</b> <b>Face à la pièce</b> : la pièce en grand à gauche, comme dans un lecteur de documents (zoom, tourner, en grand), ce que SkanFact y a lu surligné ; à droite, une fiche courte (fournisseur, date, total, TVA, compte) où chaque champ dit d'où il vient : « lu sur la pièce », « comme ses 4 tickets », « numéro suivant ». On vérifie, Entrée, la pièce suivante s'ouvre. <b>Au kilomètre</b> : le journal du mois, une pièce à la suite de l'autre au clavier ; le compte du fournisseur et le TTC suffisent, la charge et la TVA se proposent en gris, la pièce se solde seule, et la pièce de la ligne s'affiche à côté.</li>
       <li><b>Plus de grille débit/crédit à remplir pour un achat ordinaire.</b> L'écriture se montre sous la fiche, déjà faite ; « Ouvrir en lignes » donne la grille pour ventiler, et « + Une écriture » la garde pour ce qui n'a pas de pièce (OD, à-nouveaux, régularisations), avec les mêmes touches qu'aujourd'hui (Tab, Entrée, F2, F4, Ctrl+Entrée).</li>
@@ -144,6 +144,7 @@ table.rdp td:first-child { font-weight: 600; }
       <li><b>Le lecteur de la pièce dans la saisie</b> : la pièce en grand (zoom, tourner), les pastilles des pièces du mois (celles de Pièces reçues, dans le même ordre), et la zone où chaque champ a été lu (la lecture des photos d'achat existe déjà côté entreprise : elle garde la position de ce qu'elle lit).</li>
       <li><b>La fiche d'une pièce</b> : chaque champ porte sa source (lu, comme d'habitude, calculé) ; « comme d'habitude » se lit des pièces d'avant du même fournisseur ; Entrée enregistre et ouvre la suivante. La même fiche sert l'achat côté entreprise.</li>
       <li><b>Le mode « Au kilomètre »</b> : le journal du mois en grille ; la charge et la TVA proposées d'après le compte du tiers ; la pièce qui se solde seule ; les pièces rangées par date à l'enregistrement.</li>
+      <li><b>Le menu du dossier dans la barre</b> : les trois groupes et leurs écrans avec ce qui attend (la même lecture que les onglets), le dernier écran ouvert gardé par personne et par dossier, le survol d'un groupe fermé, les touches <kbd>Alt</kbd>+<kbd>1</kbd> à <kbd>3</kbd> et <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd>. Validé, il passe dans les autres maquettes du dossier (fiche, classeur, pièces) pour qu'elles aient la même barre.</li>
       <li><b>Les gestes en masse de la banque et ses règles</b> : confirmer les propositions, écrire d'après une règle, la liste des règles (le mot du relevé → le compte), chacune modifiable et supprimable.</li>
       <li><b>« Déjà saisie ? »</b> : un achat du même fournisseur et du même montant, sans justificatif, se propose avant la grille (« Joindre à FA-0919 »).</li>
       <li><b>La grille proposée</b> d'après la pièce et les pièces d'avant du même fournisseur (le compte, le taux de TVA lu sur la facture).</li>
@@ -587,7 +588,7 @@ table.rdp td:first-child { font-weight: 600; }
   const ECRANS = { saisie: 'Saisie', banque: 'Banque', paie: 'Paie', immos: 'Immobilisations', inventaire: 'Inventaire', journal: 'Livre-journal', grandlivre: 'Grand livre', balance: 'Balance', lettrage: 'Lettrage', recherche: 'Recherche', declaration: 'Déclaration', revision: 'Révision', exercice: 'Exercice', liasse: 'Liasse' };
   const GROUPES = [['saisir', 'Saisir', ['saisie', 'banque', 'paie', 'immos', 'inventaire']], ['consulter', 'Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['cloturer', 'Déclarer et clôturer', ['declaration', 'revision', 'exercice', 'liasse']]];
   // L'état choisi en haut → l'écran qu'il montre. Les fenêtres et les états gardent l'écran de la saisie.
-  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
+  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', survol: 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
   const ecran = () => ECRAN_DE[s.etat] || (ECRANS[s.etat] ? s.etat : 'saisie');
   const groupe = () => GROUPES.find((g) => g[2].includes(ecran()));
   // Ce que chaque onglet compte : ce qui attend sur cet écran.
@@ -888,11 +889,11 @@ table.rdp td:first-child { font-weight: 600; }
     const e = ecran();
     const neuf = s.etat === 'nouveau';
     const nom = neuf ? 'Hôtel Les Pins' : BE.nom;
-    const ctx = `<div class="ctx-cab">${ictx}<span><b>Dossier ouvert</b> · ${esc(nom)} · ${ECRANS[e]}</span></div>`;
+    const ctx = `<div class="ctx-cab">${ictx}<span><b>Dossier ouvert</b> · ${esc(nom)} · ${!tel() && s.menu === 'barre' && !neuf ? `Comptabilité › ${groupe()[1]}` : ECRANS[e]}</span></div>`;
     const d = neuf ? { c: ['#1fb8a8', '#0c877b'], ini: 'HP' } : BE;
     const sous = ['chargement', 'refus'].includes(s.etat) ? '' : neuf ? 'relié depuis ce matin · aucun livre encore'
       : `<span class="rouge">août en retard</span> · <span class="ambre">septembre à déposer aujourd'hui</span> · 3 écritures au brouillard · tenue par Anis`;
-    const tete = `<div class="page-head cp-tete" style="--dc:${d.c[0]}"><div class="fd-id">${marque(d, tel() ? 40 : 46)}<div><h1>${!tel() && s.menu === 'barre' && !neuf && !['chargement', 'refus'].includes(s.etat) ? `<span class="cp-h-g">${groupe()[1]} ›</span> ${ECRANS[e]}` : 'La comptabilité'} ${info('cp.page', 'La comptabilité d\'un dossier')}</h1><p class="fd-sous"><b>${esc(nom)}</b>${sous ? ` · ${sous}` : ''}</p></div></div>
+    const tete = `<div class="page-head cp-tete" style="--dc:${d.c[0]}"><div class="fd-id">${marque(d, tel() ? 40 : 46)}<div><h1>${!tel() && s.menu === 'barre' && !neuf && !['chargement', 'refus'].includes(s.etat) ? ECRANS[e] : 'La comptabilité'} ${info('cp.page', 'La comptabilité d\'un dossier')}</h1><p class="fd-sous"><b>${esc(nom)}</b>${sous ? ` · ${sous}` : ''}</p></div></div>
       <div class="actions"><button type="button" class="btn btn-sm guide-moi">${IC.guide}<span>Guide-moi</span></button>${tel() || neuf || ['chargement', 'refus'].includes(s.etat) ? '' : `<span class="cp-per">Exercice 2026 ${IC.chev}</span><button type="button" class="btn"${bloque()}>${IC.plus} Une écriture</button>`}<button type="button" class="btn ico" aria-label="Les autres gestes">${IC.trois}</button></div></div>`;
     const band = hors() ? '<div class="bandeau gris a-band fd-band"><span class="txt"><b>Pas de réseau : les livres sont ceux de 9 h 12, gardés sur ce poste</b><span>Tu saisis au brouillard : tes écritures partiront avec le réseau. Valider, rapprocher et marquer déposée attendent, pour qu\'aucun numéro ne naisse deux fois.</span></span></div>'
       : lect() ? `<div class="bandeau rouge a-band fd-band">${IC.cadenas}<span class="txt"><b>L'abonnement du cabinet est en lecture seule depuis le 21/10</b><span>Les livres se lisent, se cherchent et s'exportent : rien n'est jamais pris en otage. Saisir et valider reviennent quand il est réglé.</span></span><button type="button" class="btn btn-sm">Voir l'abonnement</button></div>` : '';
@@ -925,12 +926,12 @@ table.rdp td:first-child { font-weight: 600; }
   }
   const FAMILLES = [['Saisir', ['saisie', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'ecrire', 'paie', 'immos', 'inventaire']],
     ['Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['Déclarer et clôturer', ['declaration', 'deposer', 'revision', 'exercice', 'liasse']],
-    ['Un autre dossier', ['nouveau']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
+    ['Un autre dossier', ['nouveau']], ['La barre', ['survol']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
   const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
     ['banque', 'Banque : le relevé de septembre'], ['ecrire', 'Banque : écrire le prélèvement STEG'], ['paie', 'Paie'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
     ['journal', 'Livre-journal'], ['grandlivre', 'Grand livre : 532 BIAT'], ['balance', 'Balance'], ['lettrage', 'Lettrage : fournisseurs'], ['recherche', 'Recherche : « 1250 »'],
     ['declaration', 'Déclaration d\'août, en retard'], ['deposer', 'Marquer août déposée'], ['revision', 'Révision de septembre'], ['exercice', 'Exercice 2026'], ['liasse', 'Liasse 2025'],
-    ['nouveau', 'Un livre qui n\'existe pas encore'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
+    ['nouveau', 'Un livre qui n\'existe pas encore'], ['survol', 'Survoler « Consulter » dans la barre'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
     ['chargement', 'Chargement'], ['refus', 'Les livres ne se lisent pas'], ['hors', 'Sans réseau'], ['lecture', 'Abonnement en lecture seule']];
   // Rim ne valide pas, ne dépose pas, ne voit pas un client qu'elle ne suit pas.
   const interdit = (v) => (rim() && ['valider', 'deposer'].includes(v) ? 'Rim saisit : Anis valide et dépose' : rim() && v === 'nouveau' ? 'Un nouveau client que suit Anis' : !rim() && v === 'rimsaisie' ? 'La saisie vue par Rim' : '');
@@ -2548,17 +2549,32 @@ table.rdp td:first-child { font-weight: 600; }
     .cp-bl td.mono, .cp-fl .mono { white-space: nowrap; }
     .cp-bl-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .cp-bl-t b { font-size: 14px; } .cp-bl-t .mu { flex: 1; min-width: 220px; }
     /* Le menu du dossier dans la barre : « Comptabilité », ses trois groupes, le groupe ouvert déplié. */
-    #barre .cp-nav-g { display: grid; gap: 1px; margin: 2px 0; }
+    #barre .cp-nav-g { display: grid; gap: 1px; margin: 4px 0 2px; }
     #barre .cp-nav-t { font-size: 11px; font-weight: 600; color: var(--sb-gris-2); text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px 3px; }
-    #barre .cp-ng .cp-ng-ch { display: flex; color: var(--sb-gris-2); margin-left: 2px; transform: rotate(-90deg); transition: transform .15s; }
+    #barre .cp-ng .cp-ng-ch { display: flex; color: var(--sb-gris-2); margin-left: 2px; transform: rotate(-90deg); transition: transform .15s; opacity: .7; }
     #barre .cp-ng .cp-ng-ch svg { width: 13px; height: 13px; }
-    #barre .cp-ng.ouvert { color: var(--sb-encre); font-weight: 600; } #barre .cp-ng.ouvert .cp-ng-ch { transform: none; }
+    #barre .cp-ng:hover, #barre .cp-ng.survol { background: var(--sb-survol); color: var(--sb-encre); }
+    #barre .cp-ng.ouvert { color: var(--sb-encre); font-weight: 600; background: transparent; box-shadow: none; } #barre .cp-ng.ouvert .cp-ng-ch { transform: none; }
+    #barre .cp-ng.ouvert > .ic { color: var(--sb-sarcelle-texte); }
     #barre .cp-ng .cp-ng-sp { margin-left: auto; }
-    #barre .cp-nsous { display: grid; gap: 1px; margin: 1px 0 5px 18px; padding-left: 8px; border-left: 1.5px solid var(--sb-trait-fort); }
-    #barre .cp-ns { font-size: 13px; min-height: 29px; }
+    #barre .cp-nsous { display: grid; gap: 1px; margin: 0 0 6px 19px; padding-left: 7px; border-left: 1.5px solid color-mix(in srgb, var(--sb-sarcelle) 28%, var(--sb-trait)); }
+    #barre .cp-ns { font-size: 13px; min-height: 28px; padding: 0 8px; color: var(--sb-gris); }
+    #barre .cp-ns:hover { background: var(--sb-survol); color: var(--sb-encre); }
+    #barre .cp-ns.active, #barre .cp-ns[aria-current="page"] { position: relative; background: color-mix(in srgb, var(--sb-sarcelle) 12%, transparent); box-shadow: none; color: var(--sb-encre); font-weight: 600; }
+    #barre .cp-ns.active::before { content: ""; position: absolute; left: -8.5px; top: 6px; bottom: 6px; width: 3px; border-radius: 3px; background: var(--sb-sarcelle); }
     #barre .nav-count.calme { background: var(--sb-survol); color: var(--sb-gris); }
+    #barre .cp-ns .nav-count.alerte, #barre .cp-ns.active .nav-count.alerte { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
     #view .cp-corps.panel.seul { border-top: 1px solid var(--sb-trait); border-radius: 14px; }
     .cp-h-g { color: var(--sb-gris-2); font-weight: 600; }
+    /* Le survol d'un groupe fermé : ses écrans à côté de la barre. */
+    .cp-fly { position: absolute; z-index: 60; width: 290px; background: var(--sb-papier); border: 1px solid var(--sb-trait-fort); border-radius: 12px; box-shadow: 0 16px 36px rgba(20, 40, 60, .18); padding: 6px; display: grid; gap: 1px; }
+    .cp-fly::before { content: ""; position: absolute; left: -6px; top: var(--fl, 18px); width: 10px; height: 10px; background: var(--sb-papier); border-left: 1px solid var(--sb-trait-fort); border-bottom: 1px solid var(--sb-trait-fort); transform: rotate(45deg); }
+    .cp-fly-t { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px 4px; } .cp-fly-t b { font-size: 13px; color: var(--sb-encre); }
+    .cp-fly a { display: grid; padding: 7px 9px; border-radius: 8px; text-decoration: none; color: var(--sb-encre); } .cp-fly a:hover { background: var(--sb-survol); }
+    .cp-fly a b { font-size: 13.5px; font-weight: 600; } .cp-fly a small { font-size: 12px; color: var(--sb-gris-2); }
+    .cp-fly a.moi { background: color-mix(in srgb, var(--sb-sarcelle) 9%, var(--sb-papier)); }
+    .cp-fly-p { margin: 4px 8px 4px; padding-top: 7px; border-top: 1px solid var(--sb-trait); font-size: 11.5px; color: var(--sb-gris-2); line-height: 1.8; }
+    .cp-fly kbd { font: 700 10.5px/1 Inter, -apple-system, sans-serif; display: inline-block; min-width: 16px; text-align: center; padding: 2px 4px; border-radius: 4px; border: 1px solid var(--sb-trait-fort); border-bottom-width: 2px; background: var(--sb-papier); color: var(--sb-encre); }
     /* Banque. */
     .cp-bq-g { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
     .cp-bq-r { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-top: 8px; } .cp-bq-r .mu { flex: 1; min-width: 240px; }
@@ -2674,18 +2690,37 @@ table.rdp td:first-child { font-weight: 600; }
       const ICG = { saisir: icDe('d-saisie'), consulter: IC.loupe, cloturer: icDe('d-declaration') };
       const vide = ['chargement', 'refus'].includes(s.etat);
       const g = groupe(), e = ecran();
+      // Un groupe fermé rouvre l'écran où l'on était (gardé par personne et par dossier) ; chaque écran dit ce qui l'attend.
+      const MEMO = { saisir: 'saisie', consulter: 'balance', cloturer: 'declaration' };
+      const TOUCHE = { saisir: 'Alt+1', consulter: 'Alt+2', cloturer: 'Alt+3' };
+      const DIT = { saisie: '6 pièces attendent', banque: '7 lignes du relevé à traiter', declaration: 'août en retard, septembre aujourd\'hui', revision: '4 points à reprendre' };
       const html = GROUPES.map(([id, l, os]) => {
         const n = vide ? 0 : os.reduce((t, o) => t + (COMPTE[o] || 0), 0);
-        const ouvert = g[0] === id;
+        const ouvert = g[0] === id, survol = s.etat === 'survol' && id === 'consulter';
         const cpt = n ? `<span class="nav-count compte ${id === 'cloturer' ? 'alerte' : 'attire'}">${n}</span>` : '<span class="cp-ng-sp"></span>';
-        const sous = ouvert ? `<div class="cp-nsous">${os.map((o) => `<a href="#" class="lien cp-ns${o === e ? ' active' : ''}" data-etat="${o}"${o === e ? ' aria-current="page"' : ''}>${ECRANS[o]}${COMPTE[o] && !vide ? `<span class="nav-count compte ${o === 'declaration' ? 'alerte' : 'calme'}">${COMPTE[o]}</span>` : ''}</a>`).join('')}</div>` : '';
-        return `<a href="#" class="lien cp-ng${ouvert ? ' ouvert' : ''}" data-etat="${os[0]}"><span class="ic">${ICG[id]}</span>${l}${cpt}<span class="cp-ng-ch">${IC.chev}</span></a>${sous}`;
+        const sous = ouvert ? `<div class="cp-nsous" role="group" aria-label="${l}">${os.map((o) => `<a href="#" class="lien cp-ns${o === e ? ' active' : ''}" data-etat="${o}" title="${ECRANS[o]}${DIT[o] ? ' · ' + DIT[o] : ''}"${o === e ? ' aria-current="page"' : ''}>${ECRANS[o]}${COMPTE[o] && !vide ? `<span class="nav-count compte ${o === 'declaration' ? 'alerte' : 'calme'}">${COMPTE[o]}</span>` : ''}</a>`).join('')}</div>` : '';
+        const tip = `${l}${n ? ` · ${n} choses attendent` : ''}${ouvert ? '' : ` · reprend sur ${ECRANS[MEMO[id]]}`} · ${TOUCHE[id]}`;
+        return `<a href="#" class="lien cp-ng${ouvert ? ' ouvert' : ''}${survol ? ' survol' : ''}" data-etat="${ouvert ? e : MEMO[id]}" title="${tip}" aria-expanded="${ouvert}"><span class="ic">${ICG[id]}</span>${l}${cpt}<span class="cp-ng-ch">${IC.chev}</span></a>${sous}`;
       }).join('');
       ['d-saisie', 'd-banque', 'd-declaration'].forEach((r) => { const a = nd.querySelector(`a[data-route="${r}"]`); if (a) a.remove(); });
       nd.querySelectorAll('.nav-volet').forEach((v) => { v.classList.remove('active'); v.removeAttribute('aria-current'); });
       const pc = nd.querySelector('a[data-route="d-pieces"]');
       const box = document.createElement('div'); box.className = 'cp-nav-g'; box.innerHTML = `<span class="cp-nav-t">Comptabilité</span>${html}`;
       if (pc) pc.after(box);
+      // Survoler un groupe fermé montre ses écrans à côté de la barre : un clic, n'importe quel écran, sans déplier.
+      if (s.etat === 'survol' && !tel()) {
+        const lk = nd.querySelector('.cp-ng.survol'), app = root.querySelector('.corps-app');
+        const L = [['journal', '81 pièces en septembre · débit = crédit'], ['grandlivre', `532 BIAT · ${md(SOLDE_LIVRE)} au livre`], ['balance', 'équilibrée · tu y étais hier à 17 h'], ['lettrage', '3 factures fournisseurs ouvertes'], ['recherche', 'les écritures, les relevés et les conversations']];
+        const fly = document.createElement('div'); fly.className = 'cp-fly'; fly.setAttribute('role', 'menu');
+        fly.innerHTML = `<div class="cp-fly-t"><b>Consulter</b><span><kbd>Alt</kbd>+<kbd>2</kbd></span></div>${L.map(([o, d]) => `<a href="#" role="menuitem" data-etat="${o}" class="${o === 'balance' ? 'moi' : ''}"><b>${ECRANS[o]}</b><small>${d}</small></a>`).join('')}<p class="cp-fly-p"><kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> écran d'avant ou d'après · <kbd>Ctrl</kbd>+<kbd>K</kbd> va n'importe où</p>`;
+        if (lk && app) {
+          app.style.position = 'relative'; app.appendChild(fly);
+          const ra = app.getBoundingClientRect(), rl = lk.getBoundingClientRect(), z = ra.width / app.offsetWidth;
+          // À côté du groupe, remonté s'il dépasserait le bas de l'écran ; la flèche reste en face du groupe.
+          const haut = (rl.top - ra.top) / z - 8, max = app.offsetHeight - fly.offsetHeight - 12, top = Math.min(haut, max);
+          fly.style.left = `${(rl.right - ra.left) / z + 10}px`; fly.style.top = `${top}px`; fly.style.setProperty('--fl', `${haut - top + 14}px`);
+        }
+      }
     }
     if (s.etat === 'nouveau') {
       const nd = root.getElementById('nav-dossier'); nd.style.setProperty('--d1', '#1fb8a8');
@@ -2737,7 +2772,7 @@ table.rdp td:first-child { font-weight: 600; }
     $('r-etat').innerHTML = FAMILLES.map(([f, l]) => `<span class="fam"><i>${f}</i>${l.map((v) => { const ds = interdit(v); return `<button type="button" data-v="${v}" aria-pressed="${s.etat === v}"${ds ? ` class="dir-seul" disabled title="${ds}"` : ''}>${ETATS_UI.find((x) => x[0] === v)[1]}</button>`; }).join('')}</span>`).join('');
     $('r-etat').querySelectorAll('button').forEach((b) => { b.onclick = () => { s.etat = b.dataset.v; dessiner(); }; });
     seg('r-ecran', [['ordi', 'Ordinateur'], ['tel', 'Téléphone']], 'ecran');
-    seg('r-menu', [['double', 'Dans la barre et sur la page (ta demande)'], ['barre', 'Seulement dans la barre (mon conseil)'], ['avant', 'Comme avant']], 'menu');
+    seg('r-menu', [['barre', 'Dans la barre (choisi le 31/10)'], ['double', 'Dans la barre et sur la page'], ['avant', 'Comme avant']], 'menu');
   }
   const RDP = [
     ['Les 14 écrans : Saisie, Banque, Paie, Immobilisations, Inventaire, Livre-journal, Grand livre, Balance, Lettrage, Recherche, Déclaration, Révision, Exercice, Liasse', 'Fiche du dossier › Comptabilité', 'Les mêmes, rangés dans les mêmes trois groupes ; la fiche n\'a plus d\'onglet Comptabilité : la barre y mène (« Écritures », « Banque », « Déclarations », « Tout le dossier »)', 'change'],
@@ -2775,7 +2810,7 @@ table.rdp td:first-child { font-weight: 600; }
   addEventListener('resize', ajuster);
   window.__s = s; window.__dessiner = dessiner;
   s.etat = 'saisie';
-  s.menu = 'double';
+  s.menu = 'barre';
   dessiner();
 })();
 </script>
