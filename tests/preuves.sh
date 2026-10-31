@@ -21843,6 +21843,9 @@ prouver 'règlements 12 : un taux de retenue faux se retient sans un mot' web/pu
 prouver 'règlements 13 : le serveur ne garde pas les taux de retenue du cabinet' serveur/cabinet/routes.ts \
   "  tauxRetenue: z.array(TAUX_POUR_CENT).max(20)," "" \
   "$WB2"
+prouver 'banque 18 : une rapprochée ne dit plus ce qu'"'"'elle paie' web/public/v10/cabinet/app.js \
+  "    const quoi = quoiBq(x);" "    const quoi = '';" \
+  "$WB2"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

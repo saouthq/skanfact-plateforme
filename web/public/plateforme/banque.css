@@ -248,3 +248,5 @@
 .bq-st2 { margin: 18px 0 4px; font-size: 14px; }
 .bq-taux { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .bq-taux .field { flex: 1 1 220px; margin: 0; }
+/* (1.208.0, B6) Ce que la rapprochée paie ou porte (la paie, la caisse, une facture, une règle) : en encre, avant qui l'a posée. */
+.bq-src.quoi { background: transparent; border: 1px solid var(--sb-trait); color: var(--sb-encre); font-weight: 500; }

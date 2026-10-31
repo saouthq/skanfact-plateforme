@@ -59,7 +59,9 @@ describe('l\'abonnement, à la souris', () => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, jeton);
     const p = await cx.newPage();
-    p.on('pageerror', (e) => erreurs.push(e.message));
+    // (1.208.0) Avec les premières lignes de la pile : « Cannot read properties of null (reading 'company') », seul, ne disait
+    // pas où (rouge GitHub de b71c73d, Node 22).
+    p.on('pageerror', (e) => erreurs.push(`${e.message} ${(e.stack ?? '').split('\n').slice(1, 4).join(' / ')}`.trim()));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}${hash}`);
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 20_000 }).not.toBe('');
     await plusTard(p);

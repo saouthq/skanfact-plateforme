@@ -169,6 +169,9 @@ describe('la liste des fournisseurs, à la souris, au clavier et au téléphone'
     await p.setViewportSize({ width: 1024, height: 768 });
     await p.evaluate(() => { location.hash = '#/accueil'; location.hash = '#/fournisseurs'; });
     await p.locator('#list-wrap tr[data-sid="s-neuf"]').waitFor({ timeout: 20_000 });
+    // (1.208.0) Les titres se lisent une fois la liste redessinée à la nouvelle largeur : lus aussitôt la ligne trouvée, ils
+    // étaient encore cachés sur une machine lente (rouge GitHub de b71c73d, Node 24 : « [] »).
+    await expect.poll(() => p.locator('#list-wrap thead th').evaluateAll((ths) => ths.filter((t) => (t as HTMLElement).offsetParent).length), { timeout: 10_000 }).toBeGreaterThan(0);
     expect(await p.locator('#list-wrap thead th').evaluateAll((ths) => ths.filter((t) => (t as HTMLElement).offsetParent).map((t) => (t as HTMLElement).innerText.replace(/[⇅↑↓]/g, '').trim()))).toEqual(['Fournisseur', 'Matricule et retenue', 'Acheté HT', 'Tu lui dois', 'Actions']);
     expect(await p.locator('#list-wrap tr[data-sid="s-moulins"] [data-regler]').isVisible()).toBe(true);
     expect(await p.locator('#list-wrap td.cl b').evaluateAll((bs) => bs.filter((b) => b.scrollWidth > b.clientWidth + 1).length)).toBe(0);

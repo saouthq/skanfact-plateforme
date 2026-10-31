@@ -12457,9 +12457,32 @@
     const parts = [auto ? `${auto} d'office` : '', faites.length - auto ? `${faites.length - auto} à la main` : '', sf ? `${sf} depuis SkanFact` : ''].filter(Boolean);
     return parts.length ? ` · ${parts.join(', ')}` : '';
   }
+  // (1.208.0, B6) D'où vient une rapprochée, comme la maquette : ce que son écriture paie ou porte (la paie du mois, le
+  // versement de la caisse, l'encaissement ou le paiement de factures, la règle qui a proposé le compte), lu dans
+  // l'écriture elle-même ; puis qui l'a posée (d'office, à la main).
+  const quoiBq = x => {
+    const e = x.e, l = x.l;
+    if (!e) return '';
+    const lignes = e.lignes || [];
+    const sur = c => lignes.some(z => String(z.compte || '').startsWith(c));
+    const mois = String(e.date || '').slice(0, 7);
+    if (e.journal === 'PAIE' || sur('421')) return /^\d{4}-\d{2}$/.test(mois) ? `la paie ${deMois(mois)}` : 'la paie';
+    if (sur('54')) return 'versement de la caisse';
+    const tiers = lignes.filter(z => /^4[01]1/.test(String(z.compte || '')));
+    if (tiers.length) {
+      const noms = tiers.map(z => (/lettre (\S+)/.exec(String(z.libelle || '')) || [])[1] || z.tiers || '').filter(Boolean);
+      const quoi = Number(l.montant) >= 0 ? 'encaissement' : 'paiement';
+      return noms.length ? `${quoi} de ${noms.length > 3 ? pl(noms.length, 'facture') : noms.join(', ')}` : '';
+    }
+    const regle = (Array.isArray(S.libelles) ? S.libelles : []).filter(z => z && z.motif && z.compte && String(l.libelle || '').toUpperCase().includes(String(z.motif).toUpperCase()))
+      .find(z => sur(String(z.compte)));
+    return regle ? `règle « ${regle.motif} »` : '';
+  };
   const origineBq = x => {
     const r = x.l.rapprochement || {};
     const chips = [];
+    const quoi = quoiBq(x);
+    if (quoi) chips.push(`<span class="bq-src quoi">${esc(quoi)}</span>`);
     if (x.e && x.e.source === 'skanfact') chips.push('<span class="bq-src sf">depuis SkanFact</span>');
     chips.push(r.par === 'auto' ? '<span class="bq-src">d\'office</span>' : '<span class="bq-src toi">à la main</span>');
     return chips.join('');

@@ -127,6 +127,10 @@ describe('la Banque : ce qu\'une ligne paie', () => {
     // La ligne quitte les proposées pour les rapprochées (repliées).
     expect(await ligne('REMISE CHQ').count()).toBe(0);
     expect(await p.locator('[data-bq-filtre="ok"]').innerText()).toMatch(/^1\s+Rapprochées$/);
+    // (B6) Ouverte, la rapprochée dit ce qu'elle paie, puis qui l'a posée.
+    await p.locator('#bq-voir-faites').click();
+    await expect.poll(() => ligne('REMISE CHQ').innerText()).toMatch(/avec 0118 · REMISE CHQ N 0118 · 3 CHQ\s*encaissement de FV-0379, FV-0391, FV-0398\s*à la main/);
+    await p.locator('#bq-voir-faites').click();
 
     // ── La STEG : sa facture est au brouillard ; l'écriture se passe au brouillard, se rapproche, et « Annuler » la retire.
     await choisir('PRLV STEG 0298 4471');

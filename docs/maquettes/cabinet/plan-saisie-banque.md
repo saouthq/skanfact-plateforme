@@ -60,8 +60,8 @@ comptable voit chaque jour : la banque qui se rapproche presque seule et l'écar
   (l'écriture est validée pour être lettrée, ce que l'écran dit avant le geste), « Écrire et rapprocher » au brouillard
   sinon (« Annuler » la retire). Moteur : `piecesOuvertes`, `reponsesDeLigne`, `retenueDeReglement`,
   `ecritureDeReglement` (`compta.js`).
-- Suivant : **B3** (« Joindre au dossier de révision »), **B4** (l'import en page), **B5** (les règles en page), **B6**
-  (les origines des rapprochées).
+- **B6 fait (1.208.0)** : les rapprochées disent ce qu'elles paient (la paie, la caisse, des factures, une règle).
+- Suivant : **B3** (« Joindre au dossier de révision »), **B4** (l'import en page), **B5** (les règles en page).
 
 ## Ce qui attend une décision de Skander
 

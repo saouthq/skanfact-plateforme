@@ -500,6 +500,9 @@ sans cette règle, une facture payée le mois dernier et pas encore lettrée se 
   (jamais de validation en lot).
 - **Le réglage** : les taux de retenue du cabinet (`tauxRetenue` dans ses réglages, liste de taux en %, 20 au plus,
   vérifiés par le serveur).
+- **Les rapprochées disent d'où elles viennent** (B6) : ce que leur écriture paie ou porte, lu dans l'écriture elle-même
+  (« la paie d'août », « versement de la caisse », « encaissement de FV-0379, FV-0391 », « règle « FRAIS » »), puis
+  qui l'a posée (d'office, à la main) et « depuis SkanFact ».
 
 ### La page de la comptabilité et la Banque comme leur maquette (1.207.0, 31/10/2026)
 
