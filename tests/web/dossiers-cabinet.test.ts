@@ -166,7 +166,9 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     expect(await fen2.locator('#ec-msg').inputValue()).not.toMatch(/SkanFact/);
     await fen2.getByRole('button', { name: 'Annuler' }).click();
     expect(erreurs).toEqual([]);
-  });
+    // Le délai de chaque essai d'écran (120 s), comme les autres : avec 20 s par défaut, le premier chargement (qui
+    // attend jusqu'à 25 s) suffisait à le faire tomber sur une machine de GitHub chargée (233757d, 31/10/2026).
+  }, 120_000);
 
   it('au téléphone : des cartes, le dossier d\'un toucher, et le retour à la liste', async () => {
     const { associe, cab } = await unCabinet();
@@ -186,7 +188,7 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     await p.getByRole('link', { name: 'Tous les dossiers' }).click();
     await expect.poll(() => p.locator('[data-cd-carte]').first().isVisible()).toBe(true);
     expect(erreurs).toEqual([]);
-  });
+  }, 120_000);
 
   it('(1.185.0) le début de mission : demandé à l\'acceptation, « à préciser » tant qu\'il ne l\'est pas, rien réclamé avant', async () => {
     const { associe, cab, hotel } = await unCabinet();
