@@ -73,15 +73,13 @@ Ajouté à la maquette le 31/10 :
 ## 5. Le rapprochement, un système (31/10/2026)
 
 Skander : un comptable lui a dit « si tu veux que ton logiciel marche, il faut le meilleur système de rapprochement », et
-« ce n'est pas qu'un écran, c'est un système implémenté un peu partout ». Dessiné dans la maquette (états « Banque : le mode
-rafale » et « Banque : septembre rapproché ») :
+« ce n'est pas qu'un écran, c'est un système implémenté un peu partout ». Dessiné dans la maquette (états « Banque : le prélèvement STEG en face de sa facture », « une remise de 3 chèques », « les frais
+de tenue, d'après leur règle ») :
 
 - **Trouver seul presque tout** : le règlement net de retenue à la source, une ligne pour plusieurs factures (remise de
   chèques), plusieurs lignes pour une facture, les petits écarts (frais, arrondi) avec leur écriture ; pour un dossier relié,
   tout ce que le client encaisse ou paie dans SkanFact est déjà une écriture. Chaque proposition dit **pourquoi**.
-- **Le mode rafale** : une ligne à la fois, en grand ; une touche par geste (Entrée valider et lettrer, E écrire autre chose,
-  Q demander au client, A compte d'attente, → plus tard) ; la barre se remplit ; la fin le dit, et l'état de rapprochement
-  s'imprime. Au téléphone, la carte passe sur une colonne et les boutons prennent la largeur.
+- **Un seul écran, deux colonnes** (refait le 31/10 après la revue de Skander ; le « mode rafale », une ligne à la fois dans un écran à part, est retiré : trop lent pour un professionnel, sans le côté du livre, et un écran de trop) : la banque à gauche, rangée par ce qu'elle demande (proposées, à traiter, en attente du client, rapprochées repliées), chaque ligne avec sa proposition et pourquoi ; le livre à droite pour la ligne choisie (les pièces qui correspondent, cochables, la recherche, l'écart, l'écriture, un seul bouton principal) ; ↑ ↓, Espace, Entrée, « / » ; le menu ⋯ pour écrire autre chose, demander au client, le compte d'attente, défaire ; l'écart du relevé toujours en bas. Au téléphone, une carte par ligne.
 - **Partout** : valider passe la pièce « payée » chez le client, solde le fournisseur, lettre, fait avancer la frise du mois et
   le Tableau de bord du cabinet ; une règle ne se crée jamais sans le comptable, et dit à combien de lignes d'avant elle aurait
   servi.
