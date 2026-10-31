@@ -54,7 +54,8 @@ Ajouté à la maquette le 31/10 :
 À ajouter en appliquant (pas encore dessinés) :
 
 4. **Une règle plus fine qu'un mot** : le sens (débit ou crédit), une fourchette de montant, la TVA et le journal ; avant
-   d'enregistrer une règle, « elle s'appliquerait à N lignes d'avant ».
+   d'enregistrer une règle, « elle s'appliquerait à N lignes d'avant », et si une autre règle prend déjà ces lignes
+   (dessiné le 31/10 : état « Banque : les règles, et une nouvelle »).
 5. **Le numéro de la pièce d'un fournisseur déjà saisi** (même fournisseur, même numéro) : averti à la saisie, avant le geste.
 6. **Le timbre fiscal et la FODEC** dans « Au kilomètre » quand la pièce les porte (comptes À VÉRIFIER).
 7. **Une pièce en devises** (une facture en euros) : le taux du jour, et la différence de change au règlement (À VÉRIFIER).
@@ -87,3 +88,23 @@ de tenue, d'après leur règle ») :
   un prêt, un apport, autre) et l'écriture se passe d'elle-même.
 - À construire au serveur : les correspondances à plusieurs pièces et nettes de retenue, le score et le « pourquoi », les
   gestes en masse, la réponse d'un toucher côté entreprise. Les taux de retenue : À VÉRIFIER.
+
+## 6. Le bas de la Banque et les écrans qui manquaient (31/10/2026)
+
+Demande de Skander, sur une photo du bas de la Banque : « améliorer encore cette partie et écrire les écrans manquants ».
+
+- **Le pied de l'écart** : une seule ligne, l'équation à gauche (relevé + lignes sans écriture − chèque pas encore payé =
+  attendu au livre ; les lignes sans écriture se montrent d'un clic), le verdict à droite avec l'état de rapprochement en
+  PDF. Il n'est plus collé en bas de l'écran (il cachait le bouton du livre et le menu ⋯).
+- **L'écart non expliqué** (état « Banque : un écart non expliqué ») : le chiffre en rouge, ce que le livre dit et ce qu'il
+  devrait dire, et les pistes déjà cherchées : une écriture du livre du même montant sans ligne au relevé (écrite deux
+  fois ?), le relevé complet (nombre de mouvements, solde de fin, enchaînement avec le mois d'avant), sinon chercher le
+  montant ou le mettre au 471 le temps de le trouver, en le laissant écrit sur l'état.
+- **Importer un relevé** (état « Banque : importer le relevé d'octobre ») : rien n'entre avant d'avoir vu ce qui a été compris.
+  Les colonnes reconnues (la date de valeur ignorée), la période, le solde de début égal à la fin du mois d'avant, chaque
+  ligne qui refait le solde, aucun doublon, ce qui va se rapprocher seul (dont le chèque en suspens de septembre).
+- **Les règles** (état « Banque : les règles, et une nouvelle ») : voir le § 3, point 4. Exemple : les versements d'espèces
+  (compte 581 ou caisse 54 : À VÉRIFIER).
+- **Le menu ⋯ d'une ligne** (état « Banque : le menu ⋯ d'une ligne ») : écrire autre chose, choisir une autre pièce,
+  partager entre plusieurs pièces, compte d'attente, demander au client, retenir une règle, défaire (grisé avec sa raison
+  quand rien n'est à défaire), chacun avec sa touche au bureau.
