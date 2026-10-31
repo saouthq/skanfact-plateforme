@@ -13084,6 +13084,7 @@
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'sup.name')}<input type="text" name="name" value="${h(s.name)}" required></label>
         ${field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', s.matricule || '')}
         ${field(lbl('Téléphone', 'sup.phone'), 'phone', s.phone || '')}
+        ${field(lbl('Ville', 'sup.city'), 'city', s.city || '', 'text', 'placeholder="Sfax"')}
         <label class="field span-2">${lbl('Adresse', 'sup.address')}<textarea name="address">${h(s.address || '')}</textarea></label>
         ${/* (plateforme) 1.132.0 — de même pour un fournisseur neuf (revue du mois d'un client, point 15). */''}
         ${supplier ? '' : '<details class="span-2 plus-details" id="sf-plus"><summary>Plus de détails <span class="muted small">— contact, e-mail, délai, retenue, banque, RIB, notes</span></summary><div class="grid-2 mt">'}
@@ -13128,83 +13129,197 @@
       });
   }
 
-  const supplierState = { q: '', f: '', sort: { key: 'name', dir: 'asc' }, page: 1 };
+  const supplierState = { q: '', f: '', sort: null, page: 1, cur: -1 };
   const supplierBuyState = { sort: null, page: 1 };
 
-  routes.fournisseurs = () => {
-    const cur = company().currency;
-    const s = supplierState;
-    const cols = [
-      { key: 'name', label: 'Nom', asc: true, val: r => r.s.name.toLowerCase(), get: r => `<strong>${h(r.s.name)}</strong>${r.s.contact ? `<div class="small muted">${h(r.s.contact)}</div>` : ''}` },
-      // La retenue sous le matricule, et l'exonération qui la suspend (10.15.0, H7) : « RS 1,5 % » d'un
-      // fournisseur exonéré dirait l'inverse de ce que l'achat proposera.
-      { key: 'mf', cls: 'mf', label: 'Matricule', get: r => { const exo = C.exonerationRS(r.s, C.today()); return `${mfCoupable(r.s.matricule)}${exo ? `<div class="small ok-text">Exonéré jusqu'au ${C.fmtDate(exo.au)}</div>` : Number(r.s.withholdingRate) ? `<div class="small muted">RS ${pct(r.s.withholdingRate)} %</div>` : ''}`; } },
-      { key: 'contact', label: 'Contact', get: r => `<span class="small">${h(r.s.phone || '')}${r.s.phone && r.s.email ? '<br>' : ''}${r.s.email ? `<span class="ellipse" title="${h(r.s.email)}">${h(r.s.email)}</span>` : ''}</span>` },
-      { key: 'count', label: 'Achats', r: true, val: r => r.sum.count, get: r => r.sum.count || '<span class="muted">—</span>' },
-      { key: 'ht', label: 'Acheté HT', r: true, val: r => r.sum.ht, get: r => r.sum.ht ? C.money(r.sum.ht, cur) : '<span class="muted">—</span>' },
-      // Le NET, comme son compte (10.14.0) : un trop-payé et un avoir libre viennent en moins, et un
-      // net en ta faveur se dit en mots — un montant négatif sous « Reste à payer » se lit mal.
-      { key: 'due', label: 'Reste à payer', r: true, val: r => r.sum.remaining, get: r => r.sum.remaining > 0.0005 ? `<strong class="${r.sum.late > 0.0005 ? 'warn-text' : ''}">${C.money(r.sum.remaining, cur)}</strong>` : r.sum.remaining < -0.0005 ? `<span class="ok-text">${C.money(-r.sum.remaining, cur)} en ta faveur</span>` : '<span class="muted">—</span>' },
-      { key: 'last', label: 'Dernier achat', val: r => r.sum.last || '', get: r => r.sum.last ? C.fmtDate(r.sum.last) : '<span class="muted">—</span>' }
-    ];
-    const FILTERS = [['', 'Tous les fournisseurs'], ['due', 'Avec un impayé'], ['late', 'En retard de paiement'], ['none', 'Sans aucun achat']];
-    const draw = dansUnLot((sortKey) => {
-      if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
-      const all = data.suppliers.map(x => ({ s: x, sum: C.supplierSummary(data, company(), x.id, C.today()) }));
-      const rows = applySort(all
-        .filter(r => !s.q || C.correspondRecherche([r.s.name, r.s.contact, r.s.matricule, r.s.email, r.s.phone].join(' '), s.q))
-        .filter(r => !s.f || (s.f === 'due' ? r.sum.remaining > 0.0005 : s.f === 'late' ? r.sum.late > 0.0005 : r.sum.count === 0)), cols, s.sort);
-      const filtered = !!(s.q || s.f);
-      const { rows: page, pg } = paginate(rows, s);
-      const totalHT = rows.reduce((a, r) => a + r.sum.ht, 0);
-      const totalDue = rows.reduce((a, r) => a + r.sum.remaining, 0);
-      $('#list-wrap').innerHTML = rows.length ? `<table class="list sortable"><thead>
-          ${sortHead(cols, s.sort, '<th class="row-actions-h"></th>')}</thead><tbody>
-        ${page.map(r => `<tr class="clickable" data-sid="${r.s.id}">
-          ${cols.map(c => `<td class="${c.r ? 'r nw' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(r)}</td>`).join('')}
-          ${rowMenuCell(r.s.id)}</tr>`).join('')}
-        </tbody><tfoot><tr><td colspan="4">${rows.length} fournisseur${rows.length > 1 ? 's' : ''}</td>
-          <td class="r">${C.money(totalHT, cur)}</td><td class="r">${totalDue > 0.0005 ? C.money(totalDue, cur) : totalDue < -0.0005 ? `<span class="ok-text">${C.money(-totalDue, cur)} en ta faveur</span>` : '<span class="muted">—</span>'}</td><td></td><td></td></tr></tfoot>
-        </table>${pagerBar(pg, { noun: 'fournisseur', grandTotal: all.length })}`
-        : `<div class="empty">${filtered ? 'Aucun fournisseur ne correspond à cette recherche.' : 'Aucun fournisseur. Ajoute ceux chez qui tu achètes : leurs coordonnées et leur délai de paiement se reporteront sur chaque achat.'}</div>`;
-      const note = $('#f-note');
-      note.hidden = !filtered;
-      note.innerHTML = !filtered ? '' : `<span class="small muted">${rows.length} sur ${all.length}</span>${filterReset(true)}`;
-      if ($('#reset-f')) $('#reset-f').onclick = () => { s.q = ''; s.f = ''; s.page = 1; render(true); };
-      $$('tr.clickable[data-sid]').forEach(tr => tr.onclick = e => { if (e.target.closest('button')) return; navigate('#/fournisseur/' + tr.dataset.sid); });
-      bindRowMenus(document, id => {
-        const f = supplierById(id); if (!f) return [];
-        return [
-          { icon: 'fournisseur', label: 'Ouvrir la fiche', hint: 'Ses achats, ce qui reste à payer', run: () => navigate('#/fournisseur/' + id) },
-          { icon: 'panier', label: 'Enregistrer un achat', hint: `Chez ${f.name}`, run: () => navigate('#/achat/new/' + id) },
-          { sep: true },
-          { icon: 'modifier', label: 'Modifier le fournisseur', hint: 'Coordonnées, délai de paiement', run: () => supplierForm(f, () => draw()) }
-        ];
-      });
-      bindSort($('#list-wrap'), draw);
-      bindPager($('#list-wrap'), s, () => draw(), '#list-wrap');
+  // ---------- la liste des fournisseurs (1.204.0, maquette achats-fournisseurs.html validée le 30/10/2026) ----------
+  // Les mêmes pièces que la liste des clients : ce qu'on doit à chacun et ce qui est en retard, ce qui manque à sa fiche ;
+  // au téléphone, une carte par fournisseur.
+  const LFO_FILTRES = [['', 'Tous'], ['dois', 'Tu leur dois'], ['retard', 'En retard'], ['completer', 'À compléter'], ['sans', 'Sans achat']];
+  // Ce que la liste sait d'un fournisseur : son compte (`supplierSummary`, le net de son compte 401), ses pièces en retard
+  // (la règle de la liste des achats), ce qui manque à sa fiche. UNE fonction : le tableau, son pied, les filtres et leurs
+  // nombres, le téléphone la lisent tous.
+  function lfoLignes() {
+    const auj = C.today(), retards = new Map(), semaine = new Map();
+    (data.purchases || []).forEach(p => {
+      const st = buyStatus(p);
+      if (st === 'retard') { const r = retards.get(p.supplierId) || []; r.push(p); retards.set(p.supplierId, r); }
+      else if (p.dueDate && p.dueDate >= auj && C.daysBetween(auj, p.dueDate) <= 7 && C.purchaseBalance(p, company(), data).remaining > 0.0005) {
+        semaine.set(p.supplierId, C.round3((semaine.get(p.supplierId) || 0) + C.toBase(p, C.purchaseBalance(p, company(), data).remaining, company())));
+      }
     });
-    const vide = !data.suppliers.length && !(s.q || s.f);
-    $('#view').innerHTML = `<div class="page-head"><h1>Fournisseurs</h1><div class="actions"><button class="btn" id="imp-fournisseurs">Importer…</button><button class="btn ${vide ? '' : 'btn-primary'}" id="new">+ Nouveau fournisseur</button></div></div>
-      ${filtersBar(`
-        <input type="text" id="q" placeholder="Rechercher : nom, contact, matricule…" value="${h(s.q)}">
-        <select id="f">${FILTERS.map(([v, l]) => `<option value="${v}" ${s.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        ${info('list.sort')}
-        <span class="f-note" id="f-note" hidden></span>
-      `, data.suppliers.length, !!(s.q || s.f))}
-      ${vide ? etatVide('Ceux chez qui tu achètes',
-        ['Un fournisseur se crée une fois : ses coordonnées et son délai de paiement se reportent ensuite sur chaque facture d\'achat, et c\'est sur sa fiche que se lit ce que tu lui dois.',
-         'Tu peux aussi le créer depuis une facture d\'achat, au moment de la saisir.',
-         'Ta liste est déjà dans un tableur ou dans ton ancien logiciel ? Colle-la : tous tes fournisseurs entrent d\'un coup.'],
-        [['vide-fournisseur', '+ Ajouter mon premier fournisseur', true], ['vide-import-f', 'Importer depuis un tableur']]) : '<div id="list-wrap"></div>'}`;
-    $('#new').onclick = () => supplierForm(null, () => (vide ? render(true) : draw()));
-    $('#imp-fournisseurs').onclick = () => importerTableau('fournisseurs', () => render(true));
+    return data.suppliers.map(f => {
+      const sum = C.supplierSummary(data, company(), f.id, auj);
+      const ret = (retards.get(f.id) || []).sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+      const jours = ret.length ? C.daysBetween(ret[0].dueDate, auj) : 0;
+      const manqueMf = !f.matricule, manqueMail = !f.email, manqueRib = !f.rib && sum.remaining > 0.0005;
+      return { f, sum, ret, jours, semaine: semaine.get(f.id) || 0, manqueMf, manqueMail, manqueRib, aCompleter: manqueMf || manqueMail || manqueRib };
+    });
+  }
+  const lfoPasse = (r, f) => (!f ? true : f === 'dois' ? r.sum.remaining > 0.0005 : f === 'retard' ? r.sum.late > 0.0005 : f === 'completer' ? r.aCompleter : f === 'sans' ? r.sum.count === 0 : true);
+  const lfoTrouve = (r, q) => !q || C.correspondRecherche([r.f.name, r.f.contact, r.f.matricule, r.f.email, r.f.phone, String(r.f.phone || '').replace(/\s/g, ''), r.f.city].join(' '), q);
+  const lfoDelai = f => (f.paymentTermsDays === '' || f.paymentTermsDays == null ? 'délai non précisé' : Number(f.paymentTermsDays) === 0 ? 'paie à réception' : `paie à ${pl(Number(f.paymentTermsDays), 'jour')}`);
+  // Régler ce qui est en retard chez un fournisseur : une pièce, sa fenêtre ; plusieurs, un seul virement (1.203.0).
+  const lfoRegler = (r, done) => (r.ret.length > 1 && r.ret.every(p => (p.currency || company().currency) === company().currency) ? reglerEnsemble(r.ret, done) : supplierPaymentForm(r.ret[0], done));
+
+  routes.fournisseurs = () => {
+    const s = supplierState;
+    s.cur = -1;
+    const base = company().currency;
+    const m = n => C.money(n, '', C.decimalsFor(base));
+    const lecture = aboBloque(true), roleLit = enLecture('suppliers'), horsLigne = navigator.onLine === false;
+    const peutRegler = !roleLit && !enLecture('purchases') && !horsLigne;
+    const cols = [
+      { key: 'name', label: 'Fournisseur', asc: true, w: '23%', val: r => r.f.name.toLowerCase() },
+      { key: 'mf', label: 'Matricule et retenue', w: '15%' },
+      { key: 'contact', label: 'Téléphone et e-mail', w: '16%' },
+      { key: 'ht', label: 'Acheté HT', r: true, w: '12%', val: r => r.sum.ht },
+      { key: 'due', label: 'Tu lui dois', r: true, w: '14%', val: r => r.sum.remaining },
+      { key: 'last', label: 'Dernier achat', w: '11%', val: r => r.sum.last || '' }
+    ];
+
+    function filtres(l, tout) {
+      const filtre = !!(s.q || s.f);
+      const nom = LFO_FILTRES.find(x => x[0] === s.f);
+      const puces = [s.f ? ['f', nom ? nom[1] : s.f] : null, s.q ? ['q', `« ${s.q} »`] : null].filter(Boolean);
+      return `<div class="filtres" id="lf-filtres"><label class="cherche">${lfIc('recherche', 16)}<input id="q" type="search" value="${h(s.q)}" placeholder="${matchMedia('(max-width: 760px)').matches ? 'Nom, téléphone, matricule…' : 'Nom, contact, matricule, e-mail, téléphone, ville…'}" autocomplete="off" aria-label="Chercher un fournisseur"><kbd>/</kbd></label>
+        <div class="segment petit" role="group" aria-label="Montrer">${LFO_FILTRES.map(([k, n]) => `<button type="button" data-f="${k}" aria-pressed="${s.f === k}">${n}${k ? ` <span class="mu">${tout.filter(r => lfoPasse(r, k)).length}</span>` : ''}</button>`).join('')}</div>
+        ${info('lfo.colonnes').replace('class="i"', 'class="i i-b"').replace('>i</button>', `>${lfIc('aide', 16, 2)}</button>`)}
+        <span class="f-note" id="f-note">${filtre ? `<b>${l.length}</b> sur ${pl(tout.length, 'fournisseur')}` : `<b>${tout.length}</b> ${tout.length > 1 ? 'fournisseurs' : 'fournisseur'}`}</span></div>
+        ${puces.length ? `<div class="puces-f">${puces.map(([k, n]) => `<button type="button" class="pf" data-ote="${k}" aria-label="Retirer le filtre ${h(n)}">${h(n)}${lfIc('croix', 12, 2.4)}</button>`).join('')}<button type="button" class="btn-lien" id="reset-f">Tout effacer</button></div>` : ''}`;
+    }
+
+    function ligne(r) {
+      const f = r.f;
+      const sous = [f.contact, f.city].filter(Boolean).map(h).join(' · ');
+      // La retenue sous le matricule, et l'exonération qui la suspend (10.15.0, H7) : « RS 1,5 % » d'un fournisseur exonéré
+      // dirait l'inverse de ce que l'achat proposera.
+      const exo = C.exonerationRS(f, C.today());
+      const rs = exo ? `<small class="ok-text">exonéré jusqu'au ${lfJm(exo.au)}</small>` : `<small>${Number(f.withholdingRate) ? `RS ${pct(f.withholdingRate)} %` : 'sans retenue'}</small>`;
+      const mf = f.matricule ? `${mfCoupable(f.matricule)}${rs}` : '<span class="manque">à renseigner</span><small>sa retenue s\'écrit avec lui</small>';
+      const ct = `${f.phone ? `<span>${telLisible(f.phone)}</span>` : '<span class="mu">—</span>'}${f.email ? `<span class="ellipse" title="${h(f.email)}">${h(f.email)}</span>` : '<span class="manque">pas d\'e-mail</span>'}`;
+      const net = r.sum.remaining;
+      const doit = net > 0.0005 ? `${m(net)}<small${r.sum.late > 0.0005 ? ' class="rouge"' : r.semaine > 0.0005 ? ' class="ambre"' : ''}>${r.sum.late > 0.0005 ? `dont ${m(r.sum.late)} en retard` : r.semaine > 0.0005 ? `${m(r.semaine)} sous 7 jours` : 'rien en retard'}</small>`
+        : net < -0.0005 ? `<span class="trop" title="Un avoir pas encore déduit, ou un trop-payé : à imputer sur sa prochaine facture, ou à te faire rembourser">${m(-net)}</span><small class="ambre">en ta faveur</small>` : '<span class="mu">—</span>';
+      const regler = r.ret.length && peutRegler
+        ? `<button type="button" class="btn btn-sm" data-regler="${h(f.id)}" title="${h(r.ret.length > 1 ? `Régler ses ${r.ret.length} pièces en retard en un seul virement` : `Régler ${r.ret[0].number || 'sa pièce en retard'}`)}">Régler</button>` : '<span class="enc-v"></span>';
+      return `<tr class="clickable" data-sid="${h(f.id)}">
+        <td class="cl"><span class="cl-i">${pastilleClient(f.id, f.name)}<span><b>${h(f.name)}</b>${sous ? `<small>${sous}</small>` : ''}</span></span></td>
+        <td class="mf">${mf}</td>
+        <td class="ct">${ct}</td>
+        <td class="r m nw">${r.sum.count ? `${m(r.sum.ht)}<small>${pl(r.sum.count, 'pièce')}</small>` : '<span class="mu">aucun achat</span>'}</td>
+        <td class="r m nw">${doit}</td>
+        <td class="der">${r.sum.last ? `${C.fmtDate(r.sum.last)}<small>${lfoDelai(f)}</small>` : `<span class="mu">${lfoDelai(f)}</span>`}</td>
+        <td class="actions row-actions lf-act">${regler}<button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(f.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(f.name)}">${lfIc('plus', 16)}</button></td></tr>`;
+    }
+
+    function tableau(l, tout) {
+      if (!l.length) return `<div class="panel vide-f">${lfIc('recherche', 26, 1.6)}<b>${s.q ? `Aucun fournisseur ne correspond à « ${h(s.q)} »` : 'Aucun fournisseur ne correspond à ce filtre'}</b><span>La recherche lit le nom, le contact, le matricule, l'e-mail, le téléphone et la ville${s.f ? `, parmi « ${h((LFO_FILTRES.find(x => x[0] === s.f) || [])[1] || '')} »` : ''}.</span><span class="pr-b">${s.q && !roleLit ? `<button type="button" class="btn btn-primary" id="lfo-creer">${lfIc('croix', 15, 2.4)} Créer « ${h(s.q.replace(/^./, x => x.toUpperCase()))} »</button>` : ''}<button type="button" class="btn" id="lf-tout-revoir">Tout revoir</button></span></div>`;
+      const sorted = s.sort ? applySort(l, cols, s.sort) : l.slice().sort((a, b) => a.f.name.localeCompare(b.f.name, 'fr'));
+      const paged = paginate(sorted, s);
+      const somme = fn => C.round3(sorted.reduce((a, r) => a + fn(r), 0));
+      const ret = somme(r => r.sum.late), rs = somme(r => r.sum.rsAOperer);
+      const head = sortHead(cols, s.sort, '<th class="row-actions-h" style="width:9%"><span class="vh">Actions</span></th>');
+      // Au téléphone, chaque fournisseur est une carte (la maquette) : son nom, ce qui presse, ce que tu lui dois.
+      const cartes = `<div class="lc-cartes">${paged.rows.map(r => `<button type="button" class="lc-carte" data-sid="${h(r.f.id)}"><span class="lc-c-h">${pastilleClient(r.f.id, r.f.name)}<span class="lc-c-n"><b>${h(r.f.name)}</b><small>${[r.f.contact, r.f.city].filter(Boolean).map(h).join(' · ')}</small></span></span>
+        <span class="lc-c-b"><small>${r.sum.late > 0.0005 ? `<span class="rouge">${m(r.sum.late)} en retard · ${pl(r.jours, 'jour')}</span>` : r.sum.remaining > 0.0005 ? 'rien en retard' : r.sum.count ? 'à jour' : 'aucun achat'}${r.aCompleter ? ' · <span class="manque">à compléter</span>' : ''}</small><small>${r.sum.remaining > 0.0005 ? `tu lui dois <b>${m(r.sum.remaining)} ${h(symboleDevise(base))}</b>` : r.sum.remaining < -0.0005 ? `<span class="trop">${m(-r.sum.remaining)} en ta faveur</span>` : ''}</small></span></button>`).join('')}</div>`;
+      return `${cartes}<div class="panel lf-tab scroll-x"><table class="list sortable lf-table lc-table lfo-table"><thead>${head}</thead><tbody>${paged.rows.map(ligne).join('')}</tbody>
+        <tfoot><tr><td colspan="2"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'fournisseur')}${rs > 0.0005 ? ` · tu garderas ${m(rs)} ${h(symboleDevise(base))} de retenue pour l'État en les payant` : ''}</span></span></td><td class="ct"></td><td class="r m nw">${m(somme(r => r.sum.ht))} <small class="dv">${h(symboleDevise(base))}</small></td><td class="r m nw"><div>${m(somme(r => r.sum.remaining))}</div>${ret > 0.0005 ? `<div class="rouge pied-s">dont ${m(ret)} en retard</div>` : ''}</td><td class="der"></td><td></td></tr></tfoot></table>
+        ${pagerBar(paged.pg, { noun: 'fournisseur', grandTotal: tout.length })}</div>`;
+    }
+
+    // Au téléphone : trois puces (Tu leur dois, En retard, À compléter), chacune avec son nombre.
+    function puces(tout) {
+      const p = (f, ton, t) => `<button type="button" class="t-puce ${ton}" data-f="${f}" aria-pressed="${s.f === f}">${t} <b>${tout.filter(r => lfoPasse(r, f)).length}</b></button>`;
+      return `<div class="t-puces" id="lf-puces">${p('dois', 'calme', 'Tu leur dois')}${p('retard', 'alerte', 'En retard')}${p('completer', '', 'À compléter')}</div>`;
+    }
+
+    const vide = !data.suppliers.length;
+    const bandeau = horsLigne ? '<div class="banner gris lc-bandeau" id="lfo-hors-ligne"><span><b>Pas de réseau : la liste est celle que ce poste a gardée</b> — tu lis les fiches, tu appelles. Ce que tu leur dois date de la dernière connexion ; un règlement attend le réseau, pour ne jamais payer deux fois.</span></div>'
+      : roleLit && !lecture ? `<div class="bandeau info lc-bandeau" role="status">${lfIc('cadenas', 18)}<span class="txt"><b>Lecture seule : ton rôle te laisse lire les fiches fournisseurs, pas les modifier</b><span>Un geste qui les changerait est refusé, en le disant. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.</span></span></div>` : '';
+    $('#view').innerHTML = `
+      <div class="page-head lf-tete lc-tete lfo-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Fournisseurs</span></div><h1>Fournisseurs</h1><p class="sous">Chez qui tu achètes, ce que tu leur dois</p></div>
+        <div class="actions">${roleLit ? '' : `<button class="btn" id="imp-fournisseurs">${lfIc('importer', 15)} Importer…</button><button class="btn ${vide || lecture ? '' : 'btn-primary'}" id="new">${lfIc('croix', 15, 2.4)} Nouveau fournisseur</button>`}</div></div>
+      ${vide ? `<div class="panel premiere"><div class="pr-t"><span class="pr-ic">${lfIc('equipe', 26, 1.8)}</span><h2>Ceux chez qui tu achètes</h2>
+          <p>Un fournisseur se crée une fois : son délai de paiement, sa retenue à la source et son RIB se reportent ensuite sur chaque achat, et c'est sur sa fiche que se lit ce que tu lui dois.</p>
+          <p>Tu peux aussi le créer depuis une facture d'achat, au moment de la saisir. Ta liste est déjà dans un tableur ou dans ton ancien logiciel ? Colle-la : tous tes fournisseurs entrent d'un coup.</p>
+          ${/* En lecture seule (abonnement), la page dit pourquoi la création attend, et son seul vert mène à l'abonnement. */''}${lecture ? `<p>${phraseRetenue()}</p>` : ''}
+          ${roleLit ? '' : `<div class="pr-b">${lecture ? boutonRetenue() : ''}<button class="btn ${lecture ? '' : 'btn-primary'}" id="vide-fournisseur">${lfIc('croix', 15, 2.4)} Ajouter mon premier fournisseur</button><button class="btn" id="vide-import-f">${lfIc('importer', 15)} Importer depuis un tableur</button></div>`}</div>
+          <ol class="pr-e"><li><b>1</b><span><b>Son nom et son matricule</b><small>la retenue et son attestation s'écrivent avec lui</small></span></li><li><b>2</b><span><b>Son délai et sa retenue</b><small>repris sur chaque facture que tu saisis</small></span></li><li><b>3</b><span><b>Son RIB</b><small>pour le payer par virement sans le chercher</small></span></li><li><b>4</b><span><b>Son compte se tient seul</b><small>ce que tu lui dois, tes règlements, ses attestations</small></span></li></ol></div>`
+        : `${bandeau}<div class="lf lc lfo" id="lfo"><div id="lc-puces"></div><div id="lf-barre"></div><div id="list-wrap"></div>
+          <p class="raccourcis">${lfIc('clavier', 14)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> d'un fournisseur à l'autre · <kbd>Entrée</kbd> ouvrir sa fiche · <kbd>Échap</kbd> fermer</p></div>`}`;
+    const ouvrirForm = () => supplierForm(null, () => render(true));
+    if ($('#new')) $('#new').onclick = ouvrirForm;
+    if ($('#imp-fournisseurs')) $('#imp-fournisseurs').onclick = () => importerTableau('fournisseurs', () => render(true));
+    if ($('#vide-fournisseur')) $('#vide-fournisseur').onclick = ouvrirForm;
     if ($('#vide-import-f')) $('#vide-import-f').onclick = () => importerTableau('fournisseurs', () => render(true));
-    if ($('#vide-fournisseur')) $('#vide-fournisseur').onclick = () => supplierForm(null, () => render(true));
-    if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
-    if ($('#f')) $('#f').onchange = e => { s.f = e.target.value; s.page = 1; draw(); };
-    if (!vide) draw();
+    if (vide) return;
+
+    const draw = dansUnLot((sortKey) => {
+      if (!$('#list-wrap')) return;
+      if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
+      const tout = lfoLignes();
+      const l = tout.filter(r => lfoPasse(r, s.f) && lfoTrouve(r, s.q));
+      const focus = document.activeElement && document.activeElement.id === 'q' ? $('#q').selectionStart : null;
+      $('#lc-puces').innerHTML = puces(tout);
+      $('#lf-barre').innerHTML = filtres(l, tout);
+      $('#list-wrap').innerHTML = tableau(l, tout);
+      if (focus !== null) { const q = $('#q'); q.focus(); q.setSelectionRange(focus, focus); }
+      brancher(l);
+    });
+    function brancher(l) {
+      const w = $('#list-wrap');
+      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; s.cur = -1; draw(); };
+      $$('#lf-barre [data-f]').forEach(b => b.onclick = () => { s.f = b.dataset.f; s.page = 1; s.cur = -1; draw(); });
+      $$('#lc-puces [data-f]').forEach(b => b.onclick = () => { s.f = s.f === b.dataset.f ? '' : b.dataset.f; s.page = 1; s.cur = -1; draw(); });
+      $$('#lf-barre [data-ote]').forEach(b => b.onclick = () => { s[b.dataset.ote] = ''; s.page = 1; draw(); });
+      const toutRevoir = () => { Object.assign(s, { q: '', f: '', page: 1, cur: -1 }); draw(); };
+      if ($('#reset-f')) $('#reset-f').onclick = toutRevoir;
+      if ($('#lf-tout-revoir')) $('#lf-tout-revoir').onclick = toutRevoir;
+      if ($('#lfo-creer')) $('#lfo-creer').onclick = () => supplierForm(null, () => render(true), { name: s.q.replace(/^./, x => x.toUpperCase()) });
+      $$('tr.clickable[data-sid]', w).forEach(tr => tr.onclick = e => { if (e.target.closest('button, input, a, label')) return; navigate('#/fournisseur/' + tr.dataset.sid); });
+      $$('.lc-carte', w).forEach(b => b.onclick = () => navigate('#/fournisseur/' + b.dataset.sid));
+      $$('[data-regler]', w).forEach(b => b.onclick = () => { const r = l.find(x => x.f.id === b.dataset.regler); if (r) lfoRegler(r, () => render(true)); });
+      bindRowMenus(w, id => actionsFournisseur(l.find(x => x.f.id === id), () => draw()), id => { const f = supplierById(id); return f ? f.name : ''; });
+      bindSort(w, draw);
+      bindPager(w, s, () => draw(), '#list-wrap');
+    }
+    draw();
   };
+
+  // Le menu ⋯ d'un fournisseur de la liste, rangé comme la maquette : ouvrir, lui acheter, son compte, sa fiche.
+  function actionsFournisseur(r, refaire) {
+    if (!r) return [];
+    const f = r.f, id = f.id;
+    const ecrit = !aboBloque(true) && !enLecture('suppliers'), achete = !aboBloque(true) && !enLecture('purchases');
+    const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);
+    return [
+      { icon: 'fournisseur', label: 'Ouvrir la fiche', hint: 'Ses achats, ses règlements, ce que tu lui dois', run: () => navigate('#/fournisseur/' + id) },
+      ...groupe('Lui acheter', achete ? [{ icon: 'panier', label: 'Enregistrer un achat', hint: `Chez ${f.name}`, run: () => navigate('#/achat/new/' + id) },
+        { icon: 'nouveau', label: 'Nouvelle commande', hint: 'Un bon de commande, à lui envoyer', run: () => navigate('#/commandef/new/' + id) }] : []),
+      ...groupe('Son compte', r.ret.length && achete && navigator.onLine !== false ? [{ icon: 'argent', label: r.ret.length > 1 ? `Régler ses ${r.ret.length} pièces en retard` : `Régler ${r.ret[0].number || 'sa pièce en retard'}`, hint: `${C.money(r.sum.late, company().currency)} · ${pl(r.jours, 'jour')} de retard`, run: () => lfoRegler(r, () => render(true)) }] : []),
+      ...groupe('Sa fiche', ecrit ? [{ icon: 'modifier', label: 'Modifier le fournisseur', hint: 'Coordonnées, délai, retenue, RIB', run: () => supplierForm(f, refaire) }] : [])
+    ];
+  }
+
+  // Le clavier de la liste des fournisseurs, comme celle des clients.
+  document.addEventListener('keydown', e => {
+    if (!$('#lfo') || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t && t.closest && t.closest('input, select, textarea, [contenteditable], .modal, .row-menu')) { if (e.key === 'Escape' && t.id === 'q') t.blur(); return; }
+    if (document.querySelector('#modal-root .modal')) return;
+    const s = supplierState;
+    const lignes = $$('#list-wrap tr.clickable[data-sid]');
+    if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!lignes.length) return;
+      e.preventDefault();
+      const i = Math.max(0, Math.min(lignes.length - 1, (s.cur < 0 ? (e.key === 'ArrowDown' ? -1 : lignes.length) : s.cur) + (e.key === 'ArrowDown' ? 1 : -1)));
+      lignes.forEach(x => x.classList.remove('kb')); s.cur = i; lignes[i].classList.add('kb'); lignes[i].scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/fournisseur/' + lignes[s.cur].dataset.sid); }
+  });
 
   routes.fournisseur = (parts) => {
     const s = supplierById(parts[0]);

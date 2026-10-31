@@ -237,6 +237,10 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 /* Au doigt, la bulle « i » des filtres se touche comme les autres (44 points, `tests/web/rendu.test.ts`) : la règle de 30 px
    ci-dessus, plus précise, passait devant celle du téléphone. */
 @media (max-width: 760px) { .lf #lf-filtres button.i.i-b { width: 44px; height: 44px; flex-basis: 44px; } }
+/* (1.204.0) Au téléphone, les sélecteurs qu'elle explique sont cachés (puces et feuille de filtres) : la bulle restait seule sur
+   sa ligne, sous la recherche (vu sur les achats, les clients et les fournisseurs, le 31/10/2026). La règle du téléphone qui la
+   cachait (`.lf .filtres .i`) perdait devant celle de 30 px, plus précise. */
+@media (max-width: 760px) { .lf #lf-filtres button.i.i-b { display: none; } }
 
 /* ---------- la liste des clients (maquette clients.html, 1.199.0) : les mêmes pièces que la liste des factures ---------- */
 .lc table.lc-table { table-layout: fixed; }
@@ -416,8 +420,6 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 @media (max-width: 760px) {
   /* « À payer » se résume en une carte : la somme, ce qui est en retard ; les pièces elles-mêmes sont les cartes dessous. */
   .la .la-ap-l, .la .la-plus { display: none; }
-  /* Les sélecteurs sont des puces ici : la bulle qui les explique resterait seule sur sa ligne. */
-  .la #lf-filtres button.i.i-b { display: none; }
   .la .la-ap-t { padding: 12px 14px; }
   .la .la-j { margin-left: 0; flex-basis: 100%; min-height: 44px; }
   .la table.la-table { display: none; }
@@ -431,4 +433,20 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .la .la-c-b { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px solid var(--sb-trait); margin-top: 4px; }
   .la .la-c-b small:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .la .la-c-b b, .la .la-c-b small:last-child { color: var(--sb-encre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+}
+
+/* ---------- la liste des fournisseurs (maquette achats-fournisseurs.html, 1.204.0) : les pièces de la liste des clients ---------- */
+.lfo table.lfo-table td.lf-act { width: auto; }
+.lfo table.lfo-table td.lf-act .btn-sm { margin-right: 4px; vertical-align: middle; }
+.lfo table.lfo-table td.mf small.ok-text { color: var(--sb-sarcelle-texte); }
+/* À la tablette, le téléphone et l'e-mail, puis le dernier achat, cèdent leur place (comme la liste des clients) ; les gestes
+   restent (« Régler »). */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .lc.lfo table.lfo-table thead th:nth-child(7) { display: table-cell; }
+  .lc.lfo table.lfo-table thead th:nth-child(6), .lc.lfo table.lfo-table td.der { display: none; }
+  .lc.lfo table.lfo-table thead th:nth-child(1) { width: 31% !important; }
+  .lc.lfo table.lfo-table thead th:nth-child(2) { width: 19% !important; }
+  .lc.lfo table.lfo-table thead th:nth-child(4) { width: 16% !important; }
+  .lc.lfo table.lfo-table thead th:nth-child(5) { width: 19% !important; }
+  .lc.lfo table.lfo-table thead th:nth-child(7) { width: 15% !important; }
 }

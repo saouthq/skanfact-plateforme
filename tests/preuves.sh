@@ -21704,3 +21704,25 @@ prouver 'achats 17 : Échap ne défait plus le choix' web/public/v10/app.js \
   "    if (e.key === 'Escape' && s.sel && s.sel.size && \$('#bc-rien')) { e.preventDefault(); \$('#bc-rien').click(); }" "" "$LA1"
 prouver 'achats 18 : la pastille du nombre étire les boutons de la barre' web/public/plateforme/liste.css \
   ".lf .cpt { display: inline-block; grid-template-columns: none; gap: 0;" ".lf .cpt {" "$LA1"
+
+# (1.204.0) Les achats, lot 2 : la liste des fournisseurs telle que la maquette.
+LFO='les colonnes, les filtres et leurs nombres, la ville, le pied, « Régler », le menu, le clavier, le téléphone'
+prouver 'fournisseurs 1 : « En retard » compte ceux qui doivent' web/public/v10/app.js \
+  "f === 'retard' ? r.sum.late > 0.0005 :" "f === 'retard' ? r.sum.remaining > 0.0005 :" "$LFO"
+prouver 'fournisseurs 2 : un fournisseur sans RIB qu'"'"'on doit payer n'"'"'est plus à compléter' web/public/v10/app.js \
+  "manqueRib = !f.rib && sum.remaining > 0.0005;" "manqueRib = false;" "$LFO"
+prouver 'fournisseurs 3 : la ville ne se cherche plus' web/public/v10/app.js \
+  "String(r.f.phone || '').replace(/\s/g, ''), r.f.city].join(' ')" "String(r.f.phone || '').replace(/\s/g, '')].join(' ')" "$LFO"
+prouver 'fournisseurs 4 : « Régler » règle une seule pièce sur deux en retard' web/public/v10/app.js \
+  "const lfoRegler = (r, done) => (r.ret.length > 1 &&" "const lfoRegler = (r, done) => (false &&" "$LFO"
+prouver 'fournisseurs 5 : le pied tait la retenue à garder' web/public/v10/app.js \
+  "\${rs > 0.0005 ? \` · tu garderas \${m(rs)}" "\${false ? \` · tu garderas \${m(rs)}" "$LFO"
+prouver 'fournisseurs 6 : « sous 7 jours » ne se dit plus' web/public/v10/app.js \
+  "else if (p.dueDate && p.dueDate >= auj && C.daysBetween(auj, p.dueDate) <= 7 &&" "else if (false &&" "$LFO"
+prouver 'fournisseurs 7 : Entrée n'"'"'ouvre plus la fiche' web/public/v10/app.js \
+  "if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/fournisseur/' + lignes[s.cur].dataset.sid); }" "" "$LFO"
+prouver 'fournisseurs 8 : à la tablette, « Régler » disparaît' web/public/plateforme/liste.css \
+  "  .lc.lfo table.lfo-table thead th:nth-child(7) { display: table-cell; }" "  .lc.lfo table.lfo-table thead th:nth-child(7) { display: table-cell; }
+  .lc.lfo table.lfo-table td.lf-act { display: none; }" "$LFO"
+prouver 'fournisseurs 9 : au téléphone, la bulle des filtres reste seule sur sa ligne' web/public/plateforme/liste.css \
+  "@media (max-width: 760px) { .lf #lf-filtres button.i.i-b { display: none; } }" "" "$LFO"

@@ -425,3 +425,34 @@ messagerie et étirait chaque bouton de 340 px, dans la liste des achats comme d
 **Écarts assumés** : l'ordre de virement en PDF (celui des salaires) depuis la fenêtre ; « Télécharger les justificatifs »
 des pièces choisies (un seul fichier pour toutes) ; le geste « Régler ses N pièces » de la fiche d'un fournisseur viendra
 avec la fiche (lot A3).
+
+## Lot Achats 2 : la liste des fournisseurs (1.204.0)
+
+La liste des fournisseurs de `achats-fournisseurs.html`, appliquée dans `routes.fournisseurs` (`lfoLignes`, `actionsFournisseur`,
+`web/public/v10/app.js`), sur les pièces de la liste des clients (`.lc`, plus le bloc `.lfo` de `liste.css`). Test :
+`tests/web/liste-fournisseurs.test.ts` (photos `liste-fournisseurs-1.png`, `-2-telephone.png`, `-3-tablette.png`) ;
+preuves « fournisseurs 1 » à « fournisseurs 9 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Accueil › Fournisseurs », « Chez qui tu achètes, ce que tu leur dois » ; « Importer… » et « Nouveau fournisseur » (le vert, sauf liste vide ou lecture seule de l'abonnement). Le rôle qui lit n'a aucun des deux, mais un bandeau qui le dit ; sans réseau, un bandeau gris |
+| La première fois | « Ceux chez qui tu achètes » : ajouter, importer d'un tableur, et les quatre étapes (nom et matricule, délai et retenue, RIB, son compte se tient seul) |
+| Les filtres | Tous, Tu leur dois, En retard, À compléter (sans matricule, sans e-mail, ou sans RIB alors qu'on lui doit de l'argent), Sans achat ; chacun avec son nombre, calculé par la même fonction que la liste. La recherche lit aussi le contact, le matricule, l'e-mail, le téléphone et la ville |
+| Une ligne | Le fournisseur (pastille, nom, contact · ville), son matricule et sa retenue (« RS 1 % », « sans retenue », « exonéré jusqu'au … », ou « à renseigner »), le téléphone et l'e-mail (« pas d'e-mail »), l'acheté HT et le nombre de pièces, « Tu lui dois » (dont en retard, ou « … sous 7 jours », ou « rien en retard » ; « en ta faveur » quand c'est lui qui doit), le dernier achat et son délai (« paie à 30 jours », « paie à réception », « délai non précisé »), « Régler » quand il a des pièces en retard (une pièce : sa fenêtre ; plusieurs : un seul virement, lot 1 b), le menu ⋯ (Ouvrir la fiche ; Lui acheter : un achat, une commande ; Son compte : régler ce qui est en retard ; Sa fiche : modifier) |
+| Le pied | « Total de la sélection » : nombre de fournisseurs, la retenue que les règlements garderont pour l'État, l'acheté HT, ce que tu leur dois, dont en retard |
+| Le clavier | `/` cherche, ↑ ↓ passe d'un fournisseur à l'autre, Entrée ouvre sa fiche |
+| À la tablette (761 à 1100 px) | Le téléphone et l'e-mail, puis le dernier achat, cèdent leur place ; « Régler » reste ; aucun nom coupé |
+| Au téléphone | Une carte par fournisseur (pastille, nom, contact · ville ; en retard depuis N jours, à jour ou aucun achat, « à compléter » ; ce que tu lui dois) et trois puces : Tu leur dois, En retard, À compléter. « Nouveau fournisseur » reste dans l'en-tête |
+| La fenêtre d'un fournisseur | Le champ « Ville » s'ajoute (il sert à la recherche et à la ligne) |
+
+Au passage : au téléphone, la bulle « ? » des filtres restait seule sur sa ligne sous la recherche, dans toutes les listes (achats,
+clients, fournisseurs) ; la règle qui la cachait perdait devant une règle plus précise. Elle est cachée au téléphone, où les
+sélecteurs qu'elle explique sont des puces.
+
+**Revue après écriture** : la page vide, pendant l'abonnement en lecture seule, disait les quatre étapes sans dire pourquoi la
+création attend : elle reprend la phrase de l'abonnement et « Voir l'abonnement » en seul vert (`tests/web/abonnement.test.ts`) ;
+la phrase de l'import retrouve sa fin (« tous tes fournisseurs entrent d'un coup ») ; le menu ⋯ gagne « Nouvelle commande ».
+
+**Écarts assumés** : « N attestations de retenue à remettre » dans le menu (elles viendront avec l'onglet Retenues de la fiche,
+lot A3) ; le numéro de fiche d'un fournisseur (la maquette en cherche un) n'existe pas encore ; une colonne en devise
+(un fournisseur payé en euros) n'a pas encore son test ; la fiche du fournisseur vient au lot A3.
