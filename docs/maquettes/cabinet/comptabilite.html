@@ -103,6 +103,7 @@ table.rdp td:first-child { font-weight: 600; }
       <li><b>Les mois de l'année en tête, à la place de « Période ».</b> Douze cases : déposé (et ce qui a été payé), en retard, à déposer aujourd'hui, au brouillard, à venir. Un clic ouvre le mois ; « Toute l'année » revient à l'exercice. On sait où on en est avant d'ouvrir un écran.</li>
       <li><b>Le dossier dans la barre de gauche, avec les pages qui existent</b> (Skander, 31/10 : « plus de choix pertinents », puis « regarde ce qu'il existe ») : seulement ce que le Cabinet sait déjà ouvrir pour un dossier. <b>Fiche du dossier</b> (#/dossier/…), <b>Le classeur</b> (#/dossier/…/classeur, aujourd'hui caché dans « Tout le dossier »), <b>Pièces du dossier</b> (6 à classer, comme aujourd'hui), <b>Messages</b> (la conversation du dossier, #/messages/…, pour un dossier relié), puis <b>Comptabilité</b> et <b>Tout le dossier</b>. Retirés parce qu'ils n'existent pas : des « Échéances du dossier » (la page Échéances n'a pas de vue par dossier) et une page « Salariés » (les salariés vivent dans l'écran Paie de la comptabilité).</li>
       <li><b>Revue critique du 31/10</b> : la barre de la comptabilité est <b>toujours ouverte</b> par défaut (une barre qui s'efface et revient fait bouger ce qui est dessous ; « dynamique » et « repliée » restent au choix, et le choix est gardé) ; ses trois boutons passent à 26 × 24 pixels ; les flèches ← → du clavier montrent le groupe voisin, Entrée l'ouvre ; la souris ne « tire » plus la liste (le doigt et le pavé tactile, si). Un clic sur Saisir, Consulter ou Déclarer fait la même chose à gauche et en haut : il ouvre le dernier écran du groupe.</li>
+      <li><b>Revue Saisie et Banque du 31/10</b> (comparée à la plateforme, `revue-saisie-banque.md`) : une remise de 3 chèques qui se ventile sur trois factures et les lettre (état « Banque : une remise de 3 chèques ») ; les frais de tenue avec leur TVA (À VÉRIFIER) ; le chèque émis pas encore payé dans l'écart ; plusieurs comptes en banque ; l'état de rapprochement en PDF ; les guides d'écritures. Ce que la plateforme fait déjà et qui reste (touches, refus avant le geste, mois déclaré, saisie sans réseau, validation par lot, contre-passer, extourner, défaire un rapprochement…) est listé dans la revue.</li>
       <li><b>La navigation de la comptabilité, à deux endroits mais jamais deux fois à l'écran</b> (Skander, 31/10). <b>En haut de la page</b>, sous « Guide-moi » et « + Une écriture » : le bouton à trois positions, Saisir · Consulter · Déclarer, avec ce qui attend (13, 6), et à côté les onglets du groupe (Saisie 6, Banque 7, Paie…). <b>Dans la barre de gauche</b>, le même bouton à l'horizontale et la liste des écrans. Les deux ne se montrent jamais ensemble : tant que la barre d'onglets du haut est à l'écran, celle de gauche s'efface en glissant, et il reste seulement « Comptabilité · Saisie ↑ » ; dès que la page descend (le brouillard, une longue liste) et que la barre du haut sort de l'écran, celle de gauche revient, pour changer d'écran sans remonter. Et comme chacun a ses habitudes, <b>trois façons, au choix, à droite du titre « Comptabilité »</b> (trois petites icônes) : <b>toujours ouverte</b> (elle ne s'efface jamais) ; <b>dynamique</b> (le choix de départ : elle s'efface tant que la barre du haut est à l'écran et revient quand la page descend) ; <b>repliée</b> (le titre seul). Le choix est gardé d'une visite à l'autre, pour chaque personne. Dans les modes dynamique et repliée, un clic sur « Comptabilité · Saisie » l'ouvre quand même, le temps qu'il faut : jusqu'au prochain écran ouvert ou un second clic. Les deux sont liées : glisser l'une fait glisser l'autre. Un clic sur un groupe ouvre son dernier écran (Consulter → la Balance d'hier) ; glisser la barre (souris, doigt, trackpad) montre les autres groupes sans quitter l'écran. Au clavier : <kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> ; la page glisse dans le sens où l'on va, en 0,2 seconde. Pour le voir : « La page descend », « Mode toujours ouverte » et « Mode repliée » en haut de cette maquette, ou fais défiler l'écran et essaie les trois icônes toi-même.</li>
       <li><b>Les trois groupes restent</b> (Saisir · Consulter · Déclarer et clôturer), avec <b>ce qui attend sur chaque écran</b> : 6 pièces dans Saisie, 7 lignes dans Banque, 2 mois dans Déclaration, 4 points dans Révision.</li>
       <li><b>Deux façons de saisir, au choix, en haut de la Saisie.</b> <b>Face à la pièce</b> : la pièce en grand à gauche, comme dans un lecteur de documents (zoom, tourner, en grand), ce que SkanFact y a lu surligné ; à droite, une fiche courte (fournisseur, date, total, TVA, compte) où chaque champ dit d'où il vient : « lu sur la pièce », « comme ses 4 tickets », « numéro suivant ». On vérifie, Entrée, la pièce suivante s'ouvre. <b>Au kilomètre</b> : le journal du mois, une pièce à la suite de l'autre au clavier ; le compte du fournisseur et le TTC suffisent, la charge et la TVA se proposent en gris, la pièce se solde seule, et la pièce de la ligne s'affiche à côté.</li>
@@ -565,13 +566,17 @@ table.rdp td:first-child { font-weight: 600; }
     ['14/09', 'VIR RECU STE LES OLIVIERS', 0, 1250000, ['ambre', 'compte d\'attente'], 'BQ-0914-03 au 471 · la question attend Sarra depuis le 22/10', 'Relancer Sarra'],
     ['15/09', 'VIR RECU HOTEL DAR JERBA', 0, 2380400, ['bleu', 'proposé'], 'Le règlement de FV-2026-0388 (août), net de sa retenue à la source : son certificat manque', 'Confirmer'],
     ['20/09', 'PRLV STEG 0298 4471', 186420, 0, ['rouge', 'sans écriture'], 'FA-0919 n\'est pas réglée : son règlement s\'écrit d\'ici', 'Écrire le règlement'],
+    ['22/09', 'REMISE CHQ N 0118 · 3 CHQ', 0, 1342500, ['bleu', 'proposé'], 'Trois chèques de clients : trois factures ouvertes font la somme au millime', 'Voir les 3'],
     ['24/09', 'CARTE TOTAL ENNASR', 85000, 0, ['rouge', 'sans écriture'], 'Le ticket de carburant est arrivé : il se saisit et se rapproche d\'un geste', 'Saisir le ticket'],
-    ['30/09', 'FRAIS TENUE DE COMPTE', 18500, 0, ['rouge', 'sans écriture'], 'Retenu sur les relevés d\'avant : 6278 Frais bancaires', 'Écrire'],
+    ['30/09', 'FRAIS TENUE DE COMPTE', 18500, 0, ['rouge', 'sans écriture'], 'Sa règle : 6278 Frais bancaires 15,546 + 4366 TVA 19 % 2,954 (À VÉRIFIER : la TVA des commissions)', 'Écrire'],
     ['30/09', 'AGIOS 3E TRIMESTRE', 12650, 0, ['rouge', 'sans écriture'], 'Retenu sur les relevés d\'avant : 6511 Intérêts bancaires', 'Écrire'],
   ];
   const SOLDE_RELEVE = 16912480;
   const SANS_ECR = RELEVE.filter((r) => r[4][1] === 'sans écriture').reduce((t, r) => t + r[2] - r[3], 0);
-  const SOLDE_LIVRE = SOLDE_RELEVE + SANS_ECR;
+  // Un chèque émis le 28/09 (Hygiène Plus, CHQ 0041207) : au livre, pas encore payé par la banque. Ce n'est pas une
+  // erreur, c'est ce qui explique une part de l'écart (la plateforme le montre dans « Les suspens »).
+  const CHQ_EMIS = 245000;
+  const SOLDE_LIVRE = SOLDE_RELEVE + SANS_ECR - CHQ_EMIS;
   // La déclaration d'août : les cases d'après ses livres (une fois Hygiène Plus sortie d'août).
   const HYG_TVA = 34200;
   const AOUT = { tvaC: 2288140, tvaD: 1144310 - HYG_TVA, rs: 41120, tfp: 102400, foprolos: 51200, tcl: 96580, timbre: 29000 };
@@ -590,11 +595,11 @@ table.rdp td:first-child { font-weight: 600; }
   const ECRANS = { saisie: 'Saisie', banque: 'Banque', paie: 'Paie', immos: 'Immobilisations', inventaire: 'Inventaire', journal: 'Livre-journal', grandlivre: 'Grand livre', balance: 'Balance', lettrage: 'Lettrage', recherche: 'Recherche', declaration: 'Déclaration', revision: 'Révision', exercice: 'Exercice', liasse: 'Liasse' };
   const GROUPES = [['saisir', 'Saisir', ['saisie', 'banque', 'paie', 'immos', 'inventaire']], ['consulter', 'Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['cloturer', 'Déclarer et clôturer', ['declaration', 'revision', 'exercice', 'liasse']]];
   // L'état choisi en haut → l'écran qu'il montre. Les fenêtres et les états gardent l'écran de la saisie.
-  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', 'barre-ouverte': 'saisie', 'barre-repliee': 'saisie', ecrire: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
+  const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', 'barre-ouverte': 'saisie', 'barre-repliee': 'saisie', ecrire: 'banque', ventiler: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie' };
   const ecran = () => ECRAN_DE[s.etat] || (ECRANS[s.etat] ? s.etat : 'saisie');
   const groupe = () => GROUPES.find((g) => g[2].includes(ecran()));
   // Ce que chaque onglet compte : ce qui attend sur cet écran.
-  const COMPTE = { saisie: 6, banque: 7, declaration: 2, revision: 4 };
+  const COMPTE = { saisie: 6, banque: 8, declaration: 2, revision: 4 };
 
   // ---------- les morceaux ----------
   function annee() {
@@ -704,7 +709,7 @@ table.rdp td:first-child { font-weight: 600; }
     const tot = (l) => l.reduce((t, x) => t + x[2], 0);
     const peut = !rim() && !hors() && !lect();
     return `<div class="cp-bl"><div class="cp-bl-t"><b>Le brouillard de septembre</b><span class="mu">3 écritures · elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées ${info('cp.brouillard', 'Le brouillard')}</span>
-        <button type="button" class="btn btn-sm cp-bl-v" title="Le loyer du fournil le 1er, l'abonnement téléphone le 5">Écritures qui reviennent <small class="cp-nb">2</small></button>${peut ? '<button type="button" class="btn btn-sm">Valider les 3 de septembre</button>' : rim() ? `<span class="mu">${pers('Anis', 18)} Anis les valide</span>` : ''}</div>
+        <button type="button" class="btn btn-sm cp-bl-v" title="Le loyer du fournil le 1er, l'abonnement téléphone le 5">Écritures qui reviennent <small class="cp-nb">2</small></button><button type="button" class="btn btn-sm cp-bl-v" title="Une écriture prête (Z de caisse, loyer, emprunt, paie) : le montant suffit">Guides <small class="cp-nb">4</small></button>${peut ? '<button type="button" class="btn btn-sm">Valider les 3 de septembre</button>' : rim() ? `<span class="mu">${pers('Anis', 18)} Anis les valide</span>` : ''}</div>
       <table class="cp-t"><thead><tr><th>Date</th><th>Journal</th><th>Pièce</th><th>Libellé</th><th>Par</th><th class="r">Montant</th><th></th></tr></thead><tbody>
       ${BROUILLARD.map(([d, j, p, lib, qui, l]) => `<tr><td>${d}</td><td>${j}</td><td class="mono">${p}</td><td>${esc(lib)}${p === 'BQ-0914-03' ? '<small class="ambre">au compte d\'attente : Sarra n\'a pas encore dit ce que c\'est</small>' : ''}</td><td>${pers(qui, 20)}</td><td class="r">${m(tot(l))}</td><td class="r"><button type="button" class="btn ico btn-sm" aria-label="Actions">${IC.trois}</button></td></tr>`).join('')}</tbody></table></div>`;
   }
@@ -793,10 +798,19 @@ table.rdp td:first-child { font-weight: 600; }
   // Une écriture à la main, hors pièce : la grille vide reste dans « + Une écriture » (OD, à-nouveaux, régularisations).
 
   // Saisir › Banque : le relevé à gauche, la ligne choisie à droite, le rapprochement en pied.
+  // Une ligne de la banque, plusieurs pièces : la remise de chèques se ventile et chaque chèque lettre sa facture.
+  function ventiler() {
+    const F = [['Café Jasmin', 'FV-2026-0402', '02/09', 512000], ['Hôtel Dar Jerba', 'FV-2026-0391', '28/08', 610500], ['Épicerie Ennour', 'FV-2026-0398', '01/09', 220000]];
+    return `<div class="cp-bq-d"><b>REMISE CHQ N 0118 · 1 342,500 DT le 22/09</b><p class="mu">Une ligne de la banque, trois chèques. Trois factures ouvertes font la somme au millime : chacune se lettre avec son chèque.</p>
+      <table class="cp-t"><thead><tr><th>Client</th><th>Facture</th><th class="r">Chèque</th></tr></thead><tbody>${F.map(([c, f, d, mt]) => `<tr><td><label class="cp-coche"><input type="checkbox" checked> ${c}</label></td><td class="mono">${f} <small>du ${d}</small></td><td class="r">${m(mt)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="2">532 BIAT au débit ; le 411 de chaque client au crédit</td><td class="r">${m(1342500)}</td></tr></tfoot></table>
+      <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque()}>${rim() ? 'Écrire au brouillard et lettrer' : 'Écrire, lettrer les 3 et rapprocher'}</button><button type="button" class="btn">Changer une facture</button></div>
+      <p class="cp-aide">Un chèque sans facture en face (un acompte, un client inconnu) se met de côté : il part au 471 et la question va au client, dans votre conversation.</p></div>`;
+  }
   function banque() {
-    const sel = s.etat === 'ecrire' ? 3 : 1;
+    const sel = RELEVE.findIndex((x) => x[1] === (s.etat === 'ecrire' ? 'PRLV STEG 0298 4471' : s.etat === 'ventiler' ? 'REMISE CHQ N 0118 · 3 CHQ' : 'VIR RECU STE LES OLIVIERS'));
     const r = RELEVE[sel];
-    const droite = sel === 3
+    const droite = s.etat === 'ventiler' ? ventiler() : s.etat === 'ecrire'
       ? `<div class="cp-bq-d"><b>PRLV STEG · 186,420 DT le 20/09</b><p class="mu">Aucune écriture en face : FA-0919 (STEG, 186,420) attend son règlement.</p>
           <table class="cp-t"><thead><tr><th>Compte</th><th>Intitulé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>
           <tr><td class="mono">401ST</td><td>STEG · lettre FA-0919</td><td class="r">186,420</td><td></td></tr><tr><td class="mono">532</td><td>BIAT</td><td></td><td class="r">186,420</td></tr></tbody></table>
@@ -807,14 +821,14 @@ table.rdp td:first-child { font-weight: 600; }
           <div class="cp-q"><span class="cp-q-ic">${IC.msg}</span><div><b>La question attend Sarra depuis le 22/10</b><small>« Un virement de 1 250,000 DT de la Sté Les Oliviers le 14/09 : c'est un client, un prêt, autre chose ? » · lue le 22/10, sans réponse</small></div></div>
           <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque('relancer')}>Relancer Sarra</button><button type="button" class="btn">Choisir l'écriture en face</button></div>
           <p class="cp-aide">Le jour où Sarra répond, « Imputer » remplace le 471 par le bon compte, d'un geste, depuis sa réponse.</p></div>`;
-    return `<div class="cp-bq-h"><div><b>Relevé BIAT · septembre 2026</b><span class="mu">importé ce matin à 8 h 05 · 42 mouvements · solde au 30/09 : ${md(SOLDE_RELEVE)}</span></div>
-        <div class="cp-bq-c"><span>${st('ok', '35 rapprochés à l\'import')}</span><span>${st('bleu', '2 à confirmer')}</span><span>${st('ambre', '1 au compte d\'attente')}</span><span>${st('rouge', '4 sans écriture')}</span></div>
-        <span class="cp-bq-g"><button type="button" class="btn btn-sm"${bloque()}>${IC.ok} Confirmer les 2 proposées</button><button type="button" class="btn btn-sm"${bloque()}>Écrire les 2 frais d'après leurs règles</button><button type="button" class="btn btn-sm"${bloque()}>Importer un relevé…</button></span></div>
+    return `<div class="cp-bq-h"><div><b>Relevé BIAT · septembre 2026 <span class="cp-per" title="2 comptes : 532 BIAT, 531 La Poste">532 BIAT ${IC.chev}</span></b><span class="mu">importé ce matin à 8 h 05 (Excel de la BIAT) · 43 mouvements · solde au 30/09 : ${md(SOLDE_RELEVE)}</span></div>
+        <div class="cp-bq-c"><span>${st('ok', '35 rapprochés à l\'import')}</span><span>${st('bleu', '3 à confirmer')}</span><span>${st('ambre', '1 au compte d\'attente')}</span><span>${st('rouge', '4 sans écriture')}</span></div>
+        <span class="cp-bq-g"><button type="button" class="btn btn-sm"${bloque()}>${IC.ok} Confirmer les 3 proposées</button><button type="button" class="btn btn-sm"${bloque()}>Écrire les 2 frais d'après leurs règles</button><button type="button" class="btn btn-sm"${bloque()}>Importer un relevé…</button></span></div>
       <div class="cp-bq"><div class="cp-bq-l"><table class="cp-t"><thead><tr><th>Date</th><th>Libellé de la banque</th><th class="r">Débit</th><th class="r">Crédit</th><th>En face</th><th></th></tr></thead><tbody>
         ${RELEVE.map(([d, lib, de, cr, [ton, mot], face, g], i) => `<tr class="${i === sel ? 'on' : ''}"><td>${d}</td><td class="mono">${lib}<small>${esc(face)}</small></td><td class="r">${de ? m(de) : ''}</td><td class="r">${cr ? m(cr) : ''}</td><td>${st(ton, mot)}</td><td class="r"><button type="button" class="btn btn-sm${i === sel ? '' : ' cp-disc'}">${g}</button></td></tr>`).join('')}</tbody></table>
         <div class="cp-bq-r"><button type="button" class="cp-plus">Voir les 35 mouvements rapprochés</button><span class="mu">6 règles retenues : « FRAIS TENUE » → 6278, « AGIOS » → 6511, « PRLV STEG » → 401ST…</span><button type="button" class="cp-plus">Gérer les règles</button></div></div>${droite}</div>
-      <div class="cp-rap"><span><small>Solde du relevé au 30/09</small><b>${md(SOLDE_RELEVE)}</b></span><span class="op">+</span><span><small>4 mouvements sans écriture</small><b>${md(SANS_ECR)}</b></span><span class="op">=</span><span><small>Solde du livre (532 BIAT)</small><b>${md(SOLDE_LIVRE)}</b></span>
-        <span class="cp-rap-ok">${IC.ok} L'écart est expliqué au millime : août est rapproché, septembre le sera quand ces 4 lignes auront leur écriture.</span></div>`;
+      <div class="cp-rap"><span><small>Solde du relevé au 30/09</small><b>${md(SOLDE_RELEVE)}</b></span><span class="op">+</span><span><small>4 mouvements sans écriture</small><b>${md(SANS_ECR)}</b></span><span class="op">−</span><span><small>1 chèque émis pas encore payé</small><b>${md(CHQ_EMIS)}</b></span><span class="op">=</span><span><small>Solde du livre (532 BIAT)</small><b>${md(SOLDE_LIVRE)}</b></span>
+        <span class="cp-rap-ok">${IC.ok} L'écart est expliqué au millime : 4 lignes de la banque à écrire, et le chèque du 28/09 à Hygiène Plus (CHQ 0041207) que la banque n'a pas encore payé, ce qui est normal. <button type="button" class="cp-plus">L'état de rapprochement (PDF)</button></span></div>`;
   }
   function paie() {
     return `<div class="cp-cartes"><div class="cp-carte"><span class="cp-c-ic">${IC.paie}</span><div><b>Septembre · 4 bulletins faits par Anis</b><small>brut 5 120,000 DT · net à payer 4 286,300 DT · payé le 30/09 (ordre de virement BIAT)</small></div>${st('ambre', 'écriture au brouillard')}</div>
@@ -908,7 +922,7 @@ table.rdp td:first-child { font-weight: 600; }
   }
   // Révision : le mois passé, point par point ; chaque point lu des livres, pas coché à la main.
   function revision() {
-    const P = [['Banque', '42 mouvements, 35 rapprochés : 7 restent (2 à confirmer, 4 sans écriture, 1 au compte d\'attente)', 'ambre', 'Ouvrir la banque'],
+    const P = [['Banque', '43 mouvements, 35 rapprochés : 8 restent (3 à confirmer, 4 sans écriture, 1 au compte d\'attente)', 'ambre', 'Ouvrir la banque'],
       ['Compte d\'attente (471)', '1 250,000 DT depuis le 14/09 · la question attend Sarra depuis le 22/10', 'rouge', 'Relancer Sarra'],
       ['Justificatifs', 'FA-0919 (STEG, 186,420) sans justificatif : la photo est arrivée hier', 'ambre', 'Joindre'],
       ['Pièces reçues', '6 attendent : 2 à saisir, 1 à vérifier, 1 à reclasser, 1 redemandée, 1 en double', 'ambre', 'Les traiter'],
@@ -1002,11 +1016,11 @@ table.rdp td:first-child { font-weight: 600; }
     };
     return `<p class="cl-p">${C[s.etat] || C[ecran()] || 'Sarra ne voit pas les livres du cabinet : ni le brouillard, ni la révision, ni les feuilles maîtresses. Elle voit ses ventes, ses achats, ses relevés, et ce que le cabinet lui demande ou lui dépose.'}</p>`;
   }
-  const FAMILLES = [['Saisir', ['saisie', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'ecrire', 'paie', 'immos', 'inventaire']],
+  const FAMILLES = [['Saisir', ['saisie', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'ecrire', 'ventiler', 'paie', 'immos', 'inventaire']],
     ['Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['Déclarer et clôturer', ['declaration', 'deposer', 'revision', 'exercice', 'liasse']],
     ['Un autre dossier', ['nouveau']], ['La barre', ['defile', 'barre-ouverte', 'barre-repliee']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
   const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
-    ['banque', 'Banque : le relevé de septembre'], ['ecrire', 'Banque : écrire le prélèvement STEG'], ['paie', 'Paie'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
+    ['banque', 'Banque : le relevé de septembre'], ['ecrire', 'Banque : écrire le prélèvement STEG'], ['ventiler', 'Banque : une remise de 3 chèques'], ['paie', 'Paie'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
     ['journal', 'Livre-journal'], ['grandlivre', 'Grand livre : 532 BIAT'], ['balance', 'Balance'], ['lettrage', 'Lettrage : fournisseurs'], ['recherche', 'Recherche : « 1250 »'],
     ['declaration', 'Déclaration d\'août, en retard'], ['deposer', 'Marquer août déposée'], ['revision', 'Révision de septembre'], ['exercice', 'Exercice 2026'], ['liasse', 'Liasse 2025'],
     ['nouveau', 'Un livre qui n\'existe pas encore'], ['defile', 'La page descend : la barre d’onglets sort de l’écran'], ['barre-ouverte', 'Mode « toujours ouverte »'], ['barre-repliee', 'Mode « repliée »'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
@@ -1019,7 +1033,9 @@ table.rdp td:first-child { font-weight: 600; }
     ['La facture STEG : ses lignes = son hors taxes, + TVA = son net à payer', 118940 + 31215 + 6500 === 156655 && 156655 + 29765 === 186420],
     ['Le ticket de carburant = sa ligne du relevé BIAT', RELEVE.find((x) => x[1] === 'CARTE TOTAL ENNASR')[2] === KM.find((x) => x[1] === 'TK-0924')[4]],
     ['Le brouillard : chaque écriture équilibrée', BROUILLARD.every(([, , , , , l]) => l.reduce((t, x) => t + x[2] - x[3], 0) === 0)],
-    ['La banque : relevé + sans écriture = livre', SOLDE_RELEVE + SANS_ECR === SOLDE_LIVRE],
+    ['La banque : relevé + sans écriture − chèque pas encore payé = livre', SOLDE_RELEVE + SANS_ECR - CHQ_EMIS === SOLDE_LIVRE],
+    ['La remise de chèques = ses trois factures', 512000 + 610500 + 220000 === RELEVE.find((x) => x[1].startsWith('REMISE'))[3]],
+    ['Les frais de tenue = leur hors taxes + leur TVA', 15546 + 2954 === RELEVE.find((x) => x[1] === 'FRAIS TENUE DE COMPTE')[2]],
     ['La déclaration : la somme des cases = le total', AOUT.tva + AOUT.rs + AOUT.tfp + AOUT.foprolos + AOUT.tcl + AOUT.timbre === AOUT.total],
     ['La liasse 2025 : actif = passif', LIASSE_A.reduce((t, x) => t + x[2], 0) === LIASSE_P.reduce((t, x) => t + x[2], 0)],
     ['Les dotations de 2026 = la somme des biens', 5200000 + 1850000 + 2000000 + 8400000 === 17450000],
