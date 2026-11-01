@@ -1,0 +1,243 @@
+// La paie d'un dossier au Cabinet, telle que sa maquette et la revue (1.235.0 ; docs/revue-paie-cabinet.md, lots C1 à C3). Le
+// parcours, écran ET serveur, sur trois choix écrits par le client (« Qui fait ma paie ») :
+//   - « tenue » : l'en-tête le dit ; le seul bouton est l'étape suivante, « Envoyer à Sarra pour accord » (écrit `pourAccordLe`) ;
+//     on attend son accord (le bon à payer, écrit chez elle) ; « Valider les 5 bulletins » les fige (`valideLe`) : plus de
+//     « Modifier » ni de « Supprimer », et le pont refuse de les réécrire ;
+//   - « seule » : faite par Sarra, vérifiée au cabinet ; aucun « Modifier » (D3) ; le bulletin s'ouvre à droite (d'où vient chaque
+//     ligne, « Pourquoi cet IRPP ? ») ; « Proposer une correction… » écrit la proposition SUR le bulletin sans le changer (avant,
+//     après, le net qu'il aurait, les champs dans les termes de l'entreprise) ; « Retirer la proposition » l'efface ;
+//   - « sans » : le Cabinet la lit, aucun geste de paie ;
+//   - une demande de congé que Sarra n'a pas acceptée ne se dit pas « payée » (D1) ; plus de « Passer l'écriture de paie » (D2).
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { chromium, type Browser, type Page } from 'playwright-core';
+import { build } from 'vite';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { ecranDeLaPlateforme } from '../moteur/v10.ts';
+
+const RACINE = path.join(import.meta.dirname, '../..');
+const PHOTOS = path.join(RACINE, 'dist/photos');
+const compta = ecranDeLaPlateforme('compta.js') as { computePayslip: (e: unknown, i: unknown, s: unknown) => Record<string, number>; baremesPaie: (r: unknown) => unknown };
+const RIB = '08100123456789012359';
+
+describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérification, la correction proposée', () => {
+  let nav: Browser; let serveur: Awaited<ReturnType<typeof demarrer>>;
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-cab-paie-parcours-'));
+  beforeAll(async () => {
+    fs.mkdirSync(PHOTOS, { recursive: true });
+    await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
+    nav = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
+  }, 120_000);
+  afterAll(async () => { await nav?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
+  const api = async (m: string, c: string, j?: string, corps?: unknown) => {
+    const r = await fetch(`${serveur.adresse}/v1${c}`, { method: m, headers: { ...(j ? { authorization: `Bearer ${j}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) }, ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
+    const t = await r.text(); return { statut: r.status, corps: (t ? JSON.parse(t) : {}) as Record<string, unknown> };
+  };
+  const enc = (v: unknown): unknown => (typeof v === 'number' && !Number.isInteger(v) ? { '~n': String(v) } : Array.isArray(v) ? v.map(enc) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) : v);
+  const nombre = (v: unknown) => (v && typeof v === 'object' ? Number((v as Record<string, unknown>)['~n']) : Number(v));
+  const espace = (x: string) => x.replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // Une boulangerie (Sarra) et son cabinet (Anis), le mandat de paie accepté ; cinq salariés en poste, leurs bulletins du mois
+  // (et du mois d'avant), une demande de congé pas encore acceptée ; le choix écrit de Sarra : `mode`.
+  const monter = async (mode: 'tenue' | 'seule' | 'sans') => {
+    const email = `p-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Sarra', motDePasse: 'Un-bon-mot-de-passe' });
+    const j = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    await api('POST', '/moi/code', j, { methode: 'application' });
+    const ent = String((await api('POST', '/entreprises', j, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    const poser = async (collection: string, cle: string, contenu: unknown) => api('POST', `/entreprises/${ent}/dossier-v10`, j, { changements: [{ collection, cle, rang: null, revision: null, contenu: enc(contenu) }] });
+    const auj = new Date();
+    const an = auj.getUTCMonth() === 0 ? auj.getUTCFullYear() - 1 : auj.getUTCFullYear(), mo = auj.getUTCMonth() === 0 ? 12 : auj.getUTCMonth();
+    const anA = mo === 1 ? an - 1 : an, moA = mo === 1 ? 12 : mo - 1;
+    const mm = (m: number) => String(m).padStart(2, '0');
+    const sal = (id: string, name: string, grossSalary: number, x: Record<string, unknown> = {}) => ({ id, name, grossSalary, hireDate: '2023-03-10', contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'virement', iban: RIB, cnss: '12345678-12', position: 'Boulanger', ...x });
+    const S = [sal('mt', 'Mourad Trabelsi', 1450.25, { headOfFamily: true, children: 2 }), sal('hm', 'Hamza Mejri', 820.5), sal('nb', 'Nadia Ben Salah', 880.75), sal('kr', 'Karim Riahi', 1100.125), sal('ys', 'Yassine Sassi', 990.375)];
+    const bul = (e: (typeof S)[number], y: number, m: number, brut: number) => {
+      const saisie = { gross: brut, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
+      return { id: `p-${e.id}-${y}-${m}`, employeeId: e.id, year: y, month: m, ...saisie, computed: compta.computePayslip(e, saisie, compta.baremesPaie({})), paidDate: '', accountId: '', method: e.method, reference: '', issuedAt: `${y}-${mm(m)}-28` };
+    };
+    const ceMois = S.map((e) => bul(e, an, mo, e.grossSalary));
+    for (const e of S) await poser('employees', e.id, e);
+    for (const b of [...ceMois, ...S.map((e) => ({ ...bul(e, anA, moA, e.grossSalary), paidDate: `${anA}-${mm(moA)}-28` }))]) await poser('payslips', b.id, b);
+    await poser('leaves', 'l1', { id: 'l1', employeeId: 'kr', kind: 'conges', from: `${an}-${mm(mo)}-20`, to: `${an}-${mm(mo)}-22`, paid: null, note: '', statut: 'demande', demandeLe: `${an}-${mm(mo)}-10` });
+    const o = (await api('GET', `/entreprises/${ent}/dossier-v10`, j)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[];
+    const f = o.find((x) => x.collection === '_racine' && x.cle === 'company');
+    await api('POST', `/entreprises/${ent}/dossier-v10`, j, { changements: [{ collection: '_racine', cle: 'company', rang: null, revision: f ? f.revision : null,
+      contenu: { ...(f ? f.contenu : {}), setupDone: true, managerName: 'Sarra Ayed', paieMode: mode, paieModeDes: '2020-01' } }] });
+    const em2 = `anis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email: em2, nom: 'Anis', motDePasse: 'Un-bon-mot-de-passe' });
+    const ja = String((await api('POST', '/connexion', undefined, { email: em2, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    await api('POST', '/moi/code', ja, { methode: 'application' });
+    const cb = (await api('POST', '/cabinets', ja, { nom: 'Jlassi Conseil' })).corps;
+    const cab = String(cb.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, j, { codeCabinet: cb.code, perimetre: ['comptabilite', 'declarations', 'paie'] })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab}/mandats/${mandat}/accepter`, ja)).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/compta/exercices`, ja, { annee: an, ouverture: [] })).statut).toBe(201);
+    // La fiche du dossier au Cabinet : le prénom du contact (« Sarra ») est celui que les boutons nomment.
+    const lire = async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, j)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[]);
+    const bulletins = async () => (await lire()).filter((x) => x.collection === 'payslips' && Number(x.contenu.month) === mo && Number(x.contenu.year) === an);
+    return { j, ja, ent, cab, an, mo, ceMois, bulletins, poserPatron: poser, lire };
+  };
+  const ouvrir = async (A: { ja: string; ent: string; cab: string; an: number; mo: number }, largeur = 1440) => {
+    const p = await (await nav.newContext({ viewport: { width: largeur, height: largeur > 500 ? 900 : 844 }, locale: 'fr-FR' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((jj) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', jj); }, A.ja);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${A.cab}#/dossier/${A.ent}/comptabilite/paie/${A.an}`);
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+    await p.locator('#pa-mois').selectOption(String(A.mo));
+    await p.locator('#pa-frise').waitFor({ timeout: 15_000 });
+    return { p, erreurs };
+  };
+  const menuDe = async (p: Page, id: string) => {
+    await p.locator(`[data-rowmenu="PAIE:${id}"]`).first().click();
+    await p.getByRole('menuitem').first().waitFor({ timeout: 5_000 });
+    const items = await p.getByRole('menuitem').allInnerTexts();
+    await p.keyboard.press('Escape');
+    return items.map(espace);
+  };
+
+  it('tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)', async () => {
+    const A = await monter('tenue');
+    const { p, erreurs } = await ouvrir(A);
+    expect(espace(await p.locator('#pa-qui').innerText())).toBe('5 salariés · tenue au cabinet, avec l\'accord de Sarra');
+    expect(await p.locator('[data-pa-vue]').evaluateAll((els) => els.filter((e) => e.closest('.pa-so')).map((e) => e.textContent))).toEqual(['Le mois', 'Salariés', 'Congés et avances', 'CNSS du trimestre', 'L\'année']);
+    // Un seul bouton principal : l'étape suivante.
+    expect(await p.locator('#view .btn-primary').count()).toBe(1);
+    expect(espace(await p.locator('#pa-envoyer').innerText())).toBe('Envoyer à Sarra pour accord');
+    expect(await p.locator('#pa-ecrire').count()).toBe(0);
+    // Les bulletins rangés par ce qui change : ici, aucun écart sur le mois d'avant.
+    expect(espace(await p.locator('#pa-bulletins tr.cp-pa-groupe').first().innerText())).toMatch(/^Comme \S+ · 5$/);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-1-tenue.png') });
+
+    // ── Envoyer : `pourAccordLe` au serveur ; on attend Sarra ───────────────────────────────────────────
+    await p.locator('#pa-envoyer').click();
+    await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.pourAccordLe).length).toBe(5);
+    await expect.poll(() => p.locator('#pa-attente').count()).toBe(1);
+    expect(await p.locator('#pa-attente').isDisabled()).toBe(true);
+    expect(espace(await p.locator('#pa-attente').innerText())).toBe('En attente de l\'accord de Sarra');
+    expect(espace(await p.locator('#pa-attend-accord').innerText())).toContain('Les bulletins sont chez Sarra depuis le');
+
+    // ── Sarra approuve chez elle (son bon à payer) : le Cabinet le lit, puis valide ─────────────────────
+    const jour = new Date().toISOString().slice(0, 10);
+    const lus = await A.bulletins();
+    expect((await api('POST', `/entreprises/${A.ent}/dossier-v10`, A.j, { changements: lus.map((b) => ({ collection: 'payslips', cle: b.cle, rang: null, revision: b.revision, contenu: { ...b.contenu, bonAPayerLe: jour } })) })).statut).toBe(200);
+    await p.reload();
+    await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+    await p.locator('#pa-mois').selectOption(String(A.mo));
+    await expect.poll(() => p.locator('#pa-accord').count()).toBe(1);
+    expect(espace(await p.locator('#pa-accord').innerText())).toMatch(/^Sarra a approuvé les 5 bulletins le /);
+    expect(espace(await p.locator('#pa-valider-bul').innerText())).toBe('Valider les 5 bulletins');
+    await p.locator('#pa-valider-bul').click();
+    await p.getByRole('button', { name: 'Valider', exact: true }).last().click();
+    await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.valideLe === jour).length).toBe(5);
+    await expect.poll(() => p.locator('#pa-valides').count()).toBe(1);
+    expect(await p.locator('#view .btn-primary').count()).toBe(0);
+    // Figés : leur menu n'offre plus ni « Modifier » ni « Supprimer » ; le pont refuse de les réécrire.
+    const items = await menuDe(p, A.ceMois[0]?.id ?? '');
+    expect(items.some((t) => /Modifier|Supprimer/.test(t))).toBe(false);
+    const refus = await p.evaluate(async ([ent, an, id]) => {
+      const api = (window as unknown as { cabinet: { saveBulletin: (o: unknown) => Promise<unknown> } }).cabinet;
+      try { await api.saveBulletin({ dossierId: ent, annee: an, bulletin: { id, salarieId: 'mt', annee: an, mois: 1, brut: 1, joursTravailles: 26, joursAbsence: 0, primes: [], retenues: [] } }); return ''; } catch (e) { return (e as Error).message; }
+    }, [A.ent, A.an, A.ceMois[0]?.id ?? ''] as const);
+    expect(refus).toBe('Ce bulletin est validé : il ne change plus. Une correction passe par une régularisation sur un mois suivant.');
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-2-valides.png') });
+    expect(erreurs).toEqual([]);
+    await p.close();
+  }, 240_000);
+
+  it('faite par le client, vérifiée : pas de « Modifier », le bulletin à droite, une correction proposée puis retirée', async () => {
+    const A = await monter('seule');
+    const { p, erreurs } = await ouvrir(A);
+    expect(espace(await p.locator('#pa-qui').innerText())).toBe('5 salariés · faite par Sarra dans SkanFact · le cabinet la vérifie, et la corrige avec son accord');
+    expect(espace(await p.locator('#pa-seule').innerText())).toContain('Le cabinet ne change un bulletin fait par Sarra qu\'avec son accord');
+    expect(espace(await p.locator('#pa-verifier-tout').innerText())).toBe('Marquer les 5 bulletins vérifiés');
+    expect(await p.locator('#pa-bulletin').count()).toBe(0);
+    // D3 : le menu d'un bulletin du client ne le réécrit pas.
+    const hamza = A.ceMois.find((b) => b.employeeId === 'hm');
+    const items = await menuDe(p, hamza?.id ?? '');
+    expect(items.some((t) => /Modifier|Supprimer/.test(t))).toBe(false);
+    expect(items.some((t) => t.startsWith('Proposer une correction…'))).toBe(true);
+
+    // ── Le bulletin ouvert à droite, au clavier comme à la souris ──────────────────────────────────────
+    await p.locator(`#pa-bulletins tr[data-bul="${hamza?.id}"] td`).first().click();
+    await expect.poll(() => p.locator('#pa-volet').count()).toBe(1);
+    expect(espace(await p.locator('#pa-volet h4').first().textContent() ?? '')).toBe('Ce qu\'il gagne');
+    expect(espace(await p.locator('#pa-volet').innerText())).toContain('Salaire de base fiche');
+    expect(espace(await p.locator('#pa-irpp').innerText())).toMatch(/^(Pourquoi .+ d'IRPP \?|Pas d'IRPP ce mois)/);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-3-volet.png') });
+    await p.locator('#pa-volet-x').click();
+    await expect.poll(() => p.locator('#pa-volet').count()).toBe(0);
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.bul ?? '')).toBe(hamza?.id);
+    await p.keyboard.press('Enter');
+    await expect.poll(() => p.locator('#pa-volet').count()).toBe(1);
+
+    // ── Proposer une correction : la retenue d'avance oubliée ; rien ne change du bulletin ──────────────
+    await p.locator(`[data-pa-proposer="${hamza?.id}"]`).click();
+    const fen = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fen.locator('h2').innerText()).toBe('Proposer une correction à Sarra');
+    expect(await fen.locator('#pc-ok').isDisabled()).toBe(true);
+    expect(espace(await fen.locator('#pc-refus').innerText())).toBe('Écris le montant de ce qui manque.');
+    await fen.locator('[name=montant]').fill('100,250');
+    expect(espace(await fen.locator('#pc-refus').innerText())).toBe('Dis à Sarra pourquoi : c\'est ce qu\'il lit avant d\'accepter.');
+    await fen.locator('[name=motif]').fill('L\'échéance du mois de son avance n\'est pas retenue.');
+    const netAvant = Number(hamza?.computed.net);
+    await expect.poll(async () => espace(await fen.locator('#pc-apercu').innerText())).toContain('→');
+    await fen.locator('#pc-ok').click();
+    await expect.poll(async () => (await A.bulletins()).find((b) => b.cle === hamza?.id)?.contenu.correction != null).toBe(true);
+    const b = (await A.bulletins()).find((x) => x.cle === hamza?.id)?.contenu as unknown as { computed: { net: unknown }; deductions: unknown[]; correction: { par: string; motif: string; lignes: Record<string, unknown>[]; net: unknown; champs: { deductions: Record<string, unknown>[] } } };
+    // Le bulletin de Sarra n'a pas bougé : son net, ses retenues.
+    expect(nombre(b.computed.net)).toBeCloseTo(netAvant, 3);
+    expect(b.deductions).toEqual([]);
+    // La proposition : qui, pourquoi, avant/après, le net qu'il aurait (100,250 de moins), et les champs de l'entreprise.
+    expect(b.correction.par).toBe('Anis');
+    expect(b.correction.motif).toBe('L\'échéance du mois de son avance n\'est pas retenue.');
+    expect(b.correction.lignes.map((l: Record<string, unknown>) => [l.libelle, nombre(l.avant), nombre(l.apres)])).toEqual([['Remboursement d\'avance', 0, 100.25]]);
+    expect(nombre(b.correction.net)).toBeCloseTo(netAvant - 100.25, 3);
+    expect(b.correction.champs.deductions.map((d: Record<string, unknown>) => [d.label, nombre(d.amount)])).toEqual([['Remboursement d\'avance', 100.25]]);
+    // L'écran : la carte avant/après, et l'attente de Sarra.
+    await expect.poll(() => p.locator(`[data-pa-corr="${hamza?.id}"]`).count()).toBe(1);
+    expect(espace(await p.locator('#pa-attente').innerText())).toBe('En attente de Sarra');
+    expect(espace(await p.locator(`#pa-bulletins tr[data-bul="${hamza?.id}"]`).innerText())).toContain('correction proposée');
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-4-proposee.png') });
+
+    // ── La retirer : la proposition disparaît de sa paie ──────────────────────────────────────────────
+    await p.locator(`[data-pa-retirer="${hamza?.id}"]`).click();
+    await p.getByRole('button', { name: 'Retirer', exact: true }).last().click();
+    await expect.poll(async () => (await A.bulletins()).find((x) => x.cle === hamza?.id)?.contenu.correction ?? null).toBe(null);
+    await expect.poll(() => p.locator(`[data-pa-corr="${hamza?.id}"]`).count()).toBe(0);
+
+    // ── Marquer vérifiés : `verifieLe` sur les cinq ────────────────────────────────────────────────────
+    await p.locator('#pa-verifier-tout').click();
+    await expect.poll(async () => (await A.bulletins()).filter((x) => x.contenu.verifieLe).length).toBe(5);
+    await expect.poll(() => p.locator('#view .btn-primary').count()).toBe(0);
+
+    // ── D1 : la demande de congé de Karim, pas acceptée, ne se dit pas « payée » ─────────────────────────
+    await p.locator('.pa-so [data-pa-vue="conges"]').click();
+    await p.locator('#cg-liste').waitFor({ timeout: 10_000 });
+    expect(espace(await p.locator('#cg-liste tbody tr', { hasText: 'Karim' }).innerText())).toContain('demandée, pas encore acceptée');
+    expect(espace(await p.locator('#cg-liste tbody tr', { hasText: 'Karim' }).innerText())).not.toContain('payée');
+    expect(erreurs).toEqual([]);
+    await p.close();
+  }, 240_000);
+
+  it('faite par le client seul : le Cabinet la lit, sans geste de paie ; au téléphone, rien ne déborde', async () => {
+    const A = await monter('sans');
+    const { p, erreurs } = await ouvrir(A, 390);
+    expect(espace(await p.locator('#pa-sans').innerText())).toContain('Sarra fait sa paie seul dans SkanFact : le Cabinet la lit et la passe en comptabilité.');
+    expect(await p.locator('#view .btn-primary, #pa-attente, #pa-bulletin').count()).toBe(0);
+    const items = await menuDe(p, A.ceMois[0]?.id ?? '');
+    expect(items.some((t) => /Modifier|Supprimer|Proposer/.test(t))).toBe(false);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-5-sans-390.png'), fullPage: true });
+    expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    expect(erreurs).toEqual([]);
+    await p.close();
+  }, 180_000);
+});

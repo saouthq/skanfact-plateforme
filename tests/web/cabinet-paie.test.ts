@@ -111,7 +111,9 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     // ── L'écriture de paie du mois existe, sans qu'on la passe ──────────────────────────────────────
     const ecritures = (await api('GET', `/entreprises/${cafe}/compta/ecritures?limite=500`, associe)).corps.ecritures as { journal: string; date: string }[];
     expect(ecritures.filter((e) => e.journal === 'PAIE').map((e) => e.date)).toEqual(['2025-03-31']);
-    await expect.poll(() => p.locator('#pa-ecrire').isDisabled()).toBe(true);
+    // 1.235.0 (D2) — plus de « Passer l'écriture de paie » toujours éteint : le serveur l'écrit, la frise le dit.
+    expect(await p.locator('#pa-ecrire').count()).toBe(0);
+    await expect.poll(() => p.locator('#pa-frise').innerText()).toMatch(/Écriture de paie\s+(au brouillard|validée)/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-2-mois.png') });
     expect(erreurs).toEqual([]);
   }, 180_000);
@@ -249,12 +251,15 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     expect(journal.texte).toContain('septembre 2026');
     expect(journal.texte).toContain('Salarié Numéro Un');
     expect(journal.texte).toContain('Nombre de salariés : 1');
+    // 1.235.0 — l'état CNSS du trimestre vit dans sa vue (« CNSS du trimestre »).
+    await p.locator('[data-pa-vue="cnss"]').click();
     const etat = await pdfTelecharge(p, () => p.locator('#pa-etat').click());
     expect(etat.nom).toBe('Etat_recapitulatif_CNSS_2026-T3.pdf');
     expect(etat.texte).toContain('État récapitulatif des salaires déclarés');
     expect(etat.texte).toContain('d\'après les bulletins du 3e trimestre 2026');
     // Un serveur sans l'outil (Chromium absent) : la fenêtre d'impression du navigateur revient, comme avant.
     await p.route('**/v1/pdf', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ motif: 'Le PDF ne se fait pas sur ce serveur.', bouton: null, indisponible: true }) }));
+    await p.locator('[data-pa-vue="mois"]').click();
     const [fenetreImprimee] = await Promise.all([p.waitForEvent('popup'), p.locator('#pa-journal').click()]);
     await expect.poll(() => fenetreImprimee.content(), { timeout: 15_000 }).toContain('<h1>Journal de paie</h1>');
     await fenetreImprimee.close();

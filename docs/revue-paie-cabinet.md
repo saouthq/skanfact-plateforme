@@ -101,3 +101,13 @@ la facturation au bulletin (lettre de mission). Chacun s'écrit « À VÉRIFIER 
 
 Le rappel de salaire (`paierappel`) est une fonction nouvelle : il attend la décision de Skander (le construire maintenant, ou
 plus tard).
+
+## 7. Fait (01/11/2026)
+
+- **1.235.0** : C1 (les cinq vues, l'en-tête qui dit qui fait la paie, la frise, un seul bouton principal, les chiffres, les
+  bulletins rangés par ce qui change, le bulletin à droite), C2 (envoyer pour accord, l'entreprise n'approuve qu'après
+  l'envoi, l'accord lu au Cabinet, valider : figés, vérifié), C3 (plus de « Modifier », proposer la correction, en attente,
+  relancer, retirer, la réponse lue), D1, D2, D3. Détail : `docs/paie.md`.
+- **Reste** : C4, C5 (les vues Salariés, Congés, CNSS, L'année sont pour l'instant les panneaux d'avant rangés dans leur
+  vue), C6 ; le rappel de salaire attend la décision de Skander.
+

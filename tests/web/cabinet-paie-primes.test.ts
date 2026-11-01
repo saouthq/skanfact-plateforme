@@ -64,8 +64,14 @@ describe('les primes de chaque mois au Cabinet, à la souris', () => {
     }
     const toast = () => p.locator('#toast').innerText();
     const fenetre = p.locator('#modal-root .modal').last();
+    // 1.235.0 — la paie du Cabinet en cinq vues : un bouton absent de la vue ouverte se trouve dans la sienne.
+    const VUE_DU_BOUTON: Record<string, string> = { '#pa-salarie': 'salaries', '#pa-regimes': 'salaries', '#pa-fichier': 'cnss' };
+    const vue = (k: string) => p.locator(`.pa-so [data-pa-vue="${k}"]`).click();
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
-      if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      if (!await p.locator(dedans).count()) {
+        if (!await p.locator(bouton).count() && VUE_DU_BOUTON[bouton]) await vue(VUE_DU_BOUTON[bouton]).catch(() => {});
+        await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      }
       return p.locator(dedans).count();
     }, { timeout: 20_000 }).toBe(1);
     await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
@@ -107,6 +113,7 @@ describe('les primes de chaque mois au Cabinet, à la souris', () => {
       { label: 'Prime de panier', amount: 30, taxable: false, parJour: false },
     ]);
     // La liste des salariés le dit sous le brut, pour un mois entier.
+    await vue('salaries');
     await expect.poll(() => p.locator(`[data-sal="${String(deux?.id)}"]`).innerText()).toMatch(/\+ 82,000\sDT de primes/);
 
     // ── Un bulletin nouveau reprend d'office les primes du salarié proposé (le seul, ici) ──────────────────────

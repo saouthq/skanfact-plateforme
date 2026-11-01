@@ -17800,6 +17800,8 @@
   // un barème changé l'an prochain ne doit pas réécrire un bulletin déjà remis.
   function payslipForm(slip, employee, year, month, done) {
     if (!slip && licenceBlock('Établir un nouveau bulletin', 'paie')) return;
+    // (plateforme) 1.235.0 — un bulletin validé par le cabinet ne bouge plus : une correction passe par un mois suivant.
+    if (slip && slip.valideLe) { toast('Ce bulletin est validé par ton cabinet : il ne change plus. Une correction passe par une régularisation sur un mois suivant ; demande-la à ton comptable.', true); return; }
     const emp = employee || employeeById(slip.employeeId);
     const s = C.payrollSettings(data);
     const cur = company().currency;
@@ -18473,8 +18475,9 @@
       else if (s.tab === 'bulletins') {
         const miss = C.missingPayslips(data, y, m), mo = C.payslipsOf(data, y, m);
         const aPayer = mo.filter(x => !x.paidDate), aRemettre = mo.filter(x => x.paidDate && !x.remisLe);
-        const corr = mo.find(x => correctionEnAttente(x)), aApprouver = bapDuMois(y, m) ? mo.filter(x => !x.paidDate && !x.bonAPayerLe) : [];
+        const corr = mo.find(x => correctionEnAttente(x)), aApprouver = aApprouverDe(mo, y, m), enPrep = enPreparationDe(mo, y, m);
         prin = !miss.length && corr ? `<button class="btn btn-primary" id="p-corr-ok">${lfIc('coche', 15, 2.4)} Accepter la correction${corr.correction.par ? ` de ${h(corr.correction.par)}` : ''}</button>`
+          : !miss.length && enPrep.length && !aApprouver.length ? `<button class="btn btn-primary" id="p-prep" disabled title="Ton cabinet te les envoie quand ils sont prêts : tu les approuves alors">${lfIc('comptable', 15)} Ton cabinet prépare ${enPrep.length > 1 ? `les ${enPrep.length} bulletins` : 'le bulletin'}</button>`
           : !miss.length && aApprouver.length ? `<button class="btn btn-primary" id="p-bap">${lfIc('coche', 15, 2.4)} ${aApprouver.length > 1 ? `J'approuve les ${aApprouver.length} bulletins` : 'J\u2019approuve le bulletin'}</button>`
           : miss.length ? `<button class="btn btn-primary" id="p-gen">${lfIc('croix', 15, 2.4)} ${miss.length > 1 ? `Établir les ${miss.length} bulletins` : 'Établir le bulletin'}</button>`
           : aPayer.length ? `<button class="btn btn-primary" id="p-payer">${lfIc('carte', 15)} Payer les salaires · ${C.money(C.round3(aPayer.reduce((a, x) => a + x.c.net, 0)), cur)}</button>`
@@ -18504,6 +18507,10 @@
     // Le bon à payer n'existe que si l'entreprise a dit que son cabinet tient la paie (un choix écrit, jamais déduit).
     const modeDuMois = (y, m) => { const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || ''); };
     const bapDuMois = (y, m) => bapExige(y, m);
+    // (plateforme) 1.235.0 — le bon à payer attend l'envoi du cabinet (docs/revue-paie-cabinet.md, P1) : un bulletin qu'il
+    // prépare encore (sans `pourAccordLe`) ne s'approuve pas ; ceux qu'il a envoyés, oui. Un bulletin validé au cabinet est figé.
+    const aApprouverDe = (mo, y, m) => (bapDuMois(y, m) ? mo.filter(x => !x.paidDate && !x.bonAPayerLe && x.pourAccordLe) : []);
+    const enPreparationDe = (mo, y, m) => (bapDuMois(y, m) ? mo.filter(x => !x.paidDate && !x.bonAPayerLe && !x.pourAccordLe) : []);
     const paieMode = () => { const co = company(); return co.paieMode && PAIE_MODES.some(x => x[0] === co.paieMode) ? co.paieMode : (co.cabinet && co.cabinet.publicKey ? 'tenue' : 'sans'); };
     function quiFaitLaPaie() {
       const avant = paieMode();
@@ -18559,8 +18566,9 @@
           </tbody></table></div><p class="small muted">Acceptée, la correction garde la trace de qui l'a proposée et de qui l'a acceptée, sur le bulletin.</p></section>`;
       }
       const acc = month.filter(x => x.correction && x.correction.reponse === 'acceptee').sort((a, b) => String(b.correction.reponduLe || '').localeCompare(String(a.correction.reponduLe || '')))[0];
-      const aApprouver = bap ? month.filter(x => !x.paidDate && !x.bonAPayerLe) : [];
+      const aApprouver = aApprouverDe(month, y, m), enPrep = enPreparationDe(month, y, m);
       const demander = peutEcrireAuCabinet() ? '<button type="button" class="btn" id="p-dem-corr">Demander une correction…</button>' : '';
+      if (enPrep.length && !aApprouver.length && !C.missingPayslips(data, y, m).length) return `<div class="pa-bandeau" id="p-prep-b" role="status">${lfIc('comptable', 18)}<span><b>${enPrep.length > 1 ? `Ton cabinet prépare tes ${enPrep.length} bulletins de ${h(mo)}` : `Ton cabinet prépare le bulletin de ${h(enPrep[0].employeeName)}`}</b><span>Il te les envoie quand ils sont prêts : tu les approuves alors (ton « bon à payer »), puis tu paies. Rien à faire d'ici là.</span></span>${demander}</div>`;
       if (aApprouver.length && !C.missingPayslips(data, y, m).length) return `<div class="pa-bandeau" id="p-bap-b" role="status">${lfIc('comptable', 18)}<span><b>${aApprouver.length > 1 ? `Tes ${aApprouver.length} bulletins de ${h(mo)} sont prêts : approuve-les avant de payer` : `Le bulletin de ${h(aApprouver[0].employeeName)} est prêt : approuve-le avant de payer`}</b><span>C'est ton « bon à payer » : tu regardes ce que chacun touchera et ce que la paie te coûte. Un bulletin changé après ton accord se réapprouve.${demander ? ' Un doute : demande une correction à ton comptable, il te répond dans votre conversation.' : ''}</span></span>${demander}</div>`;
       if (acc) return `<div class="pa-bandeau" id="p-corr-acc" role="status">${lfIc('coche', 18)}<span><b>Correction acceptée : le bulletin de ${h(acc.employeeName)}</b><span>Proposée par ${h(acc.correction.par || 'ton comptable')}${acc.correction.le ? ` le ${h(C.fmtDate(String(acc.correction.le).slice(0, 10)))}` : ''}, acceptée par toi le ${h(C.fmtDate(String(acc.correction.reponduLe || C.today()).slice(0, 10)))} ; le bulletin le garde écrit.</span></span><button type="button" class="btn" id="p-corr-voir">Voir le bulletin</button></div>`;
       return '';
@@ -18573,7 +18581,7 @@
       if (acc) $('#p-corr-voir').onclick = () => apercuBulletin(acc);
     }
     function approuverBulletins(y, m) {
-      const L = C.payslipsOf(data, y, m).filter(x => !x.paidDate && !x.bonAPayerLe);
+      const L = aApprouverDe(C.payslipsOf(data, y, m), y, m);
       if (!L.length) return;
       if (enLecture('payslips')) { toast(refusLecture('payslips'), true); return; }
       const jour = C.today(), ids = L.map(x => x.id);
@@ -18688,7 +18696,7 @@
       const frise = `<ol class="pa-frise" id="p-frise" aria-label="Où en est ${h(MONTHS_LONG[m - 1])}">${r.etapes.map((e, i) =>
         `<li class="${e.etat}"><span class="pt">${e.etat === 'fait' ? lfIc('coche', 13, 3) : i + 1}</span><b>${h(e.titre)}</b><span>${h(e.dit)}</span></li>`).join('')}</ol>`;
       const traiter = C.paieATraiter(data, C.today());
-      const ban = bandeauxDuMois(month, y, m, bap), banAvant = ban.includes('id="p-bap-b"');
+      const ban = bandeauxDuMois(month, y, m, bap), banAvant = /id="p-(bap|prep)-b"/.test(ban);
       // (plateforme) 1.227.0 — les contrôles des bulletins, tant qu'il reste à payer : ceux qui demandent un geste en tête,
       // trois justes ensuite, les autres à un clic (la maquette, « Ce que … a contrôlé »).
       // (plateforme) 1.234.0 — les contrôles servent à décider : avant l'accord (bon à payer), ou, sans bon à payer, tant que rien
@@ -18703,7 +18711,7 @@
       const tuile = (lbl, val, sub, aide) => `<div class="pa-tuile"><span class="t">${lbl} ${info(aide)}</span><b class="m">${montantU(val, cur)}</b><span class="s">${sub}</span></div>`;
       const tuiles = month.length ? `<div class="pa-tuiles" id="p-chiffres">${tuile(month.every(x => x.paidDate) ? 'Net versé' : 'Net à verser', r.net, r.netDit, 'pay.netVerse')}${tuile('Coût de la paie', r.cout, h(r.coutDit), 'pay.employerCost')}${tuile('Impôts et CNSS à verser', r.etat, h(r.etatDit), 'pay.impot')}</div>` : '';
       // Un statut que tous les bulletins partagent se dit une fois, en bas ; « Comment » s'appelle « Payé par ».
-      const statut = x => correctionEnAttente(x) ? '<span class="statut alerte">correction proposée</span>' : bap && !x.paidDate && !x.bonAPayerLe ? '<span class="statut attire">à approuver</span>' : x.paidDate ? (x.remisLe ? `<span class="statut ok">payé, remis</span>` : `<span class="statut ok">payé le ${C.fmtDate(x.paidDate)}</span>`) : '<span class="statut bleu">à payer</span>';
+      const statut = x => correctionEnAttente(x) ? '<span class="statut alerte">correction proposée</span>' : bap && !x.paidDate && !x.bonAPayerLe ? (x.pourAccordLe ? '<span class="statut attire">à approuver</span>' : '<span class="statut">au cabinet</span>') : x.paidDate ? (x.remisLe ? `<span class="statut ok">payé, remis</span>` : `<span class="statut ok">payé le ${C.fmtDate(x.paidDate)}</span>`) : '<span class="statut bleu">à payer</span>';
       const uni = month.every(x => statut(x) === statut(month[0]));
       const paye = x => x.method === 'especes' ? '<span class="ambre">espèces</span><small>contre reçu</small>' : `virement${x.employee.iban ? `<small>··· ${h(String(x.employee.iban).slice(-4))}</small>` : '<small class="ambre">RIB à demander</small>'}`;
       const ecart = x => { const a = r.avant[x.employeeId]; return a == null ? '<small>1er bulletin</small>' : Math.abs(x.c.net - a) < 0.0005 ? `<small>= ${h(MONTHS_LONG[r.moisAvant - 1])}</small>` : `<small>${x.c.net > a ? '+' : '−'} ${C.money(Math.abs(C.round3(x.c.net - a)), cur)}</small>`; };

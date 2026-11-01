@@ -89,12 +89,19 @@ describe('les réglages de paie du client sur SkanFact, lus au Cabinet, à la so
     await ouvrirLaPaie();
     const toast = () => p.locator('#toast').innerText();
     const fenetre = p.locator('#modal-root .modal').last();
+    // 1.235.0 — la paie du Cabinet en cinq vues : un bouton absent de la vue ouverte se trouve dans la sienne.
+    const VUE_DU_BOUTON: Record<string, string> = { '#pa-salarie': 'salaries', '#pa-regimes': 'salaries', '#pa-fichier': 'cnss' };
+    const vue = (k: string) => p.locator(`.pa-so [data-pa-vue="${k}"]`).click();
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
-      if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      if (!await p.locator(dedans).count()) {
+        if (!await p.locator(bouton).count() && VUE_DU_BOUTON[bouton]) await vue(VUE_DU_BOUTON[bouton]).catch(() => {});
+        await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      }
       return p.locator(dedans).count();
     }, { timeout: 20_000 }).toBe(1);
 
     // ── Le panneau dit ses taux et d'où ils viennent ; la fenêtre les montre sans une case à changer ──────────────
+    await vue('salaries');
     await expect.poll(() => p.locator('#pa-regimes-bloc').innerText())
       .toMatch(/Réglés dans son SkanFact — Ce client\s*: Accident du travail 2,25 %, TFP 1 % · CIVP\s*: CNSS employeur 0 %/);
     await ouvrir('#pa-regimes', '#rc-lu');
@@ -122,9 +129,11 @@ describe('les réglages de paie du client sur SkanFact, lus au Cabinet, à la so
     // ── Le client remet sa TFP à 2 % : le bulletin modifié garde la sienne ; la case lui donne la nouvelle ──────
     expect(await ecrireReglages({ ...reglages, tfpRate: 2 }, 1)).toBe(200);
     await ouvrirLaPaie(true);
+    await vue('salaries');
     await expect.poll(() => p.locator('#pa-regimes-bloc').innerText()).toMatch(/Ce client\s*: Accident du travail 2,25 %, TFP 2 %/);
     await expect.poll(async () => {
       if (!await p.locator('#bf').count()) {
+        if (!await p.locator('[data-rowmenu^="PAIE:"]').count()) await vue('mois').catch(() => {});
         if (!await p.getByRole('menuitem').filter({ hasText: 'Modifier le bulletin' }).count()) await p.locator('[data-rowmenu^="PAIE:"]').first().click({ timeout: 2_000 }).catch(() => {});
         await p.getByRole('menuitem').filter({ hasText: 'Modifier le bulletin' }).first().click({ timeout: 2_000 }).catch(() => {});
       }

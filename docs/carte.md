@@ -253,7 +253,10 @@ vaut pour tout le dépôt.*
     `tests/moteur/paie-corriger-sans-reecrire.test.ts`, `tests/web/paie-revue-ecrans.test.ts`) ; l'interface au plus près de sa maquette, écran
     par écran (1.234.0 ; `montantU`, `congesCompteurs`, `avancesEnCours`, `avanceLigneHtml` dans `app.js`, `paie.css`) ; la revue
     de la paie du Cabinet face à sa maquette et à l'entreprise, ses parcours des deux côtés et ses lots C1 à C6
-    (`docs/revue-paie-cabinet.md`).
+    (`docs/revue-paie-cabinet.md`) ; la paie du Cabinet en cinq vues, qui la fait, l'accord, la vérification, la correction
+    proposée (1.235.0 ; `parcoursPaie`/`paieLeMois`/`paieVoletBulletin`/`correctionForm` dans `cabinet/app.js`,
+    `marquerBulletins`/`proposerCorrection` dans `pont-cabinet.js`, `socle.mode_de_paie` (0186), `plateforme/paie-cabinet.css`,
+    `tests/web/cabinet-paie-parcours.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

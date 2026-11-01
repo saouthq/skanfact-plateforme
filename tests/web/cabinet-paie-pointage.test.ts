@@ -68,6 +68,8 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
     }
     await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
     await p.locator('#pa-mois').selectOption('10');
+    // 1.235.0 — le pointage s'ouvre de la première étape de la frise du mois (sa vue à lui).
+    await p.locator('#pa-frise li[data-pa-vue="pointage"]').click();
     await p.locator('#pt-panneau').waitFor({ timeout: 15_000 });
   };
   const caseDu = (p: Page, nom: string, jour: number) => p.locator('#pt-grille tr', { hasText: nom }).locator(`.pt-c[data-pt="${jour}"]`);

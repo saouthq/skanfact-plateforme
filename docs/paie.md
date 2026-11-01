@@ -1580,3 +1580,39 @@ photographié à côté de son état dans `docs/maquettes/paie.html`, puis rappr
 
 **Ce qui part au serveur** : rien de nouveau (des écrans).
 
+## La paie du Cabinet : cinq vues, l'accord, la vérification, la correction proposée (01/11/2026, 1.235.0)
+
+Les lots C1, C2 et C3 de `docs/revue-paie-cabinet.md`, et ses trois défauts.
+
+- **Le Cabinet sait qui fait la paie.** L'entreprise écrit son choix (« Qui fait ma paie » : `paieMode`, `paieModeDes`,
+  `paieModeAvant`) sur sa fiche, que le Cabinet ne lisait pas. La fonction `socle.mode_de_paie` (migration 0186) lui en
+  donne ces trois champs et le nom du gérant, sous un mandat de paie, et rien d'autre de la fiche ; la route
+  `GET /entreprises/:id/paie/dossier` les renvoie (`modePaie`).
+- **Cinq vues** (Le mois, Salariés, Congés et avances, CNSS du trimestre, L'année ; le pointage s'ouvre de la première étape
+  de la frise) au lieu d'une page de sept écrans. L'en-tête dit qui fait la paie ; la frise donne les cinq étapes et leur
+  date ; **un seul bouton principal**, l'étape suivante, calculée par `parcoursPaie` ; quatre chiffres ; les bulletins rangés
+  « Ce qui change ce mois » / « Comme <mois d'avant> », avec la raison sur la ligne ; le bulletin ouvert à droite (d'où vient
+  chaque ligne, « Pourquoi cet IRPP ? », lu du calcul gardé avec le bulletin) ; ↑ ↓ et Entrée au clavier.
+- **L'accord (paie tenue)** : « Envoyer à <client> pour accord » écrit `pourAccordLe` ; l'entreprise n'approuve (son bon à
+  payer) que ce qui lui est envoyé : avant, son bouton dit « Ton cabinet prépare les N bulletins », éteint ; « Valider les N
+  bulletins » écrit `valideLe` : un bulletin validé ne se modifie plus, ni au Cabinet (menu, pont) ni chez l'entreprise.
+  Un bulletin dont le net change au Cabinet perd l'accord et la vérification (ils portaient sur l'autre).
+- **La paie du client vérifiée** : plus de « Modifier » ni de « Supprimer » sur un bulletin du client (D3, la règle « le
+  cabinet n'écrit jamais chez un client sans son accord ») ; « Vérifié » par bulletin ou pour tous ; « Proposer une
+  correction… » (une retenue oubliée, une prime, des jours sans solde, et pourquoi) écrit `correction` sur le bulletin sans
+  le changer : avant/après, le net qu'il aurait (le même moteur, le barème du bulletin), et les champs dans les termes de
+  l'entreprise, qu'elle applique d'un geste si elle accepte (1.227.0) ; « La relancer », « Retirer la proposition » ; la
+  réponse se lit en bandeau.
+- **Paie faite par le client seul** : le Cabinet la lit et la passe en comptabilité ; aucun geste de paie.
+- **D1** : une demande de congé pas encore acceptée se dit « demandée, pas encore acceptée » (« refusée » si refusée), plus
+  « payée ». **D2** : « Passer l'écriture de paie », toujours éteint, a disparu ; la frise dit où en est l'écriture.
+
+Tests : `tests/web/cabinet-paie-parcours.test.ts` (les trois parcours), `tests/web/paie-bon-a-payer.test.ts` (« tant que le
+cabinet prépare »), et les tests de la paie du Cabinet qui changent de vue. Preuves `paie cabinet 1.235 a` à `g`, `paie 1.235 h`.
+
+**Reste des lots** (C4 à C6) : « Les bulletins sont faits » (les envoyer, le rappel de paiement, déclarer), l'écriture de
+paie compte par compte, régulariser après validation, le virement rejeté ; les vues Salariés, Congés, CNSS et L'année
+telles que la maquette (pour l'instant les panneaux d'avant, rangés dans leur vue), le paramétrage, les écarts ligne à
+ligne ; « La paie de tous mes dossiers », le pointage attendu (« Le demander »), le téléphone en cartes. Le rappel de
+salaire attend la décision de Skander.
+

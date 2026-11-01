@@ -1,0 +1,95 @@
+/* La paie d'un dossier au Cabinet (1.235.0), telle que sa maquette (docs/maquettes/cabinet/comptabilite.html, la Paie) et
+   la revue docs/revue-paie-cabinet.md : l'en-tête qui dit qui fait la paie, cinq vues, la frise du mois, un seul bouton
+   principal, quatre chiffres, les bandeaux du parcours, les bulletins rangés par ce qui change et le bulletin ouvert à
+   droite. Tout est rangé sous `.cp-pa-*` ; les couleurs viennent de la charte (`--sb-*`). */
+
+/* ── l'en-tête : le mois, qui fait la paie, les vues ── */
+.cp-pa-tete { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 18px; margin: 0 0 14px; }
+.cp-pa-titre { display: grid; grid-template-columns: auto auto; align-items: center; gap: 4px 12px; min-width: 0; }
+.cp-pa-titre h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; color: var(--sb-encre); }
+.cp-pa-titre select { height: 32px; border: 1px solid var(--sb-trait); border-radius: 9px; background: var(--sb-papier); font: 600 13px var(--sb-police, inherit); color: var(--sb-encre); padding: 0 8px; width: auto; }
+.cp-pa-titre p { grid-column: 1 / -1; margin: 0; }
+.cp-pa-vues { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pa-so { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border: 1px solid var(--sb-trait); border-radius: 11px; background: var(--sb-papier-2, var(--sb-papier)); }
+.pa-so button { border: 0; background: none; font: 600 13px var(--sb-police, inherit); color: var(--sb-gris); padding: 7px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.pa-so button:hover { color: var(--sb-encre); background: var(--sb-survol, transparent); }
+.pa-so button[aria-pressed="true"] { color: var(--sb-encre); background: var(--sb-papier); box-shadow: var(--sb-ombre); }
+.cp-pa-titre-l { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.cp-pa-titre-l h2 { margin: 0; }
+
+/* ── la carte du mois : la frise et le bouton de l'étape suivante ── */
+.cp-pa-mois { display: grid; gap: 14px; padding: 16px 18px; margin-bottom: 14px; }
+.cp-pa-frise { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.cp-pa-frise li { position: relative; display: grid; gap: 6px; align-content: start; padding-right: 10px; font-size: 12.5px; color: var(--sb-gris); min-width: 0; }
+.cp-pa-frise li::before { content: ''; position: absolute; left: 24px; right: 0; top: 11px; height: 2px; background: var(--sb-trait); }
+.cp-pa-frise li:last-child::before { display: none; }
+.cp-pa-frise li.fait::before { background: var(--sb-sarcelle); }
+.cp-pa-frise li[role="button"] { cursor: pointer; }
+.cp-pa-frise li[role="button"]:hover b, .cp-pa-frise li[role="button"]:focus-visible b { text-decoration: underline; }
+.cp-pa-frise .n { position: relative; z-index: 1; flex: none; width: 22px; height: 22px; border-radius: 99px; display: grid; place-items: center; font-size: 11px; font-weight: 700; border: 2px solid var(--sb-trait-fort); background: var(--sb-papier); color: var(--sb-gris-2); box-sizing: border-box; }
+.cp-pa-frise .fait .n { background: var(--sb-sarcelle); border-color: var(--sb-sarcelle); color: #fff; }
+.cp-pa-frise .ici .n { border-color: var(--sb-ambre); color: var(--sb-ambre-texte); }
+.cp-pa-frise li > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.cp-pa-frise b { font-size: 13px; color: var(--sb-encre); }
+.cp-pa-frise small { font-size: 12px; line-height: 1.35; }
+.cp-pa-geste { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.cp-pa-sec { display: inline-flex; gap: 8px; flex-wrap: wrap; margin-right: auto; }
+#pa-attente { opacity: 1; color: var(--sb-gris); }
+
+/* ── les quatre chiffres ── */
+.cp-pa-tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.cp-pa-tuile { display: grid; gap: 4px; align-content: start; padding: 12px 14px; border: 1px solid var(--sb-trait); border-radius: 12px; background: var(--sb-papier); box-shadow: var(--sb-ombre); min-width: 0; }
+.cp-pa-tuile .t { font-size: 12px; color: var(--sb-gris); }
+.cp-pa-tuile b { font-size: 18px; letter-spacing: -.01em; color: var(--sb-encre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cp-pa-tuile small { font-size: 12px; color: var(--sb-gris); }
+
+/* ── les bandeaux du parcours (l'accord, la vérification, la lecture seule, une réponse) ── */
+.cp-pa-bandeau { padding: 11px 14px; margin-bottom: 12px; border: 1px solid color-mix(in srgb, var(--sb-sarcelle) 30%, var(--sb-trait)); border-radius: 12px; background: color-mix(in srgb, var(--sb-sarcelle) 6%, var(--sb-papier)); color: var(--sb-encre); font-size: 13px; line-height: 1.5; }
+.cp-pa-bandeau.gris { border-color: var(--sb-trait); background: var(--sb-papier-2, var(--sb-papier)); color: var(--sb-gris); }
+.cp-pa-bandeau.vert { border-color: color-mix(in srgb, var(--sb-vert, var(--sb-sarcelle)) 35%, var(--sb-trait)); background: color-mix(in srgb, var(--sb-vert, var(--sb-sarcelle)) 8%, var(--sb-papier)); }
+.cp-pa-corr { border-color: color-mix(in srgb, var(--sb-ambre) 40%, var(--sb-trait)); }
+.cp-pa-corr h3 { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin: 0 0 6px; font-size: 14px; }
+.cp-pa-corr h3 small { font-weight: 400; }
+
+/* ── les bulletins et le bulletin ouvert ── */
+.cp-pa-grille { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.cp-pa-grille.avec-volet { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); }
+.cp-pa-liste { min-width: 0; }
+.cp-pa-liste tr.cp-pa-groupe td { background: var(--sb-papier-2, var(--sb-papier)); color: var(--sb-gris); font-size: 12px; padding-top: 7px; padding-bottom: 7px; }
+.cp-pa-liste tr.cp-pa-groupe b { color: var(--sb-encre); }
+.cp-pa-liste tr[data-bul] { cursor: pointer; }
+.cp-pa-liste tr[data-bul].sel td { background: color-mix(in srgb, var(--sb-sarcelle) 8%, var(--sb-papier)); }
+.cp-pa-liste tr[data-bul]:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: -2px; }
+.cp-pa-qui { min-width: 0; }
+.cp-pa-qui b { display: block; }
+.cp-pa-qui small { display: block; color: var(--sb-gris); font-size: 12px; white-space: normal; }
+.cp-pa-touches { padding: 8px 4px 0; }
+.cp-pa-volet { position: sticky; top: calc(var(--main-haut, 0px) + 12px); display: grid; gap: 6px; padding: 14px 16px; min-width: 0; }
+.cp-pa-volet-t { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cp-pa-volet-t b { font-size: 14px; color: var(--sb-encre); }
+.cp-pa-volet h4 { margin: 8px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--sb-gris); }
+.cp-pa-volet table td { font-size: 12.5px; }
+.cp-pa-src { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 99px; background: var(--sb-papier-2, var(--sb-trait)); color: var(--sb-gris); font-size: 11px; line-height: 1.6; }
+.cp-pa-irpp { margin: 8px 0 0; padding: 9px 11px; border-radius: 10px; background: var(--sb-papier-2, var(--sb-papier)); line-height: 1.5; }
+.btn-x { border: 0; background: none; font-size: 20px; line-height: 1; color: var(--sb-gris); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.btn-x:hover { color: var(--sb-encre); background: var(--sb-survol, transparent); }
+
+/* ── le bureau étroit et le téléphone : une colonne, le bouton du mois sous le pouce ── */
+@media (max-width: 1100px) {
+  .cp-pa-grille.avec-volet { grid-template-columns: minmax(0, 1fr); }
+  .cp-pa-volet { position: static; }
+  .cp-pa-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .cp-pa-tete { align-items: stretch; }
+  .cp-pa-titre, .cp-pa-vues { width: 100%; min-width: 0; }
+  .pa-so { display: flex; overflow-x: auto; flex-wrap: nowrap; max-width: 100%; min-width: 0; }
+  .cp-pa-frise { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .cp-pa-frise li::before { display: none; }
+  .cp-pa-frise li { grid-template-columns: 22px minmax(0, 1fr); gap: 8px; }
+  .cp-pa-geste { flex-direction: column-reverse; align-items: stretch; }
+  .cp-pa-geste > .btn { width: 100%; justify-content: center; }
+  .cp-pa-sec { margin-right: 0; }
+  .cp-pa-tuiles { gap: 8px; }
+  .cp-pa-touches { display: none; }
+}

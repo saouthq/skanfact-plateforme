@@ -207,7 +207,11 @@ export function routesPaie(ctx: Contexte): Route<never>[] {
       const objets = (await tx.query(`select collection, cle, rang, revision, contenu from socle.dossier_v10
           where entreprise = $1 and (collection = any($2::text[]) or (collection = '_racine' and cle = 'payrollSettings'))
           order by collection collate "C", rang, cle collate "C"`, [params.entreprise ?? '', COLLECTIONS_PAIE])).rows;
-      return { corps: { objets: objets.map((o) => ({ collection: o.collection, cle: o.cle, rang: o.rang, revision: Number(o.revision), contenu: o.contenu })) } };
+      // (1.235.0) Qui fait la paie (`paieMode`, `paieModeDes`, `paieModeAvant`), et rien d'autre de la fiche (0186) : le
+      // Cabinet attend l'accord du client, ou ne fait que vérifier, selon ce choix écrit.
+      const mode = (await tx.query(`select socle.mode_de_paie($1) m`, [params.entreprise ?? ''])).rows[0] as { m: unknown } | undefined;
+      return { corps: { objets: objets.map((o) => ({ collection: o.collection, cle: o.cle, rang: o.rang, revision: Number(o.revision), contenu: o.contenu })),
+        modePaie: mode?.m ?? null } };
     },
   });
 

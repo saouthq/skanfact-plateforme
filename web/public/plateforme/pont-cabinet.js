@@ -738,9 +738,13 @@
   // Les objets de paie lus, par dossier : leur révision et leur rang, pour les réécrire sans rien écraser.
   /** @type {Map<string, Map<string, { collection: string, cle: string, rang: number | null, revision: number, contenu: any }>>} */
   const paieLue = new Map();
+  /** @type {Map<string, any>} */
+  const modesPaie = new Map();
   /** @param {string} ent */
   async function paieDe(ent) {
     const r = await appel('GET', `/entreprises/${ent}/paie/dossier`);
+    // 1.235.0 — qui fait la paie (le choix écrit du client, 0186) : le Cabinet attend son accord, ou ne fait que vérifier.
+    modesPaie.set(ent, r.modePaie || null);
     const objets = (r.objets || []).map((/** @type {any} */ o) => ({ ...o, contenu: decoder(o.contenu) }));
     paieLue.set(ent, new Map(objets.map((/** @type {any} */ o) => [`${o.collection}/${o.cle}`, o])));
     return objets;
@@ -785,11 +789,25 @@
       // 1.63.0 — le prorata d'une entrée ou d'une sortie (1.62.0) : le Cabinet calcule avec lui, comme l'entreprise.
       prorata: p.prorata || null,
       ecritureId, creeLe: 0, auteur: '',
+      // 1.235.0 — le parcours du bulletin entre les deux applications (docs/revue-paie-cabinet.md) : envoyé au client pour
+      // son accord, son bon à payer, la correction proposée et sa réponse, vérifié et validé au cabinet, remis.
+      pourAccordLe: p.pourAccordLe || '', bonAPayerLe: p.bonAPayerLe || '', correction: p.correction || null,
+      verifieLe: p.verifieLe || '', valideLe: p.valideLe || '', remisLe: p.remisLe || '',
     };
+  };
+  // 1.235.0 — un bulletin dont le net change au Cabinet perd l'accord du client et la vérification du cabinet : ils
+  // portaient sur l'autre (la règle de l'entreprise, 1.227.0 : « un bulletin changé après l'accord se réapprouve »).
+  /** @param {any} b @param {any} avant */
+  const sansAccordSiChange = (b, avant) => {
+    if (!avant) return {};
+    const net = Number((b.calcul || {}).net), netAvant = Number((avant.computed || {}).net);
+    if (Math.abs(net - netAvant) < 0.0005) return avant;
+    const { bonAPayerLe, verifieLe, pourAccordLe, ...reste } = avant; void bonAPayerLe; void verifieLe; void pourAccordLe;
+    return reste;
   };
   /** @param {any} b @param {any} avant */
   const fichePayeDe = (b, avant) => ({
-    accountId: '', method: 'virement', reference: '', ...(avant || {}), id: b.id, employeeId: b.salarieId, year: b.annee, month: b.mois,
+    accountId: '', method: 'virement', reference: '', ...sansAccordSiChange(b, avant), id: b.id, employeeId: b.salarieId, year: b.annee, month: b.mois,
     gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: b.calcul,
     // 1.63.0 — le prorata avec lequel le bulletin a été calculé : un brut retouché au Cabinet n'en a plus (le moteur l'a dit).
     prorata: b.prorata || null,
@@ -821,6 +839,7 @@
       .map((/** @type {any} */ o) => bulletinDe(o.contenu, ecritureDuMois(`${o.contenu.year}-${String(o.contenu.month).padStart(2, '0')}`)));
     // 1.67.0 — les réglages de paie du client qui tient sa paie dans SkanFact : l'écran calcule ses bulletins avec eux.
     livre.reglagesPaie = reglagesDuClient(ent);
+    livre.modePaie = modesPaie.get(ent) || null;
     // 1.69.0 — son pointage et ses congés, dans la forme de l'entreprise : la grille du mois, et le bulletin nouveau qui la
     // suit. Les congés d'un client sur SkanFact se lisent sans s'écrire (migration 0149) ; ceux d'un dossier tenu, le
     // Cabinet les tient (1.70.0, migration 0150).
@@ -2163,6 +2182,8 @@
     saveBulletin: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = sansEcritures(await livreEtPaie(o.dossierId, o.annee));
+      // 1.235.0 — un bulletin validé ne bouge plus, ni ici ni chez le client : il se régularise sur un mois suivant.
+      if (o.bulletin && o.bulletin.id && (paieAvant(o.dossierId, 'payslips', o.bulletin.id) || {}).valideLe) throw new Error('Ce bulletin est validé : il ne change plus. Une correction passe par une régularisation sur un mois suivant.');
       // (1.66.0) La case « Prendre les taux de la paie d'aujourd'hui » d'un bulletin modifié : ceux du dossier, que ce soient
       // ceux de sa fiche (un dossier tenu) ou, depuis la 1.67.0, ceux du SkanFact du client.
       const r = KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now(), { tauxDuJour: !!o.tauxDuJour });
@@ -2173,10 +2194,54 @@
     supprimerBulletin: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = sansEcritures(await livreEtPaie(o.dossierId, o.annee));
+      if ((paieAvant(o.dossierId, 'payslips', o.id) || {}).valideLe) throw new Error('Ce bulletin est validé : il ne se supprime plus.');
       const r = KC.supprimerBulletin(livre, o.id, '', Date.now());
       if (!r.ok) throw new Error(r.motif);
       await ecrirePaieDuDossier(o.dossierId, 'payslips', o.id, null);
       return { ok: true, livre: await livreEtPaie(o.dossierId, o.annee) };
+    },
+    // 1.235.0 — marquer des bulletins du dossier (docs/revue-paie-cabinet.md) : envoyés pour accord, vérifiés, validés,
+    // remis, une correction proposée (ou retirée : `null`). Les montants ne bougent pas : seules ces marques s'écrivent, en
+    // un seul envoi, dans la révision lue. Un bulletin validé ne se marque plus que pour être remis.
+    marquerBulletins: async (/** @type {any} */ o) => {
+      const PERMIS = ['pourAccordLe', 'verifieLe', 'valideLe', 'remisLe', 'correction'];
+      const lus = paieLue.get(o.dossierId) || new Map();
+      const changements = (o.ids || []).map((/** @type {string} */ id) => {
+        const avant = lus.get(`payslips/${id}`);
+        if (!avant) throw new Error('Ce bulletin n\'est plus dans le dossier : recharge la page.');
+        const champs = Object.fromEntries(Object.entries(o.champs || {}).filter(([k]) => PERMIS.includes(k)));
+        if (avant.contenu.valideLe && Object.keys(champs).some((k) => k !== 'remisLe')) throw new Error('Ce bulletin est validé : il ne change plus.');
+        // null ou '' efface la marque : elle ne part pas avec le contenu.
+        const contenu = Object.fromEntries(Object.entries({ ...avant.contenu, ...champs }).filter(([k, v]) => !(k in champs && (v === null || v === ''))));
+        return { collection: 'payslips', cle: id, rang: avant.rang, revision: avant.revision, contenu: encoder(contenu) };
+      });
+      if (changements.length) await appel('POST', `/entreprises/${o.dossierId}/paie/dossier`, { changements });
+      return { ok: true, livre: await livreEtPaie(o.dossierId, o.annee) };
+    },
+    // 1.235.0 — proposer une correction d'un bulletin fait par le client (« le cabinet n'écrit jamais chez un client sans
+    // son accord ») : rien du bulletin ne change ; la proposition s'écrit à côté (`correction` : qui, quand, pourquoi, les
+    // lignes avant/après, le net qu'il aurait, et les champs dans les termes de l'entreprise), et l'entreprise l'applique
+    // d'un geste si elle l'accepte (1.227.0). Le net projeté vient du même moteur, sur une copie du livre.
+    proposerCorrection: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreEtPaie(o.dossierId, o.annee);
+      const b = livre.bulletins.find((/** @type {any} */ x) => x.id === o.id);
+      if (!b) throw new Error('Ce bulletin n\'est plus dans le dossier : recharge la page.');
+      if (b.valideLe) throw new Error('Ce bulletin est validé : il ne change plus.');
+      const copie = JSON.parse(JSON.stringify(livre));
+      copie.bulletins.forEach((/** @type {any} */ x) => { x.ecritureId = null; });
+      const nouveau = { ...b, ...(o.bulletin || {}), id: b.id };
+      const r = KC.ajouterBulletin(copie, nouveau, paieDuDossier(o.dossierId), '', Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      const c = r.bulletin.calcul || {};
+      /** @type {Record<string, unknown>} */ const champs = {};
+      if (o.bulletin && 'joursAbsence' in o.bulletin) champs.absentDays = r.bulletin.joursAbsence;
+      if (o.bulletin && 'primes' in o.bulletin) champs.bonuses = r.bulletin.primes;
+      if (o.bulletin && 'retenues' in o.bulletin) champs.deductions = r.bulletin.retenues;
+      if (Math.abs(Number(c.net) - Number((b.calcul || {}).net)) < 0.0005 && !Object.keys(champs).length) throw new Error('Cette correction ne change rien au bulletin.');
+      const correction = { par: String(o.par || moiNom || ''), le: new Date().toISOString(), titre: String(o.titre || '').slice(0, 120), motif: String(o.motif || '').slice(0, 500),
+        lignes: (o.lignes || []).map((/** @type {any} */ l) => ({ libelle: String(l.libelle || ''), avant: l.avant, apres: l.apres })), net: KC.round3(Number(c.net) || 0), champs };
+      return pont.marquerBulletins({ dossierId: o.dossierId, annee: o.annee, ids: [o.id], champs: { correction } });
     },
     // L'écriture de paie du mois : le serveur la tient au fil des bulletins (en totaux du mois).
     ecrirePaie: async (/** @type {any} */ o) => {

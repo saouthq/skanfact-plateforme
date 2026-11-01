@@ -65,7 +65,17 @@ describe('les congés au Cabinet, à la souris et au clavier', () => {
     }
     await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
     await p.locator('#pa-mois').selectOption('10');
+    // 1.235.0 — la paie du Cabinet en cinq vues : les congés vivent dans « Congés et avances ».
+    await p.locator('.pa-so [data-pa-vue="conges"]').click();
     await p.locator('#cg-panneau').waitFor({ timeout: 15_000 });
+  };
+  // Changer de vue ; le pointage s'ouvre de la première étape de la frise du mois.
+  const vue = async (p: Page, k: string) => {
+    if (k === 'pointage') {
+      await p.locator('.pa-so [data-pa-vue="mois"]').click();
+      await p.locator('#pa-frise li[data-pa-vue="pointage"]').click();
+      await p.locator('#pt-panneau').waitFor({ timeout: 15_000 });
+    } else await p.locator(`.pa-so [data-pa-vue="${k}"]`).click();
   };
   const net = (s: string) => s.replace(/\s+/g, ' ').trim();
   // Le solde d'un salarié, tel que le panneau le dit : acquis, pris, solde.
@@ -130,12 +140,14 @@ describe('les congés au Cabinet, à la souris et au clavier', () => {
     await expect.poll(() => solde(p, 'Numéro Un')).toEqual(['15', '5', '10']);
     expect(net(await p.locator('#cg-liste tbody tr').innerText())).toBe('Salarié Numéro Un Congé payé 13/10/2025 17/10/2025 5 payée Congé annuel');
     // Il se pose sur la grille du pointage du mois.
+    await vue(p, 'pointage');
     const caseDu = (nom: string, jour: number) => p.locator('#pt-grille tr', { hasText: nom }).locator(`.pt-c[data-pt="${jour}"]`);
     expect(await caseDu('Numéro Un', 13).innerText()).toBe('C');
     expect(await caseDu('Numéro Un', 13).getAttribute('title')).toBe('Congé payé (Congés et absences)');
     expect(await caseDu('Numéro Un', 18).innerText()).toBe('P');
 
     // ── Une absence sans solde : la grille la retire des jours payés, et un bulletin nouveau aussi ───────────────
+    await vue(p, 'conges');
     await p.locator('#cg-ajouter').click();
     await fenetre.locator('[name=employeeId]').selectOption({ label: 'Salarié Numéro Deux' });
     await fenetre.locator('[name=kind]').selectOption('sans-solde');
@@ -144,7 +156,9 @@ describe('les congés au Cabinet, à la souris et au clavier', () => {
     await expect.poll(annonce).toBe('2 jours ouvrables, dimanches exclus. Non payée : le brut d\'un bulletin établi ensuite est réduit au prorata.');
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('L\'absence de Salarié Numéro Deux est enregistrée.');
+    await vue(p, 'pointage');
     await expect.poll(() => p.locator('#pt-grille tr', { hasText: 'Numéro Deux' }).locator('[data-pt-payes]').innerText()).toBe('24');
+    await vue(p, 'conges');
     expect(await solde(p, 'Numéro Deux')).toEqual(['18', '0', '18']);
     await expect.poll(async () => {
       if (!await p.locator('#bf').count()) await p.locator('#pa-bulletin').first().click({ timeout: 2_000 }).catch(() => {});
@@ -167,7 +181,9 @@ describe('les congés au Cabinet, à la souris et au clavier', () => {
     await fenetre.locator('[name=to]').press('Enter');
     await expect.poll(() => solde(p, 'Numéro Un')).toEqual(['15', '4', '11']);
     expect(await p.getByText('Supprimer cette absence ?').count()).toBe(0);
+    await vue(p, 'pointage');
     expect(await caseDu('Numéro Un', 17).innerText()).toBe('P');
+    await vue(p, 'conges');
 
     // ── Supprimer : la fenêtre demande ; le congé quitte le dossier et la grille ─────────────────────────────────
     await p.locator('#cg-liste tr', { hasText: 'Numéro Un' }).click();
@@ -176,7 +192,9 @@ describe('les congés au Cabinet, à la souris et au clavier', () => {
     await expect.poll(toast).toBe('Absence supprimée.');
     expect((await conges()).map((c) => c.employeeId)).toEqual(['s2']);
     await expect.poll(() => solde(p, 'Numéro Un')).toEqual(['15', '0', '15']);
+    await vue(p, 'pointage');
     expect(await caseDu('Numéro Un', 13).innerText()).toBe('P');
+    await vue(p, 'conges');
 
     // ── Le droit annuel, depuis le panneau : la fenêtre des taux amène à sa case, refuse ce qui ne se lit pas ─────
     await p.locator('#cg-droit-regler').click();
@@ -229,7 +247,8 @@ describe('les congés au Cabinet, à la souris et au clavier', () => {
     await ligne.click();
     await p.waitForTimeout(300);
     expect(await p.locator('#cg-form').count()).toBe(0);
-    // La fenêtre des taux du client dit son droit, le sien.
+    // La fenêtre des taux du client dit son droit, le sien (dans la vue « Salariés »).
+    await vue(p, 'salaries');
     await p.locator('#pa-regimes').click();
     expect(net(await p.locator('#rc-lu-conges').innerText())).toBe('Son droit annuel aux congés payés : 21,5 jours ouvrables (le sien).');
     expect(erreurs).toEqual([]);

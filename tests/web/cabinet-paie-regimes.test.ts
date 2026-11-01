@@ -66,11 +66,18 @@ describe('les taux de la paie d\'un dossier, à la souris', () => {
     }
     const toast = () => p.locator('#toast').innerText();
     const fenetre = p.locator('#modal-root .modal').last();
+    // 1.235.0 — la paie du Cabinet en cinq vues : un bouton absent de la vue ouverte se trouve dans la sienne.
+    const VUE_DU_BOUTON: Record<string, string> = { '#pa-salarie': 'salaries', '#pa-regimes': 'salaries', '#pa-fichier': 'cnss' };
+    const vue = (k: string) => p.locator(`.pa-so [data-pa-vue="${k}"]`).click();
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
-      if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      if (!await p.locator(dedans).count()) {
+        if (!await p.locator(bouton).count() && VUE_DU_BOUTON[bouton]) await vue(VUE_DU_BOUTON[bouton]).catch(() => {});
+        await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      }
       return p.locator(dedans).count();
     }, { timeout: 20_000 }).toBe(1);
     await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+    await vue('salaries');
     await expect.poll(() => p.locator('#pa-regimes-bloc').innerText()).toMatch(/Tous les contrats suivent le barème général/);
 
     // ── Les taux du client et ceux du CIVP : un taux trop fin se refuse sur sa case ──────────────────
@@ -100,6 +107,7 @@ describe('les taux de la paie d\'un dossier, à la souris', () => {
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Taux de la paie enregistrés.');
     expect((await fiche()).paie).toEqual({ regimesContrat: { civp: { cnssEmployer: '0', solidarity: '0.5', sansIrpp: true } }, accidentRate: '2.5', tfpRate: '1' });
+    await vue('salaries');
     await expect.poll(() => p.locator('#pa-regimes-bloc').innerText())
       .toMatch(/Ce client\s*: Accident du travail 2,5 %, TFP 1 % · CIVP\s*: CNSS employeur 0 %, Solidarité 0,5 %, sans IRPP/);
     // Rouverte, la fenêtre relit ce que la fiche garde.
@@ -135,11 +143,13 @@ describe('les taux de la paie d\'un dossier, à la souris', () => {
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Taux de la paie enregistrés.');
     expect((await fiche()).paie).toEqual({ regimesContrat: { civp: { cnssEmployer: '0', solidarity: '0.5', sansIrpp: true } }, accidentRate: '2.5' });
+    await vue('salaries');
     await expect.poll(() => p.locator('#pa-regimes-bloc').innerText()).toMatch(/Ce client\s*: Accident du travail 2,5 % · CIVP/);
 
     // ── Dans ce dossier tenu, le bulletin de mars modifié garde ses taux ; une case lui donne ceux d'aujourd'hui ─────
     const modifier = async () => expect.poll(async () => {
       if (!await p.locator('#bf').count()) {
+        if (!await p.locator('[data-rowmenu^="PAIE:"]').count()) await vue('mois').catch(() => {});
         if (!await p.getByRole('menuitem').filter({ hasText: 'Modifier le bulletin' }).count()) await p.locator('[data-rowmenu^="PAIE:"]').first().click({ timeout: 2_000 }).catch(() => {});
         await p.getByRole('menuitem').filter({ hasText: 'Modifier le bulletin' }).first().click({ timeout: 2_000 }).catch(() => {});
       }

@@ -61,8 +61,14 @@ describe('le fichier CNSS du trimestre, à la souris', () => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     const toast = () => p.locator('#toast').innerText();
     const fenetre = p.locator('#modal-root .modal').last();
+    // 1.235.0 — la paie du Cabinet en cinq vues : un bouton absent de la vue ouverte se trouve dans la sienne.
+    const VUE_DU_BOUTON: Record<string, string> = { '#pa-salarie': 'salaries', '#pa-regimes': 'salaries', '#pa-fichier': 'cnss' };
+    const vue = (k: string) => p.locator(`.pa-so [data-pa-vue="${k}"]`).click();
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
-      if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      if (!await p.locator(dedans).count()) {
+        if (!await p.locator(bouton).count() && VUE_DU_BOUTON[bouton]) await vue(VUE_DU_BOUTON[bouton]).catch(() => {});
+        await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      }
       return p.locator(dedans).count();
     }, { timeout: 20_000 }).toBe(1);
     await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
@@ -83,6 +89,7 @@ describe('le fichier CNSS du trimestre, à la souris', () => {
     await expect.poll(toast).toBe('Bulletin enregistré.');
 
     // ── Sans matricule employeur, le fichier ne sort pas : la case est nommée, avec son geste ──────────
+    await vue('cnss');
     await expect.poll(() => p.locator('#pa-fichier-bloc').innerText()).toMatch(/Le fichier CNSS attend/);
     expect(await p.locator('#pa-fichier').isDisabled()).toBe(true);
     await p.locator('[data-pa-emp="employeur"]').click();

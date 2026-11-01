@@ -59,7 +59,10 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     };
     const enPoste = S.filter((e) => e.active);
     const ceMois = enPoste.map((e) => {
-      const b = bul(e, an, mo, e.grossSalary);
+      // 1.235.0 — les bulletins d'une paie tenue arrivent chez l'entreprise quand le cabinet les envoie (`pourAccordLe`) ;
+      // la variante « prepa » les garde au cabinet.
+      const b0 = bul(e, an, mo, e.grossSalary);
+      const b = variante === 'prepa' || variante === 'sans' ? b0 : { ...b0, pourAccordLe: `${an}-${mm(mo)}-27` };
       if (variante === 'payer') return { ...b, bonAPayerLe: `${an}-${mm(mo)}-28` };
       if (variante === 'signal' && e.id === 'hm') return { ...b, correction: { par: 'Anis', le: `${an}-${mm(mo)}-28T10:05:00Z`, titre: 'l\'avance d\'Hamza n\'est pas retenue', motif: 'Tu lui as versé 300,000 le 05, à rendre en 3 fois ; le mois dernier a retenu 100,000, ce mois rien.',
         lignes: [{ libelle: 'Avance, 2e retenue sur 3', avant: 0, apres: -100 }, { libelle: 'Reste de l\'avance', avant: 200, apres: 100 }], net: Math.round((Number(b.computed.net) - 100) * 1000) / 1000,
@@ -137,6 +140,18 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     await expect.poll(() => p.locator('#p-bap').count()).toBe(1);
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  it('1.235.0 — tant que le cabinet prépare (pas envoyés), rien ne s\'approuve ni ne se paie', async () => {
+    const A = await monter('prepa');
+    const p = await ouvrir(A);
+    await expect.poll(() => p.locator('#p-prep').count()).toBe(1);
+    expect(await p.locator('#p-bap').count()).toBe(0);
+    expect(await p.locator('#p-prep').isDisabled()).toBe(true);
+    expect(espace(await p.locator('#p-prep').innerText())).toBe('Ton cabinet prépare les 5 bulletins');
+    expect(espace(await p.locator('#p-prep-b').innerText())).toContain('Il te les envoie quand ils sont prêts');
+    expect(await p.locator('#p-payer').count()).toBe(0);
+    await p.close();
+  });
 
   it('une correction proposée : accepter change le net et garde la trace ; refuser garde la raison', async () => {
     const B = await monter('signal');

@@ -71,6 +71,8 @@ describe('les avances au Cabinet, à la souris et au clavier', () => {
     }
     await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
     await p.locator('#pa-mois').selectOption('10');
+    // 1.235.0 — la paie du Cabinet en cinq vues : les avances vivent dans « Congés et avances ».
+    await p.locator('.pa-so [data-pa-vue="conges"]').click();
     await p.locator('#av-panneau').waitFor({ timeout: 15_000 });
   };
   const ouvrirUnBulletin = async (p: Page) => expect.poll(async () => {

@@ -16965,8 +16965,8 @@ prouver 'les congés tous payés, quelle que soit leur nature' 'web/public/v10/c
   'const leaveIsPaid = () => true;' \
   'le moteur du pointage vit dans le moteur commun, et l'"'"'entreprise le reprend'
 prouver 'la grille du pointage absente de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
-  '    ${vuePointage(dossier, L, s.annee, m)}' \
-  '    ${'"'"''"'"'}' \
+  '${tete}${vuePointage(dossier, L, s.annee, m)}' \
+  '${tete}' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 prouver 'un bulletin nouveau du Cabinet qui ignore le mois du salarié' 'web/public/v10/cabinet/app.js' \
   'const depart = b ? null : saisieDe((actifs[0] || {}).id, s.paieMois);' \
@@ -17071,8 +17071,8 @@ prouver 'le droit annuel gardé en texte que le solde ne lit pas' 'web/public/v1
   'const perYear = typeof s.leaveDaysPerYear === '"'"'number'"'"' ? s.leaveDaysPerYear : 0;' \
   'deux chemins, un chiffre : le moteur commun et celui de l'"'"'entreprise ; le droit gardé en texte par la fiche du Cabinet'
 prouver 'le panneau des congés absent de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
-  '    ${vueConges(dossier, L, s.annee)}' \
-  '    ${'"'"''"'"'}' \
+  '${tete}${vueConges(dossier, L, s.annee)}' \
+  '${tete}' \
   'un client sur SkanFact : ses congés et son droit se lisent, sans geste pour les changer'
 prouver 'un client sur SkanFact dont le Cabinet saisit les congés' 'web/public/v10/cabinet/app.js' \
   'const congesTenus = L => !L.reglagesPaie && !(L.exercice || {}).clos;' \
@@ -22278,6 +22278,36 @@ prouver 'paie 1.234 d : le RIB en entier dans « Payer les salaires »' web/publ
 prouver 'paie 1.234 e : une case « présent » écrit sa lettre' web/public/plateforme/paie.css \
   "#pt-grille .pt-c.pt-P, #pt-grille .pt-c.pt-R { background: transparent; color: transparent; }" "#pt-grille .pt-c.pt-R { background: transparent; color: transparent; }" \
   "$WRW3"
+
+# 1.235.0 — la paie du Cabinet en cinq vues ; l'accord, la vérification, la correction proposée (docs/revue-paie-cabinet.md).
+WC1="tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+WC2="faite par le client, vérifiée : pas de « Modifier », le bulletin à droite, une correction proposée puis retirée"
+WC3="faite par le client seul : le Cabinet la lit, sans geste de paie ; au téléphone, rien ne déborde"
+WC4="1.235.0 — tant que le cabinet prépare (pas envoyés), rien ne s'approuve ni ne se paie"
+prouver 'paie cabinet 1.235 a : le Cabinet ne lit pas qui fait la paie' web/public/plateforme/pont-cabinet.js \
+  'modesPaie.set(ent, r.modePaie || null)' 'modesPaie.set(ent, null)' \
+  "$WC1"
+prouver 'paie cabinet 1.235 b : « Envoyer pour accord » n'\''écrit rien' web/public/v10/cabinet/app.js \
+  '{ pourAccordLe: aujourdhui() }' '{}' \
+  "$WC1"
+prouver 'paie cabinet 1.235 c : un bulletin validé se réécrit encore' web/public/plateforme/pont-cabinet.js \
+  "if (o.bulletin && o.bulletin.id && (paieAvant(o.dossierId, 'payslips', o.bulletin.id) || {}).valideLe)" "if (false)" \
+  "$WC1"
+prouver 'paie cabinet 1.235 d : « Modifier » sur une paie faite par le client (D3)' web/public/v10/cabinet/app.js \
+  "if (Pm.mode === 'seule' || Pm.mode === 'sans' || b.valideLe) return a;" "" \
+  "$WC3"
+prouver 'paie cabinet 1.235 e : la correction réécrit le bulletin du client' 'web/public/plateforme/pont-cabinet.js|||web/public/plateforme/pont-cabinet.js' \
+  "const PERMIS = ['pourAccordLe',|||champs: { correction } });" "const PERMIS = ['deductions', 'pourAccordLe',|||champs: { correction, deductions: champs.deductions } });" \
+  "$WC2"
+prouver 'paie cabinet 1.235 f : une demande de congé se dit « payée » (D1)' web/public/v10/cabinet/app.js \
+  '${!l.retenu ? `<span class="muted">' '${false ? `<span class="muted">' \
+  "$WC2"
+prouver 'paie cabinet 1.235 g : les vues débordent au téléphone' 'web/public/plateforme/paie-cabinet.css|||web/public/plateforme/paie-cabinet.css' \
+  ".cp-pa-titre, .cp-pa-vues { width: 100%; min-width: 0; }|||max-width: 100%; min-width: 0; }" ".cp-pa-titre { width: 100%; min-width: 0; }|||}" \
+  "$WC3"
+prouver 'paie 1.235 h : l'\''entreprise approuve ce que le cabinet prépare encore' web/public/v10/app.js \
+  "mo.filter(x => !x.paidDate && !x.bonAPayerLe && x.pourAccordLe)" "mo.filter(x => !x.paidDate && !x.bonAPayerLe)" \
+  "$WC4"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
