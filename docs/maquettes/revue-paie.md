@@ -111,7 +111,49 @@ les pénalités de retard CNSS, la mutuelle ou l'assurance de groupe, plusieurs 
 Ce que la 2e passe a corrigé en route : la semaine de Mourad comptait 2 h de sup un jour où il n'en avait fait qu'1 h 55
 (arrondi au quart d'heure inférieur, la règle écrite) ; les heures sont refaites pour tomber juste sur ses 8 h et 69,712.
 
-## 5. Décidé
+## 6. Revue complète de l'entreprise (3e passe, 01/11/2026), corrigée
+
+Revue à la place de Sarra, écran par écran (ordinateur, téléphone, sombre), puis corrigée avec l'accord de Skander.
+
+**Lot A — l'interface**
+- Le mois : trois chiffres (net à verser, coût de la paie, impôts et CNSS à verser avec leurs dates) au lieu de quatre
+  cartes plus une carte des sorties ; le tableau des bulletins remonte ; le net ne s'écrit plus cinq fois.
+- Un statut que les cinq bulletins partagent se dit une fois, en bas ; « Comment » devient « Payé par ».
+- Les pastilles des vues ne comptent que ce qui est à faire (Salariés 2, plus jamais un effectif).
+- Pointage : la question sur Nadia une seule fois ; sous-onglets soulignés ; initiales des jours ; le jour de la page
+  marqué, les jours à venir hachurés (« présent par défaut ») ; le bouton grisé devient « Régler les 2 anomalies,
+  puis envoyer », qui mène à la liste.
+- Réglages : un bouton à droite des vues, le fil « Paie › Réglages » qui ramène ; au téléphone, la page existe
+  (c'était un défaut : elle montrait le mois).
+- Téléphone : « Payer les salaires » reste au-dessus de la barre du bas.
+- Fiche : la fin du CDD n'est plus dite trois fois ; un seul « Modifier ».
+- L'année : un graphique du coût par mois (la raison des mois identiques est écrite) au lieu de dix lignes pareilles.
+- Déclarations : le même tableau que les autres pages. « d'Hamza » partout.
+- Défaut corrigé au passage : les mois passés d'une fiche reprenaient le brut d'octobre.
+
+**Lot B — les saisies qui manquaient**
+- Choisir le mois ; septembre clos (frise faite, ses 4 bulletins, « Revenir à octobre »).
+- Le bulletin complet : employeur, salarié (CIN, CNSS, catégorie), période et jours payés, date et mode de paiement,
+  salaire imposable, charges de l'employeur, depuis janvier (brut, retenues, avance, net), congés. Mentions : À VÉRIFIER.
+- Les primes et retenues du mois (prime exceptionnelle, panier de nuit, commission, retenue diverse).
+- Un nouveau salarié : identité, famille, contrat, catégorie, essai, salaire, équipe, paiement, RIB, badge.
+- Un congé ou une absence (solde avant et après, l'équipe qui reste) et le calendrier de novembre.
+- Renouveler un CDD : avenant, durée totale des CDD bout à bout (maximum : À VÉRIFIER).
+
+**Lot C — le reste du métier**
+- Sans cabinet : la paie « seule » (SkanFact contrôle), les déclarations « tu déclares toi-même », la déclaration du
+  mois à reporter et à marquer déposée, le fichier CNSS du trimestre (une ligne sans n° CNSS le bloque).
+- Les départs : fin de CDD, démission (exemple : Nadia, préavis, dernier bulletin au jour), licenciement, fin
+  d'essai, retraite.
+- Les prêts avec échéancier (Mourad, dès janvier 2027 : octobre et novembre ne bougent pas).
+- Les salariés partis et la recherche ; l'historique d'une fiche (qui a changé quoi, rien ne s'efface).
+
+**Décidé** : l'espace du salarié reste pour plus tard (Skander, 01/11/2026) ; les phrases qui l'annonçaient sont
+retirées (le salarié demande à Sarra, la réponse reste écrite).
+
+La page vérifie 23 égalités (deux chemins, un chiffre), dont les cumuls des bulletins contre « L'année ».
+
+## 7. Décidé
 
 - 01/11/2026 : quand le client fait sa paie, **le cabinet la corrige avec son accord** (Skander). Écrit au journal du
   cadrage (`docs/cadrage/README.md`).
