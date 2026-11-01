@@ -4200,6 +4200,11 @@
       if ((e.method || 'virement') !== 'especes' && !String(e.iban || '').trim()) L.push({ ...base, focus: 'iban', titre: `${e.name} : RIB à demander`, dit: 'payé par virement : sans RIB, le salaire ne peut pas partir', geste: 'Compléter' });
       if (!String(e.cnss || '').trim()) L.push({ ...base, focus: 'cnss', titre: `${e.name} : n° CNSS à demander`, dit: 'la déclaration du trimestre l\'attend', geste: 'Compléter' });
       if (e.contract === 'cdd' && e.endDate && e.endDate >= t && e.endDate <= dans60) L.push({ ...base, focus: '', titre: `Le CDD de ${e.name} finit le ${fmtDate(e.endDate)}`, dit: 'le renouveler, ou préparer sa sortie', geste: 'Décider' });
+      // (plateforme) 1.231.0 — un arrêt maladie des trois derniers mois sans son certificat ; une saisie sur salaire dont la
+      // retenue attend d'être versée au créancier.
+      (data.leaves || []).filter(l => l.employeeId === e.id && l.kind === 'maladie' && l.statut !== 'demande' && l.statut !== 'refuse' && !l.certificatLe && l.to >= addDays(t, -92) && l.from <= t)
+        .forEach(l => L.push({ ...base, vue: 'conges', focus: '', conge: l.id, titre: `${e.name} : le certificat de son arrêt du ${fmtDate(l.from)}`, dit: 'à garder, et à transmettre à la CNSS (À VÉRIFIER : le délai)', geste: 'Noter' }));
+      Compta.saisiesOf(data, e).filter(x => x.aVerser > 0).forEach(x => L.push({ ...base, focus: '', saisie: x.id, titre: `${e.name} : ${money(x.aVerser, data.company && data.company.currency)} à verser à ${x.creancier || 'son créancier'}`, dit: 'retenus sur ses bulletins pour une saisie sur salaire', geste: 'Verser' }));
     });
     return L;
   }
@@ -11536,6 +11541,53 @@
     ['rib', /\b(rib|iban)\b/], ['bank', /\b(banque|bank|domiciliation)\b/],
     ...IMPORT_MOTS.clients.filter(([k]) => !['email', 'phone', 'matricule', 'name'].includes(k)),
     ['name', /\b(nom|raison|societe|fournisseurs?|entreprise|denomination|supplier|vendor)\b/, true]];
+  // (plateforme) 1.231.0 — les SALARIÉS par tableur (docs/revue-paie.md, M8) : une entreprise de vingt salariés qui arrive
+  // ne retape pas vingt fiches. Les colonnes de la fiche, et ce qu'en écrivent les tableaux de paie (« Matricule CNSS »,
+  // « Date d'embauche », « Salaire de base »).
+  IMPORT_CHAMPS.salaries = [
+    { k: 'name', label: 'Nom et prénom', joint: ' ', noms: ['nom', 'noms', 'nom et prenom', 'nom prenom', 'prenom nom', 'prenom', 'nom complet', 'salarie', 'salaries', 'employe', 'employes', 'nom du salarie', 'agent', 'personnel', 'name', 'employee', 'employee name', 'full name'] },
+    { k: 'cin', label: 'CIN', joint: ' ', noms: ['cin', 'n cin', 'numero cin', 'num cin', 'carte d identite', 'piece d identite', 'id card'] },
+    { k: 'cnss', label: 'N° CNSS', joint: ' ', noms: ['cnss', 'n cnss', 'numero cnss', 'num cnss', 'matricule cnss', 'n assure', 'numero assure', 'numero d assure', 'immatriculation cnss', 'n affiliation'] },
+    { k: 'position', label: 'Poste', joint: ' ', noms: ['poste', 'fonction', 'emploi', 'qualification', 'metier', 'job', 'job title', 'position'] },
+    { k: 'contract', label: 'Contrat', joint: ' ', noms: ['contrat', 'type de contrat', 'nature du contrat', 'type contrat', 'contract'] },
+    { k: 'hireDate', label: 'Date d\'embauche', date: true, noms: ['date d embauche', 'embauche', 'date embauche', 'entree', 'date d entree', 'date entree', 'entre le', 'hire date', 'start date'] },
+    { k: 'grossSalary', label: 'Salaire brut mensuel', nombre: true, noms: ['salaire', 'salaire brut', 'brut', 'salaire de base', 'salaire mensuel', 'brut mensuel', 'salaire brut mensuel', 'base', 'gross salary', 'salary', 'gross'] },
+    { k: 'iban', label: 'RIB', joint: ' ', noms: ['rib', 'r i b', 'iban', 'compte bancaire', 'coordonnees bancaires', 'bank account'] },
+    { k: 'email', label: 'Email', joint: ', ', noms: ['email', 'e mail', 'mail', 'courriel', 'adresse email', 'adresse e mail', 'adresse mail'] },
+    { k: 'phone', label: 'Téléphone', joint: ' / ', noms: ['telephone', 'tel', 'portable', 'mobile', 'gsm', 'phone', 'numero de telephone'] },
+    { k: 'address', label: 'Adresse', joint: '\n', noms: ['adresse', 'adresse postale', 'address', 'rue', 'domicile'] },
+    { k: 'birthDate', label: 'Date de naissance', date: true, noms: ['date de naissance', 'naissance', 'ne le', 'nee le', 'ne e le', 'date naissance', 'birth date', 'date of birth'] },
+    { k: 'children', label: 'Enfants à charge', nombre: true, noms: ['enfants', 'nombre d enfants', 'enfants a charge', 'nb enfants', 'nbre enfants', 'children'] },
+    { k: 'headOfFamily', label: 'Chef de famille', joint: ' ', noms: ['chef de famille', 'chef famille', 'situation', 'situation familiale', 'etat civil', 'marie'] }
+  ];
+  IMPORT_MOTS.salaries = [['email', /\b(e ?mail|courriel|mails?)\b/], ['phone', /\b(tel|telephone|portable|mobile|gsm|phone)\b/], ['cnss', /\bcnss\b/],
+    ['cin', /\bcin\b/], ['iban', /\b(rib|iban)\b/], ['birthDate', /\bnaissance\b/], ['hireDate', /\b(embauche|entree)\b/], ['grossSalary', /\b(salaire|brut)\b/],
+    ['children', /\benfants?\b/], ['headOfFamily', /\b(chef|situation)\b/], ['position', /\b(poste|fonction|emploi|qualification)\b/], ['contract', /\bcontrat\b/],
+    ['address', /\b(adresse|rue|domicile)\b/], ['name', /\b(nom|prenom|salaries?|employes?)\b/, true]];
+  // Une date d'un tableur : « 02/01/2024 » (jour d'abord, l'usage tunisien), « 2024-01-02 », ou le numéro de jour
+  // qu'Excel garde (45293). Illisible : NaN, jamais une date inventée. Vide : null.
+  function dateImport(x) {
+    const s = String(x == null ? '' : x).trim();
+    if (!s) return null;
+    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+    let y, mo, d;
+    if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; } else if ((m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/.exec(s))) { d = +m[1]; mo = +m[2]; y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; }
+    else if (/^\d{5}$/.test(s)) { const t = new Date(Date.UTC(1899, 11, 30) + Number(s) * 86400000); return t.toISOString().slice(0, 10); }
+    else return NaN;
+    const t = new Date(Date.UTC(y, mo - 1, d));
+    if (t.getUTCFullYear() !== y || t.getUTCMonth() !== mo - 1 || t.getUTCDate() !== d) return NaN;
+    return t.toISOString().slice(0, 10);
+  }
+  const memeSalarie = (a, b) => {
+    const ca = String(a.cin || '').replace(/\s/g, ''), cb = String(b.cin || '').replace(/\s/g, '');
+    if (ca && cb) return ca === cb;
+    return !!cleNom(a.name) && cleNom(a.name) === cleNom(b.name);
+  };
+  function salarieVierge(o) {
+    return { id: uid(), name: o.name, cin: o.cin || '', cnss: o.cnss || '', position: o.position || '', contract: o.contract || 'cdi', hireDate: o.hireDate, endDate: '',
+      grossSalary: o.grossSalary, headOfFamily: !!o.headOfFamily, children: o.children || 0, method: 'virement', iban: o.iban || '', notes: '',
+      ...(o.email ? { email: o.email } : {}), ...(o.phone ? { phone: o.phone } : {}), ...(o.address ? { address: o.address } : {}), ...(o.birthDate ? { birthDate: o.birthDate } : {}), active: true };
+  }
   const VETO_MOTS = /\b(code|ref|reference|id|identifiant|numero|num|no|n)\b/;
   const cleEntete = titre => plier(titre).replace(/[^a-z0-9%]+/g, ' ').trim();
   function champDeEntete(type, titre) {
@@ -11636,6 +11688,19 @@
     };
     const estNombre = x => { const n = nombreImport(x); return n !== null && !Number.isNaN(n); };
     const libre = i => !out[i];
+    if (type === 'salaries') {
+      for (let i = 0; i < largeur; i++) {
+        if (part(i, x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)) >= 0.6) out[i] = 'email';
+        else if (part(i, x => /^\d{20}$/.test(x.replace(/[\s.-]/g, ''))) >= 0.6) out[i] = 'iban';
+        else if (part(i, x => /^\d{8}$/.test(x)) >= 0.6) out[i] = 'cin';
+        else if (part(i, x => typeof dateImport(x) === 'string') >= 0.8) out[i] = out.includes('hireDate') ? (out.includes('birthDate') ? '' : 'birthDate') : 'hireDate';
+      }
+      const nom = [...out.keys()].find(i => libre(i) && part(i, x => !estNombre(x)) >= 0.6);
+      if (nom != null) out[nom] = 'name';
+      const brut = [...out.keys()].find(i => libre(i) && part(i, x => estNombre(x) && Number(nombreImport(x)) >= 100) >= 0.8);
+      if (brut != null) out[brut] = 'grossSalary';
+      return out;
+    }
     if (type === 'clients' || type === 'fournisseurs') {
       for (let i = 0; i < largeur; i++) {
         if (part(i, x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)) >= 0.6) out[i] = 'email';
@@ -11725,13 +11790,38 @@
     };
     const assujetti = assujettiTVA(co);
     const vatDefaut = defaultVat(co);
-    const existants = type === 'clients' ? (d.clients || []) : type === 'fournisseurs' ? (d.suppliers || []) : (d.catalog || []);
+    const existants = type === 'clients' ? (d.clients || []) : type === 'fournisseurs' ? (d.suppliers || []) : type === 'salaries' ? (d.employees || []) : (d.catalog || []);
     const vus = [];
     const lignes = donnees.map((r, idx) => {
       const n = idx + (entete ? 2 : 1);
       const extrait = r.map(c => String(c || '').trim()).filter(Boolean).slice(0, 3).join(', ');
       const ligne = { n, cellules: r, statut: 'nouveau', motifs: [], avert: [], complete: [], existant: null };
       const refus = m => { ligne.statut = 'refus'; ligne.motifs.push(`Ligne ${n}${extrait ? ` (${extrait})` : ''} : ${m}`); };
+      if (type === 'salaries') {
+        const num = (k, quoi) => { const b = lire(r, k); const v = nombreImport(b); if (v === null) return null; if (Number.isNaN(v) || v < 0) { refus(`« ${b} » n'est pas ${quoi}. Écris-le en chiffres.`); return null; } return v; };
+        const dat = (k, quoi) => { const b = lire(r, k); const v = dateImport(b); if (v === null) return ''; if (Number.isNaN(v)) { refus(`« ${b} » n'est pas une date (${quoi}) : écris-la jour/mois/année, comme 02/01/2024.`); return ''; } return v; };
+        const ctr = plier(lire(r, 'contract'));
+        const contrat = !ctr ? 'cdi' : (CONTRACT_TYPES.find(([k]) => ctr === k || ctr.startsWith(k) || ctr.includes(k)) || [''])[0];
+        const chef = plier(lire(r, 'headOfFamily'));
+        const obj = { name: lire(r, 'name'), cin: lire(r, 'cin'), cnss: lire(r, 'cnss'), position: lire(r, 'position'), contract: contrat || 'cdi',
+          hireDate: dat('hireDate', 'son embauche'), grossSalary: num('grossSalary', 'un salaire') || 0, iban: lire(r, 'iban').replace(/[\s.-]/g, ''), email: lire(r, 'email'),
+          phone: lire(r, 'phone'), address: lire(r, 'address'), birthDate: dat('birthDate', 'sa naissance'), children: Math.round(num('children', 'un nombre d\'enfants') || 0),
+          headOfFamily: /^(oui|o|x|1|vrai|yes|y|chef|chef de famille|marie|mariee)\b/.test(chef) };
+        ligne.objet = obj;
+        if (!obj.name) refus('le nom manque — c\'est lui qui s\'imprime sur son bulletin.');
+        if (ligne.statut !== 'refus' && !obj.hireDate) refus('la date d\'embauche manque — sans elle, aucun bulletin.');
+        if (ligne.statut !== 'refus' && !(obj.grossSalary > 0)) refus('le salaire brut manque — sans lui, aucun bulletin.');
+        if (ctr && !contrat) ligne.avert.push(`contrat « ${lire(r, 'contract')} » inconnu : il entre en CDI, change-le sur sa fiche s'il le faut.`);
+        if (obj.iban && !/^\d{20}$/.test(obj.iban)) ligne.avert.push(`le RIB « ${lire(r, 'iban')} » n'a pas les vingt chiffres d'un RIB tunisien : relis-le avant le premier virement.`);
+        if (obj.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(obj.email)) ligne.avert.push(`l'email « ${obj.email} » n'a pas la forme d'une adresse.`);
+        if (ligne.statut === 'refus') return ligne;
+        const avant = vus.find(v => memeSalarie(v.objet, obj));
+        if (avant) { ligne.statut = 'doublon'; ligne.motifs.push(`même salarié que la ligne ${avant.n}`); return ligne; }
+        const ex = existants.find(c => memeSalarie(c, obj));
+        if (ex) { ligne.statut = 'existe'; ligne.existant = ex.id; ligne.complete = ['cin', 'cnss', 'position', 'iban', 'email', 'phone', 'address', 'birthDate'].filter(k => obj[k] && !String(ex[k] || '').trim()); }
+        vus.push(ligne);
+        return ligne;
+      }
       if (type === 'clients' || type === 'fournisseurs') {
         const fournisseur = type === 'fournisseurs';
         const adr = [lire(r, 'address'), lire(r, 'complement')].filter(Boolean).join('\n');
@@ -11835,12 +11925,14 @@
     const out = { crees: [], completes: 0, remplaces: 0, retires: 0 };
     const clients = plan.type === 'clients';
     const fournisseurs = plan.type === 'fournisseurs';
+    const salaries = plan.type === 'salaries';
     if (fournisseurs && !Array.isArray(data.suppliers)) data.suppliers = [];
-    const liste = clients ? data.clients : fournisseurs ? data.suppliers : data.catalog;
+    if (salaries && !Array.isArray(data.employees)) data.employees = [];
+    const liste = clients ? data.clients : fournisseurs ? data.suppliers : salaries ? data.employees : data.catalog;
     const jour = o.jour || today();
     plan.lignes.forEach(l => {
       if (l.statut === 'nouveau') {
-        const x = clients ? clientVierge(l.objet) : fournisseurs ? fournisseurVierge(l.objet) : articleVierge(company, l.objet, jour);
+        const x = clients ? clientVierge(l.objet) : fournisseurs ? fournisseurVierge(l.objet) : salaries ? salarieVierge(l.objet) : articleVierge(company, l.objet, jour);
         liste.push(x); out.crees.push(x.id);
       } else if (l.statut === 'existe' && l.complete.length) {
         const x = liste.find(y => y.id === l.existant);
@@ -11972,7 +12064,7 @@
     LICENCE_PREAVIS, licenceEtat, licenceRows, licencesExpirant,
     clientPourVente, chargeHistorique, facturesAAnnoncer,
     // L'import depuis un tableur, et le modèle vierge d'une fiche (10.14.0)
-    clientVierge, articleVierge, fournisseurVierge, IMPORT_CHAMPS, champDeEntete, decouperTableau, separateurTableau, uniteImport,
+    clientVierge, articleVierge, fournisseurVierge, IMPORT_CHAMPS, dateImport, champDeEntete, decouperTableau, separateurTableau, uniteImport,
     planImport, appliquerImport, lireFichierTexte,
     // (plateforme) Dessiner un code QR : `qrImage(texte)` rend un <svg>. Vide ici ; la page le branche (brique 83).
     qrImage: null

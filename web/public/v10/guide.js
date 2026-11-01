@@ -288,6 +288,8 @@
     'pay.saisieDebut': { t: 'À partir de', d: 'Le premier mois dont le bulletin porte la retenue.' },
     'pay.saisieRef': { t: 'Référence', d: 'Le numéro de la décision ou de l\'acte reçu, pour la retrouver.' },
     'pay.saisieVerseLe': { t: 'Versé le', d: 'Le jour où l\'argent part vers le créancier : il sort de la trésorerie ce jour-là.' },
+    'hr.certificat': { t: 'Certificat médical', d: 'Le jour où tu as reçu le certificat de son médecin. Garde-le : la CNSS le demande pour l\'indemniser.' },
+    'hr.cnssMaladie': { t: 'Envoyé à la CNSS', d: 'Le jour où le certificat est parti à la CNSS. À VÉRIFIER avec ton comptable : le délai à respecter.' },
     'pay.salaireDes': { t: 'À partir de', d: 'Le premier mois où le nouveau salaire compte. Les bulletins d\'avant gardent l\'ancien, même refaits plus tard ; l\'historique de sa fiche garde les deux.' },
     'soc.payeLe': { t: 'Payée le', d: 'Le jour où l\'argent est parti (le virement, le chèque remis, le paiement au guichet). C\'est à cette date que la trésorerie le voit sortir.' },
     'soc.compte': { t: 'Depuis le compte', d: 'La banque ou la caisse d\'où sort l\'argent : la ligne s\'y pointe ensuite sur le relevé.' },

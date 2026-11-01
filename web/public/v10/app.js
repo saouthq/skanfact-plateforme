@@ -9246,6 +9246,9 @@
       exemple: 'Nom\tTéléphone\tEmail\tAdresse\nHôtel Dar El Marsa\t71 234 567\tcontact@darelmarsa.tn\tRue du Lac, La Marsa' },
     fournisseurs: { titre: 'Importer mes fournisseurs', vers: 'Importer dans mes fournisseurs', nature: 'une liste de fournisseurs', un: 'fournisseur', des: 'fournisseurs', neuf: ['nouveau fournisseur', 'nouveaux fournisseurs'], fiche: 'fiche', chez: 'tes fournisseurs',
       exemple: 'Nom\tMatricule fiscal\tTéléphone\tRIB\nPapeterie du Lac\t0000000A/A/M/000\t71 000 000\t00 000 0000000000000 00' },
+    // (plateforme) 1.231.0 — les salariés (docs/revue-paie.md, M8).
+    salaries: { titre: 'Importer mes salariés', vers: 'Importer dans mes salariés', nature: 'une liste de salariés', un: 'salarié', des: 'salariés', neuf: ['nouveau salarié', 'nouveaux salariés'], fiche: 'fiche', chez: 'tes salariés',
+      exemple: 'Nom et prénom\tCIN\tN° CNSS\tPoste\tContrat\tDate d\'embauche\tSalaire brut\tRIB\nMourad Ben Ali\t01234567\t1234567-89\tBoulanger\tCDI\t02/01/2024\t1 450,000\t08 100 0123456789012 59' },
     catalogue: { titre: 'Importer mon catalogue', vers: 'Importer dans mon catalogue', nature: 'un catalogue', un: 'prestation', des: 'prestations', neuf: ['nouvelle prestation', 'nouvelles prestations'], fiche: 'prestation', chez: 'ton catalogue',
       exemple: 'Désignation\tPrix HT\tTVA\tUnité\nPose de carrelage\t35,000\t19\tm²' }
   };
@@ -9382,10 +9385,11 @@
         if (!(p.nouveaux || p.completes || p.remplaces)) return;
         // Un stock de départ EST un mouvement de stock : il passe par le garde-fou de l'offre, comme
         // sur la fiche d'un article (7.33.0).
-        const cle = { clients: 'clients', catalogue: 'catalog', fournisseurs: 'suppliers' }[type];
+        const cle = { clients: 'clients', catalogue: 'catalog', fournisseurs: 'suppliers', salaries: 'employees' }[type];
         // (plateforme) La partie se lit seulement (brique 102) : refusé avant, en le disant.
         if (enLecture(cle)) { toast(refusLecture(cle, 'importé'), true); return; }
         if (type === 'fournisseurs' && p.nouveaux && licenceBlock('Créer un fournisseur', 'achats')) return;
+        if (type === 'salaries' && p.nouveaux && licenceBlock('Créer une fiche de salarié', 'paie')) return;
         if (p.stock && licenceBlock('Créer un stock de départ', 'stock')) return;
         const avant = { liste: deepCopy(data[cle]), deleted: deepCopy(data.deleted || []) };
         const r = C.appliquerImport(data, p, company(), { retirerExemples: p.exemples.length > 0 && choix.retirerExemples !== false });
@@ -18135,6 +18139,13 @@
         ${dateFieldHtml(lbl('Du', 'hr.leaveDates'), 'from', l.from, { obligatoire: true })}
         ${dateFieldHtml(lbl('Au', 'hr.leaveDates'), 'to', l.to, { obligatoire: true })}
         <label class="field span-2">${lbl('Motif', 'hr.leaveNote')}<input type="text" name="note" value="${h(l.note || '')}" placeholder="Certificat médical, congé annuel…"></label>
+        ${/* (plateforme) 1.231.0 — l'ARRÊT MALADIE a ses papiers (docs/revue-paie.md, M7) : le certificat reçu, la déclaration à
+             la CNSS. Qui paie ces jours dépend de la convention : « Effet sur le salaire » le dit, rien n'est inventé. */''}
+        <fieldset class="span-2 pa-maladie" id="lf-maladie" ${l.kind === 'maladie' ? '' : 'hidden'}><legend>L'arrêt maladie</legend>
+          <div class="grid-2">${dateFieldHtml(lbl('Certificat médical reçu le', 'hr.certificat'), 'certificatLe', l.certificatLe || '', { clearable: true })}
+          ${dateFieldHtml(lbl('Envoyé à la CNSS le', 'hr.cnssMaladie'), 'cnssLe', l.cnssLe || '', { clearable: true })}</div>
+          <p class="small muted">« Payée » : l'entreprise maintient son salaire. « Non payée » : ces jours se retirent du brut, et c'est la CNSS qui l'indemnise sur le certificat. <em>À VÉRIFIER avec ton comptable : ce que prévoit ta convention collective, les jours de carence, et le délai pour transmettre le certificat à la CNSS.</em></p>
+        </fieldset>
         ${/* (plateforme) 1.226.0 — une demande du salarié : écrite, elle ne compte nulle part avant d'être acceptée. */''}
         <label class="check span-2"><input type="checkbox" name="demande" ${l.statut === 'demande' ? 'checked' : ''}> C'est une demande du salarié, pas encore acceptée <span class="small muted">: elle ne touche ni son solde ni son salaire avant ta réponse</span></label>
         <div class="span-2 annonce-stable" id="lf-hint"></div>
@@ -18155,7 +18166,7 @@
             + (bal && v.kind === 'conges' ? soldeApresConge(bal.remaining, days, leave, v) : '')
             + '</span>';
         };
-        $('#lf', root).oninput = $('#lf', root).onchange = hint; hint();
+        $('#lf', root).oninput = $('#lf', root).onchange = () => { $('#lf-maladie', root).hidden = formValues($('#lf', root)).kind !== 'maladie'; hint(); }; hint();
         $('#ok', root).onclick = () => {
           const v = formValues($('#lf', root));
           const champ = n => $(`#lf [name=${n}]`, root);
@@ -18172,6 +18183,8 @@
           if (!leave && licenceBlock('Créer une absence', 'paie')) return;
           const statut = v.demande ? 'demande' : (l.statut === 'demande' ? 'accepte' : l.statut);
           delete v.demande;
+          if (v.kind !== 'maladie') { delete v.certificatLe; delete v.cnssLe; delete l.certificatLe; delete l.cnssLe; }
+          else { if (!v.certificatLe) { delete v.certificatLe; delete l.certificatLe; } if (!v.cnssLe) { delete v.cnssLe; delete l.cnssLe; } }
           Object.assign(l, v, { paid: v.paid === '' ? null : v.paid === '1' });
           if (statut) l.statut = statut; else delete l.statut;
           if (statut === 'demande' && !l.demandeLe) l.demandeLe = C.today();
@@ -18468,7 +18481,7 @@
         <p class="small">Ce module calcule les bulletins de paie à partir de barèmes que <b>tu règles toi-même</b> : CNSS, impôt sur le revenu, contribution de solidarité. Les valeurs livrées sont celles couramment appliquées en Tunisie, mais elles changent à chaque loi de finances — <em>fais valider les premiers bulletins par ton comptable avant de les remettre.</em></p>
         <p class="small muted">Commence par créer la fiche d'un salarié, avec son brut mensuel.</p>
         ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="emp-first">+ Créer mon premier salarié</button></div>`
-          : '<button class="btn btn-primary mt" id="emp-first">+ Créer mon premier salarié</button>'}</div>`}
+          : `<div class="inline mt"><button class="btn btn-primary" id="emp-first">+ Créer mon premier salarié</button><button class="btn" id="emp-imp">${lfIc('importer', 15)} Importer depuis un tableur</button></div><p class="small muted">Tes salariés sont déjà dans un tableau de paie ? Colle-le : toutes les fiches entrent d'un coup, et tu vois ce qui manque avant d'importer.</p>`}</div>`}
       <div class="pa-vues" ${data.employees.length ? '' : 'hidden'}><label class="pa-mois" id="p-mois"></label>
         <div class="pa-onglets" id="p-tabs"><div class="pa-seg" role="tablist" aria-label="La paie">${PAIE_VUES.map(([id, label]) =>
           `<button role="tab" data-tab="${id}" class="${id === (PAIE_VUE_DE[s.tab] || s.tab) ? 'active' : ''}" aria-selected="${id === (PAIE_VUE_DE[s.tab] || s.tab)}">${label}<small class="pa-af" data-af="${id}" hidden></small></button>`).join('')}</div>
@@ -18678,6 +18691,8 @@
       $$('#p-body [data-traiter]').forEach(b => b.onclick = () => {
         const x = traiter[Number(b.dataset.traiter)]; if (!x) return;
         const e = employeeById(x.salarie);
+        if (x.conge) return leaveForm((data.leaves || []).find(l => l.id === x.conge), null, () => draw());
+        if (x.saisie && e) return saisieFenetre(e, (e.saisies || []).find(z => z.id === x.saisie), () => draw());
         if (x.focus && e) return employeeForm(e, () => draw(), { focus: x.focus });
         if (e) location.hash = `#/salarie/${encodeURIComponent(e.id)}`;
       });
@@ -19763,6 +19778,7 @@
       if ($('#p-plus')) $('#p-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
         ...(C.payslipsOf(data, Number(s.year), Number(s.month)).length ? [{ icon: 'pdf', label: 'Journal de paie', hint: `${MONTHS_LONG[Number(s.month) - 1]} ${s.year} : une ligne par salarié, les totaux`, run: () => journalDePaieFenetre(Number(s.year), Number(s.month)) }] : []),
         { icon: 'dossier', label: 'Registre du personnel', hint: 'la liste que l\'inspection du travail peut demander', run: () => allerVue('registre') },
+        { icon: 'extraire', label: 'Importer des salariés', hint: 'depuis un tableur ou ton ancien logiciel de paie', run: () => importerTableau('salaries', () => { paieState.tab = 'salaries'; render(); }) },
         { icon: 'modifier', label: 'Réglages de la paie', hint: 'taux, barèmes, horaires', run: () => allerVue('baremes') },
         { icon: 'oeil', label: 'Qui fait ma paie', hint: (PAIE_MODES.find(x => x[0] === paieMode()) || [])[1], run: () => quiFaitLaPaie() },
         { icon: 'argent', label: 'Combien coûte une embauche ?', hint: 'le net et le coût d\'un salaire, sans rien enregistrer', run: () => simulationEmbauche() }
@@ -19774,6 +19790,7 @@
       const ouvrirSalarie = () => employeeForm(null, () => { paieState.tab = 'salaries'; render(); });
       if ($('#new-emp')) $('#new-emp').onclick = ouvrirSalarie;
       if ($('#emp-first')) $('#emp-first').onclick = ouvrirSalarie;
+      if ($('#emp-imp')) $('#emp-imp').onclick = () => importerTableau('salaries', () => { paieState.tab = 'salaries'; render(); });
       if ($('#new-lv')) $('#new-lv').onclick = () => leaveForm(null, null, () => draw());
       if ($('#new-av')) $('#new-av').onclick = () => advanceForm(null, null, () => draw());
     };
