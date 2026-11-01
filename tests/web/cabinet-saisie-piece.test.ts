@@ -370,6 +370,62 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 240_000);
 
+  // (1.221.0, l'épreuve d'un mois) Ce que le mois complet, joué au clavier, a trouvé dans la Saisie.
+  it('(1.221.0) la photo renvoyée prend la place de l\'illisible ; la facture tapée : le fournisseur complété, la date, le timbre hors de la TVA ; l\'achat comparé à lui-même, pas à son règlement', async () => {
+    const { associe, cab, ent, sarra, floue } = await laBoulangerie();
+    // Le règlement de la farine porte le même numéro que l'achat (écrit depuis la Banque), en octobre.
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, { date: '2026-10-08', journal: 'BQ', piece: 'FA-0914', libelle: 'Règlement de FA-0914',
+      lignes: [{ compte: '401', tiers: 'Minoterie du Cap Bon', debit: '1846,199' }, { compte: '532', credit: '1846,199' }] })).statut).toBe(201);
+    // Sarra renvoie la photo, en réponse à la demande du cabinet ; elle arrive le 01/11 (en novembre : sans la règle, elle irait en octobre).
+    const dem = await api('POST', `/entreprises/${ent}/messages`, associe, { cote: 'cabinet', texte: 'Bonjour Sarra, peux-tu reprendre IMG_8790 ?', demande: 'Une photo lisible de IMG_8790.png' });
+    expect(dem.statut).toBe(201);
+    const f = await api('POST', `/entreprises/${ent}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'IMG_8790-bis.png', contenu: PNG });
+    const bis = await api('POST', `/entreprises/${ent}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: f.corps.id, repondA: dem.corps.id });
+    expect(bis.statut).toBe(201);
+    const admin = new pg.Client({ connectionString: inject('pgAdmin') });
+    await admin.connect();
+    try { await admin.query(`update messagerie.message set ecrit_le = '2026-11-01T09:00:00+01:00' where id = $1`, [bis.corps.id]); } finally { await admin.end(); }
+    expect(floue).toBeTruthy();
+    const { p, erreurs } = await ouvrir(associe, cab.id, ent);
+    // La photo renvoyée est dans septembre, à saisir ; l'illisible ne demande plus rien.
+    await expect.poll(() => puce(p, 'IMG_8790-bis').getAttribute('title').catch(() => '')).toBe('IMG_8790-bis.png · à saisir');
+    const titres = await p.locator('[data-sx-k]').evaluateAll((l) => l.map((x) => x.getAttribute('title') ?? ''));
+    expect(titres.filter((t) => t.startsWith('IMG_8790'))).toEqual(['IMG_8790-bis.png · à saisir']);
+    expect(await p.locator('#sx-rang').innerText()).toMatch(/sur 6$/);
+    // La farine se compare à son achat (septembre), pas à son règlement d'octobre : « à vérifier », pas « à reclasser ».
+    expect(titres).toContain('Minoterie du Cap Bon · à vérifier');
+    // La facture tapée : « Minoterie », Entrée, et le nom connu se complète ; le curseur va sur la date (celle d'arrivée).
+    await puce(p, 'IMG_8790-bis').click();
+    await p.locator('#sx-four').click();
+    await p.keyboard.type('Minoterie');
+    await p.keyboard.press('Enter');
+    await expect.poll(() => p.locator('#sx-four').inputValue()).toBe('Minoterie du Cap Bon');
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('sx-date');
+    await p.keyboard.press('Control+A');
+    await p.keyboard.type('11/09/2026');
+    await p.keyboard.press('Tab');
+    await p.keyboard.type('1199,400');
+    await p.keyboard.press('Tab');
+    expect(await p.evaluate(() => document.activeElement?.id)).toBe('sx-timbre');
+    await p.keyboard.type('1');
+    await p.keyboard.press('Tab');
+    await p.locator('#sx-tva').selectOption('7');
+    // Le timbre n'a pas de TVA : 1 199,400 − 1 = 1 198,400, dont 78,400 de TVA à 7 % (et non 78,465 sur le tout).
+    await expect.poll(() => p.locator('#sx-ec-l').innerText().then(net)).toMatch(/1 121,000 4366 .*78,400 401 Minoterie du Cap Bon 1 199,400$/);
+    await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-timbre.png') });
+    // Un timbre plus grand que le total se refuse, et le curseur y va.
+    await p.locator('#sx-timbre').fill('2000');
+    await p.locator('#sx-ok').click();
+    expect(await p.locator('#sx-refus').innerText()).toMatch(/^Le timbre dépasse le total/);
+    expect(await p.evaluate(() => document.activeElement?.id)).toBe('sx-timbre');
+    await p.locator('#sx-timbre').fill('1');
+    await p.locator('#sx-ok-valider').click();
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as Ecriture[])
+      .find((e) => e.date === '2026-09-11' && e.lignes.some((l) => l.compte === '4366'))?.lignes.map((l) => [l.compte, l.debit, l.credit]).sort(), { timeout: 15_000 })
+      .toEqual(expect.arrayContaining([['4366', '78.400', '0.000'], ['401', '0.000', '1199.400']]));
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('la farine payée net de sa retenue : le certificat se prépare depuis la pièce', async () => {
     const { associe, cab, ent } = await laBoulangerie();
     // Le règlement de la Minoterie : le TTC de la pièce au fournisseur, 27,693 de retenue opérée, le reste à la banque.

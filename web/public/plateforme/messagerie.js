@@ -425,6 +425,8 @@
    *   pieces?: () => { genre: string, id: string, libelle: string, date?: string }[],
    *   pieceDepart?: { genre: string, id: string, libelle: string } | null,
    *   ouvrirPiece?: (genre: string, id: string, libelle: string) => boolean,
+   *   achatDuNumero?: (numero: string) => ({ id: string, date: string, libelle: string } | null),
+   *   corrigerDateAchat?: (numero: string, date: string) => Promise<{ genre: string, id: string, libelle: string }>,
    *   saisirPiece?: (message: { id: string, ecritLe: string, fichier: { id: string, nom: string, type: string } }) => void,
    *   pieceDuNumero?: (numero: string) => { genre: string, id: string } | null,
    *   repondre?: (question: string, texte: string) => Promise<void>,
@@ -941,7 +943,11 @@
         // (1.116.0) Sa date « pour le », et passée sans réponse, « En retard », des deux côtés ; côté cabinet, les relances
         // parties (le client ne voit que la date : la relance est un e-mail, pas un reproche dans le fil).
         const retard = !recue && !!m.demande.enRetard;
+        // (1.221.0, l'épreuve d'un mois) « La bonne date de FA-0914 » ne se répond pas par un fichier : la cliente corrige
+        // la date de son achat, et l'achat corrigé part en réponse (la demande est alors reçue).
+        const aDater = entreprise && o.corrigerDateAchat ? numeroADater(m) : '';
         const geste = recue || !actif ? ''
+          : aDater ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-corriger-date="${esc(m.id)}">Corriger la date…</button>`
           : entreprise ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-envoyer-piece="${esc(m.id)}">Envoyer la pièce…</button>`
             : `<button type="button" class="btn btn-sm" data-msg-recue="${esc(m.id)}">Reçue autrement</button>`;
         const pour = m.demande.pour && !recue ? `<span class="msg-pour">pour le ${esc(dateCourte(m.demande.pour))}</span>` : '';
@@ -951,10 +957,10 @@
         const frise = [`<li class="fait"><b>Demandée</b><small>${esc(jjmm(m.ecritLe))}</small></li>`,
           ...(m.demande.relances && !recue ? [`<li class="fait"><b>Relancée</b><small>${esc(jjmm(m.demande.relanceLe))}</small></li>`] : []),
           recue ? `<li class="fait ok"><b>Reçue</b><small>${esc(jjmm(m.demande.recueLe))}</small></li>`
-            : `<li class="${retard ? 'retard' : 'attend'}"><b>${retard ? 'En retard' : entreprise ? 'À envoyer' : 'Attendue'}</b><small>${m.demande.pour ? `pour le ${esc(jjmm(m.demande.pour))}` : 'sans date'}</small></li>`].join('');
-        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>Pièce demandée${esc(parQui)}</b><span>${esc(m.demande.texte)}${recue ? ' · reçue' : ''}</span>${pour}</span>
+            : `<li class="${retard ? 'retard' : 'attend'}"><b>${retard ? 'En retard' : aDater ? 'À corriger' : entreprise ? 'À envoyer' : 'Attendue'}</b><small>${m.demande.pour ? `pour le ${esc(jjmm(m.demande.pour))}` : 'sans date'}</small></li>`].join('');
+        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>${aDater ? 'Date à corriger' : 'Pièce demandée'}${esc(parQui)}</b><span>${esc(m.demande.texte)}${recue ? ' · reçue' : ''}</span>${pour}</span>
           <ol class="msg-frise-d" aria-label="Où en est la pièce">${frise}</ol>
-          <span class="msg-etat">${recue ? 'Reçue' : retard ? 'En retard' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}${relances}</div>`;
+          <span class="msg-etat">${recue ? (aDater ? 'Corrigée' : 'Reçue') : retard ? 'En retard' : aDater ? 'À corriger' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}${relances}</div>`;
       }
       if (m.fichier) {
         corps += `<div class="msg-fichier">${dessin(m.fichier.type === 'application/pdf' ? 'piece' : 'image')}
@@ -1499,6 +1505,10 @@
       // (1.115.0) « Envoyer la pièce… » ouvre une fenêtre : une photo ou un PDF, vu avant de partir, ou la pièce déjà
       // dans le dossier (revue du 22/10/2026 : le fichier partait dès qu'il était choisi, sans « Annuler », et la facture
       // STEG déjà saisie dans les achats devait être renvoyée).
+      surClic(fil, '[data-msg-corriger-date]', async (b) => {
+        const m = demandes().get(String(b.dataset.msgCorrigerDate));
+        if (m) corrigerDate(m);
+      });
       surClic(fil, '[data-msg-envoyer-piece]', async (b) => {
         const m = demandes().get(String(b.dataset.msgEnvoyerPiece));
         if (m) envoyerPiece(m);
@@ -1896,6 +1906,57 @@
       fond.onclick = (e) => { if (e.target === fond) fermer(); };
       montrer();
       chercher.focus();
+    }
+
+    // (1.221.0) La date d'un achat demandée par le cabinet : le numéro de l'achat (« la bonne date de FA-0914 (…) »), s'il
+    // est dans le dossier ; la date que le cabinet a lue sur la facture (« la facture est du 29/08 »), dans l'année de l'achat
+    // (ou celle d'avant, si elle tombait après lui).
+    /** @param {any} m */
+    function numeroADater(m) {
+      const n = (/^la bonne date de (\S+)/.exec(String(m.demande && m.demande.texte || '')) || [])[1] || '';
+      return n && o.achatDuNumero && o.achatDuNumero(n) ? n : '';
+    }
+    /** @param {any} m */
+    function corrigerDate(m) {
+      const numero = numeroADater(m);
+      const a = numero && o.achatDuNumero ? o.achatDuNumero(numero) : null;
+      if (!a || !o.corrigerDateAchat) return;
+      const lue = /la facture est du (\d\d)\/(\d\d)/.exec(String(m.texte || ''));
+      let propose = '';
+      if (lue) { const an = Number(String(a.date).slice(0, 4)); propose = `${an}-${lue[2]}-${lue[1]}`; if (propose > String(a.date)) propose = `${an - 1}-${lue[2]}-${lue[1]}`; }
+      const fond = document.createElement('div');
+      fond.className = 'msg-fenetre-fond';
+      fond.innerHTML = `<form class="msg-fenetre" role="dialog" aria-modal="true" aria-labelledby="msg-cd-titre" novalidate>
+        <h2 id="msg-cd-titre">La date de ${esc(numero)}</h2>
+        <p class="small muted">Ton achat ${esc(a.libelle)} est daté du ${esc(dateCourte(String(a.date)))}.${lue ? ` Ton cabinet a lu sur la facture : ${esc(lue[1])}/${esc(lue[2])}.` : ''} Sa TVA compte au mois de la facture.</p>
+        <label class="field" for="msg-cd-date">La date de la facture</label>
+        <input type="date" id="msg-cd-date" value="${esc(propose)}" required>
+        <p class="small muted">L'achat prend cette date, et part en réponse à ton cabinet : son écriture la suit.</p>
+        <p class="msg-cd-refus small" role="alert" hidden></p>
+        <div class="msg-fp-gestes"><button type="button" class="btn" data-fermer>Annuler</button><button type="submit" class="btn btn-primary" id="msg-cd-ok">Corriger et prévenir mon cabinet</button></div></form>`;
+      document.body.appendChild(fond);
+      const champ = /** @type {HTMLInputElement} */ (fond.querySelector('#msg-cd-date'));
+      const refus = /** @type {HTMLElement} */ (fond.querySelector('.msg-cd-refus'));
+      const ok = /** @type {HTMLButtonElement} */ (fond.querySelector('#msg-cd-ok'));
+      const fermer = () => { fond.remove(); document.removeEventListener('keydown', echap); };
+      const echap = (/** @type {KeyboardEvent} */ e) => { if (e.key === 'Escape') fermer(); };
+      document.addEventListener('keydown', echap);
+      /** @type {HTMLElement} */ (fond.querySelector('[data-fermer]')).onclick = fermer;
+      /** @type {HTMLFormElement} */ (fond.querySelector('form')).onsubmit = async (e) => {
+        e.preventDefault();
+        const d = champ.value;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { refus.textContent = 'Choisis la date écrite sur la facture.'; refus.hidden = false; champ.focus(); return; }
+        if (d === String(a.date)) { refus.textContent = `${numero} est déjà daté du ${dateCourte(d)} : choisis la date écrite sur la facture.`; refus.hidden = false; champ.focus(); return; }
+        ok.disabled = true;
+        try {
+          const piece = await /** @type {any} */ (o).corrigerDateAchat(numero, d);
+          await o.appel('POST', '/messages', { cote: o.cote, texte: `J'ai corrigé la date de ${numero} : ${dateCourte(d)}.`, piece, repondA: m.id });
+          fermer();
+          if (o.toast) o.toast(`${numero} est daté du ${dateCourte(d)} ; ton cabinet est prévenu.`);
+          await relire();
+        } catch (x) { refus.textContent = motif(x); refus.hidden = false; ok.disabled = false; }
+      };
+      champ.focus();
     }
 
     // « Envoyer la pièce demandée » : une photo ou un PDF (vu avant de partir), ou une pièce déjà dans le dossier ; un mot

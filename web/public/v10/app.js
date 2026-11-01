@@ -3622,7 +3622,10 @@
     const quandItems = chosesAFaire();
     const coute = quandItems.filter(x => x.level === 'danger').length, attend = quandItems.filter(x => x.level === 'warn').length;
     // « Bienvenue » et « est prête » tant que les premiers pas sont à l'écran ; ensuite, ce qui attend.
-    const bienvenue = !duGrain && !!pas && premiersPasVisibles() && estResponsable();
+    // (1.221.0, l'épreuve d'un mois) Ce qui coûte maintenant (le cabinet qui attend une pièce en retard) passe AVANT la
+    // porte de bienvenue : la cliente qui n'a pas encore de facture le lisait sous deux écrans de premiers pas.
+    const urgentDabord = !duGrain && coute > 0;
+    const bienvenue = !urgentDabord && !duGrain && !!pas && premiersPasVisibles() && estResponsable();
     const phrase = bienvenue ? `${h(company().name || 'Ton entreprise')} est prête. Commence par l'un de ces chemins.`
       : !quandItems.length ? 'Rien ne t\'attend aujourd\'hui. Tout ce qui devait partir est parti, tout ce qui est échu est payé.'
       : [coute ? `${pl(coute, 'chose coûte', 'choses coûtent')} maintenant` : '', attend ? pl(attend, 'geste t\'attend', 'gestes t\'attendent') : ''].filter(Boolean).join(', ') + '.' || `${pl(quandItems.length, 'chose')} quand tu peux.`;
@@ -3650,8 +3653,8 @@
       ${bandeauHorsLigne}
       ${bandeauAbonnementAccueil()}
       ${bandeauAccordsAccueil()}
-      ${duGrain && metierCommence() && !commercial ? '' : pas}
-      ${!duGrain ? todoPanel() : `
+      ${duGrain && metierCommence() && !commercial ? '' : urgentDabord ? todoPanel() : pas}
+      ${!duGrain ? (urgentDabord ? pas : todoPanel()) : `
       <div class="stats a-ch${commercial ? ' a-ch2' : ''}${horsLigne ? ' a-gris' : ''}">
         ${commercial ? carteDevis() : ''}
         ${carte('encaisser', 'On te doit', nb(openAmount), open.length ? `${h(cur)} · ${pl(open.length, 'facture')}` : 'rien à encaisser', open.length ? (late.length ? `dont ${nb(lateAmount)} en retard` : 'rien en retard') : '', late.length ? 'alerte' : '', open.length ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : 'Aucune facture ne reste à encaisser')}
@@ -12331,7 +12334,12 @@
     // (1.123.0) La date « pour le » la plus proche, ou le retard, se dit dans la ligne (revue du mois d'un client).
     const quand = mv.enRetard ? `${mv.enRetard > 1 ? `${mv.enRetard} pièces sont en retard` : 'Une pièce est en retard'} : ton cabinet l'attendait déjà. `
       : mv.demandes && mv.pourLe ? `${mv.demandes > 1 ? 'La première est attendue' : 'Elle est attendue'} pour le ${C.fmtDate(mv.pourLe)}. ` : '';
-    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: mv.enRetard ? 'danger' : 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
+    // (1.221.0) Les questions du comptable passent par la conversation (1.187.0) : « Ton cabinet attend … 1 réponse » les
+    // compte déjà ; la ligne « 1 question de ton comptable attend ta réponse » du moteur les disait une seconde fois.
+    // Elle s'efface alors, et son rouge (deux envois sans réponse) passe à la ligne du cabinet.
+    const qMoteur = mv.questions && !pageCachee('comptable') ? items.find(x => x.id === 'questions') : null;
+    if (qMoteur) items = items.filter(x => x !== qMoteur);
+    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: mv.enRetard || (qMoteur && qMoteur.level === 'danger') ? 'danger' : 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
       detail: `${quand}Réponds-lui dans « Mon comptable », avec le fichier qu'il attend.` }, ...items];
     return items;
   }
@@ -22305,6 +22313,21 @@
         ...data.purchases.map(p => ({ genre: 'achat', id: p.id, libelle: achat(p), date: p.date })),
       ],
       ouvrirPiece,
+      // (1.221.0, l'épreuve d'un mois) La date d'un achat que le cabinet demande : la cliente la corrige depuis la demande,
+      // l'achat garde tout le reste ; son écriture au cabinet suit l'achat.
+      achatDuNumero: numero => {
+        const p = data.purchases.find(x => x.number === numero);
+        return p ? { id: p.id, date: p.date, libelle: achat(p) } : null;
+      },
+      corrigerDateAchat: async (numero, date) => {
+        const p = data.purchases.find(x => x.number === numero);
+        if (!p) throw new Error(`L'achat ${numero} n'est plus dans ton dossier.`);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Cette date ne se lit pas.');
+        p.date = date;
+        await save(true);
+        updateNavCounts();
+        return { genre: 'achat', id: p.id, libelle: achat(p) };
+      },
       // Une question de la révision nomme sa pièce par son numéro.
       pieceDuNumero: numero => {
         const d = data.documents.find(x => x.number === numero);

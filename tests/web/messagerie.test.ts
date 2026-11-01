@@ -567,4 +567,45 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await expect.poll(async () => net(await c.p.locator('[data-liste]').innerText())).toMatch(/^Aucun client ne s'appelle « zzz »\./);
     expect(c.erreurs).toEqual([]);
   }, 180_000);
+
+  // (1.221.0, l'épreuve d'un mois) Le cabinet demande la bonne date d'un achat : chez le client, ce n'est pas « Envoyer la
+  // pièce » (il n'y a rien à envoyer) mais « Corriger la date… », qui redate l'achat et prévient le cabinet du même geste.
+  it('(1.221.0) la date d\'un achat demandée : « Corriger la date… » redate l\'achat et répond au cabinet', async () => {
+    const amine = await personne('amine3', 'Amine Gharbi');
+    const sonia = await personne('sonia3', 'Sonia Ben Youssef');
+    const cab = (await api('POST', '/cabinets', sonia, { nom: 'Cabinet Ben Youssef' })).corps;
+    const ent = String((await api('POST', '/entreprises', amine, { raisonSociale: 'Gharbi Informatique SARL' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, amine, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, sonia)).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, amine, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Société Atlas' } },
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'Levures du Sahel' } },
+      { collection: 'purchases', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1', kind: 'facture', number: 'FA-0913', date: '2026-09-10', supplierId: 's1', currency: 'DT', category: 'Matières premières', fees: 0, withholdingRate: 0, createdAt: 1,
+        lines: [{ id: 'pl1', label: 'Levure fraîche', qty: 1, unitPrice: { '~n': '380.340' }, vatRate: 7, destination: 'charge' }] } },
+    ] })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/messages`, sonia, { cote: 'cabinet', texte: 'Bonjour Amine, la facture est du 29/08 : peux-tu corriger la date de ton achat ?', demande: 'la bonne date de FA-0913 (Levures du Sahel)' })).statut).toBe(201);
+    const a = await page(amine);
+    await a.p.goto(`${serveur.adresse}/v10/?e=${ent}#/comptable`);
+    await a.p.locator('.msg-page h1').waitFor({ timeout: 20_000 });
+    await plusTard(a.p);
+    const bouton = a.p.locator('[data-msg-corriger-date]');
+    await bouton.waitFor({ timeout: 15_000 });
+    expect(net(await bouton.innerText())).toBe('Corriger la date…');
+    expect(await a.p.getByRole('button', { name: /Envoyer la pièce/ }).count()).toBe(0);
+    await bouton.click();
+    // La date lue par le cabinet, dans l'année de l'achat, est proposée ; la même date se refuse.
+    expect(await a.p.locator('#msg-cd-date').inputValue()).toBe('29/08/2026');
+    await a.p.locator('#msg-cd-date').fill('10/09/2026');
+    await a.p.locator('#msg-cd-ok').click();
+    expect(net(await a.p.locator('.msg-cd-refus').innerText())).toBe('FA-0913 est déjà daté du 10/09/2026 : choisis la date écrite sur la facture.');
+    await a.p.locator('#msg-cd-date').fill('29/08/2026');
+    await a.p.locator('#msg-cd-ok').click();
+    type Objet = { collection: string; cle: string; contenu: Record<string, unknown> };
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, amine)).corps.objets as Objet[]).find((x) => x.collection === 'purchases' && x.cle === 'p1')?.contenu.date, { timeout: 15_000 }).toBe('2026-08-29');
+    const fil = ((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).corps.messages ?? []) as unknown as { texte: string; demande: { recueLe?: string | null } | null }[];
+    expect(fil.map((m) => m.texte)).toContain('J\'ai corrigé la date de FA-0913 : 29/08/2026.');
+    await expect.poll(async () => net(await a.p.locator('[data-msg-fil]').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/Corrigée/);
+    await a.p.screenshot({ path: path.join(PHOTOS, 'messagerie-corriger-date.png') });
+    expect(a.erreurs).toEqual([]);
+  }, 180_000);
 });

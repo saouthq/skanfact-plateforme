@@ -196,12 +196,12 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(net(await pop.locator('[data-msg-pp-oui]').innerText())).toBe('Noter pour vendredi');
     await pop.locator('[data-msg-pp-oui]').click();
     await expect.poll(async () => net(await p.locator('[data-msg-promesse]').innerText().catch(() => '')), { timeout: 15_000 })
-      .toMatch(/^Amel promet ses pièces de \S+ pour vendredi \d\d\/\d\d notée par toi · elle compte dans « Attend le client » ; vendredi soir sans rien, elle revient dans « À traiter » Retirer$/);
+      .toMatch(/^Amel promet ses pièces d(?:e |')\S+ pour vendredi \d\d\/\d\d notée par toi · elle compte dans « Attend le client » ; vendredi soir sans rien, elle revient dans « À traiter » Retirer$/);
     expect(net(await p.locator('#toast').innerText())).toMatch(/^Promesse notée : vendredi \d\d\/\d\d Annuler$/);
     await expect.poll(async () => net(await p.locator('.msg-tete-etat').innerText())).toBe('Attend le client');
     await expect.poll(async () => net(await p.locator('.msg-filtres').innerText())).toBe('À traiter 0 Attend le client 1 Tout 1');
     expect(net(await p.locator('.msg-dossier').filter({ hasText: 'Librairie Ennour' }).locator('.msg-puce.promis').innerText())).toMatch(/^promis ven\. \d\d\/\d\d$/);
-    expect(net(await p.locator('[data-cote] [data-msg-attente]').innerText())).toMatch(/^ON ATTEND D'AMEL 1 Ses pièces de \S+ promis pour vendredi \d\d\/\d\d$/i);
+    expect(net(await p.locator('[data-cote] [data-msg-attente]').innerText())).toMatch(/^ON ATTEND D'AMEL 1 Ses pièces d(?:e |')\S+ promis pour vendredi \d\d\/\d\d$/i);
     // Retirer : elle revient dans « À traiter ».
     await p.locator('[data-msg-promesse-retirer]').click();
     await expect.poll(async () => net(await p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter 1 Attend le client 0 Tout 1');

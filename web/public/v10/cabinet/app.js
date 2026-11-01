@@ -1740,6 +1740,12 @@
     if (!im) return;
     const d = (S.dossiers || []).find(x => x.id === id);
     const somme = money(Number(im.montant));
+    // (1.221.0, l'épreuve d'un mois) Le compte d'attente se solde DANS le mois de la ligne : l'imputation datée d'aujourd'hui
+    // (01/11) laissait le 471 ouvert au 30/09, et la déclaration de septembre le signalait encore. Le dernier jour du mois
+    // de la question, s'il est passé ; sinon aujourd'hui.
+    const perImp = String(q.periode || '').slice(0, 7);
+    const dateImp = /^\d{4}-\d{2}$/.test(perImp) && perImp < K.today().slice(0, 7)
+      ? new Date(Date.UTC(Number(perImp.slice(0, 4)), Number(perImp.slice(5, 7)), 0)).toISOString().slice(0, 10) : K.today();
     // Le plan du dossier, pour proposer et nommer les comptes (le plan de référence en attendant).
     let plan = [];
     api.livre(id, K.today().slice(0, 4)).then(r => { plan = (r && r.livre && r.livre.plan) || []; }, () => { /* le plan de référence suffit */ });
@@ -1763,7 +1769,7 @@
         <label class="field obligatoire span-2">${lbl('Le compte qui reçoit le montant', 'msg.imputer')}<input name="compte" value="${esc(proposes[0] || '')}" placeholder="411, ou tape « client »" autocomplete="off">
           <small class="muted bf-nom" id="msg-imp-nom">${esc(nomDe(proposes[0] || ''))}</small></label>
         <div class="span-2 msg-imp-props"><span class="muted">D'après la réponse${proposes.length > 1 ? ', au choix' : ''} :</span>${proposes.map(c => `<button type="button" class="msg-imp-p${c === proposes[0] ? ' on' : ''}" data-imp-prop="${esc(c)}">${esc(c)} · ${esc(nomDe(c))}</button>`).join('')}</div>
-        <label class="field">Date<input type="date" name="date" value="${esc(K.today())}"></label>
+        <label class="field">Date<input type="date" name="date" value="${esc(dateImp)}"></label>
         <label class="field">Journal<select name="journal"><option value="OD">OD · opérations diverses</option><option value="BQ">BQ · banque</option></select></label>
         <label class="field span-2">Libellé<input name="libelle" maxlength="500" value="${esc(libelle)}"></label>
       </form>
@@ -1787,6 +1793,7 @@
           const b = $('#ok', root); b.disabled = true;
           try {
             await api.imputerQuestion(id, q.id, { contrepartie: compte, date: v('date'), journal: v('journal') || 'OD', libelle: v('libelle') });
+            comptaLueLe = 0; // (1.221.0) le livre a changé ailleurs : la Saisie et la Banque le relisent en y revenant
             close();
             toast(`Imputé au brouillard : ${somme} sortis du ${im.compte} vers le ${compte}. L'écriture se valide dans la saisie.`);
             if (apres) await apres();
@@ -5157,7 +5164,15 @@
     // sa date d'arrivée reste écrite sur sa ligne.
     const moisDePiece = iso => { const m = moisTunisCl(iso), av = moisPrecedent(m); const e = etatMoisFd(d, av, Lm, [], mcm)[0]; return (!d.from || d.from <= av) && e !== 'fait' && e !== 'hors' ? av : m; };
     const ecritures = ((livre && livre.ecritures) || []).filter(e => e.statut !== 'contrepassee' && e.journal !== 'AN');
-    const parPiece = new Map(ecritures.filter(e => e.piece).map(e => [String(e.piece), e]));
+    // (1.221.0, l'épreuve d'un mois) Un numéro sert à l'achat ET à son règlement (« Règlement de FA-0914 », écrit depuis la
+    // Banque) : la pièce est celle du journal d'achats ou de ventes. La dernière venue gagnait : l'achat redaté par le
+    // client se comparait à son règlement du 08/09, et restait « à reclasser ».
+    const parPiece = new Map();
+    for (const e of ecritures) {
+      if (!e.piece) continue;
+      const k = String(e.piece), d = parPiece.get(k), sienne = x => ['achats', 'ventes'].includes(rubDeJournal(x.journal));
+      if (!d || sienne(e) || !sienne(d)) parPiece.set(k, e);
+    }
     const rs = compteRoleCl(livre, 'rsOperee');
     const montantE = e => (e.lignes || []).reduce((t, l) => t + (Number(l.debit) || 0), 0);
     // Les pièces reçues, à classer et classées, et les pièces déposées : qui porte quelle écriture.
@@ -5218,9 +5233,18 @@
         montant: null, etat: reste.length ? ['ambre', 'à rapprocher', 'traiter'] : ['ok', 'rapproché', 'ordre'], geste: reste.length ? { lib: 'Rapprocher', act: 'rapprocher' } : null, photo: false });
     }
     // Les pièces reçues du client.
+    // (1.221.0, l'épreuve d'un mois) La photo renvoyée en réponse à « Une meilleure photo de IMG_8790 » remplace la pièce
+    // illisible : elle se range au mois de celle-ci (septembre, pas novembre où elle arrive), et l'illisible ne demande
+    // plus rien. Le nom se compare sans son extension.
+    const sansExt = n => String(n || '').replace(/\.[a-z0-9]{2,4}$/i, '').toLowerCase();
+    const remplaceDe = q => {
+      const n = /photo (?:lisible )?de (\S+)/i.exec(String(q.demande || ''));
+      return n ? classees.find(x => x.raison === 'illisible' && x.fichier && sansExt(x.fichier.nom) === sansExt(n[1])) || null : null;
+    };
     for (const [p, classee] of [...aClasser.map(p => [p, false]), ...classees.map(p => [p, true])]) {
       // (1.173.0) Rangée par le cabinet dans un autre mois : elle y reste, sa date d'arrivée écrite sur sa ligne.
-      const m = p.mois || moisDePiece(p.recueLe);
+      const ill = !p.mois && p.raison !== 'illisible' ? remplaceDe(p) : null;
+      const m = p.mois || (ill ? ill.mois || moisDePiece(ill.recueLe) : moisDePiece(p.recueLe));
       if (!m.startsWith(annee)) continue;
       const g = genrePiece(p);
       if (g === 'releve' && items.some(x => x.sorte === 'releve' && x.p === p)) continue;
@@ -5242,6 +5266,9 @@
         else { etat = ['ambre', 'à saisir', 'traiter']; geste = { lib: 'Saisir', act: 'saisir' }; }
       } else if (p.raison === 'saisie') {
         etat = ['ok', 'saisie', 'ordre']; em = `reçue le ${jjmm(recue)}, saisie par ${par} ${le === recue ? 'le jour même' : `le ${jjmm(le)}`}`;
+      } else if (p.raison === 'illisible' && [...aClasser, ...classees].some(q => q.raison !== 'illisible' && remplaceDe(q) === p)) {
+        const nouv = [...aClasser, ...classees].find(q => q.raison !== 'illisible' && remplaceDe(q) === p);
+        etat = ['ok', 'remplacée', 'ordre']; em = `${prenom} l'a renvoyée le ${jjmm(jourTunisCl(nouv.recueLe))} : ${nouv.fichier.nom}${nouv.classeeLe ? '' : ', à saisir à sa place'}`;
       } else if (p.raison === 'illisible') {
         etat = ['rouge', 'illisible', 'traiter']; em = `marquée illisible par ${par}${p.note ? ` et redemandée à ${prenom}` : ''} le ${jjmm(le)}`; geste = { lib: `Relancer ${prenom}`, act: 'relancer' };
       } else if (p.raison === 'double') {
@@ -7918,11 +7945,32 @@
     if (t) t.textContent = n ? pl(n, 'mois à valider', 'mois à valider') : '';
   }
 
+  // (1.221.0, l'épreuve d'un mois) Le cabinet garde son onglet ouvert pendant que le client répond (une date corrigée, une
+  // photo reprise, la réponse à un chèque) : en ARRIVANT sur la Saisie ou la Banque (on y vient d'une autre page, ou d'un
+  // autre onglet de la compta), le livre, les pièces et les réponses se relisent s'ils ont plus de 30 secondes. Jamais
+  // pendant un geste : un redessin après un geste garde la même page, il ne relit rien.
+  let comptaLueLe = Date.now();
+  async function relireEnArrivant(root, dossier) {
+    const s = livresState;
+    if (Date.now() - comptaLueLe < 30_000 || !s.livre || !api.livre) return;
+    comptaLueLe = Date.now();
+    const cle = s.livreCle;
+    try {
+      const [r] = await Promise.all([api.livre(dossier.id, s.annee), relirePieces(), chargerClasseesCl(dossier, true)]);
+      if (r && r.livre && s.livreCle === cle) s.livre = r.livre;
+    } catch (_) { return; }
+    if ($('#c-livres') && s.dossierVu && s.dossierVu.id === dossier.id && !$('#modal-root').children.length) drawLivres(document, dossier);
+  }
   function drawLivres(root, dossier) {
     const s = livresState;
     const el = $('#c-livres', root);
     s.dossierVu = dossier;
     if (!el) return;
+    const vu = `${dossier.id}:${s.onglet}`;
+    if (el.dataset.vu !== vu) {
+      el.dataset.vu = vu;
+      if (s.onglet && groupeCompta(s.onglet).id === 'saisir') void relireEnArrivant(root, dossier);
+    }
     if (!s.data) { el.innerHTML = '<div class="empty">Lecture des paquets…</div>'; return; }
     // (plateforme) 1.138.0 — la lecture refusée offre « Réessayer » : il fallait recharger toute la page (UX 2).
     if (s.data.erreur) {
@@ -8751,9 +8799,9 @@
       ${motif ? `<p class="small muted dc-motif">${esc(motif)}</p>` : ''}
       <div class="dc-etapes">
         <button class="${cls('preparer')}" id="dc-preparer">${posee ? fait(true) + 'Préparée — recalculer' : 'Préparer la déclaration'}</button>${fleche}
-        <button class="${cls('ecriture')}" id="dc-ecriture" ${!posee || rien || (ecrite && !aCompleter) ? 'disabled' : ''}
+        <button class="${cls('ecriture')}" id="dc-ecriture" ${!posee || rien || (ecrite && !aCompleter && !auBrouillard) ? 'disabled' : ''}
           title="${!posee ? 'Prépare la déclaration d\'abord.' : rien ? esc(KC.MOTIF_RIEN_A_ECRIRE) : aCompleter ? 'Une pièce est arrivée après l\'écriture du mois : le complément pose ce qui lui manque, en brouillard.' : ecrite ? 'Elle existe déjà : la refaire compterait la TVA du mois deux fois.' : ''}">${
-          rien ? 'Aucune écriture à passer' : aCompleter ? 'Écrire le complément' : auBrouillard ? fait(true) + (complementAuBrouillard ? 'Complément au brouillard — à valider' : 'Écriture au brouillard — à valider') : ecrite ? fait(true) + 'Écriture du mois passée' : 'Écrire l\'écriture du mois'}</button>${fleche}
+          rien ? 'Aucune écriture à passer' : aCompleter ? 'Écrire le complément' : auBrouillard ? (complementAuBrouillard ? 'Valider le complément' : 'Valider l\'écriture du mois') : ecrite ? fait(true) + 'Écriture du mois passée' : 'Écrire l\'écriture du mois'}</button>${fleche}
         <button class="${cls('deposee')}" id="dc-deposee" ${!posee || motifPerime ? 'disabled' : ''} title="${!posee ? 'Prépare la déclaration d\'abord.' : esc(motifPerime)}">${
           deposee ? fait(true) + 'Déposée le ' + esc(fmtJour(posee.deposee.le)) + ' — annuler' : 'Marquer déposée'}</button>${fleche}
         ${/* Le bouton du paiement reste ALLUMÉ tant qu'un paiement est posé (T-21) : éteint dès que
@@ -8774,7 +8822,10 @@
     ${/* (plateforme) 1.96.0 — un mois en cours (pas encore préparé) n'a pas de fin : le contrôle « TVA soldée » se tait,
           et la ligne verte ne promet pas une TVA soldée qui ne peut pas l'être encore. */''}
     ${(() => { const visibles = enCours && !posee ? echecs.filter(c => c.id !== 'tva-soldee') : echecs; return visibles.length ? `<div class="warn-box mt" id="dc-controles">${visibles.map(c => `<div>${esc(c.detail)}${c.id === 'brouillard'
-          ? ' <button type="button" class="btn btn-sm" data-vers-saisie>Voir le brouillard</button>' : ''}</div>`).join('')}</div>`
+          ? ' <button type="button" class="btn btn-sm" data-vers-saisie>Voir le brouillard</button>'
+          // (1.221.0, l'épreuve d'un mois) Le compte d'attente se solde depuis la réponse du client (« Imputer le virement »,
+          // dans la conversation) : la déclaration y mène, au lieu d'un avertissement sans geste.
+          : c.id === 'attente' && !dossier.manual ? ' <button type="button" class="btn btn-sm" data-vers-attente>L\'imputer depuis la conversation</button>' : ''}</div>`).join('')}</div>`
       : enCours && !posee ? `<p class="small muted mt" id="dc-controles-attente">Aucun brouillard ni compte d'attente ouvert pour l'instant ; la TVA se solde par l'écriture du mois, une fois ${esc(K.monthLabel(d.periode))} terminé.</p>`
       : `<p class="small ligne-ok mt"><span aria-hidden="true">✓</span> Les contrôles passent : aucun brouillard sur le mois, aucun compte d'attente ouvert, la TVA du mois soldée par son écriture, aucun crédit imputé en trop.</p>`; })()}
     ${panneauFormulaire(d)}
@@ -8850,6 +8901,7 @@
       allerSousOnglet(root, dossier, 'paie');
     }; });
     $$('[data-vers-saisie]', el).forEach(b => { b.onclick = () => { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); }; });
+    $$('[data-vers-attente]', el).forEach(b => { b.onclick = () => { location.hash = `#/messages/${encodeURIComponent(dossier.id)}`; }; });
     // UN bouton « Préparer » (U-11) : il était répété sous « Ce qui suit » (T-17) parce que les
     // gestes qu'il débloque vivaient deux écrans plus bas ; ils sont maintenant sur la même rangée.
     const prep = $('#dc-preparer', el);
@@ -8863,10 +8915,23 @@
     const ec = $('#dc-ecriture', el);
     if (ec) ec.onclick = async () => {
       ec.disabled = true;
+      // (1.221.0, l'épreuve d'un mois) Au brouillard, l'étape la VALIDE (elle seule) : il fallait aller la chercher dans la
+      // Saisie, et « Marquer déposée » avant ce geste la condamnait (un mois déposé ne bouge plus).
+      const attend = s.decl && s.decl.ecritureExistante && s.decl.ecritureAuBrouillard;
+      if (attend) {
+        const e = ((s.livre && s.livre.ecritures) || []).find(x => x.statut === 'brouillard' && (x.id === attend || x.piece === attend));
+        if (!e) { ec.disabled = false; pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); return; }
+        try {
+          s.livre = (await api.valider(dossier.id, s.annee, e.id)).livre;
+          toast(`${e.piece || 'L\'écriture du mois'} validée : elle solde la TVA du mois. Il reste à la déposer sur le portail.`);
+          await chargerDeclaration(root, dossier);
+        } catch (x) { toast(plainError(x), 'error'); ec.disabled = false; }
+        return;
+      }
       try {
         const r = await api.ecrireDeclaration({ dossierId: dossier.id, annee: s.annee, periode: s.decl.periode });
         s.livre = r.livre;
-        toast(r.complement ? 'Complément créé en brouillard : valide-le quand tu es d\'accord.' : 'Écriture créée en brouillard : valide-la quand tu es d\'accord.');
+        toast(r.complement ? 'Complément créé en brouillard : relis-le, puis « Valider le complément ».' : 'Écriture créée en brouillard : relis-la, puis « Valider l\'écriture du mois ».');
         await chargerDeclaration(root, dossier);
       } catch (e) { toast(plainError(e), 'error'); ec.disabled = false; }
     };
@@ -8879,6 +8944,17 @@
       b.onclick = async () => {
         const posee = s.decl.posee;
         const actif = posee && posee[quoi] && posee[quoi].le;
+        // (1.221.0, l'épreuve d'un mois) Un mois déposé ne bouge plus : ce qui est encore au brouillard (l'écriture du mois
+        // elle-même, une imputation) ne pourrait plus être validé. « Déposée » le dit avant, et mène au brouillard.
+        const brM = quoi === 'deposee' && !actif ? ((s.livre && s.livre.ecritures) || []).filter(e => e.statut === 'brouillard' && String(e.date || '').slice(0, 7) === s.decl.periode) : [];
+        if (brM.length) {
+          const decl = brM.some(e => /^DECL-/.test(String(e.piece || '')));
+          if (await confirmDialog(`${cap(K.monthLabel(s.decl.periode))} a encore ${pl(brM.length, 'écriture', 'écritures')} au brouillard`,
+            `<p>${brM.slice(0, 5).map(e => `<b>${esc(e.piece || '—')}</b> ${esc(String(e.libelle || '').slice(0, 70))}`).join('<br>')}</p>
+             <p>Un mois déposé ne bouge plus : ${brM.length === 1 && decl ? 'l\'écriture du mois ne pourrait plus être validée' : `${brM.length > 1 ? 'elles ne pourraient plus être validées' : 'elle ne pourrait plus être validée'}${decl ? ', l\'écriture du mois comprise' : ''}`}. Valide d'abord le brouillard, puis marque le mois déposé.</p>`,
+            'Voir le brouillard')) { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); }
+          return;
+        }
         try {
           const r = await api.pointerDeclaration({
             dossierId: dossier.id, annee: s.annee, periode: s.decl.periode, quoi,
@@ -12776,11 +12852,19 @@
 
   // Le geste d'une ligne, puis la ligne SUIVANTE (celle d'après dans l'ordre des groupes) : on ne revient jamais chercher
   // sa place dans la liste. `faire` rend le message ; `defaire`, s'il y a lieu, l'« Annuler » du message.
+  // (1.221.0, l'épreuve d'un mois) La suivante est la prochaine ligne qui demande du travail : après elle dans l'ordre des
+  // groupes, sinon en reprenant au début (une ligne « à traiter » laissée plus haut n'est jamais sautée) ; celles qui
+  // attendent le client ne viennent qu'à la fin, quand il ne reste qu'elles.
+  function suivanteBq(dossier, R, id) {
+    const ordre = GROUPES_BQ.flatMap(([g]) => lectureBanque(dossier, R).filter(x => x.g === g)).map(x => ({ id: x.l.id, g: x.g }));
+    const i = ordre.findIndex(x => x.id === id);
+    if (i < 0) return banqueState.sel;
+    const travail = x => x.id !== id && x.g !== 'att';
+    const t = ordre.slice(i + 1).find(travail) || ordre.slice(0, i).find(travail) || ordre.find(x => x.id !== id);
+    return t ? t.id : '';
+  }
   async function gesteBanque(root, dossier, R, id, faire, defaire) {
-    const lus = lectureBanque(dossier, R);
-    const ordre = GROUPES_BQ.flatMap(([g]) => lus.filter(x => x.g === g)).map(x => x.l.id);
-    const i = ordre.indexOf(id);
-    const suivante = i >= 0 ? (ordre[i + 1] || ordre[i - 1] || '') : banqueState.sel;
+    const suivante = suivanteBq(dossier, R, id);
     try {
       const msg = await faire();
       if (msg === null) return;
@@ -13144,7 +13228,14 @@
       objet: `Relevé du ${fmtJour(l.date)} : ${l.libelle || ''}`.slice(0, 200),
       quoi: `ce mouvement de ${money(m)} ${sens} le ${fmtJour(l.date)} sur ton relevé${l.libelle ? ` (« ${l.libelle} »)` : ''}`,
       attendu: 'explication',
-      apres: () => drawLivres(root, dossier)
+      // (1.221.0, l'épreuve d'un mois) La question partie, la ligne attend le client : on passe à la suivante, comme après
+      // tout geste (un Entrée de plus n'ouvre pas la conversation à la place du travail qui reste).
+      apres: () => {
+        const suivante = suivanteBq(dossier, R, l.id) || l.id;
+        banqueState.sel = suivante;
+        banqueState.annonce = { sel: suivante, msg: `« ${String(l.libelle || 'Ligne du relevé').slice(0, 40)} » : demandée à ${contactBq(dossier) || 'le client'} ; elle attend sa réponse${suivante !== l.id ? ' ; la ligne suivante est choisie' : ''}.`, defaire: null };
+        drawLivres(root, dossier);
+      }
     });
   }
   // Au compte d'attente : une écriture au brouillard 532 / 471, rapprochée ; elle se régularisera de la réponse. Ce qui
@@ -13522,20 +13613,34 @@
     const s = livresState;
     const table = Array.isArray(S.libelles) ? S.libelles : [];
     const brouillon = KC.ecritureProposee(ligne, table, { compte: R.compte, journal: 'BQ' });
-    const contre = brouillon.lignes[1];
+    let contre = brouillon.lignes[1];
+    // (1.221.0, l'épreuve d'un mois) La ligne demandée au client et répondue : sa réponse se lit DANS la fenêtre (elle
+    // restait derrière), et le fournisseur ou le client qu'elle nomme propose son compte, avec son nom pour le lettrage.
+    const qR = ((s.livre && s.livre.questions) || []).find(q => q.statut === 'repondue' && q.reponse && String(q.compte || '') === String(R.compte)
+      && String(q.periode || '') === String(ligne.date).slice(0, 7) && KC.round3(Math.abs(Number(q.montant) || 0) - Math.abs(Number(ligne.montant) || 0)) === 0);
+    const repTexte = qR ? String(qR.reponse.texte || '') : '';
+    let tiersR = null;
+    if (repTexte && !brouillon.regle) {
+      const vus = new Map();
+      for (const e of (s.livre.ecritures || [])) for (const l of (e.lignes || [])) if (l.tiers && /^4[01]/.test(String(l.compte)) && !vus.has(l.tiers)) vus.set(l.tiers, String(l.compte));
+      const rep = normSx(repTexte);
+      const nomme = [...vus.keys()].filter(t => normSx(t).length >= 4 && rep.includes(normSx(t)));
+      if (nomme.length === 1) { tiersR = { nom: nomme[0], compte: vus.get(nomme[0]) }; contre = { ...contre, compte: tiersR.compte, tiers: tiersR.nom }; }
+    }
     modal(`<h2>Écrire ${esc(fmtJour(ligne.date))} · ${esc(money(ligne.montant))}</h2>
       <p class="small muted">${esc(ligne.libelle)}</p>
-      ${brouillon.regle
+      ${repTexte ? `<div class="ok-box mb" id="bf-reponse"><b>${esc(contactBq(dossier) || 'Le client')} a répondu :</b> « ${esc(repTexte.slice(0, 300))} »${tiersR ? `<br>Le compte de ${esc(tiersR.nom)} (${esc(tiersR.compte)}) est proposé.` : ''}</div>`
+      : brouillon.regle
         ? `<div class="ok-box mb">Le libellé contient « ${esc(brouillon.regle)} » : le compte ${esc(contre.compte)} est proposé.</div>`
         : `<div class="info-box mb">Aucune règle ne reconnaît ce libellé. Choisis le compte : il sera retenu, et le prochain relevé le proposera tout seul.</div>`}
       <form id="bf" class="grid-2">
         <label class="field">${lbl('Journal', 'bq.eJournal')}<input name="journal" value="${esc(brouillon.journal)}"></label>
         <label class="field">${lbl('Date', 'bq.eDate')}<input type="date" name="date" value="${esc(brouillon.date)}"></label>
-        <label class="field span-2">${lbl('Libellé', 'bq.eLibelle')}<input name="libelle" value="${esc(brouillon.libelle)}"></label>
+        <label class="field span-2">${lbl('Libellé', 'bq.eLibelle')}<input name="libelle" value="${esc(tiersR ? `${brouillon.libelle} · ${tiersR.nom}`.slice(0, 120) : brouillon.libelle)}"></label>
         <label class="field">${lbl('Compte ' + esc(R.compte), 'bq.eBanque')}<input value="${esc(money(ligne.montant))}" disabled></label>
         <label class="field obligatoire">${lbl('Contrepartie', 'bq.eContrepartie')}<input name="compte" value="${esc(contre.compte)}" placeholder="${Number(ligne.montant) >= 0 ? '411, ou tape « client »' : '627, ou tape « frais »'}">
           <small class="muted bf-nom" id="bf-nom">${esc(nomDeCompte()(contre.compte) || ' ')}</small></label>
-        ${brouillon.regle ? '' : `<div class="span-2 bf-retenir"><label class="check"><input type="checkbox" name="retenir" ${KC.motifDeLibelle(ligne.libelle) ? 'checked' : ''}> <span>Proposer ce compte aux lignes qui contiennent</span></label>
+        ${brouillon.regle ? '' : `<div class="span-2 bf-retenir"><label class="check"><input type="checkbox" name="retenir" ${KC.motifDeLibelle(ligne.libelle) && !tiersR ? 'checked' : ''}> <span>Proposer ce compte aux lignes qui contiennent</span></label>
           <input name="motif" class="bf-motif" value="${esc(KC.motifDeLibelle(ligne.libelle))}" placeholder="STEG" aria-label="Mot retenu"></div>`}
       </form>
       ${/* 10.14.1 — la TVA d'une facture payée par la banque se ventile APRÈS : la pièce arrive en
@@ -13569,7 +13674,7 @@
           }
           const ec = {
             ...brouillon, journal: v('journal') || 'BQ', date: v('date'), libelle: v('libelle'),
-            lignes: [{ ...brouillon.lignes[0], libelle: v('libelle') }, { ...contre, compte, libelle: v('libelle') }]
+            lignes: [{ ...brouillon.lignes[0], libelle: v('libelle') }, (({ tiers, ...c }) => ({ ...c, compte, libelle: v('libelle'), ...(tiers && compte === (tiersR || {}).compte ? { tiers } : {}) }))(contre)]
           };
           delete ec.aChoisir; delete ec.regle;
           try {
@@ -14361,23 +14466,28 @@
   function ecritureSx(f) {
     const ttc = f.devise ? contreValeurSx(f) : millimesSx(f.ttc);
     const taux = tauxEffectifSx(f);
-    const ht = taux ? Math.round(ttc * 100 / (100 + taux)) : ttc, tva = ttc - ht;
+    // (1.221.0, l'épreuve d'un mois) Le timbre de la facture (1,000 DT sur la farine de la Minoterie) n'a pas de TVA : il sort
+    // de la base, et va à la charge avec le HT, comme le fait l'achat chez le client (core.js : charge + frais). Sans lui, la
+    // fiche déduisait 78,465 DT au lieu des 78,400 écrits sur la facture. Rien par défaut : la case vaut 0 tant qu'on n'y tape rien.
+    const timbre = f.devise ? 0 : millimesSx(f.timbre || '0') || 0, base = ttc - timbre;
+    const ht = taux ? Math.round(base * 100 / (100 + taux)) : base, tva = base - ht;
     const lib = `${String(f.four || '').trim()}${f.numero ? ` · ${f.numero}` : ''}${f.devise ? ` · ${montantDevSx(f).replace(/[\u202f\u00a0]/g, ' ')} à ${String(f.taux).replace('.', ',')}` : ''}`.slice(0, 120);
     const refus = !String(f.four || '').trim() ? ['four', 'Le fournisseur manque : écris son nom.']
       : !/^\d{4}-\d{2}-\d{2}$/.test(f.date || '') ? ['date', 'La date manque : celle de la pièce.']
         : String(f.date).slice(0, 4) !== String(livresState.annee) ? ['date', `Le ${fmtJourCourt(f.date)} n'est pas dans l'exercice ${livresState.annee}.`]
           : f.devise && !(Number(String(f.taux).replace(',', '.')) > 0) ? ['taux', `Le taux de change manque : celui du ${fmtJourCourt(f.date)} (À VÉRIFIER).`]
             : !(ttc > 0) ? ['ttc', f.devise ? 'Le montant en devises manque.' : 'Le total TTC manque : celui de la pièce, en dinars.']
+              : timbre && !(base > 0) ? ['timbre', 'Le timbre dépasse le total : le total TTC le comprend déjà.']
               : !f.devise && f.tva === '' ? ['tva', 'La TVA manque : choisis le taux de la pièce, ou « Sans TVA récupérable ».']
                 : !f.devise && f.tva === 'autre' && !(taux > 0) ? ['tva', 'Le taux de TVA manque.']
                   : !/^\d{2,12}$/.test(String(f.compte || '').trim()) ? ['compte', 'Le compte de la charge manque : son numéro (6061, 6066…).']
                     : null;
     const lignes = [
-      { compte: String(f.compte || '').trim(), libelle: lib, debit: ht, credit: 0 },
+      { compte: String(f.compte || '').trim(), libelle: lib, debit: ht + timbre, credit: 0 },
       ...(tva ? [{ compte: tvaCompteSx(), libelle: `TVA ${String(taux).replace('.', ',')} % · ${String(f.four || '').trim()}`.slice(0, 120), debit: tva, credit: 0 }] : []),
       { compte: f.c40 || '401', libelle: lib, debit: 0, credit: ttc, tiers: String(f.four || '').trim() },
     ];
-    return { ttc, ht, tva, taux, lib, lignes, refus };
+    return { ttc, ht, tva, taux, timbre, lib, lignes, refus };
   }
   const versLeLivreSx = lignes => lignes.map(l => ({ compte: l.compte, libelle: l.libelle, debit: l.debit / 1000, credit: l.credit / 1000, ...(l.tiers ? { tiers: l.tiers, tiersId: null, lettre: '' } : {}) }));
 
@@ -14440,6 +14550,7 @@
         ${ch('Date', 'sx-date', `<input id="sx-date" class="sx-in" autocomplete="off" value="${esc(f.date ? fmtJourCourt(f.date) : '')}" placeholder="24/09/2026">`, srcSx(f.dateSrc, f.dateSrc === 'lu' ? 'lu' : ''))}
         ${f.devise ? ch('Montant', 'sx-mdev', `<input id="sx-mdev" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.montantDev)}">`, `<span class="sx-src">${esc(f.devise)}</span>`)
           : ch('Total TTC', 'sx-ttc', `<input id="sx-ttc" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.ttc)}" placeholder="85,000">`, srcSx(f.ttcSrc, 'lu'))}
+        ${f.devise ? '' : ch('Timbre', 'sx-timbre', `<input id="sx-timbre" class="sx-in mono" inputmode="decimal" autocomplete="off" value="${esc(f.timbre || '')}" placeholder="0,000">`, '<span class="sx-src">sans TVA : hors de sa base</span>')}
         ${f.devise ? '' : ch('TVA', 'sx-tva', `<span class="sx-tva">${tvaSel}${f.tva === 'autre' ? `<input id="sx-tva-autre" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.tvaAutre)}" placeholder="%" aria-label="Le taux de TVA, en %">` : ''}</span>`, f.tvaSrc === 'hab' && f.tva === h.taux ? srcSx('hab', habT) : f.tvaSrc === 'ticket' && f.tva === 'sans' ? '<span class="sx-src ambre">un ticket n\'est pas une facture : À VÉRIFIER</span>' : '<span class="sx-src"></span>')}
         ${ch('Compte', 'sx-compte', `<span class="sx-cpt"><input id="sx-compte" class="sx-in mono" autocomplete="off" value="${esc(f.compte)}" placeholder="Numéro"><small id="sx-compte-nom">${esc(nomC(f.compte))}</small></span>`, f.compteSrc === 'hab' && f.compte === h.compte ? srcSx('hab', habC) : f.devise ? '<span class="sx-src">ou une immobilisation ? À VÉRIFIER</span>' : '<span class="sx-src"></span>')}
         ${ch('Pièce', 'sx-piece', `<input id="sx-piece" class="sx-in mono" autocomplete="off" value="${esc(f.piece)}">`, f.piece && f.piece === numeroSuivantSx(f.journal, f.serie) ? srcSx('calc', `numéro suivant · ${f.serie ? 'série des tickets · ' : ''}journal ${f.journal}`) : `<span class="sx-src">journal ${esc(f.journal)}</span>`)}
@@ -14670,6 +14781,20 @@
     if (!P.liste.length) {
       const qui = prenomCl(dossier.contact);
       const br = ecrituresSx().filter(e => e.statut === 'brouillard' && (!m || String(e.date).slice(0, 7) === m)).length;
+      // (1.221.0, l'épreuve d'un mois) Le mois FINI n'est pas un mois vide : ses pièces sont traitées et rien n'attend au
+      // brouillard. Il le dit, et le geste suivant est la déclaration (« Demander les pièces de septembre » à Sarra, qui
+      // venait de tout envoyer, se lisait comme un reproche).
+      const traiteesM = m ? (P.items || []).filter(y => (y.p || y.doc) && y.mois === m && y.etat[2] === 'ordre' && y.etat[1] !== 'en double').length : 0;
+      const valideesM = m ? ecrituresSx().filter(e => e.statut !== 'brouillard' && String(e.date).slice(0, 7) === m).length : 0;
+      if (m && !br && traiteesM) {
+        // Un mois d'avant pas encore déposé (août en retard) se déclare d'abord : la TVA d'un mois reprend le reste du
+        // précédent (le 4367 ne se solde pas sinon).
+        const avant = moisDeLaFrise(dossier).find(x => x.m < m && x.m.slice(0, 4) === m.slice(0, 4) && /retard|à déposer/.test(x.dit));
+        const cible = avant ? avant.m : m;
+        return `<div class="sx-fini" id="sx-mois-fini"><span class="sx-vide-ic">${CL_IC.ok}</span><span class="txt"><b>${esc(cap(moisLong(m)))} : tout est saisi</b>
+          <span>${esc(pl(traiteesM, 'pièce traitée', 'pièces traitées'))}${valideesM ? ` · ${esc(pl(valideesM, 'écriture validée', 'écritures validées'))}` : ''} · rien n'attend au brouillard.${avant ? ` ${esc(cap(moisLong(avant.m)))} n'est pas encore déposé : il se déclare d'abord.` : ''}</span></span>
+          <span class="cp-gestes"><button type="button" class="btn btn-primary" id="sx-vers-declaration" data-mois="${esc(cible)}">Déclarer ${esc(moisLong(cible))}${avant ? ' d\'abord' : ''} <kbd>↵</kbd></button></span></div>`;
+      }
       // (1.217.0, maquette « savide ») Le mois vide : une carte au milieu de la page qu'il deviendra (grisée), le geste qui
       // la remplit (demander les pièces), et la grille derrière « Une écriture à la main ».
       if (videCacheSx(P)) {
@@ -14885,7 +15010,7 @@
   async function enregistrerSx(root, dossier, x, valider) {
     const f = ficheSx(x), E = ecritureSx(f), el = $('#sx-fiche');
     if (E.refus) {
-      const champ = { four: '#sx-four', date: '#sx-date', ttc: f.devise ? '#sx-mdev' : '#sx-ttc', tva: f.tva === 'autre' ? '#sx-tva-autre' : '#sx-tva', compte: '#sx-compte', taux: '#sx-taux' }[E.refus[0]];
+      const champ = { four: '#sx-four', date: '#sx-date', timbre: '#sx-timbre', ttc: f.devise ? '#sx-mdev' : '#sx-ttc', tva: f.tva === 'autre' ? '#sx-tva-autre' : '#sx-tva', compte: '#sx-compte', taux: '#sx-taux' }[E.refus[0]];
       sxState.tente.add(x.k);
       const r = $('#sx-refus'); if (r) { r.hidden = false; r.classList.remove('reste'); r.textContent = E.refus[1]; }
       const c = champ && $(champ); if (c) { c.focus(); c.classList.add('sx-ko'); c.setAttribute('aria-invalid', 'true'); }
@@ -15002,6 +15127,8 @@
     { const vb = $('#sx-vers-banque', el); if (vb) { vb.onclick = () => allerSousOnglet(root, dossier, 'banque'); setTimeout(() => { try { vb.focus(); } catch { /* rien */ } }, 0); } }
     const ouvrirVide = km => { sxState.mainVide = moisSx(); if (km) sxState.mode = 'km'; drawLivres(root, dossier); const c = $('#sa-date'); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } };
     for (const [id, km] of [['#sx-vide-main', false], ['#sx-vide-km', true]]) { const b = $(id, el); if (b) b.onclick = () => ouvrirVide(km); }
+    const vd = $('#sx-vers-declaration', el);
+    if (vd) { vd.onclick = () => { if (vd.dataset.mois) { declState.mois = vd.dataset.mois; if (vd.dataset.mois !== livresState.mois) { livresState.mois = vd.dataset.mois; livresState.mode = 'mois'; } } allerSousOnglet(root, dossier, 'declaration'); }; setTimeout(() => { try { vd.focus(); } catch { /* rien */ } }, 0); }
     const dm = $('#sx-demander-mois', el);
     if (dm) dm.onclick = () => fenDemanderCl(dossier, { titre: `Les pièces ${deMois(moisSx())}`, piece: `les pièces ${deMois(moisSx())} (factures d'achat, tickets, relevé)`, mois: moisSx() }, { hors: true });
     $$('#sx-papier', el).forEach(z => { const y = P.liste.find(w => w.k === z.dataset.k); if (y) chargerPapierSx(dossier, y, z); });
@@ -15049,15 +15176,27 @@
     };
     if (f) {
       const champ = (id, k, lire) => { const c = $(id, zone); if (c) c.addEventListener('input', () => { f[k] = lire ? lire(c.value) : c.value; c.classList.remove('sx-ko'); c.removeAttribute('aria-invalid'); if (k === 'four' || k === 'ttc' || k === 'date') { f[`${k}Src`] = ''; } majEcriture(); }); };
-      champ('#sx-four', 'four'); champ('#sx-ttc', 'ttc'); champ('#sx-mdev', 'montantDev'); champ('#sx-taux', 'taux'); champ('#sx-tva-autre', 'tvaAutre'); champ('#sx-piece', 'piece');
+      champ('#sx-four', 'four'); champ('#sx-ttc', 'ttc'); champ('#sx-timbre', 'timbre'); champ('#sx-mdev', 'montantDev'); champ('#sx-taux', 'taux'); champ('#sx-tva-autre', 'tvaAutre'); champ('#sx-piece', 'piece');
       const dt = $('#sx-date', zone);
       if (dt) dt.addEventListener('input', () => { const iso = K.dateTapee(dt.value.trim(), livresState.annee); f.date = iso || ''; f.dateSrc = ''; dt.classList.remove('sx-ko'); majEcriture(); });
       // Un fournisseur choisi : ses habitudes remplissent ce qui est encore vide (jamais ce qu'on a tapé).
       const four = $('#sx-four', zone);
       // (1.215.0) Quitter le champ pour cliquer un bouton de la fiche (« Lire la pièce ») redessinait la fiche entre l'appui
       // et le relâché : le bouton remplacé, le clic se perdait. Le redessin attend la fin du clic.
+      // (1.221.0, l'épreuve d'un mois) « Minoterie » puis Entrée gardait le mot tapé, un « nouveau fournisseur » à côté de
+      // Minoterie du Cap Bon (la liste du navigateur ne se choisit qu'avec ↓) : le seul fournisseur connu qui commence par
+      // ce qu'on a tapé, ou qui le contient, est celui qu'on voulait.
+      if (four) four.addEventListener('change', () => {
+        const t = normSx(f.four), connus = [...new Set(ecrituresSx().filter(achatSx).map(nomTiersSx).filter(Boolean))];
+        if (t.length >= 3 && !connus.some(n => normSx(n) === t)) {
+          const deb = connus.filter(n => normSx(n).startsWith(t)), dans = connus.filter(n => normSx(n).includes(t));
+          const seul = deb.length === 1 ? deb[0] : !deb.length && dans.length === 1 ? dans[0] : '';
+          if (seul) { f.four = seul; four.value = seul; }
+        }
+      });
       if (four) four.addEventListener('change', () => { const h = habitudesSx(f.four); if (h.n) { if (!f.compte) { f.compte = h.compte; f.compteSrc = 'hab'; } if (f.tva === '') { f.tva = h.taux; f.tvaSrc = 'hab'; } } f.c40 = (h.n && h.c40) || '401';
-        const go = () => redessinerSx(dossier, true, '#sx-ttc');
+        // (1.221.0) La date n'est que celle d'arrivée (« mets celle de la pièce ») : le curseur y va avant le total.
+        const go = () => redessinerSx(dossier, true, f.dateSrc === 'arrivee' ? '#sx-date' : '#sx-ttc');
         const vise = zone.querySelector('button:hover');
         if (vise) { let fait = false; const une = () => { if (!fait) { fait = true; go(); } }; vise.addEventListener('click', () => setTimeout(une, 0), { once: true }); setTimeout(une, 800); } else go(); });
       const tv = $('#sx-tva', zone); if (tv) tv.onchange = () => { f.tva = tv.value; f.tvaSrc = ''; redessinerSx(dossier, true, f.tva === 'autre' ? '#sx-tva-autre' : '#sx-compte'); };
@@ -15154,7 +15293,7 @@
     if (t && (t.tagName === 'BUTTON' || t.tagName === 'A' || t.tagName === 'TEXTAREA' || $('.sugg-pop'))) return;
     if (t && t !== document.body && !t.closest('#sx-fiche')) return;
     // (1.220.0) Tout attend le client : Entrée mène à l'étape suivante, jamais à une deuxième relance.
-    const b = $('#sx-vers-banque') || $('#sx-fiche .btn-primary:not([disabled])');
+    const b = $('#sx-vers-banque') || $('#sx-vers-declaration') || $('#sx-fiche .btn-primary:not([disabled])');
     if (b) { e.preventDefault(); b.click(); }
   }
   document.addEventListener('keydown', clavierSx);
@@ -15342,7 +15481,9 @@
   }
 
   // (1.212.0) Une écriture qui passe par le compte d'attente (471) : ce qu'elle est reste à éclaircir.
-  const attenteBl = e => (e.lignes || []).some(l => /^471/.test(String(l.compte || '')) && (Number(l.debit) || Number(l.credit)));
+  // (1.221.0) L'imputation qui SOLDE le 471 d'après la réponse du client (« Imputation : … », 1.180.0) n'y attend rien :
+  // elle ne se décrit pas comme une écriture qui reste au compte d'attente.
+  const attenteBl = e => !/^Imputation\b/.test(String(e.libelle || '')) && (e.lignes || []).some(l => /^471/.test(String(l.compte || '')) && (Number(l.debit) || Number(l.credit)));
   // Les périmètres qu'un lot peut valider, déduits du brouillard : par journal, puis par mois.
   function lotsDuBrouillard(brouillards) {
     const parJ = {}, parM = {};

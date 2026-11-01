@@ -20035,7 +20035,7 @@ prouver 'ux3 139 : les premiers pas faits qui restent listés une fois le métie
   "p.etapes.filter(e => !(e.fait && metierCommence())).map(e => {" "p.etapes.map(e => {" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
 prouver 'ux3 139 : les premiers pas qui passent devant l'\''À faire et les chiffres' web/public/v10/app.js \
-  "      \${duGrain && metierCommence() && !commercial ? '' : pas}" "      \${pas}" \
+  "      \${duGrain && metierCommence() && !commercial ? '' : urgentDabord ? todoPanel() : pas}" "      \${urgentDabord ? todoPanel() : pas}" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
 prouver 'ux3 139 : le cabinet seul à qui l'\''on propose de se confier ses dossiers' web/public/v10/cabinet/app.js \
   "    if (liste.length < 2) return '';" "    if (!liste.length) return '';" \
@@ -22070,6 +22070,39 @@ prouver 'saisie 52 : la validation du mois valide l’achat dont la date est dem
 prouver 'saisie 49 : « Au kilomètre » sur toute l'\''année reste sur la grille vide (pas le journal du mois de la pièce)' web/public/v10/cabinet/app.js \
   "if (y && y.mois) { livresState.mode = 'mois';" "if (false) { livresState.mode = 'mois';" \
   'les pièces reçues : chaque pièce a son geste, classer vide la boîte et les chiffres, « Annuler » la remet ; une écriture commencée retient avant de changer de dossier'
+
+# 1.221.0 — l'épreuve d'un mois, jouée au clavier des deux côtés.
+WSX6="(1.221.0) la photo renvoyée prend la place de l'illisible ; la facture tapée : le fournisseur complété, la date, le timbre hors de la TVA ; l'achat comparé à lui-même, pas à son règlement"
+prouver 'saisie 53 : la photo renvoyée arrive dans le mois où elle tombe, l'\''illisible attend encore' web/public/v10/cabinet/app.js \
+  "      const ill = !p.mois && p.raison !== 'illisible' ? remplaceDe(p) : null;" "      const ill = null;" \
+  "$WSX6"
+prouver 'saisie 54 : l'\''achat se compare à son règlement du même numéro' web/public/v10/cabinet/app.js \
+  "      if (!d || sienne(e) || !sienne(d)) parPiece.set(k, e);" "      parPiece.set(k, e);" \
+  "$WSX6"
+prouver 'saisie 55 : « Minoterie » reste un fournisseur nouveau' web/public/v10/cabinet/app.js \
+  "          if (seul) { f.four = seul; four.value = seul; }" "" \
+  "$WSX6"
+prouver 'saisie 56 : la date d'\''arrivée se saute, le curseur va au total' web/public/v10/cabinet/app.js \
+  "redessinerSx(dossier, true, f.dateSrc === 'arrivee' ? '#sx-date' : '#sx-ttc')" "redessinerSx(dossier, true, '#sx-ttc')" \
+  "$WSX6"
+prouver 'saisie 57 : le timbre entre dans la base de la TVA' web/public/v10/cabinet/app.js \
+  "    const timbre = f.devise ? 0 : millimesSx(f.timbre || '0') || 0, base = ttc - timbre;" "    const timbre = f.devise ? 0 : millimesSx(f.timbre || '0') || 0, base = ttc;" \
+  "$WSX6"
+prouver 'déclaration 1.221 a : l'\''écriture du mois ne se valide pas depuis la déclaration' web/public/v10/cabinet/app.js \
+  "      if (attend) {" "      if (false) {" \
+  "$WD1"
+prouver 'déclaration 1.221 b : « déposée » condamne le brouillard du mois' web/public/v10/cabinet/app.js \
+  "        if (brM.length) {" "        if (false) {" \
+  "$WD1"
+
+WMSG7="(1.221.0) la date d'un achat demandée : « Corriger la date… » redate l'achat et répond au cabinet"
+prouver 'messagerie 1.221 a : la date demandée se présente comme une pièce à envoyer' web/public/plateforme/messagerie.js \
+  "        const aDater = entreprise && o.corrigerDateAchat ? numeroADater(m) : '';" "        const aDater = '';" \
+  "$WMSG7"
+prouver 'messagerie 1.221 b : « Corriger la date » ne redate pas l'\''achat' web/public/v10/app.js \
+  "        p.date = date;
+        await save(true);" "        await save(true);" \
+  "$WMSG7"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

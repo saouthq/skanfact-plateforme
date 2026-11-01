@@ -474,6 +474,49 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### Tout le parcours d'un mois, des deux côtés (1.221.0, 01/11/2026)
+
+L'épreuve de la 1.220.0, prolongée jusqu'au bout : Leïla traite septembre ; Sarra répond dans SkanFact (la date de la
+facture Levures corrigée, la photo IMG_8790 renvoyée, la question sur le chèque 4410 072) ; Leïla reprend, saisit la
+facture renvoyée, rapproche le chèque d'après la réponse, impute le compte d'attente, puis prépare, écrit, valide et
+dépose août et septembre. Le script : `scripts/humain/epreuve-mois.mjs` (avec `EPREUVE_SARRA`, le chemin d'un fichier
+qui porte la session de Sarra, il joue aussi son côté).
+
+**Le résultat** : 61 clics, 126 touches ; août déposé (écriture du mois n° 92), septembre déposé (le 471 imputé au 419
+le 30/09, la DECL validée). Le ruban : « août déposé · sept. déposé ».
+
+**Défauts trouvés, corrigés** :
+- **Banque** : la ligne demandée au client restait choisie, et « ligne suivante » sautait celles restées plus haut. La
+  demande faite, l'annonce le dit et la prochaine ligne qui demande du travail est choisie (sinon on reprend au début).
+  « Écrire d'après sa réponse » montre la réponse du client et propose le compte du tiers qu'il nomme (401 Levures).
+- **Accueil du client** : ce que le cabinet attend passe avant la bienvenue et les premiers pas ; la même question n'est
+  plus comptée deux fois.
+- **« La bonne date de FA-0913 »** se présentait comme « Envoyer la pièce ». C'est « Date à corriger » et
+  « Corriger la date… » : la date lue par le cabinet est proposée, l'achat est redaté et la réponse part avec lui.
+- **La facture se comparait à son règlement** du même numéro (« à reclasser ») : elle se compare à l'écriture des achats.
+- **Une page ouverte ne voyait pas les réponses** : la Saisie relit le livre et les pièces en arrivant (30 s au plus).
+- **La photo renvoyée** arrivait dans le mois de son arrivée et l'illisible attendait encore : elle prend le mois de
+  la pièce qu'elle remplace, et l'illisible est « remplacée ».
+- **La fiche tapée** : « Minoterie » devenait un nouveau fournisseur (le nom connu se complète), la date d'arrivée se
+  sautait (le curseur y va), et le timbre entrait dans la base de la TVA (78,465 au lieu de 78,400) : une case Timbre,
+  hors de la base, au débit de la charge.
+- **Le mois fini** disait « Demander les pièces » : « Septembre : tout est saisi », et « Déclarer août d'abord ↵ » quand
+  un mois d'avant n'est pas déposé.
+- **Déclaration** : l'avertissement du 471 n'offrait aucun geste (« L'imputer depuis la conversation ») ; l'imputation
+  se datait d'aujourd'hui (elle prend le dernier jour du mois de la question) ; l'écriture du mois se valide depuis la
+  page (« Valider l'écriture du mois ») ; « Marquer déposée » refuse tant que le mois a du brouillard, et mène au
+  brouillard.
+
+**Tests** : la déclaration (valider, « déposée » refusée), la Saisie (photo renvoyée, fournisseur complété, date,
+timbre, l'achat face à son règlement), la messagerie (« Corriger la date… »), chacun prouvé en remettant le défaut. La
+Banque (ligne suivante, réponse dans la fenêtre), l'accueil du client, le mois fini, la date d'imputation et la relecture
+en arrivant ne sont tenus que par l'épreuve, pas encore par un test.
+
+**Restes** (à voir avec Skander) : les données de la démo (le 4367 porte 7 990,565 DT, janvier à juillet marqués déposés
+sans écriture de déclaration) ; 16 millimes d'écart entre le chèque (406,980) et la facture Levures (406,964), le 401
+Levures non lettré ; septembre validé avant août numérote hors de l'ordre des mois ; « Clôturer un mois » proposé côté
+client ; pas de case « numéro » dans la fiche tapée ; « Par », le 401 auxiliaire, la farine en 606, la pièce en euros.
+
 ### L'épreuve d'un mois complet, au clavier et à la souris (1.220.0, 01/11/2026)
 
 Septembre 2026 de la Boulangerie El Amal, du premier écran à la validation, comme un comptable : le geste principal à

@@ -146,14 +146,18 @@ describe('la déclaration du mois, à la souris', () => {
     // ── L'écriture du mois, au brouillard, liée ──────────────────────────────────────────────────────
     await expect.poll(() => p.locator('#dc-ecriture').getAttribute('class')).toMatch(/btn-primary/);
     await p.locator('#dc-ecriture').click();
-    await expect.poll(toast).toBe('Écriture créée en brouillard : valide-la quand tu es d\'accord.');
+    await expect.poll(toast).toBe('Écriture créée en brouillard : relis-la, puis « Valider l\'écriture du mois ».');
     const ecrite = (await ecritures(cafe, associe)).find((e) => e.piece === 'DECL-2026-03');
     expect(ecrite).toMatchObject({ statut: 'brouillard', lignes: expect.arrayContaining([
       { compte: '4367', debit: '190.125', credit: '0.000' }, { compte: '4366', debit: '0.000', credit: '50.255' },
       { compte: '4368', debit: '1.000', credit: '0.000' }, { compte: '4365', debit: '0.000', credit: '140.870' }].map((l) => expect.objectContaining(l))) });
     expect((await declarations(cafe, associe))[0]?.ecriture).toBe(ecrite?.id);
-    await expect.poll(() => p.locator('#dc-ecriture').innerText()).toMatch(/Écriture au brouillard — à valider/);
-    expect((await api('POST', `/entreprises/${cafe}/compta/ecritures/valider`, associe, { ids: [ecrite?.id] })).statut).toBe(200);
+    // (1.221.0) L'écriture du mois se valide d'ici, au même bouton, sans aller la chercher au brouillard.
+    await expect.poll(() => p.locator('#dc-ecriture').innerText()).toBe('Valider l\'écriture du mois');
+    expect(await p.locator('#dc-ecriture').isEnabled()).toBe(true);
+    await p.locator('#dc-ecriture').click();
+    await expect.poll(toast).toBe('DECL-2026-03 validée : elle solde la TVA du mois. Il reste à la déposer sur le portail.');
+    expect((await ecritures(cafe, associe)).find((e) => e.piece === 'DECL-2026-03')?.statut).toBe('validee');
 
     // ── Une vente oubliée, saisie après : les chiffres ont changé ─────────────────────────────────────
     const oubliee = await saisir('2026-03-20', 'VT', 'F-2026-032', 'Facture F-2026-032', [['411', '119,000', ''], ['7071', '', '100,000'], ['4367', '', '19,000']]);
@@ -175,7 +179,7 @@ describe('la déclaration du mois, à la souris', () => {
     // Le complément : ce qui manque à l'écriture du mois, jamais une seconde écriture entière.
     await expect.poll(() => p.locator('#dc-ecriture').innerText()).toBe('Écrire le complément');
     await p.locator('#dc-ecriture').click();
-    await expect.poll(toast).toBe('Complément créé en brouillard : valide-le quand tu es d\'accord.');
+    await expect.poll(toast).toBe('Complément créé en brouillard : relis-le, puis « Valider le complément ».');
     const toutes = await ecritures(cafe, associe);
     expect(toutes.filter((e) => String(e.piece).startsWith('DECL-2026-03')).map((e) => [e.piece, e.statut])).toEqual([['DECL-2026-03', 'validee'], ['DECL-2026-03-C1', 'brouillard']]);
     expect(toutes.find((e) => e.piece === 'DECL-2026-03-C1')?.lignes).toEqual(expect.arrayContaining([
@@ -184,6 +188,15 @@ describe('la déclaration du mois, à la souris', () => {
 
     // ── Déposée, payée ; dé-pointer le dépôt dé-pointe le paiement ─────────────────────────────────────
     const aujourdhui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+    // (1.221.0) Un mois déposé ne bouge plus : tant que le complément est au brouillard, « déposée » le dit et ne pointe rien.
+    await p.locator('#dc-deposee').click();
+    await expect.poll(() => p.locator('#modal-root .modal').innerText()).toMatch(/^Mars 2026 a encore 1 écriture au brouillard[\s\S]*DECL-2026-03-C1[\s\S]*l'écriture du mois ne pourrait plus être validée/);
+    await p.keyboard.press('Escape');
+    expect((await declarations(cafe, associe))[0]?.deposee.le).toBe('');
+    await expect.poll(() => p.locator('#dc-ecriture').innerText()).toBe('Valider le complément');
+    await p.locator('#dc-ecriture').click();
+    await expect.poll(toast).toBe('DECL-2026-03-C1 validée : elle solde la TVA du mois. Il reste à la déposer sur le portail.');
+    await expect.poll(() => p.locator('#dc-ecriture').innerText()).toMatch(/Écriture du mois passée/);
     await p.locator('#dc-deposee').click();
     await expect.poll(toast).toBe('Notée déposée — c\'est un pense-bête, pas un accusé de réception.');
     await expect.poll(async () => (await declarations(cafe, associe))[0]?.deposee.le).toBe(aujourdhui);
