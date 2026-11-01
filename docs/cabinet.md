@@ -474,6 +474,33 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### L'épreuve d'un mois complet, au clavier et à la souris (1.220.0, 01/11/2026)
+
+Septembre 2026 de la Boulangerie El Amal, du premier écran à la validation, comme un comptable : le geste principal à
+la touche Entrée, la souris quand l'écran ne propose rien, la molette quand la cible n'est pas visible. Le script
+compte tout : `scripts/humain/epreuve-mois.mjs` (une photo par étape, le journal dans `EPREUVE_SORTIE`, par défaut
+`dist/epreuve` ; il lit les jetons de la démo à l'exécution, aucun dans le fichier).
+
+**Le résultat** : 19 clics, 17 touches, 669 px de molette. La date de la facture Levures demandée à Sarra ; la pièce
+illisible passée (déjà redemandée) ; la STEG jointe ; l'écran « rien d'autre à saisir », Entrée vers la Banque ; 9 lignes
+rapprochées à la touche Entrée, le chèque 4410 072 inconnu laissé (Échap, ↓) ; « Valider les 18 de septembre » :
+18 écritures validées (n° 61 à 78), la facture Levures reste au brouillard.
+
+**Six défauts trouvés par l'épreuve, corrigés** :
+- **La demande de date restait sur place** : la même pièce revenait, avec le même bouton principal, et un second
+  envoi partait. La demande faite, on passe à la pièce suivante ; revenue, la pièce dit « Demandée à Sarra le 01/11 :
+  elle corrige la date dans SkanFact, l'écriture suit » et le bouton devient « Relancer Sarra » (non principal).
+- **« Relancer » revenait à la première pièce** du mois : il reste sur la pièce suivante.
+- **« Valider le mois » validait l'achat dont la date est demandée** : validé, il ne changerait plus de mois. Il reste
+  au brouillard, et la fenêtre le dit (« FA-xxxx reste au brouillard · sa date est demandée à Sarra »).
+- **Les pièces qui attendent le client se présentaient comme du travail** : quand il ne reste qu'elles, l'écran dit
+  « Septembre : rien d'autre à saisir pour l'instant · N pièces attendent Sarra » et propose « Passer à la Banque ↵ ».
+- **Le compteur du bouton « Valider » différait de la fenêtre** : les deux se calculent de la même liste.
+- **Les écritures de banque écrites d'après une règle n'avaient pas de pièce** : elles prennent la référence du relevé,
+  sinon `BQ-MMJJ` (`BQ-0926` pour les frais ; `-2`, `-3` si le numéro est pris dans le journal BQ).
+
+Restent : « Par » (qui a écrit), le 401 auxiliaire, la farine en 606, la pièce en euros (voir 1.219.0).
+
 ### Revue UI/UX de la Saisie et de la Banque, en comptable (1.219.0, 01/11/2026)
 
 Parcourues en pleine page sur la Boulangerie El Amal, septembre 2026 (face à la pièce, les trois pièces, au kilomètre,

@@ -276,7 +276,16 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-mois.png') });
     await p.locator('#sx-demander-date').click();
     await expect.poll(() => p.locator('#modal-root textarea').inputValue().catch(() => '')).toMatch(/^Bonjour Sarra, ton achat FA-0913 \(Levures du Sahel, 406,964 DT\) est daté du 10\/09, mais la facture est du 29\/08\./);
-    await p.keyboard.press('Escape');
+    // (1.220.0, l'épreuve d'un mois) Envoyée, la demande passe à la pièce suivante ; revenue sur la pièce, elle dit qu'elle
+    // attend Sarra et n'a plus de geste principal : un Entrée ne renvoie pas la même demande.
+    // L'horloge de ce navigateur est au 28/10 ; celle du serveur, au jour du test : « sans date » ne dépend d'aucune des deux.
+    await p.locator('#dm-pour button[data-j=""]').click();
+    await p.locator('#modal-root').getByRole('button', { name: 'Envoyer la demande' }).click();
+    await expect.poll(() => fiche(p).innerText().then(net)).not.toMatch(/FA-0913/);
+    await puce(p, 'Levures').click();
+    await expect.poll(() => p.locator('#sx-date-demandee').innerText().then(net).catch(() => '')).toMatch(/^Demandée à Sarra le \d\d\/\d\d : elle corrige la date dans SkanFact, l'écriture suit\. FA-0913 reste au brouillard d'ici là\.$/);
+    expect(await fiche(p).locator('.btn-primary').count()).toBe(0);
+    expect(await p.locator('#sx-demander-date').innerText()).toBe('Relancer Sarra');
 
     // S5 : la facture en euros. Le taux tapé, la contre-valeur en millimes, l'écriture sans TVA (payée à la douane).
     await puce(p, 'Matfer').click();
@@ -303,6 +312,9 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(net(await lot.locator('#lot-liste').innerText())).toMatch(/Matfer Bourgeat · FR-26-118842 · 2 350,00 EUR à 3,3812 7 945,820/);
     expect(net(await lot.locator('#lot-verif').innerText())).toMatch(/^(Toutes sont équilibrées ; aucune ne tombe sur un mois déposé\.|Elle est équilibrée et ne tombe pas sur un mois déposé\.)$/);
     expect(await lot.getByRole('button', { name: /^Valider (l'écriture|les \d+ écritures)$/ }).count()).toBe(1);
+    // (1.220.0) L'achat dont la date est demandée reste au brouillard, et la fenêtre le dit.
+    expect(net(await lot.locator('#lot-demande').innerText())).toBe('FA-0913 reste au brouillard Sa date est demandée à Sarra : validée, elle ne changerait plus de mois.');
+    expect(net(await lot.locator('#lot-liste').innerText())).not.toMatch(/Levures/);
     await lot.getByRole('button', { name: 'Annuler', exact: true }).click();
 
     // (S9) « Au kilomètre », le journal du mois : une pièce par ligne, sa charge et sa TVA dessous, le justificatif ; la ligne

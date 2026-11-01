@@ -21979,7 +21979,7 @@ prouver 'saisie 24 : le brouillard d'\''un mois montre tout l'\''exercice' web/p
   "    const mBl = livresState.mode === 'mois' && livresState.mois && !sxState.blTout ? livresState.mois : '';" "    const mBl = '';" \
   "$WSX1"
 prouver 'saisie 25 : la fenêtre de validation ne liste pas ce qu'\''elle valide' web/public/v10/cabinet/app.js \
-  "<div class=\"lot-fen\">\${liste}\${cas}" "<div class=\"lot-fen\">\${cas}" \
+  "<div class=\"lot-fen\">\${liste}\${enDemande" "<div class=\"lot-fen\">\${enDemande" \
   "$WSX1"
 prouver 'saisie 26 : la fenêtre de validation ne vérifie rien avant' web/public/v10/cabinet/app.js \
   "    const verif = !fausses.length && !deposes.length" "    const verif = false" \
@@ -22061,6 +22061,12 @@ prouver 'saisie 50 : le mois vide étale la grille au lieu de sa carte (maquette
 prouver 'banque 19 : un mois sans relevé montre celui d’un autre mois (maquette « bqvide »)' web/public/v10/cabinet/app.js \
   "    if (mBq && !duMois.length && !banqueState.etat && !banqueState.regles) return banqueVide(dossier, mBq, releves);" "" \
   "$WB1"
+prouver 'saisie 51 : la date demandée au client se redemande d’un Entrée' web/public/v10/cabinet/app.js \
+  "    const demDate = client ? dateDemandeeSx(dossier, e) : null;" "    const demDate = null;" \
+  "$WSX1"
+prouver 'saisie 52 : la validation du mois valide l’achat dont la date est demandée' web/public/v10/cabinet/app.js \
+  "    const enDemande = toutes.filter(e => achatSx(e) && dateDemandeeSx(dossier, e));" "    const enDemande = [];" \
+  "$WSX1"
 prouver 'saisie 49 : « Au kilomètre » sur toute l'\''année reste sur la grille vide (pas le journal du mois de la pièce)' web/public/v10/cabinet/app.js \
   "if (y && y.mois) { livresState.mode = 'mois';" "if (false) { livresState.mode = 'mois';" \
   'les pièces reçues : chaque pièce a son geste, classer vide la boîte et les chiffres, « Annuler » la remet ; une écriture commencée retient avant de changer de dossier'

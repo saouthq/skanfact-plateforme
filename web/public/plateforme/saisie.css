@@ -319,3 +319,9 @@ table.list.compact.sx-bl td.mono, .sx-jm-l td.mono { font-family: ui-monospace, 
 
 /* (1.219.0, revue comptable) Une écriture sans numéro de pièce se voit : la pièce qui la justifie ne se retrouverait pas. */
 .sx-sans-n { font-family: var(--sb-police, system-ui, sans-serif); font-size: 12px; letter-spacing: 0; color: var(--sb-ambre-texte); background: var(--sb-ambre-doux); border-radius: 6px; padding: 1px 6px; }
+/* (1.220.0, épreuve d'un mois) La date demandée au client : la pièce le dit, sans geste principal à refaire. */
+.sx-attend { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--sb-doux); color: var(--sb-encre); font-size: 13px; line-height: 1.45; }
+.sx-attend svg { flex: none; width: 15px; height: 15px; margin-top: 2px; color: var(--sb-doux-texte); }
+.sx-fini { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; background: var(--sb-doux); color: var(--sb-encre); }
+.sx-fini > svg { flex: none; width: 18px; height: 18px; color: var(--sb-doux-texte); }
+.sx-fini > span { flex: 1; min-width: 240px; display: grid; gap: 2px; font-size: 13.5px; } .sx-fini small { color: var(--sb-gris); font-size: 12.5px; }

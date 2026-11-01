@@ -12837,7 +12837,16 @@
     const s = livresState;
     const b = KC.ecritureProposee(l, Array.isArray(S.libelles) ? S.libelles : [], { compte: R.compte, journal: 'BQ' });
     const lib = libelle || b.libelle;
-    const ec = { ...b, libelle: lib, lignes: [{ ...b.lignes[0], libelle: lib }, { ...b.lignes[1], compte, libelle: lib }] };
+    // (1.220.0, épreuve d'un mois) Une écriture écrite depuis le relevé a une pièce : la référence de la ligne, sinon
+    // « BQ-MMJJ » (le jour du relevé), comme les autres écritures de banque ; jamais « sans n° ».
+    const pieceBq = (() => {
+      if (b.piece) return b.piece;
+      const base = `BQ-${String(l.date).slice(5, 7)}${String(l.date).slice(8, 10)}`;
+      const prises = new Set((s.livre.ecritures || []).filter(x => x.journal === 'BQ').map(x => String(x.piece || '')));
+      let n = base, i = 2; while (prises.has(n)) n = `${base}-${i++}`;
+      return n;
+    })();
+    const ec = { ...b, piece: pieceBq, libelle: lib, lignes: [{ ...b.lignes[0], libelle: lib }, { ...b.lignes[1], compte, libelle: lib }] };
     delete ec.aChoisir; delete ec.regle;
     const r = await api.saisir(dossier.id, s.annee, ec);
     s.livre = r.livre;
@@ -14615,6 +14624,7 @@
     // date dans SkanFact, et le livre suit. Le cabinet le lui demande ; il ne réécrit rien chez lui.
     const client = e.source && e.source !== 'saisie';
     const qui = prenomCl(dossier.contact) || 'le client';
+    const demDate = client ? dateDemandeeSx(dossier, e) : null;
     const bloque = client ? '' : horsEx ? `Le ${fmtJourCourt(lu.date)} n'est pas dans l'exercice ${livresState.annee} : à déplacer à la main.` : avantDecl ? `${cap(moisLong(mE))} est déclaré et la pièce est d'avant : la régularisation se fait à la main (À VÉRIFIER).` : '';
     return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(tiers || 'Achat')}${lu.numero ? ` · ${esc(lu.numero)}` : ''}</b><small>saisie par ${esc(prenomCl(dossier.contact) || 'le client')} au ${esc(jjmm(e.date))} · ${esc(e.piece || '')}</small></div><span class="cl-st ambre">à reclasser</span></div>
       <div class="bandeau info sx-band">${SX_IC.cal}<span class="txt"><b>La facture est du ${esc(jjmm(lu.date))}, l'écriture du ${esc(jjmm(e.date))}</b><span>La TVA d'une facture se déduit le mois de sa date (À VÉRIFIER) : elle compte en ${esc(moisLong(mP))}, pas en ${esc(moisLong(mE))}.</span></span></div>
@@ -14625,9 +14635,10 @@
         ${client ? `<li class="info"><i>i</i><span><b>${esc(e.piece || 'L\'écriture')} suit l'achat de ${esc(qui)}</b><small>elle ne se change pas dans les livres : ${esc(qui)} corrige la date dans SkanFact, et l'écriture suit${declE ? ` (${esc(moisLong(mE))} étant déposé, SkanFact la régularise au mois de la pièce)` : ''}</small></span></li>`
           : `<li class="ok"><i>${CL_IC.ok}</i><span><b>${e.statut === 'validee' ? `${esc(e.piece || 'L\'écriture')} se contre-passe au ${esc(jjmm(cp))}, et s'écrit à nouveau au ${esc(jjmm(lu.date))}` : `${esc(e.piece || 'L\'écriture')} est au brouillard : sa date passe au ${esc(jjmm(lu.date))}`}</b><small>${e.statut === 'validee' ? 'une écriture validée ne se modifie pas : elle se contre-passe' : 'rien n\'est encore validé : elle se corrige'}</small></span></li>`}</ul>
       ${bloque ? `<p class="sx-refus" role="status">${esc(bloque)}</p>` : ''}
-      <div class="sx-gestes">${enSaisie ? `<span class="fd-qui" id="sx-qui-verifie">${esc(rev)} ${client ? `la demande à ${esc(qui)}` : 'la déplace'}</span>` : `${client ? (dossier.manual ? '' : `<button type="button" class="btn btn-primary" id="sx-demander-date">Demander à ${esc(qui)} de la dater du ${esc(jjmm(lu.date))} <kbd>↵</kbd></button>`)
+      ${demDate ? `<p class="sx-attend" id="sx-date-demandee" role="status">${CL_IC.ok}<span><b>Demandée à ${esc(qui)} le ${esc(jjmm(String(demDate.demandeeLe).slice(0, 10)))}</b> : elle corrige la date dans SkanFact, l'écriture suit. ${esc(e.piece || 'L\'écriture')} reste au brouillard d'ici là.</span></p>` : ''}
+      <div class="sx-gestes">${enSaisie ? `<span class="fd-qui" id="sx-qui-verifie">${esc(rev)} ${client ? `la demande à ${esc(qui)}` : 'la déplace'}</span>` : `${client ? (dossier.manual ? '' : demDate ? `<button type="button" class="btn" id="sx-demander-date">Relancer ${esc(qui)}</button>` : `<button type="button" class="btn btn-primary" id="sx-demander-date">Demander à ${esc(qui)} de la dater du ${esc(jjmm(lu.date))} <kbd>↵</kbd></button>`)
         : `<button type="button" class="btn btn-primary" id="sx-deplacer"${bloque ? ' disabled' : ''}>Déplacer en ${esc(moisLong(mP))}${bloque ? '' : ' <kbd>↵</kbd>'}</button>`}<button type="button" class="btn" id="sx-verifiee" title="La date de l'écriture est la bonne : la pièce est vérifiée">Laisser en ${esc(moisLong(mE))}</button>`}</div>
-      ${enSaisie ? '' : `<p class="sx-touches">${SX_IC.clavier}<span><kbd>↵</kbd> ${client ? `demande la date à ${esc(qui)}` : `déplace et ouvre la pièce suivante${esc(suivanteSx(x))}`} · <kbd>Alt</kbd>+<kbd>→</kbd> la passe${client || declE ? '' : ` · la déclaration ${esc(deMois(mE))} se recalcule seule`}</span></p>`}</div>`;
+      ${enSaisie || demDate ? '' : `<p class="sx-touches">${SX_IC.clavier}<span><kbd>↵</kbd> ${client ? `demande la date à ${esc(qui)} et ouvre la pièce suivante` : `déplace et ouvre la pièce suivante${esc(suivanteSx(x))}`} · <kbd>Alt</kbd>+<kbd>→</kbd> la passe${client || declE ? '' : ` · la déclaration ${esc(deMois(mE))} se recalcule seule`}</span></p>`}</div>`;
   }
 
   function ficheDoubleSx(dossier, x) {
@@ -14645,9 +14656,13 @@
     const enSaisie = monRole() === 'saisie';
     return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(fichierSx(x).nom)}</b><small>${esc(deQuiSx(dossier, x))}</small></div><span class="cl-st rouge">illisible</span></div>
       <div class="bandeau rouge sx-band">${EC_IC.alerte}<span class="txt"><b>${redem ? `Redemandée à ${esc(cap(qui))}` : 'Illisible : à redemander'}</b><span>${esc(cap(x.em || 'marquée illisible'))}. Rien ne s'en saisit : la nouvelle photo arrive dans cette bande, à sa place.</span></span></div>
-      <div class="sx-gestes">${enSaisie ? `<span class="fd-qui">${esc(cap(reviseurCl(dossier)))} relance ${esc(qui)}</span>` : `<button type="button" class="btn btn-primary" id="sx-relancer">Relancer ${esc(qui)} <kbd>↵</kbd></button>`}<button type="button" class="btn" id="sx-lisible">Elle se lit : la saisir</button></div>
-      <p class="sx-touches">${SX_IC.clavier}<span>${enSaisie ? '' : `<kbd>↵</kbd> redemande la photo · `}<kbd>Alt</kbd>+<kbd>→</kbd> passe à la pièce suivante${esc(suivanteSx(x))}</span></p></div>`;
+      <div class="sx-gestes">${enSaisie ? `<span class="fd-qui">${esc(cap(reviseurCl(dossier)))} relance ${esc(qui)}</span>` : (redem ? `<button type="button" class="btn" id="sx-relancer">Relancer ${esc(qui)}</button>` : `<button type="button" class="btn btn-primary" id="sx-relancer">Relancer ${esc(qui)} <kbd>↵</kbd></button>`)}<button type="button" class="btn" id="sx-lisible">Elle se lit : la saisir</button></div>
+      <p class="sx-touches">${SX_IC.clavier}<span>${enSaisie || redem ? '' : `<kbd>↵</kbd> redemande la photo · `}<kbd>Alt</kbd>+<kbd>→</kbd> passe à la pièce suivante${esc(suivanteSx(x))}</span></p></div>`;
   }
+  // (1.220.0, épreuve d'un mois) La date d'un achat du client demandée et pas encore reçue : la demande ouverte de la
+  // conversation qui la nomme (« la bonne date de FA-0914 … »). Tant qu'elle court, la pièce le dit, ne la redemande pas
+  // d'un Entrée, et la validation du mois la laisse au brouillard (validée, elle ne changerait plus de mois).
+  const dateDemandeeSx = (dossier, e) => (e && e.piece ? ((piecesLues.demandes || []).find(d => d.entreprise === dossier.id && !d.recueLe && String(d.texte || '').includes(`bonne date de ${e.piece}`)) || null) : null);
   const moisAvantSx = m => { const [a, n] = m.split('-').map(Number); return n === 1 ? `${a - 1}-12` : `${a}-${String(n - 1).padStart(2, '0')}`; };
   function zoneSx(dossier, P) {
     if (!P.pret) return '<div class="sx-attente mu">Lecture des pièces du mois…</div>';
@@ -14681,7 +14696,12 @@
       ? `<div class="sx-jm-g">${journalMoisSx(dossier, P)}<aside class="sx-km-d" id="sx-km-d">${cotePieceSx(dossier, P)}</aside></div>` : journalMoisSx(dossier, P)) : '');
     const fiche = x.sx.k === 'deja' ? ficheDejaSx(dossier, x) : x.sx.k === 'verifier' || x.sx.k === 'confiance' ? ficheVerifierSx(dossier, x)
       : x.sx.k === 'mois' ? ficheMoisSx(dossier, x) : x.sx.k === 'double' ? ficheDoubleSx(dossier, x) : x.sx.k === 'illisible' ? ficheIllisibleSx(dossier, x) : ficheSaisirSx(dossier, x);
-    return `${barreSx(P, dossier)}<div class="sx-face">${visionneuseSx(dossier, x)}${fiche}</div>`;
+    // (1.220.0, épreuve d'un mois) Tout ce qui reste attend le client (une date demandée, une photo redemandée) : rien
+    // d'autre à faire ici, et l'étape suivante se propose (la Banque), au lieu de présenter ces pièces comme du travail.
+    const attendClient = y => (y.sx.k === 'illisible' && y.p && y.p.note) || (y.sx.k === 'mois' && dateDemandeeSx(dossier, y.sx.e));
+    const tousAttendent = P.liste.length && P.liste.every(attendClient) && !(dossier.manual);
+    const fini = tousAttendent ? `<div class="sx-fini" id="sx-fini" role="status">${CL_IC.ok}<span><b>${esc(cap(moisLong(m || '')))}${m ? ' : ' : ''}rien d'autre à saisir pour l'instant</b><small>${esc(pl(P.liste.length, 'pièce attend', 'pièces attendent'))} ${esc(prenomCl(dossier.contact) || 'le client')} : ${esc(P.liste.map(y => y.sx.k === 'mois' ? `la date de ${y.sx.e.piece || 'son achat'}` : `une photo lisible de ${fichierSx(y).nom}`).join(', '))}. Elles reviendront ici dès sa réponse.</small></span><button type="button" class="btn btn-primary" id="sx-vers-banque">Passer à la Banque <kbd>↵</kbd></button></div>` : '';
+    return `${barreSx(P, dossier)}${fini}<div class="sx-face">${visionneuseSx(dossier, x)}${fiche}</div>`;
   }
   // (1.213.0, S9) « Au kilomètre », le journal du mois : les achats du mois, une pièce par ligne (jour, pièce, compte du
   // fournisseur, libellé, TTC), sa charge et sa TVA dessous en gris, le justificatif de chaque ligne ; puis la ligne en
@@ -14979,6 +14999,7 @@
       }
       drawLivres(root, dossier);
     }; });
+    { const vb = $('#sx-vers-banque', el); if (vb) { vb.onclick = () => allerSousOnglet(root, dossier, 'banque'); setTimeout(() => { try { vb.focus(); } catch { /* rien */ } }, 0); } }
     const ouvrirVide = km => { sxState.mainVide = moisSx(); if (km) sxState.mode = 'km'; drawLivres(root, dossier); const c = $('#sa-date'); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } };
     for (const [id, km] of [['#sx-vide-main', false], ['#sx-vide-km', true]]) { const b = $(id, el); if (b) b.onclick = () => ouvrirVide(km); }
     const dm = $('#sx-demander-mois', el);
@@ -15087,12 +15108,12 @@
     on('#sx-deplacer', () => deplacerSx(root, dossier, x));
     on('#sx-corriger', () => corrigerSx(dossier, x));
     on('#sx-certif', () => certificatSx(dossier, x));
-    on('#sx-relancer', () => { if (x.p) redemanderPiece(x.p, dossier, async note => { try { await api.pieces.classer(dossier.id, x.p.id, false); await api.pieces.classer(dossier.id, x.p.id, true, 'illisible', note); } catch { /* déjà classée : la relance est partie */ } toast(`Relance envoyée à ${prenomCl(dossier.contact) || 'le client'}.`); await apresSx(root, dossier, { k: '' }); }); });
+    on('#sx-relancer', () => { if (x.p) redemanderPiece(x.p, dossier, async note => { try { await api.pieces.classer(dossier.id, x.p.id, false); await api.pieces.classer(dossier.id, x.p.id, true, 'illisible', note); } catch { /* déjà classée : la relance est partie */ } toast(`Relance envoyée à ${prenomCl(dossier.contact) || 'le client'}.`); await apresSx(root, dossier, x); }); });
     on('#sx-lisible', async () => { try { await declasserSx(dossier, x); sxState.saisir.add(x.k); await apresSx(root, dossier, { k: '' }); sxState.sel = x.k; redessinerSx(dossier, true, '#sx-four'); } catch (err) { toast(plainError(err), 'error'); } });
     on('#sx-demander-date', () => {
       const e = x.sx.e, qui = prenomCl(dossier.contact);
       fenDemanderCl(dossier, { titre: `La date de ${e.piece || 'ton achat'} · ${nomTiersSx(e)}`, piece: `la bonne date de ${e.piece || 'ton achat'} (${nomTiersSx(e)})`, mois: x.mois,
-        texte: `Bonjour${qui ? ` ${qui}` : ''}, ton achat ${e.piece || ''} (${nomTiersSx(e)}, ${dtSx(ttcSx(e))} DT) est daté du ${jjmm(e.date)}, mais la facture est du ${jjmm(x.lu.date)}. Peux-tu corriger sa date dans SkanFact ? Sa TVA compte au mois de la facture.` }, { hors: true });
+        texte: `Bonjour${qui ? ` ${qui}` : ''}, ton achat ${e.piece || ''} (${nomTiersSx(e)}, ${dtSx(ttcSx(e))} DT) est daté du ${jjmm(e.date)}, mais la facture est du ${jjmm(x.lu.date)}. Peux-tu corriger sa date dans SkanFact ? Sa TVA compte au mois de la facture.` }, { hors: true, apres: async () => { await apresSx(root, dossier, x); } });
     });
     on('#sx-demander', () => fenDemanderCl(dossier, { titre: `${courtSx(x)} · ${x.sx.e.piece || ''}`, texte: `Bonjour${prenomCl(dossier.contact) ? ` ${prenomCl(dossier.contact)}` : ''}, sur ton achat ${x.sx.e.piece || ''} (${nomTiersSx(x.sx.e)}, ${dtSx(ttcSx(x.sx.e))} DT), j'ai une question : `, mois: x.mois }, { hors: true }));
     on('#sx-conf-oui', () => confianceSxPoser(root, dossier, nomTiersSx(x.sx.e), true));
@@ -15132,7 +15153,8 @@
     const t = e.target;
     if (t && (t.tagName === 'BUTTON' || t.tagName === 'A' || t.tagName === 'TEXTAREA' || $('.sugg-pop'))) return;
     if (t && t !== document.body && !t.closest('#sx-fiche')) return;
-    const b = $('#sx-fiche .btn-primary:not([disabled])');
+    // (1.220.0) Tout attend le client : Entrée mène à l'étape suivante, jamais à une deuxième relance.
+    const b = $('#sx-vers-banque') || $('#sx-fiche .btn-primary:not([disabled])');
     if (b) { e.preventDefault(); b.click(); }
   }
   document.addEventListener('keydown', clavierSx);
@@ -15220,7 +15242,8 @@
     sxState.dessin = `${sxState.mode}|${sxState.sel}|${zoneHtml.length}|${zoneHtml}`;
     const mSx = moisSx();
     const brMois = mSx ? brouillards.filter(e => String(e.date || '').slice(0, 7) === mSx) : brouillards;
-    const aValiderMois = mSx ? brMois.filter(e => String(e.date || '') <= K.today() && !e.attente) : [];
+    // Le compteur du bouton compte ce que la fenêtre validera : sans l'achat dont la date est demandée au client (1.220.0).
+    const aValiderMois = mSx ? brMois.filter(e => String(e.date || '') <= K.today() && !e.attente && !(achatSx(e) && dateDemandeeSx(dossier, e))) : [];
     // Les lots proposés : ceux qui EXISTENT dans le brouillard, pièces du jour et déjà au serveur (le mois choisi a son bouton).
     const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).filter(l => !(l.type === 'mois' && l.cle === mSx && aValiderMois.length));
     const abosActifs = (Array.isArray(dossier.abonnements) ? dossier.abonnements : []).filter(a => a.actif).length;
@@ -15864,10 +15887,14 @@
   // et un bouton qui en validerait trente sans le dire serait un piège.
   async function validerUnLot(root, dossier, filtre) {
     const s = livresState;
-    const cibles = (s.livre.ecritures || []).filter(e => e.statut === 'brouillard'
+    const toutes = (s.livre.ecritures || []).filter(e => e.statut === 'brouillard'
       && (!filtre.journal || e.journal === filtre.journal)
       && (!filtre.mois || String(e.date || '').slice(0, 7) === filtre.mois) && String(e.date || '') <= K.today());
-    if (!cibles.length) { await infoDialog('Rien à valider', 'Aucune écriture en brouillard ne correspond.'); return; }
+    // (1.220.0, épreuve d'un mois) Une écriture dont la date est demandée au client reste au brouillard : validée, elle ne
+    // changerait plus de mois, et la demande deviendrait sans objet.
+    const enDemande = toutes.filter(e => achatSx(e) && dateDemandeeSx(dossier, e));
+    const cibles = toutes.filter(e => !enDemande.includes(e));
+    if (!cibles.length) { await infoDialog('Rien à valider', enDemande.length ? `${enDemande.map(e => e.piece || e.libelle).join(', ')} : sa date est demandée au client ; elle se validera une fois corrigée.` : 'Aucune écriture en brouillard ne correspond.'); return; }
     if (await refusLicence('Valider un lot d\'écritures')) return;
     // (1.217.0, maquette) « de septembre » : l'exercice est déjà dans la page.
     const quoi = filtre.journal ? `du journal ${filtre.journal}` : String(filtre.mois).slice(0, 4) === String(s.annee) ? deMois(filtre.mois) : KC.deMois(moisLabelCourt(filtre.mois));
@@ -15892,7 +15919,7 @@
       ? `<p class="small lot-ok" id="lot-verif">${une ? 'Elle est équilibrée et ne tombe pas sur un mois déposé.' : 'Toutes sont équilibrées ; aucune ne tombe sur un mois déposé.'}</p>`
       : `<p class="small" id="lot-verif">${fausses.length ? `${pl(fausses.length, 'ne tombe pas juste', 'ne tombent pas juste')}` : ''}${fausses.length && deposes.length ? ' ; ' : ''}${deposes.length ? `${pl(deposes.length, 'tombe sur un mois déposé', 'tombent sur un mois déposé')}` : ''} : ${fausses.length + deposes.length > 1 ? 'elles ne seront pas validées, et te seront nommées' : 'elle ne sera pas validée, et te sera nommée'}.</p>`;
     const ok = await confirmDialog(`Valider ${une ? 'l\'écriture' : `les ${cibles.length} écritures`} ${quoi} ?`,
-      `<div class="lot-fen">${liste}${cas}${une
+      `<div class="lot-fen">${liste}${enDemande.length ? `<div class="bandeau ambre lot-cas" id="lot-demande">${EC_IC.alerte}<span class="txt"><b>${esc(enDemande.map(e => e.piece || e.libelle || '—').join(', '))} ${enDemande.length > 1 ? 'restent' : 'reste'} au brouillard</b><span>${enDemande.length > 1 ? 'Leur date est demandée' : 'Sa date est demandée'} à ${esc(prenomCl(dossier.contact) || 'le client')} : ${enDemande.length > 1 ? 'validées, elles ne changeraient' : 'validée, elle ne changerait'} plus de mois.</span></span></div>` : ''}${cas}${une
         ? '<p class="small muted lot-regle">Une écriture validée reçoit son numéro et ne se modifie plus : une erreur se contre-passe.</p>'
         : '<p class="small muted lot-regle">Chacune reçoit son numéro et ne se modifie plus : une erreur se contre-passe.</p>'}${verif}${avert}</div>`,
       une ? 'Valider l\'écriture' : `Valider les ${cibles.length} écritures`);
