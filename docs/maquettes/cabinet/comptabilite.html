@@ -1568,6 +1568,13 @@ table.rdp td:first-child { font-weight: 600; }
   const PA_SARRA = PA_SAL.map((x) => (x.k === 'hm' ? { ...x, ded: 0, net: x.net + x.ded } : x));
   const PA_SEL = { paie: 'mt', paieverif: 'hm', paieapres: 'mt', paiesalaries: 'sa' };
   const paSel = () => (s.etat === 'paieverif' ? PA_SARRA : PA_SAL).find((x) => x.k === (PA_SEL[s.etat] || 'mt'));
+  const paSvg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const PA_ICO = { mt: paSvg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), nb: paSvg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M10 14l4 4M14 14l-4 4"/>'),
+    sa: paSvg('<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M19 8v6M16 11h6"/>'), hm: paSvg('<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>'),
+    kz: paSvg('<path d="M5 12l5 5L20 7"/>'), alerte: paSvg('<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17v.5"/>') };
+  // Le net des trois derniers mois (août, septembre, octobre) : août sans avance retenue.
+  const pa3 = (x) => [x.sept ? x.sept.net + (x.k === 'hm' ? 100000 : 0) : 0, x.sept ? x.sept.net : 0, x.net];
+  const paSp = (x) => { const v = pa3(x), mx = Math.max(...v); return `<span class="pa-sp" title="Net d'août, septembre, octobre">${v.map((n, i) => `<i class="${i === 2 ? 'oct' : ''}${n ? '' : ' vide'}" style="height:${n ? Math.max(4, Math.round(n / mx * 22)) : 3}px"></i>`).join('')}</span>`; };
   const paAv = (x, t = 30) => `<span class="pa-av" style="--c:${x.c};width:${t}px;height:${t}px">${x.ini}</span>`;
   const PA_CSS = `<style>
       .pa-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -1592,6 +1599,68 @@ table.rdp td:first-child { font-weight: 600; }
       .pa-fr.mob > div::before { top: 10px; } .pa-fr.mob > div::after { top: 12px; }
       .pa-fr.mob .pa-fr-g { border-bottom: 0; padding: 10px 12px; } .pa-fr.mob .pa-fr-g .btn { width: 100%; justify-content: center; }
       .pa-fr.mob .pa-kb, .pa-suite.mob .pa-kb { display: none; }
+      .pa-fr2 { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px; margin-bottom: 14px; border-radius: 16px; border: 1px solid var(--sb-trait); background: linear-gradient(135deg, color-mix(in srgb, var(--sb-sarcelle) 7%, var(--sb-papier)), var(--sb-papier) 60%); }
+      .pa-fr2 ol { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+      .pa-fr2 li { position: relative; display: grid; gap: 2px; align-content: start; font-size: 12px; color: var(--sb-gris); }
+      .pa-fr2 li b { color: var(--sb-encre); font-size: 13px; margin-top: 6px; }
+      .pa-fr2 li::after { content: ''; position: absolute; top: 14px; left: 36px; right: -4px; height: 2px; border-radius: 2px; background: var(--sb-trait); }
+      .pa-fr2 li:last-child::after { display: none; }
+      .pa-fr2 li.fait::after { background: var(--sb-sarcelle); }
+      .pa-fr2 li.cours::after { background: linear-gradient(90deg, var(--sb-sarcelle), var(--sb-trait)); }
+      .pa-st { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 99px; font-weight: 700; font-size: 13px; background: var(--sb-papier); box-shadow: inset 0 0 0 2px var(--sb-trait-fort); color: var(--sb-gris); }
+      .pa-st svg { width: 15px; height: 15px; }
+      li.fait .pa-st { background: var(--sb-sarcelle); color: #fff; box-shadow: none; }
+      li.cours .pa-st { background: var(--sb-papier); color: var(--sb-sarcelle-texte); box-shadow: inset 0 0 0 2px var(--sb-sarcelle), 0 0 0 5px color-mix(in srgb, var(--sb-sarcelle) 15%, transparent); }
+      li.cours b { color: var(--sb-sarcelle-texte); }
+      .pa-fr2-g .btn-primary { height: 42px; padding: 0 18px; font-size: 14px; box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--sb-sarcelle) 70%, transparent); }
+      .pa-fr2.mob { flex-direction: column; align-items: stretch; }
+      .pa-fr2.mob ol { grid-template-columns: 1fr; gap: 0; }
+      .pa-fr2.mob li { grid-template-columns: 30px auto 1fr; align-items: center; gap: 0 10px; padding: 5px 0; }
+      .pa-fr2.mob li b { margin: 0; } .pa-fr2.mob li::after { top: 35px; left: 14px; right: auto; width: 2px; height: 10px; }
+      .pa-fr2.mob .pa-fr2-g .btn { width: 100%; justify-content: center; } .pa-fr2.mob .pa-kb { display: none; }
+      .pa-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 22px; padding: 18px 20px; margin-bottom: 14px; border-radius: 18px; background: var(--sb-encre); color: var(--sb-papier); position: relative; overflow: hidden; }
+      .pa-hero::before { content: ''; position: absolute; right: -60px; top: -80px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--sb-sarcelle) 45%, transparent), transparent 70%); pointer-events: none; }
+      .pa-hero.mob { grid-template-columns: 1fr; gap: 16px; }
+      .pa-hero small { color: color-mix(in srgb, var(--sb-papier) 65%, transparent); font-size: 12px; }
+      .pa-hero-g { display: grid; gap: 4px; align-content: start; position: relative; }
+      .pa-big { font-size: 34px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+      .pa-big span { font-size: 15px; font-weight: 600; opacity: .7; }
+      .pa-delta { justify-self: start; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: color-mix(in srgb, #f0b25e 22%, transparent); color: #ffcf8a; }
+      .pa-hero-s { font-size: 12.5px; color: color-mix(in srgb, var(--sb-papier) 72%, transparent); }
+      .pa-hero-s .i { color: inherit; border-color: currentColor; }
+      .pa-hero-d { display: grid; gap: 9px; position: relative; }
+      .pa-stack, .pa-bsplit { display: flex; gap: 3px; height: 14px; border-radius: 99px; overflow: hidden; }
+      .pa-stack i, .pa-bsplit i, .pa-leg i { display: block; }
+      .pa-stack i.net, .pa-bsplit i.net, .pa-leg i.net { background: #2fc4b2; }
+      .pa-stack i.cnss, .pa-bsplit i.cnss, .pa-leg i.cnss { background: #6d93f2; }
+      .pa-stack i.irpp, .pa-bsplit i.irpp, .pa-leg i.irpp { background: #f0b25e; }
+      .pa-stack i.tfp, .pa-leg i.tfp { background: #b18cf0; }
+      .pa-stack i.av, .pa-bsplit i.av, .pa-leg i.av { background: #8b96a4; }
+      .pa-leg { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 18px; font-size: 12.5px; }
+      .pa-hero.mob .pa-leg { grid-template-columns: 1fr; }
+      .pa-leg li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+      .pa-leg li i { flex: none; width: 9px; height: 9px; border-radius: 3px; }
+      .pa-leg li span { flex: 1; min-width: 0; color: color-mix(in srgb, var(--sb-papier) 78%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .pa-leg li b { font-variant-numeric: tabular-nums; } .pa-leg li em { font-style: normal; width: 34px; text-align: right; color: color-mix(in srgb, var(--sb-papier) 55%, transparent); font-size: 11.5px; }
+      .pa-chi { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 6px; margin-right: 6px; vertical-align: -5px; background: var(--sb-survol); color: var(--sb-gris); }
+      .pa-chi svg { width: 12px; height: 12px; }
+      .pa-ch.ambre .pa-chi { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+      .pa-ch.bleu .pa-chi { background: color-mix(in srgb, var(--cp-bleu, #3f6fd8) 13%, var(--sb-papier)); color: var(--cp-bleu, #3f6fd8); }
+      .pa-ch.rouge .pa-chi { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+      .pa-chd { padding-left: 24px !important; }
+      .pa-sp { display: inline-flex; align-items: flex-end; gap: 3px; height: 24px; }
+      .pa-sp i { display: block; width: 7px; border-radius: 3px 3px 1px 1px; background: var(--sb-trait-fort); }
+      .pa-sp i.oct { background: var(--sb-sarcelle); } .pa-sp i.vide { background: none; box-shadow: inset 0 0 0 1px var(--sb-trait); }
+      .pa-bb { margin: -14px -14px 0; padding: 14px; border-radius: 12px 12px 0 0; background: linear-gradient(160deg, color-mix(in srgb, var(--c) 14%, var(--sb-papier)), var(--sb-papier) 75%); display: grid; gap: 12px; }
+      .pa-bk { text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px !important; font-weight: 700; color: var(--c) !important; }
+      .pa-bh b { font-size: 16px; }
+      .pa-bn { display: grid; gap: 7px; padding: 12px 14px; border-radius: 14px; background: var(--sb-papier); box-shadow: 0 1px 2px rgba(20, 40, 60, .06), 0 8px 22px -12px rgba(20, 40, 60, .25); }
+      .pa-bn small { display: block; color: var(--sb-gris); font-size: 12px; }
+      .pa-bn b { font-size: 28px; font-weight: 700; letter-spacing: -.02em; color: var(--sb-sarcelle-texte); font-variant-numeric: tabular-nums; line-height: 1.1; }
+      .pa-bn b span { font-size: 14px; opacity: .65; }
+      .pa-bsplit { height: 8px; }
+      .pa-bsl { font-size: 11.5px !important; }
+      .pa-b .pa-net { padding: 8px 12px; } .pa-b .pa-net b { font-size: 16px; }
       .pa-k { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
       .pa-k span { display: inline-flex; gap: 6px; align-items: baseline; height: 32px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--sb-trait); background: var(--sb-papier); font-size: 12.5px; color: var(--sb-gris); align-items: center; }
       .pa-k span b { color: var(--sb-encre); font-variant-numeric: tabular-nums; font-size: 13px; }
@@ -1681,6 +1750,13 @@ table.rdp td:first-child { font-weight: 600; }
       .pa-suite > div > b { display: flex; gap: 8px; align-items: center; }
       .pa-suite > div > span { font-size: 12.5px; color: var(--sb-gris); line-height: 1.5; }
       .pa-suite .btn { justify-self: start; }
+      .pa-suite { counter-reset: pas; }
+      .pa-suite > div { position: relative; border-top: 3px solid var(--pa-c, var(--sb-sarcelle)); padding-top: 14px; }
+      .pa-suite > div:nth-child(1) { --pa-c: #2fc4b2; } .pa-suite > div:nth-child(2) { --pa-c: #6d93f2; } .pa-suite > div:nth-child(3) { --pa-c: #f0b25e; }
+      .pa-suite > div > b svg { flex: none; width: 32px; height: 32px; padding: 7px; box-sizing: border-box; border-radius: 10px; background: color-mix(in srgb, var(--pa-c) 15%, var(--sb-papier)); color: color-mix(in srgb, var(--pa-c) 75%, var(--sb-encre)); }
+      .pa-suite > div::before { counter-increment: pas; content: counter(pas); position: absolute; right: 12px; top: 10px; font-size: 26px; font-weight: 800; color: color-mix(in srgb, var(--pa-c) 22%, transparent); }
+      .pa-ok .cp-c-ic { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 99px; background: var(--sb-sarcelle); color: #fff !important; box-shadow: 0 0 0 8px color-mix(in srgb, var(--sb-sarcelle) 14%, transparent); }
+      .pa-ok .cp-c-ic svg { width: 24px; height: 24px; }
       .pa-fi { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 4px 12px; font-size: 13px; }
       .pa-fi dt { color: var(--sb-gris); } .pa-fi dd { margin: 0; }
       .pa-fi .manque { color: var(--sb-ambre-texte); font-weight: 600; }
@@ -1707,14 +1783,19 @@ table.rdp td:first-child { font-weight: 600; }
     const E = [['Pointage', s.etat === 'paievide' ? 'attendu de Sarra · d\'habitude le 27' : 'reçu de Sarra le 27/10'], ['Bulletins', rang > 1 ? '5 validés ce matin' : s.etat === 'paieverif' ? 'faits par Sarra le 30/10 · 1 à corriger' : rang === 1 ? '5 préparés · 3 changent' : '5 à préparer, dont 1 entrée'], ['Écriture de paie', rang > 2 ? 'PAIE-2026-10 · validée' : rang > 1 ? 'au brouillard · se valide le 31/10' : 'datée du 31/10'],
       ['Salaires payés', 'par Sarra, d\'ici le 31/10'], ['Déclarés', 'IRPP et CSS avec octobre · CNSS en janvier']];
     const mob = tel();
-    return `<div class="pa-fr${mob ? ' mob' : ''}">${E.map(([t, d], i) => `<div class="${i < rang ? 'fait' : i === rang ? 'cours' : ''}"><b>${t}</b><span>${d}</span></div>`).join('')}
-      ${geste ? `<div class="pa-fr-g">${geste}</div>` : ''}</div>`;
+    return `<div class="pa-fr2${mob ? ' mob' : ''}"><ol>${E.map(([t, d], i) => `<li class="${i < rang ? 'fait' : i === rang ? 'cours' : ''}"><span class="pa-st">${i < rang ? IC.ok : i + 1}</span><b>${t}</b><small>${d}</small></li>`).join('')}</ol>
+      ${geste ? `<div class="pa-fr2-g">${geste}</div>` : ''}</div>`;
   }
   // Les chiffres du mois, comme la banque : ce que la paie coûte, et ce qui a changé depuis le mois d'avant.
   function paieChiffres(net = PA_OCT.net) {
-    const d = PA_OCT.cout - PA_SEPT.cout;
-    return `<div class="pa-k"><span>Brut <b>${m(PA_OCT.gross)}</b></span><span>Net à payer <b>${m(net)}</b></span><span>Charges patronales <b>${m(PA_OCT.ch)}</b></span><span class="cout">Coût pour la boulangerie <b>${md(PA_OCT.cout)}</b></span>
-      <em>+ ${m(d)} sur septembre : une entrée, 8 h sup, 2 jours sans solde ${info('pa.ecart', 'Ce qui a changé depuis septembre')}</em></div>`;
+    const d = PA_OCT.cout - PA_SEPT.cout, ded = PA_OCT.net + PA_OCT.ded - net;
+    // Où va chaque dinar : la somme des parts = le coût (la page le vérifie).
+    const P = [['net', 'Nets aux salariés', net], ['cnss', 'CNSS', PA_OCT.cnssE + PA_OCT.cnssP + PA_OCT.acc], ['irpp', 'IRPP et CSS', PA_OCT.irpp + PA_OCT.css],
+      ['tfp', 'TFP et FOPROLOS', PA_OCT.tfp + PA_OCT.fop], ['av', 'Avance remboursée', ded]].filter((p) => p[2]);
+    return `<div class="pa-hero${tel() ? ' mob' : ''}"><div class="pa-hero-g"><small>Ce que la paie d'octobre coûte à la boulangerie</small><b class="pa-big">${m(PA_OCT.cout)}<span> DT</span></b>
+        <span class="pa-delta">▲ ${m(d)} sur septembre</span><span class="pa-hero-s">brut ${m(PA_OCT.gross)} · 5 salariés · une entrée, 8 h sup, 2 jours sans solde</span></div>
+      <div class="pa-hero-d"><small>Où va chaque dinar</small><div class="pa-stack">${P.map(([c, t, v]) => `<i class="${c}" style="flex:${v}" title="${t} : ${md(v)}"></i>`).join('')}</div>
+        <ul class="pa-leg">${P.map(([c, t, v]) => `<li><i class="${c}"></i><span>${t}</span><b>${m(v)}</b><em>${Math.round(v / PA_OCT.cout * 100)} %</em></li>`).join('')}</ul></div></div>`;
   }
   // Le bulletin choisi, à droite : ce qu'il gagne, ce qui est retenu, le net ; ce que la boulangerie paie ; pourquoi l'IRPP.
   function paieBulletin(x, opts = {}) {
@@ -1724,7 +1805,9 @@ table.rdp td:first-child { font-weight: 600; }
     const dn = x.sept ? x.net - x.sept.net : 0;
     const pq = x.k === 'mt' ? `<div class="pa-pq"><b>Pourquoi 172,908 d'IRPP ?</b> Le mois après CNSS (1&#8239;462,924) fait 17&#8239;555,088 sur l'année ; moins les frais professionnels (10 %, plafonnés à 2&#8239;000 : 1&#8239;755,509) et la situation de famille (chef de famille 300, 2 enfants 200), il reste <b>15&#8239;299,579</b> d'imposable : le barème donne 2&#8239;074,895 sur l'année, soit 172,908 ce mois. Les heures sup y ajoutent 14,167. <span class="mu">Barème et déductions : À VÉRIFIER, réglés dans « Paie » des réglages du cabinet.</span></div>` : '';
     return `<div class="pa-b">
-      <div class="pa-bh">${paAv(x, 38)}<div><b>${esc(x.nom)} · octobre 2026</b><small>${esc(x.poste)} · ${esc(x.contrat)} · ${esc(x.sit)}</small></div>${opts.client ? st('ambre', 'fait par Sarra') : x.k === 'kz' ? st('ok', 'vérifié') : st('ambre', 'à vérifier')}</div>
+      <div class="pa-bb" style="--c:${x.c}"><div class="pa-bh">${paAv(x, 42)}<div><small class="pa-bk">Bulletin de paie · octobre 2026</small><b>${esc(x.nom)}</b><small>${esc(x.poste)} · ${esc(x.contrat)} · ${esc(x.sit)}</small></div>${opts.client ? st('ambre', 'fait par Sarra') : x.k === 'kz' ? st('ok', 'vérifié') : st('ambre', 'à vérifier')}</div>
+        <div class="pa-bn"><div><small>Net à payer</small><b>${m(x.net)}<span> DT</span></b></div><div class="pa-bsplit" title="Le brut, et ce qu'il devient">${[['net', x.net], ['cnss', x.cnssE], ['irpp', x.irpp + x.css], ['av', x.ded]].filter((p) => p[1]).map(([c, v]) => `<i class="${c}" style="flex:${v}"></i>`).join('')}</div>
+          <small class="pa-bsl">sur ${m(x.gross)} de brut : ${Math.round(x.net / x.gross * 100)} % lui reviennent · ${x.sept ? (x.net - x.sept.net ? `${x.net > x.sept.net ? '+' : '−'} ${m(Math.abs(x.net - x.sept.net))} sur septembre${x.k === 'mt' ? ', les 8 h sup' : x.k === 'nb' ? ', les 2 jours sans solde' : x.k === 'hm' && !x.ded ? ', l\'avance oubliée' : ''}` : 'comme septembre') : 'son premier bulletin'}</small></div></div>
       <p class="pa-bt">Ce qu'il gagne</p>
       <div class="pa-bs">${lig(`Salaire de base ${src('base')}`, base !== x.brutFiche ? (x.absence ? `${m(x.brutFiche)} moins 2 jours sans solde (− ${m(x.absence)})` : `${m(x.brutFiche)} au prorata : 17 jours sur 26 (entrée le 13/10)`) : '', m(base))}
         ${x.primes.map(([p, v]) => lig(`${esc(p)} ${src(p)}`, /présence|transport/.test(p) && v !== (p.includes('présence') ? 60000 : 40000) ? `au jour : ${p.includes('présence') ? '60,000' : '40,000'} sur ${x.k === 'sa' ? '17' : '24'} jours payés` : /Heures/.test(p) ? '1 450,000 ÷ 208 h × 8 h × 1,25' : '', m(v))).join('')}
@@ -1732,7 +1815,7 @@ table.rdp td:first-child { font-weight: 600; }
       <p class="pa-bt">Ce qui est retenu</p>
       <div class="pa-bs">${lig('CNSS, part du salarié', '9,68 % du brut cotisable', '− ' + m(x.cnssE), 'rt')}${lig('IRPP', x.famille ? `barème annuel · ${esc(x.sit)}` : 'barème annuel', '− ' + m(x.irpp), 'rt')}${lig('Contribution sociale de solidarité', '0,5 % de l\'imposable', '− ' + m(x.css), 'rt')}
         ${x.ded ? lig('Avance du 05/09 (300,000)', '2e retenue sur 3 · il restera 100,000', '− ' + m(x.ded), 'rt') : x.k === 'hm' ? lig('<span style="color:var(--sb-rouge-texte);font-weight:600">Avance du 05/09 : pas retenue</span>', 'la 2e retenue sur 3 (100,000) manque : le net est trop haut d\'autant', '0,000', 'rt') : ''}</div>
-      <div class="pa-net"><span>Net à payer<small>${x.sept ? `${dn ? `${dn > 0 ? '+' : '−'} ${m(Math.abs(dn))} sur septembre${x.k === 'mt' ? ' : les 8 h sup' : x.k === 'nb' ? ' : les 2 jours sans solde' : ''}` : 'comme septembre'}` : 'son premier bulletin'} · par virement · ${esc(x.rib)}</small></span><b>${m(x.net)}</b></div>
+      <div class="pa-bs">${lig('Versé par virement', esc(x.rib === 'à demander' ? 'RIB à demander : payé à part' : x.rib), `<b>${m(x.net)}</b>`, 'tt')}</div>
       <p class="pa-bt">Ce que paie la boulangerie</p>
       <div class="pa-bs">${lig('CNSS, part de l\'employeur', '17,07 % · accident du travail 0,4 %', m(x.cnssP + x.acc))}${lig('TFP et FOPROLOS', '2 % et 1 % du brut · déclarés chaque mois', m(x.tfp + x.fop))}${lig('Coût du salarié', '', `<b>${m(x.cout)}</b>`, 'tt')}</div>
       ${pq}
@@ -1744,18 +1827,18 @@ table.rdp td:first-child { font-weight: 600; }
     const mob = tel();
     const L = opts.sal || PA_SAL, net = L.reduce((t, x) => t + x.net, 0);
     const chg = L.filter((x) => PA_CH[x.k][0] || (opts.ch && opts.ch[x.k])), pareil = L.filter((x) => !PA_CH[x.k][0] && !(opts.ch && opts.ch[x.k]));
-    const ch = (x) => { const [ton, t, d] = opts.ch && opts.ch[x.k] ? opts.ch[x.k] : PA_CH[x.k]; return `<span class="pa-ch ${ton}"><i></i>${t}${d ? `<small class="pa-chd">${d}</small>` : ''}</span>`; };
+    const ch = (x) => { const [ton, t, d] = opts.ch && opts.ch[x.k] ? opts.ch[x.k] : PA_CH[x.k]; return `<span class="pa-ch ${ton}"><span class="pa-chi">${opts.ch && opts.ch[x.k] ? PA_ICO.alerte : PA_ICO[x.k]}</span>${t}${d ? `<small class="pa-chd">${d}</small>` : ''}</span>`; };
     const dl = (x) => { if (!x.sept) return '<span class="pa-d">nouveau</span>'; const d = x.net - x.sept.net; return d ? `<span class="pa-d ${d > 0 ? 'plus' : 'moins'}">${d > 0 ? '+' : '−'} ${m(Math.abs(d))}</span>` : '<span class="pa-d">=</span>'; };
     const v = (x) => `<span class="pa-v${(opts.verifies || ['kz']).includes(x.k) ? ' ok' : ''}" title="${(opts.verifies || ['kz']).includes(x.k) ? 'Vérifié' : 'À vérifier'}">${IC.ok}</span>`;
     if (mob) {
       const k = (x) => `<div class="pa-k1${x.k === sel ? ' on' : ''}"><div class="pa-k1h"><span class="pa-n">${paAv(x)}<span style="display:grid"><b>${esc(x.nom)}</b><small class="mu">${esc(x.poste)}</small></span></span><span style="display:grid;justify-items:end"><b class="pa-mt">${m(x.net)}</b>${dl(x)}</span></div>${ch(x)}</div>`;
       return `<div style="display:grid;gap:8px"><div class="bq2-gm"><b>Ce qui change ce mois</b> <span class="mu">${chg.length}</span></div>${chg.map(k).join('')}<div class="bq2-gm"><b>Comme septembre</b> <span class="mu">${pareil.length}</span></div>${pareil.map(k).join('')}</div>`;
     }
-    const r = (x) => `<tr class="pa-l${x.k === sel ? ' on' : ''}"><td style="width:34px">${v(x)}</td><td><div class="pa-n">${paAv(x)}<div><b>${esc(x.nom)}</b><small>${esc(x.poste)}</small>${ch(x)}</div></div></td><td class="r pa-mt">${m(x.gross)}</td><td class="r pa-mt"><b>${m(x.net)}</b></td><td class="r">${dl(x)}</td></tr>`;
-    return `<table class="cp-t"><thead><tr><th></th><th>Salarié</th><th class="r">Brut</th><th class="r">Net à payer</th><th class="r">sur septembre</th></tr></thead><tbody>
-      <tr class="pa-g"><td colspan="5">Ce qui change ce mois · ${chg.length}</td></tr>${chg.map(r).join('')}
-      <tr class="pa-g"><td colspan="5">Comme septembre · ${pareil.length}</td></tr>${pareil.map(r).join('')}</tbody>
-      <tfoot><tr><td></td><td>5 bulletins · septembre : 4</td><td class="r pa-mt">${m(PA_OCT.gross)}</td><td class="r pa-mt">${m(net)}</td><td class="r"><span class="pa-d plus">+ ${m(net - PA_SEPT.net)}</span></td></tr></tfoot></table>
+    const r = (x) => `<tr class="pa-l${x.k === sel ? ' on' : ''}"><td style="width:34px">${v(x)}</td><td><div class="pa-n">${paAv(x)}<div><b>${esc(x.nom)}</b><small>${esc(x.poste)}</small>${ch(x)}</div></div></td><td class="r pa-mt">${m(x.gross)}</td><td class="r pa-mt"><b>${m(x.net)}</b></td><td class="r">${dl(x)}</td><td class="r">${paSp(x)}</td></tr>`;
+    return `<table class="cp-t"><thead><tr><th></th><th>Salarié</th><th class="r">Brut</th><th class="r">Net à payer</th><th class="r">sur sept.</th><th class="r">3 mois</th></tr></thead><tbody>
+      <tr class="pa-g"><td colspan="6">Ce qui change ce mois · ${chg.length}</td></tr>${chg.map(r).join('')}
+      <tr class="pa-g"><td colspan="6">Comme septembre · ${pareil.length}</td></tr>${pareil.map(r).join('')}</tbody>
+      <tfoot><tr><td></td><td>5 bulletins · septembre : 4</td><td class="r pa-mt">${m(PA_OCT.gross)}</td><td class="r pa-mt">${m(net)}</td><td class="r"><span class="pa-d plus">+ ${m(net - PA_SEPT.net)}</span></td><td></td></tr></tfoot></table>
       <p class="pa-aide"${tel() ? ' hidden' : ''}><kbd>↑</kbd> <kbd>↓</kbd> un salarié <span>·</span> <kbd>Espace</kbd> vérifié <span>·</span> <kbd>Entrée</kbd> valider le mois <span>·</span> <kbd>P</kbd> le bulletin en PDF</p>`;
   }
   // L'écriture que la paie passe : une par mois, par compte, avec la règle de sa date.
@@ -1838,7 +1921,7 @@ table.rdp td:first-child { font-weight: 600; }
     const d = PA_OCT.irpp + PA_OCT.css;
     return `${PA_CSS}<div class="bq2-toast" role="status" style="display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:var(--sb-encre);color:var(--sb-papier);font-size:13px">${IC.ok}<span style="flex:1"><b>5 bulletins validés.</b> L'écriture PAIE-2026-10 est au brouillard, datée du 31/10.</span><button type="button" class="cp-plus" style="color:#6fd3c5">Annuler</button></div>
       ${paieTete('Paie d\'octobre 2026 <span class="cp-per">Octobre ' + IC.chev + '</span>', '5 bulletins validés par Leïla ce matin · coût pour la boulangerie ' + md(PA_OCT.cout))}
-      ${paieFrise(2, '')}
+      ${paieFrise(2, '')}${paieChiffres()}
       <div class="pa-ok"><span class="cp-c-ic">${IC.ok}</span><b>Les bulletins d'octobre sont faits</b><p>Ils ne bougent plus : une correction passera par un bulletin rectificatif, daté. Il reste trois choses, dans cet ordre, et aucune n'est au cabinet seul.</p></div>
       <div class="pa-suite${mob ? ' mob' : ''}">
         <div><b>${IC.msg} Envoyer les bulletins à Sarra</b><span>5 PDF, rangés dans ses documents « Paie · octobre 2026 ». Elle les remet à chacun ; SkanFact ne les envoie pas aux salariés (À VÉRIFIER : la remise électronique).</span><button type="button" class="btn btn-primary"${bloque()}>Les envoyer <kbd class="pa-kb">Entrée</kbd></button></div>
@@ -2136,6 +2219,7 @@ table.rdp td:first-child { font-weight: 600; }
     ['La paie : l\'écriture d\'octobre et celle de septembre sont équilibrées', [PA_OCT, PA_SEPT].every((t) => PA_ECR(t).reduce((a, x) => a + x[2] - x[3], 0) === 0)],
     ['La paie : le brouillard de septembre = l\'écriture que la paie passe', JSON.stringify(BROUILLARD.find((b) => b[2] === 'PAIE-2026-09')[5].map((l) => [l[0], l[2], l[3]])) === JSON.stringify(PA_ECR(PA_SEPT).map((l) => [l[0], l[2], l[3]]))],
     ['La paie : les salaires d\'août payés = le net des bulletins d\'août', RAPP.find((r) => r[1] === 'VIR SALAIRE AOUT')[2] === PA_AOUT.net],
+    ['La paie : « où va chaque dinar » (nets, CNSS, IRPP et CSS, TFP et FOPROLOS, avance) = le coût du mois', PA_OCT.net + PA_OCT.cnssE + PA_OCT.cnssP + PA_OCT.acc + PA_OCT.irpp + PA_OCT.css + PA_OCT.tfp + PA_OCT.fop + PA_OCT.ded === PA_OCT.cout],
     ['La CNSS du 3e trimestre : parts salarié + employeur + accident = le total', PA_T3.sal + PA_T3.emp + PA_T3.acc === PA_T3.total && PA_T3.total === 3624525],
   ];
 
