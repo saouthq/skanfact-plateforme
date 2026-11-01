@@ -3098,7 +3098,8 @@
   let entreeFin = 0;
   // Les pages pensées pour un ordinateur (plateforme, brique 109 ; 14 § 2.6) : au téléphone, elles le disent sous
   // leur titre. La largeur est celle où la mise en page du téléphone prend la main (telephone.css).
-  const PAGES_ORDINATEUR = ['compta', 'paie', 'salarie', 'immos', 'immo', 'stats', 'marges'];
+  // (plateforme) 1.227.0 — la paie et la fiche d'un salarié ont leur mise en page de téléphone (la maquette) : plus de bandeau.
+  const PAGES_ORDINATEUR = ['compta', 'immos', 'immo', 'stats', 'marges'];
   function bandeauOrdinateur(name) {
     if (!PAGES_ORDINATEUR.includes(name) || !window.matchMedia('(max-width: 760px)').matches || $('#bandeau-ordinateur')) return;
     const tete = $('#view .page-head');
@@ -17735,9 +17736,14 @@
   // du paiement ; ce qui manque se dit avant le geste, avec son bouton ; l'ordre de virement à remettre à la banque ;
   // « Marquer payés » d'un geste, qu'« Annuler » défait. SkanFact ne fait aucun virement. `garde` : ce que la fenêtre
   // tenait (les cases, le jour, le compte), quand elle se rouvre après la fiche d'un salarié ou d'un compte.
+  // (plateforme) 1.227.0 — quand le cabinet tient la paie (un choix écrit, valable pour ce mois), un bulletin se paie après
+  // le bon à payer de l'entreprise : la fenêtre ne propose que les bulletins approuvés, et dit pourquoi les autres manquent.
+  const bapExige = (y, m) => { const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return (co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || '')) === 'tenue'; };
   function payerSalairesFenetre(year, month, done, garde) {
-    const lignes = C.salairesAPayer(data, year, month);
-    if (!lignes.length) { toast('Tous les bulletins du mois sont payés.'); if (done) done(); return; }
+    const tous = C.salairesAPayer(data, year, month);
+    const lignes = bapExige(year, month) ? tous.filter(l => (payslipById(l.id) || {}).bonAPayerLe) : tous;
+    if (!tous.length) { toast('Tous les bulletins du mois sont payés.'); if (done) done(); return; }
+    if (!lignes.length) { toast(`${tous.length > 1 ? `Les ${tous.length} bulletins attendent` : 'Le bulletin attend'} ton bon à payer : approuve-${tous.length > 1 ? 'les' : 'le'} d'abord (le bouton en haut de « Le mois »).`, true); if (done) done(); return; }
     const g = garde || {};
     const coches = new Set(g.coches || lignes.map(l => l.id));
     const cur = company().currency;
@@ -18206,9 +18212,10 @@
           : aPayer.length ? `<button class="btn btn-primary" id="p-payer">${lfIc('carte', 15)} Payer les salaires · ${C.money(C.round3(aPayer.reduce((a, x) => a + x.c.net, 0)), cur)}</button>`
             : aRemettre.length ? `<button class="btn btn-primary" id="p-remettre">${lfIc('envoi', 15)} ${aRemettre.length > 1 ? `Remettre les ${aRemettre.length} bulletins` : 'Remettre le bulletin'}</button>` : '';
       } else if (P_ACTION[s.tab]) prin = `<button class="btn btn-primary" id="${P_ACTION[s.tab][0]}">${lfIc('croix', 15, 2.4)} ${P_ACTION[s.tab][1]}</button>`;
-      const sous = data.employees.length ? `${pl(enPoste, 'salarié')} en poste · ${s.tab === 'bulletins' ? `${MONTHS_LONG[Number(s.month) - 1]} ${s.year}` : 'tes salariés, leurs bulletins, ce que la paie te coûte'}` : 'Tes salariés, leurs bulletins, ce que la paie te coûte';
+      const qui = { tenue: 'tenue par ton cabinet', seule: 'tu la fais, ton cabinet la vérifie', sans: 'tu la fais seul' }[modeDuMois(y, m)];
+      const sous = data.employees.length ? `${pl(enPoste, 'salarié')} en poste${qui ? ` · ${qui}` : ''} · ${s.tab === 'bulletins' ? `${MONTHS_LONG[Number(s.month) - 1]} ${s.year}` : 'tes salariés, leurs bulletins, ce que la paie te coûte'}` : 'Tes salariés, leurs bulletins, ce que la paie te coûte';
       return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Paie</span></div><h1>Paie</h1><p class="sous">${sous}</p></div>
-        <div class="actions">${data.employees.length ? `<button type="button" class="btn btn-ghost pa-plus" id="p-plus" aria-haspopup="menu" aria-label="Autres gestes de la paie" title="Autres gestes de la paie">${lfIc('plus', 16)}</button>` : ''}${prin}</div>`;
+        <div class="actions">${data.employees.length && peutEcrireAuCabinet() ? `<button type="button" class="btn" id="p-ecrire">${lfIc('message', 15)} Écrire à mon comptable</button>` : ''}${data.employees.length ? `<button type="button" class="btn btn-ghost pa-plus" id="p-plus" aria-haspopup="menu" aria-label="Autres gestes de la paie" title="Autres gestes de la paie">${lfIc('plus', 16)}</button>` : ''}${prin}</div>`;
     };
     // Le mois choisi, à gauche des vues : l'année partout où elle compte, le mois sur « Le mois ».
     const pMois = () => `${lfIc('echeance', 15)}${s.tab === 'bulletins' ? `<select id="p-month" aria-label="Le mois">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${Number(s.month) === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}<select id="p-year" aria-label="L'année">${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>`;
@@ -18220,7 +18227,7 @@
     // (plateforme) 1.227.0 — le mode qui vaut pour UN mois : le choix compte à partir de `paieModeDes`, avant c'est l'ancien.
     // Le bon à payer n'existe que si l'entreprise a dit que son cabinet tient la paie (un choix écrit, jamais déduit).
     const modeDuMois = (y, m) => { const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || ''); };
-    const bapDuMois = (y, m) => modeDuMois(y, m) === 'tenue';
+    const bapDuMois = (y, m) => bapExige(y, m);
     const paieMode = () => { const co = company(); return co.paieMode && PAIE_MODES.some(x => x[0] === co.paieMode) ? co.paieMode : (co.cabinet && co.cabinet.publicKey ? 'tenue' : 'sans'); };
     function quiFaitLaPaie() {
       const avant = paieMode();
@@ -18261,7 +18268,8 @@
     // (plateforme) 1.227.0 — le bon à payer et la correction proposée par le cabinet (la maquette, lot 6).
     // Une correction vit sur le bulletin (`correction` : qui la propose, quand, pourquoi, les lignes avant/après, les champs
     // qu'elle change) ; elle ne s'applique que si l'entreprise l'accepte, et la trace reste écrite (qui, quand, la réponse).
-    const correctionEnAttente = x => !!(x && x.correction && !x.correction.reponse && !x.paidDate);
+    // Une fonction déclarée (et non une constante) : l'en-tête la lit avant que le corps de la route soit arrivé ici.
+    function correctionEnAttente(x) { return !!(x && x.correction && !x.correction.reponse && !x.paidDate); }
     function bandeauxDuMois(month, y, m, bap) {
       const corr = month.find(x => correctionEnAttente(x));
       const mo = MONTHS_LONG[m - 1];
@@ -18356,6 +18364,14 @@
       const frise = `<ol class="pa-frise" id="p-frise" aria-label="Où en est ${h(MONTHS_LONG[m - 1])}">${r.etapes.map((e, i) =>
         `<li class="${e.etat}"><span class="pt">${e.etat === 'fait' ? lfIc('coche', 13, 3) : i + 1}</span><b>${h(e.titre)}</b><span>${h(e.dit)}</span></li>`).join('')}</ol>`;
       const traiter = C.paieATraiter(data, C.today());
+      const ban = bandeauxDuMois(month, y, m, bap), banAvant = ban.includes('id="p-bap-b"');
+      // (plateforme) 1.227.0 — les contrôles des bulletins, tant qu'il reste à payer : ceux qui demandent un geste en tête,
+      // trois justes ensuite, les autres à un clic (la maquette, « Ce que … a contrôlé »).
+      const ctl = month.length && month.some(x => !x.paidDate) ? C.controlesDuMois(data, y, m) : [];
+      const ctlKo = ctl.filter(c => !c.ok), ctlVus = s.ctlTout ? ctl : ctlKo.concat(ctl.filter(c => c.ok).slice(0, 3));
+      const controles = ctl.length ? `<section class="pa-carte" id="p-ctrl"><div class="pa-carte-t"><b>Ce que SkanFact a contrôlé</b><span class="mu">${pl(ctl.length, 'contrôle')} · ${pl(ctl.length - ctlKo.length, 'juste', 'justes')}${ctlKo.length ? ` · ${ctlKo.length} à savoir` : ''}</span></div>
+        <ul class="pa-ctl">${ctlVus.map(c => `<li class="${c.ok ? 'ok' : 'ko'}">${lfIc(c.ok ? 'coche' : 'aide', 16, 2.2)}<span><b>${h(c.titre)}</b>${c.dit ? `<small>${h(c.dit)}</small>` : ''}</span></li>`).join('')}</ul>
+        ${ctl.length > ctlVus.length ? `<button type="button" class="pa-ctl-plus" id="p-ctrl-tout">${pl(ctl.length - ctlVus.length, 'autre contrôle juste', 'autres contrôles justes')} · tout voir</button>` : ''}</section>` : '';
       const aTraiter = traiter.length ? `<section class="pa-carte" id="p-traiter"><div class="pa-carte-t"><b>À traiter</b><span class="mu">${pl(traiter.length, 'chose')} qui attend${traiter.length > 1 ? 'ent' : ''} un geste</span></div>
         <ul class="pa-l">${traiter.map((x, i) => `<li><span class="pa-av" style="--c:${h(x.couleur)}">${h(x.initiales)}</span><span class="pa-n"><b>${h(x.titre)}</b><small>${h(x.dit)}</small></span><button type="button" class="btn btn-sm" data-traiter="${i}">${h(x.geste)}</button></li>`).join('')}</ul></section>` : '';
       const tuile = (lbl, val, sub, aide) => `<div class="pa-tuile"><span class="t">${lbl} ${info(aide)}</span><b class="m">${C.money(val, cur)}</b><span class="s">${sub}</span></div>`;
@@ -18367,12 +18383,12 @@
       const ecart = x => { const a = r.avant[x.employeeId]; return a == null ? '<small>1er bulletin</small>' : Math.abs(x.c.net - a) < 0.0005 ? `<small>= ${h(MONTHS_LONG[r.moisAvant - 1])}</small>` : `<small>${x.c.net > a ? '+' : '−'} ${C.money(Math.abs(C.round3(x.c.net - a)), cur)}</small>`; };
       const lig = x => `<tr data-bul="${h(x.id)}"><td class="pa-cl"><span class="pa-av" style="--c:${h(C.couleurDe(x.employeeName))}">${h(C.initialesDe(x.employeeName))}</span><span><b>${h(x.employeeName)}</b>${x.employee.position ? `<small>${h(x.employee.position)}</small>` : ''}</span></td>
         <td class="r nw">${C.money(x.c.gross, cur)}</td><td class="r nw">${C.money(C.round3(x.c.gross - x.c.net), cur)}</td><td class="r nw"><b>${C.money(x.c.net, cur)}</b>${ecart(x)}</td>
-        <td class="nw pa-par">${paye(x)}</td>${uni ? '' : `<td>${statut(x)}</td>`}${rowMenuCell(x.id, x.paidDate ? '' : `<button class="btn btn-sm" data-payer="${h(x.id)}">Marquer payé</button>`)}</tr>`;
+        <td class="nw pa-par">${paye(x)}</td>${uni ? '' : `<td>${statut(x)}</td>`}${rowMenuCell(x.id, x.paidDate || (bap && !x.bonAPayerLe) ? '' : `<button class="btn btn-sm" data-payer="${h(x.id)}">Marquer payé</button>`)}</tr>`;
       const change = month.filter(x => r.avant[x.employeeId] == null || Math.abs(x.c.net - r.avant[x.employeeId]) >= 0.0005), pareil = month.filter(x => !change.includes(x));
       const nc = uni ? 6 : 7;
       $('#p-body').innerHTML = `
         ${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026"><span>Tes barèmes gardent des taux d'avant 2026 (${vieuxTaux.map(x => `${h(x.libelle)} ${pct(x.garde)} %`).join(', ')}) : les bulletins que tu établis les appliquent.</span> <button type="button" class="btn btn-sm" id="p-2026-voir">Voir les réglages</button></div>` : ''}
-        ${frise}${bandeauxDuMois(month, y, m, bap)}${aTraiter}${tuiles}
+        ${banAvant ? ban : ''}${frise}${banAvant ? '' : ban}${controles}${aTraiter}${tuiles}
         <section class="pa-carte pa-tab" id="p-bulletins">${month.length ? `<div class="pa-carte-t"><b>Les bulletins de ${h(MONTHS_LONG[m - 1])}</b><span class="mu">${missing.length ? `${pl(missing.length, 'bulletin')} encore à établir` : 'tous établis'}</span><button type="button" class="btn btn-sm" id="p-journal">${lfIc('oeil', 14)} Journal de paie</button></div>
           <div class="scroll-x"><table class="list compact pa-liste"><thead><tr><th>Salarié</th><th class="r">Brut</th><th class="r">Retenues ${info('pay.impot')}</th><th class="r">Net à verser</th><th>Payé par</th>${uni ? '' : '<th>Statut</th>'}<th class="row-actions-h"></th></tr></thead><tbody>
             ${change.length ? `<tr class="pa-groupe"><td colspan="${nc}"><b>Ce qui change ce mois</b> · <span>${pl(change.length, 'salarié')}</span></td></tr>${change.map(lig).join('')}` : ''}
@@ -18395,6 +18411,7 @@
       if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp2 = C.moisDePaie(data); s.year = String(mp2.year); s.month = String(mp2.month); s.moisTouche = true; draw(); };
       if ($('#p-journal')) $('#p-journal').onclick = () => journalDePaieFenetre(y, m);
       lierBandeauxDuMois(month, y, m);
+      if ($('#p-ctrl-tout')) $('#p-ctrl-tout').onclick = () => { s.ctlTout = true; drawSlips(); };
       // « À traiter » : chaque ligne mène à son geste (la fiche sur la bonne case, ou la vue).
       $$('#p-body [data-traiter]').forEach(b => b.onclick = () => {
         const x = traiter[Number(b.dataset.traiter)]; if (!x) return;
@@ -18471,7 +18488,22 @@
           <div class="pa-tuile"><span class="t">CNSS ${h(s.year)} ${info('pay.cnssTotal')}</span><b class="m">${C.money(C.round3(sum.cnssEmployee + sum.cnssEmployer + sum.accident), cur)}</b><span class="s">${(() => { const rr = C.cnssNonDeclaree(data, y); return !sum.count ? 'parts salarié et employeur' : rr > 0.0005 ? `dont ${C.money(rr, cur)} pas encore déclarés` : 'tout est déclaré'; })()}</span></div>
           <div class="pa-tuile"><span class="t">Impôt retenu ${info('pay.impot')}</span><b class="m">${C.money(C.round3(sum.irpp + sum.css), cur)}</b><span class="s">IRPP et solidarité, à reverser au Trésor</span></div></div>
         <section class="pa-carte" id="p-annee"><div class="pa-carte-t"><b>Le coût de la paie, mois par mois</b><span class="mu">brut et charges de l'employeur ; au survol, chaque mois</span></div>
-          <div class="pa-graphe" role="img" aria-label="Coût de la paie de ${h(s.year)}, mois par mois">${mois.map(x => `<div class="pa-barre${x.m === dernier ? ' der' : ''}" title="${h(MONTHS_LONG[x.m - 1])} : ${x.n ? `${pl(x.n, 'bulletin')} · brut ${C.money(x.brut, cur)} · coût ${C.money(x.cout, cur)} · ${x.payes === x.n ? 'payé' : `${x.n - x.payes} à payer`}` : 'aucun bulletin'}"><span class="v">${x.m === dernier || (x.n && x.m === mois.find(z => z.n).m) ? C.money(x.cout, cur) : ''}</span><i style="height:${Math.round(x.cout / max * 128)}px"></i><small>${h(['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][x.m - 1])}</small></div>`).join('')}</div></section>`;
+          <div class="pa-graphe" role="img" aria-label="Coût de la paie de ${h(s.year)}, mois par mois">${mois.map(x => `<div class="pa-barre${x.m === dernier ? ' der' : ''}" title="${h(MONTHS_LONG[x.m - 1])} : ${x.n ? `${pl(x.n, 'bulletin')} · brut ${C.money(x.brut, cur)} · coût ${C.money(x.cout, cur)} · ${x.payes === x.n ? 'payé' : `${x.n - x.payes} à payer`}` : 'aucun bulletin'}"><span class="v">${x.m === dernier || (x.n && x.m === mois.find(z => z.n).m) ? C.money(x.cout, cur) : ''}</span><i style="height:${Math.round(x.cout / max * 128)}px"></i><small>${h(['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][x.m - 1])}</small></div>`).join('')}</div>
+          ${dernier ? (() => {
+            // (plateforme) 1.227.0 — sous le graphique, ce qu'il additionne (la maquette) : le brut et le coût de l'année, mois faits.
+            const premier = mois.find(z => z.n).m, brutAn = C.round3(mois.reduce((a, z) => a + z.brut, 0)), coutAn = C.round3(mois.reduce((a, z) => a + z.cout, 0));
+            const de = premier === dernier ? MONTHS_LONG[dernier - 1] : `${MONTHS_LONG[premier - 1]} à ${MONTHS_LONG[dernier - 1]}`;
+            return `<table class="list compact pa-annee-t"><tbody><tr><td>${h(de.charAt(0).toUpperCase() + de.slice(1))} : brut</td><td class="r">${C.money(brutAn, cur)}</td></tr><tr><td>Coût (brut et charges de l'employeur)</td><td class="r"><b>${C.money(coutAn, cur)}</b></td></tr></tbody></table>`;
+          })() : ''}</section>
+        ${dernier ? (() => {
+          // « Où va la paie du mois » : par poste (la fiche d'un salarié n'a pas d'équipe ; le poste en tient lieu), sa part du coût.
+          const L = C.payslipsOf(data, y, dernier), tot = C.round3(L.reduce((a, x) => a + x.c.employerCost, 0)), G = {};
+          L.forEach(x => { const k = String(x.employee.position || '').trim() || 'Sans poste'; (G[k] = G[k] || { n: 0, c: 0 }); G[k].n++; G[k].c = C.round3(G[k].c + x.c.employerCost); });
+          const R = Object.entries(G).sort((a, b) => b[1].c - a[1].c);
+          return `<section class="pa-carte" id="p-annee-postes"><div class="pa-carte-t"><b>Où va la paie de ${h(MONTHS_LONG[dernier - 1])}</b><span class="mu">par poste, son coût et sa part</span></div>
+            <div class="scroll-x"><table class="list compact"><thead><tr><th>Poste</th><th class="r">Salariés</th><th class="r">Coût de ${h(MONTHS_LONG[dernier - 1])}</th><th class="r">Part</th></tr></thead><tbody>
+            ${R.map(([k, v]) => `<tr><td><b>${h(k)}</b></td><td class="r">${v.n}</td><td class="r nw">${C.money(v.c, cur)}</td><td class="r">${tot ? Math.round(v.c / tot * 100) : 0} %</td></tr>`).join('')}</tbody></table></div></section>`;
+        })() : ''}`;
     }
 
     // (plateforme) 1.224.0 — pointer à la main, sans pointeuse (la maquette de la paie, demande de Skander : « il faut pouvoir
@@ -18756,14 +18788,15 @@
       const salPage = paginate(list, s.salaries);
       const traiter = C.paieATraiter(data, auj).filter(x => x.vue === 'salaries');
       const cdd = traiter.find(x => /CDD/.test(x.titre));
-      const coutDe = e => C.computePayslip(e, C.saisieDeLaFiche(e, st), st).employerCost;
+      // Le net et le coût s'estiment avec les primes de la fiche (comme le bulletin qu'elle établirait).
+      const estime = e => C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
       const contrat = e => { const k = (C.contractLabel(e.contract || 'cdi') || '').split(' —')[0]; return e.contract === 'cdd' && e.endDate ? `${k} · jusqu'au ${C.fmtDate(e.endDate)}` : k; };
       const aDemander = '<span class="statut attire">à demander</span>';
       const lig = e => `<tr class="clickable" data-eid="${h(e.id)}" tabindex="0"><td class="pa-cl">${avPaie(e)}<span><b>${h(e.name)}</b><small>${h(e.position || '—')}${e.hireDate ? ` · depuis le ${C.fmtDate(e.hireDate)}` : ''}</small></span></td>
         <td>${h(contrat(e))}</td>
         <td class="nw mono">${e.cnss ? h(e.cnss) : aDemander}</td>
         <td class="nw mono">${e.iban ? `··· ${h(String(e.iban).replace(/\s/g, '').slice(-4))}` : (e.method || 'virement') === 'virement' ? aDemander : '<span class="muted">espèces</span>'}</td>
-        <td class="r nw">${C.money(e.grossSalary, cur)}</td><td class="r nw"><b>${C.money(coutDe(e), cur)}</b><small>par mois</small></td></tr>`;
+        ${(c => `<td class="r nw">${C.money(e.grossSalary, cur)}${c.bonuses.length ? `<small>+ ${C.money(C.round3(c.bonuses.reduce((a, b) => a + b.amount, 0)), cur)} de primes</small>` : ''}</td><td class="r nw"><b>${C.money(c.employerCost, cur)}</b><small>par mois · net ${C.money(c.net, cur)}</small></td></tr>`)(estime(e))}`;
       const ligP = e => `<tr class="clickable" data-eid="${h(e.id)}" tabindex="0"><td class="pa-cl">${avPaie(e)}<span><b>${h(e.name)}</b><small>${h(e.position || '—')}</small></span></td>
         <td>${h(contrat(e))}</td><td class="nw">${e.endDate ? `parti le ${C.fmtDate(e.endDate)}` : 'n\'est plus en poste'}</td>
         <td class="small muted">${pl(C.payslipsOf(data).filter(x => x.employeeId === e.id).length, 'bulletin')} gardé${C.payslipsOf(data).filter(x => x.employeeId === e.id).length > 1 ? 's' : ''}, sans limite de durée</td></tr>`;
@@ -18795,7 +18828,7 @@
         <ul class="pa-l">${D.map(l => { const e = employeeById(l.employeeId) || {}, j = C.workingDays(l.from, l.to, st.offDays), b = C.leaveBalance(data, l.employeeId, Number(String(l.from).slice(0, 4)));
           const sans = l.kind === 'conges' ? Math.max(0, C.round3(j - Math.max(0, b.remaining))) : 0;
           return `<li data-dem="${h(l.id)}">${avPaie(e)}<span class="pa-n"><b>${h(e.name || '')} : du ${C.fmtDate(l.from)} au ${C.fmtDate(l.to)} · ${pl(j, 'jour')}</b><small>${l.demandeLe ? `demandé le ${C.fmtDate(l.demandeLe)} · ` : ''}${l.kind === 'conges' ? `il lui reste ${pct(b.remaining)} jour${sPl(b.remaining)}${sans > 0 ? ` : ${pct(sans)} jour${sPl(sans)} seraient sans solde` : ''}` : h(l.note || '')}</small></span>
-            <span class="pa-dem-g"><button type="button" class="btn btn-sm" data-dem-non="${h(l.id)}">Refuser…</button><button type="button" class="btn btn-sm" data-dem-mod="${h(l.id)}">D'autres dates…</button><button type="button" class="btn btn-sm btn-primary" data-dem-oui="${h(l.id)}">${lfIc('coche', 14, 2.4)} Accepter</button></span></li>`; }).join('')}</ul></section>`;
+            <span class="pa-dem-g"><button type="button" class="btn btn-sm" data-dem-non="${h(l.id)}">Refuser…</button><button type="button" class="btn btn-sm" data-dem-mod="${h(l.id)}">D'autres dates…</button><button type="button" class="btn btn-sm pa-oui" data-dem-oui="${h(l.id)}">${lfIc('coche', 14, 2.4)} Accepter</button></span></li>`; }).join('')}</ul></section>`;
     }
     function congesCalendrier(y, m) {
       const n = C.daysInMonth(y, m), premier = `${y}-${String(m).padStart(2, '0')}-01`, dernier = C.addDays(premier, n - 1);
@@ -18812,7 +18845,7 @@
         return t ? `<td><i class="${t[0]}" title="${t[1]}">${j.code === 'D' ? '½' : j.code}</i></td>` : '<td></td>';
       };
       const rows = emps.map(e => ({ e, p: C.pointageDuMois(data, e, y, m) }));
-      return `<section class="pa-carte" id="cg-cal"><div class="pa-carte-t"><b>${h(MONTHS_LONG[m - 1])} ${y} : qui est absent</b><span class="mu">congés et absences posés, demandes en attente</span>
+      return `<section class="pa-carte" id="cg-cal"><div class="pa-carte-t"><b>${h(MONTHS_LONG[m - 1].charAt(0).toUpperCase() + MONTHS_LONG[m - 1].slice(1))} ${y} : qui est absent</b><span class="mu">congés et absences posés, demandes en attente</span>
           <select id="cg-mois" aria-label="Le mois du calendrier">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${m === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="scroll-x"><table class="cg-t"><thead><tr><th></th>${rows[0].p.jours.map(j => `<th class="${j.repos ? 'cg-r' : ''}"><small>${L[j.wd]}</small>${j.jour}</th>`).join('')}</tr></thead>
           <tbody>${rows.map(({ e, p }) => `<tr><td class="nw"><b>${h(e.name)}</b></td>${p.jours.map(j => cel(e, j)).join('')}</tr>`).join('')}</tbody></table></div>
@@ -19042,9 +19075,25 @@
         });
       };
       const modeD = paieMode();
+      // (plateforme) 1.227.0 — « Ce que tu verses, et quand » (la maquette) : le trimestre CNSS passé, la déclaration du mois
+      // écoulé, le trimestre en cours, la déclaration annuelle. Les montants viennent des mêmes fonctions que les panneaux
+      // en dessous (deux écrans, un chiffre) ; les dates sont celles des réglages, À VÉRIFIER.
+      const verses = (() => {
+        const cq = Math.ceil(tm / 3), pq = cq === 1 ? 4 : cq - 1, py = cq === 1 ? ty - 1 : ty;
+        const me = tm === 1 ? 12 : tm - 1, ye = tm === 1 ? ty - 1 : ty;
+        const cP = C.cnssDeclaration(data, py, pq), cC = C.cnssDeclaration(data, ty, cq), dE = C.declarationMensuelleSalaires(data, ye, me);
+        const fP = filed(`cnss-${py}-T${pq}`);
+        const L = [
+          [fP ? 'coche' : 'echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, `${pl(cP.employees, 'salarié')} · ${pl(cP.slips, 'bulletin')}`, fP ? `déposée le ${C.fmtDate(fP.date || fP.filedAt || '')}`.replace(/ le $/, '') : `avant le ${C.fmtDate(cP.dueDate)}`, cP.total, !fP && cP.dueDate < auj],
+          ['echeance', `Déclaration de ${MONTHS_LONG[me - 1]} : retenues et taxes sur les salaires`, modeD === 'sans' ? 'tu la déposes avec la TVA du mois' : 'ton cabinet la prépare · tu verses le montant', `avant le ${C.fmtDate(dE.dueDate)}`, dE.total, dE.dueDate < auj],
+          ['echeance', `CNSS du ${C.quarterLabel(cq)} ${ty}`, `en cours : ${pl(cC.slips, 'bulletin')} jusqu'ici`, `avant le ${C.fmtDate(cC.dueDate)}`, cC.total, false],
+          ['echeance', `Déclaration annuelle d'employeur ${ty}`, 'un salarié par ligne, ses salaires et ses retenues', `début ${ty + 1} (À VÉRIFIER)`, null, false]];
+        return `<section class="pa-carte" id="dc-verses"><div class="pa-carte-t"><b>Ce que tu verses, et quand</b><span class="mu">les dates : celles de tes réglages, À VÉRIFIER</span></div>
+          <ul class="pa-ctl">${L.map(([ic, t2, d, q2, mt, tard]) => `<li class="${ic === 'coche' ? 'ok' : ''}">${lfIc(ic, 16, 2)}<span><b>${h(t2)}</b><small>${h(d)}</small></span><span class="pa-q${tard ? ' ambre' : ''}">${h(q2)}</span><b class="pa-mt">${mt == null ? '—' : C.money(mt, cur)}</b></li>`).join('')}</ul></section>`;
+      })();
       $('#p-body').innerHTML = `${modeD === 'sans' ? `<div class="pa-bandeau" id="dc-qui">${lfIc('pages', 18)}<span><b>Tu déclares toi-même : SkanFact prépare, tu déposes</b><span>Les montants, la déclaration du mois et l'état CNSS du trimestre se préparent ici. Tu les déposes sur les sites officiels et tu marques chaque dépôt : SkanFact ne se connecte à aucune administration. Les dates : À VÉRIFIER.</span></span><button type="button" class="btn btn-sm" id="dc-mode">Qui fait ma paie</button></div>`
         : `<div class="pa-bandeau" id="dc-qui">${lfIc('comptable', 18)}<span><b>Tes déclarations de paie sont faites par ton cabinet</b><span>Ici, tu vois ce que tu dois verser et quand ; le cabinet les dépose. SkanFact ne dépose rien et ne se connecte à aucune administration.</span></span><button type="button" class="btn btn-sm" id="dc-mode">Qui fait ma paie</button></div>`}
-        ${due.length ? `<div class="panel" style="border-inline-start:3px solid var(--${due.some(x => x.late) ? 'danger' : 'warning'})">
+        ${verses}        ${due.length ? `<div class="panel" style="border-inline-start:3px solid var(--${due.some(x => x.late) ? 'danger' : 'warning'})">
           <h2>À déposer ${info('soc.due')}</h2>
           <table class="list compact"><tbody>
             ${due.map(x => `<tr class="${x.late ? 'row-warn' : ''}"><td><strong>${h(x.label)}</strong></td>
@@ -19432,6 +19481,7 @@
       $('#p-year').onchange = e => { s.year = e.target.value; s.moisTouche = true; draw(); };
       if ($('#p-month')) $('#p-month').onchange = e => { s.month = e.target.value; s.moisTouche = true; draw(); };
       if ($('#p-gen')) $('#p-gen').onclick = () => etablirBulletins();
+      if ($('#p-ecrire')) $('#p-ecrire').onclick = () => navigate('#/comptable');
       if ($('#p-bap')) $('#p-bap').onclick = () => approuverBulletins(Number(s.year), Number(s.month));
       if ($('#p-corr-ok')) $('#p-corr-ok').onclick = () => { const x = C.payslipsOf(data, Number(s.year), Number(s.month)).find(b => correctionEnAttente(b)); if (x) accepterCorrection(x); };
       if ($('#p-payer')) $('#p-payer').onclick = () => payerSalairesFenetre(Number(s.year), Number(s.month), () => draw());
@@ -19491,7 +19541,7 @@
   routes.salarie = (parts) => {
     const e = employeeById(parts[0]);
     if (!e) return navigate('#/paie');
-    if (ficheSal.id !== e.id) { ficheSal.id = e.id; ficheSal.onglet = 'bulletins'; }
+    if (ficheSal.id !== e.id) { ficheSal.id = e.id; ficheSal.onglet = e.hireDate && !(e.endDate && e.endDate < C.today()) && e.hireDate >= C.addDays(C.today(), -62) ? 'arrivee' : 'bulletins'; }
     const cur = company().currency;
     const st = C.payrollSettings(data), auj = C.today();
     const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
@@ -19511,6 +19561,7 @@
     const bandeaux = [];
     if (!parti && !e.cnss) bandeaux.push(`<div class="pa-bandeau pa-ambre">${lfIc('aide', 18)}<span><b>Son n° CNSS manque</b><span>Son bulletin se fait sans lui ; la déclaration du trimestre l'attendra. L'affiliation se fait à la CNSS (À VÉRIFIER : le délai).</span></span><button type="button" class="btn btn-sm" data-fs="focus" data-focus="cnss">Le renseigner</button></div>`);
     if (!parti && virement && !e.iban) bandeaux.push(`<div class="pa-bandeau pa-ambre">${lfIc('carte', 18)}<span><b>Son RIB manque : son salaire ne peut pas partir par virement</b><span>Paie-le en espèces contre un reçu, ou ajoute son RIB : il passera dans l'ordre de virement.</span></span><button type="button" class="btn btn-sm" data-fs="focus" data-focus="iban">Ajouter son RIB</button></div>`);
+    if (!parti && !virement && !e.iban) bandeaux.push(`<div class="pa-bandeau" id="fs-especes">${lfIc('carte', 18)}<span><b>Pas de RIB : son salaire se paie en espèces</b><span>Contre un reçu qu'il signe (il se prépare avec le paiement), pour que ta caisse se justifie. Avec son RIB, il passera dans l'ordre de virement.</span></span><button type="button" class="btn btn-sm" data-fs="focus" data-focus="iban">Ajouter son RIB</button></div>`);
     if (finCdd) bandeaux.push(`<div class="pa-bandeau pa-ambre">${lfIc('echeance', 18)}<span><b>Son CDD finit le ${C.fmtDate(e.endDate)}</b><span>Le renouveler (un avenant, une nouvelle date de fin), ou le laisser finir : son solde de tout compte et son certificat de travail se préparent dans « Son départ ». À VÉRIFIER : le délai de prévenance.</span></span></div>`);
     const b = C.leaveBalance(data, e.id, Number(year));
     const avs = C.advancesOf(data, e.id), ouvertes = avs.filter(x => !x.done);
@@ -19527,7 +19578,21 @@
       if (e.endDate) E.push([e.endDate, parti ? 'Sortie' : 'Fin de contrat prévue', C.fmtDate(e.endDate)]);
       return E.sort((x, y) => String(y[0]).localeCompare(String(x[0])));
     };
-    const ONG = [['bulletins', 'Bulletins', slips.length], ['conges', 'Congés', lvs.length], ['avances', 'Avances', ouvertes.length], ['documents', 'Documents', ''], ['depart', 'Son départ', ''], ['historique', 'Historique', '']];
+    // (plateforme) 1.227.0 — « Son arrivée » (la maquette) : tant que l'entrée a moins de deux mois, ce qu'il faut avant et
+    // autour de son premier bulletin, lu sur sa fiche ; deux points restent À VÉRIFIER (essai, visite médicale).
+    const arrive = !!(e.hireDate && !parti && e.hireDate >= C.addDays(auj, -62));
+    const premier = e.hireDate ? slips.find(x => Number(x.year) === Number(e.hireDate.slice(0, 4)) && Number(x.month) === Number(e.hireDate.slice(5, 7))) : null;
+    const ARR = arrive ? [
+      [true, 'Inscrit au registre du personnel', `entré le ${C.fmtDate(e.hireDate)}`],
+      [!!e.contract, 'Son contrat', `${(C.contractLabel(e.contract || 'cdi') || '').split(' —')[0]}${e.contract === 'cdd' && e.endDate ? `, jusqu'au ${C.fmtDate(e.endDate)}` : ''} · le contrat se prépare dans « Documents »`],
+      [!!e.cin, 'CIN', e.cin ? e.cin : 'à saisir sur sa fiche'],
+      [Number(e.grossSalary) > 0, 'Salaire et primes', `${C.money(e.grossSalary, cur)} de base${(e.primes || []).length ? ` · ${e.primes.map(x => x.label).join(', ')}` : ''}`],
+      [!!(premier && (premier.prorata || e.hireDate.slice(8, 10) === '01')), 'Premier bulletin au prorata', premier ? (premier.prorata || e.hireDate.slice(8, 10) === '01' ? `${MONTHS_LONG[premier.month - 1]} ${premier.year}` : `${MONTHS_LONG[premier.month - 1]} est au mois plein : à reprendre au prorata de son entrée`) : 'pas encore établi'],
+      [!!e.cnss, 'N° CNSS', e.cnss ? e.cnss : 'si il n\u2019en a pas, son immatriculation se demande à la CNSS (le délai : À VÉRIFIER)'],
+      [!!e.iban, 'RIB', e.iban ? 'virement' : 'sans lui, son salaire se paie en espèces, contre reçu'],
+      [null, 'Période d\u2019essai', 'sa durée et sa fin : celles du contrat (À VÉRIFIER : le Code du travail)'],
+      [null, 'Visite médicale d\u2019embauche', 'À VÉRIFIER : l\u2019obligation pour ton activité']] : [];
+    const ONG = [...(arrive ? [['arrivee', 'Son arrivée', ARR.filter(x => x[0] === false).length]] : []), ['bulletins', 'Bulletins', slips.length], ['conges', 'Congés', lvs.length], ['avances', 'Avances', ouvertes.length], ['documents', 'Documents', ''], ['depart', 'Son départ', ''], ['historique', 'Historique', '']];
     const og = ficheSal.onglet;
     const corps = og === 'conges' ? `<div class="pa-kv"><span>Acquis en ${h(year)}</span><b>${pct(b.acquired)} jour${sPl(b.acquired)}</b><span>Pris</span><b>${pct(b.taken)} jour${sPl(b.taken)}</b><span>Il lui reste</span><b class="${b.remaining < 0 ? 'warn-text' : ''}">${pct(b.remaining)} jour${sPl(b.remaining)}</b></div>
         ${lvs.length ? `<table class="list compact pa-liste"><thead><tr><th>Nature</th><th>Du</th><th>Au</th><th class="r">Jours</th><th>Effet</th></tr></thead><tbody>${lvs.map(l => `<tr class="clickable" data-lv="${h(l.id)}"><td>${h(l.kindLabel)}</td><td class="nw">${C.fmtDate(l.from)}</td><td class="nw">${C.fmtDate(l.to)}</td><td class="r">${pct(l.days)}</td><td>${l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td></tr>`).join('')}</tbody></table>`
@@ -19542,6 +19607,9 @@
             <div class="pa-pied-o"><button type="button" class="btn btn-sm" data-fs="doc" data-kind="solde">${lfIc('oeil', 14)} Le solde de tout compte</button><button type="button" class="btn btn-sm" data-fs="doc" data-kind="certificat">${lfIc('oeil', 14)} Le certificat de travail</button></div>
             <p class="small muted pa-note">À VÉRIFIER avec ton comptable : les indemnités de fin de contrat dépendent du motif de la rupture et de la convention collective.</p>`;
         })() : `<div class="empty"><b>Aucun départ prévu</b><br>Une démission, une fin de contrat, un licenciement : pose sa date de sortie, et le solde de tout compte et le certificat se préparent ici.</div><div class="pa-pied-o"><button type="button" class="btn btn-sm" data-fs="sortie">${lfIc('echeance', 14)} Préparer sa sortie…</button></div>`)
+      : og === 'arrivee' && arrive ? `<div class="pa-carte-t"><b>L'arrivée de ${h(e.name.split(/\s+/)[0])}, le ${C.fmtDate(e.hireDate)}</b><span class="mu">${pl(ARR.filter(x => x[0]).length, 'fait')} · ${ARR.filter(x => x[0] === false).length} à demander · ${ARR.filter(x => x[0] === null).length} à vérifier</span></div>
+          <ul class="pa-ctl" id="fs-arrivee">${ARR.map(([ok, t2, d]) => `<li class="${ok ? 'ok' : ok === false ? 'ko' : ''}">${lfIc(ok ? 'coche' : ok === false ? 'aide' : 'echeance', 16, 2.2)}<span><b>${h(t2)}</b><small>${h(d)}</small></span></li>`).join('')}</ul>
+          <p class="small muted pa-note">Un jeune diplômé en premier emploi peut entrer par un contrat aidé (le CIVP) : ses règles (montants, CNSS, durée) sont À VÉRIFIER avec ton comptable avant de le choisir.</p>`
       : og === 'historique' ? (() => { const H = histo(); return H.length ? `<ul class="pa-histo">${H.map(([d, t, x]) => `<li><span class="nw muted small">${C.fmtDate(d)}</span><b>${h(t)}</b>${x ? `<span class="small muted">${h(x)}</span>` : ''}</li>`).join('')}</ul>` : '<div class="empty">Rien encore.</div>'; })()
       : (slips.length ? `<table class="list compact pa-liste"><thead><tr><th>Mois</th><th class="r">Brut</th><th class="r">Net</th><th>Payé</th><th></th></tr></thead><tbody>
           ${slips.map(x => `<tr class="clickable" data-ed="${h(x.id)}"><td><b>${h(MONTHS_LONG[x.month - 1])} ${x.year}</b></td><td class="r nw">${C.money(x.c.gross, cur)}</td><td class="r nw"><b>${C.money(x.c.net, cur)}</b></td>
@@ -19559,8 +19627,9 @@
           <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Son contrat</b><button type="button" class="btn btn-sm" id="edit-emp">Modifier</button></div><dl class="pa-dl">
             ${dl('Contrat', h(C.contractLabel(e.contract || 'cdi')), e.contract === 'cdd' && e.endDate ? `jusqu'au ${C.fmtDate(e.endDate)}` : '')}
             ${dl('Poste', e.position ? h(e.position) : manque('à préciser'))}
-            ${dl('Salaire de base', `${C.money(e.grossSalary, cur)} par mois`, (e.primes || []).length ? e.primes.map(x => `${h(x.label)} ${C.money(x.amount, cur)}${x.parJour ? ' au jour' : ''}`).join(' · ') : '')}
-            ${dl('Net estimé', C.money(c.net, cur), 'hors primes et retenues du mois')}
+            ${dl('Salaire de base', `${C.money(e.grossSalary, cur)} par mois`)}
+            ${(e.primes || []).length ? dl('Primes de chaque mois', e.primes.map(x => `${h(x.label)} ${C.money(x.amount, cur)}${x.parJour ? ' au jour' : ''}`).join(' · ')) : ''}
+            ${dl('Net estimé', C.money(c.net, cur), (e.primes || []).length ? 'primes de la fiche comprises, hors retenues du mois' : 'hors primes et retenues du mois')}
             ${dl('Situation', `${e.headOfFamily ? 'chef de famille' : 'célibataire'}${Number(e.children) ? ` · ${pl(e.children, 'enfant')}` : ''}`, 'elle compte dans son impôt')}
           </dl></section>
           <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Identité</b></div><dl class="pa-dl">
@@ -19570,7 +19639,7 @@
           </dl></section>
           <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Pour le payer</b></div><dl class="pa-dl">
             ${dl('Mode', virement ? 'virement' : 'espèces, contre reçu')}
-            ${virement ? dl('RIB', e.iban ? `<span class="mono">${h(e.iban)}</span>` : manque('à demander'), e.iban ? 'contrôlé à la saisie' : '20 chiffres, contrôlés à la saisie') : ''}
+            ${dl('RIB', e.iban ? `<span class="mono">${h(e.iban)}</span>` : manque('à demander'), e.iban ? 'contrôlé à la saisie' : virement ? '20 chiffres, contrôlés à la saisie' : 'sans lui, il est payé en espèces')}
           </dl></section>
           ${e.notes ? `<section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Notes</b></div><p class="small pa-note">${h(e.notes)}</p></section>` : ''}
         </div></div>`;

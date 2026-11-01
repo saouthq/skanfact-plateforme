@@ -10,13 +10,9 @@ import { chromium, type Browser } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
-import { ecranDeLaPlateforme } from '../moteur/v10.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
-const compta = ecranDeLaPlateforme('compta.js') as {
-  computePayslip: (e: unknown, i: unknown, s: unknown) => Record<string, number>; baremesPaie: (r: unknown) => unknown;
-};
 
 describe('la paie : le pointage à la main', () => {
   let navigateur: Browser;
@@ -47,7 +43,6 @@ describe('la paie : le pointage à la main', () => {
     return jeton;
   };
   const espace = (x: string) => x.replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim();
-  const montant = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace(/[\u00a0\u202f]/g, ' ');
 
   it('aujourd\'hui qui n\'est pas là, une période d\'un coup (jours à venir), le mois par salarié, les horaires', async () => {
     const patron = await personne('client');

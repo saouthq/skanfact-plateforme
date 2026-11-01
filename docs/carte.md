@@ -239,7 +239,12 @@ vaut pour tout le dépôt.*
     `paieDuMois`/`paieATraiter` dans `core.js`, `pHead`/`drawSlips`/`remettreBulletins`/`drawAnnee` dans `app.js`,
     `web/public/plateforme/paie.css`, `tests/web/paie-mois.test.ts`) ; lot 2, les documents en aperçu fidèle (1.223.0 ; `apercuDocument`, cinq documents de `HR_DOCS`,
     `tests/web/paie-documents.test.ts`) ; lot 3, le pointage à la main (1.224.0 ;
-    `ptAujourdhui`, `ptPeriodeFenetre`, `drawPtSalarie`, `drawPtHoraires`, `tests/web/paie-pointage-main.test.ts`).
+    `ptAujourdhui`, `ptPeriodeFenetre`, `drawPtSalarie`, `drawPtHoraires`, `tests/web/paie-pointage-main.test.ts`) ;
+    lot 4, les salariés et la fiche d'un salarié (1.225.0 ; `drawEmployees`, `routes.salarie`) ; lot 5, congés demandés et
+    calendrier, prêts, qui fait la paie (1.226.0 ; `congeRetenu` dans `compta.js`, `congesDemandes`/`congesCalendrier`/`quiFaitLaPaie`) ;
+    lot 6, le bon à payer et la correction proposée par le cabinet, les contrôles, le téléphone, et les écarts relevés en
+    photos contre la maquette (1.227.0 ; `controlesDuMois` dans `core.js`, `bandeauxDuMois`/`approuverBulletins`/
+    `accepterCorrection`/`refuserCorrection`/`demanderCorrection`/`bapExige` dans `app.js`, `tests/web/paie-bon-a-payer.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

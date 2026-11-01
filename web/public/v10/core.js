@@ -4113,10 +4113,15 @@
     const q = Math.ceil(m / 3), cnssDeposee = (data.socialFilings || []).some(f => f.id === `cnss-${y}-T${q}`);
     const tousPayes = L.length > 0 && !manque.length && payes.length === L.length, tousRemis = tousPayes && remis.length === L.length;
     const jours = [...new Set(payes.map(x => x.paidDate))];
+    const bap = !!(opts && opts.bap), aApprouver = L.filter(x => !x.paidDate && !x.bonAPayerLe).length;
+    const corrige = L.filter(x => x.correction && !x.correction.reponse && !x.paidDate).length;
     const etapes = [
       { titre: 'Pointer', fait: L.length > 0, dit: pointe ? 'le mois est pointé' : 'facultatif : absences et heures sup' },
-      { titre: 'Bulletins', fait: n > 0 && !manque.length, dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établis` : `${n} établi${n > 1 ? 's' : ''}` },
-      ...(opts && opts.bap ? [{ titre: 'Bon à payer', fait: L.length > 0 && !manque.length && L.every(x => x.bonAPayerLe || x.paidDate), dit: !L.length ? 'tu approuves avant de payer' : L.every(x => x.bonAPayerLe || x.paidDate) ? (L.some(x => x.bonAPayerLe) ? `approuvés le ${fmtDate(L.filter(x => x.bonAPayerLe).map(x => x.bonAPayerLe).sort().pop())}` : 'approuvés') : `${L.filter(x => !x.bonAPayerLe && !x.paidDate).length} à approuver` }] : []),
+      // (plateforme) 1.227.0 — le bon à payer et la correction proposée se lisent sur l'étape des bulletins (la maquette) :
+      // établis ne suffit plus quand le cabinet tient la paie, il faut aussi ton accord ; une correction en attente se dit.
+      { titre: 'Bulletins', fait: n > 0 && !manque.length && !corrige && (!bap || !aApprouver), dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établis`
+        : corrige ? `${n} établi${n > 1 ? 's' : ''} : ${corrige} correction${corrige > 1 ? 's' : ''} proposée${corrige > 1 ? 's' : ''}`
+          : bap && aApprouver ? `${n} établi${n > 1 ? 's' : ''} · ${aApprouver > 1 ? `${aApprouver} à approuver` : '1 à approuver'}` : `${n} établi${n > 1 ? 's' : ''}${bap ? ' · approuvés' : ''}` },
       { titre: 'Payer', fait: tousPayes, dit: !L.length ? 'après les bulletins' : tousPayes ? (jours.length === 1 ? `payés le ${fmtDate(jours[0])}` : 'tous payés') : `${L.length - payes.length} à payer · ${money(round3(L.filter(x => !x.paidDate).reduce((a, x) => a + x.c.net, 0)), cur)}` },
       { titre: 'Remettre', fait: tousRemis, dit: !L.length ? 'un bulletin à chaque salarié' : tousRemis ? 'chacun a son bulletin' : `${L.length - remis.length} à remettre` },
       { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée` : `la retenue avec la déclaration de ${MOIS_PAIE[m - 1]} · la CNSS au trimestre` }
@@ -4136,6 +4141,58 @@
   const PAIE_COULEURS = ['#0e7c96', '#7c5ad6', '#c2700f', '#3f6fd8', '#c0417a', '#1c8f5a'];
   const initialesDe = nom => String(nom || '?').trim().split(/\s+/).slice(0, 2).map(x => x[0] || '').join('').toUpperCase() || '?';
   const couleurDe = nom => PAIE_COULEURS[[...String(nom || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % PAIE_COULEURS.length];
+  // (plateforme) 1.227.0 — les contrôles des bulletins d'un mois, avant le bon à payer (la maquette, « Ce que … a contrôlé ») :
+  // chacun dit s'il est juste (`ok`) ou ce qu'il faut savoir, et nomme le salarié. Aucun seuil inventé : le SMIG n'est pas
+  // un réglage de la paie, il n'est donc pas contrôlé ici (À VÉRIFIER : l'ajouter aux réglages avec sa date).
+  function controlesDuMois(data, year, month) {
+    const y = Number(year), m = Number(month), ym = `${y}-${String(m).padStart(2, '0')}`;
+    const debut = `${ym}-01`, fin = addDays(debut, daysInMonth(y, m) - 1);
+    const L = payslipsOf(data, y, m), manque = missingPayslips(data, y, m), out = [];
+    if (!L.length) return out;
+    const add = (id, ok, titre, dit) => out.push({ id, ok, titre, dit: dit || '' });
+    const noms = l => l.length > 3 ? `${l.slice(0, 3).join(', ')} et ${l.length - 3} autre${l.length > 4 ? 's' : ''}` : l.join(', ');
+    add('bulletins', !manque.length, 'Un bulletin pour chaque salarié en poste', manque.length ? `${noms(manque.map(e => e.name))} : pas encore établi` : `${L.length} sur ${L.length}`);
+    const neg = L.filter(x => !(x.c.net > 0));
+    add('net', !neg.length, 'Aucun net négatif ni nul', neg.length ? `${noms(neg.map(x => x.employeeName))} : une absence ou une retenue dépasse le mois` : '');
+    const ma = m === 1 ? 12 : m - 1, ya = m === 1 ? y - 1 : y, avant = {};
+    payslipsOf(data, ya, ma).forEach(x => { avant[x.employeeId] = x; });
+    const ecarts = L.filter(x => avant[x.employeeId] && Math.abs(x.c.net - avant[x.employeeId].c.net) >= 0.0005).map(x => {
+      const a = avant[x.employeeId], d = round3(x.c.net - a.c.net), pq = [];
+      if ((Number(x.absentDays) || 0) !== (Number(a.absentDays) || 0)) pq.push(`${Number(x.absentDays) || 0} j d'absence`);
+      if (round3(x.gross) !== round3(a.gross)) pq.push('brut changé');
+      const prime = l => round3((l || []).reduce((s, b) => s + (Number(b.amount) || 0), 0));
+      if (prime(x.bonuses) !== prime(a.bonuses)) pq.push('primes');
+      if (prime(x.deductions) !== prime(a.deductions)) pq.push('retenues');
+      return `${x.employeeName.split(/\s+/)[0]} ${d > 0 ? '+' : '−'} ${money(Math.abs(d), (data.company || {}).currency || 'TND').replace(/\s*(DT|TND)$/, '')}${pq.length ? ` : ${pq.join(', ')}` : ''}`;
+    });
+    add('ecarts', true, `Écarts sur ${MOIS_PAIE[ma - 1]}`, ecarts.length ? ecarts.slice(0, 3).join(' · ') + (ecarts.length > 3 ? ' …' : '') : 'aucun : les nets sont les mêmes');
+    if ((data.timesheets || []).some(ts => Number(ts.year) === y && Number(ts.month) === m)) {
+      const ecart = L.filter(x => { const r = pointageSurBulletin(data, x); return r && (Number(r.absentDays) || 0) !== (Number(x.absentDays) || 0); });
+      add('pointage', !ecart.length, 'Le pointage repris sur chaque bulletin', ecart.length ? `${noms(ecart.map(x => x.employeeName))} : le bulletin ne suit pas le pointage` : '');
+    }
+    const avOublie = [], avRetenu = [];
+    L.forEach(x => advancesOf(data, x.employeeId).filter(a => a.date <= fin && (!a.debut || a.debut <= ym)).forEach(a => {
+      const ici = (x.deductions || []).some(d => d.advanceId === a.id);
+      if (ici) avRetenu.push(x.employeeName.split(/\s+/)[0]); else if (!a.done) avOublie.push(x.employeeName);
+    }));
+    if (avOublie.length || avRetenu.length) add('avances', !avOublie.length, avOublie.length ? 'Une avance pas retenue' : 'Les avances retenues', avOublie.length ? `${noms(avOublie)} : rien retenu ce mois alors qu'il reste à rendre` : noms(avRetenu));
+    const entres = L.filter(x => x.employee.hireDate && x.employee.hireDate > debut && x.employee.hireDate <= fin);
+    if (entres.length) {
+      const plein = entres.filter(x => !x.prorata && round3(x.gross) >= round3(Number(x.employee.grossSalary) || 0));
+      add('prorata', !plein.length, entres.length > 1 ? 'Les entrées du mois au prorata' : `L'entrée de ${entres[0].employeeName.split(/\s+/)[0]} au prorata`, plein.length ? `${noms(plein.map(x => x.employeeName))} : payé au mois plein, entré le ${fmtDate(plein[0].employee.hireDate)}` : '');
+    }
+    const vieux = tauxAvant2026(data);
+    add('taux', !vieux.length, 'Les taux de l’année', vieux.length ? `encore d'avant 2026 : ${vieux.map(v => v.libelle).join(', ')}` : 'CNSS, accident du travail, TFP, FOPROLOS des réglages');
+    const cdd = L.filter(x => x.employee.contract === 'cdd' && x.employee.endDate && x.employee.endDate >= debut && x.employee.endDate <= addDays(fin, 62));
+    add('contrats', true, 'Contrats en cours', cdd.length ? cdd.map(x => `le CDD de ${x.employeeName.split(/\s+/)[0]} finit le ${fmtDate(x.employee.endDate)}`).join(' · ') : 'aucun contrat ne finit dans les deux mois');
+    const sansCnss = L.filter(x => !String(x.employee.cnss || '').trim());
+    add('cnss', !sansCnss.length, 'N° CNSS de chaque salarié', sansCnss.length ? `${noms(sansCnss.map(x => x.employeeName))} : à demander, avant la déclaration du trimestre` : '');
+    const sansRib = L.filter(x => x.method !== 'especes' && !String(x.employee.iban || '').trim());
+    const especes = L.filter(x => x.method === 'especes');
+    add('rib', !sansRib.length, 'RIB de chaque salarié payé par virement', sansRib.length ? `${noms(sansRib.map(x => x.employeeName))} : à demander` : especes.length ? `${noms(especes.map(x => x.employeeName.split(/\s+/)[0]))} payé${especes.length > 1 ? 's' : ''} en espèces, contre reçu` : '');
+    // Ceux qui demandent un geste en tête, puis les justes.
+    return out.filter(c => !c.ok).concat(out.filter(c => c.ok));
+  }
   function paieATraiter(data, todayIso) {
     const t = todayIso || today(), dans60 = addDays(t, 60), L = [];
     (data.employees || []).filter(e => e.active !== false && !(e.endDate && e.endDate < t)).forEach(e => {
@@ -11805,7 +11862,7 @@
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
-    moisDePaie, anneesDePaie, paieDuMois, paieATraiter, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
+    moisDePaie, anneesDePaie, paieDuMois, paieATraiter, controlesDuMois, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
     stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,

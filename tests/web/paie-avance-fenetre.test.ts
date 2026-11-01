@@ -106,7 +106,7 @@ describe('la fenêtre d\'une avance de l\'entreprise', () => {
 
     // Après la sortie du salarié : refusée.
     await p.locator('#new-av').click();
-    await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Avance sur salaire');
+    await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Une avance ou un prêt');
     await fenetre.locator('[data-combo=employeeId] .combo-btn').click();
     await fenetre.locator('[data-combo=employeeId] .combo-q').fill('Deux');
     await fenetre.locator('[data-combo=employeeId] .combo-list [role=option]').first().click();

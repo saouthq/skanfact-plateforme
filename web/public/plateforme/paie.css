@@ -6,6 +6,25 @@
 .pa-vues { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
 .pa-mois { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 6px 0 11px; border: 1px solid var(--sb-trait); border-radius: 10px; background: var(--sb-papier); color: var(--sb-gris); }
 .pa-mois select { border: 0; background: none; font: 600 14px var(--sb-police, inherit); color: var(--sb-encre); padding: 0 4px; height: 34px; cursor: pointer; }
+/* Le nom du mois en entier (« octobre », pas « octo… ») : la case prend la largeur de ce qu'elle montre. */
+#p-mois select { field-sizing: content; width: auto; min-width: 0; max-width: none; flex: none; text-overflow: clip; }
+/* (1.227.0) Les contrôles des bulletins, avant le bon à payer. */
+.pa-ctl { list-style: none; margin: 0; padding: 0; }
+.pa-ctl li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px 16px; border-top: 1px solid var(--sb-trait); }
+.pa-ctl li > svg { width: 16px; height: 16px; margin-top: 2px; justify-self: center; }
+.pa-ctl li.ok > svg { color: var(--sb-sarcelle-texte, var(--sb-sarcelle)); }
+.pa-ctl li.ko > svg { color: var(--sb-ambre-texte); }
+.pa-ctl li span { display: grid; gap: 2px; min-width: 0; }
+.pa-ctl li b { font-size: 14px; color: var(--sb-encre); }
+.pa-ctl li small { font-size: 12.5px; color: var(--sb-gris); }
+#dc-verses .pa-ctl li { grid-template-columns: 22px minmax(0, 1fr) minmax(110px, auto) minmax(120px, auto); align-items: center; }
+#dc-verses .pa-q { font-size: 12.5px; color: var(--sb-gris); }
+#dc-verses .pa-q.ambre { color: var(--sb-ambre-texte); font-weight: 600; }
+#dc-verses .pa-mt { text-align: right; font-variant-numeric: tabular-nums; }
+#dc-verses .pa-ctl li > svg { color: var(--sb-gris-2); }
+#dc-verses .pa-ctl li.ok > svg { color: var(--sb-sarcelle-texte, var(--sb-sarcelle)); }
+.pa-ctl-plus { display: block; width: 100%; text-align: left; padding: 10px 16px; border: 0; border-top: 1px solid var(--sb-trait); background: none; color: var(--sb-sarcelle-texte, var(--sb-sarcelle)); font: 600 13px var(--sb-police, inherit); cursor: pointer; }
+.pa-ctl-plus:hover { text-decoration: underline; }
 .pa-mois select:focus-visible { outline: 2px solid var(--sb-sarcelle); border-radius: 6px; }
 .pa-mois > svg { flex: none; width: 15px; height: 15px; color: var(--sb-gris-2); }
 .pa-onglets { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
@@ -70,11 +89,11 @@
 .pa-liste tr.pa-groupe span { margin-left: 2px; color: var(--sb-gris-2); }
 .pa-liste tr[data-bul] { cursor: default; }
 .pa-liste tr[data-bul]:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: -2px; }
-.pa .statut { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--sb-survol); color: var(--sb-gris); }
-.pa .statut.ok { background: var(--sb-doux); color: var(--sb-doux-texte); }
-.pa .statut.attire { background: color-mix(in srgb, var(--sb-ambre) 16%, var(--sb-papier)); color: var(--sb-ambre-texte); }
-.pa .statut.alerte { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
-.pa .statut.bleu { background: color-mix(in srgb, #4d7cf2 14%, var(--sb-papier)); color: #3559c7; }
+:is(.pa, .pa-tete, .pa-fiche) .statut { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--sb-survol); color: var(--sb-gris); }
+:is(.pa, .pa-tete, .pa-fiche) .statut.ok { background: var(--sb-doux); color: var(--sb-doux-texte); }
+:is(.pa, .pa-tete, .pa-fiche) .statut.attire { background: color-mix(in srgb, var(--sb-ambre) 16%, var(--sb-papier)); color: var(--sb-ambre-texte); }
+:is(.pa, .pa-tete, .pa-fiche) .statut.alerte { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+:is(.pa, .pa-tete, .pa-fiche) .statut.bleu { background: color-mix(in srgb, #4d7cf2 14%, var(--sb-papier)); color: #3559c7; }
 
 /* L'année : le coût mois par mois. */
 .pa-graphe { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; align-items: end; height: 190px; padding: 6px 16px 10px; }
@@ -136,8 +155,10 @@
 /* Les congés (1.226.0) : les demandes, le calendrier du mois. */
 .pa-dem-g { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .pa-dem-g .btn { display: inline-flex; align-items: center; gap: 5px; }
-#cg-cal .pa-carte-t select { margin-left: auto; height: 32px; border: 1px solid var(--sb-trait); border-radius: 8px; background: var(--sb-papier); color: var(--sb-encre); padding: 0 8px; }
-.cg-t { border-collapse: collapse; font-size: 11.5px; margin: 0 16px 6px; }
+#cg-cal .pa-carte-t select { width: auto; flex: none; field-sizing: content; margin-left: auto; height: 32px; border: 1px solid var(--sb-trait); border-radius: 8px; background: var(--sb-papier); color: var(--sb-encre); padding: 0 8px; }
+.cg-t { border-collapse: collapse; font-size: 11.5px; margin: 0 16px 6px; width: calc(100% - 32px); }
+/* Un seul bouton plein par écran (l'en-tête) : « Accepter » d'une demande se dit en sarcelle, sans fond. */
+.pa-oui { color: var(--sb-sarcelle-texte, var(--sb-sarcelle)); border-color: color-mix(in srgb, var(--sb-sarcelle) 45%, var(--sb-trait)); font-weight: 600; }
 .cg-t th { font-weight: 600; color: var(--sb-gris); padding: 2px 0; min-width: 24px; text-align: center; }
 .cg-t th small { display: block; font-weight: 400; color: var(--sb-gris-2); }
 .cg-t td { height: 28px; text-align: center; border-top: 1px solid var(--sb-trait); }
@@ -192,4 +213,10 @@
   #p-head .actions .btn-primary { position: fixed; left: 16px; right: 16px; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 70; min-height: 48px; justify-content: center; box-shadow: 0 8px 24px rgba(20, 40, 60, .22); }
   body:not(.avec-barre) #p-head .actions .btn-primary, body.sans-onglets #p-head .actions .btn-primary { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   #p-body { padding-bottom: 80px; }
+  .pa-tete .pa-plus { width: 44px; min-height: 44px; }
+  #dc-verses .pa-ctl li { grid-template-columns: 22px minmax(0, 1fr); }
+  #dc-verses .pa-q, #dc-verses .pa-mt { grid-column: 2; text-align: left; }
 }
+.pa-annee-t { margin: 4px 16px 12px; width: calc(100% - 32px); }
+.pa-h1-av .statut { vertical-align: middle; margin-left: 6px; font-size: 12px; letter-spacing: 0; }
+#p-corr-detail > p { padding: 0 16px 12px; margin: 0; }

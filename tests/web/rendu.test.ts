@@ -159,7 +159,7 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'client', hash: '#/client/c-rendu', titre: /^Société Méditerranéenne/ },
     { nom: 'stock', hash: '#/stock', titre: /^Stock/ },
     { nom: 'tresorerie', hash: '#/tresorerie', titre: /^Trésorerie/ },
-    { nom: 'paie', hash: '#/paie', titre: /^Paie/, ordinateur: true },
+    { nom: 'paie', hash: '#/paie', titre: /^Paie/ }, // 1.227.0 : la paie a sa mise en page de téléphone (la maquette)
     { nom: 'compta', hash: '#/compta', titre: /^Comptabilit/, ordinateur: true },
     { nom: 'caisse', hash: '#/caisse', titre: /^Caisse/, tablette: true },
   ];

@@ -1400,3 +1400,66 @@ paie, attestation de travail, etc.).*
 
 - `tests/web/paie-pointage-main.test.ts` (photos `paie-pointage-main.png`, `paie-pointage-salarie.png`) ; preuves
   « paie 1.224 a à d ».
+
+## La paie appliquée — lot 4 : les salariés et la fiche d'un salarié (01/11/2026, 1.225.0)
+
+### Ce que le lot fait (`app.js`, `paie.css`)
+
+- **La liste** : « En poste » et « Partis » (avec leur nombre), une recherche (nom, CIN, n° CNSS, poste), le bandeau d'un
+  CDD qui finit dans les deux mois, un tableau (contrat, n° CNSS, RIB « à demander », brut de base, coût par mois) et un pied
+  qui compte ce qui reste à compléter.
+- **La fiche d'un salarié** (`#/salarie/<id>`) : un en-tête avec sa pastille (à compléter, CDD qui finit, parti) et UN geste
+  principal calculé (compléter, renouveler, son certificat, un congé), le menu ⋯ ; ce qui manque en bandeaux ; à gauche ses
+  onglets (bulletins, congés, avances, documents, son départ, l'historique), à droite son contrat, son identité, comment le
+  payer. L'historique se déduit de ce que la paie garde : aucune trace inventée.
+
+## La paie appliquée — lot 5 : congés demandés, calendrier, prêts, qui fait la paie (01/11/2026, 1.226.0)
+
+### Ce que le lot fait (`compta.js`, `core.js`, `app.js`, `paie.css`)
+
+- **Une demande de congé** (`statut: 'demande'`) ne compte nulle part (solde, pointage, bulletin) tant qu'elle n'est pas
+  acceptée (`congeRetenu`, une seule règle pour les deux applications). « Accepter », « D'autres dates… », « Refuser… » (la
+  raison reste écrite, avec sa date).
+- **Le calendrier du mois** : qui est absent, quel jour (congé, maladie, absence, demande en attente).
+- **Les prêts** : une avance peut être un prêt, avec le mois de sa première retenue (`debut`) ; l'échéancier se lit.
+- **Qui fait ma paie** : le cabinet la tient, je la fais et il la vérifie, ou seul ; le choix vaut à partir du mois suivant
+  (`paieModeDes`), le mois en cours finit comme il a commencé (`paieModeAvant`). Les déclarations disent qui dépose.
+- **Réglages** : l'état de chaque réglage (réglé, valeur par défaut, à vérifier).
+
+## La paie appliquée — lot 6 : le bon à payer et la correction proposée (01/11/2026, 1.227.0)
+
+*Fait à la suite des lots 1 à 5, puis comparé à la maquette en photos (clair, sombre, téléphone), fonctions comprises ;
+les écarts trouvés sont comblés dans le même lot (demande de Skander : « compare la maquette au réel avec des captures
+d'écran […] n'oublie pas les fonctionnalités aussi »).*
+
+### Ce que le lot fait
+
+- **Le bon à payer** : quand l'entreprise a ÉCRIT que son cabinet tient la paie (jamais déduit d'un cabinet relié), un
+  bulletin se paie après son accord. L'en-tête dit « J'approuve les N bulletins » ; l'étape « Bulletins » de la frise dit
+  « N à approuver » ; aucune ligne n'offre « Marquer payé » et la fenêtre « Payer » refuse en disant pourquoi. Approuver
+  écrit `bonAPayerLe` sur chaque bulletin ; « Annuler » défait. Un bulletin changé après l'accord se réapprouve.
+- **Les contrôles** (« Ce que SkanFact a contrôlé », `controlesDuMois`) tant qu'il reste à payer : un bulletin par salarié,
+  aucun net négatif, les écarts sur le mois d'avant, le pointage repris, les avances retenues, l'entrée au prorata, les
+  taux de l'année, les contrats, le n° CNSS, le RIB. Ceux qui demandent un geste en tête. Le SMIG n'est pas contrôlé : il
+  n'est pas un réglage de la paie (À VÉRIFIER : l'ajouter, avec sa date).
+- **La correction proposée par le cabinet** : un bulletin qui porte `correction` (qui, quand, pourquoi, les lignes avant/
+  après, le net corrigé, les champs qu'elle change) montre un bandeau rouge et le tableau avant/après ; « Accepter la
+  correction » (le geste principal) applique les champs, recalcule le bulletin et garde la trace (`reponse`, `reponduLe`) ;
+  « Refuser, je m'en occupe » garde la raison. **Pas encore** : l'écran du Cabinet qui écrit la correction (la revue du
+  Cabinet vient après) ; l'entreprise sait déjà la lire, l'accepter ou la refuser.
+- **Demander une correction** (quand un cabinet est relié) et **« Écrire à mon comptable »** en haut : la demande part dans
+  la conversation, déjà écrite, relue avant d'être envoyée (`prepare.texte`, côté entreprise : le texte seul).
+- **Écarts comblés après les photos** : le nom du mois en entier ; le mode de la paie dans le sous-titre ; « Son arrivée »
+  sur la fiche d'une entrée de moins de deux mois (ce qui est fait, ce qui est à demander, ce qui est À VÉRIFIER) ; « Pas de
+  RIB : payé en espèces » ; la pastille de la fiche en étiquette ; « Ce que tu verses, et quand » dans les déclarations ;
+  le récapitulatif de l'année et « Où va la paie du mois » par poste (la fiche n'a pas d'équipe : le poste en tient lieu) ;
+  le calendrier des congés sur toute la largeur, un seul bouton plein par écran.
+- **Téléphone** : le geste du mois tient en bas, au-dessus de la barre, sous le pouce ; la paie et la fiche d'un salarié
+  n'affichent plus « Pensée pour un ordinateur ».
+- **Ce qui part au serveur** : `bonAPayerLe` et la réponse à une correction, sur le bulletin ; `paieModeAvant` sur la fiche
+  de l'entreprise. Rien d'autre.
+
+### Ce qui le prouve
+
+- `tests/web/paie-bon-a-payer.test.ts` (photos `paie-bon-a-payer.png`, `paie-correction.png`) ; preuves « paie 1.227 ».
+

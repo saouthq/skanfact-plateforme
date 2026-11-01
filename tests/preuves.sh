@@ -16397,14 +16397,12 @@ prouver 'l'"'"'aide de la fiche sans ses primes' 'web/public/v10/app.js' \
   'C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, {}, st);' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 prouver 'la liste des salariés estimée sans les primes' 'web/public/v10/app.js' \
-  '              const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
-              const out' \
-  '              const c = C.computePayslip(e, {}, st);
-              const out' \
+  '      const estime = e => C.computePayslip(e, C.saisieDeLaFiche(e, st), st);' \
+  '      const estime = e => C.computePayslip(e, {}, st);' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 prouver 'la page d'"'"'un salarié qui tait ses primes' 'web/public/v10/app.js' \
-  '${(e.primes || []).length ? `<div><span>Primes de chaque mois</span>' \
-  '${false ? `<div><span>Primes de chaque mois</span>' \
+  "\${(e.primes || []).length ? dl('Primes de chaque mois'," \
+  "\${false ? dl('Primes de chaque mois'," \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 prouver 'les primes au jour qui ne suivent pas l'"'"'absence tapée' 'web/public/v10/app.js' \
   '$('"'"'#bf'"'"', root).oninput = $('"'"'#bf'"'"', root).onchange = () => { suivreLesJours(); calc(); };' \
@@ -16429,8 +16427,8 @@ prouver 'les primes d'"'"'un bulletin serrées à côté des retenues' 'web/publ
         <div class="panel"><h2>Primes et indemnités' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 prouver 'le brut d'"'"'un salarié qui tait ses primes' 'web/public/v10/app.js' \
-  '${c.bonuses.length ? `<div class="small muted">+ ${C.money(' \
-  '${false ? `<div class="small muted">+ ${C.money(' \
+  '${c.bonuses.length ? `<small>+ ${C.money(' \
+  '${false ? `<small>+ ${C.money(' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 prouver '« Prendre les taux de 2026 » qui ne remplit rien' 'web/public/v10/app.js' \
   'C.tauxAvant2026(data).forEach(x => { const i = $(`#rf [name=${x.cle}]`); if (i) i.value = x.livre; });' \
@@ -22157,6 +22155,24 @@ prouver 'paie 1.224 d : un jour corrigé par salarié ne se garde pas' web/publi
         const c = \$(\`#pt-sal-t" "        drawPtSalarie();
         const c = \$(\`#pt-sal-t" \
   "$WPAIE3"
+
+WPAIE6a="approuver avant de payer ; les contrôles ; « Annuler »"
+WPAIE6b="une correction proposée : accepter change le net et garde la trace ; refuser garde la raison"
+prouver 'paie 1.227 a : « Marquer payé » reste offert avant le bon à payer' web/public/v10/app.js \
+  "x.paidDate || (bap && !x.bonAPayerLe) ? '' :" "x.paidDate ? '' :" \
+  "$WPAIE6a"
+prouver 'paie 1.227 b : approuver ne garde pas son accord sur le bulletin' web/public/v10/app.js \
+  "ids.forEach(id => { const p = payslipById(id); if (p) p.bonAPayerLe = jour; });" "ids.forEach(id => { const p = payslipById(id); if (p) p.bonAPayerLe = ''; });" \
+  "$WPAIE6a"
+prouver 'paie 1.227 c : les contrôles qui demandent un geste ne passent pas en tête' web/public/v10/core.js \
+  "    return out.filter(c => !c.ok).concat(out.filter(c => c.ok));" "    return out;" \
+  "$WPAIE6a"
+prouver 'paie 1.227 d : accepter la correction ne recalcule pas le bulletin' web/public/v10/app.js \
+  "Object.assign(p, champs, { computed: C.computePayslip(emp, input, st) });" "Object.assign(p, champs);" \
+  "$WPAIE6b"
+prouver 'paie 1.227 e : refuser la correction perd la raison' web/public/v10/app.js \
+  "...(raison ? { raison } : {}) };" "};" \
+  "$WPAIE6b"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
