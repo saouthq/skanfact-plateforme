@@ -474,6 +474,46 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### La Saisie et la Banque finies contre leur maquette (1.215.0, 01/11/2026)
+
+Demande de Skander : « finir la Saisie et la Banque avant la Paie ». Les vingt-quatre états de la maquette (dix de la
+Saisie, quatorze de la Banque) repris à l'écran, face à l'application. Fait :
+- **Comparées en pleine page**, la maquette et l'application, et mesurées (police, taille, espacement, marges de chaque
+  colonne) : les tableaux de la Saisie et de la Banque sont ceux de la comptabilité (`.cp-t`), plus les listes de la v10.
+  La pièce et le compte en chasse fixe de 12,5 px, le reste en Inter 13 px, les titres de colonne en 11 px demi-gras, des
+  lignes de 8 px. Sur la Banque, la frise montre le mois du relevé ouvert ; l'état de rapprochement donne ses soldes en
+  grand (16 px), le détail en 12 px. La Saisie s'ouvre encore sur toute l'année (l'ouvrir sur un mois cachait des écritures
+  d'autres mois au brouillard : essayé, retiré).
+- **« Au kilomètre », le journal du mois** : depuis « Toute l'année », il s'ouvre sur le mois de la pièce de la bande
+  (avant : une grille vide). Le choix du journal et du mois en tête, Jour / Pièce / Compte / Libellé / Débit / Crédit, une
+  ligne par pièce, sa charge et sa TVA (« TVA déductible 19 % ») en retrait dessous, une icône pour le justificatif (ambre
+  quand il manque), le total « débit = crédit » ; la pièce à côté. La grille au clavier reste derrière « Une écriture à la
+  main… » ; une pièce ouverte depuis le classeur va droit à la grille.
+- **« Lire la pièce » avec Claude remplit enfin la fiche** : le clic se perdait quand on quittait le champ du fournisseur
+  (la page se redessinait sous la souris), et une fiche déjà touchée ignorait la lecture. Dans la grille, « Lire la pièce »
+  puis « Remplir avec ce qui est lu » (le libellé, la pièce, la date, le total au 401).
+- **Le brouillard de la Saisie** comme la maquette : plus de colonne « État » (ce qui attend se dit sous le libellé),
+  « Par » en pastille d'initiales, les gestes groupés à droite du titre.
+- **La Banque** : « Modifier » sur chaque règle ; l'import d'un relevé en deux colonnes (le fichier et l'aperçu à gauche,
+  « Avant d'importer » à droite), titré du mois attendu.
+- **Le certificat de retenue se prépare depuis la pièce** (D2, « Le préparer ») : ce qu'il porte vient de l'écriture
+  (la retenue, le montant de la pièce) et de l'écriture qui la paie ; la retenue née au règlement (le fournisseur débité du
+  TTC, la retenue au crédit) se voit aussi, et la pièce se dit alors « Payée le 08/09 · net de sa retenue ». Une fenêtre
+  dit le payeur, le bénéficiaire, la pièce, le montant, la retenue et son taux (calculé, jamais écrit en dur), la date du
+  règlement ; « Le PDF du certificat ». Le modèle officiel, ses mentions et sa numérotation : **À VÉRIFIER**.
+- Le brouillard a des lignes droites (plus d'italique sur fond bleu : tout y est au brouillard), un « ⋯ » par ligne qui
+  ouvre le même menu que partout (U11, pour ce brouillard ; les autres listes gardent « Actions »).
+- Les essais ne dépendent plus de l'heure à laquelle ils tournent : les pièces de l'exemple arrivent le 27/10 (après minuit
+  à Tunis, elles tombaient en octobre).
+
+Restent, voulus et dits : « Garder ce fichier pour après » à l'import refusé (le classeur ne range que des photos et des PDF,
+pas un relevé Excel : « L'importer quand même » à la place) ; la durée de lecture d'une pièce (« lue en 3 secondes »,
+non gardée) ; le surlignage de ce qui a été lu sur la pièce ; la grille visible sous un mois vide ; au kilomètre, le
+brouillard reste sous le journal (la maquette ne le montre pas : il porte la validation du mois). Essais :
+`tests/web/cabinet-saisie-piece.test.ts` (« la farine payée net de sa retenue ») ; trois essais retournés vers la nouvelle
+page (`barre-cabinet`, `cabinet-saisie-hors-ligne`, `cabinet-livre-a-jour`), et un qui dépendait du mois courant
+(`barre-cabinet`, le classeur ouvert sur septembre). Preuves « saisie 41 » à « saisie 49 ».
+
 ### Revue UI/UX de la Saisie, de la frise et de la Banque (1.214.0, 31/10/2026)
 
 Le rapport : `docs/maquettes/cabinet/revue-ui-saisie-banque.md`. Corrigé : la pièce reste face à sa fiche jusqu'à 900 px ;

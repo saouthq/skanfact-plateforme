@@ -121,7 +121,7 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     };
     const fenetre = p.locator('#modal-root .modal').last();
     const ligne = (piece: string) => p.locator('tr.br-ligne', { hasText: piece });
-    const actions = async (piece: string) => { await ligne(piece).getByRole('button', { name: /Actions/ }).click(); return p.locator('.row-menu').last().getByRole('menuitem'); };
+    const actions = async (piece: string) => { await ligne(piece).locator('[data-rowmenu]').click(); return p.locator('.row-menu').last().getByRole('menuitem'); };
     const bandeau = p.locator('#poste-bandeau');
 
     // ── Le réseau coupé ───────────────────────────────────────────────────────────────────────
@@ -179,12 +179,13 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     await p.locator('#sa-lignes tr[data-i="0"] input[data-k="debit"]').fill('125,500');
     await p.locator('#sa-lignes tr[data-i="1"] input[data-k="credit"]').fill('125,500');
     await p.locator('#sa-ok').click();
-    await expect.poll(async () => net(await ligne('OD-HL1').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/125,500 attend le réseau/);
+    // (1.215.0, la maquette) « attend le réseau » se lit sous le libellé, le montant dans sa colonne.
+    await expect.poll(async () => net(await ligne('OD-HL1').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/attend le réseau.*125,500/);
 
     // Rechargée sans réseau : elle est toujours là.
     await p.reload();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
-    await expect.poll(async () => net(await ligne('OD-HL1').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/125,500 attend le réseau/);
+    await expect.poll(async () => net(await ligne('OD-HL1').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/attend le réseau.*125,500/);
     await expect.poll(async () => net(await bandeau.innerText())).toMatch(/Une écriture attend le réseau/);
 
     // Se déconnecter le dit : elle serait perdue. On reste.
@@ -207,7 +208,8 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     expect(await lAttente(p, cabinet)).toBe(null);
     await bandeau.getByRole('button', { name: 'Recharger', exact: true }).click();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
-    await expect.poll(async () => net(await ligne('OD-HL1').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/125,500 équilibrée/);
+    // Partie : elle ne dit plus « attend le réseau » et garde son montant.
+    await expect.poll(async () => net(await ligne('OD-HL1').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^(?!.*attend le réseau).*125,500/);
     await (await actions('OD-HL1')).filter({ hasText: 'Valider cette écriture' }).click();
     await fenetre.getByRole('button', { name: 'Valider', exact: true }).click();
     await expect.poll(async () => (await livres(ent, leila)).find((e) => e.piece === 'OD-HL1')?.statut, { timeout: 10_000 }).toBe('validee');

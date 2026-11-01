@@ -18784,8 +18784,8 @@ prouver 'le retour qui ne dit pas où sont les écritures' 'web/public/plateform
   'poste.envoye(parties);' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 prouver 'le brouillard qui ne dit pas ce qui attend le réseau' 'web/public/v10/cabinet/app.js' \
-  '<td class="nw">${e.attente ? (e.refus ?' \
-  '<td class="nw">${false ? (e.refus ?' \
+  'e.attente ? (e.refus ? `<small class="err-inline sa-refusee"' \
+  'false ? (e.refus ? `<small class="err-inline sa-refusee"' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 prouver 'un lot qui compte l'\''écriture que le serveur n'\''a pas' 'web/public/v10/cabinet/app.js' \
   'const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
@@ -21929,7 +21929,7 @@ prouver 'saisie 9 : le même numéro au kilomètre se tait' web/public/v10/cabin
   "    const doublonDe = () => { const n = String(p.piece || '').trim();" "    const doublonDe = () => { const n = '';" \
   "$WSX1"
 prouver 'saisie 10 : le mois vide cache la grille' web/public/v10/cabinet/app.js \
-  "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${face ? ' hidden' : ''}>" "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${face || !P.liste.length ? ' hidden' : ''}>" \
+  "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${cache ? ' hidden' : ''}>" "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${cache || !P.liste.length ? ' hidden' : ''}>" \
   "$WSX1"
 prouver 'saisie 11 : au téléphone la fiche reste à côté de la pièce' web/public/plateforme/saisie.css \
   "  .sx-face, .sx-km { grid-template-columns: minmax(0, 1fr); }" "" \
@@ -21959,10 +21959,10 @@ prouver 'saisie 18 : « Lire la pièce » manque à une pièce pas lue' web/publ
   "    if (L.ia) return \`<button" "    if (false) return \`<button" \
   "$WSX1"
 prouver 'saisie 19 : lue, la fiche garde ce qu'\''elle proposait avant' web/public/v10/cabinet/app.js \
-  "      on('#sx-lire', () => fenLireCl(dossier, x, () => { if (!f.touchee) sxState.fiches.delete(x.k); redessinerSx(dossier, true); }));" "      on('#sx-lire', () => fenLireCl(dossier, x, () => { redessinerSx(dossier, true); }));" \
+  "      on('#sx-lire', () => fenLireCl(dossier, x, () => { sxState.fiches.delete(x.k); redessinerSx(dossier, true); }));" "      on('#sx-lire', () => fenLireCl(dossier, x, () => { redessinerSx(dossier, true); }));" \
   "$WSX1"
 prouver 'saisie 20 : la grille reste visible sous la fiche après un geste' web/public/v10/cabinet/app.js \
-  "    const grille = \$('.sx-km'); if (grille) grille.hidden = !!(P.pret && P.liste.length && sxState.mode === 'face');" "" \
+  "    const grille = \$('.sx-km'); if (grille) grille.hidden = !!(P.pret && P.liste.length && sxState.mode === 'face') || grilleCacheeSx(P);" "" \
   "$WSX1"
 prouver 'saisie 21 : le libellé en euros garde le montant brut' web/public/v10/cabinet/app.js \
   "\${montantDevSx(f).replace(/[\\u202f\\u00a0]/g, ' ')} à \${String(f.taux).replace('.', ',')}" "\${f.montantDev} \${f.devise} à \${f.taux}" \
@@ -21985,7 +21985,7 @@ prouver 'saisie 26 : la fenêtre de validation ne vérifie rien avant' web/publi
   "    const verif = !fausses.length && !deposes.length" "    const verif = false" \
   "$WSX1"
 prouver 'saisie 27 : la saisie voit le bouton qui valide le mois' web/public/v10/cabinet/app.js \
-  "(peutValiderCl(dossier) ? \`<button type=\"button\" class=\"btn btn-sm btn-primary\" data-lot-mois" "(true ? \`<button type=\"button\" class=\"btn btn-sm btn-primary\" data-lot-mois" \
+  "(peutValiderCl(dossier) ? \`<button type=\"button\" class=\"btn btn-sm\" data-lot-mois" "(true ? \`<button type=\"button\" class=\"btn btn-sm\" data-lot-mois" \
   "$WSX3"
 prouver 'saisie 28 : le mois vide tait ce qui arrive seul au livre' web/public/v10/cabinet/app.js \
   "Ses ventes et sa caisse, saisies dans SkanFact, arrivent seules au livre." "" \
@@ -21996,7 +21996,7 @@ prouver 'saisie 29 : le brouillard ne dit pas qui a saisi' web/public/v10/cabine
 
 # (1.213.0) Lot S9 « Au kilomètre, le journal du mois » (tests/web/cabinet-saisie-piece.test.ts).
 prouver 'saisie 30 : « Au kilomètre » n'\''a pas le journal du mois' web/public/v10/cabinet/app.js \
-  "return barreSx(P, dossier) + (moisSx() ? journalMoisSx(dossier, P) : '');" "return barreSx(P, dossier);" \
+  "return barreSx(P, dossier) + (moisSx() && !(saisieState.piece && saisieState.piece.depuisClasseur) ? (grilleCacheeSx(P)" "return barreSx(P, dossier) + (false ? (grilleCacheeSx(P)" \
   "$WSX1"
 prouver 'saisie 31 : la ligne en cours ne propose pas la charge du fournisseur' web/public/v10/cabinet/app.js \
   "    const f = { four, date, ttc: L.ttc, tva: h.n ? h.taux : '', tvaAutre: '', compte: h.n ? h.compte : ''" "    const f = { four, date, ttc: L.ttc, tva: '', tvaAutre: '', compte: ''" \
@@ -22025,9 +22025,39 @@ prouver 'saisie 37 : à 1 024 pixels, la fiche part sous la pièce' web/public/p
 prouver 'saisie 38 : l'\''état d'\''un mois se tronque (« en ret… »)' web/public/plateforme/comptabilite.css \
   "@media (max-width: 1240px) { .cp-mo small { white-space: normal; overflow: visible; line-height: 1.2; } }" "" \
   "$WSX4"
-prouver 'saisie 39 : la bande des pièces repousse le choix du mode à la ligne' web/public/plateforme/saisie.css \
-  ".sx-barre { flex-wrap: nowrap; }" "" \
+prouver 'saisie 39 : le choix du mode reste à droite de la bande (la maquette : dessous)' web/public/plateforme/saisie.css \
+  ".sx-barre .sx-esp { flex: 0 0 100%; height: 0; }" "" \
   "$WSX4"
+
+WSX5="la farine payée net de sa retenue : le certificat se prépare depuis la pièce"
+prouver 'saisie 41 : le certificat de retenue ne se prépare pas' web/public/v10/cabinet/app.js \
+  "    on('#sx-certif', () => certificatSx(dossier, x));" "" \
+  "$WSX5"
+prouver 'saisie 42 : la retenue passée au règlement ne se voit pas' web/public/v10/cabinet/app.js \
+  "    const rs = rsDe(e) || (reglt ? rsDe(reglt) : 0);" "    const rs = rsDe(e);" \
+  "$WSX5"
+prouver 'saisie 43 : payée net de sa retenue, la pièce se dit « pas encore payée »' web/public/v10/cabinet/app.js \
+  " : reglt ? ['ok', \`Payée le \${jjmm(reglt.date)}\`" " : false ? ['ok', \`Payée le \${jjmm(reglt.date)}\`" \
+  "$WSX5"
+prouver 'saisie 44 : le brouillard de la Saisie garde « Actions » et l'\''italique' web/public/v10/cabinet/app.js \
+  "RowMenu.bouton('B:' + e.id, '⋯', 'sx-bl-plus')" "RowMenu.bouton('B:' + e.id, 'Actions', 'sx-bl-plus')" \
+  "$WSX5"
+
+prouver 'saisie 45 : une fiche touchée ignore ce que l'\''IA a lu' web/public/v10/cabinet/app.js \
+  "on('#sx-lire', () => fenLireCl(dossier, x, () => { sxState.fiches.delete(x.k);" "on('#sx-lire', () => fenLireCl(dossier, x, () => { if (!f.touchee) sxState.fiches.delete(x.k);" \
+  "$WSX1"
+prouver 'saisie 46 : quitter le fournisseur pour « Lire la pièce » perd le clic' web/public/v10/cabinet/app.js \
+  "        if (vise) { let fait = false;" "        if (false) { let fait = false;" \
+  "$WSX1"
+prouver 'saisie 47 : « Au kilomètre », la grille reste sous le journal du mois' web/public/v10/cabinet/app.js \
+  "const grilleCacheeSx = P => sxState.mode === 'km'" "const grilleCacheeSx = P => false && sxState.mode === 'km'" \
+  "$WSX1"
+prouver 'saisie 48 : le journal du mois ne nomme pas la TVA déductible' web/public/v10/cabinet/app.js \
+  "estTva ? \`TVA déductible\${" "estTva ? \`TVA\${" \
+  "$WSX1"
+prouver 'saisie 49 : « Au kilomètre » sur toute l'\''année reste sur la grille vide (pas le journal du mois de la pièce)' web/public/v10/cabinet/app.js \
+  "if (y && y.mois) { livresState.mode = 'mois';" "if (false) { livresState.mode = 'mois';" \
+  'les pièces reçues : chaque pièce a son geste, classer vide la boîte et les chiffres, « Annuler » la remet ; une écriture commencée retient avant de changer de dossier'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

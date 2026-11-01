@@ -218,7 +218,7 @@ describe('la banque, à la souris', () => {
     expect(await p.locator('.bqi-page #ok').isDisabled()).toBe(true);
     // Le solde de début proposé est la fin du relevé de mars (le chiffre de la banque).
     expect(await p.locator('.bqi-page [name=debut]').inputValue()).toMatch(/^10\s405,625$/);
-    await p.locator('.bqi-page').getByRole('button', { name: 'Retour au relevé' }).click();
+    await p.locator('.bqi-page').locator('.bq-h [data-close]').click();
 
     // ── Au téléphone : des cartes ; le tableau du bureau se cache ; le livre en face garde ses tableaux ─
     await p.setViewportSize({ width: 390, height: 860 });

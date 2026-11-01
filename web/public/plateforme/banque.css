@@ -12,7 +12,9 @@
 .bq-ecran table.list.bq-t th, .bq-ecran table.bq-ec th { background: none; text-align: left; font-size: 11px; font-weight: 600; color: var(--sb-gris-2); text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--sb-trait); white-space: nowrap; }
 .bq-ecran table.bq-t th.r, .bq-ecran table.bq-ec th.r { text-align: right; }
 .bq-ecran table.list.bq-t td, .bq-ecran table.list.bq-pc td, .bq-ecran table.list.bq-t tr:last-child td, .bq-ecran table.list.bq-pc tr:last-child td { padding: 8px; border-bottom: 1px solid var(--sb-trait); vertical-align: top; color: var(--sb-encre); }
-.bq-ecran table.bq-ec td { padding: 5px 8px; border-bottom: 1px solid var(--sb-trait); vertical-align: top; color: var(--sb-encre); }
+.bq-ecran table.bq-ec td { padding: 8px; font-size: 12.5px; border-bottom: 1px solid var(--sb-trait); vertical-align: top; color: var(--sb-encre); }
+/* Le livre en face (`.cp-t.bq2-ec` de la maquette) : 12,5 px, la pièce et le compte en chasse fixe de 12,5 px aussi. */
+.bq-ecran table.list.bq-ec, .bq-ecran table.bq-ec td.mono, .bq-ecran table.list.bq-t td.mono, .bq-ecran table.list.bq-pc td.mono { font-size: 12.5px; }
 .bq-ecran .mu { color: var(--sb-gris); font-size: 12.5px; }
 .bq-ecran .cp-plus { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; }
 .bq-ecran .cp-plus:hover { text-decoration: underline; }
@@ -175,6 +177,8 @@
 .bqe tr.st td { padding-top: 10px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: #5b6b6b; border-bottom: 0; }
 .bqe tr.sous td { padding-left: 12px; color: #4a5a5a; font-size: 12px; }
 .bqe tr.tot td { font-weight: 700; border-bottom: 0; border-top: 1.5px solid #1b2a2a; padding-top: 7px; }
+/* (la maquette) les soldes, du relevé, du livre et rectifiés, se lisent en grand (16 px) ; le détail reste à 12 px. */
+.bqe tbody tr:not(.sous):not(.st) td { font-size: 16px; }
 .bqe-eg { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 10px; border-radius: 6px; background: #eaf6f3; color: #0f6b5f; font-weight: 700; text-align: center; }
 .bqe-eg.ko { background: #fdecea; color: #b42318; }
 .bqe-p { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: #5b6b6b; font-size: 11.5px; border-top: 1px solid #c9d3d3; padding-top: 10px; }
@@ -301,3 +305,20 @@
 .bqk-f .trou { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 10%, var(--sb-papier)) 0 8px, var(--sb-papier) 8px 16px); }
 .bqk-f .trou b { color: var(--danger); }
 @media (max-width: 760px) { .bqk-f { grid-template-columns: minmax(0, 1fr); } .bqk-f > div + div { border-left: 0; border-top: 1px solid var(--sb-trait); } }
+
+/* (1.215.0, la maquette) Au bout d'une règle : « Modifier » en clair, le reste dans un ⋯. */
+.bqr-t td.bqr-act { white-space: nowrap; text-align: right; }
+.bqr-t td.bqr-act .cp-plus { border: 0; background: none; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; min-height: 30px; }
+.bqr-t .row-menu-btn.bqr-plus { min-width: 32px; justify-content: center; }
+.bqr-t .row-menu-btn.bqr-plus .rm-chev { display: none; }
+
+/* (1.215.0, la maquette « importer le relevé ») Deux colonnes : le fichier et ce qu'il dit, « Avant d'importer » à droite. */
+.bqi-2 { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 12px; }
+@media (max-width: 1000px) { .bqi-2 { grid-template-columns: minmax(0, 1fr); } }
+.bqi-g, .bqi-d { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); min-width: 0; }
+.bqi-fic { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border: 1.5px dashed var(--sb-trait); border-radius: 12px; background: var(--sb-survol); }
+.bqi-fic > div { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.bqi-fic-ic { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: color-mix(in srgb, var(--sb-sarcelle) 12%, var(--sb-papier)); color: var(--sb-sarcelle-texte); flex: none; }
+.bqi-av-vide li { opacity: .75; }
+.bqi-n { margin: 0; }
+.bqi-d .bqi-av { border: 0; padding: 0; background: none; }

@@ -26,6 +26,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import type { AppelIA, ReponseIA } from '../../serveur/achats/lecture-ia.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { pdfTelecharge } from '../pdf-telecharge.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -128,6 +129,9 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     try {
       const lire = (m: string, f: string, n: string | null, d: string, t: string, dv: string) => admin.query(`insert into cabinet.lecture (cabinet, entreprise, message, fournisseur, numero, date_piece, total, devise, lu_par)
         values ($1, $2, $3, $4, $5, $6, $7, $8, (select id from socle.utilisateur where lower(email) = lower($9)))`, [cab.id, ent, m, f, n, d, t, dv, courriel]);
+      // Les pièces arrivent la veille du jour de l'essai (le 27/10, fixe) : le mois où elles tombent ne dépend pas de
+      // l'heure à laquelle l'essai tourne (le 01/11 à Tunis, elles tombaient en octobre).
+      await admin.query(`update messagerie.message set ecrit_le = '2026-10-27T18:12:00+01:00' where entreprise = $1`, [ent]);
       await lire(ticket, 'Total Ennasr', null, '2026-09-24', '85.000', 'TND');
       await lire(farine, 'Minoterie du Cap Bon', 'F-2026-0903', '2026-09-03', '1846.199', 'TND');
       // La levure : facturée le 29/08, saisie au 10/09 par Sarra.
@@ -170,6 +174,8 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     // « Elle se lit : la saisir » : pas encore lue, la fiche propose « Lire la pièce » ; lue, elle repart de ce qu'elle dit.
     await p.locator('#sx-lisible').click();
     await expect.poll(() => p.locator('#sx-lire').innerText().catch(() => '')).toBe('Lire la pièce');
+    // (1.215.0) Une fiche déjà touchée prend quand même ce que l'IA a lu (avant, la lecture ne se voyait nulle part).
+    await p.locator('#sx-four').fill('Un fournisseur tapé avant');
     await p.locator('#sx-lire').click();
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#sx-four').inputValue().catch(() => ''), { timeout: 15_000 }).toBe('Fournitures El Amen');
@@ -301,7 +307,10 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     // en cours : le fournisseur et le TTC suffisent, la charge et la TVA reprennent sa dernière pièce.
     await p.locator('[data-sx-mode="km"]').click();
     await p.locator('#sx-jm').waitFor();
-    expect(net(await p.locator('#sx-jm .sx-jm-l').innerText())).toMatch(/30\/09 FA-0919 401 STEG 186,419 606 .* TVA 13 % 164,973 \+ 21,446/);
+    expect(net(await p.locator('#sx-jm .sx-jm-l').innerText())).toMatch(/30 FA-0919 401 STEG 186,419 606 .* 164,973 4366 TVA déductible 13 % 21,446/);
+    // (1.215.0, la maquette) Débit et crédit, la pièce de la ligne à droite, la grille au clavier derrière « Une écriture à la main ».
+    expect(await p.locator('.sx-jm-g #sx-km-d').count()).toBe(1);
+    expect(await p.locator('.sx-km').isHidden()).toBe(true);
     // FA-0919 a reçu la photo STEG plus haut : elle porte son justificatif.
     expect(await p.locator('tr.sx-jm-e', { hasText: 'FA-0919' }).locator('.sx-jm-j').count()).toBe(1);
     expect(await p.locator('#sx-jm-refus').isHidden()).toBe(true);
@@ -341,6 +350,31 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(await p.locator('#sa-lignes').isVisible()).toBe(true);
     expect(erreurs).toEqual([]);
   }, 240_000);
+
+  it('la farine payée net de sa retenue : le certificat se prépare depuis la pièce', async () => {
+    const { associe, cab, ent } = await laBoulangerie();
+    // Le règlement de la Minoterie : le TTC de la pièce au fournisseur, 27,693 de retenue opérée, le reste à la banque.
+    const r = await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, { date: '2026-09-08', journal: 'BQ', piece: 'BQ-0908', libelle: 'VIR Minoterie du Cap Bon',
+      lignes: [{ compte: '401', tiers: 'Minoterie du Cap Bon', debit: '1846,199' }, { compte: '532', credit: '1818,506' }, { compte: '4352', credit: '27,693' }] });
+    expect(r.statut).toBe(201);
+    const { p, erreurs } = await ouvrir(associe, cab.id, ent);
+    // (1.215.0, U11) Le brouillard : des lignes droites, un « ⋯ » par ligne (le menu de toutes les listes, sans le mot).
+    const bl = p.locator('table.sx-bl tr.br-ligne').first();
+    expect(await bl.locator('.sx-bl-plus').innerText()).toBe('⋯');
+    expect(await bl.locator('td').first().evaluate((td) => getComputedStyle(td).fontStyle)).toBe('normal');
+    await puce(p, 'Minoterie').click();
+    await expect.poll(() => fiche(p).innerText().then(net)).toMatch(/Le certificat de retenue à remettre Sarra a retenu 27,693 DT : Minoterie du Cap Bon attend son certificat/);
+    expect(net(await fiche(p).innerText())).toMatch(/Payée le 08\/09 BQ-0908 · net de sa retenue 1 818,506/);
+    await p.locator('#sx-certif').click();
+    const f = p.locator('#modal-root .modal').last();
+    expect(net(await f.locator('#sx-certif-l').innerText())).toMatch(/Payeur Boulangerie El Amal Bénéficiaire Minoterie du Cap Bon Pièce F-2026-0903 du 03\/09\/2026 Montant de la pièce 1 846,199 DT TTC Retenue 27,693 DT · 1,5 % Réglée le 08\/09\/2026/);
+    await p.screenshot({ path: path.join(PHOTOS, 'saisie-certificat.png') });
+    const pdf = await pdfTelecharge(p, () => f.locator('#sx-certif-pdf').click());
+    expect(pdf.nom).toBe('Certificat-retenue_F-2026-0903.pdf');
+    expect(pdf.texte).toContain('Certificat de retenue à la source');
+    expect(pdf.texte).toContain('Retenue 27,693');
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 
   it('Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie', async () => {
     const { rim, cab, ent } = await laBoulangerie(true);
@@ -398,9 +432,11 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect((fi?.x ?? 0)).toBeGreaterThan((dv?.x ?? 0) + (dv?.width ?? 0) - 1);
     // L'état d'un mois se lit entier (« en retard » devenait « en ret… »).
     expect(await p.locator('.cp-mo small').evaluateAll((l) => l.filter((e) => e.scrollWidth > e.clientWidth + 1).length)).toBe(0);
-    // La bande des pièces ne repousse pas « Face à la pièce · Au kilomètre » à la ligne.
-    const [n, mode] = await Promise.all([p.locator('#sx-rang').boundingBox(), p.locator('.sx-mode').boundingBox()]);
-    expect(Math.abs((n?.y ?? 0) - (mode?.y ?? 0))).toBeLessThan(12);
+    // (1.215.0, la maquette) « Face à la pièce · Au kilomètre » sous la bande des pièces, à gauche ; la bande tient sur une ligne.
+    const [n, mode, pil] = await Promise.all([p.locator('#sx-rang').boundingBox(), p.locator('.sx-mode').boundingBox(), p.locator('.sx-p').boundingBox()]);
+    expect((mode?.y ?? 0)).toBeGreaterThan((n?.y ?? 0) + 20);
+    expect(Math.abs((pil?.y ?? 0) - (n?.y ?? 0))).toBeLessThan(12);
+    expect((mode?.x ?? 999)).toBeLessThan((n?.x ?? 0) + 60);
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     expect(erreurs).toEqual([]);
   }, 180_000);

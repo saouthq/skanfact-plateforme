@@ -278,6 +278,9 @@ describe('la barre du Cabinet, à la souris', () => {
     // (1.211.0) La pièce remise à classer attend : la Saisie s'ouvre face à elle, et la grille se tape « Au kilomètre »
     // (elle restait visible sous la fiche par accident quand la page se dessinait avant que les pièces soient lues).
     await p.locator('[data-sx-mode="km"]').click({ timeout: 15_000 });
+    // (1.215.0, la maquette) « Au kilomètre » est le journal du mois de la pièce ; la grille au clavier s'ouvre derrière
+    // « Une écriture à la main… ».
+    await p.locator('#sx-jm-main').click({ timeout: 15_000 });
     const libelle = p.locator('#sa-libelle, [data-champ="libelle"]').first();
     await libelle.waitFor({ timeout: 15_000 });
     await libelle.fill('Farine du Cap Bon');
@@ -466,6 +469,10 @@ describe('la barre du Cabinet, à la souris', () => {
     // Le classeur du dossier la montre une seule fois (il la lit parmi ses documents, pas aussi parmi les pièces reçues).
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${tenu}/classeur`);
     await p.locator('#page-cl .cl-res').first().waitFor({ timeout: 25_000 });
+    // Le classeur la range à sa période (septembre), une seule fois. (Le test lisait le mois où le classeur s'ouvre, et tombait
+    // dès que septembre n'était plus le mois à traiter.)
+    // Il s'ouvre sur le mois à traiter : on choisit septembre dans l'arbre.
+    await p.locator(`[data-cl-m="${new Date().getFullYear()}-09"]`).first().click();
     await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/^Septembre \d{4}\s+1 pièce\b/);
     expect(await p.locator('#page-cl li[data-cl-k]').filter({ hasText: 'WhatsApp' }).count()).toBe(1);
     await ouvrir(p, cab.id, '#/pieces');

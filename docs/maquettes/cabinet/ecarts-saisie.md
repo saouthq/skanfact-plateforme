@@ -147,3 +147,13 @@ la grille, rien ne se propose). Les trois lots de la revue sont faits ; restent 
   3. **Lot S9 « Au kilomètre, le journal du mois »** (le plus gros) : une ligne par pièce, la charge et la TVA proposées
      d'après les pièces d'avant du fournisseur, la pièce qui se solde seule, le justificatif de chaque ligne (G1, G2, G4).
   4. Plus tard, avec une décision ou un outil : le certificat de retenue au Cabinet (D2), le surlignage de la lecture (A6).
+
+**Mise à jour (1.215.0, 01/11/2026) : D2 est fait.** « Le préparer » ouvre le certificat de retenue (payeur, bénéficiaire,
+pièce, montant, retenue et son taux calculé, date du règlement) et son PDF ; la retenue née au règlement se lit sur
+l'écriture qui paie la pièce. Le brouillard est un tableau de la comptabilité comme la maquette (`.cp-t`) : sans colonne
+« État », la date en jj/mm, la pièce en chasse fixe de 12,5 px, « Par » en pastille d'initiales, un « ⋯ » par ligne, sans
+italique. « Au kilomètre » s'ouvre sur le journal du mois de la pièce (même depuis « Toute l'année »), la pièce à côté ; ses
+colonnes ont les polices de la maquette (le jour et les montants en Inter, la pièce et le compte en chasse fixe) et les
+lignes proposées en retrait. La Saisie, elle, s'ouvre encore sur toute l'année (l'ouvrir sur un mois cachait au brouillard
+des écritures d'autres mois : essayé puis retiré). Restent les écarts voulus : A6 (surlignage), A7 (durée de lecture, non gardée),
+C2, E4, F2, F3, J2.

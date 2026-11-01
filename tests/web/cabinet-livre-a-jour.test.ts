@@ -80,10 +80,12 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await expect.poll(enTete, { timeout: 10_000 }).toBe('Compter 2 écritures en brouillard');
 
     // (1.100.0) Le livre-journal vide : « Voir le brouillard » arrive AU brouillard, sous la grille (il arrivait en haut de
-    // la saisie, le brouillard hors de l'écran), et le curseur attend quand même dans « Pièce ».
+    // la saisie, le brouillard hors de l'écran), et le curseur attend quand même dans « Pièce ». (1.215.0) Le brouillard est plus
+    // court (lignes de la maquette) : la page ne défile plus assez pour le mettre dans la moitié haute ; il est à l'écran, son
+    // titre et ses premières lignes lisibles.
     await p.locator('#lv-vers-saisie').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/saisie\//);
-    await expect.poll(() => p.evaluate(() => { const r = document.querySelector('#sa-brouillard')?.getBoundingClientRect(); return !!r && r.top >= 0 && r.top < innerHeight / 2; }), { timeout: 5_000 }).toBe(true);
+    await expect.poll(() => p.evaluate(() => { const r = document.querySelector('#sa-brouillard')?.getBoundingClientRect(); return !!r && r.top >= 0 && r.top < innerHeight - 160; }), { timeout: 5_000 }).toBe(true);
     expect(await p.evaluate(() => document.activeElement?.id)).toBe('sa-piece');
     await p.locator('.seg button, button').filter({ hasText: /^Consulter$/ }).first().click();
     await p.locator('#lv-vers-saisie').waitFor({ timeout: 15_000 });
@@ -112,7 +114,7 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     const br = p.locator('tr.br-ligne').first();
     const piece = (await br.locator('td').nth(2).innerText()).trim();
     expect(piece).not.toBe('—');
-    await br.getByRole('button', { name: /Actions/ }).click();
+    await br.locator('[data-rowmenu]').click();
     await expect.poll(() => p.locator('.row-menu').last().innerText()).toMatch(/^Voir ses lignes\s/);
     await p.locator('.row-menu').last().getByText('Voir ses lignes', { exact: true }).click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/journal\//);

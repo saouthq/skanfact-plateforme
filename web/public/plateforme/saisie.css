@@ -225,10 +225,9 @@
 .sx-jm-aide { flex-basis: 100%; }
 .sx-jm-l { width: 100%; border-collapse: collapse; }
 .sx-jm-l th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--sb-gris-2); padding: 6px 8px; border-bottom: 1px solid var(--sb-trait); }
-.sx-jm-l td { padding: 6px 8px; font-size: 13px; vertical-align: middle; }
+.sx-jm-l td { padding: 8px; font-size: 13px; vertical-align: middle; }
 .sx-jm-l .r { text-align: right; }
 .sx-jm-e td { border-top: 1px solid var(--sb-trait); }
-.sx-jm-e.br td:not(:last-child) { font-style: italic; }
 .sx-jm-s td { color: var(--sb-gris-2); font-size: 12px; padding-top: 0; }
 .sx-jm-sj { display: inline-flex; gap: 4px; align-items: center; color: var(--sb-ambre-texte); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .sx-jm-sj svg, .sx-jm-j svg { width: 13px; height: 13px; }
@@ -247,7 +246,62 @@
 /* (1.214.0) Revue UI/UX : la pièce reste face à sa fiche jusqu'à 900 px (un portable de 1 024 px les empilait, et la fiche
    partait sous la pièce) ; la bande des pièces défile au lieu de repousser « Face à la pièce · Au kilomètre » à la ligne. */
 @media (max-width: 1100px) and (min-width: 901px) { .sx-face { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-.sx-barre { flex-wrap: nowrap; }
-.sx-barre .sx-p { flex: 1 1 auto; }
+/* (1.215.0) Comme la maquette : la bande des pièces sur sa ligne (elle défile), « Face à la pièce · Au kilomètre » dessous, à
+   gauche. */
+.sx-barre { flex-wrap: wrap; row-gap: 10px; }
+.sx-barre .sx-p { flex: 1 1 0; }
+.sx-barre .sx-esp { flex: 0 0 100%; height: 0; }
 .sx-barre .sx-n, .sx-barre .sx-mode, .sx-barre #sx-conf-tout { flex: none; }
-@media (max-width: 760px) { .sx-barre { flex-wrap: wrap; } }
+
+/* (1.215.0, D2) Le certificat de retenue : ce qu'il porte, une ligne par mention. */
+.sx-certif-l { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 18px; margin: 4px 0 14px; font-size: 14px; }
+.sx-certif-l dt { color: var(--sb-gris, #5b6675); }
+.sx-certif-l dd { margin: 0; }
+
+/* (1.215.0, U11) Le brouillard de la Saisie comme la maquette : tout y est au brouillard, la ligne n'a pas besoin d'être en
+   italique sur fond bleu pour le dire ; son menu est un « ⋯ » (le même menu que partout, sans le mot). */
+.sx-bl tr.br-ligne td { font-style: normal; background: none; }
+.sx-bl .row-menu-btn.sx-bl-plus { min-width: 34px; justify-content: center; letter-spacing: 1px; }
+.sx-bl .row-menu-btn.sx-bl-plus .rm-chev { display: none; }
+
+/* (1.215.0) Le brouillard comme la maquette : « Par » en pastille d'initiales, la pièce en chasse fixe, les gestes groupés à
+   droite du titre. */
+.sx-bl .sx-par { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; font-size: 9.5px; font-weight: 700; letter-spacing: .02em; color: #5b4fc7; background: color-mix(in srgb, #5b4fc7 14%, var(--sb-papier)); border: 1px solid color-mix(in srgb, #5b4fc7 30%, transparent); }
+.sx-bl .sx-par .sr, .sx-bl .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sx-bl td.c, .sx-bl th.c { text-align: center; }
+/* Le brouillard est un tableau de la comptabilité (`.cp-t` de la maquette), pas une liste de la v10 : `table.list.compact`
+   (13 px partout, la pièce comprise ; en-tête gras espacé de 1 px ; marges de 9 × 12) passait devant. Les mêmes règles que
+   les tableaux de la Banque. */
+table.list.compact.sx-bl { border: 0; border-radius: 0; box-shadow: none; background: transparent; border-collapse: collapse; font-size: 13px; }
+table.list.compact.sx-bl th { position: static; background: none; text-align: left; font-size: 11px; font-weight: 600; color: var(--sb-gris-2); text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--sb-trait); white-space: nowrap; }
+table.list.compact.sx-bl th.r { text-align: right; }
+table.list.compact.sx-bl td, table.list.compact.sx-bl tr:last-child td { padding: 8px; font-size: 13px; border-bottom: 1px solid var(--sb-trait); vertical-align: top; color: var(--sb-encre); }
+table.list.compact.sx-bl td.mono, .sx-jm-l td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; letter-spacing: .5px; font-variant-ligatures: none; }
+.sx-bl small.err-inline { display: block; font-size: 12px; margin-top: 2px; }
+.sx-bl-g { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.scroll-x table.list.sx-bl tr.br-ligne td.row-actions { background: var(--sb-papier); }
+
+/* (1.215.0) « Au kilomètre » comme la maquette : le journal du mois sans cadre, le journal et le mois en listes, débit et
+   crédit, la pièce de la ligne à droite ; le choix du mode reste à droite du titre (il n'y a pas de bande de pièces). */
+.sx-barre:not(:has(.sx-p)) .sx-esp { flex: 1 1 0; height: auto; }
+.sx-jm { border: 0; padding: 0; background: none; }
+.sx-jm-g { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 18px; align-items: start; }
+.sx-jm-g .sx-km-d { position: sticky; top: calc(var(--c-nav-h, 0px) + 12px); }
+@media (max-width: 1100px) { .sx-jm-g { grid-template-columns: minmax(0, 1fr); } }
+.sx-jm-t { align-items: center; }
+.sx-jm-t .sx-jm-aide { flex: 1 1 260px; font-size: 12.5px; }
+.sx-jm-sel { position: relative; display: inline-flex; align-items: center; }
+.sx-jm-sel select { appearance: none; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--sb-encre); height: 34px; padding: 0 30px 0 12px; border: 1px solid var(--sb-trait); border-radius: 9px; background: var(--sb-papier); cursor: pointer; }
+.sx-jm-sel svg { position: absolute; right: 10px; pointer-events: none; color: var(--sb-gris); }
+.sx-jm-s td { font-size: 13px; color: var(--sb-gris); padding-top: 2px; padding-bottom: 4px; }
+/* (la maquette, `.cp-km tr.auto`) le compte d'une ligne proposée est en retrait sous celui du fournisseur. */
+.sx-jm-s td.mono { padding-left: 22px; }
+.sx-jm-l tr.sx-jm-s td { border-bottom-color: transparent; }
+.sx-jm-sj svg, .sx-jm-j svg { width: 15px; height: 15px; }
+.sx-jm-j { color: var(--sb-gris-2); }
+.sx-jm-l td.r { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sx-jm-tot td { border-top: 1px solid var(--sb-trait); font-weight: 700; color: var(--sb-encre); padding-top: 10px; }
+.sx-jm-pied { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; justify-content: space-between; }
+.sx-jm-l th:nth-child(5), .sx-jm-l th:nth-child(6) { width: 110px; }
+.sx-jm-l th:nth-child(1) { width: 52px; } .sx-jm-l th:nth-child(2) { width: 96px; } .sx-jm-l th:nth-child(3) { width: 70px; } .sx-jm-l th:nth-child(7) { width: 30px; }
+.sx-jm-tot #sx-jm-bilan { display: inline-flex; gap: 4px; align-items: center; }

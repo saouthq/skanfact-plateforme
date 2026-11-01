@@ -21,7 +21,7 @@ Légende : ✅ corrigé dans 1.214.0 · ⚪ gardé exprès (la raison) · ◐ à
 | U8 | Saisie, ligne en cours du journal | « Le fournisseur manque » s'affichait avant toute frappe (1.213.0) | ✅ |
 | U9 | Les deux navigations (la barre de gauche du dossier et les onglets de la page) | Disent la même chose deux fois | ⚪ la maquette les garde toutes les deux : la barre suit le dossier d'un écran à l'autre, les onglets restent sous les yeux |
 | U10 | Fil d'Ariane de la Banque | « Comptabilité › Saisir » sur la page Banque | ⚪ c'est le groupe (la maquette) ; le titre dit l'écran |
-| U11 | Brouillard | Chaque ligne en italique, un bouton « Actions ⌄ » par ligne (la maquette : ⋯) | ◐ le bouton est le menu commun à toutes les listes du Cabinet : le changer, c'est changer toutes les listes ; à décider avec les autres listes |
+| U11 | Brouillard | Chaque ligne en italique, un bouton « Actions ⌄ » par ligne (la maquette : ⋯) | ✅ 1.215.0 dans le brouillard de la Saisie : lignes droites, « ⋯ » (le même menu) ; les autres listes gardent « Actions » |
 | U12 | Banque, filtres | « 0 En attente de Sarra » montré même à zéro | ⚪ dit qu'il n'y a rien en attente du client : un chiffre, pas un bruit |
 | U13 | Banque, liste à 1 280 px | Les libellés de la banque passent sur deux ou trois lignes (la colonne de droite prend 390 px) | ◐ lisible ; à revoir si les comptables s'en plaignent |
 

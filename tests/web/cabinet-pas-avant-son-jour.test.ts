@@ -103,7 +103,7 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
 
     // 3. Au menu de la ligne de paie, « Valider cette écriture » est grisé avec sa date, et le dit au clic.
     const lignePaie = p.locator('tr.br-ligne', { hasText: 'PAIE' });
-    await lignePaie.getByRole('button', { name: /Actions/ }).click();
+    await lignePaie.locator('[data-rowmenu]').click();
     const valider = p.locator('.row-menu').last().getByRole('menuitem').filter({ hasText: 'Valider cette écriture' });
     await expect.poll(() => valider.getAttribute('class')).toMatch(/\boff\b/);
     expect(await valider.innerText()).toContain('À partir du 31/10/2026, sa date');
