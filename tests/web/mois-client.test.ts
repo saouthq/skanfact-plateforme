@@ -295,6 +295,8 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
 
     // La validation du lot (le journal des achats) le dit aussi, avec la pièce.
     await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/comptabilite/saisie`);
+    // (1.216.0) Sur toute l'année, plus de trois lots se replient sous « Valider par lot ».
+    if (await h.p.locator('#sa-lot-plus summary').isVisible().catch(() => false)) await h.p.locator('#sa-lot-plus summary').click();
     await h.p.locator('[data-lot-journal="AC"]').click({ timeout: 20_000 });
     await expect.poll(async () => net(await h.p.locator('#lot-sans-justif').innerText().catch(() => '')), { timeout: 10_000 })
       .toBe('Un achat du client n\'a pas de justificatif : GMS-26-4502. Tu peux valider quand même, ou le lui demander d\'abord (le menu de la ligne, « Demander le justificatif »).');

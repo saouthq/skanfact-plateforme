@@ -322,3 +322,25 @@
 .bqi-av-vide li { opacity: .75; }
 .bqi-n { margin: 0; }
 .bqi-d .bqi-av { border: 0; padding: 0; background: none; }
+
+/* (1.216.0) Le choix des colonnes d'un relevé inconnu, comme la maquette « une banque nouvelle ». */
+.bqc { display: grid; gap: 12px; margin-top: 14px; padding: 16px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); }
+.bqc-et { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.bqc-et > span:not(.mu) { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; background: var(--sb-survol); color: var(--sb-gris); font-size: 12px; font-weight: 700; }
+.bqc-et > span.on { background: var(--sb-sarcelle); color: #fff; }
+.bqc-et i { font-style: normal; color: var(--sb-gris-2); }
+.bqc-t { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bqc-t th { text-align: left; vertical-align: top; padding: 0 6px 8px; border-bottom: 1px solid var(--sb-trait); font-weight: 400; min-width: 112px; }
+.bqc-t th small.mono { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+.bqc-t th small { display: block; font-size: 11px; color: var(--sb-gris-2); margin-top: 4px; letter-spacing: .3px; }
+.bqc-t th small.bqc-s { color: var(--sb-sarcelle-texte); letter-spacing: 0; font-family: inherit; }
+.bqc-t td { padding: 8px; border-bottom: 1px solid var(--sb-trait); white-space: nowrap; }
+.bqc-t td.r { text-align: right; font-variant-numeric: tabular-nums; }
+.bqc-t td.ig { color: var(--sb-gris-2); text-decoration: line-through; }
+.bqc-t td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; letter-spacing: .5px; }
+.bqc-sel { position: relative; display: flex; align-items: center; }
+.bqc-sel select { appearance: none; width: 100%; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-encre); height: 34px; padding: 0 28px 0 10px; border: 1px solid var(--sb-trait); border-radius: 9px; background: var(--sb-papier); cursor: pointer; }
+.bqc-sel.ig select { font-weight: 400; color: var(--sb-gris-2); border-style: dashed; }
+.bqc-sel svg { position: absolute; right: 9px; pointer-events: none; color: var(--sb-gris); transform: rotate(90deg); }
+.bqc-ok { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--sb-sarcelle) 10%, var(--sb-papier)); color: var(--sb-sarcelle-texte); font-size: 13px; }
+.bqc-n { margin: 0; font-size: 12.5px; }

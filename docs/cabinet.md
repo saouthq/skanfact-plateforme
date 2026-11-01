@@ -474,6 +474,19 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### L'ancien « Suivi » fondu dans la fiche, et la suite des écarts (1.216.0, 01/11/2026)
+
+Skander, devant l'ancienne page du dossier (onglets Suivi / Comptabilité, encore atteinte par les liens de Messages) :
+« c'est quoi cette page ? ». `…/fiche` (le lien « Inviter » de Messages) ouvre la fiche du dossier et y descend à l'invitation, le curseur dans l'e-mail. La fiche prend ce qui n'était qu'au
+Suivi : **Ton client sur SkanFact** (l'invitation d'un dossier tenu) et **Les relances** (toutes, et « Noter une relance faite
+ailleurs… »). « Qui travaille sur ce dossier » n'y est pas repris : l'équipe et « Confier à… » y sont déjà (Skander). Le menu ⋯
+de la fiche perd « Tout le suivi » : plus aucun lien ne mène à l'ancienne page (son adresse `…/suivi` répond encore, pour ce
+qu'elle seule porte : les droits par personne, la carte « Ce mois-ci » ; à fondre ou retirer ensuite).
+
+Saisie et Banque : une pièce « déjà saisie ? » pas encore lue ne montre plus une colonne « à lire sur la pièce » répétée ; sur
+toute l'année, plus de trois lots du brouillard se replient sous « Valider par lot » ; les montants du relevé ont des espaces
+de milliers ordinaires, comme la maquette (« − 1 818,506 »).
+
 ### La Saisie et la Banque finies contre leur maquette (1.215.0, 01/11/2026)
 
 Demande de Skander : « finir la Saisie et la Banque avant la Paie ». Les vingt-quatre états de la maquette (dix de la

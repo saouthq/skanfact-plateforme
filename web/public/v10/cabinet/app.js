@@ -1967,7 +1967,7 @@
       tenus: () => (S.dossiers || []).filter(d => d.manual && !d.archived && dansPortee(d.id)).map(d => ({ id: d.id, nom: d.name, couleur: couleurDe(d.id) })),
       panneauTenu: id => panneauTenuMsg(parId(id)),
       brancherTenu: (z, id) => { $$('[data-msg-tenu-g]', z).forEach(b => { b.onclick = () => { location.hash = '#/dossier/' + encodeURIComponent(id) + (b.dataset.msgTenuG === 'inviter' ? '/fiche' : ''); }; }); },
-      ouvrirTenu: id => { location.hash = '#/dossier/' + encodeURIComponent(id) + '/fiche'; },
+      ouvrirTenu: id => { location.hash = '#/dossier/' + encodeURIComponent(id); },
       vide: () => neufMsg(),
       brancherVide: z => brancherNeufMsg(z),
       // (1.179.0, lot 4) Les états de la page : la lecture, le refus (on travaille sur un dossier en attendant), hors ligne
@@ -4605,8 +4605,8 @@
   // Un client sur une page : qui il est, ce qui l'attend (dans l'ordre où ça se fait), ses chiffres, la révision du dernier
   // mois, l'année en douze cases, et sa fiche (la mission, l'équipe, le client, le contact, ce qui est partagé, la note,
   // l'historique). Le travail lui-même se fait dans la barre, sous son nom : Écritures, Pièces du dossier, Banque,
-  // Déclarations. Le suivi détaillé d'avant reste à « #/dossier/<id>/suivi ».
-  const ficheFd = { id: '', livres: new Map(), lecture: new Map(), refus: new Map(), mois: '', menu: false };
+  // Déclarations. L'ancien suivi y est fondu (1.216.0).
+  const ficheFd = { id: '', livres: new Map(), lecture: new Map(), refus: new Map(), mois: '', menu: false, inviter: false };
   const FD_IC = {
     alerte: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>',
     boite: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>',
@@ -4820,6 +4820,15 @@
     const anneeP = `<section class="panel fd-p" aria-labelledby="fd-an"><div class="fd-ph"><h2 id="fd-an">L'année ${annee} ${info('fd.mois')}</h2><span class="fd-ph-n">${d.manual ? 'lue dans le livre que tu tiens' : 'lue dans ses livres sur SkanFact · la barre : le chiffre d\'affaires du mois'}</span></div>
       <div class="fd-ms">${cases}</div><div class="fd-leg">${legs}<span class="fd-leg-r">Date limite : le 28 du mois suivant (À VÉRIFIER)</span></div>${pop}</section>`;
 
+    // (1.216.0) Ce que montrait l'ancien « Suivi » : l'invitation du client tenu, les relances, qui travaille sur le dossier.
+    const relancesT = (d.relances || []).filter(r => r && r.at).slice().reverse();
+    const viaT = r => labelOf(K.RELANCE_WAYS, r.via) || r.via || 'notée';
+    const suiviP = `${d.manual && api.dessinerRejoindre ? `<section class="panel fd-p fd-rj" id="d-rejoindre" aria-label="Inviter ${esc(prenom || 'le client')} sur SkanFact"><span class="muted small">Lecture de l'invitation…</span></section>` : ''}
+      <section class="panel fd-p" id="fd-relances" aria-labelledby="fd-rl"><div class="fd-ph"><h2 id="fd-rl">Les relances ${info('r.history')}</h2><span class="fd-ph-n">${relancesT.length ? pl(relancesT.length, 'relance') : 'aucune'}</span></div>
+        ${relancesT.length ? `<div class="scroll-x"><table class="fd-t"><thead><tr><th>Date</th><th>Moyen</th><th>Mois réclamés</th><th>Note</th></tr></thead><tbody>${relancesT.map(r => `<tr><td class="nw">${esc(fmtWhen(r.at))} <small>${esc(ago(r.at))}</small></td><td class="nw">${esc(viaT(r))}</td><td>${esc(K.monthListLabel(r.months || []) || '—')}</td><td class="mu">${esc(r.note || '')}</td></tr>`).join('')}</tbody></table></div>`
+          : `<p class="fd-sv-n">Aucune relance pour ${esc(d.name)}. ${d.manual ? 'Tenu au cabinet : SkanFact ne lui réclame rien.' : 'Les relances parties de SkanFact s\'y rangent seules.'} Un appel ou un message passé ailleurs se note ici.</p>`}
+        ${d.archived ? '' : '<div class="fd-pa"><button type="button" class="btn btn-sm" id="note-rel">Noter une relance faite ailleurs…</button></div>'}</section>`;
+
     // La colonne de droite.
     const sec = (t, h) => `<section class="cd-fs fd-fs"><h3>${t}</h3>${h}</section>`;
     const kv = (a, b) => `<span class="cd-kv"><span>${a}</span><b>${b}</b></span>`;
@@ -4838,10 +4847,10 @@
       ${sec('L\'équipe', `<div class="cd-eq">${eqL.length ? eqL.map(([c, t, s]) => `<span>${persCd(c, 30)}<span><b>${esc(t)}</b><small>${s}</small></span></span>`).join('') : '<span class="muted small">Personne ne suit encore ce dossier.</span>'}${dir ? `<span class="cd-cf-w"><button type="button" class="btn btn-sm btn-ghost" data-cd-geste="confier" data-cd-d="${esc(d.id)}">${CD_IC.confier} Confier à…</button>${dosState.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</div>`)}
       ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', `${esc(labelOf(K.TVA_PERIODS, d.tvaPeriod) || 'mensuelle')} · déclarée le 28 (À VÉRIFIER)`)}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
       ${sec('Le contact', `<div class="cd-kvs">${kv('Nom', esc([d.contact, d.fonction].filter(Boolean).join(' · ') || '—'))}${kv('Téléphone', esc(d.phone || '—'))}${kv('E-mail', esc(d.email || '—'))}</div>`)}
-      ${d.manual ? sec('SkanFact', `<small class="cd-fs-n">Tenu au cabinet : tu saisis tout ici ; ${esc(prenom || 'le client')} n'a pas de compte.</small>${dir ? `<a class="btn btn-sm btn-ghost fd-inv" href="#/dossier/${encodeURIComponent(d.id)}/suivi">${CD_IC.inviter} Inviter ${esc(prenom || 'le client')} sur SkanFact…</a>` : ''}`)
+      ${d.manual ? sec('SkanFact', `<small class="cd-fs-n">Tenu au cabinet : tu saisis tout ici ; ${esc(prenom || 'le client')} n'a pas de compte.</small>${dir && api.dessinerRejoindre ? `<button type="button" class="btn btn-sm btn-ghost fd-inv" id="fd-inviter">${CD_IC.inviter} Inviter ${esc(prenom || 'le client')} sur SkanFact…</button>` : ''}`)
         : sec('Ce qui est partagé', `<span class="cd-pa">${[['comptabilite', 'Livres'], ['declarations', 'Déclarations'], ['saisie_achats', 'Saisie des achats'], ['paie', 'Paie']].map(([p, t]) => { const on = !d.perimetre || d.perimetre.includes(p); return `<span class="${on ? 'on' : ''}">${on ? CD_IC.ok : ''}${t}</span>`; }).join('')}</span><small class="cd-fs-n">${esc(prenom || 'Le client')} choisit ce que le cabinet tient, dans « Mon comptable ».</small>`)}
       ${sec('La note de l\'équipe', `${d.note ? `<p class="fd-note">${esc(d.note)}</p>` : '<small class="cd-fs-n">Aucune note.</small>'}${!d.archived && (dir || eq.ids.includes(S.moi)) ? `<button type="button" class="btn-lien" id="fd-note">${FD_IC.note} ${d.note ? 'Modifier la note…' : 'Écrire une note…'}</button>` : ''}<small class="cd-fs-n">Seule l'équipe du cabinet la lit ; ${d.manual ? 'le client' : esc(prenom || 'le client')} ne la voit jamais.</small>`)}
-      ${sec('L\'historique', `${hist.length ? `<ul class="cd-hi">${hist.map(([dt, t, s]) => `<li><time>${esc(jjmm(dt))}${String(dt).slice(0, 4) !== annee ? '/' + String(dt).slice(0, 4) : ''}</time><span><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</span></li>`).join('')}</ul>` : '<small class="cd-fs-n">Rien encore.</small>'}<div class="fd-hi-a"><a class="btn-lien" href="#/dossier/${encodeURIComponent(d.id)}/suivi">Tout le suivi</a>${d.archived ? '' : `<button type="button" class="btn-lien" data-cd-geste="noter" data-cd-d="${esc(d.id)}">Noter une relance faite ailleurs…</button>`}</div>`)}
+      ${sec('L\'historique', `${hist.length ? `<ul class="cd-hi">${hist.map(([dt, t, s]) => `<li><time>${esc(jjmm(dt))}${String(dt).slice(0, 4) !== annee ? '/' + String(dt).slice(0, 4) : ''}</time><span><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</span></li>`).join('')}</ul>` : '<small class="cd-fs-n">Rien encore.</small>'}<div class="fd-hi-a"><a class="btn-lien" href="#fd-relances" data-fd-aller="fd-relances">Toutes les relances</a>${d.archived ? '' : `<button type="button" class="btn-lien" data-cd-geste="noter" data-cd-d="${esc(d.id)}">Noter une relance faite ailleurs…</button>`}</div>`)}
     </aside>`;
 
     // L'en-tête.
@@ -4877,7 +4886,7 @@
         <div class="actions"><button type="button" class="btn" id="fd-export">${CD_IC.exporter} Exporter le dossier</button>${estAssocie() ? '<button type="button" class="btn btn-primary" data-cd-geste="archiver" data-cd-d="' + esc(d.id) + '">Désarchiver…</button>' : ''}</div></div>
         <div class="bandeau gris a-band fd-band"><span class="txt"><b>Un dossier archivé se lit, il ne bouge plus.</b><span>Ses livres, ses déclarations, ses pièces${d.manual ? '' : ' et la conversation'} restent ici. Il n'est plus dans le Tableau de bord ni les Échéances. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></span></div>
         <div class="fd-g"><div class="fd-col">${anneeP}</div>${cote}</div>`;
-    } else corps = `${tete}${bandHors}${debutAPreciser(d) ? `<div class="bandeau a-band fd-band fd-debut"><span class="txt"><b>Début de mission à préciser</b><span>À partir de quand tiens-tu ce dossier ? Rien ne lui est réclamé tant que ce n'est pas dit : une entreprise neuve ne doit rien d'avant, un client repris en cours d'année doit son année entière.</span></span><button type="button" class="btn btn-sm" id="fd-debut">Préciser…</button></div>` : ''}${chiffres}<div class="fd-g"><div class="fd-col">${blocAttend}${nouveau ? '' : attend.length ? revision + anneeP : anneeP + revision}</div>${cote}</div>`;
+    } else corps = `${tete}${bandHors}${debutAPreciser(d) ? `<div class="bandeau a-band fd-band fd-debut"><span class="txt"><b>Début de mission à préciser</b><span>À partir de quand tiens-tu ce dossier ? Rien ne lui est réclamé tant que ce n'est pas dit : une entreprise neuve ne doit rien d'avant, un client repris en cours d'année doit son année entière.</span></span><button type="button" class="btn btn-sm" id="fd-debut">Préciser…</button></div>` : ''}${chiffres}<div class="fd-g"><div class="fd-col">${blocAttend}${nouveau ? '' : attend.length ? revision + anneeP : anneeP + revision}${suiviP}</div>${cote}</div>`;
     view.innerHTML = `<div class="cab-page cd-page fd-page${tel ? ' fd-tel' : ''}" id="page-fd" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}">${ctx}${corps}</div>`;
 
     // ---------- les gestes ----------
@@ -4899,6 +4908,17 @@
     const fx = $('#fd-pop-x', view); if (fx) fx.onclick = () => { ficheFd.mois = ''; redessiner(); };
     $$('[data-fd-vers]', view).forEach(b => { b.onclick = () => { ficheFd.mois = ''; location.hash = b.dataset.fdVers; }; });
     const nt = $('#fd-note', view); if (nt) nt.onclick = () => fenNoteFd(d);
+    const nr = $('#note-rel', view); if (nr) nr.onclick = () => fenNoterRelance(d, [...tard, ...(etatMoisFd(d, mp, L, tard, mc)[0] === 'manque' ? [mp] : [])]);
+    brancherDroits(view, d);
+    const rj = $('#d-rejoindre', view);
+    const versInviter = () => { const z = $('#d-rejoindre'); if (!z) return; z.scrollIntoView({ block: 'center' }); const c = $('#rejoindre-email', z); if (c) c.focus(); };
+    if (rj) {
+      const fini = api.dessinerRejoindre(rj, d);
+      // La fiche se redessine quand son livre arrive : l'invitation garde la main jusque-là (sinon le curseur se perd).
+      if (ficheFd.inviter) { const dernier = !!(L || refus); if (dernier) ficheFd.inviter = false; Promise.resolve(fini).then(versInviter, versInviter); }
+    }
+    const fi = $('#fd-inviter', view); if (fi) fi.onclick = versInviter;
+    $$('[data-fd-aller]', view).forEach(a => { a.onclick = e => { e.preventDefault(); const z = $('#' + a.dataset.fdAller); if (z) z.scrollIntoView({ block: 'start', behavior: 'smooth' }); }; });
     const ex = $('#fd-export', view); if (ex) ex.onclick = async () => { try { const r = await api.exportCsv(toCsv(CSV_COLS, K.dossierList(S, null, { withArchived: true }).filter(r2 => r2.id === d.id)), 'dossier-' + d.name); if (r) toast('Tableau enregistré.'); } catch (x2) { toast(plainError(x2), 'error'); } };
     $$('[data-fd-m]', view).forEach(b => {
       b.onclick = async () => {
@@ -4907,7 +4927,6 @@
         if (g === 'confier') { dosState.confier = d.id; redessiner(); }
         if (g === 'noter') fenNoterRelance(d, [...tard, ...(etatMoisFd(d, mp, L, tard, mc)[0] === 'manque' ? [mp] : [])]);
         if (g === 'appeler') { try { await api.tel({ number: d.phone }); } catch (x2) { toast(plainError(x2), 'error'); } }
-        if (g === 'suivi') location.hash = `#/dossier/${encodeURIComponent(d.id)}/suivi`;
         if (g === 'exporter') location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite`;
         if (g === 'imprimer') window.print();
       };
@@ -4934,7 +4953,7 @@
     const it = (g, ic, l, h, cl = '') => `<button type="button" role="menuitem"${cl ? ` class="${cl}"` : ''} data-fd-m="${g}"><span class="rm-i">${ic}</span><span class="rm-t"><span class="rm-l">${l}</span><span class="rm-h">${h}</span></span></button>`;
     return `<div class="row-menu fd-menu" role="menu">${dir ? it('modifier', CD_IC.modifier, 'Modifier la fiche', 'l\'identité, le contact, la mission, les honoraires') : ''}${dir ? it('confier', CD_IC.confier, 'Confier à…', 'qui suit, qui valide') : ''}
       ${d.phone ? it('appeler', CD_IC.telephone, `Appeler ${esc(prenom || d.name)}`, esc(d.phone)) : ''}${it('noter', FD_IC.note, 'Noter une relance faite ailleurs…', 'un appel, une visite, un WhatsApp')}
-      <hr>${it('suivi', CD_IC.dossiers, 'Tout le suivi', 'les mois, les relances, les paquets, qui travaille dessus')}${it('exporter', CD_IC.exporter, 'Exporter ses livres', 'depuis sa comptabilité : FEC, journal, balance')}${it('imprimer', FD_IC.imprimer, 'Imprimer la fiche', 'une page, pour le classeur')}
+      <hr>${it('exporter', CD_IC.exporter, 'Exporter ses livres', 'depuis sa comptabilité : FEC, journal, balance')}${it('imprimer', FD_IC.imprimer, 'Imprimer la fiche', 'une page, pour le classeur')}
       ${dir ? `<hr>${it('archiver', CD_IC.archive, d.archived ? 'Désarchiver le dossier…' : 'Archiver le dossier…', d.archived ? 'il revient dans les listes' : 'il reste lisible ; il quitte les listes', 'danger')}` : '<p class="fd-menu-n">Confier et archiver : la direction.</p>'}</div>`;
   }
   // Un mois ouvert : sa frise, des pièces au paiement, et le geste qui le fait avancer.
@@ -6682,9 +6701,16 @@
 
   function drawDossier(view, id, ongletDemande, sousOnglet, anneeDemandee) {
     const dossier = (S.dossiers || []).find(d => d.id === decodeURIComponent(id || ''));
-    // (1.170.0) « #/dossier/<id> » seul : la fiche du dossier de la maquette ; le suivi détaillé reste à « …/suivi ».
+    // (1.170.0) « #/dossier/<id> » seul : la fiche du dossier de la maquette.
     if (!dossier) { introuvableFd(view); return; }
     if (dossier && !ongletDemande) { drawFicheFd(view, dossier); return; }
+    // (1.216.0) Skander, 01/11/2026, devant l'ancien « Suivi » : « c'est quoi cette page ? ». Plus aucun lien n'y mène : la
+    // fiche porte l'invitation du client tenu et les relances ; « …/fiche » (le lien « Inviter » de Messages) y descend à
+    // l'invitation.
+    if (dossier && ongletDemande === 'fiche') {
+      ficheFd.inviter = ongletDemande === 'fiche' && !!dossier.manual;
+      location.replace('#/dossier/' + encodeURIComponent(dossier.id)); return;
+    }
     // (1.171.0) « Tout le dossier › Le classeur » : chaque pièce, mois par mois, et ce qui manque.
     if (dossier && ongletDemande === 'classeur') {
       if (sousOnglet === 'export' && anneeDemandee) { location.replace(`#/dossier/${encodeURIComponent(dossier.id)}/classeur`); void ouvrirExportCl(dossier, decodeURIComponent(anneeDemandee)); return; }
@@ -12298,7 +12324,7 @@
     return `importé ${quand}${de}`;
   }
   // Un montant signé, comme sur le relevé : + en vert ce qui entre, − ce qui sort.
-  const montantSigne = m => `<span class="bq-mt${Number(m) >= 0 ? ' in' : ''}">${Number(m) >= 0 ? '+ ' : '− '}${esc(montant(Math.abs(Number(m) || 0)))}</span>`;
+  const montantSigne = m => `<span class="bq-mt${Number(m) >= 0 ? ' in' : ''}">${Number(m) >= 0 ? '+ ' : '− '}${esc(montant(Math.abs(Number(m) || 0)).replace(/[\u202f\u00a0]/g, ' '))}</span>`;
 
   // Le mois d'un relevé, comme on le nomme : « septembre 2026 », ou « 08/09 → 07/10 » s'il chevauche deux mois.
   const moisDuReleve = R => String(R.du || '').slice(0, 7) === String(R.au || '').slice(0, 7) && R.du
@@ -13556,6 +13582,38 @@
     banqueState.importer = true; banqueState.etat = ''; banqueState.regles = '';
     drawLivres(root, dossier);
   }
+  // (1.216.0) Ce que contient une colonne d'un relevé, deviné à son titre (« DATE OPER », « LIBELLE OPERATION », « MONTANT »…).
+  const sansAccentBq = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  function devinerColonnesBq(entetes) {
+    const g = {};
+    const regles = [['date', /\bdate\b|\bjour\b/], ['libelle', /libell|designation|operation|intitul|description|motif/], ['debit', /\bdebit\b|sortie/], ['credit', /\bcredit\b|entree/],
+      ['montant', /montant|amount|somme/], ['reference', /\bref|piece|numero|\bn[o°]\b/], ['solde', /solde|balance/]];
+    entetes.forEach((e, i) => { const t = sansAccentBq(e); const r = regles.find(([k, re]) => g[k] == null && re.test(t)); if (r) g[r[0]] = i; });
+    if (g.debit != null || g.credit != null) delete g.montant;
+    delete g.solde;
+    return g;
+  }
+  // Le choix des colonnes comme la maquette : un menu au-dessus de chaque colonne du fichier, son titre et ce que SkanFact
+  // y a compris dessous, les trois premières lignes, et ce qui a été compris en une phrase.
+  function colonnesReleveBq(lu, banque) {
+    const ent = lu.entetes || [], assoc = lu.assoc || {};
+    const ou = i => Object.keys(assoc).find(k => Number(assoc[k]) === i) || (/solde|balance/.test(sansAccentBq(ent[i])) ? 'solde' : '');
+    const CH = [['', 'Ignorée'], ['date', 'Date'], ['libelle', 'Libellé'], ['montant', 'Montant (−/+)'], ['debit', 'Débit'], ['credit', 'Crédit'], ['reference', 'Référence'], ['solde', 'Solde']];
+    const sous = { date: 'jj/mm/aaaa', montant: 'virgule, 3 décimales', solde: 'sert au contrôle', debit: 'sorties', credit: 'entrées' };
+    const rg = lu.rangees || [];
+    const t = rg.findIndex(r => r.map(x => String(x).trim()).join('|') === ent.map(x => String(x).trim()).join('|'));
+    const corps = rg.slice(t + 1).filter(r => r.some(x => String(x).trim()));
+    const reste = Math.max(0, (lu.nRangees || 0) - (t + 1) - 3);
+    const l = lu.lignes || [];
+    const compris = l.length && !lu.motif ? `<div class="bqc-ok">${svgBq(BQ_IC.ok, 14)}<span>Compris : ${pl(l.length, 'mouvement')} du ${esc(fmtJour(l[0].date).slice(0, 5))} au ${esc(fmtJour(l[l.length - 1].date).slice(0, 5))}${assoc.montant != null ? ' · <b>une seule colonne de montant</b>, le signe dit le sens' : ' · <b>un débit et un crédit</b>'}</span></div>` : '';
+    return `<div class="bqc" id="rv-colonnes"><div class="bqc-et"><span class="on">1</span><b>Dis ce que contient chaque colonne</b><i>·</i><span>2</span><span class="mu">Vérifier avant d'importer</span></div>
+      <div class="scroll-x"><table class="bqc-t"><thead><tr>${ent.map((e, i) => { const v = ou(i); return `<th><label class="bqc-sel${v ? '' : ' ig'}">${svgBq(BQ_IC.chev, 12)}<select data-col-i="${i}" aria-label="La colonne « ${esc(e || 'sans titre')} »">${CH.map(([k, n]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label><small class="mono">« ${esc(e || '—')} »</small>${sous[v] ? `<small class="bqc-s">${sous[v]}</small>` : ''}</th>`; }).join('')}</tr></thead>
+      <tbody>${corps.slice(0, 3).map(r => `<tr>${ent.map((_, i) => { const v = ou(i); return `<td class="${v === '' ? 'ig' : ''}${['montant', 'debit', 'credit', 'solde'].includes(v) ? ' r' : ''}${v === 'libelle' ? ' mono' : ''}">${esc(String(r[i] == null ? '' : r[i]))}</td>`; }).join('')}</tr>`).join('')}
+      ${reste ? `<tr><td colspan="${ent.length}" class="mu">… et ${pl(reste, 'autre ligne', 'autres lignes')}</td></tr>` : ''}</tbody></table></div>
+      ${compris}
+      <div class="cp-gestes"><button type="button" class="btn btn-primary" id="rv-relire">${banque ? 'Retenir ce modèle et continuer' : 'Lire avec ces colonnes'}</button></div>
+      <p class="mu bqc-n">${banque ? `Le modèle se retient pour ${esc(banque)}, dans tous les dossiers du cabinet : le prochain relevé s'importe sans cette étape.` : 'Nomme la banque au-dessus : ses colonnes seront retenues pour le prochain relevé.'}</p></div>`;
+  }
   function releveFormDans(page, root, dossier) {
     const s = livresState;
     const banques = (S.banques && typeof S.banques === 'object') ? S.banques : {};
@@ -13721,6 +13779,16 @@
         };
         const montrer = () => {
           if (!lu) return;
+          // (1.216.0, maquette « une banque nouvelle ») Les colonnes se devinent à leur titre ; le fichier se relit seul avec ce
+          // choix, et le choix reste sous les yeux pour être corrigé, puis retenu pour la banque.
+          if (lu.motif && lu.entetes && !lu.devine) {
+            const g = devinerColonnesBq(lu.entetes);
+            lu.devine = true;
+            if (g.date != null && g.libelle != null && (g.montant != null || g.debit != null || g.credit != null)) {
+              const avant = lu;
+              void api.lireReleve({ chemin: lu.fichier, assoc: g }).then(r => { if (lu === avant) { lu = { ...r, assoc: g, devine: true, modele: true }; montrer(); } }, () => {});
+            }
+          }
           const lignes = lu.lignes || [];
           proposerDebut(lignes);
           const somme = KC.round3(lignes.reduce((a, l) => a + l.montant, 0));
@@ -13733,18 +13801,14 @@
           apercu.innerHTML = `${lu.motif ? `<div class="warn-box mb">${esc(lu.motif)}</div>` : ''}
             ${deja ? `<div class="warn-box mb" id="rv-deja"><b>Ce fichier a déjà été importé</b> le ${esc(fmtJour(String(deja.importeLe || '').slice(0, 10)))} (${esc(fmtJour(deja.du))} → ${esc(fmtJour(deja.au))}).
               L'importer une seconde fois doublerait chacun de ses mouvements : les soldes n'ont pas besoin d'être saisis.</div>`
-            : lignes.length ? `<div class="ok-box mb">${pl(lignes.length, 'ligne lue', 'lignes lues')} · mouvements ${esc(money(somme))}${
+            : lignes.length && !(lu.entetes && lu.modele) ? `<div class="ok-box mb">${pl(lignes.length, 'ligne lue', 'lignes lues')} · mouvements ${esc(money(somme))}${
               lu.ignorees.length ? ` · ${pl(lu.ignorees.length, 'ligne ignorée', 'lignes ignorées')}` : ''}${
               lu.totaux ? ` · ${pl(lu.totaux, 'ligne de total écartée', 'lignes de total écartées')}` : ''}${
               lu.ligneTitres > 1 ? ` · titres trouvés ligne ${lu.ligneTitres}` : ''}</div>` : ''}
             ${lu.ignorees && lu.ignorees.length ? `<div class="small muted">${lu.ignorees.slice(0, 5).map(i => `Ligne ${i.ligne} : ${esc(i.motif)}`).join(' · ')}</div>` : ''}
-            ${lignes.length ? `<div class="scroll-x" style="max-height:200px"><table class="list compact"><thead><tr><th class="nw">Date</th><th>Libellé</th><th class="r nw">Montant</th></tr></thead>
+            ${lignes.length && !(lu.entetes && lu.modele) ? `<div class="scroll-x" style="max-height:200px"><table class="list compact"><thead><tr><th class="nw">Date</th><th>Libellé</th><th class="r nw">Montant</th></tr></thead>
               <tbody>${lignes.slice(0, 12).map(l => `<tr><td class="nw">${esc(fmtJour(l.date))}</td><td class="tronq" title="${esc(l.libelle)}">${esc(l.libelle)}</td><td class="r nw">${esc(money(l.montant))}</td></tr>`).join('')}</tbody></table></div>` : ''}
-            ${lu.motif && lu.entetes ? `<h3 class="sub-h">Associer les colonnes</h3>
-              <div class="grid-2">${['date', 'libelle', 'montant', 'debit', 'credit', 'reference'].map(champ =>
-                `<label class="field">${lbl(NOM_COLONNE_RELEVE[champ], 'bq.colonne')}
-                  <select data-col="${champ}"><option value="">—</option>${lu.entetes.map((e, i) => `<option value="${i}">${esc(e || ('Colonne ' + (i + 1)))}</option>`).join('')}</select></label>`).join('')}</div>
-              <div class="cp-gestes"><button type="button" class="btn btn-sm btn-primary" id="rv-relire">${v('banque') ? 'Retenir ce modèle et continuer' : 'Lire avec ces colonnes'}</button><span class="small muted">${v('banque') ? `les prochains relevés de ${esc(v('banque'))} se liront seuls` : 'nomme la banque pour que ses colonnes soient retenues'}</span></div>` : ''}`;
+            ${lu.entetes && (lu.motif || lu.modele) ? colonnesReleveBq(lu, v('banque')) : ''}`;
           // (1.209.0) « Avant d'importer » : ce qui est vérifié, ligne à ligne, avant que rien n'entre ; un mois qui manque
           // entre le dernier relevé et celui-ci se refuse en le nommant, avec ce qui débloque.
           const trou = lignes.length && !deja ? controlesImport(lignes) : [];
@@ -13754,10 +13818,10 @@
           const relire = $('#rv-relire', rootModal);
           if (relire) relire.onclick = async () => {
             const assoc = {};
-            $$('[data-col]', rootModal).forEach(sel2 => { if (sel2.value !== '') assoc[sel2.dataset.col] = Number(sel2.value); });
+            $$('[data-col-i]', rootModal).forEach(sel2 => { if (sel2.value && sel2.value !== 'solde') assoc[sel2.value] = Number(sel2.dataset.colI); });
             // (1.209.0, maquette « une banque nouvelle ») Le modèle se retient dès qu'on le valide, pour cette banque.
             if (v('banque')) { try { S = await api.saveBanque({ banques: { ...banques, [v('banque')]: assoc } }); banques[v('banque')] = assoc; } catch (e) { toast(plainError(e), 'error'); } }
-            lu = { ...await api.lireReleve({ chemin: lu.fichier, assoc }), assoc };
+            lu = { ...await api.lireReleve({ chemin: lu.fichier, assoc }), assoc, devine: true, modele: true };
             montrer();
           };
         };
@@ -14368,16 +14432,19 @@
     const tiers = nomTiersSx(e), l40 = ligne40Sx(e) || {};
     const ttc = ttcSx(e), tva = tvaSx(e);
     const egal = (a, b) => a != null && b != null && a === b;
-    const rang = (lab, a, b, ok) => `<tr><td class="mu">${lab}</td><td>${a == null ? '<span class="mu">à lire sur la pièce</span>' : esc(a)}</td><td>${esc(b)}</td><td class="ok">${ok ? CL_IC.ok : ''}</td></tr>`;
+    // (1.216.0) Une pièce pas encore lue n'a rien à dire : pas de colonne « à lire sur la pièce » répétée à chaque ligne.
+    const luQ = !!(lu && (lu.fournisseur || lu.date || lu.total));
+    const rang = (lab, a, b, ok) => `<tr><td class="mu">${lab}</td>${luQ ? `<td>${a == null ? '<span class="mu">—</span>' : esc(a)}</td>` : ''}<td>${esc(b)}</td><td class="ok">${ok ? CL_IC.ok : ''}</td></tr>`;
     const luTtc = lu && lu.total && (!lu.devise || lu.devise === 'TND') ? millimesSx(lu.total) : null;
     return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(lu && lu.fournisseur ? `${lu.fournisseur}${lu.numero ? ` · facture ${lu.numero}` : ''}` : fichierSx(x).nom)}</b><small>${esc(deQuiSx(dossier, x))}</small></div><span class="cl-st bleu">${fort ? 'déjà saisie' : 'déjà saisie ?'}</span></div>
       <div class="bandeau info sx-band">${SX_IC.lien}<span class="txt"><b>${fort ? 'Elle est déjà au livre' : 'Peut-être déjà au livre'} : ${esc(e.piece || 'un achat')}, sans justificatif</b><span>${esc(qui)} a saisi cet achat le ${esc(jjmm(e.date))} sans la pièce. ${esc(POURQUOI_CL[x.sx.i] || '')}. La saisir encore le compterait deux fois.</span></span></div>
-      <table class="sx-t sx-cmp"><thead><tr><th></th><th>La pièce dit</th><th>${esc(e.piece || 'L\'achat')} dit</th><th></th></tr></thead><tbody>
+      ${luQ ? '' : `<p class="sx-aide">La pièce n'est pas encore lue : compare-la à l'œil avec ce que dit ${esc(e.piece || 'l\'achat')}.</p>`}
+      <table class="sx-t sx-cmp"><thead><tr><th></th>${luQ ? '<th>La pièce dit</th>' : ''}<th>${esc(e.piece || 'L\'achat')} dit</th><th></th></tr></thead><tbody>
         ${rang('Fournisseur', lu && lu.fournisseur ? lu.fournisseur : null, `${tiers || '—'}${l40.compte ? ` · ${l40.compte}` : ''}`, lu && normSx(lu.fournisseur) === normSx(tiers))}
         ${rang('Date', lu && lu.date ? fmtJourCourt(lu.date) : null, fmtJourCourt(e.date), lu && lu.date === e.date)}
         ${rang('Total TTC', luTtc != null ? dtSx(luTtc) : null, dtSx(ttc), egal(luTtc, ttc))}
         ${rang('TVA', null, tva ? `${dtSx(tva)} · ${tvaCompteSx()}` : 'aucune', false)}
-        <tr><td class="mu">Justificatif</td><td>cette pièce</td><td class="ambre">aucun</td><td></td></tr></tbody></table>
+        <tr><td class="mu">Justificatif</td>${luQ ? '<td>cette pièce</td>' : ''}<td class="ambre">aucun</td><td></td></tr></tbody></table>
       <p class="sx-aide">La joindre complète ${esc(e.piece || 'l\'achat')}${tva ? ` : ses ${esc(dtSx(tva))} DT de TVA deviennent justifiés pour le contrôle` : ''}. ${e.statut === 'validee' ? `${esc(e.piece || 'L\'achat')} est validé : rien ne s'y modifie, la pièce s'y ajoute.` : 'Rien ne s\'y modifie : la pièce s\'y ajoute.'}</p>
       <div class="sx-gestes"><button type="button" class="btn btn-primary" id="sx-joindre">${SX_IC.lien} Joindre à ${esc(e.piece || 'cet achat')} <kbd>↵</kbd></button><button type="button" class="btn" id="sx-pas-meme">Ce n'est pas la même : la saisir</button></div>
       <p class="sx-touches">${SX_IC.clavier}<span><kbd>↵</kbd> joint et ouvre la pièce suivante · <kbd>Alt</kbd>+<kbd>→</kbd> la passe</span></p></div>`;
@@ -15175,8 +15242,8 @@
             journal VT » quand le seul brouillard est en BQ ouvrait une fenêtre pour dire qu'il n'y
             avait rien à faire — un bouton vif qui ne peut rien valider de ce qui est affiché. Le
             compte est connu avant le clic, donc il est écrit dessus. */''}
-      ${brouillards.length ? `${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ? (lots => mSx && aValiderMois.length
-          ? `<details class="sa-lot-plus" id="sa-lot-plus"><summary>Valider un autre lot (${(lots.match(/<button/g) || []).length})</summary><div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div></details>`
+      ${brouillards.length ? `${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ? (lots => (mSx && aValiderMois.length) || (!mSx && lotsBl.length > 3)
+          ? `<details class="sa-lot-plus" id="sa-lot-plus"><summary>${mSx ? 'Valider un autre lot' : 'Valider par lot'} (${(lots.match(/<button/g) || []).length})</summary><div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div></details>`
           : `<div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>`)(lotsBl.map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')) : ''}
         ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
     : a.length ? `<p class="muted small" id="sa-attend">${a.length} pièces sont datées après aujourd'hui : chacune se valide à partir de sa date.</p>` : '')(brouillards.filter(e => String(e.date || '') > K.today()))}
@@ -17882,8 +17949,9 @@
     if (liste.length < 2) return '';
     const droits = dossier.droits || {};
     const confies = liste.filter(c => droits[c.id]);
-    return `<div class="panel" id="d-droits"><h2>Qui travaille sur ce dossier ${info('eq.droits')}</h2>
-      <div class="scroll-x"><table class="list compact"><thead><tr>
+    // (1.216.0) Une section de la fiche du dossier (l'ancien « Suivi » y est fondu).
+    return `<section class="panel fd-p" id="d-droits" aria-labelledby="fd-dr"><div class="fd-ph"><h2 id="fd-dr">Qui travaille sur ce dossier ${info('eq.droits')}</h2><span class="fd-ph-n">${confies.length ? `confié à ${pl(confies.length, 'personne')}` : 'confié à personne'}</span></div>
+      <div class="scroll-x"><table class="fd-t"><thead><tr>
         <th>Collaborateur</th><th>Rôle général</th><th>Sur ce dossier</th></tr></thead>
       <tbody>${liste.map(c => `<tr>
         <td>${esc(c.nom)}${c.id === S.moi ? ' <span class="badge">toi</span>' : ''}</td>
@@ -17894,13 +17962,13 @@
         </select></td></tr>`).join('')}</tbody></table></div>
       ${/* « Confié » et « autorisé » ne sont pas la même question, et les confondre ferait mentir
             le « À faire » de chacun. On le DIT plutôt que de le laisser deviner. */''}
-      <p class="muted small mt">${confies.length
+      <p class="fd-sv-n">${confies.length
     ? `Ce dossier est confié à <b>${confies.map(c => esc(c.nom)).join(', ')}</b> : il apparaît dans ${confies.length > 1 ? 'leurs' : 'son'} « À faire ».`
     : 'Ce dossier n\'est confié à personne : seuls les associés y travaillent.'}</p>
       ${/* 10.14.1 (U-11) — au repos, rien à enregistrer : le vert de la page est « Relancer ». Le
             bouton s'allume au premier choix changé (`data-enreg` + `sale`, comme les Réglages). */''}
-      <div class="modal-actions"><span class="saved" id="dr-saved" hidden></span>
-        <button class="btn" id="dr-save" data-enreg>Enregistrer les droits</button></div></div>`;
+      <div class="fd-pa"><span class="saved" id="dr-saved" hidden></span>
+        <button type="button" class="btn btn-sm" id="dr-save" data-enreg>Enregistrer les droits</button></div></section>`;
   }
 
   function brancherDroits(view, dossier) {

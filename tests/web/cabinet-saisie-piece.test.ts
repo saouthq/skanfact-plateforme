@@ -247,7 +247,9 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     // La photo STEG : FA-0919 l'attend (sans justificatif) ; « Joindre à FA-0919 ».
     await puce(p, 'STEG').click();
     await expect.poll(() => fiche(p).innerText().then(net)).toMatch(/Peut-être déjà au livre : FA-0919, sans justificatif/);
-    expect(net(await p.locator('.sx-cmp').innerText())).toMatch(/Total TTC à lire sur la pièce 186,419/);
+    // (1.216.0) La photo n'est pas lue : pas de colonne « à lire sur la pièce » répétée, la fiche le dit une fois.
+    expect(net(await p.locator('.sx-cmp').innerText())).toMatch(/Total TTC 186,419/);
+    expect(net(await fiche(p).innerText())).toContain('La pièce n\'est pas encore lue');
     await p.locator('#sx-joindre').click();
     const fa0919 = ecritures.find((e) => e.piece === 'FA-0919');
     await expect.poll(async () => (await raison(steg)).j, { timeout: 10_000 }).toBe(fa0919?.id);

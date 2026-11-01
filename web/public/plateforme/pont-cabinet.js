@@ -1683,7 +1683,9 @@
         cle = `${++lectureSuivante}/${f.name}`;
         lecturesReleve.set(cle, lu);
       }
-      return { ...KC.releveDepuisCsv(KC.rangeesDeTexte(lu.texte), (o && o.assoc) || null), fichier: cle, empreinte: lu.empreinte };
+      const rangees = KC.rangeesDeTexte(lu.texte);
+      // (1.216.0) Les premières rangées brutes : l'écran montre le fichier sous le choix de ses colonnes (la maquette).
+      return { ...KC.releveDepuisCsv(rangees, (o && o.assoc) || null), fichier: cle, empreinte: lu.empreinte, rangees: rangees.slice(0, 40), nRangees: rangees.length };
     },
     ajouterReleve: async (/** @type {any} */ o) => {
       const r = o.releve || {};
