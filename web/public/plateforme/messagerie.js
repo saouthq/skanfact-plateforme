@@ -471,7 +471,9 @@
     let demande = !!o.demander && !entreprise;
     // (1.184.0) Un message préparé ailleurs (« Relancer », « Écrire » d'un dossier, d'une échéance) : il se pose UNE fois
     // dans la zone d'écriture, on le relit et on l'envoie d'ici ; son envoi prévient qui l'a préparé (la relance se note).
-    let prepare = !entreprise && o.prepare ? o.prepare : null;
+    // (plateforme) 1.227.0 — côté entreprise, seulement un texte prêt (« Demander une correction » d'un bulletin) : le client
+    // le relit, le change ou l'efface avant d'envoyer ; rien ne part sans son clic.
+    let prepare = o.prepare ? (entreprise ? (o.prepare.texte ? { texte: o.prepare.texte } : null) : o.prepare) : null;
     /** @type {(() => void) | null} */ let apresEnvoiPrepare = null;
     /** @type {Map<string, string>} */ const reponses = new Map();
     // (1.191.0) Le fichier joint à la réponse d'une question (côté entreprise), et la question qu'on vient répondre : ouverte

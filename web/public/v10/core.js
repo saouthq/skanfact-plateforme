@@ -4097,7 +4097,7 @@
   // (plateforme) 1.222.0 — l'état d'un mois de paie, pour sa frise et ses trois chiffres (docs/paie.md, « La paie appliquée »).
   // Chaque étape se DÉDUIT des faits (bulletins établis, payés, remis ; CNSS du trimestre déposée) : rien n'est écrit d'avance.
   const MOIS_PAIE = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  function paieDuMois(data, year, month) {
+  function paieDuMois(data, year, month, opts) {
     const y = Number(year), m = Number(month), cur = (data.company || {}).currency || 'TND';
     const L = payslipsOf(data, y, m), manque = missingPayslips(data, y, m), n = L.length + manque.length;
     const payes = L.filter(x => x.paidDate), remis = L.filter(x => x.remisLe);
@@ -4116,6 +4116,7 @@
     const etapes = [
       { titre: 'Pointer', fait: L.length > 0, dit: pointe ? 'le mois est pointé' : 'facultatif : absences et heures sup' },
       { titre: 'Bulletins', fait: n > 0 && !manque.length, dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établis` : `${n} établi${n > 1 ? 's' : ''}` },
+      ...(opts && opts.bap ? [{ titre: 'Bon à payer', fait: L.length > 0 && !manque.length && L.every(x => x.bonAPayerLe || x.paidDate), dit: !L.length ? 'tu approuves avant de payer' : L.every(x => x.bonAPayerLe || x.paidDate) ? (L.some(x => x.bonAPayerLe) ? `approuvés le ${fmtDate(L.filter(x => x.bonAPayerLe).map(x => x.bonAPayerLe).sort().pop())}` : 'approuvés') : `${L.filter(x => !x.bonAPayerLe && !x.paidDate).length} à approuver` }] : []),
       { titre: 'Payer', fait: tousPayes, dit: !L.length ? 'après les bulletins' : tousPayes ? (jours.length === 1 ? `payés le ${fmtDate(jours[0])}` : 'tous payés') : `${L.length - payes.length} à payer · ${money(round3(L.filter(x => !x.paidDate).reduce((a, x) => a + x.c.net, 0)), cur)}` },
       { titre: 'Remettre', fait: tousRemis, dit: !L.length ? 'un bulletin à chaque salarié' : tousRemis ? 'chacun a son bulletin' : `${L.length - remis.length} à remettre` },
       { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée` : `la retenue avec la déclaration de ${MOIS_PAIE[m - 1]} · la CNSS au trimestre` }

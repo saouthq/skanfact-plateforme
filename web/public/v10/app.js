@@ -2248,6 +2248,8 @@
   let rangementDuMessage = null;
   // (1.155.13) La pièce dont on veut parler à son cabinet (« Écrire au cabinet sur cette pièce », depuis un achat).
   let pieceDuMessage = null;
+  // (plateforme) 1.227.0 — un texte prêt pour la conversation (« Demander une correction » d'un bulletin) : relu avant d'envoyer.
+  let texteDuMessage = null;
   // (1.191.0) La question du cabinet qu'on vient répondre (« Répondre » d'une pièce, de l'onglet du cabinet) : la
   // conversation s'ouvre sur elle.
   let questionDuMessage = null;
@@ -17677,6 +17679,8 @@
           if (closedBlock(C.payslipDate(p), 'Ce bulletin')) return;
           if (!slip && licenceBlock('Établir un nouveau bulletin', 'paie')) return;
           Object.assign(p, v, i, { gross: i.gross, computed: C.computePayslip(emp, i, s), issuedAt: p.issuedAt || C.today() });
+          // (plateforme) 1.227.0 — un bulletin changé après ton bon à payer se réapprouve : l'accord portait sur l'ancien.
+          if (slip && p.bonAPayerLe) delete p.bonAPayerLe;
           // Un brut retouché à la main n'est plus « proratisé » : le bulletin ne doit pas le prétendre.
           if (p.prorata && C.round3(i.gross) !== C.round3(p.prorata.brut)) p.prorata = null;
           if (!slip) data.payslips.push(p);
@@ -18195,7 +18199,10 @@
       else if (s.tab === 'bulletins') {
         const miss = C.missingPayslips(data, y, m), mo = C.payslipsOf(data, y, m);
         const aPayer = mo.filter(x => !x.paidDate), aRemettre = mo.filter(x => x.paidDate && !x.remisLe);
-        prin = miss.length ? `<button class="btn btn-primary" id="p-gen">${lfIc('croix', 15, 2.4)} ${miss.length > 1 ? `Établir les ${miss.length} bulletins` : 'Établir le bulletin'}</button>`
+        const corr = mo.find(x => correctionEnAttente(x)), aApprouver = bapDuMois(y, m) ? mo.filter(x => !x.paidDate && !x.bonAPayerLe) : [];
+        prin = !miss.length && corr ? `<button class="btn btn-primary" id="p-corr-ok">${lfIc('coche', 15, 2.4)} Accepter la correction${corr.correction.par ? ` de ${h(corr.correction.par)}` : ''}</button>`
+          : !miss.length && aApprouver.length ? `<button class="btn btn-primary" id="p-bap">${lfIc('coche', 15, 2.4)} ${aApprouver.length > 1 ? `J'approuve les ${aApprouver.length} bulletins` : 'J\u2019approuve le bulletin'}</button>`
+          : miss.length ? `<button class="btn btn-primary" id="p-gen">${lfIc('croix', 15, 2.4)} ${miss.length > 1 ? `Établir les ${miss.length} bulletins` : 'Établir le bulletin'}</button>`
           : aPayer.length ? `<button class="btn btn-primary" id="p-payer">${lfIc('carte', 15)} Payer les salaires · ${C.money(C.round3(aPayer.reduce((a, x) => a + x.c.net, 0)), cur)}</button>`
             : aRemettre.length ? `<button class="btn btn-primary" id="p-remettre">${lfIc('envoi', 15)} ${aRemettre.length > 1 ? `Remettre les ${aRemettre.length} bulletins` : 'Remettre le bulletin'}</button>` : '';
       } else if (P_ACTION[s.tab]) prin = `<button class="btn btn-primary" id="${P_ACTION[s.tab][0]}">${lfIc('croix', 15, 2.4)} ${P_ACTION[s.tab][1]}</button>`;
@@ -18210,6 +18217,10 @@
     const PAIE_MODES = [['tenue', 'Mon cabinet la tient', 'tu pointes et tu paies ; ton comptable prépare, tu approuves, il valide et déclare'],
       ['seule', 'Je la fais, mon cabinet la vérifie', 'tu prépares les bulletins ; ton comptable les vérifie et propose ses corrections, que tu acceptes'],
       ['sans', 'Je la fais seul, sans cabinet', 'SkanFact contrôle tes bulletins ; tu déclares toi-même (déclaration du mois, fichier CNSS)']];
+    // (plateforme) 1.227.0 — le mode qui vaut pour UN mois : le choix compte à partir de `paieModeDes`, avant c'est l'ancien.
+    // Le bon à payer n'existe que si l'entreprise a dit que son cabinet tient la paie (un choix écrit, jamais déduit).
+    const modeDuMois = (y, m) => { const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || ''); };
+    const bapDuMois = (y, m) => modeDuMois(y, m) === 'tenue';
     const paieMode = () => { const co = company(); return co.paieMode && PAIE_MODES.some(x => x[0] === co.paieMode) ? co.paieMode : (co.cabinet && co.cabinet.publicKey ? 'tenue' : 'sans'); };
     function quiFaitLaPaie() {
       const avant = paieMode();
@@ -18221,10 +18232,10 @@
         $('#qf-ok', root).onclick = () => {
           const m = formValues($('#qf', root)).mode;
           if (!m || m === avant) { fermer(); return; }
-          const co = company(), prec = { paieMode: co.paieMode, paieModeDes: co.paieModeDes };
-          co.paieMode = m; co.paieModeDes = des;
+          const co = company(), prec = { paieMode: co.paieMode, paieModeDes: co.paieModeDes, paieModeAvant: co.paieModeAvant };
+          co.paieModeAvant = co.paieMode || ''; co.paieMode = m; co.paieModeDes = des;
           save(true); fermer(); draw();
-          toastUndo(`À partir de ${MONTHS_LONG[Number(des.slice(5, 7)) - 1]} : ${(PAIE_MODES.find(x => x[0] === m) || [])[1]}`, () => { Object.assign(co, prec); if (!prec.paieMode) delete co.paieMode; if (!prec.paieModeDes) delete co.paieModeDes; save(true); draw(); });
+          toastUndo(`À partir de ${MONTHS_LONG[Number(des.slice(5, 7)) - 1]} : ${(PAIE_MODES.find(x => x[0] === m) || [])[1]}`, () => { Object.assign(co, prec); ['paieMode', 'paieModeDes', 'paieModeAvant'].forEach(k => { if (prec[k] == null) delete co[k]; }); save(true); draw(); });
         };
       });
     }
@@ -18247,6 +18258,91 @@
     // (plateforme) 1.222.0 — « Le mois », tel que la maquette : la frise du mois (pointer, établir, payer, remettre,
     // déclarer), « À traiter » (ce qui attend un geste), trois chiffres (le net à verser, le coût, l'État) et les bulletins,
     // ceux qui changent d'abord. Les chiffres de l'ANNÉE vivent dans « L'année ».
+    // (plateforme) 1.227.0 — le bon à payer et la correction proposée par le cabinet (la maquette, lot 6).
+    // Une correction vit sur le bulletin (`correction` : qui la propose, quand, pourquoi, les lignes avant/après, les champs
+    // qu'elle change) ; elle ne s'applique que si l'entreprise l'accepte, et la trace reste écrite (qui, quand, la réponse).
+    const correctionEnAttente = x => !!(x && x.correction && !x.correction.reponse && !x.paidDate);
+    function bandeauxDuMois(month, y, m, bap) {
+      const corr = month.find(x => correctionEnAttente(x));
+      const mo = MONTHS_LONG[m - 1];
+      if (corr) {
+        const c = corr.correction, net0 = corr.c.net, lignes = Array.isArray(c.lignes) ? c.lignes : [];
+        return `<div class="pa-bandeau pa-rouge" id="p-corr" role="status">${lfIc('comptable', 18)}<span><b>${h(c.par || 'Ton comptable')} propose une correction${c.titre ? ` : ${h(c.titre)}` : ` du bulletin de ${h(corr.employeeName)}`}</b><span>${c.le ? `Le ${h(C.fmtDate(String(c.le).slice(0, 10)))}` : 'Proposée'}${c.motif ? ` : « ${h(c.motif)} »` : ''} Elle ne s'applique que si tu l'acceptes ; les autres bulletins ne bougent pas.</span></span><button type="button" class="btn" id="p-corr-non">Refuser, je m'en occupe</button></div>
+          <section class="pa-carte" id="p-corr-detail"><div class="pa-carte-t"><b>La correction proposée · bulletin de ${h(corr.employeeName)}</b><span class="mu">avant, après</span></div>
+          <div class="scroll-x"><table class="list compact"><thead><tr><th>Ligne</th><th class="r">Ton bulletin</th><th class="r">Corrigé</th></tr></thead><tbody>
+          ${lignes.map(l => `<tr><td>${h(l.libelle || '')}</td><td class="r nw">${h(l.avant == null ? '—' : typeof l.avant === 'number' ? C.money(l.avant, cur) : l.avant)}</td><td class="r nw"><b>${h(l.apres == null ? '—' : typeof l.apres === 'number' ? C.money(l.apres, cur) : l.apres)}</b></td></tr>`).join('')}
+          ${c.net != null ? `<tr><td>Net à verser</td><td class="r nw">${C.money(net0, cur)}</td><td class="r nw"><b>${C.money(Number(c.net), cur)}</b></td></tr>` : ''}
+          </tbody></table></div><p class="small muted">Acceptée, la correction garde la trace de qui l'a proposée et de qui l'a acceptée, sur le bulletin.</p></section>`;
+      }
+      const acc = month.filter(x => x.correction && x.correction.reponse === 'acceptee').sort((a, b) => String(b.correction.reponduLe || '').localeCompare(String(a.correction.reponduLe || '')))[0];
+      const aApprouver = bap ? month.filter(x => !x.paidDate && !x.bonAPayerLe) : [];
+      const demander = peutEcrireAuCabinet() ? '<button type="button" class="btn" id="p-dem-corr">Demander une correction…</button>' : '';
+      if (aApprouver.length && !C.missingPayslips(data, y, m).length) return `<div class="pa-bandeau" id="p-bap-b" role="status">${lfIc('comptable', 18)}<span><b>${aApprouver.length > 1 ? `Tes ${aApprouver.length} bulletins de ${h(mo)} sont prêts : approuve-les avant de payer` : `Le bulletin de ${h(aApprouver[0].employeeName)} est prêt : approuve-le avant de payer`}</b><span>C'est ton « bon à payer » : tu regardes ce que chacun touchera et ce que la paie te coûte. Un bulletin changé après ton accord se réapprouve.${demander ? ' Un doute : demande une correction à ton comptable, il te répond dans votre conversation.' : ''}</span></span>${demander}</div>`;
+      if (acc) return `<div class="pa-bandeau" id="p-corr-acc" role="status">${lfIc('coche', 18)}<span><b>Correction acceptée : le bulletin de ${h(acc.employeeName)}</b><span>Proposée par ${h(acc.correction.par || 'ton comptable')}${acc.correction.le ? ` le ${h(C.fmtDate(String(acc.correction.le).slice(0, 10)))}` : ''}, acceptée par toi le ${h(C.fmtDate(String(acc.correction.reponduLe || C.today()).slice(0, 10)))} ; le bulletin le garde écrit.</span></span><button type="button" class="btn" id="p-corr-voir">Voir le bulletin</button></div>`;
+      return '';
+    }
+    function lierBandeauxDuMois(month, y, m) {
+      const corr = month.find(x => correctionEnAttente(x));
+      if ($('#p-corr-non') && corr) $('#p-corr-non').onclick = () => refuserCorrection(corr);
+      if ($('#p-dem-corr')) $('#p-dem-corr').onclick = () => demanderCorrection(month, y, m);
+      const acc = $('#p-corr-voir') && month.find(x => x.correction && x.correction.reponse === 'acceptee');
+      if (acc) $('#p-corr-voir').onclick = () => apercuBulletin(acc);
+    }
+    function approuverBulletins(y, m) {
+      const L = C.payslipsOf(data, y, m).filter(x => !x.paidDate && !x.bonAPayerLe);
+      if (!L.length) return;
+      if (enLecture('payslips')) { toast(refusLecture('payslips'), true); return; }
+      const jour = C.today(), ids = L.map(x => x.id);
+      ids.forEach(id => { const p = payslipById(id); if (p) p.bonAPayerLe = jour; });
+      save(true); draw();
+      toastUndo(`${L.length > 1 ? `${L.length} bulletins approuvés` : 'Bulletin approuvé'} : tu peux payer · ${C.money(C.round3(L.reduce((a, x) => a + x.c.net, 0)), cur)}`, () => { ids.forEach(id => { const p = payslipById(id); if (p) delete p.bonAPayerLe; }); save(true); draw(); });
+    }
+    function accepterCorrection(x) {
+      const p = payslipById(x.id), emp = employeeById(x.employeeId);
+      if (!p || !emp || !correctionEnAttente(p)) return;
+      if (closedBlock(C.payslipDate(p), 'Ce bulletin')) return;
+      if (enLecture('payslips')) { toast(refusLecture('payslips'), true); return; }
+      const st = C.payrollSettings(data), champs = p.correction.champs && typeof p.correction.champs === 'object' ? p.correction.champs : {};
+      const avant = JSON.parse(JSON.stringify(p));
+      const input = { gross: p.gross, workedDays: p.workedDays, absentDays: p.absentDays, bonuses: p.bonuses || [], deductions: p.deductions || [], ...champs };
+      const juge = C.saisiePaieValide(input, emp, st);
+      if (!juge.ok) { toast(`La correction ne s'applique pas : ${juge.motif}`, true); return; }
+      Object.assign(p, champs, { computed: C.computePayslip(emp, input, st) });
+      p.correction = { ...p.correction, reponse: 'acceptee', reponduLe: new Date().toISOString() };
+      if (p.bonAPayerLe) delete p.bonAPayerLe;
+      save(true); draw();
+      toastUndo(`Correction acceptée : le bulletin de ${emp.name} passe à ${C.money(p.computed.net, cur)} net`, () => { const q = payslipById(x.id); if (q) { Object.keys(q).forEach(k => { delete q[k]; }); Object.assign(q, avant); save(true); draw(); } });
+    }
+    function refuserCorrection(x) {
+      modal(`<h2>Refuser la correction</h2><p class="small muted">Le bulletin de ${h(x.employeeName)} reste le tien ; ton comptable le saura.</p>
+        <form id="rc"><label class="field">${lbl('Ta raison', 'pay.raisonRefus')}<textarea name="raison" rows="3" maxlength="500" placeholder="Par exemple : je lui ai déjà retenu l'avance en espèces."></textarea></label></form>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="rc-ok">Refuser la correction</button></div>`, (root, fermer) => {
+        $('#rc-ok', root).onclick = () => {
+          const p = payslipById(x.id); if (!p || !correctionEnAttente(p)) { fermer(); return; }
+          if (enLecture('payslips')) { toast(refusLecture('payslips'), true); return; }
+          const raison = String(formValues($('#rc', root)).raison || '').trim().slice(0, 500);
+          const avant = { ...p.correction };
+          p.correction = { ...p.correction, reponse: 'refusee', reponduLe: new Date().toISOString(), ...(raison ? { raison } : {}) };
+          save(true); fermer(); draw();
+          toastUndo(`Correction refusée : le bulletin de ${x.employeeName} reste le tien${raison ? ', ta raison reste écrite' : ''}`, () => { const q = payslipById(x.id); if (q) { q.correction = avant; save(true); draw(); } });
+        };
+      });
+    }
+    function demanderCorrection(month, y, m) {
+      if (!month.length) return;
+      modal(`<h2>Demander une correction à ton comptable</h2><p class="small muted">ta demande part dans votre conversation : tu la relis avant de l'envoyer</p>
+        <form id="dco"><label class="field">${lbl('Le bulletin', 'pay.bulletin')}<select name="bul">${month.map(x => `<option value="${h(x.id)}">${h(x.employeeName)} · net ${h(C.money(x.c.net, cur))}</option>`).join('')}</select></label>
+        <label class="field obligatoire">${lbl('Ce qui ne va pas', 'pay.correction')}<textarea name="texte" rows="4" maxlength="800" placeholder="Par exemple : il manque la prime de rendement de ce mois."></textarea></label></form>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="dco-ok">${lfIc('message', 15)} Écrire à mon comptable</button></div>`, (root, fermer) => {
+        $('#dco-ok', root).onclick = () => {
+          const v = formValues($('#dco', root)), x = month.find(b => b.id === v.bul) || month[0];
+          const texte = String(v.texte || '').trim();
+          if (!texte) { const z = $('textarea[name=texte]', root); z.focus(); toast('Écris ce qui ne va pas : c’est ce que ton comptable lira.', true); return; }
+          texteDuMessage = `Bulletin de ${x.employeeName}, ${MONTHS_LONG[m - 1]} ${y} (net ${C.money(x.c.net, cur)}) : ${texte}`;
+          fermer(); navigate('#/comptable');
+        };
+      });
+    }
     function drawSlips() {
       const y = Number(s.year), m = Number(s.month);
       const month = C.payslipsOf(data, y, m);
@@ -18255,7 +18351,8 @@
       const ailleurs = !month.length && !missing.length && (mp.year !== y || mp.month !== m)
         && (C.missingPayslips(data, mp.year, mp.month).length || C.payslipsOf(data, mp.year, mp.month).length) ? mp : null;
       const vieuxTaux = C.tauxAvant2026(data);
-      const r = C.paieDuMois(data, y, m);
+      const bap = bapDuMois(y, m);
+      const r = C.paieDuMois(data, y, m, { bap });
       const frise = `<ol class="pa-frise" id="p-frise" aria-label="Où en est ${h(MONTHS_LONG[m - 1])}">${r.etapes.map((e, i) =>
         `<li class="${e.etat}"><span class="pt">${e.etat === 'fait' ? lfIc('coche', 13, 3) : i + 1}</span><b>${h(e.titre)}</b><span>${h(e.dit)}</span></li>`).join('')}</ol>`;
       const traiter = C.paieATraiter(data, C.today());
@@ -18264,7 +18361,7 @@
       const tuile = (lbl, val, sub, aide) => `<div class="pa-tuile"><span class="t">${lbl} ${info(aide)}</span><b class="m">${C.money(val, cur)}</b><span class="s">${sub}</span></div>`;
       const tuiles = month.length ? `<div class="pa-tuiles" id="p-chiffres">${tuile(month.every(x => x.paidDate) ? 'Net versé' : 'Net à verser', r.net, r.netDit, 'pay.netVerse')}${tuile('Coût de la paie', r.cout, h(r.coutDit), 'pay.employerCost')}${tuile('Impôts et CNSS à verser', r.etat, h(r.etatDit), 'pay.impot')}</div>` : '';
       // Un statut que tous les bulletins partagent se dit une fois, en bas ; « Comment » s'appelle « Payé par ».
-      const statut = x => x.paidDate ? (x.remisLe ? `<span class="statut ok">payé, remis</span>` : `<span class="statut ok">payé le ${C.fmtDate(x.paidDate)}</span>`) : '<span class="statut bleu">à payer</span>';
+      const statut = x => correctionEnAttente(x) ? '<span class="statut alerte">correction proposée</span>' : bap && !x.paidDate && !x.bonAPayerLe ? '<span class="statut attire">à approuver</span>' : x.paidDate ? (x.remisLe ? `<span class="statut ok">payé, remis</span>` : `<span class="statut ok">payé le ${C.fmtDate(x.paidDate)}</span>`) : '<span class="statut bleu">à payer</span>';
       const uni = month.every(x => statut(x) === statut(month[0]));
       const paye = x => x.method === 'especes' ? '<span class="ambre">espèces</span><small>contre reçu</small>' : `virement${x.employee.iban ? `<small>··· ${h(String(x.employee.iban).slice(-4))}</small>` : '<small class="ambre">RIB à demander</small>'}`;
       const ecart = x => { const a = r.avant[x.employeeId]; return a == null ? '<small>1er bulletin</small>' : Math.abs(x.c.net - a) < 0.0005 ? `<small>= ${h(MONTHS_LONG[r.moisAvant - 1])}</small>` : `<small>${x.c.net > a ? '+' : '−'} ${C.money(Math.abs(C.round3(x.c.net - a)), cur)}</small>`; };
@@ -18275,7 +18372,7 @@
       const nc = uni ? 6 : 7;
       $('#p-body').innerHTML = `
         ${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026"><span>Tes barèmes gardent des taux d'avant 2026 (${vieuxTaux.map(x => `${h(x.libelle)} ${pct(x.garde)} %`).join(', ')}) : les bulletins que tu établis les appliquent.</span> <button type="button" class="btn btn-sm" id="p-2026-voir">Voir les réglages</button></div>` : ''}
-        ${frise}${aTraiter}${tuiles}
+        ${frise}${bandeauxDuMois(month, y, m, bap)}${aTraiter}${tuiles}
         <section class="pa-carte pa-tab" id="p-bulletins">${month.length ? `<div class="pa-carte-t"><b>Les bulletins de ${h(MONTHS_LONG[m - 1])}</b><span class="mu">${missing.length ? `${pl(missing.length, 'bulletin')} encore à établir` : 'tous établis'}</span><button type="button" class="btn btn-sm" id="p-journal">${lfIc('oeil', 14)} Journal de paie</button></div>
           <div class="scroll-x"><table class="list compact pa-liste"><thead><tr><th>Salarié</th><th class="r">Brut</th><th class="r">Retenues ${info('pay.impot')}</th><th class="r">Net à verser</th><th>Payé par</th>${uni ? '' : '<th>Statut</th>'}<th class="row-actions-h"></th></tr></thead><tbody>
             ${change.length ? `<tr class="pa-groupe"><td colspan="${nc}"><b>Ce qui change ce mois</b> · <span>${pl(change.length, 'salarié')}</span></td></tr>${change.map(lig).join('')}` : ''}
@@ -18297,6 +18394,7 @@
       if ($('#p-2026-voir')) $('#p-2026-voir').onclick = () => { const t = $('#p-tabs button[data-tab="baremes"]'); if (t) t.click(); };
       if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp2 = C.moisDePaie(data); s.year = String(mp2.year); s.month = String(mp2.month); s.moisTouche = true; draw(); };
       if ($('#p-journal')) $('#p-journal').onclick = () => journalDePaieFenetre(y, m);
+      lierBandeauxDuMois(month, y, m);
       // « À traiter » : chaque ligne mène à son geste (la fiche sur la bonne case, ou la vue).
       $$('#p-body [data-traiter]').forEach(b => b.onclick = () => {
         const x = traiter[Number(b.dataset.traiter)]; if (!x) return;
@@ -19334,6 +19432,8 @@
       $('#p-year').onchange = e => { s.year = e.target.value; s.moisTouche = true; draw(); };
       if ($('#p-month')) $('#p-month').onchange = e => { s.month = e.target.value; s.moisTouche = true; draw(); };
       if ($('#p-gen')) $('#p-gen').onclick = () => etablirBulletins();
+      if ($('#p-bap')) $('#p-bap').onclick = () => approuverBulletins(Number(s.year), Number(s.month));
+      if ($('#p-corr-ok')) $('#p-corr-ok').onclick = () => { const x = C.payslipsOf(data, Number(s.year), Number(s.month)).find(b => correctionEnAttente(b)); if (x) accepterCorrection(x); };
       if ($('#p-payer')) $('#p-payer').onclick = () => payerSalairesFenetre(Number(s.year), Number(s.month), () => draw());
       if ($('#p-remettre')) $('#p-remettre').onclick = () => remettreBulletins();
       if ($('#p-plus')) $('#p-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
@@ -22686,10 +22786,12 @@
       return true;
     };
     const pieceDepart = pieceDuMessage; pieceDuMessage = null;
+    const texteDepart = texteDuMessage; texteDuMessage = null;
     const questionDepart = questionDuMessage; questionDuMessage = null;
     conversationOuverte = bridge.messagerie.dessiner($('#msg-racine'), {
       toast,
       pieceDepart,
+      prepare: texteDepart ? { texte: texteDepart } : null,
       questionDepart,
       pieces: () => [
         ...data.documents.filter(d => ['facture', 'avoir', 'devis'].includes(d.type) && (d.number || d.status !== 'brouillon'))

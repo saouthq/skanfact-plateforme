@@ -72,6 +72,8 @@
 .pa-liste tr[data-bul]:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: -2px; }
 .pa .statut { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--sb-survol); color: var(--sb-gris); }
 .pa .statut.ok { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.pa .statut.attire { background: color-mix(in srgb, var(--sb-ambre) 16%, var(--sb-papier)); color: var(--sb-ambre-texte); }
+.pa .statut.alerte { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
 .pa .statut.bleu { background: color-mix(in srgb, #4d7cf2 14%, var(--sb-papier)); color: #3559c7; }
 
 /* L'année : le coût mois par mois. */
@@ -106,6 +108,8 @@
 .pa-seg-p button small { opacity: .7; margin-left: 4px; }
 .pa-rech { flex: 1 1 260px; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border: 1px solid var(--sb-trait); border-radius: 10px; background: var(--sb-papier); color: var(--sb-gris-2); max-width: 420px; }
 .pa-rech input { flex: 1; border: 0; background: none; outline: none; color: var(--sb-encre); font: 14px var(--sb-police, inherit); min-width: 0; }
+.pa-rouge { border-color: color-mix(in srgb, var(--sb-rouge-texte) 35%, var(--sb-trait)); background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+#p-corr-detail table td:first-child { white-space: normal; }
 .pa-ambre { border-color: color-mix(in srgb, var(--sb-ambre) 40%, var(--sb-trait)); background: color-mix(in srgb, var(--sb-ambre) 7%, var(--sb-papier)); color: var(--sb-ambre-texte); }
 .pa-liste td small, .pa-liste td.r small { display: block; color: var(--sb-gris-2); font-size: 11.5px; font-weight: 400; }
 .pa-av-g { width: 40px; height: 40px; font-size: 14px; }
@@ -184,4 +188,8 @@
   .pa-sous-f { overflow-x: auto; flex-wrap: nowrap; }
   .pa-bandeau { flex-wrap: wrap; }
   .pa-apercu { max-height: none; }
+  /* (1.227.0) Le geste du mois tient en bas, au-dessus de la barre, sous le pouce (la maquette, téléphone). */
+  #p-head .actions .btn-primary { position: fixed; left: 16px; right: 16px; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 70; min-height: 48px; justify-content: center; box-shadow: 0 8px 24px rgba(20, 40, 60, .22); }
+  body:not(.avec-barre) #p-head .actions .btn-primary, body.sans-onglets #p-head .actions .btn-primary { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  #p-body { padding-bottom: 80px; }
 }
