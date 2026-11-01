@@ -9458,6 +9458,32 @@
           count: imp.length, route: '#/paie', docs: []
         });
       }
+      // (plateforme) 1.232.0 — ce que la paie attend de l'entreprise (docs/revue-paie.md, P6) : une correction que le cabinet
+      // propose, des bulletins à approuver avant de les payer (le cabinet tient la paie), une demande de congé sans réponse.
+      const co = company || data.company || {};
+      const ymP = p => `${p.year}-${String(p.month).padStart(2, '0')}`;
+      const modeP = p => (co.paieModeDes && ymP(p) < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || ''));
+      const corr = (data.payslips || []).filter(p => p.correction && !p.correction.reponse && !p.paidDate);
+      if (corr.length) out.push({
+        id: 'paie-correction', level: 'warn', mois: ymP(corr[0]),
+        label: `${corr.length > 1 ? `${corr.length} corrections de bulletin proposées` : 'Une correction de bulletin proposée'} par ton comptable`,
+        detail: 'Accepte-la ou refuse-la avant de payer : le bulletin garde écrit qui l\'a proposée et qui l\'a acceptée.',
+        count: corr.length, route: '#/paie', docs: []
+      });
+      const bap = (data.payslips || []).filter(p => !p.paidDate && !p.bonAPayerLe && modeP(p) === 'tenue' && !(p.correction && !p.correction.reponse));
+      if (bap.length) out.push({
+        id: 'paie-bon-a-payer', level: 'warn', mois: ymP(bap[0]),
+        label: `${plFr(bap.length, 'bulletin')} à approuver avant de payer`,
+        detail: 'Ton cabinet les a préparés : ton accord les rend payables.',
+        count: bap.length, route: '#/paie', docs: []
+      });
+      const dem = (data.leaves || []).filter(l => l.statut === 'demande');
+      if (dem.length) out.push({
+        id: 'conges-demandes', level: 'warn',
+        label: `${dem.length > 1 ? `${dem.length} demandes de congé attendent` : 'Une demande de congé attend'} ta réponse`,
+        detail: dem.slice(0, 3).map(l => `${((data.employees || []).find(e => e.id === l.employeeId) || {}).name || 'un salarié'}, du ${fmtDate(l.from)} au ${fmtDate(l.to)}`).join(' · '),
+        count: dem.length, route: '#/paie', docs: []
+      });
       // Le bulletin réglé produit déjà sa sortie d'argent : un mouvement « Salaires » du même mois ferait double.
       const paidMonths = new Set((data.payslips || []).filter(p => p.paidDate).map(p => (p.paidDate || '').slice(0, 7)));
       const dbl = (data.movements || []).filter(m => m.kind === 'salaire' && paidMonths.has((m.date || '').slice(0, 7)));

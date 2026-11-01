@@ -12224,6 +12224,10 @@
       paieState.tab = 'bulletins';
       if (b) { paieState.year = String(b.year); paieState.month = String(Number(b.month)); paieState.moisTouche = true; }
     }) },
+    // (plateforme) 1.232.0 — la paie qui attend : le mois du premier bulletin concerné, ou les congés.
+    'paie-correction': { label: 'Voir la correction', run: vers('#/paie', () => { const t = (C.todoList(data, company(), C.today()).find(x => x.id === 'paie-correction') || {}).mois; paieState.tab = 'bulletins'; if (t) { paieState.year = t.slice(0, 4); paieState.month = String(Number(t.slice(5, 7))); paieState.moisTouche = true; } }) },
+    'paie-bon-a-payer': { label: 'Approuver', run: vers('#/paie', () => { const t = (C.todoList(data, company(), C.today()).find(x => x.id === 'paie-bon-a-payer') || {}).mois; paieState.tab = 'bulletins'; if (t) { paieState.year = t.slice(0, 4); paieState.month = String(Number(t.slice(5, 7))); paieState.moisTouche = true; } }) },
+    'conges-demandes': { label: 'Répondre', run: vers('#/paie', () => { paieState.tab = 'conges'; }) },
     contrats: { label: 'Générer les brouillons', run: () => { const res = generateRecurring(); toast(`${pl(res.n, 'brouillon créé', 'brouillons créés')} — à relire puis émettre`); render(); } },
     retards: { label: 'Voir les relances', run: vers('#/relances') },
     'bons-a-facturer': { label: 'Voir les bons', run: vers('#/autres/livraison') },
@@ -12724,6 +12728,15 @@
       ['Aide et guide', () => navigate('#/aide')], ['Me guider (visites guidées)', () => navigate('#/guide')], ['Nouveau client', () => clientForm(null, () => render())],
       ['Importer mes clients depuis un tableur', () => importerTableau('clients', () => render(true))], ['Importer mon catalogue depuis un tableur', () => importerTableau('catalogue', () => render(true))], ['Importer mes fournisseurs depuis un tableur', () => importerTableau('fournisseurs', () => render(true))],
       ['Ta facture à ton image (logo, cachet, couleurs)', () => imageDeMarque(() => render(true))],
+      // (plateforme) 1.232.0 — les gestes de la paie (docs/revue-paie.md, P2) : chacun ouvre « Le mois » et lance le sien.
+      ...(data.employees.length ? [
+        ['Payer les salaires du mois', vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'payer'; })],
+        ['Établir les bulletins du mois', vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'etablir'; })],
+        ['Remettre les bulletins du mois', vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'remettre'; })],
+        ['Approuver les bulletins du mois', vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'approuver'; })]] : []),
+      ['Nouveau salarié', () => employeeForm(null, () => { paieState.tab = 'salaries'; navigate('#/paie'); })],
+      ['Importer mes salariés depuis un tableur', () => importerTableau('salaries', () => { paieState.tab = 'salaries'; navigate('#/paie'); })],
+      ['Combien coûte une embauche ?', () => simulationEmbauche()],
       // La palette liste TOUTES les pages, y compris celles des modules retirés du menu : c'est ce
       // qui rend le filtrage de la barre latérale inoffensif.
       ['Tous les modules', () => navigate('#/modules')],
@@ -12797,6 +12810,9 @@
         amt: C.money(C.purchaseTotals(p, company()).netToPay, p.currency || cur),
         text: `${C.referenceAchat(p, data)} ${sn} ${quoi} ${p.category || ''} achat`.toLowerCase(), run: () => navigate('#/achat/' + p.id), ts: p.createdAt || 0, piece: true };
     }));
+    // (plateforme) 1.232.0 — les SALARIÉS par leur nom, leur poste, leur CIN : la fiche s'ouvre (docs/revue-paie.md, P2).
+    const salaries = (data.employees || []).map(e => ({ kind: 'Salarié', main: e.name, sub: [e.position, e.endDate && e.endDate < C.today() ? `parti le ${C.fmtDate(e.endDate)}` : ''].filter(Boolean).join(' · '),
+      text: `${e.name} ${e.position || ''} ${e.cin || ''} ${e.cnss || ''} salarie`.toLowerCase(), run: () => navigate('#/salarie/' + encodeURIComponent(e.id)) }));
     const fournisseurs = (data.suppliers || []).map(sp => ({ kind: 'Fournisseur', main: sp.name, sub: [sp.contact, sp.email, sp.phone].filter(Boolean).join(' · '),
       text: `${sp.name} ${sp.contact || ''} ${sp.email || ''} ${sp.phone || ''} ${sp.matricule || ''}`.toLowerCase(), run: () => navigate('#/fournisseur/' + sp.id) }));
     // Les JUSTIFICATIFS (10.14.1, S-04) : un fichier joint se cherche par son NOM. Skander : « quand je
@@ -12817,13 +12833,13 @@
     // Les pièces les plus RÉCENTES d'abord : sur cinq ans, le nom d'un client rendait ses factures
     // de la première année avant celles du mois. Ventes et achats mêlés : ce sont toutes des pièces.
     const recentes = docs.concat(achats).sort((a, b) => b.ts - a.ts);
-    const all = [...actions, ...reglagesDePalette(), ...recentes, ...clients, ...fournisseurs, ...items, ...justifs];
+    const all = [...actions, ...reglagesDePalette(), ...recentes, ...clients, ...fournisseurs, ...salaries, ...items, ...justifs];
     const HINT = $('#palette-root .hint').innerHTML;
     const GROUPES = ['Pages', 'Clients et pièces', 'Actions', 'Me guider', 'Aide'];
     const groupeDe = x => x.kind === 'Me guider' || x.kind === 'Aide' ? x.kind
-      : x.kind === 'Action' ? (/^(Nouve|Importer|Revoir|Ta facture|Entrée|Mouvement|Émettre)/.test(x.main) ? 'Actions' : 'Pages') : 'Clients et pièces';
+      : x.kind === 'Action' ? (/^(Nouve|Importer|Revoir|Ta facture|Entrée|Mouvement|Émettre|Payer|Établir|Remettre|Approuver|Combien)/.test(x.main) ? 'Actions' : 'Pages') : 'Clients et pièces';
     const iconeDe = x => ({ 'Me guider': 'guide', Aide: 'aide', Actions: 'ajout', Pages: 'pages' })[groupeDe(x)]
-      || (/^(Client|Fournisseur)$/.test(x.kind) ? 'personne' : x.kind === 'Prestation' ? 'etiquette' : 'piece');
+      || (/^(Client|Fournisseur|Salarié)$/.test(x.kind) ? 'personne' : x.kind === 'Prestation' ? 'etiquette' : 'piece');
     let sel = 0, shown = [];
     const input = $('#pal-q'), res = $('#pal-res');
     const draw = dansUnLot(() => {
@@ -18439,6 +18455,10 @@
           : aPayer.length ? `<button class="btn btn-primary" id="p-payer">${lfIc('carte', 15)} Payer les salaires · ${C.money(C.round3(aPayer.reduce((a, x) => a + x.c.net, 0)), cur)}</button>`
             : aRemettre.length ? `<button class="btn btn-primary" id="p-remettre">${lfIc('envoi', 15)} ${aRemettre.length > 1 ? `Remettre les ${aRemettre.length} bulletins` : 'Remettre le bulletin'}</button>` : '';
       } else if (P_ACTION[s.tab]) prin = `<button class="btn btn-primary" id="${P_ACTION[s.tab][0]}">${lfIc('croix', 15, 2.4)} ${P_ACTION[s.tab][1]}</button>`;
+      // (plateforme) 1.232.0 — un geste qu'on ne peut pas faire ne s'offre pas (docs/revue-paie.md, P4) : en lecture, aucun
+      // bouton principal ; sans réseau, il se voit mais attend, et dit pourquoi (P5 : la paie reste en ligne, docs/hors-ligne.md).
+      if (prin && enLecture('payslips')) prin = '';
+      if (prin && navigator.onLine === false) prin = prin.replace('<button class="btn btn-primary"', '<button class="btn btn-primary" disabled title="Pas de réseau : ce geste passe par le serveur, il attend la connexion"');
       const qui = { tenue: 'tenue par ton cabinet', seule: 'tu la fais, ton cabinet la vérifie', sans: 'tu la fais seul' }[modeDuMois(y, m)];
       const sous = data.employees.length ? `${pl(enPoste, 'salarié')} en poste${qui ? ` · ${qui}` : ''} · ${s.tab === 'bulletins' ? `${MONTHS_LONG[Number(s.month) - 1]} ${s.year}` : 'tes salariés, leurs bulletins, ce que la paie te coûte'}` : 'Tes salariés, leurs bulletins, ce que la paie te coûte';
       return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Paie</span></div><h1>Paie</h1><p class="sous">${sous}</p></div>
@@ -18706,9 +18726,19 @@
         const emp = employeeById(x.employeeId) || {};
         toastUndo(`Salaire de ${emp.name || 'ce salarié'} marqué payé aujourd'hui`, () => { const y2 = payslipById(x.id); if (y2) { y2.paidDate = ''; save(true); draw(); } });
       });
+      // (plateforme) 1.232.0 — en lecture, les gestes d'écriture du mois ne s'offrent pas ; sans réseau, ils attendent.
+      const lectureP = enLecture('payslips'), horsLigneP = navigator.onLine === false;
+      if (lectureP) $$('#p-body [data-payer], #p-body #p-corr-non, #p-body #p-dem-corr, #p-body #p-bap-ok').forEach(b => b.remove());
+      const tete = lectureP ? `<div class="pa-bandeau" id="p-lecture" role="status">${lfIc('oeil', 18)}<span><b>Tu consultes la paie</b><span>Ton rôle te la montre sans la changer : approuver, payer et corriger se font par un membre qui a le droit d'écrire la paie.</span></span></div>`
+        : horsLigneP ? `<div class="pa-bandeau pa-ambre" id="p-hors-ligne" role="status">${lfIc('horsligne', 18)}<span><b>Pas de réseau : la paie se consulte, ses gestes attendent</b><span>Établir, approuver, payer et accepter une correction passent par le serveur : ils reviennent avec la connexion. Rien de ce qui est enregistré n'est perdu.</span></span></div>` : '';
+      if (tete && $('#p-body')) $('#p-body').insertAdjacentHTML('afterbegin', tete);
+      if (horsLigneP) $$('#p-body [data-payer], #p-body #p-corr-non, #p-body #p-bap-ok').forEach(b => { b.disabled = true; b.title = 'Pas de réseau : ce geste attend la connexion'; });
       bindRowMenus($('#p-body'), id => {
         const x = payslipById(id); if (!x) return [];
         const emp = employeeById(x.employeeId);
+        if (lectureP) return [
+          { icon: 'oeil', label: 'Voir le bulletin', hint: 'la feuille elle-même', run: () => apercuBulletin(x) },
+          { icon: 'pdf', label: 'Exporter le bulletin en PDF', run: () => exportPayslip(x) }];
         return [
           { icon: 'oeil', label: 'Voir le bulletin', hint: 'la feuille elle-même, avant de l\'exporter', run: () => apercuBulletin(x) },
           { icon: 'pdf', label: 'Exporter le bulletin en PDF', hint: 'À remettre au salarié', run: () => exportPayslip(x) },
@@ -19824,6 +19854,20 @@
       draw();
     });
     draw();
+    // (plateforme) 1.232.0 — un geste demandé depuis la recherche (Ctrl K) : le bouton principal du mois, s'il est celui-là.
+    if (s.geste) {
+      const g = s.geste; delete s.geste;
+      const b = $({ payer: '#p-payer', etablir: '#p-gen', remettre: '#p-remettre', approuver: '#p-bap' }[g] || '#rien');
+      if (b && !b.disabled) b.click();
+      else toast({ payer: 'Rien à payer ce mois-ci', etablir: 'Tous les bulletins du mois sont établis', remettre: 'Rien à remettre ce mois-ci', approuver: 'Aucun bulletin à approuver ce mois-ci' }[g] || 'Rien à faire ici', false);
+    }
+    // Le réseau qui part ou revient redessine la paie : son bandeau « Pas de réseau » suit la vérité du moment.
+    if (!routes.paie.ecoute) {
+      routes.paie.ecoute = true;
+      const suivre = () => { if (routeOf(location.hash) === 'paie' && !document.querySelector('#modal-root .modal-bg')) render(true); };
+      window.addEventListener('online', suivre);
+      window.addEventListener('offline', suivre);
+    }
   };
 
   // (plateforme) 1.225.0 — la fiche d'un salarié telle que sa maquette : un en-tête (chemin, état, le geste principal
@@ -19948,9 +19992,11 @@
           ${e.notes ? `<section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Notes</b></div><p class="small pa-note">${h(e.notes)}</p></section>` : ''}
         </div></div>`;
     bindBack('#/paie');
+    // (plateforme) 1.232.0 — en lecture, la fiche se consulte : ses gestes d'écriture ne s'offrent pas (docs/revue-paie.md, P4).
+    if (enLecture('employees')) $$('#edit-emp, #fs-head .actions .btn-primary, #fs-plus, #add-lv, #add-av, #add-sz, #new-slip, #view [data-regul], #view .pa-bandeau button').forEach(b => b.remove());
     const rouvrir = () => render();
     $('#fs-sal').onclick = ev => { ev.preventDefault(); paieState.tab = 'salaries'; navigate('#/paie'); };
-    $('#edit-emp').onclick = () => employeeForm(e, rouvrir);
+    if ($('#edit-emp')) $('#edit-emp').onclick = () => employeeForm(e, rouvrir);
     $$('#fs-head [data-fs], #view [data-fs]').forEach(bt => bt.onclick = () => {
       const k = bt.dataset.fs;
       if (k === 'doc') hrDocForm(e, rouvrir, bt.dataset.kind);
@@ -19959,7 +20005,7 @@
       else if (k === 'renouveler' || k === 'sortie') employeeForm(e, rouvrir, { focus: 'endDate' });
       else if (k === 'conge') leaveForm(null, e.id, rouvrir);
     });
-    $('#fs-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
+    if ($('#fs-plus')) $('#fs-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
       { icon: 'modifier', label: 'Modifier sa fiche', hint: 'contrat, salaire, identité, RIB', run: () => employeeForm(e, rouvrir) },
       { icon: 'modifier', label: 'Changer son salaire', hint: 'le nouveau brut vaut pour les prochains bulletins', run: () => employeeForm(e, rouvrir, { focus: 'grossSalary' }) },
       ...(e.contract === 'cdd' ? [{ icon: 'modifier', label: 'Renouveler son CDD', hint: 'une nouvelle date de fin, et l\'avenant à signer', run: () => employeeForm(e, () => { rouvrir(); hrDocForm(employeeById(e.id), rouvrir, 'avenant'); }, { focus: 'endDate' }) }] : []),
