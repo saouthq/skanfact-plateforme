@@ -563,7 +563,7 @@ table.rdp td:first-child { font-weight: 600; }
   // Le brouillard de septembre : 3 écritures, chacune équilibrée.
   const BROUILLARD = [
     ['27/10', 'AC', 'FA-0913', 'Levures du Sahel · LS-7781 levure fraîche', 'Anis', [['6021', 'Matières premières', 342000, 0], ['4366', 'TVA déductible', 64980, 0], ['401LS', 'Levures du Sahel', 0, 406980]]],
-    ['30/09', 'PAIE', 'PAIE-2026-09', 'Paie de septembre · 4 bulletins', 'Anis', [['640', 'Salaires bruts', 4450000, 0], ['645', 'Charges patronales (CNSS, accident du travail)', 777415, 0], ['661', 'TFP et FOPROLOS', 133500, 0], ['4335', 'TFP et FOPROLOS à payer', 0, 133500], ['4531', 'CNSS : parts salarié et employeur, accident', 0, 1208175], ['4321', 'IRPP et contribution sociale retenus', 0, 348434], ['425', 'Personnel, rémunérations dues', 0, 3670806]]],
+    ['30/09', 'PAIE', 'PAIE-2026-09', 'Paie de septembre · 4 bulletins', 'Anis', [['640', 'Salaires bruts', 4450000, 0], ['645', 'Charges patronales (CNSS, accident du travail)', 777415, 0], ['661', 'TFP et FOPROLOS', 133500, 0], ['4335', 'TFP et FOPROLOS à payer', 0, 133500], ['4531', 'CNSS : parts salarié et employeur, accident', 0, 1208175], ['4321', 'IRPP et contribution sociale retenus', 0, 348434], ['421', 'Personnel, avances et acomptes : l\'avance retenue', 0, 100000], ['425', 'Personnel, rémunérations dues', 0, 3570806]]],
     ['14/09', 'BQ', 'BQ-0914-03', 'Virement reçu · STE LES OLIVIERS', 'Rim', [['532', 'BIAT', 1250000, 0], ['471', 'Compte d\'attente', 0, 1250000]]],
   ];
   // Le relevé BIAT de septembre : 42 mouvements, 35 rapprochés à l'import ; les 7 qui restent.
@@ -1552,12 +1552,12 @@ table.rdp td:first-child { font-weight: 600; }
   const PA_AOUT = {gross:4450000,cnssE:430760,irpp:330722,css:17712,ded:0,net:3670806,cnssP:759615,acc:17800,tfp:89000,fop:44500,ch:910915,cout:5360915,cnssBase:4450000};
   const PA_SEPT_SAL = {mt:{gross:1550000,cnssE:150040,cnssP:264585,acc:6200},kz:{gross:1200000,cnssE:116160,cnssP:204840,acc:4800},nb:{gross:880000,cnssE:85184,cnssP:150216,acc:3520},hm:{gross:820000,cnssE:79376,cnssP:139974,acc:3280}};
   const PA_BASE = (x) => x.gross - x.primes.reduce((t, p) => t + p[1], 0);
-  // L'écriture de paie du mois, par compte (le schéma de `ecritureDePaie` : 640, 645, 661 au débit ; 4335, 4531, 4321, 425 au
+  // L'écriture de paie du mois, par compte (le schéma de `ecritureDePaie` : 640, 645, 661 au débit ; 4335, 4531, 4321, 421 pour l'avance retenue, 425 au
   // crédit). Comptes proposés : À VÉRIFIER, surchargeables par dossier.
   const PA_ECR = (t) => [['640', 'Salaires bruts', t.gross, 0], ['645', 'Charges patronales (CNSS, accident du travail)', t.cnssP + t.acc, 0],
     ['661', 'TFP et FOPROLOS', t.tfp + t.fop, 0], ['4335', 'TFP et FOPROLOS à payer', 0, t.tfp + t.fop],
     ['4531', 'CNSS : parts salarié et employeur, accident', 0, t.cnssE + t.cnssP + t.acc], ['4321', 'IRPP et contribution sociale retenus', 0, t.irpp + t.css],
-    ['425', 'Personnel, rémunérations dues', 0, t.net + t.ded]];
+    ...(t.ded ? [['421', 'Personnel, avances et acomptes : l\'avance retenue', 0, t.ded]] : []), ['425', 'Personnel, rémunérations dues', 0, t.net]];
   // Le 3e trimestre CNSS (juillet, août, septembre : les mêmes bulletins que septembre, sans l'avance).
   const PA_T3 = { assiette: 3 * PA_SEPT.cnssBase, sal: 3 * PA_SEPT.cnssE, emp: 3 * PA_SEPT.cnssP, acc: 3 * PA_SEPT.acc };
   PA_T3.total = PA_T3.sal + PA_T3.emp + PA_T3.acc;
@@ -1681,6 +1681,7 @@ table.rdp td:first-child { font-weight: 600; }
       .pa-suite > div > b { display: flex; gap: 8px; align-items: center; }
       .pa-suite > div > span { font-size: 12.5px; color: var(--sb-gris); line-height: 1.5; }
       .pa-suite .btn { justify-self: start; }
+      .pa-ctl-b { display: flex; gap: 6px; align-items: flex-start; margin: 10px 0 0; font-size: 12px; color: var(--sb-gris); } .pa-ctl-b svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--sb-sarcelle); }
       .pa-frw { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; padding: 10px 14px; border: 1px solid var(--sb-trait); border-radius: 12px; }
       .pa-frw .cp-fr { min-width: 0; }
       .pa-frw .cp-fr-e { grid-template-columns: 26px minmax(0, 1fr); }
@@ -1713,7 +1714,7 @@ table.rdp td:first-child { font-weight: 600; }
   }
   // La frise du mois : cinq étapes, et le seul bouton principal à droite, l'étape suivante.
   function paieFrise(rang, geste) {
-    const E = [['Pointage', s.etat === 'paievide' ? 'attendu de Sarra · d\'habitude le 27' : 'reçu de Sarra le 27/10'], ['Bulletins', rang > 1 ? '5 validés ce matin' : s.etat === 'paieverif' ? 'faits par Sarra le 30/10 · 1 à corriger' : rang === 1 ? '5 préparés · 3 changent' : '5 à préparer, dont 1 entrée'], ['Écriture de paie', rang > 2 ? 'PAIE-2026-10 · validée' : rang > 1 ? 'au brouillard · se valide le 31/10' : 'datée du 31/10'],
+    const E = [['Pointage', s.etat === 'paievide' ? 'attendu de Sarra · d\'habitude le 27' : 'reçu de Sarra le 27/10'], ['Bulletins', rang > 1 ? '5 validés ce matin' : s.etat === 'paieverif' ? 'faits par Sarra le 27/10 · 1 à corriger' : rang === 1 ? '5 préparés · 3 changent' : '5 à préparer, dont 1 entrée'], ['Écriture de paie', rang > 2 ? 'PAIE-2026-10 · validée' : rang > 1 ? 'au brouillard · se valide le 31/10' : 'datée du 31/10'],
       ['Salaires payés', 'par Sarra, d\'ici le 31/10'], ['Déclarés', 'IRPP et CSS avec octobre · CNSS en janvier']];
     return `<div class="pa-frw"><div class="cp-fr" style="grid-template-columns:repeat(${tel() ? 2 : 5}, minmax(0, 1fr))">${E.map(([t, d], i) => `<div class="cp-fr-e ${i < rang ? 'fait' : i === rang ? 'ici' : ''}"><span class="cp-fr-r">${i < rang ? IC.ok : i + 1}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div>
       ${geste ? `<div class="cp-gestes">${geste}</div>` : ''}</div>`;
@@ -1743,6 +1744,7 @@ table.rdp td:first-child { font-weight: 600; }
       <p class="pa-bt">Ce que paie la boulangerie</p>
       <div class="pa-bs">${lig('CNSS, part de l\'employeur', '17,07 % · accident du travail 0,4 %', m(x.cnssP + x.acc))}${lig('TFP et FOPROLOS', '2 % et 1 % du brut · déclarés chaque mois', m(x.tfp + x.fop))}${lig('Coût du salarié', '', `<b>${m(x.cout)}</b>`, 'tt')}</div>
       ${pq}
+      <p class="pa-ctl-b">${IC.ok} <span>Contrôlé : au-dessus du SMIG (régime 48 h, son montant de 2026 : À VÉRIFIER) · taux CNSS, accident et TFP du dossier · pointage d'octobre repris${x.ded ? ' · avance retenue' : x.k === 'hm' ? ' · <b style="color:var(--sb-rouge-texte)">avance pas retenue</b>' : ''}</span></p>
       ${opts.pied || `<div class="cp-gestes"><button type="button" class="btn btn-sm">${IC.oeil || IC.fiche} Le bulletin (PDF)</button><button type="button" class="btn btn-sm"${bloque()}>${IC.stylo} Modifier…</button>${x.k === 'kz' ? '' : `<button type="button" class="btn btn-sm"${bloque()}>${IC.ok} Vérifié <kbd class="pa-kb">Espace</kbd></button>`}</div>`}
     </div>`;
   }
@@ -1771,7 +1773,7 @@ table.rdp td:first-child { font-weight: 600; }
     return `<div class="pa-sec"><div class="pa-sec-t"><b>L'écriture de paie</b><span class="mu">${quand}</span></div>
       <div class="t-wrap" style="overflow-x:auto"><table class="cp-t pa-ec"><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>${L.map(([c, l, de, cr]) => `<tr><td class="mono">${c}</td><td>${l}</td><td class="r pa-mt">${de ? m(de) : ''}</td><td class="r pa-mt">${cr ? m(cr) : ''}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td></td><td>Une ligne par salarié et par compte dans le livre ; ici, par compte</td><td class="r pa-mt">${m(L.reduce((a, x) => a + x[2], 0))}</td><td class="r pa-mt">${m(L.reduce((a, x) => a + x[3], 0))}</td></tr></tfoot></table></div>
-      <span class="mu" style="font-size:12px">Comptes proposés : À VÉRIFIER avec le cabinet, réglables pour ce dossier. Le net reste au 425 jusqu'au virement : la Banque le solde quand la ligne « VIR SALAIRE » arrive.</span></div>`;
+      <span class="mu" style="font-size:12px">Comptes proposés : À VÉRIFIER avec le cabinet, réglables pour ce dossier. L'avance retenue solde le 421, où elle est entrée le jour où Sarra l'a versée ; le net reste au 425 jusqu'au virement, et la Banque le solde quand la ligne « VIR SALAIRE » arrive (4&#8239;076,400 : le même chiffre).</span></div>`;
   }
 
   function paie() {
@@ -1795,7 +1797,7 @@ table.rdp td:first-child { font-weight: 600; }
       : `<div class="pa-ctl"><div class="ambre"><span><b>Salma Ayari n'a pas encore de numéro CNSS.</b> Son bulletin se fait ; la déclaration du 4e trimestre l'attendra (janvier).</span><button type="button" class="btn btn-sm"${bloque()}>${IC.msg} Le demander à Sarra</button><button type="button" class="btn btn-sm btn-ghost"${bloque()}>Le renseigner…</button></div>
           <div class="gris"><span>Heures sup à +25 % : le réglage de ce dossier, posé par Anis le 02/10 (À VÉRIFIER avec la convention collective de la boulangerie).</span><button type="button" class="btn btn-sm btn-ghost">Les réglages de la paie</button></div></div>`;
     const ch = verif ? { hm: ['rouge', 'avance oubliée', '100,000 de trop sur le net'] } : null;
-    const sous = verif ? 'faite par Sarra dans SkanFact le 30/10 · le cabinet la vérifie (lettre de mission : « vérification de la paie »)' : `5 salariés · tenue au cabinet par Anis · le pointage est arrivé de Sarra le 27/10${rim() ? ' · Rim prépare, Anis valide' : ''}`;
+    const sous = verif ? 'faite par Sarra dans SkanFact le 27/10 · le cabinet la vérifie (lettre de mission : « vérification de la paie »)' : `5 salariés · tenue au cabinet par Anis · le pointage est arrivé de Sarra le 27/10${rim() ? ' · Rim prépare, Anis valide' : ''}`;
     return `${PA_CSS}${paieTete(`Paie d'octobre 2026 <span class="cp-per">Octobre ${IC.chev}</span>`, sous)}
       ${paieFrise(1, geste)}${paieChiffres(verif ? PA_SARRA.reduce((t, x) => t + x.net, 0) : PA_OCT.net)}${ctl}
       <div class="pa2${mob ? ' mob' : ''}"><div>${paieListe(sel.k, verif ? { ch, verifies: ['mt', 'kz', 'nb', 'sa'], sal: PA_SARRA } : {})}</div>${paieBulletin(sel, verif ? { client: true, pied: `<div class="cp-gestes"><button type="button" class="btn btn-sm">${IC.oeil || IC.fiche} Le bulletin (PDF)</button><span class="mu" style="font-size:12px">Le corriger : c'est Sarra, dans SkanFact.</span></div>` } : {})}</div>
@@ -1849,7 +1851,7 @@ table.rdp td:first-child { font-weight: 600; }
       <div class="cp-vide-p" style="margin:6px 0 10px"><span class="cp-c-ic">${IC.ok}</span><b style="font-size:18px">Les bulletins d'octobre sont faits</b><p>Ils ne bougent plus : une correction passera par un bulletin rectificatif, daté. Il reste trois choses, dans cet ordre, et aucune n'est au cabinet seul.</p></div>
       <div class="cp-cartes">
         <div class="cp-carte"><span class="cp-c-ic">${IC.msg}</span><div><b>1. Envoyer les bulletins à Sarra</b><small>5 PDF, rangés dans ses documents « Paie · octobre 2026 ». Elle les remet à chacun ; SkanFact ne les envoie pas aux salariés (À VÉRIFIER : la remise électronique).</small></div><button type="button" class="btn btn-primary"${bloque()}>Les envoyer</button></div>
-        <div class="cp-carte"><span class="cp-c-ic">${IC.banque || IC.ok}</span><div><b>2. Les salaires, ${md(PA_OCT.net)}</b><small>Sarra les paie depuis SkanFact (« Payer les salaires » : l'ordre de virement BIAT, les RIB contrôlés). Salma n'a pas encore de RIB : elle sera payée à part. La Banque rapprochera « VIR SALAIRE » du 425.</small></div><button type="button" class="btn">Lui rappeler le 30/10</button></div>
+        <div class="cp-carte"><span class="cp-c-ic">${IC.banque || IC.ok}</span><div><b>2. Les salaires, ${md(PA_OCT.net)}</b><small>Sarra les paie depuis SkanFact (« Payer les salaires » : l'ordre de virement BIAT, les RIB contrôlés). Salma n'a pas encore de RIB : elle sera payée en espèces, contre un reçu signé qui arrive avec la caisse. La Banque rapprochera « VIR SALAIRE » du 425.</small></div><button type="button" class="btn">Lui rappeler le 30/10</button></div>
         <div class="cp-carte"><span class="cp-c-ic">${IC.decl}</span><div><b>3. Déclarer</b><small>Avec la déclaration d'octobre (le 28/11, la date de ce dossier : À VÉRIFIER) : retenues sur salaires ${md(d)}, TFP ${md(PA_OCT.tfp)}, FOPROLOS ${md(PA_OCT.fop)}. La CNSS du 4e trimestre en janvier.</small></div><button type="button" class="btn" data-etat="declaration">Ouvrir les déclarations</button></div></div>
       ${paieEcriture(PA_OCT, 'PAIE-2026-10 · au brouillard · elle se valide le 31/10, avec ou avant le brouillard d\'octobre')}`;
   }
@@ -1884,7 +1886,7 @@ table.rdp td:first-child { font-weight: 600; }
       <div class="pa-sec"><div class="pa-sec-t"><b>Les avances sur salaire</b><span class="mu">versées par Sarra ; elles se retiennent sur les bulletins, chaque retenue marquée de son avance</span></div>
       <div class="pa-k1"${mob ? '' : ' style="max-width:720px"'}><div class="pa-k1h"><span class="pa-n">${paAv(PA_SAL.find((x) => x.k === 'hm'))}<span style="display:grid"><b>Hamza Mejri · 300,000 le 05/09</b><small class="mu">à rendre en 3 fois · 100,000 par mois</small></span></span><span style="display:grid;justify-items:end"><b class="pa-mt">reste 100,000</b><small class="mu">la dernière retenue : novembre</small></span></div>
         <div style="display:flex;gap:4px;margin-top:6px">${['septembre', 'octobre', 'novembre'].map((mo, i) => `<span style="flex:1;display:grid;gap:3px;font-size:11.5px;color:var(--sb-gris)"><i style="display:block;height:6px;border-radius:3px;background:${i < 2 ? 'var(--sb-sarcelle)' : 'var(--sb-trait)'}"></i>${mo} · 100,000${i < 2 ? ' retenu' : ''}</span>`).join('')}</div></div>
-      <div class="cp-gestes"><button type="button" class="btn"${bloque()}>${IC.plus} Une avance…</button><span class="mu" style="font-size:12px">Versée par la caisse ou la banque : son écriture (425 au débit) se passe à la Saisie ou se rapproche à la Banque.</span></div></div>`;
+      <div class="cp-gestes"><button type="button" class="btn"${bloque()}>${IC.plus} Une avance…</button><span class="mu" style="font-size:12px">Versée par la caisse ou la banque : son écriture (421 Personnel, avances et acomptes, au débit : À VÉRIFIER) se passe à la Saisie ou se rapproche à la Banque ; chaque retenue la solde.</span></div></div>`;
   }
 
   // La CNSS du trimestre : le 3e, déposé et payé ; le 4e, en cours, et ce qui empêchera son fichier de sortir.
@@ -1919,7 +1921,9 @@ table.rdp td:first-child { font-weight: 600; }
         <div class="pa-cmp"><span>Bulletins de janvier à août : brut ${m(8 * PA_SEPT.gross)}</span><span>· compte 640 au 31/08 (validé) : ${m(8 * PA_SEPT.gross)}</span><b class="ok">${IC.ok} égaux au millime</b></div>
         <div class="pa-cmp"><span>Septembre (${m(PA_SEPT.gross)}) et octobre (${m(PA_OCT.gross)})</span><span>· au brouillard : ils entreront au 640 à leur validation</span><b class="ok" style="color:var(--sb-gris)">en attente</b></div></div>
       <div class="pa-sec"><div class="pa-sec-t"><b>La déclaration annuelle d'employeur 2026</b><span class="mu">nominative : un salarié par ligne, ses salaires, ses retenues ; en février 2027 (À VÉRIFIER)</span></div>
-        <div class="pa-ctl" style="margin:0"><div class="gris"><span>Elle se prépare ici, une fois décembre clos : les 5 salariés, ${md(brutAn)} de brut à ce jour, et ses retenues confrontées au 4321 du livre, comme ci-dessus.</span><button type="button" class="btn btn-sm" disabled title="Après la paie de décembre">Préparer la déclaration annuelle</button></div></div></div>`;
+        <div class="pa-ctl" style="margin:0"><div class="gris"><span>Elle se prépare ici, une fois décembre clos : les 5 salariés, ${md(brutAn)} de brut à ce jour, et ses retenues confrontées au 4321 du livre, comme ci-dessus.</span><button type="button" class="btn btn-sm" disabled title="Après la paie de décembre">Préparer la déclaration annuelle</button></div></div></div>
+      <div class="pa-sec"><div class="pa-sec-t"><b>Les congés pas pris, à la clôture</b><span class="mu">une dette envers les salariés au 31/12 (À VÉRIFIER : la pratique du cabinet pour la provision)</span></div>
+        <div class="pa-cmp"><span>Au 31/10 : Mourad 9 j, Karim 3 j, Nadia 11 j, Hamza 15 j (Salma acquiert dès novembre)</span><span>· 38 jours ouvrables restants</span><b class="ok" style="color:var(--sb-gris)">chiffrés au 31/12</b></div></div>`;
   }
 
   function immos() {
@@ -2142,6 +2146,7 @@ table.rdp td:first-child { font-weight: 600; }
     ['La paie : la somme des 5 bulletins = les chiffres du mois', ['gross', 'net', 'cout', 'cnssE', 'irpp', 'css', 'ch'].every((k) => PA_SAL.reduce((t, x) => t + x[k], 0) === PA_OCT[k])],
     ['La paie : l\'écriture d\'octobre et celle de septembre sont équilibrées', [PA_OCT, PA_SEPT].every((t) => PA_ECR(t).reduce((a, x) => a + x[2] - x[3], 0) === 0)],
     ['La paie : le brouillard de septembre = l\'écriture que la paie passe', JSON.stringify(BROUILLARD.find((b) => b[2] === 'PAIE-2026-09')[5].map((l) => [l[0], l[2], l[3]])) === JSON.stringify(PA_ECR(PA_SEPT).map((l) => [l[0], l[2], l[3]]))],
+    ['La paie : le 425 de l\'écriture = le net à payer (l\'avance va au 421), en octobre et en septembre', [PA_OCT, PA_SEPT].every((t) => PA_ECR(t).find((l) => l[0] === '425')[3] === t.net && (PA_ECR(t).find((l) => l[0] === '421') || [0, 0, 0, 0])[3] === t.ded)],
     ['La paie : les salaires d\'août payés = le net des bulletins d\'août', RAPP.find((r) => r[1] === 'VIR SALAIRE AOUT')[2] === PA_AOUT.net],
     ['La paie : « les parts du coût (nets, CNSS, IRPP et CSS, TFP et FOPROLOS, avance) = le coût du mois', PA_OCT.net + PA_OCT.cnssE + PA_OCT.cnssP + PA_OCT.acc + PA_OCT.irpp + PA_OCT.css + PA_OCT.tfp + PA_OCT.fop + PA_OCT.ded === PA_OCT.cout],
     ['La CNSS du 3e trimestre : parts salarié + employeur + accident = le total', PA_T3.sal + PA_T3.emp + PA_T3.acc === PA_T3.total && PA_T3.total === 3624525],
