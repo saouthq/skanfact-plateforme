@@ -22174,6 +22174,24 @@ prouver 'paie 1.227 e : refuser la correction perd la raison' web/public/v10/app
   "...(raison ? { raison } : {}) };" "};" \
   "$WPAIE6b"
 
+WR1M="sortent de la trésorerie et soldent leurs dettes, au millime, comme la banque du grand livre"
+WR1W="la retenue du mois déposée et payée ; un virement de salaire rejeté redevient à payer"
+prouver 'paie 1.228 a : la CNSS payée ne sort pas de la trésorerie' web/public/v10/core.js \
+  "      if (!f.paidDate || !montant || !inPeriod(f.paidDate, period && period.from, period && period.to) || !keep(f.accountId)) return;" "      if (true) return;" \
+  "$WR1M"
+prouver 'paie 1.228 b : la CNSS payée ne solde pas sa dette' web/public/v10/core.js \
+  "          if (cnss) e.debit(acc.cnss, label, montant);" "          if (cnss) e.debit(acc.irpp, label, montant);" \
+  "$WR1M"
+prouver 'paie 1.228 c : la TFP et le FOPROLOS payés restent dus' web/public/v10/core.js \
+  "            const tfp = round3(Math.min(montant, Number(parts.tfp) || 0));" "            const tfp = 0;" \
+  "$WR1M"
+prouver 'paie 1.228 d : la déclaration payée ne garde pas son montant' web/public/v10/app.js \
+  "paidDate: v.paidDate, amount: m.montant, parts: m.parts," "paidDate: v.paidDate, amount: 0, parts: m.parts," \
+  "$WR1W"
+prouver 'paie 1.228 e : un virement rejeté reste payé' web/public/v10/app.js \
+  "          q.paidDate = ''; q.accountId = '';" "          q.accountId = '';" \
+  "$WR1W"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -18351,6 +18351,54 @@
         };
       });
     }
+    // (plateforme) 1.228.0 — déposée ET payée : le montant de la déclaration (jamais retapé), le jour, le compte, le mode.
+    function payerDeclarationFenetre(id, label) {
+      const m = C.montantSocial(data, id);
+      if (!m) return;
+      if (enLecture('socialFilings')) { toast(refusLecture('socialFilings'), true); return; }
+      if (!(m.montant > 0)) { toast('Cette déclaration ne fait rien payer : aucun bulletin n’y entre.', true); return; }
+      const comptes = data.accounts || [];
+      const parDefaut = comptes.find(a => a.isDefault) || comptes[0] || null;
+      modal(`<h2>Déposée et payée</h2><p class="small muted">${h(label.charAt(0).toUpperCase() + label.slice(1))} · à payer avant le ${h(C.fmtDate(m.echeance))} (À VÉRIFIER : l'échéance de ton dossier)</p>
+        <div class="pa-kv"><span>Montant</span><b id="pd-montant">${h(C.money(m.montant, cur))}</b></div>
+        <p class="small muted">Le montant de la déclaration, calculé sur les bulletins : il ne se retape pas. Une pénalité de retard se note à part, en mouvement de trésorerie.</p>
+        <form id="pd">${dateFieldHtml(lbl('Payée le', 'soc.payeLe'), 'paidDate', C.today(), { obligatoire: true })}
+          <label class="field">${lbl('Depuis le compte', 'soc.compte')}<select name="accountId">${comptes.map(a => `<option value="${h(a.id)}" ${parDefaut && a.id === parDefaut.id ? 'selected' : ''}>${h(a.name)}</option>`).join('') || '<option value="">Compte principal</option>'}</select></label>
+          <label class="field">${lbl('Mode', 'soc.mode')}<select name="method"><option value="virement">Virement</option><option value="cheque">Chèque</option><option value="especes">Espèces</option></select></label>
+          <label class="field">${lbl('Référence', 'soc.ref')}<input name="reference" maxlength="80" placeholder="n° de quittance, de virement"></label></form>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="pd-ok">${lfIc('coche', 15, 2.4)} Noter déposée et payée</button></div>`, (root, fermer) => {
+        $('#pd-ok', root).onclick = () => {
+          const v = formValues($('#pd', root));
+          if (!v.paidDate) { toast('Dis quel jour elle a été payée.', true); return; }
+          if (closedBlock(v.paidDate, 'Ce paiement')) return;
+          if (!Array.isArray(data.socialFilings)) data.socialFilings = [];
+          data.socialFilings = data.socialFilings.filter(x => x.id !== id);
+          data.socialFilings.push({ id, filedAt: C.today(), label, paidDate: v.paidDate, amount: m.montant, parts: m.parts, accountId: v.accountId || '', method: v.method || 'virement', reference: String(v.reference || '').trim() });
+          save(true); fermer(); draw();
+          toastUndo(`Noté : ${label} déposée et payée · ${C.money(m.montant, cur)} sortis de la trésorerie`, () => { data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id); save(true); draw(); });
+        };
+      });
+    }
+    // (plateforme) 1.228.0 — un virement de salaire rejeté par la banque, des jours après : le bulletin redevient à payer,
+    // la raison et l'ancien paiement restent écrits. Pointé sur un relevé, il se dépointe d'abord.
+    function annulerPaiementSalaire(x) {
+      const p = payslipById(x.id); if (!p || !p.paidDate) return;
+      if (enLecture('payslips')) { toast(refusLecture('payslips'), true); return; }
+      if (p.reconciled) { toast('Ce salaire est pointé sur un relevé de banque : dépointe-le d’abord dans la trésorerie.', true); return; }
+      if (closedBlock(p.paidDate, 'Ce paiement')) return;
+      modal(`<h2>Annuler le paiement</h2><p class="small muted">Le salaire de ${h(x.employeeName)} (${h(C.money(x.c.net, cur))}, payé le ${h(C.fmtDate(p.paidDate))}) redevient à payer ; l'argent revient dans la trésorerie.</p>
+        <form id="ap"><label class="field obligatoire">${lbl('Pourquoi', 'pay.annulePaiement')}<select name="raison"><option>Virement rejeté par la banque</option><option>RIB erroné</option><option>Payé par erreur</option><option>Autre</option></select></label></form>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Garder le paiement</button><button type="button" class="btn btn-primary" id="ap-ok">Annuler le paiement</button></div>`, (root, fermer) => {
+        $('#ap-ok', root).onclick = () => {
+          const q = payslipById(x.id); if (!q || !q.paidDate) { fermer(); return; }
+          const avant = { paidDate: q.paidDate, accountId: q.accountId || '', paiementsAnnules: q.paiementsAnnules };
+          q.paiementsAnnules = [...(Array.isArray(q.paiementsAnnules) ? q.paiementsAnnules : []), { paidDate: q.paidDate, accountId: q.accountId || '', le: C.today(), raison: String(formValues($('#ap', root)).raison || '') }];
+          q.paidDate = ''; q.accountId = '';
+          save(true); fermer(); draw();
+          toastUndo(`Paiement de ${x.employeeName} annulé : son salaire est de nouveau à payer`, () => { const r = payslipById(x.id); if (r) { Object.assign(r, avant); if (!avant.paiementsAnnules) delete r.paiementsAnnules; save(true); draw(); } });
+        };
+      });
+    }
     function drawSlips() {
       const y = Number(s.year), m = Number(s.month);
       const month = C.payslipsOf(data, y, m);
@@ -18435,7 +18483,8 @@
         return [
           { icon: 'oeil', label: 'Voir le bulletin', hint: 'la feuille elle-même, avant de l\'exporter', run: () => apercuBulletin(x) },
           { icon: 'pdf', label: 'Exporter le bulletin en PDF', hint: 'À remettre au salarié', run: () => exportPayslip(x) },
-          { icon: 'modifier', label: 'Modifier le bulletin', hint: 'Primes, retenues, date et compte du paiement', run: () => payslipForm(x, emp, x.year, x.month, () => draw()) }
+          { icon: 'modifier', label: 'Modifier le bulletin', hint: 'Primes, retenues, date et compte du paiement', run: () => payslipForm(x, emp, x.year, x.month, () => draw()) },
+          ...(x.paidDate ? [{ icon: 'retour', label: 'Annuler le paiement…', hint: 'un virement rejeté par la banque : le salaire redevient à payer', run: () => annulerPaiementSalaire(C.payslipsOf(data, x.year, x.month).find(b => b.id === x.id) || x) }] : [])
         ];
       });
     }
@@ -19061,6 +19110,9 @@
       // panneau et retrouver le bon trimestre. D'où le « Annuler » sous la main.
       const mark = async (id, label) => {
         const f = filed(id);
+        // (plateforme) 1.228.0 — la CNSS d'un trimestre et les retenues d'un mois se notent DÉPOSÉES ET PAYÉES : le montant
+        // sort de la trésorerie et solde la dette du grand livre. La déclaration annuelle, elle, ne fait rien payer.
+        if (!f && /^(cnss|dm)-/.test(id)) return payerDeclarationFenetre(id, label);
         if (f) {
           if (!await confirmDialog(`Retirer la mention « déposée » de ${label} ?`)) return;
           data.socialFilings = data.socialFilings.filter(x => x.id !== id);
@@ -19082,10 +19134,11 @@
         const cq = Math.ceil(tm / 3), pq = cq === 1 ? 4 : cq - 1, py = cq === 1 ? ty - 1 : ty;
         const me = tm === 1 ? 12 : tm - 1, ye = tm === 1 ? ty - 1 : ty;
         const cP = C.cnssDeclaration(data, py, pq), cC = C.cnssDeclaration(data, ty, cq), dE = C.declarationMensuelleSalaires(data, ye, me);
-        const fP = filed(`cnss-${py}-T${pq}`);
+        const fP = filed(`cnss-${py}-T${pq}`), fE = filed(`dm-${ye}-${String(me).padStart(2, '0')}`);
+        const dit = f => f.paidDate ? `payée le ${C.fmtDate(f.paidDate)}` : `déposée le ${C.fmtDate(f.date || f.filedAt || '')}`.replace(/ le $/, '');
         const L = [
-          [fP ? 'coche' : 'echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, `${pl(cP.employees, 'salarié')} · ${pl(cP.slips, 'bulletin')}`, fP ? `déposée le ${C.fmtDate(fP.date || fP.filedAt || '')}`.replace(/ le $/, '') : `avant le ${C.fmtDate(cP.dueDate)}`, cP.total, !fP && cP.dueDate < auj],
-          ['echeance', `Déclaration de ${MONTHS_LONG[me - 1]} : retenues et taxes sur les salaires`, modeD === 'sans' ? 'tu la déposes avec la TVA du mois' : 'ton cabinet la prépare · tu verses le montant', `avant le ${C.fmtDate(dE.dueDate)}`, dE.total, dE.dueDate < auj],
+          [fP ? 'coche' : 'echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, `${pl(cP.employees, 'salarié')} · ${pl(cP.slips, 'bulletin')}`, fP ? dit(fP) : `avant le ${C.fmtDate(cP.dueDate)}`, cP.total, !fP && cP.dueDate < auj],
+          [fE ? 'coche' : 'echeance', `Déclaration de ${MONTHS_LONG[me - 1]} : retenues et taxes sur les salaires`, modeD === 'sans' ? 'tu la déposes avec la TVA du mois' : 'ton cabinet la prépare · tu verses le montant', fE ? dit(fE) : `avant le ${C.fmtDate(dE.dueDate)}`, dE.total, !fE && dE.dueDate < auj],
           ['echeance', `CNSS du ${C.quarterLabel(cq)} ${ty}`, `en cours : ${pl(cC.slips, 'bulletin')} jusqu'ici`, `avant le ${C.fmtDate(cC.dueDate)}`, cC.total, false],
           ['echeance', `Déclaration annuelle d'employeur ${ty}`, 'un salarié par ligne, ses salaires et ses retenues', `début ${ty + 1} (À VÉRIFIER)`, null, false]];
         return `<section class="pa-carte" id="dc-verses"><div class="pa-carte-t"><b>Ce que tu verses, et quand</b><span class="mu">les dates : celles de tes réglages, À VÉRIFIER</span></div>
@@ -19117,7 +19170,11 @@
             <tr class="total-row"><td colspan="3"><strong>À reverser au Trésor</strong></td><td class="r nw"><strong>${C.money(dm.total, cur)}</strong></td></tr>
           </tbody></table></div>
           <p class="small muted mt">Les ${pl(dm.salaries, 'bulletin')} de ${h(MONTHS_LONG[dmMois - 1])} ${y}, à reporter sur la déclaration mensuelle d'employeur et de TVA. SkanFact ne dépose rien. <em>À VÉRIFIER avec ton comptable : la base que le formulaire demande, et le mois où se déclare une paie versée le mois suivant.</em></p>
-          <div class="inline mt"><button type="button" class="btn" id="dm-csv">Exporter en CSV</button></div>`
+          <div class="inline mt"><button type="button" class="btn" id="dm-csv">Exporter en CSV</button>${(() => {
+            const fm = filed(`dm-${y}-${String(dmMois).padStart(2, '0')}`);
+            return fm ? `<span class="small muted" id="dm-paye">${fm.paidDate ? `déposée et payée le ${h(C.fmtDate(fm.paidDate))} · ${h(C.money(Number(fm.amount) || 0, cur))}` : 'déposée'}</span><button type="button" class="btn btn-sm" id="dm-file">Retirer la mention</button>`
+              : `<button type="button" class="btn" id="dm-file">${lfIc('coche', 15, 2.4)} Marquer déposée et payée…</button>`;
+          })()}</div>`
             : `<div class="empty" id="dm-vide">Aucun bulletin en ${h(MONTHS_LONG[dmMois - 1])} ${y} : la paie n'ajoute rien à la déclaration de ce mois-là.</div>`}
         </div>
 
@@ -19211,6 +19268,7 @@
       $('#d-quarter').onchange = e2 => { s.quarter = e2.target.value; draw(); };
       // (plateforme) 1.61.0 — la déclaration mensuelle garde son mois ; elle s'exporte ; l'état CNSS s'imprime.
       if ($('#dm-mois')) $('#dm-mois').onchange = e2 => { s.moisDeclare = e2.target.value; draw(); };
+      if ($('#dm-file')) $('#dm-file').onclick = () => mark(`dm-${y}-${String(dmMois).padStart(2, '0')}`, `les retenues et taxes sur les salaires de ${MONTHS_LONG[dmMois - 1]} ${y}`);
       if ($('#dm-csv')) $('#dm-csv').onclick = async () => {
         const cols = [{ key: 'libelle', label: 'Impôt ou taxe' }, { key: 'base', label: 'Base', type: 'money' },
           { key: 'taux', label: 'Taux (%)', get: r => r.bareme ? 'barème' : r.taux == null ? '' : String(r.taux).replace('.', ',') },
@@ -22616,7 +22674,7 @@
         <div class="panel"><h2>Tous les mouvements de ${h(s.year)}</h2>
           <div class="inline mb"><button class="btn btn-sm" id="exp-moves">Exporter en CSV</button></div>
           ${rows.length ? `<div id="m-wrap"><table class="list compact sortable"><thead>${sortHead(cols, s.moves.sort)}</thead><tbody>
-            ${pg.rows.map(m => { const cible = m.source === 'libre' ? '' : m.docId ? '#/doc/' + m.docId : m.purchaseId ? '#/achat/' + m.purchaseId : m.payslipId || m.advanceId ? '#/paie' : '';
+            ${pg.rows.map(m => { const cible = m.source === 'libre' ? '' : m.docId ? '#/doc/' + m.docId : m.purchaseId ? '#/achat/' + m.purchaseId : m.payslipId || m.advanceId || m.socialId ? '#/paie' : '';
               return `<tr class="${m.source === 'libre' || cible ? 'clickable' : ''}" data-mv="${m.source === 'libre' ? h(m.movementId) : ''}" data-go="${h(cible)}">
               ${cols.map(c => `<td class="${c.r ? 'r nw' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(m)}</td>`).join('')}</tr>`; }).join('')}
           </tbody></table></div>${pagerBar(pg.pg, { noun: 'mouvement' })}`
@@ -22757,6 +22815,7 @@
         // pointait rien : le rapprochement d'un mois de paie ne tombait jamais juste.
         if (!hit && id.startsWith('pay-')) hit = data.payslips.find(sl => 'pay-' + sl.id === id) || null;
         if (!hit && id.startsWith('av-')) hit = data.advances.find(a => 'av-' + a.id === id) || null;
+        if (!hit && id.startsWith('soc-')) hit = (data.socialFilings || []).find(f => 'soc-' + f.id === id) || null;
         return hit;
       };
       $$('[data-rec]').forEach(cb => cb.onchange = () => {

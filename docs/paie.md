@@ -1463,3 +1463,28 @@ d'écran […] n'oublie pas les fonctionnalités aussi »).*
 
 - `tests/web/paie-bon-a-payer.test.ts` (photos `paie-bon-a-payer.png`, `paie-correction.png`) ; preuves « paie 1.227 ».
 
+## Revue de la paie — lot R1 : l'argent juste (01/11/2026, 1.228.0)
+
+*La revue métier et UI/UX (`docs/revue-paie.md`, demande de Skander) a trouvé que la CNSS et la retenue payées ne sortaient
+jamais de la trésorerie, et que le grand livre gardait leurs dettes pour toujours.*
+
+- **Déposée et payée** : la CNSS d'un trimestre (`cnss-AAAA-TQ`) et les retenues et taxes sur les salaires d'un mois
+  (`dm-AAAA-MM`) se notent dans une fenêtre : le montant de la déclaration (calculé par `montantSocial`, jamais retapé ;
+  une pénalité se note à part), le jour, le compte, le mode, la référence. « Annuler » défait. La déclaration annuelle
+  d'employeur, qui ne fait rien payer, garde son simple « Marquer déposée ».
+- **Trésorerie** : une déclaration payée est une sortie (`source: 'social'`), qui se pointe sur le relevé.
+- **Grand livre** : le paiement débite le 4531 (CNSS) ou, pour le mois, le 4321 (IRPP et solidarité) et le 4335 (TFP et
+  FOPROLOS) selon les parts figées au paiement ; la banque ou la caisse au crédit. Le trimestre et ses trois mois payés
+  ramènent ces dettes à zéro, au millime (deux chemins, un chiffre).
+- **Un virement de salaire rejeté** : « Annuler le paiement… » (menu ⋯ d'un bulletin payé) remet le salaire à payer ; la
+  raison et l'ancien paiement restent écrits sur le bulletin (`paiementsAnnules`). Un salaire pointé sur un relevé se
+  dépointe d'abord.
+- **Ce que tu verses, et quand** dit « payée le » pour la CNSS et pour le mois.
+- **Ce qui part au serveur** : sur une déclaration, le jour du paiement, le montant, ses parts, le compte, le mode, la
+  référence ; sur un bulletin, la trace d'un paiement annulé. Rien d'autre.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-declarations-payees.test.ts` (trésorerie et grand livre au millime) ; `tests/web/paie-bon-a-payer.test.ts`
+  (« la retenue du mois déposée et payée ; un virement de salaire rejeté redevient à payer ») ; preuves « paie 1.228 ».
+

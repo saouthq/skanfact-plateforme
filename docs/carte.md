@@ -244,7 +244,9 @@ vaut pour tout le dépôt.*
     calendrier, prêts, qui fait la paie (1.226.0 ; `congeRetenu` dans `compta.js`, `congesDemandes`/`congesCalendrier`/`quiFaitLaPaie`) ;
     lot 6, le bon à payer et la correction proposée par le cabinet, les contrôles, le téléphone, et les écarts relevés en
     photos contre la maquette (1.227.0 ; `controlesDuMois` dans `core.js`, `bandeauxDuMois`/`approuverBulletins`/
-    `accepterCorrection`/`refuserCorrection`/`demanderCorrection`/`bapExige` dans `app.js`, `tests/web/paie-bon-a-payer.test.ts`).
+    `accepterCorrection`/`refuserCorrection`/`demanderCorrection`/`bapExige` dans `app.js`, `tests/web/paie-bon-a-payer.test.ts`) ;
+    revue de la paie (`docs/revue-paie.md`), lot R1 : la CNSS et la retenue payées, un virement rejeté (1.228.0 ; `montantSocial`
+    dans `core.js`, `payerDeclarationFenetre`/`annulerPaiementSalaire`, `tests/moteur/paie-declarations-payees.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

@@ -167,6 +167,35 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(erreurs).toEqual([]);
   }, 180_000);
 
+  it('la retenue du mois déposée et payée ; un virement de salaire rejeté redevient à payer', async () => {
+    const A = await monter('payer');
+    const p = await ouvrir(A);
+    const declarations = async () => ((await api('GET', `/entreprises/${A.ent}/dossier-v10`, A.j)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
+      .filter((o) => o.collection === 'socialFilings').map((o) => o.contenu);
+    // Un salaire payé, puis son virement rejeté : le bulletin redevient à payer, la raison reste écrite.
+    const ligne = p.locator('#p-bulletins tr[data-bul]').first();
+    const id = String(await ligne.getAttribute('data-bul'));
+    await ligne.locator('[data-payer]').click();
+    await expect.poll(async () => (await bulletins(A)).find((b) => b.id === id)?.paidDate).toBeTruthy();
+    await p.waitForTimeout(6500);
+    await p.locator(`#p-bulletins tr[data-bul="${id}"]`).getByRole('button', { name: /Actions/ }).click();
+    await p.getByText('Annuler le paiement…', { exact: true }).click();
+    await p.locator('#ap-ok').click();
+    await expect.poll(async () => (await bulletins(A)).find((b) => b.id === id)?.paidDate).toBe('');
+    const annules = (await bulletins(A)).find((b) => b.id === id)?.paiementsAnnules as { raison: string }[];
+    expect(annules.map((x) => x.raison)).toEqual(['Virement rejeté par la banque']);
+    // La retenue du mois : déposée ET payée, du montant de la déclaration.
+    await p.locator('#p-tabs button[data-tab="declarations"]').click();
+    await p.locator('#dm-file').click();
+    await p.locator('#pd-ok').click();
+    await expect.poll(async () => (await declarations()).find((f) => String(f.id).startsWith('dm-'))?.paidDate).toBeTruthy();
+    const f = (await declarations()).find((x) => String(x.id).startsWith('dm-'));
+    expect(nombre(f?.amount)).toBeGreaterThan(0);
+    await expect.poll(() => p.locator('#dm-paye').innerText()).toMatch(/^déposée et payée le /);
+    expect(espace(await p.locator('#dc-verses li').nth(1).innerText())).toMatch(/payée le /);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('la fiche d\'une arrivée, ce que tu verses et quand, l\'année par poste', async () => {
     const A = await monter('bap');
     let p = await ouvrir(A, { hash: '#/salarie/sa' });

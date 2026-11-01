@@ -45,7 +45,7 @@ le traite. Ce qui est incertain (droit du travail, CNSS, fiscal) est écrit **À
 
 ## 4. Les lots proposés, dans l'ordre
 
-1. **R1 — l'argent juste** : payer la CNSS et la retenue (montant, compte, mouvement de trésorerie, « Annuler ») ;
+1. **R1 — l'argent juste** (fait, 1.228.0) : payer la CNSS et la retenue (montant, compte, mouvement de trésorerie, « Annuler ») ;
    la déclaration mensuelle marquée déposée et payée ; un virement rejeté remis « à payer » avec sa raison.
 2. **R2 — la fiche complète** : e-mail, naissance, adresse, téléphone, catégorie/échelon, période d'essai, temps
    partiel ; un salaire qui change à une date, avec son historique.

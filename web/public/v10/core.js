@@ -5008,6 +5008,20 @@
     };
   }
 
+  // (plateforme) 1.228.0 — ce qu'une déclaration sociale fait payer, et ses parts : `cnss-AAAA-TQ` (le trimestre CNSS) ou
+  // `dm-AAAA-MM` (les retenues et taxes sur les salaires d'un mois). La même fonction pour la fenêtre qui le note et pour
+  // ce que l'écran annonce.
+  function montantSocial(data, id) {
+    let m = /^cnss-(\d{4})-T([1-4])$/.exec(id || '');
+    if (m) { const c = cnssDeclaration(data, Number(m[1]), Number(m[2])); return { montant: c.total, parts: { cnss: c.total }, echeance: c.dueDate }; }
+    m = /^dm-(\d{4})-(\d{2})$/.exec(id || '');
+    if (m) {
+      const d = declarationMensuelleSalaires(data, Number(m[1]), Number(m[2]));
+      const v = k => (d.lignes.find(l => l.cle === k) || {}).montant || 0;
+      return { montant: d.total, parts: { irpp: round3(v('irpp') + v('css')), tfp: round3(v('tfp') + v('foprolos')) }, echeance: d.dueDate };
+    }
+    return null;
+  }
   // La déclaration annuelle d'employeur : le récapitulatif des salaires versés et des retenues opérées.
   // Elle porte sur deux choses distinctes que l'on confond souvent : les salaires, et les retenues à la
   // source pratiquées sur des fournisseurs (honoraires, loyers…).
@@ -5737,6 +5751,19 @@
         label: 'Avance sur salaire', party: emp.name || 'Salarié',
         amount: -montant, method: a.method || 'virement', reference: a.reference || '',
         advanceId: a.id, reconciled: !!a.reconciled, source: 'avance'
+      });
+    });
+    // (plateforme) 1.228.0 — une déclaration sociale PAYÉE (la CNSS du trimestre, les retenues et taxes d'un mois) est de
+    // l'argent qui sort : « Marquer déposée » ne gardait qu'une date, la trésorerie ne voyait jamais partir la CNSS ni la
+    // retenue, et le grand livre gardait ces dettes pour toujours. Le montant est celui de la déclaration, figé au paiement.
+    (data.socialFilings || []).forEach(f => {
+      const montant = round3(Number(f.amount) || 0);
+      if (!f.paidDate || !montant || !inPeriod(f.paidDate, period && period.from, period && period.to) || !keep(f.accountId)) return;
+      out.push({
+        id: 'soc-' + f.id, kind: 'sortie', date: f.paidDate, accountId: compteDe(f.accountId),
+        label: f.label || 'Déclaration sociale', party: /^cnss-/.test(f.id) ? 'CNSS' : 'Recette des finances',
+        amount: -montant, method: f.method || 'virement', reference: f.reference || '',
+        socialId: f.id, reconciled: !!f.reconciled, source: 'social'
       });
     });
     // Un VIREMENT entre deux comptes de l'entreprise (10.14.0) — la banque qui alimente la caisse, la
@@ -7415,6 +7442,28 @@
           const e = entrySet({ date: a.date, journal: j.journal, piece: `AVANCE-${a.date || ''}`, tiers: emp.name || '', tiersId: '', source: 'avance', docId: a.id, currency: cur });
           const label = `Avance sur salaire ${emp.name || ''}`.trim();
           e.debit(acc.personnel, label, montant);
+          e.credit(j.compte, label, montant);
+          out.push(...e.done());
+        });
+      // (plateforme) 1.228.0 — la déclaration sociale PAYÉE éteint la dette que les bulletins ont créée : la CNSS du
+      // trimestre débite le compte de la CNSS ; les retenues et taxes d'un mois débitent l'IRPP et la solidarité d'un côté,
+      // la TFP et le FOPROLOS de l'autre, selon les parts figées au paiement. La banque (ou la caisse) au crédit : le même
+      // montant que la ligne de trésorerie (deux chemins, un chiffre).
+      (data.socialFilings || [])
+        .filter(f => f.paidDate && Number(f.amount) && inPeriod(f.paidDate, period && period.from, period && period.to))
+        .forEach(f => {
+          const montant = round3(Number(f.amount) || 0);
+          const j = journalDeCompte(data, acc, f.accountId, f.method);
+          const cnss = /^cnss-/.test(f.id);
+          const e = entrySet({ date: f.paidDate, journal: j.journal, piece: String(f.id).toUpperCase(), tiers: cnss ? 'CNSS' : 'Recette des finances', tiersId: '', source: 'social', docId: f.id, currency: cur });
+          const label = f.label || 'Déclaration sociale';
+          if (cnss) e.debit(acc.cnss, label, montant);
+          else {
+            const parts = f.parts && typeof f.parts === 'object' ? f.parts : {};
+            const tfp = round3(Math.min(montant, Number(parts.tfp) || 0));
+            if (tfp) e.debit(acc.tfpFoprolos, `${label} — TFP et FOPROLOS`, tfp);
+            if (round3(montant - tfp)) e.debit(acc.irpp, `${label} — IRPP et solidarité`, round3(montant - tfp));
+          }
           e.credit(j.compte, label, montant);
           out.push(...e.done());
         });
@@ -11862,7 +11911,7 @@
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
-    moisDePaie, anneesDePaie, paieDuMois, paieATraiter, controlesDuMois, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
+    moisDePaie, anneesDePaie, paieDuMois, paieATraiter, controlesDuMois, montantSocial, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
     stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,
