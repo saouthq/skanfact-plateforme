@@ -129,6 +129,35 @@
 .pa-histo li { display: grid; grid-template-columns: 90px auto 1fr; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--sb-trait); font-size: 13px; }
 .pa-histo li:last-child { border-bottom: 0; }
 
+/* Les congés (1.226.0) : les demandes, le calendrier du mois. */
+.pa-dem-g { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pa-dem-g .btn { display: inline-flex; align-items: center; gap: 5px; }
+#cg-cal .pa-carte-t select { margin-left: auto; height: 32px; border: 1px solid var(--sb-trait); border-radius: 8px; background: var(--sb-papier); color: var(--sb-encre); padding: 0 8px; }
+.cg-t { border-collapse: collapse; font-size: 11.5px; margin: 0 16px 6px; }
+.cg-t th { font-weight: 600; color: var(--sb-gris); padding: 2px 0; min-width: 24px; text-align: center; }
+.cg-t th small { display: block; font-weight: 400; color: var(--sb-gris-2); }
+.cg-t td { height: 28px; text-align: center; border-top: 1px solid var(--sb-trait); }
+.cg-t td.nw { text-align: left; padding-right: 12px; }
+.cg-t .cg-r { background: var(--sb-papier-2); }
+.cg-t .cg-h { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--sb-trait) 4px 5px); }
+.cg-t i, .cg-leg i { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; font-style: normal; font-weight: 700; font-size: 11px; }
+.cg-c { background: color-mix(in srgb, var(--sb-sarcelle) 16%, transparent); color: var(--sb-sarcelle-texte, var(--sb-sarcelle)); }
+.cg-m { background: color-mix(in srgb, #6d5bd0 16%, transparent); color: #5b4bc0; }
+.cg-a { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+.cg-d { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); outline: 1px dashed var(--sb-ambre-texte); }
+.cg-leg { display: flex; gap: 14px; flex-wrap: wrap; padding: 6px 16px 12px; font-size: 12px; color: var(--sb-gris); }
+.cg-leg span { display: inline-flex; align-items: center; gap: 6px; }
+
+.pa-ech { display: flex; gap: 3px; margin-top: 5px; max-width: 220px; }
+.pa-ech i { flex: 1; height: 5px; border-radius: 3px; background: var(--sb-trait); }
+.pa-ech i.fait { background: var(--sb-sarcelle); }
+
+.pa-choix { display: grid; gap: 8px; margin: 10px 0; }
+.pa-choix-l { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--sb-trait); border-radius: 10px; cursor: pointer; }
+.pa-choix-l:has(input:checked) { border-color: var(--sb-sarcelle); background: color-mix(in srgb, var(--sb-sarcelle) 6%, var(--sb-papier)); }
+.pa-choix-l span { display: grid; gap: 2px; }
+.pa-choix-l small { color: var(--sb-gris); }
+
 /* L'aperçu d'un document (1.223.0) : à gauche quoi et pour qui, à droite la feuille A4 elle-même. */
 .modal.pa-doc { width: min(1120px, 96vw); max-width: min(1120px, 96vw); }
 .pa-doc-sous { margin: -4px 0 12px; }

@@ -17911,6 +17911,8 @@
         ${dateFieldHtml(lbl('Du', 'hr.leaveDates'), 'from', l.from, { obligatoire: true })}
         ${dateFieldHtml(lbl('Au', 'hr.leaveDates'), 'to', l.to, { obligatoire: true })}
         <label class="field span-2">${lbl('Motif', 'hr.leaveNote')}<input type="text" name="note" value="${h(l.note || '')}" placeholder="Certificat médical, congé annuel…"></label>
+        ${/* (plateforme) 1.226.0 — une demande du salarié : écrite, elle ne compte nulle part avant d'être acceptée. */''}
+        <label class="check span-2"><input type="checkbox" name="demande" ${l.statut === 'demande' ? 'checked' : ''}> C'est une demande du salarié, pas encore acceptée <span class="small muted">: elle ne touche ni son solde ni son salaire avant ta réponse</span></label>
         <div class="span-2 annonce-stable" id="lf-hint"></div>
       </form>
       <div class="modal-actions">
@@ -17944,7 +17946,11 @@
           if (salarieLf.endDate && v.to > salarieLf.endDate) return refus(champ('to'), `La sortie de ${salarieLf.name} est le ${C.fmtDate(salarieLf.endDate)} : une absence ne finit pas après.`);
           if (closedBlock([l.from, l.to, v.from, v.to], 'Cette absence')) return;
           if (!leave && licenceBlock('Créer une absence', 'paie')) return;
+          const statut = v.demande ? 'demande' : (l.statut === 'demande' ? 'accepte' : l.statut);
+          delete v.demande;
           Object.assign(l, v, { paid: v.paid === '' ? null : v.paid === '1' });
+          if (statut) l.statut = statut; else delete l.statut;
+          if (statut === 'demande' && !l.demandeLe) l.demandeLe = C.today();
           if (!leave) data.leaves.push(l);
           save(true); close(); if (done) done();
         };
@@ -17964,7 +17970,7 @@
     if (!emps.length) return toast('Crée d\'abord la fiche d\'un salarié.', true);
     const a = advance || { id: C.uid(), employeeId: employeeId || emps[0].id, date: C.today(), amount: 0, monthly: 0, note: '' };
     const cur = company().currency;
-    modal(`<h2>${advance ? 'Modifier l\'avance' : 'Avance sur salaire'}</h2>
+    modal(`<h2>${advance ? (a.kind === 'pret' ? 'Modifier le prêt' : 'Modifier l\'avance') : 'Une avance ou un prêt'}</h2>
       <p class="small muted">Une somme prêtée au salarié, remboursée par retenues sur ses prochains bulletins. La retenue se pose toute seule, mois après mois, jusqu'à extinction.</p>
       <form id="af2" class="grid-2">
         <div class="field span-2 obligatoire">${lbl('Salarié', 'hr.advanceEmployee')}
@@ -17980,6 +17986,9 @@
         <label class="field">${lbl('Mode', 'hr.advanceMethod')}<select name="method">${C.PAYMENT_METHODS.map(m => `<option value="${m[0]}" ${(a.method || 'virement') === m[0] ? 'selected' : ''}>${m[1]}</option>`).join('')}</select></label>
         ${accountFieldHtml(a.accountId)}
         <label class="field">${lbl('Note', 'hr.advanceNote')}<input type="text" name="note" value="${h(a.note || '')}" placeholder="Pourquoi, et ce qui a été convenu"></label>
+        ${/* (plateforme) 1.226.0 — un prêt (la maquette) : plus long qu'une avance, son échéancier commence au mois convenu. */''}
+        <label class="field">${lbl('C\'est')}<select name="kind"><option value="avance" ${a.kind !== 'pret' ? 'selected' : ''}>une avance, rendue en quelques mois</option><option value="pret" ${a.kind === 'pret' ? 'selected' : ''}>un prêt, avec son échéancier</option></select></label>
+        <label class="field">${lbl('Première retenue')}<input type="month" name="debut" value="${h(a.debut || '')}" aria-label="Le mois de la première retenue"><small class="muted">vide : dès le bulletin du mois où il est versé</small></label>
         <div class="span-2 annonce-stable" id="af2-hint"></div>
       </form>
       <div class="modal-actions">
@@ -18016,6 +18025,8 @@
           if (closedBlock([a.date, v.date], 'Cette avance')) return;
           if (!advance && licenceBlock('Créer une avance sur salaire', 'paie')) return;
           Object.assign(a, v, { amount: Number(v.amount), monthly: Number(v.monthly) });
+          if (!a.debut) delete a.debut;
+          if (a.kind !== 'pret') delete a.kind;
           if (!advance) data.advances.push(a);
           save(true); close(); if (done) done();
         };
@@ -18194,6 +18205,29 @@
     };
     // Le mois choisi, à gauche des vues : l'année partout où elle compte, le mois sur « Le mois ».
     const pMois = () => `${lfIc('echeance', 15)}${s.tab === 'bulletins' ? `<select id="p-month" aria-label="Le mois">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${Number(s.month) === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}<select id="p-year" aria-label="L'année">${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>`;
+    // (plateforme) 1.226.0 — « Qui fait ta paie ? » (la maquette) : trois façons, ce que chacune change ; le choix vaut à
+    // partir du mois suivant, les bulletins passés ne bougent pas, et on peut revenir en arrière.
+    const PAIE_MODES = [['tenue', 'Mon cabinet la tient', 'tu pointes et tu paies ; ton comptable prépare, tu approuves, il valide et déclare'],
+      ['seule', 'Je la fais, mon cabinet la vérifie', 'tu prépares les bulletins ; ton comptable les vérifie et propose ses corrections, que tu acceptes'],
+      ['sans', 'Je la fais seul, sans cabinet', 'SkanFact contrôle tes bulletins ; tu déclares toi-même (déclaration du mois, fichier CNSS)']];
+    const paieMode = () => { const co = company(); return co.paieMode && PAIE_MODES.some(x => x[0] === co.paieMode) ? co.paieMode : (co.cabinet && co.cabinet.publicKey ? 'tenue' : 'sans'); };
+    function quiFaitLaPaie() {
+      const avant = paieMode();
+      const des = C.addMonths(C.today().slice(0, 7) + '-01', 1, 1).slice(0, 7);
+      modal(`<h2>Qui fait ta paie ?</h2><p class="small muted">aujourd'hui : ${h((PAIE_MODES.find(x => x[0] === avant) || [])[1] || '')}</p>
+        <form id="qf" class="pa-choix">${PAIE_MODES.map(([k, n, d]) => `<label class="pa-choix-l"><input type="radio" name="mode" value="${k}" ${k === avant ? 'checked' : ''}><span><b>${h(n)}</b><small>${h(d)}</small></span></label>`).join('')}</form>
+        <p class="small muted">Le changement vaut à partir de ${h(MONTHS_LONG[Number(des.slice(5, 7)) - 1])} : le mois en cours se finit comme il a commencé. Tes bulletins passés ne bougent pas, et tu peux revenir en arrière. Avec un cabinet, ce que dit ta lettre de mission compte (À VÉRIFIER avec lui).</p>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="qf-ok">${lfIc('coche', 15, 2.4)} Enregistrer</button></div>`, (root, fermer) => {
+        $('#qf-ok', root).onclick = () => {
+          const m = formValues($('#qf', root)).mode;
+          if (!m || m === avant) { fermer(); return; }
+          const co = company(), prec = { paieMode: co.paieMode, paieModeDes: co.paieModeDes };
+          co.paieMode = m; co.paieModeDes = des;
+          save(true); fermer(); draw();
+          toastUndo(`À partir de ${MONTHS_LONG[Number(des.slice(5, 7)) - 1]} : ${(PAIE_MODES.find(x => x[0] === m) || [])[1]}`, () => { Object.assign(co, prec); if (!prec.paieMode) delete co.paieMode; if (!prec.paieModeDes) delete co.paieModeDes; save(true); draw(); });
+        };
+      });
+    }
     // Une pastille ne compte que ce qui est à faire, jamais un effectif (la maquette, « pastilles »).
     const aFaireSalaries = () => C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').length;
     $('#view').innerHTML = `
@@ -18654,12 +18688,67 @@
       bindPager($('#p-body'), s.salaries, () => drawEmployees(), '#p-body');
     }
 
+    // (plateforme) 1.226.0 — les demandes de congé à répondre, et le calendrier du mois : qui est absent, quel jour.
+    function congesDemandes() {
+      const D = (data.leaves || []).filter(l => l.statut === 'demande').sort((a, b) => (a.from || '').localeCompare(b.from || ''));
+      if (!D.length) return '';
+      const st = C.payrollSettings(data);
+      return `<section class="pa-carte" id="cg-demandes"><div class="pa-carte-t"><b>${pl(D.length, 'demande')} de congé à répondre</b><span class="mu">ta réponse reste écrite ici, avec sa date ; rien ne compte avant</span></div>
+        <ul class="pa-l">${D.map(l => { const e = employeeById(l.employeeId) || {}, j = C.workingDays(l.from, l.to, st.offDays), b = C.leaveBalance(data, l.employeeId, Number(String(l.from).slice(0, 4)));
+          const sans = l.kind === 'conges' ? Math.max(0, C.round3(j - Math.max(0, b.remaining))) : 0;
+          return `<li data-dem="${h(l.id)}">${avPaie(e)}<span class="pa-n"><b>${h(e.name || '')} : du ${C.fmtDate(l.from)} au ${C.fmtDate(l.to)} · ${pl(j, 'jour')}</b><small>${l.demandeLe ? `demandé le ${C.fmtDate(l.demandeLe)} · ` : ''}${l.kind === 'conges' ? `il lui reste ${pct(b.remaining)} jour${sPl(b.remaining)}${sans > 0 ? ` : ${pct(sans)} jour${sPl(sans)} seraient sans solde` : ''}` : h(l.note || '')}</small></span>
+            <span class="pa-dem-g"><button type="button" class="btn btn-sm" data-dem-non="${h(l.id)}">Refuser…</button><button type="button" class="btn btn-sm" data-dem-mod="${h(l.id)}">D'autres dates…</button><button type="button" class="btn btn-sm btn-primary" data-dem-oui="${h(l.id)}">${lfIc('coche', 14, 2.4)} Accepter</button></span></li>`; }).join('')}</ul></section>`;
+    }
+    function congesCalendrier(y, m) {
+      const n = C.daysInMonth(y, m), premier = `${y}-${String(m).padStart(2, '0')}-01`, dernier = C.addDays(premier, n - 1);
+      const emps = data.employees.filter(e => (!e.hireDate || e.hireDate <= dernier) && (!e.endDate || e.endDate >= premier)).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+      if (!emps.length) return '';
+      const dem = (data.leaves || []).filter(l => l.statut === 'demande');
+      const L = 'DLMMJVS';
+      const cel = (e, j) => {
+        if (j.code === '-') return '<td class="cg-h"></td>';
+        const d = dem.find(l => l.employeeId === e.id && l.from <= j.iso && j.iso <= l.to);
+        if (d && !j.repos) return '<td><i class="cg-d" title="demandé, pas encore accepté">D</i></td>';
+        if (j.repos) return '<td class="cg-r"></td>';
+        const t = { C: ['cg-c', 'congé payé'], M: ['cg-m', 'maladie'], A: ['cg-a', 'absent, non payé'], D: ['cg-a', 'demi-journée'], F: ['cg-c', 'jour férié'] }[j.code];
+        return t ? `<td><i class="${t[0]}" title="${t[1]}">${j.code === 'D' ? '½' : j.code}</i></td>` : '<td></td>';
+      };
+      const rows = emps.map(e => ({ e, p: C.pointageDuMois(data, e, y, m) }));
+      return `<section class="pa-carte" id="cg-cal"><div class="pa-carte-t"><b>${h(MONTHS_LONG[m - 1])} ${y} : qui est absent</b><span class="mu">congés et absences posés, demandes en attente</span>
+          <select id="cg-mois" aria-label="Le mois du calendrier">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${m === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="scroll-x"><table class="cg-t"><thead><tr><th></th>${rows[0].p.jours.map(j => `<th class="${j.repos ? 'cg-r' : ''}"><small>${L[j.wd]}</small>${j.jour}</th>`).join('')}</tr></thead>
+          <tbody>${rows.map(({ e, p }) => `<tr><td class="nw"><b>${h(e.name)}</b></td>${p.jours.map(j => cel(e, j)).join('')}</tr>`).join('')}</tbody></table></div>
+        <div class="cg-leg"><span><i class="cg-c">C</i>congé payé</span><span><i class="cg-m">M</i>maladie</span><span><i class="cg-a">A</i>absent, non payé</span><span><i class="cg-d">D</i>demandé</span><span class="muted">les jours fériés ne se posent pas d'eux-mêmes (À VÉRIFIER chaque année)</span></div></section>`;
+    }
+    function lierConges(apres) {
+      if ($('#cg-mois')) $('#cg-mois').onchange = ev => { s.moisCal = ev.target.value; apres(); };
+      const lv = id => (data.leaves || []).find(x => x.id === id);
+      $$('#p-body [data-dem-oui]').forEach(b => b.onclick = () => {
+        const l = lv(b.dataset.demOui); if (!l) return;
+        l.statut = 'accepte'; l.reponduLe = C.today(); save(true); apres();
+        toastUndo('Demande acceptée : le congé se pose sur le pointage et le bulletin', () => { l.statut = 'demande'; delete l.reponduLe; save(true); apres(); });
+      });
+      $$('#p-body [data-dem-mod]').forEach(b => b.onclick = () => { const l = lv(b.dataset.demMod); if (l) leaveForm(l, null, apres); });
+      $$('#p-body [data-dem-non]').forEach(b => b.onclick = () => {
+        const l = lv(b.dataset.demNon); if (!l) return;
+        modal(`<h2>Refuser la demande</h2><p class="small muted">Ta raison reste écrite avec la demande, et sa date.</p><form id="dr"><label class="field">${lbl('Pourquoi')}<input type="text" name="raison" placeholder="ex. le fournil ne tiendrait pas la nuit"></label></form>
+          <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-danger" id="dr-ok">Refuser la demande</button></div>`, (root, fermer) => {
+          $('#dr-ok', root).onclick = () => {
+            const r = formValues($('#dr', root)).raison;
+            l.statut = 'refuse'; l.reponduLe = C.today(); if (r) l.raisonRefus = r;
+            save(true); fermer(); apres();
+            toastUndo('Demande refusée : ta raison reste écrite', () => { l.statut = 'demande'; delete l.reponduLe; delete l.raisonRefus; save(true); apres(); });
+          };
+        });
+      });
+    }
     function drawLeaves() {
       const y = Number(s.year);
       const all = C.leavesOf(data, '', y);
       const emps = C.activeEmployees(data);
       const cptPage = paginate(emps, s.compteurs);
-      $('#p-body').innerHTML = `
+      const mc = Number(s.moisCal || (String(y) === C.today().slice(0, 4) ? Number(C.today().slice(5, 7)) : 1));
+      $('#p-body').innerHTML = `${congesDemandes()}${congesCalendrier(y, mc)}
         <div class="panel" id="p-compteurs"><h2>Compteurs de congés ${info('hr.balance')}</h2>
           <p class="small muted mb">Le droit annuel (<b>${pct(C.payrollSettings(data).leaveDaysPerYear)} ${Number(C.payrollSettings(data).leaveDaysPerYear) > 1 ? 'jours ouvrables' : 'jour ouvrable'}</b>) se règle dans l'onglet Barèmes. Il s'acquiert au prorata des mois travaillés. <em>À VÉRIFIER avec ton comptable : la convention collective de ton secteur peut prévoir davantage.</em></p>
           ${emps.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
@@ -18689,7 +18778,7 @@
               return `<tr class="clickable" data-lv="${h(l.id)}" title="Modifier cette absence"><td><strong>${h(e.name || '')}</strong></td><td>${h(l.kindLabel)}</td>
                 <td class="nw">${C.fmtDate(l.from)}</td><td class="nw">${C.fmtDate(l.to)}</td>
                 <td class="r nw">${pct(l.days)}</td>
-                <td>${l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td>
+                <td>${l.statut === 'demande' ? '<span class="statut attire">demandée</span>' : l.statut === 'refuse' ? `<span class="statut">refusée${l.reponduLe ? ` le ${C.fmtDate(l.reponduLe)}` : ''}</span>${l.raisonRefus ? `<small class="muted"> ${h(l.raisonRefus)}</small>` : ''}` : l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td>
                 <td>${h(l.note || '')}</td></tr>`;
             }).join('')}
           </tbody></table></div>`
@@ -18698,13 +18787,14 @@
       $$('#p-body [data-lv]').forEach(b => b.onclick = () => leaveForm(data.leaves.find(x => x.id === b.dataset.lv), null, () => draw()));
       $$('#p-body tr[data-eid]').forEach(tr => tr.onclick = e2 => { if (e2.target.closest('button')) return; navigate('#/salarie/' + tr.dataset.eid); });
       if ($('#p-compteurs')) bindPager($('#p-compteurs'), s.compteurs, () => drawLeaves(), '#p-compteurs');
+      lierConges(() => draw());
     }
 
     function drawAdvances() {
       const all = C.advancesOf(data);
       const open = all.filter(a => !a.done);
       $('#p-body').innerHTML = `
-        <div class="panel"><h2>Avances sur salaire ${info('hr.advance')}</h2>
+        <div class="panel"><h2>Avances et prêts ${info('hr.advance')}</h2>
           ${/* 10.12.0 — « 0 en cours sur 0 » au-dessus d'un état vide (même faute que les absences). */''}
           ${all.length ? `<div class="filters"><span class="small muted">${open.length} en cours sur ${all.length}${open.length ? ` · ${C.money(C.round3(open.reduce((a, x) => a + x.remaining, 0)), cur)} restant à récupérer` : ''}</span></div>` : ''}
           ${all.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
@@ -18715,7 +18805,7 @@
                  du titre — la phrase sous le tableau la recopiait mot pour mot (9.4.9). */''}
             ${all.map(a => { const e = employeeById(a.employeeId) || {};
               return `<tr class="clickable" data-av="${h(a.id)}" title="Modifier cette avance">
-                <td><strong>${h(e.name || '')}</strong></td><td class="nw">${C.fmtDate(a.date)}</td>
+                <td><strong>${h(e.name || '')}</strong><small class="muted"> ${a.kind === 'pret' ? 'prêt' : 'avance'}</small>${!a.done && a.monthly > 0 ? `<div class="pa-ech" title="${pl(Math.ceil(a.amount / a.monthly), 'retenue')} de ${C.money(a.monthly, cur)}">${Array.from({ length: Math.min(24, Math.ceil(a.amount / a.monthly)) }, (_, k) => `<i class="${k < Math.round(a.repaid / a.monthly) ? 'fait' : ''}"></i>`).join('')}</div>` : ''}</td><td class="nw">${C.fmtDate(a.date)}${a.debut ? `<small class="muted"> retenues dès ${h(MONTHS_LONG[Number(a.debut.slice(5, 7)) - 1])} ${h(a.debut.slice(0, 4))}</small>` : ''}</td>
                 <td class="r nw">${C.money(a.amount, cur)}</td><td class="r nw">${C.money(a.monthly, cur)}</td>
                 <td class="r nw">${C.money(a.repaid, cur)}</td>
                 <td class="r nw">${a.done ? '<span class="ok-text">soldée</span>' : `<strong>${C.money(a.remaining, cur)}</strong>`}</td>
@@ -18853,7 +18943,9 @@
           save(true); draw();
         });
       };
-      $('#p-body').innerHTML = `
+      const modeD = paieMode();
+      $('#p-body').innerHTML = `${modeD === 'sans' ? `<div class="pa-bandeau" id="dc-qui">${lfIc('pages', 18)}<span><b>Tu déclares toi-même : SkanFact prépare, tu déposes</b><span>Les montants, la déclaration du mois et l'état CNSS du trimestre se préparent ici. Tu les déposes sur les sites officiels et tu marques chaque dépôt : SkanFact ne se connecte à aucune administration. Les dates : À VÉRIFIER.</span></span><button type="button" class="btn btn-sm" id="dc-mode">Qui fait ma paie</button></div>`
+        : `<div class="pa-bandeau" id="dc-qui">${lfIc('comptable', 18)}<span><b>Tes déclarations de paie sont faites par ton cabinet</b><span>Ici, tu vois ce que tu dois verser et quand ; le cabinet les dépose. SkanFact ne dépose rien et ne se connecte à aucune administration.</span></span><button type="button" class="btn btn-sm" id="dc-mode">Qui fait ma paie</button></div>`}
         ${due.length ? `<div class="panel" style="border-inline-start:3px solid var(--${due.some(x => x.late) ? 'danger' : 'warning'})">
           <h2>À déposer ${info('soc.due')}</h2>
           <table class="list compact"><tbody>
@@ -18968,6 +19060,7 @@
           </div>
           <p class="small muted mt"><em>À VÉRIFIER avec ton comptable : la forme exacte du formulaire, les dates et les modalités de dépôt. SkanFact prépare les chiffres, il ne dépose rien.</em></p>
         </div>`;
+      if ($('#dc-mode')) $('#dc-mode').onclick = () => quiFaitLaPaie();
       $('#d-quarter').onchange = e2 => { s.quarter = e2.target.value; draw(); };
       // (plateforme) 1.61.0 — la déclaration mensuelle garde son mois ; elle s'exporte ; l'état CNSS s'imprime.
       if ($('#dm-mois')) $('#dm-mois').onchange = e2 => { s.moisDeclare = e2.target.value; draw(); };
@@ -19047,7 +19140,20 @@
       const num = (k, lab, key, montant) => `<label class="field">${lbl(lab, key)}<input type="number" name="${k}" value="${st[k]}" step="0.01" min="0" class="num${montant ? ' montant' : ''}"></label>`;
       // Un montant porte son unité à côté de son libellé (9.4.8) : « Plafond annuel des frais : 2000 »
       // ne disait ni dinars ni par an, et « Déduction chef de famille (par an) » pas davantage.
-      $('#p-body').innerHTML = `
+      // (plateforme) 1.226.0 — ce qui est réglé et ce qui ne l'est pas, d'un coup d'œil (la maquette, « Réglages »).
+      const etatR = (t, v, ok, d) => `<tr><td><b>${t}</b></td><td>${v}</td><td><span class="statut ${ok ? 'ok' : 'attire'}">${ok ? 'réglé' : 'non réglé'}</span>${d ? `<small class="muted"> ${d}</small>` : ''}</td></tr>`;
+      const majR = C.majorationsHs(st), offR = st.offDays || [0];
+      const resumeR = `<section class="pa-carte" id="rf-etat"><div class="pa-carte-t"><b>Ta paie, réglage par réglage</b><span class="mu">ce qui sert au calcul ; ce qui n'est pas réglé le dit</span></div>
+        <table class="list compact pa-liste"><thead><tr><th>Réglage</th><th>Dans ta paie</th><th>État</th></tr></thead><tbody>
+          ${etatR('CNSS', `${pct(st.cnssEmployee)} % salarié · ${pct(st.cnssEmployer)} % employeur`, Number(st.cnssEmployee) > 0, 'À VÉRIFIER chaque année')}
+          ${etatR('Accident du travail', `${pct(st.accidentRate)} %`, Number(st.accidentRate) > 0, 'il dépend de ton activité')}
+          ${etatR('Impôt sur le revenu', 'barème annuel par tranches', true, 'À VÉRIFIER : la loi de finances')}
+          ${etatR('Congés', `${pct(st.leaveDaysPerYear)} jours ouvrables par an`, Number(st.leaveDaysPerYear) > 0, 'ta convention peut en donner plus')}
+          ${etatR('Jours de travail', `repos : ${h(offR.map(i2 => ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][i2]).join(', ') || 'aucun')} · un mois complet : ${pct(Number(st.workedDays) || 26)} jours`, true)}
+          ${etatR('Heures sup', majR.length ? majR.map(x => `+${pct(x)} %`).join(', ') : '—', majR.length > 0, 'À VÉRIFIER : le Code du travail')}
+          ${etatR('Convention collective', '—', false, 'prime d\'ancienneté, minimum par catégorie, majorations : à voir avec ton comptable')}
+        </tbody></table></section>`;
+      $('#p-body').innerHTML = `${resumeR}
         <div class="panel" style="border-inline-start:3px solid var(--warning)"><h2>Ces chiffres sont à toi ${info('pay.rates')}</h2>
           <p class="small">Aucun taux n'est écrit en dur dans SkanFact : tout ce que tu vois ici sert au calcul, et rien d'autre. Les valeurs livrées sont celles couramment appliquées en Tunisie <b>au moment où cette version a été écrite</b> — elles changent à chaque loi de finances.
           <em>À VÉRIFIER avec ton comptable, et à corriger ici dès qu'un taux bouge.</em></p>
@@ -19233,7 +19339,8 @@
       if ($('#p-plus')) $('#p-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
         ...(C.payslipsOf(data, Number(s.year), Number(s.month)).length ? [{ icon: 'pdf', label: 'Journal de paie', hint: `${MONTHS_LONG[Number(s.month) - 1]} ${s.year} : une ligne par salarié, les totaux`, run: () => journalDePaieFenetre(Number(s.year), Number(s.month)) }] : []),
         { icon: 'dossier', label: 'Registre du personnel', hint: 'la liste que l\'inspection du travail peut demander', run: () => allerVue('registre') },
-        { icon: 'modifier', label: 'Réglages de la paie', hint: 'taux, barèmes, horaires', run: () => allerVue('baremes') }
+        { icon: 'modifier', label: 'Réglages de la paie', hint: 'taux, barèmes, horaires', run: () => allerVue('baremes') },
+        { icon: 'oeil', label: 'Qui fait ma paie', hint: (PAIE_MODES.find(x => x[0] === paieMode()) || [])[1], run: () => quiFaitLaPaie() }
       ], { titre: 'La paie', classe: 'gestes-menu', label: 'Autres gestes de la paie' });
       const af = aFaireSalaries(), b = $('#p-tabs [data-af="salaries"]');
       if (b) { b.hidden = !af; b.textContent = af ? String(af) : ''; b.title = af ? `${pl(af, 'chose')} à compléter sur les fiches` : ''; }

@@ -6618,12 +6618,15 @@
     return workingDays(from, to, offDays);
   }
 
+  // (plateforme) 1.226.0 — une demande de congé (la maquette de la paie) : écrite, elle ne compte nulle part (ni solde, ni
+  // pointage, ni bulletin) tant qu'elle n'est pas acceptée ; refusée, elle reste écrite avec sa raison et sa date.
+  const congeRetenu = l => !l.statut || l.statut === 'accepte';
   function leavesOf(data, employeeId, year) {
     return (data.leaves || [])
       .filter(l => (!employeeId || l.employeeId === employeeId)
         && (!year || (l.from || '').slice(0, 4) === String(year) || (l.to || '').slice(0, 4) === String(year)))
       .map(l => ({ ...l, days: workingDays(l.from, l.to, (data.payrollSettings || {}).offDays),
-        paid: l.paid != null ? l.paid : leaveIsPaid(l.kind), kindLabel: leaveKindLabel(l.kind) }))
+        paid: l.paid != null ? l.paid : leaveIsPaid(l.kind), kindLabel: leaveKindLabel(l.kind), retenu: congeRetenu(l) }))
       .sort((a, b) => (b.from || '').localeCompare(a.from || ''));
   }
 
@@ -6642,7 +6645,7 @@
     const perYear = Number(s.leaveDaysPerYear) || 0;
     const acquired = round3(perYear * months / 12);
     const carry = Number((emp.leaveCarry || {})[y]) || 0;
-    const list = leavesOf(data, employeeId, y);
+    const list = leavesOf(data, employeeId, y).filter(l => l.retenu);
     const taken = round3(list.filter(l => l.kind === 'conges').reduce((a, l) => a + l.days, 0));
     const byKind = {};
     LEAVE_KINDS.forEach(([k]) => { byKind[k] = round3(list.filter(l => l.kind === k).reduce((a, l) => a + l.days, 0)); });
@@ -6727,7 +6730,7 @@
     const total = Number(s.workedDays) || 26;
     const premier = `${year}-${String(month).padStart(2, '0')}-01`;
     const t = pointageEnregistre(data, employee.id, year, month);
-    const conges = (data.leaves || []).filter(l => l.employeeId === employee.id);
+    const conges = (data.leaves || []).filter(l => l.employeeId === employee.id && congeRetenu(l));
     const jours = [];
     for (let d = 1; d <= daysInMonth(year, month); d++) {
       const iso = ajouterJoursIso(premier, d - 1);
@@ -6862,7 +6865,8 @@
   // l'entreprise propose depuis la 6.0 (core.js, `payslipInputFor`), et celui du Cabinet depuis la 1.71.0.
   function echeancesDuMois(data, employeeId, year, month) {
     const jjmmaaaa = iso => String(iso).split('-').reverse().join('/');
-    return advancesOf(data, employeeId).filter(a => !a.done && a.date <= `${year}-${String(month).padStart(2, '0')}-31`)
+    // (plateforme) 1.226.0 — un prêt commence ses retenues au mois convenu (`debut`, AAAA-MM), pas avant.
+    return advancesOf(data, employeeId).filter(a => !a.done && a.date <= `${year}-${String(month).padStart(2, '0')}-31` && (!a.debut || a.debut <= `${year}-${String(month).padStart(2, '0')}`))
       .map(a => ({ label: `Remboursement d'avance du ${jjmmaaaa(a.date)}`, amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))
       .filter(d => d.amount > 0);
   }
@@ -7578,7 +7582,7 @@
     // (plateforme) 1.69.0 — le pointage, et ce qu'il compte.
     LEAVE_KINDS, leaveIsPaid,
     // (plateforme) 1.70.0 — les congés.
-    leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
+    leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance, congeRetenu,
     CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
     saisieDuMois,
     // (plateforme) 1.71.0 — les avances.

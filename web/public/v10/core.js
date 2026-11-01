@@ -4363,7 +4363,7 @@
     const s = payrollSettings(data);
     const off = s.offDays;
     const absentDays = round3((data.leaves || [])
-      .filter(l => l.employeeId === employee.id && !(l.paid != null ? l.paid : leaveIsPaid(l.kind)))
+      .filter(l => l.employeeId === employee.id && Compta.congeRetenu(l) && !(l.paid != null ? l.paid : leaveIsPaid(l.kind)))
       .reduce((a, l) => a + leaveDaysInMonth(l, year, month, off), 0));
     // (plateforme) 1.71.0 — l'échéance de chaque avance en cours, par le moteur commun (celle du bulletin du Cabinet).
     const deductions = echeancesDuMois(data, employee.id, year, month);
@@ -11815,7 +11815,7 @@
     joursPayesDuBulletin, COLONNES_JOURNAL, journalDePaie, colonnesCsvJournal, journalDePaieHtml, etatRecapitulatifCnss, etatRecapitulatifCnssHtml, declarationMensuelleSalaires,
     QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,
     LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
-    advancesOf, advanceBalance, payslipInputFor, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
+    advancesOf, advanceBalance, payslipInputFor, congeRetenu: Compta.congeRetenu, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
     // (plateforme) 1.72.0 — du moteur commun : la civilité, l'indemnité de congés non pris, les lignes du solde.
     CIVILITES, indemniteConges, lignesDuSolde,
     SERIAL_STATUSES, serialStatusLabel, WARRANTY_CHOICES, serializedItems, warrantyEnd, serialView,
