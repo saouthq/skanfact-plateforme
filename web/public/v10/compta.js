@@ -6876,7 +6876,21 @@
   // pointage), ses primes de chaque mois (au jour sur les jours payés, 1.59.0) et, le mois pointé, ses heures
   // supplémentaires. C'est la saisie de l'entreprise (core.js, `payslipInputFor`) : un essai compare les deux (deux
   // chemins, un chiffre). (plateforme) 1.71.0 — avec les échéances de ses avances, que le Cabinet lit désormais.
-  function saisieDuMois(data, employee, year, month) {
+  // (plateforme) 1.229.0 — un salaire qui change à une DATE : la fiche garde `salaires` ([{ des: 'AAAA-MM', brut, avant }]).
+  // Le brut d'un mois est celui du dernier changement entré en vigueur ce mois-là ou avant ; un mois d'avant le premier
+  // changement garde l'ancien salaire (`avant`). Sans historique, le brut de la fiche. Un bulletin d'un mois passé, refait
+  // plus tard, ne prend donc jamais l'augmentation d'après.
+  function brutDuMois(employee, year, month) {
+    const e = employee || {}, L = Array.isArray(e.salaires) ? e.salaires.filter(x => x && /^\d{4}-\d{2}$/.test(x.des)).slice().sort((a, b) => a.des.localeCompare(b.des)) : [];
+    if (!L.length) return round3(Number(e.grossSalary) || 0);
+    const ym = `${year}-${String(month).padStart(2, '0')}`;
+    const vu = L.filter(x => x.des <= ym).pop();
+    return round3(Number(vu ? vu.brut : L[0].avant) || 0);
+  }
+  const employeAuMois = (employee, year, month) => (employee && Array.isArray(employee.salaires) && employee.salaires.length
+    ? { ...employee, grossSalary: brutDuMois(employee, year, month) } : employee);
+  function saisieDuMois(data, employee0, year, month) {
+    const employee = employeAuMois(employee0, year, month);
     const p = pointageDuMois(data, employee, year, month);
     const total = p.total;
     const hors = Math.min(total, p.jours.filter(j => j.code === '-' && !j.repos).length);
@@ -7584,7 +7598,7 @@
     // (plateforme) 1.70.0 — les congés.
     leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance, congeRetenu,
     CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
-    saisieDuMois,
+    saisieDuMois, brutDuMois, employeAuMois,
     // (plateforme) 1.71.0 — les avances.
     advancesOf, advanceBalance, echeancesDuMois, avancesDeLAnnee,
     // (plateforme) 1.72.0 — les documents du personnel.

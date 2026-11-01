@@ -17471,6 +17471,18 @@
         ${field(lbl('Enfants à charge', 'pay.children'), 'children', e.children || 0, 'number', 'step="1" min="0" max="10" class="num"')}
         ${/* (plateforme) 1.74.0 — sa clé se contrôle à la saisie, comme le RIB de la société : il s'imprime sur l'ordre de virement. */''}
         <label class="field"><span class="fl">RIB / IBAN ${info('pay.iban')}<span class="rib-note" aria-live="polite"></span></span><input type="text" name="iban" value="${h(e.iban || '')}" autocomplete="off" spellcheck="false"></label>
+        ${/* (plateforme) 1.229.0 — ce que la fiche affichait sans pouvoir l'écrire (l'e-mail des bulletins), et ce que le
+             registre, le contrat et la déclaration annuelle demandent (À VÉRIFIER : la liste exacte). */''}
+        <div class="span-2 pa-ef-sec">Pour le joindre</div>
+        ${field(lbl('E-mail', 'pay.email'), 'email', e.email || '', 'email', 'placeholder="prenom@exemple.tn" autocomplete="off"')}
+        ${field(lbl('Téléphone', 'pay.phone'), 'phone', e.phone || '', 'tel', 'placeholder="20 123 456"')}
+        <label class="field span-2">${lbl('Adresse', 'pay.address')}<input type="text" name="address" value="${h(e.address || '')}" placeholder="Rue, ville"></label>
+        ${dateFieldHtml(lbl('Date de naissance', 'pay.birthDate'), 'birthDate', e.birthDate || '', { clearable: true })}
+        <div class="span-2 pa-ef-sec">Son contrat, en détail</div>
+        ${field(lbl('Catégorie, échelon', 'pay.categorie'), 'categorie', e.categorie || '', 'text', 'placeholder="Ouvrier qualifié, échelon 3"')}
+        ${dateFieldHtml(lbl('Fin de la période d\'essai', 'pay.trialEnd'), 'trialEnd', e.trialEnd || '', { clearable: true })}
+        ${field(lbl('Heures par semaine', 'pay.weeklyHours'), 'weeklyHours', e.weeklyHours || '', 'number', 'step="0.5" min="0" max="60" class="num" placeholder="temps plein"')}
+        <label class="field" id="ef-des-l" hidden>${lbl('Le nouveau salaire vaut à partir de', 'pay.salaireDes')}<input type="month" name="salaireDes" value="${h((() => { const mp = C.moisDePaie(data); return `${mp.year}-${String(mp.month).padStart(2, '0')}`; })())}"></label>
         <label class="field span-2">${lbl('Notes', 'pay.empNotes')}<input type="text" name="notes" value="${h(e.notes || '')}"></label>
         <div class="span-2 annonce-stable" id="ef-hint"></div>
       </form>
@@ -17513,7 +17525,9 @@
           const l = $$('#ef-primes [data-p=label]', root).pop(); if (l) l.focus();
         };
         dessinerPrimes();
-        $('#ef', root).oninput = $('#ef', root).onchange = hint; hint();
+        const aDesBulletins = !!employee && data.payslips.some(p => p.employeeId === e.id);
+        const suivreBrut = () => { const v = formValues($('#ef', root)); $('#ef-des-l', root).hidden = !(aDesBulletins && Number(v.grossSalary) > 0 && C.round3(Number(v.grossSalary)) !== C.round3(Number(e.grossSalary) || 0)); };
+        $('#ef', root).oninput = $('#ef', root).onchange = () => { hint(); suivreBrut(); }; hint(); suivreBrut();
         // Ouverte pour UNE case (celle que le fichier CNSS du trimestre réclame), elle y met le curseur.
         // (plateforme) 1.72.0 — une date est un couple (le champ caché nommé, le champ visible) : le curseur va dans le visible.
         if (opts && opts.focus) {
@@ -17544,7 +17558,21 @@
             if (C.round3(m) !== m) return refus(caseDe('amount'), 'Un montant se saisit au millime : trois décimales au plus.');
             gardees.push({ label: label || 'Prime', amount: m, taxable: x.taxable !== false, parJour: !!x.parJour });
           }
+          if (String(v.email || '').trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v.email).trim())) return refus($('[name=email]', root), 'Cette adresse e-mail n\u2019est pas complète : prenom@exemple.tn.');
+          if (v.weeklyHours !== '' && v.weeklyHours != null && !(Number(v.weeklyHours) > 0 && Number(v.weeklyHours) <= 60)) return refus($('[name=weeklyHours]', root), 'Entre 1 et 60 heures par semaine, ou laisse vide pour un temps plein.');
+          // (plateforme) 1.229.0 — un brut changé sur un salarié déjà payé a une date d'effet ; l'ancien reste écrit.
+          const ancien = C.round3(Number(e.grossSalary) || 0), nouveau = C.round3(Number(v.grossSalary) || 0);
+          const desM = String(v.salaireDes || '');
+          if (aDesBulletins && ancien !== nouveau) {
+            if (!/^\d{4}-\d{2}$/.test(desM)) return refus($('[name=salaireDes]', root), 'Dis à partir de quel mois vaut le nouveau salaire.');
+            const L = (Array.isArray(e.salaires) ? e.salaires : []).filter(x => x.des !== desM);
+            L.push({ des: desM, brut: nouveau, avant: C.brutDuMois({ ...e, salaires: L }, Number(desM.slice(0, 4)), Number(desM.slice(5, 7))) || ancien, le: C.today() });
+            e.salaires = L.sort((a, b) => a.des.localeCompare(b.des));
+          }
+          delete v.salaireDes;
+          if (v.weeklyHours === '' || v.weeklyHours == null) delete v.weeklyHours; else v.weeklyHours = Number(v.weeklyHours);
           Object.assign(e, v, { grossSalary: Number(v.grossSalary) || 0, children: Number(v.children) || 0, headOfFamily: !!v.headOfFamily, primes: gardees });
+          if (!v.weeklyHours) delete e.weeklyHours;
           if (!employee) data.employees.push(e);
           save(true); close(); if (done) done(e);
         };
@@ -19633,6 +19661,8 @@
       asc.forEach(x => { if (x.paidDate) E.push([x.paidDate, `Salaire de ${MONTHS_LONG[x.month - 1]} ${x.year} payé`, C.money(x.c.net, cur)]); if (x.remisLe) E.push([x.remisLe, `Bulletin de ${MONTHS_LONG[x.month - 1]} remis`, '']); });
       (data.leaves || []).filter(l => l.employeeId === e.id).forEach(l => E.push([l.from, C.leaveKindLabel ? C.leaveKindLabel(l.kind) : 'Congé ou absence', `du ${C.fmtDate(l.from)} au ${C.fmtDate(l.to)}`]));
       avs.forEach(a => E.push([a.date, 'Avance versée', C.money(a.amount, cur)]));
+      (e.salaires || []).forEach(x => E.push([`${x.des}-01`, `Salaire changé, à partir de ${MONTHS_LONG[Number(x.des.slice(5, 7)) - 1]} ${x.des.slice(0, 4)}`, `${C.money(x.avant, cur)} → ${C.money(x.brut, cur)}${x.le ? ` · noté le ${C.fmtDate(x.le)}` : ''}`]));
+      slips.forEach(x => (x.paiementsAnnules || []).forEach(pa => E.push([pa.le, `Paiement de ${MONTHS_LONG[x.month - 1]} annulé`, pa.raison || ''])));
       if (e.endDate) E.push([e.endDate, parti ? 'Sortie' : 'Fin de contrat prévue', C.fmtDate(e.endDate)]);
       return E.sort((x, y) => String(y[0]).localeCompare(String(x[0])));
     };
@@ -19648,7 +19678,7 @@
       [!!(premier && (premier.prorata || e.hireDate.slice(8, 10) === '01')), 'Premier bulletin au prorata', premier ? (premier.prorata || e.hireDate.slice(8, 10) === '01' ? `${MONTHS_LONG[premier.month - 1]} ${premier.year}` : `${MONTHS_LONG[premier.month - 1]} est au mois plein : à reprendre au prorata de son entrée`) : 'pas encore établi'],
       [!!e.cnss, 'N° CNSS', e.cnss ? e.cnss : 'si il n\u2019en a pas, son immatriculation se demande à la CNSS (le délai : À VÉRIFIER)'],
       [!!e.iban, 'RIB', e.iban ? 'virement' : 'sans lui, son salaire se paie en espèces, contre reçu'],
-      [null, 'Période d\u2019essai', 'sa durée et sa fin : celles du contrat (À VÉRIFIER : le Code du travail)'],
+      [e.trialEnd ? true : null, 'Période d\u2019essai', e.trialEnd ? `jusqu'au ${C.fmtDate(e.trialEnd)}` : 'sa durée et sa fin : celles du contrat, à noter sur sa fiche (À VÉRIFIER : le Code du travail)'],
       [null, 'Visite médicale d\u2019embauche', 'À VÉRIFIER : l\u2019obligation pour ton activité']] : [];
     const ONG = [...(arrive ? [['arrivee', 'Son arrivée', ARR.filter(x => x[0] === false).length]] : []), ['bulletins', 'Bulletins', slips.length], ['conges', 'Congés', lvs.length], ['avances', 'Avances', ouvertes.length], ['documents', 'Documents', ''], ['depart', 'Son départ', ''], ['historique', 'Historique', '']];
     const og = ficheSal.onglet;
@@ -19684,8 +19714,10 @@
         <div class="pa-fiche-d">
           <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Son contrat</b><button type="button" class="btn btn-sm" id="edit-emp">Modifier</button></div><dl class="pa-dl">
             ${dl('Contrat', h(C.contractLabel(e.contract || 'cdi')), e.contract === 'cdd' && e.endDate ? `jusqu'au ${C.fmtDate(e.endDate)}` : '')}
-            ${dl('Poste', e.position ? h(e.position) : manque('à préciser'))}
-            ${dl('Salaire de base', `${C.money(e.grossSalary, cur)} par mois`)}
+            ${dl('Poste', e.position ? h(e.position) : manque('à préciser'), e.categorie ? h(e.categorie) : '')}
+            ${dl('Salaire de base', `${C.money(e.grossSalary, cur)} par mois`, (() => { const L = (e.salaires || []).slice().sort((a, b) => b.des.localeCompare(a.des)); return L.length ? `depuis ${h(MONTHS_LONG[Number(L[0].des.slice(5, 7)) - 1])} ${h(L[0].des.slice(0, 4))} (avant : ${h(C.money(L[0].avant, cur))})` : ''; })())}
+            ${dl('Temps de travail', e.weeklyHours ? `${String(e.weeklyHours).replace('.', ',')} h par semaine` : 'temps plein', e.weeklyHours ? 'temps partiel : le brut de la fiche est déjà celui de ces heures' : '')}
+            ${e.trialEnd ? dl('Période d\'essai', e.trialEnd >= auj ? `jusqu'au ${C.fmtDate(e.trialEnd)}` : `finie le ${C.fmtDate(e.trialEnd)}`) : ''}
             ${(e.primes || []).length ? dl('Primes de chaque mois', e.primes.map(x => `${h(x.label)} ${C.money(x.amount, cur)}${x.parJour ? ' au jour' : ''}`).join(' · ')) : ''}
             ${dl('Net estimé', C.money(c.net, cur), (e.primes || []).length ? 'primes de la fiche comprises, hors retenues du mois' : 'hors primes et retenues du mois')}
             ${dl('Situation', `${e.headOfFamily ? 'chef de famille' : 'célibataire'}${Number(e.children) ? ` · ${pl(e.children, 'enfant')}` : ''}`, 'elle compte dans son impôt')}
@@ -19693,6 +19725,9 @@
           <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Identité</b></div><dl class="pa-dl">
             ${dl('CIN', e.cin ? `<span class="mono">${h(e.cin)}</span>` : manque('à saisir'))}
             ${dl('N° CNSS', e.cnss ? `<span class="mono">${h(e.cnss)}</span>` : manque('à demander'), e.cnss ? '' : 'la déclaration du trimestre l\'attend')}
+            ${dl('Né le', e.birthDate ? C.fmtDate(e.birthDate) : '<span class="muted">—</span>')}
+            ${dl('Adresse', e.address ? h(e.address) : '<span class="muted">—</span>')}
+            ${dl('Téléphone', e.phone ? h(e.phone) : '<span class="muted">—</span>')}
             ${dl('E-mail', e.email ? h(e.email) : '<span class="muted">—</span>', e.email ? '' : 'pour lui envoyer ses bulletins')}
           </dl></section>
           <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Pour le payer</b></div><dl class="pa-dl">

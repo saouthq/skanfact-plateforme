@@ -220,3 +220,4 @@
 .pa-annee-t { margin: 4px 16px 12px; width: calc(100% - 32px); }
 .pa-h1-av .statut { vertical-align: middle; margin-left: 6px; font-size: 12px; letter-spacing: 0; }
 #p-corr-detail > p { padding: 0 16px 12px; margin: 0; }
+.pa-ef-sec { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--sb-trait); font-weight: 600; font-size: 13px; color: var(--sb-encre); }

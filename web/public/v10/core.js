@@ -4412,7 +4412,9 @@
   // avances en cours. C'est ce qui évite de ressaisir la même information deux fois.
   // (plateforme) 1.60.0 — un mois POINTÉ (onglet Pointage) donne au bulletin ses jours d'absence non payés, et ses heures
   // supplémentaires en primes ; les primes au jour suivent les jours payés. Sans pointage, rien ne change.
-  function payslipInputFor(data, employee, year, month) {
+  function payslipInputFor(data, employee0, year, month) {
+    // (plateforme) 1.229.0 — le brut du MOIS (un salaire qui change à une date), pas celui d'aujourd'hui.
+    const employee = Compta.employeAuMois(employee0, year, month);
     const i = payslipInputForSansPointage(data, employee, year, month);
     if (!pointageEnregistre(data, employee.id, year, month)) return i;
     return { ...i, ...reprisePointage(i, pointageDuMois(data, employee, year, month), heuresSupDuMois(data, employee, year, month)) };
@@ -11922,7 +11924,7 @@
     joursPayesDuBulletin, COLONNES_JOURNAL, journalDePaie, colonnesCsvJournal, journalDePaieHtml, etatRecapitulatifCnss, etatRecapitulatifCnssHtml, declarationMensuelleSalaires,
     QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,
     LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
-    advancesOf, advanceBalance, payslipInputFor, congeRetenu: Compta.congeRetenu, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
+    advancesOf, advanceBalance, payslipInputFor, congeRetenu: Compta.congeRetenu, brutDuMois: Compta.brutDuMois, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
     // (plateforme) 1.72.0 — du moteur commun : la civilité, l'indemnité de congés non pris, les lignes du solde.
     CIVILITES, indemniteConges, lignesDuSolde,
     SERIAL_STATUSES, serialStatusLabel, WARRANTY_CHOICES, serializedItems, warrantyEnd, serialView,
