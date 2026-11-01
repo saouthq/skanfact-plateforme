@@ -18465,7 +18465,9 @@
         <div class="actions">${data.employees.length && peutEcrireAuCabinet() ? `<button type="button" class="btn" id="p-ecrire">${lfIc('message', 15)} Écrire à mon comptable</button>` : ''}${data.employees.length ? `<button type="button" class="btn btn-ghost pa-plus" id="p-plus" aria-haspopup="menu" aria-label="Autres gestes de la paie" title="Autres gestes de la paie">${lfIc('plus', 16)}</button>` : ''}${prin}</div>`;
     };
     // Le mois choisi, à gauche des vues : l'année partout où elle compte, le mois sur « Le mois ».
-    const pMois = () => `${lfIc('echeance', 15)}${s.tab === 'bulletins' ? `<select id="p-month" aria-label="Le mois">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${Number(s.month) === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}<select id="p-year" aria-label="L'année">${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>`;
+    // (plateforme) 1.233.0 — le pointage prend son mois ici, à côté de l'année : il avait un second sélecteur dans sa carte,
+    // et les deux pouvaient se contredire (docs/revue-paie.md, U2).
+    const pMois = () => `${lfIc('echeance', 15)}${s.tab === 'bulletins' || s.tab === 'pointage' ? `<select id="${s.tab === 'pointage' ? 'pt-mois' : 'p-month'}" aria-label="${s.tab === 'pointage' ? 'Le mois pointé' : 'Le mois'}">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${Number(s.month) === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}<select id="p-year" aria-label="L'année">${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>`;
     // (plateforme) 1.226.0 — « Qui fait ta paie ? » (la maquette) : trois façons, ce que chacune change ; le choix vaut à
     // partir du mois suivant, les bulletins passés ne bougent pas, et on peut revenir en arrière.
     const PAIE_MODES = [['tenue', 'Mon cabinet la tient', 'tu pointes et tu paies ; ton comptable prépare, tu approuves, il valide et déclare'],
@@ -18970,7 +18972,6 @@
       $('#p-body').innerHTML = `${ptAujourdhui()}
         <div class="panel" id="pt-panneau"><h2>Pointage de ${h(mois)} ${h(s.year)} ${info('pay.pointage')}<button type="button" class="btn btn-sm pt-periode-btn" id="pt-periode">${lfIc('echeance', 14)} Noter une période…</button></h2>
           <div class="filters">
-            <select id="pt-mois" aria-label="Le mois pointé">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${m === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>
             <span class="small muted">Clique une case pour changer son code, ou tape sa lettre ; les flèches passent d'une case à l'autre. Les congés et absences saisis s'y posent d'eux-mêmes.</span>
           </div>
           <div class="pt-legende">${C.CODES_POINTAGE.map(([c, l]) => `<span class="pt-cle"><span class="pt-c pt-${c}" aria-hidden="true">${affiche(c)}</span>${h(l)}</span>`).join('')}<span class="pt-cle"><span class="pt-c pt-hors" aria-hidden="true">·</span>Hors contrat</span></div>
@@ -18989,7 +18990,7 @@
           ${majorations.length ? '' : `<p class="small muted mt" id="pt-sans-hs">Pour pointer des heures supplémentaires, règle d'abord leurs majorations dans les Barèmes. <em>À VÉRIFIER : le Code du travail et ta convention collective.</em> <button type="button" class="btn btn-sm" id="pt-baremes">Ouvrir les Barèmes</button></p>`}
           <p class="small muted mt">Un bulletin établi après le pointage reprend ses absences non payées et ses heures supplémentaires ; les primes au jour suivent les jours payés.</p>
         </div>`;
-      $('#pt-mois').onchange = e2 => { s.month = e2.target.value; s.moisTouche = true; drawPointage(); };
+      if ($('#pt-mois')) $('#pt-mois').onchange = e2 => { s.month = e2.target.value; s.moisTouche = true; drawPointage(); };
       lierAujourdhui(() => drawPointage());
       $('#pt-periode').onclick = () => ptPeriodeFenetre(null, () => drawPointage());
       // « Ouvrir les Barèmes » amène à la case à remplir, pas en haut d'une longue page (vu à l'écran).

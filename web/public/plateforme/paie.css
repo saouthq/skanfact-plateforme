@@ -227,3 +227,10 @@
 /* (plateforme) 1.231.0 — l'arrêt maladie dans la fenêtre d'une absence. */
 .pa-maladie { border: 1px solid var(--sb-trait); border-radius: 10px; padding: 10px 12px 4px; margin: 0; min-width: 0; }
 .pa-maladie legend { font-weight: 650; font-size: 13px; padding: 0 6px; color: var(--sb-encre); }
+/* (plateforme) 1.233.0 — au téléphone, un bulletin du mois est une carte simple : qui, ce qui change, le net (la maquette,
+   docs/revue-paie.md U1). Le brut, les retenues et le moyen de paiement se lisent sur le bulletin ; « Marquer payé » ligne
+   par ligne laisse la place au seul geste du mois, en bas, sous le pouce. Le menu ⋯ garde tous les gestes de la ligne. */
+@media (max-width: 760px) {
+  #p-bulletins .pa-liste tr > :nth-child(2), #p-bulletins .pa-liste tr > :nth-child(3), #p-bulletins .pa-liste .pa-par,
+  #p-bulletins .pa-liste thead th:nth-child(5), #p-bulletins [data-payer] { display: none; }
+}
