@@ -22309,6 +22309,23 @@ prouver 'paie 1.235 h : l'\''entreprise approuve ce que le cabinet prépare enco
   "mo.filter(x => !x.paidDate && !x.bonAPayerLe && x.pourAccordLe)" "mo.filter(x => !x.paidDate && !x.bonAPayerLe)" \
   "$WC4"
 
+# 1.236.0 — après la validation (C4), l'année mois par mois, la fin d'un CDD (C5), le pointage attendu (C6).
+prouver 'paie cabinet 1.236 a : « Marquer remis » n'\''écrit rien' web/public/v10/cabinet/app.js \
+  '{ remisLe: aujourdhui() }' '{}' \
+  "$WC1"
+prouver 'paie cabinet 1.236 b : l'\''écriture de paie compte par compte absente' web/public/v10/cabinet/app.js \
+  '${table}${paieEcriture(L, m, bulletins, P)}`;' '${table}`;' \
+  "$WC1"
+prouver 'paie cabinet 1.236 c : les douze mois ne refont pas l'\''année' web/public/v10/cabinet/app.js \
+  "const M = KC.MOIS_PAIE.map((lab, i) => ({ lab, x: KC.masseSalariale(KC.bulletinsDuMois(L, annee, i + 1)) }));" "const M = KC.MOIS_PAIE.map((lab, i) => ({ lab, x: KC.masseSalariale(KC.bulletinsDuMois(L, annee, i + 1).slice(1)) }));" \
+  "$WC1"
+prouver 'paie cabinet 1.236 d : le CDD qui finit ne se dit pas' web/public/v10/cabinet/app.js \
+  'x.sortie <= dansJours(45));' 'x.sortie <= dansJours(-1));' \
+  "$WC1"
+prouver 'paie cabinet 1.236 e : le pointage attendu ne se demande pas' web/public/v10/cabinet/app.js \
+  "P.mode === 'tenue' && api.messagerie && !dossier.manual ? \`<button type=\"button\" class=\"btn btn-sm\" id=\"pa-demander-pt\">" "false ? \`<button type=\"button\" class=\"btn btn-sm\" id=\"pa-demander-pt\">" \
+  "$WC1"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

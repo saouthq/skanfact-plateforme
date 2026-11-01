@@ -110,4 +110,8 @@ plus tard).
   relancer, retirer, la réponse lue), D1, D2, D3. Détail : `docs/paie.md`.
 - **Reste** : C4, C5 (les vues Salariés, Congés, CNSS, L'année sont pour l'instant les panneaux d'avant rangés dans leur
   vue), C6 ; le rappel de salaire attend la décision de Skander.
+- **1.236.0** : C4 (« Les bulletins sont faits » : remettre, les salaires et « Lui rappeler », déclarer ; l'écriture compte
+  par compte), C5 en partie (l'année mois par mois, égale à l'année ; la fin de CDD), C6 en partie (le pointage attendu :
+  « Le demander », « Le saisir moi-même »). Reste : les PDF chez le client, régulariser et le virement rejeté, le
+  paramétrage, les écarts, la fiche du salarié à droite, la sortie, « La paie de tous mes dossiers ».
 

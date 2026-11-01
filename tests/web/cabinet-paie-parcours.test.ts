@@ -55,7 +55,7 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     const anA = mo === 1 ? an - 1 : an, moA = mo === 1 ? 12 : mo - 1;
     const mm = (m: number) => String(m).padStart(2, '0');
     const sal = (id: string, name: string, grossSalary: number, x: Record<string, unknown> = {}) => ({ id, name, grossSalary, hireDate: '2023-03-10', contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'virement', iban: RIB, cnss: '12345678-12', position: 'Boulanger', ...x });
-    const S = [sal('mt', 'Mourad Trabelsi', 1450.25, { headOfFamily: true, children: 2 }), sal('hm', 'Hamza Mejri', 820.5), sal('nb', 'Nadia Ben Salah', 880.75), sal('kr', 'Karim Riahi', 1100.125), sal('ys', 'Yassine Sassi', 990.375)];
+    const S = [sal('mt', 'Mourad Trabelsi', 1450.25, { headOfFamily: true, children: 2 }), sal('hm', 'Hamza Mejri', 820.5), sal('nb', 'Nadia Ben Salah', 880.75), sal('kr', 'Karim Riahi', 1100.125, { contract: 'cdd', endDate: new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10) }), sal('ys', 'Yassine Sassi', 990.375)];
     const bul = (e: (typeof S)[number], y: number, m: number, brut: number) => {
       const saisie = { gross: brut, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
       return { id: `p-${e.id}-${y}-${m}`, employeeId: e.id, year: y, month: m, ...saisie, computed: compta.computePayslip(e, saisie, compta.baremesPaie({})), paidDate: '', accountId: '', method: e.method, reference: '', issuedAt: `${y}-${mm(m)}-28` };
@@ -139,7 +139,8 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.getByRole('button', { name: 'Valider', exact: true }).last().click();
     await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.valideLe === jour).length).toBe(5);
     await expect.poll(() => p.locator('#pa-valides').count()).toBe(1);
-    expect(await p.locator('#view .btn-primary').count()).toBe(0);
+    // Validés, le seul bouton principal est l'étape suivante : les remettre aux salariés.
+    expect(await p.locator('#view .btn-primary').evaluateAll((els) => els.map((e) => e.id))).toEqual(['pa-remettre']);
     // Figés : leur menu n'offre plus ni « Modifier » ni « Supprimer » ; le pont refuse de les réécrire.
     const items = await menuDe(p, A.ceMois[0]?.id ?? '');
     expect(items.some((t) => /Modifier|Supprimer/.test(t))).toBe(false);
@@ -149,6 +150,41 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     }, [A.ent, A.an, A.ceMois[0]?.id ?? ''] as const);
     expect(refus).toBe('Ce bulletin est validé : il ne change plus. Une correction passe par une régularisation sur un mois suivant.');
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-2-valides.png') });
+
+    // ── 1.236.0 (C4) — « Les bulletins sont faits » : les remettre, les salaires, les déclarer ; l'écriture compte par compte ─
+    expect(espace(await p.locator('#pa-faits h3').innerText())).toMatch(/^Les bulletins d.\S+ sont faits$/);
+    expect(await p.locator('#pa-faits li').count()).toBe(3);
+    expect(espace(await p.locator('#pa-faits li').nth(1).innerText())).toContain('0 sur 5 payés · par Sarra');
+    expect(await p.locator('#pa-rappel').count()).toBe(1);
+    expect(await p.locator('#pa-declarer').count()).toBe(1);
+    expect(espace(await p.locator('#pa-ecriture summary').innerText())).toMatch(/^L'écriture de paie, compte par compte/);
+    expect(espace(await p.locator('#pa-ecriture tr.dc-total').innerText())).toContain('équilibrée');
+    expect(espace(await p.locator('#pa-remettre').innerText())).toBe('Marquer les 5 bulletins remis aux salariés');
+    await p.locator('#pa-remettre').click();
+    await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.remisLe === jour).length).toBe(5);
+    await expect.poll(() => p.locator('#view .btn-primary').count()).toBe(0);
+    expect(await p.locator('#pa-faits li.fait').count()).toBe(1);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-6-faits.png'), fullPage: true });
+
+    // ── L'année, mois par mois : les douze mois additionnés font l'année (deux chemins, un chiffre) ─────────────
+    await p.locator('.pa-so [data-pa-vue="annee"]').click();
+    await expect.poll(() => p.locator('#pa-annee-juste').innerText()).toBe('✓ Les douze mois additionnés font l\'année, au millime.');
+    expect(await p.locator('#pa-annee-mois tbody tr').count()).toBe(13);
+    // ── La vue Salariés dit le CDD qui finit (et ce qui reste À VÉRIFIER) ───────────────────────────────────────
+    await p.locator('.pa-so [data-pa-vue="salaries"]').click();
+    expect(espace(await p.locator('#pa-cdd').innerText())).toMatch(/^Karim Riahi : son CDD finit le \d\d\/\d\d\/\d{4}\..*À VÉRIFIER/);
+
+    // ── C6 — un mois sans bulletin ni pointage : « Le demander à Sarra », « Le saisir moi-même » ───────────────────
+    await p.locator('.pa-so [data-pa-vue="mois"]').click();
+    await p.locator('#pa-mois').selectOption(String(A.mo % 12 + 1));
+    await expect.poll(() => p.locator('#pa-pt-attendu').count()).toBe(1);
+    expect(espace(await p.locator('#pa-demander-pt').innerText())).toBe('Le demander à Sarra');
+    await p.locator('#pa-demander-pt').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(1);
+    expect(espace(await p.locator('#modal-root .modal').last().innerText())).toContain('pointage');
+    await p.keyboard.press('Escape');
+    await p.locator('#pa-saisir-pt').click();
+    await p.locator('#pt-panneau').waitFor({ timeout: 10_000 });
     expect(erreurs).toEqual([]);
     await p.close();
   }, 240_000);

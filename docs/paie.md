@@ -1616,3 +1616,29 @@ telles que la maquette (pour l'instant les panneaux d'avant, rangés dans leur v
 ligne ; « La paie de tous mes dossiers », le pointage attendu (« Le demander »), le téléphone en cartes. Le rappel de
 salaire attend la décision de Skander.
 
+## La paie du Cabinet, après la validation, l'année, le pointage attendu (01/11/2026, 1.236.0)
+
+Les lots C4 à C6 de `docs/revue-paie-cabinet.md`, ce qui s'en fait sans fonction nouvelle au serveur.
+
+- **« Les bulletins <mois> sont faits »** (C4), une fois validés (ou vérifiés, pour une paie faite par le client) : 1. les
+  remettre aux salariés (le bouton principal, « Marquer les N bulletins remis aux salariés », écrit `remisLe`) ; 2. les
+  salaires, payés par le client (« N sur M payés »), et « Lui rappeler » (la demande dans la conversation, la même
+  fenêtre que « Demander une pièce ») ; 3. les déclarer (« Ouvrir les déclarations »).
+- **L'écriture de paie, compte par compte** : celle que le serveur tient au fil des bulletins, lue du livre, avec son état,
+  sa date, ses lignes et son équilibre ; ouverte d'office quand les bulletins sont validés.
+- **L'année, mois par mois** (C5) : le coût de chaque mois (bulletins, brut, net, coût employeur, une barre), et deux
+  chemins, un chiffre : les douze mois additionnés doivent faire l'année calculée d'un coup (`#pa-annee-juste`).
+- **Salariés** : la date de fin d'un contrat sous le contrat ; un CDD qui finit dans les 45 jours se dit en tête, avec ce
+  qui reste **À VÉRIFIER** (l'indemnité de fin de contrat).
+- **Le pointage attendu** (C6) : la frise dit combien de salariés sont pointés ; un mois sans bulletin ni pointage offre
+  « Le demander à <client> » (paie tenue, client relié) et « Le saisir moi-même ».
+
+Tests : `tests/web/cabinet-paie-parcours.test.ts` (le parcours « tenue » jusqu'à la remise, l'année, le CDD, le mois
+attendu). Preuves `paie cabinet 1.236 a` à `e`.
+
+**Pas encore fait** : les PDF des bulletins déposés dans les documents du client (le serveur ne range pas encore de
+document chez lui pour le cabinet) ; régulariser après validation depuis cet écran (le bulletin du mois suivant le fait,
+à la main) ; le virement rejeté ; le paramétrage du dossier et les écarts ligne à ligne ; « La paie de tous mes dossiers »
+(il faut une lecture du serveur pour tous les dossiers d'un coup, à écrire) ; la fiche du salarié à droite et le projet
+de sortie. Le rappel de salaire attend la décision de Skander.
+

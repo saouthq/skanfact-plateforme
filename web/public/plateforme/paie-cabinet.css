@@ -74,6 +74,21 @@
 .btn-x { border: 0; background: none; font-size: 20px; line-height: 1; color: var(--sb-gris); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
 .btn-x:hover { color: var(--sb-encre); background: var(--sb-survol, transparent); }
 
+/* ── 1.236.0 : après la validation, l'écriture compte par compte, l'année mois par mois ── */
+.cp-pa-faits { padding: 14px 18px; margin-bottom: 14px; border-color: color-mix(in srgb, var(--sb-vert, var(--sb-sarcelle)) 30%, var(--sb-trait)); }
+.cp-pa-faits h3 { margin: 0 0 10px; font-size: 15px; }
+.cp-pa-faits ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cp-pa-faits li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.cp-pa-faits li > span:nth-child(2) { display: grid; gap: 1px; min-width: 0; }
+.cp-pa-faits small { color: var(--sb-gris); font-size: 12px; }
+.cp-pa-faits .n { width: 22px; height: 22px; border-radius: 99px; display: grid; place-items: center; font-size: 11px; font-weight: 700; border: 2px solid var(--sb-trait-fort); color: var(--sb-gris-2); box-sizing: border-box; }
+.cp-pa-faits .fait .n { background: var(--sb-sarcelle); border-color: var(--sb-sarcelle); color: #fff; }
+.cp-pa-ecr { margin-top: 14px; padding: 12px 16px; }
+.cp-pa-ecr summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.cp-pa-ecr table { margin-top: 10px; }
+.cp-pa-barre { width: 28%; min-width: 80px; }
+.cp-pa-barre i { display: block; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--sb-sarcelle) 55%, var(--sb-papier)); }
+
 /* ── le bureau étroit et le téléphone : une colonne, le bouton du mois sous le pouce ── */
 @media (max-width: 1100px) {
   .cp-pa-grille.avec-volet { grid-template-columns: minmax(0, 1fr); }
@@ -92,4 +107,7 @@
   .cp-pa-sec { margin-right: 0; }
   .cp-pa-tuiles { gap: 8px; }
   .cp-pa-touches { display: none; }
+  .cp-pa-faits li { grid-template-columns: 22px minmax(0, 1fr); }
+  .cp-pa-faits li > .btn { grid-column: 2; justify-self: start; }
+  .cp-pa-barre, .cp-pa-barre-h { display: none; }
 }
