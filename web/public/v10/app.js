@@ -18465,7 +18465,7 @@
             ${ligne('À la main', 'présent par défaut', 'chaque jour selon ses jours de travail ; « Aujourd\'hui : qui n\'est pas là ? » et « Noter une période » font le reste')}
             ${ligne('Une pointeuse', '<span class="muted">pas encore</span>', 'lire le fichier d\'une pointeuse viendra plus tard ; d\'ici là, le pointage se fait à la main')}
           </tbody></table></section>
-        <section class="pa-carte" id="pt-hor-r"><div class="pa-carte-t"><b>Les horaires de l'entreprise</b><span class="mu">ils servent à compter les jours payés et les heures sup</span><button type="button" class="btn btn-sm" id="pt-hor-reg">${lfIc('modifier', 14)} Les changer</button></div>
+        <section class="pa-carte" id="pt-hor-r"><div class="pa-carte-t"><b>Les horaires de l'entreprise</b><span class="mu">ils servent à compter les jours payés et les heures sup</span><button type="button" class="btn btn-sm" id="pt-hor-reg">${lfIc('reglages', 14)} Les changer</button></div>
           <table class="list compact pa-liste"><tbody>
             ${ligne('Jours de travail', h([1, 2, 3, 4, 5, 6, 0].filter(i => !off.includes(i)).map(i => JOURS_SEM[i]).join(', ')), `repos : ${h(off.map(i => JOURS_SEM[i]).join(', ') || 'aucun')}`)}
             ${ligne('Un mois complet', `${pct(Number(st.workedDays) || 26)} jours payés`, 'le salaire d\'un mois entier, sans absence')}
@@ -18611,40 +18611,46 @@
       r.heures ? 'pas les mêmes heures supplémentaires' : '', !r.absences && !r.heures ? 'ses primes au jour ne suivent plus les jours payés' : ''].filter(Boolean).join(' ; ');
     const libellePt = j => C.libellePointage(j.code) + (j.source === 'conge' ? ' (Congés et absences)' : j.source === 'pointe' ? ' (pointé)' : '');
 
+    // (plateforme) 1.225.0 — la liste des salariés telle que sa maquette : en poste ou partis, une recherche (nom, CIN, CNSS,
+    // poste), ce qui manque dit sur la ligne (CNSS, RIB), le CDD qui finit en bandeau, la ligne ouvre la fiche.
     function drawEmployees() {
-      const list = data.employees.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
-      const st = C.payrollSettings(data);
-      const active = C.activeEmployees(data).length;
-      // Paginé (10.14.0) : soixante salariés faisaient trois mille pixels. Le total porte tout le
-      // personnel en poste, jamais la page.
+      const st = C.payrollSettings(data), auj = C.today();
+      const parti = e => !!(e.endDate && e.endDate < auj) || e.active === false;
+      const filtre = s.fsal || 'poste', q = (s.qsal || '').trim().toLowerCase();
+      const tous = data.employees.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+      const enPoste = tous.filter(e => !parti(e)), partis = tous.filter(parti);
+      const txt = e => [e.name, e.cin, e.cnss, e.position].filter(Boolean).join(' ').toLowerCase();
+      const list = (filtre === 'sortis' ? partis : enPoste).filter(e => !q || txt(e).includes(q));
       const salPage = paginate(list, s.salaries);
+      const traiter = C.paieATraiter(data, auj).filter(x => x.vue === 'salaries');
+      const cdd = traiter.find(x => /CDD/.test(x.titre));
+      const coutDe = e => C.computePayslip(e, C.saisieDeLaFiche(e, st), st).employerCost;
+      const contrat = e => { const k = (C.contractLabel(e.contract || 'cdi') || '').split(' —')[0]; return e.contract === 'cdd' && e.endDate ? `${k} · jusqu'au ${C.fmtDate(e.endDate)}` : k; };
+      const aDemander = '<span class="statut attire">à demander</span>';
+      const lig = e => `<tr class="clickable" data-eid="${h(e.id)}" tabindex="0"><td class="pa-cl">${avPaie(e)}<span><b>${h(e.name)}</b><small>${h(e.position || '—')}${e.hireDate ? ` · depuis le ${C.fmtDate(e.hireDate)}` : ''}</small></span></td>
+        <td>${h(contrat(e))}</td>
+        <td class="nw mono">${e.cnss ? h(e.cnss) : aDemander}</td>
+        <td class="nw mono">${e.iban ? `··· ${h(String(e.iban).replace(/\s/g, '').slice(-4))}` : (e.method || 'virement') === 'virement' ? aDemander : '<span class="muted">espèces</span>'}</td>
+        <td class="r nw">${C.money(e.grossSalary, cur)}</td><td class="r nw"><b>${C.money(coutDe(e), cur)}</b><small>par mois</small></td></tr>`;
+      const ligP = e => `<tr class="clickable" data-eid="${h(e.id)}" tabindex="0"><td class="pa-cl">${avPaie(e)}<span><b>${h(e.name)}</b><small>${h(e.position || '—')}</small></span></td>
+        <td>${h(contrat(e))}</td><td class="nw">${e.endDate ? `parti le ${C.fmtDate(e.endDate)}` : 'n\'est plus en poste'}</td>
+        <td class="small muted">${pl(C.payslipsOf(data).filter(x => x.employeeId === e.id).length, 'bulletin')} gardé${C.payslipsOf(data).filter(x => x.employeeId === e.id).length > 1 ? 's' : ''}, sans limite de durée</td></tr>`;
       $('#p-body').innerHTML = `
-        <div class="panel"><h2>Salariés ${info('pay.employees')}</h2>
-          ${list.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
-            <th>Nom</th><th>Poste</th><th>Contrat</th><th>Depuis</th><th class="r">Brut mensuel</th><th class="r">Net estimé</th><th class="r">Coût employeur</th><th></th></tr></thead><tbody>
-            ${salPage.rows.map(e => {
-              const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
-              const out = e.endDate && e.endDate < C.today();
-              return `<tr class="clickable ${out ? 'muted' : ''}" data-eid="${h(e.id)}">
-                <td><strong>${h(e.name)}</strong>${out ? `<div class="small muted">parti le ${C.fmtDate(e.endDate)}</div>` : ''}</td>
-                <td>${h(e.position || '')}</td><td>${h((C.contractLabel(e.contract || 'cdi') || '').split(' —')[0])}</td>
-                <td class="nw">${e.hireDate ? C.fmtDate(e.hireDate) : '—'}</td>
-                <td class="r nw">${C.money(e.grossSalary, cur)}${c.bonuses.length ? `<div class="small muted">+ ${C.money(C.round3(c.bonuses.reduce((a, b) => a + b.amount, 0)), cur)} de primes</div>` : ''}</td>
-                <td class="r nw">${C.money(c.net, cur)}</td>
-                <td class="r nw"><strong>${C.money(c.employerCost, cur)}</strong></td>
-                <td class="r"><button class="btn btn-sm" data-ee="${h(e.id)}">Modifier</button></td></tr>`;
-            }).join('')}
-            <tr class="total-row"><td colspan="4"><strong>${pl(active, 'salarié')} en poste</strong></td>
-              <td class="r"><strong>${C.money(C.round3(C.activeEmployees(data).reduce((a, e) => a + (Number(e.grossSalary) || 0), 0)), cur)}</strong></td>
-              <td class="r"><strong>${C.money(C.round3(C.activeEmployees(data).reduce((a, e) => a + C.computePayslip(e, C.saisieDeLaFiche(e, st), st).net, 0)), cur)}</strong></td>
-              <td class="r"><strong>${C.money(C.round3(C.activeEmployees(data).reduce((a, e) => a + C.computePayslip(e, C.saisieDeLaFiche(e, st), st).employerCost, 0)), cur)}</strong></td>
-              <td></td></tr>
-          </tbody></table></div>${pagerBar(salPage.pg, { noun: 'salarié' })}
-          <p class="small muted mt">Le coût employeur est ce que le salarié coûte vraiment : le brut plus les charges patronales. C'est lui qui entre dans ton résultat et dans ton seuil de rentabilité, pas le net.</p>`
-            : '<div class="empty">Aucun salarié.</div>'}
-        </div>`;
-      $$('#p-body tr[data-eid]').forEach(tr => tr.onclick = e2 => { if (e2.target.closest('button')) return; navigate('#/salarie/' + tr.dataset.eid); });
-      $$('#p-body [data-ee]').forEach(b => b.onclick = () => employeeForm(employeeById(b.dataset.ee), () => draw()));
+        <div class="pa-filtres"><div class="pa-seg pa-seg-p" role="group" aria-label="Quels salariés">${[['poste', 'En poste', enPoste.length], ['sortis', 'Partis', partis.length]].map(([k, n, nb]) => `<button type="button" data-fsal="${k}" aria-pressed="${filtre === k}" class="${filtre === k ? 'active' : ''}">${n} <small>${nb}</small></button>`).join('')}</div>
+          <label class="pa-rech">${lfIc('recherche', 15)}<input type="search" id="sal-q" value="${h(s.qsal || '')}" placeholder="Un nom, un CIN, un n° CNSS, un poste" aria-label="Chercher un salarié"></label></div>
+        ${filtre === 'poste' && cdd ? `<div class="pa-bandeau pa-ambre" id="sal-cdd">${lfIc('echeance', 18)}<span><b>${h(cdd.titre)}</b><span>Le renouveler, ou préparer sa sortie : son solde de tout compte et son certificat de travail se font sur sa fiche.</span></span><button type="button" class="btn btn-sm" data-eid-go="${h(cdd.salarie)}">Ouvrir sa fiche</button></div>` : ''}
+        <section class="pa-carte" id="sal-liste">${list.length ? `<div class="scroll-x"><table class="list compact pa-liste"><thead><tr>
+          ${filtre === 'sortis' ? '<th>Salarié</th><th>Contrat</th><th>Son départ</th><th>Son dossier</th>'
+            : `<th>Salarié</th><th>Contrat</th><th>N° CNSS</th><th>RIB</th><th class="r">Brut de base</th><th class="r">Coût ${info('pay.employerCost')}</th>`}</tr></thead><tbody>
+          ${salPage.rows.map(filtre === 'sortis' ? ligP : lig).join('')}</tbody>
+          ${filtre === 'sortis' ? '' : `<tfoot><tr class="total-row"><td><b>${pl(enPoste.length, 'salarié')} en poste</b><small>${traiter.length ? `${pl(traiter.length, 'chose')} à compléter` : 'rien à compléter'}</small></td><td colspan="3"></td>
+            <td class="r nw"><b>${C.money(C.round3(enPoste.reduce((a, e) => a + (Number(e.grossSalary) || 0), 0)), cur)}</b></td><td class="r nw"><b>${C.money(C.round3(enPoste.reduce((a, e) => a + coutDe(e), 0)), cur)}</b></td></tr></tfoot>`}</table></div>${pagerBar(salPage.pg, { noun: 'salarié' })}`
+          : `<div class="empty">${q ? `Aucun salarié ne répond à « ${h(s.qsal)} ».` : filtre === 'sortis' ? 'Aucun salarié parti.' : 'Aucun salarié en poste.'}</div>`}</section>
+        <p class="small muted pa-note">Le coût est ce que le salarié coûte vraiment : le brut plus les charges de l'employeur. Le registre du personnel est sous « Salariés », et les documents de chacun sur sa fiche.</p>`;
+      $$('#p-body tr[data-eid]').forEach(tr => { tr.onclick = () => navigate('#/salarie/' + tr.dataset.eid); tr.onkeydown = ev => { if (ev.key === 'Enter') navigate('#/salarie/' + tr.dataset.eid); }; });
+      $$('#p-body [data-eid-go]').forEach(b => b.onclick = () => navigate('#/salarie/' + b.dataset.eidGo));
+      $$('#p-body [data-fsal]').forEach(b => b.onclick = () => { s.fsal = b.dataset.fsal; s.salaries.page = 1; drawEmployees(); });
+      $('#sal-q').oninput = ev => { s.qsal = ev.target.value; s.salaries.page = 1; const pos = ev.target.selectionStart; drawEmployees(); const i2 = $('#sal-q'); i2.focus(); i2.setSelectionRange(pos, pos); };
       bindPager($('#p-body'), s.salaries, () => drawEmployees(), '#p-body');
     }
 
@@ -19271,105 +19277,125 @@
     draw();
   };
 
+  // (plateforme) 1.225.0 — la fiche d'un salarié telle que sa maquette : un en-tête (chemin, état, le geste principal
+  // calculé), ce qui manque en bandeau, à gauche ses onglets (bulletins, congés, avances, documents, son départ,
+  // l'historique), à droite son contrat, son identité, comment le payer.
+  const ficheSal = { onglet: 'bulletins' };
   routes.salarie = (parts) => {
     const e = employeeById(parts[0]);
     if (!e) return navigate('#/paie');
+    if (ficheSal.id !== e.id) { ficheSal.id = e.id; ficheSal.onglet = 'bulletins'; }
     const cur = company().currency;
-    const st = C.payrollSettings(data);
+    const st = C.payrollSettings(data), auj = C.today();
     const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
-    const slips = C.payslipsOf(data).filter(p => p.employeeId === e.id);
-    const year = C.today().slice(0, 4);
-    const thisYear = slips.filter(p => String(p.year) === year);
-    const cost = C.round3(thisYear.reduce((a, p) => a + p.c.employerCost, 0));
-    $('#view').innerHTML = `
-      <div class="page-head"><div><h1>${h(e.name)}</h1>
-        <div class="small muted">${[e.position, C.contractLabel(e.contract || 'cdi').split(' —')[0], e.hireDate ? 'depuis le ' + C.fmtDate(e.hireDate) : '', e.endDate ? 'parti le ' + C.fmtDate(e.endDate) : ''].filter(Boolean).join(' · ')}</div></div>
-        <div class="actions">${backButton('#/paie')}<button class="btn" id="edit-emp">Modifier</button>
-          <button class="btn btn-primary" id="new-slip">+ Bulletin</button></div></div>
-      <div class="stats">
-        <div class="stat"><div class="lbl">Salaire brut mensuel</div><div class="val">${C.money(e.grossSalary, cur)}</div><div class="sub">${e.headOfFamily ? 'chef de famille' : 'célibataire'}${Number(e.children) ? ` · ${pl(e.children, 'enfant')}` : ''}</div></div>
-        <div class="stat"><div class="lbl">Net estimé</div><div class="val">${C.money(c.net, cur)}</div><div class="sub">${c.bonuses.length ? 'primes de la fiche comprises, hors retenues' : 'hors primes et retenues'}</div></div>
-        <div class="stat"><div class="lbl">Coût employeur mensuel ${info('pay.employerCost')}</div><div class="val">${C.money(c.employerCost, cur)}</div><div class="sub">brut + charges patronales</div></div>
-        <div class="stat"><div class="lbl">Coût ${year}</div><div class="val">${C.money(cost, cur)}</div><div class="sub">${pl(thisYear.length, 'bulletin')}</div></div>
-      </div>
-      <div class="panel"><h2>Identité</h2>
-        <div class="kv">
-          ${e.cin ? `<div><span>CIN</span><span>${h(e.cin)}</span></div>` : ''}
-          ${e.cnss ? `<div><span>Matricule CNSS</span><span>${h(e.cnss)}</span></div>` : ''}
-          <div><span>Contrat</span><span>${h(C.contractLabel(e.contract || 'cdi'))}</span></div>
-          ${(e.primes || []).length ? `<div><span>Primes de chaque mois</span><span>${e.primes.map(x => `${h(x.label)} ${C.money(x.amount, cur)}${x.parJour ? ' au jour' : ''}${x.taxable === false ? ' (non imposable)' : ''}`).join(' · ')}</span></div>` : ''}
-          ${e.iban ? `<div><span>RIB / IBAN</span><span>${h(e.iban)}</span></div>` : ''}
-          ${e.notes ? `<div><span>Notes</span><span>${h(e.notes)}</span></div>` : ''}
-        </div>
-        ${/* 10.12.0 — « Établir un document… » vivait dans le panneau des AVANCES : une attestation de
-             travail n'est pas une avance, et on la cherchait là où l'on voit l'emploi du salarié. */''}
-        <div class="inline mt"><button class="btn btn-sm" id="hr-doc">Établir un document…</button>
-          <span class="small muted">attestation de travail, certificat de travail, solde de tout compte</span></div>
-      </div>
-      ${(() => {
-        const b = C.leaveBalance(data, e.id, Number(year));
-        const av = C.advancesOf(data, e.id);
-        const open = av.filter(x => !x.done);
-        return `<div class="split">
-          <div class="panel"><h2>Congés ${year} ${info('hr.balance')}</h2>
-            <div class="kv">
-              <div><span>Acquis</span><span>${pct(b.acquired)} jour${sPl(b.acquired)} sur ${pct(b.perYear)} par an</span></div>
-              ${b.carry ? `<div><span>Reporté de ${Number(year) - 1}</span><span>${pct(b.carry)} jour${sPl(b.carry)}</span></div>` : ''}
-              <div><span>Pris</span><span>${pct(b.taken)} jour${sPl(b.taken)}</span></div>
-              <div><span><b>Solde</b></span><span class="${b.remaining < 0 ? 'warn-text' : ''}"><b>${pct(b.remaining)} jour${sPl(b.remaining)}</b></span></div>
-              ${b.byKind.maladie ? `<div><span>Arrêt maladie</span><span>${pct(b.byKind.maladie)} jour${sPl(b.byKind.maladie)}</span></div>` : ''}
-              ${b.byKind['sans-solde'] ? `<div><span>Sans solde</span><span>${pct(b.byKind['sans-solde'])} jour${sPl(b.byKind['sans-solde'])}</span></div>` : ''}
-            </div>
-            <div class="inline mt"><button class="btn btn-sm" id="add-lv">+ Congé ou absence</button></div>
-          </div>
-          <div class="panel"><h2>Avances ${info('hr.advance')}</h2>
-            ${av.length ? `<table class="list compact"><thead><tr><th>Date</th><th class="r">Avancé</th><th class="r">Reste</th></tr></thead><tbody>
-              ${av.map(x => `<tr class="clickable" data-av="${h(x.id)}" title="Modifier cette avance"><td class="nw">${C.fmtDate(x.date)}</td><td class="r nw">${C.money(x.amount, cur)}</td>
-                <td class="r nw">${x.done ? '<span class="ok-text">soldée</span>' : `<strong>${C.money(x.remaining, cur)}</strong>`}</td></tr>`).join('')}
-            </tbody></table>${open.length ? `<p class="small muted mt">${C.money(C.round3(open.reduce((a2, x) => a2 + x.remaining, 0)), cur)} encore à retenir sur les prochains bulletins.</p>` : ''}`
-              : '<p class="small muted">Aucune avance.</p>'}
-            <div class="inline mt"><button class="btn btn-sm" id="add-av">+ Avance</button></div>
-          </div>
-        </div>`;
-      })()}
-      <div class="panel"><h2>Congés et absences</h2>
-        ${C.leavesOf(data, e.id, Number(year)).length ? `<table class="list compact"><thead><tr><th>Nature</th><th>Du</th><th>Au</th><th class="r">Jours</th><th>Effet</th><th>Motif</th></tr></thead><tbody>
-          ${C.leavesOf(data, e.id, Number(year)).map(l => `<tr class="clickable" data-lv="${h(l.id)}" title="Modifier cette absence"><td>${h(l.kindLabel)}</td>
-            <td class="nw">${C.fmtDate(l.from)}</td><td class="nw">${C.fmtDate(l.to)}</td><td class="r nw">${pct(l.days)}</td>
-            <td>${l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td>
-            <td>${h(l.note || '')}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="empty">Aucun congé ni absence en ${h(year)}.</div>`}
-      </div>
-      <div class="panel"><h2>Bulletins</h2>
-        ${slips.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
-          <th>Mois</th><th class="r">Brut</th><th class="r">Retenues</th><th class="r">Net</th><th class="r">Coût</th><th>Payé le</th><th></th></tr></thead><tbody>
-          ${/* 10.12.0 — « PDF » et « Modifier » au bout de chaque bulletin : deux boutons par ligne
-               (7.29.0). La ligne ouvre le bulletin ; le PDF, geste pour lequel on vient, reste seul. */''}
-          ${slips.map(x => `<tr class="clickable ${x.paidDate ? '' : 'row-warn'}" data-ed="${h(x.id)}" title="Ouvrir le bulletin">
-            <td><strong>${h(MONTHS_LONG[x.month - 1])} ${x.year}</strong></td>
-            <td class="r nw">${C.money(x.c.gross, cur)}</td>
-            <td class="r nw">${C.money(C.round3(x.c.cnssEmployee + x.c.irpp + x.c.css + x.c.otherDeductions), cur)}</td>
-            <td class="r nw"><strong>${C.money(x.c.net, cur)}</strong></td>
-            <td class="r nw">${C.money(x.c.employerCost, cur)}</td>
-            <td class="nw">${x.paidDate ? C.fmtDate(x.paidDate) : '<span class="warn-text">pas encore</span>'}</td>
-            <td class="r nw"><button class="btn btn-sm" data-pdf="${h(x.id)}">PDF</button></td></tr>`).join('')}
-        </tbody></table></div>`
-          : '<div class="empty">Aucun bulletin pour ce salarié.</div>'}
-      </div>`;
-    bindBack('#/paie');
-    $('#edit-emp').onclick = () => employeeForm(e, () => render());
-    $('#new-slip').onclick = () => {
-      const t = C.addMonths(C.today().slice(0, 7) + '-01', -1, 1);
-      payslipForm(null, e, Number(t.slice(0, 4)), Number(t.slice(5, 7)), () => render());
+    const slips = C.payslipsOf(data).filter(p => p.employeeId === e.id).sort((a, b) => (b.year - a.year) || (b.month - a.month));
+    const year = auj.slice(0, 4);
+    const parti = !!(e.endDate && e.endDate < auj);
+    const virement = (e.method || 'virement') === 'virement';
+    const finCdd = e.contract === 'cdd' && e.endDate && !parti && C.addDays(auj, 60) >= e.endDate;
+    const manques = [!e.cnss && 'son n° CNSS', virement && !e.iban && 'son RIB'].filter(Boolean);
+    const av = (n, g) => `<span class="pa-av${g ? ' pa-av-g' : ''}" style="--c:${h(C.couleurDe(n || ''))}">${h(C.initialesDe(n || ''))}</span>`;
+    const pastille = parti ? `<span class="statut">parti le ${C.fmtDate(e.endDate)}</span>` : manques.length ? `<span class="statut attire">${pl(manques.length, 'chose')} à compléter</span>`
+      : finCdd ? `<span class="statut attire">CDD · finit le ${C.fmtDate(e.endDate)}</span>` : '<span class="statut ok">en poste</span>';
+    const prin = parti ? `<button type="button" class="btn btn-primary" data-fs="doc" data-kind="certificat">${lfIc('pages', 15)} Son certificat de travail</button>`
+      : manques.length ? `<button type="button" class="btn btn-primary" data-fs="completer">${lfIc('ecriture', 15)} Compléter : ${h(manques.join(' et '))}</button>`
+        : finCdd ? `<button type="button" class="btn btn-primary" data-fs="renouveler">${lfIc('pages', 15)} Renouveler son contrat…</button>`
+          : `<button type="button" class="btn btn-primary" data-fs="conge">${lfIc('croix', 15, 2.4)} Un congé…</button>`;
+    const bandeaux = [];
+    if (!parti && !e.cnss) bandeaux.push(`<div class="pa-bandeau pa-ambre">${lfIc('aide', 18)}<span><b>Son n° CNSS manque</b><span>Son bulletin se fait sans lui ; la déclaration du trimestre l'attendra. L'affiliation se fait à la CNSS (À VÉRIFIER : le délai).</span></span><button type="button" class="btn btn-sm" data-fs="focus" data-focus="cnss">Le renseigner</button></div>`);
+    if (!parti && virement && !e.iban) bandeaux.push(`<div class="pa-bandeau pa-ambre">${lfIc('carte', 18)}<span><b>Son RIB manque : son salaire ne peut pas partir par virement</b><span>Paie-le en espèces contre un reçu, ou ajoute son RIB : il passera dans l'ordre de virement.</span></span><button type="button" class="btn btn-sm" data-fs="focus" data-focus="iban">Ajouter son RIB</button></div>`);
+    if (finCdd) bandeaux.push(`<div class="pa-bandeau pa-ambre">${lfIc('echeance', 18)}<span><b>Son CDD finit le ${C.fmtDate(e.endDate)}</b><span>Le renouveler (un avenant, une nouvelle date de fin), ou le laisser finir : son solde de tout compte et son certificat de travail se préparent dans « Son départ ». À VÉRIFIER : le délai de prévenance.</span></span></div>`);
+    const b = C.leaveBalance(data, e.id, Number(year));
+    const avs = C.advancesOf(data, e.id), ouvertes = avs.filter(x => !x.done);
+    const lvs = C.leavesOf(data, e.id, Number(year));
+    // L'historique : ce qui s'est passé, déduit de ce que la paie garde (aucune trace inventée).
+    const histo = () => {
+      const E = [];
+      if (e.hireDate) E.push([e.hireDate, 'Entrée', `${(C.contractLabel(e.contract || 'cdi') || '').split(' —')[0]}, ${e.position || 'poste à préciser'}`]);
+      const asc = slips.slice().reverse();
+      asc.forEach((x, k) => { if (k && Math.abs(x.c.gross - asc[k - 1].c.gross) >= 0.0005) E.push([C.payslipDate(x), `Brut de ${MONTHS_LONG[x.month - 1]} ${x.year}`, `${C.money(asc[k - 1].c.gross, cur)} → ${C.money(x.c.gross, cur)}`]); });
+      asc.forEach(x => { if (x.paidDate) E.push([x.paidDate, `Salaire de ${MONTHS_LONG[x.month - 1]} ${x.year} payé`, C.money(x.c.net, cur)]); if (x.remisLe) E.push([x.remisLe, `Bulletin de ${MONTHS_LONG[x.month - 1]} remis`, '']); });
+      (data.leaves || []).filter(l => l.employeeId === e.id).forEach(l => E.push([l.from, C.leaveKindLabel ? C.leaveKindLabel(l.kind) : 'Congé ou absence', `du ${C.fmtDate(l.from)} au ${C.fmtDate(l.to)}`]));
+      avs.forEach(a => E.push([a.date, 'Avance versée', C.money(a.amount, cur)]));
+      if (e.endDate) E.push([e.endDate, parti ? 'Sortie' : 'Fin de contrat prévue', C.fmtDate(e.endDate)]);
+      return E.sort((x, y) => String(y[0]).localeCompare(String(x[0])));
     };
-    $$('[data-pdf]').forEach(b => b.onclick = ev => { ev.stopPropagation(); exportPayslip(payslipById(b.dataset.pdf)); });
-    $$('[data-ed]').forEach(b => b.onclick = () => { const x = payslipById(b.dataset.ed); payslipForm(x, e, x.year, x.month, () => render()); });
-    $('#add-lv').onclick = () => leaveForm(null, e.id, () => render());
-    $('#add-av').onclick = () => advanceForm(null, e.id, () => render());
-    $('#hr-doc').onclick = () => hrDocForm(e, () => render());
-    $$('[data-lv]').forEach(b => b.onclick = () => leaveForm(data.leaves.find(x => x.id === b.dataset.lv), null, () => render()));
-    // Les avances de la fiche s'ouvrent comme celles de l'onglet Avances : la même ligne, le même geste.
-    $$('tr[data-av]').forEach(b => b.onclick = () => advanceForm(data.advances.find(x => x.id === b.dataset.av), null, () => render()));
+    const ONG = [['bulletins', 'Bulletins', slips.length], ['conges', 'Congés', lvs.length], ['avances', 'Avances', ouvertes.length], ['documents', 'Documents', ''], ['depart', 'Son départ', ''], ['historique', 'Historique', '']];
+    const og = ficheSal.onglet;
+    const corps = og === 'conges' ? `<div class="pa-kv"><span>Acquis en ${h(year)}</span><b>${pct(b.acquired)} jour${sPl(b.acquired)}</b><span>Pris</span><b>${pct(b.taken)} jour${sPl(b.taken)}</b><span>Il lui reste</span><b class="${b.remaining < 0 ? 'warn-text' : ''}">${pct(b.remaining)} jour${sPl(b.remaining)}</b></div>
+        ${lvs.length ? `<table class="list compact pa-liste"><thead><tr><th>Nature</th><th>Du</th><th>Au</th><th class="r">Jours</th><th>Effet</th></tr></thead><tbody>${lvs.map(l => `<tr class="clickable" data-lv="${h(l.id)}"><td>${h(l.kindLabel)}</td><td class="nw">${C.fmtDate(l.from)}</td><td class="nw">${C.fmtDate(l.to)}</td><td class="r">${pct(l.days)}</td><td>${l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td></tr>`).join('')}</tbody></table>`
+          : `<div class="empty">Aucun congé ni absence en ${h(year)}.</div>`}<div class="pa-pied-o"><button type="button" class="btn btn-sm" id="add-lv">${lfIc('croix', 14, 2.4)} Un congé ou une absence</button></div>`
+      : og === 'avances' ? (avs.length ? `<table class="list compact pa-liste"><thead><tr><th>Versée le</th><th class="r">Avancé</th><th class="r">Il reste</th></tr></thead><tbody>${avs.map(x => `<tr class="clickable" data-av="${h(x.id)}"><td class="nw">${C.fmtDate(x.date)}</td><td class="r nw">${C.money(x.amount, cur)}</td><td class="r nw">${x.done ? '<span class="ok-text">soldée</span>' : `<b>${C.money(x.remaining, cur)}</b>`}</td></tr>`).join('')}</tbody></table>${ouvertes.length ? `<p class="small muted pa-note">${C.money(C.round3(ouvertes.reduce((a2, x) => a2 + x.remaining, 0)), cur)} se retiennent d'eux-mêmes sur les prochains bulletins.</p>` : ''}`
+          : '<div class="empty">Aucune avance ni aucun prêt. Une avance se retient toute seule, mois après mois, sur ses bulletins.</div>') + `<div class="pa-pied-o"><button type="button" class="btn btn-sm" id="add-av">${lfIc('croix', 14, 2.4)} Une avance</button></div>`
+      : og === 'documents' ? `<table class="list compact pa-liste" id="fs-docs"><tbody>${C.HR_DOCS.map(([k, n, d]) => `<tr><td><b>${h(n)}</b><small>${h(d)}</small></td><td class="r"><button type="button" class="btn btn-sm" data-fs="doc" data-kind="${h(k)}">${lfIc('oeil', 14)} Préparer</button></td></tr>`).join('')}</tbody></table><p class="small muted pa-note">Chaque document se voit tel qu'il sortira, avant de l'exporter. Les modèles et les mentions obligatoires : À VÉRIFIER avec ton comptable.</p>`
+      : og === 'depart' ? (e.endDate ? (() => {
+          const L = C.lignesDuSolde(data, e.id, e.endDate);
+          return `<div class="pa-kv"><span>${parti ? 'Parti le' : 'Fin prévue le'}</span><b>${C.fmtDate(e.endDate)}</b><span>Congés pas pris</span><b>${pct(C.indemniteConges(data, e.id, e.endDate).solde)} jour(s)</b>${ouvertes.length ? `<span>Avance qui reste</span><b>${C.money(C.round3(ouvertes.reduce((a2, x) => a2 + x.remaining, 0)), cur)}</b>` : ''}</div>
+            <table class="list compact pa-liste"><thead><tr><th>Son solde de tout compte, proposé</th><th class="r"></th></tr></thead><tbody>${L.map(l => `<tr><td>${h(l.label)}</td><td class="r nw">${C.money(l.amount, cur)}</td></tr>`).join('')}</tbody></table>
+            <div class="pa-pied-o"><button type="button" class="btn btn-sm" data-fs="doc" data-kind="solde">${lfIc('oeil', 14)} Le solde de tout compte</button><button type="button" class="btn btn-sm" data-fs="doc" data-kind="certificat">${lfIc('oeil', 14)} Le certificat de travail</button></div>
+            <p class="small muted pa-note">À VÉRIFIER avec ton comptable : les indemnités de fin de contrat dépendent du motif de la rupture et de la convention collective.</p>`;
+        })() : `<div class="empty"><b>Aucun départ prévu</b><br>Une démission, une fin de contrat, un licenciement : pose sa date de sortie, et le solde de tout compte et le certificat se préparent ici.</div><div class="pa-pied-o"><button type="button" class="btn btn-sm" data-fs="sortie">${lfIc('echeance', 14)} Préparer sa sortie…</button></div>`)
+      : og === 'historique' ? (() => { const H = histo(); return H.length ? `<ul class="pa-histo">${H.map(([d, t, x]) => `<li><span class="nw muted small">${C.fmtDate(d)}</span><b>${h(t)}</b>${x ? `<span class="small muted">${h(x)}</span>` : ''}</li>`).join('')}</ul>` : '<div class="empty">Rien encore.</div>'; })()
+      : (slips.length ? `<table class="list compact pa-liste"><thead><tr><th>Mois</th><th class="r">Brut</th><th class="r">Net</th><th>Payé</th><th></th></tr></thead><tbody>
+          ${slips.map(x => `<tr class="clickable" data-ed="${h(x.id)}"><td><b>${h(MONTHS_LONG[x.month - 1])} ${x.year}</b></td><td class="r nw">${C.money(x.c.gross, cur)}</td><td class="r nw"><b>${C.money(x.c.net, cur)}</b></td>
+            <td class="nw">${x.paidDate ? `<span class="statut ok">le ${C.fmtDate(x.paidDate)}</span>` : '<span class="statut attire">à payer</span>'}</td><td class="r nw"><button type="button" class="btn btn-sm" data-voir="${h(x.id)}">${lfIc('oeil', 14)} Voir</button></td></tr>`).join('')}</tbody></table>`
+          : '<div class="empty">Aucun bulletin pour ce salarié.</div>') + `<div class="pa-pied-o"><button type="button" class="btn btn-sm" id="new-slip">${lfIc('croix', 14, 2.4)} Un bulletin</button></div>`;
+    const dl = (t, v, sous) => `<dt>${t}</dt><dd>${v}${sous ? `<small>${sous}</small>` : ''}</dd>`;
+    const manque = t => `<span class="manque">${t}</span>`;
+    $('#view').innerHTML = `
+      <div class="page-head lf-tete pa-tete" id="fs-head"><div class="titre"><div class="chemin"><a href="#/paie">Paie</a>${ICONE_CHEVRON}<a href="#/paie" id="fs-sal">Salariés</a>${ICONE_CHEVRON}<span>${h(e.name)}</span></div>
+          <h1 class="pa-h1-av">${av(e.name, true)}${h(e.name)} ${pastille}</h1><p class="sous">${h([e.position, (C.contractLabel(e.contract || 'cdi') || '').split(' —')[0] + (e.hireDate ? ` depuis le ${C.fmtDate(e.hireDate)}` : ''), `coût ${C.money(c.employerCost, cur)} par mois`].filter(Boolean).join(' · '))}</p></div>
+        <div class="actions">${!parti && e.endDate ? '' : !parti ? '' : ''}<button type="button" class="btn" data-fs="doc">${lfIc('pages', 15)} Un document…</button><button type="button" class="btn btn-ghost pa-plus" id="fs-plus" aria-haspopup="menu" aria-label="Autres gestes pour ce salarié" title="Autres gestes pour ce salarié">${lfIc('plus', 16)}</button>${prin}</div></div>
+      ${bandeaux.join('')}
+      <div class="pa-fiche"><div class="pa-fiche-g"><section class="pa-carte"><div class="pa-sous pa-sous-f" role="tablist" aria-label="Sa fiche">${ONG.map(([id, n, nb]) => `<button type="button" role="tab" data-onglet="${id}" aria-selected="${og === id}">${n}${nb ? ` <small>${nb}</small>` : ''}</button>`).join('')}</div><div class="pa-onglet-c" id="fs-corps">${corps}</div></section></div>
+        <div class="pa-fiche-d">
+          <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Son contrat</b><button type="button" class="btn btn-sm" id="edit-emp">Modifier</button></div><dl class="pa-dl">
+            ${dl('Contrat', h(C.contractLabel(e.contract || 'cdi')), e.contract === 'cdd' && e.endDate ? `jusqu'au ${C.fmtDate(e.endDate)}` : '')}
+            ${dl('Poste', e.position ? h(e.position) : manque('à préciser'))}
+            ${dl('Salaire de base', `${C.money(e.grossSalary, cur)} par mois`, (e.primes || []).length ? e.primes.map(x => `${h(x.label)} ${C.money(x.amount, cur)}${x.parJour ? ' au jour' : ''}`).join(' · ') : '')}
+            ${dl('Net estimé', C.money(c.net, cur), 'hors primes et retenues du mois')}
+            ${dl('Situation', `${e.headOfFamily ? 'chef de famille' : 'célibataire'}${Number(e.children) ? ` · ${pl(e.children, 'enfant')}` : ''}`, 'elle compte dans son impôt')}
+          </dl></section>
+          <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Identité</b></div><dl class="pa-dl">
+            ${dl('CIN', e.cin ? `<span class="mono">${h(e.cin)}</span>` : manque('à saisir'))}
+            ${dl('N° CNSS', e.cnss ? `<span class="mono">${h(e.cnss)}</span>` : manque('à demander'), e.cnss ? '' : 'la déclaration du trimestre l\'attend')}
+            ${dl('E-mail', e.email ? h(e.email) : '<span class="muted">—</span>', e.email ? '' : 'pour lui envoyer ses bulletins')}
+          </dl></section>
+          <section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Pour le payer</b></div><dl class="pa-dl">
+            ${dl('Mode', virement ? 'virement' : 'espèces, contre reçu')}
+            ${virement ? dl('RIB', e.iban ? `<span class="mono">${h(e.iban)}</span>` : manque('à demander'), e.iban ? 'contrôlé à la saisie' : '20 chiffres, contrôlés à la saisie') : ''}
+          </dl></section>
+          ${e.notes ? `<section class="pa-carte pa-bloc"><div class="pa-carte-t"><b>Notes</b></div><p class="small pa-note">${h(e.notes)}</p></section>` : ''}
+        </div></div>`;
+    bindBack('#/paie');
+    const rouvrir = () => render();
+    $('#fs-sal').onclick = ev => { ev.preventDefault(); paieState.tab = 'salaries'; navigate('#/paie'); };
+    $('#edit-emp').onclick = () => employeeForm(e, rouvrir);
+    $$('#fs-head [data-fs], #view [data-fs]').forEach(bt => bt.onclick = () => {
+      const k = bt.dataset.fs;
+      if (k === 'doc') hrDocForm(e, rouvrir, bt.dataset.kind);
+      else if (k === 'completer') employeeForm(e, rouvrir, { focus: !e.cnss ? 'cnss' : 'iban' });
+      else if (k === 'focus') employeeForm(e, rouvrir, { focus: bt.dataset.focus });
+      else if (k === 'renouveler' || k === 'sortie') employeeForm(e, rouvrir, { focus: 'endDate' });
+      else if (k === 'conge') leaveForm(null, e.id, rouvrir);
+    });
+    $('#fs-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
+      { icon: 'modifier', label: 'Modifier sa fiche', hint: 'contrat, salaire, identité, RIB', run: () => employeeForm(e, rouvrir) },
+      { icon: 'modifier', label: 'Changer son salaire', hint: 'le nouveau brut vaut pour les prochains bulletins', run: () => employeeForm(e, rouvrir, { focus: 'grossSalary' }) },
+      ...(e.contract === 'cdd' ? [{ icon: 'modifier', label: 'Renouveler son CDD', hint: 'une nouvelle date de fin, et l\'avenant à signer', run: () => employeeForm(e, () => { rouvrir(); hrDocForm(employeeById(e.id), rouvrir, 'avenant'); }, { focus: 'endDate' }) }] : []),
+      { icon: 'oeil', label: 'Un congé ou une absence', run: () => leaveForm(null, e.id, rouvrir) },
+      { icon: 'oeil', label: 'Une avance', run: () => advanceForm(null, e.id, rouvrir) },
+      { icon: 'pdf', label: 'Un document', hint: 'attestation, contrat, certificat…', run: () => hrDocForm(e, rouvrir) },
+      { icon: 'dossier', label: parti ? 'Son départ' : 'Préparer sa sortie', hint: 'date de sortie, solde de tout compte, certificat', run: () => { ficheSal.onglet = 'depart'; rouvrir(); } }
+    ], { titre: e.name, classe: 'gestes-menu', label: 'Autres gestes pour ce salarié' });
+    $$('#view [data-onglet]').forEach(bt => bt.onclick = () => { ficheSal.onglet = bt.dataset.onglet; rouvrir(); });
+    if ($('#new-slip')) $('#new-slip').onclick = () => { const t = C.addMonths(auj.slice(0, 7) + '-01', -1, 1); payslipForm(null, e, Number(t.slice(0, 4)), Number(t.slice(5, 7)), rouvrir); };
+    $$('#view [data-voir]').forEach(bt => bt.onclick = ev => { ev.stopPropagation(); apercuBulletin(payslipById(bt.dataset.voir)); });
+    $$('#view [data-ed]').forEach(tr => tr.onclick = () => { const x = payslipById(tr.dataset.ed); payslipForm(x, e, x.year, x.month, rouvrir); });
+    if ($('#add-lv')) $('#add-lv').onclick = () => leaveForm(null, e.id, rouvrir);
+    if ($('#add-av')) $('#add-av').onclick = () => advanceForm(null, e.id, rouvrir);
+    $$('#view [data-lv]').forEach(tr => tr.onclick = () => leaveForm(data.leaves.find(x => x.id === tr.dataset.lv), null, rouvrir));
+    $$('#view tr[data-av]').forEach(tr => tr.onclick = () => advanceForm(data.advances.find(x => x.id === tr.dataset.av), null, rouvrir));
   };
 
   // ---------- Stock (4.0.0) ----------
