@@ -6887,6 +6887,39 @@
     const vu = L.filter(x => x.des <= ym).pop();
     return round3(Number(vu ? vu.brut : L[0].avant) || 0);
   }
+  // (plateforme) 1.230.0 — CORRIGER SANS RÉÉCRIRE (docs/revue-paie.md, M5 et M6). Un bulletin payé et remis ne change plus
+  // en silence : l'écart se porte sur un mois suivant, en RÉGULARISATION (`employee.regularisations` : { id, pourMois
+  // 'AAAA-MM', label, amount signé, taxable, motif, deBulletin, le }). Un rappel d'augmentation passée est une
+  // régularisation positive et imposable. Le bulletin du mois la reprend comme une prime (négative : un trop-perçu) ;
+  // imposable, elle entre dans l'assiette de la CNSS et de l'impôt. À VÉRIFIER avec le comptable : l'impôt d'un rappel
+  // se calcule-t-il sur le mois qui le paie (ce que fait ce calcul) ou se répartit-il sur les mois qu'il couvre ?
+  function regulsDuMois(employee, year, month) {
+    const ym = `${year}-${String(month).padStart(2, '0')}`;
+    return ((employee && employee.regularisations) || []).filter(r => r && r.pourMois === ym && Number(r.amount))
+      .map(r => ({ label: String(r.label || '').trim() || 'Régularisation', amount: round3(Number(r.amount)), taxable: r.taxable !== false, regulId: r.id }));
+  }
+  // (plateforme) 1.230.0 — la SAISIE SUR SALAIRE (une opposition, une pension alimentaire : `employee.saisies` : { id,
+  // creancier, total, monthly, debut 'AAAA-MM', reference, versements: [{ id, date, amount, accountId, method }] }).
+  // L'employeur retient chaque mois la somme convenue, jamais plus que ce qui reste, et la verse au créancier. Ce qui est
+  // retenu se lit sur les bulletins (leurs retenues marquées du numéro de la saisie), ce qui est versé sur la saisie.
+  // À VÉRIFIER avec le comptable : la part du salaire que la loi permet de saisir (la retenue n'est pas plafonnée ici :
+  // elle est celle que la décision du tribunal fixe).
+  function saisiesOf(data, employee) {
+    const e = employee || {};
+    return (Array.isArray(e.saisies) ? e.saisies : []).filter(x => x && x.id).map(x => {
+      const total = round3(Number(x.total) || 0), monthly = round3(Number(x.monthly) || 0);
+      const retenu = round3((data.payslips || []).filter(p => p.employeeId === e.id)
+        .reduce((s, p) => s + (p.deductions || []).filter(d => d.saisieId === x.id).reduce((a, d) => a + (Number(d.amount) || 0), 0), 0));
+      const verse = round3((x.versements || []).reduce((s, v) => s + (Number(v.amount) || 0), 0));
+      return { ...x, total, monthly, retenu, verse, reste: round3(Math.max(0, total - retenu)), aVerser: round3(Math.max(0, retenu - verse)), done: total > 0 && retenu >= total - 0.0005 };
+    });
+  }
+  function saisiesDuMois(data, employee, year, month) {
+    const ym = `${year}-${String(month).padStart(2, '0')}`;
+    return saisiesOf(data, employee).filter(x => !x.done && (!x.debut || x.debut <= ym))
+      .map(x => ({ label: `Saisie sur salaire — ${String(x.creancier || '').trim() || 'créancier'}`, amount: round3(Math.min(x.monthly || x.reste, x.reste)), saisieId: x.id }))
+      .filter(d => d.amount > 0);
+  }
   const employeAuMois = (employee, year, month) => (employee && Array.isArray(employee.salaires) && employee.salaires.length
     ? { ...employee, grossSalary: brutDuMois(employee, year, month) } : employee);
   function saisieDuMois(data, employee0, year, month) {
@@ -6903,8 +6936,8 @@
     const brutFiche = round3(Number(employee.grossSalary) || 0);
     const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;
     const prorata = hors ? { jours: round3(total - hors), sur: total, motif: motifs.join(', '), brutFiche, brut: gross } : null;
-    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata,
-      deductions: echeancesDuMois(data, employee.id, year, month) };
+    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...regulsDuMois(employee, year, month)], prorata,
+      deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month)] };
     return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month)) } : i;
   }
 
@@ -7598,7 +7631,7 @@
     // (plateforme) 1.70.0 — les congés.
     leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance, congeRetenu,
     CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
-    saisieDuMois, brutDuMois, employeAuMois,
+    saisieDuMois, brutDuMois, employeAuMois, regulsDuMois, saisiesOf, saisiesDuMois,
     // (plateforme) 1.71.0 — les avances.
     advancesOf, advanceBalance, echeancesDuMois, avancesDeLAnnee,
     // (plateforme) 1.72.0 — les documents du personnel.

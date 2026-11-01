@@ -4426,7 +4426,8 @@
       .filter(l => l.employeeId === employee.id && Compta.congeRetenu(l) && !(l.paid != null ? l.paid : leaveIsPaid(l.kind)))
       .reduce((a, l) => a + leaveDaysInMonth(l, year, month, off), 0));
     // (plateforme) 1.71.0 — l'échéance de chaque avance en cours, par le moteur commun (celle du bulletin du Cabinet).
-    const deductions = echeancesDuMois(data, employee.id, year, month);
+    // (plateforme) 1.230.0 — et chaque saisie sur salaire en cours (le moteur commun, celui du Cabinet).
+    const deductions = [...echeancesDuMois(data, employee.id, year, month), ...Compta.saisiesDuMois(data, employee, year, month)];
     // 10.12.0 — une entrée ou une sortie en cours de mois se PRORATISE. Le brut de la fiche était
     // repris en entier : un ouvrier embauché le 24 septembre recevait un mois plein pour six jours, et
     // celui qui part le 5 aussi. Les jours hors contrat se comptent en jours ouvrables (le repos
@@ -4452,7 +4453,8 @@
     const prorata = hors ? { jours: round3(total - hors), sur: total, motif: motifs.join(', '), brutFiche, brut: gross } : null;
     // (plateforme) 1.59.0 — les primes de la fiche, « au jour » sur les jours payés du mois : ceux du contrat
     // (l'entrée, la sortie) moins les absences non payées.
-    return { gross, workedDays: total, absentDays, bonuses: primesDuMois(employee, total - hors - absentDays, total), deductions, prorata };
+    // (plateforme) 1.230.0 — avec les régularisations portées sur ce mois (un bulletin payé corrigé, un rappel).
+    return { gross, workedDays: total, absentDays, bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.regulsDuMois(employee, year, month)], deductions, prorata };
   }
 
   // (plateforme) 1.59.0 — les primes de chaque mois, posées sur la fiche du salarié (`employee.primes` :
@@ -5768,6 +5770,18 @@
         socialId: f.id, reconciled: !!f.reconciled, source: 'social'
       });
     });
+    // (plateforme) 1.230.0 — ce qu'une saisie sur salaire a retenu, VERSÉ au créancier : de l'argent qui sort, le jour du
+    // versement. La retenue elle-même ne sort rien (elle diminue le net versé au salarié).
+    (data.employees || []).forEach(emp => (Array.isArray(emp.saisies) ? emp.saisies : []).forEach(x => (x.versements || []).forEach(v => {
+      const montant = round3(Number(v.amount) || 0);
+      if (!montant || !v.date || !inPeriod(v.date, period && period.from, period && period.to) || !keep(v.accountId)) return;
+      out.push({
+        id: `sai-${x.id}-${v.id}`, kind: 'sortie', date: v.date, accountId: compteDe(v.accountId),
+        label: `Saisie sur salaire — ${emp.name || ''}`.trim(), party: String(x.creancier || '').trim() || 'Créancier',
+        amount: -montant, method: v.method || 'virement', reference: v.reference || x.reference || '',
+        saisieId: x.id, employeeId: emp.id, reconciled: !!v.reconciled, source: 'saisie'
+      });
+    })));
     // Un VIREMENT entre deux comptes de l'entreprise (10.14.0) — la banque qui alimente la caisse, la
     // caisse déposée à la banque — sort de l'un et entre dans l'autre : deux lignes, une par compte,
     // chacune pointée sur SON relevé (`reconciled` au départ, `reconciledVers` à l'arrivée). Sans
@@ -7469,6 +7483,20 @@
           e.credit(j.compte, label, montant);
           out.push(...e.done());
         });
+      // (plateforme) 1.230.0 — le VERSEMENT au créancier d'une saisie sur salaire. Le bulletin a porté la retenue au crédit
+      // du 425 avec le net ; le versement l'en retire, et la banque (ou la caisse) bouge comme la ligne de trésorerie.
+      // À VÉRIFIER avec le comptable : un compte d'oppositions sur salaires distinct du 425 si le cabinet en tient un.
+      (data.employees || []).forEach(emp => (Array.isArray(emp.saisies) ? emp.saisies : []).forEach(x => (x.versements || [])
+        .filter(v => v.date && Number(v.amount) && inPeriod(v.date, period && period.from, period && period.to))
+        .forEach(v => {
+          const montant = round3(Number(v.amount) || 0);
+          const j = journalDeCompte(data, acc, v.accountId, v.method);
+          const e = entrySet({ date: v.date, journal: j.journal, piece: `SAISIE-${v.date}`, tiers: String(x.creancier || '').trim() || 'Créancier', tiersId: '', source: 'saisie', docId: x.id, currency: cur });
+          const label = `Saisie sur salaire ${emp.name || ''}`.trim();
+          e.debit(acc.personnel, label, montant);
+          e.credit(j.compte, label, montant);
+          out.push(...e.done());
+        })));
     }
 
     // --- 8.9.0 : la déclaration mensuelle. À la fin de chaque mois écoulé, la TVA collectée se
@@ -11924,7 +11952,7 @@
     joursPayesDuBulletin, COLONNES_JOURNAL, journalDePaie, colonnesCsvJournal, journalDePaieHtml, etatRecapitulatifCnss, etatRecapitulatifCnssHtml, declarationMensuelleSalaires,
     QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,
     LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
-    advancesOf, advanceBalance, payslipInputFor, congeRetenu: Compta.congeRetenu, brutDuMois: Compta.brutDuMois, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
+    advancesOf, advanceBalance, payslipInputFor, congeRetenu: Compta.congeRetenu, brutDuMois: Compta.brutDuMois, saisiesOf: Compta.saisiesOf, regulsDuMois: Compta.regulsDuMois, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
     // (plateforme) 1.72.0 — du moteur commun : la civilité, l'indemnité de congés non pris, les lignes du solde.
     CIVILITES, indemniteConges, lignesDuSolde,
     SERIAL_STATUSES, serialStatusLabel, WARRANTY_CHOICES, serializedItems, warrantyEnd, serialView,
