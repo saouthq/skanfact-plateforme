@@ -22124,6 +22124,21 @@ prouver 'paie 1.222 f : tout payé, la tuile promet encore un versement' web/pub
   "tuile(month.every(x => x.paidDate) ? 'Net versé' : 'Net à verser'" "tuile('Net à verser'" \
   "$WPAIE1"
 
+WPAIE2="le bulletin en aperçu, puis les documents du personnel : la feuille à droite suit chaque choix, les montants viennent des bulletins"
+prouver 'paie 1.223 a : l'\''attestation de salaire prend quatre mois' web/public/v10/core.js \
+  "const L = bulletinsDe(data, e.id, t).slice(-3);" "const L = bulletinsDe(data, e.id, t).slice(-4);" \
+  "$WPAIE2"
+prouver 'paie 1.223 b : l'\''aperçu ne suit plus le choix du document' web/public/v10/app.js \
+  "\$('#hf', root).onchange = () => { sync(); apercu(); };" "\$('#hf', root).onchange = () => { sync(); };" \
+  "$WPAIE2"
+prouver 'paie 1.223 c : le bulletin ne s'\''ouvre plus en aperçu' web/public/v10/app.js \
+  "          { icon: 'oeil', label: 'Voir le bulletin', hint: 'la feuille elle-même, avant de l\\'exporter', run: () => apercuBulletin(x) }," "" \
+  "$WPAIE2"
+prouver 'paie 1.223 d : le contrat sort sans la mention PROJET' web/public/v10/core.js \
+  "      contrat: \`
+        <p class=\"projet\">PROJET — à relire, compléter et signer des deux parties</p>" "      contrat: \`" \
+  "$WPAIE2"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

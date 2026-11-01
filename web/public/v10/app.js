@@ -17710,8 +17710,10 @@
         <tr class="total-row" data-jp-total><td colspan="2"><strong>Totaux</strong></td>
           ${C.COLONNES_JOURNAL.map(([k]) => `<td class="r nw" data-col="${k}">${k === 'jours' ? '' : `<strong>${C.money(j.totaux[k], null, dec)}</strong>`}</td>`).join('')}</tr>
       </tbody></table></div>
-      <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn" id="jp-csv">Exporter en CSV</button><button type="button" class="btn btn-primary" id="jp-pdf">Imprimer le journal</button></div>`,
+      <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn" id="jp-voir">${lfIc('oeil', 15)} Voir le document</button><button type="button" class="btn" id="jp-csv">Exporter en CSV</button><button type="button" class="btn btn-primary" id="jp-pdf">Imprimer le journal</button></div>`,
     (root) => {
+      $('#jp-voir', root).onclick = () => apercuDocument({ titre: `Journal de paie — ${periode}`, html: C.journalDePaieHtml(data, company(), year, month), fichier: nom + '.pdf',
+        cote: `<div class="pa-doc-i"><b>Prêt</b><span>${pl(j.nombre, 'bulletin')} ; les montants viennent des bulletins, jamais tapés.</span></div>` });
       $('#jp-pdf', root).onclick = async () => {
         try {
           const f = await bridge.exportPdf(C.journalDePaieHtml(data, company(), year, month), nom + '.pdf');
@@ -17799,15 +17801,17 @@
         const t = tenu(); close();
         employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: 'iban' });
       }; });
-      $('#ps-ordre', root).onclick = async () => {
+      // (plateforme) 1.223.0 — l'ordre de virement s'ouvre en aperçu : la lettre elle-même, puis « Exporter en PDF ».
+      $('#ps-ordre', root).onclick = () => {
         const compte = compteChoisi() || {};
+        const L = dansLOrdre();
         const html = C.ordreDeVirementHtml(company(), { year, month, date: formValues($('#ps', root)).date || C.today(),
           compte: { bank: compte.bank || company().bank || '', rib: compte.rib || company().rib || '' },
-          lignes: dansLOrdre().map(l => ({ name: l.name, rib: l.rib, net: l.net })) });
-        try {
-          const f = await bridge.exportPdf(html, `Ordre_de_virement_salaires_${year}-${String(month).padStart(2, '0')}.pdf`);
-          if (f) toast('PDF enregistré : ' + f.split(/[\\/]/).pop());
-        } catch (e) { toast(e.message || 'Export impossible', true); }
+          lignes: L.map(l => ({ name: l.name, rib: l.rib, net: l.net })) });
+        apercuDocument({ titre: `Ordre de virement · salaires de ${MONTHS_LONG[month - 1]} ${year}`, html,
+          fichier: `Ordre_de_virement_salaires_${year}-${String(month).padStart(2, '0')}.pdf`,
+          cote: `<div class="pa-doc-i"><b>${pl(L.length, 'bénéficiaire')}</b><span>les salariés cochés, payés par virement à un RIB valable</span></div>
+            <div class="pa-doc-i"><b>À VÉRIFIER</b><span>certaines banques demandent leur propre formulaire, ou un fichier.</span></div>` });
       };
       $('#ps-payer', root).onclick = () => {
         const v = formValues($('#ps', root));
@@ -17825,6 +17829,41 @@
       };
       maj();
     });
+  }
+
+  // (plateforme) 1.223.0 — l'aperçu d'un document : la feuille elle-même, telle que le PDF la sortira (la maquette de la
+  // paie, « l'aperçu est le document lui-même »). `poserApercu` met la page A4 à la largeur du cadre.
+  function poserApercu(cadre, html) {
+    if (!cadre) return;
+    let f = $('iframe', cadre);
+    if (!f) { f = document.createElement('iframe'); f.title = 'Aperçu du document'; f.setAttribute('tabindex', '-1'); cadre.appendChild(f); }
+    const k = Math.min(1, Math.max(0.3, (cadre.clientWidth - 24) / 794));
+    f.style.transform = `scale(${k})`;
+    f.style.marginBottom = `${-Math.round(1123 * (1 - k))}px`;
+    f.style.marginRight = `${-Math.round(794 * (1 - k))}px`;
+    f.srcdoc = html;
+  }
+  function apercuDocument(o) {
+    modal(`<h2>${h(o.titre)}</h2><p class="small muted pa-doc-sous">l'aperçu est le document lui-même : ce que tu vois est ce qui sortira en PDF</p>
+      <div class="pa-doc-c"><div class="pa-doc-g">${o.cote || ''}</div><div class="pa-apercu" id="ad-apercu"></div></div>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn btn-primary" id="ad-pdf">${lfIc('exporter', 15)} Exporter en PDF</button></div>`, root => {
+      requestAnimationFrame(() => poserApercu($('#ad-apercu', root), o.html));
+      $('#ad-pdf', root).onclick = async () => {
+        try {
+          const f = await bridge.exportPdf(o.html, o.fichier);
+          if (f) toast('PDF enregistré : ' + f.split(/[\\/]/).pop());
+        } catch (e) { toast(e.message || 'Export impossible', true); }
+      };
+    }, null, { classe: 'pa-doc' });
+  }
+  function apercuBulletin(slip) {
+    const emp = employeeById(slip.employeeId) || {}, v = C.payslipsOf(data, slip.year, slip.month).find(x => x.id === slip.id) || slip;
+    const safe = s2 => String(s2).replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_');
+    apercuDocument({ titre: `${emp.name || 'Bulletin'} · bulletin de ${MONTHS_LONG[slip.month - 1]} ${slip.year}`, html: C.payslipHtml(slip, data, company(), {}),
+      fichier: `Bulletin_${safe(emp.name)}_${slip.year}-${String(slip.month).padStart(2, '0')}.pdf`,
+      cote: `<div class="pa-doc-i"><b>${v.paidDate ? 'Payé' : 'Établi'}</b><span>${v.paidDate ? `le ${C.fmtDate(v.paidDate)}` : 'pas encore payé'}${v.remisLe ? ` · remis le ${C.fmtDate(v.remisLe)}` : ''}</span></div>
+        <div class="pa-doc-i"><b>Les montants</b><span>viennent du bulletin ; il ne se modifie pas ici (« Modifier le bulletin », dans son menu).</span></div>
+        <div class="pa-doc-i"><b>À VÉRIFIER</b><span>les mentions obligatoires du bulletin, avec ton comptable. À garder sans limite de durée.</span></div>` });
   }
 
   async function exportPayslip(slip) {
@@ -18003,7 +18042,8 @@
     const bal = { remaining: C.indemniteConges(data, e.id, C.today()).solde };
     const resteAvances = C.round3(C.advancesOf(data, e.id).filter(a => !a.done).reduce((t, a) => t + a.remaining, 0));
     let dateVue = C.today();
-    modal(`<h2>Document pour ${h(e.name)}</h2>
+    modal(`<h2>Document pour ${h(e.name)}</h2><p class="small muted pa-doc-sous">l'aperçu est le document lui-même : ce que tu vois est ce qui sortira en PDF</p>
+      <div class="pa-doc-c"><div class="pa-doc-g">
       <form id="hf" class="grid-2">
         <label class="field span-2">${lbl('Document', 'hr.doc')}<select name="kind">${C.HR_DOCS.map(([v, lab]) => `<option value="${v}" ${v === kindDemande ? 'selected' : ''}>${lab}</option>`).join('')}</select></label>
         ${dateFieldHtml(lbl('Daté du', 'hr.docDate'), 'date', C.today(), {})}
@@ -18026,7 +18066,8 @@
              et une avance retenue ici resterait ouverte dans la paie). */''}
         ${resteAvances > 0 ? `<p class="small mt" id="hf-avances">Il reste <b>${C.money(resteAvances, cur)}</b> à rembourser sur ses avances. Ce document ne les retient pas : un bulletin les rembourse, et ce qu'il ne peut pas retenir se règle avec lui. <em>À VÉRIFIER avec ton comptable : ce qui peut se retenir au départ.</em></p>` : ''}
       </div>
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Exporter en PDF</button></div>`,
+      </div><div class="pa-apercu" id="hf-apercu"></div></div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${lfIc('exporter', 15)} Exporter en PDF</button></div>`,
       (root, close) => {
         const total = () => C.round3(lines.reduce((a, l) => a + (Number(l.amount) || 0), 0));
         const drawLines = () => {
@@ -18047,10 +18088,14 @@
             lines[i][el.dataset.f] = el.type === 'number' ? Number(el.value) : el.value;
             lines[i].touche = true;
             $('#hf-total', root).textContent = C.money(total(), cur);
+            apercu();
           });
           $$('[data-x]', $('#hf-lines', root)).forEach(b => b.onclick = () => { lines.splice(Number(b.dataset.x), 1); drawLines(); });
           $('#hf-add', root).onclick = () => { lines.push({ label: '', amount: 0 }); drawLines(); };
         };
+        // L'aperçu suit chaque choix : le document, la date, la mention du salaire, les lignes du solde.
+        const docHtml = () => { const v = formValues($('#hf', root)); return C.hrDocumentHtml(v.kind, e, data, company(), { date: v.date, withSalary: !!v.withSalary, lines }); };
+        const apercu = () => poserApercu($('#hf-apercu', root), docHtml());
         const sync = () => {
           const v = formValues($('#hf', root));
           const desc = (C.HR_DOCS.find(x => x[0] === v.kind) || [])[2] || '';
@@ -18072,21 +18117,21 @@
             $('#hf-sortie-go', root).onclick = () => { close(); employeeForm(e, () => hrDocForm(e, done, v.kind), { focus: 'endDate' }); };
           }
         };
-        drawLines(); sync();
-        $('#hf', root).onchange = sync;
+        drawLines(); sync(); requestAnimationFrame(apercu);
+        $('#hf', root).onchange = () => { sync(); apercu(); };
         if ($('#hf-gerant-go', root)) $('#hf-gerant-go', root).onclick = () => { close(); allerParametres('societe', 'p-identite:managerName'); };
         // (plateforme) 1.72.0 — sa fiche s'ouvre sur la case ; enregistrée, le document se rouvre.
         if ($('#hf-civ-go', root)) $('#hf-civ-go', root).onclick = () => { const k = formValues($('#hf', root)).kind; close(); employeeForm(e, () => hrDocForm(e, done, k), { focus: 'gender' }); };
         $('#ok', root).onclick = async () => {
           const v = formValues($('#hf', root));
-          const html = C.hrDocumentHtml(v.kind, e, data, company(), { date: v.date, withSalary: !!v.withSalary, lines });
+          const html = docHtml();
           const safe = s2 => String(s2).replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_');
           try {
             const f = await bridge.exportPdf(html, `${safe(C.hrDocLabel(v.kind))}_${safe(e.name)}.pdf`);
             if (f) { toast('PDF enregistré : ' + f.split(/[\\/]/).pop()); close(); if (done) done(); }
           } catch (err) { toast(plainError(err), true); }
         };
-      });
+      }, null, { classe: 'pa-doc' });
   }
 
   const paieState = { tab: 'bulletins', year: lastMonth.slice(0, 4), month: String(Number(lastMonth.slice(5, 7))),
@@ -18237,6 +18282,7 @@
         const x = payslipById(id); if (!x) return [];
         const emp = employeeById(x.employeeId);
         return [
+          { icon: 'oeil', label: 'Voir le bulletin', hint: 'la feuille elle-même, avant de l\'exporter', run: () => apercuBulletin(x) },
           { icon: 'pdf', label: 'Exporter le bulletin en PDF', hint: 'À remettre au salarié', run: () => exportPayslip(x) },
           { icon: 'modifier', label: 'Modifier le bulletin', hint: 'Primes, retenues, date et compte du paiement', run: () => payslipForm(x, emp, x.year, x.month, () => draw()) }
         ];
@@ -18266,10 +18312,11 @@
       const y = Number(s.year), m = Number(s.month);
       const L = C.payslipsOf(data, y, m).filter(x => x.paidDate && !x.remisLe);
       if (!L.length) return;
-      modal(`<div class="modal pa-fen" role="dialog" aria-label="Remettre les bulletins"><h3>Remettre ${L.length > 1 ? `les ${L.length} bulletins` : 'le bulletin'} ${/^[aeiouh]/i.test(MONTHS_LONG[m - 1]) ? 'd’' : 'de '}${h(MONTHS_LONG[m - 1])}</h3>
+      modal(`<h2>Remettre ${L.length > 1 ? `les ${L.length} bulletins` : 'le bulletin'} ${/^[aeiouh]/i.test(MONTHS_LONG[m - 1]) ? 'd’' : 'de '}${h(MONTHS_LONG[m - 1])}</h2>
         <p class="small muted">Chaque bulletin se prépare en PDF, à donner en main propre ou à envoyer au salarié. SkanFact note qu'il est remis, et quand.</p>
         <table class="list compact"><tbody>${L.map(x => `<tr><td><b>${h(x.employeeName)}</b></td><td class="r">${(employeeById(x.employeeId) || {}).email ? `<span class="small">à envoyer à ${h((employeeById(x.employeeId) || {}).email)}</span>` : '<span class="small muted">à imprimer : pas d’e-mail sur sa fiche</span>'}</td></tr>`).join('')}</tbody></table>
-        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="rm-ok">${lfIc('exporter', 15)} Préparer les PDF et marquer remis</button></div></div>`, (root, fermer) => {
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn" id="rm-voir">${lfIc('oeil', 15)} Voir avant d’imprimer</button><button type="button" class="btn btn-primary" id="rm-ok">${lfIc('exporter', 15)} Préparer les PDF et marquer remis</button></div>`, (root, fermer) => {
+        $('#rm-voir', root).onclick = () => { const b = payslipById(L[0].id); if (b) apercuBulletin(b); };
         $('#rm-ok', root).onclick = async () => {
           const jour = C.today();
           for (const x of L) { const b = payslipById(x.id); if (b) b.remisLe = jour; }

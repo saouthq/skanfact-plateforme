@@ -6653,9 +6653,17 @@
   // ---------- documents du personnel (5.1.0) ----------
   // (plateforme) 1.72.0 — déménagés de core.js dans le moteur commun : le Cabinet imprime aussi l'attestation, le certificat
   // de travail et le solde de tout compte d'un salarié, et une copie diverge. core.js les reprend.
+  // (plateforme) 1.223.0 — la maquette de la paie (docs/maquettes/paie.html) : le contrat et son avenant (en PROJET, à
+  // signer), l'attestation de salaire (3 derniers mois), l'attestation annuelle de salaires et de retenues, la fin de
+  // période d'essai. Les modèles et mentions obligatoires : À VÉRIFIER avec le comptable.
   const HR_DOCS = [
+    ['contrat', 'Contrat de travail', 'Le contrat, depuis sa fiche : poste, date d\'entrée, durée, salaire. Un PROJET, à relire et à signer des deux.'],
+    ['avenant', 'Avenant au contrat', 'Ce qui change (salaire, poste, date de fin d\'un CDD), depuis sa fiche : un PROJET, daté, signé des deux.'],
     ['attestation', 'Attestation de travail', 'Atteste qu\'une personne fait partie du personnel aujourd\'hui. Demandée par une banque, un bailleur, une administration.'],
     ['certificat', 'Certificat de travail', 'Remis à la fin du contrat. Obligatoire : il indique les dates et l\'emploi occupé, rien d\'autre.'],
+    ['salaire', 'Attestation de salaire', 'Son salaire des trois derniers mois établis (brut et net versé) : pour sa banque, un crédit, un loyer.'],
+    ['annuelle', 'Attestation de salaires et de retenues', 'Ce qu\'il a gagné dans l\'année et ce qui a été retenu (CNSS, impôt), bulletin par bulletin : pour sa déclaration.'],
+    ['essai', 'Fin de période d\'essai', 'Confirmer son poste à la fin de sa période d\'essai, par écrit.'],
     ['solde', 'Solde de tout compte', 'Récapitule ce qui reste dû au départ : salaire du mois, congés non pris, indemnités.']
   ];
   const hrDocLabel = k => (HR_DOCS.find(x => x[0] === k) || [, k])[1];

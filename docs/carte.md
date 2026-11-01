@@ -237,7 +237,8 @@ vaut pour tout le dépôt.*
     `salairesAPayer`/`ordreDeVirementHtml` dans `core.js`, la fenêtre « Payer les salaires… »). La paie appliquée, lot 1 :
     « Le mois » tel que la maquette (1.222.0 ; `docs/maquettes/paie.html`, `docs/paie.md` « La paie appliquée » ;
     `paieDuMois`/`paieATraiter` dans `core.js`, `pHead`/`drawSlips`/`remettreBulletins`/`drawAnnee` dans `app.js`,
-    `web/public/plateforme/paie.css`, `tests/web/paie-mois.test.ts`).
+    `web/public/plateforme/paie.css`, `tests/web/paie-mois.test.ts`) ; lot 2, les documents en aperçu fidèle (1.223.0 ; `apercuDocument`, cinq documents de `HR_DOCS`,
+    `tests/web/paie-documents.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

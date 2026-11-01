@@ -4471,7 +4471,52 @@
           <tr class="tot"><td>Net à percevoir</td><td class="n">${fmt(round3((opts.lines || []).reduce((a, l) => a + (Number(l.amount) || 0), 0)))} ${escapeHtml(cur)}</td></tr>
         </table>
         <p class="small">Solde de congés non pris au départ : <b>${pctFr(bal.remaining)} jour${sAccord(bal.remaining)}</b>${leavePay > 0 ? `, soit ${fmt(leavePay)} ${escapeHtml(cur)} sur la base du dernier salaire` : ''}.</p>
-        <p>Le présent solde est établi en double exemplaire. <em>À VÉRIFIER : les indemnités de fin de contrat dépendent du motif de la rupture et de la convention collective applicable — faites relire ce document avant signature.</em></p>`
+        <p>Le présent solde est établi en double exemplaire. <em>À VÉRIFIER : les indemnités de fin de contrat dépendent du motif de la rupture et de la convention collective applicable — faites relire ce document avant signature.</em></p>`,
+      // (plateforme) 1.223.0 — les documents de la maquette. Les montants viennent des bulletins établis, jamais tapés.
+      salaire: (() => {
+        const L = bulletinsDe(data, e.id, t).slice(-3);
+        return `
+        <p>Nous attestons que <b>${civ}${escapeHtml(e.name || '')}</b>${e.cin ? `, CIN n° ${escapeHtml(e.cin)}` : ''}${e.cnss ? `, n° CNSS ${escapeHtml(e.cnss)}` : ''}, est employé${e.gender === 'f' ? 'e' : ''} par notre société depuis le <b>${fmtDate(e.hireDate)}</b> en qualité de <b>${escapeHtml(e.position || '—')}</b>, sous ${escapeHtml(contractLabel(e.contract || 'cdi').split(' —')[0])}, et a perçu les salaires suivants :</p>
+        ${L.length ? `<table class="sum"><tr><td><b>Mois</b></td><td class="n"><b>Salaire brut</b></td><td class="n"><b>Net versé</b></td></tr>
+          ${L.map(x => `<tr><td>${MOIS_DOC[x.month - 1]} ${x.year}</td><td class="n">${fmt(x.c.gross)}</td><td class="n">${fmt(x.c.net)}</td></tr>`).join('')}</table>`
+          : '<p class="small">Aucun bulletin établi à ce jour : il n\'y a pas encore de salaire à attester.</p>'}
+        <p>Cette attestation lui est délivrée à sa demande, pour servir et valoir ce que de droit.</p>`;
+      })(),
+      annuelle: (() => {
+        const an = Number(String(opts.annee || t).slice(0, 4));
+        const L = bulletinsDe(data, e.id, t).filter(x => Number(x.year) === an);
+        const som = f => round3(L.reduce((a, x) => a + (Number(x.c[f]) || 0), 0));
+        return `
+        <p>Salarié${e.gender === 'f' ? 'e' : ''} : <b>${civ}${escapeHtml(e.name || '')}</b>${e.cin ? ` · CIN ${escapeHtml(e.cin)}` : ''}${e.cnss ? ` · CNSS ${escapeHtml(e.cnss)}` : ''} · ${escapeHtml(e.position || '—')}</p>
+        <table class="sum"><tr><td><b>Année ${an}${L.length ? ` · ${L.length} bulletin${L.length > 1 ? 's' : ''}` : ''}</b></td><td class="n"><b>Montant</b></td></tr>
+          <tr><td>Salaire brut</td><td class="n">${fmt(som('gross'))}</td></tr>
+          <tr><td>Retenue CNSS (part du salarié)</td><td class="n">${fmt(som('cnssEmployee'))}</td></tr>
+          <tr><td>Impôt sur le revenu retenu à la source (IRPP)</td><td class="n">${fmt(som('irpp'))}</td></tr>
+          <tr><td>Contribution sociale de solidarité</td><td class="n">${fmt(som('css'))}</td></tr>
+          <tr class="tot"><td>Net versé</td><td class="n">${fmt(som('net'))} ${escapeHtml(cur)}</td></tr></table>
+        <p class="small">Les montants reprennent les bulletins de l'année, tels qu'établis.${L.length ? '' : ' Aucun bulletin cette année.'} <em>À VÉRIFIER : la forme de cette attestation (le certificat de retenue de l'administration fiscale peut être exigé).</em></p>`;
+      })(),
+      contrat: `
+        <p class="projet">PROJET — à relire, compléter et signer des deux parties</p>
+        <p>Entre la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}${company.managerName ? `, représentée par <b>${escapeHtml(company.managerName)}</b>` : ''}, d'une part,</p>
+        <p>et <b>${civ}${escapeHtml(e.name || '')}</b>${e.cin ? `, CIN n° ${escapeHtml(e.cin)}` : ''}, d'autre part, il est convenu ce qui suit :</p>
+        <p><b>Article 1 · Engagement.</b> ${civ}${escapeHtml(e.name || '')} est engagé${e.gender === 'f' ? 'e' : ''} en qualité de <b>${escapeHtml(e.position || '—')}</b>.</p>
+        <p><b>Article 2 · Durée.</b> ${e.contract === 'cdd' ? `Contrat à durée déterminée, du <b>${fmtDate(e.hireDate)}</b> au <b>${e.endDate ? fmtDate(e.endDate) : '……'}</b>.` : `${escapeHtml(contractLabel(e.contract || 'cdi').split(' —')[0])}, à compter du <b>${fmtDate(e.hireDate)}</b>.`}</p>
+        <p><b>Article 3 · Rémunération.</b> Un salaire brut mensuel de <b>${fmt(e.grossSalary)} ${escapeHtml(cur)}</b>, payé ${e.method === 'especes' ? 'en espèces, contre reçu' : 'par virement'}.</p>
+        <p><b>Article 4 · Période d'essai, horaires, congés.</b> Selon la convention collective applicable et le code du travail.</p>
+        <p class="small"><em>À VÉRIFIER avec ton comptable : la catégorie, la convention collective, la période d'essai et les mentions obligatoires.</em></p>`,
+      avenant: `
+        <p class="projet">PROJET — à relire, compléter et signer des deux parties</p>
+        <p>Au contrat de travail conclu le <b>${fmtDate(e.hireDate)}</b> entre la société <b>${escapeHtml(company.name || '')}</b> et <b>${civ}${escapeHtml(e.name || '')}</b>${e.cin ? `, CIN n° ${escapeHtml(e.cin)}` : ''}.</p>
+        <p><b>Article 1.</b> À compter du <b>${fmtDate(t)}</b>, ${civ}${escapeHtml(e.name || '')} occupe le poste de <b>${escapeHtml(e.position || '—')}</b>, pour un salaire brut mensuel de <b>${fmt(e.grossSalary)} ${escapeHtml(cur)}</b>.</p>
+        ${e.contract === 'cdd' ? `<p><b>Article 2.</b> Le contrat à durée déterminée est prolongé jusqu'au <b>${e.endDate ? fmtDate(e.endDate) : '……'}</b>.</p>` : ''}
+        <p><b>Article ${e.contract === 'cdd' ? 3 : 2}.</b> Les autres clauses du contrat restent inchangées.</p>
+        <p class="small"><em>À VÉRIFIER : le renouvellement d'un CDD a ses limites (durée, nombre) ; fais relire avant signature.</em></p>`,
+      essai: `
+        <p>${civ}${escapeHtml(e.name || '')},</p>
+        <p>Votre période d'essai, commencée le <b>${fmtDate(e.hireDate)}</b>, s'achève. Nous avons le plaisir de vous confirmer dans votre poste de <b>${escapeHtml(e.position || '—')}</b>${e.contract === 'cdd' && e.endDate ? ` : votre contrat se poursuit jusqu'au <b>${fmtDate(e.endDate)}</b>` : ''}.</p>
+        <p>Nous vous prions d'agréer nos salutations distinguées.</p>
+        <p class="small"><em>À VÉRIFIER : la durée de la période d'essai et son renouvellement dépendent de la convention collective.</em></p>`
     }[kind] || '';
 
     return `<!DOCTYPE html>
@@ -4498,6 +4543,7 @@
   .sign .s { border: 1px dashed ${tint(0.5)}; border-radius: 8px; min-height: 70px; padding: 7px 11px; font-size: 8.5pt; color: #6a7480; }
   .place { text-align: right; margin: 20px 0 0; font-size: 9.5pt; }
   .foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #eef1f4; font-size: 7.5pt; color: #8b949e; text-align: center; }
+  .projet { text-align: center; font-weight: 700; letter-spacing: 1px; color: #b45309; border: 1.5px dashed #b45309; border-radius: 6px; padding: 4px 8px; }
 </style></head>
 <body><div class="page">
   <div class="head">
@@ -4511,7 +4557,7 @@
   ${body}
   <p class="place">${city ? escapeHtml(city) + ', le ' : 'Le '}${fmtDate(t)}</p>
   <div class="sign">
-    ${kind === 'solde' ? '<div class="s">Le salarié — lu et approuvé, bon pour solde de tout compte</div>' : '<div></div>'}
+    ${kind === 'solde' ? '<div class="s">Le salarié — lu et approuvé, bon pour solde de tout compte</div>' : ['contrat', 'avenant'].includes(kind) ? '<div class="s">Le salarié — lu et approuvé</div>' : '<div></div>'}
     <div class="s">Pour la société${company.managerName ? '<br>' + escapeHtml(company.managerName) : ''}</div>
   </div>
   <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''}</div>
@@ -4519,6 +4565,13 @@
   }
 
   const pctFr = n => String(n).replace('.', ',');
+  // (plateforme) 1.223.0 — les bulletins d'un salarié établis jusqu'à un jour, du plus ancien au plus récent.
+  const MOIS_DOC = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  function bulletinsDe(data, employeeId, jusquA) {
+    const lim = String(jusquA || today()).slice(0, 7);
+    return payslipsOf(data).filter(x => x.employeeId === employeeId && `${x.year}-${String(x.month).padStart(2, '0')}` <= lim)
+      .sort((a, b) => (a.year - b.year) || (a.month - b.month));
+  }
 
   // Le registre du personnel : la liste que l'inspection du travail peut demander.
   function staffRegister(data, todayIso) {

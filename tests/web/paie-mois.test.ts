@@ -167,7 +167,7 @@ describe('la paie : le mois, tel que sa maquette', () => {
     expect(await etapes()).toEqual([['fait', 'Pointer'], ['fait', 'Bulletins'], ['fait', 'Payer'], ['ici', 'Remettre'], ['', 'Déclarer']]);
     await p.locator('#p-remettre').click();
     const fenetre = p.locator('#modal-root .modal').last();
-    await expect.poll(() => fenetre.locator('h3').innerText()).toMatch(/^Remettre les 4 bulletins d/);
+    await expect.poll(() => fenetre.locator('h2').innerText()).toMatch(/^Remettre les 4 bulletins d/);
     await fenetre.locator('#rm-ok').click();
     const remis = async () => (await objets()).filter((o) => o.collection === 'payslips' && String(o.cle).endsWith(`-${annee}-${mois}`)).map((o) => o.contenu.remisLe).sort();
     await expect.poll(remis, { timeout: 15_000 }).toEqual([expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), expect.anything(), expect.anything(), expect.anything()]);

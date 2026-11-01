@@ -164,7 +164,12 @@ describe('payer les salaires du mois, à la souris', () => {
     expect(await fenetre.locator('#ps-compte-rib').count()).toBe(0);
     const total = Math.round((net(bulletins[0]) + net(bulletins[1])) * 1000) / 1000;
     // Le PDF fait par le serveur (1.88.0), relu tel que la banque le reçoit.
-    const ordre = await pdfTelecharge(p, () => fenetre.locator('#ps-ordre').click());
+    // (1.223.0) L'ordre s'ouvre d'abord en aperçu : la lettre elle-même, puis « Exporter en PDF ».
+    await fenetre.locator('#ps-ordre').click();
+    await expect.poll(() => p.frameLocator('#ad-apercu iframe').locator('body').innerText().catch(() => '')).toContain('Ordre de virement');
+    const ordre = await pdfTelecharge(p, () => p.locator('#ad-pdf').click());
+    await p.locator('.modal.pa-doc [data-close]').click();
+    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires ${dePeriode}`)).toBe(true);
     expect(ordre.nom).toMatch(/^Ordre_de_virement_salaires_\d{4}-\d{2}\.pdf$/);
     const texte = ordre.texte;
     expect(texte.startsWith(`Boulangerie du Port Rue du Port 2000 Le Bardo À l'attention de Banque Numéro Une Ordre de virement Objet : virement des salaires ${dePeriode}`)).toBe(true);

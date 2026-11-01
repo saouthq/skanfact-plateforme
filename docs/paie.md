@@ -1349,3 +1349,27 @@ implémenter celle-ci en entier, et comble le manque que tu trouveras ». Ce lot
 - L2 : les documents en aperçu fidèle ; L3 : le pointage à la main ; L4 : salariés et fiche ; L5 : congés, avances,
   déclarations, l'année, réglages, qui fait la paie ; L6 : le téléphone, le bon à payer, la correction proposée par le
   cabinet.
+
+## La paie appliquée — lot 2 : les documents en aperçu fidèle (01/11/2026, 1.223.0)
+
+*Demande de Skander : « pouvoir voir le vrai document à exporter (aperçu) », et les documents qui manquaient (fiche de
+paie, attestation de travail, etc.).*
+
+### Ce que le lot fait (`compta.js`, `core.js`, `app.js`, `paie.css`)
+
+- **L'aperçu est le document lui-même** (`poserApercu`, `apercuDocument`) : la feuille A4 telle que le PDF la sortira,
+  à droite ; à gauche ce que c'est et d'où viennent les montants ; « Exporter en PDF » en bas.
+- **Le bulletin** : « Voir le bulletin » dans le menu de sa ligne ; « Voir avant d'imprimer » dans « Remettre ».
+- **Le journal de paie** (« Voir le document ») et **l'ordre de virement** s'ouvrent aussi en aperçu.
+- **La fenêtre des documents du personnel** montre la feuille à droite, et elle suit chaque choix (document, date,
+  mention du salaire, lignes du solde).
+- **Cinq documents nouveaux** (`HR_DOCS`, `hrDocumentHtml`), dans l'entreprise comme au Cabinet : le contrat et
+  l'avenant (en PROJET, à signer des deux, depuis la fiche), l'attestation de salaire (les trois derniers bulletins,
+  brut et net), l'attestation de salaires et de retenues de l'année (la somme des bulletins de l'année), la fin de
+  période d'essai. *Les modèles et mentions obligatoires : À VÉRIFIER avec le comptable.*
+- **Ce qui part au serveur** : rien de nouveau.
+
+### Ce qui le prouve
+
+- `tests/web/paie-documents.test.ts` (photos `paie-apercu-bulletin.png`, `paie-apercu-attestation-salaire.png`) ;
+  preuves « paie 1.223 a à d ». `paie-virement` passe par l'aperçu de l'ordre.
