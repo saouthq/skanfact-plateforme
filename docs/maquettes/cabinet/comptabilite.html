@@ -604,7 +604,7 @@ table.rdp td:first-child { font-weight: 600; }
   const GROUPES = [['saisir', 'Saisir', ['saisie', 'banque', 'paie', 'immos', 'inventaire']], ['consulter', 'Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['cloturer', 'Déclarer et clôturer', ['declaration', 'revision', 'exercice', 'liasse']]];
   // L'état choisi en haut → l'écran qu'il montre. Les fenêtres et les états gardent l'écran de la saisie.
   const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', 'barre-ouverte': 'saisie', 'barre-repliee': 'saisie', ecrire: 'banque', ventiler: 'banque', bqvide: 'banque', savide: 'saisie', bqimport: 'banque', bqregles: 'banque', bqmenu: 'banque', bqecart: 'banque', bqfaites: 'banque', bqetat: 'banque', bqimportko: 'banque', bqcolonnes: 'banque', saverif: 'saisie', sareclasse: 'saisie', sadevise: 'saisie', bqapres: 'banque', bqfini: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie',
-    paievide: 'paie', paiepointage: 'paie', paieverif: 'paie', paieaccord: 'paie', paiepropose: 'paie', paiesortie: 'paie', paierappel: 'paie', paieapres: 'paie', paiesalaries: 'paie', paieconges: 'paie', paiecnss: 'paie', paieannee: 'paie' };
+    paievide: 'paie', paiepointage: 'paie', paieverif: 'paie', paieaccord: 'paie', paiepropose: 'paie', paiesortie: 'paie', paierappel: 'paie', paieecarts: 'paie', paieparam: 'paie', paieapresval: 'paie', paiedossiers: 'paie', paieabsences: 'paie', paieapres: 'paie', paiesalaries: 'paie', paieconges: 'paie', paiecnss: 'paie', paieannee: 'paie' };
   const ecran = () => ECRAN_DE[s.etat] || (ECRANS[s.etat] ? s.etat : 'saisie');
   const groupe = () => GROUPES.find((g) => g[2].includes(ecran()));
   // Ce que chaque onglet compte : ce qui attend sur cet écran.
@@ -1709,7 +1709,7 @@ table.rdp td:first-child { font-weight: 600; }
 
   // L'en-tête de la paie : le mois, qui la tient, et les cinq vues (le mois, les salariés, les congés et avances, la CNSS, l'année).
   function paieTete(titre, sous) {
-    const vue = { paiesalaries: 'paiesalaries', paiesortie: 'paiesalaries', paieconges: 'paieconges', paiecnss: 'paiecnss', paieannee: 'paieannee' }[s.etat] || 'paie';
+    const vue = { paiesalaries: 'paiesalaries', paiesortie: 'paiesalaries', paieconges: 'paieconges', paieabsences: 'paieconges', paieparam: 'paieannee', paiedossiers: 'paieannee', paiecnss: 'paiecnss', paieannee: 'paieannee' }[s.etat] || 'paie';
     const V = [['paie', 'Le mois', ''], ['paiesalaries', 'Salariés', '5'], ['paieconges', 'Congés et avances', ''], ['paiecnss', 'CNSS du trimestre', '1'], ['paieannee', 'L\'année', '']];
     return `<div class="pa-h${tel() ? ' mob' : ''}"><div><b>${titre}</b><span class="mu">${sous}</span></div>
       <div class="pa-so" role="group" aria-label="La paie">${V.map(([e, t, n]) => `<button type="button" data-etat="${e}" aria-pressed="${vue === e}">${t}${n ? `<small>${n}</small>` : ''}</button>`).join('')}</div></div>`;
@@ -1789,6 +1789,11 @@ table.rdp td:first-child { font-weight: 600; }
     if (s.etat === 'paieannee') return paieAnnee();
     if (s.etat === 'paiesortie') return paieSortie();
     if (s.etat === 'paierappel') return paieRappel();
+    if (s.etat === 'paieecarts') return paieEcarts();
+    if (s.etat === 'paieparam') return paieParam();
+    if (s.etat === 'paieapresval') return paieApresVal();
+    if (s.etat === 'paiedossiers') return paieDossiers();
+    if (s.etat === 'paieabsences') return paieAbsences();
     const propose = s.etat === 'paiepropose', accord = s.etat === 'paieaccord';
     const verif = s.etat === 'paieverif' || propose;
     const sel = paSel();
@@ -1822,6 +1827,7 @@ table.rdp td:first-child { font-weight: 600; }
   function paieControles() {
     const g = PA_CTL.filter((c) => c[0] !== 'ok'), ok = PA_CTL.filter((c) => c[0] === 'ok');
     return `<div class="pa-sec" style="margin-top:0"><div class="pa-sec-t"><b>Les contrôles avant l'envoi à Sarra</b><span class="mu">${PA_CTL.length} contrôles · ${ok.length} justes · ${g.length} à savoir</span></div>
+      <div class="cp-gestes" style="margin:0 0 6px"><button type="button" class="btn btn-sm" data-etat="paieecarts">Les écarts sur septembre, ligne à ligne</button><button type="button" class="btn btn-sm btn-ghost" data-etat="paieparam">Le paramétrage du dossier</button></div>
       <div class="pa-cmp" style="display:grid;grid-template-columns:${tel() ? '1fr' : '1fr 1fr'};gap:4px 18px">${ok.map(([, l, d]) => `<span style="font-size:12.5px"><b class="ok" style="color:var(--sb-sarcelle-texte)">${IC.ok}</b> ${l}${d ? ` <span class="mu">· ${d}</span>` : ''}</span>`).join('')}</div></div>`;
   }
   // Le départ d'Hamza le 31/12 : son dernier bulletin, son solde de tout compte, ses documents (les mêmes chiffres que l'entreprise).
@@ -1845,6 +1851,59 @@ table.rdp td:first-child { font-weight: 600; }
         <table class="cp-t"><thead><tr><th>Salarié</th><th class="r">+ par mois</th><th class="r">Mois</th><th class="r">Rappel brut</th></tr></thead><tbody>${R.map(([k, a, n, r, d]) => `<tr><td><b>${esc(PA_SAL.find((x) => x.k === k).nom)}</b>${d ? `<br><small class="mu">${d}</small>` : ''}</td><td class="r pa-mt">${m(a)}</td><td class="r pa-mt">${n}</td><td class="r pa-mt"><b>${m(r)}</b></td></tr>`).join('')}</tbody>
         <tfoot><tr><td colspan="3">Rappel de novembre</td><td class="r pa-mt">${m(tot)}</td></tr></tfoot></table>
         <div class="pa-ctl" style="margin:10px 0 0"><div class="gris"><span>Le rappel est un salaire : il porte la CNSS (4e trimestre) et l'impôt ; la façon d'imposer un rappel de plusieurs mois (étalé ou non) : À VÉRIFIER. Sarra l'approuve avec les bulletins de novembre.</span><button type="button" class="btn btn-sm"${bloque()}>Le mettre sur novembre</button></div></div></div>`;
+  }
+
+  // Les écarts sur septembre, rubrique par rubrique : ce qu'un contrôleur de paie regarde avant de valider.
+  const PA_ECARTS = [['mt', 'Heures sup : 8 h à + 25 %', 0, 69712, 'pointage, semaine du 19/10'], ['nb', 'Absence sans solde : 2 jours', 0, -60000, 'pointage, 16 et 17/10'], ['nb', 'Prime de présence, au jour', 60000, 55385, '24 jours payés sur 26'], ['nb', 'Prime de transport, au jour', 40000, 36923, '24 jours payés sur 26'], ['sa', 'Entrée : premier bulletin au prorata', 0, 575385, '17 jours sur 26']];
+  function paieEcarts() {
+    const tot = PA_ECARTS.reduce((a, r) => a + r[3] - r[2], 0);
+    return `${PA_CSS}${paieTete('Les écarts d\'octobre sur septembre', 'brut : ' + m(PA_SEPT.gross) + ' en septembre, ' + m(PA_OCT.gross) + ' en octobre · chaque écart a sa ligne et sa source')}
+      <div class="pa-sec" style="margin-top:0"><div class="pa-sec-t"><b>Ce qui explique chaque écart du brut</b><span class="mu">Karim et Hamza : rien ne change</span></div>
+        <div style="overflow-x:auto"><table class="cp-t"><thead><tr><th>Salarié</th><th>Rubrique</th><th class="r">Septembre</th><th class="r">Octobre</th><th class="r">Écart</th><th>D'où ça vient</th></tr></thead><tbody>
+        ${PA_ECARTS.map(([k, l, a, b, d]) => `<tr><td>${esc(PA_SAL.find((x) => x.k === k).nom)}</td><td>${l}</td><td class="r pa-mt">${a ? m(a) : '—'}</td><td class="r pa-mt">${m(b)}</td><td class="r pa-mt"><b>${b - a > 0 ? '+' : '−'} ${m(Math.abs(b - a))}</b></td><td class="mu">${d}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="4">L'écart du brut, expliqué en entier</td><td class="r pa-mt">+ ${m(tot)}</td><td></td></tr></tfoot></table></div>
+        <div class="pa-cmp"><span>Brut d'octobre − brut de septembre</span><span>· ${m(PA_OCT.gross)} − ${m(PA_SEPT.gross)}</span><b class="ok">${IC.ok} ${m(PA_OCT.gross - PA_SEPT.gross)}, égal au millime</b></div>
+        <div class="pa-ctl" style="margin:10px 0 0"><div class="gris"><span>Les cotisations et l'impôt suivent le brut : un écart du net qui ne vient d'aucune ligne ci-dessus serait une erreur de taux ou de barème, et se dirait ici en rouge.</span></div></div></div>`;
+  }
+  // Le paramétrage du dossier : ce qui est réglé, ce qui ne l'est pas, et la convention (les mêmes lignes que chez Sarra).
+  function paieParam() {
+    const R = [['Régime horaire', '48 h par semaine · 208 h par mois', 'ok'], ['Heures sup', '+ 25 % · au-delà : non réglé', 'q'], ['Travail de nuit', 'non réglé · le fournil travaille de 3 h à 5 h', 'q'], ['Férié travaillé', 'non réglé', 'q'], ['Congés', '18 jours ouvrables par an', 'ok'],
+      ['Maintien du salaire en maladie', 'non réglé', 'q'], ['Prime d\'ancienneté', 'non réglée · Mourad 7 ans, Karim 5 ans', 'ko'], ['Prime de fin d\'année', 'non réglée', 'q'], ['Minimum de la grille', 'non saisi', 'ko'], ['Accident du travail', '0,4 % (taux de ce dossier)', 'ok'], ['TFP · FOPROLOS', '2 % · 1 %', 'ok'], ['Comptes de la paie', '640 · 645 · 661 · 4335 · 4531 · 4321 · 421 · 425', 'ok']];
+    return `${PA_CSS}${paieTete('Le paramétrage de la paie du dossier', 'réglé par Anis · chaque changement garde sa date et son auteur ; Sarra le lit dans « Réglages de la paie »')}
+      <div class="pa-ctl" style="margin-top:0"><div class="rouge"><span><b>La convention collective de la boulangerie n'est pas réglée.</b> Si elle prévoit une prime d'ancienneté ou un minimum par catégorie, les bulletins de 2026 sont faux d'autant : c'est la première chose à vérifier, avant la paie de novembre (À VÉRIFIER : son nom et son texte).</span><button type="button" class="btn btn-sm"${bloque()}>La régler…</button></div></div>
+      <div class="pa-sec"><div class="pa-sec-t"><b>Les réglages</b><span class="mu">${R.filter((r) => r[2] === 'ok').length} réglés · ${R.filter((r) => r[2] !== 'ok').length} à régler</span></div>
+        <table class="cp-t"><tbody>${R.map(([a, b, ton]) => `<tr><td><b>${a}</b></td><td>${b}</td><td class="r"><span class="pa-ch ${ton === 'ok' ? '' : ton === 'ko' ? 'rouge' : 'ambre'}"><i></i>${ton === 'ok' ? 'réglé' : ton === 'ko' ? 'à vérifier d\'abord' : 'non réglé'}</span></td></tr>`).join('')}</tbody></table>
+        <div class="cp-gestes"><button type="button" class="btn btn-sm"${bloque()}>Copier le paramétrage d'un autre dossier…</button><span class="mu" style="font-size:12px">Café Dar Zitouna et Pharmacie El Menzah ont leur convention réglée : un dossier de la même branche se règle en une fois.</span></div></div>`;
+  }
+  // Après validation : ce qui arrive une fois le mois validé et payé (heures oubliées, virement rejeté), et ce que fait le cabinet.
+  function paieApresVal() {
+    const regul = Math.round(1100000 / 208 * 1.25 * 4), nb = PA_SAL.find((x) => x.k === 'nb');
+    return `${PA_CSS}${paieTete('Octobre, après sa validation', 'validé le 28/10, payé le 31/10 · deux choses sont arrivées depuis · un bulletin validé ne change plus')}
+      <div class="pa-suite${tel() ? ' mob' : ''}" style="grid-template-columns:${tel() ? '1fr' : '1fr 1fr'};margin-top:0">
+        <div><b>${IC.cal} Karim, 4 h sup le 31/10, après l'envoi du pointage</b><span>Sarra les a ajoutées le 03/11 (version 2 du pointage, la trace dit qui et quand). Deux chemins : <b>régularisation sur novembre</b> (+ ${m(regul)} brut, une ligne « Régularisation d'octobre »), ou <b>bulletin rectificatif</b> d'octobre (le premier reste, le second dit ce qui change ; l'écriture d'octobre se complète, la déclaration d'octobre se corrige). Le premier est le plus simple quand la somme est petite.</span>
+          <div class="cp-gestes"><button type="button" class="btn btn-sm btn-primary"${bloque()}>Sur novembre</button><button type="button" class="btn btn-sm"${bloque()}>Un rectificatif</button></div></div>
+        <div><b>${IC.ko || IC.cal} Le virement de Nadia rejeté le 02/11 : ${m(nb.net)}</b><span>La Banque a lu le retour (« compte clôturé ») et l'a rapproché : le 425 de Nadia est rouvert de ${m(nb.net)}. Sarra la repaie (espèces contre reçu, ou nouveau RIB) ; le cabinet n'écrit rien de plus : le nouveau paiement soldera le 425.</span>
+          <div class="cp-gestes"><button type="button" class="btn btn-sm">${IC.msg} Le dire à Sarra</button></div></div></div>
+      <div class="pa-sec"><div class="pa-sec-t"><b>La règle</b></div><div class="pa-ctl" style="margin:0"><div class="gris"><span>Un mois validé ne se rouvre pas en silence. Le rouvrir (pour un rectificatif) demande un motif, garde la trace, et dit ce qu'il touche : l'écriture, la déclaration du mois, la CNSS du trimestre. Une erreur qui ne change que le mois suivant passe en régularisation.</span></div></div></div>`;
+  }
+  // Les absences vues du cabinet : l'arrêt maladie d'Hamza et la demande de congé de Karim, envoyés par Sarra.
+  function paieAbsences() {
+    return `${PA_CSS}${paieTete('Les absences de novembre, déjà connues', 'posées par Sarra dans SkanFact · elles arriveront avec le pointage de novembre')}
+      <div class="pa-sec" style="margin-top:0"><table class="cp-t"><thead><tr><th>Salarié</th><th>Absence</th><th>Effet sur le bulletin</th><th>À faire</th></tr></thead><tbody>
+        <tr><td>Hamza Mejri</td><td>Arrêt maladie, du 04 au 06/11 · certificat joint</td><td>3 jours non payés par l'employeur (le dossier ne maintient pas le salaire) ; la CNAM indemnise selon ses règles (À VÉRIFIER)</td><td><span class="pa-ch ambre"><i></i>vérifier la convention : maintien ?</span></td></tr>
+        <tr><td>Karim Zouari</td><td>Congé demandé du 09 au 14/11 · 6 jours · solde 3</td><td>Si Sarra accepte : 3 jours payés, 3 sans solde (− ${m(Math.round(1100000 / 26 * 3))} et ses primes au jour)</td><td><span class="pa-ch"><i></i>la décision est à Sarra</span></td></tr></tbody></table>
+        <div class="pa-ctl" style="margin:10px 0 0"><div class="gris"><span>Accident du travail : déclaration à la CNSS dans un délai court (À VÉRIFIER) ; maternité : CNAM ; congés pour mariage, naissance, décès : payés, durées du Code du travail (À VÉRIFIER). Chaque absence a son code au pointage et sa ligne au bulletin.</span></div></div></div>`;
+  }
+  // La paie de tous les dossiers d'Anis, ce mois-ci : la production d'un gestionnaire de paie.
+  function paieDossiers() {
+    const D = [['Boulangerie El Amal', 'BE', 5, 'reçu le 27/10', 'approuvés · validés', 'à payer le 31/10', 'ok'], ['Café Dar Zitouna', 'DZ', 8, 'reçu le 26/10', 'validés', 'payés', 'ok'], ['Pharmacie El Menzah', 'PE', 4, 'reçu le 28/10', 'préparés, à envoyer pour accord', '—', 'q'],
+      ['Garage Triki', 'GT', 3, 'attendu · relancé le 27/10', 'à préparer', '—', 'ko'], ['Clinique Les Jasmins', 'CJ', 14, 'pointeuse importée le 25/10', 'chez le client pour accord', '—', 'q'], ['Menuiserie Ben Ali', 'MB', 6, 'fait par le client', 'à vérifier', '—', 'q']];
+    const n = D.reduce((a, d) => a + d[2], 0);
+    return `${PA_CSS}${paieTete('La paie d\'octobre de tous mes dossiers', `Anis · ${D.length} dossiers avec une paie · ${n} bulletins ce mois`)}
+      <div class="pa-sec" style="margin-top:0"><div style="overflow-x:auto"><table class="cp-t"><thead><tr><th>Dossier</th><th class="r">Bulletins</th><th>Pointage</th><th>Bulletins</th><th>Salaires</th></tr></thead><tbody>
+        ${D.map(([nom, ini, b, pt, bu, sal, ton]) => `<tr${ini === 'BE' ? ' class="pa-l on"' : ''}><td><b>${nom}</b></td><td class="r pa-mt">${b}</td><td>${pt}</td><td><span class="pa-ch ${ton === 'ok' ? '' : ton === 'ko' ? 'rouge' : 'ambre'}"><i></i>${bu}</span></td><td>${sal}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><td>${D.length} dossiers</td><td class="r pa-mt">${n}</td><td colspan="3">facturés au bulletin selon chaque lettre de mission (À VÉRIFIER : les tarifs)</td></tr></tfoot></table></div>
+        <div class="cp-gestes"><button type="button" class="btn btn-sm"${bloque()}>${IC.msg} Relancer Garage Triki</button><span class="mu" style="font-size:12px">La date limite de chacun : celle de sa paie (le 31) moins le temps de préparer ; la page Échéances la garde.</span></div></div>`;
   }
 
   // Le mois avant le pointage : la page qu'il deviendra, grisée, et ce qui la remplit.
@@ -1880,6 +1939,7 @@ table.rdp td:first-child { font-weight: 600; }
         : `<div class="pa-pt"><table><thead><tr><th></th>${J.map((j) => `<th class="${dim(j) ? 'di' : fe(j) ? 'fe' : ''}">${j}</th>`).join('')}<th>Payés</th></tr></thead><tbody>
         ${PA_SAL.map((x) => `<tr><td class="nm"><span class="pa-n" style="align-items:center">${paAv(x, 24)}<b>${esc(x.nom)}</b></span></td>${J.map((j) => cel(x, j)).join('')}<td class="tt">${tot[x.k]}</td></tr>`).join('')}</tbody></table></div>`}
       <div class="pa-lg" style="margin-top:10px"${tel() ? ' hidden' : ''}><span><i style="background:var(--sb-survol)"></i>dimanche, chômé</span><span><i style="background:color-mix(in srgb, #3f6fd8 12%, var(--sb-papier));color:#3f6fd8">F</i>férié payé (le 15/10)</span><span><i class="a" style="background:var(--sb-rouge-doux);color:var(--sb-rouge-texte)">A</i>absence sans solde</span><span><i style="background:color-mix(in srgb, var(--cp-bleu, #3f6fd8) 12%, var(--sb-papier));color:var(--cp-bleu, #3f6fd8)">C</i>congé payé</span><span><i style="background:var(--sb-ambre-doux);color:var(--sb-ambre-texte)">+2</i>heures sup</span><span><i style="background:repeating-linear-gradient(135deg, transparent 0 3px, var(--sb-trait) 3px 4px)"></i>pas encore entrée</span></div>
+      <div class="pa-cmp" style="margin-top:10px"><span>Source : la pointeuse du fournil (236 badges, importés par Sarra le 26/10) et sa main</span><span>· 2 anomalies réglées par elle avant l'envoi : la sortie de Karim le 23/10 mise à 11:00, l'absence de Nadia gardée sans solde</span><b class="ok" style="color:var(--sb-gris)">version 1 · verrouillée</b></div>
       <div class="pa-ctl" style="margin-top:12px"><div class="gris"><span><b>Nadia Ben Salem, les 16 et 17/10 : absence sans solde.</b> Sarra l'a notée « A » ; un congé payé la garderait payée (il lui reste 11 jours). Le choix est à Sarra : le cabinet ne change pas son pointage.</span><button type="button" class="btn btn-sm">${IC.msg} Lui demander</button></div></div>
       <p class="pa-aide"${tel() ? ' hidden' : ''}>Un clic sur une case : présent, congé, maladie, sans solde, heures sup · <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> d'une case à l'autre · <kbd>A</kbd> <kbd>C</kbd> <kbd>M</kbd> <kbd>H</kbd> au clavier</p>`;
   }
@@ -2158,6 +2218,11 @@ table.rdp td:first-child { font-weight: 600; }
       paieaccord: 'Sarra a approuvé les 5 bulletins dans SkanFact à 11 h 40 (« J\'approuve les 5 bulletins ») : c\'est son bon à payer. Elle voit maintenant « Validés par ton cabinet » dès que le cabinet valide.',
       paiepropose: 'Sarra voit dans sa Paie « Jlassi Conseil propose une correction » : le bulletin d\'Hamza avant et après, « Accepter la correction » ou « Refuser, je m\'en occupe ». Acceptée, elle s\'applique avec la trace de qui l\'a proposée et acceptée.',
       paierappel: 'Sarra voit le rappel sur les bulletins de novembre, qu\'elle approuve avec eux ; la même fenêtre existe chez elle (« Une augmentation qui compte depuis mai »).',
+      paieecarts: 'Rien chez Sarra : le contrôle des écarts est le travail du cabinet. Elle voit seulement « contrôlé » sur ses bulletins.',
+      paieparam: 'Sarra lit les mêmes réglages dans « Réglages de la paie », sans pouvoir les changer : ils sont tenus par le cabinet.',
+      paieapresval: 'Sarra a ajouté les 4 h de Karim (version 2 du pointage) ; elle voit le retour du virement de Nadia et « Repayer Nadia ».',
+      paieabsences: 'Sarra a posé l\'arrêt d\'Hamza (avec le certificat) et voit la demande de congé de Karim, à accepter ou non.',
+      paiedossiers: 'Chaque client ne voit que sa paie.',
       paiesortie: 'Sarra voit le même projet dans la fiche d\'Hamza, onglet « Son départ » : les mêmes chiffres, le même jour.',
       paiesalaries: 'Sarra a déclaré l\'entrée de Salma dans SkanFact : la fiche vient d\'elle. Elle reçoit la demande du n° CNSS et du RIB dans votre conversation.',
       paieconges: 'Sarra voit les mêmes soldes dans Paie › Congés : un seul calcul pour les deux.',
@@ -2167,11 +2232,11 @@ table.rdp td:first-child { font-weight: 600; }
     return `<p class="cl-p">${C[s.etat] || C[ecran()] || 'Sarra ne voit pas les livres du cabinet : ni le brouillard, ni la révision, ni les feuilles maîtresses. Elle voit ses ventes, ses achats, ses relevés, et ce que le cabinet lui demande ou lui dépose.'}</p>`;
   }
   const FAMILLES = [['Saisir', ['saisie', 'savide', 'saverif', 'sareclasse', 'sadevise', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'bqvide', 'bqimport', 'bqregles', 'bqmenu', 'bqecart', 'bqfaites', 'bqetat', 'bqimportko', 'bqcolonnes', 'bqapres', 'bqfini', 'ecrire', 'ventiler', 'immos', 'inventaire']],
-    ['La paie', ['paie', 'paievide', 'paiepointage', 'paieaccord', 'paieapres', 'paieverif', 'paiepropose', 'paierappel', 'paiesalaries', 'paiesortie', 'paieconges', 'paiecnss', 'paieannee']],
+    ['La paie', ['paie', 'paievide', 'paiepointage', 'paieaccord', 'paieecarts', 'paieapres', 'paieapresval', 'paieverif', 'paiepropose', 'paierappel', 'paiesalaries', 'paiesortie', 'paieconges', 'paieabsences', 'paiecnss', 'paieannee', 'paieparam', 'paiedossiers']],
     ['Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['Déclarer et clôturer', ['declaration', 'deposer', 'revision', 'exercice', 'liasse']],
     ['Un autre dossier', ['nouveau']], ['La barre', ['defile', 'barre-ouverte', 'barre-repliee']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
   const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['savide', 'Saisie : vide, octobre sans pièce'], ['saverif', 'Saisie : une pièce de Sarra à vérifier'], ['sareclasse', 'Saisie : une pièce au mauvais mois'], ['sadevise', 'Saisie : une facture en euros'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
-    ['banque', 'Banque : le prélèvement STEG en face de sa facture'], ['bqvide', 'Banque : vide, le relevé pas encore là'], ['bqimport', 'Banque : importer le relevé d\'octobre'], ['bqregles', 'Banque : les règles, et une nouvelle'], ['bqmenu', 'Banque : le menu ⋯ d\'une ligne'], ['bqecart', 'Banque : un écart non expliqué'], ['bqfaites', 'Banque : les rapprochées, ouvertes'], ['bqetat', 'Banque : l\'état de rapprochement'], ['bqimportko', 'Banque : un import refusé (un mois manque)'], ['bqcolonnes', 'Banque : une banque nouvelle, ses colonnes'], ['bqapres', 'Banque : après Entrée, la ligne suivante'], ['bqfini', 'Banque : septembre rapproché'], ['ecrire', 'Banque : les frais de tenue, d\'après leur règle'], ['ventiler', 'Banque : une remise de 3 chèques'], ['paie', 'Paie : les 5 bulletins préparés, contrôlés, à envoyer pour accord'], ['paieaccord', 'Paie : Sarra a approuvé (bon à payer), à valider'], ['paievide', 'Paie : le pointage pas encore là'], ['paiepointage', 'Paie : le pointage d\'octobre'], ['paieapres', 'Paie : les bulletins validés, et la suite'], ['paieverif', 'Paie : faite par Sarra, à vérifier (une avance oubliée)'], ['paiepropose', 'Paie : la correction proposée, attend l\'accord de Sarra'], ['paierappel', 'Paie : une augmentation qui compte depuis mai (rappel)'], ['paiesortie', 'Paie : le départ d\'Hamza (solde de tout compte)'], ['paiesalaries', 'Paie : les salariés (une entrée)'], ['paieconges', 'Paie : congés et avances'], ['paiecnss', 'Paie : la CNSS du trimestre'], ['paieannee', 'Paie : l\'année, confrontée au livre'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
+    ['banque', 'Banque : le prélèvement STEG en face de sa facture'], ['bqvide', 'Banque : vide, le relevé pas encore là'], ['bqimport', 'Banque : importer le relevé d\'octobre'], ['bqregles', 'Banque : les règles, et une nouvelle'], ['bqmenu', 'Banque : le menu ⋯ d\'une ligne'], ['bqecart', 'Banque : un écart non expliqué'], ['bqfaites', 'Banque : les rapprochées, ouvertes'], ['bqetat', 'Banque : l\'état de rapprochement'], ['bqimportko', 'Banque : un import refusé (un mois manque)'], ['bqcolonnes', 'Banque : une banque nouvelle, ses colonnes'], ['bqapres', 'Banque : après Entrée, la ligne suivante'], ['bqfini', 'Banque : septembre rapproché'], ['ecrire', 'Banque : les frais de tenue, d\'après leur règle'], ['ventiler', 'Banque : une remise de 3 chèques'], ['paie', 'Paie : les 5 bulletins préparés, contrôlés, à envoyer pour accord'], ['paieaccord', 'Paie : Sarra a approuvé (bon à payer), à valider'], ['paievide', 'Paie : le pointage pas encore là'], ['paiepointage', 'Paie : le pointage d\'octobre'], ['paieapres', 'Paie : les bulletins validés, et la suite'], ['paieverif', 'Paie : faite par Sarra, à vérifier (une avance oubliée)'], ['paiepropose', 'Paie : la correction proposée, attend l\'accord de Sarra'], ['paierappel', 'Paie : une augmentation qui compte depuis mai (rappel)'], ['paiesortie', 'Paie : le départ d\'Hamza (solde de tout compte)'], ['paieecarts', 'Paie : les écarts sur septembre, ligne à ligne'], ['paieapresval', 'Paie : après validation (heures oubliées, virement rejeté)'], ['paieabsences', 'Paie : arrêt maladie et demande de congé'], ['paieparam', 'Paie : le paramétrage du dossier et sa convention'], ['paiedossiers', 'Paie : la paie de tous mes dossiers'], ['paiesalaries', 'Paie : les salariés (une entrée)'], ['paieconges', 'Paie : congés et avances'], ['paiecnss', 'Paie : la CNSS du trimestre'], ['paieannee', 'Paie : l\'année, confrontée au livre'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
     ['journal', 'Livre-journal'], ['grandlivre', 'Grand livre : 532 BIAT'], ['balance', 'Balance'], ['lettrage', 'Lettrage : fournisseurs'], ['recherche', 'Recherche : « 1250 »'],
     ['declaration', 'Déclaration d\'août, en retard'], ['deposer', 'Marquer août déposée'], ['revision', 'Révision de septembre'], ['exercice', 'Exercice 2026'], ['liasse', 'Liasse 2025'],
     ['nouveau', 'Un livre qui n\'existe pas encore'], ['defile', 'La page descend : la barre d’onglets sort de l’écran'], ['barre-ouverte', 'Mode « toujours ouverte »'], ['barre-repliee', 'Mode « repliée »'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
@@ -2198,6 +2263,8 @@ table.rdp td:first-child { font-weight: 600; }
     ['La paie : l\'écriture d\'octobre et celle de septembre sont équilibrées', [PA_OCT, PA_SEPT].every((t) => PA_ECR(t).reduce((a, x) => a + x[2] - x[3], 0) === 0)],
     ['La paie : le brouillard de septembre = l\'écriture que la paie passe', JSON.stringify(BROUILLARD.find((b) => b[2] === 'PAIE-2026-09')[5].map((l) => [l[0], l[2], l[3]])) === JSON.stringify(PA_ECR(PA_SEPT).map((l) => [l[0], l[2], l[3]]))],
     ['La paie : le 425 de l\'écriture = le net à payer (l\'avance va au 421), en octobre et en septembre', [PA_OCT, PA_SEPT].every((t) => PA_ECR(t).find((l) => l[0] === '425')[3] === t.net && (PA_ECR(t).find((l) => l[0] === '421') || [0, 0, 0, 0])[3] === t.ded)],
+    ['La paie : les écarts ligne à ligne refont l\'écart du brut sur septembre', PA_ECARTS.reduce((a, r) => a + r[3] - r[2], 0) === PA_OCT.gross - PA_SEPT.gross],
+    ['La paie : la régularisation de Karim (4 h) est la même que chez l\'entreprise', Math.round(1100000 / 208 * 1.25 * 4) === 26442],
     ['La paie : l\'absence de Nadia ne tombe pas sur le férié du 15/10', !PA_CH.nb[2].includes('15')],
     ['La paie : les contrôles, justes + à savoir = tous (12)', PA_CTL.length === 12 && PA_CTL.filter((c) => c[0] === 'ok').length === 10],
     ['La paie : les salaires d\'août payés = le net des bulletins d\'août', RAPP.find((r) => r[1] === 'VIR SALAIRE AOUT')[2] === PA_AOUT.net],

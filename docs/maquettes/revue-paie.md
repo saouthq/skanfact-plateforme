@@ -80,6 +80,37 @@ Sources : [Silae, plaquette expert-comptable](https://www.silae.fr/wp-content/up
 [Jours fériés 2025-2026](https://www.tuniscope.com/article/415154/actualites/tunisie/tunisie-calendrier-officiel-des-jours-feries-2025-2026-142010),
 [Le SIVP devient CIVP](https://kapitalis.com/tunisie/?p=246024).
 
+## 5. La carte complète du métier de la paie (2e passe, 01/11/2026)
+
+Skander : « il manque encore beaucoup d'états de contrôle, de gestion, presque la moitié du métier paie ; et il faut faire
+le pointage aussi », puis « la génération de documents pour un salarié ». Voici tout le métier, en douze familles, et où
+chaque chose est dans les maquettes. **E** = entreprise (`paie.html`), **C** = Cabinet (`comptabilite.html`). « Plus
+tard » veut dire : pas encore dessiné, et dit comme tel.
+
+| Famille | Ce que le métier demande | Où |
+|---|---|---|
+| 1. Le pointage | Grille du mois (présent, congé, maladie, sans solde, férié, heures sup) · import de la pointeuse (badges rattachés par n° de badge, doublons ignorés, la main gagne sur le badge) · anomalies à régler avant d'envoyer (sortie oubliée, jour sans badge) · semaine d'un salarié heure par heure (arrivée, départ, heures sup, retard, arrondi) · horaires d'équipe (fournil la nuit, boutique) · fériés de l'année · totaux (présent, payés, heures sup, sans solde, retards) · compteurs (heures sup et plafond, retards, nuit) · envoi, verrou et versions · au téléphone, « qui n'est pas là ? » | E : vue « Pointage » (le mois, par salarié, les horaires, envoyé) ; C : grille reçue, sa source, ses anomalies réglées, sa version |
+| 2. Les éléments du mois | Heures sup, absences, primes au jour, avances, acomptes, saisie sur salaire, rappel | E et C ; saisie sur salaire : fenêtre E ; acompte du mois : plus tard |
+| 3. Les absences | Congé (demande, solde, équipe qui reste) · maladie (certificat, CNAM, maintien) · accident du travail · maternité · congés exceptionnels · absence sans justificatif | E : « Une demande de congé », « Un arrêt maladie » ; C : « Les absences de novembre » ; règles À VÉRIFIER |
+| 4. Le calcul et ses contrôles | 12 contrôles avant envoi · écarts sur le mois d'avant, rubrique par rubrique, qui refont l'écart du brut · « Pourquoi cet impôt ? » | C : contrôles, « Les écarts sur septembre » ; E : les contrôles au bon à payer |
+| 5. La validation | Bon à payer de l'entreprise · validation du cabinet · correction proposée et acceptée (décision du 01/11) · mois verrouillé, rouvert avec motif | E et C |
+| 6. Après validation | Heures oubliées : régularisation sur le mois suivant ou rectificatif · virement rejeté : retour lu à la Banque, dette rouverte, repayer | E : « Des heures oubliées », « Un virement rejeté » ; C : « Après validation » |
+| 7. Le paiement | Ordre de virement, RIB contrôlés, espèces contre reçu, sorties de caisse datées | E |
+| 8. Les déclarations | Mensuelle (IRPP, CSS, TFP, FOPROLOS) · CNSS du trimestre et son fichier · annuelle · attestations de l'année · pénalités de retard | E et C ; pénalités : plus tard (À VÉRIFIER) |
+| 9. La comptabilité | Écriture de paie (421, 425…) · congés à la clôture · rapprochement des salaires | C |
+| 10. La vie du contrat | Arrivée (liste, CIVP) · période d'essai · avenant, renouvellement de CDD · départ et solde de tout compte · rappel de salaire | E : fiche (Son arrivée, Son départ), documents ; C : « Le départ d'Hamza », « Rappel » |
+| 11. Les documents d'un salarié | Contrat, avenant, attestation de travail, attestation de salaire, attestation de l'année, fin d'essai, certificat de travail, reçu pour solde de tout compte : numérotés, montants tirés des bulletins, rangés dans son dossier | E : onglet « Documents » de la fiche, fenêtre « Une attestation de salaire » avec son aperçu |
+| 12. Le paramétrage | Régime horaire, heures sup, nuit, férié, congés, maintien maladie, ancienneté, prime de fin d'année, grille de la convention, taux, comptes · copier le paramétrage d'un dossier de la même branche | E : « Réglages de la paie » (lecture) ; C : « Le paramétrage du dossier » |
+| + Le pilotage | Coût par équipe, absences, heures sup, simulation d'une embauche, fin d'année | E : « L'année », « Combien coûte une embauche » |
+| + Les droits | Seuls ceux qui ont le droit « Paie » voient les salaires ; un salarié voit ses bulletins | E : « Une vendeuse sans le droit Paie » |
+| + La production du cabinet | La paie de tous les dossiers sur une page, relances, bulletins facturés | C : « La paie de tous mes dossiers » |
+
+Plus tard, dits comme tels : l'espace du salarié complet (ses bulletins, ses demandes au téléphone), l'acompte du mois,
+les pénalités de retard CNSS, la mutuelle ou l'assurance de groupe, plusieurs établissements, la retenue syndicale.
+
+Ce que la 2e passe a corrigé en route : la semaine de Mourad comptait 2 h de sup un jour où il n'en avait fait qu'1 h 55
+(arrondi au quart d'heure inférieur, la règle écrite) ; les heures sont refaites pour tomber juste sur ses 8 h et 69,712.
+
 ## 5. Décidé
 
 - 01/11/2026 : quand le client fait sa paie, **le cabinet la corrige avec son accord** (Skander). Écrit au journal du
