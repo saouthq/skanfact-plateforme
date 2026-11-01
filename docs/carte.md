@@ -234,7 +234,10 @@ vaut pour tout le dépôt.*
     `compta.js`, `FICHE.adresse`/`FICHE.gerant`, `paieDuDossierV10`). La déclaration annuelle d'employeur au Cabinet
     (1.73.0 ; `web/v10/paie-cabinet-declaration-employeur.txt`, `salairesDeLAnnee`/`COLONNES_SALAIRES_ANNEE`/`ecartsEmployeur`
     dans `compta.js`, la Liasse). Payer les salaires du mois, dans l'entreprise (1.74.0 ; `web/v10/paie-virement-salaires.txt`,
-    `salairesAPayer`/`ordreDeVirementHtml` dans `core.js`, la fenêtre « Payer les salaires… »).
+    `salairesAPayer`/`ordreDeVirementHtml` dans `core.js`, la fenêtre « Payer les salaires… »). La paie appliquée, lot 1 :
+    « Le mois » tel que la maquette (1.222.0 ; `docs/maquettes/paie.html`, `docs/paie.md` « La paie appliquée » ;
+    `paieDuMois`/`paieATraiter` dans `core.js`, `pHead`/`drawSlips`/`remettreBulletins`/`drawAnnee` dans `app.js`,
+    `web/public/plateforme/paie.css`, `tests/web/paie-mois.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

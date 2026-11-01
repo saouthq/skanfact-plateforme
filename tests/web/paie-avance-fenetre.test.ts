@@ -77,7 +77,9 @@ describe('la fenêtre d\'une avance de l\'entreprise', () => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
       await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
     }
-    await p.locator('#p-tabs button', { hasText: 'Avances' }).click();
+    // Les avances vivent sous « Congés et absences » (1.222.0).
+    await p.locator('#p-tabs [data-tab="conges"]').click();
+    await p.locator('#p-sous [data-sous="avances"]').click();
     await p.locator('[data-av="a1"]').click();
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Modifier l\'avance');

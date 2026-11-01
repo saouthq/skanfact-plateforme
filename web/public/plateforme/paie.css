@@ -1,0 +1,93 @@
+/* La paie de l'entreprise (1.222.0) : la maquette « Paie » (docs/maquettes/paie.html), appliquée par lots
+   (docs/paie.md, « La paie appliquée »). Tout est rangé sous `.pa-*` ; les couleurs viennent de la charte (`--sb-*`). */
+
+/* ── l'en-tête et la rangée des vues ── */
+.pa-tete .pa-plus { width: 38px; padding: 0; justify-content: center; }
+.pa-vues { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
+.pa-mois { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 6px 0 11px; border: 1px solid var(--sb-trait); border-radius: 10px; background: var(--sb-papier); color: var(--sb-gris); }
+.pa-mois select { border: 0; background: none; font: 600 14px var(--sb-police, inherit); color: var(--sb-encre); padding: 0 4px; height: 34px; cursor: pointer; }
+.pa-mois select:focus-visible { outline: 2px solid var(--sb-sarcelle); border-radius: 6px; }
+.pa-mois > svg { flex: none; width: 15px; height: 15px; color: var(--sb-gris-2); }
+.pa-onglets { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.pa-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 12px; }
+.pa-seg button { border: 0; background: none; padding: 6px 11px; border-radius: 9px; font: 500 13px var(--sb-police, inherit); color: var(--sb-gris); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.pa-seg button:hover { color: var(--sb-encre); }
+.pa-seg button.active { background: var(--sb-encre); color: var(--sb-papier); }
+.pa-af { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); font-size: 11px; font-weight: 700; }
+.pa-reg { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; }
+.pa-reg.active { border-color: var(--sb-encre); }
+.pa-sous { display: flex; gap: 2px; border-bottom: 1px solid var(--sb-trait); margin: -4px 0 14px; }
+.pa-sous button { border: 0; background: none; font: 600 13.5px var(--sb-police, inherit); color: var(--sb-gris); padding: 9px 12px 10px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+.pa-sous button[aria-selected="true"] { color: var(--sb-encre); border-bottom-color: var(--sb-sarcelle); }
+
+/* ── le corps : des cartes, l'une sous l'autre ── */
+.pa { display: flex; flex-direction: column; gap: 14px; }
+.pa .mu { color: var(--sb-gris-2); font-weight: 400; }
+.pa .ambre { color: var(--sb-ambre-texte); }
+.pa-carte { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); padding: 6px 0 4px; }
+.pa-carte-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px 8px; }
+.pa-carte-t > b { font-size: 15px; letter-spacing: -.01em; color: var(--sb-encre); }
+.pa-carte-t .mu { font-size: 13px; }
+.pa-carte-t .btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.pa-tab { padding-bottom: 10px; }
+.pa-tab > .small { padding: 0 16px; }
+.pa-tab > .empty { margin: 10px 16px; }
+
+/* La frise du mois : cinq étapes, la première à faire en ambre. */
+.pa-frise { list-style: none; margin: 0; padding: 16px 18px 14px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); }
+.pa-frise li { position: relative; display: grid; gap: 3px; align-content: start; padding-right: 10px; font-size: 12.5px; color: var(--sb-gris); }
+.pa-frise li::before { content: ''; position: absolute; left: 24px; right: 0; top: 11px; height: 2px; background: var(--sb-trait); }
+.pa-frise li:last-child::before { display: none; }
+.pa-frise li.fait::before { background: var(--sb-sarcelle); }
+.pa-frise .pt { position: relative; z-index: 1; width: 22px; height: 22px; border-radius: 99px; display: grid; place-items: center; font-size: 11px; font-weight: 700; border: 2px solid var(--sb-trait-fort); background: var(--sb-papier); color: var(--sb-gris-2); box-sizing: border-box; }
+.pa-frise .fait .pt { background: var(--sb-sarcelle); border-color: var(--sb-sarcelle); color: #fff; }
+.pa-frise .ici .pt { border-color: var(--sb-ambre); color: var(--sb-ambre-texte); }
+.pa-frise b { font-size: 13.5px; color: var(--sb-encre); margin-top: 6px; }
+
+/* Les listes de la carte (« À traiter ») : un rond, le titre et sa phrase, le geste. */
+.pa-l { list-style: none; margin: 0; padding: 0; }
+.pa-l li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--sb-trait); }
+.pa-n { display: grid; min-width: 0; }
+.pa-n b, .pa-n small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pa-n b { color: var(--sb-encre); }
+.pa-n small { color: var(--sb-gris-2); font-size: 12px; }
+.pa-av { width: 30px; height: 30px; border-radius: 9px; display: inline-grid; place-items: center; flex: none; color: #fff; font-size: 11px; font-weight: 700; background: linear-gradient(145deg, color-mix(in srgb, var(--c) 70%, #fff), var(--c)); }
+
+/* Les trois chiffres. */
+.pa-tuiles { display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 12px; }
+#p-annee-chiffres { grid-template-columns: 1.35fr 1fr 1fr 1fr; }
+.pa-tuile { display: grid; gap: 6px; align-content: start; padding: 14px 16px; min-height: 120px; border-radius: 14px; border: 1px solid var(--sb-trait); background: var(--sb-papier); box-shadow: var(--sb-ombre); }
+.pa-tuile .t { font-size: 13px; color: var(--sb-gris); font-weight: 500; }
+.pa-tuile .m { font-size: 26px; letter-spacing: -.02em; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
+.pa-tuile .s { font-size: 12.5px; color: var(--sb-gris-2); }
+
+/* Les bulletins du mois. */
+.pa-liste .pa-cl { display: flex; align-items: center; gap: 10px; }
+.pa-liste .pa-cl span { display: grid; }
+.pa-liste small { display: block; color: var(--sb-gris-2); font-size: 12px; font-weight: 400; }
+.pa-liste tr.pa-groupe td { background: var(--sb-papier-2); font-size: 12.5px; padding-top: 7px; padding-bottom: 7px; }
+.pa-liste tr.pa-groupe b { color: var(--sb-encre); }
+.pa-liste tr.pa-groupe span { margin-left: 2px; color: var(--sb-gris-2); }
+.pa-liste tr[data-bul] { cursor: default; }
+.pa-liste tr[data-bul]:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: -2px; }
+.pa .statut { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--sb-survol); color: var(--sb-gris); }
+.pa .statut.ok { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.pa .statut.bleu { background: color-mix(in srgb, #4d7cf2 14%, var(--sb-papier)); color: #3559c7; }
+
+/* L'année : le coût mois par mois. */
+.pa-graphe { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; align-items: end; height: 190px; padding: 6px 16px 10px; }
+.pa-barre { display: grid; justify-items: center; gap: 4px; align-content: end; height: 100%; }
+.pa-barre i { display: block; width: 100%; max-width: 42px; min-height: 2px; border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--sb-sarcelle) 32%, var(--sb-papier)); }
+.pa-barre.der i { background: var(--sb-sarcelle); }
+.pa-barre .v { font-size: 11px; font-weight: 600; color: var(--sb-encre); white-space: nowrap; min-height: 14px; font-variant-numeric: tabular-nums; }
+.pa-barre small { font-size: 11.5px; color: var(--sb-gris-2); }
+
+@media (max-width: 760px) {
+  .pa-frise { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+  .pa-frise li::before { display: none; }
+  .pa-tuiles, #p-annee-chiffres { grid-template-columns: 1fr; }
+  .pa-reg { margin-left: 0; }
+  .pa-graphe { gap: 4px; }
+  /* Au doigt, chaque vue, sous-vue et le bouton Réglages font 44 points (la règle des cibles). */
+  .pa-seg button, .pa-sous button, .pa-reg { min-height: 44px; }
+}

@@ -125,7 +125,9 @@ describe('payer les salaires du mois, à la souris', () => {
     const payer = p.locator('#p-payer');
     await payer.waitFor();
     expect(await payer.getAttribute('class')).toContain('btn-primary');
-    expect(await p.locator('#p-body .btn-primary').count()).toBe(1);
+    // Le geste principal vit dans l'en-tête (la maquette, 1.222.0) : le corps de la page n'en porte aucun.
+    expect(await p.locator('#p-head .btn-primary').count()).toBe(1);
+    expect(await p.locator('#p-body .btn-primary').count()).toBe(0);
     await payer.click();
     await expect.poll(async () => (await titre()).startsWith(`Payer les salaires ${dePeriode}`)).toBe(true);
     expect(await fenetre.locator('tr[data-ps]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.ps))).toEqual(['p-s2', 'p-s3', 'p-s1']);

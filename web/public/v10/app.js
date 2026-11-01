@@ -4598,6 +4598,7 @@
     photo: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
     personne: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     pages: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/>',
+    echeance: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     guide: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
     piece: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
     recherche: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -18090,8 +18091,15 @@
 
   const paieState = { tab: 'bulletins', year: lastMonth.slice(0, 4), month: String(Number(lastMonth.slice(5, 7))),
     quarter: String(Math.ceil(Number(lastMonth.slice(5, 7)) / 3)), salaries: { page: 1 }, compteurs: { page: 1 } };
-  const PAIE_TABS = [['bulletins', 'Bulletins'], ['pointage', 'Pointage'], ['salaries', 'Salariés'], ['conges', 'Congés et absences'],
-    ['avances', 'Avances'], ['declarations', 'Déclarations'], ['registre', 'Registre'], ['baremes', 'Barèmes']];
+  // (plateforme) 1.222.0 — la Paie telle que sa maquette (docs/maquettes/paie.html ; docs/paie.md, « La paie appliquée ») :
+  // six vues ; les avances vivent sous « Congés et absences », le registre sous « Salariés », les réglages à droite.
+  // PAIE_TABS garde TOUS les onglets : la recherche (Ctrl K) les propose tous, sous-vues comprises.
+  const PAIE_VUES = [['bulletins', 'Le mois'], ['pointage', 'Pointage'], ['salaries', 'Salariés'], ['conges', 'Congés et absences'],
+    ['declarations', 'Déclarations'], ['annee', 'L\'année']];
+  const PAIE_TABS = PAIE_VUES.concat([['avances', 'Avances et prêts'], ['registre', 'Registre du personnel'], ['baremes', 'Réglages de la paie']]);
+  const PAIE_SOUS = { conges: [['conges', 'Congés et absences'], ['avances', 'Avances et prêts']], salaries: [['salaries', 'Les salariés'], ['registre', 'Le registre du personnel']] };
+  const PAIE_VUE_DE = { avances: 'conges', registre: 'salaries' };
+  Object.assign(LF_IC, { echeance: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' });
   // Idem sur la Paie : la liste des salariés, les avances en cours et le registre du personnel sont
   // des états du jour, pas d'un exercice. Ils affichaient un sélecteur d'année qui ne faisait rien.
   const P_SANS_ANNEE = ['salaries', 'avances', 'registre', 'baremes'];
@@ -18114,104 +18122,108 @@
     // boutons verts sur un écran, et le mauvais à la place canonique. Le Catalogue sait faire ça
     // depuis la 1.9.0 (`head()` redessiné à chaque onglet) : on reprend son mécanisme.
     const P_ACTION = {
-      salaries: ['new-emp', '+ Salarié'],
-      conges: ['new-lv', '+ Congé ou absence'],
-      avances: ['new-av', '+ Avance']
+      salaries: ['new-emp', 'Un salarié'],
+      conges: ['new-lv', 'Un congé ou une absence'],
+      avances: ['new-av', 'Une avance']
     };
+    // Le geste suivant du mois, calculé : établir ce qui manque, puis payer, puis remettre (la maquette, « un seul bouton
+    // principal »). Ailleurs, le geste de la vue. Sans aucun salarié, « Un salarié » n'est pas vert : la carte vide porte
+    // déjà « Mon premier salarié » en vert (U-11, 10.12.0).
     const pHead = () => {
-      // Sans aucun salarié, les onglets sont masqués : le bouton doit alors être là quoi qu'il
-      // arrive, sinon l'écran dit « commence par créer la fiche d'un salarié » sans offrir de quoi
-      // le faire. (Défaut introduit par cette même version, attrapé par `npm run e2e:barre`.)
-      // Mais pas en VERT (U-11, 10.12.0) : le panneau « Aucun salarié » porte déjà « + Créer mon
-      // premier salarié » en vert — deux verts pour le même geste, sur la page qu'on ouvre la
-      // première fois. La règle des listes vides, que ce panneau (pas un `.empty`) avait esquivée.
-      const a = data.employees.length ? P_ACTION[s.tab] : P_ACTION.salaries;
-      return `<h1>Paie</h1>
-        <div class="actions">
-          <select id="p-year" ${P_SANS_ANNEE.includes(s.tab) ? 'hidden' : ''}>${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
-          ${a ? `<button class="btn ${data.employees.length ? 'btn-primary' : ''}" id="${a[0]}">${a[1]}</button>` : ''}
-        </div>`;
+      const y = Number(s.year), m = Number(s.month);
+      const enPoste = data.employees.filter(e => e.active !== false && !(e.endDate && e.endDate < C.today())).length;
+      let prin = '';
+      if (!data.employees.length) prin = `<button class="btn" id="new-emp">${lfIc('croix', 15, 2.4)} Un salarié</button>`;
+      else if (s.tab === 'bulletins') {
+        const miss = C.missingPayslips(data, y, m), mo = C.payslipsOf(data, y, m);
+        const aPayer = mo.filter(x => !x.paidDate), aRemettre = mo.filter(x => x.paidDate && !x.remisLe);
+        prin = miss.length ? `<button class="btn btn-primary" id="p-gen">${lfIc('croix', 15, 2.4)} ${miss.length > 1 ? `Établir les ${miss.length} bulletins` : 'Établir le bulletin'}</button>`
+          : aPayer.length ? `<button class="btn btn-primary" id="p-payer">${lfIc('carte', 15)} Payer les salaires · ${C.money(C.round3(aPayer.reduce((a, x) => a + x.c.net, 0)), cur)}</button>`
+            : aRemettre.length ? `<button class="btn btn-primary" id="p-remettre">${lfIc('envoi', 15)} ${aRemettre.length > 1 ? `Remettre les ${aRemettre.length} bulletins` : 'Remettre le bulletin'}</button>` : '';
+      } else if (P_ACTION[s.tab]) prin = `<button class="btn btn-primary" id="${P_ACTION[s.tab][0]}">${lfIc('croix', 15, 2.4)} ${P_ACTION[s.tab][1]}</button>`;
+      const sous = data.employees.length ? `${pl(enPoste, 'salarié')} en poste · ${s.tab === 'bulletins' ? `${MONTHS_LONG[Number(s.month) - 1]} ${s.year}` : 'tes salariés, leurs bulletins, ce que la paie te coûte'}` : 'Tes salariés, leurs bulletins, ce que la paie te coûte';
+      return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Paie</span></div><h1>Paie</h1><p class="sous">${sous}</p></div>
+        <div class="actions">${data.employees.length ? `<button type="button" class="btn btn-ghost pa-plus" id="p-plus" aria-haspopup="menu" aria-label="Autres gestes de la paie" title="Autres gestes de la paie">${lfIc('plus', 16)}</button>` : ''}${prin}</div>`;
     };
+    // Le mois choisi, à gauche des vues : l'année partout où elle compte, le mois sur « Le mois ».
+    const pMois = () => `${lfIc('echeance', 15)}${s.tab === 'bulletins' ? `<select id="p-month" aria-label="Le mois">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${Number(s.month) === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}<select id="p-year" aria-label="L'année">${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>`;
+    // Une pastille ne compte que ce qui est à faire, jamais un effectif (la maquette, « pastilles »).
+    const aFaireSalaries = () => C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').length;
     $('#view').innerHTML = `
-      <div class="page-head" id="p-head">${pHead()}</div>
+      <div class="page-head lf-tete pa-tete" id="p-head">${pHead()}</div>
       ${data.employees.length ? '' : `<div class="panel"><h2>Aucun salarié</h2>
         <p class="small">Ce module calcule les bulletins de paie à partir de barèmes que <b>tu règles toi-même</b> : CNSS, impôt sur le revenu, contribution de solidarité. Les valeurs livrées sont celles couramment appliquées en Tunisie, mais elles changent à chaque loi de finances — <em>fais valider les premiers bulletins par ton comptable avant de les remettre.</em></p>
         <p class="small muted">Commence par créer la fiche d'un salarié, avec son brut mensuel.</p>
         ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="emp-first">+ Créer mon premier salarié</button></div>`
           : '<button class="btn btn-primary mt" id="emp-first">+ Créer mon premier salarié</button>'}</div>`}
-      <div class="tabs" id="p-tabs" role="tablist" aria-label="La paie" ${data.employees.length ? '' : 'hidden'}>${PAIE_TABS.map(([id, label]) =>
-        `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}</button>`).join('')}</div>
-      <div id="p-body"></div>`;
+      <div class="pa-vues" ${data.employees.length ? '' : 'hidden'}><label class="pa-mois" id="p-mois"></label>
+        <div class="pa-onglets" id="p-tabs"><div class="pa-seg" role="tablist" aria-label="La paie">${PAIE_VUES.map(([id, label]) =>
+          `<button role="tab" data-tab="${id}" class="${id === (PAIE_VUE_DE[s.tab] || s.tab) ? 'active' : ''}" aria-selected="${id === (PAIE_VUE_DE[s.tab] || s.tab)}">${label}<small class="pa-af" data-af="${id}" hidden></small></button>`).join('')}</div>
+          <button type="button" role="tab" data-tab="baremes" class="btn pa-reg${s.tab === 'baremes' ? ' active' : ''}" aria-selected="${s.tab === 'baremes'}">${lfIc('reglages', 15)} Réglages</button></div></div>
+      <div id="p-sous"></div>
+      <div id="p-body" class="pa"></div>`;
 
+    // (plateforme) 1.222.0 — « Le mois », tel que la maquette : la frise du mois (pointer, établir, payer, remettre,
+    // déclarer), « À traiter » (ce qui attend un geste), trois chiffres (le net à verser, le coût, l'État) et les bulletins,
+    // ceux qui changent d'abord. Les chiffres de l'ANNÉE vivent dans « L'année ».
     function drawSlips() {
       const y = Number(s.year), m = Number(s.month);
       const month = C.payslipsOf(data, y, m);
       const missing = C.missingPayslips(data, y, m);
-      const sum = C.payrollSummary(data, y);
-      // Un mois vide dit où se trouve le travail, et y mène (« une liste vide donne le geste »).
       const mp = C.moisDePaie(data);
       const ailleurs = !month.length && !missing.length && (mp.year !== y || mp.month !== m)
         && (C.missingPayslips(data, mp.year, mp.month).length || C.payslipsOf(data, mp.year, mp.month).length) ? mp : null;
-      // (plateforme) 1.59.0 — les bulletins s'établissent ici : c'est ici qu'un barème d'avant 2026 se dit.
       const vieuxTaux = C.tauxAvant2026(data);
+      const r = C.paieDuMois(data, y, m);
+      const frise = `<ol class="pa-frise" id="p-frise" aria-label="Où en est ${h(MONTHS_LONG[m - 1])}">${r.etapes.map((e, i) =>
+        `<li class="${e.etat}"><span class="pt">${e.etat === 'fait' ? lfIc('coche', 13, 3) : i + 1}</span><b>${h(e.titre)}</b><span>${h(e.dit)}</span></li>`).join('')}</ol>`;
+      const traiter = C.paieATraiter(data, C.today());
+      const aTraiter = traiter.length ? `<section class="pa-carte" id="p-traiter"><div class="pa-carte-t"><b>À traiter</b><span class="mu">${pl(traiter.length, 'chose')} qui attend${traiter.length > 1 ? 'ent' : ''} un geste</span></div>
+        <ul class="pa-l">${traiter.map((x, i) => `<li><span class="pa-av" style="--c:${h(x.couleur)}">${h(x.initiales)}</span><span class="pa-n"><b>${h(x.titre)}</b><small>${h(x.dit)}</small></span><button type="button" class="btn btn-sm" data-traiter="${i}">${h(x.geste)}</button></li>`).join('')}</ul></section>` : '';
+      const tuile = (lbl, val, sub, aide) => `<div class="pa-tuile"><span class="t">${lbl} ${info(aide)}</span><b class="m">${C.money(val, cur)}</b><span class="s">${sub}</span></div>`;
+      const tuiles = month.length ? `<div class="pa-tuiles" id="p-chiffres">${tuile(month.every(x => x.paidDate) ? 'Net versé' : 'Net à verser', r.net, r.netDit, 'pay.netVerse')}${tuile('Coût de la paie', r.cout, h(r.coutDit), 'pay.employerCost')}${tuile('Impôts et CNSS à verser', r.etat, h(r.etatDit), 'pay.impot')}</div>` : '';
+      // Un statut que tous les bulletins partagent se dit une fois, en bas ; « Comment » s'appelle « Payé par ».
+      const statut = x => x.paidDate ? (x.remisLe ? `<span class="statut ok">payé, remis</span>` : `<span class="statut ok">payé le ${C.fmtDate(x.paidDate)}</span>`) : '<span class="statut bleu">à payer</span>';
+      const uni = month.every(x => statut(x) === statut(month[0]));
+      const paye = x => x.method === 'especes' ? '<span class="ambre">espèces</span><small>contre reçu</small>' : `virement${x.employee.iban ? `<small>··· ${h(String(x.employee.iban).slice(-4))}</small>` : '<small class="ambre">RIB à demander</small>'}`;
+      const ecart = x => { const a = r.avant[x.employeeId]; return a == null ? '<small>1er bulletin</small>' : Math.abs(x.c.net - a) < 0.0005 ? `<small>= ${h(MONTHS_LONG[r.moisAvant - 1])}</small>` : `<small>${x.c.net > a ? '+' : '−'} ${C.money(Math.abs(C.round3(x.c.net - a)), cur)}</small>`; };
+      const lig = x => `<tr data-bul="${h(x.id)}"><td class="pa-cl"><span class="pa-av" style="--c:${h(C.couleurDe(x.employeeName))}">${h(C.initialesDe(x.employeeName))}</span><span><b>${h(x.employeeName)}</b>${x.employee.position ? `<small>${h(x.employee.position)}</small>` : ''}</span></td>
+        <td class="r nw">${C.money(x.c.gross, cur)}</td><td class="r nw">${C.money(C.round3(x.c.gross - x.c.net), cur)}</td><td class="r nw"><b>${C.money(x.c.net, cur)}</b>${ecart(x)}</td>
+        <td class="nw pa-par">${paye(x)}</td>${uni ? '' : `<td>${statut(x)}</td>`}${rowMenuCell(x.id, x.paidDate ? '' : `<button class="btn btn-sm" data-payer="${h(x.id)}">Marquer payé</button>`)}</tr>`;
+      const change = month.filter(x => r.avant[x.employeeId] == null || Math.abs(x.c.net - r.avant[x.employeeId]) >= 0.0005), pareil = month.filter(x => !change.includes(x));
+      const nc = uni ? 6 : 7;
       $('#p-body').innerHTML = `
-        ${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026"><span>Tes barèmes gardent des taux d'avant 2026 (${vieuxTaux.map(x => `${h(x.libelle)} ${pct(x.garde)} %`).join(', ')}) : les bulletins que tu établis les appliquent.</span> <button type="button" class="btn btn-sm" id="p-2026-voir">Voir les barèmes</button></div>` : ''}
-        <div class="stats">
-          <div class="stat"><div class="lbl">Coût de la paie ${s.year} ${info('pay.employerCost')}</div><div class="val">${C.money(sum.cost, cur)}</div><div class="sub">${sum.count ? `${pl(sum.count, 'bulletin')} pour ${pl(sum.employees, 'salarié')}` : `aucun bulletin établi en ${h(s.year)}`}</div></div>
-          <div class="stat"><div class="lbl">Net versé ${info('pay.netVerse')}</div><div class="val">${C.money(sum.netPaid, cur)}</div><div class="sub">${sum.net - sum.netPaid > 0.0005 ? `${C.money(C.round3(sum.net - sum.netPaid), cur)} restent à verser` : 'ce que touchent les salariés'}</div></div>
-          <div class="stat"><div class="lbl">CNSS ${h(s.year)} ${info('pay.cnssTotal')}</div><div class="val">${C.money(C.round3(sum.cnssEmployee + sum.cnssEmployer + sum.accident), cur)}</div><div class="sub">${(() => { const r = C.cnssNonDeclaree(data, Number(s.year)); return !sum.count ? 'parts salarié et employeur' : r > 0.0005 ? `dont ${C.money(r, cur)} pas encore déclarés` : 'tout est déclaré'; })()}</div></div>
-          ${/* 10.12.0 — la colonne s'appelait « IRPP » et additionnait l'IRPP ET la contribution de
-               solidarité : 2,264 DT d'« IRPP » ici, 0,000 DT d'IRPP et 2,264 DT de solidarité dans la
-               déclaration annuelle, pour le même bulletin. Deux écrans, un montant, deux noms (H-E25). */''}
-          <div class="stat"><div class="lbl">Impôt retenu ${info('pay.impot')}</div><div class="val">${C.money(C.round3(sum.irpp + sum.css), cur)}</div><div class="sub">IRPP et solidarité, à reverser au Trésor</div></div>
-        </div>
-        <div class="panel"><h2>Bulletins du mois</h2>
-          <div class="filters">
-            <select id="p-month">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${m === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            ${missing.length ? `<button class="btn btn-sm btn-primary" id="p-gen">${missing.length > 1 ? `Établir les ${pl(missing.length, 'bulletin')} manquants` : 'Établir le bulletin manquant'}</button>` : month.length ? '<span class="small ok-text">Tous les bulletins du mois sont établis.</span>' : ''}${month.length ? ' <button type="button" class="btn btn-sm" id="p-journal">Journal de paie</button>' : ''}${
-              /* (plateforme) 1.74.0 — payer les salaires du mois : l'étape suivante, une fois les bulletins établis. */''}${month.some(x => !x.paidDate) ? ` <button type="button" class="btn btn-sm${missing.length ? '' : ' btn-primary'}" id="p-payer">Payer les salaires…</button>` : ''}
-          </div>
-          ${month.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
-            <th>Salarié</th><th class="r">Brut</th><th class="r">CNSS</th><th class="r">Impôt retenu ${info('pay.impot')}</th><th class="r">Net à payer</th><th class="r">Coût employeur</th><th>Payé le</th><th class="row-actions-h"></th></tr></thead><tbody>
-            ${month.map(x => `<tr class="${x.paidDate ? '' : 'row-warn'}">
-              <td><strong>${h(x.employeeName)}</strong>${x.employee.position ? `<div class="small muted">${h(x.employee.position)}</div>` : ''}</td>
-              <td class="r nw">${C.money(x.c.gross, cur)}</td>
-              <td class="r nw">${C.money(x.c.cnssEmployee, cur)}</td>
-              <td class="r nw">${C.money(C.round3(x.c.irpp + x.c.css), cur)}</td>
-              <td class="r nw"><strong>${C.money(x.c.net, cur)}</strong></td>
-              <td class="r nw">${C.money(x.c.employerCost, cur)}</td>
-              <td class="nw">${x.paidDate ? C.fmtDate(x.paidDate) : '<span class="warn-text">pas encore</span>'}</td>
-              ${rowMenuCell(x.id, x.paidDate ? '' : `<button class="btn btn-sm" data-payer="${h(x.id)}">Marquer payé</button>`)}</tr>`).join('')}
-            <tr class="total-row"><td><strong>Total du mois</strong></td>
+        ${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026"><span>Tes barèmes gardent des taux d'avant 2026 (${vieuxTaux.map(x => `${h(x.libelle)} ${pct(x.garde)} %`).join(', ')}) : les bulletins que tu établis les appliquent.</span> <button type="button" class="btn btn-sm" id="p-2026-voir">Voir les réglages</button></div>` : ''}
+        ${frise}${aTraiter}${tuiles}
+        <section class="pa-carte pa-tab" id="p-bulletins">${month.length ? `<div class="pa-carte-t"><b>Les bulletins de ${h(MONTHS_LONG[m - 1])}</b><span class="mu">${missing.length ? `${pl(missing.length, 'bulletin')} encore à établir` : 'tous établis'}</span><button type="button" class="btn btn-sm" id="p-journal">${lfIc('oeil', 14)} Journal de paie</button></div>
+          <div class="scroll-x"><table class="list compact pa-liste"><thead><tr><th>Salarié</th><th class="r">Brut</th><th class="r">Retenues ${info('pay.impot')}</th><th class="r">Net à verser</th><th>Payé par</th>${uni ? '' : '<th>Statut</th>'}<th class="row-actions-h"></th></tr></thead><tbody>
+            ${change.length ? `<tr class="pa-groupe"><td colspan="${nc}"><b>Ce qui change ce mois</b> · <span>${pl(change.length, 'salarié')}</span></td></tr>${change.map(lig).join('')}` : ''}
+            ${pareil.length ? `<tr class="pa-groupe"><td colspan="${nc}"><b>Comme ${h(MONTHS_LONG[r.moisAvant - 1])}</b> · <span>${pl(pareil.length, 'salarié')}</span></td></tr>${pareil.map(lig).join('')}` : ''}
+            <tr class="total-row"><td><strong>${pl(month.length, 'bulletin')} de ${h(MONTHS_LONG[m - 1])}</strong></td>
               <td class="r"><strong>${C.money(C.round3(month.reduce((a, x) => a + x.c.gross, 0)), cur)}</strong></td>
-              <td class="r">${C.money(C.round3(month.reduce((a, x) => a + x.c.cnssEmployee, 0)), cur)}</td>
-              <td class="r">${C.money(C.round3(month.reduce((a, x) => a + x.c.irpp + x.c.css, 0)), cur)}</td>
+              <td class="r">${C.money(C.round3(month.reduce((a, x) => a + x.c.gross - x.c.net, 0)), cur)}</td>
               <td class="r"><strong>${C.money(C.round3(month.reduce((a, x) => a + x.c.net, 0)), cur)}</strong></td>
-              <td class="r"><strong>${C.money(C.round3(month.reduce((a, x) => a + x.c.employerCost, 0)), cur)}</strong></td>
-              <td colspan="2"></td></tr>
+              <td colspan="${nc - 4}">${uni ? `<span class="mu">${month.length > 1 ? `les ${month.length} :` : ''}</span> ${statut(month[0])}` : ''}</td></tr>
           </tbody></table></div>
           <p class="small muted mt">Un bulletin marqué payé sort l'argent tout seul dans la <a href="#/tresorerie">trésorerie</a> : ne saisis pas en plus un mouvement « Salaires », il compterait deux fois.</p>`
-            // « Tous les bulletins du mois sont établis » au-dessus de « Aucun bulletin pour août »
-            // (rapport QA) : sans salarié en poste ce mois-là, il n'y a rien à établir — et c'est CE
-            // qu'il faut dire, pas deux phrases vraies qui se contredisent à l'œil.
             : `<div class="empty" id="p-vide">${missing.length
               ? `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)}. ${missing.length > 1
-                ? 'Le bouton ci-dessus les établit d\'un coup, au brut et aux primes de chaque fiche.'
-                : 'Le bouton ci-dessus l\'établit, au brut et aux primes de la fiche du salarié.'}`
+                ? 'Le bouton en haut les établit d\'un coup, au brut et aux primes de chaque fiche.'
+                : 'Le bouton en haut l\'établit, au brut et aux primes de la fiche du salarié.'}`
               : `Aucun salarié en poste en ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : il n'y a pas de bulletin à établir ce mois-là.${ailleurs
                 ? `<div class="mt"><button class="btn btn-primary" id="p-vers-mois">Voir ${h(MONTHS_LONG[ailleurs.month - 1])} ${ailleurs.year}</button></div>` : ''}`}</div>`}
-        </div>`;
-      $('#p-month').onchange = e => { s.month = e.target.value; s.moisTouche = true; drawSlips(); };
+        </section>`;
       if ($('#p-2026-voir')) $('#p-2026-voir').onclick = () => { const t = $('#p-tabs button[data-tab="baremes"]'); if (t) t.click(); };
-      if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp = C.moisDePaie(data); s.year = String(mp.year); s.month = String(mp.month); s.moisTouche = true; draw(); };
-      // (plateforme) 1.61.0 — le journal de paie du mois.
+      if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp2 = C.moisDePaie(data); s.year = String(mp2.year); s.month = String(mp2.month); s.moisTouche = true; draw(); };
       if ($('#p-journal')) $('#p-journal').onclick = () => journalDePaieFenetre(y, m);
-      if ($('#p-payer')) $('#p-payer').onclick = () => payerSalairesFenetre(y, m, () => draw());
-      // 10.12.0 — une ligne garde UN bouton, celui du geste suivant (7.29.0). Elle en portait deux,
-      // « PDF » et « Modifier », et pas celui qu'on vient chercher après avoir établi un bulletin : le
-      // marquer payé demandait d'ouvrir « Modifier » et de trouver « Payé le ». Le paiement part
-      // aujourd'hui, sur le compte par défaut ; « Annuler » le défait (7.12.0), « Modifier » règle
-      // une autre date ou un autre compte.
+      // « À traiter » : chaque ligne mène à son geste (la fiche sur la bonne case, ou la vue).
+      $$('#p-body [data-traiter]').forEach(b => b.onclick = () => {
+        const x = traiter[Number(b.dataset.traiter)]; if (!x) return;
+        const e = employeeById(x.salarie);
+        if (x.focus && e) return employeeForm(e, () => draw(), { focus: x.focus });
+        if (e) location.hash = `#/salarie/${encodeURIComponent(e.id)}`;
+      });
+      $$('#p-body tr[data-bul]').forEach(tr => { tr.tabIndex = 0; tr.onkeydown = ev => { if (ev.key === 'Enter' && ev.target === tr) { const x = payslipById(tr.dataset.bul); if (x) payslipForm(x, employeeById(x.employeeId), x.year, x.month, () => draw()); } }; });
       $$('#p-body [data-payer]').forEach(b => b.onclick = () => {
         const x = payslipById(b.dataset.payer); if (!x) return;
         const jour = C.today();
@@ -18229,22 +18241,56 @@
           { icon: 'modifier', label: 'Modifier le bulletin', hint: 'Primes, retenues, date et compte du paiement', run: () => payslipForm(x, emp, x.year, x.month, () => draw()) }
         ];
       });
-      if ($('#p-gen')) $('#p-gen').onclick = async () => {
-        // Les contrôles AVANT la grande question (règle 7.6.0) — et ce bouton créait des bulletins
-        // sans passer par le garde-fou de la licence depuis la 6.4.0.
-        if (licenceBlock('Créer les bulletins du mois', 'paie')) return;
-        if (!await confirmDialog(`Établir ${pl(missing.length, 'bulletin')} pour ${MONTHS_LONG[m - 1]} ${s.year} ?\n\nLe brut vient de chaque fiche (proratisé pour une entrée ou une sortie en cours de mois), les absences non payées (celles du pointage quand le mois est pointé) et les échéances d'avance sont reprises automatiquement, avec les heures supplémentaires pointées. Les primes posées sur chaque fiche sont reprises (au prorata des jours payés pour une prime au jour) ; tu pourras encore en ajouter, bulletin par bulletin. Rien n'est payé : c'est toi qui marques chaque bulletin comme réglé.`, 'Établir', false)) return;
-        const st = C.payrollSettings(data);
-        if (closedBlock(C.payslipDate({ year: y, month: m }), 'Ces bulletins')) return;
-        missing.forEach(e => {
-          // Les absences non payées du mois et les échéances d'avance arrivent toutes seules (5.1.0).
-          const input = C.payslipInputFor(data, e, y, m);
-          data.payslips.push({ id: C.uid(), employeeId: e.id, year: y, month: m, ...input,
-            computed: C.computePayslip(e, input, st), paidDate: '', accountId: '', method: e.method || 'virement',
-            reference: '', issuedAt: C.today() });
-        });
-        save(true); toast(`${pl(missing.length, 'bulletin')} établi${sPl(missing.length)}`); draw();
-      };
+    }
+    // Établir les bulletins manquants : le bouton de l'en-tête (il était dans la carte avant 1.222.0).
+    async function etablirBulletins() {
+      const y = Number(s.year), m = Number(s.month);
+      const missing = C.missingPayslips(data, y, m);
+      if (!missing.length) return;
+      // Les contrôles AVANT la grande question (règle 7.6.0).
+      if (licenceBlock('Créer les bulletins du mois', 'paie')) return;
+      if (!await confirmDialog(`Établir ${pl(missing.length, 'bulletin')} pour ${MONTHS_LONG[m - 1]} ${s.year} ?\n\nLe brut vient de chaque fiche (proratisé pour une entrée ou une sortie en cours de mois), les absences non payées (celles du pointage quand le mois est pointé) et les échéances d'avance sont reprises automatiquement, avec les heures supplémentaires pointées. Les primes posées sur chaque fiche sont reprises (au prorata des jours payés pour une prime au jour) ; tu pourras encore en ajouter, bulletin par bulletin. Rien n'est payé : c'est toi qui marques chaque bulletin comme réglé.`, 'Établir', false)) return;
+      const st = C.payrollSettings(data);
+      if (closedBlock(C.payslipDate({ year: y, month: m }), 'Ces bulletins')) return;
+      missing.forEach(e => {
+        const input = C.payslipInputFor(data, e, y, m);
+        data.payslips.push({ id: C.uid(), employeeId: e.id, year: y, month: m, ...input,
+          computed: C.computePayslip(e, input, st), paidDate: '', accountId: '', method: e.method || 'virement',
+          reference: '', issuedAt: C.today() });
+      });
+      save(true); toast(`${pl(missing.length, 'bulletin')} établi${sPl(missing.length)}`); draw();
+    }
+    // Remettre les bulletins payés : chacun en PDF, à donner ou envoyer ; la remise se garde sur le bulletin (un fait, avec
+    // son jour), et « Annuler » la défait. SkanFact n'envoie rien tout seul : il prépare les PDF.
+    function remettreBulletins() {
+      const y = Number(s.year), m = Number(s.month);
+      const L = C.payslipsOf(data, y, m).filter(x => x.paidDate && !x.remisLe);
+      if (!L.length) return;
+      modal(`<div class="modal pa-fen" role="dialog" aria-label="Remettre les bulletins"><h3>Remettre ${L.length > 1 ? `les ${L.length} bulletins` : 'le bulletin'} ${/^[aeiouh]/i.test(MONTHS_LONG[m - 1]) ? 'd’' : 'de '}${h(MONTHS_LONG[m - 1])}</h3>
+        <p class="small muted">Chaque bulletin se prépare en PDF, à donner en main propre ou à envoyer au salarié. SkanFact note qu'il est remis, et quand.</p>
+        <table class="list compact"><tbody>${L.map(x => `<tr><td><b>${h(x.employeeName)}</b></td><td class="r">${(employeeById(x.employeeId) || {}).email ? `<span class="small">à envoyer à ${h((employeeById(x.employeeId) || {}).email)}</span>` : '<span class="small muted">à imprimer : pas d’e-mail sur sa fiche</span>'}</td></tr>`).join('')}</tbody></table>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="rm-ok">${lfIc('exporter', 15)} Préparer les PDF et marquer remis</button></div></div>`, (root, fermer) => {
+        $('#rm-ok', root).onclick = async () => {
+          const jour = C.today();
+          for (const x of L) { const b = payslipById(x.id); if (b) b.remisLe = jour; }
+          save(true); fermer(); draw();
+          for (const x of L) { const b = payslipById(x.id); if (b) await exportPayslip(b); }
+          toastUndo(`${pl(L.length, 'bulletin')} remis aujourd'hui`, () => { for (const x of L) { const b = payslipById(x.id); if (b) delete b.remisLe; } save(true); draw(); });
+        };
+      });
+    }
+    // « L'année » : ce que la paie a coûté mois par mois, et ce que l'année a versé (les chiffres qui étaient en haut du mois).
+    function drawAnnee() {
+      const y = Number(s.year), sum = C.payrollSummary(data, y);
+      const mois = Array.from({ length: 12 }, (_, i) => { const L = C.payslipsOf(data, y, i + 1); return { m: i + 1, n: L.length, brut: C.round3(L.reduce((a, x) => a + x.c.gross, 0)), cout: C.round3(L.reduce((a, x) => a + x.c.employerCost, 0)), payes: L.filter(x => x.paidDate).length }; });
+      const max = Math.max(...mois.map(x => x.cout), 0.001), dernier = mois.reduce((a, x) => (x.n ? x.m : a), 0);
+      $('#p-body').innerHTML = `<div class="pa-tuiles" id="p-annee-chiffres">
+          <div class="pa-tuile"><span class="t">Coût de la paie ${h(s.year)} ${info('pay.employerCost')}</span><b class="m">${C.money(sum.cost, cur)}</b><span class="s">${sum.count ? `${pl(sum.count, 'bulletin')} pour ${pl(sum.employees, 'salarié')}` : `aucun bulletin établi en ${h(s.year)}`}</span></div>
+          <div class="pa-tuile"><span class="t">Net versé ${info('pay.netVerse')}</span><b class="m">${C.money(sum.netPaid, cur)}</b><span class="s">${sum.net - sum.netPaid > 0.0005 ? `${C.money(C.round3(sum.net - sum.netPaid), cur)} restent à verser` : 'ce que touchent les salariés'}</span></div>
+          <div class="pa-tuile"><span class="t">CNSS ${h(s.year)} ${info('pay.cnssTotal')}</span><b class="m">${C.money(C.round3(sum.cnssEmployee + sum.cnssEmployer + sum.accident), cur)}</b><span class="s">${(() => { const rr = C.cnssNonDeclaree(data, y); return !sum.count ? 'parts salarié et employeur' : rr > 0.0005 ? `dont ${C.money(rr, cur)} pas encore déclarés` : 'tout est déclaré'; })()}</span></div>
+          <div class="pa-tuile"><span class="t">Impôt retenu ${info('pay.impot')}</span><b class="m">${C.money(C.round3(sum.irpp + sum.css), cur)}</b><span class="s">IRPP et solidarité, à reverser au Trésor</span></div></div>
+        <section class="pa-carte" id="p-annee"><div class="pa-carte-t"><b>Le coût de la paie, mois par mois</b><span class="mu">brut et charges de l'employeur ; au survol, chaque mois</span></div>
+          <div class="pa-graphe" role="img" aria-label="Coût de la paie de ${h(s.year)}, mois par mois">${mois.map(x => `<div class="pa-barre${x.m === dernier ? ' der' : ''}" title="${h(MONTHS_LONG[x.m - 1])} : ${x.n ? `${pl(x.n, 'bulletin')} · brut ${C.money(x.brut, cur)} · coût ${C.money(x.cout, cur)} · ${x.payes === x.n ? 'payé' : `${x.n - x.payes} à payer`}` : 'aucun bulletin'}"><span class="v">${x.m === dernier || (x.n && x.m === mois.find(z => z.n).m) ? C.money(x.cout, cur) : ''}</span><i style="height:${Math.round(x.cout / max * 128)}px"></i><small>${h(['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][x.m - 1])}</small></div>`).join('')}</div></section>`;
     }
 
     // (plateforme) 1.60.0 — le pointage du mois. Une case par salarié et par jour : un clic change le code (dans l'ordre
@@ -18987,7 +19033,21 @@
     // vert contredisait l'onglet. `bindHead` rearme le bouton du moment — sans quoi il serait
     // visible et inerte, ce qui est pire qu'absent.
     const bindHead = () => {
+      $('#p-mois').innerHTML = pMois(); $('#p-mois').hidden = P_SANS_ANNEE.includes(s.tab);
       $('#p-year').onchange = e => { s.year = e.target.value; s.moisTouche = true; draw(); };
+      if ($('#p-month')) $('#p-month').onchange = e => { s.month = e.target.value; s.moisTouche = true; draw(); };
+      if ($('#p-gen')) $('#p-gen').onclick = () => etablirBulletins();
+      if ($('#p-payer')) $('#p-payer').onclick = () => payerSalairesFenetre(Number(s.year), Number(s.month), () => draw());
+      if ($('#p-remettre')) $('#p-remettre').onclick = () => remettreBulletins();
+      if ($('#p-plus')) $('#p-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
+        ...(C.payslipsOf(data, Number(s.year), Number(s.month)).length ? [{ icon: 'pdf', label: 'Journal de paie', hint: `${MONTHS_LONG[Number(s.month) - 1]} ${s.year} : une ligne par salarié, les totaux`, run: () => journalDePaieFenetre(Number(s.year), Number(s.month)) }] : []),
+        { icon: 'dossier', label: 'Registre du personnel', hint: 'la liste que l\'inspection du travail peut demander', run: () => allerVue('registre') },
+        { icon: 'modifier', label: 'Réglages de la paie', hint: 'taux, barèmes, horaires', run: () => allerVue('baremes') }
+      ], { titre: 'La paie', classe: 'gestes-menu', label: 'Autres gestes de la paie' });
+      const af = aFaireSalaries(), b = $('#p-tabs [data-af="salaries"]');
+      if (b) { b.hidden = !af; b.textContent = af ? String(af) : ''; b.title = af ? `${pl(af, 'chose')} à compléter sur les fiches` : ''; }
+      $('#p-sous').innerHTML = PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab] ? `<div class="pa-sous" role="tablist" aria-label="${h((PAIE_VUES.find(v => v[0] === (PAIE_VUE_DE[s.tab] || s.tab)) || [])[1] || '')}">${PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab].map(([id, l]) => `<button type="button" role="tab" data-sous="${id}" aria-selected="${s.tab === id}">${l}</button>`).join('')}</div>` : '';
+      $$('#p-sous [data-sous]').forEach(b2 => b2.onclick = async () => { if (b2.dataset.sous === s.tab || !await leaveOk()) return; clearGuard(); s.tab = b2.dataset.sous; draw(); });
       const ouvrirSalarie = () => employeeForm(null, () => { paieState.tab = 'salaries'; render(); });
       if ($('#new-emp')) $('#new-emp').onclick = ouvrirSalarie;
       if ($('#emp-first')) $('#emp-first').onclick = ouvrirSalarie;
@@ -19004,17 +19064,21 @@
       if (s.tab === 'registre') return drawRegister();
       if (s.tab === 'baremes') return drawRates();
       if (s.tab === 'pointage') return drawPointage();
+      if (s.tab === 'annee') return drawAnnee();
       drawSlips();
     });
+    // Aller à une vue (ou sous-vue) depuis un geste : la question des réglages non enregistrés se pose ici aussi.
+    async function allerVue(v) { if (v === s.tab || !await leaveOk()) return; clearGuard(); s.tab = v; marquerVue(); draw(); }
+    const marquerVue = () => $$('#p-tabs [data-tab]').forEach(x => { const on = x.dataset.tab === (PAIE_VUE_DE[s.tab] || s.tab); x.classList.toggle('active', on); x.setAttribute('aria-selected', String(on)); });
     // Changer d'onglet quitte les Barèmes : la question « modifications non enregistrées » se pose
     // ici comme à la sortie de la page (10.12.0), et le garde-fou des Barèmes ne survit pas à
     // l'onglet qu'il protégeait.
-    $$('#p-tabs button').forEach(b => b.onclick = async () => {
+    $$('#p-tabs [data-tab]').forEach(b => b.onclick = async () => {
       if (b.dataset.tab === s.tab) return;
       if (!await leaveOk()) return;
       clearGuard();
       s.tab = b.dataset.tab;
-      $$('#p-tabs button').forEach(x => x.classList.toggle('active', x === b));
+      marquerVue();
       draw();
     });
     draw();

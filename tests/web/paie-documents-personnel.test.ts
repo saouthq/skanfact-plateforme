@@ -85,7 +85,9 @@ describe('les documents du personnel de l\'entreprise', () => {
     const fenetre = p.locator('#modal-root .modal').last();
     const titre = () => fenetre.locator('h2').first().innerText({ timeout: 500 }).catch(() => '');
     const lire = (sel: string) => fenetre.locator(sel).innerText().then((x) => x.replace(/[\u00a0\u202f]/g, ' '));
-    await p.locator('#p-tabs button', { hasText: 'Registre' }).click();
+    // Le registre vit sous « Salariés » (1.222.0).
+    await p.locator('#p-tabs [data-tab="salaries"]').click();
+    await p.locator('#p-sous [data-sous="registre"]').click();
     await p.locator('[data-hr="s1"]').click();
     await expect.poll(titre).toBe('Document pour Salarié Numéro Un');
 

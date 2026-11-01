@@ -1310,3 +1310,42 @@ son RIB ; l'ordre s'imprimait sans le nom de la société (la fiche de l'entrepr
 
 - Le fichier de virement d'une banque (au format de chacune) : avec un vrai fichier en main.
 - La date de valeur du virement, le libellé que la banque reporte sur le relevé du salarié : à la main, sur la lettre.
+
+## La paie appliquée — lot 1 : « Le mois » (01/11/2026, 1.222.0)
+
+*La maquette de la paie de l'entreprise (`docs/maquettes/paie.html`, revue en quatre passes : `docs/maquettes/revue-paie.md`)
+entre dans l'application par lots. Demande de Skander (01/11/2026) : « avant de passer à celle de cabinet on va d'abord
+implémenter celle-ci en entier, et comble le manque que tu trouveras ». Ce lot pose la page d'entrée : le mois.*
+
+### Ce que le lot fait (`core.js`, `app.js`, `paie.css`)
+
+- **L'en-tête porte UN geste principal, calculé** : « Établir les N bulletins » tant qu'il en manque, puis « Payer les
+  salaires · total », puis « Remettre les N bulletins ». Les autres vues gardent le leur (un salarié, un congé, une avance).
+  Le menu ⋯ porte le journal de paie, le registre du personnel et les réglages.
+- **Six vues au lieu de neuf onglets** : Le mois, Pointage, Salariés (avec le registre), Congés et absences (avec les
+  avances et prêts), Déclarations, L'année ; « Réglages » à droite. Le choix du mois et de l'année est à gauche des vues.
+- **La frise du mois** (`paieDuMois`) : pointer, bulletins, payer, remettre, déclarer — chaque étape déduite des faits
+  (bulletins établis, payés, remis ; la déclaration CNSS du trimestre), une seule « ici ».
+- **« À traiter »** (`paieATraiter`) : ce qui manque aux fiches (un RIB pour un virement, un n° CNSS, un CDD qui finit dans
+  60 jours) ; « Compléter » ouvre la fiche le curseur sur la bonne case. La pastille de « Salariés » compte ces choses-là,
+  jamais l'effectif.
+- **Trois chiffres** : le net (« à verser », ou « versé » quand tout est payé ; virement et espèces), le coût de la paie
+  (brut + charges, et l'écart avec le mois d'avant), ce qui va à l'État (retenue du mois, CNSS du trimestre).
+- **Les bulletins** : ceux qui changent d'abord (« Ce qui change ce mois »), puis « Comme septembre » ; l'écart du net sur
+  chaque ligne ; « Payé par » ; un statut que tous partagent se dit une fois, sur la ligne du total.
+- **« Remettre les bulletins »** : la fenêtre nomme chacun (à envoyer, ou à imprimer faute d'e-mail), prépare les PDF et
+  pose `remisLe` sur chaque bulletin ; « Annuler » le retire.
+- **« L'année »** : les quatre chiffres de l'année (coût, net versé, CNSS, impôt retenu) et le coût mois par mois.
+- **Ce qui part au serveur** : un seul champ nouveau, `remisLe` (le jour de la remise) sur un bulletin.
+
+### Ce qui le prouve
+
+- `tests/web/paie-mois.test.ts` (écran ET serveur, photos en clair, en sombre et au téléphone) ; six preuves
+  « paie 1.222 a à f » dans `tests/preuves.sh`. Les tests de la paie déjà là suivent les nouvelles places (avances sous
+  Congés, registre sous Salariés, aucun bouton principal dans le corps).
+
+### Ce qui reste (lots suivants)
+
+- L2 : les documents en aperçu fidèle ; L3 : le pointage à la main ; L4 : salariés et fiche ; L5 : congés, avances,
+  déclarations, l'année, réglages, qui fait la paie ; L6 : le téléphone, le bon à payer, la correction proposée par le
+  cabinet.

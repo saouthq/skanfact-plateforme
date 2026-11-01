@@ -16596,8 +16596,8 @@ prouver 'décembre déclaré en décembre' 'web/public/v10/core.js' \
   '    const ny = y, nm = m >= 12 ? 1 : m + 1;' \
   'la déclaration mensuelle reprend les montants du journal du même mois (IRPP, CSS, TFP, FOPROLOS) et leurs bases, à l'"'"'échéance du calendrier fiscal'
 prouver 'le journal de paie d'"'"'un mois sans bulletin' 'web/public/v10/app.js' \
-  '${month.length ? '"'"' <button type="button" class="btn btn-sm" id="p-journal">Journal de paie</button>'"'"' : '"'"''"'"'}' \
-  ' <button type="button" class="btn btn-sm" id="p-journal">Journal de paie</button>' \
+  'id="p-bulletins">${month.length ? `<div class="pa-carte-t">' \
+  'id="p-bulletins">${true ? `<div class="pa-carte-t">' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
 prouver 'un journal qui ne tient pas à l'"'"'ordinateur' 'web/public/v10/app.js' \
   '<th class="r" title="${h(l)}">${h(court)}</th>' \
@@ -17570,12 +17570,12 @@ prouver 'l'"'"'ordre sans la ville de la société' 'web/public/v10/core.js' \
   'Le ${fmtDate((o && o.date) || today())}' \
   'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
 prouver '« Payer les salaires… » absent des bulletins du mois' 'web/public/v10/app.js' \
-  '${month.some(x => !x.paidDate) ? ` <button type="button" class="btn btn-sm' \
-  '${false ? ` <button type="button" class="btn btn-sm' \
+  'aPayer.length ? `<button class="btn btn-primary" id="p-payer">' \
+  'false ? `<button class="btn btn-primary" id="p-payer">' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
 prouver '« Payer les salaires… » jamais l'"'"'étape suivante' 'web/public/v10/app.js' \
-  'class="btn btn-sm${missing.length ? '"'"''"'"' : '"'"' btn-primary'"'"'}" id="p-payer"' \
-  'class="btn btn-sm" id="p-payer"' \
+  '<button class="btn btn-primary" id="p-payer">' \
+  '<button class="btn" id="p-payer">' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
 prouver 'le nom de la société absent qui laisse imprimer l'"'"'ordre' 'web/public/v10/app.js' \
   '        const sansNom = !String(company().name || '"'"''"'"').trim();' \
@@ -22103,6 +22103,26 @@ prouver 'messagerie 1.221 b : « Corriger la date » ne redate pas l'\''achat' w
   "        p.date = date;
         await save(true);" "        await save(true);" \
   "$WMSG7"
+
+WPAIE1="le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
+prouver 'paie 1.222 a : la frise compte remis ce qui ne l'\''est pas' web/public/v10/core.js \
+  "remis = L.filter(x => x.remisLe);" "remis = L.filter(x => x.paidDate);" \
+  "$WPAIE1"
+prouver 'paie 1.222 b : « Remettre » ne garde pas la remise sur le bulletin' web/public/v10/app.js \
+  "          for (const x of L) { const b = payslipById(x.id); if (b) b.remisLe = jour; }" "" \
+  "$WPAIE1"
+prouver 'paie 1.222 c : un statut que tous partagent revient en colonne' web/public/v10/app.js \
+  "\${uni ? '' : '<th>Statut</th>'}" "\${'<th>Statut</th>'}" \
+  "$WPAIE1"
+prouver 'paie 1.222 d : la pastille de « Salariés » compte l'\''effectif' web/public/v10/app.js \
+  "C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').length;" "data.employees.length;" \
+  "$WPAIE1"
+prouver 'paie 1.222 e : les bulletins qui changent ne passent plus d'\''abord' web/public/v10/app.js \
+  "const change = month.filter(x => r.avant[x.employeeId] == null || Math.abs(x.c.net - r.avant[x.employeeId]) >= 0.0005)" "const change = month.filter(x => r.avant[x.employeeId] == null)" \
+  "$WPAIE1"
+prouver 'paie 1.222 f : tout payé, la tuile promet encore un versement' web/public/v10/app.js \
+  "tuile(month.every(x => x.paidDate) ? 'Net versé' : 'Net à verser'" "tuile('Net à verser'" \
+  "$WPAIE1"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

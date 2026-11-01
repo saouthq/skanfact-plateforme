@@ -4094,6 +4094,58 @@
     return a;
   }
 
+  // (plateforme) 1.222.0 — l'état d'un mois de paie, pour sa frise et ses trois chiffres (docs/paie.md, « La paie appliquée »).
+  // Chaque étape se DÉDUIT des faits (bulletins établis, payés, remis ; CNSS du trimestre déposée) : rien n'est écrit d'avance.
+  const MOIS_PAIE = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  function paieDuMois(data, year, month) {
+    const y = Number(year), m = Number(month), cur = (data.company || {}).currency || 'TND';
+    const L = payslipsOf(data, y, m), manque = missingPayslips(data, y, m), n = L.length + manque.length;
+    const payes = L.filter(x => x.paidDate), remis = L.filter(x => x.remisLe);
+    const somme = f => round3(L.reduce((a, x) => a + (Number(f(x.c)) || 0), 0));
+    const net = somme(c => c.net), cout = somme(c => c.employerCost), brut = somme(c => c.gross);
+    const especes = round3(L.filter(x => x.method === 'especes').reduce((a, x) => a + x.c.net, 0));
+    const impots = somme(c => c.irpp + c.css + (c.tfp || 0) + (c.foprolos || 0));
+    const cnss = somme(c => c.cnssEmployee + (c.cnssEmployer || 0) + (c.accident || 0));
+    const ma = m === 1 ? 12 : m - 1, ya = m === 1 ? y - 1 : y;
+    const avant = {}; payslipsOf(data, ya, ma).forEach(x => { avant[x.employeeId] = x.c.net; });
+    const coutAvant = round3(payslipsOf(data, ya, ma).reduce((a, x) => a + x.c.employerCost, 0));
+    const pointe = (data.timesheets || []).some(t => Number(t.year) === y && Number(t.month) === m);
+    const q = Math.ceil(m / 3), cnssDeposee = (data.socialFilings || []).some(f => f.id === `cnss-${y}-T${q}`);
+    const tousPayes = L.length > 0 && !manque.length && payes.length === L.length, tousRemis = tousPayes && remis.length === L.length;
+    const jours = [...new Set(payes.map(x => x.paidDate))];
+    const etapes = [
+      { titre: 'Pointer', fait: L.length > 0, dit: pointe ? 'le mois est pointé' : 'facultatif : absences et heures sup' },
+      { titre: 'Bulletins', fait: n > 0 && !manque.length, dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établis` : `${n} établi${n > 1 ? 's' : ''}` },
+      { titre: 'Payer', fait: tousPayes, dit: !L.length ? 'après les bulletins' : tousPayes ? (jours.length === 1 ? `payés le ${fmtDate(jours[0])}` : 'tous payés') : `${L.length - payes.length} à payer · ${money(round3(L.filter(x => !x.paidDate).reduce((a, x) => a + x.c.net, 0)), cur)}` },
+      { titre: 'Remettre', fait: tousRemis, dit: !L.length ? 'un bulletin à chaque salarié' : tousRemis ? 'chacun a son bulletin' : `${L.length - remis.length} à remettre` },
+      { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée` : `la retenue avec la déclaration de ${MOIS_PAIE[m - 1]} · la CNSS au trimestre` }
+    ];
+    // Une seule étape « ici » : la première qui n'est pas faite.
+    let ici = false;
+    etapes.forEach(e => { e.etat = e.fait ? 'fait' : ici ? '' : 'ici'; if (!e.fait) ici = true; });
+    return {
+      etapes, net, cout, brut, impots, cnss, etat: round3(impots + cnss), avant, moisAvant: ma,
+      netDit: especes ? `${money(round3(net - especes), cur)} par virement, ${money(especes, cur)} en espèces` : 'par virement',
+      coutDit: `brut ${money(brut, cur)} + charges ${money(round3(cout - brut), cur)}${coutAvant ? ` · ${Math.abs(round3(cout - coutAvant)) < 0.0005 ? `comme ${MOIS_PAIE[ma - 1]}` : `${money(Math.abs(round3(cout - coutAvant)), cur)} de ${cout > coutAvant ? 'plus' : 'moins'} qu’en ${MOIS_PAIE[ma - 1]}`}` : ''}`,
+      etatDit: `${money(impots, cur)} avec la déclaration de ${MOIS_PAIE[m - 1]} · ${money(cnss, cur)} de CNSS au trimestre`
+    };
+  }
+  // Ce qui attend un geste sur les fiches des salariés en poste : un RIB qui manque à un virement, un n° CNSS, un CDD qui finit
+  // dans les deux mois. Chaque ligne nomme son salarié et la case de sa fiche à remplir (`focus`).
+  const PAIE_COULEURS = ['#0e7c96', '#7c5ad6', '#c2700f', '#3f6fd8', '#c0417a', '#1c8f5a'];
+  const initialesDe = nom => String(nom || '?').trim().split(/\s+/).slice(0, 2).map(x => x[0] || '').join('').toUpperCase() || '?';
+  const couleurDe = nom => PAIE_COULEURS[[...String(nom || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % PAIE_COULEURS.length];
+  function paieATraiter(data, todayIso) {
+    const t = todayIso || today(), dans60 = addDays(t, 60), L = [];
+    (data.employees || []).filter(e => e.active !== false && !(e.endDate && e.endDate < t)).forEach(e => {
+      const base = { salarie: e.id, vue: 'salaries', initiales: initialesDe(e.name), couleur: couleurDe(e.name) };
+      if ((e.method || 'virement') !== 'especes' && !String(e.iban || '').trim()) L.push({ ...base, focus: 'iban', titre: `${e.name} : RIB à demander`, dit: 'payé par virement : sans RIB, le salaire ne peut pas partir', geste: 'Compléter' });
+      if (!String(e.cnss || '').trim()) L.push({ ...base, focus: 'cnss', titre: `${e.name} : n° CNSS à demander`, dit: 'la déclaration du trimestre l\'attend', geste: 'Compléter' });
+      if (e.contract === 'cdd' && e.endDate && e.endDate >= t && e.endDate <= dans60) L.push({ ...base, focus: '', titre: `Le CDD de ${e.name} finit le ${fmtDate(e.endDate)}`, dit: 'le renouveler, ou préparer sa sortie', geste: 'Décider' });
+    });
+    return L;
+  }
+
   // 10.12.0 — la première pièce datée APRÈS un mois (vente émise, achat, bulletin). Un paquet vide
   // disait « commence par émettre une facture » à une entreprise qui en avait émis en septembre :
   // un état vide dit SA raison, et le jour où ça changera (E-06).
@@ -11699,7 +11751,7 @@
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
-    moisDePaie, anneesDePaie, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
+    moisDePaie, anneesDePaie, paieDuMois, paieATraiter, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
     stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,
