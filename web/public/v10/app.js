@@ -19120,7 +19120,7 @@
             : `<th>Salarié</th><th>Contrat</th><th>N° CNSS</th><th>RIB</th><th class="r">Brut de base</th><th class="r">Coût ${info('pay.employerCost')}</th>`}</tr></thead><tbody>
           ${salPage.rows.map(filtre === 'sortis' ? ligP : lig).join('')}</tbody>
           ${filtre === 'sortis' ? '' : `<tfoot><tr class="total-row"><td><b>${pl(enPoste.length, 'salarié')} en poste</b><small>${traiter.length ? `${pl(traiter.length, 'chose')} à compléter` : 'rien à compléter'}</small></td><td colspan="3"></td>
-            <td class="r nw"><b>${C.money(C.round3(enPoste.reduce((a, e) => a + (Number(e.grossSalary) || 0), 0)), cur)}</b></td><td class="r nw"><b>${C.money(C.round3(enPoste.reduce((a, e) => a + coutDe(e), 0)), cur)}</b></td></tr></tfoot>`}</table></div>${pagerBar(salPage.pg, { noun: 'salarié' })}`
+            <td class="r nw"><b>${C.money(C.round3(enPoste.reduce((a, e) => a + (Number(e.grossSalary) || 0), 0)), cur)}</b></td><td class="r nw"><b>${C.money(C.round3(enPoste.reduce((a, e) => a + estime(e).employerCost, 0)), cur)}</b></td></tr></tfoot>`}</table></div>${pagerBar(salPage.pg, { noun: 'salarié' })}`
           : `<div class="empty">${q ? `Aucun salarié ne répond à « ${h(s.qsal)} ».` : filtre === 'sortis' ? 'Aucun salarié parti.' : 'Aucun salarié en poste.'}</div>`}</section>
         <p class="small muted pa-note">Le coût est ce que le salarié coûte vraiment : le brut plus les charges de l'employeur. Le registre du personnel est sous « Salariés », et les documents de chacun sur sa fiche.</p>`;
       $$('#p-body tr[data-eid]').forEach(tr => { tr.onclick = () => navigate('#/salarie/' + tr.dataset.eid); tr.onkeydown = ev => { if (ev.key === 'Enter') navigate('#/salarie/' + tr.dataset.eid); }; });

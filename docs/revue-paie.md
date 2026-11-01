@@ -47,12 +47,12 @@ le traite. Ce qui est incertain (droit du travail, CNSS, fiscal) est écrit **À
 
 1. **R1 — l'argent juste** (fait, 1.228.0) : payer la CNSS et la retenue (montant, compte, mouvement de trésorerie, « Annuler ») ;
    la déclaration mensuelle marquée déposée et payée ; un virement rejeté remis « à payer » avec sa raison.
-2. **R2 — la fiche complète** : e-mail, naissance, adresse, téléphone, catégorie/échelon, période d'essai, temps
+2. **R2 — la fiche complète** (fait, 1.229.0) : e-mail, naissance, adresse, téléphone, catégorie/échelon, période d'essai, temps
    partiel ; un salaire qui change à une date, avec son historique.
-3. **R3 — corriger sans réécrire** : le bulletin rectificatif daté, le rappel d'une augmentation passée, la saisie sur
+3. **R3 — corriger sans réécrire** (fait, 1.230.0) : le bulletin rectificatif daté, le rappel d'une augmentation passée, la saisie sur
    salaire, la simulation d'une embauche.
-4. **R4 — les cas du quotidien** : l'arrêt maladie, l'import des salariés par tableur.
-5. **R5 — la plateforme autour** : aide et visites à jour, recherche, droits avant le geste, hors ligne, accueil.
-6. **R6 — finitions UI/UX** : téléphone, pointage, fiche, états vides, sombre ; nouvelles photos contre la maquette.
+4. **R4 — les cas du quotidien** (fait, 1.231.0) : l'arrêt maladie, l'import des salariés par tableur.
+5. **R5 — la plateforme autour** (fait, 1.232.0) : aide et visites à jour, recherche, droits avant le geste, hors ligne, accueil.
+6. **R6 — finitions UI/UX** (fait, 1.233.0 ; photos de la vérification finale) : téléphone, pointage, fiche, états vides, sombre ; nouvelles photos contre la maquette.
 
 Ensuite seulement : la revue du Cabinet (écrire une correction, voir le bon à payer).

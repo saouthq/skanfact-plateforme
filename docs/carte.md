@@ -246,7 +246,11 @@ vaut pour tout le dépôt.*
     photos contre la maquette (1.227.0 ; `controlesDuMois` dans `core.js`, `bandeauxDuMois`/`approuverBulletins`/
     `accepterCorrection`/`refuserCorrection`/`demanderCorrection`/`bapExige` dans `app.js`, `tests/web/paie-bon-a-payer.test.ts`) ;
     revue de la paie (`docs/revue-paie.md`), lot R1 : la CNSS et la retenue payées, un virement rejeté (1.228.0 ; `montantSocial`
-    dans `core.js`, `payerDeclarationFenetre`/`annulerPaiementSalaire`, `tests/moteur/paie-declarations-payees.test.ts`).
+    dans `core.js`, `payerDeclarationFenetre`/`annulerPaiementSalaire`, `tests/moteur/paie-declarations-payees.test.ts`) ;
+    lots R2 à R6 : la fiche complète et le salaire daté, régulariser, le rappel, la saisie sur salaire, la simulation d'une
+    embauche, l'arrêt maladie, l'import des salariés, la recherche, la lecture seule, l'accueil, le téléphone (1.229.0 à 1.233.0 ;
+    `brutDuMois`/`regulsDuMois`/`saisiesOf` dans `compta.js`, `regularisationFenetre`/`saisieFenetre`/`simulationEmbauche`,
+    `tests/moteur/paie-corriger-sans-reecrire.test.ts`, `tests/web/paie-revue-ecrans.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

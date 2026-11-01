@@ -15680,8 +15680,8 @@ prouver 'un fournisseur importé hors du modèle vierge' 'web/public/v10/core.js
   'fournisseurs ? clientVierge(l.objet) :' \
   'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
 prouver 'les fournisseurs rangés parmi les clients' 'web/public/v10/core.js' \
-  'const liste = clients ? data.clients : fournisseurs ? data.suppliers : data.catalog;' \
-  'const liste = clients || fournisseurs ? data.clients : data.catalog;' \
+  'const liste = clients ? data.clients : fournisseurs ? data.suppliers : salaries ? data.employees : data.catalog;' \
+  'const liste = clients || fournisseurs ? data.clients : salaries ? data.employees : data.catalog;' \
   'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
 prouver 'un RIB sans titre pris pour un téléphone' 'web/public/v10/core.js' \
   'else if (type === '"'"'fournisseurs'"'"' && part(i, x => /^\d{20}$/.test(x.replace(/[\s.-]/g, '"'"''"'"'))) >= 0.6) out[i] = '"'"'rib'"'"';' \
@@ -15717,8 +15717,8 @@ prouver 'l'"'"'import absent de la page vide des fournisseurs' web/public/v10/ap
   '<button class="btn" id="vide-import-f">${lfIc('"'"'importer'"'"', 15)} Importer depuis un tableur</button>' '' \
   'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
 prouver '« Annuler » qui garde les fournisseurs importés' 'web/public/v10/app.js' \
-  'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'suppliers'"'"' }[type];' \
-  'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'clients'"'"' }[type];' \
+  'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'suppliers'"'"', salaries: '"'"'employees'"'"' }[type];' \
+  'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'clients'"'"', salaries: '"'"'employees'"'"' }[type];' \
   'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
 prouver 'un fournisseur « importée »' 'web/public/v10/app.js' \
   '`${T.un} importé${type === '"'"'catalogue'"'"' ? '"'"'e'"'"' : '"'"''"'"'}`, `${T.des} importé${type === '"'"'catalogue'"'"' ? '"'"'e'"'"' : '"'"''"'"'}s`' \
@@ -16353,8 +16353,8 @@ prouver 'une fiche estimée sans ses primes' 'web/public/v10/core.js' \
   'return { bonuses: [] };' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
 prouver 'le bulletin du mois sans les primes de la fiche' 'web/public/v10/core.js' \
-  'bonuses: primesDuMois(employee, total - hors - absentDays, total), deductions, prorata };' \
-  'bonuses: [], deductions, prorata };' \
+  'bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.regulsDuMois(employee, year, month)], deductions, prorata };' \
+  'bonuses: [...Compta.regulsDuMois(employee, year, month)], deductions, prorata };' \
   'le bulletin du mois reprend les primes de la fiche : au prorata d'"'"'une absence non payée, et d'"'"'une entrée en cours de mois'
 prouver 'des primes au jour qui oublient l'"'"'absence non payée' 'web/public/v10/core.js' \
   'primesDuMois(employee, total - hors - absentDays, total)' \
@@ -16957,8 +16957,8 @@ prouver 'un mois pointé sans ses heures supplémentaires au bulletin nouveau' '
   'return i;' \
   'le mois pointé : ses absences, sa demi-journée et ses heures supplémentaires arrivent au bulletin'
 prouver 'la prime au jour d'"'"'un bulletin nouveau sur le mois entier' 'web/public/v10/compta.js' \
-  'bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata,' \
-  'bonuses: primesDuMois(employee, total, total), prorata,' \
+  'bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...regulsDuMois(employee, year, month)], prorata,' \
+  'bonuses: [...primesDuMois(employee, total, total), ...regulsDuMois(employee, year, month)], prorata,' \
   'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
 prouver 'les congés tous payés, quelle que soit leur nature' 'web/public/v10/compta.js' \
   'const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };' \
@@ -17156,8 +17156,8 @@ prouver 'la veille qui mesure tous les disques quand aucun chemin réglé n'"'"'
 
 # 1.71.0 : les avances sur salaire au Cabinet.
 prouver 'la saisie du mois du Cabinet sans les échéances des avances' 'web/public/v10/compta.js' \
-  '      deductions: echeancesDuMois(data, employee.id, year, month) };' \
-  '      deductions: [] };' \
+  '      deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month)] };' \
+  '      deductions: [...saisiesDuMois(data, employee, year, month)] };' \
   'deux chemins, un chiffre : le bulletin nouveau du Cabinet retient ce que celui de l'"'"'entreprise retient'
 prouver 'l'"'"'échéance qui prend la retenue convenue même quand il reste moins' 'web/public/v10/compta.js' \
   'amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))' \
@@ -22191,6 +22191,71 @@ prouver 'paie 1.228 d : la déclaration payée ne garde pas son montant' web/pub
 prouver 'paie 1.228 e : un virement rejeté reste payé' web/public/v10/app.js \
   "          q.paidDate = ''; q.accountId = '';" "          q.accountId = '';" \
   "$WR1W"
+
+# Revue de la paie, lots R2 à R6 (1.229.0 à 1.233.0) : chaque défaut remis fait tomber son test.
+WR2S="le mois d'avant garde l'ancien brut, le mois d'après prend le nouveau, par les deux chemins"
+WR3R="entre sur le bulletin de son mois, et de lui seul ; imposable, elle entre dans l'assiette"
+WR3S="se retient chaque mois jusqu'à son total, jamais au-delà, par les deux chemins"
+WR3V="versée au créancier, elle sort de la trésorerie, et la banque du grand livre bouge comme elle"
+WR4I="lit les titres, les dates jour/mois/année et les montants ; refuse et dit pourquoi ; ne double pas un CIN"
+WR5A="une correction proposée, des bulletins à approuver, une demande de congé, un certificat, une saisie à verser"
+WRW1="un bulletin payé se régularise sur le mois suivant, sans changer"
+WRW2="une saisie sur salaire se note et se lit sur la fiche ; la simulation d'une embauche ; la recherche d'un salarié"
+WRW3="importer ses salariés depuis la page vide ; un arrêt maladie et son certificat ; un seul mois au pointage"
+prouver 'paie 1.229 a : un bulletin passé prend le salaire d après' web/public/v10/compta.js \
+  "    const vu = L.filter(x => x.des <= ym).pop();" "    const vu = L[L.length - 1];" \
+  "$WR2S"
+prouver 'paie 1.230 a : une régularisation entre sur tous les mois' web/public/v10/compta.js \
+  "filter(r => r && r.pourMois === ym && Number(r.amount))" "filter(r => r && Number(r.amount))" \
+  "$WR3R"
+prouver 'paie 1.230 b : une saisie retient au-delà de son total' web/public/v10/compta.js \
+  "amount: round3(Math.min(x.monthly || x.reste, x.reste)), saisieId: x.id" "amount: round3(x.monthly || x.reste), saisieId: x.id" \
+  "$WR3S"
+prouver 'paie 1.230 c : le versement au créancier ne sort pas de la trésorerie' web/public/v10/core.js \
+  "      if (!montant || !v.date || !inPeriod(v.date, period && period.from, period && period.to) || !keep(v.accountId)) return;" "      if (true) return;" \
+  "$WR3V"
+prouver 'paie 1.230 d : le versement au créancier n entre pas au grand livre' web/public/v10/core.js \
+  "          const label = \`Saisie sur salaire \${emp.name || ''}\`.trim();" "          const label = \`Saisie sur salaire \${emp.name || ''}\`.trim(); if (label) return;" \
+  "$WR3V"
+prouver 'paie 1.230 e : régulariser ne touche pas le bulletin du mois suivant' web/public/v10/app.js \
+  "Number(p.year) === yy && Number(p.month) === mm && !p.paidDate);" "Number(p.year) === yy && Number(p.month) === mm && false);" \
+  "$WRW1"
+prouver 'paie 1.230 f : un bulletin payé s offre à la réécriture' web/public/v10/app.js \
+  "label: 'Modifier le bulletin payé'" "label: 'Modifier le bulletin'" \
+  "$WRW1"
+prouver 'paie 1.230 g : une saisie sans créancier s enregistre' web/public/v10/app.js \
+  "        if (!String(v.creancier || '').trim()) return refus(" "        if (false) return refus(" \
+  "$WRW2"
+prouver 'paie 1.230 h : la simulation donne le brut pour le coût' web/public/v10/app.js \
+  '<span><b>Coût par mois</b></span><span class="num"><b>${C.money(c.employerCost, cur)}</b>' '<span><b>Coût par mois</b></span><span class="num"><b>${C.money(c.gross, cur)}</b>' \
+  "$WRW2"
+prouver 'paie 1.231 a : un salarié sans embauche s importe' web/public/v10/core.js \
+  "        if (ligne.statut !== 'refus' && !obj.hireDate) refus(" "        if (false) refus(" \
+  "$WR4I"
+prouver 'paie 1.231 b : un CIN déjà là se double' web/public/v10/core.js \
+  "    if (ca && cb) return ca === cb;" "    if (ca && cb) return false;" \
+  "$WR4I"
+prouver 'paie 1.231 c : l import des salariés perd leur embauche' web/public/v10/core.js \
+  "contract: o.contract || 'cdi', hireDate: o.hireDate, endDate: ''," "contract: o.contract || 'cdi', endDate: ''," \
+  "$WRW3"
+prouver 'paie 1.231 d : l arrêt maladie oublie son certificat' web/public/v10/core.js \
+  "l.statut !== 'refuse' && !l.certificatLe && l.to" "l.statut !== 'refuse' && l.to" \
+  "$WR5A"
+prouver 'paie 1.231 e : les papiers de l arrêt restent sur un congé' web/public/v10/app.js \
+  "\$('#lf-maladie', root).hidden = formValues(\$('#lf', root)).kind !== 'maladie'; hint();" "hint();" \
+  "$WRW3"
+prouver 'paie 1.232 a : un bulletin en correction s approuve' web/public/v10/core.js \
+  "modeP(p) === 'tenue' && !(p.correction && !p.correction.reponse)" "modeP(p) === 'tenue'" \
+  "$WR5A"
+prouver 'paie 1.232 b : la recherche ignore les salariés' web/public/v10/app.js \
+  "...fournisseurs, ...salaries, ...items" "...fournisseurs, ...items" \
+  "$WRW2"
+prouver 'paie 1.232 c : sans réseau la paie offre son geste' web/public/v10/app.js \
+  "      if (prin && navigator.onLine === false) prin = prin.replace(" "      if (false) prin = prin.replace(" \
+  "$WRW3"
+prouver 'paie 1.233 a : le pointage garde deux sélecteurs de mois' web/public/v10/app.js \
+  "s.tab === 'bulletins' || s.tab === 'pointage' ? \`<select" "s.tab === 'bulletins' ? \`<select" \
+  "$WRW3"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

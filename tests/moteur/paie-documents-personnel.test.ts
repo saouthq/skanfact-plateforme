@@ -68,7 +68,7 @@ describe('les documents du personnel, dans le moteur commun', () => {
     expect(doc).toContain('Solde de congés non pris au départ : 10,5 jours , soit 525,504 DT sur la base du dernier salaire');
     // core.js reprend la liste du moteur commun : une seule copie.
     expect(core.HR_DOCS).toEqual(compta.HR_DOCS);
-    expect(compta.HR_DOCS.map((d) => d[0])).toEqual(['attestation', 'certificat', 'solde']);
+    expect(compta.HR_DOCS.map((d) => d[0])).toEqual(['contrat', 'avenant', 'attestation', 'certificat', 'salaire', 'annuelle', 'essai', 'solde']);
   });
 
   it('la civilité : « Madame » et l\'accord, « Monsieur », rien quand elle manque', () => {

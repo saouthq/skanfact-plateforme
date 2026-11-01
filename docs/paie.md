@@ -1488,3 +1488,62 @@ jamais de la trésorerie, et que le grand livre gardait leurs dettes pour toujou
 - `tests/moteur/paie-declarations-payees.test.ts` (trésorerie et grand livre au millime) ; `tests/web/paie-bon-a-payer.test.ts`
   (« la retenue du mois déposée et payée ; un virement de salaire rejeté redevient à payer ») ; preuves « paie 1.228 ».
 
+
+## Revue de la paie — lot R2 : la fiche complète, un salaire daté (01/11/2026, 1.229.0)
+
+- **La fiche** porte l'e-mail (celui de « Remettre »), la date de naissance, l'adresse, le téléphone, la catégorie ou
+  l'échelon, la fin de la période d'essai et l'horaire d'un temps partiel (À VÉRIFIER : la liste exacte que le registre et
+  la déclaration annuelle demandent). L'e-mail et l'horaire se contrôlent à la saisie.
+- **Un salaire qui change à une date** : sur un salarié déjà payé, changer le brut demande « à partir de » (un mois) ; la
+  fiche garde `salaires` ([{ des, brut, avant, le }]). Le brut d'un mois est celui du dernier changement entré en vigueur
+  ce mois-là ou avant (`brutDuMois`, `employeAuMois` dans `compta.js`, que les deux chemins lisent : `payslipInputFor` et
+  `saisieDuMois`). Un bulletin d'un mois passé, refait plus tard, garde l'ancien brut. L'historique de la fiche le dit.
+
+## Revue de la paie — lot R3 : corriger sans réécrire (01/11/2026, 1.230.0)
+
+- **Régulariser** : un bulletin payé n'offre plus « Modifier » tout court mais « Régulariser sur un mois suivant… ». La
+  somme (à ajouter ou à retirer, imposable ou non, avec son motif) se porte sur le premier mois suivant qui n'est pas payé
+  (`employee.regularisations`, `regulsDuMois` dans `compta.js`). Si son bulletin existe, il la reçoit et se recalcule (il
+  perd son bon à payer) ; sinon, elle l'attend. Le bulletin payé ne change pas. À VÉRIFIER : l'impôt d'un rappel se
+  calcule-t-il sur le mois qui le paie (ce que fait SkanFact) ou se répartit-il sur les mois qu'il couvre ?
+- **Le rappel d'une augmentation passée** : un salaire daté d'un mois passé refait les bulletins de ces mois pas encore
+  payés, et propose, pour ceux déjà payés, un rappel de la différence sur le premier mois libre (« Annuler » défait).
+- **La saisie sur salaire** (une décision de justice, une pension alimentaire) : sur la fiche, le créancier, le total, la
+  retenue de chaque mois, à partir de quand (`employee.saisies`, `saisiesOf`/`saisiesDuMois`). La retenue se fait seule sur
+  chaque bulletin nouveau, jamais au-delà du total. « Verser au créancier » sort l'argent de la trésorerie
+  (`source: 'saisie'`, pointable) et du 425 au grand livre (À VÉRIFIER : un compte d'oppositions distinct ; la part du
+  salaire que la loi permet de saisir n'est pas plafonnée ici).
+- **Combien coûte une embauche ?** (menu ⊕ de la paie) : le brut, le contrat et la situation donnent le net et le coût par
+  le calcul des bulletins ; rien ne s'enregistre ; « Ajouter ce salarié… » ouvre la fiche pré-remplie.
+
+## Revue de la paie — lot R4 : l'arrêt maladie, l'import (01/11/2026, 1.231.0)
+
+- **L'arrêt maladie** : la fenêtre d'une absence de cette nature montre le certificat reçu le et l'envoi à la CNSS ; qui
+  paie ces jours se dit par « Effet sur le salaire » (rien n'est inventé : À VÉRIFIER avec la convention collective, les
+  jours de carence, le délai du certificat). « À traiter » rappelle un arrêt des trois derniers mois sans certificat.
+- **Importer ses salariés depuis un tableur** (page vide, menu ⊕, recherche) : le moteur d'import des clients et des
+  fournisseurs (`planImport`/`appliquerImport`, type `salaries`) ; titres des tableaux de paie reconnus, dates jour/mois/année
+  (ou le numéro de jour d'Excel), refus dits (nom, embauche, brut), un CIN déjà là reconnu, jamais doublé.
+
+## Revue de la paie — lot R5 : la plateforme autour (01/11/2026, 1.232.0)
+
+- **Aide** : les textes des vues (Le mois, pointage, horaires, l'année, déclarations) disent ce qu'elles font aujourd'hui.
+- **Recherche** : les salariés par leur nom, leur poste, leur CIN ; « Payer », « Établir », « Remettre », « Approuver les
+  bulletins du mois », « Nouveau salarié », « Importer mes salariés », « Combien coûte une embauche ? ».
+- **Lecture seule** : un membre qui ne peut pas écrire la paie ne voit ni le bouton principal, ni « Marquer payé », ni les
+  gestes des bandeaux, ni ceux de la fiche ; un bandeau dit pourquoi.
+- **Hors ligne** : la paie reste en ligne (`docs/hors-ligne.md`) et le dit ; son geste principal attend la connexion.
+- **Accueil** : une correction proposée, des bulletins à approuver (le cabinet tient la paie), une demande de congé.
+
+## Revue de la paie — lot R6 : finitions (01/11/2026, 1.233.0)
+
+- Au téléphone, un bulletin du mois est une carte simple (qui, ce qui change, le net) ; le geste du mois reste en bas.
+- Le pointage prend son mois à côté de l'année : il n'a plus de second sélecteur dans sa carte.
+
+### Ce qui prouve R2 à R6
+
+- `tests/moteur/paie-corriger-sans-reecrire.test.ts` (salaire daté, régularisation, saisie et ses deux chemins, import,
+  accueil et « À traiter ») ; `tests/web/paie-revue-ecrans.test.ts` (régulariser, saisie, simulation, recherche, import,
+  arrêt maladie, un seul mois au pointage) ; preuves « paie 1.229 » à « paie 1.233 ».
+- **Ce qui part au serveur** (sur la fiche du salarié) : ses coordonnées et son historique de salaire, ses régularisations,
+  ses saisies et leurs versements ; sur une absence, les dates du certificat et de son envoi. Rien vers un tiers.
