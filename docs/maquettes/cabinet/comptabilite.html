@@ -604,14 +604,14 @@ table.rdp td:first-child { font-weight: 600; }
   const GROUPES = [['saisir', 'Saisir', ['saisie', 'banque', 'paie', 'immos', 'inventaire']], ['consulter', 'Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['cloturer', 'Déclarer et clôturer', ['declaration', 'revision', 'exercice', 'liasse']]];
   // L'état choisi en haut → l'écran qu'il montre. Les fenêtres et les états gardent l'écran de la saisie.
   const ECRAN_DE = { valider: 'saisie', joindre: 'saisie', brouillard: 'saisie', rimsaisie: 'saisie', kilometre: 'saisie', defile: 'saisie', 'barre-ouverte': 'saisie', 'barre-repliee': 'saisie', ecrire: 'banque', ventiler: 'banque', bqvide: 'banque', savide: 'saisie', bqimport: 'banque', bqregles: 'banque', bqmenu: 'banque', bqecart: 'banque', bqfaites: 'banque', bqetat: 'banque', bqimportko: 'banque', bqcolonnes: 'banque', saverif: 'saisie', sareclasse: 'saisie', sadevise: 'saisie', bqapres: 'banque', bqfini: 'banque', hors: 'saisie', lecture: 'saisie', chargement: 'saisie', refus: 'saisie', invite: 'saisie', guidemoi: 'saisie', info: 'saisie', deposer: 'declaration', nouveau: 'saisie',
-    paievide: 'paie', paiepointage: 'paie', paieverif: 'paie', paieapres: 'paie', paiesalaries: 'paie', paieconges: 'paie', paiecnss: 'paie', paieannee: 'paie' };
+    paievide: 'paie', paiepointage: 'paie', paieverif: 'paie', paieaccord: 'paie', paiepropose: 'paie', paiesortie: 'paie', paierappel: 'paie', paieapres: 'paie', paiesalaries: 'paie', paieconges: 'paie', paiecnss: 'paie', paieannee: 'paie' };
   const ecran = () => ECRAN_DE[s.etat] || (ECRANS[s.etat] ? s.etat : 'saisie');
   const groupe = () => GROUPES.find((g) => g[2].includes(ecran()));
   // Ce que chaque onglet compte : ce qui attend sur cet écran.
   const COMPTE = { declaration: 2, revision: 4,
     get saisie() { return s.etat === 'savide' ? 0 : 6; },
     get banque() { return ({ bqapres: 7, bqfini: 0, bqvide: 0 })[s.etat] ?? 8; },
-    get paie() { return ({ paieapres: 0, paievide: 0, paieverif: 1 })[s.etat] ?? 4; } };
+    get paie() { return ({ paieapres: 0, paievide: 0, paieverif: 1, paiepropose: 1, paieaccord: 1 })[s.etat] ?? 4; } };
 
   // ---------- les morceaux ----------
   function annee() {
@@ -1563,11 +1563,11 @@ table.rdp td:first-child { font-weight: 600; }
   PA_T3.total = PA_T3.sal + PA_T3.emp + PA_T3.acc;
   // Ce qui change ce mois, par salarié : [ton, ce qui change, d'où ça vient].
   const PA_CH = { mt: ['ambre', '8 h sup', 'la semaine du 19/10, au pointage de Sarra'], kz: ['', 'comme septembre', ''],
-    nb: ['ambre', '2 jours sans solde', 'les 15 et 16/10, au pointage'], hm: ['', 'avance : 2e retenue sur 3', 'il restera 100,000 en novembre'],
+    nb: ['ambre', '2 jours sans solde', 'les 16 et 17/10, au pointage'], hm: ['', 'avance : 2e retenue sur 3', 'il restera 100,000 en novembre'],
     sa: ['bleu', 'entrée le 13/10', '17 jours sur 26 · n° CNSS à demander'] };
   const PA_SARRA = PA_SAL.map((x) => (x.k === 'hm' ? { ...x, ded: 0, net: x.net + x.ded } : x));
-  const PA_SEL = { paie: 'mt', paieverif: 'hm', paieapres: 'mt', paiesalaries: 'sa' };
-  const paSel = () => (s.etat === 'paieverif' ? PA_SARRA : PA_SAL).find((x) => x.k === (PA_SEL[s.etat] || 'mt'));
+  const PA_SEL = { paie: 'mt', paieaccord: 'mt', paieverif: 'hm', paiepropose: 'hm', paieapres: 'mt', paiesalaries: 'sa' };
+  const paSel = () => (['paieverif', 'paiepropose'].includes(s.etat) ? PA_SARRA : PA_SAL).find((x) => x.k === (PA_SEL[s.etat] || 'mt'));
   const paAv = (x, t = 30) => `<span class="pa-av" style="--c:${x.c};width:${t}px;height:${t}px">${x.ini}</span>`;
   const PA_CSS = `<style>
       .pa-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -1661,6 +1661,8 @@ table.rdp td:first-child { font-weight: 600; }
       .pa-pt th, .pa-pt td { padding: 6px 0; text-align: center; min-width: 25px; border-bottom: 1px solid var(--sb-trait); font-variant-numeric: tabular-nums; }
       .pa-pt th { color: var(--sb-gris); font-weight: 600; font-size: 11px; }
       .pa-pt th.di, .pa-pt td.di { background: var(--sb-survol); color: var(--sb-gris-2); }
+      .pa-pt th.fe, .pa-pt td.fe { background: color-mix(in srgb, #3f6fd8 7%, var(--sb-papier)); color: #3f6fd8; }
+      .pa-pt td i.f { background: color-mix(in srgb, #3f6fd8 12%, var(--sb-papier)); color: #3f6fd8; }
       .pa-pt td.nm { text-align: left; padding: 6px 10px; min-width: 170px; white-space: nowrap; position: sticky; left: 0; background: var(--sb-papier); }
       .pa-pt td.tt { min-width: 64px; font-weight: 600; padding: 0 8px; white-space: nowrap; }
       .pa-pt td i { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font-style: normal; font-weight: 700; font-size: 10.5px; }
@@ -1707,14 +1709,14 @@ table.rdp td:first-child { font-weight: 600; }
 
   // L'en-tête de la paie : le mois, qui la tient, et les cinq vues (le mois, les salariés, les congés et avances, la CNSS, l'année).
   function paieTete(titre, sous) {
-    const vue = { paiesalaries: 'paiesalaries', paieconges: 'paieconges', paiecnss: 'paiecnss', paieannee: 'paieannee' }[s.etat] || 'paie';
+    const vue = { paiesalaries: 'paiesalaries', paiesortie: 'paiesalaries', paieconges: 'paieconges', paiecnss: 'paiecnss', paieannee: 'paieannee' }[s.etat] || 'paie';
     const V = [['paie', 'Le mois', ''], ['paiesalaries', 'Salariés', '5'], ['paieconges', 'Congés et avances', ''], ['paiecnss', 'CNSS du trimestre', '1'], ['paieannee', 'L\'année', '']];
     return `<div class="pa-h${tel() ? ' mob' : ''}"><div><b>${titre}</b><span class="mu">${sous}</span></div>
       <div class="pa-so" role="group" aria-label="La paie">${V.map(([e, t, n]) => `<button type="button" data-etat="${e}" aria-pressed="${vue === e}">${t}${n ? `<small>${n}</small>` : ''}</button>`).join('')}</div></div>`;
   }
   // La frise du mois : cinq étapes, et le seul bouton principal à droite, l'étape suivante.
   function paieFrise(rang, geste) {
-    const E = [['Pointage', s.etat === 'paievide' ? 'attendu de Sarra · d\'habitude le 27' : 'reçu de Sarra le 27/10'], ['Bulletins', rang > 1 ? '5 validés ce matin' : s.etat === 'paieverif' ? 'faits par Sarra le 27/10 · 1 à corriger' : rang === 1 ? '5 préparés · 3 changent' : '5 à préparer, dont 1 entrée'], ['Écriture de paie', rang > 2 ? 'PAIE-2026-10 · validée' : rang > 1 ? 'au brouillard · se valide le 31/10' : 'datée du 31/10'],
+    const E = [['Pointage', s.etat === 'paievide' ? 'attendu de Sarra · d\'habitude le 27' : 'reçu de Sarra le 27/10'], ['Bulletins', rang > 1 ? '5 validés ce matin' : s.etat === 'paieverif' ? 'faits par Sarra le 27/10 · 1 à corriger' : s.etat === 'paiepropose' ? 'faits par Sarra · 1 correction proposée' : s.etat === 'paieaccord' ? 'approuvés par Sarra à 11 h 40' : rang === 1 ? '5 préparés · contrôlés · à envoyer à Sarra' : '5 à préparer, dont 1 entrée'], ['Écriture de paie', rang > 2 ? 'PAIE-2026-10 · validée' : rang > 1 ? 'au brouillard · se valide le 31/10' : 'datée du 31/10'],
       ['Salaires payés', 'par Sarra, d\'ici le 31/10'], ['Déclarés', 'IRPP et CSS avec octobre · CNSS en janvier']];
     return `<div class="pa-frw"><div class="cp-fr" style="grid-template-columns:repeat(${tel() ? 2 : 5}, minmax(0, 1fr))">${E.map(([t, d], i) => `<div class="cp-fr-e ${i < rang ? 'fait' : i === rang ? 'ici' : ''}"><span class="cp-fr-r">${i < rang ? IC.ok : i + 1}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div>
       ${geste ? `<div class="cp-gestes">${geste}</div>` : ''}</div>`;
@@ -1785,24 +1787,64 @@ table.rdp td:first-child { font-weight: 600; }
     if (s.etat === 'paieconges') return paieConges();
     if (s.etat === 'paiecnss') return paieCnss();
     if (s.etat === 'paieannee') return paieAnnee();
-    const verif = s.etat === 'paieverif';
+    if (s.etat === 'paiesortie') return paieSortie();
+    if (s.etat === 'paierappel') return paieRappel();
+    const propose = s.etat === 'paiepropose', accord = s.etat === 'paieaccord';
+    const verif = s.etat === 'paieverif' || propose;
     const sel = paSel();
-    const geste = verif
-      ? `<button type="button" class="btn btn-primary"${bloque()}>${IC.msg} Le dire à Sarra <kbd class="pa-kb">Entrée</kbd></button>`
+    const geste = propose ? '<button type="button" class="btn" disabled title="La correction attend l\'accord de Sarra">En attente de Sarra</button>'
+      : verif ? `<button type="button" class="btn btn-primary"${bloque()}>${IC.msg} Proposer la correction à Sarra <kbd class="pa-kb">Entrée</kbd></button>`
       : rim() ? '<button type="button" class="btn" disabled title="Rim prépare ; Anis valide la paie">Anis valide</button>'
-        : `<button type="button" class="btn btn-primary"${bloque('valider')}>Valider les 5 bulletins <kbd class="pa-kb">Entrée</kbd></button>`;
+        : accord ? `<button type="button" class="btn btn-primary"${bloque('valider')}>Valider les 5 bulletins <kbd class="pa-kb">Entrée</kbd></button>`
+        : `<button type="button" class="btn btn-primary"${bloque()}>${IC.msg} Envoyer à Sarra pour accord <kbd class="pa-kb">Entrée</kbd></button>`;
     const ctl = verif
       ? `<div class="pa-ctl"><div class="rouge"><span><b>Hamza Mejri : l'avance n'est pas retenue.</b> Sarra a versé 300,000 le 05/09, à rendre en 3 fois ; septembre en a retenu 100,000, octobre rien. Son net serait de ${m(PA_SAL.find((x) => x.k === 'hm').net)}, pas ${m(PA_SAL.find((x) => x.k === 'hm').net + 100000)}.</span><button type="button" class="btn btn-sm">Voir l'avance</button></div>
-          <div class="gris"><span>Le cabinet ne modifie pas un bulletin fait par Sarra : il le lui dit, elle le corrige dans SkanFact, et la paie revient ici à vérifier. Les 4 autres sont justes.</span></div></div>`
-      : `<div class="pa-ctl"><div class="ambre"><span><b>Salma Ayari n'a pas encore de numéro CNSS.</b> Son bulletin se fait ; la déclaration du 4e trimestre l'attendra (janvier).</span><button type="button" class="btn btn-sm"${bloque()}>${IC.msg} Le demander à Sarra</button><button type="button" class="btn btn-sm btn-ghost"${bloque()}>Le renseigner…</button></div>
+          <div class="gris"><span>Le cabinet ne change un bulletin fait par Sarra qu'avec son accord : il prépare la correction (avant, après), elle l'accepte d'un geste dans SkanFact, et la trace reste. Refusée, elle reste une remarque. Les 4 autres sont justes.</span></div></div>
+        ${propose ? `<div class="pa-sec"><div class="pa-sec-t"><b>La correction proposée à Sarra</b><span class="mu">envoyée à 10 h 05 · elle l'accepte ou la refuse dans SkanFact</span></div><table class="cp-t"><thead><tr><th>Bulletin d'Hamza Mejri</th><th class="r">Fait par Sarra</th><th class="r">Corrigé</th></tr></thead><tbody><tr><td>Avance du 05/09, 2e retenue sur 3</td><td class="r pa-mt">0,000</td><td class="r pa-mt"><b>− 100,000</b></td></tr><tr><td>Net à payer</td><td class="r pa-mt">${m(PA_SAL.find((x) => x.k === 'hm').net + 100000)}</td><td class="r pa-mt"><b>${m(PA_SAL.find((x) => x.k === 'hm').net)}</b></td></tr></tbody></table><div class="cp-gestes"><button type="button" class="btn btn-sm">${IC.msg} La relancer</button><button type="button" class="btn btn-sm btn-ghost">Retirer la proposition</button></div></div>` : ''}`
+      : accord ? `<div class="pa-ctl"><div class="gris"><span><b>Sarra a approuvé les 5 bulletins à 11 h 40</b> (son bon à payer, dans SkanFact). Validés, ils ne changent plus et l'écriture de paie passe au brouillard.</span></div></div>`
+      : `${paieControles()}<div class="pa-ctl"><div class="ambre"><span><b>Salma Ayari n'a pas encore de numéro CNSS.</b> Son bulletin se fait ; la déclaration du 4e trimestre l'attendra (janvier).</span><button type="button" class="btn btn-sm"${bloque()}>${IC.msg} Le demander à Sarra</button><button type="button" class="btn btn-sm btn-ghost"${bloque()}>Le renseigner…</button></div>
           <div class="gris"><span>Heures sup à +25 % : le réglage de ce dossier, posé par Anis le 02/10 (À VÉRIFIER avec la convention collective de la boulangerie).</span><button type="button" class="btn btn-sm btn-ghost">Les réglages de la paie</button></div></div>`;
-    const ch = verif ? { hm: ['rouge', 'avance oubliée', '100,000 de trop sur le net'] } : null;
-    const sous = verif ? 'faite par Sarra dans SkanFact le 27/10 · le cabinet la vérifie (lettre de mission : « vérification de la paie »)' : `5 salariés · tenue au cabinet par Anis · le pointage est arrivé de Sarra le 27/10${rim() ? ' · Rim prépare, Anis valide' : ''}`;
+    const ch = verif ? { hm: ['rouge', 'avance oubliée', propose ? 'correction proposée à Sarra' : '100,000 de trop sur le net'] } : null;
+    const sous = verif ? 'faite par Sarra dans SkanFact le 27/10 · le cabinet la vérifie, et la corrige avec son accord (lettre de mission : « vérification de la paie »)' : accord ? '5 salariés · tenue au cabinet par Anis · approuvée par Sarra à 11 h 40' : `5 salariés · tenue au cabinet par Anis · le pointage est arrivé de Sarra le 27/10${rim() ? ' · Rim prépare, Anis valide' : ''}`;
     return `${PA_CSS}${paieTete(`Paie d'octobre 2026 <span class="cp-per">Octobre ${IC.chev}</span>`, sous)}
       ${paieFrise(1, geste)}${paieChiffres(verif ? PA_SARRA.reduce((t, x) => t + x.net, 0) : PA_OCT.net)}${ctl}
-      <div class="pa2${mob ? ' mob' : ''}"><div>${paieListe(sel.k, verif ? { ch, verifies: ['mt', 'kz', 'nb', 'sa'], sal: PA_SARRA } : {})}</div>${paieBulletin(sel, verif ? { client: true, pied: `<div class="cp-gestes"><button type="button" class="btn btn-sm">${IC.oeil || IC.fiche} Le bulletin (PDF)</button><span class="mu" style="font-size:12px">Le corriger : c'est Sarra, dans SkanFact.</span></div>` } : {})}</div>
+      <div class="pa2${mob ? ' mob' : ''}"><div>${paieListe(sel.k, verif ? { ch, verifies: ['mt', 'kz', 'nb', 'sa'], sal: PA_SARRA } : {})}</div>${paieBulletin(sel, verif ? { client: true, pied: `<div class="cp-gestes"><button type="button" class="btn btn-sm">${IC.oeil || IC.fiche} Le bulletin (PDF)</button><span class="mu" style="font-size:12px">Le corriger : avec l'accord de Sarra, qui l'accepte dans SkanFact.</span></div>` } : {})}</div>
       ${verif ? '' : paieEcriture(PA_OCT, 'PAIE-2026-10 · datée du 31/10 · passée au brouillard à la validation des bulletins, elle se valide à partir du 31/10 (une écriture ne se valide pas avant sa date)')}
       <p class="mu" style="font-size:12.5px;margin:14px 0 0">Septembre : 4 bulletins · l'écriture PAIE-2026-09 est au brouillard du mois (Saisie) · les salaires sont payés le 30/09, rapprochés à la Banque. <button type="button" class="cp-plus">Ouvrir septembre</button></p>`;
+  }
+
+  // Les contrôles avant d'envoyer les bulletins à Sarra : ceux qui demandent un geste en tête, les autres justes.
+  const PA_CTL = [['ambre', 'N° CNSS de chaque salarié', 'Salma : à demander, avant la déclaration de janvier'], ['ambre', 'RIB de chaque salarié payé par virement', 'Salma : en espèces ce mois, contre reçu'],
+    ['ok', 'Aucun salaire sous le SMIG', 'le plus bas : Salma, 780,000 de base (SMIG 2026 : À VÉRIFIER)'], ['ok', 'Aucun net négatif ni nul', ''], ['ok', 'Écarts de plus de 5 % sur septembre expliqués', 'Nadia − 7,0 % : 2 jours sans solde'],
+    ['ok', 'Le 15/10, férié, payé à tous', 'Fête de l\'Évacuation (chômé et payé : À VÉRIFIER)'], ['ok', 'Pointage repris sur chaque bulletin', ''], ['ok', 'Avances retenues', 'Hamza, 2e retenue sur 3'],
+    ['ok', 'Entrées et sorties au prorata', 'Salma, 17 jours sur 26'], ['ok', 'Heures sup sous le plafond', '8 h (plafond : À VÉRIFIER)'], ['ok', 'Taux de 2026 du dossier', 'CNSS 9,68 % et 17,07 %, accident 0,4 %, TFP 2 %, FOPROLOS 1 % (À VÉRIFIER)'],
+    ['ok', 'Bulletins = journal de paie = écriture', 'au millime']];
+  function paieControles() {
+    const g = PA_CTL.filter((c) => c[0] !== 'ok'), ok = PA_CTL.filter((c) => c[0] === 'ok');
+    return `<div class="pa-sec" style="margin-top:0"><div class="pa-sec-t"><b>Les contrôles avant l'envoi à Sarra</b><span class="mu">${PA_CTL.length} contrôles · ${ok.length} justes · ${g.length} à savoir</span></div>
+      <div class="pa-cmp" style="display:grid;grid-template-columns:${tel() ? '1fr' : '1fr 1fr'};gap:4px 18px">${ok.map(([, l, d]) => `<span style="font-size:12.5px"><b class="ok" style="color:var(--sb-sarcelle-texte)">${IC.ok}</b> ${l}${d ? ` <span class="mu">· ${d}</span>` : ''}</span>`).join('')}</div></div>`;
+  }
+  // Le départ d'Hamza le 31/12 : son dernier bulletin, son solde de tout compte, ses documents (les mêmes chiffres que l'entreprise).
+  function paieSortie() {
+    const h = PA_SAL.find((x) => x.k === 'hm'), ind = Math.round(18 * 820000 / 26);
+    return `${PA_CSS}${paieTete('Le départ d\'Hamza Mejri, le 31/12', 'CDD qui arrive à son terme dans 2 mois · le projet se prépare dès maintenant, avec Sarra : le renouveler, ou le laisser finir')}
+      <div class="pa2${tel() ? ' mob' : ' large'}"><div class="pa-sec" style="margin-top:0"><div class="pa-sec-t"><b>Son dernier bulletin, décembre</b><span class="mu">À VÉRIFIER : la règle des congés et l'indemnité de fin de contrat</span></div>
+        <table class="cp-t"><tbody><tr><td>Salaire de décembre<br><small class="mu">comme octobre, sans avance : la dernière retenue se fait en novembre</small></td><td class="r pa-mt">${m(h.gross)}</td></tr>
+          <tr><td>Congés pas pris : 18 jours<br><small class="mu">15 acquis au 31/10, 3 en novembre et décembre · 18 × 820,000 ÷ 26</small></td><td class="r pa-mt">${m(ind)}</td></tr>
+          <tr><td>Indemnité de fin de contrat<br><small class="mu">selon la convention collective de la boulangerie (À VÉRIFIER)</small></td><td class="r pa-mt">—</td></tr></tbody>
+          <tfoot><tr><td>Brut du dernier bulletin</td><td class="r pa-mt">${m(h.gross + ind)}</td></tr></tfoot></table></div>
+        <div class="pa-b"><b>Ce que son départ demande</b><dl class="pa-fi"><dt>Certificat de travail</dt><dd>prêt le 31/12, à remettre</dd><dt>Solde de tout compte</dt><dd>le reçu, signé par Hamza</dd><dt>Attestation de salaires</dt><dd>2026, pour sa déclaration d'impôt</dd><dt>CNSS</dt><dd>sa sortie dans la déclaration du 4e trimestre (janvier)</dd><dt>Le livre</dt><dd>l'indemnité de congés au 640, comme un salaire</dd></dl>
+          <div class="cp-gestes"><button type="button" class="btn btn-primary"${bloque()}>${IC.msg} Envoyer le projet à Sarra</button><button type="button" class="btn btn-sm">Le certificat (PDF)</button></div></div></div>`;
+  }
+  // Une augmentation de branche qui compte depuis le 01/05 : le rappel, salarié par salarié (les mêmes chiffres que l'entreprise).
+  function paieRappel() {
+    const R = [['mt', 72500, 6, 435000, ''], ['kz', 55000, 6, 330000, ''], ['nb', 39000, 6, 231000, 'octobre : 24 jours sur 26'], ['hm', 36000, 6, 216000, ''], ['sa', 39000, 1, 25500, 'entrée le 13/10 : 17 jours sur 26']];
+    const tot = R.reduce((a, r) => a + r[3], 0);
+    return `${PA_CSS}${paieTete('Un rappel de salaire : + 5 % depuis le 01/05', 'exemple : l\'accord de la branche paraît en novembre et compte depuis mai · taux et date saisis par Anis, ceux de l\'accord publié (À VÉRIFIER)')}
+      <div class="pa-sec" style="margin-top:0"><div class="pa-sec-t"><b>Le rappel, salarié par salarié</b><span class="mu">la différence de mai à octobre, sur le bulletin de novembre</span></div>
+        <table class="cp-t"><thead><tr><th>Salarié</th><th class="r">+ par mois</th><th class="r">Mois</th><th class="r">Rappel brut</th></tr></thead><tbody>${R.map(([k, a, n, r, d]) => `<tr><td><b>${esc(PA_SAL.find((x) => x.k === k).nom)}</b>${d ? `<br><small class="mu">${d}</small>` : ''}</td><td class="r pa-mt">${m(a)}</td><td class="r pa-mt">${n}</td><td class="r pa-mt"><b>${m(r)}</b></td></tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="3">Rappel de novembre</td><td class="r pa-mt">${m(tot)}</td></tr></tfoot></table>
+        <div class="pa-ctl" style="margin:10px 0 0"><div class="gris"><span>Le rappel est un salaire : il porte la CNSS (4e trimestre) et l'impôt ; la façon d'imposer un rappel de plusieurs mois (étalé ou non) : À VÉRIFIER. Sarra l'approuve avec les bulletins de novembre.</span><button type="button" class="btn btn-sm"${bloque()}>Le mettre sur novembre</button></div></div></div>`;
   }
 
   // Le mois avant le pointage : la page qu'il deviendra, grisée, et ce qui la remplit.
@@ -1823,21 +1865,22 @@ table.rdp td:first-child { font-weight: 600; }
     // Octobre 2026 : le 1er est un jeudi ; les dimanches (4, 11, 18, 25) sont chômés.
     const J = Array.from({ length: 31 }, (_, i) => i + 1);
     const dim = (j) => (j + 3) % 7 === 0;
-    const P = { mt: { 19: 'h2', 20: 'h2', 21: 'h2', 22: 'h2' }, nb: { 15: 'a', 16: 'a' }, kz: {}, hm: {}, sa: {} };
+    const P = { mt: { 19: 'h2', 20: 'h2', 21: 'h2', 22: 'h2' }, nb: { 16: 'a', 17: 'a' }, kz: {}, hm: {}, sa: {} }; const fe = (j) => j === 15;
     const cel = (x, j) => {
       if (dim(j)) return '<td class="di"></td>';
+      if (fe(j) && x.k !== 'sa') return '<td class="fe" title="Férié : Fête de l\'Évacuation (chômé et payé : À VÉRIFIER)"><i class="f">F</i></td>';
       if (x.k === 'sa' && j < 13) return '<td class="ho" title="Pas encore entrée"></td>';
       const v = P[x.k][j];
-      return v === 'a' ? `<td${x.k === 'nb' && j === 15 ? ' class="on"' : ''}><i class="a" title="Absence sans solde">A</i></td>` : v ? '<td><i class="h" title="2 heures supplémentaires">+2</i></td>' : '<td></td>';
+      return v === 'a' ? `<td${x.k === 'nb' && j === 16 ? ' class="on"' : ''}><i class="a" title="Absence sans solde">A</i></td>` : v ? '<td><i class="h" title="2 heures supplémentaires">+2</i></td>' : '<td></td>';
     };
     const tot = { mt: '26 j · 8 h sup', kz: '26 j', nb: '24 j · 2 A', hm: '26 j', sa: '17 j' };
     return `${PA_CSS}${paieTete('Paie d\'octobre 2026 · le pointage', 'envoyé par Sarra depuis SkanFact le 27/10 à 18 h 12 · 3 différences avec un mois complet')}
       ${paieFrise(0, `<button type="button" class="btn btn-primary" data-etat="paie"${bloque()}>Préparer les 5 bulletins <kbd class="pa-kb">Entrée</kbd></button>`)}
-      ${tel() ? `<div style="display:grid;gap:8px">${PA_SAL.map((x) => `<div class="pa-k1"><div class="pa-k1h"><span class="pa-n" style="align-items:center">${paAv(x)}<b>${esc(x.nom)}</b></span><b class="pa-mt">${tot[x.k]}</b></div>${{ mt: '<span class="pa-ch ambre"><i></i>+2 h les 19, 20, 21 et 22/10</span>', nb: '<span class="pa-ch rouge"><i></i>sans solde les 15 et 16/10</span>', sa: '<span class="pa-ch bleu"><i></i>entrée le 13/10</span>' }[x.k] || '<span class="pa-ch"><i></i>tout le mois, comme d\'habitude</span>'}</div>`).join('')}<span class="mu" style="font-size:12px">La grille jour par jour s'ouvre à l'ordinateur.</span></div>`
-        : `<div class="pa-pt"><table><thead><tr><th></th>${J.map((j) => `<th class="${dim(j) ? 'di' : ''}">${j}</th>`).join('')}<th>Payés</th></tr></thead><tbody>
+      ${tel() ? `<div style="display:grid;gap:8px">${PA_SAL.map((x) => `<div class="pa-k1"><div class="pa-k1h"><span class="pa-n" style="align-items:center">${paAv(x)}<b>${esc(x.nom)}</b></span><b class="pa-mt">${tot[x.k]}</b></div>${{ mt: '<span class="pa-ch ambre"><i></i>+2 h les 19, 20, 21 et 22/10</span>', nb: '<span class="pa-ch rouge"><i></i>sans solde les 16 et 17/10</span>', sa: '<span class="pa-ch bleu"><i></i>entrée le 13/10</span>' }[x.k] || '<span class="pa-ch"><i></i>tout le mois, comme d\'habitude</span>'}</div>`).join('')}<span class="mu" style="font-size:12px">La grille jour par jour s'ouvre à l'ordinateur.</span></div>`
+        : `<div class="pa-pt"><table><thead><tr><th></th>${J.map((j) => `<th class="${dim(j) ? 'di' : fe(j) ? 'fe' : ''}">${j}</th>`).join('')}<th>Payés</th></tr></thead><tbody>
         ${PA_SAL.map((x) => `<tr><td class="nm"><span class="pa-n" style="align-items:center">${paAv(x, 24)}<b>${esc(x.nom)}</b></span></td>${J.map((j) => cel(x, j)).join('')}<td class="tt">${tot[x.k]}</td></tr>`).join('')}</tbody></table></div>`}
-      <div class="pa-lg" style="margin-top:10px"${tel() ? ' hidden' : ''}><span><i style="background:var(--sb-survol)"></i>dimanche, chômé</span><span><i class="a" style="background:var(--sb-rouge-doux);color:var(--sb-rouge-texte)">A</i>absence sans solde</span><span><i style="background:color-mix(in srgb, var(--cp-bleu, #3f6fd8) 12%, var(--sb-papier));color:var(--cp-bleu, #3f6fd8)">C</i>congé payé</span><span><i style="background:var(--sb-ambre-doux);color:var(--sb-ambre-texte)">+2</i>heures sup</span><span><i style="background:repeating-linear-gradient(135deg, transparent 0 3px, var(--sb-trait) 3px 4px)"></i>pas encore entrée</span></div>
-      <div class="pa-ctl" style="margin-top:12px"><div class="gris"><span><b>Nadia Ben Salem, le 15/10 : absence sans solde.</b> Sarra l'a notée « A » ; un congé payé la garderait payée (il lui reste 11 jours). Le choix est à Sarra : le cabinet ne change pas son pointage.</span><button type="button" class="btn btn-sm">${IC.msg} Lui demander</button></div></div>
+      <div class="pa-lg" style="margin-top:10px"${tel() ? ' hidden' : ''}><span><i style="background:var(--sb-survol)"></i>dimanche, chômé</span><span><i style="background:color-mix(in srgb, #3f6fd8 12%, var(--sb-papier));color:#3f6fd8">F</i>férié payé (le 15/10)</span><span><i class="a" style="background:var(--sb-rouge-doux);color:var(--sb-rouge-texte)">A</i>absence sans solde</span><span><i style="background:color-mix(in srgb, var(--cp-bleu, #3f6fd8) 12%, var(--sb-papier));color:var(--cp-bleu, #3f6fd8)">C</i>congé payé</span><span><i style="background:var(--sb-ambre-doux);color:var(--sb-ambre-texte)">+2</i>heures sup</span><span><i style="background:repeating-linear-gradient(135deg, transparent 0 3px, var(--sb-trait) 3px 4px)"></i>pas encore entrée</span></div>
+      <div class="pa-ctl" style="margin-top:12px"><div class="gris"><span><b>Nadia Ben Salem, les 16 et 17/10 : absence sans solde.</b> Sarra l'a notée « A » ; un congé payé la garderait payée (il lui reste 11 jours). Le choix est à Sarra : le cabinet ne change pas son pointage.</span><button type="button" class="btn btn-sm">${IC.msg} Lui demander</button></div></div>
       <p class="pa-aide"${tel() ? ' hidden' : ''}>Un clic sur une case : présent, congé, maladie, sans solde, heures sup · <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> d'une case à l'autre · <kbd>A</kbd> <kbd>C</kbd> <kbd>M</kbd> <kbd>H</kbd> au clavier</p>`;
   }
 
@@ -1922,6 +1965,10 @@ table.rdp td:first-child { font-weight: 600; }
         <div class="pa-cmp"><span>Septembre (${m(PA_SEPT.gross)}) et octobre (${m(PA_OCT.gross)})</span><span>· au brouillard : ils entreront au 640 à leur validation</span><b class="ok" style="color:var(--sb-gris)">en attente</b></div></div>
       <div class="pa-sec"><div class="pa-sec-t"><b>La déclaration annuelle d'employeur 2026</b><span class="mu">nominative : un salarié par ligne, ses salaires, ses retenues ; en février 2027 (À VÉRIFIER)</span></div>
         <div class="pa-ctl" style="margin:0"><div class="gris"><span>Elle se prépare ici, une fois décembre clos : les 5 salariés, ${md(brutAn)} de brut à ce jour, et ses retenues confrontées au 4321 du livre, comme ci-dessus.</span><button type="button" class="btn btn-sm" disabled title="Après la paie de décembre">Préparer la déclaration annuelle</button></div></div></div>
+      <div class="pa-sec"><div class="pa-sec-t"><b>La fin de l'année</b><span class="mu">ce que décembre et janvier demandent</span></div>
+        <div class="pa-cmp"><span>Prime de fin d'année : si la convention de la boulangerie en prévoit une (À VÉRIFIER)</span><span>· décembre</span><b class="ok" style="color:var(--sb-gris)">à demander à Sarra</b></div>
+        <div class="pa-cmp"><span>Attestations de salaires 2026 : une par salarié, pour sa déclaration d'impôt</span><span>· 5 salariés</span><b class="ok" style="color:var(--sb-gris)">janvier</b></div>
+        <div class="pa-cmp"><span>Bulletins faits pour ce dossier en 2026 : 41 (4 par mois, 5 en octobre)</span><span>· la lettre de mission les facture au bulletin (À VÉRIFIER : ton tarif)</span><b class="ok" style="color:var(--sb-gris)">41 à ce jour</b></div></div>
       <div class="pa-sec"><div class="pa-sec-t"><b>Les congés pas pris, à la clôture</b><span class="mu">une dette envers les salariés au 31/12 (À VÉRIFIER : la pratique du cabinet pour la provision)</span></div>
         <div class="pa-cmp"><span>Au 31/10 : Mourad 9 j, Karim 3 j, Nadia 11 j, Hamza 15 j (Salma acquiert dès novembre)</span><span>· 38 jours ouvrables restants</span><b class="ok" style="color:var(--sb-gris)">chiffrés au 31/12</b></div></div>`;
   }
@@ -2103,11 +2150,15 @@ table.rdp td:first-child { font-weight: 600; }
       deposer: 'Sarra lit dans « Mon comptable » : « Ta déclaration d\'août est déposée et payée », avec l\'accusé, rangé dans ses documents.',
       revision: 'Rien chez Sarra : la révision et ses notes restent au cabinet. Une question posée d\'ici arrive dans votre conversation.',
       nouveau: 'Mounir ne voit rien de la comptabilité du cabinet. Il voit ses ventes, ses achats et ce que le cabinet lui demande.',
-      paie: 'Rien chez Sarra tant que les bulletins ne sont pas validés : elle voit son pointage, envoyé le 27/10, « reçu par ton cabinet ». Une demande (le n° CNSS de Salma) arrive dans votre conversation.',
+      paie: 'Rien chez Sarra tant que les bulletins ne lui sont pas envoyés : elle voit son pointage « reçu par ton cabinet ». Envoyés, elle les lit dans sa Paie avec les contrôles et « J\'approuve les 5 bulletins » (son bon à payer). Une demande (le n° CNSS de Salma) arrive dans votre conversation.',
       paievide: 'Sarra voit dans son accueil « Ton cabinet attend le pointage d\'octobre », avec « Envoyer le pointage » ; il est prêt dans Paie › Pointage de SkanFact.',
       paiepointage: 'Le pointage est celui de Sarra : elle le voit tel qu\'elle l\'a envoyé. Si le cabinet le change, elle le voit changé, avec qui et quand.',
       paieapres: 'Sarra reçoit les 5 bulletins dans ses documents (« Paie · octobre 2026 ») et, dans son accueil, « Payer les salaires : 4 076,400 DT, d\'ici le 31/10 », qui prépare l\'ordre de virement.',
-      paieverif: 'Sarra lit dans votre conversation : « Le bulletin de Hamza n\'a pas retenu son avance (100,000) : peux-tu le corriger ? » avec le bulletin joint. Elle le corrige dans SkanFact ; le cabinet n\'y touche pas.',
+      paieverif: 'Rien encore chez Sarra : Anis prépare la correction du bulletin d\'Hamza ; « Proposer la correction à Sarra » la lui envoie, à accepter d\'un geste.',
+      paieaccord: 'Sarra a approuvé les 5 bulletins dans SkanFact à 11 h 40 (« J\'approuve les 5 bulletins ») : c\'est son bon à payer. Elle voit maintenant « Validés par ton cabinet » dès que le cabinet valide.',
+      paiepropose: 'Sarra voit dans sa Paie « Jlassi Conseil propose une correction » : le bulletin d\'Hamza avant et après, « Accepter la correction » ou « Refuser, je m\'en occupe ». Acceptée, elle s\'applique avec la trace de qui l\'a proposée et acceptée.',
+      paierappel: 'Sarra voit le rappel sur les bulletins de novembre, qu\'elle approuve avec eux ; la même fenêtre existe chez elle (« Une augmentation qui compte depuis mai »).',
+      paiesortie: 'Sarra voit le même projet dans la fiche d\'Hamza, onglet « Son départ » : les mêmes chiffres, le même jour.',
       paiesalaries: 'Sarra a déclaré l\'entrée de Salma dans SkanFact : la fiche vient d\'elle. Elle reçoit la demande du n° CNSS et du RIB dans votre conversation.',
       paieconges: 'Sarra voit les mêmes soldes dans Paie › Congés : un seul calcul pour les deux.',
       paiecnss: 'Sarra voit « CNSS du 3e trimestre : déposée et payée le 15/10 » dans « Mon comptable », avec l\'accusé dans ses documents.',
@@ -2116,11 +2167,11 @@ table.rdp td:first-child { font-weight: 600; }
     return `<p class="cl-p">${C[s.etat] || C[ecran()] || 'Sarra ne voit pas les livres du cabinet : ni le brouillard, ni la révision, ni les feuilles maîtresses. Elle voit ses ventes, ses achats, ses relevés, et ce que le cabinet lui demande ou lui dépose.'}</p>`;
   }
   const FAMILLES = [['Saisir', ['saisie', 'savide', 'saverif', 'sareclasse', 'sadevise', 'rimsaisie', 'kilometre', 'joindre', 'brouillard', 'valider', 'banque', 'bqvide', 'bqimport', 'bqregles', 'bqmenu', 'bqecart', 'bqfaites', 'bqetat', 'bqimportko', 'bqcolonnes', 'bqapres', 'bqfini', 'ecrire', 'ventiler', 'immos', 'inventaire']],
-    ['La paie', ['paie', 'paievide', 'paiepointage', 'paieapres', 'paieverif', 'paiesalaries', 'paieconges', 'paiecnss', 'paieannee']],
+    ['La paie', ['paie', 'paievide', 'paiepointage', 'paieaccord', 'paieapres', 'paieverif', 'paiepropose', 'paierappel', 'paiesalaries', 'paiesortie', 'paieconges', 'paiecnss', 'paieannee']],
     ['Consulter', ['journal', 'grandlivre', 'balance', 'lettrage', 'recherche']], ['Déclarer et clôturer', ['declaration', 'deposer', 'revision', 'exercice', 'liasse']],
     ['Un autre dossier', ['nouveau']], ['La barre', ['defile', 'barre-ouverte', 'barre-repliee']], ['Le guide', ['invite', 'guidemoi', 'info']], ['États', ['chargement', 'refus', 'hors', 'lecture']]];
   const ETATS_UI = [['saisie', 'Saisie : la photo STEG, déjà saisie'], ['rimsaisie', 'Saisie par Rim : le ticket de carburant'], ['savide', 'Saisie : vide, octobre sans pièce'], ['saverif', 'Saisie : une pièce de Sarra à vérifier'], ['sareclasse', 'Saisie : une pièce au mauvais mois'], ['sadevise', 'Saisie : une facture en euros'], ['kilometre', 'Au kilomètre : les achats de septembre'], ['joindre', 'La photo jointe à FA-0919'], ['brouillard', 'Le brouillard de septembre'], ['valider', 'Valider le brouillard'],
-    ['banque', 'Banque : le prélèvement STEG en face de sa facture'], ['bqvide', 'Banque : vide, le relevé pas encore là'], ['bqimport', 'Banque : importer le relevé d\'octobre'], ['bqregles', 'Banque : les règles, et une nouvelle'], ['bqmenu', 'Banque : le menu ⋯ d\'une ligne'], ['bqecart', 'Banque : un écart non expliqué'], ['bqfaites', 'Banque : les rapprochées, ouvertes'], ['bqetat', 'Banque : l\'état de rapprochement'], ['bqimportko', 'Banque : un import refusé (un mois manque)'], ['bqcolonnes', 'Banque : une banque nouvelle, ses colonnes'], ['bqapres', 'Banque : après Entrée, la ligne suivante'], ['bqfini', 'Banque : septembre rapproché'], ['ecrire', 'Banque : les frais de tenue, d\'après leur règle'], ['ventiler', 'Banque : une remise de 3 chèques'], ['paie', 'Paie : les 5 bulletins d\'octobre à vérifier'], ['paievide', 'Paie : le pointage pas encore là'], ['paiepointage', 'Paie : le pointage d\'octobre'], ['paieapres', 'Paie : les bulletins validés, et la suite'], ['paieverif', 'Paie : faite par Sarra, à vérifier (une avance oubliée)'], ['paiesalaries', 'Paie : les salariés (une entrée)'], ['paieconges', 'Paie : congés et avances'], ['paiecnss', 'Paie : la CNSS du trimestre'], ['paieannee', 'Paie : l\'année, confrontée au livre'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
+    ['banque', 'Banque : le prélèvement STEG en face de sa facture'], ['bqvide', 'Banque : vide, le relevé pas encore là'], ['bqimport', 'Banque : importer le relevé d\'octobre'], ['bqregles', 'Banque : les règles, et une nouvelle'], ['bqmenu', 'Banque : le menu ⋯ d\'une ligne'], ['bqecart', 'Banque : un écart non expliqué'], ['bqfaites', 'Banque : les rapprochées, ouvertes'], ['bqetat', 'Banque : l\'état de rapprochement'], ['bqimportko', 'Banque : un import refusé (un mois manque)'], ['bqcolonnes', 'Banque : une banque nouvelle, ses colonnes'], ['bqapres', 'Banque : après Entrée, la ligne suivante'], ['bqfini', 'Banque : septembre rapproché'], ['ecrire', 'Banque : les frais de tenue, d\'après leur règle'], ['ventiler', 'Banque : une remise de 3 chèques'], ['paie', 'Paie : les 5 bulletins préparés, contrôlés, à envoyer pour accord'], ['paieaccord', 'Paie : Sarra a approuvé (bon à payer), à valider'], ['paievide', 'Paie : le pointage pas encore là'], ['paiepointage', 'Paie : le pointage d\'octobre'], ['paieapres', 'Paie : les bulletins validés, et la suite'], ['paieverif', 'Paie : faite par Sarra, à vérifier (une avance oubliée)'], ['paiepropose', 'Paie : la correction proposée, attend l\'accord de Sarra'], ['paierappel', 'Paie : une augmentation qui compte depuis mai (rappel)'], ['paiesortie', 'Paie : le départ d\'Hamza (solde de tout compte)'], ['paiesalaries', 'Paie : les salariés (une entrée)'], ['paieconges', 'Paie : congés et avances'], ['paiecnss', 'Paie : la CNSS du trimestre'], ['paieannee', 'Paie : l\'année, confrontée au livre'], ['immos', 'Immobilisations'], ['inventaire', 'Inventaire'],
     ['journal', 'Livre-journal'], ['grandlivre', 'Grand livre : 532 BIAT'], ['balance', 'Balance'], ['lettrage', 'Lettrage : fournisseurs'], ['recherche', 'Recherche : « 1250 »'],
     ['declaration', 'Déclaration d\'août, en retard'], ['deposer', 'Marquer août déposée'], ['revision', 'Révision de septembre'], ['exercice', 'Exercice 2026'], ['liasse', 'Liasse 2025'],
     ['nouveau', 'Un livre qui n\'existe pas encore'], ['defile', 'La page descend : la barre d’onglets sort de l’écran'], ['barre-ouverte', 'Mode « toujours ouverte »'], ['barre-repliee', 'Mode « repliée »'], ['invite', 'Première fois sur cette page'], ['guidemoi', 'Guide-moi'], ['info', 'La bulle « i »'],
@@ -2147,6 +2198,8 @@ table.rdp td:first-child { font-weight: 600; }
     ['La paie : l\'écriture d\'octobre et celle de septembre sont équilibrées', [PA_OCT, PA_SEPT].every((t) => PA_ECR(t).reduce((a, x) => a + x[2] - x[3], 0) === 0)],
     ['La paie : le brouillard de septembre = l\'écriture que la paie passe', JSON.stringify(BROUILLARD.find((b) => b[2] === 'PAIE-2026-09')[5].map((l) => [l[0], l[2], l[3]])) === JSON.stringify(PA_ECR(PA_SEPT).map((l) => [l[0], l[2], l[3]]))],
     ['La paie : le 425 de l\'écriture = le net à payer (l\'avance va au 421), en octobre et en septembre', [PA_OCT, PA_SEPT].every((t) => PA_ECR(t).find((l) => l[0] === '425')[3] === t.net && (PA_ECR(t).find((l) => l[0] === '421') || [0, 0, 0, 0])[3] === t.ded)],
+    ['La paie : l\'absence de Nadia ne tombe pas sur le férié du 15/10', !PA_CH.nb[2].includes('15')],
+    ['La paie : les contrôles, justes + à savoir = tous (12)', PA_CTL.length === 12 && PA_CTL.filter((c) => c[0] === 'ok').length === 10],
     ['La paie : les salaires d\'août payés = le net des bulletins d\'août', RAPP.find((r) => r[1] === 'VIR SALAIRE AOUT')[2] === PA_AOUT.net],
     ['La paie : « les parts du coût (nets, CNSS, IRPP et CSS, TFP et FOPROLOS, avance) = le coût du mois', PA_OCT.net + PA_OCT.cnssE + PA_OCT.cnssP + PA_OCT.acc + PA_OCT.irpp + PA_OCT.css + PA_OCT.tfp + PA_OCT.fop + PA_OCT.ded === PA_OCT.cout],
     ['La CNSS du 3e trimestre : parts salarié + employeur + accident = le total', PA_T3.sal + PA_T3.emp + PA_T3.acc === PA_T3.total && PA_T3.total === 3624525],

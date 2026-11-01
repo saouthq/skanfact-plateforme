@@ -1122,6 +1122,8 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
 .pt-g td.tt { white-space: nowrap; text-align: right; padding-left: 10px; font-weight: 600; }
 .pt-g td.ho, .pt-lg i.ho { background: repeating-linear-gradient(135deg, transparent 0 3px, var(--trait) 3px 4px); }
 .pt-g i, .pt-lg i { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font-style: normal; font-weight: 700; font-size: 10.5px; }
+.pt-g td.fe, .pt-g th.fe { background: color-mix(in srgb, #4d7cf2 7%, var(--papier)); }
+.pt-g i.f, .pt-lg i.f { background: color-mix(in srgb, #4d7cf2 14%, var(--papier)); color: #3559c7; }
 .pt-g i.a, .pt-lg i.a { background: var(--rouge-doux); color: var(--rouge-texte); }
 .pt-g i.h, .pt-lg i.h { background: var(--ambre-doux); color: var(--ambre-texte); }
 .pt-lg i.c { background: color-mix(in srgb, #4d7cf2 14%, var(--papier)); color: #3559c7; }
@@ -1268,7 +1270,7 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
   const sal = (k) => SAL.find((x) => x.k === k);
   const SAL_SARRA = SAL.map((x) => (x.k === 'hm' ? { ...x, ded: 0, net: x.net + x.ded } : x)); // le bulletin d'Hamza fait par Sarra, l'avance oubliée
   // Ce qui change ce mois, par salarié (le même texte que le Cabinet).
-  const CH = { mt: ['attire', '8 h sup', 'la semaine du 19/10'], kz: ['', 'comme septembre', ''], nb: ['attire', '2 jours sans solde', 'les 15 et 16/10'], hm: ['', 'avance : 2e retenue sur 3', 'il restera 100,000 en novembre'], sa: ['bleu', 'entrée le 13/10', '17 jours sur 26'] };
+  const CH = { mt: ['attire', '8 h sup', 'la semaine du 19/10'], kz: ['', 'comme septembre', ''], nb: ['attire', '2 jours sans solde', 'les 16 et 17/10'], hm: ['', 'avance : 2e retenue sur 3', 'il restera 100,000 en novembre'], sa: ['bleu', 'entrée le 13/10', '17 jours sur 26'] };
   const somme = (l, k) => l.reduce((t, x) => t + x[k], 0);
   const ESP = sal('sa').net, VIR = OCT.net - ESP;
   const TAXES = OCT.irpp + OCT.css + OCT.tfp + OCT.fop, CNSS_OCT = OCT.cnssE + OCT.cnssP + OCT.acc;
@@ -1284,17 +1286,17 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
   const s = { etat: 'mois', montrer: '', vue: 'mois', fiche: '', onglet: 'bulletins', sel: 'mt', sombre: false, toast: '' };
   const ETATS = {
     pointer: { vue: 'mois', rang: 0, jour: 'mardi 27 octobre, 17 h' }, attente: { vue: 'mois', rang: 1, jour: 'mercredi 28 octobre, 9 h' },
-    mois: { vue: 'mois', rang: 2, jour: 'mercredi 28 octobre, 15 h' }, paye: { vue: 'mois', rang: 3, jour: 'samedi 31 octobre', toast: true }, fini: { vue: 'mois', rang: 4, jour: 'lundi 2 novembre' },
-    seule: { vue: 'mois', rang: 1, jour: 'mardi 27 octobre, 19 h', seule: true }, signal: { vue: 'mois', rang: 1, jour: 'mercredi 28 octobre, 11 h', seule: true, signal: true },
-    salaries: { vue: 'salaries', jour: 'mercredi 28 octobre' }, 'fiche-sa': { vue: 'salaries', fiche: 'sa', jour: 'mercredi 28 octobre' }, 'fiche-hm': { vue: 'salaries', fiche: 'hm', onglet: 'avances', jour: 'mercredi 28 octobre' },
+    approuver: { vue: 'mois', rang: 1, jour: 'mercredi 28 octobre, 10 h', bap: true }, mois: { vue: 'mois', rang: 2, jour: 'mercredi 28 octobre, 15 h' }, paye: { vue: 'mois', rang: 3, jour: 'samedi 31 octobre', toast: true }, fini: { vue: 'mois', rang: 4, jour: 'lundi 2 novembre' },
+    seule: { vue: 'mois', rang: 1, jour: 'mardi 27 octobre, 19 h', seule: true }, signal: { vue: 'mois', rang: 1, jour: 'mercredi 28 octobre, 10 h 10', seule: true, signal: true }, accepte: { vue: 'mois', rang: 2, jour: 'mercredi 28 octobre, 11 h 20', seule: true, accepte: true },
+    salaries: { vue: 'salaries', jour: 'mercredi 28 octobre' }, 'fiche-sa': { vue: 'salaries', fiche: 'sa', jour: 'mercredi 28 octobre' }, 'fiche-hm': { vue: 'salaries', fiche: 'hm', onglet: 'avances', jour: 'mercredi 28 octobre' }, entree: { vue: 'salaries', fiche: 'sa', onglet: 'arrivee', jour: 'lundi 12 octobre' }, sortie: { vue: 'salaries', fiche: 'hm', onglet: 'sortie', jour: 'mardi 1er décembre' },
     conges: { vue: 'conges', jour: 'mercredi 28 octobre' }, declarations: { vue: 'declarations', jour: 'mercredi 28 octobre' }, annee: { vue: 'annee', jour: 'mercredi 28 octobre' },
     vide: { vue: 'mois', vide: true, jour: 'mercredi 28 octobre' }, hors: { vue: 'mois', rang: 2, hors: true, jour: 'mercredi 28 octobre, 15 h' }, lecture: { vue: 'mois', rang: 2, lecture: true, jour: 'mercredi 28 octobre, 15 h' },
   };
-  const NOMS = [['pointer', '1. Pointer le mois'], ['attente', '2. Chez le cabinet'], ['mois', '3. Bulletins reçus : payer'], ['paye', '4. Payés : remettre'], ['fini', '5. Le mois fait'],
-    ['seule', 'Je fais ma paie : préparée'], ['signal', 'Je fais ma paie : le cabinet signale'],
-    ['salaries', 'Salariés'], ['fiche-sa', 'Fiche : une entrée à compléter'], ['fiche-hm', 'Fiche : un CDD qui finit'], ['conges', 'Congés et avances'], ['declarations', 'Déclarations'], ['annee', 'L\'année'],
+  const NOMS = [['pointer', '1. Pointer le mois'], ['attente', '2. Chez le cabinet'], ['approuver', '3. Bon à payer : approuver'], ['mois', '4. Validés : payer'], ['paye', '5. Payés : remettre'], ['fini', '6. Le mois fait'],
+    ['seule', 'Je fais ma paie : préparée'], ['signal', 'Je fais ma paie : le cabinet propose une correction'], ['accepte', 'Je fais ma paie : correction acceptée'],
+    ['salaries', 'Salariés'], ['fiche-sa', 'Fiche : une entrée à compléter'], ['fiche-hm', 'Fiche : un CDD qui finit'], ['entree', 'Une arrivée : la liste'], ['sortie', 'Un départ : le solde de tout compte'], ['conges', 'Congés et avances'], ['declarations', 'Déclarations'], ['annee', 'L\'année'],
     ['vide', 'Première fois'], ['hors', 'Hors ligne'], ['lecture', 'Abonnement en lecture seule']];
-  const MONTRER = [['', 'Rien'], ['payer', 'Payer les salaires'], ['bulletin', 'Un bulletin en grand'], ['remettre', 'Remettre les bulletins'], ['avance', 'Une avance sur salaire'], ['menu', 'Menu ⋯ de la paie'], ['tel-jour', 'Téléphone : qui n\'est pas là ?']];
+  const MONTRER = [['', 'Rien'], ['payer', 'Payer les salaires'], ['bulletin', 'Un bulletin en grand'], ['remettre', 'Remettre les bulletins'], ['avance', 'Une avance sur salaire'], ['rappel', 'Une augmentation qui compte depuis mai'], ['simuler', 'Combien coûte une embauche ?'], ['menu', 'Menu ⋯ de la paie'], ['tel-jour', 'Téléphone : qui n\'est pas là ?']];
   const E = () => ETATS[s.etat];
   const peutEcrire = () => !E().lecture;
   const VUES = [['mois', 'Le mois', ''], ['salaries', 'Salariés', '5'], ['conges', 'Congés et avances', ''], ['declarations', 'Déclarations', '1'], ['annee', 'L\'année', '']];
@@ -1309,7 +1311,8 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
       prin = { 0: `<button type="button" class="btn prem">${ic('message', 15, 2)} Envoyer le pointage à Anis</button>`,
         2: `<button type="button" class="btn prem" data-montrer="payer"${e.hors ? ' disabled title="Un paiement attend le réseau, pour ne jamais payer deux fois"' : ''}>${ic('carte', 15, 2)} Payer les salaires · ${fmt(OCT.net)} DT</button>`,
         3: `<button type="button" class="btn prem" data-montrer="remettre">${ic('exporter', 15, 2)} Remettre les 5 bulletins</button>` }[e.rang] || '';
-      if (e.seule) prin = e.signal ? `<button type="button" class="btn prem" data-montrer="bulletin">${ic('ecriture', 15, 2)} Corriger le bulletin d'Hamza</button>` : `<button type="button" class="btn prem">${ic('message', 15, 2)} Envoyer à Jlassi Conseil pour vérification</button>`;
+      if (e.bap) prin = `<button type="button" class="btn prem" data-approuve>${ic('coche', 15, 2.4)} J'approuve les 5 bulletins</button>`;
+      if (e.seule && !e.accepte) prin = e.signal ? `<button type="button" class="btn prem" data-accepte>${ic('coche', 15, 2.4)} Accepter la correction d'Anis</button>` : `<button type="button" class="btn prem">${ic('message', 15, 2)} Envoyer à Jlassi Conseil pour vérification</button>`;
     }
     if (s.vue === 'salaries' && !s.fiche && peutEcrire()) prin = `<button type="button" class="btn prem">${ic('croix', 15, 2.4)} Un salarié</button>`;
     if (s.vue === 'conges' && peutEcrire()) prin = `<button type="button" class="btn prem">${ic('croix', 15, 2.4)} Un congé ou une absence</button>`;
@@ -1333,7 +1336,7 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
   function frise() {
     const e = E(), r = e.rang;
     const F = [['Pointer', r > 0 ? 'envoyé à Anis le 27/10 à 18 h 12' : '3 choses à signaler ce mois'],
-      ['Bulletins', e.seule ? (e.signal ? 'vérifiés par Anis : 1 à corriger' : '5 préparés par toi · à faire vérifier') : r > 1 ? '5 validés par Jlassi Conseil le 28/10' : 'Anis les prépare · validés d\'ici le 30/10'],
+      ['Bulletins', e.seule ? (e.accepte ? 'vérifiés · 1 correction acceptée' : e.signal ? 'vérifiés par Anis : 1 correction proposée' : '5 préparés par toi · à faire vérifier') : e.bap ? 'préparés par Anis · à approuver' : r > 1 ? 'approuvés par toi, validés par Jlassi Conseil' : 'Anis les prépare · d\'ici le 30/10'],
       ['Payer', r > 2 ? 'payés le 31/10 · 4 virements, 1 en espèces' : `${fmt(OCT.net)} DT d'ici le 31/10`], ['Remettre', r > 3 ? 'remis le 31/10 : 3 par e-mail, 2 imprimés' : 'un bulletin à chaque salarié'],
       ['Déclarer', 'Jlassi Conseil, avant le 28/11 · CNSS en janvier']];
     const k = (i) => (i < r ? 'e-fait' : i === r ? 'e-cours' : '');
@@ -1359,7 +1362,7 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
   function bulletins(opts = {}) {
     const e = E(), r = e.rang, L = opts.sal || SAL;
     const chg = L.filter((x) => (opts.ch || CH)[x.k][0]), pareil = L.filter((x) => !(opts.ch || CH)[x.k][0]);
-    const etat = (x) => { if (e.seule) return x.k === 'hm' && e.signal ? '<span class="statut alerte">à corriger</span>' : e.signal ? '<span class="statut ok">vérifié par Anis</span>' : '<span class="statut">préparé</span>'; if (r > 2) return `<span class="statut ok">payé le 31/10</span>`; return '<span class="statut bleu">à payer</span>'; };
+    const etat = (x) => { if (e.bap) return '<span class="statut attire">à approuver</span>'; if (e.seule) return e.accepte ? (x.k === 'hm' ? '<span class="statut ok">corrigé, accepté</span>' : '<span class="statut ok">vérifié par Anis</span>') : x.k === 'hm' && e.signal ? '<span class="statut alerte">correction proposée</span>' : e.signal ? '<span class="statut ok">vérifié par Anis</span>' : '<span class="statut">préparé</span>'; if (r > 2) return `<span class="statut ok">payé le 31/10</span>`; return '<span class="statut bleu">à payer</span>'; };
     const comment = (x) => (x.rib ? `virement<small>${esc(x.rib)}</small>` : '<span class="ambre">espèces</span><small>pas encore de RIB</small>');
     const lig = (x) => `<tr data-bul="${x.k}"${x.k === s.sel ? ' class="choisie"' : ''}><td class="cl"><span class="cl-i">${av(x.k)}<span><b>${esc(x.nom)}</b><small>${esc(x.poste)}</small>${chip(x, opts.ch || CH)}</span></span></td>
       <td class="r m">${fmt(x.gross)}</td><td class="r m">${fmt(x.cnssE + x.irpp + x.css + x.ded)}${x.ded ? '<small>dont avance 100,000</small>' : ''}</td><td class="r m"><b>${fmt(x.net)}</b>${x.sept != null ? `<small>${x.net === x.sept ? '= septembre' : `${x.net > x.sept ? '+' : '−'} ${fmt(Math.abs(x.net - x.sept))}`}</small>` : '<small>1er bulletin</small>'}</td>
@@ -1371,30 +1374,33 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
   // Le pointage : un salarié par ligne, un jour par case (octobre 2026 : le 1er est un jeudi, les dimanches chômés).
   function pointage() {
     const J = Array.from({ length: 31 }, (_, i) => i + 1), dim = (j) => (j + 3) % 7 === 0;
-    const P = { mt: { 19: 'h', 20: 'h', 21: 'h', 22: 'h' }, nb: { 15: 'a', 16: 'a' } };
-    const cel = (x, j) => { if (dim(j)) return '<td class="di"></td>'; if (x.k === 'sa' && j < 13) return '<td class="ho" title="Pas encore entrée"></td>'; const v = (P[x.k] || {})[j]; return v === 'a' ? '<td><i class="a" title="Absence sans solde">A</i></td>' : v ? '<td><i class="h" title="2 heures supplémentaires">+2</i></td>' : '<td></td>'; };
+    const P = { mt: { 19: 'h', 20: 'h', 21: 'h', 22: 'h' }, nb: { 16: 'a', 17: 'a' } }; const fe = (j) => j === 15;
+    const cel = (x, j) => { if (dim(j)) return '<td class="di"></td>'; if (fe(j) && !(x.k === 'sa')) return '<td class="fe" title="Férié : Fête de l\'Évacuation, chômé et payé (À VÉRIFIER)"><i class="f">F</i></td>'; if (x.k === 'sa' && j < 13) return '<td class="ho" title="Pas encore entrée"></td>'; const v = (P[x.k] || {})[j]; return v === 'a' ? '<td><i class="a" title="Absence sans solde">A</i></td>' : v ? '<td><i class="h" title="2 heures supplémentaires">+2</i></td>' : '<td></td>'; };
     const tot = { mt: '26 j · 8 h sup', kz: '26 j', nb: '24 j · 2 A', hm: '26 j', sa: '17 j' };
     return `<div class="carte" style="padding:14px 16px 12px;display:grid;gap:10px"><div class="bloc-t"><b>Le pointage d'octobre</b><small>un clic sur une case : présent, congé, maladie, sans solde, heures sup · <kbd>A</kbd> <kbd>C</kbd> <kbd>M</kbd> <kbd>H</kbd> au clavier</small></div>
-      <div class="pt-g"><table><thead><tr><th></th>${J.map((j) => `<th class="${dim(j) ? 'di' : ''}">${j}</th>`).join('')}<th>Payés</th></tr></thead><tbody>
+      <div class="pt-g"><table><thead><tr><th></th>${J.map((j) => `<th class="${dim(j) ? 'di' : fe(j) ? 'fe' : ''}">${j}</th>`).join('')}<th>Payés</th></tr></thead><tbody>
       ${SAL.map((x) => `<tr><td class="nm">${av(x.k)}<b>${esc(x.nom)}</b></td>${J.map((j) => cel(x, j)).join('')}<td class="tt">${tot[x.k]}</td></tr>`).join('')}</tbody></table></div>
-      <div class="pt-lg"><span><i style="background:var(--survol)"></i>dimanche</span><span><i class="a">A</i>absence sans solde</span><span><i class="c">C</i>congé payé</span><span><i class="h">+2</i>heures sup</span><span><i class="ho"></i>pas encore entrée</span></div></div>
-      <div class="bandeau ambre">${ic('aide', 18, 2)}<span class="txt"><b>Nadia, les 15 et 16/10 : sans solde, ou congé payé ?</b><span>Sans solde, son brut baisse de 60,000 ; en congé payé, il ne bouge pas (il lui reste 11 jours). C'est toi qui choisis, avant d'envoyer.</span></span><button type="button" class="btn">Les passer en congé payé</button></div>`;
+      <div class="pt-lg"><span><i style="background:var(--survol)"></i>dimanche</span><span><i class="f">F</i>férié payé (le 15/10)</span><span><i class="a">A</i>absence sans solde</span><span><i class="c">C</i>congé payé</span><span><i class="h">+2</i>heures sup</span><span><i class="ho"></i>pas encore entrée</span></div></div>
+      <div class="bandeau ambre">${ic('aide', 18, 2)}<span class="txt"><b>Nadia, les 16 et 17/10 : sans solde, ou congé payé ?</b><span>Sans solde, son brut baisse de 60,000 ; en congé payé, il ne bouge pas (il lui reste 11 jours). C'est toi qui choisis, avant d'envoyer.</span></span><button type="button" class="btn">Les passer en congé payé</button></div>`;
   }
   function mois() {
     const e = E();
     if (e.vide) return premiereFois();
     const ban = bandeaux();
     if (e.rang === 0) return `${ban}${frise()}${pointage()}<p class="raccourcis">${ic('clavier', 14, 2)} <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> d'une case à l'autre · <kbd>Entrée</kbd> envoyer le pointage à Anis</p>`;
+    if (e.bap) return `${ban}<div class="bandeau info">${ic('comptable', 18, 2)}<span class="txt"><b>Anis a préparé tes 5 bulletins d'octobre : approuve-les avant de payer</b><span>C'est ton « bon à payer » : tu regardes ce que chacun touchera, et ce que la paie te coûte. Approuvés, Jlassi Conseil les valide et ils ne changent plus. Un doute : « Demander une correction », il te répond dans votre conversation.</span></span><button type="button" class="btn">Demander une correction…</button></div>${frise()}${controlesEnt()}${tuiles()}${bulletins()}`;
     if (e.rang === 1 && !e.seule) return `${ban}${frise()}<div class="bandeau info">${ic('comptable', 18, 2)}<span class="txt"><b>Anis prépare tes 5 bulletins d'octobre</b><span>Ton pointage est parti hier à 18 h 12. Jlassi Conseil les valide d'ici le 30/10 : ils arriveront ici, avec ce qu'il faut payer et à qui. Rien à faire pour toi d'ici là.</span></span></div>
       <div class="carte" style="padding:6px 0 4px"><div class="apy-t"><b>Ce que ton pointage change</b><span class="mu">ce qu'Anis lira</span></div><ul class="apy-l">${SAL.filter((x) => CH[x.k][0] || x.k === 'hm').map((x) => `<li>${av(x.k)}<span class="apy-n"><b>${esc(x.nom)}</b><small>${CH[x.k][1]}${CH[x.k][2] ? ' · ' + CH[x.k][2] : ''}</small></span><span></span><span></span><span></span></li>`).join('')}</ul></div>`;
     if (e.seule) {
-      const L = e.signal ? SAL_SARRA : SAL_SARRA;
-      const ch = { ...CH, hm: e.signal ? ['alerte', 'avance oubliée', '100,000 de trop sur le net'] : CH.hm };
-      return `${ban}${frise()}${e.signal ? `<div class="bandeau rouge">${ic('comptable', 18, 2)}<span class="txt"><b>Jlassi Conseil signale : l'avance d'Hamza n'est pas retenue</b><span>Anis, ce matin : « Tu lui as versé 300,000 le 05/09, à rendre en 3 fois ; septembre a retenu 100,000, octobre rien. Son net serait de ${fmt(sal('hm').net)}, pas ${fmt(sal('hm').net + 100000)}. » Les 4 autres sont justes. Le cabinet ne touche pas à tes bulletins : c'est toi qui corriges.</span></span><button type="button" class="btn">Lui répondre</button></div>`
+      const L = e.accepte ? SAL : SAL_SARRA;
+      const ch = { ...CH, hm: e.signal ? ['alerte', 'avance oubliée', 'correction proposée par Anis'] : e.accepte ? ['ok', 'avance retenue', 'correction acceptée à 11 h 20'] : CH.hm };
+      if (e.accepte) return `${ban}<div class="bandeau info">${ic('coche', 18, 2)}<span class="txt"><b>Correction acceptée : l'avance d'Hamza est retenue</b><span>Proposée par Anis à 10 h 05, acceptée par toi à 11 h 20 ; le bulletin le garde écrit (qui a proposé, qui a accepté, quand). Les 5 bulletins sont vérifiés : tu peux payer.</span></span><button type="button" class="btn">Voir la trace</button></div>${frise()}${tuiles()}${sorties()}${bulletins()}`;
+      return `${ban}${frise()}${e.signal ? `<div class="bandeau rouge">${ic('comptable', 18, 2)}<span class="txt"><b>Jlassi Conseil propose une correction : l'avance d'Hamza n'est pas retenue</b><span>Anis, à 10 h 05 : « Tu lui as versé 300,000 le 05/09, à rendre en 3 fois ; septembre a retenu 100,000, octobre rien. » Il a préparé la correction ; elle ne s'applique que si tu l'acceptes. Les 4 autres bulletins sont justes.</span></span><button type="button" class="btn">Refuser, je m'en occupe</button></div>
+        <div class="carte" style="padding:12px 16px;display:grid;gap:8px"><div class="bloc-t"><b>La correction proposée · bulletin d'Hamza Mejri</b><small>avant, après</small></div><table class="mini"><thead><tr><th>Ligne</th><th class="r">Ton bulletin</th><th class="r">Corrigé</th></tr></thead><tbody><tr><td>Avance du 05/09, 2e retenue sur 3</td><td class="r">0,000</td><td class="r"><b>− 100,000</b></td></tr><tr><td>Net à verser</td><td class="r">${fmt(sal('hm').net + 100000)}</td><td class="r"><b>${fmt(sal('hm').net)}</b></td></tr><tr><td>Reste de l'avance</td><td class="r">200,000</td><td class="r"><b>100,000</b> <small>la dernière en novembre</small></td></tr></tbody></table><span class="mu" style="font-size:12px">Le brut, la CNSS et l'impôt ne bougent pas : une avance n'est ni un salaire ni une charge. Acceptée, la correction garde la trace de qui l'a proposée et de qui l'a acceptée.</span></div>`
         : `<div class="bandeau info">${ic('comptable', 18, 2)}<span class="txt"><b>Tu fais ta paie ; Jlassi Conseil la vérifie avant que tu paies</b><span>C'est ce que dit ta lettre de mission (« vérification de la paie »). Envoie-lui les 5 bulletins : il te dit ce qui ne va pas, tu le corriges ici.</span></span></div>`}
         ${tuiles(somme(L, 'net'))}${bulletins({ sal: L, ch })}`;
     }
-    return `${ban}${e.rang === 2 ? `<div class="bandeau info">${ic('coche', 18, 2)}<span class="txt"><b>Jlassi Conseil a validé tes 5 bulletins d'octobre, ce matin</b><span>Leïla Jlassi les a validés : ils ne changent plus (une erreur se corrige par un bulletin rectificatif, daté). À toi de payer, puis de les remettre.</span></span></div>` : ''}
+    return `${ban}${e.rang === 2 ? `<div class="bandeau info">${ic('coche', 18, 2)}<span class="txt"><b>Tu as approuvé tes 5 bulletins à 11 h 40 ; Jlassi Conseil les a validés</b><span>Leïla Jlassi les a validés juste après : ils ne changent plus (une erreur se corrige par un bulletin rectificatif, daté). À toi de payer, puis de les remettre.</span></span></div>` : ''}
       ${e.rang === 4 ? `<div class="bandeau info">${ic('declaration', 18, 2)}<span class="txt"><b>Il reste la déclaration d'octobre : Jlassi Conseil la prépare</b><span>Tu verseras ${fmt(TAXES)} DT avant le 28/11 (retenues sur salaires, TFP, FOPROLOS) ; la CNSS d'octobre part avec le 4e trimestre, en janvier. Novembre commence : pointe au fil du mois, c'est plus simple le 27.</span></span><button type="button" class="btn" data-vue="declarations">Voir les déclarations</button></div>` : ''}
       ${frise()}${tuiles()}${sorties()}${bulletins()}<p class="raccourcis">${ic('clavier', 14, 2)} <kbd>↑</kbd> <kbd>↓</kbd> un salarié · <kbd>Entrée</kbd> son bulletin · <kbd>P</kbd> payer les salaires</p>`;
   }
@@ -1427,9 +1433,9 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
       b.push(`<div class="bandeau ambre">${ic('aide', 18, 2)}<span class="txt"><b>Son n° CNSS manque</b><span>Son bulletin se fait sans lui ; la déclaration du 4e trimestre l'attendra (janvier). L'affiliation se fait à la CNSS (À VÉRIFIER : le délai).</span></span><button type="button" class="btn">Le renseigner</button></div>`);
       b.push(`<div class="bandeau ambre">${ic('carte', 18, 2)}<span class="txt"><b>Son RIB manque : son salaire d'octobre se paie en espèces</b><span>Contre un reçu qu'elle signe (il se prépare avec le paiement), pour que ta caisse se justifie. Avec son RIB, elle passera dans l'ordre de virement.</span></span><button type="button" class="btn">Ajouter son RIB</button></div>`);
     } else b.push(`<div class="bandeau ambre">${ic('echeance', 18, 2)}<span class="txt"><b>Son CDD finit le 31/12/2026</b><span>Le renouveler (un avenant, une nouvelle date de fin), ou le laisser finir : son dernier bulletin portera son solde de tout compte (congés pas pris, avance qui reste), et son certificat de travail se prépare ici. À VÉRIFIER : le délai de prévenance.</span></span></div>`);
-    const O = [['bulletins', 'Bulletins', k === 'sa' ? 1 : 10], ['conges', 'Congés', ''], ['avances', 'Avances', k === 'hm' ? 1 : ''], ['documents', 'Documents', '']];
+    const O = [['bulletins', 'Bulletins', k === 'sa' ? 1 : 10], ['conges', 'Congés', ''], ['avances', 'Avances', k === 'hm' ? 1 : ''], ['documents', 'Documents', ''], k === 'sa' ? ['arrivee', 'Son arrivée', 2] : ['sortie', 'Son départ', '']];
     const og = s.onglet;
-    const corps = og === 'avances' ? (k === 'hm' ? avanceHamza() : '<div class="vide-f"><b>Aucune avance</b><span>Une avance se retient toute seule, mois après mois, sur ses bulletins.</span></div>')
+    const corps = og === 'arrivee' ? arrivee() : og === 'sortie' ? depart() : og === 'avances' ? (k === 'hm' ? avanceHamza() : '<div class="vide-f"><b>Aucune avance</b><span>Une avance se retient toute seule, mois après mois, sur ses bulletins.</span></div>')
       : og === 'conges' ? `<div style="padding:14px 16px" class="mu">${k === 'sa' ? 'Elle acquiert ses congés à partir de novembre : 1,5 jour par mois travaillé (18 jours par an, À VÉRIFIER : ta convention collective).' : '15 jours acquis en 2026, aucun pris : 15 jours restants. Au 31/12, un congé pas pris se paie avec le solde de tout compte (À VÉRIFIER).'}</div>`
         : og === 'documents' ? `<table class="mini" style="margin:6px 12px 10px;width:calc(100% - 24px)"><tbody><tr><td>Contrat de travail</td><td class="r"><span class="mu">signé le ${k === 'sa' ? '12/10/2026' : '02/01/2026'} · dans le classeur</span></td></tr><tr><td>Attestation de travail</td><td class="r"><button type="button" class="btn mini">Préparer</button></td></tr><tr><td>Certificat de travail</td><td class="r"><span class="mu">à la sortie</span></td></tr><tr><td>Solde de tout compte</td><td class="r"><span class="mu">à la sortie</span></td></tr></tbody></table>`
           : `<table class="mini" style="margin:6px 12px 10px;width:calc(100% - 24px)"><thead><tr><th>Mois</th><th class="r">Brut</th><th class="r">Net</th><th>Payé</th><th></th></tr></thead><tbody>${(k === 'sa' ? ['octobre'] : ['octobre', 'septembre', 'août']).map((mo, i) => `<tr class="clic"><td>${mo} 2026</td><td class="r">${fmt(x.gross)}</td><td class="r"><b>${fmt(i === 0 ? x.net : x.k === 'hm' && i === 2 ? x.net + 100000 : x.net)}</b></td><td>${i === 0 ? '<span class="statut bleu">à payer</span>' : `<span class="mu">le 30/${i === 1 ? '09' : '08'}</span>`}</td><td class="r"><button type="button" class="btn mini" data-montrer="bulletin">${ic('oeil', 13, 2)} Voir</button></td></tr>`).join('')}</tbody></table>`;
@@ -1471,7 +1477,64 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
       <div class="carte tab"><table class="liste"><thead><tr><th>Mois</th><th class="r">Salariés</th><th class="r">Brut</th><th class="r">Coût</th><th>Payé</th></tr></thead><tbody>
       ${M.map((mo, i) => `<tr><td><b style="text-transform:capitalize">${mo}</b></td><td class="r m">${i === 9 ? 5 : 4}</td><td class="r m">${fmt(i === 9 ? OCT.gross : SEPT.gross)}</td><td class="r m">${fmt(i === 9 ? OCT.cout : SEPT.cout)}</td><td>${i === 9 ? '<span class="statut bleu">à payer le 31/10</span>' : `<span class="mu">le ${i === 1 ? '28' : i === 3 || i === 5 || i === 8 ? '30' : '31'}/${String(i + 1).padStart(2, '0')}</span>`}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td><span class="pied-t"><b>Janvier à octobre</b></span></td><td></td><td class="r m">${fmt(brutAn)}</td><td class="r m">${fmt(coutAn)} <small>DT</small></td><td></td></tr></tfoot></table></div>
+      <div class="apy carte"><div class="apy-t"><b>La fin de l'année</b><span class="mu">ce que décembre et janvier demandent</span></div><ul class="apy-l">${[['Prime de fin d\'année', 'si ta convention en prévoit une : son montant et son mois (À VÉRIFIER)', 'décembre'], ['Le départ d\'Hamza', 'son dernier bulletin et son solde de tout compte', 'le 31/12'], ['Attestations de salaires 2026', 'une par salarié : ce qu\'il a gagné et ce qui a été retenu, pour sa déclaration d\'impôt', 'janvier'], ['Déclaration annuelle d\'employeur', 'Jlassi Conseil la prépare', 'février 2027'], ['Les congés à reporter', 'ce qui reste se reporte sur 2027, ou se paie (À VÉRIFIER : ta convention)', 'au 31/12']].map(([t, d, q]) => `<li><span class="apy-ok" style="justify-self:center">${ic('echeance', 16, 2.2)}</span><span class="apy-n"><b>${t}</b><small title="${esc(d)}">${d}</small></span><span class="apy-e">${q}</span><span></span><span></span></li>`).join('')}</ul></div>
       <div class="bandeau gris">${ic('declaration', 18, 2)}<span class="txt"><b>Les congés pas pris : 38 jours au 31/10</b><span>Au 31/12, ils sont une dette envers tes salariés : ton cabinet les chiffre à la clôture (À VÉRIFIER : sa pratique).</span></span></div>`;
+  }
+
+  // Les contrôles faits avant le bon à payer (ceux du Cabinet, vus de l'entreprise).
+  const CONTROLES = [['ok', 'Aucun salaire sous le SMIG', 'le plus bas : Salma, 780,000 de base (montant du SMIG 2026 : À VÉRIFIER)'], ['ok', 'Aucun net négatif ni nul', ''],
+    ['ok', 'Écarts sur septembre expliqués', 'Nadia − 52,610 : 2 jours sans solde · Mourad + 48,513 : 8 h sup'], ['ok', 'Le 15/10, férié, payé à tous', 'Fête de l\'Évacuation (chômé et payé : À VÉRIFIER)'],
+    ['ok', 'Pointage repris sur chaque bulletin', ''], ['ok', 'L\'avance d\'Hamza retenue', '2e retenue sur 3'], ['ok', 'L\'entrée de Salma au prorata', '17 jours sur 26'],
+    ['ok', 'Heures sup sous le plafond', '8 h dans le mois (plafond : À VÉRIFIER)'], ['ok', 'Taux de 2026', 'CNSS, accident du travail, TFP, FOPROLOS'], ['ok', 'Contrats en cours', 'le CDD d\'Hamza finit le 31/12'],
+    ['attire', 'N° CNSS de chaque salarié', 'Salma : à demander, avant la déclaration de janvier'], ['attire', 'RIB de chaque salarié', 'Salma : payée en espèces ce mois, contre reçu']];
+  function controlesEnt() {
+    const ko = CONTROLES.filter((c) => c[0] !== 'ok');
+    return `<div class="apy carte"><div class="apy-t"><b>Ce que Jlassi Conseil a contrôlé</b><span class="mu">${CONTROLES.length} contrôles · ${CONTROLES.length - ko.length} justes · ${ko.length} à savoir</span></div>
+      <ul class="apy-l">${ko.concat(CONTROLES.filter((c) => c[0] === 'ok').slice(0, 3)).map(([ton, t, d]) => `<li><span class="apy-ok" style="justify-self:center;color:${ton === 'ok' ? 'var(--sarcelle-texte)' : 'var(--ambre-texte)'}">${ic(ton === 'ok' ? 'coche' : 'aide', 16, 2.2)}</span><span class="apy-n"><b>${t}</b><small>${d}</small></span><span></span><span></span><span></span></li>`).join('')}</ul>
+      <button type="button" class="apy-plus">${CONTROLES.length - ko.length - 3} autres contrôles justes · tout voir</button></div>`;
+  }
+  // L'arrivée d'un salarié : ce qu'il faut avant son premier bulletin (Salma, entrée le 13/10).
+  function arrivee() {
+    const L = [['coche', 'Contrat signé', 'CDD de 6 mois, jusqu\'au 12/04/2027 · rangé dans le classeur'], ['coche', 'CIN', '08 412 977'], ['coche', 'Inscrite au registre du personnel', 'n° 5'],
+      ['coche', 'Salaire et primes', '780,000 de base · présence et transport au jour'], ['coche', 'Premier bulletin au prorata', '17 jours sur 26 en octobre'],
+      ['aide', 'N° CNSS', 'si elle n\'en a pas, son immatriculation se demande à la CNSS (le délai : À VÉRIFIER)'], ['aide', 'RIB', 'sans lui, octobre se paie en espèces, contre reçu'],
+      ['echeance', 'Période d\'essai', 'sa durée et sa fin : celles du contrat (À VÉRIFIER : le Code du travail)'], ['echeance', 'Visite médicale d\'embauche', 'À VÉRIFIER : l\'obligation pour ton activité']];
+    return `<div style="padding:12px 16px;display:grid;gap:8px"><div class="bloc-t"><b>L'arrivée de Salma, le 13/10</b><span class="mu">5 faits · 2 à demander · 2 à vérifier</span></div>
+      <ul class="apy-l" style="margin:0 -16px">${L.map(([i, t, d]) => `<li><span class="apy-ok" style="justify-self:center;color:${i === 'coche' ? 'var(--sarcelle-texte)' : i === 'aide' ? 'var(--ambre-texte)' : 'var(--gris)'}">${ic(i, 16, 2.2)}</span><span class="apy-n"><b>${t}</b><small title="${esc(d)}">${d}</small></span><span></span><span></span><span></span></li>`).join('')}</ul>
+      <span class="mu" style="font-size:12.5px">Un jeune diplômé en premier emploi peut entrer par un contrat aidé : le CIVP (l'ancien SIVP), où l'ANETI verse une partie de l'indemnité. Ses règles (montants, CNSS, durée) : À VÉRIFIER avec ton comptable avant de le choisir.</span></div>`;
+  }
+  // Le départ d'Hamza le 31/12 : son dernier bulletin, son solde de tout compte, ses documents.
+  const CONGES_HM = 18, INDEM_HM = Math.round(18 * 820000 / 26);
+  function depart() {
+    return `<div style="padding:12px 16px;display:grid;gap:10px"><div class="bloc-t"><b>Son CDD finit le 31/12/2026</b><span class="mu">renouveler, ou le laisser finir</span></div>
+      <table class="mini"><thead><tr><th>Son dernier bulletin, décembre</th><th class="r"></th></tr></thead><tbody>
+        <tr><td>Salaire de décembre<small>comme octobre, sans avance (soldée en novembre)</small></td><td class="r">820,000</td></tr>
+        <tr><td>Congés pas pris : ${CONGES_HM} jours<small>15 acquis en octobre, 3 de plus en novembre et décembre · 18 × 820,000 ÷ 26</small></td><td class="r">${fmt(INDEM_HM)}</td></tr>
+        <tr><td>Indemnité de fin de contrat<small>selon la convention de la boulangerie : À VÉRIFIER</small></td><td class="r"><span class="mu">—</span></td></tr></tbody>
+        <tfoot><tr><td>Brut du dernier bulletin</td><td class="r">${fmt(820000 + INDEM_HM)} DT</td></tr></tfoot></table>
+      <table class="mini"><tbody><tr><td>Certificat de travail</td><td class="r"><span class="mu">prêt le 31/12</span></td></tr><tr><td>Reçu pour solde de tout compte, à signer</td><td class="r"><span class="mu">prêt le 31/12</span></td></tr><tr><td>Attestation de salaires de 2026</td><td class="r"><span class="mu">pour sa déclaration d'impôt</span></td></tr><tr><td>Sa sortie à la CNSS</td><td class="r"><span class="mu">dans la déclaration du 4e trimestre</span></td></tr></tbody></table>
+      <span class="mu" style="font-size:12.5px">Le calcul des congés (au jour, ou au dixième) et la durée maximale d'un CDD renouvelé : À VÉRIFIER avec ton comptable. Jlassi Conseil prépare ce dernier bulletin avec toi.</span></div>`;
+  }
+  // Une augmentation qui compte depuis un mois passé : le rappel, salarié par salarié.
+  const RAPPEL = [['mt', 72500, 6, 435000], ['kz', 55000, 6, 330000], ['nb', 39000, 6, 231000, 'octobre au prorata : 24 jours sur 26'], ['hm', 36000, 6, 216000], ['sa', 39000, 1, 25500, 'entrée le 13/10 : 17 jours sur 26']];
+  function rappel() {
+    const tot = RAPPEL.reduce((t, r) => t + r[3], 0);
+    return `<div class="voile"><div class="fen large" role="dialog" aria-label="Une augmentation qui compte depuis mai"><h3>Une augmentation qui compte depuis le 01/05</h3>
+      <p class="regle">Exemple : un accord de ta branche augmente les salaires de base de 5 % à compter du 01/05/2026, et paraît en novembre. Tu (ou Anis) saisis le taux et la date ; SkanFact refait les mois passés et met la différence sur le bulletin de novembre, en une ligne « Rappel de salaire, mai à octobre ». Les taux et la date sont ceux de l'accord publié : À VÉRIFIER, rien n'est inventé ici.</p>
+      <table class="mini"><thead><tr><th>Salarié</th><th class="r">+ par mois</th><th class="r">Mois</th><th class="r">Rappel brut</th></tr></thead><tbody>${RAPPEL.map(([k, m, n, r, d]) => `<tr><td><b>${esc(sal(k).nom)}</b>${d ? `<small>${d}</small>` : ''}</td><td class="r">${fmt(m)}</td><td class="r">${n}</td><td class="r"><b>${fmt(r)}</b></td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="3">Rappel de novembre, brut</td><td class="r">${fmt(tot)} DT</td></tr></tfoot></table>
+      <p class="regle">${ic('aide', 13, 2)} Le rappel est un salaire : il porte la CNSS (dans le 4e trimestre) et l'impôt. La façon d'imposer un rappel sur plusieurs mois : À VÉRIFIER avec ton comptable.</p>
+      <div class="pied"><button type="button" class="btn" data-fermer style="margin-inline-end:auto">Annuler</button><button type="button" class="btn prem" data-fermer>${ic('coche', 15, 2.4)} Mettre le rappel sur novembre</button></div></div></div>`;
+  }
+  // Combien coûte une embauche : sur le bulletin réel d'Hamza (un aide boulanger), au millime.
+  function simuler() {
+    const h = sal('hm');
+    return `<div class="voile"><div class="fen" role="dialog" aria-label="Combien coûte une embauche"><h3>Combien coûte un aide boulanger de plus ?</h3>
+      <div class="grille2">${champ('Comme', 'Hamza Mejri · aide boulanger', { suf: ic('bas', 14, 2) })}${champ('Brut', fmt(h.gross), { suf: 'DT', aide: 'base 720,000 + présence et transport' })}</div>
+      <table class="mini"><tbody><tr><td>Ce qu'il touche, net</td><td class="r"><b>${fmt(h.net + h.ded)}</b></td></tr><tr><td>Tes charges en plus du brut<small>CNSS, accident du travail, TFP, FOPROLOS</small></td><td class="r">${fmt(h.ch)}</td></tr></tbody>
+      <tfoot><tr><td>Ce qu'il te coûte par mois</td><td class="r">${fmt(h.cout)} DT</td></tr><tr><td>Sur 12 mois</td><td class="r">${fmt(12 * h.cout)} DT</td></tr></tfoot></table>
+      <p class="regle">${ic('aide', 13, 2)} Célibataire, sans heures sup ni prime de fin d'année. Ses congés sont déjà dans le salaire ; une prime de fin d'année, si ta convention en prévoit une : À VÉRIFIER. Le calcul est celui de tes réglages de paie.</p>
+      <div class="pied"><button type="button" class="btn" data-fermer>Fermer</button><button type="button" class="btn prem" data-fermer>${ic('croix', 15, 2.4)} Préparer son arrivée…</button></div></div></div>`;
   }
 
   // ---------- les fenêtres ----------
@@ -1512,6 +1575,7 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
   function menu() {
     return KIT.menu(ic, 'La paie', [['Ce mois', [['exporter', 'Journal de paie (PDF)', 'une ligne par salarié, les totaux'], ['exporter', 'Exporter en tableur', 'les bulletins du mois']]],
       ['Les salariés', [['equipe', 'Registre du personnel', 'la liste que l\'inspection du travail peut demander'], ['contrats', 'Documents du personnel', 'attestation, certificat, solde de tout compte']]],
+      ['Calculer', [['carte', 'Combien coûte une embauche ?', 'brut, net et coût, sur un bulletin réel', '', 'data-montrer="simuler"'], ['ecriture', 'Une augmentation qui compte depuis un mois passé', 'le rappel, salarié par salarié', '', 'data-montrer="rappel"']]],
       ['Réglages', [['reglages', 'Réglages de la paie', 'taux CNSS, impôt, TFP, heures sup, congés : À VÉRIFIER'], ['comptable', 'Qui fait ma paie', 'Jlassi Conseil la tient · changer pour « je la fais »']]]]).replace('class="pop-menu ', 'class="pop-menu pos-entete ');
   }
   function couche() {
@@ -1520,6 +1584,8 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
     if (m === 'bulletin') return bulletinGrand();
     if (m === 'remettre') return remettre();
     if (m === 'avance') return avance();
+    if (m === 'rappel') return rappel();
+    if (m === 'simuler') return simuler();
     if (m === 'menu') return menu();
     return '';
   }
@@ -1548,7 +1614,7 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
     else if (s.vue === 'conges') corps = CONGES.map(([k, a, p]) => carteS(sal(k), k === 'sa' ? '—' : `${a - p} j`, k === 'sa' ? 'acquis dès novembre' : `${a} acquis · ${p} pris`)).join('') + `<div class="t-mois">Avance</div><div class="carte">${avanceHamza()}</div>`;
     else if (s.vue === 'declarations') corps = `<div class="carte t-tot"><span class="mu">À verser avant le 28/11</span><b>${fmt(TAXES)} DT</b><small>retenues et taxes d'octobre · Jlassi Conseil déclare</small></div><div class="carte t-tot"><span class="mu">CNSS du 4e trimestre, en janvier</span><b>${fmt(CNSS_OCT)} DT</b><small>octobre · novembre et décembre à venir</small></div><div class="carte t-tot"><span class="mu">CNSS du 3e trimestre</span><b>${fmt(T3)} DT</b><small class="mu">payée le 15/10</small></div>`;
     else if (s.vue === 'annee') corps = `<div class="carte t-tot"><span class="mu">Coût de la paie, janvier à octobre</span><b>${fmt(9 * SEPT.cout + OCT.cout)} DT</b><small>${fmt(9 * SEPT.gross + OCT.gross)} DT de brut</small></div>`;
-    else if (e.rang === 0) corps = `<div class="carte t-tot"><span class="mu">Aujourd'hui, mardi 27/10</span><b style="font-size:18px">Qui n'est pas là ?</b><small>un geste par salarié ; le reste du mois se pointe tout seul « présent »</small></div>${SAL.map((x) => carteS(x, '<span class="statut ok">présent</span>', x.k === 'mt' ? '+2 h sup la semaine du 19/10' : x.k === 'nb' ? 'sans solde les 15 et 16/10' : 'tout le mois')).join('')}<span class="mu" style="font-size:12px">La grille du mois s'ouvre à l'ordinateur.</span>`;
+    else if (e.rang === 0) corps = `<div class="carte t-tot"><span class="mu">Aujourd'hui, mardi 27/10</span><b style="font-size:18px">Qui n'est pas là ?</b><small>un geste par salarié ; le reste du mois se pointe tout seul « présent »</small></div>${SAL.map((x) => carteS(x, '<span class="statut ok">présent</span>', x.k === 'mt' ? '+2 h sup la semaine du 19/10' : x.k === 'nb' ? 'sans solde les 16 et 17/10' : 'tout le mois')).join('')}<span class="mu" style="font-size:12px">La grille du mois s'ouvre à l'ordinateur.</span>`;
     else corps = `<div class="carte t-tot"><span class="mu">${e.seule ? 'Net à verser, préparé par toi' : 'Net à verser, d\'ici le 31/10'}</span><b>${fmt(e.seule ? somme(SAL_SARRA, 'net') : OCT.net)} DT</b><small>${e.signal ? '<span class="rouge">Jlassi Conseil signale l\'avance d\'Hamza</span>' : `coût de la paie ${fmt(OCT.cout)} DT`}</small></div>${(e.seule ? SAL_SARRA : SAL).map((x) => carteS(x, fmt(x.net), x.rib ? `virement · ${esc(x.rib)}` : '<span class="ambre">espèces, contre reçu</span>')).join('')}${e.rang === 2 && peutEcrire() && !e.hors ? '<button type="button" class="btn prem" style="height:46px;justify-content:center">Payer les salaires</button>' : e.rang === 3 ? '<button type="button" class="btn prem" style="height:46px;justify-content:center">Remettre les 5 bulletins</button>' : ''}`;
     const feuille = s.montrer === 'tel-jour' ? `<div class="t-voile"></div><div class="t-feuille"><span class="poignee"></span><b>Nadia Ben Salem · aujourd'hui</b><small>mardi 27/10</small>${[['coche', 'Présente'], ['echeance', 'Congé payé · il lui reste 11 jours'], ['aide', 'Malade · certificat à joindre'], ['croix', 'Absente, sans solde'], ['horloge', 'Heures sup…']].map(([i, t]) => `<button type="button">${ic(i, 18, 2)} ${t}</button>`).join('')}</div>` : '';
     return `${tete('Paie', e.seule ? 'Octobre · tu la fais, ton cabinet la vérifie' : 'Octobre · tenue par Jlassi Conseil')}<div class="t-corps">${ban}${puces}${corps}</div>${feuille}${KIT.onglets('')}`;
@@ -1585,6 +1651,8 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
     o.querySelectorAll('[data-voir]').forEach((b) => b.onclick = (ev) => { ev.stopPropagation(); s.sel = b.dataset.voir; s.montrer = 'bulletin'; tout(); });
     o.querySelectorAll('[data-fermer]').forEach((b) => b.onclick = () => { s.montrer = ''; tout(); });
     o.querySelectorAll('[data-paye]').forEach((b) => b.onclick = () => { s.etat = 'paye'; appliquer(); s.montrer = ''; tout(); });
+    o.querySelectorAll('[data-approuve]').forEach((b) => b.onclick = () => { s.etat = 'mois'; appliquer(); s.toast = 'Tu as approuvé les 5 bulletins : Jlassi Conseil les valide, puis tu pourras payer.'; tout(); });
+    o.querySelectorAll('[data-accepte]').forEach((b) => b.onclick = () => { s.etat = 'accepte'; appliquer(); tout(); });
     o.querySelectorAll('[data-remis]').forEach((b) => b.onclick = () => { s.etat = 'fini'; appliquer(); s.montrer = ''; s.toast = '5 bulletins remis : 3 envoyés par e-mail, 2 à l\'impression. <button type="button" data-annuler>Annuler</button>'; tout(); });
     o.querySelectorAll('[data-corrige]').forEach((b) => b.onclick = () => { s.montrer = ''; s.toast = `Bulletin d'Hamza corrigé : avance retenue, net ${fmt(sal('hm').net)}. Il repart à Jlassi Conseil pour vérification.`; tout(); });
     o.querySelectorAll('[data-annuler]').forEach((b) => b.onclick = () => { s.toast = 'Annulé : rien n\'a changé.'; if (s.etat === 'paye') { s.etat = 'mois'; appliquer(); s.toast = 'Annulé : les 5 salaires ne sont plus marqués payés.'; } tout(); });
@@ -1631,6 +1699,16 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
     ['Qui tient la paie (le cabinet, ou toi avec sa vérification)', 'N\'existe pas', 'Dit en haut ; les gestes suivent', 'neuf'],
     ['Remettre les bulletins à chacun', 'Un PDF à la fois', 'Les 5 d\'un coup : e-mail à qui en a un, impression pour les autres', 'neuf'],
     ['Le CDD qui finit', 'N\'existe pas', 'Bandeau deux mois avant, sur la liste et la fiche', 'neuf'],
+    ['Ce que font les logiciels de paie (revue du 01/11/2026)'],
+    ['Le bon à payer : l\'entreprise approuve avant de payer', 'N\'existe pas', 'Étape « Bon à payer » quand le cabinet tient la paie, avec ses contrôles', 'neuf'],
+    ['Les contrôles avant validation (SMIG, écarts, férié, CNSS, RIB…)', 'Le net négatif seulement', '12 contrôles, ceux qui demandent un geste en tête', 'neuf'],
+    ['La correction proposée par le cabinet, acceptée par l\'entreprise', 'N\'existe pas', 'Avant, après, « Accepter » ; la trace reste (Skander, 01/11/2026)', 'neuf'],
+    ['L\'arrivée d\'un salarié', 'La fiche seulement', 'La liste de ce qu\'il faut (contrat, CNSS, RIB, essai, visite) ; le CIVP', 'neuf'],
+    ['Le départ : dernier bulletin, congés pas pris, documents', 'Le solde de tout compte en document', 'Onglet « Son départ » de la fiche', 'neuf'],
+    ['Le rappel de salaire (augmentation qui compte depuis un mois passé)', 'N\'existe pas', 'Fenêtre : salarié par salarié, sur le bulletin du mois', 'neuf'],
+    ['Combien coûte une embauche', 'N\'existe pas', 'Sur un bulletin réel, au millime', 'neuf'],
+    ['Les jours fériés du mois', 'N\'existe pas', 'Marqués dans la grille du pointage, contrôlés sur les bulletins', 'neuf'],
+    ['La fin d\'année (prime, attestations, congés reportés)', 'La déclaration annuelle', 'Une liste datée dans « L\'année »', 'neuf'],
   ];
   const OU = { devant: ['devant', 'À l\'écran'], menu: ['menu', 'Dans un menu'], neuf: ['neuf', 'Nouveau'] };
   function rienDePerdu() {
@@ -1652,6 +1730,10 @@ table.liste td .cl-i small .statut { display: inline-block; margin-right: 4px; }
       ['Le bulletin d\'Hamza fait par Sarra : 100,000 de plus que celui du Cabinet, l\'avance oubliée', `${fmt(SAL_SARRA.find((x) => x.k === 'hm').net)} et ${fmt(sal('hm').net)}`, SAL_SARRA.find((x) => x.k === 'hm').net - sal('hm').net === 100000],
       ['L\'avance d\'Hamza : 3 retenues de 100,000 = 300,000 ; il en reste une', '300,000 · 2 retenues faites · 100,000 restent', 3 * OCT.ded === 300000],
       ['Les congés : acquis − pris = reste, 38 jours', CONGES.map(([k, a, p]) => `${sal(k).ini} ${a - p}`).join(' · '), CONGES.reduce((t, [, a, p]) => t + a - p, 0) === 38],
+      ['Le rappel : la somme des salariés = la ligne du bulletin de novembre', RAPPEL.map((r) => fmt(r[3])).join(' + '), RAPPEL.every((r) => r[0] === 'sa' || r[0] === 'nb' || r[1] * r[2] === r[3]) && RAPPEL.reduce((t, r) => t + r[3], 0) === 1237500],
+      ['La simulation d\'une embauche = le bulletin réel d\'Hamza', `net ${fmt(sal('hm').net + sal('hm').ded)} · coût ${fmt(sal('hm').cout)}`, sal('hm').cout === sal('hm').gross + sal('hm').ch && sal('hm').net + sal('hm').ded === sal('hm').gross - sal('hm').cnssE - sal('hm').irpp - sal('hm').css],
+      ['L\'absence de Nadia ne tombe pas sur le férié du 15/10', 'les 16 et 17/10', !CH.nb[2].includes('15')],
+      ['Les contrôles : justes + à savoir = tous', `${CONTROLES.filter((c) => c[0] === 'ok').length} + ${CONTROLES.filter((c) => c[0] !== 'ok').length} = ${CONTROLES.length}`, CONTROLES.length === 12],
       ['La déclaration d\'octobre : ses quatre lignes = ce que la paie sort avant le 28/11', `${fmt(OCT.irpp)} + ${fmt(OCT.css)} + ${fmt(OCT.tfp)} + ${fmt(OCT.fop)}`, OCT.irpp + OCT.css + OCT.tfp + OCT.fop === TAXES && OCT.tfp === Math.round(OCT.gross * 0.02) && OCT.fop === Math.round(OCT.gross * 0.01)],
     ];
     return `<section class="carte rdp" id="verif"><h2>Ce que la page vérifie d'elle-même</h2><p>Deux chemins, un chiffre : chaque ligne compare deux calculs indépendants sur la paie de l'exemple. Une ligne rouge serait un défaut de la maquette.</p>

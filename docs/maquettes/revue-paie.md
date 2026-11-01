@@ -46,7 +46,41 @@ Le même exemple, les mêmes montants au millime (brut 5 027,405, net 4 076,400,
 même règle : celui qui ne tient pas la paie ne la modifie pas, il la signale. La page de l'entreprise le vérifie elle-même,
 en bas, comme celle du Cabinet.
 
-## 4. Reste ouvert (à Skander)
+## 4. Ce que font les logiciels de paie, et ce qu'on en prend (01/11/2026)
 
-- Quand le client fait sa paie lui-même, le cabinet vérifie et **signale** (choix des maquettes) — ou peut-il **corriger
-  avec l'accord** du client ? Question posée le 31/10, sans réponse à ce jour.
+Skander : « les états de la paie manquent beaucoup de métier : regarde ce que font les autres ». Regardé : les outils
+français pour cabinets et PME (Silae, PayFit), les modules tunisiens d'Odoo (paie, déclaration CNSS), des guides de paie
+tunisienne. Ce sont des pages commerciales et des guides : la pratique, pas la loi.
+
+Le cycle qu'ils suivent tous : **collecter les éléments du mois** (absences, primes, heures sup, avances) → **calculer** →
+**contrôler** (les écarts sur le mois d'avant, les anomalies) → **faire valider par l'employeur** (le « bon à payer »)
+→ **clôturer** (bulletins définitifs) → **payer** (fichier de virement) → **déclarer** → **écrire en comptabilité**. Une
+erreur après clôture se corrige en rouvrant la paie, jamais en effaçant.
+
+| # | Ce qui manquait | Ce que les deux maquettes font maintenant |
+|---|---|---|
+| M1 | Le **bon à payer** : l'entreprise approuve les bulletins préparés par le cabinet avant de payer. | Entreprise : étape « Bon à payer » (« J'approuve les 5 bulletins », ou « Demander une correction »). Cabinet : « Envoyer à Sarra pour accord », puis « Valider » une fois approuvés. |
+| M2 | Les **contrôles avant validation**. | 12 contrôles écrits (SMIG, net, écarts de plus de 5 % expliqués, férié, pointage, avance, prorata, heures sup, taux 2026, contrats, n° CNSS, RIB), ceux qui demandent un geste en tête. |
+| M3 | **Corriger avec l'accord du client** (décision de Skander, 01/11/2026). | Cabinet : « Proposer la correction à Sarra » (avant, après), puis « En attente de Sarra ». Entreprise : « Accepter la correction d'Anis » ou « Refuser, je m'en occupe » ; acceptée, la trace reste. |
+| M4 | Les **jours fériés** : le 15/10 est férié en 2026 (Fête de l'Évacuation), et la maquette y mettait l'absence sans solde de Nadia. | Le 15/10 marqué « férié » dans les deux grilles ; l'absence de Nadia passe aux 16 et 17/10 (les montants ne changent pas). Chômé et payé : À VÉRIFIER. |
+| M5 | **L'arrivée** d'un salarié. | Fiche de Salma, onglet « Son arrivée » : contrat, CIN, registre, n° CNSS, RIB, période d'essai, visite médicale ; le CIVP (l'ancien SIVP, À VÉRIFIER). |
+| M6 | **Le départ** : dernier bulletin et solde de tout compte. | Hamza (CDD au 31/12) : salaire, 18 jours de congés pas pris (567,692, À VÉRIFIER : la règle), indemnité selon la convention, certificat, reçu, attestation, sortie CNSS. Mêmes chiffres des deux côtés. |
+| M7 | Le **rappel de salaire** (une augmentation qui compte depuis un mois passé). | Exemple à + 5 % depuis le 01/05 : 1 237,500 de rappel, salarié par salarié, sur le bulletin de novembre. Taux et date : ceux de l'accord publié, jamais inventés. |
+| M8 | **Combien coûte une embauche**. | Sur le bulletin réel d'Hamza : net 699,807, coût 987,854 par mois, 11 854,248 par an. |
+| M9 | La **fin d'année**. | Prime de fin d'année (si la convention la prévoit), attestations de salaires, congés reportés, déclaration annuelle ; côté cabinet, le nombre de bulletins de l'année (41), que la lettre de mission facture. |
+
+Restent pour plus tard : l'espace du salarié (ses bulletins, ses demandes de congé au téléphone), la paie de tous les
+dossiers d'un cabinet sur une page, les arrêts maladie et la CNAM, les saisies sur salaire. Taux CNSS du salarié : les
+sources disent 9,18 % ou 9,68 % selon l'année ; À VÉRIFIER avant d'écrire un chiffre.
+
+Sources : [Silae, plaquette expert-comptable](https://www.silae.fr/wp-content/uploads/Plaquette_Silae_Paie-Expert-Comptable.pdf),
+[PayFit, clôture de paie](https://payfit.com/fr/fiches-pratiques/cloture-de-paie/),
+[Odoo, paie tunisienne](https://apps.odoo.com/apps/modules/18.0/l10n_tn_payroll),
+[Odoo, déclaration CNSS](https://apps.odoo.com/apps/modules/18.0/cnss_declaration),
+[Jours fériés 2025-2026](https://www.tuniscope.com/article/415154/actualites/tunisie/tunisie-calendrier-officiel-des-jours-feries-2025-2026-142010),
+[Le SIVP devient CIVP](https://kapitalis.com/tunisie/?p=246024).
+
+## 5. Décidé
+
+- 01/11/2026 : quand le client fait sa paie, **le cabinet la corrige avec son accord** (Skander). Écrit au journal du
+  cadrage (`docs/cadrage/README.md`).
