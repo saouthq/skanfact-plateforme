@@ -153,7 +153,43 @@ retirées (le salarié demande à Sarra, la réponse reste écrite).
 
 La page vérifie 23 égalités (deux chemins, un chiffre), dont les cumuls des bulletins contre « L'année ».
 
-## 7. Décidé
+## 7. Revue des parcours de l'entreprise (4e passe, 01/11/2026), corrigée
+
+Revue faite comme Sarra, sans le panneau de la maquette : chaque bouton de chaque état essayé par un programme
+(ordinateur et téléphone), puis dix parcours faits au clic, du début à la fin.
+
+**Ce qu'on a trouvé** : 49 boutons sans effet sur l'ordinateur, dont le geste principal du mois (« Envoyer le
+pointage ») et ceux qui règlent les anomalies ; au téléphone, une vendeuse sans le droit « Paie » voyait tous les
+salaires (défaut grave) ; on ne pouvait ni approuver les bulletins ni répondre à un congé au téléphone ; aucun endroit
+pour voir ce qui arrive en cours de mois ; un départ ouvert depuis Hamza montrait la démission de Nadia ; chaque
+« document » montrait l'attestation de Nadia.
+
+**Corrigé**
+- « À traiter » en tête du mois (et au téléphone) : la demande de congé de Karim, l'attestation demandée par Nadia,
+  la fiche de Salma, le CDD d'Hamza, chacun avec son bouton.
+- Les documents tels qu'ils sortent, en aperçu fidèle avant le PDF : bulletin de paie (rubriques, base, taux, à payer,
+  à retenir, imposable, net, cumuls, congés, charges de l'employeur), attestation de travail, attestation de salaire,
+  attestation annuelle (provisoire), contrat, avenant, fin d'essai, certificat de travail, solde de tout compte, journal
+  de paie, ordre de virement, reçu en espèces, registre du personnel. Numérotés, datés, rangés ; « PROJET » tant
+  qu'ils ne sont pas signés ; ce qui vient de la fiche de l'entreprise (matricule, n° CNSS) se voit en pointillé tant
+  qu'il manque. Au téléphone, le document s'ouvre en pleine page.
+- Le pointage à la main, sans pointeuse : chaque case de la grille s'ouvre (présent, sans solde, congé payé avec le
+  solde, maladie, heures sup, retard, sur un ou plusieurs jours) ; « Aujourd'hui : qui n'est pas là ? » d'un geste par
+  salarié ; « Comment chaque équipe pointe » dans les horaires.
+- Le pointage avec pointeuse : chaque anomalie se règle (et s'annule) ; le bouton dit ce qui reste, puis envoie.
+- Les fenêtres : une croix partout, un pied fixe, le clavier gardé dans la fenêtre, Échap qui ferme ; les lignes
+  s'ouvrent avec Entrée ; la recherche des salariés filtre ; les bulles « i » s'ouvrent au clic.
+- La fiche : un menu ⋯ propre au salarié (bulletin, congé, avance ou prêt, salaire, document, départ), chaque
+  fenêtre déjà remplie pour lui ; changer un salaire (daté, avenant) ; compléter la fiche de Salma.
+- « Qui fait ta paie ? » : trois façons, ce que chacune change, effet au mois suivant, retour possible.
+- Le téléphone : la vendeuse ne voit plus rien des salaires ; approuver, répondre à un congé, payer, remettre, ouvrir
+  un bulletin ; chaque carte de salarié s'ouvre sur ce qui sert là où l'on est.
+
+**Mesuré après** : 0 bouton sans effet sur les deux écrans (hors les lignes des réglages, en lecture, et le lien
+« Accueil ») ; chaque bouton mène à une fenêtre, un état ou un document qui existe ; 25 étapes de parcours justes,
+0 erreur ; 23 égalités de calcul justes.
+
+## 8. Décidé
 
 - 01/11/2026 : quand le client fait sa paie, **le cabinet la corrige avec son accord** (Skander). Écrit au journal du
   cadrage (`docs/cadrage/README.md`).
