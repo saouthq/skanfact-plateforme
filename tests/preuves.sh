@@ -21979,7 +21979,7 @@ prouver 'saisie 24 : le brouillard d'\''un mois montre tout l'\''exercice' web/p
   "    const mBl = livresState.mode === 'mois' && livresState.mois && !sxState.blTout ? livresState.mois : '';" "    const mBl = '';" \
   "$WSX1"
 prouver 'saisie 25 : la fenêtre de validation ne liste pas ce qu'\''elle valide' web/public/v10/cabinet/app.js \
-  "      liste + verif + cas + (une" "      verif + cas + (une" \
+  "<div class=\"lot-fen\">\${liste}\${cas}" "<div class=\"lot-fen\">\${cas}" \
   "$WSX1"
 prouver 'saisie 26 : la fenêtre de validation ne vérifie rien avant' web/public/v10/cabinet/app.js \
   "    const verif = !fausses.length && !deposes.length" "    const verif = false" \
