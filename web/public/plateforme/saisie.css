@@ -316,3 +316,6 @@ table.list.compact.sx-bl td.mono, .sx-jm-l td.mono { font-family: ui-monospace, 
 .sx-jm-l th:nth-child(5), .sx-jm-l th:nth-child(6) { width: 110px; }
 .sx-jm-l th:nth-child(1) { width: 52px; } .sx-jm-l th:nth-child(2) { width: 96px; } .sx-jm-l th:nth-child(3) { width: 70px; } .sx-jm-l th:nth-child(7) { width: 30px; }
 .sx-jm-tot #sx-jm-bilan { display: inline-flex; gap: 4px; align-items: center; }
+
+/* (1.219.0, revue comptable) Une écriture sans numéro de pièce se voit : la pièce qui la justifie ne se retrouverait pas. */
+.sx-sans-n { font-family: var(--sb-police, system-ui, sans-serif); font-size: 12px; letter-spacing: 0; color: var(--sb-ambre-texte); background: var(--sb-ambre-doux); border-radius: 6px; padding: 1px 6px; }

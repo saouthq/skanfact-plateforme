@@ -474,6 +474,28 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### Revue UI/UX de la Saisie et de la Banque, en comptable (1.219.0, 01/11/2026)
+
+Parcourues en pleine page sur la Boulangerie El Amal, septembre 2026 (face à la pièce, les trois pièces, au kilomètre,
+le brouillard, la Banque et son pied). Ce qui tombe juste : la TVA qui change de mois (au millime, des deux côtés),
+les retenues de 1,5 % payées net (27,693 et 36,690), la remise de trois chèques, l'équation du relevé au millime,
+débit = crédit au kilomètre, la pièce sans justificatif signalée.
+
+Corrigé dans cette version :
+- **Une écriture sans numéro de pièce** (« Règlement Total Ennasr ») se voit au brouillard : « sans n° » en ambre, au
+  lieu d'un tiret qu'on ne remarque pas (la pièce qui la justifie ne se retrouverait pas).
+- **La fiche « mauvais mois »** dit que ses chiffres de TVA comptent le brouillard (« · brouillard compris ») : sous
+  elle, le brouillard dit « elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées ».
+
+Restent, à décider :
+- **« Par » au brouillard** : « JC » (le cabinet) sur toutes les écritures du cabinet. L'écriture ne garde pas qui l'a
+  écrite ; la maquette montre la personne (AG, RT). Il faut une donnée de plus en base (qui a écrit, qui a validé).
+- **Le compte du fournisseur** : le journal montre « 401 » ; la maquette « 401ST », le compte de chaque fournisseur.
+  Le tiers est connu (« STEG · 401 ») : l'afficher en compte auxiliaire est un choix de tenue (À VÉRIFIER avec les
+  comptables pilotes).
+- **La farine en 606** (achats non stockés) dans la démo : pour une boulangerie, une matière première (601, À VÉRIFIER).
+- **La pièce en euros** : pas d'exemple dans les données de démo, pas revue.
+
 ### Banque : le relevé qui saute un mois, l'annonce d'un geste (1.218.0, 01/11/2026)
 
 Comparés en pleine page à leur état de la maquette (`bqimportko`, `bqapres`) :
