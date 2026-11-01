@@ -177,6 +177,10 @@ describe('la paie : les écrans de la revue', () => {
     expect(await p.locator('select[aria-label="Le mois pointé"]').count()).toBe(1);
     expect(await p.locator('#pt-panneau select').count()).toBe(0);
     expect(await p.locator('#p-mois #pt-mois').count()).toBe(1);
+    // 1.234.0 (la maquette) : une case « présent » se lit vide ; sa lettre reste pour le clavier et les lecteurs d'écran.
+    const present = p.locator('#pt-grille .pt-c.pt-P').first();
+    expect(await present.textContent()).toBe('P');
+    expect(await present.evaluate((el) => getComputedStyle(el).color)).toBe('rgba(0, 0, 0, 0)');
     // Sans réseau, la paie se consulte et le dit ; son geste principal attend la connexion.
     await p.locator('#p-tabs button[data-tab="bulletins"]').click();
     await expect.poll(() => p.locator('#p-payer').count()).toBe(1);
@@ -187,10 +191,10 @@ describe('la paie : les écrans de la revue', () => {
     await p.context().setOffline(false);
     await expect.poll(() => p.locator('#p-hors-ligne').count()).toBe(0);
     expect(await p.locator('#p-payer').isDisabled()).toBe(false);
-    // Au téléphone, un bulletin du mois est une carte simple : ni brut, ni « Marquer payé » sur la ligne.
+    // Au téléphone, un bulletin du mois est une carte simple : ni brut, ni « Marquer payé » sur la ligne (il est dans son menu).
     await p.setViewportSize({ width: 390, height: 844 });
     await p.waitForTimeout(400);
-    expect(await p.locator('#p-bulletins [data-payer]').first().isVisible()).toBe(false);
+    expect(await p.locator('#p-bulletins [data-payer]').count()).toBe(0);
     expect(await p.locator('#p-bulletins tr[data-bul] td:nth-child(2)').first().isVisible()).toBe(false);
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-mois-telephone.png'), fullPage: true });

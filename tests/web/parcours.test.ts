@@ -573,7 +573,9 @@ describe('le parcours, à la souris', () => {
     await p.locator('#rf-save').click();
     await expect.poll(async () => (await admin.query(`select contenu->'cnssEmployee'->>'~n' c from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.c).toBe('9.93');
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
-    await p.locator('#p-body [data-payer]').click();
+    // « Marquer payé » vit dans le menu de la ligne (1.234.0).
+    await p.locator('#p-body tr[data-bul]').first().getByRole('button', { name: /Actions/ }).click();
+    await p.getByText('Marquer payé', { exact: true }).click();
     await expect.poll(async () => (await auServeur())[0]?.paye_le).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect((await auServeur())[0]).toMatchObject({ net: 1120386n, cnss: '96800' });
 
@@ -647,13 +649,14 @@ describe('le parcours, à la souris', () => {
     // La liste des salariés estime le net avec les primes : 692 de brut, CNSS 66,986, IRPP 21,877, CSS 2,813.
     await expect.poll(() => p.locator('#p-body tr[data-eid]').first().innerText()).toMatch(/600,324/);
     // Et le brut dit ses primes, que le net estimé compte.
-    expect(await p.locator('#p-body tr[data-eid]').first().innerText()).toMatch(/\+ 80,000\sDT de primes/);
+    expect(await p.locator('#p-body tr[data-eid]').first().innerText()).toMatch(/\+ 80,000 de primes/);
     // Sa page aussi, et elle nomme les primes.
     await p.locator('#p-body tr[data-eid]').first().click();
     await pageV10(p, /Nour Ben Salah/);
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/Net estimé\s+600,324[\s\S]*primes de la fiche comprises, hors retenues/i);
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/Primes de chaque mois\s+Prime de présence 30,000\sDT au jour · Prime de transport 50,000\sDT au jour/);
-    await p.locator('#back').click();
+    // La fiche se quitte par son chemin « Paie › Salariés » (1.225.0, la maquette) : plus de bouton retour.
+    await p.locator('#fs-head .chemin a').first().click();
     await pageV10(p, /Paie/);
 
     // « Établir le bulletin manquant » : un mois plein, les deux primes entières.

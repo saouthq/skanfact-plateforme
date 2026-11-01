@@ -22158,8 +22158,9 @@ prouver 'paie 1.224 d : un jour corrigé par salarié ne se garde pas' web/publi
 
 WPAIE6a="approuver avant de payer ; les contrôles ; « Annuler »"
 WPAIE6b="une correction proposée : accepter change le net et garde la trace ; refuser garde la raison"
-prouver 'paie 1.227 a : « Marquer payé » reste offert avant le bon à payer' web/public/v10/app.js \
-  "x.paidDate || (bap && !x.bonAPayerLe) ? '' :" "x.paidDate ? '' :" \
+# Re-pointée en 1.234.0 : « Marquer payé » vit dans le menu de la ligne (1.234 a prouve qu'il n'y est pas avant l'accord).
+prouver 'paie 1.227 a : « Marquer payé » ne revient pas après le bon à payer' web/public/v10/app.js \
+  "!(bapDuMois(Number(x.year), Number(x.month)) && !x.bonAPayerLe) && !horsLigneP ?" "!bapDuMois(Number(x.year), Number(x.month)) && !horsLigneP ?" \
   "$WPAIE6a"
 prouver 'paie 1.227 b : approuver ne garde pas son accord sur le bulletin' web/public/v10/app.js \
   "ids.forEach(id => { const p = payslipById(id); if (p) p.bonAPayerLe = jour; });" "ids.forEach(id => { const p = payslipById(id); if (p) p.bonAPayerLe = ''; });" \
@@ -22255,6 +22256,27 @@ prouver 'paie 1.232 c : sans réseau la paie offre son geste' web/public/v10/app
   "$WRW3"
 prouver 'paie 1.233 a : le pointage garde deux sélecteurs de mois' web/public/v10/app.js \
   "s.tab === 'bulletins' || s.tab === 'pointage' ? \`<select" "s.tab === 'bulletins' ? \`<select" \
+  "$WRW3"
+
+# L'interface de la paie au plus près de sa maquette (1.234.0) : chaque défaut remis fait tomber son test.
+WI1="approuver avant de payer ; les contrôles ; « Annuler »"
+WI2="la fiche d'une arrivée, ce que tu verses et quand, l'année par poste"
+WI3="le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
+WI4="les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'ordre de virement, marquer payés puis annuler"
+prouver 'paie 1.234 a : « Marquer payé » offert avant le bon à payer' web/public/v10/app.js \
+  "...(!x.paidDate && !(bapDuMois(Number(x.year), Number(x.month)) && !x.bonAPayerLe) && !horsLigneP ?" "...(!x.paidDate && !horsLigneP ?" \
+  "$WI1"
+prouver 'paie 1.234 b : « Ce que tu verses » sans son geste' web/public/v10/app.js \
+  "const geste = (id, lab) => \`<button" "const geste = (id, lab) => '' && \`<button" \
+  "$WI2"
+prouver 'paie 1.234 c : les avances en cours absentes des congés' web/public/v10/app.js \
+  '${congesCompteurs(y, emps, cptPage)}${avancesEnCours()}' '${congesCompteurs(y, emps, cptPage)}' \
+  "$WI3"
+prouver 'paie 1.234 d : le RIB en entier dans « Payer les salaires »' web/public/v10/app.js \
+  "··· \${h(String(l.rib).replace(/\\s/g, '').slice(-4))}" "\${h(l.rib)}" \
+  "$WI4"
+prouver 'paie 1.234 e : une case « présent » écrit sa lettre' web/public/plateforme/paie.css \
+  "#pt-grille .pt-c.pt-P, #pt-grille .pt-c.pt-R { background: transparent; color: transparent; }" "#pt-grille .pt-c.pt-R { background: transparent; color: transparent; }" \
   "$WRW3"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été

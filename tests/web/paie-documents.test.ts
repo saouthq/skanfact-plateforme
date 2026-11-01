@@ -99,7 +99,7 @@ describe('la paie : les documents en aperçu fidèle', () => {
 
     // ── Les documents du personnel : la fenêtre montre la feuille à droite ──────────────────────────────────────
     await p.locator('#p-tabs [data-tab="salaries"]').click();
-    await p.locator('#p-sous [data-sous="registre"]').click();
+    await p.locator('#p-plus').click(); await p.getByText('Registre du personnel', { exact: true }).click();
     await p.locator('[data-hr="s1"]').click();
     const fen = p.locator('.modal.pa-doc');
     await expect.poll(() => fen.locator('h2').first().innerText()).toBe('Document pour Nadia Ben Salem');

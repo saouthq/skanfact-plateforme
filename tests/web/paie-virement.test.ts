@@ -151,7 +151,8 @@ describe('payer les salaires du mois, à la souris', () => {
     await expect.poll(async () => (await titre()).startsWith(`Payer les salaires ${dePeriode}`)).toBe(true);
     // La fenêtre revient comme on l'a laissée : la ligne décochée l'est restée ; le RIB est là.
     expect(await fenetre.locator('[data-ps-c="p-s3"]').isChecked()).toBe(false);
-    expect(await lire('tr[data-ps="p-s2"] td:nth-child(4)')).toBe(RIB_DEUX);
+    // Le RIB se lit masqué, contrôlé (1.234.0, la maquette) : ses quatre derniers chiffres.
+    expect(await lire('tr[data-ps="p-s2"] .ps-comment small')).toBe(`··· ${RIB_DEUX.slice(-4)} · contrôlé`);
     expect(await lire('#ps-hors')).toBe('L\'ordre de virement ne portera pas Salarié Numéro Trois (espèces).');
 
     // ── Le RIB du compte, depuis la fenêtre ; puis l'ordre de virement ──────────────────────────────────

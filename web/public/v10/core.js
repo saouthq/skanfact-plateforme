@@ -4200,6 +4200,13 @@
       if ((e.method || 'virement') !== 'especes' && !String(e.iban || '').trim()) L.push({ ...base, focus: 'iban', titre: `${e.name} : RIB à demander`, dit: 'payé par virement : sans RIB, le salaire ne peut pas partir', geste: 'Compléter' });
       if (!String(e.cnss || '').trim()) L.push({ ...base, focus: 'cnss', titre: `${e.name} : n° CNSS à demander`, dit: 'la déclaration du trimestre l\'attend', geste: 'Compléter' });
       if (e.contract === 'cdd' && e.endDate && e.endDate >= t && e.endDate <= dans60) L.push({ ...base, focus: '', titre: `Le CDD de ${e.name} finit le ${fmtDate(e.endDate)}`, dit: 'le renouveler, ou préparer sa sortie', geste: 'Décider' });
+      // (plateforme) 1.234.0 — une demande de congé sans réponse (la maquette, « À traiter ») : combien de jours, ce qui lui reste.
+      (data.leaves || []).filter(l => l.employeeId === e.id && l.statut === 'demande').forEach(l => {
+        const jours = workingDays(l.from, l.to, payrollSettings(data).offDays), reste = leaveBalance(data, e.id, Number(String(l.from).slice(0, 4))).remaining;
+        const prenom = String(e.name || '').split(' ')[0];
+        L.push({ ...base, vue: 'conges', focus: '', conge: l.id, demande: true, titre: `${prenom} demande un congé du ${fmtDate(l.from).slice(0, 5)} au ${fmtDate(l.to).slice(0, 5)}`,
+          dit: `${jours} jour${jours > 1 ? 's' : ''} ; il lui en reste ${String(reste).replace('.', ',')}${l.demandeLe ? ` · demandé le ${fmtDate(l.demandeLe).slice(0, 5)}` : ''}`, geste: 'Répondre' });
+      });
       // (plateforme) 1.231.0 — un arrêt maladie des trois derniers mois sans son certificat ; une saisie sur salaire dont la
       // retenue attend d'être versée au créancier.
       (data.leaves || []).filter(l => l.employeeId === e.id && l.kind === 'maladie' && l.statut !== 'demande' && l.statut !== 'refuse' && !l.certificatLe && l.to >= addDays(t, -92) && l.from <= t)

@@ -106,7 +106,11 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     await expect.poll(() => p.locator('#p-bap').count()).toBe(1);
     expect(espace(await p.locator('#p-bap').innerText())).toBe('J\'approuve les 5 bulletins');
     expect(await p.locator('#p-head .btn-primary').count()).toBe(1);
-    expect(await p.locator('#p-body [data-payer]').count()).toBe(0);
+    // « Marquer payé » vit dans le menu de la ligne (1.234.0) : avant le bon à payer, il n'y est pas.
+    await p.locator('#p-bulletins tr[data-bul]').first().getByRole('button', { name: /Actions/ }).click();
+    await expect.poll(() => p.getByText('Voir le bulletin', { exact: true }).count()).toBe(1);
+    expect(await p.getByText('Marquer payé', { exact: true }).count()).toBe(0);
+    await p.keyboard.press('Escape');
     expect(espace(await p.locator('#p-head .sous').innerText())).toContain('tenue par ton cabinet');
     expect(espace(await p.locator('#p-frise li:nth-child(2)').innerText())).toContain('5 à approuver');
     // Le bandeau du bon à payer passe avant la frise.
@@ -124,7 +128,9 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     await p.locator('#p-bap').click();
     await expect.poll(async () => (await bulletins(A)).filter((b) => Number(b.month) === A.mo && b.bonAPayerLe).length).toBe(5);
     await expect.poll(() => p.locator('#p-payer').count()).toBe(1);
-    expect(await p.locator('#p-body [data-payer]').count()).toBe(5);
+    await p.locator('#p-bulletins tr[data-bul]').first().getByRole('button', { name: /Actions/ }).click();
+    await expect.poll(() => p.getByText('Marquer payé', { exact: true }).count()).toBe(1);
+    await p.keyboard.press('Escape');
     // « Annuler » : les bulletins redeviennent à approuver.
     await p.locator('#toast-undo').click();
     await expect.poll(async () => (await bulletins(A)).filter((b) => Number(b.month) === A.mo && b.bonAPayerLe).length).toBe(0);
@@ -175,7 +181,8 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     // Un salaire payé, puis son virement rejeté : le bulletin redevient à payer, la raison reste écrite.
     const ligne = p.locator('#p-bulletins tr[data-bul]').first();
     const id = String(await ligne.getAttribute('data-bul'));
-    await ligne.locator('[data-payer]').click();
+    await ligne.getByRole('button', { name: /Actions/ }).click();
+    await p.getByText('Marquer payé', { exact: true }).click();
     await expect.poll(async () => (await bulletins(A)).find((b) => b.id === id)?.paidDate).toBeTruthy();
     await p.waitForTimeout(6500);
     await p.locator(`#p-bulletins tr[data-bul="${id}"]`).getByRole('button', { name: /Actions/ }).click();
@@ -212,6 +219,10 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     await p.locator('#p-tabs button[data-tab="declarations"]').click();
     await expect.poll(() => p.locator('#dc-verses li').count()).toBe(4);
     expect(espace(await p.locator('#dc-verses li').nth(1).innerText())).toMatch(/^Déclaration de \S+ : retenues et taxes sur les salaires/);
+    // 1.234.0 (la maquette) : plus de panneau « À déposer » ; le geste vit sur la ligne de ce qu'on verse.
+    expect(await p.locator('#p-body h2', { hasText: 'À déposer' }).count()).toBe(0);
+    expect(await p.locator('#dc-verses li').first().locator('[data-file]').count()).toBe(1);
+    expect(await p.locator('#dm-panneau .pa-carte-t b').first().innerText()).toMatch(/^La déclaration d.\S+, sa part paie/);
     await p.locator('#p-tabs button[data-tab="annee"]').click();
     await expect.poll(() => p.locator('#p-annee-postes tbody tr').count()).toBe(4);
     const postes = (await p.locator('#p-annee-postes tbody tr td:first-child').allInnerTexts()).map(espace);

@@ -77,10 +77,9 @@ describe('la fenêtre d\'une avance de l\'entreprise', () => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
       await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
     }
-    // Les avances vivent sous « Congés et absences » (1.222.0).
+    // Les avances en cours sont sous les congés, dans « Les avances et les prêts » (1.234.0).
     await p.locator('#p-tabs [data-tab="conges"]').click();
-    await p.locator('#p-sous [data-sous="avances"]').click();
-    await p.locator('[data-av="a1"]').click();
+    await p.locator('#cg-avances [data-av="a1"]').click();
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Modifier l\'avance');
     const toast = () => p.locator('#toast').innerText().catch(() => '');
@@ -105,7 +104,7 @@ describe('la fenêtre d\'une avance de l\'entreprise', () => {
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
 
     // Après la sortie du salarié : refusée.
-    await p.locator('#new-av').click();
+    await p.locator('#cg-new-av').click();
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Une avance ou un prêt');
     await fenetre.locator('[data-combo=employeeId] .combo-btn').click();
     await fenetre.locator('[data-combo=employeeId] .combo-q').fill('Deux');

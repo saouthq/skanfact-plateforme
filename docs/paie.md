@@ -1547,3 +1547,36 @@ jamais de la trésorerie, et que le grand livre gardait leurs dettes pour toujou
   arrêt maladie, un seul mois au pointage) ; preuves « paie 1.229 » à « paie 1.233 ».
 - **Ce qui part au serveur** (sur la fiche du salarié) : ses coordonnées et son historique de salaire, ses régularisations,
   ses saisies et leurs versements ; sur une absence, les dates du certificat et de son envoi. Rien vers un tiers.
+
+## L'interface de la paie au plus près de sa maquette (01/11/2026, 1.234.0)
+
+Skander : « Y'a encore beaucoup d'écart d'interface entre la maquette et notre app. » Chaque écran de la paie a été
+photographié à côté de son état dans `docs/maquettes/paie.html`, puis rapproché. Ce qui a changé :
+
+- **Partout** : les bandeaux d'information en bleu (ambre pour ce qui attire, gris pour ce qui est neutre) ; les titres de
+  colonne en casse ordinaire sur fond papier ; l'unité « DT » petite et grise après un montant ; le sous-titre dit
+  « N salariés · qui tient la paie · le jour » ; un compteur sur l'onglet Déclarations (ce qui est en retard ou dû sous
+  31 jours, `C.socialDue`).
+- **Le mois** : les contrôles ne se montrent qu'avant le bon à payer (ou tant que rien n'est payé) ; une demande de congé
+  arrive dans « À traiter » (`C.paieATraiter`, geste « Répondre ») ; chaque ligne dit ce qui change (heures sup, jours sans
+  solde, prorata, avance, saisie, régularisation, ou « comme septembre ») et porte « Bulletin » ; **« Marquer payé » vit
+  dans le menu de la ligne** (il n'est plus un bouton sur la ligne) ; le pied dit « 5 bulletins d'octobre · septembre : N ».
+- **Payer les salaires** : la colonne « Comment » (le mode, puis le RIB masqué « ··· 2359 · contrôlé ») remplace le RIB
+  en entier ; le pied dit le détail (« 4 virements … · espèces … ») ; le bouton porte le montant.
+- **Salariés** : plus de sous-onglets (le registre du personnel est dans le menu ⋯) ; le pied tient sur une ligne
+  (« 5 en poste · 1 à compléter · aucun départ en 2026 »).
+- **La fiche** : « Préparer sa sortie… » pour un CDD qui finit ; le contrat court ; l'identité sans lignes vides ; le RIB
+  masqué et dit contrôlé ; l'onglet Avances montre une barre par retenue.
+- **Congés et absences** : plus de sous-onglets ; le calendrier a ses avatars ; « Les congés » (Acquis, Pris, Reste, Sans
+  solde ; le report et la maladie sous le chiffre ; le total des jours restants, « à prendre, ou à payer au départ ») ;
+  dessous, « Les avances et les prêts » en cours, une barre par retenue (la liste entière, soldées comprises, par
+  « Toutes… »). Sans début choisi, une retenue part du mois de l'avance, comme au bulletin (`C.paieDuMois`).
+- **Déclarations** : le panneau rouge « À déposer » disparaît : « Marquer déposée et payée… » vit sur la ligne de « Ce que
+  tu verses » (ce qui reste dû d'avant s'ajoute en tête, avec le même geste) ; la déclaration du mois devient « La
+  déclaration d'octobre, sa part paie », avec son pied « À verser au Trésor ».
+- **L'année** : le récapitulatif sous le graphique tient dans sa carte ; les montants sans unité répétée.
+- **Pointage** : une case vide est un jour de présence (la lettre reste pour le clavier et les lecteurs d'écran) ; le repos
+  en colonne grise ; l'avatar devant le nom ; les totaux à droite ; la légende dessous ; le bandeau « à la main » en gris.
+
+**Ce qui part au serveur** : rien de nouveau (des écrans).
+

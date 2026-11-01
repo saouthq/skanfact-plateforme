@@ -234,3 +234,89 @@
   #p-bulletins .pa-liste tr > :nth-child(2), #p-bulletins .pa-liste tr > :nth-child(3), #p-bulletins .pa-liste .pa-par,
   #p-bulletins .pa-liste thead th:nth-child(5), #p-bulletins [data-payer] { display: none; }
 }
+
+/* (plateforme) 1.234.0 — écarts d'interface avec la maquette (docs/ecarts-paie.md), le socle commun :
+   - un bandeau d'information est BLEU, comme ceux de la maquette (« bandeau info ») ; l'ambre garde son titre ambre ;
+   - les titres de colonnes de la paie s'écrivent comme dans la maquette : en minuscules, gris, sur fond papier-2 ;
+   - « DT » se lit petit et gris derrière un montant de tuile ;
+   - le mois et l'année se lisent « Octobre 2026 ▾ » : un seul chevron, le mois avec sa majuscule. */
+.pa-bandeau { border-color: color-mix(in srgb, #4d7cf2 22%, transparent); background: color-mix(in srgb, #4d7cf2 9%, var(--sb-papier)); color: #3559c7; }
+:root[data-theme="dark"] .pa-bandeau { color: #8aa8ff; }
+.pa-bandeau.pa-ambre { border-color: color-mix(in srgb, var(--sb-ambre) 30%, transparent); background: color-mix(in srgb, var(--sb-ambre) 9%, var(--sb-papier)); color: var(--sb-ambre-texte); }
+.pa-bandeau.pa-ambre b { color: var(--sb-ambre-texte); }
+.pa-bandeau.pa-rouge { border-color: color-mix(in srgb, var(--sb-rouge-texte) 28%, transparent); background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+.pa-bandeau.pa-gris { border-color: var(--sb-trait); background: var(--sb-papier-2); color: var(--sb-gris); }
+.pa .pa-liste thead th, .pa-fiche .pa-liste thead th, .pa-carte .pa-liste thead th { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--sb-gris-2); background: var(--sb-papier-2); }
+.pa-tuile .m small.u, .pa-annee-t small.u, .pa-liste small.u { display: inline; font-size: 12px; font-weight: 500; color: var(--sb-gris-2); margin-left: 3px; letter-spacing: 0; }
+.pa-mois select#p-month, .pa-mois select#pt-mois { appearance: none; -webkit-appearance: none; text-transform: capitalize; padding-right: 0; margin-right: -2px; }
+.pa-sous-f button small { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--sb-papier-2); color: var(--sb-gris); font-size: 11px; font-weight: 600; }
+.pa-sous-f button { padding: 14px 12px; font-size: 13.5px; }
+/* Ce qui change ce mois, sous le nom d'un salarié (la maquette). */
+.pa-liste small.pa-quoi { display: block; margin-top: 3px; color: var(--sb-gris-2); font-size: 12px; }
+.pa-quoi .statut { font-size: 11px; padding: 1px 7px; }
+
+/* 1.234.0 — Congés : avatars au calendrier, avances en barres (une par retenue) sous « Les congés ». */
+.cg-t td.cg-n { display: flex; align-items: center; gap: 8px; height: 32px; }
+.cg-t td.cg-n .pa-av { width: 22px; height: 22px; font-size: 9.5px; }
+.pa-av-l { list-style: none; margin: 0; padding: 0; }
+.pa-av-l > li { padding: 12px 16px; border-top: 1px solid var(--sb-trait); cursor: pointer; }
+.pa-av-l > li:hover { background: var(--sb-papier-2); }
+.pa-av-l .av-t { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-bottom: 8px; }
+.pa-av-l .av-t b { color: var(--sb-encre); }
+.av-b { display: flex; gap: 6px; }
+.av-b > span { flex: 1; min-width: 0; }
+.av-b i { display: block; height: 5px; border-radius: 3px; background: var(--sb-trait); margin-bottom: 5px; }
+.av-b .fait i { background: var(--sb-sarcelle); }
+.av-b small { display: block; font-size: 11.5px; color: var(--sb-gris); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pa-note-c { padding: 8px 16px 8px; margin: 0; border-top: 1px solid var(--sb-trait); }
+.pa-note-c .lien { background: none; border: 0; padding: 0; color: var(--sb-sarcelle); cursor: pointer; font: inherit; }
+#p-compteurs + #cg-avances, #cg-cal + #p-compteurs { margin-top: 14px; }
+
+/* 1.234.0 — Déclarations : le geste sur la ligne de ce qu'on verse ; la déclaration du mois en carte. */
+#dc-verses .pa-ctl li { grid-template-columns: 22px minmax(0, 1fr) minmax(110px, auto) minmax(120px, auto) minmax(190px, auto); }
+#dc-verses .pa-ctl li > .btn { justify-self: end; }
+#dc-verses .pa-mt { text-align: right; }
+.pa-dm-f { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0; }
+.pa-dm-g { padding: 4px 16px 10px; gap: 10px; align-items: center; }
+#dm-table td small:not(.u), #p-compteurs td small:not(.u) { display: block; font-size: 12px; color: var(--sb-gris); font-weight: 400; }
+@media (max-width: 760px) {
+  #dc-verses .pa-ctl li { grid-template-columns: 22px minmax(0, 1fr); }
+  #dc-verses .pa-ctl li > .btn { grid-column: 2; justify-self: start; }
+  .pa-dm-f { margin-left: 0; }
+}
+
+/* 1.234.0 — L'année : le récapitulatif sous le graphique tient dans sa carte. */
+.pa-annee-w { padding: 0 16px 10px; }
+.pa-annee-w table.pa-annee-t { margin: 4px 0 0; width: 100%; box-sizing: border-box; }
+.pa-tuile .m small.u { font-size: 13px; }
+
+/* 1.234.0 — Pointage : la grille comme la maquette (case vide = présent, repos en colonne grise, totaux à droite). */
+#pt-panneau .pa-carte-t .pt-periode-btn { margin-left: auto; }
+#pt-panneau .scroll-x { padding: 0 16px; }
+#pt-panneau table.pt-grille-m { border: 0; }
+#pt-panneau table.pt-grille-m thead th { background: transparent; text-transform: none; letter-spacing: 0; font-size: 12px; padding: 4px 1px; border-bottom: 1px solid var(--sb-trait); }
+#pt-panneau table.pt-grille-m th.pt-j span { display: block; font-size: 10px; font-weight: 400; color: var(--sb-gris-2); }
+#pt-panneau table.pt-grille-m td.pt-rep, #pt-panneau table.pt-grille-m th.pt-repos { background: var(--sb-papier-2); }
+#pt-panneau table.pt-grille-m td.pt-nom { display: flex; align-items: center; gap: 8px; padding-right: 14px; }
+#pt-panneau td.pt-nom .pa-av { width: 22px; height: 22px; font-size: 9.5px; }
+#pt-panneau td.pt-nom .pa-av::before { content: attr(data-ini); }
+#pt-grille .pt-c.pt-P, #pt-grille .pt-c.pt-R { background: transparent; color: transparent; }
+#pt-grille .pt-c.pt-P:hover, #pt-grille .pt-c.pt-R:hover, #pt-grille .pt-c.pt-P:focus-visible, #pt-grille .pt-c.pt-R:focus-visible { color: var(--sb-gris); background: var(--sb-papier-2); }
+#pt-grille .pt-c.pt-P.pt-main { color: var(--sb-sarcelle-texte, var(--sb-sarcelle)); box-shadow: none; }
+#pt-grille .pt-c.pt-hors { color: transparent; }
+#pt-panneau .pt-legende .pt-c.pt-R { background: var(--sb-papier-2); color: var(--sb-gris); }
+#pt-panneau .pt-legende .pt-c.pt-hors { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--sb-trait) 4px 5px); color: transparent; }
+#pt-panneau #pt-sans-hs, #pt-panneau #pt-ecarts { margin: 8px 16px; }
+#pt-panneau td.pt-td:has(.pt-hors) { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--sb-trait) 4px 5px); }
+#pt-panneau .pt-c.pt-vide { border: 1px solid var(--sb-trait); }
+#pt-panneau .pt-tot { border-left: 1px solid var(--sb-trait); padding-left: 12px; }
+#pt-panneau .pt-legende { padding: 8px 16px 4px; margin: 0; }
+
+/* 1.234.0 — le pied d'une liste de la paie tient sur une ligne : le compte en gras, le détail à côté. */
+tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color: var(--sb-gris); }
+#p-body small.u, #view small.u { display: inline !important; margin: 0 0 0 2px; }
+
+/* 1.234.0 — Payer les salaires : « Comment » sur deux lignes, le mode puis le RIB masqué. */
+#ps-table .ps-comment small { display: block; font-size: 12px; color: var(--sb-gris); }
+#ps-table .ps-comment .ambre-t { color: var(--sb-ambre-texte); }
+#ps-table tfoot td { font-weight: 600; }

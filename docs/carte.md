@@ -250,7 +250,8 @@ vaut pour tout le dépôt.*
     lots R2 à R6 : la fiche complète et le salaire daté, régulariser, le rappel, la saisie sur salaire, la simulation d'une
     embauche, l'arrêt maladie, l'import des salariés, la recherche, la lecture seule, l'accueil, le téléphone (1.229.0 à 1.233.0 ;
     `brutDuMois`/`regulsDuMois`/`saisiesOf` dans `compta.js`, `regularisationFenetre`/`saisieFenetre`/`simulationEmbauche`,
-    `tests/moteur/paie-corriger-sans-reecrire.test.ts`, `tests/web/paie-revue-ecrans.test.ts`).
+    `tests/moteur/paie-corriger-sans-reecrire.test.ts`, `tests/web/paie-revue-ecrans.test.ts`) ; l'interface au plus près de sa maquette, écran
+    par écran (1.234.0 ; `montantU`, `congesCompteurs`, `avancesEnCours`, `avanceLigneHtml` dans `app.js`, `paie.css`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

@@ -7,7 +7,7 @@
 //   - trois chiffres : le net à verser (et ses espèces), le coût, ce qui va à l'État ;
 //   - les bulletins qui changent d'abord ; un statut que tous partagent se dit une fois, en bas ;
 //   - « Remettre les bulletins » garde la remise sur chaque bulletin, au serveur ; « Annuler » la défait ;
-//   - les avances vivent sous « Congés et absences », les chiffres de l'année dans « L'année ».
+//   - les avances vivent sous « Congés et absences » (une carte sous les congés), les chiffres de l'année dans « L'année ».
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -109,7 +109,7 @@ describe('la paie : le mois, tel que sa maquette', () => {
     expect(await p.locator('#p-payer').getAttribute('class')).toContain('btn-primary');
     expect(await texte('#p-payer')).toBe(`Payer les salaires · ${montant(totalNet)} DT`);
     expect(await p.locator('#p-body .btn-primary').count()).toBe(0);
-    expect(await texte('#p-head .sous')).toContain('4 salariés en poste');
+    expect(await texte('#p-head .sous')).toContain('4 salariés · ');
 
     // ── La frise : établis, puis payer (ici), puis remettre ; chaque étape se lit dans les faits ───────────────────────
     const etapes = async () => p.locator('#p-frise li').evaluateAll((l) => l.map((x) => [x.className, (x.querySelector('b')?.textContent || '')]));
@@ -178,9 +178,10 @@ describe('la paie : le mois, tel que sa maquette', () => {
 
     // ── Les avances vivent sous « Congés et absences » ; les chiffres de l'année dans « L'année » ───────────────────────
     await p.locator('#p-tabs [data-tab="conges"]').click();
-    await p.locator('#p-sous button', { hasText: 'Avances et prêts' }).click();
-    await expect.poll(() => p.locator('#p-tabs [data-tab="conges"]').getAttribute('class')).toContain('active');
-    expect(await p.locator('#new-av').count()).toBe(1);
+    // 1.234.0 : sous les congés, la carte « Les avances et les prêts » (la maquette), sans sous-onglet.
+    await expect.poll(() => p.locator('#cg-avances').count()).toBe(1);
+    expect(await p.locator('#p-sous [role=tab]').count()).toBe(0);
+    expect(await p.locator('#cg-new-av').count()).toBe(1);
     await p.locator('#p-tabs [data-tab="annee"]').click();
     await expect.poll(() => p.locator('#p-annee-chiffres .pa-tuile').count()).toBe(4);
     expect(await p.locator('#p-annee .pa-barre').count()).toBe(12);

@@ -87,7 +87,7 @@ describe('les documents du personnel de l\'entreprise', () => {
     const lire = (sel: string) => fenetre.locator(sel).innerText().then((x) => x.replace(/[\u00a0\u202f]/g, ' '));
     // Le registre vit sous « Salariés » (1.222.0).
     await p.locator('#p-tabs [data-tab="salaries"]').click();
-    await p.locator('#p-sous [data-sous="registre"]').click();
+    await p.locator('#p-plus').click(); await p.getByText('Registre du personnel', { exact: true }).click();
     await p.locator('[data-hr="s1"]').click();
     await expect.poll(titre).toBe('Document pour Salarié Numéro Un');
 
