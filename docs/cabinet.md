@@ -474,6 +474,25 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### Le mois vide, le mois sans relevé, la fenêtre « Valider » (1.217.0, 01/11/2026)
+
+Comparés en pleine page à leur état de la maquette (`savide`, `bqvide`, `valider`) :
+
+- **Saisie, un mois sans pièce** : une carte au milieu de la page qu'il deviendra (grisée) : « Novembre : aucune pièce à
+  saisir pour l'instant », « Demander les pièces de novembre à Sarra », puis « Une écriture à la main » et « Au
+  kilomètre », et le mois d'avant en une ligne. La grille n'apparaît qu'après l'un de ces deux gestes (le curseur dans
+  la date) ; le brouillard vide de ce mois ne s'étale plus dessous. Avec un mois choisi, les lots des autres mois se
+  replient sous « Valider un autre lot ».
+- **Banque, un mois sans relevé** : le mois choisi au ruban montre SON relevé. Sans relevé, l'écran le dit (« Le relevé
+  d'octobre n'est pas encore là »), avec le compte et la banque, et où en est le mois d'avant (« septembre : 10 lignes
+  encore à rapprocher »). Avant, il gardait celui de septembre. Choisir un relevé dans la liste, ou en importer un,
+  déplace le ruban sur son mois.
+- **La fenêtre « Valider les 14 écritures de septembre ? »** : étroite, la liste encadrée (pièce en chasse fixe, montant
+  en gras), le compte d'attente dans un encadré ambre (« « Imputer » la corrigera par une écriture, sans la modifier »),
+  la règle et la vérification en gris dessous.
+- Preuves « saisie 50 » et « banque 19 » ; « saisie 10 » dit maintenant ce qu'elle prouve (« Une écriture à la main »
+  ouvre la grille du mois vide).
+
 ### L'ancien « Suivi » fondu dans la fiche, et la suite des écarts (1.216.0, 01/11/2026)
 
 Skander, devant l'ancienne page du dossier (onglets Suivi / Comptabilité, encore atteinte par les liens de Messages) :

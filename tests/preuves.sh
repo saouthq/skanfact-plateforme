@@ -21928,7 +21928,7 @@ prouver 'saisie 8 : « Ne plus me faire vérifier » ne se garde pas' web/public
 prouver 'saisie 9 : le même numéro au kilomètre se tait' web/public/v10/cabinet/app.js \
   "    const doublonDe = () => { const n = String(p.piece || '').trim();" "    const doublonDe = () => { const n = '';" \
   "$WSX1"
-prouver 'saisie 10 : le mois vide cache la grille' web/public/v10/cabinet/app.js \
+prouver 'saisie 10 : « Une écriture à la main » n’ouvre pas la grille du mois vide' web/public/v10/cabinet/app.js \
   "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${cache ? ' hidden' : ''}>" "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${cache || !P.liste.length ? ' hidden' : ''}>" \
   "$WSX1"
 prouver 'saisie 11 : au téléphone la fiche reste à côté de la pièce' web/public/plateforme/saisie.css \
@@ -22055,6 +22055,12 @@ prouver 'saisie 47 : « Au kilomètre », la grille reste sous le journal du moi
 prouver 'saisie 48 : le journal du mois ne nomme pas la TVA déductible' web/public/v10/cabinet/app.js \
   "estTva ? \`TVA déductible\${" "estTva ? \`TVA\${" \
   "$WSX1"
+prouver 'saisie 50 : le mois vide étale la grille au lieu de sa carte (maquette « savide »)' web/public/v10/cabinet/app.js \
+  "    const cache = face || grilleCacheeSx(P) || videSx;" "    const cache = face || grilleCacheeSx(P);" \
+  "$WSX1"
+prouver 'banque 19 : un mois sans relevé montre celui d’un autre mois (maquette « bqvide »)' web/public/v10/cabinet/app.js \
+  "    if (mBq && !duMois.length && !banqueState.etat && !banqueState.regles) return banqueVide(dossier, mBq, releves);" "" \
+  "$WB1"
 prouver 'saisie 49 : « Au kilomètre » sur toute l'\''année reste sur la grille vide (pas le journal du mois de la pièce)' web/public/v10/cabinet/app.js \
   "if (y && y.mois) { livresState.mode = 'mois';" "if (false) { livresState.mode = 'mois';" \
   'les pièces reçues : chaque pièce a son geste, classer vide la boîte et les chiffres, « Annuler » la remet ; une écriture commencée retient avant de changer de dossier'

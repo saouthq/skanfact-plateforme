@@ -116,6 +116,13 @@ describe('la banque, à la souris', () => {
     await expect.poll(async () => ((await api('GET', `/cabinets/${cabinet}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { banque?: unknown } }[])
       .find((f) => f.entreprise === cafe)?.contenu.banque).toEqual({ compte: '532', banque: 'BIAT' });
 
+    // (1.217.0, maquette « bqvide ») Un mois sans relevé le dit, avec où en est le mois d'avant ; il ne montre pas celui de mars.
+    await p.locator('[data-cp-mois="2026-04"]').click();
+    await expect.poll(() => p.locator('.bq-ecran').first().innerText().then((t) => t.replace(/\s+/g, ' '))).toMatch(/^Banque · avril 2026 532 BIAT mars : 2 lignes encore à rapprocher · le relevé d'avril n'est pas encore là Le relevé d'avril n'est pas encore là Importe le fichier de la BIAT/);
+    expect(await p.locator('.bq-f').count()).toBe(0);
+    await p.locator('[data-cp-mois="2026-03"]').click();
+    await p.locator('.bq-f').waitFor();
+
     // ── Les lignes rangées par ce qu'elles demandent, le livre en face ─────────────────────────
     await expect.poll(() => p.locator('.bq-f').innerText().then((t) => t.replace(/\s+/g, ' '))).toMatch(/3 Toutes 1 Rapprochées 1 Proposées 1 À traiter 0 En attente (du client|de \S+)/);
     expect(await groupes()).toEqual(['prop', 'dec']);

@@ -343,13 +343,18 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await p.locator('#sa-piece').fill('FA-0999');
     expect(await p.locator('#sa-double').isHidden()).toBe(true);
 
-    // S6 : octobre n'a rien reçu. La phrase, le geste, et la grille dessous.
+    // S6 (1.217.0, maquette « savide ») : octobre n'a rien reçu. Une carte au milieu de la page grisée : la phrase, le geste,
+    // le mois d'avant ; la grille derrière « Une écriture à la main », le curseur dans la date.
+    // La pièce commencée dans la grille la garde visible (rien de commencé ne se cache) : on la vide d'abord.
+    await p.locator('#sa-vider').click();
     await p.locator('[data-cp-mois="2026-10"]').click();
-    await expect.poll(() => p.locator('#sx-vide').innerText().then(net).catch(() => '')).toMatch(/^Octobre : aucune pièce à saisir pour l'instant/);
+    await expect.poll(() => p.locator('#sx-vide').innerText().then(net).catch(() => '')).toMatch(/^Octobre : aucune pièce à saisir pour l'instant.*Ses ventes et sa caisse arrivent seules au livre\./);
     expect(await p.locator('#sx-demander-mois').innerText()).toBe('Demander les pièces d\'octobre à Sarra');
-    // (S8) Sous le mois vide : le mois d'avant, et ce qui arrive seul.
-    expect(net(await p.locator('#sx-vide-av').innerText())).toMatch(/^Septembre : \d+ pièces? traitées?.*Ses ventes et sa caisse, saisies dans SkanFact, arrivent seules au livre\.$/);
-    expect(await p.locator('#sa-lignes').isVisible()).toBe(true);
+    expect(net(await p.locator('#sx-vide-av').innerText())).toMatch(/^Septembre : \d+ pièces? saisies?/);
+    expect(await p.locator('#sa-lignes').isVisible()).toBe(false);
+    await p.locator('#sx-vide-main').click();
+    await p.locator('#sa-lignes').waitFor({ state: 'visible' });
+    expect(await p.evaluate(() => document.activeElement && document.activeElement.id)).toBe('sa-date');
     expect(erreurs).toEqual([]);
   }, 240_000);
 

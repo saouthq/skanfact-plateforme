@@ -12427,7 +12427,12 @@
     const releves = (s.livre.releves || []).slice().sort((a, b) => (b.du || '').localeCompare(a.du || ''));
     if (banqueState.importer) return '<div class="bq-ecran bqi-page" id="bqi"></div>';
     if (!releves.length) return banqueVide(dossier);
-    const R = releves.find(r => r.id === banqueState.releve) || releves[0];
+    // (1.217.0) Un mois choisi au ruban montre SON relevé ; sans relevé pour ce mois, l'écran le dit (maquette « bqvide »)
+    // au lieu de garder celui d'un autre mois.
+    const mBq = moisSx();
+    const duMois = mBq ? releves.filter(r => String(r.du || '').slice(0, 7) <= mBq && String(r.au || r.du || '').slice(0, 7) >= mBq) : releves;
+    if (mBq && !duMois.length && !banqueState.etat && !banqueState.regles) return banqueVide(dossier, mBq, releves);
+    const R = duMois.find(r => r.id === banqueState.releve) || releves.find(r => r.id === banqueState.releve && (banqueState.etat === r.id || banqueState.regles === r.id)) || duMois[0] || releves[0];
     if (banqueState.releve !== R.id) { banqueState.releve = R.id; banqueState.sel = ''; banqueState.coches.clear(); banqueState.choix = {}; banqueState.pieces = {}; }
     if (banqueState.etat === R.id) return vueEtatBq(dossier, R, ecartBanque(R), lectureSeuleLivre());
     if (banqueState.regles === R.id) return vueReglesBq(dossier, R, lectureSeuleLivre());
@@ -12745,17 +12750,27 @@
   }
 
   // Aucun relevé : l'écran montre la page qu'il deviendra (grisée), et le geste qui la remplit (règle des maquettes).
-  function banqueVide(dossier) {
+  function banqueVide(dossier, mois, releves) {
     const L = livresState.livre;
     const compte = (dossier.banque || {}).compte || '532';
     const lignesAp = n => Array.from({ length: n }, (_, i) => `<div class="apx-l"><span class="apx-b"></span><span class="t"><span class="apx-b"></span><span class="apx-b"></span></span><span class="apx-b" style="width:${60 + (i * 17) % 30}%;justify-self:end"></span></div>`).join('');
     const nb = KC.lignesBancaires(L, compte).length;
-    return `<div class="bq-ecran"><div class="bq-h"><div><b>Banque · ${esc(livresState.annee)}</b><span class="mu">compte ${esc(compte)}${(dossier.banque || {}).banque ? ` · ${esc(dossier.banque.banque)}` : ''} · aucun relevé importé${nb ? ` · ${pl(nb, 'écriture')} au livre sur ce compte` : ''}</span></div></div>
+    const nomBq = (dossier.banque || {}).banque || ((releves || [])[0] || {}).banque || '';
+    const nomM = mois ? moisLong(mois) : '';
+    // Le relevé d'avant ce mois : « août : rapproché le 12/09 », ou « importé, N lignes à traiter ».
+    const avant = mois && releves ? releves.filter(r => String(r.au || r.du || '').slice(0, 7) < mois)[0] : null;
+    const dit = (() => {
+      if (!avant) return `aucun relevé importé${nb ? ` · ${pl(nb, 'écriture')} au livre sur ce compte` : ''}`;
+      const reste = (avant.lignes || []).filter(l => !(l.rapprochement && (l.rapprochement.ecritureId || l.rapprochement.ignore))).length;
+      const mA = moisLong(String(avant.au || avant.du).slice(0, 7));
+      return `${mA} : ${reste ? `${pl(reste, 'ligne')} encore à rapprocher` : 'tout est rapproché'} · le relevé ${deMois(mois)} n'est pas encore là`;
+    })();
+    return `<div class="bq-ecran"><div class="bq-h"><div><b>Banque · ${esc(mois ? `${nomM} ${mois.slice(0, 4)}` : livresState.annee)}${mois ? ` <span class="bq-per">${esc(compte)}${nomBq ? ` ${esc(nomBq)}` : ''}</span>` : ''}</b><span class="mu">${mois ? esc(dit) : `compte ${esc(compte)}${nomBq ? ` · ${esc(nomBq)}` : ''} · ${esc(dit)}`}</span></div></div>
       <div class="apx"><div class="apx-f" aria-hidden="true"><div class="apx-pills">${'<span class="apx-b"></span>'.repeat(5)}</div>
         <div class="apx-2"><div class="apx-r">${lignesAp(6)}</div><div class="apx-r apx-cad"><span class="apx-b" style="width:40%"></span><span class="apx-b" style="height:30px"></span>${lignesAp(2)}<span class="apx-b apx-btn"></span></div></div></div>
-        <div class="apx-c"><span class="apx-ic">${svgBq(BQ_IC.banque, 22)}</span><b>Le relevé n'est pas encore là</b>
-          <p>Importe le fichier de la banque tel qu'elle le donne (Excel ou CSV). Chaque ligne arrive avec ce qui lui répond dans le livre, et pourquoi ; ce qui est sûr se confirme d'un coup.</p>
-          <div class="cp-gestes">${lectureSeuleLivre() ? '' : '<button type="button" class="btn btn-primary" id="bq-import">Importer un relevé…</button>'}${!dossier.manual && api.messagerie ? '<button type="button" class="btn" id="bq-demander-releve">Le demander au client</button>' : ''}</div>
+        <div class="apx-c"><span class="apx-ic">${svgBq(BQ_IC.banque, 22)}</span><b>Le relevé ${esc(mois ? deMois(mois) : '')}${mois ? ' ' : ''}n'est pas encore là</b>
+          <p>Importe le fichier ${esc(nomBq ? `de la ${nomBq}` : 'de la banque')} tel qu'elle le donne (Excel ou CSV). Chaque ligne arrive avec sa pièce en face, et pourquoi ; ce qui est sûr se confirme d'un coup.</p>
+          <div class="cp-gestes">${lectureSeuleLivre() ? '' : `<button type="button" class="btn btn-primary" id="bq-import">Importer le relevé…</button>`}${!dossier.manual && api.messagerie ? '<button type="button" class="btn" id="bq-demander-releve">Le demander au client</button>' : ''}</div>
           <span class="apx-mini">Le relevé en PDF : pas encore (À VÉRIFIER : les banques qui ne donnent que le PDF).</span></div></div></div>`;
   }
 
@@ -12849,7 +12864,13 @@
     const sur = (sel2, fn) => { const x = $(sel2, el); if (x) x.onclick = fn; };
 
     const choixReleve = $('#bq-releve', el);
-    if (choixReleve) choixReleve.onchange = () => { banqueState.releve = choixReleve.value; redessiner(); };
+    if (choixReleve) choixReleve.onchange = () => {
+      banqueState.releve = choixReleve.value;
+      // Le ruban suit le relevé choisi : un mois choisi ne le cache pas (1.217.0).
+      const r2 = (livresState.livre.releves || []).find(r => r.id === choixReleve.value);
+      if (r2 && moisSx() && r2.au) livresState.mois = String(r2.au).slice(0, 7);
+      redessiner();
+    };
     $$('[data-bq-filtre]', el).forEach(b => { b.onclick = () => { const v = b.dataset.bqFiltre; banqueState.filtre = banqueState.filtre === v ? '' : v; redessiner(); }; });
     sur('#bq-vers-ecart', () => { const p = $('#bq-pied', el); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
     $$('#bq-voir-faites, [data-bq-voir]', el).forEach(b => { b.onclick = () => { if (banqueState.filtre === 'ok') banqueState.filtre = ''; else banqueState.voirFaites = !banqueState.voirFaites; redessiner(); }; });
@@ -13626,7 +13647,7 @@
     const derR = (s.livre.releves || []).filter(r => r.compte === defaut && r.au).sort((x, y) => String(x.au).localeCompare(String(y.au))).pop();
     const attendu = derR ? moisSuivant(String(derR.au).slice(0, 7)) : '';
     const courant = (s.livre.releves || []).find(r => r.id === banqueState.releve);
-    const nomBq = (dossier.banque || {}).banque || '';
+    const nomBq = (dossier.banque || {}).banque || (derR || {}).banque || '';
     page.innerHTML = `<div class="bq-h"><div><b>${attendu ? `Importer le relevé ${esc(deMois(attendu))}` : 'Importer un relevé'} · ${esc(defaut)}${nomBq ? ` ${esc(nomBq)}` : ''}</b><span class="mu" id="rv-sous">rien n'entre avant que tu aies vu ce que SkanFact a compris</span></div>
         <button type="button" class="btn btn-sm btn-ghost" data-close>${courant && courant.au ? `Retour à ${esc(moisLong(String(courant.au).slice(0, 7)))}` : 'Retour au relevé'}</button></div>
       <div class="bqi-2">
@@ -13860,6 +13881,7 @@
           try {
             const r = await api.ajouterReleve({ dossierId: dossier.id, annee: s.annee, releve });
             s.livre = r.livre; banqueState.releve = r.releve.id;
+            if (moisSx() && r.releve.au) s.mois = String(r.releve.au).slice(0, 7);
             // Ce que l'association apprend ne sert que si on la garde : sans ça, chaque import
             // d'une même banque redemanderait le même travail.
             if (v('banque') && lu.assoc) {
@@ -14627,6 +14649,20 @@
     if (!P.liste.length) {
       const qui = prenomCl(dossier.contact);
       const br = ecrituresSx().filter(e => e.statut === 'brouillard' && (!m || String(e.date).slice(0, 7) === m)).length;
+      // (1.217.0, maquette « savide ») Le mois vide : une carte au milieu de la page qu'il deviendra (grisée), le geste qui
+      // la remplit (demander les pièces), et la grille derrière « Une écriture à la main ».
+      if (videCacheSx(P)) {
+        const av = moisAvantSx(m), faites = (P.items || []).filter(y => (y.p || y.doc) && y.mois === av && y.etat[2] === 'ordre' && y.etat[1] !== 'en double').length;
+        const brAv = ecrituresSx().filter(e => e.statut === 'brouillard' && String(e.date).slice(0, 7) === av).length;
+        const b2 = n => `<span class="apx-b" style="width:${n}%"></span>`;
+        return `<div class="bq-ecran sx-vide-p"><div class="apx"><div class="apx-f" aria-hidden="true"><div class="apx-pills">${'<span class="apx-b"></span>'.repeat(6)}</div>
+          <div class="apx-2"><div class="apx-r apx-cad">${b2(30)}${[82, 64, 90, 58, 76, 70].map(b2).join('')}</div><div class="apx-r apx-cad">${[1, 2, 3, 4, 5].map(() => '<span class="apx-b" style="height:28px"></span>').join('')}</div></div></div>
+          <div class="apx-c" id="sx-vide"><span class="apx-ic">${CL_IC.ok}</span><b>${esc(cap(moisLong(m)))} : aucune pièce à saisir pour l'instant</b>
+            <p>${dossier.manual ? 'Ce dossier est tenu au cabinet : ses pièces se déposent dans son classeur, puis s\'ouvrent ici, en grand, face à leur fiche.' : `Quand ${esc(qui || 'le client')} photographie une facture ou un ticket dans SkanFact, la pièce arrive ici, en grand, face à sa fiche déjà remplie. Ses ventes et sa caisse arrivent seules au livre.`}${br ? ` ${esc(pl(br, 'écriture attend', 'écritures attendent'))} au brouillard.` : ''}</p>
+            ${dossier.manual ? '' : `<div class="cp-gestes"><button type="button" class="btn btn-primary" id="sx-demander-mois">Demander les pièces ${esc(deMois(m))}${qui ? ` à ${esc(qui)}` : ''}</button></div>`}
+            <div class="cp-gestes"><button type="button" class="btn${dossier.manual ? ' btn-primary' : ''}" id="sx-vide-main">Une écriture à la main</button><button type="button" class="btn" id="sx-vide-km">Au kilomètre</button></div>
+            ${faites || brAv ? `<span class="apx-mini" id="sx-vide-av">${esc(cap(moisLong(av)))} : ${esc(pl(faites, 'pièce saisie', 'pièces saisies'))}${brAv ? ` · ${esc(pl(brAv, 'écriture attend', 'écritures attendent'))} au brouillard` : ''}</span>` : ''}</div></div></div>`;
+      }
       return `<div class="sx-vide" id="sx-vide"><span class="sx-vide-ic">${CL_IC.ok}</span><span class="txt"><b>${m ? `${esc(cap(moisLong(m)))} : aucune pièce à saisir pour l'instant` : `Aucune pièce à saisir en ${esc(livresState.annee)} pour l'instant`}</b>
         <span>${dossier.manual ? 'Ce dossier est tenu au cabinet : ses pièces se déposent dans son classeur, puis s\'ouvrent ici, face à leur fiche.' : `Quand ${esc(qui || 'le client')} envoie une facture ou un ticket, la pièce arrive ici, en grand, face à sa fiche déjà remplie.`}${br ? ` ${esc(pl(br, 'écriture attend', 'écritures attendent'))} au brouillard.` : ''}</span>
         ${m ? (() => { const av = moisAvantSx(m), faites = (P.items || []).filter(y => (y.p || y.doc) && y.mois === av && y.etat[2] === 'ordre' && y.etat[1] !== 'en double').length, brAv = ecrituresSx().filter(e => e.statut === 'brouillard' && String(e.date).slice(0, 7) === av).length;
@@ -14659,6 +14695,9 @@
   }
   // (1.215.0, la maquette) Sur un mois, « Au kilomètre » montre le journal du mois et la pièce à côté ; la grille au clavier
   // reste derrière « Une écriture à la main » (plusieurs charges, un autre journal), ou s'ouvre quand une écriture y est commencée.
+  // (1.217.0) Le mois vide cache la grille tant qu'on n'a pas choisi « Une écriture à la main » ou « Au kilomètre » pour CE mois.
+  const videCacheSx = P => !!moisSx() && !!(P && P.pret && !P.liste.length) && sxState.mainVide !== moisSx()
+    && !pieceEnCours(saisieState.piece) && !(saisieState.piece && saisieState.piece.depuisClasseur);
   const grilleCacheeSx = P => sxState.mode === 'km' && !!moisSx() && !!(P && P.pret && P.liste.length) && !sxState.grille
     && !pieceEnCours(saisieState.piece) && !(saisieState.piece && saisieState.piece.depuisClasseur);
   function journalMoisSx(dossier, P) {
@@ -14934,6 +14973,8 @@
       }
       drawLivres(root, dossier);
     }; });
+    const ouvrirVide = km => { sxState.mainVide = moisSx(); if (km) sxState.mode = 'km'; drawLivres(root, dossier); const c = $('#sa-date'); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } };
+    for (const [id, km] of [['#sx-vide-main', false], ['#sx-vide-km', true]]) { const b = $(id, el); if (b) b.onclick = () => ouvrirVide(km); }
     const dm = $('#sx-demander-mois', el);
     if (dm) dm.onclick = () => fenDemanderCl(dossier, { titre: `Les pièces ${deMois(moisSx())}`, piece: `les pièces ${deMois(moisSx())} (factures d'achat, tickets, relevé)`, mois: moisSx() }, { hors: true });
     $$('#sx-papier', el).forEach(z => { const y = P.liste.find(w => w.k === z.dataset.k); if (y) chargerPapierSx(dossier, y, z); });
@@ -15166,7 +15207,8 @@
     if (pieceEnCours(p) || p.depuisClasseur) sxState.mode = 'km';
     else if (!sxState.mode && P.pret && P.liste.length) sxState.mode = 'face';
     const face = P.pret && P.liste.length > 0 && sxState.mode === 'face';
-    const cache = face || grilleCacheeSx(P);
+    const videSx = videCacheSx(P);
+    const cache = face || grilleCacheeSx(P) || videSx;
     const cote = P.pret && P.liste.length > 0 && !cache;
     const zoneHtml = zoneSx(dossier, P);
     sxState.dessin = `${sxState.mode}|${sxState.sel}|${zoneHtml.length}|${zoneHtml}`;
@@ -15235,14 +15277,14 @@
             pièce ; un débutant les trouve à l'endroit du geste. */''}
       <details class="sa-touches" id="sa-touches"${prefs.get('saTouches', true) === false ? '' : ' open'}><summary>Les touches de la grille</summary>${aideTouches()}</details>
       </div>${cote ? `<div class="sx-km-d" id="sx-km-d">${cotePieceSx(dossier, P)}</div>` : ''}</div>
-      <div class="sx-bl-t"><h2 id="sa-brouillard">Le brouillard${mBl ? ` ${esc(deMois(mBl))}` : ''} ${info('sa.brouillard')}</h2><span class="mu" id="sx-bl-n">${brVus.length ? `${esc(pl(brVus.length, 'écriture'))}${mBl && brouillards.length > brVus.length ? ` · ${brouillards.length - brVus.length} d'autres mois` : ''} · elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées` : mBl && brouillards.length ? `rien n'y attend ${esc(deMois(mBl))} · ${esc(pl(brouillards.length, 'écriture'))} d'autres mois` : 'rien n\'y attend'}</span>
+      <div class="sx-bl-z"${videSx && !brMois.length ? ' hidden' : ''}><div class="sx-bl-t"><h2 id="sa-brouillard">Le brouillard${mBl ? ` ${esc(deMois(mBl))}` : ''} ${info('sa.brouillard')}</h2><span class="mu" id="sx-bl-n">${brVus.length ? `${esc(pl(brVus.length, 'écriture'))}${mBl && brouillards.length > brVus.length ? ` · ${brouillards.length - brVus.length} d'autres mois` : ''} · elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées` : mBl && brouillards.length ? `rien n'y attend ${esc(deMois(mBl))} · ${esc(pl(brouillards.length, 'écriture'))} d'autres mois` : 'rien n\'y attend'}</span>
         ${mSx && brouillards.length > brMois.length ? `<button type="button" class="cp-plus" id="sx-bl-tout">${sxState.blTout ? `Seulement ${esc(moisLong(mSx))}` : `Tout le brouillard (${brouillards.length})`}</button>` : ''}
         <span class="sx-bl-g"><button type="button" class="btn btn-sm" id="sx-abos" aria-expanded="${sxState.abosOuverts ? 'true' : 'false'}">Écritures qui reviennent <small class="sx-nb">${abosActifs}</small></button>${guides.length ? `<button type="button" class="btn btn-sm" id="sx-guides">Guides <small class="sx-nb">${guides.length}</small></button>` : ''}${r.validerParLot && aValiderMois.length ? (peutValiderCl(dossier) ? `<button type="button" class="btn btn-sm" data-lot-mois="${esc(mSx)}">Valider ${aValiderMois.length > 1 ? `les ${aValiderMois.length}` : 'celle'} ${esc(deMois(mSx))}</button>` : `<span class="fd-qui" id="sx-qui-lot">${esc(cap(reviseurCl(dossier)))} ${aValiderMois.length > 1 ? 'les valide' : 'la valide'}</span>`) : ''}</span></div>
       ${/* Les lots proposés sont ceux qui EXISTENT dans le brouillard (T-29) : « Valider tout le
             journal VT » quand le seul brouillard est en BQ ouvrait une fenêtre pour dire qu'il n'y
             avait rien à faire — un bouton vif qui ne peut rien valider de ce qui est affiché. Le
             compte est connu avant le clic, donc il est écrit dessus. */''}
-      ${brouillards.length ? `${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ? (lots => (mSx && aValiderMois.length) || (!mSx && lotsBl.length > 3)
+      ${brouillards.length ? `${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ? (lots => mSx || lotsBl.length > 3
           ? `<details class="sa-lot-plus" id="sa-lot-plus"><summary>${mSx ? 'Valider un autre lot' : 'Valider par lot'} (${(lots.match(/<button/g) || []).length})</summary><div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div></details>`
           : `<div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>`)(lotsBl.map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')) : ''}
         ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
@@ -15261,7 +15303,7 @@
             <td class="c">${(q => `<span class="sx-par" title="${esc(q)}">${esc(q === 'le cabinet' ? initialesDe((S.cabinet && S.cabinet.name) || 'Cabinet') : q === 'reprise' ? 'AN' : initialesDe(q))}<span class="sr">${esc(q)}</span></span>`)(e.source === 'skanfact' ? (prenomCl(dossier.contact) || 'le client') : e.source === 'an' ? 'reprise' : 'le cabinet')}</td>
             <td class="r nw">${esc(montant(t.debit))}</td>
             <td class="actions row-actions">${RowMenu.bouton('B:' + e.id, '⋯', 'sx-bl-plus').replace('<button ', `<button aria-label="Plus de gestes pour ${esc(e.piece || 'cette écriture')}" `)}</td></tr>`;
-        }).join('')}</tbody></table></div>${pagerBrouillard}`
+        }).join('')}</tbody></table></div>${pagerBrouillard}</div>`
         : `<div class="empty mini"><p>Rien en brouillard.</p><p class="muted small">Tout ce que tu saisis ici arrive en brouillard : rien ne prend de numéro tant que tu ne l'as pas validé.</p></div>`}
 
       ${/* Un abonnement est un modèle d'écriture récurrente : il appartient à la SAISIE (T-18). Posé
@@ -15821,7 +15863,8 @@
       && (!filtre.mois || String(e.date || '').slice(0, 7) === filtre.mois) && String(e.date || '') <= K.today());
     if (!cibles.length) { await infoDialog('Rien à valider', 'Aucune écriture en brouillard ne correspond.'); return; }
     if (await refusLicence('Valider un lot d\'écritures')) return;
-    const quoi = filtre.journal ? `du journal ${filtre.journal}` : KC.deMois(moisLabelCourt(filtre.mois));
+    // (1.217.0, maquette) « de septembre » : l'exercice est déjà dans la page.
+    const quoi = filtre.journal ? `du journal ${filtre.journal}` : String(filtre.mois).slice(0, 4) === String(s.annee) ? deMois(filtre.mois) : KC.deMois(moisLabelCourt(filtre.mois));
     // L'accord suit le nombre (10.12.0, vu au test humain) : « Chacune… Celles qui… » sous « Valider
     // 1 écriture » se lisait comme un modèle de phrase qu'on n'a pas fini de remplir.
     const une = cibles.length === 1;
@@ -15837,14 +15880,15 @@
     const enAttente = cibles.filter(attenteBl);
     const qui = prenomCl(dossier.contact) || 'le client';
     const liste = `<div class="lot-l-w"><table class="list compact lot-l" id="lot-liste"><tbody>${cibles.slice(0, 12).map(e => `<tr><td class="nw mono">${esc(e.piece || '—')}</td><td>${esc(e.libelle || '')}</td><td class="r nw">${esc(montant(KC.soldeDeLignes(e.lignes).debit))}</td></tr>`).join('')}${cibles.length > 12 ? `<tr><td colspan="3" class="muted small">et ${cibles.length - 12} autres</td></tr>` : ''}</tbody></table></div>`;
-    const cas = enAttente.length ? `<p class="small lot-cas" id="lot-attente"><b>${esc(enAttente.slice(0, 3).map(e => e.piece || e.libelle || '—').join(', '))}${enAttente.length > 3 ? '…' : ''} ${enAttente.length > 1 ? 'passent' : 'passe'} par le compte d'attente</b> : ${enAttente.length > 1 ? 'validées, elles y restent' : 'validée, elle y reste'} jusqu'à ce que ${dossier.manual ? 'tu saches ce que c\'est' : `${esc(qui)} dise ce que c'est`}.</p>` : '';
+    // (1.217.0, maquette « valider ») Le compte d'attente en encadré ambre : ce qui arrive après, sans rien modifier.
+    const cas = enAttente.length ? `<div class="bandeau ambre lot-cas" id="lot-attente">${EC_IC.alerte}<span class="txt"><b>${esc(enAttente.slice(0, 3).map(e => e.piece || e.libelle || '—').join(', '))}${enAttente.length > 3 ? '…' : ''} ${enAttente.length > 1 ? 'passent' : 'passe'} par le compte d'attente</b><span>${enAttente.length > 1 ? 'Validées, elles y restent' : 'Validée, elle y reste'} jusqu'à ce que ${dossier.manual ? 'tu saches ce que c\'est' : `${esc(qui)} dise ce que c'est`} ; « Imputer » ${enAttente.length > 1 ? 'les corrigera' : 'la corrigera'} par une écriture, sans ${enAttente.length > 1 ? 'les' : 'la'} modifier.</span></span></div>` : '';
     const verif = !fausses.length && !deposes.length
       ? `<p class="small lot-ok" id="lot-verif">${une ? 'Elle est équilibrée et ne tombe pas sur un mois déposé.' : 'Toutes sont équilibrées ; aucune ne tombe sur un mois déposé.'}</p>`
       : `<p class="small" id="lot-verif">${fausses.length ? `${pl(fausses.length, 'ne tombe pas juste', 'ne tombent pas juste')}` : ''}${fausses.length && deposes.length ? ' ; ' : ''}${deposes.length ? `${pl(deposes.length, 'tombe sur un mois déposé', 'tombent sur un mois déposé')}` : ''} : ${fausses.length + deposes.length > 1 ? 'elles ne seront pas validées, et te seront nommées' : 'elle ne sera pas validée, et te sera nommée'}.</p>`;
-    const ok = await confirmDialog(`Valider ${pl(cibles.length, 'écriture')} ${quoi} ?`,
-      liste + verif + cas + (une
-        ? '<p class="small muted">Elle prend son numéro et ne se modifiera plus : une validée se contre-passe.</p>'
-        : '<p class="small muted">Chacune prend son numéro et ne se modifiera plus : une validée se contre-passe.</p>') + avert,
+    const ok = await confirmDialog(`Valider ${une ? 'l\'écriture' : `les ${cibles.length} écritures`} ${quoi} ?`,
+      `<div class="lot-fen">${liste}${cas}${une
+        ? '<p class="small muted lot-regle">Une écriture validée reçoit son numéro et ne se modifie plus : une erreur se contre-passe.</p>'
+        : '<p class="small muted lot-regle">Chacune reçoit son numéro et ne se modifie plus : une erreur se contre-passe.</p>'}${verif}${avert}</div>`,
       une ? 'Valider l\'écriture' : `Valider les ${cibles.length} écritures`);
     if (!ok) return;
     try {

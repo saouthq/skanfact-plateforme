@@ -211,8 +211,19 @@
 .lot-l { width: 100%; margin: 0; }
 .lot-l td { padding: 7px 10px; font-size: 13px; border-bottom: 1px solid var(--sb-trait); }
 .lot-l tr:last-child td { border-bottom: 0; }
-.lot-ok { color: var(--sb-doux-texte); font-weight: 600; }
-.lot-cas { padding: 8px 10px; border-radius: 8px; background: var(--sb-ambre-doux); }
+/* (1.217.0, maquette « valider ») Une fenêtre étroite : la liste encadrée, le compte d'attente en encadré ambre, la règle
+   et la vérification en gris dessous. */
+.modal:has(.lot-fen) { max-width: 520px; }
+.lot-fen { display: grid; gap: 10px; }
+.lot-fen .lot-l-w { margin: 0; }
+.lot-l td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; letter-spacing: .5px; color: var(--sb-gris); }
+.lot-l td.r { font-weight: 600; font-variant-numeric: tabular-nums; }
+.lot-fen p { margin: 0; }
+.lot-fen .lot-regle + .lot-ok, .lot-fen .lot-regle + #lot-verif { margin-top: -8px; }
+.lot-ok { color: var(--sb-gris); font-weight: 400; }
+.lot-cas { margin: 0; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; font-size: 13px; color: var(--sb-encre); background: var(--sb-ambre-doux); border: 1px solid color-mix(in srgb, var(--sb-ambre) 30%, transparent); }
+.lot-cas > svg { flex: none; width: 15px; height: 15px; margin-top: 2px; color: var(--sb-ambre-texte); }
+.lot-cas .txt { flex: 1; display: grid; gap: 2px; min-width: 0; } .lot-cas .txt b { font-weight: 650; } .lot-cas .txt span { color: var(--sb-gris); font-size: 12.5px; line-height: 1.45; }
 .sx-vide-av { display: block; margin-top: 6px; color: var(--sb-gris-2); font-size: 12.5px; }
 #sx-bl-tout { margin-left: 4px; }
 .sx-bl-t .cp-plus { display: inline-flex; align-items: center; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; min-height: 28px; }
