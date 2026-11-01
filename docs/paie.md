@@ -1373,3 +1373,30 @@ paie, attestation de travail, etc.).*
 
 - `tests/web/paie-documents.test.ts` (photos `paie-apercu-bulletin.png`, `paie-apercu-attestation-salaire.png`) ;
   preuves « paie 1.223 a à d ». `paie-virement` passe par l'aperçu de l'ordre.
+
+## La paie appliquée — lot 3 : le pointage à la main (01/11/2026, 1.224.0)
+
+*Demande de Skander : « il faut pouvoir faire le pointage manuellement si on n'a pas de pointeuse ».*
+
+### Ce que le lot fait (`app.js`, `paie.css`)
+
+- **« Pas de pointeuse ? Tu pointes à la main »** : chacun est présent par défaut, selon ses jours de travail ; on note
+  ce qui change.
+- **« Aujourd'hui : qui n'est pas là ? »** : un geste par salarié (présent, absent, congé, malade, demi-journée), posé
+  sur le jour même ; « Annuler » le défait. Un jour de repos le dit.
+- **« Noter une période »** : un salarié, un code, du… au… : chaque jour ouvrable prend le code, jours à venir compris
+  (une semaine de congé d'un coup) ; les jours de repos restent du repos ; « Annuler » défait tout.
+- **Trois sous-vues** du Pointage : le mois (la grille, déjà là), **par salarié** (son mois jour par jour, d'où vient
+  chaque code — ses jours de travail, un congé saisi, un pointage à la main —, chaque jour se corrige, ses totaux), **les
+  horaires** (les jours de travail, le mois complet, les heures du mois, les majorations ; ce qui n'est pas réglé le
+  dit ; la pointeuse : « pas encore »).
+- **Ce qui part au serveur** : rien de nouveau (les codes du pointage, comme la grille).
+
+### Pas encore (dit à l'écran)
+
+- Lire le fichier d'une pointeuse ; les horaires d'équipe à l'heure près ; les jours fériés posés d'eux-mêmes.
+
+### Ce qui le prouve
+
+- `tests/web/paie-pointage-main.test.ts` (photos `paie-pointage-main.png`, `paie-pointage-salarie.png`) ; preuves
+  « paie 1.224 a à d ».

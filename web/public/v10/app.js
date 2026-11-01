@@ -18141,9 +18141,11 @@
   // PAIE_TABS garde TOUS les onglets : la recherche (Ctrl K) les propose tous, sous-vues comprises.
   const PAIE_VUES = [['bulletins', 'Le mois'], ['pointage', 'Pointage'], ['salaries', 'Salariés'], ['conges', 'Congés et absences'],
     ['declarations', 'Déclarations'], ['annee', 'L\'année']];
-  const PAIE_TABS = PAIE_VUES.concat([['avances', 'Avances et prêts'], ['registre', 'Registre du personnel'], ['baremes', 'Réglages de la paie']]);
-  const PAIE_SOUS = { conges: [['conges', 'Congés et absences'], ['avances', 'Avances et prêts']], salaries: [['salaries', 'Les salariés'], ['registre', 'Le registre du personnel']] };
-  const PAIE_VUE_DE = { avances: 'conges', registre: 'salaries' };
+  const PAIE_TABS = PAIE_VUES.concat([['avances', 'Avances et prêts'], ['registre', 'Registre du personnel'], ['baremes', 'Réglages de la paie'],
+    ['pt-salarie', 'Pointage par salarié'], ['pt-horaires', 'Les horaires']]);
+  const PAIE_SOUS = { conges: [['conges', 'Congés et absences'], ['avances', 'Avances et prêts']], salaries: [['salaries', 'Les salariés'], ['registre', 'Le registre du personnel']],
+    pointage: [['pointage', 'Le mois'], ['pt-salarie', 'Par salarié'], ['pt-horaires', 'Les horaires']] };
+  const PAIE_VUE_DE = { avances: 'conges', registre: 'salaries', 'pt-salarie': 'pointage', 'pt-horaires': 'pointage' };
   Object.assign(LF_IC, { echeance: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' });
   // Idem sur la Paie : la liste des salariés, les avances en cours et le registre du personnel sont
   // des états du jour, pas d'un exercice. Ils affichaient un sélecteur d'année qui ne faisait rien.
@@ -18340,6 +18342,140 @@
           <div class="pa-graphe" role="img" aria-label="Coût de la paie de ${h(s.year)}, mois par mois">${mois.map(x => `<div class="pa-barre${x.m === dernier ? ' der' : ''}" title="${h(MONTHS_LONG[x.m - 1])} : ${x.n ? `${pl(x.n, 'bulletin')} · brut ${C.money(x.brut, cur)} · coût ${C.money(x.cout, cur)} · ${x.payes === x.n ? 'payé' : `${x.n - x.payes} à payer`}` : 'aucun bulletin'}"><span class="v">${x.m === dernier || (x.n && x.m === mois.find(z => z.n).m) ? C.money(x.cout, cur) : ''}</span><i style="height:${Math.round(x.cout / max * 128)}px"></i><small>${h(['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][x.m - 1])}</small></div>`).join('')}</div></section>`;
     }
 
+    // (plateforme) 1.224.0 — pointer à la main, sans pointeuse (la maquette de la paie, demande de Skander : « il faut pouvoir
+    // faire le pointage manuellement si on n'a pas de pointeuse »). Chacun est présent par défaut ; on note ce qui change.
+    const avPaie = e => `<span class="pa-av" style="--c:${h(C.couleurDe(e.name || ''))}">${h(C.initialesDe(e.name || ''))}</span>`;
+    const CODES_JOUR = [['P', 'Présent'], ['A', 'Absent'], ['C', 'Congé'], ['M', 'Malade'], ['D', 'Demi-journée']];
+    const JOURS_SEM = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+    const enPosteLe = (iso) => data.employees.filter(e => e.active !== false && (!e.hireDate || e.hireDate <= iso) && (!e.endDate || e.endDate >= iso))
+      .slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    const peutPointerLe = (iso) => {
+      if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return false; }
+      if (closedBlock(iso, 'Ce pointage')) return false;
+      if (!(data.timesheets || []).length && licenceBlock('Pointer les salariés', 'paie')) return false;
+      return true;
+    };
+    // « Aujourd'hui : qui n'est pas là ? » : un geste par salarié, le jour même (ou sa journée de repos, dite).
+    function ptAujourdhui() {
+      const iso = C.today(), y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
+      const L = enPosteLe(iso);
+      if (!L.length) return '';
+      const wd = new Date(iso + 'T00:00:00Z').getUTCDay();
+      const ligne = e => {
+        const j = C.pointageDuMois(data, e, y, m).jours.find(x => x.jour === d) || {};
+        if (j.repos && j.code === 'R') return `<div class="pt-auj-l" data-auj-e="${h(e.id)}"><span class="pa-cl-i">${avPaie(e)}<b>${h(e.name)}</b></span><span class="muted small">jour de repos</span></div>`;
+        return `<div class="pt-auj-l" data-auj-e="${h(e.id)}"><span class="pa-cl-i">${avPaie(e)}<b>${h(e.name)}</b></span><div class="pt-seg" role="group" aria-label="${h(e.name)} aujourd'hui">${CODES_JOUR.map(([c, l]) => `<button type="button" data-auj="${h(e.id)}:${c}" aria-pressed="${j.code === c}">${l}</button>`).join('')}</div></div>`;
+      };
+      return `<div class="pa-bandeau" id="pt-main">${lfIc('ecriture', 18)}<span><b>Pas de pointeuse ? Tu pointes à la main</b><span>Chacun est présent par défaut, selon ses jours de travail. Tu notes seulement ce qui change : une absence, un congé, une maladie, une demi-journée ; les heures sup, dans la grille. Les congés saisis s'y posent d'eux-mêmes.</span></span><button type="button" class="btn btn-sm" id="pt-horaires-go">Les horaires</button></div>
+        <section class="pa-carte" id="pt-auj"><div class="pa-carte-t"><b>Aujourd'hui, ${JOURS_SEM[wd]} ${C.fmtDate(iso).slice(0, 5)} : qui n'est pas là ?</b><span class="mu">un geste par salarié ; le reste du jour se pointe « présent »</span></div>
+          <div class="pt-auj">${L.map(ligne).join('')}</div></section>`;
+    }
+    function lierAujourdhui(apres) {
+      const iso = C.today(), y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
+      if ($('#pt-horaires-go')) $('#pt-horaires-go').onclick = () => allerVue('pt-horaires');
+      $$('#pt-auj [data-auj]').forEach(b => b.onclick = () => {
+        const [id, code] = b.dataset.auj.split(':'), e = employeeById(id);
+        if (!e || b.getAttribute('aria-pressed') === 'true' || !peutPointerLe(iso)) return;
+        const avant = JSON.stringify(data.timesheets || []);
+        if (!C.poserPointage(data, e, y, m, d, code)) return;
+        save();
+        apres();
+        toastUndo(`${e.name}, aujourd'hui : ${C.libellePointage(code).toLowerCase()}`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
+      });
+    }
+    // Noter une période d'un coup (une semaine de congé, une maladie) : chaque jour ouvrable de la période prend le code ;
+    // les jours de repos restent du repos, les jours hors contrat ne se pointent pas. Les jours à venir se notent aussi.
+    function ptPeriodeFenetre(employeeId, apres) {
+      const emps = data.employees.filter(e => e.active !== false).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+      if (!emps.length) return;
+      modal(`<h2>Noter une période</h2><p class="small muted">Un congé d'une semaine, une maladie, des jours d'absence : d'un coup, jours à venir compris. Les jours de repos restent du repos.</p>
+        <form id="pp" class="grid-2">
+          <label class="field span-2">${lbl('Le salarié')}<select name="emp">${emps.map(e => `<option value="${h(e.id)}" ${e.id === employeeId ? 'selected' : ''}>${h(e.name)}</option>`).join('')}</select></label>
+          <label class="field span-2">${lbl('Ce qui se note')}<select name="code">${CODES_JOUR.map(([c, l]) => `<option value="${c}" ${c === 'C' ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          ${dateFieldHtml(lbl('Du'), 'du', C.today(), {})}
+          ${dateFieldHtml(lbl('Au'), 'au', C.today(), {})}
+        </form>
+        <p class="small muted" id="pp-dit"></p>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="pp-ok">${lfIc('coche', 15, 2.4)} Noter</button></div>`, (root, fermer) => {
+        const jours = () => {
+          const v = formValues($('#pp', root)), e = employeeById(v.emp);
+          if (!e || !v.du || !v.au || v.au < v.du) return { e, v, L: [] };
+          const L = [];
+          for (let iso = v.du; iso <= v.au && L.length < 400; iso = C.addDays(iso, 1)) {
+            const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
+            const j = C.pointageDuMois(data, e, y, m).jours.find(x => x.jour === d);
+            L.push({ iso, y, m, d, repos: !!(j && j.repos), hors: !j || j.code === '-' });
+          }
+          return { e, v, L };
+        };
+        const dire = () => {
+          const { L } = jours(), ouv = L.filter(j => !j.repos && !j.hors).length, rep = L.filter(j => j.repos).length;
+          $('#pp-dit', root).textContent = !L.length ? 'La date de fin vient avant la date de début.' : `${pl(ouv, 'jour')} à noter${rep ? ` ; ${pl(rep, 'jour')} de repos laissé${rep > 1 ? 's' : ''} tel${rep > 1 ? 's' : ''} quel${rep > 1 ? 's' : ''}` : ''}.`;
+          $('#pp-ok', root).disabled = !ouv;
+        };
+        $('#pp', root).onchange = dire; dire();
+        $('#pp-ok', root).onclick = () => {
+          const { e, v, L } = jours();
+          if (!e || !peutPointerLe(v.au)) return;
+          const avant = JSON.stringify(data.timesheets || []);
+          let n = 0;
+          L.filter(j => !j.repos && !j.hors).forEach(j => { if (C.poserPointage(data, e, j.y, j.m, j.d, v.code)) n++; });
+          if (!n) return;
+          save(); fermer(); apres();
+          toastUndo(`${e.name} : ${pl(n, 'jour')} noté${n > 1 ? 's' : ''} « ${C.libellePointage(v.code).toLowerCase()} »`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
+        };
+      });
+    }
+    // « Par salarié » : son mois jour par jour, ce qui vient de quoi (le calendrier, un congé saisi, un pointage), et ses totaux.
+    function drawPtSalarie() {
+      const y = Number(s.year), m = Number(s.month), mois = MONTHS_LONG[m - 1];
+      const premier = `${y}-${String(m).padStart(2, '0')}-01`, dernier = C.addDays(premier, C.daysInMonth(y, m) - 1);
+      const emps = data.employees.filter(e => (!e.hireDate || e.hireDate <= dernier) && (!e.endDate || e.endDate >= premier)).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+      if (!emps.length) { $('#p-body').innerHTML = `<div class="empty">Aucun salarié en poste en ${h(mois)} ${h(s.year)}.</div>`; return; }
+      if (!emps.some(e => e.id === s.ptSal)) s.ptSal = emps[0].id;
+      const e = employeeById(s.ptSal), p = C.pointageDuMois(data, e, y, m), st = C.payrollSettings(data);
+      const SOURCE = { calendrier: 'selon ses jours de travail', conge: 'un congé ou une absence saisis', pointe: 'pointé à la main' };
+      $('#p-body').innerHTML = `<section class="pa-carte" id="pt-sal"><div class="pa-carte-t"><b>${h(e.name)} · ${h(mois)} ${h(s.year)}</b>
+          <select id="pt-sal-e" aria-label="Le salarié">${emps.map(x => `<option value="${h(x.id)}" ${x.id === e.id ? 'selected' : ''}>${h(x.name)}</option>`).join('')}</select>
+          <select id="pt-sal-m" aria-label="Le mois">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${m === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <button type="button" class="btn btn-sm" id="pt-sal-periode">${lfIc('echeance', 14)} Noter une période…</button></div>
+        <table class="list compact pa-liste" id="pt-sal-t"><thead><tr><th>Jour</th><th>Ce jour-là</th><th>D'où ça vient</th></tr></thead><tbody>
+          ${p.jours.map(j => `<tr data-ptj="${j.jour}"${j.repos ? ' class="pt-repos-l"' : ''}><td class="nw">${JOURS_SEM[j.wd].slice(0, 3)}. ${String(j.jour).padStart(2, '0')}/${String(m).padStart(2, '0')}</td>
+            <td>${j.code === '-' ? '<span class="muted">hors contrat</span>' : `<select data-ptc="${j.jour}" aria-label="Le ${j.jour} ${h(mois)}">${(j.repos ? C.CODES_REPOS : C.CODES_POINTAGE.map(x => x[0])).map(c => `<option value="${c}" ${c === j.code ? 'selected' : ''}>${h(C.libellePointage(c))}</option>`).join('')}</select>`}</td>
+            <td class="small muted">${j.code === '-' ? '' : h(SOURCE[j.source] || '')}</td></tr>`).join('')}</tbody>
+          <tfoot><tr class="total-row"><td><b>Le mois</b></td><td colspan="2" id="pt-sal-tot"><b>${pct(p.payes)} jours payés</b> sur ${pct(p.total)}${p.absences ? ` · ${pct(p.absences)} non payé${p.absences > 1 ? 's' : ''}` : ''}${Object.keys(p.hs).length ? ` · heures sup : ${Object.entries(p.hs).map(([k, v]) => `${pct(v)} h à +${pct(k)} %`).join(', ')}` : ''}</td></tr></tfoot></table>
+        <p class="small muted pa-note">Ses jours de travail : ${h([1, 2, 3, 4, 5, 6, 0].filter(i => !(st.offDays || [0]).includes(i)).map(i => JOURS_SEM[i]).join(', '))} ; un mois complet compte ${pct(Number(st.workedDays) || 26)} jours payés. Les heures sup se notent dans la grille du mois.</p></section>`;
+      $('#pt-sal-e').onchange = ev => { s.ptSal = ev.target.value; drawPtSalarie(); };
+      $('#pt-sal-m').onchange = ev => { s.month = ev.target.value; s.moisTouche = true; drawPtSalarie(); };
+      $('#pt-sal-periode').onclick = () => ptPeriodeFenetre(e.id, () => drawPtSalarie());
+      $$('#pt-sal-t [data-ptc]').forEach(sel => sel.onchange = () => {
+        if (!peutPointerLe(dernier)) { drawPtSalarie(); return; }
+        if (!C.poserPointage(data, e, y, m, Number(sel.dataset.ptc), sel.value)) { drawPtSalarie(); return; }
+        save(); drawPtSalarie();
+        const c = $(`#pt-sal-t [data-ptc="${sel.dataset.ptc}"]`); if (c) c.focus();
+      });
+    }
+    // « Les horaires » : ce qui fait le pointage par défaut (les jours de travail, le mois complet, les heures du mois, les
+    // majorations), réglé dans les Réglages de la paie. Rien n'est inventé : ce qui n'est pas réglé le dit.
+    function drawPtHoraires() {
+      const st = C.payrollSettings(data), maj = C.majorationsHs(st), off = st.offDays || [0];
+      const ligne = (t, v, d) => `<tr><td><b>${t}</b></td><td>${v}</td><td class="small muted">${d}</td></tr>`;
+      $('#p-body').innerHTML = `<section class="pa-carte" id="pt-hor"><div class="pa-carte-t"><b>Comment chacun pointe</b><span class="mu">une pointeuse n'est pas obligatoire : sans elle, tu notes seulement ce qui change</span></div>
+          <table class="list compact pa-liste"><tbody>
+            ${ligne('À la main', 'présent par défaut', 'chaque jour selon ses jours de travail ; « Aujourd\'hui : qui n\'est pas là ? » et « Noter une période » font le reste')}
+            ${ligne('Une pointeuse', '<span class="muted">pas encore</span>', 'lire le fichier d\'une pointeuse viendra plus tard ; d\'ici là, le pointage se fait à la main')}
+          </tbody></table></section>
+        <section class="pa-carte" id="pt-hor-r"><div class="pa-carte-t"><b>Les horaires de l'entreprise</b><span class="mu">ils servent à compter les jours payés et les heures sup</span><button type="button" class="btn btn-sm" id="pt-hor-reg">${lfIc('modifier', 14)} Les changer</button></div>
+          <table class="list compact pa-liste"><tbody>
+            ${ligne('Jours de travail', h([1, 2, 3, 4, 5, 6, 0].filter(i => !off.includes(i)).map(i => JOURS_SEM[i]).join(', ')), `repos : ${h(off.map(i => JOURS_SEM[i]).join(', ') || 'aucun')}`)}
+            ${ligne('Un mois complet', `${pct(Number(st.workedDays) || 26)} jours payés`, 'le salaire d\'un mois entier, sans absence')}
+            ${ligne('Heures du mois', Number(st.heuresMois) > 0 ? `${pct(Number(st.heuresMois))} h` : '<span class="muted">pas réglées</span>', 'le taux d\'une heure sup se calcule sur elles')}
+            ${ligne('Heures sup', maj.length ? maj.map(x => `+${pct(x)} %`).join(', ') : '<span class="muted">pas réglées</span>', 'À VÉRIFIER : le Code du travail et ta convention collective')}
+          </tbody></table>
+          <p class="small muted pa-note">Les jours fériés ne se posent pas d'eux-mêmes : pointe-les « Jour férié » (À VÉRIFIER chaque année : la liste des fériés chômés et payés). Les horaires d'équipe à l'heure près viendront avec la pointeuse.</p></section>`;
+      $('#pt-hor-reg').onclick = () => allerVue('baremes');
+    }
+
     // (plateforme) 1.60.0 — le pointage du mois. Une case par salarié et par jour : un clic change le code (dans l'ordre
     // de la légende), une lettre le pose, les flèches passent d'une case à l'autre. Les jours payés et les absences se
     // recalculent à chaque geste ; un bulletin déjà établi qui ne suit plus le pointage le dit, et se met à jour d'un geste.
@@ -18357,8 +18493,8 @@
       const affiche = c => c === 'D' ? '½' : c === '-' ? '·' : c;
       const ecarts = C.payslipsOf(data, y, m).map(x => ({ x, r: C.pointageSurBulletin(data, x) })).filter(o => o.r && o.r.change);
       const mois = MONTHS_LONG[m - 1];
-      $('#p-body').innerHTML = `
-        <div class="panel" id="pt-panneau"><h2>Pointage de ${h(mois)} ${h(s.year)} ${info('pay.pointage')}</h2>
+      $('#p-body').innerHTML = `${ptAujourdhui()}
+        <div class="panel" id="pt-panneau"><h2>Pointage de ${h(mois)} ${h(s.year)} ${info('pay.pointage')}<button type="button" class="btn btn-sm pt-periode-btn" id="pt-periode">${lfIc('echeance', 14)} Noter une période…</button></h2>
           <div class="filters">
             <select id="pt-mois" aria-label="Le mois pointé">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${m === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>
             <span class="small muted">Clique une case pour changer son code, ou tape sa lettre ; les flèches passent d'une case à l'autre. Les congés et absences saisis s'y posent d'eux-mêmes.</span>
@@ -18380,6 +18516,8 @@
           <p class="small muted mt">Un bulletin établi après le pointage reprend ses absences non payées et ses heures supplémentaires ; les primes au jour suivent les jours payés.</p>
         </div>`;
       $('#pt-mois').onchange = e2 => { s.month = e2.target.value; s.moisTouche = true; drawPointage(); };
+      lierAujourdhui(() => drawPointage());
+      $('#pt-periode').onclick = () => ptPeriodeFenetre(null, () => drawPointage());
       // « Ouvrir les Barèmes » amène à la case à remplir, pas en haut d'une longue page (vu à l'écran).
       // Le changement d'onglet attend (une saisie à garder ?) : le curseur se pose une fois les Barèmes dessinés.
       if ($('#pt-baremes')) $('#pt-baremes').onclick = async () => {
@@ -19111,6 +19249,8 @@
       if (s.tab === 'registre') return drawRegister();
       if (s.tab === 'baremes') return drawRates();
       if (s.tab === 'pointage') return drawPointage();
+      if (s.tab === 'pt-salarie') return drawPtSalarie();
+      if (s.tab === 'pt-horaires') return drawPtHoraires();
       if (s.tab === 'annee') return drawAnnee();
       drawSlips();
     });

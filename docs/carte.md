@@ -238,7 +238,8 @@ vaut pour tout le dépôt.*
     « Le mois » tel que la maquette (1.222.0 ; `docs/maquettes/paie.html`, `docs/paie.md` « La paie appliquée » ;
     `paieDuMois`/`paieATraiter` dans `core.js`, `pHead`/`drawSlips`/`remettreBulletins`/`drawAnnee` dans `app.js`,
     `web/public/plateforme/paie.css`, `tests/web/paie-mois.test.ts`) ; lot 2, les documents en aperçu fidèle (1.223.0 ; `apercuDocument`, cinq documents de `HR_DOCS`,
-    `tests/web/paie-documents.test.ts`).
+    `tests/web/paie-documents.test.ts`) ; lot 3, le pointage à la main (1.224.0 ;
+    `ptAujourdhui`, `ptPeriodeFenetre`, `drawPtSalarie`, `drawPtHoraires`, `tests/web/paie-pointage-main.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

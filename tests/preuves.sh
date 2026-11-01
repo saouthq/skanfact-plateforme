@@ -22139,6 +22139,25 @@ prouver 'paie 1.223 d : le contrat sort sans la mention PROJET' web/public/v10/c
         <p class=\"projet\">PROJET — à relire, compléter et signer des deux parties</p>" "      contrat: \`" \
   "$WPAIE2"
 
+WPAIE3='aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
+prouver 'paie 1.224 a : « aujourd'\''hui » ne garde pas le code au serveur' web/public/v10/app.js \
+  "        save();
+        apres();
+        toastUndo(\`\${e.name}, aujourd" "        apres();
+        toastUndo(\`\${e.name}, aujourd" \
+  "$WPAIE3"
+prouver 'paie 1.224 b : « Annuler » ne défait pas le code du jour' web/public/v10/app.js \
+  "aujourd'hui : \${C.libellePointage(code).toLowerCase()}\`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });" "aujourd'hui : \${C.libellePointage(code).toLowerCase()}\`, () => {});" \
+  "$WPAIE3"
+prouver 'paie 1.224 c : la période oublie son dernier jour' web/public/v10/app.js \
+  "for (let iso = v.du; iso <= v.au && L.length < 400;" "for (let iso = v.du; iso < v.au && L.length < 400;" \
+  "$WPAIE3"
+prouver 'paie 1.224 d : un jour corrigé par salarié ne se garde pas' web/public/v10/app.js \
+  "        save(); drawPtSalarie();
+        const c = \$(\`#pt-sal-t" "        drawPtSalarie();
+        const c = \$(\`#pt-sal-t" \
+  "$WPAIE3"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
