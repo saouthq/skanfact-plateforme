@@ -221,7 +221,9 @@ describe('la banque, à la souris', () => {
     const mai = ['Date;Libellé;Débit;Crédit', '04/05/2026;VIR CLIENT DUPONT;;300,000'].join('\r\n');
     const [fMai] = await Promise.all([p.waitForEvent('filechooser'), p.locator('.bqi-page #rv-fichier').click()]);
     await fMai.setFiles({ name: 'releve-mai.csv', mimeType: 'text/csv', buffer: Buffer.from(mai, 'utf8') });
-    await expect.poll(() => p.locator('#rv-trou').innerText().catch(() => '')).toMatch(/^Ce relevé est celui de mai : celui d'avril manque[\s\S]*Dernier importé\s*02\/03\/2026 → 10\/03\/2026[\s\S]*Manquant\s*avril[\s\S]*Importer d'abord celui d'avril…/);
+    await expect.poll(() => p.locator('#rv-trou').innerText().catch(() => '')).toMatch(/^Ce relevé est celui de mai : celui d'avril manque\s*Rien n'est importé[\s\S]*Dernier relevé importé\s*mars · fin 10\s405,625\sDT\s*du 02\/03\/2026 au 10\/03\/2026\s*Avril\s*pas encore importé\s*Ce fichier\s*mai · 1 mouvement[\s\S]*le fichier est bien un relevé de la BIAT, 532\s*aucun doublon\s*Importer d'abord celui d'avril…/);
+    // (1.218.0, maquette) Le refus prend la page : le formulaire se cache, « L'importer quand même » le rend.
+    expect(await p.locator('.bqi-page .bqi-2').isVisible()).toBe(false);
     expect(await p.locator('.bqi-page #ok').isDisabled()).toBe(true);
     // Le solde de début proposé est la fin du relevé de mars (le chiffre de la banque).
     expect(await p.locator('.bqi-page [name=debut]').inputValue()).toMatch(/^10\s405,625$/);

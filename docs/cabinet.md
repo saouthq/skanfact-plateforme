@@ -474,6 +474,19 @@ le relevé retiré (les écritures restent). Les preuves « banque 1 » à « ba
   dit bien que ces écritures restent.
 - Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
+### Banque : le relevé qui saute un mois, l'annonce d'un geste (1.218.0, 01/11/2026)
+
+Comparés en pleine page à leur état de la maquette (`bqimportko`, `bqapres`) :
+
+- **Un relevé qui saute un mois** (novembre alors qu'octobre manque) : le refus prend la page, le formulaire se cache.
+  « Rien n'est importé. Le livre de la banque se rapproche mois après mois : un mois sauté laisserait un trou que
+  personne ne verrait. » Trois cases par mois (le dernier importé et sa fin, le mois manquant hachuré « pas encore
+  importé », ce fichier), ce qui a été vérifié (« le fichier est bien un relevé de la BIAT, 532 », « aucun doublon »),
+  puis « Importer d'abord celui d'octobre… », « Le demander à Sarra », « L'importer quand même » (qui rend le formulaire).
+  « Garder ce fichier pour après » (la maquette) n'est pas fait : il faudrait garder le fichier au serveur.
+- **L'annonce après un geste** nomme la ligne en gras (« **« VERSEMENT ESPECES »** : Rapprochée avec BQ-0922 »).
+- Déjà conformes : la pastille « … d'écart non expliqué », le pied rouge et ses pistes, le groupe « En attente du client ».
+
 ### Le mois vide, le mois sans relevé, la fenêtre « Valider » (1.217.0, 01/11/2026)
 
 Comparés en pleine page à leur état de la maquette (`savide`, `bqvide`, `valider`) :

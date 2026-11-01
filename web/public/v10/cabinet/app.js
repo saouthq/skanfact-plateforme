@@ -12508,7 +12508,7 @@
         <span class="bq-j" aria-hidden="true">${[['ok', n('ok')], ['prop', n('prop')], ['dec', n('dec')], ['att', n('att')]].map(([c, k]) => `<i class="${c}" style="flex:${k}"></i>`).join('')}</span></div>
       ${!restent.length ? `<div class="bq-fini"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><div><b>${esc(moisDuReleve(R).replace(/^./, c => c.toUpperCase()))} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
           <p>${pl(R.lignes.length, 'mouvement')} sur ${R.lignes.length} ont leur écriture.</p></div><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button></div>` : ''}
-      ${banqueState.annonce && banqueState.annonce.sel === banqueState.sel ? `<div class="bq-toast" role="status" id="bq-annonce">${svgBq(BQ_IC.ok, 15)}<span>${esc(banqueState.annonce.msg)}</span>${banqueState.annonce.defaire && !lect ? '<button type="button" class="cp-plus" id="bq-annuler">Annuler</button>' : ''}</div>` : ''}
+      ${banqueState.annonce && banqueState.annonce.sel === banqueState.sel ? `<div class="bq-toast" role="status" id="bq-annonce">${svgBq(BQ_IC.ok, 15)}<span>${(m => { const i = m.indexOf(' : '); return i > 0 ? `<b>${esc(m.slice(0, i))}</b> : ${esc(m.slice(i + 3))}` : esc(m); })(banqueState.annonce.msg)}</span>${banqueState.annonce.defaire && !lect ? '<button type="button" class="cp-plus" id="bq-annuler">Annuler</button>' : ''}</div>` : ''}
       <div class="bq2">
         <div class="bq-liste">
           <table class="list compact bq-t" data-sans-cartes><thead><tr><th></th><th>Date</th><th>La banque</th><th class="r">Montant</th><th></th></tr></thead><tbody>${groupesTab}${faitesTab}</tbody></table>
@@ -13650,6 +13650,7 @@
     const nomBq = (dossier.banque || {}).banque || (derR || {}).banque || '';
     page.innerHTML = `<div class="bq-h"><div><b>${attendu ? `Importer le relevé ${esc(deMois(attendu))}` : 'Importer un relevé'} · ${esc(defaut)}${nomBq ? ` ${esc(nomBq)}` : ''}</b><span class="mu" id="rv-sous">rien n'entre avant que tu aies vu ce que SkanFact a compris</span></div>
         <button type="button" class="btn btn-sm btn-ghost" data-close>${courant && courant.au ? `Retour à ${esc(moisLong(String(courant.au).slice(0, 7)))}` : 'Retour au relevé'}</button></div>
+      <div id="rv-trou-z"></div>
       <div class="bqi-2">
         <div class="bqi-g">
           <div class="bqi-fic"><span class="bqi-fic-ic" aria-hidden="true">${svgBq(BQ_IC.importer || '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', 20)}</span>
@@ -13670,7 +13671,6 @@
           <p class="small muted bqi-n">Les lignes au-dessus du tableau et les lignes de solde sont reconnues, et les soldes que le relevé écrit se reportent seuls. Les colonnes se reconnaissent à leur titre (Date, Libellé, Débit, Crédit…) ; une banque nouvelle, tu les nommes une fois, SkanFact s'en souvient.</p>
         </div>
         <div class="bqi-d">
-          <div id="rv-trou-z"></div>
           <div id="rv-avant"><div class="bqi-av bqi-av-vide"><b>Avant d'importer</b><ul>
             <li class="mu"><span>La période du relevé${attendu ? `, ${esc(moisLong(attendu))} attendu` : ''}</span></li>
             <li class="mu"><span>Le solde de début est la fin du relevé d'avant${derR ? ` (${esc(money(derR.soldeFin))} au ${esc(fmtJour(derR.au))})` : ''}</span></li>
@@ -13778,12 +13778,18 @@
           const contact = contactBq(dossier) || 'le client';
           // La boîte du mois manquant ne se redessine que si elle change : la frappe d'un solde la redessinait, et le clic
           // sur « L'importer quand même » tombait sur une boîte déjà remplacée.
+          // (1.218.0, maquette « bqimportko ») Le refus prend la page : rien n'est importé, les trois mois côte à côte
+          // (le dernier importé, le trou, ce fichier), ce qui a été vérifié, et ce qui débloque.
+          const banqueNom = v('banque');
           const htmlTrou = (trou.length && !forcer ? `<div class="bqk" id="rv-trou"><div class="bqk-t"><span class="bqx">${svgBq(BQ_IC.alerte, 18)}</span><div><b>Ce relevé est celui ${esc(deMois(du.slice(0, 7)))} : ${trou.length > 1 ? `${esc(trou.map(m => moisLong(m)).join(', '))} manquent` : `celui ${esc(deMois(trou[0]))} manque`}</b>
-                <p>Le dernier relevé de ce compte finit le ${esc(fmtJour(prec.au))}. Importé tel quel, ${trou.length > 1 ? 'ces mois resteraient' : 'ce mois resterait'} sans relevé, et l'écart de la banque ne s'expliquerait plus.</p></div></div>
-              <div class="bqk-f"><div><small>Dernier importé</small><b>${esc(fmtJour(prec.du))} → ${esc(fmtJour(prec.au))}</b><small>fin ${esc(money(prec.soldeFin))}</small></div>
-                <div class="trou"><small>Manquant</small><b>${esc(trou.map(m => moisLong(m)).join(', '))}</b><small>aucun relevé</small></div>
-                <div><small>Ce fichier</small><b>${esc(fmtJour(du))} → ${esc(fmtJour(au))}</b><small>${pl(lignes.length, 'mouvement')}</small></div></div>
+                <p>Rien n'est importé. Le livre de la banque se rapproche mois après mois : ${trou.length > 1 ? 'des mois sautés laisseraient' : 'un mois sauté laisserait'} un trou que personne ne verrait.</p></div></div>
+              <div class="bqk-f"><div><small>Dernier relevé importé</small><b>${esc(moisLong(String(prec.au).slice(0, 7)))} · fin ${esc(money(prec.soldeFin))}</b><small>du ${esc(fmtJour(prec.du))} au ${esc(fmtJour(prec.au))}</small></div>
+                <div class="trou"><small>${esc(cap(trou.map(m => moisLong(m)).join(', ')))}</small><b>pas encore importé</b></div>
+                <div><small>Ce fichier</small><b>${esc(moisLong(du.slice(0, 7)))} · ${esc(pl(lignes.length, 'mouvement'))}</b><small>du ${esc(fmtJour(du))} au ${esc(fmtJour(au))}</small></div></div>
+              <ul class="bqk-ok"><li>${svgBq(BQ_IC.ok, 14)}<span>le fichier est bien un relevé${banqueNom ? ` de la ${esc(banqueNom)}` : ''}, ${esc(compte)}</span></li>
+                ${doubles ? `<li class="ko">${svgBq(BQ_IC.alerte, 14)}<span>${esc(pl(doubles, 'ligne déjà importée', 'lignes déjà importées'))}</span></li>` : `<li>${svgBq(BQ_IC.ok, 14)}<span>aucun doublon</span></li>`}</ul>
               <div class="cp-gestes"><button type="button" class="btn btn-primary" id="rv-dabord">Importer d'abord celui ${esc(deMois(trou[0]))}…</button>${!dossier.manual && api.question ? `<button type="button" class="btn" id="rv-demander">Le demander à ${esc(contact)}</button>` : ''}<button type="button" class="btn btn-ghost" id="rv-forcer">L'importer quand même</button></div></div>` : '');
+          rootModal.classList.toggle('bqi-bloque', !!htmlTrou);
           const zoneT = $('#rv-trou-z', rootModal);
           if (zoneT && zoneT.dataset.h !== htmlTrou) { zoneT.innerHTML = htmlTrou; zoneT.dataset.h = htmlTrou; }
           if (zone) zone.innerHTML = `<div class="bqi-av"><b>Avant d'importer</b><ul>

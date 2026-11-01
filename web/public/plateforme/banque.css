@@ -304,6 +304,11 @@
 .bqk-f small { color: var(--sb-gris); font-size: 12px; } .bqk-f b { font-variant-numeric: tabular-nums; }
 .bqk-f .trou { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 10%, var(--sb-papier)) 0 8px, var(--sb-papier) 8px 16px); }
 .bqk-f .trou b { color: var(--danger); }
+/* (1.218.0) Le refus prend la page : le formulaire se cache tant que le mois manquant n'est pas tranché. */
+.bqi-page.bqi-bloque .bqi-2 { display: none; }
+.bqk-ok { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; color: var(--sb-gris); }
+.bqk-ok li { display: flex; gap: 8px; align-items: center; } .bqk-ok svg { color: var(--sb-sarcelle); flex: none; }
+.bqk-ok li.ko svg { color: var(--danger); }
 @media (max-width: 760px) { .bqk-f { grid-template-columns: minmax(0, 1fr); } .bqk-f > div + div { border-left: 0; border-top: 1px solid var(--sb-trait); } }
 
 /* (1.215.0, la maquette) Au bout d'une règle : « Modifier » en clair, le reste dans un ⋯. */
