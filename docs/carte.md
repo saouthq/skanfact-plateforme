@@ -251,7 +251,9 @@ vaut pour tout le dépôt.*
     embauche, l'arrêt maladie, l'import des salariés, la recherche, la lecture seule, l'accueil, le téléphone (1.229.0 à 1.233.0 ;
     `brutDuMois`/`regulsDuMois`/`saisiesOf` dans `compta.js`, `regularisationFenetre`/`saisieFenetre`/`simulationEmbauche`,
     `tests/moteur/paie-corriger-sans-reecrire.test.ts`, `tests/web/paie-revue-ecrans.test.ts`) ; l'interface au plus près de sa maquette, écran
-    par écran (1.234.0 ; `montantU`, `congesCompteurs`, `avancesEnCours`, `avanceLigneHtml` dans `app.js`, `paie.css`).
+    par écran (1.234.0 ; `montantU`, `congesCompteurs`, `avancesEnCours`, `avanceLigneHtml` dans `app.js`, `paie.css`) ; la revue
+    de la paie du Cabinet face à sa maquette et à l'entreprise, ses parcours des deux côtés et ses lots C1 à C6
+    (`docs/revue-paie-cabinet.md`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs
