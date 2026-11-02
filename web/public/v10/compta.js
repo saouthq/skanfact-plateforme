@@ -6400,8 +6400,14 @@
     feries: [],                // [{ date 'AAAA-MM-JJ', nom }] : posés « Jour férié » dans la grille, payés (À VÉRIFIER chaque année)
     retenirRetards: false,     // un retard se note toujours ; il ne se retient du salaire que si ce réglage le dit (À VÉRIFIER)
     hsArrondi: 0,              // les heures sup lues à la pointeuse s'arrondissent à l'inférieur à ce pas (minutes) ; 0 : à la minute
+    joursAValider: false,       // (1.258.0) le mois ne se valide que quand chaque journée passée l'est ; faux : d'un coup
     retardMinimum: 0,          // un retard lu à la pointeuse compte dès ce nombre de minutes ; 0 : dès la première
     hsPlafondAn: 0,            // plafond d'heures supplémentaires par an : 0, pas de plafond dit (À VÉRIFIER)
+    // (1.258.0) Les heures de nuit : une plage ('HH:MM', vide : rien ne se compte) et sa majoration en % (0 : comptées,
+    // rien ne s'ajoute au bulletin). La plage légale et la majoration : À VÉRIFIER (Code du travail, convention collective).
+    nuitDebut: '',
+    nuitFin: '',
+    nuitMajoration: 0,
     // Barème IRPP annuel progressif : `upTo` en dinars (null = au-delà), `rate` en %.
     brackets: [
       { upTo: 5000, rate: 0 },
@@ -6962,6 +6968,33 @@
     if (h > 0) t.hs[String(majoration)] = h; else delete t.hs[String(majoration)];
     return true;
   }
+  // (1.259.0) Les heures sup notées sur UNE journée (« La journée », docs/maquettes/pointage.html) : gardées jour par jour
+  // (`timesheet.hsJours`, pour les relire et les défaire), et ajoutées à celles du mois de la même majoration — c'est le
+  // total du mois que le bulletin paie (`heuresSupDuMois`). 0 les retire, du jour et du mois ; une autre majoration
+  // remplace celle du jour. Jamais négatif : un total du mois retouché à la main plus bas ne descend pas sous zéro.
+  function heuresSupDuJour(data, employee, year, month, jour) {
+    const t = pointageEnregistre(data, employee.id, year, month), x = t && t.hsJours ? t.hsJours[String(jour)] : null;
+    return x && Number(x.heures) > 0 ? { majoration: Number(x.majoration), heures: round3(Number(x.heures)) } : null;
+  }
+  function poserHeuresSupDuJour(data, employee, year, month, jour, majoration, heures) {
+    const naturel = pointageDuMois(data, employee, year, month).jours.find(j => j.jour === Number(jour));
+    if (!naturel || naturel.code === '-') return false;
+    const h = round3(Math.max(0, Number(heures) || 0)), maj = Number(majoration);
+    if (h > 0 && !(maj > 0)) return false;
+    let t = pointageEnregistre(data, employee.id, year, month);
+    if (!t) {
+      if (!h) return true;
+      if (!Array.isArray(data.timesheets)) data.timesheets = [];
+      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      data.timesheets.push(t);
+    }
+    t.hs = t.hs || {}; t.hsJours = t.hsJours || {};
+    const avant = t.hsJours[String(jour)];
+    const ajouter = (k, d) => { const v = round3(Math.max(0, (Number(t.hs[String(k)]) || 0) + d)); if (v > 0) t.hs[String(k)] = v; else delete t.hs[String(k)]; };
+    if (avant && Number(avant.heures) > 0) ajouter(avant.majoration, -Number(avant.heures));
+    if (h > 0) { t.hsJours[String(jour)] = { majoration: maj, heures: h }; ajouter(maj, h); } else delete t.hsJours[String(jour)];
+    return true;
+  }
   const majorationsHs = s => [s && s.hsMaj1, s && s.hsMaj2, s && s.hsMaj3].map(Number).filter(x => x > 0);
   // Une prime imposable par majoration : le brut de la fiche divisé par les heures d'un mois complet, majoré.
   function heuresSupDuMois(data, employee, year, month) {
@@ -6978,21 +7011,56 @@
   }
   // Ce que le pointage change à une saisie de bulletin : les absences non payées, les primes au jour (sur les jours
   // payés), les heures supplémentaires (celles d'avant s'en vont). Le reste de la saisie ne bouge pas.
-  function reprisePointage(i, p, hs) {
+  // (1.258.0) La retenue des retards du mois, quand le réglage `retenirRetards` le dit (éteint par défaut ; À VÉRIFIER : ce
+  // qui peut se retenir) : les minutes du mois au taux horaire de la fiche (le brut divisé par les heures d'un mois
+  // complet, comme les heures sup), en une ligne imposable négative : le brut baisse, la CNSS et l'impôt suivent.
+  function retardsDuMois(data, employee, year, month, p) {
+    const s = baremesPaie((data && data.payrollSettings) || {});
+    const heuresMois = Number(s.heuresMois) || 0, mn = Math.round(Number((p || pointageDuMois(data, employee, year, month)).retards) || 0);
+    if (!s.retenirRetards || !(heuresMois > 0) || !(mn > 0)) return [];
+    const montant = round3(round3(Number(employee.grossSalary) || 0) * mn / 60 / heuresMois);
+    return montant > 0 ? [{ label: `Retenue pour retards : ${mn} min`, amount: -montant, taxable: true, retard: true, minutes: mn }] : [];
+  }
+  // (1.258.0) Les heures de nuit du mois : chaque jour travaillé (présent), de l'arrivée au départ lus sur les badges, ou,
+  // sans badge, l'horaire de son équipe ; ce qui tombe dans la plage de nuit réglée (elle peut passer minuit). Sans plage
+  // réglée, rien. La majoration réglée en fait une prime imposable : le brut de la fiche divisé par les heures d'un mois
+  // complet, fois les heures de nuit, fois la majoration (l'heure elle-même est déjà dans le salaire).
+  function heuresDeNuitDuMois(data, employee, year, month, p) {
+    const s = baremesPaie((data && data.payrollSettings) || {});
+    const ns = minutesDe(s.nuitDebut), ne = minutesDe(s.nuitFin);
+    if (ns == null || ne == null || ns === ne) return { minutes: 0, lignes: [], reglee: false };
+    const fenetre = [ns, ne > ns ? ne : ne + 1440];
+    const q = equipeDe(s, employee);
+    const recouvre = (a, d) => [-1440, 0, 1440].reduce((t, k) => t + Math.max(0, Math.min(d, fenetre[1] + k) - Math.max(a, fenetre[0] + k)), 0);
+    let minutes = 0;
+    for (const j of (p || pointageDuMois(data, employee, year, month)).jours) {
+      if (j.code !== 'P' || j.repos) continue;
+      const b = j.badge ? journeeBadges(data, employee, j.iso) : null;
+      const a = minutesDe(b ? b.arrivee : q && q.debut), d0 = minutesDe(b ? b.depart : q && q.fin);
+      if (a == null || d0 == null) continue;
+      minutes += recouvre(a, d0 > a ? d0 : d0 + 1440);
+    }
+    const heuresMois = Number(s.heuresMois) || 0, maj = Number(s.nuitMajoration) || 0, h = round3(minutes / 60);
+    const pc = n => String(n).replace('.', ',');
+    const montant = maj > 0 && heuresMois > 0 ? round3(round3(Number(employee.grossSalary) || 0) * h * maj / 100 / heuresMois) : 0;
+    return { minutes, reglee: true, lignes: montant > 0 ? [{ label: `Heures de nuit : ${pc(h)} h à +${pc(maj)} %`, amount: montant, taxable: true, nuit: true, heures: h }] : [] };
+  }
+  function reprisePointage(i, p, hs, rt) {
     const total = Number(i.workedDays) || 26;
     const hors = i.prorata ? Math.max(0, Number(i.prorata.sur) - Number(i.prorata.jours)) : 0;
     const absentDays = p.absences;
     const j = Math.max(0, Math.min(total, round3(total - hors - absentDays)));
-    const bonuses = (i.bonuses || []).filter(b => !b.hs)
+    const bonuses = (i.bonuses || []).filter(b => !b.hs && !b.retard && !b.nuit)
       .map(b => b.parJour ? { ...b, amount: round3(Number(b.mensuel) * j / total), jours: j, sur: total } : b)
-      .concat(hs);
+      .concat(hs, rt || []);
     return { absentDays, bonuses };
   }
   // Un bulletin établi qui ne suit plus le pointage de son mois : ce qu'il deviendrait. `null` sans pointage.
   function pointageSurBulletin(data, slip) {
     const e = (data.employees || []).find(x => x.id === slip.employeeId);
     if (!e || !pointageEnregistre(data, e.id, slip.year, slip.month)) return null;
-    const r = reprisePointage(slip, pointageDuMois(data, e, slip.year, slip.month), heuresSupDuMois(data, e, slip.year, slip.month));
+    const pm = pointageDuMois(data, e, slip.year, slip.month);
+    const r = reprisePointage(slip, pm, heuresSupDuMois(data, e, slip.year, slip.month), retardsDuMois(data, e, slip.year, slip.month, pm).concat(heuresDeNuitDuMois(data, e, slip.year, slip.month, pm).lignes));
     const empreinte = l => JSON.stringify((l || []).map(b => [b.label, round3(Number(b.amount) || 0)]));
     const avant = round3(Number(slip.absentDays) || 0);
     // Ce qui diffère, pour le dire : les absences, les heures supplémentaires (les primes au jour suivent les absences).
@@ -7168,7 +7236,7 @@
     const vars = variablesDuMois(employee, year, month), st = baremesPaie((data && data.payrollSettings) || {});
     const i = { gross, workedDays: total, absentDays: p.absences, bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...primeAncienneteDuMois(employee, st, year, month, total - hors - p.absences, total), ...regulsDuMois(employee, year, month), ...vars.bonuses], prorata,
       deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month), ...vars.deductions] };
-    return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month)) } : i;
+    return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month), retardsDuMois(data, employee, year, month, p).concat(heuresDeNuitDuMois(data, employee, year, month, p).lignes)) } : i;
   }
 
   // Un salarié se REFUSE tant qu'il manque ce sans quoi aucun bulletin n'est possible. Le reste —
@@ -7896,7 +7964,7 @@
     LEAVE_KINDS, leaveIsPaid,
     // (plateforme) 1.70.0 — les congés.
     leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance, congeRetenu,
-    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, poserRetard, equipeDe, joursReposDe, ferieDu, lireBadges, importerBadges, journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
+    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, heuresSupDuJour, poserHeuresSupDuJour, poserRetard, equipeDe, joursReposDe, ferieDu, lireBadges, importerBadges, journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresSupDuMois, retardsDuMois, heuresDeNuitDuMois, reprisePointage, pointageSurBulletin,
     saisieDuMois, brutDuMois, employeAuMois, regulsDuMois, saisiesOf, saisiesDuMois,
     // (plateforme) 1.256.0 — net → brut, l'ancienneté, les variables du mois, l'indemnité de licenciement.
     brutPourNet, anneesAnciennete, trancheAnciennete, primeAncienneteDuMois, variablesDuMois, indemniteLicenciement,

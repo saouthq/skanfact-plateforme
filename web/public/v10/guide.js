@@ -307,6 +307,7 @@
     'soc.ref': { t: 'Référence', d: 'Facultative : le numéro de la quittance ou du virement, pour le retrouver sur le relevé.' },
     'pay.annulePaiement': { t: 'Pourquoi', d: 'La raison reste écrite sur le bulletin, avec l\'ancien paiement : on sait plus tard pourquoi ce salaire a été payé deux fois, ou pas.' },
     'pay.bulletin': { t: 'Le bulletin', d: 'Le bulletin du mois dont tu parles : son salarié et son net partent avec ta demande, pour que ton comptable sache de quoi il s\'agit sans chercher.' },
+    'pay.correctionLigne': { t: 'La ligne', d: 'La ligne du bulletin qui ne va pas : ton comptable sait où regarder. « Autre chose » si ce n\'est pas une ligne.' },
     'pay.correction': { t: 'Ce qui ne va pas', d: 'Dis-le en une ou deux phrases (une prime oubliée, une absence, une avance à retenir). Ta demande part dans votre conversation ; tu la relis avant de l\'envoyer, et ton comptable te répond là.' },
     'pay.raisonRefus': { t: 'Ta raison', d: 'Facultative. Elle reste écrite sur le bulletin, à côté de la correction refusée : ton comptable la lit, et on sait plus tard pourquoi le bulletin n\'a pas changé.' },
     'pay.netVerse': { t: 'Net versé', d: 'Le net des bulletins que tu as <b>marqués payés</b> dans l\'année — l\'argent réellement parti vers tes salariés. Un bulletin établi mais pas encore payé n\'a rien versé : son net apparaît sous « restent à verser », et il sort de la trésorerie le jour où tu le marques payé.' },

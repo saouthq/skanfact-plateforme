@@ -112,7 +112,7 @@ describe('les guides d\'écritures et le journal retenu', () => {
     const ecrire = async (paie: unknown, revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu: { paie }, revision });
     expect((await ecrire(PAIE, null)).statut).toBe(200);
     expect(((await appeler('GET', `/cabinets/${cabinet}/fiches`, associe.jeton)).corps.fiches as { entreprise: string; contenu: unknown }[])
-      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: PAIE });
+      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: { ...PAIE, regle: expect.objectContaining({ le: expect.any(String) }) } });
     const refuse = async (regime: Record<string, unknown>, contrat = 'cdd') => (await ecrire({ regimesContrat: { [contrat]: regime } }, 1)).statut;
     expect(await refuse({ cnssEmployer: 12.5 })).toBe(400);
     expect(await refuse({ cnssEmployer: '12,5' })).toBe(400);
@@ -134,7 +134,7 @@ describe('les guides d\'écritures et le journal retenu', () => {
     const ecrire = async (paie: unknown, revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu: { paie }, revision });
     expect((await ecrire(PAIE, null)).statut).toBe(200);
     expect(((await appeler('GET', `/cabinets/${cabinet}/fiches`, associe.jeton)).corps.fiches as { entreprise: string; contenu: unknown }[])
-      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: PAIE });
+      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: { ...PAIE, regle: expect.objectContaining({ le: expect.any(String) }) } });
     const refuse = async (taux: Record<string, unknown>) => (await ecrire({ regimesContrat: {}, ...taux }, 1)).statut;
     expect(await refuse({ accidentRate: 2.75 })).toBe(400);
     expect(await refuse({ accidentRate: '2,75' })).toBe(400);
@@ -154,7 +154,7 @@ describe('les guides d\'écritures et le journal retenu', () => {
     const ecrire = async (paie: unknown, revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu: { paie }, revision });
     expect((await ecrire(PAIE, null)).statut).toBe(200);
     expect(((await appeler('GET', `/cabinets/${cabinet}/fiches`, associe.jeton)).corps.fiches as { entreprise: string; contenu: unknown }[])
-      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: PAIE });
+      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: { ...PAIE, regle: expect.objectContaining({ le: expect.any(String) }) } });
     const refuse = async (jours: unknown) => (await ecrire({ regimesContrat: {}, leaveDaysPerYear: jours }, 1)).statut;
     expect(await refuse(21.5)).toBe(400);
     expect(await refuse('21,5')).toBe(400);

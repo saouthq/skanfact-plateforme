@@ -1263,7 +1263,170 @@ body.dark .pm { color: #1d2327; }
 /* (1.257.0) Remettre les bulletins (O03). */
 .pm .rm-t td { padding: 10px 8px; vertical-align: top; }
 .pm .rm-t td small { display: block; color: var(--gris-2); font-size: 11.5px; margin-top: 1px; }
+/* (1.258.0) Le rappel d'une augmentation (O05) */
+.pm .rp-intro { margin: 0 0 12px; }
+.pm .rp-t td { padding: 10px 8px; vertical-align: top; }
+.pm .rp-t td small { display: block; color: var(--gris-2); font-size: 11.5px; margin-top: 1px; }
+.pm .rp-t tfoot td { border-top: 1px solid var(--trait-fort); padding-top: 12px; }
+/* (1.258.0) La journée validée */
+.pm .pt-auj-pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--trait); flex-wrap: wrap; }
+.pm .pt-auj-pied .mu { font-size: 13px; }
+.pm .pt-auj-ok { display: inline-flex; align-items: center; gap: 8px; color: var(--sarcelle, #0f766e); }
+.pm .pt-auj-ok .mu { color: var(--gris-2); }
+.pm .pt-auj-fige .pt-seg button { opacity: .55; cursor: not-allowed; }
+.pm th.pt-jv { box-shadow: inset 0 -2px 0 var(--sarcelle, #0f766e); }
+.pm .pt-h-case { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 14px; }
+.pm .pt-h-case input { margin-top: 3px; }
+.pm .pt-h-case small { display: block; margin-top: 2px; }
+.pm .jav-l { margin: 6px 0 10px; padding-left: 18px; columns: 2; }
+/* (1.258.0) La fenêtre Document (O08) : « Pour », « Prêt » */
+.modal .hf-pour { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 12px; background: var(--sb-papier-2); border-radius: 10px; }
+.modal .hf-pour .small { font-weight: 600; margin-right: 4px; }
+.modal .hf-pour-b { border: 2px solid transparent; cursor: pointer; width: 34px; height: 34px; font-size: 12px; }
+.modal .hf-pour-b[aria-pressed="true"] { border-color: var(--sb-sarcelle); box-shadow: 0 0 0 2px #fff inset; }
+.modal .hf-pret { display: grid; gap: 4px; padding: 10px 12px; margin: 10px 0; background: var(--sb-papier-2); border-radius: 10px; font-size: 13px; color: var(--sb-gris); }
+.modal .hf-pret b { color: var(--sb-encre); }
+/* (1.258.0) La déclaration du mois (O17) */
+.pd-t { width: 100%; margin: 4px 0 6px; }
+.pd-t td { padding: 9px 8px; vertical-align: top; }
+.pd-t td small { display: block; color: var(--sb-gris-2); font-size: 11.5px; margin-top: 1px; }
+.pd-t tfoot td { border-top: 1px solid var(--sb-trait-fort); padding-top: 11px; }
+/* (1.258.0, O18/O19) La liste des documents à gauche de l'aperçu : celui qu'on voit en sarcelle pâle, les autres s'ouvrent. */
+.modal .ad-docs { display: grid; gap: 2px; margin-bottom: 10px; }
+.modal .ad-doc { display: grid; gap: 2px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--sb-encre); font: inherit; font-size: 13.5px; }
+.modal .ad-doc b { font-weight: 500; }
+.modal .ad-doc small { color: var(--sb-gris); font-size: 11.5px; }
+.modal .ad-doc:hover { background: var(--sb-papier-2); }
+.modal .ad-doc.on { background: var(--sb-sarcelle-pale, rgba(13, 148, 136, .1)); color: var(--sb-sarcelle); cursor: default; }
+.modal .ad-doc.on b { font-weight: 600; }
+/* (1.258.0, O28) « Le mois » avant ses bulletins : le pointage du mois en lecture. */
+.pm #mp-pointage .mp-t { width: 100%; }
+.pm #mp-pointage .mp-t td { padding: 6px 16px; border-top: 1px solid var(--trait); vertical-align: middle; }
+.pm #mp-pointage .av { width: 26px; height: 26px; border-radius: 8px; font-size: 11px; }
+.pm #mp-pointage .mp-t td.r { color: var(--gris); font-size: 13px; }
+.pm #mp-pointage .mp-t .cl-i { display: inline-flex; align-items: center; gap: 8px; }
+.pm #mp-pointage .mp-an { margin: 0 16px 10px; }
+/* (1.259.0) La refonte du pointage (docs/maquettes/pointage.html) : « La journée », « Le mois » en relecture, « À régler ». */
+.pm .pm-nb { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px; border-radius: 99px; background: var(--ambre-doux); color: var(--ambre-texte); font-size: 11px; font-weight: 600; }
+.pm .ptj-barre { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.pm .ptj-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pm .ptj-nav .pt-nav-b:first-child svg { transform: rotate(180deg); }
+.pm .ptj-d { display: grid; justify-items: center; gap: 1px; width: 70px; padding: 6px 4px; border-radius: 12px; border: 1px solid var(--trait); background: var(--papier); color: var(--encre); cursor: pointer; font: inherit; }
+.pm .ptj-d small { font-size: 11px; color: var(--gris); }
+.pm .ptj-d b { font-size: 17px; }
+.pm .ptj-d i { font-style: normal; font-size: 10.5px; color: var(--gris); min-height: 14px; display: inline-flex; align-items: center; }
+.pm .ptj-d.ok i { color: var(--sarcelle-texte); }
+.pm .ptj-d.auj i, .pm .ptj-d.nv i { color: var(--ambre-texte); font-weight: 600; }
+.pm .ptj-d.fu { opacity: .55; }
+.pm .ptj-d.repos { background: var(--papier-2); }
+.pm .ptj-d[aria-pressed="true"] { border-color: var(--sarcelle); box-shadow: 0 0 0 2px var(--doux); }
+.pm .ptj-nav-t { font-size: 12.5px; }
+.pm .ptj-gestes { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.pm .ptj-c { padding-bottom: 0; overflow: hidden; }
+.pm .ptj-eq { border-top: 1px solid var(--trait); }
+.pm .ptj-eq-t { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; padding: 10px 16px 4px; font-size: 13px; }
+.pm .ptj-ll { list-style: none; margin: 0; padding: 0; }
+.pm .ptj-l { display: grid; grid-template-columns: 34px minmax(150px, 210px) minmax(110px, 160px) auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 16px; }
+.pm .ptj-l.a-regler { background: color-mix(in srgb, var(--ambre-doux) 55%, transparent); }
+.pm .ptj-l .pa-av, .pm .ptj-ex .pa-av { width: 34px; height: 34px; border-radius: 10px; font-size: 12px; }
+.pm .ptj-n { display: grid; gap: 1px; min-width: 0; }
+.pm .ptj-n b { font-size: 14px; }
+.pm .ptj-n small { font-size: 12px; color: var(--gris); }
+.pm .ptj-badw { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.pm .ptj-bad { white-space: nowrap; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px; }
+.pm .ptj-seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 11px; background: var(--papier-2); border: 1px solid var(--trait); }
+.pm .ptj-seg button { border: 0; background: none; padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 12.5px; font-weight: 500; color: var(--gris); cursor: pointer; white-space: nowrap; }
+.pm .ptj-seg button:hover:not(:disabled) { color: var(--encre); }
+.pm .ptj-seg button[aria-pressed="true"] { background: var(--papier); color: var(--encre); box-shadow: var(--actif-ombre); font-weight: 600; }
+.pm .ptj-seg button:disabled { cursor: not-allowed; opacity: .7; }
+.pm .ptj-e { font-size: 12.5px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; text-align: right; flex-wrap: wrap; }
+.pm .ptj-e.alerte { color: var(--rouge-texte); }
+.pm .ptj-e.attire { color: var(--sarcelle-texte); }
+.pm .ptj-tel { display: none; }
+.pm .ptj-pied { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--trait); font-size: 12.5px; }
+.pm .ptj-pied .mu { display: inline-flex; gap: 6px; align-items: center; }
+.pm .ptj-pied .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+.pm .ptj-prog { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto; gap: 10px 16px; align-items: center; padding: 12px 16px; background: var(--papier); border: 1px solid var(--trait); border-radius: 14px; }
+.pm .ptj-prog-t { display: grid; }
+.pm .ptj-prog .ptj-gestes { grid-column: 1 / -1; margin-left: 0; justify-content: flex-end; }
+.pm .ptj-prog .btn[aria-disabled="true"] { opacity: .6; cursor: not-allowed; }
+.pm .ptj-barre-p { height: 8px; border-radius: 99px; background: var(--papier-2); overflow: hidden; border: 1px solid var(--trait); }
+.pm .ptj-barre-p i { display: block; height: 100%; background: var(--sarcelle); }
+.pm .ptj-prog-d { font-size: 13px; }
+.pm .ptj-av-j { background: var(--ambre-doux) !important; color: var(--ambre-texte); display: grid; place-items: center; }
+.pm #pt-aregler .pa-dem-g { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pm .bandeau.ok { background: var(--doux); border-color: color-mix(in srgb, var(--sarcelle) 30%, var(--trait)); }
+.pm .ptj-ex { list-style: none; margin: 0; padding: 0; }
+.pm .ptj-ex li { display: grid; grid-template-columns: 34px minmax(140px, 220px) minmax(0, 1fr) 70px; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--trait); }
+.pm .ptj-ex li.clickable:hover { background: var(--survol); cursor: pointer; }
+.pm .ptj-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm .ptj-chip { display: grid; gap: 1px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--trait); background: var(--papier-2); font-size: 12.5px; }
+.pm .ptj-chip small { color: var(--gris); font-size: 11.5px; }
+.pm .ptj-chip i { font-style: normal; font-size: 11.5px; font-weight: 600; }
+.pm .ptj-chip.attire { border-color: color-mix(in srgb, var(--sarcelle) 40%, var(--trait)); background: var(--doux); }
+.pm .ptj-chip.attire i { color: var(--doux-texte); }
+.pm .ptj-chip.alerte { border-color: color-mix(in srgb, var(--ambre) 45%, var(--trait)); background: var(--ambre-doux); }
+.pm .ptj-chip.alerte b, .pm .ptj-chip.alerte i { color: var(--ambre-texte); }
+.pm .ptj-chip.ghost { background: none; border-style: dashed; }
+.pm .ptj-payes { display: grid; justify-items: end; }
+.pm .ptj-payes b { font-size: 15px; }
+.pm .ptj-payes small { color: var(--gris); font-size: 11.5px; }
+/* Les fenêtres : les grands choix, « Qui », le résultat, les 4 questions. */
+.pm .ptj-grands { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pm .ptj-grands.ptj-deux { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pm .ptj-g { position: relative; display: grid; justify-items: center; gap: 4px; padding: 12px 8px; border-radius: 14px; border: 1px solid var(--trait); background: var(--papier); color: var(--encre); font: inherit; cursor: pointer; text-align: center; }
+.pm .ptj-g input { position: absolute; opacity: 0; pointer-events: none; }
+.pm .ptj-g b { font-size: 14px; }
+.pm .ptj-g small { font-size: 11.5px; color: var(--gris); }
+.pm .ptj-g.on, .pm .ptj-g:has(input:checked) { border-color: var(--sarcelle); background: var(--doux); box-shadow: 0 0 0 1px var(--sarcelle) inset; }
+.pm .ptj-g:has(input:focus-visible) { outline: 2px solid var(--sarcelle); outline-offset: 2px; }
+.pm .ptj-qui { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.pm .ptj-pq { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 99px; border: 1px solid var(--trait); background: var(--papier); font: inherit; font-size: 13px; cursor: pointer; color: var(--encre); }
+.pm .ptj-pq .pa-av { width: 24px; height: 24px; border-radius: 99px; font-size: 10px; }
+.pm .ptj-pq[aria-pressed="true"] { border-color: var(--sarcelle); background: var(--doux); }
+.pm .ptj-res { display: grid; gap: 8px; padding: 10px 12px; margin-top: 12px; border-radius: 12px; background: var(--papier-2); font-size: 13px; }
+.pm .ptj-res > div { display: grid; gap: 2px; }
+.pm .ptj-res span { color: var(--gris); }
+.pm .ptj-et { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pm .ptj-et li { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; font-size: 12.5px; color: var(--gris); }
+.pm .ptj-et li span { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 99px; border: 1px solid var(--trait-fort); font-size: 11.5px; font-weight: 600; }
+.pm .ptj-et li.fait span { background: var(--sarcelle); border-color: var(--sarcelle); color: #fff; }
+.pm .ptj-et li.ici { background: var(--papier-2); color: var(--encre); }
+.pm .ptj-et li.ici span { border-color: var(--sarcelle); color: var(--sarcelle-texte); }
+.pm .ptj-qc { display: grid; gap: 10px; }
+.pm .ptj-qc h3 { margin: 0; font-size: 18px; }
+.pm .ptj-qc .pq-sur { font-size: 12px; font-weight: 600; color: var(--sarcelle-texte); }
+.pm .ptj-eqs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pm .ptj-eqc { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--trait); border-radius: 12px; background: var(--papier-2); }
 @media (max-width: 760px) {
+  /* (1.259.0) La journée au téléphone : une carte par salarié ; un nom touché ouvre ses choix en grand. */
+  .pm .ptj-nav .ptj-d { width: 46px; }
+  .pm .ptj-nav .ptj-d i { font-size: 0; }
+  .pm .ptj-nav .ptj-d.ok i, .pm .ptj-nav .ptj-d.nv i::after { font-size: 10px; }
+  .pm .ptj-nav .ptj-d.nv i::after { content: "•"; }
+  .pm .ptj-gestes { margin-left: 0; }
+  .pm .ptj-l { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 10px; padding: 10px 14px; }
+  .pm .ptj-l > .ptj-bad, .pm .ptj-l > .ptj-badw { grid-column: 2 / 3; grid-row: 2; }
+  .pm .ptj-l .ptj-seg { display: none; }
+  .pm .ptj-l .ptj-e { grid-column: 1 / -1; justify-content: flex-start; text-align: left; padding-left: 44px; }
+  .pm .ptj-l .ptj-e:empty { display: none; }
+  .pm .ptj-tel:not([hidden]) { display: inline-flex; grid-column: 3; grid-row: 1 / 3; align-items: center; gap: 6px; border: 0; background: none; color: var(--gris); font: inherit; cursor: pointer; padding: 6px; }
+  .pm .ptj-fl { font-size: 22px; line-height: 1; color: var(--gris-2); }
+  .pm .ptj-l { cursor: pointer; }
+  .pm .ptj-pas { white-space: nowrap; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 99px; background: var(--papier-2); color: var(--encre); }
+  .pm .ptj-pas.alerte { background: var(--ambre-doux); color: var(--ambre-texte); }
+  .pm .ptj-pas.attire { background: var(--doux); color: var(--doux-texte); }
+  .pm .ptj-pied .btn { width: 100%; justify-content: center; height: 44px; }
+  .pm .ptj-prog { grid-template-columns: minmax(0, 1fr); }
+  .pm .ptj-prog .ptj-gestes { justify-content: stretch; }
+  .pm .ptj-ex li { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  .pm .ptj-ex li .ptj-chips { grid-column: 1 / -1; padding-left: 44px; }
+  .pm .ptj-ex li .ptj-payes { grid-row: 1; grid-column: 3; }
+  .pm .ptj-grands, .pm .ptj-grands.ptj-deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pm .ptj-et { grid-template-columns: repeat(4, auto); }
+  .pm .ptj-et li b { display: none; }
+  .pm .ptj-et li.ici b { display: inline; }
+  .pm .ptj-eqs { grid-template-columns: minmax(0, 1fr); }
   .pm .pt-fer-add, .pm #eq .eq-pointe, .pm #eq .eq-qui { grid-template-columns: minmax(0, 1fr); }
   .pm #rc .rc-suite { grid-template-columns: minmax(0, 1fr); }
   .pm .so-motifs { grid-template-columns: minmax(0, 1fr); }

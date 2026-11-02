@@ -2827,7 +2827,9 @@
       <button class="btn btn-sm" id="mod-add">Ajouter au menu</button>`;
     const view = $('#view');
     const head = $('.page-head', view);
-    if (head && head.nextSibling) view.insertBefore(el, head.nextSibling); else view.appendChild(el);
+    // (1.259.0) L'en-tête n'est pas toujours un enfant direct de la vue (la paie l'enveloppe dans .pm) : le bandeau se pose
+    // à côté de lui, chez son parent (insertBefore sur la vue levait une erreur et le bandeau ne venait jamais).
+    if (head && head.parentNode) head.parentNode.insertBefore(el, head.nextSibling); else view.appendChild(el);
     $('#mod-add').onclick = () => {
       const liste = (company().modules || []).slice();
       if (!liste.includes(m.id)) liste.push(m.id);
@@ -2849,7 +2851,9 @@
       <button class="btn btn-sm" id="offre-voir">Voir l'abonnement</button>`;
     const view = $('#view');
     const head = $('.page-head', view);
-    if (head && head.nextSibling) view.insertBefore(el, head.nextSibling); else view.appendChild(el);
+    // (1.259.0) L'en-tête n'est pas toujours un enfant direct de la vue (la paie l'enveloppe dans .pm) : le bandeau se pose
+    // à côté de lui, chez son parent (insertBefore sur la vue levait une erreur et le bandeau ne venait jamais).
+    if (head && head.parentNode) head.parentNode.insertBefore(el, head.nextSibling); else view.appendChild(el);
     $('#offre-voir').onclick = () => allerParametres('app', 'p-licence');
   }
 
@@ -17613,6 +17617,33 @@
     const der = payes.length ? payes[payes.length - 1].p : null, cible = der ? moisLibreApres(e.id, der.year, der.month) : null;
     return { refaits, payes, total, cible, lesMois: payes.map(x => MONTHS_LONG[x.p.month - 1]).join(', ') };
   }
+  // (1.258.0) « Une augmentation qui compte depuis le 01/05 » (la maquette, O05) : avant de porter un rappel, la fenêtre
+  // montre, salarié par salarié, l'écart par mois, le nombre de mois déjà payés, le rappel brut (un mois au prorata le dit),
+  // et le mois qui le reçoit. Rend vrai si le rappel est accepté. La façon d'imposer un rappel sur plusieurs mois :
+  // À VÉRIFIER avec le comptable.
+  function rappelFenetre(liste, desM) {
+    return new Promise(resolve => {
+      const cur = company().currency, L = liste.filter(x => x.r && x.r.payes.length && x.r.total && x.r.cible);
+      if (!L.length) { resolve(false); return; }
+      const moisDes = `${MONTHS_LONG[Number(desM.slice(5, 7)) - 1]} ${desM.slice(0, 4)}`, dateDes = C.fmtDate(`${desM}-01`);
+      const cibles = [...new Set(L.map(x => ymDe(x.r.cible.year, x.r.cible.month)))];
+      const nomMois = ym => MONTHS_LONG[Number(ym.slice(5, 7)) - 1];
+      const parMois = x => { const s = (x.e.salaires || []).find(v => v.des === desM); return s && Number(s.avant) > 0 ? C.round3(Number(s.brut) - Number(s.avant)) : null; };
+      const note = x => x.r.payes.filter(y => y.p.prorata).map(y => `${MONTHS_LONG[y.p.month - 1]} au prorata : ${y.p.prorata.jours} jours sur ${y.p.prorata.sur}`).join(' · ');
+      const total = C.round3(L.reduce((a, x) => a + x.r.total, 0)), une = cibles.length === 1 ? nomMois(cibles[0]) : '';
+      let fini = false;
+      const finir = v => { if (fini) return; fini = true; resolve(v); };
+      modal(`<h2>Une augmentation qui compte depuis le ${h(dateDes)}</h2>
+        <p class="sous-f rp-intro">Les bulletins déjà payés depuis ${h(moisDes)} ne changent pas : la différence se met sur le bulletin du premier mois pas encore payé, en une ligne « Rappel de salaire ». Les mois pas encore payés, eux, se refont au nouveau salaire.</p>
+        <table class="mini lu rp-t" id="rp-t"><thead><tr><th>Salarié</th><th class="r">+ par mois</th><th class="r">Mois</th><th class="r">Rappel brut</th></tr></thead><tbody>
+          ${L.map(x => { const pm = parMois(x), n = note(x); return `<tr data-rp="${h(x.e.id)}"><td><b>${h(x.e.name)}</b>${n ? `<small>${h(n)}</small>` : ''}${cibles.length > 1 ? `<small>sur ${h(nomMois(ymDe(x.r.cible.year, x.r.cible.month)))}</small>` : ''}</td><td class="r">${pm != null ? h(C.money(pm, cur)) : '—'}</td><td class="r">${x.r.payes.length}</td><td class="r"><b>${h(C.money(x.r.total, cur))}</b></td></tr>`; }).join('')}
+        </tbody><tfoot><tr><td colspan="3"><b>${une ? `Rappel ${/^[aeiouyéè]/i.test(une) ? 'd\'' : 'de '}${h(une)}, brut` : 'Les rappels, brut'}</b></td><td class="r"><b>${h(C.money(total, cur))}</b></td></tr></tfoot></table>
+        <p class="regle">${lfIc('aide', 14)} Le rappel est un salaire : il porte la CNSS et l'impôt du mois qui le reçoit. La façon d'imposer un rappel sur plusieurs mois : À VÉRIFIER avec ton comptable.</p>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="rp-ok">${lfIc('coche', 15, 2.4)} ${une ? `Mettre le rappel sur ${h(une)}` : `Porter les ${L.length} rappels`}</button></div>`, (root, fermer) => {
+        $('#rp-ok', root).onclick = () => { finir(true); fermer(); };
+      }, () => finir(false));
+    });
+  }
   // Porter le rappel calculé sur le bulletin libre qui suit (une régularisation imposable). Rend la fonction qui le défait.
   function porterRappel(e, desM, r) {
     return porterRegularisation(e, { id: C.uid(), pourMois: ymDe(r.cible.year, r.cible.month), label: `Rappel de salaire (${r.lesMois})`, amount: r.total, taxable: true,
@@ -17625,7 +17656,7 @@
     if (!payes.length || !total) { if (refaits) toast(`${pl(refaits, 'bulletin')} pas encore ${refaits > 1 ? 'payés refaits' : 'payé refait'} au nouveau salaire.`); return; }
     if (!cible) return;
     const nomCible = `${MONTHS_LONG[cible.month - 1]} ${cible.year}`;
-    const ok = await confirmDialog(`Le nouveau salaire de ${e.name} vaut depuis ${MONTHS_LONG[Number(desM.slice(5, 7)) - 1]} ${desM.slice(0, 4)}. ${pl(payes.length, 'bulletin')} déjà ${payes.length > 1 ? 'payés' : 'payé'} (${lesMois}) ${payes.length > 1 ? 'ont' : 'a'} l'ancien.\n\nPorter un rappel de salaire de ${C.money(total, cur)} sur le bulletin de ${nomCible} ? Les bulletins payés ne changent pas.${refaits ? `\n\n${pl(refaits, 'bulletin')} pas encore ${refaits > 1 ? 'payés ont' : 'payé a'} déjà été refait${refaits > 1 ? 's' : ''} au nouveau salaire.` : ''}`, 'Porter le rappel', false, { titre: 'Un rappel de salaire' });
+    const ok = await rappelFenetre([{ e, r: { payes, total, cible, lesMois } }], desM);
     if (!ok) return;
     const defaire = porterRappel(e, desM, { total, cible, lesMois });
     save(true); if (done) done();
@@ -17647,6 +17678,20 @@
     return `<section class="pa-carte" id="pv-carte"><div class="pa-carte-t"><b>Les primes et retenues ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${h(mois)}</b><span class="mu">${L.length ? `${pl(L.length, 'montant')} · ${pr ? `${C.money(pr, cur)} de primes` : ''}${pr && re ? ' · ' : ''}${re ? `${C.money(re, cur)} retenus` : ''}` : 'rien de plus ce mois : les primes de chaque mois viennent de la fiche, les heures et les absences du pointage'}</span>
       <button type="button" class="btn btn-sm" id="pv-carte-ouvrir">${lfIc('ecriture', 14)} ${L.length ? 'Modifier…' : 'Ajouter…'}</button></div>
       ${L.length ? `<ul class="pv-l">${L.slice(0, 6).map(({ e, v }) => `<li><span class="pa-av" style="--c:${h(C.couleurDe(e.name || ''))}" aria-hidden="true">${h(C.initialesDe(e.name || ''))}</span><span><b>${h(e.name)}</b><small>${h(v.label)}</small></span><span class="num ${v.sorte === 'retenue' ? 'neg' : ''}">${v.sorte === 'retenue' ? '− ' : '+ '}${C.money(v.amount, cur)}</span></li>`).join('')}${L.length > 6 ? `<li class="muted small">et ${pl(L.length - 6, 'autre')}…</li>` : ''}</ul>` : ''}</section>`;
+  }
+  // (1.258.0, la maquette O28) « Le mois » avant ses bulletins : le pointage du mois en lecture (ce que chaque bulletin
+  // reprendra : jours payés, heures sup, absences, retards) et ce qui reste à régler avant, chacun ouvrant le pointage.
+  function moisPointageHtml(y, m) {
+    const premier = `${y}-${String(m).padStart(2, '0')}-01`, dernier = C.addDays(premier, C.daysInMonth(y, m) - 1), mois = MONTHS_LONG[m - 1];
+    const emps = data.employees.filter(e => (!e.hireDate || e.hireDate <= dernier) && (!e.endDate || e.endDate >= premier)).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    if (!emps.length) return '';
+    const an = C.anomaliesPointage(data, y, m, C.today());
+    const resume = p => { const hs = C.round3(Object.values(p.hs || {}).reduce((a, v) => a + Number(v), 0)); return [`${pct(p.payes)} j`, hs ? `${pct(hs)} h sup` : '', p.absences ? `${pct(p.absences)} A` : '', p.retards ? `${pct(p.retards)} min de retard` : ''].filter(Boolean).join(' · '); };
+    const enCours = C.today() <= dernier;
+    return `<section class="pa-carte" id="mp-pointage"><div class="pa-carte-t"><b>Le pointage ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${h(mois)}</b><span class="mu">${enCours ? `en cours, jusqu'au ${h(C.fmtDate(dernier))} : ` : ''}ce que les bulletins reprendront</span>
+      <button type="button" class="btn btn-sm" data-mp-pointage>${lfIc('equipe', 14)} Ouvrir le pointage</button></div>
+      ${an.length ? `<div class="bandeau ambre pa-bandeau pa-ambre mp-an" role="status">${lfIc('alerte', 18)}<span class="txt"><b>${an.length > 1 ? `${an.length} choses à régler` : 'Une chose à régler'} avant les bulletins</b><span>${h(an.slice(0, 2).map(a => { const e = emps.find(x => x.id === a.employeeId) || {}; return `${String(e.name || '').split(' ')[0]} : ${a.sorte === 'sortie' ? `une entrée sans sortie le ${a.jour}` : `${pl((a.jours || []).length, 'jour')} sans badge ni justificatif`}`; }).join(' ; '))}${an.length > 2 ? '…' : ''}</span></span><button type="button" class="btn btn-sm" data-mp-pointage>Les régler…</button></div>` : ''}
+      <table class="mini lu mp-t" id="mp-t"><tbody>${emps.map(e => { const p = C.pointageDuMois(data, e, y, m); return `<tr><td><span class="cl-i">${pmAvDe(e.name)}<b>${h(e.name)}</b></span></td><td class="r">${h(resume(p))}</td></tr>`; }).join('')}</tbody></table></section>`;
   }
   // Le bulletin établi d'un mois reçoit les variables de ce mois (celles d'avant s'en vont) ; payé ou validé, il ne bouge pas.
   function appliquerVariables(e, y, m) {
@@ -17802,11 +17847,11 @@
         save(true); fermer();
         const aRappeler = rappels.filter(x => x.r.payes.length && x.r.total && x.r.cible);
         let defaits = [];
-        if (aRappeler.length && await confirmDialog(`${pl(aRappeler.length, 'salarié')} déjà ${aRappeler.length > 1 ? 'payés' : 'payé'} depuis ${MONTHS_LONG[Number(o.des.slice(5, 7)) - 1]} : ${aRappeler.map(x => `${x.e.name} + ${C.money(x.r.total, cur)}`).join(', ')}.\n\nPorter ces rappels de salaire sur leur prochain bulletin ?`, 'Porter les rappels')) {
+        if (aRappeler.length && await rappelFenetre(aRappeler, o.des)) {
           defaits = aRappeler.map(x => porterRappel(x.e, o.des, x.r)); save(true);
         }
         if (done) done();
-        toastUndo(`${pl(L.length, 'salaire augmenté', 'salaires augmentés')} à partir de ${MONTHS_LONG[Number(o.des.slice(5, 7)) - 1]} ${o.des.slice(0, 4)}${defaits.length ? ` · ${pl(defaits.length, 'rappel')}` : ''}`, () => {
+        toastUndo(`${pl(L.length, 'salaire augmenté', 'salaires augmentés')} à partir ${/^[aeiouyéè]/i.test(MONTHS_LONG[Number(o.des.slice(5, 7)) - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[Number(o.des.slice(5, 7)) - 1]} ${o.des.slice(0, 4)}${defaits.length ? ` · ${pl(defaits.length, 'rappel')}` : ''}`, () => {
           defaits.forEach(f => f());
           avant.forEach(a => { const e = employeeById(a.id); if (e) { e.grossSalary = a.grossSalary; e.salaires = a.salaires; } });
           avantBul.forEach(b => { const i = data.payslips.findIndex(p => p.id === b.id); if (i >= 0) data.payslips[i] = b; });
@@ -17867,7 +17912,7 @@
         let defait = null;
         if (r && r.payes.length && r.total && r.cible && await confirmDialog(`${x.name} est déjà payé${x.civilite === 'f' ? 'e' : ''} depuis ${MONTHS_LONG[Number(o.des.slice(5, 7)) - 1]} : + ${C.money(r.total, cur)}.\n\nPorter ce rappel de salaire sur son prochain bulletin ?`, 'Porter le rappel')) { defait = porterRappel(x, o.des, r); save(true); }
         if (done) done();
-        toastUndo(change ? `${x.name} : ${C.money(o.brut, cur)} à partir de ${MONTHS_LONG[Number(o.des.slice(5, 7)) - 1]} ${o.des.slice(0, 4)}${defait ? ' · un rappel' : ''}` : `${x.name} : poste et catégorie enregistrés`, () => {
+        toastUndo(change ? `${x.name} : ${C.money(o.brut, cur)} à partir ${/^[aeiouyéè]/i.test(MONTHS_LONG[Number(o.des.slice(5, 7)) - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[Number(o.des.slice(5, 7)) - 1]} ${o.des.slice(0, 4)}${defait ? ' · un rappel' : ''}` : `${x.name} : poste et catégorie enregistrés`, () => {
           if (defait) defait();
           const y = employeeById(e0.id); if (y) Object.assign(y, avant);
           avantBul.forEach(b => { const i = data.payslips.findIndex(p => p.id === b.id); if (i >= 0) data.payslips[i] = b; });
@@ -18413,8 +18458,15 @@
       <p class="small muted jp-legende" id="jp-legende">${C.COLONNES_JOURNAL.filter(([, l, c]) => l !== c && !['Base', 'Brut', 'Indemnités', 'Retenues'].includes(c)).map(([, l, c]) => `<b>${h(c)}</b> ${h(/^[A-Z]{2,}/.test(l) ? l : l.charAt(0).toLowerCase() + l.slice(1))}`).join(' · ')}.</p>
       <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn" id="jp-voir">${lfIc('oeil', 15)} Voir le document</button><button type="button" class="btn" id="jp-csv">Exporter en CSV</button><button type="button" class="btn btn-primary" id="jp-pdf">${lfIc('exporter', 15)} Exporter en PDF</button></div>`,
     (root) => {
-      $('#jp-voir', root).onclick = () => apercuDocument({ titre: `Journal de paie — ${periode}`, html: C.journalDePaieHtml(data, company(), year, month), fichier: nom + '.pdf',
-        cote: `<div class="pa-doc-i"><b>Prêt</b><span>${pl(j.nombre, 'bulletin')} ; les montants viennent des bulletins, jamais tapés.</span></div>` });
+      // (1.258.0, la maquette O19) Les documents du mois à côté du journal : l'ordre de virement et les reçus en espèces se
+      // font dans « Payer les salaires » (ce qui reste à payer), le registre est la liste du personnel.
+      const aPayer = C.salairesAPayer(data, year, month).length;
+      $('#jp-voir', root).onclick = () => apercuDocument({ titre: `Journal de paie — ${periode}`, html: C.journalDePaieHtml(data, company(), year, month), fichier: nom + '.pdf', imprimer: true,
+        docs: [{ label: 'Journal de paie', actif: true },
+          { label: 'Ordre de virement', sous: aPayer ? `dans « Payer les salaires » : ${pl(aPayer, 'salaire')} à payer` : 'tous les salaires du mois sont payés', run: () => payerSalairesFenetre(year, month) },
+          { label: 'Reçu de salaire en espèces', sous: 'pour qui est payé en espèces, dans « Payer les salaires »', run: () => payerSalairesFenetre(year, month) },
+          { label: 'Registre du personnel', sous: 'la liste que l\'inspection du travail peut demander', run: () => { paieState.tab = 'registre'; if (location.hash === '#/paie') render(true); else location.hash = '#/paie'; } }],
+        pret: `<b>Prêt</b><span>les montants viennent des ${pl(j.nombre, 'bulletin')}, jamais tapés</span><span>${h(periode)} · le total de chaque colonne est la somme de ses lignes</span>` });
       $('#jp-pdf', root).onclick = async () => {
         try {
           const f = await bridge.exportPdf(C.journalDePaieHtml(data, company(), year, month), nom + '.pdf');
@@ -18579,27 +18631,44 @@
     if (!cadre) return;
     let f = $('iframe', cadre);
     if (!f) { f = document.createElement('iframe'); f.title = 'Aperçu du document'; f.setAttribute('tabindex', '-1'); cadre.appendChild(f); }
-    const kL = (cadre.clientWidth - 24) / 794, kH = (cadre.clientHeight - 24) / 1123;
+    // (1.258.0) Un document en paysage (le journal de paie : `@page { size: A4 landscape }`) se pose en paysage : posé en
+    // portrait, son tableau débordait de la page.
+    const paysage = /size:\s*A4\s+landscape/i.test(String(html).slice(0, 4000));
+    const W = paysage ? 1123 : 794, H = paysage ? 794 : 1123;
+    f.style.width = `${W}px`; f.style.height = `${H}px`;
+    const kL = (cadre.clientWidth - 24) / W, kH = (cadre.clientHeight - 24) / H;
     const k = Math.min(1, Math.max(0.3, o.zoom === 'page' && kH > 0.2 ? Math.min(kL, kH) : kL));
     cadre.classList.toggle('pa-apercu-page', o.zoom === 'page');
     f.style.transform = `scale(${k})`;
-    f.style.marginBottom = `${-Math.round(1123 * (1 - k))}px`;
-    f.style.marginRight = `${-Math.round(794 * (1 - k))}px`;
+    f.style.marginBottom = `${-Math.round(H * (1 - k))}px`;
+    f.style.marginRight = `${-Math.round(W * (1 - k))}px`;
     f.srcdoc = html;
   }
   // (1.249.0) La vue d'un document : à gauche ce qu'il faut savoir et les gestes (`o.gestes` : [{ id, label, run }]), à droite la
   // page A4 entière (ou à sa largeur).
+  // (1.258.0, la maquette O18/O19) À gauche aussi, quand on les donne : « Pour » (`o.pour` : { liste: [{ id, name }], id,
+  // choisir }), les autres documents du même endroit (`o.docs` : [{ label, sous, actif, run }]), « Prêt » (`o.pret`, du
+  // HTML) ; au pied, « Imprimer » (la fenêtre d'impression du navigateur) et les gestes du pied (`o.pied` : [{ id, label, run }]).
   function apercuDocument(o) {
+    const pour = o.pour && o.pour.liste.length > 1 ? `<div class="hf-pour" role="group" aria-label="Pour quel salarié"><span class="small muted">Pour</span>${o.pour.liste.map(x => `<button type="button" class="pa-av hf-pour-b" data-ad-pour="${h(x.id)}" aria-pressed="${x.id === o.pour.id}" title="${h(x.name)}" style="--c:${h(C.couleurDe(x.name || ''))}">${h(C.initialesDe(x.name || ''))}</button>`).join('')}</div>` : '';
+    const docs = (o.docs || []).length ? `<div class="ad-docs" aria-label="Les documents">${o.docs.map((d, i) => `<button type="button" class="ad-doc${d.actif ? ' on' : ''}" data-ad-doc="${i}"${d.actif ? ' aria-current="true"' : ''}><b>${h(d.label)}</b>${d.sous ? `<small>${h(d.sous)}</small>` : ''}</button>`).join('')}</div>` : '';
     modal(`<h2>${h(o.titre)}</h2><p class="small muted pa-doc-sous">l'aperçu est le document lui-même, au format A4 : ce que tu vois est ce qui sortira en PDF</p>
-      <div class="pa-doc-c hf-c"><div class="pa-doc-g">${o.cote || ''}${(o.gestes || []).length ? `<div class="ad-gestes">${o.gestes.map(g => `<button type="button" class="btn" id="${g.id}">${g.label}</button>`).join('')}</div>` : ''}</div>
+      <div class="pa-doc-c hf-c"><div class="pa-doc-g">${pour}${docs}${o.pret ? `<div class="hf-pret" id="ad-pret">${o.pret}</div>` : ''}${o.cote || ''}${(o.gestes || []).length ? `<div class="ad-gestes">${o.gestes.map(g => `<button type="button" class="btn" id="${g.id}">${g.label}</button>`).join('')}</div>` : ''}</div>
       <div class="hf-droite"><div class="hf-zoom" role="group" aria-label="Taille de l'aperçu"><span class="small muted">Aperçu A4</span><button type="button" class="btn btn-sm" data-ad-zoom="page" aria-pressed="true">Page entière</button><button type="button" class="btn btn-sm" data-ad-zoom="largeur" aria-pressed="false">Pleine largeur</button></div>
       <div class="pa-apercu hf-apercu" id="ad-apercu"></div></div></div>
-      <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn btn-primary" id="ad-pdf">${lfIc('exporter', 15)} Exporter en PDF</button></div>`, (root, close) => {
+      <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button>${(o.pied || []).map(g => `<button type="button" class="btn" id="${g.id}">${g.label}</button>`).join('')}${o.imprimer ? `<button type="button" class="btn" id="ad-imprimer">${lfIc('pages', 15)} Imprimer</button>` : ''}<button type="button" class="btn btn-primary" id="ad-pdf">${lfIc('exporter', 15)} Exporter en PDF</button></div>`, (root, close) => {
       let zoom = 'page';
       const poser = () => poserApercu($('#ad-apercu', root), o.html, { zoom });
       requestAnimationFrame(poser);
       $$('[data-ad-zoom]', root).forEach(b => b.onclick = () => { zoom = b.dataset.adZoom; $$('[data-ad-zoom]', root).forEach(x => x.setAttribute('aria-pressed', String(x === b))); poser(); });
-      (o.gestes || []).forEach(g => { $(`#${g.id}`, root).onclick = () => { close(); g.run(); }; });
+      (o.gestes || []).concat(o.pied || []).forEach(g => { $(`#${g.id}`, root).onclick = () => { close(); g.run(); }; });
+      $$('[data-ad-pour]', root).forEach(b => b.onclick = () => { if (b.dataset.adPour === o.pour.id) return; close(); o.pour.choisir(b.dataset.adPour); });
+      $$('[data-ad-doc]', root).forEach(b => b.onclick = () => { const d = o.docs[Number(b.dataset.adDoc)]; if (!d || d.actif) return; close(); d.run(); });
+      if ($('#ad-imprimer', root)) $('#ad-imprimer', root).onclick = () => {
+        const w = window.open('', '_blank');
+        if (!w) { toast('Ton navigateur a bloqué la fenêtre d\'impression : autorise les fenêtres de ce site, puis recommence.', true); return; }
+        w.document.write(o.html); w.document.close(); w.focus(); w.print();
+      };
       $('#ad-pdf', root).onclick = async () => {
         try {
           const f = await bridge.exportPdf(o.html, o.fichier);
@@ -18655,8 +18724,23 @@
     const gestes = [];
     if (!v.paidDate && !v.valideLe) gestes.push({ id: 'ad-mod', label: `${lfIc('modifier', 15)} Modifier le bulletin`, run: () => payslipForm(payslipById(slip.id) || slip, emp, slip.year, slip.month, done) });
     if (v.paidDate) gestes.push({ id: 'ad-reg', label: 'Régulariser…', run: () => regularisationFenetre(payslipById(slip.id) || slip, done) });
+    // (1.258.0, la maquette O18) « Pour » : le bulletin du même mois d'un autre salarié ; les documents du salarié à côté de
+    // son bulletin (chacun ouvre sa fenêtre) ; « Prêt » dit d'où viennent les montants ; « Le remettre » quand il est payé.
+    const prenom = String(emp.name || '').split(' ')[0] || emp.name || '';
+    const duMois = C.payslipsOf(data, slip.year, slip.month).slice().sort((a, b) => (a.employeeName || '').localeCompare(b.employeeName || '', 'fr'));
+    const hr = (k, sous) => ({ label: C.hrDocLabel(k), sous, run: () => hrDocForm(emp, done, k) });
+    const pied = v.paidDate && !v.remisLe ? [{ id: 'ad-remettre', label: `${lfIc('envoi', 15)} Le remettre à ${h(prenom)}`, run: async () => {
+      const b = payslipById(slip.id); if (!b) return;
+      b.remisLe = C.today(); save(true); if (done) done();
+      await exportPayslip(b);
+      toastUndo(`Bulletin remis à ${prenom} aujourd'hui`, () => { const x = payslipById(slip.id); if (x) delete x.remisLe; save(true); if (done) done(); });
+    } }] : [];
     apercuDocument({ titre: `${emp.name || 'Bulletin'} · bulletin de ${MONTHS_LONG[slip.month - 1]} ${slip.year}`, html: C.payslipHtml(slip, data, company(), {}),
-      fichier: `Bulletin_${safe(emp.name)}_${slip.year}-${String(slip.month).padStart(2, '0')}.pdf`, gestes,
+      fichier: `Bulletin_${safe(emp.name)}_${slip.year}-${String(slip.month).padStart(2, '0')}.pdf`, gestes, pied, imprimer: true,
+      pour: { liste: duMois.map(x => ({ id: x.id, name: x.employeeName || '' })), id: slip.id, choisir: id => { const x = payslipById(id); if (x) documentBulletin(x, done); } },
+      docs: [{ label: 'Bulletin de paie', actif: true }, hr('attestation'), hr('salaire'), hr('annuelle'),
+        hr('contrat', 'pour une arrivée'), hr('avenant', 'quand quelque chose change, ou un CDD qu\'on renouvelle'), hr('essai', 'pendant une période d\'essai'), hr('certificat', 'au départ'), hr('solde', 'au départ')],
+      pret: `<b>Prêt</b><span>les montants viennent du bulletin ; il ne se modifie pas ici</span><span>${h(MONTHS_LONG[slip.month - 1])} ${slip.year}${v.issuedAt ? `, établi le ${h(C.fmtDate(v.issuedAt))}` : ''}${v.remisLe ? `, remis le ${h(C.fmtDate(v.remisLe))}` : ''} · rangé dans les documents de ${h(prenom)}</span>`,
       cote: `<div class="bf-resume ad-resume"><span class="bf-net"><small>Net ${v.paidDate ? 'versé' : 'à payer'}</small><b>${C.money(net, cur)}</b></span><span><small>Brut</small><b>${C.money(brut, cur)}</b></span><span><small>Coût pour l'entreprise</small><b>${C.money(Number(c.employerCost) || 0, cur)}</b></span></div>
         <div class="vat-box">${ligne('Salaire brut', brut)}${ligne('− CNSS salarié', c.cnssEmployee, 'minus')}${ligne('− Impôt sur le revenu', c.irpp, 'minus')}${c.css ? ligne('− Solidarité', c.css, 'minus') : ''}${c.otherDeductions ? ligne('− Autres retenues', c.otherDeductions, 'minus') : ''}${ligne('Net', net, 'total ok')}</div>
         <div class="pa-doc-i"><b>${v.paidDate ? 'Payé' : 'Établi'}</b><span>${v.paidDate ? `le ${C.fmtDate(v.paidDate)}` : 'pas encore payé'}${v.remisLe ? ` · remis le ${C.fmtDate(v.remisLe)}` : ''}${v.valideLe ? ` · validé par ton cabinet le ${C.fmtDate(v.valideLe)}` : ''}</span></div>
@@ -19091,8 +19175,13 @@
     // manque ») : les documents en cartes à gauche, ce qui manque AVANT d'exporter avec le geste qui le renseigne, et la page
     // A4 entière à droite (ou à sa largeur). Chaque PDF exporté s'inscrit sur la fiche (« Documents faits »).
     const kind0 = C.HR_DOCS.some(x => x[0] === kindDemande) ? kindDemande : 'attestation';
+    // (1.258.0, la maquette O08) Le numéro du document : AAAA-NNN, par année, sur tous les salariés de l'entreprise ; il
+    // naît à l'export (un aperçu ne prend pas de numéro).
+    const numeroSuivant = () => { const an = C.today().slice(0, 4); const n = data.employees.reduce((t, x) => t + (x.documentsFaits || []).filter(d => String(d.numero || '').startsWith(an + '-')).length, 0); return `${an}-${String(n + 1).padStart(3, '0')}`; };
+    const autres = C.activeEmployees(data).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
     modal(`<h2>Document pour ${h(e.name)}</h2><p class="small muted pa-doc-sous">l'aperçu est la page elle-même, au format A4 : ce que tu vois est ce qui sortira en PDF</p>
       <div class="pa-doc-c hf-c"><div class="pa-doc-g">
+      ${autres.length > 1 ? `<div class="hf-pour" role="group" aria-label="Pour quel salarié"><span class="small muted">Pour</span>${autres.map(x => `<button type="button" class="pa-av hf-pour-b" data-hf-pour="${h(x.id)}" aria-pressed="${x.id === e.id}" title="${h(x.name)}" style="--c:${h(C.couleurDe(x.name || ''))}">${h(C.initialesDe(x.name || ''))}</button>`).join('')}</div>` : ''}
       <form id="hf">
         <input type="hidden" name="kind" value="${h(kind0)}">
         <div class="hf-cartes" role="radiogroup" aria-label="Le document">${C.HR_DOCS.map(([v, lab]) => `<button type="button" role="radio" class="hf-carte" data-hf-kind="${v}" aria-checked="${v === kind0}"><b>${h(lab)}</b></button>`).join('')}</div>
@@ -19100,6 +19189,7 @@
         <label class="check hf-salaire"><input type="checkbox" name="withSalary"> Mentionner le salaire ${info('hr.withSalary')}</label></div>
       </form>
       <p class="small muted" id="hf-desc"></p>
+      <div class="hf-pret" id="hf-pret"></div>
       <div id="hf-manque"></div>
       <div class="panel" id="hf-solde" hidden><h2>Solde de tout compte (${h(C.normCurrency(company().currency))})</h2>
         <p class="small muted mb">Ce que tu dois encore au salarié à son départ. Les montants sont à toi : SkanFact propose seulement l'indemnité de congés non pris, calculée sur son dernier salaire. <em>À VÉRIFIER : les indemnités dépendent du motif de la rupture et de la convention collective.</em></p>
@@ -19109,7 +19199,7 @@
       </div>
       </div><div class="hf-droite"><div class="hf-zoom" role="group" aria-label="Taille de l'aperçu"><span class="small muted">Aperçu A4</span><button type="button" class="btn btn-sm" data-hf-zoom="page" aria-pressed="true">Page entière</button><button type="button" class="btn btn-sm" data-hf-zoom="largeur" aria-pressed="false">Pleine largeur</button></div>
         <div class="pa-apercu hf-apercu" id="hf-apercu"></div></div></div>
-      <div class="modal-actions"><span class="small muted hf-pied" id="hf-pied"></span><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${lfIc('exporter', 15)} Exporter en PDF</button></div>`,
+      <div class="modal-actions"><span class="small muted hf-pied" id="hf-pied"></span><button class="btn" data-close>Annuler</button><button type="button" class="btn" id="hf-imprimer">${lfIc('pages', 15)} Imprimer</button><button class="btn btn-primary" id="ok">${lfIc('exporter', 15)} Exporter en PDF</button></div>`,
       (root, close) => {
         const total = () => C.round3(lines.reduce((a, l) => a + (Number(l.amount) || 0), 0));
         let zoom = 'page';
@@ -19133,7 +19223,9 @@
           $$('[data-x]', $('#hf-lines', root)).forEach(b => b.onclick = () => { lines.splice(Number(b.dataset.x), 1); drawLines(); apercu(); });
           $('#hf-add', root).onclick = () => { lines.push({ label: '', amount: 0 }); drawLines(); };
         };
-        const docHtml = () => { const v = formValues($('#hf', root)); return C.hrDocumentHtml(v.kind, e, data, company(), { date: v.date, withSalary: !!v.withSalary, lines }); };
+        const docHtml = () => { const v = formValues($('#hf', root)); return C.hrDocumentHtml(v.kind, e, data, company(), { date: v.date, withSalary: !!v.withSalary, lines, numero: numeroSuivant() }); };
+        // Noter le document fait (son numéro, sa date) : à l'export comme à l'impression.
+        const noter = v => { const x = employeeById(e.id); if (x) { x.documentsFaits = (x.documentsFaits || []).concat([{ id: C.uid(), kind: v.kind, date: v.date || C.today(), le: C.today(), numero: numeroSuivant() }]); save(true); } };
         const apercu = () => poserApercu($('#hf-apercu', root), docHtml(), { zoom });
         // Ce qui manque au document choisi, chacun avec le geste qui le renseigne ; rien ne bloque l'export.
         const MANQUE = [
@@ -19165,6 +19257,8 @@
           $('#hf-manque', root).innerHTML = L.length ? `<div class="hf-manque"><b>À compléter avant d'exporter</b>${L.map(m => `<div class="warn-box" id="${m.id}"><span>${m.dit}</span> <button type="button" class="btn btn-sm" id="${m.id}-go">${m.geste}</button></div>`).join('')}</div>`
             : '<p class="small ok-text hf-ok">' + lfIc('coche', 13, 2.6) + ' Tout ce que ce document imprime est renseigné.</p>';
           L.forEach(m => { $(`#${m.id}-go`, root).onclick = m.fait || (() => { const k = formValues($('#hf', root)).kind; close(); employeeForm(e, () => hrDocForm(e, done, k), { focus: m.champ }); }); });
+          const tires = ['salaire', 'annuelle'].includes(v.kind) ? 'les montants viennent des bulletins, jamais tapés' : v.kind === 'solde' ? 'les lignes du solde se relisent ci-dessous, chacune modifiable' : 'ce qu\'il dit vient de sa fiche';
+          $('#hf-pret', root).innerHTML = `<b>Prêt</b><span>${tires}</span><span>numéroté (n° ${h(numeroSuivant())}), daté du ${h(C.fmtDate(v.date || C.today()))}, rangé dans les documents de ${h(e.name.split(' ')[0] || e.name)}</span>`;
           const faits = (e.documentsFaits || []).filter(x => x.kind === v.kind);
           $('#hf-pied', root).textContent = faits.length ? `déjà fait ${faits.length > 1 ? `${faits.length} fois, ` : ''}le ${C.fmtDate(faits[faits.length - 1].le)}` : '';
         };
@@ -19172,6 +19266,14 @@
         $$('[data-hf-kind]', root).forEach(b => b.onclick = () => { $('#hf [name=kind]', root).value = b.dataset.hfKind; sync(); apercu(); });
         $$('[data-hf-zoom]', root).forEach(b => b.onclick = () => { zoom = b.dataset.hfZoom; $$('[data-hf-zoom]', root).forEach(x => x.setAttribute('aria-pressed', String(x === b))); apercu(); });
         $('#hf', root).onchange = () => { sync(); apercu(); };
+        $$('[data-hf-pour]', root).forEach(b => b.onclick = () => { if (b.dataset.hfPour === e.id) return; const o = employeeById(b.dataset.hfPour), v = formValues($('#hf', root)); if (!o) return; close(); hrDocForm(o, done, v.kind, v.date); });
+        // « Imprimer » : la page dans la fenêtre d'impression du navigateur ; le document se note comme à l'export.
+        $('#hf-imprimer', root).onclick = () => {
+          const v = formValues($('#hf', root)), w = window.open('', '_blank');
+          if (!w) { toast('Ton navigateur a bloqué la fenêtre d\'impression : autorise les fenêtres de ce site, puis recommence.', true); return; }
+          w.document.write(docHtml()); w.document.close(); w.focus(); w.print();
+          noter(v); toast(`${C.hrDocLabel(v.kind)} envoyée à l'impression · notée dans ses documents`); close(); if (done) done();
+        };
         $('#ok', root).onclick = async () => {
           const v = formValues($('#hf', root));
           const html = docHtml();
@@ -19181,8 +19283,7 @@
             // compte ». Un serveur sans son outil de PDF rend la main à la fenêtre d'impression du navigateur (le point de
             // contact rend null) : le document n'était pas noté, la fenêtre restait ouverte. Il est noté dans les deux cas.
             const f = await bridge.exportPdf(html, `${safe(C.hrDocLabel(v.kind))}_${safe(e.name)}.pdf`);
-            const x = employeeById(e.id);
-            if (x) { x.documentsFaits = (x.documentsFaits || []).concat([{ id: C.uid(), kind: v.kind, date: v.date || C.today(), le: C.today() }]); save(true); }
+            noter(v);
             toast(f ? `PDF enregistré : ${f.split(/[\\/]/).pop()} · noté dans ses documents`
               : 'Le document s\'ouvre pour l\'impression : choisis « Enregistrer en PDF » dans la fenêtre du navigateur. Il est noté dans ses documents.');
             close(); if (done) done();
@@ -19202,18 +19303,20 @@
   // pointage, les avances sous « Salariés », l'année sous « Déclarations ». Chaque vue garde ses sous-vues, nommées.
   const PAIE_VUES = [['bulletins', 'Le mois'], ['pointage', 'Présences'], ['salaries', 'Salariés'], ['declarations', 'Déclarations']];
   const PAIE_TABS = PAIE_VUES.concat([['conges', 'Congés et absences'], ['annee', 'L\'année'], ['avances', 'Avances et prêts'], ['registre', 'Registre du personnel'], ['baremes', 'Réglages de la paie'],
-    ['pt-salarie', 'Pointage par salarié'], ['pt-horaires', 'Les horaires']]);
+    ['pt-jour', 'La journée (pointage)'], ['pt-salarie', 'Pointage par salarié'], ['pt-horaires', 'Les horaires']]);
   // (plateforme) 1.234.0 — « Salariés » n'a plus de sous-onglets (la maquette) : le registre du personnel est dans le menu ⋯.
   // 1.234.0 — ni « Congés et absences » : les avances en cours sont sous les congés, la liste entière par « Toutes… ».
   // (1.249.0) Chaque sous-vue dit ce qu'elle montre (une icône, un mot) : trois mots gris soulignés « ne donnaient pas envie ».
   const PAIE_SOUS = {
-    pointage: [['pointage', 'Le pointage', 'equipe', 'toute l\'équipe, le mois'], ['pt-salarie', 'Par salarié', 'personne', 'son mois en calendrier'], ['conges', 'Congés et absences', 'echeance', 'calendrier, demandes, soldes'], ['pt-horaires', 'Les horaires', 'horloge', 'jours de travail, heures sup']],
+    pointage: [['pt-jour', 'La journée', 'coche', 'le soir : ce qui change, puis valider'], ['pointage', 'Le mois', 'equipe', 'relire, régler, valider'], ['pt-salarie', 'Par salarié', 'personne', 'son mois en calendrier'], ['conges', 'Congés et absences', 'echeance', 'calendrier, demandes, soldes'], ['pt-horaires', 'Les horaires', 'horloge', 'jours de travail, heures sup']],
     salaries: [['salaries', 'L\'équipe', 'equipe', 'fiches, contrats, départs'], ['avances', 'Avances et prêts', 'carte', 'en cours, retenues']],
     declarations: [['declarations', 'Les déclarations', 'pages', 'CNSS, impôt, échéances'], ['annee', 'L\'année', 'recurrent', 'coût, postes, fin d\'année']]
   };
-  const PAIE_VUE_DE = { conges: 'pointage', 'pt-salarie': 'pointage', 'pt-horaires': 'pointage', avances: 'salaries', registre: 'salaries', annee: 'declarations' };
+  const PAIE_VUE_DE = { 'pt-jour': 'pointage', conges: 'pointage', 'pt-salarie': 'pointage', 'pt-horaires': 'pointage', avances: 'salaries', registre: 'salaries', annee: 'declarations' };
   Object.assign(LF_IC, { echeance: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' });
   // (1.255.0) « Modifier sa sortie… » et « Modifier le bulletin » appelaient une icône qui n'existait pas (bouton sans dessin).
+  // (1.259.0) La vue grille du pointage, et une vraie croix pour « Absent » (`croix` est le plus de « Créer »).
+  Object.assign(LF_IC, { grille: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>', absent: '<path d="M6 6l12 12M18 6 6 18"/>' });
   Object.assign(LF_IC, { modifier: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>' });
   // Idem sur la Paie : la liste des salariés, les avances en cours et le registre du personnel sont
   // des états du jour, pas d'un exercice. Ils affichaient un sélecteur d'année qui ne faisait rien.
@@ -19252,7 +19355,7 @@
     // ensuite, la page sauterait au mois suivant sous les yeux). Le pointage, tant qu'aucun mois n'est choisi, montre le
     // mois du jour, et on retrouve le mois d'entrée en le quittant.
     const entree = C.moisDePaie(data);
-    const moisParDefaut = () => { if (!s.moisTouche) { const mp = ['pointage', 'pt-salarie'].includes(s.tab) ? { year: Number(C.today().slice(0, 4)), month: Number(C.today().slice(5, 7)) } : entree; s.year = String(mp.year); s.month = String(mp.month); } };
+    const moisParDefaut = () => { if (!s.moisTouche) { const mp = ['pointage', 'pt-jour', 'pt-salarie'].includes(s.tab) ? { year: Number(C.today().slice(0, 4)), month: Number(C.today().slice(5, 7)) } : entree; s.year = String(mp.year); s.month = String(mp.month); } };
     moisParDefaut();
     // Chaque année où un salarié était en poste, pas seulement celles qui portent déjà un bulletin :
     // sinon les bulletins en retard d'une année passée n'avaient aucune porte (10.14.1).
@@ -19494,15 +19597,24 @@
     }
     function demanderCorrection(month, y, m) {
       if (!month.length) return;
-      modal(`<h2>Demander une correction à ton comptable</h2><p class="small muted">ta demande part dans votre conversation : tu la relis avant de l'envoyer</p>
-        <form id="dco"><label class="field">${lbl('Le bulletin', 'pay.bulletin')}<select name="bul">${month.map(x => `<option value="${h(x.id)}">${h(x.employeeName)} · net ${h(C.money(x.c.net, cur))}</option>`).join('')}</select></label>
-        <label class="field obligatoire">${lbl('Ce qui ne va pas', 'pay.correction')}<textarea name="texte" rows="4" maxlength="800" placeholder="Par exemple : il manque la prime de rendement de ce mois."></textarea></label></form>
+      // (1.258.0, la maquette O25) La ligne du bulletin qui ne va pas (celles de CE bulletin), à côté du bulletin ; la règle
+      // dit ce qui se passe ensuite : le comptable corrige, le bulletin revient à approuver, rien ne change sans toi.
+      const lignesDe = x => { const c = x.c || {}; return ['Salaire de base', ...(c.bonuses || []).map(b => b.label || 'Prime'), 'Les jours payés (le pointage)', 'CNSS', 'Impôt sur le revenu (IRPP)', ...(Number(c.css) ? ['Contribution sociale de solidarité'] : []), ...(c.deductions || []).map(d => d.label || 'Retenue'), 'Autre chose'].filter((l, i, a) => a.indexOf(l) === i); };
+      modal(`<h2>Demander une correction à ton comptable</h2><p class="small muted">ta demande part dans votre conversation, avec le bulletin concerné : tu la relis avant de l'envoyer</p>
+        <form id="dco"><div class="grid-2"><label class="field">${lbl('Le bulletin', 'pay.bulletin')}<select name="bul">${month.map(x => `<option value="${h(x.id)}">${h(x.employeeName)} · ${h(MONTHS_LONG[m - 1])}</option>`).join('')}</select></label>
+        <label class="field">${lbl('La ligne', 'pay.correctionLigne')}<select name="ligne" id="dco-ligne"></select></label></div>
+        <label class="field obligatoire">${lbl('Ce qui ne va pas', 'pay.correction')}<textarea name="texte" rows="3" maxlength="800" placeholder="Par exemple : les 16 et 17 étaient des congés payés, pas sans solde."></textarea></label></form>
+        <p class="regle">${lfIc('aide', 14)} Ton comptable corrige et te renvoie le bulletin à approuver. Rien ne change sans que tu le voies.</p>
         <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="dco-ok">${lfIc('message', 15)} Écrire à mon comptable</button></div>`, (root, fermer) => {
+        const bul = () => month.find(b => b.id === $('#dco [name=bul]', root).value) || month[0];
+        const majLignes = () => { $('#dco-ligne', root).innerHTML = lignesDe(bul()).map(l => `<option>${h(l)}</option>`).join(''); };
+        majLignes();
+        $('#dco [name=bul]', root).onchange = majLignes;
         $('#dco-ok', root).onclick = () => {
-          const v = formValues($('#dco', root)), x = month.find(b => b.id === v.bul) || month[0];
+          const v = formValues($('#dco', root)), x = bul();
           const texte = String(v.texte || '').trim();
           if (!texte) { const z = $('textarea[name=texte]', root); z.focus(); toast('Écris ce qui ne va pas : c’est ce que ton comptable lira.', true); return; }
-          texteDuMessage = `Bulletin de ${x.employeeName}, ${MONTHS_LONG[m - 1]} ${y} (net ${C.money(x.c.net, cur)}) : ${texte}`;
+          texteDuMessage = `Bulletin de ${x.employeeName}, ${MONTHS_LONG[m - 1]} ${y} (net ${C.money(x.c.net, cur)})${v.ligne && v.ligne !== 'Autre chose' ? `, la ligne « ${v.ligne} »` : ''} : ${texte}`;
           fermer(); navigate('#/comptable');
         };
       });
@@ -19515,14 +19627,29 @@
       if (!(m.montant > 0)) { toast('Cette déclaration ne fait rien payer : aucun bulletin n’y entre.', true); return; }
       const comptes = data.accounts || [];
       const parDefaut = comptes.find(a => a.isDefault) || comptes[0] || null;
-      modal(`<h2>Déposée et payée</h2><p class="small muted">${h(label.charAt(0).toUpperCase() + label.slice(1))} · à payer avant le ${h(C.fmtDate(m.echeance))} (À VÉRIFIER : l'échéance de ton dossier)</p>
-        <div class="pa-kv"><span>Montant</span><b id="pd-montant">${h(C.money(m.montant, cur))}</b></div>
+      // (1.258.0, la maquette O17) La déclaration du mois montre ce qu'elle reporte, ligne par ligne (les montants des
+      // bulletins, la base de chacun), et son tableur ; le geste reste « Noter déposée et payée ».
+      const dmYm = /^dm-(\d{4})-(\d{2})$/.exec(id), dmD = dmYm ? C.declarationMensuelleSalaires(data, Number(dmYm[1]), Number(dmYm[2])) : null;
+      const pct = n => `${String(n).replace('.', ',')} %`;
+      const sousLigne = r => r.bareme ? `base ${C.money(r.base, cur)}` : r.taux != null ? `${pct(r.taux)} de ${C.money(r.base, cur)}` : '';
+      modal(`<h2>${dmD ? `Ta déclaration ${/^[aeiouyéè]/i.test(MONTHS_LONG[Number(dmYm[2]) - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[Number(dmYm[2]) - 1])}, la part paie` : 'Déposée et payée'}</h2><p class="small muted">${h(label.charAt(0).toUpperCase() + label.slice(1))} · à payer avant le ${h(C.fmtDate(m.echeance))} (À VÉRIFIER : l'échéance de ton dossier)</p>
+        ${dmD ? `<table class="mini lu pd-t" id="pd-t"><thead><tr><th>À reporter</th><th class="r">Montant</th></tr></thead><tbody>
+          ${dmD.lignes.filter(r => Number(r.montant) > 0).map(r => `<tr><td>${h(r.libelle)}${sousLigne(r) ? `<small>${h(sousLigne(r))}</small>` : ''}</td><td class="r">${h(C.money(r.montant, cur))}</td></tr>`).join('')}
+          </tbody><tfoot><tr><td><b>À verser avant le ${h(C.fmtDate(m.echeance))}</b></td><td class="r"><b id="pd-montant">${h(C.money(m.montant, cur))}</b></td></tr></tfoot></table>
+          <p class="regle">${lfIc('aide', 14)} Ces montants vont sur la même déclaration que ta TVA du mois. Tu la déposes et tu la paies sur le site des impôts (À VÉRIFIER : la marche à suivre), puis tu la marques ici, avec sa date et sa référence : la Banque reconnaîtra le paiement.</p>`
+          : `<div class="pa-kv"><span>Montant</span><b id="pd-montant">${h(C.money(m.montant, cur))}</b></div>`}
         <p class="small muted">Le montant de la déclaration, calculé sur les bulletins : il ne se retape pas. Une pénalité de retard se note à part, en mouvement de trésorerie.</p>
         <form id="pd">${dateFieldHtml(lbl('Payée le', 'soc.payeLe'), 'paidDate', C.today(), { obligatoire: true })}
           <label class="field">${lbl('Depuis le compte', 'soc.compte')}<select name="accountId">${comptes.map(a => `<option value="${h(a.id)}" ${parDefaut && a.id === parDefaut.id ? 'selected' : ''}>${h(a.name)}</option>`).join('') || '<option value="">Compte principal</option>'}</select></label>
           <label class="field">${lbl('Mode', 'soc.mode')}<select name="method"><option value="virement">Virement</option><option value="cheque">Chèque</option><option value="especes">Espèces</option></select></label>
           <label class="field">${lbl('Référence', 'soc.ref')}<input name="reference" maxlength="80" placeholder="n° de quittance, de virement"></label></form>
-        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="pd-ok">${lfIc('coche', 15, 2.4)} Noter déposée et payée</button></div>`, (root, fermer) => {
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button>${dmD ? `<button type="button" class="btn" id="pd-csv">${lfIc('exporter', 15)} Tableur</button>` : ''}<button type="button" class="btn btn-primary" id="pd-ok">${lfIc('coche', 15, 2.4)} Noter déposée et payée</button></div>`, (root, fermer) => {
+        if ($('#pd-csv', root)) $('#pd-csv', root).onclick = async () => {
+          const cols = [{ key: 'libelle', label: 'Impôt ou taxe' }, { key: 'base', label: 'Base', type: 'money' },
+            { key: 'taux', label: 'Taux (%)', get: r => r.bareme ? 'barème' : r.taux == null ? '' : String(r.taux).replace('.', ',') }, { key: 'montant', label: 'Montant', type: 'money' }];
+          const f = await bridge.saveText(`declaration-mensuelle-salaires-${dmYm[1]}-${dmYm[2]}.csv`, C.toCsv(dmD.lignes.concat([{ libelle: 'À reverser au Trésor', base: '', taux: null, montant: dmD.total }]), cols));
+          if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
+        };
         $('#pd-ok', root).onclick = () => {
           const v = formValues($('#pd', root));
           if (!v.paidDate) { toast('Dis quel jour elle a été payée.', true); return; }
@@ -19643,6 +19770,7 @@
       $('#p-body').innerHTML = `
         ${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026"><span>Tes barèmes gardent des taux d'avant 2026 (${vieuxTaux.map(x => `${h(x.libelle)} ${pct(x.garde)} %`).join(', ')}) : les bulletins que tu établis les appliquent.</span> <button type="button" class="btn btn-sm" id="p-2026-voir">Voir les réglages</button></div>` : ''}
         ${banAvant ? ban : ''}${frise}${banAvant ? '' : ban}${banSans}${aTraiter}${controles}${tuiles}
+        ${!month.length && missing.length ? `${moisPointageHtml(y, m)}${variablesCarte(y, m)}` : ''}
         <div class="carte tab" id="p-bulletins">${month.length ? `<table class="liste list pa-liste"><thead><tr><th style="width:34%">Salarié</th><th class="r">Brut</th><th class="r">Retenues ${info('pay.impot')}</th><th class="r">Net à verser</th><th>Payé par</th>${uni ? '' : '<th>Statut</th>'}<th style="width:150px" class="row-actions-h"></th></tr></thead><tbody>
             ${chgP.length ? `<tr class="mois pa-groupe"><td colspan="${nc}"><b style="text-transform:none">Ce qui change ce mois</b> <span>${pl(change.length, 'salarié')}</span></td></tr>${chgP.map(lig).join('')}` : ''}
             ${parP.length ? `<tr class="mois pa-groupe"><td colspan="${nc}"><b style="text-transform:none">Comme ${h(MONTHS_LONG[r.moisAvant - 1])}</b> <span>${pl(pareil.length, 'salarié')}</span></td></tr>${parP.map(lig).join('')}` : ''}</tbody>
@@ -19661,6 +19789,8 @@
         ${month.length ? `<p class="raccourcis">${lfIc('aide', 14)} Un bulletin marqué payé sort l'argent tout seul dans la <a href="#/tresorerie">trésorerie</a> : ne saisis pas en plus un mouvement « Salaires », il compterait deux fois. Le journal de paie du mois est dans le menu ⋯.</p>` : ''}`;
       if ($('#p-2026-voir')) $('#p-2026-voir').onclick = () => { const t = $('#p-tabs button[data-tab="baremes"]'); if (t) t.click(); };
       if ($('#p-gen-vide')) $('#p-gen-vide').onclick = () => etablirBulletins();
+      if ($('#pv-carte-ouvrir')) $('#pv-carte-ouvrir').onclick = () => variablesFenetre(y, m, () => draw());
+      $$('#p-body [data-mp-pointage]').forEach(b => b.onclick = () => { s.ptY = String(y); s.ptM = String(m); allerVue('pointage'); });
       if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp2 = C.moisDePaie(data); s.year = String(mp2.year); s.month = String(mp2.month); s.moisTouche = true; draw(); };
       lierBandeauxDuMois(month, y, m);
       if ($('#p-sans-voir')) $('#p-sans-voir').onclick = () => controlesFenetre(y, m, traiter);
@@ -19909,6 +20039,23 @@
     const ymPt = (y, m) => `${y}-${String(m).padStart(2, '0')}`;
     const versionsPt = ym => (data.pointageVersions || []).filter(v => v.ym === ym);
     const ptVerrouille = ym => versionsPt(ym).length > 0 && !(data.pointageOuverts || []).includes(ym);
+    // (1.258.0) LA JOURNÉE VALIDÉE (demande de Skander, 02/11 : « valider un pointage du jour ») : le soir, d'un geste, la
+    // journée se valide ; elle ne se change plus sans être rouverte (« Rouvrir la journée », avec la date de la réouverture).
+    // On règle un oubli le jour même, tant qu'on s'en souvient. Le mois se valide toujours à part (c'est lui que les
+    // bulletins reprennent) ; un réglage (« Le mois se valide quand chaque journée l'est ») le fait attendre les journées.
+    const joursValides = () => (Array.isArray(data.joursValides) ? data.joursValides : []);
+    const jourValide = iso => joursValides().find(x => x.iso === String(iso || '').slice(0, 10) && !x.rouvertLe);
+    const heureDe = le => { const d = new Date(le); return Number.isNaN(d.getTime()) ? '' : `${String(d.getHours()).padStart(2, '0')} h ${String(d.getMinutes()).padStart(2, '0')}`; };
+    let ptRedessin = null;
+    // Une période qui touche une journée validée se refuse, et dit lesquelles (une case de ce jour la rouvre).
+    const refusJoursValides = isos => {
+      const v = [...new Set(isos)].filter(i => jourValide(i)).sort();
+      if (!v.length) return false;
+      toast(`${v.length > 1 ? 'Les journées' : 'La journée'} du ${v.slice(0, 6).map(i => C.fmtDate(i).slice(0, 5)).join(', ')}${v.length > 6 ? '…' : ''} ${v.length > 1 ? 'sont validées' : 'est validée'} : un clic sur une de ses cases ${v.length > 1 ? 'les rouvre une à une' : 'la rouvre'}, puis recommence.`, true);
+      return true;
+    };
+    const validerJour = iso => { data.joursValides = [...joursValides().filter(x => x.iso !== iso), { iso, le: new Date().toISOString() }].slice(-400); };
+    const rouvrirJour = iso => { data.joursValides = joursValides().map(x => x.iso === iso && !x.rouvertLe ? { ...x, rouvertLe: new Date().toISOString() } : x); };
     const instantPt = (y, m) => {
       const st = C.payrollSettings(data), premier = `${ymPt(y, m)}-01`, dernier = C.addDays(premier, C.daysInMonth(y, m) - 1);
       const out = {};
@@ -19924,88 +20071,429 @@
     const peutPointerLe = (iso) => {
       if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return false; }
       if (iso && ptVerrouille(String(iso).slice(0, 7))) { const mm = MONTHS_LONG[Number(String(iso).slice(5, 7)) - 1]; toast(`Le pointage ${/^[aeiouyéè]/i.test(mm) ? 'd\'' : 'de '}${mm} est validé, donc verrouillé : « Corriger : une nouvelle version » le rouvre.`, true); return false; }
+      const jv = iso && jourValide(iso);
+      if (jv) {
+        const j = String(iso).slice(0, 10);
+        toastUndo(`La journée du ${C.fmtDate(j).slice(0, 5)} est validée (à ${heureDe(jv.le)}) : elle ne se change plus sans être rouverte.`, () => { rouvrirJour(j); save(true); if (ptRedessin) ptRedessin(); toast(`La journée du ${C.fmtDate(j).slice(0, 5)} est rouverte : tu peux la changer, puis la valider à nouveau.`); }, 'Rouvrir la journée');
+        return false;
+      }
       if (closedBlock(iso, 'Ce pointage')) return false;
       if (!(data.timesheets || []).length && licenceBlock('Pointer les salariés', 'paie')) return false;
       return true;
     };
-    // « Aujourd'hui : qui n'est pas là ? » : un geste par salarié, le jour même (ou sa journée de repos, dite).
-    function ptAujourdhui() {
-      const iso = C.today(), y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
-      const L = enPosteLe(iso);
-      if (!L.length) return '';
-      const wd = new Date(iso + 'T00:00:00Z').getUTCDay();
-      const ligne = e => {
-        const j = C.pointageDuMois(data, e, y, m).jours.find(x => x.jour === d) || {};
-        if (j.repos && j.code === 'R') return `<div class="pt-auj-l" data-auj-e="${h(e.id)}"><span class="pa-cl-i">${avPaie(e)}<b>${h(e.name)}</b></span><span class="muted small">jour de repos</span></div>`;
-        return `<div class="pt-auj-l" data-auj-e="${h(e.id)}"><span class="pa-cl-i">${avPaie(e)}<b>${h(e.name)}</b></span><div class="pt-seg" role="group" aria-label="${h(e.name)} aujourd'hui">${CODES_JOUR.map(([c, l]) => `<button type="button" data-auj="${h(e.id)}:${c}" aria-pressed="${j.code === c}">${l}</button>`).join('')}</div></div>`;
-      };
-      const vu = (() => { try { return localStorage.getItem('skanfact.pt-main-vu') === '1'; } catch { return false; } })();
-      return `${vu ? '' : `<div class="bandeau gris pa-bandeau pa-gris" id="pt-main">${lfIc('ecriture', 18)}<span class="txt"><b>Pas de pointeuse ? Tu pointes à la main</b><span>Chacun est présent par défaut, selon ses jours de travail. Tu notes seulement ce qui change : une absence, un congé, une maladie, une demi-journée ; les heures sup, dans la grille. Les congés saisis s'y posent d'eux-mêmes.</span></span><span class="pa-bandeau-g"><button type="button" class="btn btn-sm" id="pt-horaires-go">Les horaires</button><button type="button" class="btn btn-sm btn-ghost" id="pt-main-ok">Compris</button></span></div>`}
-        <section class="pa-carte" id="pt-auj"><div class="pa-carte-t"><b>Aujourd'hui, ${JOURS_SEM[wd]} ${C.fmtDate(iso).slice(0, 5)} : qui n'est pas là ?</b><span class="mu">un geste par salarié ; le reste du jour se pointe « présent »</span></div>
-          <div class="pt-auj">${L.map(ligne).join('')}</div></section>`;
+    // (1.259.0) LA REFONTE DU POINTAGE (docs/maquettes/pointage.html, validée par Skander le 02/11/2026). Deux vues au lieu
+    // de sept endroits : « La journée » (le soir, on note ce qui change et on la valide ; d'abord au téléphone) et « Le mois »
+    // (on relit ses écarts, on règle « À régler », on le valide). UNE règle de validation, qui remplace le réglage « le mois
+    // se valide quand chaque journée l'est » : ceux qui pointent à la main valident chaque journée ; ceux de la pointeuse
+    // arrivent par leurs badges ; le mois est prêt quand « À régler » est vide et que sa dernière journée est passée.
+    const ptALaMain = e => { const q = C.equipeDe(C.payrollSettings(data), e); return !q || q.pointe !== 'pointeuse'; };
+    const isoDe = (y, m, d) => `${ymPt(y, m)}-${String(d).padStart(2, '0')}`;
+    const jjmm = iso => `${String(iso).slice(8, 10)}/${String(iso).slice(5, 7)}`;
+    const jourDit = iso => `${JOURS_SEM[new Date(iso + 'T00:00:00Z').getUTCDay()]} ${jjmm(iso)}`;
+    const capi = t => String(t || '').charAt(0).toUpperCase() + String(t || '').slice(1);
+    const deMois = mm => (/^[aeiouyéè]/i.test(mm) ? `d'${mm}` : `de ${mm}`);
+    const datesDites = (L, m) => L.length > 4 ? `du ${String(L[0]).padStart(2, '0')} au ${String(L[L.length - 1]).padStart(2, '0')}/${String(m).padStart(2, '0')}` : `le${L.length > 1 ? 's' : ''} ${L.map(d => String(d).padStart(2, '0')).join(', ').replace(/, ([^,]*)$/, ' et $1')}/${String(m).padStart(2, '0')}`;
+    // Le mois de chacun de ceux qui pointent à la main, calculé une fois (un calcul qui lit tout se fait en lot).
+    const moisALaMain = (y, m) => {
+      const premier = `${ymPt(y, m)}-01`, dernier = C.addDays(premier, C.daysInMonth(y, m) - 1);
+      return data.employees.filter(e => e.active !== false && (!e.hireDate || e.hireDate <= dernier) && (!e.endDate || e.endDate >= premier) && ptALaMain(e)).map(e => C.pointageDuMois(data, e, y, m));
+    };
+    const travailleLe = (P, d) => P.some(p => { const j = p.jours[d - 1]; return j && j.code !== '-' && !j.repos; });
+    // Les journées passées du mois (jusqu'à aujourd'hui) où quelqu'un qui pointe à la main travaille, pas encore validées.
+    function joursNonValides(y, m) {
+      const auj = C.today(), n = C.daysInMonth(y, m), P = moisALaMain(y, m), out = [];
+      for (let d = 1; d <= n; d++) {
+        const iso = isoDe(y, m, d);
+        if (iso > auj) break;
+        if (!jourValide(iso) && travailleLe(P, d)) out.push(iso);
+      }
+      return out;
     }
-    function lierAujourdhui(apres) {
-      const iso = C.today(), y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
-      if ($('#pt-horaires-go')) $('#pt-horaires-go').onclick = () => allerVue('pt-horaires');
-      $$('#pt-tel [data-pt-tel]').forEach(b2 => b2.onclick = () => { s.ptSal = b2.dataset.ptTel; allerVue('pt-salarie'); });
-      if ($('#pt-main-ok')) $('#pt-main-ok').onclick = () => { try { localStorage.setItem('skanfact.pt-main-vu', '1'); } catch { /* poste sans stockage */ } $('#pt-main').remove(); };
-      $$('#pt-auj [data-auj]').forEach(b => b.onclick = () => {
-        const [id, code] = b.dataset.auj.split(':'), e = employeeById(id);
-        if (!e || b.getAttribute('aria-pressed') === 'true' || !peutPointerLe(iso)) return;
-        const avant = JSON.stringify(data.timesheets || []);
-        if (!C.poserPointage(data, e, y, m, d, code)) return;
-        save();
-        apres();
-        toastUndo(`${e.name}, aujourd'hui : ${C.libellePointage(code).toLowerCase()}`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
+    // La fenêtre qui les montre, et les valide d'un geste (après relecture).
+    function joursAValiderFenetre(y, m, apres) {
+      const L = joursNonValides(y, m), mois = MONTHS_LONG[m - 1];
+      if (!L.length) return;
+      modal(`<h2>${pl(L.length, 'journée', 'journées')} pas encore ${L.length > 1 ? 'validées' : 'validée'}</h2>
+        <p class="sous-f">Ceux qui pointent à la main valident chaque journée ; le pointage ${h(deMois(mois))} attend qu'elles le soient. ${L.length > 1 ? 'Relis-les (chacune s\'ouvre dans « La journée »), puis valide-les' : 'Relis-la, puis valide-la'}.</p>
+        <ul class="jav-l" id="jav-l">${L.map(iso => `<li>${h(jourDit(iso))}</li>`).join('')}</ul>
+        <p class="regle">${lfIc('aide', 14)} Une journée validée ne se change plus sans être rouverte.</p>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="jav-ok">${lfIc('coche', 15, 2.4)} Valider ${L.length > 1 ? `ces ${L.length} journées` : 'cette journée'}</button></div>`, (root, fermer) => {
+        $('#jav-ok', root).onclick = () => {
+          if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return; }
+          const avant = JSON.stringify(joursValides());
+          L.forEach(validerJour); save(true); fermer(); apres();
+          toastUndo(`${pl(L.length, 'journée validée', 'journées validées')} ${deMois(mois)}`, () => { data.joursValides = JSON.parse(avant); save(true); apres(); });
+        };
       });
     }
-    // Noter une période d'un coup (une semaine de congé, une maladie) : chaque jour ouvrable de la période prend le code ;
-    // les jours de repos restent du repos, les jours hors contrat ne se pointent pas. Les jours à venir se notent aussi.
-    function ptPeriodeFenetre(employeeId, apres) {
-      const emps = data.employees.filter(e => e.active !== false).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    // Le jour ouvert dans « La journée » : celui choisi s'il est dans le mois de la bande ; sinon aujourd'hui (le mois du
+    // jour), le dernier jour (un mois passé) ou le 1er (un mois à venir).
+    const ptJourOuvert = () => {
+      const y = Number(s.ptY), m = Number(s.ptM), ym = ymPt(y, m), auj = C.today();
+      if (s.ptJourIso && String(s.ptJourIso).startsWith(ym)) return s.ptJourIso;
+      return auj.startsWith(ym) ? auj : ym < auj.slice(0, 7) ? isoDe(y, m, C.daysInMonth(y, m)) : `${ym}-01`;
+    };
+    // Ce que dit la journée d'un salarié (son code, son retard, ses heures sup du jour, ses badges) et ce que son bulletin en
+    // fera, chiffré. `k` est le choix allumé de sa ligne.
+    function etatJour(e, iso) {
+      const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
+      const st = C.payrollSettings(data), p = C.pointageDuMois(data, e, y, m), j = p.jours[d - 1];
+      if (!j || j.code === '-') return null;
+      const cur = company().currency, brut = C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0;
+      const unJour = C.round3(brut / (Number(p.total) || 26)), hm = Number(st.heuresMois) || 0;
+      const b = C.journeeBadges(data, e, iso), hsj = C.heuresSupDuJour(data, e, y, m, d);
+      const an = C.anomaliesPointage(data, y, m, null).find(a => a.employeeId === e.id && a.sorte === 'sortie' && a.jour === d) || null;
+      const k = j.code === 'P' ? (hsj ? 'hs' : j.retard ? 'retard' : 'P') : j.code;
+      const reste = () => { try { return Number(C.leaveBalance(data, e.id, y).remaining) || 0; } catch (_) { return null; } };
+      let ton = '', dit = '';
+      if (an) { ton = 'alerte'; dit = 'pas de sortie : à régler'; }
+      else if (j.repos) dit = j.code === 'P' ? 'venu un jour de repos : ses heures se notent en heures sup' : 'jour de repos';
+      else if (k === 'A') { ton = 'alerte'; dit = `− ${C.money(unJour, cur)} sur son brut`; }
+      else if (k === 'D') { ton = 'alerte'; dit = `demi-journée : − ${C.money(C.round3(unJour / 2), cur)} sur son brut`; }
+      else if (k === 'C') { const r = reste(); dit = `congé payé : son salaire ne bouge pas${r != null ? ` · il lui reste ${pct(r)} j` : ''}`; }
+      else if (k === 'M') dit = 'malade : certificat à joindre (À VÉRIFIER : la CNAM)';
+      else if (k === 'F') dit = `férié : payé${j.ferie ? ` (${j.ferie})` : ''}`;
+      else if (k === 'hs') { ton = 'attire'; const mt = hm > 0 ? C.round3(brut * hsj.heures * (100 + hsj.majoration) / 100 / hm) : 0; dit = `+ ${pct(hsj.heures)} h à +${pct(hsj.majoration)} %${mt ? ` · + ${C.money(mt, cur)}` : ''}`; }
+      else if (k === 'retard') { const mt = st.retenirRetards && hm > 0 ? C.round3(brut / hm * j.retard / 60) : 0; dit = `${j.retard} min · ${st.retenirRetards ? (mt ? `retenu : − ${C.money(mt, cur)}` : 'retenu (ton réglage)') : 'noté, pas retenu (ton réglage)'}`; }
+      else if (b && b.auDela) dit = `${hDit(b.auDela)} au-delà de son horaire, sur ses badges : pas compté`;
+      return { j, p, b, hsj, an, k, ton, dit, unJour, y, m, d };
+    }
+    const CHOIX_J = [['P', 'Présent'], ['A', 'Absent'], ['C', 'Congé'], ['M', 'Malade'], ['retard', 'Retard'], ['hs', 'Heures sup']];
+    function ligneJourHtml(e, iso, fige) {
+      const x = etatJour(e, iso); if (!x) return '';
+      const st = C.payrollSettings(data), q = C.equipeDe(st, e);
+      const src = x.b ? `<span class="ptj-badw"><span class="mono ptj-bad">${lfIc('importer', 12)} ${h(x.b.arrivee)} → ${x.b.depart ? h(x.b.depart) : '<b class="warn-text">?</b>'}</span>${x.b.sortieMain ? '<small class="mu">sortie mise par toi</small>' : ''}</span>`
+        : `<span class="mu ptj-bad">${ptALaMain(e) ? `${lfIc('ecriture', 12)} à la main` : iso >= C.today() ? 'badges pas encore lus' : 'aucun badge ce jour'}</span>`;
+      const seg = x.j.repos
+        ? `<button type="button" class="btn btn-sm" data-ptj-repos="${h(e.id)}"${fige ? ' disabled' : ''}>${x.j.code === 'P' ? 'Il était au repos…' : 'Il est venu travailler…'}</button>`
+        : `<div class="ptj-seg" role="group" aria-label="${h(e.name)}, ${h(jourDit(iso))}">${CHOIX_J.map(([c, l]) => `<button type="button" data-ptj="${h(e.id)}:${c}" aria-pressed="${x.k === c}"${fige ? ' disabled' : ''}>${l}</button>`).join('')}</div>`;
+      const geste = x.an && !fige ? (x.an.proposee
+        ? `<button type="button" class="btn btn-sm" data-an-sortie="${h(e.id)}" data-j="${x.d}" data-h="${h(x.an.proposee)}">${lfIc('coche', 13, 2.4)} Mettre la sortie à ${h(x.an.proposee)}</button>`
+        : `<button type="button" class="btn btn-sm" data-ptj-sortie="${h(e.id)}">Mettre sa sortie…</button>`) : '';
+      const pastille = { P: '', A: 'Absent', C: 'Congé', M: 'Malade', D: '½ journée', F: 'Férié', R: 'Repos', retard: 'Retard', hs: '+ h sup' }[x.an ? '' : x.k] || (x.an ? 'À régler' : '');
+      return `<li class="ptj-l${x.an ? ' a-regler' : ''}" data-ptj-e="${h(e.id)}">${avPaie(e)}<span class="ptj-n"><b>${h(e.name)}</b><small>${h(q ? `${q.nom}${q.debut && q.fin ? ` · ${q.debut} – ${q.fin}` : ''}` : (e.position || 'les horaires de l\'entreprise'))}</small></span>${src}${seg}
+        <span class="ptj-e ${x.ton}">${x.dit ? h(x.dit) : '<span class="mu">rien ne change</span>'}${geste}</span>
+        <button type="button" class="ptj-tel" data-ptj-tel="${h(e.id)}"${fige || x.j.repos ? ' hidden' : ''} aria-label="${h(e.name)} : changer ce jour">${pastille ? `<span class="ptj-pas ${x.ton}">${h(pastille)}</span>` : ''}<span class="ptj-fl" aria-hidden="true">›</span></button></li>`;
+    }
+    function drawPtJour() {
+      const iso = ptJourOuvert(), y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10)), auj = C.today();
+      s.ptJourIso = iso;
+      const st = C.payrollSettings(data), mois = MONTHS_LONG[m - 1], verrou = ptVerrouille(ymPt(y, m)), n = C.daysInMonth(y, m);
+      const L = enPosteLe(iso), jv = jourValide(iso), fige = !!jv || verrou;
+      if (!enPosteLe(isoDe(y, m, n)).length && !L.length) { $('#p-body').innerHTML = `<div class="empty">Aucun salarié en poste le ${h(C.fmtDate(iso))}.</div>`; return; }
+      const P = moisALaMain(y, m);
+      const Q = st.equipes || [];
+      const groupes = [...Q.map(q => ({ q, L: L.filter(e => e.equipeId === q.id) })), { q: null, L: L.filter(e => !Q.some(q => q.id === e.equipeId)) }].filter(g => g.L.length);
+      const im = dernierImport();
+      const eqT = g => g.q ? `<b>${h(g.q.nom || 'Équipe')}</b><span class="mu">${g.q.debut && g.q.fin ? `${h(g.q.debut)} – ${h(g.q.fin)} · ` : ''}${g.q.pointe === 'pointeuse' ? `la pointeuse${im ? ` : badges lus le ${h(jjmm(im.le.slice(0, 10)))} à ${h(heureDe(im.le))}` : ' : aucun badge importé'}` : 'à la main'}</span>`
+        : `<b>${Q.length ? 'Sans équipe' : 'Toute l\'entreprise'}</b><span class="mu">les horaires de l'entreprise · à la main</span>`;
+      const deb = Math.max(1, Math.min(d - 5, n - 6));
+      const nav = Array.from({ length: Math.min(7, n) }, (_, k) => deb + k).map(dd => {
+        const i2 = isoDe(y, m, dd), wd = new Date(i2 + 'T00:00:00Z').getUTCDay(), v = jourValide(i2);
+        const repos = !enPosteLe(i2).some(e => { const j = C.pointageDuMois(data, e, y, m).jours[dd - 1]; return j && j.code !== '-' && !j.repos; });
+        const t = v ? 'ok' : i2 > auj ? 'fu' : i2 === auj ? 'auj' : repos ? 'repos' : travailleLe(P, dd) ? 'nv' : '';
+        const dit = v ? lfIc('coche', 11, 3) : t === 'auj' ? 'aujourd\'hui' : t === 'repos' ? 'repos' : t === 'nv' ? 'à valider' : '';
+        return `<button type="button" class="ptj-d ${t}" data-ptj-d="${i2}" aria-pressed="${dd === d}" aria-label="${h(jourDit(i2))}${v ? ', validée' : t === 'nv' ? ', pas encore validée' : ''}"><small>${['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][wd]}</small><b>${dd}</b><i>${dit}</i></button>`;
+      }).join('');
+      const passes = Array.from({ length: n }, (_, k) => k + 1).filter(dd => isoDe(y, m, dd) <= auj && travailleLe(P, dd));
+      const nValides = passes.filter(dd => jourValide(isoDe(y, m, dd))).length;
+      const navDit = !P.length ? 'tout le monde pointe à la pointeuse : les journées arrivent par les badges, rien à valider'
+        : passes.length ? `${nValides ? pl(nValides, 'journée validée', 'journées validées') : 'aucune journée validée'} sur ${passes.length}, depuis le 1er${passes.includes(Number(auj.slice(8, 10))) && auj.startsWith(ymPt(y, m)) && !jourValide(auj) ? ' · celle d\'aujourd\'hui attend' : ''}` : 'aucune journée passée à valider ce mois-ci';
+      const etats = L.map(e => etatJour(e, iso)).filter(Boolean);
+      const change = etats.filter(x => x.dit && !(x.j.repos && x.j.code === 'R')).length;
+      const attendus = etats.filter(x => !x.j.repos).length;
+      const manque = L.filter(e => { const x = etatJour(e, iso); return x && x.an; });
+      const aValider = travailleLe(P, d);
+      const vuQ = (() => { try { return localStorage.getItem('skanfact.pt-q-vu') === '1'; } catch { return false; } })();
+      const pied = verrou ? `<span class="mu">Le pointage ${h(deMois(mois))} est validé, donc verrouillé : il se corrige depuis « Le mois ».</span>`
+        : jv ? '' : iso > auj ? `<span class="mu">${lfIc('aide', 13)} Ce jour est à venir : un congé ou une absence se notent d'avance ; la journée se valide le soir venu.</span>`
+          : !attendus ? `<span class="mu">${lfIc('aide', 13)} Jour de repos pour toute l'équipe : rien à valider.</span>`
+            : !aValider ? `<span class="mu">${lfIc('aide', 13)} Ceux qui pointent à la pointeuse n'ont pas de journée à valider : leurs anomalies se règlent dans « Le mois ».</span>`
+              : `<span class="mu">${lfIc('aide', 13)} Ceux que tu ne touches pas sont présents, à leurs horaires. Valider fige la journée : elle part telle quelle dans le mois.</span>
+                <button type="button" class="btn btn-primary" id="ptj-valider"${manque.length ? ` aria-disabled="true" title="La sortie de ${h(manque.map(e => String(e.name || '').split(' ')[0]).join(', '))} manque : règle-la d'abord"` : ''}>${lfIc('coche', 15, 2.4)} ${manque.length ? `Régler la sortie de ${h(manque.map(e => String(e.name || '').split(' ')[0]).join(', '))}, puis valider` : 'Tout le reste est là : valider la journée'}</button>`;
+      $('#p-body').innerHTML = `${ptValideHtml(y, m)}
+        ${st.pointageRegle || vuQ ? '' : `<div class="bandeau info pa-bandeau" id="ptj-q">${lfIc('reglages', 18)}<span class="txt"><b>Le pointage se règle en 4 questions</b><span>Comment ton équipe pointe, tes jours de travail, les retards, la nuit : une seule fois ; tout se change ensuite dans « Les horaires ».</span></span><span class="pa-bandeau-g"><button type="button" class="btn btn-sm" id="ptj-q-go">Répondre aux 4 questions</button><button type="button" class="btn btn-sm btn-ghost" id="ptj-q-non">Plus tard</button></span></div>`}
+        ${jv && !verrou ? `<div class="bandeau info pa-bandeau" id="ptj-valide">${lfIc('cadenas', 18)}<span class="txt"><b>Journée ${iso === auj ? 'd\'aujourd\'hui' : `du ${h(jourDit(iso))}`} validée à ${h(heureDe(jv.le))}</b><span>Elle ne bouge plus : un choix de ce jour refuse et propose « Rouvrir la journée ». Elle part dans le mois telle quelle.</span></span><button type="button" class="btn btn-sm" id="ptj-rouvrir">${lfIc('cadenas', 14)} Rouvrir la journée</button></div>` : ''}
+        <div class="ptj-barre"><div class="ptj-nav" role="group" aria-label="Le jour"><button type="button" class="pt-nav-b" id="ptj-prec" aria-label="Le jour d'avant" ${d > 1 ? '' : 'disabled'}>${ICONE_CHEVRON}</button>${nav}<button type="button" class="pt-nav-b pt-nav-s" id="ptj-suiv" aria-label="Le jour d'après" ${d < n ? '' : 'disabled'}>${ICONE_CHEVRON}</button></div>
+          <span class="mu ptj-nav-t">${h(navDit)}</span>
+          <span class="ptj-gestes"><button type="button" class="btn btn-sm" id="pt-periode" ${verrou ? 'disabled' : ''}>${lfIc('echeance', 14)} Une absence sur plusieurs jours</button>${aLaPointeuse().length && !verrou ? `<button type="button" class="btn btn-sm" id="pt-import">${lfIc('importer', 14)} ${im ? 'Importer à nouveau…' : 'Importer la pointeuse…'}</button>` : ''}</span></div>
+        <section class="pa-carte ptj-c" id="ptj"><div class="pa-carte-t"><b>${iso === auj ? `Aujourd'hui, ${h(jourDit(iso))}` : h(capi(jourDit(iso)))} : qui travaille</b><span class="mu">${attendus ? `${pl(attendus, 'salarié')} attendu${attendus > 1 ? 's' : ''}` : 'personne n\'est attendu'} · ${change ? `${pl(change, 'chose')} qui change${change > 1 ? 'nt' : ''} ce que dit le bulletin` : 'rien ne change le bulletin'}${fige ? ' · figée' : ' · un clic sur un choix, c\'est noté'}</span></div>
+          ${groupes.map(g => `<div class="ptj-eq"><div class="ptj-eq-t">${eqT(g)}</div><ul class="ptj-ll">${g.L.map(e => ligneJourHtml(e, iso, fige)).join('')}</ul></div>`).join('')}
+          ${pied ? `<div class="ptj-pied" id="ptj-pied">${pied}</div>` : ''}</section>`;
+      const redessin = () => drawPtJour();
+      ptRedessin = redessin;
+      majNbSous();
+      lierValide(y, m, redessin);
+      lierPointeuse(y, m, redessin);
+      const aller = i2 => { s.ptJourIso = i2; drawPtJour(); const b = $(`#p-body [data-ptj-d="${i2}"]`); if (b) b.focus(); };
+      $$('#p-body [data-ptj-d]').forEach(b => b.onclick = () => aller(b.dataset.ptjD));
+      $('#ptj-prec').onclick = () => { if (d > 1) aller(isoDe(y, m, d - 1)); };
+      $('#ptj-suiv').onclick = () => { if (d < n) aller(isoDe(y, m, d + 1)); };
+      $('#pt-periode').onclick = () => ptPeriodeFenetre(null, redessin, iso);
+      if ($('#ptj-q-go')) $('#ptj-q-go').onclick = () => premiereFenetre(redessin);
+      if ($('#ptj-q-non')) $('#ptj-q-non').onclick = () => { try { localStorage.setItem('skanfact.pt-q-vu', '1'); } catch { /* poste sans stockage */ } $('#ptj-q').remove(); };
+      $$('#ptj [data-ptj]').forEach(b => b.onclick = () => { const [id, c] = b.dataset.ptj.split(':'), e = employeeById(id); if (e) choisirJour(e, iso, c, redessin); });
+      $$('#ptj [data-ptj-tel]').forEach(b => b.onclick = () => { const e = employeeById(b.dataset.ptjTel); if (e) jourChoixFenetre(e, iso, redessin); });
+      // Au téléphone, toute la carte du salarié s'ouvre au doigt (ses choix en grand).
+      $$('#ptj .ptj-l').forEach(li => li.addEventListener('click', ev => { if (fige || ev.target.closest('button') || !window.matchMedia('(max-width: 760px)').matches) return; const e = employeeById(li.dataset.ptjE), x = e && etatJour(e, iso); if (x && !x.j.repos) jourChoixFenetre(e, iso, redessin); }));
+      $$('#ptj [data-ptj-repos]').forEach(b => b.onclick = () => { const e = employeeById(b.dataset.ptjRepos); if (e) caseFenetre(e, y, m, d, redessin); });
+      $$('#ptj [data-ptj-sortie]').forEach(b => b.onclick = () => { const e = employeeById(b.dataset.ptjSortie); if (e) sortieFenetre(e, iso, redessin); });
+      if ($('#ptj-valider')) $('#ptj-valider').onclick = () => {
+        const b = $('#ptj-valider');
+        if (b.getAttribute('aria-disabled') === 'true') { toast(`${b.title}.`, true); const c = $('#ptj [data-an-sortie], #ptj [data-ptj-sortie]'); if (c) c.focus(); return; }
+        if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return; }
+        validerJour(iso); save(true); redessin();
+        toastUndo(`Journée ${iso === auj ? 'd\'aujourd\'hui' : `du ${jjmm(iso)}`} validée : elle part telle quelle dans le mois`, () => { data.joursValides = joursValides().filter(x => x.iso !== iso || x.rouvertLe); save(true); redessin(); });
+      };
+      if ($('#ptj-rouvrir')) $('#ptj-rouvrir').onclick = () => {
+        if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return; }
+        rouvrirJour(iso); save(true); redessin();
+        toast(`La journée du ${jjmm(iso)} est rouverte : tu peux la changer, puis la valider à nouveau.`);
+      };
+    }
+    // Un choix d'une ligne : « Présent » remet le jour à la normale ; Absent, Congé, Malade et Retard ouvrent la case (ce que
+    // chaque choix fait, « Au » pour plusieurs jours) ; « Heures sup » demande combien.
+    function choisirJour(e, iso, c, apres) {
+      const x = etatJour(e, iso); if (!x) return;
+      const { y, m, d } = x;
+      if (!peutPointerLe(iso)) return;
+      if (['A', 'C', 'M'].includes(c)) return caseFenetre(e, y, m, d, apres, { code: c });
+      if (c === 'retard') return caseFenetre(e, y, m, d, apres, { code: 'P', focus: 'retard' });
+      if (c === 'hs') return hsJourFenetre(e, iso, apres);
+      if (x.k === 'P') return;
+      if (x.k === 'retard' && x.j.retardBadge) { toast(`Le retard de ${e.name} vient de ses badges (arrivée à ${x.b ? x.b.arrivee : '—'}) : il reste noté ; il ne se retient que si ton réglage le dit.`, true); return; }
+      const avant = JSON.stringify(data.timesheets || []);
+      C.poserPointage(data, e, y, m, d, 'P'); C.poserRetard(data, e, y, m, d, 0); C.poserHeuresSupDuJour(data, e, y, m, d, 0, 0);
+      save(); apres();
+      toastUndo(`${e.name}, ${jourDit(iso)} : présent, à ses horaires`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
+    }
+    // Au téléphone : un nom touché ouvre ses choix en grand, avec ce que chacun fait sur son bulletin.
+    function jourChoixFenetre(e, iso, apres) {
+      const x = etatJour(e, iso); if (!x) return;
+      if (!peutPointerLe(iso)) return;
+      const cur = company().currency, st = C.payrollSettings(data);
+      const dit = { P: 'rien ne change', A: `− ${C.money(x.unJour, cur)} sur son brut`, C: 'son salaire ne bouge pas', M: 'certificat à joindre (À VÉRIFIER : la CNAM)', retard: st.retenirRetards ? 'en minutes ; retenu (ton réglage)' : 'en minutes ; noté, pas retenu', hs: 'combien d\'heures, à quelle majoration' };
+      const IC = { P: 'coche', A: 'absent', C: 'echeance', M: 'aide', retard: 'horloge', hs: 'croix' };
+      const q = C.equipeDe(st, e);
+      modal(`<h2>${h(e.name)} · ${h(jourDit(iso))}</h2><p class="sous-f">${h(q ? `${q.nom}${q.debut && q.fin ? ` · ${q.debut} – ${q.fin}` : ''}` : 'les horaires de l\'entreprise')} · ce que tu choisis se voit tout de suite sur son bulletin</p>
+        <div class="ptj-grands ptj-deux" id="ptjc">${CHOIX_J.map(([c, l]) => `<button type="button" class="ptj-g${x.k === c ? ' on' : ''}" data-ptjc="${c}">${lfIc(IC[c], 20)}<b>${l}</b><small>${h(dit[c])}</small></button>`).join('')}</div>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button></div>`, (root, fermer) => {
+        $$('[data-ptjc]', root).forEach(b => b.onclick = () => { fermer(); choisirJour(e, iso, b.dataset.ptjc, apres); });
+      });
+    }
+    // Les heures sup d'un jour : elles s'ajoutent à celles du mois (que le bulletin paie), et se retirent d'un geste.
+    function hsJourFenetre(e, iso, apres) {
+      const st = C.payrollSettings(data), majs = C.majorationsHs(st);
+      if (!majs.length) { toast('Pour noter des heures sup, règle d\'abord leur majoration dans « Les horaires » (À VÉRIFIER : le Code du travail et ta convention).', true); return; }
+      const x = etatJour(e, iso); if (!x) return;
+      const { y, m, d } = x, cur = company().currency, hm = Number(st.heuresMois) || 0, brut = C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0;
+      const badge = x.b && x.b.auDela ? C.round3(x.b.auDela / 60) : 0;
+      modal(`<h2>${h(e.name)} · ${h(jourDit(iso))}</h2><p class="sous-f">ses heures sup de ce jour : elles s'ajoutent à celles du mois, que son bulletin paie</p>
+        <form id="hsj" class="grid-2"><label class="field">${lbl('Combien d\'heures')}<input type="number" class="num" name="heures" min="0" max="16" step="0.25" value="${x.hsj ? x.hsj.heures : badge || ''}" placeholder="1"></label>
+          <label class="field">${lbl('Leur majoration')}<select name="maj">${majs.map(k => `<option value="${k}" ${x.hsj && x.hsj.majoration === k ? 'selected' : ''}>+ ${pct(k)} %</option>`).join('')}</select></label></form>
+        ${badge ? `<p class="small muted">Ses badges : ${h(hDit(x.b.auDela))} au-delà de son horaire.</p>` : ''}
+        <p class="small muted" id="hsj-dit" role="status" aria-live="polite"></p>
+        <div class="modal-actions">${x.hsj ? '<button type="button" class="btn btn-danger" id="hsj-x" style="margin-inline-end:auto">Retirer ses heures sup du jour</button>' : ''}<button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="hsj-ok">${lfIc('coche', 15, 2.4)} Noter</button></div>`, (root, fermer) => {
+        const lire = () => { const v = formValues($('#hsj', root)); return { heures: C.round3(Number(v.heures) || 0), maj: Number(v.maj) }; };
+        const dire = () => { const o = lire(); $('#hsj-dit', root).textContent = !(o.heures > 0) ? 'Combien d\'heures ? Par exemple 2, ou 1,5.' : hm > 0 ? `+ ${C.money(C.round3(brut * o.heures * (100 + o.maj) / 100 / hm), cur)} sur son brut du mois.` : 'Les heures d\'un mois complet ne sont pas réglées (« Les horaires ») : le prix d\'une heure ne se calcule pas encore.'; };
+        $('#hsj', root).oninput = $('#hsj', root).onchange = dire; dire();
+        const poser = heures => {
+          if (!peutPointerLe(iso)) return;
+          const avant = JSON.stringify(data.timesheets || []), o = lire();
+          if (heures > 0 && x.j.code !== 'P' && !x.j.repos) C.poserPointage(data, e, y, m, d, 'P');
+          if (!C.poserHeuresSupDuJour(data, e, y, m, d, o.maj, heures)) return;
+          save(); fermer(); apres();
+          toastUndo(heures > 0 ? `${e.name}, ${jourDit(iso)} : ${pct(heures)} h sup à +${pct(o.maj)} %` : `${e.name}, ${jourDit(iso)} : heures sup du jour retirées`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
+        };
+        $('#hsj-ok', root).onclick = () => { const o = lire(); if (!(o.heures > 0)) { toast('Combien d\'heures ? Tape un nombre : 2, ou 1,5.', true); $('#hsj [name=heures]', root).focus(); return; } poser(o.heures); };
+        if ($('#hsj-x', root)) $('#hsj-x', root).onclick = () => poser(0);
+      });
+    }
+    // Une entrée sans sortie, sans horaire d'équipe pour la proposer : l'heure se tape.
+    function sortieFenetre(e, iso, apres) {
+      const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
+      modal(`<h2>${h(e.name)} · ${h(jourDit(iso))}</h2><p class="sous-f">une entrée badgée, pas de sortie : à quelle heure est-il parti ?</p>
+        <form id="sof"><label class="field">${lbl('Sa sortie')}<input type="time" name="h" required></label></form>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="sof-ok">${lfIc('coche', 15, 2.4)} Mettre la sortie</button></div>`, (root, fermer) => {
+        $('#sof-ok', root).onclick = () => {
+          const v = String(formValues($('#sof', root)).h || '');
+          if (!/^\d{2}:\d{2}$/.test(v)) { toast('L\'heure de sortie manque : par exemple 11:00.', true); $('#sof [name=h]', root).focus(); return; }
+          if (!peutPointerLe(iso)) return;
+          const avant = JSON.stringify(data.timesheets || []);
+          if (!C.poserSortie(data, e, y, m, d, v)) return;
+          save(); fermer(); apres();
+          toastUndo(`${e.name} : sortie du ${jjmm(iso)} mise à ${v}`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
+        };
+      });
+    }
+    // « À régler » : TOUT ce qui bloque le mois, au même endroit, chacune avec son bouton — les anomalies de la pointeuse,
+    // les journées à la main pas encore validées, les demandes de congé sans réponse. Un compteur et la liste qu'il annonce
+    // se calculent avec cette fonction-là.
+    function aReglerMois(y, m) {
+      const auj = C.today(), ym = ymPt(y, m), premier = `${ym}-01`, dernier = C.addDays(premier, C.daysInMonth(y, m) - 1), out = [];
+      C.anomaliesPointage(data, y, m, auj).forEach(a => { const html = anomalieLigneHtml(a, y, m); if (html) out.push({ cle: `an:${a.employeeId}:${a.sorte}`, html }); });
+      const J = joursNonValides(y, m);
+      if (J.length) {
+        const der = J[J.length - 1], seul = J.length === 1;
+        out.push({ cle: 'jours', html: `<li><span class="pa-av ptj-av-j" aria-hidden="true">${lfIc('echeance', 15)}</span><span class="pt-an-n"><b>${seul ? `La journée ${der === auj ? `d'aujourd'hui, ${h(jourDit(der))},` : `du ${h(jourDit(der))}`} n'est pas encore validée` : `${J.length} journées pas encore validées : ${h(J.length > 6 ? `${J.slice(0, 5).map(jjmm).join(', ')}…` : J.map(jjmm).join(', ').replace(/, ([^,]*)$/, ' et $1'))}`}</b><small>ceux qui pointent à la main : le soir, on relit la journée et on la valide</small></span><span class="pa-dem-g"><button type="button" class="btn btn-sm" data-pt-ouvrir-j="${der}">Ouvrir la journée${seul ? '' : ` du ${jjmm(der)}`}</button>${seul ? '' : '<button type="button" class="btn btn-sm" id="pt-jav">Les relire et les valider…</button>'}</span></li>` });
+      }
+      const D = (data.leaves || []).filter(l => l.statut === 'demande' && l.from <= dernier && l.to >= premier);
+      if (D.length) out.push({ cle: 'demandes', html: `<li><span class="pa-av ptj-av-j" aria-hidden="true">${lfIc('message', 15)}</span><span class="pt-an-n"><b>${pl(D.length, 'demande')} de congé sans réponse</b><small>${h(D.map(l => `${String((employeeById(l.employeeId) || {}).name || '').split(' ')[0]}, du ${jjmm(l.from)} au ${jjmm(l.to)}`).slice(0, 3).join(' ; '))}${D.length > 3 ? '…' : ''} : ta réponse pose le congé (ou pas) sur le pointage</small></span><button type="button" class="btn btn-sm" data-pt-conges>Y répondre</button></li>` });
+      return out;
+    }
+    // Le chiffre de l'onglet « Le mois » suit la liste à chaque dessin (un compteur et la liste qu'il annonce disent le même chiffre).
+    function majNbSous() {
+      const b = $('#p-sous [data-sous="pointage"]'); if (!b) return;
+      const n = ptVerrouille(ymPt(s.ptY, s.ptM)) ? 0 : aReglerMois(Number(s.ptY), Number(s.ptM)).length;
+      let x = b.querySelector('.pm-nb');
+      if (!n) { if (x) x.remove(); return; }
+      if (!x) { x = document.createElement('span'); x.className = 'pm-nb'; b.appendChild(x); }
+      x.textContent = String(n); x.title = `${pl(n, 'chose')} à régler`;
+    }
+    function lierARegler(y, m, apres) {
+      $$('#p-body [data-pt-ouvrir-j]').forEach(b => b.onclick = () => { s.ptJourIso = b.dataset.ptOuvrirJ; allerVue('pt-jour'); });
+      if ($('#pt-jav')) $('#pt-jav').onclick = () => joursAValiderFenetre(y, m, apres);
+      $$('#p-body [data-pt-conges]').forEach(b => b.onclick = () => allerVue('conges'));
+    }
+    // (1.259.0) LA PREMIÈRE FOIS : le pointage se règle en 4 questions (comment l'équipe pointe, les jours de travail, les
+    // retards, la nuit), une seule fois ; tout se change ensuite dans « Les horaires ». Rien n'est écrit avant « C'est réglé »,
+    // et tout se défait d'un geste. Les valeurs proposées sont celles qui ne font rien (aucune plage de nuit inventée).
+    function premiereFenetre(apres) {
+      if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return; }
+      const st = C.payrollSettings(data), Q = st.equipes || [];
+      const r = {
+        pointe: !Q.length ? 'main' : Q.every(q => q.pointe === 'pointeuse') ? 'pointeuse' : Q.every(q => q.pointe !== 'pointeuse') ? 'main' : 'deux',
+        jours: [1, 2, 3, 4, 5, 6, 0].filter(i => !(Array.isArray(st.offDays) ? st.offDays : [0]).includes(i)),
+        retards: st.retenirRetards ? 'retenir' : 'noter', nuit: st.nuitDebut && st.nuitFin ? 'oui' : 'non', nuitDebut: st.nuitDebut || '', nuitFin: st.nuitFin || ''
+      };
+      let q = 0;
+      const T = ['Comment ton équipe pointe ?', 'Tes jours de travail et tes équipes', 'Les retards', 'Le travail de nuit'];
+      const R = (cle, L) => `<div class="pa-choix pc-choix">${L.map(([v, b, sm]) => `<label class="pa-choix-l"><input type="radio" name="${cle}" value="${v}" ${r[cle] === v ? 'checked' : ''}> <span><b>${b}</b><small>${sm}</small></span></label>`).join('')}</div>`;
+      const corps = () => q === 0 ? R('pointe', [['main', 'À la main, le soir', 'tu notes ce qui change, chaque soir ; personne n\'a de badge'], ['pointeuse', 'À la pointeuse', 'tu importes son fichier ; tu règles ce qui manque'], ['deux', 'Les deux, selon l\'équipe', 'par exemple le fournil à la pointeuse, la boutique à la main : chaque équipe le dit dans « Les horaires »']])
+        : q === 1 ? `<fieldset class="pt-h-jours"><legend>Les jours de travail de l'entreprise <span class="muted small">(les autres sont des jours de repos)</span></legend><div class="pt-h-js">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button type="button" class="pt-h-j" data-pqj="${i}" aria-pressed="${r.jours.includes(i)}">${capi(JOURS_SEM[i])}</button>`).join('')}</div></fieldset>
+            <div class="ptj-eqs">${Q.map(x => `<div class="ptj-eqc"><b>${h(x.nom || 'Équipe')}</b><span class="mono">${x.debut && x.fin ? `${h(x.debut)} – ${h(x.fin)}` : '—'}</span><span class="mu">${h(joursDit(x.jours))} · ${x.pointe === 'pointeuse' ? 'la pointeuse' : 'à la main'}</span></div>`).join('') || '<p class="small muted">Une seule équipe pour l\'instant : tout le monde suit les jours de l\'entreprise. Des horaires différents (le fournil la nuit, la boutique le matin) ? Les équipes se créent dans « Les horaires », juste après.</p>'}</div>`
+          : q === 2 ? R('retards', [['noter', 'Ils se notent, rien ne se retient', 'le plus courant ; tu en parles avec le salarié'], ['retenir', 'Ils se retiennent sur le salaire', 'au prix d\'une heure de sa fiche · À VÉRIFIER : ce qui peut se retenir, avec ton comptable']])
+            : `${R('nuit', [['non', 'Personne ne travaille la nuit', 'rien ne se compte'], ['oui', 'Oui, la nuit se compte', 'sa plage ci-dessous ; sa majoration se règle ensuite dans « Les horaires » (À VÉRIFIER : la plage légale, la majoration)']])}
+              <div class="grid-2" id="pq-nuit"${r.nuit === 'oui' ? '' : ' hidden'}><label class="field">${lbl('La nuit commence à')}<input type="time" name="nuitDebut" value="${h(r.nuitDebut)}"></label><label class="field">${lbl('Elle finit à')}<small class="muted">le lendemain matin si elle passe minuit</small><input type="time" name="nuitFin" value="${h(r.nuitFin)}"></label></div>`;
+      modal(`<h2>Régler le pointage</h2><p class="sous-f">4 questions, une seule fois ; tout se change ensuite dans « Les horaires »</p>
+        <ol class="ptj-et" id="pq-et"></ol><div class="ptj-qc" id="pq-c"></div>
+        <div class="modal-actions"><button type="button" class="btn" id="pq-ret">Retour</button><button type="button" class="btn btn-primary" id="pq-ok"></button></div>`, (root, fermer) => {
+        const lireEtape = () => {
+          const v = formValues($('#pq-f', root) || document.createElement('form'));
+          if (q === 0 && v.pointe) r.pointe = v.pointe;
+          if (q === 2 && v.retards) r.retards = v.retards;
+          if (q === 3) { if (v.nuit) r.nuit = v.nuit; r.nuitDebut = String(v.nuitDebut || '').trim(); r.nuitFin = String(v.nuitFin || '').trim(); }
+        };
+        const dessiner = () => {
+          $('#pq-et', root).innerHTML = T.map((t, i) => `<li class="${i < q ? 'fait' : i === q ? 'ici' : ''}"${i === q ? ' aria-current="step"' : ''}><span>${i < q ? lfIc('coche', 12, 3) : i + 1}</span><b>${t}</b></li>`).join('');
+          $('#pq-c', root).innerHTML = `<span class="pq-sur">Question ${q + 1} sur 4</span><h3>${T[q]}</h3><form id="pq-f">${corps()}</form>`;
+          $('#pq-ret', root).disabled = q === 0;
+          $('#pq-ok', root).innerHTML = q === 3 ? `${lfIc('coche', 15, 2.4)} C'est réglé : ouvrir la journée` : 'Suivant';
+          $$('[data-pqj]', root).forEach(b => b.onclick = () => { const i = Number(b.dataset.pqj); r.jours = r.jours.includes(i) ? r.jours.filter(x => x !== i) : r.jours.concat([i]); b.setAttribute('aria-pressed', String(r.jours.includes(i))); });
+          $('#pq-f', root).onchange = () => { lireEtape(); if ($('#pq-nuit', root)) $('#pq-nuit', root).hidden = r.nuit !== 'oui'; };
+        };
+        $('#pq-ret', root).onclick = () => { lireEtape(); if (q > 0) { q--; dessiner(); } };
+        $('#pq-ok', root).onclick = () => {
+          lireEtape();
+          if (q === 1 && !r.jours.length) { toast('Choisis au moins un jour de travail.', true); return; }
+          if (q < 3) { q++; dessiner(); return; }
+          if (r.nuit === 'oui' && !(r.nuitDebut && r.nuitFin)) { toast('La plage de nuit va par deux : son début et sa fin.', true); const c = $(`#pq-f [name=${r.nuitDebut ? 'nuitFin' : 'nuitDebut'}]`, root); if (c) c.focus(); return; }
+          const avant = { ps: deepCopy(data.payrollSettings || {}), eq: data.employees.map(e => [e.id, e.equipeId]) };
+          const ps = data.payrollSettings = data.payrollSettings || {};
+          ps.offDays = [0, 1, 2, 3, 4, 5, 6].filter(i => !r.jours.includes(i));
+          ps.retenirRetards = r.retards === 'retenir';
+          ps.nuitDebut = r.nuit === 'oui' ? r.nuitDebut : ''; ps.nuitFin = r.nuit === 'oui' ? r.nuitFin : '';
+          if (r.pointe !== 'deux') {
+            let L = Array.isArray(ps.equipes) ? ps.equipes : [];
+            if (!L.length && r.pointe === 'pointeuse') {
+              const nq = { id: C.uid(), nom: 'Toute l\'entreprise', debut: '', fin: '', jours: r.jours.slice(), pointe: 'pointeuse', minimum: 0 };
+              L = [nq];
+              data.employees.filter(e => e.active !== false && !(e.endDate && e.endDate < C.today()) && !e.equipeId).forEach(e => { e.equipeId = nq.id; });
+            } else L = L.map(x => ({ ...x, pointe: r.pointe }));
+            ps.equipes = L;
+          }
+          ps.pointageRegle = C.today();
+          save(true); fermer();
+          s.ptJourIso = '';
+          if (s.tab === 'pt-jour') apres(); else allerVue('pt-jour');
+          toastUndo('Le pointage est réglé : tout se change ensuite dans « Les horaires »', () => {
+            data.payrollSettings = avant.ps;
+            avant.eq.forEach(([id, x]) => { const e = employeeById(id); if (e) { if (x) e.equipeId = x; else delete e.equipeId; } });
+            save(true); draw();
+          });
+        };
+        dessiner();
+      });
+    }
+    // (1.259.0) « Une absence sur plusieurs jours » (la maquette) : un congé, une maladie, des jours d'absence, pour un ou
+    // plusieurs salariés d'un coup, jours à venir compris ; ce que chacun en aura sur son bulletin se lit avant de noter
+    // (le solde de congé, ce que coûte un jour sans solde, le minimum d'une équipe). Les jours de repos restent du repos.
+    function ptPeriodeFenetre(employeeId, apres, du0) {
+      const emps = data.employees.filter(e => e.active !== false && !(e.endDate && e.endDate < C.today())).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
       if (!emps.length) return;
-      modal(`<h2>Noter une période</h2><p class="small muted">Un congé d'une semaine, une maladie, des jours d'absence : d'un coup, jours à venir compris. Les jours de repos restent du repos.</p>
-        <form id="pp" class="grid-2">
-          <label class="field span-2">${lbl('Le salarié')}<select name="emp">${emps.map(e => `<option value="${h(e.id)}" ${e.id === employeeId ? 'selected' : ''}>${h(e.name)}</option>`).join('')}</select></label>
-          <label class="field span-2">${lbl('Ce qui se note')}<select name="code">${CODES_JOUR.map(([c, l]) => `<option value="${c}" ${c === 'C' ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-          ${dateFieldHtml(lbl('Du'), 'du', C.today(), {})}
-          ${dateFieldHtml(lbl('Au'), 'au', C.today(), {})}
+      const choisis = new Set(employeeId ? [employeeId] : emps.length === 1 ? [emps[0].id] : []);
+      const CODES_P = [['C', 'Congé', 'payé, sur son solde'], ['A', 'Absent', 'sans solde'], ['M', 'Malade', 'certificat à joindre'], ['D', 'Demi-journées', 'la moitié, sans solde']];
+      const cur = company().currency;
+      modal(`<h2>Une absence sur plusieurs jours</h2><p class="sous-f">un congé, une maladie, des jours d'absence : pour un ou plusieurs salariés, d'un coup, jours à venir compris ; les jours de repos restent du repos</p>
+        <div class="ptj-qui" id="pp-qui" role="group" aria-label="Qui"><span class="mu">Qui</span>${emps.map(e => `<button type="button" class="ptj-pq" data-pp-e="${h(e.id)}" aria-pressed="${choisis.has(e.id)}">${avPaie(e)}${h(String(e.name || '').split(' ')[0])}</button>`).join('')}</div>
+        <form id="pp" class="grid-2"><div class="span-2 ptj-grands" role="radiogroup" aria-label="Ce qui se note">${CODES_P.map(([c, l, d]) => `<label class="ptj-g"><input type="radio" name="code" value="${c}" ${c === 'C' ? 'checked' : ''}><b>${l}</b><small>${d}</small></label>`).join('')}</div>
+          ${dateFieldHtml(lbl('Du'), 'du', du0 || C.today(), {})}
+          ${dateFieldHtml(lbl('Au'), 'au', du0 || C.today(), {})}
         </form>
-        <p class="small muted" id="pp-dit"></p>
-        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="pp-ok">${lfIc('coche', 15, 2.4)} Noter</button></div>`, (root, fermer) => {
-        const jours = () => {
-          const v = formValues($('#pp', root)), e = employeeById(v.emp);
-          if (!e || !v.du || !v.au || v.au < v.du) return { e, v, L: [] };
+        <div class="ptj-res" id="pp-dit" role="status" aria-live="polite"></div>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="pp-ok">${lfIc('coche', 15, 2.4)} <span>Noter</span></button></div>`, (root, fermer) => {
+        const joursDe = (e, v) => {
           const L = [];
+          if (!v.du || !v.au || v.au < v.du) return L;
           for (let iso = v.du; iso <= v.au && L.length < 400; iso = C.addDays(iso, 1)) {
             const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
-            const j = C.pointageDuMois(data, e, y, m).jours.find(x => x.jour === d);
-            L.push({ iso, y, m, d, repos: !!(j && j.repos), hors: !j || j.code === '-' });
+            const j = C.pointageDuMois(data, e, y, m).jours[d - 1];
+            if (j && j.code !== '-' && !j.repos) L.push({ iso, y, m, d });
           }
-          return { e, v, L };
+          return L;
         };
+        const lire = () => { const v = formValues($('#pp', root)); return { v, E: emps.filter(e => choisis.has(e.id)) }; };
         const dire = () => {
-          const { L } = jours(), ouv = L.filter(j => !j.repos && !j.hors).length, rep = L.filter(j => j.repos).length;
-          $('#pp-dit', root).textContent = !L.length ? 'La date de fin vient avant la date de début.' : `${pl(ouv, 'jour')} à noter${rep ? ` ; ${pl(rep, 'jour')} de repos laissé${rep > 1 ? 's' : ''} tel${rep > 1 ? 's' : ''} quel${rep > 1 ? 's' : ''}` : ''}.`;
-          $('#pp-ok', root).disabled = !ouv;
+          const { v, E } = lire(), code = v.code || 'C';
+          if (!v.du || !v.au || v.au < v.du) { $('#pp-dit', root).innerHTML = '<span class="warn-text">La date de fin vient avant la date de début.</span>'; $('#pp-ok', root).disabled = true; return; }
+          if (!E.length) { $('#pp-dit', root).innerHTML = '<span class="mu">Choisis qui, ci-dessus : un ou plusieurs salariés.</span>'; $('#pp-ok', root).disabled = true; return; }
+          let total = 0;
+          $('#pp-dit', root).innerHTML = E.map(e => {
+            const L = joursDe(e, v), n = L.length; total += n;
+            const y = Number(v.du.slice(0, 4)), m = Number(v.du.slice(5, 7)), un = C.round3((C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0) / (Number(C.payrollSettings(data).workedDays) || 26));
+            const reste = (() => { try { return Number(C.leaveBalance(data, e.id, y).remaining) || 0; } catch (_) { return null; } })();
+            const effet = code === 'C' ? `son salaire ne bouge pas${reste != null ? ` · il lui reste ${pct(reste)} jour${reste > 1 ? 's' : ''} ; après, ${pct(Math.max(0, C.round3(reste - n)))}` : ''}${reste != null && reste < n ? ' — son solde ne couvre pas tout (À VÉRIFIER : le reste, sans solde)' : ''}`
+              : code === 'A' ? `− ${C.money(C.round3(un * n), cur)} sur son brut` : code === 'D' ? `− ${C.money(C.round3(un * n / 2), cur)} sur son brut` : 'un certificat à joindre ; la CNAM indemnise (À VÉRIFIER)';
+            const mq = n ? manqueEquipe(e.id, L[0].iso, L[n - 1].iso) : null;
+            return `<div><b>${h(String(e.name || '').split(' ')[0])} · ${h(C.libellePointage(code).toLowerCase())} ${v.du === v.au ? `le ${h(jjmm(v.du))}` : `du ${h(jjmm(v.du))} au ${h(jjmm(v.au))}`} : ${n ? pl(n, 'jour') : 'aucun jour de travail'}</b><span>${n ? h(effet) : 'que des jours de repos ou hors contrat'}${mq ? ` · <span class="warn-text">${h(manqueDit(mq))}</span>` : ''}</span></div>`;
+          }).join('');
+          $('#pp-ok', root).disabled = !total;
+          $('#pp-ok span', root).textContent = total ? `Noter ${total > 1 ? `les ${total} jours` : 'le jour'}` : 'Noter';
         };
-        $('#pp', root).onchange = dire; dire();
+        $$('[data-pp-e]', root).forEach(b => b.onclick = () => { const id = b.dataset.ppE; if (choisis.has(id)) choisis.delete(id); else choisis.add(id); b.setAttribute('aria-pressed', String(choisis.has(id))); dire(); });
+        $('#pp', root).onchange = dire; $('#pp', root).oninput = dire; dire();
         $('#pp-ok', root).onclick = () => {
-          const { e, v, L } = jours();
-          if (!e || !peutPointerLe(v.au)) return;
+          const { v, E } = lire(), code = v.code || 'C';
+          if (!E.length || !peutPointerLe(v.au)) return;
+          const tous = E.map(e => ({ e, L: joursDe(e, v) })).filter(x => x.L.length);
+          if (refusJoursValides(tous.flatMap(x => x.L.map(j => j.iso)))) return;
           const avant = JSON.stringify(data.timesheets || []);
           let n = 0;
-          L.filter(j => !j.repos && !j.hors).forEach(j => { if (C.poserPointage(data, e, j.y, j.m, j.d, v.code)) n++; });
+          tous.forEach(({ e, L }) => L.forEach(j => { if (C.poserPointage(data, e, j.y, j.m, j.d, code)) { n++; C.poserHeuresSupDuJour(data, e, j.y, j.m, j.d, 0, 0); } }));
           if (!n) return;
           save(); fermer(); apres();
-          toastUndo(`${e.name} : ${pl(n, 'jour')} noté${n > 1 ? 's' : ''} « ${C.libellePointage(v.code).toLowerCase()} »`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
+          toastUndo(`${tous.map(x => String(x.e.name || '').split(' ')[0]).join(', ')} : ${pl(n, 'jour')} « ${C.libellePointage(code).toLowerCase()} »`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
         };
       });
     }
-    // Le bouton qui valide le mois : refusé, il dit pourquoi (les anomalies à régler d'abord).
+    // Le bouton qui valide le mois (1.259.0, une seule règle) : avant sa dernière journée, il attend ; tant que « À régler »
+    // n'est pas vide, il dit combien de choses restent ; sinon il est le bouton principal.
     function ptValiderBoutonHtml(y, m) {
-      const an = C.anomaliesPointage(data, y, m, C.today()).length, mois = MONTHS_LONG[m - 1], n = versionsPt(ymPt(y, m)).length;
-      return `<button type="button" class="btn btn-sm ${an ? '' : 'btn-primary'}" id="pt-valider" ${an ? `aria-disabled="true" title="Règle d'abord ${an > 1 ? `les ${an} anomalies` : 'l\'anomalie'} de la pointeuse"` : ''}>${lfIc('cadenas', 14)} ${an ? `Régler ${an > 1 ? `les ${an} anomalies` : 'l\'anomalie'}, puis valider` : n ? `Valider la version ${n + 1}` : `Valider le pointage ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${h(mois)}`}</button>`;
+      const mois = MONTHS_LONG[m - 1], v = versionsPt(ymPt(y, m)).length, fin = isoDe(y, m, C.daysInMonth(y, m));
+      if (fin > C.today()) return `<button type="button" class="btn btn-sm" id="pt-valider" aria-disabled="true" data-pas-fini="1" title="Ses journées jusqu'au ${jjmm(fin)} restent à vivre">${lfIc('cadenas', 14)} Valider le mois le ${Number(fin.slice(8, 10))}, après sa dernière journée</button>`;
+      const n = aReglerMois(y, m).length;
+      if (n) return `<button type="button" class="btn btn-sm" id="pt-valider" aria-disabled="true" title="Règle d'abord ${n > 1 ? `les ${n} choses` : 'la chose'} de « À régler »">${lfIc('cadenas', 14)} Régler ${n > 1 ? `les ${n} choses` : 'la dernière chose'}, puis valider le mois</button>`;
+      return `<button type="button" class="btn btn-sm btn-primary" id="pt-valider">${lfIc('coche', 14, 2.4)} ${v ? `Valider la version ${v + 1}` : `Valider le pointage ${h(deMois(mois))}`}</button>`;
     }
     function ptValideHtml(y, m) {
       const ym = ymPt(y, m), V = versionsPt(ym); if (!V.length) return '';
@@ -20046,8 +20534,10 @@
         toastUndo(`Le pointage ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${mois} est rouvert : la version ${versionsPt(ym).length + 1} se prépare`, () => { data.pointageOuverts = (data.pointageOuverts || []).filter(x => x !== ym); save(true); apres(); });
       };
       if ($('#pt-valider')) $('#pt-valider').onclick = () => {
-        const an = C.anomaliesPointage(data, y, m, C.today());
-        if (an.length) { const c = $('#pt-anomalies'); toast(`Règle d'abord ${an.length > 1 ? `les ${an.length} anomalies` : 'l\'anomalie'} de la pointeuse : ${an.length > 1 ? 'elles sont' : 'elle est'} juste au-dessus.`, true); if (c) { c.scrollIntoView({ block: 'center' }); const b = c.querySelector('button'); if (b) b.focus(); } return; }
+        const fin = isoDe(y, m, C.daysInMonth(y, m));
+        if ($('#pt-valider').dataset.pasFini) { toast(`Le mois n'est pas fini : ses journées jusqu'au ${jjmm(fin)} restent à vivre. Il se valide après la dernière.`, true); return; }
+        const aR = aReglerMois(y, m);
+        if (aR.length) { toast(`Règle d'abord ${aR.length > 1 ? `les ${aR.length} choses` : 'la chose'} de « À régler » : chacune a son bouton.`, true); const c = $('#pt-aregler'); if (c) { c.scrollIntoView({ block: 'center' }); const b = c.querySelector('button'); if (b) b.focus(); } return; }
         if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return; }
         const V = versionsPt(ym), inst = instantPt(y, m);
         if (V.length && !diffPt(V[V.length - 1].instant, inst).length) { toast('Rien n\'a changé depuis la version validée : elle reste telle quelle.', true); return; }
@@ -20061,7 +20551,7 @@
     }
     // (maquette E20) Les totaux du mois, ce que les bulletins reprendront ; et les compteurs, pour ne pas découvrir un
     // dépassement en fin d'année. Rien n'est inventé : un plafond vide se dit vide.
-    function ptTotauxHtml(y, m) {
+    function ptTotauxHtml(y, m, seulCompteurs) {
       const inst = instantPt(y, m), st = C.payrollSettings(data), majs = C.majorationsHs(st), L = Object.entries(inst);
       if (!L.length) return '';
       const presents = id => { const e = employeeById(id); return e ? C.pointageDuMois(data, e, y, m).jours.filter(j => !j.repos && (j.code === 'P' || j.code === 'D')).length : 0; };
@@ -20071,15 +20561,16 @@
       const plafond = Number(st.hsPlafondAn) || 0;
       const topHs = L.map(([id, x]) => [x.nom, anHs(id)]).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
       const nbRetards = L.reduce((a, [, x]) => a + x.retards, 0);
-      return `<section class="pa-carte" id="pt-totaux"><div class="pa-carte-t"><b>Les totaux ${/^[aeiouyéè]/i.test(MONTHS_LONG[m - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[m - 1])}</b><span class="mu">ce que les bulletins reprendront</span></div>
+      const nuit = L.reduce((a, [id]) => { const e = employeeById(id); if (!e) return a; const n = C.heuresDeNuitDuMois(data, e, y, m); return { reglee: n.reglee, minutes: a.minutes + n.minutes }; }, { reglee: false, minutes: 0 });
+      return `${seulCompteurs ? '' : `<section class="pa-carte" id="pt-totaux"><div class="pa-carte-t"><b>Les totaux ${/^[aeiouyéè]/i.test(MONTHS_LONG[m - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[m - 1])}</b><span class="mu">ce que les bulletins reprendront</span></div>
         <div class="scroll-x"><table class="list compact pa-liste pt-tot-t"><thead><tr><th>Salarié</th><th class="r">Présent</th><th class="r">Payés</th>${majs.map(x => `<th class="r">H. sup +${pct(x)} %</th>`).join('')}<th class="r">Sans solde</th><th class="r">Retards</th><th>À savoir</th></tr></thead><tbody>
           ${L.map(([id, x]) => `<tr><td class="nw"><span class="pa-av" style="--c:${h(C.couleurDe(x.nom || ''))}" aria-hidden="true">${h(C.initialesDe(x.nom || ''))}</span> <b>${h(x.nom)}</b></td><td class="r">${presents(id)} j</td><td class="r">${pct(x.payes)} j</td>${majs.map(k => { const f = x.hs.find(([a]) => a === k); return `<td class="r">${f ? `${pct(f[1])} h` : '—'}</td>`; }).join('')}<td class="r">${x.absences ? `${pct(x.absences)} j` : '—'}</td><td class="r">${x.retards || '—'}</td><td class="small muted">${h(aSavoir(id, x)) || '—'}</td></tr>`).join('')}
-        </tbody></table></div></section>
+        </tbody></table></div></section>`}
         <section class="pa-carte" id="pt-compteurs"><div class="pa-carte-t"><b>Les compteurs</b><span class="mu">pour ne pas découvrir un dépassement en fin d'année</span></div>
           <div class="pt-cpt-c"><table class="mini pt-cpt"><tbody>
             <tr><td>Heures sup de ${y}${topHs.length ? `, ${h(topHs[0][0])}` : ''}</td><td class="r">${topHs.length ? `${pct(topHs[0][1])} h` : '0'} <small>${plafond ? `plafond réglé : ${pct(plafond)} h par an${topHs.length && topHs[0][1] > plafond ? ' — dépassé' : ''}` : 'aucun plafond réglé (À VÉRIFIER : le Code du travail)'}</small></td></tr>
             <tr><td>Retards du mois</td><td class="r">${nbRetards} <small>${st.retenirRetards ? 'retenus sur le salaire (ton réglage)' : 'aucun n\'est retenu sur le salaire (À VÉRIFIER : ce qui peut l\'être)'}</small></td></tr>
-            <tr><td>Heures de nuit</td><td class="r">— <small>elles ne se comptent pas encore : leur plage et leur majoration sont À VÉRIFIER</small></td></tr>
+            <tr><td>Heures de nuit du mois</td><td class="r">${nuit.reglee ? `${pct(C.round3(nuit.minutes / 60))} h <small>de ${h(st.nuitDebut)} à ${h(st.nuitFin)}${Number(st.nuitMajoration) > 0 ? `, majorées de ${pct(st.nuitMajoration)} % sur le bulletin` : ', comptées, sans majoration réglée'}</small>` : `— <small>leur plage n'est pas réglée (Les horaires) ; elle et la majoration : À VÉRIFIER</small>`}</td></tr>
           </tbody></table></div></section>`;
     }
     // (1.257.0) LA POINTEUSE (maquette O06 et E17). Le fichier de badges se lit chez toi (rien ne part ailleurs) ; ce qu'il
@@ -20137,23 +20628,23 @@
         };
       });
     }
+    // (1.259.0) Une anomalie de la pointeuse, une ligne de « À régler » avec son bouton.
+    function anomalieLigneHtml(a, y, m) {
+      const e = employeeById(a.employeeId); if (!e) return '';
+      const av = `<span class="pa-av" style="--c:${h(C.couleurDe(e.name || ''))}" aria-hidden="true">${h(C.initialesDe(e.name || ''))}</span>`;
+      const prenom = h(String(e.name || '').split(' ')[0]);
+      if (a.sorte === 'sortie') return `<li>${av}<span class="pt-an-n"><b>${prenom}, le ${String(a.jour).padStart(2, '0')}/${String(m).padStart(2, '0')} : une entrée à ${h(a.entree)}, pas de sortie</b><small>oubli de badge ?${a.proposee ? ` Sur le planning, il finit à ${h(a.proposee)}` : ''}</small></span>${a.proposee ? `<button type="button" class="btn btn-sm" data-an-sortie="${h(e.id)}" data-j="${a.jour}" data-h="${h(a.proposee)}">Mettre la sortie à ${h(a.proposee)}</button>` : `<button type="button" class="btn btn-sm" data-an-case="${h(e.id)}" data-j="${a.jour}">Voir la case…</button>`}</li>`;
+      const cout = C.round3((C.brutDuMois(e, y, m) || 0) / 26 * a.jours.length);
+      const bal = (() => { try { return C.leaveBalance(data, e.id, y); } catch (_) { return null; } })();
+      const dits = a.jours.length > 3 ? `${a.jours.length} jours` : `les ${a.jours.map(d => String(d).padStart(2, '0')).join(', ').replace(/, ([^,]*)$/, ' et $1')}/${String(m).padStart(2, '0')}`;
+      return `<li>${av}<span class="pt-an-n"><b>${prenom}, ${dits} : aucun badge, aucun justificatif</b><small>absence sans solde (${pl(a.jours.length, 'jour')}, − ${C.money(cout, company().currency)}), ou congé payé${bal ? ` (il lui reste ${pct(Number(bal.remaining) || 0)} jours)` : ''}</small></span><button type="button" class="btn btn-sm" data-an-sans="${h(e.id)}" data-j="${a.jours.join(',')}">Choisir…</button></li>`;
+    }
     // Le bandeau de la pointeuse et « À régler avant d'envoyer » (maquette E17), au-dessus de la grille du mois.
     function ptPointeuseHtml(y, m) {
       const Q = aLaPointeuse(); if (!Q.length) return '';
-      const im = dernierImport(), mois = MONTHS_LONG[m - 1];
-      const an = C.anomaliesPointage(data, y, m, C.today());
-      const ligne = a => {
-        const e = employeeById(a.employeeId); if (!e) return '';
-        const av = `<span class="pa-av" style="--c:${h(C.couleurDe(e.name || ''))}" aria-hidden="true">${h(C.initialesDe(e.name || ''))}</span>`;
-        const prenom = h(String(e.name || '').split(' ')[0]);
-        if (a.sorte === 'sortie') return `<li>${av}<span class="pt-an-n"><b>${prenom}, le ${String(a.jour).padStart(2, '0')}/${String(m).padStart(2, '0')} : une entrée à ${h(a.entree)}, pas de sortie</b><small>oubli de badge ?${a.proposee ? ` Sur le planning, il finit à ${h(a.proposee)}` : ''}</small></span>${a.proposee ? `<button type="button" class="btn btn-sm" data-an-sortie="${h(e.id)}" data-j="${a.jour}" data-h="${h(a.proposee)}">Mettre la sortie à ${h(a.proposee)}</button>` : `<button type="button" class="btn btn-sm" data-an-case="${h(e.id)}" data-j="${a.jour}">Voir la case…</button>`}</li>`;
-        const cout = C.round3((C.brutDuMois(e, y, m) || 0) / 26 * a.jours.length);
-        const bal = (() => { try { return C.leaveBalance(data, e.id, y); } catch (_) { return null; } })();
-        const dits = a.jours.length > 3 ? `${a.jours.length} jours` : `les ${a.jours.map(d => String(d).padStart(2, '0')).join(', ').replace(/, ([^,]*)$/, ' et $1')}/${String(m).padStart(2, '0')}`;
-        return `<li>${av}<span class="pt-an-n"><b>${prenom}, ${dits} : aucun badge, aucun justificatif</b><small>absence sans solde (${pl(a.jours.length, 'jour')}, − ${C.money(cout, company().currency)}), ou congé payé${bal ? ` (il lui reste ${pct(Number(bal.remaining) || 0)} jours)` : ''}</small></span><button type="button" class="btn btn-sm" data-an-sans="${h(e.id)}" data-j="${a.jours.join(',')}">Choisir…</button></li>`;
-      };
+      const im = dernierImport();
       return `<div class="bandeau gris pa-bandeau pa-gris" id="pt-pointeuse">${lfIc('importer', 18)}<span class="txt"><b>${im ? `La pointeuse, lue le ${h(C.fmtDate(im.le.slice(0, 10)))} à ${h(new Date(im.le).toTimeString().slice(0, 5).replace(':', ' h '))} : ${pl(im.rattaches, 'badge')}` : `${h(Q.map(q => q.nom).join(', '))} : à la pointeuse`}</b><span>${im ? `Chaque badge va au salarié qui a ce n° de badge sur sa fiche ; les congés et absences saisis se posent d'eux-mêmes. Tu peux aussi pointer à la main, case par case.` : `Importe le fichier de la pointeuse : chaque badge va au salarié qui a ce n° sur sa fiche, et SkanFact dit ce qui manque.`}</span></span><button type="button" class="btn btn-sm" id="pt-import">${im ? 'Importer à nouveau…' : 'Importer la pointeuse…'}</button></div>
-        ${an.length ? `<section class="pa-carte" id="pt-anomalies"><div class="pa-carte-t"><b>À régler avant d'envoyer</b><span class="mu">${pl(an.length, 'anomalie')} de la pointeuse ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${h(mois)} · le reste est juste</span></div><ul class="apy-l pt-an">${an.map(ligne).join('')}</ul></section>` : ''}`;
+`;
     }
     function lierPointeuse(y, m, apres) {
       if ($('#pt-import')) $('#pt-import').onclick = () => importBadgesFenetre(apres);
@@ -20185,6 +20676,7 @@
         $('#sb-ok', root).onclick = () => {
           const code = (formValues($('#sb', root)).code) || 'A';
           if (!peutPointerLe(`${y}-${String(m).padStart(2, '0')}-${String(jours[jours.length - 1]).padStart(2, '0')}`)) return;
+          if (refusJoursValides(jours.map(d => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`))) return;
           const avant = JSON.stringify(data.timesheets || []);
           let k = 0;
           jours.forEach(d => { if (code === 'P') { const t = C.pointageEnregistre(data, e.id, y, m); if (t) { t.jours = t.jours || {}; t.jours[String(d)] = 'P'; k++; } } else if (C.poserPointage(data, e, y, m, d, code)) k++; });
@@ -20196,9 +20688,10 @@
     // (1.257.0) « Pointer une case » (maquette O20) : un clic sur une case de la grille ouvre ce que chaque choix fait,
     // sur la grille ET sur son bulletin (un jour sans solde se chiffre, un congé dit le solde qui reste), avec le retard du
     // jour et « Au » pour noter plusieurs jours d'un coup. Les lettres au clavier posent toujours le code sans fenêtre.
-    function caseFenetre(e, y, m, jour, apres) {
+    function caseFenetre(e, y, m, jour, apres, opt = {}) {
       const st = C.payrollSettings(data), p = C.pointageDuMois(data, e, y, m), j = p.jours.find(x => x.jour === Number(jour));
       if (!j || j.code === '-') return;
+      if (!peutPointerLe(j.iso)) return; // (1.258.0) une journée validée refuse avant d'ouvrir la fenêtre
       const cur = company().currency, iso = j.iso, q = C.equipeDe(st, e);
       const unJour = C.round3((C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0) / (Number(p.total) || 26));
       const bal = (() => { try { return C.leaveBalance(data, e.id, y); } catch (_) { return null; } })();
@@ -20216,7 +20709,7 @@
       modal(`<h2>${h(e.name)} · ${h(jourDit)}</h2>
         <p class="sous-f">planning : ${planning} · ce que tu choisis se voit dans la grille et sur son bulletin</p>
         <form id="pc">
-          <div class="pa-choix pc-choix">${choix.map(([c, t, d]) => `<label class="pa-choix-l"><input type="radio" name="code" value="${c}" ${j.code === c ? 'checked' : ''}> <span><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
+          <div class="pa-choix pc-choix">${choix.map(([c, t, d]) => `<label class="pa-choix-l"><input type="radio" name="code" value="${c}" ${(opt.code && choix.some(x => x[0] === opt.code) ? opt.code : j.code) === c ? 'checked' : ''}> <span><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
           <div class="grid-2 pc-g">
             <label class="field" id="pc-retard-l">${lbl('Retard')}<small class="muted pc-aide">${st.retenirRetards ? 'en minutes ; retenu sur son salaire (ton réglage)' : 'en minutes ; noté, il ne se retient pas (réglage : À VÉRIFIER)'}</small><input type="number" class="num" name="retard" min="0" max="600" step="5" value="${j.retard || ''}" placeholder="0"></label>
             <div>${dateFieldHtml(`Au <small class="muted pc-aide">pour une semaine de congé, d'un coup</small>`, 'au', '', { placeholder: 'un seul jour' })}</div>
@@ -20231,16 +20724,18 @@
           $('#pc-dit', root).textContent = o.au ? `Du ${C.fmtDate(iso)} au ${C.fmtDate(o.au)} : les jours de travail seulement, les jours de repos restent du repos.` : '';
         };
         $('#pc', root).addEventListener('input', maj); $('#pc', root).addEventListener('change', maj); maj();
+        if (opt.focus === 'retard') { const r = $('#pc [name=retard]', root); if (r) { r.focus(); r.select(); } }
         $('#pc-ok', root).onclick = () => {
           const o = lire(), fin = o.au || iso;
           if (!peutPointerLe(fin)) return;
+          { const L = []; for (let d = iso; d <= fin && L.length < 400; d = C.addDays(d, 1)) L.push(d); if (refusJoursValides(L)) return; }
           const avant = JSON.stringify(data.timesheets || []);
           let n = 0;
           for (let d = iso; d <= fin && n < 400; d = C.addDays(d, 1)) {
             const yy = Number(d.slice(0, 4)), mm = Number(d.slice(5, 7)), dd = Number(d.slice(8, 10));
             const jj = C.pointageDuMois(data, e, yy, mm).jours.find(x => x.jour === dd);
             if (!jj || jj.code === '-' || (d !== iso && jj.repos)) continue;
-            if (C.poserPointage(data, e, yy, mm, dd, o.code)) n++;
+            if (C.poserPointage(data, e, yy, mm, dd, o.code)) { n++; if (o.code !== 'P') C.poserHeuresSupDuJour(data, e, yy, mm, dd, 0, 0); }
             if (d === iso) C.poserRetard(data, e, yy, mm, dd, o.code === 'P' && !o.au ? o.retard : 0);
           }
           if (!n) { toast(j.repos ? `Le ${jourDit} est un jour de repos : il se pointe « Repos », ou « Présent » s'il a été travaillé.` : 'Rien à noter sur ces jours.', true); return; }
@@ -20305,7 +20800,7 @@
       const choisir = (n, focus) => { s.ptJour = n; drawPtSalarie(focus); };
       const poser = code => {
         if (!codesDe(sel).includes(code) || code === sel.code) return;
-        if (!peutPointerLe(dernier)) return;
+        if (!peutPointerLe(dernier) || !peutPointerLe(`${ymPt(y, m)}-${String(sel.jour).padStart(2, '0')}`)) return;
         const avant = JSON.stringify(data.timesheets || []);
         if (!C.poserPointage(data, e, y, m, sel.jour, code)) return;
         save(); drawPtSalarie('jour');
@@ -20389,7 +20884,7 @@
           : `<div class="empty pt-eq-vide"><b>Une seule équipe pour l'instant</b><span>Tout le monde suit les horaires de l'entreprise, ci-dessus. Le fournil la nuit, la boutique le matin ? Crée une équipe par horaire : chacun y trouve ses jours de repos, et ses heures sup et ses retards se comptent sur son planning.</span></div>`}
         </section>
         <section class="pa-carte" id="pt-hor"><div class="pa-carte-t"><b>Comment chaque équipe pointe</b><span class="mu">une pointeuse n'est pas obligatoire : sans elle, tu notes seulement ce qui change</span></div>
-          <div class="pj">${(Q.length ? Q : [{ nom: 'Toute l\'entreprise', pointe: 'main' }]).map(q => `<div class="pj-l"><span><b>${h(q.nom || 'Équipe')}</b> · ${q.pointe === 'pointeuse' ? 'la pointeuse' : 'à la main'}<small class="mu" style="display:block">${q.pointe === 'pointeuse' ? 'ses badges s\'importent (chaque salarié est reconnu par son n° de badge) ; tu règles les anomalies' : 'présent par défaut ; « Aujourd\'hui : qui n\'est pas là ? », une case de la grille ou « Noter une période » font le reste'}</small></span></div>`).join('')}</div></section>
+          <div class="pj">${(Q.length ? Q : [{ nom: 'Toute l\'entreprise', pointe: 'main' }]).map(q => `<div class="pj-l"><span><b>${h(q.nom || 'Équipe')}</b> · ${q.pointe === 'pointeuse' ? 'la pointeuse' : 'à la main'}<small class="mu" style="display:block">${q.pointe === 'pointeuse' ? 'ses badges s\'importent (chaque salarié est reconnu par son n° de badge) ; tu règles les anomalies' : 'présent par défaut ; le soir, « La journée » note ce qui change et se valide ; « Une absence sur plusieurs jours » fait le reste'}</small></span></div>`).join('')}</div></section>
         <section class="pa-carte" id="pt-fer"><div class="pa-carte-t"><b>Les jours fériés de ${an}</b><span class="mu">posés d'eux-mêmes dans la grille, payés ; la liste des fériés chômés et payés : À VÉRIFIER chaque année</span>${manquent ? `<button type="button" class="btn btn-sm" id="pt-fer-fixes">Proposer les ${manquent} fériés à date fixe</button>` : ''}</div>
           ${F.length ? `<table class="list compact pa-liste"><tbody>${F.map(f => `<tr><td class="nw">${h(JOURS_SEM[new Date(f.date + 'T00:00:00Z').getUTCDay()])} ${h(C.fmtDate(f.date))}</td><td>${h(f.nom || '')}</td><td class="r"><button type="button" class="btn btn-sm btn-ghost" data-fer-x="${h(f.date)}" aria-label="Retirer le férié du ${h(C.fmtDate(f.date))}">Retirer</button></td></tr>`).join('')}</tbody></table>`
             : `<p class="small muted pa-note">Aucun férié n'est posé pour ${an} : rien ne s'invente. Propose ceux à date fixe, ou ajoute-les un par un ; les fêtes religieuses changent de date chaque année.</p>`}
@@ -20479,7 +20974,7 @@
       const ligne = (t, v, d) => `<tr><td><b>${t}</b></td><td>${v}</td><td class="small muted">${d}</td></tr>`;
       const val = k => (Number(st[k]) > 0 ? String(st[k]) : '');
       const champ = (k, t, aide, unite, attrs) => `<label class="field pt-h-f">${lbl(t)}<span class="pt-h-u"><input type="number" class="num" name="${k}" data-t="${h(t)}" value="${h(val(k))}" ${attrs} placeholder="—"><span>${unite}</span></span><small class="muted">${aide}</small></label>`;
-      $('#p-body').innerHTML = `<section class="pa-carte" id="pt-hor-r"><div class="pa-carte-t"><b>Les horaires de l'entreprise</b><span class="mu">ils font le pointage par défaut, les jours payés et le prix d'une heure sup</span></div>
+      $('#p-body').innerHTML = `<section class="pa-carte" id="pt-hor-r"><div class="pa-carte-t"><b>Les horaires de l'entreprise</b><span class="mu">ils font le pointage par défaut, les jours payés et le prix d'une heure sup</span><button type="button" class="btn btn-sm" id="pt-h-q">${lfIc('reglages', 14)} Régler en 4 questions…</button></div>
           <form id="pt-h" class="pt-h">
             <fieldset class="pt-h-jours"><legend>Les jours de travail <span class="muted small">(les autres sont des jours de repos)</span></legend>
               <div class="pt-h-js">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button type="button" class="pt-h-j" data-jour="${i}" aria-pressed="${!off.includes(i)}">${JOURS_SEM[i].charAt(0).toUpperCase() + JOURS_SEM[i].slice(1)}</button>`).join('')}</div>
@@ -20487,20 +20982,28 @@
             <div class="pt-h-g pt-h-g3">
               ${champ('workedDays', 'Un mois complet', 'le salaire d\'un mois entier, sans absence', 'jours payés', 'min="1" max="31" step="0.5"')}
               ${champ('heuresMois', 'Heures d\'un mois complet', 'le prix d\'une heure sup se calcule sur elles', 'h', 'min="1" max="400" step="0.01"')}
-              ${champ('retardMinimum', 'Un retard compte dès', 'vide : dès la première minute ; il se note, il ne se retient pas du salaire', 'min', 'min="0" max="120" step="1"')}
+              ${champ('retardMinimum', 'Un retard compte dès', `vide : dès la première minute ; ${st.retenirRetards ? 'retenu sur le salaire (la case ci-dessous)' : 'il se note, il ne se retient pas du salaire'}`, 'min', 'min="0" max="120" step="1"')}
               ${champ('hsArrondi', 'Heures sup des badges, arrondies à', 'vide : à la minute ; sinon au pas inférieur (15 : au quart d\'heure)', 'min', 'min="0" max="60" step="1"')}
             </div>
+            <label class="pt-h-case" id="pt-h-ret"><input type="checkbox" name="retenirRetards" ${st.retenirRetards ? 'checked' : ''}><span><b>Retenir les retards sur le salaire</b><small class="muted">les minutes de retard du mois, au prix d'une heure de sa fiche (son brut divisé par les heures d'un mois complet), en une ligne du bulletin : le brut baisse, la CNSS et l'impôt suivent. Éteint : le retard se note, rien ne se retient. À VÉRIFIER : ce qui peut se retenir, avec ton comptable.</small></span></label>
             <fieldset class="pt-h-maj"><legend>Les majorations des heures sup <span class="muted small">À VÉRIFIER : le Code du travail et ta convention collective</span></legend>
               <div class="pt-h-g pt-h-g3">${[1, 2, 3].map(n => champ(`hsMaj${n}`, `Majoration ${n}`, n === 1 ? 'vide : pas d\'heures sup' : 'facultative', '%', 'min="0" max="300" step="1"')).join('')}</div></fieldset>
+            ${/* (1.258.0) Les heures de nuit : vides, rien ne se compte ; la majoration à 0, elles se comptent sans rien ajouter. */''}
+            <fieldset class="pt-h-maj" id="pt-h-nuit"><legend>Les heures de nuit <span class="muted small">À VÉRIFIER : la plage légale et la majoration (Code du travail, ta convention collective)</span></legend>
+              <div class="pt-h-g pt-h-g3"><label class="field pt-h-f">${lbl('La nuit commence à')}<span class="pt-h-u"><input type="time" name="nuitDebut" data-t="La nuit commence à" value="${h(st.nuitDebut || '')}"></span><small class="muted">vide : les heures de nuit ne se comptent pas</small></label><label class="field pt-h-f">${lbl('Elle finit à')}<span class="pt-h-u"><input type="time" name="nuitFin" data-t="Elle finit à" value="${h(st.nuitFin || '')}"></span><small class="muted">le lendemain matin si elle passe minuit</small></label>
+              ${champ('nuitMajoration', 'Leur majoration', 'vide : comptées, rien ne s\'ajoute au bulletin', '%', 'min="0" max="300" step="1"')}</div></fieldset>
             <div class="pt-h-pied"><span class="small muted" id="pt-h-etat">Les bulletins déjà établis ne changent pas ; ceux établis ensuite suivent ces horaires.</span><button type="button" class="btn" id="pt-h-annuler" disabled>Annuler</button><button type="button" class="btn btn-primary" id="pt-h-ok" disabled>${lfIc('coche', 15, 2.4)} Enregistrer les horaires</button></div>
           </form></section>
         ${ptEquipesHtml(st)}`;
       lierEquipes(() => drawPtHoraires());
+      $('#pt-h-q').onclick = async () => { if (!await leaveOk()) return; clearGuard(); premiereFenetre(() => drawPtHoraires()); };
       const f = $('#pt-h');
       const lire = () => {
         const v = formValues(f), jours = $$('#pt-h [data-jour]').filter(b => b.getAttribute('aria-pressed') === 'true').map(b => Number(b.dataset.jour));
         const out = { offDays: [0, 1, 2, 3, 4, 5, 6].filter(i => !jours.includes(i)) };
-        ['workedDays', 'heuresMois', 'retardMinimum', 'hsArrondi', 'hsMaj1', 'hsMaj2', 'hsMaj3'].forEach(k => { out[k] = String(v[k] || '').trim() === '' ? 0 : Number(v[k]); });
+        ['workedDays', 'heuresMois', 'retardMinimum', 'hsArrondi', 'hsMaj1', 'hsMaj2', 'hsMaj3', 'nuitMajoration'].forEach(k => { out[k] = String(v[k] || '').trim() === '' ? 0 : Number(v[k]); });
+        out.retenirRetards = !!($('#pt-h [name=retenirRetards]') || {}).checked;
+        ['nuitDebut', 'nuitFin'].forEach(k => { out[k] = String(v[k] || '').trim(); });
         return { out, jours };
       };
       const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -20538,6 +21041,57 @@
       majDit();
     }
 
+    // (1.259.0) « Le mois » en relecture (la maquette) : où en est le mois, ce qui le bloque, ce qui change pour chacun.
+    function ptProgresHtml(y, m) {
+      const auj = C.today(), n = C.daysInMonth(y, m), st = C.payrollSettings(data), ym = ymPt(y, m), mois = MONTHS_LONG[m - 1];
+      const off = Array.isArray(st.offDays) ? st.offDays : [0];
+      const feries = (st.feries || []).filter(f => f && String(f.date).startsWith(ym));
+      const ouvrables = Array.from({ length: n }, (_, k) => isoDe(y, m, k + 1)).filter(i => !off.includes(new Date(i + 'T00:00:00Z').getUTCDay()) && !feries.some(f => f.date === i)).length;
+      const P = moisALaMain(y, m), J = Array.from({ length: n }, (_, k) => k + 1);
+      const main = J.filter(d => travailleLe(P, d)), passes = main.filter(d => isoDe(y, m, d) <= auj), valides = passes.filter(d => jourValide(isoDe(y, m, d))).length;
+      const avenir = (main.length ? main : J).filter(d => isoDe(y, m, d) > auj).length, nR = ptVerrouille(ym) ? 0 : aReglerMois(y, m).length;
+      const ecoules = J.filter(d => isoDe(y, m, d) <= auj).length;
+      const part = main.length ? Math.round(valides / main.length * 100) : Math.round(ecoules / n * 100);
+      return `<section class="ptj-prog" id="pt-prog"><div class="ptj-prog-t"><b>${h(capi(mois))} ${y}</b><span class="mu">du 1er au ${n}${feries.length ? ` · ${h(feries.map(f => `le ${Number(f.date.slice(8, 10))} férié`).join(', '))}` : ''} · ${pl(ouvrables, 'jour ouvrable', 'jours ouvrables')}</span></div>
+        <div class="ptj-barre-p" role="progressbar" aria-label="Journées du mois" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${part}"><i style="width:${part}%"></i></div>
+        <span class="mu ptj-prog-d">${main.length ? `${valides ? pl(valides, 'journée validée', 'journées validées') : 'aucune journée validée'} sur ${main.length}` : 'à la pointeuse : les journées arrivent par les badges'}${avenir ? ` · ${avenir} à venir` : ''} · ${ptVerrouille(ym) ? 'validé' : nR ? `${pl(nR, 'chose')} à régler` : 'rien à régler'}</span>
+        <span class="ptj-gestes"><button type="button" class="btn btn-sm" id="pt-periode" ${ptVerrouille(ym) ? 'disabled' : ''}>${lfIc('echeance', 14)} Une absence sur plusieurs jours</button>${ptVerrouille(ym) ? '' : ptValiderBoutonHtml(y, m)}</span></section>`;
+    }
+    function ptAReglerHtml(y, m) {
+      const aR = aReglerMois(y, m), fin = isoDe(y, m, C.daysInMonth(y, m)), fini = fin <= C.today(), mois = MONTHS_LONG[m - 1];
+      return aR.length ? `<section class="pa-carte" id="pt-aregler"><div class="pa-carte-t"><b>À régler</b><span class="mu">${pl(aR.length, 'chose')} · tout ce qui bloque le mois, au même endroit · chacune avec son bouton</span></div><ul class="apy-l pt-an">${aR.map(x => x.html).join('')}</ul></section>`
+        : `<div class="bandeau ok pa-bandeau" id="pt-aregler-ok">${lfIc('coche', 18, 2.4)}<span class="txt"><b>${fini ? `Rien à régler : le pointage ${h(deMois(mois))} est prêt` : 'Rien à régler pour l\'instant'}</b><span>${fini ? 'Valider le mois fige ce que ses bulletins reprendront ; une correction fera une nouvelle version.' : `Les journées jusqu'au ${h(jjmm(fin))} restent à vivre, chaque soir ; le mois se valide après sa dernière journée.`}</span></span></div>`;
+    }
+    // Ce qui change en un mois, salarié par salarié : seulement les écarts (le reste est présent, à ses horaires), et ce
+    // que le bulletin en fera. Une ligne ouvre son mois jour par jour (« Par salarié »).
+    function ptEcartsHtml(y, m, lignes) {
+      if (!lignes.length) return `<div class="empty">Aucun salarié en poste en ${h(MONTHS_LONG[m - 1])} ${y}.</div>`;
+      const st = C.payrollSettings(data), cur = company().currency, ym = ymPt(y, m), an = C.anomaliesPointage(data, y, m, C.today());
+      const puces = (e, p) => {
+        const L = [], brut = C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0, un = C.round3(brut / (Number(p.total) || 26));
+        const de = c => p.jours.filter(j => !j.repos && j.code === c).map(j => j.jour);
+        if (e.hireDate && e.hireDate.startsWith(ym)) L.push(['', `entrée le ${jjmm(e.hireDate)}`, `${pct(p.payes)} jours payés sur ${pct(p.total)}`, 'au prorata']);
+        if (e.endDate && e.endDate.startsWith(ym)) L.push(['', `départ le ${jjmm(e.endDate)}`, `${pct(p.payes)} jours payés sur ${pct(p.total)}`, 'au prorata']);
+        an.filter(a => a.employeeId === e.id).forEach(a => L.push(['alerte', a.sorte === 'sortie' ? 'sortie oubliée' : 'jours sans badge', a.sorte === 'sortie' ? `le ${String(a.jour).padStart(2, '0')}/${String(m).padStart(2, '0')}` : datesDites(a.jours, m), 'à régler']));
+        const A = de('A'), D = de('D'), Co = de('C'), Ma = de('M');
+        if (A.length) L.push(['', `absent ${pl(A.length, 'jour')}`, datesDites(A, m), `− ${C.money(C.round3(un * A.length), cur)}`]);
+        if (D.length) L.push(['', pl(D.length, 'demi-journée', 'demi-journées'), datesDites(D, m), `− ${C.money(C.round3(un * D.length / 2), cur)}`]);
+        if (Co.length) L.push(['', `congé ${pl(Co.length, 'jour')}`, datesDites(Co, m), 'payé']);
+        if (Ma.length) L.push(['', `malade ${pl(Ma.length, 'jour')}`, datesDites(Ma, m), 'certificat (À VÉRIFIER : la CNAM)']);
+        const R = p.jours.filter(j => j.retard);
+        if (R.length) { const rt = st.retenirRetards ? C.retardsDuMois(data, e, y, m, p) : []; L.push(['', `${pl(R.length, 'retard')} · ${R.reduce((a, j) => a + j.retard, 0)} min`, datesDites(R.map(j => j.jour), m), rt.length ? `− ${C.money(Math.abs(rt[0].amount), cur)}` : 'pas retenus']); }
+        C.heuresSupDuMois(data, e, y, m).forEach(b => L.push(['attire', `+ ${pct(b.heures)} h sup`, `à +${pct(b.hs)} %`, `+ ${C.money(b.amount, cur)}`]));
+        const nt = C.heuresDeNuitDuMois(data, e, y, m, p);
+        if (nt.reglee && nt.minutes) L.push(['', `${pct(C.round3(nt.minutes / 60))} h de nuit`, `de ${st.nuitDebut} à ${st.nuitFin}`, nt.lignes.length ? `+ ${C.money(nt.lignes[0].amount, cur)}` : 'comptées']);
+        const t = C.pointageEnregistre(data, e.id, y, m), sm = t && t.badges ? Object.values(t.badges).filter(b => b.sortieMain).length : 0;
+        if (sm) L.push(['', `${pl(sm, 'sortie posée', 'sorties posées')} à la main`, 'un oubli de badge', '']);
+        return L;
+      };
+      return `<section class="pa-carte" id="pt-exc"><div class="pa-carte-t"><b>Ce qui change en ${h(MONTHS_LONG[m - 1])}</b><span class="mu">seulement les écarts : le reste est présent, à ses horaires · ce que le bulletin en fera</span><button type="button" class="btn btn-sm" id="pt-vue-grille">${lfIc('grille', 14)} Vue grille</button></div>
+        <ul class="ptj-ex">${lignes.map(({ e, p }) => { const L = puces(e, p), q = C.equipeDe(st, e); return `<li class="clickable" data-pt-son="${h(e.id)}" tabindex="0" title="Son mois, jour par jour">${avPaie(e)}<span class="ptj-n"><b>${h(e.name)}</b><small>${h(q ? q.nom : (e.position || '—'))}</small></span>
+          <span class="ptj-chips">${L.length ? L.map(([tn, b, sm, i]) => `<span class="ptj-chip ${tn}"><b>${h(b)}</b><small>${h(sm)}</small>${i ? `<i>${h(i)}</i>` : ''}</span>`).join('') : '<span class="ptj-chip ghost"><b>présent, à ses horaires</b><small>rien ne change</small></span>'}</span>
+          <span class="ptj-payes"><b>${pct(p.payes)} j</b><small>payés</small></span></li>`; }).join('')}</ul></section>`;
+    }
     // (plateforme) 1.60.0 — le pointage du mois. Une case par salarié et par jour : un clic change le code (dans l'ordre
     // de la légende), une lettre le pose, les flèches passent d'une case à l'autre. Les jours payés et les absences se
     // recalculent à chaque geste ; un bulletin déjà établi qui ne suit plus le pointage le dit, et se met à jour d'un geste.
@@ -20561,16 +21115,18 @@
       const mp = C.moisDePaie(data), ymPaie = `${mp.year}-${String(mp.month).padStart(2, '0')}`;
       const versPaie = ymPaie !== ptYm() && (C.payslipsOf(data, mp.year, mp.month).some(x => !x.paidDate) || C.missingPayslips(data, mp.year, mp.month).length > 0)
         ? `<div class="bandeau gris pa-bandeau pa-gris pt-vers-paie" id="pt-paie">${lfIc('echeance', 18)}<span class="txt"><b>La paie en cours est celle ${/^[aeiouyéè]/i.test(MONTHS_LONG[mp.month - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[mp.month - 1])}</b><span>Ses bulletins reprennent son pointage : vérifie-le avant de les établir.</span></span><button type="button" class="btn btn-sm" id="pt-paie-go" data-ym="${ymPaie}">Voir le pointage ${/^[aeiouyéè]/i.test(MONTHS_LONG[mp.month - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[mp.month - 1])}</button></div>` : '';
-      $('#p-body').innerHTML = `${versPaie}${ptValideHtml(y, m)}${ptVerrouille(ymPt(y, m)) ? '' : ptPointeuseHtml(y, m)}${ptYm() === C.today().slice(0, 7) && !ptVerrouille(ymPt(y, m)) ? ptAujourdhui() : ''}
+      const verrou = ptVerrouille(ymPt(y, m));
+      const ecartsBox = ecarts.length ? `<div class="warn-box" id="pt-ecarts">${ecarts.map(({ x, r }) => `<div class="ctrl-geste"><span>Le bulletin de <b>${h(x.employeeName)}</b> ne suit plus le pointage : ${ecartDit(r)}.${x.paidDate ? ' Il est déjà payé : son net changera.' : ''}</span><button type="button" class="btn btn-sm" data-pt-reprendre="${h(x.id)}">Reprendre le pointage dans le bulletin</button></div>`).join('')}</div>` : '';
+      const grilleHtml = `<div class="bandeau gris pa-bandeau pa-gris" id="pt-grille-b">${lfIc('grille', 18)}<span class="txt"><b>La vue grille : pour relire d'un coup d'œil, ou pour ton cabinet</b><span>Le soir, on pointe dans « La journée » ; ici, une case ouvre ce jour-là pour ce salarié, et sa lettre au clavier le pose d'un coup.</span></span><button type="button" class="btn btn-sm" id="pt-vue-ecarts">Revenir aux écarts</button></div>
         <section class="pa-carte" id="pt-panneau"><div class="pa-carte-t"><b>Le pointage ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${h(mois)} ${info('pay.pointage')}</b><span class="mu">un clic sur une case dit ce que chaque choix fait ; sa lettre au clavier la pose d'un coup ; les flèches passent d'une case à l'autre ; une case vide : présent</span>
-            <button type="button" class="btn btn-sm pt-periode-btn" id="pt-periode" ${ptVerrouille(ymPt(y, m)) ? 'disabled' : ''}>${lfIc('echeance', 14)} Noter une période…</button>${ptVerrouille(ymPt(y, m)) ? '' : ptValiderBoutonHtml(y, m)}</div>
+</div>
           ${/* (plateforme) 1.234.0 — la grille comme sa maquette : une case vide est un jour de présence (la lettre reste, pour le
                clavier et les lecteurs d'écran), le repos en colonne grise, l'avatar devant le nom, les totaux à droite, la légende
                dessous. Les heures sup restent avant les jours : Tab y passe au 1er du mois, comme dans un tableur. */''}
           ${lignes.length ? `<div class="scroll-x"><table class="list compact pt-grille pt-grille-m" id="pt-grille"><thead><tr><th>Salarié</th>
             ${majorations.map(x => `<th class="r nw pt-hs-h">HS +${pct(x)} %</th>`).join('')}
             ${/* (1.251.0) Aujourd'hui se voit : sa colonne porte « auj. » et une teinte de haut en bas (Skander, 02/11 : « on ne sait
-                 pas quel jour on est »). */''}${lignes[0].p.jours.map(j => estAuj(j) ? `<th class="pt-j pt-auj-j${j.repos ? ' pt-repos' : ''}" aria-current="date" title="Aujourd'hui"><span>auj.</span><b>${j.jour}</b></th>` : `<th class="pt-j${j.repos ? ' pt-repos' : ''}"><span>${INITIALES[j.wd]}</span>${j.jour}</th>`).join('')}
+                 pas quel jour on est »). */''}${lignes[0].p.jours.map(j => estAuj(j) ? `<th class="pt-j pt-auj-j${j.repos ? ' pt-repos' : ''}${jourValide(`${ymPt(y, m)}-${String(j.jour).padStart(2, '0')}`) ? ' pt-jv' : ''}" aria-current="date" title="Aujourd'hui${jourValide(`${ymPt(y, m)}-${String(j.jour).padStart(2, '0')}`) ? ', journée validée' : ''}"><span>auj.</span><b>${j.jour}</b></th>` : `<th class="pt-j${j.repos ? ' pt-repos' : ''}${jourValide(`${ymPt(y, m)}-${String(j.jour).padStart(2, '0')}`) ? ' pt-jv' : ''}"${jourValide(`${ymPt(y, m)}-${String(j.jour).padStart(2, '0')}`) ? ' title="Journée validée"' : ''}><span>${INITIALES[j.wd]}</span>${j.jour}</th>`).join('')}
             <th class="r pt-tot" title="Le mois complet des barèmes, moins les jours hors contrat et les absences non payées : les jours du bulletin">Payés</th><th class="r nw">Non payés</th></tr></thead><tbody>
             ${lignes.map(({ e, p }) => `<tr data-pe="${h(e.id)}"><td class="nw pt-nom"><span class="pa-av" style="--c:${h(C.couleurDe(e.name || ''))}" data-ini="${h(C.initialesDe(e.name || ''))}" aria-hidden="true"></span><strong>${h(e.name)}</strong></td>
               ${majorations.map(x => `<td class="r"><input type="number" class="num pt-hs" data-hs="${x}" value="${p.hs[String(x)] || ''}" min="0" step="0.5" placeholder="0" ${ptVerrouille(ymPt(y, m)) ? 'readonly title="Le pointage est validé : « Corriger : une nouvelle version » le rouvre"' : ''} aria-label="${h(e.name)} : heures supplémentaires à +${pct(x)} %"></td>`).join('')}
@@ -20581,13 +21137,19 @@
           ${lignes.length ? `<ul class="pt-tel" id="pt-tel">${lignes.map(({ e, p }) => `<li><span class="pa-av" style="--c:${h(C.couleurDe(e.name || ''))}" aria-hidden="true">${h(C.initialesDe(e.name || ''))}</span><span class="pt-tel-n"><b>${h(e.name)}</b><small>${pct(p.payes)} j payés${p.absences ? ` · ${pct(p.absences)} non payé${p.absences > 1 ? 's' : ''}` : ''}</small></span><button type="button" class="btn btn-sm" data-pt-tel="${h(e.id)}">Son mois</button></li>`).join('')}</ul>` : ''}
           <div class="pt-legende">${C.CODES_POINTAGE.filter(([c]) => c !== 'P').map(([c, l]) => `<span class="pt-cle"><span class="pt-c pt-${c}" aria-hidden="true">${affiche(c)}</span>${h(l)}</span>`).join('')}<span class="pt-cle"><span class="pt-c pt-P pt-vide" aria-hidden="true"></span>Présent (case vide)</span><span class="pt-cle"><span class="pt-c pt-hors" aria-hidden="true">·</span>Hors contrat</span><span class="pt-cle"><span class="pt-c pt-P pt-vide pt-retard" aria-hidden="true"></span>Un retard</span></div>
           ${/* Sous la grille : apparue au-dessus, l'alerte poussait toutes les cases sous la souris (vu à l'écran). */''}
-          ${ecarts.length ? `<div class="warn-box mt" id="pt-ecarts">${ecarts.map(({ x, r }) => `<div class="ctrl-geste"><span>Le bulletin de <b>${h(x.employeeName)}</b> ne suit plus le pointage : ${ecartDit(r)}.${x.paidDate ? ' Il est déjà payé : son net changera.' : ''}</span><button type="button" class="btn btn-sm" data-pt-reprendre="${h(x.id)}">Reprendre le pointage dans le bulletin</button></div>`).join('')}</div>` : ''}
           ${majorations.length ? '' : `<p class="small muted mt" id="pt-sans-hs">Pour pointer des heures supplémentaires, règle d'abord leurs majorations dans les horaires. <em>À VÉRIFIER : le Code du travail et ta convention collective.</em> <button type="button" class="btn btn-sm" id="pt-baremes">Régler les heures sup</button></p>`}
           <p class="small muted pa-note-c">Un bulletin établi après le pointage reprend ses absences non payées et ses heures supplémentaires ; les primes au jour suivent les jours payés.</p>
-        </section>${ptTotauxHtml(y, m)}${variablesCarte(y, m)}`;
+        </section>${ecartsBox}${ptTotauxHtml(y, m)}`;
+      $('#p-body').innerHTML = `${versPaie}${ptValideHtml(y, m)}${verrou ? '' : ptPointeuseHtml(y, m)}${ptProgresHtml(y, m)}${verrou ? '' : ptAReglerHtml(y, m)}${s.ptGrille ? grilleHtml : `${ptEcartsHtml(y, m, lignes)}${ecartsBox}${ptTotauxHtml(y, m, true)}`}${variablesCarte(y, m)}`;
       lierValide(y, m, () => drawPointage());
+      lierARegler(y, m, () => drawPointage());
+      majNbSous();
+      ptRedessin = () => drawPointage();
+      if ($('#pt-vue-grille')) $('#pt-vue-grille').onclick = () => { s.ptGrille = true; drawPointage(); const c = $('#pt-grille .pt-c[data-pt]:not([disabled])'); if (c) c.focus(); };
+      if ($('#pt-vue-ecarts')) $('#pt-vue-ecarts').onclick = () => { s.ptGrille = false; drawPointage(); };
+      $$('#pt-exc [data-pt-son]').forEach(li => { const go = () => { s.ptSal = li.dataset.ptSon; allerVue('pt-salarie'); }; li.onclick = go; li.onkeydown = ev => { if (ev.key === 'Enter') go(); }; });
+      $$('#pt-tel [data-pt-tel]').forEach(b2 => b2.onclick = () => { s.ptSal = b2.dataset.ptTel; allerVue('pt-salarie'); });
       if ($('#pv-carte-ouvrir')) $('#pv-carte-ouvrir').onclick = () => variablesFenetre(y, m, () => drawPointage());
-      lierAujourdhui(() => drawPointage());
       lierPointeuse(y, m, () => drawPointage());
       $('#pt-periode').onclick = () => ptPeriodeFenetre(null, () => drawPointage());
       // « Ouvrir les Barèmes » amène à la case à remplir, pas en haut d'une longue page (vu à l'écran).
@@ -20599,7 +21161,9 @@
       };
       if ($('#pt-paie-go')) $('#pt-paie-go').onclick = () => { const ym = $('#pt-paie-go').dataset.ym; s.year = ym.slice(0, 4); s.month = String(Number(ym.slice(5, 7))); s.moisTouche = true; draw(); };
       const peutPointer = () => {
-        if (!peutPointerLe(dernier)) return false;
+        // (1.259.0) Le mois verrouillé refuse ici ; la journée validée, chaque case la vérifie pour SON jour (cliquer le 01
+        // disait « la journée du 31 est validée »).
+        if (ptVerrouille(ymPt(y, m)) && !peutPointerLe(dernier)) return false;
         if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return false; }
         if (closedBlock(dernier, 'Ce pointage')) return false;
         if (!(data.timesheets || []).length && licenceBlock('Pointer les salariés', 'paie')) return false;
@@ -20607,7 +21171,7 @@
       };
       const poser = (b, code) => {
         const e = employeeById(b.closest('tr').dataset.pe);
-        if (!e || !peutPointer()) return;
+        if (!e || !peutPointer() || !peutPointerLe(`${ymPt(y, m)}-${String(b.dataset.pt).padStart(2, '0')}`)) return;
         if (!C.poserPointage(data, e, y, m, Number(b.dataset.pt), code)) {
           if (b.dataset.repos) toast(`Le ${b.dataset.pt} ${mois} est un jour de repos : il se pointe « Repos », ou « Présent » s'il a été travaillé (ses heures vont en heures supplémentaires).`, true);
           return;
@@ -21565,7 +22129,7 @@
       const dues = C.socialDue(data, C.today()).filter(x => x.late || x.dueDate <= C.addDays(C.today(), 31)).length, bd = $('#p-tabs [data-af="declarations"]');
       if (bd) { bd.hidden = !dues; bd.textContent = dues ? String(dues) : ''; bd.title = dues ? `${pl(dues, 'déclaration')} à déposer bientôt` : ''; }
       // (1.256.0) Les sous-vues comme la maquette : une rangée d'onglets soulignés (l'icône, le nom ; ce qu'il montre au survol).
-      $('#p-sous').innerHTML = PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab] ? `<div class="onglets-f pa-sous pm-sous" role="tablist" aria-label="${h((PAIE_VUES.find(v => v[0] === (PAIE_VUE_DE[s.tab] || s.tab)) || [])[1] || '')}">${PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab].map(([id, l, ic, d]) => `<button type="button" role="tab" data-sous="${id}" aria-selected="${s.tab === id}" title="${h(d || '')}">${ic ? lfIc(ic, 15) : ''}<b>${l}</b></button>`).join('')}</div>` : '';
+      $('#p-sous').innerHTML = PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab] ? `<div class="onglets-f pa-sous pm-sous" role="tablist" aria-label="${h((PAIE_VUES.find(v => v[0] === (PAIE_VUE_DE[s.tab] || s.tab)) || [])[1] || '')}">${PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab].map(([id, l, ic, d]) => `<button type="button" role="tab" data-sous="${id}" aria-selected="${s.tab === id}" title="${h(d || '')}">${ic ? lfIc(ic, 15) : ''}<b>${l}</b>${id === 'pointage' && !ptVerrouille(ymPt(s.ptY, s.ptM)) ? (n => n ? ` <span class="pm-nb" title="${pl(n, 'chose')} à régler">${n}</span>` : '')(aReglerMois(Number(s.ptY), Number(s.ptM)).length) : ''}</button>`).join('')}</div>` : '';
       $$('#p-sous [data-sous]').forEach(b2 => b2.onclick = async () => { if (b2.dataset.sous === s.tab || !await leaveOk()) return; clearGuard(); s.tab = b2.dataset.sous; draw(); });
       const ouvrirSalarie = () => employeeForm(null, () => { paieState.tab = 'salaries'; render(); });
       if ($('#new-emp')) $('#new-emp').onclick = ouvrirSalarie;
@@ -21593,6 +22157,7 @@
       if (s.tab === 'declarations') return drawDeclarations();
       if (s.tab === 'registre') return drawRegister();
       if (s.tab === 'baremes') return drawRates();
+      if (s.tab === 'pt-jour') return drawPtJour();
       if (s.tab === 'pointage') return drawPointage();
       if (s.tab === 'pt-salarie') return drawPtSalarie();
       if (s.tab === 'pt-horaires') return drawPtHoraires();
@@ -21609,7 +22174,8 @@
       if (b.dataset.tab === s.tab) return;
       if (!await leaveOk()) return;
       clearGuard();
-      s.tab = b.dataset.tab;
+      // (1.259.0) « Présences » ouvre « La journée » : le geste du soir.
+      s.tab = b.dataset.tab === 'pointage' ? 'pt-jour' : b.dataset.tab;
       // (1.251.0) Le mois par défaut se choisit en changeant de vue, jamais à chaque dessin : établir les bulletins du mois
       // fait avancer le « mois à traiter », et la page aurait sauté au mois suivant sous les yeux.
       moisParDefaut();

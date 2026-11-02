@@ -175,6 +175,9 @@ describe('la paie : les écrans de la revue', () => {
     // choisi, le pointage s'ouvre sur le mois du jour (recette du 02/11 : il s'ouvrait sur le mois de paie, octobre, le 2
     // novembre). Un autre mois de la bande : la grille passe à ce mois, la bande garde sa place (rien ne glisse).
     await p.locator('#p-tabs button[data-tab="pointage"]').click();
+    // 1.259.0 : l'onglet ouvre « La journée » ; la grille du mois se demande dans « Le mois ».
+    await p.locator('#p-sous [data-sous="pointage"]').click();
+    await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-panneau').waitFor();
     expect(await p.locator('#pt-panneau select').count()).toBe(0);
     const auj = new Date(), moisJour = auj.getUTCMonth() + 1;
@@ -322,6 +325,9 @@ describe('la paie : les écrans de la revue', () => {
     expect(gestes.y).toBeGreaterThanOrEqual(nom.y + nom.height - 1);
     // Le pointage : une ligne par salarié (ses jours payés), la grille cachée ; « Son mois » ouvre le pointage du salarié.
     await p.locator('#p-tabs button[data-tab="pointage"]').click();
+    // 1.259.0 : l'onglet ouvre « La journée » ; la grille du mois se demande dans « Le mois ».
+    await p.locator('#p-sous [data-sous="pointage"]').click();
+    await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-panneau').waitFor();
     expect(await p.locator('#pt-tel').isVisible()).toBe(true);
     expect(await p.locator('#pt-grille').isVisible()).toBe(false);

@@ -78,36 +78,39 @@ describe('la paie : le pointage à la main', () => {
     await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
     await p.locator('#p-tabs [data-tab="pointage"]').click();
 
-    // ── Aujourd'hui : un geste par salarié ; « Absent » se pose au serveur, « Annuler » le défait ──────────────────
-    await p.locator('#pt-auj').waitFor();
-    expect(espace(await p.locator('#pt-main b').first().innerText())).toBe('Pas de pointeuse ? Tu pointes à la main');
-    // (1.252.0) L'explication se lit une fois : « Compris » la range, et elle ne revient pas en changeant de vue.
-    await p.locator('#pt-main-ok').click();
-    await expect.poll(() => p.locator('#pt-main').count()).toBe(0);
+    // ── (1.259.0) La journée : un geste par salarié ; « Absent » ouvre la case (ce que le choix fait), se pose au serveur,
+    // « Annuler » le défait. L'explication du début (les 4 questions) se range d'un « Plus tard » et ne revient pas.
+    await p.locator('#ptj').waitFor();
+    expect(espace(await p.locator('#ptj-q b').first().innerText())).toBe('Le pointage se règle en 4 questions');
+    await p.locator('#ptj-q-non').click();
+    await expect.poll(() => p.locator('#ptj-q').count()).toBe(0);
     await p.locator('#p-tabs [data-tab="bulletins"]').click();
     await p.locator('#p-tabs [data-tab="pointage"]').click();
-    await p.locator('#pt-auj').waitFor();
-    expect(await p.locator('#pt-main').count()).toBe(0);
-    expect(await p.locator('#pt-auj .pt-auj-l').count()).toBe(2);
-    const karim = p.locator('#pt-auj [data-auj-e="s1"]');
+    await p.locator('#ptj').waitFor();
+    expect(await p.locator('#ptj-q').count()).toBe(0);
+    expect(await p.locator('#ptj .ptj-l').count()).toBe(2);
+    const karim = p.locator('#ptj [data-ptj-e="s1"]');
     expect(await karim.locator('[aria-pressed="true"]').innerText()).toBe('Présent');
     await karim.getByRole('button', { name: 'Absent' }).click();
+    await p.locator('#pc-ok').click();
     await expect.poll(async () => (await codesDe('s1'))[aujIso], { timeout: 15_000 }).toBe('A');
-    expect(await p.locator('#pt-auj [data-auj-e="s1"] [aria-pressed="true"]').innerText()).toBe('Absent');
-    expect(espace(await p.locator('#toast').innerText())).toContain('Karim Numéro Un, aujourd\'hui : absent, non payé');
+    expect(await p.locator('#ptj [data-ptj-e="s1"] [aria-pressed="true"]').innerText()).toBe('Absent');
+    expect(espace(await p.locator('#toast').innerText())).toContain('Karim Numéro Un : ');
+    expect(espace(await p.locator('#toast').innerText())).toContain(', absent');
     await p.screenshot({ path: path.join(PHOTOS, 'paie-pointage-main.png') });
     await p.locator('#toast-undo').click();
     await expect.poll(async () => (await codesDe('s1'))[aujIso], { timeout: 15_000 }).toBeUndefined();
 
-    // ── Noter une période : cinq jours à venir, d'un coup ───────────────────────────────────────────────────────────
+    // ── Une absence sur plusieurs jours : cinq jours à venir, d'un coup (1.259.0 : on choisit « Qui » d'un clic) ─────
     await p.locator('#pt-periode').click();
     const fen = p.locator('#modal-root .modal').last();
-    await fen.locator('[name=emp]').selectOption('s2');
-    await fen.locator('[name=code]').selectOption('C');
+    await fen.locator('[data-pp-e="s2"]').click();
+    await fen.locator('input[name=code][value=C]').check({ force: true });
     const champ = (n: string) => fen.locator(`.datefield:has(input[name=${n}]) input:not([type=hidden])`);
     await champ('du').fill(fr(plus(1))); await champ('du').press('Tab');
     await champ('au').fill(fr(plus(5))); await champ('au').press('Tab');
-    await expect.poll(() => fen.locator('#pp-dit').innerText()).toBe('5 jours à noter.');
+    await expect.poll(async () => espace(await fen.locator('#pp-dit').innerText())).toContain(': 5 jours');
+    expect(espace(await fen.locator('#pp-ok').innerText())).toBe('Noter les 5 jours');
     await fen.locator('#pp-ok').click();
     await expect.poll(async () => { const c = await codesDe('s2'); return [1, 2, 3, 4, 5].map((k) => c[plus(k)]); }, { timeout: 15_000 }).toEqual(['C', 'C', 'C', 'C', 'C']);
     expect((await codesDe('s2'))[plus(6)]).toBeUndefined();

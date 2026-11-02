@@ -2195,3 +2195,101 @@ Tests : `tests/moteur/paie-1257.test.ts` (équipes, fériés, badges, journée, 
 (la case à la souris ; la pointeuse, l'anomalie, la validation, le verrou, la correction) ; les tests de la paie retournés
 vers la fenêtre de la case et les nouvelles cartes ; preuves « paie 1.257 a » à « k ». La preuve de la déclaration du mois
 des bulletins vise désormais la ligne qui choisit le mois montré.
+
+## Les fenêtres qui restaient, la journée validée, les retards et la nuit (02/11/2026, 1.258.0)
+
+Le dernier lot de la maquette paie de l'entreprise (`docs/paie-ecarts-maquette.md`, lot 1.258.0). Chaque fenêtre a été vue
+à l'écran à côté de sa capture de la maquette.
+
+**La journée validée** (demande de Skander, 02/11 : « es-ce que c'est pas mieux de valider un pointage du jour ? ») : sous
+« Aujourd'hui : qui n'est pas là ? », « Valider la journée du 02/11 ». Une journée validée ne se change plus : sa case, une
+période qui la couvre ou un « sans badge » qui la touche refusent, et le refus offre « Rouvrir la journée » (la journée
+rouverte garde la trace de sa validation). **Le réglage** (Présences › Les horaires, décidé avec Skander le 02/11 : il
+demandait un réglage, et c'est le bon choix pour une boutique qui pointe à la main chaque soir) : « Le mois se valide quand
+chaque journée l'est », **éteint par défaut**. Allumé, « Valider le mois » dit combien de journées passées restent et ouvre
+leur liste, « Valider ces N journées ». Éteint, le mois se valide d'un coup, comme après l'import de la pointeuse. Tant que le
+mois n'est pas fini, le bouton principal est « Valider la journée » ; celui du mois passe second.
+
+**Les fenêtres** : le rappel d'une augmentation (O05 : qui, combien par mois, combien de mois payés, le rappel brut, porté
+sur le premier mois pas encore payé) ; le document d'un salarié (O08 : « Pour » un autre salarié, « Prêt », un **numéro**
+AAAA-NNN par année, né quand le document est fait, imprimé sur le document, « Imprimer ») ; la déclaration du mois sans
+cabinet (O17 : ce qu'elle reporte, ligne par ligne, avec la base ou le taux, le total qui fait le montant, le tableur) ; le
+bulletin et le journal en document (O18, O19 : « Pour » le bulletin d'un autre salarié du mois, les documents du salarié ou du
+mois à côté, « Prêt », « Imprimer », « Le remettre à … » quand il est payé et pas encore remis ; le journal, un A4 paysage,
+se pose enfin en paysage) ; « Demander une correction » (O25 : la ligne du bulletin qui ne va pas, et la règle : ton
+comptable corrige et te renvoie le bulletin à approuver, rien ne change sans que tu le voies) ; « Le mois » avant ses
+bulletins (O28 : le pointage du mois en lecture, ce qui reste à régler avant, les primes et retenues du mois). O27 (les
+anomalies de la pointeuse) était fait en 1.257.0.
+
+**La retenue des retards** (Les horaires, éteinte par défaut ; À VÉRIFIER : ce qui peut se retenir) : les minutes de retard
+du mois au prix d'une heure de la fiche (le brut divisé par les heures d'un mois complet, comme les heures sup), en une ligne
+imposable négative du bulletin, « Retenue pour retards : 47 min » : le brut baisse, la CNSS et l'impôt suivent. Un bulletin
+repris ne la double jamais.
+
+**Les heures de nuit** (Les horaires ; À VÉRIFIER : la plage légale et la majoration, Code du travail et convention) : une
+plage (vide par défaut : rien ne se compte) qui peut passer minuit, et sa majoration (vide : comptées, rien ne s'ajoute). Elles
+se lisent sur les badges du jour, ou sans badge sur l'horaire de l'équipe ; le compteur du pointage dit celles du mois. La
+majoration en fait une prime imposable : le prix d'une heure fois les heures de nuit fois la majoration (l'heure elle-même est
+déjà dans le salaire).
+
+Tests : `tests/moteur/paie-1258.test.ts` (rien par défaut, les retards retenus, les heures de nuit),
+`tests/web/paie-1258-gestes.test.ts` (la journée validée et le réglage ; le rappel ; les documents, le numéro, le journal en
+paysage ; la déclaration du mois, le mois avant ses bulletins, les réglages ; la correction demandée avec un cabinet relié) ;
+preuves « paie 1.258 a » à « n ». Trois preuves anciennes visent les lignes que ce lot a changées (la reprise du pointage, le
+document noté).
+
+## La refonte du pointage : la journée, le mois en relecture, une seule règle (02/11/2026, 1.259.0)
+
+Skander demandait un pointage plus simple que la grille du mois (« soit objectif et donne moi un meilleur système »). La
+maquette `docs/maquettes/pointage.html` a été validée (« Ca me vas go refonte dans l'application »), puis reprise telle quelle.
+
+**La journée** (premier sous-onglet de Présences, celui qui s'ouvre) : une ligne par salarié en poste, rangée par équipe,
+avec ses horaires et ses badges du jour. Six choix : Présent, Absent, Congé, Maladie, Retard, Heures sup. Chaque ligne dit ce
+que le choix fait sur le bulletin, au millime : « − 33,851 DT sur son brut » (un jour du brut), « + 2 h à +25 % · + 17,432 DT »
+(le prix d'une heure de la fiche, majoré), « en minutes ; noté, pas retenu » si le réglage des retards est éteint. Absent,
+Congé, Maladie et Retard ouvrent la case du jour, déjà choisie, pour la confirmer. Les heures sup d'**un jour** s'ajoutent à
+celles du mois de la même majoration (c'est le total du mois que le bulletin paie) : elles se relisent jour par jour, se
+remplacent, se retirent, et le mois ne descend jamais sous zéro. « Présent » remet la journée à la normale (le retard et les
+heures sup du jour s'en vont). Une entrée badgée sans sortie se règle sur la ligne. On passe d'un jour à l'autre par la bande
+de la semaine. « Valider la journée » la fige (ses choix ne se cliquent plus) ; « Rouvrir la journée » la rend. Un jour à
+venir ou un jour de repos le dit, au lieu d'offrir de valider. Au téléphone, les choix se cachent : le nom touché les ouvre en
+grand, avec ce que chacun fait.
+
+**Le mois** (deuxième sous-onglet) se **relit** : sa période, ses fériés, la barre des journées validées, puis **« À régler »**,
+une seule liste de tout ce qui bloque le mois, chacune avec son bouton — les anomalies de la pointeuse (sortie oubliée, jours
+sans badge), les journées à la main pas encore validées (« Les relire et les valider… » les valide d'un geste, après les
+avoir montrées), les demandes de congé sans réponse. L'onglet « Le mois » porte le même chiffre (une seule fonction pour la
+liste et le compteur). Dessous, « Ce qui change » : seuls les salariés dont le mois n'est pas « présent, à ses horaires »,
+avec leurs absences, retards et heures sup ; la grille du mois reste à un clic (« Voir la grille »), et revient.
+
+**Une seule règle de validation** (remplace le réglage de 1.258.0, « le mois se valide quand chaque journée l'est », retiré) :
+ceux qui pointent à la main valident leurs journées ; ceux de la pointeuse n'ont rien à valider par jour (les badges font foi,
+leurs anomalies vont dans « À régler ») ; le mois se valide **après sa dernière journée**, quand « À régler » est vide. Avant,
+le bouton dit pourquoi et mène à la liste (« Régler les 2 choses, puis valider le mois », « Valider le mois le 30, après sa
+dernière journée »).
+
+**Les 4 questions** : au premier passage, un bandeau propose « Le pointage se règle en 4 questions » (aussi dans Les horaires).
+Qui pointe (à la main, à la pointeuse, les deux selon l'équipe), les jours de travail, les retards (notés, ou retenus : À
+VÉRIFIER), la nuit (la plage, qui va par deux). Rien ne s'écrit avant « C'est réglé » ; « Annuler » remet tout. « Plus tard »
+range le bandeau.
+
+**Défaut trouvé par les tests et corrigé** : dans la grille, cliquer une case d'une journée validée disait « La journée du
+31/10 est validée » (la dernière du mois) au lieu de la sienne ; seule la case vérifie maintenant son jour, et le mois
+verrouillé refuse d'abord.
+
+**Trouvés par la batterie complète et corrigés** : en offre Essentiel, le bandeau « fait partie de l'offre Complet » ne
+venait plus sur la paie (son en-tête est dans `.pm` depuis 1.256.0 : le poser sur la vue levait une erreur) ; il se pose
+maintenant à côté de l'en-tête, où qu'il soit (preuve « paie 1.259 k »). Le test des guides du Cabinet attendait le
+paramétrage de la paie sans « qui l'a réglé et quand » (ajouté en 1.246.0) : il l'attend maintenant.
+
+**Encore rouge, pas de ce lot** : la première ouverture pèse 1 354 Ko pour un seuil de 1 300 (`tests/web/leger.test.ts`) ;
+elle dépassait déjà avant ce lot (environ 1 331 Ko, estimé), qui ajoute environ 22 Ko compressés. Le levier noté dans
+`docs/leger.md` est de charger les visites guidées seulement quand on en lance une (environ 120 Ko compressés) : un lot à
+part, le seuil ne bouge pas. Et le Tableau de bord du Cabinet (`tests/web/tableau-de-bord.test.ts`, la fiche d'un mois qui
+ne se referme pas d'un clic sur le titre) tombe sans qu'aucun fichier de ce lot ne le touche : à reprendre à part.
+
+Tests : `tests/moteur/paie-1259.test.ts` (les heures sup d'un jour : ajoutées, relues, remplacées, retirées, jamais sous zéro,
+refusées sans majoration ou après la sortie), `tests/web/paie-1259-gestes.test.ts` (la journée et le téléphone ; le mois,
+« À régler », l'onglet, la journée validée refusée dans la grille, la validation ; les 4 questions et « Annuler ») ; preuves
+« paie 1.259 a » à « j ». Les tests et preuves anciens qui passaient par la grille d'abord y vont maintenant par « Le mois » ›
+« Voir la grille ». Le pointage par QR code est noté au cadrage, pour plus tard.

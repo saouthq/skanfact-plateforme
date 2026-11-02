@@ -729,6 +729,9 @@ describe('le parcours, à la souris', () => {
     // Le bulletin du salarié 1 d'abord (son brut de base est le plus grand).
     const auServeur = async () => (await admin.query('select brut, net, primes from paie.bulletin where entreprise = $1 order by brut_de_base desc', [qui.essai])).rows;
     await p.locator('#p-tabs button[data-tab=pointage]').click();
+    // (1.259.0) L'onglet ouvre « La journée » ; « Le mois » se relit par ses écarts, sa grille est à un clic.
+    await p.locator('#p-sous [data-sous="pointage"]').click();
+    await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-grille').waitFor();
     // (1.249.0) Le pointage s'ouvre sur le mois du jour ; la paie en cours (le mois écoulé, sans bulletin) se rejoint d'un
     // clic, depuis le bandeau qui la nomme. On lit ensuite son calendrier pour viser des jours ouvrables et un dimanche.
@@ -832,6 +835,8 @@ describe('le parcours, à la souris', () => {
 
     // Le lundi était un oubli : il revient « Présent ». Le bulletin établi ne suit plus le pointage, et la grille le dit.
     await p.locator('#p-tabs button[data-tab=pointage]').click();
+    await p.locator('#p-sous [data-sous="pointage"]').click();
+    await p.locator('#pt-grille').waitFor();
     await kase(lundi).focus();
     await p.keyboard.press('p');
     await expect.poll(payes).toBe('25');

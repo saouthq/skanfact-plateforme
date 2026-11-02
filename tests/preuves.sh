@@ -16484,8 +16484,8 @@ prouver 'des primes au jour qui ne suivent pas le pointage' 'web/public/v10/comp
   '.map(b => b)' \
   'un mois pointé donne au bulletin ses absences, ses primes au jour et ses heures ; le bulletin calcule comme une saisie à la main'
 prouver 'la reprise qui double les heures' 'web/public/v10/compta.js' \
-  '    const bonuses = (i.bonuses || []).filter(b => !b.hs)' \
-  '    const bonuses = (i.bonuses || []).filter(b => b)' \
+  '    const bonuses = (i.bonuses || []).filter(b => !b.hs && !b.retard && !b.nuit)' \
+  '    const bonuses = (i.bonuses || []).filter(b => !b.retard && !b.nuit)' \
   'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
 prouver 'un bulletin qui ne voit pas qu'"'"'il ne suit plus le pointage' 'web/public/v10/compta.js' \
   '    const change = absences || empreinte(slip.bonuses) !== empreinte(r.bonuses);' \
@@ -16512,8 +16512,8 @@ prouver '« Régler les heures sup » qui ne pose pas le curseur dans la case' '
   '' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
 prouver 'l'"'"'alerte du bulletin au-dessus de la grille' 'web/public/v10/app.js' \
-  'class="warn-box mt" id="pt-ecarts"' \
-  'class="warn-box mt" id="pt-ecarts" style="position: relative; top: -420px"' \
+  'class="warn-box" id="pt-ecarts"' \
+  'class="warn-box" id="pt-ecarts" style="position: relative; top: -420px"' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
 prouver 'un dimanche refusé en silence' 'web/public/v10/app.js' \
   '          if (b.dataset.repos) toast(' \
@@ -16951,7 +16951,7 @@ prouver 'un bulletin nouveau sans le prorata de l'"'"'entrée' 'web/public/v10/c
   'const gross = employee.grossSalary;' \
   'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
 prouver 'un mois pointé sans ses heures supplémentaires au bulletin nouveau' 'web/public/v10/compta.js' \
-  'return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month)) } : i;' \
+  'return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month), retardsDuMois(data, employee, year, month, p).concat(heuresDeNuitDuMois(data, employee, year, month, p).lignes)) } : i;' \
   'return i;' \
   'le mois pointé : ses absences, sa demi-journée et ses heures supplémentaires arrivent au bulletin'
 prouver 'la prime au jour d'"'"'un bulletin nouveau sur le mois entier' 'web/public/v10/compta.js' \
@@ -22137,13 +22137,12 @@ prouver 'paie 1.223 d : le contrat sort sans la mention PROJET' web/public/v10/c
 
 WPAIE3='aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
 prouver 'paie 1.224 a : « aujourd'\''hui » ne garde pas le code au serveur' web/public/v10/app.js \
-  "        save();
-        apres();
-        toastUndo(\`\${e.name}, aujourd" "        apres();
-        toastUndo(\`\${e.name}, aujourd" \
+  'Rien à noter sur ces jours.'\'', true); return; }
+          save(); fermer(); apres();' 'Rien à noter sur ces jours.'\'', true); return; }
+          fermer(); apres();' \
   "$WPAIE3"
 prouver 'paie 1.224 b : « Annuler » ne défait pas le code du jour' web/public/v10/app.js \
-  "aujourd'hui : \${C.libellePointage(code).toLowerCase()}\`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });" "aujourd'hui : \${C.libellePointage(code).toLowerCase()}\`, () => {});" \
+  'min de retard` : '\'''\''}`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });' 'min de retard` : '\'''\''}`, () => {});' \
   "$WPAIE3"
 prouver 'paie 1.224 c : la période oublie son dernier jour' web/public/v10/app.js \
   "for (let iso = v.du; iso <= v.au && L.length < 400;" "for (let iso = v.du; iso < v.au && L.length < 400;" \
@@ -22251,7 +22250,7 @@ prouver 'paie 1.232 c : sans réseau la paie offre son geste' web/public/v10/app
   "      if (prin && navigator.onLine === false) prin = prin.replace(" "      if (false) prin = prin.replace(" \
   "$WRW3"
 prouver 'paie 1.233 a, 1.249 : le pointage s'\''ouvre sur le mois de paie, pas sur le mois du jour' web/public/v10/app.js \
-  "['pointage', 'pt-salarie'].includes(s.tab) ? { year: Number(C.today().slice(0, 4)), month: Number(C.today().slice(5, 7)) } : entree;" "entree;" \
+  "['pointage', 'pt-jour', 'pt-salarie'].includes(s.tab) ? { year: Number(C.today().slice(0, 4)), month: Number(C.today().slice(5, 7)) } : entree;" "entree;" \
   'aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
 
 # L'interface de la paie au plus près de sa maquette (1.234.0) : chaque défaut remis fait tomber son test.
@@ -22660,11 +22659,88 @@ prouver "paie 1.257 k : le texte des compteurs ne passe plus à la ligne au tél
 # 1.257.1 : un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF (vu par
 # Skander sur dev.skanfact.tn le 02/11/2026 : « j'ai exporté le document et rien n'a été pris en compte »).
 prouver "paie 1.257.1 a : sans PDF du serveur, le document exporté ne se note pas" web/public/v10/app.js \
-  "            if (x) { x.documentsFaits = (x.documentsFaits || []).concat" "            if (f && x) { x.documentsFaits = (x.documentsFaits || []).concat" \
+  "            noter(v);" "            if (f) noter(v);" \
   'un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF'
 prouver "paie 1.257.1 b : une fenêtre d'impression bloquée ne dit rien" web/public/plateforme/pont.js \
   "    if (!w) throw new Error('Le PDF ne se fait pas" "    if (!w) return null; void new Error('Le PDF ne se fait pas" \
   'un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF'
+prouver 'paie 1.258 a : les retards se retiennent sans le réglage' web/public/v10/compta.js \
+  '    if (!s.retenirRetards || !(heuresMois > 0) || !(mn > 0)) return [];' '    if (!(heuresMois > 0) || !(mn > 0)) return [];' \
+  'par défaut, rien ne change : le mois se valide d'\''un coup, aucun retard retenu, aucune heure de nuit comptée'
+prouver 'paie 1.258 b : la retenue des retards se double' web/public/v10/compta.js \
+  '    const bonuses = (i.bonuses || []).filter(b => !b.hs && !b.retard && !b.nuit)' '    const bonuses = (i.bonuses || []).filter(b => !b.hs && !b.nuit)' \
+  'les retards retenus : au taux horaire de la fiche, une ligne imposable qui baisse le brut, jamais deux fois'
+prouver 'paie 1.258 c : la nuit ne passe plus minuit' web/public/v10/compta.js \
+  '    const fenetre = [ns, ne > ns ? ne : ne + 1440];' '    const fenetre = [ns, ne];' \
+  'les heures de nuit : la plage qui passe minuit, les badges d'\''abord, l'\''horaire de l'\''équipe sinon, la majoration'
+prouver 'paie 1.258 d : la nuit ne lit plus les badges' web/public/v10/compta.js \
+  '      const b = j.badge ? journeeBadges(data, employee, j.iso) : null;' '      const b = null;' \
+  'les heures de nuit : la plage qui passe minuit, les badges d'\''abord, l'\''horaire de l'\''équipe sinon, la majoration'
+prouver 'paie 1.258 e : une journée validée se change encore' web/public/v10/app.js \
+  '      const jv = iso && jourValide(iso);' '      const jv = null;' \
+  'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
+prouver 'paie 1.258 g : le rappel se porte sans se montrer' web/public/v10/app.js \
+  '        if (aRappeler.length && await rappelFenetre(aRappeler, o.des)) {' '        if (aRappeler.length) {' \
+  'le rappel d'\''une augmentation (O05) : qui, combien par mois, le rappel du mois payé, porté sur le mois en cours'
+prouver 'paie 1.258 h : un document fait n'\''a plus de numéro' web/public/v10/app.js \
+  'kind: v.kind, date: v.date || C.today(), le: C.today(), numero: numeroSuivant() }]' 'kind: v.kind, date: v.date || C.today(), le: C.today() }]' \
+  'les documents (O08, O18, O19) : « Pour », la liste, « Prêt », le numéro qui naît au document fait ; le journal en paysage'
+prouver 'paie 1.258 i : le journal se pose en portrait' web/public/v10/app.js \
+  '    const paysage = /size:\s*A4\s+landscape/i.test(String(html).slice(0, 4000));' '    const paysage = false;' \
+  'les documents (O08, O18, O19) : « Pour », la liste, « Prêt », le numéro qui naît au document fait ; le journal en paysage'
+prouver 'paie 1.258 j : le bulletin en document perd « Pour »' web/public/v10/app.js \
+  '      pour: { liste: duMois.map(x => ({ id: x.id, name: x.employeeName || '\'''\'' })), id: slip.id,' '      pour: { liste: [], id: slip.id,' \
+  'les documents (O08, O18, O19) : « Pour », la liste, « Prêt », le numéro qui naît au document fait ; le journal en paysage'
+prouver 'paie 1.258 k : la déclaration du mois perd une ligne' web/public/v10/app.js \
+  '          ${dmD.lignes.filter(r => Number(r.montant) > 0).map(r =>' '          ${dmD.lignes.filter(r => Number(r.montant) > 0).slice(1).map(r =>' \
+  'la déclaration du mois (O17), le mois avant ses bulletins (O28), les réglages des retards et de la nuit'
+prouver 'paie 1.258 l : le mois avant ses bulletins ne montre plus le pointage' web/public/v10/app.js \
+  '        ${!month.length && missing.length ? `${moisPointageHtml(y, m)}${variablesCarte(y, m)}` : '\'''\''}' '        ${'\'''\''}' \
+  'la déclaration du mois (O17), le mois avant ses bulletins (O28), les réglages des retards et de la nuit'
+prouver 'paie 1.258 m : la plage de nuit ne s'\''enregistre pas' web/public/v10/app.js \
+  '        ['\''nuitDebut'\'', '\''nuitFin'\''].forEach(k => { out[k] = String(v[k] || '\'''\'').trim(); });' '' \
+  'la déclaration du mois (O17), le mois avant ses bulletins (O28), les réglages des retards et de la nuit'
+prouver 'paie 1.258 n : la demande de correction perd sa ligne' web/public/v10/app.js \
+  '${v.ligne && v.ligne !== '\''Autre chose'\'' ? `, la ligne « ${v.ligne} »` : '\'''\''} : ${texte}`;' ' : ${texte}`;' \
+  'la correction demandée au cabinet (O25) : le bulletin, sa ligne, ce qui ne va pas, et la règle'
+# La refonte du pointage (1.259.0, docs/maquettes/pointage.html) : la journée, le mois en relecture, une seule règle.
+prouver 'paie 1.259 a : les heures sup d'\''un jour changées s'\''ajoutent au lieu de remplacer' web/public/v10/compta.js \
+  '    if (avant && Number(avant.heures) > 0) ajouter(avant.majoration, -Number(avant.heures));' '' \
+  's'\''ajoutent au mois, se relisent, se remplacent et se retirent'
+prouver 'paie 1.259 b : des heures sup sans majoration passent' web/public/v10/compta.js \
+  '    if (h > 0 && !(maj > 0)) return false;
+    let t = pointageEnregistre(data, employee.id, year, month);' '    let t = pointageEnregistre(data, employee.id, year, month);' \
+  'ne descend jamais sous zéro, refuse sans majoration et hors contrat'
+prouver 'paie 1.259 c : « Présent » laisse les heures sup du jour' web/public/v10/app.js \
+  'C.poserRetard(data, e, y, m, d, 0); C.poserHeuresSupDuJour(data, e, y, m, d, 0, 0);' 'C.poserRetard(data, e, y, m, d, 0);' \
+  'la journée : Absent, Retard et Heures sup disent ce que le bulletin en fera ; valider la fige, « Rouvrir » la rend'
+prouver 'paie 1.259 d : le prix des heures sup oublie la majoration' web/public/v10/app.js \
+  'brut * o.heures * (100 + o.maj) / 100 / hm' 'brut * o.heures / hm' \
+  'la journée : Absent, Retard et Heures sup disent ce que le bulletin en fera ; valider la fige, « Rouvrir » la rend'
+prouver 'paie 1.259 e : « À régler » oublie les journées pas validées' web/public/v10/app.js \
+  'const J = joursNonValides(y, m);' 'const J = [];' \
+  'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
+prouver 'paie 1.259 f : le mois se valide avec des choses à régler' web/public/v10/app.js \
+  '        if (aR.length) { toast(' '        if (false) { toast(' \
+  'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
+prouver 'paie 1.259 g : l'\''onglet « Le mois » ne dit pas combien de choses sont à régler' web/public/v10/app.js \
+  'const n = ptVerrouille(ymPt(s.ptY, s.ptM)) ? 0 : aReglerMois(Number(s.ptY), Number(s.ptM)).length;' 'const n = 0;' \
+  'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
+prouver 'paie 1.259 h : une case de la grille parle de la dernière journée du mois, pas de la sienne' web/public/v10/app.js \
+  'if (ptVerrouille(ymPt(y, m)) && !peutPointerLe(dernier)) return false;' 'if (!peutPointerLe(dernier)) return false;' \
+  'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
+prouver 'paie 1.259 i : la plage de nuit s'\''écrit à moitié' web/public/v10/app.js \
+  'if (r.nuit === '\''oui'\'' && !(r.nuitDebut && r.nuitFin)) {' 'if (false) {' \
+  'les 4 questions : rien ne s'\''écrit avant « C'\''est réglé », et tout se défait d'\''un geste'
+prouver 'paie 1.259 j : « Annuler » ne défait pas les 4 questions' web/public/v10/app.js \
+  '            data.payrollSettings = avant.ps;' '' \
+  'les 4 questions : rien ne s'\''écrit avant « C'\''est réglé », et tout se défait d'\''un geste'
+prouver 'paie 1.259 k : le bandeau de l'\''offre ne vient pas sur la paie (son en-tête est dans .pm)' web/public/v10/app.js \
+  '    if (head && head.parentNode) head.parentNode.insertBefore(el, head.nextSibling); else view.appendChild(el);
+    $('\''#offre-voir'\'').onclick' '    if (head && head.nextSibling) view.insertBefore(el, head.nextSibling); else view.appendChild(el);
+    $('\''#offre-voir'\'').onclick' \
+  'en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s'\''ouvre'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

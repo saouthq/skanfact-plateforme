@@ -4470,7 +4470,8 @@
     const employee = Compta.employeAuMois(employee0, year, month);
     const i = payslipInputForSansPointage(data, employee, year, month);
     if (!pointageEnregistre(data, employee.id, year, month)) return i;
-    return { ...i, ...reprisePointage(i, pointageDuMois(data, employee, year, month), heuresSupDuMois(data, employee, year, month)) };
+    const pm = pointageDuMois(data, employee, year, month);
+    return { ...i, ...reprisePointage(i, pm, heuresSupDuMois(data, employee, year, month), retardsDuMois(data, employee, year, month, pm).concat(heuresDeNuitDuMois(data, employee, year, month, pm).lignes)) };
   }
   function payslipInputForSansPointage(data, employee, year, month) {
     const s = payrollSettings(data);
@@ -4541,7 +4542,7 @@
   // ---------- le pointage (plateforme, 1.60.0) ----------
   // (plateforme) 1.69.0 — dans le moteur commun (compta.js) : le Cabinet pointe aussi, et une copie diverge.
   const { CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup,
-    majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin } = Compta;
+    majorationsHs, heuresSupDuMois, retardsDuMois, heuresDeNuitDuMois, reprisePointage, pointageSurBulletin } = Compta;
 
   // ---------- documents du personnel (5.1.0) ----------
   // (plateforme) 1.72.0 — leur liste, la civilité et l'indemnité de congés non pris du solde viennent du moteur commun
@@ -4680,7 +4681,7 @@
       <div class="co-sub">${escapeHtml(company.address || '').replace(/\n/g, '<br>')}
         ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}` : ''}
         ${company.cnss ? `<br>CNSS : ${escapeHtml(company.cnss)}` : ''}</div></div>
-    <div class="co-sub" style="text-align:right">${company.phone ? escapeHtml(company.phone) + '<br>' : ''}${company.email ? escapeHtml(company.email) : ''}</div>
+    <div class="co-sub" style="text-align:right">${opts.numero ? `<b>n° ${escapeHtml(String(opts.numero))}</b><br>` : ''}${company.phone ? escapeHtml(company.phone) + '<br>' : ''}${company.email ? escapeHtml(company.email) : ''}</div>
   </div>
   <h1>${escapeHtml(hrDocLabel(kind))}</h1>
   ${body}
@@ -12126,7 +12127,7 @@
     pageInfo, compareValues, LINE_UNITS, usedUnits, uniteAccordee, usedWithholdingRates, parseDateInput, fmtDateInput, monthMatrix,
     uid, round3, money, fmtDate, addDays, daysInMonth, today, jourDeLInstant, escapeHtml, nl2br, capitalAffiche, statusLabel,
     // (plateforme) 1.60.0 — le pointage.
-    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, poserRetard: Compta.poserRetard, equipeDe: Compta.equipeDe, joursReposDe: Compta.joursReposDe, ferieDu: Compta.ferieDu, lireBadges: Compta.lireBadges, importerBadges: Compta.importerBadges, journeeBadges: Compta.journeeBadges, anomaliesPointage: Compta.anomaliesPointage, poserSortie: Compta.poserSortie, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
+    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, heuresSupDuJour: Compta.heuresSupDuJour, poserHeuresSupDuJour: Compta.poserHeuresSupDuJour, poserRetard: Compta.poserRetard, equipeDe: Compta.equipeDe, joursReposDe: Compta.joursReposDe, ferieDu: Compta.ferieDu, lireBadges: Compta.lireBadges, importerBadges: Compta.importerBadges, journeeBadges: Compta.journeeBadges, anomaliesPointage: Compta.anomaliesPointage, poserSortie: Compta.poserSortie, majorationsHs, heuresSupDuMois, retardsDuMois, heuresDeNuitDuMois, reprisePointage, pointageSurBulletin,
     plier, correspondRecherche, rangRecherche, classerRecherche, delaiJours, typoFr,
     CLOSURE_ACTIONS, closedUntil, isClosedDate, closedPeriodLabel, closableMonths, rienACloturer, closureChecks, closePeriod, reopenPeriod, closureLog,
     PACK_FORMAT, packPeriod, packPlan, packChecklist, packFileName, packCoverHtml,

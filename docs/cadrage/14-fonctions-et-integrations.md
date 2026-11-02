@@ -323,6 +323,7 @@ sécurisation sur chaque ticket.
 | **Notes de frais** : le salarié photographie son justificatif, un responsable l'accepte, le remboursement suit | Vague 3 |
 | **Rapports à la carte** : choisir ses colonnes et ses filtres | Vague 3 |
 | **Groupe complet** : consolidation, ventes entre sociétés reliées toutes seules | Vague 4 |
+| **Le pointage par QR code** (Skander, 02/11/2026) : un écran posé dans le magasin (une tablette, l'ordinateur de la caisse) montre un QR code qui **change toutes les 2 minutes** ; le salarié le scanne avec son téléphone à l'arrivée et au départ, son passage arrive dans le pointage comme un badge. Un code qui change empêche de pointer de chez soi avec une photo du code. Il remplace une pointeuse pour une petite entreprise. Il faut un compte (ou un lien personnel) par salarié ; l'accord de l'INPDP si le téléphone envoie sa position : À VÉRIFIER | Plus tard (vague à fixer) |
 
 ### 3.7 L'hôtellerie (à la fin)
 
@@ -475,6 +476,7 @@ par l'entreprise qui les utilise, jamais cachés dans notre prix.
 
 | Date | Décision |
 |---|---|
+| 02/11/2026 (**Skander**) | **Le pointage par QR code qui change toutes les 2 minutes** est noté pour plus tard (§ 3.6) : on le fera après la refonte du pointage de la paie, la vague reste à fixer |
 | 28/09/2026 (par délégation) | Tout ce que Hesabi annonce est au lancement ; les six manques (espace client, lecture de documents, cabinet complet, API, téléphone, arabe préparé) y sont ajoutés |
 | 28/09/2026 (par délégation) | Paiement en ligne des factures par Konnect au lancement, sur le compte de l'entreprise ; jamais d'argent de client chez SkanFact ; le paiement se prouve auprès du prestataire |
 | 28/09/2026 (par délégation) | La lecture de photos et de PDF se fait sur nos serveurs en Tunisie, avec confirmation de la personne ; pas d'IA qui écrit au lancement |

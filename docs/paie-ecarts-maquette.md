@@ -1,4 +1,4 @@
-# La paie de l'entreprise face à sa maquette : ce qui manque encore (02/11/2026 ; lots 1.256.0 et 1.257.0 faits)
+# La paie de l'entreprise face à sa maquette : ce qui manque encore (02/11/2026 ; lots 1.256.0, 1.257.0 et 1.258.0 faits)
 
 Remarque de Skander (02/11) : « tu as oublié encore beaucoup d'écrans, d'états, d'Ouvrir de la maquette paie de
 l'entreprise ». Relue état par état (les 37 « État ») et fenêtre par fenêtre (les 28 « Ouvrir ») de
@@ -61,9 +61,38 @@ soignée par rapport à ce que tu fais sur notre app. » Et : « devant chacun s
 | « Novembre : qui est absent » | Le minimum par équipe (« le fournil tient la nuit à deux ») dit avant d'accepter un congé | ✅ |
 
 Fenêtres reprises dans ce lot : renouveler un CDD (O15), une saisie sur salaire (O07), la case du pointage (O20),
-importer la pointeuse (O06), les jours sans badge (O26), remettre les bulletins (O03). Restent pour le lot suivant : O05
-(rappel), O08 (document), O17 (déclaration sans cabinet), O18/O19 (aperçus), O25 (correction), O27/O28 (téléphone) ;
-la retenue des retards et les heures de nuit (réglages à venir).
+importer la pointeuse (O06), les jours sans badge (O26), remettre les bulletins (O03), les anomalies de la pointeuse (O27).
+
+## Lot 1.258.0 — les fenêtres qui restaient, la journée validée, les retards et la nuit
+
+| Maquette | Ce qui manquait | État (1.258.0) |
+|---|---|---|
+| (demande de Skander, 02/11) | **Valider la journée** du jour, la rouvrir ; une case d'un jour validé refuse avec « Rouvrir la journée » | ✅ |
+| (décidé avec Skander, 02/11) | Le réglage « le mois se valide quand chaque journée l'est », éteint par défaut | remplacé en 1.259.0 par une seule règle |
+| O05 « Une augmentation qui compte depuis » | Le rappel : qui, + par mois, les mois payés, le rappel brut, porté sur le mois qui n'est pas payé | ✅ |
+| O08 « Un document pour un salarié » | « Pour », « Prêt », le numéro du document (né au document fait), « Imprimer » | ✅ |
+| O17 « Ta déclaration, la part paie » | Ce qu'elle reporte ligne par ligne, le total, le tableur | ✅ |
+| O18 « Bulletin de paie » (document) | « Pour », la liste des documents, « Prêt », « Imprimer », « Le remettre à … » | ✅ |
+| O19 « Journal de paie » (document) | Les documents du mois à côté, « Prêt », « Imprimer » ; la page en paysage | ✅ |
+| O25 « Demander une correction » | La ligne du bulletin, la règle « rien ne change sans que tu le voies » | ✅ (le nom du comptable n'est pas connu de l'application : « ton comptable ») |
+| O28 « Le mois », pendant le pointage | Le pointage du mois en lecture, ce qui reste à régler, les primes et retenues du mois | ✅ |
+| « Pointer une case » | La **retenue des retards** (réglage éteint par défaut, À VÉRIFIER) | ✅ |
+| « Les compteurs » | Les **heures de nuit** : la plage, la majoration (vides par défaut, À VÉRIFIER), comptées et payées | ✅ |
+
+Les 37 états et les 28 « Ouvrir » de la maquette sont dans l'application. Reste la planche maquette/app à publier.
 
 Tout ce qui touche à une règle de droit (préavis, indemnité, ancienneté, plafonds, nuit, fériés, absences particulières)
 reste un **réglage vide par défaut** et s'écrit « À VÉRIFIER ».
+
+## Lot 1.259.0 — la refonte du pointage (`docs/maquettes/pointage.html`)
+
+| Maquette | Ce qui manquait | État (1.259.0) |
+|---|---|---|
+| « La journée » | Un geste par salarié, ce que chaque choix fait au bulletin, valider / rouvrir, la bande de la semaine | ✅ |
+| « La journée », téléphone | Le nom touché ouvre les six choix en grand | ✅ |
+| « Le mois » | La relecture : période, fériés, journées validées, « Ce qui change », la grille à un clic | ✅ |
+| « À régler » | Une seule liste (anomalies, journées pas validées, demandes de congé), le chiffre sur l'onglet | ✅ |
+| « Valider le mois » | Une seule règle : après sa dernière journée, « À régler » vide | ✅ |
+| « Une absence sur plusieurs jours » | Plusieurs salariés d'un clic, le type, ce que ça fait pour chacun | ✅ |
+| « Les 4 questions » | Qui pointe, les jours, les retards, la nuit ; rien avant « C'est réglé » ; « Annuler » | ✅ |
+| Pointage par QR code | Noté au cadrage, pour plus tard | à venir |

@@ -101,6 +101,8 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
     const x = await monter();
     const p = await ouvrir(x);
     await p.locator('#p-tabs [data-tab="pointage"]').click();
+    // 1.259.0 : les primes du mois vivent dans « Le mois », l'onglet ouvre « La journée ».
+    await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('#pv-carte-ouvrir').click();
     const caseP = p.locator('#pv-t tr[data-pv="mt"] [data-pv-r="panier"]');
     await caseP.fill('45,575');

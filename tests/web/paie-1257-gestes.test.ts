@@ -91,6 +91,9 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
     const x = await monter();
     const p = await ouvrir(x);
     await p.locator('#p-tabs [data-tab="pointage"]').click();
+    // (1.259.0) La grille du mois : « Le mois », puis « Vue grille ».
+    await p.locator('[data-sous="pointage"]').click();
+    await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-grille').waitFor();
     const J = joursDeTravail(x.an, x.mo), d = J[5];
     const kase = (j: number) => p.locator(`#pt-grille tr[data-pe="nb"] .pt-c[data-pt="${j}"]`);
@@ -120,6 +123,9 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
     const x = await monter();
     const p = await ouvrir(x);
     await p.locator('#p-tabs [data-tab="pointage"]').click();
+    // (1.259.0) La grille du mois : « Le mois », puis « Vue grille ».
+    await p.locator('[data-sous="pointage"]').click();
+    await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-grille').waitFor();
     // Le mois dernier : la bande des mois y mène.
     await p.locator('#p-mois [data-ym="' + `${x.anA}-${String(x.moA).padStart(2, '0')}` + '"]').first().click().catch(async () => { await p.locator('#p-mois button').filter({ hasText: new RegExp(['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'][x.moA - 1] ?? '') }).first().click(); });
@@ -141,11 +147,11 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
       .filter((o) => o.collection === 'timesheets').map((o) => o.contenu).find((z) => z.employeeId === 'nb' && Number(z.month) === x.moA);
     await expect.poll(async () => Object.keys(((await tsK())?.badges as Record<string, unknown>) || {}).length).toBe(6);
     // L'anomalie : la sortie oubliée de Nadia, réglée d'un geste à la fin de son planning.
-    const ligne = p.locator('#pt-anomalies li').filter({ hasText: 'pas de sortie' });
+    const ligne = p.locator('#pt-aregler li').filter({ hasText: 'pas de sortie' }); // (1.259.0) dans « À régler »
     expect(espace(await ligne.innerText())).toContain(`Nadia, le ${String(J[2]).padStart(2, '0')}/${String(x.moA).padStart(2, '0')} : une entrée à 02:52, pas de sortie`);
     await ligne.getByRole('button', { name: 'Mettre la sortie à 11:00' }).click();
     await expect.poll(async () => ((await tsK())?.badges as Record<string, { sortieMain?: string }>)[String(J[2])]?.sortieMain).toBe('11:00');
-    await expect.poll(() => p.locator('#pt-anomalies').count()).toBe(0);
+    await expect.poll(() => p.locator('#pt-aregler').count()).toBe(0);
     // Valider : le mois est verrouillé, une case le refuse et dit comment le rouvrir.
     await p.locator('#pt-valider').click();
     await expect.poll(async () => ((await api('GET', `/entreprises/${x.ent}/dossier-v10`, x.j)).corps.objets as { collection: string }[]).filter((o) => o.collection === 'pointageVersions').length).toBe(1);
