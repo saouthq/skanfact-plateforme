@@ -70,7 +70,9 @@ describe('la paie : le bon à payer et la correction proposée', () => {
       if (variante === 'accepte' && e.id === 'hm') return { ...b, correction: { par: 'Anis', le: `${an}-${mm(mo)}-28T10:05:00Z`, reponse: 'acceptee', reponduLe: `${an}-${mm(mo)}-28T11:20:00Z` } };
       return b;
     });
-    const avant = S.filter((e) => e.id !== 'sa').map((e) => ({ ...bul(e, anA, moA, e.id === 'nb' ? 820 : e.grossSalary), paidDate: `${anA}-${mm(moA)}-28`, remisLe: `${anA}-${mm(moA)}-28` }));
+    const avant = S.filter((e) => e.id !== 'sa').map((e) => ({ ...bul(e, anA, moA, e.id === 'nb' ? 820 : e.grossSalary), paidDate: `${anA}-${mm(moA)}-28`, remisLe: `${anA}-${mm(moA)}-28`,
+      // (1.248.0) Une paie tenue a un cabinet : le mois d'avant est venu de lui (sans trace de cabinet, la paie se dit « seule »).
+      ...(variante === 'prepa' ? { pourAccordLe: `${anA}-${mm(moA)}-27`, bonAPayerLe: `${anA}-${mm(moA)}-28` } : {}) }));
     for (const e of S) await poser('employees', e.id, e);
     for (const b of [...ceMois, ...avant]) await poser('payslips', b.id, b);
     const d = (n: number) => new Date(Date.UTC(auj.getUTCFullYear(), auj.getUTCMonth(), auj.getUTCDate() + n)).toISOString().slice(0, 10);
@@ -120,12 +122,13 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(await p.locator('#p-body > #p-bap-b + #p-frise').count()).toBe(1);
     // Les contrôles : ce qui demande un geste d'abord, chacun nommé.
     const ko = (await p.locator('#p-ctrl li.ko b').allInnerTexts()).map(espace);
-    expect(ko).toEqual(['Une avance pas retenue', 'L\'entrée de Salma au prorata', 'N° CNSS de chaque salarié']);
-    expect(espace(await p.locator('#p-ctrl li.ko').first().innerText())).toContain('Hamza Mejri, Mourad Trabelsi');
+    // (1.248.0) Le jeu d'essai donne le même RIB et le même n° CNSS à tous : les deux contrôles des doublons le disent.
+    expect(ko).toEqual(['Pas deux salariés sur le même RIB', 'Une avance pas retenue', 'L\'entrée de Salma au prorata', 'N° CNSS de chaque salarié', 'Pas deux salariés sur le même n° CNSS']);
+    expect(espace(await p.locator('#p-ctrl li.ko').nth(1).innerText())).toContain('Hamza Mejri, Mourad Trabelsi');
     await p.locator('#p-ctrl-tout').click();
-    expect(await p.locator('#p-ctrl li').count()).toBe(9);
+    expect(await p.locator('#p-ctrl li').count()).toBe(11);
     // Tout voir garde l'ordre : ceux qui demandent un geste d'abord.
-    expect(await p.locator('#p-ctrl li').evaluateAll((l) => l.map((x) => x.className))).toEqual(['ko', 'ko', 'ko', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok']);
+    expect(await p.locator('#p-ctrl li').evaluateAll((l) => l.map((x) => x.className))).toEqual(['ko', 'ko', 'ko', 'ko', 'ko', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok']);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-bon-a-payer.png'), fullPage: true });
     // Approuver : le serveur garde la date sur chaque bulletin ; « Payer » revient.
     await p.locator('#p-bap').click();

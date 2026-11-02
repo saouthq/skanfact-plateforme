@@ -18509,7 +18509,7 @@ prouver '« Envoyer au comptable » en geste principal quand le cabinet lit déj
   $'<button class="btn${messagerieVue && messagerieVue.cabinet ? \'\' : \' btn-primary\'}" id="exp-comptable">' $'<button class="btn btn-primary" id="exp-comptable">' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
 prouver 'la Comptabilité qui ne se redessine pas quand elle apprend le cabinet' web/public/v10/app.js \
-  $'if (/^#\\/compta/.test(location.hash) && !$(\'#modal-root .modal\')' $'if (false && !$(\'#modal-root .modal\')' \
+  $'if (/^#\\/(compta|paie)/.test(location.hash) && !$(\'#modal-root .modal\')' $'if (false && !$(\'#modal-root .modal\')' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
 prouver 'la fenêtre d'\''envoi au comptable qui dit le CSV joint' web/public/v10/app.js \
   $'${bridge.dessinerMandat ? \'Le journal des ventes se télécharge' $'${false ? \'Le journal des ventes se télécharge' \
@@ -22435,6 +22435,22 @@ prouver "paie 1.247 b : la Paie tait le virement revenu" web/public/v10/cabinet/
     if (!R.length) return '';" "    const R = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe);
     if (R.length >= 0) return '';" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+
+prouver "paie 1.248 a : le salarié sorti en cours de mois n'a pas de bulletin" web/public/v10/core.js \
+  "(!e.endDate || e.endDate >= first) && !done.has(e.id)" "(!e.endDate || e.endDate >= last) && !done.has(e.id)" \
+  "un CDD qui finit le 20 a son bulletin du mois, au prorata ; un salarié sorti avant le mois n'en a pas"
+prouver "paie 1.248 b : un mois sans mois d'avant se dit « juste » sur les écarts" web/public/v10/core.js \
+  "    if (Object.keys(avant).length) add('ecarts', true," "    if (true) add('ecarts', true," \
+  "un CDD qui finit le 20 a son bulletin du mois, au prorata ; un salarié sorti avant le mois n'en a pas"
+prouver "paie 1.248 c : deux salariés sur le même RIB passent" web/public/v10/core.js \
+  "    const doubles = Object.values(parRib).filter(l => l.length > 1);" "    const doubles = Object.values(parRib).filter(l => l.length > 9);" \
+  "deux salariés sur le même RIB (virement) ou le même n° CNSS : le contrôle le dit ; les espèces ne comptent pas"
+prouver "paie 1.248 d : le même n° CNSS écrit avec un tiret passe" web/public/v10/core.js \
+  "const c = String(x.employee.cnss || '').replace(/[\s-]/g, '');" "const c = String(x.employee.cnss || '').replace(/\s/g, '');" \
+  "deux salariés sur le même RIB (virement) ou le même n° CNSS : le contrôle le dit ; les espèces ne comptent pas"
+prouver "paie 1.248 e : l'écart d'une sortie se dit « brut changé »" web/public/v10/core.js \
+  "pq.push(sortie ? " "pq.push(false ? " \
+  "l'écart avec le mois d'avant d'une sortie se dit « sortie le … »"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

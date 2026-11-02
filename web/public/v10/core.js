@@ -4051,8 +4051,10 @@
 
   function missingPayslips(data, year, month) {
     const done = new Set((data.payslips || []).filter(p => Number(p.year) === Number(year) && Number(p.month) === Number(month)).map(p => p.employeeId));
-    const last = addDays(`${year}-${String(month).padStart(2, '0')}-01`, daysInMonth(year, month) - 1);
-    return activeEmployees(data, last).filter(e => !done.has(e.id));
+    const first = `${year}-${String(month).padStart(2, '0')}-01`, last = addDays(first, daysInMonth(year, month) - 1);
+    // (1.248.0) En poste UN jour du mois suffit, comme au Cabinet : un CDD qui finit le 20 a son bulletin du 1er au 20
+    // (au prorata). La règle lisait le dernier jour du mois : le salarié sorti en cours de mois n'avait aucun bulletin.
+    return (data.employees || []).filter(e => (!e.hireDate || e.hireDate <= last) && (!e.endDate || e.endDate >= first) && !done.has(e.id));
   }
 
   // Les années que la Paie propose (10.14.1) : celles qui portent des bulletins, l'année en cours, ET
@@ -4116,7 +4118,8 @@
     const bap = !!(opts && opts.bap), aApprouver = L.filter(x => !x.paidDate && !x.bonAPayerLe).length;
     const corrige = L.filter(x => x.correction && !x.correction.reponse && !x.paidDate).length;
     const etapes = [
-      { titre: 'Pointer', fait: L.length > 0, dit: pointe ? 'le mois est pointé' : 'facultatif : absences et heures sup' },
+      // (1.248.0) Passée sans pointage, l'étape ne se dit pas « pointée » : elle dit ce qui a servi (recette du 02/11).
+      { titre: 'Pointer', fait: L.length > 0, dit: pointe ? 'le mois est pointé' : L.length ? 'sauté : chacun payé au mois complet' : 'facultatif : absences et heures sup' },
       // (plateforme) 1.227.0 — le bon à payer et la correction proposée se lisent sur l'étape des bulletins (la maquette) :
       // établis ne suffit plus quand le cabinet tient la paie, il faut aussi ton accord ; une correction en attente se dit.
       { titre: 'Bulletins', fait: n > 0 && !manque.length && !corrige && (!bap || !aApprouver), dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établis`
@@ -4159,13 +4162,22 @@
     const ecarts = L.filter(x => avant[x.employeeId] && Math.abs(x.c.net - avant[x.employeeId].c.net) >= 0.0005).map(x => {
       const a = avant[x.employeeId], d = round3(x.c.net - a.c.net), pq = [];
       if ((Number(x.absentDays) || 0) !== (Number(a.absentDays) || 0)) pq.push(`${Number(x.absentDays) || 0} j d'absence`);
-      if (round3(x.gross) !== round3(a.gross)) pq.push('brut changé');
+      // (1.248.0) Le brut d'un mois d'entrée ou de sortie change par le prorata : on dit pourquoi, pas « brut changé ».
+      const sortie = x.employee.endDate && x.employee.endDate >= debut && x.employee.endDate < fin, entree = x.employee.hireDate && x.employee.hireDate > debut && x.employee.hireDate <= fin;
+      if (round3(x.gross) !== round3(a.gross)) pq.push(sortie ? `sortie le ${fmtDate(x.employee.endDate)}` : entree ? `entrée le ${fmtDate(x.employee.hireDate)}` : 'brut changé');
       const prime = l => round3((l || []).reduce((s, b) => s + (Number(b.amount) || 0), 0));
       if (prime(x.bonuses) !== prime(a.bonuses)) pq.push('primes');
       if (prime(x.deductions) !== prime(a.deductions)) pq.push('retenues');
       return `${x.employeeName.split(/\s+/)[0]} ${d > 0 ? '+' : '−'} ${money(Math.abs(d), (data.company || {}).currency || 'TND').replace(/\s*(DT|TND)$/, '')}${pq.length ? ` : ${pq.join(', ')}` : ''}`;
     });
-    add('ecarts', true, `Écarts sur ${MOIS_PAIE[ma - 1]}`, ecarts.length ? ecarts.slice(0, 3).join(' · ') + (ecarts.length > 3 ? ' …' : '') : 'aucun : les nets sont les mêmes');
+    // (1.248.0) Sans bulletin le mois d'avant, il n'y a rien à comparer : le contrôle ne se dit pas « juste » (recette du 02/11).
+    if (Object.keys(avant).length) add('ecarts', true, `Écarts sur ${MOIS_PAIE[ma - 1]}`, ecarts.length ? ecarts.slice(0, 3).join(' · ') + (ecarts.length > 3 ? ' …' : '') : 'aucun : les nets sont les mêmes');
+    // (1.248.0) Un même RIB pour deux salariés payés par virement : une erreur de saisie, ou un virement détourné.
+    const parRib = {};
+    L.forEach(x => { const e = (data.employees || []).find(z => z.id === x.employeeId) || {}; const r = String(e.iban || '').replace(/\s/g, '');
+      if (r && (x.method || e.method) !== 'especes') (parRib[r] = parRib[r] || []).push(x.employeeName); });
+    const doubles = Object.values(parRib).filter(l => l.length > 1);
+    add('rib-double', !doubles.length, 'Pas deux salariés sur le même RIB', doubles.length ? doubles.map(l => `${noms(l)} : le même RIB`).join(' · ') + ' ; à vérifier avant de payer' : '');
     if ((data.timesheets || []).some(ts => Number(ts.year) === y && Number(ts.month) === m)) {
       const ecart = L.filter(x => { const r = pointageSurBulletin(data, x); return r && (Number(r.absentDays) || 0) !== (Number(x.absentDays) || 0); });
       add('pointage', !ecart.length, 'Le pointage repris sur chaque bulletin', ecart.length ? `${noms(ecart.map(x => x.employeeName))} : le bulletin ne suit pas le pointage` : '');
@@ -4176,6 +4188,10 @@
       if (ici) avRetenu.push(x.employeeName.split(/\s+/)[0]); else if (!a.done) avOublie.push(x.employeeName);
     }));
     if (avOublie.length || avRetenu.length) add('avances', !avOublie.length, avOublie.length ? 'Une avance pas retenue' : 'Les avances retenues', avOublie.length ? `${noms(avOublie)} : rien retenu ce mois alors qu'il reste à rendre` : noms(avRetenu));
+    // (1.248.0) Une sortie dans le mois se proratise aussi : un mois plein payé à qui part le 20 se voit ici.
+    const sortis = L.filter(x => x.employee.endDate && x.employee.endDate >= debut && x.employee.endDate < fin);
+    const sortiPlein = sortis.filter(x => !x.prorata && round3(x.gross) >= round3(Number(x.employee.grossSalary) || 0));
+    if (sortis.length) add('prorata-sortie', !sortiPlein.length, sortis.length > 1 ? 'Les sorties du mois au prorata' : `La sortie de ${sortis[0].employeeName.split(/\s+/)[0]} au prorata`, sortiPlein.length ? `${noms(sortiPlein.map(x => x.employeeName))} : payé au mois plein, sorti le ${fmtDate(sortiPlein[0].employee.endDate)}` : `jusqu'au ${fmtDate(sortis[0].employee.endDate)}${sortis.length > 1 ? ' …' : ''}`);
     const entres = L.filter(x => x.employee.hireDate && x.employee.hireDate > debut && x.employee.hireDate <= fin);
     if (entres.length) {
       const plein = entres.filter(x => !x.prorata && round3(x.gross) >= round3(Number(x.employee.grossSalary) || 0));
@@ -4187,6 +4203,11 @@
     add('contrats', true, 'Contrats en cours', cdd.length ? cdd.map(x => `le CDD de ${x.employeeName.split(/\s+/)[0]} finit le ${fmtDate(x.employee.endDate)}`).join(' · ') : 'aucun contrat ne finit dans les deux mois');
     const sansCnss = L.filter(x => !String(x.employee.cnss || '').trim());
     add('cnss', !sansCnss.length, 'N° CNSS de chaque salarié', sansCnss.length ? `${noms(sansCnss.map(x => x.employeeName))} : à demander, avant la déclaration du trimestre` : '');
+    // (1.248.0) Un même n° CNSS sur deux salariés : la déclaration du trimestre mettrait leurs salaires sur une seule personne.
+    const parCnss = {};
+    L.forEach(x => { const c = String(x.employee.cnss || '').replace(/[\s-]/g, ''); if (c) (parCnss[c] = parCnss[c] || []).push(x.employeeName); });
+    const cnssDoubles = Object.values(parCnss).filter(l => l.length > 1);
+    if (cnssDoubles.length) add('cnss-double', false, 'Pas deux salariés sur le même n° CNSS', cnssDoubles.map(l => `${noms(l)} : le même n°`).join(' · ') + ' ; à corriger avant la déclaration du trimestre');
     const sansRib = L.filter(x => x.method !== 'especes' && !String(x.employee.iban || '').trim());
     const especes = L.filter(x => x.method === 'especes');
     add('rib', !sansRib.length, 'RIB de chaque salarié payé par virement', sansRib.length ? `${noms(sansRib.map(x => x.employeeName))} : à demander` : especes.length ? `${noms(especes.map(x => x.employeeName.split(/\s+/)[0]))} payé${especes.length > 1 ? 's' : ''} en espèces, contre reçu` : '');

@@ -2257,6 +2257,10 @@
   // (1.115.0) Elle vit dans le pied de la barre, qui ne défile jamais (index.html) : en bas du menu, elle était hors de
   // l'écran à l'ouverture (revue du 22/10/2026).
   const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));
+  // (1.248.0) Le serveur a dit qu'aucun cabinet n'est relié (null : pas encore lu, ou pas pour ce rôle : on ne sait pas).
+  // Alors la paie se fait seule, quel que soit le mode écrit avant (recette du 02/11 : « faites par ton cabinet » sans cabinet).
+  // Un bulletin envoyé ou corrigé par un cabinet prouve qu'il a tenu la paie : son circuit (le bon à payer) reste en place.
+  const sansCabinetRelie = () => !!(messagerieVue && !messagerieVue.cabinet) && !((data && data.payslips) || []).some(p => p.pourAccordLe || p.correction);
   function majMessagerie(a) {
     const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
     messagerieVue = a;
@@ -2271,7 +2275,7 @@
       && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
-      if (/^#\/compta/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
+      if (/^#\/(compta|paie)/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
       const lien = $('#foot-comptable');
       if (lien) lien.hidden = !avecMessagerie(a);
     }
@@ -3260,7 +3264,8 @@
   // « non enregistré ») : ce que la fenêtre porte dans sa barre de titre.
   function texteDeTitre(el) {
     const lire = n => n.nodeType === 3 ? n.data
-      : (n.nodeType === 1 && n.tagName !== 'BUTTON' && !n.classList.contains('dirty-dot') && n.getClientRects().length ? Array.from(n.childNodes).map(lire).join('') : '');
+      // (1.248.0) Sans ce qui est décoratif (aria-hidden : les initiales d'un avatar) : l'onglet disait « KRKarim Riahi ».
+      : (n.nodeType === 1 && n.tagName !== 'BUTTON' && !n.classList.contains('dirty-dot') && n.getAttribute('aria-hidden') !== 'true' && n.getClientRects().length ? Array.from(n.childNodes).map(lire).join('') : '');
     return Array.from(el.childNodes).map(lire).join('').replace(/\s+/g, ' ').trim();
   }
   // Titre de la fenêtre : on voit dans le Dock et dans « Fenêtre » ce qui est ouvert
@@ -17976,7 +17981,7 @@
   // tenait (les cases, le jour, le compte), quand elle se rouvre après la fiche d'un salarié ou d'un compte.
   // (plateforme) 1.227.0 — quand le cabinet tient la paie (un choix écrit, valable pour ce mois), un bulletin se paie après
   // le bon à payer de l'entreprise : la fenêtre ne propose que les bulletins approuvés, et dit pourquoi les autres manquent.
-  const bapExige = (y, m) => { const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return (co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || '')) === 'tenue'; };
+  const bapExige = (y, m) => { if (sansCabinetRelie()) return false; const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return (co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || '')) === 'tenue'; };
   function payerSalairesFenetre(year, month, done, garde) {
     const tous = C.salairesAPayer(data, year, month);
     const lignes = bapExige(year, month) ? tous.filter(l => (payslipById(l.id) || {}).bonAPayerLe) : tous;
@@ -17990,18 +17995,20 @@
     const compteVu = g.accountId || (parDefaut && parDefaut.id) || '';
     const periode = `${MONTHS_LONG[month - 1]} ${year}`;
     const modeDe = v => (C.PAYMENT_METHODS.find(x => x[0] === v) || [, v])[1];
+    const ribNu = l => String(l.rib || '').replace(/\s/g, '');
+    const ribDouble = l => l.mode === 'virement' && ribNu(l) && lignes.filter(x => x.mode === 'virement' && ribNu(x) === ribNu(l)).length > 1;
     modal(`<h2>Payer les salaires ${h(window.SkanCompta.deMois(periode))} ${info('pay.payerMois')}</h2>
       <p class="small muted mb">Les bulletins du mois qui ne sont pas encore payés. Coche ceux que tu paies : « Marquer payés » les sort de la trésorerie au jour choisi, et l'ordre de virement se remet à ta banque. SkanFact ne fait aucun virement à ta place.</p>
       <form id="ps" class="grid-2">
         ${dateFieldHtml(lbl('Payés le', 'pay.paid'), 'date', g.date || C.today(), {})}
-        <label class="field">${lbl('Depuis le compte', 'pay.account')}<select name="accountId">${comptes.length ? '' : '<option value="">— compte par défaut —</option>'}${comptes.map(a => `<option value="${h(a.id)}" ${compteVu === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Depuis le compte', 'pay.account')}<select name="accountId">${comptes.length ? '' : '<option value="">aucun compte créé</option>'}${comptes.map(a => `<option value="${h(a.id)}" ${compteVu === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
       </form>
       ${/* (plateforme) 1.234.0 — la fenêtre comme sa maquette : « Comment » (le mode, le RIB masqué et contrôlé), le détail
            des virements et des espèces au pied, le montant sur le bouton. */''}
       <div class="scroll-x"><table class="list compact pa-liste" id="ps-table"><thead><tr><th class="nw"><input type="checkbox" id="ps-tous" aria-label="Tout cocher"></th><th>Salarié</th><th>Comment</th><th class="r">Net à verser</th></tr></thead><tbody>
         ${lignes.map(l => `<tr data-ps="${h(l.id)}"><td><input type="checkbox" data-ps-c="${h(l.id)}" aria-label="Payer ${h(l.name)}" ${coches.has(l.id) ? 'checked' : ''}></td>
           <td><b>${h(l.name)}</b></td>
-          <td class="ps-comment"><span class="${l.mode === 'virement' ? '' : 'ambre-t'}">${h(modeDe(l.mode).toLowerCase())}${l.mode === 'especes' ? ', contre reçu' : ''}</span>${l.rib ? `<small class="mono">··· ${h(String(l.rib).replace(/\s/g, '').slice(-4))}${l.manque ? '' : ' · contrôlé'}</small>` : ''}${l.manque ? `<small><button type="button" class="montant-lien warn-text small" data-ps-rib="${h(l.employeeId)}">${l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'}</button></small>` : ''}${l.raison ? `<small class="warn-text">${h(l.raison)}</small>` : ''}</td>
+          <td class="ps-comment"><span class="${l.mode === 'virement' ? '' : 'ambre-t'}">${h(modeDe(l.mode).toLowerCase())}${l.mode === 'especes' ? ', contre reçu' : ''}</span>${l.rib ? `<small class="mono">··· ${h(String(l.rib).replace(/\s/g, '').slice(-4))}${l.manque || ribDouble(l) ? '' : ' · contrôlé'}</small>` : ''}${!l.manque && ribDouble(l) ? '<small class="warn-text">le même RIB qu\'un autre salarié</small>' : ''}${l.manque ? `<small><button type="button" class="montant-lien warn-text small" data-ps-rib="${h(l.employeeId)}">${l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'}</button></small>` : ''}${l.raison ? `<small class="warn-text">${h(l.raison)}</small>` : ''}</td>
           <td class="r nw">${C.money(l.net, '')}</td></tr>`).join('')}</tbody>
         <tfoot><tr class="total-row"><td></td><td id="ps-compte"></td><td id="ps-detail" class="small"></td><td class="r nw"><strong id="ps-total"></strong></td></tr></tfoot></table></div>
       <div id="ps-avert" class="mt"></div>
@@ -18032,6 +18039,13 @@
         if (sansNom) motifs.push(`<div class="ctrl-geste" id="ps-societe"><span>Le nom de ta société n'est pas sur ta fiche : l'ordre de virement ne dirait pas qui l'envoie.</span><button type="button" class="btn btn-sm" id="ps-societe-go">Renseigner ta fiche…</button></div>`);
         // (plateforme) 1.80.0 — chaque salarié au RIB manquant a son bouton, nommé (le seul bouton du cadre ouvrait le compte).
         if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span>${horsOrdre.filter(l => l.mode === 'virement' && l.manque).map(l => `<button type="button" class="btn btn-sm" data-ps-rib-cadre="${h(l.employeeId)}">${l.manque === 'rib' ? 'Renseigner' : 'Corriger'} le RIB de ${h(l.name)}…</button>`).join('')}</div>`);
+        // (1.248.0) Deux salariés au même RIB : l'ordre enverrait deux salaires sur un seul compte (recette du 02/11 : chaque
+        // ligne disait « contrôlé », le contrôle ne lisait que la clé du RIB).
+        const parRib = {};
+        lignes.filter(l => l.mode === 'virement' && l.rib && !l.manque).forEach(l => { const r = String(l.rib).replace(/\s/g, ''); (parRib[r] = parRib[r] || []).push(l); });
+        Object.values(parRib).filter(l => l.length > 1).forEach(l => motifs.push(`<div class="ctrl-geste" data-ps-double><span>${l.map(x => `<b>${h(x.name)}</b>`).join(', ')} ont le même RIB (··· ${h(String(l[0].rib).replace(/\s/g, '').slice(-4))}) : vérifie leurs fiches avant de remettre l'ordre.</span></div>`));
+        // (1.248.0) Sans compte de trésorerie, « — compte par défaut — » ne disait rien : on dit ce qui manque, et le bouton.
+        if (!comptes.length) motifs.push(`<div class="ctrl-geste" id="ps-sans-compte"><span>Aucun compte de banque n'est créé : l'ordre ne dira pas quel compte débiter, et la trésorerie ne saura pas d'où sort l'argent.</span><button type="button" class="btn btn-sm" id="ps-creer-compte">Créer le compte de ta banque…</button></div>`);
         if (compte && compte.kind === 'caisse') motifs.push(`<div class="ctrl-geste" id="ps-caisse"><span>« ${h(compte.name)} » est une caisse : un ordre de virement se donne à une banque.</span></div>`);
         else if (compte && !String(compte.rib || '').trim()) motifs.push(`<div class="ctrl-geste" id="ps-compte-rib"><span>Le compte « ${h(compte.name)} » n'a pas de RIB : l'ordre ne dira pas quel compte débiter.</span><button type="button" class="btn btn-sm" id="ps-compte-go">Renseigner le RIB du compte…</button></div>`);
         $('#ps-avert', root).innerHTML = motifs.length ? `<div class="warn-box">${motifs.join('')}</div>` : '';
@@ -18039,6 +18053,8 @@
         if (so) so.onclick = () => { close(); allerParametres('societe', 'p-identite:name'); };
         // Le bouton du cadre fait le geste de la pastille du tableau (la fiche du salarié, puis la fenêtre comme on l'a laissée).
         $$('[data-ps-rib-cadre]', root).forEach(b => { b.onclick = () => { const p = $$('[data-ps-rib]', root).find(x => x.dataset.psRib === b.dataset.psRibCadre); if (p) p.click(); }; });
+        const cc = $('#ps-creer-compte', root);
+        if (cc) cc.onclick = () => { const t = tenu(); close(); accountForm(null, () => payerSalairesFenetre(year, month, done, t)); };
         const go = $('#ps-compte-go', root);
         if (go) go.onclick = () => { const t = tenu(); close(); accountForm(compte, () => payerSalairesFenetre(year, month, done, t), null, { focus: 'rib' }); };
         const ordre = $('#ps-ordre', root);
@@ -18306,6 +18322,51 @@
 
   // Générer un document du personnel : on montre ce qu'il contiendra avant de produire le PDF.
   // (plateforme) 1.72.0 — rouverte après une fiche renseignée (la civilité, la sortie), elle reprend le document choisi.
+  // (1.248.0) Renouveler un CDD : la décision elle-même (prolonger jusqu'à une date, ou passer en CDI), puis l'avenant à
+  // signer. « Renouveler son contrat… » ouvrait toute la fiche « Modifier le salarié » (recette du 02/11) : on y cherchait
+  // la case, rien ne disait ce qu'un renouvellement change, et l'avenant ne venait pas.
+  function renouvelerCdd(e, done) {
+    if (!e || e.contract !== 'cdd') return;
+    const fin = e.endDate || C.today();
+    const propose = C.addMonths(fin, 12);
+    const ans = e.hireDate ? Math.floor((Date.parse(fin) - Date.parse(e.hireDate)) / (365.25 * 864e5) * 10) / 10 : 0;
+    modal(`<h2>Renouveler le contrat de ${h(e.name || '')}</h2>
+      <p class="small muted">Son CDD finit le <b>${C.fmtDate(fin)}</b>${e.hireDate ? `, en CDD depuis le ${C.fmtDate(e.hireDate)} (${String(ans).replace('.', ',')} an${ans >= 2 ? 's' : ''})` : ''}. Choisis la suite ; l'avenant à signer se prépare ensuite.</p>
+      <form id="rc" class="pa-choix">
+        <label class="pa-choix-l"><input type="radio" name="suite" value="cdd" checked> <span><b>Prolonger le CDD</b><small>une nouvelle date de fin</small></span></label>
+        <div id="rc-date">${dateFieldHtml(lbl('Nouvelle date de fin', 'emp.end'), 'endDate', propose, {})}</div>
+        <label class="pa-choix-l"><input type="radio" name="suite" value="cdi"> <span><b>Passer en CDI</b><small>à partir du ${C.fmtDate(C.addDays(fin, 1))}, sans date de fin</small></span></label>
+      </form>
+      <p class="small muted mt"><em>À VÉRIFIER avec ton comptable : la durée totale permise d'un CDD et le nombre de renouvellements (Code du travail).</em></p>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="rc-ok">Renouveler et préparer l'avenant</button></div>`,
+    (root, close) => {
+      const suite = () => ($('[name=suite]:checked', root) || {}).value;
+      $$('[name=suite]', root).forEach(r => r.onchange = () => { $('#rc-date', root).hidden = suite() !== 'cdd'; });
+      $('#rc-ok', root).onclick = () => {
+        const x = employeeById(e.id); if (!x) return close();
+        if (suite() === 'cdd') {
+          const d = formValues($('#rc', root)).endDate;
+          if (!d || d <= fin) { const f = $('[name=endDate]', root); toast(`La nouvelle date de fin doit venir après le ${C.fmtDate(fin)}.`, true); if (f) f.focus(); return; }
+          x.endDate = d;
+        } else { x.contract = 'cdi'; x.endDate = ''; }
+        // Le bulletin du mois de l'ancienne fin, établi au prorata de la sortie : pas encore payé, il se refait au mois
+        // complet (ses primes et retenues gardées) ; payé, il se régularise (recette du 02/11 : il restait à 18 j sur 26).
+        const ymFin = fin.slice(0, 7);
+        const touche = (data.payslips || []).filter(p => p.employeeId === x.id && ymDe(p.year, p.month) === ymFin && p.prorata);
+        let refait = '', paye = '';
+        touche.forEach(p => {
+          if (p.paidDate) { paye = MONTHS_LONG[Number(p.month) - 1]; return; }
+          const f = C.payslipInputFor(data, x, Number(p.year), Number(p.month));
+          p.gross = f.gross; p.workedDays = f.workedDays; p.prorata = f.prorata || null;
+          recalculerBulletin(p, x); refait = MONTHS_LONG[Number(p.month) - 1];
+        });
+        save(true); close();
+        toast(`${suite() === 'cdd' ? `CDD de ${x.name} prolongé jusqu'au ${C.fmtDate(x.endDate)}` : `${x.name} passe en CDI`}${refait ? ` ; son bulletin de ${refait} refait au mois complet` : ''}${paye ? ` ; son bulletin de ${paye}, déjà payé au prorata, se régularise depuis son menu` : ''}`);
+        if (done) done();
+        hrDocForm(x, done, 'avenant');
+      };
+    });
+  }
   function hrDocForm(employee, done, kindDemande) {
     const e = employee;
     const cur = company().currency;
@@ -18481,13 +18542,17 @@
           : !miss.length && aApprouver.length ? `<button class="btn btn-primary" id="p-bap">${lfIc('coche', 15, 2.4)} ${aApprouver.length > 1 ? `J'approuve les ${aApprouver.length} bulletins` : 'J\u2019approuve le bulletin'}</button>`
           : miss.length ? `<button class="btn btn-primary" id="p-gen">${lfIc('croix', 15, 2.4)} ${miss.length > 1 ? `Établir les ${miss.length} bulletins` : 'Établir le bulletin'}</button>`
           : aPayer.length ? `<button class="btn btn-primary" id="p-payer">${lfIc('carte', 15)} Payer les salaires · ${C.money(C.round3(aPayer.reduce((a, x) => a + x.c.net, 0)), cur)}</button>`
-            : aRemettre.length ? `<button class="btn btn-primary" id="p-remettre">${lfIc('envoi', 15)} ${aRemettre.length > 1 ? `Remettre les ${aRemettre.length} bulletins` : 'Remettre le bulletin'}</button>` : '';
+            : aRemettre.length ? `<button class="btn btn-primary" id="p-remettre">${lfIc('envoi', 15)} ${aRemettre.length > 1 ? `Remettre les ${aRemettre.length} bulletins` : 'Remettre le bulletin'}</button>`
+              // (1.248.0) Tout remis : l'étape suivante est « Déclarer » (la frise la montre en cours) ; le bouton y mène
+              // (recette du 02/11 : plus aucun bouton principal, la frise disait l'étape sans geste).
+              : mo.length && !(data.socialFilings || []).some(f => f.id === `cnss-${y}-T${Math.ceil(m / 3)}`) ? `<button class="btn btn-primary" id="p-declarer">${lfIc('pages', 15)} Préparer les déclarations</button>` : '';
       } else if (P_ACTION[s.tab]) prin = `<button class="btn btn-primary" id="${P_ACTION[s.tab][0]}">${lfIc('croix', 15, 2.4)} ${P_ACTION[s.tab][1]}</button>`;
       // (plateforme) 1.232.0 — un geste qu'on ne peut pas faire ne s'offre pas (docs/revue-paie.md, P4) : en lecture, aucun
       // bouton principal ; sans réseau, il se voit mais attend, et dit pourquoi (P5 : la paie reste en ligne, docs/hors-ligne.md).
       if (prin && enLecture('payslips')) prin = '';
       if (prin && navigator.onLine === false) prin = prin.replace('<button class="btn btn-primary"', '<button class="btn btn-primary" disabled title="Pas de réseau : ce geste passe par le serveur, il attend la connexion"');
-      const qui = { tenue: 'tenue par ton cabinet', seule: 'tu la fais, ton cabinet la vérifie', sans: 'tu la fais seul' }[modeDuMois(y, m)];
+      // (1.248.0) « ton cabinet » seulement quand un cabinet est relié (recette du 02/11 : la phrase le disait sans cabinet).
+      const qui = !sansCabinetRelie() ? { tenue: 'tenue par ton cabinet', seule: 'tu la fais, ton cabinet la vérifie', sans: 'tu la fais seul' }[modeDuMois(y, m)] : 'tu la fais seul · aucun cabinet relié';
       // (plateforme) 1.234.0 — le sous-titre de la maquette : l'effectif, qui tient la paie, le jour. Le même sur chaque vue.
       const jour = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
       const sous = data.employees.length ? `${pl(enPoste, 'salarié')}${qui ? ` · ${qui}` : ''} · ${jour}` : 'Tes salariés, leurs bulletins, ce que la paie te coûte';
@@ -18505,13 +18570,13 @@
       ['sans', 'Je la fais seul, sans cabinet', 'SkanFact contrôle tes bulletins ; tu déclares toi-même (déclaration du mois, fichier CNSS)']];
     // (plateforme) 1.227.0 — le mode qui vaut pour UN mois : le choix compte à partir de `paieModeDes`, avant c'est l'ancien.
     // Le bon à payer n'existe que si l'entreprise a dit que son cabinet tient la paie (un choix écrit, jamais déduit).
-    const modeDuMois = (y, m) => { const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || ''); };
+    const modeDuMois = (y, m) => { if (sansCabinetRelie()) return 'sans'; const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || ''); };
     const bapDuMois = (y, m) => bapExige(y, m);
     // (plateforme) 1.235.0 — le bon à payer attend l'envoi du cabinet (docs/revue-paie-cabinet.md, P1) : un bulletin qu'il
     // prépare encore (sans `pourAccordLe`) ne s'approuve pas ; ceux qu'il a envoyés, oui. Un bulletin validé au cabinet est figé.
     const aApprouverDe = (mo, y, m) => (bapDuMois(y, m) ? mo.filter(x => !x.paidDate && !x.bonAPayerLe && x.pourAccordLe) : []);
     const enPreparationDe = (mo, y, m) => (bapDuMois(y, m) ? mo.filter(x => !x.paidDate && !x.bonAPayerLe && !x.pourAccordLe) : []);
-    const paieMode = () => { const co = company(); return co.paieMode && PAIE_MODES.some(x => x[0] === co.paieMode) ? co.paieMode : (co.cabinet && co.cabinet.publicKey ? 'tenue' : 'sans'); };
+    const paieMode = () => { if (sansCabinetRelie()) return 'sans'; const co = company(); return co.paieMode && PAIE_MODES.some(x => x[0] === co.paieMode) ? co.paieMode : (co.cabinet && co.cabinet.publicKey ? 'tenue' : 'sans'); };
     function quiFaitLaPaie() {
       const avant = paieMode();
       const des = C.addMonths(C.today().slice(0, 7) + '-01', 1, 1).slice(0, 7);
@@ -18750,13 +18815,13 @@
           </tbody></table></div>
           <p class="small muted mt">Un bulletin marqué payé sort l'argent tout seul dans la <a href="#/tresorerie">trésorerie</a> : ne saisis pas en plus un mouvement « Salaires », il compterait deux fois.</p>`
             : `<div class="empty" id="p-vide">${missing.length
-              ? `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)}. ${missing.length > 1
-                ? 'Le bouton en haut les établit d\'un coup, au brut et aux primes de chaque fiche.'
-                : 'Le bouton en haut l\'établit, au brut et aux primes de la fiche du salarié.'}`
+              ? `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : ${pl(missing.length, 'salarié')} à payer ce mois-là.${enLecture('payslips') ? ''
+                : `<div class="mt"><button class="btn" id="p-gen-vide">Établir ${missing.length > 1 ? `les ${missing.length} bulletins` : 'le bulletin'}</button></div>`}`
               : `Aucun salarié en poste en ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : il n'y a pas de bulletin à établir ce mois-là.${ailleurs
                 ? `<div class="mt"><button class="btn btn-primary" id="p-vers-mois">Voir ${h(MONTHS_LONG[ailleurs.month - 1])} ${ailleurs.year}</button></div>` : ''}`}</div>`}
         </section>`;
       if ($('#p-2026-voir')) $('#p-2026-voir').onclick = () => { const t = $('#p-tabs button[data-tab="baremes"]'); if (t) t.click(); };
+      if ($('#p-gen-vide')) $('#p-gen-vide').onclick = () => etablirBulletins();
       if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp2 = C.moisDePaie(data); s.year = String(mp2.year); s.month = String(mp2.month); s.moisTouche = true; draw(); };
       if ($('#p-journal')) $('#p-journal').onclick = () => journalDePaieFenetre(y, m);
       lierBandeauxDuMois(month, y, m);
@@ -18814,7 +18879,23 @@
       if (!missing.length) return;
       // Les contrôles AVANT la grande question (règle 7.6.0).
       if (licenceBlock('Créer les bulletins du mois', 'paie')) return;
-      if (!await confirmDialog(`Établir ${pl(missing.length, 'bulletin')} pour ${MONTHS_LONG[m - 1]} ${s.year} ?\n\nLe brut vient de chaque fiche (proratisé pour une entrée ou une sortie en cours de mois), les absences non payées (celles du pointage quand le mois est pointé) et les échéances d'avance sont reprises automatiquement, avec les heures supplémentaires pointées. Les primes posées sur chaque fiche sont reprises (au prorata des jours payés pour une prime au jour) ; tu pourras encore en ajouter, bulletin par bulletin. Rien n'est payé : c'est toi qui marques chaque bulletin comme réglé.`, 'Établir', false)) return;
+      // (1.248.0) La question montre CE qui va s'établir (recette du 02/11 : un mur de texte, aucun nom ni montant) :
+      // chaque salarié, son brut et son net du mois, puis ce qui est repris, en une ligne.
+      const stA = C.payrollSettings(data);
+      const apercu = missing.map(e => { const c = C.computePayslip(e, C.payslipInputFor(data, e, y, m), stA); return { e, c }; });
+      const cur = data.settings && data.settings.currency;
+      const ok = await new Promise(resolve => {
+        let fini = false;
+        modal(`<h2>Établir ${missing.length > 1 ? `les ${missing.length} bulletins` : 'le bulletin'} ${/^[aeiouh]/i.test(MONTHS_LONG[m - 1]) ? 'd’' : 'de '}${h(MONTHS_LONG[m - 1])} ${h(s.year)}</h2>
+          <div class="scroll-x"><table class="list compact" id="p-etab-liste"><thead><tr><th>Salarié</th><th class="r">Brut</th><th class="r">Net à payer</th></tr></thead><tbody>
+          ${apercu.map(({ e, c }) => `<tr><td>${h(e.name || '')}${e.endDate && e.endDate.slice(0, 7) === `${y}-${String(m).padStart(2, '0')}` ? ` <span class="small muted">· jusqu'au ${C.fmtDate(e.endDate)}</span>` : e.hireDate && e.hireDate.slice(0, 7) === `${y}-${String(m).padStart(2, '0')}` ? ` <span class="small muted">· depuis le ${C.fmtDate(e.hireDate)}</span>` : ''}</td><td class="r nw">${C.money(c.gross, '')}</td><td class="r nw"><b>${C.money(c.net, cur)}</b></td></tr>`).join('')}
+          </tbody></table></div>
+          <p class="small muted mt">Repris de chaque fiche : le brut (au prorata d'une entrée ou d'une sortie dans le mois), les primes, les absences non payées et les heures du pointage, les avances. Rien n'est payé : tu pourras encore modifier chaque bulletin.</p>
+          <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Établir</button></div>`,
+          (root, close) => { $('#ok', root).onclick = () => { fini = true; close(); resolve(true); }; $('[data-close]', root).onclick = () => { fini = true; close(); resolve(false); }; },
+          () => { if (!fini) resolve(false); });
+      });
+      if (!ok) return;
       const st = C.payrollSettings(data);
       if (closedBlock(C.payslipDate({ year: y, month: m }), 'Ces bulletins')) return;
       missing.forEach(e => {
@@ -19477,7 +19558,9 @@
         const geste = (id, lab) => `<button type="button" class="btn btn-sm" data-file="${h(id)}" data-lab="${h(lab)}"${raisonDe(id) ? ` disabled title="${h(raisonDe(id))}"` : ''}>${/^employeur-/.test(id) ? 'Marquer déposée' : 'Marquer déposée et payée…'}</button>`;
         const avant = due.filter(x => x.id !== idP && x.id !== idE).map(x => ['echeance', x.label, x.kind === 'employeur' ? 'un salarié par ligne, ses salaires et ses retenues' : 'pas encore notée déposée', `avant le ${C.fmtDate(x.dueDate)}`, x.amount || null, !!x.late, geste(x.id, x.label)]);
         const L = avant.concat([
-          [fP ? 'coche' : 'echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, `${pl(cP.employees, 'salarié')} · ${pl(cP.slips, 'bulletin')}`, fP ? dit(fP) : `avant le ${C.fmtDate(cP.dueDate)}`, cP.total, !fP && cP.dueDate < auj, !fP && due.some(x => x.id === idP) ? geste(idP, `la déclaration CNSS du ${C.quarterLabel(pq)} ${py}`) : ''],
+          // (1.248.0) Un trimestre sans aucun bulletin dans SkanFact n'est pas « 0,000 DT en retard » : la paie était tenue
+          // ailleurs (ou pas encore saisie) ; on le dit, sans montant ni retard (recette du 02/11).
+          ...(!fP && !cP.slips ? [['echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, 'aucun bulletin dans SkanFact pour ce trimestre : la paie était tenue ailleurs ?', `avant le ${C.fmtDate(cP.dueDate)}`, null, false, '']] : [[fP ? 'coche' : 'echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, `${pl(cP.employees, 'salarié')} · ${pl(cP.slips, 'bulletin')}`, fP ? dit(fP) : `avant le ${C.fmtDate(cP.dueDate)}`, cP.total, !fP && cP.dueDate < auj, !fP && due.some(x => x.id === idP) ? geste(idP, `la déclaration CNSS du ${C.quarterLabel(pq)} ${py}`) : '']]),
           [fE ? 'coche' : 'echeance', `Déclaration de ${MONTHS_LONG[me - 1]} : retenues et taxes sur les salaires`, modeD === 'sans' ? 'tu la déposes avec la TVA du mois' : 'ton cabinet la prépare · tu verses le montant', fE ? dit(fE) : `avant le ${C.fmtDate(dE.dueDate)}`, dE.total, !fE && dE.dueDate < auj, !fE && dE.salaries ? geste(idE, `les retenues et taxes sur les salaires de ${MONTHS_LONG[me - 1]} ${ye}`).replace(/ data-file=/, ' data-file-v=') : ''],
           ['echeance', `CNSS du ${C.quarterLabel(cq)} ${ty}`, `en cours : ${pl(cC.slips, 'bulletin')} jusqu'ici`, `avant le ${C.fmtDate(cC.dueDate)}`, cC.total, false, ''],
           ['echeance', `Déclaration annuelle d'employeur ${ty}`, 'un salarié par ligne, ses salaires et ses retenues', `début ${ty + 1} (À VÉRIFIER)`, null, false, '']]);
@@ -19873,6 +19956,7 @@
       if ($('#p-corr-ok')) $('#p-corr-ok').onclick = () => { const x = C.payslipsOf(data, Number(s.year), Number(s.month)).find(b => correctionEnAttente(b)); if (x) accepterCorrection(x); };
       if ($('#p-payer')) $('#p-payer').onclick = () => payerSalairesFenetre(Number(s.year), Number(s.month), () => draw());
       if ($('#p-remettre')) $('#p-remettre').onclick = () => remettreBulletins();
+      if ($('#p-declarer')) $('#p-declarer').onclick = () => { const t = $('#p-tabs button[data-tab="declarations"]'); if (t) t.click(); };
       if ($('#p-plus')) $('#p-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
         ...(C.payslipsOf(data, Number(s.year), Number(s.month)).length ? [{ icon: 'pdf', label: 'Journal de paie', hint: `${MONTHS_LONG[Number(s.month) - 1]} ${s.year} : une ligne par salarié, les totaux`, run: () => journalDePaieFenetre(Number(s.year), Number(s.month)) }] : []),
         { icon: 'dossier', label: 'Registre du personnel', hint: 'la liste que l\'inspection du travail peut demander', run: () => allerVue('registre') },
@@ -19958,7 +20042,7 @@
     const virement = (e.method || 'virement') === 'virement';
     const finCdd = e.contract === 'cdd' && e.endDate && !parti && C.addDays(auj, 60) >= e.endDate;
     const manques = [!e.cnss && 'son n° CNSS', virement && !e.iban && 'son RIB'].filter(Boolean);
-    const av = (n, g) => `<span class="pa-av${g ? ' pa-av-g' : ''}" style="--c:${h(C.couleurDe(n || ''))}">${h(C.initialesDe(n || ''))}</span>`;
+    const av = (n, g) => `<span class="pa-av${g ? ' pa-av-g' : ''}" aria-hidden="true" style="--c:${h(C.couleurDe(n || ''))}">${h(C.initialesDe(n || ''))}</span>`;
     const pastille = parti ? `<span class="statut">parti le ${C.fmtDate(e.endDate)}</span>` : manques.length ? `<span class="statut attire">${pl(manques.length, 'chose')} à compléter</span>`
       : finCdd ? `<span class="statut attire">CDD · finit le ${C.fmtDate(e.endDate)}</span>` : '<span class="statut ok">en poste</span>';
     const prin = parti ? `<button type="button" class="btn btn-primary" data-fs="doc" data-kind="certificat">${lfIc('pages', 15)} Son certificat de travail</button>`
@@ -20073,13 +20157,15 @@
       if (k === 'doc') hrDocForm(e, rouvrir, bt.dataset.kind);
       else if (k === 'completer') employeeForm(e, rouvrir, { focus: !e.cnss ? 'cnss' : 'iban' });
       else if (k === 'focus') employeeForm(e, rouvrir, { focus: bt.dataset.focus });
-      else if (k === 'renouveler' || k === 'sortie') employeeForm(e, rouvrir, { focus: 'endDate' });
+      // (1.248.0) Renouveler a sa fenêtre ; « Préparer sa sortie » mène à l'onglet « Son départ » (la date, le solde, le certificat).
+      else if (k === 'renouveler') renouvelerCdd(e, rouvrir);
+      else if (k === 'sortie') { ficheSal.onglet = 'depart'; rouvrir(); }
       else if (k === 'conge') leaveForm(null, e.id, rouvrir);
     });
     if ($('#fs-plus')) $('#fs-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [
       { icon: 'modifier', label: 'Modifier sa fiche', hint: 'contrat, salaire, identité, RIB', run: () => employeeForm(e, rouvrir) },
       { icon: 'modifier', label: 'Changer son salaire', hint: 'le nouveau brut vaut pour les prochains bulletins', run: () => employeeForm(e, rouvrir, { focus: 'grossSalary' }) },
-      ...(e.contract === 'cdd' ? [{ icon: 'modifier', label: 'Renouveler son CDD', hint: 'une nouvelle date de fin, et l\'avenant à signer', run: () => employeeForm(e, () => { rouvrir(); hrDocForm(employeeById(e.id), rouvrir, 'avenant'); }, { focus: 'endDate' }) }] : []),
+      ...(e.contract === 'cdd' ? [{ icon: 'modifier', label: 'Renouveler son CDD', hint: 'une nouvelle date de fin, et l\'avenant à signer', run: () => renouvelerCdd(e, rouvrir) }] : []),
       { icon: 'oeil', label: 'Un congé ou une absence', run: () => leaveForm(null, e.id, rouvrir) },
       { icon: 'oeil', label: 'Une avance', run: () => advanceForm(null, e.id, rouvrir) },
       { icon: 'oeil', label: 'Une saisie sur salaire', hint: 'une décision de justice : la retenue se fait sur chaque bulletin', run: () => saisieFenetre(e, null, rouvrir) },

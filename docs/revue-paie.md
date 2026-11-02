@@ -56,3 +56,18 @@ le traite. Ce qui est incertain (droit du travail, CNSS, fiscal) est écrit **À
 6. **R6 — finitions UI/UX** (fait, 1.233.0 ; photos de la vérification finale) : téléphone, pointage, fiche, états vides, sombre ; nouvelles photos contre la maquette.
 
 Ensuite seulement : la revue du Cabinet (écrire une correction, voir le bon à payer).
+
+## 5. La recette à la souris du 02/11/2026 (1.248.0)
+
+Corrigé : voir `docs/paie.md`, « la recette à la souris ». Reste ouvert, par ordre d'importance :
+
+1. **Modifier le bulletin** : le brut s'écrit « 1100.125 » (un point, pas le format du pays) ; les cartes Primes et
+   Retenues prennent la place ; le net ne se voit pas pendant qu'on tape.
+2. **Remettre** : « à envoyer à x@… » alors que SkanFact prépare seulement les PDF (rien ne part) ; pas de choix de qui
+   on remet ; « Voir avant d'imprimer » ne montre que le premier bulletin.
+3. **Un CDD long** (Karim : 3,6 ans) n'est pas signalé ; la durée maximale et le nombre de renouvellements : À VÉRIFIER
+   avec un comptable avant d'en faire un contrôle.
+4. **La page s'ouvre sur le mois à payer** (octobre) même quand novembre a ses bulletins établis : un rappel « novembre
+   attend » manque.
+5. **Deux fois la même chose** : « n° CNSS à demander » est un contrôle ET une ligne d'À traiter.
+6. **La Paie dans la barre** est sous « Piloter » : à décider avec la maquette de la barre (elle s'épingle déjà).

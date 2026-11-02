@@ -1822,3 +1822,49 @@ suivante) ; un salaire payé de nouveau ne se marque pas encore « repayé » (l
 
 Tests : `tests/moteur/paie-virement-revenu.test.ts` (le nommé, deux rejets, ce qui n'en est pas un, les accents, le 60e
 jour) et le parcours « tenue ». Preuves `paie 1.247 a`, `b`.
+
+## La paie de l'entreprise : la recette à la souris (02/11/2026, 1.248.0)
+
+Skander : « ouvre le module paie entreprise comme un humain… juge ce qu'il manque, ce qui n'est pas pratique », puis
+« corrige au fur et à mesure ». Recette faite sur l'écran virtuel, en Sarra (Boulangerie El Amal, 5 salariés, sans
+cabinet), d'octobre à novembre : établir, payer, remettre, déclarer, congés, CDD.
+
+**Le métier (corrigé)**
+- **Un salarié sorti en cours de mois n'avait aucun bulletin.** `missingPayslips` lisait le dernier jour du mois : le
+  CDD de Karim, qui finit le 20/11, sortait de la paie de novembre. Règle : en poste UN jour du mois suffit (comme au
+  Cabinet) ; le bulletin se fait au prorata (« sortie le 20/11 · 18 j sur 26 »).
+- **La sortie du mois se contrôle** (« La sortie de Karim au prorata », comme l'entrée) et l'écart avec le mois d'avant
+  dit « sortie le 20/11/2026 », plus « brut changé ».
+- **Deux salariés sur le même RIB** (payés par virement) ou **le même n° CNSS** (avec ou sans tiret) : deux contrôles du
+  mois. La fenêtre « Payer les salaires » ne dit plus « contrôlé » sur ces lignes : elle dit « le même RIB qu'un autre
+  salarié » et le redit au-dessus des boutons.
+- **Renouveler un CDD** ouvrait toute la fiche « Modifier le salarié ». Une fenêtre à elle : prolonger jusqu'à une date
+  (un an proposé) ou passer en CDI, l'ancienneté en CDD dite, « À VÉRIFIER : la durée totale permise et le nombre de
+  renouvellements » ; puis l'avenant s'ouvre. Le bulletin du mois de l'ancienne fin, pas encore payé et fait au
+  prorata, se refait au mois complet (primes et retenues gardées) ; payé, le message dit de le régulariser.
+  « Préparer sa sortie » mène à l'onglet « Son départ » (il ouvrait la fiche).
+- **Sans cabinet relié, la paie ne parle plus d'un cabinet.** L'en-tête disait « tu la fais, ton cabinet la vérifie » et
+  les Déclarations « faites par ton cabinet · ton cabinet la prépare » : le mode écrit restait d'avant. Quand le
+  serveur dit qu'aucun cabinet n'est relié ET qu'aucun bulletin n'est jamais venu d'un cabinet, la paie se fait seule
+  (en-tête, Déclarations, bon à payer).
+- **Un trimestre CNSS sans aucun bulletin** n'est plus « 0,000 DT, en retard » : « aucun bulletin dans SkanFact pour ce
+  trimestre : la paie était tenue ailleurs ? », sans montant ni retard.
+- **« Écarts sur septembre »** ne se dit plus « juste » quand septembre n'a aucun bulletin (rien à comparer).
+
+**L'ergonomie (corrigé)**
+- La page vide « Aucun bulletin » renvoyait au « bouton en haut » : le bouton est dans la carte.
+- « Établir les bulletins » demandait par un mur de texte : la fenêtre montre chaque salarié, son brut et son net, et
+  « jusqu'au 20/11 » ou « depuis le … » quand il y a prorata.
+- Après la remise, plus aucun bouton principal alors que la frise disait « Déclarer » : « Préparer les déclarations ».
+- Payer sans aucun compte de banque : « — compte par défaut — » ne disait rien ; la fenêtre dit qu'aucun compte n'existe
+  et offre « Créer le compte de ta banque… ».
+- L'étape « Pointer » cochée disait « pas pointé » : elle dit « sauté : chacun payé au mois complet ».
+- L'onglet du navigateur disait « KRKarim Riahi » : les initiales d'un avatar sont décoratives (`aria-hidden`).
+
+**Vu, laissé pour la suite** (`docs/revue-paie.md` § 5) : la Paie est sous « Piloter » dans la barre (elle s'épingle) ;
+« Yassine : n° CNSS » dit deux fois (contrôle et À traiter) ; « Modifier le bulletin » montre le brut avec un point et
+ne montre pas le net en direct ; la remise « à envoyer à … » ne fait que préparer les PDF ; un CDD de 3,6 ans n'est pas
+signalé (durée légale À VÉRIFIER) ; la page s'ouvre sur octobre quand novembre attend.
+
+Tests : `tests/moteur/paie-recette-1248.test.ts` (4 cas) ; `tests/web/paie-bon-a-payer.test.ts` (les doublons du jeu
+d'essai, la variante « le cabinet prépare » a un mois d'avant venu du cabinet). Preuves `paie 1.248 a` à `e`.
