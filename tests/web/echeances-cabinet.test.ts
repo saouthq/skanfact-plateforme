@@ -19,6 +19,9 @@ import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const LE_29 = new Date('2026-10-29T10:00:00+01:00');
+// Le navigateur vit au 29/10 (les déclarations s'y lisent), le serveur au vrai jour : une pièce demandée « pour le » se date
+// d'un jour à venir pour le serveur (il refuse une date passée), choisie dans le champ comme le ferait le comptable.
+const AVENIR = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
 
 describe('les Échéances du Cabinet, à la souris', () => {
   let navigateur: Browser;
@@ -110,6 +113,7 @@ describe('les Échéances du Cabinet, à la souris', () => {
     // Le client les lit : « Vos ventes… », jamais « Ses ventes… » (la phrase du cabinet sur son client).
     expect(demandees.length).toBeGreaterThan(0);
     for (const x of demandees) expect(x).toMatch(/^Vos /);
+    for (const champ of await p.locator('[data-msg-demande-pour]').all()) if (await champ.isVisible()) await champ.fill(AVENIR);
     await p.locator('[data-msg-envoyer]').first().click();
     await expect.poll(async () => ((await api('GET', `/entreprises/${librairie.ent}/messages?cote=entreprise`, librairie.j)).corps as { attente: { demandes: number } }).attente.demandes).toBeGreaterThan(0);
     await p.getByRole('button', { name: /Revenir aux Échéances/ }).click();
@@ -173,6 +177,7 @@ describe('les Échéances du Cabinet, à la souris', () => {
     await ligne.getByRole('button', { name: 'Relancer' }).click();
     const fen = p.locator('#modal-root');
     expect(await fen.getByRole('button', { name: 'Noter un appel comme relance' }).count()).toBe(1);
+    await fen.locator('#ec-pour').fill(AVENIR);
     await fen.getByRole('button', { name: 'Envoyer dans sa conversation' }).click();
     await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/^Relance partie à Librairie Ennour : \d+ demandes? pour le /);
     // Elle est partie : le client la lit dans sa conversation, ses pièces en demandes.

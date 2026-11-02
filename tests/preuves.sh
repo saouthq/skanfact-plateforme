@@ -21986,7 +21986,7 @@ prouver 'saisie 27 : la saisie voit le bouton qui valide le mois' web/public/v10
   "(peutValiderCl(dossier) ? \`<button type=\"button\" class=\"btn btn-sm\" data-lot-mois" "(true ? \`<button type=\"button\" class=\"btn btn-sm\" data-lot-mois" \
   "$WSX3"
 prouver 'saisie 28 : le mois vide tait ce qui arrive seul au livre' web/public/v10/cabinet/app.js \
-  "Ses ventes et sa caisse, saisies dans SkanFact, arrivent seules au livre." "" \
+  " Ses ventes et sa caisse arrivent seules au livre." "" \
   "$WSX1"
 prouver 'saisie 29 : le brouillard ne dit pas qui a saisi' web/public/v10/cabinet/app.js \
   "e.source === 'an' ? 'reprise' : 'le cabinet')" "e.source === 'an' ? 'reprise' : '')" \
@@ -22366,6 +22366,15 @@ prouver 'paie cabinet 1.238 f : le mois validé tait le pointage changé' web/pu
 prouver 'paie cabinet 1.238 g : l'\''en-tête du pointage ne suit pas la grille' web/public/v10/cabinet/app.js \
   "const resume = \$('#pt-resume', el);" "const resume = null;" \
   "$WC1"
+
+# 1.239.0 — le rouge GitHub réparé : le jour d'une écriture de paie se dit avant le geste ; la messagerie chargée à la demande.
+WMSG1="Amine et son comptable s'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet"
+prouver 'paie cabinet 1.239 a : le jour de l'\''écriture de paie se tait avant la validation des bulletins' web/public/v10/cabinet/app.js \
+  "o.auBrouillard && (o.paieAttendSonJour || P.valides !== false) ?" "o.auBrouillard && P.valides !== false ?" \
+  "la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour"
+prouver 'léger 1.239 b : sans réseau, la messagerie chargée à la demande ne dit pas pourquoi' web/public/plateforme/pont.js \
+  "<b>Pas de réseau : la messagerie attend la connexion.</b>" "<b>Échec.</b>" \
+  "$WMSG1"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

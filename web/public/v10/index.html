@@ -34,7 +34,8 @@
   <link rel="stylesheet" href="../plateforme/assistant.css">
   <script src="../plateforme/premiers-pas.js"></script>
   <link rel="stylesheet" href="../plateforme/premiers-pas.css">
-  <script src="../plateforme/messagerie.js"></script>
+  <!-- (1.239.0) messagerie.js se charge à la première conversation (pont.js, `laMessagerie`) : 48 Ko de moins à la
+       première ouverture (docs/leger.md, L8). Sa feuille de style, petite, reste ici. -->
   <link rel="stylesheet" href="../plateforme/messagerie.css">
   <script src="../plateforme/telephone.js"></script>
   <link rel="stylesheet" href="../plateforme/barre.css">
@@ -104,7 +105,8 @@
   <script src="compta.js"></script>
   <script src="core.js"></script>
   <script src="teif.js"></script>
-  <script src="demo.js"></script>
+  <!-- (1.239.0) demo.js ne se charge plus : l'exemple est versé par le serveur (bridge.exemple, serveur/v10/exemple.ts lit
+       demo.js de son côté) ; la page ne l'exécutait jamais (docs/leger.md, L8). -->
   <script src="guide.js"></script>
   <script src="onboarding.js"></script>
   <!-- Le menu d'actions d'une ligne, partagé avec l'application du cabinet (voir rowmenu.js). -->

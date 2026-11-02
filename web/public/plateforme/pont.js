@@ -125,6 +125,23 @@
   }
   if (LECTURE) window.addEventListener('hashchange', () => { void noterLaPage(); });
 
+  // (1.239.0) La messagerie (plateforme/messagerie.js, 48 Ko) ne part plus avec la première ouverture : elle se charge à la
+  // première conversation ou au premier fichier envoyé au cabinet, deux gestes qui demandent le réseau de toute façon
+  // (docs/leger.md, L8). Sans empreinte, le serveur la sert « no-cache » : revalidée, jamais une copie d'hier.
+  /** @type {Promise<any> | null} */
+  let messagerieChargee = null;
+  const laMessagerie = () => {
+    const w = /** @type {any} */ (window);
+    if (w.SkanMessagerie) return Promise.resolve(w.SkanMessagerie);
+    return messagerieChargee || (messagerieChargee = new Promise((ok, ko) => {
+      const s = document.createElement('script');
+      s.src = new URL('../plateforme/messagerie.js', document.baseURI).href;
+      s.onload = () => ok(w.SkanMessagerie);
+      s.onerror = () => { messagerieChargee = null; s.remove(); ko(new Error('La messagerie ne s\'est pas chargée : vérifie la connexion, puis réessaie.')); };
+      document.head.appendChild(s);
+    }));
+  };
+
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appel(methode, chemin, corps) {
     if (LECTURE) return appelLecture(methode, chemin);
@@ -1187,7 +1204,30 @@
     // l'achat où la photo d'un message a été rangée.
     messagerie: LECTURE ? null : {
       attente: () => appel('GET', '/messages/attente'),
-      dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' }),
+      // (1.239.0) La conversation se dessine dès que la messagerie est là ; chargée à la première ouverture, la page reçoit
+      // tout de suite de quoi l'arrêter (seul geste qu'elle fait sur la conversation), et elle se dessine à l'arrivée.
+      dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => {
+        const w = /** @type {any} */ (window);
+        if (w.SkanMessagerie) return w.SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' });
+        /** @type {any} */ let c = null;
+        let arretee = false;
+        // Sans réseau, la page dit ce que dit la messagerie elle-même (même titre, mêmes mots), et se rouvre seule au retour
+        // du réseau : le charger plus tard ne change rien pour la personne.
+        const essayer = () => {
+          el.innerHTML = '<p class="muted">Ouverture de la conversation…</p>';
+          laMessagerie().then((/** @type {any} */ M) => { if (!arretee) c = M.conversation(el, { ...o, appel, cote: 'entreprise' }); })
+            .catch(() => {
+              if (arretee) return;
+              el.innerHTML = '<div class="msg-page"><header class="msg-tete"><span class="msg-tete-txt"><h1>Mon comptable</h1></span></header><div class="msg-zone"><div class="msg-vide" data-msg-echec><b>Pas de réseau : la messagerie attend la connexion.</b><span>Elle s\'ouvre toute seule dès que le réseau revient.</span> <button type="button" class="btn" data-msg-relire>Réessayer</button></div></div></div>';
+              const relire = () => { window.removeEventListener('online', relire); if (!arretee) essayer(); };
+              window.addEventListener('online', relire);
+              const b = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-relire]'));
+              if (b) b.onclick = relire;
+            });
+        };
+        essayer();
+        return { arreter: () => { arretee = true; if (c) c.arreter(); } };
+      },
       rangerAchat: (/** @type {string} */ message, /** @type {string} */ achat, /** @type {string} */ libelle) => appel('POST', `/messages/${encodeURIComponent(message)}/achat`, { achat, libelle }),
       // (1.173.0, 0181) Ce que le cabinet a rangé dans le dossier (Skander, 29/10/2026 : « oui, tout ») : les documents qu'il
       // a déposés, et les pièces qu'il a jointes aux achats ; qui ne lit pas la messagerie : rien.
@@ -1227,8 +1267,8 @@
       // (1.157.1) Le fil de l'entreprise, lu tel que la messagerie le montre (la page « Photo envoyée au cabinet » y suit sa
       // photo : vue, rangée). Une lecture, rien n'est envoyé.
       fil: () => appel('GET', '/messages?cote=entreprise'),
-      envoyerFichier: (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
-        /** @type {any} */ (window).SkanMessagerie.envoyerFichier(appel, 'entreprise', f, texte, piece),
+      envoyerFichier: async (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
+        (await laMessagerie()).envoyerFichier(appel, 'entreprise', f, texte, piece),
     },
     // Le support de SkanFact (Support S1 ; plateforme/support.js ; serveur/support) : écrire une demande, ce qui attend
     // (la pastille de l'Aide et le bandeau), et la page de ses demandes. Ce qui part avec une demande, compté et décidé :
@@ -1664,7 +1704,7 @@
       try {
         const { adresse, nom, type } = await lirePiece(fichier);
         // (1.94.0) L'onglet porte le nom du fichier, et l'enregistre sous ce nom (plateforme/messagerie.js, `montrerFichier`).
-        const montrer = /** @type {any} */ (window).SkanMessagerie?.montrerFichier;
+        const montrer = (await laMessagerie().catch(() => null))?.montrerFichier;
         if (w && montrer) { montrer(w, adresse, nom, type); w.opener = null; } else if (w) { w.opener = null; w.location.href = adresse; } else enregistrerSous(adresse, nom);
         return { ouvert: true };
       } catch (e) { w?.close(); throw e; }

@@ -32,7 +32,7 @@ type Moteur = {
   planImport: (type: string, texte: string, d: unknown, c: unknown, o: object) => Plan;
   appliquerImport: (d: unknown, p: Plan, c: unknown, o: object) => { crees: string[] };
   todoList: (d: unknown, c: unknown, t: string | null, o?: object) => { id: string; count: number; mois?: string }[];
-  paieATraiter: (d: unknown, t: string) => { titre: string; conge?: string; saisie?: string }[];
+  paieATraiter: (d: unknown, t: string) => { titre: string; conge?: string; demande?: boolean; saisie?: string }[];
   DEFAULT_ACCOUNTS: Record<string, string>;
 };
 const compta = ecranDeLaPlateforme('compta.js') as Moteur;
@@ -162,11 +162,13 @@ describe('ce que la paie attend, à l\'accueil et dans « À traiter »', () => 
     expect([vu('paie-bon-a-payer')?.count, vu('paie-bon-a-payer')?.mois]).toEqual([1, '2026-10']);
     expect(vu('conges-demandes')?.count).toBe(1);
     const t = core.paieATraiter(d, '2026-11-01');
-    expect(t.filter((x) => x.conge).map((x) => x.conge)).toEqual(['l2']);
+    // Le certificat de l'arrêt (l2) ; la demande de congé (l1) s'y lit aussi depuis la 1.234.0, à accepter ou refuser.
+    expect(t.filter((x) => x.conge && !x.demande).map((x) => x.conge)).toEqual(['l2']);
+    expect(t.filter((x) => x.conge && x.demande).map((x) => x.conge)).toEqual(['l1']);
     expect(t.filter((x) => x.saisie).map((x) => x.titre)).toEqual([expect.stringMatching(/150,000.*à verser à Tribunal de Sfax/)]);
     // Le certificat noté, le rappel s'éteint.
     (d.leaves[1] as Record<string, unknown>).certificatLe = '2026-10-21';
-    expect(core.paieATraiter(d, '2026-11-01').some((x) => x.conge)).toBe(false);
+    expect(core.paieATraiter(d, '2026-11-01').some((x) => x.conge && !x.demande)).toBe(false);
     // Sans cabinet qui tient la paie, aucun bon à payer n'est attendu.
     d.company = { ...d.company, paieMode: 'sans' } as typeof d.company;
     expect(core.todoList(d, d.company, '2026-11-01').some((x) => x.id === 'paie-bon-a-payer')).toBe(false);

@@ -134,6 +134,24 @@ construit comme la production puisqu'il mesure ce qu'elle envoie.
 - **Reste en réserve** : les visites guidées à la demande (`visite.js` et `visites.js`, environ 80 Ko). La marge est
   de 50 Ko : la prochaine page refaite sur sa maquette se mesure avant d'être envoyée.
 
+## L8 : ce que la page ne lit pas ne part plus avec elle (02/11/2026, 1.239.0)
+
+Le 01/11/2026, GitHub a mesuré S1 à **1 329 Ko** pour un seuil de 1 300 (rouge depuis la paie refaite sur sa maquette,
+1.222 à 1.234). Une mesure qui dépasse change le plan, pas le seuil. Les visites guidées (le levier gardé depuis L7) se
+lisent dans l'en-tête de chaque page (« Guide-moi ») : les différer demande de revoir leur moteur. Deux scripts, eux, ne
+servaient pas à la première ouverture :
+
+- **`demo.js`** (22 Ko compressés) : l'exemple est versé par le serveur (`bridge.exemple`, `serveur/v10/exemple.ts`
+  lit `demo.js` de son côté) ; la page ne l'exécutait jamais. Il ne se charge plus.
+- **`plateforme/messagerie.js`** (48 Ko) : il se charge à la première conversation (« Mon comptable ») ou au premier
+  fichier envoyé au cabinet (`pont.js`, `laMessagerie`), deux gestes qui demandent le réseau de toute façon. Sans
+  empreinte, le serveur le sert « no-cache » (revalidé, jamais une copie d'hier). Sans réseau, la page dit ce que dit la
+  messagerie (« Pas de réseau : la messagerie attend la connexion… ») et se rouvre seule au retour du réseau.
+
+- **Mesuré** : S1 **1 276 Ko en 13,5 s** (1 279 Ko avec la copie gardée ; 1 329 Ko avant) ; S2 inchangé (7 Ko, 1,8 s).
+- **Reste en réserve** : les visites guidées (environ 100 Ko compressés), à différer avec leur moteur ; la marge est de
+  24 Ko : la prochaine page refaite se mesure avant d'être envoyée.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à

@@ -4,10 +4,14 @@
 
 import type { AppelIA, ReponseIA } from '../../../serveur/achats/lecture-ia.ts';
 
+// Datée du jour (et payable à 30 jours) : le parcours J2 déclare la TVA du mois en cours, l'achat doit en être. Datée en dur
+// du 03/10/2026, la pièce sortait du mois le 1er novembre et la TVA déductible tombait à zéro (rouge GitHub du 01/11/2026).
+const jourDans = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+
 export const QUINCAILLERIE: ReponseIA = {
   estUneFacture: true, fournisseur: 'Quincaillerie Ben Salem',
   matricules: [{ valeur: '1234567A/B/M/000', de: 'emetteur' }, { valeur: '7654321B/A/M/000', de: 'client' }],
-  numero: 'FV-2026-0412', date: '2026-10-03', echeance: '2026-11-02', objet: 'Fournitures atelier', devise: 'TND',
+  numero: 'FV-2026-0412', date: jourDans(0), echeance: jourDans(30), objet: 'Fournitures atelier', devise: 'TND',
   lignes: [
     { designation: 'Vis inox 6x40 (boîte de 200)', quantite: '3', prixUnitaire: '42.350', remise: null, tauxTva: '19', totalHT: '127.050' },
     { designation: 'Colle à bois 5 kg', quantite: '2', prixUnitaire: '68.900', remise: null, tauxTva: '19', totalHT: '137.800' },

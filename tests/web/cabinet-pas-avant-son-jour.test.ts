@@ -92,7 +92,8 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     const auBrouillard = p.locator('#pa-brouillard');
     await expect.poll(() => auBrouillard.innerText().then((t) => t.replace(/\s+/g, ' ')).catch(() => ''), { timeout: 15_000 }).toMatch(/au brouillard, datée du 31\/10\/2026 : elle se valide à partir de ce jour-là/);
     expect(await p.locator('#pa-valider').count()).toBe(0);
-    expect(await p.locator('#c-livres .btn-primary').count()).toBe(0);
+    // (1.235.0) Le bouton principal de la paie fige les bulletins (« Valider le bulletin ») ; aucun ne valide l'écriture.
+    expect(await p.locator('#c-livres .btn-primary').evaluateAll((els) => els.map((e) => e.id).filter((id) => id !== 'pa-valider-bul'))).toEqual([]);
 
     // 2. Le brouillard : les lots ne comptent que les pièces du jour (BQ, OD, et octobre pour les deux) ; la pièce de paie
     //    est nommée, avec son jour.
@@ -132,8 +133,10 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     await cx.clock.setFixedTime(new Date('2026-11-02T10:00:00+01:00'));
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/paie/2026`);
     await p.reload();
+    // (1.235.0) L'écriture se valide après les bulletins : d'abord les figer (le bouton principal), puis elle s'offre.
+    await p.locator('#pa-valider-bul').click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Valider', exact: true }).click();
     await p.locator('#pa-valider').waitFor({ timeout: 15_000 });
-    expect(await p.locator('#pa-valider').getAttribute('class')).toMatch(/\bbtn-primary\b/);
     await p.locator('#pa-valider').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/saisie\//);
     // Mené AU brouillard : il s'éclaire une seconde et demie (« c'est ici »). Sur une page courte, le brouillard se voit

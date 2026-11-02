@@ -85,6 +85,8 @@ describe('les documents du personnel au Cabinet, à la souris', () => {
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await p.waitForTimeout(800);
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    // (1.235.0) La liste des salariés est une vue de la paie : on y va.
+    await p.locator('.pa-so [data-pa-vue="salaries"]').click();
     const toast = () => p.locator('#toast').innerText().catch(() => '');
     const fenetre = p.locator('#modal-root .modal').last();
     const titre = () => fenetre.locator('h2').first().innerText({ timeout: 500 }).catch(() => '');

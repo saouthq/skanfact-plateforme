@@ -72,6 +72,8 @@ describe('les abonnements d\'un dossier, à la souris', () => {
       await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
       await p.waitForTimeout(800);
       for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+      // (1.215.0) Les écritures qui reviennent se déplient de leur bouton, au-dessus du brouillard.
+      if (await p.locator('#sx-abos[aria-expanded="false"]').count()) await p.locator('#sx-abos').click();
     };
     const toast = () => p.locator('#toast').innerText();
     const fenetre = p.locator('#modal-root .modal').last();
