@@ -22393,6 +22393,12 @@ prouver "paie 1.241 b : le brut du dernier bulletin oublie les congés pas pris"
 prouver "paie 1.242 a : « Annuler » après la validation n'efface rien (le pont refuse)" web/public/plateforme/pont-cabinet.js \
   "        const annuler = o.annulerValidation === true &&" "        const annuler = false &&" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+prouver "paie 1.243 a : l'accusé CNSS rangé depuis la Paie n'y apparaît pas (l'écran ne se redessine pas)" web/public/v10/cabinet/app.js \
+  "          if (opts.apres) await opts.apres();" "" \
+  "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+prouver "paie 1.243 b : la Paie ne reconnaît pas l'accusé CNSS du trimestre" web/public/v10/cabinet/app.js \
+  "x.rubrique === 'accuse' && x.periode === per && x.titre === titre" "x.rubrique === 'accuse' && x.periode === per && false" \
+  "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -5683,6 +5683,8 @@
           await apresGesteCl(d, { docs: true, pieces: !!(opts.remplacePiece && opts.remplacePiece.p) });
           // (1.174.5) Déposées depuis les Pièces reçues : elles se rangent dans le classeur du dossier, qui s'ouvre sur leur mois.
           if (opts.depuisPieces) navigate(`#/dossier/${encodeURIComponent(d.id)}/classeur`);
+          // (1.243.0) Déposé depuis un autre écran (l'accusé CNSS de la Paie) : cet écran se redessine.
+          if (opts.apres) await opts.apres();
         } catch (x) { $('#ok', layer).disabled = false; toast(`${n ? `${pl(n, 'pièce rangée')} ; ` : ''}${plainError(x)}`, 'error'); }
       };
     });
@@ -6187,7 +6189,8 @@
       if (dc) {
         const m = clState.decl, l = items.filter(x => x.mois === m && x.sorte === 'ecr');
         const somme = (rub, role, sens) => sommeM(m, rub, role, sens);
-        const accuse = docs.find(x => x.rubrique === 'accuse' && x.periode === m);
+        // (1.243.0) L'accusé de la déclaration du mois, pas celui de la CNSS du trimestre rangé au même mois.
+        const accuse = docs.find(x => x.rubrique === 'accuse' && x.periode === m && !estAccuseCnss(x));
         const rel = ((livre && livre.releves) || []).find(r => String(r.au).slice(0, 7) === m);
         const relOk = rel && (rel.lignes || []).every(y => y.rapprochement && y.rapprochement.niveau !== 'aucun');
         const statut = dc.payee ? 'déposée et payée' : dc.deposee ? 'déposée' : 'prête, à déposer';
@@ -6213,7 +6216,7 @@
             ${compo.map(([r, n, t]) => `<li class="cl-l"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span class="cl-l-t"><b>${esc(n)}</b><small>${pl(r === 'retenues' ? l.filter(x => x.rs).length : l.filter(x => x.rub === r).length, 'pièce')}${t ? ` · ${esc(t)}` : ''}</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ok">${CL_IC.ok}saisie</span><a href="#" class="cl-ecr" data-cl-aller="${m}" data-cl-arub="${r}">les pièces</a></span></li>`).join('') || `<li class="cl-l"><span class="cl-l-t"><small>${dc.montant ? `<b class="ambre">Aucune écriture dans ses livres ce mois-là : les ${esc(dtCd(dc.montant))} DT de la déclaration ne remontent à aucune pièce.</b> À revoir avant de la déposer.` : 'Aucune écriture dans ses livres ce mois-là.'}</small></span></li>`}
             ${Object.entries(dc.cases || {}).filter(([k, v]) => /timbre|tcl|tfp|foprolos/i.test(k) && v && Number(v.montant)).map(([k, v]) => `<li class="cl-l"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span class="cl-l-t"><b>${esc(/timbre/i.test(k) ? 'Droit de timbre' : /tcl/i.test(k) ? 'Taxe sur les établissements (TCL)' : /tfp/i.test(k) ? 'TFP' : 'FOPROLOS')}</b><small>${esc(dtCd(Number(v.montant)))} DT</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ok">${CL_IC.ok}déclarée</span></span></li>`).join('')}</ul></section>`;
       } else milieu = `${resume(`Les déclarations de ${annee}`, `${pl(nDep, 'déposée', 'déposées')}${declsAn.length > nDep ? ` · ${declsAn.length - nDep} préparée${declsAn.length - nDep > 1 ? 's' : ''}, pas encore déposée${declsAn.length - nDep > 1 ? 's' : ''}` : ''}${tard.length ? ` · <b class="rouge">${moisLong(tard[0])} en retard</b>` : ''}`, '')}
-          <section class="cl-sec"><h3>Mois par mois<span>${declsAn.length}</span><small>la déclaration de chaque mois, préparée d'après ses livres, et son accusé</small></h3><ul class="cl-ls">${declsAn.length ? [...declsAn].reverse().map(([m, v]) => `<li class="cl-l" data-cl-decl="${m}" tabindex="0"><span class="cl-l-i decl">${CL_IC.decl}</span><span class="cl-l-t"><b>Déclaration ${deMois(m)}</b><small>${v.deposee ? `déposée${v.deposeeLe ? ` le ${jjmm(v.deposeeLe)}` : ''}${v.deposeePar ? ` par ${esc(prenomCl(v.deposeePar))}` : ''}${docs.some(x => x.rubrique === 'accuse' && x.periode === m) ? ' · son accusé joint' : ''}` : 'préparée, à déposer'}${ecartsDecl(m, v) ? ' · <b class="ambre">écart avec ses livres</b>' : ''}</small></span><span class="cl-l-d"></span><span class="cl-l-m">${v.montant ? `${esc(dtCd(v.montant))} <i>DT</i>` : ''}</span><span class="cl-l-e"><span class="cl-st ${v.deposee ? 'ok' : 'ambre'}">${v.deposee ? `${CL_IC.ok}${v.payee ? 'déposée et payée' : 'déposée'}` : 'à déposer'}</span></span></li>`).join('') : `<li class="cl-l"><span class="cl-l-t"><small>Aucune déclaration préparée en ${annee}.</small></span></li>`}</ul></section>`;
+          <section class="cl-sec"><h3>Mois par mois<span>${declsAn.length}</span><small>la déclaration de chaque mois, préparée d'après ses livres, et son accusé</small></h3><ul class="cl-ls">${declsAn.length ? [...declsAn].reverse().map(([m, v]) => `<li class="cl-l" data-cl-decl="${m}" tabindex="0"><span class="cl-l-i decl">${CL_IC.decl}</span><span class="cl-l-t"><b>Déclaration ${deMois(m)}</b><small>${v.deposee ? `déposée${v.deposeeLe ? ` le ${jjmm(v.deposeeLe)}` : ''}${v.deposeePar ? ` par ${esc(prenomCl(v.deposeePar))}` : ''}${docs.some(x => x.rubrique === 'accuse' && x.periode === m && !estAccuseCnss(x)) ? ' · son accusé joint' : ''}` : 'préparée, à déposer'}${ecartsDecl(m, v) ? ' · <b class="ambre">écart avec ses livres</b>' : ''}</small></span><span class="cl-l-d"></span><span class="cl-l-m">${v.montant ? `${esc(dtCd(v.montant))} <i>DT</i>` : ''}</span><span class="cl-l-e"><span class="cl-st ${v.deposee ? 'ok' : 'ambre'}">${v.deposee ? `${CL_IC.ok}${v.payee ? 'déposée et payée' : 'déposée'}` : 'à déposer'}</span></span></li>`).join('') : `<li class="cl-l"><span class="cl-l-t"><small>Aucune déclaration préparée en ${annee}.</small></span></li>`}</ul></section>`;
     } else if (clState.filtre === 'manque') {
       const l = [...tousTrous].sort((a, b) => String(a.mois).localeCompare(String(b.mois)));
       const nb2 = l.filter(t => !t.attend).length;
@@ -10785,6 +10788,7 @@
               même déclaration (10.14.0, dateLimiteSociale). */''}
         <div class="mt">${ligneEcheanceDeclaration(dossier, `${s.annee}-${String(t * 3).padStart(2, '0')}`, null, 'cnss', 'pa-portail')}</div>
         ${paieCnssDuLivre(L, s.annee, t, cnss)}
+        ${paieAccuseCnss(dossier, s.annee, t)}
         ${panneauFichierCnss(dossier, fichier, trimEnCours)}
         ${/* (plateforme) 1.65.0 — l'état récapitulatif des salaires déclarés, celui de l'entreprise, imprimé. */''}
         <div class="ctrl-geste mt"><button type="button" class="btn btn-sm" id="pa-etat">Imprimer l'état récapitulatif</button>
@@ -11727,6 +11731,17 @@
       const prenom = clientDePaie(dossier, s.livre), brut = ($('#pa-depart-brut', el) || {}).textContent || '';
       fenDemanderCl(dossier, { titre: `Le départ de ${x.nom}, le ${fmtJour(x.sortie)}`, texte: `Bonjour${prenom && prenom !== 'ton client' ? ` ${prenom}` : ''}, le contrat de ${x.nom} finit le ${fmtJour(x.sortie)}. Le renouvelles-tu ? Sinon, voici le projet de son dernier bulletin : brut ${brut}, avec ses congés pas pris (l'indemnité de fin de contrat reste à vérifier avec son contrat). Je prépare son certificat de travail et son solde de tout compte.` }, { hors: true, apres: async () => redraw() });
     };
+    // (1.243.0) L'accusé CNSS du trimestre : le ranger (la fenêtre du classeur), l'ouvrir (le classeur, sur lui).
+    const tCnss = () => Number(($('#pa-trim', el) || {}).value) || 1;
+    const acr = $('#pa-cnss-accuse-ranger', el);
+    if (acr) acr.onclick = () => fenDeposerCl(dossier, `${s.annee}-${String(tCnss() * 3).padStart(2, '0')}`, { rubrique: 'accuse', periode: `${s.annee}-${String(tCnss() * 3).padStart(2, '0')}`, titre: titreAccuseCnss(s.annee, tCnss()), apres: async () => redraw() });
+    const acv = $('#pa-cnss-accuse-voir', el);
+    // L'accusé s'ouvre en grand ici, comme une pièce du classeur (le classeur se remet sur ce dossier, comme en y entrant).
+    if (acv) acv.onclick = () => {
+      const a = accuseCnssDe(dossier, s.annee, tCnss()); if (!a) return;
+      if (clState.id !== dossier.id) Object.assign(clState, { id: dossier.id, annee: s.annee, mois: '', rub: '', filtre: 'rub', sel: '', q: '', plus: false, decl: '', vue: '', menu: '', hist: false, ouvrir: false });
+      enGrandCl(dossier, [{ k: `ds:${a.id}`, sorte: 'doc', doc: a, classee: true, rub: 'declaration', mois: a.periode, titre: a.titre }], 0, {});
+    };
     const sdm = $('#pa-sal-demander', el);
     if (sdm) sdm.onclick = () => fenDemanderCl(dossier, { titre: `Les n° CNSS et RIB qui manquent : ${(s.livre.salaries || []).filter(x => x.actif && (!x.cnss || (!x.rib && x.methode !== 'especes'))).map(x => x.nom).join(', ')}` }, { hors: true, apres: async () => redraw() });
     const van = $('#pa-vers-annuelle', el);
@@ -11947,6 +11962,26 @@
           <dt>Le livre</dt><dd>l'indemnité de congés passe comme un salaire (le compte : À VÉRIFIER)</dd></dl>
           <div class="ctrl-geste">${envoyer ? `<button type="button" class="btn btn-primary btn-sm" id="pa-depart-envoyer">Envoyer le projet à ${esc(P.client)}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-depart-cert">Le certificat de travail…</button><button type="button" class="btn btn-sm" id="pa-depart-solde">Le solde de tout compte…</button></div></div>
       </div></section>`;
+  }
+
+  // (1.243.0, la maquette « paiecnss » : « déposé le 15/10, l'accusé est dans le classeur ») L'accusé de dépôt de la
+  // déclaration CNSS d'un trimestre : rangé au classeur (0180, rubrique « accuse ») au dernier mois du trimestre — le serveur
+  // range un accusé par mois —, reconnu à son titre « L'accusé CNSS du Ne trimestre ». La Paie dit s'il y est (et l'ouvre),
+  // ou propose de le ranger. SkanFact ne dépose rien : l'accusé est la preuve que le cabinet a déposé.
+  function estAccuseCnss(x) { return /^L'accusé CNSS du /.test(String((x && x.titre) || '')); }
+  function titreAccuseCnss(annee, t) { return `L'accusé CNSS du ${t === 1 ? '1er' : `${t}e`} trimestre ${annee}`; }
+  function accuseCnssDe(dossier, annee, t) {
+    const per = `${annee}-${String(t * 3).padStart(2, '0')}`, titre = titreAccuseCnss(annee, t);
+    return (((clState.docs.get(dossier.id) || {}).documents) || []).find(x => !x.remplacePar && x.rubrique === 'accuse' && x.periode === per && x.titre === titre) || null;
+  }
+  function paieAccuseCnss(dossier, annee, t) {
+    const e = clState.docs.get(dossier.id);
+    if (!e || (!e.lu && !e.lecture)) { void chargerDocsCl(dossier).then(() => { if ($('#pa-cnss-accuse')) drawLivres($('#view'), dossier); }); }
+    if (!e || !e.lu) return '<p class="small muted mt" id="pa-cnss-accuse">L\'accusé de dépôt : lecture du classeur…</p>';
+    const a = accuseCnssDe(dossier, annee, t);
+    return a
+      ? `<div class="ctrl-geste mt" id="pa-cnss-accuse"><span class="small"><b>Déposée</b> · l'accusé est dans le classeur (rangé le ${esc(fmtJour(jourTunisCl(a.deposeLe)))}).</span><button type="button" class="btn btn-sm" id="pa-cnss-accuse-voir">Ouvrir l'accusé</button></div>`
+      : `<div class="ctrl-geste mt" id="pa-cnss-accuse"><span class="small muted">Déposée sur le portail de la CNSS ? Range son accusé : il prouve le dépôt, et il se retrouve dans le classeur.</span>${e.lectureSeule ? '' : '<button type="button" class="btn btn-sm" id="pa-cnss-accuse-ranger">Ranger l\'accusé…</button>'}</div>`;
   }
 
   function vueConges(dossier, L, annee) {

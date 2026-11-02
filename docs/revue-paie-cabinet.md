@@ -187,3 +187,5 @@ bulletins faits pour ce dossier, congés pas pris)
 **paieparam** — ✓ (1.237.0) **le paramétrage du dossier** : réglé / non réglé ; ⏸ qui et quand, « Copier le paramétrage d'un autre dossier » (une lecture du serveur)
 
 **paiedossiers** — ⏸ la paie de tous mes dossiers (une lecture du serveur) · **paierappel** — ⏸ la décision de Skander
+
+- ✓ (1.243.0) **paiecnss** : l'accusé de dépôt du trimestre, rangé et ouvert depuis la Paie.

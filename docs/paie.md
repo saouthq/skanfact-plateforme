@@ -1745,6 +1745,21 @@ cette exception que pour la validation de ce jour-là, d'un bulletin ni remis ni
 ne change plus (une correction passe par une régularisation sur un mois suivant). Test : le parcours « tenue » valide,
 annule, valide de nouveau. Preuve `paie 1.242 a`.
 
+## La paie du Cabinet : l'accusé de la CNSS du trimestre (02/11/2026, 1.243.0)
+
+La vue « CNSS du trimestre » dit si la déclaration a son accusé de dépôt (la maquette « paiecnss » : « déposé le 15/10,
+l'accusé est dans le classeur »). Sans accusé : « Déposée sur le portail de la CNSS ? Range son accusé » et **« Ranger
+l'accusé… »** (la fenêtre de dépôt du classeur, préremplie « L'accusé CNSS du 4e trimestre 2026 »). Avec : « Déposée ·
+l'accusé est dans le classeur (rangé le …) » et **« Ouvrir l'accusé »** (en grand, sans quitter la Paie). SkanFact ne dépose
+rien : l'accusé est la preuve que le cabinet a déposé.
+
+Le classeur range un accusé par mois (0180) : celui de la CNSS va au dernier mois du trimestre, reconnu à son titre. La
+déclaration mensuelle du même mois ne le prend plus pour **son** accusé (`estAccuseCnss`) : un accusé CNSS rangé en
+septembre se faisait passer pour celui de la TVA de septembre. *Écart qui reste* : ce garde-fou n'a pas de test qui le
+fasse tomber (le jeu d'essai n'a pas de déclaration mensuelle au mois d'un accusé CNSS).
+
+Test : le parcours « tenue » range l'accusé depuis la Paie, le voit, l'ouvre en grand. Preuves `paie 1.243 a` et `b`.
+
 **Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
 dossiers » ; « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
 rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).

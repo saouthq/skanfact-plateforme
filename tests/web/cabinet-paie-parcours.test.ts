@@ -215,6 +215,18 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     // 1.238.0 — la CNSS du trimestre face au compte du livre (écritures validées), et ce qui a été versé.
     await p.locator('.pa-so [data-pa-vue="cnss"]').click();
     expect(espace(await p.locator('#pa-cnss-livre').innerText())).toMatch(/^Le compte 4531 du livre \(écritures validées du trimestre\) : .* · la déclaration : .*/);
+    // 1.243.0 — l'accusé de dépôt du trimestre : rangé au classeur depuis la Paie, puis « l'accusé est dans le classeur ».
+    await expect.poll(() => p.locator('#pa-cnss-accuse-ranger').count(), { timeout: 15_000 }).toBe(1);
+    await p.locator('#pa-cnss-accuse-ranger').click();
+    await p.locator('#dp-f').setInputFiles({ name: 'accuse-cnss.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n') });
+    expect(await p.locator('#dp-titre').inputValue()).toMatch(/^L'accusé CNSS du (1er|\de) trimestre \d{4}$/);
+    await p.locator('.modal #ok').click();
+    await expect.poll(() => p.locator('#pa-cnss-accuse').innerText().then(espace).catch(() => ''), { timeout: 15_000 }).toMatch(/^Déposée · l'accusé est dans le classeur \(rangé le \d\d\/\d\d\/\d{4}\)\. Ouvrir l'accusé$/);
+    // « Ouvrir l'accusé » l'ouvre en grand, ici, sans quitter la Paie.
+    await p.locator('#pa-cnss-accuse-voir').click();
+    await expect.poll(() => p.locator('.cl-gr-t').innerText().then(espace).catch(() => ''), { timeout: 15_000 }).toMatch(/^accuse-cnss\.pdf/);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('.cl-gr-t').count()).toBe(0);
     // 1.238.0 — un mois validé, et le pointage changé après : le bulletin ne bouge pas, l'écran le dit.
     await p.locator('.pa-so [data-pa-vue="mois"]').click();
     await p.locator('#pa-frise li[data-pa-vue="pointage"]').click();
