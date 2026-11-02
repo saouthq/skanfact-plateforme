@@ -563,3 +563,14 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
   #p-tabs .pa-reg { display: none; }
   .pa-bande .pa-bande-an { box-shadow: 10px 0 10px -8px rgba(20, 40, 60, .25); }
 }
+
+/* (1.253.0) La simulation d'embauche : « chef de famille » au pied de sa colonne, à hauteur de la case des enfants. */
+#se .se-chef { align-self: end; min-height: 44px; display: flex; align-items: center; }
+/* La case « demande » du congé : la case, puis son titre et ce qu'il veut dire l'un sous l'autre. */
+.lf-demande { align-items: flex-start; }
+.lf-demande > span { display: grid; gap: 2px; }
+.lf-demande > span small { font-weight: 400; }
+/* La fenêtre « Déposée et payée » : les champs respirent (ils se touchaient). */
+#pd { display: grid; gap: 12px; }
+#pd .field { margin: 0; }
+#dm-encours { margin-left: 8px; }

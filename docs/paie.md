@@ -2016,3 +2016,33 @@ dimanche du calendrier d'un salarié ; les congés suivent l'ordre du calendrier
 cartes ne remontent plus sous la souris) ; « Pas de pointeuse ? » se range d'un « Compris » ; au téléphone, « Réglages » vit
 dans le menu ⋯, l'année épinglée de la bande a une ombre et des flèches de 44 points ; « Net versé » de l'année dit le net
 de l'année. Tests : `paie-mois`, `paie-bon-a-payer`, `paie-pointage-main`, `rendu`.
+
+## La paie de l'entreprise : la revue métier et ergonomie, page par page (02/11/2026, 1.253.0)
+
+Skander, le 02/11 : « une revue métier et ergonomie de tout le module paie, page par page et fenêtre par fenêtre », avec le
+droit d'améliorer l'interface. Ce que la revue a trouvé, et ce qui change :
+
+- **La frise du mois en cours** cochait « Pointer : le mois est pointé » le 2 novembre. Le mois en cours se pointe jusqu'à son
+  dernier jour : l'étape dit « en cours, jusqu'au 30/11/2026 » et reste l'étape où l'on est. Un mois fini dit, comme avant,
+  « le mois est pointé » ou « sauté : chacun payé au mois complet ».
+- **« À traiter »** montrait neuf lignes, dont sept répétaient « X : le même n° CNSS que Hamza Mejri ». Les fiches qui
+  partagent un n° CNSS ou un RIB tiennent sur une ligne : « Le même n° CNSS sur 5 fiches », avec les noms et ce qui se
+  passerait ; « Corriger » ouvre la première fiche à reprendre. Le moteur dit de qui chaque doublon est le double (`double`).
+- **La pastille de « Salariés »** disait « 9 » à côté de « 6 salariés » : elle compte désormais les **fiches** à compléter
+  (« 5 fiches à compléter »), comme le pied de la liste.
+- **Le tableau des congés** suit enfin l'ordre du calendrier juste au-dessus (la 1.252.0 triait une liste que la page ne lisait pas).
+- **La déclaration d'un mois qui n'est pas fini** ne se note plus « déposée et payée » : le bouton est grisé et la raison est
+  écrite à côté (« Novembre 2026 se termine le 30/11/2026 : on le déclare une fois terminé… »), comme la CNSS du trimestre en cours.
+- **La fenêtre du bulletin** : la case du haut s'appelle « Salaire de base » (elle disait « Salaire brut 820,500 » quand le
+  calcul à droite disait « Salaire brut 788,942 », absence retirée) ; sous les absences, une ligne dit qu'elles viennent du
+  pointage et qu'on les corrige là ; sans compte créé, le paiement part du « Compte principal » (« aucun compte créé » ne
+  menait nulle part), comme dans « Déposée et payée ».
+- **Les fenêtres** : l'avance et le prêt se lisent en entier (« une avance » / « un prêt », le détail au survol) ; la
+  simulation d'embauche écrit le brut comme partout (« 1 200,000 »), le contrat sans « … », et « chef de famille » s'aligne
+  sur la case des enfants ; la case « C'est une demande du salarié » porte son explication dessous, pas en seconde colonne ;
+  les champs de « Déposée et payée » ne se touchent plus.
+
+Tests : `tests/moteur/paie-revue-1253.test.ts` (la frise du mois en cours, le doublon qui nomme son double),
+`tests/web/paie-bon-a-payer.test.ts` (deux lignes pour quatre fiches en double, la pastille à 5), `tests/web/paie-mois.test.ts`
+(l'ordre du tableau des congés) ; preuves « paie 1.253 a » à « e ». Vu à l'écran le 02/11 (Le mois, la fenêtre du bulletin, la
+déclaration de novembre, la simulation d'embauche, la fenêtre du congé, le tableau des congés).

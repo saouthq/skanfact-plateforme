@@ -22111,7 +22111,7 @@ prouver 'paie 1.222 c : un statut que tous partagent revient en colonne' web/pub
   "\${uni ? '' : '<th>Statut</th>'}" "\${'<th>Statut</th>'}" \
   "$WPAIE1"
 prouver 'paie 1.222 d : la pastille de « Salariés » compte l'\''effectif' web/public/v10/app.js \
-  "C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').length;" "data.employees.length;" \
+  "new Set(C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').map(x => x.salarie)).size;" "data.employees.length;" \
   "$WPAIE1"
 prouver 'paie 1.222 e : les bulletins qui changent ne passent plus d'\''abord' web/public/v10/app.js \
   "const change = month.filter(x => r.avant[x.employeeId] == null || Math.abs(x.c.net - r.avant[x.employeeId]) >= 0.0005)" "const change = month.filter(x => r.avant[x.employeeId] == null)" \
@@ -22518,6 +22518,27 @@ prouver "paie 1.251 f : un tableau garde son cadre collé à celui de sa carte" 
 prouver "paie 1.251 g : la déclaration du mois en cours manque dans « Ce que tu verses »" web/public/v10/app.js \
   "['echeance', \`Déclaration \${/^[aeiouyéè]/i.test(MONTHS_LONG[tm - 1]) ? 'd\\'' : 'de '}\${MONTHS_LONG[tm - 1]} : retenues et taxes sur les salaires\`, \`en cours : " "['x', \`en cours : " \
   "la fiche d'une arrivée, ce que tu verses et quand, l'année par poste"
+
+# 1.253.0 (revue métier et ergonomie de la paie, 02/11/2026) : le mois en cours n'est pas « pointé » ; « À traiter » tient
+# un doublon sur une ligne ; la pastille de « Salariés » compte les fiches ; le tableau des congés suit l'ordre du calendrier.
+WP253M="le mois en cours se pointe jusqu'à son dernier jour ; le mois fini, pointé, le dit"
+WP253D='le doublon dit de qui il est le double : trois fiches sur un numéro en donnent deux, nommant la première'
+WP253B='approuver avant de payer ; les contrôles ; « Annuler »'
+prouver "paie 1.253 a : le mois en cours se dit « pointé » dès le 2" web/public/v10/core.js \
+  "fait: L.length > 0 && !enCours, dit: enCours ? \`en cours, jusqu'au \${fmtDate(finMois)}\` : pointe" "fait: L.length > 0, dit: pointe" \
+  "$WP253M"
+prouver "paie 1.253 b : un doublon ne dit pas de qui il est le double" web/public/v10/core.js \
+  ", double: { de: premier[k][v], nom: e.name, quoi } });" " });" \
+  "$WP253D"
+prouver "paie 1.253 c : « À traiter » répète chaque fiche d'un même n° CNSS ou d'un même RIB" web/public/v10/app.js \
+  "if (!x.double) { lignesT.push({ x, i }); return; }" "{ lignesT.push({ x, i }); return; }" \
+  "$WP253B"
+prouver "paie 1.253 d : la pastille de « Salariés » compte les choses, pas les fiches" web/public/v10/app.js \
+  "new Set(C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').map(x => x.salarie)).size;" "C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').length;" \
+  "$WP253B"
+prouver "paie 1.253 e : le tableau des congés ne suit pas l'ordre du calendrier" web/public/v10/app.js \
+  "paginate(emps.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')), s.compteurs)" "paginate(emps, s.compteurs)" \
+  "$WP250M"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

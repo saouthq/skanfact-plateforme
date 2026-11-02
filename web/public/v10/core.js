@@ -4115,6 +4115,7 @@
     const avant = {}; payslipsOf(data, ya, ma).forEach(x => { avant[x.employeeId] = x.c.net; });
     const coutAvant = round3(payslipsOf(data, ya, ma).reduce((a, x) => a + x.c.employerCost, 0));
     const pointe = (data.timesheets || []).some(t => Number(t.year) === y && Number(t.month) === m);
+    const finMois = addDays(`${y}-${String(m).padStart(2, '0')}-01`, daysInMonth(y, m) - 1), enCours = today() <= finMois;
     const q = Math.ceil(m / 3), cnssDeposee = (data.socialFilings || []).some(f => f.id === `cnss-${y}-T${q}`);
     const tousPayes = L.length > 0 && !manque.length && payes.length === L.length, tousRemis = tousPayes && remis.length === L.length;
     const jours = [...new Set(payes.map(x => x.paidDate))];
@@ -4122,7 +4123,8 @@
     const corrige = L.filter(x => x.correction && !x.correction.reponse && !x.paidDate).length;
     const etapes = [
       // (1.248.0) Passée sans pointage, l'étape ne se dit pas « pointée » : elle dit ce qui a servi (recette du 02/11).
-      { titre: 'Pointer', fait: L.length > 0, dit: pointe ? 'le mois est pointé' : L.length ? 'sauté : chacun payé au mois complet' : 'facultatif : absences et heures sup' },
+      // (1.253.0) Le mois en cours se pointe jusqu'à son dernier jour : il n'est ni « pointé » ni « sauté » avant.
+      { titre: 'Pointer', fait: L.length > 0 && !enCours, dit: enCours ? `en cours, jusqu'au ${fmtDate(finMois)}` : pointe ? 'le mois est pointé' : L.length ? 'sauté : chacun payé au mois complet' : 'facultatif : absences et heures sup' },
       // (plateforme) 1.227.0 — le bon à payer et la correction proposée se lisent sur l'étape des bulletins (la maquette) :
       // établis ne suffit plus quand le cabinet tient la paie, il faut aussi ton accord ; une correction en attente se dit.
       { titre: 'Bulletins', fait: n > 0 && !manque.length && !corrige && (!bap || !aApprouver), dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établis`
@@ -4229,7 +4231,7 @@
       [['cnss', 'n° CNSS', 'la déclaration du trimestre mettrait leurs deux salaires sur un seul assuré'], ['iban', 'RIB', 'son salaire partirait sur le compte d\'un autre']].forEach(([k, quoi, dit]) => {
         if (k === 'iban' && (e.method || 'virement') === 'especes') return;
         const v = nu(e[k]); if (!v) return;
-        if (premier[k][v]) L.push({ ...base, focus: k, titre: `${e.name} : le même ${quoi} que ${premier[k][v]}`, dit, geste: 'Corriger' });
+        if (premier[k][v]) L.push({ ...base, focus: k, titre: `${e.name} : le même ${quoi} que ${premier[k][v]}`, dit, geste: 'Corriger', double: { de: premier[k][v], nom: e.name, quoi } });
         else premier[k][v] = e.name;
       });
       if (e.contract === 'cdd' && e.endDate && e.endDate >= t && e.endDate <= dans60) L.push({ ...base, focus: '', titre: `Le CDD de ${e.name} finit le ${fmtDate(e.endDate)}`, dit: 'le renouveler, ou préparer sa sortie', geste: 'Décider' });

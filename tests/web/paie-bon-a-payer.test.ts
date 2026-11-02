@@ -126,6 +126,14 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     // (1.248.0) Le jeu d'essai donne le même RIB et le même n° CNSS à tous : les deux contrôles des doublons le disent.
     expect(ko).toEqual(['Pas deux salariés sur le même RIB', 'Une avance pas retenue', 'L\'entrée de Salma au prorata', 'N° CNSS de chaque salarié', 'Pas deux salariés sur le même n° CNSS']);
     expect(espace(await p.locator('#p-ctrl li.ko').nth(1).innerText())).toContain('Hamza Mejri, Mourad Trabelsi');
+    // (1.253.0) « À traiter » : quatre fiches sur le même n° CNSS et le même RIB tiennent sur deux lignes, pas six ; la
+    // pastille de « Salariés » compte les fiches à reprendre, pas les choses : la première fiche du dossier (Hamza, rangé par
+    // clé) garde son numéro et se compte par son CDD ; les trois autres doublons ; Salma sans n° CNSS. Cinq fiches, pas huit.
+    const lignesT = (await p.locator('#p-traiter li b').allInnerTexts()).map(espace);
+    expect(lignesT.filter((x) => /^Le même (n° CNSS|RIB) sur 4 fiches$/.test(x)).sort()).toEqual(['Le même RIB sur 4 fiches', 'Le même n° CNSS sur 4 fiches']);
+    expect(lignesT.filter((x) => / : le même /.test(x))).toEqual([]);
+    expect(espace(await p.locator('#p-traiter li[data-double="cnss"] small').innerText())).toMatch(/ et .+ : la déclaration du trimestre mettrait leurs salaires sur un seul assuré$/);
+    expect(await p.locator('#p-tabs [data-af="salaries"]').innerText()).toBe('5');
     await p.locator('#p-ctrl-tout').click();
     expect(await p.locator('#p-ctrl li').count()).toBe(11);
     // Tout voir garde l'ordre : ceux qui demandent un geste d'abord.

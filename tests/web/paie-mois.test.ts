@@ -201,6 +201,10 @@ describe('la paie : le mois, tel que sa maquette', () => {
     await expect.poll(titreCal).not.toBe(avantNav);
     await p.locator(`#p-mois [data-p-mois="${moisCg}"]`).click();
     await expect.poll(titreCal).toBe(avantNav);
+    // (1.253.0) Le tableau des congés suit l'ordre du calendrier juste au-dessus : les noms, dans l'ordre alphabétique.
+    const nomsCpt = (await p.locator('#p-compteurs tbody td.pa-cl b').allInnerTexts()).map(espace);
+    expect(nomsCpt.length).toBeGreaterThan(2);
+    expect(nomsCpt).toEqual([...nomsCpt].sort((a, b) => a.localeCompare(b, 'fr')));
     // Un jour qui n'est pas aujourd'hui : la fenêtre s'ouvre sur aujourd'hui quand on ne lui dit rien.
     const aujLocal = await p.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
     const cle = (await p.locator('#cg-cal td.cg-libre button[data-cg-j^="s2|"]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.cgJ || '')))
