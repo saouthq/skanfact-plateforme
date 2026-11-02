@@ -10730,10 +10730,13 @@
     const tete = paieEnTete(dossier, L, s.annee, m, P, vue);
     // (1.240.0, la maquette « paiesalaries ») La fiche du salarié choisi, à droite de la liste.
     const ficheSal = vue === 'salaries' && s.paieSal ? (L.salaries || []).find(x => x.id === s.paieSal) || null : null;
+    // (1.241.0, la maquette « paiesortie ») Le départ d'un salarié qui a une date de sortie : son dernier bulletin en projet.
+    const departSal = vue === 'salaries' && s.paieDepart ? (L.salaries || []).find(x => x.id === s.paieDepart && x.sortie) || null : null;
     if (vue === 'salaries') return `${tete}
     ${(() => { const fin = (L.salaries || []).filter(x => x.actif && x.sortie && x.sortie >= aujourdhuiPaie() && x.sortie <= dansJours(45));
     return fin.length ? `<div class="cp-pa-bandeau" id="pa-cdd">${fin.map(x => `<b>${esc(x.nom)}</b> : son ${esc(KC.contractLabel(x.contrat).split(' —')[0])} finit le ${esc(fmtJour(x.sortie))}`).join(' · ')}. Le renouveler, ou préparer sa sortie : le dernier bulletin solde ses congés pas pris ; <b>À VÉRIFIER</b> : l'indemnité de fin de contrat avec le contrat et la convention.
-      <span class="cp-pa-g">${fin.map(x => `<button type="button" class="btn btn-sm" data-pa-docs="${esc(x.id)}">Ses documents de sortie…</button>${peutMeRappeler(dossier) ? `<button type="button" class="btn btn-sm" data-pa-me-rappeler="${esc(x.id)}" data-le="${esc(rappelAvantSortie(x.sortie))}">Me le rappeler le ${esc(fmtJour(rappelAvantSortie(x.sortie)).slice(0, 5))}</button>` : ''}`).join('')}</span></div>` : ''; })()}
+      <span class="cp-pa-g">${fin.map(x => `<button type="button" class="btn btn-sm" data-pa-depart="${esc(x.id)}">Préparer son départ</button><button type="button" class="btn btn-sm" data-pa-docs="${esc(x.id)}">Ses documents de sortie…</button>${peutMeRappeler(dossier) ? `<button type="button" class="btn btn-sm" data-pa-me-rappeler="${esc(x.id)}" data-le="${esc(rappelAvantSortie(x.sortie))}">Me le rappeler le ${esc(fmtJour(rappelAvantSortie(x.sortie)).slice(0, 5))}</button>` : ''}`).join('')}</span></div>` : ''; })()}
+    ${departSal ? paieDepart(dossier, L, departSal, P) : ''}
     <div class="panel mt" id="pa-salaries"><div class="cp-pa-titre-l"><h2>Les salariés ${info('pa.salaries')}</h2>${(() => {
       const enPoste = (L.salaries || []).filter(x => x.actif), finit = enPoste.filter(x => x.sortie && x.sortie >= aujourdhuiPaie()), sortis = (L.salaries || []).filter(x => !x.actif || (x.sortie && x.sortie < aujourdhuiPaie()));
       return `<span class="small muted" id="pa-sal-resume">${esc(pl(enPoste.length, 'en poste', 'en poste'))} · ${finit.length ? esc(pl(finit.length, 'contrat qui finit', 'contrats qui finissent')) : 'aucun contrat qui finit'} · ${sortis.length ? esc(pl(sortis.length, 'sorti', 'sortis')) : 'aucun sorti'}</span>`; })()}${P.mode === 'cabinet' || P.mode === 'tenue' ? '<button type="button" class="btn btn-sm" id="pa-salarie">+ Un salarié…</button>' : `<span class="small muted">${esc(P.client)} les déclare dans SkanFact.</span>`}</div>
@@ -11696,6 +11699,21 @@
     if (sfm) sfm.onclick = () => { const x = (s.livre.salaries || []).find(y => y.id === s.paieSal); if (x) salarieForm(root, dossier, x); };
     const sfd = $('#pa-sal-fiche-demander', el);
     if (sfd) sfd.onclick = () => { const x = (s.livre.salaries || []).find(y => y.id === s.paieSal); if (x) fenDemanderCl(dossier, { titre: `${[!x.cnss && 'Le n° CNSS', !x.rib && x.methode !== 'especes' && 'le RIB'].filter(Boolean).join(' et ').replace(/^l/, 'L')} de ${x.nom}` }, { hors: true, apres: async () => redraw() }); };
+    // (1.241.0) Le départ d'un salarié : l'ouvrir, le fermer, l'envoyer au client, ses deux documents.
+    $$('[data-pa-depart]', el).forEach(b => { b.onclick = () => { s.paieDepart = b.dataset.paDepart; s.paieSal = null; redraw(); }; });
+    const dpx = $('#pa-depart-x', el);
+    if (dpx) dpx.onclick = () => { s.paieDepart = null; redraw(); };
+    const leDepart = () => (s.livre.salaries || []).find(y => y.id === s.paieDepart);
+    const dpc = $('#pa-depart-cert', el);
+    if (dpc) dpc.onclick = () => { const x = leDepart(); if (x) documentPersonnelForm(root, dossier, x, 'certificat'); };
+    const dps = $('#pa-depart-solde', el);
+    if (dps) dps.onclick = () => { const x = leDepart(); if (x) documentPersonnelForm(root, dossier, x, 'solde'); };
+    const dpe = $('#pa-depart-envoyer', el);
+    if (dpe) dpe.onclick = () => {
+      const x = leDepart(); if (!x) return;
+      const prenom = clientDePaie(dossier, s.livre), brut = ($('#pa-depart-brut', el) || {}).textContent || '';
+      fenDemanderCl(dossier, { titre: `Le départ de ${x.nom}, le ${fmtJour(x.sortie)}`, texte: `Bonjour${prenom && prenom !== 'ton client' ? ` ${prenom}` : ''}, le contrat de ${x.nom} finit le ${fmtJour(x.sortie)}. Le renouvelles-tu ? Sinon, voici le projet de son dernier bulletin : brut ${brut}, avec ses congés pas pris (l'indemnité de fin de contrat reste à vérifier avec son contrat). Je prépare son certificat de travail et son solde de tout compte.` }, { hors: true, apres: async () => redraw() });
+    };
     const sdm = $('#pa-sal-demander', el);
     if (sdm) sdm.onclick = () => fenDemanderCl(dossier, { titre: `Les n° CNSS et RIB qui manquent : ${(s.livre.salaries || []).filter(x => x.actif && (!x.cnss || (!x.rib && x.methode !== 'especes'))).map(x => x.nom).join(', ')}` }, { hors: true, apres: async () => redraw() });
     const van = $('#pa-vers-annuelle', el);
@@ -11876,8 +11894,46 @@
         ${dd('RIB', x.rib ? `··· ${esc(String(x.rib).replace(/\s/g, '').slice(-4))}` : x.methode === 'especes' ? 'payé en espèces' : '<span class="warn-text">à demander</span> · sans lui, son salaire se paie à part', 'pa-sal-rib')}
         ${dd('Congés', conges)}
       </dl>
-      <div class="ctrl-geste">${demander ? `<button type="button" class="btn btn-primary btn-sm" id="pa-sal-fiche-demander">Demander à ${esc(P.client)} ${[!x.cnss && 'son n° CNSS', sansRib && 'son RIB'].filter(Boolean).join(' et ')}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-sal-modifier">Modifier…</button></div>
+      <div class="ctrl-geste">${demander ? `<button type="button" class="btn btn-primary btn-sm" id="pa-sal-fiche-demander">Demander à ${esc(P.client)} ${[!x.cnss && 'son n° CNSS', sansRib && 'son RIB'].filter(Boolean).join(' et ')}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-sal-modifier">Modifier…</button>${x.sortie && x.actif ? `<button type="button" class="btn btn-sm" data-pa-depart="${esc(x.id)}">Préparer son départ</button>` : ''}</div>
     </aside>`;
+  }
+
+  // (1.241.0, la maquette « paiesortie ») Le départ d'un salarié dont la fiche porte une date de sortie (un CDD qui finit) :
+  // son dernier bulletin en projet — le salaire de sa fiche, l'indemnité de congés pas pris (KC.indemniteConges, le même
+  // chiffre que le solde de tout compte), l'indemnité de fin de contrat laissée vide (À VÉRIFIER : la convention) —, et ce
+  // que son départ demande. Rien ne s'écrit : le projet s'envoie au client, les documents se préparent un par un.
+  function paieDepart(dossier, L, x, P) {
+    const an = x.sortie.slice(0, 4), mois = Number(x.sortie.slice(5, 7)), tri = Math.ceil(mois / 3);
+    let ic = { jours: 0, journalier: 0, montant: 0, solde: 0 }, sal = { gross: Number(x.brut) || 0, prorata: null };
+    try {
+      const data = { ...api.paieDuDossierV10(dossier.id), payrollSettings: reglagesPaie(dossier, L) };
+      ic = KC.indemniteConges(data, x.id, x.sortie);
+      // Le salaire du mois de sa sortie, au prorata s'il part avant la fin du mois : le calcul du bulletin lui-même.
+      const e = (data.employees || []).find(y => y.id === x.id);
+      if (e) sal = KC.saisieDuMois(data, e, Number(an), mois);
+    } catch { /* sans données de paie : le brut de la fiche, et zéro de congés, dits tels quels */ }
+    const salaire = KC.round3(Number(sal.gross) || 0);
+    const brut = KC.round3(salaire + ic.montant);
+    const ligne = (t, sous, v) => `<tr><td>${t}<div class="small muted">${sous}</div></td><td class="r nw">${v}</td></tr>`;
+    const envoyer = api.messagerie && !dossier.manual && P.mode !== 'cabinet';
+    return `<section class="panel mt" id="pa-depart" aria-label="Le départ de ${esc(x.nom)}">
+      <div class="cp-pa-volet-t"><div><b>Le départ de ${esc(x.nom)}, le ${esc(fmtJour(x.sortie))}</b><small class="muted">${esc(KC.contractLabel(x.contrat).split(' —')[0])} qui arrive à son terme · le projet se prépare avec ${esc(P.client)} : le renouveler, ou le laisser finir</small></div>
+        <button type="button" class="btn btn-sm btn-ghost" id="pa-depart-x" aria-label="Fermer le départ">✕</button></div>
+      <div class="cp-pa-grille avec-volet">
+        <div><h4>Son dernier bulletin, ${esc(KC.moisPaie(mois))} ${esc(an)} <span class="muted small">· À VÉRIFIER : la règle des congés et l'indemnité de fin de contrat</span></h4>
+          <table class="list compact" id="pa-depart-bul"><tbody>
+            ${ligne(`Salaire de ${esc(KC.moisPaie(mois))}`, sal.prorata ? `au prorata : ${esc(joursFr(sal.prorata.jours))} j sur ${esc(joursFr(sal.prorata.sur))} (${esc(sal.prorata.motif)}) · ${esc(money(sal.prorata.brutFiche))} pour un mois complet` : 'le brut de sa fiche, pour un mois complet', esc(money(salaire)))}
+            ${ligne(`Congés pas pris : ${esc(joursFr(ic.jours))} j`, ic.solde < 0 ? `il a pris ${esc(joursFr(-ic.solde))} j de plus qu'il n'en a acquis : rien à indemniser` : `le solde au ${esc(fmtJour(x.sortie))} · ${esc(joursFr(ic.jours))} × ${esc(money(ic.journalier))} (son brut sur les jours d'un mois complet)`, esc(money(ic.montant)))}
+            ${ligne('Indemnité de fin de contrat', 'selon son contrat et la convention collective (À VÉRIFIER)', '<span class="muted">—</span>')}
+          </tbody><tfoot><tr><th>Brut du dernier bulletin</th><th class="r nw" id="pa-depart-brut">${esc(money(brut))}</th></tr></tfoot></table></div>
+        <div><h4>Ce que son départ demande</h4><dl class="cp-pa-fi" id="pa-depart-demande">
+          <dt>Certificat de travail</dt><dd>daté du ${esc(fmtJour(x.sortie))}, à remettre</dd>
+          <dt>Solde de tout compte</dt><dd>le reçu, signé par ${esc(x.nom.split(' ')[0])}</dd>
+          <dt>Attestation de salaires</dt><dd>${esc(an)}, pour sa déclaration d'impôt</dd>
+          <dt>CNSS</dt><dd>sa sortie dans la déclaration du ${tri === 1 ? '1er' : `${tri}e`} trimestre ${esc(an)}</dd>
+          <dt>Le livre</dt><dd>l'indemnité de congés passe comme un salaire (le compte : À VÉRIFIER)</dd></dl>
+          <div class="ctrl-geste">${envoyer ? `<button type="button" class="btn btn-primary btn-sm" id="pa-depart-envoyer">Envoyer le projet à ${esc(P.client)}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-depart-cert">Le certificat de travail…</button><button type="button" class="btn btn-sm" id="pa-depart-solde">Le solde de tout compte…</button></div></div>
+      </div></section>`;
   }
 
   function vueConges(dossier, L, annee) {

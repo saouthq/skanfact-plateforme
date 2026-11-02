@@ -22384,6 +22384,12 @@ prouver "paie 1.240 a : Ctrl + Entrée sur une ligne ne fait pas l'étape suivan
 prouver "paie 1.240 b : une ligne de Salariés n'ouvre pas la fiche du salarié" web/public/v10/cabinet/app.js \
   "      const choisir = () => { s.paieSal = s.paieSal === tr.dataset.sal ? null : tr.dataset.sal; redraw(); };" "      const choisir = () => {};" \
   "1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
+prouver "paie 1.241 a : le départ compte le salaire d'un mois complet pour un CDD qui part le 22" web/public/v10/cabinet/app.js \
+  "      if (e) sal = KC.saisieDuMois(data, e, Number(an), mois);" "" \
+  "1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
+prouver "paie 1.241 b : le brut du dernier bulletin oublie les congés pas pris" web/public/v10/cabinet/app.js \
+  "    const brut = KC.round3(salaire + ic.montant);" "    const brut = KC.round3(salaire);" \
+  "1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

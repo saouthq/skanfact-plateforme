@@ -169,7 +169,7 @@ validation
 salarié… »**, « Les documents du personnel » en tête · ✓ (1.240.0) **la fiche à droite** (« 2 choses à compléter », contrat, salaire,
 situation, CNSS, CIN, RIB, congés, **« Demander à Sarra son n° CNSS et son RIB »**, « Modifier… »)
 
-**paiesortie** — ✗ **le départ d'un CDD** : le dernier bulletin en projet (congés pas pris, indemnité À VÉRIFIER), ce que le
+**paiesortie** — ✓ (1.241.0) **le départ d'un CDD** : le dernier bulletin en projet (congés pas pris, indemnité À VÉRIFIER), ce que le
 départ demande (certificat, solde de tout compte, attestation, CNSS, le livre), « Envoyer le projet à Sarra », « Le
 certificat (PDF) »
 

@@ -55,7 +55,11 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     const anA = mo === 1 ? an - 1 : an, moA = mo === 1 ? 12 : mo - 1;
     const mm = (m: number) => String(m).padStart(2, '0');
     const sal = (id: string, name: string, grossSalary: number, x: Record<string, unknown> = {}) => ({ id, name, grossSalary, hireDate: '2023-03-10', contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'virement', iban: RIB, cnss: '12345678-12', position: 'Boulanger', ...x });
-    const S = [sal('mt', 'Mourad Trabelsi', 1450.25, { headOfFamily: true, children: 2 }), sal('hm', 'Hamza Mejri', 820.5), sal('nb', 'Nadia Ben Salah', 880.75), sal('kr', 'Karim Riahi', 1100.125, { contract: 'cdd', endDate: new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10) }), sal('ys', 'Yassine Sassi', 990.375)];
+    // Le CDD de Karim finit dans 20 jours (19 si c'est un dernier jour de mois) : jamais en fin de mois, son dernier salaire
+    // est toujours au prorata (1.241.0).
+    const fin20 = new Date(Date.now() + 20 * 86400000);
+    const finCdd = new Date(fin20.getTime() - (new Date(fin20.getTime() + 86400000).getUTCDate() === 1 ? 86400000 : 0)).toISOString().slice(0, 10);
+    const S = [sal('mt', 'Mourad Trabelsi', 1450.25, { headOfFamily: true, children: 2 }), sal('hm', 'Hamza Mejri', 820.5), sal('nb', 'Nadia Ben Salah', 880.75), sal('kr', 'Karim Riahi', 1100.125, { contract: 'cdd', endDate: finCdd }), sal('ys', 'Yassine Sassi', 990.375)];
     const bul = (e: (typeof S)[number], y: number, m: number, brut: number) => {
       const saisie = { gross: brut, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
       return { id: `p-${e.id}-${y}-${m}`, employeeId: e.id, year: y, month: m, ...saisie, computed: compta.computePayslip(e, saisie, compta.baremesPaie({})), paidDate: '', accountId: '', method: e.method, reference: '', issuedAt: `${y}-${mm(m)}-28` };
@@ -375,6 +379,25 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(await p.locator('#pa-sal-fiche-demander').count()).toBe(0);
     await p.locator('#pa-sal-x').click();
     expect(await p.locator('#pa-sal-fiche').count()).toBe(0);
+    // 1.241.0 — le départ du CDD qui finit : son dernier bulletin en projet (le salaire + les congés pas pris = le brut), ce
+    // que le départ demande, et ses gestes ; l'indemnité de fin de contrat reste vide (À VÉRIFIER).
+    await p.locator('#pa-cdd [data-pa-depart="kr"]').click();
+    const dep = espace(await p.locator('#pa-depart').innerText());
+    expect(dep).toMatch(/^Le départ de Karim Riahi, le \d\d\/\d\d\/\d{4} CDD qui arrive à son terme/);
+    expect(dep).toMatch(/Indemnité de fin de contrat selon son contrat et la convention collective \(À VÉRIFIER\) —/);
+    expect(dep).toMatch(/CNSS sa sortie dans la déclaration du (1er|\de) trimestre \d{4}/);
+    const dt = (t: string) => Number(t.replace(/[^\d,]/g, '').replace(',', '.'));
+    const cells = await p.locator('#pa-depart-bul tbody td.r').allInnerTexts();
+    // Il part avant la fin du mois : son salaire du mois est au prorata (le calcul du bulletin), pas un mois complet.
+    expect(dep).toMatch(/au prorata : [\d,]+ j sur [\d,]+ \(sortie le \d\d\/\d\d\/\d{4}\) · 1 100,125 DT pour un mois complet/);
+    expect(dt(cells[0] ?? '')).toBeLessThan(1100.125);
+    expect(dt(await p.locator('#pa-depart-brut').innerText())).toBeCloseTo(dt(cells[0] ?? '') + dt(cells[1] ?? ''), 3);
+    expect(await p.locator('#pa-depart-envoyer').count()).toBe(1);
+    await p.locator('#pa-depart-cert').click();
+    await expect.poll(() => p.locator('#dp-form select[name=kind]').inputValue()).toBe('certificat');
+    await p.keyboard.press('Escape');
+    await p.locator('#pa-depart-x').click();
+    expect(await p.locator('#pa-depart').count()).toBe(0);
     // Congés et avances : l'absence à venir, et qui décide.
     await p.locator('.pa-so [data-pa-vue="conges"]').click();
     expect(espace(await p.locator('#pa-absences').innerText())).toContain('la décision est à Sarra');

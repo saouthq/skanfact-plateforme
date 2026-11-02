@@ -1716,6 +1716,26 @@ après la validation ; l'inventaire : le volet, l'échéancier). Preuves `paie c
 Tests : `tests/web/cabinet-paie-parcours.test.ts` (la validation se fait au clavier ; l'inventaire ouvre et ferme la
 fiche). Preuves `paie 1.240 a` et `b`.
 
+## La paie du Cabinet : le départ d'un CDD (02/11/2026, 1.241.0)
+
+Un salarié dont la fiche porte une date de sortie (un CDD qui finit) a **« Préparer son départ »**, dans le bandeau du CDD
+et sur sa fiche. Le départ dit, comme la maquette « paiesortie » :
+
+- **son dernier bulletin en projet** : le salaire du mois de sa sortie, **au prorata** s'il part avant la fin du mois
+  (le calcul du bulletin lui-même, `KC.saisieDuMois` : « 15 j sur 22 (sortie le 22/11/2026) ») ; l'indemnité de congés
+  pas pris (`KC.indemniteConges`, le même chiffre que le solde de tout compte : le solde au jour de sa sortie, × son brut
+  sur les jours d'un mois complet ; un solde négatif n'indemnise rien) ; l'indemnité de fin de contrat **laissée vide**
+  (À VÉRIFIER : son contrat et la convention collective) ; le brut du dernier bulletin = salaire + congés ;
+- **ce que son départ demande** : le certificat de travail, le solde de tout compte signé, l'attestation de salaires de
+  l'année, sa sortie dans la déclaration CNSS du trimestre, l'indemnité de congés au livre comme un salaire (le compte :
+  À VÉRIFIER) ;
+- **ses gestes** : « Envoyer le projet à … » (par la conversation, sauf une paie tenue seule au cabinet), « Le certificat
+  de travail… » et « Le solde de tout compte… » (les documents du personnel, déjà là depuis la 1.72.0, ouverts sur le bon
+  document). Rien ne s'écrit dans les livres.
+
+Tests : `tests/web/cabinet-paie-parcours.test.ts` (le CDD finit dans 20 jours, jamais un dernier jour de mois : son salaire
+est toujours au prorata). Preuves `paie 1.241 a` (le salaire d'un mois complet) et `b` (les congés oubliés du brut).
+
 **Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
 dossiers » ; « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
 rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).
