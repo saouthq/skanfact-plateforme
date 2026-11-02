@@ -7,6 +7,7 @@ declarerTextes({
   'cabinet.promesse.passee': 'le jour promis est déjà passé : choisis aujourd\'hui ou un jour à venir',
   'cabinet.rappel.passe': 'un rappel se pose pour un jour à venir : demain au plus tôt',
   'cabinet.champ.perimetre': 'le périmètre : comptabilite, declarations, saisie_achats ou paie, chacun une fois',
+  'cabinet.paie.copie': 'le dossier d\'où copier le paramétrage n\'est pas un autre dossier de ton portefeuille',
   'cabinet.fiche_changee': 'la fiche de ce dossier a été changée par quelqu\'un d\'autre entre-temps : recharge-la, rien n\'a été enregistré',
   'cabinet.reglages_changes': 'les réglages du cabinet ont été changés par quelqu\'un d\'autre entre-temps : recharge-les, rien n\'a été enregistré',
   'cabinet.champ.banques': 'cinquante banques au plus',

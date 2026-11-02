@@ -1760,7 +1760,7 @@ fasse tomber (le jeu d'essai n'a pas de déclaration mensuelle au mois d'un accu
 
 Test : le parcours « tenue » range l'accusé depuis la Paie, le voit, l'ouvre en grand. Preuves `paie 1.243 a` et `b`.
 
-**Pas encore fait** (serveur, ou décision) : « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
+**Pas encore fait** (serveur, ou décision) : le virement
 rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).
 
 ## La paie du Cabinet : la paie de tous mes dossiers (02/11/2026, 1.244.0)
@@ -1792,3 +1792,19 @@ Aucune route nouvelle : le PDF du serveur (`POST /pdf`) et le dépôt au classeu
 
 Test : le parcours « tenue » envoie, lit les 5 PDF côté client, renvoie (5 en cours, 5 remplacés), ouvre le classeur en
 octobre › Paie. Preuves `paie 1.245 a` (renvoyer sans remplacer) et `b` (rangé hors de la Paie).
+
+## La paie du Cabinet : le paramétrage, qui l'a réglé et le copier (02/11/2026, 1.246.0)
+
+Pour un dossier tenu au cabinet (un client relié règle sa paie dans son SkanFact, le cabinet la lit), le paramétrage dit
+**« réglé au cabinet par Anis le 02/11/2026 »**, et **« copié de Garage Ennasr »** s'il vient d'un autre dossier. C'est le
+**serveur** qui l'écrit, quand la paie de la fiche change (ce que le poste envoie à cette place est remplacé ; une fiche
+réécrite sans changer la paie garde le réglage d'avant).
+
+**« Copier le paramétrage d'un autre dossier… »** propose les dossiers tenus du portefeuille dont la paie est réglée, avec
+ce que chacun règle (« 173,33 h · heures sup + 25 % · TFP 1 % · accident 3 % »). Le régime horaire, les heures sup, les
+congés, la TFP, le FOPROLOS et les taux par contrat sont copiés ; le **taux d'accident du travail** ne l'est que si on le
+coche (il dépend de l'activité : celui de l'avis de la CNSS du client, À VÉRIFIER). Le serveur refuse une copie depuis le
+dossier lui-même ou depuis une entreprise hors du portefeuille (`cabinet.paie.copie`).
+
+Tests : `tests/cabinet/paie.test.ts` (le poste qui prétend, la fiche réécrite, la copie, l'étranger) et le parcours des taux
+(`tests/web/cabinet-paie-regimes.test.ts`). Preuves `paie 1.246 a`, `b`, `c`.

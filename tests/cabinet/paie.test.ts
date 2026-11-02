@@ -166,6 +166,37 @@ describe('la paie tenue par le cabinet', () => {
     expect(vuDuClient.filter((o) => o.collection === 'timesheets').map((o) => o.cle)).toEqual(['ts1']);
   });
 
+  it('(1.246.0) le paramétrage de la paie : qui l\'a réglé et quand, écrit par le serveur quand il change ; copié d\'un autre dossier du portefeuille, jamais d\'un étranger', async () => {
+    const d = await dossier();
+    const fiche = async () => (await appeler('GET', `/cabinets/${d.cabinet}/fiches`, d.associe.jeton)).corps.fiches as { entreprise: string; contenu: { paie?: Record<string, unknown> }; revision: number }[];
+    const poser = (ent: string, contenu: unknown, revision: number | null) => appeler('PUT', `/cabinets/${d.cabinet}/fiches/${ent}`, d.associe.jeton, { contenu, revision });
+    // Ce que le poste prétend (« réglé par Personne en 2001 ») est remplacé par la personne et l'instant du serveur.
+    const r1 = await poser(d.ent, { paie: { regimesContrat: {}, tfpRate: '1', regle: { le: '2001-01-01T00:00:00.000Z', par: 'Personne' } } }, null);
+    expect(r1.statut).toBe(200);
+    const regle1 = (r1.corps.paieRegle as { le: string; par: string });
+    expect(regle1.par).toBe('associe');
+    expect(Date.now() - Date.parse(regle1.le)).toBeLessThan(60_000);
+    expect((await fiche()).find((f) => f.entreprise === d.ent)?.contenu.paie?.regle).toEqual(regle1);
+    // Une fiche réécrite sans changer la paie garde le réglage d'avant (et ne dit pas « réglé à l'instant »).
+    const r2 = await poser(d.ent, { email: 'sarra@exemple.tn', paie: { regimesContrat: {}, tfpRate: '1', regle: { le: '2030-01-01T00:00:00.000Z', par: 'Moi' } } }, 1);
+    expect(r2.corps.paieRegle).toEqual(regle1);
+    // Un autre dossier du même cabinet : la copie dit d'où elle vient, sous son nom.
+    const client2 = await personne('client2');
+    const ent2 = String((await appeler('POST', '/entreprises', client2.jeton, { raisonSociale: 'Garage Ennasr' })).corps.id);
+    const code = String((await admin.query('select code_cabinet from socle.organisation where id = $1', [d.cabinet])).rows[0].code_cabinet);
+    const mandat2 = String((await appeler('POST', `/entreprises/${ent2}/mandat`, client2.jeton, { codeCabinet: code })).corps.mandat);
+    await appeler('POST', `/cabinets/${d.cabinet}/mandats/${mandat2}/accepter`, d.associe.jeton);
+    const r3 = await poser(ent2, { paie: { regimesContrat: {}, tfpRate: '1', copieDe: d.ent } }, null);
+    expect(r3.statut).toBe(200);
+    expect(r3.corps.paieRegle).toEqual(expect.objectContaining({ par: 'associe', copieDe: 'Menuiserie Ben Salah' }));
+    expect((await fiche()).find((f) => f.entreprise === ent2)?.contenu.paie).not.toHaveProperty('copieDe');
+    // Copier de soi-même, ou d'une entreprise hors du portefeuille : refusé, rien d'écrit.
+    expect((await poser(ent2, { paie: { regimesContrat: {}, tfpRate: '2', copieDe: ent2 } }, 1)).corps).toEqual(expect.objectContaining({ champ: 'copieDe' }));
+    const ailleurs = String((await appeler('POST', '/entreprises', client2.jeton, { raisonSociale: 'Ailleurs' })).corps.id);
+    expect((await poser(ent2, { paie: { regimesContrat: {}, tfpRate: '2', copieDe: ailleurs } }, 1)).statut).toBe(400);
+    expect((await fiche()).find((f) => f.entreprise === ent2)?.revision).toBe(1);
+  });
+
   it('(1.244.0) la paie de tous mes dossiers : une ligne par dossier dont je fais la paie, ses bulletins étape par étape ; un dossier sans la paie au mandat n\'y est pas, ni pour un collaborateur comptable', async () => {
     const d = await dossier();
     const lire = (p: Personne, mois = '2025-03') => appeler('GET', `/cabinets/${d.cabinet}/paie?mois=${mois}`, p.jeton);

@@ -1897,9 +1897,9 @@ prouver "une fiche lue sans voir le dossier" $M20 \
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   "$E3"
 prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
-  "leaveDaysPerYear: JOURS_DE_CONGE.optional(),
+  "    copieDe: uuid.optional(),
   }).strict(),
-}).partial().strict();" "leaveDaysPerYear: JOURS_DE_CONGE.optional(),
+}).partial().strict();" "    copieDe: uuid.optional(),
   }).strict(),
 }).partial().passthrough();" \
   "$E3"
@@ -16758,8 +16758,8 @@ prouver 'le pont du Cabinet qui n'"'"'écrit pas les taux du client dans la fich
   'for (const k of []) if (pa[k] != null && pa[k] !== '"'"''"'"')' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
 prouver 'un taux du client vidé que la fiche garde quand même' 'web/public/plateforme/pont-cabinet.js' \
-  'paie: { ...(taux || {}), regimesContrat: regimes }' \
-  'paie: { ...((f ? depuisFiche(f.contenu) : {}).paie || {}), ...(taux || {}), regimesContrat: regimes }' \
+  'paie: { ...(taux || {}), regimesContrat: regimes, ...(avant' \
+  'paie: { ...((f ? depuisFiche(f.contenu) : {}).paie || {}), ...(taux || {}), regimesContrat: regimes, ...(avant' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
 prouver 'la fenêtre des taux qui n'"'"'envoie pas ceux du client' 'web/public/v10/cabinet/app.js' \
   'S = await api.savePaie(dossier.id, rc, taux);' \
@@ -22416,6 +22416,16 @@ prouver "paie 1.245 a : renvoyer les bulletins les ajoute au lieu de remplacer c
 prouver "paie 1.245 b : un bulletin envoyé se range hors de la Paie du classeur" web/public/v10/cabinet/app.js \
   "classee: true, rub: 'paie', mois: x.periode, date: x.deposeLe, recue: false," "classee: true, rub: 'achats', mois: x.periode, date: x.deposeLe, recue: false," \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+
+prouver "paie 1.246 a : le réglage de la paie garde ce que le poste prétend (qui, quand)" serveur/cabinet/routes.ts \
+  "          apres.regle = { le: new Date().toISOString(), par, ...(deNom ? { copieDe: deNom } : {}) };" "          apres.regle = apres.regle ?? { le: new Date().toISOString(), par, ...(deNom ? { copieDe: deNom } : {}) };" \
+  "(1.246.0) le paramétrage de la paie : qui l'a réglé et quand, écrit par le serveur quand il change ; copié d'un autre dossier du portefeuille, jamais d'un étranger"
+prouver "paie 1.246 b : un dossier copie le paramétrage de lui-même" serveur/cabinet/routes.ts \
+  "where entreprise = \$2 and statut = 'actif' and entreprise <> \$3\`, [cabinet, copieDe, entreprise]" "where entreprise = \$2 and statut = 'actif' and \$3::uuid is not null\`, [cabinet, copieDe, entreprise]" \
+  "(1.246.0) le paramétrage de la paie : qui l'a réglé et quand, écrit par le serveur quand il change ; copié d'un autre dossier du portefeuille, jamais d'un étranger"
+prouver "paie 1.246 c : la copie prend le taux d'accident du travail sans qu'on le coche" web/public/v10/cabinet/app.js \
+  "const at = \$('#pa-copier-at', layer).checked ? p.accidentRate : mien.accidentRate;" "const at = p.accidentRate;" \
+  "les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'un salarié en CIVP les suit"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

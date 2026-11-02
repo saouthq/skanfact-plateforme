@@ -973,8 +973,15 @@
       contenu.paie = { regimesContrat: regimes };
       // (1.66.0) Les taux propres à l'entreprise : une case vide suit le barème, et ne se garde pas.
       for (const k of TAUX_DU_DOSSIER) if (pa[k] != null && pa[k] !== '') /** @type {any} */ (contenu.paie)[k] = String(Number(pa[k]));
+      // (1.246.0) Qui l'a réglé et quand : le serveur l'écrit ; on renvoie celui qu'on a lu, et « copié de » un dossier.
+      if (pa.regle && typeof pa.regle === 'object') /** @type {any} */ (contenu.paie).regle = pa.regle;
+      if (pa.copieDe) /** @type {any} */ (contenu.paie).copieDe = String(pa.copieDe);
     }
     const r = await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
+    if (contenu.paie) {
+      delete /** @type {any} */ (contenu.paie).copieDe;
+      if (r.paieRegle) /** @type {any} */ (contenu.paie).regle = r.paieRegle;
+    }
     // La fiche lue reste celle du serveur : un geste suivant écrit sur la bonne révision.
     fiches.set(ent, { contenu, revision: r.revision });
   }
@@ -1872,12 +1879,14 @@
     // se garde à quatre décimales au plus (celles du barème qu'un bulletin fige) : l'écran le refuse sur
     // sa case, le serveur aussi. (1.66.0) Et les taux propres à l'entreprise (`taux` : accident du travail,
     // TFP, FOPROLOS), de la même fenêtre, à leur place : un taux absent suit le barème ──
-    savePaie: async (/** @type {string} */ id, /** @type {any} */ regimesContrat, /** @type {any} */ taux) => {
+    // (1.246.0) `o.copieDe` : le dossier du portefeuille dont on copie le paramétrage (le serveur l'écrit sous son nom).
+    savePaie: async (/** @type {string} */ id, /** @type {any} */ regimesContrat, /** @type {any} */ taux, /** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       if (!dossiers.has(id)) throw new Error('Dossier introuvable.');
       const regimes = KC.normaliserRegimes(regimesContrat || {});
       const f = fiches.get(id);
-      await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), paie: { ...(taux || {}), regimesContrat: regimes } }, f ? f.revision : null);
+      const avant = f ? /** @type {any} */ (f.contenu).paie : null;
+      await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), paie: { ...(taux || {}), regimesContrat: regimes, ...(avant && avant.regle ? { regle: avant.regle } : {}), ...(o && o.copieDe ? { copieDe: o.copieDe } : {}) } }, f ? f.revision : null);
       return construireEtat();
     },
     // ── Retirer un dossier du portefeuille (brique 56 ; docs/cabinet.md, C46) : arrêter son mandat. Rien

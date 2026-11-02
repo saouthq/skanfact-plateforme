@@ -90,6 +90,10 @@ const FICHE = z.object({
     accidentRate: TAUX_POUR_CENT.optional(), tfpRate: TAUX_POUR_CENT.optional(), foprolosRate: TAUX_POUR_CENT.optional(),
     heuresMois: HEURES_DU_MOIS.optional(), hsMaj1: TAUX_POUR_CENT.optional(), hsMaj2: TAUX_POUR_CENT.optional(), hsMaj3: TAUX_POUR_CENT.optional(),
     leaveDaysPerYear: JOURS_DE_CONGE.optional(),
+    // (1.246.0) Qui l'a réglé, quand, et d'après quel dossier : écrit par le SERVEUR quand la paie change (ce que le poste
+    // envoie ici est remplacé) ; `copieDe` (un dossier du portefeuille) ne se garde pas tel quel, il devient son nom.
+    regle: z.object({ le: z.string().max(40), par: z.string().max(200), copieDe: z.string().max(300).optional() }).strict().optional(),
+    copieDe: uuid.optional(),
   }).strict(),
 }).partial().strict();
 // Les réglages du cabinet (0023, C21) : cette liste, et rien d'autre. L'association des colonnes d'un
@@ -656,9 +660,29 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       // Le dossier doit être au portefeuille de la personne (mandat actif) : sinon, il n'existe pas pour elle.
       const auPortefeuille = (await tx.query(`select 1 from socle.portefeuille($1) where entreprise = $2 and statut = 'actif'`, [cabinet, entreprise])).rowCount;
       if (!auPortefeuille) return introuvable;
-      const deja = await db.selectFrom('cabinet.fiche').select('revision').where('cabinet', '=', cabinet).where('entreprise', '=', entreprise).executeTakeFirst();
+      const deja = await db.selectFrom('cabinet.fiche').select(['revision', 'contenu']).where('cabinet', '=', cabinet).where('entreprise', '=', entreprise).executeTakeFirst();
       const connue = deja ? Number(deja.revision) : null;
       if (connue !== corps.revision) return { statut: 409, corps: { motif: motif('cabinet.fiche_changee'), revision: connue } };
+      // (1.246.0) Le réglage de la paie : daté et signé ici quand il change ; sinon celui d'avant reste (jamais celui du poste).
+      type Paie = Record<string, unknown> & { regle?: { le: string; par: string; copieDe?: string }; copieDe?: string };
+      const avant = ((deja?.contenu ?? {}) as { paie?: Paie }).paie;
+      const apres = corps.contenu.paie as Paie | undefined;
+      if (apres) {
+        const sans = (x: Paie | undefined) => { if (!x) return ''; const reste = Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'regle' && k !== 'copieDe')); return JSON.stringify(reste, Object.keys(reste).sort()); };
+        const copieDe = apres.copieDe;
+        delete apres.copieDe;
+        if (sans(avant) !== sans(apres)) {
+          let deNom: string | undefined;
+          if (copieDe) {
+            const r = (await tx.query(`select raison_sociale from socle.portefeuille($1) where entreprise = $2 and statut = 'actif' and entreprise <> $3`, [cabinet, copieDe, entreprise])).rows[0] as { raison_sociale: string } | undefined;
+            if (!r) return { statut: 400, corps: { motif: motif('cabinet.paie.copie'), champ: 'copieDe' } };
+            deNom = r.raison_sociale;
+          }
+          const par = String((await tx.query('select coalesce(nom, \'\') nom from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0]?.nom ?? '');
+          apres.regle = { le: new Date().toISOString(), par, ...(deNom ? { copieDe: deNom } : {}) };
+        } else if (avant?.regle) apres.regle = avant.regle;
+        else delete apres.regle;
+      }
       const contenu = JSON.stringify(corps.contenu);
       // La révision connue se vérifie DANS l'écriture : deux postes qui enregistrent au même instant
       // ne passent pas tous les deux (le second reçoit le refus, jamais un écrasement ni une erreur).
@@ -668,7 +692,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
         : (await db.insertInto('cabinet.fiche').values({ cabinet, entreprise, contenu, modifie_par: qui.utilisateur })
           .onConflict((oc) => oc.doNothing()).executeTakeFirst()).numInsertedOrUpdatedRows;
       if (!ecrites) return { statut: 409, corps: { motif: motif('cabinet.fiche_changee'), revision: null } };
-      return { corps: { revision: (connue ?? 0) + 1 } };
+      return { corps: { revision: (connue ?? 0) + 1, ...(apres?.regle ? { paieRegle: apres.regle } : {}) } };
     },
   });
 

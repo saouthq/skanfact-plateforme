@@ -149,3 +149,10 @@
 .cp-pa-etat.rouge::before { background: var(--sb-rouge, #dc2626); }
 #pa-tous-liste tr[data-pa-tous] { cursor: pointer; }
 #pa-tous-liste tr.sel td { background: var(--sb-sarcelle-pale, rgba(13, 148, 136, .08)); }
+
+/* (1.246.0) Copier le paramétrage d'un autre dossier : un choix par ligne. */
+.cp-pa-copier { display: grid; gap: 6px; margin-top: 10px; }
+.cp-pa-copier label { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--sb-trait); border-radius: 8px; cursor: pointer; }
+.cp-pa-copier label:has(input:checked) { border-color: var(--sb-sarcelle); }
+.cp-pa-copier-at { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.cp-pa-copier-at small { display: block; }

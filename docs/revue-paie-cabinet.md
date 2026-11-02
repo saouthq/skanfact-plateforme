@@ -184,10 +184,11 @@ livre en face**, et ce qui a été versé · ✓ « Le demander » pour le n° C
 ✓ la déclaration annuelle (on y mène) · ✓ **la fin de l'année** (prime de fin d'année, attestations,
 bulletins faits pour ce dossier, congés pas pris)
 
-**paieparam** — ✓ (1.237.0) **le paramétrage du dossier** : réglé / non réglé ; ⏸ qui et quand, « Copier le paramétrage d'un autre dossier » (une lecture du serveur)
+**paieparam** — ✓ (1.237.0) **le paramétrage du dossier** : réglé / non réglé ; ✓ (1.246.0) qui et quand, « Copier le paramétrage d'un autre dossier »
 
 **paiedossiers** — ✓ (1.244.0) la paie de tous mes dossiers : le pointage, les bulletins, l'état, « Relancer » ; ⏸ les salaires payés en montant (le relevé) · **paierappel** — ⏸ la décision de Skander
 
 - ✓ (1.243.0) **paiecnss** : l'accusé de dépôt du trimestre, rangé et ouvert depuis la Paie.
 - ✓ (1.244.0) **paiedossiers** : la paie du mois de tous mes dossiers, lue sur le serveur.
 - ✓ (1.245.0) **paieapres** : « Les envoyer » — les bulletins validés en PDF dans les documents du client.
+- ✓ (1.246.0) **paieparam** : qui l'a réglé et quand (écrit par le serveur), copier le paramétrage d'un autre dossier tenu.

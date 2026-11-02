@@ -53,6 +53,9 @@ describe('les taux de la paie d\'un dossier, à la souris', () => {
     const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
     const cafe = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Café des Arts' })).corps.entreprise);
     expect((await api('POST', `/entreprises/${cafe}/compta/exercices`, associe, { annee: 2025, ouverture: [] })).statut).toBe(201);
+    // 1.246.0 — un autre dossier tenu au cabinet, dont la paie est déjà réglée : on copiera son paramétrage.
+    const garage = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Garage Ennasr' })).corps.entreprise);
+    expect((await api('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe, { contenu: { paie: { regimesContrat: {}, heuresMois: '173.33', hsMaj1: '25', tfpRate: '1', accidentRate: '3' } }, revision: null })).statut).toBe(200);
 
     const erreurs: string[] = [];
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
@@ -106,7 +109,7 @@ describe('les taux de la paie d\'un dossier, à la souris', () => {
     await fenetre.locator('[data-rc-irpp="civp"]').check();
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Taux de la paie enregistrés.');
-    expect((await fiche()).paie).toEqual({ regimesContrat: { civp: { cnssEmployer: '0', solidarity: '0.5', sansIrpp: true } }, accidentRate: '2.5', tfpRate: '1' });
+    expect((await fiche()).paie).toEqual({ regimesContrat: { civp: { cnssEmployer: '0', solidarity: '0.5', sansIrpp: true } }, accidentRate: '2.5', tfpRate: '1', regle: { le: expect.any(String), par: 'associe' } });
     await vue('salaries');
     await expect.poll(() => p.locator('#pa-regimes-bloc').innerText())
       .toMatch(/Ce client\s*: Accident du travail 2,5 %, TFP 1 % · CIVP\s*: CNSS employeur 0 %, Solidarité 0,5 %, sans IRPP/);
@@ -142,7 +145,7 @@ describe('les taux de la paie d\'un dossier, à la souris', () => {
     await client('tfpRate').fill('');
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Taux de la paie enregistrés.');
-    expect((await fiche()).paie).toEqual({ regimesContrat: { civp: { cnssEmployer: '0', solidarity: '0.5', sansIrpp: true } }, accidentRate: '2.5' });
+    expect((await fiche()).paie).toEqual({ regimesContrat: { civp: { cnssEmployer: '0', solidarity: '0.5', sansIrpp: true } }, accidentRate: '2.5', regle: { le: expect.any(String), par: 'associe' } });
     await vue('salaries');
     await expect.poll(() => p.locator('#pa-regimes-bloc').innerText()).toMatch(/Ce client\s*: Accident du travail 2,5 % · CIVP/);
 
@@ -179,6 +182,23 @@ describe('les taux de la paie d\'un dossier, à la souris', () => {
     await expect.poll(async () => (await mars()).taux).toEqual(['2.5000', '2.0000', '0.0000']);
     expect(apercu).toContain(`coûtemployeur${(await mars()).cout.replace('.', ',')}DT`);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-regimes.png') });
+    // 1.246.0 — le paramétrage dit qui l'a réglé et quand ; « Copier le paramétrage d'un autre dossier » prend celui du
+    // garage, sans son taux d'accident du travail (non coché : il dépend de l'activité).
+    await vue('mois');
+    await p.locator('#pa-controles [data-pa-vue="param"]').first().click();
+    await expect.poll(() => p.locator('#pa-param-qui').innerText().then((t) => t.replace(/\s+/g, ' ')), { timeout: 15_000 }).toMatch(/^réglé au cabinet par \S+ le \d\d\/\d\d\/\d{4} ·/);
+    await p.locator('#pa-copier-param').click();
+    expect((await fenetre.locator('#pa-copier-liste').innerText()).replace(/\s+/g, ' ')).toMatch(/^Garage Ennasr · 173,33 h · heures sup \+ 25 % · TFP 1 % · accident 3 %$/);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-copier-parametrage.png') });
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toBe('Paramétrage de la paie copié de Garage Ennasr.');
+    await expect.poll(() => p.locator('#pa-param-qui').innerText().then((t) => t.replace(/\s+/g, ' ')), { timeout: 15_000 }).toMatch(/^réglé au cabinet par \S+ le \d\d\/\d\d\/\d{4}, copié de Garage Ennasr ·/);
+    const param = (await p.locator('#pa-param').innerText()).replace(/\s+/g, ' ');
+    expect(param).toContain('173,33 h par mois');
+    expect(param).toContain('2,5 % (taux de ce dossier)');
+    const fiches = (await api('GET', `/cabinets/${cabinet}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { paie?: Record<string, unknown> } }[];
+    expect(fiches.find((f) => f.entreprise === cafe)?.contenu.paie).toEqual(expect.objectContaining({ heuresMois: '173.33', hsMaj1: '25', tfpRate: '1', accidentRate: '2.5' }));
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parametrage-copie.png') });
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

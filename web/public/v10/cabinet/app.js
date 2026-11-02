@@ -11173,10 +11173,53 @@
       ['Prime d\'ancienneté', 'non réglée', false, true], ['Prime de fin d\'année', 'non réglée', false], ['Minimum de la grille', 'non saisi', false, true]];
     const regles = L2.filter(x => x[2]).length;
     return `<div class="panel" id="pa-param"><p><button type="button" class="btn-lien" data-pa-vue="mois">← Le mois</button></p><h2>Le paramétrage de la paie du dossier</h2>
-      <p class="small muted">${duClient ? `réglé par ${esc(P.client)} dans son SkanFact : le cabinet le lit` : 'réglé au cabinet, pour ce dossier'} · ${regles} réglés · ${L2.length - regles} à régler</p>
+      <p class="small muted" id="pa-param-qui">${duClient ? `réglé par ${esc(P.client)} dans son SkanFact : le cabinet le lit` : (rg => rg ? `réglé au cabinet par ${esc(prenomCl(rg.par) || rg.par || 'le cabinet')} le ${esc(fmtJour(jourTunisCl(rg.le)))}${rg.copieDe ? `, copié de ${esc(rg.copieDe)}` : ''}` : 'réglé au cabinet, pour ce dossier')((dossier.paie || {}).regle)} · ${regles} réglés · ${L2.length - regles} à régler</p>
       <div class="cp-pa-bandeau ambre" id="pa-param-conv"><b>La convention collective n'est pas réglée.</b> Si elle prévoit une prime d'ancienneté ou un minimum par catégorie, les bulletins sont faux d'autant : c'est la première chose à vérifier (<b>À VÉRIFIER</b> : son nom et son texte).</div>
       <div class="scroll-x"><table class="list compact"><tbody>${L2.map(([k, val, ok, abord]) => `<tr><td><b>${esc(k)}</b></td><td>${esc(val)}</td><td class="nw">${ok ? '<span class="badge b-paid">réglé</span>' : abord ? '<span class="badge b-due">à vérifier d\'abord</span>' : '<span class="badge">non réglé</span>'}</td></tr>`).join('')}</tbody></table></div>
-      <div class="ctrl-geste">${duClient ? '<span class="small muted">Ces taux se changent dans son SkanFact (Paie › Barèmes).</span>' : '<button type="button" class="btn btn-sm" id="pa-regimes">Régler les taux…</button>'}</div></div>`;
+      <div class="ctrl-geste">${duClient ? '<span class="small muted">Ces taux se changent dans son SkanFact (Paie › Barèmes).</span>' : `<button type="button" class="btn btn-sm" id="pa-regimes">Régler les taux…</button>${dossiersACopier(dossier).length ? '<button type="button" class="btn btn-sm" id="pa-copier-param">Copier le paramétrage d\'un autre dossier…</button>' : ''}`}</div></div>`;
+  }
+  // (plateforme) 1.246.0 — « Copier le paramétrage d'un autre dossier » (la maquette, paieparam) : les dossiers du portefeuille
+  // dont le cabinet a réglé la paie. Le taux d'accident du travail dépend de l'activité : il ne se copie que si on le coche.
+  const TAUX_COPIABLES = ['tfpRate', 'foprolosRate', 'heuresMois', 'hsMaj1', 'hsMaj2', 'hsMaj3', 'leaveDaysPerYear'];
+  const paieRegleeAuCabinet = x => !!(x && x.paie && (Object.keys(x.paie.regimesContrat || {}).length || [...TAUX_COPIABLES, 'accidentRate'].some(k => x.paie[k] != null && x.paie[k] !== '')));
+  // Seuls les dossiers tenus au cabinet ont une paie réglée ici (un client relié règle la sienne dans son SkanFact).
+  const dossiersACopier = dossier => ((S && S.dossiers) || []).filter(x => x.id !== dossier.id && x.manual && !x.archived && paieRegleeAuCabinet(x));
+  function copierParametrageForm(dossier) {
+    const L = dossiersACopier(dossier);
+    const v = n => String(n).replace('.', ',');
+    const resume = x => {
+      const p = x.paie || {}, bits = [];
+      if (p.heuresMois) bits.push(`${v(p.heuresMois)} h`);
+      if (p.hsMaj1) bits.push(`heures sup + ${[p.hsMaj1, p.hsMaj2, p.hsMaj3].filter(Boolean).map(v).join(' / ')} %`);
+      if (p.leaveDaysPerYear) bits.push(`${v(p.leaveDaysPerYear)} j de congés`);
+      if (p.tfpRate) bits.push(`TFP ${v(p.tfpRate)} %`);
+      if (p.foprolosRate) bits.push(`FOPROLOS ${v(p.foprolosRate)} %`);
+      if (p.accidentRate) bits.push(`accident ${v(p.accidentRate)} %`);
+      const n = Object.keys(p.regimesContrat || {}).length; if (n) bits.push(pl(n, 'contrat aux taux propres', 'contrats aux taux propres'));
+      return bits.join(' · ') || 'réglé';
+    };
+    modal(`<h2>Copier le paramétrage d'un autre dossier</h2>
+      <p class="small">Le régime horaire, les heures sup, les congés, la TFP et le FOPROLOS, et les taux par contrat de ce dossier-là
+      remplacent ceux de <b>${esc(dossier.name)}</b>. Les bulletins déjà établis gardent les leurs. <b>À VÉRIFIER</b> : la convention
+      collective de ce client.</p>
+      <div class="cp-pa-copier" id="pa-copier-liste">${L.map((x, i) => `<label class="radio-ligne"><input type="radio" name="src" value="${esc(x.id)}" ${i ? '' : 'checked'}> <span><b>${esc(x.name)}</b><small class="muted"> · ${esc(resume(x))}</small></span></label>`).join('')}</div>
+      <label class="cp-pa-copier-at mt"><input type="checkbox" id="pa-copier-at"><span>Copier aussi le taux d'accident du travail<small class="muted">Il dépend de l'activité : d'habitude, celui de l'avis de la CNSS de ce client.</small></span></label>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Copier</button></div>`, (layer, close) => {
+      $('#ok', layer).onclick = async () => {
+        const src = L.find(x => x.id === ($('input[name="src"]:checked', layer) || {}).value);
+        if (!src) return;
+        const p = src.paie || {}, mien = dossier.paie || {}, taux = {};
+        for (const k of TAUX_COPIABLES) if (p[k] != null && p[k] !== '') taux[k] = Number(p[k]);
+        const at = $('#pa-copier-at', layer).checked ? p.accidentRate : mien.accidentRate;
+        if (at != null && at !== '') taux.accidentRate = Number(at);
+        const rc = {};
+        for (const [c, r] of Object.entries(p.regimesContrat || {})) rc[c] = Object.fromEntries(Object.entries(r).map(([t, x]) => [t, t === 'sansIrpp' ? true : Number(x)]));
+        try {
+          S = await api.savePaie(dossier.id, rc, taux, { copieDe: src.id });
+          close(); toast(`Paramétrage de la paie copié de ${src.name}.`); render();
+        } catch (e) { toast(plainError(e), 'error'); }
+      };
+    });
   }
   // (plateforme) 1.237.0 — les absences déjà connues des semaines qui viennent (la maquette, paieabsences) : leur effet sur
   // le bulletin, et qui décide. Une demande pas acceptée ne compte nulle part : la décision est au client.
@@ -11867,6 +11910,8 @@
       if (x) salarieForm(root, dossier, x, { focus: 'cnss' });
     }; });
     [$('#pa-bulletin', el), $('#pa-bulletin2', el), $('#pa-pt-preparer', el)].forEach(b => { if (b) b.onclick = () => bulletinForm(root, dossier, null); });
+    const cpp = $('#pa-copier-param', el);
+    if (cpp) cpp.onclick = () => copierParametrageForm(dossier);
     const rg = $('#pa-regimes', el);
     if (rg) rg.onclick = () => (s.livre && s.livre.reglagesPaie ? tauxDuSkanFactDuClient(s.livre.reglagesPaie) : regimesForm(root, dossier));
     $$('[data-pa-emp]', el).forEach(b => { b.onclick = () => dossierForm(dossier, { focus: b.dataset.paEmp === 'code' ? '#f-cnss-code' : '#f-cnss' }); });
