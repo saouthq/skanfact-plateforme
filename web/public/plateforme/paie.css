@@ -592,7 +592,9 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 #se-calc .se-brut { background: color-mix(in srgb, var(--sb-sarcelle) 8%, var(--sb-papier)); border-radius: 8px; padding: 8px 10px; margin: -2px -10px 6px; }
 
 /* Net → brut sur la fiche : un lien sous le salaire, une ligne qui s'ouvre. */
-.ef-net-b { display: inline-block; margin-top: 6px; }
+/* (1.257.0) « À partir d'un net… » : un lien, pas un bouton du navigateur (la classe `lien` n'a de style nulle part). */
+.ef-net-b { display: inline-block; justify-self: start; width: auto; text-align: left; margin-top: 6px; padding: 0; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte, var(--primary)); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.ef-net-b:hover { text-decoration-thickness: 2px; }
 .ef-net { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px dashed var(--sb-sarcelle); border-radius: 10px; background: color-mix(in srgb, var(--sb-sarcelle) 5%, var(--sb-papier)); }
 .ef-net input { width: 130px; }
 .ef-net #ef-net-r { flex: 1 1 160px; }

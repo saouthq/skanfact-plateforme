@@ -6391,9 +6391,17 @@
     // (plateforme) 1.256.0 — la sortie et l'ancienneté (docs/etudes/paie-concurrents.md, points 4 et 5). Rien n'est écrit
     // d'avance : 0 et une liste vide ne font rien, tant que l'entreprise (ou son comptable) ne les a pas réglés. À VÉRIFIER :
     // le Code du travail et la convention collective du secteur.
+    convention: '',            // (1.257.0) le nom de la convention collective du secteur ; vide : rien n'est dit réglé
     preavisJours: 0,           // préavis d'une démission ou d'un licenciement, en jours calendaires
     indemniteJoursParAn: 0,    // indemnité de licenciement : jours de salaire par année d'ancienneté
     anciennete: [],            // prime d'ancienneté : [{ ans, taux }] — le taux (en % du salaire de base) de la tranche atteinte
+    // (1.257.0) Le pointage tel que la maquette : rien n'est écrit d'avance, une liste vide et 0 ne font rien.
+    equipes: [],               // [{ id, nom, debut 'HH:MM', fin 'HH:MM', jours [1..6, 0], pointe 'main'|'pointeuse', minimum }]
+    feries: [],                // [{ date 'AAAA-MM-JJ', nom }] : posés « Jour férié » dans la grille, payés (À VÉRIFIER chaque année)
+    retenirRetards: false,     // un retard se note toujours ; il ne se retient du salaire que si ce réglage le dit (À VÉRIFIER)
+    hsArrondi: 0,              // les heures sup lues à la pointeuse s'arrondissent à l'inférieur à ce pas (minutes) ; 0 : à la minute
+    retardMinimum: 0,          // un retard lu à la pointeuse compte dès ce nombre de minutes ; 0 : dès la première
+    hsPlafondAn: 0,            // plafond d'heures supplémentaires par an : 0, pas de plafond dit (À VÉRIFIER)
     // Barème IRPP annuel progressif : `upTo` en dinars (null = au-delà), `rate` en %.
     brackets: [
       { upTo: 5000, rate: 0 },
@@ -6752,9 +6760,22 @@
   // La grille d'un mois : ce qui a été pointé à la main, sinon le congé ou l'absence saisis, sinon le calendrier (le
   // repos de la semaine des barèmes). Les jours payés suivent la règle du bulletin : le mois complet des barèmes (26),
   // moins les jours ouvrables hors contrat, moins les absences non payées.
+  // (1.257.0) L'équipe d'un salarié (ses horaires, ses jours de travail) ; sans équipe, les horaires de l'entreprise.
+  function equipeDe(settings, employee) {
+    const L = Array.isArray(settings && settings.equipes) ? settings.equipes : [];
+    return (employee && employee.equipeId && L.find(q => q && q.id === employee.equipeId)) || null;
+  }
+  function joursReposDe(settings, employee) {
+    const q = equipeDe(settings, employee);
+    if (q && Array.isArray(q.jours) && q.jours.length) return [0, 1, 2, 3, 4, 5, 6].filter(i => !q.jours.includes(i));
+    return Array.isArray(settings && settings.offDays) ? settings.offDays : [0];
+  }
+  function ferieDu(settings, iso) {
+    return (Array.isArray(settings && settings.feries) ? settings.feries : []).find(f => f && f.date === iso) || null;
+  }
   function pointageDuMois(data, employee, year, month) {
     const s = baremesPaie((data && data.payrollSettings) || {});
-    const off = Array.isArray(s.offDays) ? s.offDays : [0];
+    const off = joursReposDe(s, employee);
     const total = Number(s.workedDays) || 26;
     const premier = `${year}-${String(month).padStart(2, '0')}-01`;
     const t = pointageEnregistre(data, employee.id, year, month);
@@ -6768,11 +6789,19 @@
       else {
         const l = code === 'P' ? conges.find(x => x.from <= iso && iso <= x.to) : null;
         if (l) { code = !(l.paid != null ? l.paid : leaveIsPaid(l.kind)) ? 'A' : l.kind === 'maladie' ? 'M' : 'C'; source = 'conge'; }
+        // (1.257.0) Un férié de la liste se pose de lui-même sur un jour de travail, comme un congé saisi.
+        const fe = code === 'P' ? ferieDu(s, iso) : null;
+        if (fe) { code = 'F'; source = 'ferie'; }
         const o = t && t.jours ? t.jours[String(d)] : null;
         if (o && CODES_POINTAGE.some(x => x[0] === o)) { code = o; source = 'pointe'; }
       }
-      jours.push({ jour: d, iso, wd, code, source, repos: off.includes(wd) });
+      const rm = t && t.retards ? Math.max(0, Math.round(Number(t.retards[String(d)]) || 0)) : 0;
+      // Le retard noté à la main gagne ; sinon celui que lit la pointeuse (l'arrivée après le début du planning).
+      const rb = !rm && code === 'P' && t && t.badges && t.badges[String(d)] ? (journeeBadges(data, employee, iso) || {}).retard || 0 : 0;
+      const rt = rm || rb;
+      jours.push({ jour: d, iso, wd, code, source, repos: off.includes(wd), ...(rt ? { retard: rt } : {}), ...(rb ? { retardBadge: true } : {}), ...(t && t.badges && t.badges[String(d)] ? { badge: true } : {}), ...(code === 'F' && ferieDu(s, iso) ? { ferie: ferieDu(s, iso).nom || '' } : {}) });
     }
+    const retards = jours.reduce((a, j) => a + (j.retard || 0), 0);
     // Une absence ne se compte que sur un jour ouvrable : le repos de la semaine n'est pas payé en plus, il ne se retire
     // pas non plus (poserPointage n'y pose que « Repos » ou « Présent »).
     const absences = round3(jours.reduce((a, j) => a + (j.repos ? 0 : j.code === 'A' ? 1 : j.code === 'D' ? 0.5 : 0), 0));
@@ -6780,7 +6809,124 @@
     const payes = round3(Math.max(0, total - hors - absences));
     const hs = {};
     Object.keys((t && t.hs) || {}).forEach(k => { const h = round3(Number(t.hs[k]) || 0); if (h > 0) hs[k] = h; });
-    return { jours, absences, payes, total, hs, pointe: !!t };
+    return { jours, absences, payes, total, hs, retards, pointe: !!t };
+  }
+  // (1.257.0) LA POINTEUSE. Son fichier (texte ou tableur) : une ligne par passage, « badge ; date ; heure » (séparés par
+  // ; , une tabulation ou des espaces ; la date en JJ/MM/AAAA ou AAAA-MM-JJ ; l'heure en HH:MM, les secondes ignorées).
+  // Une ligne qu'on ne sait pas lire se compte, sans rien deviner.
+  function lireBadges(texte) {
+    const passages = [];
+    let illisibles = 0;
+    String(texte || '').split(/\r?\n/).forEach(l0 => {
+      const l = l0.trim();
+      if (!l) return;
+      const m = /^"?([A-Za-z0-9-]{1,20})"?[\s;,\t]+"?(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})"?[\sT;,\t]+"?(\d{1,2})[:h](\d{2})(?::\d{2})?/.exec(l)
+        || /^"?([A-Za-z0-9-]{1,20})"?[\s;,\t]+"?(\d{4})-(\d{2})-(\d{2})"?[\sT;,\t]+"?(\d{1,2})[:h](\d{2})(?::\d{2})?/.exec(l);
+      if (!m) { if (!/badge|matricule|date|heure/i.test(l)) illisibles++; return; }
+      const iso = m[4].length === 4 ? `${m[4]}-${m[3].padStart(2, '0')}-${m[2].padStart(2, '0')}` : `${m[2]}-${m[3]}-${m[4]}`;
+      const hh = Number(m[5]), mi = Number(m[6]);
+      if (hh > 23 || mi > 59 || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(iso)) { illisibles++; return; }
+      passages.push({ badge: m[1].replace(/^0+(?=\d)/, ''), iso, heure: `${String(hh).padStart(2, '0')}:${String(mi).padStart(2, '0')}` });
+    });
+    return { passages, illisibles };
+  }
+  const minutesDe = hm => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(hm || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  // Ce qu'un import ferait, sans rien écrire (`ecrire` faux), ou l'écrit : chaque passage va au salarié dont la fiche porte
+  // ce n° de badge ; un jour garde sa première et sa dernière heure ; un passage déjà importé s'ignore. Les cases pointées à
+  // la main ne bougent pas : les badges se gardent à côté (`timesheet.badges`).
+  function importerBadges(data, passages, ecrire) {
+    const norm = b => String(b || '').trim().replace(/^0+(?=\d)/, '');
+    const parBadge = new Map((data.employees || []).filter(e => norm(e.badge)).map(e => [norm(e.badge), e]));
+    const r = { lus: passages.length, rattaches: 0, deja: 0, inconnus: [], jours: 0, du: '', au: '' };
+    const groupes = new Map();
+    passages.forEach(p => {
+      const e = parBadge.get(norm(p.badge));
+      if (!e) { if (!r.inconnus.includes(p.badge)) r.inconnus.push(p.badge); return; }
+      r.rattaches++;
+      if (!r.du || p.iso < r.du) r.du = p.iso; if (!r.au || p.iso > r.au) r.au = p.iso;
+      const k = `${e.id}|${p.iso}`; if (!groupes.has(k)) groupes.set(k, { e, iso: p.iso, h: [] }); groupes.get(k).h.push(p.heure);
+    });
+    groupes.forEach(({ e, iso, h }) => {
+      const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = String(Number(iso.slice(8, 10)));
+      let t = pointageEnregistre(data, e.id, y, m);
+      const avant = t && t.badges && t.badges[d] ? t.badges[d] : null;
+      const vus = new Set(avant ? avant.h || [] : []);
+      const neufs = [...new Set(h)].filter(x => !vus.has(x));
+      r.deja += h.length - neufs.length;
+      if (!neufs.length) return;
+      r.jours++;
+      if (!ecrire) return;
+      if (!t) { if (!Array.isArray(data.timesheets)) data.timesheets = []; t = { id: uid(), employeeId: e.id, year: y, month: m, jours: {}, hs: {} }; data.timesheets.push(t); }
+      t.badges = t.badges || {};
+      const tout = [...vus, ...neufs].sort();
+      t.badges[d] = { h: tout, ...(avant && avant.sortieMain ? { sortieMain: avant.sortieMain } : {}) };
+    });
+    return r;
+  }
+  // La journée d'un salarié lue sur ses badges : l'arrivée, le départ (la sortie posée à la main, si le badge l'a oubliée),
+  // le temps passé, le retard sur le planning de son équipe et ce qui dépasse le planning. `null` sans badge ce jour-là.
+  function journeeBadges(data, employee, iso) {
+    const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = String(Number(iso.slice(8, 10)));
+    const t = pointageEnregistre(data, employee.id, y, m), b = t && t.badges ? t.badges[d] : null;
+    if (!b || !(b.h || []).length) return null;
+    const s = baremesPaie((data && data.payrollSettings) || {}), q = equipeDe(s, employee);
+    const arrivee = b.h[0], depart = b.h.length > 1 ? b.h[b.h.length - 1] : (b.sortieMain || '');
+    const a = minutesDe(arrivee), dp = minutesDe(depart);
+    const travaille = a != null && dp != null ? (dp >= a ? dp - a : dp + 1440 - a) : null;
+    const debut = q ? minutesDe(q.debut) : null, fin = q ? minutesDe(q.fin) : null;
+    const prevu = debut != null && fin != null ? (fin > debut ? fin - debut : fin + 1440 - debut) : null;
+    const seuil = Math.max(1, Math.round(Number(s.retardMinimum) || 0));
+    const retard = debut != null && a != null && a - debut >= seuil && a - debut < 240 ? a - debut : 0;
+    // Au-delà du planning : ce qui passe la fin prévue (une arrivée en avance ne compte pas), arrondi à l'inférieur au pas
+    // réglé (`hsArrondi`, en minutes ; 0 : à la minute).
+    const apres = fin != null && dp != null && depart ? (dp - fin + 1440) % 1440 : 0;
+    const pas = Math.max(1, Math.round(Number(s.hsArrondi) || 0));
+    const au_dela = apres > 0 && apres < 720 ? Math.floor(apres / pas) * pas : 0;
+    return { arrivee, depart, sortieMain: !!(b.h.length < 2 && b.sortieMain), travaille, prevu, retard, auDela: au_dela, passages: b.h.length };
+  }
+  // À régler avant d'envoyer le pointage d'un mois : une entrée sans sortie (« Mettre la sortie à 11:00 »), et les jours de
+  // travail passés sans badge ni rien pour les justifier (ni congé saisi, ni férié, ni case changée à la main) chez ceux qui
+  // pointent à la pointeuse. Les jours avant le premier badge importé du mois, ou après le dernier, ne se comptent pas.
+  function anomaliesPointage(data, year, month, jourIso) {
+    const s = baremesPaie((data && data.payrollSettings) || {});
+    const out = [];
+    (data.employees || []).forEach(e => {
+      const t = pointageEnregistre(data, e.id, year, month);
+      const B = t && t.badges ? t.badges : null;
+      const q = equipeDe(s, e);
+      if (!B || !Object.keys(B).length) return;
+      const jours = Object.keys(B).map(Number).sort((a, b) => a - b);
+      const p = pointageDuMois(data, e, year, month);
+      jours.forEach(d => { const b = B[String(d)]; if ((b.h || []).length === 1 && !b.sortieMain) out.push({ sorte: 'sortie', employeeId: e.id, jour: d, entree: b.h[0], proposee: q && q.fin ? q.fin : '' }); });
+      if (!q || q.pointe !== 'pointeuse') return;
+      const sans = p.jours.filter(j => j.jour >= jours[0] && j.jour <= jours[jours.length - 1] && (!jourIso || j.iso <= jourIso)
+        && !j.repos && j.code === 'P' && j.source === 'calendrier' && !B[String(j.jour)]).map(j => j.jour);
+      if (sans.length) out.push({ sorte: 'sansBadge', employeeId: e.id, jours: sans });
+    });
+    return out;
+  }
+  function poserSortie(data, employee, year, month, jour, heure) {
+    const t = pointageEnregistre(data, employee.id, year, month), b = t && t.badges ? t.badges[String(jour)] : null;
+    if (!b || minutesDe(heure) == null) return false;
+    b.sortieMain = heure;
+    return true;
+  }
+  // (1.257.0) Un retard, en minutes, sur un jour du mois (0 l'efface). Il se note toujours ; il ne se retient que si le
+  // réglage `retenirRetards` le dit.
+  function poserRetard(data, employee, year, month, jour, minutes) {
+    const naturel = pointageDuMois(data, employee, year, month).jours.find(j => j.jour === Number(jour));
+    if (!naturel || naturel.code === '-') return false;
+    let t = pointageEnregistre(data, employee.id, year, month);
+    const mn = Math.max(0, Math.min(600, Math.round(Number(minutes) || 0)));
+    if (!t) {
+      if (!mn) return true;
+      if (!Array.isArray(data.timesheets)) data.timesheets = [];
+      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      data.timesheets.push(t);
+    }
+    t.retards = t.retards || {};
+    if (mn) t.retards[String(jour)] = mn; else delete t.retards[String(jour)];
+    return true;
   }
   // Poser le code d'un jour : seul ce qui diffère de ce que le calendrier et les congés donneraient se garde. Un jour hors
   // contrat, ou un code qu'un jour de repos ne prend pas, se refuse sans rien écrire.
@@ -7750,7 +7896,7 @@
     LEAVE_KINDS, leaveIsPaid,
     // (plateforme) 1.70.0 — les congés.
     leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance, congeRetenu,
-    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
+    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, poserRetard, equipeDe, joursReposDe, ferieDu, lireBadges, importerBadges, journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
     saisieDuMois, brutDuMois, employeAuMois, regulsDuMois, saisiesOf, saisiesDuMois,
     // (plateforme) 1.256.0 — net → brut, l'ancienneté, les variables du mois, l'indemnité de licenciement.
     brutPourNet, anneesAnciennete, trancheAnciennete, primeAncienneteDuMois, variablesDuMois, indemniteLicenciement,

@@ -216,7 +216,7 @@ describe('la paie : le mois, tel que sa maquette', () => {
     const [qui, jourIso] = cle.split('|');
     await libre.click();
     const fenCg = p.locator('#modal-root .modal').last();
-    await expect.poll(() => fenCg.locator('h2').innerText()).toBe('Congé ou absence');
+    await expect.poll(() => fenCg.locator('h2').innerText()).toBe('Un congé ou une absence');
     expect([qui, await fenCg.locator('input[type=hidden][name=employeeId]').inputValue(),
       await fenCg.locator('input[type=hidden][name=from]').inputValue(), await fenCg.locator('input[type=hidden][name=to]').inputValue()])
       .toEqual(['s2', 's2', jourIso, jourIso]);

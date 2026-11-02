@@ -146,7 +146,9 @@ describe('la paie : le pointage à la main', () => {
     // ── Les horaires : réglés ici, sur place (1.249.0) ; le pointage les suit ─────────────────────────────────────────
     await p.locator('#p-sous [data-sous="pt-horaires"]').click();
     await p.locator('#pt-hor').waitFor();
-    expect(espace(await p.locator('#pt-hor').innerText())).toContain('Une pointeuse pas encore');
+    // (1.257.0) Sans équipe, toute l'entreprise pointe à la main ; la carte des équipes dit comment en créer une.
+    expect(espace(await p.locator('#pt-hor').innerText())).toContain('Toute l\'entreprise · à la main');
+    expect(espace(await p.locator('#pt-eq').innerText())).toContain('Une seule équipe pour l\'instant');
     // Les réglages du test : aucun jour de repos.
     expect(await p.locator('#pt-h [data-jour][aria-pressed="false"]').count()).toBe(0);
     expect(await p.locator('#pt-h-ok').isDisabled()).toBe(true);

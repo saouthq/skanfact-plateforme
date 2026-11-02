@@ -1,4 +1,4 @@
-# La paie de l'entreprise face à sa maquette : ce qui manque encore (02/11/2026 ; lot 1.256.0 fait)
+# La paie de l'entreprise face à sa maquette : ce qui manque encore (02/11/2026 ; lots 1.256.0 et 1.257.0 faits)
 
 Remarque de Skander (02/11) : « tu as oublié encore beaucoup d'écrans, d'états, d'Ouvrir de la maquette paie de
 l'entreprise ». Relue état par état (les 37 « État ») et fenêtre par fenêtre (les 28 « Ouvrir ») de
@@ -45,20 +45,25 @@ soignée par rapport à ce que tu fais sur notre app. » Et : « devant chacun s
 
 ## Lot 1.257.0 — le pointage tel que la maquette
 
-| Maquette | Ce qui manque | État |
+| Maquette | Ce qui manquait | État (1.257.0) |
 |---|---|---|
-| « Les horaires d'équipe » | Plusieurs **équipes** (le fournil la nuit, la boutique le matin, l'après-midi) : horaires, jours, qui ; l'équipe sur la fiche du salarié | ◐ (un seul horaire) |
-| « Comment chaque équipe pointe » | Une équipe à la pointeuse, une autre à la main | ◐ |
-| « Les jours fériés de 2026, posés d'eux-mêmes » | La liste de l'année, réglable, posée dans la grille | ◐ |
-| « Le mois, ses totaux » | Le tableau complet : présent, payés, heures sup, sans solde, **retards**, « à savoir » ; la ligne des totaux | ◐ |
-| « Les compteurs » | Heures sup de l'année et plafond, retards du mois, heures de nuit (réglages vides par défaut) | ❌ |
-| « Pointer une case » | Le **retard** (minutes, retenu ou non selon le réglage) | ❌ |
-| « Envoyé, verrouillé » | **Envoyer le pointage** au cabinet : verrouillé ; « Corriger : une nouvelle version » ; « Voir la version envoyée » | ❌ |
-| « Ses anomalies » | « À régler avant d'envoyer » : sortie oubliée (« Mettre la sortie à 11:00 »), jours sans badge ni justificatif (« sans solde ou congé payé ») | ❌ |
-| « Importer la pointeuse » | Le fichier de badges : rattaché par **n° de badge** (sur la fiche), doublons ignorés, la main gagne toujours | ❌ |
-| « La semaine de Mourad, heure par heure » | Arrivée, départ, travaillé, ce qui va au bulletin (heures sup au-delà du planning, arrondi, retards non retenus) | ❌ |
-| « Où va la paie » (L'année) | Par **équipe**, avec les absences, heures sup et retards du mois | ◐ (par poste) |
-| « Novembre : qui est absent » | Le minimum par équipe (« le fournil tient la nuit à deux ») dit avant d'accepter un congé | ❌ |
+| « Les horaires d'équipe » | Plusieurs **équipes** (le fournil la nuit, la boutique le matin, l'après-midi) : horaires, jours, qui ; l'équipe sur la fiche du salarié | ✅ |
+| « Comment chaque équipe pointe » | Une équipe à la pointeuse, une autre à la main | ✅ |
+| « Les jours fériés de 2026, posés d'eux-mêmes » | La liste de l'année, réglable, posée dans la grille | ✅ |
+| « Le mois, ses totaux » | Le tableau complet : présent, payés, heures sup, sans solde, **retards**, « à savoir » ; la ligne des totaux | ✅ |
+| « Les compteurs » | Heures sup de l'année et plafond, retards du mois, heures de nuit (réglages vides par défaut) | ✅ (la nuit dite « pas encore comptée ») |
+| « Pointer une case » | Le **retard** (minutes, retenu ou non selon le réglage) | ✅ (jamais retenu : le réglage viendra) |
+| « Envoyé, verrouillé » | **Envoyer le pointage** au cabinet : verrouillé ; « Corriger : une nouvelle version » ; « Voir la version envoyée » | ✅ (« Valider » : sans cabinet, rien ne s'envoie) |
+| « Ses anomalies » | « À régler avant d'envoyer » : sortie oubliée (« Mettre la sortie à 11:00 »), jours sans badge ni justificatif (« sans solde ou congé payé ») | ✅ |
+| « Importer la pointeuse » | Le fichier de badges : rattaché par **n° de badge** (sur la fiche), doublons ignorés, la main gagne toujours | ✅ |
+| « La semaine de Mourad, heure par heure » | Arrivée, départ, travaillé, ce qui va au bulletin (heures sup au-delà du planning, arrondi, retards non retenus) | ✅ |
+| « Où va la paie » (L'année) | Par **équipe**, avec les absences, heures sup et retards du mois | ✅ |
+| « Novembre : qui est absent » | Le minimum par équipe (« le fournil tient la nuit à deux ») dit avant d'accepter un congé | ✅ |
+
+Fenêtres reprises dans ce lot : renouveler un CDD (O15), une saisie sur salaire (O07), la case du pointage (O20),
+importer la pointeuse (O06), les jours sans badge (O26), remettre les bulletins (O03). Restent pour le lot suivant : O05
+(rappel), O08 (document), O17 (déclaration sans cabinet), O18/O19 (aperçus), O25 (correction), O27/O28 (téléphone) ;
+la retenue des retards et les heures de nuit (réglages à venir).
 
 Tout ce qui touche à une règle de droit (préavis, indemnité, ancienneté, plafonds, nuit, fériés, absences particulières)
 reste un **réglage vide par défaut** et s'écrit « À VÉRIFIER ».

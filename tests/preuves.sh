@@ -16600,8 +16600,8 @@ prouver 'un journal qui ne tient pas à l'"'"'ordinateur' 'web/public/v10/app.js
   '<th class="r nw" title="${h(l)}">${h(court)}</th>' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
 prouver 'la déclaration mensuelle sur le mois des bulletins' 'web/public/v10/app.js' \
-  '      const dmMois = Number(s.moisDeclare) || (y === ty ? Math.max(1, tm - 1) : y < ty ? 12 : 1);' \
-  '      const dmMois = Number(s.moisDeclare) || Number(s.month);' \
+  '      const dmMois = dmRepli ? dmChoisi - 1 : dmChoisi;' \
+  '      const dmMois = dmChoisi > 1 ? dmChoisi - 1 : dmChoisi;' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
 prouver 'l'"'"'état récapitulatif sans ses lettres' 'web/public/v10/app.js' \
   '<em data-etat="lettres">${h(etat.enLettres)}</em>' \
@@ -22623,6 +22623,40 @@ prouver "paie 1.256 n : le bulletin à modifier dans une fenêtre de 720 px" web
   ".pm .modal.fen.pa-bf, .pm .modal.fen.pv-large { width: min(1040px, 96vw); max-width: min(1040px, 96vw); }" "" \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'\''avant 2026 se disent'
 
+prouver "paie 1.257 a : l'équipe ne fait plus les jours de repos" web/public/v10/compta.js \
+  "    const off = joursReposDe(s, employee);" "    const off = Array.isArray(s.offDays) ? s.offDays : [0];" \
+  'l'\''équipe fait les jours de repos : le lundi de la boutique, le dimanche du fournil, le dimanche sans équipe'
+prouver "paie 1.257 b : un férié de la liste ne se pose plus" web/public/v10/compta.js \
+  "        if (fe) { code = 'F'; source = 'ferie'; }" "" \
+  'un férié de la liste se pose de lui-même, payé, jamais sur un jour de repos ; la main gagne'
+prouver "paie 1.257 c : les zéros devant un n° de badge comptent" web/public/v10/compta.js \
+  "      passages.push({ badge: m[1].replace(/^0+(?=\\d)/, ''), iso," "      passages.push({ badge: m[1], iso," \
+  'le fichier de la pointeuse : les deux formats de date, les zéros du badge, l'\''en-tête ignoré, l'\''illisible compté'
+prouver "paie 1.257 d : un passage déjà importé compte deux fois" web/public/v10/compta.js \
+  "      const neufs = [...new Set(h)].filter(x => !vus.has(x));" "      const neufs = [...new Set(h)];" \
+  'l'\''import : chaque passage à la fiche de son badge, un passage déjà lu ignoré, un badge inconnu dit, la main intacte'
+prouver "paie 1.257 e : le seuil d'un retard ne compte pas" web/public/v10/compta.js \
+  "    const seuil = Math.max(1, Math.round(Number(s.retardMinimum) || 0));" "    const seuil = 1;" \
+  'la journée lue sur les badges : le retard dès le seuil, la fin du planning dépassée, arrondie au pas réglé'
+prouver "paie 1.257 f : les heures sup des badges ne s'arrondissent pas" web/public/v10/compta.js \
+  "    const au_dela = apres > 0 && apres < 720 ? Math.floor(apres / pas) * pas : 0;" "    const au_dela = apres > 0 && apres < 720 ? apres : 0;" \
+  'la journée lue sur les badges : le retard dès le seuil, la fin du planning dépassée, arrondie au pas réglé'
+prouver "paie 1.257 g : un jour badgé passe pour un jour sans badge" web/public/v10/compta.js \
+  "&& !j.repos && j.code === 'P' && j.source === 'calendrier' && !B[String(j.jour)]).map(j => j.jour);" "&& !j.repos && j.code === 'P' && j.source === 'calendrier').map(j => j.jour);" \
+  'les anomalies : l'\''entrée sans sortie (la fin du planning proposée), les jours sans badge ni justificatif'
+prouver "paie 1.257 h : la case ne note pas le retard du jour" web/public/v10/app.js \
+  "            if (d === iso) C.poserRetard(data, e, yy, mm, dd, o.code === 'P' && !o.au ? o.retard : 0);" "" \
+  'la case du pointage : ce que chaque choix fait, le retard du jour, « Au » pour plusieurs jours, « Annuler »'
+prouver "paie 1.257 i : l'aperçu de l'import écrit avant le geste" web/public/v10/app.js \
+  "          const r = C.importerBadges(data, lu.passages, false);" "          const r = C.importerBadges(data, lu.passages, true);" \
+  'la pointeuse : ce que le fichier donnerait, l'\''import, l'\''anomalie réglée, puis le mois validé et verrouillé'
+prouver "paie 1.257 j : un pointage validé se change encore" web/public/v10/app.js \
+  "      if (iso && ptVerrouille(String(iso).slice(0, 7))) {" "      if (false) {" \
+  'la pointeuse : ce que le fichier donnerait, l'\''import, l'\''anomalie réglée, puis le mois validé et verrouillé'
+prouver "paie 1.257 k : le texte des compteurs ne passe plus à la ligne au téléphone" 'web/public/plateforme/paie-maquette.css|||web/public/plateforme/paie-maquette.css|||web/public/plateforme/paie-maquette.css|||web/public/plateforme/paie-maquette.css' \
+  '.pm .pt-cpt td small { display: block; color: var(--gris-2); font-size: 12px; white-space: normal; }|||.pm .pt-cpt td { white-space: normal; overflow-wrap: anywhere; }|||.pm table.mini.pt-cpt td.r { width: 45%; white-space: normal; }|||.pm table.mini.pt-cpt .r small { display: block; margin-left: 0; }' \
+  '.pm .pt-cpt td small { color: var(--gris-2); font-size: 12px; }|||||||||' \
+  'la sortie d'\''un salarié, son motif et son ancienneté ; la saisie dès un mois ; au téléphone, le pointage en liste'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

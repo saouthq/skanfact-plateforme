@@ -12126,7 +12126,7 @@
     pageInfo, compareValues, LINE_UNITS, usedUnits, uniteAccordee, usedWithholdingRates, parseDateInput, fmtDateInput, monthMatrix,
     uid, round3, money, fmtDate, addDays, daysInMonth, today, jourDeLInstant, escapeHtml, nl2br, capitalAffiche, statusLabel,
     // (plateforme) 1.60.0 — le pointage.
-    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
+    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, poserRetard: Compta.poserRetard, equipeDe: Compta.equipeDe, joursReposDe: Compta.joursReposDe, ferieDu: Compta.ferieDu, lireBadges: Compta.lireBadges, importerBadges: Compta.importerBadges, journeeBadges: Compta.journeeBadges, anomaliesPointage: Compta.anomaliesPointage, poserSortie: Compta.poserSortie, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
     plier, correspondRecherche, rangRecherche, classerRecherche, delaiJours, typoFr,
     CLOSURE_ACTIONS, closedUntil, isClosedDate, closedPeriodLabel, closableMonths, rienACloturer, closureChecks, closePeriod, reopenPeriod, closureLog,
     PACK_FORMAT, packPeriod, packPlan, packChecklist, packFileName, packCoverHtml,

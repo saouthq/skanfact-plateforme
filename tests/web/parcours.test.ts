@@ -758,8 +758,14 @@ describe('le parcours, à la souris', () => {
     await expect.poll(() => p.locator('#pt-sans-hs').innerText()).toMatch(/règle d'abord leurs majorations dans les horaires/);
     expect(await pointage()).toBeUndefined();
 
-    // Un clic passe au code suivant (présent → demi-journée) ; le curseur reste sur la case.
+    // (1.257.0) Un clic ouvre la case (maquette O20) : chaque choix dit ce qu'il fait sur le bulletin ; « Noter » le pose,
+    // et le curseur revient sur la case.
     await kase(lundi).click();
+    const fenCase = p.locator('#modal-root .modal').last();
+    await fenCase.locator('#pc').waitFor();
+    expect((await fenCase.locator('label:has(input[value=A])').innerText()).replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ')).toMatch(/Absent, sans solde − [\d ,]+ DT sur son brut/);
+    await fenCase.locator('input[name=code][value=D]').check();
+    await fenCase.locator('#pc-ok').click();
     await expect.poll(() => kase(lundi).innerText()).toBe('½');
     await expect.poll(payes).toBe('25,5');
     expect(await p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.pt)).toBe(String(lundi));
@@ -771,8 +777,12 @@ describe('le parcours, à la souris', () => {
     await p.keyboard.press('a');
     await expect.poll(payes).toBe('24');
     expect(await ligne.locator('[data-pt-abs]').innerText()).toBe('2');
-    // Un dimanche ne passe que de « Repos » à « Présent » ; une absence s'y refuse, et le dit.
+    // Un dimanche ne passe que de « Repos » à « Présent » (sa case n'offre que ces deux-là) ; une absence s'y refuse, et le dit.
     await kase(dimanche).click();
+    await fenCase.locator('#pc').waitFor();
+    expect(await fenCase.locator('input[name=code]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).toEqual(['R', 'P']);
+    await fenCase.locator('input[name=code][value=P]').check();
+    await fenCase.locator('#pc-ok').click();
     await expect.poll(() => kase(dimanche).innerText()).toBe('P');
     await p.keyboard.press('a');
     await expect.poll(() => p.locator('#toast').innerText()).toMatch(new RegExp(`Le ${dimanche} \\S+ est un jour de repos\\s: il se pointe «\\sRepos\\s», ou «\\sPrésent\\s»`));

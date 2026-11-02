@@ -2136,3 +2136,62 @@ Tests : `tests/moteur/paie-1256.test.ts` (le moteur), `tests/web/paie-1256-geste
 mois, l'augmentation en lot, à la souris) ; les tests de la paie retournés vers le nouveau balisage ; preuves « paie 1.256
 a » à « j ». Neuf anciennes preuves suivent le code d'aujourd'hui (le journal au menu ⋯, les primes d'ancienneté et les
 variables dans les bulletins des deux côtés, les avances sous « Salariés »).
+
+## Le pointage tel que la maquette (02/11/2026, 1.257.0)
+
+Demande de Skander (02/11) : « il faut vraiment tout faire, rien oublier », et le lot 1.257 de
+`docs/paie-ecarts-maquette.md` (équipes, horaires, fériés, retards, compteurs, validation et versions, anomalies, pointeuse,
+semaine heure par heure, minimum par équipe, l'année par équipe). Chaque écran vu à la souris pendant le travail, les tests
+et les preuves à la fin du lot (consigne de Skander du 02/11).
+
+**Les équipes** (`payrollSettings.equipes`, Présences › Les horaires) : un nom, l'heure d'arrivée et de départ (« HH:MM »),
+les jours de travail, comment elle pointe (à la main ou à la pointeuse), le minimum de présents, qui en est. Les jours de
+travail de l'équipe font les jours de repos de ceux qui en sont (`joursReposDe`) ; sans équipe, ce sont les horaires de
+l'entreprise. L'équipe se choisit aussi sur la fiche (« Son équipe », avec le n° de badge) et s'y lit (« Son contrat »).
+
+**Les jours fériés** (`payrollSettings.feries`) : la liste de l'année, réglable ; « Proposer les N fériés à date fixe » ajoute
+ceux à date fixe (À VÉRIFIER : la liste, et les fêtes religieuses, à poser à la main). Un férié se pose de lui-même dans la grille,
+payé (`F`), jamais sur un jour de repos ; une case posée à la main gagne.
+
+**La case du pointage** (O20) : un clic ouvre la fenêtre qui dit ce que chaque choix fait (une absence non payée coûte un
+jour de salaire, un congé payé prend sur le solde), le **retard** du jour en minutes, et « Au » pour poser plusieurs jours
+d'un coup ; « Annuler » défait. Au clavier, la lettre pose encore le code d'un coup. Un retard se voit d'un point ambre.
+
+**La pointeuse** (O06) : « Importer la pointeuse… » lit un fichier de badges (`lireBadges` : « badge ; date ; heure », la
+date en JJ/MM/AAAA ou AAAA-MM-JJ, les zéros devant le n° ignorés, l'en-tête sauté, les lignes illisibles comptées). Avant le
+geste, la fenêtre dit ce que le fichier donnerait (lus, rattachés par le n° de badge de la fiche, déjà importés, badges
+inconnus, anomalies), calculé sur une copie : rien n'est écrit avant « Importer les N badges ». Un passage déjà importé
+s'ignore ; la main gagne toujours (un congé posé reste).
+
+**La journée lue sur les badges** (`journeeBadges`) : l'arrivée, le départ, le travaillé ; le **retard** dès le seuil réglé
+(« Un retard compte dès », 0 = à la minute) ; ce qui passe la fin du planning, arrondi au pas réglé (« Heures sup des badges,
+arrondies à »). « La semaine de X, heure par heure » (Par salarié) le montre jour par jour, et met d'un geste
+ses heures sup du mois dans la grille (+25 %).
+
+**Les anomalies** (« À régler avant de valider ») : l'entrée sans sortie (« Mettre la sortie à 11:00 », la fin du
+planning), les jours de travail sans badge ni justificatif (« Choisir… » : sans solde, congé payé, maladie, ou il était là).
+
+**Valider le pointage** (et non « l'envoyer » : sans cabinet, personne ne le reçoit) : le mois se **verrouille** ; une case
+le refuse et dit comment le rouvrir. « Corriger : une nouvelle version » rouvre ; la version validée reste gardée et se voit
+(« Voir la version 1 ») ; valider à nouveau dit ce qui a changé. Le bouton reste éteint tant qu'il reste une anomalie.
+
+**Les totaux du mois et les compteurs** : présent, payés, heures sup par majoration, sans solde, retards, « à savoir » ; les
+heures sup de l'année face au plafond (réglage vide par défaut : « aucun plafond réglé », À VÉRIFIER), les retards du mois
+(« aucun n'est retenu sur la paie » : le réglage qui les retiendrait n'existe pas encore), les heures de nuit (pas encore
+comptées, dit tel quel).
+
+**Le minimum par équipe** : avant d'accepter un congé, la fenêtre du congé et la demande disent si l'équipe passerait sous
+son minimum (« il ne resterait que Mourad »), et laissent poser quand même.
+
+**L'année par équipe** (Déclarations › L'année, « Où va la paie ») : par équipe quand il y en a, avec ce que les bulletins
+ont payé en heures sup et retenu en sans solde, et les retards du pointage.
+
+**Les fenêtres reprises de la maquette** dans ce lot : renouveler un CDD (O15 : la suite, CDD ou CDI, la nouvelle fin, le
+salaire, le jour où le lui dire, ses CDD bout à bout face à la durée maximale, À VÉRIFIER), une saisie sur salaire (O07 :
+le nombre de mois et le dernier bulletin), les jours sans badge (O26), remettre les bulletins (O03 : par e-mail par toi, ou
+imprimé ; SkanFact n'envoie rien).
+
+Tests : `tests/moteur/paie-1257.test.ts` (équipes, fériés, badges, journée, anomalies), `tests/web/paie-1257-gestes.test.ts`
+(la case à la souris ; la pointeuse, l'anomalie, la validation, le verrou, la correction) ; les tests de la paie retournés
+vers la fenêtre de la case et les nouvelles cartes ; preuves « paie 1.257 a » à « k ». La preuve de la déclaration du mois
+des bulletins vise désormais la ligne qui choisit le mois montré.

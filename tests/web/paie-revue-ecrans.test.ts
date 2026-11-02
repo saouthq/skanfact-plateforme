@@ -273,12 +273,13 @@ describe('la paie : les écrans de la revue', () => {
     await p.locator('#so').waitFor();
     // Sans motif, rien ne s'enregistre : le refus le dit et montre le champ.
     await p.locator('#so-ok').click();
-    expect(espace(await p.locator('#so-refus').innerText())).toBe('Le motif manque : démission, fin de CDD, licenciement…');
+    expect(espace(await p.locator('#so-refus').innerText())).toBe('Le motif manque : choisis-le dans les cartes ci-dessus.');
     expect(await p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('motif');
     expect((await objets(A, 'employees')).find((x) => x.id === 'nb')?.sortieMotif).toBeUndefined();
     await p.locator('#so .datefield:has(input[name=endDate]) input.d-txt').fill('31/10/2026');
     await p.locator('#so .datefield:has(input[name=endDate]) input.d-txt').press('Tab');
-    await p.locator('#so [name=motif]').selectOption('demission');
+    // (1.257.0) Les motifs en cartes, comme la maquette : chacune dit ce que le départ donne.
+    await p.locator('#so input[name=motif][value=demission]').check();
     // Embauchée le 10/03/2023, partie le 31/10/2026 : 3 ans et 7 mois.
     expect(espace(await p.locator('#so-anc').innerText())).toBe('Ancienneté au dernier jour : 3 ans et 7 mois.');
     await p.locator('#so [name=note]').fill('lettre reçue le 01/10');
@@ -327,6 +328,9 @@ describe('la paie : les écrans de la revue', () => {
     expect(await p.locator('#pt-tel li').count()).toBe(2);
     expect(espace(await p.locator('#pt-tel').innerText())).toContain('Mourad Trabelsi');
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // Les compteurs passent à la ligne : aucune case ne coupe son texte (vu le 02/11 : 391 px dans une carte de 345).
+    expect(await p.locator('#pt-compteurs td').count()).toBeGreaterThan(0);
+    expect(await p.locator('#pt-compteurs td').evaluateAll((l) => l.filter((x) => x.scrollWidth > x.clientWidth + 1).length)).toBe(0);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-pointage-telephone.png'), fullPage: true });
     await p.locator('#pt-tel [data-pt-tel]').first().click();
     await expect.poll(async () => p.locator('#pt-tel').count()).toBe(0);
