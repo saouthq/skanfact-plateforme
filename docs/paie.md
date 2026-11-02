@@ -2046,3 +2046,20 @@ Tests : `tests/moteur/paie-revue-1253.test.ts` (la frise du mois en cours, le do
 `tests/web/paie-bon-a-payer.test.ts` (deux lignes pour quatre fiches en double, la pastille à 5), `tests/web/paie-mois.test.ts`
 (l'ordre du tableau des congés) ; preuves « paie 1.253 a » à « e ». Vu à l'écran le 02/11 (Le mois, la fenêtre du bulletin, la
 déclaration de novembre, la simulation d'embauche, la fenêtre du congé, le tableau des congés).
+
+## La revue de la paie, suite : L'année, les Réglages, la fiche d'un salarié (02/11/2026, 1.254.0)
+
+- **L'année** : « Où va la paie de novembre » sous « Coût de la paie 2026 » devient **« Où va la paie de 2026 »** : chaque
+  poste, son coût de l'année et sa part ; un salarié compte une fois par poste (le livreur parti en octobre y compte encore).
+  « Toute l'année » choisie dans la bande se voit comme un mois choisi (un anneau), sans changer de taille.
+- **Les Réglages** : les taux s'écrivent à la française (« 9,68 », « 0,4 ») comme le tableau des contrats juste dessous ; la
+  case du navigateur écrivait « 9.68 ». « 0,45 » tapé s'enregistre 0,45.
+- **La fiche d'un salarié** : l'historique disait « Brut de novembre 2026 : 820,500 → 788,942 », daté du 30/11, le 2
+  novembre (une absence, lue comme une baisse de salaire à venir). Il dit désormais le **salaire de base** qui change, au
+  premier jour de son mois (« Salaire de base dès novembre 2026 : 1 450,375 → 1 500,500 ») ; une absence n'y paraît plus.
+  L'onglet **Congés** disait « Aucun congé ni absence » alors qu'une absence était pointée : il dit maintenant « Au pointage
+  de 2026 : 1 jour d'absence non payée (02/11) ; il se retire du bulletin de son mois ».
+
+Tests : `tests/web/paie-revue-ecrans.test.ts` (la fiche : la base qui change, l'absence pointée), `tests/web/paie-bon-a-payer.test.ts`
+(les postes de l'année), `tests/web/paie-pointage-main.test.ts` (« 0,45 » enregistré) ; preuves « paie 1.254 a » à « d ».
+Vu à l'écran le 02/11 (L'année, les Réglages, la fiche de Hamza : Congés, Historique).

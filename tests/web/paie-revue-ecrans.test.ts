@@ -218,4 +218,46 @@ describe('la paie : les écrans de la revue', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'paie-mois-telephone.png'), fullPage: true });
     expect(erreurs).toEqual([]);
   }, 240_000);
+
+  // (1.253.0, revue du 02/11/2026) L'historique de la fiche dit le salaire de BASE qui change, au premier jour de son mois
+  // (pas « Brut de … » daté de la fin du mois, absences comprises) ; l'onglet Congés dit les absences notées au pointage.
+  it('la fiche : le salaire de base qui change, au 1er du mois ; les absences du pointage sous les congés', async () => {
+    const A = await monter();
+    const mm = (m: number) => String(m).padStart(2, '0');
+    // Mourad : sa base passe de 1 450,375 à 1 500,500 ce mois-ci. Nadia : une absence le mois d'avant (le brut du mois
+    // baisse, sa base ne change pas).
+    const mt = A.ceMois.find((b) => b.employeeId === 'mt')!, nbAvant = A.avant.find((b) => b.employeeId === 'nb')!;
+    // Un objet déjà posé se remplace à sa révision.
+    const remplacer = async (cle: string, contenu: unknown) => {
+      const o = (await api('GET', `/entreprises/${A.ent}/dossier-v10`, A.j)).corps.objets as { collection: string; cle: string; revision: number }[];
+      const r = o.find((x) => x.collection === 'payslips' && x.cle === cle);
+      const rep = await api('POST', `/entreprises/${A.ent}/dossier-v10`, A.j, { changements: [{ collection: 'payslips', cle, rang: null, revision: r ? r.revision : null, contenu: enc(contenu) }] });
+      expect(rep.statut).toBeLessThan(300);
+    };
+    const saisieMt = { gross: 1500.5, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
+    const eMt = { grossSalary: 1500.5, contract: 'cdi', headOfFamily: true, children: 2 };
+    await remplacer(mt.id, { ...mt, ...saisieMt, computed: compta.computePayslip(eMt, saisieMt, compta.baremesPaie({})) });
+    const saisieNb = { gross: 880.125, workedDays: 26, absentDays: 1, bonuses: [], deductions: [] };
+    await remplacer(nbAvant.id, { ...nbAvant, ...saisieNb, computed: compta.computePayslip({ grossSalary: 880.125, contract: 'cdi', headOfFamily: false, children: 0 }, saisieNb, compta.baremesPaie({})) });
+    // Le pointage de Nadia, le mois d'avant : un jour ouvré « absent ».
+    let jour = 3; while (new Date(Date.UTC(A.anA, A.moA - 1, jour)).getUTCDay() === 0) jour++;
+    await A.poser('timesheets', 'ts-nb', { id: 'ts-nb', employeeId: 'nb', year: A.anA, month: A.moA, jours: { [String(jour)]: 'A' }, hs: {} });
+    let p = await ouvrir(A, '#/salarie/mt');
+    await p.locator('[data-onglet="historique"]').click();
+    await expect.poll(async () => p.locator('.pa-histo li').count()).toBeGreaterThan(1);
+    const lignes = (await p.locator('.pa-histo li').allInnerTexts()).map(espace);
+    expect(lignes.filter((l) => /Salaire de base dès/.test(l))).toEqual([`01/${mm(A.mo)}/${A.an} Salaire de base dès ${new Date(Date.UTC(A.an, A.mo - 1, 1)).toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' })} ${A.an} 1 450,375 DT → 1 500,500 DT`]);
+    expect(lignes.filter((l) => /^\S+ Brut de /.test(l))).toEqual([]);
+    await p.close();
+    p = await ouvrir(A, '#/salarie/nb');
+    await p.locator('[data-onglet="historique"]').click();
+    await expect.poll(async () => p.locator('.pa-histo li').count()).toBeGreaterThan(1);
+    expect((await p.locator('.pa-histo li').allInnerTexts()).map(espace).filter((l) => /Salaire de base|Brut de/.test(l))).toEqual([]);
+    if (A.anA === A.an) {
+      await p.locator('[data-onglet="conges"]').click();
+      await expect.poll(async () => p.locator('#fs-pointes').count()).toBe(1);
+      expect(espace(await p.locator('#fs-pointes').innerText())).toBe(`Au pointage de ${A.an} : 1 jour d'absence non payée (${mm(jour)}/${mm(A.moA)}) ; il se retire du bulletin de son mois.`);
+    }
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

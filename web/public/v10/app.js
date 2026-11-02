@@ -19146,12 +19146,14 @@
           })() : ''}</section>
         ${dernier ? (() => {
           // « Où va la paie du mois » : par poste (la fiche d'un salarié n'a pas d'équipe ; le poste en tient lieu), sa part du coût.
-          const L = C.payslipsOf(data, y, dernier), tot = C.round3(L.reduce((a, x) => a + x.c.employerCost, 0)), G = {};
-          L.forEach(x => { const k = String(x.employee.position || '').trim() || 'Sans poste'; (G[k] = G[k] || { n: 0, c: 0 }); G[k].n++; G[k].c = C.round3(G[k].c + x.c.employerCost); });
+          // (1.253.0) Sur la page de l'année, l'année entière (elle disait « de novembre » sous « Coût de la paie 2026 ») ; un
+          // salarié compte une fois par poste, même avec douze bulletins.
+          const L = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap(mm => C.payslipsOf(data, y, mm)), tot = C.round3(L.reduce((a, x) => a + x.c.employerCost, 0)), G = {};
+          L.forEach(x => { const k = String(x.employee.position || '').trim() || 'Sans poste'; (G[k] = G[k] || { n: new Set(), c: 0 }); G[k].n.add(x.employeeId); G[k].c = C.round3(G[k].c + x.c.employerCost); });
           const R = Object.entries(G).sort((a, b) => b[1].c - a[1].c);
-          return `<section class="pa-carte" id="p-annee-postes"><div class="pa-carte-t"><b>Où va la paie de ${h(MONTHS_LONG[dernier - 1])}</b><span class="mu">par poste, son coût et sa part</span></div>
-            <div class="scroll-x"><table class="list compact pa-liste"><thead><tr><th>Poste</th><th class="r">Salariés</th><th class="r">Coût de ${h(MONTHS_LONG[dernier - 1])}</th><th class="r">Part</th></tr></thead><tbody>
-            ${R.map(([k, v]) => `<tr><td><b>${h(k)}</b></td><td class="r">${v.n}</td><td class="r nw">${C.money(v.c, '')}</td><td class="r">${tot ? Math.round(v.c / tot * 100) : 0} %</td></tr>`).join('')}</tbody></table></div></section>`;
+          return `<section class="pa-carte" id="p-annee-postes"><div class="pa-carte-t"><b>Où va la paie de ${h(String(y))}</b><span class="mu">par poste, son coût de l'année et sa part</span></div>
+            <div class="scroll-x"><table class="list compact pa-liste"><thead><tr><th>Poste</th><th class="r">Salariés</th><th class="r">Coût en ${h(String(y))}</th><th class="r">Part</th></tr></thead><tbody>
+            ${R.map(([k, v]) => `<tr><td><b>${h(k)}</b></td><td class="r">${v.n.size}</td><td class="r nw">${C.money(v.c, '')}</td><td class="r">${tot ? Math.round(v.c / tot * 100) : 0} %</td></tr>`).join('')}</tbody></table></div></section>`;
         })() : ''}`;
     }
 
@@ -20081,7 +20083,9 @@
       // sur quinze. Aujourd'hui aucun n'en porte, tant que le comptable n'a pas tranché.
       const tfpPropose = C.tfpSuggere(company().activity);
       // (1.248.1) Un montant s'écrit comme partout (« 2 000,000 »), pas « 2000 » d'une case numérique.
-      const num = (k, lab, key, montant) => `<label class="field">${lbl(lab, key)}${montant ? `<input type="text" inputmode="decimal" data-montant autocomplete="off" name="${k}" value="${C.money(Number(st[k]) || 0, null, 3)}" class="num montant">` : `<input type="number" name="${k}" value="${st[k]}" step="0.01" min="0" class="num">`}</label>`;
+      const num = (k, lab, key, montant) => `<label class="field">${lbl(lab, key)}${montant ? `<input type="text" inputmode="decimal" data-montant autocomplete="off" name="${k}" value="${C.money(Number(st[k]) || 0, null, 3)}" class="num montant">` : `<input type="text" inputmode="decimal" data-montant autocomplete="off" name="${k}" value="${h(String(st[k] == null ? '' : st[k]).replace('.', ','))}" class="num">`}</label>`;
+      // (1.253.0) Un taux s'écrit comme partout ailleurs, à la française (« 9,68 ») : la case du navigateur affichait « 9.68 »
+      // à côté du tableau des contrats qui disait « 9,68 ».
       // Un montant porte son unité à côté de son libellé (9.4.8) : « Plafond annuel des frais : 2000 »
       // ne disait ni dinars ni par an, et « Déduction chef de famille (par an) » pas davantage.
       // (plateforme) 1.226.0 — ce qui est réglé et ce qui ne l'est pas, d'un coup d'œil (la maquette, « Réglages »).
@@ -20415,7 +20419,10 @@
       const E = [];
       if (e.hireDate) E.push([e.hireDate, 'Entrée', `${(C.contractLabel(e.contract || 'cdi') || '').split(' —')[0]}, ${e.position || 'poste à préciser'}`]);
       const asc = slips.slice().reverse();
-      asc.forEach((x, k) => { if (k && Math.abs(x.c.gross - asc[k - 1].c.gross) >= 0.0005) E.push([C.payslipDate(x), `Brut de ${MONTHS_LONG[x.month - 1]} ${x.year}`, `${C.money(asc[k - 1].c.gross, cur)} → ${C.money(x.c.gross, cur)}`]); });
+      // (1.253.0) Le salaire de BASE qui change, au premier jour de son mois : « Brut de novembre » (une absence retirée), daté
+      // du 30/11, se lisait le 2 novembre comme une hausse ou une baisse à venir.
+      const baseDe = x => C.round3(Number(x.prorata ? x.prorata.brutFiche : x.gross) || 0);
+      asc.forEach((x, k) => { if (k && Math.abs(baseDe(x) - baseDe(asc[k - 1])) >= 0.0005) E.push([`${x.year}-${String(x.month).padStart(2, '0')}-01`, `Salaire de base dès ${MONTHS_LONG[x.month - 1]} ${x.year}`, `${C.money(baseDe(asc[k - 1]), cur)} → ${C.money(baseDe(x), cur)}`]); });
       asc.forEach(x => { if (x.paidDate) E.push([x.paidDate, `Salaire de ${MONTHS_LONG[x.month - 1]} ${x.year} payé`, C.money(x.c.net, cur)]); if (x.remisLe) E.push([x.remisLe, `Bulletin de ${MONTHS_LONG[x.month - 1]} remis`, '']); });
       (data.leaves || []).filter(l => l.employeeId === e.id).forEach(l => E.push([l.from, C.leaveKindLabel ? C.leaveKindLabel(l.kind) : 'Congé ou absence', `du ${C.fmtDate(l.from)} au ${C.fmtDate(l.to)}`]));
       avs.forEach(a => E.push([a.date, 'Avance versée', C.money(a.amount, cur)]));
@@ -20451,9 +20458,12 @@
     const docsFaits = (e.documentsFaits || []).slice().reverse();
     const pjSal = e.attachments || [];
     const pjArrets = (data.leaves || []).filter(l => l.employeeId === e.id).flatMap(l => (l.attachments || []).map(a => ({ a, l })));
+    // (1.253.0) Les jours « absent » posés à la main au pointage de l'année (un congé saisi se lit déjà dans le tableau).
+    const pointesAn = og !== 'conges' ? [] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap(mm => C.pointageEnregistre(data, e.id, Number(year), mm)
+      ? C.pointageDuMois(data, e, Number(year), mm).jours.filter(j => j.code === 'A' && j.source === 'pointe').map(j => `${year}-${String(mm).padStart(2, '0')}-${String(j.jour).padStart(2, '0')}`) : []);
     const corps = og === 'conges' ? `<div class="pa-kv"><span>Acquis en ${h(year)}</span><b>${pct(b.acquired)} jour${sPl(b.acquired)}</b><span>Pris</span><b>${pct(b.taken)} jour${sPl(b.taken)}</b><span>Il lui reste</span><b class="${b.remaining < 0 ? 'warn-text' : ''}">${pct(b.remaining)} jour${sPl(b.remaining)}</b></div>
         ${lvs.length ? (P => `<table class="list compact pa-liste"><thead><tr><th>Nature</th><th>Du</th><th>Au</th><th class="r">Jours</th><th>Effet</th></tr></thead><tbody>${P.rows.map(l => `<tr class="clickable" data-lv="${h(l.id)}"><td>${h(l.kindLabel)}${(l.attachments || []).length ? ` <span class="small muted" title="${h(l.attachments.map(a => a.name).join(', '))}">· ${lfIc('piece', 12)} ${pl(l.attachments.length, 'fichier')}</span>` : l.kind === 'maladie' && !l.certificatLe ? ' <span class="statut attire">certificat ?</span>' : ''}</td><td class="nw">${C.fmtDate(l.from)}</td><td class="nw">${C.fmtDate(l.to)}</td><td class="r">${pct(l.days)}</td><td>${l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td></tr>`).join('')}</tbody></table>${P.bar}`)(pag(lvs, 'absence'))
-          : `<div class="empty">Aucun congé ni absence en ${h(year)}.</div>`}<div class="pa-pied-o"><button type="button" class="btn btn-sm" id="add-lv">${lfIc('croix', 14, 2.4)} Un congé ou une absence</button></div>`
+          : `<div class="empty">Aucun congé ni absence ${pointesAn.length ? 'saisi' : ''} en ${h(year)}.</div>`}${pointesAn.length ? `<p class="small muted" id="fs-pointes">Au pointage de ${h(year)} : ${pl(pointesAn.length, 'jour')} d'absence non payée (${h(pointesAn.slice(0, 6).map(d => C.fmtDate(d).slice(0, 5)).join(', '))}${pointesAn.length > 6 ? '…' : ''}) ; ${pointesAn.length > 1 ? 'ils se retirent du bulletin de leur mois' : 'il se retire du bulletin de son mois'}.</p>` : ''}<div class="pa-pied-o"><button type="button" class="btn btn-sm" id="add-lv">${lfIc('croix', 14, 2.4)} Un congé ou une absence</button></div>`
       : og === 'avances' ? (avs.length ? `${ouvertes.length ? `<ul class="pa-av-l" id="fs-av-cours">${ouvertes.map(x => avanceLigneHtml(x, cur)).join('')}</ul>` : ''}${avs.some(x => x.done) ? `<table class="list compact pa-liste"><thead><tr><th>Soldée${avs.filter(x => x.done).length > 1 ? 's' : ''} · versée le</th><th class="r">Avancé</th><th class="r">Il reste</th></tr></thead><tbody>${avs.filter(x => x.done).map(x => `<tr class="clickable" data-av="${h(x.id)}"><td class="nw">${C.fmtDate(x.date)}</td><td class="r nw">${C.money(x.amount, cur)}</td><td class="r nw">${x.done ? '<span class="ok-text">soldée</span>' : `<b>${C.money(x.remaining, cur)}</b>`}</td></tr>`).join('')}</tbody></table>` : ''}${ouvertes.length ? `<p class="small muted pa-note">${C.money(C.round3(ouvertes.reduce((a2, x) => a2 + x.remaining, 0)), cur)} se retiennent d'eux-mêmes sur les prochains bulletins.</p>` : ''}`
           : '<div class="empty">Aucune avance ni aucun prêt. Une avance se retient toute seule, mois après mois, sur ses bulletins.</div>')
           + (szs.length ? `<h3 class="pa-h3">Saisies sur salaire</h3><table class="list compact pa-liste" id="fs-saisies"><thead><tr><th>Créancier</th><th class="r">Retenu</th><th class="r">À lui verser</th><th class="r">Reste</th></tr></thead><tbody>${szs.map(x => `<tr class="clickable" data-sz="${h(x.id)}"><td><b>${h(x.creancier || '')}</b><small class="muted"> ${C.money(x.monthly, cur)} par mois</small></td><td class="r nw">${C.money(x.retenu, cur)}</td><td class="r nw">${x.aVerser ? `<b class="warn-text">${C.money(x.aVerser, cur)}</b>` : '—'}</td><td class="r nw">${x.done ? '<span class="ok-text">soldée</span>' : C.money(x.reste, cur)}</td></tr>`).join('')}</tbody></table>` : '')

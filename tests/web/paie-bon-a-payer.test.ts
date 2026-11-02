@@ -255,9 +255,13 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(await p.locator('#dc-verses li').first().locator('[data-file]').count()).toBe(1);
     expect(await p.locator('#dm-panneau .pa-carte-t b').first().innerText()).toMatch(/^La déclaration d.\S+, sa part paie/);
     await p.locator('#p-tabs button[data-tab="annee"]').click();
-    await expect.poll(() => p.locator('#p-annee-postes tbody tr').count()).toBe(4);
+    // (1.253.0) Les postes de l'année entière : le livreur parti le mois d'avant y compte encore (s'il était dans l'année).
+    const livreurDansLAnnee = A.mo !== 1;
+    await expect.poll(() => p.locator('#p-annee-postes tbody tr').count()).toBe(livreurDansLAnnee ? 5 : 4);
     const postes = (await p.locator('#p-annee-postes tbody tr td:first-child').allInnerTexts()).map(espace);
     expect(postes).toContain('Vendeuse');
+    if (livreurDansLAnnee) expect(postes).toContain('Livreur');
+    expect(espace(await p.locator('#p-annee-postes .pa-carte-t b').innerText())).toMatch(/^Où va la paie de \d{4}$/);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

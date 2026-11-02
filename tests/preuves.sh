@@ -22540,6 +22540,22 @@ prouver "paie 1.253 e : le tableau des congés ne suit pas l'ordre du calendrier
   "paginate(emps.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')), s.compteurs)" "paginate(emps, s.compteurs)" \
   "$WP250M"
 
+# 1.254.0 (revue de la paie, suite, 02/11/2026) : l'historique de la fiche dit le salaire de base ; l'onglet Congés dit les
+# absences du pointage ; « Où va la paie » de l'année entière ; les taux des réglages à la française.
+WP254F='la fiche : le salaire de base qui change, au 1er du mois ; les absences du pointage sous les congés'
+prouver "paie 1.254 a : l'historique compare le brut du mois, absences comprises" web/public/v10/app.js \
+  "const baseDe = x => C.round3(Number(x.prorata ? x.prorata.brutFiche : x.gross) || 0);" "const baseDe = x => x.c.gross;" \
+  "$WP254F"
+prouver "paie 1.254 b : l'onglet Congés tait les absences du pointage" web/public/v10/app.js \
+  "const pointesAn = og !== 'conges' ? [] :" "const pointesAn = true ? [] :" \
+  "$WP254F"
+prouver "paie 1.254 c : « Où va la paie » ne lit que le dernier mois" web/public/v10/app.js \
+  "const L = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap(mm => C.payslipsOf(data, y, mm))," "const L = C.payslipsOf(data, y, dernier)," \
+  "la fiche d'une arrivée, ce que tu verses et quand, l'année par poste"
+prouver "paie 1.254 d : un taux des réglages s'écrit « 9.68 »" web/public/v10/app.js \
+  "value=\"\${h(String(st[k] == null ? '' : st[k]).replace('.', ','))}\" class=\"num\">" "value=\"\${st[k]}\" class=\"num\">" \
+  'aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

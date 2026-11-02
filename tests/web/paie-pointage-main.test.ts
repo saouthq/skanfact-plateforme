@@ -167,8 +167,12 @@ describe('la paie : le pointage à la main', () => {
     // Les Réglages de la paie, enregistrés ensuite, gardent les jours de repos (avant la 1.249.0, ils les effaçaient).
     await p.locator('#p-tabs [data-tab="baremes"]').click();
     await p.locator('#rf input[name=leaveDaysPerYear]').fill('18');
+    // (1.253.0) Un taux s'écrit à la française, et se relit tel quel : « 0,45 » enregistre 0,45 %.
+    expect(await p.locator('#rf input[name=cnssEmployee]').inputValue()).toMatch(/^\d+,\d+$/);
+    await p.locator('#rf input[name=accidentRate]').fill('0,45');
     await p.locator('#rf-save').click();
     await expect.poll(async () => (await reglages() as { leaveDaysPerYear?: number } | undefined)?.leaveDaysPerYear, { timeout: 15_000 }).toBe(18);
+    expect((await reglages() as { accidentRate?: unknown } | undefined)?.accidentRate).toEqual({ '~n': '0.45' });
     expect((await reglages())?.offDays).toEqual([0]);
     expect(erreurs).toEqual([]);
   }, 240_000);

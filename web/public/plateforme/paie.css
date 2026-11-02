@@ -525,8 +525,9 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 .cp-mo.ambre small { color: var(--sb-ambre-texte); font-weight: 600; }
 .cp-mo.vide { border-style: dashed; background: transparent; }
 .cp-mo.on { box-shadow: 0 0 0 2px var(--sb-sarcelle); }
-.cp-ex { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; padding: 0 2px; white-space: nowrap; }
-.cp-ex.on { text-decoration: underline; text-underline-offset: 3px; }
+/* (1.253.0) « Toute l'année » choisie se voit comme un mois choisi (un anneau), sans changer de taille. */
+.cp-ex { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; padding: 6px 8px; border-radius: 8px; white-space: nowrap; }
+.cp-ex.on { box-shadow: 0 0 0 2px var(--sb-sarcelle); background: var(--sb-papier); }
 
 #p-mois.pa-mois { display: block; height: auto; padding: 0; border: 0; background: none; margin: 12px 0 2px; }
 .pa-bande .pa-bande-an { gap: 2px; }
@@ -574,3 +575,4 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 #pd { display: grid; gap: 12px; }
 #pd .field { margin: 0; }
 #dm-encours { margin-left: 8px; }
+#fs-pointes { margin: 8px 14px 0; }
