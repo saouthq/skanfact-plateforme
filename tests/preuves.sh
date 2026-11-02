@@ -22361,7 +22361,7 @@ prouver 'paie cabinet 1.238 e : « Me le rappeler » ne pose pas le rappel' web/
   "if (!garde) await appel('PUT'" "if (false) await appel('PUT'" \
   "$WC1"
 prouver 'paie cabinet 1.238 f : le mois validé tait le pointage changé' web/public/v10/cabinet/app.js \
-  "paieDepuisLaValidation(dossier, L, m, bulletins, o)].join('');" "''].join('');" \
+  "paieDepuisLaValidation(dossier, L, m, bulletins, o), paieVirementsRevenus(" "'', paieVirementsRevenus(" \
   "$WC1"
 prouver 'paie cabinet 1.238 g : l'\''en-tête du pointage ne suit pas la grille' web/public/v10/cabinet/app.js \
   "const resume = \$('#pt-resume', el);" "const resume = null;" \
