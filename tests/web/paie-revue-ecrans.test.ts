@@ -226,7 +226,8 @@ describe('la paie : les écrans de la revue', () => {
     const mm = (m: number) => String(m).padStart(2, '0');
     // Mourad : sa base passe de 1 450,375 à 1 500,500 ce mois-ci. Nadia : une absence le mois d'avant (le brut du mois
     // baisse, sa base ne change pas).
-    const mt = A.ceMois.find((b) => b.employeeId === 'mt')!, nbAvant = A.avant.find((b) => b.employeeId === 'nb')!;
+    const mt = A.ceMois.find((b) => b.employeeId === 'mt'), nbAvant = A.avant.find((b) => b.employeeId === 'nb');
+    if (!mt || !nbAvant) throw new Error('le jeu d\'essai a perdu Mourad ou Nadia');
     // Un objet déjà posé se remplace à sa révision.
     const remplacer = async (cle: string, contenu: unknown) => {
       const o = (await api('GET', `/entreprises/${A.ent}/dossier-v10`, A.j)).corps.objets as { collection: string; cle: string; revision: number }[];
