@@ -153,7 +153,7 @@ pointage de Sarra : il lui demande) · ✗ l'anomalie et « Lui demander »
 « l'écart du brut expliqué en entier, égal au millime »
 
 **paieapres** — ✓ les trois étapes, l'écriture · ⏸ « Les envoyer » (les PDF dans les documents de Sarra : le serveur) ·
-✓ **les montants à déclarer** (retenues, TFP, FOPROLOS) · ✓ (1.238.0) « Lui rappeler **le 30/10** » (une date) · ✗ « Annuler » après la
+✓ **les montants à déclarer** (retenues, TFP, FOPROLOS) · ✓ (1.238.0) « Lui rappeler **le 30/10** » (une date) · ✓ (1.242.0) « Annuler » après la
 validation
 
 **paieapresval** — ✓ (1.238.0) **un mois validé** : ce qui est arrivé depuis (des heures après l'envoi du pointage → « Sur novembre » ou

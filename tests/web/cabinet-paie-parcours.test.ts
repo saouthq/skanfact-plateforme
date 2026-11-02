@@ -152,6 +152,15 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.keyboard.press('Control+Enter');
     await p.getByRole('button', { name: 'Valider', exact: true }).last().click();
     await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.valideLe === jour).length).toBe(5);
+    // (1.242.0) Le toast dit ce qui est fait, et « Annuler » efface la validation du jour (la maquette « paieapres ») ;
+    // validés de nouveau, ils ne changent plus.
+    expect(espace(await p.locator('#toast .toast-txt').innerText())).toMatch(/^5 bulletins validés : ils ne changent plus\. L'écriture de paie d.\S+ reste au brouillard\.$/);
+    await p.locator('#toast .toast-undo').click();
+    await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.valideLe).length).toBe(0);
+    await expect.poll(() => p.locator('#pa-valider-bul').count()).toBe(1);
+    await p.locator('#pa-valider-bul').click();
+    await p.getByRole('button', { name: 'Valider', exact: true }).last().click();
+    await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.valideLe === jour).length).toBe(5);
     await expect.poll(() => p.locator('#pa-valides').count()).toBe(1);
     // Validés, le seul bouton principal est l'étape suivante : les remettre aux salariés.
     expect(await p.locator('#view .btn-primary').evaluateAll((els) => els.map((e) => e.id))).toEqual(['pa-remettre']);

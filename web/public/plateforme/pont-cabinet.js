@@ -2224,7 +2224,11 @@
         const avant = lus.get(`payslips/${id}`);
         if (!avant) throw new Error('Ce bulletin n\'est plus dans le dossier : recharge la page.');
         const champs = Object.fromEntries(Object.entries(o.champs || {}).filter(([k]) => PERMIS.includes(k)));
-        if (avant.contenu.valideLe && Object.keys(champs).some((k) => k !== 'remisLe')) throw new Error('Ce bulletin est validé : il ne change plus.');
+        // 1.242.0 — la seule exception : « Annuler » du toast, juste après la validation (la maquette « paieapres ») ; elle
+        // n'efface que la validation du jour, d'un bulletin ni remis ni payé. Après, un bulletin validé ne change plus.
+        const annuler = o.annulerValidation === true && Object.keys(champs).length === 1 && champs.valideLe === null
+          && avant.contenu.valideLe === o.valideLe && !avant.contenu.remisLe && !avant.contenu.payeLe;
+        if (avant.contenu.valideLe && !annuler && Object.keys(champs).some((k) => k !== 'remisLe')) throw new Error('Ce bulletin est validé : il ne change plus.');
         // null ou '' efface la marque : elle ne part pas avec le contenu.
         const contenu = Object.fromEntries(Object.entries({ ...avant.contenu, ...champs }).filter(([k, v]) => !(k in champs && (v === null || v === ''))));
         return { collection: 'payslips', cle: id, rang: avant.rang, revision: avant.revision, contenu: encoder(contenu) };

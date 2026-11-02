@@ -11652,7 +11652,20 @@
       const P = P0(), B = duMois();
       if (!await confirmDialog(`Valider ${B.length > 1 ? `les ${B.length} bulletins` : 'le bulletin'} ${KC.deMois(KC.moisPaie(s.paieMois))} ?`,
         `Validés, ils ne bougent plus, ni ici ni chez ${P.client} : une correction passera par une régularisation sur un mois suivant. L'écriture de paie du mois, elle, se valide dans la saisie.`, 'Valider')) return;
-      marquer(val, B.map(b => b.id), { valideLe: aujourdhui() }, `${B.length > 1 ? `${B.length} bulletins validés` : 'Bulletin validé'} : ils ne changent plus.`);
+      // (1.242.0, la maquette « paieapres ») Le toast dit ce qui est fait et offre « Annuler » : la validation du jour
+      // s'efface (le pont n'accepte que celle-là, d'un bulletin ni remis ni payé) ; après le toast, ils ne changent plus.
+      const jour = aujourdhui(), ids = B.map(b => b.id);
+      val.disabled = true;
+      try {
+        const r = await api.marquerBulletins({ dossierId: dossier.id, annee: s.annee, ids, champs: { valideLe: jour } });
+        s.livre = r.livre; redraw();
+        toastUndo(`${B.length > 1 ? `${B.length} bulletins validés` : 'Bulletin validé'} : ${B.length > 1 ? 'ils ne changent plus' : 'il ne change plus'}. L'écriture de paie ${KC.deMois(KC.moisPaie(s.paieMois))} reste au brouillard.`, async () => {
+          try {
+            const r2 = await api.marquerBulletins({ dossierId: dossier.id, annee: s.annee, ids, champs: { valideLe: null }, annulerValidation: true, valideLe: jour });
+            s.livre = r2.livre; toast('Validation annulée : les bulletins se modifient de nouveau.'); redraw();
+          } catch (err) { toast(plainError(err), 'error'); }
+        });
+      } catch (err) { toast(plainError(err), 'error'); val.disabled = false; }
     };
     const vt = $('#pa-verifier-tout', el);
     if (vt) vt.onclick = () => {

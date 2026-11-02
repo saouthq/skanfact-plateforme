@@ -22390,6 +22390,9 @@ prouver "paie 1.241 a : le départ compte le salaire d'un mois complet pour un C
 prouver "paie 1.241 b : le brut du dernier bulletin oublie les congés pas pris" web/public/v10/cabinet/app.js \
   "    const brut = KC.round3(salaire + ic.montant);" "    const brut = KC.round3(salaire);" \
   "1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
+prouver "paie 1.242 a : « Annuler » après la validation n'efface rien (le pont refuse)" web/public/plateforme/pont-cabinet.js \
+  "        const annuler = o.annulerValidation === true &&" "        const annuler = false &&" \
+  "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

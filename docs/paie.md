@@ -1736,6 +1736,15 @@ et sur sa fiche. Le départ dit, comme la maquette « paiesortie » :
 Tests : `tests/web/cabinet-paie-parcours.test.ts` (le CDD finit dans 20 jours, jamais un dernier jour de mois : son salaire
 est toujours au prorata). Preuves `paie 1.241 a` (le salaire d'un mois complet) et `b` (les congés oubliés du brut).
 
+## La paie du Cabinet : « Annuler » après la validation (02/11/2026, 1.242.0)
+
+Valider les bulletins du mois montre le toast de la maquette « paieapres » : « 5 bulletins validés : ils ne changent plus.
+L'écriture de paie d'octobre reste au brouillard. » avec **« Annuler »** (6 secondes). Annuler efface la validation du
+jour et rien d'autre ; les bulletins se modifient de nouveau. Le pont (`marquerBulletins`, `annulerValidation`) n'accepte
+cette exception que pour la validation de ce jour-là, d'un bulletin ni remis ni payé ; passé le toast, un bulletin validé
+ne change plus (une correction passe par une régularisation sur un mois suivant). Test : le parcours « tenue » valide,
+annule, valide de nouveau. Preuve `paie 1.242 a`.
+
 **Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
 dossiers » ; « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
 rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).
