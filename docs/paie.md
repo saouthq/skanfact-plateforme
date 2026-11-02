@@ -1675,3 +1675,31 @@ Tests : `tests/web/cabinet-paie-parcours.test.ts` (« 1.237.0 — l'inventaire d
 
 **Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
 dossiers » ; le rappel de salaire (décision de Skander).
+
+## La paie du Cabinet, ce qui restait des maquettes (02/11/2026, 1.238.0)
+
+La suite de l'inventaire (§ 8 de `docs/revue-paie-cabinet.md`), toujours sans fonction nouvelle au serveur.
+
+- **L'échéancier d'une avance** (Congés et avances) : mois par mois, ce qui est retenu (lu sur les bulletins), ce qui ne
+  l'est pas alors que le bulletin du mois est fait (« pas retenu »), et ce qui reste à venir, à la retenue convenue.
+- **La ligne d'un bulletin** dit où en est l'avance : « avance : 2e retenue sur 3 · il restera 100,000 en novembre ».
+- **Le volet** : le calcul des heures sup (heures × salaire d'une heure × majoration, le salaire d'une heure étant le brut
+  sur les heures du mois des réglages) et « Contrôlé : … » (net positif, pointage repris, avance retenue, prorata).
+- **« Lui rappeler »** les salaires propose le dernier jour du mois comme date (s'il n'est pas passé), et le message dit
+  combien de salaires sont marqués payés.
+- **La CNSS du trimestre face au livre** : ce que les écritures validées du trimestre font naître au compte CNSS (4531,
+  ou celui du plan du dossier), contre le total à verser des bulletins (deux chemins, un chiffre) ; un écart se dit
+  (écritures encore au brouillard, ou une écriture passée hors de la paie), et ce qui a été versé le trimestre suivant.
+- **Un mois validé** : si le pointage change après la validation, le bulletin ne bouge pas (« Reprendre le pointage » n'est
+  plus offert) ; le mois le dit, avec ce qui a changé, et la régularisation sur le mois suivant.
+- **Le pointage** : son en-tête dit combien de salariés sont pointés, par qui, et ceux qui diffèrent d'un mois complet ;
+  « Établir les bulletins » se fait d'ici.
+- **Un CDD qui finit** : « Me le rappeler le JJ/MM » pose MON rappel sur le dossier (quinze jours avant la fin ; le client
+  ne le lit pas) et une note pour l'équipe ; un rappel déjà posé plus tôt reste.
+
+Tests : `tests/web/cabinet-paie-parcours.test.ts` (le parcours « tenue » : le rappel, le CDD, la CNSS, le pointage changé
+après la validation ; l'inventaire : le volet, l'échéancier). Preuves `paie cabinet 1.238 a` à `g`.
+
+**Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
+dossiers » ; « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
+rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).

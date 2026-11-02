@@ -16965,8 +16965,8 @@ prouver 'les congés tous payés, quelle que soit leur nature' 'web/public/v10/c
   'const leaveIsPaid = () => true;' \
   'le moteur du pointage vit dans le moteur commun, et l'"'"'entreprise le reprend'
 prouver 'la grille du pointage absente de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
-  '${tete}${vuePointage(dossier, L, s.annee, m)}' \
-  '${tete}' \
+  '${paiePointageResume(dossier, L, s.annee, m, P)}${vuePointage(dossier, L, s.annee, m)}' \
+  '${paiePointageResume(dossier, L, s.annee, m, P)}' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 prouver 'un bulletin nouveau du Cabinet qui ignore le mois du salarié' 'web/public/v10/cabinet/app.js' \
   'const depart = b ? null : saisieDe((actifs[0] || {}).id, s.paieMois);' \
@@ -22343,6 +22343,29 @@ prouver 'paie cabinet 1.237 d : le mois d'\''avant ne se montre pas' web/public/
 prouver 'paie cabinet 1.237 e : les vues ne disent pas leur nombre' web/public/v10/cabinet/app.js \
   "\${nb ? \` <span class=\"cp-pa-nb" "\${false ? \` <span class=\"cp-pa-nb" \
   "$WC5"
+
+# 1.238.0 — ce qui restait des maquettes : l'échéancier, le volet contrôlé, la CNSS face au livre, le mois validé, mon rappel.
+prouver 'paie cabinet 1.238 a : l'\''échéancier ne dit pas la retenue oubliée' web/public/v10/cabinet/app.js \
+  'prevues.push({ y, m, montant: x, oubli: avecBulletin.has(`${y}-${m}`) });' 'prevues.push({ y, m, montant: x, oubli: false });' \
+  "$WC5"
+prouver 'paie cabinet 1.238 b : le volet dit l'\''avance retenue quand elle ne l'\''est pas' web/public/v10/cabinet/app.js \
+  "dues.every(d => retenues.has(d.advanceId)) ? ['ok', 'avance retenue']" "true ? ['ok', 'avance retenue']" \
+  "$WC5"
+prouver 'paie cabinet 1.238 c : la CNSS ne se compare pas au livre' web/public/v10/cabinet/app.js \
+  '${paieCnssDuLivre(L, s.annee, t, cnss)}' '' \
+  "$WC1"
+prouver 'paie cabinet 1.238 d : un bulletin validé reprend le pointage' web/public/v10/cabinet/app.js \
+  '${b.valideLe ? '"''"' : `<button type="button" class="btn btn-sm" data-pt-reprendre' '${false ? '"''"' : `<button type="button" class="btn btn-sm" data-pt-reprendre' \
+  "$WC1"
+prouver 'paie cabinet 1.238 e : « Me le rappeler » ne pose pas le rappel' web/public/plateforme/pont-cabinet.js \
+  "if (!garde) await appel('PUT'" "if (false) await appel('PUT'" \
+  "$WC1"
+prouver 'paie cabinet 1.238 f : le mois validé tait le pointage changé' web/public/v10/cabinet/app.js \
+  "paieDepuisLaValidation(dossier, L, m, bulletins, o)].join('');" "''].join('');" \
+  "$WC1"
+prouver 'paie cabinet 1.238 g : l'\''en-tête du pointage ne suit pas la grille' web/public/v10/cabinet/app.js \
+  "const resume = \$('#pt-resume', el);" "const resume = null;" \
+  "$WC1"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -124,3 +124,11 @@
 .cp-pa-liste-fin { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; }
 .cp-pa-avant { margin: 12px 4px 0; }
 #pa-controles .ctrl-geste.ok b { font-weight: 600; }
+
+/* (plateforme) 1.238.0 — l'échéancier des avances : une pastille par mois, retenu, à venir, oublié. */
+.cp-pa-echeancier { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.cp-pa-echeancier li { min-width: 0; }
+.cp-pa-ech { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.cp-pa-ech > span { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--border, #d8dde3); color: var(--muted, #667); white-space: nowrap; }
+.cp-pa-ech > span.fait { border-style: solid; color: var(--ok, #1a7f5a); }
+.cp-pa-ech > span.oubli { border-style: solid; border-color: var(--warn, #b7791f); color: var(--warn, #b7791f); }

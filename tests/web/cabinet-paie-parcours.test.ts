@@ -163,6 +163,13 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(await p.locator('#pa-faits li').count()).toBe(3);
     expect(espace(await p.locator('#pa-faits li').nth(1).innerText())).toContain('0 sur 5 payés · par Sarra');
     expect(await p.locator('#pa-rappel').count()).toBe(1);
+    // 1.238.0 — le rappel dit le jour où les salaires sont dus (s'il n'est pas passé), et le message dit combien sont payés.
+    expect(espace(await p.locator('#pa-rappel').innerText())).toMatch(/^Lui rappeler(, pour le \d\d\/\d\d)?$/);
+    await p.locator('#pa-rappel').click();
+    await expect.poll(() => p.locator('#modal-root .modal #dm-texte').count()).toBe(1);
+    expect(await p.locator('#modal-root .modal #dm-texte').inputValue()).toMatch(/^Bonjour Sarra, les salaires d.\S+ ne sont pas tous marqués payés dans SkanFact \(0 sur 5\)\./);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     expect(await p.locator('#pa-declarer').count()).toBe(1);
     expect(espace(await p.locator('#pa-ecriture summary').innerText())).toMatch(/^L'écriture de paie, compte par compte/);
     expect(espace(await p.locator('#pa-ecriture tr.dc-total').innerText())).toContain('équilibrée');
@@ -180,6 +187,32 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     // ── La vue Salariés dit le CDD qui finit (et ce qui reste À VÉRIFIER) ───────────────────────────────────────
     await p.locator('.pa-so [data-pa-vue="salaries"]').click();
     expect(espace(await p.locator('#pa-cdd').innerText())).toMatch(/^Karim Riahi : son CDD finit le \d\d\/\d\d\/\d{4}\..*À VÉRIFIER/);
+    // 1.238.0 — « Me le rappeler » : MON rappel sur le dossier (quinze jours avant la fin), et une note pour l'équipe.
+    const rap = p.locator('#pa-cdd [data-pa-me-rappeler="kr"]');
+    expect(espace(await rap.innerText())).toMatch(/^Me le rappeler le \d\d\/\d\d$/);
+    const le = String(await rap.getAttribute('data-le'));
+    await rap.click();
+    await expect.poll(() => rap.innerText()).toMatch(/^Rappel le \d\d\/\d\d ✓$/);
+    const suivi = (await api('GET', `/cabinets/${A.cab}/suivi/${A.ent}`, A.ja)).corps as { rappel: string | null; notes: { texte: string }[] };
+    expect(String(suivi.rappel).slice(0, 10)).toBe(le);
+    expect(suivi.notes.map((n) => n.texte).join(' | ')).toContain('Le contrat de Karim Riahi finit le');
+    // 1.238.0 — la CNSS du trimestre face au compte du livre (écritures validées), et ce qui a été versé.
+    await p.locator('.pa-so [data-pa-vue="cnss"]').click();
+    expect(espace(await p.locator('#pa-cnss-livre').innerText())).toMatch(/^Le compte 4531 du livre \(écritures validées du trimestre\) : .* · la déclaration : .*/);
+    // 1.238.0 — un mois validé, et le pointage changé après : le bulletin ne bouge pas, l'écran le dit.
+    await p.locator('.pa-so [data-pa-vue="mois"]').click();
+    await p.locator('#pa-frise li[data-pa-vue="pointage"]').click();
+    await p.locator('#pt-panneau').waitFor({ timeout: 10_000 });
+    const ouvre = Array.from({ length: 28 }, (_, i) => i + 1).find((d) => { const w = new Date(Date.UTC(A.an, A.mo - 1, d)).getUTCDay(); return w >= 1 && w <= 5; }) ?? 2;
+    await p.locator('#pt-grille tr', { hasText: 'Hamza Mejri' }).locator(`.pt-c[data-pt="${ouvre}"]`).focus();
+    await p.keyboard.press('a');
+    await expect.poll(() => p.locator('#pt-ecarts').innerText()).toContain('Il est validé depuis le');
+    expect(await p.locator('#pt-ecarts [data-pt-reprendre]').count()).toBe(0);
+    expect(espace(await p.locator('#pt-resume').innerText())).toMatch(/salarié.* pointé.* · .*1 différence avec un mois complet : Hamza Mejri \(1 j non payé\)/);
+    await p.locator('.pa-so [data-pa-vue="mois"]').click();
+    await expect.poll(() => p.locator('#pa-depuis-val').count()).toBe(1);
+    expect(espace(await p.locator('#pa-depuis-val').innerText())).toMatch(/^Depuis la validation, le pointage a changé\. Hamza Mejri : .*se régularise sur \S+/);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-8-depuis-validation.png'), fullPage: true });
 
     // ── C6 — un mois sans bulletin ni pointage : « Le demander à Sarra », « Le saisir moi-même » ───────────────────
     await p.locator('.pa-so [data-pa-vue="mois"]').click();
@@ -303,6 +336,10 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(await p.locator(`#pa-volet [data-pa-verifie="${nadia?.id}"]`).count()).toBe(1);
     expect(await p.locator('#pa-volet [data-pa-modifier]').count()).toBe(0);
     expect(espace(await p.locator('#pa-volet').innerText())).toContain('par virement · ··· 2359');
+    // 1.238.0 — « Contrôlé : … » sur le bulletin : ce que les contrôles du mois disent de lui.
+    expect(espace(await p.locator('#pa-volet-ctl').innerText())).toBe('Contrôlé : ✓ net positif');
+    await p.locator(`#pa-bulletins tr[data-bul="${hamza?.id}"] td`).first().click();
+    await expect.poll(() => p.locator('#pa-volet-ctl').innerText()).toMatch(/✓ net positif · ! avance pas retenue$/);
     // L'écriture regroupée par compte, et le mois d'avant.
     expect(await p.locator('#pa-ecriture tr[data-compte="640"]').count()).toBe(1);
     expect(espace(await p.locator('#pa-mois-avant').innerText())).toMatch(/^\S+ : 5 bulletins.*Ouvrir/);
@@ -326,6 +363,11 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     // Congés et avances : l'absence à venir, et qui décide.
     await p.locator('.pa-so [data-pa-vue="conges"]').click();
     expect(espace(await p.locator('#pa-absences').innerText())).toContain('la décision est à Sarra');
+    // 1.238.0 — l'échéancier de l'avance : mois par mois, ce qui est retenu, ce qui ne l'est pas (son bulletin est fait), à venir.
+    const ech = espace(await p.locator('#av-echeancier [data-av-ech="av1"]').innerText());
+    expect(ech).toMatch(/^Hamza Mejri · 300,000 DT versés le \d\d\/\d\d\/\d{4} · 100,000 DT par mois/);
+    expect(await p.locator('#av-echeancier [data-av-ech="av1"] .oubli').count()).toBe(2);
+    expect(await p.locator('#av-echeancier [data-av-ech="av1"] .cp-pa-ech > span').count()).toBe(3);
     expect(erreurs).toEqual([]);
     await p.close();
   }, 300_000);

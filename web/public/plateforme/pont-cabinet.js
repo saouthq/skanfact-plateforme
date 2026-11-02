@@ -1327,6 +1327,18 @@
       compteurs: async () => (await appel('GET', `/cabinets/${cabinetId}/messages`)).compteurs,
       // (1.117.0) La boîte entière : la pastille du menu, et celle de chaque ligne de la liste des dossiers.
       lireBoite: () => appel('GET', `/cabinets/${cabinetId}/messages`),
+      // (1.238.0) « Me le rappeler » depuis la paie : MON rappel sur le dossier (celui de sa conversation, que le client ne lit
+      // pas) et une note pour l'équipe. Un rappel déjà posé, à venir et plus tôt, reste : on ne recule jamais un rappel.
+      meRappeler: async (/** @type {string} */ entreprise, /** @type {string} */ le, /** @type {string} */ texte) => {
+        const e = encodeURIComponent(entreprise);
+        const suivi = /** @type {any} */ (await appel('GET', `/cabinets/${cabinetId}/suivi/${e}`)) || {};
+        const deja = suivi.rappel ? String(suivi.rappel).slice(0, 10) : '';
+        const auj = new Date().toISOString().slice(0, 10);
+        const garde = deja && deja > auj && deja <= le ? deja : '';
+        if (!garde) await appel('PUT', `/cabinets/${cabinetId}/rappels/${e}`, { le });
+        await appel('POST', `/cabinets/${cabinetId}/notes/${e}`, { texte: `Rappel du ${le.slice(8, 10)}/${le.slice(5, 7)} : ${texte}` });
+        return { garde };
+      },
     },
     // (1.152.0) « Pièces reçues » (0175) : les fichiers que les clients ont envoyés, tous dossiers confondus ; les classer,
     // défaire, et ouvrir le fichier (celui du fil, tel qu'il est arrivé).
