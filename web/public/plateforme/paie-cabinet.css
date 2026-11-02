@@ -132,3 +132,11 @@
 .cp-pa-ech > span { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--border, #d8dde3); color: var(--muted, #667); white-space: nowrap; }
 .cp-pa-ech > span.fait { border-style: solid; color: var(--ok, #1a7f5a); }
 .cp-pa-ech > span.oubli { border-style: solid; border-color: var(--warn, #b7791f); color: var(--warn, #b7791f); }
+
+/* (1.240.0) La fiche d'un salarié, à droite de la liste (la maquette « paiesalaries »). */
+#pa-sal-liste tr[data-sal] { cursor: pointer; }
+#pa-sal-liste tr.sel td { background: var(--sb-sarcelle-pale, rgba(13, 148, 136, .08)); }
+.cp-pa-volet-t > div { display: grid; min-width: 0; }
+.cp-pa-fi { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; margin: 6px 0 4px; font-size: 13px; }
+.cp-pa-fi dt { color: var(--sb-gris); }
+.cp-pa-fi dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }

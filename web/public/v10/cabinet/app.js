@@ -10728,6 +10728,8 @@
     const vue = s.paieVue || 'mois';
     const P = parcoursPaie(dossier, L, s.annee, m, bulletins);
     const tete = paieEnTete(dossier, L, s.annee, m, P, vue);
+    // (1.240.0, la maquette « paiesalaries ») La fiche du salarié choisi, à droite de la liste.
+    const ficheSal = vue === 'salaries' && s.paieSal ? (L.salaries || []).find(x => x.id === s.paieSal) || null : null;
     if (vue === 'salaries') return `${tete}
     ${(() => { const fin = (L.salaries || []).filter(x => x.actif && x.sortie && x.sortie >= aujourdhuiPaie() && x.sortie <= dansJours(45));
     return fin.length ? `<div class="cp-pa-bandeau" id="pa-cdd">${fin.map(x => `<b>${esc(x.nom)}</b> : son ${esc(KC.contractLabel(x.contrat).split(' —')[0])} finit le ${esc(fmtJour(x.sortie))}`).join(' · ')}. Le renouveler, ou préparer sa sortie : le dernier bulletin solde ses congés pas pris ; <b>À VÉRIFIER</b> : l'indemnité de fin de contrat avec le contrat et la convention.
@@ -10737,9 +10739,9 @@
       return `<span class="small muted" id="pa-sal-resume">${esc(pl(enPoste.length, 'en poste', 'en poste'))} · ${finit.length ? esc(pl(finit.length, 'contrat qui finit', 'contrats qui finissent')) : 'aucun contrat qui finit'} · ${sortis.length ? esc(pl(sortis.length, 'sorti', 'sortis')) : 'aucun sorti'}</span>`; })()}${P.mode === 'cabinet' || P.mode === 'tenue' ? '<button type="button" class="btn btn-sm" id="pa-salarie">+ Un salarié…</button>' : `<span class="small muted">${esc(P.client)} les déclare dans SkanFact.</span>`}</div>
         ${regimesDuDossier(dossier, L)}
         ${(L.salaries || []).length
-    ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Nom</th><th class="nw">N° CNSS</th>
+    ? `<div class="cp-pa-grille${ficheSal ? ' avec-volet' : ''}"><div class="scroll-x"><table class="list compact" id="pa-sal-liste"><thead><tr><th>Nom</th><th class="nw">N° CNSS</th>
         <th>Poste</th><th class="nw">Contrat</th><th class="r nw">Brut mensuel</th><th class="nw">RIB</th><th class="row-actions-h"></th></tr></thead>
-        <tbody>${(L.salaries || []).map(x => `<tr class="${x.actif ? '' : 'muted'}" data-sal="${esc(x.id)}">
+        <tbody>${(L.salaries || []).map(x => `<tr class="${x.actif ? '' : 'muted'}${ficheSal && ficheSal.id === x.id ? ' sel' : ''}" data-sal="${esc(x.id)}" tabindex="0">
           <td class="tronq" title="${esc(x.nom)}">${marquesDuNom(esc(x.nom), [
     x.reporteDe ? `<span class="badge" data-repris="${esc(x.reporteDe)}" title="Repris de l'exercice ${esc(x.reporteDe)} : sa fiche a suivi, ses bulletins restent dans leur mois">repris de ${esc(x.reporteDe)}</span>` : '',
     x.actif ? '' : '<span class="badge">sorti</span>'])}${x.embauche ? `<div class="small muted">depuis ${esc(fmtJour(x.embauche).slice(3))}</div>` : ''}</td>
@@ -10750,7 +10752,7 @@
             l'entreprise : celles qu'un bulletin nouveau reprendra, pour un mois entier. */''}${(x.primes || []).length
     ? `<div class="small muted">+ ${esc(money(Math.round((x.primes || []).reduce((a, p) => a + (Number(p.amount) || 0), 0) * 1000) / 1000))} de primes</div>` : ''}</td>
           <td class="nw small">${x.rib ? `··· ${esc(String(x.rib).replace(/\s/g, '').slice(-4))}` : x.methode === 'especes' ? '<span class="muted">espèces</span>' : '<span class="warn-text">à demander</span>'}</td>
-          ${RowMenu.cellule('SAL:' + x.id)}</tr>`).join('')}</tbody></table></div>`
+          ${RowMenu.cellule('SAL:' + x.id)}</tr>`).join('')}</tbody></table></div>${ficheSal ? paieFicheSalarie(dossier, L, ficheSal, P, s.annee) : ''}</div>`
     : `<div class="empty mini">Aucun salarié déclaré. C'est par là qu'une paie commence.
         <div class="mt"><button class="btn btn-sm" id="pa-salarie2">Déclarer un salarié…</button></div></div>`}
     ${(() => { const manque = (L.salaries || []).filter(x => x.actif && (!x.cnss || (!x.rib && x.methode !== 'especes')));
@@ -10973,7 +10975,7 @@
     const table = bulletins.length ? `<div class="cp-pa-grille${sel ? ' avec-volet' : ''}"><div class="panel cp-pa-liste" id="pa-bulletins"><div class="scroll-x"><table class="list compact pa-bulletins"><thead><tr><th>Salarié</th><th class="r">Brut</th><th class="r">Net à payer</th><th class="r nw">Sur ${esc(KC.moisPaie(moisAvant))}</th><th>Où il en est</th><th class="row-actions-h"></th></tr></thead>
         <tbody>${groupe('Ce qui change ce mois', change)}${groupe(`Comme ${KC.moisPaie(moisAvant)}`, pareil)}</tbody>
         <tfoot><tr><th>${esc(pl(masse.count, 'bulletin'))}${avants.length ? ` <small class="muted">· ${esc(KC.moisPaie(moisAvant))} : ${avants.length}</small>` : ''}</th><th class="r nw">${esc(money(masse.brut))}</th><th class="r nw">${esc(money(masse.net))}</th><th class="r nw small">${avants.length ? esc(ecart(masse.net, masseAvant.net).split(' sur ')[0]) : ''}</th><th colspan="2"></th></tr></tfoot></table></div>
-        <div class="cp-pa-touches small muted">↑ ↓ un salarié · Entrée son bulletin · Espace vérifié · P le bulletin en PDF</div></div>
+        <div class="cp-pa-touches small muted">↑ ↓ un salarié · Entrée son bulletin · Espace vérifié · P le bulletin en PDF${P.geste && P.geste.id ? `<span id="pa-touche-geste"> · Ctrl Entrée ${esc(P.geste.t.replace(/…$/, '').replace(/^./, c => c.toLowerCase()))}</span>` : ''}</div></div>
         ${sel ? paieVoletBulletin(dossier, L, sel, avantDe(sel), P, o.nomDe) : ''}</div>`
       : `<div class="panel empty" id="pa-vide">${P.actifs && !P.pointe && (P.mode === 'tenue' || P.mode === 'cabinet') ? `<p><b>Le pointage ${esc(KC.deMois(KC.moisPaie(m)))} n'est pas encore là.</b> Sans lui, chaque bulletin part d'un mois complet ; une absence ou des heures sup se règlent à la main.</p>
         <div class="ctrl-geste" id="pa-pt-attendu">${P.mode === 'tenue' && api.messagerie && !dossier.manual ? `<button type="button" class="btn btn-sm" id="pa-demander-pt">Le demander à ${esc(P.client)}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-saisir-pt">Le saisir moi-même</button><button type="button" class="btn btn-sm" id="pa-sans-pt">Préparer sans pointage : des mois complets</button></div>
@@ -11616,6 +11618,9 @@
       tr.onclick = e => { if (e.target.closest('button, a, .row-actions')) return; ouvrir(tr.dataset.bul); };
       tr.onkeydown = e => {
         if (e.target !== tr) return;
+        // (1.240.0, la maquette : « Entrée valider le mois ») Ctrl + Entrée fait l'étape suivante, le bouton principal :
+        // Entrée seule ouvre le bulletin, et une touche seule ne valide pas un mois par mégarde.
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { const g = $('#pa-mois-carte .cp-pa-geste .btn-primary', el); if (g && !g.disabled) { e.preventDefault(); g.click(); } return; }
         if (e.key === 'Enter') { e.preventDefault(); ouvrir(tr.dataset.bul); }
         else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const n = lignes[i + (e.key === 'ArrowDown' ? 1 : -1)]; if (n) n.focus(); }
         else if (e.key === ' ' && $(`[data-pa-verifie="${tr.dataset.bul}"]`, el)) { e.preventDefault(); $(`[data-pa-verifie="${tr.dataset.bul}"]`, el).click(); }
@@ -11679,6 +11684,18 @@
         b.textContent = `Rappel le ${fmtJour(b.dataset.le).slice(0, 5)} ✓`;
       } catch (err) { b.disabled = false; toast(plainError(err), 'error'); }
     }; });
+    // (1.240.0) La fiche d'un salarié : une ligne l'ouvre (clic ou Entrée), la croix la ferme.
+    $$('#pa-sal-liste tr[data-sal]', el).forEach(tr => {
+      const choisir = () => { s.paieSal = s.paieSal === tr.dataset.sal ? null : tr.dataset.sal; redraw(); };
+      tr.onclick = e => { if (e.target.closest('button, a, .row-actions')) return; choisir(); };
+      tr.onkeydown = e => { if (e.target === tr && e.key === 'Enter') { e.preventDefault(); choisir(); } };
+    });
+    const sfx = $('#pa-sal-x', el);
+    if (sfx) sfx.onclick = () => { s.paieSal = null; redraw(); };
+    const sfm = $('#pa-sal-modifier', el);
+    if (sfm) sfm.onclick = () => { const x = (s.livre.salaries || []).find(y => y.id === s.paieSal); if (x) salarieForm(root, dossier, x); };
+    const sfd = $('#pa-sal-fiche-demander', el);
+    if (sfd) sfd.onclick = () => { const x = (s.livre.salaries || []).find(y => y.id === s.paieSal); if (x) fenDemanderCl(dossier, { titre: `${[!x.cnss && 'Le n° CNSS', !x.rib && x.methode !== 'especes' && 'le RIB'].filter(Boolean).join(' et ').replace(/^l/, 'L')} de ${x.nom}` }, { hors: true, apres: async () => redraw() }); };
     const sdm = $('#pa-sal-demander', el);
     if (sdm) sdm.onclick = () => fenDemanderCl(dossier, { titre: `Les n° CNSS et RIB qui manquent : ${(s.livre.salaries || []).filter(x => x.actif && (!x.cnss || (!x.rib && x.methode !== 'especes'))).map(x => x.nom).join(', ')}` }, { hors: true, apres: async () => redraw() });
     const van = $('#pa-vers-annuelle', el);
@@ -11831,6 +11848,38 @@
   const joursCg = n => `${joursFr(n)} jour${Math.abs(Number(n)) > 1 ? 's' : ''}`;
   // Qui peut les saisir : le Cabinet, pour un dossier tenu dont l'exercice est ouvert.
   const congesTenus = L => !L.reglagesPaie && !(L.exercice || {}).clos;
+  // (1.240.0, la maquette « paiesalaries ») La fiche d'un salarié, à droite : ce qui manque d'abord (« 2 choses à
+  // compléter »), son contrat, son salaire, sa situation, son n° CNSS, sa CIN, son RIB (masqué), ses congés ; « Demander à
+  // … son n° CNSS et son RIB » (par la conversation) et « Modifier… ». Rien n'y est inventé : un champ vide le dit.
+  function paieFicheSalarie(dossier, L, x, P, annee) {
+    const sansRib = !x.rib && x.methode !== 'especes';
+    const manque = [!x.cnss && 'n° CNSS', sansRib && 'RIB'].filter(Boolean);
+    const contrat = KC.contractLabel(x.contrat).split(' —')[0];
+    const primes = (x.primes || []).reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    let conges = '';
+    try {
+      const b = KC.leaveBalance(donneesDuPointage(dossier, L), x.id, Number(annee));
+      conges = `${joursFr(b.acquired)} j acquis en ${annee} · ${joursFr(b.taken)} j pris · <b>reste ${joursFr(b.remaining)} j</b>`;
+    } catch { conges = '<span class="muted">dans « Congés et avances »</span>'; }
+    const dd = (t, v, id) => `<dt>${t}</dt><dd${id ? ` id="${id}"` : ''}>${v}</dd>`;
+    const demander = (!x.cnss || sansRib) && x.actif && !dossier.manual && api.messagerie && P.mode !== 'cabinet';
+    return `<aside class="panel cp-pa-volet" id="pa-sal-fiche" aria-label="La fiche de ${esc(x.nom)}">
+      <div class="cp-pa-volet-t"><div><b>${esc(x.nom)}</b><small class="muted">${esc([x.poste, x.embauche ? `entrée le ${fmtJour(x.embauche)}` : ''].filter(Boolean).join(' · ') || '—')}</small></div>
+        ${manque.length ? `<span class="badge warn" id="pa-sal-manque-n">${esc(pl(manque.length, 'chose à compléter', 'choses à compléter'))}</span>` : '<span class="badge ok">complète</span>'}
+        <button type="button" class="btn btn-sm btn-ghost" id="pa-sal-x" aria-label="Fermer la fiche">✕</button></div>
+      <dl class="cp-pa-fi">
+        ${dd('Contrat', `${esc(contrat)}${x.sortie ? ` · ${x.sortie < aujourdhuiPaie() ? 'sorti' : 'fin'} le ${esc(fmtJour(x.sortie))}` : ''}`)}
+        ${dd('Salaire de base', `${esc(money(x.brut))} par mois${primes ? ` · + ${esc(money(Math.round(primes * 1000) / 1000))} de primes chaque mois` : ''}`)}
+        ${dd('Situation', x.chefDeFamille ? `chef de famille${x.enfants ? `, ${esc(pl(x.enfants, 'enfant'))} à charge` : ', sans enfant à charge'}` : `pas chef de famille${x.enfants ? ` · ${esc(pl(x.enfants, 'enfant'))}` : ''}`)}
+        ${dd('N° CNSS', x.cnss ? esc(x.cnss) : '<span class="warn-text">à demander</span> · la déclaration du trimestre l\'attend', 'pa-sal-cnss')}
+        ${dd('CIN', x.cin ? esc(x.cin) : '<span class="warn-text">à renseigner</span>')}
+        ${dd('RIB', x.rib ? `··· ${esc(String(x.rib).replace(/\s/g, '').slice(-4))}` : x.methode === 'especes' ? 'payé en espèces' : '<span class="warn-text">à demander</span> · sans lui, son salaire se paie à part', 'pa-sal-rib')}
+        ${dd('Congés', conges)}
+      </dl>
+      <div class="ctrl-geste">${demander ? `<button type="button" class="btn btn-primary btn-sm" id="pa-sal-fiche-demander">Demander à ${esc(P.client)} ${[!x.cnss && 'son n° CNSS', sansRib && 'son RIB'].filter(Boolean).join(' et ')}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-sal-modifier">Modifier…</button></div>
+    </aside>`;
+  }
+
   function vueConges(dossier, L, annee) {
     const data = donneesDuPointage(dossier, L);
     const y = Number(annee);

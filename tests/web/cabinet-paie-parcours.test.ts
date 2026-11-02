@@ -142,7 +142,10 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await expect.poll(() => p.locator('#pa-accord').count()).toBe(1);
     expect(espace(await p.locator('#pa-accord').innerText())).toMatch(/^Sarra a approuvé les 5 bulletins le /);
     expect(espace(await p.locator('#pa-valider-bul').innerText())).toBe('Valider les 5 bulletins');
-    await p.locator('#pa-valider-bul').click();
+    // (1.240.0) Au clavier : Ctrl + Entrée sur une ligne fait l'étape suivante (la fenêtre de validation demande encore).
+    expect(espace(await p.locator('#pa-touche-geste').innerText())).toBe('· Ctrl Entrée valider les 5 bulletins');
+    await p.locator('#pa-bulletins tr[data-bul]').first().focus();
+    await p.keyboard.press('Control+Enter');
     await p.getByRole('button', { name: 'Valider', exact: true }).last().click();
     await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.valideLe === jour).length).toBe(5);
     await expect.poll(() => p.locator('#pa-valides').count()).toBe(1);
@@ -360,6 +363,18 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(espace(await p.locator('#pa-sal-resume').innerText())).toMatch(/^5 en poste · 1 contrat qui finit · aucun sorti$/);
     expect(espace(await p.locator('#pa-salaries tr[data-sal="mt"]').innerText())).toMatch(/depuis 03\/2023.*··· 2359/);
     expect(await p.locator('#pa-cdd [data-pa-docs="kr"]').count()).toBe(1);
+    // 1.240.0 — la fiche du salarié, à droite : un clic l'ouvre, la croix la ferme ; rien d'inventé.
+    await p.locator('#pa-salaries tr[data-sal="mt"] td').first().click();
+    const fiche = espace(await p.locator('#pa-sal-fiche').innerText());
+    expect(fiche).toMatch(/^Mourad Trabelsi Boulanger · entrée le 10\/03\/2023 complète/);
+    expect(fiche).toContain('Salaire de base 1 450,250 DT par mois');
+    expect(fiche).toContain('Situation chef de famille, 2 enfants à charge');
+    expect(fiche).toContain('CIN à renseigner');
+    expect(fiche).toContain('RIB ··· 2359');
+    expect(fiche).toMatch(/Congés [\d,]+ j acquis en \d{4} · [\d,]+ j pris · reste [\d,]+ j/);
+    expect(await p.locator('#pa-sal-fiche-demander').count()).toBe(0);
+    await p.locator('#pa-sal-x').click();
+    expect(await p.locator('#pa-sal-fiche').count()).toBe(0);
     // Congés et avances : l'absence à venir, et qui décide.
     await p.locator('.pa-so [data-pa-vue="conges"]').click();
     expect(espace(await p.locator('#pa-absences').innerText())).toContain('la décision est à Sarra');

@@ -22378,6 +22378,12 @@ prouver 'léger 1.239 b : sans réseau, la messagerie chargée à la demande ne 
 prouver "classeur 1.239.1 : un mois sans écriture cache les pièces qu'il a reçues (« rien reçu », « aucune pièce »)" web/public/v10/cabinet/app.js \
   "const etat = etatL[0] === 'manque' && l.some(x => x.etat[2] !== 'manque') ? ['pc', 'à saisir', etatL[2]] : etatL;" "const etat = etatL;" \
   "une pièce en double se marque de sa jumelle, côte à côte ; une pièce se range dans un autre mois"
+prouver "paie 1.240 a : Ctrl + Entrée sur une ligne ne fait pas l'étape suivante" web/public/v10/cabinet/app.js \
+  "if (g && !g.disabled) { e.preventDefault(); g.click(); } return; }" "return; }" \
+  "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+prouver "paie 1.240 b : une ligne de Salariés n'ouvre pas la fiche du salarié" web/public/v10/cabinet/app.js \
+  "      const choisir = () => { s.paieSal = s.paieSal === tr.dataset.sal ? null : tr.dataset.sal; redraw(); };" "      const choisir = () => {};" \
+  "1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -261,7 +261,7 @@ vaut pour tout le dépôt.*
     les maquettes : l'avance oubliée, les contrôles, les écarts, le paramétrage, le livre (1.237.0 ; `paieControles`/
     `paieAnomalies`/`paieEcarts`/`paieParametrage`/`paieLivreEtFinDAnnee` dans `cabinet/app.js`) ; l'échéancier des avances, la
     CNSS face au livre, le mois validé, mon rappel (1.238.0 ; `echeancierAvance`/`paieCnssDuLivre`/`paieDepuisLaValidation`/
-    `paiePointageResume` dans `cabinet/app.js`, `messagerie.meRappeler` dans `pont-cabinet.js`).
+    `paiePointageResume` dans `cabinet/app.js`, `messagerie.meRappeler` dans `pont-cabinet.js`) ; Ctrl + Entrée et la fiche du salarié (1.240.0 ; `paieFicheSalarie` dans `cabinet/app.js`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

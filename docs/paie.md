@@ -1700,6 +1700,22 @@ La suite de l'inventaire (§ 8 de `docs/revue-paie-cabinet.md`), toujours sans f
 Tests : `tests/web/cabinet-paie-parcours.test.ts` (le parcours « tenue » : le rappel, le CDD, la CNSS, le pointage changé
 après la validation ; l'inventaire : le volet, l'échéancier). Preuves `paie cabinet 1.238 a` à `g`.
 
+## La paie du Cabinet : le clavier et la fiche du salarié (02/11/2026, 1.240.0)
+
+- **Ctrl + Entrée** sur une ligne de bulletin fait l'étape suivante, c'est-à-dire le bouton principal : envoyer pour
+  accord, valider les bulletins, les marquer remis. Entrée seule ouvre toujours le bulletin, et la validation demande
+  encore une confirmation. La maquette disait « Entrée valider le mois » ; une touche seule ne valide pas un mois par
+  mégarde. Le pied de la liste dit la touche et ce qu'elle fera (« Ctrl Entrée valider les 5 bulletins »).
+- **La fiche du salarié, à droite** de la vue Salariés (la maquette « paiesalaries ») : un clic ou Entrée sur une ligne
+  l'ouvre, la croix la ferme. Elle dit ce qui manque d'abord (« 2 choses à compléter » : le n° CNSS et le RIB), puis le
+  contrat et sa fin, le salaire de base et les primes de chaque mois, la situation (chef de famille, enfants), le n° CNSS,
+  la CIN, le RIB masqué (« ··· 0918 », ou « payé en espèces »), les congés de l'année (acquis, pris, reste). Ses gestes :
+  « Demander à … son n° CNSS et son RIB » (par la conversation ; seulement quand l'un manque, pas pour une paie tenue
+  seule au cabinet) et « Modifier… ». Un champ vide le dit ; rien n'y est inventé.
+
+Tests : `tests/web/cabinet-paie-parcours.test.ts` (la validation se fait au clavier ; l'inventaire ouvre et ferme la
+fiche). Preuves `paie 1.240 a` et `b`.
+
 **Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
 dossiers » ; « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
 rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).

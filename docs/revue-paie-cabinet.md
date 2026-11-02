@@ -134,7 +134,7 @@ Chaque chose que montre chaque état de la maquette, et où elle en est dans l'a
 - ✓ (1.237.0) les liens « Les écarts sur septembre, ligne à ligne » et « Le paramétrage du dossier »
 - ✓ (1.237.0) le n° CNSS qui manque : « Le renseigner… » et **« Le demander à Sarra »**
 - ½ la ligne : ✓ le poste sous le nom ; ✓ (1.238.0) « avance : 2e retenue sur 3 · il restera 100,000 en novembre »
-- ½ les touches : ✓ Espace « vérifié », ✓ **P « le bulletin en PDF »** (1.237.0), ✗ **Entrée « valider le mois »**
+- ½ les touches : ✓ Espace « vérifié », ✓ **P « le bulletin en PDF »** (1.237.0), ✓ (1.240.0) **Ctrl + Entrée** : l'étape suivante, dont « valider le mois » (Entrée seule ouvre le bulletin ; la validation demande encore)
 - ½ le volet (1.237.0 : ✓ la situation, l'état, le paiement, les trois boutons ; ✓ (1.238.0) le calcul des heures sup, « Contrôlé : … ») : la situation (chef de famille, enfants), l'état du bulletin, le calcul des heures sup, « par virement ·
   BIAT ··· 0918 », « Contrôlé : … », et ses boutons **« Le bulletin (PDF) », « Modifier… », « Vérifié »**
 - ✓ (1.237.0) l'écriture : **regroupée par compte** (« une ligne par salarié et par compte dans le livre ; ici, par compte ») et sa note
@@ -166,7 +166,7 @@ validation
 
 **paiesalaries** — ½ la liste · ✓ l'en-tête (« 5 en poste · 1 contrat qui finit dans 2 mois · aucun sorti ») · ✓ « depuis
 03/2019 », le RIB masqué · ½ le CDD (✓ le bandeau ; ✓ (1.238.0) « Me le rappeler le 01/12 ») · ✗ « Un salarié… », **« La sortie d'un
-salarié… »**, « Les documents du personnel » en tête · ✗ **la fiche à droite** (« 2 choses à compléter », contrat, salaire,
+salarié… »**, « Les documents du personnel » en tête · ✓ (1.240.0) **la fiche à droite** (« 2 choses à compléter », contrat, salaire,
 situation, CNSS, CIN, RIB, congés, **« Demander à Sarra son n° CNSS et son RIB »**, « Modifier… »)
 
 **paiesortie** — ✗ **le départ d'un CDD** : le dernier bulletin en projet (congés pas pris, indemnité À VÉRIFIER), ce que le
