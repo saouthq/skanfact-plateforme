@@ -10797,7 +10797,8 @@
     </div>
 
 `;
-    if (vue === 'annee') return `${tete}${paieMoisParMois(L, s.annee, anneeEntiere)}${paieLivreEtFinDAnnee(dossier, L, s.annee, anneeEntiere)}
+    if (vue === 'tous') return `${tete}${paieDeTousMesDossiers(dossier, s)}`;
+    if (vue === 'annee') return `${tete}<div class="ctrl-geste mt" id="pa-vers-tous"><span class="small muted">Où en est la paie des autres dossiers ce mois-ci ?</span><button type="button" class="btn btn-sm" data-pa-vue="tous">La paie de tous mes dossiers</button></div>${paieMoisParMois(L, s.annee, anneeEntiere)}${paieLivreEtFinDAnnee(dossier, L, s.annee, anneeEntiere)}
     <div class="panel mt"><h2>La masse salariale de l'exercice ${info('pa.masse')}</h2>
       ${/* U-24 — un tableau de zéros n'apprend rien : sans bulletin sur l'exercice, on le dit. */''}
       ${!anneeEntiere.count ? `<div class="empty mini">Aucun bulletin sur l'exercice ${esc(s.annee)} : la masse salariale se calcule dès le premier.</div>` : `
@@ -10874,7 +10875,7 @@
       seule: `faite par ${P.client} dans SkanFact · le cabinet la vérifie, et la corrige avec son accord`,
       sans: `faite par ${P.client} seul dans SkanFact · le cabinet la lit et la passe en comptabilité` }[P.mode];
     const V = [['mois', 'Le mois'], ['salaries', 'Salariés', P.actifs], ['conges', 'Congés et avances'], ['cnss', 'CNSS du trimestre', P.sansCnss.length, 'alerte'], ['annee', 'L\'année']];
-    const vueDe = ['pointage', 'ecarts', 'param'].includes(vue) ? 'mois' : vue;
+    const vueDe = ['pointage', 'ecarts', 'param'].includes(vue) ? 'mois' : vue === 'tous' ? 'annee' : vue;
     return `<div class="cp-pa-tete" id="pa-tete"><div class="cp-pa-titre"><h2>Paie ${esc(KC.deMois(KC.moisPaie(m)))} ${esc(annee)}</h2>
         <select id="pa-mois" aria-label="Le mois de la paie">${KC.MOIS_PAIE.map((lab, i) => `<option value="${i + 1}" ${i + 1 === m ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>
         <p class="small muted" id="pa-qui">${esc(pl(P.actifs, 'salarié'))} · ${esc(qui)}</p></div>
@@ -11742,6 +11743,17 @@
       if (clState.id !== dossier.id) Object.assign(clState, { id: dossier.id, annee: s.annee, mois: '', rub: '', filtre: 'rub', sel: '', q: '', plus: false, decl: '', vue: '', menu: '', hist: false, ouvrir: false });
       enGrandCl(dossier, [{ k: `ds:${a.id}`, sorte: 'doc', doc: a, classee: true, rub: 'declaration', mois: a.periode, titre: a.titre }], 0, {});
     };
+    // (1.244.0) La paie de tous mes dossiers : une ligne ouvre la paie de son dossier ; relancer un pointage attendu.
+    $$('#pa-tous-liste tr[data-pa-tous]', el).forEach(tr => {
+      const aller = () => { if (tr.dataset.paTous === dossier.id) { s.paieVue = 'mois'; redraw(); return; } s.paieVue = 'mois'; s.paieBul = null; navigate(`#/dossier/${encodeURIComponent(tr.dataset.paTous)}/comptabilite/paie`); };
+      tr.onclick = aller; tr.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); aller(); } };
+    });
+    const ptr = $('#pa-tous-relire', el);
+    if (ptr) ptr.onclick = () => { paieTousState.cle = ''; redraw(); };
+    $$('[data-pa-tous-relancer]', el).forEach(b => { b.onclick = () => {
+      const d = mesDossiers().find(x => x.id === b.dataset.paTousRelancer);
+      if (d) fenDemanderCl(d, { piece: `Le pointage ${KC.deMois(KC.moisPaie(s.paieMois))}` }, { hors: true, apres: async () => { paieTousState.cle = ''; redraw(); } });
+    }; });
     const sdm = $('#pa-sal-demander', el);
     if (sdm) sdm.onclick = () => fenDemanderCl(dossier, { titre: `Les n° CNSS et RIB qui manquent : ${(s.livre.salaries || []).filter(x => x.actif && (!x.cnss || (!x.rib && x.methode !== 'especes'))).map(x => x.nom).join(', ')}` }, { hors: true, apres: async () => redraw() });
     const van = $('#pa-vers-annuelle', el);
@@ -11982,6 +11994,52 @@
     return a
       ? `<div class="ctrl-geste mt" id="pa-cnss-accuse"><span class="small"><b>Déposée</b> · l'accusé est dans le classeur (rangé le ${esc(fmtJour(jourTunisCl(a.deposeLe)))}).</span><button type="button" class="btn btn-sm" id="pa-cnss-accuse-voir">Ouvrir l'accusé</button></div>`
       : `<div class="ctrl-geste mt" id="pa-cnss-accuse"><span class="small muted">Déposée sur le portail de la CNSS ? Range son accusé : il prouve le dépôt, et il se retrouve dans le classeur.</span>${e.lectureSeule ? '' : '<button type="button" class="btn btn-sm" id="pa-cnss-accuse-ranger">Ranger l\'accusé…</button>'}</div>`;
+  }
+
+  // (1.244.0, la maquette « paiedossiers ») La paie d'un mois de tous les dossiers dont je fais la paie : une ligne par
+  // dossier, ses salariés, son pointage, où en sont ses bulletins, ses salaires. Une lecture du serveur, en lot ; chaque
+  // ligne ouvre la paie de son dossier ; « Relancer … » pour un pointage qui n'arrive pas.
+  const paieTousState = { cle: '', donnees: null, erreur: '' };
+  function etatPaieDossier(x) {
+    const n = x.bulletins, seule = x.mode === 'seule' || x.mode === 'sans';
+    if (!x.salaries && !n) return ['', 'aucun salarié'];
+    if (!n) return seule ? ['ambre', `à faire par le client`] : ['rouge', 'à préparer'];
+    if (x.valides >= n) return ['ok', x.remis >= n ? 'validés · remis' : 'validés'];
+    if (seule) return x.verifies >= n ? ['ok', 'vérifiés'] : ['ambre', 'à vérifier'];
+    if (x.approuves >= n) return ['ambre', 'approuvés, à valider'];
+    if (x.envoyes >= n) return ['ambre', 'chez le client pour accord'];
+    return ['ambre', x.mode === 'tenue' ? 'préparés, à envoyer pour accord' : 'préparés, à valider'];
+  }
+  function pointageDuDossierTous(x) {
+    if (x.mode === 'seule' || x.mode === 'sans') return 'fait par le client';
+    if (!x.salaries) return '—';
+    if (!x.pointes) return x.bulletins ? 'sans pointage' : 'attendu';
+    return x.pointes >= x.salaries ? `reçu · ${pl(x.pointes, 'salarié pointé', 'salariés pointés')}` : `${x.pointes} sur ${x.salaries} pointés`;
+  }
+  function paieDeTousMesDossiers(dossier, s) {
+    const mois = `${s.annee}-${String(s.paieMois).padStart(2, '0')}`, titre = `La paie ${KC.deMois(KC.moisPaie(s.paieMois))} ${s.annee} de tous mes dossiers`;
+    if (paieTousState.cle !== mois) {
+      Object.assign(paieTousState, { cle: mois, donnees: null, erreur: '' });
+      api.paieDeTousMesDossiers(mois).then(r => { if (paieTousState.cle === mois) paieTousState.donnees = r; })
+        .catch(err => { if (paieTousState.cle === mois) paieTousState.erreur = plainError(err); })
+        .then(() => { if ($('#pa-tous')) drawLivres($('#view'), dossier); });
+    }
+    if (paieTousState.erreur) return `<div class="panel mt" id="pa-tous"><h2>${esc(titre)}</h2><p class="warn-text small">${esc(paieTousState.erreur)}</p><button type="button" class="btn btn-sm" id="pa-tous-relire">Réessayer</button></div>`;
+    if (!paieTousState.donnees) return `<div class="panel mt" id="pa-tous"><h2>${esc(titre)}</h2><p class="small muted">Lecture de la paie de chaque dossier…</p></div>`;
+    const D = (paieTousState.donnees.dossiers || []).filter(x => x.salaries || x.bulletins);
+    const n = D.reduce((a, x) => a + x.bulletins, 0), ici = dossier.id;
+    const attendus = D.filter(x => !x.bulletins && !x.pointes && x.salaries && (x.mode === 'tenue') && !x.tenu);
+    const ligne = x => { const [ton, mot] = etatPaieDossier(x);
+      return `<tr data-pa-tous="${esc(x.entreprise)}" tabindex="0" class="${x.entreprise === ici ? 'sel' : ''}"><td class="tronq"><b>${esc(x.nom)}</b></td><td class="r nw">${x.bulletins} <span class="muted small">/ ${x.salaries}</span></td>
+        <td class="small nw">${esc(pointageDuDossierTous(x))}</td><td><span class="cp-pa-etat ${ton}">${esc(mot)}</span></td>
+        <td class="small">${!x.bulletins ? '—' : x.payes >= x.bulletins ? 'payés' : x.payes ? `${x.payes} sur ${x.bulletins} payés` : 'à payer'}</td></tr>`; };
+    return `<div class="panel mt" id="pa-tous"><div class="cp-pa-titre-l"><h2>${esc(titre)}</h2><span class="small muted" id="pa-tous-resume">${esc(pl(D.length, 'dossier avec une paie', 'dossiers avec une paie'))} · ${esc(pl(n, 'bulletin'))} ce mois</span></div>
+      ${D.length ? `<div class="scroll-x"><table class="list compact" id="pa-tous-liste"><thead><tr><th>Dossier</th><th class="r nw">Bulletins / salariés</th><th>Pointage</th><th>Bulletins</th><th>Salaires</th></tr></thead>
+        <tbody>${D.map(ligne).join('')}</tbody><tfoot><tr><th>${esc(pl(D.length, 'dossier'))}</th><th class="r nw">${n}</th><th colspan="3"></th></tr></tfoot></table></div>
+        <p class="small muted mt">Une ligne ouvre la paie de son dossier. « Sans pointage » : les bulletins sont faits sur des mois complets.</p>`
+        : '<div class="empty mini">Aucun de tes dossiers n\'a de salarié déclaré : il n\'y a pas de paie ce mois-ci.</div>'}
+      ${attendus.length && api.messagerie ? `<div class="ctrl-geste mt" id="pa-tous-relances">${attendus.map(x => `<button type="button" class="btn btn-sm" data-pa-tous-relancer="${esc(x.entreprise)}">Relancer ${esc(x.nom)}</button>`).join('')}<span class="small muted">le pointage ${esc(KC.deMois(KC.moisPaie(s.paieMois)))} n'est pas arrivé</span></div>` : ''}
+    </div>`;
   }
 
   function vueConges(dossier, L, annee) {

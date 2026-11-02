@@ -261,7 +261,7 @@ vaut pour tout le dépôt.*
     les maquettes : l'avance oubliée, les contrôles, les écarts, le paramétrage, le livre (1.237.0 ; `paieControles`/
     `paieAnomalies`/`paieEcarts`/`paieParametrage`/`paieLivreEtFinDAnnee` dans `cabinet/app.js`) ; l'échéancier des avances, la
     CNSS face au livre, le mois validé, mon rappel (1.238.0 ; `echeancierAvance`/`paieCnssDuLivre`/`paieDepuisLaValidation`/
-    `paiePointageResume` dans `cabinet/app.js`, `messagerie.meRappeler` dans `pont-cabinet.js`) ; Ctrl + Entrée et la fiche du salarié (1.240.0 ; `paieFicheSalarie` dans `cabinet/app.js`) ; le départ d'un CDD (1.241.0 ; `paieDepart`).
+    `paiePointageResume` dans `cabinet/app.js`, `messagerie.meRappeler` dans `pont-cabinet.js`) ; Ctrl + Entrée et la fiche du salarié (1.240.0 ; `paieFicheSalarie` dans `cabinet/app.js`) ; le départ d'un CDD (1.241.0 ; `paieDepart`) ; « Annuler » après la validation (1.242.0) ; l'accusé CNSS du trimestre (1.243.0 ; `paieAccuseCnss`) ; la paie de tous mes dossiers (1.244.0 ; `GET /cabinets/:cabinet/paie` dans `serveur/cabinet/routes.ts`, `paieDeTousMesDossiers` dans `cabinet/app.js` et `pont-cabinet.js`, `tests/cabinet/paie.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

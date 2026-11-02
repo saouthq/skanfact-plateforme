@@ -117,8 +117,9 @@ describe('le Cabinet sans réseau, à la souris', () => {
 
     // (1.131.0) L'onglet Paie d'un dossier dont le mandat ne confie pas la paie : ouvert une fois avec le réseau, il
     // s'ouvre de même sans lui, sans « pas encore lu » (depuis la 1.124.0, rien n'y demande la paie au serveur).
+    // (1.244.0) La paie refaite (1.235.0) dit, pour un dossier sans salarié, « Aucun salarié déclaré » (« Les bulletins de … » n'existe plus).
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/paie/${annee}`);
-    await expect.poll(() => p.locator('#view').innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/Les bulletins d/);
+    await expect.poll(() => p.locator('#view').innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/Aucun salarié déclaré/);
     await plusTard(p);
 
     // ── Le réseau coupé : le livre du client se consulte, le bandeau le dit ───────────────────────
@@ -144,7 +145,7 @@ describe('le Cabinet sans réseau, à la souris', () => {
     await expect.poll(() => p.locator('#c-livres').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/1 écriture de l'exercice attend au brouillard/);
     // L'onglet Paie s'ouvre sans réseau, comme avec lui.
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/paie/${annee}`);
-    await expect.poll(() => p.locator('#view').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/Les bulletins d/);
+    await expect.poll(() => p.locator('#view').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/Aucun salarié déclaré/);
     expect(await p.locator('#view').innerText()).not.toMatch(/pas encore lu/);
     // Une page jamais lue sur ce poste (la conversation avec le client) le dit, avec ce qui la débloque.
     await p.evaluate((h) => { location.hash = h; }, `#/messages/${ent}`);

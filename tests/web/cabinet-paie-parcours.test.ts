@@ -227,6 +227,15 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await expect.poll(() => p.locator('.cl-gr-t').innerText().then(espace).catch(() => ''), { timeout: 15_000 }).toMatch(/^accuse-cnss\.pdf/);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('.cl-gr-t').count()).toBe(0);
+    // 1.244.0 — la paie de tous mes dossiers (depuis L'année) : une ligne par dossier, ses bulletins et où ils en sont.
+    await p.locator('.pa-so [data-pa-vue="annee"]').click();
+    await p.locator('#pa-vers-tous [data-pa-vue="tous"]').click();
+    await expect.poll(() => p.locator('#pa-tous-liste tbody tr').count(), { timeout: 15_000 }).toBe(1);
+    expect(espace(await p.locator('#pa-tous-resume').innerText())).toBe('1 dossier avec une paie · 5 bulletins ce mois');
+    expect(espace(await p.locator('#pa-tous-liste tbody tr').first().innerText())).toMatch(/^Boulangerie El Amal 5 \/ 5 .* validés/);
+    expect(await p.locator('.pa-so [data-pa-vue="annee"]').getAttribute('aria-pressed')).toBe('true');
+    await p.locator('#pa-tous-liste tbody tr').first().click();
+    await expect.poll(() => p.locator('#pa-bulletins').count()).toBe(1);
     // 1.238.0 — un mois validé, et le pointage changé après : le bulletin ne bouge pas, l'écran le dit.
     await p.locator('.pa-so [data-pa-vue="mois"]').click();
     await p.locator('#pa-frise li[data-pa-vue="pointage"]').click();

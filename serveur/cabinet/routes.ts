@@ -248,6 +248,61 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // (1.244.0) La paie d'un mois de tous les dossiers (la maquette « paiedossiers », docs/paie.md) : pour chaque dossier actif
+  // du portefeuille dont la personne fait la paie (le périmètre « paie » du mandat, et le rôle Paie ou la supervision), ses salariés en poste ce mois-là, le
+  // pointage reçu (salariés pointés), et ses bulletins du mois, étape par étape : envoyés pour accord, approuvés par le
+  // client (bon à payer), vérifiés, validés, remis, payés. Une seule lecture pour tout le portefeuille ; la sécurité par
+  // ligne de `socle.dossier_v10` (0151) dit encore ce que la personne lit. Rien n'est inventé : un dossier sans paie n'a
+  // pas de ligne, un compte vide vaut zéro.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/paie', geste: 'compte.cabinets.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      // Qui n'est pas du cabinet n'apprend même pas qu'il existe.
+      if (!(await tx.query('select exists (select 1 from socle.mes_organisations() o where o = $1) v', [params.cabinet])).rows[0].v) return introuvable;
+      const mois = query.mois ?? '';
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mois)) {
+        return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'mois', raison: t('cabinet.champ.mois') }), champ: 'mois' } };
+      }
+      const [an, mo] = mois.split('-').map(Number) as [number, number];
+      const premier = `${mois}-01`, dernier = new Date(Date.UTC(an, mo, 0)).toISOString().slice(0, 10);
+      const r = await tx.query(`with p as (
+          select f.entreprise, f.raison_sociale, f.tenu from socle.portefeuille($1) f
+           where f.statut = 'actif' and f.entreprise in (select socle.mes_entreprises_au_perimetre('paie'))
+             -- Les rôles du geste « paie.dossier.voir » (serveur/paie/gestes.ts) : la paie et la supervision. La base laisse
+             -- lire la paie d'un dossier à tout membre affecté (la porte trie, dossier par dossier) ; ici, la lecture est en
+             -- lot : le tri se fait dans la requête, sur le rôle que le portefeuille donne pour chaque dossier.
+             and f.role in ('paie', 'supervision')),
+        d as (select v.entreprise, v.collection, v.contenu from socle.dossier_v10 v
+           where v.entreprise in (select entreprise from p) and v.collection in ('employees', 'payslips', 'timesheets'))
+        select p.entreprise, p.raison_sociale, p.tenu, socle.mode_de_paie(p.entreprise) mode,
+          count(*) filter (where d.collection = 'employees' and coalesce(d.contenu->>'active', 'true') <> 'false'
+            and coalesce(d.contenu->>'hireDate', '') <= $3 and coalesce(nullif(d.contenu->>'endDate', ''), $2) >= $2) salaries,
+          count(*) filter (where d.collection = 'timesheets' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5) pointes,
+          count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5) bulletins,
+          count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'pourAccordLe', '') <> '') envoyes,
+          count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'bonAPayerLe', '') <> '') approuves,
+          count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'verifieLe', '') <> '') verifies,
+          count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'valideLe', '') <> '') valides,
+          count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'remisLe', '') <> '') remis,
+          count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'paidDate', '') <> '') payes
+        from p left join d on d.entreprise = p.entreprise
+        group by p.entreprise, p.raison_sociale, p.tenu
+        order by p.raison_sociale collate "C", p.entreprise`, [params.cabinet, premier, dernier, String(an), String(mo)]);
+      return {
+        corps: {
+          mois,
+          dossiers: (r.rows as { entreprise: string; raison_sociale: string; tenu: boolean; mode: unknown; salaries: string; pointes: string; bulletins: string;
+            envoyes: string; approuves: string; verifies: string; valides: string; remis: string; payes: string }[]).map((x) => ({
+            entreprise: x.entreprise, nom: x.raison_sociale, tenu: x.tenu, mode: x.mode ?? null,
+            salaries: Number(x.salaries), pointes: Number(x.pointes), bulletins: Number(x.bulletins), envoyes: Number(x.envoyes),
+            approuves: Number(x.approuves), verifies: Number(x.verifies), valides: Number(x.valides), remis: Number(x.remis), payes: Number(x.payes),
+          })),
+        },
+      };
+    },
+  });
+
   // La production du portefeuille (brique 48 ; docs/cabinet.md, C38) : ce que le Cabinet v10 rangeait
   // dans l'index de chaque livre (cabstore.js, productionDuLivre), compté pour tous les dossiers en une
   // fois — par mois, les écritures (hors à-nouveaux), validées et au brouillard, qui y a fait le dernier

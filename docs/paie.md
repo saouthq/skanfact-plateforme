@@ -1760,6 +1760,21 @@ fasse tomber (le jeu d'essai n'a pas de déclaration mensuelle au mois d'un accu
 
 Test : le parcours « tenue » range l'accusé depuis la Paie, le voit, l'ouvre en grand. Preuves `paie 1.243 a` et `b`.
 
-**Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
-dossiers » ; « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
+**Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
 rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).
+
+## La paie du Cabinet : la paie de tous mes dossiers (02/11/2026, 1.244.0)
+
+Depuis « L'année », **« La paie de tous mes dossiers »** montre, pour le mois choisi, une ligne par dossier qui a une paie :
+le pointage (« reçu · 4 salariés pointés », « attendu », « fait par le client »), les bulletins (préparés, chez le client
+pour accord, approuvés, vérifiés, validés, remis) et un état en clair. Un clic sur la ligne ouvre la paie de ce dossier.
+Un dossier en tenue dont le pointage n'est pas arrivé a **« Relancer »** (la fenêtre « Demander au client », préremplie).
+
+Le serveur lit (`GET /cabinets/:cabinet/paie?mois=AAAA-MM`) : les dossiers actifs du portefeuille dont le cabinet tient la
+paie, **et seulement pour un membre qui a le rôle paie ou supervision** (la sécurité par ligne laisse voir la paie à tout
+membre du périmètre ; un collaborateur comptable n'apprend rien ici). Qui n'est pas du cabinet reçoit « introuvable ». Rien
+n'est écrit.
+
+Tests : `tests/cabinet/paie.test.ts` (les comptes d'un mois, le mois sans rien, le collaborateur comptable, le mois faux,
+l'étranger), le parcours « tenue » (`tests/web/cabinet-paie-parcours.test.ts`). Preuves `paie 1.244 a`, `b`, `c`.
+*Écart qui reste* : les salaires payés se comptent en bulletins, pas encore en montant rapproché du relevé.

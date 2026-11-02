@@ -140,3 +140,12 @@
 .cp-pa-fi { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; margin: 6px 0 4px; font-size: 13px; }
 .cp-pa-fi dt { color: var(--sb-gris); }
 .cp-pa-fi dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+/* (1.244.0) La paie de tous mes dossiers : l'état des bulletins d'un dossier, en pastille. */
+.cp-pa-etat { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; }
+.cp-pa-etat::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--sb-gris, #8a8f98); }
+.cp-pa-etat.ok::before { background: var(--sb-sarcelle, #0d9488); }
+.cp-pa-etat.ambre::before { background: var(--sb-ambre, #d97706); }
+.cp-pa-etat.rouge::before { background: var(--sb-rouge, #dc2626); }
+#pa-tous-liste tr[data-pa-tous] { cursor: pointer; }
+#pa-tous-liste tr.sel td { background: var(--sb-sarcelle-pale, rgba(13, 148, 136, .08)); }

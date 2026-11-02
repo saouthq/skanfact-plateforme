@@ -22399,6 +22399,16 @@ prouver "paie 1.243 a : l'accusé CNSS rangé depuis la Paie n'y apparaît pas (
 prouver "paie 1.243 b : la Paie ne reconnaît pas l'accusé CNSS du trimestre" web/public/v10/cabinet/app.js \
   "x.rubrique === 'accuse' && x.periode === per && x.titre === titre" "x.rubrique === 'accuse' && x.periode === per && false" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+prouver "paie 1.244 a : la paie de tous mes dossiers se montre au collaborateur comptable" serveur/cabinet/routes.ts \
+  "             and f.role in ('paie', 'supervision'))," "             )," \
+  "(1.244.0) la paie de tous mes dossiers : une ligne par dossier dont je fais la paie, ses bulletins étape par étape ; un dossier sans la paie au mandat n'y est pas, ni pour un collaborateur comptable"
+prouver "paie 1.244 b : la paie de tous mes dossiers répond à qui n'est pas du cabinet" serveur/cabinet/routes.ts \
+  "      if (!(await tx.query('select exists (select 1 from socle.mes_organisations() o where o = \$1) v', [params.cabinet])).rows[0].v) return introuvable;
+      const mois = query.mois ?? '';" "      const mois = query.mois ?? '';" \
+  "(1.244.0) la paie de tous mes dossiers : une ligne par dossier dont je fais la paie, ses bulletins étape par étape ; un dossier sans la paie au mandat n'y est pas, ni pour un collaborateur comptable"
+prouver "paie 1.244 c : un dossier aux bulletins validés ne se dit pas « validés »" web/public/v10/cabinet/app.js \
+  "    if (x.valides >= n) return ['ok', x.remis >= n ? 'validés · remis' : 'validés'];" "" \
+  "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

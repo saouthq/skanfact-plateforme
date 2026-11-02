@@ -2217,6 +2217,8 @@
     // 1.235.0 — marquer des bulletins du dossier (docs/revue-paie-cabinet.md) : envoyés pour accord, vérifiés, validés,
     // remis, une correction proposée (ou retirée : `null`). Les montants ne bougent pas : seules ces marques s'écrivent, en
     // un seul envoi, dans la révision lue. Un bulletin validé ne se marque plus que pour être remis.
+    // 1.244.0 — la paie d'un mois de tous les dossiers dont la personne fait la paie (une lecture du serveur, en lot).
+    paieDeTousMesDossiers: (/** @type {string} */ mois) => appel('GET', `/cabinets/${cabinetId}/paie?mois=${encodeURIComponent(mois)}`),
     marquerBulletins: async (/** @type {any} */ o) => {
       const PERMIS = ['pourAccordLe', 'verifieLe', 'valideLe', 'remisLe', 'correction'];
       const lus = paieLue.get(o.dossierId) || new Map();

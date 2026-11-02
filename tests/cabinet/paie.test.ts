@@ -88,7 +88,7 @@ function bulletin(mois: number, calcul?: (c: Record<string, unknown>) => Record<
     paidDate: '', accountId: '', method: 'virement', reference: '', issuedAt: '2025-12-31' };
 }
 const ecrire = (ent: string, p: Personne, changements: unknown[]) => appeler('POST', `/entreprises/${ent}/paie/dossier`, p.jeton, { changements });
-const objet = (collection: string, contenu: { id: string }) => ({ collection, cle: contenu.id, rang: null, revision: null, contenu: encoder(contenu) });
+const objet = (collection: string, contenu: { id: string } & Record<string, unknown>) => ({ collection, cle: contenu.id, rang: null, revision: null, contenu: encoder(contenu) });
 
 beforeAll(async () => {
   await admin.connect();
@@ -164,6 +164,34 @@ describe('la paie tenue par le cabinet', () => {
     // Le client voit le pointage que le cabinet a tenu : un seul dossier.
     const vuDuClient = (await appeler('GET', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton)).corps.objets as { collection: string; cle: string }[];
     expect(vuDuClient.filter((o) => o.collection === 'timesheets').map((o) => o.cle)).toEqual(['ts1']);
+  });
+
+  it('(1.244.0) la paie de tous mes dossiers : une ligne par dossier dont je fais la paie, ses bulletins étape par étape ; un dossier sans la paie au mandat n\'y est pas, ni pour un collaborateur comptable', async () => {
+    const d = await dossier();
+    const lire = (p: Personne, mois = '2025-03') => appeler('GET', `/cabinets/${d.cabinet}/paie?mois=${mois}`, p.jeton);
+    // Le mandat ne comprend pas la paie : le dossier n'y est pas.
+    expect((await lire(d.associe)).corps).toEqual({ mois: '2025-03', dossiers: [] });
+    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);
+    // Un salarié, deux bulletins (mars et avril), le pointage de mars ; le bulletin de mars envoyé pour accord, approuvé et payé.
+    expect((await ecrire(d.ent, d.associe, [objet('employees', SALARIE), objet('payslips', { ...bulletin(3), pourAccordLe: '2025-03-28', bonAPayerLe: '2025-03-29', paidDate: '2025-03-31' }),
+      objet('payslips', bulletin(4)), { collection: 'timesheets', cle: 'ts1', rang: null, revision: null, contenu: { id: 'ts1', employeeId: 'sal-1', year: 2025, month: 3, jours: {} } }])).statut).toBe(200);
+    const r = await lire(d.associe);
+    expect(r.statut).toBe(200);
+    expect(r.corps.dossiers).toEqual([{ entreprise: d.ent, nom: 'Menuiserie Ben Salah', tenu: false, mode: null,
+      salaries: 1, pointes: 1, bulletins: 1, envoyes: 1, approuves: 1, verifies: 0, valides: 0, remis: 0, payes: 1 }]);
+    // Un autre mois ne compte que les siens : avril, sans pointage ; juin, rien (le salarié est encore en poste).
+    expect((await lire(d.associe, '2025-04')).corps.dossiers).toEqual([expect.objectContaining({ salaries: 1, pointes: 0, bulletins: 1, envoyes: 0, payes: 0 })]);
+    expect((await lire(d.associe, '2025-06')).corps.dossiers).toEqual([expect.objectContaining({ salaries: 1, bulletins: 0 })]);
+    // Un salarié entré après le mois n'y compte pas.
+    expect((await lire(d.associe, '2024-12')).corps.dossiers).toEqual([expect.objectContaining({ salaries: 0, bulletins: 0 })]);
+    // Le collaborateur comptable du dossier ne fait pas la paie : rien.
+    expect((await lire(d.collaborateur)).corps.dossiers).toEqual([]);
+    // Un mois mal écrit : refusé, et dit.
+    const faux = await lire(d.associe, '2025-13');
+    expect(faux.statut).toBe(400);
+    expect(faux.corps.champ).toBe('mois');
+    // Qui n'est pas du cabinet n'apprend même pas qu'il existe.
+    expect((await lire(d.client)).statut).toBe(404);
   });
 
   it('dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout', async () => {
