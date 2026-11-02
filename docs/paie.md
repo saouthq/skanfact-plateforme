@@ -2063,3 +2063,28 @@ déclaration de novembre, la simulation d'embauche, la fenêtre du congé, le ta
 Tests : `tests/web/paie-revue-ecrans.test.ts` (la fiche : la base qui change, l'absence pointée), `tests/web/paie-bon-a-payer.test.ts`
 (les postes de l'année), `tests/web/paie-pointage-main.test.ts` (« 0,45 » enregistré) ; preuves « paie 1.254 a » à « d ».
 Vu à l'écran le 02/11 (L'année, les Réglages, la fiche de Hamza : Congés, Historique).
+
+## La revue de la paie, fin : les fenêtres qui restaient et le téléphone (02/11/2026, 1.255.0)
+
+Rappel de Skander (02/11) : sur `dev`, ni version ni envoi à chaque correction ; ce lot regroupe toute la fin de la revue.
+La comparaison avec les concurrents et le métier est dans `docs/etudes/paie-concurrents.md` (ce qui manque encore, par ordre
+de priorité, pour le prochain gros lot).
+
+- **La sortie d'un salarié** : « Préparer sa sortie… » ne faisait qu'ouvrir l'onglet « Son départ », sans rien demander.
+  C'est maintenant une fenêtre : le **dernier jour** et le **motif** (démission, fin de CDD, licenciement, rupture d'un
+  commun accord, fin de la période d'essai, retraite, autre), obligatoires, une note, et l'**ancienneté au dernier jour** calculée
+  sous les yeux. L'onglet « Son départ » dit le motif et l'ancienneté. Le préavis et l'indemnité de licenciement ne se
+  calculent pas : « À VÉRIFIER avec ton comptable » (Code du travail, convention collective) ; la valeur par défaut est
+  celle qui ne fait rien.
+- **La saisie sur salaire** : le premier mois de retenue se choisit dans une liste en toutes lettres (« dès le prochain
+  bulletin », « novembre 2026 »…) ; la case du navigateur écrivait « November 2026 ». Les montants s'écrivent à la française.
+- **Régulariser** : « Régulariser le bulletin d'octobre 2026 » (l'élision), le montant à la française.
+- **Les horaires** : la bande des mois s'estompe (les horaires valent pour tous les mois), et le dit au survol.
+- **L'icône « modifier »** manquait : « Modifier sa sortie… » et « Modifier le bulletin » s'affichaient sans dessin.
+- **Au téléphone** : le pointage de l'équipe (31 colonnes) devient une **liste** (jours payés, non payés, « Son mois » qui
+  ouvre le pointage du salarié) ; les gestes d'un bulletin passent **sous** son nom au lieu de le recouvrir.
+
+Tests : `tests/web/paie-revue-ecrans.test.ts` (« la sortie d'un salarié… ») ; preuves « paie 1.255 a » à « f ».
+`tests/web/paie-avance-fenetre.test.ts` était rouge depuis que la question « Abandonner cette saisie ? » nomme son bouton
+« Abandonner la saisie » : il cherchait « Abandonner » tout court, et il le cherche maintenant par son vrai nom. Vu à l'écran
+le 02/11 (la sortie de Karim avec son motif et son ancienneté, la saisie, la régularisation, le pointage au téléphone).

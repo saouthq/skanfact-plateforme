@@ -261,4 +261,75 @@ describe('la paie : les écrans de la revue', () => {
     }
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  // (1.255.0, fin de la revue du 02/11/2026) Les fenêtres qui restaient : la sortie d'un salarié (dernier jour ET motif, son
+  // ancienneté), la saisie sur salaire en mois écrits en français, « Régulariser le bulletin d'octobre » (élision), et au
+  // téléphone le pointage en liste (la grille de 31 colonnes ne tient pas) et les gestes d'un bulletin sous son nom.
+  it('la sortie d\'un salarié, son motif et son ancienneté ; la saisie dès un mois ; au téléphone, le pointage en liste', async () => {
+    const A = await monter();
+    let p = await ouvrir(A, '#/salarie/nb');
+    await p.locator('[data-onglet="depart"]').click();
+    await p.locator('[data-fs="sortie"]').first().click();
+    await p.locator('#so').waitFor();
+    // Sans motif, rien ne s'enregistre : le refus le dit et montre le champ.
+    await p.locator('#so-ok').click();
+    expect(espace(await p.locator('#so-refus').innerText())).toBe('Le motif manque : démission, fin de CDD, licenciement…');
+    expect(await p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('motif');
+    expect((await objets(A, 'employees')).find((x) => x.id === 'nb')?.sortieMotif).toBeUndefined();
+    await p.locator('#so .datefield:has(input[name=endDate]) input.d-txt').fill('31/10/2026');
+    await p.locator('#so .datefield:has(input[name=endDate]) input.d-txt').press('Tab');
+    await p.locator('#so [name=motif]').selectOption('demission');
+    // Embauchée le 10/03/2023, partie le 31/10/2026 : 3 ans et 7 mois.
+    expect(espace(await p.locator('#so-anc').innerText())).toBe('Ancienneté au dernier jour : 3 ans et 7 mois.');
+    await p.locator('#so [name=note]').fill('lettre reçue le 01/10');
+    await p.locator('#so-ok').click();
+    await expect.poll(async () => (await objets(A, 'employees')).find((x) => x.id === 'nb')?.sortieMotif).toBe('demission');
+    const nb = (await objets(A, 'employees')).find((x) => x.id === 'nb');
+    expect([nb?.endDate, nb?.sortieNote]).toEqual(['2026-10-31', 'lettre reçue le 01/10']);
+    await expect.poll(async () => p.locator('#fs-dep-kv').count()).toBe(1);
+    const kv = espace(await p.locator('#fs-dep-kv').innerText());
+    expect(kv).toContain('Motif Démission');
+    expect(kv).toContain('Ancienneté 3 ans et 7 mois');
+    expect(espace(await p.locator('#fs-sortie-mod').innerText())).toBe('Modifier sa sortie…');
+    // Le bouton porte un dessin (l'icône « modifier » manquait : le bouton s'affichait sans).
+    expect(await p.locator('#fs-sortie-mod svg path').count()).toBeGreaterThan(0);
+    await p.screenshot({ path: path.join(PHOTOS, 'paie-sortie-motif.png') });
+    // La saisie sur salaire : le premier mois de retenue se choisit dans une liste en toutes lettres.
+    await p.locator('[data-onglet="avances"]').click();
+    await p.locator('#add-sz').click();
+    const mois = await p.locator('#sz [name=debut] option').allInnerTexts();
+    expect(mois[0]).toBe('dès le prochain bulletin');
+    const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    expect(mois.slice(1).every((t) => new RegExp(`^(${MOIS.join('|')}) \\d{4}$`).test(t))).toBe(true);
+    await p.keyboard.press('Escape');
+    await p.close();
+    // Régulariser un bulletin d'un mois qui commence par une voyelle : « d'octobre », jamais « de octobre ».
+    p = await ouvrir(A, '#/paie', A.anA, A.moA);
+    const paye = A.avant.find((b) => b.employeeId === 'mt');
+    if (!paye) throw new Error('pas de bulletin payé');
+    await p.locator(`#p-bulletins tr[data-bul="${paye.id}"]`).getByRole('button', { name: /Actions/ }).click();
+    await p.getByText('Régulariser sur un mois suivant…', { exact: true }).click();
+    const nomDe = `${MOIS[A.moA - 1]} ${A.anA}`;
+    expect(espace(await p.locator('.modal h2').innerText())).toBe(`Régulariser le bulletin ${/^[aeiouyéè]/.test(nomDe) ? 'd\'' : 'de '}${nomDe}`);
+    await p.keyboard.press('Escape');
+    // Au téléphone : les gestes d'un bulletin passent sous le nom, sans le recouvrir.
+    await p.setViewportSize({ width: 390, height: 844 });
+    await p.waitForTimeout(400);
+    const ligne = p.locator('#p-bulletins tr[data-bul]').first();
+    const nom = await ligne.locator('td').first().boundingBox(), gestes = await ligne.locator('td.row-actions').boundingBox();
+    if (!nom || !gestes) throw new Error('la carte du bulletin ne se mesure pas');
+    expect(gestes.y).toBeGreaterThanOrEqual(nom.y + nom.height - 1);
+    // Le pointage : une ligne par salarié (ses jours payés), la grille cachée ; « Son mois » ouvre le pointage du salarié.
+    await p.locator('#p-tabs button[data-tab="pointage"]').click();
+    await p.locator('#pt-panneau').waitFor();
+    expect(await p.locator('#pt-tel').isVisible()).toBe(true);
+    expect(await p.locator('#pt-grille').isVisible()).toBe(false);
+    expect(await p.locator('#pt-tel li').count()).toBe(2);
+    expect(espace(await p.locator('#pt-tel').innerText())).toContain('Mourad Trabelsi');
+    expect(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await p.screenshot({ path: path.join(PHOTOS, 'paie-pointage-telephone.png'), fullPage: true });
+    await p.locator('#pt-tel [data-pt-tel]').first().click();
+    await expect.poll(async () => p.locator('#pt-tel').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 240_000);
 });

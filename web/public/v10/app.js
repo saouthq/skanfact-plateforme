@@ -17512,11 +17512,11 @@
     const cible = moisLibreApres(emp.id, b.year, b.month);
     if (!cible) { toast('Aucun mois libre dans les trois ans qui suivent : régularise sur un bulletin pas encore payé.', true); return; }
     const cur = company().currency, nomCible = `${MONTHS_LONG[cible.month - 1]} ${cible.year}`, nomDe = `${MONTHS_LONG[b.month - 1]} ${b.year}`;
-    modal(`<h2>Régulariser le bulletin de ${h(nomDe)}</h2>
+    modal(`<h2>Régulariser le bulletin ${/^[aeiouyéè]/i.test(nomDe) ? 'd\'' : 'de '}${h(nomDe)}</h2>
       <p class="small muted">Ce bulletin est payé${b.remisLe ? ' et remis' : ''} : il ne change plus. Ce qui manquait (ou ce qui a été payé en trop) passe sur le bulletin de <b>${h(nomCible)}</b>, avec son motif${cible.bulletin ? ', qui se recalcule' : ', quand il s’établira'}.</p>
       <form id="rg" class="grid-2">
         <label class="field obligatoire">${lbl('Sens', 'pay.regulSens')}<select name="sens"><option value="plus">Il lui manquait (à ajouter)</option><option value="moins">Il a reçu en trop (à retirer)</option></select></label>
-        ${field(lbl(`Montant (${h(C.normCurrency(cur))})`, 'pay.regulMontant'), 'amount', '', 'number', 'step="0.001" min="0" class="num" required')}
+        ${field(lbl(`Montant (${h(C.normCurrency(cur))})`, 'pay.regulMontant'), 'amount', '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" required')}
         ${field(lbl('Libellé sur le bulletin', 'pay.regulLabel'), 'label', `Régularisation ${nomDe}`, 'text', 'class="span-2"')}
         <label class="field span-2">${lbl('Motif', 'pay.regulMotif')}<input type="text" name="motif" placeholder="ex. heures supplémentaires oubliées"></label>
         <label class="check span-2"><input type="checkbox" name="taxable" checked> soumise à la CNSS et à l'impôt ${info('pay.regulImposable')}</label>
@@ -17578,9 +17578,15 @@
       <p class="small muted">Une décision de justice (une pension alimentaire, une dette) oblige l'employeur à retenir une part du salaire et à la verser au créancier. La retenue se fait d'elle-même sur chaque bulletin, jusqu'au total. <em>À VÉRIFIER avec ton comptable : la part du salaire que la loi permet de saisir.</em></p>
       <form id="sz" class="grid-2">
         ${field(lbl('Le créancier', 'pay.saisieCreancier'), 'creancier', x.creancier, 'text', 'required class="span-2"')}
-        ${field(lbl(`Total à retenir (${h(C.normCurrency(cur))})`, 'pay.saisieTotal'), 'total', x.total, 'number', 'step="0.001" min="0" class="num" required')}
-        ${field(lbl(`Retenue de chaque mois (${h(C.normCurrency(cur))})`, 'pay.saisieMois'), 'monthly', x.monthly, 'number', 'step="0.001" min="0" class="num" required')}
-        <label class="field">${lbl('Retenue à partir de', 'pay.saisieDebut')}<input type="month" name="debut" value="${h(x.debut || '')}"></label>
+        ${field(lbl(`Total à retenir (${h(C.normCurrency(cur))})`, 'pay.saisieTotal'), 'total', x.total != null && x.total !== '' ? C.money(x.total, null, 3) : '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" required')}
+        ${field(lbl(`Retenue de chaque mois (${h(C.normCurrency(cur))})`, 'pay.saisieMois'), 'monthly', x.monthly != null && x.monthly !== '' ? C.money(x.monthly, null, 3) : '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" required')}
+        <label class="field">${lbl('Retenue à partir de', 'pay.saisieDebut')}<select name="debut" aria-label="Le mois de la première retenue">${(() => {
+          // (1.255.0) Les mois en toutes lettres, comme l'avance : la case « mois » du navigateur écrivait « November 2026 ».
+          const d0 = C.today(), y0 = Number(d0.slice(0, 4)), m0 = Number(d0.slice(5, 7));
+          const mois = Array.from({ length: 13 }, (_, i) => { const t = (m0 - 1) + i; return `${y0 + Math.floor(t / 12)}-${String(t % 12 + 1).padStart(2, '0')}`; });
+          if (x.debut && !mois.includes(x.debut)) mois.unshift(x.debut);
+          return `<option value="" ${x.debut ? '' : 'selected'}>dès le prochain bulletin</option>` + mois.map(v => `<option value="${v}" ${x.debut === v ? 'selected' : ''}>${h(MONTHS_LONG[Number(v.slice(5, 7)) - 1])} ${v.slice(0, 4)}</option>`).join('');
+        })()}</select></label>
         ${field(lbl('Référence de la décision', 'pay.saisieRef'), 'reference', x.reference, 'text', '')}
       </form>
       ${etat ? `<div class="pa-kv" id="sz-etat"><span>Retenu sur les bulletins</span><b>${C.money(etat.retenu, cur)}</b><span>Versé au créancier</span><b>${C.money(etat.verse, cur)}</b><span>À lui verser</span><b class="${etat.aVerser ? 'warn-text' : ''}">${C.money(etat.aVerser, cur)}</b><span>Reste à retenir</span><b>${C.money(etat.reste, cur)}</b></div>` : ''}
@@ -18396,6 +18402,46 @@
   // (1.248.0) Renouveler un CDD : la décision elle-même (prolonger jusqu'à une date, ou passer en CDI), puis l'avenant à
   // signer. « Renouveler son contrat… » ouvrait toute la fiche « Modifier le salarié » (recette du 02/11) : on y cherchait
   // la case, rien ne disait ce qu'un renouvellement change, et l'avenant ne venait pas.
+  const MOTIFS_SORTIE = [['demission', 'Démission'], ['fin-cdd', 'Fin de CDD'], ['licenciement', 'Licenciement'], ['commun', 'Rupture d\'un commun accord'],
+    ['essai', 'Fin de la période d\'essai'], ['retraite', 'Départ à la retraite'], ['autre', 'Autre motif']];
+  const motifSortie = k => (MOTIFS_SORTIE.find(x => x[0] === k) || [])[1] || '';
+  // L'ancienneté d'un salarié à une date, en années et mois (un jour de calendrier, jamais un instant).
+  const ancienneteDe = (e, iso) => {
+    if (!e.hireDate || !iso || iso < e.hireDate) return '';
+    const [y1, m1, d1] = e.hireDate.split('-').map(Number), [y2, m2, d2] = iso.split('-').map(Number);
+    let mois = (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0); if (mois < 0) mois = 0;
+    const a = Math.floor(mois / 12), r = mois % 12;
+    return [a ? `${a} an${a > 1 ? 's' : ''}` : '', r ? `${r} mois` : ''].filter(Boolean).join(' et ') || 'moins d\'un mois';
+  };
+  function sortieFenetre(e, done) {
+    if (!e) return;
+    const jour = e.endDate || C.today(), motif = e.sortieMotif || (e.contract === 'cdd' && e.endDate ? 'fin-cdd' : '');
+    modal(`<h2>La sortie de ${h(e.name || '')}</h2>
+      <p class="small muted">Entré le ${e.hireDate ? C.fmtDate(e.hireDate) : '— (date d\'embauche à saisir)'} · ${h(e.contract === 'cdd' ? 'CDD' : (C.contractLabel(e.contract || 'cdi') || '').split(' —')[0])}. Le dernier bulletin, le solde de tout compte et le certificat de travail se préparent ensuite dans « Son départ ».</p>
+      <form id="so" class="grid-2">
+        ${dateFieldHtml(lbl('Dernier jour', 'pay.endDate'), 'endDate', jour, { obligatoire: true })}
+        <label class="field obligatoire">${lbl('Motif')}<select name="motif"><option value="" ${motif ? '' : 'selected'}>— à choisir —</option>${MOTIFS_SORTIE.map(([k, l]) => `<option value="${k}" ${motif === k ? 'selected' : ''}>${h(l)}</option>`).join('')}</select></label>
+        <label class="field span-2">${lbl('Note')}<input type="text" name="note" maxlength="200" value="${h(e.sortieNote || '')}" placeholder="ex. lettre de démission reçue le 28/10, préavis d'un mois"></label>
+        <p class="small span-2" id="so-anc"></p>
+      </form>
+      <p class="small muted"><em>À VÉRIFIER avec ton comptable : la durée du préavis et l'indemnité de licenciement (Code du travail et convention collective) ; SkanFact ne les calcule pas.</em></p>
+      <p class="small warn-text" id="so-refus" role="status" aria-live="polite" hidden></p>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="so-ok">Enregistrer sa sortie</button></div>`, (root, fermer) => {
+      const anc = () => { const d = formValues($('#so', root)).endDate; $('#so-anc', root).textContent = d && e.hireDate ? `Ancienneté au dernier jour : ${ancienneteDe(e, d)}.` : ''; };
+      $('#so', root).oninput = $('#so', root).onchange = anc; anc();
+      $('#so-ok', root).onclick = () => {
+        const v = formValues($('#so', root)), refus = (t, el) => { const r = $('#so-refus', root); r.hidden = false; r.textContent = t; if (el) el.focus(); };
+        if (!v.endDate) return refus('Le dernier jour manque : la date de sortie.', $('[name=endDate]', root));
+        if (e.hireDate && v.endDate < e.hireDate) return refus(`Le dernier jour est avant son embauche (${C.fmtDate(e.hireDate)}).`, $('[name=endDate]', root));
+        if (!v.motif) return refus('Le motif manque : démission, fin de CDD, licenciement…', $('[name=motif]', root));
+        const x = employeeById(e.id); if (!x) return fermer();
+        const avant = { endDate: x.endDate, sortieMotif: x.sortieMotif, sortieNote: x.sortieNote };
+        x.endDate = v.endDate; x.sortieMotif = v.motif; x.sortieNote = String(v.note || '').trim();
+        save(true); fermer(); if (done) done();
+        toastUndo(`Sortie de ${x.name} notée au ${C.fmtDate(v.endDate)} : ${motifSortie(v.motif).toLowerCase()}`, () => { const y = employeeById(e.id); if (y) { Object.assign(y, avant); save(true); if (done) done(); } });
+      };
+    });
+  }
   function renouvelerCdd(e, done) {
     if (!e || e.contract !== 'cdd') return;
     const fin = e.endDate || C.today();
@@ -18580,6 +18626,8 @@
   const PAIE_SOUS = { pointage: [['pointage', 'Toute l\'équipe', 'echeance', 'la grille du mois'], ['pt-salarie', 'Par salarié', 'personne', 'son mois en calendrier'], ['pt-horaires', 'Les horaires', 'horloge', 'jours de travail, heures sup']] };
   const PAIE_VUE_DE = { avances: 'conges', registre: 'salaries', 'pt-salarie': 'pointage', 'pt-horaires': 'pointage' };
   Object.assign(LF_IC, { echeance: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' });
+  // (1.255.0) « Modifier sa sortie… » et « Modifier le bulletin » appelaient une icône qui n'existait pas (bouton sans dessin).
+  Object.assign(LF_IC, { modifier: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>' });
   // Idem sur la Paie : la liste des salariés, les avances en cours et le registre du personnel sont
   // des états du jour, pas d'un exercice. Ils affichaient un sélecteur d'année qui ne faisait rien.
   const P_SANS_ANNEE = ['salaries', 'avances', 'registre', 'baremes', 'pt-horaires'];
@@ -19189,6 +19237,7 @@
     function lierAujourdhui(apres) {
       const iso = C.today(), y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
       if ($('#pt-horaires-go')) $('#pt-horaires-go').onclick = () => allerVue('pt-horaires');
+      $$('#pt-tel [data-pt-tel]').forEach(b2 => b2.onclick = () => { s.ptSal = b2.dataset.ptTel; allerVue('pt-salarie'); });
       if ($('#pt-main-ok')) $('#pt-main-ok').onclick = () => { try { localStorage.setItem('skanfact.pt-main-vu', '1'); } catch { /* poste sans stockage */ } $('#pt-main').remove(); };
       $$('#pt-auj [data-auj]').forEach(b => b.onclick = () => {
         const [id, code] = b.dataset.auj.split(':'), e = employeeById(id);
@@ -19424,6 +19473,7 @@
               <td class="r nw pt-tot"><strong data-pt-payes>${pct(p.payes)}</strong> j</td><td class="r nw" data-pt-abs>${p.absences ? pct(p.absences) : '<span class="muted">—</span>'}</td>
             </tr>`).join('')}</tbody></table></div>`
             : `<div class="empty">Aucun salarié en poste en ${h(mois)} ${y}.</div>`}
+          ${lignes.length ? `<ul class="pt-tel" id="pt-tel">${lignes.map(({ e, p }) => `<li><span class="pa-av" style="--c:${h(C.couleurDe(e.name || ''))}" aria-hidden="true">${h(C.initialesDe(e.name || ''))}</span><span class="pt-tel-n"><b>${h(e.name)}</b><small>${pct(p.payes)} j payés${p.absences ? ` · ${pct(p.absences)} non payé${p.absences > 1 ? 's' : ''}` : ''}</small></span><button type="button" class="btn btn-sm" data-pt-tel="${h(e.id)}">Son mois</button></li>`).join('')}</ul>` : ''}
           <div class="pt-legende">${C.CODES_POINTAGE.filter(([c]) => c !== 'P').map(([c, l]) => `<span class="pt-cle"><span class="pt-c pt-${c}" aria-hidden="true">${affiche(c)}</span>${h(l)}</span>`).join('')}<span class="pt-cle"><span class="pt-c pt-P pt-vide" aria-hidden="true"></span>Présent (case vide)</span><span class="pt-cle"><span class="pt-c pt-hors" aria-hidden="true">·</span>Hors contrat</span></div>
           ${/* Sous la grille : apparue au-dessus, l'alerte poussait toutes les cases sous la souris (vu à l'écran). */''}
           ${ecarts.length ? `<div class="warn-box mt" id="pt-ecarts">${ecarts.map(({ x, r }) => `<div class="ctrl-geste"><span>Le bulletin de <b>${h(x.employeeName)}</b> ne suit plus le pointage : ${ecartDit(r)}.${x.paidDate ? ' Il est déjà payé : son net changera.' : ''}</span><button type="button" class="btn btn-sm" data-pt-reprendre="${h(x.id)}">Reprendre le pointage dans le bulletin</button></div>`).join('')}</div>` : ''}
@@ -20288,6 +20338,7 @@
     const bindHead = () => {
       $('#p-mois').innerHTML = pMois(); $('#p-mois').hidden = (P_SANS_ANNEE.includes(s.tab) && s.tab !== 'pt-horaires') || !data.employees.length;
       $('#p-mois').classList.toggle('pa-mois-inerte', s.tab === 'pt-horaires'); $('#p-mois').inert = s.tab === 'pt-horaires';
+      $('#p-mois').title = s.tab === 'pt-horaires' ? 'Les horaires valent pour tous les mois' : '';
       // Au téléphone, la bande défile au doigt : le mois choisi vient au milieu (sinon on voyait janvier).
       { const on = $('#p-mois .cp-mo.on'), rangee = on && on.parentElement; if (rangee && rangee.scrollWidth > rangee.clientWidth) rangee.scrollLeft = on.offsetLeft - (rangee.clientWidth - on.offsetWidth) / 2; }
       // (1.251.0) Un mois de la bande : toute la page passe à ce mois (le trimestre CNSS suit) ; « Toute l'année » ouvre l'année.
@@ -20483,10 +20534,10 @@
         })()
       : og === 'depart' ? (e.endDate ? (() => {
           const L = C.lignesDuSolde(data, e.id, e.endDate);
-          return `<div class="pa-kv"><span>${parti ? 'Parti le' : 'Fin prévue le'}</span><b>${C.fmtDate(e.endDate)}</b><span>Congés pas pris</span><b>${pct(C.indemniteConges(data, e.id, e.endDate).solde)} jour(s)</b>${ouvertes.length ? `<span>Avance qui reste</span><b>${C.money(C.round3(ouvertes.reduce((a2, x) => a2 + x.remaining, 0)), cur)}</b>` : ''}</div>
+          return `<div class="pa-kv" id="fs-dep-kv"><span>${parti ? 'Parti le' : 'Fin prévue le'}</span><b>${C.fmtDate(e.endDate)}</b>${e.sortieMotif ? `<span>Motif</span><b>${h(motifSortie(e.sortieMotif))}</b>` : ''}${e.hireDate ? `<span>Ancienneté</span><b>${h(ancienneteDe(e, e.endDate))}</b>` : ''}<span>Congés pas pris</span><b>${pct(C.indemniteConges(data, e.id, e.endDate).solde)} jour(s)</b>${ouvertes.length ? `<span>Avance qui reste</span><b>${C.money(C.round3(ouvertes.reduce((a2, x) => a2 + x.remaining, 0)), cur)}</b>` : ''}</div>
             ${ouvertes.length ? `<p class="small pa-note" id="fs-dep-avance">Le solde ne retient pas l'avance : ses bulletins la remboursent, et ce qu'ils ne peuvent pas retenir se règle avec lui. <em>À VÉRIFIER avec ton comptable : ce qui peut se retenir au départ.</em></p>` : ''}
             <table class="list compact pa-liste"><thead><tr><th>Son solde de tout compte, proposé</th><th class="r"></th></tr></thead><tbody>${L.map(l => `<tr><td>${h(l.label)}</td><td class="r nw">${C.money(l.amount, cur)}</td></tr>`).join('')}</tbody></table>
-            <div class="pa-pied-o"><button type="button" class="btn btn-sm" data-fs="doc" data-kind="solde">${lfIc('oeil', 14)} Le solde de tout compte</button><button type="button" class="btn btn-sm" data-fs="doc" data-kind="certificat">${lfIc('oeil', 14)} Le certificat de travail</button></div>
+            <div class="pa-pied-o"><button type="button" class="btn btn-sm" data-fs="sortie" id="fs-sortie-mod">${lfIc('modifier', 14)} ${e.sortieMotif ? 'Modifier sa sortie…' : 'Le motif de sa sortie…'}</button><button type="button" class="btn btn-sm" data-fs="doc" data-kind="solde">${lfIc('oeil', 14)} Le solde de tout compte</button><button type="button" class="btn btn-sm" data-fs="doc" data-kind="certificat">${lfIc('oeil', 14)} Le certificat de travail</button></div>
             <p class="small muted pa-note">À VÉRIFIER avec ton comptable : les indemnités de fin de contrat dépendent du motif de la rupture et de la convention collective.</p>`;
         })() : `<div class="empty"><b>Aucun départ prévu</b><br>Une démission, une fin de contrat, un licenciement : pose sa date de sortie, et le solde de tout compte et le certificat se préparent ici.</div><div class="pa-pied-o"><button type="button" class="btn btn-sm" data-fs="sortie">${lfIc('echeance', 14)} Préparer sa sortie…</button></div>`)
       : og === 'arrivee' && arrive ? `<div class="pa-carte-t"><b>L'arrivée de ${h(e.name.split(/\s+/)[0])}, le ${C.fmtDate(e.hireDate)}</b><span class="mu">${pl(ARR.filter(x => x[0]).length, 'fait')} · ${ARR.filter(x => x[0] === false).length} à demander · ${ARR.filter(x => x[0] === null).length} à vérifier</span></div>
@@ -20502,7 +20553,7 @@
     $('#view').innerHTML = `
       <div class="page-head lf-tete pa-tete" id="fs-head"><div class="titre"><div class="chemin"><a href="#/paie">Paie</a>${ICONE_CHEVRON}<a href="#/paie" id="fs-sal">Salariés</a>${ICONE_CHEVRON}<span>${h(e.name)}</span></div>
           <h1 class="pa-h1-av">${av(e.name, true)}${h(e.name)} ${pastille}</h1><p class="sous">${h([e.position, (C.contractLabel(e.contract || 'cdi') || '').split(' —')[0] + (e.hireDate ? ` depuis le ${C.fmtDate(e.hireDate)}` : ''), `coût ${C.money(c.employerCost, cur)} par mois`].filter(Boolean).join(' · '))}</p></div>
-        <div class="actions">${!parti && e.endDate ? '' : !parti ? '' : ''}${finCdd ? `<button type="button" class="btn" data-fs="sortie">${lfIc('retour', 15)} Préparer sa sortie…</button>` : `<button type="button" class="btn" data-fs="doc">${lfIc('pages', 15)} Un document…</button>`}<button type="button" class="btn btn-ghost pa-plus" id="fs-plus" aria-haspopup="menu" aria-label="Autres gestes pour ce salarié" title="Autres gestes pour ce salarié">${lfIc('plus', 16)}</button>${prin}</div></div>
+        <div class="actions">${finCdd ? `<button type="button" class="btn" data-fs="sortie">${lfIc('retour', 15)} Préparer sa sortie…</button>` : `<button type="button" class="btn" data-fs="doc">${lfIc('pages', 15)} Un document…</button>`}<button type="button" class="btn btn-ghost pa-plus" id="fs-plus" aria-haspopup="menu" aria-label="Autres gestes pour ce salarié" title="Autres gestes pour ce salarié">${lfIc('plus', 16)}</button>${prin}</div></div>
       ${bandeaux.join('')}
       <div class="pa-fiche"><div class="pa-fiche-g"><section class="pa-carte"><div class="pa-sous pa-sous-f" role="tablist" aria-label="Sa fiche">${ONG.map(([id, n, nb]) => `<button type="button" role="tab" data-onglet="${id}" aria-selected="${og === id}">${n}${nb ? ` <small>${nb}</small>` : ''}</button>`).join('')}</div><div class="pa-onglet-c" id="fs-corps">${corps}</div></section></div>
         <div class="pa-fiche-d">
@@ -20545,7 +20596,7 @@
       else if (k === 'focus') employeeForm(e, rouvrir, { focus: bt.dataset.focus });
       // (1.248.0) Renouveler a sa fenêtre ; « Préparer sa sortie » mène à l'onglet « Son départ » (la date, le solde, le certificat).
       else if (k === 'renouveler') renouvelerCdd(e, rouvrir);
-      else if (k === 'sortie') { ficheSal.onglet = 'depart'; rouvrir(); }
+      else if (k === 'sortie') { ficheSal.onglet = 'depart'; sortieFenetre(e, rouvrir); }
       else if (k === 'conge') leaveForm(null, e.id, rouvrir);
     });
     if ($('#fs-plus')) $('#fs-plus').onclick = ev => RowMenu.ouvrir(ev.currentTarget, [

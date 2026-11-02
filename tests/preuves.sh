@@ -22556,6 +22556,28 @@ prouver "paie 1.254 d : un taux des réglages s'écrit « 9.68 »" web/public/v1
   "value=\"\${h(String(st[k] == null ? '' : st[k]).replace('.', ','))}\" class=\"num\">" "value=\"\${st[k]}\" class=\"num\">" \
   'aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
 
+# 1.255.0 (fin de la revue de la paie, 02/11/2026) : la sortie d'un salarié (motif obligatoire, ancienneté), l'icône
+# « modifier », la saisie en mois français, « d'octobre », et au téléphone le pointage en liste et les gestes sous le nom.
+WP255='la sortie d'\''un salarié, son motif et son ancienneté ; la saisie dès un mois ; au téléphone, le pointage en liste'
+prouver "paie 1.255 a : la sortie s'enregistre sans motif" web/public/v10/app.js \
+  "if (!v.motif) return refus('Le motif manque" "if (false) return refus('Le motif manque" \
+  "$WP255"
+prouver "paie 1.255 b : le bouton « Modifier sa sortie » sans dessin" web/public/v10/app.js \
+  "Object.assign(LF_IC, { modifier:" "Object.assign(LF_IC, { modifier_retire:" \
+  "$WP255"
+prouver "paie 1.255 c : « Régulariser le bulletin de octobre »" web/public/v10/app.js \
+  "Régulariser le bulletin \${/^[aeiouyéè]/i.test(nomDe) ? 'd\\'' : 'de '}" "Régulariser le bulletin \${'de '}" \
+  "$WP255"
+prouver "paie 1.255 d : la saisie part d'un mois écrit par le navigateur" web/public/v10/app.js \
+  "return \`<option value=\"\" \${x.debut ? '' : 'selected'}>dès le prochain bulletin</option>\`" "return \`<option value=\"\" \${x.debut ? '' : 'selected'}>dès le mois</option>\`" \
+  "$WP255"
+prouver "paie 1.255 e : au téléphone, la grille du pointage déborde (pas de liste)" web/public/plateforme/paie.css \
+  "  .pt-tel { display: block; list-style: none; margin: 0; padding: 0; }" "  .pt-tel { list-style: none; margin: 0; padding: 0; }" \
+  "$WP255"
+prouver "paie 1.255 f : au téléphone, les gestes d'un bulletin recouvrent son nom" web/public/plateforme/paie.css \
+  "td.row-actions { position: static; grid-column: 1 / -1; order: 9;" "td.row-actions { grid-column: 1 / -1; order: 9;" \
+  "$WP255"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -556,7 +556,7 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 /* (1.252.0) Les lettres-raccourcis sur un bouton choisi (fond sombre) : un carré blanc sans lettre. */
 .pt-edit .pt-seg kbd { background: transparent; color: inherit; box-shadow: none; }
 /* La bande garde sa place sur les horaires, sans y servir. */
-#p-mois.pa-mois-inerte { visibility: hidden; }
+#p-mois.pa-mois-inerte { opacity: .38; filter: grayscale(1); }
 .pa-bandeau .pa-bandeau-g { display: inline-flex; gap: 6px; margin-left: auto; flex: none; }
 /* Au téléphone : « Réglages » est déjà dans le menu ⋯ (une rangée de gagnée avant le contenu) ; l'année épinglée de la bande
    porte une ombre, le mois qui glisse dessous ne se lit plus en morceaux. */
@@ -576,3 +576,17 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 #pd .field { margin: 0; }
 #dm-encours { margin-left: 8px; }
 #fs-pointes { margin: 8px 14px 0; }
+
+/* (1.255.0) Au téléphone : la carte d'un bulletin garde le nom en entier (« Bulletin » et « Actions » passent dessous, au
+   lieu de le recouvrir) ; la grille du pointage laisse la place à la liste de l'équipe. */
+.pt-tel { display: none; }
+@media (max-width: 760px) {
+  #p-bulletins table.list[data-cartes] > tbody > tr > td.row-actions { position: static; grid-column: 1 / -1; order: 9; display: flex; gap: 8px; justify-content: flex-start; margin-top: 4px; }
+  #pt-panneau .scroll-x:has(#pt-grille), #pt-panneau .pt-legende { display: none; }
+  .pt-tel { display: block; list-style: none; margin: 0; padding: 0; }
+  .pt-tel li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--sb-trait); }
+  .pt-tel li:last-child { border-bottom: 0; }
+  .pt-tel-n { flex: 1; min-width: 0; display: grid; }
+  .pt-tel-n small { color: var(--sb-encre-3, var(--muted)); }
+  .pt-tel .btn { min-height: 44px; }
+}

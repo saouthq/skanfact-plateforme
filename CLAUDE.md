@@ -217,7 +217,8 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   chaque problème vu (sans s'arrêter pour corriger) ; **2. corriger tout le lot** ; **3. écrire les tests et leurs
   preuves** une fois le parcours corrigé revu à l'écran ; **4. un seul envoi pour le lot**, puis revoir sur le serveur
   d'essai. Seule exception : un défaut qui bloque la suite du parcours (on ne peut pas aller plus loin) se répare tout
-  de suite. D'abord sur la machine de travail, puis sur le serveur d'essai (`https://app.skanfact.tn`, joignable depuis
+  de suite. **Rappel de Skander (02/11/2026)** : sur `dev`, ni version, ni test, ni envoi à chaque correction — on
+  accumule tout un gros lot, puis UNE passe de tests et UN envoi. D'abord sur la machine de travail, puis sur le serveur d'essai (`https://app.skanfact.tn`, joignable depuis
   la session), avec des comptes nommés « essai ».
   Le premier passage (brique 125) a trouvé sept défauts que les tests verts ne voyaient pas (`docs/caisse.md`) :
   chaque défaut vu à l'écran devient une assertion et sa preuve.

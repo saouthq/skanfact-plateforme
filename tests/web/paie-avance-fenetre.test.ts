@@ -98,8 +98,8 @@ describe('la fenêtre d\'une avance de l\'entreprise', () => {
     await expect.poll(toast).toMatch(/^300,125\s\S+ ont déjà été retenus sur les bulletins de Salarié Numéro Un : l'avance ne change plus de salarié\.$/);
     expect(await avances()).toMatchObject([{ id: 'a1', employeeId: 's1' }]);
     await p.keyboard.press('Escape');
-    for (let i = 0; i < 2 && await p.getByRole('button', { name: 'Abandonner', exact: true }).count(); i++) {
-      await p.getByRole('button', { name: 'Abandonner', exact: true }).click();
+    for (let i = 0; i < 2 && await p.getByRole('button', { name: 'Abandonner la saisie', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Abandonner la saisie', exact: true }).click();
     }
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
 
