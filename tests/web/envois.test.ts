@@ -247,6 +247,13 @@ describe('les envois, à la souris', () => {
     expect(await nadia.locator('#ed-frise li[data-k=vu]').evaluate((li) => li.classList.contains('fait'))).toBe(true);
     // Sans le lien (la case décochée) : WhatsApp s'ouvre pendant le geste, sans lien, sur le message du modèle.
     const sansLien = await envoi(nadia, /^(WhatsApp$|Envoyer par WhatsApp…$|Par WhatsApp)/);
+    // Décocher rend au message la phrase du modèle (rien n'est plus « Voici » par le lien), recocher la retire.
+    const corpsWa = sansLien.locator('textarea[name=body]');
+    expect(await corpsWa.inputValue()).toMatch(/^Bonjour,\n\nVoici /);
+    await sansLien.getByLabel(/Ajouter le lien de la pièce/).uncheck();
+    expect(await corpsWa.inputValue()).toMatch(/^Bonjour,\n\n(Veuillez trouver|Vous trouverez) ci-joint /);
+    await sansLien.getByLabel(/Ajouter le lien de la pièce/).check();
+    expect(await corpsWa.inputValue()).toMatch(/^Bonjour,\n\nVoici /);
     await sansLien.getByLabel(/Ajouter le lien de la pièce/).uncheck();
     await sansLien.getByRole('button', { name: 'Ouvrir WhatsApp', exact: true }).click();
     await expect.poll(async () => (await ouverts(nadia)).slice(5), { timeout: 15_000 }).toEqual(['fenêtre:', expect.stringMatching(/^https:\/\/wa\.me\/216\d{8}\?text=Bonjour/)]);

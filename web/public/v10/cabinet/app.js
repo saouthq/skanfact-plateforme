@@ -5959,7 +5959,10 @@
     const vues = new Set();
     const parMois = mois.map(m => {
       const l = items.filter(x => x.mois === m && x.etat[2] !== 'hors');
-      const etat = etatMoisFd(d, m, Lfd, tard, mc);
+      // (1.239.1) Un mois sans écriture dont les pièces sont arrivées (photos à classer) n'est pas « rien reçu » : il est à
+      // saisir. Il se disait vide (« aucune pièce », « Relancer ») et cachait les pièces qu'il a reçues.
+      const etatL = etatMoisFd(d, m, Lfd, tard, mc);
+      const etat = etatL[0] === 'manque' && l.some(x => x.etat[2] !== 'manque') ? ['pc', 'à saisir', etatL[2]] : etatL;
       const trous = trousCl(d, { m, etat, l, tard, aujourdhui, relanceTxt, prenom, livre, mp, demandes, vues, illisibles });
       const lp = l.filter(x => x.etat[2] !== 'manque');
       const ordre = lp.filter(x => x.etat[2] === 'ordre').length, traiter = lp.filter(x => x.etat[2] === 'traiter').length;

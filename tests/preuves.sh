@@ -22375,6 +22375,9 @@ prouver 'paie cabinet 1.239 a : le jour de l'\''écriture de paie se tait avant 
 prouver 'léger 1.239 b : sans réseau, la messagerie chargée à la demande ne dit pas pourquoi' web/public/plateforme/pont.js \
   "<b>Pas de réseau : la messagerie attend la connexion.</b>" "<b>Échec.</b>" \
   "$WMSG1"
+prouver "classeur 1.239.1 : un mois sans écriture cache les pièces qu'il a reçues (« rien reçu », « aucune pièce »)" web/public/v10/cabinet/app.js \
+  "const etat = etatL[0] === 'manque' && l.some(x => x.etat[2] !== 'manque') ? ['pc', 'à saisir', etatL[2]] : etatL;" "const etat = etatL;" \
+  "une pièce en double se marque de sa jumelle, côte à côte ; une pièce se range dans un autre mois"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

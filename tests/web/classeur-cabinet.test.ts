@@ -73,9 +73,10 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
       lignes: [{ compte: '6226', debit: '100,000' }, { compte: '401', credit: '100,000' }] });
     return { associe, courrielAssocie, cab, boulangerie, menuiserie };
   }
-  async function contexte(jeton: string, tel = false) {
+  // jour : l'horloge du navigateur (le 28/10 par défaut) ; null, le vrai jour, celui où le serveur date les pièces qu'il reçoit.
+  async function contexte(jeton: string, tel = false, jour: Date | null = LE_28) {
     const cx = await navigateur.newContext({ viewport: tel ? { width: 390, height: 844 } : { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', ...(tel ? { isMobile: true, hasTouch: true } : {}) });
-    await cx.clock.setFixedTime(LE_28);
+    if (jour) await cx.clock.setFixedTime(jour);
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
@@ -169,10 +170,17 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await envoyer('facture-steg.png');
     await envoyer('facture-steg.png');
     await envoyer('ticket-24-10.png');
-    const { p, erreurs } = await contexte(associe);
+    // (rouge GitHub de 1.239.0) Les pièces sont datées par le serveur, au vrai jour : le navigateur vit le même jour, et les
+    // mois attendus se calculent de lui (le test ne marchait qu'en octobre).
+    const { p, erreurs } = await contexte(associe, false, null);
+    const [an, mo] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis', year: 'numeric', month: '2-digit' }).format(new Date()).split('-').map(Number) as [number, number];
+    const nomDu = (a: number, m: number) => new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(a, m - 1, 15)));
+    const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+    const arrivee = nomDu(an, mo);
+    const avant = mo === 1 ? nomDu(an - 1, 12) : nomDu(an, mo - 1);
     await ouvrir(p, cab.id, boulangerie);
-    // Arrivées en octobre, septembre pas encore déposé : elles servent septembre (la maquette), ouvert d'emblée.
-    expect(await p.locator('.cl-a-m.ici').innerText()).toMatch(/^Septembre/);
+    // Arrivées ce mois-ci, le mois d'avant pas encore déposé : elles servent le mois d'avant (la maquette), ouvert d'emblée.
+    expect(await p.locator('.cl-a-m.ici').innerText()).toMatch(new RegExp(`^${majuscule(avant)}`));
     // La seconde photo se dit « en double ? », et son geste la marque en double de la première.
     const dbl = p.locator('li[data-cl-k]').filter({ hasText: 'en double ?' });
     await expect.poll(() => dbl.count()).toBe(1);
@@ -186,12 +194,12 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await p.locator('li[data-cl-k]').filter({ hasText: 'ticket-24-10' }).click();
     await p.locator('[data-cl-trois]').click();
     await p.locator('[data-cl-menu="mois"]').click();
-    // Le mois de son arrivée : elle y reste, même si septembre attend encore ses pièces.
-    await p.locator('#mo-m').selectOption('2026-10');
-    expect(await p.locator('.modal #ok').innerText()).toBe('Déplacer en octobre');
+    // Le mois de son arrivée : elle y reste, même si le mois d'avant attend encore ses pièces.
+    await p.locator('#mo-m').selectOption(`${an}-${String(mo).padStart(2, '0')}`);
+    expect(await p.locator('.modal #ok').innerText()).toBe(`Déplacer en ${arrivee}`);
     await p.locator('.modal #ok').click();
-    await expect.poll(() => p.locator('.cl-a-m.ici').innerText()).toMatch(/^Octobre/);
-    expect(await p.locator('li[data-cl-k]').filter({ hasText: 'ticket-24-10' }).innerText()).toMatch(/reçue le \d\d\/10/);
+    await expect.poll(() => p.locator('.cl-a-m.ici').innerText()).toMatch(new RegExp(`^${majuscule(arrivee)}`));
+    expect(await p.locator('li[data-cl-k]').filter({ hasText: 'ticket-24-10' }).innerText()).toMatch(new RegExp(`reçue le \\d\\d/${String(mo).padStart(2, '0')}`));
     expect(await p.locator('li[data-cl-k]').filter({ hasText: 'facture-steg' }).count()).toBe(0);
     expect(erreurs).toEqual([]);
   });
