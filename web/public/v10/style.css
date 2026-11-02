@@ -2787,3 +2787,22 @@ body.dark .g-ligne.faite .g-l-ico { color: #0d1418; }
 .editor.lecture #lines :is(input, select, textarea):disabled { border-color: transparent; background: transparent; color: var(--text);
   -webkit-text-fill-color: var(--text); opacity: 1; appearance: none; padding-inline: 0; resize: none; box-shadow: none; }
 @media (max-width: 600px) { .lp-ligne { grid-template-columns: 1fr; gap: 2px; } }
+
+/* (1.248.1) Le bulletin qu'on modifie : son net, son brut et son coût en haut, à jour à chaque frappe. */
+.bf-resume { display: flex; flex-wrap: wrap; gap: 8px 28px; padding: 10px 14px; margin: 4px 0 12px; border-radius: 10px;
+  background: var(--primary-soft); position: sticky; top: 0; z-index: 2; }
+.bf-resume span { display: flex; flex-direction: column; }
+.bf-resume small { font-size: 11px; color: var(--muted); }
+.bf-resume b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.bf-resume span:first-child b { font-size: 20px; color: var(--primary); }
+/* (1.248.1) Primes et retenues : deux cartes sobres, pas deux pavés (recette du 02/11). */
+.bf-lignes .panel { padding: 10px 14px; margin: 8px 0; }
+.bf-lignes .panel h2 { font-size: 14px; margin: 0 0 6px; }
+.bf-lignes .panel .mt { margin-top: 6px; }
+
+/* (1.248.1) Réglages de la paie : une case de taux ou de jours tient son chiffre près de son libellé (recette du 02/11 :
+   « 4 » collé au bord droit d'une case de 350 px, loin de « Nombre maximum d'enfants »). */
+#rf .field input.num { max-width: 220px; }
+/* (1.248.1) Une pastille posée à côté d'un numéro garde la police du texte : « en double » en chasse fixe faisait brouillon. */
+.mono .statut { font-family: var(--sb-police, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif); letter-spacing: normal; }
+.av-mod { color: var(--primary); font-weight: 600; white-space: nowrap; }

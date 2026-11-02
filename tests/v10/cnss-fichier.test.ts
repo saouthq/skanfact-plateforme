@@ -28,7 +28,7 @@ const CHAMPS: [string, number, number][] = [
 const lire = (rec: string) => Object.fromEntries(CHAMPS.map(([k, d, n]) => [k, rec.slice(d, d + n)]));
 const enregistrements = (r: Fichier) => r.contenu.split('\r\n').slice(0, -1);
 const ligne = (n: number, o: Partial<Ligne> = {}): Ligne => ({ salarieId: `s${n}`, nom: `Salarié ${n}`, identite: `Prenom Pere Nom${String.fromCharCode(65 + (n % 26))}`,
-  cnss: `1234567${n % 10}-0${n % 10}`, cin: `0${1000000 + n}`, salaire: 1000, ...o });
+  cnss: `123456${String(n).padStart(2, '0')}-0${n % 10}`, cin: `0${1000000 + n}`, salaire: 1000, ...o });
 
 describe('le fichier CNSS du trimestre, fabriqué par l\'écran de la plateforme', () => {
   it('l\'exemple du document donne son nom de fichier, et chaque champ tombe à sa place', () => {
@@ -97,5 +97,12 @@ describe('le fichier CNSS du trimestre, fabriqué par l\'écran de la plateforme
     const c = lire(enregistrements(r)[0] ?? '');
     expect([c.salaire, c.identite?.trim(), c.cin]).toEqual(['0002200000', 'SONIA ALI KHELIFI', '07654321']);
     expect(K.fichierCnssDuLivre(L, { matricule: '' }, 2026, 3).refus[0]?.champ).toBe('employeur');
+  });
+  // 1.248.1 — la recette du 02/11 : cinq fiches recopiées sur la première, même n° CNSS, et le fichier sortait.
+  it('deux salariés sous le même n° d\'assuré (écrit avec ou sans tiret) : pas de fichier, le second est nommé avec le premier', () => {
+    const r = K.fichierCnss({ employeur: '7654321-01', annee: 2026, trimestre: 3, lignes: [ligne(1, { cnss: '12345678-12' }), ligne(2), ligne(3, { cnss: '1234567812' })] });
+    expect(r.ok).toBe(false);
+    expect(r.contenu || '').toBe('');
+    expect(r.refus).toEqual([{ salarieId: 's3', nom: 'Salarié 3', champ: 'cnss', motif: 'Son n° CNSS est déjà celui de Salarié 1 : chaque salarié a le sien, sur sa carte d\'assuré.' }]);
   });
 });

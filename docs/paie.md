@@ -1868,3 +1868,108 @@ signalé (durée légale À VÉRIFIER) ; la page s'ouvre sur octobre quand novem
 
 Tests : `tests/moteur/paie-recette-1248.test.ts` (4 cas) ; `tests/web/paie-bon-a-payer.test.ts` (les doublons du jeu
 d'essai, la variante « le cabinet prépare » a un mois d'avant venu du cabinet). Preuves `paie 1.248 a` à `e`.
+
+## La paie de l'entreprise : la recette à la souris, suite (02/11/2026, 1.248.1)
+
+Demande de Skander : « fais tout et continue […] couvrir 100 % de la paie, teste tout, et que ce soit ergonomique », en
+critiquant le métier, l'ergonomie et l'interface sur chaque capture. Corrigé :
+
+- **Les montants s'écrivent comme partout** (« 1 100,125 ») : le brut et les lignes du bulletin, la fiche du salarié, une
+  avance, le barème de l'impôt (« 5000.000 » avant), les plafonds et déductions des Réglages. Le bulletin montre en haut,
+  pendant qu'on tape, le net, le brut et le coût.
+- **Le même n° CNSS ou le même RIB sur deux fiches** : la liste le marque « en double », la fiche le dit sous le numéro
+  (au lieu de « contrôlé, clé juste »), « À traiter » compte la fiche du second (la pastille de l'onglet et le pied de la
+  liste disent le même chiffre), et le **fichier CNSS refuse** deux salariés sous le même n° d'assuré
+  (`compta.js`, partagé avec le Cabinet).
+- **Le fichier CNSS** : son compte de corrections ne compte plus le matricule de l'entreprise déjà dit au-dessus ; les
+  fiches au même manque (CIN, identité) se disent en une phrase, un bouton par personne.
+- **Les onglets de la paie ne bougent plus** : le choix du mois ou de l'année vient après eux (posé devant, il apparaissait
+  ou changeait de largeur selon la vue, et un clic sur « Déclarations » ouvrait « Congés et absences »).
+- **Ce que tu verses** : une déclaration notée payée garde sa référence et « Retirer la mention… » sur sa ligne.
+- **Réglages** : chaque ligne du tableau mène à sa case (l'impôt mène au barème) ; une case de taux ou de jours reste près
+  de son libellé.
+- **Remettre** : on coche qui, le bouton dit combien ; la phrase dit que SkanFact n'envoie rien.
+- **Un bulletin pas encore payé se supprime** depuis son menu, avec « Annuler ».
+- **Le mois de paie** : le mois précédent tout payé et le mois en cours établi, c'est le mois en cours qui s'ouvre.
+- **La fiche du salarié** : « poste à préciser » au lieu de « — » ; les avances disent « Modifier… » ; la première retenue se
+  choisit dans une liste de mois (la case du navigateur affichait « ---------- ---- ») ; « Fin de période d'essai » n'est
+  proposée qu'avec une période d'essai notée ; « Son départ » dit que le solde ne retient pas l'avance ; le menu ⋯ a une
+  icône et une phrase pour chaque geste.
+- **Renouveler un CDD** : la date vient après les deux choix (elle ne fait plus sauter « Passer en CDI » sous la souris), le
+  bouton dit ce qu'il fait, au-delà de quatre ans en CDD un avertissement (À VÉRIFIER) ; le renouvellement s'inscrit dans
+  l'historique (`renouvellements` de la fiche) ; **l'avenant** dit le passage en CDI ou l'ancienne et la nouvelle fin, à
+  compter du lendemain de l'ancienne fin (il disait « à compter d'aujourd'hui » et ne parlait pas du CDI).
+- L'avertissement « pas de date de sortie » ne s'affiche plus que pour le certificat et le solde de tout compte.
+
+Tests : `tests/moteur/paie-recette-1248-1.test.ts`, `tests/v10/cnss-fichier.test.ts` (le doublon refusé ; sa donnée
+donnait le même n° à un salarié sur dix). Preuves : `paie 1.248.1 a` à `d`.
+
+
+## La paie de l'entreprise : les retours de Skander sur la fiche, le bulletin et le pointage (02/11/2026, 1.249.0)
+
+Skander a ouvert la fiche d'un salarié sur dev.skanfact.tn et noté ce qui manquait ; tout est repris, vu à l'écran.
+
+- **Tous les documents du salarié, sur sa fiche** (onglet Documents) : ses fichiers (copie de CIN, contrat signé,
+  certificats… gardés comme les autres pièces jointes, glisser-déposer ou clic), les certificats des arrêts maladie, ses
+  bulletins (Voir, PDF), **les documents faits** (chaque export daté s'inscrit, avec « Refaire »), puis les documents à
+  préparer, en cartes.
+- **Un bulletin s'ouvre en lecture** (clic ou Entrée sur sa ligne, dans le mois comme sur la fiche) : son résumé (net,
+  brut, coût, les retenues) et la feuille A4 à côté ; « Modifier le bulletin » s'il n'est ni payé ni validé,
+  « Régulariser… » s'il est payé. Il ouvrait le formulaire, même payé. **Le formulaire** est refait sur deux colonnes
+  (le mois, les primes, les retenues, le paiement ; le calcul à droite, qui suit la saisie) ; « Supprimer » n'existe que
+  pour un bulletin pas encore payé.
+- **La fenêtre Document** : les huit documents en cartes, la date, ce qui manque (gérant, civilité, CIN, poste), chacun avec
+  le bouton qui le renseigne et rouvre le document ; à droite, **la page A4 elle-même**, en page entière ou pleine largeur.
+- **L'arrêt maladie** : le certificat médical se joint (photo ou PDF) dans la fenêtre du congé, s'ouvre et se retire ; joint,
+  il compte comme reçu. La liste des congés dit « fichier » ou « certificat ? ».
+- **La pagination** : l'historique, les bulletins et les congés de la fiche, les bulletins du mois, les avances, le registre
+  du personnel et sa liste de documents (la barre n'apparaît qu'au-delà d'une page). Les déclarations restent sans
+  pagination : douze mois et quatre trimestres par an.
+- **Le pointage s'ouvre sur le mois du jour** (il suivait le mois de paie : octobre, le 2 novembre). On change de mois par
+  ‹ ›, « Ce mois-ci » y revient, la largeur ne bouge pas. Si la paie en cours est celle d'un autre mois (octobre, pas
+  encore établi ou payé), un bandeau le dit et y mène d'un clic. « Aujourd'hui : qui n'est pas là ? » ne s'affiche que sur
+  le mois du jour.
+- **Les horaires se règlent sur place** : les jours de travail (un bouton par jour), le mois complet, les heures du mois,
+  les trois majorations (À VÉRIFIER). Rien ne s'enregistre sans un jour de travail ; « Annuler » revient en arrière ; les
+  bulletins déjà établis ne bougent pas. Les Réglages de la paie, enregistrés ensuite, **gardent les jours de repos** (ils
+  les effaçaient : `offDays` n'était dans aucune case). « Régler les heures sup », sous la grille, mène à la case.
+- **« Par salarié » en calendrier** : une case par jour, sa couleur dit le code, « pointé » ou « saisi » dit d'où il vient ;
+  on choisit un jour (clic, flèches, Début/Fin), la barre au-dessus le change d'un clic ou d'une lettre, avec « Annuler ».
+  Quatre chiffres en haut (jours payés, non payés, congés et maladie, heures sup) ; ‹ › passe d'un salarié à l'autre.
+- **Les sous-vues du pointage** (Toute l'équipe, Par salarié, Les horaires) sont trois cartes avec une icône et ce qu'elles
+  montrent.
+
+Tests : `tests/web/paie-pointage-main.test.ts` (calendrier au clavier, horaires, Réglages qui gardent le repos),
+`tests/web/paie-revue-ecrans.test.ts` (mois du jour, ‹ ›, largeur stable), `tests/web/parcours.test.ts` (le pointage du
+mois de paie par le bandeau, les heures sup réglées dans les horaires), `tests/web/paie-documents*.test.ts` (les cartes).
+Preuves : `paie 1.249 a` à `e`, et huit preuves reprises sur le code nouveau. Sans test : la pagination des bulletins du
+mois, des avances et du registre (elle n'apparaît qu'au-delà de 25 lignes).
+
+## La paie de l'entreprise : la recette pendant la vérification (02/11/2026, 1.250.0)
+
+Pendant que la vérification de la 1.249.0 tournait, la recette à la souris a continué ; ce qu'elle a trouvé :
+
+- **Le bulletin au téléphone** : le calcul passait devant les cases (on ne voyait plus ce qu'on saisissait) ; les cases
+  viennent d'abord, le calcul suit.
+- **« Par salarié »** : un jour présent reste une case vide, comme dans la grille de l'équipe (seules les exceptions se
+  lisent) ; au téléphone, ni lettres-raccourcis (pas de clavier) ni « hors contrat » écrit dans la case (les hachures le
+  disent).
+- **Le journal de paie** : « Exporter en PDF » (il faisait un PDF sous le nom « Imprimer ») ; une légende des sigles sous le
+  tableau (S. cotisable, H.S., AT, CNSS pat.…) ; les totaux à zéro en « — » comme les lignes ; le salarié en poste sans
+  bulletin du mois est nommé, avec l'accord juste (« Amel n'a pas encore de bulletin de novembre ») ; une ligne s'ouvre sur
+  son bulletin (clic ou Entrée).
+- **Nouveau salarié** : les 23 cases en trois parties titrées (Qui est-ce, Son contrat, Son salaire et son paiement).
+- **Guide-moi sur le pointage** : une visite « Pointer à la main » (le mois par ‹ ›, aujourd'hui, une période, les horaires,
+  puis une case de la grille). La visite « Établir un document » visait un bouton disparu (`#hr-doc`) et une liste qui
+  n'existe plus : elle suit désormais la fenêtre refaite (le bouton de la fiche, les cartes, le salaire, la page A4).
+  Aucun test ne joue encore les étapes des visites : vues à l'écran, jusqu'à « Visite terminée ».
+- **Le calendrier des congés** : le mois se change par ‹ ›, comme le pointage (une liste ici, des flèches là : deux gestes pour
+  la même chose) ; une case libre se clique et ouvre « Congé ou absence » à ce jour, pour ce salarié.
+
+Tests : `tests/web/parcours.test.ts` (la légende, une ligne du journal qui ouvre son bulletin), `tests/web/paie-mois.test.ts`
+(‹ › du calendrier des congés, une case libre qui ouvre la fenêtre au bon jour ; ses salariés ont chacun leur n° CNSS et leur
+RIB, puisque deux fiches qui les partagent se signalent désormais). Preuves : `paie 1.250 a` à `d`. Sans test : le
+bulletin au téléphone, la case présente vide, l'accord du journal et les sections du nouveau salarié (vus à l'écran).
+
+Restent notés pour le lot suivant : le mois des **Déclarations** par ‹ › (une liste aujourd'hui), et la déclaration du mois en
+cours absente de « Ce que tu verses » (la dire « en cours », comme la CNSS du trimestre).

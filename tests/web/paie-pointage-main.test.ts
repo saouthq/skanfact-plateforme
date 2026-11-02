@@ -105,30 +105,64 @@ describe('la paie : le pointage à la main', () => {
     await expect.poll(async () => { const c = await codesDe('s2'); return [1, 2, 3, 4, 5].map((k) => c[plus(k)]); }, { timeout: 15_000 }).toEqual(['C', 'C', 'C', 'C', 'C']);
     expect((await codesDe('s2'))[plus(6)]).toBeUndefined();
 
-    // ── Par salarié : son mois jour par jour, d'où vient chaque code ; un jour se corrige ───────────────────────────
+    // ── Par salarié : son mois en calendrier (1.249.0), d'où vient chaque code ; un jour se corrige au clavier ──────────
     await p.locator('#p-sous [data-sous="pt-salarie"]').click();
     await p.locator('#pt-sal').waitFor();
-    if (await p.locator('#p-year').inputValue() !== String(y)) await p.locator('#p-year').selectOption(String(y));
+    // Le mois du jour, sans rien choisir (recette du 02/11 : il s'ouvrait sur le mois de paie).
+    expect(await p.locator(`#pt-sal-t [data-ptj="${d}"]`).getAttribute('class')).toContain('pt-jour-auj');
     await p.locator('#pt-sal-e').selectOption('s2');
-    await p.locator('#pt-sal-m').selectOption(String(m));
     // Le lendemain (s'il est dans le mois) est un congé pointé à la main.
     const demain = plus(1);
     if (Number(demain.slice(5, 7)) === m) {
-      const tr = p.locator(`#pt-sal-t tr[data-ptj="${Number(demain.slice(8, 10))}"]`);
-      expect(await tr.locator('select').inputValue()).toBe('C');
-      expect(espace(await tr.locator('td').nth(2).innerText())).toBe('pointé à la main');
+      const c = p.locator(`#pt-sal-t [data-ptj="${Number(demain.slice(8, 10))}"]`);
+      expect(await c.getAttribute('class')).toContain('pt-k-C');
+      expect(espace(await c.innerText())).toContain('pointé');
+      await c.click();
+      expect(espace(await p.locator('#pt-sal-edit').innerText())).toContain('Congé payé · pointé à la main');
     }
-    const ligneAuj = p.locator(`#pt-sal-t tr[data-ptj="${d}"]`);
-    expect(espace(await ligneAuj.locator('td').nth(2).innerText())).toBe('selon ses jours de travail');
-    await ligneAuj.locator('select').selectOption('M');
+    const caseAuj = p.locator(`#pt-sal-t [data-ptj="${d}"]`);
+    await caseAuj.click();
+    expect(espace(await p.locator('#pt-sal-edit').innerText())).toContain('selon ses jours de travail');
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.ptj)).toBe(String(d));
+    // Une lettre pose son code, comme dans la grille ; « Annuler » le défait.
+    await p.keyboard.press('m');
     await expect.poll(async () => (await codesDe('s2'))[aujIso], { timeout: 15_000 }).toBe('M');
+    expect(await p.locator(`#pt-sal-t [data-ptj="${d}"]`).getAttribute('class')).toContain('pt-k-M');
+    expect(await p.locator('#pt-sal-edit [data-ptc="M"]').getAttribute('aria-pressed')).toBe('true');
+    // Les chiffres du mois suivent : un jour de maladie est payé, il se compte avec les congés.
+    expect(espace(await p.locator('#pt-sal-tot').innerText())).toMatch(/Congés et maladie [1-9]/);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-pointage-salarie.png') });
+    // D'un salarié à l'autre sans menu : les flèches à côté du nom.
+    await p.locator('#pt-sal-prec').click();
+    await expect.poll(() => p.locator('#pt-sal-e').inputValue()).toBe('s1');
 
-    // ── Les horaires : ce qui est réglé, ce qui ne l'est pas ────────────────────────────────────────────────────────
+    // ── Les horaires : réglés ici, sur place (1.249.0) ; le pointage les suit ─────────────────────────────────────────
     await p.locator('#p-sous [data-sous="pt-horaires"]').click();
     await p.locator('#pt-hor').waitFor();
     expect(espace(await p.locator('#pt-hor').innerText())).toContain('Une pointeuse pas encore');
-    expect(espace(await p.locator('#pt-hor-r').innerText())).toContain('Jours de travail lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche repos : aucun');
+    // Les réglages du test : aucun jour de repos.
+    expect(await p.locator('#pt-h [data-jour][aria-pressed="false"]').count()).toBe(0);
+    expect(await p.locator('#pt-h-ok').isDisabled()).toBe(true);
+    // Le dimanche devient un jour de repos : le bouton s'allume, le texte le dit.
+    await p.locator('#pt-h [data-jour="0"]').click();
+    await expect.poll(() => p.locator('#pt-h-dit').innerText().then(espace)).toBe('6 jours de travail par semaine ; repos : dimanche.');
+    expect(await p.locator('#pt-h-ok').isDisabled()).toBe(false);
+    await p.locator('#pt-h-ok').click();
+    const reglages = async () => (await objets()).find((o) => o.collection === '_racine' && o.cle === 'payrollSettings')?.contenu as { offDays?: number[] } | undefined;
+    await expect.poll(async () => (await reglages())?.offDays, { timeout: 15_000 }).toEqual([0]);
+    expect(espace(await p.locator('#toast').innerText())).toContain('Horaires enregistrés');
+    // Sans aucun jour de travail, rien ne s'enregistre, et la page dit pourquoi.
+    for (const j of [1, 2, 3, 4, 5, 6]) await p.locator(`#pt-h [data-jour="${j}"]`).click();
+    await expect.poll(() => p.locator('#pt-h-dit').innerText().then(espace)).toBe('Choisis au moins un jour de travail.');
+    expect(await p.locator('#pt-h-ok').isDisabled()).toBe(true);
+    await p.locator('#pt-h-annuler').click();
+    expect(await p.locator('#pt-h [data-jour][aria-pressed="true"]').count()).toBe(6);
+    // Les Réglages de la paie, enregistrés ensuite, gardent les jours de repos (avant la 1.249.0, ils les effaçaient).
+    await p.locator('#p-tabs [data-tab="baremes"]').click();
+    await p.locator('#rf input[name=leaveDaysPerYear]').fill('18');
+    await p.locator('#rf-save').click();
+    await expect.poll(async () => (await reglages() as { leaveDaysPerYear?: number } | undefined)?.leaveDaysPerYear, { timeout: 15_000 }).toBe(18);
+    expect((await reglages())?.offDays).toEqual([0]);
     expect(erreurs).toEqual([]);
   }, 240_000);
 });

@@ -673,7 +673,8 @@ describe('le parcours, à la souris', () => {
     expect(await p.locator('#bf-bon input[data-f=label]').first().evaluate((e) => e.getBoundingClientRect().width)).toBeGreaterThan(300);
     await p.locator('#bf input[name=absentDays]').fill('6.5');
     await expect.poll(() => p.locator('#bf-bon').innerText()).toMatch(/au jour\s: 19,5 j payés sur 26 · 30,000\sDT pour un mois plein/);
-    expect(await p.locator('#bf-bon input[data-f=amount]').evaluateAll((l) => l.map((x) => Number((x as HTMLInputElement).value)))).toEqual([22.5, 37.5]);
+    // (1.249.0) Les montants s'écrivent comme on les lit (« 22,500 »).
+    expect(await p.locator('#bf-bon input[data-f=amount]').evaluateAll((l) => l.map((x) => Number((x as HTMLInputElement).value.replace(/\s/g, '').replace(',', '.'))))).toEqual([22.5, 37.5]);
     // Un montant retapé n'est plus « au jour » : sa ligne ne le prétend plus.
     await p.locator('#bf-bon input[data-f=amount]').nth(1).fill('40');
     await expect.poll(() => p.locator('#bf-bon [data-pj]').count()).toBe(1);
@@ -729,8 +730,13 @@ describe('le parcours, à la souris', () => {
     const auServeur = async () => (await admin.query('select brut, net, primes from paie.bulletin where entreprise = $1 order by brut_de_base desc', [qui.essai])).rows;
     await p.locator('#p-tabs button[data-tab=pointage]').click();
     await p.locator('#pt-grille').waitFor();
-    // Le mois de paie ouvert (le mois écoulé) : on lit son calendrier pour viser des jours ouvrables et un dimanche.
-    const annee = Number(await p.locator('#p-year').inputValue()), mois = Number(await p.locator('#pt-mois').inputValue());
+    // (1.249.0) Le pointage s'ouvre sur le mois du jour ; la paie en cours (le mois écoulé, sans bulletin) se rejoint d'un
+    // clic, depuis le bandeau qui la nomme. On lit ensuite son calendrier pour viser des jours ouvrables et un dimanche.
+    if (await p.locator('#pt-paie-go').count()) await p.locator('#pt-paie-go').click();
+    const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    const [nomMois, an] = (await p.locator('#pt-mois-l').innerText()).trim().toLowerCase().split(/\s+/);
+    const annee = Number(an), mois = MOIS.indexOf(nomMois ?? '') + 1;
+    expect(mois).toBeGreaterThan(0);
     const jourDeSemaine = (j: number) => new Date(Date.UTC(annee, mois - 1, j)).getUTCDay();
     const dimanche = [...Array(7).keys()].map((i) => i + 1).find((j) => jourDeSemaine(j) === 0) ?? 0;
     // Un lundi et le mardi qui suit : deux jours ouvrables côte à côte.
@@ -748,7 +754,7 @@ describe('le parcours, à la souris', () => {
     expect(await kase(lundi).innerText()).toBe('P');
     // Sans majoration réglée, pas de colonne d'heures : la grille dit où les régler.
     expect(await p.locator('#pt-grille .pt-hs').count()).toBe(0);
-    await expect.poll(() => p.locator('#pt-sans-hs').innerText()).toMatch(/règle d'abord leurs majorations dans les Barèmes/);
+    await expect.poll(() => p.locator('#pt-sans-hs').innerText()).toMatch(/règle d'abord leurs majorations dans les horaires/);
     expect(await pointage()).toBeUndefined();
 
     // Un clic passe au code suivant (présent → demi-journée) ; le curseur reste sur la case.
@@ -774,17 +780,17 @@ describe('le parcours, à la souris', () => {
     // Seul ce qui diffère du calendrier est gardé, au serveur.
     await expect.poll(async () => (await pointage())?.jours).toEqual({ [lundi]: 'A', [lundi + 1]: 'A', [dimanche]: 'P' });
 
-    // Les heures supplémentaires : la majoration se règle dans les Barèmes, puis la grille a sa colonne. Le bouton amène
-    // à la case (vu à l'écran : en haut d'une longue page), et elle se tape d'emblée.
+    // Les heures supplémentaires : la majoration se règle dans « Les horaires » (1.249.0 : sur place, à côté de la grille),
+    // puis la grille a sa colonne. Le bouton amène à la case, et elle se tape d'emblée.
     await p.locator('#pt-baremes').click();
-    await expect.poll(() => p.locator('#p-tabs button.active').getAttribute('data-tab')).toBe('baremes');
-    expect(await p.locator('#rf input[name=heuresMois]').inputValue()).toBe('208');
+    await expect.poll(() => p.locator('#p-sous [data-sous="pt-horaires"]').getAttribute('aria-selected')).toBe('true');
+    expect(await p.locator('#pt-h input[name=heuresMois]').inputValue()).toBe('208');
     await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe('hsMaj1');
     await p.keyboard.type('25');
-    expect(await p.locator('#rf input[name=hsMaj1]').inputValue()).toBe('25');
-    await p.locator('#rf-save').click();
+    expect(await p.locator('#pt-h input[name=hsMaj1]').inputValue()).toBe('25');
+    await p.locator('#pt-h-ok').click();
     await expect.poll(async () => (await admin.query(`select contenu->'hsMaj1' m from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.m).toBe(25);
-    await p.locator('#p-tabs button[data-tab=pointage]').click();
+    await p.locator('#p-sous [data-sous="pointage"]').click();
     await expect.poll(() => p.locator('#pt-grille thead').innerText()).toMatch(/HS \+25 %/);
     // Au clavier, comme dans un tableur : Entrée passe au salarié suivant dans la même colonne ; après Tab, la grille se
     // redessine et rend le curseur à la case où Tab l'a posé (vu à l'écran : il se perdait, et la frappe suivante aussi).
@@ -888,6 +894,16 @@ describe('le parcours, à la souris', () => {
     expect(csv.suggestedFilename()).toMatch(/^Journal_de_paie_\d{4}-\d{2}\.csv$/);
     const lignes = fs.readFileSync(await csv.path(), 'utf8').replace(/^\ufeff/, '').trim().split('\r\n');
     expect(lignes.map((l) => l.split(';').slice(0, 2).join(';'))).toEqual(['N°;Salarié', '1;Salarié Numéro Un', '2;Salarié Numéro Deux', '3;Salarié Numéro Trois', ';Total']);
+    // (1.250.0, recette du 02/11) Les sigles se lisent sous le tableau, et une ligne s'ouvre sur son bulletin.
+    const plat = (x: string) => x.replace(/[\u00a0\u202f\s]+/g, ' ').trim();
+    const legende = plat(await p.locator('#jp-legende').innerText());
+    expect(legende).toContain('S. cotisable salaire cotisable');
+    expect(legende).toContain('CNSS pat. CNSS patronale');
+    await journal.locator('tbody tr[data-jp="sal-2"]').click();
+    await expect.poll(async () => plat(await p.locator('#modal-root .modal h2').last().innerText())).toMatch(/^Salarié Numéro Deux · bulletin de /);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal h2', { hasText: '· bulletin de' }).count()).toBe(0);
+    expect(await p.locator('#jp-table').count()).toBe(1);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#jp-table').count()).toBe(0);
     // On regarde un autre mois des bulletins : la déclaration mensuelle, elle, s'ouvre sur le mois qu'on déclare maintenant

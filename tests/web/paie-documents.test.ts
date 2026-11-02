@@ -87,9 +87,8 @@ describe('la paie : les documents en aperçu fidèle', () => {
     const feuille = (cadre: string) => p.frameLocator(`${cadre} iframe`).locator('body');
     const lireFeuille = async (cadre: string) => espace(await feuille(cadre).innerText().catch(() => ''));
 
-    // ── Le bulletin : « Voir le bulletin » dans le menu de sa ligne ouvre la feuille elle-même ─────────────────────
-    await p.locator('#p-bulletins tr[data-bul] .row-menu-btn').first().click();
-    await p.getByRole('menuitem', { name: /Voir le bulletin/ }).click();
+    // ── Le bulletin : « Bulletin » sur sa ligne ouvre la feuille elle-même (1.248.1 : le menu ne le répète plus) ────────
+    await p.locator('#p-bulletins tr[data-bul] [data-voir-b]').first().click();
     await expect.poll(() => lireFeuille('#ad-apercu')).toContain('Nadia Ben Salem');
     expect(await lireFeuille('#ad-apercu')).toContain(montant(Number(dernier.computed.net)));
     expect(espace(await p.locator('.modal.pa-doc h2').innerText())).toMatch(/^Nadia Ben Salem · bulletin de \S+ \d{4}$/);
@@ -103,12 +102,13 @@ describe('la paie : les documents en aperçu fidèle', () => {
     await p.locator('[data-hr="s1"]').click();
     const fen = p.locator('.modal.pa-doc');
     await expect.poll(() => fen.locator('h2').first().innerText()).toBe('Document pour Nadia Ben Salem');
-    const options = await fen.locator('[name=kind] option').allInnerTexts();
+    // (1.249.0) Le choix se fait en cartes (recette du 02/11 : une liste déroulante cachait les huit documents).
+    const options = await fen.locator('[data-hf-kind]').allInnerTexts();
     expect(options).toEqual(['Contrat de travail', 'Avenant au contrat', 'Attestation de travail', 'Certificat de travail', 'Attestation de salaire',
       'Attestation de salaires et de retenues', 'Fin de période d\'essai', 'Solde de tout compte']);
 
     // L'attestation de salaire : les trois DERNIERS mois, brut et net des bulletins.
-    await fen.locator('[name=kind]').selectOption('salaire');
+    await fen.locator('[data-hf-kind="salaire"]').click();
     await expect.poll(() => lireFeuille('#hf-apercu')).toContain('ATTESTATION DE SALAIRE');
     const att = await lireFeuille('#hf-apercu');
     for (const b of bulletins.slice(1)) expect(att).toContain(`${montant(Number(b.computed.gross))} ${montant(Number(b.computed.net))}`);
@@ -117,7 +117,7 @@ describe('la paie : les documents en aperçu fidèle', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'paie-apercu-attestation-salaire.png') });
 
     // L'attestation annuelle : la somme des bulletins de l'année en cours.
-    await fen.locator('[name=kind]').selectOption('annuelle');
+    await fen.locator('[data-hf-kind="annuelle"]').click();
     await expect.poll(() => lireFeuille('#hf-apercu')).toContain('ATTESTATION DE SALAIRES ET DE RETENUES');
     const annee = Number(String(new Date().toISOString()).slice(0, 4));
     const deLAnnee = bulletins.filter((b) => b.year === annee);
@@ -128,16 +128,16 @@ describe('la paie : les documents en aperçu fidèle', () => {
     expect(ann).toContain(`Net versé ${montant(som('net'))} DT`);
 
     // Le contrat : un PROJET, depuis la fiche (le CDD et sa date de fin, le salaire).
-    await fen.locator('[name=kind]').selectOption('contrat');
+    await fen.locator('[data-hf-kind="contrat"]').click();
     await expect.poll(() => lireFeuille('#hf-apercu')).toContain('PROJET');
     const ctr = await lireFeuille('#hf-apercu');
     expect(ctr).toContain('Contrat à durée déterminée, du 09/01/2023 au 30/06/');
     expect(ctr).toContain(`Un salaire brut mensuel de ${montant(1137.25)} DT`);
     expect(ctr).toContain('Le salarié — lu et approuvé');
     // L'avenant et la fin d'essai existent, et se dessinent.
-    await fen.locator('[name=kind]').selectOption('avenant');
+    await fen.locator('[data-hf-kind="avenant"]').click();
     await expect.poll(() => lireFeuille('#hf-apercu')).toContain('AVENANT AU CONTRAT');
-    await fen.locator('[name=kind]').selectOption('essai');
+    await fen.locator('[data-hf-kind="essai"]').click();
     await expect.poll(() => lireFeuille('#hf-apercu')).toContain('Votre période d\'essai');
     expect(erreurs).toEqual([]);
   }, 240_000);

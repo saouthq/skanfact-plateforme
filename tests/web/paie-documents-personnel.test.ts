@@ -103,9 +103,10 @@ describe('les documents du personnel de l\'entreprise', () => {
     await expect.poll(async () => (await objets()).find((o) => o.collection === 'employees')?.contenu.gender).toBe('m');
 
     // ── Le solde : l'indemnité du moteur commun, qui suit la date du document tant qu'on n'y touche pas ──────
-    await fenetre.locator('[name=kind]').selectOption('solde');
+    await fenetre.locator('[data-hf-kind="solde"]').click();
     const date = fenetre.locator('.datefield:has(input[name=date]) input:not([type=hidden])');
-    const conges = () => fenetre.locator('#hf-lines tr').nth(1).locator('[data-f=amount]').inputValue();
+    // (1.249.0) Les montants s'écrivent comme on les lit (« 225,216 ») : on les relit en nombre.
+    const conges = async () => String(Number((await fenetre.locator('#hf-lines tr').nth(1).locator('[data-f=amount]').inputValue()).replace(/\s/g, '').replace(',', '.')));
     await date.fill('31/03/2026');
     await date.press('Tab');
     await expect.poll(conges).toBe(String(auMars));
@@ -129,7 +130,7 @@ describe('les documents du personnel de l\'entreprise', () => {
     await p.keyboard.press('Tab');
     await fenetre.locator('#ok').click();
     await expect.poll(titre).toBe('Document pour Salarié Numéro Un');
-    expect(await fenetre.locator('[name=kind]').inputValue()).toBe('solde');
+    expect(await fenetre.locator('[data-hf-kind="solde"]').getAttribute('aria-checked')).toBe('true');
     expect(await fenetre.locator('#hf-sortie-go').count()).toBe(0);
     await expect.poll(async () => (await objets()).find((o) => o.collection === 'employees')?.contenu.endDate).toBe('2026-06-30');
     // La sortie arrête le compte des congés : au 30 juin, quel que soit le jour du document.

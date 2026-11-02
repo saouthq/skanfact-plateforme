@@ -59,15 +59,25 @@ Ensuite seulement : la revue du Cabinet (écrire une correction, voir le bon à 
 
 ## 5. La recette à la souris du 02/11/2026 (1.248.0)
 
-Corrigé : voir `docs/paie.md`, « la recette à la souris ». Reste ouvert, par ordre d'importance :
+Corrigé en deux versions : voir `docs/paie.md`, « la recette à la souris » (1.248.0) et « la recette à la souris, suite »
+(1.248.1). Les six points restés ouverts après la 1.248.0 sont réglés en 1.248.1 : le bulletin s'écrit au format du pays
+avec son net en direct ; « Remettre » choisit qui et dit que rien ne part ; un CDD de plus de quatre ans se dit (À
+VÉRIFIER) ; la page passe au mois en cours quand le précédent est payé ; un contrôle du mois renvoie à « À traiter » au
+lieu de redire la même chose ; la Paie apparaît dans « Au quotidien » dès qu'il y a des salariés.
 
-1. **Modifier le bulletin** : le brut s'écrit « 1100.125 » (un point, pas le format du pays) ; les cartes Primes et
-   Retenues prennent la place ; le net ne se voit pas pendant qu'on tape.
-2. **Remettre** : « à envoyer à x@… » alors que SkanFact prépare seulement les PDF (rien ne part) ; pas de choix de qui
-   on remet ; « Voir avant d'imprimer » ne montre que le premier bulletin.
-3. **Un CDD long** (Karim : 3,6 ans) n'est pas signalé ; la durée maximale et le nombre de renouvellements : À VÉRIFIER
-   avec un comptable avant d'en faire un contrôle.
-4. **La page s'ouvre sur le mois à payer** (octobre) même quand novembre a ses bulletins établis : un rappel « novembre
-   attend » manque.
-5. **Deux fois la même chose** : « n° CNSS à demander » est un contrôle ET une ligne d'À traiter.
-6. **La Paie dans la barre** est sous « Piloter » : à décider avec la maquette de la barre (elle s'épingle déjà).
+Reste ouvert, décidé de ne pas changer ici :
+
+1. **« Mois payés »** dans la déclaration annuelle compte les bulletins établis, payés ou non : le même libellé sert à
+   l'entreprise, au Cabinet et à l'export ; en fin d'année, tous les mois sont payés.
+2. **Le solde de tout compte ne retient pas une avance** (choix de la 1.72.0, dit sur le document ET désormais dans
+   « Son départ ») : ce qui peut se retenir au départ, À VÉRIFIER avec un comptable.
+
+### Retours de Skander du 02/11/2026 sur dev.skanfact.tn (réglés en 1.249.0)
+
+Les documents du salarié (tous, sur sa fiche), le clic sur un bulletin (lecture d'abord, formulaire refait), la pagination,
+la fenêtre Document (cartes, page A4, ce qui manque), le pointage (mois du jour, ‹ ›, horaires sur place, calendrier par
+salarié, sous-vues) et le certificat médical joint à l'arrêt maladie. Détail : `docs/paie.md`, 1.249.0.
+
+La recette suivante (1.250.0) : le bulletin au téléphone (les cases d'abord), le journal de paie (légende, PDF, ligne qui ouvre
+le bulletin, salarié sans bulletin nommé), le nouveau salarié en trois parties, la visite « Pointer à la main », la visite du
+document réparée, le calendrier des congés (‹ ›, une case libre qui ouvre la fenêtre). Détail : `docs/paie.md`, 1.250.0.

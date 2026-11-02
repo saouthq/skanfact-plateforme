@@ -7408,11 +7408,16 @@
     if (!lignes.length) refus.push({ champ: 'lignes', motif: 'Aucun salaire à déclarer sur ce trimestre.' });
     if (lignes.length > 999 * FORMAT_CNSS.lignesParPage) refus.push({ champ: 'lignes', motif: 'Trop de salariés pour un seul fichier.' });
     let total = 0;
+    const vus = new Map();
     const faites = lignes.map((l, i) => {
       const qui = { salarieId: l.salarieId || '', nom: l.nom || '' };
       const nt = refus.length;
       const cn = lireMatriculeCnss(l.cnss);
       if (!cn.ok) refus.push({ ...qui, champ: 'cnss', motif: MOTIFS_CNSS.cnss[cn.motif] });
+      // (1.248.1) Deux salariés sous le même n° d'assuré : le fichier mêlerait leurs salaires sur un seul compte CNSS
+      // (recette du 02/11 : cinq fiches recopiées sur la première, et le fichier sortait). Le second se corrige.
+      else if (vus.has(cn.texte)) refus.push({ ...qui, champ: 'cnss', motif: `Son n° CNSS est déjà celui de ${vus.get(cn.texte) || 'un autre salarié'} : chaque salarié a le sien, sur sa carte d'assuré.` });
+      else vus.set(cn.texte, l.nom || '');
       const id = identiteCnss(l.identite || l.nom);
       if (!id.ok) refus.push({ ...qui, champ: 'identite', motif: motifIdentiteCnss(id) });
       else if (!String(l.identite || '').trim()) avertissements.push({ ...qui, champ: 'identite', motif: 'Son identité reprend son nom tel qu\'il est saisi : la CNSS demande « prénom, prénom du père, nom », comme sur sa carte d\'assuré (le nom de jeune fille pour une femme mariée). À VÉRIFIER.' });

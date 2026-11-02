@@ -4092,6 +4092,9 @@
     if (missingPayslips(data, a.year, a.month).length) return a;
     if (missingPayslips(data, c.year, c.month).length || payslipsOf(data, c.year, c.month).length) {
       if (!payslipsOf(data, a.year, a.month).length || missingPayslips(data, c.year, c.month).length) return c;
+      // (1.248.1) Le mois d'avant tout payé, le mois en cours déjà établi : c'est lui qui attend (recette du 02/11 : la page
+      // restait sur octobre, payé et remis, pendant que novembre attendait d'être payé).
+      if (payslipsOf(data, a.year, a.month).every(x => x.paidDate) && payslipsOf(data, c.year, c.month).some(x => !x.paidDate)) return c;
     }
     return a;
   }
@@ -4216,10 +4219,19 @@
   }
   function paieATraiter(data, todayIso) {
     const t = todayIso || today(), dans60 = addDays(t, 60), L = [];
+    // (1.248.1) Le même n° CNSS ou le même RIB (virement) qu'un salarié déjà listé : la fiche du second se corrige. La liste
+    // des salariés le montrait « en double » en rouge, et sa pastille disait « 2 à compléter » sans le compter (recette du 02/11).
+    const nu = v => String(v || '').replace(/[\s-]/g, ''), premier = { cnss: {}, iban: {} };
     (data.employees || []).filter(e => e.active !== false && !(e.endDate && e.endDate < t)).forEach(e => {
       const base = { salarie: e.id, vue: 'salaries', initiales: initialesDe(e.name), couleur: couleurDe(e.name) };
       if ((e.method || 'virement') !== 'especes' && !String(e.iban || '').trim()) L.push({ ...base, focus: 'iban', titre: `${e.name} : RIB à demander`, dit: 'payé par virement : sans RIB, le salaire ne peut pas partir', geste: 'Compléter' });
       if (!String(e.cnss || '').trim()) L.push({ ...base, focus: 'cnss', titre: `${e.name} : n° CNSS à demander`, dit: 'la déclaration du trimestre l\'attend', geste: 'Compléter' });
+      [['cnss', 'n° CNSS', 'la déclaration du trimestre mettrait leurs deux salaires sur un seul assuré'], ['iban', 'RIB', 'son salaire partirait sur le compte d\'un autre']].forEach(([k, quoi, dit]) => {
+        if (k === 'iban' && (e.method || 'virement') === 'especes') return;
+        const v = nu(e[k]); if (!v) return;
+        if (premier[k][v]) L.push({ ...base, focus: k, titre: `${e.name} : le même ${quoi} que ${premier[k][v]}`, dit, geste: 'Corriger' });
+        else premier[k][v] = e.name;
+      });
       if (e.contract === 'cdd' && e.endDate && e.endDate >= t && e.endDate <= dans60) L.push({ ...base, focus: '', titre: `Le CDD de ${e.name} finit le ${fmtDate(e.endDate)}`, dit: 'le renouveler, ou préparer sa sortie', geste: 'Décider' });
       // (plateforme) 1.234.0 — une demande de congé sans réponse (la maquette, « À traiter ») : combien de jours, ce qui lui reste.
       (data.leaves || []).filter(l => l.employeeId === e.id && l.statut === 'demande').forEach(l => {
@@ -4603,9 +4615,19 @@
       avenant: `
         <p class="projet">PROJET — à relire, compléter et signer des deux parties</p>
         <p>Au contrat de travail conclu le <b>${fmtDate(e.hireDate)}</b> entre la société <b>${escapeHtml(company.name || '')}</b> et <b>${civ}${escapeHtml(e.name || '')}</b>${e.cin ? `, CIN n° ${escapeHtml(e.cin)}` : ''}.</p>
-        <p><b>Article 1.</b> À compter du <b>${fmtDate(t)}</b>, ${civ}${escapeHtml(e.name || '')} occupe le poste de <b>${escapeHtml(e.position || '—')}</b>, pour un salaire brut mensuel de <b>${fmt(e.grossSalary)} ${escapeHtml(cur)}</b>.</p>
-        ${e.contract === 'cdd' ? `<p><b>Article 2.</b> Le contrat à durée déterminée est prolongé jusqu'au <b>${e.endDate ? fmtDate(e.endDate) : '……'}</b>.</p>` : ''}
-        <p><b>Article ${e.contract === 'cdd' ? 3 : 2}.</b> Les autres clauses du contrat restent inchangées.</p>
+        ${/* (1.248.1) L'avenant d'un renouvellement (fait dans le mois) dit ce qui a été décidé, à sa date : le passage en CDI
+              ne s'écrivait nulle part, et l'effet tombait au jour du document au lieu du lendemain de l'ancienne fin
+              (recette du 02/11). */''}
+        ${(() => {
+          const ren = (e.renouvellements || []).slice(-1)[0];
+          const recent = ren && ren.le && ren.le >= addDays(t, -31) && ren.le <= t;
+          const effet = recent ? addDays(ren.ancienneFin, 1) : t;
+          const art = [`À compter du <b>${fmtDate(effet)}</b>, ${civ}${escapeHtml(e.name || '')} occupe le poste de <b>${escapeHtml(e.position || '—')}</b>, pour un salaire brut mensuel de <b>${fmt(e.grossSalary)} ${escapeHtml(cur)}</b>.`];
+          if (recent && ren.cdi) art.push(`Le contrat à durée déterminée, qui prenait fin le <b>${fmtDate(ren.ancienneFin)}</b>, se poursuit à compter du <b>${fmtDate(effet)}</b> en <b>contrat à durée indéterminée</b>.`);
+          else if (e.contract === 'cdd') art.push(`Le contrat à durée déterminée${recent ? `, qui prenait fin le <b>${fmtDate(ren.ancienneFin)}</b>,` : ''} est prolongé jusqu'au <b>${e.endDate ? fmtDate(e.endDate) : '……'}</b>.`);
+          art.push('Les autres clauses du contrat restent inchangées.');
+          return art.map((x, i) => `<p><b>Article ${i + 1}.</b> ${x}</p>`).join('');
+        })()}
         <p class="small"><em>À VÉRIFIER : le renouvellement d'un CDD a ses limites (durée, nombre) ; fais relire avant signature.</em></p>`,
       essai: `
         <p>${civ}${escapeHtml(e.name || '')},</p>

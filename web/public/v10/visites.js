@@ -2087,6 +2087,36 @@
       ]
     });
 
+    // (1.250.0) Le pointage n'avait pas de visite : « Guide-moi », ouvert sur lui, proposait une attestation de travail.
+    // Une case changée change le pointage du mois, même s'il existait déjà (le nombre de fiches ne bougerait pas).
+    const ptSig = () => JSON.stringify(data().timesheets || []);
+    let ptAvant = '';
+    visite({
+      id: 'pointage', theme: 'personnel', type: 'faire', duree: '2 min', page: '#/paie',
+      titre: 'Pointer à la main',
+      resume: 'Sans pointeuse : chacun est présent par défaut, tu notes seulement ce qui change.',
+      mots: ['pointage', 'presence', 'absence', 'heures supplementaires', 'pointeuse', 'horaires'],
+      suite: ['bulletin', 'conge'],
+      si: () => nb('employees') > 0,
+      manque: { texte: 'Il te faut d\'abord un salarié — on pointe quelqu\'un.', visite: 'salarie' },
+      mesure: () => ptSig(), but: s0 => ptSig() !== s0,
+      bravo: 'Tu sais pointer',
+      conclusion: 'Le bulletin du mois reprend tout seul les absences non payées et les heures supplémentaires. Un bulletin déjà établi qui ne suit plus le pointage le dit, sous la grille, avec le bouton qui le met à jour.',
+      etapes: [
+        { page: '#/paie', avant: onglet('#p-tabs', 'pointage'), cible: '#pt-nav', cote: 'dessous', titre: 'Le mois pointé',
+          texte: 'Le pointage s\'ouvre sur le mois du jour. Les flèches passent au mois d\'avant ou d\'après ; « Ce mois-ci » y revient.' },
+        { cible: '#pt-auj', cote: 'dessus', facultatif: true, titre: 'Aujourd\'hui',
+          texte: 'Un geste par salarié, le jour même : <b>Absent</b>, <b>Congé</b>, <b>Malade</b>, <b>Demi-journée</b>. Rien à faire pour ceux qui sont là.' },
+        { cible: '#pt-periode', cote: 'dessous', titre: 'Une période d\'un coup',
+          texte: 'Une semaine de congé, un arrêt maladie : « Noter une période… » les pose jour par jour, jours à venir compris. Les jours de repos restent du repos.' },
+        { cible: '#p-sous [data-sous="pt-horaires"]', cote: 'dessous', titre: 'Les horaires',
+          texte: 'Les jours de travail, le mois complet, les heures du mois et les majorations des heures sup se règlent ici. <em>À VÉRIFIER : le Code du travail et ta convention collective.</em>' },
+        { avant: () => { ptAvant = ptSig(); }, cible: '#pt-grille .pt-c:not([disabled]):not([data-repos])', cote: 'dessous', faire: 'clic',
+          titre: 'Une case, un jour', texte: 'Une case vide, c\'est un jour de présence. Un clic change le code ; au clavier, sa lettre le pose (A, C, M, D, F) et les flèches passent d\'une case à l\'autre.',
+          action: 'Clique sur une case.', fait: () => ptSig() !== ptAvant, essai: { clic: true } }
+      ]
+    });
+
     visite({
       id: 'avance', theme: 'personnel', type: 'faire', duree: '1 min', page: '#/paie',
       titre: 'Accorder une avance sur salaire',
@@ -2386,15 +2416,17 @@
       bravo: 'Tu sais établir un document du personnel',
       conclusion: 'Le PDF porte la raison sociale et le matricule de ta société, et le nom du gérant qui signe s\'il est renseigné dans Paramètres. Un certificat de travail ne dit que les dates et l\'emploi — jamais le motif du départ.',
       etapes: [
-        { page: () => ctx.premier('salarie'), cible: '#hr-doc', cote: 'dessous', faire: 'clic',
+        { page: () => ctx.premier('salarie'), cible: '[data-fs="doc"]', cote: 'dessous', faire: 'clic',
           titre: 'Établir un document', texte: 'Sur la fiche du salarié : le document porte ses informations.',
-          action: 'Clique sur <b>« Établir un document… »</b>.', fait: () => !!$('#modal-root .modal'), essai: { clic: true } },
-        { cible: '#modal-root .modal select[name="kind"]', cote: 'droite', titre: 'Le document',
-          texte: 'L\'attestation dit que la personne travaille chez toi ; le certificat, qu\'elle y a travaillé ; le solde de tout compte, ce que tu lui verses à son départ.' },
-        { cible: '#modal-root .modal input[name="withSalary"]', cote: 'droite', facultatif: true, titre: 'Le salaire',
+          action: 'Clique sur <b>« Un document… »</b>.', fait: () => !!$('#modal-root .modal'), essai: { clic: true } },
+        { cible: '#modal-root .modal .hf-cartes', cote: 'droite', titre: 'Le document',
+          texte: 'L\'attestation dit que la personne travaille chez toi ; le certificat, qu\'elle y a travaillé ; le solde de tout compte, ce que tu lui verses à son départ. Ce qui manque (le gérant, sa civilité, sa CIN) se dit dessous, avec le bouton qui le renseigne.' },
+        { cible: '#modal-root .modal .hf-salaire input', cote: 'droite', facultatif: true, titre: 'Le salaire',
           texte: 'Il ne figure sur une attestation que si tu le coches : c\'est une information personnelle du salarié.' },
+        { cible: '#modal-root .modal #hf-apercu', cote: 'gauche', titre: 'La page elle-même',
+          texte: 'À droite, la page A4 telle qu\'elle sortira : en page entière, ou en pleine largeur pour la lire.' },
         { cible: '#modal-root .modal .modal-actions .btn-primary', cote: 'dessus', titre: 'Exporter en PDF',
-          texte: 'SkanFact prépare le PDF à ton en-tête et te demande <b>où l\'enregistrer</b>. Il ne garde pas de copie : pour en refaire un, reviens sur cette fiche. Imprime-le, signe-le et appose ton cachet avant de le remettre.' }
+          texte: 'SkanFact prépare le PDF à ton en-tête et te demande <b>où l\'enregistrer</b>. L\'export s\'inscrit dans « Les documents faits » de la fiche, avec « Refaire ». Imprime-le, signe-le et appose ton cachet avant de le remettre.' }
       ]
     });
 

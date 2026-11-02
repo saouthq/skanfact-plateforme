@@ -113,7 +113,8 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(await p.locator('#p-head .btn-primary').count()).toBe(1);
     // « Marquer payé » vit dans le menu de la ligne (1.234.0) : avant le bon à payer, il n'y est pas.
     await p.locator('#p-bulletins tr[data-bul]').first().getByRole('button', { name: /Actions/ }).click();
-    await expect.poll(() => p.getByText('Voir le bulletin', { exact: true }).count()).toBe(1);
+    // (1.248.1) Le menu ne répète plus « Voir le bulletin » (le bouton de la ligne) : il s'ouvre sur l'export.
+    await expect.poll(() => p.getByText('Exporter le bulletin en PDF', { exact: true }).count()).toBe(1);
     expect(await p.getByText('Marquer payé', { exact: true }).count()).toBe(0);
     await p.keyboard.press('Escape');
     expect(espace(await p.locator('#p-head .sous').innerText())).toContain('tenue par ton cabinet');

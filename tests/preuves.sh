@@ -16420,11 +16420,9 @@ prouver 'la fiche d'"'"'un salarié qui s'"'"'élargit à la première prime' 'w
   '.modal:where(:has(#ef-primes-p, #bf-bon, #sf-primes-p)) { width: 860px; }' \
   '' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'les primes d'"'"'un bulletin serrées à côté des retenues' 'web/public/v10/app.js' \
-  '      <div class="bf-lignes">
-        <div class="panel"><h2>Primes et indemnités' \
-  '      <div class="split">
-        <div class="panel"><h2>Primes et indemnités' \
+prouver 'les primes d'"'"'un bulletin serrées à côté des retenues' 'web/public/plateforme/paie.css' \
+  '.bf-c { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);' \
+  '.bf-c { display: grid; grid-template-columns: minmax(0, 1fr) minmax(600px, 640px);' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 prouver 'le brut d'"'"'un salarié qui tait ses primes' 'web/public/v10/app.js' \
   '${c.bonuses.length ? `<small>+ ${C.money(' \
@@ -16509,8 +16507,8 @@ prouver 'Entrée qui ne passe pas au salarié suivant' 'web/public/v10/app.js' \
   'const pas = ev.key === '"'"'ArrowDown'"'"' || ev.key === '"'"'Enter'"'"' ? 1 :' \
   'const pas = ev.key === '"'"'ArrowDown'"'"' ? 1 :' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
-prouver '« Ouvrir les Barèmes » en haut de la page' 'web/public/v10/app.js' \
-  '        const c = $('"'"'#rf input[name="hsMaj1"]'"'"'); if (c) { c.scrollIntoView({ block: '"'"'center'"'"' }); c.focus(); c.select(); }' \
+prouver '« Régler les heures sup » qui ne pose pas le curseur dans la case' 'web/public/v10/app.js' \
+  '        const c = $('"'"'#pt-h input[name="hsMaj1"]'"'"'); if (c) { c.scrollIntoView({ block: '"'"'center'"'"' }); c.focus(); c.select(); }' \
   '' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
 prouver 'l'"'"'alerte du bulletin au-dessus de la grille' 'web/public/v10/app.js' \
@@ -17382,16 +17380,16 @@ prouver 'le document du Cabinet rouvert sur l'"'"'attestation' 'web/public/v10/c
   '          if (d) documentPersonnelForm(root, d, x);' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
 prouver 'la civilité absente que le document de l'"'"'entreprise ne dit pas' 'web/public/v10/app.js' \
-  '      ${e.gender ? '"'"''"'"' : `<div class="warn-box mb" id="hf-civ">' \
-  '      ${true ? '"'"''"'"' : `<div class="warn-box mb" id="hf-civ">' \
+  '{ id: '"'"'hf-civ'"'"', si: () => !e.gender,' \
+  '{ id: '"'"'hf-civ'"'"', si: () => false,' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
 prouver 'la fiche du salarié de l'"'"'entreprise sans civilité' 'web/public/v10/app.js' \
   '<select name="gender"><option value="">— à préciser —</option>' \
   '<select name="civ"><option value="">— à préciser —</option>' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
 prouver 'la fiche de l'"'"'entreprise qui ne rend pas la main au document' 'web/public/v10/app.js' \
-  'employeeForm(e, () => hrDocForm(e, done, k), { focus: '"'"'gender'"'"' });' \
-  'employeeForm(e, done, { focus: '"'"'gender'"'"' });' \
+  'close(); employeeForm(e, () => hrDocForm(e, done, k), { focus: m.champ }); }); });' \
+  'close(); employeeForm(e, done, { focus: m.champ }); }); });' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
 prouver 'l'"'"'indemnité proposée qui ne suit pas la date du document' 'web/public/v10/app.js' \
   '          if (v.date && v.date !== dateVue) {' \
@@ -22107,7 +22105,7 @@ prouver 'paie 1.222 a : la frise compte remis ce qui ne l'\''est pas' web/public
   "remis = L.filter(x => x.remisLe);" "remis = L.filter(x => x.paidDate);" \
   "$WPAIE1"
 prouver 'paie 1.222 b : « Remettre » ne garde pas la remise sur le bulletin' web/public/v10/app.js \
-  "          for (const x of L) { const b = payslipById(x.id); if (b) b.remisLe = jour; }" "" \
+  "          for (const x of C2) { const b = payslipById(x.id); if (b) b.remisLe = jour; }" "" \
   "$WPAIE1"
 prouver 'paie 1.222 c : un statut que tous partagent revient en colonne' web/public/v10/app.js \
   "\${uni ? '' : '<th>Statut</th>'}" "\${'<th>Statut</th>'}" \
@@ -22130,7 +22128,7 @@ prouver 'paie 1.223 b : l'\''aperçu ne suit plus le choix du document' web/publ
   "\$('#hf', root).onchange = () => { sync(); apercu(); };" "\$('#hf', root).onchange = () => { sync(); };" \
   "$WPAIE2"
 prouver 'paie 1.223 c : le bulletin ne s'\''ouvre plus en aperçu' web/public/v10/app.js \
-  "          { icon: 'oeil', label: 'Voir le bulletin', hint: 'la feuille elle-même, avant de l\\'exporter', run: () => apercuBulletin(x) }," "" \
+  "const x = payslipById(b.dataset.voirB); if (x) apercuBulletin(x, () => draw()); });" "const x = payslipById(b.dataset.voirB); if (x) payslipForm(x, employeeById(x.employeeId), x.year, x.month, () => draw()); });" \
   "$WPAIE2"
 prouver 'paie 1.223 d : le contrat sort sans la mention PROJET' web/public/v10/core.js \
   "      contrat: \`
@@ -22151,9 +22149,7 @@ prouver 'paie 1.224 c : la période oublie son dernier jour' web/public/v10/app.
   "for (let iso = v.du; iso <= v.au && L.length < 400;" "for (let iso = v.du; iso < v.au && L.length < 400;" \
   "$WPAIE3"
 prouver 'paie 1.224 d : un jour corrigé par salarié ne se garde pas' web/public/v10/app.js \
-  "        save(); drawPtSalarie();
-        const c = \$(\`#pt-sal-t" "        drawPtSalarie();
-        const c = \$(\`#pt-sal-t" \
+  "        save(); drawPtSalarie('jour');" "        drawPtSalarie('jour');" \
   "$WPAIE3"
 
 WPAIE6a="approuver avant de payer ; les contrôles ; « Annuler »"
@@ -22254,8 +22250,8 @@ prouver 'paie 1.232 b : la recherche ignore les salariés' web/public/v10/app.js
 prouver 'paie 1.232 c : sans réseau la paie offre son geste' web/public/v10/app.js \
   "      if (prin && navigator.onLine === false) prin = prin.replace(" "      if (false) prin = prin.replace(" \
   "$WRW3"
-prouver 'paie 1.233 a : le pointage garde deux sélecteurs de mois' web/public/v10/app.js \
-  "s.tab === 'bulletins' || s.tab === 'pointage' ? \`<select" "s.tab === 'bulletins' ? \`<select" \
+prouver 'paie 1.233 a, 1.249 : le pointage s'\''ouvre sur le mois de paie, pas sur le mois du jour' web/public/v10/app.js \
+  "    if (!s.ptY) { const t = C.today();" "    if (!s.ptY) { const t = C.addMonths(C.today().slice(0, 7) + '-01', -1);" \
   "$WRW3"
 
 # L'interface de la paie au plus près de sa maquette (1.234.0) : chaque défaut remis fait tomber son test.
@@ -22451,6 +22447,52 @@ prouver "paie 1.248 d : le même n° CNSS écrit avec un tiret passe" web/public
 prouver "paie 1.248 e : l'écart d'une sortie se dit « brut changé »" web/public/v10/core.js \
   "pq.push(sortie ? " "pq.push(false ? " \
   "l'écart avec le mois d'avant d'une sortie se dit « sortie le … »"
+
+prouver "paie 1.248.1 a : deux fiches sur le même n° CNSS ne sont pas « à traiter »" web/public/v10/core.js \
+  "        if (premier[k][v]) L.push({ ...base, focus: k," "        if (false) L.push({ ...base, focus: k," \
+  "le même n° CNSS (avec ou sans tiret) ou le même RIB qu'un collègue : le second est à traiter ; les espèces ne comptent pas"
+prouver "paie 1.248.1 b : la page reste sur le mois payé quand le suivant attend" web/public/v10/core.js \
+  "      if (payslipsOf(data, a.year, a.month).every(x => x.paidDate) && payslipsOf(data, c.year, c.month).some(x => !x.paidDate)) return c;" "" \
+  "octobre payé, novembre établi mais pas payé : le mois de paie est novembre ; tout payé, il reste octobre"
+prouver "paie 1.248.1 c : l'avenant d'un passage en CDI ne le dit pas" web/public/v10/core.js \
+  "          if (recent && ren.cdi) art.push(" "          if (false) art.push(" \
+  "l'avenant d'un passage en CDI le dit, à compter du lendemain de l'ancienne fin ; un mois plus tard, il redevient général"
+prouver "paie 1.248.1 d : le fichier CNSS sort avec deux salariés sous le même n° d'assuré" web/public/v10/compta.js \
+  "      else if (vus.has(cn.texte)) refus.push(" "      else if (false) refus.push(" \
+  "deux salariés sous le même n° d'assuré (écrit avec ou sans tiret) : pas de fichier, le second est nommé avec le premier"
+WP249='aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
+prouver "paie 1.249 a : une lettre ne pose pas son code dans le calendrier d'un salarié" web/public/v10/app.js \
+  "codesDe(sel).includes(c)) { ev.preventDefault(); poser(c); }" "codesDe(sel).includes(c)) { ev.preventDefault(); }" \
+  "$WP249"
+prouver "paie 1.249 b : les horaires s'enregistrent sans aucun jour de travail" web/public/v10/app.js \
+  "        \$('#pt-h-ok').disabled = !change || !jours.length || !!bad;" "        \$('#pt-h-ok').disabled = !change || !!bad;" \
+  "$WP249"
+prouver "paie 1.249 c : enregistrer les Réglages efface les jours de repos" web/public/v10/app.js \
+  "        data.payrollSettings = { ...(Array.isArray((data.payrollSettings || {}).offDays) ? { offDays: data.payrollSettings.offDays } : {}), ...readRates()," "        data.payrollSettings = { ...readRates()," \
+  "$WP249"
+prouver "paie 1.249 d : les horaires ne s'enregistrent pas" web/public/v10/app.js \
+  "        data.payrollSettings = { ...(data.payrollSettings || {}), ...out };" "        void out;" \
+  "$WP249"
+prouver "paie 1.249 e : le salarié précédent n'est pas à côté de son nom" web/public/v10/app.js \
+  "\$('#pt-sal-prec').onclick = () => { if (k > 0) aller(emps[k - 1].id); };" "\$('#pt-sal-prec').onclick = () => {};" \
+  "$WP249"
+
+# 1.250.0 (recette du 02/11/2026) : le journal de paie se lit (sigles) et s'ouvre sur un bulletin ; le calendrier des
+# congés change de mois par ‹ › et une case libre ouvre la fenêtre du congé à ce jour.
+WP250J='le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'\''état récapitulatif CNSS'
+WP250M='le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
+prouver "paie 1.250 a : une ligne du journal de paie n'ouvre pas son bulletin" web/public/v10/app.js \
+  "if (x) apercuBulletin(x); }; tr.onclick = ouvrir;" "if (x) apercuBulletin(x); }; tr.onclick = null;" \
+  "$WP250J"
+prouver "paie 1.250 b : la légende du journal ne dit pas ce que veulent dire ses sigles" web/public/v10/app.js \
+  '<b>${h(c)}</b> ${h(/^[A-Z]{2,}/.test(l) ? l : l.charAt(0).toLowerCase() + l.slice(1))}' '<b>${h(c)}</b>' \
+  "$WP250J"
+prouver "paie 1.250 c : une case libre du calendrier des congés n'ouvre pas la fenêtre à son jour" web/public/v10/app.js \
+  "leaveForm(null, id, apres, iso); });" "leaveForm(null, id, apres); });" \
+  "$WP250M"
+prouver "paie 1.250 d : ‹ › ne change pas le mois du calendrier des congés" web/public/v10/app.js \
+  "s.moisCal = String(Math.min(12, Math.max(1, cur + Number(b.dataset.cgM))));" "" \
+  "$WP250M"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

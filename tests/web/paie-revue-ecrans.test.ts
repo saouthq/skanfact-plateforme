@@ -171,12 +171,23 @@ describe('la paie : les écrans de la revue', () => {
     await p.keyboard.press('Escape');
     await p.getByRole('button', { name: 'Abandonner la saisie', exact: true }).click();
     await expect.poll(() => p.locator('#lf').count()).toBe(0);
-    // Le pointage : un seul sélecteur de mois, à côté de l'année.
+    // Le pointage : un seul choix du mois, à côté des vues (1.249.0 : le mois du jour, ‹ › pour changer, « Ce mois-ci » pour
+    // y revenir ; recette du 02/11 : il s'ouvrait sur le mois de paie, octobre, le 2 novembre).
     await p.locator('#p-tabs button[data-tab="pointage"]').click();
     await p.locator('#pt-panneau').waitFor();
-    expect(await p.locator('select[aria-label="Le mois pointé"]').count()).toBe(1);
     expect(await p.locator('#pt-panneau select').count()).toBe(0);
-    expect(await p.locator('#p-mois #pt-mois').count()).toBe(1);
+    expect(await p.locator('#p-mois #pt-nav').count()).toBe(1);
+    const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    const auj = new Date(), ceMois = `${MOIS[auj.getUTCMonth()]} ${auj.getUTCFullYear()}`;
+    expect((await p.locator('#pt-mois-l').innerText()).toLowerCase()).toBe(ceMois);
+    expect(await p.locator('#pt-ce-mois').isDisabled()).toBe(true);
+    const large = (await p.locator('#p-mois').boundingBox())?.width;
+    await p.locator('#pt-prec').click();
+    await expect.poll(async () => (await p.locator('#pt-mois-l').innerText()).toLowerCase()).toBe(`${MOIS[(auj.getUTCMonth() + 11) % 12]} ${auj.getUTCMonth() ? auj.getUTCFullYear() : auj.getUTCFullYear() - 1}`);
+    // Le choix ne change pas de largeur : les vues à côté ne bougent pas sous la souris.
+    expect((await p.locator('#p-mois').boundingBox())?.width).toBe(large);
+    await p.locator('#pt-ce-mois').click();
+    await expect.poll(async () => (await p.locator('#pt-mois-l').innerText()).toLowerCase()).toBe(ceMois);
     // 1.234.0 (la maquette) : une case « présent » se lit vide ; sa lettre reste pour le clavier et les lecteurs d'écran.
     const present = p.locator('#pt-grille .pt-c.pt-P').first();
     expect(await present.textContent()).toBe('P');

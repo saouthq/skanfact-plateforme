@@ -69,9 +69,10 @@ describe('la paie : le mois, tel que sa maquette', () => {
     const salarie = (id: string, name: string, grossSalary: number, x: Record<string, unknown>) => ({ id, name, grossSalary, hireDate: '2024-03-10', contract: 'cdi',
       headOfFamily: false, children: 0, active: true, method: 'virement', iban: RIB, cnss: '12345678-12', position: 'Boulanger', ...x });
     const mourad = salarie('s1', 'Mourad Numéro Un', 1450, {});
-    const karim = salarie('s2', 'Karim Sans Rib', 1100, { iban: '' });
+    const karim = salarie('s2', 'Karim Sans Rib', 1100, { iban: '', cnss: '12345678-22' });
     const nadia = salarie('s3', 'Nadia Sans Cnss', 880, { cnss: '', method: 'especes', iban: '', position: 'Vendeuse' });
-    const hamza = salarie('s4', 'Hamza En Cdd', 820, { contract: 'cdd', endDate: finCdd, position: 'Aide boulanger' });
+    // Chacun son n° CNSS et son RIB : deux fiches qui partagent l'un ou l'autre se signalent dans « À traiter » (1.248.1).
+    const hamza = salarie('s4', 'Hamza En Cdd', 820, { contract: 'cdd', endDate: finCdd, position: 'Aide boulanger', cnss: '12345678-44', iban: '08100123456789012456' });
     const S = [mourad, karim, nadia, hamza];
     const bulletin = (e: (typeof S)[number], y: number, m: number, brut: number) => {
       const saisie = { gross: brut, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
@@ -182,6 +183,30 @@ describe('la paie : le mois, tel que sa maquette', () => {
     await expect.poll(() => p.locator('#cg-avances').count()).toBe(1);
     expect(await p.locator('#p-sous [role=tab]').count()).toBe(0);
     expect(await p.locator('#cg-new-av').count()).toBe(1);
+    // (1.250.0, recette du 02/11) Le calendrier des congés : ‹ › change le mois ; une case libre ouvre la fenêtre du congé
+    // à ce jour et pour ce salarié (le jour et la personne déjà remplis).
+    const titreCal = async () => (await p.locator('#cg-cal .pa-carte-t b').first().innerText()).trim();
+    const avantNav = await titreCal();
+    const navSuiv = p.locator('#cg-cal [data-cg-m="1"]'), navPrec = p.locator('#cg-cal [data-cg-m="-1"]');
+    const pas = await navSuiv.isDisabled() ? navPrec : navSuiv;
+    await pas.click();
+    await expect.poll(titreCal).not.toBe(avantNav);
+    await p.locator(`#cg-cal [data-cg-m="${await pas.getAttribute('data-cg-m') === '1' ? '-1' : '1'}"]`).click();
+    await expect.poll(titreCal).toBe(avantNav);
+    // Un jour qui n'est pas aujourd'hui : la fenêtre s'ouvre sur aujourd'hui quand on ne lui dit rien.
+    const aujLocal = await p.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
+    const cle = (await p.locator('#cg-cal td.cg-libre button[data-cg-j^="s2|"]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.cgJ || '')))
+      .find((x) => !x.endsWith(`|${aujLocal}`)) || '';
+    const libre = p.locator(`#cg-cal button[data-cg-j="${cle}"]`);
+    const [qui, jourIso] = cle.split('|');
+    await libre.click();
+    const fenCg = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fenCg.locator('h2').innerText()).toBe('Congé ou absence');
+    expect([qui, await fenCg.locator('input[type=hidden][name=employeeId]').inputValue(),
+      await fenCg.locator('input[type=hidden][name=from]').inputValue(), await fenCg.locator('input[type=hidden][name=to]').inputValue()])
+      .toEqual(['s2', 's2', jourIso, jourIso]);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#lf').count()).toBe(0);
     await p.locator('#p-tabs [data-tab="annee"]').click();
     await expect.poll(() => p.locator('#p-annee-chiffres .pa-tuile').count()).toBe(4);
     expect(await p.locator('#p-annee .pa-barre').count()).toBe(12);
