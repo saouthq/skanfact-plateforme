@@ -124,6 +124,8 @@ describe('la paie : le mois, tel que sa maquette', () => {
     expect(await texte('#p-frise li:nth-child(3)')).toContain('4 à payer');
 
     // ── « À traiter » : ce qui manque aux fiches ; la pastille de « Salariés » compte ces choses-là ──────────────────
+    // (1.252.0) Les gestes (« À traiter ») passent avant le constat (« Ce que SkanFact a contrôlé »).
+    expect(await p.evaluate(() => { const a = document.querySelector('#p-traiter'), b = document.querySelector('#p-ctrl'); return !b || !!(a && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)); })).toBe(true);
     const traiter = await p.locator('#p-traiter li b').allInnerTexts();
     expect(traiter).toEqual(['Karim Sans Rib : RIB à demander', 'Nadia Sans Cnss : n° CNSS à demander', expect.stringMatching(/^Le CDD de Hamza En Cdd finit le \d{2}\/\d{2}\/\d{4}$/)]);
     expect(await p.locator('#p-tabs [data-af="salaries"]').innerText()).toBe('3');

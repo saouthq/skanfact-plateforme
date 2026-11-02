@@ -2006,3 +2006,13 @@ et les autres tests de la paie passent par la bande. Preuves : `paie 1.251 a` à
 
 Viendra (1.252.0, décidé avec Skander le 02/11) : quatre onglets au lieu de six (Le mois, Présences, Salariés, Déclarations).
 
+
+## La paie de l'entreprise : la critique d'ergonomie, premier lot (02/11/2026, 1.252.0)
+
+« À traiter » (les gestes) passe avant « Ce que SkanFact a contrôlé » ; la pastille de la fiche dit ce qui manque pour payer
+et déclarer (« Son n° CNSS manque ») au lieu d'un nombre que sa liste contredisait ; établir le bulletin d'un mois pas fini le
+dit avant le geste ; les lettres-raccourcis restent lisibles sur le bouton choisi ; « Repos » n'est plus écrit dans chaque
+dimanche du calendrier d'un salarié ; les congés suivent l'ordre du calendrier ; la bande garde sa place sur les horaires (les
+cartes ne remontent plus sous la souris) ; « Pas de pointeuse ? » se range d'un « Compris » ; au téléphone, « Réglages » vit
+dans le menu ⋯, l'année épinglée de la bande a une ombre et des flèches de 44 points ; « Net versé » de l'année dit le net
+de l'année. Tests : `paie-mois`, `paie-bon-a-payer`, `paie-pointage-main`, `rendu`.

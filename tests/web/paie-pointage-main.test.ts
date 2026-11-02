@@ -81,6 +81,13 @@ describe('la paie : le pointage à la main', () => {
     // ── Aujourd'hui : un geste par salarié ; « Absent » se pose au serveur, « Annuler » le défait ──────────────────
     await p.locator('#pt-auj').waitFor();
     expect(espace(await p.locator('#pt-main b').first().innerText())).toBe('Pas de pointeuse ? Tu pointes à la main');
+    // (1.252.0) L'explication se lit une fois : « Compris » la range, et elle ne revient pas en changeant de vue.
+    await p.locator('#pt-main-ok').click();
+    await expect.poll(() => p.locator('#pt-main').count()).toBe(0);
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#pt-auj').waitFor();
+    expect(await p.locator('#pt-main').count()).toBe(0);
     expect(await p.locator('#pt-auj .pt-auj-l').count()).toBe(2);
     const karim = p.locator('#pt-auj [data-auj-e="s1"]');
     expect(await karim.locator('[aria-pressed="true"]').innerText()).toBe('Présent');

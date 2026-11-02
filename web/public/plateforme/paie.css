@@ -551,3 +551,15 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 .pt-grille th.pt-auj-j span, .cg-t th.cg-auj small { color: var(--sb-sarcelle-texte); font-weight: 700; }
 .pt-grille th.pt-auj-j b, .cg-t th.cg-auj b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 3px; border-radius: 99px; background: var(--sb-sarcelle); color: #fff; font-weight: 700; }
 .pt-grille td.pt-auj-td, .cg-t td[data-auj] { background: color-mix(in srgb, var(--sb-sarcelle) 9%, transparent); }
+
+/* (1.252.0) Les lettres-raccourcis sur un bouton choisi (fond sombre) : un carré blanc sans lettre. */
+.pt-edit .pt-seg kbd { background: transparent; color: inherit; box-shadow: none; }
+/* La bande garde sa place sur les horaires, sans y servir. */
+#p-mois.pa-mois-inerte { visibility: hidden; }
+.pa-bandeau .pa-bandeau-g { display: inline-flex; gap: 6px; margin-left: auto; flex: none; }
+/* Au téléphone : « Réglages » est déjà dans le menu ⋯ (une rangée de gagnée avant le contenu) ; l'année épinglée de la bande
+   porte une ombre, le mois qui glisse dessous ne se lit plus en morceaux. */
+@media (max-width: 720px) {
+  #p-tabs .pa-reg { display: none; }
+  .pa-bande .pa-bande-an { box-shadow: 10px 0 10px -8px rgba(20, 40, 60, .25); }
+}

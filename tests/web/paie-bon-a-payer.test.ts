@@ -233,6 +233,8 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     // La pastille est une étiquette, pas un titre.
     const taille = await p.locator('.pa-h1-av .statut').evaluate((el) => Number(getComputedStyle(el).fontSize.replace('px', '')));
     expect(taille).toBeLessThan(14);
+    // (1.252.0) Elle dit ce qui manque pour le payer et le déclarer, comme le bandeau de la fiche.
+    expect(espace(await p.locator('.pa-h1-av .statut').innerText())).toBe('Son n° CNSS manque'); // payé en espèces : son RIB n'est pas exigé
     await p.close();
     p = await ouvrir(A);
     await p.locator('#p-tabs button[data-tab="declarations"]').click();
