@@ -257,7 +257,9 @@ vaut pour tout le dépôt.*
     proposée (1.235.0 ; `parcoursPaie`/`paieLeMois`/`paieVoletBulletin`/`correctionForm` dans `cabinet/app.js`,
     `marquerBulletins`/`proposerCorrection` dans `pont-cabinet.js`, `socle.mode_de_paie` (0186), `plateforme/paie-cabinet.css`,
     `tests/web/cabinet-paie-parcours.test.ts`) ; après la validation, l'écriture compte par compte, l'année mois par mois, le
-    pointage attendu (1.236.0 ; `paieFaits`/`paieEcriture`/`paieMoisParMois` dans `cabinet/app.js`).
+    pointage attendu (1.236.0 ; `paieFaits`/`paieEcriture`/`paieMoisParMois` dans `cabinet/app.js`) ; tout ce que montrent
+    les maquettes : l'avance oubliée, les contrôles, les écarts, le paramétrage, le livre (1.237.0 ; `paieControles`/
+    `paieAnomalies`/`paieEcarts`/`paieParametrage`/`paieLivreEtFinDAnnee` dans `cabinet/app.js`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

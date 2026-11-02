@@ -115,3 +115,75 @@ plus tard).
   « Le demander », « Le saisir moi-même »). Reste : les PDF chez le client, régulariser et le virement rejeté, le
   paramétrage, les écarts, la fiche du salarié à droite, la sortie, « La paie de tous mes dossiers ».
 
+
+## 8. L'inventaire, fonction par fonction (01/11/2026, après la remarque de Skander : « il y a des fonctionnalités que tu oublies »)
+
+Chaque chose que montre chaque état de la maquette, et où elle en est dans l'application. ✓ fait · ½ en partie · ✗ manque ·
+⏸ attend autre chose (le serveur, une décision).
+
+**paie — le mois**
+- ✓ cinq vues, frise, un bouton, quatre chiffres, bulletins rangés, volet, « Pourquoi cet IRPP ? »
+- ✓ le nombre sur les vues (Salariés 5 ; CNSS 1 chose à faire) (1.237.0)
+- ½ l'en-tête : « le pointage est arrivé de Sarra le 27/10 » (le jour manque)
+- ½ la frise : les dates (« d'ici le 31/10 », « datée du 31/10 », « CNSS en janvier »)
+- ✓ (1.237.0) la tuile du coût dit pourquoi il bouge (« une entrée, 8 h sup, 2 jours sans solde »)
+- ✓ (1.237.0 ; le férié reste à faire) **les contrôles avant l'envoi** (12 dans la maquette) : net négatif ou nul ; écart de plus de 5 % sur
+  le mois d'avant, expliqué ou non ; pointage repris sur chaque bulletin ; avances retenues ; entrées et sorties au
+  prorata ; heures sup (plafond À VÉRIFIER) ; taux du dossier ; bulletins = journal = écriture, au millime ; SMIG et férié
+  (sans réglage daté : « À VÉRIFIER », jamais un chiffre inventé)
+- ✓ (1.237.0) les liens « Les écarts sur septembre, ligne à ligne » et « Le paramétrage du dossier »
+- ✓ (1.237.0) le n° CNSS qui manque : « Le renseigner… » et **« Le demander à Sarra »**
+- ½ la ligne : ✓ le poste sous le nom ; ✗ « avance : 2e retenue sur 3 · il restera 100,000 en novembre »
+- ½ les touches : ✓ Espace « vérifié », ✓ **P « le bulletin en PDF »** (1.237.0), ✗ **Entrée « valider le mois »**
+- ½ le volet (1.237.0 : ✓ la situation, l'état, le paiement, les trois boutons ; ✗ le calcul des heures sup, « Contrôlé : … ») : la situation (chef de famille, enfants), l'état du bulletin, le calcul des heures sup, « par virement ·
+  BIAT ··· 0918 », « Contrôlé : … », et ses boutons **« Le bulletin (PDF) », « Modifier… », « Vérifié »**
+- ✓ (1.237.0) l'écriture : **regroupée par compte** (« une ligne par salarié et par compte dans le livre ; ici, par compte ») et sa note
+- ✓ (1.237.0) « Septembre : 4 bulletins · l'écriture au brouillard · payés le 30/09 · Ouvrir septembre »
+
+**paievide** — ✓ « Le demander », « Le saisir moi-même » · ✓ **« Préparer sans pointage : des mois complets »** · ✗ « d'habitude
+le 27 » · ✓ l'entrée du mois annoncée (« Salma, entrée le 13/10, aura son premier bulletin au prorata »)
+
+**paiepointage** — ½ la grille (elle existe, éditable) · ✗ l'en-tête « envoyé par Sarra le 27/10 · 3 différences avec un mois
+complet » · ✗ **« Préparer les 5 bulletins »** d'ici · ✗ la source, la version, « verrouillée » (le cabinet ne change pas le
+pointage de Sarra : il lui demande) · ✗ l'anomalie et « Lui demander »
+
+**paieaccord** — ✓
+
+**paieecarts** — ✓ (1.237.0) **la vue entière** : chaque écart du brut, salarié par salarié et rubrique par rubrique, avec sa source, et
+« l'écart du brut expliqué en entier, égal au millime »
+
+**paieapres** — ✓ les trois étapes, l'écriture · ⏸ « Les envoyer » (les PDF dans les documents de Sarra : le serveur) ·
+✓ **les montants à déclarer** (retenues, TFP, FOPROLOS) · ✗ « Lui rappeler **le 30/10** » (une date) · ✗ « Annuler » après la
+validation
+
+**paieapresval** — ✗ **un mois validé** : ce qui est arrivé depuis (des heures après l'envoi du pointage → « Sur novembre » ou
+« Un rectificatif ») ; le virement rejeté (« Le dire à Sarra ») ; la règle (« un mois validé ne se rouvre pas en silence »)
+
+**paieverif** — ✓ le bandeau, proposer · ✓ (1.237.0) **l'anomalie trouvée d'elle-même** (« l'avance n'est pas retenue… son net serait de
+599,807 ») avec **« Voir l'avance »**, et la correction préremplie
+
+**paiepropose** — ✓
+
+**paiesalaries** — ½ la liste · ✓ l'en-tête (« 5 en poste · 1 contrat qui finit dans 2 mois · aucun sorti ») · ✓ « depuis
+03/2019 », le RIB masqué · ½ le CDD (✓ le bandeau ; ✗ « Me le rappeler le 01/12 ») · ✗ « Un salarié… », **« La sortie d'un
+salarié… »**, « Les documents du personnel » en tête · ✗ **la fiche à droite** (« 2 choses à compléter », contrat, salaire,
+situation, CNSS, CIN, RIB, congés, **« Demander à Sarra son n° CNSS et son RIB »**, « Modifier… »)
+
+**paiesortie** — ✗ **le départ d'un CDD** : le dernier bulletin en projet (congés pas pris, indemnité À VÉRIFIER), ce que le
+départ demande (certificat, solde de tout compte, attestation, CNSS, le livre), « Envoyer le projet à Sarra », « Le
+certificat (PDF) »
+
+**paieconges** — ½ les deux tableaux · ✗ les avances **en échéancier** (« septembre · 100,000 retenu … novembre · 100,000 »)
+
+**paieabsences** — ✓ (1.237.0) **les absences à venir** (déjà posées, leur effet sur le bulletin, qui décide)
+
+**paiecnss** — ✓ la déclaration, l'état, le fichier · ✗ le trimestre déposé (accusé, paiement rapproché) · ✗ **le 4531 du
+livre en face** · ✓ « Le demander » pour le n° CNSS
+
+**paieannee** — ✓ le coût mois par mois · ✓ **« les bulletins et le livre disent le même chiffre »** (le brut contre le 640) ·
+✓ la déclaration annuelle (on y mène) · ✓ **la fin de l'année** (prime de fin d'année, attestations,
+bulletins faits pour ce dossier, congés pas pris)
+
+**paieparam** — ✓ (1.237.0) **le paramétrage du dossier** : réglé / non réglé ; ✗ qui et quand, « Copier le paramétrage d'un autre dossier »
+
+**paiedossiers** — ⏸ la paie de tous mes dossiers (une lecture du serveur) · **paierappel** — ⏸ la décision de Skander

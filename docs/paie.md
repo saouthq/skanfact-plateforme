@@ -1642,3 +1642,36 @@ document chez lui pour le cabinet) ; régulariser après validation depuis cet �
 (il faut une lecture du serveur pour tous les dossiers d'un coup, à écrire) ; la fiche du salarié à droite et le projet
 de sortie. Le rappel de salaire attend la décision de Skander.
 
+
+## La paie du Cabinet, tout ce que montrent les maquettes (02/11/2026, 1.237.0)
+
+Skander : « Y'a des fonctionnalités que t'oublies dans les maquettes ». L'inventaire, état par état, est au § 8 de
+`docs/revue-paie-cabinet.md` ; ce lot fait tout ce qui s'y fait sans fonction nouvelle au serveur.
+
+- **L'avance oubliée** (paie faite par le client) : une échéance de remboursement du mois que le bulletin ne retient pas
+  se trouve d'elle-même (`KC.echeancesDuMois`). Un bandeau le dit, avec le net qu'il aurait ; le bouton principal devient
+  « Proposer la correction à <client> », la fenêtre préremplie (la retenue, son montant, sa raison) ; acceptée, la
+  retenue rembourse l'avance (elle garde `advanceId`).
+- **Les contrôles du mois** (`#pa-controles`) : ce qui demande un geste d'abord, les justes ensuite, avec leur nombre :
+  net négatif ou nul, écarts de plus de 5 % expliqués, pointage repris, avances retenues, prorata, heures sup (plafond
+  **À VÉRIFIER**), taux du dossier (**À VÉRIFIER**), le SMIG (pas réglé dans SkanFact : **À VÉRIFIER**), bulletins
+  égaux à l'écriture au millime ; un matricule CNSS qui manque se demande d'un geste.
+- **Deux vues nouvelles** ouvertes depuis les contrôles : **les écarts ligne à ligne** (chaque rubrique de chaque salarié
+  face au mois d'avant, avec sa source ; la somme des écarts doit faire l'écart du brut, au millime) et **le paramétrage
+  du dossier** (ce qui est réglé, ce qui ne l'est pas, la convention d'abord).
+- **Le volet du bulletin** : la situation (poste, contrat, fin, famille), l'état, le mode de paiement et le RIB masqué
+  (« ··· 1234 » ou « RIB à demander »), « Le bulletin en PDF », « Modifier » seulement sur une paie tenue au cabinet.
+- **Le mois** : un nombre sur Salariés et sur CNSS (les matricules qui manquent), le coût expliqué, le poste sous le nom,
+  la touche P, l'écriture regroupée par compte, le mois d'avant en bas ; sans pointage, « Préparer sans pointage » et
+  les entrées du mois.
+- **L'année** : le brut des bulletins validés face au compte 640 du livre (validé), et la fin de l'année en cinq points
+  avec le lien vers la déclaration annuelle d'employeur.
+- **Salariés** : le résumé (en poste, contrats qui finissent, sortis), l'ancienneté, la colonne RIB, « Ses documents de
+  sortie… » sur un CDD qui finit, « Les demander » pour ce qui manque à une fiche.
+- **Congés et avances** : les absences des 60 prochains jours, et à qui revient la décision d'une demande.
+
+Tests : `tests/web/cabinet-paie-parcours.test.ts` (« 1.237.0 — l'inventaire de la maquette… »). Preuves
+`paie cabinet 1.237 a` à `e`.
+
+**Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
+dossiers » ; le rappel de salaire (décision de Skander).

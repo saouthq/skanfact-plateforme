@@ -17071,8 +17071,8 @@ prouver 'le droit annuel gardé en texte que le solde ne lit pas' 'web/public/v1
   'const perYear = typeof s.leaveDaysPerYear === '"'"'number'"'"' ? s.leaveDaysPerYear : 0;' \
   'deux chemins, un chiffre : le moteur commun et celui de l'"'"'entreprise ; le droit gardé en texte par la fiche du Cabinet'
 prouver 'le panneau des congés absent de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
-  '${tete}${vueConges(dossier, L, s.annee)}' \
-  '${tete}' \
+  '${paieAbsencesAVenir(dossier, L, P)}${vueConges(dossier, L, s.annee)}' \
+  '${paieAbsencesAVenir(dossier, L, P)}' \
   'un client sur SkanFact : ses congés et son droit se lisent, sans geste pour les changer'
 prouver 'un client sur SkanFact dont le Cabinet saisit les congés' 'web/public/v10/cabinet/app.js' \
   'const congesTenus = L => !L.reglagesPaie && !(L.exercice || {}).clos;' \
@@ -22314,7 +22314,7 @@ prouver 'paie cabinet 1.236 a : « Marquer remis » n'\''écrit rien' web/public
   '{ remisLe: aujourdhui() }' '{}' \
   "$WC1"
 prouver 'paie cabinet 1.236 b : l'\''écriture de paie compte par compte absente' web/public/v10/cabinet/app.js \
-  '${table}${paieEcriture(L, m, bulletins, P)}`;' '${table}`;' \
+  '${table}${paieEcriture(L, m, bulletins, P)}${paieMoisDAvant' '${table}${paieMoisDAvant' \
   "$WC1"
 prouver 'paie cabinet 1.236 c : les douze mois ne refont pas l'\''année' web/public/v10/cabinet/app.js \
   "const M = KC.MOIS_PAIE.map((lab, i) => ({ lab, x: KC.masseSalariale(KC.bulletinsDuMois(L, annee, i + 1)) }));" "const M = KC.MOIS_PAIE.map((lab, i) => ({ lab, x: KC.masseSalariale(KC.bulletinsDuMois(L, annee, i + 1).slice(1)) }));" \
@@ -22325,6 +22325,24 @@ prouver 'paie cabinet 1.236 d : le CDD qui finit ne se dit pas' web/public/v10/c
 prouver 'paie cabinet 1.236 e : le pointage attendu ne se demande pas' web/public/v10/cabinet/app.js \
   "P.mode === 'tenue' && api.messagerie && !dossier.manual ? \`<button type=\"button\" class=\"btn btn-sm\" id=\"pa-demander-pt\">" "false ? \`<button type=\"button\" class=\"btn btn-sm\" id=\"pa-demander-pt\">" \
   "$WC1"
+
+# 1.237.0 — l'inventaire des maquettes (docs/revue-paie-cabinet.md § 8) : l'avance oubliée, les contrôles, le volet, les vues.
+WC5="1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
+prouver 'paie cabinet 1.237 a : l'\''avance oubliée ne se dit pas' web/public/v10/cabinet/app.js \
+  '${bandeaux}${paieAnomalies(L, P, o)}' '${bandeaux}' \
+  "$WC5"
+prouver 'paie cabinet 1.237 b : la correction proposée ne rembourse pas l'\''avance' web/public/v10/cabinet/app.js \
+  '...(pre && pre.advanceId ? { advanceId: pre.advanceId } : {})' '...{}' \
+  "$WC5"
+prouver 'paie cabinet 1.237 c : le Cabinet ne lit pas le RIB du salarié' web/public/plateforme/pont-cabinet.js \
+  "rib: e.iban || ''," "rib: ''," \
+  "$WC5"
+prouver 'paie cabinet 1.237 d : le mois d'\''avant ne se montre pas' web/public/v10/cabinet/app.js \
+  '${paieMoisDAvant(L, annee, m, avants)}`;' '`;' \
+  "$WC5"
+prouver 'paie cabinet 1.237 e : les vues ne disent pas leur nombre' web/public/v10/cabinet/app.js \
+  "\${nb ? \` <span class=\"cp-pa-nb" "\${false ? \` <span class=\"cp-pa-nb" \
+  "$WC5"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -43,7 +43,7 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
 
   // Une boulangerie (Sarra) et son cabinet (Anis), le mandat de paie accepté ; cinq salariés en poste, leurs bulletins du mois
   // (et du mois d'avant), une demande de congé pas encore acceptée ; le choix écrit de Sarra : `mode`.
-  const monter = async (mode: 'tenue' | 'seule' | 'sans') => {
+  const monter = async (mode: 'tenue' | 'seule' | 'sans', options: { avance?: boolean } = {}) => {
     const email = `p-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Sarra', motDePasse: 'Un-bon-mot-de-passe' });
     const j = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
@@ -63,6 +63,13 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     const ceMois = S.map((e) => bul(e, an, mo, e.grossSalary));
     for (const e of S) await poser('employees', e.id, e);
     for (const b of [...ceMois, ...S.map((e) => ({ ...bul(e, anA, moA, e.grossSalary), paidDate: `${anA}-${mm(moA)}-28` }))]) await poser('payslips', b.id, b);
+    if (options.avance) {
+      // 1.237.0 — une avance versée le mois d'avant, à rendre 100,000 par mois, que le bulletin du mois ne retient pas ; et
+      // un congé demandé pour les semaines qui viennent.
+      await poser('advances', 'av1', { id: 'av1', employeeId: 'hm', date: `${anA}-${mm(moA)}-05`, amount: 300, monthly: 100, note: 'Avance' });
+      const j = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+      await poser('leaves', 'l2', { id: 'l2', employeeId: 'nb', kind: 'conges', from: j(10), to: j(12), paid: null, note: '', statut: 'demande', demandeLe: j(0) });
+    }
     await poser('leaves', 'l1', { id: 'l1', employeeId: 'kr', kind: 'conges', from: `${an}-${mm(mo)}-20`, to: `${an}-${mm(mo)}-22`, paid: null, note: '', statut: 'demande', demandeLe: `${an}-${mm(mo)}-10` });
     const o = (await api('GET', `/entreprises/${ent}/dossier-v10`, j)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[];
     const f = o.find((x) => x.collection === '_racine' && x.cle === 'company');
@@ -108,7 +115,7 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     const A = await monter('tenue');
     const { p, erreurs } = await ouvrir(A);
     expect(espace(await p.locator('#pa-qui').innerText())).toBe('5 salariés · tenue au cabinet, avec l\'accord de Sarra');
-    expect(await p.locator('[data-pa-vue]').evaluateAll((els) => els.filter((e) => e.closest('.pa-so')).map((e) => e.textContent))).toEqual(['Le mois', 'Salariés', 'Congés et avances', 'CNSS du trimestre', 'L\'année']);
+    expect(await p.locator('[data-pa-vue]').evaluateAll((els) => els.filter((e) => e.closest('.pa-so')).map((e) => (e.firstChild?.textContent ?? '').trim()))).toEqual(['Le mois', 'Salariés', 'Congés et avances', 'CNSS du trimestre', 'L\'année']);
     // Un seul bouton principal : l'étape suivante.
     expect(await p.locator('#view .btn-primary').count()).toBe(1);
     expect(espace(await p.locator('#pa-envoyer').innerText())).toBe('Envoyer à Sarra pour accord');
@@ -263,6 +270,65 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(erreurs).toEqual([]);
     await p.close();
   }, 240_000);
+
+  it('1.237.0 — l\'inventaire de la maquette : l\'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l\'année, les salariés, les absences à venir', async () => {
+    const A = await monter('seule', { avance: true });
+    const { p, erreurs } = await ouvrir(A);
+    const hamza = A.ceMois.find((b) => b.employeeId === 'hm');
+    // Les nombres sur les vues.
+    expect(espace(await p.locator('.pa-so [data-pa-vue="salaries"] .cp-pa-nb').innerText())).toBe('5');
+    // L'avance oubliée, trouvée d'elle-même : le bandeau, et le bouton principal la propose.
+    expect(espace(await p.locator(`[data-pa-oubli="${hamza?.id}"]`).innerText())).toMatch(/^Hamza Mejri : l'avance n'est pas retenue\..*100,000/);
+    expect(espace(await p.locator('#pa-proposer-oubli').innerText())).toBe('Proposer la correction à Sarra');
+    // Les contrôles : ce qui demande un geste d'abord, les justes ensuite, avec les règles À VÉRIFIER.
+    const ctl = espace(await p.locator('#pa-controles').innerText());
+    for (const morceau of ['Une avance pas retenue', 'Aucun net négatif ni nul', 'Taux du dossier', 'Le SMIG', 'À VÉRIFIER']) expect(ctl).toContain(morceau);
+    expect(await p.locator('#pa-controles [data-ctl="ko"]').count()).toBeGreaterThanOrEqual(1);
+    expect(ctl).toMatch(/\d+ contrôles · \d+ justes · \d+ à savoir/);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-7-inventaire.png'), fullPage: true });
+    // La correction préremplie : la retenue, son montant, sa raison ; acceptée, elle remboursera l'avance (advanceId).
+    await p.locator('#pa-proposer-oubli').click();
+    const fen = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fen.locator('[name=montant]').inputValue()).toBe('100,000');
+    expect(await fen.locator('[name=motif]').inputValue()).toContain('n\'est pas retenue');
+    await fen.locator('#pc-ok').click();
+    await expect.poll(async () => (await A.bulletins()).find((b) => b.cle === hamza?.id)?.contenu.correction != null).toBe(true);
+    const corr = ((await A.bulletins()).find((x) => x.cle === hamza?.id)?.contenu as unknown as { correction: { champs: { deductions: Record<string, unknown>[] } } }).correction;
+    expect(corr.champs.deductions.map((d) => [nombre(d.amount), d.advanceId])).toEqual([[100, 'av1']]);
+    // Le volet : le PDF et « Vérifié », pas de « Modifier » sur la paie du client ; le RIB masqué.
+    const nadia = A.ceMois.find((b) => b.employeeId === 'nb');
+    await p.locator(`#pa-bulletins tr[data-bul="${nadia?.id}"] td`).first().click();
+    await expect.poll(() => p.locator('#pa-volet').count()).toBe(1);
+    expect(await p.locator(`#pa-volet [data-pa-pdf="${nadia?.id}"]`).count()).toBe(1);
+    expect(await p.locator(`#pa-volet [data-pa-verifie="${nadia?.id}"]`).count()).toBe(1);
+    expect(await p.locator('#pa-volet [data-pa-modifier]').count()).toBe(0);
+    expect(espace(await p.locator('#pa-volet').innerText())).toContain('par virement · ··· 2359');
+    // L'écriture regroupée par compte, et le mois d'avant.
+    expect(await p.locator('#pa-ecriture tr[data-compte="640"]').count()).toBe(1);
+    expect(espace(await p.locator('#pa-mois-avant').innerText())).toMatch(/^\S+ : 5 bulletins.*Ouvrir/);
+    // Les écarts, ligne à ligne : la somme des écarts fait l'écart du brut (deux chemins, un chiffre).
+    await p.locator('#pa-controles [data-pa-vue="ecarts"]').first().click();
+    await expect.poll(() => p.locator('#pa-ecarts-juste').innerText()).toMatch(/^✓ Brut .* égal au millime\.$/);
+    // Le paramétrage du dossier : ce qui est réglé, ce qui ne l'est pas, la convention d'abord.
+    await p.locator('#pa-ecarts [data-pa-vue="mois"]').click();
+    await p.locator('#pa-controles [data-pa-vue="param"]').click();
+    await expect.poll(() => p.locator('#pa-param-conv').count()).toBe(1);
+    expect(espace(await p.locator('#pa-param').innerText())).toMatch(/\d+ réglés · \d+ à régler/);
+    // L'année : les bulletins et le livre ; la fin de l'année.
+    await p.locator('.pa-so [data-pa-vue="annee"]').click();
+    expect(espace(await p.locator('#pa-livre-640').innerText())).toContain('égaux au millime');
+    expect(await p.locator('#pa-fin-annee li').count()).toBe(5);
+    // Les salariés : le résumé, l'ancienneté, le RIB masqué, le CDD qui finit et ses documents de sortie.
+    await p.locator('.pa-so [data-pa-vue="salaries"]').click();
+    expect(espace(await p.locator('#pa-sal-resume').innerText())).toMatch(/^5 en poste · 1 contrat qui finit · aucun sorti$/);
+    expect(espace(await p.locator('#pa-salaries tr[data-sal="mt"]').innerText())).toMatch(/depuis 03\/2023.*··· 2359/);
+    expect(await p.locator('#pa-cdd [data-pa-docs="kr"]').count()).toBe(1);
+    // Congés et avances : l'absence à venir, et qui décide.
+    await p.locator('.pa-so [data-pa-vue="conges"]').click();
+    expect(espace(await p.locator('#pa-absences').innerText())).toContain('la décision est à Sarra');
+    expect(erreurs).toEqual([]);
+    await p.close();
+  }, 300_000);
 
   it('faite par le client seul : le Cabinet la lit, sans geste de paie ; au téléphone, rien ne déborde', async () => {
     const A = await monter('sans');

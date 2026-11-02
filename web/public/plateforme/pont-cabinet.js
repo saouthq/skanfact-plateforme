@@ -761,6 +761,8 @@
     genre: e.gender === 'f' || e.gender === 'm' ? e.gender : '',
     contrat: e.contract || 'cdi', embauche: e.hireDate || '', sortie: e.endDate || '', brut: Number(e.grossSalary) || 0,
     chefDeFamille: !!e.headOfFamily, enfants: Number(e.children) || 0, actif: e.active !== false, note: e.notes || '',
+    // 1.237.0 — son RIB, que l'écran ne montre que masqué (« ··· 0918 »), et le mode de paiement de sa fiche.
+    rib: e.iban || '', methode: e.method || '',
     // 1.68.0 — ses primes de chaque mois (celles de l'entreprise, 1.59.0) : un bulletin nouveau les reprend.
     primes: Array.isArray(e.primes) ? e.primes : [],
   });

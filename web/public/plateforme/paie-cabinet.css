@@ -111,3 +111,16 @@
   .cp-pa-faits li > .btn { grid-column: 2; justify-self: start; }
   .cp-pa-barre, .cp-pa-barre-h { display: none; }
 }
+
+/* ── 1.237.0 : ce que l'inventaire de la maquette a fait ajouter ── */
+.cp-pa-nb { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px; border-radius: 99px; background: var(--sb-papier-2, var(--sb-trait)); color: var(--sb-gris); font-size: 11px; font-weight: 700; box-sizing: border-box; }
+.cp-pa-nb.alerte { background: color-mix(in srgb, var(--sb-ambre) 22%, var(--sb-papier)); color: var(--sb-ambre-texte); }
+.cp-pa-qui .cp-pa-poste { display: block; color: var(--sb-gris); font-size: 12px; }
+.cp-pa-liens { display: inline-flex; gap: 14px; flex-wrap: wrap; margin-left: auto; }
+.btn-lien { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--sb-sarcelle-texte, var(--sb-sarcelle)); text-decoration: underline; cursor: pointer; }
+.cp-pa-bandeau.ambre { border-color: color-mix(in srgb, var(--sb-ambre) 40%, var(--sb-trait)); background: color-mix(in srgb, var(--sb-ambre) 8%, var(--sb-papier)); }
+.cp-pa-g { display: inline-flex; gap: 8px; flex-wrap: wrap; margin-left: 8px; vertical-align: middle; }
+.cp-pa-volet-g { flex-wrap: wrap; margin-top: 10px; }
+.cp-pa-liste-fin { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; }
+.cp-pa-avant { margin: 12px 4px 0; }
+#pa-controles .ctrl-geste.ok b { font-weight: 600; }
