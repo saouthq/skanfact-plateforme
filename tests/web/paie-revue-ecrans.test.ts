@@ -74,7 +74,7 @@ describe('la paie : les écrans de la revue', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${x.ent}${hash}`);
     await p.locator(hash.startsWith('#/salarie') ? '#fs-head' : '#p-head').waitFor({ timeout: 20_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3000 }).catch(() => undefined);
-    if (an && mo) { if (await p.locator('#p-year').inputValue() !== String(an)) await p.locator('#p-year').selectOption(String(an)); await p.locator('#p-month').selectOption(String(mo)); }
+    if (an && mo) { for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(an); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(an) ? '#p-an-prec' : '#p-an-suiv').click(); await p.locator(`#p-mois [data-p-mois="${mo}"]`).click(); }
     await p.waitForTimeout(400);
     return p;
   };
@@ -171,23 +171,30 @@ describe('la paie : les écrans de la revue', () => {
     await p.keyboard.press('Escape');
     await p.getByRole('button', { name: 'Abandonner la saisie', exact: true }).click();
     await expect.poll(() => p.locator('#lf').count()).toBe(0);
-    // Le pointage : un seul choix du mois, à côté des vues (1.249.0 : le mois du jour, ‹ › pour changer, « Ce mois-ci » pour
-    // y revenir ; recette du 02/11 : il s'ouvrait sur le mois de paie, octobre, le 2 novembre).
+    // Le pointage : (1.251.0) le mois est celui de la bande des douze mois, commune à toute la page ; tant qu'on n'en a pas
+    // choisi, le pointage s'ouvre sur le mois du jour (recette du 02/11 : il s'ouvrait sur le mois de paie, octobre, le 2
+    // novembre). Un autre mois de la bande : la grille passe à ce mois, la bande garde sa place (rien ne glisse).
     await p.locator('#p-tabs button[data-tab="pointage"]').click();
     await p.locator('#pt-panneau').waitFor();
     expect(await p.locator('#pt-panneau select').count()).toBe(0);
-    expect(await p.locator('#p-mois #pt-nav').count()).toBe(1);
+    const auj = new Date(), moisJour = auj.getUTCMonth() + 1;
+    expect(await p.locator('#p-mois .cp-mo.on').getAttribute('data-p-mois')).toBe(String(moisJour));
     const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-    const auj = new Date(), ceMois = `${MOIS[auj.getUTCMonth()]} ${auj.getUTCFullYear()}`;
-    expect((await p.locator('#pt-mois-l').innerText()).toLowerCase()).toBe(ceMois);
-    expect(await p.locator('#pt-ce-mois').isDisabled()).toBe(true);
-    const large = (await p.locator('#p-mois').boundingBox())?.width;
-    await p.locator('#pt-prec').click();
-    await expect.poll(async () => (await p.locator('#pt-mois-l').innerText()).toLowerCase()).toBe(`${MOIS[(auj.getUTCMonth() + 11) % 12]} ${auj.getUTCMonth() ? auj.getUTCFullYear() : auj.getUTCFullYear() - 1}`);
-    // Le choix ne change pas de largeur : les vues à côté ne bougent pas sous la souris.
-    expect((await p.locator('#p-mois').boundingBox())?.width).toBe(large);
-    await p.locator('#pt-ce-mois').click();
-    await expect.poll(async () => (await p.locator('#pt-mois-l').innerText()).toLowerCase()).toBe(ceMois);
+    const titrePt = async () => (await p.locator('#pt-panneau .pa-carte-t b, #pt-panneau h2, #pt-panneau b').first().innerText()).toLowerCase();
+    expect(await titrePt()).toContain(MOIS[moisJour - 1]);
+    // Aujourd'hui se voit dans la grille : « auj. » au-dessus du numéro du jour, une seule colonne, et sur le mois du jour
+    // seulement (Skander, 02/11 : « on ne sait pas quel jour on est »).
+    expect(espace(await p.locator('#pt-grille th[aria-current="date"]').innerText())).toBe(`auj. ${auj.getUTCDate()}`);
+    expect(await p.locator('#pt-grille td.pt-auj-td').count()).toBe(await p.locator('#pt-grille tbody tr').count());
+    const place = await p.locator('#p-mois').boundingBox();
+    const autre = moisJour === 1 ? 2 : moisJour - 1;
+    await p.locator(`#p-mois [data-p-mois="${autre}"]`).click();
+    await expect.poll(titrePt).toContain(MOIS[autre - 1]);
+    expect(await p.locator('#pt-grille th[aria-current="date"]').count()).toBe(0);
+    expect(await p.locator('#p-mois .cp-mo.on').getAttribute('data-p-mois')).toBe(String(autre));
+    expect(await p.locator('#p-mois').boundingBox()).toEqual(place);
+    await p.locator(`#p-mois [data-p-mois="${moisJour}"]`).click();
+    await expect.poll(titrePt).toContain(MOIS[moisJour - 1]);
     // 1.234.0 (la maquette) : une case « présent » se lit vide ; sa lettre reste pour le clavier et les lecteurs d'écran.
     const present = p.locator('#pt-grille .pt-c.pt-P').first();
     expect(await present.textContent()).toBe('P');

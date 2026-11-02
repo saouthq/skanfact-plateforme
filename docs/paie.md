@@ -1973,3 +1973,36 @@ bulletin au téléphone, la case présente vide, l'accord du journal et les sect
 
 Restent notés pour le lot suivant : le mois des **Déclarations** par ‹ › (une liste aujourd'hui), et la déclaration du mois en
 cours absente de « Ce que tu verses » (la dire « en cours », comme la CNSS du trimestre).
+
+## La paie de l'entreprise : un seul mois pour toute la page (02/11/2026, 1.251.0)
+
+Skander, le 02/11 : quatre façons de choisir un mois (une liste dans « Le mois », ‹ › au pointage, ‹ › au calendrier des
+congés, une liste aux déclarations) qui ne se suivaient pas : octobre dans un onglet, novembre dans l'autre. Il a choisi, sur
+le modèle de la saisie du Cabinet, **la bande des douze mois** :
+
+- **Sous les onglets, les douze mois de l'année**, l'année entre ‹ › à gauche, « Toute l'année » au bout (elle ouvre l'onglet
+  de l'année). Chaque mois dit où en est sa paie, lu des mêmes fonctions que « À traiter » et « Ce que tu verses » :
+  « déclarée » ou « payée » (vert), « à faire » (un bulletin manque), « à payer », « à déclarer » (ambre), « en retard » (la
+  date de la déclaration est passée, rouge), « en cours » (le mois du jour), « à venir ». Avant le premier bulletin fait dans
+  SkanFact, un mois se tait (« — ») : la paie était tenue ailleurs, rien n'y est « à faire » (comme la CNSS d'un trimestre
+  sans bulletin, 1.248.0).
+- **Le mois choisi vaut pour toute la page** : bulletins, pointage, calendrier des congés, déclaration du mois ; le trimestre
+  CNSS suit. Les choix de mois des cartes ont disparu.
+- **Le mois d'entrée se fixe en arrivant** (le « mois à traiter ») ; il ne se recalcule plus en route : établir les bulletins
+  le faisait avancer, et la page sautait au mois suivant sous les yeux (vu par les tests en écrivant la bande). Le pointage,
+  tant qu'on n'a choisi aucun mois, montre le mois du jour (recette du 02/11, 1.249.0).
+- **Au téléphone**, la bande défile au doigt, le mois choisi au milieu, l'année reste à gauche.
+- **Aujourd'hui se voit** dans la grille du pointage et le calendrier des congés : « auj. » au-dessus du numéro cerclé et une
+  teinte sur la colonne (Skander : « on ne sait pas quel jour on est »).
+- **Les tableaux des cartes** n'ont plus de second cadre collé à celui de la carte ; leurs colonnes s'alignent sur le titre.
+  Au téléphone, plus de carte dans la carte, et le texte va à la ligne au lieu de sortir ou de se couper en « … ».
+- **« Ce que tu verses »** montre la déclaration du mois en cours, « en cours : N bulletins jusqu'ici », comme la CNSS du
+  trimestre en cours ; « Déclaration d'octobre » prend l'élision.
+
+Tests : `tests/web/paie-mois.test.ts` (l'état des mois, le calendrier qui suit la bande, les cadres, le téléphone),
+`tests/web/paie-revue-ecrans.test.ts` (le pointage sur le mois du jour, aujourd'hui dans la grille), `tests/web/parcours.test.ts`
+et les autres tests de la paie passent par la bande. Preuves : `paie 1.251 a` à `g`, et deux reprises (1.233 a, 1.250 d). Vu
+à l'écran seulement : aujourd'hui dans le calendrier des congés.
+
+Viendra (1.252.0, décidé avec Skander le 02/11) : quatre onglets au lieu de six (Le mois, Présences, Salariés, Déclarations).
+

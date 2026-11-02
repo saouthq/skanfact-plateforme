@@ -386,7 +386,6 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 .fs-prep-c small { font-size: 11.5px; color: var(--sb-gris); line-height: 1.35; }
 
 /* (1.249.0) Le pointage refait (recette du 02/11) : son mois à flèches, le calendrier d'un salarié, les horaires sur place. */
-#p-mois:has(#pt-nav) { padding-right: 4px; gap: 4px; }
 .pt-nav { display: inline-flex; align-items: center; gap: 2px; }
 .pt-nav-b { display: inline-grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--sb-encre); cursor: pointer; }
 .pt-nav-b svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transform: rotate(180deg); }
@@ -490,3 +489,65 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 .cg-t td.cg-libre button { display: block; width: 100%; height: 26px; border: 0; background: none; cursor: pointer; border-radius: 5px; }
 .cg-t td.cg-libre button:hover { background: var(--sb-papier-2); box-shadow: inset 0 0 0 1px var(--sb-trait-fort); }
 .cg-t td.cg-libre button:focus-visible { outline: 2px solid var(--sb-sarcelle); }
+
+/* (1.251.0) Un tableau dans une carte de la paie : la carte est son cadre. Il gardait le sien (bordure, coins, ombre),
+   collé au bord de la carte : deux traits l'un sur l'autre (Skander, 02/11). Ses colonnes s'alignent sur le titre. */
+.pa-carte table.list { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.pa-carte table.list tr > :first-child { padding-left: 16px; }
+.pa-carte table.list tr > :last-child { padding-right: 16px; }
+.pa-carte table.list tbody tr:last-child td, .pa-carte table.list tfoot tr:last-child td { border-bottom: 0; }
+/* (1.251.0) La journée de paie : le n° de ligne collé au cadre du tableau (4 px). */
+#jp-table tr > :first-child { padding-left: 12px; }
+@media (max-width: 720px) {
+  /* Au téléphone, les lignes d'un tableau deviennent des cartes ; dans une carte de la paie, ce faisait une carte dans une
+     carte, cadre contre cadre. Elles se séparent d'un trait, à l'intérieur de la carte. */
+  .pa-carte table.list[data-cartes] > tbody, .pa-carte table.list[data-cartes] > tfoot { gap: 0; }
+  .pa-carte table.list[data-cartes] > tbody > tr, .pa-carte table.list[data-cartes] > tfoot > tr { border: 0; border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--sb-trait); }
+  .pa-carte table.list[data-cartes] > tfoot { margin-top: 0; }
+  /* Rien ne sort de sa carte ni ne se coupe en « … » : le texte va à la ligne. */
+  .pa-carte table.list[data-cartes] td, .pa-carte table.list[data-cartes] td.nw { white-space: normal; overflow-wrap: anywhere; }
+  .pa-n b, .pa-n small, .av-b small { white-space: normal; overflow: visible; text-overflow: clip; }
+}
+
+/* (1.251.0) La bande des douze mois de la paie : la même que la saisie du cabinet (comptabilite.css, qui n'est pas chargé
+   côté entreprise) ; un mois choisi vaut pour toute la page. */
+.cp-an { display: grid; grid-template-columns: auto repeat(12, minmax(0, 1fr)) auto; gap: 6px; align-items: stretch; margin: 0 0 14px; }
+.cp-an-t { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; color: var(--sb-encre); padding-right: 4px; }
+.cp-mo { border: 1px solid var(--sb-trait); background: var(--sb-papier); border-radius: 10px; padding: 7px 6px 6px; display: grid; gap: 1px; text-align: left; font: inherit; cursor: pointer; min-width: 0; }
+.cp-mo b { font-size: 12.5px; color: var(--sb-encre); }
+.cp-mo small { font-size: 11px; color: var(--sb-gris-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-mo:hover { border-color: var(--sb-trait-fort); }
+.cp-mo.ok { background: color-mix(in srgb, var(--sb-doux) 55%, var(--sb-papier)); border-color: transparent; }
+.cp-mo.ok small { color: var(--sb-doux-texte); }
+.cp-mo.rouge { background: var(--sb-rouge-doux); border-color: color-mix(in srgb, var(--sb-rouge-texte) 35%, transparent); }
+.cp-mo.rouge small { color: var(--sb-rouge-texte); font-weight: 600; }
+.cp-mo.ambre { background: var(--sb-ambre-doux); border-color: transparent; }
+.cp-mo.ambre small { color: var(--sb-ambre-texte); font-weight: 600; }
+.cp-mo.vide { border-style: dashed; background: transparent; }
+.cp-mo.on { box-shadow: 0 0 0 2px var(--sb-sarcelle); }
+.cp-ex { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; padding: 0 2px; white-space: nowrap; }
+.cp-ex.on { text-decoration: underline; text-underline-offset: 3px; }
+
+#p-mois.pa-mois { display: block; height: auto; padding: 0; border: 0; background: none; margin: 12px 0 2px; }
+.pa-bande .pa-bande-an { gap: 2px; }
+.pa-bande .pa-bande-an b { font-size: 14px; min-width: 40px; text-align: center; }
+@media (max-width: 1240px) { .cp-mo small { white-space: normal; overflow: visible; line-height: 1.2; } }
+@media (max-width: 760px) {
+  .cp-an { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none; }
+  .cp-an-t { flex: 0 0 auto; }
+  .cp-mo { flex: 0 0 78px; min-height: 44px; scroll-snap-align: start; }
+  .cp-ex { flex: 0 0 auto; min-height: 44px; }
+}
+@media (max-width: 760px) {
+  .pa-bande { position: relative; }
+  .pa-bande .pa-bande-an { position: sticky; left: 0; z-index: 1; background: var(--sb-fond, var(--sb-papier)); padding-right: 6px; }
+  /* Au doigt, 44 points (l'instrument de rendu : les flèches de l'année faisaient 30×30). */
+  .pa-bande .pa-bande-an .pt-nav-b { width: 44px; height: 44px; }
+}
+
+/* (1.251.0) Aujourd'hui dans les grilles du pointage et des congés : « auj. » au-dessus du numéro cerclé, et une teinte sur
+   toute la colonne (Skander, 02/11 : « on ne sait pas quel jour on est »). */
+.pt-grille th.pt-auj-j, .cg-t th.cg-auj { color: var(--sb-sarcelle-texte); }
+.pt-grille th.pt-auj-j span, .cg-t th.cg-auj small { color: var(--sb-sarcelle-texte); font-weight: 700; }
+.pt-grille th.pt-auj-j b, .cg-t th.cg-auj b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 3px; border-radius: 99px; background: var(--sb-sarcelle); color: #fff; font-weight: 700; }
+.pt-grille td.pt-auj-td, .cg-t td[data-auj] { background: color-mix(in srgb, var(--sb-sarcelle) 9%, transparent); }

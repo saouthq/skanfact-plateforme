@@ -405,8 +405,7 @@
   b('#new-emp', "Déclare un nouveau salarié : son contrat, son salaire, son numéro CNSS.");
   b('#emp-first', "Déclare ton premier salarié.");
   b('#p-gen', "Établit d'un coup les bulletins qui manquent pour ce mois, à partir des fiches et des congés.");
-  b('#p-month', "Le mois des bulletins affichés.", { nom: 'Mois' });
-  b('#p-year', "L'année des bulletins et des déclarations affichés.", { nom: 'Année' });
+  b('#p-mois', "Les douze mois de l'année : chacun dit où en est sa paie (payée, déclarée, à faire, en retard). Le mois choisi vaut pour toute la page : bulletins, pointage, congés, déclaration.", { nom: 'Les mois' });
   b('[data-payer]', "Note que ce salaire est versé : il sort de ta trésorerie.", { nom: 'Marquer payé' });
   b('#new-lv', "Note un congé ou une absence : il se reportera sur le bulletin du mois.");
   b('#new-av', "Note une avance sur salaire : elle se retiendra sur les prochains bulletins.");
@@ -2103,8 +2102,8 @@
       bravo: 'Tu sais pointer',
       conclusion: 'Le bulletin du mois reprend tout seul les absences non payées et les heures supplémentaires. Un bulletin déjà établi qui ne suit plus le pointage le dit, sous la grille, avec le bouton qui le met à jour.',
       etapes: [
-        { page: '#/paie', avant: onglet('#p-tabs', 'pointage'), cible: '#pt-nav', cote: 'dessous', titre: 'Le mois pointé',
-          texte: 'Le pointage s\'ouvre sur le mois du jour. Les flèches passent au mois d\'avant ou d\'après ; « Ce mois-ci » y revient.' },
+        { page: '#/paie', avant: onglet('#p-tabs', 'pointage'), cible: '#p-mois', cote: 'dessous', titre: 'Le mois pointé',
+          texte: 'Le pointage s\'ouvre sur le mois du jour. Un clic sur un autre mois de la bande le montre ; chaque mois dit où en est sa paie.' },
         { cible: '#pt-auj', cote: 'dessus', facultatif: true, titre: 'Aujourd\'hui',
           texte: 'Un geste par salarié, le jour même : <b>Absent</b>, <b>Congé</b>, <b>Malade</b>, <b>Demi-journée</b>. Rien à faire pour ceux qui sont là.' },
         { cible: '#pt-periode', cote: 'dessous', titre: 'Une période d\'un coup',

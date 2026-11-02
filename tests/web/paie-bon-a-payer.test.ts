@@ -94,7 +94,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${x.ent}${o.hash || '#/paie'}`);
     await p.locator(o.hash && o.hash.startsWith('#/salarie') ? '#fs-head' : '#p-tabs').waitFor({ timeout: 20_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3000 }).catch(() => undefined);
-    if (!(o.hash && o.hash.startsWith('#/salarie'))) { if (await p.locator('#p-year').inputValue() !== String(x.an)) await p.locator('#p-year').selectOption(String(x.an)); await p.locator('#p-month').selectOption(String(x.mo)); }
+    if (!(o.hash && o.hash.startsWith('#/salarie'))) { for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(x.an); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(x.an) ? '#p-an-prec' : '#p-an-suiv').click(); await p.locator(`#p-mois [data-p-mois="${x.mo}"]`).click(); }
     if (o.sombre) await p.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     await p.waitForTimeout(500);
     return p;
@@ -236,8 +236,10 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     await p.close();
     p = await ouvrir(A);
     await p.locator('#p-tabs button[data-tab="declarations"]').click();
-    await expect.poll(() => p.locator('#dc-verses li').count()).toBe(4);
-    expect(espace(await p.locator('#dc-verses li').nth(1).innerText())).toMatch(/^Déclaration de \S+ : retenues et taxes sur les salaires/);
+    // (1.251.0) Cinq lignes : le trimestre passé, le mois écoulé, le mois en cours, le trimestre en cours, l'année.
+    await expect.poll(() => p.locator('#dc-verses li').count()).toBe(5);
+    expect(espace(await p.locator('#dc-verses li').nth(1).innerText())).toMatch(/^Déclaration (de |d')\S+ : retenues et taxes sur les salaires/);
+    expect(espace(await p.locator('#dc-verses li').nth(2).innerText())).toMatch(/^Déclaration (de |d')\S+ : retenues et taxes sur les salaires en cours : /);
     // 1.234.0 (la maquette) : plus de panneau « À déposer » ; le geste vit sur la ligne de ce qu'on verse.
     expect(await p.locator('#p-body h2', { hasText: 'À déposer' }).count()).toBe(0);
     expect(await p.locator('#dc-verses li').first().locator('[data-file]').count()).toBe(1);

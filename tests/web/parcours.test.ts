@@ -581,8 +581,8 @@ describe('le parcours, à la souris', () => {
 
     // Le mois suivant se calcule avec le nouveau barème.
     const suivant = Number(premier?.mois) === 12 ? 1 : Number(premier?.mois) + 1;
-    if (suivant === 1) await p.locator('#p-year').selectOption(String(Number(premier?.annee) + 1));
-    await p.locator('#p-month').selectOption(String(suivant));
+    if (suivant === 1) { for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(Number(premier?.annee) + 1); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(Number(premier?.annee) + 1) ? '#p-an-prec' : '#p-an-suiv').click(); }
+    await p.locator(`#p-mois [data-p-mois="${suivant}"]`).click();
     await p.locator('#p-gen').click();
     await p.locator('#modal-root #ok').click();
     await expect.poll(async () => (await auServeur()).length).toBe(2);
@@ -734,7 +734,8 @@ describe('le parcours, à la souris', () => {
     // clic, depuis le bandeau qui la nomme. On lit ensuite son calendrier pour viser des jours ouvrables et un dimanche.
     if (await p.locator('#pt-paie-go').count()) await p.locator('#pt-paie-go').click();
     const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-    const [nomMois, an] = (await p.locator('#pt-mois-l').innerText()).trim().toLowerCase().split(/\s+/);
+    // (1.251.0) Le mois pointé est celui de la bande des douze mois : son titre dit « novembre 2026 : … ».
+    const [nomMois, an] = (String(await p.locator('#p-mois .cp-mo.on').getAttribute('title')).split(' : ')[0] ?? '').trim().toLowerCase().split(/\s+/);
     const annee = Number(an), mois = MOIS.indexOf(nomMois ?? '') + 1;
     expect(mois).toBeGreaterThan(0);
     const jourDeSemaine = (j: number) => new Date(Date.UTC(annee, mois - 1, j)).getUTCDay();
@@ -906,16 +907,13 @@ describe('le parcours, à la souris', () => {
     expect(await p.locator('#jp-table').count()).toBe(1);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#jp-table').count()).toBe(0);
-    // On regarde un autre mois des bulletins : la déclaration mensuelle, elle, s'ouvre sur le mois qu'on déclare maintenant
-    // (vu à l'écran le 19 octobre : elle suivait le mois des bulletins, et s'ouvrait sur octobre, vide).
+    // (1.251.0) Un seul mois pour toute la page : la déclaration montre le mois choisi dans la bande, celui des bulletins.
     const moisBulletins = Number((await bulletins())[0]?.month);
-    await p.locator('#p-month').selectOption(String(moisBulletins === 12 ? 11 : moisBulletins + 1));
-    await expect.poll(() => p.locator('#p-journal').count()).toBe(0);
 
     // Les déclarations : ce que la paie du mois ajoute à la déclaration mensuelle, les montants des bulletins.
     await p.locator('#p-tabs button[data-tab=declarations]').click();
-    const annee = Number(await p.locator('#p-year').inputValue());
-    const mois = Number(await p.locator('#dm-mois').inputValue());
+    const annee = Number(await p.locator('#p-an').innerText());
+    const mois = Number(await p.locator('#p-mois .cp-mo.on').getAttribute('data-p-mois'));
     expect(mois).toBe(moisBulletins);
     const dm = p.locator('#dm-table');
     expect(await dm.locator('tr[data-dm]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.dm))).toEqual(['irpp', 'css', 'tfp', 'foprolos']);
@@ -928,9 +926,9 @@ describe('le parcours, à la souris', () => {
     const [dmCsv] = await Promise.all([p.waitForEvent('download'), p.locator('#dm-csv').click()]);
     expect(fs.readFileSync(await dmCsv.path(), 'utf8').replace(/^\ufeff/, '').split('\r\n')[0]).toBe('Impôt ou taxe;Base;Taux (%);Montant');
     // Un mois sans bulletin le dit.
-    await p.locator('#dm-mois').selectOption(String(mois === 1 ? 2 : mois - 1));
+    await p.locator(`#p-mois [data-p-mois="${mois === 1 ? 2 : mois - 1}"]`).click();
     await expect.poll(() => p.locator('#dm-vide').innerText()).toMatch(/la paie n'ajoute rien à la déclaration de ce mois-là/);
-    await p.locator('#dm-mois').selectOption(String(mois));
+    await p.locator(`#p-mois [data-p-mois="${mois}"]`).click();
     await dm.waitFor();
 
     // L'état récapitulatif CNSS du trimestre : les cotisations sur le total des salaires, au taux du régime, et le total

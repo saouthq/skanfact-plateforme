@@ -81,3 +81,6 @@ salarié, sous-vues) et le certificat médical joint à l'arrêt maladie. Détai
 La recette suivante (1.250.0) : le bulletin au téléphone (les cases d'abord), le journal de paie (légende, PDF, ligne qui ouvre
 le bulletin, salarié sans bulletin nommé), le nouveau salarié en trois parties, la visite « Pointer à la main », la visite du
 document réparée, le calendrier des congés (‹ ›, une case libre qui ouvre la fenêtre). Détail : `docs/paie.md`, 1.250.0.
+
+Puis (1.251.0, demande de Skander) : un seul mois pour toute la page, choisi dans la bande des douze mois (chacun avec son
+état), aujourd'hui marqué dans les grilles, les tableaux sans second cadre. Détail : `docs/paie.md`, 1.251.0.

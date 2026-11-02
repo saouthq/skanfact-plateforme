@@ -101,9 +101,14 @@ describe('la paie : le mois, tel que sa maquette', () => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
       await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
     }
-    if (await p.locator('#p-year').inputValue() !== String(annee)) await p.locator('#p-year').selectOption(String(annee));
-    await p.locator('#p-month').selectOption(String(mois));
+    for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(annee); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(annee) ? '#p-an-prec' : '#p-an-suiv').click();
+    await p.locator(`#p-mois [data-p-mois="${mois}"]`).click();
     const texte = async (sel: string) => espace(await p.locator(sel).innerText());
+    // (1.251.0) La bande des douze mois dit l'état de chacun : le mois écoulé a ses bulletins, aucun payé : « à payer ».
+    // Le mois d'avant la paie dans SkanFact se tait (« — ») : la paie était tenue ailleurs, rien n'y est « à faire ».
+    expect(await texte(`#p-mois [data-p-mois="${mois}"] small`)).toBe('à payer');
+    expect(await p.locator(`#p-mois [data-p-mois="${mois}"]`).getAttribute('aria-pressed')).toBe('true');
+    if (moisAvant > 1 && anneeAvant === annee) expect(await texte(`#p-mois [data-p-mois="${moisAvant - 1}"] small`)).toBe('—');
 
     // ── L'en-tête : un seul geste principal, « Payer les salaires · total » ; le corps n'en porte aucun ────────────────
     await expect.poll(() => p.locator('#p-payer').count()).toBe(1);
@@ -160,9 +165,11 @@ describe('la paie : le mois, tel que sa maquette', () => {
     }
     await p.reload();
     await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
-    if (await p.locator('#p-year').inputValue() !== String(annee)) await p.locator('#p-year').selectOption(String(annee));
-    await p.locator('#p-month').selectOption(String(mois));
+    for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(annee); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(annee) ? '#p-an-prec' : '#p-an-suiv').click();
+    await p.locator(`#p-mois [data-p-mois="${mois}"]`).click();
     await expect.poll(() => p.locator('#p-remettre').count(), { timeout: 15_000 }).toBe(1);
+    // Tous payés : le mois n'est plus « à payer » dans la bande (il attend sa déclaration).
+    expect(['à déclarer', 'en retard']).toContain(await texte(`#p-mois [data-p-mois="${mois}"] small`));
     expect(await texte('#p-chiffres .pa-tuile:nth-child(1) .t')).toMatch(/^Net versé( |$)/); // tout est payé : le titre ne promet plus un versement
     expect(await texte('#p-remettre')).toBe('Remettre les 4 bulletins');
     expect(await etapes()).toEqual([['fait', 'Pointer'], ['fait', 'Bulletins'], ['fait', 'Payer'], ['ici', 'Remettre'], ['', 'Déclarer']]);
@@ -185,13 +192,12 @@ describe('la paie : le mois, tel que sa maquette', () => {
     expect(await p.locator('#cg-new-av').count()).toBe(1);
     // (1.250.0, recette du 02/11) Le calendrier des congés : ‹ › change le mois ; une case libre ouvre la fenêtre du congé
     // à ce jour et pour ce salarié (le jour et la personne déjà remplis).
+    // (1.251.0) Le calendrier suit le mois de la bande.
     const titreCal = async () => (await p.locator('#cg-cal .pa-carte-t b').first().innerText()).trim();
-    const avantNav = await titreCal();
-    const navSuiv = p.locator('#cg-cal [data-cg-m="1"]'), navPrec = p.locator('#cg-cal [data-cg-m="-1"]');
-    const pas = await navSuiv.isDisabled() ? navPrec : navSuiv;
-    await pas.click();
+    const avantNav = await titreCal(), moisCg = Number(await p.locator('#p-mois .cp-mo.on').getAttribute('data-p-mois'));
+    await p.locator(`#p-mois [data-p-mois="${moisCg === 1 ? 2 : moisCg - 1}"]`).click();
     await expect.poll(titreCal).not.toBe(avantNav);
-    await p.locator(`#cg-cal [data-cg-m="${await pas.getAttribute('data-cg-m') === '1' ? '-1' : '1'}"]`).click();
+    await p.locator(`#p-mois [data-p-mois="${moisCg}"]`).click();
     await expect.poll(titreCal).toBe(avantNav);
     // Un jour qui n'est pas aujourd'hui : la fenêtre s'ouvre sur aujourd'hui quand on ne lui dit rien.
     const aujLocal = await p.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
@@ -211,11 +217,22 @@ describe('la paie : le mois, tel que sa maquette', () => {
     await expect.poll(() => p.locator('#p-annee-chiffres .pa-tuile').count()).toBe(4);
     expect(await p.locator('#p-annee .pa-barre').count()).toBe(12);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-annee.png'), fullPage: true });
-    // Au téléphone, la page tient dans sa largeur (rien ne déborde à droite).
-    await p.setViewportSize({ width: 390, height: 844 });
+    // (1.251.0, Skander le 02/11) Un tableau dans une carte n'a pas de second cadre collé au sien, et ses colonnes
+    // s'alignent sur le titre de la carte.
     await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    const cadreDouble = () => p.evaluate(() => [...document.querySelectorAll('.pa-carte table.list')].filter((t) => (t as HTMLElement).offsetParent)
+      .map((t) => { const c = getComputedStyle(t), carte = t.closest('.pa-carte') as Element, titre = carte.querySelector('.pa-carte-t > b');
+        const cel = t.querySelector('tbody tr > :first-child') as HTMLElement | null, r = document.createRange(); if (cel) r.selectNodeContents(cel);
+        return { cadre: c.borderLeftWidth !== '0px' || c.boxShadow !== 'none', ecart: titre && cel ? Math.round(r.getBoundingClientRect().left - titre.getBoundingClientRect().left) : 0 }; }));
+    await expect.poll(async () => (await cadreDouble()).length).toBeGreaterThan(0);
+    expect((await cadreDouble()).filter((x) => x.cadre || Math.abs(x.ecart) > 2)).toEqual([]);
+    // Au téléphone, la page tient dans sa largeur (rien ne déborde à droite), et rien ne sort de sa carte ni ne se coupe
+    // en « … » : la liste « À traiter » se lit en entier.
+    await p.setViewportSize({ width: 390, height: 844 });
     await p.locator('#p-frise').waitFor();
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    expect(await p.locator('#p-traiter .pa-n b, #p-traiter .pa-n small').evaluateAll((l) => l.filter((x) => x.scrollWidth > x.clientWidth + 1).map((x) => x.textContent))).toEqual([]);
+    expect(await p.locator('#p-bulletins table.list[data-cartes] > tbody > tr').first().evaluate((x) => getComputedStyle(x).borderLeftWidth)).toBe('0px');
     await p.screenshot({ path: path.join(PHOTOS, 'paie-mois-telephone.png'), fullPage: true });
     expect(erreurs).toEqual([]);
   }, 240_000);

@@ -22251,8 +22251,8 @@ prouver 'paie 1.232 c : sans réseau la paie offre son geste' web/public/v10/app
   "      if (prin && navigator.onLine === false) prin = prin.replace(" "      if (false) prin = prin.replace(" \
   "$WRW3"
 prouver 'paie 1.233 a, 1.249 : le pointage s'\''ouvre sur le mois de paie, pas sur le mois du jour' web/public/v10/app.js \
-  "    if (!s.ptY) { const t = C.today();" "    if (!s.ptY) { const t = C.addMonths(C.today().slice(0, 7) + '-01', -1);" \
-  "$WRW3"
+  "['pointage', 'pt-salarie'].includes(s.tab) ? { year: Number(C.today().slice(0, 4)), month: Number(C.today().slice(5, 7)) } : entree;" "entree;" \
+  'aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
 
 # L'interface de la paie au plus près de sa maquette (1.234.0) : chaque défaut remis fait tomber son test.
 WI1="approuver avant de payer ; les contrôles ; « Annuler »"
@@ -22490,9 +22490,34 @@ prouver "paie 1.250 b : la légende du journal ne dit pas ce que veulent dire se
 prouver "paie 1.250 c : une case libre du calendrier des congés n'ouvre pas la fenêtre à son jour" web/public/v10/app.js \
   "leaveForm(null, id, apres, iso); });" "leaveForm(null, id, apres); });" \
   "$WP250M"
-prouver "paie 1.250 d : ‹ › ne change pas le mois du calendrier des congés" web/public/v10/app.js \
-  "s.moisCal = String(Math.min(12, Math.max(1, cur + Number(b.dataset.cgM))));" "" \
+prouver "paie 1.250 d, 1.251 : le calendrier des congés ne suit pas le mois choisi" web/public/v10/app.js \
+  "s.moisCal = String(s.month);" "s.moisCal = '1';" \
   "$WP250M"
+
+# 1.251.0 (Skander, 02/11/2026) : un seul mois pour toute la paie, choisi dans la bande des douze mois, chacun avec son état ;
+# aujourd'hui marqué dans la grille ; plus de second cadre autour des tableaux des cartes ; la déclaration du mois en cours.
+WP251R='importer ses salariés depuis la page vide ; un arrêt maladie et son certificat ; un seul mois au pointage'
+prouver "paie 1.251 a : un mois de la bande ne change pas le mois de la page" web/public/v10/app.js \
+  "s.month = m2; s.quarter = String(Math.ceil(Number(m2) / 3));" "s.quarter = String(Math.ceil(Number(m2) / 3));" \
+  "$WP251R"
+prouver "paie 1.251 b : la bande ne dit pas qu'un mois reste à payer" web/public/v10/app.js \
+  "if (C.payslipsOf(data, y, m).some(b => !b.paidDate)) return ['ambre', 'à payer'];" "" \
+  "$WP250M"
+prouver "paie 1.251 c : les mois d'avant SkanFact se disent « à faire »" web/public/v10/app.js \
+  "if (ym < premierMoisPaie) return ['vide', '—'];" "" \
+  "$WP250M"
+prouver "paie 1.251 d : la grille du pointage ne dit pas quel jour on est" web/public/v10/app.js \
+  "const estAuj = j => \`\${y}-\${String(m).padStart(2, '0')}-\${String(j.jour).padStart(2, '0')}\` === C.today();" "const estAuj = () => false;" \
+  "$WP251R"
+prouver "paie 1.251 e : la page saute au mois suivant une fois les bulletins établis" web/public/v10/app.js \
+  ": entree; s.year = String(mp.year);" ": C.moisDePaie(data); s.year = String(mp.year);" \
+  "$WP250J"
+prouver "paie 1.251 f : un tableau garde son cadre collé à celui de sa carte" web/public/plateforme/paie.css \
+  ".pa-carte table.list { border: 0; border-radius: 0; box-shadow: none; background: transparent; }" ".pa-carte table.list { }" \
+  "$WP250M"
+prouver "paie 1.251 g : la déclaration du mois en cours manque dans « Ce que tu verses »" web/public/v10/app.js \
+  "['echeance', \`Déclaration \${/^[aeiouyéè]/i.test(MONTHS_LONG[tm - 1]) ? 'd\\'' : 'de '}\${MONTHS_LONG[tm - 1]} : retenues et taxes sur les salaires\`, \`en cours : " "['x', \`en cours : " \
+  "la fiche d'une arrivée, ce que tu verses et quand, l'année par poste"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
