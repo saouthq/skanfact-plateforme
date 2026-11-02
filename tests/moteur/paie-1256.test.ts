@@ -58,11 +58,13 @@ describe('la paie 1.256.0 : ce que le métier demandait', () => {
     const reg = { ...(st as object), anciennete: [{ ans: 2, taux: 3 }] };
     const e = sal();
     const [plein] = C.primeAncienneteDuMois(e, reg, 2026, 10, 26, 26);
+    if (!plein) throw new Error('aucune prime d\'ancienneté');
     expect(plein.mensuel).toBe(C.round3(1100.125 * 3 / 100));
     expect(plein.amount).toBe(plein.mensuel);
     expect(plein.label).toBe('Prime d\'ancienneté (3 ans, 3 %)');
     expect(plein.taxable).toBe(true);
     const [moitie] = C.primeAncienneteDuMois(e, reg, 2026, 10, 13, 26);
+    if (!moitie) throw new Error('aucune prime d\'ancienneté');
     expect(moitie.amount).toBe(C.round3(plein.mensuel * 13 / 26));
     expect(C.primeAncienneteDuMois(e, st, 2026, 10, 26, 26)).toEqual([]);
     expect(C.primeAncienneteDuMois(sal({ hireDate: '2025-06-01' }), reg, 2026, 10, 26, 26)).toEqual([]); // 1 an : sous la tranche

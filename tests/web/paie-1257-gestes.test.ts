@@ -52,7 +52,7 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
       const saisie = { gross: e.grossSalary, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
       return { id: `p-${e.id}-${y}-${m}`, employeeId: e.id, year: y, month: m, ...saisie, computed: compta.computePayslip(e, saisie, compta.baremesPaie({})), paidDate: '', accountId: '', method: e.method, reference: '', issuedAt: `${y}-${mm(m)}-28`, ...x };
     };
-    S[0] = { ...S[0], equipeId: 'q1', badge: '1001' }; S[1] = { ...S[1], equipeId: 'q1', badge: '1002' };
+    Object.assign(S[0] as object, { equipeId: 'q1', badge: '1001' }); Object.assign(S[1] as object, { equipeId: 'q1', badge: '1002' });
     await poser('_racine', 'payrollSettings', { equipes: [{ id: 'q1', nom: 'Le fournil, la nuit', debut: '03:00', fin: '11:00', jours: [1, 2, 3, 4, 5, 6], pointe: 'pointeuse', minimum: 2 }] });
     for (const e of S) await poser('employees', e.id, e);
     for (const b of [...S.map((e) => bul(e, an, mo)), ...S.map((e) => bul(e, anA, moA, { paidDate: `${anA}-${mm(moA)}-28`, remisLe: `${anA}-${mm(moA)}-28` }))]) await poser('payslips', b.id, b);
@@ -78,7 +78,7 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
 
   // Les six premiers jours de travail du mois dernier (du lundi au samedi), et un fichier de badges pour le fournil : Nadia
   // (Nadia, badge 1002) oublie de badger sa sortie le troisième ; un badge qu'aucune fiche ne porte ; une ligne illisible.
-  const joursDeTravail = (y: number, m: number) => Array.from({ length: 28 }, (_, i) => i + 1).filter((d) => new Date(Date.UTC(y, m - 1, d)).getUTCDay() !== 0).slice(0, 6);
+  const joursDeTravail = (y: number, m: number) => Array.from({ length: 28 }, (_, i) => i + 1).filter((d) => new Date(Date.UTC(y, m - 1, d)).getUTCDay() !== 0).slice(0, 6) as [number, number, number, number, number, number];
   const fichier = (y: number, m: number) => {
     const J = joursDeTravail(y, m), dd = (d: number) => `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
     const L = ['Badge;Date;Heure'];
@@ -92,7 +92,7 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
     const p = await ouvrir(x);
     await p.locator('#p-tabs [data-tab="pointage"]').click();
     await p.locator('#pt-grille').waitFor();
-    const J = joursDeTravail(x.an, x.mo), d = J[J.length - 1];
+    const J = joursDeTravail(x.an, x.mo), d = J[5];
     const kase = (j: number) => p.locator(`#pt-grille tr[data-pe="nb"] .pt-c[data-pt="${j}"]`);
     await kase(d).click();
     await p.locator('#pc').waitFor();
@@ -122,8 +122,8 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
     await p.locator('#p-tabs [data-tab="pointage"]').click();
     await p.locator('#pt-grille').waitFor();
     // Le mois dernier : la bande des mois y mène.
-    await p.locator('#p-mois [data-ym="' + `${x.anA}-${String(x.moA).padStart(2, '0')}` + '"]').first().click().catch(async () => { await p.locator('#p-mois button').filter({ hasText: new RegExp(['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'][x.moA - 1]) }).first().click(); });
-    await expect.poll(() => p.locator('#pt-panneau .pa-carte-t b').innerText()).toMatch(new RegExp(['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][x.moA - 1]));
+    await p.locator('#p-mois [data-ym="' + `${x.anA}-${String(x.moA).padStart(2, '0')}` + '"]').first().click().catch(async () => { await p.locator('#p-mois button').filter({ hasText: new RegExp(['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'][x.moA - 1] ?? '') }).first().click(); });
+    await expect.poll(() => p.locator('#pt-panneau .pa-carte-t b').innerText()).toMatch(new RegExp(['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][x.moA - 1] ?? ''));
     const { f, J, n } = fichier(x.anA, x.moA);
     await p.locator('#pt-import').click();
     await p.locator('#ib-f').setInputFiles(f);
