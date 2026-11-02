@@ -156,3 +156,7 @@
 .cp-pa-copier label:has(input:checked) { border-color: var(--sb-sarcelle); }
 .cp-pa-copier-at { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
 .cp-pa-copier-at small { display: block; }
+/* (1.247.0) Un virement de salaire revenu : à traiter (rouge), une ligne par salarié. */
+.cp-pa-bandeau.rouge { border-color: color-mix(in srgb, var(--sb-rouge-texte) 35%, var(--sb-trait)); background: var(--sb-rouge-doux); }
+.cp-pa-revenu { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+#pa-revenus small { display: block; }

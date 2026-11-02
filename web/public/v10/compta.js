@@ -7198,6 +7198,37 @@
     return z;
   }
 
+  // (plateforme) 1.247.0 — Le virement d'un salaire revenu sur le compte (docs/revue-paie-cabinet.md, « le virement
+  // rejeté ») : une ligne du relevé au CRÉDIT, du montant net exact d'un bulletin marqué payé (au millime), datée du
+  // paiement ou dans les 60 jours qui suivent, et dont le libellé le dit (rejet, retour, impayé, annulé, refusé). Le relevé
+  // le dit ; SkanFact ne le devine pas d'un montant seul (un salaire au même net qui rentre n'est pas un rejet). Une ligne ne
+  // répond qu'à un bulletin : si deux bulletins ont le même net, celui dont le salarié est nommé dans le libellé l'emporte,
+  // sinon le plus ancien. Rien n'est écrit : c'est un constat, que le cabinet dit au client.
+  const MOTS_DU_REJET = /\b(rejet|rejete|retour|retourne|impaye|annul|annule|refus|refuse|return|reject)/;
+  function virementsRevenus(releves, bulletins, nomDe) {
+    const mill = x => Math.round(Number(x || 0) * 1000);
+    const jours = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+    const payes = (bulletins || []).filter(b => b.payeLe && mill((b.calcul || {}).net) > 0)
+      .slice().sort((a, b) => String(a.payeLe).localeCompare(String(b.payeLe)) || String(a.id).localeCompare(String(b.id)));
+    const pris = new Set(), out = [];
+    const lignes = [];
+    (releves || []).forEach(r => (r.lignes || []).forEach(l => lignes.push({ r, l })));
+    lignes.sort((x, y) => String(x.l.date).localeCompare(String(y.l.date)) || String(x.l.id).localeCompare(String(y.l.id)));
+    for (const { r, l } of lignes) {
+      if (mill(l.montant) <= 0) continue;
+      const lib = sansAccents(`${l.libelle || ''} ${l.reference || ''}`);
+      if (!MOTS_DU_REJET.test(lib)) continue;
+      const candidats = payes.filter(b => !pris.has(b.id) && mill((b.calcul || {}).net) === mill(l.montant)
+        && String(l.date) >= String(b.payeLe).slice(0, 10) && jours(String(b.payeLe).slice(0, 10), String(l.date)) <= 60);
+      if (!candidats.length) continue;
+      const nomme = candidats.find(b => { const n = sansAccents(nomDe ? nomDe(b.salarieId) : '').split(/\s+/).filter(m => m.length > 2); return n.length && n.some(m => lib.includes(m)); });
+      const b = nomme || candidats[0];
+      pris.add(b.id);
+      out.push({ bulletin: b.id, salarieId: b.salarieId, net: round3((b.calcul || {}).net), payeLe: String(b.payeLe).slice(0, 10), date: String(l.date), libelle: String(l.libelle || ''), releve: r.id, ligne: l.id });
+    }
+    return out;
+  }
+
   // L'écriture de paie du mois, en BROUILLARD. Les comptes sont ceux du dossier quand il en a, et
   // le schéma est EXACTEMENT celui de l'app entreprise (`journalEntries`, section `paie`) : deux
   // moteurs divergent, et le client et son comptable auraient alors deux écritures pour le même
@@ -7621,7 +7652,7 @@
     irppAnnual, computePayslip, employerChargesOf,
     COMPTES_PAIE, MOIS_PAIE, moisPaie, TRIMESTRES_PAIE,
     salarieValide, normaliserSalarie, ajouterSalarie, retirerSalarie, salariesActifs,
-    bulletinsDuMois, bulletinValide, saisiePaieValide, ajouterBulletin, supprimerBulletin, masseSalariale, moisEmployeur,
+    bulletinsDuMois, bulletinValide, saisiePaieValide, ajouterBulletin, supprimerBulletin, masseSalariale, virementsRevenus, moisEmployeur,
     // (plateforme) 1.64.0
     baremesDuBulletin,
     // (plateforme) 1.68.0

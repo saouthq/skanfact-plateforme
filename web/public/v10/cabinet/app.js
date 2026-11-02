@@ -10951,7 +10951,8 @@
         : P.valides ? `${P.n} validés le ${jourCourt(P.valideLe)}` : P.approuves && P.accordRequis ? `approuvés par ${P.client} le ${jourCourt(P.approuveLe)}`
           : P.envoyes && P.accordRequis ? `envoyés à ${P.client} le ${jourCourt(P.envoyeLe)}` : `${P.n} préparés${P.manquants ? `, ${P.manquants} à faire` : ''}`, P.n > 0 && !P.manquants && (P.valides || P.mode === 'seule' || P.mode === 'sans')],
       ['Écriture de paie', o.auBrouillard ? `au brouillard${o.paieAttendSonJour ? ` · se valide le ${jourCourt(o.paieAttendSonJour)}` : ''}` : bulletins.some(b => o.etatDe(b) === 'ecrite') ? 'validée' : `datée du dernier jour du mois`, bulletins.length > 0 && bulletins.every(b => o.etatDe(b) === 'ecrite')],
-      ['Salaires payés', P.payes && P.payes === P.n ? 'payés' : P.payes ? `${P.payes} sur ${P.n}` : `par ${P.client}`, P.n > 0 && P.payes === P.n],
+      // (1.247.0) Un virement revenu : le salaire n'est pas payé, quoi que dise le bulletin.
+      ((rev) => ['Salaires payés', rev ? `${rev > 1 ? `${rev} virements revenus` : '1 virement revenu'}` : P.payes && P.payes === P.n ? 'payés' : P.payes ? `${P.payes} sur ${P.n}` : `par ${P.client}`, P.n > 0 && P.payes === P.n && !rev])(KC.virementsRevenus(L.releves || [], bulletins, o.nomDe).length),
       ['Déclarés', `IRPP et CSS avec ${KC.moisPaie(m)} · CNSS au trimestre`, false]];
     const ici = Math.max(0, E.findIndex(e => !e[2]));
     const frise = `<ol class="cp-pa-frise" id="pa-frise">${E.map(([t, d, fait], i) => `<li class="${fait ? 'fait' : i === ici ? 'ici' : ''}"${i === 0 ? ' data-pa-vue="pointage" role="button" tabindex="0"' : ''}><span class="n">${fait ? '✓' : i + 1}</span><span><b>${esc(t)}</b><small>${esc(d)}</small></span></li>`).join('')}</ol>`;
@@ -10970,7 +10971,7 @@
       P.accordRequis && P.envoyes && !P.approuves && !P.valides ? `<div class="cp-pa-bandeau" id="pa-attend-accord">Les bulletins sont chez ${esc(P.client)} depuis le ${esc(jourCourt(P.envoyeLe))} : son bon à payer arrive dans SkanFact. Changer un bulletin d'ici le lui redemande.</div>` : '',
       P.accordRequis && P.approuves && !P.valides ? `<div class="cp-pa-bandeau vert" id="pa-accord">${esc(P.client)} a approuvé ${P.n > 1 ? `les ${P.n} bulletins` : 'le bulletin'} le ${esc(jourCourt(P.approuveLe))} (son bon à payer, dans SkanFact). Validés, ils ne changent plus.</div>` : '',
       P.valides ? `<div class="cp-pa-bandeau vert" id="pa-valides">Les bulletins ${esc(KC.deMois(KC.moisPaie(m)))} sont validés : ils ne bougent plus. Une correction passera par une régularisation sur un mois suivant.</div>` : '',
-      paieDepuisLaValidation(dossier, L, m, bulletins, o)].join('');
+      paieDepuisLaValidation(dossier, L, m, bulletins, o), paieVirementsRevenus(dossier, L, bulletins, P, o)].join('');
     // Les bulletins, rangés par ce qui change (la maquette), le bulletin choisi ouvert à côté.
     const etiquette = b => b.valideLe ? '<span class="badge b-paid">validé</span>' : b.correction && !b.correction.reponse ? '<span class="badge b-due">correction proposée</span>'
       : b.bonAPayerLe ? '<span class="badge b-paid">approuvé</span>' : b.pourAccordLe ? '<span class="badge b-part">chez le client</span>'
@@ -11060,6 +11061,17 @@
     return `<div class="cp-pa-bandeau ambre" id="pa-depuis-val"><b>Depuis la validation, le pointage a changé.</b> ${depuis.map(({ b, r }) => `${esc(o.nomDe(b.salarieId))} : ${esc(ecartDuPointage(r))}`).join(' · ')}. Un mois validé ne se rouvre pas en silence : ${depuis.length > 1 ? 'ces bulletins restent' : 'le bulletin reste'} tel${depuis.length > 1 ? 's' : ''} quel${depuis.length > 1 ? 's' : ''}, la différence se régularise sur ${esc(suivant)} (une prime ou une retenue « régularisation ${esc(KC.moisPaie(m))} »).
       <button type="button" class="btn btn-sm" data-pa-vue="pointage">Voir le pointage</button></div>`;
   }
+  // (plateforme) 1.247.0 — le virement d'un salaire revenu sur le compte (KC.virementsRevenus) : le relevé le dit, le
+  // bulletin reste « payé » dans SkanFact tant que le client ne l'a pas repayé ; le cabinet le lui dit d'un geste.
+  // Le relevé lu est celui de l'année du livre ouvert (un salaire de décembre revenu en janvier se voit l'année suivante).
+  function paieVirementsRevenus(dossier, L, bulletins, P, o) {
+    const R = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe);
+    if (!R.length) return '';
+    const relie = !dossier.manual && !!api.messagerie;
+    return `<div class="cp-pa-bandeau rouge" id="pa-revenus"><b>${R.length > 1 ? `${R.length} virements de salaire sont revenus sur le compte.` : 'Un virement de salaire est revenu sur le compte.'}</b>
+      ${R.map(x => `<span class="cp-pa-revenu" data-pa-revenu="${esc(x.bulletin)}">${esc(o.nomDe(x.salarieId))} : ${esc(money(x.net))}, payé le ${esc(jourCourt(x.payeLe))}, revenu le ${esc(jourCourt(x.date))} (« ${esc(x.libelle)} »)${relie ? ` <button type="button" class="btn btn-sm" data-pa-revenu-dire="${esc(x.bulletin)}">Le dire à ${esc(P.client)}</button>` : ''}</span>`).join('')}
+      <small class="muted">Le salarié n'a pas reçu son salaire : souvent un RIB faux ou un compte fermé. Il reste à le payer de nouveau ; SkanFact ne change rien au bulletin.</small></div>`;
+  }
   // (plateforme) 1.238.0 — « Me le rappeler le 01/12 » (la maquette, paiesalaries) : MON rappel sur le dossier (celui de la
   // conversation, que le client ne lit pas) et une note pour l'équipe ; quinze jours avant la fin du contrat, ou demain.
   const peutMeRappeler = dossier => !dossier.manual && !!(api.messagerie && api.messagerie.meRappeler);
@@ -11093,7 +11105,8 @@
     const dejaEnv = env && env.n ? `${env.n === P.n ? (P.n > 1 ? `les ${P.n}` : 'le bulletin') : `${env.n} sur ${P.n}`} dans les documents de ${P.client} (le ${fmtJour(env.le)})` : '';
     const envoyer = peutEnvoyer ? `<button type="button" class="btn btn-sm" id="pa-envoyer-pdf">${env && env.n ? 'Les renvoyer' : `Les envoyer à ${esc(P.client)}`}</button>` : '';
     const L1 = P.mode === 'seule' ? '' : etape(1, P.remis, 'Les remettre aux salariés', [P.remis ? 'remis' : 'chaque bulletin s\'imprime depuis le menu de sa ligne', dejaEnv].filter(Boolean).join(' · '), envoyer);
-    const L2 = etape(P.mode === 'seule' ? 1 : 2, P.payes === P.n, 'Les salaires', P.payes === P.n ? `payés par ${P.client}` : `${P.payes} sur ${P.n} payés · par ${P.client}`,
+    const revenus = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe).length;
+    const L2 = etape(P.mode === 'seule' ? 1 : 2, P.payes === P.n && !revenus, 'Les salaires', `${P.payes === P.n ? `payés par ${P.client}` : `${P.payes} sur ${P.n} payés · par ${P.client}`}${revenus ? ` · ${revenus > 1 ? `${revenus} virements revenus` : '1 virement revenu'}` : ''}`,
       P.payes < P.n && relie ? (pourLe => `<button type="button" class="btn btn-sm" id="pa-rappel" data-pour="${esc(pourLe)}">Lui rappeler${pourLe ? `, pour le ${esc(jourCourt(pourLe))}` : ''}</button>`)(finDuMoisPaie(annee, m) > aujourdhuiPaie() ? finDuMoisPaie(annee, m) : '') : '');
     const ms = KC.masseSalariale(bulletins);
     const L3 = etape(P.mode === 'seule' ? 2 : 3, false, 'Les déclarer', `avec la déclaration ${KC.deMois(mo)} : retenues sur salaires (IRPP et CSS) ${money(KC.round3(ms.irpp + ms.css))}, TFP ${money(ms.tfp)}, FOPROLOS ${money(ms.foprolos)} · la CNSS au trimestre`, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>');
@@ -11840,6 +11853,13 @@
       const prenom = clientDePaie(dossier, livresState.livre);
       fenDemanderCl(dossier, { titre: `Payer les salaires ${mo()}`, texte: `Bonjour${prenom && prenom !== 'ton client' ? ` ${prenom}` : ''}, les salaires ${mo()} ne sont pas tous marqués payés dans SkanFact (${payes} sur ${B.length}). Peux-tu les payer${pour ? ` d'ici le ${pour.slice(8, 10)}/${pour.slice(5, 7)}` : ''}, ou me dire s'ils le sont déjà ?` }, { hors: true, pour, apres: async () => redraw() });
     };
+    $$('[data-pa-revenu-dire]', el).forEach(b => { b.onclick = () => {
+      const x = KC.virementsRevenus(s.livre.releves || [], duMois(), id => ((s.livre.salaries || []).find(y => y.id === id) || {}).nom || '').find(y => y.bulletin === b.dataset.paRevenuDire);
+      if (!x) return;
+      const nom = ((s.livre.salaries || []).find(y => y.id === x.salarieId) || {}).nom || 'ce salarié';
+      const prenom = clientDePaie(dossier, livresState.livre);
+      fenDemanderCl(dossier, { titre: `Le salaire de ${nom} est revenu`, texte: `Bonjour${prenom && prenom !== 'ton client' ? ` ${prenom}` : ''}, le virement du salaire de ${nom} (${money(x.net)}, payé le ${jourCourt(x.payeLe)}) est revenu sur le compte le ${jourCourt(x.date)} : le relevé dit « ${x.libelle} ». Peux-tu vérifier son RIB, le payer de nouveau et me dire quand c'est fait ?` }, { hors: true, apres: async () => redraw() });
+    }; });
     const dpt = $('#pa-demander-pt', el);
     if (dpt) dpt.onclick = () => fenDemanderCl(dossier, { piece: `Le pointage ${mo()}` }, { hors: true, apres: async () => redraw() });
     const spt = $('#pa-saisir-pt', el);

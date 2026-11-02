@@ -22427,6 +22427,15 @@ prouver "paie 1.246 c : la copie prend le taux d'accident du travail sans qu'on 
   "const at = \$('#pa-copier-at', layer).checked ? p.accidentRate : mien.accidentRate;" "const at = p.accidentRate;" \
   "les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'un salarié en CIVP les suit"
 
+prouver "paie 1.247 a : un crédit du même montant passe pour un salaire revenu" web/public/v10/compta.js \
+  "      if (!MOTS_DU_REJET.test(lib)) continue;" "      if (!lib && !MOTS_DU_REJET.test(lib)) continue;" \
+  "ce qui n'est pas un rejet ne se dit pas"
+prouver "paie 1.247 b : la Paie tait le virement revenu" web/public/v10/cabinet/app.js \
+  "    const R = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe);
+    if (!R.length) return '';" "    const R = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe);
+    if (R.length >= 0) return '';" \
+  "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

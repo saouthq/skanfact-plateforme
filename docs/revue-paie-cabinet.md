@@ -192,3 +192,4 @@ bulletins faits pour ce dossier, congés pas pris)
 - ✓ (1.244.0) **paiedossiers** : la paie du mois de tous mes dossiers, lue sur le serveur.
 - ✓ (1.245.0) **paieapres** : « Les envoyer » — les bulletins validés en PDF dans les documents du client.
 - ✓ (1.246.0) **paieparam** : qui l'a réglé et quand (écrit par le serveur), copier le paramétrage d'un autre dossier tenu.
+- ✓ (1.247.0) **paiesalaires** : le virement de salaire revenu (le relevé le dit, « Le dire à … »).

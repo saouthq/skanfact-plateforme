@@ -222,6 +222,37 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-6b-classeur.png') });
     await p.goto(ici);
     await expect.poll(() => p.locator('#pa-faits').count(), { timeout: 20_000 }).toBe(1);
+    // 1.247.0 — le virement du salaire de Karim (le mois d'avant, payé le 28) revient sur le compte : le relevé le dit, la
+    // Paie de ce mois-là le dit, et « Le dire à Sarra » prépare le message. (En janvier, le mois d'avant est sur l'année
+    // d'avant : le livre ouvert ne le porte pas, l'étape ne se joue pas.)
+    if (A.mo !== 1) {
+      const moA = A.mo - 1, mmA = String(moA).padStart(2, '0');
+      const nb = (x: unknown) => Number(typeof x === 'object' && x ? (x as Record<string, string>)['~n'] : x);
+      const kr = (await A.lire()).find((x) => x.collection === 'payslips' && x.contenu.employeeId === 'kr' && Number(x.contenu.month) === moA);
+      const netKr = nb((kr?.contenu.computed as Record<string, unknown>).net);
+      const revenuLe = new Date(Date.UTC(A.an, moA - 1, 28 + 4)).toISOString().slice(0, 10);
+      const ok = await p.evaluate(async ([ent, an, net, le]) => {
+        const api = (window as unknown as { cabinet: { ajouterReleve: (o: unknown) => Promise<{ ok: boolean }> } }).cabinet;
+        return (await api.ajouterReleve({ dossierId: ent, annee: an, releve: { compte: '532', banque: 'BIAT', fichier: 'releve.csv', empreinte: 'a'.repeat(64), soldeDebut: 0, soldeFin: Math.round(net * 2000) / 1000,
+          lignes: [{ date: le, libelle: 'REJET VIR SAL RIAHI KARIM COMPTE CLOS', reference: '', montant: net }, { date: le, libelle: 'VIR RECU CLIENT', reference: '', montant: net }] } })).ok;
+      }, [A.ent, A.an, netKr, revenuLe] as const);
+      expect(ok).toBe(true);
+      await p.goto('about:blank'); await p.goto(ici);
+      await p.locator('#pa-mois').waitFor({ timeout: 20_000 });
+      await p.locator('#pa-mois').selectOption(String(moA));
+      await expect.poll(() => p.locator('#pa-revenus').innerText().then(espace).catch(() => ''), { timeout: 20_000 })
+        .toMatch(new RegExp(`^Un virement de salaire est revenu sur le compte\\. Karim Riahi : .*, payé le 28/${mmA}, revenu le \\d\\d/\\d\\d \\(« REJET VIR SAL RIAHI KARIM COMPTE CLOS »\\) Le dire à Sarra`));
+      expect(await p.locator('[data-pa-revenu]').count()).toBe(1);
+      expect(espace(await p.locator('.cp-pa-frise, #pa-frise').first().innerText().catch(() => ''))).toContain('1 virement revenu');
+      await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-virement-revenu.png') });
+      await p.locator('[data-pa-revenu-dire]').click();
+      await expect.poll(() => p.locator('#modal-root .modal #dm-texte').count()).toBe(1);
+      expect(await p.locator('#modal-root .modal #dm-texte').inputValue()).toMatch(/^Bonjour Sarra, le virement du salaire de Karim Riahi \(.*\) est revenu sur le compte le .* : le relevé dit « REJET VIR SAL RIAHI KARIM COMPTE CLOS »\./);
+      await p.keyboard.press('Escape');
+      await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+      await p.locator('#pa-mois').selectOption(String(A.mo));
+      await expect.poll(() => p.locator('#pa-faits').count(), { timeout: 20_000 }).toBe(1);
+    }
 
     // ── L'année, mois par mois : les douze mois additionnés font l'année (deux chemins, un chiffre) ─────────────
     await p.locator('.pa-so [data-pa-vue="annee"]').click();

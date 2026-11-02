@@ -1760,8 +1760,7 @@ fasse tomber (le jeu d'essai n'a pas de déclaration mensuelle au mois d'un accu
 
 Test : le parcours « tenue » range l'accusé depuis la Paie, le voit, l'ouvre en grand. Preuves `paie 1.243 a` et `b`.
 
-**Pas encore fait** (serveur, ou décision) : le virement
-rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).
+**Pas encore fait** (serveur, ou décision) : la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).
 
 ## La paie du Cabinet : la paie de tous mes dossiers (02/11/2026, 1.244.0)
 
@@ -1808,3 +1807,18 @@ dossier lui-même ou depuis une entreprise hors du portefeuille (`cabinet.paie.c
 
 Tests : `tests/cabinet/paie.test.ts` (le poste qui prétend, la fiche réécrite, la copie, l'étranger) et le parcours des taux
 (`tests/web/cabinet-paie-regimes.test.ts`). Preuves `paie 1.246 a`, `b`, `c`.
+
+## La paie du Cabinet : le virement de salaire revenu (02/11/2026, 1.247.0)
+
+Quand le relevé importé porte une ligne **au crédit**, du **net exact** d'un bulletin marqué payé (au millime), datée du
+paiement ou dans les **60 jours** qui suivent, et dont le libellé dit le rejet (rejet, retour, impayé, annulé, refusé), la
+Paie du mois le dit : **« Un virement de salaire est revenu sur le compte. Karim Riahi : 911,428 DT, payé le 28/09, revenu le
+02/10 (« REJET VIR … ») »**, avec **« Le dire à Sarra »** (le message préparé : vérifier le RIB, payer de nouveau). La frise et
+l'étape « Les salaires » ne disent plus « payés ». Une ligne ne répond qu'à un bulletin ; à net égal, celui dont le salarié
+est nommé dans le libellé l'emporte. SkanFact ne change rien au bulletin : c'est un constat (`KC.virementsRevenus`, compta.js).
+
+*Écart qui reste* : le relevé lu est celui de l'année ouverte (un salaire de décembre revenu en janvier se voit l'année
+suivante) ; un salaire payé de nouveau ne se marque pas encore « repayé » (le client le marque payé dans son SkanFact).
+
+Tests : `tests/moteur/paie-virement-revenu.test.ts` (le nommé, deux rejets, ce qui n'en est pas un, les accents, le 60e
+jour) et le parcours « tenue ». Preuves `paie 1.247 a`, `b`.
