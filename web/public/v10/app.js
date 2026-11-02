@@ -19177,12 +19177,15 @@
           const html = docHtml();
           const safe = s2 => String(s2).replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_');
           try {
+            // (1.257.1) Vu par Skander sur dev.skanfact.tn le 02/11 : « j'ai exporté le document et rien n'a été pris en
+            // compte ». Un serveur sans son outil de PDF rend la main à la fenêtre d'impression du navigateur (le point de
+            // contact rend null) : le document n'était pas noté, la fenêtre restait ouverte. Il est noté dans les deux cas.
             const f = await bridge.exportPdf(html, `${safe(C.hrDocLabel(v.kind))}_${safe(e.name)}.pdf`);
-            if (f) {
-              const x = employeeById(e.id);
-              if (x) { x.documentsFaits = (x.documentsFaits || []).concat([{ id: C.uid(), kind: v.kind, date: v.date || C.today(), le: C.today() }]); save(true); }
-              toast('PDF enregistré : ' + f.split(/[\\/]/).pop()); close(); if (done) done();
-            }
+            const x = employeeById(e.id);
+            if (x) { x.documentsFaits = (x.documentsFaits || []).concat([{ id: C.uid(), kind: v.kind, date: v.date || C.today(), le: C.today() }]); save(true); }
+            toast(f ? `PDF enregistré : ${f.split(/[\\/]/).pop()} · noté dans ses documents`
+              : 'Le document s\'ouvre pour l\'impression : choisis « Enregistrer en PDF » dans la fenêtre du navigateur. Il est noté dans ses documents.');
+            close(); if (done) done();
           } catch (err) { toast(plainError(err), true); }
         };
       }, null, { classe: 'pa-doc' });

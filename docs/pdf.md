@@ -13,6 +13,12 @@ la v10 le confirme.
 Un serveur qui n'a pas encore son Chromium (tâche 0011 pas passée), une coupure ou une réponse illisible : la fenêtre
 d'impression revient, comme avant. Rien ne se perd.
 
+(1.257.1, vu par Skander sur dev.skanfact.tn le 02/11/2026 : « j'ai exporté le document et rien n'a été pris en compte ».)
+La copie de dev ne savait pas où était son Chromium : la tâche 0014 recopiait les réglages de la copie de main sauf
+`PLAYWRIGHT_BROWSERS_PATH` ; la tâche 0015 le pose. Et dans ce repli, un document du salarié se note quand même dans
+« Les documents faits » (la fenêtre se ferme, le message dit de choisir « Enregistrer en PDF ») ; une fenêtre d'impression
+bloquée par le navigateur se dit au lieu de ne rien faire.
+
 ## Comment
 
 - **L'écran dessine la page** (les gabarits de la v10, `documentHtml` et les autres, inchangés) et l'envoie

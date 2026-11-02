@@ -156,4 +156,33 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
     await expect.poll(() => p.locator('#pt-valide b').innerText().then(espace)).toMatch(/^Correction en cours : la version 2/);
     expect(erreurs).toEqual([]);
   }, 120_000);
+
+  // 1.257.1 — vu par Skander sur dev.skanfact.tn le 02/11 : « j'ai exporté le document et rien n'a été pris en compte ». Le
+  // serveur sans son outil de PDF rend la main à la fenêtre d'impression : le document n'était pas noté, la fenêtre restait
+  // ouverte ; une fenêtre d'impression bloquée par le navigateur ne disait rien.
+  it('un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF', async () => {
+    const x = await monter();
+    const p = await ouvrir(x);
+    await p.route('**/v1/pdf', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ motif: { code: 'pdf.indisponible', texte: 'indisponible' }, bouton: null, indisponible: true }) }));
+    await p.evaluate(() => { (window as unknown as { open: unknown }).open = () => ({ document: { write() {}, close() {} }, print() {} }); });
+    const faits = async () => (((await api('GET', `/entreprises/${x.ent}/dossier-v10`, x.j)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[])
+      .find((o) => o.collection === 'employees' && o.cle === 'nb')?.contenu.documentsFaits as unknown[] | undefined ?? []).length;
+    const exporter = async () => {
+      await p.evaluate(() => { location.hash = '#/salarie/nb'; });
+      await p.getByRole('button', { name: /Un document/ }).first().click();
+      await p.locator('#hf').waitFor();
+      await p.locator('#hf').getByText('Attestation de travail', { exact: true }).first().click();
+      await p.locator('#ok').click();
+    };
+    await exporter();
+    await expect.poll(() => p.locator('#toast').innerText().then(espace)).toMatch(/^Le document s'ouvre pour l'impression : choisis « Enregistrer en PDF » dans la fenêtre du navigateur\. Il est noté dans ses documents\./);
+    expect(await p.locator('#hf').count()).toBe(0);
+    await expect.poll(faits).toBe(1);
+    // Le navigateur bloque la fenêtre d'impression : le refus le dit, et rien ne se note.
+    await p.evaluate(() => { (window as unknown as { open: unknown }).open = () => null; });
+    await exporter();
+    await expect.poll(() => p.locator('#toast').innerText().then(espace)).toMatch(/ton navigateur a bloqué la fenêtre d'impression : autorise les fenêtres de ce site, puis recommence\./);
+    expect(await faits()).toBe(1);
+    expect(erreurs).toEqual([]);
+  }, 120_000);
 });

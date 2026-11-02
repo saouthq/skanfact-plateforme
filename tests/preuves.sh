@@ -22657,6 +22657,14 @@ prouver "paie 1.257 k : le texte des compteurs ne passe plus à la ligne au tél
   '.pm .pt-cpt td small { display: block; color: var(--gris-2); font-size: 12px; white-space: normal; }|||.pm .pt-cpt td { white-space: normal; overflow-wrap: anywhere; }|||.pm table.mini.pt-cpt td.r { width: 45%; white-space: normal; }|||.pm table.mini.pt-cpt .r small { display: block; margin-left: 0; }' \
   '.pm .pt-cpt td small { color: var(--gris-2); font-size: 12px; }|||||||||' \
   'la sortie d'\''un salarié, son motif et son ancienneté ; la saisie dès un mois ; au téléphone, le pointage en liste'
+# 1.257.1 : un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF (vu par
+# Skander sur dev.skanfact.tn le 02/11/2026 : « j'ai exporté le document et rien n'a été pris en compte »).
+prouver "paie 1.257.1 a : sans PDF du serveur, le document exporté ne se note pas" web/public/v10/app.js \
+  "            if (x) { x.documentsFaits = (x.documentsFaits || []).concat" "            if (f && x) { x.documentsFaits = (x.documentsFaits || []).concat" \
+  'un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF'
+prouver "paie 1.257.1 b : une fenêtre d'impression bloquée ne dit rien" web/public/plateforme/pont.js \
+  "    if (!w) throw new Error('Le PDF ne se fait pas" "    if (!w) return null; void new Error('Le PDF ne se fait pas" \
+  'un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

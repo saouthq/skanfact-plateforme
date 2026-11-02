@@ -2009,7 +2009,8 @@
   /** @param {string} html */
   function fenetreDImpression(html) {
     const w = window.open('', '_blank');
-    if (!w) return null;
+    // (1.258.0) Une fenêtre bloquée par le navigateur ne faisait rien, sans un mot : le refus le dit maintenant.
+    if (!w) throw new Error('Le PDF ne se fait pas sur ce serveur pour l\'instant, et ton navigateur a bloqué la fenêtre d\'impression : autorise les fenêtres de ce site, puis recommence.');
     w.document.write(html);
     w.document.close();
     w.print();
