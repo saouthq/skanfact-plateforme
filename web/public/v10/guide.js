@@ -276,6 +276,11 @@
     'pay.birthDate': { t: 'Date de naissance', d: 'Le registre du personnel et certains documents la demandent (À VÉRIFIER).' },
     'pay.categorie': { t: 'Catégorie, échelon', d: 'Ce que dit sa convention collective : la catégorie et l\'échelon donnent le salaire minimum de son poste (À VÉRIFIER avec ton comptable).' },
     'pay.trialEnd': { t: 'Fin de la période d\'essai', d: 'Le jour où elle finit, comme le contrat le dit. SkanFact te le rappelle sur sa fiche ; sa durée légale : À VÉRIFIER.' },
+    // (1.256.0)
+    'pay.preavis': { t: 'Préavis', d: 'Les jours entre la lettre de démission ou de licenciement et le dernier jour. Réglé ici, il propose la date de sortie. 0 : rien de proposé. Sa durée : À VÉRIFIER (Code du travail, convention collective).' },
+    'pay.indemnite': { t: 'Indemnité de licenciement', d: 'Les jours de salaire dus par année d\'ancienneté à un salarié licencié. Réglée ici, elle entre dans son solde de tout compte. 0 : la ligne reste à zéro. Le barème : À VÉRIFIER.' },
+    'pay.anciennete': { t: 'Prime d\'ancienneté', d: 'Un pourcentage du salaire de base, selon les années passées dans l\'entreprise : la tranche atteinte au dernier jour du mois compte. Aucune tranche : pas de prime. Les tranches et les taux : ceux de ta convention collective (À VÉRIFIER).' },
+    'pay.notifie': { t: 'Notifiée le', d: 'Le jour où la démission ou le licenciement a été notifié. Avec le préavis des réglages, il propose le dernier jour.' },
     'pay.weeklyHours': { t: 'Heures par semaine', d: 'Vide pour un temps plein. Pour un temps partiel, le nombre d\'heures du contrat : le brut de la fiche est alors celui de ces heures.' },
     'pay.regulSens': { t: 'Sens', d: 'Il lui manquait quelque chose (une prime oubliée, des heures) : la somme s\'ajoute au bulletin du mois suivant. Il a reçu en trop : elle s\'en retire.' },
     'pay.regulMontant': { t: 'Montant', d: 'L\'écart, en brut s\'il est soumis aux cotisations, tel que le bulletin payé aurait dû le porter.' },

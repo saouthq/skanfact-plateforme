@@ -6388,6 +6388,12 @@
     // et jusqu'à trois majorations en %, à 0 tant qu'on ne les a pas réglées (aucune n'est écrite d'avance : À VÉRIFIER).
     heuresMois: 208,
     hsMaj1: 0, hsMaj2: 0, hsMaj3: 0,
+    // (plateforme) 1.256.0 — la sortie et l'ancienneté (docs/etudes/paie-concurrents.md, points 4 et 5). Rien n'est écrit
+    // d'avance : 0 et une liste vide ne font rien, tant que l'entreprise (ou son comptable) ne les a pas réglés. À VÉRIFIER :
+    // le Code du travail et la convention collective du secteur.
+    preavisJours: 0,           // préavis d'une démission ou d'un licenciement, en jours calendaires
+    indemniteJoursParAn: 0,    // indemnité de licenciement : jours de salaire par année d'ancienneté
+    anciennete: [],            // prime d'ancienneté : [{ ans, taux }] — le taux (en % du salaire de base) de la tranche atteinte
     // Barème IRPP annuel progressif : `upTo` en dinars (null = au-delà), `rate` en %.
     brackets: [
       { upTo: 5000, rate: 0 },
@@ -6697,12 +6703,34 @@
   // l'établit : seule l'indemnité de congés se calcule.
   function lignesDuSolde(data, employeeId, dateIso) {
     const ic = indemniteConges(data, employeeId, dateIso);
+    const lic = indemniteLicenciement(data, employeeId, dateIso);
     return [
       { label: 'Salaire du mois en cours', amount: 0 },
       { label: `Indemnité de congés non pris (${String(round3(ic.jours)).replace('.', ',')} jour${ic.jours >= 2 ? 's' : ''})`, amount: ic.montant, cle: 'conges' },
       { label: 'Indemnité de préavis', amount: 0 },
-      { label: 'Indemnité de fin de contrat', amount: 0 }
+      lic ? { label: lic.label, amount: lic.montant, cle: 'licenciement' } : { label: 'Indemnité de fin de contrat', amount: 0 }
     ];
+  }
+  // (plateforme) 1.256.0 — l'indemnité de LICENCIEMENT : seulement quand le motif de sortie est un licenciement. Les jours
+  // de salaire par année d'ancienneté viennent des réglages (0 par défaut : la ligne se dit, à zéro, et dit où se règle le
+  // barème) ; les années comptent les mois commencés au douzième (3 ans et 7 mois : 3,58). Le salaire d'un jour est celui de
+  // l'indemnité de congés (le dernier bulletin). À VÉRIFIER avec le comptable : le barème du Code du travail et de la
+  // convention, les exclusions (faute grave), le plafond.
+  function indemniteLicenciement(data, employeeId, dateIso) {
+    const e = (data.employees || []).find(x => x.id === employeeId) || {};
+    if (e.sortieMotif !== 'licenciement') return null;
+    const s = baremesPaie((data && data.payrollSettings) || {});
+    const jpa = Number(s.indemniteJoursParAn) || 0;
+    const fin = String(e.endDate || dateIso || jourDeLInstant(Date.now()));
+    const ans = anneesAnciennete(e, fin);
+    let mois = 0;
+    if (e.hireDate) { const m = (Number(fin.slice(0, 4)) - Number(e.hireDate.slice(0, 4))) * 12 + Number(fin.slice(5, 7)) - Number(e.hireDate.slice(5, 7)) - (fin.slice(8, 10) < e.hireDate.slice(8, 10) ? 1 : 0); mois = Math.max(0, m - ans * 12); }
+    const annees = Math.round((ans + mois / 12) * 100) / 100;
+    const ic = indemniteConges(data, employeeId, dateIso);
+    const montant = jpa > 0 ? round3(ic.journalier * jpa * annees) : 0;
+    const v = n => String(n).replace('.', ',');
+    return { jpa, annees, journalier: ic.journalier, montant,
+      label: jpa > 0 ? `Indemnité de licenciement (${v(jpa)} j × ${v(annees)} an${annees >= 2 ? 's' : ''})` : 'Indemnité de licenciement (barème à régler dans les réglages de la paie)' };
   }
 
   // ---------- le pointage (plateforme, 1.60.0) ----------
@@ -6893,6 +6921,59 @@
   // régularisation positive et imposable. Le bulletin du mois la reprend comme une prime (négative : un trop-perçu) ;
   // imposable, elle entre dans l'assiette de la CNSS et de l'impôt. À VÉRIFIER avec le comptable : l'impôt d'un rappel
   // se calcule-t-il sur le mois qui le paie (ce que fait ce calcul) ou se répartit-il sur les mois qu'il couvre ?
+  // (plateforme) 1.256.0 — NET → BRUT (« il veut 1 000 DT net : quel brut ? », le geste d'une embauche négociée). Le net
+  // croît avec le brut (chaque tranche de l'impôt prend moins d'un dinar par dinar) : on cherche, au millime, le plus petit
+  // brut dont le net atteint celui qu'on vise, par le calcul même des bulletins (`computePayslip`). Le net trouvé peut
+  // dépasser le net visé de quelques millimes (les arrondis) : il se dit tel qu'il est. `null` si aucun brut n'y arrive.
+  function brutPourNet(employee, netVise, settings, input) {
+    const vise = round3(Number(netVise) || 0);
+    if (!(vise > 0)) return null;
+    const netDe = mil => computePayslip({ ...(employee || {}), grossSalary: mil / 1000 }, { ...(input || {}), gross: mil / 1000 }, settings).net;
+    let bas = 0, haut = Math.round(Math.max(1000, vise * 3) * 1000);
+    if (netDe(haut) < vise) return null;
+    while (haut - bas > 1) { const m = Math.floor((bas + haut) / 2); if (netDe(m) >= vise) haut = m; else bas = m; }
+    return { gross: round3(haut / 1000), net: netDe(haut) };
+  }
+  // (plateforme) 1.256.0 — l'ANCIENNETÉ : des années pleines, de l'embauche au jour donné (un jour de calendrier, sans
+  // heure). Le 10/03/2023 → le 09/03/2026 : 2 ans ; le 10/03/2026 : 3 ans.
+  function anneesAnciennete(employee, jourIso) {
+    const d0 = String((employee && employee.hireDate) || ''), d1 = String(jourIso || '');
+    if (!/^\d{4}-\d{2}-\d{2}/.test(d0) || !/^\d{4}-\d{2}-\d{2}/.test(d1) || d1 < d0) return 0;
+    const a = Number(d1.slice(0, 4)) - Number(d0.slice(0, 4));
+    return d1.slice(5, 10) < d0.slice(5, 10) ? a - 1 : a;
+  }
+  // La tranche de la prime d'ancienneté atteinte : la plus haute dont les années sont atteintes. Une tranche sans taux, ou
+  // une liste vide, ne donne rien.
+  function trancheAnciennete(settings, ans) {
+    const L = (((settings || {}).anciennete) || []).map(t => ({ ans: Number(t && t.ans), taux: Number(t && t.taux) }))
+      .filter(t => t.ans > 0 && t.taux > 0).sort((a, b) => a.ans - b.ans);
+    return L.filter(t => t.ans <= ans).pop() || null;
+  }
+  // La prime d'ancienneté d'un mois : le taux de la tranche atteinte au dernier jour du mois, sur le salaire de base du
+  // mois, au jour comme une prime « au jour » (le pointage, l'entrée, la sortie la proratisent). Imposable et cotisable.
+  // À VÉRIFIER avec le comptable : la base (salaire de base ou brut), les tranches et les taux de la convention.
+  function primeAncienneteDuMois(employee, settings, year, month, payes, total) {
+    const e = employee || {};
+    const fin = `${year}-${String(month).padStart(2, '0')}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, '0')}`;
+    const ans = anneesAnciennete(e, fin), t = trancheAnciennete(settings, ans);
+    if (!t) return [];
+    const mensuel = round3((Number(e.grossSalary) || 0) * t.taux / 100);
+    const j = Math.max(0, Math.min(Number(total) || 26, Number(payes)));
+    const amount = Number(total) > 0 && j < Number(total) ? round3(mensuel * j / Number(total)) : mensuel;
+    if (!(amount > 0)) return [];
+    return [{ label: `Prime d'ancienneté (${ans} ans, ${String(t.taux).replace('.', ',')} %)`, amount, taxable: true, parJour: true, mensuel, jours: j, sur: Number(total) || 26, anciennete: { ans, taux: t.taux } }];
+  }
+  // (plateforme) 1.256.0 — les VARIABLES DU MOIS importées d'un tableur (`employee.variables` : { id, mois 'AAAA-MM', sorte
+  // 'prime' | 'retenue', label, amount, taxable, le }) : une prime entre au brut (imposable sauf mention), une retenue se
+  // retire du net. Le bulletin du mois les reprend ; un bulletin déjà établi et pas payé les reçoit tout de suite.
+  function variablesDuMois(employee, year, month) {
+    const ym = `${year}-${String(month).padStart(2, '0')}`;
+    const L = ((employee && employee.variables) || []).filter(v => v && v.mois === ym && Number(v.amount) > 0);
+    return {
+      bonuses: L.filter(v => v.sorte !== 'retenue').map(v => ({ label: String(v.label || '').trim() || 'Prime du mois', amount: round3(Number(v.amount)), taxable: v.taxable !== false, variableId: v.id })),
+      deductions: L.filter(v => v.sorte === 'retenue').map(v => ({ label: String(v.label || '').trim() || 'Retenue du mois', amount: round3(Number(v.amount)), variableId: v.id }))
+    };
+  }
   function regulsDuMois(employee, year, month) {
     const ym = `${year}-${String(month).padStart(2, '0')}`;
     return ((employee && employee.regularisations) || []).filter(r => r && r.pourMois === ym && Number(r.amount))
@@ -6936,8 +7017,11 @@
     const brutFiche = round3(Number(employee.grossSalary) || 0);
     const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;
     const prorata = hors ? { jours: round3(total - hors), sur: total, motif: motifs.join(', '), brutFiche, brut: gross } : null;
-    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...regulsDuMois(employee, year, month)], prorata,
-      deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month)] };
+    // (plateforme) 1.256.0 — la prime d'ancienneté et les variables du mois, comme le bulletin de l'entreprise (core.js,
+    // `payslipInputForSansPointage`) : une règle des deux côtés, un chiffre.
+    const vars = variablesDuMois(employee, year, month), st = baremesPaie((data && data.payrollSettings) || {});
+    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...primeAncienneteDuMois(employee, st, year, month, total - hors - p.absences, total), ...regulsDuMois(employee, year, month), ...vars.bonuses], prorata,
+      deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month), ...vars.deductions] };
     return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month)) } : i;
   }
 
@@ -7668,6 +7752,8 @@
     leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance, congeRetenu,
     CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
     saisieDuMois, brutDuMois, employeAuMois, regulsDuMois, saisiesOf, saisiesDuMois,
+    // (plateforme) 1.256.0 — net → brut, l'ancienneté, les variables du mois, l'indemnité de licenciement.
+    brutPourNet, anneesAnciennete, trancheAnciennete, primeAncienneteDuMois, variablesDuMois, indemniteLicenciement,
     // (plateforme) 1.71.0 — les avances.
     advancesOf, advanceBalance, echeancesDuMois, avancesDeLAnnee,
     // (plateforme) 1.72.0 — les documents du personnel.

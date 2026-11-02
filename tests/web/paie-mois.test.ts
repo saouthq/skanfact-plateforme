@@ -118,10 +118,10 @@ describe('la paie : le mois, tel que sa maquette', () => {
     expect(await texte('#p-head .sous')).toContain('4 salariés · ');
 
     // ── La frise : établis, puis payer (ici), puis remettre ; chaque étape se lit dans les faits ───────────────────────
-    const etapes = async () => p.locator('#p-frise li').evaluateAll((l) => l.map((x) => [x.className, (x.querySelector('b')?.textContent || '')]));
+    const etapes = async () => p.locator('#p-frise .et').evaluateAll((l) => l.map((x) => [(x as HTMLElement).dataset.etat, (x.querySelector('b')?.textContent || '')]));
     expect(await etapes()).toEqual([['fait', 'Pointer'], ['fait', 'Bulletins'], ['ici', 'Payer'], ['', 'Remettre'], ['', 'Déclarer']]);
-    expect(await texte('#p-frise li:nth-child(2)')).toContain('4 établis');
-    expect(await texte('#p-frise li:nth-child(3)')).toContain('4 à payer');
+    expect(await texte('#p-frise .et:nth-child(2)')).toContain('4 établis');
+    expect(await texte('#p-frise .et:nth-child(3)')).toContain('4 à payer');
 
     // ── « À traiter » : ce qui manque aux fiches ; la pastille de « Salariés » compte ces choses-là ──────────────────
     // (1.252.0) Les gestes (« À traiter ») passent avant le constat (« Ce que SkanFact a contrôlé »).
@@ -132,20 +132,20 @@ describe('la paie : le mois, tel que sa maquette', () => {
     expect(await p.locator('#p-tabs [data-af="salaries"]').isHidden()).toBe(false);
 
     // ── Les trois chiffres : le net (et ses espèces), le coût, l'État ─────────────────────────────────────────────────
-    expect(await p.locator('#p-chiffres .pa-tuile').count()).toBe(3);
-    expect(await texte('#p-chiffres .pa-tuile:nth-child(1) .t')).toMatch(/^Net à verser( |$)/);
-    expect(await texte('#p-chiffres .pa-tuile:nth-child(1) .m')).toBe(`${montant(totalNet)} DT`);
-    expect(await texte('#p-chiffres .pa-tuile:nth-child(1) .s')).toContain(`${montant(netDu(bulletin(nadia, annee, mois, nadia.grossSalary)))} DT en espèces`);
+    expect(await p.locator('#p-chiffres .tuile').count()).toBe(3);
+    expect(await texte('#p-chiffres .tuile:nth-child(1) .tu-t')).toMatch(/^Net à verser( |$)/);
+    expect(await texte('#p-chiffres .tuile:nth-child(1) .tu-m')).toBe(`${montant(totalNet)} DT`);
+    expect(await texte('#p-chiffres .tuile:nth-child(1) .tu-s')).toContain(`${montant(netDu(bulletin(nadia, annee, mois, nadia.grossSalary)))} DT en espèces`);
     const cout = Math.round(ceMois.reduce((a, b) => a + Number(b.computed.employerCost), 0) * 1000) / 1000;
-    expect(await texte('#p-chiffres .pa-tuile:nth-child(2) .m')).toBe(`${montant(cout)} DT`);
+    expect(await texte('#p-chiffres .tuile:nth-child(2) .tu-m')).toBe(`${montant(cout)} DT`);
 
     // ── Les bulletins : ceux qui changent d'abord ; le statut commun dit une fois, en bas ───────────────────────────────
     const groupes = await p.locator('#p-bulletins tr.pa-groupe').allInnerTexts();
-    expect(groupes.map(espace)).toEqual(['Ce qui change ce mois · 2 salariés', expect.stringMatching(/^Comme \S+ · 2 salariés$/)]);
-    const lignes = await p.locator('#p-bulletins tr[data-bul] td.pa-cl b').allInnerTexts();
+    expect(groupes.map(espace)).toEqual(['Ce qui change ce mois 2 salariés', expect.stringMatching(/^Comme \S+ 2 salariés$/)]);
+    const lignes = await p.locator('#p-bulletins tr[data-bul] td.cl b').allInnerTexts();
     expect(lignes).toEqual(['Hamza En Cdd', 'Nadia Sans Cnss', 'Karim Sans Rib', 'Mourad Numéro Un']);
     expect(await p.locator('#p-bulletins th', { hasText: 'Statut' }).count()).toBe(0);
-    expect(await texte('#p-bulletins tr.total-row')).toContain('à payer');
+    expect(await texte('#p-bulletins tfoot tr.pa-pied')).toContain('à payer');
     expect(await p.locator('#p-bulletins th', { hasText: 'Payé par' }).count()).toBe(1);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-mois.png'), fullPage: true });
     await p.evaluate(() => document.body.classList.add('dark'));
@@ -172,7 +172,7 @@ describe('la paie : le mois, tel que sa maquette', () => {
     await expect.poll(() => p.locator('#p-remettre').count(), { timeout: 15_000 }).toBe(1);
     // Tous payés : le mois n'est plus « à payer » dans la bande (il attend sa déclaration).
     expect(['à déclarer', 'en retard']).toContain(await texte(`#p-mois [data-p-mois="${mois}"] small`));
-    expect(await texte('#p-chiffres .pa-tuile:nth-child(1) .t')).toMatch(/^Net versé( |$)/); // tout est payé : le titre ne promet plus un versement
+    expect(await texte('#p-chiffres .tuile:nth-child(1) .tu-t')).toMatch(/^Net versé( |$)/); // tout est payé : le titre ne promet plus un versement
     expect(await texte('#p-remettre')).toBe('Remettre les 4 bulletins');
     expect(await etapes()).toEqual([['fait', 'Pointer'], ['fait', 'Bulletins'], ['fait', 'Payer'], ['ici', 'Remettre'], ['', 'Déclarer']]);
     await p.locator('#p-remettre').click();
@@ -186,12 +186,15 @@ describe('la paie : le mois, tel que sa maquette', () => {
     await p.locator('#toast-undo').click();
     await expect.poll(remis, { timeout: 15_000 }).toEqual([undefined, undefined, undefined, undefined]);
 
-    // ── Les avances vivent sous « Congés et absences » ; les chiffres de l'année dans « L'année » ───────────────────────
-    await p.locator('#p-tabs [data-tab="conges"]').click();
-    // 1.234.0 : sous les congés, la carte « Les avances et les prêts » (la maquette), sans sous-onglet.
+    // ── (1.256.0) Les avances vivent sous « Salariés › Avances et prêts » ; les chiffres de l'année dans « L'année » ───────
+    await p.locator('#p-tabs [data-tab="salaries"]').click();
+    await p.locator('#p-sous [data-sous="avances"]').click();
     await expect.poll(() => p.locator('#cg-avances').count()).toBe(1);
-    expect(await p.locator('#p-sous [role=tab]').count()).toBe(0);
+    expect(await p.locator('#p-sous [role=tab]').count()).toBe(2);
     expect(await p.locator('#cg-new-av').count()).toBe(1);
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-sous [data-sous="conges"]').click();
+    await p.locator('#cg-cal').waitFor();
     // (1.250.0, recette du 02/11) Le calendrier des congés : ‹ › change le mois ; une case libre ouvre la fenêtre du congé
     // à ce jour et pour ce salarié (le jour et la personne déjà remplis).
     // (1.251.0) Le calendrier suit le mois de la bande.
@@ -219,15 +222,16 @@ describe('la paie : le mois, tel que sa maquette', () => {
       .toEqual(['s2', 's2', jourIso, jourIso]);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#lf').count()).toBe(0);
-    await p.locator('#p-tabs [data-tab="annee"]').click();
+    await p.locator('#p-tabs [data-tab="declarations"]').click();
+    await p.locator('#p-sous [data-sous="annee"]').click();
     await expect.poll(() => p.locator('#p-annee-chiffres .pa-tuile').count()).toBe(4);
     expect(await p.locator('#p-annee .pa-barre').count()).toBe(12);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-annee.png'), fullPage: true });
     // (1.251.0, Skander le 02/11) Un tableau dans une carte n'a pas de second cadre collé au sien, et ses colonnes
     // s'alignent sur le titre de la carte.
     await p.locator('#p-tabs [data-tab="bulletins"]').click();
-    const cadreDouble = () => p.evaluate(() => [...document.querySelectorAll('.pa-carte table.list')].filter((t) => (t as HTMLElement).offsetParent)
-      .map((t) => { const c = getComputedStyle(t), carte = t.closest('.pa-carte') as Element, titre = carte.querySelector('.pa-carte-t > b');
+    const cadreDouble = () => p.evaluate(() => [...document.querySelectorAll('.pa-carte table.list, .carte.tab table.list')].filter((t) => (t as HTMLElement).offsetParent)
+      .map((t) => { const c = getComputedStyle(t), carte = t.closest('.pa-carte, .carte') as Element, titre = carte.querySelector('.pa-carte-t > b');
         const cel = t.querySelector('tbody tr > :first-child') as HTMLElement | null, r = document.createRange(); if (cel) r.selectNodeContents(cel);
         return { cadre: c.borderLeftWidth !== '0px' || c.boxShadow !== 'none', ecart: titre && cel ? Math.round(r.getBoundingClientRect().left - titre.getBoundingClientRect().left) : 0 }; }));
     await expect.poll(async () => (await cadreDouble()).length).toBeGreaterThan(0);
@@ -237,7 +241,7 @@ describe('la paie : le mois, tel que sa maquette', () => {
     await p.setViewportSize({ width: 390, height: 844 });
     await p.locator('#p-frise').waitFor();
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-    expect(await p.locator('#p-traiter .pa-n b, #p-traiter .pa-n small').evaluateAll((l) => l.filter((x) => x.scrollWidth > x.clientWidth + 1).map((x) => x.textContent))).toEqual([]);
+    expect(await p.locator('#p-traiter .apy-n b, #p-traiter .apy-n small').evaluateAll((l) => l.filter((x) => x.scrollWidth > x.clientWidth + 1).map((x) => x.textContent))).toEqual([]);
     expect(await p.locator('#p-bulletins table.list[data-cartes] > tbody > tr').first().evaluate((x) => getComputedStyle(x).borderLeftWidth)).toBe('0px');
     await p.screenshot({ path: path.join(PHOTOS, 'paie-mois-telephone.png'), fullPage: true });
     expect(erreurs).toEqual([]);

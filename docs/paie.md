@@ -2088,3 +2088,51 @@ Tests : `tests/web/paie-revue-ecrans.test.ts` (« la sortie d'un salarié… »)
 `tests/web/paie-avance-fenetre.test.ts` était rouge depuis que la question « Abandonner cette saisie ? » nomme son bouton
 « Abandonner la saisie » : il cherchait « Abandonner » tout court, et il le cherche maintenant par son vrai nom. Vu à l'écran
 le 02/11 (la sortie de Karim avec son motif et son ancienneté, la saisie, la régularisation, le pointage au téléphone).
+
+## Les manques du métier et la maquette reprise telle quelle (02/11/2026, 1.256.0)
+
+Accord de Skander (02/11) sur les sept points de `docs/etudes/paie-concurrents.md`, puis : « reprends les écrans de la
+maquette et adapte-les : elle est soignée ». Le relevé des écarts, état par état et fenêtre par fenêtre, est dans
+`docs/paie-ecarts-maquette.md`.
+
+**Le style de la maquette, tel quel.** `scripts/maquette/paie-css.py` extrait la feuille de style de
+`docs/maquettes/paie.html` dans `web/public/plateforme/paie-maquette.css` : chaque règle est préfixée `.pm` (la page Paie
+seule), ses couleurs passent par les jetons de la charte (`--sb-*`, le thème sombre sous `body.dark .pm`), les règles nues
+des boutons et des champs sont laissées (elles agrandissaient les onglets). `scripts/maquette/paie-adapte.css`, ajouté au
+bout, tient ce que l'application change : la fenêtre (`.fen`, sa croix, son pied collé en bas, « Annuler » à gauche), les
+petits tableaux en lecture (`table.mini.lu`), les sous-onglets soulignés, et le téléphone (une colonne, la frise serrée).
+Sur `#/paie` et `#/salarie`, `modal()` pose d'elle-même la fenêtre de la maquette (sauf les menus et l'aperçu A4).
+
+**Le mois, au balisage de la maquette** : la frise (`.et`, son état dans `data-etat`), « À traiter » (`.apy`), les trois
+tuiles, le tableau des bulletins (groupes « Ce qui change ce mois », « dont avance X » sous les retenues, le pied « les N »),
+les bandeaux (`bandeau info|ambre|rouge|gris`). Sans cabinet : « Personne ne vérifie tes bulletins » et « Voir les
+contrôles » (la fenêtre des contrôles, ceux qui demandent un geste en tête). Le menu ⋯ en quatre groupes (Ce mois, Les
+salariés, Calculer, Réglages) : le journal de paie et l'ordre de virement y passent (le bouton « Journal » à part s'en va).
+Les fenêtres Payer les salaires, Le bulletin en grand, Une avance ou un prêt, Choisir un salarié reprennent la maquette.
+
+**Les sept points du métier**
+- **Quatre vues** : Le mois, Présences (pointage, par salarié, congés et absences, horaires), Salariés (l'équipe, avances
+  et prêts), Déclarations (les déclarations, l'année).
+- **Partir du net** (`brutPourNet`, compta.js) : le plus petit brut, au millime, dont le net atteint le net voulu, par le
+  calcul même des bulletins (sa situation, ses primes) ; dans « Combien coûte une embauche ? » et sur la fiche.
+- **Augmenter les salaires en lot** : ceux qu'on coche, + x % ou + x DT, dès un mois ; la fiche garde l'ancien salaire ; un
+  mois déjà payé donne un rappel sur le bulletin suivant, montré avant d'être porté ; « Annuler » défait tout.
+- **La fin de la période d'essai** dans « À traiter » (quinze jours avant, quinze après) : le confirmer dans son poste (la
+  date sur la fiche, le courrier prêt à signer) ou préparer sa sortie (motif « fin de la période d'essai »).
+- **Le préavis et l'indemnité de licenciement** : réglages vides par défaut (0 ne fait rien) ; l'indemnité
+  (`indemniteLicenciement`) compte jours × années (les mois commencés au douzième) × le salaire d'un jour. À VÉRIFIER.
+- **La prime d'ancienneté** par tranches (`trancheAnciennete`, `primeAncienneteDuMois`) : vide = rien ; une tranche sans
+  taux ne compte pas ; au prorata des jours payés. À VÉRIFIER (la convention).
+- **Les primes et retenues du mois** (`variablesDuMois`) : une grille, un salarié par ligne, une rubrique par colonne
+  (réglée une fois : prime ou retenue, imposable ou non), « Une autre rubrique… », « Coller depuis un tableur » ; le
+  bulletin établi, pas payé ni validé, se refait tout de suite.
+
+**Et la maquette encore** : le virement rejeté (repayer, nouveau RIB), les heures oubliées après validation (sur le mois
+suivant), la demande de congé plus longue que le solde (« Accepter : N jours payés, N sans solde »), ce que chaque absence
+fait au bulletin, la fin de l'année (ce que décembre et janvier demandent), la page d'un rôle sans le droit Paie, le reçu
+d'un salaire payé en espèces (`recuSalaireEspecesHtml`).
+
+Tests : `tests/moteur/paie-1256.test.ts` (le moteur), `tests/web/paie-1256-gestes.test.ts` (la fin d'essai, la grille du
+mois, l'augmentation en lot, à la souris) ; les tests de la paie retournés vers le nouveau balisage ; preuves « paie 1.256
+a » à « j ». Neuf anciennes preuves suivent le code d'aujourd'hui (le journal au menu ⋯, les primes d'ancienneté et les
+variables dans les bulletins des deux côtés, les avances sous « Salariés »).

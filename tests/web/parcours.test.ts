@@ -856,11 +856,13 @@ describe('le parcours, à la souris', () => {
     const p = await qui.ouvrir(qui.essai, '#/paie');
     await pageV10(p, /Paie/);
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
-    // Sans bulletin, pas de journal.
-    expect(await p.locator('#p-journal').count()).toBe(0);
+    // (1.256.0) Le journal est dans le menu ⋯ du mois, comme la maquette. Sans bulletin, pas de journal.
+    const journalAuMenu = async () => { await p.locator('#p-plus').click(); const n = await p.locator('.row-menu').last().getByText('Journal de paie', { exact: true }).count(); await p.keyboard.press('Escape'); return n; };
+    expect(await journalAuMenu()).toBe(0);
     await p.locator('#p-gen').click();
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => p.locator('#p-journal').count()).toBe(1);
+    await expect.poll(journalAuMenu).toBe(1);
+    const ouvrirJournal = async () => { await p.locator('#p-plus').click(); await p.locator('.row-menu').last().getByText('Journal de paie', { exact: true }).click(); };
     type Bulletin = { employeeId: string; month: number; computed: Record<string, number> };
     const bulletins = () => p.evaluate(() => (window as unknown as { __data: { payslips: Bulletin[] } }).__data.payslips);
     const somme = async (k: string) => Math.round((await bulletins()).reduce((a, x) => a + (x.computed[k] ?? 0), 0) * 1000) / 1000;
@@ -868,7 +870,7 @@ describe('le parcours, à la souris', () => {
 
     // Le journal du mois : une ligne par bulletin, dans l'ordre du registre (Salarié Un est entré le premier), les
     // colonnes du journal réel, et des totaux qui sont ceux des bulletins.
-    await p.locator('#p-journal').click();
+    await ouvrirJournal();
     const journal = p.locator('#jp-table');
     await journal.waitFor();
     expect(await journal.locator('tbody tr[data-jp]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.jp))).toEqual(['sal-1', 'sal-2', 'sal-3']);
@@ -901,9 +903,9 @@ describe('le parcours, à la souris', () => {
     expect(legende).toContain('S. cotisable salaire cotisable');
     expect(legende).toContain('CNSS pat. CNSS patronale');
     await journal.locator('tbody tr[data-jp="sal-2"]').click();
-    await expect.poll(async () => plat(await p.locator('#modal-root .modal h2').last().innerText())).toMatch(/^Salarié Numéro Deux · bulletin de /);
+    await expect.poll(async () => plat(await p.locator('#modal-root .modal h2').last().innerText())).toMatch(/^Salarié Numéro Deux · bulletin (de |d')/);
     await p.keyboard.press('Escape');
-    await expect.poll(() => p.locator('#modal-root .modal h2', { hasText: '· bulletin de' }).count()).toBe(0);
+    await expect.poll(() => p.locator('#modal-root .modal h2', { hasText: /· bulletin (de |d')/ }).count()).toBe(0);
     expect(await p.locator('#jp-table').count()).toBe(1);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#jp-table').count()).toBe(0);
@@ -994,7 +996,8 @@ describe('le parcours, à la souris', () => {
     expect([(await calcul())?.absenceCut, (await auServeur())?.retenue_absence, (await auServeur())?.brut_du_mois]).toEqual([100, 100000n, 1300000n]);
     expect(String(Number((await auServeur())?.net) / 1000)).toBe(String((await calcul())?.net));
     // Le journal : les jours payés du bulletin, et une base qui est le salaire du contrat sur ces jours.
-    await p.locator('#p-journal').click();
+    await p.locator('#p-plus').click();
+    await p.locator('.row-menu').last().getByText('Journal de paie', { exact: true }).click();
     const ligneJ = p.locator('#jp-table tr[data-jp="sal-e"]');
     const jours = Number((await ligneJ.locator('td[data-col=jours]').innerText()).replace(',', '.'));
     const base = Number((await ligneJ.locator('td[data-col=base]').innerText()).replace(/\s/g, '').replace(',', '.'));

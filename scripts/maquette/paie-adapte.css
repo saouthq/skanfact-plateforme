@@ -1,0 +1,84 @@
+/* ── L'application dans la page de la maquette (scripts/maquette/paie-adapte.css) ── */
+.pm .btn.btn-primary { background: var(--sarcelle); border-color: transparent; color: #fff; box-shadow: 0 1px 2px rgba(12, 135, 123, .3); }
+.pm .btn.btn-primary:hover { background: var(--sarcelle-f); }
+.pm .btn.btn-primary:disabled { opacity: .55; }
+.pm .btn.btn-sm, .pm .btn.mini { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 8px; }
+.pm .btn.btn-danger { color: var(--rouge-texte); }
+.pm .btn.btn-ghost { background: none; }
+.pm .btn svg { flex: none; }
+.pm #p-body { display: flex; flex-direction: column; gap: 14px; }
+.pm #p-body > * { margin-top: 0; margin-bottom: 0; flex: none; min-width: 0; }
+.pm #p-body > .apy { margin-bottom: 0; }
+.pm .carte.tab .empty { padding: 28px 16px; text-align: center; color: var(--gris-2); }
+.pm .carte.tab .pager { padding: 8px 12px; border-top: 1px solid var(--trait); }
+.pm .bandeau .btn { flex: none; }
+.pm .bandeau.info > svg { color: #4d7cf2; }
+.pm table.liste td.row-actions { white-space: nowrap; text-align: right; }
+.pm table.liste td.row-actions .btn.mini { margin-right: 4px; }
+.pm .raccourcis a { color: var(--sarcelle-texte); }
+.pm .tuile .info-i, .pm .tu-t .info { margin-left: 0; }
+/* Les fenêtres de l'application (`modal`) dans l'habit de celles de la maquette (`.fen`). */
+.modal-bg.pm { font-size: 15px; }
+.pm .modal.fen { width: 560px; max-width: calc(100vw - 32px); max-height: calc(97vh - var(--haut-fenetre, 7vh)); overflow: auto; padding: 22px; border-radius: 16px; box-shadow: var(--ombre-pop); background: var(--papier); display: block; }
+.pm .modal.fen.large { width: 720px; }
+.pm .modal.fen > h2 { margin: 0 0 6px; font-size: 19px; letter-spacing: -.02em; padding-right: 40px; color: var(--encre); }
+.pm .modal.fen > h2 + p.small, .pm .modal.fen > h2 + p.muted, .pm .modal.fen > h2 + .sous-f { margin: 0 0 14px; font-size: 13px; color: var(--gris); }
+.pm .modal.fen > * + * { margin-top: 12px; }
+.pm .modal.fen > h2 + p { margin-top: 0; }
+.pm .modal.fen .modal-actions { position: sticky; bottom: -22px; margin: 18px -22px -22px; padding: 12px 22px 16px; background: var(--papier); border-top: 1px solid var(--trait); display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; z-index: 1; }
+.pm .modal.fen .modal-actions .oblig-note { margin-right: auto; align-self: center; }
+.pm .modal.fen .fen-x { margin: 0; }
+.pm .modal.fen .apy-l.fen-l { margin: 0 -22px; }
+.pm .modal.fen .apy-l.fen-l li { cursor: default; }
+/* L'en-tête de la page : le titre de la maquette (26 px, gras). */
+.pm .page-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -.025em; }
+.pm .page-head .sous { font-size: 13.5px; color: var(--gris); }
+/* Le menu d'une ligne : discret tant qu'on ne le survole pas, à côté du seul bouton de la ligne. */
+.pm table.liste .row-menu-btn { height: 28px; border-color: transparent; background: none; color: var(--gris-2); font-size: 12.5px; }
+.pm table.liste tr:hover .row-menu-btn, .pm table.liste .row-menu-btn[aria-expanded="true"] { border-color: var(--trait); background: var(--papier); color: var(--encre); }
+.pm .cp-ex { color: var(--sarcelle-texte); }
+/* Un tableau de lecture dans une fenêtre (`table.mini.lu`) : celui de la maquette, pas la grille de saisie de la charte. */
+#modal-root .pm .modal table.mini.lu { border-collapse: collapse; border-spacing: 0; margin-top: 0; }
+#modal-root .pm .modal table.mini.lu th { padding: 6px 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--trait); }
+#modal-root .pm .modal table.mini.lu td { padding: 9px 8px; border-bottom: 1px solid var(--trait); vertical-align: top; }
+#modal-root .pm .modal table.mini.lu tbody tr:last-child td { border-bottom: 0; }
+#modal-root .pm .modal table.mini.lu tfoot td { border-top: 1px solid var(--trait-fort); border-bottom: 0; font-weight: 600; }
+/* Le pied d'une fenêtre : « Annuler » (ou « Fermer ») à gauche, les gestes à droite, le principal au bout (la maquette). */
+.pm .modal.fen .modal-actions > [data-close]:first-child, .pm .modal.fen .modal-actions > .oblig-note + [data-close] { margin-inline-end: auto; }
+.pm .modal.fen .regle, .pm .modal.fen p.regle { font-size: 13px; color: var(--gris); margin: 12px 0 0; display: block; }
+.pm .modal.fen .regle svg { vertical-align: -2px; margin-right: 4px; }
+.pm .modal.fen.bul { width: 860px; }
+.pm .modal.fen .bul-2 table.mini.lu tbody tr:last-child td { border-bottom: 1px solid var(--trait); }
+/* Les sous-vues (Le pointage, Par salarié…) : les onglets soulignés de la maquette, sur une rangée. */
+.pm .pa-sous.pm-sous { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 2px; margin: 0 0 14px; border-bottom: 1px solid var(--trait); background: none; border-radius: 0; box-shadow: none; }
+.pm .pa-sous.pm-sous button { display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: auto; padding: 10px 12px 11px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; box-shadow: none; color: var(--gris); font-size: 13.5px; }
+.pm .pa-sous.pm-sous button b { font-weight: 600; }
+.pm .pa-sous.pm-sous button svg { color: var(--gris-2); }
+.pm .pa-sous.pm-sous button[aria-selected="true"] { color: var(--encre); border-bottom-color: var(--sarcelle); background: none; box-shadow: none; }
+.pm .pa-sous.pm-sous button[aria-selected="true"] svg { color: var(--sarcelle-texte); }
+/* Au téléphone (la maquette dessine le téléphone à part) : la frise en cinq pastilles, le texte de l'étape en cours seul ;
+   les chiffres l'un sous l'autre ; une ligne « À traiter » sans ses colonnes vides ; les fenêtres en une colonne. */
+/* Les fenêtres qui ont leur largeur à elles la gardent (la fenêtre de la maquette en fait 520 ou 720 px) : le journal de
+   paie (dix-sept colonnes, lues sans défiler), le bulletin à modifier (une prime se lit en entier), la grille du mois. */
+.pm .modal.fen:has(#jp-table) { width: min(1380px, calc(100vw - 32px)); max-width: none; }
+.pm .modal.fen.pa-bf, .pm .modal.fen.pv-large { width: min(1040px, 96vw); max-width: min(1040px, 96vw); }
+@media (max-width: 760px) {
+  .pm .frise { padding: 12px 10px; }
+  .pm .frise .et { padding-right: 4px; }
+  .pm .frise .et b { font-size: 11.5px; }
+  .pm .frise .et > span:not(.pt) { display: none; }
+  .pm .frise .et.e-cours > span:not(.pt) { display: block; font-size: 11px; }
+  .pm .tuiles, .pm .tuiles.t3 { grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); }
+  .pm .tuile { min-height: 0; }
+  .pm .apy-l li { grid-template-columns: 30px minmax(0, 1fr) auto; }
+  .pm .apy-l li > span:empty { display: none; }
+  .pm .apy-n b, .pm .apy-n small { white-space: normal; overflow: visible; }
+  .pm .bandeau { flex-wrap: wrap; }
+  .pm .bandeau .txt { min-width: 0; flex-basis: calc(100% - 40px); }
+  .pm .bul-t, .pm .bul-2 { grid-template-columns: minmax(0, 1fr); }
+  .pm .modal.fen, .pm .modal.fen.large, .pm .modal.fen.bul { width: auto; max-width: calc(100vw - 16px); padding: 18px 16px; }
+  .pm .modal.fen .modal-actions { margin: 14px -16px -18px; padding: 10px 16px 14px; }
+  .pm .raccourcis { display: none; }
+}
+/* Un tableau dans sa carte n'a pas de second cadre (le tableau de l'application en porte un). */
+.pm .carte.tab table.list { border: 0; box-shadow: none; border-radius: 0; background: none; margin: 0; }

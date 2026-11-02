@@ -89,12 +89,16 @@ describe('la paie : les documents en aperçu fidèle', () => {
 
     // ── Le bulletin : « Bulletin » sur sa ligne ouvre la feuille elle-même (1.248.1 : le menu ne le répète plus) ────────
     await p.locator('#p-bulletins tr[data-bul] [data-voir-b]').first().click();
+    // (1.256.0) « Bulletin » ouvre le bulletin en grand (la maquette) ; « Le document » ouvre la feuille A4.
+    await p.locator('#modal-root #bg-doc').click();
     await expect.poll(() => lireFeuille('#ad-apercu')).toContain('Nadia Ben Salem');
     expect(await lireFeuille('#ad-apercu')).toContain(montant(Number(dernier.computed.net)));
     expect(espace(await p.locator('.modal.pa-doc h2').innerText())).toMatch(/^Nadia Ben Salem · bulletin de \S+ \d{4}$/);
     expect(await p.locator('.modal.pa-doc #ad-pdf').count()).toBe(1);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-apercu-bulletin.png') });
     await p.locator('.modal.pa-doc [data-close]').click();
+    await p.locator('#modal-root .modal').last().locator('[data-close]').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
 
     // ── Les documents du personnel : la fenêtre montre la feuille à droite ──────────────────────────────────────
     await p.locator('#p-tabs [data-tab="salaries"]').click();

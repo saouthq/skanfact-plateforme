@@ -16353,8 +16353,8 @@ prouver 'une fiche estimée sans ses primes' 'web/public/v10/core.js' \
   'return { bonuses: [] };' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
 prouver 'le bulletin du mois sans les primes de la fiche' 'web/public/v10/core.js' \
-  'bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.regulsDuMois(employee, year, month)], deductions, prorata };' \
-  'bonuses: [...Compta.regulsDuMois(employee, year, month)], deductions, prorata };' \
+  'bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.primeAncienneteDuMois(' \
+  'bonuses: [...Compta.primeAncienneteDuMois(' \
   'le bulletin du mois reprend les primes de la fiche : au prorata d'"'"'une absence non payée, et d'"'"'une entrée en cours de mois'
 prouver 'des primes au jour qui oublient l'"'"'absence non payée' 'web/public/v10/core.js' \
   'primesDuMois(employee, total - hors - absentDays, total)' \
@@ -16592,8 +16592,8 @@ prouver 'décembre déclaré en décembre' 'web/public/v10/core.js' \
   '    const ny = y, nm = m >= 12 ? 1 : m + 1;' \
   'la déclaration mensuelle reprend les montants du journal du même mois (IRPP, CSS, TFP, FOPROLOS) et leurs bases, à l'"'"'échéance du calendrier fiscal'
 prouver 'le journal de paie d'"'"'un mois sans bulletin' 'web/public/v10/app.js' \
-  'id="p-bulletins">${month.length ? `<div class="pa-carte-t">' \
-  'id="p-bulletins">${true ? `<div class="pa-carte-t">' \
+  "...(du.length ? [{ icon: 'loupe', label: 'Journal de paie'," \
+  "...(true ? [{ icon: 'loupe', label: 'Journal de paie'," \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
 prouver 'un journal qui ne tient pas à l'"'"'ordinateur' 'web/public/v10/app.js' \
   '<th class="r" title="${h(l)}">${h(court)}</th>' \
@@ -16955,8 +16955,8 @@ prouver 'un mois pointé sans ses heures supplémentaires au bulletin nouveau' '
   'return i;' \
   'le mois pointé : ses absences, sa demi-journée et ses heures supplémentaires arrivent au bulletin'
 prouver 'la prime au jour d'"'"'un bulletin nouveau sur le mois entier' 'web/public/v10/compta.js' \
-  'bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...regulsDuMois(employee, year, month)], prorata,' \
-  'bonuses: [...primesDuMois(employee, total, total), ...regulsDuMois(employee, year, month)], prorata,' \
+  'bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...primeAncienneteDuMois(' \
+  'bonuses: [...primesDuMois(employee, total, total), ...primeAncienneteDuMois(' \
   'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
 prouver 'les congés tous payés, quelle que soit leur nature' 'web/public/v10/compta.js' \
   'const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };' \
@@ -17154,8 +17154,8 @@ prouver 'la veille qui mesure tous les disques quand aucun chemin réglé n'"'"'
 
 # 1.71.0 : les avances sur salaire au Cabinet.
 prouver 'la saisie du mois du Cabinet sans les échéances des avances' 'web/public/v10/compta.js' \
-  '      deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month)] };' \
-  '      deductions: [...saisiesDuMois(data, employee, year, month)] };' \
+  '      deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month), ...vars.deductions] };' \
+  '      deductions: [...saisiesDuMois(data, employee, year, month), ...vars.deductions] };' \
   'deux chemins, un chiffre : le bulletin nouveau du Cabinet retient ce que celui de l'"'"'entreprise retient'
 prouver 'l'"'"'échéance qui prend la retenue convenue même quand il reste moins' 'web/public/v10/compta.js' \
   'amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))' \
@@ -22265,8 +22265,8 @@ prouver 'paie 1.234 a : « Marquer payé » offert avant le bon à payer' web/pu
 prouver 'paie 1.234 b : « Ce que tu verses » sans son geste' web/public/v10/app.js \
   "const geste = (id, lab) => \`<button" "const geste = (id, lab) => '' && \`<button" \
   "$WI2"
-prouver 'paie 1.234 c : les avances en cours absentes des congés' web/public/v10/app.js \
-  '${congesCompteurs(y, emps, cptPage)}${avancesEnCours()}' '${congesCompteurs(y, emps, cptPage)}' \
+prouver 'paie 1.234 c : les avances en cours absentes des avances et prêts' web/public/v10/app.js \
+  "\$('#p-body').innerHTML = \`\${avancesEnCours()}" "\$('#p-body').innerHTML = \`" \
   "$WI3"
 prouver 'paie 1.234 d : le RIB en entier dans « Payer les salaires »' web/public/v10/app.js \
   "··· \${h(String(l.rib).replace(/\\s/g, '').slice(-4))}" "\${h(l.rib)}" \
@@ -22577,6 +22577,51 @@ prouver "paie 1.255 e : au téléphone, la grille du pointage déborde (pas de l
 prouver "paie 1.255 f : au téléphone, les gestes d'un bulletin recouvrent son nom" web/public/plateforme/paie.css \
   "td.row-actions { position: static; grid-column: 1 / -1; order: 9;" "td.row-actions { grid-column: 1 / -1; order: 9;" \
   "$WP255"
+
+# 1.256.0 (les manques métier de la paie, et la page Paie reprise de sa maquette, 02/11/2026) : net → brut, ancienneté,
+# primes et retenues du mois, indemnité de licenciement, reçu d'espèces ; un tableau dans sa carte sans second cadre.
+prouver "paie 1.256 a : le brut trouvé dépasse d'un millime le plus petit" web/public/v10/compta.js \
+  "return { gross: round3(haut / 1000), net: netDe(haut) };" "return { gross: round3(haut / 1000 + 0.001), net: netDe(haut + 1) };" \
+  'un net voulu donne le plus petit brut qui l'\''atteint, au millime'
+prouver "paie 1.256 b : l'ancienneté compte une année commencée" web/public/v10/compta.js \
+  "return d1.slice(5, 10) < d0.slice(5, 10) ? a - 1 : a;" "return a;" \
+  'l'\''ancienneté se compte en années pleines, au jour près ; la tranche atteinte est la plus haute'
+prouver "paie 1.256 c : une tranche d'ancienneté sans taux compte" web/public/v10/compta.js \
+  ".filter(t => t.ans > 0 && t.taux > 0).sort((a, b) => a.ans - b.ans);" ".filter(t => t.ans > 0).sort((a, b) => a.ans - b.ans);" \
+  'l'\''ancienneté se compte en années pleines, au jour près ; la tranche atteinte est la plus haute'
+prouver "paie 1.256 d : les primes d'un autre mois entrent au bulletin" web/public/v10/compta.js \
+  "filter(v => v && v.mois === ym && Number(v.amount) > 0);" "filter(v => v && Number(v.amount) > 0);" \
+  'les primes et retenues du mois : celles du mois seul, une prime au brut, une retenue hors du net'
+prouver "paie 1.256 e : une démission reçoit une indemnité de licenciement" web/public/v10/compta.js \
+  "if (e.sortieMotif !== 'licenciement') return null;" "if (false) return null;" \
+  'l'\''indemnité de licenciement : rien hors licenciement, rien sans barème, sinon jours × années × un jour'
+prouver "paie 1.256 f : le reçu d'espèces ne dit plus ce qu'il est" web/public/v10/core.js \
+  "<h1>Reçu de salaire payé en espèces</h1>" "<h1>Reçu</h1>" \
+  'le reçu d'\''un salaire en espèces dit qui, combien (en chiffres et en lettres), pour quel mois'
+prouver "paie 1.256 g : le tableau des bulletins garde un second cadre dans sa carte" web/public/plateforme/paie-maquette.css \
+  ".pm .carte.tab table.list { border: 0; box-shadow: none; border-radius: 0; background: none; margin: 0; }" ".pm .carte.tab table.list { margin: 0; }" \
+  'le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
+prouver "paie 1.256 h : « Le confirmer dans son poste » ne note pas la date" web/public/v10/app.js \
+  "x.essaiConfirmeLe = C.today(); save(true);" "save(true);" \
+  'la fin d'\''essai : « À traiter » la dit, « Le confirmer dans son poste » la note et ouvre le courrier'
+prouver "paie 1.256 i : la grille du mois ne refait pas le bulletin établi" web/public/v10/app.js \
+  "if (appliquerVariables(e, y, m)) refaits++;" "if (false) refaits++;" \
+  'les primes et retenues du mois : une case de la grille entre au bulletin établi, qui se refait'
+prouver "paie 1.256 j : l'augmentation en lot prend aussi ceux qu'on décoche" web/public/v10/app.js \
+  "const coches = () => \$\$('[data-al-c]', root).filter(c => c.checked)" "const coches = () => \$\$('[data-al-c]', root).filter(c => c)" \
+  'augmenter les salaires : + 10 % pour Mourad seul, dès ce mois ; sa fiche garde l'\''ancien salaire'
+prouver "paie 1.256 k : un bouton radio non coché dit quand même sa valeur" web/public/v10/app.js \
+  "      if (el.type === 'radio' && !el.checked) return;" "" \
+  'augmenter les salaires : + 10 % pour Mourad seul, dès ce mois ; sa fiche garde l'\''ancien salaire'
+prouver "paie 1.256 l : copier « rien » casse l'enregistrement de la grille du mois" web/public/v10/app.js \
+  "const deepCopy = o => (o === undefined ? undefined : JSON.parse(JSON.stringify(o)));" "const deepCopy = o => JSON.parse(JSON.stringify(o));" \
+  'les primes et retenues du mois : une case de la grille entre au bulletin établi, qui se refait'
+prouver "paie 1.256 m : le journal de paie dans une fenêtre de 720 px" web/public/plateforme/paie-maquette.css \
+  ".pm .modal.fen:has(#jp-table) { width: min(1380px, calc(100vw - 32px)); max-width: none; }" "" \
+  'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'\''état récapitulatif CNSS'
+prouver "paie 1.256 n : le bulletin à modifier dans une fenêtre de 720 px" web/public/plateforme/paie-maquette.css \
+  ".pm .modal.fen.pa-bf, .pm .modal.fen.pv-large { width: min(1040px, 96vw); max-width: min(1040px, 96vw); }" "" \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'\''avant 2026 se disent'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -4235,6 +4235,12 @@
         else premier[k][v] = e.name;
       });
       if (e.contract === 'cdd' && e.endDate && e.endDate >= t && e.endDate <= dans60) L.push({ ...base, focus: '', titre: `Le CDD de ${e.name} finit le ${fmtDate(e.endDate)}`, dit: 'le renouveler, ou préparer sa sortie', geste: 'Décider' });
+      // (plateforme) 1.256.0 — la FIN DE PÉRIODE D'ESSAI, dans les quinze jours (ou finie depuis moins de quinze jours) et pas
+      // encore confirmée : le confirmer dans son poste (le courrier), ou préparer sa sortie. Une sortie déjà notée la tait.
+      if (e.trialEnd && !e.essaiConfirmeLe && !e.endDate && e.trialEnd >= addDays(t, -15) && e.trialEnd <= addDays(t, 15)) {
+        L.push({ ...base, focus: '', essai: true, titre: e.trialEnd >= t ? `La période d'essai de ${e.name} finit le ${fmtDate(e.trialEnd)}` : `La période d'essai de ${e.name} a fini le ${fmtDate(e.trialEnd)}`,
+          dit: 'le confirmer dans son poste (le courrier est prêt), ou préparer sa sortie', geste: 'Décider' });
+      }
       // (plateforme) 1.234.0 — une demande de congé sans réponse (la maquette, « À traiter ») : combien de jours, ce qui lui reste.
       (data.leaves || []).filter(l => l.employeeId === e.id && l.statut === 'demande').forEach(l => {
         const jours = workingDays(l.from, l.to, payrollSettings(data).offDays), reste = leaveBalance(data, e.id, Number(String(l.from).slice(0, 4))).remaining;
@@ -4474,7 +4480,9 @@
       .reduce((a, l) => a + leaveDaysInMonth(l, year, month, off), 0));
     // (plateforme) 1.71.0 — l'échéance de chaque avance en cours, par le moteur commun (celle du bulletin du Cabinet).
     // (plateforme) 1.230.0 — et chaque saisie sur salaire en cours (le moteur commun, celui du Cabinet).
-    const deductions = [...echeancesDuMois(data, employee.id, year, month), ...Compta.saisiesDuMois(data, employee, year, month)];
+    // (plateforme) 1.256.0 — et les retenues du mois importées d'un tableur (`Compta.variablesDuMois`).
+    const vars = Compta.variablesDuMois(employee, year, month);
+    const deductions = [...echeancesDuMois(data, employee.id, year, month), ...Compta.saisiesDuMois(data, employee, year, month), ...vars.deductions];
     // 10.12.0 — une entrée ou une sortie en cours de mois se PRORATISE. Le brut de la fiche était
     // repris en entier : un ouvrier embauché le 24 septembre recevait un mois plein pour six jours, et
     // celui qui part le 5 aussi. Les jours hors contrat se comptent en jours ouvrables (le repos
@@ -4501,7 +4509,9 @@
     // (plateforme) 1.59.0 — les primes de la fiche, « au jour » sur les jours payés du mois : ceux du contrat
     // (l'entrée, la sortie) moins les absences non payées.
     // (plateforme) 1.230.0 — avec les régularisations portées sur ce mois (un bulletin payé corrigé, un rappel).
-    return { gross, workedDays: total, absentDays, bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.regulsDuMois(employee, year, month)], deductions, prorata };
+    // (plateforme) 1.256.0 — la prime d'ancienneté des réglages (au jour, comme une prime de la fiche) et les primes du mois
+    // importées d'un tableur.
+    return { gross, workedDays: total, absentDays, bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.primeAncienneteDuMois(employee, s, year, month, total - hors - absentDays, total), ...Compta.regulsDuMois(employee, year, month), ...vars.bonuses], deductions, prorata };
   }
 
   // (plateforme) 1.59.0 — les primes de chaque mois, posées sur la fiche du salarié (`employee.primes` :
@@ -4834,6 +4844,46 @@
   // compte à débiter, une ligne par bénéficiaire (son RIB, son net), le total en chiffres et en lettres, la ville et le jour,
   // la signature. Une lettre d'usage, pas un formulaire officiel : À VÉRIFIER, une banque peut demander le sien, ou un
   // fichier. `o` : { year, month, date, compte: { bank, rib }, lignes: [{ name, rib, net }] }.
+  // (1.256.0) Le reçu d'un salaire payé en espèces (la maquette, « Payer les salaires » : « Reçu de Salma ») : le salarié signe
+  // qu'il a reçu son net du mois ; la caisse se justifie par ce papier. Une ligne par salarié payé en espèces.
+  function recuSalaireEspecesHtml(company, o) {
+    const co = company || {};
+    const lignes = (o && o.lignes) || [];
+    const cur = co.currency || 'DT';
+    const fmt = n => money(n, null, decimalsFor(cur), 'fr');
+    const ink = co.primaryColor || '#1b2430';
+    const accent = co.accentColor || '#0f9d8f';
+    const periode = monthLabel(`${o.year}-${pad2(o.month)}-01`);
+    const ville = (co.address || '').split('\n').pop().replace(/^\d+\s*/, '').trim();
+    const recu = l => `<section class="recu">
+    <div class="head"><div class="co-name">${escapeHtml(co.name || '')}</div><div class="co-sub">${escapeHtml(co.address || '').replace(/\n/g, '<br>')}${co.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(co.matricule))}` : ''}</div></div>
+    <h1>Reçu de salaire payé en espèces</h1>
+    <p>Je soussigné(e) <b>${escapeHtml(l.name || '')}</b>${l.cin ? `, CIN n° ${escapeHtml(l.cin)}` : ''}${l.poste ? `, ${escapeHtml(l.poste)}` : ''}, reconnais avoir reçu de <b>${escapeHtml(co.name || 'mon employeur')}</b> la somme de <b>${fmt(l.net)} ${escapeHtml(normCurrency(cur))}</b> (<em>${escapeHtml(amountToWords(l.net, cur))}</em>), en espèces, au titre de mon salaire net ${escapeHtml(Compta.deMois(periode))}.</p>
+    <div class="deux"><div>Fait${ville ? ` à ${escapeHtml(ville)}` : ''} le ${fmtDate((o && o.date) || today())}<br>Pour l'employeur${co.managerName ? `<br>${escapeHtml(co.managerName)}` : ''}<div class="sig"></div></div><div>Le salarié<br>« reçu la somme ci-dessus »<div class="sig"></div>Signature</div></div>
+  </section>`;
+    return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>Reçu de salaire en espèces — ${escapeHtml(Compta.deMois(periode))}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: ${ink}; font-size: 10pt; line-height: 1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 210mm; min-height: 297mm; padding: 16mm; background: #fff; display: grid; gap: 14mm; align-content: start; }
+  .recu { border: 1px solid #d9dee5; border-radius: 3mm; padding: 9mm; }
+  .head { padding-bottom: 8px; border-bottom: 2px solid ${accent}; }
+  .co-name { font-size: 12pt; font-weight: 700; }
+  .co-sub { font-size: 8.5pt; color: #6a7480; }
+  h1 { margin: 14px 0 10px; font-size: 13pt; color: ${accent}; }
+  .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 14px; }
+  .sig { height: 20mm; }
+  .pied { font-size: 7.5pt; color: #6a7480; }
+</style></head>
+<body><div class="page">
+  ${lignes.map(recu).join('')}
+  <div class="pied">Établi avec SkanFact le ${fmtDate(today())}. À garder avec la caisse : il justifie la sortie d'argent (durée de conservation : À VÉRIFIER).</div>
+</div></body></html>`;
+  }
   function ordreDeVirementHtml(company, o) {
     const co = company || {};
     const lignes = (o && o.lignes) || [];
@@ -12120,9 +12170,11 @@
     payslipHtml,
     // (plateforme) 1.61.0 — le journal de paie et les états de la paie.
     joursPayesDuBulletin, COLONNES_JOURNAL, journalDePaie, colonnesCsvJournal, journalDePaieHtml, etatRecapitulatifCnss, etatRecapitulatifCnssHtml, declarationMensuelleSalaires,
-    QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,
+    QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue, recuSalaireEspecesHtml,
     LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
-    advancesOf, advanceBalance, payslipInputFor, congeRetenu: Compta.congeRetenu, brutDuMois: Compta.brutDuMois, saisiesOf: Compta.saisiesOf, regulsDuMois: Compta.regulsDuMois, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
+    advancesOf, advanceBalance, payslipInputFor, congeRetenu: Compta.congeRetenu, brutDuMois: Compta.brutDuMois, saisiesOf: Compta.saisiesOf, regulsDuMois: Compta.regulsDuMois,
+    // (plateforme) 1.256.0
+    brutPourNet: Compta.brutPourNet, anneesAnciennete: Compta.anneesAnciennete, trancheAnciennete: Compta.trancheAnciennete, variablesDuMois: Compta.variablesDuMois, indemniteLicenciement: Compta.indemniteLicenciement, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
     // (plateforme) 1.72.0 — du moteur commun : la civilité, l'indemnité de congés non pris, les lignes du solde.
     CIVILITES, indemniteConges, lignesDuSolde,
     SERIAL_STATUSES, serialStatusLabel, WARRANTY_CHOICES, serializedItems, warrantyEnd, serialView,

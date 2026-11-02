@@ -65,7 +65,9 @@ describe('la fenêtre d\'une absence de l\'entreprise, au clavier', () => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
       await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
     }
-    await p.locator('#p-tabs button', { hasText: 'Congés et absences' }).click();
+    // (1.256.0) « Congés et absences » est une sous-vue de « Présences ».
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-sous [data-sous="conges"]').click();
     for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(2025); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(2025) ? '#p-an-prec' : '#p-an-suiv').click();
     await p.locator('[data-lv="l1"]').click();
     const fenetre = p.locator('#modal-root .modal').last();

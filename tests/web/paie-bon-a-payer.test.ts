@@ -118,7 +118,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(await p.getByText('Marquer payé', { exact: true }).count()).toBe(0);
     await p.keyboard.press('Escape');
     expect(espace(await p.locator('#p-head .sous').innerText())).toContain('tenue par ton cabinet');
-    expect(espace(await p.locator('#p-frise li:nth-child(2)').innerText())).toContain('5 à approuver');
+    expect(espace(await p.locator('#p-frise .et:nth-child(2)').innerText())).toContain('5 à approuver');
     // Le bandeau du bon à payer passe avant la frise.
     expect(await p.locator('#p-body > #p-bap-b + #p-frise').count()).toBe(1);
     // Les contrôles : ce qui demande un geste d'abord, chacun nommé.
@@ -173,7 +173,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     let p = await ouvrir(B);
     await expect.poll(() => p.locator('#p-corr').count()).toBe(1);
     expect(espace(await p.locator('#p-corr-ok').innerText())).toBe('Accepter la correction de Anis');
-    expect(espace(await p.locator('#p-frise li:nth-child(2)').innerText())).toContain('1 correction proposée');
+    expect(espace(await p.locator('#p-frise .et:nth-child(2)').innerText())).toContain('1 correction proposée');
     expect(espace(await p.locator('#p-corr-detail').innerText())).toContain(`Net à verser ${montant(net0)} DT ${montant(Math.round((net0 - 100) * 1000) / 1000)} DT`);
     expect(espace(await p.locator('#p-bulletins tr[data-bul="' + hm.id + '"]').innerText())).toContain('correction proposée');
     await p.screenshot({ path: path.join(PHOTOS, 'paie-correction.png'), fullPage: true });
@@ -254,7 +254,9 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(await p.locator('#p-body h2', { hasText: 'À déposer' }).count()).toBe(0);
     expect(await p.locator('#dc-verses li').first().locator('[data-file]').count()).toBe(1);
     expect(await p.locator('#dm-panneau .pa-carte-t b').first().innerText()).toMatch(/^La déclaration d.\S+, sa part paie/);
-    await p.locator('#p-tabs button[data-tab="annee"]').click();
+    // (1.256.0) « L'année » est une sous-vue de « Déclarations ».
+    await p.locator('#p-tabs [data-tab="declarations"]').click();
+    await p.locator('#p-sous [data-sous="annee"]').click();
     // (1.253.0) Les postes de l'année entière : le livreur parti le mois d'avant y compte encore (s'il était dans l'année).
     const livreurDansLAnnee = A.mo !== 1;
     await expect.poll(() => p.locator('#p-annee-postes tbody tr').count()).toBe(livreurDansLAnnee ? 5 : 4);
