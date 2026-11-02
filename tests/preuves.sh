@@ -22410,6 +22410,13 @@ prouver "paie 1.244 c : un dossier aux bulletins validés ne se dit pas « valid
   "    if (x.valides >= n) return ['ok', x.remis >= n ? 'validés · remis' : 'validés'];" "" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 
+prouver "paie 1.245 a : renvoyer les bulletins les ajoute au lieu de remplacer ceux d'avant" web/public/v10/cabinet/app.js \
+  "rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', remplace: deja ? deja.id : null," "rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', remplace: null," \
+  "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+prouver "paie 1.245 b : un bulletin envoyé se range hors de la Paie du classeur" web/public/v10/cabinet/app.js \
+  "classee: true, rub: 'paie', mois: x.periode, date: x.deposeLe, recue: false," "classee: true, rub: 'achats', mois: x.periode, date: x.deposeLe, recue: false," \
+  "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

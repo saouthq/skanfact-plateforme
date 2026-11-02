@@ -5298,6 +5298,13 @@
       const fait = x.raison ? ({ saisie: ['ok', 'saisie', 'ordre'], verifiee: ['ok', 'vérifiée', 'ordre'], rien: ['gris', 'gardée, rien à saisir', 'ordre'], double: ['gris', 'en double', 'ordre'], illisible: ['rouge', 'illisible', 'traiter'], banque: ['ok', 'rapprochée', 'ordre'] })[x.raison] : null;
       // (1.209.0) L'état de rapprochement joint depuis la Banque : le travail du cabinet du mois, provisoire ou définitif.
       const etatBq = /^État de rapprochement /.test(String(x.titre || ''));
+      // (1.245.0) Un bulletin envoyé depuis la Paie : il range la paie du mois, rien à saisir (l'écriture de paie est faite).
+      if (/^Bulletin de paie · /.test(String(x.titre || ''))) {
+        items.push(avecLecture({ k: `d:${x.id}`, sorte: 'doc', doc: x, classee: true, rub: 'paie', mois: x.periode, date: x.deposeLe, recue: false, titre: x.titre, sous: x.detail || '',
+          em: `envoyé ${le === K.today() ? 'aujourd\'hui' : `le ${jjmm(le)}`} par ${prenomCl(x.deposeNom) || 'le cabinet'}`, montant: null, etat: ['ok', 'envoyé au client', 'ordre'], geste: null,
+          photo: false, jumelle: '' }));
+        continue;
+      }
       items.push(avecLecture({ k: `d:${x.id}`, sorte: 'doc', doc: x, classee: !!x.raison, rub: etatBq ? 'cabinet' : /relev/i.test(`${x.titre} ${x.fichier.nom}`) ? 'banque' : 'achats', mois: x.periode, date: x.deposeLe, recue: !etatBq,
         titre: x.titre, sous: x.detail || '', em: `${x.double ? `la même que ${nomJumelle(x.double)} · ` : ''}déposée ${le === K.today() ? 'aujourd\'hui' : `le ${jjmm(le)}`} par ${prenomCl(x.deposeNom) || 'le cabinet'}${x.provenance ? ` (${x.provenance})` : ''}`,
         montant: null, etat: etatBq && x.raison ? ['ok', /^provisoire/.test(String(x.detail || '')) ? 'provisoire' : 'définitif', 'ordre'] : fait || ['ambre', 'à saisir', 'traiter'], geste: fait ? null : { lib: 'Saisir', act: 'saisir' }, photo: !/pdf/.test(x.fichier.type),
@@ -6254,7 +6261,7 @@
         if (r === 'ventes') return pl(l.length, 'pièce');
         if (r === 'achats') return `${pl(l.length, 'pièce')} · chacune avec son justificatif`;
         if (r === 'banque') return rel ? `le relevé ${rel.banque || ''} ${deMois(pm.m)}`.replace(/\s+/g, ' ') : pl(l.length, 'pièce');
-        if (r === 'paie') return pl(l.length, 'écriture de paie', 'écritures de paie');
+        if (r === 'paie') return (n => [n.e ? pl(n.e, 'écriture de paie', 'écritures de paie') : '', n.b ? pl(n.b, 'bulletin envoyé', 'bulletins envoyés') : ''].filter(Boolean).join(' · ') || pl(0, 'pièce'))({ b: l.filter(x => x.sorte === 'doc' && /^Bulletin de paie · /.test(String(x.titre || ''))).length, e: l.filter(x => !(x.sorte === 'doc' && /^Bulletin de paie · /.test(String(x.titre || '')))).length });
         if (r === 'retenues') return pl(pm.lp.filter(x => x.rs).length, 'retenue');
         return pl(l.length, 'pièce'); };
       const etatR = r => r === 'achats' ? 'tous justifiés' : r === 'banque' ? (relOk ? 'rapproché' : 'saisie') : r === 'paie' ? 'faite' : 'toutes saisies';
@@ -6285,7 +6292,7 @@
         const l = clState.rub === 'retenues' ? pm.lp.filter(x => x.rs) : pm.lp.filter(x => x.rub === clState.rub);
         const nom = (CL_RUBS.find(([r]) => r === clState.rub) || ['', ''])[1];
         const o = l.filter(x => x.etat[2] === 'ordre').length, t = l.filter(x => x.etat[2] === 'traiter').length;
-        const quoiR = ({ achats: ['facture ou ticket', 'factures et tickets'], ventes: ['facture ou jour de caisse', 'factures et jours de caisse'], banque: ['relevé ou mouvement', 'relevés et mouvements'], paie: ['écriture de paie', 'écritures de paie'], retenues: ['retenue', 'retenues'], cabinet: ['écriture ou état du cabinet', 'écritures et états du cabinet'] }[clState.rub] || ['pièce', 'pièces'])[l.length > 1 ? 1 : 0];
+        const quoiR = ({ achats: ['facture ou ticket', 'factures et tickets'], ventes: ['facture ou jour de caisse', 'factures et jours de caisse'], banque: ['relevé ou mouvement', 'relevés et mouvements'], paie: ['écriture ou bulletin de paie', 'écritures et bulletins de paie'], retenues: ['retenue', 'retenues'], cabinet: ['écriture ou état du cabinet', 'écritures et états du cabinet'] }[clState.rub] || ['pièce', 'pièces'])[l.length > 1 ? 1 : 0];
         const rubs7 = CL_RUBS.filter(([r]) => r !== 'manque'), i7 = rubs7.findIndex(([r]) => r === clState.rub);
         const cleOrdre = `${d.id}:${pm.m}:${clState.rub}`;
         let trie = triAFaire(l);
@@ -11079,7 +11086,13 @@
     if (!pret) return '';
     const mo = KC.moisPaie(m), relie = !dossier.manual && !!api.messagerie;
     const etape = (n, fait, titre, dit, geste) => `<li class="${fait ? 'fait' : ''}"><span class="n">${fait ? '✓' : n}</span><span><b>${esc(titre)}</b><small>${esc(dit)}</small></span>${geste || ''}</li>`;
-    const L1 = P.mode === 'seule' ? '' : etape(1, P.remis, 'Les remettre aux salariés', P.remis ? 'remis' : 'chaque bulletin s\'imprime depuis le menu de sa ligne', '');
+    // (plateforme) 1.245.0 — « Les envoyer » (la maquette, paieapres) : les bulletins validés, en PDF, dans les documents
+    // du client (le classeur du dossier, qu'il lit dans « Mon comptable »). Ce qui y est déjà se dit, et se remplace.
+    const peutEnvoyer = relie && P.valides && !!(api.classeur && api.classeur.deposerPdf);
+    const env = peutEnvoyer ? paiePdfsState.par[`${dossier.id}:${annee}-${String(m).padStart(2, '0')}`] : null;
+    const dejaEnv = env && env.n ? `${env.n === P.n ? (P.n > 1 ? `les ${P.n}` : 'le bulletin') : `${env.n} sur ${P.n}`} dans les documents de ${P.client} (le ${fmtJour(env.le)})` : '';
+    const envoyer = peutEnvoyer ? `<button type="button" class="btn btn-sm" id="pa-envoyer-pdf">${env && env.n ? 'Les renvoyer' : `Les envoyer à ${esc(P.client)}`}</button>` : '';
+    const L1 = P.mode === 'seule' ? '' : etape(1, P.remis, 'Les remettre aux salariés', [P.remis ? 'remis' : 'chaque bulletin s\'imprime depuis le menu de sa ligne', dejaEnv].filter(Boolean).join(' · '), envoyer);
     const L2 = etape(P.mode === 'seule' ? 1 : 2, P.payes === P.n, 'Les salaires', P.payes === P.n ? `payés par ${P.client}` : `${P.payes} sur ${P.n} payés · par ${P.client}`,
       P.payes < P.n && relie ? (pourLe => `<button type="button" class="btn btn-sm" id="pa-rappel" data-pour="${esc(pourLe)}">Lui rappeler${pourLe ? `, pour le ${esc(jourCourt(pourLe))}` : ''}</button>`)(finDuMoisPaie(annee, m) > aujourdhuiPaie() ? finDuMoisPaie(annee, m) : '') : '');
     const ms = KC.masseSalariale(bulletins);
@@ -11412,16 +11425,7 @@
     const w = api.exportPdf ? null : window.open('', '_blank');
     if (!api.exportPdf && !w) return toast('Le navigateur a bloqué la fenêtre du document : autorise les fenêtres de SkanFact, puis réessaie.', 'error');
     try {
-      const C = await chargerMoteurDesDocuments();
-      const paie = api.paieDuDossierV10(dossier.id);
-      // L'employeur : le dossier (son nom, son matricule fiscal, son numéro d'employeur à la CNSS et son code d'exploitation).
-      // (plateforme) 1.72.0 — et, de sa fiche, son adresse (en tête du document ; sa dernière ligne fait la ville du « le … »)
-      // et son gérant (qui signe les documents du personnel). La paie du dossier porte ses congés et ses avances, et ses
-      // réglages sont ceux du dossier : ceux du SkanFact du client, s'il y tient sa paie.
-      const societe = { name: dossier.name || '', address: dossier.adresse || '', matricule: dossier.matricule || '', cnss: dossier.cnssEmployeur || '',
-        cnssCode: dossier.cnssCode || '', managerName: dossier.gerant || '', currency: 'DT' };
-      const d = { employees: paie.employees, payslips: paie.payslips, leaves: paie.leaves || [], advances: paie.advances || [],
-        payrollSettings: reglagesPaie(dossier, livresState.livre) };
+      const { C, d, societe } = await donneesDocumentsPaie(dossier);
       const html = fabriquer(C, d, societe);
       if (!w) {
         const f = await api.exportPdf(html, `${nommer(d)}.pdf`);
@@ -11432,6 +11436,32 @@
       w.document.close();
       w.print();
     } catch (e) { if (w) w.close(); toast(plainError(e), 'error'); }
+  }
+  async function donneesDocumentsPaie(dossier) {
+    {
+      const C = await chargerMoteurDesDocuments();
+      const paie = api.paieDuDossierV10(dossier.id);
+      // L'employeur : le dossier (son nom, son matricule fiscal, son numéro d'employeur à la CNSS et son code d'exploitation).
+      // (plateforme) 1.72.0 — et, de sa fiche, son adresse (en tête du document ; sa dernière ligne fait la ville du « le … »)
+      // et son gérant (qui signe les documents du personnel). La paie du dossier porte ses congés et ses avances, et ses
+      // réglages sont ceux du dossier : ceux du SkanFact du client, s'il y tient sa paie.
+      const societe = { name: dossier.name || '', address: dossier.adresse || '', matricule: dossier.matricule || '', cnss: dossier.cnssEmployeur || '',
+        cnssCode: dossier.cnssCode || '', managerName: dossier.gerant || '', currency: 'DT' };
+      const d = { employees: paie.employees, payslips: paie.payslips, leaves: paie.leaves || [], advances: paie.advances || [],
+        payrollSettings: reglagesPaie(dossier, livresState.livre) };
+      return { C, d, societe };
+    }
+  }
+  // (plateforme) 1.245.0 — les bulletins envoyés au client : ce que son classeur a déjà, par dossier et par mois.
+  const paiePdfsState = { par: {}, lu: {} };
+  const titreBulletinPdf = (nom, annee, m) => `Bulletin de paie · ${nom} · ${moisLong(`${annee}-${String(m).padStart(2, '0')}`)} ${annee}`;
+  async function lirePdfsDuMois(dossier, annee, m, bulletins, nomDe) {
+    const cle = `${dossier.id}:${annee}-${String(m).padStart(2, '0')}`;
+    const titres = new Set(bulletins.map(b => titreBulletinPdf(nomDe(b.salarieId), annee, m)));
+    const docs = (((await api.classeur.documents(dossier.id)) || {}).documents || []).filter(x => x.rubrique === 'piece' && !x.remplacePar && titres.has(x.titre));
+    const le = docs.map(x => jourTunisCl(x.deposeLe)).sort().pop() || '';
+    paiePdfsState.par[cle] = { n: docs.length, le, docs };
+    return paiePdfsState.par[cle];
   }
 
   // (plateforme) 1.69.0 — le pointage du mois d'un dossier : la grille de l'entreprise (1.60.0), que le Cabinet tient pour
@@ -11773,6 +11803,39 @@
     if (spt) spt.onclick = () => { s.paieVue = 'pointage'; redraw(); };
     const dcl = $('#pa-declarer', el);
     if (dcl) dcl.onclick = () => allerSousOnglet(root, dossier, 'declaration');
+    // (plateforme) 1.245.0 — ce que le classeur du client a déjà (lu une fois par mois affiché), puis « Les envoyer ».
+    const envPdf = $('#pa-envoyer-pdf', el);
+    const clePdf = `${dossier.id}:${s.annee}-${String(s.paieMois).padStart(2, '0')}`;
+    const nomPdf = id => ((s.livre.salaries || []).find(x => x.id === id) || {}).nom || 'Salarié';
+    if (envPdf && !paiePdfsState.lu[clePdf]) {
+      paiePdfsState.lu[clePdf] = true;
+      lirePdfsDuMois(dossier, s.annee, s.paieMois, duMois().filter(b => b.valideLe), nomPdf).then(x => { if (x.n) redraw(); }, () => null);
+    }
+    if (envPdf) envPdf.onclick = async () => {
+      const B = duMois().filter(b => b.valideLe);
+      envPdf.setAttribute('disabled', ''); envPdf.textContent = 'Envoi…';
+      const mois = `${s.annee}-${String(s.paieMois).padStart(2, '0')}`;
+      let faits = 0;
+      try {
+        const avant = await lirePdfsDuMois(dossier, s.annee, s.paieMois, B, nomPdf);
+        const { C, d, societe } = await donneesDocumentsPaie(dossier);
+        for (const b of B) {
+          const p = (d.payslips || []).find(y => y.id === b.id);
+          if (!p) throw new Error('Un bulletin n\'est plus dans la paie du dossier : recharge la page.');
+          const nom = nomPdf(b.salarieId), titre = titreBulletinPdf(nom, s.annee, s.paieMois);
+          const deja = avant.docs.find(x => x.titre === titre);
+          await api.classeur.deposerPdf(dossier.id, C.payslipHtml(p, d, societe, { notice: false }), `Bulletin_${nomDeFichier(nom)}_${mois}.pdf`, {
+            rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', remplace: deja ? deja.id : null,
+          });
+          faits++;
+        }
+        await lirePdfsDuMois(dossier, s.annee, s.paieMois, B, nomPdf);
+        toast(`${faits > 1 ? `Les ${faits} bulletins sont` : 'Le bulletin est'} dans les documents de ${clientDePaie(dossier, livresState.livre)}${avant.n ? ' (à la place de ceux d\'avant, gardés et marqués remplacés)' : ''}.`);
+      } catch (e) {
+        toast(`${faits ? `${faits} sur ${B.length} envoyés. ` : ''}Pas envoyé${faits ? 's tous' : ''} : ${plainError(e)}`, 'error');
+      }
+      redraw();
+    };
     $$('[data-pa-verifie]', el).forEach(b => { b.onclick = () => marquer(b, [b.dataset.paVerifie], { verifieLe: aujourdhui() }, 'Bulletin vérifié.'); });
     $$('[data-pa-proposer]', el).forEach(b => { b.onclick = () => {
       const x = duMois().find(y => y.id === b.dataset.paProposer);

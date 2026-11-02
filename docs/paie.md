@@ -1673,7 +1673,7 @@ Skander : « Y'a des fonctionnalités que t'oublies dans les maquettes ». L'inv
 Tests : `tests/web/cabinet-paie-parcours.test.ts` (« 1.237.0 — l'inventaire de la maquette… »). Preuves
 `paie cabinet 1.237 a` à `e`.
 
-**Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « La paie de tous mes
+**Pas encore fait** (serveur, ou décision) : « La paie de tous mes
 dossiers » ; le rappel de salaire (décision de Skander).
 
 ## La paie du Cabinet, ce qui restait des maquettes (02/11/2026, 1.238.0)
@@ -1760,7 +1760,7 @@ fasse tomber (le jeu d'essai n'a pas de déclaration mensuelle au mois d'un accu
 
 Test : le parcours « tenue » range l'accusé depuis la Paie, le voit, l'ouvre en grand. Preuves `paie 1.243 a` et `b`.
 
-**Pas encore fait** (serveur, ou décision) : les PDF déposés dans les documents du client ; « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
+**Pas encore fait** (serveur, ou décision) : « Copier le paramétrage d'un autre dossier » et « qui l'a réglé, quand » (une lecture du serveur) ; le virement
 rejeté (le relevé ne le dit pas encore) ; la régularisation écrite d'un geste ; le rappel de salaire (décision de Skander).
 
 ## La paie du Cabinet : la paie de tous mes dossiers (02/11/2026, 1.244.0)
@@ -1778,3 +1778,17 @@ n'est écrit.
 Tests : `tests/cabinet/paie.test.ts` (les comptes d'un mois, le mois sans rien, le collaborateur comptable, le mois faux,
 l'étranger), le parcours « tenue » (`tests/web/cabinet-paie-parcours.test.ts`). Preuves `paie 1.244 a`, `b`, `c`.
 *Écart qui reste* : les salaires payés se comptent en bulletins, pas encore en montant rapproché du relevé.
+
+## La paie du Cabinet : les bulletins envoyés au client (02/11/2026, 1.245.0)
+
+Les bulletins du mois validés, l'étape « Les remettre aux salariés » a **« Les envoyer à Sarra »** (la maquette, paieapres) :
+chaque bulletin part en PDF (fait par le serveur) dans le classeur du dossier, rubrique Paie du mois, « envoyé au client »,
+rien à saisir (l'écriture de paie est déjà faite). Le client les lit dans ce que son cabinet a rangé (« Mon comptable »).
+L'étape dit ensuite « les 5 dans les documents de Sarra (le 02/11/2026) » et le bouton devient **« Les renvoyer »** : un
+bulletin renvoyé remplace le précédent (gardé, marqué remplacé ; le client ne voit que le dernier). Si l'envoi s'arrête en
+route, le message dit combien sont partis.
+
+Aucune route nouvelle : le PDF du serveur (`POST /pdf`) et le dépôt au classeur (1.209.0, comme l'état de rapprochement).
+
+Test : le parcours « tenue » envoie, lit les 5 PDF côté client, renvoie (5 en cours, 5 remplacés), ouvre le classeur en
+octobre › Paie. Preuves `paie 1.245 a` (renvoyer sans remplacer) et `b` (rangé hors de la Paie).

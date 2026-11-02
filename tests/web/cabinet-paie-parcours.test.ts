@@ -194,7 +194,34 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.remisLe === jour).length).toBe(5);
     await expect.poll(() => p.locator('#view .btn-primary').count()).toBe(0);
     expect(await p.locator('#pa-faits li.fait').count()).toBe(1);
+    // 1.245.0 — « Les envoyer » : les 5 bulletins validés, en PDF, dans les documents de Sarra (elle les lit de son côté).
+    expect(espace(await p.locator('#pa-envoyer-pdf').innerText())).toBe('Les envoyer à Sarra');
+    await p.locator('#pa-envoyer-pdf').click();
+    const rangesChezSarra = async () => ((await api('GET', `/entreprises/${A.ent}/cabinet/range`, A.j)).corps.pieces as { titre: string; fichier: { type: string } }[])
+      .filter((x) => /^Bulletin de paie · /.test(x.titre));
+    await expect.poll(async () => (await rangesChezSarra()).length, { timeout: 30_000 }).toBe(5);
+    expect((await rangesChezSarra()).every((x) => x.fichier.type === 'application/pdf')).toBe(true);
+    await expect.poll(() => p.locator('#pa-faits li').first().innerText().then(espace), { timeout: 15_000 }).toMatch(/les 5 dans les documents de Sarra \(le \d\d\/\d\d\/\d{4}\)/);
+    // Les renvoyer remplace (l'ancien reste, marqué remplacé) : le classeur garde 5 bulletins en cours, pas 10.
+    expect(espace(await p.locator('#pa-envoyer-pdf').innerText())).toBe('Les renvoyer');
+    await p.locator('#pa-envoyer-pdf').click();
+    const enCours = async () => ((await api('GET', `/cabinets/${A.cab}/classeur/${A.ent}/documents`, A.ja)).corps.documents as { titre: string; remplacePar: string | null }[])
+      .filter((x) => /^Bulletin de paie · /.test(x.titre));
+    await expect.poll(async () => (await enCours()).length, { timeout: 30_000 }).toBe(10);
+    expect((await enCours()).filter((x) => !x.remplacePar).length).toBe(5);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-6-faits.png'), fullPage: true });
+    // Le classeur du dossier les range en Paie, « envoyé au client », sans rien à saisir.
+    const ici = p.url();
+    await p.goto(`${ici.split('#')[0]}#/dossier/${A.ent}/classeur`);
+    const moisCl = `${A.an}-${String(A.mo).padStart(2, '0')}`;
+    await p.locator(`[data-cl-m="${moisCl}"]`).first().click({ timeout: 20_000 });
+    await p.locator('[data-cl-rub="paie"]').first().click();
+    await expect.poll(() => p.locator('body').innerText().then(espace), { timeout: 20_000 }).toMatch(/Bulletin de paie · .* envoyé au client/);
+    // Les 5 en cours, pas les 5 remplacés.
+    expect(((await p.locator('body').innerText()).match(/Bulletin de paie · /g) ?? []).length).toBe(5);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-6b-classeur.png') });
+    await p.goto(ici);
+    await expect.poll(() => p.locator('#pa-faits').count(), { timeout: 20_000 }).toBe(1);
 
     // ── L'année, mois par mois : les douze mois additionnés font l'année (deux chemins, un chiffre) ─────────────
     await p.locator('.pa-so [data-pa-vue="annee"]').click();

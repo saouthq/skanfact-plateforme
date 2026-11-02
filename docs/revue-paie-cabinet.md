@@ -152,7 +152,7 @@ pointage de Sarra : il lui demande) · ✗ l'anomalie et « Lui demander »
 **paieecarts** — ✓ (1.237.0) **la vue entière** : chaque écart du brut, salarié par salarié et rubrique par rubrique, avec sa source, et
 « l'écart du brut expliqué en entier, égal au millime »
 
-**paieapres** — ✓ les trois étapes, l'écriture · ⏸ « Les envoyer » (les PDF dans les documents de Sarra : le serveur) ·
+**paieapres** — ✓ les trois étapes, l'écriture · ✓ (1.245.0) « Les envoyer » (les PDF dans les documents de Sarra) ·
 ✓ **les montants à déclarer** (retenues, TFP, FOPROLOS) · ✓ (1.238.0) « Lui rappeler **le 30/10** » (une date) · ✓ (1.242.0) « Annuler » après la
 validation
 
@@ -190,3 +190,4 @@ bulletins faits pour ce dossier, congés pas pris)
 
 - ✓ (1.243.0) **paiecnss** : l'accusé de dépôt du trimestre, rangé et ouvert depuis la Paie.
 - ✓ (1.244.0) **paiedossiers** : la paie du mois de tous mes dossiers, lue sur le serveur.
+- ✓ (1.245.0) **paieapres** : « Les envoyer » — les bulletins validés en PDF dans les documents du client.
