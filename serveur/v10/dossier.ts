@@ -25,6 +25,7 @@ import { mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivreIdentite } from './identite.ts';
 import { garderLaCloture, suivrePaie } from './paie.ts';
+import { archiveSansIdentite, ribGarde } from '../paie/identite.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
 import { reecrireLaPaie } from '../compta/paie.ts';
 import { planChange } from '../compta/suivre.ts';
@@ -217,6 +218,15 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   }
   // Rien n'est écrit tant qu'un seul objet a changé ailleurs : on ne mélange jamais deux versions.
   if (conflits.length) throw new Conflit(conflits);
+  // (1.266.7 ; 16 § 10.1, point 13) Le RIB qu'un cabinet n'a pas lu (il le reçoit masqué), il ne l'écrit pas : la fiche
+  // garde celui du serveur. Une version écartée d'une fiche de salarié s'écrit sans CIN ni RIB.
+  const parCabinet = !options.serveur && changements.some((c) => c.collection === 'employees')
+    && (await tx.query('select socle.perimetre_cabinet($1) is not null v', [entreprise])).rows[0]?.v === true;
+  for (const c of changements) {
+    if (c.contenu === null) continue;
+    if (parCabinet && c.collection === 'employees') c.contenu = ribGarde(actuels.get(`employees/${c.cle}`)?.contenu, c.contenu);
+    c.contenu = archiveSansIdentite(c.collection, c.cle, c.contenu);
+  }
   // Supprimer un brouillon : les siens (brique 117 ; 03 § 1). Dit avec le nom de l'auteur, avant que la base ne le refuse.
   if (!options.serveur) await verifierAuteurs(tx, entreprise, utilisateur, changements, actuels);
   // Un module que l'offre ne contient pas (14c ; serveur/abonnement/offre.ts) : rien de NEUF ne s'y crée, quoi que

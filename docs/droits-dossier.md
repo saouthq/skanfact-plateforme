@@ -39,6 +39,18 @@ rôle ne lui arrivait qu'au prochain changement de chaque objet).
 doit ni montrer ni renvoyer (`cachees`), ce qu'il lit sans pouvoir l'écrire (`lectureSeule`), et la liste blanche
 de ce qui peut repartir (`ecrivables` ; `tout` pour le propriétaire et l'administrateur).
 
+**D2 bis (1.266.7 ; 16 § 10.1, point 4). « Sans la paie ».** Qui a droit à la masse salariale sans lire la paie (la
+comptabilité interne, la lecture) reçoit `paieCachee: true` dans ses droits dès que l'entreprise a une paie (un salarié, un
+bulletin, une avance ou une déclaration sociale) : un oui ou un non, jamais un nom ni un montant. Le point de contact le
+garde dans la copie du poste ; l'écran le dit sur la trésorerie, la comptabilité et les marges.
+
+**D2 ter (1.266.7 ; 16 § 10.1, point 13, lot A). La CIN et le RIB.** Le cabinet lit la CIN d'un salarié et son RIB
+masqué (`•••• 9012`, `ribMasque`, `serveur/paie/identite.ts`) ; ce qu'il renvoie garde le RIB du serveur (`ribGarde`, dans
+`appliquer`). Une version écartée d'une fiche de salarié (`conflictArchive`, une partie technique que tout le monde reçoit)
+s'écrit et se lit sans CIN ni RIB (`archiveSansIdentite`, à l'écriture et dans `filtrer`). Une réponse qui rend une CIN ou un
+RIB en clair se trace (`socle.audit`, `paie.dossier.voir`, lecture), une fois ; rien pour qui ne les reçoit pas, rien à la
+relecture par différence sans salarié changé. Le nom des salariés et les bulletins restent dans ces archives (À DÉCIDER).
+
 **D3. Chacun n'écrit que sa part.** Un envoi qui touche une partie interdite n'écrit **rien**, et le refus la nomme
 en français (« Ton rôle ne permet pas d'enregistrer le catalogue dans le dossier de l'entreprise… »).
 

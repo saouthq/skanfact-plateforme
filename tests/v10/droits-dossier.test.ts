@@ -196,6 +196,107 @@ describe('les droits geste par geste dans le dossier v10', () => {
     expect(parties(r.objets)).toContain('pointageVersions');
   });
 
+  // (16 § 10.1, point 4) La comptabilité interne et la lecture ont droit à la masse salariale, pas à la paie : leurs soldes, leur
+  // prévision et leur résultat sont sans elle. Le serveur le leur dit (un oui ou un non), jamais un nom ni un montant.
+  it('la comptabilité interne et la lecture apprennent que la paie manque à leurs chiffres, sans un nom ni un montant', async () => {
+    // L'entreprise a un salarié, Sami Trabelsi (CIN 01234567), et un barème de paie.
+    const e = await entreprise();
+    for (const role of ['comptabilite_interne', 'lecture']) {
+      const l = await e.lire(e.membres[role]?.jeton ?? '');
+      expect((l.droits as Record<string, unknown>).paieCachee, role).toBe(true);
+      const texte = JSON.stringify(l);
+      expect(texte, role).not.toContain('Sami');
+      expect(texte, role).not.toContain('01234567');
+    }
+    expect((((await e.lire(e.proprio.jeton)).droits) as Record<string, unknown>).paieCachee).toBe(false);
+    expect((((await e.lire(e.membres.paie?.jeton ?? '')).droits) as Record<string, unknown>).paieCachee).toBe(false);
+    // Le commercial n'a pas droit à la masse salariale : il n'apprend même pas qu'il y a une paie.
+    expect((((await e.lire(e.membres.commercial?.jeton ?? '')).droits) as Record<string, unknown>).paieCachee).toBe(false);
+  });
+
+  it('une entreprise sans paie ne dit pas « sans la paie »', async () => {
+    const proprio = await personne('Nadia');
+    const ent = String((await appeler('POST', '/entreprises', proprio.jeton, { raisonSociale: 'Librairie El Kitab' })).corps.id);
+    await appeler('POST', '/moi/code', proprio.jeton, { methode: 'application' });
+    const ci = await personne('ci');
+    const inv = String((await appeler('POST', `/entreprises/${ent}/invitations`, proprio.jeton, { email: ci.email, roles: ['comptabilite_interne'] })).corps.jeton);
+    await appeler('POST', '/invitations/accepter', ci.jeton, { jeton: inv });
+    const lire = async () => ((await appeler('GET', `/entreprises/${ent}/dossier-v10`, ci.jeton)).corps.droits as Record<string, unknown>).paieCachee;
+    await appeler('GET', `/entreprises/${ent}/dossier-v10`, proprio.jeton);
+    expect((await appeler('POST', `/entreprises/${ent}/dossier-v10`, proprio.jeton, { changements: [
+      { collection: 'accounts', cle: 'b', rang: 0, revision: null, contenu: { id: 'b', kind: 'banque', name: 'BIAT' } },
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Lycée Pilote' } }] })).statut).toBe(200);
+    expect(await lire()).toBe(false);
+    expect((await appeler('POST', `/entreprises/${ent}/dossier-v10`, proprio.jeton, { changements: [
+      { collection: 'employees', cle: 'e1', rang: 0, revision: null, contenu: { id: 'e1', name: 'Amel Gharbi' } }] })).statut).toBe(200);
+    expect(await lire()).toBe(true);
+  });
+
+  it('relue par différence, la page sait encore que la paie lui manque', async () => {
+    const e = await entreprise();
+    const jci = e.membres.comptabilite_interne?.jeton ?? '';
+    const l = await e.lire(jci);
+    const r = await e.lire(jci, `?depuis=${l.marque}&profil=${encodeURIComponent(l.profil)}`);
+    expect(r.partiel).toBe(true);
+    expect((r.droits as Record<string, unknown>).paieCachee).toBe(true);
+  });
+
+  // (16 § 10.1, point 13, lot A) La fusion de la v10 garde la version écartée d'une fiche (`conflictArchive`), entière ; cette
+  // partie technique part chez tous ceux qui ouvrent le dossier. Une fiche de salarié n'y garde ni CIN ni RIB.
+  it('(16 § 10.1, 13) une version écartée d\'une fiche de salarié ne garde ni CIN ni RIB ; celle d\'un client reste entière', async () => {
+    const e = await entreprise();
+    const RIB = '08006000123456789012', RIB_CLIENT = '24681357924681357924';
+    const e1 = { at: '2026-11-03T10:00:00.000Z', kind: 'employees', id: 'e1', label: 'Sami Trabelsi', record: { id: 'e1', name: 'Sami Trabelsi', cin: '01234567', iban: RIB } };
+    const c1 = { at: '2026-11-03T10:00:00.000Z', kind: 'clients', id: 'c1', label: 'Menuiserie du Lac', record: { id: 'c1', name: 'Menuiserie du Lac', rib: RIB_CLIENT } };
+    expect((await e.envoyer(e.proprio.jeton, [
+      { collection: 'conflictArchive', cle: 'e1', rang: 0, revision: null, contenu: e1 },
+      { collection: 'conflictArchive', cle: 'c1', rang: 1, revision: null, contenu: c1 },
+      // La même liste à la racine (un salarié revenu deux fois : la liste n'a plus d'identifiants uniques).
+      { collection: '_racine', cle: 'conflictArchive', rang: null, revision: null, contenu: [e1, { ...e1, at: '2026-11-03T11:00:00.000Z' }, c1] },
+    ])).statut).toBe(200);
+    // En base : ni la CIN ni le RIB du salarié ; son nom et le RIB du client restent (on ne vide pas trop).
+    const enBase = (await admin.query(`select string_agg(contenu::text, ' ') t from socle.dossier_v10 where entreprise = $1
+      and (collection = 'conflictArchive' or (collection = '_racine' and cle = 'conflictArchive'))`, [e.ent])).rows[0].t as string;
+    expect(enBase).not.toContain('01234567');
+    expect(enBase).not.toContain(RIB);
+    expect(enBase).toContain('Sami Trabelsi');
+    expect(enBase.split(RIB_CLIENT).length - 1).toBe(2);
+    // La fiche écartée garde le reste de ce qui avait été tapé : seuls la CIN et le RIB partent.
+    expect((await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'conflictArchive' and cle = 'e1'`, [e.ent])).rows[0].contenu.record)
+      .toEqual({ id: 'e1', name: 'Sami Trabelsi' });
+    // Une archive d'avant, encore en clair en base : elle ne sort pas non plus.
+    await admin.query(`update socle.dossier_v10 set contenu = jsonb_set(jsonb_set(contenu, '{record,cin}', '"01234567"'), '{record,iban}', $2::jsonb)
+      where entreprise = $1 and collection = 'conflictArchive' and cle = 'e1'`, [e.ent, JSON.stringify(RIB)]);
+    await admin.query(`update socle.dossier_v10 set contenu = jsonb_set(contenu, '{1,record,cin}', '"01234567"')
+      where entreprise = $1 and collection = '_racine' and cle = 'conflictArchive'`, [e.ent]);
+    for (const role of ['commercial', 'comptabilite_interne', 'lecture']) {
+      const l = await e.lire(e.membres[role]?.jeton ?? '');
+      const texte = JSON.stringify(l.objets);
+      expect(texte, role).not.toContain('01234567');
+      expect(texte, role).not.toContain('0800600012345678');
+      expect(texte, role).toContain('Menuiserie du Lac');
+      expect(l.objets.find((o) => o.collection === 'conflictArchive' && o.cle === 'e1')?.contenu.label, role).toBe('Sami Trabelsi');
+    }
+  });
+
+  it('(16 § 10.1, 13) la CIN et le RIB rendus en clair à l\'écran : chaque lecture tracée, une fois par réponse ; rien pour qui ne les reçoit pas', async () => {
+    const e = await entreprise();
+    const traces = async () => Number((await admin.query(`select count(*) n from socle.audit where entreprise = $1 and lecture and geste = 'paie.dossier.voir'`, [e.ent])).rows[0].n);
+    const depart = await traces();
+    const l = await e.lire(e.proprio.jeton);
+    expect(await traces()).toBe(depart + 1);
+    await e.lire(e.membres.paie?.jeton ?? '');
+    expect(await traces()).toBe(depart + 2);
+    // Ceux qui ne reçoivent pas les salariés : rien.
+    await e.lire(e.membres.commercial?.jeton ?? '');
+    await e.lire(e.membres.lecture?.jeton ?? '');
+    expect(await traces()).toBe(depart + 2);
+    // Relu par différence, sans salarié changé : la CIN ne repart pas, rien ne se trace (tracer quand elle part, pas à chaque réponse).
+    const r = await e.lire(e.proprio.jeton, `?depuis=${l.marque}&profil=${encodeURIComponent(l.profil)}`);
+    expect(r.partiel).toBe(true);
+    expect(await traces()).toBe(depart + 2);
+  });
+
   it('la première facture d\'une entreprise, émise par un commercial, crée sa série de numéros', async () => {
     const e = await entreprise();
     const jc = e.membres.commercial?.jeton ?? '';

@@ -214,4 +214,63 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     await n.cx.close();
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  it('(16 § 10.1, urgence 5) l\'avance donnée du tiroir, caisse ouverte : le Z la dit, tombe juste, et la caisse de la Trésorerie est le tiroir compté', async () => {
+    const email = `nadia-z4-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
+    const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    const r = await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Comptoir de Nadia', type: 'navigateur' } });
+    const nadia = String((await api('POST', '/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises', nadia, { raisonSociale: 'Boulangerie Ben Youssef' })).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, nadia);
+    const jour = new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia, { changements: [
+      { collection: 'accounts', cle: 'k-caisse', rang: 0, revision: null, contenu: { id: 'k-caisse', name: 'Caisse', kind: 'caisse', bank: '', rib: '', opening: 30, openingDate: '2026-01-01', isDefault: false, statementBalance: '', notes: '' } },
+      { collection: 'catalog', cle: 'pain', rang: 0, revision: null, contenu: { id: 'pain', label: 'Pain de mie', unit: 'u', unitPrice: { '~n': '1.2' }, vatRate: 7 } },
+      { collection: 'employees', cle: 'e1', rang: 0, revision: null, contenu: { id: 'e1', name: 'Karim Essai', grossSalary: 900 } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, nadia);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
+    await expect.poll(() => p.locator('#cs-fond').count(), { timeout: 20_000 }).toBe(1);
+    await plusTard(p);
+    await p.locator('#cs-ouvrir').click();
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Nadia/);
+    await p.locator('#cs-articles .cs-art', { hasText: 'Pain de mie' }).click();
+    await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
+    await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ticket TIC-\d{4}-001 encaissé/);
+    // À 23 h, 7,321 DT sortent du tiroir pour Karim : l'avance, notée par la Paie (en espèces, depuis la caisse).
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia, { changements: [
+      { collection: 'advances', cle: 'a1', rang: 0, revision: null, contenu: { id: 'a1', employeeId: 'e1', date: jour, amount: { '~n': '7.321' }, monthly: 10, accountId: 'k-caisse', method: 'especes' } },
+    ] })).statut).toBe(200);
+    // Le tiroir : 30 + 1,284 − 7,321 = 23,963. Compté juste, le Z tombe juste et dit pourquoi.
+    await p.locator('#cs-menu-bouton').click();
+    await p.locator('#cs-fermer').click();
+    await p.locator('#cs-tape summary').click();
+    await p.locator('#cs-compte').fill('23.963');
+    await p.locator('#cs-z').click();
+    await expect.poll(async () => net(await p.locator('#modal-root #cs-z-table').innerText().catch(() => '')), { timeout: 10_000 })
+      .toContain('Payé du tiroir pour la paie (salaires, avances) − 7,321 DT Fond de caisse 30,000 DT Le tiroir devait contenir 23,963 DT Espèces comptées 23,963 DT Écart 0,000 DT');
+    expect(net(await p.locator('#modal-root #cs-z-table').innerText())).not.toContain('Karim');
+    await p.evaluate(() => { const w = window as unknown as { __imprime?: string; open: unknown };
+      w.open = () => ({ document: { write: (html: string) => { w.__imprime = html; }, close: () => undefined }, print: () => undefined }); });
+    await p.locator('#modal-root #cs-z-imprimer').click();
+    await expect.poll(() => p.evaluate(() => (window as unknown as { __imprime?: string }).__imprime ?? ''), { timeout: 5_000 }).toContain('Z de caisse');
+    expect(net((await p.evaluate(() => (window as unknown as { __imprime?: string }).__imprime ?? '')).replace(/<[^>]+>/g, ' ')))
+      .toContain('Payé du tiroir pour la paie − 7,321 DT Fond de caisse 30,000 DT Le tiroir devait contenir 23,963 DT');
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'z-4-sortie-paie.png') });
+    await p.locator('#modal-root #cs-z-ok').click();
+    // Deux chemins, un chiffre : la caisse de la Trésorerie est le tiroir compté (l'avance n'en sort qu'une fois).
+    await p.reload();
+    await p.evaluate(() => { location.hash = '#/tresorerie'; });
+    const caisse = p.locator('#tr-comptes .tr-compte', { hasText: 'Caisse espèces' }).first().locator('.tr-c-solde > b');
+    await expect.poll(async () => net(await caisse.innerText().catch(() => '')), { timeout: 10_000 }).toBe('23,963 DT');
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

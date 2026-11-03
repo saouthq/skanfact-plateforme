@@ -201,7 +201,8 @@ vaut pour tout le dépôt.*
   - **La paie** (brique 31, `docs/paie.md`) : chaque bulletin du dossier est RECALCULÉ par le
     serveur (`serveur/v10/paie.ts`) avec le barème et la situation du salarié qu'il a figés (une
     adaptation de `computePayslip`) et comparé montant par montant à l'écran ; tenu dans
-    `paie.bulletin` (0014), les salariés dans `paie.salarie` (ni CIN ni RIB). Données sensibles
+    `paie.bulletin` (0014), les salariés dans `paie.salarie` (ni CIN ni RIB ; au cabinet, le RIB masqué, et les versions
+    écartées sans l'un ni l'autre : `serveur/paie/identite.ts`, 1.266.7). Données sensibles
     (03 D10) : la base ne montre la paie qu'au propriétaire, à l'administrateur, au rôle Paie
     (`paie.mes_entreprises()`) ; chaque lecture se trace avec l'objet lu (`objetLu` d'une route) ;
     la masse salariale, sans nom, par `paie.masse_salariale`. Dans un test, l'écran de la

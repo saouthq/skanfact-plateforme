@@ -12422,7 +12422,9 @@
         // l'avance « soldée »).
         if (deja && v.amount < deja - 0.0005) { zone.innerHTML = `<span class="warn-text">Déjà retenu : <b>${esc(money(deja))}</b>. Le montant avancé ne descend pas en dessous.</span>`; return; }
         const sal = salaries.find(x => x.id === v.employeeId) || {};
-        const net = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat }, {},
+        // (plateforme, 03/11/2026 — 16 § 10.1, point 10) Le net habituel compte les primes de la fiche, un mois plein : sans elles,
+        // une retenue raisonnable se disait « lourde » (le même défaut que la fenêtre de l'entreprise).
+        const net = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat }, { bonuses: KC.primesDuMois({ primes: sal.primes }) },
           KC.baremesPaie(reglagesPaie(dossier, L))).net;
         const reste = KC.round3(Math.max(0, v.amount - deja));
         const lourde = net > 0 && v.monthly > net * 0.3;

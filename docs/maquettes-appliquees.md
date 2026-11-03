@@ -692,7 +692,10 @@ métier (notes données : UI 7, UX 6, métier 5, ergonomie 6,5, expérience 6), 
 l'écran reprend les classes des marges (`.lf.mg`) et en ajoute quelques-unes (`.lf.tr`).
 
 **Le métier (le moteur, `cashForecast`)**
-- Les **salaires des mois sans bulletin** sortent à la fin de chaque mois, au net du contrat, marqués « estimé ».
+- Les **salaires des mois sans bulletin** sortent à la fin de chaque mois, au net de la fiche, ses primes comprises
+  (1.266.7), marqués « estimé ».
+- (1.266.7) Les **mois sans bulletins** s'estiment aussi aux impôts : leur part paie (le 28) et leur CNSS (au trimestre),
+  sur les fiches ; la part paie payée à part (« Noter déposée et payée ») n'en sort plus une seconde fois.
 - La **déclaration du mois** (TVA, retenues sur les achats et sur les salaires) sort le 28 et la **CNSS** du trimestre à
   son échéance, estimées sur ce qui est saisi, marquées « estimé » ; une déclaration marquée déposée en sort. L'acompte
   et le bilan gardent leur date seule. Les montants : À VÉRIFIER avec un comptable.

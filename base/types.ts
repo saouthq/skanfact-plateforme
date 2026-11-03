@@ -231,6 +231,16 @@ export interface BaseDeDonnees {
     ecart: bigint | null;
     z: ColumnType<Json | null, string | null, string | null>;
   };
+  'caisse.sortie': {
+    id: Generated<string>;
+    entreprise: string;
+    session: string;
+    nature: string;
+    origine: string;
+    montant: bigint;
+    cree_par: string;
+    cree_le: Generated<Date>;
+  };
   'caisse.ticket': {
     piece: string;
     entreprise: string;

@@ -11,7 +11,9 @@
 import { versTexte } from '../../moteur/argent.ts';
 import { calculerBulletin, type BaremePaie, type Bulletin } from '../../moteur/paie.ts';
 import { t } from '../../textes/index.ts';
+import { noterSortieDeCaisse } from '../caisse/sortie.ts';
 import { lireAvance, lireDeclaration, moisDe, reecrireLesMois, versementsDeSaisie, type AvanceLue, type Mois } from '../compta/paie.ts';
+import { compteDeTresorerie, lirePlan } from '../compta/plan.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import '../paie/textes.ts';
@@ -330,4 +332,23 @@ export async function suivrePaie(tx: Transaction, entreprise: string, utilisateu
     mois.push(...await db.selectFrom('paie.bulletin').select(['annee', 'mois']).where('entreprise', '=', entreprise).where('ref_v10', 'in', bulletins.map((c) => c.cle)).execute());
   }
   await reecrireLesMois(tx, entreprise, mois);
+
+  // 5. (16 § 10.1, urgence 5) Un salaire ou une avance dont le PAIEMENT change (payé, annulé, autre jour, autre compte) :
+  //    s'il part en espèces du tiroir, caisse ouverte, la Caisse le note dans sa session, et son Z ne le compte pas en manque.
+  const paiement = (b: unknown) => (estObjet(b) && b.paidDate ? canonique({ le: b.paidDate, compte: b.accountId ?? '', net: estObjet(b.computed) ? b.computed.net ?? null : null }) : '');
+  const versee = (a: unknown) => (estObjet(a) ? canonique({ le: a.date ?? null, compte: a.accountId ?? '', montant: a.amount ?? 0 }) : '');
+  const payes = bulletins.filter((c) => paiement(c.avant) !== paiement(c.apres));
+  const versees = avances.filter((c) => versee(c.avant) !== versee(c.apres));
+  if (!payes.length && !versees.length) return;
+  const plan = await lirePlan(tx, entreprise);
+  const compte = (id: string | null) => compteDeTresorerie(plan, id)?.id;
+  for (const c of payes) {
+    const b = c.apres === null ? undefined : await db.selectFrom('paie.bulletin').select(['net', 'paye_le', 'compte']).where('entreprise', '=', entreprise).where('ref_v10', '=', c.cle).executeTakeFirst();
+    await noterSortieDeCaisse(tx, entreprise, { nature: 'salaire', origine: `payslips/${c.cle}`, montant: b?.paye_le ? b.net : 0n, jour: b?.paye_le ?? null, compte: compte(b?.compte ?? null) });
+  }
+  for (const c of versees) {
+    const a = c.apres === null ? null : lireAvance(c.apres);
+    const v = a !== null && a !== 'illisible' ? a : null;
+    await noterSortieDeCaisse(tx, entreprise, { nature: 'avance', origine: `advances/${c.cle}`, montant: v ? v.montant : 0n, jour: v ? v.date : null, compte: compte(v ? v.compte : null) });
+  }
 }

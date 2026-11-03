@@ -5161,7 +5161,7 @@ DD2="chacun n'écrit que sa part ; un envoi qui touche une partie interdite n'é
 DD3="la première facture d'une entreprise, émise par un commercial, crée sa série de numéros"
 DDW="Karim, commercial, facture son client sans voir la paie ; un prix du catalogue lui est refusé"
 prouver "le dossier entier lu par chacun" serveur/v10/droits.ts \
-  "  const visibles = objets.filter((o) => permet(roles, regleDe(o.collection, o.cle).voir, false));" "  const visibles = objets;" \
+  "  const visibles = objets.filter((o) => permet(roles, regleDe(o.collection, o.cle).voir, false))" "  const visibles = objets" \
   "$DD1"
 prouver "la paie rangée avec les ventes" serveur/v10/droits.ts \
   "  employees: PAIE, payslips: PAIE," "  employees: VENTES, payslips: PAIE," \
@@ -5577,7 +5577,7 @@ prouver "un ticket hors de sa session" serveur/caisse/routes.ts \
   "from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = \$1\`, [session])).rows[0] as" "from caisse.ticket t join ventes.piece p on p.id = t.piece where t.entreprise = (select entreprise from caisse.session where id = \$1)\`, [session])).rows[0] as" \
   "$CS"
 prouver "un tiroir attendu sans son fond" serveur/caisse/routes.ts \
-  "attendu: fond + especes," "attendu: especes," \
+  "attendu: fond + especes - sorties," "attendu: especes - sorties," \
   "$CS"
 prouver "un Z qui compte les tickets des autres sessions" serveur/caisse/routes.ts \
   "    from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = \$1\`, [session])).rows[0] as" "    from caisse.ticket t join ventes.piece p on p.id = t.piece where \$1::uuid is not null\`, [session])).rows[0] as" \
@@ -23223,6 +23223,173 @@ prouver 'paie 10.1-3 k : une déclaration payée illisible acceptée' serveur/v1
   "    if (apres === 'illisible') throw new Refus('v10.declaration_illisible');" "" \
   "$LPP"
 
+# 16 § 10.1, points 4 et 10 : la prévision de trésorerie et les estimations de la paie (core.js cashForecast, coutHoraire ;
+# app.js et cabinet/app.js, la fenêtre d'une avance). La part paie payée à part sortait deux fois ; les mois sans bulletins ne
+# prévoyaient ni part paie ni CNSS ; sans bulletin, le salaire prévu, le coût d'une heure et le contrôle d'une avance
+# oubliaient les primes de la fiche.
+PTR1='la part paie payée à part (« Noter déposée et payée ») ne sort pas une seconde fois : la TVA du mois reste, seule'
+PTR2='les mois sans bulletins : leur part paie le 28 et leur CNSS au trimestre, estimées sur les fiches, au millime des bulletins qu'"'"'on établira'
+PTR3='le salaire prévu et le coût d'"'"'une heure d'"'"'un mois sans bulletin comptent les primes de la fiche'
+WPAV='« Une avance ou un prêt » : le net habituel compte les primes de la fiche, et la retenue de 360 DT n'"'"'est pas « beaucoup »'
+CPAV='une avance au Cabinet : le net habituel compte les primes de la fiche, et 360 DT ne se dit pas « lourd »'
+prouver 'paie 10.1-4 a : la part paie payée à part sort une seconde fois' web/public/v10/core.js \
+  'if (!sociales.has(`dm-${yy}-${pad2(mois)}`)) {' 'if (true) {' \
+  "$PTR1"
+prouver 'paie 10.1-4 b : la part paie d'"'"'un mois sans bulletins n'"'"'est pas prévue' web/public/v10/core.js \
+  '              sal = round3(sansBulletin(yy, mois).reduce(' '              void (sansBulletin(yy, mois).reduce(' \
+  "$PTR2"
+prouver 'paie 10.1-4 c : la CNSS du trimestre ne compte que les bulletins faits' web/public/v10/core.js \
+  'const total = c ? round3(c.months.reduce(' 'const total = c ? round3([].reduce(' \
+  "$PTR2"
+prouver 'paie 10.1-4 d : un mois passé sans bulletin estimé aux impôts, pas au salaire' web/public/v10/core.js \
+  '      if (fin < t) return [];' '      if (false) return [];' \
+  "$PTR2"
+prouver 'paie 10.1-4 e : un salarié sorti estimé après sa sortie' web/public/v10/core.js \
+  ' || (e.endDate && e.endDate < debut)) && !aBulletin' ') && !aBulletin' \
+  "$PTR2"
+prouver 'paie 10.1-10 a : le salaire prévu sans les primes de la fiche' web/public/v10/core.js \
+  'return computePayslip(e, saisieDeLaFiche(e, sPaie), sPaie) || {};' 'return computePayslip(e, {}, sPaie) || {};' \
+  "$PTR3"
+prouver 'paie 10.1-10 b : le coût d'"'"'une heure sans les primes de la fiche' web/public/v10/core.js \
+  'computePayslip(emp, saisieDeLaFiche(emp, s), s).employerCost' 'computePayslip(emp, {}, s).employerCost' \
+  "$PTR3"
+prouver 'paie 10.1-10 c : le contrôle d'"'"'une avance sans les primes de la fiche' web/public/v10/app.js \
+  'net = emp ? C.computePayslip(emp, C.saisieDeLaFiche(emp, st), st).net : 0;' 'net = emp ? C.computePayslip(emp, {}, st).net : 0;' \
+  "$WPAV"
+prouver 'paie 10.1-10 d : l'"'"'avance du Cabinet sans les primes de la fiche' web/public/v10/cabinet/app.js \
+  '{ bonuses: KC.primesDuMois({ primes: sal.primes }) }' '{}' \
+  "$CPAV"
+
+# 16 § 10.1, point 4 : qui ne voit pas la paie (la comptabilité interne, la lecture) sait que ses chiffres sont sans elle ;
+# le relevé ne pousse pas à créer un salaire ; un FEC sans la paie ne s'écrit pas (routes.ts, pont.js, app.js).
+SPS1='la comptabilité interne et la lecture apprennent que la paie manque à leurs chiffres, sans un nom ni un montant'
+SPS2='une entreprise sans paie ne dit pas « sans la paie »'
+SPS3='relue par différence, la page sait encore que la paie lui manque'
+SPP1='le point de contact rend à la page que la paie lui manque, et le garde dans la copie du poste'
+SPW1='Samia, comptabilité interne : la trésorerie, la comptabilité et les marges disent « Sans la paie »'
+prouver 'paie 10.1-4 f : la comptabilité interne ne sait pas que la paie lui manque' serveur/v10/routes.ts \
+  'const paieCachee = permet(roles, '"'"'paie.masse.voir'"'"', false)' 'const paieCachee = false && permet(roles, '"'"'paie.masse.voir'"'"', false)' \
+  "$SPS1"
+prouver 'paie 10.1-4 g : le commercial apprend qu'"'"'il y a une paie' serveur/v10/routes.ts \
+  'const paieCachee = permet(roles, '"'"'paie.masse.voir'"'"', false) && ' 'const paieCachee = ' \
+  "$SPS1"
+prouver 'paie 10.1-4 h : une entreprise sans paie annonce « sans la paie »' serveur/v10/routes.ts \
+  'const PARTIES_DE_LA_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'advances'"'"', '"'"'socialFilings'"'"'];' 'const PARTIES_DE_LA_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'advances'"'"', '"'"'socialFilings'"'"', '"'"'clients'"'"'];' \
+  "$SPS2"
+prouver 'paie 10.1-4 i : la relecture par différence perd « sans la paie »' serveur/v10/routes.ts \
+  'droits: { ...f.droits, paieCachee }, objets, retires:' 'objets, retires:' \
+  "$SPS3"
+prouver 'paie 10.1-4 j : le point de contact oublie « sans la paie »' web/public/plateforme/pont.js \
+  'paieCachee = !!(d && d.paieCachee === true);' 'paieCachee = false;' \
+  "$SPP1"
+prouver 'paie 10.1-4 k : la copie du poste oublie « sans la paie »' web/public/plateforme/pont.js \
+  'tout: !ecrivables, responsable, caisse: tientCaisse, paieCachee } });' 'tout: !ecrivables, responsable, caisse: tientCaisse } });' \
+  "$SPP1"
+prouver 'paie 10.1-4 l : la page ne reçoit pas « sans la paie »' web/public/plateforme/pont.js \
+  'responsable, caisse: tientCaisse, paieCachee }),' 'responsable, caisse: tientCaisse }),' \
+  "$SPP1"
+prouver 'paie 10.1-4 m : la trésorerie se tait sur la paie' web/public/v10/app.js \
+  '${bandeauSansPaie('"'"'ces soldes et cette prévision'"'"', true)}' '' \
+  "$SPW1"
+prouver 'paie 10.1-4 n : « À décaisser » promet encore les salaires' web/public/v10/app.js \
+  'paieCachee() ? '"'"'achats et saisies, sans les salaires'"'"' : ' '' \
+  "$SPW1"
+prouver 'paie 10.1-4 o : le relevé pousse à créer un salaire' web/public/v10/app.js \
+  '${paieCachee() ? '"'"' <b id="imp-sans-paie">' '${false ? '"'"' <b id="imp-sans-paie">' \
+  "$SPW1"
+prouver 'paie 10.1-4 p : la comptabilité se tait sur la paie' web/public/v10/app.js \
+  '${bandeauSansPaie('"'"'cette comptabilité'"'"')}<div id="c-body"></div>' '<div id="c-body"></div>' \
+  "$SPW1"
+prouver 'paie 10.1-4 q : un FEC sans la paie s'"'"'écrit' web/public/v10/app.js \
+  'if (paieCachee()) return infoDialog(' 'if (false) return infoDialog(' \
+  "$SPW1"
+prouver 'paie 10.1-4 r : les marges se taisent sur la paie' web/public/v10/app.js \
+  '${bandeauSansPaie('"'"'le point mort et la marge des affaires'"'"', true)}' '' \
+  "$SPW1"
+prouver 'paie 10.1-4 s : l'"'"'affaire se tait sur la paie' web/public/v10/app.js \
+  '${bandeauSansPaie('"'"'la marge de cette affaire (la main d\'"'"'œuvre notée)'"'"')}' '' \
+  "$SPW1"
+
+# ── 16 § 10.1, urgence 5 : un salaire ou une avance payés du tiroir, caisse ouverte, ne comptent plus deux fois
+#    (serveur/caisse/sortie.ts, la Paie qui l'appelle dans serveur/v10/paie.ts, le Z de serveur/caisse/routes.ts, son écran) ──
+SOR1='un salaire et une avance payés du tiroir, caisse ouverte : le Z les retire de l'\''attendu, la caisse ne les sort qu'\''une fois'
+SOR2='caisse fermée, le paiement passe et rien n'\''est noté ; le Z figé ne change pas, la session suivante ne le compte pas'
+SORW='(16 § 10.1, urgence 5) l'\''avance donnée du tiroir, caisse ouverte : le Z la dit, tombe juste, et la caisse de la Trésorerie est le tiroir compté'
+prouver 'urgence 5 a : le Z ne retire pas ce que la paie a pris au tiroir' serveur/caisse/routes.ts \
+  'attendu: fond + especes - sorties,' 'attendu: fond + especes,' \
+  "$SOR1"
+prouver 'urgence 5 b : le salaire payé du tiroir sans sa sortie' serveur/v10/paie.ts \
+  'montant: b?.paye_le ? b.net : 0n,' 'montant: 0n,' \
+  "$SOR1"
+prouver 'urgence 5 c : l'\''avance donnée du tiroir sans sa sortie' serveur/v10/paie.ts \
+  'montant: v ? v.montant : 0n,' 'montant: 0n,' \
+  "$SOR1"
+prouver 'urgence 5 d : une sortie notée pour la banque ou le coffre' serveur/caisse/sortie.ts \
+  ' || !p.compte || p.compte !== await compteDuTiroir(tx, ent)) return;' ') return;' \
+  "$SOR1"
+prouver 'urgence 5 e : une avance d'\''avant l'\''ouverture comptée dans la session' serveur/caisse/sortie.ts \
+  ' || p.jour < s.jour' '' \
+  "$SOR1"
+prouver 'urgence 5 f : un paiement annulé garde sa sortie' serveur/caisse/sortie.ts \
+  "  await tx.query('delete from caisse.sortie where session = \$1 and origine = \$2', [s.id, p.origine]);" "  if (p.montant > 0n) await tx.query('delete from caisse.sortie where session = \$1 and origine = \$2', [s.id, p.origine]);" \
+  "$SOR1"
+prouver 'urgence 5 g : le Z qui ne dit pas ce que la paie a pris au tiroir' serveur/caisse/routes.ts \
+  ' sorties: texte(z0.sorties),' '' \
+  "$SOR1"
+prouver 'urgence 5 h : le paiement refusé parce que la caisse est fermée' serveur/caisse/sortie.ts \
+  '  if (!s) return;' "  if (!s) throw new Error('caisse fermée');" \
+  "$SOR2"
+prouver 'urgence 5 i : une sortie notée dans une session déjà fermée' serveur/caisse/sortie.ts \
+  'where entreprise = $1 and fermee_le is null order by ouverte_le limit 1 for update' 'where entreprise = $1 order by ouverte_le desc limit 1 for update' \
+  "$SOR2"
+prouver 'urgence 5 j : le Z à l'\''écran sans ce que la paie a pris au tiroir' web/public/v10/app.js \
+  "\${Number(z.sorties) ? ligne('Payé du tiroir pour la paie (salaires, avances)'" "\${false ? ligne('Payé du tiroir pour la paie (salaires, avances)'" \
+  "$SORW"
+prouver 'urgence 5 k : le Z imprimé sans ce que la paie a pris au tiroir' web/public/v10/core.js \
+  "\${Number(z.sorties) ? ligne('Payé du tiroir pour la paie'" "\${false ? ligne('Payé du tiroir pour la paie'" \
+  "$SORW"
+
+# ── 16 § 10.1, point 13, lot A (1.266.7) : la CIN et le RIB des salariés, ce que reçoivent ceux qui n'y ont pas droit
+#    (serveur/paie/identite.ts ; le RIB masqué au cabinet, gardé à l'enregistrement ; les versions écartées ; la lecture tracée) ──
+IR1='(16 § 10.1, 13) le cabinet lit la CIN d'"'"'un salarié, jamais son RIB ; ce qu'"'"'il enregistre garde le RIB du client'
+IR2='(16 § 10.1, 13) une version écartée d'"'"'une fiche de salarié ne garde ni CIN ni RIB ; celle d'"'"'un client reste entière'
+IR3='(16 § 10.1, 13) la CIN et le RIB rendus en clair à l'"'"'écran : chaque lecture tracée, une fois par réponse ; rien pour qui ne les reçoit pas'
+prouver 'paie 10.1-13 a : le RIB d'"'"'un salarié lu en entier par le cabinet' serveur/paie/routes.ts \
+  'contenu: parCabinet && o.collection === '"'"'employees'"'"' ? ribMasque(o.contenu) : o.contenu' 'contenu: o.contenu' \
+  "$IR1"
+prouver 'paie 10.1-13 b : le cabinet pris pour l'"'"'entreprise à la lecture de la paie' serveur/paie/routes.ts \
+  'select socle.perimetre_cabinet($1) is not null v' 'select false v' \
+  "$IR1"
+prouver 'paie 10.1-13 c : le RIB masqué qui garde tous ses chiffres' serveur/paie/identite.ts \
+  '.replace(/\D/g, '"'"''"'"').slice(-4)}' '.replace(/\D/g, '"'"''"'"')}' \
+  "$IR1"
+prouver 'paie 10.1-13 d : le RIB du client effacé par ce que le cabinet renvoie' serveur/v10/dossier.ts \
+  '    if (parCabinet && c.collection === '"'"'employees'"'"') c.contenu = ribGarde(' '    if (false) c.contenu = ribGarde(' \
+  "$IR1"
+prouver 'paie 10.1-13 e : le cabinet pris pour l'"'"'entreprise à l'"'"'enregistrement de la paie' serveur/v10/dossier.ts \
+  '&& (await tx.query('"'"'select socle.perimetre_cabinet($1) is not null v'"'"', [entreprise])).rows[0]?.v === true;' '&& false;' \
+  "$IR1"
+prouver 'paie 10.1-13 f : une version écartée d'"'"'un salarié écrite avec sa CIN et son RIB' serveur/v10/dossier.ts \
+  '    c.contenu = archiveSansIdentite(c.collection, c.cle, c.contenu);
+' '' \
+  "$IR2"
+prouver 'paie 10.1-13 g : une archive d'"'"'avant rendue en clair à qui ouvre le dossier' serveur/v10/droits.ts \
+  'contenu: archiveSansIdentite(o.collection, o.cle, (o as { contenu: unknown }).contenu)' 'contenu: (o as { contenu: unknown }).contenu' \
+  "$IR2"
+prouver 'paie 10.1-13 h : la fiche écartée vidée de tout ce qui avait été tapé' serveur/paie/identite.ts \
+  '  const record: Json = { ...e.record };' '  const record: Json = { id: e.record.id };' \
+  "$IR2"
+prouver 'paie 10.1-13 i : la liste écartée à la racine gardée en clair' serveur/paie/identite.ts \
+  '  if (collection === '"'"'_racine'"'"' && cle === '"'"'conflictArchive'"'"' && Array.isArray(contenu)) return contenu.map(sansIdentite);
+' '' \
+  "$IR2"
+prouver 'paie 10.1-13 j : la CIN et le RIB lus en clair sans trace' serveur/paie/identite.ts \
+  'objets.some((o) => o.collection === '"'"'employees'"'"' && estObjet(o.contenu)' 'objets.some((o) => false && o.collection === '"'"'employees'"'"' && estObjet(o.contenu)' \
+  "$IR3"
+prouver 'paie 10.1-13 k : une trace à chaque réponse, même sans CIN ni RIB' serveur/v10/routes.ts \
+  '        if (!rendUneIdentite(objets)) return;
+' '' \
+  "$IR3"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -19,6 +19,7 @@ import { avecSesTickets, EMPREINTE_REGLES, filtrer, mesRoles, permet, regleDe } 
 import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { verserExemple } from './exemple.ts';
 import { nombreEnTexte } from './lecture.ts';
+import { rendUneIdentite } from '../paie/identite.ts';
 import { etatDeNumerotation, sessionOuverte } from '../caisse/routes.ts';
 import { empreinteDuPoste, PREMIERE, ticketDuPoste } from '../caisse/chaine.ts';
 import { remiseAuDelaDuPlafond } from '../caisse/remise.ts';
@@ -37,6 +38,9 @@ const collection = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,60}$/);
 const contenu: z.ZodType<unknown> = z.lazy(() => z.union([z.number().int(), z.string(), z.boolean(), z.null(), z.array(contenu), z.record(z.string(), contenu)]));
 
 const changement = z.object({ collection, cle, rang: z.number().int().min(0).nullable(), revision: z.number().int().min(1).nullable(), contenu: contenu });
+
+// Les parties qui disent qu'une entreprise a une paie (16 § 10.1, point 4 ; à sortir avec le Personnel, A1).
+const PARTIES_DE_LA_PAIE = ['employees', 'payslips', 'advances', 'socialFilings'];
 
 export function routesV10(ctx: Contexte): Route<never>[] {
   const routes: Route<never>[] = [];
@@ -66,15 +70,31 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       // de la pièce. Rien que le prénom, et seulement pour les achats que la personne lit déjà.
       const saisiPar = !permet(roles, regleDe('purchases', '').voir, false) ? {} : Object.fromEntries((await tx.query(`select d.cle, split_part(coalesce(u.nom, ''), ' ', 1) prenom from socle.dossier_v10 d
           join socle.utilisateur u on u.id = d.cree_par where d.entreprise = $1 and d.collection = 'purchases'`, [ent])).rows.map((r) => [r.cle, r.prenom]));
+      // (1.266.7 ; 16 § 10.1, point 4) Qui a droit à la masse salariale sans lire la paie (03 § 2.1 : la comptabilité interne,
+      // la lecture) calcule sans elle : l'écran le dit dès que l'entreprise en a une. Un oui ou un non, jamais un nom ni un montant.
+      const paieCachee = permet(roles, 'paie.masse.voir', false) && !permet(roles, 'paie.dossier.voir', false)
+        && Boolean((await tx.query(`select exists (select 1 from socle.dossier_v10 where entreprise = $1 and collection = any($2::text[])) x`,
+          [ent, PARTIES_DE_LA_PAIE])).rows[0]?.x);
+      // (1.266.7 ; 16 § 10.1, point 13) Une CIN ou un RIB rendus en clair : la lecture se trace, une fois par réponse, comme
+      // celle du cabinet (`paie.dossier.voir`, un geste sensible). Rien pour qui ne les reçoit pas.
+      const tracerIdentites = async (objets: { collection: string; contenu?: unknown }[]) => {
+        if (!rendUneIdentite(objets)) return;
+        await tx.query(`insert into socle.audit (entreprise, utilisateur, cle_api, appareil, geste, lecture)
+          values ($1, socle.moi(), socle.ma_cle(), $2, 'paie.dossier.voir', true)`, [ent, qui.appareil]);
+      };
       const depuis = query.depuis ?? '';
       if (/^\d{1,20}$/.test(depuis) && query.profil === profil && BigInt(depuis) <= BigInt(marque)) {
         const d = await lireDepuis(tx, ent, depuis, avenir);
         const f = filtrer(roles, d.objets);
-        return { corps: { ...f, objets: await avecSesTickets(tx, ent, qui.utilisateur, roles, d.objets, f.objets), retires: filtrer(roles, d.retires).objets, partiel: true, marque, profil, autrui, saisiPar } };
+        const objets = await avecSesTickets(tx, ent, qui.utilisateur, roles, d.objets, f.objets);
+        await tracerIdentites(objets);
+        return { corps: { ...f, droits: { ...f.droits, paieCachee }, objets, retires: filtrer(roles, d.retires).objets, partiel: true, marque, profil, autrui, saisiPar } };
       }
       const tous = await lireDossier(tx, ent, qui.utilisateur);
       const f = filtrer(roles, tous);
-      return { corps: { ...f, objets: await avecSesTickets(tx, ent, qui.utilisateur, roles, tous, f.objets), marque, profil, autrui, saisiPar } };
+      const objets = await avecSesTickets(tx, ent, qui.utilisateur, roles, tous, f.objets);
+      await tracerIdentites(objets);
+      return { corps: { ...f, droits: { ...f.droits, paieCachee }, objets, marque, profil, autrui, saisiPar } };
     },
   });
 

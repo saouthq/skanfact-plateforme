@@ -13,6 +13,7 @@ import type { Route } from '../app.ts';
 import { requetes } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { appliquer, type Changement } from '../v10/dossier.ts';
+import { ribMasque } from './identite.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
 
@@ -210,7 +211,11 @@ export function routesPaie(ctx: Contexte): Route<never>[] {
       // (1.235.0) Qui fait la paie (`paieMode`, `paieModeDes`, `paieModeAvant`), et rien d'autre de la fiche (0186) : le
       // Cabinet attend l'accord du client, ou ne fait que vérifier, selon ce choix écrit.
       const mode = (await tx.query(`select socle.mode_de_paie($1) m`, [params.entreprise ?? ''])).rows[0] as { m: unknown } | undefined;
-      return { corps: { objets: objets.map((o) => ({ collection: o.collection, cle: o.cle, rang: o.rang, revision: Number(o.revision), contenu: o.contenu })),
+      // (1.266.7 ; 16 § 10.1, point 13) Le cabinet lit la CIN d'un salarié, jamais son RIB entier : ses 4 derniers chiffres.
+      // Un membre de l'entreprise elle-même (sans mandat qui le borne) le lit entier.
+      const parCabinet = (await tx.query('select socle.perimetre_cabinet($1) is not null v', [params.entreprise ?? ''])).rows[0]?.v === true;
+      return { corps: { objets: objets.map((o) => ({ collection: o.collection, cle: o.cle, rang: o.rang, revision: Number(o.revision),
+        contenu: parCabinet && o.collection === 'employees' ? ribMasque(o.contenu) : o.contenu })),
         modePaie: mode?.m ?? null } };
     },
   });

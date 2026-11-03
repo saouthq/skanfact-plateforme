@@ -160,4 +160,72 @@ describe('les pages en lecture seule, à la souris', () => {
     expect(erreurs).toEqual([]);
     await s.context().close(); await o.context().close();
   }, 120_000);
+  // 16 § 10.1, point 4 (03/11/2026) : la comptabilité interne a droit à la masse salariale, pas à la paie ; ses soldes, sa
+  // prévision, sa comptabilité et ses marges sont sans elle. L'écran le dit ; le relevé ne pousse pas à créer un salaire ; un FEC
+  // sans la paie ne s'écrit pas. Nadia, propriétaire, n'en voit rien. On n'affirme jamais le chiffre faux de Samia.
+  it('Samia, comptabilité interne : la trésorerie, la comptabilité et les marges disent « Sans la paie »', async () => {
+    const nadia = await personne('Nadia', true);
+    const ent = String((await api('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Matériaux Ben Youssef' })).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton);
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
+      { collection: 'accounts', cle: 'b', rang: 0, revision: null, contenu: { id: 'b', kind: 'banque', name: 'BIAT', isDefault: true, openingBalance: 10000, openingDate: '2026-01-01' } },
+      { collection: 'employees', cle: 'e1', rang: 0, revision: null, contenu: { id: 'e1', name: 'Sami Trabelsi', grossSalary: 1450, hireDate: '2023-03-10', contract: 'cdi', active: true } },
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Chantier Ennasr' } },
+      { collection: 'projects', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1', name: 'Villa Gammarth', clientId: 'c1', status: 'en-cours', createdAt: 1 } },
+    ] })).statut).toBe(200);
+    const c1 = ((await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[]).find((o) => o.cle === 'c1')?.contenu;
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10/emettre`, nadia.jeton, { document: { id: 'f0', type: 'facture', number: '', status: 'brouillon', date: aujourdhui, clientId: 'c1', createdAt: 1,
+      lines: [{ label: 'Ciment gris 50 kg', description: '', qty: 1, unit: 'sac', unitPrice: 25, vatRate: 19 }], discountRate: 0, withholdingRate: 0, applyStamp: false, currency: 'DT', payments: [] },
+    client: c1, revision: null, rang: 0, netAPayer: '29.750' })).statut).toBe(200);
+    const samia = await personne('Samia', true);
+    const inv = String((await api('POST', `/entreprises/${ent}/invitations`, nadia.jeton, { email: samia.email, roles: ['comptabilite_interne'] })).corps.jeton);
+    expect((await api('POST', '/invitations/accepter', samia.jeton, { jeton: inv })).statut).toBe(200);
+    const erreurs: string[] = [];
+    const ouvrir = async (jeton: string, hash: string) => {
+      const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+      await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, jeton);
+      const p = await cx.newPage();
+      p.on('pageerror', (e) => erreurs.push(e.message));
+      await p.goto(`${serveur.adresse}/v10/?e=${ent}${hash}`);
+      await expect.poll(() => titre(p), { timeout: 20_000 }).not.toBe('');
+      await plusTard(p);
+      return p;
+    };
+    const fr = (d: string) => d.split('-').reverse().join('/');
+    // La trésorerie : le bandeau, et « À décaisser » ne promet pas les salaires.
+    const p = await ouvrir(samia.jeton, '#/tresorerie');
+    await expect.poll(() => p.locator('#sans-paie').innerText().then(net).catch(() => '')).toMatch(/^Sans la paie Ton rôle ne voit pas les salaires : ces soldes et cette prévision ne comptent ni les salaires versés/);
+    expect(net(await p.locator('#view').innerText())).toContain('achats et saisies, sans les salaires');
+    // Le relevé : une ligne absente de SkanFact ne pousse pas à créer un salaire.
+    await p.locator('#t-tabs [data-tab="rapprochement"]').click();
+    await p.locator('#t-import').waitFor({ timeout: 10_000 });
+    const csv = path.join(dossier, 'releve-sans-paie.csv');
+    fs.writeFileSync(csv, `Date;Libellé;Débit;Crédit\n${fr(aujourdhui)};VIR SALAIRES;1443,794;\n`);
+    const [choix] = await Promise.all([p.waitForEvent('filechooser', { timeout: 8_000 }), p.locator('#t-import').click()]);
+    await choix.setFiles(csv);
+    const revue = p.locator('#modal-root .modal', { hasText: 'Le relevé de' });
+    await revue.waitFor({ timeout: 10_000 });
+    expect(net(await revue.locator('#imp-sans-paie').innerText())).toBe('Un salaire, une avance ou une déclaration sociale payés n\'apparaissent pas pour ton rôle : ne les crée pas ici, la paie les porte déjà.');
+    await p.keyboard.press('Escape');
+    await p.screenshot({ path: path.join(PHOTOS, 'sans-paie-tresorerie.png') });
+    // La comptabilité : le bandeau ; le FEC ne s'écrit pas.
+    await p.evaluate(() => { location.hash = '#/compta'; });
+    await expect.poll(() => p.locator('#sans-paie').innerText().then(net).catch(() => '')).toContain('cette comptabilité ne compte ni les salaires');
+    await p.locator('#c-tabs [data-tab="ecritures"]').click();
+    await p.locator('#ecr-fec').click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().then(net).catch(() => '')).toBe('Le fichier FEC ne s\'écrit pas sans la paie');
+    await p.keyboard.press('Escape');
+    // Les marges, puis l'affaire.
+    await p.evaluate(() => { location.hash = '#/marges'; });
+    await expect.poll(() => p.locator('#sans-paie').innerText().then(net).catch(() => '')).toContain('le point mort et la marge des affaires');
+    await p.evaluate(() => { location.hash = '#/affaire/p1'; });
+    await expect.poll(() => p.locator('#sans-paie').innerText().then(net).catch(() => '')).toContain('la marge de cette affaire (la main d\'œuvre notée)');
+    // Nadia : rien de tout cela.
+    const q = await ouvrir(nadia.jeton, '#/tresorerie');
+    await q.waitForTimeout(800);
+    expect(await q.locator('#sans-paie').count()).toBe(0);
+    expect(net(await q.locator('#view').innerText())).not.toContain('sans les salaires');
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

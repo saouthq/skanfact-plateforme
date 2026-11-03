@@ -708,7 +708,21 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
 4. Les rôles qui ne voient pas la paie (comptabilité interne, lecture) calculent **une trésorerie, une prévision, un
    résultat et des marges faux** sans le savoir ; la prévision compte deux fois la part paie de la déclaration quand elle
    a été payée à part, et elle ne prévoit ni la CNSS ni l'impôt des mois dont les bulletins ne sont pas encore faits.
+   *La prévision : réparée le 03/11/2026 (1.266.7) : la part paie payée à part (`dm-…`) ne sort plus une seconde fois ; un
+   mois à venir sans bulletins prévoit sa part paie (le 28) et sa CNSS (au trimestre), estimées sur les fiches, au millime
+   des bulletins qu'on établira. Un mois passé dont les bulletins sont en retard n'est estimé nulle part (À DÉCIDER).
+   *Les rôles sans la paie : en partie le 03/11/2026 (1.266.7, option A) : le serveur dit `paieCachee` (un oui ou un non,
+   jamais un nom ni un montant) à qui a la masse salariale sans la paie, dès que l'entreprise en a une ; la trésorerie, la
+   comptabilité, les marges et l'affaire disent « Sans la paie » ; le relevé importé dit de ne pas créer un salaire ; le FEC
+   ne s'écrit pas sans la paie (choix par défaut, À VÉRIFIER). Aucun montant ne change encore : les chiffres justes (la
+   masse salariale dans le résultat, des totaux sans nom dans la trésorerie) sont les options A2 et B, À DÉCIDER. À sortir
+   avec le Personnel (A1).*
 5. Un salaire ou une avance payés **en espèces depuis la caisse comptent deux fois** (le Z en fait un manque).
+   *Réparé le 03/11/2026 (1.266.7, option 1, migration 0189) : la Paie note dans la session ouverte ce qu'elle paie du
+   tiroir (`serveur/caisse/sortie.ts`, la porte de la Caisse ; sans un nom) et le Z le retire de l'attendu, en une ligne
+   « Payé du tiroir pour la paie ». « Le compte du tiroir est le tiroir » et ce total montré au caissier : À DÉCIDER. Le
+   geste du comptoir « Avance à un salarié » (§ 3.8) reste au Lancement ; un paiement noté après le Z et les autres
+   sorties du compte de caisse restent faux (`docs/caisse.md`). À sortir avec le Personnel et la Caisse (A1).*
 6. « Retirer déposée » **efface aussi le paiement** de la déclaration, à deux endroits : le calendrier fiscal (Compta) et
    « Retirer la mention » dans Paie › Déclarations ; la question posée avant ne dit pas que l'argent sorti et son
    écriture partent avec.
@@ -742,6 +756,9 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
 10. Sans bulletin du mois, le coût d'une heure, le contrôle d'une avance **et le salaire prévu de la trésorerie** oublient
     les primes fixes ; et un salarié d'une équipe aux autres jours de travail a deux chiffres (congés et pointage
     comptent ses jours par deux règles) : la correction urgente se limite au montant faux.
+    *Réparé le 03/11/2026 (1.266.7) : le salaire prévu, le coût d'une heure (`coutHoraire`) et le contrôle d'une avance
+    prennent la fiche avec ses primes (`saisieDeLaFiche`), à l'entreprise comme au Cabinet. Les deux règles des jours
+    restent : la fonction unique vient avec le dossier du module (§ 3.4).*
 11. « Un départ… » du menu ⋯ **appelle la mauvaise fonction** et échoue. *Réparé le 03/11/2026 (1.266.2) : la fenêtre de
     l'heure de sortie du pointage s'appelle `heureSortieFenetre` ; chacune part avec sa partie à la sortie (A1).*
 12. Les PDF des bulletins déposés au classeur du cabinet se lisent par **tout membre du cabinet** qui voit le dossier,
@@ -754,6 +771,18 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
     Personnel (A1).*
 13. La CIN et le RIB des salariés sont gardés **en clair** dans le dossier de l'entreprise, sur le serveur (§ 8,
     décision 1 de l'En bref).
+    *Fait en partie le 03/11/2026 (1.266.7, lot A : ce que reçoivent ceux qui n'y ont pas droit ; `serveur/paie/identite.ts`) :
+    le cabinet lit la CIN, et le RIB masqué à ses 4 derniers chiffres (ce que son écran montrait déjà) ; ce qu'il renvoie
+    d'un salarié garde le RIB du client (sans quoi chaque enregistrement du cabinet l'effaçait). Un défaut de plus, trouvé
+    en chemin : la fusion de la v10 garde la version écartée d'une fiche **entière** (`conflictArchive`), partie technique
+    que reçoivent le commercial, la caisse, la lecture et le support ; une fiche de salarié n'y garde plus ni CIN ni RIB, à
+    l'écriture et à la lecture (les archives d'avant). La lecture d'une CIN ou d'un RIB en clair par l'entreprise se trace,
+    une fois par réponse, comme celle du cabinet. **Reste** : le scellement au repos (lot B), qui attend la décision de la
+    clé (garder `SKANFACT_COFFRE` ou une clé à part ; dans les deux cas, perdre la clé perd toutes les CIN et tous les
+    RIB) ; **le même défaut voisin** : ces archives gardent aussi les noms des salariés, leurs bulletins, congés et avances,
+    lisibles par qui ne voit pas la paie (À DÉCIDER : n'y garder que l'identifiant, au risque qu'un poste qui renvoie la
+    liste efface ce qui était gardé) ; la copie du poste sans réseau, la photo d'une CIN jointe, un RIB dans la messagerie.
+    À sortir avec le Personnel (A1).*
 
 *Ne sont pas des réparations, et viennent après la sortie des gros fichiers :* le report des congés (`leaveCarry`, jamais
 écrit : une fonction prévue, § 3.5) ; la fonction unique « les jours de travail de ce salarié » (§ 3.4), écrite dans le

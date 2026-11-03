@@ -3356,7 +3356,7 @@
       const coutMois = round3(bulletins.reduce((a, b) => a + (payslipView(b, data).c.employerCost || 0), 0));
       return { coutMois, heuresMois, estime: false, inconnu: !(coutMois > 0) };
     }
-    const coutMois = round3(computePayslip(emp, {}, s).employerCost || 0);
+    const coutMois = round3(computePayslip(emp, saisieDeLaFiche(emp, s), s).employerCost || 0);
     return { coutMois, heuresMois, estime: true, inconnu: !(coutMois > 0) };
   }
   // Les heures notées sur une affaire, chacune avec son coût (1.263.0). `data.projectTime` :
@@ -6450,22 +6450,29 @@
     // (1.266.0) Les salaires des mois qui n'ont pas encore de bulletin : la prévision ne connaissait que les bulletins déjà
     // faits, et à 90 jours décembre et janvier sortaient sans paie. Chaque salarié en poste reçoit, à la fin de chaque mois
     // de l'horizon sans bulletin, le net que son contrat donne (`computePayslip` sans variable) — marqué « estimé ».
+    // (1.266.7) Un mois à venir sans bulletin : chaque salarié en poste reçoit ce que sa fiche donne un mois plein, ses primes
+    // comprises (`saisieDeLaFiche`, le calcul de la liste des salariés) — son net pour le salaire prévu, et ses retenues et
+    // cotisations pour les impôts plus bas : un seul calcul pour les trois.
+    const sPaie = payrollSettings(data);
+    const fiches = {};
+    const ficheDe = e => (e.id in fiches ? fiches[e.id] : (fiches[e.id] = (() => { try { return computePayslip(e, saisieDeLaFiche(e, sPaie), sPaie) || {}; } catch (_) { return {}; } })()));
+    const aBulletin = new Set((data.payslips || []).map(sl => `${sl.employeeId}|${Number(sl.year)}-${Number(sl.month)}`));
+    const sansBulletin = (y, m) => {
+      const debut = `${y}-${pad2(m)}-01`, fin = addDays(debut, daysInMonth(y, m) - 1);
+      if (fin < t) return [];
+      return (data.employees || []).filter(e => !(e.active === false || (e.hireDate && e.hireDate > fin) || (e.endDate && e.endDate < debut)) && !aBulletin.has(`${e.id}|${y}-${m}`));
+    };
     if (o.salaires !== false) {
-      const s = payrollSettings(data);
-      const nets = {};
-      const aBulletin = new Set((data.payslips || []).map(sl => `${sl.employeeId}|${Number(sl.year)}-${Number(sl.month)}`));
       for (let k = 0; k < 8; k++) {
         const y0 = Number(t.slice(0, 4)), m0 = Number(t.slice(5, 7)) - 1 + k;
         const y = y0 + Math.floor(m0 / 12), m = (m0 % 12) + 1;
         const debut = `${y}-${pad2(m)}-01`, fin = addDays(debut, daysInMonth(y, m) - 1);
         if (fin < t) continue;
         if (debut > horizon || fin > horizon) break;
-        (data.employees || []).forEach(e => {
-          if (e.active === false || (e.hireDate && e.hireDate > fin) || (e.endDate && e.endDate < debut)) return;
-          if (aBulletin.has(`${e.id}|${y}-${m}`)) return;
-          if (!(e.id in nets)) { try { nets[e.id] = round3((computePayslip(e, {}, s) || {}).net || 0); } catch (_) { nets[e.id] = 0; } }
-          if (!(nets[e.id] > 0)) return;
-          events.push({ date: fin, amount: -nets[e.id], kind: 'salaire-prevu', estime: true, label: `Salaire ${monthLabel(fin)} — ${e.name || 'Salarié'}`, id: `${e.id}@${y}-${pad2(m)}` });
+        sansBulletin(y, m).forEach(e => {
+          const net = round3(ficheDe(e).net || 0);
+          if (!(net > 0)) return;
+          events.push({ date: fin, amount: -net, kind: 'salaire-prevu', estime: true, label: `Salaire ${monthLabel(fin)} — ${e.name || 'Salarié'}`, id: `${e.id}@${y}-${pad2(m)}` });
         });
       }
     }
@@ -6483,8 +6490,13 @@
             const y = Number(d.slice(0, 4)), mm = Number(d.slice(5, 7)) - 1, yy = mm === 0 ? y - 1 : y, mois = mm === 0 ? 12 : mm;
             const from = `${yy}-${pad2(mois)}-01`, to = addDays(from, daysInMonth(yy, mois) - 1);
             const v = vatReturn(data, company, { from, to });
+            // (1.266.7) La part paie payée à part (« Noter déposée et payée », `dm-AAAA-MM`) est déjà un mouvement : elle ne sort
+            // pas une seconde fois. Sinon, celle des bulletins faits, plus l'estimation de ceux qui manquent.
             let sal = 0;
-            try { sal = round3((declarationMensuelleSalaires(data, yy, mois) || {}).total || 0); } catch (_) { sal = 0; }
+            if (!sociales.has(`dm-${yy}-${pad2(mois)}`)) {
+              try { sal = round3((declarationMensuelleSalaires(data, yy, mois) || {}).total || 0); } catch (_) { sal = 0; }
+              sal = round3(sansBulletin(yy, mois).reduce((a, e) => { const c = ficheDe(e); return round3(a + (c.irpp || 0) + (c.css || 0) + (c.tfp || 0) + (c.foprolos || 0)); }, sal));
+            }
             const montant = round3((v.toPay || 0) + (v.withheldOnBuys || 0) + sal);
             if (montant > 0.0005) events.push({ date: d, amount: -montant, kind: 'fiscal', estime: true, label: `${tva.label} — ${MONTHS_FR[mois - 1]} ${yy}`, id: fiscalFilingId('tva', d),
               detail: { tva: round3(v.toPay || 0), retenues: round3(v.withheldOnBuys || 0), salaires: sal } });
@@ -6500,7 +6512,9 @@
           if (soc && !sociales.has(soc.id) && !done.has(fiscalFilingId('cnss', d))) {
             const [, yy, q] = /cnss-(\d{4})-T(\d)/.exec(soc.id) || [];
             const c = yy ? cnssDeclaration(data, Number(yy), Number(q)) : null;
-            if (c && c.total > 0.0005) events.push({ date: d, amount: -round3(c.total), kind: 'fiscal', estime: true, label: `${cnss.label} — ${c.label} ${yy}`, id: soc.id });
+            // (1.266.7) Les mois du trimestre dont les bulletins ne sont pas encore faits : estimés sur les fiches.
+            const total = c ? round3(c.months.reduce((a, mo) => sansBulletin(Number(yy), mo).reduce((b, e) => { const x = ficheDe(e); return round3(b + (x.cnssEmployee || 0) + (x.cnssEmployer || 0) + (x.accident || 0)); }, a), c.total)) : 0;
+            if (c && total > 0.0005) events.push({ date: d, amount: -total, kind: 'fiscal', estime: true, label: `${cnss.label} — ${c.label} ${yy}`, id: soc.id });
           }
           d = nextDeadline(cnss, addDays(d, 1));
         }
@@ -12142,6 +12156,7 @@
       </table>
       <hr>
       <table>
+        ${Number(z.sorties) ? ligne('Payé du tiroir pour la paie', `− ${m(z.sorties)}`) : ''}
         ${ligne('Fond de caisse', m(z.fond))}
         ${ligne('Le tiroir devait contenir', m(z.attendu), 'tot')}
         ${ligne('Espèces comptées', m(z.compte))}

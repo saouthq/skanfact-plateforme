@@ -2376,3 +2376,29 @@ l'argent ou perdent des données. Ils se réparent dans les gros fichiers (excep
   (migration 0188 : deux origines nouvelles), sans un nom. Les avances une par une ne changent pas (À DÉCIDER). Test :
   `tests/compta/paie.test.ts` (« les déclarations sociales payées et les saisies versées… ») ; preuves `paie 10.1-3 a`
   à `k`.
+- **1.266.7 — La prévision de trésorerie compte la paie une fois, et la paie à venir** (points 4 et 10). La part paie de
+  la déclaration du mois, payée à part, sortait deux fois de la prévision ; un mois à venir dont les bulletins ne sont pas
+  faits ne prévoyait ni sa part paie ni sa CNSS (la CNSS du trimestre sortait au tiers). Elles s'estiment maintenant sur
+  les fiches, au millime des bulletins qu'on établira. Sans bulletin, le salaire prévu, le coût d'une heure d'une affaire et
+  le contrôle d'une avance (à l'entreprise et au Cabinet) comptent les primes de la fiche : une retenue raisonnable ne se
+  dit plus « beaucoup ». Tests : `tests/moteur/tresorerie-paie-urgence.test.ts`, `tests/web/paie-1256-gestes.test.ts`
+  (« Une avance ou un prêt »), `tests/web/cabinet-paie-avances.test.ts` (« une avance au Cabinet ») ; preuves
+  `paie 10.1-4 a` à `e`, `paie 10.1-10 a` à `d`.
+- **1.266.7 — « Sans la paie » se dit** (point 4, les rôles). La comptabilité interne et la lecture ne lisent pas la paie :
+  leurs soldes, leur prévision, leur comptabilité et leurs marges se calculaient sans elle, sans le savoir. Le serveur le
+  leur dit maintenant (sans un nom ni un montant), et l'écran l'affiche en bandeau sur la trésorerie, la comptabilité, les
+  marges et l'affaire ; à l'import d'un relevé, il dit de ne pas créer un salaire (il compterait deux fois) ; le FEC ne
+  s'écrit pas sans la paie (À VÉRIFIER). Aucun montant ne change : les chiffres justes pour ces rôles sont À DÉCIDER. Tests :
+  `tests/v10/droits-dossier.test.ts`, `tests/v10/pont-sans-paie.test.ts`, `tests/web/lecture-seule.test.ts` (« Samia,
+  comptabilité interne… ») ; preuves `paie 10.1-4 f` à `s`.
+- **1.266.7 — Un salaire ou une avance payés du tiroir ne comptent plus deux fois** (point 5). Payés en espèces depuis la
+  caisse ouverte, la paie les sortait des livres et le Z en faisait un manque, sorti une seconde fois. La Paie note
+  maintenant la sortie dans la session (sans un nom), et le Z la retire de ce que le tiroir devait contenir
+  (`docs/caisse.md`, « La sortie de la paie » ; migration 0189). Tests : `tests/v10/caisse-sortie-paie.test.ts`,
+  `tests/web/caisse-z.test.ts` (« urgence 5 ») ; preuves `urgence 5 a` à `k`.
+- **1.266.7 — La CIN et le RIB ne partent plus chez qui n'y a pas droit** (point 13, lot A). Le cabinet recevait le RIB entier
+  de chaque salarié ; il reçoit maintenant ses 4 derniers chiffres (ce que son écran montrait), et ce qu'il enregistre garde
+  le RIB du client. La version écartée d'une fiche par la fusion, que le commercial, la caisse, la lecture et le support
+  reçoivent, ne garde plus ni CIN ni RIB. Une lecture de la CIN ou du RIB en clair se trace. Le scellement au repos (lot B)
+  attend la décision de la clé. Tests : `tests/cabinet/paie.test.ts` (« (16 § 10.1, 13) le cabinet lit la CIN… »),
+  `tests/v10/droits-dossier.test.ts` (« (16 § 10.1, 13) … ») ; preuves `paie 10.1-13 a` à `k`.

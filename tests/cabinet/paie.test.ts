@@ -387,4 +387,29 @@ describe('la paie tenue par le cabinet', () => {
     expect((await ecrire(d.ent, d.client, [objet('payslips', bulletin(4))])).statut).toBe(200);
     expect(((await appeler('GET', `/entreprises/${d.ent}/paie/dossier`, p.jeton)).corps.objets as unknown[]).length).toBe(2);
   });
+
+  it('(16 § 10.1, 13) le cabinet lit la CIN d\'un salarié, jamais son RIB ; ce qu\'il enregistre garde le RIB du client', async () => {
+    const d = await dossier();
+    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);
+    // Des valeurs qui discriminent : une CIN qui commence par 0 (un nombre la perdrait), un RIB de 20 chiffres sans motif.
+    const RIB = '08006000123456789012';
+    expect((await appeler('POST', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton,
+      { changements: [objet('employees', { ...SALARIE, cin: '07654321', iban: RIB })] })).statut).toBe(200);
+    const lire = async (p: Personne) => ((await appeler('GET', `/entreprises/${d.ent}/paie/dossier`, p.jeton)).corps.objets as { collection: string; revision: number; contenu: Record<string, unknown> }[])
+      .find((o) => o.collection === 'employees');
+    const lu = await lire(d.associe);
+    expect(lu?.contenu.cin).toBe('07654321');
+    expect(lu?.contenu.iban).toBe('•••• 9012');
+    expect(JSON.stringify(lu)).not.toMatch(/\d{5,}9012/);
+    // Le client, lui, le lit entier par le même chemin.
+    expect((await lire(d.client))?.contenu.iban).toBe(RIB);
+    // Le cabinet renvoie la fiche comme son écran l'écrit (`employeDe`, pont-cabinet.js) : le masque qu'il a lu revient.
+    const renvoi = { method: 'virement', iban: '', ...lu?.contenu, position: 'Cheffe de salle' } as unknown as { id: string } & Record<string, unknown>;
+    expect((await ecrire(d.ent, d.associe, [{ ...objet('employees', renvoi), revision: lu?.revision ?? null }])).statut).toBe(200);
+    // Un RIB qu'il voudrait poser ne s'écrit pas non plus : il ne le lit pas, il ne l'écrit pas.
+    const relu = await lire(d.associe);
+    expect((await ecrire(d.ent, d.associe, [{ ...objet('employees', { ...relu?.contenu, iban: '11112222333344445555' } as unknown as { id: string } & Record<string, unknown>), revision: relu?.revision ?? null }])).statut).toBe(200);
+    const client = (await appeler('GET', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[];
+    expect(client.find((o) => o.collection === 'employees')?.contenu).toMatchObject({ cin: '07654321', iban: RIB, position: 'Cheffe de salle' });
+  });
 });

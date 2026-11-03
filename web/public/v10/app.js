@@ -10749,6 +10749,14 @@
     const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
     return !d || !d.ecrivables || d.ecrivables.includes(partie);
   }
+  // (plateforme, 03/11/2026 — 16 § 10.1, point 4 ; à sortir avec le Personnel, A1) Le rôle ne lit pas la paie d'une
+  // entreprise qui en a une (la comptabilité interne, la lecture) : ses soldes, sa prévision, son résultat et ses marges
+  // sont sans elle. L'écran le dit, sans un nom ni un montant (le serveur n'en donne pas).
+  function paieCachee() { const d = bridge.droitsDossier ? bridge.droitsDossier() : null; return !!(d && d.paieCachee); }
+  function bandeauSansPaie(quoi, pluriel) {
+    if (!paieCachee()) return '';
+    return `<div class="bandeau ambre sans-paie" id="sans-paie" role="status">${lfIc('cadenas', 18, 2)}<span class="txt"><b>Sans la paie</b><span>Ton rôle ne voit pas les salaires : ${quoi} ne compte${pluriel ? 'nt' : ''} ni les salaires versés ou à verser, ni les avances, ni la CNSS et les impôts sur les salaires. Les chiffres complets se lisent avec le droit « Paie » : demande-les à ${h(company().managerName || 'la direction')}.</span></span></div>`;
+  }
   function catalogForm(item, done, opts) {
     opts = opts || {};
     const neuf = !item || !!opts.creation;
@@ -17518,6 +17526,7 @@
         <div class="actions mg-act">
           <button class="btn btn-primary" id="new-proj">${lfIc('croix', 15, 2.4)} Nouvelle affaire</button>
         </div></div>
+      ${bandeauSansPaie('le point mort et la marge des affaires', true)}
       <div class="lf mg">
         ${/* (1.261.0, Skander 03/11/2026 : « le style des sous-onglets comme partout ») La barre segmentée de la Paie ; l'année à droite. */''}
         <div class="mg-barre"><div class="pa-seg" id="mg-tabs" role="tablist" aria-label="Les marges">${MARGE_TABS.map(([id, label]) =>
@@ -18209,6 +18218,7 @@
           <p class="sous">${[p.clientId ? h(clientName(p.clientId)) : 'sans client précis', p.startDate ? 'depuis le ' + C.fmtDate(p.startDate) : '', p.endDate ? 'fin le ' + C.fmtDate(p.endDate) : ''].filter(Boolean).join(' · ')}</p></div>
         <div class="actions"><button class="btn" id="edit-p">Modifier</button>
           <button class="btn${vert('devis')}" id="p-devis">${lfIc('croix', 15, 2.4)} Devis</button><button class="btn${vert('achat')}" id="p-achat">${lfIc('croix', 15, 2.4)} Achat</button><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(p.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Les autres gestes" title="Les autres gestes">${lfIc('plus', 16)}</button></div></div>
+      ${bandeauSansPaie('la marge de cette affaire (la main d\'œuvre notée)')}
       ${m.margin < 0 ? `<div class="bandeau rouge mg-perte" role="status">${lfIc('alerte', 18, 2)}<span class="txt"><b>Cette affaire perd de l'argent</b><span>Elle a coûté ${C.money(m.cost, cur)} et ${C.money(m.revenue, cur)} sont facturés. Vérifie qu'il ne reste pas quelque chose à facturer, ou qu'un achat ou des heures n'ont pas été rattachés par erreur.</span></span></div>` : ''}
       <div class="lf mg">
         <div class="cf-carte mg-resume">
@@ -19752,7 +19762,7 @@
           const v = formValues($('#af2', root));
           const amt = Number(v.amount) || 0, m = Number(v.monthly) || 0;
           const emp = employeeById(v.employeeId);
-          const net = emp ? C.computePayslip(emp, {}, C.payrollSettings(data)).net : 0;
+          const st = C.payrollSettings(data), net = emp ? C.computePayslip(emp, C.saisieDeLaFiche(emp, st), st).net : 0;
           $('#af2-hint', root).innerHTML = !amt || !m
             ? '<span class="small muted">Saisis le montant et la retenue mensuelle pour voir la durée du remboursement.</span>'
             : `<span class="small ${m > net * 0.3 ? 'warn-text' : 'muted'}">Remboursée en <b>${Math.ceil(amt / m)} mois</b> à ${C.money(m, cur)} par bulletin.`
@@ -23776,6 +23786,7 @@
           + ligne('<b>Net des ventes</b>', `<b>${h(argentCaisse(z.net))}</b>`) : ''}
         ${Object.entries(z.parMode).map(([k, v]) => ligne(h(MODES_Z[k] || k), h(argentCaisse(v)))).join('')}
         ${Object.entries(z.rendu || {}).map(([k, v]) => ligne(`Rendu (${h((MODES_Z[k] || k).toLowerCase())})`, `− ${h(argentCaisse(v))}`)).join('')}
+        ${Number(z.sorties) ? ligne('Payé du tiroir pour la paie (salaires, avances)', `− ${h(argentCaisse(z.sorties))}`) : ''}
         ${ligne('Fond de caisse', h(argentCaisse(z.fond)))}${ligne('<b>Le tiroir devait contenir</b>', `<b>${h(argentCaisse(z.attendu))}</b>`)}
         ${ligne('Espèces comptées', h(argentCaisse(z.compte)))}
         ${(z.comptage || []).map(x => ligne(`<span class="small muted">${x.nombre} × ${Number(x.valeur) >= 1 ? `${Number(x.valeur)} DT` : `${Math.round(Number(x.valeur) * 1000)} millimes`}</span>`, `<span class="small muted">${h(argentCaisse(x.total))}</span>`)).join('')}
@@ -26155,12 +26166,12 @@
     $('#view').innerHTML = `
       <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Trésorerie</span></div><h1>Trésorerie</h1><p class="sous">Ce que tu as, ce qui va rentrer et sortir, et ton relevé pointé</p></div>
         <div class="actions"><button class="btn" id="new-acc">${lfIc('croix', 15, 2.4)} Compte</button><button class="btn${principalT ? '' : ' btn-primary'}" id="new-move">${lfIc('croix', 15, 2.4)} Mouvement</button>${principalT ? `<button class="btn btn-primary" id="${principalT.id}">${lfIc(principalT.ic, 15, 2.2)} ${h(principalT.l)}</button>` : ''}</div></div>
-      ${bandeauT}
+      ${bandeauT}${bandeauSansPaie('ces soldes et cette prévision', true)}
       <div class="lf mg tr">
         <div class="cf-carte mg-resume" id="tr-resume">
           ${chiffreT('Disponible aujourd\'hui', montantU(pos0.total, cur), pl(pos0.accounts.length, 'compte'), pos0.total < seuilT ? 'rouge' : '', 'tre.total')}
           ${chiffreT('À encaisser sous 30 jours', montantU(f30.inflow, cur), retards30 > 0 ? `dont ${h(C.money(retards30, cur))} déjà échus` : 'rien d\'échu', '', 'dash.open')}
-          ${chiffreT('À décaisser sous 30 jours', montantU(-f30.outflow, cur), f30.estimes < -0.0005 ? `dont ${h(C.money(-f30.estimes, cur))} estimés` : 'achats, salaires, saisies', '', 'tre.decaisser')}
+          ${chiffreT('À décaisser sous 30 jours', montantU(-f30.outflow, cur), f30.estimes < -0.0005 ? `dont ${h(C.money(-f30.estimes, cur))} estimés` : paieCachee() ? 'achats et saisies, sans les salaires' : 'achats, salaires, saisies', '', 'tre.decaisser')}
           ${chiffreT('Dans 30 jours', montantU(f30.end, cur), sous30, trou || f30.end < seuilT ? 'rouge' : 'vert', 'tre.projected')}
         </div>
         <div class="mg-barre"><div class="pa-seg" id="t-tabs" role="tablist" aria-label="La trésorerie">${TRESO_TABS.map(([id, label]) =>
@@ -26641,7 +26652,7 @@
               <td><span class="nw">${C.fmtDate(x.mouvement.date)}</span>${x.jours ? ` <small class="muted">(${x.jours} j d'écart)</small>` : ''}<div class="small muted">${h(x.mouvement.label)}${x.mouvement.party ? ' — ' + h(x.mouvement.party) : ''}</div></td>
               <td class="r nw m ${x.ligne.montant > 0 ? 'ok-text' : ''}">${moneySigne(x.ligne.montant, cur)}</td></tr>`).join('')}</tbody></table></div>` : ''}
           ${ap.absentes.length ? `<h3 class="tr-h">Sur le relevé, pas dans SkanFact</h3>
-            <p class="small muted">Des frais, un prélèvement, un virement reçu sans facture : crée le mouvement, il naît pointé. Un paiement de client se note plutôt sur sa facture.</p>
+            <p class="small muted">Des frais, un prélèvement, un virement reçu sans facture : crée le mouvement, il naît pointé. Un paiement de client se note plutôt sur sa facture.${paieCachee() ? ' <b id="imp-sans-paie">Un salaire, une avance ou une déclaration sociale payés n\'apparaissent pas pour ton rôle : ne les crée pas ici, la paie les porte déjà.</b>' : ''}</p>
             <div class="scroll-x"><table class="list compact" id="imp-absentes"><tbody>
             ${ap.absentes.map((l, i) => `<tr><td class="nw">${C.fmtDate(l.date)}</td><td>${h(l.libelle)}</td><td class="r nw m ${l.montant > 0 ? 'ok-text' : ''}">${moneySigne(l.montant, cur)}</td><td class="r"><button type="button" class="btn btn-sm" data-absente="${i}">Créer le mouvement</button></td></tr>`).join('')}</tbody></table></div>` : ''}
           ${rel.soldes.fin != null ? `<p class="small">Solde final du relevé : <b>${C.money(rel.soldes.fin, cur)}</b>. Il sera recopié comme solde de ton relevé.</p>` : ''}
@@ -27344,7 +27355,7 @@
       <div class="tabs" id="c-tabs" role="tablist" aria-label="La comptabilité">${COMPTA_TABS.filter(([id]) => !ONGLETS_OPTION.includes(id) || C.sousModuleOn(data, 'compta.livres')).map(([id, label]) =>
         `<button role="tab" data-tab="${id}" class="${id === comptaState.tab ? 'active' : ''}${ONGLETS_OPTION.includes(id) ? ' opt' : ''}">${label}${ONGLETS_OPTION.includes(id) && !(licence.options || []).includes('compta') ? ' 🔒' : ''}</button>`).join('')}
         ${!C.sousModuleOn(data, 'compta.livres') ? `<button class="btn btn-sm btn-ghost" id="c-plus" title="Grand livre, balance, états financiers">+ Comptabilité complète</button>` : ''}</div>
-      <div id="c-body"></div>`;
+      ${bandeauSansPaie('cette comptabilité')}<div id="c-body"></div>`;
     const draw = dansUnLot(() => {
       // Un onglet masqué ne peut pas rester l'onglet courant : la page s'ouvrirait sur du vide,
       // sans onglet allumé, et on croirait s'être trompé de page.
@@ -27853,6 +27864,8 @@
       // (un fichier normé suit l'ordre de ses numéros). Un refus se dit avant d'enregistrer, pièce
       // par pièce ; un mois non clôturé se dit après, parce que ses numéros peuvent encore bouger.
       $('#ecr-fec').onclick = async () => {
+        // (16 § 10.1, point 4) Un FEC se lit comme les livres complets : sans la paie, il ne s'écrit pas (choix par défaut, À VÉRIFIER).
+        if (paieCachee()) return infoDialog('Le fichier FEC ne s\'écrit pas sans la paie', `Il n'aurait ni les salaires ni les charges sociales, et un FEC se lit comme les livres complets. Demande-le à ${company().managerName || 'la direction'} ou au cabinet.`);
         const r = C.fecEntreprise(data, company(), p);
         if (!r.ok) {
           infoDialog(r.vide ? 'Rien à exporter' : 'Le fichier FEC ne peut pas s\'écrire',

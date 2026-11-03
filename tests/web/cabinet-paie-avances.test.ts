@@ -218,6 +218,29 @@ describe('les avances au Cabinet, à la souris et au clavier', () => {
     expect(erreurs).toEqual([]);
   }, 240_000);
 
+  // 16 § 10.1, point 10 (03/11/2026) : la fenêtre d'avance du Cabinet prenait le net sans les primes de la fiche ; une
+  // retenue de 360 sur un net de 1 251,313 (primes comprises) se disait « lourde » (sur 1 165,797 sans elles).
+  it('une avance au Cabinet : le net habituel compte les primes de la fiche, et 360 DT ne se dit pas « lourd »', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const fournil = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Boulangerie du Port' })).corps.entreprise);
+    expect((await api('POST', `/entreprises/${fournil}/compta/exercices`, associe, { annee: 2025, ouverture: [] })).statut).toBe(201);
+    const mourad = { ...salarie('s1', 'Mourad Trabelsi', 1450.375, '2023-03-10'), headOfFamily: true, children: 2,
+      primes: [{ label: 'Prime de transport', amount: 63.25, taxable: true, parJour: true }, { label: 'Indemnité de panier', amount: 41.5, taxable: false }] };
+    expect((await api('POST', `/entreprises/${fournil}/paie/dossier`, associe, { changements: [
+      { collection: 'employees', cle: 's1', rang: null, revision: null, contenu: encoder(mourad) }] })).statut).toBe(200);
+    const erreurs: string[] = [];
+    const p = await page(associe, erreurs);
+    await ouvrirLaPaie(p, `${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${fournil}/comptabilite/paie/2025`);
+    await p.locator('#av-ajouter').click();
+    const fenetre = p.locator('#modal-root .modal').last();
+    await fenetre.locator('[name=amount]').fill('1000');
+    await fenetre.locator('[name=monthly]').fill('360');
+    await expect.poll(() => fenetre.locator('#av-annonce').innerText().then(net)).toBe('Remboursée en 3 mois à 360,000 DT par bulletin — 28,8 % du net habituel de Mourad Trabelsi (1 251,313 DT).');
+    expect(await fenetre.locator('#av-annonce .warn-text').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 120_000);
+
   it('un client sur SkanFact : ses avances se lisent, et le bulletin du Cabinet en retient l\'échéance — le client lit le même reste', async () => {
     const associe = await personne('associe');
     const cab = (await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps;

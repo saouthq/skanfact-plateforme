@@ -74,8 +74,10 @@ export const compteFournisseur = (p: PlanDuDossier, tiers: string | null) => {
 // Le journal et le compte d'un règlement (`journalDeCompte`, core.js) : le compte de trésorerie
 // choisi, sinon celui par défaut, sinon le premier ; sans aucun, les espèces vont à la caisse.
 const ESPECES = ['espèces', 'especes', 'Espèces'];
+export const compteDeTresorerie = (p: PlanDuDossier, compte: string | null) =>
+  (compte ? p.tresorerie.find((a) => a.id === compte) : undefined) ?? p.tresorerie.find((a) => a.parDefaut) ?? p.tresorerie[0];
 export function journalDeCompte(p: PlanDuDossier, compte: string | null, mode: string): { journal: 'BQ' | 'CA'; compte: string } {
-  const t = (compte ? p.tresorerie.find((a) => a.id === compte) : undefined) ?? p.tresorerie.find((a) => a.parDefaut) ?? p.tresorerie[0];
+  const t = compteDeTresorerie(p, compte);
   const caisse = t ? t.caisse : ESPECES.includes(mode);
   return caisse ? { journal: 'CA', compte: p.plan.caisse } : { journal: 'BQ', compte: p.plan.banque };
 }

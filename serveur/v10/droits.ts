@@ -16,6 +16,7 @@ import { declarerGestesAchats } from '../achats/gestes.ts';
 import { declarerGestesCaisse } from '../caisse/gestes.ts';
 import { declarerGestesCompta } from '../compta/gestes.ts';
 import { declarerGestesPaie } from '../paie/gestes.ts';
+import { archiveSansIdentite } from '../paie/identite.ts';
 import { declarerGestesVentes } from '../ventes/gestes.ts';
 import './textes.ts';
 
@@ -111,7 +112,9 @@ export function permet(roles: string[], geste: string, ecrire: boolean): boolean
 // Ce qu'une personne lit : les objets dont la partie lui est visible ; et, pour l'écran, les parties qu'il ne
 // doit ni montrer ni renvoyer (`cachees`), et celles qu'il lit sans pouvoir les écrire (`lectureSeule`).
 export function filtrer<O extends { collection: string; cle: string }>(roles: string[], objets: O[]) {
-  const visibles = objets.filter((o) => permet(roles, regleDe(o.collection, o.cle).voir, false));
+  // (1.266.7 ; 16 § 10.1, point 13) Une version écartée d'une fiche de salarié ne rend ni CIN ni RIB, même écrite avant.
+  const visibles = objets.filter((o) => permet(roles, regleDe(o.collection, o.cle).voir, false))
+    .map((o) => ('contenu' in o ? { ...o, contenu: archiveSansIdentite(o.collection, o.cle, (o as { contenu: unknown }).contenu) } as O : o));
   const parties = [...Object.keys(LISTES).map((c) => ['', c] as const), ...Object.keys(RACINE).map((k) => ['_racine', k] as const)];
   const cachees = new Set<string>(), lectureSeule = new Set<string>(), ecrivables = new Set<string>();
   for (const [col, nom] of parties) {

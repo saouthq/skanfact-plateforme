@@ -60,7 +60,7 @@ fond, « Fermer la caisse (Z)… » ; ouverte ailleurs : lequel, par qui), et «
 
 **S3. Fermer, c'est compter** (`POST …/caisse/fermer`, geste `caisse.session.fermer`) : on tape les espèces comptées
 **sans voir** ce que le tiroir devrait contenir ; le serveur calcule l'**attendu** (le fond, plus les espèces encaissées
-pendant la session) et l'**écart**, et fige le **Z** sur ses propres tickets de la session : leur nombre, du premier au
+pendant la session, moins l'argent rendu et ce que la paie a payé du tiroir, plus bas) et l'**écart**, et fige le **Z** sur ses propres tickets de la session : leur nombre, du premier au
 dernier numéro, le total TTC, la TVA, les paiements par mode, le fond, l'attendu, le compté, l'écart, qui, où, quand.
 Sur l'appareil qui tient la caisse, ou par le propriétaire ou un administrateur depuis ailleurs.
 
@@ -201,6 +201,23 @@ ticket encaissé ne s'annule jamais, `01` R6), et l'argent rendu sort du tiroir.
   caissier voit les retours faits sur ses tickets (sinon sa page lui proposerait de rendre deux fois).
   **À VÉRIFIER** : rendre un ticket d'un autre caissier (la recherche d'un ticket par son numéro) ; la remise au-delà
   du plafond et le tiroir ouvert sans vente, avec le même code (`03` § 2.1).
+
+**La sortie de la paie** (03/11/2026, 1.266.7 ; cadrage 16 § 3.8 et § 10.1, point 5 ; migration 0189). Un salaire ou une
+avance payés en espèces depuis le tiroir pendant que la caisse est ouverte comptaient deux fois : la paie les sort déjà de
+la caisse dans les livres, et le Z, qui ne les connaissait pas, en faisait un manque qu'il sortait une seconde fois (658).
+Maintenant la Paie appelle la Caisse (02 § 2 : jamais l'inverse) par sa porte `serveur/caisse/sortie.ts` : quand le
+**paiement** d'un bulletin ou d'une avance change (payé, annulé, autre jour, autre compte), `noterSortieDeCaisse` le note
+dans la session ouverte (`caisse.sortie` : la nature, la clé du paiement, le montant, sans un nom), ou l'en retire. Elle ne
+note que ce qui part **du compte du tiroir** (`compteDuTiroir` : le premier compte de caisse du dossier, celui où le Z
+écrit son écart), **d'un jour de la session** (de son ouverture à aujourd'hui) ; caisse fermée, rien n'est noté et le
+paiement passe (un fait n'est jamais refusé, 04 § 5.1). Le Z retire ces sorties de l'attendu et les dit en une ligne,
+« Payé du tiroir pour la paie », un total sans nom, à l'écran et sur la bande ; le Z figé ne change plus.
+**À DÉCIDER** : « le compte du tiroir est le tiroir » (un coffre noté sur le même compte ferait un excédent fictif ; un
+choix « depuis le tiroir » dans la fenêtre de paiement vient avec le geste du comptoir, au Lancement) ; ce total montré au
+caissier (avec un seul salaire payé, c'est un net). **Restent faux** : un paiement noté après le Z pour de l'argent pris
+pendant la session, et les autres sorties du compte de caisse pendant une session (un mouvement libre de la Trésorerie, un
+versement en banque, un achat, une déclaration ou une saisie payés en espèces). Tests : `tests/v10/caisse-sortie-paie.test.ts`,
+`tests/web/caisse-z.test.ts` (« urgence 5 ») ; preuves `urgence 5 a` à `k`.
 
 Tests : `tests/v10/caisse-retour.test.ts` (les codes, le caissier sans responsable, le code faux, plus que vendu, un
 autre prix, un autre montant, un autre appareil, AVO-…-001 aux deux noms, AVO-…-002, plus rien à rendre, l'attente, le

@@ -171,6 +171,28 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
     expect(erreurs).toEqual([]);
   }, 150_000);
 
+  // 16 § 10.1, point 10 (03/11/2026) : le contrôle d'une avance prenait le net « sans rien » de la fiche (`computePayslip(e, {})`) :
+  // les primes de chaque mois oubliées, une retenue raisonnable se disait « beaucoup ». Le net habituel est celui de la fiche,
+  // ses primes comprises (net sans primes 1 165,797 : seuil des 30 % à 349,739 ; avec primes 1 251,313 : seuil à 375,394).
+  it('« Une avance ou un prêt » : le net habituel compte les primes de la fiche, et la retenue de 360 DT n\'est pas « beaucoup »', async () => {
+    const x = await monter();
+    const o = (await api('GET', `/entreprises/${x.ent}/dossier-v10`, x.j)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[];
+    const f = o.find((y) => y.collection === 'employees' && y.cle === 'mt');
+    expect((await api('POST', `/entreprises/${x.ent}/dossier-v10`, x.j, { changements: [{ collection: 'employees', cle: 'mt', rang: null, revision: f?.revision ?? null,
+      contenu: { ...(f?.contenu ?? {}), primes: enc([{ label: 'Prime de transport', amount: 63.25, taxable: true, parJour: true }, { label: 'Indemnité de panier', amount: 41.5, taxable: false }]) } }] })).statut).toBe(200);
+    const p = await ouvrir(x);
+    // Salariés › Avances et prêts.
+    await p.locator('#p-tabs [data-tab="salaries"]').click();
+    await p.locator('#p-sous [data-sous="avances"]').click();
+    await p.locator('#cg-new-av').click();
+    await p.locator('#af2 [name=amount]').fill('1000');
+    await p.locator('#af2 [name=monthly]').fill('360');
+    await p.locator('#af2 [name=monthly]').dispatchEvent('input');
+    await expect.poll(() => p.locator('#af2-hint').innerText().then(espace)).toBe('Remboursée en 3 mois à 360,000 DT par bulletin. Le net habituel de ce salarié est de 1 251,313 DT : la retenue en représente 28,8 %.');
+    expect(await p.locator('#af2-hint .warn-text').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 120_000);
+
   it('augmenter les salaires : + 10 % pour Mourad seul, dès ce mois ; sa fiche garde l\'ancien salaire', async () => {
     const x = await monter();
     const p = await ouvrir(x);

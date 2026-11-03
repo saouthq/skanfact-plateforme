@@ -234,6 +234,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   // Les codes de caisse (brique 123) : une empreinte de secret personnel, comme un mot de passe ; chacun repose le sien.
   // Les retours à la caisse (brique 124) : des faits de l'entreprise ; les codes de responsable, des secrets personnels.
   'caisse.retour': { classe: 'entreprise' },
+  // Les sorties de la paie dans une session (16 § 10.1, urgence 5) : des faits de l'entreprise, que son Z retire.
+  'caisse.sortie': { classe: 'entreprise' },
   'caisse.code_responsable': { classe: 'hors', raison: 'un code de responsable est un secret personnel, gardé en empreinte : chaque responsable repose le sien après une restauration' },
   'caisse.code': { classe: 'hors', raison: 'un code de caisse est un secret personnel, gardé en empreinte : chaque caissier repose le sien après une restauration' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
