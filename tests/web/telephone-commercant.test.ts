@@ -286,8 +286,10 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(bulleDevis.right).toBeLessThanOrEqual(390.5);
 
     // Sous les filtres d'une liste, la bulle est à côté de la case qui la précède, pas seule sur une ligne. (1.154.0 : la
-    // liste des factures range ses filtres dans sa feuille, au téléphone ; celle des devis garde les siens.)
-    await aller(p, '#/devis', /^Devis/);
+    // liste des factures range ses filtres dans sa feuille, au téléphone ; 1.260.0 : celle des devis aussi. La règle se
+    // lit sur « Où est la marge », qui garde les siens.)
+    await aller(p, '#/marges', /^Marges/);
+    await p.locator('#mg-tabs [data-tab="analyse"]').click();
     const filtre = await p.locator('#view .filters button.i').evaluate((b) => { const v = (b.previousElementSibling ?? b).getBoundingClientRect(); const r = b.getBoundingClientRect(); return { case: (v.top + v.bottom) / 2, bulle: (r.top + r.bottom) / 2 }; });
     expect(Math.abs(filtre.case - filtre.bulle)).toBeLessThanOrEqual(6);
 

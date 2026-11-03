@@ -19754,14 +19754,19 @@ prouver 'abo 122 : l'\''échéance annoncée comme une fin' $AJ122 \
 prouver 'abo 122 : l'\''état qui annonce un rappel quand la facture du renouvellement attend' $AJ122 \
   "          : suite.aFaire === 'payer' ? \`Encore \${pl(j, 'jour')}. Ta facture du renouvellement" "          : false ? \`Encore \${pl(j, 'jour')}. Ta facture du renouvellement" \
   "$T122H"
+# (1.260.0) La liste des devis remplace listView : les trois défauts se posent sur listeDevis.
 prouver 'abo 122 : la liste en lecture seule qui propose de créer' web/public/v10/app.js \
-  "\${aboBloque(true) ? \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"list-abo\">" "\${false ? \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"list-abo\">" \
+  "Voir l'abonnement</button>\`
+          : \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"new\" aria-keyshortcuts=\"N D\">" "Voir l'abonnement</button><button id=\"new\">Nouveau devis</button>\`
+          : \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"new\" aria-keyshortcuts=\"N D\">" \
   "$T122E"
 prouver 'abo 122 : l'\''état vide en lecture seule qui pousse à créer' web/public/v10/app.js \
-  "        aboBloque(true) ? [['vide-abo', 'Voir l\\'abonnement', true]]" "        false ? [['vide-abo', 'Voir l\\'abonnement', true]]" \
+  ": lecture ? etatVide('Proposer un prix, avant de travailler'" ": false ? etatVide('Proposer un prix, avant de travailler'" \
   "$T122E"
 prouver 'abo 122 : l'\''état vide qui ne dit pas pourquoi la création attend' web/public/v10/app.js \
-  "          .concat(aboBloque(true) ? [" "          .concat(false ? [" \
+  "          \`<b>\${h(licence.label)}.</b> \${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.\`], [['vide-abo', 'Voir l\\'abonnement', true]])
+        : \`<div class=\"panel premiere\"><div class=\"pr-t\"><span class=\"pr-ic\">\${lfIc('piece', 26, 1.8)}</span><h2>Proposer un prix" "          \`<b>\${h(licence.label)}.</b> \${h(licence.detail || '')}\`], [['vide-abo', 'Voir l\\'abonnement', true]])
+        : \`<div class=\"panel premiere\"><div class=\"pr-t\"><span class=\"pr-ic\">\${lfIc('piece', 26, 1.8)}</span><h2>Proposer un prix" \
   "$T122E"
 prouver 'abo 122 : le premier dossier tenu qui ne dit pas qu'\''il est gratuit' web/public/v10/cabinet/app.js \
   "       \${peut && peut.gratuit ?" "       \${false ?" \
@@ -22741,6 +22746,19 @@ prouver 'paie 1.259 k : le bandeau de l'\''offre ne vient pas sur la paie (son e
     $('\''#offre-voir'\'').onclick' \
   'en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s'\''ouvre'
 
+# La liste des devis (1.260.0), faite sur le modèle de celle des factures, sans tuiles (Skander, 03/11/2026).
+prouver 'devis 1.260 a : « Accepté, à facturer » perd le devis facturé en partie' web/public/v10/app.js \
+  "choix === 'à facturer' ? st === 'à facturer' || st === 'en facturation'" "choix === 'à facturer' ? st === 'à facturer'" \
+  'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
+prouver 'devis 1.260 b : un acompte émis ne compte pas, le devis reste « à facturer »' web/public/v10/app.js \
+  "if (p.acomptes.some(emise) || p.totales.length || p.brouillons.length) return 'en facturation';" "if (p.totales.length || p.brouillons.length) return 'en facturation';" \
+  'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
+prouver 'devis 1.260 c : « Relancer » part pour plusieurs devis à la fois' web/public/v10/app.js \
+  'aRelancer.length === 1' 'aRelancer.length > 0' \
+  'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
+prouver 'devis 1.260 d : la date de l'\''acceptation ne se dit pas' web/public/v10/app.js \
+  "rep && rep.le ? \`accepté le \${lfJm(rep.le)}\` : 'accepté'" "'accepté'" \
+  'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

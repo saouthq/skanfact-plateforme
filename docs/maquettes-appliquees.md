@@ -568,3 +568,26 @@ La bande des pièces du mois, la pièce en grand et sa fiche : à saisir (chaque
 rapprochée du même geste), déjà saisie (joindre), à vérifier (les contrôles, « Ne plus me faire vérifier »), au mauvais
 mois (la TVA des deux mois, la demande au client), en devises (la contre-valeur en entiers), le mois vide, le même numéro
 deux fois. Le détail et les écarts voulus : `docs/cabinet.md` (« La Saisie face à la pièce »).
+
+## La liste des devis (1.260.0)
+
+Sans maquette à part (Skander, 03/11/2026 : « fais-la comme celle de facture et adapte-la, directement dans l'application ») :
+`listeDevis` (`web/public/v10/app.js`) prend les pièces de la liste des factures (`.lf`, `#lf-barre`, menus, pied, pagination,
+barre du choix, feuille des filtres au téléphone) et remplace l'ancienne `listView('devis')`. Test : `tests/web/liste-devis.test.ts`
+(photo `liste-devis-1.png`) ; preuves « devis 1.260 a » à « d ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Accueil › Devis », « Ce que tu as proposé, ce que le client a répondu, ce qui reste à facturer » ; « Nouveau devis » (N puis D) |
+| Pas de tuiles | Skander, 03/11/2026 : « enlève les kpi au-dessus de la liste des devis […] on le laissera dans statistique ». Le taux d'acceptation et l'entonnoir restent dans Statistiques, « Devis en attente » sur l'accueil |
+| Les filtres | La recherche (numéro, client, objet, montant, nom des pièces jointes), le statut avec son nombre (En attente de réponse, Expiré sans réponse, Accepté à facturer, Facturé, Refusé, Tous les acceptés), l'année ; les puces et « Tout effacer ». « Accepté, à facturer » garde aussi le devis facturé en partie (un acompte émis, le solde à faire) |
+| Une ligne | Le numéro, le client et l'objet, la date, « Valable jusqu'au » (encore N jours, expiré depuis N jours, accepté le, refusé le, pas encore envoyé), le statut, « Facturé par » (les factures tirées du devis, « (acompte) », « (solde) », « solde à facturer », ou le motif d'un refus), le total TTC (et sa contre-valeur pour une devise) |
+| Le bouton rapide | L'étape suivante : « Le client a accepté ? » (envoyé, expiré), « Facturer » (accepté), « Facturer le solde » (acompte émis) ; rien pour un brouillon, un facturé, un refusé |
+| Le menu ⋯ | Ouvrir ; La réponse du client (accepté…, refusé…, Prolonger sa validité… pour un expiré) ; Facturer ; Envoyer ; La pièce (PDF, Dupliquer, Écrire au cabinet, Supprimer un brouillon) |
+| Le choix | Télécharger les PDF ; « Relancer » seulement quand un seul devis choisi attend sa réponse (une relance part avec le lien du devis) |
+| Le pied | Le nombre de devis, le HT, dont les acceptés en TTC ; les devises converties au taux de chaque devis |
+| Au téléphone | Deux puces (En attente, À facturer) et la feuille des filtres, comme les factures |
+| La première fois | « Proposer un prix, avant de travailler » et ses quatre étapes (écrire, envoyer, la réponse, facturer) |
+
+La réponse du client (accepté, refusé et son motif) passe par les mêmes fenêtres depuis la liste et depuis le devis
+(`repondreAuDevis`).

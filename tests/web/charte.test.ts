@@ -81,7 +81,8 @@ describe('la charte des maquettes, à la souris', () => {
 
     // Le toast d'un geste qui se défait : sombre (l'encre de la charte), une barre de 6 s, « Annuler ».
     await menu.getByRole('menuitem', { name: /Le client a refusé/ }).click();
-    await p.locator('#modal-root #ok').click();
+    // (1.260.0) La liste ouvre la même fenêtre que le devis : son pourquoi (facultatif), puis « Le client a refusé ».
+    await p.locator('#modal-root #rep-refus').click();
     const toast = p.locator('#toast.show.avec-bouton');
     await toast.waitFor({ timeout: 10_000 });
     expect(await toast.locator('.toast-txt').innerText()).toBe('DEV-2026-007 marqué refusé');

@@ -4536,85 +4536,7 @@
     facture: { q: '', st: '', kind: '', year: '', sort: null, page: 1, yearAuto: false, yearTouched: false }
   };
 
-  function listView(type) {
-    const isQ = type === 'devis';
-    const s = listState[type];
-    const { cols } = docColumns({ quotes: isQ, q: () => s.q });
-    // Un ticket de caisse (10.15.0) est une facture, mais il vit dans la page Caisse : cent tickets par
-    // jour noieraient la liste des factures, où l'on vient chercher ce qu'un client doit.
-    const mine = data.documents.filter(d => isQ ? d.type === 'devis' : ((d.type === 'facture' && !C.estTicket(d)) || d.type === 'avoir'));
-    const years = Array.from(new Set(mine.map(d => (d.date || '').slice(0, 4)).filter(Boolean))).sort().reverse();
-    const thisYear = C.today().slice(0, 4);
-    // Par défaut on montre l'année en cours si elle contient quelque chose : une liste courte se lit, une liste de trois ans ne se lit pas.
-    // C'est signalé sous les filtres : sans ça on croit avoir perdu les documents des années précédentes.
-    if (s.year === '' && !s.yearTouched && years.includes(thisYear) && mine.length > 25) { s.year = thisYear; s.yearAuto = true; }
-    if (s.year && !years.includes(s.year)) { s.year = ''; s.yearAuto = false; }
-
-    const draw = dansUnLot((sortKey) => {
-      if (!$('#list-wrap')) return;                 // liste vide : l'écran explique au lieu de lister
-      if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
-      const list = mine
-        .filter(d => !s.kind || d.type === s.kind)
-        .filter(d => !s.year || (d.date || '').startsWith(s.year))
-        .filter(d => C.docFiltre(s.st, effStatus(d)))
-        .filter(d => !s.q || C.correspondRecherche([d.number, nomClientPiece(d), d.subject, d.reference, C.nomsJustificatifs(d)].join(' '), s.q))
-        .sort(byNumberDesc);
-      const filtered = !!(s.q || s.st || s.kind || s.year);
-      $('#list-wrap').innerHTML = docTable(list, {
-        quotes: isQ, sort: s.sort, onSort: true, page: s, grandTotal: mine.length,
-        // `draw` ne tourne que si `#list-wrap` existe, c'est-à-dire s'il y a au moins une pièce :
-        // une liste vide ici ne peut venir que d'un filtre. L'autre cas est traité par `etatVide`.
-        empty: 'Aucun document ne correspond à ces filtres. Clique « Réinitialiser les filtres » pour tout revoir.'
-      });
-      const note = $('#f-note');
-      if (!note) return bindDocTable(draw, s, '#list-wrap');
-      note.hidden = !filtered;
-      note.innerHTML = !filtered ? '' :
-        `<span class="small muted">${list.length} sur ${mine.length}${s.year && s.yearAuto ? ` · année ${h(s.year)} affichée par défaut` : ''}</span>${filterReset(true)}`;
-      if ($('#reset-f')) $('#reset-f').onclick = resetFilters;
-      bindDocTable(draw, s, '#list-wrap');
-    });
-    const resetFilters = () => { s.q = ''; s.st = ''; s.kind = ''; s.year = ''; s.yearAuto = false; s.yearTouched = true; s.page = 1; render(true); };
-    // « Émis » et « À encaisser » regroupent plusieurs statuts : ils passent par `C.docFiltre`, pas
-    // par une comparaison de chaîne (voir DOC_FILTRES dans core.js — « Émis » rendait les avoirs).
-    const statuses = isQ ? C.DISPLAY_STATUSES.devis : [...C.DISPLAY_STATUSES.facture, 'émis', 'à encaisser'];
-    // Les deux regroupements ont leur libellé : « Émis » se lisait à côté de « Émise » (une facture
-    // émise et pas encore payée), comme deux fois le même choix.
-    const FILTRES_REGROUPES = isQ ? {} : { 'émis': 'Toutes les pièces émises', 'à encaisser': 'À encaisser' };
-    $('#view').innerHTML = `
-      <div class="page-head"><h1>${isQ ? 'Devis' : 'Factures'}</h1>
-        <div class="actions">${aboBloque(true) ? `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="list-abo">Voir l'abonnement</button>` : `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new">+ ${isQ ? 'Nouveau devis' : 'Nouvelle facture'}</button>`}</div></div>
-      ${filtersBar(`
-        <input type="text" id="q" placeholder="Rechercher : n°, client, objet…" value="${h(s.q)}">
-        ${isQ ? '' : `<select id="kind"><option value="">Factures et avoirs</option><option value="facture" ${s.kind === 'facture' ? 'selected' : ''}>Factures</option><option value="avoir" ${s.kind === 'avoir' ? 'selected' : ''}>Avoirs</option></select>`}
-        <select id="st"><option value="">Tous les statuts</option>${statuses.map(x => `<option value="${x}" ${s.st === x ? 'selected' : ''}>${h(FILTRES_REGROUPES[x] || optionStatut(x))}</option>`).join('')}</select>
-        ${years.length > 1 ? `<select id="yr"><option value="">Toutes les années</option>${years.map(y => `<option value="${y}" ${s.year === y ? 'selected' : ''}>${y}</option>`).join('')}</select>` : ''}
-        ${info('list.filters')}
-        <span class="f-note" id="f-note" hidden></span>
-        `, mine.length, !!(s.q || s.st || s.kind || s.year))}
-      ${mine.length ? '<div id="list-wrap"></div>' : etatVide(
-        isQ ? 'Proposer un prix, avant de travailler' : 'Réclamer l\'argent du travail fait',
-        (isQ
-          ? ['Un devis annonce un prix ferme à ton client. Il n\'engage rien tant qu\'il n\'est pas accepté — et une fois accepté, il devient une facture <b>en un clic</b>, sans rien ressaisir.',
-             'Tu n\'as pas besoin de créer le client d\'abord : tu le crées depuis le devis.']
-          : ['Une facture est la pièce officielle : elle prend son numéro au moment où tu l\'émets, et n\'est plus modifiable ensuite. Pour corriger après coup, on fait un avoir.',
-             'SkanFact suit ensuite toute seule ce qu\'on te doit, et te la remonte dans « Relances » dès qu\'elle dépasse son échéance.'])
-          .concat(aboBloque(true) ? [`<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`] : []),
-        aboBloque(true) ? [['vide-abo', 'Voir l\'abonnement', true]]
-          : [['vide-new', isQ ? '+ Créer mon premier devis' : '+ Créer ma première facture', true],
-             ['vide-demo', 'Voir un exemple rempli']])}`;
-    if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/' + type);
-    if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
-    if ($('#vide-abo')) $('#vide-abo').onclick = () => allerAbonnement();
-    if ($('#list-abo')) $('#list-abo').onclick = () => allerAbonnement();
-    if ($('#new')) $('#new').onclick = () => navigate('#/doc/new/' + type);
-    if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
-    if ($('#st')) $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
-    if ($('#yr')) $('#yr').onchange = e => { s.year = e.target.value; s.yearAuto = false; s.yearTouched = true; s.page = 1; draw(); };
-    if ($('#kind')) $('#kind').onchange = e => { s.kind = e.target.value; s.page = 1; draw(); };
-    draw();
-  }
-  routes.devis = () => listView('devis');
+  routes.devis = () => listeDevis();
   routes.factures = () => listeFactures();
 
   // ---------- la liste des factures (1.154.0) ----------
@@ -4623,8 +4545,8 @@
   // d'El Fatoora, en retard), l'âge des retards, ce qui attend sa signature, les brouillons. Une barre de filtres qui dit
   // ce qu'elle filtre (une puce par filtre, « Tout effacer »). Un tableau rangé par mois où l'échéance et El Fatoora ont
   // leur colonne, la conversion d'une pièce en devise sous son montant, le trop-perçu dit « à son crédit ». Des pièces
-  // qu'on choisit à plusieurs, le clavier, et au téléphone deux puces et une feuille de filtres. Les devis gardent
-  // `listView` jusqu'à leur lot.
+  // qu'on choisit à plusieurs, le clavier, et au téléphone deux puces et une feuille de filtres.
+  // (1.260.0) La liste des devis (`listeDevis`) est faite sur ce modèle.
   const LF_IC = {
     // (28/10/2026) La vue en grand des justificatifs : agrandir, masquer l'aperçu, passer d'un fichier à l'autre.
     agrandir: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
@@ -5099,7 +5021,7 @@
     const t = e.target;
     if (t && t.closest && t.closest('input, select, textarea, [contenteditable], .modal, .row-menu')) { if (e.key === 'Escape' && t.id === 'q') t.blur(); return; }
     if (document.querySelector('#modal-root .modal')) return;
-    const s = listState.facture;
+    const s = listState[$('#lf').dataset.liste === 'devis' ? 'devis' : 'facture'];
     const lignes = $$('#list-wrap tr.clickable[data-id]');
     const poser = i => { lignes.forEach(x => x.classList.remove('kb')); s.cur = i; const tr = lignes[i]; if (tr) { tr.classList.add('kb'); tr.scrollIntoView({ block: 'nearest' }); } };
     if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
@@ -5118,6 +5040,340 @@
     }
     if (e.key === 'Escape' && s.sel && s.sel.size) { e.preventDefault(); $('#bc-rien').click(); }
   });
+
+  // ---------- la liste des devis (1.260.0) ----------
+  // Faite comme la liste des factures (Skander, 03/11/2026 : « fait la comme celle de facture et adapte la »), sans maquette
+  // à part et sans tuiles chiffrées (elles vont dans Statistiques, Skander 03/11) : une barre de filtres qui dit ce qu'elle filtre ; un tableau
+  // rangé par mois où la validité, la réponse du client et la facture qui en est née ont leur place ; des devis qu'on
+  // choisit à plusieurs, le clavier, et au téléphone deux puces et une feuille de filtres. Le geste qui rapporte de
+  // l'argent (« Facturer ») est sur la ligne.
+  //
+  // Le statut d'un devis dans la liste : celui du devis (brouillon, envoyé, expiré, refusé) ; un devis accepté se dit par
+  // ce qu'il a donné — « à facturer » (rien encore), « en facturation » (un acompte émis, ou une facture en brouillon),
+  // « facturé » (une facture émise pour son total, ou son solde).
+  function ldStatut(d) {
+    const st = effStatus(d);
+    if (st !== 'accepté') return st;
+    const p = piecesDuDevis(d.id), emise = x => x.status !== 'brouillon' && x.status !== 'annulée';
+    if (p.totales.some(emise)) return 'facturé';
+    if (p.acomptes.some(emise) || p.totales.length || p.brouillons.length) return 'en facturation';
+    return 'à facturer';
+  }
+  const LD_STATUTS = { brouillon: 'Brouillon', 'envoyé': 'Envoyé', 'expiré': 'Expiré', 'à facturer': 'Accepté', 'en facturation': 'Accepté', 'facturé': 'Facturé', 'refusé': 'Refusé' };
+  const LD_FILTRES = { '': 'Tous les statuts', brouillon: 'Brouillon', 'envoyé': 'En attente de réponse', 'expiré': 'Expiré sans réponse', 'à facturer': 'Accepté, à facturer', 'facturé': 'Facturé', 'refusé': 'Refusé', 'accepté': 'Tous les acceptés' };
+  // « À facturer » garde aussi les devis facturés en partie (un acompte émis : le solde reste à faire).
+  const ldPasse = (choix, st) => !choix || (choix === 'accepté' ? ['à facturer', 'en facturation', 'facturé'].includes(st) : choix === 'à facturer' ? st === 'à facturer' || st === 'en facturation' : st === choix);
+  const ldTotal = d => C.computeTotals(d, company()).totalTTC;
+  function ldFiltrer(mine, s, o) {
+    o = o || {};
+    const st = o.st !== undefined ? o.st : s.st, an = o.year !== undefined ? o.year : s.year, q = o.q !== undefined ? o.q : s.q;
+    const qc = lfChiffres(q || '');
+    const parMontant = /^\d[\d,]*$/.test(qc) && qc.length >= 3;
+    return mine
+      .filter(d => !an || (d.date || '').startsWith(an))
+      .filter(d => ldPasse(st, ldStatut(d)))
+      .filter(d => !q || C.correspondRecherche([d.number, nomClientPiece(d), d.subject, d.reference, C.nomsJustificatifs(d)].join(' '), q)
+        || (parMontant && lfChiffres(C.money(ldTotal(d), docCur(d))).includes(qc)));
+  }
+  // La case « Valable jusqu'au » : le temps qui reste, l'expiration, ou la réponse du client et sa date.
+  function ldValidite(d, st) {
+    const rep = d.reponse && (d.reponse.statut === 'accepté' || d.reponse.statut === 'refusé') ? d.reponse : null;
+    if (st === 'refusé') return `<span class="mu">${rep && rep.le ? `refusé le ${lfJm(rep.le)}` : 'refusé'}</span>`;
+    if (['à facturer', 'en facturation', 'facturé'].includes(st)) return `<span class="mu">${rep && rep.le ? `accepté le ${lfJm(rep.le)}` : 'accepté'}</span>`;
+    if (!d.dueDate) return '<span class="mu">—</span>';
+    if (st === 'brouillon') return `<span class="mu">${lfJm(d.dueDate)}</span><small>pas encore envoyé</small>`;
+    const j = C.daysBetween(C.today(), d.dueDate);
+    if (st === 'expiré') return `${lfJm(d.dueDate)}<small class="ambre">expiré depuis ${pl(-j, 'jour')}</small>`;
+    return `${lfJm(d.dueDate)}<small class="${j <= 7 ? 'ambre' : ''}">${j === 0 ? 'expire aujourd\'hui' : `encore ${pl(j, 'jour')}`}</small>`;
+  }
+  // Ce qu'un devis a donné : ses factures (l'acompte, le solde, la totale), dites par leur numéro.
+  function ldSuite(d, st) {
+    if (!['en facturation', 'facturé'].includes(st)) {
+      if (st === 'refusé' && d.reponse && d.reponse.motif) return `<small class="mu">${h(d.reponse.motif)}</small>`;
+      return st === 'à facturer' ? '<small class="ambre">à facturer</small>' : '';
+    }
+    const p = piecesDuDevis(d.id);
+    const dit = x => `${x.number ? h(x.number) : 'en brouillon'}${x.deposit ? ' (acompte)' : x.settles ? ' (solde)' : ''}`;
+    const l = p.acomptes.concat(p.totales, p.brouillons);
+    return `<small class="${st === 'facturé' ? 'mu' : 'ambre'}">${l.map(dit).join(' · ')}${st === 'en facturation' && p.acomptes.length && !p.totales.length ? ' · solde à facturer' : ''}</small>`;
+  }
+  function ldEtiquette(st) { return `<span class="badge ${h(st === 'à facturer' || st === 'en facturation' ? 'accepté' : st)}">${h(LD_STATUTS[st] || st)}</span>`; }
+
+  function listeDevis() {
+    const s = listState.devis;
+    if (!s.sel) s.sel = new Set();
+    s.cur = -1;
+    const mine = data.documents.filter(d => d.type === 'devis');
+    const ids = new Set(mine.map(d => d.id));
+    s.sel.forEach(id => { if (!ids.has(id)) s.sel.delete(id); });
+    const years = Array.from(new Set(mine.map(d => (d.date || '').slice(0, 4)).filter(Boolean))).sort().reverse();
+    const thisYear = C.today().slice(0, 4);
+    if (s.year === '' && !s.yearTouched && years.includes(thisYear) && mine.length > 25) { s.year = thisYear; s.yearAuto = true; }
+    if (s.year && !years.includes(s.year)) { s.year = ''; s.yearAuto = false; }
+    const base = company().currency;
+    const cur = d => docCur(d);
+    const versBase = (d, m) => C.toBase(d, m, company());
+    const m = n => C.money(n, '', C.decimalsFor(base));
+    const cols = [
+      { key: 'number', label: 'Numéro', asc: true, val: d => d.number || '' },
+      { key: 'client', label: 'Client et objet', asc: true, val: d => nomClientPiece(d).toLowerCase() },
+      { key: 'date', label: 'Date', th: 'cd', val: d => d.date || '' },
+      { key: 'due', label: 'Valable jusqu\'au', val: d => d.dueDate || '' },
+      { key: 'status', label: 'Statut' },
+      { key: 'suite', label: 'Facturé par' },
+      { key: 'amount', label: 'Total TTC', r: true, val: d => versBase(d, ldTotal(d)) }
+    ];
+
+    // (03/11/2026, Skander : « enlève les kpi au-dessus de la liste des devis, on les laissera dans statistique ») : pas de
+    // tuiles ici ; le filtre par statut garde « En attente de réponse », « Accepté, à facturer », « Expiré sans réponse ».
+
+    // ── la barre des filtres ──
+    function filtres(l) {
+      const choix = (id, label, v, opts) => `<label class="sel"><select id="${id}" aria-label="${label}">${opts.map(([k, n]) => `<option value="${h(k)}"${v === k ? ' selected' : ''}>${h(n)}</option>`).join('')}</select>${lfIc('bas', 14)}</label>`;
+      const compte = st => ldFiltrer(mine, s, { st }).length;
+      const filtre = !!(s.q || s.st || s.year);
+      const puces = [s.year ? ['year', `Année ${s.year}${s.yearAuto ? ' · choisie d\'office' : ''}`] : null, s.st ? ['st', LD_FILTRES[s.st] || s.st] : null, s.q ? ['q', `« ${s.q} »`] : null].filter(Boolean);
+      return `<div class="filtres" id="lf-filtres"><label class="cherche">${lfIc('recherche', 16)}<input id="q" type="search" value="${h(s.q)}" placeholder="${matchMedia('(max-width: 760px)').matches ? 'Chercher un devis' : 'Numéro, client, objet, montant, pièce jointe…'}" autocomplete="off" aria-label="Chercher un devis"><kbd>/</kbd></label>
+        ${choix('st', 'Statut', s.st, Object.entries(LD_FILTRES).map(([k, n]) => [k, k ? `${n} · ${compte(k)}` : n]))}
+        ${years.length > 1 ? choix('yr', 'Année', s.year, [['', 'Toutes les années'], ...years.map(y => [y, y])]) : ''}
+        ${info('list.filters').replace(' class="i"', ' class="i i-b"').replace('>i</button>', `>${lfIc('aide', 16, 2)}</button>`)}
+        <span class="f-note" id="f-note">${filtre ? `<b>${l.length}</b> sur ${pl(mine.length, 'devis', 'devis')}` : `<b>${mine.length}</b> devis`}</span></div>
+        ${puces.length ? `<div class="puces-f">${puces.map(([k, n]) => `<button type="button" class="pf" data-ote="${k}" aria-label="Retirer le filtre ${h(n)}">${h(n)}${lfIc('croix', 12, 2.4)}</button>`).join('')}<button type="button" class="btn-lien" id="reset-f">Tout effacer</button></div>` : ''}`;
+    }
+
+    // ── une ligne ──
+    function ligne(d) {
+      const st = ldStatut(d), num = d.number;
+      const pj = (d.attachments || []).filter(Boolean);
+      const pjDit = pj.length ? `${pl(pj.length, 'justificatif')} joint${sPl(pj.length)} : ${pj.map(a => a.name).filter(Boolean).join(', ')}` : '';
+      const qc = lfChiffres(s.q || '');
+      const trouveParMontant = s.q && /^\d[\d,]*$/.test(qc) && qc.length >= 3 && !C.correspondRecherche([d.number, nomClientPiece(d), d.subject, d.reference, C.nomsJustificatifs(d)].join(' '), s.q);
+      const choisie = s.sel.has(d.id);
+      const t = ldTotal(d), devise = cur(d) !== base;
+      const p = st === 'en facturation' ? piecesDuDevis(d.id) : null;
+      const vite = enLecture('documents') ? null
+        : st === 'à facturer' ? ['ld-facturer', 'factures', `Facturer ${num} · ${C.money(t, cur(d))}`]
+        : p && p.acomptes.length && !p.totales.length ? ['ld-solde', 'factures', `Facturer le solde de ${num}`]
+        : st === 'envoyé' || st === 'expiré' ? ['ld-accepte', 'coche', `Le client a accepté ${num} ?`] : null;
+      return `<tr class="clickable${st === 'brouillon' ? ' brl' : ''}${choisie ? ' choisie' : ''}" data-id="${h(d.id)}">
+        <td class="cx"><input type="checkbox" data-x="${h(d.id)}" aria-label="Choisir ${h(num || 'ce devis')}"${choisie ? ' checked' : ''}></td>
+        <td class="cn"><span class="num">${num ? h(num) : 'Brouillon'}</span>${pj.length ? `<span class="pj" role="img" aria-label="${h(pjDit)}" title="${h(pjDit)}">${lfIc('epingle', 13)}${pj.length}</span>` : ''}</td>
+        <td class="cl"><span class="cl-i">${pastilleClient(d.clientId)}<span><b>${h(nomClientPiece(d) || '—')}</b>${d.subject ? `<small>${h(d.subject)}</small>` : ''}${justifTrouve(d.attachments, s.q)}${trouveParMontant ? `<small class="trouve">${lfIc('recherche', 12)} trouvé par son montant</small>` : ''}</span></span></td>
+        <td class="cd nw">${C.fmtDate(d.date)}</td>
+        <td class="ech">${ldValidite(d, st)}</td>
+        <td class="st">${ldEtiquette(st)}</td>
+        <td class="ld-suite">${ldSuite(d, st)}</td>
+        <td class="r m nw cm">${lfMontant(t, cur(d))}${devise ? `<small class="conv">${C.money(versBase(d, t), base)} au taux ${Number(C.rateOf(d, company())).toFixed(3).replace('.', ',')}</small>` : ''}</td>
+        <td class="actions row-actions lf-act">${vite ? `<button type="button" class="btn ico enc" data-vite="${vite[0]}" data-id-vite="${h(d.id)}" title="${h(vite[2])}" aria-label="${h(vite[2])}">${lfIc(vite[1], 16)}</button>` : '<span class="enc-v"></span>'}<button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(num || 'ce devis')}">${lfIc('plus', 16)}</button></td></tr>`;
+    }
+
+    // ── le tableau ──
+    function tableau(l) {
+      if (!l.length) return `<div class="panel vide-f">${lfIc('recherche', 26, 1.6)}<b>${s.q ? `Aucun devis ne correspond à « ${h(s.q)} »` : 'Aucun devis ne correspond à ces filtres'}</b><span>La recherche lit le numéro, le client, l'objet, le montant et le nom des pièces jointes, dans ${s.year ? `l'année ${h(s.year)}` : 'toutes les années'}.</span><span class="pr-b">${s.year ? '<button type="button" class="btn btn-primary" id="lf-toutes">Chercher dans toutes les années</button>' : ''}<button type="button" class="btn" id="lf-tout-revoir">Tout revoir</button></span></div>`;
+      const sorted = s.sort ? applySort(l, cols, s.sort) : l.slice().sort(lfParDefaut);
+      const paged = paginate(sorted, s);
+      const ht = sorted.reduce((a, d) => a + versBase(d, C.computeTotals(d, company()).netHT), 0);
+      const ttc = sorted.reduce((a, d) => a + versBase(d, ldTotal(d)), 0);
+      const acc = sorted.filter(d => ['à facturer', 'en facturation', 'facturé'].includes(ldStatut(d)));
+      const euros = sorted.some(d => cur(d) !== base);
+      const nb = cols.length + 2;
+      // Sans tri choisi, la liste se range par mois ; chaque mois dit ce qu'il contient (sur TOUTE la sélection, pas la page).
+      const cle = d => (d.date || '').slice(0, 7);
+      const groupes = {};
+      sorted.forEach(d => { const k = cle(d); const g = groupes[k] || (groupes[k] = { n: 0, m: 0 }); g.n++; g.m += versBase(d, ldTotal(d)); });
+      const tete = k => { const g = groupes[k]; return `<tr class="mois"><td colspan="${nb}"><b>${LF_MOIS[+k.slice(5) - 1] || ''} ${k.slice(0, 4)}</b> <span>${pl(g.n, 'devis', 'devis')} · ${C.money(g.m, base)} TTC</span></td></tr>`; };
+      let dernier = null;
+      const corps = paged.rows.map(d => { const k = cle(d); const t = !s.sort && k !== dernier ? tete(k) : ''; dernier = k; return t + ligne(d); }).join('');
+      const tout = paged.rows.length > 0 && paged.rows.every(d => s.sel.has(d.id));
+      const head = sortHead(cols, s.sort, '<th class="row-actions-h"><span class="vh">Actions</span></th>')
+        .replace('<tr>', `<tr><th class="cx"><input type="checkbox" data-xtout aria-label="Choisir toute la page"${tout ? ' checked' : ''}></th>`);
+      return `<div class="panel lf-tab scroll-x"><table class="list sortable lf-table ld-table"><thead>${head}</thead><tbody>${corps}</tbody>
+        <tfoot><tr><td colspan="${nb - 2}"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'devis', 'devis')} · ${C.money(ht, base)} HT${acc.length ? ` · dont ${pl(acc.length, 'accepté')} : ${C.money(acc.reduce((a, d) => a + versBase(d, ldTotal(d)), 0), base)} TTC` : ''}${euros ? ' · devises converties au taux de chaque devis' : ''}</span></span></td><td class="r m nw">${lfMontant(ttc, base)} <small class="dv">${h(symboleDevise(base))}</small></td><td></td></tr></tfoot></table>
+        ${pagerBar(paged.pg, { noun: 'devis', grandTotal: mine.length })}</div>`;
+    }
+
+    // ── la barre des devis choisis ──
+    function barreChoix() {
+      const l = [...s.sel].map(docById).filter(Boolean);
+      if (!l.length) return '';
+      const t = l.reduce((a, d) => a + versBase(d, ldTotal(d)), 0);
+      const aRelancer = l.filter(d => ['envoyé', 'expiré'].includes(ldStatut(d)));
+      const g = (id, ic, tx, n, ok, dit) => `<button type="button" class="btn" id="${id}"${ok ? '' : ` disabled title="${h(dit)}"`}>${lfIc(ic, 15)} ${tx}${n !== null ? ` <span class="cpt">${n}</span>` : ''}</button>`;
+      return `<div class="barre-choix" role="region" aria-label="Devis choisis"><b>${pl(l.length, 'devis choisi', 'devis choisis')}</b><span class="mu">${C.money(t, base)} TTC</span>
+        <span class="bc-g">${g('bc-pdf', 'exporter', 'Télécharger les PDF', l.length, true)}${g('bc-relancer', 'cloche', 'Relancer', aRelancer.length, aRelancer.length === 1, aRelancer.length ? 'Une relance à la fois : son e-mail part avec le lien du devis' : 'Aucun devis choisi n\'attend de réponse')}</span>
+        <button type="button" class="btn-lien" id="bc-rien">Ne plus rien choisir</button></div>`;
+    }
+
+    // ── au téléphone : deux puces et la feuille des filtres ──
+    function puces() {
+      const att = ldFiltrer(mine, s, { st: 'envoyé', year: '', q: '' }), af = ldFiltrer(mine, s, { st: 'à facturer', year: '', q: '' });
+      const nb = (s.st ? 1 : 0) + (s.year ? 1 : 0);
+      const p = (st, n, ton, t) => `<button type="button" class="t-puce ${ton}" data-tuile="${h(st)}" aria-pressed="${s.st === st && !s.year && !s.q}">${t} <b>${n}</b></button>`;
+      return `<div class="t-puces" id="lf-puces">${p('envoyé', att.length, 'calme', 'En attente')}${p('à facturer', af.length, 'attire', 'À facturer')}<button type="button" class="t-puce" id="lf-tfil">${lfIc('reglages', 14)} Filtres${nb ? ` <b>${nb}</b>` : ''}</button></div>`;
+    }
+    function feuille() {
+      const l = ldFiltrer(mine, s);
+      const ch = (cle, opts) => `<div class="t-ch">${opts.map(([k, n]) => `<button type="button" data-f="${cle}" data-v="${h(k)}" aria-pressed="${s[cle] === k}">${h(n)}</button>`).join('')}</div>`;
+      return `<div class="t-voile" id="lf-voile"></div><div class="t-feuille" role="dialog" aria-label="Filtres"><span class="poignee"></span><b>Filtres</b>
+        <small>Statut</small>${ch('st', Object.entries(LD_FILTRES))}
+        ${years.length > 1 ? `<small>Année</small>${ch('year', [['', 'Toutes'], ...years.map(y => [y, y])])}` : ''}
+        <button type="button" class="btn btn-primary" id="lf-voir">Voir ${pl(l.length, 'devis', 'devis')}</button></div>`;
+    }
+
+    const lecture = aboBloque(true);
+    $('#view').innerHTML = `
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Devis</span></div><h1>Devis</h1><p class="sous">Ce que tu as proposé, ce que le client a répondu, ce qui reste à facturer</p></div>
+        <div class="actions">${lecture ? `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="list-abo">Voir l'abonnement</button>`
+          : `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new" aria-keyshortcuts="N D">${lfIc('croix', 15, 2.4)} Nouveau devis <kbd aria-hidden="true">N</kbd><kbd aria-hidden="true">D</kbd></button>`}</div></div>
+      ${mine.length ? `<div class="lf" id="lf" data-liste="devis">${puces()}<div id="lf-barre"></div><div id="list-wrap"></div>
+        <p class="raccourcis">${lfIc('clavier', 14)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> passer d'un devis à l'autre · <kbd>Entrée</kbd> l'ouvrir · <kbd>X</kbd> le choisir · <kbd>N</kbd> puis <kbd>D</kbd> nouveau devis</p>
+        <div id="lf-choix"></div><div id="lf-feuille" hidden></div></div>`
+        : lecture ? etatVide('Proposer un prix, avant de travailler', ['Un devis annonce un prix ferme à ton client. Il n\'engage rien tant qu\'il n\'est pas accepté — et une fois accepté, il devient une facture <b>en un clic</b>, sans rien ressaisir.',
+          `<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`], [['vide-abo', 'Voir l\'abonnement', true]])
+        : `<div class="panel premiere"><div class="pr-t"><span class="pr-ic">${lfIc('piece', 26, 1.8)}</span><h2>Proposer un prix, avant de travailler</h2>
+          <p>Un devis annonce un prix ferme à ton client. Il n'engage rien tant qu'il n'est pas accepté — et une fois accepté, il devient une facture <b>en un clic</b>, sans rien ressaisir.</p>
+          <p>Tu n'as pas besoin de créer le client d'abord : tu le crées depuis le devis.</p>
+          <div class="pr-b"><button class="btn btn-primary" id="vide-new">${lfIc('croix', 15, 2.4)} Créer mon premier devis</button><button class="btn" id="vide-demo">Voir un exemple rempli</button></div></div>
+          <ol class="pr-e"><li><b>1</b><span><b>Tu écris</b><small>le client, les lignes, la validité</small></span></li><li><b>2</b><span><b>Tu l'envoies</b><small>par e-mail ou WhatsApp, avec son lien</small></span></li><li><b>3</b><span><b>Le client répond</b><small>tu notes son oui, ou son non et pourquoi</small></span></li><li><b>4</b><span><b>Tu factures</b><small>en un clic : la totalité, ou un acompte puis le solde</small></span></li></ol></div>`}`;
+    if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/devis');
+    if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
+    if ($('#vide-abo')) $('#vide-abo').onclick = () => allerAbonnement();
+    if ($('#list-abo')) $('#list-abo').onclick = () => allerAbonnement();
+    if ($('#new')) $('#new').onclick = () => navigate('#/doc/new/devis');
+    if (!mine.length) return;
+
+    const resetFilters = () => { Object.assign(s, { q: '', st: '', year: '', yearAuto: false, yearTouched: true, page: 1 }); draw(); };
+    const redessiner = () => render(true);
+    const basculerTuile = st => {
+      const on = !s.year && !s.q && s.st === st;
+      Object.assign(s, on ? { st: '', year: '', yearAuto: false, yearTouched: false } : { st, year: '', yearAuto: false, yearTouched: true, q: '' }, { page: 1 });
+      if (on && years.includes(thisYear) && mine.length > 25) { s.year = thisYear; s.yearAuto = true; }
+      draw();
+    };
+    const dessinerChoix = () => {
+      $('#lf-choix').innerHTML = barreChoix();
+      $('#lf').classList.toggle('avec-choix', s.sel.size > 0);
+      if (!s.sel.size) return;
+      const choisies = () => [...s.sel].map(docById).filter(Boolean);
+      $('#bc-rien').onclick = () => { s.sel.clear(); draw(); };
+      $('#bc-pdf').onclick = async () => { for (const d of choisies()) await exportPdf(d); };
+      $('#bc-relancer').onclick = () => { const l = choisies().filter(d => ['envoyé', 'expiré'].includes(ldStatut(d))); if (l.length === 1) sendByEmail(l[0]); };
+    };
+
+    const draw = dansUnLot((sortKey) => {
+      if (!$('#list-wrap')) return;
+      if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
+      const l = ldFiltrer(mine, s);
+      const focus = document.activeElement && document.activeElement.id === 'q' ? $('#q').selectionStart : null;
+      $('#lf-barre').innerHTML = filtres(l);
+      $('#list-wrap').innerHTML = tableau(l);
+      if (focus !== null) { const q = $('#q'); q.focus(); q.setSelectionRange(focus, focus); }
+      if ($('#lf-puces')) $('#lf-puces').outerHTML = puces();
+      $$('#lf-puces [data-tuile]').forEach(b => b.onclick = () => basculerTuile(b.dataset.tuile));
+      $('#lf-tfil').onclick = ouvrirFeuille;
+      brancher();
+      dessinerChoix();
+    });
+
+    const ouvrirFeuille = () => {
+      const f = $('#lf-feuille');
+      f.hidden = false; f.innerHTML = feuille();
+      const fermer = () => { f.hidden = true; f.innerHTML = ''; };
+      $('#lf-voile').onclick = fermer;
+      $('#lf-voir').onclick = fermer;
+      $$('[data-f]', f).forEach(b => b.onclick = () => {
+        s[b.dataset.f] = b.dataset.v; if (b.dataset.f === 'year') { s.yearAuto = false; s.yearTouched = true; }
+        s.page = 1; draw(); ouvrirFeuille();
+      });
+    };
+
+    function brancher() {
+      const w = $('#list-wrap');
+      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; draw(); };
+      $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
+      if ($('#yr')) $('#yr').onchange = e => { s.year = e.target.value; s.yearAuto = false; s.yearTouched = true; s.page = 1; draw(); };
+      $$('#lf-barre [data-ote]').forEach(b => b.onclick = () => {
+        const k = b.dataset.ote;
+        if (k === 'year') Object.assign(s, { year: '', yearAuto: false, yearTouched: true }); else s[k] = '';
+        s.page = 1; draw();
+      });
+      if ($('#reset-f')) $('#reset-f').onclick = resetFilters;
+      if ($('#lf-toutes')) $('#lf-toutes').onclick = () => { Object.assign(s, { year: '', yearAuto: false, yearTouched: true }); draw(); };
+      if ($('#lf-tout-revoir')) $('#lf-tout-revoir').onclick = resetFilters;
+      $$('tr.clickable[data-id]', w).forEach(tr => tr.onclick = e => { if (e.target.closest('button, input, a, label')) return; navigate('#/doc/' + tr.dataset.id); });
+      $$('input[data-x]', w).forEach(x => x.onchange = () => { if (x.checked) s.sel.add(x.dataset.x); else s.sel.delete(x.dataset.x); draw(); });
+      const tout = $('input[data-xtout]', w);
+      if (tout) tout.onchange = () => { $$('input[data-x]', w).forEach(x => { if (tout.checked) s.sel.add(x.dataset.x); else s.sel.delete(x.dataset.x); }); draw(); };
+      $$('[data-vite]', w).forEach(b => b.onclick = () => {
+        const d = docById(b.dataset.idVite); if (!d) return;
+        if (b.dataset.vite === 'ld-facturer') facturerDevis(d);
+        else if (b.dataset.vite === 'ld-solde') facturerSolde(d);
+        else repondreAuDevis(d, 'accepté', redessiner);
+      });
+      bindRowMenus(w, id => actionsDevis(docById(id), redessiner), id => {
+        const d = docById(id); if (!d) return '';
+        return [d.number || 'Devis', d.clientId || d.passage ? nomClientPiece(d) : ''].filter(Boolean).join(' · ');
+      });
+      bindSort(w, draw);
+      bindPager(w, s, () => draw(), '#list-wrap');
+    }
+    draw();
+  }
+
+  // Prolonger la validité d'un devis : une nouvelle date (la validité réglée, comptée d'aujourd'hui), et il redevient « envoyé »
+  // s'il était expiré. Rien n'est renvoyé au client sans qu'on le demande.
+  function prolongerDevis(d, apres) {
+    if (!d || enLecture('documents')) { if (d) toast(refusLecture('documents'), true); return; }
+    const propose = C.addDays(C.today(), C.delaiJours(company().quoteValidityDays, 30));
+    modal(`<h2>Prolonger ${h(d.number || 'ce devis')}</h2>
+      <p class="small muted">${h(nomClientPiece(d) || '')}${d.dueDate ? ` · valable jusqu'au ${C.fmtDate(d.dueDate)}` : ''}. Le client garde le même devis, au même prix ; renvoie-le ensuite s'il doit le savoir.</p>
+      <label class="field">${lbl('Valable jusqu\'au')}<input type="date" id="pr-le" value="${propose}" min="${C.addDays(C.today(), 1)}"></label>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="pr-ok">${lfIc('horloge', 15)} Prolonger</button></div>`, (root, close) => {
+      $('#pr-ok', root).onclick = () => {
+        const le = $('#pr-le', root).value;
+        if (!le || le <= C.today()) { toast('La nouvelle date doit venir après aujourd\'hui.', true); $('#pr-le', root).focus(); return; }
+        const x = docById(d.id); if (!x) return;
+        const avant = x.dueDate;
+        x.dueDate = le; save(true); close(); if (apres) apres();
+        toastUndo(`${x.number} valable jusqu'au ${C.fmtDate(le)}`, () => { const y = docById(d.id); if (y) { y.dueDate = avant; save(true); if (apres) apres(); } });
+      };
+      $('#pr-le', root).focus();
+    });
+  }
+
+  // Le menu ⋯ d'un devis de la liste : ouvrir, puis la réponse du client ou la facture qui suit, envoyer, la pièce. Un geste
+  // qui ne concerne pas ce devis n'y paraît pas ; le geste passé ne revient jamais (on propose la suite : 7.16.0).
+  function actionsDevis(d, refaire) {
+    if (!d) return [];
+    const lecture = enLecture('documents');
+    const st = ldStatut(d), envoi = indicesEnvoi(d);
+    const tete = [{ icon: 'ouvrir', label: 'Ouvrir', hint: st === 'brouillon' ? 'Le reprendre et l\'envoyer' : 'Voir le devis, sa frise et ses envois', run: () => navigate('#/doc/' + d.id) }];
+    const reponse = [], facturer = [];
+    if (!lecture && (st === 'envoyé' || st === 'expiré')) reponse.push(
+      { icon: 'oui', label: 'Le client a accepté…', hint: 'Et facturer dans la foulée, si tu veux', run: () => repondreAuDevis(d, 'accepté', refaire) },
+      { icon: 'non', label: 'Le client a refusé…', hint: 'Il ne compte plus parmi ce qui attend ; son pourquoi se garde', run: () => repondreAuDevis(d, 'refusé', refaire) });
+    if (!lecture && st === 'expiré') reponse.push({ icon: 'horloge', label: 'Prolonger sa validité…', hint: `expiré le ${C.fmtDate(d.dueDate)} : même devis, même prix`, run: () => prolongerDevis(d, refaire) });
+    if (!lecture && ['à facturer', 'en facturation', 'facturé'].includes(st)) {
+      const { totales, acomptes, brouillons } = piecesDuDevis(d.id);
+      if (!totales.length && !acomptes.length && !brouillons.length) facturer.push({ icon: 'facture', label: 'Facturer ce devis', hint: `Crée le brouillon de facture : ${C.money(ldTotal(d), docCur(d))} TTC`, run: () => facturerDevis(d) });
+      else {
+        const faite = totales[0] || acomptes[0] || brouillons[0];
+        const nature = faite.deposit ? 'l\'acompte' : faite.settles ? 'la facture de solde' : 'la facture';
+        if (acomptes.length && !totales.length) facturer.push({ icon: 'facture', label: 'Facturer le solde', hint: `Le devis, ${pl(acomptes.length, 'acompte')} déduit${sPl(acomptes.length)}`, run: () => facturerSolde(d) });
+        facturer.push({ icon: 'facture', label: faite.number ? `Voir ${nature} ${faite.number}` : `Voir ${nature} en brouillon`, hint: `Ce devis a déjà donné ${totales.concat(acomptes, brouillons).map(nomDePiece).join(', ')}`, run: () => navigate('#/doc/' + faite.id) },
+          { icon: 'copier', label: 'Refacturer la totalité…', hint: 'Une facture de plus, pour le montant entier du devis', danger: true, run: () => facturerDevis(d) });
+      }
+    }
+    const envoyer = d.number ? [
+      { icon: 'email', label: st === 'envoyé' || st === 'expiré' ? 'Relancer par e-mail' : 'Par e-mail', hint: envoi.email, run: () => sendByEmail(d) },
+      { icon: 'message', label: 'Par WhatsApp', hint: envoi.whatsapp, run: () => sendByWhatsApp(d) }] : [];
+    const piece = [{ icon: 'pdf', label: 'PDF', hint: 'tel que le client le reçoit', run: () => exportPdf(d) }];
+    if (!lecture) piece.push({ icon: 'copier', label: 'Dupliquer', hint: st === 'refusé' || st === 'expiré' ? 'un nouveau devis, mêmes lignes, à la date du jour' : 'un nouveau devis, mêmes lignes', run: () => duplicateDoc(d) });
+    if (peutEcrireAuCabinet()) piece.push({ icon: 'message', label: 'Écrire au cabinet sur ce devis', hint: 'la question arrive dans votre fil', run: () => ecrireAuCabinetSur(d) });
+    if (!lecture && st === 'brouillon') piece.push({ icon: 'supprimer', label: 'Supprimer le devis', hint: d.number ? 'son numéro ne sera pas réutilisé' : 'rien ne manque à la série', danger: true, run: () => supprimerPiece(d, refaire) });
+    const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);
+    return [...tete, ...groupe('La réponse du client', reponse), ...groupe('Facturer', facturer), ...groupe('Envoyer', envoyer), ...groupe('La pièce', piece)];
+  }
 
   // ---------- éditeur de document ----------
   function newDocument(type) {
@@ -5748,7 +6004,7 @@
         ${phrase ? `<p class="ed-phrase">${phrase}</p>` : ''}${sauver}</div>`;
     };
     // La frise d'un devis envoyé : créé, envoyé, la réponse du client, facturé.
-    const COMMENT_REPONSE = { telephone: 'au téléphone', email: 'par e-mail', signe: 'devis signé reçu' };
+    const COMMENT_REPONSE = COMMENT_REPONSE_DEVIS;
     const avecFriseDevis = isQ && !isNew && !!doc.number && !!stored && stored.status !== 'brouillon';
     const friseDevis = () => {
       const envois = (stored.emails || []).filter(x => !/^relance/.test(x.kind || ''));
@@ -7867,71 +8123,9 @@
     // La question « ce devis a déjà donné… » vit dans `facturerDevis` depuis la 7.29.0 : posée ici,
     // elle ne protégeait que ce bouton-ci, et le menu de la liste passait à côté.
     if ($('#convert')) $('#convert').onclick = () => facturerDevis(doc);
-    // (1.156.0) La réponse du client, notée d'un geste : « accepté » (et la facture dans la foulée, au choix), ou « refusé ».
-    // (1.155.8) « Le client a accepté ? » et « … a refusé ? » tels que la maquette du devis : ce qui est accepté, quand,
-    // comment (au téléphone, par e-mail, devis signé reçu) ; un refus garde son pourquoi. La réponse reste sur le devis
-    // (`reponse`) : la frise et les envois la redisent.
-    const noterReponse = async (st, statut, quoi) => {
-      const p = bridge.profil ? await bridge.profil().catch(() => null) : null;
-      st.status = statut;
-      st.reponse = { statut, le: quoi.le || C.today(), ...(quoi.comment ? { comment: quoi.comment } : {}), ...(quoi.motif ? { motif: quoi.motif } : {}), ...(p && p.nom ? { par: p.nom.trim().split(/\s+/)[0] } : {}) };
-      save(true);
-    };
-    const recapDevis = () => {
-      const t = C.computeTotals(doc, company());
-      const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
-      const cl = clientById(doc.clientId) || {};
-      return { t, tf, cl, ligne: `${h(doc.number)}${cl.name ? ` · ${h(cl.name)}` : ''}` };
-    };
-    if ($('#accepter')) $('#accepter').onclick = () => {
-      if (dirty && !persist()) return;
-      const { t, tf, ligne } = recapDevis();
-      const facture = Math.abs(tf.netToPay - t.totalTTC) > 0.0005 ? ` · la facture fera ${C.money(tf.netToPay, cur)} à payer` : '';
-      modal(`<h2>Le client a accepté ?</h2>
-        <dl class="ed-recap">
-          <div><dt>Devis</dt><dd><b>${ligne}</b></dd></div>
-          <div><dt>Total</dt><dd><b>${C.money(t.totalTTC, cur)} TTC</b>${facture}</dd></div>
-          <div><dt><label for="rep-le">Accepté le</label></dt><dd><input type="date" id="rep-le" value="${C.today()}" max="${C.today()}"${doc.date ? ` min="${h(doc.date)}"` : ''}></dd></div>
-          <div><dt>Comment</dt><dd class="ed-recap-choix" role="group" aria-label="Comment le client a répondu">${Object.entries(COMMENT_REPONSE).map(([k, l], i) => `<button type="button" class="btn btn-sm${i ? '' : ' on'}" data-comment="${k}" aria-pressed="${i ? 'false' : 'true'}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</dd></div>
-        </dl>
-        <p class="small muted">Le devis passe « accepté ». Tu peux facturer tout de suite, ou plus tard : le bouton t'attend sur le devis et dans la liste.</p>
-        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn" id="rep-seul">Accepter seulement</button><button class="btn btn-primary" id="rep-facturer">${lfIc('facture', 15)}Accepter et facturer</button></div>`,
-        (root, close) => {
-          let comment = Object.keys(COMMENT_REPONSE)[0];
-          $$('[data-comment]', root).forEach(b => b.onclick = () => { comment = b.dataset.comment; $$('[data-comment]', root).forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); });
-          const fin = async factur => {
-            const le = $('#rep-le', root).value;
-            if (!le || le > C.today()) { toast('La date de l\'acceptation ne peut pas être dans le futur.', true); $('#rep-le', root).focus(); return; }
-            const st = docById(doc.id); if (!st) return;
-            close();
-            await noterReponse(st, 'accepté', { le, comment });
-            if (factur) facturerDevis(st); else { toast(`${st.number} accepté`); render(); }
-          };
-          $('#rep-seul', root).onclick = () => fin(false);
-          $('#rep-facturer', root).onclick = () => fin(true);
-          $('#rep-facturer', root).focus();
-        });
-    };
-    if ($('#refuser')) $('#refuser').onclick = () => {
-      if (dirty && !persist()) return;
-      const { t, ligne } = recapDevis();
-      modal(`<h2>Le client a refusé ce devis ?</h2>
-        <p class="small muted">${ligne} · ${C.money(t.totalTTC, cur)} TTC. Il sortira de tes relances et de ce qui attend ; il compte dans ton taux d'acceptation. Tu pourras revenir dessus.</p>
-        <label class="field">${lbl('Pourquoi (facultatif)')}<input type="text" id="rep-motif" maxlength="120" placeholder="ex. « trop cher », « parti chez un autre », « reporté à janvier »"></label>
-        <div class="ed-recap-choix">${['Trop cher', 'Un concurrent', 'Reporté', 'Plus besoin'].map(m => `<button type="button" class="btn btn-sm" data-motif="${m}">${m}</button>`).join('')}</div>
-        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-danger" id="rep-refus">Le client a refusé</button></div>`,
-        (root, close) => {
-          const m = $('#rep-motif', root);
-          $$('[data-motif]', root).forEach(b => b.onclick = () => { m.value = b.dataset.motif; m.focus(); });
-          $('#rep-refus', root).onclick = async () => {
-            const st = docById(doc.id); if (!st) return;
-            close();
-            await noterReponse(st, 'refusé', { motif: m.value.trim() });
-            toast(`${st.number} refusé`); render();
-          };
-          m.focus();
-        });
-    };
+    // (1.156.0, 1.260.0) La réponse du client : les fenêtres vivent avec le devis (`repondreAuDevis`), la liste les ouvre aussi.
+    if ($('#accepter')) $('#accepter').onclick = () => { if (dirty && !persist()) return; repondreAuDevis(doc, 'accepté', () => render()); };
+    if ($('#refuser')) $('#refuser').onclick = () => { if (dirty && !persist()) return; repondreAuDevis(doc, 'refusé', () => render()); };
     if ($('#ed-transformer')) $('#ed-transformer').onclick = e => {
       const AIDE_CONV = { proforma: 'pour un paiement d\'avance ou une banque', commande: 'ce que le client commande', livraison: 'ce qui part chez le client', contrat: 'à faire signer' };
       const ICONE_CONV = { proforma: 'facture', commande: 'panier', livraison: 'stock', contrat: 'contrat' };
@@ -8793,6 +8987,76 @@
   // Le nom d'une pièce tirée d'un devis, dans une question : un brouillon n'a pas de numéro, et
   // « brouillon » seul ne dit ni ce que c'est ni combien.
   const nomDePiece = d => d.number || `un brouillon ${d.deposit ? 'd\'acompte' : 'de facture'} de ${C.money(C.computeTotals(d, company()).netToPay, docCur(d))}`;
+
+  // (1.155.8, 1.156.0 ; commune à la page du devis et à sa liste depuis la 1.260.0) La réponse du client, notée d'un geste.
+  // « Le client a accepté ? » : ce qui est accepté, quand (jamais dans le futur, jamais avant le devis), comment (au téléphone,
+  // par e-mail, devis signé reçu), et la facture dans la foulée au choix. « … a refusé ? » garde son pourquoi. La réponse reste
+  // sur le devis (`reponse`) : la frise, les envois et la liste la redisent.
+  const COMMENT_REPONSE_DEVIS = { telephone: 'au téléphone', email: 'par e-mail', signe: 'devis signé reçu' };
+  async function noterReponseDevis(st, statut, quoi) {
+    const p = bridge.profil ? await bridge.profil().catch(() => null) : null;
+    st.status = statut;
+    st.reponse = { statut, le: quoi.le || C.today(), ...(quoi.comment ? { comment: quoi.comment } : {}), ...(quoi.motif ? { motif: quoi.motif } : {}), ...(p && p.nom ? { par: p.nom.trim().split(/\s+/)[0] } : {}) };
+    save(true);
+  }
+  function repondreAuDevis(doc, statut, apres) {
+    if (!doc) return;
+    if (enLecture('documents')) { toast(refusLecture('documents'), true); return; }
+    const cur = docCur(doc);
+    const t = C.computeTotals(doc, company());
+    const cl = clientById(doc.clientId) || {};
+    const ligne = `${h(doc.number)}${cl.name ? ` · ${h(cl.name)}` : ''}`;
+    if (statut === 'accepté') {
+      const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
+      const facture = Math.abs(tf.netToPay - t.totalTTC) > 0.0005 ? ` · la facture fera ${C.money(tf.netToPay, cur)} à payer` : '';
+      modal(`<h2>Le client a accepté ?</h2>
+        <dl class="ed-recap">
+          <div><dt>Devis</dt><dd><b>${ligne}</b></dd></div>
+          <div><dt>Total</dt><dd><b>${C.money(t.totalTTC, cur)} TTC</b>${facture}</dd></div>
+          <div><dt><label for="rep-le">Accepté le</label></dt><dd><input type="date" id="rep-le" value="${C.today()}" max="${C.today()}"${doc.date ? ` min="${h(doc.date)}"` : ''}></dd></div>
+          <div><dt>Comment</dt><dd class="ed-recap-choix" role="group" aria-label="Comment le client a répondu">${Object.entries(COMMENT_REPONSE_DEVIS).map(([k, l], i) => `<button type="button" class="btn btn-sm${i ? '' : ' on'}" data-comment="${k}" aria-pressed="${i ? 'false' : 'true'}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</dd></div>
+        </dl>
+        <p class="small muted">Le devis passe « accepté ». Tu peux facturer tout de suite, ou plus tard : le bouton t'attend sur le devis et dans la liste.</p>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn" id="rep-seul">Accepter seulement</button><button class="btn btn-primary" id="rep-facturer">${lfIc('facture', 15)}Accepter et facturer</button></div>`,
+        (root, close) => {
+          let comment = Object.keys(COMMENT_REPONSE_DEVIS)[0];
+          $$('[data-comment]', root).forEach(b => b.onclick = () => { comment = b.dataset.comment; $$('[data-comment]', root).forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); });
+          const fin = async factur => {
+            const le = $('#rep-le', root).value;
+            if (!le || le > C.today()) { toast('La date de l\'acceptation ne peut pas être dans le futur.', true); $('#rep-le', root).focus(); return; }
+            const st = docById(doc.id); if (!st) return;
+            const avant = { status: st.status, reponse: st.reponse ? deepCopy(st.reponse) : undefined };
+            close();
+            await noterReponseDevis(st, 'accepté', { le, comment });
+            if (factur) { facturerDevis(st); return; }
+            if (apres) apres();
+            toastUndo(`${st.number} accepté : « Facturer » t'attend sur la ligne`, () => { const x = docById(st.id); if (!x) return; x.status = avant.status; if (avant.reponse) x.reponse = avant.reponse; else delete x.reponse; save(true); if (apres) apres(); });
+          };
+          $('#rep-seul', root).onclick = () => fin(false);
+          $('#rep-facturer', root).onclick = () => fin(true);
+          $('#rep-facturer', root).focus();
+        });
+      return;
+    }
+    modal(`<h2>Le client a refusé ce devis ?</h2>
+      <p class="small muted">${ligne} · ${C.money(t.totalTTC, cur)} TTC. Il sortira de tes relances et de ce qui attend ; il compte dans ton taux d'acceptation. Tu pourras revenir dessus.</p>
+      <label class="field">${lbl('Pourquoi (facultatif)')}<input type="text" id="rep-motif" maxlength="120" placeholder="ex. « trop cher », « parti chez un autre », « reporté à janvier »"></label>
+      <div class="ed-recap-choix">${['Trop cher', 'Un concurrent', 'Reporté', 'Plus besoin'].map(m => `<button type="button" class="btn btn-sm" data-motif="${m}">${m}</button>`).join('')}</div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-danger" id="rep-refus">Le client a refusé</button></div>`,
+      (root, close) => {
+        const m = $('#rep-motif', root);
+        $$('[data-motif]', root).forEach(b => b.onclick = () => { m.value = b.dataset.motif; m.focus(); });
+        $('#rep-refus', root).onclick = async () => {
+          const st = docById(doc.id); if (!st) return;
+          const avant = { status: st.status, reponse: st.reponse ? deepCopy(st.reponse) : undefined };
+          close();
+          await noterReponseDevis(st, 'refusé', { motif: m.value.trim() });
+          if (apres) apres();
+          toastUndo(`${st.number} marqué refusé`, () => { const x = docById(st.id); if (!x) return; x.status = avant.status; if (avant.reponse) x.reponse = avant.reponse; else delete x.reponse; save(true); if (apres) apres(); });
+        };
+        m.focus();
+      });
+  }
 
   // Le devis devient une facture. Une seule fonction pour les deux chemins — le bouton de l'éditeur
   // et celui de la liste — sinon ils divergeraient : c'est le geste qui rapporte de l'argent.

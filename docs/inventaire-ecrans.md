@@ -11,6 +11,13 @@ Trois états :
 - **Sans maquette** : l'écran vient de la v10, dans la charte (barre, boutons, bandeaux), mais personne ne l'a dessiné.
   Règle : on dessine d'abord, Skander valide, puis on applique.
 
+## L'ordre de Skander (03/11/2026)
+
+« On va finir d'abord les écrans déjà commencés », la liste des devis en premier, puis, dans la nouvelle DA et sans maquette
+à part : les marges, la trésorerie, la commande fournisseur, la fiche fournisseur (le retour d'une facture ouverte depuis la
+fiche ramène aux Achats), le stock, les immobilisations, la facturation récurrente, les proformas, bons et contrats (encore la
+page de l'ancienne DA), les listes de prix, le catalogue, les relances.
+
 ## L'application de l'entreprise
 
 | Écran | État | Ce qui reste |
@@ -18,7 +25,7 @@ Trois états :
 | La barre (coquille), la charte | Fait | — |
 | L'accueil | Fait | — |
 | Les factures (liste, facture, avoir) | Fait | — |
-| Le devis | Maquette, écarts | la fin du lot 5 (tâche « devis tel que la maquette ») |
+| Le devis | Maquette, écarts | la liste est faite (1.260.0, comme celle des factures, sans tuiles) ; reste la fin du lot 5 sur la pièce |
 | Les achats (liste, achat, lecture IA) | Maquette, écarts | les états et fenêtres de l'achat (lots 6c, 6d) |
 | Les fournisseurs (liste, fiche) | Fait | — |
 | Les clients (liste, fiche) | Fait | — |
