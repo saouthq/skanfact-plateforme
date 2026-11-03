@@ -621,3 +621,74 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lf.mg table.mg-table td:empty { display: none; }
 }
 #pf3 .pa-seg { width: fit-content; max-width: 100%; }
+/* (1.264.0) Le module Marges : la frise du chantier, le coût en trois lignes, prévu et réel en trois cases, la semaine
+   d'heures, le graphique de l'année (colonnes et courbe), les pastilles d'état de la liste. */
+.lf.mg .mg-suivi { padding: 14px 16px; display: grid; gap: 12px; }
+.lf.mg .mg-suivi .mg-av-tete { justify-content: flex-start; }
+.lf.mg .mg-frise { padding: 4px 0 0; }
+.lf.mg .mg-frise li.ici .rond { border: 1.5px solid #e0a040; color: var(--sb-ambre-texte); background: var(--sb-ambre-doux); }
+.lf.mg .mg-frise li.ici .ed-fr-txt b { color: var(--sb-ambre-texte); }
+.lf.mg .mg-frise li.alerte.ici .rond { border-color: var(--sb-rouge); color: var(--sb-rouge-texte); background: none; }
+.lf.mg .mg-cout-l { display: flex; gap: 8px 20px; flex-wrap: wrap; align-items: center; padding-top: 10px; border-top: 1px solid var(--sb-trait); font-size: 13px; color: var(--sb-gris); }
+.lf.mg .mg-cout-l b { color: var(--sb-encre); font-variant-numeric: tabular-nums; }
+.lf.mg .mg-cout-l .rouge { color: var(--sb-rouge-texte); font-weight: 600; }
+.lf.mg .mg-cout-l .vert { color: var(--sb-doux-texte); }
+.lf.mg #p-budget-dit { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.lf.mg .mg-dont { display: grid; gap: 1px; margin-top: 2px; }
+.lf.mg .mg-dont-l { display: flex; justify-content: space-between; gap: 10px; border: 0; background: none; padding: 1px 0; font: inherit; font-size: 12px; color: var(--sb-gris-2); cursor: pointer; text-align: left; }
+.lf.mg .mg-dont-l:hover span:first-child { color: var(--sb-sarcelle-texte); text-decoration: underline; }
+.lf.mg .mg-dont-l .num { color: var(--sb-encre); font-variant-numeric: tabular-nums; }
+.lf.mg .mg-pr-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.lf.mg .mg-pr-k { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid var(--sb-trait); border-radius: 10px; min-width: 0; }
+.lf.mg .mg-pr-k > .mu { font-size: 12.5px; }
+.lf.mg .mg-pr-k > b { font-size: 18px; font-weight: 700; }
+.lf.mg .mg-pr-k > b .u { font-size: 12px; color: var(--sb-gris-2); }
+.lf.mg .mg-pr-p { font-size: 12px; color: var(--sb-gris-2); }
+.lf.mg .mg-pr-e { font-size: 12.5px; font-weight: 600; color: var(--sb-gris); font-variant-numeric: tabular-nums; }
+.lf.mg .mg-pr-e.vert { color: var(--sb-doux-texte); }
+.lf.mg .mg-pr-e.rouge { color: var(--sb-rouge-texte); }
+.lf.mg .mg-hors { align-items: center; }
+.lf.mg .mg-hors > .btn { flex: none; }
+.lf.mg small.mg-pas { display: inline-block; width: fit-content; margin-top: 3px; padding: 1px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 600; background: var(--sb-papier-2); color: var(--sb-gris); border: 1px solid var(--sb-trait); }
+.lf.mg small.mg-pas.ambre { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); border-color: transparent; }
+.lf.mg small.mg-pas.rouge { background: color-mix(in srgb, var(--sb-rouge-texte) 12%, transparent); color: var(--sb-rouge-texte); border-color: transparent; }
+.lf.mg small.mg-pas.vert { background: color-mix(in srgb, var(--sb-doux-texte) 12%, transparent); color: var(--sb-doux-texte); border-color: transparent; }
+.lf.mg .mg-vide-g { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.lf.mg .mg-legende { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--sb-gris); margin: 0 0 6px; }
+.lf.mg .mg-legende i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.lf.mg .mg-legende i.p { background: var(--sb-sarcelle); } .lf.mg .mg-legende i.n { background: var(--sb-rouge-texte); }
+.lf.mg .mg-legende i.l { height: 3px; border-radius: 2px; vertical-align: 3px; background: var(--sb-encre); }
+.lf.mg .mg-graphe-b { margin: 0 0 14px; }
+.lf.mg .mg-graphe { width: 100%; height: auto; display: block; }
+.lf.mg .mg-graphe text { fill: var(--sb-gris-2); font-size: 11px; font-family: inherit; }
+.lf.mg .mg-graphe .zero { stroke: var(--sb-trait-fort); stroke-width: 1.5; }
+.lf.mg .mg-graphe .grille { stroke: var(--sb-trait); stroke-width: 1; }
+.lf.mg .mg-graphe .col-p { fill: var(--sb-sarcelle); }
+.lf.mg .mg-graphe .col-n { fill: var(--sb-rouge-texte); opacity: .8; }
+.lf.mg .mg-graphe .vide { fill: var(--sb-trait); }
+.lf.mg .mg-graphe .courbe { fill: none; stroke: var(--sb-encre); stroke-width: 2.25; stroke-linejoin: round; }
+.lf.mg .mg-graphe .pt { fill: var(--sb-papier); stroke: var(--sb-encre); stroke-width: 2; }
+.lf.mg .mg-graphe .pt.dernier { fill: var(--sb-encre); }
+.lf.mg .mg-graphe .etiq { fill: var(--sb-encre); font-weight: 600; }
+.lf.mg .mg-graphe .depuis { stroke: var(--sb-doux-texte); stroke-dasharray: 4 4; }
+.lf.mg .mg-graphe .cible { fill: transparent; }
+.lf.mg .mg-graphe .cible:hover { fill: var(--sb-survol); }
+.modal-bg .modal.hs-large { width: min(860px, 96vw); max-width: 96vw; }
+.hs-nav { display: flex; gap: 10px; align-items: center; margin: 4px 0 10px; }
+.hs-t th[scope=row] { text-align: left; font-weight: 600; white-space: nowrap; background: none; }
+.hs-t td { padding: 4px; }
+.hs-t input.hs-c { width: 58px; text-align: right; padding: 6px 7px; }
+.hs-t input.hs-c.invalide { border-color: var(--sb-rouge-texte); background: color-mix(in srgb, var(--sb-rouge-texte) 8%, transparent); }
+.hs-t .hs-tot { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rp-t th.g, .rp-t td:first-child, .rp-t td:last-child { text-align: left; }
+#adj-aff-dit { display: block; margin: -2px 0 4px; font-size: 12px; }
+@media (max-width: 760px) {
+  .lf.mg .mg-pr-g { grid-template-columns: 1fr; }
+  .lf.mg .mg-hors { flex-wrap: wrap; }
+  .mg-fiche-t .actions #edit-p, .mg-fiche-t .actions #p-devis { display: none; }
+  .lf.mg .mg-frise ol { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .lf.mg .mg-frise li { grid-template-columns: 24px minmax(0, 1fr); align-items: start; column-gap: 12px; }
+  .lf.mg .mg-frise li .ed-fr-geste { grid-column: 2; }
+  .lf.mg .mg-frise li:not(:last-child)::after { top: 30px; bottom: -12px; left: 11px; right: auto; width: 2px; height: auto; }
+  .lf.mg .mg-suivi { padding: 12px; }
+}

@@ -22793,10 +22793,10 @@ prouver 'marges 1.262 a : « Annuler » ne remet pas la pièce détachée' web/p
   "if (avantP) x.projectId = avantP; if (x.lines)" "if (x.lines)" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 prouver 'marges 1.262 b : un budget dépassé ne se voit pas en rouge' web/public/v10/app.js \
-  "reste >= 0 ? '' : 'rouge')); }" "'')); }" \
+  "<span class=\"\${resteB < 0 ? 'rouge' : ''}\" id=\"p-budget-dit\">" "<span class=\"\" id=\"p-budget-dit\">" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 prouver 'marges 1.262 c : l'\''encaissé se compare au HT au lieu du facturé TTC' web/public/v10/app.js \
-  "\`\${C.money(m.collected, cur)} sur \${C.money(m.invoiced, cur)} TTC" "\`\${C.money(m.collected, cur)} sur \${C.money(m.revenue, cur)} TTC" \
+  "\`\${C.money(m.collected, cur)} sur \${C.money(m.invoiced, cur)} TTC · il manque" "\`\${C.money(m.collected, cur)} sur \${C.money(m.revenue, cur)} TTC · il manque" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 prouver 'marges 1.262 d : la cascade du seuil oublie le résultat' web/public/v10/app.js \
   "            \${ligne('=', b.result < 0 ? 'Perte' : 'Résultat', b.result, \`total \${b.result < 0 ? 'rouge' : 'vert'}\`)}
@@ -22834,6 +22834,25 @@ prouver 'marges 1.263 i : les heures ne comptent pas dans le coût de l'\''affai
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 prouver 'marges 1.263 j : « 7,5 » heures se lisent 0' web/public/v10/app.js \
   "  const heuresLues = x => Number(String(x == null ? '' : x).replace(/\\s/g, '').replace(',', '.')) || 0;" "  const heuresLues = x => Number(x) || 0;" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+# Où en est le chantier (1.264.0) : la frise des pièces, le geste suivant, la pastille de la liste, le graphe des mois.
+prouver 'marges 1.264 a : le reste à encaisser compte le TTC entier, paiements oubliés' web/public/v10/core.js \
+  "const r = toBase(d, invoiceBalance(d, data, company).remaining, company); if (r > 0.0005) aEncaisser" "const r = toBase(d, computeTotals(d, company).netToPay, company); if (r > 0.0005) aEncaisser" \
+  'rien, puis un devis, puis la facture : l'\''étape en cours avance, et le geste avec elle'
+prouver 'marges 1.264 b : un achat partagé fait payer tout son reste à chaque affaire' web/public/v10/core.js \
+  "      const part = partageEntreAffaires(b) ? coutAchatPourAffaire(b, company, data, projectId).part : 1;" "      const part = 1;" \
+  'ce qui reste à payer : un achat entier compte tout son reste, un achat partagé la part de l'\''affaire'
+prouver 'marges 1.264 c : un chantier sans achat attend un paiement qui ne viendra jamais' web/public/v10/core.js \
+  "    const ici = etapes.find(e => !e.fait && !(e.k === 'paye' && e.rien));" "    const ici = etapes.find(e => !e.fait);" \
+  'un chantier sans achat n'\''a rien à payer : il est soldé quand tout est encaissé'
+prouver 'marges 1.264 d : chaque étape porte son geste, plus un seul bouton principal' web/public/v10/app.js \
+  "      const ici = k => ecritP && sv.ici === k;" "      const ici = k => ecritP;" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.264 e : la liste ne dit plus ce qui reste à encaisser' web/public/v10/app.js \
+  "<td class=\"cn\"><b>\${h(p.name)}</b>\${pastilleAffaire(p)}</td>" "<td class=\"cn\"><b>\${h(p.name)}</b></td>" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.264 f : le graphe des mois perd la courbe du cumul' web/public/v10/app.js \
+  "    s += \`<polyline points=" "    if (0) s += \`<polyline points=" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

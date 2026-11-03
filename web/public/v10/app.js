@@ -17460,6 +17460,17 @@
     const rateCell = (r, complete) => r == null ? '<span class="muted">—</span>'
       : `<strong class="${r < 0 ? 'warn-text' : r >= 30 ? 'ok-text' : ''}">${pct(r)} %</strong>${complete === false ? ' <span class="muted" title="Toutes les lignes n\'ont pas de coût connu : la marge est surestimée">≈</span>' : ''}`;
 
+    // (1.264.0) Ce que l'affaire demande, sans l'ouvrir : l'étape en cours de sa frise, en une pastille.
+    const pastilleAffaire = p => {
+      const sv = C.suiviAffaire(data, company(), p.id), E = Object.fromEntries(sv.etapes.map(e => [e.k, e]));
+      if (sv.solde) return '<small class="mg-pas vert">soldée</small>';
+      if (E.encaisse.retards) return `<small class="mg-pas rouge">${h(C.money(E.encaisse.reste, cur))} à encaisser · en retard</small>`;
+      if (sv.ici === 'facture' && E.facture.reste > 0.0005) return `<small class="mg-pas ambre">${h(C.money(E.facture.reste, cur))} à facturer</small>`;
+      if (sv.ici === 'encaisse' && E.encaisse.reste > 0.0005) return `<small class="mg-pas ambre">${h(C.money(E.encaisse.reste, cur))} à encaisser</small>`;
+      if (sv.ici === 'paye' && E.paye.reste > 0.0005) return `<small class="mg-pas">${h(C.money(E.paye.reste, cur))} à payer</small>`;
+      if (sv.ici === 'devis') return '<small class="mg-pas">pas encore de devis</small>';
+      return '';
+    };
     function drawProjects() {
       const toutes = C.projectList(data, company());
       // (1.261.0) Chercher une affaire (nom, client, notes) et la ranger par statut, chaque statut compté.
@@ -17479,7 +17490,7 @@
         ${filtresAff}
         <div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>Affaire</th><th>Client</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">En caisse</th><th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
             ${list.map(p => `<tr class="clickable" data-pid="${h(p.id)}">
-              <td class="cn"><b>${h(p.name)}</b>${p.pending ? `<small>+ ${C.money(p.pending, cur)} en devis</small>` : ''}</td>
+              <td class="cn"><b>${h(p.name)}</b>${pastilleAffaire(p)}</td>
               <td class="cl">${p.clientId ? `<span class="cl-i">${pastilleClient(p.clientId)}<span><b>${h(clientName(p.clientId))}</b></span></span>` : '<span class="mu">—</span>'}</td>
               <td class="st"><span class="badge ${p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon'}">${h(p.status)}</span></td>
               <td class="r">${lfMontant(p.revenue, cur)}</td>
@@ -17606,17 +17617,17 @@
       if (b.breakEven != null) {
         const mm = C.margeMoisParMois(data, company(), s.year);
         const vus = mm.mois.filter(x => x.commence);
-        const maxR = Math.max(1, ...vus.map(x => Math.abs(x.result)));
         const dernier = vus[vus.length - 1];
         const phrase = !vus.length ? '' : mm.depuis
           ? `<span class="vert">Rentable depuis ${h(mm.depuis.label)} : le cumul de l'année est repassé au-dessus de zéro et y est resté.</span>`
           : `<span class="rouge">Pas encore rentable : ${dernier.to < C.today() ? `à fin ${h(dernier.label)}` : `à ce jour (${h(dernier.label)} en cours)`}, le cumul de l'année est de ${h(C.money(dernier.cumul, cur))}.</span>`;
         $('#mg-body').insertAdjacentHTML('beforeend', `<div class="mg-mois"><div class="mg-st"><b>Mois par mois</b>${info('mg.months')}</div><p class="small">${phrase}</p>
-          <div class="lf-tab scroll-x"><table class="list lf-table mg-table mg-mois-t" data-sans-cartes><thead><tr><th>Mois</th><th class="r">Chiffre d'affaires HT</th><th class="r">Marge sur coûts variables</th><th class="r">Charges fixes</th><th class="r">Résultat du mois</th><th class="r">Cumul</th><th class="mg-barre-h"><span class="vh">Résultat</span></th></tr></thead><tbody>
+          <div class="mg-legende"><span><i class="p"></i>mois gagnant</span><span><i class="n"></i>mois perdant</span><span><i class="l"></i>cumul depuis janvier</span></div>
+          <div class="mg-graphe-b">${grapheMois(mm, cur)}</div>
+          <div class="lf-tab scroll-x"><table class="list lf-table mg-table mg-mois-t" data-sans-cartes><thead><tr><th>Mois</th><th class="r">Chiffre d'affaires HT</th><th class="r">Marge sur coûts variables</th><th class="r">Charges fixes</th><th class="r">Résultat du mois</th><th class="r">Cumul</th></tr></thead><tbody>
             ${mm.mois.map(x => x.commence ? `<tr${mm.depuis && mm.depuis.mois === x.mois ? ' class="mg-depuis"' : ''}><th scope="row">${h(x.label)}</th><td class="r">${lfMontant(x.revenue, cur)}</td><td class="r">${lfMontant(x.marginOnVariable, cur)}</td><td class="r">${lfMontant(x.fixed, cur)}</td>
-              <td class="r m${x.result < 0 ? ' rouge' : ''}">${lfMontant(x.result, cur)}</td><td class="r${x.cumul < 0 ? ' rouge' : ' vert'}">${lfMontant(x.cumul, cur)}</td>
-              <td class="mg-barre"><span class="bar"><i class="${x.result < 0 ? 'f-bad' : 'f-ok'}" style="width:${Math.max(2, Math.round(Math.abs(x.result) / maxR * 100))}%"></i></span></td></tr>`
-              : `<tr class="mu"><th scope="row">${h(x.label)}</th><td class="r" colspan="5">pas encore commencé</td><td></td></tr>`).join('')}
+              <td class="r m${x.result < 0 ? ' rouge' : ''}">${lfMontant(x.result, cur)}</td><td class="r${x.cumul < 0 ? ' rouge' : ' vert'}">${lfMontant(x.cumul, cur)}</td></tr>`
+              : `<tr class="mu"><th scope="row">${h(x.label)}</th><td class="r" colspan="5">pas encore commencé</td></tr>`).join('')}
           </tbody></table></div>
           ${Math.abs(mm.ecart) >= 0.0005 ? `<p class="small mu">Chaque mois s'arrondit au millime : la somme des mois fait ${h(C.money(Math.abs(mm.ecart), cur))} ${mm.ecart > 0 ? 'de plus' : 'de moins'} que le résultat de l'année.</p>` : ''}</div>`);
       }
@@ -17782,7 +17793,8 @@
         { icon: 'achats', label: 'Un achat', hint: 'c\'est lui qui rend la marge exacte', run: () => navigate('#/achat/new/-/facture/-/affaire/' + p.id) },
         { icon: 'lien', label: 'Des ventes déjà saisies…', hint: 'cocher celles du chantier', run: () => rattacherPieces(p, 'ventes', refaire) },
         { icon: 'lien', label: 'Des achats déjà saisis…', hint: 'cocher ceux du chantier', run: () => rattacherPieces(p, 'achats', refaire) },
-        { icon: 'horloge', label: 'Des heures…', hint: 'le temps d\'un salarié sur le chantier', run: () => heuresForm(p, null, refaire) }]),
+        { icon: 'horloge', label: 'Des heures…', hint: 'le temps d\'un salarié sur le chantier', run: () => heuresForm(p, null, refaire) },
+        { icon: 'horloge', label: 'Une semaine d\'heures…', hint: 'toute l\'équipe, jour par jour', run: () => heuresSemaine(p, refaire) }]),
       ...groupe('L\'affaire', [{ icon: 'modifier', label: 'Modifier…', hint: 'nom, client, statut, budget, dates, notes', run: () => projectForm(p, refaire) },
         { icon: 'pdf', label: 'Exporter en PDF', hint: 'sa marge, ses ventes, ses achats, ses heures', run: () => exporterAffaire(p, 'pdf') },
         { icon: 'extraire', label: 'Exporter dans un tableur', hint: 'toutes ses lignes', run: () => exporterAffaire(p, 'csv') }])];
@@ -17790,36 +17802,70 @@
 
   // (1.263.0, revue métier du 03/11) Ce que coûte l'affaire, en mots : ses trois morceaux, chacun nommé, aucun caché.
   const coutDit = (m, cur) => {
+    // (1.264.0) Trois petites lignes alignées, chacune menant à son onglet : on voit d'où vient le coût, et on y va.
     const l = [];
-    if (m.achats || m.buysCount) l.push(`achats ${C.money(m.achats, cur)}`);
-    if (m.stockSorti) l.push(`stock ${C.money(m.stockSorti, cur)}`);
-    if (m.timeCount) l.push(`main d'œuvre ${C.money(m.mainOeuvre, cur)} (${pct(m.hours)} h${m.laborEstimated ? ', estimée' : ''})`);
-    return l.length ? l.join(' · ') : 'rien n\'est encore rattaché';
+    if (m.achats || m.buysCount) l.push(['achats', 'Achats', C.money(m.achats, cur)]);
+    if (m.stockSorti) l.push(['ventes', 'Sorti du stock', C.money(m.stockSorti, cur)]);
+    if (m.timeCount) l.push(['heures', `Heures (${pct(m.hours)} h${m.laborEstimated ? ', estimé' : ''})`, C.money(m.mainOeuvre, cur)]);
+    return l.length ? `<span class="mg-dont">${l.map(([k, t, v]) => `<button type="button" class="mg-dont-l" data-ong="${k}"><span>${h(t)}</span><span class="num">${h(v)}</span></button>`).join('')}</span>` : 'rien n\'est encore rattaché';
   };
+
   // Ce qui a été acheté pour le chantier sans être consommé : la marchandise encore au stock (elle comptera quand elle
   // sortira) et le matériel immobilisé (il s'amortit). Dit, pour que personne ne croie la marge plus belle qu'elle n'est.
   const horsMarge = (m, cur, ecrit) => {
     const l = [];
-    if (m.enStockReste > 0.0005) l.push(`<span><b>${C.money(m.enStockReste, cur)}</b> de marchandise achetée pour l'affaire sont encore au stock : ils compteront quand ils en sortiront (facture, bon de livraison, ou « Matière utilisée »).${ecrit ? ' <button type="button" class="btn-lien" id="p-sortir">Les sortir pour l\'affaire…</button>' : ''}</span>`);
+    if (m.enStockReste > 0.0005) l.push(`<span><b>${C.money(m.enStockReste, cur)}</b> de marchandise achetée pour l'affaire sont encore au stock : ils compteront quand ils en sortiront (facture, bon de livraison, ou « Matière utilisée »).</span>`);
     if (m.immo > 0.0005) l.push(`<span><b>${C.money(m.immo, cur)}</b> de matériel immobilisé ne comptent pas dans la marge : un bien qui reste plus d'un an dans l'entreprise s'amortit, il ne se consomme pas sur un chantier.</span>`);
-    return l.length ? `<div class="bandeau mg-hors" role="note">${lfIc('stock', 18, 2)}<span class="txt">${l.join('')}</span></div>` : '';
+    return l.length ? `<div class="bandeau mg-hors" role="note">${lfIc('stock', 18, 2)}<span class="txt">${l.join('')}</span>${ecrit && m.enStockReste > 0.0005 ? '<button type="button" class="btn" id="p-sortir">Les sortir pour l\'affaire</button>' : ''}</div>` : '';
   };
   // Le prévu (ses devis) contre le réel : vendu, coût, marge, et l'écart de chacun.
   const prevuReel = (m, cur) => {
     if (!m.planned) return '';
     const P = m.planned;
-    const ec = (reel, prevu, bon) => { const d = C.round3(reel - prevu); if (Math.abs(d) < 0.0005) return '<span class="mu">=</span>';
-      const ton = (bon === 'haut' ? d > 0 : d < 0) ? 'vert' : 'rouge'; return `<span class="${ton}">${d > 0 ? '+' : '−'}${h(C.money(Math.abs(d), cur))}</span>`; };
-    const l = (lib, prevu, reel, bon, extra) => `<tr><th scope="row">${lib}</th><td class="r">${lfMontant(prevu, cur)}</td><td class="r">${lfMontant(reel, cur)}</td><td class="r">${ec(reel, prevu, bon)}</td></tr>${extra || ''}`;
-    return `<div class="cf-carte mg-prevu"><div class="mg-av-tete"><b>Prévu et réel</b>${info('mg.projectPlanned')}<span class="mu small">${pl(P.quotes, 'devis')} non refusé${sPl(P.quotes)}${P.complete ? '' : ' · certaines lignes de devis n\'ont pas de coût : le coût prévu est trop bas (≈)'}</span></div>
-      <div class="lf-tab scroll-x"><table class="lf-table mg-pr-t" data-sans-cartes><thead><tr><th></th><th class="r">Prévu</th><th class="r">Réel</th><th class="r">Écart</th></tr></thead><tbody>
-        ${l('Vendu HT', P.revenue, m.revenue, 'haut')}${l('Coût', P.cost, m.cost, 'bas')}${l('<b>Marge</b>', P.margin, m.margin, 'haut')}
-      </tbody></table></div>
-      <p class="small mu">${m.pending > 0.0005 ? `Il reste ${C.money(m.pending, cur)} en devis à facturer : le réel n'est pas fini. ` : ''}Le coût prévu est celui des lignes du devis (ou de la prestation au catalogue) ; le réel, ce que l'affaire a vraiment coûté.</p></div>`;
+    // (1.264.0) Trois cases côte à côte : vendu, coût, marge — le prévu, le réel en grand, l'écart en couleur (vert s'il
+    // t'est favorable). Un tableau de trois lignes laissait une grande colonne vide.
+    const kase = (lib, prevu, reel, bon) => { const d = C.round3(reel - prevu);
+      const ton = Math.abs(d) < 0.0005 ? '' : (bon === 'haut' ? d > 0 : d < 0) ? 'vert' : 'rouge';
+      return `<div class="mg-pr-k"><span class="mu">${lib}</span><b class="num">${montantU(reel, cur)}</b><span class="mg-pr-p">prévu <span class="num">${h(C.money(prevu, cur))}</span></span>${Math.abs(d) < 0.0005 ? '<span class="mg-pr-e">comme prévu</span>' : `<span class="mg-pr-e ${ton}">${d > 0 ? '+' : '−'} ${h(C.money(Math.abs(d), cur))}</span>`}</div>`; };
+    return `<div class="cf-carte mg-prevu"><div class="mg-av-tete"><b>Prévu et réel</b>${info('mg.projectPlanned')}<span class="mu small">d'après ${pl(P.quotes, 'devis')} non refusé${sPl(P.quotes)}${P.complete ? '' : ' · des lignes de devis sans coût : coût prévu trop bas (≈)'}${m.pending > 0.0005 ? ` · encore ${h(C.money(m.pending, cur))} en devis` : ''}</span></div>
+      <div class="mg-pr-g">${kase('Vendu HT', P.revenue, m.revenue, 'haut')}${kase('Coût', P.cost, m.cost, 'bas')}${kase('Marge', P.margin, m.margin, 'haut')}</div></div>`;
   };
+
 
   // « 7,5 », « 7.5 », « 7 » : des heures comme on les écrit.
   const heuresLues = x => Number(String(x == null ? '' : x).replace(/\s/g, '').replace(',', '.')) || 0;
+  // (1.264.0, Skander 03/11 : pas de barres) L'année en un graphique : une colonne par mois (verte s'il gagne, rouge s'il
+  // perd) et la courbe du cumul depuis janvier, sur la MÊME échelle en dinars. Le mois où le cumul repasse au-dessus de zéro
+  // pour de bon est marqué. Chaque mois dit ses chiffres au survol (et au lecteur d'écran, par son titre).
+  function grapheMois(mm, cur) {
+    const vus = mm.mois.filter(x => x.commence);
+    if (!vus.length) return '';
+    const W = 940, H = 280, g = 64, d = 16, haut = 22, bas = 30;
+    const vals = vus.flatMap(x => [x.result, x.cumul]).concat([0]);
+    const pasGrille = v => { const p = Math.pow(10, Math.floor(Math.log10(v || 1))); return [1, 2, 2.5, 5, 10].map(k => k * p).find(k => v / k <= 5) || 10 * p; };
+    const etendue = Math.max(...vals) - Math.min(...vals) || 1, pg = pasGrille(etendue);
+    const min = Math.floor(Math.min(...vals) / pg) * pg, max = Math.ceil(Math.max(...vals) / pg) * pg || pg;
+    const y = v => haut + (max - v) / ((max - min) || 1) * (H - haut - bas);
+    const pas = (W - g - d) / 12, x = i => g + pas * i + pas / 2;
+    const court = v => { const a = Math.abs(v); const t = a >= 1000 ? `${String(Math.round(a / 100) / 10).replace('.', ',')} k` : String(Math.round(a)); return (v < 0 ? '−' : '') + t; };
+    let s = `<svg class="mg-graphe" viewBox="0 0 ${W} ${H}" role="img" aria-label="${h(`Résultat de chaque mois et cumul de l'année ; cumul à ce jour ${C.money(vus[vus.length - 1].cumul, cur)}`)}">`;
+    for (let v = min; v <= max + 0.0001; v += pg) s += `<line x1="${g}" x2="${W - d}" y1="${y(v)}" y2="${y(v)}" class="${Math.abs(v) < 0.0001 ? 'zero' : 'grille'}"/><text x="${g - 8}" y="${y(v) + 4}" text-anchor="end">${Math.abs(v) < 0.0001 ? '0' : court(v)}</text>`;
+    const ABR = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    mm.mois.forEach((m, i) => { s += `<text x="${x(i)}" y="${H - 10}" text-anchor="middle">${ABR[i]}</text>`; });
+    mm.mois.forEach((m, i) => {
+      if (!m.commence) { s += `<rect x="${x(i) - pas * .3}" y="${y(0) - 1}" width="${pas * .6}" height="2" class="vide"/>`; return; }
+      const y0 = y(Math.max(0, m.result)), y1 = y(Math.min(0, m.result));
+      s += `<rect x="${x(i) - pas * .3}" y="${y0}" width="${pas * .6}" height="${Math.max(2, y1 - y0)}" rx="3" class="${m.result >= 0 ? 'col-p' : 'col-n'}"/>`;
+    });
+    const pts = vus.map(m => [x(m.mois - 1), y(m.cumul)]);
+    s += `<polyline points="${pts.map(p => p.join(',')).join(' ')}" class="courbe"/>`;
+    pts.forEach((p, i) => { s += `<circle cx="${p[0]}" cy="${p[1]}" r="${i === pts.length - 1 ? 4.5 : 3.5}" class="pt${i === pts.length - 1 ? ' dernier' : ''}"/>`; });
+    if (mm.depuis) { const xd = x(mm.depuis.mois - 1); s += `<line x1="${xd}" x2="${xd}" y1="${haut - 6}" y2="${H - bas}" class="depuis"/><text x="${xd + 6}" y="${haut + 2}" class="etiq">rentable depuis ${h(mm.depuis.label)}</text>`; }
+    const der = pts[pts.length - 1], dm = vus[vus.length - 1];
+    s += `<text x="${der[0] - 8}" y="${der[1] + (dm.cumul < 0 ? 18 : -10)}" text-anchor="end" class="etiq">cumul ${h(C.money(dm.cumul, cur))}</text>`;
+    mm.mois.forEach((m, i) => { s += `<rect x="${g + pas * i}" y="${haut}" width="${pas}" height="${H - haut - bas}" class="cible"><title>${h(m.commence ? `${m.label} : chiffre d'affaires ${C.money(m.revenue, cur)}, résultat du mois ${C.money(m.result, cur)}, cumul ${C.money(m.cumul, cur)}` : `${m.label} : pas encore commencé`)}</title></rect>`; });
+    return `${s}</svg>`;
+  }
   // Noter des heures sur une affaire (1.263.0) : qui, quel jour, combien. Leur coût vient de la paie, jamais tapé.
   function heuresForm(p, x, done) {
     if (enLecture('projects')) return toast(refusLecture('projects'), true);
@@ -17865,6 +17911,77 @@
     });
   }
 
+  // (1.264.0) Noter une semaine d'heures d'un coup : les salariés en lignes, les jours en colonnes. Une équipe de quatre
+  // sur six jours, c'était vingt-quatre fenêtres. Une case vide ne note rien ; une case changée remplace les heures de ce
+  // salarié, ce jour-là, sur cette affaire. Le total et le coût se lisent en direct ; « Annuler » défait tout.
+  function heuresSemaine(p, done, lundi0) {
+    if (enLecture('projects')) return toast(refusLecture('projects'), true);
+    const emps = (data.employees || []).filter(e => !e.endDate || e.endDate >= C.addDays(C.today(), -365));
+    if (!emps.length) return toast('Aucun salarié : ajoute-les d\'abord dans la Paie. Leur coût de l\'heure vient de leur bulletin.', true);
+    const cur = company().currency;
+    const lundiDe = iso => { const d = new Date(iso + 'T00:00:00Z'); const w = (d.getUTCDay() + 6) % 7; return C.addDays(iso, -w); };
+    let lundi = lundi0 || lundiDe(C.today());
+    const JOURS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
+    const deLaCase = (eid, iso) => (data.projectTime || []).filter(x => x.projectId === p.id && x.employeeId === eid && x.date === iso);
+    const lu = x => heuresLues(x);
+    const corps = () => {
+      const jours = JOURS.map((j, i) => ({ j, iso: C.addDays(lundi, i) }));
+      return `<div class="hs-nav"><button type="button" class="btn ico" id="hs-av" aria-label="Semaine d'avant">‹</button><b>Semaine du ${C.fmtDate(lundi)}</b><button type="button" class="btn ico" id="hs-ap" aria-label="Semaine d'après">›</button></div>
+        <div class="lf-tab scroll-x"><table class="lf-table hs-t" data-sans-cartes><thead><tr><th>Salarié</th>${jours.map(x => `<th class="r">${x.j} ${x.iso.slice(8, 10)}</th>`).join('')}<th class="r">Total</th></tr></thead><tbody>
+          ${emps.map(e => `<tr data-e="${h(e.id)}"><th scope="row">${h(e.name)}</th>${jours.map(x => { const v = deLaCase(e.id, x.iso).reduce((a, y) => a + (Number(y.hours) || 0), 0);
+            return `<td class="r"><input type="text" inputmode="decimal" autocomplete="off" class="num hs-c" data-e="${h(e.id)}" data-d="${x.iso}" value="${v ? String(C.round3(v)).replace('.', ',') : ''}" aria-label="${h(e.name)}, ${x.j} ${C.fmtDate(x.iso)}"></td>`; }).join('')}<td class="r hs-tot" data-tot="${h(e.id)}"></td></tr>`).join('')}
+        </tbody></table></div>
+        <p class="small mu annonce-stable" id="hs-effet"></p>`;
+    };
+    modal(`<h2>Noter une semaine d'heures</h2><p class="small muted">Sur « ${h(p.name)} ». Tape les heures de chacun, jour par jour (7,5 pour sept heures et demie). Leur coût vient de la paie.</p>
+      <div id="hs-corps">${corps()}</div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Noter ces heures</button></div>`,
+    (root, close) => {
+      const maj = () => {
+        let total = 0, coutT = 0, faux = 0;
+        emps.forEach(e => {
+          let t = 0;
+          $$(`.hs-c[data-e="${e.id}"]`, root).forEach(i => {
+            const v = lu(i.value); const ko = i.value.trim() && (!(v > 0) || v > 24);
+            i.classList.toggle('invalide', !!ko); if (ko) { faux++; return; }
+            if (v > 0) { t += v; const c = C.coutHoraire(data, e.id, Number(i.dataset.d.slice(0, 4)), Number(i.dataset.d.slice(5, 7))); if (c.heuresMois > 0) coutT += v * c.coutMois / c.heuresMois; }
+          });
+          const cell = $(`[data-tot="${e.id}"]`, root); if (cell) cell.textContent = t ? `${pct(C.round3(t))} h` : '';
+          total += t;
+        });
+        $('#hs-effet', root).innerHTML = faux ? `<span class="ambre">${pl(faux, 'case')} à corriger : des heures entre 0 et 24.</span>`
+          : total ? `Cette semaine : <b>${pct(C.round3(total))} h</b>, qui coûtent <b>${h(C.money(C.round3(coutT), cur))}</b> à l'affaire.` : 'Aucune heure tapée pour cette semaine.';
+      };
+      const brancher = () => {
+        $('#hs-corps', root).oninput = maj;
+        $('#hs-av', root).onclick = () => { lundi = C.addDays(lundi, -7); $('#hs-corps', root).innerHTML = corps(); brancher(); };
+        $('#hs-ap', root).onclick = () => { lundi = C.addDays(lundi, 7); $('#hs-corps', root).innerHTML = corps(); brancher(); };
+        maj();
+      };
+      brancher();
+      $('#ok', root).onclick = () => {
+        const cases = $$('.hs-c', root);
+        const mauvaise = cases.find(i => i.value.trim() && (!(lu(i.value) > 0) || lu(i.value) > 24));
+        if (mauvaise) return refus(mauvaise, 'Des heures entre 0 et 24 pour un jour.');
+        if (!Array.isArray(data.projectTime)) data.projectTime = [];
+        const avant = JSON.stringify(data.projectTime);
+        let n = 0;
+        cases.forEach(i => {
+          const v = C.round3(lu(i.value)), eid = i.dataset.e, iso = i.dataset.d;
+          const anciennes = deLaCase(eid, iso), deja = C.round3(anciennes.reduce((a, y) => a + (Number(y.hours) || 0), 0));
+          if (Math.abs(v - deja) < 0.0005) return;
+          const note = (anciennes[0] && anciennes[0].note) || '';
+          data.projectTime = data.projectTime.filter(x => !anciennes.includes(x));
+          if (v > 0) data.projectTime.push({ id: C.uid(), projectId: p.id, employeeId: eid, date: iso, hours: v, note, createdAt: Date.now() });
+          n++;
+        });
+        if (!n) { close(); return; }
+        save(true); close(); affaireDocState.onglet = 'heures'; if (done) done();
+        toastUndo(`Semaine du ${C.fmtDate(lundi)} : ${pl(n, 'case')} notée${sPl(n)}`, () => { data.projectTime = JSON.parse(avant); save(true); if (done) done(); });
+      };
+    }, null, { classe: 'hs-large' });
+  }
+
   // Répartir les lignes d'un achat entre les affaires (1.263.0) : une facture de quincaillerie pour deux chantiers.
   // Chaque ligne choisit son affaire ; « Aucune » la sort de toute affaire. La pièce elle-même ne change pas.
   function repartirAchat(b, done) {
@@ -17875,12 +17992,23 @@
     const opts = sel => `<option value="">Aucune affaire</option>${affs.map(x => `<option value="${h(x.id)}"${x.id === sel ? ' selected' : ''}>${h(x.name)}</option>`).join('')}`;
     modal(`<h2>Répartir les lignes de l'achat</h2>
       <p class="small muted">${h(supplierName(b.supplierId) || '')} ${h(b.number || '')} · chaque ligne compte dans l'affaire que tu lui donnes, frais au prorata. L'achat lui-même ne change pas : ni son montant, ni son écriture.</p>
-      <div class="lf-tab scroll-x"><table class="lf-table" data-sans-cartes><thead><tr><th>Ligne</th><th class="r">HT</th><th>Affaire</th></tr></thead><tbody>
+      <div class="lf-tab scroll-x"><table class="lf-table rp-t" data-sans-cartes><thead><tr><th class="g">Ligne</th><th class="r">HT</th><th class="g">Affaire</th></tr></thead><tbody>
         ${t.lines.map((l, i) => `<tr><td><b>${h(l.label || 'Ligne ' + (i + 1))}</b><br><small class="mu">${h(((C.LINE_DESTINATIONS || []).find(d => d[0] === l.destination) || [, l.destination])[1])}</small></td><td class="r">${lfMontant(C.toBase(b, l.ht, company()), cur)}</td>
           <td><select data-li="${i}" aria-label="Affaire de la ligne ${i + 1}">${opts(C.affaireDeLigne(b, b.lines[i]))}</select></td></tr>`).join('')}
       </tbody></table></div>
+      <p class="rp-effet" id="rp-eff"></p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Répartir</button></div>`,
     (root, close) => {
+      // (1.264.0) Ce que chaque affaire portera, en direct, au coût (frais au prorata) : la répartition se lit avant le geste.
+      const effet = () => {
+        const choix = $$('[data-li]', root).map(x => x.value);
+        const essai = { ...b, lines: (b.lines || []).map((l, i) => ({ ...l, projectId: choix[i] })) };
+        const ids = [...new Set(choix)];
+        $('#rp-eff', root).innerHTML = 'Chaque affaire portera : ' + ids.map(id => { const x = C.coutAchatPourAffaire(essai, company(), data, id);
+          const v = C.round3(x.cout + x.enStock + x.immo);
+          return `<b>${h(id ? (projectById(id) || {}).name || '—' : 'aucune affaire')}</b> ${h(C.money(v, cur))}`; }).join(' · ');
+      };
+      $$('[data-li]', root).forEach(x => x.onchange = effet); effet();
       $('#ok', root).onclick = () => {
         const choix = $$('[data-li]', root).map(s => s.value);
         // Une seule affaire pour toutes les lignes : c'est l'affaire de la pièce, sans rien sur les lignes.
@@ -17962,25 +18090,47 @@
     const sansVente = !m.salesCount && !m.quotesCount;
     const ventesLibres = piecesPourAffaire(p, 'ventes').filter(d => d.projectId !== p.id).length;
     const suivante = sansVente ? (ventesLibres ? 'rattacher-ventes' : 'devis') : 'achat';
-    const vert = k => (suivante === k ? ' btn-primary' : '');
+    // (1.264.0) Le bouton principal est le geste de la frise quand elle en porte un ; sinon, celui de l'en-tête.
+    const vert = k => (suivante === k && !(C.suiviAffaire(data, company(), p.id).ici && !enLecture('projects')) ? ' btn-primary' : '');
     // (1.261.0) La fiche dans la nouvelle DA : le chemin et « ‹ », le statut, un résumé au lieu de quatre tuiles, et les
     // ventes, les achats, les notes en onglets segmentés (ceux de la Paie).
     const nbVentes = data.documents.filter(d => d.projectId === p.id).length, nbAchats = data.purchases.filter(x => C.achatDansAffaire(x, p.id)).length;
     const ong = ['ventes', 'achats', 'heures', 'notes'].includes(affaireDocState.onglet) ? affaireDocState.onglet : 'ventes';
     const badgeSt = p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon';
-    // (1.262.0) « Où en est le chantier » : trois barres qui se lisent d'un coup d'œil — ce qui est facturé sur ce qui est
-    // prévu (devis compris), ce qui est encaissé sur ce qui est facturé, ce qui est acheté sur le budget s'il est donné.
-    // Une barre sans base (rien de prévu, rien de facturé, pas de budget) ne se montre pas : elle ne dirait rien.
+    // (1.264.0, Skander 03/11 : « je n'aime pas les barres comme ça ») Où en est le chantier : la frise des pièces (celle de
+    // la facture et de l'achat), en quatre étapes de son argent — devisé, facturé, encaissé, payé aux fournisseurs. Chaque
+    // étape dit son montant et ce qui reste ; celle en cours porte LE geste suivant (le seul bouton principal de la fiche).
+    // Sous la frise, le coût à ce jour face au budget, en une ligne.
+    const sv = C.suiviAffaire(data, company(), p.id);
     const avancement = () => {
+      const E = Object.fromEntries(sv.etapes.map(e => [e.k, e]));
+      const geste = (id, txt, prim) => `<button class="btn${prim ? ' btn-primary' : ''}" type="button" id="${id}">${h(txt)}</button>`;
+      const ici = k => ecritP && sv.ici === k;
+      const etapes = [
+        { k: 'devis', fait: E.devis.fait, t: 'Devisé',
+          d: E.devis.nb ? `${C.money(E.devis.montant, cur)} HT · ${pl(E.devis.nb, 'devis')}` : E.devis.fait ? 'facturé sans devis' : 'pas encore de devis',
+          g: ici('devis') ? geste('fr-devis', 'Faire le devis', true) : '' },
+        { k: 'facture', fait: E.facture.fait, partiel: E.facture.partiel, t: 'Facturé',
+          d: E.facture.fait ? `${C.money(m.revenue, cur)} HT · tout est facturé` : E.facture.partiel ? `${C.money(m.revenue, cur)} HT · ${C.money(E.facture.reste, cur)} encore en devis` : E.facture.reste > 0.0005 ? `rien encore · ${C.money(E.facture.reste, cur)} en devis` : 'rien encore',
+          g: ici('facture') ? geste('fr-facturer', E.facture.devisOuvert ? 'Facturer le devis' : 'Faire une facture', true) : '' },
+        { k: 'encaisse', fait: E.encaisse.fait, partiel: E.encaisse.partiel, alerte: E.encaisse.retards > 0, t: 'Encaissé',
+          d: E.encaisse.fait ? `${C.money(m.collected, cur)} · tout est encaissé` : m.invoiced > 0.0005
+            ? `${C.money(m.collected, cur)} sur ${C.money(m.invoiced, cur)} TTC · il manque ${C.money(E.encaisse.reste, cur)}${E.encaisse.retards ? ` · ${pl(E.encaisse.retards, 'facture')} en retard (jusqu'à ${pl(E.encaisse.retardMax, 'jour')})` : ''}`
+            : 'rien à encaisser encore',
+          g: ici('encaisse') && E.encaisse.aRelancer ? geste('fr-relancer', 'Relancer le client', true) : ici('encaisse') && m.invoiced > 0.0005 ? geste('fr-ventes', 'Voir ce qui reste dû', false) : '' },
+        { k: 'paye', fait: E.paye.fait || E.paye.rien, t: 'Payé aux fournisseurs',
+          d: E.paye.rien ? 'aucun achat à payer' : E.paye.fait ? `${C.money(m.paid, cur)} payés · rien de dû` : `${C.money(E.paye.reste, cur)} à payer · ${pl(E.paye.nbDus, 'achat')}`,
+          g: ici('paye') && E.paye.achatDu ? geste('fr-payer', 'Payer le fournisseur', true) : '' }];
       const budget = Number(p.budget) || 0;
-      const prevu = C.round3(m.revenue + m.pending);
-      const barre = (titre, fait, base, dit, ton) => { const r = base > 0 ? Math.max(0, Math.min(100, Math.round(fait / base * 100))) : 0;
-        return `<div class="mg-av"><div class="mg-av-t"><b>${titre}</b><span class="${ton || ''}">${dit}</span></div><span class="mg-av-b" role="img" aria-label="${h(titre)} : ${r} %"><i class="${ton || ''}" style="width:${r}%"></i></span></div>`; };
-      const l = [];
-      if (prevu > 0) l.push(barre('Facturé', m.revenue, prevu, m.pending > 0.0005 ? `${C.money(m.revenue, cur)} sur ${C.money(prevu, cur)} prévus · ${C.money(m.pending, cur)} encore en devis` : `${C.money(m.revenue, cur)} : tout ce qui était prévu est facturé`, m.pending > 0.0005 ? '' : 'vert'));
-      if (m.invoiced > 0.0005) { const du = C.round3(m.invoiced - m.collected); l.push(barre('Encaissé', m.collected, m.invoiced, du > 0.0005 ? `${C.money(m.collected, cur)} sur ${C.money(m.invoiced, cur)} TTC · ${C.money(du, cur)} à encaisser` : `${C.money(m.collected, cur)} : tout est encaissé`, du > 0.0005 ? '' : 'vert')); }
-      if (budget > 0) { const reste = C.round3(budget - m.cost); l.push(barre('Coût sur le budget', m.cost, budget, reste >= 0 ? `${C.money(m.cost, cur)} sur ${C.money(budget, cur)} · ${C.money(reste, cur)} encore disponibles` : `${C.money(m.cost, cur)} : budget de ${C.money(budget, cur)} dépassé de ${C.money(-reste, cur)}`, reste >= 0 ? '' : 'rouge')); }
-      return l.length ? `<div class="cf-carte mg-avancement"><div class="mg-av-tete"><b>Où en est le chantier</b>${budget > 0 ? '' : ecritP ? '<button type="button" class="btn-lien" id="p-budget">Donner un budget</button>' : ''}</div>${l.join('')}</div>` : '';
+      const resteB = C.round3(budget - m.cost);
+      const cout = `<div class="mg-cout-l"><span>Coût à ce jour <b>${h(C.money(m.cost, cur))}</b></span>${budget > 0
+        ? `<span class="${resteB < 0 ? 'rouge' : ''}" id="p-budget-dit">Budget ${h(C.money(budget, cur))} · ${resteB >= 0 ? `reste ${h(C.money(resteB, cur))}` : `dépassé de ${h(C.money(-resteB, cur))}`}</span>`
+        : ecritP ? '<button type="button" class="btn-lien" id="p-budget">Donner un budget</button>' : ''}${sv.solde ? '<span class="vert"><b>Chantier soldé :</b> tout est encaissé et payé</span>' : ''}</div>`;
+      return `<div class="cf-carte mg-suivi"><div class="mg-av-tete"><b>Où en est le chantier</b>${info('mg.suivi')}</div>
+        <div class="ed-frise quatre mg-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : ''}${x.alerte ? ' alerte' : ''}${!x.fait && sv.ici === x.k ? ' ici' : ''}" data-k="${x.k}">
+          <span class="rond" aria-hidden="true">${x.fait ? lfIc('coche', 13, 3) : i + 1}</span>
+          <span class="ed-fr-txt"><b>${x.t}</b><span>${x.d}</span></span>${x.g ? `<span class="ed-fr-geste">${x.g}</span>` : ''}
+          <span class="vh">${x.fait ? ' : fait' : ' : pas encore'}</span></li>`).join('')}</ol></div>${cout}</div>`;
     };
     const ecritP = !enLecture('projects');
     const chiffre = (lbl2, val, sous, ton, bulle) => `<div class="mg-chiffre"><span class="mu">${lbl2}${bulle ? ' ' + info(bulle) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
@@ -18000,15 +18150,21 @@
           ${chiffre('En caisse', montantU(m.cash, cur), `${C.money(m.collected, cur)} encaissés − ${C.money(m.paid, cur)} payés`, m.cash < 0 ? 'rouge' : '', 'mg.projectCash')}
         </div>
         ${horsMarge(m, cur, ecritP)}
-        ${prevuReel(m, cur)}
         ${avancement()}
+        ${prevuReel(m, cur)}
         <div class="mg-barre"><div class="pa-seg" id="p-tabs" role="tablist" aria-label="L'affaire">${[['ventes', 'Ventes', nbVentes], ['achats', 'Achats', nbAchats], ['heures', 'Heures', m.timeCount], ['notes', 'Notes', 0]].map(([k, n, nb]) => `<button type="button" role="tab" data-ong="${k}" aria-selected="${ong === k}" class="${ong === k ? 'active' : ''}">${n}${nb ? ` <small>${nb}</small>` : ''}</button>`).join('')}</div></div>
         <div class="cf-carte"><div class="cf-onglet mg-onglet">
           <div id="p-sales"${ong === 'ventes' ? '' : ' hidden'}></div><div id="p-buys"${ong === 'achats' ? '' : ' hidden'}></div><div id="p-time"${ong === 'heures' ? '' : ' hidden'}></div>
           <div id="p-notes"${ong === 'notes' ? '' : ' hidden'}>${p.notes ? `<p class="mg-notes">${C.nl2br(p.notes)}</p>` : `<div class="mg-vide">${lfIc('modifier', 24, 1.6)}<b>Pas de note</b><span>Ce qu'il faut retenir du chantier : interlocuteur, accès, conditions. Jamais imprimé.</span><button class="btn" id="p-note-new">Écrire une note</button></div>`}</div>
         </div></div></div>`;
-    $$('#p-tabs [data-ong]').forEach(b => b.onclick = () => { affaireDocState.onglet = b.dataset.ong; render(true); });
+    $$('#p-tabs [data-ong], .mg-resume [data-ong]').forEach(b => b.onclick = () => { affaireDocState.onglet = b.dataset.ong; render(true); });
     if ($('#p-budget')) $('#p-budget').onclick = () => projectForm(p, () => render(true), null, 'budget');
+    if ($('#p-budget-dit')) $('#p-budget-dit').onclick = () => projectForm(p, () => render(true), null, 'budget');
+    if ($('#fr-devis')) $('#fr-devis').onclick = () => navigate('#/doc/new/devis' + (p.clientId ? '/client/' + p.clientId : '') + '/affaire/' + p.id);
+    if ($('#fr-facturer')) $('#fr-facturer').onclick = () => { const q = sv.etapes[1].devisOuvert; navigate(q ? '#/doc/' + q.id : '#/doc/new/facture' + (p.clientId ? '/client/' + p.clientId : '') + '/affaire/' + p.id); };
+    if ($('#fr-relancer')) $('#fr-relancer').onclick = () => { const d = sv.etapes[2].aRelancer; const it = C.overdueInvoices(data, company()).find(x => x.doc.id === d.id); sendReminder(it || { doc: d, level: 1, daysLate: 0 }, 'email'); };
+    if ($('#fr-ventes')) $('#fr-ventes').onclick = () => { affaireDocState.onglet = 'ventes'; render(true); };
+    if ($('#fr-payer')) $('#fr-payer').onclick = () => navigate('#/achat/' + sv.etapes[3].achatDu.id);
     if ($('#p-sortir')) $('#p-sortir').onclick = () => sortirPourAffaire(p, () => render(true));
     if ($('#p-note-new')) $('#p-note-new').onclick = () => projectForm(p, () => render());
     $('#edit-p').onclick = () => projectForm(p, () => render());
@@ -18074,10 +18230,11 @@
       { label: 'N° fournisseur', cls: 'cn', get: b => `<b>${h(b.number || C.referenceAchat(b, data))}</b>` },
       { label: 'Fournisseur et achat', cls: 'cl', get: b => `<b>${h(supplierName(b.supplierId) || '—')}</b>${C.partageEntreAffaires(b) ? '<small class="ambre">en partie pour ce chantier</small>' : contenuAchat(b) ? `<small>${h(contenuAchat(b))}</small>` : ''}` },
       { label: 'Statut', cls: 'st', get: b => buyBadge(buyStatus(b)) },
-      { label: 'Coût pour l\'affaire', r: true, get: b => { const x = C.coutAchatPourAffaire(b, company(), data, p.id);
-        return `${lfMontant(x.cout, cur)}${x.enStock ? `<small>+ ${h(C.money(x.enStock, cur))} entrés au stock</small>` : ''}${x.immo ? `<small>+ ${h(C.money(x.immo, cur))} immobilisés</small>` : ''}`; } }];
+      ...(m.enStock || m.immo ? [{ label: 'Au stock ou immobilisé', r: true, get: b => { const x = C.coutAchatPourAffaire(b, company(), data, p.id); const v = C.round3(x.enStock + x.immo);
+        return v ? `${lfMontant(v, cur)}<small>${x.immo ? 'immobilisé : s\'amortit' : 'compte en sortant'}</small>` : '<span class="mu">—</span>'; } }] : []),
+      { label: 'Coûte au chantier', r: true, get: b => lfMontant(coutHT(b), cur) }];
     $('#p-buys').innerHTML = buys.length
-      ? `${tableau(buys, colsA, id => navigate('#/achat/' + id), nomAchat, { dit: `${pl(buys.length, 'achat')} · ce qu'ils coûtent vraiment au chantier (la TVA récupérable en est retirée)${m.enStock ? ' ; la marchandise entrée au stock compte quand elle en sort, dans « stock »' : ''}`, montant: `${lfMontant(m.achats, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+      ? `${tableau(buys, colsA, id => navigate('#/achat/' + id), nomAchat, { dit: `${pl(buys.length, 'achat')} · HT, TVA récupérable retirée`, montant: `${lfMontant(m.achats, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
         ${ecrit ? `<div class="inline">${geste('p-att-a', achatsLibres ? 'Rattacher d\'autres achats…' : 'Revoir les achats rattachés…')}</div>` : ''}`
       : `<div class="mg-vide">${lfIc('achats', 24, 1.6)}<b>Aucun achat rattaché</b><span>Ce sont eux qui rendent la marge exacte. ${achatsLibres ? 'Coche ceux de ce chantier parmi ceux déjà saisis, ou saisis-en un.' : 'Saisis-les avec « Achat » : ils y naîtront rattachés.'}</span>${ecrit && achatsLibres ? geste('p-att-a', 'Rattacher des achats déjà saisis…', suivante === 'achat') : ''}</div>`;
     brancher('#p-buys', buys, id => navigate('#/achat/' + id), nomAchat);
@@ -18091,9 +18248,9 @@
       { label: 'Coût', r: true, get: x => lfMontant(x.cout, cur) }];
     const nomH = x => `${x.employeeName}, ${C.fmtDate(x.date)}`;
     $('#p-time').innerHTML = m.heures.length
-      ? `${tableau(m.heures, colsH, id => heuresForm(p, (data.projectTime || []).find(x => x.id === id), () => render(true)), nomH, { dit: `${pct(m.hours)} h · au coût employeur de l'heure (brut et charges) ; « estimé » : pas encore de bulletin ce mois-là`, montant: `${lfMontant(m.mainOeuvre, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
-        ${ecrit ? `<div class="inline">${geste('p-time-new', 'Noter des heures')}</div>` : ''}`
-      : `<div class="mg-vide">${lfIc('horloge', 24, 1.6)}<b>Aucune heure notée</b><span>${(data.employees || []).length ? 'Le temps de tes salariés sur ce chantier : c\'est souvent le plus gros coût, et sans lui la marge est trop belle.' : 'Ajoute d\'abord tes salariés dans la Paie : leur coût de l\'heure vient de leur bulletin.'}</span>${ecrit && (data.employees || []).length ? geste('p-time-new', 'Noter des heures', m.salesCount > 0) : ''}</div>`;
+      ? `${tableau(m.heures, colsH, id => heuresForm(p, (data.projectTime || []).find(x => x.id === id), () => render(true)), nomH, { dit: `${pct(m.hours)} h · coût employeur de l'heure`, montant: `${lfMontant(m.mainOeuvre, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+        ${ecrit ? `<div class="inline">${geste('p-time-sem', 'Noter une semaine')}${geste('p-time-new', 'Noter des heures')}</div>` : ''}`
+      : `<div class="mg-vide">${lfIc('horloge', 24, 1.6)}<b>Aucune heure notée</b><span>${(data.employees || []).length ? 'Le temps de tes salariés sur ce chantier : c\'est souvent le plus gros coût, et sans lui la marge est trop belle.' : 'Ajoute d\'abord tes salariés dans la Paie : leur coût de l\'heure vient de leur bulletin.'}</span>${ecrit && (data.employees || []).length ? `<span class="mg-vide-g">${geste('p-time-sem', 'Noter une semaine')}${geste('p-time-new', 'Noter une journée')}</span>` : ''}</div>`;
     $$('#p-time tr[data-pc]').forEach(tr => tr.onclick = e => { if (!e.target.closest('button, input, a')) heuresForm(p, (data.projectTime || []).find(x => x.id === tr.dataset.pc), () => render(true)); });
     bindRowMenus($('#p-time'), id => { const x = (data.projectTime || []).find(y => y.id === id); if (!x) return [];
       return [{ icon: 'modifier', label: 'Modifier', hint: 'le salarié, le jour, les heures', run: () => heuresForm(p, x, () => render(true)) },
@@ -18102,6 +18259,7 @@
           toastUndo(`Heures retirées : ${nomH(m.heures.find(y => y.id === id) || x)}`, () => { data.projectTime.splice(i, 0, x); save(true); render(true); });
         } }] : [])]; }, id => { const x = m.heures.find(y => y.id === id); return x ? nomH(x) : ''; });
     if ($('#p-time-new')) $('#p-time-new').onclick = () => heuresForm(p, null, () => render(true));
+    if ($('#p-time-sem')) $('#p-time-sem').onclick = () => heuresSemaine(p, () => render(true));
     bindRowMenus($('.mg-fiche-t'), () => actionsAffaire(p, () => render(true)), () => p.name);
   };
 
@@ -23054,7 +23212,7 @@
         ${field(lbl(`Coût unitaire (${h(C.normCurrency(company().currency))}, optionnel)`, 'stk.adjustCost'), 'unitCost', '', 'number', 'step="0.001" min="0" class="num" placeholder="laisse vide : coût moyen"')}
         ${field(lbl('Référence', 'stk.adjustRef'), 'reference', '', 'text', '')}
         ${/* (1.263.0) La matière utilisée sur un chantier compte dans sa marge : on dit pour quelle affaire. */''}
-        <label class="field span-2" id="adj-aff">${lbl('Pour l\'affaire (matière utilisée)', 'stk.adjustProject')}<select name="projectId"><option value="">Aucune affaire</option>${(data.projects || []).filter(x => x.status === 'en cours').map(x => `<option value="${h(x.id)}">${h(x.name)}</option>`).join('')}</select></label>
+        <label class="field span-2" id="adj-aff">${lbl('Pour l\'affaire (matière utilisée)', 'stk.adjustProject')}<small class="mu" id="adj-aff-dit"></small><select name="projectId"><option value="">Aucune affaire</option>${(data.projects || []).filter(x => x.status === 'en cours').map(x => `<option value="${h(x.id)}">${h(x.name)}</option>`).join('')}</select></label>
         <label class="field span-2">${lbl('Note', 'stk.adjustNote')}<input type="text" name="note" placeholder="Ce qui s'est passé, en une phrase"></label>
         <div class="span-2 annonce-stable" id="adj-hint"></div>
       </form>
@@ -23070,6 +23228,7 @@
           const sortie = C.SOURCES_SORTIE.includes(v.source);
           $('#adj-qlbl', root).textContent = sortie ? 'Quantité sortie' : 'Quantité (+ entre, − sort)';
           $('[name=projectId]', root).disabled = v.source !== 'consommation';
+          $('#adj-aff-dit', root).textContent = v.source === 'consommation' ? 'Sa valeur, au coût moyen, compte dans la marge de l\'affaire.' : 'Seule la « Matière utilisée » va à une affaire : une casse ou un inventaire ne se consomme pas sur un chantier.';
           $('[name=qty]', root).placeholder = sortie ? 'ex. 10' : 'ex. -2 ou 3';
           const s = C.stockOf(data, v.itemId);
           const q = C.qteMouvement(v.source, v.qty);

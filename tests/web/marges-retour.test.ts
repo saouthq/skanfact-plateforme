@@ -83,7 +83,7 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
       .toEqual(['Affaires 1 *', 'Où est la marge', 'Contrats', 'Seuil de rentabilité']);
     // L'affaire : vendu, acheté, la marge et son taux, au pied le total.
     const ligne = net(await p.locator('#mg-body tr[data-pid="pr1"]').innerText());
-    expect(ligne).toBe('Câblage du hall HL Hôtel du Lac en cours 283,517 100,250 183,267 64,6 % 0,000');
+    expect(ligne).toBe('Câblage du hall 337,385 DT à encaisser HL Hôtel du Lac en cours 283,517 100,250 183,267 64,6 % 0,000');
     expect(await p.locator('#mg-an').isHidden()).toBe(true);
     // Les onglets sont ceux de la Paie (la barre segmentée), pas des onglets soulignés.
     expect(await p.locator('#mg-tabs').getAttribute('class')).toContain('pa-seg');
@@ -104,20 +104,27 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     await p.locator('#mg-body tr[data-pid="pr1"] td.cn').click();
     await expect.poll(() => p.locator('#view h1').first().innerText().then(net).catch(() => '')).toBe('Câblage du hall');
     expect(net(await p.locator('#view .ed-chemin').innerText())).toBe('Accueil › Marges › Câblage du hall');
-    expect(net(await p.locator('#view .mg-resume').innerText())).toMatch(/^Vendu HT i 283,517 DT 1 facture Coût i 100,250 DT achats 100,250 DT Marge i 183,267 DT 64,6 % du prix de vente En caisse i /);
+    expect(net(await p.locator('#view .mg-resume').innerText())).toMatch(/^Vendu HT i 283,517 DT 1 facture Coût i 100,250 DT Achats 100,250 DT Marge i 183,267 DT 64,6 % du prix de vente En caisse i /);
     expect(await p.locator('#p-tabs [data-ong]').evaluateAll((l) => l.map((b) => `${(b as HTMLElement).innerText.replace(/\s+/g, ' ').trim()}${b.getAttribute('aria-selected') === 'true' ? ' *' : ''}`))).toEqual(['Ventes 1 *', 'Achats 1', 'Heures', 'Notes']);
     await p.locator('#p-tabs [data-ong="achats"]').click();
     await expect.poll(() => p.locator('#p-buys').isVisible()).toBe(true);
     expect(net(await p.locator('#p-buys').innerText())).toContain('CB-2026-77');
-    // (1.262.0) Où en est le chantier : facturé sur prévu, encaissé sur facturé.
-    expect(await p.locator('.mg-av .mg-av-t').allInnerTexts().then((l) => l.map(net))).toEqual([
-      'Facturé 283,517 DT : tout ce qui était prévu est facturé', 'Encaissé 0,000 DT sur 337,385 DT TTC · 337,385 DT à encaisser']);
-    // Un budget d'achats de 80 : la barre dit le dépassement, en rouge.
+    // (1.264.0) Où en est le chantier : la frise des pièces (devisé, facturé, encaissé, payé), chaque étape avec son montant.
+    expect(await p.locator('.mg-frise li .ed-fr-txt').allInnerTexts().then((l) => l.map(net))).toEqual([
+      'Devisé facturé sans devis', 'Facturé 283,517 DT HT · tout est facturé', 'Encaissé 0,000 DT sur 337,385 DT TTC · il manque 337,385 DT',
+      'Payé aux fournisseurs 119,298 DT à payer · 1 achat']);
+    // L'étape en cours est l'encaissement, et le coût à ce jour est dit sous la frise.
+    expect(await p.locator('.mg-frise li.ici').getAttribute('data-k')).toBe('encaisse');
+    // Le geste suivant n'est porté que par l'étape en cours : ni « Faire le devis » ni « Facturer » sur un chantier facturé.
+    expect(await p.locator('#fr-devis, #fr-facturer, #fr-payer').count()).toBe(0);
+    expect(await p.locator('.mg-frise .ed-fr-geste').count()).toBe(1);
+    expect(net(await p.locator('.mg-cout-l').innerText())).toMatch(/^Coût à ce jour 100,250 DT Donner un budget$/);
+    // Un budget de 80 : la ligne dit le dépassement, en rouge.
     await p.locator('#p-budget').click();
     await p.locator('#modal-root [name=budget]').fill('80');
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => p.locator('.mg-av').nth(2).innerText().then(net).catch(() => '')).toBe('Coût sur le budget 100,250 DT : budget de 80,000 DT dépassé de 20,250 DT');
-    expect(await p.locator('.mg-av').nth(2).locator('i').getAttribute('class')).toBe('rouge');
+    await expect.poll(() => p.locator('#p-budget-dit').innerText().then(net).catch(() => '')).toBe('Budget 80,000 DT · dépassé de 20,250 DT');
+    expect(await p.locator('#p-budget-dit').getAttribute('class')).toBe('rouge');
     // Détacher l'achat depuis sa ligne, puis « Annuler » le remet.
     await p.locator('#p-tabs [data-ong="achats"]').click();
     await p.locator('#p-buys .row-menu-btn').click();
@@ -139,8 +146,7 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     const resume = net(await p.locator('#view .mg-resume').innerText());
     const cout = lu(/Coût i ([\d ,]+) DT/.exec(resume)?.[1] ?? '');
     expect(Math.round(cout * 1000)).toBe(Math.round((100.25 + mo) * 1000));
-    expect(resume).toContain(`main d'œuvre`);
-    expect(resume).toContain('(7,5 h, estimée)');
+    expect(resume).toContain('Heures (7,5 h, estimé)');
     expect(lu(/Marge i ([\d ,]+) DT/.exec(resume)?.[1] ?? '')).toBe(Math.round((283.517 - cout) * 1000) / 1000);
     await p.locator('#view .ed-retour-btn').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/marges');
@@ -162,6 +168,9 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     // (1.263.0) Mois par mois : douze mois ; celui de la facture porte son chiffre d'affaires.
     expect(await p.locator('#mg-body .mg-mois-t tbody tr').count()).toBe(12);
     expect(net(await p.locator('#mg-body .mg-mois-t tbody tr').nth(Number(auj.slice(5, 7)) - 1).innerText())).toMatch(/^\S+ 283,517 183,267 /);
+    // (1.264.0) Au-dessus du tableau, le graphe : une colonne par mois et la courbe du cumul.
+    expect(await p.locator('#mg-body svg.mg-graphe rect.col-p, #mg-body svg.mg-graphe rect.col-n').count()).toBeGreaterThan(0);
+    expect(await p.locator('#mg-body svg.mg-graphe polyline').count()).toBe(1);
     await p.locator('#mg-tabs [data-tab="affaires"]').click();
 
     // 3. Depuis la fiche du fournisseur, l'achat ouvert y ramène, par son chemin et par « ‹ ».

@@ -647,3 +647,23 @@ parce que la marge affichée était trop belle. Tests : `tests/moteur/marges-126
 | Exporter | Le menu ⋯ de l'affaire : « Exporter en PDF » (sa marge prévue et réelle, ses ventes, ses achats, ses heures, ce qui reste au stock, établi le …) et « Exporter dans un tableur » (toutes ses lignes) |
 | Où est la marge | La phrase « Estimée avec le coût de chaque prestation au catalogue. La marge exacte d'un chantier, achats, stock et heures compris, est dans Affaires » : deux écrans, deux mesures, dites |
 | Seuil : mois par mois | Sous la cascade, l'année mois par mois (chiffre d'affaires, marge sur coûts variables, charges fixes, résultat, cumul, une barre) par la même fonction que l'année ; « Rentable depuis … » quand le cumul repasse au-dessus de zéro pour de bon, sinon « Pas encore rentable : à ce jour (novembre en cours), le cumul est de … ». Douze arrondis au millime peuvent faire quelques millimes d'écart avec l'année : l'écran le dit s'il y en a |
+
+## L'interface des marges (1.264.0)
+
+Demande de Skander (03/11/2026) : « je n'aime pas les barres comme ça » ; « choisis et go ». Choix faits pour rester dans
+la DA des pièces :
+
+- **Où en est le chantier** : la frise de la facture et de l'achat, en quatre étapes de l'argent (devisé, facturé,
+  encaissé, payé aux fournisseurs). Chaque étape dit son montant et ce qui reste ; seule l'étape en cours porte le geste
+  suivant (faire le devis, facturer, relancer le client, payer le fournisseur), qui devient le seul bouton principal de
+  la fiche. Les restes viennent de `invoiceBalance` et `purchaseBalance` (TTC : ce qui se paie), à la part de l'affaire
+  pour un achat partagé (`suiviAffaire`, `tests/moteur/marges-1264.test.ts`). Sous la frise, une ligne : le coût à ce
+  jour, le budget et ce qui reste (ou le dépassement, en rouge), « Chantier soldé » quand tout est encaissé et payé.
+- **Le cumul de l'année** : un graphe (une colonne par mois, verte ou rouge, et la courbe du cumul, avec le mois où
+  l'affaire devient rentable) au-dessus du tableau des mois ; les barres du tableau sont retirées.
+- Le **coût** du résumé se lit en petites lignes (achats, sorti du stock, heures) qui mènent chacune à son onglet ; le
+  **prévu et réel** en trois cases (réel, prévu, écart) ; la marchandise encore au stock a son bouton « Sortir pour
+  l'affaire ».
+- **Les heures** : « Noter une semaine » (une grille salariés × 7 jours, le total en direct) à côté de la journée.
+- La **liste** des affaires porte une pastille sous le nom : soldée, à encaisser (en retard), à facturer, à payer.
+- Au téléphone, la frise passe en une colonne avec un trait vertical.

@@ -3523,6 +3523,47 @@
 </div></body></html>`;
   }
 
+  // (1.264.0) Où en est le chantier : les quatre étapes de son argent — devisé, facturé, encaissé, payé aux fournisseurs —
+  // chacune avec ce qui reste, et la première qui n'est pas finie, qui porte le geste suivant. Tout vient des pièces de
+  // l'affaire : les montants de `projectMargin` (HT pour le vendu, TTC pour ce qui se paie), les restes de chaque pièce par
+  // `invoiceBalance` et `purchaseBalance` — ceux de la liste des factures et des achats, jamais recalculés à part.
+  function suiviAffaire(data, company, projectId, todayIso) {
+    const t = todayIso || today();
+    const m = projectMargin(data, company, projectId);
+    const quotes = m.quotes.filter(q => q.status !== 'refusé');
+    const tirees = (data.documents || []).filter(d => d.type === 'facture' && d.fromQuoteId && d.status !== 'brouillon' && d.status !== 'annulée');
+    const fermes = new Set(tirees.filter(d => !d.deposit).map(d => d.fromQuoteId));
+    const ouverts = quotes.filter(q => !fermes.has(q.id)).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const factures = m.sales.filter(d => d.type === 'facture');
+    let aEncaisser = 0;
+    factures.forEach(d => { const r = toBase(d, invoiceBalance(d, data, company).remaining, company); if (r > 0.0005) aEncaisser = round3(aEncaisser + r); });
+    const ids = new Set(factures.map(d => d.id));
+    const retards = overdueInvoices(data, company, t).filter(x => ids.has(x.doc.id)).sort((a, b) => b.daysLate - a.daysLate);
+    const dues = [];
+    let aPayer = 0;
+    m.buys.forEach(b => {
+      if (b.kind === 'avoir' || b.kind === 'acompte') return;
+      const part = partageEntreAffaires(b) ? coutAchatPourAffaire(b, company, data, projectId).part : 1;
+      const r = round3(toBase(b, purchaseBalance(b, company, data).remaining, company) * part);
+      if (r > 0.0005) { aPayer = round3(aPayer + r); dues.push({ achat: b, reste: r }); }
+    });
+    dues.sort((a, b) => (a.achat.dueDate || a.achat.date || '').localeCompare(b.achat.dueDate || b.achat.date || ''));
+    const devise = quotes.length > 0 || m.salesCount > 0;
+    const facture = m.revenue > 0.0005 && m.pending <= 0.0005;
+    const encaisse = m.invoiced > 0.0005 && aEncaisser <= 0.0005;
+    const paye = aPayer <= 0.0005;
+    const etapes = [
+      { k: 'devis', fait: devise, montant: m.planned ? m.planned.revenue : 0, nb: quotes.length },
+      { k: 'facture', fait: facture, partiel: m.revenue > 0.0005 && !facture, montant: m.revenue, reste: m.pending, devisOuvert: ouverts[0] || null, nb: m.salesCount },
+      { k: 'encaisse', fait: encaisse, partiel: m.collected > 0.0005 && !encaisse, montant: m.collected, sur: m.invoiced, reste: aEncaisser,
+        retards: retards.length, retardMax: retards.length ? retards[0].daysLate : 0, aRelancer: retards[0] ? retards[0].doc : null },
+      { k: 'paye', fait: paye && m.buysCount > 0, rien: m.buysCount === 0, montant: m.paid, reste: aPayer, achatDu: dues[0] ? dues[0].achat : null, nbDus: dues.length }
+    ];
+    // L'étape en cours : la première qui n'est pas faite (un chantier sans achat n'a rien à payer).
+    const ici = etapes.find(e => !e.fait && !(e.k === 'paye' && e.rien));
+    return { etapes, ici: ici ? ici.k : null, solde: !ici && encaisse, aEncaisser, aPayer, m };
+  }
+
   function projectList(data, company) {
     return (data.projects || []).map(p => ({ ...p, ...projectMargin(data, company, p.id) }))
       .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
@@ -12431,7 +12472,7 @@
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,
-    lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
+    lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
@@ -12481,7 +12522,7 @@
     'cashForecast', 'cashMovements', 'payablesList', 'stockList', 'stockTotals', 'stockJournal', 'stockAlerts',
     'inventoryDiff', 'costOfGoodsSold', 'salesTotals', 'revenueByMonth', 'topItems', 'clientMovement', 'payerRanking',
     'quoteFunnel', 'releveClient', 'packPlan', 'packChecklist', 'closureChecks', 'simpleResult', 'breakEven',
-    'marginBy', 'projectList', 'projectMargin', 'margeMoisParMois', 'affaireHtml', 'clientSummary', 'supplierSummary', 'balanceGenerale', 'grandLivre', 'etatsFinanciers', 'lettrage', 'firstSteps', 'reussites']
+    'marginBy', 'projectList', 'projectMargin', 'suiviAffaire', 'margeMoisParMois', 'affaireHtml', 'clientSummary', 'supplierSummary', 'balanceGenerale', 'grandLivre', 'etatsFinanciers', 'lettrage', 'firstSteps', 'reussites']
     .forEach(n => { const f = api[n]; if (typeof f === 'function') api[n] = function () { return enLot(() => f.apply(this, arguments)); }; });
   return api;
 });
