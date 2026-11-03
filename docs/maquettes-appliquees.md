@@ -684,3 +684,43 @@ page, les boutons (le premier est le seul principal), et à droite les étapes n
 - Le Catalogue vide n'a plus deux boutons verts : celui de l'en-tête redevient simple tant que la liste est vide.
 - Au téléphone, la carte passe sur une colonne (les étapes sous le texte), Paie comprise.
 - Test : `tests/web/ecrans-vides.test.ts` (une entreprise neuve ouvre chaque module) ; preuves `vides 1.265 a-d`.
+
+## La trésorerie (1.266.0)
+
+Demande de Skander (03/11/2026) : « go la trésorerie », puis, après la revue d'un designer senior et d'un expert du
+métier (notes données : UI 7, UX 6, métier 5, ergonomie 6,5, expérience 6), « go faire tout ». Sans maquette à part :
+l'écran reprend les classes des marges (`.lf.mg`) et en ajoute quelques-unes (`.lf.tr`).
+
+**Le métier (le moteur, `cashForecast`)**
+- Les **salaires des mois sans bulletin** sortent à la fin de chaque mois, au net du contrat, marqués « estimé ».
+- La **déclaration du mois** (TVA, retenues sur les achats et sur les salaires) sort le 28 et la **CNSS** du trimestre à
+  son échéance, estimées sur ce qui est saisi, marquées « estimé » ; une déclaration marquée déposée en sort. L'acompte
+  et le bilan gardent leur date seule. Les montants : À VÉRIFIER avec un comptable.
+- Les **dépenses qui reviennent** sans facture (loyer, STEG, abonnements, leasing) : un mouvement « se répète » (mois,
+  trimestre, année, jusqu'à une date) se projette ; « Noter comme payé » enregistre une occurrence et la retire.
+- Un **seuil d'alerte** réglable (zéro par défaut, un minimum de sécurité, ou un découvert en négatif) : le bandeau,
+  le point d'exclamation de la barre et l'alerte de l'accueil se règlent sur lui ; le chiffre dit est le point le plus bas.
+- Trois façons d'attendre les clients : à l'échéance, **comme ils paient d'habitude** (le retard moyen de leurs six
+  dernières factures soldées, deux au moins), **sans les retards**.
+- Les **chèques et traites** : une « échéance de l'effet » dans les deux fenêtres de règlement ; le règlement est daté de
+  l'échéance, la réception gardée ; « Effets en portefeuille » les liste. Le compte 413 et le moment de la retenue pour un
+  effet : À VÉRIFIER.
+- Le **relevé de banque importé** (CSV, tableur) avec le lecteur du Cabinet : chaque ligne retrouve le mouvement de même
+  montant à cinq jours près ; une ligne déjà pointée se dit « déjà pointée », pas « absente » (vu à l'essai : elle aurait
+  fait créer un doublon) ; les lignes absentes se créent d'un clic, déjà pointées ; le solde final est recopié.
+
+**L'écran**
+- Un **bouton principal calculé** : voir ce qui arrive (trou), relancer les factures en retard, pointer le relevé, sinon
+  noter un mouvement. « Dans 30 jours » montre aussi le chiffre sans les retards.
+- Les comptes en **cartes** (solde, courbe des trente derniers jours, relevé pointé jusqu'au…, mouvements à pointer, menu).
+- La courbe : un **curseur** qui lit chaque jour, un point par jour (les retards attendus aujourd'hui en un seul), le
+  seuil tracé, un fanion par échéance fiscale. Les semaines vides de suite fusionnent.
+- L'**essai « et si je décale ? »** sur chaque échéance : rien n'est enregistré, un bandeau compare le point le plus bas
+  avec et sans, « Annuler l'essai ».
+- Les mouvements d'un compte disent le **solde après** chaque ligne, avec un séparateur par mois.
+- Le rapprochement : le résumé en trois cases, « Importer le relevé ».
+- **Filtres gris, onglets noirs** (Skander, 03/11/2026 : « pour que l'œil se repère ») : l'horizon, la façon d'attendre
+  les clients, le sens des mouvements, et dans les Marges « Par client / Par prestation » et le statut des affaires,
+  et dans la Paie « En poste / Partis », prennent le gris de la liste des factures. Les onglets gardent le noir.
+- Test : `tests/web/tresorerie-ecran.test.ts` (à la souris : cartes, bouton principal, filtres, loyer, seuil, essai,
+  relevé, traite) et `tests/moteur/tresorerie-1266.test.ts` ; preuves `tréso 1.266 a-l`.

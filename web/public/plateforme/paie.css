@@ -32,6 +32,12 @@
 .pa-seg button { border: 0; background: none; padding: 6px 11px; border-radius: 9px; font: 500 13px var(--sb-police, inherit); color: var(--sb-gris); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .pa-seg button:hover { color: var(--sb-encre); }
 .pa-seg button.active { background: var(--sb-encre); color: var(--sb-papier); }
+/* (1.266.0, Skander 03/11 : « les sous-onglets en noir, les filtres en gris, pour que l'œil se repère ») Un filtre prend le
+   gris de la liste des factures (« Tout · Factures · Avoirs ») : fond gris, le choix en blanc. Les onglets gardent le noir. */
+.pa-seg.filtre { background: var(--sb-survol); border-color: transparent; border-radius: 10px; }
+.pa-seg.filtre button { padding: 5px 10px; border-radius: 8px; font-weight: 600; }
+.pa-seg.filtre button.active { background: var(--sb-papier); color: var(--sb-encre); box-shadow: var(--sb-actif-ombre); }
+.pa-seg.filtre button.active small { opacity: .75; }
 .pa-af { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); font-size: 11px; font-weight: 700; }
 .pa-reg { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; }
 .pa-reg.active { border-color: var(--sb-encre); }

@@ -6260,22 +6260,128 @@
     return { accounts, total: round3(accounts.reduce((s, a) => s + a.balance, 0)) };
   }
 
+  // (1.266.0) Le délai réel d'un client : de combien de jours, en moyenne, il paie après l'échéance — mesuré sur ses six
+  // dernières factures soldées (la date du dernier paiement qui la solde). Moins de deux factures : on ne sait pas (null).
+  // Un client qui paie en avance compte zéro : on n'attend jamais l'argent avant la date de la facture.
+  function delaiClient(data, company, clientId, todayIso) {
+    const t = todayIso || today();
+    const soldees = [];
+    (data.documents || []).filter(d => d.type === 'facture' && d.clientId === clientId && d.status !== 'brouillon' && d.status !== 'annulée').forEach(d => {
+      if (invoiceBalance(d, data, company).remaining > 0.0005) return;
+      const ps = (d.payments || []).filter(p => !estRemboursement(p) && p.date && p.date <= t).map(p => p.date).sort();
+      if (!ps.length) return;
+      soldees.push({ le: ps[ps.length - 1], retard: Math.max(0, daysBetween(d.dueDate || d.date, ps[ps.length - 1])) });
+    });
+    soldees.sort((a, b) => b.le.localeCompare(a.le));
+    const r = soldees.slice(0, 6);
+    if (r.length < 2) return null;
+    return { jours: Math.round(r.reduce((x, s) => x + s.retard, 0) / r.length), factures: r.length };
+  }
+
+  // (1.266.0) Le portefeuille des effets : les chèques et les traites reçus (ou remis) dont l'échéance n'est pas arrivée.
+  // L'effet porte sa date de réception (`effet.recuLe`) ; le règlement, lui, est daté de son échéance — le jour où l'argent
+  // passe sur le compte : c'est cette date que la trésorerie et le journal de banque lisent (À VÉRIFIER avec le
+  // comptable : le compte d'effets à recevoir, 413 / 4131, n'est pas encore tenu à part).
+  function portefeuilleEffets(data, company, todayIso) {
+    const t = todayIso || today();
+    const out = [];
+    const nomC = id => ((data.clients || []).find(c => c.id === id) || {}).name || '—';
+    const nomF = id => ((data.suppliers || []).find(c => c.id === id) || {}).name || '—';
+    (data.documents || []).filter(d => d.type === 'facture').forEach(d => (d.payments || []).forEach(p => {
+      if (!p.effet || !p.date || p.date <= t) return;
+      out.push({ sens: 'recevoir', id: p.id, docId: d.id, piece: d.number || '', tiers: nomC(d.clientId), type: p.method, numero: p.reference || '', recuLe: p.effet.recuLe || '', echeance: p.date, montant: round3(montantRegle(d, p, company)) });
+    }));
+    (data.purchases || []).forEach(pu => (pu.payments || []).forEach(p => {
+      if (!p.effet || !p.date || p.date <= t) return;
+      out.push({ sens: 'payer', id: p.id, purchaseId: pu.id, piece: pu.number || '', tiers: nomF(pu.supplierId), type: p.method, numero: p.reference || '', recuLe: p.effet.recuLe || '', echeance: p.date, montant: round3(montantRegle(pu, p, company)) });
+    }));
+    out.sort((a, b) => a.echeance.localeCompare(b.echeance));
+    const tot = sens => round3(out.filter(x => x.sens === sens).reduce((s, x) => s + x.montant, 0));
+    return { effets: out, aRecevoir: tot('recevoir'), aPayer: tot('payer') };
+  }
+
+  // (1.266.0) Un relevé de banque face aux mouvements d'un compte : chaque ligne du relevé cherche le mouvement pas encore
+  // pointé de MÊME montant (au millime), le plus proche en date à cinq jours près, pris une seule fois. Faute de quoi, elle
+  // cherche parmi ceux DÉJÀ pointés : un relevé importé recouvre souvent des jours déjà rapprochés, et dire « absente de
+  // SkanFact » d'une ligne pointée la semaine dernière ferait créer un doublon. Ce qui reste est « absent de SkanFact » (un
+  // prélèvement, des frais) ; un mouvement sans ligne reste à pointer.
+  function apparierReleve(lignes, mouvements, joursMax) {
+    const max = Number(joursMax) >= 0 ? Number(joursMax) : 5;
+    const libres = (mouvements || []).filter(m => !m.reconciled).map(m => ({ m, pris: false }));
+    const pointes = (mouvements || []).filter(m => m.reconciled).map(m => ({ m, pris: false }));
+    const paires = [], dejaPointees = [], absentes = [];
+    const chercher = (l, l2) => {
+      let meilleur = null, ecart = Infinity;
+      l2.forEach(x => {
+        if (x.pris || Math.abs(round3(x.m.amount) - round3(l.montant)) > 0.0005) return;
+        const j = Math.abs(daysBetween(x.m.date, l.date));
+        if (j <= max && j < ecart) { meilleur = x; ecart = j; }
+      });
+      if (meilleur) meilleur.pris = true;
+      return meilleur ? { ligne: l, mouvement: meilleur.m, jours: ecart } : null;
+    };
+    (lignes || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(l => {
+      const p = chercher(l, libres);
+      if (p) { paires.push(p); return; }
+      const d = chercher(l, pointes);
+      if (d) dejaPointees.push(d); else absentes.push(l);
+    });
+    return { paires, dejaPointees, absentes, restants: libres.filter(x => !x.pris).map(x => x.m) };
+  }
+
+  // (1.266.0) La prévision semaine par semaine : ce qui rentre, ce qui sort, le solde au soir du dernier jour. Les semaines
+  // vont du lundi au dimanche ; la première commence aujourd'hui, la dernière finit à l'horizon. Lue sur les mêmes
+  // échéances que la courbe (`cashForecast`) : la somme des semaines est la prévision, au millime.
+  function semainesTreso(f) {
+    const out = [];
+    let du = f.today, solde = f.start, i = 0;
+    const ev = f.events || [];
+    while (du <= f.horizon) {
+      const jour = new Date(du + 'T00:00:00Z').getUTCDay();
+      let au = addDays(du, (7 - jour) % 7);
+      if (au > f.horizon) au = f.horizon;
+      let entrees = 0, sorties = 0, n = 0;
+      while (i < ev.length && ev[i].date <= au) {
+        if (ev[i].amount > 0) entrees = round3(entrees + ev[i].amount); else sorties = round3(sorties + ev[i].amount);
+        n++; i++;
+      }
+      solde = round3(solde + entrees + sorties);
+      out.push({ du, au, entrees, sorties, solde, n });
+      du = addDays(au, 1);
+    }
+    return out;
+  }
+
   // Prévision : le solde d'aujourd'hui, puis ce qui doit rentrer et sortir, jour après jour.
   // On ne prévoit que ce qui a une échéance connue — pas de projection statistique, pas de devinette.
-  function cashForecast(data, company, days, todayIso) {
+  // (1.266.0) `opts.prudent` : sans les factures clients déjà échues. Une facture en retard est attendue « tout de suite »
+  // (la repousser serait se mentir) — mais compter dessus l'est aussi : la vue prudente dit ce que devient le solde si
+  // elles ne rentrent pas, et donc combien l'entreprise dépend de ses retardataires.
+  function cashForecast(data, company, days, todayIso, opts) {
     const t = todayIso || today();
+    const o = opts || {};
+    // (1.266.0) Comment attendre l'argent des clients : à l'échéance (le défaut, ce que la facture dit), « habitude » (au
+    // délai réel de chaque client, mesuré sur ses factures soldées), ou « prudent » (sans les factures déjà échues).
+    const mode = o.prudent ? 'prudent' : (o.encaissement === 'habitude' || o.encaissement === 'prudent' ? o.encaissement : 'echeance');
+    const prudent = mode === 'prudent';
     const horizon = addDays(t, Math.max(1, Number(days) || 90));
     const start = cashPosition(data, company, t).total;
     const events = [];
+    const delais = {};
+    const delaiDe = id => (id in delais ? delais[id] : (delais[id] = delaiClient(data, company, id, t)));
 
     // Ce qui doit rentrer : le reste à payer de chaque facture ouverte, à son échéance.
     (data.documents || []).filter(d => d.type === 'facture' && d.status !== 'brouillon' && d.status !== 'annulée').forEach(d => {
       const rest = invoiceBalance(d, data, company).remaining;
       if (rest <= 0.0005) return;
       // Une facture déjà échue est attendue « tout de suite » : la repousser serait se mentir.
-      const due = d.dueDate && d.dueDate > t ? d.dueDate : t;
+      let due = d.dueDate && d.dueDate > t ? d.dueDate : t;
+      if (prudent && d.dueDate && d.dueDate < t) return;
+      // Au délai habituel du client : l'échéance (ou la date de la pièce) plus son retard moyen, jamais avant aujourd'hui.
+      const dl = mode === 'habitude' ? delaiDe(d.clientId) : null;
+      if (dl && dl.jours > 0) { const at = addDays(d.dueDate || d.date || t, dl.jours); due = at > t ? at : t; }
       if (due > horizon) return;
-      events.push({ date: due, amount: round3(toBase(d, rest, company)), kind: 'client', late: !!(d.dueDate && d.dueDate < t),
+      events.push({ date: due, amount: round3(toBase(d, rest, company)), kind: 'client', late: !!(d.dueDate && d.dueDate < t), habitude: dl && dl.jours > 0 ? dl.jours : 0,
         label: `${d.number || 'Facture'} — ${((data.clients || []).find(c => c.id === d.clientId) || {}).name || ''}`.trim(), id: d.id });
     });
     // Ce qui doit sortir : le reste dû de chaque achat — CONVERTI, comme la branche des clients juste
@@ -6337,8 +6443,92 @@
         d = nextRecurrenceDate(d, r.every, r.day);
       }
     });
-    // Les échéances fiscales : on connaît la date, pas le montant. On les signale sans les chiffrer.
+    // (1.266.0) Les salaires des mois qui n'ont pas encore de bulletin : la prévision ne connaissait que les bulletins déjà
+    // faits, et à 90 jours décembre et janvier sortaient sans paie. Chaque salarié en poste reçoit, à la fin de chaque mois
+    // de l'horizon sans bulletin, le net que son contrat donne (`computePayslip` sans variable) — marqué « estimé ».
+    if (o.salaires !== false) {
+      const s = payrollSettings(data);
+      const nets = {};
+      const aBulletin = new Set((data.payslips || []).map(sl => `${sl.employeeId}|${Number(sl.year)}-${Number(sl.month)}`));
+      for (let k = 0; k < 8; k++) {
+        const y0 = Number(t.slice(0, 4)), m0 = Number(t.slice(5, 7)) - 1 + k;
+        const y = y0 + Math.floor(m0 / 12), m = (m0 % 12) + 1;
+        const debut = `${y}-${pad2(m)}-01`, fin = addDays(debut, daysInMonth(y, m) - 1);
+        if (fin < t) continue;
+        if (debut > horizon || fin > horizon) break;
+        (data.employees || []).forEach(e => {
+          if (e.active === false || (e.hireDate && e.hireDate > fin) || (e.endDate && e.endDate < debut)) return;
+          if (aBulletin.has(`${e.id}|${y}-${m}`)) return;
+          if (!(e.id in nets)) { try { nets[e.id] = round3((computePayslip(e, {}, s) || {}).net || 0); } catch (_) { nets[e.id] = 0; } }
+          if (!(nets[e.id] > 0)) return;
+          events.push({ date: fin, amount: -nets[e.id], kind: 'salaire-prevu', estime: true, label: `Salaire ${monthLabel(fin)} — ${e.name || 'Salarié'}`, id: `${e.id}@${y}-${pad2(m)}` });
+        });
+      }
+    }
+    // (1.266.0) Les impôts dont on connaît la date ET dont on sait estimer le montant : la déclaration mensuelle (la TVA du
+    // mois écoulé, les retenues opérées sur les achats et sur les salaires) et la CNSS du trimestre — sur ce qui est saisi à
+    // ce jour, donc « estimé ». L'acompte provisionnel et le bilan gardent leur date seule : leur montant ne se devine pas.
+    if (o.impots !== false) {
+      const regles = fiscalDeadlines(data).filter(r => r.active !== false);
+      const done = fiscalDone(data), sociales = socialesDeposees(data);
+      const tva = regles.find(r => r.id === 'tva');
+      if (tva) {
+        let d = nextDeadline(tva, t), garde = 0;
+        while (d && d <= horizon && garde++ < 12) {
+          if (!done.has(fiscalFilingId('tva', d))) {
+            const y = Number(d.slice(0, 4)), mm = Number(d.slice(5, 7)) - 1, yy = mm === 0 ? y - 1 : y, mois = mm === 0 ? 12 : mm;
+            const from = `${yy}-${pad2(mois)}-01`, to = addDays(from, daysInMonth(yy, mois) - 1);
+            const v = vatReturn(data, company, { from, to });
+            let sal = 0;
+            try { sal = round3((declarationMensuelleSalaires(data, yy, mois) || {}).total || 0); } catch (_) { sal = 0; }
+            const montant = round3((v.toPay || 0) + (v.withheldOnBuys || 0) + sal);
+            if (montant > 0.0005) events.push({ date: d, amount: -montant, kind: 'fiscal', estime: true, label: `${tva.label} — ${MONTHS_FR[mois - 1]} ${yy}`, id: fiscalFilingId('tva', d),
+              detail: { tva: round3(v.toPay || 0), retenues: round3(v.withheldOnBuys || 0), salaires: sal } });
+          }
+          d = nextDeadline(tva, addDays(d, 1));
+        }
+      }
+      const cnss = regles.find(r => r.id === 'cnss');
+      if (cnss) {
+        let d = nextDeadline(cnss, t), garde = 0;
+        while (d && d <= horizon && garde++ < 6) {
+          const soc = echeanceSociale('cnss', d);
+          if (soc && !sociales.has(soc.id) && !done.has(fiscalFilingId('cnss', d))) {
+            const [, yy, q] = /cnss-(\d{4})-T(\d)/.exec(soc.id) || [];
+            const c = yy ? cnssDeclaration(data, Number(yy), Number(q)) : null;
+            if (c && c.total > 0.0005) events.push({ date: d, amount: -round3(c.total), kind: 'fiscal', estime: true, label: `${cnss.label} — ${c.label} ${yy}`, id: soc.id });
+          }
+          d = nextDeadline(cnss, addDays(d, 1));
+        }
+      }
+    }
+    // (1.266.0) Les dépenses qui reviennent sans facture — le loyer, la STEG, l'abonnement internet, le leasing : un mouvement
+    // libre marqué « se répète » se projette à chaque période, jusqu'à sa date de fin. Une occurrence déjà notée
+    // (`repeteDe` + `occurrence`) ne se projette plus : elle est dans les mouvements.
+    const PAS_REPETE = { mois: 1, trimestre: 3, annee: 12 };
+    const notees = new Set((data.movements || []).filter(m => m.repeteDe).map(m => `${m.repeteDe}@${m.occurrence}`));
+    (data.movements || []).filter(m => PAS_REPETE[m.repete] && m.date && !(virementCotes(data, m) || {}).vers).forEach(m => {
+      const pas = PAS_REPETE[m.repete];
+      const j = Number(m.date.slice(8, 10));
+      for (let k = 1; k <= 60; k++) {
+        const y0 = Number(m.date.slice(0, 4)), m0 = Number(m.date.slice(5, 7)) - 1 + k * pas;
+        const y = y0 + Math.floor(m0 / 12), mo = (m0 % 12) + 1;
+        const d = `${y}-${pad2(mo)}-${pad2(Math.min(j, daysInMonth(y, mo)))}`;
+        if (d > horizon || (m.repeteJusqu && d > m.repeteJusqu)) break;
+        if (d <= t || notees.has(`${m.id}@${d}`)) continue;
+        const montant = round3(Math.abs(Number(m.amount) || 0));
+        if (montant) events.push({ date: d, amount: round3(moveSign(m.kind) * montant), kind: 'repete', label: m.label || (MOVE_KINDS.find(x => x[0] === m.kind) || [null, 'Mouvement'])[1], id: `${m.id}@${d}`, movementId: m.id });
+      }
+    });
+    // Les échéances fiscales : la date de toutes, pour la liste ; les montants estimés sont dans la courbe ci-dessus.
     const fiscal = upcomingFiscal(data, t, Math.max(1, Number(days) || 90));
+    // (1.266.0) L'essai « et si je décale ? » : une échéance déplacée à une autre date, rien n'est enregistré.
+    const dec = o.decalages || {};
+    for (let i = events.length - 1; i >= 0; i--) {
+      const e = events[i], cle = `${e.kind}:${e.id}`;
+      if (!dec[cle]) continue;
+      if (dec[cle] > horizon) events.splice(i, 1); else { e.date = dec[cle] < t ? t : dec[cle]; e.decale = true; }
+    }
 
     events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     // Courbe jour par jour, uniquement aux dates où il se passe quelque chose (plus lisible qu'un point par jour).
@@ -6351,10 +6541,17 @@
     });
     const inflow = round3(events.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0));
     const outflow = round3(events.filter(e => e.amount < 0).reduce((s, e) => s + e.amount, 0));
+    // (1.266.0) Le seuil sous lequel il ne faut pas descendre : zéro par défaut, ou le minimum que l'entreprise se fixe (un
+    // découvert autorisé se règle en négatif : « −5 000 »). Un seuil illisible ne fait rien — il vaut zéro.
+    const seuil = Number.isFinite(Number(company && company.tresoSeuil)) ? round3(Number(company.tresoSeuil)) : 0;
+    let sous = null;
+    for (const p of points) if (p.balance < seuil - 0.0005) { sous = { date: p.date, balance: p.balance, label: p.label }; break; }
     return {
-      today: t, horizon, start, events, points, inflow, outflow, end: running, lowest, fiscal,
-      // Le seul chiffre qui compte vraiment : à quelle date, si rien ne change, on passe en négatif.
-      shortfall: lowest.balance < 0 ? lowest : null,
+      today: t, horizon, start, events, points, inflow, outflow, end: running, lowest, fiscal, seuil, mode,
+      estimes: round3(events.filter(e => e.estime).reduce((x, e) => x + e.amount, 0)),
+      // Le seul chiffre qui compte vraiment : à quelle date, si rien ne change, on passe sous le seuil. Le PREMIER passage
+      // (la date où il faut agir), avec le point le plus bas à côté (`lowest`).
+      shortfall: sous ? { ...sous, lowest } : null,
       late: { clients: events.filter(e => e.late && e.amount > 0), suppliers: events.filter(e => e.late && e.amount < 0) }
     };
   }
@@ -9996,11 +10193,12 @@
     // Un trou de trésorerie prévu passe avant tout le reste : une entreprise rentable peut en mourir.
     if ((data.accounts || []).length) {
       const f = cashForecast(data, company, 60, t);
+      // (1.266.0) Sous le seuil que l'entreprise s'est fixé (zéro par défaut) ; le chiffre dit est le point le plus bas.
       if (f.shortfall) out.unshift({
         id: 'tresorerie', level: 'danger',
-        label: `Trou de trésorerie prévu le ${fmtDate(f.shortfall.date)}`,
-        detail: `Ton solde descendrait à ${fmt(f.shortfall.balance)} après « ${f.shortfall.label} ». Relance tes impayés ou décale un règlement.`,
-        count: 1, amount: f.shortfall.balance, route: '#/tresorerie', docs: []
+        label: f.seuil ? `Trésorerie sous ton seuil le ${fmtDate(f.shortfall.date)}` : `Trou de trésorerie prévu le ${fmtDate(f.shortfall.date)}`,
+        detail: `Après « ${f.shortfall.label} », ton solde descendrait jusqu'à ${fmt(f.shortfall.lowest.balance)} le ${fmtDate(f.shortfall.lowest.date)}. Relance tes impayés ou décale un règlement.`,
+        count: 1, amount: f.shortfall.lowest.balance, route: '#/tresorerie', docs: []
       });
     }
 
@@ -12471,7 +12669,7 @@
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
-    ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,
+    ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, apparierReleve, reconciliation,
     lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,

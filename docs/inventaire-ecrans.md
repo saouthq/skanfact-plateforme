@@ -35,7 +35,7 @@ page de l'ancienne DA), les listes de prix, le catalogue, les relances.
 | **Le stock, le catalogue, la fiche d'un article** | Sans maquette | tout |
 | **Les commandes fournisseurs, la réception** | Sans maquette | tout |
 | **Les contrats, les affaires** | Sans maquette | tout |
-| **La trésorerie** | Sans maquette | tout |
+| La trésorerie (comptes, ce qui arrive, mouvements, rapprochement) | Fait en 1.266.0 dans la nouvelle DA, sans maquette à part (les classes des marges) ; revue métier et UX faite le 03/11/2026, tout appliqué | — |
 | **Les relances** | Sans maquette | tout |
 | Le module Marges (affaires, fiche, où est la marge, contrats, seuil, fenêtres) | Fait (1.261.0 et 1.262.0, sans maquette à part) ; la marge juste en 1.263.0 (stock, lignes réparties, heures, prévu et réel, mois par mois, export) ; l'interface en 1.264.0 (frise du chantier, graphe des mois, grille de la semaine) ; premier écran au modèle des maquettes en 1.265.0 | — |
 | **Les statistiques** | Sans maquette | tout (les grands chiffres retirés des listes y vont, Skander 30/10) |

@@ -151,8 +151,9 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     await p.locator('#modal-root #cs-z-ok').click();
     // La Trésorerie, sans recharger : la caisse tient les 32,000 du tiroir compté.
     await p.evaluate(() => { location.hash = '#/tresorerie'; });
-    const caisse = p.locator('tr', { hasText: /^\s*Caisse/ }).filter({ hasText: 'Caisse espèces' }).first();
-    await expect.poll(async () => net(await caisse.innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/ 32,000 DT /);
+    // (1.266.0) Chaque compte est une carte : son solde est le grand chiffre de la carte.
+    const caisse = p.locator('#tr-comptes .tr-compte', { hasText: 'Caisse espèces' }).first().locator('.tr-c-solde > b');
+    await expect.poll(async () => net(await caisse.innerText().catch(() => '')), { timeout: 10_000 }).toBe('32,000 DT');
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 180_000);

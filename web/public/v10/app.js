@@ -9249,6 +9249,25 @@
     dire();
   }
 
+  // (1.266.0) L'échéance d'un chèque ou d'une traite : l'effet se reçoit aujourd'hui, l'argent passe sur le compte le jour
+  // de son échéance. Le règlement est daté de l'échéance (la trésorerie et le journal de banque lisent cette date), la date
+  // de réception est gardée dans `effet.recuLe`. Le champ garde sa place quand le mode n'est pas un effet : rien ne bouge.
+  const estEffet = m => m === 'cheque' || m === 'traite';
+  const champEffetHtml = (p0, aide) => `<div class="pf-effet" data-effet>${dateFieldHtml(lbl('Échéance de l\'effet', aide || 'tre.effet'), 'echeance', p0 && p0.effet ? p0.date : '', {})}</div>`;
+  function brancherEffet(root) {
+    const box = $('[data-effet]', root); if (!box) return;
+    const maj = () => {
+      const on = estEffet(($('[name=method]', root) || {}).value);
+      box.classList.toggle('pf-effet-off', !on);
+      $$('input', box).forEach(i => { i.disabled = !on; });
+    };
+    root.addEventListener('click', () => setTimeout(maj, 0));
+    root.addEventListener('change', maj);
+    maj();
+  }
+  // La date à enregistrer : l'échéance d'un effet qui vient après la date de réception, sinon la date tapée.
+  const echeanceEffet = v => (estEffet(v.method) && v.echeance && v.echeance > v.date ? v.echeance : '');
+
   function paymentForm(inv, done, pay, rembourser) {
     const b = balance(inv); const cur = docCur(inv);
     const p0 = pay || null;
@@ -9267,23 +9286,24 @@
       <form id="pf2" class="pf-charte" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field">${lbl(rend ? 'Montant rendu' : 'Montant reçu', 'ed.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(p0 ? Math.abs(Number(p0.amount) || 0) : (rend ? aRendre : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label>
           ${!rend && !p0 ? '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>' : ''}</div>
-        ${champTauxReglement(inv, p0, 'ed.payRate') ? `<div class="pf-deux">${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? p0.date : C.today(), { obligatoire: true })}${champTauxReglement(inv, p0, 'ed.payRate').replace('<p class="small span-2 annonce-stable" id="rg-change"></p>', '')}</div>${accountFieldHtml(p0 && p0.accountId)}<div class="pf-change annonce-stable" id="rg-change" aria-live="polite"></div>`
-          : `<div class="pf-deux">${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? p0.date : C.today(), { obligatoire: true })}${accountFieldHtml(p0 && p0.accountId)}</div>`}
+        ${champTauxReglement(inv, p0, 'ed.payRate') ? `<div class="pf-deux">${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true })}${champTauxReglement(inv, p0, 'ed.payRate').replace('<p class="small span-2 annonce-stable" id="rg-change"></p>', '')}</div>${accountFieldHtml(p0 && p0.accountId)}<div class="pf-change annonce-stable" id="rg-change" aria-live="polite"></div>`
+          : `<div class="pf-deux">${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true })}${accountFieldHtml(p0 && p0.accountId)}</div>`}
         <div class="choix-t pf-modes" role="group" aria-label="Mode de paiement">${C.PAYMENT_METHODS.map(m => `<button type="button" data-mode="${h(m[0])}" class="${m[0] === modeur ? 'on' : ''}">${h(m[1])}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
-        <label class="field">${lbl('Référence', 'ed.payReference')}<input type="text" name="reference" value="${h(p0 ? p0.reference || '' : '')}" placeholder="n° du virement, du chèque…"></label>
+        <div class="pf-deux"><label class="field">${lbl('Référence', 'ed.payReference')}<input type="text" name="reference" value="${h(p0 ? p0.reference || '' : '')}" placeholder="n° du virement, du chèque…"></label>${rend ? '' : champEffetHtml(p0)}</div>
         <input type="hidden" name="note" value="${h(p0 ? p0.note || '' : '')}">
         ${!rend && Number(inv.withholdingRate) > 0 ? '<div class="pf-rs-boite annonce-stable" id="pf-rs" aria-live="polite"></div>' : ''}
       </form>`;
     modal(`${charteP ? formeCharte() : `<h2>${titre}</h2><p class="small muted">${sous}</p>
       ${rend ? '<p class="small">L\'argent sort de ton compte : la Trésorerie le verra partir, et l\'écriture du comptable passe au débit du client. Ce remboursement se rattache à cette facture, qui redevient simplement réglée.</p>' : ''}
       <form id="pf2" class="grid-2" data-devise="${h(cur)}">
-        ${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? p0.date : C.today(), { obligatoire: true })}
+        ${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true })}
         ${obligatoire(field(lbl(`${rend ? 'Montant rendu' : 'Montant'} (${h(cur)})`, 'ed.payAmount'), 'amount', p0 ? Math.abs(Number(p0.amount) || 0) : (rend ? aRendre : reste), 'number', 'step="0.001" min="0" class="num"'))}
         ${champTauxReglement(inv, p0, 'ed.payRate')}
         <label class="field">${lbl('Mode', 'ed.payMethod')}<select name="method">${C.PAYMENT_METHODS.map(m => `<option value="${m[0]}" ${p0 && p0.method === m[0] ? 'selected' : ''}>${m[1]}</option>`).join('')}</select></label>
         ${accountFieldHtml(p0 && p0.accountId)}
         ${field(lbl('Référence (n° chèque, virement…)', 'ed.payReference'), 'reference', p0 ? p0.reference || '' : '')}
+        ${rend ? '' : champEffetHtml(p0)}
         <label class="field span-2">${lbl('Note', 'ed.payNote')}<input type="text" name="note" value="${h(p0 ? p0.note || '' : '')}"></label>
         ${!rend && Number(inv.withholdingRate) > 0 ? '<p class="small span-2 annonce-stable" id="pf-rs" aria-live="polite"></p>' : ''}
       </form>`}
@@ -9294,6 +9314,7 @@
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${rend ? 'Enregistrer le remboursement' : 'Enregistrer'}</button></div>`,
       (root, close) => {
         brancherTauxReglement(root, inv, !rend, rend ? 'Rendu' : 'Reçu');
+        brancherEffet(root);
         if ($('.pf-charte', root)) {
           const f = $('#pf2', root), m = $('[name=amount]', root), ok = $('#ok', root);
           $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', f).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
@@ -9317,9 +9338,10 @@
         if ($('#pf-rs', root)) {
           const annoncer = () => {
             const v = formValues($('#pf2', root));
-            const essai = { ...inv, payments: (inv.payments || []).filter(x => !p0 || x.id !== p0.id).concat([{ id: '__essai', date: v.date || C.today(), amount: Number(v.amount) || 0 }]) };
+            // (1.266.0) Un effet compte à son échéance : la retenue aussi, et la phrase nomme ce mois-là.
+            const d0 = echeanceEffet(v) || v.date || C.today();
+            const essai = { ...inv, payments: (inv.payments || []).filter(x => !p0 || x.id !== p0.id).concat([{ id: '__essai', date: d0, amount: Number(v.amount) || 0 }]) };
             const part = C.retenueSubie(essai, data, company()).parts.__essai || 0;
-            const d0 = v.date || C.today();
             // Le mois de la retenue est celui du paiement (son fait générateur) : la fenêtre le dit, élidé.
             const moisRs = C.MONTHS_FR[Number(d0.slice(5, 7)) - 1];
             const subie = `retenue subie ${/^[aeiou]/i.test(moisRs) ? 'd\'' : 'de '}${moisRs} ${d0.slice(0, 4)}`;
@@ -9344,19 +9366,21 @@
         if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
         if (!v.date) return refus($('[name=date]', root), 'Date obligatoire.');
         if ($('[name=exchangeRate]', root) && !(Number(v.exchangeRate) > 0)) return refus($('[name=exchangeRate]', root), 'Taux du jour invalide : saisis combien de dinars valait une unité de la devise ce jour-là.');
-        if (v.date > C.today() && !await confirmDialog(`La date du ${rend ? 'remboursement' : 'paiement'} (${C.fmtDate(v.date)}) est dans le futur. ${rend ? 'Un remboursement s\'enregistre quand l\'argent part' : 'Un paiement s\'enregistre quand l\'argent est reçu'}, pas quand il est promis. Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: rend ? 'Un remboursement daté dans le futur' : 'Un paiement daté dans le futur' })) return;
+        const ech = rend ? '' : echeanceEffet(v);
+        if (!ech && v.date > C.today() && !await confirmDialog(`La date du ${rend ? 'remboursement' : 'paiement'} (${C.fmtDate(v.date)}) est dans le futur. ${rend ? 'Un remboursement s\'enregistre quand l\'argent part' : 'Un paiement s\'enregistre quand l\'argent est reçu'}, pas quand il est promis. Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: rend ? 'Un remboursement daté dans le futur' : 'Un paiement daté dans le futur' })) return;
         // Rendre plus que le trop-perçu ferait DEVOIR le client de nouveau : c'est presque toujours
         // une faute de frappe. On prévient, on n'interdit pas (7.6.0).
         if (rend && Number(v.amount) > aRendre + 0.0005 && !await confirmDialog(`Le montant rendu (${C.money(v.amount, cur)}) dépasse le trop-perçu (${C.money(aRendre, cur)}). La facture redeviendrait due de la différence. Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: 'Rendre plus que le trop-perçu ?' })) return;
         if (!rend && Number(v.amount) > reste + 0.0005 && !await confirmDialog(`Le montant (${C.money(v.amount, cur)}) dépasse le reste à payer (${C.money(reste, cur)}). La facture apparaîtra avec un trop-perçu. Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: 'Plus que le reste à payer' })) return;
         // Modifier la date d'un paiement le sort d'un mois peut-être déjà déclaré : l'ancienne date
         // compte autant que la nouvelle, comme pour un document.
-        if (closedBlock(p0 ? [p0.date, v.date] : v.date, rend ? 'Ce remboursement' : 'Ce paiement')) return;
+        if (closedBlock(p0 ? [p0.date, ech || v.date] : ech || v.date, rend ? 'Ce remboursement' : 'Ce paiement')) return;
         inv.payments = inv.payments || [];
         const cible = p0 ? inv.payments.find(x => x.id === p0.id) : null;
-        const champs = { date: v.date, amount: C.round3(rend ? -v.amount : v.amount), method: v.method, accountId: v.accountId || (p0 ? p0.accountId || '' : ''), reference: v.reference || '', note: v.note || '' };
+        const champs = { date: ech || v.date, amount: C.round3(rend ? -v.amount : v.amount), method: v.method, accountId: v.accountId || (p0 ? p0.accountId || '' : ''), reference: v.reference || '', note: v.note || '' };
         if ($('[name=exchangeRate]', root)) champs.exchangeRate = Number(v.exchangeRate);
-        if (cible) Object.assign(cible, champs);
+        if (ech) champs.effet = { recuLe: v.date };
+        if (cible) { Object.assign(cible, champs); if (!ech) delete cible.effet; }
         else inv.payments.push({ id: C.uid(), ...champs });
         save(true); close();
         const st = effStatus(inv); toast(rend ? (p0 ? 'Remboursement modifié' : `Remboursement enregistré : ${C.money(v.amount, cur)} rendus au client`) : p0 ? 'Paiement modifié' : st === 'payée' ? `${inv.number} payée intégralement` : 'Paiement enregistré');
@@ -14916,16 +14940,17 @@
       <form id="spf" class="pf-charte" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field obligatoire">${lbl(rend ? 'Montant reçu' : 'Montant payé', 'buy.payAmount')}<span class="pf-m"><input type="number" name="amount" value="${h(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste))}" step="0.001" min="0" class="num" inputmode="decimal"><span>${h(cur)}</span></span></label>
           ${r0 ? '' : '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>'}</div>
-        <div class="pf-deux">${dateFieldHtml(lbl(rend ? 'Date du remboursement' : 'Date', 'buy.payDate'), 'date', r0 ? r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || '' : '')}</div>
+        <div class="pf-deux">${dateFieldHtml(lbl(rend ? 'Date du remboursement' : 'Date', 'buy.payDate'), 'date', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || '' : '')}</div>
         ${champTauxReglement(p, r0, 'buy.payRate')}
         <div class="choix-t pf-modes" role="group" aria-label="Mode de règlement">${C.PAYMENT_METHODS.map(([v, l]) => `<button type="button" data-mode="${h(v)}" class="${v === modeur ? 'on' : ''}">${h(l)}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
         <div class="pf-deux"><label class="field">${lbl('Référence', 'buy.payReference')}<input type="text" name="reference" value="${h(r0 ? r0.reference || '' : '')}" placeholder="${rend ? 'VIR reçu, n° de chèque…' : 'n° du virement, du chèque…'}"></label>
-        <label class="field">${lbl('Note', 'buy.payNote')}<input type="text" name="note" value="${h(r0 ? r0.note || '' : '')}"></label></div>
+        ${rend ? `<label class="field">${lbl('Note', 'buy.payNote')}<input type="text" name="note" value="${h(r0 ? r0.note || '' : '')}"></label>` : champEffetHtml(r0, 'tre.effetAchat')}</div>
+        ${rend ? '' : `<label class="field">${lbl('Note', 'buy.payNote')}<input type="text" name="note" value="${h(r0 ? r0.note || '' : '')}"></label>`}
         ${avecRs || avecExo ? '<div class="pf-rs-boite annonce-stable" id="spf-rs" aria-live="polite"></div>' : ''}
       </form>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
-      (root, close) => { brancherTauxReglement(root, p, rend, rend ? 'Reçu' : 'Payé');
+      (root, close) => { brancherTauxReglement(root, p, rend, rend ? 'Reçu' : 'Payé'); brancherEffet(root);
       const fS = $('#spf', root), mS = $('[name=amount]', root), okS = $('#ok', root);
       const cible0 = C.round3(rend ? aRecuperer : reste);
       $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fS).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
@@ -14946,7 +14971,7 @@
       if (avecRs || avecExo) {
         const annoncer = () => {
           const v = formValues($('#spf', root));
-          const d0 = v.date || C.today();
+          const d0 = echeanceEffet(v) || v.date || C.today();   // (1.266.0) un effet compte à son échéance
           let part = 0;
           if (avecRs) {
             const essai = { ...p, payments: (p.payments || []).filter(x => !r0 || x.id !== r0.id).concat([{ id: '__essai', date: d0, amount: Number(v.amount) || 0 }]) };
@@ -14970,18 +14995,20 @@
         if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
         if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
         if ($('[name=exchangeRate]', root) && !(Number(v.exchangeRate) > 0)) return refus($('[name=exchangeRate]', root), 'Taux du jour invalide : saisis combien de dinars valait une unité de la devise ce jour-là.');
-        if (v.date > C.today() && !await confirmDialog(`La date (${C.fmtDate(v.date)}) est dans le futur. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un règlement daté dans le futur' })) return;
+        const ech = rend ? '' : echeanceEffet(v);
+        if (!ech && v.date > C.today() && !await confirmDialog(`La date (${C.fmtDate(v.date)}) est dans le futur. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un règlement daté dans le futur' })) return;
         if (!rend && Number(v.amount) > reste + 0.0005 && !await confirmDialog(`Le montant (${C.money(v.amount, cur)}) dépasse le reste dû (${C.money(reste, cur)}). Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: 'Plus que le reste dû' })) return;
         if (rend && Number(v.amount) > aRecuperer + 0.0005 && !await confirmDialog(`Le montant reçu (${C.money(v.amount, cur)}) dépasse ce que ce fournisseur te devait (${C.money(aRecuperer, cur)}). Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: 'Plus que ce qu\'il te devait' })) return;
         // Corriger la date d'un règlement le sort peut-être d'un mois déclaré : l'ancienne date
         // compte autant que la nouvelle (règle 6.0.0).
-        if (closedBlock(r0 ? [r0.date, v.date] : v.date, 'Ce règlement')) return;
+        if (closedBlock(r0 ? [r0.date, ech || v.date] : ech || v.date, 'Ce règlement')) return;
         const stored = purchaseById(p.id) || p;
         const signe = rend && p.kind !== 'avoir' ? -1 : 1;
-        const champs = { date: v.date, amount: C.round3(signe * Number(v.amount)), method: v.method, accountId: v.accountId || (r0 ? r0.accountId || '' : ''), reference: v.reference || '', note: v.note || '' };
+        const champs = { date: ech || v.date, amount: C.round3(signe * Number(v.amount)), method: v.method, accountId: v.accountId || (r0 ? r0.accountId || '' : ''), reference: v.reference || '', note: v.note || '' };
         if ($('[name=exchangeRate]', root)) champs.exchangeRate = Number(v.exchangeRate);
+        if (ech) champs.effet = { recuLe: v.date };
         const cible = r0 ? (stored.payments || []).find(x => x.id === r0.id) : null;
-        if (cible) Object.assign(cible, champs);
+        if (cible) { Object.assign(cible, champs); if (!ech) delete cible.effet; }
         else stored.payments = (stored.payments || []).concat([{ id: C.uid(), ...champs }]);
         save(true); close(); toast(rend ? (r0 ? 'Remboursement modifié' : 'Remboursement enregistré') : r0 ? 'Règlement modifié' : 'Règlement enregistré'); if (done) done();
       }; });
@@ -17523,7 +17550,7 @@
       // la page (U-11, comme les contrats et les licences).
       const tot = k => C.round3(list.reduce((a, p) => a + p[k], 0));
       const filtresAff = `<div class="filters mg-f"><label class="cherche">${lfIc('recherche', 16)}<input id="mg-q" type="search" value="${h(s.pq || '')}" placeholder="Chercher une affaire, un client…" autocomplete="off" aria-label="Chercher une affaire"></label>
-          <div class="pa-seg pa-seg-p" role="group" aria-label="Statut">${[['', 'Toutes'], ...C.PROJECT_STATUSES.map(x => [x, optionStatut(x)])].map(([k, n]) => `<button type="button" data-pst="${h(k)}" aria-pressed="${(s.pst || '') === k}" class="${(s.pst || '') === k ? 'active' : ''}">${h(n)} <small>${nbSt(k)}</small></button>`).join('')}</div>
+          <div class="pa-seg filtre pa-seg-p" role="group" aria-label="Statut">${[['', 'Toutes'], ...C.PROJECT_STATUSES.map(x => [x, optionStatut(x)])].map(([k, n]) => `<button type="button" data-pst="${h(k)}" aria-pressed="${(s.pst || '') === k}" class="${(s.pst || '') === k ? 'active' : ''}">${h(n)} <small>${nbSt(k)}</small></button>`).join('')}</div>
           ${info('mg.projects')}</div>`;
       $('#mg-body').innerHTML = toutes.length && !list.length ? `${filtresAff}<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune affaire ne correspond</b><span>${pq ? `Rien pour « ${h(pq)} »` : 'Aucune affaire à ce statut'}.</span><button class="btn" id="mg-tout">Tout revoir</button></div>` : list.length ? `
         ${filtresAff}
@@ -17569,7 +17596,7 @@
       const parClient = s.dim === 'client';
       $('#mg-body').innerHTML = `
         <div class="filters mg-f">
-          <div class="pa-seg" id="mg-dim" role="group" aria-label="Regarder la marge">${[['client', 'Par client'], ['item', 'Par prestation']].map(([k, n]) => `<button type="button" data-dim="${k}" aria-pressed="${s.dim === k}" class="${s.dim === k ? 'active' : ''}">${n}</button>`).join('')}</div>
+          <div class="pa-seg filtre" id="mg-dim" role="group" aria-label="Regarder la marge">${[['client', 'Par client'], ['item', 'Par prestation']].map(([k, n]) => `<button type="button" data-dim="${k}" aria-pressed="${s.dim === k}" class="${s.dim === k ? 'active' : ''}">${n}</button>`).join('')}</div>
           ${info('mg.analysis')}
           <span class="small mu mg-estime">Estimée avec le coût de chaque prestation au catalogue. La marge exacte d'un chantier, achats, stock et heures compris, est dans Affaires.</span>
           ${incomplete ? `<span class="small ambre">${pl(incomplete, 'ligne')} sans coût connu : ${incomplete > 1 ? 'leur marge est surestimée' : 'sa marge est surestimée'} (≈)</span>` : '<span class="small mu">Tous les coûts sont connus.</span>'}
@@ -22078,7 +22105,7 @@
         <td>${h(contrat(e))}</td><td class="nw">${e.endDate ? `parti le ${C.fmtDate(e.endDate)}` : 'n\'est plus en poste'}</td>
         <td class="small muted">${pl(C.payslipsOf(data).filter(x => x.employeeId === e.id).length, 'bulletin')} gardé${C.payslipsOf(data).filter(x => x.employeeId === e.id).length > 1 ? 's' : ''}, sans limite de durée</td></tr>`;
       $('#p-body').innerHTML = `
-        <div class="pa-filtres"><div class="pa-seg pa-seg-p" role="group" aria-label="Quels salariés">${[['poste', 'En poste', enPoste.length], ['sortis', 'Partis', partis.length]].map(([k, n, nb]) => `<button type="button" data-fsal="${k}" aria-pressed="${filtre === k}" class="${filtre === k ? 'active' : ''}">${n} <small>${nb}</small></button>`).join('')}</div>
+        <div class="pa-filtres"><div class="pa-seg filtre pa-seg-p" role="group" aria-label="Quels salariés">${[['poste', 'En poste', enPoste.length], ['sortis', 'Partis', partis.length]].map(([k, n, nb]) => `<button type="button" data-fsal="${k}" aria-pressed="${filtre === k}" class="${filtre === k ? 'active' : ''}">${n} <small>${nb}</small></button>`).join('')}</div>
           <label class="pa-rech">${lfIc('recherche', 15)}<input type="search" id="sal-q" value="${h(s.qsal || '')}" placeholder="Un nom, un CIN, un n° CNSS, un poste" aria-label="Chercher un salarié"></label></div>
         ${filtre === 'poste' && cdd ? `<div class="bandeau ambre pa-bandeau pa-ambre" id="sal-cdd">${lfIc('echeance', 18)}<span class="txt"><b>${h(cdd.titre)}</b><span>Le renouveler, ou préparer sa sortie : son solde de tout compte et son certificat de travail se font sur sa fiche.</span></span><button type="button" class="btn btn-sm" data-eid-go="${h(cdd.salarie)}">Ouvrir sa fiche</button></div>` : ''}
         <section class="pa-carte" id="sal-liste">${list.length ? `<div class="scroll-x"><table class="list compact pa-liste"><thead><tr>
@@ -25817,8 +25844,8 @@
   };
 
   // ---------- Trésorerie ----------
-  const tresoState = { tab: 'position', account: '', days: 90, year: C.today().slice(0, 4), showPointed: false,
-    moves: { sort: null, page: 1 },
+  const tresoState = { tab: 'position', account: '', days: 90, year: C.today().slice(0, 4), showPointed: false, mode: 'echeance', q: '', sens: '', decalages: {},
+    moves: { sort: null, page: 1 }, effets: { page: 1 },
     // Le détail de la prévision et les deux listes du rapprochement sont paginés (10.14.0) : avec
     // huit mille pièces, « Pas encore pointés » faisait neuf mille lignes — quatre cent cinquante
     // mille pixels, et chaque case cochée redessinait le tout.
@@ -25897,10 +25924,11 @@
       });
   }
 
-  function movementForm(mv, done) {
+  // (1.266.0) `preset` : un mouvement neuf qui naît déjà sur un compte (le menu ⋯ d'un compte de la Trésorerie).
+  function movementForm(mv, done, preset) {
     // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
     if (!mv && licenceBlock('Créer un mouvement de trésorerie', 'pilotage')) return;
-    const m = mv || { id: C.uid(), date: C.today(), kind: 'autre-sortie', amount: 0, accountId: (data.accounts.find(a => a.isDefault) || data.accounts[0] || {}).id || '', label: '', reference: '', method: 'virement' };
+    const m = mv || { id: C.uid(), date: C.today(), kind: 'autre-sortie', amount: 0, accountId: (data.accounts.find(a => a.isDefault) || data.accounts[0] || {}).id || '', label: '', reference: '', method: 'virement', ...(preset || {}) };
     // Les justificatifs d'un mouvement libre (10.14.1, S-04) : la quittance d'un loyer payé sans
     // facture, l'avis d'imposition, le relevé qui prouve des frais bancaires. Un mouvement sans facture
     // n'a QUE ce fichier pour se justifier — et il part dans le paquet du comptable. Sur un mouvement
@@ -25927,6 +25955,8 @@
         <label class="field span-2">${lbl('Libellé', 'tre.moveLabel')}<input type="text" name="label" value="${h(m.label || '')}" placeholder="Salaires de septembre"></label>
         ${field(lbl('Référence', 'tre.moveRef'), 'reference', m.reference || '', 'text', 'placeholder="N° de chèque, référence du virement…"')}
         <label class="field">${lbl('Mode', 'tre.moveMethod')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${m.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="field mf-rep">${lbl('Se répète', 'tre.repete')}<select name="repete">${[['', 'Non, une seule fois'], ['mois', 'Chaque mois'], ['trimestre', 'Chaque trimestre'], ['annee', 'Chaque année']].map(([v, l]) => `<option value="${v}" ${(m.repete || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <div class="mf-rep mf-jusqu">${dateFieldHtml(lbl('Jusqu\'au (facultatif)', 'tre.repeteJusqu'), 'repeteJusqu', m.repeteJusqu || '', {})}</div>
         <label class="field span-2" id="mf-cp" ${m.kind === 'virement' ? 'hidden' : ''}>${lbl('Contrepartie comptable', 'tre.compte')}<select name="compte">${C.COMPTES_CONTREPARTIE.map(([v, l]) => `<option value="${v}" ${String(m.compte || '') === v ? 'selected' : ''}>${v ? v + ' — ' : ''}${l}</option>`).join('')}${m.compte && !C.COMPTES_CONTREPARTIE.some(([v]) => v === String(m.compte)) ? `<option value="${h(m.compte)}" selected>${h(m.compte)} — ${h(C.accountLabel(data, m.compte))}</option>` : ''}</select></label>
         <label class="field span-2" id="mf-vers" ${m.kind === 'virement' ? '' : 'hidden'}>${lbl('Vers le compte', 'tre.moveVers')}<select name="versAccountId"><option value="">— Choisir le compte qui reçoit —</option>${data.accounts.map(a => `<option value="${a.id}" ${m.versAccountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
       </form>
@@ -25954,7 +25984,12 @@
           if (versSel.value && versSel.value === depuis) versSel.value = '';
           const cible = data.accounts.find(a => a.id === versSel.value);
           libelle.placeholder = vir ? (cible ? `Virement vers ${cible.name}` : 'Virement vers le compte choisi') : 'Salaires de septembre';
+          // (1.266.0) Un virement entre tes comptes ne se répète pas ici ; « jusqu'au » n'a de sens que pour ce qui revient.
+          // Les deux gardent leur place (visibilité seule) : rien ne bouge sous le curseur.
+          $$('.mf-rep', root).forEach(x => { x.style.visibility = vir ? 'hidden' : ''; });
+          $('.mf-jusqu', root).style.visibility = vir || !$('[name=repete]', root).value ? 'hidden' : '';
         };
+        $('[name=repete]', root).addEventListener('change', accorder);
         kindSel.addEventListener('change', accorder);
         versSel.addEventListener('change', accorder);
         $('[name=accountId]', root).addEventListener('change', accorder);
@@ -26004,6 +26039,7 @@
           const vir = v.kind === 'virement';
           Object.assign(m, v, { amount: Math.abs(Number(v.amount)), compte: vir ? '' : String(v.compte || '').trim() });
           if (!vir) { delete m.versAccountId; delete m.reconciledVers; }
+          if (vir || !m.repete) { delete m.repete; delete m.repeteJusqu; } else if (!m.repeteJusqu) delete m.repeteJusqu;
           if (!mv) data.movements.push(m);
           enregistre = true;
           save(true); close(); if (done) done(m);
@@ -26031,7 +26067,7 @@
       // naît avec. Il ouvrait un formulaire vide, où il fallait retaper ce qu'on venait de donner.
       const m = modeleCompte();
       const quoi = m ? [m.bank ? `ta banque (<b>${h(m.bank)}</b>)` : '', m.rib ? 'ton RIB' : ''].filter(Boolean).join(' et ') : '';
-      $('#view').innerHTML = `<div class="page-head"><h1>Trésorerie</h1></div>
+      $('#view').innerHTML = `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Trésorerie</span></div><h1>Trésorerie</h1><p class="sous">Ce que tu as, ce qui va rentrer et sortir, et ton relevé pointé</p></div></div>
         ${etatVide('Est-ce que j\'aurai de quoi payer le mois prochain ?', [
           'Pour y répondre, SkanFact a besoin de savoir ce que tu as aujourd\'hui. Crée ton compte bancaire et saisis son solde actuel — il reprendra ensuite tout seul tes encaissements et tes règlements.',
           ...(m ? [`<span id="tre-depuis-fiche">Ta fiche société porte déjà ${quoi} : le compte naît avec. Il ne te reste que son solde d'aujourd'hui.</span>`] : []),
@@ -26040,12 +26076,54 @@
       $('#first-acc').onclick = () => accountForm(null, () => render(), modeleCompte());
       return;
     }
+    // (1.266.0, Skander 03/11 : « go la trésorerie », dans la nouvelle DA, comme les marges) L'en-tête des listes (chemin,
+    // phrase), quatre chiffres au lieu de quatre tuiles, les onglets segmentés de la Paie avec leur nombre, et sous eux
+    // une seule carte. Le trou de trésorerie se dit en bandeau, sur toutes les vues : c'est la seule chose qui presse.
+    const t0 = C.today();
+    const pos0 = C.cashPosition(data, company(), t0);
+    const f30 = C.cashForecast(data, company(), 30, t0);
+    const p30 = C.cashForecast(data, company(), 30, t0, { prudent: true });
+    // (1.266.0) Le seuil que l'entreprise se fixe (zéro par défaut) : les phrases le nomment quand il n'est pas zéro.
+    const seuilT = f30.seuil;
+    const sousSeuil = seuilT ? `sous ton seuil (${C.money(seuilT, cur)})` : 'sous zéro';
+    const retards30 = C.round3(f30.late.clients.reduce((x, e) => x + e.amount, 0));
+    const nbRetards30 = f30.late.clients.length;
+    const recos = data.accounts.map(a => ({ a, r: C.reconciliation(data, company(), a.id, t0) }));
+    const aPointer = recos.reduce((n, x) => n + x.r.moves.filter(m => !m.reconciled).length, 0);
+    const nbMouvAn = C.cashMovements(data, company(), { from: `${s.year}-01-01`, to: `${s.year}-12-31` }, null).length;
+    const compteTr = { mouvements: nbMouvAn, rapprochement: aPointer };
+    const chiffreT = (lbl2, val, sous, ton, bulle) => `<div class="mg-chiffre"><span class="mu">${lbl2}${bulle ? ' ' + info(bulle) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
+    const trou = f30.shortfall;
+    const trouP = !trou && p30.shortfall && retards30 > 0 ? p30.shortfall : null;
+    const bandeauT = trou
+      ? `<div class="bandeau rouge tr-trou" role="status">${lfIc('alerte', 18, 2)}<span class="txt"><b>Ton solde passe ${sousSeuil} le ${C.fmtDate(trou.date)}</b><span>Si tout se passe comme prévu, après « ${h(trou.label)} ». Au plus bas : ${C.money(trou.lowest.balance, cur)} le ${C.fmtDate(trou.lowest.date)}. Un trou anticipé se négocie avec la banque ; un trou constaté se subit.</span></span></div>`
+      : trouP
+        ? `<div class="bandeau ambre tr-trou" role="status">${lfIc('alerte', 18, 2)}<span class="txt"><b>Sans les factures en retard, ton solde passe ${sousSeuil} le ${C.fmtDate(trouP.date)}</b><span>${C.money(retards30, cur)} sont déjà échus chez tes clients et la prévision compte dessus. S'ils ne rentrent pas, il descend jusqu'à ${C.money(trouP.lowest.balance, cur)}.</span></span></div>`
+        : '';
+    // (1.266.0) UN bouton principal : l'étape suivante, calculée. Voir le trou s'il y en a un ; sinon relancer ce qui est
+    // déjà dû ; sinon pointer le relevé ; quand tout est en ordre, noter un mouvement.
+    const premierAPointer = (recos.find(x => x.r.moves.some(m => !m.reconciled)) || {}).a;
+    const principalT = trou ? { id: 'tr-voir-trou', ic: 'echeance', l: 'Voir ce qui arrive' }
+      : retards30 > 0 ? { id: 'tr-relancer', ic: 'cloche', l: nbRetards30 > 1 ? `Relancer ${nbRetards30} factures` : 'Relancer la facture en retard' }
+        : aPointer > 0 ? { id: 'tr-pointer', ic: 'coche', l: 'Pointer le relevé' } : null;
+    const sous30 = [trou ? `${sousSeuil} le ${C.fmtDate(trou.date)}` : '', retards30 > 0 ? `sans les retards : ${h(C.money(p30.end, cur))}` : ''].filter(Boolean).join(' · ') || 'aucun trou prévu';
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Trésorerie</h1>
-        <div class="actions"><button class="btn" id="new-move">+ Mouvement</button><button class="btn" id="new-acc">+ Compte</button></div></div>
-      <div class="tabs" id="t-tabs" role="tablist" aria-label="La trésorerie">${TRESO_TABS.map(([id, label]) =>
-        `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}</button>`).join('')}</div>
-      <div id="t-body"></div>`;
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Trésorerie</span></div><h1>Trésorerie</h1><p class="sous">Ce que tu as, ce qui va rentrer et sortir, et ton relevé pointé</p></div>
+        <div class="actions"><button class="btn" id="new-acc">${lfIc('croix', 15, 2.4)} Compte</button><button class="btn${principalT ? '' : ' btn-primary'}" id="new-move">${lfIc('croix', 15, 2.4)} Mouvement</button>${principalT ? `<button class="btn btn-primary" id="${principalT.id}">${lfIc(principalT.ic, 15, 2.2)} ${h(principalT.l)}</button>` : ''}</div></div>
+      ${bandeauT}
+      <div class="lf mg tr">
+        <div class="cf-carte mg-resume" id="tr-resume">
+          ${chiffreT('Disponible aujourd\'hui', montantU(pos0.total, cur), pl(pos0.accounts.length, 'compte'), pos0.total < seuilT ? 'rouge' : '', 'tre.total')}
+          ${chiffreT('À encaisser sous 30 jours', montantU(f30.inflow, cur), retards30 > 0 ? `dont ${h(C.money(retards30, cur))} déjà échus` : 'rien d\'échu', '', 'dash.open')}
+          ${chiffreT('À décaisser sous 30 jours', montantU(-f30.outflow, cur), f30.estimes < -0.0005 ? `dont ${h(C.money(-f30.estimes, cur))} estimés` : 'achats, salaires, saisies', '', 'tre.decaisser')}
+          ${chiffreT('Dans 30 jours', montantU(f30.end, cur), sous30, trou || f30.end < seuilT ? 'rouge' : 'vert', 'tre.projected')}
+        </div>
+        <div class="mg-barre"><div class="pa-seg" id="t-tabs" role="tablist" aria-label="La trésorerie">${TRESO_TABS.map(([id, label]) =>
+          `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === s.tab}" class="${id === s.tab ? 'active' : ''}">${label}${compteTr[id] ? ` <small>${compteTr[id]}</small>` : ''}</button>`).join('')}</div></div>
+        <div class="cf-carte"><div class="cf-onglet" id="t-body"></div></div></div>`;
+    if ($('#tr-voir-trou')) $('#tr-voir-trou').onclick = () => { s.tab = 'prevision'; render(true); };
+    if ($('#tr-relancer')) $('#tr-relancer').onclick = () => navigate('#/relances');
+    if ($('#tr-pointer')) $('#tr-pointer').onclick = () => { if (premierAPointer) s.account = premierAPointer.id; s.tab = 'rapprochement'; render(true); };
 
     const draw = dansUnLot(() => {
       if (s.tab === 'prevision') return drawForecast();
@@ -26055,96 +26133,244 @@
     });
 
     // --- Où j'en suis
+    // (1.266.0) Chaque compte en carte : son solde, la courbe de ses trente derniers jours, jusqu'où son relevé est pointé
+    // et ce qui reste à pointer, son menu ⋯ ; le disponible au pied. Puis ce qui demande un geste (l'argent déjà dû par les
+    // clients, ce que l'entreprise doit déjà, la prochaine échéance fiscale) et les effets en portefeuille.
     function drawPosition() {
-      const pos = C.cashPosition(data, company(), C.today());
-      const f = C.cashForecast(data, company(), 30, C.today());
+      const pos = pos0, f = f30;
+      const kindDe = a => (C.ACCOUNT_KINDS.find(k => k[0] === a.kind) || [, a.kind])[1];
+      const dusClients = f.late.clients, dusFourn = f.late.suppliers;
+      const totDus = C.round3(dusClients.reduce((x, e) => x + e.amount, 0)), totDois = C.round3(-dusFourn.reduce((x, e) => x + e.amount, 0));
+      const fisc = (C.upcomingFiscal ? C.upcomingFiscal(data, t0, 45) : []).slice(0, 1)[0];
+      const fiscEst = fisc ? C.cashForecast(data, company(), 45, t0).events.find(e => e.kind === 'fiscal' && (e.id === fisc.filingId || (fisc.socialId && e.id === fisc.socialId))) : null;
+      const surveiller = [
+        dusClients.length ? `<li class="tr-s"><span>${lfIc('cloche', 16)}</span><span class="txt"><b>${h(C.money(totDus, cur))} déjà échus chez tes clients</b><small>${pl(dusClients.length, 'facture')} en retard : la prévision les attend aujourd'hui</small></span><button type="button" class="btn btn-sm" id="tr-s-rel">Relancer</button></li>` : '',
+        dusFourn.length ? `<li class="tr-s"><span>${lfIc('alerte', 16)}</span><span class="txt"><b>${h(C.money(totDois, cur))} déjà dus à tes fournisseurs</b><small>${pl(dusFourn.length, 'achat')} échu${sPl(dusFourn.length)}, pas encore réglé${sPl(dusFourn.length)}</small></span><button type="button" class="btn btn-sm" id="tr-s-ach">Voir ce que je dois</button></li>` : '',
+        fisc ? `<li class="tr-s"><span>${lfIc('echeance', 16)}</span><span class="txt"><b>${h(fisc.label)} le ${C.fmtDate(fisc.date)}</b><small>${fiscEst ? `estimée à ${h(C.money(-fiscEst.amount, cur))} sur ce qui est saisi à ce jour : elle est dans la prévision` : 'son montant n\'est pas dans la prévision : SkanFact connaît la date, pas la somme'}</small></span><button type="button" class="btn btn-sm" id="tr-s-fisc">Voir le calendrier</button></li>` : ''].filter(Boolean);
+      const recoDe = id => (recos.find(x => x.a.id === id) || {}).r;
+      // La courbe des trente derniers jours d'un compte : son solde au soir de chaque jour (depuis sa date d'ouverture
+      // si elle est plus récente) ; lue sur les mêmes mouvements que son solde.
+      const sparkCompte = a => {
+        const d0 = C.addDays(t0, -30);
+        const debut = a.openingDate && a.openingDate > d0 ? a.openingDate : d0;
+        let b = C.accountBalance(data, company(), a.id, debut).balance;
+        const mv = C.cashMovements(data, company(), { from: C.addDays(debut, 1), to: t0 }, a.id).slice().sort((x, y) => (x.date || '').localeCompare(y.date || ''));
+        const vals = [];
+        let i = 0;
+        for (let d = debut; d <= t0; d = C.addDays(d, 1)) {
+          while (i < mv.length && mv[i].date <= d) b = C.round3(b + mv[i++].amount);
+          vals.push(b);
+        }
+        if (vals.length < 2) return '';
+        const W = 120, H = 34, mx = Math.max(...vals), mn = Math.min(...vals), sp = Math.max(1, mx - mn), dx = 30 - (vals.length - 1);
+        const pts = vals.map((v, k) => `${((k + dx) * W / 30).toFixed(1)},${(mx === mn ? H / 2 : H - 3 - (H - 6) * (v - mn) / sp).toFixed(1)}`).join(' ');
+        return `<svg class="tr-spark${vals[vals.length - 1] < vals[0] ? ' baisse' : ''}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts}"/></svg>`;
+      };
+      const carte = a => {
+        const r = recoDe(a.id), moves = r ? r.moves : [];
+        const nAP = moves.filter(m => !m.reconciled).length;
+        const dernier = moves.filter(m => m.reconciled).reduce((d, m) => (m.date > d ? m.date : d), '');
+        return `<article class="tr-compte" data-acc="${h(a.id)}">
+          <div class="tr-c-tete"><span class="tr-c-ic">${lfIc(a.kind === 'caisse' ? 'depot' : 'carte', 18, 1.8)}</span>
+            <span class="tr-c-nom"><b title="${h(a.name)}">${h(a.name)}</b><small class="tr-c-sous">${h([a.bank, kindDe(a)].filter(Boolean).join(' · '))}${a.isDefault ? ' · <span class="tr-c-def">par défaut</span>' : ''}</small></span>
+            ${RowMenu.bouton(a.id, 'Actions', 'tr-c-menu')}</div>
+          <div class="tr-c-solde"><b class="${a.balance < 0 ? 'rouge' : ''}">${C.money(a.balance, cur)}</b>${sparkCompte(a)}</div>
+          <div class="tr-c-pied"><span>${dernier ? `Relevé pointé jusqu'au ${C.fmtDate(dernier)}` : moves.length ? 'Relevé jamais pointé' : 'Aucun mouvement'}</span>${nAP ? `<span class="tr-c-ap">${pl(nAP, 'mouvement')} à pointer</span>` : moves.length ? `<span class="tr-c-ok">${lfIc('coche', 13, 2.6)} tout pointé</span>` : ''}</div>
+        </article>`;
+      };
+      const eff = C.portefeuilleEffets(data, company(), t0);
+      const effPage = paginate(eff.effets, s.effets);
+      const jours = d => Math.round((Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) - Date.UTC(+t0.slice(0, 4), +t0.slice(5, 7) - 1, +t0.slice(8, 10))) / 864e5);
+      const nonPointe = C.round3(pos.accounts.reduce((x, a) => x + (a.pending || 0), 0));
       $('#t-body').innerHTML = `
-        <div class="stats">
-          <div class="stat"><div class="lbl">Disponible aujourd'hui ${info('tre.total')}</div><div class="val ${pos.total < 0 ? 'due' : ''}">${C.money(pos.total, cur)}</div><div class="sub">${pl(pos.accounts.length, 'compte')}</div></div>
-          <div class="stat"><div class="lbl">À encaisser ${info('dash.open')}</div><div class="val">${C.money(f.inflow, cur)}</div><div class="sub">sous 30 jours</div></div>
-          <div class="stat"><div class="lbl">À décaisser ${info('tre.decaisser')}</div><div class="val">${C.money(-f.outflow, cur)}</div><div class="sub">sous 30 jours</div></div>
-          <div class="stat"><div class="lbl">Solde projeté à 30 jours ${info('tre.projected')}</div><div class="val ${f.end < 0 ? 'due' : 'ok'}">${C.money(f.end, cur)}</div><div class="sub">${f.shortfall ? `<span class="warn-text">passage en négatif le ${C.fmtDate(f.shortfall.date)}</span>` : 'aucun trou prévu'}</div></div>
-        </div>
-        ${f.shortfall ? `<div class="panel" style="border-inline-start:3px solid var(--danger)">
-          <h2 style="color:var(--danger)">Trou de trésorerie prévu le ${C.fmtDate(f.shortfall.date)} ${info('tre.shortfall')}</h2>
-          <p class="small">Si tout se passe comme prévu, ton solde descendra à <strong>${C.money(f.shortfall.balance, cur)}</strong> après « ${h(f.shortfall.label)} ».</p>
-          <p class="small muted">Ce qui peut le combler : relancer ${pl(f.late.clients.length, 'facture')} client déjà échue${sPl(f.late.clients.length)}, décaler un règlement fournisseur, ou prévenir ta banque. Un trou anticipé se négocie ; un trou constaté se subit.</p>
-        </div>` : ''}
-        <div class="panel"><h2>Comptes ${info('tre.accounts')}</h2>
-          <table class="list compact"><thead><tr><th>Compte</th><th>Type</th><th class="r">Solde de départ</th><th class="r">Mouvements</th><th class="r">Solde</th><th class="r">Non pointé</th><th></th></tr></thead><tbody>
-            ${pos.accounts.map(a => `<tr><td><strong>${h(a.name)}</strong>${a.isDefault ? ' <span class="badge b-paid">par défaut</span>' : ''}${a.bank ? `<div class="small muted">${h(a.bank)}</div>` : ''}</td>
-              <td class="small">${h((C.ACCOUNT_KINDS.find(k => k[0] === a.kind) || [, a.kind])[1])}</td>
-              <td class="r nw">${C.money(a.opening, cur)}<div class="small muted">au ${C.fmtDate(a.openingDate)}</div></td>
-              <td class="r nw">${a.count} · ${C.money(a.movements, cur)}</td>
-              <td class="r nw"><strong class="${a.balance < 0 ? 'warn-text' : ''}">${C.money(a.balance, cur)}</strong></td>
-              <td class="r nw">${a.pending ? C.money(a.pending, cur) : '<span class="muted">—</span>'}</td>
-              <td class="actions"><button class="btn btn-ghost btn-sm" data-eacc="${h(a.id)}">Modifier</button></td></tr>`).join('')}
-            <tr class="total-row"><td colspan="4"><strong>Total disponible</strong></td><td class="r"><strong>${C.money(pos.total, cur)}</strong></td><td></td><td></td></tr>
-          </tbody></table>
-          <p class="small muted mt">« Non pointé » : ce que SkanFact connaît et que tu n'as pas encore retrouvé sur ton relevé. L'onglet Rapprochement sert à ça.</p>
-        </div>`;
-      $$('[data-eacc]').forEach(b => b.onclick = () => accountForm(data.accounts.find(a => a.id === b.dataset.eacc), () => draw()));
+        <div class="tr-cartes" id="tr-comptes">${pos.accounts.map(carte).join('')}</div>
+        <div class="tr-dispo"><span><b>Disponible</b> <small class="muted">${pl(pos.accounts.length, 'compte')}${Math.abs(nonPointe) > 0.0005 ? ` · dont ${h(moneySigne(nonPointe, cur))} pas encore pointés ${info('tre.pending')}` : ''}</small></span><b class="${pos.total < 0 ? 'rouge' : ''}">${C.money(pos.total, cur)}</b></div>
+        ${surveiller.length ? `<div class="tr-surv"><h3>À surveiller</h3><ul>${surveiller.join('')}</ul></div>` : `<p class="tr-calme">${lfIc('coche', 16, 2.4)} Rien d'échu ni chez tes clients ni chez tes fournisseurs.</p>`}
+        ${eff.effets.length ? `<section class="tr-sec tr-effets"><h3 class="tr-h">Effets en portefeuille ${info('tre.effets')}</h3>
+          <div class="tr-eff-tot">${eff.aRecevoir ? `<span>À encaisser <b class="ok-text">${C.money(eff.aRecevoir, cur)}</b></span>` : ''}${eff.aPayer ? `<span>À payer <b>${C.money(eff.aPayer, cur)}</b></span>` : ''}</div>
+          <div id="tr-eff"><div class="scroll-x"><table class="list compact" id="tr-effets"><thead><tr><th>Échéance</th><th>Effet</th><th>Tiers</th><th>Pièce</th><th class="r">Montant</th></tr></thead><tbody>
+            ${effPage.rows.map(x => `<tr class="clickable" data-go="${h(x.docId ? '#/doc/' + x.docId : '#/achat/' + x.purchaseId)}"><td class="nw">${C.fmtDate(x.echeance)}<div class="small muted">dans ${pl(jours(x.echeance), 'jour')}</div></td>
+              <td>${h(methodLabel(x.type))}${x.numero ? ` <span class="muted">n° ${h(x.numero)}</span>` : ''}${x.recuLe ? `<div class="small muted">${x.sens === 'recevoir' ? 'reçu' : 'remis'} le ${C.fmtDate(x.recuLe)}</div>` : ''}</td>
+              <td>${h(x.tiers)}</td><td class="nw">${h(x.piece || '—')}</td>
+              <td class="r nw m ${x.sens === 'recevoir' ? 'ok-text' : ''}">${moneySigne(x.sens === 'recevoir' ? x.montant : -x.montant, cur)}</td></tr>`).join('')}
+          </tbody></table></div>${pagerBar(effPage.pg, { noun: 'effet' })}</div></section>` : ''}`;
+      $$('#tr-comptes [data-acc]').forEach(c => c.onclick = e => { if (e.target.closest('button, a')) return; s.account = c.dataset.acc; s.tab = 'mouvements'; s.moves.page = 1; render(true); });
+      bindRowMenus($('#tr-comptes'), id => {
+        const a = data.accounts.find(x => x.id === id); if (!a) return [];
+        return [
+          { icon: 'modifier', label: 'Modifier le compte', run: () => accountForm(a, () => render(true)) },
+          { icon: 'loupe', label: 'Voir ses mouvements', run: () => { s.account = a.id; s.tab = 'mouvements'; s.moves.page = 1; render(true); } },
+          { icon: 'oui', label: 'Le rapprocher de son relevé', run: () => { s.account = a.id; s.tab = 'rapprochement'; render(true); } },
+          { sep: true },
+          { icon: 'nouveau', label: 'Noter un mouvement sur ce compte', run: () => movementForm(null, () => render(true), { accountId: a.id }) }];
+      }, id => ((data.accounts.find(x => x.id === id)) || {}).name || '');
+      if ($('#tr-eff')) {
+        bindPager($('#tr-eff'), s.effets, () => draw(), '#tr-eff');
+        $$('#tr-effets tr[data-go]').forEach(tr => tr.onclick = () => navigate(tr.dataset.go));
+      }
+      if ($('#tr-s-rel')) $('#tr-s-rel').onclick = () => navigate('#/relances');
+      if ($('#tr-s-ach')) $('#tr-s-ach').onclick = () => navigate('#/achats');
+      if ($('#tr-s-fisc')) $('#tr-s-fisc').onclick = vers('#/compta', () => { comptaState.tab = 'calendrier'; });
     }
 
     // --- Ce qui arrive
     // L'origine d'une échéance, en mots : une saisie datée d'après aujourd'hui se nomme par ce
     // qu'elle est (10.14.0), sinon « Contrat récurrent » l'aurait rangée parmi les factures à venir.
     const ORIGINE_PREVISION = {
-      client: 'Facture client', fournisseur: 'Achat', salaire: 'Bulletin à payer',
+      client: 'Facture client', fournisseur: 'Achat', salaire: 'Bulletin à payer', contrat: 'Contrat récurrent',
+      'salaire-prevu': 'Salaire du mois', fiscal: 'Impôt', repete: 'Dépense qui revient',
       'saisi-vente': 'Paiement client saisi', 'saisi-achat': 'Règlement saisi', 'saisi-paie': 'Bulletin payé',
       'saisi-avance': 'Avance sur salaire', 'saisi-libre': 'Mouvement saisi'
     };
+    // (1.266.0) Trois façons d'attendre l'argent des clients : à l'échéance que la facture dit ; au délai réel de chaque
+    // client (mesuré sur ses factures soldées) ; sans les factures déjà en retard.
+    const MODES_TRESO = [['echeance', 'À l\'échéance'], ['habitude', 'Comme ils paient d\'habitude'], ['prudent', 'Sans les retards']];
+    // Plusieurs semaines vides de suite se lisent en une ligne : « rien de prévu » répété huit fois ne dit rien de plus.
+    const semainesFusionnees = l => l.reduce((out, w) => {
+      const p = out[out.length - 1];
+      if (!w.n && p && !p.n) { p.au = w.au; p.solde = w.solde; p.fusion = (p.fusion || 1) + 1; } else out.push({ ...w });
+      return out;
+    }, []);
+    const cleDecalage = e => `${e.kind}:${e.id}`;
+    // Ouvrir ce d'où vient une échéance : sa pièce, son bulletin, son mouvement, la paie, le calendrier fiscal.
+    const ouvrirEcheance = e => {
+      const src = e.source || '';
+      if (e.kind === 'salaire' || src === 'paie') { const sl = (data.payslips || []).find(x => x.id === e.id); if (sl) payslipForm(sl, (data.employees || []).find(x => x.id === sl.employeeId), sl.year, sl.month, () => draw()); return; }
+      if (e.kind === 'salaire-prevu') return navigate('#/paie');
+      if (e.kind === 'fiscal') return vers('#/compta', () => { comptaState.tab = 'calendrier'; })();
+      if (e.kind === 'repete') { const m = (data.movements || []).find(x => x.id === e.movementId); if (m) movementForm(m, () => draw()); return; }
+      if (src === 'libre') { const m = (data.movements || []).find(x => x.id === e.id); if (m) movementForm(m, () => draw()); return; }
+      if (src === 'avance') { const a = (data.advances || []).find(x => x.id === e.id); if (a) advanceForm(a, a.employeeId, () => draw()); return; }
+      navigate(e.kind === 'client' || src === 'vente' ? '#/doc/' + e.id : e.kind === 'fournisseur' || src === 'achat' ? '#/achat/' + e.id : '#/contrat/' + e.id);
+    };
+    // L'essai « et si je décale ce paiement ? » : une autre date pour une échéance, sans rien enregistrer.
+    const decalerEcheance = e => modal(`<h2>Et si je décale cette échéance ?</h2>
+      <p class="small muted">${h(e.label)} · ${moneySigne(e.amount, cur)} · prévue le ${C.fmtDate(e.date)}</p>
+      <p class="small">C'est un <b>essai</b> : rien n'est enregistré, ni sur la pièce ni chez ${e.amount > 0 ? 'le client' : 'le fournisseur'}. La courbe montre ce que deviendrait ton solde ; « Annuler l'essai » remet tout comme avant. Une date au-delà de l'horizon sort l'échéance de la prévision.</p>
+      <form id="dcf" class="grid-2">${dateFieldHtml(lbl('Nouvelle date', 'tre.essai'), 'date', C.addDays(e.date, 15), { obligatoire: true })}</form>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Essayer cette date</button></div>`,
+    (root, close) => {
+      $('#ok', root).onclick = () => {
+        const v = formValues($('#dcf', root));
+        if (!v.date) return refus($('[name=date]', root), 'Choisis la date à essayer.');
+        s.decalages = { ...(s.decalages || {}), [cleDecalage(e)]: v.date };
+        s.prevision.page = 1; close(); draw();
+      };
+    });
+    // Le seuil sous lequel la trésorerie alerte : zéro, un minimum de sécurité, ou un découvert autorisé (en négatif).
+    const reglerSeuil = () => modal(`<h2>Le seuil d'alerte de ta trésorerie</h2>
+      <p class="small muted">SkanFact t'alerte quand la prévision passe sous ce montant : le bandeau rouge, le point d'exclamation dans la barre, l'alerte de l'accueil. Zéro par défaut. Mets ton minimum de sécurité (par exemple 5 000), ou ton découvert autorisé en négatif (par exemple −10 000).</p>
+      <form id="sf" class="grid-2">${field(lbl(`Seuil (${h(C.normCurrency(company().currency))})`, 'tre.seuil'), 'seuil', Number(company().tresoSeuil) || 0, 'number', 'step="0.001" class="num"')}</form>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+    (root, close) => {
+      $('#ok', root).onclick = () => {
+        const brut = String(formValues($('#sf', root)).seuil || '0').replace(',', '.');
+        const n = Number(brut);
+        if (!Number.isFinite(n)) return refus($('[name=seuil]', root), 'Écris un montant en chiffres : 0, 5000 ou -10000.');
+        const avant = company().tresoSeuil;
+        company().tresoSeuil = C.round3(n);
+        save(true); close(); render(true);
+        toastUndo(`Seuil d'alerte : ${C.money(n, cur)}`, () => { company().tresoSeuil = avant; save(true); render(true); });
+      };
+    });
+    // (1.266.0) L'horizon et la façon d'attendre les clients en barres segmentées, le seuil réglable ; la courbe suit le
+    // CALENDRIER (avec le seuil, les échéances fiscales et un curseur qui lit chaque jour) ; puis les semaines et le détail,
+    // chaque échéance avec son menu : l'ouvrir, la décaler pour essayer, noter payée une dépense qui revient.
     function drawForecast() {
-      const f = C.cashForecast(data, company(), s.days, C.today());
+      const dec = s.decalages || {};
+      const nbDec = Object.keys(dec).length;
+      const f = C.cashForecast(data, company(), s.days, t0, { encaissement: s.mode, decalages: dec });
+      const sansEssai = nbDec ? C.cashForecast(data, company(), s.days, t0, { encaissement: s.mode }) : null;
+      const brutes = C.semainesTreso(f);
+      const sem = semainesFusionnees(brutes);
       const prevPage = paginate(f.events.map((_, i) => i), s.prevision);
+      const nbHabitude = f.events.filter(e => e.habitude && !e.late).length;
+      const nbRetards = f.late.clients.length;
+      const nbEstimes = f.events.filter(e => e.estime).length;
+      const noteMode = s.mode === 'prudent' ? ' <b>Sans les retards</b> : les factures clients déjà échues n\'y comptent pas.'
+        : s.mode === 'habitude' ? (nbHabitude ? ` <b>Comme ils paient d'habitude</b> : ${pl(nbHabitude, 'facture')} ${nbHabitude > 1 ? 'sont attendues' : 'est attendue'} au délai réel de ${nbHabitude > 1 ? 'leur' : 'son'} client, mesuré sur ses factures payées.` : ' <b>Comme ils paient d\'habitude</b> : aucun client n\'a encore assez de factures payées (deux au moins) pour mesurer son délai ; tout est attendu à l\'échéance.')
+          : nbRetards ? ` ${pl(nbRetards, 'facture')} déjà échue${sPl(nbRetards)} y ${nbRetards > 1 ? 'sont attendues' : 'est attendue'} aujourd'hui.` : '';
       $('#t-body').innerHTML = `
-        <div class="filters">
-          <select id="t-days">${[30, 60, 90, 180].map(d => `<option value="${d}" ${Number(s.days) === d ? 'selected' : ''}>${d} jours</option>`).join('')}</select>
-          ${info('tre.forecast')}
-          <span class="small muted">Départ ${C.money(f.start, cur)} · arrivée ${C.money(f.end, cur)}</span>
+        ${nbDec ? `<div class="bandeau ambre tr-essai" role="status">${lfIc('horloge', 18, 2)}<span class="txt"><b>Essai : ${pl(nbDec, 'échéance décalée', 'échéances décalées')}, rien n'est enregistré</b><span>Sans l'essai, ton solde descend au plus bas à ${C.money(sansEssai.lowest.balance, cur)} ; avec, à ${C.money(f.lowest.balance, cur)}. Pour le faire vraiment, change la date sur la pièce ou demande-le au tiers.</span></span><button type="button" class="btn btn-sm" id="t-essai-fin">Annuler l'essai</button></div>` : ''}
+        <div class="tr-barre">
+          <div class="pa-seg filtre" id="t-days" role="tablist" aria-label="Horizon">${[30, 60, 90, 180].map(d => `<button type="button" role="tab" data-days="${d}" aria-selected="${Number(s.days) === d}" class="${Number(s.days) === d ? 'active' : ''}">${d} jours</button>`).join('')}</div>
+          <div class="pa-seg filtre" id="t-mode" role="tablist" aria-label="Comment attendre les clients">${MODES_TRESO.map(([k, l]) => `<button type="button" role="tab" data-mode="${k}" aria-selected="${s.mode === k}" class="${s.mode === k ? 'active' : ''}">${l}${k === 'prudent' && nbRetards && s.mode !== 'prudent' ? ` <small>${nbRetards}</small>` : ''}</button>`).join('')}</div>
+          ${info('tre.prudent')}
+          <button type="button" class="btn btn-sm tr-seuil" id="t-seuil">Seuil : ${h(C.money(f.seuil, cur))}</button>
         </div>
-        <div class="panel"><h2>Courbe du solde prévu ${info('tre.curve')}</h2>
-          ${forecastChart(f)}
-          <p class="small muted mt">Seules les échéances connues sont projetées : factures ouvertes, achats à régler, salaires dus, contrats récurrents, et ce qui est déjà saisi pour une date à venir. Aucune estimation, aucune moyenne — ce que tu vois est ce qui est déjà engagé.</p>
-        </div>
-        ${f.fiscal.length ? `<div class="panel"><h2>Échéances fiscales sur la période ${info('compta.fiscal')}</h2>
-          <p class="small muted">Leur montant n'est pas dans la courbe : SkanFact connaît la date, pas la somme. Pense à les provisionner.</p>
-          <ul class="small">${f.fiscal.map(x => `<li><strong>${C.fmtDate(x.date)}</strong> — ${h(x.label)}</li>`).join('')}</ul>
-        </div>` : ''}
-        <div class="panel"><h2>Le détail, dans l'ordre ${info('tre.events')}</h2>
-          ${f.events.length ? `<div id="t-prev"><table class="list compact"><thead><tr><th>Date</th><th>Origine</th><th>Pièce</th><th class="r">Mouvement</th><th class="r">Solde après</th></tr></thead><tbody>
-            ${prevPage.rows.map(i => { const p = f.points[i + 1], e = f.events[i]; return `<tr class="clickable ${p.balance < 0 ? 'row-warn' : ''}" data-fid="${h(e.id)}" data-fkind="${h(e.kind)}" data-fsrc="${h(e.source || '')}">
-              <td class="nw">${C.fmtDate(p.date)}${e.late ? '<div class="small warn-text">déjà échue</div>' : ''}</td>
-              <td class="small">${ORIGINE_PREVISION[e.kind === 'saisi' ? 'saisi-' + e.source : e.kind] || 'Contrat récurrent'}</td>
-              <td>${h(e.label)}</td>
-              <td class="r nw ${p.delta > 0 ? 'ok-text' : 'warn-text'}">${moneySigne(p.delta, cur)}</td>
-              <td class="r nw ${p.balance < 0 ? 'warn-text' : ''}"><strong>${C.money(p.balance, cur)}</strong></td></tr>`; }).join('')}
-          </tbody></table>${pagerBar(prevPage.pg, { noun: 'échéance' })}</div>` : '<div class="empty">Rien d\'attendu sur cette période : aucune facture ouverte, aucun achat à régler, aucun salaire dû.</div>'}
-        </div>`;
-      $('#t-days').onchange = e => { s.days = Number(e.target.value); s.prevision.page = 1; draw(); };
-      if ($('#t-prev')) bindPager($('#t-prev'), s.prevision, () => draw(), '#t-prev');
-      $$('#t-body tr[data-fid]').forEach(tr => tr.onclick = () => {
-        const k = tr.dataset.fkind;
-        const src = tr.dataset.fsrc || '';
-        if (k === 'salaire' || src === 'paie') { const sl = (data.payslips || []).find(x => x.id === tr.dataset.fid); if (sl) payslipForm(sl, (data.employees || []).find(x => x.id === sl.employeeId), sl.year, sl.month, () => draw()); return; }
-        if (src === 'libre') { const m = (data.movements || []).find(x => x.id === tr.dataset.fid); if (m) movementForm(m, () => draw()); return; }
-        if (src === 'avance') { const a = (data.advances || []).find(x => x.id === tr.dataset.fid); if (a) advanceForm(a, a.employeeId, () => draw()); return; }
-        navigate(k === 'client' || src === 'vente' ? '#/doc/' + tr.dataset.fid : k === 'fournisseur' || src === 'achat' ? '#/achat/' + tr.dataset.fid : '#/contrat/' + tr.dataset.fid);
-      });
+        <div class="tr-graphe-t"><span>Aujourd'hui <b>${C.money(f.start, cur)}</b></span><span>Au plus bas <b class="${f.lowest.balance < f.seuil ? 'rouge' : ''}">${C.money(f.lowest.balance, cur)}</b> <small class="muted">le ${C.fmtDate(f.lowest.date)}</small></span><span>Le ${C.fmtDate(f.horizon)} <b class="${f.end < f.seuil ? 'rouge' : ''}">${C.money(f.end, cur)}</b></span>${f.shortfall ? `<span class="rouge-t">${lfIc('alerte', 14, 2.2)} ${f.seuil ? 'sous ton seuil' : 'sous zéro'} le ${C.fmtDate(f.shortfall.date)}</span>` : ''}</div>
+        <div class="tr-graphe-w" id="t-courbe">${forecastChart(f)}</div>
+        <p class="small muted tr-note">Ce qui a une échéance connue : factures ouvertes, achats à régler, bulletins dus, contrats récurrents, dépenses qui reviennent, et ce qui est déjà saisi pour plus tard.${nbEstimes ? ` <b>Estimé</b> : les salaires des mois sans bulletin et les impôts du mois, calculés sur ce qui est saisi à ce jour.` : ''}${noteMode}</p>
+        <h3 class="tr-h">Semaine par semaine</h3>
+        <div class="scroll-x"><table class="list compact" id="t-sem"><thead><tr><th>Semaine</th><th class="r">Entre</th><th class="r">Sort</th><th class="r">Solde en fin de semaine</th></tr></thead><tbody>
+          ${sem.map(w => `<tr class="${w.solde < f.seuil ? 'row-warn' : ''}${w.n ? '' : ' tr-vide'}"><td class="nw">${C.fmtDate(w.du)}${w.au !== w.du ? ` → ${C.fmtDate(w.au)}` : ''}${w.n ? '' : ` <small class="muted">${w.fusion > 1 ? `${w.fusion} semaines sans rien de prévu` : 'rien de prévu'}</small>`}</td>
+            <td class="r nw m">${w.entrees ? `<span class="ok-text">${moneySigne(w.entrees, cur)}</span>` : '<span class="muted">—</span>'}</td>
+            <td class="r nw m">${w.sorties ? moneySigne(w.sorties, cur) : '<span class="muted">—</span>'}</td>
+            <td class="r nw m"><b class="${w.solde < f.seuil ? 'rouge' : ''}">${C.money(w.solde, cur)}</b></td></tr>`).join('')}
+        </tbody><tfoot><tr><td><b>${pl(brutes.length, 'semaine')}</b></td><td class="r nw m">${moneySigne(f.inflow, cur)}</td><td class="r nw m">${moneySigne(f.outflow, cur)}</td><td class="r nw m"><b>${C.money(f.end, cur)}</b></td></tr></tfoot></table></div>
+        ${f.fiscal.length ? `<h3 class="tr-h">Échéances fiscales sur la période ${info('compta.fiscal')}</h3>
+          <ul class="tr-fisc">${f.fiscal.map(x => {
+            const e = f.events.find(ev => ev.kind === 'fiscal' && (ev.id === x.filingId || (x.socialId && ev.id === x.socialId)));
+            return `<li><b>${C.fmtDate(x.date)}</b><span>${h(x.label)}</span>${e ? `<span class="m">${moneySigne(e.amount, cur)} <small class="mg-pas ambre">estimé</small></span>` : '<span class="muted">montant inconnu</span>'}</li>`; }).join('')}</ul>
+          <p class="small muted tr-note">La déclaration du mois (TVA, retenues sur les achats et sur les salaires) et la CNSS du trimestre sont estimées sur ce qui est saisi à ce jour et comptées dans la courbe ; marquée déposée, une déclaration en sort. Les autres n'ont que leur date : pense à les provisionner. Les montants : À VÉRIFIER avec ton comptable.</p>` : ''}
+        <h3 class="tr-h">Le détail, dans l'ordre ${info('tre.events')}</h3>
+        ${f.events.length ? `<div id="t-prev"><div class="scroll-x"><table class="list compact"><thead><tr><th>Date</th><th>Origine</th><th>Pièce</th><th class="r">Mouvement</th><th class="r">Solde après</th><th class="row-actions-h"></th></tr></thead><tbody>
+          ${prevPage.rows.map(i => { const p = f.points[i + 1], e = f.events[i]; return `<tr class="clickable ${p.balance < f.seuil ? 'row-warn' : ''}" data-ev="${i}">
+            <td class="nw">${C.fmtDate(p.date)}${e.late ? '<div class="small warn-text">déjà échue</div>' : ''}${e.decale ? '<div class="small"><small class="mg-pas ambre">décalée (essai)</small></div>' : ''}</td>
+            <td class="small">${ORIGINE_PREVISION[e.kind === 'saisi' ? 'saisi-' + e.source : e.kind] || 'Contrat récurrent'}${e.estime ? ' <small class="mg-pas ambre">estimé</small>' : ''}${e.habitude && !e.late ? `<div class="small muted">+${pl(e.habitude, 'jour')}, son habitude</div>` : ''}</td>
+            <td>${h(e.label)}</td>
+            <td class="r nw m ${p.delta > 0 ? 'ok-text' : ''}">${moneySigne(p.delta, cur)}</td>
+            <td class="r nw m ${p.balance < f.seuil ? 'warn-text' : ''}"><b>${C.money(p.balance, cur)}</b></td>${rowMenuCell(String(i))}</tr>`; }).join('')}
+        </tbody></table></div>${pagerBar(prevPage.pg, { noun: 'échéance' })}</div>` : `<div class="mg-vide">${lfIc('echeance', 24, 1.6)}<b>Rien d'attendu sur ${s.days} jours</b><span>Aucune facture ouverte, aucun achat à régler, aucun salaire dû.</span></div>`}`;
+      $$('#t-days [data-days]').forEach(b => b.onclick = () => { s.days = Number(b.dataset.days); s.prevision.page = 1; draw(); });
+      $$('#t-mode [data-mode]').forEach(b => b.onclick = () => { s.mode = b.dataset.mode; s.prevision.page = 1; draw(); });
+      $('#t-seuil').onclick = reglerSeuil;
+      if ($('#t-essai-fin')) $('#t-essai-fin').onclick = () => { s.decalages = {}; s.prevision.page = 1; draw(); };
+      brancherCourbe($('#t-courbe'), f);
+      if ($('#t-prev')) {
+        bindPager($('#t-prev'), s.prevision, () => draw(), '#t-prev');
+        $$('#t-prev tr[data-ev]').forEach(tr => tr.onclick = ev => { if (ev.target.closest('button, a')) return; ouvrirEcheance(f.events[Number(tr.dataset.ev)]); });
+        bindRowMenus($('#t-prev'), id => {
+          const e = f.events[Number(id)]; if (!e) return [];
+          const ouvrir = e.kind === 'salaire-prevu' ? 'Voir la paie' : e.kind === 'fiscal' ? 'Voir le calendrier fiscal' : e.kind === 'repete' ? 'Ouvrir le mouvement d\'origine' : e.kind === 'salaire' || e.source === 'paie' ? 'Ouvrir le bulletin' : e.kind === 'contrat' ? 'Ouvrir le contrat' : 'Ouvrir la pièce';
+          const src = e.kind === 'repete' ? (data.movements || []).find(x => x.id === e.movementId) : null;
+          return [
+            { icon: 'loupe', label: ouvrir, run: () => ouvrirEcheance(e) },
+            src ? { icon: 'argent', label: 'Noter comme payé', run: () => movementForm(null, () => render(true), {
+              kind: src.kind, amount: Math.abs(Number(src.amount) || 0), accountId: src.accountId, label: src.label || '', method: src.method || 'virement',
+              compte: src.compte || '', date: e.date > C.today() ? C.today() : e.date, repeteDe: src.id, occurrence: e.date }) } : null,
+            { sep: true },
+            { icon: 'modifier', label: 'Décaler (essai)…', run: () => decalerEcheance(e) },
+            e.decale ? { icon: 'restaurer', label: 'Remettre à sa date', run: () => { const d = { ...(s.decalages || {}) }; delete d[cleDecalage(e)]; s.decalages = d; draw(); } } : null];
+        }, id => ((f.events[Number(id)]) || {}).label || '');
+      }
     }
 
     // --- Mouvements
+    // (1.266.0) La barre des listes : une recherche (libellé, tiers, référence), le compte, l'année, et « Entrées »,
+    // « Sorties » en pastilles comptées ; les trois tuiles deviennent le pied du tableau, sur ce qui est affiché. Sur UN
+    // compte, dans l'ordre des dates et sans filtre, chaque ligne dit le solde après elle ; les mois se séparent.
     function drawMoves() {
+      const accSolde = s.account ? data.accounts.find(a => a.id === s.account) : data.accounts.length === 1 ? data.accounts[0] : null;
+      const soldeOk = !!accSolde && !s.q && !s.sens && (!s.moves.sort || s.moves.sort.key === 'date');
+      // Le solde après chaque mouvement, lu sur les mêmes mouvements que le solde du compte : le départ à sa date, puis
+      // chaque mouvement dans l'ordre (`accountBalance` fait la même somme).
+      const soldeApres = new Map();
+      if (soldeOk) {
+        let b = Number(accSolde.opening) || 0;
+        C.cashMovements(data, company(), { from: accSolde.openingDate || '', to: '9999-12-31' }, accSolde.id).forEach(m => { b = C.round3(b + m.amount); soldeApres.set(m.id, b); });
+      }
       const cols = [
         { key: 'date', label: 'Date', cls: 'nw', asc: true, val: m => m.date || '', get: m => C.fmtDate(m.date) },
         // Le 📎 d'une ligne DÉDUITE est celui de la pièce d'où elle vient (10.14.1, S-04) : le règlement
         // d'un achat montre le justificatif de l'achat, un mouvement libre le sien.
-        { key: 'label', label: 'Libellé', asc: true, val: m => (m.label || '').toLowerCase(), get: m => `${h(m.label)}${marqueJustif(C.justificatifsDe(data, m))}${m.party ? `<div class="small muted">${h(m.party)}</div>` : ''}` },
+        { key: 'label', label: 'Libellé', asc: true, val: m => (m.label || '').toLowerCase(), get: m => `<span class="tr-lib">${h(m.label)}</span>${marqueJustif(C.justificatifsDe(data, m))}${m.party ? `<div class="small muted">${h(m.party)}</div>` : ''}` },
         { key: 'account', label: 'Compte', asc: true, val: m => m.accountId, get: m => h(((data.accounts.find(a => a.id === m.accountId)) || {}).name || '—') },
         { key: 'method', label: 'Mode', asc: true, val: m => m.method || '', get: m => h(methodLabel(m.method)) },
         { key: 'reference', label: 'Référence', asc: true, val: m => (m.reference || '').toLowerCase(), get: m => h(m.reference || '') || '<span class="muted">—</span>' },
-        { key: 'amount', label: 'Montant', r: true, val: m => m.amount, get: m => `<span class="${m.amount > 0 ? 'ok-text' : ''}">${moneySigne(m.amount, cur)}</span>` }
-      ];
+        { key: 'amount', label: 'Montant', r: true, val: m => m.amount, get: m => `<span class="${m.amount > 0 ? 'ok-text' : ''}">${moneySigne(m.amount, cur)}</span>` },
+        ...(soldeOk ? [{ key: 'solde', label: 'Solde après', r: true, get: m => (soldeApres.has(m.id) ? `<span class="${soldeApres.get(m.id) < 0 ? 'rouge' : ''}">${C.money(soldeApres.get(m.id), cur)}</span>` : '<span class="muted">—</span>') }] : [])
+      ].filter(c => !(c.key === 'account' && s.account));   // un compte choisi : la colonne « Compte » répéterait son nom
       // L'année se choisit. Elle était figée sur l'année en cours, sans le moindre moyen de
       // remonter : le 3 janvier, la page de trésorerie devenait vide et l'année écoulée
       // inatteignable — alors que c'est exactement le moment où on la regarde.
@@ -26152,39 +26378,43 @@
         .map(m => (m.date || '').slice(0, 4)).filter(Boolean).concat([C.today().slice(0, 4)]))).sort().reverse();
       if (!annees.includes(s.year)) s.year = annees[0];
       const period = { from: `${s.year}-01-01`, to: `${s.year}-12-31` };
-      const all = C.cashMovements(data, company(), period, s.account || null);
-      const rows = applySort(all.slice().reverse(), cols, s.moves.sort);
-      const pg = paginate(rows, s.moves);
+      const duCompte = C.cashMovements(data, company(), period, s.account || null);
+      const cherche = duCompte.filter(m => !s.q || C.correspondRecherche([m.label, m.party, m.reference, methodLabel(m.method)].join(' '), s.q));
       // Tous comptes confondus, un virement entre deux comptes de l'entreprise n'est ni une entrée ni
       // une sortie : l'argent change de poche (10.14.0). Il ne compte que sur UN compte choisi.
       const interne = m => !s.account && m.virement;
+      const nbE = cherche.filter(m => m.amount > 0 && !interne(m)).length, nbS = cherche.filter(m => m.amount < 0 && !interne(m)).length;
+      const all = cherche.filter(m => !s.sens || (s.sens === 'entrees' ? m.amount > 0 : m.amount < 0) && !interne(m));
+      const rows = applySort(all.slice().reverse(), cols, s.moves.sort);
+      const pg = paginate(rows, s.moves);
       const entrees = C.round3(all.filter(m => m.amount > 0 && !interne(m)).reduce((x, m) => x + m.amount, 0));
       const sorties = C.round3(all.filter(m => m.amount < 0 && !interne(m)).reduce((x, m) => x + m.amount, 0));
       const nbInternes = s.account ? 0 : all.filter(m => m.virement && !m.arrivee).length;
+      const filtre = !!(s.q || s.sens);
+      const parDate = !s.moves.sort || s.moves.sort.key === 'date';
       $('#t-body').innerHTML = `
-        <div class="filters">
-          <select id="t-acc" aria-label="Compte"><option value="">Tous les comptes</option>${data.accounts.map(a => `<option value="${a.id}" ${s.account === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select>
-          <select id="t-year">${annees.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
-          ${info('tre.moves')}
-          <span class="small muted">${pl(all.length, 'mouvement')}</span>
+        <div class="tr-barre">
+          <label class="cherche tr-q">${lfIc('recherche', 16)}<input type="search" id="t-q" autocomplete="off" placeholder="Rechercher : libellé, tiers, référence…" value="${h(s.q)}" aria-label="Rechercher un mouvement"></label>
+          <label class="sel"><select id="t-acc" aria-label="Compte"><option value="">Tous les comptes</option>${data.accounts.map(a => `<option value="${a.id}" ${s.account === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
+          <label class="sel"><select id="t-year" aria-label="Année">${annees.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select></label>
+          <div class="pa-seg filtre tr-sens" role="tablist" aria-label="Sens">${[['', 'Tout', cherche.length], ['entrees', 'Entrées', nbE], ['sorties', 'Sorties', nbS]].map(([k, l, n]) => `<button type="button" role="tab" data-sens="${k}" aria-selected="${s.sens === k}" class="${s.sens === k ? 'active' : ''}">${l} <small>${n}</small></button>`).join('')}</div>
+          <button class="btn btn-sm" id="exp-moves">${lfIc('exporter', 15)} Exporter</button>
         </div>
-        <div class="stats">
-          <div class="stat"><div class="lbl">Entrées</div><div class="val ok">${C.money(entrees, cur)}</div><div class="sub">encaissements et apports</div></div>
-          <div class="stat"><div class="lbl">Sorties</div><div class="val due">${C.money(-sorties, cur)}</div><div class="sub">règlements et charges</div></div>
-          <div class="stat"><div class="lbl">Variation</div><div class="val ${entrees + sorties < 0 ? 'due' : 'ok'}">${C.money(C.round3(entrees + sorties), cur)}</div><div class="sub">sur ${h(s.year)}${nbInternes ? `, hors ${pl(nbInternes, 'virement')} entre tes comptes` : ''}</div></div>
-        </div>
-        <div class="panel"><h2>Tous les mouvements de ${h(s.year)}</h2>
-          <div class="inline mb"><button class="btn btn-sm" id="exp-moves">Exporter en CSV</button></div>
-          ${rows.length ? `<div id="m-wrap"><table class="list compact sortable"><thead>${sortHead(cols, s.moves.sort)}</thead><tbody>
-            ${pg.rows.map(m => { const cible = m.source === 'libre' ? '' : m.docId ? '#/doc/' + m.docId : m.purchaseId ? '#/achat/' + m.purchaseId : m.payslipId || m.advanceId || m.socialId ? '#/paie' : m.saisieId ? `#/salarie/${encodeURIComponent(m.employeeId)}` : '';
-              return `<tr class="${m.source === 'libre' || cible ? 'clickable' : ''}" data-mv="${m.source === 'libre' ? h(m.movementId) : ''}" data-go="${h(cible)}">
-              ${cols.map(c => `<td class="${c.r ? 'r nw' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(m)}</td>`).join('')}</tr>`; }).join('')}
-          </tbody></table></div>${pagerBar(pg.pg, { noun: 'mouvement' })}`
-            : `<div class="empty">Aucun mouvement en ${h(s.year)}.</div>`}
-          <p class="small muted mt">Clique une ligne pour ouvrir la pièce d'où elle vient : le compte et le mode de règlement se corrigent là-bas, dans le menu « Actions » du paiement. Les mouvements libres (salaires, impôts, apports, frais bancaires) se modifient ici même, et leur justificatif s'y joint. Un 📎 dit qu'une ligne a le sien.</p>
-        </div>`;
+        ${rows.length ? `<div id="m-wrap"><div class="scroll-x"><table class="list sortable" id="t-moves"><thead>${sortHead(cols, s.moves.sort)}</thead><tbody>
+          ${pg.rows.map((m, k) => { const cible = m.source === 'libre' ? '' : m.docId ? '#/doc/' + m.docId : m.purchaseId ? '#/achat/' + m.purchaseId : m.payslipId || m.advanceId || m.socialId ? '#/paie' : m.saisieId ? `#/salarie/${encodeURIComponent(m.employeeId)}` : '';
+            const mois = (m.date || '').slice(0, 7), avant = k ? (pg.rows[k - 1].date || '').slice(0, 7) : '';
+            const sep = parDate && mois && mois !== avant ? `<tr class="tr-mois"><td colspan="${cols.length}">${h(enTete(C.MONTHS_FR[Number(mois.slice(5, 7)) - 1] || ''))} ${h(mois.slice(0, 4))}</td></tr>` : '';
+            return `${sep}<tr class="${m.source === 'libre' || cible ? 'clickable' : ''}" data-mv="${m.source === 'libre' ? h(m.movementId) : ''}" data-go="${h(cible)}">
+            ${cols.map(c => `<td class="${c.r ? 'r nw m' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(m)}</td>`).join('')}</tr>`; }).join('')}
+        </tbody><tfoot><tr><td colspan="3"><b>${pl(all.length, 'mouvement')}</b> <small class="muted">en ${h(s.year)}${nbInternes ? ` · hors ${pl(nbInternes, 'virement')} entre tes comptes` : ''}</small></td>
+          <td colspan="${cols.length - 3}" class="r nw m"><span class="tr-pied"><span>Entrées <b class="ok-text">${moneySigne(entrees, cur)}</b></span><span>Sorties <b>${moneySigne(sorties, cur)}</b></span><span>Variation <b class="${entrees + sorties < 0 ? 'rouge' : ''}">${moneySigne(C.round3(entrees + sorties), cur)}</b></span></span></td></tr></tfoot></table></div>${pagerBar(pg.pg, { noun: 'mouvement' })}</div>`
+          : `<div class="mg-vide">${lfIc(filtre ? 'recherche' : 'carte', 24, 1.6)}<b>${filtre ? 'Aucun mouvement ne correspond' : `Aucun mouvement en ${h(s.year)}`}</b><span>${filtre ? (s.q ? `Rien pour « ${h(s.q)} »` : 'Rien dans ce sens') + ` en ${h(s.year)}.` : 'Les paiements des factures, les règlements des achats et les mouvements saisis arrivent ici tout seuls.'}</span>${filtre ? '<button type="button" class="btn" id="t-tout">Tout revoir</button>' : ''}</div>`}
+        <p class="small muted tr-note">Une ligne s'ouvre sur la pièce d'où elle vient : le compte et le mode de règlement se corrigent là-bas. Les mouvements libres (impôts, apports, frais bancaires) se modifient ici même, et leur justificatif s'y joint.</p>`;
+      $('#t-q').oninput = e => { s.q = e.target.value; s.moves.page = 1; sansPerdreLaFrappe(e.target, () => draw()); };
       $('#t-acc').onchange = e => { s.account = e.target.value; s.moves.page = 1; draw(); };
       $('#t-year').onchange = e => { s.year = e.target.value; s.moves.page = 1; draw(); };
+      $$('#t-body [data-sens]').forEach(b => b.onclick = () => { s.sens = b.dataset.sens; s.moves.page = 1; draw(); });
+      if ($('#t-tout')) $('#t-tout').onclick = () => { s.q = ''; s.sens = ''; s.moves.page = 1; draw(); };
       // Un mouvement déduit d'un paiement ne se modifie pas ici — mais il DOIT mener à sa pièce :
       // la phrase juste en dessous disait d'aller la corriger, sans offrir d'y aller.
       $$('#t-body tr[data-mv], #t-body tr[data-go]').forEach(tr => {
@@ -26196,8 +26426,8 @@
       // en-têtes affichaient leur « ⇅ » sans jamais rien trier. Un tri qui ne trie pas ne se voit
       // pas — on croit que la liste était déjà dans cet ordre.
       if (wrap) {
-        bindSort(wrap.closest('.panel'), key => { s.moves.sort = toggleSort(s.moves.sort, key, cols); s.moves.page = 1; draw(); });
-        bindPager(wrap.closest('.panel'), s.moves, () => draw(), '#m-wrap');
+        bindSort(wrap, key => { s.moves.sort = toggleSort(s.moves.sort, key, cols); s.moves.page = 1; draw(); });
+        bindPager(wrap, s.moves, () => draw(), '#m-wrap');
       }
       $('#exp-moves').onclick = async () => {
         if (!all.length) return toast('Rien à exporter.', true);
@@ -26230,22 +26460,25 @@
               <td class="small">${h(m.reference || '')}</td>
               <td class="r nw ${m.amount > 0 ? 'ok-text' : ''}">${moneySigne(m.amount, cur)}</td></tr>`;
       $('#t-body').innerHTML = `
-        <div class="filters">
-          <select id="t-acc2" aria-label="Compte bancaire à rapprocher">${data.accounts.map(a => `<option value="${a.id}" ${accId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select>
+        <div class="tr-barre">
+          <label class="sel"><select id="t-acc2" aria-label="Compte bancaire à rapprocher">${data.accounts.map(a => { const n = a.id === accId ? pending.length : C.reconciliation(data, company(), a.id, C.today()).moves.filter(m => !m.reconciled).length; return `<option value="${a.id}" ${accId === a.id ? 'selected' : ''}>${h(a.name)}${n ? ` · ${n} à pointer` : ' · tout pointé'}</option>`; }).join('')}</select></label>
           ${info('tre.reco')}
+          <button type="button" class="btn btn-sm tr-import" id="t-import">${lfIc('depot', 15)} Importer le relevé</button>
         </div>
-        <div class="panel"><h2>Ton relevé face à SkanFact ${info('tre.gap')}</h2>
-          <div class="vat-box">
-            <div class="vat-line"><span>Solde de départ du compte</span><span class="num">${C.money(r.opening, cur)}</span></div>
-            <div class="vat-line"><span>+ Mouvements déjà pointés</span><span class="num">${C.money(C.round3(r.pointed - r.opening), cur)}</span></div>
-            <div class="vat-line total"><span>Solde qui devrait figurer sur ton relevé</span><span class="num">${C.money(r.pointed, cur)}</span></div>
+        <section class="tr-sec"><h3 class="tr-h">Ton relevé face à SkanFact ${info('tre.gap')}</h3>
+          <div class="tr-reco" id="t-reco">
+            <div><span>Solde de départ</span><b>${C.money(r.opening, cur)}</b><small>au ${C.fmtDate(r.openingDate || (data.accounts.find(a => a.id === accId) || {}).openingDate || '')}</small></div>
+            <span class="tr-op" aria-hidden="true">+</span>
+            <div><span>Mouvements pointés</span><b>${moneySigne(C.round3(r.pointed - r.opening), cur)}</b><small>${pl(pointes.length, 'mouvement')}</small></div>
+            <span class="tr-op" aria-hidden="true">=</span>
+            <div class="fort"><span>Devrait figurer sur ton relevé</span><b>${C.money(r.pointed, cur)}</b><small>si tout est pointé jusqu'à sa date</small></div>
           </div>
-          <div class="inline mt" style="flex-wrap:wrap">
-            <label class="field" style="max-width:220px">${lbl(`Solde réel de ton relevé (${h(C.normCurrency(company().currency))})`, 'tre.stmt')}<input type="number" id="stmt" step="0.001" value="${r.statement == null ? '' : r.statement}" class="num" placeholder="Recopie-le ici"></label>
+          <div class="tr-stmt">
+            <label class="field">${lbl(`Solde réel de ton relevé (${h(C.normCurrency(company().currency))})`, 'tre.stmt')}<input type="number" id="stmt" step="0.001" value="${r.statement == null ? '' : r.statement}" class="num" placeholder="Recopie-le ici"></label>
             <span id="stmt-verdict">${verdictReleve(r.gap)}</span>
           </div>
-        </div>
-        <div class="panel"><h2>État de rapprochement ${info('tre.etat')}</h2>
+        </section>
+        <section class="tr-sec"><h3 class="tr-h">État de rapprochement ${info('tre.etat')}</h3>
           ${(() => { const et = C.etatRapprochement(data, company(), accId, C.today()); return et.statement == null
             ? '<p class="small muted">Saisis le solde de ton relevé ci-dessus : l\'état de rapprochement se remplit tout seul.</p>'
             : `<div class="scroll-x"><table class="list compact" id="t-etat"><tbody>
@@ -26258,20 +26491,20 @@
               </tbody></table></div>
               <p class="small muted mt">${Math.abs(et.ecart) < 0.0005 ? 'Aucun écart : chaque mouvement de la banque est dans SkanFact, et réciproquement. C\'est l\'état que ton comptable joint au dossier.' : 'Un écart est une pièce qui manque d\'un côté : un prélèvement non saisi, un chèque compté deux fois, un montant mal recopié. Pointe les mouvements ci-dessous jusqu\'à ce qu\'il tombe à zéro.'}</p>
               <div class="inline mt"><button class="btn" id="t-etat-csv">Exporter l'état</button></div>`; })()}
-        </div>
-        <div class="panel"><h2>Pas encore pointés — ${pl(pending.length, 'mouvement')} ${info('tre.pending')}</h2>
+        </section>
+        <section class="tr-sec"><h3 class="tr-h">Pas encore pointés — ${pl(pending.length, 'mouvement')} ${info('tre.pending')}</h3>
           <p class="small muted mb">Coche ce que tu retrouves sur ton relevé. Ce qui reste décoché est soit en cours de traitement à la banque, soit une erreur de saisie.</p>
           ${pending.length ? `<div id="t-pend"><table class="list compact"><thead><tr><th style="width:46px"></th><th>Date</th><th>Libellé</th><th>Référence</th><th class="r">Montant</th></tr></thead><tbody>
             ${pendPage.rows.map(ligne).join('')}
           </tbody><tfoot><tr><td colspan="4"><strong>Total non pointé</strong></td><td class="r"><strong>${C.money(r.pendingAmount, cur)}</strong></td></tr></tfoot></table>${pagerBar(pendPage.pg, { noun: 'mouvement' })}</div>`
             : '<div class="empty">Tout est pointé. Ton relevé et SkanFact sont alignés.</div>'}
-        </div>
-        ${pointes.length ? `<div class="panel"><h2><button class="btn btn-ghost btn-sm" id="t-vus">${s.showPointed ? '▾' : '▸'}</button> Déjà pointés — ${pl(pointes.length, 'mouvement')}</h2>
+        </section>
+        ${pointes.length ? `<section class="tr-sec"><h3 class="tr-h"><button class="btn btn-ghost btn-sm" id="t-vus">${s.showPointed ? '▾' : '▸'}</button> Déjà pointés — ${pl(pointes.length, 'mouvement')}</h3>
           <p class="small muted mb">Décoche si tu t'es trompé : le mouvement revient dans la liste du dessus et le solde pointé se recalcule.</p>
           ${s.showPointed ? `<div id="t-vus-l"><table class="list compact"><thead><tr><th style="width:46px"></th><th>Date</th><th>Libellé</th><th>Référence</th><th class="r">Montant</th></tr></thead><tbody>
             ${pointPage.rows.map(ligne).join('')}
           </tbody></table>${pagerBar(pointPage.pg, { noun: 'mouvement' })}</div>` : ''}
-        </div>` : ''}`;
+        </section>` : ''}`;
       if ($('#t-vus')) $('#t-vus').onclick = () => { s.showPointed = !s.showPointed; draw(); };
       $('#t-acc2').onchange = e => { s.account = e.target.value; s.pending.page = 1; s.pointes.page = 1; draw(); };
       if ($('#t-pend')) bindPager($('#t-pend'), s.pending, () => draw(), '#t-pend');
@@ -26333,11 +26566,71 @@
           if (h2) { h2.reconciled = avant; save(true); draw(); }
         });
       });
+      // (1.266.0) Le relevé de la banque, importé (CSV ou tableur exporté en CSV) : le lecteur de relevé du Cabinet
+      // (`SkanCompta.releveDepuisCsv`) le lit, chaque ligne retrouve le mouvement de même montant à cinq jours près
+      // (`C.apparierReleve`). On relit avant de pointer : les paires cochées, les lignes absentes de SkanFact à créer d'un
+      // clic, le solde final du relevé recopié. Rien n'est pointé sans le bouton, et « Annuler » remet tout.
+      $('#t-import').onclick = async () => {
+        if (!bridge.openText) return toast('L\'import d\'un relevé lit un fichier : ouvre SkanFact dans ton navigateur ou dans l\'application.', true);
+        let lu;
+        try { lu = await bridge.openText({ title: 'Choisir le relevé de ta banque (CSV)' }); } catch (e) { return toast(plainError(e), true); }
+        if (!lu || lu.canceled) return;
+        if (!lu.ok) return toast(lu.motif || 'Ce fichier ne se lit pas.', true);
+        const K = window.SkanCompta;
+        const rel = K.releveDepuisCsv(K.rangeesDeTexte(lu.texte), null);
+        if (rel.motif) return toast(rel.lignes && rel.lignes.length === 0 && /vide/.test(rel.motif) ? rel.motif : 'Ce fichier n\'a pas les colonnes d\'un relevé : il faut une date, un libellé et un montant (ou un débit et un crédit). Exporte-le de ta banque en CSV.', true);
+        if (!rel.lignes.length) return toast('Ce relevé ne porte aucune ligne lisible.', true);
+        revueReleve(rel, lu.nom || 'le relevé');
+      };
+      function revueReleve(rel, nom) {
+        const acc = data.accounts.find(a => a.id === accId);
+        const ap = C.apparierReleve(rel.lignes, r.moves, 5);
+        const crees = new Set();
+        modal(`<h2>Le relevé de « ${h(acc.name)} »</h2>
+          <p class="small muted">${h(nom)} · ${pl(rel.lignes.length, 'ligne lue', 'lignes lues')}${rel.ignorees.length ? ` · ${pl(rel.ignorees.length, 'ligne ignorée', 'lignes ignorées')} (date ou montant illisible)` : ''}</p>
+          <div class="tr-imp-res"><span><b>${ap.paires.length}</b> retrouvée${sPl(ap.paires.length)} dans SkanFact</span>${ap.dejaPointees.length ? `<span><b>${ap.dejaPointees.length}</b> déjà pointée${sPl(ap.dejaPointees.length)}</span>` : ''}<span><b>${ap.absentes.length}</b> absente${sPl(ap.absentes.length)} de SkanFact</span><span><b>${ap.restants.length}</b> mouvement${sPl(ap.restants.length)} de SkanFact pas sur ce relevé</span></div>
+          ${ap.paires.length ? `<h3 class="tr-h">Retrouvées : même montant, à cinq jours près ${info('tre.import')}</h3>
+            <div class="scroll-x"><table class="list compact" id="imp-paires"><thead><tr><th style="width:40px"></th><th>Sur le relevé</th><th>Dans SkanFact</th><th class="r">Montant</th></tr></thead><tbody>
+            ${ap.paires.map((x, i) => `<tr><td><input type="checkbox" data-paire="${i}" checked aria-label="Pointer ce mouvement"></td>
+              <td><span class="nw">${C.fmtDate(x.ligne.date)}</span><div class="small muted">${h(x.ligne.libelle)}</div></td>
+              <td><span class="nw">${C.fmtDate(x.mouvement.date)}</span>${x.jours ? ` <small class="muted">(${x.jours} j d'écart)</small>` : ''}<div class="small muted">${h(x.mouvement.label)}${x.mouvement.party ? ' — ' + h(x.mouvement.party) : ''}</div></td>
+              <td class="r nw m ${x.ligne.montant > 0 ? 'ok-text' : ''}">${moneySigne(x.ligne.montant, cur)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+          ${ap.absentes.length ? `<h3 class="tr-h">Sur le relevé, pas dans SkanFact</h3>
+            <p class="small muted">Des frais, un prélèvement, un virement reçu sans facture : crée le mouvement, il naît pointé. Un paiement de client se note plutôt sur sa facture.</p>
+            <div class="scroll-x"><table class="list compact" id="imp-absentes"><tbody>
+            ${ap.absentes.map((l, i) => `<tr><td class="nw">${C.fmtDate(l.date)}</td><td>${h(l.libelle)}</td><td class="r nw m ${l.montant > 0 ? 'ok-text' : ''}">${moneySigne(l.montant, cur)}</td><td class="r"><button type="button" class="btn btn-sm" data-absente="${i}">Créer le mouvement</button></td></tr>`).join('')}</tbody></table></div>` : ''}
+          ${rel.soldes.fin != null ? `<p class="small">Solde final du relevé : <b>${C.money(rel.soldes.fin, cur)}</b>. Il sera recopié comme solde de ton relevé.</p>` : ''}
+          <div class="modal-actions"><button class="btn" data-close>Fermer</button><button class="btn btn-primary" id="ok"></button></div>`,
+        (root, close) => {
+          const ok = $('#ok', root);
+          const coches = () => $$('[data-paire]', root).filter(c => c.checked).map(c => ap.paires[Number(c.dataset.paire)]);
+          const dire = () => { const n = coches().length; ok.textContent = n ? `Pointer ${pl(n, 'mouvement')}` : rel.soldes.fin != null ? 'Recopier le solde' : 'Rien à pointer'; ok.disabled = !n && rel.soldes.fin == null; };
+          $$('[data-paire]', root).forEach(c => c.onchange = dire); dire();
+          $$('[data-absente]', root).forEach(b => b.onclick = () => {
+            const l = ap.absentes[Number(b.dataset.absente)];
+            movementForm(null, () => { crees.add(b.dataset.absente); b.disabled = true; b.textContent = 'Créé, pointé'; }, {
+              date: l.date, amount: Math.abs(l.montant), kind: l.montant > 0 ? 'autre-entree' : 'autre-sortie', accountId: accId,
+              label: l.libelle || '', reference: l.reference || '', reconciled: true });
+          });
+          ok.onclick = () => {
+            const l = coches();
+            const avant = l.map(x => { const hit = porteur(x.mouvement.id); return hit ? { id: x.mouvement.id, v: !!hit.reconciled } : null; }).filter(Boolean);
+            const soldeAvant = acc.statementBalance;
+            avant.forEach(x => { const hit = porteur(x.id); if (hit) hit.reconciled = true; });
+            if (rel.soldes.fin != null) acc.statementBalance = rel.soldes.fin;
+            save(true); close(); render(true);   // les compteurs de l'en-tête (« à pointer ») bougent aussi
+            toastUndo(avant.length ? `${pl(avant.length, 'mouvement pointé', 'mouvements pointés')} depuis le relevé` : 'Solde du relevé recopié', () => {
+              avant.forEach(x => { const hit = porteur(x.id); if (hit) hit.reconciled = x.v; });
+              acc.statementBalance = soldeAvant; save(true); render(true);
+            });
+          };
+        });
+      }
     }
 
-    $$('#t-tabs button').forEach(b => b.onclick = () => {
+    $$('#t-tabs [data-tab]').forEach(b => b.onclick = () => {
       s.tab = b.dataset.tab;
-      $$('#t-tabs button').forEach(x => x.classList.toggle('active', x === b));
+      $$('#t-tabs [data-tab]').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-selected', String(x === b)); });
       draw();
     });
     // Le compte de la fiche, s'il n'existe pas encore (une caisse créée d'abord, la banque ensuite).
@@ -26346,30 +26639,106 @@
     draw();
   };
 
-  // Courbe du solde prévu. Une ligne, une zone, et le zéro marqué : c'est le passage sous zéro qui compte.
+  // Courbe du solde prévu (1.266.0) : sur le calendrier, en marches — le solde ne bouge qu'aux dates où il se passe
+  // quelque chose, et reste plat entre deux. Un point par JOUR (ce qui tombe le même jour, les retards attendus
+  // aujourd'hui compris, se lit en un seul point) ; le seuil et le zéro tracés ; un fanion par échéance fiscale (plein
+  // quand son montant estimé est dans la courbe) ; un curseur qui lit le jour survolé (`brancherCourbe`).
   function forecastChart(f) {
-    const W = 660, H = 200, left = 52, right = 8, bottom = 24, top = 12;
+    const W = 1080, H = 230, left = 60, right = 14, bottom = 26, top = 18;
     const pts = f.points;
-    if (pts.length < 2) return '<div class="empty">Rien à projeter : aucune échéance connue sur la période.</div>';
-    const vals = pts.map(p => p.balance);
-    const hi = Math.max(0, ...vals), lo = Math.min(0, ...vals);
+    if (pts.length < 2) return `<div class="mg-vide">${lfIc('echeance', 24, 1.6)}<b>Rien à projeter</b><span>Aucune échéance connue sur la période.</span></div>`;
+    const cur = company().currency;
+    const jour = d => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 864e5;
+    const j0 = jour(f.today), jN = Math.max(j0 + 1, jour(f.horizon));
+    const seuil = Number(f.seuil) || 0;
+    // L'échelle part de zéro quand le solde s'en approche (c'est le passage sous zéro qui compte) ; loin de zéro, elle
+    // serre les valeurs, sinon quelques milliers de dinars d'écart sur soixante mille dessinent une ligne plate.
+    const vals = pts.map(p => p.balance).concat(seuil ? [seuil] : []);
+    const vMax = Math.max(...vals), vMin = Math.min(...vals);
+    const prochesDeZero = vMin <= 0 || vMin < vMax * 0.25;
+    const marge = Math.max(1, (vMax - vMin) * 0.25);
+    const hi = prochesDeZero ? Math.max(0, vMax) : vMax + marge, lo = prochesDeZero ? Math.min(0, vMin) : vMin - marge;
     const span = Math.max(1, hi - lo);
-    const x = i => left + (W - left - right) * (i / (pts.length - 1));
+    const x = d => left + (W - left - right) * ((jour(d) - j0) / (jN - j0));
     const y = v => top + (H - bottom - top) * (1 - (v - lo) / span);
-    const zero = y(0);
-    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.balance).toFixed(1)}`).join(' ');
-    const area = `${line} L${x(pts.length - 1).toFixed(1)},${zero.toFixed(1)} L${x(0).toFixed(1)},${zero.toFixed(1)} Z`;
-    const grid = [hi, lo + span / 2, lo].map(v => `<line class="grid" x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}"/><text class="lbl" x="${left - 6}" y="${y(v) + 4}" text-anchor="end">${short(v)}</text>`).join('');
-    const dots = pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.balance).toFixed(1)}" r="${p.balance < 0 ? 4 : 3}" fill="${p.balance < 0 ? 'var(--danger)' : 'var(--primary)'}"><title>${h(C.fmtDate(p.date))} — ${h(p.label)} : ${C.money(p.balance, company().currency)}</title></circle>`).join('');
-    return `<svg class="chart forecast" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-      ${grid}
-      <path d="${area}" class="fc-area"/>
-      <path d="${line}" class="fc-line" fill="none"/>
-      <line class="fc-zero" x1="${left}" x2="${W - right}" y1="${zero}" y2="${zero}"/>
+    const zero = y(Math.max(lo, 0));
+    let line = `M${x(pts[0].date).toFixed(1)},${y(pts[0].balance).toFixed(1)}`;
+    for (let i = 1; i < pts.length; i++) line += ` H${x(pts[i].date).toFixed(1)} V${y(pts[i].balance).toFixed(1)}`;
+    line += ` H${x(f.horizon).toFixed(1)}`;
+    const area = `${line} V${zero.toFixed(1)} H${x(f.today).toFixed(1)} Z`;
+    const grid = [hi, lo + span / 2, lo].map(v => `<line class="grille" x1="${left}" x2="${W - right}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${left - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${short(v)}</text>`).join('');
+    // Un repère par semaine (le lundi), libellé une semaine sur deux au-delà de deux mois.
+    const pas = jN - j0 > 70 ? 14 : 7;
+    let reperes = '';
+    for (let k = 1; k * 7 < jN - j0; k++) {
+      const d = C.addDays(f.today, k * 7);
+      const xx = x(d).toFixed(1), loin = xx - left > 60 && W - right - xx > 96;
+      reperes += `<line class="grille fine" x1="${xx}" x2="${xx}" y1="${top}" y2="${H - bottom}"/>${(k * 7) % pas === 0 && loin ? `<text x="${xx}" y="${H - 8}" text-anchor="middle">${h(C.fmtDate(d).slice(0, 5))}</text>` : ''}`;
+    }
+    // Un point par jour : le solde au soir, et ce qui l'a fait bouger.
+    const jours = [];
+    pts.forEach((p, i) => {
+      const e = i ? f.events[i - 1] : null;
+      let g = jours[jours.length - 1];
+      if (!g || g.date !== p.date) { g = { date: p.date, balance: p.balance, items: [] }; jours.push(g); }
+      g.balance = p.balance;
+      if (e) g.items.push(e);
+    });
+    const bas = f.lowest;
+    const dots = jours.filter(g => g.items.length).map(g => `<circle cx="${x(g.date).toFixed(1)}" cy="${y(g.balance).toFixed(1)}" r="${g.items.length > 1 ? 4 : g.balance < seuil ? 3.5 : 2.6}" class="${g.balance < seuil ? 'pt-n' : 'pt'}${g.items.length > 1 ? ' grp' : ''}"/>`).join('');
+    const fiscEst = new Set(f.events.filter(e => e.kind === 'fiscal').map(e => e.date));
+    const fanions = (f.fiscal || []).filter(fi => fi.date >= f.today && fi.date <= f.horizon).map(fi => {
+      const xx = x(fi.date).toFixed(1);
+      return `<g class="tr-fanion${fiscEst.has(fi.date) ? ' plein' : ''}"><line x1="${xx}" x2="${xx}" y1="${top - 12}" y2="${H - bottom}"/><path d="M${xx},${top - 12} l9,3.5 -9,3.5 Z"/><title>${h(`${fi.label} — ${C.fmtDate(fi.date)}${fiscEst.has(fi.date) ? ' (montant estimé dans la courbe)' : ' (montant inconnu)'}`)}</title></g>`;
+    }).join('');
+    const ySeuil = y(seuil).toFixed(1);
+    const svg = `<svg class="mg-graphe tr-graphe" viewBox="0 0 ${W} ${H}" role="img" aria-label="${h(`Solde prévu jusqu'au ${C.fmtDate(f.horizon)} : au plus bas ${C.money(bas.balance, cur)} le ${C.fmtDate(bas.date)}`)}">
+      ${grid}${reperes}
+      <path d="${area}" class="tr-aire"/>
+      ${lo <= 0 ? `<line class="zero" x1="${left}" x2="${W - right}" y1="${zero.toFixed(1)}" y2="${zero.toFixed(1)}"/>` : ''}
+      ${seuil ? `<line class="tr-seuil-l" x1="${left}" x2="${W - right}" y1="${ySeuil}" y2="${ySeuil}"/><text class="tr-seuil-t" x="${W - right - 4}" y="${(y(seuil) - 5).toFixed(1)}" text-anchor="end">seuil ${h(short(seuil))}</text>` : ''}
+      ${fanions}
+      <path d="${line}" class="courbe"/>
       ${dots}
-      <text class="lbl" x="${left}" y="${H - 6}">${h(C.fmtDate(f.today))}</text>
-      <text class="lbl" x="${W - right}" y="${H - 6}" text-anchor="end">${h(C.fmtDate(f.horizon))}</text>
-    </svg>`;
+      <circle cx="${x(bas.date).toFixed(1)}" cy="${y(bas.balance).toFixed(1)}" r="5" class="${bas.balance < seuil ? 'bas-n' : 'bas'}"/>
+      <g class="tr-curseur" hidden><line y1="${top}" y2="${H - bottom}"/><circle r="5"/></g>
+      <text x="${left}" y="${H - 8}">${h(C.fmtDate(f.today))}</text>
+      <text x="${W - right}" y="${H - 8}" text-anchor="end">${h(C.fmtDate(f.horizon))}</text>
+    </svg><div class="tr-bulle" hidden></div>`;
+    forecastChart.derniere = { W, jours: jours.map(g => ({ ...g, x: x(g.date), y: y(g.balance) })), cur, seuil };
+    return svg;
+  }
+  // Le curseur de la courbe : il suit la souris (ou le doigt), s'arrête sur le jour le plus proche qui a quelque chose,
+  // et dit ce jour-là — la date, le solde au soir, et ce qui l'a fait bouger (quatre lignes au plus, puis « et N autres »).
+  function brancherCourbe(boite, f) {
+    const g = forecastChart.derniere;
+    const svg = boite && $('svg.tr-graphe', boite);
+    if (!svg || !g || !g.jours.length) return;
+    const curseur = $('.tr-curseur', svg), ligne = $('line', curseur), rond = $('circle', curseur), bulle = $('.tr-bulle', boite);
+    const montrer = ev => {
+      const rc = svg.getBoundingClientRect();
+      if (!rc.width) return;
+      const vx = (ev.clientX - rc.left) * g.W / rc.width;
+      let best = g.jours[0];
+      g.jours.forEach(j => { if (Math.abs(j.x - vx) < Math.abs(best.x - vx)) best = j; });
+      // Un élément SVG n'a pas la propriété `hidden` des éléments HTML : c'est l'attribut qui se pose et se retire.
+      curseur.removeAttribute('hidden');
+      ligne.setAttribute('x1', best.x.toFixed(1)); ligne.setAttribute('x2', best.x.toFixed(1));
+      rond.setAttribute('cx', best.x.toFixed(1)); rond.setAttribute('cy', best.y.toFixed(1));
+      rond.setAttribute('class', best.balance < g.seuil ? 'n' : '');
+      const it = best.items;
+      bulle.innerHTML = `<b>${h(C.fmtDate(best.date))}${best.date === f.today ? ' · aujourd\'hui' : ''}</b><span class="tr-b-solde">Solde au soir : <b class="${best.balance < g.seuil ? 'rouge' : ''}">${C.money(best.balance, g.cur)}</b></span>
+        ${it.slice(0, 4).map(e => `<span class="tr-b-l"><span>${h(e.label)}${e.estime ? ' <i>estimé</i>' : ''}${e.late ? ' <i>en retard</i>' : ''}</span><b class="${e.amount > 0 ? 'ok-text' : ''}">${moneySigne(e.amount, g.cur)}</b></span>`).join('')}
+        ${it.length > 4 ? `<span class="muted">et ${it.length - 4} autre${it.length - 4 > 1 ? 's' : ''}</span>` : ''}${!it.length ? '<span class="muted">rien ce jour-là</span>' : ''}`;
+      bulle.hidden = false;
+      const px = best.x * rc.width / g.W, bw = bulle.offsetWidth || 220;
+      bulle.style.left = `${Math.max(4, Math.min(rc.width - bw - 4, px + 12 > rc.width - bw ? px - bw - 12 : px + 12))}px`;
+      bulle.style.top = `${Math.max(4, best.y * rc.height / (svg.viewBox.baseVal.height || 230) - 30)}px`;
+    };
+    const cacher = () => { curseur.setAttribute('hidden', ''); bulle.hidden = true; };
+    svg.addEventListener('pointermove', montrer);
+    svg.addEventListener('pointerdown', montrer);
+    svg.addEventListener('pointerleave', cacher);
   }
 
   // ---------- Statistiques ----------

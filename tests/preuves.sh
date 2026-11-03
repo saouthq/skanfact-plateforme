@@ -22867,6 +22867,44 @@ prouver 'vides 1.265 c : au téléphone, la paie garde ses deux colonnes serrée
 prouver 'vides 1.265 d : le catalogue vide redevient une phrase grise sous une recherche' web/public/v10/app.js \
   "        if (opts.vide && !rows().length) {" "        if (false && opts.vide && !rows().length) {" \
   'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
+# La trésorerie dans la nouvelle DA, « go faire tout » (1.266.0) : le moteur (seuil, habitude, salaires et impôts estimés,
+# dépenses qui reviennent, essai, relevé) et l'écran (filtres gris, bouton principal, traite datée de son échéance).
+prouver 'tréso 1.266 a : une ligne du relevé déjà pointée redevient « absente de SkanFact »' web/public/v10/core.js \
+  '      if (d) dejaPointees.push(d); else absentes.push(l);' '      absentes.push(l);' \
+  'le portefeuille des effets et l'\''appariement d'\''un relevé'
+prouver 'tréso 1.266 b : « comme ils paient d'\''habitude » attend tout le monde à l'\''échéance' web/public/v10/core.js \
+  '      if (dl && dl.jours > 0) { const at' '      if (false && dl && dl.jours > 0) { const at' \
+  '« habitude » attend un client à son délai réel ; sans deux factures soldées, à l'\''échéance'
+prouver 'tréso 1.266 c : le seuil de l'\''entreprise est ignoré, seul zéro alerte' web/public/v10/core.js \
+  '    for (const p of points) if (p.balance < seuil - 0.0005)' '    for (const p of points) if (p.balance < 0 - 0.0005)' \
+  'le seuil donne la date du premier passage dessous ; un seuil illisible vaut zéro'
+prouver 'tréso 1.266 d : les salaires des mois sans bulletin ne sortent plus' web/public/v10/core.js \
+  '    if (o.salaires !== false) {' '    if (false) {' \
+  'les salaires des mois sans bulletin sortent, au net du contrat, à la fin de chaque mois'
+prouver 'tréso 1.266 e : une TVA déjà déclarée sort encore de la prévision' web/public/v10/core.js \
+  '          if (!done.has(fiscalFilingId('\''tva'\'', d))) {' '          if (true) {' \
+  'la TVA du mois écoulé sort le 28, estimée sur ce qui est saisi ; déclarée, elle ne sort plus'
+prouver 'tréso 1.266 f : un loyer déjà noté payé sort une seconde fois' web/public/v10/core.js \
+  '        if (d <= t || notees.has(`${m.id}@${d}`)) continue;' '        if (d <= t) continue;' \
+  'un loyer qui se répète sort chaque mois ; une occurrence notée ne sort plus deux fois'
+prouver 'tréso 1.266 g : l'\''essai de décalage ne décale plus rien' web/public/v10/core.js \
+  '      if (!dec[cle]) continue;' '      continue;' \
+  'l'\''essai de décalage déplace une échéance sans rien enregistrer'
+prouver 'tréso 1.266 h : « sans les retards » garde les factures déjà échues' web/public/v10/core.js \
+  '    if (prudent && d.dueDate && d.dueDate < t) return;' '' \
+  'les semaines refont la prévision au millime ; « prudent » retire exactement les factures déjà échues'
+prouver 'tréso 1.266 i : l'\''horizon redevient un onglet noir au lieu d'\''un filtre gris' web/public/v10/app.js \
+  '<div class="pa-seg filtre" id="t-days"' '<div class="pa-seg" id="t-days"' \
+  'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
+prouver 'tréso 1.266 j : les filtres gris reprennent le noir des onglets' web/public/plateforme/paie.css \
+  '.pa-seg.filtre button.active { background: var(--sb-papier);' '.pa-seg.filtre button.active { background: var(--sb-encre);' \
+  'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
+prouver 'tréso 1.266 k : une traite est datée du jour où on la reçoit, pas de son échéance' web/public/v10/app.js \
+  '        const champs = { date: ech || v.date, amount: C.round3(rend ? -v.amount : v.amount)' '        const champs = { date: v.date, amount: C.round3(rend ? -v.amount : v.amount)' \
+  'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
+prouver 'tréso 1.266 l : le bouton principal ne propose plus de pointer le relevé' web/public/v10/app.js \
+  '        : aPointer > 0 ? { id: '\''tr-pointer'\''' '        : false ? { id: '\''tr-pointer'\''' \
+  'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
