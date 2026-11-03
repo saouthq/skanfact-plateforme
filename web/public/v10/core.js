@@ -6618,7 +6618,83 @@
 
   // Fusion de deux versions du même dossier. `mine` = ce qu'on a en mémoire, `theirs` = ce qui est
   // sur le disque partagé. Aucune des deux n'est modifiée.
-  function mergeData(mine, theirs) {
+  // (16 § 10.1, urgence 2, 03/11/2026 ; à sortir avec le module Personnel) LE POINTAGE SE FUSIONNE CASE PAR CASE. Il n'était
+  // pas dans la fusion : dès qu'un enregistrement était refusé pour un conflit (même sur un client changé par un collègue),
+  // le poste reprenait le pointage du serveur et perdait le sien sans un mot. `anc` : ce que les deux versions avaient en
+  // commun (le dossier tel que ce poste l'avait eu du serveur) ; une case qui y est et que l'un a retirée est effacée, une
+  // case qui n'y est pas a été posée. Sans `anc`, ce qui est posé l'emporte sur ce qui manque. Deux valeurs différentes
+  // sur la même case : celle du gagnant reste, l'autre est mise de côté et dite, comme une pièce.
+  const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, c) => { o[c] = x[c]; return o; }, {}) : x));
+  const memeValeur = (x, y) => canon(x) === canon(y);
+  const plat = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  // Une table (clé → valeur) à trois versions : l'ancêtre, le gagnant, l'autre ; `desaccord` tranche une clé changée des deux côtés.
+  function fusion3(anc, gagnant, autre, desaccord) {
+    const out = {};
+    new Set([...Object.keys(anc || {}), ...Object.keys(gagnant || {}), ...Object.keys(autre || {})]).forEach(k => {
+      const x = (anc || {})[k], y = (gagnant || {})[k], z = (autre || {})[k];
+      const v = memeValeur(y, z) || memeValeur(x, z) ? y : memeValeur(x, y) ? z : desaccord(k, y, z);
+      if (v !== undefined) out[k] = v;
+    });
+    return out;
+  }
+  function fusionnerPointage(anc, winner, loser, out, conflicts, archive, kept) {
+    const A = anc || {};
+    const dire = (id, label, record) => { conflicts.push({ kind: 'pointage', id, label, kept }); archive.push({ at: new Date().toISOString(), kind: 'pointage', id, label, record }); };
+    const a2 = n => String(n).padStart(2, '0');
+    // Un objet par salarié et par mois ; deux postes ont pu en créer chacun un : ils se replient (le premier lu l'emporte).
+    const replier = (p, t) => { const o = { ...t, ...p }; Object.keys(t).forEach(c => { if (plat(t[c]) && plat(p[c])) o[c] = { ...t[c], ...p[c] }; }); return o; };
+    const parMois = L => { const m = new Map(); (Array.isArray(L) ? L : []).forEach(t => { if (!t) return; const k = t.employeeId ? `${t.employeeId}|${Number(t.year)}|${Number(t.month)}` : `?${t.id}`; m.set(k, m.has(k) ? replier(m.get(k), t) : t); }); return m; };
+    // Le total des heures sup du mois = la part notée au mois + les heures des journées (`hsJours`) : chaque part se fusionne,
+    // puis le total se refait (sinon deux journées notées sur deux postes n'en payaient qu'une).
+    const parJours = hj => { const s = {}; Object.values(hj || {}).forEach(x => { if (x && Number(x.heures) > 0) { const k = String(Number(x.majoration)); s[k] = round3((s[k] || 0) + Number(x.heures)); } }); return s; };
+    const auMois = o => { const s = parJours(o.hsJours), r = {}; new Set([...Object.keys(o.hs || {}), ...Object.keys(s)]).forEach(k => { const v = round3((Number((o.hs || {})[k]) || 0) - (s[k] || 0)); if (v) r[k] = v; }); return r; };
+    if (Array.isArray(winner.timesheets) || Array.isArray(loser.timesheets)) {
+      const sa = parMois(A.timesheets), sw = parMois(winner.timesheets), sl = parMois(loser.timesheets);
+      const noms = new Map((out.employees || []).map(e => [e.id, e.name || '']));
+      const ts = [];
+      new Set([...sw.keys(), ...sl.keys()]).forEach(k => {
+        const a = sa.get(k), w = sw.get(k), l = sl.get(k);
+        // Retiré d'un côté, intact de l'autre (« Annuler » du premier geste du mois) : il part.
+        if ((!w && memeValeur(a, l)) || (!l && memeValeur(a, w))) return;
+        if (w && memeValeur(w, l)) { ts.push(w); return; }
+        const W = w || {}, Lo = l || {}, Aa = a || {}, t = { ...Lo, ...W }, nom = noms.get(t.employeeId) || '';
+        Object.keys(t).filter(c => c !== 'hs' && (plat(W[c]) || plat(Lo[c]))).forEach(c => {
+          t[c] = fusion3(Aa[c], W[c], Lo[c], (j, y, z) => {
+            // Des passages de la pointeuse : des faits, on les garde tous.
+            if (c === 'badges' && plat(y) && plat(z)) return { ...z, ...y, h: [...new Set([...(y.h || []), ...(z.h || [])])].sort() };
+            dire(t.id, `${nom}, le ${a2(j)}/${a2(t.month)}/${t.year}`, { champ: c, jour: j, valeur: z === undefined ? null : z });
+            return y;
+          });
+        });
+        const part = fusion3(auMois(Aa), auMois(W), auMois(Lo), (mj, y, z) => { dire(t.id, `${nom}, heures sup du mois à +${mj} % (${a2(t.month)}/${t.year})`, { champ: 'hs', majoration: mj, valeur: z === undefined ? null : z }); return y; });
+        const parJ = parJours(t.hsJours), hs = {};
+        new Set([...Object.keys(part), ...Object.keys(parJ)]).forEach(mj => { const v = round3((part[mj] || 0) + (parJ[mj] || 0)); if (v > 0) hs[mj] = v; });
+        t.hs = hs;
+        ts.push(t);
+      });
+      out.timesheets = ts;
+    }
+    // Les journées validées, une par jour (`iso`) : changées des deux côtés, le geste le plus récent l'emporte.
+    if (Array.isArray(winner.joursValides) || Array.isArray(loser.joursValides)) {
+      const parIso = L => Object.fromEntries((Array.isArray(L) ? L : []).filter(x => x && x.iso).map(x => [x.iso, x]));
+      const dernier = x => String((x && (x.rouvertLe || x.le)) || '');
+      out.joursValides = Object.values(fusion3(parIso(A.joursValides), parIso(winner.joursValides), parIso(loser.joursValides), (k, y, z) => (dernier(z) > dernier(y) ? z : y)))
+        .sort((x, y) => x.iso.localeCompare(y.iso));
+    }
+    // Les versions validées d'un mois et les imports de la pointeuse : des faits datés, gardés tous, dans l'ordre où ils sont nés.
+    ['pointageVersions', 'badgeImports'].forEach(c => {
+      if (!Array.isArray(winner[c]) && !Array.isArray(loser[c])) return;
+      const parId = L => Object.fromEntries((Array.isArray(L) ? L : []).filter(x => x && x.id).map(x => [x.id, x]));
+      out[c] = Object.values(fusion3(parId(A[c]), parId(winner[c]), parId(loser[c]), (k, y) => y)).sort((x, y) => String(x.le || '').localeCompare(String(y.le || '')));
+    });
+    // Les mois rouverts (« Corriger : une nouvelle version ») : un ensemble.
+    if (Array.isArray(winner.pointageOuverts) || Array.isArray(loser.pointageOuverts)) {
+      const parYm = L => Object.fromEntries((Array.isArray(L) ? L : []).map(x => [String(x), true]));
+      out.pointageOuverts = Object.keys(fusion3(parYm(A.pointageOuverts), parYm(winner.pointageOuverts), parYm(loser.pointageOuverts), () => true)).sort();
+    }
+  }
+
+  function mergeData(mine, theirs, anc) {
     const a = migrateData(mine), b = migrateData(theirs);
     // Quel fichier a été écrit en dernier : c'est lui qui tranche en cas de désaccord sur une pièce.
     const aTime = Number(a.syncWrittenAt) || 0, bTime = Number(b.syncWrittenAt) || 0;
@@ -6647,6 +6723,7 @@
       });
       out[kind] = Object.values(byId).map(x => x.rec).filter(r => !tombstones[r.id]);
     });
+    fusionnerPointage(anc, winner, loser, out, conflicts, archive, theirsWins ? 'autre poste' : 'ce poste');
 
     // Compteurs de numérotation : on prend toujours le plus haut. Un numéro déjà attribué quelque part
     // ne doit jamais être réutilisé, même si l'autre poste ne l'a pas encore vu.

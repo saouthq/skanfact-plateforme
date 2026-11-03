@@ -361,7 +361,9 @@
         // (`conflict`, `disk`) : elle fusionne pièce par pièce (`mergeData`), le dit, puis réenregistre.
         // Comme dans la v10, la version enregistrée gagne (`syncWrittenAt` plus récent) : ce qui se
         // contredit est mis de côté (`conflictArchive`) et dit, jamais écrit par-dessus le serveur.
-        if (/** @type {any} */ (e).statut === 409) return { conflict: true, disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };
+        // (16 § 10.1, urgence 2) Avec ce que la page avait du serveur (`ancetre`, lu AVANT de relire) : la fusion du pointage
+        // y distingue une case effacée d'une case jamais posée.
+        if (/** @type {any} */ (e).statut === 409) return { conflict: true, ancetre: assembler(objetsVus()), disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };
         // Le réseau manque : sur « mon ordinateur », l'enregistrement se garde et partira seul.
         if (gardableHorsLigne(e)) return await mettreEnAttente(data);
         // Le matricule de la fiche, seul refusé : la fiche reprend le sien, et le reste repart.
@@ -643,6 +645,8 @@
   // À l'ouverture, avec le réseau : ce qui attendait part d'abord, par rapport à la copie ; ce qui
   // avait changé ailleurs se fusionne comme la v10 le fait (version du serveur gardée, l'autre mise de
   // côté), puis le dossier se relit.
+  // Les parties du pointage, que la fusion rassemble case par case (16 § 10.1, urgence 2).
+  const PARTIES_POINTAGE = new Set(['timesheets', 'joursValides', 'pointageVersions', 'badgeImports', 'pointageOuverts']);
   /** @param {Record<string, unknown>} data */
   async function rejouer(data) {
     const c = await poste.lireCopie(ent);
@@ -659,8 +663,11 @@
       if (r && r.horsLigne) { const x = new Error('hors ligne'); /** @type {any} */ (x).horsLigne = true; throw x; }
       let conflits = 0;
       if (r !== true) {
-        const m = /** @type {any} */ (window).SkanCore.mergeData(data, r.disk);
+        const m = /** @type {any} */ (window).SkanCore.mergeData(data, r.disk, r.ancetre);
         conflits = m.counts.conflicts || 0;
+        // (16 § 10.1, urgence 2) Le pointage fusionné contient déjà la version relue : il repart dans la révision du serveur
+        // (sinon le serveur le refusait encore, et ce que le poste avait noté sans réseau se perdait).
+        for (const [k, v] of vu) { const [col = '', cle = ''] = k.split('\u0000'); if (PARTIES_POINTAGE.has(col === '_racine' ? cle : col)) base.set(k, v.revision); }
         r = await envoyer(m.data);
       }
       if (r === true) await finirAttente(conflits);

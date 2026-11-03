@@ -1167,7 +1167,7 @@ prouver "« Se déconnecter » qui ne ferme rien" $PONT \
     location.replace('/');" "    void 0;" \
   "$PA"
 prouver "un conflit d'enregistrement qui finit en « Rien n'a été enregistré »" $PONT \
-  "        if (/** @type {any} */ (e).statut === 409) return { conflict: true, disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };" "" \
+  "        if (/** @type {any} */ (e).statut === 409) return { conflict: true, ancetre: assembler(objetsVus()), disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };" "" \
   "$CO"
 prouver "un conflit tranché contre le serveur (l'onglet en retard écrase)" $PONT \
   "disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };" "disk: await relire() };" \
@@ -3602,9 +3602,7 @@ prouver "rouverte avec le réseau, ce qui attendait jamais envoyé" $PONT \
   "        const data = avecTicketsEnAttente(attente ? await rejouer(attente.contenu.data) : await relire());" "        const data = avecTicketsEnAttente(await relire());" \
   "$HE3"
 prouver "rouverte, une pièce changée ailleurs qui écrase la mienne sans la garder" $PONT \
-  "        const m = /** @type {any} */ (window).SkanCore.mergeData(data, r.disk);
-        conflits = m.counts.conflicts || 0;
-        r = await envoyer(m.data);" "        r = await envoyer(r.disk);" \
+  "        r = await envoyer(m.data);" "        r = await envoyer(r.disk);" \
   "$HE3"
 prouver "rouverte, le conflit passé sous silence" $PONT \
   "        conflits = m.counts.conflicts || 0;
@@ -22974,6 +22972,66 @@ prouver 'paie 10.1-1 m : la page sans l'"'"'avertissement des barèmes' web/publ
   '${nonRelus ? `<div class="warn-box mb" id="p-relus">' \
   '${false ? `<div class="warn-box mb" id="p-relus">' \
   'janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d'"'"'établir, les bulletins sans CSS au serveur'
+
+# ── 16 § 10.1, urgence 2 : le pointage se fusionne case par case (core.js fusionnerPointage, compta.js idPointage, pont.js, app.js) ──
+PTF1='un poste note pendant qu'\''un autre change un client : la journée, les heures sup et la journée validée restent ; seul le client est en conflit'
+PTF2='deux postes notent le même mois : chaque journée reste, les heures sup du mois s'\''additionnent (6,75 h, 58,834 DT)'
+PTF3='une case effacée d'\''un côté reste effacée ; sans ancêtre, ce qui est posé l'\''emporte'
+PTF4='la même case changée des deux côtés : la version du serveur reste, l'\''autre est mise de côté et dite ; les passages de la pointeuse restent tous'
+PTF5='deux postes ouvrent le même mois : un seul objet ; deux anciens objets du même mois se replient'
+PTF6='les versions, les imports, les mois rouverts et les journées validées se fusionnent sans rien ressusciter'
+PTF7='un rôle qui ne voit pas le pointage : la fusion n'\''invente aucune partie'
+PTW1='un poste note pendant qu'\''un autre change un client : la journée notée et la case effacée tiennent, seul le client est en conflit'
+PTW2='rouverte avec le réseau : le pointage noté sans réseau et celui d'\''un autre poste, le même mois, restent tous les deux ; la case effacée ne revient pas'
+prouver 'urgence 2 a : la fusion oublie le pointage' web/public/v10/core.js \
+  "    fusionnerPointage(anc, winner, loser, out, conflicts, archive, theirsWins ? 'autre poste' : 'ce poste');
+" "" \
+  "$PTF1"
+prouver 'urgence 2 b : une case effacée revient (l'\''ancêtre ignoré)' web/public/v10/core.js \
+  'const x = (anc || {})[k], y' 'const x = undefined, y' \
+  "$PTF3"
+prouver 'urgence 2 c : la même case changée des deux côtés passe sous silence' web/public/v10/core.js \
+  '            dire(t.id, `${nom}, le ${a2(j)}/${a2(t.month)}/${t.year}`, { champ: c, jour: j, valeur: z === undefined ? null : z });
+' '' \
+  "$PTF4"
+prouver 'urgence 2 d : les heures sup du mois d'\''un seul poste' web/public/v10/core.js \
+  '        t.hs = hs;
+        ts.push(t);' '        ts.push(t);' \
+  "$PTF2"
+prouver 'urgence 2 e : deux postes créent chacun leur pointage du mois' web/public/v10/compta.js \
+  'const idPointage = (employeeId, year, month) => `pt-${employeeId}-${Number(year)}-${String(Number(month)).padStart(2, '\''0'\'')}`;' 'const idPointage = () => uid();' \
+  "$PTF5"
+prouver 'urgence 2 f : deux objets du même mois restent deux' web/public/v10/core.js \
+  'const k = t.employeeId ? `${t.employeeId}|${Number(t.year)}|${Number(t.month)}` : `?${t.id}`;' 'const k = t.id;' \
+  "$PTF5"
+prouver 'urgence 2 g : les journées validées ne se fusionnent pas' web/public/v10/core.js \
+  '      out.joursValides = Object.values(' '      void Object.values(' \
+  "$PTF6"
+prouver 'urgence 2 h : les versions validées et les imports de la pointeuse ne se fusionnent pas' web/public/v10/core.js \
+  "    ['pointageVersions', 'badgeImports'].forEach(c => {" '    [].forEach(c => {' \
+  "$PTF6"
+prouver 'urgence 2 i : un mois rouvert se perd' web/public/v10/core.js \
+  '      out.pointageOuverts = Object.keys(' '      void Object.keys(' \
+  "$PTF6"
+prouver 'urgence 2 j : la fusion invente les journées validées d'\''un rôle qui ne les voit pas' web/public/v10/core.js \
+  '    if (Array.isArray(winner.joursValides) || Array.isArray(loser.joursValides)) {' '    {' \
+  "$PTF7"
+prouver 'urgence 2 k : des passages de la pointeuse perdus' web/public/v10/core.js \
+  "            if (c === 'badges' && plat(y) && plat(z)) return { ...z, ...y, h: [...new Set([...(y.h || []), ...(z.h || [])])].sort() };
+" "" \
+  "$PTF4"
+prouver 'urgence 2 l : le conflit rendu sans ce que la page avait du serveur' $PONT \
+  'return { conflict: true, ancetre: assembler(objetsVus()), disk:' 'return { conflict: true, disk:' \
+  "$PTW1"
+prouver 'urgence 2 m : la page fusionne sans l'\''ancêtre' web/public/v10/app.js \
+  '      const m = C.mergeData(data, r.disk, r.ancetre);' '      const m = C.mergeData(data, r.disk);' \
+  "$PTW1"
+prouver 'urgence 2 n : rouverte, le pointage fusionné repart dans une révision périmée' $PONT \
+  "if (PARTIES_POINTAGE.has(col === '_racine' ? cle : col)) base.set(k, v.revision);" 'void 0;' \
+  "$PTW2"
+prouver 'urgence 2 o : rouverte, la fusion sans l'\''ancêtre' $PONT \
+  '(window).SkanCore.mergeData(data, r.disk, r.ancetre);' '(window).SkanCore.mergeData(data, r.disk);' \
+  "$PTW2"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -2320,3 +2320,16 @@ l'argent ou perdent des données. Ils se réparent dans les gros fichiers (excep
   (fiche, coût d'une heure, trésorerie) gardent la CSS (environ 0,4 % d'écart avec le bulletin de janvier). Tests :
   `tests/moteur/paie-css-2027.test.ts`, `tests/v10/paie.test.ts`, `tests/web/paie-1256-gestes.test.ts` (février 2027 à la
   souris) ; preuves `paie 10.1-1 a` à `m`.
+- **1.266.4 — Le pointage se fusionne case par case** (point 2). Il n'était pas dans la fusion : dès qu'un enregistrement
+  était refusé pour un conflit, même sur une autre pièce (un client changé par un collègue), en ligne ou au retour du
+  réseau, le poste reprenait tout le pointage du serveur et perdait le sien sans un mot. La fusion (`fusionnerPointage`,
+  core.js) rassemble maintenant les journées, les retards, les heures sup du jour, les passages de la pointeuse (tous
+  gardés), les heures sup du mois (refaites : la part notée au mois plus celles des journées), les journées validées, les
+  versions validées, les imports de la pointeuse et les mois rouverts. Elle lit ce que la page avait du serveur (le pont le
+  rend avec le conflit) : une case effacée d'un côté reste effacée. Une même case changée des deux côtés garde la version
+  du serveur, l'autre est mise de côté et dite. Un pointage par salarié et par mois porte un identifiant qui en découle
+  (`pt-<salarié>-<année>-<mois>`) : deux postes qui ouvrent le même mois écrivent le même objet (avant, deux objets dont un
+  seul se lisait). Au retour du réseau, le pointage fusionné repart dans la révision du serveur. Tests :
+  `tests/moteur/paie-pointage-fusion.test.ts`, `tests/web/pointage-fusion.test.ts`, `tests/web/hors-ligne-envoi.test.ts` ;
+  preuves `urgence 2 a` à `o`.
+

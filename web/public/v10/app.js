@@ -358,7 +358,7 @@
       const ouvert = (location.hash.match(/^#\/doc\/([^/?]+)$/) || [])[1] || '';
       const avant = ouvert ? (data.documents || []).find(d => d.id === ouvert) : null;
       const mienne = avant ? JSON.parse(JSON.stringify(avant)) : null;
-      const m = C.mergeData(data, r.disk);
+      const m = C.mergeData(data, r.disk, r.ancetre);
       const touchee = mienne && mienne.status === 'brouillon' && m.conflicts.find(x => x.kind === 'documents' && x.id === ouvert);
       const autre = touchee ? ((r.disk && r.disk.documents) || []).find(d => d.id === ouvert) : null;
       if (autre) conflitPiece = { id: ouvert, mienne, autre: JSON.parse(JSON.stringify(autre)), qui: (r.disk && r.disk.syncDeviceName) || '' };

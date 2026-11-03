@@ -688,6 +688,13 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
    sont pas dans la fusion. Dès qu'un enregistrement est refusé pour un conflit, même sur une autre pièce (un client
    changé par un collègue), en ligne ou au retour du réseau, le poste reprend tout le pointage du serveur et perd le sien
    (§ 7).
+   *Réparé le 03/11/2026 (1.266.4) : le pointage se fusionne case par case (`fusionnerPointage`, core.js), avec ce que la
+   page avait du serveur pour distinguer une case effacée d'une case jamais posée ; une même case changée des deux côtés
+   garde la version du serveur et l'autre est mise de côté et dite (comme une pièce) ; les journées validées gardent le
+   geste le plus récent (à l'horloge des postes, À VÉRIFIER) ; un pointage par salarié et par mois sous un identifiant
+   qui en découle (`idPointage`, compta.js). Reste : d'autres listes ne sont pas non plus dans la fusion (listes de prix,
+   commandes fournisseur, réceptions, dépôts, clôtures, échéances fiscales), à réparer à part ; à sortir avec le
+   Personnel (A1).*
 3. Les livres du serveur n'ont **ni les déclarations sociales payées ni les versements de saisie**
    (`serveur/compta/paie.ts`), et ils écrivent les avances en un total par jour au lieu d'une par une (`03` § 2.1) ; le
    test qui devait le voir compare à la v10 figée ; l'écran calcule en plus, à chaque affichage, sa propre comptabilité

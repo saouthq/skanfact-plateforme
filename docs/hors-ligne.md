@@ -363,3 +363,11 @@ datées au jour de Tunis (déjà le 24), son navigateur d'essai tournait en UTC 
 jour paraissait dans le futur. L'application lit le jour de qui travaille, ce qui est juste à Tunis ; c'est le test qui
 mentait. Les sept parcours qui datent leurs données au jour de Tunis ouvrent maintenant leur navigateur à Tunis.
 Reproduit avec un navigateur réglé sur un autre jour, puis vert.
+
+## 1.266.4 : le pointage se fusionne case par case (fait le 03/11/2026)
+
+Sur un conflit d'enregistrement (en ligne ou au retour du réseau), le pont rend avec la version du serveur ce que la page
+en avait (`ancetre`, lu avant de relire). La fusion du pointage (`fusionnerPointage`, core.js) s'en sert pour distinguer
+une case effacée d'une case jamais posée ; une même case changée des deux côtés garde la version du serveur, l'autre est
+mise de côté et dite. Au retour du réseau, le pointage fusionné repart dans la révision du serveur (sinon il se faisait
+refuser de nouveau). Détail : `docs/paie.md`, « Les corrections urgentes du Personnel ».

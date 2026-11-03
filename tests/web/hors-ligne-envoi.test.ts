@@ -236,6 +236,42 @@ describe('enregistrer sans réseau, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'hors-ligne-envoi-4-rouverte.png') });
   }, 180_000);
 
+  // 16 § 10.1, urgence 2 : le pointage d'un mois noté sans réseau, et le même mois noté ailleurs entre-temps.
+  it('rouverte avec le réseau : le pointage noté sans réseau et celui d\'un autre poste, le même mois, restent tous les deux ; la case effacée ne revient pas', async () => {
+    const jeton = await personne('pointeur');
+    const ent = await entreprise(jeton);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'employees', cle: 'ali', rang: 0, revision: null, contenu: { id: 'ali', name: 'Ali Ben Salah', hireDate: '2020-01-01', grossSalary: { '~n': '1450.375' }, contract: 'cdi', active: true } },
+      { collection: 'timesheets', cle: 'pt-ali-2026-10', rang: 0, revision: null, contenu: { id: 'pt-ali-2026-10', employeeId: 'ali', year: 2026, month: 10, jours: { 2: 'M', 3: 'A' }, hs: {} } },
+    ] })).statut).toBe(200);
+    const c = await monOrdinateur(jeton);
+    let p = await c.newPage();
+    await pret(p, ent);
+    await p.evaluate(async () => { await (window as unknown as { __enregistrerMaintenant: () => Promise<unknown> }).__enregistrerMaintenant(); });
+    await couper(c);
+    // Sans réseau : le 05 noté absent, le 03 effacé (revenu à « présent »), enregistrés comme l'écran le fait.
+    await p.evaluate(async () => {
+      const w = window as unknown as { __data: { employees: { id: string }[] }; SkanCore: { poserPointage: (d: unknown, e: unknown, y: number, m: number, j: number, code: string) => boolean }; __enregistrerMaintenant: () => Promise<unknown> };
+      const d = w.__data, e = d.employees.find((x) => x.id === 'ali');
+      w.SkanCore.poserPointage(d, e, 2026, 10, 5, 'A');
+      w.SkanCore.poserPointage(d, e, 2026, 10, 3, 'P');
+      await w.__enregistrerMaintenant();
+    });
+    await expect.poll(() => enAttente(p), { timeout: 10_000 }).toBeGreaterThan(0);
+    await borne('fermer la page', p.close());
+    await retablir();
+    // Pendant la coupure, un autre poste note le 09 du même mois, dans la révision qu'il a lue.
+    const t = (await objets(jeton, ent)).find((o) => o.collection === 'timesheets' && o.cle === 'pt-ali-2026-10');
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'timesheets', cle: 'pt-ali-2026-10', rang: 0, revision: t?.revision ?? null,
+      contenu: { ...t?.contenu, jours: { ...(t?.contenu.jours as Record<string, string>), 9: 'D' } } }] })).statut).toBe(200);
+    await c.setOffline(false);
+    p = await c.newPage();
+    await ouvrir(p, `${adresse}/v10/?e=${ent}#/clients`);
+    await expect.poll(async () => (await objets(jeton, ent)).find((o) => o.cle === 'pt-ali-2026-10')?.contenu.jours, { timeout: 20_000 }).toEqual({ 2: 'M', 5: 'A', 9: 'D' });
+    await expect.poll(() => enAttente(p), { timeout: 10_000 }).toBe(0);
+    await c.close();
+  }, 180_000);
+
   it('se déconnecter avec des changements qui attendent : la question d\'abord ; « Attendre le réseau » ne perd rien', async () => {
     const jeton = await personne('prudent');
     const ent = await entreprise(jeton);

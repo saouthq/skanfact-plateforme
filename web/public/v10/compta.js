@@ -6778,6 +6778,10 @@
   // heures supplémentaires) : il n'est ni payé ni retiré du mois complet.
   const CODES_REPOS = ['R', 'P'];
   const libellePointage = code => code === '-' ? 'Hors contrat' : (CODES_POINTAGE.find(x => x[0] === code) || [, code])[1];
+  // (16 § 10.1, urgence 2) Un objet par salarié et par mois, sous un identifiant qui en découle : deux postes qui ouvrent le
+  // même mois écrivent le même objet, et le serveur le dit (un conflit, que la fusion rassemble case par case) au lieu d'en
+  // garder deux dont un seul se lit.
+  const idPointage = (employeeId, year, month) => `pt-${employeeId}-${Number(year)}-${String(Number(month)).padStart(2, '0')}`;
   const pointageEnregistre = (data, employeeId, year, month) => (data.timesheets || [])
     .find(t => t.employeeId === employeeId && Number(t.year) === Number(year) && Number(t.month) === Number(month)) || null;
   // La grille d'un mois : ce qui a été pointé à la main, sinon le congé ou l'absence saisis, sinon le calendrier (le
@@ -6879,7 +6883,7 @@
       if (!neufs.length) return;
       r.jours++;
       if (!ecrire) return;
-      if (!t) { if (!Array.isArray(data.timesheets)) data.timesheets = []; t = { id: uid(), employeeId: e.id, year: y, month: m, jours: {}, hs: {} }; data.timesheets.push(t); }
+      if (!t) { if (!Array.isArray(data.timesheets)) data.timesheets = []; t = { id: idPointage(e.id, y, m), employeeId: e.id, year: y, month: m, jours: {}, hs: {} }; data.timesheets.push(t); }
       t.badges = t.badges || {};
       const tout = [...vus, ...neufs].sort();
       t.badges[d] = { h: tout, ...(avant && avant.sortieMain ? { sortieMain: avant.sortieMain } : {}) };
@@ -6944,7 +6948,7 @@
     if (!t) {
       if (!mn) return true;
       if (!Array.isArray(data.timesheets)) data.timesheets = [];
-      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      t = { id: idPointage(employee.id, year, month), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
       data.timesheets.push(t);
     }
     t.retards = t.retards || {};
@@ -6965,7 +6969,7 @@
     }
     if (!t) {
       if (!Array.isArray(data.timesheets)) data.timesheets = [];
-      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      t = { id: idPointage(employee.id, year, month), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
       data.timesheets.push(t);
     }
     t.jours = t.jours || {};
@@ -6977,7 +6981,7 @@
     let t = pointageEnregistre(data, employee.id, year, month);
     if (!t) {
       if (!Array.isArray(data.timesheets)) data.timesheets = [];
-      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      t = { id: idPointage(employee.id, year, month), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
       data.timesheets.push(t);
     }
     t.hs = t.hs || {};
@@ -7002,7 +7006,7 @@
     if (!t) {
       if (!h) return true;
       if (!Array.isArray(data.timesheets)) data.timesheets = [];
-      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      t = { id: idPointage(employee.id, year, month), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
       data.timesheets.push(t);
     }
     t.hs = t.hs || {}; t.hsJours = t.hsJours || {};
