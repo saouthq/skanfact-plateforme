@@ -23478,6 +23478,139 @@ prouver 'R0e g : un nom de geste sans module' modules/personnel/module.json \
     "paie"
   ],' '  "codesDesGestes": [],' \
   "$RE2"
+# ── 17 § 4.2, lot R0c (1.266.9) : le contrôle des frontières (outils/rangement/frontieres.ts, modules/frontieres-connues.json) ──
+RF1='le dépôt tient ses frontières : la mesure atteint chaque page, et la liste des écarts connus est à jour'
+RF2='F2, F3, F4, F7 : un nom lu ou écrit d'"'"'un module à l'"'"'autre, dans la même fermeture, est rendu au morceau qui le définit'
+RF3='F0, F1, F8 : une coupe au milieu d'"'"'une instruction, un morceau non déclaré, un nom introuvable, un nom défini deux fois'
+RF4='F9 : un nom lu à l'"'"'ouverture de la page avant sa définition, directement ou par une fonction appelée au chargement'
+RF5='F13 : au serveur, un import vers le fichier interne d'"'"'un autre module ; sa porte est permise'
+RF6='le cliquet : un écart neuf ou disparu fait tomber le contrôle ; la liste ne fait que baisser, sauf un déplacement à l'"'"'identique'
+RF7='F12 : un gros fichier ne grandit pas hors de modules/ ; son plafond baisse avec lui'
+RF8='la construction contrôle avant de construire, seulement quand SKANFACT_CONTROLE=1 ; le suiveur la pose, les tests jamais'
+prouver 'R0c a : la page lue sans ses scripts' outils/rangement/frontieres.ts \
+  '  const dossier = path.posix.dirname(page);' '  const dossier = path.posix.dirname(page); if (dossier) return [];' \
+  "$RF1"
+prouver 'R0c b : le serveur qui n'"'"'est plus mesuré' outils/rangement/frontieres.ts \
+  '  importsDuServeur(ctx, noter);' '  void importsDuServeur;' \
+  "$RF1"
+prouver 'R0c c : un nom posé sur la fenêtre par un paramètre (global.RowMenu) pris pour introuvable' outils/rangement/frontieres.ts \
+  '      if (v) alias.add(v);' '      void v;' \
+  "$RF1"
+prouver 'R0c d : un script universel (module, require) pris pour introuvable' outils/rangement/frontieres.ts \
+  '(UNIVERSEL.includes(nom) && UNIVERSEL.some((u) => a.typeofs.has(u)))' 'false' \
+  "$RF1"
+prouver 'R0c e : une lecture d'"'"'un module à l'"'"'autre rendue au lecteur' outils/rangement/frontieres.ts \
+  '      vers = { a, pos: debutDe(d.name) };' '      vers = { a, pos };' \
+  "$RF2"
+prouver 'R0c f : la porte d'"'"'un module ignorée' outils/rangement/frontieres.ts \
+  '    if (!porte.includes(nom)) noter('"'"'F2'"'"'' '    if (porte.length >= 0) noter('"'"'F2'"'"'' \
+  "$RF2"
+prouver 'R0c g : une dépendance vers le bas acceptée parce qu'"'"'elle est déclarée' outils/rangement/frontieres.ts \
+  '    if (!lecteur?.dependances.includes(chez) || ctx.ordre.indexOf(chez) > ctx.ordre.indexOf(de)) noter('"'"'F3'"'"'' '    if (!lecteur?.dependances.includes(chez)) noter('"'"'F3'"'"'' \
+  "$RF2"
+prouver 'R0c h : le socle qui nomme un module, sans écart' outils/rangement/frontieres.ts \
+  '    if (de === '"'"'socle'"'"') { noter('"'"'F4'"'"', `${a.servi} socle→${chez} ${nom}`, ici, lieu); continue; }' '    if (de === '"'"'socle'"'"') { continue; }' \
+  "$RF2"
+prouver 'R0c i : écrire la variable d'"'"'un autre module, sans écart' outils/rangement/frontieres.ts \
+  '    if (ecrit && !(r.init)) noter('"'"'F7'"'"'' '    if (ecrit && false) noter('"'"'F7'"'"'' \
+  "$RF2"
+prouver 'R0c j : une entrée ajoutée à la table d'"'"'icônes d'"'"'un autre, sans écart' outils/rangement/frontieres.ts \
+  '        } else if (!fenetre) a.ecrituresParPropriete.add(racineObjet);' '        }' \
+  "$RF2"
+prouver 'R0c k : une coupe au milieu d'"'"'une instruction acceptée' outils/rangement/frontieres.ts \
+  '      if (!permis.includes(conteneur.type))' '      if (permis.length < 0)' \
+  "$RF3"
+prouver 'R0c l : le code coupé au milieu d'"'"'un objet, comme l'"'"'aide' outils/rangement/frontieres.ts \
+  '...(AIDE.includes(servi) ? ['"'"'ObjectExpression'"'"', '"'"'ArrayExpression'"'"'] : [])' ''"'"'ObjectExpression'"'"', '"'"'ArrayExpression'"'"'' \
+  "$RF3"
+prouver 'R0c m : un morceau rangé que la table ignore, accepté' outils/rangement/frontieres.ts \
+  '  parcourirModules('"'"'modules'"'"');' '  void parcourirModules;' \
+  "$RF3"
+prouver 'R0c n : une coupe au milieu d'"'"'une règle de style acceptée' outils/rangement/frontieres.ts \
+  'if (profondeurCss(texte, b.debut) !== 0)' 'if (profondeurCss(texte, b.debut) === 99)' \
+  "$RF3"
+prouver 'R0c o : un nom introuvable passé sous silence' outils/rangement/frontieres.ts \
+  '        noter('"'"'F1'"'"', `${nomPage} ${a.servi} ${nom}`, `${a.servi}:${pos}`, ou(a, pos));' '        void nomPage;' \
+  "$RF3"
+prouver 'R0c p : un nom gardé derrière typeof pris pour introuvable' outils/rangement/frontieres.ts \
+  '        if (a.typeofs.has(nom) || (UNIVERSEL' '        if ((UNIVERSEL' \
+  "$RF3"
+prouver 'R0c q : un nom défini deux fois sur la page, accepté' outils/rangement/frontieres.ts \
+  '    for (const [nom, lieux] of definitions) if (lieux.length > 1)' '    for (const [nom, lieux] of definitions) if (lieux.length > 2)' \
+  "$RF3"
+prouver 'R0c r : une fonction appelée au chargement qui n'"'"'est pas suivie' outils/rangement/frontieres.ts \
+  '        const premiere = appelee(appel.vers);' '        const premiere = appel.pos < 0 ? appelee(appel.vers) : null;' \
+  "$RF4"
+prouver 'R0c s : une lecture faite au chargement avant la déclaration, acceptée' outils/rangement/frontieres.ts \
+  '        juger(a, r, rang, a.cadres, pos, `${a.servi}:${pos}`, ou(a, pos), '"'"''"'"');' '        void pos;' \
+  "$RF4"
+prouver 'R0c t : un nom d'"'"'un script chargé plus loin, accepté' outils/rangement/frontieres.ts \
+  '    if (p.script > rang || (p.script === rang && p.tdz && p.pos > quand))' '    if (p.script === rang && p.tdz && p.pos > quand)' \
+  "$RF4"
+prouver 'R0c u : la fonction passée à forEach au chargement, pas suivie' outils/rangement/frontieres.ts \
+  '      } else if (appele.type === '"'"'MemberExpression'"'"' && !appele.computed && SYNCHRONES.has(' '      } else if (appele.type === '"'"'Nulle'"'"' && !appele.computed && SYNCHRONES.has(' \
+  "$RF4"
+prouver 'R0c v : la réaction à un clic comptée comme exécutée à l'"'"'ouverture' outils/rangement/frontieres.ts \
+  '!appele.computed && SYNCHRONES.has((appele.property as unknown as { name: string }).name)) {' '!appele.computed) {' \
+  "$RF4"
+prouver 'R0c w : un typeof d'"'"'un nom d'"'"'un script chargé plus loin compté comme un arrêt' outils/rangement/frontieres.ts \
+  '    if (p.script > rang && a.sousTypeof.has(r.identifier as unknown as Noeud)) return;' '' \
+  "$RF4"
+prouver 'R0c x : la variable propre à la fonction appelée comptée comme lue trop tôt' outils/rangement/frontieres.ts \
+  ' && cadres.includes(chez) && chez.start <= quand && quand < chez.end) noter('"'"'F9'"'"'' ') noter('"'"'F9'"'"'' \
+  "$RF4"
+prouver 'R0c y : la porte d'"'"'un module du serveur refusée' outils/rangement/frontieres.ts \
+  '        if (cible === `${vers.dossier}/porte.ts`) continue;' '' \
+  "$RF5"
+prouver 'R0c z : le socle du serveur qui importe un fichier interne d'"'"'un module, accepté' outils/rangement/frontieres.ts \
+  '        if (vers.module === de.module || vers.module === '"'"'socle'"'"') continue;' '        if (vers.module === de.module || vers.module === '"'"'socle'"'"' || de.module === '"'"'socle'"'"') continue;' \
+  "$RF5"
+prouver 'R0c aa : un import à la demande (import()) qui échappe au contrôle' outils/rangement/frontieres.ts \
+  '|\bimport\(\s*['"'"'"](\.[^'"'"'"]+)['"'"'"]\s*\)/g' '/g' \
+  "$RF5"
+prouver 'R0c ab : un écart neuf accepté' outils/rangement/frontieres.ts \
+  '    if (n > avant) {' '    if (n > avant + 1) {' \
+  "$RF6"
+prouver 'R0c ac : un écart disparu mais encore listé, accepté' outils/rangement/frontieres.ts \
+  '    if (n < avant) refus.push(`Écart disparu' '    if (n < avant - 1) refus.push(`Écart disparu' \
+  "$RF6"
+prouver 'R0c ad : la liste qui monte sans déplacement' outils/rangement/frontieres.ts \
+  '    if (hausses.length && !options.deplacement) {' '    if (hausses.length && options.deplacement === 1) {' \
+  "$RF6"
+prouver 'R0c ae : un déplacement qui inscrit les écarts d'"'"'un code changé' outils/rangement/frontieres.ts \
+  '    } else if (hausses.length && avant.empreinte !== empreinte) {' '    } else if (hausses.length && avant.empreinte === '"'"'jamais'"'"') {' \
+  "$RF6"
+prouver 'R0c af : la liste écrite malgré un refus' outils/rangement/frontieres.ts \
+  '  if (!refus.length) fs.writeFileSync(' '  if (refus.length >= 0) fs.writeFileSync(' \
+  "$RF6"
+prouver 'R0c ag : une empreinte des écrans qui ne lit pas leur code' outils/rangement/frontieres.ts \
+  '    h.update(`${s}\0`).update(lireEcran(s, racine)).update('"'"'\0'"'"');' '    h.update(`${s}\0`);' \
+  "$RF6"
+prouver 'R0c ah : un gros fichier qui grandit, accepté' outils/rangement/frontieres.ts \
+  '    if (n > plafond.auPlus) refus.push(' '    if (n > plafond.auPlus + 1) refus.push(' \
+  "$RF7"
+prouver 'R0c ai : un plafond de lignes qui ne baisse pas avec le fichier' outils/rangement/frontieres.ts \
+  '{ auPlus: Math.min(p.auPlus, n), pourquoi: p.pourquoi }' '{ auPlus: p.auPlus, pourquoi: p.pourquoi }' \
+  "$RF7"
+prouver 'R0c aj : un gros fichier sans plafond, accepté' outils/rangement/frontieres.ts \
+  '    if (!plafond || !plafond.pourquoi) { refus.push(' '    if (!plafond) continue;
+    if (!plafond.pourquoi) { refus.push(' \
+  "$RF7"
+prouver 'R0c ak : la construction qui ne contrôle jamais' outils/rangement/frontieres.ts \
+  '      controler(racine);' '      void racine;' \
+  "$RF8"
+prouver 'R0c al : la construction qui contrôle toujours (celles des tests comprises)' outils/rangement/frontieres.ts \
+  '      if (process.env[CONTROLE] !== '"'"'1'"'"') return;' '' \
+  "$RF8"
+prouver 'R0c am : le suiveur qui construit la production sans le contrôle' exploitation/suivre.ts \
+  '{ SKANFACT_PRECOMPRESSER: '"'"'1'"'"', SKANFACT_CONTROLE: '"'"'1'"'"' }' '{ SKANFACT_PRECOMPRESSER: '"'"'1'"'"' }' \
+  "$RF8"
+prouver 'R0c an : le contrôle oublié par la construction' web/vite.config.ts \
+  '  plugins: [controleDesFrontieres(), react(), lesAssemblesEnDeveloppement(), {' '  plugins: [react(), lesAssemblesEnDeveloppement(), {' \
+  "$RF8"
+prouver 'R0c ao : un test de navigateur qui pose SKANFACT_CONTROLE' tests/web/leger.test.ts \
+  '    process.env[PRECOMPRESSER] = '"'"'1'"'"';' '    process.env[PRECOMPRESSER] = '"'"'1'"'"'; process.env.SKANFACT_CONTROLE = '"'"'1'"'"'; delete process.env.SKANFACT_CONTROLE;' \
+  "$RF8"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

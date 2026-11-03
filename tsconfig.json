@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["base", "serveur", "moteur", "commun", "bureau", "exploitation", "tests", "*.ts"]
+  "include": ["base", "serveur", "moteur", "commun", "bureau", "exploitation", "outils", "tests", "*.ts"]
 }

@@ -214,7 +214,7 @@ Le `02` § 9 renvoyait au `12` pour l'outil ; le `12` n'en nomme aucun. **Décis
 avec acorn et eslint-scope (déjà installés), parce que les outils du marché ne lisent que des `import`, alors que tout
 notre code vit dans des fermetures.
 
-| Code | Ce qu'il refuse | Mesuré le 03/11/2026 |
+| Code | Ce qu'il refuse | Estimé le 03/11/2026, pour la coupe prévue |
 |---|---|---|
 | F0 | Une coupe au milieu d'une instruction (ou d'une entrée de l'aide) ; une ligne absente ou en double ; un morceau non déclaré | 0 |
 | F1 | Un nom introuvable | 1 (`charte`, le défaut du lot V1) |
@@ -231,12 +231,27 @@ notre code vit dans des fermetures.
 | F12 | Un gros fichier qui grandit ; puis, après le lot A1, tout écran hors de `modules/` | — |
 | F13 | Au serveur, importer un fichier interne au lieu de la `porte.ts` | 62 |
 
+**Mesuré par l'outil** (lot R0c, 03/11/2026, 1.266.9 ; `outils/rangement/frontieres.ts`), sur le code d'aujourd'hui,
+où tout est encore au socle : F0, F1, F2, F3, F4, F7, F8 et F9 à **0** (les écarts entre modules naissent au lot A1,
+quand le code passe dans son dossier ; le déplacement les inscrit, voir le cliquet). F9 suit ce qui s'exécute à
+l'ouverture : 306 fonctions sur la page de l'entreprise, 2 594 au Cabinet, aucune lecture trop tôt. F12 : les lignes des
+dix gros fichiers, au plus (33 245 pour `app.js`). F13 : **51** imports (l'estimation disait 62 ; l'outil compte un import
+par fichier et par cible, avec les dossiers du serveur que les fiches déclarent, champ « serveur » : `serveur/compta` à
+la Comptabilité complète, comme son schéma, À DÉCIDER avec les autres propriétaires du § 9). La mesure lit 32 scripts et
+154 667 lectures de noms sur la page de l'entreprise, 25 et 106 166 au Cabinet ; un test exige qu'elle les atteigne. F5,
+F6, F10 et F11 viennent avec les lots qui les rendent mesurables (les portes du moteur et des données, les registres du
+lot B0).
+
 **Le cliquet** : les écarts d'aujourd'hui sont listés (`frontieres-connues.json`). Un écart nouveau fait tomber le
-contrôle ; un écart disparu mais encore listé aussi. La liste ne peut que baisser ; un module est « sorti » quand il n'y a
-plus aucune ligne.
+contrôle ; un écart disparu mais encore listé aussi. La liste ne peut que baisser (`npm run frontieres -- --ecrire`) ; un
+module est « sorti » quand il n'y a plus aucune ligne. **Un lot A** (un déplacement à l'identique) révèle des écarts qui
+existaient déjà : il les inscrit avec `--ecrire --deplacement`, et seulement si les écrans servis n'ont pas changé d'un
+octet depuis la dernière écriture de la liste (son empreinte) ; on écrit donc la liste avant de déplacer.
+**F12** garde, pour chaque gros fichier, ses lignes hors de `modules/` au plus, avec la raison ; une correction urgente
+qui doit le faire grandir relève le plafond, avec sa raison, dans le même envoi.
 
 **Où il tourne** : dans `npm test` et `npm run frontieres` ; comme garde de l'installation, avant la construction ; sur
-GitHub à chaque envoi ; et dans toute construction qui pose `SKANFACT_CONTROLE=1` (le suiveur et GitHub la posent) : le
+GitHub à chaque envoi ; et dans toute construction qui pose `SKANFACT_CONTROLE=1` (le suiveur la pose ; sur GitHub, le contrôle tourne dans `npm test`) : le
 « à chaque construction » du `02` § 9 est ainsi tenu pour les vraies constructions. **Jamais dans les constructions des tests de navigateur** (203 tests construisent le web) : sinon
 une preuve dont le défaut déclenche un refus tomberait pour une autre raison, et compterait « prouvée » à vide. Son refus
 dit ce qui est refusé, pourquoi, et ce qui débloque.
@@ -259,7 +274,7 @@ sans réseau.
 |---|---|
 | **V0** | Partir d'un état connu : la liste figée de ce qui est rouge aujourd'hui (preuves de la nuit, poids, tests), avec le texte exact de chaque échec |
 | **V1** | Le défaut `charte` (`app.js:17134`) : un test (un achat en devise sans taux est refusé, sans erreur), la correction d'une ligne, l'essai à l'écran. Correction urgente |
-| **R0a à R0e** | Les outils : faire suivre les preuves (§ 6) ; l'assembleur partout, d'abord « à l'identique » ; le contrôle des frontières (mesure, puis cliquet) ; la comparaison des écrans (42 routes et leurs onglets, 11 routes du Cabinet, au bureau et au téléphone) et du moteur (sur l'exemple de cinq ans) ; les onze fiches `module.json` (le socle et les dix modules du lancement), la ligne du `12`, la correction du `02` § 9, les documents périmés. *R0a fait le 03/11/2026 (1.266.8) : `commun/assemblage.ts`, `modules/assemblage.json` (13 fichiers servis, chacun son unique morceau), la construction (avant l'allègement), le développement (à la volée), le chargeur de Node `lireEcran` (25 lecteurs recopiés remplacés) ; construit avant et après : 216 fichiers identiques à l'octet, dont 81 copies compressées. R0e fait le même jour : `modules/ordre.json` et les onze fiches `module.json` (pages et familles, collections, noms de gestes, schémas, dépendances ; portes, points, emplacements et événements posés vides pour B0), leur test (`tests/commun/fiches-modules.test.ts`), le `12` § 1 et § 8, le `02` § 9, `VISION-ARCHITECTURE.md` § 4.8, `eslint.config.js`. Restent R0b (les preuves qui suivent), R0c (le contrôle des frontières) et R0d (la comparaison des écrans et du moteur).* |
+| **R0a à R0e** | Les outils : faire suivre les preuves (§ 6) ; l'assembleur partout, d'abord « à l'identique » ; le contrôle des frontières (mesure, puis cliquet) ; la comparaison des écrans (42 routes et leurs onglets, 11 routes du Cabinet, au bureau et au téléphone) et du moteur (sur l'exemple de cinq ans) ; les onze fiches `module.json` (le socle et les dix modules du lancement), la ligne du `12`, la correction du `02` § 9, les documents périmés. *R0a fait le 03/11/2026 (1.266.8) : `commun/assemblage.ts`, `modules/assemblage.json` (13 fichiers servis, chacun son unique morceau), la construction (avant l'allègement), le développement (à la volée), le chargeur de Node `lireEcran` (25 lecteurs recopiés remplacés) ; construit avant et après : 216 fichiers identiques à l'octet, dont 81 copies compressées. R0e fait le même jour : `modules/ordre.json` et les onze fiches `module.json` (pages et familles, collections, noms de gestes, schémas, dépendances ; portes, points, emplacements et événements posés vides pour B0), leur test (`tests/commun/fiches-modules.test.ts`), le `12` § 1 et § 8, le `02` § 9, `VISION-ARCHITECTURE.md` § 4.8, `eslint.config.js`. R0c fait le même jour (1.266.9) : `outils/rangement/frontieres.ts` (acorn et eslint-scope, ce dernier désormais en dépendance directe), `modules/frontieres-connues.json` (51 écarts, tous F13, et les plafonds F12), `npm run frontieres`, la garde de la construction (`SKANFACT_CONTROLE=1`, posée par le suiveur), le champ « serveur » des fiches, et son test (`tests/commun/frontieres.test.ts` : chaque code prouvé sur un petit dépôt, 41 preuves). Restent R0b (les preuves qui suivent) et R0d (la comparaison des écrans et du moteur).* |
 | **A1** | `app.js`, `cabinet/app.js`, `core.js` et `compta.js` passent entiers sous `modules/socle/`, avec `guide.js`, `visites.js`, `cabinet/cabguide.js` et `cabinet/cabvisites.js`. **Le Personnel est coupé à l'identique** dans chacun, et ses styles (`paie.css`, `paie-maquette.css`, `paie-cabinet.css`) passent dans `modules/personnel/styles/`, servis à leur adresse : environ 10 500 lignes de code et 2 300 de styles, 1 648 chemins de preuves réécrits |
 | **A2 à A6** | Les autres modules, coupés à l'identique (Ventes et Achats après les chantiers en cours ; puis Trésorerie, Déclarations, Pilotage, Stock, Caisse, Comptabilité complète, Cabinet) ; le socle rangé en sous-dossiers ; ce qui est partagé remonte au socle (les icônes, les menus de ligne, les noms de pièces, les mois…) |
 | **B0** | Les registres du socle (points, emplacements, événements), posés vides : aucun module ne s'en sert encore |
@@ -356,7 +371,7 @@ modules attend la fin du rangement.*
 | 03/11/2026 (proposé) | On déplace les sources, pas les fichiers servis : assemblés à la construction, identiques à l'octet pendant les lots A |
 | 03/11/2026 (proposé) | La porte : une boîte par module pour les écrans ; le moteur rangé par module mais servi comme un seul (M3) |
 | 03/11/2026 (proposé) | Un module porte les écrans des deux applications ; le Cabinet ne garde que le portefeuille |
-| 03/11/2026 (proposé) | Un contrôle des frontières maison, avec un cliquet qui ne fait que baisser, jamais dans les constructions des tests |
+| 03/11/2026 (proposé) | Un contrôle des frontières maison, avec un cliquet qui ne fait que baisser, jamais dans les constructions des tests ; fait au lot R0c (1.266.9) : seul un déplacement à l'identique, prouvé par l'empreinte des écrans servis, agrandit la liste |
 | 03/11/2026 (proposé) | Les preuves suivent le code dans le même commit, avec l'équivalence octet pour octet ; aucune n'est retirée |
 | 03/11/2026 (proposé) | L'ordre des lots du § 5 ; Personnel le premier, Ventes la dernière boîte ; le menu dans un lot à part |
 | 03/11/2026 (proposé) | Les migrations restent une seule suite numérotée |

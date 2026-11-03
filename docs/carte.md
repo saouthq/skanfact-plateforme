@@ -140,7 +140,18 @@ vaut pour tout le dépôt.*
   - **Les fiches des modules** (1.266.8, lot R0e du `17` § 2.2) : `modules/ordre.json` (les onze modules du `02` § 2, le
     socle en tête) et une fiche `modules/<module>/module.json` chacun : ses pages et leur famille au menu, les parties
     du dossier dont il est le propriétaire, ses noms de gestes, ses schémas, ses dépendances (vers le haut seulement) ;
-    portes, points, emplacements et événements vides jusqu'au lot B0 (`tests/commun/fiches-modules.test.ts`).
+    portes, points, emplacements et événements vides jusqu'au lot B0 (`tests/commun/fiches-modules.test.ts`) ; et ses
+    dossiers du serveur (« serveur »).
+  - **Le contrôle des frontières** (1.266.9, lot R0c du `17` § 4.2 ; `outils/rangement/frontieres.ts`) : il lit chaque
+    page (ses scripts dans l'ordre, chacun assemblé), analyse les portées (acorn, eslint-scope) et rend chaque nom au
+    morceau qui le définit, donc à son module : un nom introuvable, lu d'un module à l'autre hors de sa porte ou vers le
+    bas, le socle qui nomme un module, écrire chez un autre, un nom défini deux fois, un nom lu à l'ouverture avant sa
+    définition (en suivant les appels faits au chargement), un gros fichier qui grandit, un import du serveur qui ne
+    passe pas par la porte d'un module. Le cliquet (`modules/frontieres-connues.json`) liste les écarts d'aujourd'hui :
+    un écart neuf ou disparu fait tomber le contrôle ; la liste ne fait que baisser (`npm run frontieres -- --ecrire`),
+    sauf un déplacement à l'identique (`--deplacement`, prouvé par l'empreinte des écrans). Il tourne dans `npm test`,
+    `npm run frontieres` et la construction de la production (`SKANFACT_CONTROLE=1`, posée par le suiveur), jamais dans
+    celles des tests (`tests/commun/frontieres.test.ts`).
   - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
     (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
     (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs

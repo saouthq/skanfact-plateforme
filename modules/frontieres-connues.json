@@ -1,0 +1,99 @@
+{
+  "_": "Le cliquet du contrôle des frontières (docs/cadrage/17-rangement.md § 4.2 ; outils/rangement/frontieres.ts). « ecarts » : les écarts d'aujourd'hui, comptés ; un écart neuf fait tomber le contrôle, un écart disparu mais encore listé aussi ; la liste ne peut que baisser (`npm run frontieres -- --ecrire`). « lignes » : les lignes de chaque gros fichier hors de modules/, au plus (F12). « empreinte » : les écrans servis à la dernière écriture (un déplacement à l'identique, et lui seul, peut inscrire les écarts qu'il révèle).",
+  "empreinte": "6e1586d2cd3e70b59c6c2046e1718397c182d1d2336757453a1daea5e55d09f3",
+  "lignes": {
+    "v10/app.js": {
+      "auPlus": 33245,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
+    },
+    "v10/core.js": {
+      "auPlus": 12823,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
+    },
+    "v10/compta.js": {
+      "auPlus": 8006,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
+    },
+    "v10/guide.js": {
+      "auPlus": 1872,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
+    },
+    "v10/visites.js": {
+      "auPlus": 2613,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
+    },
+    "v10/cabinet/app.js": {
+      "auPlus": 22052,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
+    },
+    "v10/cabinet/cabguide.js": {
+      "auPlus": 764,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
+    },
+    "v10/cabinet/cabvisites.js": {
+      "auPlus": 2454,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
+    },
+    "plateforme/pont.js": {
+      "auPlus": 3144,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5)"
+    },
+    "plateforme/pont-cabinet.js": {
+      "auPlus": 2788,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5)"
+    }
+  },
+  "ecarts": {
+    "F13 serveur/abonnement/cabinet.ts → serveur/ventes/espace.ts": 1,
+    "F13 serveur/abonnement/routes.ts → serveur/ventes/espace.ts": 1,
+    "F13 serveur/cabinet/classeur.ts → serveur/achats/lecture-ia.ts": 1,
+    "F13 serveur/cabinet/classeur.ts → serveur/achats/sorte.ts": 1,
+    "F13 serveur/caisse/retour.ts → serveur/ventes/pieces.ts": 1,
+    "F13 serveur/compta/ventes.ts → serveur/ventes/pieces.ts": 1,
+    "F13 serveur/connexion.ts → serveur/achats/lecture-ia.ts": 1,
+    "F13 serveur/messagerie/routes.ts → serveur/achats/sorte.ts": 1,
+    "F13 serveur/principal.ts → serveur/achats/gestes.ts": 1,
+    "F13 serveur/principal.ts → serveur/achats/lecture-ia.ts": 1,
+    "F13 serveur/principal.ts → serveur/achats/routes.ts": 1,
+    "F13 serveur/principal.ts → serveur/cabinet/classeur.ts": 1,
+    "F13 serveur/principal.ts → serveur/cabinet/routes.ts": 1,
+    "F13 serveur/principal.ts → serveur/caisse/gestes.ts": 1,
+    "F13 serveur/principal.ts → serveur/caisse/routes.ts": 1,
+    "F13 serveur/principal.ts → serveur/compta/gestes.ts": 1,
+    "F13 serveur/principal.ts → serveur/compta/routes.ts": 1,
+    "F13 serveur/principal.ts → serveur/paie/gestes.ts": 1,
+    "F13 serveur/principal.ts → serveur/paie/routes.ts": 1,
+    "F13 serveur/principal.ts → serveur/ventes/gestes.ts": 1,
+    "F13 serveur/principal.ts → serveur/ventes/konnect.ts": 1,
+    "F13 serveur/principal.ts → serveur/ventes/routes.ts": 1,
+    "F13 serveur/service/contenus.ts → serveur/ventes/pieces.ts": 1,
+    "F13 serveur/v10/achats.ts → serveur/compta/achats.ts": 1,
+    "F13 serveur/v10/boutique.ts → serveur/ventes/reglements.ts": 1,
+    "F13 serveur/v10/boutique.ts → serveur/ventes/situation.ts": 1,
+    "F13 serveur/v10/dossier.ts → serveur/compta/achats.ts": 1,
+    "F13 serveur/v10/dossier.ts → serveur/compta/mouvements.ts": 1,
+    "F13 serveur/v10/dossier.ts → serveur/compta/paie.ts": 1,
+    "F13 serveur/v10/dossier.ts → serveur/compta/suivre.ts": 1,
+    "F13 serveur/v10/dossier.ts → serveur/compta/ventes.ts": 1,
+    "F13 serveur/v10/dossier.ts → serveur/paie/identite.ts": 1,
+    "F13 serveur/v10/dossier.ts → serveur/ventes/annonces.ts": 1,
+    "F13 serveur/v10/dossier.ts → serveur/ventes/pieces.ts": 1,
+    "F13 serveur/v10/droits.ts → serveur/achats/gestes.ts": 1,
+    "F13 serveur/v10/droits.ts → serveur/caisse/gestes.ts": 1,
+    "F13 serveur/v10/droits.ts → serveur/compta/gestes.ts": 1,
+    "F13 serveur/v10/droits.ts → serveur/paie/gestes.ts": 1,
+    "F13 serveur/v10/droits.ts → serveur/paie/identite.ts": 1,
+    "F13 serveur/v10/droits.ts → serveur/ventes/gestes.ts": 1,
+    "F13 serveur/v10/paie.ts → serveur/caisse/sortie.ts": 1,
+    "F13 serveur/v10/paie.ts → serveur/compta/paie.ts": 1,
+    "F13 serveur/v10/paie.ts → serveur/compta/plan.ts": 1,
+    "F13 serveur/v10/paiement.ts → serveur/ventes/konnect.ts": 1,
+    "F13 serveur/v10/pieces-jointes.ts → serveur/achats/sorte.ts": 1,
+    "F13 serveur/v10/routes.ts → serveur/caisse/chaine.ts": 1,
+    "F13 serveur/v10/routes.ts → serveur/caisse/remise.ts": 1,
+    "F13 serveur/v10/routes.ts → serveur/caisse/retour.ts": 1,
+    "F13 serveur/v10/routes.ts → serveur/caisse/routes.ts": 1,
+    "F13 serveur/v10/routes.ts → serveur/paie/identite.ts": 1,
+    "F13 serveur/ventes/pieces.ts → serveur/compta/ventes.ts": 1
+  }
+}

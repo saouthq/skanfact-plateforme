@@ -12,6 +12,7 @@ import react from '@vitejs/plugin-react';
 import { build, defineConfig, type Plugin } from 'vite';
 import { assemblerOctets, ecrireLesAssembles, lireTable } from '../commun/assemblage.ts';
 import { PLANCHER } from '../commun/navigateurs.ts';
+import { controleDesFrontieres } from '../outils/rangement/frontieres.ts';
 import { allegerLesEcrans, PRECOMPRESSER, precompresserLesEcrans } from './alleger.ts';
 
 // La console se construit À PART, dans console/ (ses fichiers sous /console/assets) : construite avec l'entrée, les deux
@@ -51,7 +52,9 @@ function lesAssemblesEnDeveloppement(): Plugin {
 
 export default defineConfig({
   root: import.meta.dirname,
-  plugins: [react(), lesAssemblesEnDeveloppement(), {
+  // Le contrôle des frontières (17 § 4.2) d'abord, et seulement quand la construction pose SKANFACT_CONTROLE=1 (le
+  // suiveur) : jamais dans les constructions des tests de navigateur.
+  plugins: [controleDesFrontieres(), react(), lesAssemblesEnDeveloppement(), {
     // Les écrans partent assemblés (17 § 4.1), puis sans leurs commentaires (docs/leger.md, L6) : public/ est copié tel
     // quel, les gros fichiers y sont remplacés par la suite de leurs morceaux, puis tout est allégé — l'assemblage avant
     // l'allègement, dans la même étape.

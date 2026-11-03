@@ -1,6 +1,6 @@
 {
   "name": "skanfact-plateforme",
-  "version": "1.266.8",
+  "version": "1.266.9",
   "private": true,
   "type": "module",
   "description": "SkanFact, la plateforme : gestion commerciale, caisse, paie et comptabilité pour les entreprises tunisiennes et leur cabinet comptable.",
@@ -19,6 +19,7 @@
     "preuves:eclair": "bash tests/verif-preuves.sh",
     "verifier:brique": "bash tests/verifier-brique.sh",
     "verdict": "bash tests/verdict-github.sh",
+    "frontieres": "node outils/rangement/frontieres.ts",
     "types:base": "node base/generer-types.ts",
     "entreprise": "node base/entreprise.ts",
     "sauvegarde": "node base/sauvegarde.ts",
@@ -41,6 +42,7 @@
     "acorn": "8.18.0",
     "electron": "44.5.1",
     "eslint": "10.11.0",
+    "eslint-scope": "9.1.2",
     "globals": "17.12.0",
     "jsqr": "1.4.0",
     "lightningcss": "1.33.0",

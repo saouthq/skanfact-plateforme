@@ -46,6 +46,7 @@ skanfact-plateforme/
   modules/       un dossier par module (17) : sa fiche module.json, ses écrans, son moteur, son aide, ses visites ;
                  ordre.json (le sens des dépendances du 02 § 2) et assemblage.json (les morceaux de chaque fichier servi)
   commun/        ce que le serveur, les écrans et les tests partagent ; assemblage.ts (17 § 4.1)
+  outils/        les outils du rangement (17) : rangement/frontieres.ts, le contrôle des frontières (17 § 4.2)
   exploitation/  installation des serveurs, sauvegardes, bascule, fiches d'incident
   tests/         invariants, droits, charge, parcours
 ```
@@ -155,7 +156,7 @@ Tout ce qui fait la qualité de la v10 est porté (`08` § 1) :
 | **Secrets** : aucun dans le dépôt | Un chercheur de secrets, qui arrête la construction | À chaque envoi |
 | **Site** : les pages d'aide comparées aux articles de l'application, la page Tarifs comparée à la grille de la console (`11` § 4 et § 6) | Un test dans le dépôt du site | À chaque publication du site |
 | **Test humain** : refaire à la souris et regarder l'écran (décision du 24/09) | Les outils de `scripts/humain/`, adaptés au navigateur | Avant d'annoncer quoi que ce soit |
-| **Rangement** (`17` § 4) : chaque fichier servi est la suite exacte de ses morceaux (`commun/assemblage.ts`) ; chaque partie, page, geste et schéma a un module propriétaire, les dépendances dans le sens du `02` § 2 ; le **contrôle des frontières** est un outil maison (acorn et eslint-scope, déjà installés : les outils du marché ne lisent que des `import`, notre code vit dans des fermetures), avec un cliquet qui ne fait que baisser | Vitest ; le contrôle : `npm run frontieres` | À chaque installation, à chaque envoi et à chaque vraie construction ; **jamais** dans les constructions des tests (une preuve tomberait pour une autre raison) |
+| **Rangement** (`17` § 4) : chaque fichier servi est la suite exacte de ses morceaux (`commun/assemblage.ts`) ; chaque partie, page, geste et schéma a un module propriétaire, les dépendances dans le sens du `02` § 2 ; le **contrôle des frontières** est un outil maison (`outils/rangement/frontieres.ts`, avec acorn et eslint-scope : les outils du marché ne lisent que des `import`, notre code vit dans des fermetures), avec un cliquet qui ne fait que baisser (`modules/frontieres-connues.json`) | Vitest ; le contrôle : `npm run frontieres` | À chaque installation, à chaque envoi et à chaque vraie construction ; **jamais** dans les constructions des tests (une preuve tomberait pour une autre raison) |
 | **Téléphone et langue factice** : chaque écran photographié à deux largeurs et dans la langue factice ; aucune phrase écrite en dur dans un écran (`14` § 2.6 et § 5) | L'instrument de rendu, porté | À chaque envoi |
 
 **L'intégration continue tourne sur GitHub Actions** : gratuite pour un dépôt public (décision du
