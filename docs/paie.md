@@ -2332,4 +2332,11 @@ l'argent ou perdent des données. Ils se réparent dans les gros fichiers (excep
   seul se lisait). Au retour du réseau, le pointage fusionné repart dans la révision du serveur. Tests :
   `tests/moteur/paie-pointage-fusion.test.ts`, `tests/web/pointage-fusion.test.ts`, `tests/web/hors-ligne-envoi.test.ts` ;
   preuves `urgence 2 a` à `o`.
+- **1.266.5 — « Retirer déposée » dit que le paiement part** (point 6). Une déclaration sociale notée déposée et payée
+  (1.228.0) porte son paiement : la sortie de trésorerie et l'écriture qui solde la CNSS ou la retenue naissent d'elle.
+  « Retirer la mention » (Paie › Déclarations) les effaçait sans le dire, et le calendrier fiscal ne demandait même pas.
+  Une seule porte (`retirerDeclarationSociale`) pour les deux : la question dit le montant, la date, le compte et la
+  référence qui partent, et que la déclaration redevient à payer ; « Annuler » remet la même ligne ; un paiement pointé sur
+  un relevé ou daté d'un mois clos ne se retire pas (le refus le dit). Tests : `tests/web/paie-bon-a-payer.test.ts`
+  (« urgence 6 », Paie et calendrier) ; preuves `paie 10.1-6 a` à `f`.
 

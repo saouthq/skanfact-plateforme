@@ -266,4 +266,88 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(espace(await p.locator('#p-annee-postes .pa-carte-t b').innerText())).toMatch(/^Où va la paie de \d{4}$/);
     expect(erreurs).toEqual([]);
   }, 180_000);
+  // (16 § 10.1, point 6 ; 03/11/2026) « Retirer déposée » d'une déclaration payée effaçait aussi son paiement (la sortie de
+  // trésorerie et l'écriture), sans le dire ; le calendrier fiscal ne demandait même pas. Une déclaration notée payée, posée
+  // au serveur : un montant et des parts qui ne tombent pas rond, une référence qui prouve que la ligne remise est la même.
+  const payee = (x: { an: number; mo: number }) => { const mm = String(x.mo).padStart(2, '0');
+    return { id: `dm-${x.an}-${mm}`, filedAt: `${x.an}-${mm}-28`, label: 'la retenue du mois', paidDate: `${x.an}-${mm}-28`, amount: 1234.567, parts: { irpp: 1000.111, tfp: 234.456 }, accountId: '', method: 'virement', reference: 'Q-0457' }; };
+  const socialeDe = async (x: { j: string; ent: string }, id: string) => ((await api('GET', `/entreprises/${x.ent}/dossier-v10`, x.j)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[]).find((o) => o.collection === 'socialFilings' && o.cle === id);
+  const poserSociale = async (x: { j: string; ent: string }, c: Record<string, unknown>) => { const a = await socialeDe(x, String(c.id));
+    return api('POST', `/entreprises/${x.ent}/dossier-v10`, x.j, { changements: [{ collection: 'socialFilings', cle: String(c.id), rang: null, revision: a ? a.revision : null, contenu: enc(c) }] }); };
+  const jj = (iso: string) => iso.split('-').reverse().join('/');
+
+  it('urgence 6 : « Retirer la mention » d\'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d\'un mois clos, elle reste', async () => {
+    const A = await monter('payer');
+    const P = payee(A);
+    expect((await poserSociale(A, P)).statut).toBe(200);
+    const versDeclarations = async () => {
+      const p = await ouvrir(A);
+      await p.locator('#p-tabs button[data-tab="declarations"]').click();
+      await p.locator('#dm-paye').waitFor({ timeout: 20_000 });
+      return p;
+    };
+    let p = await versDeclarations();
+    expect(espace(await p.locator('#dm-paye').innerText())).toBe(`déposée et payée le ${jj(P.paidDate)} · 1 234,567 DT`);
+    await p.locator('#dm-file').click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().then(espace).catch(() => '')).toBe('Retirer « déposée et payée » ?');
+    const texte = espace(await p.locator('#modal-root .modal').last().innerText());
+    expect(texte).toContain(`1 234,567 DT, payés le ${jj(P.paidDate)} (réf. Q-0457)`);
+    expect(texte).toContain('Il sort de la trésorerie et des écritures, et la déclaration redevient à payer.');
+    expect(espace(await p.locator('#modal-root #ok').innerText())).toBe('Retirer la mention et le paiement');
+    // « Annuler » de la question : rien ne part.
+    await p.locator('#modal-root [data-close]').first().click();
+    await p.waitForTimeout(800);
+    expect((await socialeDe(A, P.id))?.contenu?.paidDate).toBe(P.paidDate);
+    // Retirer, puis « Annuler » du bandeau : la même ligne revient, avec son paiement.
+    await p.locator('#dm-file').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => (await socialeDe(A, P.id))?.contenu?.paidDate ?? null, { timeout: 20_000 }).toBeNull();
+    await expect.poll(() => p.locator('#dm-file').innerText().then(espace).catch(() => '')).toBe('Marquer déposée et payée…');
+    await p.locator('#toast-undo').click();
+    await expect.poll(async () => (await socialeDe(A, P.id))?.contenu?.paidDate ?? null, { timeout: 20_000 }).toBe(P.paidDate);
+    const remise = (await socialeDe(A, P.id))?.contenu as Record<string, unknown>;
+    expect([nombre(remise.amount), remise.reference, nombre((remise.parts as Record<string, unknown>).tfp)]).toEqual([1234.567, 'Q-0457', 234.456]);
+    await p.close();
+    // Pointée sur un relevé : le refus le dit, rien ne s'ouvre, rien ne part.
+    expect((await poserSociale(A, { ...P, reconciled: true })).statut).toBe(200);
+    p = await versDeclarations();
+    await p.locator('#dm-file').click();
+    await expect.poll(() => p.locator('#toast').innerText().then(espace).catch(() => '')).toContain('pointé sur un relevé de banque');
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
+    expect((await socialeDe(A, P.id))?.contenu?.paidDate).toBe(P.paidDate);
+    await p.close();
+    // Datée d'un mois clos : la période clôturée le dit, rien ne part.
+    expect((await poserSociale(A, P)).statut).toBe(200);
+    const fin = new Date(Date.UTC(A.an, A.mo, 0)).toISOString().slice(0, 10);
+    const cl = ((await api('GET', `/entreprises/${A.ent}/dossier-v10`, A.j)).corps.objets as { collection: string; cle: string; revision: number }[]).find((o) => o.collection === '_racine' && o.cle === 'closedUntil');
+    expect((await api('POST', `/entreprises/${A.ent}/dossier-v10`, A.j, { changements: [{ collection: '_racine', cle: 'closedUntil', rang: null, revision: cl ? cl.revision : null, contenu: fin }] })).statut).toBe(200);
+    p = await versDeclarations();
+    await p.locator('#dm-file').click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().then(espace).catch(() => '')).toBe('Période clôturée');
+    expect((await socialeDe(A, P.id))?.contenu?.paidDate).toBe(P.paidDate);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
+  it('urgence 6 : le calendrier fiscal retire une déclaration payée par la même question, et « Annuler » la remet', async () => {
+    const B = await monter('payer');
+    const P = payee(B);
+    expect((await poserSociale(B, P)).statut).toBe(200);
+    const p = await ouvrir(B);
+    await p.evaluate(() => { location.hash = '#/compta'; });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3000 }).catch(() => undefined);
+    await p.locator('#c-tabs button[data-tab=calendrier]').click();
+    const retirer = p.locator(`[data-fundo="${P.id}"]`);
+    await retirer.waitFor({ timeout: 20_000 });
+    await retirer.click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().then(espace).catch(() => '')).toBe('Retirer « déposée et payée » ?');
+    expect(espace(await p.locator('#modal-root .modal').last().innerText())).toContain(`1 234,567 DT, payés le ${jj(P.paidDate)}`);
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => (await socialeDe(B, P.id)) ?? null, { timeout: 20_000 }).toBeNull();
+    await expect.poll(() => retirer.count()).toBe(0);
+    await p.locator('#toast-undo').click();
+    await expect.poll(async () => nombre((await socialeDe(B, P.id))?.contenu?.amount), { timeout: 20_000 }).toBe(1234.567);
+    await expect.poll(() => retirer.count()).toBe(1);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

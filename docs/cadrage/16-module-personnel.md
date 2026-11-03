@@ -706,6 +706,10 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
 6. « Retirer déposée » **efface aussi le paiement** de la déclaration, à deux endroits : le calendrier fiscal (Compta) et
    « Retirer la mention » dans Paie › Déclarations ; la question posée avant ne dit pas que l'argent sorti et son
    écriture partent avec.
+   *Réparé le 03/11/2026 (1.266.5) : une seule porte (`retirerDeclarationSociale`, app.js, appelée aussi par le calendrier
+   fiscal) dit ce qui part (montant, date, compte, référence), demande, et offre « Annuler » ; un paiement pointé sur un
+   relevé ou daté d'un mois clos ne se retire pas. « Déposée » et « payée » restent un seul fait (les séparer : P6, À
+   VÉRIFIER avec un comptable) ; à sortir avec le Personnel (A1).*
 7. Une **période close** ne protège la paie qu'à l'écran : le serveur accepte un bulletin, un congé, une avance ou un
    pointage daté dans un mois clos (il ne lit pas la date de clôture) ; seuls ses livres tiennent.
 8. Cinq parties sans règle de droits : le rôle Paie **ne peut pas valider** une journée ni un mois, **et il ne voit pas ce

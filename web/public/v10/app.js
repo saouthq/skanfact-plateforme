@@ -20156,6 +20156,30 @@
   const pmAv = (initiales, couleur, cl) => `<span class="av${cl ? ` ${cl}` : ''}" style="background:linear-gradient(145deg, color-mix(in srgb, ${h(couleur)} 70%, #fff), ${h(couleur)})">${h(initiales)}</span>`;
   const pmAvDe = (nom, cl) => pmAv(C.initialesDe(nom || ''), C.couleurDe(nom || ''), cl);
   // (plateforme) 1.234.0 — une avance ou un prêt en cours : une barre par retenue, sous les congés et sur la fiche du salarié.
+  // (plateforme, 03/11/2026 — correction urgente du 16 § 10.1, point 6 ; à sortir avec le Personnel, 17 lot A1) « Retirer
+  // déposée » d'une déclaration sociale : LA porte de la Paie › Déclarations et du calendrier fiscal. Notée payée (1.228.0),
+  // elle porte son paiement : la sortie de trésorerie et l'écriture qui solde la CNSS ou la retenue naissent d'elle. On les
+  // retirait sans le dire (le calendrier ne demandait même pas). La question dit ce qui part ; « Annuler » remet la même
+  // ligne. Pointé sur un relevé, ou daté d'un mois clos, le paiement ne part pas (comme « Annuler le paiement » d'un salaire).
+  async function retirerDeclarationSociale(id, label, apres) {
+    const f = (data.socialFilings || []).find(x => x.id === id);
+    if (!f) return;
+    if (enLecture('socialFilings')) { toast(refusLecture('socialFilings'), true); return; }
+    const paye = !!(f.paidDate && Number(f.amount));
+    if (paye && f.reconciled) { toast('Le paiement de cette déclaration est pointé sur un relevé de banque : la mention ne se retire pas sans lui. Dépointe-le d’abord dans la trésorerie.', true); return; }
+    if (paye && closedBlock(f.paidDate, 'Ce paiement')) return;
+    const compte = paye ? ((data.accounts || []).find(a => a.id === f.accountId) || {}).name : '';
+    const oui = paye
+      ? await confirmDialog(`Le paiement noté pour ${label} part avec la mention : ${C.money(Number(f.amount), company().currency)}, payés le ${C.fmtDate(f.paidDate)}${compte ? ` depuis ${compte}` : ''}${f.reference ? ` (réf. ${f.reference})` : ''}. Il sort de la trésorerie et des écritures, et la déclaration redevient à payer.`, 'Retirer la mention et le paiement', true, { titre: 'Retirer « déposée et payée » ?' })
+      : await confirmDialog(`Retirer la mention « déposée » de ${label} ?`);
+    if (!oui) return;
+    data.socialFilings = data.socialFilings.filter(x => x.id !== id);
+    save(true); apres();
+    toastUndo(paye ? `Mention et paiement retirés : ${label}` : `${enTete(label)} n'est plus marquée déposée`, () => {
+      data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id).concat([f]);
+      save(true); apres();
+    });
+  }
   function avanceLigneHtml(a, cur) {
     // L'année se dit dès qu'une retenue tombe hors de l'année en cours : « janvier » seul, à côté d'« octobre 2025 », tromperait.
     let avecAn = false;
@@ -22446,12 +22470,7 @@
         // (plateforme) 1.228.0 — la CNSS d'un trimestre et les retenues d'un mois se notent DÉPOSÉES ET PAYÉES : le montant
         // sort de la trésorerie et solde la dette du grand livre. La déclaration annuelle, elle, ne fait rien payer.
         if (!f && /^(cnss|dm)-/.test(id)) return payerDeclarationFenetre(id, label);
-        if (f) {
-          if (!await confirmDialog(`Retirer la mention « déposée » de ${label} ?`)) return;
-          data.socialFilings = data.socialFilings.filter(x => x.id !== id);
-          save(true); draw();
-          return;
-        }
+        if (f) return retirerDeclarationSociale(id, label, draw);
         data.socialFilings.push({ id, filedAt: C.today(), label });
         save(true); draw();
         toastUndo(`Noté : ${label} est déposée.`, () => {
@@ -28856,8 +28875,9 @@
       });
       $$('[data-fundo]').forEach(b => b.onclick = () => {
         const id = b.dataset.fundo;
-        if (b.dataset.fsoc) data.socialFilings = (data.socialFilings || []).filter(f => f.id !== id);
-        else data.fiscalFilings = (data.fiscalFilings || []).filter(f => f.id !== id);
+        // (plateforme, 16 § 10.1-6) Une déclaration sociale passe par la porte de la Paie : payée, la question dit que le paiement part.
+        if (b.dataset.fsoc) return retirerDeclarationSociale(id, b.dataset.flab, draw);
+        data.fiscalFilings = (data.fiscalFilings || []).filter(f => f.id !== id);
         save(true); draw();
         toast(`${b.dataset.flab} n'est plus marquée déposée`);
       });

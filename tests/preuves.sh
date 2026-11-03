@@ -23033,6 +23033,32 @@ prouver 'urgence 2 o : rouverte, la fusion sans l'\''ancêtre' $PONT \
   '(window).SkanCore.mergeData(data, r.disk, r.ancetre);' '(window).SkanCore.mergeData(data, r.disk);' \
   "$PTW2"
 
+# 16 § 10.1, point 6 : « Retirer déposée » d'une déclaration payée effaçait son paiement sans le dire (Paie et calendrier).
+prouver 'paie 10.1-6 a : la Paie retire encore la déclaration payée sans rien en dire' web/public/v10/app.js \
+  '        if (f) return retirerDeclarationSociale(id, label, draw);' \
+  '        if (f) { data.socialFilings = data.socialFilings.filter(x => x.id !== id); save(true); draw(); return; }' \
+  'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
+prouver 'paie 10.1-6 b : la question ne dit plus que le paiement part avec la mention' web/public/v10/app.js \
+  '    const paye = !!(f.paidDate && Number(f.amount));' \
+  '    const paye = false;' \
+  'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
+prouver 'paie 10.1-6 c : « Annuler » ne remet plus la déclaration ni son paiement' web/public/v10/app.js \
+  '      data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id).concat([f]);' \
+  '      data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id);' \
+  'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
+prouver 'paie 10.1-6 d : un paiement pointé sur un relevé se retire quand même' web/public/v10/app.js \
+  '    if (paye && f.reconciled) {' \
+  '    if (false) {' \
+  'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
+prouver 'paie 10.1-6 e : un paiement daté d'"'"'un mois clos se retire quand même' web/public/v10/app.js \
+  '    if (paye && closedBlock(f.paidDate, '"'"'Ce paiement'"'"')) return;' \
+  '' \
+  'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
+prouver 'paie 10.1-6 f : le calendrier fiscal retire encore la déclaration payée sans rien demander' web/public/v10/app.js \
+  '        if (b.dataset.fsoc) return retirerDeclarationSociale(id, b.dataset.flab, draw);' \
+  '        if (b.dataset.fsoc) data.socialFilings = (data.socialFilings || []).filter(f => f.id !== id);' \
+  'urgence 6 : le calendrier fiscal retire une déclaration payée par la même question, et « Annuler » la remet'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
