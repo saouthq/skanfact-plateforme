@@ -96,6 +96,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .carte > h3, .carte .h { margin: 0; padding: 14px 16px 10px; font-size: 15px; font-weight: 650; display: flex; gap: 8px 10px; align-items: baseline; flex-wrap: wrap; }
 .carte .h small, .carte > h3 small { color: var(--gris); font-weight: 400; font-size: 13px; }
 .carte .h .d { margin-left: auto; }
+.pied > .btn { margin-left: auto; }
 .pied { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--trait); color: var(--gris); font-size: 13px; }
 .grille2 { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; align-items: start; }
 
@@ -212,7 +213,7 @@ table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 
 .doc h5 { margin: 0; text-align: center; font-size: 14px; letter-spacing: .06em; }
 .doc .pt { border-bottom: 1px dotted #9aa3af; min-width: 80px; display: inline-block; }
 
-.toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--encre); color: var(--papier); padding: 10px 14px; border-radius: 10px; z-index: 60; display: flex; gap: 12px; align-items: center; font-size: 13.5px; box-shadow: var(--ombre-pop); max-width: calc(100% - 32px); }
+.toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--encre); color: var(--papier); padding: 10px 14px; border-radius: 10px; z-index: 60; display: flex; gap: 12px; align-items: center; font-size: 13.5px; box-shadow: var(--ombre-pop); width: max-content; max-width: calc(100% - 32px); }
 .toast button { border: 1px solid rgba(255,255,255,.35); background: none; color: inherit; border-radius: 7px; padding: 3px 9px; font-size: 12.5px; }
 
 /* la note de conception, à droite des écrans */
@@ -239,6 +240,60 @@ table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 
 .legende-tel { max-width: 300px; font-size: 13px; color: var(--gris); display: grid; gap: 8px; align-content: start; }
 .legende-tel b { color: var(--encre); }
 
+/* 2e passe (03/11/2026) : la journée pensée pour tous les jours */
+.sous-h { padding: 0 16px 10px; color: var(--gris); font-size: 13px; display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
+.kbd { margin-left: auto; font-size: 12px; color: var(--gris-2); }
+.kbd kbd { font: inherit; font-size: 11px; font-weight: 600; border: 1px solid var(--trait-fort); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--papier); color: var(--gris); }
+.ligne[data-row]:focus-visible { outline: 2px solid var(--sarcelle); outline-offset: -2px; }
+.ligne.change { box-shadow: inset 3px 0 0 var(--ambre); background: color-mix(in srgb, var(--ambre-doux) 40%, var(--papier)); }
+.ligne.change.a { box-shadow: inset 3px 0 0 var(--rouge); background: color-mix(in srgb, var(--rouge-doux) 40%, var(--papier)); }
+.ligne.change.cg { box-shadow: inset 3px 0 0 var(--bleu-texte); background: color-mix(in srgb, var(--bleu-doux) 45%, var(--papier)); }
+.ajout { border: 1px dashed var(--trait-fort); background: none; border-radius: 8px; padding: 5px 8px; font-size: 12.5px; font-weight: 600; color: var(--gris); min-width: 104px; }
+.ajout.on { border-style: solid; border-color: transparent; background: var(--doux); color: var(--doux-texte); }
+.ajout:disabled { opacity: .35; cursor: default; }
+.effet { font-weight: 600; color: var(--encre); }
+.semaine button:disabled { opacity: .35; cursor: default; }
+.semaine .nv { color: var(--ambre); font-weight: 800; }
+.eq-h { display: flex; gap: 4px 12px; align-items: center; flex-wrap: wrap; padding: 8px 16px; border-top: 1px solid var(--trait); background: var(--papier-2); font-size: 13px; }
+.eq-h > span { color: var(--gris); }
+.eq-h .d { margin-left: auto; }
+.cherche { display: flex; gap: 10px; align-items: center; padding: 0 16px 10px; flex-wrap: wrap; }
+.cherche input { flex: 1 1 220px; min-width: 0; font: inherit; padding: 7px 10px; border: 1px solid var(--trait-fort); border-radius: 9px; background: var(--papier); color: var(--encre); }
+.qui small.par { color: var(--gris-2); font-size: 12px; }
+.gr th.auj { color: var(--sarcelle-texte); }
+.gr td.c.auj { outline: 2px dashed var(--sarcelle); outline-offset: -2px; }
+.gr td.c.prevu { background: none; border: 1px dashed var(--bleu-texte); color: var(--bleu-texte); cursor: default; }
+.lien-b { border: 0; background: none; padding: 0; color: var(--sarcelle-texte); font-weight: 600; text-decoration: underline; font-size: inherit; }
+.tel { position: relative; }
+.tel .ecr { display: flex; flex-direction: column; }
+.tel .corps { flex: 1; align-content: start; }
+.tel .th .filtre { margin-top: 6px; justify-self: start; }
+.tl-b { width: 100%; border: 0; border-top: 1px solid var(--trait); background: none; display: flex; gap: 10px; align-items: center; padding: 10px 12px; text-align: left; min-height: 58px; }
+.tl-b:first-child { border-top: 0; }
+.tl-b .nm { flex: 1; display: grid; min-width: 0; }
+.tl-b .nm small { color: var(--gris); font-size: 12.5px; }
+.tel .eq-h { padding: 7px 12px; }
+.tel .cherche { padding: 0; }
+.tabs-t { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 8px; }
+.tabs-t button { border: 0; background: none; display: grid; justify-items: center; gap: 2px; font-size: 11.5px; font-weight: 600; color: var(--gris); padding: 6px 0 0; min-height: 44px; }
+.tabs-t button.on { color: var(--sarcelle-texte); }
+.voile-t { position: absolute; inset: 12px; border-radius: 28px; overflow: hidden; background: var(--voile); display: flex; align-items: flex-end; z-index: 5; }
+.feuille { background: var(--papier); width: 100%; border-radius: 20px 20px 0 0; padding: 16px 14px 18px; display: grid; gap: 10px; }
+.feuille .q { display: flex; gap: 10px; align-items: center; }
+.feuille .q div { display: grid; }
+.feuille .q small { color: var(--gris); }
+.feuille .filtre { width: 100%; }
+.feuille .filtre button { flex: 1; min-height: 40px; }
+.gros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gros button { border: 1px solid var(--trait); border-radius: 12px; background: var(--papier); min-height: 56px; padding: 8px 10px; text-align: left; display: grid; gap: 1px; align-content: center; }
+.gros button span { font-size: 12px; color: var(--gris); }
+.gros button.on { border-color: var(--sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sarcelle) 15%, transparent); }
+.gros button:disabled { opacity: .4; cursor: default; }
+.n-t { width: 26px; height: 26px; border-radius: 99px; display: grid; place-items: center; font-size: 12px; font-weight: 700; border: 1px solid var(--trait-fort); color: var(--gris); flex: none; }
+.n-t.fait { background: var(--sarcelle); color: #fff; border-color: var(--sarcelle); }
+.n-t.cours { color: var(--sarcelle-texte); border-color: var(--sarcelle); }
+.n-t.retard { background: var(--rouge-doux); color: var(--rouge-texte); border-color: transparent; }
+
 @media (max-width: 1000px) {
   .grille2 { grid-template-columns: minmax(0, 1fr); }
   .gestes, .chemin-m { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -253,12 +308,15 @@ table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 
   .detail { padding-left: 0; }
   .tete h2 { font-size: 22px; }
   .gestes, .chemin-m { grid-template-columns: minmax(0, 1fr); }
+  .kbd { display: none; }
+  .ajout { min-width: 0; }
 }
 </style>
 
 <div class="mq" role="toolbar" aria-label="Commandes de la maquette">
   <h1>Maquette · la paie au quotidien</h1>
   <div class="grp"><span>Le jour :</span><div class="seg" id="mq-jour"></div></div>
+  <div class="grp"><span>L'entreprise :</span><div class="seg" id="mq-taille"></div></div>
   <div class="grp"><span>Écran :</span><div class="seg" id="mq-ecran"></div></div>
   <button class="lien" id="mq-pourquoi" type="button">Ce qui change, et pourquoi</button>
 </div>
@@ -268,100 +326,173 @@ table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 
 <script>
 'use strict';
 // ───────────── données de l'exemple (fictives) ─────────────
-const COUL = ['#d08a3c', '#4f7fd8', '#7a62c9', '#2f9e7f', '#c4566e'];
-const SAL = [
-  { id: 'ah', nom: 'Ahmed Ben Salah', ini: 'AB', poste: 'Technicien', contrat: 'CDI', depuis: '04/2019', brut: 1450.375, net: 1128.640, paie: 'virement', rib: false, conges: 14.5 },
-  { id: 'in', nom: 'Ines Gharbi', ini: 'IG', poste: 'Assistante administrative', contrat: 'CDI', depuis: '09/2021', brut: 980.000, net: 802.215, paie: 'virement', rib: true, conges: 9 },
-  { id: 'mo', nom: 'Mourad Trabelsi', ini: 'MT', poste: 'Ouvrier', contrat: 'CDD', fin: '31/12/2026', depuis: '01/2026', brut: 720.500, net: 611.730, paie: 'virement', rib: true, conges: 6 },
-  { id: 'sa', nom: 'Salma Jlassi', ini: 'SJ', poste: 'Vendeuse', contrat: 'Essai', fin: '15/11/2026', depuis: '09/2026', brut: 650.000, net: 556.480, paie: 'virement', rib: true, conges: 2 },
-  { id: 'ka', nom: 'Karim Haddad', ini: 'KH', poste: 'Chauffeur-livreur', contrat: 'CDI', depuis: '03/2023', brut: 850.250, net: 707.905, avance: 200, paie: 'espèces', rib: false, conges: 11 },
+const COUL = ['#d08a3c', '#4f7fd8', '#7a62c9', '#2f9e7f', '#c4566e', '#3f8fb0', '#a0703a', '#8a5bb8'];
+const BASE = [
+  { id: 'ah', nom: 'Ahmed Ben Salah', ini: 'AB', poste: 'Technicien', eq: 'Atelier', contrat: 'CDI', depuis: '04/2019', brut: 1450.375, net: 1128.640, paie: 'virement', rib: false, conges: 14.5 },
+  { id: 'in', nom: 'Ines Gharbi', ini: 'IG', poste: 'Assistante administrative', eq: 'Bureau', contrat: 'CDI', depuis: '09/2021', brut: 980.000, net: 802.215, paie: 'virement', rib: true, conges: 9 },
+  { id: 'mo', nom: 'Mourad Trabelsi', ini: 'MT', poste: 'Ouvrier', eq: 'Atelier', contrat: 'CDD', fin: '31/12/2026', depuis: '01/2026', brut: 720.500, net: 611.730, paie: 'virement', rib: true, conges: 6 },
+  { id: 'sa', nom: 'Salma Jlassi', ini: 'SJ', poste: 'Vendeuse', eq: 'Boutique', contrat: 'Essai', fin: '20/11/2026', depuis: '09/2026', brut: 650.000, net: 556.480, paie: 'virement', rib: true, conges: 2 },
+  { id: 'ka', nom: 'Karim Haddad', ini: 'KH', poste: 'Chauffeur-livreur', eq: 'Livraison', contrat: 'CDI', depuis: '03/2023', brut: 850.250, net: 707.905, avance: 200, paie: 'espèces', rib: false, conges: 11 },
 ];
+// La même entreprise, plus grande : 27 salariés en 4 équipes (pour juger la page quand la liste grandit).
+const EXTRA = [['Walid Mejri', 'Atelier', 'Ouvrier'], ['Hichem Ayari', 'Atelier', 'Soudeur'], ['Bilel Chaabane', 'Atelier', 'Ouvrier'], ['Sami Ferchichi', 'Atelier', 'Technicien'], ['Nabil Hammami', 'Atelier', 'Ouvrier'], ['Anis Belhadj', 'Atelier', 'Magasinier'], ['Fares Zouari', 'Atelier', 'Ouvrier'], ['Oussama Dridi', 'Atelier', 'Peintre'], ['Mehdi Kammoun', 'Atelier', 'Ouvrier'], ['Rami Saidi', 'Atelier', 'Apprenti'],
+  ['Amira Bouzid', 'Boutique', 'Responsable de la boutique'], ['Rim Toumi', 'Boutique', 'Vendeuse'], ['Sonia Arfaoui', 'Boutique', 'Caissière'], ['Hela Masmoudi', 'Boutique', 'Vendeuse'], ['Yosra Baccar', 'Boutique', 'Vendeuse'],
+  ['Yassine Jaziri', 'Livraison', 'Livreur'], ['Hamza Gabsi', 'Livraison', 'Livreur'], ['Ali Khemiri', 'Livraison', 'Chauffeur'], ['Tarek Rekik', 'Livraison', 'Livreur'],
+  ['Leila Sfaxi', 'Bureau', 'Comptable'], ['Nesrine Labidi', 'Bureau', 'Assistante commerciale'], ['Imen Chebbi', 'Bureau', 'Standardiste']];
+const ORDRE = ['Atelier', 'Boutique', 'Livraison', 'Bureau'];
+const EQUIPES = { Atelier: { qui: 'Ahmed, chef d\'atelier', main: true }, Boutique: { qui: 'Amira, responsable de la boutique', main: true }, Livraison: { qui: 'la pointeuse', main: false }, Bureau: { qui: 'toi', main: true } };
+let SAL = BASE;
+function composer() {
+  if (S.taille !== 'grand') { SAL = BASE; return; }
+  SAL = BASE.concat(EXTRA.map(([nom, eq, poste], i) => { const brut = r3(690 + (i * 53.375) % 640); return { id: 'x' + i, nom, ini: nom.split(' ').map(w => w[0]).join('').slice(0, 2), poste, eq, contrat: 'CDI', depuis: String(2018 + i % 7), brut, net: r3(brut * .815), paie: 'virement', rib: true, conges: 4 + i % 11 }; }))
+    .sort((a, b) => ORDRE.indexOf(a.eq) - ORDRE.indexOf(b.eq));
+}
+const pointeuse = s => S.taille === 'grand' && !EQUIPES[s.eq].main;
+const r3 = n => Math.round(n * 1000) / 1000;
 const aPayer = s => s.net - (s.avance || 0);
 const totalAPayer = () => SAL.reduce((x, s) => x + aPayer(s), 0);
-const money = n => n.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace(/ /g, ' ') + ' DT';
+const money = n => n.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace(/ /g, ' ') + ' DT';
 const h = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const av = (s, t) => `<span class="av" style="background:${COUL[SAL.indexOf(s) % 5]}${t ? `;width:${t}px;height:${t}px` : ''}">${s.ini}</span>`;
+const prenom = s => s.nom.split(' ')[0];
+const cap = t => t[0].toUpperCase() + t.slice(1);
+const virg = n => String(n).replace('.', ',');
+const rang = s => BASE.indexOf(s) >= 0 ? BASE.indexOf(s) : 5 + Number(s.id.slice(1));
+const av = (s, t) => `<span class="av" style="background:${COUL[rang(s) % COUL.length]}${t ? `;width:${t}px;height:${t}px` : ''}">${s.ini}</span>`;
+// Les montants de l'exemple suivent la taille de l'entreprise (ils sont calculés sur les 5 premiers bruts).
+const BRUT0 = 4651.125;
+const echelle = () => SAL.reduce((x, s) => x + s.brut, 0) / BRUT0;
+const charges = () => r3(774.393 * echelle());
+const DECL = () => [['Impôt sur le revenu retenu sur les salaires', 298.640], ['Contribution sociale de solidarité', 23.256], ['Taxe de formation professionnelle (TFP)', 93.023], ['FOPROLOS', 46.511]].map(([t, v]) => [t, r3(v * echelle())]);
+const totalDecl = () => DECL().reduce((x, l) => x + l[1], 0);
 const IC = {
   coche: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   argent: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', doc: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>', pers: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/>', fleche: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   envoi: '<path d="M4 12l16-8-6 16-2-7z"/>', depot: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', cloche: '<path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/>',
   alerte: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>', points: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+  equipe: '<circle cx="9" cy="8" r="3"/><path d="M3 19c.8-3.4 3.2-5 6-5s5.2 1.6 6 5"/><path d="M16 5.5a3 3 0 010 5.5M17.5 14c1.7.6 3 2.2 3.5 5"/>',
 };
 const ic = (n, t = 16) => `<svg class="ico" style="width:${t}px;height:${t}px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
 
 // Novembre 2026 : le 1er est un dimanche. Jours travaillés : du lundi au vendredi (21 jours), le samedi en repos dans l'exemple.
-const JOURS = Array.from({ length: 30 }, (_, i) => { const d = i + 1, w = (d) % 7; return { d, we: w === 0 || w === 1 ? false : false, wd: ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][(d - 1) % 7] }; });
-JOURS.forEach(j => { j.we = j.wd === 'sam.' || j.wd === 'dim.'; });
+const NOMJ = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const JOURS = Array.from({ length: 30 }, (_, i) => { const d = i + 1, w = (d - 1) % 7; return { d, w, wd: NOMJ[w].slice(0, 3) + '.', we: w === 0 || w === 6 }; });
 const OUVRES = JOURS.filter(j => !j.we).length;
+const prixJour = s => r3(s.brut / OUVRES);
+const prixHeure = s => r3(s.brut / (OUVRES * 8));
+// Les heures sup majorées, comptées en millimes entiers (jamais de nombre à virgule pour l'argent).
+const majo = (s, hs) => Math.round(hs * Math.round(prixHeure(s) * 1000) * 125 / 100) / 1000;
 
 // ───────────── l'état ─────────────
-const MOMENTS = [
-  ['d3', 'mardi 3 nov.', 3], ['d18', 'mercredi 18 nov.', 18], ['d27', 'vendredi 27 nov.', 27], ['vide', 'première fois', 3],
-];
-const S = { moment: 'd18', ecran: 'ordi', onglet: 'jour', etape: null, fiche: null, presence: {}, valide: {}, demandes: null, rappels: null, mois: null, toast: null };
+const MOMENTS = [['d3', 'mardi 3 nov.', 3], ['d18', 'mercredi 18 nov.', 18], ['d27', 'vendredi 27 nov.', 27], ['vide', 'première fois', 3]];
+const S = { moment: 'd18', ecran: 'ordi', taille: 'petit', onglet: 'jour', etape: null, fiche: null };
+// Ce qui s'est passé dans le mois de l'exemple (le reste : là, à ses horaires).
+const PAT = {
+  ah: { 9: { etat: 'mal' }, 10: { etat: 'mal' } }, mo: { 12: { etat: 'a' } }, sa: { 5: { etat: 'p', retard: 20 } }, ka: { 6: { etat: 'p', hs: 2 }, 13: { etat: 'p', hs: 2 } },
+  x0: { 11: { etat: 'a', motif: 'just' } }, x11: { 16: { etat: 'mal', certif: true }, 17: { etat: 'mal', certif: true } },
+};
+// Les absences prévues (congés acceptés) : elles arrivent toutes seules sur leurs jours.
+const prevus = () => [{ s: 'in', du: 18, au: 19, note: 'demandé le 10/11, accepté' }].concat(S.prevusAjoutes || []);
+function etatDe(s, d) {
+  if (S.pres[d] && S.pres[d][s.id]) return S.pres[d][s.id];
+  const p = prevus().find(x => x.s === s.id && d >= x.du && d <= x.au);
+  if (p) return { etat: 'cg', prevu: p };
+  return (PAT[s.id] && PAT[s.id][d]) || { etat: 'p' };
+}
+const change = e => e.etat !== 'p' || !!e.retard || !!e.hs;
+const libelle = e => e.etat === 'a' ? (e.motif === 'sans' ? 'absence sans solde' : e.motif === 'just' ? 'absence justifiée' : 'absence') : e.etat === 'cg' ? 'congé' : e.etat === 'mal' ? 'maladie' : [e.retard ? `retard ${e.retard} min` : '', e.hs ? `${e.hs} h sup` : ''].filter(Boolean).join(', ');
+function setEtat(id, c) {
+  const d = S.jourVu, s = SAL.find(x => x.id === id), e0 = etatDe(s, d);
+  if (e0.etat === c && c !== 'p') return;
+  S.pres[d] = S.pres[d] || {};
+  S.pres[d][id] = c === 'p' ? { etat: 'p' } : { etat: c };
+}
+function basculer(id, k) {
+  const d = S.jourVu, e = Object.assign({}, etatDe(SAL.find(x => x.id === id), d));
+  if (e.etat !== 'p') return;
+  e[k] = e[k] ? 0 : (k === 'retard' ? 30 : 2);
+  S.pres[d] = S.pres[d] || {}; S.pres[d][id] = e;
+}
+
 function initMoment() {
+  composer();
   const jour = (MOMENTS.find(m => m[0] === S.moment) || MOMENTS[1])[2];
-  S.jour = jour;
-  // Salma est confirmée le 18/11 (« La période d'essai de Salma ») : le 27, elle est en CDI.
-  const sal = SAL.find(x => x.id === 'sa'); sal.contrat = S.moment === 'd27' ? 'CDI' : 'Essai';
-  S.presence = {}; SAL.forEach(s => { S.presence[s.id] = { etat: 'p' }; });
-  // Les jours déjà validés du mois : tous les jours ouvrés passés, sauf la veille au 3 novembre (lundi 2 attend).
+  S.jour = jour; S.jourVu = jour;
+  // L'essai de Salma finit le 20/11 ; le 27, elle a été confirmée en CDI.
+  BASE.find(x => x.id === 'sa').contrat = S.moment === 'd27' ? 'CDI' : 'Essai';
+  BASE.find(x => x.id === 'ah').rib = false;
+  S.pres = {}; S.prevusAjoutes = []; S.regle = {}; S.ouvertes = {}; S.cherche = ''; S.feuille = null; S.telOnglet = 'jour'; S.vueMois = 'nov';
+  // Les jours déjà validés : tous les jours ouvrés passés, sauf lundi 2 au matin du 3 novembre.
   S.valide = {}; JOURS.filter(j => !j.we && j.d < jour).forEach(j => { S.valide[j.d] = !(S.moment === 'd3' && j.d === 2); });
-  S.validAujourdhui = false;
   S.demandes = S.moment === 'd3' ? [
-    { id: 'q1', s: 'ka', quoi: 'Une avance de 200,000 DT', pourquoi: 'demandée hier, à retenir sur la paie de novembre', ok: 'Accepter' },
+    { id: 'q1', s: 'ka', type: 'avance', quoi: 'Une avance de 200,000 DT', pourquoi: 'à retenir sur la paie de novembre', par: 'il te l\'a demandée hier · notée par toi', ok: 'Accepter' },
   ] : S.moment === 'd18' ? [
-    { id: 'q2', s: 'sa', quoi: 'Un congé du lundi 30/11 au mercredi 02/12', pourquoi: '3 jours · il lui reste 2 jours acquis : 1 jour sera sans solde', ok: 'Accepter' },
-    { id: 'q3', s: 'in', quoi: 'Une attestation de travail', pourquoi: 'pour sa banque · elle se prépare toute seule', ok: 'Préparer' },
-    { id: 'q4', s: 'ka', quoi: 'Une avance de 150,000 DT', pourquoi: 'il en a déjà une de 200,000 DT ce mois-ci', ok: 'Accepter' },
+    { id: 'q2', s: 'sa', type: 'conge', quoi: 'Un congé du lundi 30/11 au mercredi 02/12', pourquoi: '3 jours · il lui reste 2 jours acquis : 1 jour sera sans solde', par: S.taille === 'grand' ? 'notée par Amira, responsable de la boutique' : 'notée par toi le 17/11', ok: 'Accepter' },
+    { id: 'q3', s: 'in', type: 'doc', quoi: 'Une attestation de travail', pourquoi: 'pour sa banque · elle se prépare toute seule', par: 'notée par toi ce matin', ok: 'Préparer' },
+    { id: 'q4', s: 'ka', type: 'avance', quoi: 'Une avance de 150,000 DT', pourquoi: 'il en a déjà une de 200,000 DT ce mois-ci : 350,000 DT en tout', par: 'notée par toi ce matin', ok: 'Accepter' },
   ] : [
-    { id: 'q5', s: 'mo', quoi: 'Un congé du lundi 21/12 au jeudi 31/12', pourquoi: '8 jours · il lui reste 6 jours : 2 jours seront sans solde', ok: 'Accepter' },
+    { id: 'q5', s: 'mo', type: 'conge', quoi: 'Un congé du lundi 21/12 au jeudi 31/12', pourquoi: '8 jours · il lui reste 6 jours : 2 jours seront sans solde', par: S.taille === 'grand' ? 'notée par Ahmed, chef d\'atelier' : 'notée par toi hier', ok: 'Accepter' },
   ];
   S.rappels = S.moment === 'd3' ? [
     { id: 'r3', ic: 'pers', t: 'Ahmed Ben Salah : son RIB manque', d: 'payé par virement : sans RIB, son salaire ne peut pas partir', b: 'Compléter', go: () => fiche('ah') },
   ] : S.moment === 'd18' ? [
-    { id: 'r4', ic: 'cal', t: 'La période d\'essai de Salma finit le 15/11', d: 'passée il y a 3 jours : la confirmer ou y mettre fin', b: 'Décider', go: () => fenEssai() },
-    { id: 'r5', ic: 'doc', t: 'La déclaration d\'octobre, avant le 28/11', d: '461,430 DT (exemple) · plus que 10 jours', b: 'Voir', go: () => ouvrirMois('oct', 4) },
-    { id: 'r6', ic: 'pers', t: 'Le CDD de Mourad finit le 31/12', d: 'le renouveler ou préparer son départ, un mois avant', b: 'Décider', go: () => fiche('mo') },
+    { id: 'r4', ic: 'cal', t: 'L\'essai de Salma finit vendredi 20/11', d: 'dans 2 jours : la confirmer, prolonger l\'essai ou y mettre fin avant', b: 'Décider', go: () => fenEssai() },
+    { id: 'r5', ic: 'doc', t: 'La déclaration d\'octobre, avant le 28/11', d: `${money(totalDecl())} (exemple) · plus que 10 jours`, b: 'Voir', go: () => ouvrirMois('oct', 4) },
+    { id: 'r6', ic: 'pers', t: 'Le CDD de Mourad finit le 31/12', d: 'dans 43 jours : le renouveler ou préparer son départ, un mois avant', b: 'Décider', go: () => fiche('mo') },
   ] : [
-    { id: 'r7', ic: 'cal', t: 'Le CDD de Mourad finit le 31/12', d: 'le renouveler ou préparer son départ', b: 'Décider', go: () => fiche('mo') },
+    { id: 'r7', ic: 'cal', t: 'Le CDD de Mourad finit le 31/12', d: 'dans 34 jours : le renouveler ou préparer son départ', b: 'Décider', go: () => fiche('mo') },
   ];
-  // Le mois : où en est chaque étape (novembre ; octobre quand on regarde octobre).
   S.mois = { cle: 'nov', bulletins: false, payes: false, declare: false, pointageValide: false };
   S.oct = { bulletins: true, payes: S.moment !== 'd3', declare: false, pointageValide: true };
   S.etape = null; S.fiche = null;
 }
 
-// ───────────── le pointage de l'exemple ─────────────
-// Une case : p présent, a absent, cg congé, ml malade, r retard ; f : à venir.
+// ───────────── le pointage ─────────────
+// Une case : p là, a absent, cg congé, ml malade, r retard, hs heures sup ; fu à venir ; auj : pas encore validée.
 function caseDe(s, j) {
   if (j.we) return 'we';
-  if (j.d > S.jour || (j.d === S.jour && !S.validAujourdhui)) return 'fu';
-  if (s.id === 'ah' && (j.d === 9 || j.d === 10)) return 'ml';
-  if (s.id === 'mo' && j.d === 12) return 'a';
-  if (s.id === 'sa' && j.d === 5) return 'r';
-  if (s.id === 'in' && j.d >= 23 && j.d <= 24) return 'cg';
-  if (j.d === S.jour) { const e = S.presence[s.id].etat; return e === 'mal' ? 'ml' : e; }
-  return 'p';
+  const e = etatDe(s, j.d);
+  if (j.d > S.jour) return e.prevu ? 'cg prevu' : 'fu';
+  let c = e.etat === 'mal' ? 'ml' : e.etat === 'p' ? (e.hs ? 'hs' : e.retard ? 'r' : 'p') : e.etat;
+  if (!S.valide[j.d] && !pointeuse(s)) c += ' auj';
+  return c;
 }
 const LETTRE = { p: 'P', a: 'A', cg: 'C', ml: 'M', r: 'R', hs: 'H', we: '', fu: '' };
-const joursTravailles = s => JOURS.filter(j => ['p', 'r', 'hs'].includes(caseDe(s, j))).length;
-const aRegler = () => {
+const premier = c => c.split(' ')[0];
+const joursTravailles = s => JOURS.filter(j => ['p', 'r', 'hs'].includes(premier(caseDe(s, j)))).length;
+function compteMois(s) {
+  const c = { a: 0, mal: 0, cg: 0, hs: 0, retard: 0 };
+  JOURS.filter(j => !j.we && j.d <= S.jour).forEach(j => { const e = etatDe(s, j.d); if (e.etat !== 'p') c[e.etat]++; c.hs += e.hs || 0; c.retard += e.retard || 0; });
+  return c;
+}
+const badge = (s, d) => s.id === 'x15' && d === 17 && !S.regle.sortie ? 'arrivé 07:52 · <b style="color:var(--ambre-texte)">pas de sortie</b>' : `arrivé 07:${String(48 + (s.id.length * 3 + d) % 11).padStart(2, '0')} · parti 17:0${(d + 3) % 9}`;
+// « À régler » : une seule fonction pour la liste et son compteur.
+function aRegler() {
   const l = [];
-  if (S.jour > 12) l.push({ s: 'mo', t: 'Absent le jeudi 12/11, sans motif', b: 'Dire pourquoi' });
-  if (S.jour > 9) l.push({ s: 'ah', t: 'Malade les 9 et 10/11 : le certificat n\'est pas joint', b: 'Joindre' });
+  JOURS.filter(j => !j.we && j.d < S.jour && !S.valide[j.d]).forEach(j => l.push({ cle: 'j' + j.d, t: `${cap(NOMJ[j.w])} ${j.d}/11 n'est pas validé`, d: 'rien n\'y est noté : relis-le, puis valide-le', b: 'Le relire', go: () => voirJour(j.d) }));
+  SAL.forEach(s => {
+    const mal = [];
+    JOURS.filter(j => !j.we && j.d <= S.jour).forEach(j => {
+      const e = etatDe(s, j.d);
+      if (e.etat === 'a' && (e.motif || 'inc') === 'inc') l.push({ cle: `m:${s.id}:${j.d}`, s, t: `absent ${j.d === S.jour ? 'aujourd\'hui' : `le ${NOMJ[j.w]} ${j.d}/11`}, sans motif`, d: 'sans solde, ou justifiée et payée ?', b: 'Dire pourquoi', go: () => fenMotif(s.id, j.d) });
+      if (e.etat === 'mal' && !e.certif && !S.regle['cert:' + s.id]) mal.push(j.d);
+    });
+    if (mal.length) l.push({ cle: 'cert:' + s.id, s, t: `malade ${mal.length > 1 ? `les ${mal.slice(0, -1).join(', ')} et ${mal[mal.length - 1]}/11` : `le ${mal[0]}/11`} : le certificat n'est pas joint`, d: 'payée ou non selon ta convention (À VÉRIFIER)', b: 'Joindre', go: () => joindre(s.id) });
+  });
+  if (S.taille === 'grand' && S.jour > 17 && !S.regle.sortie) l.push({ cle: 'sortie', s: SAL.find(x => x.id === 'x15'), t: 'pas de sortie badgée le mardi 17/11', d: 'entrée à 07:52 · la pointeuse n\'a rien reçu ensuite', b: 'Régler', go: () => fenBadge('x15', 17) });
   return l;
-};
+}
 
 // ───────────── les écrans ─────────────
 function render() {
   const r = document.getElementById('racine');
   if (S.ecran === 'tel' && S.moment === 'vide') { S.moment = 'd18'; initMoment(); }
   document.getElementById('mq-jour').innerHTML = MOMENTS.map(([k, l]) => `<button type="button" data-m="${k}" class="${S.moment === k ? 'on' : ''}">${l}</button>`).join('');
+  document.getElementById('mq-taille').innerHTML = [['petit', '5 salariés'], ['grand', '27 salariés']].map(([k, l]) => `<button type="button" data-t="${k}" class="${S.taille === k ? 'on' : ''}">${l}</button>`).join('');
   document.getElementById('mq-ecran').innerHTML = [['ordi', 'ordinateur'], ['tel', 'téléphone']].map(([k, l]) => `<button type="button" data-e="${k}" class="${S.ecran === k ? 'on' : ''}">${l}</button>`).join('');
-  if (S.ecran === 'tel') { r.innerHTML = telephone(); return; }
-  r.innerHTML = `<div class="app">${nav()}<main class="page">${S.moment === 'vide' ? premiereFois() : S.fiche ? ficheSalarie() : pagePaie()}</main></div>`;
+  r.innerHTML = S.ecran === 'tel' ? telephone() : `<div class="app">${nav()}<main class="page">${S.moment === 'vide' ? premiereFois() : S.fiche ? ficheSalarie() : pagePaie()}</main></div>`;
+  if (S.focus) { const el = document.querySelector(`[data-row="${S.focus}"]`); if (el) el.focus({ preventScroll: true }); S.focus = null; }
+  if (S.focusCherche) { const el = document.getElementById('cherche'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } S.focusCherche = false; }
 }
 function nav() {
   return `<nav class="nav" aria-label="Menu de l'application"><div class="ent"><i>AB</i>Atelier Ben Ammar</div>
@@ -374,171 +505,254 @@ function principal() {
   if (S.moment === 'd3' && !S.oct.payes) return ['Payer les salaires d\'octobre', 'argent', () => ouvrirMois('oct', 3)];
   if (S.moment === 'd27' && !S.mois.bulletins) return ['Préparer les bulletins de novembre', 'doc', () => ouvrirMois('nov', 2)];
   if (S.moment === 'd27' && !S.mois.payes) return ['Payer les salaires de novembre', 'argent', () => ouvrirMois('nov', 3)];
-  if (!S.validAujourdhui) return ['Valider la journée', 'coche', () => validerJour()];
+  if (!S.valide[S.jour]) return ['Valider la journée', 'coche', () => validerJour(S.jour)];
   return null;
 }
+const finOctobre = () => S.moment === 'd3' && !S.oct.payes;
 function pagePaie() {
   const p = principal();
   const nbDem = S.demandes.length + S.rappels.length;
+  // Le bouton vert est en haut, sauf quand la carte qui le porte est déjà sous les yeux (le bandeau d'octobre, la journée).
+  const enHaut = p && S.onglet !== 'mois' && p[0] !== 'Valider la journée' && !(S.onglet === 'jour' && finOctobre());
   return `<div class="chemin">Accueil › Paie</div>
-    <div class="tete"><div><h2>Paie</h2><div class="sous">${SAL.length} salariés · ${(MOMENTS.find(m => m[0] === S.moment) || [])[1].replace(' nov.', ' novembre 2026')}</div></div>
-      <div class="actions"><button class="btn" data-geste="embaucher">${ic('plus', 15)} Embaucher</button><button class="btn" aria-label="Plus" data-geste="plus">${ic('points', 16)}</button>${p && S.onglet !== 'mois' && p[0] !== 'Valider la journée' ? `<button class="btn p" id="principal">${ic(p[1], 15)} ${p[0]}</button>` : ''}</div></div>
-    <div class="onglets" role="tablist">${[['jour', 'Aujourd\'hui', nbDem], ['mois', 'Le mois', ''], ['equipe', 'L\'équipe', SAL.length]].map(([k, l, n]) => `<button type="button" role="tab" data-onglet="${k}" class="${S.onglet === k ? 'on' : ''}">${l}${n ? ` <small>${n}</small>` : ''}</button>`).join('')}</div>
+    <div class="tete"><div><h2>Paie</h2><div class="sous">${SAL.length} salariés${S.taille === 'grand' ? ' · 4 équipes' : ''} · ${(MOMENTS.find(m => m[0] === S.moment) || [])[1].replace(' nov.', ' novembre 2026')}</div></div>
+      <div class="actions"><button class="btn" data-geste="embaucher">${ic('plus', 15)} Embaucher</button><button class="btn" aria-label="Plus" data-geste="plus">${ic('points', 16)}</button>${enHaut ? `<button class="btn p" id="principal">${ic(p[1], 15)} ${p[0]}</button>` : ''}</div></div>
+    <div class="onglets" role="tablist">${[['jour', 'Aujourd\'hui', nbDem], ['mois', 'Le mois', aRegler().length], ['equipe', 'L\'équipe', SAL.length]].map(([k, l, n]) => `<button type="button" role="tab" data-onglet="${k}" class="${S.onglet === k ? 'on' : ''}">${l}${n ? ` <small>${n}</small>` : ''}</button>`).join('')}</div>
     ${S.onglet === 'jour' ? ongletJour() : S.onglet === 'mois' ? ongletMois() : ongletEquipe()}`;
 }
 
-// ── Aujourd'hui : qui est là, ce qu'on me demande, ce qu'il ne faut pas oublier, les gestes de tous les jours
+// ── Aujourd'hui : qui est là, les demandes, ce qu'il ne faut pas oublier, les gestes de tous les jours
 function ongletJour() {
-  const veille = S.moment === 'd3' && !S.valide[2];
-  const absents = SAL.filter(s => S.presence[s.id].etat !== 'p');
-  return `${S.moment === 'd3' && !S.oct.payes ? `<div class="bandeau ambre">${ic('alerte', 18)}<div class="txt"><b>Octobre n'est pas fini</b><span>Les 5 bulletins sont validés, mais les salaires ne sont pas payés, et la déclaration est à déposer avant le 28/11.</span></div><button class="btn s" data-mois="oct">Finir octobre</button></div>` : ''}
-    <div class="grille2"><div>
-      <section class="carte" id="c-presence"><div class="h">Qui est là aujourd'hui ? <small>${['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][(S.jour - 1) % 7]} ${S.jour}/11 · tout le monde est présent par défaut : tu ne touches qu'à ce qui change</small></div>
-        ${veille ? `<div class="ligne" style="background:var(--ambre-doux)"><span class="muet">${ic('cal', 16)}</span><div class="qui"><b>Lundi 2/11 n'est pas validé</b><small>personne n'y a rien changé : 5 présents</small></div><div class="fin"><button class="btn s" id="val-veille">Valider lundi tel quel</button></div></div>` : ''}
-        ${S.validAujourdhui ? `<div class="vide">${ic('coche', 18)} <span><b>Journée validée</b> à 18:04 · ${absents.length ? `${absents.length} absent${absents.length > 1 ? 's' : ''}` : 'tout le monde était là'} · elle part dans le pointage du mois</span><button class="btn s" id="reouvrir" style="margin-left:auto">Modifier</button></div>`
-          : SAL.map(s => lignePresence(s)).join('')}
-        ${S.validAujourdhui ? '' : `<div class="pied"><span>${SAL.length - absents.length} présent${SAL.length - absents.length > 1 ? 's' : ''}${absents.length ? ` · ${absents.map(s => s.nom.split(' ')[0]).join(', ')} : noté` : ''}</span><button class="btn ${principal() && principal()[0] === 'Valider la journée' ? 'p' : ''}" id="valider-jour">${ic('coche', 15)} Valider la journée</button></div>`}
-      </section>
+  return `${finOctobre() ? `<div class="bandeau ambre">${ic('alerte', 18)}<div class="txt"><b>Octobre n'est pas fini</b><span>Les ${SAL.length} bulletins sont validés ; les salaires ne sont pas payés, et la déclaration est à déposer avant le 28/11.</span></div><button class="btn p" id="principal">${ic('argent', 15)} Payer les salaires d'octobre</button></div>` : ''}
+    <div class="grille2"><div>${cartePresence()}
       <div class="gestes">
-        ${[['absence', 'cal', 'Une absence', 'sur un ou plusieurs jours'], ['avance', 'argent', 'Une avance', 'retenue sur la prochaine paie'], ['document', 'doc', 'Un document', 'attestation, certificat…'], ['depart', 'pers', 'Un départ', 'fin de CDD, démission…']].map(([k, i, t, d]) => `<button class="geste" data-geste="${k}"><b>${ic(i, 16)} ${t}</b><span>${d}</span></button>`).join('')}
+        ${[['absence', 'cal', 'Une absence prévue', 'congé, sur un ou plusieurs jours'], ['avance', 'argent', 'Une avance', 'retenue sur la prochaine paie'], ['document', 'doc', 'Un document', 'attestation, certificat…'], ['depart', 'pers', 'Un départ', 'fin de CDD, démission…']].map(([k, i, t, d]) => `<button class="geste" data-geste="${k}"><b>${ic(i, 16)} ${t}</b><span>${d}</span></button>`).join('')}
       </div>
-    </div><div>
-      <section class="carte"><div class="h">Ce qu'on te demande <small>${S.demandes.length || 'rien'}</small></div>
-        ${S.demandes.length ? S.demandes.map(q => { const s = SAL.find(x => x.id === q.s); return `<div class="ligne">${av(s)}<div class="qui"><b>${s.nom.split(' ')[0]} : ${h(q.quoi)}</b><small>${h(q.pourquoi)}</small></div><div class="fin"><button class="btn s g" data-refuse="${q.id}">Refuser</button><button class="btn s" data-accepte="${q.id}">${q.ok}</button></div></div>`; }).join('') : `<div class="vide">${ic('coche', 18)} Rien en attente.</div>`}
-      </section>
-      <section class="carte"><div class="h">À ne pas oublier</div>
-        ${S.rappels.map(x => `<div class="ligne"><span class="muet">${ic(x.ic, 18)}</span><div class="qui"><b>${h(x.t)}</b><small>${h(x.d)}</small></div><div class="fin"><button class="btn s" data-rappel="${x.id}">${x.b}</button></div></div>`).join('')}
-      </section>
-    </div></div>`;
+    </div><div>${carteDemandes()}${carteRappels()}</div></div>`;
 }
-function lignePresence(s) {
-  const e = S.presence[s.id];
-  const det = e.etat === 'a' ? `<div class="detail">Pourquoi ? <span class="filtre">${[['sans', 'Sans solde'], ['just', 'Justifiée, payée'], ['inc', 'Je ne sais pas encore']].map(([k, l]) => `<button type="button" data-motif="${s.id}:${k}" class="${(e.motif || 'inc') === k ? 'on' : ''}">${l}</button>`).join('')}</span><span class="petit">« Je ne sais pas encore » le garde dans « À régler » pour la fin du mois.</span></div>`
-    : e.etat === 'cg' ? `<div class="detail">Congé payé : il lui reste <b>${s.conges} jours</b>. <label>Jusqu'au <input type="date" value="2026-11-${String(S.jour).padStart(2, '0')}"></label> <span class="petit">un seul jour si tu ne changes rien</span></div>`
-      : e.etat === 'mal' ? `<div class="detail">Malade : <button class="btn s">${ic('depot', 14)} Joindre le certificat</button> <span class="petit">ou plus tard : il reste dans « À régler »</span></div>`
-        : e.etat === 'r' ? `<div class="detail">Arrivé(e) avec <input class="n" value="30"> minutes de retard <span class="petit">rien ne se retient sur la paie sans ton accord</span></div>`
-          : e.etat === 'hs' ? `<div class="detail"><input class="n" value="2"> heures supplémentaires <span class="petit">payées à 125 % (À VÉRIFIER selon ton secteur)</span></div>` : '';
-  return `<div class="ligne">${av(s)}<div class="qui"><b>${s.nom}</b><small>${s.poste}</small></div>
-    <div class="fin"><span class="filtre" role="group" aria-label="Présence de ${s.nom}">${[['p', 'Présent'], ['a', 'Absent'], ['cg', 'Congé'], ['mal', 'Malade'], ['r', 'Retard'], ['hs', 'H. sup']].map(([k, l]) => `<button type="button" data-pres="${s.id}:${k}" class="${e.etat === k ? 'on' : ''}${k === 'a' ? ' abs' : k === 'cg' ? ' cg' : k === 'mal' ? ' mal' : ''}">${l}</button>`).join('')}</span></div>${det}</div>`;
+function semaine(court) {
+  const j = JOURS[S.jourVu - 1];
+  const lun = S.jourVu - ((j.w + 6) % 7);
+  const jours = [0, 1, 2, 3, 4].map(k => lun + k).filter(x => x >= 1 && x <= 30);
+  return `<span class="filtre semaine" role="group" aria-label="Choisir le jour"><button type="button" data-sem="-1" ${lun - 7 < -3 ? 'disabled' : ''} aria-label="Semaine d'avant">‹</button>${jours.map(d => `<button type="button" data-jour="${d}" class="${d === S.jourVu ? 'on' : ''}" ${d > S.jour ? 'disabled' : ''}>${court ? JOURS[d - 1].wd[0].toUpperCase() : JOURS[d - 1].wd} ${d}${d <= S.jour && !S.valide[d] && d !== S.jour ? ' <span class="nv">•</span>' : ''}</button>`).join('')}<button type="button" data-sem="1" ${lun + 7 > S.jour ? 'disabled' : ''} aria-label="Semaine d'après">›</button></span>`;
+}
+function cartePresence() {
+  const d = S.jourVu, j = JOURS[d - 1], auj = d === S.jour, val = !!S.valide[d];
+  const main = SAL.filter(s => !pointeuse(s));
+  const chg = main.filter(s => change(etatDe(s, d)));
+  const nonVal = aRegler().filter(x => x.cle[0] === 'j');
+  const p = principal();
+  const resume = `${main.length - chg.filter(s => etatDe(s, d).etat !== 'p').length} là${chg.length ? ` · ${chg.slice(0, 3).map(s => `${prenom(s)} : ${libelle(etatDe(s, d))}`).join(' · ')}${chg.length > 3 ? ` · et ${chg.length - 3} autres` : ''}` : ' · rien de noté'}${S.taille === 'grand' ? ` · ${SAL.length - main.length} à la pointeuse` : ''}`;
+  return `<section class="carte" id="c-presence"><div class="h">${auj ? 'Qui est là aujourd\'hui ?' : `Qui était là ${NOMJ[j.w]} ${d}/11 ?`}<span class="d">${semaine()}</span></div>
+    <div class="sous-h"><span>Tout le monde est là par défaut : note seulement ce qui change, c'est enregistré aussitôt.</span>${val ? '' : '<span class="kbd">au clavier : <kbd>↑</kbd> <kbd>↓</kbd> puis <kbd>L</kbd> là <kbd>A</kbd> absent <kbd>C</kbd> congé <kbd>M</kbd> malade <kbd>R</kbd> retard <kbd>H</kbd> h. sup</span>'}</div>
+    ${auj && nonVal.length ? nonVal.map(x => `<div class="ligne" style="background:var(--ambre-doux)"><span class="muet">${ic('cal', 16)}</span><div class="qui"><b>${x.t}</b><small>${x.d}</small></div><div class="fin"><button class="btn s" data-regle="${x.cle}">${x.b}</button></div></div>`).join('') : ''}
+    ${!auj ? `<div class="ligne" style="background:var(--bleu-doux)"><span class="muet">${ic('cal', 16)}</span><div class="qui"><b>Tu regardes ${NOMJ[j.w]} ${d}/11</b><small>${val ? 'une journée validée : la rouvrir pour la corriger' : 'pas encore validée : corrige ce qui ne va pas, puis valide-la'}</small></div><div class="fin"><button class="btn s" data-jour="${S.jour}">Revenir à aujourd'hui</button></div></div>` : ''}
+    ${val ? `<div class="vide">${ic('coche', 18)}<span><b>Journée ${auj ? '' : `du ${d}/11 `}validée</b>${auj ? ' à 18:04' : ''} · ${chg.length ? chg.map(s => `${prenom(s)} (${libelle(etatDe(s, d))})`).join(', ') : 'tout le monde était là'}</span><button class="btn s" data-rouvrir="${d}" style="margin-left:auto">Rouvrir la journée</button></div>`
+      : `${S.taille === 'grand' ? `<div class="cherche"><input type="search" id="cherche" placeholder="Chercher un salarié : nom, poste…" value="${h(S.cherche)}" aria-label="Chercher un salarié"><span class="petit muet">${SAL.length} salariés · 4 équipes · chaque chef d'équipe ne voit que la sienne</span></div>` : ''}${lignesPresence(d)}
+      <div class="pied"><span>${resume}</span><button class="btn ${(auj && p && p[0] === 'Valider la journée') || (!auj && !finOctobre()) ? 'p' : ''}" id="valider-jour">${ic('coche', 15)} Valider la journée${auj ? '' : ` du ${d}/11`}</button></div>`}
+  </section>`;
+}
+function lignesPresence(d) {
+  if (S.taille !== 'grand') return SAL.map(s => lignePresence(s, d)).join('');
+  const q = S.cherche.trim().toLowerCase();
+  const html = ORDRE.map(eq => {
+    const gens = SAL.filter(s => s.eq === eq && (!q || (s.nom + ' ' + s.poste).toLowerCase().includes(q)));
+    if (!gens.length) return '';
+    const E = EQUIPES[eq], chg = gens.filter(s => change(etatDe(s, d)));
+    const ouverte = q ? true : S.ouvertes[eq] !== undefined ? S.ouvertes[eq] : (E.main && chg.length > 0);
+    return `<div class="eq-h"><b>${eq}</b><span>${gens.length} · ${E.main ? `pointée par ${E.qui}` : 'à la pointeuse : les badges font foi, rien à valider'}</span><span class="d">${chg.length ? `<span class="pas ambre">${chg.length} changement${chg.length > 1 ? 's' : ''}</span>` : E.main ? '<span class="pas vert">tous là</span>' : '<span class="pas">badges reçus</span>'}</span>${q ? '' : `<button type="button" class="btn s g" data-eq="${eq}">${ouverte ? 'Refermer' : 'Ouvrir'}</button>`}</div>
+      ${ouverte ? gens.map(s => pointeuse(s) ? lignePointeuse(s, d) : lignePresence(s, d)).join('') : ''}`;
+  }).join('');
+  return html || `<div class="vide">Personne ne s'appelle « ${h(S.cherche)} ». <button class="lien-b" data-vider>Tout montrer</button></div>`;
+}
+function lignePresence(s, d) {
+  const e = etatDe(s, d);
+  return `<div class="ligne${change(e) ? ' change ' + e.etat : ''}" tabindex="0" data-row="${s.id}">${av(s)}<div class="qui"><b>${s.nom}</b><small>${s.poste}${S.taille === 'grand' ? '' : ` · ${s.eq}`}</small></div>
+    <div class="fin"><span class="filtre" role="group" aria-label="Présence de ${s.nom}">${[['p', 'Là'], ['a', 'Absent'], ['cg', 'Congé'], ['mal', 'Malade']].map(([c, l]) => `<button type="button" data-pres="${s.id}:${c}" class="${e.etat === c ? 'on' : ''}${c === 'a' ? ' abs' : c === 'cg' ? ' cg' : c === 'mal' ? ' mal' : ''}">${l}</button>`).join('')}</span>
+      <button type="button" class="ajout${e.retard ? ' on' : ''}" data-plus="${s.id}:retard" ${e.etat !== 'p' ? 'disabled' : ''}>${e.retard ? `Retard ${e.retard} min` : '+ Retard'}</button><button type="button" class="ajout${e.hs ? ' on' : ''}" data-plus="${s.id}:hs" ${e.etat !== 'p' ? 'disabled' : ''}>${e.hs ? `${e.hs} h sup` : '+ H. sup'}</button></div>${detailPresence(s, d, e)}</div>`;
+}
+function detailPresence(s, d, e) {
+  const l = [];
+  if (e.etat === 'a') {
+    const m = e.motif || 'inc';
+    l.push(`Pourquoi ? <span class="filtre">${[['sans', 'Sans solde'], ['just', 'Justifiée, payée'], ['inc', 'Je ne sais pas encore']].map(([k, t]) => `<button type="button" data-motif="${s.id}:${k}" class="${m === k ? 'on' : ''}">${t}</button>`).join('')}</span><span class="effet">${m === 'sans' ? `− ${money(prixJour(s))} sur son brut (un jour sur ${OUVRES})` : m === 'just' ? 'payée : rien ne change sur son bulletin' : 'elle reste dans « À régler » jusqu\'à ce que tu saches'}</span>`);
+  }
+  if (e.etat === 'cg') l.push(e.prevu ? `Prévu : congé ${e.prevu.du === e.prevu.au ? `le ${e.prevu.du}/11` : `du ${e.prevu.du} au ${e.prevu.au}/11`} (${e.prevu.note}) · tu n'as rien à faire` : `Congé payé, pris sur ses jours : il lui en reste <b>${virg(s.conges)}</b>, <span class="effet">${virg(s.conges - 1)} après aujourd'hui</span> · plusieurs jours ? <button type="button" class="lien-b" data-geste="absence">Une absence prévue</button>`);
+  if (e.etat === 'mal') l.push(e.certif || S.regle['cert:' + s.id] ? 'Malade · certificat joint' : `Malade : <button type="button" class="btn s" data-certif="${s.id}">${ic('depot', 14)} Joindre le certificat</button> <span>ou plus tard : il reste dans « À régler » · payée ou non selon ta convention (À VÉRIFIER)</span>`);
+  if (e.retard) l.push(`En retard de <input class="n" data-min="${s.id}" value="${e.retard}" aria-label="Minutes de retard de ${s.nom}"> minutes · <span class="effet">noté, rien ne se retient</span> (la retenue des retards est éteinte dans tes réglages)`);
+  if (e.hs) l.push(`<input class="n" data-hs="${s.id}" value="${e.hs}" aria-label="Heures sup de ${s.nom}"> heures sup · <span class="effet">+ ${money(majo(s, e.hs))} sur son brut</span>, à +25 % (À VÉRIFIER selon ton secteur)`);
+  return l.length ? `<div class="detail">${l.join('<span style="flex-basis:100%"></span>')}</div>` : '';
+}
+function lignePointeuse(s, d) {
+  return `<div class="ligne">${av(s)}<div class="qui"><b>${s.nom}</b><small>${s.poste}</small></div><div class="fin"><span class="petit m">${badge(s, d)}</span><button type="button" class="btn s g" data-badge="${s.id}:${d}">Corriger</button></div></div>`;
+}
+function carteDemandes() {
+  return `<section class="carte"><div class="h">Les demandes <small>${S.demandes.length || 'aucune en attente'}</small><button type="button" class="btn s g d" data-geste="demande">${ic('plus', 14)} Noter une demande</button></div>
+    ${S.demandes.length ? S.demandes.map(q => { const s = SAL.find(x => x.id === q.s); return `<div class="ligne">${av(s)}<div class="qui"><b>${prenom(s)} : ${h(q.quoi)}</b><small>${h(q.pourquoi)}</small><small class="par">${h(q.par)}</small></div><div class="fin"><button class="btn s g" data-refuse="${q.id}">Refuser</button><button class="btn s" data-accepte="${q.id}">${q.ok}</button></div></div>`; }).join('')
+      : `<div class="vide">${ic('coche', 18)}<span>Rien en attente. Un salarié te demande un congé ou une avance ? Note-la ici : elle attend ta réponse sans se perdre.</span></div>`}
+  </section>`;
+}
+function carteRappels() {
+  return `<section class="carte"><div class="h">À ne pas oublier <small>${S.rappels.length || ''}</small></div>
+    ${S.rappels.length ? S.rappels.map(x => `<div class="ligne"><span class="muet">${ic(x.ic, 18)}</span><div class="qui"><b>${h(x.t)}</b><small>${h(x.d)}</small></div><div class="fin"><button class="btn s g" data-tard="${x.id}">Plus tard</button><button class="btn s" data-rappel="${x.id}">${x.b}</button></div></div>`).join('')
+      : `<div class="vide">${ic('coche', 18)}<span>Rien à surveiller : fins d'essai, CDD et déclarations arrivent ici un mois avant.</span></div>`}
+  </section>`;
 }
 
 // ── Le mois : les quatre étapes, chacune s'ouvre sur ce qu'il y a à faire
 function etatsMois(m) {
   const o = m === 'oct' ? S.oct : S.mois;
   const fin = m === 'oct' || S.jour >= 25;
-  const pt = o.pointageValide ? ['fait', 'Pointage validé', `${m === 'oct' ? 22 : OUVRES} jours, ${SAL.length} salariés`] : [S.jour >= 25 ? '' : 'cours', `${Object.values(S.valide).filter(Boolean).length + (S.validAujourdhui ? 1 : 0)} jours validés sur ${OUVRES}`, aRegler().length ? `${aRegler().length} chose${aRegler().length > 1 ? 's' : ''} à régler` : 'rien à régler'];
-  const bu = o.bulletins ? ['fait', `${SAL.length} bulletins validés`, m === 'oct' ? 'le 30/10' : 'aujourd\'hui'] : fin ? ['cours', 'À préparer', 'tout est prêt, il reste à relire'] : ['', 'À partir du 25/11', 'quand le mois est pointé'];
-  const pa = o.payes ? ['fait', 'Salaires payés', `${money(totalAPayer())}`] : o.bulletins ? [m === 'oct' && S.moment === 'd3' ? 'retard' : 'cours', 'À payer', `${money(totalAPayer())} · 4 virements, 1 en espèces`] : ['', 'Après les bulletins', 'virements et espèces'];
-  const de = o.declare ? ['fait', 'Déclaration déposée', ''] : [o.payes ? 'cours' : '', `Avant le 28/${m === 'oct' ? '11' : '12'}`, o.bulletins ? '461,430 DT (exemple)' : 'retenues et contributions du mois'];
+  const reg = m === 'oct' ? [] : aRegler();
+  const vir = SAL.filter(s => s.paie === 'virement').length, esp = SAL.length - vir;
+  const pt = o.pointageValide ? ['fait', 'Pointage validé', `${m === 'oct' ? 22 : OUVRES} jours, ${SAL.length} salariés`] : [S.jour >= 25 && !reg.length ? '' : 'cours', `${JOURS.filter(j => !j.we && S.valide[j.d]).length} jours validés sur ${OUVRES}`, reg.length ? `${reg.length} chose${reg.length > 1 ? 's' : ''} à régler` : 'rien à régler'];
+  const bu = o.bulletins ? ['fait', `${SAL.length} bulletins validés`, m === 'oct' ? 'le 30/10' : 'aujourd\'hui'] : fin ? [reg.length ? '' : 'cours', reg.length ? 'Après « À régler »' : 'À préparer', reg.length ? `${reg.length} chose${reg.length > 1 ? 's' : ''} d'abord` : 'tout est prêt, il reste à relire'] : ['', 'À partir du 25/11', 'quand le mois est pointé'];
+  const pa = o.payes ? ['fait', 'Salaires payés', `${money(totalAPayer())}`] : o.bulletins ? [m === 'oct' && S.moment === 'd3' ? 'retard' : 'cours', 'À payer', `${money(totalAPayer())} · ${vir} virement${vir > 1 ? 's' : ''}, ${esp} en espèces`] : ['', 'Après les bulletins', 'virements et espèces'];
+  const de = o.declare ? ['fait', 'Déclaration déposée', ''] : [o.payes ? 'cours' : '', `Avant le 28/${m === 'oct' ? '11' : '12'}`, o.bulletins ? `${money(totalDecl())} (exemple)` : 'retenues et contributions du mois'];
   return [pt, bu, pa, de];
 }
+const NOMS_ET = ['Pointer', 'Bulletins', 'Payer', 'Déclarer'];
 function ongletMois() {
   const m = S.vueMois || 'nov';
   const et = etatsMois(m);
-  const noms = ['Pointer', 'Bulletins', 'Payer', 'Déclarer'];
   const ouverte = S.etape || (et.findIndex(x => x[0] === 'cours' || x[0] === 'retard') + 1) || 1;
   return `<section class="carte"><div class="h"><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span> <small>${m === 'oct' ? 'le mois d\'avant : ce qui reste à finir' : 'le mois en cours'}</small><span class="d petit muet">un mois se fait en 4 étapes ; clique celle que tu veux faire</span></div>
-      <div class="chemin-m">${et.map(([cl, t, d], i) => `<button type="button" class="etape ${cl} ${ouverte === i + 1 ? 'ouverte' : ''}" data-etape="${i + 1}"><span class="n">${cl === 'fait' ? '✓' : i + 1}</span><b>${noms[i]}</b><span><b style="font-size:12.5px;color:var(--encre)">${t}</b>${d ? ` · ${d}` : ''}</span></button>`).join('')}</div></section>
+      <div class="chemin-m">${et.map(([cl, t, d], i) => `<button type="button" class="etape ${cl} ${ouverte === i + 1 ? 'ouverte' : ''}" data-etape="${i + 1}"><span class="n">${cl === 'fait' ? '✓' : i + 1}</span><b>${NOMS_ET[i]}</b><span><b style="font-size:12.5px;color:var(--encre)">${t}</b>${d ? ` · ${d}` : ''}</span></button>`).join('')}</div></section>
     ${ouverte === 1 ? etapePointage(m) : ouverte === 2 ? etapeBulletins(m) : ouverte === 3 ? etapePayer(m) : etapeDeclarer(m)}
     <section class="carte"><div class="h">Ce que ${m === 'oct' ? 'octobre' : 'novembre'} te coûte <small>exemple, calculé avec les taux de tes réglages (À VÉRIFIER avec ton comptable)</small></div>
-      <div class="chiffres"><div><span>Salaires bruts</span><b>${money(SAL.reduce((x, s) => x + s.brut, 0))}</b></div><div><span>Charges de l'employeur</span><b>${money(774.393)}</b></div><div><span>Net des salariés (avances comprises)</span><b>${money(SAL.reduce((x, s) => x + s.net, 0))}</b></div><div><span>Coût total</span><b>${money(SAL.reduce((x, s) => x + s.brut, 0) + 774.393)}</b></div></div></section>`;
+      <div class="chiffres"><div><span>Salaires bruts</span><b>${money(SAL.reduce((x, s) => x + s.brut, 0))}</b></div><div><span>Charges de l'employeur</span><b>${money(charges())}</b></div><div><span>Net des salariés (avances comprises)</span><b>${money(SAL.reduce((x, s) => x + s.net, 0))}</b></div><div><span>Coût total</span><b>${money(SAL.reduce((x, s) => x + s.brut, 0) + charges())}</b></div></div></section>`;
+}
+function listeARegler(reg) {
+  return reg.length ? `<div class="h" style="padding-top:4px">À régler avant les bulletins <small>${reg.length}</small></div>${reg.map(x => `<div class="ligne">${x.s ? av(x.s) : `<span class="muet">${ic('cal', 18)}</span>`}<div class="qui"><b>${x.s ? `${prenom(x.s)} : ` : ''}${h(x.t)}</b><small>${h(x.d)}</small></div><div class="fin"><button class="btn s" data-regle="${x.cle}">${x.b}</button></div></div>`).join('')}` : '';
 }
 function etapePointage(m) {
   if (m === 'oct') return `<section class="carte"><div class="vide">${ic('coche', 18)} Le pointage d'octobre est validé : 22 jours, rien à régler.</div></section>`;
   const reg = aRegler();
-  return `<section class="carte"><div class="h">Le pointage de novembre <small>chaque case s'ouvre ; ce qui est validé chaque soir arrive ici tout seul</small><button class="btn s d" data-geste="absence">${ic('cal', 14)} Une absence sur plusieurs jours</button></div>
-    <div class="gr"><table><thead><tr><th class="nom"></th>${JOURS.map(j => `<th>${j.wd.slice(0, 1).toUpperCase()}<br>${j.d}</th>`).join('')}<th></th></tr></thead><tbody>
-      ${SAL.map(s => `<tr><th class="nom">${s.nom}</th>${JOURS.map(j => { const c = caseDe(s, j); return `<td class="c ${c}" title="${s.nom} · ${j.wd} ${j.d}/11">${LETTRE[c]}</td>`; }).join('')}<td class="t">${joursTravailles(s)} j</td></tr>`).join('')}
+  return `<section class="carte"><div class="h">Le pointage de novembre <small>clique une case pour la voir ou la corriger ; ce que tu notes chaque jour arrive ici tout seul</small><button class="btn s d" data-geste="absence">${ic('cal', 14)} Une absence prévue</button></div>
+    <div class="gr"><table><thead><tr><th class="nom"></th>${JOURS.map(j => `<th class="${j.d === S.jour ? 'auj' : ''}">${j.wd.slice(0, 1).toUpperCase()}<br>${j.d}</th>`).join('')}<th></th></tr></thead><tbody>
+      ${SAL.map(s => `<tr><th class="nom">${s.nom}</th>${JOURS.map(j => { const c = caseDe(s, j); const ouvrable = !j.we && j.d <= S.jour; return `<td class="c ${c}" ${ouvrable ? `data-case="${s.id}:${j.d}"` : ''} title="${s.nom} · ${j.wd} ${j.d}/11${c.includes('auj') ? ' · pas encore validée' : ''}">${LETTRE[premier(c)] || ''}</td>`; }).join('')}<td class="t">${joursTravailles(s)} j</td></tr>`).join('')}
     </tbody></table></div>
-    <div class="legende"><span><i style="background:var(--doux)"></i>présent</span><span><i style="background:var(--rouge-doux)"></i>absent</span><span><i style="background:var(--bleu-doux)"></i>congé</span><span><i style="background:var(--ambre-doux)"></i>malade ou retard</span><span><i style="background:var(--doux);outline:2px solid var(--sarcelle);outline-offset:-2px"></i>heures sup</span><span><i style="border:1px dashed var(--trait-fort)"></i>à venir</span></div>
-    ${reg.length ? `<div class="h" style="padding-top:4px">À régler avant les bulletins <small>${reg.length}</small></div>${reg.map(x => { const s = SAL.find(y => y.id === x.s); return `<div class="ligne">${av(s)}<div class="qui"><b>${s.nom.split(' ')[0]} : ${h(x.t)}</b></div><div class="fin"><button class="btn s">${x.b}</button></div></div>`; }).join('')}` : ''}
-    <div class="pied"><span>${S.jour >= 25 ? 'Le mois est presque fini : relis, règle ce qui reste, et passe aux bulletins.' : `Le mois se valide à la fin, d'un geste ; d'ici là, chaque soir suffit.`}</span>${S.jour >= 25 ? `<button class="btn" data-etape="2">Passer aux bulletins ${ic('fleche', 14)}</button>` : ''}</div></section>`;
+    <div class="legende"><span><i style="background:var(--doux)"></i>là</span><span><i style="background:var(--rouge-doux)"></i>absent</span><span><i style="background:var(--bleu-doux)"></i>congé</span><span><i style="border:1px dashed var(--bleu-texte)"></i>congé prévu</span><span><i style="background:var(--ambre-doux)"></i>malade ou retard</span><span><i style="background:var(--doux);outline:2px solid var(--sarcelle);outline-offset:-2px"></i>heures sup</span><span><i style="outline:2px dashed var(--sarcelle);outline-offset:-2px"></i>pas encore validée</span><span><i style="border:1px dashed var(--trait-fort)"></i>à venir</span></div>
+    ${listeARegler(reg)}
+    <div class="pied"><span>${S.jour >= 25 ? `Le mois est presque fini. Les jours qui restent (jusqu'au 30) sont comptés présents ; ce qui y changera se régularise sur décembre.` : 'Chaque jour validé arrive ici ; le mois se relit à la fin, d\'un coup d\'œil.'}</span>${S.jour >= 25 ? reg.length ? `<span class="petit">Règle d'abord ${reg.length === 1 ? 'la chose' : `les ${reg.length} choses`} ci-dessus.</span>` : `<button class="btn p" data-etape="2">Passer aux bulletins ${ic('fleche', 14)}</button>` : ''}</div></section>`;
 }
 function etapeBulletins(m) {
   const o = m === 'oct' ? S.oct : S.mois;
   if (!o.bulletins && m === 'nov' && S.jour < 25) return `<section class="carte"><div class="vide">${ic('cal', 18)} Les bulletins de novembre se préparent à partir du 25/11 : d'ici là, le pointage continue chaque jour.</div></section>`;
-  const prime = { ah: 0, in: 0, mo: 50, sa: 0, ka: 0 };
+  const reg = m === 'oct' ? [] : aRegler();
   return `<section class="carte"><div class="h">Les bulletins de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.bulletins ? 'validés · ils ne se modifient plus' : 'tout vient du pointage et des fiches ; tu ne remplis que ce qui change ce mois-ci'}</small></div>
     <div class="scroll"><table class="liste"><thead><tr><th>Salarié</th><th class="r">Jours</th><th class="r">Heures sup</th><th class="r">Absences</th><th class="r">Prime du mois</th><th class="r">Avance retenue</th><th class="r">Net à payer</th></tr></thead><tbody>
-      ${SAL.map(s => `<tr><td><span style="display:flex;gap:10px;align-items:center">${av(s, 28)}<span><b>${s.nom}</b><br><small class="muet">${s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : s.contrat === 'Essai' ? 'confirmée le 18/11' : s.poste}</small></span></span></td>
-        <td class="r m">${m === 'oct' ? 22 : joursTravailles(s)}</td><td class="r m">${s.id === 'ka' ? '4 h' : '—'}</td><td class="r m">${s.id === 'mo' ? '1 j sans solde' : s.id === 'ah' ? '2 j maladie' : s.id === 'in' ? '2 j congé' : '—'}</td>
-        <td class="r">${o.bulletins ? (prime[s.id] ? money(prime[s.id]) : '—') : `<input class="n" value="${prime[s.id] ? '50,000' : ''}" placeholder="0" aria-label="Prime de ${s.nom}">`}</td>
-        <td class="r m">${s.id === 'ka' ? '− 200,000 DT' : '—'}</td><td class="r m"><b>${money(aPayer(s))}</b></td></tr>`).join('')}
+      ${SAL.map(s => { const c = compteMois(s); const abs = [c.a ? `${c.a} j absent` : '', c.mal ? `${c.mal} j maladie` : '', c.cg ? `${c.cg} j congé` : ''].filter(Boolean).join(', ') || '—'; return `<tr><td><span style="display:flex;gap:10px;align-items:center">${av(s, 28)}<span><b>${s.nom}</b><br><small class="muet">${s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : s.id === 'sa' && s.contrat === 'CDI' ? 'confirmée en CDI le 20/11' : s.poste}</small></span></span></td>
+        <td class="r m">${m === 'oct' ? 22 : joursTravailles(s)}</td><td class="r m">${m === 'oct' ? '—' : c.hs ? `${c.hs} h` : '—'}</td><td class="r m">${m === 'oct' ? '—' : abs}</td>
+        <td class="r">${o.bulletins ? (s.id === 'mo' ? money(50) : '—') : `<input class="n" value="${s.id === 'mo' ? '50,000' : ''}" placeholder="0" aria-label="Prime de ${s.nom}">`}</td>
+        <td class="r m">${s.avance ? `− ${money(s.avance)}` : '—'}</td><td class="r m"><b>${money(aPayer(s))}</b></td></tr>`; }).join('')}
     </tbody><tfoot><tr><td>${SAL.length} salariés</td><td></td><td></td><td></td><td></td><td></td><td class="r m">${money(totalAPayer())}</td></tr></tfoot></table></div>
-    <div class="pied">${o.bulletins ? `<span>Validés le ${m === 'oct' ? '30/10' : '27/11'}. Chaque salarié peut recevoir le sien.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('doc', 14)} Voir les bulletins</button><button class="btn s">${ic('envoi', 14)} Les envoyer aux salariés</button><button class="btn s p" data-etape="3">Payer ${ic('fleche', 14)}</button></span>`
-      : `<span>Rien ne part tant que tu n'as pas validé. Ton comptable peut les relire avant (« Lui demander de relire »).</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">Lui demander de relire</button><button class="btn p" id="valider-bulletins">${ic('coche', 15)} Tout est juste : valider les ${SAL.length} bulletins</button></span>`}</div></section>`;
+    <div class="pied">${o.bulletins ? `<span>Validés le ${m === 'oct' ? '30/10' : '27/11'}. Chacun peut recevoir le sien par e-mail.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('doc', 14)} Voir les bulletins</button><button class="btn s">${ic('envoi', 14)} Les envoyer par e-mail</button><button class="btn s p" data-etape="3">Payer ${ic('fleche', 14)}</button></span>`
+      : reg.length ? `<span>Le mois a encore ${reg.length} chose${reg.length > 1 ? 's' : ''} à régler (une absence sans motif change la paie).</span><button class="btn p" data-etape="1">Régler ${reg.length === 1 ? 'la chose' : `les ${reg.length} choses`} d'abord ${ic('fleche', 14)}</button>`
+        : `<span>Rien ne part tant que tu n'as pas validé. Ton comptable peut les relire avant (« Lui demander de relire »).</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">Lui demander de relire</button><button class="btn p" id="valider-bulletins">${ic('coche', 15)} Tout est juste : valider les ${SAL.length} bulletins</button></span>`}</div></section>`;
 }
 function etapePayer(m) {
   const o = m === 'oct' ? S.oct : S.mois;
   if (!o.bulletins) return `<section class="carte"><div class="vide">${ic('argent', 18)} On paie après avoir validé les bulletins.</div></section>`;
-  const vir = SAL.filter(s => s.paie === 'virement'), esp = SAL.filter(s => s.paie !== 'virement');
+  const vir = SAL.filter(s => s.paie === 'virement'), esp = SAL.filter(s => s.paie !== 'virement'), sansRib = vir.filter(s => !s.rib);
   return `<section class="carte"><div class="h">Payer les salaires de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.payes ? 'payés le ' + (m === 'oct' ? '02/11' : '30/11') : `${money(totalAPayer())} en tout`}</small></div>
-    <div class="ligne"><span class="muet">${ic('envoi', 18)}</span><div class="qui"><b>Par virement · ${vir.length} salariés · ${money(vir.reduce((x, s) => x + aPayer(s), 0))}</b><small>un seul ordre de virement pour ta banque (BIAT), avec le RIB de chacun${vir.some(s => !s.rib) ? ` · <b style="color:var(--rouge-texte)">le RIB d'Ahmed manque</b>` : ''}</small></div><div class="fin">${vir.some(s => !s.rib) ? '<button class="btn s" data-fiche="ah">Compléter le RIB</button>' : ''}<button class="btn s">${ic('depot', 14)} L'ordre de virement (PDF)</button></div></div>
-    <div class="ligne"><span class="muet">${ic('argent', 18)}</span><div class="qui"><b>En espèces · ${esp.length} salarié · ${money(esp.reduce((x, s) => x + aPayer(s), 0))}</b><small>l'avance de 200,000 DT déjà retenue · un reçu à faire signer à ${esp.map(s => s.nom.split(' ')[0]).join(', ')}</small></div><div class="fin"><button class="btn s">${ic('doc', 14)} Le reçu à signer</button></div></div>
+    <div class="ligne"><span class="muet">${ic('envoi', 18)}</span><div class="qui"><b>Par virement · ${vir.length} salariés · ${money(vir.reduce((x, s) => x + aPayer(s), 0))}</b><small>un seul ordre de virement pour ta banque (BIAT), avec le RIB de chacun${sansRib.length ? ` · <b style="color:var(--rouge-texte)">le RIB ${sansRib.map(s => `d'${prenom(s)}`).join(', ')} manque</b>` : ''}</small></div><div class="fin">${sansRib.length ? `<button class="btn s" data-fiche="${sansRib[0].id}">Compléter le RIB</button>` : ''}<button class="btn s">${ic('depot', 14)} L'ordre de virement (PDF)</button></div></div>
+    <div class="ligne"><span class="muet">${ic('argent', 18)}</span><div class="qui"><b>En espèces · ${esp.length} salarié · ${money(esp.reduce((x, s) => x + aPayer(s), 0))}</b><small>l'avance de 200,000 DT déjà retenue · un reçu à faire signer à ${esp.map(prenom).join(', ')}</small></div><div class="fin"><button class="btn s">${ic('doc', 14)} Le reçu à signer</button></div></div>
     <div class="pied"><span>Une fois l'argent parti, dis-le : la trésorerie et la comptabilité le voient, et le bulletin est marqué payé.</span>${o.payes ? `<span class="pas vert">${ic('coche', 12)} payés</span>` : `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : marquer les ${SAL.length} salaires</button>`}</div></section>`;
 }
 function etapeDeclarer(m) {
   const o = m === 'oct' ? S.oct : S.mois;
-  const lignes = [['Impôt sur le revenu retenu sur les salaires', 298.640], ['Contribution sociale de solidarité', 23.256], ['Taxe de formation professionnelle (TFP)', 93.023], ['FOPROLOS', 46.511]];
+  const lignes = DECL();
   return `<section class="carte"><div class="h">La déclaration de ${m === 'oct' ? 'octobre' : 'novembre'} <small>à déposer avant le 28/${m === 'oct' ? '11' : '12'} · les montants viennent des bulletins validés</small></div>
-    <div class="scroll"><table class="liste"><tbody>${lignes.map(([t, v]) => `<tr><td>${t}</td><td class="r m">${money(v)}</td></tr>`).join('')}</tbody><tfoot><tr><td>À payer avec la déclaration</td><td class="r m">${money(lignes.reduce((x, l) => x + l[1], 0))}</td></tr></tfoot></table></div>
+    <div class="scroll"><table class="liste"><tbody>${lignes.map(([t, v]) => `<tr><td>${t}</td><td class="r m">${money(v)}</td></tr>`).join('')}</tbody><tfoot><tr><td>À payer avec la déclaration</td><td class="r m">${money(totalDecl())}</td></tr></tfoot></table></div>
     <div class="ligne"><span class="muet">${ic('cal', 18)}</span><div class="qui"><b>La CNSS du 4e trimestre</b><small>octobre, novembre, décembre · à déposer avant le 15/01/2027 · la liste des salaires se prépare toute seule</small></div><div class="fin"><span class="pas">en janvier</span></div></div>
     <div class="pied"><span>Exemple : les taux et les dates sont À VÉRIFIER avec ton comptable. SkanFact prépare, tu déposes.</span>${o.declare ? `<span class="pas vert">${ic('coche', 12)} déposée</span>` : `<span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('depot', 14)} Le détail (PDF)</button><button class="btn p" id="declarer">${ic('coche', 15)} Je l'ai déposée</button></span>`}</div></section>`;
 }
 
 // ── L'équipe : une carte par salarié ; la fiche s'ouvre au clic
 function ongletEquipe() {
-  return `<div class="equipe">${SAL.map(s => `<button type="button" class="sal" data-fiche="${s.id}"><div class="h1">${av(s, 40)}<div><b>${s.nom}</b><small>${s.poste}</small></div></div>
+  return `<div class="equipe">${SAL.map(s => `<button type="button" class="sal" data-fiche="${s.id}"><div class="h1">${av(s, 40)}<div><b>${s.nom}</b><small>${s.poste} · ${s.eq}</small></div></div>
       <div>${s.contrat === 'CDI' ? '<span class="pas">CDI</span>' : s.contrat === 'CDD' ? `<span class="pas ambre">CDD jusqu'au ${s.fin}</span>` : `<span class="pas bleu">en essai jusqu'au ${s.fin}</span>`}${s.rib === false && s.paie === 'virement' ? ' <span class="pas rouge">RIB manquant</span>' : ''}</div>
-      <dl><dt>Salaire brut</dt><dd>${money(s.brut)}</dd><dt>Congés restants</dt><dd>${String(s.conges).replace('.', ',')} j</dd><dt>Payé par</dt><dd>${s.paie}</dd></dl></button>`).join('')}
+      <dl><dt>Salaire brut</dt><dd>${money(s.brut)}</dd><dt>Congés restants</dt><dd>${virg(s.conges)} j</dd><dt>Payé par</dt><dd>${s.paie}</dd></dl></button>`).join('')}
     <button type="button" class="sal" data-geste="embaucher" style="place-items:center;color:var(--gris);border-style:dashed">${ic('plus', 22)}<b>Embaucher</b><span class="petit">la fiche en trois questions</span></button></div>`;
 }
 function ficheSalarie() {
-  const s = SAL.find(x => x.id === S.fiche);
+  const s = SAL.find(x => x.id === S.fiche), c = compteMois(s);
   return `<div class="chemin"><a href="#" data-retour>Paie</a> › L'équipe › ${s.nom}</div>
-    <div class="tete"><div style="display:flex;gap:12px;align-items:center">${av(s, 48)}<div><h2>${s.nom}</h2><div class="sous">${s.poste} · ${s.contrat === 'CDI' ? 'CDI' : s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : `en essai jusqu'au ${s.fin}`} · depuis ${s.depuis}</div></div></div>
+    <div class="tete"><div style="display:flex;gap:12px;align-items:center">${av(s, 48)}<div><h2>${s.nom}</h2><div class="sous">${s.poste} · ${s.eq} · ${s.contrat === 'CDI' ? 'CDI' : s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : `en essai jusqu'au ${s.fin}`} · depuis ${s.depuis}</div></div></div>
       <div class="actions"><button class="btn" data-retour>‹ L'équipe</button><button class="btn" data-geste="document">${ic('doc', 15)} Un document</button><button class="btn" data-geste="depart">Un départ</button>${s.contrat === 'CDD' ? '<button class="btn p" data-geste="renouveler">Renouveler le CDD</button>' : s.rib === false && s.paie === 'virement' ? '<button class="btn p" id="rib">Ajouter son RIB</button>' : ''}</div></div>
     <div class="grille2"><div>
-      <section class="carte"><div class="h">Son mois <small>novembre</small></div>
-        <div class="chiffres"><div><span>Jours travaillés</span><b>${joursTravailles(s)}</b></div><div><span>Absences</span><b>${s.id === 'mo' ? '1' : s.id === 'ah' ? '2' : '0'}</b></div><div><span>Congés restants</span><b>${String(s.conges).replace('.', ',')} j</b></div><div><span>Net à payer</span><b>${money(aPayer(s))}</b></div></div></section>
+      <section class="carte"><div class="h">Son mois <small>novembre, jusqu'au ${S.jour}</small></div>
+        <div class="chiffres"><div><span>Jours travaillés</span><b>${joursTravailles(s)}</b></div><div><span>Absences</span><b>${c.a + c.mal}</b></div><div><span>Congés restants</span><b>${virg(s.conges)} j</b></div><div><span>Net à payer</span><b>${money(aPayer(s))}</b></div></div></section>
       <section class="carte"><div class="h">Ses bulletins <small>un par mois, validés</small></div>
         ${['Octobre 2026', 'Septembre 2026', 'Août 2026'].map((mo, i) => `<div class="ligne"><span class="muet">${ic('doc', 18)}</span><div class="qui"><b>${mo}</b><small>net ${money(s.net - i * 3)} · payé par ${s.paie}</small></div><div class="fin"><button class="btn s">Voir</button></div></div>`).join('')}</section>
     </div><div>
       <section class="carte"><div class="h">Son contrat</div>
         <div class="ligne"><div class="qui"><small>Salaire brut mensuel</small><b class="m">${money(s.brut)}</b></div><div class="fin"><button class="btn s">Changer</button></div></div>
         <div class="ligne"><div class="qui"><small>Paiement</small><b>${s.paie}${s.paie === 'virement' ? (s.rib ? ' · RIB enregistré' : ' · <span style="color:var(--rouge-texte)">RIB manquant</span>') : ''}</b></div></div>
-        <div class="ligne"><div class="qui"><small>Horaires</small><b>du lundi au vendredi, 8 h – 17 h</b></div></div></section>
+        <div class="ligne"><div class="qui"><small>Équipe et horaires</small><b>${s.eq} · du lundi au vendredi, 8 h – 17 h</b></div></div></section>
       <section class="carte"><div class="h">Ses documents</div>
-        ${[['Contrat de travail', 'signé'], ['Attestation de travail', 'faite le 12/10'], ['Certificat médical du 09/11', 'manquant']].map(([t, e]) => `<div class="ligne"><span class="muet">${ic('doc', 16)}</span><div class="qui"><b>${t}</b></div><div class="fin"><span class="pas ${e === 'manquant' ? 'ambre' : ''}">${e}</span></div></div>`).join('')}</section>
+        ${[['Contrat de travail', 'signé'], ['Attestation de travail', 'faite le 12/10']].concat(s.id === 'ah' ? [['Certificat médical du 09/11', S.regle['cert:ah'] ? 'joint' : 'manquant']] : []).map(([t, e]) => `<div class="ligne"><span class="muet">${ic('doc', 16)}</span><div class="qui"><b>${t}</b></div><div class="fin"><span class="pas ${e === 'manquant' ? 'ambre' : ''}">${e}</span></div></div>`).join('')}</section>
     </div></div>`;
 }
 
-// ── La première fois : trois questions, puis c'est tout
+// ── La première fois : quatre étapes, puis c'est tout
 function premiereFois() {
   return `<div class="chemin">Accueil › Paie</div><div class="tete"><div><h2>Paie</h2><div class="sous">Tes salariés, leurs jours, leurs bulletins</div></div></div>
-    <section class="carte" style="padding:22px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start">
+    <section class="carte" style="padding:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;align-items:start">
       <div style="display:grid;gap:12px"><span class="av" style="background:var(--doux);color:var(--doux-texte);width:46px;height:46px">${ic('pers', 22)}</span>
         <h3 style="margin:0;font-size:22px">La paie, en deux minutes par jour</h3>
         <p class="muet" style="margin:0">Chaque soir, tu dis qui n'était pas là. À la fin du mois, SkanFact prépare les bulletins, l'ordre de virement et la déclaration. Tu relis, tu valides, tu paies.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" data-geste="embaucher">${ic('plus', 15)} Ajouter mon premier salarié</button><button class="btn">Importer depuis un tableur</button></div>
         <p class="petit muet" style="margin:0">Tu as un comptable ? Il peut faire la paie à ta place, ou la relire : tu choisiras après.</p></div>
-      <div style="display:grid;gap:8px">${[['Tes salariés', 'nom, poste, salaire, contrat : trois questions par personne'], ['Leurs horaires', 'les jours travaillés de l\'entreprise, une seule fois'], ['Chaque soir', 'qui n\'était pas là : un clic, le reste est présent'], ['Chaque fin de mois', 'relire, valider, payer, déclarer : quatre étapes guidées']].map(([t, d], i) => `<div class="ligne" style="border:1px solid var(--trait);border-radius:12px"><span class="av" style="background:var(--sarcelle);width:26px;height:26px">${i + 1}</span><div class="qui"><b>${t}</b><small>${d}</small></div></div>`).join('')}</div>
+      <div style="display:grid;gap:8px">${[['Tes salariés', 'nom, poste, salaire, contrat : trois questions par personne'], ['Leurs horaires et leurs équipes', 'les jours travaillés, qui pointe chaque équipe (à la main ou à la pointeuse)'], ['Chaque soir', 'qui n\'était pas là : un clic, le reste est présent'], ['Chaque fin de mois', 'relire, valider, payer, déclarer : quatre étapes guidées']].map(([t, d], i) => `<div class="ligne" style="border:1px solid var(--trait);border-radius:12px"><span class="av" style="background:var(--sarcelle);width:26px;height:26px">${i + 1}</span><div class="qui"><b>${t}</b><small>${d}</small></div></div>`).join('')}</div>
     </section>`;
 }
 
-// ── Le téléphone : la même journée, pour le soir, depuis la poche
+// ── Le téléphone : la même paie, au pouce, le soir
 function telephone() {
+  const o = S.telOnglet;
   const p = principal();
-  return `<div class="tel-fond"><div class="tel"><div class="ecr">
-      <div class="th"><b>Qui est là aujourd'hui ?</b><span>${['dim.', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'sam.'][(S.jour - 1) % 7]} ${S.jour}/11 · tout le monde présent par défaut</span></div>
-      <div class="corps">
-        ${S.demandes.length ? `<div class="bandeau ambre" style="margin:0">${ic('cloche', 16)}<div class="txt"><b>${S.demandes.length} demande${S.demandes.length > 1 ? 's' : ''}</b><span>${h(SAL.find(s => s.id === S.demandes[0].s).nom.split(' ')[0])} : ${h(S.demandes[0].quoi)}</span></div><button class="btn s" data-tel-onglet>Voir</button></div>` : ''}
-        <div class="tc">${S.validAujourdhui ? `<div class="tl">${ic('coche', 18)} <b>Journée validée</b><span class="muet petit">elle part dans le pointage du mois</span><button class="btn s" id="reouvrir">Modifier</button></div>` : SAL.map(s => { const e = S.presence[s.id]; return `<div class="tl"><div class="q">${av(s)}<div style="display:grid"><b>${s.nom}</b><small class="muet">${s.poste}</small></div></div>
-          <span class="filtre" role="group" aria-label="Présence de ${s.nom}">${[['p', 'Là'], ['a', 'Absent'], ['cg', 'Congé'], ['mal', 'Malade'], ['r', 'Retard']].map(([k, l]) => `<button type="button" data-pres="${s.id}:${k}" class="${e.etat === k ? 'on' : ''}${k === 'a' ? ' abs' : k === 'cg' ? ' cg' : k === 'mal' ? ' mal' : ''}">${l}</button>`).join('')}</span></div>`; }).join('')}</div>
-      </div>
-      ${S.validAujourdhui ? '' : `<div class="bas"><button class="btn p" id="valider-jour">${ic('coche', 16)} Valider la journée</button></div>`}
-    </div></div>
-    <div class="legende-tel"><b>Au téléphone, le soir</b><span>La journée tient sur un écran : un seul choix par salarié, de gros boutons, et « Valider » toujours au pouce.</span><span>Les demandes arrivent en haut ; les bulletins, le paiement et la déclaration se font aussi au téléphone, dans « Le mois », comme à l'ordinateur.</span><span>Une vendeuse sans le droit « Paie » ne voit ni salaires ni bulletins : seulement sa propre journée.</span>${p ? `<span>Le bouton vert de l'ordinateur, ce jour-là : <b>${p[0]}</b>.</span>` : ''}</div></div>`;
+  return `<div class="tel-fond"><div class="tel"><div class="ecr">${o === 'jour' ? telJour() : o === 'mois' ? telMois() : telEquipe()}
+      <div class="bas">${o === 'jour' && !S.valide[S.jourVu] ? `<button class="btn p" id="valider-jour">${ic('coche', 16)} Valider la journée${S.jourVu === S.jour ? '' : ` du ${S.jourVu}/11`}</button>` : ''}
+        <nav class="tabs-t" aria-label="Paie">${[['jour', 'Aujourd\'hui', 'cal'], ['mois', 'Le mois', 'doc'], ['equipe', 'L\'équipe', 'equipe']].map(([k, l, i]) => `<button type="button" data-tel="${k}" class="${o === k ? 'on' : ''}">${ic(i, 20)}${l}</button>`).join('')}</nav></div>
+    </div>${S.feuille ? feuilleTel() : ''}</div>
+    <div class="legende-tel"><b>Au téléphone, le soir</b><span>Une ligne par salarié, avec ce qui a changé ; on touche un nom pour noter, avec de gros boutons et ce que ça fait sur le bulletin.</span><span>Les demandes s'acceptent au pouce, « Valider » reste sous le pouce, et « Le mois » se fait aussi d'ici : valider les bulletins, dire que c'est payé, que c'est déclaré.</span><span>Un chef d'équipe avec le droit « Pointer » ne voit que son équipe, et ni salaires ni bulletins.</span><span>Sans réseau, ce que tu notes reste sur le téléphone et part quand il revient ; seule la validation attend le réseau.</span>${p ? `<span>Le bouton vert de l'ordinateur, ce jour-là : <b>${p[0]}</b>.</span>` : ''}</div></div>`;
+}
+function telJour() {
+  const d = S.jourVu, j = JOURS[d - 1], val = !!S.valide[d];
+  const q = S.cherche.trim().toLowerCase();
+  const ligne = s => { const e = etatDe(s, d); const cl = e.etat === 'a' ? 'rouge' : e.etat === 'cg' ? 'bleu' : e.etat === 'mal' ? 'ambre' : change(e) ? 'vert' : ''; return pointeuse(s) ? `<div class="tl-b">${av(s)}<span class="nm"><b>${s.nom}</b><small>${badge(s, d)}</small></span></div>` : `<button type="button" class="tl-b" data-feuille="${s.id}">${av(s)}<span class="nm"><b>${s.nom}</b><small>${s.poste}</small></span><span class="pas ${cl}">${change(e) ? cap(libelle(e)) : 'Là'}</span></button>`; };
+  const lignes = S.taille !== 'grand' ? SAL.map(ligne).join('') : ORDRE.map(eq => { const gens = SAL.filter(s => s.eq === eq && (!q || s.nom.toLowerCase().includes(q))); if (!gens.length) return ''; const chg = gens.filter(s => change(etatDe(s, d))); const ouverte = q ? true : S.ouvertes[eq] !== undefined ? S.ouvertes[eq] : (EQUIPES[eq].main && chg.length > 0); return `<div class="eq-h"><b>${eq}</b><span>${gens.length}</span><span class="d">${chg.length ? `<span class="pas ambre">${chg.length}</span>` : EQUIPES[eq].main ? '<span class="pas vert">tous là</span>' : '<span class="pas">pointeuse</span>'}</span><button type="button" class="btn s g" data-eq="${eq}">${ouverte ? 'Refermer' : 'Ouvrir'}</button></div>${ouverte ? gens.map(ligne).join('') : ''}`; }).join('');
+  return `<div class="th"><b>${d === S.jour ? 'Qui est là ?' : `${cap(NOMJ[j.w])} ${d}/11`}</b><span>${NOMJ[j.w]} ${d}/11 · touche un nom pour noter ce qui change${S.demandes.length ? ` · ${S.demandes.length} demande${S.demandes.length > 1 ? 's' : ''} plus bas` : ''}</span>${semaine(true)}</div>
+    <div class="corps">
+      ${finOctobre() ? `<div class="bandeau ambre" style="margin:0">${ic('alerte', 16)}<div class="txt"><b>Octobre n'est pas payé</b><span>${money(totalAPayer())} à verser</span></div><button class="btn s" data-tel="mois" data-vue-tel="oct">Le faire</button></div>` : ''}
+      ${S.taille === 'grand' && !val ? `<div class="cherche"><input type="search" id="cherche" placeholder="Chercher un salarié…" value="${h(S.cherche)}" aria-label="Chercher un salarié"></div>` : ''}
+      <div class="tc">${val ? `<div class="tl">${ic('coche', 18)} <b>Journée validée</b><span class="muet petit">elle est dans le pointage du mois</span><button class="btn s" data-rouvrir="${d}">Rouvrir la journée</button></div>` : lignes}</div>
+      ${S.demandes.length ? `<div class="petit muet" style="padding:4px 2px 0">Les demandes</div><div class="tc">${S.demandes.map(x => { const s = SAL.find(y => y.id === x.s); return `<div class="tl"><div class="q">${av(s)}<div style="display:grid;min-width:0"><b>${prenom(s)} : ${h(x.quoi)}</b><small class="muet">${h(x.pourquoi)}</small></div></div><div style="display:flex;gap:8px"><button class="btn" style="flex:1;justify-content:center" data-refuse="${x.id}">Refuser</button><button class="btn" style="flex:1;justify-content:center" data-accepte="${x.id}">${x.ok}</button></div></div>`; }).join('')}</div>` : ''}
+    </div>`;
+}
+function feuilleTel() {
+  const s = SAL.find(x => x.id === S.feuille), d = S.jourVu, e = etatDe(s, d);
+  return `<div class="voile-t" data-fermer-feuille><div class="feuille" role="dialog" aria-label="${h(s.nom)}">
+    <div class="q">${av(s)}<div><b>${s.nom}</b><small>${NOMJ[JOURS[d - 1].w]} ${d}/11 · ${s.poste}</small></div></div>
+    <div class="gros">${[['p', 'Là', 'à ses horaires'], ['a', 'Absent', `− ${money(prixJour(s))} si sans solde`], ['cg', 'Congé', `il lui reste ${virg(s.conges)} j`], ['mal', 'Malade', 'certificat plus tard']].map(([c, l, sub]) => `<button type="button" data-pres="${s.id}:${c}" class="${e.etat === c ? 'on' : ''}"><b>${l}</b><span>${sub}</span></button>`).join('')}</div>
+    <div class="gros"><button type="button" data-plus="${s.id}:retard" class="${e.retard ? 'on' : ''}" ${e.etat !== 'p' ? 'disabled' : ''}><b>${e.retard ? `Retard ${e.retard} min` : '+ Retard'}</b><span>noté, pas retenu</span></button><button type="button" data-plus="${s.id}:hs" class="${e.hs ? 'on' : ''}" ${e.etat !== 'p' ? 'disabled' : ''}><b>${e.hs ? `${e.hs} h sup` : '+ Heures sup'}</b><span>${e.hs ? `+ ${money(majo(s, e.hs))}` : 'à +25 %'}</span></button></div>
+    ${e.etat === 'a' ? `<div class="petit muet">Pourquoi ?</div><span class="filtre">${[['sans', 'Sans solde'], ['just', 'Justifiée'], ['inc', 'Je ne sais pas']].map(([k, t]) => `<button type="button" data-motif="${s.id}:${k}" class="${(e.motif || 'inc') === k ? 'on' : ''}">${t}</button>`).join('')}</span>` : ''}
+    <button type="button" class="btn p" style="justify-content:center;min-height:46px" data-fermer-feuille>C'est noté</button></div></div>`;
+}
+function telMois() {
+  const m = S.vueMois || 'nov', et = etatsMois(m), act = et.findIndex(x => x[0] === 'cours' || x[0] === 'retard');
+  const o = m === 'oct' ? S.oct : S.mois, reg = m === 'oct' ? [] : aRegler();
+  const action = i => i === 0 ? (reg.length ? `<button class="btn" data-tel-regle>Régler les ${reg.length} choses</button>` : `<button class="btn" data-tel="jour">Pointer aujourd'hui</button>`)
+    : i === 1 ? (o.bulletins ? '' : `<button class="btn p" id="valider-bulletins">${ic('coche', 15)} Valider les ${SAL.length} bulletins</button><span class="petit muet">relis-les d'abord : « Voir les bulletins », ou à l'ordinateur</span>`)
+      : i === 2 ? `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : ${money(totalAPayer())}</button><span class="petit muet">l'ordre de virement (PDF) s'envoie aussi d'ici</span>`
+        : `<button class="btn p" id="declarer">${ic('coche', 15)} Je l'ai déposée</button>`;
+  return `<div class="th"><b>Le mois</b><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span></div>
+    <div class="corps"><div class="tc">${et.map(([cl, t, dd], i) => `<div class="tl"><div class="q"><span class="n-t ${cl}">${cl === 'fait' ? '✓' : i + 1}</span><div style="display:grid;min-width:0"><b>${NOMS_ET[i]}</b><small class="muet">${t}${dd ? ` · ${dd}` : ''}</small></div></div>${i === act ? action(i) : ''}</div>`).join('')}</div></div>`;
+}
+function telEquipe() {
+  return `<div class="th"><b>L'équipe</b><span>${SAL.length} salariés</span></div><div class="corps"><div class="tc">${SAL.map(s => `<div class="tl-b">${av(s)}<span class="nm"><b>${s.nom}</b><small>${s.poste} · ${s.eq}</small></span>${s.contrat === 'CDD' ? `<span class="pas ambre">CDD</span>` : s.contrat === 'Essai' ? '<span class="pas bleu">essai</span>' : s.rib === false && s.paie === 'virement' ? '<span class="pas rouge">RIB</span>' : ''}</div>`).join('')}</div></div>`;
 }
 
 // ───────────── les fenêtres ─────────────
@@ -556,18 +770,19 @@ function toast(t, annuler) {
 let embEtape = 1;
 function fenEmbaucher() {
   const et = ['Qui ?', 'Son contrat', 'Ce que ça coûte'];
-  const c = embEtape === 1 ? `<div class="deux"><label class="champ"><span>Prénom et nom</span><input value="Nour Mansour"></label><label class="champ"><span>Poste</span><input value="Vendeuse"></label></div><div class="deux"><label class="champ"><span>Téléphone</span><input value="+216 22 345 678"></label><label class="champ"><span>N° CIN</span><input placeholder="facultatif aujourd'hui"></label></div><p class="petit muet" style="margin:0">Le reste (CNSS, RIB, adresse) peut attendre : SkanFact te le rappellera avant la première paie.</p>`
+  const c = embEtape === 1 ? `<div class="deux"><label class="champ"><span>Prénom et nom</span><input value="Nour Mansour"></label><label class="champ"><span>Poste</span><input value="Vendeuse"></label></div><div class="deux"><label class="champ"><span>Équipe</span><select>${ORDRE.map(e => `<option ${e === 'Boutique' ? 'selected' : ''}>${e}</option>`).join('')}</select></label><label class="champ"><span>Téléphone</span><input value="+216 22 345 678"></label></div><p class="petit muet" style="margin:0">Le reste (CIN, CNSS, RIB, adresse) peut attendre : SkanFact te le rappellera avant la première paie.</p>`
     : embEtape === 2 ? `<div class="choix">${[['CDI', 'sans date de fin'], ['CDD', 'jusqu\'à une date'], ['Essai d\'abord', 'puis CDI'], ['Stage', 'SIVP, stage…']].map(([t, d], i) => `<button type="button" class="${i === 2 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div><div class="deux"><label class="champ"><span>Arrive le</span><input type="date" value="2026-12-01"></label><label class="champ"><span>Fin de l'essai</span><input type="date" value="2027-02-28"></label></div><div class="deux"><label class="champ"><span>Salaire</span><input value="700,000"></label><label class="champ"><span>C'est le</span><select><option>brut mensuel</option><option>net qu'elle touchera</option></select></label></div>`
-      : `<div class="calc"><div><span>Salaire brut</span><b class="m">${money(700)}</b></div><div><span>Ce qu'elle touchera (net, environ)</span><b class="m">${money(598.420)}</b></div><div><span>Charges de l'entreprise</span><b class="m">${money(116.550)}</b></div><div class="tot"><span>Ce qu'elle te coûtera par mois</span><b class="m">${money(816.550)}</b></div></div><p class="petit muet" style="margin:0">Calculé avec les taux de tes réglages : À VÉRIFIER avec ton comptable. Le contrat se prépare ensuite, prêt à signer.</p>`;
+      : `<div class="calc"><div><span>Salaire brut</span><b class="m">${money(700)}</b></div><div><span>Ce qu'elle touchera (net, environ)</span><b class="m">${money(598.420)}</b></div><div><span>Charges de l'entreprise</span><b class="m">${money(116.550)}</b></div><div class="tot"><span>Ce qu'elle te coûtera par mois</span><b class="m">${money(816.550)}</b></div></div><p class="petit muet" style="margin:0">Calculé avec les taux de tes réglages : À VÉRIFIER avec ton comptable. Le contrat se prépare ensuite, prêt à signer ; la fin de l'essai arrive dans « À ne pas oublier » un mois avant.</p>`;
   fen('Embaucher', `<div class="etapes-f">${et.map((t, i) => `<span class="${embEtape === i + 1 ? 'on' : ''}">${i + 1}. ${t}</span>`).join('')}</div>${c}`,
     `${embEtape > 1 ? '<button class="btn" id="emb-prec">‹ Retour</button>' : '<button class="btn" data-fermer>Annuler</button>'}<button class="btn p" id="emb-suiv">${embEtape < 3 ? 'Continuer' : 'Ajouter Nour à l\'équipe'}</button>`);
 }
 function fenAbsence() {
-  fen('Une absence sur plusieurs jours', `<label class="champ"><span>Qui ?</span><select>${SAL.map(s => `<option>${s.nom}</option>`).join('')}</select></label>
+  fen('Une absence prévue', `<label class="champ"><span>Qui ?</span><select>${SAL.map(s => `<option>${s.nom}</option>`).join('')}</select></label>
     <div class="choix">${[['Congé payé', 'pris sur ses jours acquis'], ['Maladie', 'avec un certificat'], ['Sans solde', 'retenu sur la paie'], ['Autre', 'mariage, naissance, deuil…']].map(([t, d], i) => `<button type="button" class="${i === 0 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
     <div class="deux"><label class="champ"><span>Du</span><input type="date" value="2026-11-23"></label><label class="champ"><span>Au</span><input type="date" value="2026-11-24"></label></div>
-    <div class="calc"><div><span>Jours ouvrés</span><b>2</b></div><div><span>Il restera</span><b>7 jours de congé</b></div></div>`,
-    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Absence notée : elle est dans le pointage">Noter l'absence</button>`);
+    <div class="calc"><div><span>Jours ouvrés</span><b>2</b></div><div><span>Il restera</span><b>7 jours de congé</b></div></div>
+    <p class="petit muet" style="margin:0">Ces jours arrivent tout seuls dans « Qui est là ? » : ce jour-là, tu n'auras rien à noter.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Absence notée : elle est dans le pointage, sur ses jours">Noter l'absence</button>`);
 }
 function fenAvance() {
   fen('Une avance sur salaire', `<label class="champ"><span>Pour qui ?</span><select>${SAL.map(s => `<option ${s.id === 'ka' ? 'selected' : ''}>${s.nom}</option>`).join('')}</select></label>
@@ -581,19 +796,40 @@ function fenDocument() {
   const D = [['Attestation de travail', 'il travaille chez toi depuis…'], ['Attestation de salaire', 'pour une banque, un loyer'], ['Certificat de travail', 'à la fin du contrat'], ['Solde de tout compte', 'au départ']];
   fen('Un document', `<label class="champ"><span>Pour qui ?</span><select>${SAL.map(s => `<option ${s.id === 'in' ? 'selected' : ''}>${s.nom}</option>`).join('')}</select></label>
     <div class="choix">${D.map(([t, d], i) => `<button type="button" data-doc="${i}" class="${docChoix === i ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
-    <div class="doc"><h5>${D[docChoix][0].toUpperCase()}</h5><p style="margin:0">Je soussigné, gérant de la société Atelier Ben Ammar, matricule fiscal <span class="pt"></span>, atteste que Madame <b>Ines Gharbi</b> est employée dans notre société en qualité d'<b>assistante administrative</b> depuis le <b>01/09/2021</b>, en contrat à durée indéterminée.</p><p style="margin:0">Fait à Tunis, le 18/11/2026.</p><p class="muet" style="margin:0;text-align:right">PROJET · à signer</p></div>`,
-    `<button class="btn" data-fermer>Annuler</button><button class="btn">${ic('envoi', 14)} L'envoyer à Ines</button><button class="btn p" id="ok-fen" data-msg="Attestation faite : rangée dans la fiche d'Ines">${ic('depot', 14)} Le PDF</button>`);
+    <div class="doc"><h5>${D[docChoix][0].toUpperCase()}</h5><p style="margin:0">Je soussigné, gérant de la société Atelier Ben Ammar, matricule fiscal <span class="pt"></span>, atteste que Madame <b>Ines Gharbi</b> est employée dans notre société en qualité d'<b>assistante administrative</b> depuis le <b>01/09/2021</b>, en contrat à durée indéterminée.</p><p style="margin:0">Fait à Tunis, le ${S.jour}/11/2026.</p><p class="muet" style="margin:0;text-align:right">PROJET · à signer</p></div>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn">${ic('envoi', 14)} L'envoyer à Ines par e-mail</button><button class="btn p" id="ok-fen" data-msg="Attestation faite : rangée dans la fiche d'Ines">${ic('depot', 14)} Le PDF</button>`);
 }
 function fenEssai() {
-  fen('La période d\'essai de Salma', `<p style="margin:0">Elle a commencé le 15/09/2026 ; l'essai finissait le <b>15/11/2026</b>. Que décides-tu ?</p>
-    <div class="choix">${[['La confirmer', 'elle passe en CDI, une lettre se prépare'], ['Prolonger l\'essai', 'une seule fois, À VÉRIFIER selon le contrat'], ['Y mettre fin', 'son dernier jour, et son solde']].map(([t, d], i) => `<button type="button" class="${i === 0 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>`,
-    `<button class="btn" data-fermer>Plus tard</button><button class="btn p" id="ok-fen" data-msg="Salma est confirmée : la lettre est dans sa fiche" data-rappel-fait="r4">Confirmer Salma</button>`);
+  fen('La période d\'essai de Salma', `<p style="margin:0">Elle a commencé le 20/09/2026 ; l'essai finit le <b>vendredi 20/11/2026</b>, dans 2 jours. Que décides-tu ?</p>
+    <div class="choix">${[['La confirmer', 'elle passe en CDI, une lettre se prépare'], ['Prolonger l\'essai', 'une seule fois, À VÉRIFIER selon le contrat'], ['Y mettre fin', 'son dernier jour, et son solde']].map(([t, d], i) => `<button type="button" class="${i === 0 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
+    <p class="petit muet" style="margin:0">Sans décision à la date, l'essai se termine et le contrat continue : À VÉRIFIER avec ton comptable.</p>`,
+    `<button class="btn" data-fermer>Plus tard</button><button class="btn p" id="ok-fen" data-msg="Salma sera confirmée le 20/11 : la lettre est dans sa fiche" data-rappel-fait="r4">Confirmer Salma</button>`);
 }
 function fenDepart() {
   fen('Un départ', `<div class="deux"><label class="champ"><span>Dernier jour</span><input type="date" value="2026-12-31"></label><label class="champ"><span>Pourquoi</span><select><option>Fin du CDD</option><option>Démission</option><option>Licenciement</option><option>Retraite</option></select></label></div>
     <div class="calc"><div><span>Salaire du dernier mois</span><b class="m">${money(611.730)}</b></div><div><span>Congés non pris (6 j)</span><b class="m">${money(166.290)}</b></div><div class="tot"><span>Solde de tout compte (exemple)</span><b class="m">${money(778.020)}</b></div></div>
     <p class="petit muet" style="margin:0">Les montants sont À VÉRIFIER avec ton comptable. Le certificat de travail et le solde se préparent ensemble.</p>`,
     `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Départ préparé : certificat et solde dans la fiche">Préparer le départ</button>`);
+}
+function fenDemande() {
+  fen('Noter une demande', `<label class="champ"><span>Qui demande ?</span><select>${SAL.map(s => `<option>${s.nom}</option>`).join('')}</select></label>
+    <div class="choix">${[['Un congé', 'des jours, avec ce qui lui reste'], ['Une avance', 'un montant, retenu ensuite'], ['Un document', 'attestation, certificat…']].map(([t, d], i) => `<button type="button" class="${i === 0 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
+    <div class="deux"><label class="champ"><span>Du</span><input type="date" value="2026-12-07"></label><label class="champ"><span>Au</span><input type="date" value="2026-12-08"></label></div>
+    <p class="petit muet" style="margin:0">La demande attend ta réponse dans « Les demandes ». Un chef d'équipe peut en noter aussi ; c'est toi qui décides.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Demande notée : elle attend ta réponse">Noter la demande</button>`);
+}
+function fenMotif(id, d) {
+  const s = SAL.find(x => x.id === id), j = JOURS[d - 1];
+  fen(`${s.nom} · absent ${NOMJ[j.w]} ${d}/11`, `<p style="margin:0">Pourquoi n'était-il pas là ? La réponse change sa paie.</p>
+    <div class="choix">${[['sans', 'Sans solde', `− ${money(prixJour(s))} sur son brut`], ['just', 'Justifiée, payée', 'rien ne change sur son bulletin']].map(([k, t, dd]) => `<button type="button" data-motif-fen="${id}:${d}:${k}"><b>${t}</b><span>${dd}</span></button>`).join('')}</div>`,
+    '<button class="btn" data-fermer>Plus tard</button>');
+}
+function fenBadge(id, d) {
+  const s = SAL.find(x => x.id === id), j = JOURS[d - 1];
+  fen(`${s.nom} · ${NOMJ[j.w]} ${d}/11`, `<p style="margin:0">La pointeuse a reçu : <b>${badge(s, d).replace(/<[^>]+>/g, '')}</b>.</p>
+    <div class="deux"><label class="champ"><span>Arrivée</span><input type="time" value="07:52"></label><label class="champ"><span>Sortie</span><input type="time" value="${id === 'x15' && d === 17 && !S.regle.sortie ? '' : '17:04'}"></label></div>
+    <p class="petit muet" style="margin:0">La correction garde le badge d'origine à côté : on voit toujours ce que la pointeuse avait reçu.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Badge corrigé : ${prenom(s)}, ${d}/11" data-regle-fait="${id === 'x15' && d === 17 ? 'sortie' : ''}">Enregistrer</button>`);
 }
 function fenPourquoi() {
   fen('Ce qui change, et pourquoi', `<p style="margin:0"><b>Ce que tu as dit</b> : « je ne trouve rien, je ne comprends rien, je ne vois pas comment l'utiliser » ; « c'est un module qu'on utilise tous les jours ».</p>
@@ -605,64 +841,116 @@ function fenPourquoi() {
       <li>Les cinq étapes du mois étaient un dessin : on ne pouvait pas cliquer dessus.</li></ul></div>
     <div class="note" style="margin:0;border-left-color:var(--ambre)"><b>Ce que propose la maquette</b><ul>
       <li><b>Trois onglets</b> qui suivent ta vie : <b>Aujourd'hui</b> (chaque jour), <b>Le mois</b> (une fois par mois), <b>L'équipe</b> (de temps en temps).</li>
-      <li>La paie s'ouvre sur <b>« Qui est là aujourd'hui ? »</b> : tout le monde est présent, tu ne touches qu'à ce qui change, puis « Valider la journée ».</li>
-      <li><b>Ce qu'on te demande</b> (congés, avances, attestations) et <b>ce qu'il ne faut pas oublier</b> (fin d'essai, CDD, RIB, déclaration), chacun avec son bouton.</li>
+      <li>La paie s'ouvre sur <b>« Qui est là aujourd'hui ? »</b> : tout le monde est là, tu ne notes que ce qui change, puis « Valider la journée ».</li>
+      <li><b>Les demandes</b> (congés, avances, attestations) et <b>ce qu'il ne faut pas oublier</b> (fin d'essai, CDD, RIB, déclaration), chacun avec son bouton.</li>
       <li><b>Le mois en 4 étapes cliquables</b> : pointer, bulletins, payer, déclarer. Chacune s'ouvre sur ce qu'il y a à faire.</li>
-      <li><b>Un seul bouton vert</b>, l'étape suivante selon le jour : change « Le jour » en haut pour le voir changer.</li>
-      <li>Les gestes de tous les jours à portée : une absence, une avance, un document, embaucher.</li>
-      <li>Les réglages, l'historique, l'import, « qui fait ma paie » : dans le menu ⋯, plus au milieu de la page.</li></ul></div>`,
+      <li><b>Un seul bouton vert</b>, l'étape suivante selon le jour : change « Le jour » en haut pour le voir changer.</li></ul></div>
+    <div class="note" style="margin:0;border-left-color:var(--bleu-texte)"><b>Ma relecture « tous les jours », et ce que j'ai corrigé</b><ul>
+      <li><b>Six boutons par salarié, c'était du bruit</b> : on ne voyait pas qui avait changé. Il en reste quatre (là, absent, congé, malade) ; le retard et les heures sup <b>s'ajoutent</b> à « là » (on peut être là et en retard), et la ligne qui change se colore.</li>
+      <li><b>Chaque choix dit ce qu'il fait</b> sur le bulletin, au millime (« − 69,065 DT sur son brut »), comme la paie actuelle le faisait déjà.</li>
+      <li><b>Un congé accepté arrive tout seul sur ses jours</b> (Ines, le 18) : ce jour-là, il n'y a rien à faire.</li>
+      <li><b>Corriger hier</b> : la semaine au-dessus de la liste ; un point orange dit le jour pas validé. Dans la grille, chaque case s'ouvre vraiment.</li>
+      <li><b>À 27 salariés</b> (essaie « L'entreprise : 27 salariés ») : une recherche, les équipes repliées quand tout le monde est là, la pointeuse qui n'a rien à valider, et chaque chef d'équipe qui pointe la sienne.</li>
+      <li><b>Les rappels arrivent avant</b> la date (l'essai de Salma, deux jours avant, pas trois jours après), et chacun a « Plus tard ».</li>
+      <li><b>Les bulletins attendent « À régler »</b> : une absence sans motif change la paie, le bouton le dit et mène à la liste.</li>
+      <li><b>Le 3 novembre, un seul bouton vert</b> (payer octobre, dans le bandeau), plus trois.</li>
+      <li><b>Au clavier</b> : ↑ ↓ pour passer d'un salarié à l'autre, une lettre pour noter.</li>
+      <li><b>Au téléphone</b> : une ligne par salarié, on touche le nom, de gros boutons ; les demandes au pouce ; Le mois aussi (valider, payé, déclaré) ; sans réseau, ce qu'on note attend.</li>
+      <li><b>Les demandes disent qui les a notées</b> : il n'y a pas d'espace pour les salariés au plan, c'est toi ou un chef d'équipe qui les notes.</li></ul></div>`,
     `<button class="btn p" data-fermer>Essayer la maquette</button>`);
 }
 
 // ───────────── les gestes ─────────────
-function ouvrirMois(m, etape) { S.fiche = null; S.onglet = 'mois'; S.vueMois = m; S.etape = etape; render(); window.scrollTo({ top: 0 }); }
-function fiche(id) { S.fiche = id; render(); window.scrollTo({ top: 0 }); }
-function validerJour() {
-  S.validAujourdhui = true;
-  const abs = SAL.filter(s => S.presence[s.id].etat !== 'p').length;
-  render(); toast(`Journée du ${S.jour}/11 validée · ${abs ? abs + ' changement' + (abs > 1 ? 's' : '') : 'tout le monde était là'}`, () => { S.validAujourdhui = false; });
+function ouvrirMois(m, etape) { S.fiche = null; S.onglet = 'mois'; S.vueMois = m; S.etape = etape; if (S.ecran === 'tel') S.telOnglet = 'mois'; render(); window.scrollTo({ top: 0 }); }
+function fiche(id) { S.fiche = id; S.ecran = 'ordi'; render(); window.scrollTo({ top: 0 }); }
+function voirJour(d) { fermer(); S.fiche = null; S.onglet = 'jour'; S.jourVu = d; S.etape = null; if (S.ecran === 'tel') S.telOnglet = 'jour'; render(); const c = document.getElementById('c-presence'); if (c) c.scrollIntoView({ block: 'start' }); }
+function joindre(id) { S.regle['cert:' + id] = true; render(); toast(`Certificat joint (exemple) : rangé dans les documents ${id === 'ah' ? 'd\'Ahmed' : `de ${prenom(SAL.find(s => s.id === id))}`}`, () => { delete S.regle['cert:' + id]; }); }
+function validerJour(d) {
+  S.valide[d] = true;
+  const n = SAL.filter(s => !pointeuse(s) && change(etatDe(s, d))).length;
+  const auj = d === S.jour;
+  S.jourVu = S.jour; S.feuille = null;
+  render(); toast(`${auj ? 'Journée validée' : `${cap(NOMJ[JOURS[d - 1].w])} ${d}/11 validé`} · ${n ? n + ' changement' + (n > 1 ? 's' : '') : 'tout le monde était là'}${auj ? '' : ' · retour à aujourd\'hui'}`, () => { S.valide[d] = false; S.jourVu = d; });
 }
 document.addEventListener('click', e => {
-  const t = e.target.closest('button, a'); if (!t) return;
+  const t = e.target.closest('button, a, td[data-case], [data-fermer-feuille]'); if (!t) return;
   const d = t.dataset;
   if (t.tagName === 'A') e.preventDefault();
-  if (d.m) { S.moment = d.m; S.onglet = 'jour'; S.vueMois = 'nov'; initMoment(); render(); return; }
-  if (d.e) { S.ecran = d.e; render(); return; }
+  if (d.fermerFeuille !== undefined) { if (t.classList.contains('voile-t') && e.target !== t) return; S.feuille = null; render(); return; }
+  if (d.m) { S.moment = d.m; S.onglet = 'jour'; initMoment(); render(); return; }
+  if (d.t) { S.taille = d.t; S.onglet = S.fiche ? 'equipe' : S.onglet; initMoment(); render(); return; }
+  if (d.e) { S.ecran = d.e; S.feuille = null; render(); return; }
   if (t.id === 'mq-pourquoi') return fenPourquoi();
   if (d.fermer !== undefined) return fermer();
   if (d.onglet) { S.onglet = d.onglet; S.fiche = null; S.etape = null; render(); return; }
-  if (d.pres) { const [id, k] = d.pres.split(':'); S.presence[id] = { etat: k }; render(); return; }
-  if (d.motif) { const [id, k] = d.motif.split(':'); S.presence[id].motif = k; render(); return; }
+  if (d.tel) { S.telOnglet = d.tel; if (d.vueTel) S.vueMois = d.vueTel; S.feuille = null; render(); return; }
+  if (d.telRegle !== undefined) { S.ecran = 'ordi'; ouvrirMois('nov', 1); return; }
+  if (d.feuille) { S.feuille = d.feuille; render(); return; }
+  if (d.pres) { const [id, k] = d.pres.split(':'); setEtat(id, k); S.focus = S.feuille ? null : id; render(); return; }
+  if (d.plus) { const [id, k] = d.plus.split(':'); basculer(id, k); S.focus = S.feuille ? null : id; render(); return; }
+  if (d.motif) { const [id, k] = d.motif.split(':'); const dd = S.jourVu; S.pres[dd] = S.pres[dd] || {}; S.pres[dd][id] = Object.assign({}, etatDe(SAL.find(x => x.id === id), dd), { motif: k }); S.focus = S.feuille ? null : id; render(); return; }
+  if (d.motifFen) { const [id, dd, k] = d.motifFen.split(':'); const n = Number(dd); S.pres[n] = S.pres[n] || {}; S.pres[n][id] = Object.assign({}, etatDe(SAL.find(x => x.id === id), n), { motif: k }); fermer(); render(); toast(`${prenom(SAL.find(x => x.id === id))}, le ${n}/11 : ${k === 'sans' ? 'absence sans solde' : 'absence justifiée, payée'}`, () => { delete S.pres[n][id].motif; }); return; }
+  if (d.certif) return joindre(d.certif);
+  if (d.case) { const [id, dd] = d.case.split(':'); const n = Number(dd); const s = SAL.find(x => x.id === id); if (pointeuse(s)) return fenBadge(id, n); if (S.valide[n]) return fen(`${s.nom} · ${NOMJ[JOURS[n - 1].w]} ${n}/11`, `<p style="margin:0">Ce jour-là : <b>${change(etatDe(s, n)) ? cap(libelle(etatDe(s, n))) : 'là, à ses horaires'}</b>.</p><p class="muet" style="margin:0">La journée est validée : rien ne s'y change sans la rouvrir. Rouvrir garde la trace de la première validation.</p>`, `<button class="btn" data-fermer>Fermer</button><button class="btn p" data-rouvrir="${n}">Rouvrir la journée du ${n}/11</button>`); S.focus = id; return voirJour(n); }
+  if (d.badge) { const [id, dd] = d.badge.split(':'); return fenBadge(id, Number(dd)); }
+  if (d.jour) { S.jourVu = Number(d.jour); render(); return; }
+  if (d.sem) { const j = JOURS[S.jourVu - 1]; const lun = S.jourVu - ((j.w + 6) % 7); S.jourVu = Number(d.sem) < 0 ? Math.max(2, lun - 3) : Math.min(S.jour, lun + 7); if (JOURS[S.jourVu - 1].we) S.jourVu -= JOURS[S.jourVu - 1].w === 0 ? 2 : 1; render(); return; }
+  if (d.eq) { const E = EQUIPES[d.eq]; const ouv = S.ouvertes[d.eq] !== undefined ? S.ouvertes[d.eq] : (E.main && SAL.some(s => s.eq === d.eq && change(etatDe(s, S.jourVu)))); S.ouvertes[d.eq] = !ouv; render(); return; }
+  if (d.vider !== undefined) { S.cherche = ''; render(); return; }
+  if (d.rouvrir) { const n = Number(d.rouvrir); fermer(); S.valide[n] = false; voirJour(n); toast(`${n === S.jour ? 'Journée' : `Le ${n}/11`} rouverte : corrige, puis valide à nouveau`); return; }
+  if (d.regle) { const x = aRegler().find(y => y.cle === d.regle); if (x) x.go(); return; }
   if (t.id === 'principal') return principal()[2]();
-  if (t.id === 'valider-jour') return validerJour();
-  if (t.id === 'reouvrir') { S.validAujourdhui = false; render(); return; }
-  if (t.id === 'val-veille') { S.valide[2] = true; render(); toast('Lundi 2/11 validé : 5 présents'); return; }
-  if (d.accepte || d.refuse) { const id = d.accepte || d.refuse; const q = S.demandes.find(x => x.id === id); const i = S.demandes.indexOf(q); S.demandes = S.demandes.filter(x => x.id !== id); render(); toast(`${d.accepte ? (q.ok === 'Préparer' ? 'Attestation préparée' : 'Accepté') : 'Refusé'} · ${SAL.find(s => s.id === q.s).nom.split(' ')[0]} est prévenu(e)`, () => { S.demandes.splice(i, 0, q); }); return; }
+  if (t.id === 'valider-jour') return validerJour(S.jourVu);
+  if (d.accepte || d.refuse) {
+    const id = d.accepte || d.refuse; const q = S.demandes.find(x => x.id === id); const i = S.demandes.indexOf(q); const s = SAL.find(x => x.id === q.s);
+    S.demandes = S.demandes.filter(x => x.id !== id);
+    if (d.accepte && q.type === 'conge' && q.s === 'sa') S.prevusAjoutes.push({ s: 'sa', du: 30, au: 30, note: 'accepté aujourd\'hui' });
+    render();
+    toast(d.refuse ? `Refusé · dis-le à ${prenom(s)}` : q.type === 'conge' ? `Congé accepté · il est sur ses jours dans le pointage de ${prenom(s)}` : q.type === 'avance' ? 'Avance acceptée · elle sera retenue sur novembre' : `Attestation prête · dans la fiche ${prenom(s) === 'Ines' ? 'd\'Ines' : 'de ' + prenom(s)}`, () => { S.demandes.splice(i, 0, q); S.prevusAjoutes = S.prevusAjoutes.filter(x => !(x.s === q.s && x.note === 'accepté aujourd\'hui')); });
+    return;
+  }
+  if (d.tard) { const r = S.rappels.find(x => x.id === d.tard); const i = S.rappels.indexOf(r); S.rappels = S.rappels.filter(x => x.id !== d.tard); render(); toast('Je te le remontre lundi matin', () => { S.rappels.splice(i, 0, r); }); return; }
   if (d.rappel) { const r = S.rappels.find(x => x.id === d.rappel); if (r) r.go(); return; }
-  if (d.mois) return ouvrirMois(d.mois, 3);
   if (d.vue) { S.vueMois = d.vue; S.etape = null; render(); return; }
   if (d.etape) { S.etape = Number(d.etape); render(); return; }
-  if (t.id === 'valider-bulletins') { S.mois.bulletins = true; S.mois.pointageValide = true; S.etape = 3; render(); toast('5 bulletins de novembre validés', () => { S.mois.bulletins = false; }); return; }
-  if (t.id === 'marquer-payes') { const o = S.vueMois === 'oct' ? S.oct : S.mois; o.payes = true; S.rappels = S.rappels.filter(x => x.id !== 'r1'); S.etape = 4; render(); toast(`Salaires ${S.vueMois === 'oct' ? 'd\'octobre' : 'de novembre'} payés · la trésorerie les voit`, () => { o.payes = false; }); return; }
-  if (t.id === 'declarer') { const o = S.vueMois === 'oct' ? S.oct : S.mois; o.declare = true; S.rappels = S.rappels.filter(x => !['r2', 'r5'].includes(x.id)); render(); toast('Déclaration marquée déposée', () => { o.declare = false; }); return; }
+  if (t.id === 'valider-bulletins') { S.mois.bulletins = true; S.mois.pointageValide = true; S.etape = 3; render(); toast(`${SAL.length} bulletins de novembre validés`, () => { S.mois.bulletins = false; S.mois.pointageValide = false; }); return; }
+  if (t.id === 'marquer-payes') { const o = S.vueMois === 'oct' ? S.oct : S.mois; o.payes = true; S.etape = 4; render(); toast(`Salaires ${S.vueMois === 'oct' ? 'd\'octobre' : 'de novembre'} payés · la trésorerie les voit`, () => { o.payes = false; }); return; }
+  if (t.id === 'declarer') { const o = S.vueMois === 'oct' ? S.oct : S.mois; o.declare = true; S.rappels = S.rappels.filter(x => x.id !== 'r5'); render(); toast('Déclaration marquée déposée', () => { o.declare = false; }); return; }
   if (d.fiche) return fiche(d.fiche);
   if (d.retour !== undefined) { S.fiche = null; S.onglet = 'equipe'; render(); return; }
-  if (t.id === 'rib') { const s = SAL.find(x => x.id === S.fiche); s.rib = true; render(); toast('RIB d\'Ahmed enregistré'); return; }
+  if (t.id === 'rib') { const s = SAL.find(x => x.id === S.fiche); s.rib = true; S.rappels = S.rappels.filter(x => x.id !== 'r3'); render(); toast('RIB d\'Ahmed enregistré'); return; }
   if (d.geste) {
     if (d.geste === 'embaucher') { embEtape = 1; return fenEmbaucher(); }
     if (d.geste === 'absence') return fenAbsence();
     if (d.geste === 'avance') return fenAvance();
+    if (d.geste === 'demande') return fenDemande();
     if (d.geste === 'document') { docChoix = 0; return fenDocument(); }
     if (d.geste === 'depart' || d.geste === 'renouveler') return fenDepart();
-    if (d.geste === 'plus') return fen('Plus', `<div class="choix">${[['Les réglages', 'taux, horaires, jours fériés'], ['L\'historique', 'les mois passés, l\'année'], ['Importer', 'des salariés depuis un tableur'], ['Qui fait ma paie ?', 'toi, ton comptable, ou à deux']].map(([a, b]) => `<button type="button"><b>${a}</b><span>${b}</span></button>`).join('')}</div>`, '<button class="btn" data-fermer>Fermer</button>');
+    if (d.geste === 'plus') return fen('Plus', `<div class="choix">${[['Les réglages', 'taux, horaires, équipes, jours fériés'], ['L\'historique', 'les mois passés, l\'année'], ['Importer', 'des salariés, la pointeuse'], ['Qui fait ma paie ?', 'toi, ton comptable, ou à deux'], ['Qui pointe ?', 'les chefs d\'équipe et leur droit']].map(([a, b]) => `<button type="button"><b>${a}</b><span>${b}</span></button>`).join('')}</div>`, '<button class="btn" data-fermer>Fermer</button>');
   }
   if (d.doc) { docChoix = Number(d.doc); return fenDocument(); }
   if (t.id === 'emb-suiv') { if (embEtape < 3) { embEtape++; return fenEmbaucher(); } fermer(); toast('Nour Mansour ajoutée à l\'équipe · son contrat est prêt à signer'); return; }
   if (t.id === 'emb-prec') { embEtape--; return fenEmbaucher(); }
-  if (t.id === 'ok-fen') { fermer(); if (d.rappelFait) { S.rappels = S.rappels.filter(x => x.id !== d.rappelFait); render(); } toast(d.msg); return; }
-  if (d.telOnglet !== undefined) { S.ecran = 'ordi'; S.onglet = 'jour'; render(); return; }
+  if (t.id === 'ok-fen') { fermer(); if (d.rappelFait) S.rappels = S.rappels.filter(x => x.id !== d.rappelFait); if (d.regleFait) S.regle[d.regleFait] = true; render(); toast(d.msg); return; }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') fermer(); });
+document.addEventListener('input', e => { if (e.target.id === 'cherche') { S.cherche = e.target.value; S.focusCherche = true; render(); } });
+document.addEventListener('change', e => {
+  const t = e.target, dd = S.jourVu;
+  const k = t.dataset.min ? 'retard' : t.dataset.hs ? 'hs' : null; if (!k) return;
+  const id = t.dataset.min || t.dataset.hs, n = Math.max(0, Number(String(t.value).replace(',', '.')) || 0);
+  S.pres[dd] = S.pres[dd] || {}; S.pres[dd][id] = Object.assign({}, etatDe(SAL.find(x => x.id === id), dd), { [k]: n }); render();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { fermer(); if (S.feuille) { S.feuille = null; render(); } return; }
+  const a = document.activeElement; if (!a || /INPUT|SELECT|TEXTAREA/.test(a.tagName) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (document.getElementById('voile')) return;
+  const row = a.closest && a.closest('[data-row]'); if (!row) return;
+  const rows = [...document.querySelectorAll('[data-row]')], i = rows.indexOf(row);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const n = rows[i + (e.key === 'ArrowDown' ? 1 : -1)]; if (n) n.focus(); return; }
+  const id = row.dataset.row, k = e.key.toLowerCase(), map = { l: 'p', a: 'a', c: 'cg', m: 'mal' };
+  if (map[k]) { e.preventDefault(); setEtat(id, map[k]); S.focus = id; render(); }
+  else if (k === 'r' || k === 'h') { e.preventDefault(); basculer(id, k === 'r' ? 'retard' : 'hs'); S.focus = id; render(); }
+});
 document.addEventListener('click', e => { if (e.target.id === 'voile') fermer(); });
 initMoment();
 render();
