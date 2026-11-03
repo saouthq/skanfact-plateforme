@@ -272,6 +272,16 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   le suivent glissent sous le curseur à chaque clic. De même, une rangée qui montre un contrôle dans certaines vues
   seulement (la période) garde sa hauteur dans les autres. Vu le 13/10/2026 sur le service, mesuré onglet par onglet.
 
+**Le code : un dossier par module** (Skander, 03/11/2026 : « note le comme règle afin que les prochains savent »)
+- Chaque module du `02` § 2 vit dans **son dossier** (écrans, moteur, tests, aide, visites), avec **une seule porte** : ce
+  qu'il déclare public. Aucun module ne lit les données d'un autre en direct : il passe par sa porte, un point ou un
+  événement, dans le sens du `02` § 2 (`02` § 4).
+- **Rien de nouveau n'entre dans les gros fichiers** (sous `web/public/v10/` : `app.js`, `core.js`, `compta.js`,
+  `guide.js`, `visites.js`, `cabinet/app.js`, `cabinet/cabguide.js`, `cabinet/cabvisites.js` ; les deux ponts de
+  `web/public/plateforme/`) : un
+  module qu'on refait en sort d'abord, puis on le change ; tous en sortent, y compris ceux déjà refaits. Plan, ordre et
+  contrôle des frontières : `docs/cadrage/17-rangement.md`. Seule exception : une correction urgente, notée pour la sortie.
+
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les
   mots de passe de test sont tirés au hasard à chaque lancement.
