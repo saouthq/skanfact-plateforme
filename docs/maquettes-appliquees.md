@@ -667,3 +667,20 @@ la DA des pièces :
 - **Les heures** : « Noter une semaine » (une grille salariés × 7 jours, le total en direct) à côté de la journée.
 - La **liste** des affaires porte une pastille sous le nom : soldée, à encaisser (en retard), à facturer, à payer.
 - Au téléphone, la frise passe en une colonne avec un trait vertical.
+
+## Les premiers écrans des modules (1.265.0)
+
+Demande de Skander (03/11/2026) : « les écrans vides, fais-les comme celles des maquettes précédentes afin de garder la
+même DA ». Le modèle est celui des maquettes `liste.html`, `clients.html` et `achats-fournisseurs.html` (« la première
+fois »), déjà porté sur Factures, Devis, Clients et Fournisseurs : une pastille avec l'icône, le titre, ce que fait la
+page, les boutons (le premier est le seul principal), et à droite les étapes numérotées qui suivent.
+
+- Le gabarit commun `etatVide` le produit maintenant pour tous les modules ; l'icône et les étapes de chacun sont rangées
+  dans `VIDE_MODELE`, à côté. Sans étapes (accords, garanties, licences, « rien à immobiliser »), la carte tient sur une
+  colonne.
+- Portés sur le modèle : Achats (et « Ton cabinet saisit tes achats »), Relances, Catalogue (qui montrait une phrase
+  grise sous une barre de recherche), Listes de prix, Facturation récurrente, Commandes fournisseurs, Marges, Stock,
+  Immobilisations, Trésorerie, Caisse, Garanties, Demandes d'accord, Proforma/bons/contrats, Paie.
+- Le Catalogue vide n'a plus deux boutons verts : celui de l'en-tête redevient simple tant que la liste est vide.
+- Au téléphone, la carte passe sur une colonne (les étapes sous le texte), Paie comprise.
+- Test : `tests/web/ecrans-vides.test.ts` (une entreprise neuve ouvre chaque module) ; preuves `vides 1.265 a-d`.

@@ -692,3 +692,14 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lf.mg .mg-frise li:not(:last-child)::after { top: 30px; bottom: -12px; left: 11px; right: auto; width: 2px; height: auto; }
   .lf.mg .mg-suivi { padding: 12px; }
 }
+
+/* ── (1.265.0) le premier écran de chaque module, celui des maquettes ── */
+.panel.premiere.vide-utile { max-width: none; }
+.panel.premiere.seul, .pm .panel.premiere.seul { grid-template-columns: minmax(0, 1fr); }
+.panel.premiere.seul .pr-t { max-width: 760px; }
+.premiere .pr-pied { font-size: 13px; color: var(--sb-gris-2); }
+@media (max-width: 760px) {
+  .panel.premiere, .pm .panel.premiere { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 22px; }
+  .premiere .pr-t h2 { font-size: 21px; }
+  .premiere .pr-b .btn { width: 100%; justify-content: center; min-height: 44px; }
+}

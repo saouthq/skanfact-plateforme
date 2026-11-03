@@ -19955,10 +19955,10 @@ prouver 'ux2 134 : l'\''état vide d'\''une liste en lecture seule qui garde son
   "const retenue = aboBloque(true) && (boutons || []).some(([id]) => CREATION_RETENUE.has(id));" "const retenue = false;" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 prouver 'ux2 134 : la paie sans salarié, en lecture seule, qui garde son vert' web/public/v10/app.js \
-  "\${aboBloque(true) ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"emp-first\">" "\${false ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"emp-first\">" \
+  "'emp-first', 'emp-imp', 'first-acc']);" "'first-acc']);" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 prouver 'ux2 134 : la trésorerie sans compte, en lecture seule, qui garde son vert' web/public/v10/app.js \
-  "\${aboBloque(true) ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"first-acc\">" "\${false ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"first-acc\">" \
+  "'emp-first', 'emp-imp', 'first-acc']);" "'emp-first', 'emp-imp']);" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 prouver 'ux2 134 : le « + Nouveau… » de tête qui reste vert en lecture seule' web/public/v10/app.js \
   "if (aboBloque(true)) \$\$('.page-head .btn-primary', view)" "if (false) \$\$('.page-head .btn-primary', view)" \
@@ -22854,6 +22854,19 @@ prouver 'marges 1.264 e : la liste ne dit plus ce qui reste à encaisser' web/pu
 prouver 'marges 1.264 f : le graphe des mois perd la courbe du cumul' web/public/v10/app.js \
   "    s += \`<polyline points=" "    if (0) s += \`<polyline points=" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+# Les premiers écrans des modules au modèle des maquettes (1.265.0) : l'icône, les étapes, le téléphone, le catalogue.
+prouver 'vides 1.265 a : le premier écran d'\''un module perd son icône' web/public/v10/app.js \
+  "<span class=\"pr-ic\">\${lfIc(o.ic || 'piece', 26, 1.8)}</span>" "" \
+  'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
+prouver 'vides 1.265 b : les étapes des modules ne se montrent plus' web/public/v10/app.js \
+  "    const o = { ...(VIDE_MODELE[titre] || {}), ...o0 };" "    const o = { ...o0 };" \
+  'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
+prouver 'vides 1.265 c : au téléphone, la paie garde ses deux colonnes serrées' web/public/plateforme/liste.css \
+  "  .panel.premiere, .pm .panel.premiere { grid-template-columns: minmax(0, 1fr);" "  .panel.premiere { grid-template-columns: minmax(0, 1fr);" \
+  'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
+prouver 'vides 1.265 d : le catalogue vide redevient une phrase grise sous une recherche' web/public/v10/app.js \
+  "        if (opts.vide && !rows().length) {" "        if (false && opts.vide && !rows().length) {" \
+  'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

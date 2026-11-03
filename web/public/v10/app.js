@@ -3940,23 +3940,51 @@
   // « + Saisir ma première… » en vert, qui menait au refus). Les boutons de création restent, en second : leur fenêtre
   // explique. Les identifiants sont ceux des états vides dont le geste passe par `licenceBlock`.
   const CREATION_RETENUE = new Set(['rec-first', 'rel-vers-new', 'vide-fournisseur', 'vide-import-f', 'cf-vide-new', 'vide-achat',
-    'vide-dep', 'vide-new', 'vide-depuis', 'proj-first', 'immo-premier', 'immo-vers-achats']);
+    'vide-dep', 'vide-new', 'vide-depuis', 'proj-first', 'immo-premier', 'immo-vers-achats',
+    'emp-first', 'emp-imp', 'first-acc']);
   const phraseRetenue = () => `<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`;
   const boutonRetenue = () => `<button class="btn btn-primary" id="vide-voir-abo">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button>`;
   document.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('#vide-voir-abo')) allerAbonnement(); });
-  function etatVide(titre, phrases, boutons) {
+  // (1.265.0, Skander 03/11 : « les écrans vides comme les maquettes, pour garder la même DA ») Le premier écran d'un
+  // module, celui des maquettes (Factures, Devis, Clients, Fournisseurs) : l'icône, le titre, ce que fait la page, ses
+  // boutons (le premier est le principal), et à droite les étapes qui suivent (`o.etapes` : [titre, détail]). Sans
+  // étapes, la carte tient sur une colonne. Un « + » en tête d'un bouton devient la croix de la charte.
+  const boutonVide = ([id, label, p]) => {
+    const plus = /^\+\s*/.test(label);
+    return `<button class="btn ${p ? 'btn-primary' : ''}" id="${h(id)}">${plus ? lfIc('croix', 15, 2.4) + ' ' : ''}${h(plus ? label.replace(/^\+\s*/, '') : label)}</button>`;
+  };
+  // L'icône et les étapes de chaque premier écran, rangées ici : un module qui change de titre garde sa carte.
+  const VIDE_MODELE = {
+    'Réclamer l\'argent du travail fait': { ic: 'carte' },
+    'Proposer un prix, avant de travailler': { ic: 'piece' },
+    'Ce que tu dépenses, et la TVA que tu récupères': { ic: 'photo', etapes: [['Tu joins la pièce', 'la photo ou le PDF de la facture du fournisseur'], ['Tu la saisis en la regardant', 'le fournisseur, les lignes, la TVA'], ['Tu la règles', 'ce que tu dois se suit dans « À payer »'], ['Tu récupères la TVA', 'celle que tu as payée se déduit de ta déclaration']] },
+    'Ton cabinet saisit tes achats': { ic: 'photo', etapes: [['Tu envoies la photo', 'de chaque facture fournisseur, à ton comptable'], ['Ton cabinet la saisit', 'le fournisseur, les lignes, la TVA'], ['Tu la retrouves ici', 'avec ce que tu dois encore lui payer']] },
+    'Relancer tes impayés': { ic: 'cloche', etapes: [['Une facture dépasse son échéance', 'elle arrive ici toute seule'], ['Le ton suit le retard', 'rappel amical, relance, dernière relance'], ['Tu envoies l\'e-mail prêt', 'ses textes se modifient dans Paramètres → Envois']] },
+    'Des prix à part pour certains clients': { ic: 'etiquette', etapes: [['Tu nommes la liste', 'pour une catégorie de clients ou des clients choisis'], ['Tu poses ses prix', 'article par article, à partir d\'une date'], ['Elle s\'applique toute seule', 'sur leurs devis et leurs factures, à la place du catalogue']] },
+    'Les factures qui se répètent toutes seules': { ic: 'recurrent', etapes: [['Tu décris le contrat', 'le client, les lignes, la périodicité'], ['Un brouillon t\'attend', 'à chaque échéance, prêt à relire'], ['Tu l\'émets', 'ou il part seul si le contrat est « Émise seule »']] },
+    'Ce que tu commandes à tes fournisseurs': { ic: 'envoi', etapes: [['Tu commandes', 'la commande part chez le fournisseur en PDF'], ['Tu reçois', 'livraison par livraison ; ce qui manque reste à recevoir'], ['La marchandise entre en stock', 'au fil des réceptions']] },
+    'Ce que te rapporte chaque chantier': { ic: 'pages', etapes: [['Tu crées l\'affaire', 'au début du chantier'], ['Tu y rattaches les pièces', 'devis, factures et achats, par leur champ « Affaire »'], ['Tu notes les heures', 'et ce qui sort du stock pour le chantier'], ['La marge se lit', 'exacte, au fil du chantier']] },
+    'Ce que tu vends au comptoir': { ic: 'etiquette', etapes: [['Tu crées tes articles', 'leur prix et, pour la douchette, leur code-barres'], ['Tu ouvres la caisse', 'avec le fond de caisse du jour'], ['Tu vends', 'en scannant ou en touchant l\'article']] },
+    'Ce que tu gardes plusieurs années': { ic: 'horloge', etapes: [['Tu enregistres le bien', 'sa valeur et sa date de mise en service'], ['SkanFact calcule son plan', 'une part de sa valeur chaque année'], ['Tu lis chaque dotation', 'dans le tableau des amortissements']] },
+    'Rien à immobiliser pour l\'instant': { ic: 'horloge' },
+    'Aucune demande d\'accord': { ic: 'coche' },
+    'Aucun article suivi par numéro de série': { ic: 'cadenas' },
+    'Cette page est celle de l\'éditeur de SkanFact': { ic: 'cadenas' },
+    'Aucune licence émise': { ic: 'cadenas' },
+    'Les salariés que tu paies': { ic: 'equipe', etapes: [['Tu crées sa fiche', 'avec son contrat et son brut mensuel'], ['Tu règles les barèmes', 'CNSS, impôt, contribution : à faire valider par ton comptable'], ['Tu prépares le mois', 'les bulletins se calculent tout seuls'], ['Tu paies et tu déclares', 'l\'ordre de virement, puis les déclarations du mois']] },
+    'Ce que tu as en rayon': { ic: 'depot', etapes: [['Tu marques l\'article « Suivi en stock »', 'dans le Catalogue, ou ici'], ['Tu dis ce que tu as aujourd\'hui', 'sa quantité et son coût'], ['Le stock se suit tout seul', 'chaque achat l\'augmente, chaque vente le baisse']] },
+    'Est-ce que j\'aurai de quoi payer le mois prochain ?': { ic: 'carte', etapes: [['Tu crées ton compte', 'ta banque, et son solde d\'aujourd\'hui'], ['Tout remonte seul', 'les paiements clients et les règlements fournisseurs'], ['Tu vois venir', 'ce qui doit rentrer et sortir, semaine après semaine']] },
+    'Ce que tu vends, prêt à reprendre': { ic: 'etiquette', etapes: [['Tu ajoutes ce que tu vends', 'un à un, ou ta liste entière depuis un tableur'], ['Tu le reprends d\'un clic', 'sur tes devis et tes factures, avec son prix'], ['Tu suis sa marge', 'et, pour la marchandise, son stock']] },
+  };
+  function etatVide(titre, phrases, boutons, o0 = {}) {
+    const o = { ...(VIDE_MODELE[titre] || {}), ...o0 };
     const retenue = aboBloque(true) && (boutons || []).some(([id]) => CREATION_RETENUE.has(id));
-    if (retenue) {
-      return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
-      ${[...(phrases || []), phraseRetenue()].map(p => `<p class="small">${p}</p>`).join('')}
-      <div class="inline mt">${boutonRetenue()}${boutons.map(([id, label]) => `<button class="btn" id="${h(id)}">${h(label)}</button>`).join('')}</div>
-    </div>`;
-    }
-    return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
-      ${(phrases || []).map(p => `<p class="small">${p}</p>`).join('')}
-      ${(boutons || []).length ? `<div class="inline mt">${boutons.map(([id, label, p]) =>
-        `<button class="btn ${p ? 'btn-primary' : ''}" id="${h(id)}">${h(label)}</button>`).join('')}</div>` : ''}
-    </div>`;
+    const textes = retenue ? [...(phrases || []), phraseRetenue()] : (phrases || []);
+    const gestes = retenue ? boutonRetenue() + boutons.map(([id, label]) => boutonVide([id, label, false])).join('') : (boutons || []).map(boutonVide).join('');
+    const etapes = o.etapes && o.etapes.length ? `<ol class="pr-e">${o.etapes.map(([t, d], i) => `<li><b>${i + 1}</b><span><b>${t}</b>${d ? `<small>${d}</small>` : ''}</span></li>`).join('')}</ol>` : '';
+    return `<div class="panel premiere vide-utile${etapes ? '' : ' seul'}"${o.id ? ` id="${h(o.id)}"` : ''}><div class="pr-t"><span class="pr-ic">${lfIc(o.ic || 'piece', 26, 1.8)}</span><h2>${h(titre)}</h2>
+      ${textes.map(p => `<p>${p}</p>`).join('')}
+      ${gestes ? `<div class="pr-b">${gestes}</div>` : ''}${o.pied ? `<p class="pr-pied">${o.pied}</p>` : ''}</div>${etapes}</div>`;
   }
 
   // ---------- listes devis / factures ----------
@@ -11307,6 +11335,9 @@
         const wrap = $(wrapSel);
         if (!wrap) return;
         if (typeof sortKey === 'string' && sortKey) { state.sort = toggleSort(state.sort, sortKey, cols); state.page = 1; }
+        // (1.265.0) Une liste qui n'a encore rien montre le premier écran du module (celui des maquettes), pas une
+        // barre de recherche au-dessus d'une phrase grise.
+        if (opts.vide && !rows().length) { wrap.innerHTML = opts.vide(); built = false; if (opts.videLie) opts.videLie(wrap, redraw); return; }
         if (!built) {
           // La barre de recherche est construite une seule fois : la redessiner à chaque frappe ferait perdre le curseur.
           wrap.innerHTML = `<div class="filters">
@@ -11396,6 +11427,14 @@
           <td></td></tr>`;
       },
       empty: 'Catalogue vide. Ajoute ce que tu vends un à un, ou importe ta liste de prix depuis un tableur (« Importer… », en haut de la page) : tes devis les reprendront d\'un clic.',
+      vide: () => etatVide('Ce que tu vends, prêt à reprendre', [
+        'Ce que tu vends — une prestation, un article — se crée une fois ici : son prix, sa TVA et son unité se reprennent ensuite d\'un clic sur tes devis et tes factures.',
+        'Ta liste de prix est déjà dans un tableur ? Ouvre-la : toutes les lignes entrent d\'un coup.'],
+        enLecture('catalog') ? [] : [['cat-vide-new', '+ Ajouter ' + motsCatalogue().unNom, true], ['cat-vide-imp', 'Importer depuis un tableur']]),
+      videLie: (wrap, redraw) => {
+        if ($('#cat-vide-new', wrap)) $('#cat-vide-new', wrap).onclick = () => catalogForm(null, redraw);
+        if ($('#cat-vide-imp', wrap)) $('#cat-vide-imp', wrap).onclick = () => importerTableau('catalogue', () => redraw());
+      },
       // Le Catalogue AFFICHE une quantité en stock et n'offrait aucun moyen d'aller voir d'où elle
       // vient : la fiche de l'article — mouvements, coût moyen, historique — n'était atteignable que
       // depuis la page Stock. Un chiffre qu'on lit doit s'ouvrir (7.15.0).
@@ -11439,7 +11478,7 @@
     const head = () => {
       const t = TABS.find(x => x[0] === catalogTab);
       return `<h1>${t[1]} ${info(t[2])}</h1><div class="actions">
-        ${catalogTab === 'presta' ? `<button class="btn" id="imp-catalogue">Importer…</button><button class="btn btn-primary" id="new">+ ${motsCatalogue().nouveau}</button>` : ''}
+        ${catalogTab === 'presta' ? `<button class="btn" id="imp-catalogue">Importer…</button><button class="btn${data.catalog.length ? ' btn-primary' : ''}" id="new">+ ${motsCatalogue().nouveau}</button>` : ''}
         ${catalogTab === 'textes' ? '<button class="btn btn-primary" id="new-snip">+ Nouveau texte</button>' : ''}
         ${catalogTab === 'modeles' ? '<span class="small muted">Depuis un devis ou une facture : Plus ▾ → « Enregistrer comme modèle »</span>' : ''}
       </div>`;
@@ -20251,11 +20290,11 @@
     const aFaireSalaries = () => new Set(C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').map(x => x.salarie)).size;
     $('#view').innerHTML = `<div class="pm" id="p-page">
       <div class="page-head lf-tete pa-tete" id="p-head">${pHead()}</div>
-      ${data.employees.length ? '' : `<div class="panel"><h2>Aucun salarié</h2>
-        <p class="small">Ce module calcule les bulletins de paie à partir de barèmes que <b>tu règles toi-même</b> : CNSS, impôt sur le revenu, contribution de solidarité. Les valeurs livrées sont celles couramment appliquées en Tunisie, mais elles changent à chaque loi de finances — <em>fais valider les premiers bulletins par ton comptable avant de les remettre.</em></p>
-        <p class="small muted">Commence par créer la fiche d'un salarié, avec son brut mensuel.</p>
-        ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="emp-first">+ Créer mon premier salarié</button></div>`
-          : `<div class="inline mt"><button class="btn btn-primary" id="emp-first">+ Créer mon premier salarié</button><button class="btn" id="emp-imp">${lfIc('importer', 15)} Importer depuis un tableur</button></div><p class="small muted">Tes salariés sont déjà dans un tableau de paie ? Colle-le : toutes les fiches entrent d'un coup, et tu vois ce qui manque avant d'importer.</p>`}</div>`}
+      ${data.employees.length ? '' : etatVide('Les salariés que tu paies', [
+        'Ce module calcule les bulletins de paie à partir de barèmes que <b>tu règles toi-même</b> : CNSS, impôt sur le revenu, contribution de solidarité. Les valeurs livrées sont celles couramment appliquées en Tunisie, mais elles changent à chaque loi de finances — <em>fais valider les premiers bulletins par ton comptable avant de les remettre.</em>',
+        'Commence par créer la fiche d\'un salarié, avec son brut mensuel.'],
+        [['emp-first', '+ Créer mon premier salarié', true], ['emp-imp', 'Importer depuis un tableur']],
+        { pied: 'Tes salariés sont déjà dans un tableau de paie ? Colle-le : toutes les fiches entrent d\'un coup, et tu vois ce qui manque avant d\'importer.' })}
       ${/* (1.248.1) Le mois (ou l'année) se choisit APRÈS les onglets : posé devant, il apparaissait sur certaines vues, pas
             sur d'autres, et changeait de largeur (« Novembre 2026 », « 2026 ») — les onglets glissaient sous la souris et un
             clic sur « Déclarations » ouvrait « Congés et absences » (recette du 02/11). */''}
@@ -24485,10 +24524,10 @@
     };
     $('#view').innerHTML = `
       <div class="page-head" id="st-head">${stHead()}</div>
-      ${items.length ? '' : `<div class="panel"><h2>Aucun article suivi</h2>
-        <p class="small">Le stock ne se saisit pas : il se déduit de tes achats et de tes ventes. Un article compté est un article du Catalogue marqué <b>« Suivi en stock »</b> : indique ce que tu as en rayon aujourd'hui, et SkanFact suit le reste tout seul.</p>
-        <p class="small muted">Les prestations (du temps, du conseil) n'ont pas de stock : on ne suit que de la marchandise.</p>
-        <div class="inline mt"><button class="btn btn-primary" id="st-new">+ Nouvel article suivi</button>${data.catalog.length ? '<button class="btn" id="st-pick">Choisir dans le Catalogue</button>' : ''}</div></div>`}
+      ${items.length ? '' : etatVide('Ce que tu as en rayon', [
+        'Le stock ne se saisit pas : il se déduit de tes achats et de tes ventes. Un article compté est un article du Catalogue marqué <b>« Suivi en stock »</b> : indique ce que tu as en rayon aujourd\'hui, et SkanFact suit le reste tout seul.',
+        'Les prestations (du temps, du conseil) n\'ont pas de stock : on ne suit que de la marchandise.'],
+        [['st-new', '+ Nouvel article suivi', true], ...(data.catalog.length ? [['st-pick', 'Choisir dans le Catalogue']] : [])])}
       <div class="tabs" id="st-tabs" role="tablist" aria-label="Le stock" ${items.length ? '' : 'hidden'}>${STOCK_TABS.map(([id, label]) =>
         `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}${id === 'alertes' && alerts.length ? ` <span class="nav-count">${alerts.length}</span>` : ''}</button>`).join('')}</div>
       <div id="st-body"></div>`;
@@ -25993,13 +26032,11 @@
       const m = modeleCompte();
       const quoi = m ? [m.bank ? `ta banque (<b>${h(m.bank)}</b>)` : '', m.rib ? 'ton RIB' : ''].filter(Boolean).join(' et ') : '';
       $('#view').innerHTML = `<div class="page-head"><h1>Trésorerie</h1></div>
-        <div class="panel"><h2>Commence par un compte ${info('tre.accounts')}</h2>
-          <p class="small muted">La trésorerie répond à une seule question : <b>est-ce que j'aurai de quoi payer le mois prochain ?</b>
-          Pour y répondre, SkanFact a besoin de savoir ce que tu as aujourd'hui. Crée ton compte bancaire et saisis son solde actuel — il reprendra ensuite tout seul tes encaissements et tes règlements.</p>
-          ${m ? `<p class="small" id="tre-depuis-fiche">Ta fiche société porte déjà ${quoi} : le compte naît avec. Il ne te reste que son solde d'aujourd'hui.</p>` : ''}
-          <p class="small muted">Rien à ressaisir : les paiements clients et les règlements fournisseurs déjà enregistrés remontent automatiquement.</p>
-          ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button></div>`
-            : `<button class="btn btn-primary" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button>`}</div>`;
+        ${etatVide('Est-ce que j\'aurai de quoi payer le mois prochain ?', [
+          'Pour y répondre, SkanFact a besoin de savoir ce que tu as aujourd\'hui. Crée ton compte bancaire et saisis son solde actuel — il reprendra ensuite tout seul tes encaissements et tes règlements.',
+          ...(m ? [`<span id="tre-depuis-fiche">Ta fiche société porte déjà ${quoi} : le compte naît avec. Il ne te reste que son solde d'aujourd'hui.</span>`] : []),
+          'Rien à ressaisir : les paiements clients et les règlements fournisseurs déjà enregistrés remontent automatiquement.'],
+          [['first-acc', '+ ' + (m && m.bank ? `Créer le compte « ${m.bank} »` : 'Créer mon premier compte'), true]])}`;
       $('#first-acc').onclick = () => accountForm(null, () => render(), modeleCompte());
       return;
     }
