@@ -33,7 +33,7 @@ export const demo = exiger('../../banc/v10/demo.js') as { buildDemoData: (c: Soc
 export function ecranDeLaPlateforme(fichier: string): unknown {
   const module = { exports: {} as unknown };
   const source = fs.readFileSync(new URL(`../../web/public/v10/${fichier}`, import.meta.url), 'utf8');
-  const charger = (nom: string) => ecranDeLaPlateforme(path.posix.join(path.posix.dirname(fichier), `${nom}.js`));
+  const charger = (nom: string) => ecranDeLaPlateforme(path.posix.join(path.posix.dirname(fichier), `${nom.replace(/\.js$/, '')}.js`));
   (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: fichier }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, charger);
   return module.exports;
 }

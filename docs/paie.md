@@ -2305,3 +2305,18 @@ l'argent ou perdent des données. Ils se réparent dans les gros fichiers (excep
   fermait la fenêtre et rien ne s'ouvrait (« iso.slice is not a function »). Elle s'appelle désormais
   `heureSortieFenetre`. Test : `tests/web/paie-1256-gestes.test.ts` (les deux chemins, chacun sa fenêtre) ; preuves
   `paie 10.1-11 a` et `b`.
+- **1.266.3 — La CSS s'arrête avec sa règle** (point 1, en partie). La contribution sociale de solidarité de 0,5 % ne
+  vaut que pour 2026 (loi de finances 2026 art. 87 ; Rapporté, **À VÉRIFIER** avec un comptable, comme sa reconduction en
+  2027). Sa règle porte maintenant sa date de fin (`CSS_JUSQU_AU`, compta.js) ; après elle, sans règle suivante posée, le
+  bulletin n'en retient aucune, quel que soit son taux (livré, réglé, régime d'un contrat), et le dit (« non retenue, sa
+  règle s'arrête le 31/12/2026 » sur le bulletin imprimé, son aperçu et son formulaire). Le mois vient du bulletin : chaque
+  chemin qui enregistre un bulletin le donne au calcul (établir, formulaire, correction du cabinet acceptée, reprise du
+  pointage, augmentation, Cabinet, exemple). Un mois après la dernière loi de finances relue (`BAREMES_RELUS_JUSQU_AU`),
+  la page et la fenêtre « Établir » disent « Barèmes de 2027 pas encore relus », sans bloquer, et le contrôle « Les taux de
+  l'année » ne se dit plus juste. **Le serveur lit la même règle** dans le moteur de l'écran et refuse un bulletin de 2027
+  qui retient encore la CSS (un onglet resté sur l'ancien code), avec le geste qui débloque. Une loi de finances relue
+  avance ces deux dates dans une nouvelle version. Un salaire de décembre 2026 payé en janvier garde la CSS (le mois du
+  bulletin fait foi : À VÉRIFIER). Reste à faire : comparer tout le barème aux règles du mois ; les estimations sans mois
+  (fiche, coût d'une heure, trésorerie) gardent la CSS (environ 0,4 % d'écart avec le bulletin de janvier). Tests :
+  `tests/moteur/paie-css-2027.test.ts`, `tests/v10/paie.test.ts`, `tests/web/paie-1256-gestes.test.ts` (février 2027 à la
+  souris) ; preuves `paie 10.1-1 a` à `m`.

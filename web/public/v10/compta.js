@@ -6421,6 +6421,18 @@
     ]
   };
 
+  // (plateforme) 1.266.3 — les barèmes de la paie n'étaient pas datés (cadrage 16 § 10.1, point 1) : la CSS de 0,5 % ne
+  // vaut que pour 2026 (LF 2026 art. 87 ; Rapporté, À VÉRIFIER). Deux faits datés, lus par l'écran ET le serveur
+  // (serveur/v10/paie.ts). Après la fin d'une règle, sans règle suivante posée, le bulletin n'en retient AUCUNE et le dit.
+  // Une loi de finances relue AVANCE ces dates (nouvelle version, relue et prouvée) ; un bulletin établi garde son barème.
+  const CSS_JUSQU_AU = '2026-12-31';
+  const BAREMES_RELUS_JUSQU_AU = '2026-12-31';
+  const moisLu = (annee, mois) => { const a = Number(annee), m = Number(mois);
+    return Number.isInteger(a) && a > 0 && Number.isInteger(m) && m >= 1 && m <= 12 ? `${String(a).padStart(4, '0')}-${String(m).padStart(2, '0')}-01` : null; };
+  // Sans mois (une estimation), rien ne se coupe : seul un bulletin a un mois.
+  function cssPoseePour(annee, mois) { const j = moisLu(annee, mois); return j === null || j <= CSS_JUSQU_AU; }
+  function baremesNonRelus(annee, mois) { const j = moisLu(annee, mois); return j === null || j <= BAREMES_RELUS_JUSQU_AU ? null : { annee: Number(annee), relusJusquAu: BAREMES_RELUS_JUSQU_AU }; }
+
   // Impôt annuel sur un revenu imposable, barème progressif par tranches.
   function irppAnnual(base, brackets) {
     const total = Math.max(0, Number(base) || 0);
@@ -6448,6 +6460,10 @@
     const contrat = String(emp.contract || emp.contrat || 'cdi');
     const regime = regimeDuContrat(settings, contrat);
     const s = { ...(settings || DEFAULT_PAYROLL), ...regime };
+    // (plateforme) 1.266.3 — la CSS s'arrête avec sa règle, quel que soit son taux (livré, réglé, régime) ; le mois vient
+    // de la saisie. `s` est un objet neuf : les taux et le barème figés disent 0, et le serveur recalcule la même chose.
+    const cssFinie = Number(s.solidarity) > 0 && !cssPoseePour(i.year, i.month);
+    if (cssFinie) s.solidarity = 0;
     const baseGross = round3(Number(i.gross != null ? i.gross : emp.grossSalary) || 0);
     const workedDays = Number(i.workedDays) || 26;      // jours ouvrables du mois, modifiable
     const absent = Math.max(0, Number(i.absentDays) || 0);
@@ -6517,7 +6533,8 @@
         perChild: Number(s.perChild) || 0, maxChildren: Number(s.maxChildren) || 0, sansIrpp: !!regime.sansIrpp,
         brackets: (s.brackets || DEFAULT_PAYROLL.brackets).map(b => ({ upTo: b.upTo == null ? null : Number(b.upTo), rate: Number(b.rate) || 0 }))
       },
-      situation: { headOfFamily: !!emp.headOfFamily, children: Number(emp.children) || 0 }
+      situation: { headOfFamily: !!emp.headOfFamily, children: Number(emp.children) || 0 },
+      ...(cssFinie ? { cssFinie: CSS_JUSQU_AU } : {})
     };
   }
   // Les charges patronales d'un bulletin, telles qu'il les a FIGÉES (5.0.0) : un bulletin d'avant la
@@ -7338,6 +7355,7 @@
       && Number(y.annee) === Number(x.annee) && Number(y.mois) === Number(m));
     if (jumeau) return { ok: false, motif: `${s.nom} a déjà un bulletin pour ${moisPaie(m)} ${x.annee}.` };
     return saisiePaieValide({
+      year: Number(x.annee), month: Number(x.mois),
       gross: x.brut, workedDays: x.joursTravailles, absentDays: x.joursAbsence,
       bonuses: (x.primes || []).map(p => ({ label: p.label, amount: p.amount, taxable: p.taxable !== false })),
       deductions: (x.retenues || []).map(d => ({ label: d.label, amount: d.amount })),
@@ -7401,6 +7419,8 @@
     if (!v.ok) return { ok: false, motif: v.motif };
     const s = livre.salaries.find(y => y.id === bulletin.salarieId);
     const saisie = {
+      // (plateforme) 1.266.3 — le mois du bulletin, pour la règle datée de la CSS : `b` recopie les champs un à un.
+      year: Number(bulletin.annee), month: Number(bulletin.mois),
       gross: round3(Number(bulletin.brut) || 0),
       workedDays: Number(bulletin.joursTravailles) || 26,
       absentDays: Math.max(0, Number(bulletin.joursAbsence) || 0),
@@ -7952,7 +7972,7 @@
     fusionnerLivres, empreinteEcriture,
     // La paie (10.3.0)
     CONTRACT_TYPES, contractLabel, REGIME_TAUX, regimeDuContrat, normaliserRegimes, libelleRegime, DEFAULT_PAYROLL, baremesPaie,
-    irppAnnual, computePayslip, employerChargesOf,
+    irppAnnual, computePayslip, employerChargesOf, CSS_JUSQU_AU, cssPoseePour, baremesNonRelus,
     COMPTES_PAIE, MOIS_PAIE, moisPaie, TRIMESTRES_PAIE,
     salarieValide, normaliserSalarie, ajouterSalarie, retirerSalarie, salariesActifs,
     bulletinsDuMois, bulletinValide, saisiePaieValide, ajouterBulletin, supprimerBulletin, masseSalariale, virementsRevenus, moisEmployeur,

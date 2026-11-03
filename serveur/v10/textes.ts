@@ -28,6 +28,7 @@ declarerTextes({
   'v10.bulletin_periode': 'un bulletin de {salarie} n\'a pas de mois valable : rien n\'a été enregistré',
   'v10.bulletin_sans_bareme': 'le bulletin de {salarie} ({periode}) n\'a pas gardé le barème qui l\'a calculé : ouvre-le et enregistre-le à nouveau. Rien n\'a été enregistré',
   'v10.bulletin_bareme': 'le barème du bulletin de {salarie} ({periode}) est illisible (un taux entre 0 et 100 à quatre décimales au plus, un montant au millime) : rien n\'a été enregistré',
+  'v10.bulletin_css_finie': 'le bulletin de {salarie} ({periode}) retient une contribution sociale de solidarité alors que sa règle s\'arrête le {fin} : recharge la page, puis ouvre ce bulletin et enregistre-le à nouveau (il se recalcule sans elle). Rien n\'a été enregistré',
   'v10.bulletin_saisie': 'le bulletin de {salarie} ({periode}) a un brut, des jours, une prime ou une retenue illisible (un montant positif au millime, des jours au millième) : rien n\'a été enregistré',
   'v10.bulletin_situation': 'le bulletin de {salarie} ({periode}) compte des enfants à charge qui ne sont pas un nombre entier entre 0 et 99 : rien n\'a été enregistré',
   'v10.bulletin_ecart': 'le serveur ne trouve pas les mêmes montants que l\'écran pour le bulletin de {salarie} ({periode}) : {montant} vaut {ecran} à l\'écran, {serveur} au serveur. Rien n\'a été enregistré',

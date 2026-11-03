@@ -678,6 +678,12 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
    la retiendrait encore (§ 3.7). Le serveur, lui, accepte le barème que le poste lui envoie sans le comparer aux
    réglages du jour (`docs/paie.md`) : un onglet ouvert avant une loi de finances établit des bulletins aux anciens
    taux. **Le plus urgent : avant le premier bulletin de janvier 2027.**
+   *Fait en partie le 03/11/2026 (1.266.3) : la CSS porte sa date de fin (31/12/2026), lue par l'écran, le Cabinet,
+   l'exemple et le serveur (qui refuse un bulletin de 2027 qui la retient) ; la page et la fenêtre « Établir » disent
+   « Barèmes de 2027 pas encore relus ». Reste : comparer tout le barème aux règles du mois (« Recalculer avec les taux
+   du mois ») ; les estimations sans mois (fiche, coût d'une heure, trésorerie) gardent la CSS ; deux tests web
+   (`parcours`, `recette-alpha`) attendent un net de 2026 sur le mois en cours et tomberont en décembre ; à sortir avec le
+   Personnel (A1).*
 2. Une **journée pointée peut disparaître** sans un mot : le pointage, les journées validées et les versions du mois ne
    sont pas dans la fusion. Dès qu'un enregistrement est refusé pour un conflit, même sur une autre pièce (un client
    changé par un collègue), en ligne ou au retour du réseau, le poste reprend tout le pointage du serveur et perd le sien

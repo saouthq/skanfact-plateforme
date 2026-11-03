@@ -1477,7 +1477,7 @@ prouver "un bulletin seulement déplacé dans la liste, recalculé et tracé" se
   "export const aVraimentChange = (c: ChangementLu) => c.apres === null || c.avant === null || canonique(c.avant) !== canonique(c.apres);" "export const aVraimentChange = (c: ChangementLu) => c.apres !== undefined || canonique(c.avant) === '';" \
   "$PM"
 prouver "un bulletin qui ne fige pas la situation du salarié (la v10 telle quelle)" $V10C \
-  "      situation: { headOfFamily: !!emp.headOfFamily, children: Number(emp.children) || 0 }
+  "      situation: { headOfFamily: !!emp.headOfFamily, children: Number(emp.children) || 0 },
 " "" \
   "$PX"
 prouver "l'écran qui fige un barème sans les tranches de l'IRPP" $V10C \
@@ -22919,6 +22919,61 @@ prouver "paie 10.1-11 a : « Un départ… » appelle la fenêtre de l'heure de 
 prouver "paie 10.1-11 b : « Mettre sa sortie… » ouvre la fenêtre du départ" web/public/v10/app.js \
   'if (e) heureSortieFenetre(e, iso, redessin); });' 'if (e) sortieFenetre(e, iso, redessin); });' \
   "$WPDEP"
+
+# 16 § 10.1, point 1 : la CSS de 0,5 % ne vaut que pour 2026 (À VÉRIFIER) ; sa règle porte sa date de fin, lue par l'écran,
+# le Cabinet, l'exemple et le serveur ; la page et la fenêtre « Établir » disent « Barèmes de 2027 pas encore relus ».
+prouver 'paie 10.1-1 a : la CSS retenue après sa règle' web/public/v10/compta.js \
+  'if (cssFinie) s.solidarity = 0;' \
+  'if (false) s.solidarity = 0;' \
+  'la CSS de 2026 s'"'"'arrête le 31/12/2026 : décembre la retient, janvier 2027 n'"'"'en retient aucune, quel que soit son taux'
+prouver 'paie 10.1-1 b : la CSS sans date de fin' web/public/v10/compta.js \
+  'const CSS_JUSQU_AU = '"'"'2026-12-31'"'"';' \
+  'const CSS_JUSQU_AU = '"'"'9999-12-31'"'"';' \
+  'la CSS de 2026 s'"'"'arrête le 31/12/2026 : décembre la retient, janvier 2027 n'"'"'en retient aucune, quel que soit son taux'
+prouver 'paie 10.1-1 c : la CSS coupée dès décembre 2026' web/public/v10/compta.js \
+  'return j === null || j <= CSS_JUSQU_AU; }' \
+  'return j === null || j < CSS_JUSQU_AU.slice(0, 7); }' \
+  'la CSS de 2026 s'"'"'arrête le 31/12/2026 : décembre la retient, janvier 2027 n'"'"'en retient aucune, quel que soit son taux'
+prouver 'paie 10.1-1 d : la CSS d'"'"'un régime de contrat gardée en 2027' web/public/v10/compta.js \
+  'if (cssFinie) s.solidarity = 0;' \
+  'if (cssFinie && !regime.solidarity) s.solidarity = 0;' \
+  'la CSS de 2026 s'"'"'arrête le 31/12/2026 : décembre la retient, janvier 2027 n'"'"'en retient aucune, quel que soit son taux'
+prouver 'paie 10.1-1 e : le bulletin imprimé tait la CSS non retenue' web/public/v10/core.js \
+  ': c.cssFinie ? row(' \
+  ': false ? row(' \
+  'le bulletin imprimé dit pourquoi janvier 2027 n'"'"'a pas de CSS ; décembre 2026 garde sa ligne à 5,421'
+prouver 'paie 10.1-1 f : le contrôle du mois tait les barèmes de 2027' web/public/v10/core.js \
+  'const nonRelus = Compta.baremesNonRelus(y, m);' \
+  'const nonRelus = null;' \
+  'le contrôle du mois dit « Barèmes de 2027 pas encore relus », pas en décembre 2026'
+prouver 'paie 10.1-1 g : le Cabinet calcule un bulletin sans son mois' web/public/v10/compta.js \
+  '      year: Number(bulletin.annee), month: Number(bulletin.mois),' \
+  '' \
+  'au Cabinet, le bulletin de janvier 2027 d'"'"'un dossier tenu n'"'"'a pas de CSS ; celui de décembre 2026 la garde'
+prouver 'paie 10.1-1 h : l'"'"'exemple recalcule ses bulletins sans leur mois' web/public/v10/demo.js \
+  'C.computePayslip(e, { ...merged, year: sl.year, month: sl.month }, payCfg)' \
+  'C.computePayslip(e, merged, payCfg)' \
+  'l'"'"'exemple construit en 2027 : ses bulletins de 2027 sans CSS, ceux de 2026 avec'
+prouver 'paie 10.1-1 i : le serveur accepte un bulletin de 2027 qui retient la CSS' serveur/v10/paie.ts \
+  'if (bareme.solidarite > 0n && !Regles().cssPoseePour(annee, mois)) {' \
+  'if (false) {' \
+  'la CSS s'"'"'arrête avec sa règle : décembre 2026 la retient, janvier 2027 non, au même millime à l'"'"'écran et au serveur ; un bulletin de 2027 qui la retient encore est refusé'
+prouver 'paie 10.1-1 j : le serveur refuse la CSS de décembre 2026' serveur/v10/paie.ts \
+  'if (bareme.solidarite > 0n && !Regles().cssPoseePour(annee, mois)) {' \
+  'if (bareme.solidarite > 0n && !Regles().cssPoseePour(annee + 1, mois)) {' \
+  'la CSS s'"'"'arrête avec sa règle : décembre 2026 la retient, janvier 2027 non, au même millime à l'"'"'écran et au serveur ; un bulletin de 2027 qui la retient encore est refusé'
+prouver 'paie 10.1-1 k : Établir les bulletins du mois oublie le mois' web/public/v10/app.js \
+  'const input = { ...C.payslipInputFor(data, e, y, m), year: y, month: m };|||data.payslips.push({ id: C.uid(), employeeId: e.id, ...input,' \
+  'const input = C.payslipInputFor(data, e, y, m);|||data.payslips.push({ id: C.uid(), employeeId: e.id, year: y, month: m, ...input,' \
+  'janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d'"'"'établir, les bulletins sans CSS au serveur'
+prouver 'paie 10.1-1 l : la fenêtre Établir sans l'"'"'avertissement des barèmes' web/public/v10/app.js \
+  '${C.baremesNonRelus(y, m) ? `<div class="warn-box mt" id="p-etab-relus">' \
+  '${false ? `<div class="warn-box mt" id="p-etab-relus">' \
+  'janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d'"'"'établir, les bulletins sans CSS au serveur'
+prouver 'paie 10.1-1 m : la page sans l'"'"'avertissement des barèmes' web/public/v10/app.js \
+  '${nonRelus ? `<div class="warn-box mb" id="p-relus">' \
+  '${false ? `<div class="warn-box mb" id="p-relus">' \
+  'janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d'"'"'établir, les bulletins sans CSS au serveur'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

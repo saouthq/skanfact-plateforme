@@ -18352,7 +18352,8 @@
     return null;
   }
   function recalculerBulletin(b, emp) {
-    const input = { gross: b.gross, workedDays: b.workedDays, absentDays: b.absentDays, bonuses: b.bonuses || [], deductions: b.deductions || [], prorata: b.prorata || null };
+    // (plateforme) 1.266.3 — chaque chemin qui enregistre un bulletin donne son mois au calcul (la CSS est datée).
+    const input = { year: b.year, month: b.month, gross: b.gross, workedDays: b.workedDays, absentDays: b.absentDays, bonuses: b.bonuses || [], deductions: b.deductions || [], prorata: b.prorata || null };
     b.computed = C.computePayslip(emp, input, C.payrollSettings(data));
     // Changé après son bon à payer : il se ré-approuve (1.227.0).
     delete b.bonAPayerLe;
@@ -19163,7 +19164,7 @@
       (root, close) => {
         const input = () => {
           const v = formValues($('#bf', root));
-          return { gross: Number(v.gross) || 0, workedDays: Number(v.workedDays) || 26,
+          return { year: p.year, month: p.month, gross: Number(v.gross) || 0, workedDays: Number(v.workedDays) || 26,
             absentDays: Number(v.absentDays) || 0, bonuses, deductions,
             // (plateforme) 1.62.0 — le prorata d'une entrée ou d'une sortie : l'absence se retire au taux du contrat.
             prorata: p.prorata || null };
@@ -19208,6 +19209,7 @@
               <div class="vat-line minus"><span>− CNSS salarié (${pct(c.rates.cnssEmployee)} %)</span><span class="num">${C.money(c.cnssEmployee, cur)}</span></div>
               <div class="vat-line minus"><span>− Impôt sur le revenu ${info('pay.irpp')}</span><span class="num">${C.money(c.irpp, cur)}</span></div>
               ${c.css ? `<div class="vat-line minus"><span>− Contribution sociale de solidarité</span><span class="num">${C.money(c.css, cur)}</span></div>` : ''}
+              ${c.cssFinie ? `<div class="vat-line" id="bf-css-finie"><span>Contribution sociale de solidarité : non retenue</span><span class="small muted">sa règle s'arrête le ${C.fmtDate(c.cssFinie)}</span></div>` : ''}
               ${c.otherDeductions ? `<div class="vat-line minus"><span>− Autres retenues</span><span class="num">${C.money(c.otherDeductions, cur)}</span></div>` : ''}
               <div class="vat-line total ok"><span>Net à payer</span><span class="num">${C.money(c.net, cur)}</span></div>
               <div class="vat-line"><span>Charges patronales ${info('pay.employerCost')}</span><span class="num">${C.money(C.employerChargesOf(c), cur)}</span></div>
@@ -19529,7 +19531,7 @@
         <div><b>${h(emp.name || '')}</b><span>${h(emp.position || 'poste à saisir')}${emp.categorie ? ` · ${h(emp.categorie)}` : ''}</span><span>${emp.cin ? `CIN ${h(emp.cin)}` : 'CIN à saisir'} · n° CNSS ${emp.cnss ? h(emp.cnss) : '<b class="ambre">à demander</b>'}</span><span>${h(String(C.contractLabel(emp.contract || 'cdi')).split(' —')[0])}${emp.hireDate ? ` · depuis ${C.fmtDate(emp.hireDate)}` : ''} · ${h(sit)}</span></div>
         <div><span>Période</span><b>du 01/${String(m).padStart(2, '0')} au ${C.fmtDate(fin)} · ${pct(Number(v.workedDays) || Number(c.workedDays) || 0)} jours payés sur ${total}</b></div><div><span>${v.paidDate ? 'Payé le' : 'Paiement'}</span><b>${v.paidDate ? `${C.fmtDate(v.paidDate)} · ` : 'pas encore payé · '}${mode}</b></div></div>
       <div class="bul-2"><table class="mini lu"><thead><tr><th>Ce qu'il gagne</th><th class="r"></th></tr></thead><tbody>${l('Salaire de base', f(base), Number(c.absenceCut) ? `${f(C.round3(base + Number(c.absenceCut)))} moins ${pct(Number(c.absentDays) || 0)} jour(s) sans solde` : '')}${(c.bonuses || []).map(b => l(h(b.label || 'Prime'), f(b.amount), b.taxable === false ? 'non imposable' : '')).join('')}</tbody><tfoot><tr><td>Brut</td><td class="r">${f(c.gross)}</td></tr></tfoot></table>
-        <table class="mini lu"><thead><tr><th>Ce qui est retenu</th><th class="r"></th></tr></thead><tbody>${l('CNSS, sa part', `− ${f(c.cnssEmployee)}`, `${pc((c.rates || {}).cnssEmployee)} % du brut (À VÉRIFIER)`)}${l('<i>Salaire imposable</i>', `<i>${f(c.afterCnss)}</i>`, 'brut moins CNSS ; frais professionnels et déductions de famille appliqués par le barème')}${l('Impôt sur le revenu (IRPP)', `− ${f(c.irpp)}`, `barème de l'année · ${h(sit)}`)}${Number(c.css) ? l('Contribution sociale de solidarité', `− ${f(c.css)}`, `${pc((c.rates || {}).solidarity)} %`) : ''}${(c.deductions || []).map(d => l(h(d.label || 'Retenue'), `− ${f(d.amount)}`)).join('')}</tbody><tfoot><tr><td>Net à verser</td><td class="r">${montantU(Number(c.net) || 0, cur)}</td></tr></tfoot></table></div>
+        <table class="mini lu"><thead><tr><th>Ce qui est retenu</th><th class="r"></th></tr></thead><tbody>${l('CNSS, sa part', `− ${f(c.cnssEmployee)}`, `${pc((c.rates || {}).cnssEmployee)} % du brut (À VÉRIFIER)`)}${l('<i>Salaire imposable</i>', `<i>${f(c.afterCnss)}</i>`, 'brut moins CNSS ; frais professionnels et déductions de famille appliqués par le barème')}${l('Impôt sur le revenu (IRPP)', `− ${f(c.irpp)}`, `barème de l'année · ${h(sit)}`)}${Number(c.css) ? l('Contribution sociale de solidarité', `− ${f(c.css)}`, `${pc((c.rates || {}).solidarity)} %`) : c.cssFinie ? l('Contribution sociale de solidarité', f(0), `non retenue : sa règle s'arrête le ${C.fmtDate(c.cssFinie)}`) : ''}${(c.deductions || []).map(d => l(h(d.label || 'Retenue'), `− ${f(d.amount)}`)).join('')}</tbody><tfoot><tr><td>Net à verser</td><td class="r">${montantU(Number(c.net) || 0, cur)}</td></tr></tfoot></table></div>
       <div class="bul-2"><table class="mini lu"><thead><tr><th>Ce que paie l'entreprise</th><th class="r"></th></tr></thead><tbody>${l('CNSS, sa part', f(c.cnssEmployer), `${pc((c.rates || {}).cnssEmployer)} % du brut (À VÉRIFIER)`)}${l('Accident du travail', f(c.accident), `${pc((c.rates || {}).accidentRate)} %`)}${l('TFP · FOPROLOS', f(C.round3((Number(c.tfp) || 0) + (Number(c.foprolos) || 0))), `${pc((c.rates || {}).tfpRate)} % · ${pc((c.rates || {}).foprolosRate)} %`)}</tbody><tfoot><tr><td>Coût total</td><td class="r">${montantU(Number(c.employerCost) || 0, cur)}</td></tr></tfoot></table>
         <table class="mini lu"><thead><tr><th>Depuis janvier</th><th class="r"></th></tr></thead><tbody>${l('Brut', f(ytd.gross), pl(ytd.n, 'mois', 'mois'))}${l('CNSS et impôt retenus', f(ytd.ret))}${l('Net versé', f(ytd.net))}${cg ? l('Congés', `${pct(cg.remaining)} j restants`, `${pct(cg.acquired)} acquis, ${pct(cg.taken)} pris`) : ''}</tbody></table></div>
       <p class="regle">${lfIc('coche', 13, 2.4)} Calculé avec les taux de tes réglages et le pointage du mois. À garder sans limite de durée ; les mentions obligatoires du bulletin : À VÉRIFIER avec ton comptable.</p>
@@ -20397,7 +20399,7 @@
       if (enLecture('payslips')) { toast(refusLecture('payslips'), true); return; }
       const st = C.payrollSettings(data), champs = p.correction.champs && typeof p.correction.champs === 'object' ? p.correction.champs : {};
       const avant = JSON.parse(JSON.stringify(p));
-      const input = { gross: p.gross, workedDays: p.workedDays, absentDays: p.absentDays, bonuses: p.bonuses || [], deductions: p.deductions || [], ...champs };
+      const input = { year: p.year, month: p.month, gross: p.gross, workedDays: p.workedDays, absentDays: p.absentDays, bonuses: p.bonuses || [], deductions: p.deductions || [], ...champs };
       const juge = C.saisiePaieValide(input, emp, st);
       if (!juge.ok) { toast(`La correction ne s'applique pas : ${juge.motif}`, true); return; }
       Object.assign(p, champs, { computed: C.computePayslip(emp, input, st) });
@@ -20508,8 +20510,12 @@
         };
       });
     }
+    // (plateforme) 1.266.3 — un mois après la dernière loi de finances relue (cadrage 16 § 3.7, § 10.1 point 1) : la page et
+    // la fenêtre « Établir » le disent avant le geste, sans bloquer. Une seule phrase pour les deux.
+    const relusDit = (r, m) => `<b>Barèmes de ${r.annee} pas encore relus.</b> SkanFact n'a pas encore lu la loi de finances ${r.annee} : les bulletins ${/^[aeiouyéèh]/i.test(MONTHS_LONG[m - 1]) ? 'd’' : 'de '}${h(MONTHS_LONG[m - 1])} ne retiennent aucune contribution sociale de solidarité (sa règle s'arrête le ${C.fmtDate(C.CSS_JUSQU_AU)}) et gardent les autres taux de tes réglages. <em>À VÉRIFIER avec ton comptable avant de payer.</em>`;
     function drawSlips() {
       const y = Number(s.year), m = Number(s.month);
+      const nonRelus = C.baremesNonRelus(y, m);
       const month = C.payslipsOf(data, y, m);
       const missing = C.missingPayslips(data, y, m);
       const mp = C.moisDePaie(data);
@@ -20595,6 +20601,7 @@
       const nc = uni ? 6 : 7;
       $('#p-body').innerHTML = `
         ${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026"><span>Tes barèmes gardent des taux d'avant 2026 (${vieuxTaux.map(x => `${h(x.libelle)} ${pct(x.garde)} %`).join(', ')}) : les bulletins que tu établis les appliquent.</span> <button type="button" class="btn btn-sm" id="p-2026-voir">Voir les réglages</button></div>` : ''}
+        ${nonRelus ? `<div class="warn-box mb" id="p-relus"><span>${relusDit(nonRelus, m)}</span></div>` : ''}
         ${banAvant ? ban : ''}${frise}${banAvant ? '' : ban}${banSans}${aTraiter}${controles}${tuiles}
         ${!month.length && missing.length ? `${moisPointageHtml(y, m)}${variablesCarte(y, m)}` : ''}
         <div class="carte tab" id="p-bulletins">${month.length ? `<table class="liste list pa-liste"><thead><tr><th style="width:34%">Salarié</th><th class="r">Brut</th><th class="r">Retenues ${info('pay.impot')}</th><th class="r">Net à verser</th><th>Payé par</th>${uni ? '' : '<th>Statut</th>'}<th style="width:150px" class="row-actions-h"></th></tr></thead><tbody>
@@ -20734,7 +20741,7 @@
       // (1.248.0) La question montre CE qui va s'établir (recette du 02/11 : un mur de texte, aucun nom ni montant) :
       // chaque salarié, son brut et son net du mois, puis ce qui est repris, en une ligne.
       const stA = C.payrollSettings(data);
-      const apercu = missing.map(e => { const c = C.computePayslip(e, C.payslipInputFor(data, e, y, m), stA); return { e, c }; });
+      const apercu = missing.map(e => { const c = C.computePayslip(e, { ...C.payslipInputFor(data, e, y, m), year: y, month: m }, stA); return { e, c }; });
       const cur = data.settings && data.settings.currency;
       const ok = await new Promise(resolve => {
         let fini = false;
@@ -20743,6 +20750,7 @@
           ${apercu.map(({ e, c }) => `<tr><td>${h(e.name || '')}${e.endDate && e.endDate.slice(0, 7) === `${y}-${String(m).padStart(2, '0')}` ? ` <span class="small muted">· jusqu'au ${C.fmtDate(e.endDate)}</span>` : e.hireDate && e.hireDate.slice(0, 7) === `${y}-${String(m).padStart(2, '0')}` ? ` <span class="small muted">· depuis le ${C.fmtDate(e.hireDate)}</span>` : ''}</td><td class="r nw">${C.money(c.gross, '')}</td><td class="r nw"><b>${C.money(c.net, cur)}</b></td></tr>`).join('')}
           </tbody></table></div>
           ${`${y}-${String(m).padStart(2, '0')}` === C.today().slice(0, 7) ? `<div class="warn-box mt" id="p-etab-encours"><b>${h(MONTHS_LONG[m - 1].charAt(0).toUpperCase() + MONTHS_LONG[m - 1].slice(1))} n'est pas fini.</b> Le bulletin reprend le pointage et les absences tels qu'ils sont aujourd'hui : ce qui se notera d'ici la fin du mois ne s'y ajoutera pas tout seul (le bulletin le signalera, avec le bouton qui le met à jour).</div>` : ''}
+          ${C.baremesNonRelus(y, m) ? `<div class="warn-box mt" id="p-etab-relus">${relusDit(C.baremesNonRelus(y, m), m)}</div>` : ''}
           <p class="small muted mt">Repris de chaque fiche : le brut (au prorata d'une entrée ou d'une sortie dans le mois), les primes, les absences non payées et les heures du pointage, les avances. Rien n'est payé : tu pourras encore modifier chaque bulletin.</p>
           <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Établir</button></div>`,
           (root, close) => { $('#ok', root).onclick = () => { fini = true; close(); resolve(true); }; $('[data-close]', root).onclick = () => { fini = true; close(); resolve(false); }; },
@@ -20752,8 +20760,8 @@
       const st = C.payrollSettings(data);
       if (closedBlock(C.payslipDate({ year: y, month: m }), 'Ces bulletins')) return;
       missing.forEach(e => {
-        const input = C.payslipInputFor(data, e, y, m);
-        data.payslips.push({ id: C.uid(), employeeId: e.id, year: y, month: m, ...input,
+        const input = { ...C.payslipInputFor(data, e, y, m), year: y, month: m };
+        data.payslips.push({ id: C.uid(), employeeId: e.id, ...input,
           computed: C.computePayslip(e, input, st), paidDate: '', accountId: '', method: e.method || 'virement',
           reference: '', issuedAt: C.today() });
       });
@@ -22055,7 +22063,7 @@
         if (enLecture('payslips')) { toast(refusLecture('payslips'), true); return; }
         if (x.paidDate && !await confirmDialog(`Le bulletin de ${emp.name} est déjà payé. Reprendre le pointage change son net : continuer ?`, 'Reprendre le pointage')) return;
         const r = C.pointageSurBulletin(data, x); if (!r) return;
-        const input = { gross: x.gross, workedDays: x.workedDays, absentDays: r.absentDays, bonuses: r.bonuses, deductions: x.deductions || [] };
+        const input = { year: x.year, month: x.month, gross: x.gross, workedDays: x.workedDays, absentDays: r.absentDays, bonuses: r.bonuses, deductions: x.deductions || [] };
         const juge = C.saisiePaieValide(input, emp, st);
         if (!juge.ok) return toast(juge.motif, true);
         Object.assign(x, { absentDays: r.absentDays, bonuses: r.bonuses, computed: C.computePayslip(emp, input, st) });

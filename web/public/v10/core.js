@@ -4518,7 +4518,11 @@
       add('prorata', !plein.length, entres.length > 1 ? 'Les entrées du mois au prorata' : `L'entrée de ${entres[0].employeeName.split(/\s+/)[0]} au prorata`, plein.length ? `${noms(plein.map(x => x.employeeName))} : payé au mois plein, entré le ${fmtDate(plein[0].employee.hireDate)}` : '');
     }
     const vieux = tauxAvant2026(data);
-    add('taux', !vieux.length, 'Les taux de l’année', vieux.length ? `encore d'avant 2026 : ${vieux.map(v => v.libelle).join(', ')}` : 'CNSS, accident du travail, TFP, FOPROLOS des réglages');
+    // (plateforme) 1.266.3 — un mois après la dernière loi de finances relue (cadrage 16 § 3.7) : le contrôle ne se dit plus juste.
+    const nonRelus = Compta.baremesNonRelus(y, m);
+    add('taux', !vieux.length && !nonRelus, 'Les taux de l’année', nonRelus
+      ? `Barèmes de ${nonRelus.annee} pas encore relus : aucune contribution sociale de solidarité retenue, les autres taux sont ceux des réglages (À VÉRIFIER avec ton comptable)`
+      : vieux.length ? `encore d'avant 2026 : ${vieux.map(v => v.libelle).join(', ')}` : 'CNSS, accident du travail, TFP, FOPROLOS des réglages');
     const cdd = L.filter(x => x.employee.contract === 'cdd' && x.employee.endDate && x.employee.endDate >= debut && x.employee.endDate <= addDays(fin, 62));
     add('contrats', true, 'Contrats en cours', cdd.length ? cdd.map(x => `le CDD de ${x.employeeName.split(/\s+/)[0]} finit le ${fmtDate(x.employee.endDate)}`).join(' · ') : 'aucun contrat ne finit dans les deux mois');
     const sansCnss = L.filter(x => !String(x.employee.cnss || '').trim());
@@ -4728,7 +4732,7 @@
       ${c.tfp ? row('Taxe de formation professionnelle (TFP)', c.cnssBase, c.rates.tfpRate, null, c.tfp) : ''}
       ${c.foprolos ? row('FOPROLOS', c.cnssBase, c.rates.foprolosRate, null, c.foprolos) : ''}
       ${row('Impôt sur le revenu (IRPP)', round3(c.annualTaxable / 12), null, -c.irpp, null)}
-      ${c.css ? row('Contribution sociale de solidarité', round3(c.annualTaxable / 12), c.rates.solidarity, -c.css, null) : ''}
+      ${c.css ? row('Contribution sociale de solidarité', round3(c.annualTaxable / 12), c.rates.solidarity, -c.css, null) : c.cssFinie ? row(`Contribution sociale de solidarité : non retenue, sa règle s'arrête le ${fmtDate(c.cssFinie)}`, null, null, 0, null) : ''}
       ${c.deductions.map(d => row(d.label, null, null, -d.amount, null)).join('')}
       <tr class="tot"><td>Total des retenues</td><td class="n"></td><td class="n"></td>
         <td class="n">${fmt(round3(c.cnssEmployee + c.irpp + c.css + c.otherDeductions))}</td>
@@ -12680,6 +12684,7 @@
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,
     DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide, primesDuMois, saisieDeLaFiche, tauxAvant2026,
+    cssPoseePour: Compta.cssPoseePour, baremesNonRelus: Compta.baremesNonRelus, CSS_JUSQU_AU: Compta.CSS_JUSQU_AU,
     activeEmployees, payslipView, payslipsOf, payslipDate, payrollCost, payrollSummary, missingPayslips, bulletinsImpossibles,
     payslipHtml,
     // (plateforme) 1.61.0 — le journal de paie et les états de la paie.

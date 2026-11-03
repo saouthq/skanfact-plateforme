@@ -12950,7 +12950,7 @@
         else if (nature === 'prime') primes.push({ label: libelle, amount: montantLu, taxable: true });
         else joursAbsence = Math.max(0, Number(v.jours) || 0);
         const c = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat },
-          { gross: b.brut, workedDays: b.joursTravailles, absentDays: joursAbsence, bonuses: primes, deductions: retenues, prorata: b.prorata }, KC.baremesPaie(baremes));
+          { year: b.annee, month: b.mois, gross: b.brut, workedDays: b.joursTravailles, absentDays: joursAbsence, bonuses: primes, deductions: retenues, prorata: b.prorata }, KC.baremesPaie(baremes));
         const motif = String(v.motif || '').trim();
         const refus = nature !== 'absence' && !(montantLu > 0) ? 'Écris le montant de ce qui manque.'
           : nature === 'absence' && joursAbsence === (Number(b.joursAbsence) || 0) ? `Le bulletin porte déjà ${joursFr(joursAbsence)} jour${joursAbsence > 1 ? 's' : ''} sans solde : écris le nombre corrigé.`
@@ -13012,7 +13012,9 @@
       // (plateforme) 1.67.0 — ou d'un client sur SkanFact : les taux d'aujourd'hui sont ceux qu'il y règle.
       if (!(dossier.manual || L.reglagesPaie) || !b || !b.calcul || !b.calcul.bareme) return [];
       const sal = (L.salaries || []).find(x => x.id === b.salarieId) || {};
-      const jour = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat }, {},
+      // (plateforme) 1.266.3 — les taux du jour du MOIS du bulletin (la CSS est datée) : sinon un bulletin de 2027 sans CSS
+      // se dirait « à d'autres taux que ceux du dossier ».
+      const jour = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat }, { year: b.annee, month: b.mois },
         KC.baremesPaie(reglagesPaie(dossier, L))).bareme;
       const figes = b.calcul.bareme;
       const virgule = n => String(Number(n)).replace('.', ',');
@@ -13142,7 +13144,7 @@
         const v = lire();
         const sal = (L.salaries || []).find(x => x.id === v.salarieId) || {};
         const c = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat },
-          { gross: v.brut, workedDays: v.joursTravailles, absentDays: v.joursAbsence,
+          { year: v.annee, month: v.mois, gross: v.brut, workedDays: v.joursTravailles, absentDays: v.joursAbsence,
             bonuses: v.primes.map(p => ({ label: p.label, amount: p.amount, taxable: p.taxable })),
             deductions: v.retenues.map(d => ({ label: d.label, amount: d.amount })), prorata: v.prorata },
           KC.baremesPaie(baremes));

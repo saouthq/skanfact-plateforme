@@ -6,6 +6,8 @@
 //     qui se refait ; le total de la colonne se lit avant d'enregistrer ;
 //   - « Augmenter les salaires » : + 10 % pour ceux qu'on coche, dès le mois ; la fiche garde l'ancien salaire, celui qu'on
 //     a décoché ne bouge pas.
+//   - (03/11/2026, 16 § 10.1 point 1) en février 2027, « Barèmes de 2027 pas encore relus » se lit sur la page et dans la
+//     fenêtre « Établir », avant le geste ; les bulletins de janvier partent sans CSS, et le serveur les accepte ;
 //   - (03/11/2026, 16 § 10.1 point 11) « Un départ… » du menu ⋯ ouvre la sortie du salarié, et « Mettre sa sortie… » de la
 //     journée, son heure de sortie : chacun sa fenêtre.
 
@@ -67,9 +69,11 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
     return { j, ent, an, mo };
   };
   const erreurs: string[] = [];
-  const ouvrir = async (x: { j: string; ent: string }) => {
+  const ouvrir = async (x: { j: string; ent: string }, heure?: Date) => {
     erreurs.length = 0;
-    const p = await (await nav.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    const cx = await nav.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    if (heure) await cx.clock.setFixedTime(heure);
+    const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((jj) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', jj); }, x.j);
     await p.goto(`${serveur.adresse}/v10/?e=${x.ent}#/paie`);
@@ -172,6 +176,28 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
     await p.locator('#sof [name=h]').fill('17:35');
     await p.locator('#sof-ok').click();
     await expect.poll(async () => ((await auServeur(x, 'timesheets', 'ts-nb-badge'))?.badges as Record<string, { sortieMain?: string }> | undefined)?.[String(jj)]?.sortieMain).toBe('17:35');
+    expect(erreurs).toEqual([]);
+  }, 120_000);
+  // 16 § 10.1, point 1 (03/11/2026) : la CSS de 0,5 % ne vaut que pour 2026 (À VÉRIFIER) ; en 2027, sans loi de finances
+  // relue, la page le dit avant d'établir, et les bulletins n'en retiennent aucune (le serveur refuserait le contraire).
+  it('janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d\'établir, les bulletins sans CSS au serveur', async () => {
+    const x = await monter();
+    const p = await ouvrir(x, new Date('2027-02-10T10:00:00+01:00'));
+    await expect.poll(() => p.locator('#p-relus').innerText().then(espace).catch(() => '')).toContain('Barèmes de 2027 pas encore relus.');
+    expect(espace(await p.locator('#p-relus').innerText())).toBe('Barèmes de 2027 pas encore relus. SkanFact n\'a pas encore lu la loi de finances 2027 : les bulletins de janvier ne retiennent aucune contribution sociale de solidarité (sa règle s\'arrête le 31/12/2026) et gardent les autres taux de tes réglages. À VÉRIFIER avec ton comptable avant de payer.');
+    await p.locator('#p-gen').click();
+    await expect.poll(() => p.locator('#p-etab-relus').count()).toBe(1);
+    expect(espace(await p.locator('#p-etab-relus').innerText())).toContain('Barèmes de 2027 pas encore relus.');
+    await p.locator('.modal:has(#p-etab-relus) #ok').click();
+    const deJanvier = async () => ((await api('GET', `/entreprises/${x.ent}/dossier-v10`, x.j)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
+      .filter((o) => o.collection === 'payslips' && o.contenu.year === 2027 && o.contenu.month === 1).map((o) => o.contenu);
+    await expect.poll(async () => (await deJanvier()).length, { timeout: 20_000 }).toBe(2);
+    const mt = (await deJanvier()).find((b) => b.employeeId === 'mt') as { computed: Record<string, unknown> };
+    expect([nombre(mt.computed.css), mt.computed.cssFinie, nombre((mt.computed.bareme as Record<string, unknown>).solidarity)]).toEqual([0, '2026-12-31', 0]);
+    // Le même calcul que le moteur, au millime : sans CSS, le net de Mourad (1 450,375, chef de famille, deux enfants).
+    const attendu = compta.computePayslip({ ...{ grossSalary: 1450.375, headOfFamily: true, children: 2 } }, { gross: 1450.375, workedDays: 26, absentDays: 0, bonuses: [], deductions: [], year: 2027, month: 1 }, compta.baremesPaie({}));
+    expect(nombre(mt.computed.net)).toBe(attendu.net);
+    expect(attendu.css).toBe(0);
     expect(erreurs).toEqual([]);
   }, 120_000);
 });

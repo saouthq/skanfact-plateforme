@@ -594,7 +594,7 @@
         const input = { gross: brutDuMois(e, back), workedDays: 26, absentDays, bonuses, deductions: [] };
         d.payslips.push({
           id: C.uid(), employeeId: e.id, year: y, month: m, ...input,
-          computed: C.computePayslip(e, input, payCfg),
+          computed: C.computePayslip(e, { ...input, year: y, month: m }, payCfg),
           // Le dernier bulletin n'est pas encore réglé : c'est ce qui alimente « À faire ».
           paidDate: back === 1 ? '' : C.addDays(ref, 31),
           // Pas de compte précisé : les salaires tombent sur le compte par défaut, comme dans la vraie vie.
@@ -631,7 +631,7 @@
       // On garde les primes saisies plus haut et le brut DU MOIS (une augmentation ne réécrit pas un
       // bulletin passé), on reprend absences et avances.
       const merged = { ...input, gross: input.prorata ? input.gross : sl.gross, bonuses: sl.bonuses || [] };
-      Object.assign(sl, merged, { computed: C.computePayslip(e, merged, payCfg) });
+      Object.assign(sl, merged, { computed: C.computePayslip(e, { ...merged, year: sl.year, month: sl.month }, payCfg) });
     });
 
     // ---------- numéros de série (4.1.0) ----------

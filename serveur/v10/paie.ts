@@ -17,7 +17,11 @@ import { Refus } from '../erreurs.ts';
 import '../paie/textes.ts';
 import { tracer } from '../trace.ts';
 import { aVraimentChange, canonique, estJour, estObjet, exact, nombreEnTexte, objetDuDossier, texteOuNul, type ChangementLu, type Json } from './lecture.ts';
+import { codeDeLEcran } from './teif.ts';
 import './textes.ts';
+
+// (1.266.3) Les règles datées de la paie, les MÊMES que l'écran (cadrage 16 § 10.1, point 1) : lues dans son moteur.
+const Regles = () => codeDeLEcran<{ cssPoseePour: (annee: number, mois: number) => boolean; CSS_JUSQU_AU: string }>('compta.js');
 
 const TAUX_MAX = 1_000_000n;          // un taux à quatre décimales : 100 % = 1 000 000
 // Un montant plus grand ne tiendrait plus exactement dans un nombre JSON (la base garde le barème en JSON).
@@ -120,6 +124,10 @@ async function lireBulletin(tx: Transaction, entreprise: string, utilisateur: st
   if (!estObjet(fige) || !estObjet(sit)) throw new Refus('v10.bulletin_sans_bareme', { valeurs: { salarie: nom, periode } });
   const bareme = lireBareme(fige);
   if (!bareme) throw new Refus('v10.bulletin_bareme', { valeurs: { salarie: nom, periode } });
+  // (1.266.3) La CSS s'arrête avec sa règle : un poste resté sur l'ancien calcul enverrait un bulletin de 2027 qui la retient.
+  if (bareme.solidarite > 0n && !Regles().cssPoseePour(annee, mois)) {
+    throw new Refus('v10.bulletin_css_finie', { valeurs: { salarie: nom, periode, fin: Regles().CSS_JUSQU_AU.split('-').reverse().join('/') } });
+  }
 
   // La saisie telle que le calcul l'a prise (arrondie au millime par la v10).
   const elements = (liste: unknown) => (Array.isArray(liste) ? liste : []).map((x) => {

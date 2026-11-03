@@ -29,7 +29,7 @@ import { demo, ecranDeLaPlateforme, entier, exiger, hasard, type Societe } from 
 
 type Reglages = Record<string, unknown>;
 type Salarie10 = { id: string; name: string; contract?: string; grossSalary?: number; headOfFamily?: boolean; children?: number; [k: string]: unknown };
-type Saisie10 = { gross?: number; workedDays?: number; absentDays?: number; bonuses?: { label?: string; amount: number; taxable?: boolean }[]; deductions?: { label?: string; amount: number }[]; prorata?: Record<string, unknown> | null };
+type Saisie10 = { year?: number; month?: number; gross?: number; workedDays?: number; absentDays?: number; bonuses?: { label?: string; amount: number; taxable?: boolean }[]; deductions?: { label?: string; amount: number }[]; prorata?: Record<string, unknown> | null };
 type Calcul10 = Record<string, unknown>;
 type Bulletin10 = Saisie10 & { id: string; employeeId: string; year: number; month: number; computed: Calcul10; paidDate?: string; [k: string]: unknown };
 // L'écran de la PLATEFORME (la v10 et ses adaptations : un bulletin y fige son barème), et la v10 telle
@@ -109,7 +109,8 @@ const REGLAGES = ecran.baremesPaie({});
 // Un bulletin tel que l'écran de la plateforme l'établit : la saisie du mois, et son calcul (barème figé).
 const bulletin = (id: string, e: Salarie10, annee: number, mois: number, saisie: Saisie10 = {}, reglages: Reglages = REGLAGES, x: Partial<Bulletin10> = {}): Bulletin10 => {
   const i = { gross: e.grossSalary ?? 0, workedDays: 26, absentDays: 0, bonuses: [], deductions: [], ...saisie };
-  return { id, employeeId: e.id, year: annee, month: mois, ...i, computed: ecran.computePayslip(e, i, reglages), paidDate: '', accountId: '', method: 'virement', reference: '', issuedAt: `${annee}-${String(mois).padStart(2, '0')}-28`, ...x };
+  // (1.266.3) Le mois passe au calcul, comme l'écran l'établit : la CSS est datée.
+  return { id, employeeId: e.id, year: annee, month: mois, ...i, computed: ecran.computePayslip(e, { year: annee, month: mois, ...i }, reglages), paidDate: '', accountId: '', method: 'virement', reference: '', issuedAt: `${annee}-${String(mois).padStart(2, '0')}-28`, ...x };
 };
 const periode = (a: number, t: number) => ({ from: `${a}-${String((t - 1) * 3 + 1).padStart(2, '0')}-01`, to: `${a}-${String(t * 3).padStart(2, '0')}-${t === 1 || t === 4 ? 31 : 30}` });
 
@@ -284,6 +285,28 @@ describe('la paie du dossier v10, tenue par le serveur', () => {
     expect((await e.envoyer('employees', [['s2', salarie('s2', { name: 'Karim', children: -1 })]])).corps.motif).toBe('Le nombre d\'enfants à charge de Karim doit être un nombre entier entre 0 et 99 : rien n\'a été enregistré.');
     expect((await admin.query('select count(*)::int n from paie.bulletin where entreprise = $1', [e.ent])).rows[0].n).toBe(0);
     expect((await admin.query(`select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = 'payslips'`, [e.ent])).rows[0].n).toBe(0);
+  });
+
+  // 1.266.3 (cadrage 16 § 10.1, point 1 ; docs/paie.md, « Les corrections urgentes du Personnel ») : la CSS de 0,5 % ne vaut
+  // que pour 2026 (À VÉRIFIER). L'écran et le serveur lisent la même règle datée ; un poste resté sur l'ancien calcul (un
+  // bulletin de 2027 qui la retient) est refusé, avec le geste qui débloque.
+  it('la CSS s\'arrête avec sa règle : décembre 2026 la retient, janvier 2027 non, au même millime à l\'écran et au serveur ; un bulletin de 2027 qui la retient encore est refusé', async () => {
+    const e = await essai();
+    const s = salarie('s1');
+    await e.envoyer('employees', [['s1', s]]);
+    const prime = { bonuses: [{ label: 'Rendement', amount: 150.555, taxable: true }] };
+    const b12 = bulletin('b12', s, 2026, 12, prime), b01 = bulletin('b01', s, 2027, 1, prime);
+    expect((await e.envoyer('payslips', [['b12', b12], ['b01', b01]])).statut).toBe(200);
+    expect(await e.lire('b12')).toMatchObject({ montants: { css: '5.421', net: '1120.386' }, bareme: { solidarite: '0.5000' } });
+    expect(await e.lire('b01')).toMatchObject({ montants: { css: '0.000', net: '1125.807', irpp: '125.235', coutEmployeur: '1668.655' }, bareme: { solidarite: '0.0000' } });
+    // Un poste resté sur l'ancien calcul : le bulletin de février 2027 calculé sans son mois retient la CSS.
+    const i = { gross: s.grossSalary ?? 0, workedDays: 26, absentDays: 0, bonuses: prime.bonuses, deductions: [] };
+    const ancien = { ...bulletin('b02', s, 2027, 2, prime), computed: ecran.computePayslip(s, i, REGLAGES) };
+    expect(ancien.computed.css).toBe(5.421);
+    const r = await e.envoyer('payslips', [['b02', ancien]]);
+    expect(r.statut).toBe(403);
+    expect(r.corps.motif).toBe('Le bulletin de Sonia Trabelsi (02/2027) retient une contribution sociale de solidarité alors que sa règle s\'arrête le 31/12/2026 : recharge la page, puis ouvre ce bulletin et enregistre-le à nouveau (il se recalcule sans elle). Rien n\'a été enregistré.');
+    expect((await admin.query('select count(*)::int n from paie.bulletin where entreprise = $1', [e.ent])).rows[0].n).toBe(2);
   });
 
   // 1.62.0 (docs/paie.md, « L'absence du mois d'une entrée ») : le brut d'un mois d'entrée est déjà proratisé ; une absence
