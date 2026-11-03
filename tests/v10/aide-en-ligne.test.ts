@@ -4,12 +4,10 @@
 // n'existent pas en ligne, où il confie son dossier par le code du cabinet (Comptabilité → Cabinet) et où le comptable
 // lit ses livres en direct. L'article vers lequel il renvoyait décrivait le paquet de bout en bout.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
-const PUBLIC = path.join(import.meta.dirname, '../../web/public');
 
 type Article = { id: string; title: string; sub?: string; body: string };
 
@@ -17,7 +15,7 @@ function guide() {
   const bac: Record<string, unknown> = {};
   bac.self = bac;
   vm.createContext(bac);
-  vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'v10/guide.js'), 'utf8'), bac, { filename: 'v10/guide.js' });
+  vm.runInContext(lireEcran('v10/guide.js'), bac, { filename: 'v10/guide.js' });
   return bac.SkanGuide as { ARTICLES: Article[] };
 }
 const texte = (a?: Article) => `${a?.title ?? ''} ${a?.sub ?? ''} ${a?.body ?? ''}`.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
@@ -40,7 +38,7 @@ describe('l\'Aide de l\'entreprise, en ligne', () => {
     expect(cabinet).toContain('Comptabilité → Cabinet');
     expect(cabinet).toContain('code de son cabinet');
     // Ce que l'article cite existe : le bouton du panneau du mandat (plateforme/pont.js), l'onglet de la Comptabilité.
-    expect(fs.readFileSync(path.join(PUBLIC, 'plateforme/pont.js'), 'utf8')).toContain('Confier mon dossier');
+    expect(lireEcran('plateforme/pont.js')).toContain('Confier mon dossier');
     expect(cabinet).toContain('« Confier mon dossier »');
     expect(texte(article('demarrer'))).toContain('Comptabilité → Cabinet');
   });

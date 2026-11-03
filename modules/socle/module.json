@@ -1,0 +1,89 @@
+{
+  "_": "La fiche du module (17 § 2.2 ; 02 M1), posée au lot R0e (03/11/2026). Ses pages et leur famille au menu (17 § 1), les collections du dossier dont il est le propriétaire, le nom de ses gestes, ses schémas de la base, ses dépendances (02 § 2). Sa porte, ses points, ses emplacements et ses événements sont posés vides : les registres du socle arrivent au lot B0, et chaque boîte les remplit.",
+  "code": "socle",
+  "nom": "Socle",
+  "phrase": "Ce dont tous les modules ont besoin : les identités et les droits, les fiches communes (clients, fournisseurs, articles), la numérotation, le moteur de calcul et d'écritures, la validation du mois, l'accueil, la barre, la palette, l'aide, les visites, les réglages, l'équipe et l'abonnement (02 § 2).",
+  "codesDesGestes": [
+    "socle",
+    "messagerie",
+    "support"
+  ],
+  "dependances": [],
+  "pages": [
+    {
+      "id": "dashboard"
+    },
+    {
+      "id": "clients",
+      "famille": "Vendre"
+    },
+    {
+      "id": "catalogue",
+      "famille": "Articles et stock"
+    },
+    {
+      "id": "modules"
+    },
+    {
+      "id": "licences"
+    },
+    {
+      "id": "comptable"
+    },
+    {
+      "id": "support"
+    },
+    {
+      "id": "aide"
+    },
+    {
+      "id": "parametres"
+    }
+  ],
+  "pagesCabinet": [
+    {
+      "id": "guide"
+    },
+    {
+      "id": "aide"
+    },
+    {
+      "id": "messages"
+    }
+  ],
+  "collections": [
+    "clients",
+    "suppliers",
+    "catalog",
+    "clotures",
+    "deleted",
+    "conflictArchive"
+  ],
+  "racine": [
+    "company",
+    "version",
+    "counters",
+    "deleted",
+    "conflictArchive",
+    "demo",
+    "exemple",
+    "closedUntil",
+    "closureLog",
+    "auxiliaires"
+  ],
+  "schemas": [
+    "socle",
+    "messagerie",
+    "plateforme"
+  ],
+  "porte": [],
+  "points": {
+    "declare": [],
+    "remplit": []
+  },
+  "emplacements": [],
+  "evenements": {
+    "annonce": [],
+    "ecoute": []
+  }
+}

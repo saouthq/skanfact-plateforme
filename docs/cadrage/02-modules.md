@@ -306,10 +306,21 @@ Règle (principe 3 de `07`) : **ce que le cabinet fait pour son client ne se fac
 - **Un dossier par module** (et un pour le socle), qui contient ses tables et migrations, ses
   fonctions publiques, son API, ses écrans, ses tests, son aide et ses visites.
 - **Une seule porte d'entrée par module** : les autres modules n'importent que ce qu'il déclare
-  public (M2). Un outil de contrôle vérifie les frontières à chaque construction (le choix de l'outil
-  est fait dans le document 12).
+  public (M2). Un outil de contrôle vérifie les frontières **à chaque installation, à chaque envoi et à
+  chaque vraie construction, jamais dans celles des tests** ; c'est un contrôle maison (corrigé le
+  03/11/2026 par le `17` § 4.2 et le `12` § 8 : « à chaque construction » faisait tomber une preuve pour
+  une autre raison que son défaut).
+- **Un module porte les écrans des deux applications** (l'entreprise et le Cabinet : la paie d'un
+  client vue au Cabinet vit chez le Personnel) ; le Cabinet ne garde que le portefeuille (`17` § 2.1).
 - **Le moteur de calcul est porté une fois**, dans le socle, avec ses tests actuels. Les modules
-  l'appellent ; aucun ne le recopie.
+  l'appellent ; aucun ne le recopie. Ses morceaux se rangent dans le dossier du module qui les possède,
+  mais il est **servi comme un seul moteur** (M3 ; `17` § 3.2).
+- **Les migrations restent une seule suite numérotée** (l'ordre de la base l'exige) ; la fiche de
+  chaque module nomme les siennes.
+- Les fiches (`modules/<module>/module.json`) et l'ordre (`modules/ordre.json`) existent depuis le
+  03/11/2026 (lot R0e) ; un test tient le sens des dépendances et un seul propriétaire par partie du
+  dossier, par page, par nom de geste et par schéma (`tests/commun/fiches-modules.test.ts`). La
+  correspondance avec `MODULES` de l'application : `17` § 2.1.
 
 ---
 

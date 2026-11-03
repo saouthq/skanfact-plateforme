@@ -23390,6 +23390,94 @@ prouver 'paie 10.1-13 k : une trace à chaque réponse, même sans CIN ni RIB' s
   '        if (!rendUneIdentite(objets)) return;
 ' '' \
   "$IR3"
+# ── 17 § 4.1, lot R0a (1.266.8) : l'assembleur partout, à l'identique (commun/assemblage.ts, modules/assemblage.json,
+#    web/vite.config.ts, le chargeur de Node `lireEcran`) ──
+RA1='un fichier servi est la suite de ses morceaux ; une ligne retrouve son morceau ; un module retrouve les siens'
+RA2='l'"'"'assemblage refuse une coupe au milieu d'"'"'une ligne, un morceau en double, absent, vide ou hors des dossiers, et une copie morte'
+RA3='au lot R0a, chaque gros fichier passe par l'"'"'assemblage, et il est son unique morceau, à l'"'"'octet'
+RA4='la construction écrit chaque fichier assemblé avant de l'"'"'alléger, même absent de web/public ; le développement le sert assemblé'
+RA5='aucun code de Node ne lit un fichier assemblé en direct sous web/public : il passe par lireEcran'
+prouver 'R0a a : un fichier servi réduit à son premier morceau' commun/assemblage.ts \
+  '  return Buffer.concat(lus);
+}' '  return Buffer.concat(lus.slice(0, 1));
+}' \
+  "$RA1"
+prouver 'R0a b : une ligne prise dans le morceau d'"'"'à côté' commun/assemblage.ts \
+  '    if (ligne <= avant + lignes) return { morceau: m, ligne: ligne - avant };' '    if (ligne < avant + lignes) return { morceau: m, ligne: ligne - avant };' \
+  "$RA1"
+prouver 'R0a c : les morceaux d'"'"'un module pris au socle' commun/assemblage.ts \
+  'export const moduleDuMorceau = (m: string) => (m.startsWith('"'"'modules/'"'"') ? m.split('"'"'/'"'"')[1] ?? '"'"'socle'"'"' : '"'"'socle'"'"');' 'export const moduleDuMorceau = (m: string) => (m.startsWith('"'"'modules/'"'"') ? '"'"'socle'"'"' : '"'"'socle'"'"');' \
+  "$RA1"
+prouver 'R0a d : une coupe au milieu d'"'"'une ligne acceptée' commun/assemblage.ts \
+  '    if (i < lus.length - 1 && b[b.length - 1] !== 0x0a) throw' '    if (false) throw' \
+  "$RA2"
+prouver 'R0a e : un morceau déclaré dans deux fichiers servis' commun/assemblage.ts \
+  '      if (deja) throw new AssemblageRefuse(' '      if (false) throw new AssemblageRefuse(' \
+  "$RA2"
+prouver 'R0a f : une copie morte gardée sous web/public' commun/assemblage.ts \
+  '    if (fs.existsSync(path.join(racine, copie)) && !(morceaux as string[]).includes(copie)) {' '    if (false) {' \
+  "$RA2"
+prouver 'R0a g : un morceau vide servi' commun/assemblage.ts \
+  '    if (!b.length) throw new AssemblageRefuse(' '    if (false) throw new AssemblageRefuse(' \
+  "$RA2"
+prouver 'R0a h : un gros fichier qui ne passe plus par l'"'"'assemblage' modules/assemblage.json \
+  '    "v10/cabinet/app.js": ["web/public/v10/cabinet/app.js"],
+' '' \
+  "$RA3"
+prouver 'R0a i : la construction qui n'"'"'écrit pas les fichiers assemblés' web/vite.config.ts \
+  '      ecrireLesAssembles(sortie.dir);
+' '' \
+  "$RA4"
+prouver 'R0a j : l'"'"'assemblage après l'"'"'allègement' web/vite.config.ts \
+  '      ecrireLesAssembles(sortie.dir);
+      allegerLesEcrans(sortie.dir);' '      allegerLesEcrans(sortie.dir);
+      ecrireLesAssembles(sortie.dir);' \
+  "$RA4"
+prouver 'R0a k : le développement qui sert la copie de web/public' web/vite.config.ts \
+  '        if (!(servi in lireTable())) { suite(); return; }' '        suite(); return;' \
+  "$RA4"
+prouver 'R0a l : le serveur qui relit le moteur en direct sous web/public' serveur/v10/teif.ts \
+  '  const source = lireEcran(`v10/${fichier}`);' '  const source = readFileSync(path.join(import.meta.dirname, '"'"'../../web/public/v10'"'"', fichier), '"'"'utf8'"'"');' \
+  "$RA5"
+prouver 'R0a m : un test qui relit le pont en direct' tests/v10/bac-pont.ts \
+  'lireEcran('"'"'plateforme/pont.js'"'"')' 'readFileSync(path.join(import.meta.dirname, '"'"'../../web/public/plateforme/pont.js'"'"'), '"'"'utf8'"'"')' \
+  "$RA5"
+# ── 17 § 2.2, lot R0e (1.266.8) : une seule liste de modules et leurs fiches (modules/ordre.json, modules/<m>/module.json) ──
+RE1='une fiche par module de l'"'"'ordre du 02 § 2, le socle en tête ; les dépendances ne vont que vers le haut'
+RE2='chaque partie du dossier, chaque page du menu, chaque nom de geste et chaque schéma de la base a un seul propriétaire'
+prouver 'R0e a : une dépendance vers le bas (le Stock qui dépend de la Caisse)' modules/stock/module.json \
+  '  "dependances": [
+    "ventes",' '  "dependances": [
+    "caisse",
+    "ventes",' \
+  "$RE1"
+prouver 'R0e b : un module de l'"'"'ordre sans sa fiche' modules/ordre.json \
+  '"cabinet"' '"cabinet",
+    "reservations"' \
+  "$RE1"
+prouver 'R0e c : une partie du dossier sans propriétaire' modules/personnel/module.json \
+  '    "employees",
+' '' \
+  "$RE2"
+prouver 'R0e d : une partie du dossier à deux propriétaires' modules/achats/module.json \
+  '  "collections": [
+    "purchases",' '  "collections": [
+    "documents",
+    "purchases",' \
+  "$RE2"
+prouver 'R0e e : une page du menu sans propriétaire' modules/caisse/module.json \
+  '"id": "caisse",' '"id": "caisse-disparue",' \
+  "$RE2"
+prouver 'R0e f : un schéma de la base sans propriétaire' modules/personnel/module.json \
+  '  "schemas": [
+    "paie"
+  ],' '  "schemas": [],' \
+  "$RE2"
+prouver 'R0e g : un nom de geste sans module' modules/personnel/module.json \
+  '  "codesDesGestes": [
+    "paie"
+  ],' '  "codesDesGestes": [],' \
+  "$RE2"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

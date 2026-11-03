@@ -3,12 +3,14 @@
 //   - l'entrée (index.html, React) : se connecter, créer son compte, le code du téléphone, la porte ;
 //   - l'application elle-même : le CODE de la v10, copié tel quel dans public/v10 (décision de
 //     Skander, 28/09/2026), avec son point de contact et sa mise en page du téléphone dans
-//     public/plateforme. Vite copie public/ tel quel ; nos scripts et nos styles y perdent ensuite leurs
-//     commentaires, rien d'autre (alleger.ts).
+//     public/plateforme. Vite copie public/ tel quel ; les gros fichiers sont ensuite ASSEMBLÉS de leurs morceaux
+//     (commun/assemblage.ts, modules/assemblage.json ; docs/cadrage/17-rangement.md § 4.1), puis nos scripts et nos
+//     styles y perdent leurs commentaires, rien d'autre (alleger.ts).
 // Une seconde page, à part : la console de l'équipe SkanFact (console/index.html, docs/console.md), servie sous /console/.
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { build, defineConfig, type Plugin } from 'vite';
+import { assemblerOctets, ecrireLesAssembles, lireTable } from '../commun/assemblage.ts';
 import { PLANCHER } from '../commun/navigateurs.ts';
 import { allegerLesEcrans, PRECOMPRESSER, precompresserLesEcrans } from './alleger.ts';
 
@@ -29,14 +31,35 @@ function laConsole(): Plugin {
   };
 }
 
+// Les écrans assemblés en développement (17 § 4.1) : un intermédiaire sert chaque fichier assemblé à la volée, relu à
+// chaque demande, sans rien garder.
+function lesAssemblesEnDeveloppement(): Plugin {
+  return {
+    name: 'skanfact-assemblage-a-la-volee',
+    apply: 'serve',
+    configureServer(serveur) {
+      serveur.middlewares.use((demande, reponse, suite) => {
+        const servi = decodeURIComponent((demande.url ?? '').split('?')[0] ?? '').replace(/^\/+/, '');
+        if (!(servi in lireTable())) { suite(); return; }
+        reponse.setHeader('Content-Type', servi.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8');
+        reponse.setHeader('Cache-Control', 'no-cache');
+        reponse.end(assemblerOctets(servi));
+      });
+    },
+  };
+}
+
 export default defineConfig({
   root: import.meta.dirname,
-  plugins: [react(), {
-    // Les écrans partent sans leurs commentaires (docs/leger.md, L6) : public/ est copié tel quel, puis allégé.
+  plugins: [react(), lesAssemblesEnDeveloppement(), {
+    // Les écrans partent assemblés (17 § 4.1), puis sans leurs commentaires (docs/leger.md, L6) : public/ est copié tel
+    // quel, les gros fichiers y sont remplacés par la suite de leurs morceaux, puis tout est allégé — l'assemblage avant
+    // l'allègement, dans la même étape.
     name: 'skanfact-ecrans-sans-commentaires',
     apply: 'build',
     writeBundle(sortie) {
       if (!sortie.dir) return;
+      ecrireLesAssembles(sortie.dir);
       allegerLesEcrans(sortie.dir);
       // La production les compresse aussi d'avance, au plus fort (docs/leger.md, L7).
       if (process.env[PRECOMPRESSER] === '1') precompresserLesEcrans(sortie.dir);

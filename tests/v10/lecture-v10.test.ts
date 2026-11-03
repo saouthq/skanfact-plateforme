@@ -2,15 +2,14 @@
 // un taux que la lecture n'a pas trouvé (null) n'est PAS une TVA à 0 % ; la ligne reçoit le taux d'une ligne
 // neuve de la v10, et la fenêtre le dit (web/v10/lecture-photo.txt). Un taux lu est gardé tel quel.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Ligne = { label: string; qty: number; unitPrice: number; vatRate: number };
 type Core = { ocrToPurchase: (read: unknown, data: unknown, today?: string) => { lines: Ligne[] } };
 const module = { exports: {} as unknown };
-const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const source = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports as Core;
 

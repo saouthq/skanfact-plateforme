@@ -8,12 +8,10 @@
 // (tests/web/achats-lot.test.ts) ne le voyait que selon le moment du clic : le moteur saute de lui-même une étape
 // absente quand on vient de cliquer (visite.js, `decider` : « avance »). Ce test lit la visite elle-même, sans horloge.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
-const PUBLIC = path.join(import.meta.dirname, '../../web/public');
 
 type Etape = { cible?: unknown; titre?: string; texte?: string; facultatif?: boolean; eclairer?: unknown; liste?: string };
 type Visite = { id: string; titre?: string; etapes?: Etape[] };
@@ -44,7 +42,7 @@ function charger() {
   bac.window = bac;
   bac.self = bac;
   vm.createContext(bac);
-  for (const f of ['plateforme/pont.js', 'v10/visite.js', 'v10/visites.js']) vm.runInContext(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), bac, { filename: f });
+  for (const f of ['plateforme/pont.js', 'v10/visite.js', 'v10/visites.js']) vm.runInContext(lireEcran(f), bac, { filename: f });
   const pont = bac.skanfact as { panneauxAbsents: string[]; piecesJointes?: boolean; visitesAbsentes?: string[]; dessinerMandat: (el: unknown) => Promise<void> };
   const visites = (bac.SkanVisites as { parcours: (ctx: unknown) => Visite[] }).parcours({
     data: () => ({}), premier: () => null, estDemo: () => false, editeur: () => false, Visite: bac.Visite, G: { INFO: {} }, chiffre: () => false,
@@ -112,7 +110,7 @@ describe('les visites de l\'entreprise, en ligne', () => {
     const panneau = noeud();
     await pont.dessinerMandat(panneau);
     const dessines = new Set([...panneau.innerHTML.matchAll(/id="([^"]+)"/g)].map((m) => `#${m[1]}`));
-    if (fs.readFileSync(path.join(PUBLIC, 'v10/app.js'), 'utf8').includes('<div class="panel" id="p-cabinet-mandat">')) dessines.add('#p-cabinet-mandat');
+    if (lireEcran('v10/app.js').includes('<div class="panel" id="p-cabinet-mandat">')) dessines.add('#p-cabinet-mandat');
     // Le test mesure : la visite est lue, et le panneau dessiné.
     expect(relier?.titre).toBe('Confier mon dossier à mon comptable');
     // 1.77.0 : dans l'ordre du panneau — ce qu'on confie, l'invitation par e-mail, puis le code.

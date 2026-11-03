@@ -7,12 +7,11 @@
 // changé (« 42 réglages du dossier »). Ce que le point de contact garantit : la remise part de la copie du poste,
 // quel que soit l'appel qui apprend que l'appareil est retiré.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
-const PONT = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/plateforme/pont.js'), 'utf8');
+const PONT = lireEcran('plateforme/pont.js');
 const ENT = '00000000-0000-4000-8000-0000000000b7';
 
 type Changement = { collection: string; cle: string; revision: number | null; contenu: unknown };

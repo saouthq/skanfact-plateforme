@@ -3,9 +3,9 @@
 //     passerait ; la liste des salariés le montrait en double, et sa pastille ne le comptait pas ;
 //   - octobre payé, novembre établi mais pas payé : le mois de paie est novembre (la page restait sur octobre) ;
 //   - l'avenant d'un passage en CDI dit le CDI, à compter du lendemain de l'ancienne fin, pas « à compter d'aujourd'hui ».
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type ATraiter = { salarie: string; vue: string; focus: string; titre: string; dit: string; geste: string };
 type Core = {
@@ -18,11 +18,11 @@ type Core = {
 };
 const charger = (f: string, req: (n: string) => unknown) => {
   const m = { exports: {} as unknown };
-  vm.runInNewContext(fs.readFileSync(f, 'utf8'), { module: m, exports: m.exports, require: req, console });
+  vm.runInNewContext(lireEcran(f), { module: m, exports: m.exports, require: req, console });
   return m.exports;
 };
-const compta = charger('web/public/v10/compta.js', () => { throw new Error('compta.js ne charge rien'); });
-const core = charger('web/public/v10/core.js', () => compta) as Core;
+const compta = charger('v10/compta.js', () => { throw new Error('compta.js ne charge rien'); });
+const core = charger('v10/core.js', () => compta) as Core;
 
 const RIB = '08100123456789012359';
 const sal = (id: string, x: Record<string, unknown> = {}) => ({ id, name: `Salarié ${id}`, grossSalary: 1100.125, hireDate: '2023-03-10', contract: 'cdi',

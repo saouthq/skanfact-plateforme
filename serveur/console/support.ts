@@ -8,9 +8,8 @@
 //   - une réponse type n'est pas un second texte à tenir : c'est un article de l'Aide de l'application, celui que le
 //     client a sous les yeux (web/public/v10/guide.js, lu tel que le navigateur le reçoit). On cite son identifiant.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 export const SANS_REPONSE_HEURES = 24;
 // Une demande urgente (une caisse arrêtée, une facture qui ne part pas) : deux heures (0115 ; l'audit F13). À VÉRIFIER avec
@@ -190,7 +189,7 @@ function lireAide(): Aide {
     const bac: Record<string, unknown> = {};
     bac.self = bac;
     vm.createContext(bac);
-    vm.runInContext(fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/guide.js'), 'utf8'), bac, { filename: 'v10/guide.js', timeout: 2000 });
+    vm.runInContext(lireEcran('v10/guide.js'), bac, { filename: 'v10/guide.js', timeout: 2000 });
     const g = (bac.SkanGuide ?? {}) as { ARTICLES?: unknown; PAR_PAGE?: unknown };
     const articles = Array.isArray(g.ARTICLES) ? g.ARTICLES.flatMap((a): Article[] => {
       const o = objet(a);

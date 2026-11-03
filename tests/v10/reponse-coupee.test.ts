@@ -6,12 +6,11 @@
 //     vrai refus tel quel.
 // L'entreprise (plateforme/pont.js), et l'exemple qui se redemande : tests/v10/pont-exemple.test.ts.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
-const PONT_CABINET = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/plateforme/pont-cabinet.js'), 'utf8');
+const PONT_CABINET = lireEcran('plateforme/pont-cabinet.js');
 const CABINET = '00000000-0000-4000-8000-0000000000c1';
 const COUPE = 'Le serveur n\'a pas répondu à temps : réessaie dans un instant.';
 

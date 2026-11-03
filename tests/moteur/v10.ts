@@ -2,12 +2,12 @@
 // exemple de cinq ans, la conversion d'une pièce v10 dans le nouveau format, et un tirage de pièces
 // au hasard, toujours le même (la graine est fixe).
 
-import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import vm from 'node:vm';
 import { TND, type Devise } from '../../moteur/argent.ts';
 import type { Piece, TypePiece } from '../../moteur/piece.ts';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 export type LigneV10 = { qty?: number | string; unitPrice?: number | string; vatRate?: number | string; noDiscount?: boolean };
 export type DocV10 = {
@@ -32,7 +32,7 @@ export const demo = exiger('../../banc/v10/demo.js') as { buildDemoData: (c: Soc
 // charge un autre (core.js charge « ./compta ») le reçoit de la même façon.
 export function ecranDeLaPlateforme(fichier: string): unknown {
   const module = { exports: {} as unknown };
-  const source = fs.readFileSync(new URL(`../../web/public/v10/${fichier}`, import.meta.url), 'utf8');
+  const source = lireEcran(`v10/${fichier}`);
   const charger = (nom: string) => ecranDeLaPlateforme(path.posix.join(path.posix.dirname(fichier), `${nom.replace(/\.js$/, '')}.js`));
   (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: fichier }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, charger);
   return module.exports;

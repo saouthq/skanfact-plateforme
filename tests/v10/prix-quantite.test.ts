@@ -5,10 +5,9 @@
 //     en disant lequel.
 // Les données discriminent : des paliers donnés dans le désordre, une quantité à décimales (9,5 sacs).
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Palier = { min: number; prix: number };
 type Core = {
@@ -17,7 +16,7 @@ type Core = {
   paliersEnTexte: (paliers: Palier[]) => string;
 };
 const module = { exports: {} as unknown };
-const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const source = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports as Core;
 

@@ -3,10 +3,9 @@
 //   - le kit n'a pas de stock à lui : il en reste ce que ses composants permettent d'en faire ;
 //   - « stock insuffisant » regarde ses composants.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Mouvement = { itemId: string; qty: number; source: string; note: string; docId: string };
 type Core = {
@@ -18,7 +17,7 @@ type Core = {
   stockImpact: (doc: unknown, data: unknown) => { label: string; have: number; need: number; after: number }[];
 };
 const module = { exports: {} as unknown };
-const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const source = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports as Core;
 

@@ -10,8 +10,6 @@
 //   - le timbre de l'exemple vaut pour ses années d'avant la règle commune : une règle de CETTE entreprise, datée ;
 //   - il ne se verse qu'une fois, dans une entreprise d'essai qui n'a pas de pièces à elle ; jamais dans une vraie.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import type { Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
@@ -20,6 +18,7 @@ import { tracer } from '../trace.ts';
 import { appliquer, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
 import type { Json } from './lecture.ts';
 import './textes.ts';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 // Le jeu d'exemple est le code de la v10 que servent les écrans (web/public/v10), chargé une fois : le même exemple
 // qu'à l'écran, au même jour, aux mêmes montants (un tirage fixe : demo.js).
@@ -29,7 +28,7 @@ function jeuDExemple(): Demo {
   if (demo) return demo;
   const executer = (fichier: string, exiger: (nom: string) => unknown) => {
     const module = { exports: {} as unknown };
-    const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10', fichier), 'utf8');
+    const source = lireEcran(`v10/${fichier}`);
     (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: fichier }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, exiger);
     return module.exports;
   };

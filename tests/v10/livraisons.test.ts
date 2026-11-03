@@ -8,10 +8,9 @@
 //   - le stock sort par les bons, jamais une seconde fois par la facture.
 // Les données discriminent : 2,5 t livrées 1,25 + 1,25 à 2 350,750 (une ligne par bon ferait un millime de plus).
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Ligne = Record<string, unknown> & { label: string; qty: number; ligneCommande?: number };
 type Doc = Record<string, unknown> & { id: string; type: string; status: string; lines: Ligne[]; number?: string };
@@ -31,7 +30,7 @@ type Core = {
   convertDoc: (doc: Doc, type: string, company: unknown, today: string, client: unknown) => Doc;
 };
 const module = { exports: {} as unknown };
-const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const source = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports as Core;
 

@@ -4,9 +4,9 @@
 //   - deux salariés payés par virement sur le même RIB, ou déclarés sous le même n° CNSS : le contrôle du mois le dit ;
 //   - la sortie du mois se proratise, et l'écart avec le mois d'avant dit « sortie le … », pas « brut changé » ;
 //   - sans bulletin le mois d'avant, il n'y a pas de contrôle « Écarts » (rien à comparer).
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Controle = { id: string; ok: boolean; titre: string; dit: string };
 type Core = {
@@ -18,11 +18,11 @@ type Core = {
 };
 const charger = (f: string, req: (n: string) => unknown) => {
   const m = { exports: {} as unknown };
-  vm.runInNewContext(fs.readFileSync(f, 'utf8'), { module: m, exports: m.exports, require: req, console });
+  vm.runInNewContext(lireEcran(f), { module: m, exports: m.exports, require: req, console });
   return m.exports;
 };
-const compta = charger('web/public/v10/compta.js', () => { throw new Error('compta.js ne charge rien'); });
-const core = charger('web/public/v10/core.js', () => compta) as Core;
+const compta = charger('v10/compta.js', () => { throw new Error('compta.js ne charge rien'); });
+const core = charger('v10/core.js', () => compta) as Core;
 
 const RIB = '08100123456789012359';
 const sal = (id: string, x: Record<string, unknown> = {}) => ({ id, name: `Salarié ${id}`, grossSalary: 1100.125, hireDate: '2023-03-10', contract: 'cdi',

@@ -1,0 +1,18 @@
+{
+  "_": "Le rangement (docs/cadrage/17-rangement.md § 3.1 et § 4.1). Pour chaque fichier servi (son adresse sous la racine des écrans construits), la liste ORDONNÉE de ses morceaux, chacun par son chemin depuis la racine du dépôt : le fichier servi est leur suite, octet pour octet (commun/assemblage.ts). Au lot R0a (03/11/2026), chaque fichier n'a qu'un morceau, lui-même : ce qui est servi ne change pas d'un octet. Les lots A le coupent en morceaux rangés sous modules/<module>/.",
+  "fichiers": {
+    "v10/app.js": ["web/public/v10/app.js"],
+    "v10/core.js": ["web/public/v10/core.js"],
+    "v10/compta.js": ["web/public/v10/compta.js"],
+    "v10/guide.js": ["web/public/v10/guide.js"],
+    "v10/visites.js": ["web/public/v10/visites.js"],
+    "v10/cabinet/app.js": ["web/public/v10/cabinet/app.js"],
+    "v10/cabinet/cabguide.js": ["web/public/v10/cabinet/cabguide.js"],
+    "v10/cabinet/cabvisites.js": ["web/public/v10/cabinet/cabvisites.js"],
+    "plateforme/pont.js": ["web/public/plateforme/pont.js"],
+    "plateforme/pont-cabinet.js": ["web/public/plateforme/pont-cabinet.js"],
+    "plateforme/paie.css": ["web/public/plateforme/paie.css"],
+    "plateforme/paie-maquette.css": ["web/public/plateforme/paie-maquette.css"],
+    "plateforme/paie-cabinet.css": ["web/public/plateforme/paie-cabinet.css"]
+  }
+}

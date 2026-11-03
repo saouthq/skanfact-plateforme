@@ -9,7 +9,6 @@
 //   - il ne se verse qu'une fois ; jamais dans une vraie entreprise, ni dans une entreprise d'essai qui a ses propres
 //     pièces, ni dans celle d'un autre — et un refus n'écrit rien.
 
-import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import type { FastifyInstance } from 'fastify';
@@ -23,6 +22,7 @@ import { routesSocle } from '../../serveur/routes/socle.ts';
 import { routesV10 } from '../../serveur/v10/routes.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 const pool = creerPool(inject('pgApp'));
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
@@ -40,7 +40,7 @@ type Objet = { collection: string; cle: string; contenu: Record<string, unknown>
 const v10 = (() => {
   const charger = (f: string, exiger: (n: string) => unknown) => {
     const module = { exports: {} as unknown };
-    (vm.runInThisContext(`(function (module, exports, require) {${fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10', f), 'utf8')}\n})`, { filename: f }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, exiger);
+    (vm.runInThisContext(`(function (module, exports, require) {${lireEcran(`v10/${f}`)}\n})`, { filename: f }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, exiger);
     return module.exports;
   };
   const compta = charger('compta.js', () => ({}));

@@ -128,6 +128,19 @@ vaut pour tout le dépôt.*
   commentaires et rien d'autre, chaque ligne à sa place (`web/alleger.ts`, 05/10/2026, `docs/leger.md` L6 : la
   première ouverture dépassait son seuil) ; un test relit l'arbre de syntaxe de chaque écran construit contre le
   dépôt. Une erreur signalée depuis un poste pointe donc la ligne du dépôt.
+  - **L'assemblage** (1.266.8, lot R0a du `17` § 4.1 ; `commun/assemblage.ts`, `modules/assemblage.json`) : les gros
+    fichiers servis (`v10/app.js`, `core.js`, `compta.js`, `guide.js`, `visites.js`, `cabinet/app.js`, `cabguide.js`,
+    `cabvisites.js`, les deux ponts, les trois feuilles de la paie) sont chacun la **suite de leurs morceaux**, octet
+    pour octet. La construction les écrit **avant** l'allègement ; en développement, un intermédiaire de Vite les sert
+    à la volée ; dans Node, un seul chargeur, `lireEcran(adresse)`, remplace les lectures recopiées de `web/public`
+    (le serveur pour le TEIF, l'exemple et le support ; les tests du moteur) ; `origine(adresse, ligne)` retrouve le
+    morceau d'une ligne. Au lot R0a, chaque fichier est son unique morceau : ce qui est servi n'a pas changé d'un octet
+    (construit avant et après, copies compressées comprises). Un test interdit à Node de relire un fichier assemblé en
+    direct (`tests/commun/assemblage.test.ts`).
+  - **Les fiches des modules** (1.266.8, lot R0e du `17` § 2.2) : `modules/ordre.json` (les onze modules du `02` § 2, le
+    socle en tête) et une fiche `modules/<module>/module.json` chacun : ses pages et leur famille au menu, les parties
+    du dossier dont il est le propriétaire, ses noms de gestes, ses schémas, ses dépendances (vers le haut seulement) ;
+    portes, points, emplacements et événements vides jusqu'au lot B0 (`tests/commun/fiches-modules.test.ts`).
   - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
     (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
     (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs

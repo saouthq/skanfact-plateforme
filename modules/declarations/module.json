@@ -1,0 +1,35 @@
+{
+  "_": "La fiche du module (17 § 2.2 ; 02 M1), posée au lot R0e (03/11/2026). Ses pages et leur famille au menu (17 § 1), les collections du dossier dont il est le propriétaire, le nom de ses gestes, ses schémas de la base, ses dépendances (02 § 2). Sa porte, ses points, ses emplacements et ses événements sont posés vides : les registres du socle arrivent au lot B0, et chaque boîte les remplit.",
+  "code": "declarations",
+  "nom": "Déclarations",
+  "phrase": "TVA du mois, retenues à la source, timbre, TFP et FOPROLOS, calendrier fiscal, salaires du mois saisis en total quand la paie est faite ailleurs (02 § 2). Ses gestes sont encore sous « compta » : ils changent de nom au lot de sa boîte.",
+  "codesDesGestes": [],
+  "dependances": [
+    "ventes",
+    "achats"
+  ],
+  "pages": [
+    {
+      "id": "compta",
+      "famille": "Argent"
+    }
+  ],
+  "collections": [
+    "fiscalFilings",
+    "fiscalDeadlines"
+  ],
+  "racine": [
+    "vatCarryIn"
+  ],
+  "schemas": [],
+  "porte": [],
+  "points": {
+    "declare": [],
+    "remplit": []
+  },
+  "emplacements": [],
+  "evenements": {
+    "annonce": [],
+    "ecoute": []
+  }
+}

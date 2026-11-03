@@ -5,9 +5,9 @@
 //     ce n° de badge, un passage déjà importé s'ignore, un badge inconnu se dit ;
 //   - la journée lue sur les badges : le retard dès le seuil réglé, ce qui passe la fin du planning (arrondi au pas réglé) ;
 //   - les anomalies : une entrée sans sortie, des jours de travail sans badge ni justificatif.
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Obj = Record<string, unknown>;
 type Jour = { jour: number; code: string; source: string; repos: boolean; retard?: number; ferie?: string; badge?: boolean };
@@ -22,7 +22,7 @@ type Compta = {
   poserSortie: (d: Obj, e: Obj, y: number, m: number, j: number, h: string) => boolean;
 };
 const m0 = { exports: {} as unknown };
-vm.runInNewContext(fs.readFileSync('web/public/v10/compta.js', 'utf8'), { module: m0, exports: m0.exports, require: () => { throw new Error('rien'); }, console });
+vm.runInNewContext(lireEcran('v10/compta.js'), { module: m0, exports: m0.exports, require: () => { throw new Error('rien'); }, console });
 const C = m0.exports as Compta;
 
 const fournil = { id: 'q1', nom: 'Le fournil, la nuit', debut: '03:00', fin: '11:00', jours: [1, 2, 3, 4, 5, 6], pointe: 'pointeuse', minimum: 2 };

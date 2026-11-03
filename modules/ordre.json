@@ -1,0 +1,16 @@
+{
+  "_": "L'ordre du 02 § 2 (docs/cadrage/02-modules.md ; 17 § 3.1) : la seule source du sens des dépendances. Un module ne dépend que du socle et des modules placés AVANT lui ; un module du haut qui a besoin d'un chiffre d'un module du bas déclare un point que l'autre remplit.",
+  "ordre": [
+    "socle",
+    "ventes",
+    "achats",
+    "tresorerie",
+    "declarations",
+    "pilotage",
+    "stock",
+    "caisse",
+    "personnel",
+    "compta-complete",
+    "cabinet"
+  ]
+}

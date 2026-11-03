@@ -10,10 +10,9 @@
 //   - la commande s'imprime pour le fournisseur.
 // Les données discriminent : 1,25 + 1,25 t de fer, une commande en euros au cours 3,3715.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Ligne = Record<string, unknown> & { label: string; qty: number; ligneCommande?: number; recue?: boolean };
 type Piece = Record<string, unknown> & { id: string; status: string; lines: Ligne[]; number?: string; supplierId?: string; orderId?: string };
@@ -36,7 +35,7 @@ type Core = {
   documentHtml: (doc: unknown, client: unknown, company: unknown) => string;
 };
 const module = { exports: {} as unknown };
-const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const source = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports as Core;
 

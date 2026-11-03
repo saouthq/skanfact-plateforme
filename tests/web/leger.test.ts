@@ -107,10 +107,12 @@ describe('léger sur une connexion lente', () => {
     // Une réponse de l'API de plus de 1 Ko (la documentation de l'API) : compressée.
     expect(await entetes('/v1/documentation', 'gzip, deflate, br')).toMatchObject({ statut: 200, encodage: 'br', cache: 'no-store' });
     expect(await entetes('/v1/documentation', 'gzip')).toMatchObject({ statut: 200, encodage: 'gzip' });
-    // Un petit envoi (le dossier d'une entreprise neuve : moins de 1 Ko) part tel quel : le compresser coûterait plus
-    // qu'il ne gagne ; jamais gardé.
+    // Un petit envoi (moins de 1 Ko : qui est connecté et ses entreprises) part tel quel : le compresser coûterait plus
+    // qu'il ne gagne ; jamais gardé. (03/11/2026 : le test lisait le dossier d'une entreprise neuve, passé à 1 046 octets
+    // avec les règles de la paie, 1.266.6 et 1.266.7 ; il le compresse, à raison : la règle est la taille, pas la route.)
     const auth = { authorization: `Bearer ${jeton}` };
-    const petit = await entetes(`/v1/entreprises/${ent}/dossier-v10`, 'gzip, deflate, br', auth);
+    expect((await entetes(`/v1/entreprises/${ent}/dossier-v10`, 'gzip, deflate, br', auth)).statut).toBe(200);
+    const petit = await entetes('/v1/moi', 'gzip, deflate, br', auth);
     expect(petit).toMatchObject({ statut: 200, encodage: null, cache: 'no-store' });
     expect(petit.taille).toBeLessThanOrEqual(1024);
   });

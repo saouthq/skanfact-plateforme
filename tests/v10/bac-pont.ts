@@ -2,11 +2,10 @@
 // demande, ce qu'il ouvre, ce qu'il garde pour la page suivante. Partagé par tests/v10/pont-exemple.test.ts et
 // tests/v10/pont-ouverture.test.ts.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
+import { lireEcran } from '../../commun/assemblage.ts';
 
-const PONT = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/plateforme/pont.js'), 'utf8');
+const PONT = lireEcran('plateforme/pont.js');
 
 // `texte` : une réponse qui ne vient pas du serveur (un relais, le frontal), telle quelle.
 export type Reponse = { statut: number; corps?: unknown; texte?: string };

@@ -1,0 +1,32 @@
+{
+  "_": "La fiche du module (17 § 2.2 ; 02 M1), posée au lot R0e (03/11/2026). Ses pages et leur famille au menu (17 § 1), les collections du dossier dont il est le propriétaire, le nom de ses gestes, ses schémas de la base, ses dépendances (02 § 2). Sa porte, ses points, ses emplacements et ses événements sont posés vides : les registres du socle arrivent au lot B0, et chaque boîte les remplit.",
+  "code": "tresorerie",
+  "nom": "Trésorerie",
+  "phrase": "Comptes, mouvements, virements entre comptes, relevés importés, rapprochement et prévision (02 § 2).",
+  "codesDesGestes": [
+    "tresorerie"
+  ],
+  "dependances": [],
+  "pages": [
+    {
+      "id": "tresorerie",
+      "famille": "Argent"
+    }
+  ],
+  "collections": [
+    "accounts",
+    "movements"
+  ],
+  "racine": [],
+  "schemas": [],
+  "porte": [],
+  "points": {
+    "declare": [],
+    "remplit": []
+  },
+  "emplacements": [],
+  "evenements": {
+    "annonce": [],
+    "ecoute": []
+  }
+}

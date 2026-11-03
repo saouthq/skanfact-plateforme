@@ -2,14 +2,13 @@
 // globale, ou plus quand le prix d'une ligne est baissé sous celui que SkanFact proposerait à ce client (sa liste de
 // prix, le palier de sa quantité, converti dans la devise de la pièce).
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Core = { remiseEffective: (data: unknown, doc: unknown, company: unknown) => { taux: number; ligne: string } };
 const module = { exports: {} as unknown };
-const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const source = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports as Core;
 

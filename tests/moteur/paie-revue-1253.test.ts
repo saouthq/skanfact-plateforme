@@ -2,9 +2,9 @@
 //   - le mois en cours ne se dit ni « pointé » ni « sauté » : il se pointe jusqu'à son dernier jour (le 2 novembre, la frise
 //     cochait « Pointer : le mois est pointé ») ; un mois fini le dit comme avant ;
 //   - un doublon (même n° CNSS, même RIB) dit de qui il est le double : l'écran regroupe les fiches d'un même numéro.
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Etape = { titre: string; fait: boolean; dit: string; etat: string };
 type Core = {
@@ -17,11 +17,11 @@ type Core = {
 };
 const charger = (f: string, req: (n: string) => unknown) => {
   const m = { exports: {} as unknown };
-  vm.runInNewContext(fs.readFileSync(f, 'utf8'), { module: m, exports: m.exports, require: req, console });
+  vm.runInNewContext(lireEcran(f), { module: m, exports: m.exports, require: req, console });
   return m.exports;
 };
-const compta = charger('web/public/v10/compta.js', () => { throw new Error('compta.js ne charge rien'); });
-const core = charger('web/public/v10/core.js', () => compta) as Core;
+const compta = charger('v10/compta.js', () => { throw new Error('compta.js ne charge rien'); });
+const core = charger('v10/core.js', () => compta) as Core;
 
 const RIB = '08100123456789012359';
 const sal = (id: string, x: Record<string, unknown> = {}) => ({ id, name: `Salarié ${id}`, grossSalary: 1100.125, hireDate: '2023-03-10', contract: 'cdi',

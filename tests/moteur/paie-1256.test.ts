@@ -4,9 +4,9 @@
 //   - les primes et retenues du mois (« variables ») : une prime entre au brut, une retenue sort du net, le mois seul ;
 //   - l'indemnité de licenciement : rien sans barème réglé, sinon jours × années × salaire d'un jour ;
 //   - le reçu d'un salaire payé en espèces, à faire signer.
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Emp = Record<string, unknown>;
 type Compta = {
@@ -22,11 +22,11 @@ type Compta = {
 type Core = { payrollSettings: (d: unknown) => unknown; recuSalaireEspecesHtml: (co: unknown, o: unknown) => string };
 const charger = (f: string, req: (n: string) => unknown) => {
   const m = { exports: {} as unknown };
-  vm.runInNewContext(fs.readFileSync(f, 'utf8'), { module: m, exports: m.exports, require: req, console });
+  vm.runInNewContext(lireEcran(f), { module: m, exports: m.exports, require: req, console });
   return m.exports;
 };
-const C = charger('web/public/v10/compta.js', () => { throw new Error('compta.js ne charge rien'); }) as Compta;
-const core = charger('web/public/v10/core.js', () => C) as Core;
+const C = charger('v10/compta.js', () => { throw new Error('compta.js ne charge rien'); }) as Compta;
+const core = charger('v10/core.js', () => C) as Core;
 const st = core.payrollSettings({ company: { currency: 'TND' }, settings: {}, employees: [] });
 const sal = (x: Emp = {}): Emp => ({ id: 'a', name: 'Karim Zouari', grossSalary: 1100.125, hireDate: '2023-03-10', contract: 'cdi', headOfFamily: true, children: 2, ...x });
 

@@ -6,10 +6,9 @@
 //   - une facture tirée de bons déjà comptés comme livrés ne les compte pas deux fois.
 // Les données discriminent : un règlement partiel, une facture en euros au cours 3,3715.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Doc = Record<string, unknown> & { id: string };
 type Core = {
@@ -17,7 +16,7 @@ type Core = {
   depassementEncours: (data: unknown, doc: Doc, company: unknown) => null | { plafond: number; encours: number; piece: number; apres: number; depasse: number };
 };
 const module = { exports: {} as unknown };
-const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const source = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports as Core;
 

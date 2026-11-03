@@ -1,0 +1,46 @@
+{
+  "_": "La fiche du module (17 § 2.2 ; 02 M1), posée au lot R0e (03/11/2026). Ses pages et leur famille au menu (17 § 1), les collections du dossier dont il est le propriétaire, le nom de ses gestes, ses schémas de la base, ses dépendances (02 § 2). Sa porte, ses points, ses emplacements et ses événements sont posés vides : les registres du socle arrivent au lot B0, et chaque boîte les remplit.",
+  "code": "achats",
+  "nom": "Achats",
+  "phrase": "Achats et dépenses, commandes fournisseurs et réceptions, règlements versés, retenue opérée, lecture d'une pièce (02 § 2).",
+  "codesDesGestes": [
+    "achats"
+  ],
+  "dependances": [],
+  "pages": [
+    {
+      "id": "achats",
+      "famille": "Acheter"
+    },
+    {
+      "id": "commandesf",
+      "famille": "Acheter"
+    },
+    {
+      "id": "fournisseurs",
+      "famille": "Acheter"
+    }
+  ],
+  "collections": [
+    "purchases",
+    "supplierOrders",
+    "receptions"
+  ],
+  "racine": [
+    "expenseCategories",
+    "fixedCategories"
+  ],
+  "schemas": [
+    "achats"
+  ],
+  "porte": [],
+  "points": {
+    "declare": [],
+    "remplit": []
+  },
+  "emplacements": [],
+  "evenements": {
+    "annonce": [],
+    "ecoute": []
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "_": "La fiche du module (17 § 2.2 ; 02 M1), posée au lot R0e (03/11/2026). Ses pages et leur famille au menu (17 § 1), les collections du dossier dont il est le propriétaire, le nom de ses gestes, ses schémas de la base, ses dépendances (02 § 2). Sa porte, ses points, ses emplacements et ses événements sont posés vides : les registres du socle arrivent au lot B0, et chaque boîte les remplit.",
+  "code": "ventes",
+  "nom": "Ventes",
+  "phrase": "Devis, factures, avoirs, proforma, bons et contrats, facturation récurrente, relances, listes de prix, règlements reçus, facture électronique et espace client (02 § 2).",
+  "codesDesGestes": [
+    "ventes"
+  ],
+  "dependances": [],
+  "pages": [
+    {
+      "id": "devis",
+      "famille": "Vendre"
+    },
+    {
+      "id": "factures",
+      "famille": "Vendre"
+    },
+    {
+      "id": "relances",
+      "famille": "Vendre",
+      "vueDe": "factures"
+    },
+    {
+      "id": "autres",
+      "famille": "Vendre"
+    },
+    {
+      "id": "contrats",
+      "famille": "Vendre",
+      "vueDe": "autres"
+    },
+    {
+      "id": "listesprix",
+      "famille": "Articles et stock"
+    }
+  ],
+  "collections": [
+    "documents",
+    "recurring",
+    "templates",
+    "snippets",
+    "projects",
+    "projectTime",
+    "priceLists"
+  ],
+  "racine": [],
+  "schemas": [
+    "ventes"
+  ],
+  "porte": [],
+  "points": {
+    "declare": [],
+    "remplit": []
+  },
+  "emplacements": [],
+  "evenements": {
+    "annonce": [],
+    "ecoute": []
+  }
+}

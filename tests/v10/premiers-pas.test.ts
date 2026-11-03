@@ -13,13 +13,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Etape = { id: string; titre: string; fait: boolean; action: string | null; quoi: string; badge?: string; facultatif?: boolean; attente?: string };
 type Pas = { etapes: Etape[]; faits: number; total: number; fini: boolean; demarrage: boolean; suivante: Etape | null };
 type Etat = { compte?: { adresseVerifiee: boolean; courriel: boolean; codeActif: boolean } | null; mandat?: string | null; essai?: boolean };
 
 const module = { exports: {} as unknown };
-const core = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const core = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${core}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports;
 const fenetre: { SkanPremiersPas?: { etapes: (c: unknown, d: unknown, co: unknown, e?: Etat) => Pas } } = {};

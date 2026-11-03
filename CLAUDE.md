@@ -26,7 +26,8 @@ qu'une règle qui vaut pour TOUT le dépôt, en une ou deux lignes.*
   **depuis le 26/10/2026 il se modifie directement** (Skander : « la vraie version à jour est dans skanfact-plateforme ») ;
   les fiches de retouche d'avant (`web/v10/`) ne sont plus qu'une archive, à ne plus rejouer. Le pont
   (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur ; la coquille (barre, menus) vit dans
-  `web/public/plateforme/barre.js`. Les écrans écrits pour la plateforme (l'entrée, la console) sont en React.
+  `web/public/plateforme/barre.js`. Les écrans écrits pour la plateforme (l'entrée, la console) sont en React. Les gros
+  fichiers sont **assemblés** de leurs morceaux (`modules/assemblage.json`) : Node les lit par `lireEcran`, jamais en direct.
 - **Les serveurs** (`docs/mise-en-ligne.md`, B et L) : chacun suit sa branche tout seul. `app.skanfact.tn` (données
   inventées) suit **`main`**, les versions validées ; `dev.skanfact.tn` (données inventées) suit **`dev`**, le travail du
   jour, dès qu'il est envoyé ; personne ne s'y connecte, sauf Claude

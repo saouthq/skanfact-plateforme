@@ -7,17 +7,16 @@
 //     le prix de l'article.
 // Les données discriminent : une catégorie écrite « revendeur » sur la fiche et « Revendeur » sur la liste.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Core = {
   listesPrixApplicables: (data: unknown, clientId: string, date: string) => { id: string }[];
   prixArticlePour: (data: unknown, item: unknown, clientId: string, date: string, qty: number) => { prix: number; source: string; liste: string };
 };
 const module = { exports: {} as unknown };
-const source = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
+const source = lireEcran('v10/core.js');
 (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: 'core.js' }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, () => ({}));
 const C = module.exports as Core;
 

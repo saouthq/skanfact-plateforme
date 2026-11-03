@@ -8,9 +8,8 @@
 // Le code de l'écran est chargé ici une fois, comme les bancs de test le chargent (tests/moteur/v10.ts) :
 // le paquet est en modules ES, et ces fichiers attendent l'objet `module` de CommonJS.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Json = Record<string, unknown>;
 export type Manque = { cible: string; message: string };
@@ -22,13 +21,13 @@ type Teif = {
   teifXml: (doc: Json, client: Json | null, societe: Json, opts?: { facture?: Json | null }) => Fichier;
 };
 
-const ECRAN = path.join(import.meta.dirname, '../../web/public/v10');
 const charges = new Map<string, unknown>();
 function charger(fichier: string): unknown {
   const deja = charges.get(fichier);
   if (deja) return deja;
   const module = { exports: {} as unknown };
-  const source = fs.readFileSync(path.join(ECRAN, fichier), 'utf8');
+  // Le fichier de l'écran tel qu'il est servi : assemblé de ses morceaux (commun/assemblage.ts ; 17 § 4.1).
+  const source = lireEcran(`v10/${fichier}`);
   (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: fichier }) as (m: unknown, e: unknown, r: unknown) => void)(
     module, module.exports, (nom: string) => charger(`${nom.replace(/^\.\//, '')}.js`));
   charges.set(fichier, module.exports);

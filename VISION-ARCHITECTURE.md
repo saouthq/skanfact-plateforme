@@ -196,7 +196,8 @@ viendront plus tard — mais l'API existera déjà, testée chaque jour par nos 
 - **TypeScript** (JavaScript avec des types vérifiés) : sur deux ans et 100 000 lignes, il évite toute
   une famille de défauts que nos tests attrapent aujourd'hui trop tard.
 - **Une vraie bibliothèque d'interface** : les 19 000 lignes de `src/renderer/app.js` en un seul bloc
-  ne tiendront pas vingt modules.
+  ne tiendront pas vingt modules. (03/11/2026 : repris tel quel, ce fichier en compte 33 000, et le Cabinet 22 000 ; le
+  rangement les sort module par module, chacun dans son dossier, `docs/cadrage/17-rangement.md`.)
 - **On garde le moteur** (`core.js` et `compta.js`, ~17 500 lignes) **et ses tests** : c'est la vraie
   valeur du projet. Il est porté, pas réécrit.
 - **On reprend le CODE de l'interface v10** (Skander, 28/09/2026 : « récupérer le même code et l'adapter, pas

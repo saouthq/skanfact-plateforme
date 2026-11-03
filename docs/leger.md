@@ -65,7 +65,8 @@ Retenu : le troisième. Le code de la v10 et de la plateforme est écrit pour ê
 son poids est fait de commentaires en français, dont le navigateur n'a que faire.
 
 - **Comment** (`web/alleger.ts`, branché sur la construction par `web/vite.config.ts`) : Vite copie `public/` tel
-  quel, puis chaque script et chaque feuille de style de nos écrans (`v10`, `plateforme`, `espace`) perd ses
+  quel, les gros fichiers y sont **assemblés** de leurs morceaux (1.266.8 ; `commun/assemblage.ts`, `17` § 4.1 : avant
+  l'allègement, dans la même étape, les octets servis inchangés), puis chaque script et chaque feuille de style de nos écrans (`v10`, `plateforme`, `espace`) perd ses
   commentaires, **et rien d'autre** : ni code réécrit, ni noms raccourcis. Les commentaires d'un script, c'est
   l'analyseur que Vite embarque qui les trouve (oxc, par rolldown) : un « // » dans une chaîne, un gabarit ou une
   expression régulière n'en est pas un. Ceux d'une feuille de style, une lecture qui saute les chaînes, les adresses
