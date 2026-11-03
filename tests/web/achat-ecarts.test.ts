@@ -151,6 +151,15 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     await expect.poll(async () => net(await p.locator('#ac-band-justif').innerText().catch(() => '')), { timeout: 20_000 })
       .toBe(`Aucun justificatif : ni la charge ni la TVA ne sont récupérables sans lui Hatem, de ton cabinet, te l'a demandé le ${jm(auj)} dans votre fil. Joins la photo, le PDF ou le fichier El Fatoora de la pièce : il se range ici, et ton cabinet le verra. Joindre la pièce`);
     await p.screenshot({ path: path.join(PHOTOS, 'achat-ecarts-2-demande-du-cabinet.png') });
+
+    // 5. Un achat en devise sans taux de change est refusé, et le refus le dit (03/11/2026 : il levait « charte is not
+    // defined », un nom de la page des factures, et rien ne s'affichait).
+    await p.evaluate(() => { location.hash = '#/achat/e1'; });
+    await expect.poll(() => p.locator('#ac-puce-dev select[name=currency]').inputValue().catch(() => ''), { timeout: 20_000 }).toBe('EUR');
+    await p.locator('#ac-puce-dev input[name=exchangeRate]').fill('');
+    await p.locator('#save').click();
+    await expect.poll(async () => net(await p.locator('#toast .toast-txt').innerText().catch(() => '')), { timeout: 10_000 })
+      .toBe('Indique le taux de change : combien vaut 1 EUR en DT ? Sans lui, ta TVA déductible et tes charges compteraient 1 EUR = 1 DT.');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);

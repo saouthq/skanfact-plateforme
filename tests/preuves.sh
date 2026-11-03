@@ -22905,6 +22905,11 @@ prouver 'tréso 1.266 k : une traite est datée du jour où on la reçoit, pas d
 prouver 'tréso 1.266 l : le bouton principal ne propose plus de pointer le relevé' web/public/v10/app.js \
   '        : aPointer > 0 ? { id: '\''tr-pointer'\''' '        : false ? { id: '\''tr-pointer'\''' \
   'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
+# ── Les corrections urgentes de la paie et de l'achat (16 § 10.1, 17 lot V1 ; nuit du 03/11/2026) ──
+prouver 'urgence V1 : l'"'"'achat en devise sans taux lève une erreur au lieu du refus' web/public/v10/app.js \
+  'return refus('"'"'[name=exchangeRate]'"'"',' 'return refus(charte ? '"'"'[data-etq=devise]'"'"' : '"'"'[name=exchangeRate]'"'"',' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

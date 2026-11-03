@@ -88,6 +88,8 @@ que la lecture d'une facture.
   acceptait le millième d'euro.
 - **D5.** Un achat en devise porte son taux de change (l'éditeur de la v10 l'exige déjà) : sans lui,
   la TVA déductible et les charges compteraient une unité de la devise pour un dinar.
+  (1.266.1, 03/11/2026 : depuis la nouvelle page de l'achat, ce refus levait une erreur — il visait un nom de la page
+  des factures — et ne s'affichait plus ; il s'affiche et montre le champ du taux. Test : `achat-ecarts`, étape 5.)
 - **D6.** « Récupérer la TVA » : la valeur de la pièce ; sans elle, le régime de l'entreprise le jour
   de l'enregistrement (forfaitaire et exonéré ne la récupèrent pas). La pièce le garde : un
   changement de régime ne réécrit pas les achats d'avant.

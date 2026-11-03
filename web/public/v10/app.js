@@ -17131,7 +17131,9 @@
       // charge, le résultat, le stock, les écritures et le paquet du comptable compteraient
       // 1 euro = 1 dinar. Il est donc obligatoire, pas conseillé.
       if (C.missingRate(p, company())) {
-        return refus(charte && $('[data-etq=devise]') ? '[data-etq=devise]' : '[name=exchangeRate]',
+        // (plateforme, 03/11/2026) Le champ du taux est dans la puce « Devise » de l'achat. `charte` (un nom de la page des
+        // factures) n'existe pas ici : le refus levait une erreur et ne s'affichait jamais.
+        return refus('[name=exchangeRate]',
           `Indique le taux de change : combien vaut 1 ${p.currency} en ${company().currency} ? Sans lui, ta TVA déductible et tes charges compteraient 1 ${p.currency} = 1 ${company().currency}.`);
       }
       if (!p.lines.some(l => (l.label || '').trim() || Number(l.unitPrice))) return refus('#b-lines input[data-k=label]', 'Saisis au moins une ligne avec un montant.');
