@@ -280,7 +280,8 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   `guide.js`, `visites.js`, `cabinet/app.js`, `cabinet/cabguide.js`, `cabinet/cabvisites.js` ; les deux ponts de
   `web/public/plateforme/`) : un
   module qu'on refait en sort d'abord, puis on le change ; tous en sortent, y compris ceux déjà refaits. Plan, ordre et
-  contrôle des frontières : `docs/cadrage/17-rangement.md`. Seule exception : une correction urgente, notée pour la sortie.
+  contrôle des frontières : `docs/cadrage/17-rangement.md`. Exceptions : une correction urgente, notée pour la sortie ; les
+  chantiers commencés avant le 03/11/2026 (devis lot 5, achat 6c et 6d, pointage), finis avant leur déménagement.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les

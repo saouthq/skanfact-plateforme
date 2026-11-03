@@ -1,6 +1,7 @@
 # 16 — Le module Personnel
 
-*Proposé le 03/11/2026, à valider par Skander. Point de départ (Skander, 03/11/2026 : « je suis d'accord avec ton
+*Proposé le 03/11/2026, **validé par Skander le même jour** (« Je suis d'accord avec tout ce que tu m'as dit ») : les huit décisions de l'En bref sont prises
+selon la recommandation de Claude, et les lignes « proposé » du § 14 deviennent des décisions. Point de départ (Skander, 03/11/2026 : « je suis d'accord avec ton
 cadrage . faut le faire go ») : la Paie devient un module plus complet, **Personnel** ; tout ce qui touche à une personne
 employée y passe (contrat, avenant, salaire, paiement, documents, départ), et le **planning de la semaine** est au
 lancement. Ce document suit `02-modules.md` (les modules, leurs portes, le sens des dépendances), `03-droits.md`,
@@ -46,7 +47,8 @@ fois (chaque constat suivi, une relecture à froid, chaque défaut annoncé conf
 - **Personnel est le premier module à sortir des gros fichiers**, dans son propre dossier (règle du 03/11/2026 ; le plan
   viendra dans le `17`, à écrire et à valider avant).
 
-**Ce que tu dois décider** (ma recommandation entre parenthèses ; le reste du document suit ces choix) :
+**Ce que tu as décidé le 03/11/2026** (chaque fois selon la recommandation entre parenthèses ; le reste du document suit
+ces choix) :
 
 1. **Chiffrer la CIN et le RIB de chaque salarié, que nos serveurs gardent déjà en clair** dans le dossier de
    l'entreprise (seule la fiche de paie du serveur ne les a pas, décision du 29/09/2026 prise par délégation). Lisibles
@@ -826,6 +828,10 @@ Concurrents (relevés le 03/11/2026 ; ce qu'on en dit est leur affirmation) : [O
 ---
 
 ## 14. Décisions de ce document
+
+*Le 03/11/2026, Skander a validé le document entier (« Je suis d'accord avec tout ce que tu m'as dit ») : chaque ligne « proposé » ci-dessous est décidée,
+ainsi que les huit décisions de l'En bref et les avis de Claude sur les quatre questions de prix du § 9. Ce qui est À
+VÉRIFIER (le droit, les taux) le reste : aucune règle de droit n'entre avant la réponse du comptable ou du juriste.*
 
 | Date | Décision |
 |---|---|

@@ -1,6 +1,7 @@
 # 17 — Le rangement de SkanFact
 
-*Proposé le 03/11/2026, à valider par Skander. Point de départ : deux décisions de Skander du même jour. D'abord « je suis
+*Proposé le 03/11/2026, **validé par Skander le même jour** (« Je suis d'accord avec tout ce que tu m'as dit ») : les quatre décisions de l'En bref sont prises
+selon la recommandation de Claude. Point de départ : deux décisions de Skander du même jour. D'abord « je suis
 d'accord avec toi sur le fond et sur le menu aussi » : le menu de l'entreprise passe à six familles, une seule liste de
 modules, un dossier par module. Ensuite « oui je suis d'accord alors de tout sortir , il faut faire ce qu'on a deja fait
 la refonte et paie aussi. et note le comme regle afin que les prochains savent » : **tout** sort des gros fichiers, y
@@ -32,7 +33,7 @@ et par les risques ; un jugement qui a vérifié leurs chiffres et retenu le mei
   déménagements, rien ne change (octets identiques) ; ensuite, chaque lot qui ferme une porte peut ajouter 1 Ko au plus,
   mesuré (environ 25 Ko au pire) ; on la réduit à part (§ 4.3).
 
-**Ce que tu dois décider** (ma recommandation entre parenthèses) :
+**Ce que tu as décidé le 03/11/2026** (chaque fois selon la recommandation entre parenthèses) :
 
 1. **Valider ce plan.** Le `16` l'exige avant de sortir le Personnel. (Oui.)
 2. **Le calendrier, et une exception à ta règle.** La paie refaite attend environ 10 lots de préparation (refaire la
@@ -342,6 +343,11 @@ P1b, soit 10 lots.** En même temps, dans la même session : les corrections urg
 ---
 
 ## 9. Décisions de ce document
+
+*Le 03/11/2026, Skander a validé le document entier (« Je suis d'accord avec tout ce que tu m'as dit ») : chaque ligne « proposé » et « à décider » ci-dessous
+est décidée selon la recommandation de Claude : on finit les chantiers commencés avant leur déménagement (seconde
+exception, écrite au `CLAUDE.md`), les visites guidées se chargent à la demande, et le chargement à la demande des
+modules attend la fin du rangement.*
 
 | Date | Décision |
 |---|---|

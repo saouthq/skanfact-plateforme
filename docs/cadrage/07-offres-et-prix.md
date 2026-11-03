@@ -57,6 +57,9 @@ plus une caisse et un établissement.
   utilisateurs sont illimités dans toutes les offres.
 - Établissement supplémentaire : **120 DT par an** (avec sa série de tickets ; la caisse se paie à part).
 - Salarié au-delà de 20 (Complet) : **12 DT par an**.
+- **Qui est compté** (Skander, 03/11/2026, `16` § 9) : un salarié compte le mois où il a un bulletin dans SkanFact ; un
+  extra seulement au planning, ou un salarié dont la paie est faite ailleurs, ne compte pas. Une seule définition, pour
+  l'offre, la console et l'écran.
 
 **Mensuel ou annuel** : l'annuel est proposé d'abord (deux mois offerts). Le mensuel existe parce
 qu'une petite boutique paie souvent au mois. Il n'y a pas de prélèvement automatique en Tunisie :

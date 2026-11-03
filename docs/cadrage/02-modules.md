@@ -289,7 +289,8 @@ Règle (principe 3 de `07`) : **ce que le cabinet fait pour son client ne se fac
   et Paie, **quelle que soit l'offre du client**. Il tient la comptabilité ou fait la paie de son
   client ; c'est son métier et son outil.
 - Le **client**, lui, voit ces modules selon **son** offre. Un client en Essentiel dont le cabinet
-  fait la paie voit ses bulletins en **lecture** (ils le concernent), sans pouvoir en créer.
+  fait la paie voit ses bulletins en **lecture** (ils le concernent), sans pouvoir en créer ; il saisit les faits que son
+  cabinet lui demande (congés, absences, avances), qui partent au cabinet (Skander, 03/11/2026, `16` § 9).
 - Un dossier tenu par le cabinet pour un client **non abonné** est facturé au cabinet (`07`), avec
   tous les modules.
 - Si l'abonnement du client **s'arrête**, le client passe en lecture seule (`07`), et le cabinet
