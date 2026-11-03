@@ -107,6 +107,22 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     await p.locator('#p-tabs [data-ong="achats"]').click();
     await expect.poll(() => p.locator('#p-buys').isVisible()).toBe(true);
     expect(net(await p.locator('#p-buys').innerText())).toContain('CB-2026-77');
+    // (1.262.0) Où en est le chantier : facturé sur prévu, encaissé sur facturé.
+    expect(await p.locator('.mg-av .mg-av-t').allInnerTexts().then((l) => l.map(net))).toEqual([
+      'Facturé 283,517 DT : tout ce qui était prévu est facturé', 'Encaissé 0,000 DT sur 337,385 DT TTC · 337,385 DT à encaisser']);
+    // Un budget d'achats de 80 : la barre dit le dépassement, en rouge.
+    await p.locator('#p-budget').click();
+    await p.locator('#modal-root [name=budget]').fill('80');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('.mg-av').nth(2).innerText().then(net).catch(() => '')).toBe('Achats sur le budget 100,250 DT : budget de 80,000 DT dépassé de 20,250 DT');
+    expect(await p.locator('.mg-av').nth(2).locator('i').getAttribute('class')).toBe('rouge');
+    // Détacher l'achat depuis sa ligne, puis « Annuler » le remet.
+    await p.locator('#p-tabs [data-ong="achats"]').click();
+    await p.locator('#p-buys .row-menu-btn').click();
+    await p.locator('.row-menu').getByRole('menuitem', { name: /Détacher de l'affaire/ }).click();
+    await expect.poll(() => p.locator('#p-buys .mg-vide b').innerText().catch(() => '')).toBe('Aucun achat rattaché');
+    await p.locator('#toast.show.avec-bouton').getByRole('button', { name: 'Annuler' }).click();
+    await expect.poll(() => p.locator('#p-buys tr[data-pc="a1"]').count()).toBe(1);
     await p.locator('#view .ed-retour-btn').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/marges');
 
@@ -120,6 +136,11 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     // Chaque chiffre dans sa case : le chiffre d'affaires sous « Vendu HT », la marge sous « Marge ».
     expect(await p.locator('#mg-body tfoot td').evaluateAll((l) => l.map((td) => (td as HTMLElement).innerText.replace(/\s+/g, ' ').trim()).slice(1, 5))).toEqual(['283,517', '', '283,517', '100 %']);
     await p.screenshot({ path: path.join(PHOTOS, 'marges-1-analyse.png') });
+    // Le seuil : la cascade se termine par le résultat de l'année.
+    await p.locator('#mg-tabs [data-tab="seuil"]').click();
+    await expect.poll(() => p.locator('#mg-body .mg-c.total').count()).toBe(1);
+    expect(net(await p.locator('#mg-body .mg-c').first().innerText())).toBe("Chiffre d'affaires HT 283,517 DT");
+    await p.locator('#mg-tabs [data-tab="affaires"]').click();
 
     // 3. Depuis la fiche du fournisseur, l'achat ouvert y ramène, par son chemin et par « ‹ ».
     await p.evaluate(() => { location.hash = '#/fournisseur/s1'; });

@@ -609,3 +609,20 @@ fournisseur, quand on appuie sur une ligne facture, le retour me renvoie vers ac
 | Le retour | Une pièce ouverte depuis la fiche d'un fournisseur, d'un client, d'une affaire ou d'un contrat y ramène : le « ‹ » dit « Revenir à … » et le chemin devient « Accueil › la fiche › la pièce » (au téléphone, ce lien est le retour). Ouverte depuis sa liste, elle ramène à la liste, comme avant |
 
 | La fiche d'une affaire | Le chemin « Accueil › Marges › l'affaire » et « ‹ », le statut, client et dates ; « Cette affaire perd de l'argent » en bandeau rouge ; un résumé de quatre chiffres (vendu, acheté, marge, en caisse) au lieu de quatre tuiles ; les ventes, les achats et les notes en onglets segmentés, chacun compté ; une affaire sans note propose d'en écrire une |
+
+## Le module Marges fini (1.262.0)
+
+Demande de Skander (03/11/2026) : « finir d'abord tout le module Marges, avec ses écrans, en mieux et plus ergonomique ». Test :
+`tests/web/marges-retour.test.ts` ; preuves « marges 1.262 a » à « d ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| La fiche d'une affaire, en tête | Le menu ⋯ (le même que dans la liste) à côté de « Modifier », « Devis », « Achat » |
+| Où en est le chantier | Trois barres : facturé sur prévu (devis encore ouverts compris), encaissé sur facturé TTC, achats sur le budget ; une barre sans base ne se montre pas ; tout fait en vert, budget dépassé en rouge |
+| Le budget d'achats | Nouveau champ facultatif de l'affaire (HT) ; vide, il n'existe pas. « Donner un budget d'achats » ouvre la fenêtre sur ce champ |
+| Ventes et Achats | Les tableaux des listes (numéro et nature, objet, date, statut, HT ; fournisseur et ce qui a été acheté, coût HT), un pied qui dit ce qui compte dans la marge, et sur chaque ligne le menu ⋯ : Ouvrir, « Détacher de l'affaire » d'un geste, avec « Annuler » |
+| Rattacher des pièces | La fenêtre dit, à chaque case cochée, ce que la sélection donne : vendu HT, acheté HT, marge et son taux |
+| La fenêtre d'une affaire | Le statut en boutons segmentés, le budget d'achats à côté du client |
+| Seuil de rentabilité | Le résultat de l'année en cascade (un signe par ligne, les « dont » en retrait, le sous-total de la marge sur coûts variables, le résultat souligné), le chiffre d'affaires minimum à côté avec sa jauge, par mois et par jour ouvré ; « Fixe ou variable ? » en boutons segmentés |
+| Contrats | Un pied de tableau : nombre de contrats et de factures, facturé, coût, marge, par mois |
+| Au téléphone | Les tableaux des marges en lignes compactes (le titre, le menu ⋯ à droite, les montants alignés), sans les cartes génériques qui écrivaient « ACTIONS » |

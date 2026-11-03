@@ -37,7 +37,7 @@ page de l'ancienne DA), les listes de prix, le catalogue, les relances.
 | **Les contrats, les affaires** | Sans maquette | tout |
 | **La trésorerie** | Sans maquette | tout |
 | **Les relances** | Sans maquette | tout |
-| Les marges (liste et fiche d'une affaire) | Fait (1.261.0, sans maquette à part) | — |
+| Le module Marges (affaires, fiche, où est la marge, contrats, seuil, fenêtres) | Fait (1.261.0 et 1.262.0, sans maquette à part) | — |
 | **Les statistiques** | Sans maquette | tout (les grands chiffres retirés des listes y vont, Skander 30/10) |
 | **Les listes de prix, les garanties** | Sans maquette | tout |
 | **Les immobilisations** (entreprise) | Sans maquette | tout |

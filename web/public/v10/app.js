@@ -17375,7 +17375,7 @@
     .sort((a, b) => (a.status === 'en cours' ? 0 : 1) - (b.status === 'en cours' ? 0 : 1) || (b.startDate || '').localeCompare(a.startDate || ''))
     .map(p => ({ v: p.id, label: p.name, sub: [clientName(p.clientId), p.status].filter(Boolean).join(' · '), text: `${p.name} ${clientName(p.clientId)}` })));
 
-  function projectForm(proj, done, preset) {
+  function projectForm(proj, done, preset, focus) {
     // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
     if (!proj && licenceBlock('Créer une affaire', 'pilotage')) return;
     const p = proj || Object.assign({ id: C.uid(), name: '', clientId: '', status: 'en cours', startDate: C.today(), endDate: '', notes: '' }, preset || {});
@@ -17388,7 +17388,8 @@
         <div class="field">${lbl('Client', 'mg.projectClient')}
           ${combo({ name: 'clientId', value: p.clientId, items: data.clients.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => ({ v: c.id, label: c.name, text: c.name })), placeholder: '— Aucun client précis —', search: 'Rechercher un client…' })}
         </div>
-        <label class="field">${lbl('Statut', 'mg.projectStatus')}<select name="status">${C.PROJECT_STATUSES.map(x => `<option value="${x}" ${p.status === x ? 'selected' : ''}>${h(optionStatut(x))}</option>`).join('')}</select></label>
+        ${field(lbl(`Budget d'achats HT (${h(C.normCurrency(company().currency))})`, 'mg.projectBudget'), 'budget', p.budget ? String(p.budget) : '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" placeholder="facultatif"')}
+        <div class="field span-2">${lbl('Statut', 'mg.projectStatus')}<div class="pa-seg" role="radiogroup" aria-label="Statut">${C.PROJECT_STATUSES.map(x => `<label><input type="radio" name="status" value="${x}" ${p.status === x ? 'checked' : ''}><span>${h(optionStatut(x))}</span></label>`).join('')}</div></div>
         ${dateFieldHtml(lbl('Début', 'mg.projectDates'), 'startDate', p.startDate, {})}
         ${dateFieldHtml(lbl('Fin (optionnel)', 'mg.projectDates'), 'endDate', p.endDate || '', { clearable: true })}
         <label class="field span-2">${lbl('Notes', 'mg.projectNotes')}<textarea name="notes">${h(p.notes || '')}</textarea></label>
@@ -17398,9 +17399,14 @@
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
         bindCombo($('[data-combo=clientId]', root), { items: data.clients.map(c => ({ v: c.id, label: c.name, text: c.name })), placeholder: '— Aucun client précis —' });
+        if (focus && $(`[name=${focus}]`, root)) setTimeout(() => $(`[name=${focus}]`, root).focus(), 0);
         $('#ok', root).onclick = () => {
           const v = formValues($('#pf3', root));
           if (!v.name.trim()) return refus($('[name=name]', root), 'Donne un nom à cette affaire.');
+          // (1.262.0) Le budget d'achats est facultatif ; vide, il n'existe pas (aucune barre, aucun dépassement).
+          const bud = String(v.budget || '').replace(/\s/g, '').replace(',', '.');
+          if (bud && !(Number(bud) > 0)) return refus($('[name=budget]', root), 'Le budget est une somme positive, ou rien.');
+          v.budget = bud ? C.round3(Number(bud)) : '';
           if (!proj && licenceBlock('Créer une affaire', 'pilotage')) return;
           Object.assign(p, v);
           if (!proj) data.projects.push(p);
@@ -17467,7 +17473,7 @@
           ${info('mg.projects')}</div>`;
       $('#mg-body').innerHTML = toutes.length && !list.length ? `${filtresAff}<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune affaire ne correspond</b><span>${pq ? `Rien pour « ${h(pq)} »` : 'Aucune affaire à ce statut'}.</span><button class="btn" id="mg-tout">Tout revoir</button></div>` : list.length ? `
         ${filtresAff}
-        <div class="lf-tab scroll-x"><table class="list lf-table mg-table"><thead><tr><th>Affaire</th><th>Client</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Acheté HT</th><th class="r">Marge</th><th class="r">En caisse</th><th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
+        <div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>Affaire</th><th>Client</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Acheté HT</th><th class="r">Marge</th><th class="r">En caisse</th><th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
             ${list.map(p => `<tr class="clickable" data-pid="${h(p.id)}">
               <td class="cn"><b>${h(p.name)}</b>${p.pending ? `<small>+ ${C.money(p.pending, cur)} en devis</small>` : ''}</td>
               <td class="cl">${p.clientId ? `<span class="cl-i">${pastilleClient(p.clientId)}<span><b>${h(clientName(p.clientId))}</b></span></span>` : '<span class="mu">—</span>'}</td>
@@ -17513,7 +17519,7 @@
           ${info('mg.analysis')}
           ${incomplete ? `<span class="small ambre">${pl(incomplete, 'ligne')} sans coût connu : ${incomplete > 1 ? 'leur marge est surestimée' : 'sa marge est surestimée'} (≈)</span>` : '<span class="small mu">Tous les coûts sont connus.</span>'}
         </div>
-        ${rows.length ? `<div class="lf-tab scroll-x"><table class="list lf-table mg-table"><thead><tr><th>${parClient ? 'Client' : 'Prestation'}</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Taux</th><th class="mg-barre-h"><span class="vh">Part de la marge</span></th></tr></thead><tbody>
+        ${rows.length ? `<div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>${parClient ? 'Client' : 'Prestation'}</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Taux</th><th class="mg-barre-h"><span class="vh">Part de la marge</span></th></tr></thead><tbody>
             ${vue.rows.map(r => `<tr${parClient && clientById(r.key) ? ` class="clickable" data-cl="${h(r.key)}"` : ''}>
               <td class="cl">${parClient && r.key ? `<span class="cl-i">${pastilleClient(r.key, r.label)}<span><b>${h(r.label)}</b></span></span>` : `<b>${h(r.label)}</b>`}</td><td class="r">${lfMontant(r.revenue, cur)}</td><td class="r">${lfMontant(r.cost, cur)}</td>
               <td class="r m${r.margin < 0 ? ' rouge' : ''}">${lfMontant(r.margin, cur)}</td>
@@ -17543,14 +17549,17 @@
         .filter(x => x.p.count > 0).sort((a, b) => b.p.margin - a.p.margin);
       $('#mg-body').innerHTML = rows.length ? `
         <div class="mg-intro"><span>Un contrat qui rapporte peu par mois mais tourne depuis deux ans vaut souvent mieux qu'une grosse affaire ponctuelle : il est prévisible, et il ne demande pas de vendre à nouveau. ${info('mg.contracts')}</span></div>
-        <div class="lf-tab scroll-x"><table class="list lf-table mg-table"><thead><tr><th>Contrat</th><th>Client</th><th class="r">Factures</th><th class="r">Facturé HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Par mois</th></tr></thead><tbody>
+        <div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>Contrat</th><th>Client</th><th class="r">Factures</th><th class="r">Facturé HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Par mois</th></tr></thead><tbody>
             ${rows.map(({ r, p }) => `<tr class="clickable" data-rid="${h(r.id)}">
               <td class="cn"><b>${h(objetDeContrat(r) || 'Contrat')}</b><small>depuis le ${C.fmtDate(p.first)}</small></td>
               <td class="cl"><span class="cl-i">${pastilleClient(r.clientId)}<span><b>${h(clientName(r.clientId))}</b></span></span></td><td class="r">${p.count}</td>
               <td class="r">${lfMontant(p.revenue, cur)}</td><td class="r">${lfMontant(p.cost, cur)}</td>
               <td class="r m${p.margin < 0 ? ' rouge' : ''}">${lfMontant(p.margin, cur)}${p.rate == null ? '' : `<small>${pct(p.rate)} %</small>`}</td>
               <td class="r">${lfMontant(p.perMonth, cur)}</td></tr>`).join('')}
-          </tbody></table></div>`
+          </tbody>
+          <tfoot><tr><td colspan="3"><span class="pied-t"><b>Total</b><span>${pl(rows.length, 'contrat')} · ${rows.reduce((x, { p }) => x + p.count, 0)} factures émises</span></span></td>
+            <td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.revenue, 0)), cur)}</td><td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.cost, 0)), cur)}</td>
+            <td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.margin, 0)), cur)}</td><td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.perMonth, 0)), cur)} <small class="dv">${h(symboleDevise(cur))}</small></td></tr></tfoot></table></div>`
         : `<div class="mg-vide">${lfIc('horloge', 24, 1.6)}<b>Pas encore de rentabilité à lire</b><span>${videContrats()}</span><button class="btn" id="mg-vers-contrats">Voir la facturation récurrente</button></div>`;
       $$('#mg-body tr[data-rid]').forEach(tr => tr.onclick = () => navigate('#/contrat/' + tr.dataset.rid));
       if ($('#mg-vers-contrats')) $('#mg-vers-contrats').onclick = () => navigate('#/contrats');
@@ -17560,43 +17569,42 @@
       const b = C.breakEven(data, company(), period());
       const cats = C.expenseCategories(data);
       const pctOf = v => b.breakEven ? Math.min(100, Math.round(v / Math.max(b.breakEven, b.revenue) * 100)) : 0;
-      $('#mg-body').innerHTML = `
-        <div class="panel mg-seuil"><h2>Seuil de rentabilité — ${s.year} ${info('mg.breakeven')}</h2>
-          ${b.breakEven == null ? `<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune vente en ${h(s.year)}</b><span>Le seuil se calcule dès la première facture émise de l'année.</span></div>` : `
-          <div class="vat-box" style="max-width:680px">
-            <div class="vat-line"><span>Chiffre d'affaires HT</span><span class="num">${C.money(b.revenue, cur)}</span></div>
-            <div class="vat-line minus"><span>− Charges variables ${info('mg.variable')}</span><span class="num">${C.money(b.variable, cur)}</span></div>
-            ${b.cogs ? `<div class="vat-line sub-line"><span class="muted">dont coût des sorties de stock ${info('stk.cogs')}</span><span class="num muted">${C.money(b.cogs, cur)}</span></div>` : ''}
-            <div class="vat-line"><span>= Marge sur coûts variables <span class="muted">(${pct(b.rate)} %)</span></span><span class="num">${C.money(b.marginOnVariable, cur)}</span></div>
-            <div class="vat-line minus"><span>− Charges fixes ${info('mg.fixed')}</span><span class="num">${C.money(b.fixed, cur)}</span></div>
-            ${b.payroll ? `<div class="vat-line sub-line"><span class="muted">dont coût de la paie ${info('pay.employerCost')}</span><span class="num muted">${C.money(b.payroll, cur)}</span></div>` : ''}
-            ${b.depreciation ? `<div class="vat-line sub-line"><span class="muted">dont dotation aux amortissements ${info('immo.annuity')}</span><span class="num muted">${C.money(b.depreciation, cur)}</span></div>` : ''}
-            ${b.autres ? `<div class="vat-line sub-line"><span class="muted">dont frais, salaires sans bulletin et écritures diverses ${info('mg.autres')}</span><span class="num muted">${C.money(b.autres, cur)}</span></div>` : ''}
-            ${b.exceptionnel ? `<div class="vat-line ${b.exceptionnel > 0 ? 'minus' : ''}"><span>${b.exceptionnel > 0 ? '− Moins-value' : '+ Plus-value'} de cession d'un bien ${info('mg.cession')}</span><span class="num">${C.money(Math.abs(b.exceptionnel), cur)}</span></div>` : ''}
-            ${b.change ? `<div class="vat-line ${b.change < 0 ? 'minus' : ''}"><span>${b.change < 0 ? '− Perte' : '+ Gain'} de change ${info('compta.change')}</span><span class="num">${C.money(Math.abs(b.change), cur)}</span></div>` : ''}
-            <div class="vat-line total ${b.result < 0 ? 'due' : 'ok'}"><span>${b.result < 0 ? 'Perte' : 'Résultat'}</span><span class="num">${C.money(b.result, cur)}</span></div>
+      // (1.262.0) La cascade se lit de haut en bas, un signe par ligne ; le point mort à côté, avec sa jauge ; « fixe ou
+      // variable » en boutons segmentés, une charge par ligne (règle H-E1 : rien ne bouge sous le curseur).
+      const ligne = (signe, txt, v, cls, bulle) => `<div class="mg-c ${cls || ''}"><span><i>${signe}</i>${txt}${bulle ? ' ' + info(bulle) : ''}</span><b>${C.money(v, cur)}</b></div>`;
+      const dont = (txt, v, bulle) => v ? `<div class="mg-c dont"><span>dont ${txt}${bulle ? ' ' + info(bulle) : ''}</span><b>${C.money(v, cur)}</b></div>` : '';
+      $('#mg-body').innerHTML = b.breakEven == null
+        ? `<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune vente en ${h(s.year)}</b><span>Le seuil se calcule dès la première facture émise de l'année.</span></div>`
+        : `<div class="mg-seuil-g">
+          <div class="mg-cascade"><div class="mg-st"><b>Le résultat de ${h(s.year)}</b>${info('mg.breakeven')}</div>
+            ${ligne('', 'Chiffre d\'affaires HT', b.revenue, 'fort')}
+            ${ligne('−', 'Charges variables', b.variable, '', 'mg.variable')}
+            ${dont('coût des sorties de stock', b.cogs, 'stk.cogs')}
+            ${ligne('=', `Marge sur coûts variables <small>${pct(b.rate)} %</small>`, b.marginOnVariable, 'sous-t')}
+            ${ligne('−', 'Charges fixes', b.fixed, '', 'mg.fixed')}
+            ${dont('coût de la paie', b.payroll, 'pay.employerCost')}
+            ${dont('dotation aux amortissements', b.depreciation, 'immo.annuity')}
+            ${dont('frais, salaires sans bulletin et écritures diverses', b.autres, 'mg.autres')}
+            ${b.exceptionnel ? ligne(b.exceptionnel > 0 ? '−' : '+', `${b.exceptionnel > 0 ? 'Moins-value' : 'Plus-value'} de cession d'un bien`, Math.abs(b.exceptionnel), '', 'mg.cession') : ''}
+            ${b.change ? ligne(b.change < 0 ? '−' : '+', `${b.change < 0 ? 'Perte' : 'Gain'} de change`, Math.abs(b.change), '', 'compta.change') : ''}
+            ${ligne('=', b.result < 0 ? 'Perte' : 'Résultat', b.result, `total ${b.result < 0 ? 'rouge' : 'vert'}`)}
           </div>
-          <h3 class="sub-h">Le chiffre d'affaires minimum</h3>
-          <p>Pour couvrir tes charges fixes, il te faut <strong>${C.money(b.breakEven, cur)}</strong> de chiffre d'affaires sur l'année.
-          ${b.reached ? `<span class="ok-text">Tu l'as dépassé de ${C.money(b.gap, cur)}.</span>` : `<span class="warn-text">Il t'en manque ${C.money(-b.gap, cur)}.</span>`}</p>
-          <div class="gauge"><div class="g-bar"><i style="width:${pctOf(b.revenue)}%"></i><span class="g-mark" style="inset-inline-start:${pctOf(b.breakEven)}%" title="Seuil de rentabilité"></span></div>
-            <div class="g-legend"><span><strong>${C.money(b.revenue, cur)}</strong> réalisés</span><span class="muted">seuil ${C.money(b.breakEven, cur)}</span></div></div>
-          <p class="small muted mt">Autrement dit : il te faut <strong>${C.money(C.round3(b.breakEven / 12), cur)}</strong> par mois, soit <strong>${C.money(C.round3(b.breakEven / 220), cur)}</strong> par jour ouvré, rien que pour rentrer dans tes frais.</p>`}
-        </div>
-        <div class="panel mg-seuil"><h2>Fixe ou variable ? ${info('mg.classify')}</h2>
-          <p class="small muted mb">Une charge <b>fixe</b> tombe que tu vendes ou non : loyer, assurance, abonnement, salaires. Une charge <b>variable</b> suit les ventes : marchandises, sous-traitance. Ce classement dépend de ton activité — <em>À VÉRIFIER avec ton comptable.</em></p>
-          ${/* 10.12.0 — deux colonnes « Fixes » et « Variables » : cocher une catégorie l'envoyait dans
-               l'autre colonne, la suivante montait sous le curseur, et un second clic au même endroit
-               reclassait une AUTRE charge sans qu'on l'ait visée. Chaque catégorie garde sa ligne et
-               porte son choix : rien ne bouge sous le curseur (règle H-E1). */''}
+          <div class="mg-point"><div class="mg-st"><b>Le chiffre d'affaires minimum</b></div>
+            <b class="mg-gros">${montantU(b.breakEven, cur)}</b>
+            <p>pour couvrir tes charges fixes sur l'année. ${b.reached ? `<span class="vert">Tu l'as dépassé de ${C.money(b.gap, cur)}.</span>` : `<span class="rouge">Il t'en manque ${C.money(-b.gap, cur)}.</span>`}</p>
+            <div class="gauge"><div class="g-bar"><i style="width:${pctOf(b.revenue)}%"></i><span class="g-mark" style="inset-inline-start:${pctOf(b.breakEven)}%" title="Seuil de rentabilité"></span></div>
+              <div class="g-legend"><span><strong>${C.money(b.revenue, cur)}</strong> réalisés</span><span class="mu">seuil ${C.money(b.breakEven, cur)}</span></div></div>
+            <div class="mg-par"><span><b>${C.money(C.round3(b.breakEven / 12), cur)}</b><small>par mois</small></span><span><b>${C.money(C.round3(b.breakEven / 220), cur)}</b><small>par jour ouvré</small></span></div>
+          </div></div>`;
+      $('#mg-body').insertAdjacentHTML('beforeend', `<div class="mg-fv"><div class="mg-st"><b>Fixe ou variable ?</b>${info('mg.classify')}</div>
+          <p class="small mu">Une charge <b>fixe</b> tombe que tu vendes ou non : loyer, assurance, abonnement, salaires. Une charge <b>variable</b> suit les ventes : marchandises, sous-traitance. Ce classement dépend de ton activité — <em>À VÉRIFIER avec ton comptable.</em></p>
           <div class="fv-liste">
             ${cats.map((c, i) => { const fixe = C.isFixedCategory(data, c); return `<div class="fv-ligne"><span>${h(c)}</span>
-              <span class="choix2" role="radiogroup" aria-label="${h(c)}">
+              <span class="pa-seg" role="radiogroup" aria-label="${h(c)}">
                 <label><input type="radio" name="fv-${i}" data-fix="${h(c)}" value="fixe" ${fixe ? 'checked' : ''}><span>Fixe</span></label>
                 <label><input type="radio" name="fv-${i}" data-fix="${h(c)}" value="variable" ${fixe ? '' : 'checked'}><span>Variable</span></label>
-              </span></div>`; }).join('') || '<span class="small muted">Aucune catégorie de dépense.</span>'}
-          </div>
-        </div>`;
+              </span></div>`; }).join('') || '<span class="small mu">Aucune catégorie de dépense.</span>'}
+          </div></div>`);
       $$('[data-fix]').forEach(r => r.onchange = () => {
         const cur2 = C.expenseCategories(data).filter(c => C.isFixedCategory(data, c));
         const next = r.value === 'fixe' ? cur2.concat([r.dataset.fix]) : cur2.filter(c => c !== r.dataset.fix);
@@ -17677,6 +17685,7 @@
           <td><input type="checkbox" data-rp-case="${h(x.id)}" aria-label="Rattacher ${h(ventes ? docLabel(x) : (x.number || 'cet achat'))}" ${choisies.has(x.id) ? 'checked' : ''}></td>
           ${cols.map((c, i) => `<td class="${c.r ? 'r nw' : c.cls || ''}">${c.get(x)}${i === 0 && ai ? `<div class="small warn-text">dans « ${h(ai.name)} »</div>` : ''}</td>`).join('')}</tr>`; }).join('')}
       </tbody></table></div>` : `<div class="empty mini">${ventes ? `Aucun devis ni aucune facture${p.clientId ? ` pour ${h(clientName(p.clientId))}` : ''} pour l'instant : crée le devis depuis la fiche de l'affaire, il y naîtra rattaché.` : 'Aucun achat saisi pour l\'instant : crée-le depuis la fiche de l\'affaire, il y naîtra rattaché.'}</div>`}
+      ${pieces.length ? '<p class="rp-effet" id="rp-effet" aria-live="polite"></p>' : ''}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="rp-ok" style="min-width: 11rem; justify-content: center">Enregistrer</button></div>`,
       (root, close) => {
         const lignes = () => $$('tr[data-rp]', root);
@@ -17688,6 +17697,17 @@
           ok.textContent = ajouts && retraits ? `Enregistrer (${ajouts} + ${retraits} −)` : ajouts ? `Rattacher ${pl(ajouts, 'pièce')}` : retraits ? `Détacher ${pl(retraits, 'pièce')}` : 'Enregistrer';
           const tout = $('#rp-tout', root);
           if (tout) { const v = visibles(); tout.checked = v.length > 0 && v.every(tr => choisies.has(tr.dataset.rp)); }
+          // (1.262.0) Ce que la sélection fait à la marge, avant d'enregistrer : on coche en voyant le résultat.
+          const ef = $('#rp-effet', root);
+          if (ef) {
+            const cur = company().currency, mg = C.projectMargin(data, company(), p.id);
+            const somme = l => C.round3(l.reduce((a, x) => a + (ventes
+              ? ((x.type === 'facture' || x.type === 'avoir') && x.status !== 'brouillon' && x.status !== 'annulée' ? (x.type === 'avoir' ? -1 : 1) * C.toBase(x, C.computeTotals(x, company()).netHT, company()) : 0)
+              : C.coutAchat(C.purchaseTotals(x, company()))), 0));
+            const sel = somme(pieces.filter(x => choisies.has(x.id)));
+            const vendu = ventes ? sel : mg.revenue, achete = ventes ? mg.cost : sel, marge = C.round3(vendu - achete);
+            ef.innerHTML = `Avec ta sélection : vendu HT <b>${C.money(vendu, cur)}</b> · acheté HT <b>${C.money(achete, cur)}</b> · marge <b class="${marge < 0 ? 'warn-text' : ''}">${C.money(marge, cur)}</b>${vendu ? ` (${pct(Math.round(marge / vendu * 1000) / 10)} %)` : ''}`;
+          }
         };
         const poser = (id, oui) => {
           if (oui) choisies.add(id); else choisies.delete(id);
@@ -17757,6 +17777,21 @@
     const nbVentes = data.documents.filter(d => d.projectId === p.id).length, nbAchats = data.purchases.filter(x => x.projectId === p.id).length;
     const ong = ['ventes', 'achats', 'notes'].includes(affaireDocState.onglet) ? affaireDocState.onglet : 'ventes';
     const badgeSt = p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon';
+    // (1.262.0) « Où en est le chantier » : trois barres qui se lisent d'un coup d'œil — ce qui est facturé sur ce qui est
+    // prévu (devis compris), ce qui est encaissé sur ce qui est facturé, ce qui est acheté sur le budget s'il est donné.
+    // Une barre sans base (rien de prévu, rien de facturé, pas de budget) ne se montre pas : elle ne dirait rien.
+    const avancement = () => {
+      const budget = Number(p.budget) || 0;
+      const prevu = C.round3(m.revenue + m.pending);
+      const barre = (titre, fait, base, dit, ton) => { const r = base > 0 ? Math.max(0, Math.min(100, Math.round(fait / base * 100))) : 0;
+        return `<div class="mg-av"><div class="mg-av-t"><b>${titre}</b><span class="${ton || ''}">${dit}</span></div><span class="mg-av-b" role="img" aria-label="${h(titre)} : ${r} %"><i class="${ton || ''}" style="width:${r}%"></i></span></div>`; };
+      const l = [];
+      if (prevu > 0) l.push(barre('Facturé', m.revenue, prevu, m.pending > 0.0005 ? `${C.money(m.revenue, cur)} sur ${C.money(prevu, cur)} prévus · ${C.money(m.pending, cur)} encore en devis` : `${C.money(m.revenue, cur)} : tout ce qui était prévu est facturé`, m.pending > 0.0005 ? '' : 'vert'));
+      if (m.invoiced > 0.0005) { const du = C.round3(m.invoiced - m.collected); l.push(barre('Encaissé', m.collected, m.invoiced, du > 0.0005 ? `${C.money(m.collected, cur)} sur ${C.money(m.invoiced, cur)} TTC · ${C.money(du, cur)} à encaisser` : `${C.money(m.collected, cur)} : tout est encaissé`, du > 0.0005 ? '' : 'vert')); }
+      if (budget > 0) { const reste = C.round3(budget - m.cost); l.push(barre('Achats sur le budget', m.cost, budget, reste >= 0 ? `${C.money(m.cost, cur)} sur ${C.money(budget, cur)} · ${C.money(reste, cur)} encore disponibles` : `${C.money(m.cost, cur)} : budget de ${C.money(budget, cur)} dépassé de ${C.money(-reste, cur)}`, reste >= 0 ? '' : 'rouge')); }
+      return l.length ? `<div class="cf-carte mg-avancement"><div class="mg-av-tete"><b>Où en est le chantier</b>${budget > 0 ? '' : ecritP ? '<button type="button" class="btn-lien" id="p-budget">Donner un budget d\'achats</button>' : ''}</div>${l.join('')}</div>` : '';
+    };
+    const ecritP = !enLecture('projects');
     const chiffre = (lbl2, val, sous, ton, bulle) => `<div class="mg-chiffre"><span class="mu">${lbl2}${bulle ? ' ' + info(bulle) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
     $('#view').innerHTML = `
       <div class="page-head ed-tete mg-fiche-t">${retourListe('#/marges', 'marges')}<div class="ed-titre">
@@ -17764,7 +17799,7 @@
           <div class="ed-h1"><h1>${h(p.name)}</h1><span class="badge ${badgeSt}">${h(p.status)}</span></div>
           <p class="sous">${[p.clientId ? h(clientName(p.clientId)) : 'sans client précis', p.startDate ? 'depuis le ' + C.fmtDate(p.startDate) : '', p.endDate ? 'fin le ' + C.fmtDate(p.endDate) : ''].filter(Boolean).join(' · ')}</p></div>
         <div class="actions"><button class="btn" id="edit-p">Modifier</button>
-          <button class="btn${vert('devis')}" id="p-devis">${lfIc('croix', 15, 2.4)} Devis</button><button class="btn${vert('achat')}" id="p-achat">${lfIc('croix', 15, 2.4)} Achat</button></div></div>
+          <button class="btn${vert('devis')}" id="p-devis">${lfIc('croix', 15, 2.4)} Devis</button><button class="btn${vert('achat')}" id="p-achat">${lfIc('croix', 15, 2.4)} Achat</button><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(p.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Les autres gestes" title="Les autres gestes">${lfIc('plus', 16)}</button></div></div>
       ${m.margin < 0 ? `<div class="bandeau rouge mg-perte" role="status">${lfIc('alerte', 18, 2)}<span class="txt"><b>Cette affaire perd de l'argent</b><span>Tu as acheté ${C.money(m.cost, cur)} et facturé ${C.money(m.revenue, cur)}. Vérifie qu'il ne reste pas quelque chose à facturer, ou qu'un achat n'a pas été rattaché par erreur.</span></span></div>` : ''}
       <div class="lf mg">
         <div class="cf-carte mg-resume">
@@ -17773,12 +17808,14 @@
           ${chiffre('Marge', montantU(m.margin, cur), m.rate == null ? 'rien de vendu' : margeSansAchat(m) ? 'aucun achat rattaché : le coût n\'est pas encore compté' : `${pct(m.rate)} % du prix de vente`, m.margin < 0 ? 'rouge' : m.margin > 0 && !margeSansAchat(m) ? 'vert' : '', 'mg.projectMargin')}
           ${chiffre('En caisse', montantU(m.cash, cur), `${C.money(m.collected, cur)} encaissés − ${C.money(m.paid, cur)} payés`, m.cash < 0 ? 'rouge' : '', 'mg.projectCash')}
         </div>
+        ${avancement()}
         <div class="mg-barre"><div class="pa-seg" id="p-tabs" role="tablist" aria-label="L'affaire">${[['ventes', 'Ventes', nbVentes], ['achats', 'Achats', nbAchats], ['notes', 'Notes', 0]].map(([k, n, nb]) => `<button type="button" role="tab" data-ong="${k}" aria-selected="${ong === k}" class="${ong === k ? 'active' : ''}">${n}${nb ? ` <small>${nb}</small>` : ''}</button>`).join('')}</div></div>
         <div class="cf-carte"><div class="cf-onglet mg-onglet">
           <div id="p-sales"${ong === 'ventes' ? '' : ' hidden'}></div><div id="p-buys"${ong === 'achats' ? '' : ' hidden'}></div>
           <div id="p-notes"${ong === 'notes' ? '' : ' hidden'}>${p.notes ? `<p class="mg-notes">${C.nl2br(p.notes)}</p>` : `<div class="mg-vide">${lfIc('modifier', 24, 1.6)}<b>Pas de note</b><span>Ce qu'il faut retenir du chantier : interlocuteur, accès, conditions. Jamais imprimé.</span><button class="btn" id="p-note-new">Écrire une note</button></div>`}</div>
         </div></div></div>`;
     $$('#p-tabs [data-ong]').forEach(b => b.onclick = () => { affaireDocState.onglet = b.dataset.ong; render(true); });
+    if ($('#p-budget')) $('#p-budget').onclick = () => projectForm(p, () => render(true), null, 'budget');
     if ($('#p-note-new')) $('#p-note-new').onclick = () => projectForm(p, () => render());
     $('#edit-p').onclick = () => projectForm(p, () => render());
     // Les deux créations naissent RATTACHÉES à l'affaire (10.12.0) : elles ouvraient un devis et un
@@ -17786,44 +17823,63 @@
     $('#p-devis').onclick = () => navigate('#/doc/new/devis' + (p.clientId ? '/client/' + p.clientId : '') + '/affaire/' + p.id);
     $('#p-achat').onclick = () => navigate('#/achat/new/-/facture/-/affaire/' + p.id);
     // TOUTES les pièces rattachées, brouillons compris : le devis qu'on vient de créer depuis cette
-    // fiche disparaissait tant qu'il n'était pas envoyé, et la fiche disait « aucune vente ». Les
-    // cartes, elles, ne comptent que ce qui est émis — c'est ce que disent leurs bulles.
+    // fiche disparaissait tant qu'il n'était pas envoyé, et la fiche disait « aucune vente ». Le
+    // résumé, lui, ne compte que ce qui est émis — c'est ce que disent ses bulles.
     const sales = data.documents.filter(d => d.projectId === p.id).sort(byNumberDesc);
     const buys = data.purchases.filter(x => x.projectId === p.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const achatsLibres = piecesPourAffaire(p, 'achats').filter(x => x.projectId !== p.id).length;
-    // Une affaire à UN client ne répète pas son nom sur chaque ligne : la colonne montre l'objet.
-    const scols = docColumns({ quotes: false, hideClient: !!p.clientId }).cols;
-    const geste = (id, label, principal) => `<button class="btn${principal ? ' btn-primary' : ''}" id="${id}">${h(label)}</button>`;
-    // `bindSort` passe la colonne cliquée à son rappel, et `() => render()` la JETAIT : les huit
-    // en-têtes de « Ventes rattachées » affichaient leur « ⇅ », acceptaient le clic, redessinaient
-    // la page — et ne triaient rien. Un tri qui ne trie pas ne se remarque pas : on croit que la
-    // liste était déjà dans cet ordre (défaut de la 7.17.0, resté ici).
-    const drawVentes = sortKey => {
-      if (typeof sortKey === 'string' && sortKey) { affaireDocState.sort = toggleSort(affaireDocState.sort, sortKey, scols); affaireDocState.page = 1; }
-      // Huit colonnes dans un panneau : sans `scroll-x`, la table déborde et recouvre le panneau suivant.
-      // Un état vide dit à quoi il sert et porte le geste qui le remplit (7.0.0) — ici, souvent,
-      // rattacher les factures déjà émises du chantier.
-      // Sous une liste pleine, le geste reste là même quand il n'y a plus rien à rattacher : c'est la
-      // seule porte pour DÉTACHER une pièce depuis la fiche, et elle disparaissait avec la dernière
-      // pièce libre (10.12.0).
-      $('#p-sales').innerHTML = sales.length
-        ? `<div class="scroll-x">${docTable(sales, { quotes: false, hideClient: !!p.clientId, sort: affaireDocState.sort, onSort: true, page: affaireDocState })}</div><div class="inline mt">${geste('p-att-v', ventesLibres ? 'Rattacher d\'autres ventes…' : 'Détacher une vente…')}</div>`
-        : `<div class="empty mini">Aucune vente rattachée. ${ventesLibres
-          ? `${p.clientId ? `${h(clientName(p.clientId))} a` : 'Tes clients ont'} déjà ${pl(ventesLibres, 'pièce')} de vente : coche ce qui appartient à ce chantier.<div class="inline mt">${geste('p-att-v', 'Rattacher des ventes existantes…', suivante === 'rattacher-ventes')}</div>`
-          : 'Crée le devis de ce chantier avec « + Devis » : il y naîtra rattaché.'}</div>`;
-      bindDocTable(drawVentes, affaireDocState, '#p-sales');
-      if ($('#p-att-v')) $('#p-att-v').onclick = () => rattacherPieces(p, 'ventes', () => render());
+    const ecrit = !enLecture('projects');
+    // (1.262.0) Détacher une pièce d'un geste, depuis sa ligne, avec « Annuler » : la fenêtre « Rattacher » restait la seule
+    // porte, et il fallait y retrouver la pièce parmi toutes celles du client.
+    const detacher = (x, nom) => {
+      const avantP = x.projectId; delete x.projectId; save(true); render(true);
+      toastUndo(`${nom} détaché${x.type === 'facture' || x.kind === 'facture' ? 'e' : ''} de « ${p.name} »`, () => { x.projectId = avantP; save(true); render(true); });
     };
-    drawVentes();
-    const { cols } = purchaseColumns({ hideSupplier: false });
-    $('#p-buys').innerHTML = buys.length ? `<div class="scroll-x"><table class="list compact"><thead>${sortHead(cols.map(c => ({ ...c, val: null })), null)}</thead><tbody>
-        ${buys.map(b => `<tr class="clickable" data-bid="${h(b.id)}">${cols.map(c => `<td class="${c.r ? 'r nw' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(b)}</td>`).join('')}</tr>`).join('')}
-      </tbody></table></div><div class="inline mt">${geste('p-att-a', achatsLibres ? 'Rattacher d\'autres achats…' : 'Détacher un achat…')}</div>`
-      : `<div class="empty mini">Aucun achat rattaché : ce sont eux qui rendent la marge exacte. ${achatsLibres
-        ? `<div class="inline mt">${geste('p-att-a', 'Rattacher des achats déjà saisis…')}</div>`
-        : 'Saisis-les avec « + Achat » : ils y naîtront rattachés.'}</div>`;
-    $$('#p-buys tr[data-bid]').forEach(tr => tr.onclick = () => navigate('#/achat/' + tr.dataset.bid));
-    if ($('#p-att-a')) $('#p-att-a').onclick = () => rattacherPieces(p, 'achats', () => render());
+    // Un tableau des listes (lf-table) : la ligne s'ouvre, son menu ⋯ ouvre ou détache.
+    const tableau = (rows, cols, ouvrir, nomDe, pied) => `<div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr>${cols.map(c => `<th class="${c.r ? 'r' : ''}">${h(c.label)}</th>`).join('')}<th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
+        ${rows.map(x => `<tr class="clickable" data-pc="${h(x.id)}">${cols.map(c => `<td class="${c.r ? 'r' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(x)}</td>`).join('')}<td class="actions row-actions lf-act"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(x.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(nomDe(x))}">${lfIc('plus', 16)}</button></td></tr>`).join('')}
+      </tbody>${pied ? `<tfoot><tr><td colspan="${cols.length - 1}"><span class="pied-t"><b>Total</b><span>${pied.dit}</span></span></td><td class="r m">${pied.montant}</td><td></td></tr></tfoot>` : ''}</table></div>`;
+    const brancher = (hote, liste, ouvrir, nomDe) => {
+      $$(`${hote} tr[data-pc]`).forEach(tr => tr.onclick = e => { if (!e.target.closest('button, input, a')) ouvrir(tr.dataset.pc); });
+      bindRowMenus($(hote), id => { const x = liste.find(y => y.id === id); if (!x) return [];
+        return [{ icon: 'ouvrir', label: 'Ouvrir', hint: nomDe(x), run: () => ouvrir(id) }, ...(ecrit ? [{ titre: 'L\'affaire' }, { icon: 'lien', label: 'Détacher de l\'affaire', hint: 'la pièce reste telle quelle, elle quitte seulement ce chantier', run: () => detacher(x, nomDe(x)) }] : [])]; },
+      id => { const x = liste.find(y => y.id === id); return x ? nomDe(x) : ''; });
+    };
+    const geste = (id, label, principal) => `<button class="btn${principal ? ' btn-primary' : ''}" id="${id}">${h(label)}</button>`;
+    // Les ventes : numéro, nature, objet, date, statut, HT (un avoir en moins), reste à encaisser.
+    const nomVente = d => docLabel(d);
+    const htVente = d => (d.type === 'avoir' ? -1 : 1) * C.toBase(d, C.computeTotals(d, company()).netHT, company());
+    const colsV = [
+      { label: 'Numéro', cls: 'cn', get: d => `<b>${d.number ? h(d.number) : 'Brouillon'}</b><small>${h(C.docLabel(d.type, company()))}</small>` },
+      { label: 'Objet', get: d => h(d.subject || '') || '<span class="mu">—</span>' },
+      { label: 'Date', cls: 'nw', get: d => C.fmtDate(d.date) },
+      { label: 'Statut', cls: 'st', get: d => `<span class="badge ${h(effStatus(d))}">${h(effStatus(d))}</span>` },
+      { label: 'Montant HT', r: true, get: d => lfMontant(htVente(d), company().currency) }];
+    const facturees = sales.filter(d => (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée');
+    $('#p-sales').innerHTML = sales.length
+      ? `${tableau(sales, colsV, id => navigate('#/doc/' + id), nomVente, { dit: `${pl(sales.length, 'pièce')} · seules les factures et avoirs émis comptent dans la marge`, montant: `${lfMontant(C.round3(facturees.reduce((a, d) => a + htVente(d), 0)), cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+        ${ecrit ? `<div class="inline">${geste('p-att-v', ventesLibres ? 'Rattacher d\'autres ventes…' : 'Revoir les ventes rattachées…')}</div>` : ''}`
+      : `<div class="mg-vide">${lfIc('piece', 24, 1.6)}<b>Aucune vente rattachée</b><span>${ventesLibres
+        ? `${p.clientId ? `${h(clientName(p.clientId))} a` : 'Tes clients ont'} déjà ${pl(ventesLibres, 'pièce')} de vente : coche ce qui appartient à ce chantier.`
+        : 'Crée le devis de ce chantier avec « Devis » : il y naîtra rattaché.'}</span>${ecrit && ventesLibres ? geste('p-att-v', 'Rattacher des ventes existantes…', suivante === 'rattacher-ventes') : ''}</div>`;
+    brancher('#p-sales', sales, id => navigate('#/doc/' + id), nomVente);
+    if ($('#p-att-v')) $('#p-att-v').onclick = () => rattacherPieces(p, 'ventes', () => render(true));
+    // Les achats : date, numéro, fournisseur et ce qui a été acheté, statut, coût HT.
+    const nomAchat = b => b.number ? `Achat ${b.number}` : 'Cet achat';
+    const coutHT = b => C.coutAchat(C.purchaseTotals(b, company()));
+    const colsA = [
+      { label: 'Date', cls: 'nw', get: b => C.fmtDate(b.date) },
+      { label: 'N° fournisseur', cls: 'cn', get: b => `<b>${h(b.number || C.referenceAchat(b, data))}</b>` },
+      { label: 'Fournisseur et achat', cls: 'cl', get: b => `<b>${h(supplierName(b.supplierId) || '—')}</b>${contenuAchat(b) ? `<small>${h(contenuAchat(b))}</small>` : ''}` },
+      { label: 'Statut', cls: 'st', get: b => buyBadge(buyStatus(b)) },
+      { label: 'Coût HT', r: true, get: b => lfMontant(coutHT(b), cur) }];
+    $('#p-buys').innerHTML = buys.length
+      ? `${tableau(buys, colsA, id => navigate('#/achat/' + id), nomAchat, { dit: `${pl(buys.length, 'achat')} · ce qu'ils coûtent vraiment (la TVA récupérable en est retirée)`, montant: `${lfMontant(C.round3(buys.reduce((a, b) => a + coutHT(b), 0)), cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+        ${ecrit ? `<div class="inline">${geste('p-att-a', achatsLibres ? 'Rattacher d\'autres achats…' : 'Revoir les achats rattachés…')}</div>` : ''}`
+      : `<div class="mg-vide">${lfIc('achats', 24, 1.6)}<b>Aucun achat rattaché</b><span>Ce sont eux qui rendent la marge exacte. ${achatsLibres ? 'Coche ceux de ce chantier parmi ceux déjà saisis, ou saisis-en un.' : 'Saisis-les avec « Achat » : ils y naîtront rattachés.'}</span>${ecrit && achatsLibres ? geste('p-att-a', 'Rattacher des achats déjà saisis…', suivante === 'achat') : ''}</div>`;
+    brancher('#p-buys', buys, id => navigate('#/achat/' + id), nomAchat);
+    if ($('#p-att-a')) $('#p-att-a').onclick = () => rattacherPieces(p, 'achats', () => render(true));
+    bindRowMenus($('.mg-fiche-t'), () => actionsAffaire(p, () => render(true)), () => p.name);
   };
 
   // ---------- Paie (5.0.0) ----------

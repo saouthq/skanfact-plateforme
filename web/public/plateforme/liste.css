@@ -536,3 +536,62 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.mg .mg-onglet table.list th { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--sb-gris-2); background: var(--sb-papier-2); }
 .lf.mg .mg-onglet table.list { border: 0; border-radius: 0; }
 .lf.mg .mg-onglet table.list th:first-child, .lf.mg .mg-onglet table.list td:first-child { padding-left: 16px; }
+/* (1.262.0) La fiche d'une affaire : où en est le chantier ; le seuil en cascade ; fixe ou variable ; la fenêtre Rattacher. */
+.lf.mg .mg-avancement { padding: 14px 16px; display: grid; gap: 12px; }
+.lf.mg .mg-av-tete { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.lf.mg .mg-av { display: grid; gap: 5px; }
+.lf.mg .mg-av-t { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+.lf.mg .mg-av-t span { color: var(--sb-gris); }
+.lf.mg .mg-av-b { display: block; height: 8px; border-radius: 99px; background: var(--sb-survol); overflow: hidden; }
+.lf.mg .mg-av-b i { display: block; height: 100%; border-radius: 99px; background: var(--sb-sarcelle); }
+.lf.mg .mg-av-b i.vert { background: var(--sb-doux-texte); }
+.lf.mg .mg-av-b i.rouge { background: var(--sb-rouge-texte); }
+.lf.mg .mg-av-t span.rouge { color: var(--sb-rouge-texte); font-weight: 600; }
+.lf.mg .mg-av-t span.vert { color: var(--sb-doux-texte); }
+.lf.mg .mg-onglet > div > .inline { display: flex; gap: 8px; }
+.lf.mg .mg-st { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; font-size: 14px; }
+.lf.mg .mg-seuil-g { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+.lf.mg .mg-cascade, .lf.mg .mg-point { padding: 16px; min-width: 0; }
+.lf.mg .mg-point { border-left: 1px solid var(--sb-trait); display: grid; align-content: start; gap: 10px; }
+.lf.mg .mg-point p { margin: 0; font-size: 13.5px; color: var(--sb-gris); }
+.lf.mg .mg-point .vert { color: var(--sb-doux-texte); font-weight: 600; }
+.lf.mg .mg-point .rouge { color: var(--sb-rouge-texte); font-weight: 600; }
+.lf.mg .mg-gros { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lf.mg .mg-gros .u { font-size: 13px; color: var(--sb-gris-2); }
+.lf.mg .mg-c { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--sb-trait); font-size: 13.5px; }
+.lf.mg .mg-c i { display: inline-block; width: 16px; font-style: normal; color: var(--sb-gris-2); font-weight: 700; }
+.lf.mg .mg-c b { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.lf.mg .mg-c.dont { font-size: 12.5px; color: var(--sb-gris-2); padding: 4px 0 4px 16px; border-bottom-style: dashed; }
+.lf.mg .mg-c.dont b { font-weight: 500; }
+.lf.mg .mg-c.fort b, .lf.mg .mg-c.sous-t b { font-weight: 700; }
+.lf.mg .mg-c.sous-t { background: var(--sb-papier-2); margin: 0 -8px; padding: 7px 8px; }
+.lf.mg .mg-c small { color: var(--sb-gris-2); font-weight: 500; margin-left: 4px; }
+.lf.mg .mg-c.total { border-bottom: 0; border-top: 2px solid var(--sb-encre); margin-top: 4px; padding-top: 10px; font-size: 15px; font-weight: 700; }
+.lf.mg .mg-c.total.rouge b { color: var(--sb-rouge-texte); }
+.lf.mg .mg-c.total.vert b { color: var(--sb-doux-texte); }
+.lf.mg .mg-par { display: flex; gap: 10px; }
+.lf.mg .mg-par span { flex: 1; display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--sb-trait); border-radius: 10px; }
+.lf.mg .mg-par small { color: var(--sb-gris-2); font-size: 12px; }
+.lf.mg .mg-fv { padding: 16px; border-top: 1px solid var(--sb-trait); }
+.lf.mg .mg-fv .fv-ligne .pa-seg label span { padding: 4px 11px; font-weight: 500; }
+.rp-effet { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--sb-papier-2); font-size: 13px; }
+@media (max-width: 900px) {
+  .lf.mg .mg-seuil-g { grid-template-columns: 1fr; }
+  .lf.mg .mg-point { border-left: 0; border-top: 1px solid var(--sb-trait); }
+}
+/* (1.262.0) Au téléphone, les tableaux des marges en lignes compactes (pas les cartes génériques, qui écrivaient « ACTIONS ») :
+   la première case en titre, le menu ⋯ à droite, les montants alignés à droite, sans titres de colonne. */
+@media (max-width: 760px) {
+  .lf.mg table.mg-table thead { display: none; }
+  .lf.mg table.mg-table, .lf.mg table.mg-table tbody, .lf.mg table.mg-table tfoot { display: block; }
+  .lf.mg table.mg-table tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding: 10px 14px; border-bottom: 1px solid var(--sb-trait); }
+  .lf.mg table.mg-table td { display: block; padding: 0 !important; border: 0 !important; background: none !important; min-width: 0; }
+  .lf.mg table.mg-table td:first-child { flex: 1 1 calc(100% - 60px); font-size: 14px; }
+  .lf.mg table.mg-table td.lf-act { order: -1; margin-left: auto; flex: none; width: auto; }
+  .lf.mg table.mg-table td:first-child { order: -2; }
+  .lf.mg table.mg-table td:not(:first-child):not(.lf-act) { flex: 1 1 40%; font-size: 13px; }
+  .lf.mg table.mg-table td.r { text-align: right; }
+  .lf.mg table.mg-table tfoot tr { background: var(--sb-papier-2); }
+  .lf.mg table.mg-table td:empty { display: none; }
+}
+#pf3 .pa-seg { width: fit-content; max-width: 100%; }

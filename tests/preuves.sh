@@ -22788,6 +22788,20 @@ prouver 'marges 1.261 h : les onglets ne sont plus ceux de la Paie' web/public/v
 prouver 'marges 1.261 i : l'\''onglet Achats de la fiche reste caché' web/public/v10/app.js \
   "<div id=\"p-buys\"\${ong === 'achats' ? '' : ' hidden'}>" "<div id=\"p-buys\" hidden>" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+# Le module Marges fini (1.262.0) : la fiche d'une affaire, le budget, détacher, le seuil en cascade.
+prouver 'marges 1.262 a : « Annuler » ne remet pas la pièce détachée' web/public/v10/app.js \
+  "x.projectId = avantP; save(true); render(true); });" "save(true); render(true); });" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.262 b : un budget dépassé ne se voit pas en rouge' web/public/v10/app.js \
+  "reste >= 0 ? '' : 'rouge')); }" "'')); }" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.262 c : l'\''encaissé se compare au HT au lieu du facturé TTC' web/public/v10/app.js \
+  "\`\${C.money(m.collected, cur)} sur \${C.money(m.invoiced, cur)} TTC" "\`\${C.money(m.collected, cur)} sur \${C.money(m.revenue, cur)} TTC" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.262 d : la cascade du seuil oublie le résultat' web/public/v10/app.js \
+  "            \${ligne('=', b.result < 0 ? 'Perte' : 'Résultat', b.result, \`total \${b.result < 0 ? 'rouge' : 'vert'}\`)}
+" "" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
