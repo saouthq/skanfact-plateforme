@@ -574,6 +574,32 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.mg .mg-par small { color: var(--sb-gris-2); font-size: 12px; }
 .lf.mg .mg-fv { padding: 16px; border-top: 1px solid var(--sb-trait); }
 .lf.mg .mg-fv .fv-ligne .pa-seg label span { padding: 4px 11px; font-weight: 500; }
+/* (1.263.0) La marge juste : ce qui n'est pas consommé (stock, matériel), prévu et réel, les heures, l'année mois par mois. */
+.lf.mg .mg-hors { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--sb-papier-2); border: 1px solid var(--sb-trait); font-size: 13px; }
+.lf.mg .mg-hors > svg { flex: none; margin-top: 1px; color: var(--sb-gris-2); }
+.lf.mg .mg-hors .txt { display: grid; gap: 6px; min-width: 0; line-height: 1.45; color: var(--sb-gris); }
+.lf.mg .mg-hors .txt b { color: var(--sb-encre); font-variant-numeric: tabular-nums; }
+.lf.mg .mg-prevu { padding: 14px 16px; display: grid; gap: 10px; }
+.lf.mg .mg-prevu .mg-av-tete { justify-content: flex-start; flex-wrap: wrap; }
+.lf.mg .mg-prevu .mg-av-tete .small { margin-left: auto; text-align: right; min-width: 0; }
+@media (max-width: 760px) {
+  .lf.mg .mg-prevu .mg-av-tete .small { flex-basis: 100%; margin-left: 0; text-align: left; }
+  .lf.mg .mg-prevu, .lf.mg .mg-avancement { padding: 12px; }
+}
+.lf.mg .mg-pr-t th[scope=row] { text-align: left; font-weight: 500; font-size: 13.5px; }
+.lf.mg .mg-pr-t td .vert { color: var(--sb-doux-texte); font-weight: 600; }
+.lf.mg .mg-pr-t td .rouge { color: var(--sb-rouge-texte); font-weight: 600; }
+.lf.mg .mg-prevu > p { margin: 0; }
+.lf.mg small.ambre, .lf.mg .small.ambre, .lf.mg span.ambre { color: var(--sb-ambre-texte, #9a5b00); }
+.lf.mg .mg-estime { flex-basis: 100%; }
+.lf.mg .mg-mois { padding: 16px; border-top: 1px solid var(--sb-trait); }
+.lf.mg .mg-mois > p { margin: 0 0 10px; }
+.lf.mg .mg-mois .vert { color: var(--sb-doux-texte); font-weight: 600; }
+.lf.mg .mg-mois .rouge { color: var(--sb-rouge-texte); }
+.lf.mg .mg-mois-t th[scope=row], .lf.mg .mg-pr-t th[scope=row] { background: none; color: var(--sb-encre); font-size: 13.5px; letter-spacing: 0; }
+.lf.mg .mg-mois-t th[scope=row] { text-align: left; font-weight: 500; text-transform: capitalize; }
+.lf.mg .mg-mois-t tr.mu td, .lf.mg .mg-mois-t tr.mu th { color: var(--sb-gris-2); }
+.lf.mg .mg-mois-t tr.mg-depuis th { box-shadow: inset 3px 0 0 var(--sb-doux-texte); }
 .rp-effet { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--sb-papier-2); font-size: 13px; }
 @media (max-width: 900px) {
   .lf.mg .mg-seuil-g { grid-template-columns: 1fr; }

@@ -58,6 +58,8 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
       { collection: 'purchases', cle: 'a1', rang: 23, revision: null, contenu: { id: 'a1', kind: 'facture', number: 'CB-2026-77', date: auj, dueDate: jour(30), supplierId: 's1', projectId: 'pr1',
         currency: 'DT', fees: 0, withholdingRate: 0, createdAt: 5, payments: [], attachments: [], category: 'Achats',
         lines: [{ label: 'Câble', qty: 1, unitPrice: { '~n': '100.25' }, vatRate: 19, destination: 'charge' }] } },
+      // (1.263.0) Le salarié dont les heures iront sur le chantier : son coût de l'heure vient de son salaire du contrat.
+      { collection: 'employees', cle: 'e1', rang: 24, revision: null, contenu: { id: 'e1', name: 'Mourad Trabelsi', grossSalary: { '~n': '1450.375' }, contract: 'cdi', hireDate: '2019-04-01', active: true } },
     ] });
     const e = await api('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: { id: 'f1', type: 'facture', number: '', status: 'brouillon', date: auj, dueDate: jour(30), clientId: 'c-lac', createdAt: 10, projectId: 'pr1',
       subject: 'Câblage', lines: [{ label: 'Câblage', description: '', qty: 1, unit: '', unitPrice: { '~n': '283.517' }, vatRate: 19 }], discountRate: 0, withholdingRate: 0, applyStamp: false, currency: 'DT', payments: [] },
@@ -102,8 +104,8 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     await p.locator('#mg-body tr[data-pid="pr1"] td.cn').click();
     await expect.poll(() => p.locator('#view h1').first().innerText().then(net).catch(() => '')).toBe('Câblage du hall');
     expect(net(await p.locator('#view .ed-chemin').innerText())).toBe('Accueil › Marges › Câblage du hall');
-    expect(net(await p.locator('#view .mg-resume').innerText())).toMatch(/^Vendu HT i 283,517 DT 1 facture Acheté HT 100,250 DT 1 achat rattaché Marge i 183,267 DT 64,6 % du prix de vente En caisse i /);
-    expect(await p.locator('#p-tabs [data-ong]').evaluateAll((l) => l.map((b) => `${(b as HTMLElement).innerText.replace(/\s+/g, ' ').trim()}${b.getAttribute('aria-selected') === 'true' ? ' *' : ''}`))).toEqual(['Ventes 1 *', 'Achats 1', 'Notes']);
+    expect(net(await p.locator('#view .mg-resume').innerText())).toMatch(/^Vendu HT i 283,517 DT 1 facture Coût i 100,250 DT achats 100,250 DT Marge i 183,267 DT 64,6 % du prix de vente En caisse i /);
+    expect(await p.locator('#p-tabs [data-ong]').evaluateAll((l) => l.map((b) => `${(b as HTMLElement).innerText.replace(/\s+/g, ' ').trim()}${b.getAttribute('aria-selected') === 'true' ? ' *' : ''}`))).toEqual(['Ventes 1 *', 'Achats 1', 'Heures', 'Notes']);
     await p.locator('#p-tabs [data-ong="achats"]').click();
     await expect.poll(() => p.locator('#p-buys').isVisible()).toBe(true);
     expect(net(await p.locator('#p-buys').innerText())).toContain('CB-2026-77');
@@ -114,7 +116,7 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     await p.locator('#p-budget').click();
     await p.locator('#modal-root [name=budget]').fill('80');
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => p.locator('.mg-av').nth(2).innerText().then(net).catch(() => '')).toBe('Achats sur le budget 100,250 DT : budget de 80,000 DT dépassé de 20,250 DT');
+    await expect.poll(() => p.locator('.mg-av').nth(2).innerText().then(net).catch(() => '')).toBe('Coût sur le budget 100,250 DT : budget de 80,000 DT dépassé de 20,250 DT');
     expect(await p.locator('.mg-av').nth(2).locator('i').getAttribute('class')).toBe('rouge');
     // Détacher l'achat depuis sa ligne, puis « Annuler » le remet.
     await p.locator('#p-tabs [data-ong="achats"]').click();
@@ -123,6 +125,23 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     await expect.poll(() => p.locator('#p-buys .mg-vide b').innerText().catch(() => '')).toBe('Aucun achat rattaché');
     await p.locator('#toast.show.avec-bouton').getByRole('button', { name: 'Annuler' }).click();
     await expect.poll(() => p.locator('#p-buys tr[data-pc="a1"]').count()).toBe(1);
+    // (1.263.0) Les heures du chantier : 7,5 h notées (« 7,5 » à la française) coûtent l'heure du salarié, et le coût de
+    // l'affaire est la somme de ses morceaux : achats + main d'œuvre, la marge baisse d'autant.
+    await p.locator('#p-tabs [data-ong="heures"]').click();
+    await p.locator('#p-time-new').click();
+    await p.locator('#modal-root [name=hours]').fill('7,5');
+    await expect.poll(() => p.locator('#ht-effet').innerText().then(net).catch(() => '')).toMatch(/^Coût de l'heure : [\d ,]+ DT \([\d ,]+ DT pour 208 h\), estimé sur son salaire du contrat : pas encore de bulletin ce mois-là · ces heures coûtent [\d ,]+ DT\.$/);
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#p-time tr[data-pc]').count()).toBe(1);
+    const lu = (t: string) => Number(t.replace(/[^\d,-]/g, '').replace(',', '.'));
+    const mo = lu(await p.locator('#p-time tfoot td.m').innerText());
+    expect(mo).toBeGreaterThan(40);
+    const resume = net(await p.locator('#view .mg-resume').innerText());
+    const cout = lu(/Coût i ([\d ,]+) DT/.exec(resume)?.[1] ?? '');
+    expect(Math.round(cout * 1000)).toBe(Math.round((100.25 + mo) * 1000));
+    expect(resume).toContain(`main d'œuvre`);
+    expect(resume).toContain('(7,5 h, estimée)');
+    expect(lu(/Marge i ([\d ,]+) DT/.exec(resume)?.[1] ?? '')).toBe(Math.round((283.517 - cout) * 1000) / 1000);
     await p.locator('#view .ed-retour-btn').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/marges');
 
@@ -140,6 +159,9 @@ describe('les marges dans la nouvelle DA, et le retour vers la fiche', () => {
     await p.locator('#mg-tabs [data-tab="seuil"]').click();
     await expect.poll(() => p.locator('#mg-body .mg-c.total').count()).toBe(1);
     expect(net(await p.locator('#mg-body .mg-c').first().innerText())).toBe("Chiffre d'affaires HT 283,517 DT");
+    // (1.263.0) Mois par mois : douze mois ; celui de la facture porte son chiffre d'affaires.
+    expect(await p.locator('#mg-body .mg-mois-t tbody tr').count()).toBe(12);
+    expect(net(await p.locator('#mg-body .mg-mois-t tbody tr').nth(Number(auj.slice(5, 7)) - 1).innerText())).toMatch(/^\S+ 283,517 183,267 /);
     await p.locator('#mg-tabs [data-tab="affaires"]').click();
 
     // 3. Depuis la fiche du fournisseur, l'achat ouvert y ramène, par son chemin et par « ‹ ».

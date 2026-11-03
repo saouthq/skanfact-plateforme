@@ -22790,7 +22790,7 @@ prouver 'marges 1.261 i : l'\''onglet Achats de la fiche reste caché' web/publi
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # Le module Marges fini (1.262.0) : la fiche d'une affaire, le budget, détacher, le seuil en cascade.
 prouver 'marges 1.262 a : « Annuler » ne remet pas la pièce détachée' web/public/v10/app.js \
-  "x.projectId = avantP; save(true); render(true); });" "save(true); render(true); });" \
+  "if (avantP) x.projectId = avantP; if (x.lines)" "if (x.lines)" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 prouver 'marges 1.262 b : un budget dépassé ne se voit pas en rouge' web/public/v10/app.js \
   "reste >= 0 ? '' : 'rouge')); }" "'')); }" \
@@ -22801,6 +22801,39 @@ prouver 'marges 1.262 c : l'\''encaissé se compare au HT au lieu du facturé TT
 prouver 'marges 1.262 d : la cascade du seuil oublie le résultat' web/public/v10/app.js \
   "            \${ligne('=', b.result < 0 ? 'Perte' : 'Résultat', b.result, \`total \${b.result < 0 ? 'rouge' : 'vert'}\`)}
 " "" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+# La marge d'une affaire juste (1.263.0) : le stock, les lignes réparties, le matériel, les heures, le prévu, les mois.
+prouver 'marges 1.263 a : la marchandise sortie du stock ne coûte rien à l'\''affaire' web/public/v10/core.js \
+  "    const stockSorti = coutStockPourAffaire(data, projectId, sales);" "    const stockSorti = 0;" \
+  'la marchandise vendue sur l'\''affaire coûte ce que le stock a perdu, au coût moyen'
+prouver 'marges 1.263 b : une ligne d'\''achat ne peut pas aller à une autre affaire' web/public/v10/core.js \
+  "  const affaireDeLigne = (p, l) => (l && Object.prototype.hasOwnProperty.call(l, 'projectId') ? (l.projectId || '') : (p.projectId || ''));" "  const affaireDeLigne = (p) => (p.projectId || '');" \
+  'un achat entier rattaché coûte exactement `coutAchat` ; partagé, ses deux parts refont le tout'
+prouver 'marges 1.263 c : le matériel immobilisé se consomme sur le chantier' web/public/v10/core.js \
+  "      if (l.destination === 'immobilisation') sacs.immo += v;" "      if (l.destination === 'immobilisation') sacs.cout += v;" \
+  'un bien immobilisé et la marchandise entrée au stock ne sont pas consommés sur l'\''affaire'
+prouver 'marges 1.263 d : les frais d'\''un achat attendent au stock une sortie qui ne les emporte pas' web/public/v10/core.js \
+  "      sacs.cout += frais;" "      if (l.destination === 'stock') sacs.enStock += frais; else sacs.cout += frais;" \
+  'un bien immobilisé et la marchandise entrée au stock ne sont pas consommés sur l'\''affaire'
+prouver 'marges 1.263 e : une heure sans bulletin ne se dit pas estimée' web/public/v10/core.js \
+  "    return { coutMois, heuresMois, estime: true, inconnu: !(coutMois > 0) };" "    return { coutMois, heuresMois, estime: false, inconnu: !(coutMois > 0) };" \
+  'les heures coûtent le coût employeur de l'\''heure : celui du bulletin, sinon celui du contrat (estimé)'
+prouver 'marges 1.263 f : sans heures du mois réglées, un nombre d'\''heures inventé' web/public/v10/core.js \
+  "    const heuresMois = Number(s.heuresMois) || 0;
+    const emp = (data.employees || []).find(e => e.id === employeeId);" "    const heuresMois = Number(s.heuresMois) || 208;
+    const emp = (data.employees || []).find(e => e.id === employeeId);" \
+  'les heures coûtent le coût employeur de l'\''heure : celui du bulletin, sinon celui du contrat (estimé)'
+prouver 'marges 1.263 g : un devis refusé compte dans le prévu' web/public/v10/core.js \
+  "    const prevus = quotes.filter(q => q.status !== 'refusé');" "    const prevus = quotes;" \
+  'le prévu vient des devis non refusés ; sans devis, il n'\''y a pas de prévu'
+prouver 'marges 1.263 h : un mois compte aussi le premier jour du suivant' web/public/v10/core.js \
+  "      const b = breakEven(data, company, { from, to });" "      const b = breakEven(data, company, { from, to: addDays(to, 1) });" \
+  'l'\''année mois par mois : la somme des douze résultats est le résultat de l'\''année (exemple de cinq ans)'
+prouver 'marges 1.263 i : les heures ne comptent pas dans le coût de l'\''affaire' web/public/v10/core.js \
+  "    const cost = round3(achats + stockSorti + mainOeuvre);" "    const cost = round3(achats + stockSorti);" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.263 j : « 7,5 » heures se lisent 0' web/public/v10/app.js \
+  "  const heuresLues = x => Number(String(x == null ? '' : x).replace(/\\s/g, '').replace(',', '.')) || 0;" "  const heuresLues = x => Number(x) || 0;" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -626,3 +626,24 @@ Demande de Skander (03/11/2026) : « finir d'abord tout le module Marges, avec s
 | Seuil de rentabilité | Le résultat de l'année en cascade (un signe par ligne, les « dont » en retrait, le sous-total de la marge sur coûts variables, le résultat souligné), le chiffre d'affaires minimum à côté avec sa jauge, par mois et par jour ouvré ; « Fixe ou variable ? » en boutons segmentés |
 | Contrats | Un pied de tableau : nombre de contrats et de factures, facturé, coût, marge, par mois |
 | Au téléphone | Les tableaux des marges en lignes compactes (le titre, le menu ⋯ à droite, les montants alignés), sans les cartes génériques qui écrivaient « ACTIONS » |
+
+## La marge d'une affaire juste (1.263.0)
+
+Revue métier de Skander (03/11/2026 : « mets-toi à la place d'une entreprise, est-ce que notre module est satisfaisant ? »).
+La réponse était : oui pour un artisan qui achète pour chaque chantier, non pour une entreprise qui a des salariés ou du stock,
+parce que la marge affichée était trop belle. Tests : `tests/moteur/marges-1263.test.ts` (deux chemins pour chaque chiffre),
+`tests/web/marges-retour.test.ts` ; preuves « marges 1.263 a » à « j ».
+
+| Ce qui change | Comment, et pourquoi |
+|---|---|
+| Le coût d'une affaire | Trois morceaux, chacun compté une seule fois : les **achats** rattachés, la **marchandise sortie du stock** pour elle, les **heures** de ses salariés. Le résumé dit chacun (« achats … · stock … · main d'œuvre … (7,5 h) ») |
+| Le stock | Un article suivi en stock, facturé ou livré sur l'affaire, coûte ce que la page Stock a perdu (au coût moyen pondéré) ; la « Matière utilisée » de la page Stock peut être notée pour une affaire. La marchandise achetée pour l'affaire et encore au stock est dite à part, avec « Les sortir pour l'affaire… » ; elle compte quand elle sort. Avant, un article en stock facturé sur un chantier ne coûtait rien : 100 % de marge |
+| Le matériel immobilisé | Une ligne d'achat immobilisée ne compte pas dans la marge (elle s'amortit) ; la fiche le dit |
+| Les frais d'un achat | Le timbre, le port : toujours une charge de l'affaire, au prorata du HT de ses lignes |
+| Répartir un achat | Le menu ⋯ d'un achat de l'affaire : « Répartir ses lignes… », une affaire par ligne (ou aucune). La pièce, son montant et son écriture ne changent pas. Un achat partagé se dit « en partie pour ce chantier » ; ce qui a été payé se partage au prorata |
+| Les heures | Un onglet **Heures** sur la fiche : qui, quel jour, combien (« 7,5 »), une note. Le coût de l'heure vient de la paie : le coût employeur du mois (brut et charges, la même fonction que le bulletin) divisé par les heures du mois des réglages de la paie (`heuresMois`, celui des heures sup). Sans bulletin ce mois-là, celui du salaire du contrat, et la fiche dit « estimé ». Sans heures du mois réglées : « inconnu », zéro, jamais un nombre inventé. Le coût horaire chargé qu'un comptable retient pour ses devis : **À VÉRIFIER** |
+| Prévu et réel | Une carte : vendu, coût et marge prévus par les devis non refusés (le coût de chaque ligne de devis ou de la prestation au catalogue), contre le réel, et l'écart (vert s'il t'est favorable) ; sans devis, pas de carte ; des lignes de devis sans coût sont dites (≈) |
+| Le budget | Il porte maintenant sur tout le coût (achats, stock, heures) : « Coût sur le budget » |
+| Exporter | Le menu ⋯ de l'affaire : « Exporter en PDF » (sa marge prévue et réelle, ses ventes, ses achats, ses heures, ce qui reste au stock, établi le …) et « Exporter dans un tableur » (toutes ses lignes) |
+| Où est la marge | La phrase « Estimée avec le coût de chaque prestation au catalogue. La marge exacte d'un chantier, achats, stock et heures compris, est dans Affaires » : deux écrans, deux mesures, dites |
+| Seuil : mois par mois | Sous la cascade, l'année mois par mois (chiffre d'affaires, marge sur coûts variables, charges fixes, résultat, cumul, une barre) par la même fonction que l'année ; « Rentable depuis … » quand le cumul repasse au-dessus de zéro pour de bon, sinon « Pas encore rentable : à ce jour (novembre en cours), le cumul est de … ». Douze arrondis au millime peuvent faire quelques millimes d'écart avec l'année : l'écran le dit s'il y en a |

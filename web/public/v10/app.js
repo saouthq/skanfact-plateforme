@@ -17365,7 +17365,8 @@
   // Une marge sans AUCUN achat rattaché n'est pas encore une marge : tout le vendu y paraît gagné,
   // « 100 % » en vert. Les trois écrans qui la montrent (fiche de l'affaire, liste des affaires,
   // fiche du client) le disent de la même façon, par cette seule règle (10.12.0).
-  const margeSansAchat = x => !x.buysCount && x.revenue > 0;
+  // (1.263.0) Rien n'a encore coûté : ni achat, ni sortie de stock, ni heure. La marge à 100 % n'en est pas une.
+  const margeSansAchat = x => !x.buysCount && !x.stockSorti && !x.timeCount && x.revenue > 0;
   const NOTE_SANS_ACHAT = '<div class="small muted">aucun achat rattaché</div>';
   // Liste utilisée par tous les sélecteurs d'affaire : les affaires en cours d'abord. Elle commence
   // par « — Aucune affaire — » : sans cette entrée, une affaire choisie par erreur ne se retirait
@@ -17388,7 +17389,7 @@
         <div class="field">${lbl('Client', 'mg.projectClient')}
           ${combo({ name: 'clientId', value: p.clientId, items: data.clients.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => ({ v: c.id, label: c.name, text: c.name })), placeholder: '— Aucun client précis —', search: 'Rechercher un client…' })}
         </div>
-        ${field(lbl(`Budget d'achats HT (${h(C.normCurrency(company().currency))})`, 'mg.projectBudget'), 'budget', p.budget ? String(p.budget) : '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" placeholder="facultatif"')}
+        ${field(lbl(`Budget HT (${h(C.normCurrency(company().currency))})`, 'mg.projectBudget'), 'budget', p.budget ? String(p.budget) : '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" placeholder="facultatif"')}
         <div class="field span-2">${lbl('Statut', 'mg.projectStatus')}<div class="pa-seg" role="radiogroup" aria-label="Statut">${C.PROJECT_STATUSES.map(x => `<label><input type="radio" name="status" value="${x}" ${p.status === x ? 'checked' : ''}><span>${h(optionStatut(x))}</span></label>`).join('')}</div></div>
         ${dateFieldHtml(lbl('Début', 'mg.projectDates'), 'startDate', p.startDate, {})}
         ${dateFieldHtml(lbl('Fin (optionnel)', 'mg.projectDates'), 'endDate', p.endDate || '', { clearable: true })}
@@ -17413,12 +17414,15 @@
           save(true); close(); if (done) done(p);
         };
         if ($('#del-proj', root)) $('#del-proj', root).onclick = async () => {
-          const n = data.documents.filter(d => d.projectId === p.id).length + data.purchases.filter(x => x.projectId === p.id).length;
+          const n = data.documents.filter(d => d.projectId === p.id).length + data.purchases.filter(x => C.achatDansAffaire(x, p.id)).length;
           if (!await confirmDialog(`Supprimer « ${p.name} » ?${n ? ` ${pl(n, 'pièce')} y ${n > 1 ? 'sont rattachées : elles ne seront pas supprimées, elles perdront' : 'est rattachée : elle ne sera pas supprimée, elle perdra'} simplement leur affaire.` : ''}`)) return;
           forget('projects', p.id, p.name);
           data.projects = data.projects.filter(x => x.id !== p.id);
           data.documents.forEach(d => { if (d.projectId === p.id) delete d.projectId; });
-          data.purchases.forEach(x => { if (x.projectId === p.id) delete x.projectId; });
+          data.purchases.forEach(x => { if (x.projectId === p.id) delete x.projectId; (x.lines || []).forEach(l => { if (l.projectId === p.id) delete l.projectId; }); });
+          // (1.263.0) Ses heures partent avec elle ; la matière sortie pour elle reste sortie, sans affaire.
+          data.projectTime = (data.projectTime || []).filter(x => x.projectId !== p.id);
+          (data.stockAdjustments || []).forEach(a => { if (a.projectId === p.id) delete a.projectId; });
           save(true); close(); navigate('#/marges');
         };
       });
@@ -17473,14 +17477,14 @@
           ${info('mg.projects')}</div>`;
       $('#mg-body').innerHTML = toutes.length && !list.length ? `${filtresAff}<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune affaire ne correspond</b><span>${pq ? `Rien pour « ${h(pq)} »` : 'Aucune affaire à ce statut'}.</span><button class="btn" id="mg-tout">Tout revoir</button></div>` : list.length ? `
         ${filtresAff}
-        <div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>Affaire</th><th>Client</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Acheté HT</th><th class="r">Marge</th><th class="r">En caisse</th><th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
+        <div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>Affaire</th><th>Client</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">En caisse</th><th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
             ${list.map(p => `<tr class="clickable" data-pid="${h(p.id)}">
               <td class="cn"><b>${h(p.name)}</b>${p.pending ? `<small>+ ${C.money(p.pending, cur)} en devis</small>` : ''}</td>
               <td class="cl">${p.clientId ? `<span class="cl-i">${pastilleClient(p.clientId)}<span><b>${h(clientName(p.clientId))}</b></span></span>` : '<span class="mu">—</span>'}</td>
               <td class="st"><span class="badge ${p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon'}">${h(p.status)}</span></td>
               <td class="r">${lfMontant(p.revenue, cur)}</td>
               <td class="r">${lfMontant(p.cost, cur)}</td>
-              <td class="r m${p.margin < 0 ? ' rouge' : ''}">${lfMontant(p.margin, cur)}${margeSansAchat(p) ? '<small>aucun achat rattaché</small>' : p.rate == null ? '' : `<small class="${p.rate < 0 ? 'rouge' : p.rate >= 30 ? 'vert' : ''}">${pct(p.rate)} %</small>`}</td>
+              <td class="r m${p.margin < 0 ? ' rouge' : ''}">${lfMontant(p.margin, cur)}${margeSansAchat(p) ? '<small>aucun coût rattaché</small>' : p.rate == null ? '' : `<small class="${p.rate < 0 ? 'rouge' : p.rate >= 30 ? 'vert' : ''}">${pct(p.rate)} %</small>`}</td>
               <td class="r${p.cash < 0 ? ' rouge' : ''}">${lfMontant(p.cash, cur)}</td>
               <td class="actions row-actions lf-act"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(p.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(p.name)}">${lfIc('plus', 16)}</button></td></tr>`).join('')}
           </tbody>
@@ -17517,6 +17521,7 @@
         <div class="filters mg-f">
           <div class="pa-seg" id="mg-dim" role="group" aria-label="Regarder la marge">${[['client', 'Par client'], ['item', 'Par prestation']].map(([k, n]) => `<button type="button" data-dim="${k}" aria-pressed="${s.dim === k}" class="${s.dim === k ? 'active' : ''}">${n}</button>`).join('')}</div>
           ${info('mg.analysis')}
+          <span class="small mu mg-estime">Estimée avec le coût de chaque prestation au catalogue. La marge exacte d'un chantier, achats, stock et heures compris, est dans Affaires.</span>
           ${incomplete ? `<span class="small ambre">${pl(incomplete, 'ligne')} sans coût connu : ${incomplete > 1 ? 'leur marge est surestimée' : 'sa marge est surestimée'} (≈)</span>` : '<span class="small mu">Tous les coûts sont connus.</span>'}
         </div>
         ${rows.length ? `<div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>${parClient ? 'Client' : 'Prestation'}</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Taux</th><th class="mg-barre-h"><span class="vh">Part de la marge</span></th></tr></thead><tbody>
@@ -17596,6 +17601,25 @@
               <div class="g-legend"><span><strong>${C.money(b.revenue, cur)}</strong> réalisés</span><span class="mu">seuil ${C.money(b.breakEven, cur)}</span></div></div>
             <div class="mg-par"><span><b>${C.money(C.round3(b.breakEven / 12), cur)}</b><small>par mois</small></span><span><b>${C.money(C.round3(b.breakEven / 220), cur)}</b><small>par jour ouvré</small></span></div>
           </div></div>`;
+      // (1.263.0, revue métier du 03/11) L'année MOIS PAR MOIS : quand l'entreprise devient-elle rentable ? Chaque mois par
+      // la même fonction que l'année ; le cumul dit le mois où l'on repasse au-dessus de zéro pour de bon.
+      if (b.breakEven != null) {
+        const mm = C.margeMoisParMois(data, company(), s.year);
+        const vus = mm.mois.filter(x => x.commence);
+        const maxR = Math.max(1, ...vus.map(x => Math.abs(x.result)));
+        const dernier = vus[vus.length - 1];
+        const phrase = !vus.length ? '' : mm.depuis
+          ? `<span class="vert">Rentable depuis ${h(mm.depuis.label)} : le cumul de l'année est repassé au-dessus de zéro et y est resté.</span>`
+          : `<span class="rouge">Pas encore rentable : ${dernier.to < C.today() ? `à fin ${h(dernier.label)}` : `à ce jour (${h(dernier.label)} en cours)`}, le cumul de l'année est de ${h(C.money(dernier.cumul, cur))}.</span>`;
+        $('#mg-body').insertAdjacentHTML('beforeend', `<div class="mg-mois"><div class="mg-st"><b>Mois par mois</b>${info('mg.months')}</div><p class="small">${phrase}</p>
+          <div class="lf-tab scroll-x"><table class="list lf-table mg-table mg-mois-t" data-sans-cartes><thead><tr><th>Mois</th><th class="r">Chiffre d'affaires HT</th><th class="r">Marge sur coûts variables</th><th class="r">Charges fixes</th><th class="r">Résultat du mois</th><th class="r">Cumul</th><th class="mg-barre-h"><span class="vh">Résultat</span></th></tr></thead><tbody>
+            ${mm.mois.map(x => x.commence ? `<tr${mm.depuis && mm.depuis.mois === x.mois ? ' class="mg-depuis"' : ''}><th scope="row">${h(x.label)}</th><td class="r">${lfMontant(x.revenue, cur)}</td><td class="r">${lfMontant(x.marginOnVariable, cur)}</td><td class="r">${lfMontant(x.fixed, cur)}</td>
+              <td class="r m${x.result < 0 ? ' rouge' : ''}">${lfMontant(x.result, cur)}</td><td class="r${x.cumul < 0 ? ' rouge' : ' vert'}">${lfMontant(x.cumul, cur)}</td>
+              <td class="mg-barre"><span class="bar"><i class="${x.result < 0 ? 'f-bad' : 'f-ok'}" style="width:${Math.max(2, Math.round(Math.abs(x.result) / maxR * 100))}%"></i></span></td></tr>`
+              : `<tr class="mu"><th scope="row">${h(x.label)}</th><td class="r" colspan="5">pas encore commencé</td><td></td></tr>`).join('')}
+          </tbody></table></div>
+          ${Math.abs(mm.ecart) >= 0.0005 ? `<p class="small mu">Chaque mois s'arrondit au millime : la somme des mois fait ${h(C.money(Math.abs(mm.ecart), cur))} ${mm.ecart > 0 ? 'de plus' : 'de moins'} que le résultat de l'année.</p>` : ''}</div>`);
+      }
       $('#mg-body').insertAdjacentHTML('beforeend', `<div class="mg-fv"><div class="mg-st"><b>Fixe ou variable ?</b>${info('mg.classify')}</div>
           <p class="small mu">Une charge <b>fixe</b> tombe que tu vendes ou non : loyer, assurance, abonnement, salaires. Une charge <b>variable</b> suit les ventes : marchandises, sous-traitance. Ce classement dépend de ton activité — <em>À VÉRIFIER avec ton comptable.</em></p>
           <div class="fv-liste">
@@ -17749,16 +17773,183 @@
   function actionsAffaire(p, refaire) {
     if (!p) return [];
     const ecrit = !enLecture('projects');
-    const l = [{ icon: 'ouvrir', label: 'Ouvrir', hint: 'ses ventes, ses achats, sa marge', run: () => navigate('#/affaire/' + p.id) }];
-    if (!ecrit) return l;
+    const l = [{ icon: 'ouvrir', label: 'Ouvrir', hint: 'ses ventes, ses achats, ses heures, sa marge', run: () => navigate('#/affaire/' + p.id) }];
+    if (!ecrit) return [...l, { icon: 'pdf', label: 'Exporter en PDF', hint: 'sa marge, ses ventes, ses achats', run: () => exporterAffaire(p, 'pdf') }];
     const groupe = (titre, x) => (x.length ? [{ titre }, ...x] : []);
     return [...l,
       ...groupe('Y ajouter', [
         { icon: 'piece', label: 'Un devis', hint: 'il naît rattaché à l\'affaire', run: () => navigate('#/doc/new/devis' + (p.clientId ? '/client/' + p.clientId : '') + '/affaire/' + p.id) },
         { icon: 'achats', label: 'Un achat', hint: 'c\'est lui qui rend la marge exacte', run: () => navigate('#/achat/new/-/facture/-/affaire/' + p.id) },
         { icon: 'lien', label: 'Des ventes déjà saisies…', hint: 'cocher celles du chantier', run: () => rattacherPieces(p, 'ventes', refaire) },
-        { icon: 'lien', label: 'Des achats déjà saisis…', hint: 'cocher ceux du chantier', run: () => rattacherPieces(p, 'achats', refaire) }]),
-      ...groupe('L\'affaire', [{ icon: 'modifier', label: 'Modifier…', hint: 'nom, client, statut, dates, notes', run: () => projectForm(p, refaire) }])];
+        { icon: 'lien', label: 'Des achats déjà saisis…', hint: 'cocher ceux du chantier', run: () => rattacherPieces(p, 'achats', refaire) },
+        { icon: 'horloge', label: 'Des heures…', hint: 'le temps d\'un salarié sur le chantier', run: () => heuresForm(p, null, refaire) }]),
+      ...groupe('L\'affaire', [{ icon: 'modifier', label: 'Modifier…', hint: 'nom, client, statut, budget, dates, notes', run: () => projectForm(p, refaire) },
+        { icon: 'pdf', label: 'Exporter en PDF', hint: 'sa marge, ses ventes, ses achats, ses heures', run: () => exporterAffaire(p, 'pdf') },
+        { icon: 'extraire', label: 'Exporter dans un tableur', hint: 'toutes ses lignes', run: () => exporterAffaire(p, 'csv') }])];
+  }
+
+  // (1.263.0, revue métier du 03/11) Ce que coûte l'affaire, en mots : ses trois morceaux, chacun nommé, aucun caché.
+  const coutDit = (m, cur) => {
+    const l = [];
+    if (m.achats || m.buysCount) l.push(`achats ${C.money(m.achats, cur)}`);
+    if (m.stockSorti) l.push(`stock ${C.money(m.stockSorti, cur)}`);
+    if (m.timeCount) l.push(`main d'œuvre ${C.money(m.mainOeuvre, cur)} (${pct(m.hours)} h${m.laborEstimated ? ', estimée' : ''})`);
+    return l.length ? l.join(' · ') : 'rien n\'est encore rattaché';
+  };
+  // Ce qui a été acheté pour le chantier sans être consommé : la marchandise encore au stock (elle comptera quand elle
+  // sortira) et le matériel immobilisé (il s'amortit). Dit, pour que personne ne croie la marge plus belle qu'elle n'est.
+  const horsMarge = (m, cur, ecrit) => {
+    const l = [];
+    if (m.enStockReste > 0.0005) l.push(`<span><b>${C.money(m.enStockReste, cur)}</b> de marchandise achetée pour l'affaire sont encore au stock : ils compteront quand ils en sortiront (facture, bon de livraison, ou « Matière utilisée »).${ecrit ? ' <button type="button" class="btn-lien" id="p-sortir">Les sortir pour l\'affaire…</button>' : ''}</span>`);
+    if (m.immo > 0.0005) l.push(`<span><b>${C.money(m.immo, cur)}</b> de matériel immobilisé ne comptent pas dans la marge : un bien qui reste plus d'un an dans l'entreprise s'amortit, il ne se consomme pas sur un chantier.</span>`);
+    return l.length ? `<div class="bandeau mg-hors" role="note">${lfIc('stock', 18, 2)}<span class="txt">${l.join('')}</span></div>` : '';
+  };
+  // Le prévu (ses devis) contre le réel : vendu, coût, marge, et l'écart de chacun.
+  const prevuReel = (m, cur) => {
+    if (!m.planned) return '';
+    const P = m.planned;
+    const ec = (reel, prevu, bon) => { const d = C.round3(reel - prevu); if (Math.abs(d) < 0.0005) return '<span class="mu">=</span>';
+      const ton = (bon === 'haut' ? d > 0 : d < 0) ? 'vert' : 'rouge'; return `<span class="${ton}">${d > 0 ? '+' : '−'}${h(C.money(Math.abs(d), cur))}</span>`; };
+    const l = (lib, prevu, reel, bon, extra) => `<tr><th scope="row">${lib}</th><td class="r">${lfMontant(prevu, cur)}</td><td class="r">${lfMontant(reel, cur)}</td><td class="r">${ec(reel, prevu, bon)}</td></tr>${extra || ''}`;
+    return `<div class="cf-carte mg-prevu"><div class="mg-av-tete"><b>Prévu et réel</b>${info('mg.projectPlanned')}<span class="mu small">${pl(P.quotes, 'devis')} non refusé${sPl(P.quotes)}${P.complete ? '' : ' · certaines lignes de devis n\'ont pas de coût : le coût prévu est trop bas (≈)'}</span></div>
+      <div class="lf-tab scroll-x"><table class="lf-table mg-pr-t" data-sans-cartes><thead><tr><th></th><th class="r">Prévu</th><th class="r">Réel</th><th class="r">Écart</th></tr></thead><tbody>
+        ${l('Vendu HT', P.revenue, m.revenue, 'haut')}${l('Coût', P.cost, m.cost, 'bas')}${l('<b>Marge</b>', P.margin, m.margin, 'haut')}
+      </tbody></table></div>
+      <p class="small mu">${m.pending > 0.0005 ? `Il reste ${C.money(m.pending, cur)} en devis à facturer : le réel n'est pas fini. ` : ''}Le coût prévu est celui des lignes du devis (ou de la prestation au catalogue) ; le réel, ce que l'affaire a vraiment coûté.</p></div>`;
+  };
+
+  // « 7,5 », « 7.5 », « 7 » : des heures comme on les écrit.
+  const heuresLues = x => Number(String(x == null ? '' : x).replace(/\s/g, '').replace(',', '.')) || 0;
+  // Noter des heures sur une affaire (1.263.0) : qui, quel jour, combien. Leur coût vient de la paie, jamais tapé.
+  function heuresForm(p, x, done) {
+    if (enLecture('projects')) return toast(refusLecture('projects'), true);
+    const emps = (data.employees || []).filter(e => !e.endDate || e.endDate >= C.addDays(C.today(), -365));
+    if (!emps.length) return toast('Aucun salarié : ajoute-les d\'abord dans la Paie. Leur coût de l\'heure vient de leur bulletin.', true);
+    const cur = company().currency;
+    const v0 = x || { id: C.uid(), projectId: p.id, employeeId: emps[0].id, date: C.today(), hours: '', note: '', createdAt: Date.now() };
+    modal(`<h2>${x ? 'Modifier les heures' : 'Noter des heures'}</h2>
+      <p class="small muted">Le temps passé sur « ${h(p.name)} ». Le coût de l'heure vient de la paie : le coût employeur du mois (brut et charges) divisé par les heures du mois de tes réglages de paie.</p>
+      <form id="htf" class="grid-2">
+        <div class="field obligatoire">${lbl('Salarié', 'mg.timeEmployee')}
+          ${combo({ name: 'employeeId', value: v0.employeeId, items: emps.map(e => ({ v: e.id, label: e.name, sub: e.position || '', text: e.name })), placeholder: '— Choisir un salarié —', search: 'Chercher un salarié…' })}</div>
+        ${dateFieldHtml(lbl('Jour', 'mg.timeDate'), 'date', v0.date, { obligatoire: true })}
+        ${field(lbl('Heures', 'mg.timeHours'), 'hours', v0.hours === '' ? '' : String(v0.hours).replace('.', ','), 'text', 'inputmode="decimal" autocomplete="off" class="num" placeholder="ex. 7,5"')}
+        <label class="field">${lbl('Note', 'mg.timeNote')}<input type="text" name="note" value="${h(v0.note || '')}" placeholder="Pose, finitions, déplacement…"></label>
+        <div class="span-2 annonce-stable" id="ht-effet"></div>
+      </form>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${x ? 'Enregistrer' : 'Noter ces heures'}</button></div>`,
+    (root, close) => {
+      bindCombo($('[data-combo=employeeId]', root), { items: emps.map(e => ({ v: e.id, label: e.name, text: e.name })), placeholder: '— Choisir un salarié —' });
+      const effet = () => {
+        const v = formValues($('#htf', root));
+        const y = Number(String(v.date || '').slice(0, 4)), mo = Number(String(v.date || '').slice(5, 7));
+        const c = v.employeeId && y && mo ? C.coutHoraire(data, v.employeeId, y, mo) : null;
+        const hrs = heuresLues(v.hours);
+        $('#ht-effet', root).innerHTML = !c ? '' : c.inconnu
+          ? '<span class="small ambre">Coût de l\'heure inconnu : règle les heures du mois dans les réglages de la paie, et le salaire du salarié.</span>'
+          : `<span class="small mu">Coût de l'heure : <b>${h(C.money(c.coutMois / c.heuresMois, cur))}</b> (${h(C.money(c.coutMois, cur))} pour ${pct(c.heuresMois)} h)${c.estime ? ', <span class="ambre">estimé sur son salaire du contrat : pas encore de bulletin ce mois-là</span>' : ', d\'après son bulletin du mois'}${hrs > 0 ? ` · ces heures coûtent <b>${h(C.money(C.round3(hrs * c.coutMois / c.heuresMois), cur))}</b>` : ''}.</span>`;
+      };
+      $('#htf', root).oninput = $('#htf', root).onchange = effet; effet();
+      $('#ok', root).onclick = () => {
+        const v = formValues($('#htf', root));
+        if (!v.employeeId) return refus($('[name=employeeId]', root), 'Choisis le salarié.');
+        if (!v.date) return refus($('[name=date]', root), 'Le jour manque.');
+        const hrs = C.round3(heuresLues(v.hours));
+        if (!(hrs > 0) || hrs > 24) return refus($('[name=hours]', root), 'Des heures entre 0 et 24 pour un jour.');
+        if (!Array.isArray(data.projectTime)) data.projectTime = [];
+        const ligne = { ...v0, employeeId: v.employeeId, date: v.date, hours: hrs, note: String(v.note || '').trim() };
+        if (x) Object.assign(x, ligne); else data.projectTime.push(ligne);
+        save(true); close(); affaireDocState.onglet = 'heures'; if (done) done();
+        toast(`${pct(hrs)} h notées sur « ${p.name} »`);
+      };
+    });
+  }
+
+  // Répartir les lignes d'un achat entre les affaires (1.263.0) : une facture de quincaillerie pour deux chantiers.
+  // Chaque ligne choisit son affaire ; « Aucune » la sort de toute affaire. La pièce elle-même ne change pas.
+  function repartirAchat(b, done) {
+    if (enLecture('projects')) return toast(refusLecture('projects'), true);
+    const cur = company().currency, t = C.purchaseTotals(b, company());
+    const affs = (data.projects || []).filter(x => x.status !== 'annulée' || C.achatDansAffaire(b, x.id));
+    const avant = JSON.stringify({ p: b.projectId || '', l: b.lines || [] });
+    const opts = sel => `<option value="">Aucune affaire</option>${affs.map(x => `<option value="${h(x.id)}"${x.id === sel ? ' selected' : ''}>${h(x.name)}</option>`).join('')}`;
+    modal(`<h2>Répartir les lignes de l'achat</h2>
+      <p class="small muted">${h(supplierName(b.supplierId) || '')} ${h(b.number || '')} · chaque ligne compte dans l'affaire que tu lui donnes, frais au prorata. L'achat lui-même ne change pas : ni son montant, ni son écriture.</p>
+      <div class="lf-tab scroll-x"><table class="lf-table" data-sans-cartes><thead><tr><th>Ligne</th><th class="r">HT</th><th>Affaire</th></tr></thead><tbody>
+        ${t.lines.map((l, i) => `<tr><td><b>${h(l.label || 'Ligne ' + (i + 1))}</b><br><small class="mu">${h(((C.LINE_DESTINATIONS || []).find(d => d[0] === l.destination) || [, l.destination])[1])}</small></td><td class="r">${lfMontant(C.toBase(b, l.ht, company()), cur)}</td>
+          <td><select data-li="${i}" aria-label="Affaire de la ligne ${i + 1}">${opts(C.affaireDeLigne(b, b.lines[i]))}</select></td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Répartir</button></div>`,
+    (root, close) => {
+      $('#ok', root).onclick = () => {
+        const choix = $$('[data-li]', root).map(s => s.value);
+        // Une seule affaire pour toutes les lignes : c'est l'affaire de la pièce, sans rien sur les lignes.
+        const uniques = [...new Set(choix)];
+        if (uniques.length === 1) { if (uniques[0]) b.projectId = uniques[0]; else delete b.projectId; (b.lines || []).forEach(l => delete l.projectId); }
+        else (b.lines || []).forEach((l, i) => { l.projectId = choix[i]; });
+        save(true); close(); if (done) done();
+        toastUndo('Lignes réparties', () => { const a = JSON.parse(avant); if (a.p) b.projectId = a.p; else delete b.projectId; b.lines = a.l; save(true); if (done) done(); });
+      };
+    });
+  }
+
+  // Sortir pour l'affaire la marchandise achetée pour elle et restée au stock (1.263.0) : une « matière utilisée » par
+  // article, à la quantité de la ligne, au coût moyen du jour — le geste de la page Stock, déjà rattaché.
+  function sortirPourAffaire(p, done) {
+    if (enLecture('stockAdjustments')) return toast(refusLecture('stockAdjustments'), true);
+    const parArticle = new Map();
+    (data.purchases || []).filter(b => C.achatDansAffaire(b, p.id) && b.kind !== 'acompte').forEach(b => (b.lines || []).forEach(l => {
+      if (C.affaireDeLigne(b, l) !== p.id || l.destination !== 'stock') return;
+      const c = C.itemOfLine(l, data); if (!c || !c.tracked) return;
+      parArticle.set(c.id, C.round3((parArticle.get(c.id) || 0) + (b.kind === 'avoir' ? -1 : 1) * (Number(l.qty) || 0)));
+    }));
+    // Ce qui est déjà sorti pour l'affaire : ses factures, ses bons de livraison, la matière utilisée notée pour elle.
+    const deja = C.quantitesSortiesPourAffaire(data, p.id);
+    const lignes = [...parArticle].map(([id, q]) => ({ c: data.catalog.find(x => x.id === id), q: C.round3(q - (deja.get(id) || 0)) })).filter(x => x.c && x.q > 0);
+    if (!lignes.length) return toast('Rien à sortir : la marchandise achetée pour cette affaire est déjà sortie du stock.', true);
+    const cur = company().currency;
+    modal(`<h2>Sortir du stock pour « ${h(p.name)} »</h2>
+      <p class="small muted">La marchandise achetée pour ce chantier et encore au stock. Ce que tu sors compte dans la marge, au coût moyen du stock. Corrige une quantité si une partie n'a pas servi.</p>
+      <form id="spf"><div class="lf-tab scroll-x"><table class="lf-table" data-sans-cartes><thead><tr><th>Article</th><th class="r">Coût moyen</th><th class="r">Quantité sortie</th></tr></thead><tbody>
+        ${lignes.map((x, i) => `<tr><td><b>${h(x.c.label)}</b></td><td class="r">${lfMontant(C.stockOf(data, x.c.id).cmp, cur)}</td><td class="r"><input type="number" class="num" name="q${i}" value="${x.q}" min="0" step="0.01" aria-label="Quantité de ${h(x.c.label)}"></td></tr>`).join('')}
+      </tbody></table></div>
+      ${dateFieldHtml(lbl('Date de la sortie', 'stk.adjustDate'), 'date', C.today(), { obligatoire: true })}</form>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Sortir du stock</button></div>`,
+    (root, close) => {
+      $('#ok', root).onclick = () => {
+        const v = formValues($('#spf', root));
+        if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
+        if (closedBlock(v.date, 'Ce mouvement de stock')) return;
+        const crees = [];
+        lignes.forEach((x, i) => { const q = Number(v['q' + i]) || 0; if (q > 0) crees.push({ id: C.uid(), createdAt: Date.now(), date: v.date, itemId: x.c.id, qty: -q, unitCost: '', source: 'consommation', reference: '', note: `Pour l'affaire « ${p.name} »`, projectId: p.id }); });
+        if (!crees.length) return refus($('[name=q0]', root), 'Aucune quantité à sortir.');
+        if (!Array.isArray(data.stockAdjustments)) data.stockAdjustments = [];
+        crees.forEach(a => data.stockAdjustments.push(a));
+        save(true); close(); if (done) done();
+        toastUndo(`${pl(crees.length, 'article')} sorti${sPl(crees.length)} du stock pour « ${p.name} »`, () => { data.stockAdjustments = data.stockAdjustments.filter(a => !crees.includes(a)); save(true); if (done) done(); });
+      };
+    });
+  }
+
+  // Le relevé de l'affaire : en PDF (le client, la banque) ou dans un tableur (toutes ses lignes).
+  async function exporterAffaire(p, format) {
+    const nom = `affaire-${String(p.name || 'sans-nom').replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}-${C.today()}`;
+    if (format === 'pdf') {
+      try { const f = await bridge.exportPdf(C.affaireHtml(data, company(), p.id), nom + '.pdf'); if (f) toast('PDF enregistré : ' + f.split(/[\\/]/).pop()); }
+      catch (e) { toast('Le PDF n\'a pas pu être fait : ' + (e && e.message ? e.message : 'erreur inconnue'), true); }
+      return;
+    }
+    const co = company(), m = C.projectMargin(data, co, p.id);
+    const lignes = [
+      ...m.sales.map(d => ({ quoi: d.type === 'avoir' ? 'Avoir' : 'Facture', date: C.fmtDate(d.date), piece: d.number || '', libelle: d.subject || clientName(d.clientId), vendu: (d.type === 'avoir' ? -1 : 1) * C.toBase(d, C.computeTotals(d, co).netHT, co), cout: '' })),
+      ...m.buys.map(b => ({ quoi: 'Achat', date: C.fmtDate(b.date), piece: b.number || '', libelle: [supplierName(b.supplierId), C.partageEntreAffaires(b) ? '(en partie)' : ''].filter(Boolean).join(' '), vendu: '', cout: C.coutAchatPourAffaire(b, co, data, p.id).cout })),
+      ...(m.stockSorti ? [{ quoi: 'Stock', date: '', piece: '', libelle: 'Marchandise sortie du stock (coût moyen)', vendu: '', cout: m.stockSorti }] : []),
+      ...m.heures.map(x => ({ quoi: 'Heures', date: C.fmtDate(x.date), piece: '', libelle: `${x.employeeName} · ${pct(x.hours)} h${x.estime ? ' (estimé)' : ''}`, vendu: '', cout: x.cout })),
+      { quoi: 'Total', date: '', piece: '', libelle: `Marge ${C.money(m.margin, co.currency)}`, vendu: m.revenue, cout: m.cost }];
+    const colonnes = [{ key: 'quoi', label: 'Nature' }, { key: 'date', label: 'Date' }, { key: 'piece', label: 'Pièce' }, { key: 'libelle', label: 'Libellé' },
+      { key: 'vendu', label: 'Vendu HT', type: 'money' }, { key: 'cout', label: 'Coût', type: 'money' }];
+    const f = await bridge.saveText(nom + '.csv', C.toCsv(lignes, colonnes));
+    if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
   }
 
   routes.affaire = (parts) => {
@@ -17774,8 +17965,8 @@
     const vert = k => (suivante === k ? ' btn-primary' : '');
     // (1.261.0) La fiche dans la nouvelle DA : le chemin et « ‹ », le statut, un résumé au lieu de quatre tuiles, et les
     // ventes, les achats, les notes en onglets segmentés (ceux de la Paie).
-    const nbVentes = data.documents.filter(d => d.projectId === p.id).length, nbAchats = data.purchases.filter(x => x.projectId === p.id).length;
-    const ong = ['ventes', 'achats', 'notes'].includes(affaireDocState.onglet) ? affaireDocState.onglet : 'ventes';
+    const nbVentes = data.documents.filter(d => d.projectId === p.id).length, nbAchats = data.purchases.filter(x => C.achatDansAffaire(x, p.id)).length;
+    const ong = ['ventes', 'achats', 'heures', 'notes'].includes(affaireDocState.onglet) ? affaireDocState.onglet : 'ventes';
     const badgeSt = p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon';
     // (1.262.0) « Où en est le chantier » : trois barres qui se lisent d'un coup d'œil — ce qui est facturé sur ce qui est
     // prévu (devis compris), ce qui est encaissé sur ce qui est facturé, ce qui est acheté sur le budget s'il est donné.
@@ -17788,8 +17979,8 @@
       const l = [];
       if (prevu > 0) l.push(barre('Facturé', m.revenue, prevu, m.pending > 0.0005 ? `${C.money(m.revenue, cur)} sur ${C.money(prevu, cur)} prévus · ${C.money(m.pending, cur)} encore en devis` : `${C.money(m.revenue, cur)} : tout ce qui était prévu est facturé`, m.pending > 0.0005 ? '' : 'vert'));
       if (m.invoiced > 0.0005) { const du = C.round3(m.invoiced - m.collected); l.push(barre('Encaissé', m.collected, m.invoiced, du > 0.0005 ? `${C.money(m.collected, cur)} sur ${C.money(m.invoiced, cur)} TTC · ${C.money(du, cur)} à encaisser` : `${C.money(m.collected, cur)} : tout est encaissé`, du > 0.0005 ? '' : 'vert')); }
-      if (budget > 0) { const reste = C.round3(budget - m.cost); l.push(barre('Achats sur le budget', m.cost, budget, reste >= 0 ? `${C.money(m.cost, cur)} sur ${C.money(budget, cur)} · ${C.money(reste, cur)} encore disponibles` : `${C.money(m.cost, cur)} : budget de ${C.money(budget, cur)} dépassé de ${C.money(-reste, cur)}`, reste >= 0 ? '' : 'rouge')); }
-      return l.length ? `<div class="cf-carte mg-avancement"><div class="mg-av-tete"><b>Où en est le chantier</b>${budget > 0 ? '' : ecritP ? '<button type="button" class="btn-lien" id="p-budget">Donner un budget d\'achats</button>' : ''}</div>${l.join('')}</div>` : '';
+      if (budget > 0) { const reste = C.round3(budget - m.cost); l.push(barre('Coût sur le budget', m.cost, budget, reste >= 0 ? `${C.money(m.cost, cur)} sur ${C.money(budget, cur)} · ${C.money(reste, cur)} encore disponibles` : `${C.money(m.cost, cur)} : budget de ${C.money(budget, cur)} dépassé de ${C.money(-reste, cur)}`, reste >= 0 ? '' : 'rouge')); }
+      return l.length ? `<div class="cf-carte mg-avancement"><div class="mg-av-tete"><b>Où en est le chantier</b>${budget > 0 ? '' : ecritP ? '<button type="button" class="btn-lien" id="p-budget">Donner un budget</button>' : ''}</div>${l.join('')}</div>` : '';
     };
     const ecritP = !enLecture('projects');
     const chiffre = (lbl2, val, sous, ton, bulle) => `<div class="mg-chiffre"><span class="mu">${lbl2}${bulle ? ' ' + info(bulle) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
@@ -17800,22 +17991,25 @@
           <p class="sous">${[p.clientId ? h(clientName(p.clientId)) : 'sans client précis', p.startDate ? 'depuis le ' + C.fmtDate(p.startDate) : '', p.endDate ? 'fin le ' + C.fmtDate(p.endDate) : ''].filter(Boolean).join(' · ')}</p></div>
         <div class="actions"><button class="btn" id="edit-p">Modifier</button>
           <button class="btn${vert('devis')}" id="p-devis">${lfIc('croix', 15, 2.4)} Devis</button><button class="btn${vert('achat')}" id="p-achat">${lfIc('croix', 15, 2.4)} Achat</button><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(p.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Les autres gestes" title="Les autres gestes">${lfIc('plus', 16)}</button></div></div>
-      ${m.margin < 0 ? `<div class="bandeau rouge mg-perte" role="status">${lfIc('alerte', 18, 2)}<span class="txt"><b>Cette affaire perd de l'argent</b><span>Tu as acheté ${C.money(m.cost, cur)} et facturé ${C.money(m.revenue, cur)}. Vérifie qu'il ne reste pas quelque chose à facturer, ou qu'un achat n'a pas été rattaché par erreur.</span></span></div>` : ''}
+      ${m.margin < 0 ? `<div class="bandeau rouge mg-perte" role="status">${lfIc('alerte', 18, 2)}<span class="txt"><b>Cette affaire perd de l'argent</b><span>Elle a coûté ${C.money(m.cost, cur)} et ${C.money(m.revenue, cur)} sont facturés. Vérifie qu'il ne reste pas quelque chose à facturer, ou qu'un achat ou des heures n'ont pas été rattachés par erreur.</span></span></div>` : ''}
       <div class="lf mg">
         <div class="cf-carte mg-resume">
           ${chiffre('Vendu HT', montantU(m.revenue, cur), `${pl(m.salesCount, 'facture')}${m.pending ? ` · ${C.money(m.pending, cur)} en devis` : ''}`, '', 'mg.projectRevenue')}
-          ${chiffre('Acheté HT', montantU(m.cost, cur), `${pl(m.buysCount, 'achat')} rattaché${sPl(m.buysCount)}`)}
-          ${chiffre('Marge', montantU(m.margin, cur), m.rate == null ? 'rien de vendu' : margeSansAchat(m) ? 'aucun achat rattaché : le coût n\'est pas encore compté' : `${pct(m.rate)} % du prix de vente`, m.margin < 0 ? 'rouge' : m.margin > 0 && !margeSansAchat(m) ? 'vert' : '', 'mg.projectMargin')}
+          ${chiffre('Coût', montantU(m.cost, cur), coutDit(m, cur), '', 'mg.projectCost')}
+          ${chiffre('Marge', montantU(m.margin, cur), m.rate == null ? 'rien de vendu' : margeSansAchat(m) ? 'aucun coût rattaché : ni achat, ni stock, ni heure' : `${pct(m.rate)} % du prix de vente`, m.margin < 0 ? 'rouge' : m.margin > 0 && !margeSansAchat(m) ? 'vert' : '', 'mg.projectMargin')}
           ${chiffre('En caisse', montantU(m.cash, cur), `${C.money(m.collected, cur)} encaissés − ${C.money(m.paid, cur)} payés`, m.cash < 0 ? 'rouge' : '', 'mg.projectCash')}
         </div>
+        ${horsMarge(m, cur, ecritP)}
+        ${prevuReel(m, cur)}
         ${avancement()}
-        <div class="mg-barre"><div class="pa-seg" id="p-tabs" role="tablist" aria-label="L'affaire">${[['ventes', 'Ventes', nbVentes], ['achats', 'Achats', nbAchats], ['notes', 'Notes', 0]].map(([k, n, nb]) => `<button type="button" role="tab" data-ong="${k}" aria-selected="${ong === k}" class="${ong === k ? 'active' : ''}">${n}${nb ? ` <small>${nb}</small>` : ''}</button>`).join('')}</div></div>
+        <div class="mg-barre"><div class="pa-seg" id="p-tabs" role="tablist" aria-label="L'affaire">${[['ventes', 'Ventes', nbVentes], ['achats', 'Achats', nbAchats], ['heures', 'Heures', m.timeCount], ['notes', 'Notes', 0]].map(([k, n, nb]) => `<button type="button" role="tab" data-ong="${k}" aria-selected="${ong === k}" class="${ong === k ? 'active' : ''}">${n}${nb ? ` <small>${nb}</small>` : ''}</button>`).join('')}</div></div>
         <div class="cf-carte"><div class="cf-onglet mg-onglet">
-          <div id="p-sales"${ong === 'ventes' ? '' : ' hidden'}></div><div id="p-buys"${ong === 'achats' ? '' : ' hidden'}></div>
+          <div id="p-sales"${ong === 'ventes' ? '' : ' hidden'}></div><div id="p-buys"${ong === 'achats' ? '' : ' hidden'}></div><div id="p-time"${ong === 'heures' ? '' : ' hidden'}></div>
           <div id="p-notes"${ong === 'notes' ? '' : ' hidden'}>${p.notes ? `<p class="mg-notes">${C.nl2br(p.notes)}</p>` : `<div class="mg-vide">${lfIc('modifier', 24, 1.6)}<b>Pas de note</b><span>Ce qu'il faut retenir du chantier : interlocuteur, accès, conditions. Jamais imprimé.</span><button class="btn" id="p-note-new">Écrire une note</button></div>`}</div>
         </div></div></div>`;
     $$('#p-tabs [data-ong]').forEach(b => b.onclick = () => { affaireDocState.onglet = b.dataset.ong; render(true); });
     if ($('#p-budget')) $('#p-budget').onclick = () => projectForm(p, () => render(true), null, 'budget');
+    if ($('#p-sortir')) $('#p-sortir').onclick = () => sortirPourAffaire(p, () => render(true));
     if ($('#p-note-new')) $('#p-note-new').onclick = () => projectForm(p, () => render());
     $('#edit-p').onclick = () => projectForm(p, () => render());
     // Les deux créations naissent RATTACHÉES à l'affaire (10.12.0) : elles ouvraient un devis et un
@@ -17826,14 +18020,18 @@
     // fiche disparaissait tant qu'il n'était pas envoyé, et la fiche disait « aucune vente ». Le
     // résumé, lui, ne compte que ce qui est émis — c'est ce que disent ses bulles.
     const sales = data.documents.filter(d => d.projectId === p.id).sort(byNumberDesc);
-    const buys = data.purchases.filter(x => x.projectId === p.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const buys = data.purchases.filter(x => C.achatDansAffaire(x, p.id)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const achatsLibres = piecesPourAffaire(p, 'achats').filter(x => x.projectId !== p.id).length;
     const ecrit = !enLecture('projects');
     // (1.262.0) Détacher une pièce d'un geste, depuis sa ligne, avec « Annuler » : la fenêtre « Rattacher » restait la seule
     // porte, et il fallait y retrouver la pièce parmi toutes celles du client.
+    // (1.263.0) Un achat réparti ligne par ligne se détache aussi de ses lignes : rien de lui ne reste dans l'affaire.
     const detacher = (x, nom) => {
-      const avantP = x.projectId; delete x.projectId; save(true); render(true);
-      toastUndo(`${nom} détaché${x.type === 'facture' || x.kind === 'facture' ? 'e' : ''} de « ${p.name} »`, () => { x.projectId = avantP; save(true); render(true); });
+      const avantP = x.projectId, avantL = JSON.stringify(x.lines || []);
+      delete x.projectId;
+      (x.lines || []).forEach(l => { if (l.projectId === p.id) delete l.projectId; });
+      save(true); render(true);
+      toastUndo(`${nom} détaché${x.type === 'facture' || x.kind === 'facture' ? 'e' : ''} de « ${p.name} »`, () => { if (avantP) x.projectId = avantP; if (x.lines) x.lines = JSON.parse(avantL); save(true); render(true); });
     };
     // Un tableau des listes (lf-table) : la ligne s'ouvre, son menu ⋯ ouvre ou détache.
     const tableau = (rows, cols, ouvrir, nomDe, pied) => `<div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr>${cols.map(c => `<th class="${c.r ? 'r' : ''}">${h(c.label)}</th>`).join('')}<th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
@@ -17842,7 +18040,10 @@
     const brancher = (hote, liste, ouvrir, nomDe) => {
       $$(`${hote} tr[data-pc]`).forEach(tr => tr.onclick = e => { if (!e.target.closest('button, input, a')) ouvrir(tr.dataset.pc); });
       bindRowMenus($(hote), id => { const x = liste.find(y => y.id === id); if (!x) return [];
-        return [{ icon: 'ouvrir', label: 'Ouvrir', hint: nomDe(x), run: () => ouvrir(id) }, ...(ecrit ? [{ titre: 'L\'affaire' }, { icon: 'lien', label: 'Détacher de l\'affaire', hint: 'la pièce reste telle quelle, elle quitte seulement ce chantier', run: () => detacher(x, nomDe(x)) }] : [])]; },
+        const achatAPartager = ecrit && hote === '#p-buys' && (x.lines || []).length > 1;
+        return [{ icon: 'ouvrir', label: 'Ouvrir', hint: nomDe(x), run: () => ouvrir(id) }, ...(ecrit ? [{ titre: 'L\'affaire' },
+          ...(achatAPartager ? [{ icon: 'liste', label: 'Répartir ses lignes…', hint: 'une ligne pour ce chantier, une autre pour un autre', run: () => repartirAchat(x, () => render(true)) }] : []),
+          { icon: 'lien', label: 'Détacher de l\'affaire', hint: 'la pièce reste telle quelle, elle quitte seulement ce chantier', run: () => detacher(x, nomDe(x)) }] : [])]; },
       id => { const x = liste.find(y => y.id === id); return x ? nomDe(x) : ''; });
     };
     const geste = (id, label, principal) => `<button class="btn${principal ? ' btn-primary' : ''}" id="${id}">${h(label)}</button>`;
@@ -17866,19 +18067,41 @@
     if ($('#p-att-v')) $('#p-att-v').onclick = () => rattacherPieces(p, 'ventes', () => render(true));
     // Les achats : date, numéro, fournisseur et ce qui a été acheté, statut, coût HT.
     const nomAchat = b => b.number ? `Achat ${b.number}` : 'Cet achat';
-    const coutHT = b => C.coutAchat(C.purchaseTotals(b, company()));
+    // (1.263.0) Ce que l'achat coûte À L'AFFAIRE : ses lignes du chantier, sans le stock ni le matériel immobilisé.
+    const coutHT = b => C.coutAchatPourAffaire(b, company(), data, p.id).cout;
     const colsA = [
       { label: 'Date', cls: 'nw', get: b => C.fmtDate(b.date) },
       { label: 'N° fournisseur', cls: 'cn', get: b => `<b>${h(b.number || C.referenceAchat(b, data))}</b>` },
-      { label: 'Fournisseur et achat', cls: 'cl', get: b => `<b>${h(supplierName(b.supplierId) || '—')}</b>${contenuAchat(b) ? `<small>${h(contenuAchat(b))}</small>` : ''}` },
+      { label: 'Fournisseur et achat', cls: 'cl', get: b => `<b>${h(supplierName(b.supplierId) || '—')}</b>${C.partageEntreAffaires(b) ? '<small class="ambre">en partie pour ce chantier</small>' : contenuAchat(b) ? `<small>${h(contenuAchat(b))}</small>` : ''}` },
       { label: 'Statut', cls: 'st', get: b => buyBadge(buyStatus(b)) },
-      { label: 'Coût HT', r: true, get: b => lfMontant(coutHT(b), cur) }];
+      { label: 'Coût pour l\'affaire', r: true, get: b => { const x = C.coutAchatPourAffaire(b, company(), data, p.id);
+        return `${lfMontant(x.cout, cur)}${x.enStock ? `<small>+ ${h(C.money(x.enStock, cur))} entrés au stock</small>` : ''}${x.immo ? `<small>+ ${h(C.money(x.immo, cur))} immobilisés</small>` : ''}`; } }];
     $('#p-buys').innerHTML = buys.length
-      ? `${tableau(buys, colsA, id => navigate('#/achat/' + id), nomAchat, { dit: `${pl(buys.length, 'achat')} · ce qu'ils coûtent vraiment (la TVA récupérable en est retirée)`, montant: `${lfMontant(C.round3(buys.reduce((a, b) => a + coutHT(b), 0)), cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+      ? `${tableau(buys, colsA, id => navigate('#/achat/' + id), nomAchat, { dit: `${pl(buys.length, 'achat')} · ce qu'ils coûtent vraiment au chantier (la TVA récupérable en est retirée)${m.enStock ? ' ; la marchandise entrée au stock compte quand elle en sort, dans « stock »' : ''}`, montant: `${lfMontant(m.achats, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
         ${ecrit ? `<div class="inline">${geste('p-att-a', achatsLibres ? 'Rattacher d\'autres achats…' : 'Revoir les achats rattachés…')}</div>` : ''}`
       : `<div class="mg-vide">${lfIc('achats', 24, 1.6)}<b>Aucun achat rattaché</b><span>Ce sont eux qui rendent la marge exacte. ${achatsLibres ? 'Coche ceux de ce chantier parmi ceux déjà saisis, ou saisis-en un.' : 'Saisis-les avec « Achat » : ils y naîtront rattachés.'}</span>${ecrit && achatsLibres ? geste('p-att-a', 'Rattacher des achats déjà saisis…', suivante === 'achat') : ''}</div>`;
     brancher('#p-buys', buys, id => navigate('#/achat/' + id), nomAchat);
     if ($('#p-att-a')) $('#p-att-a').onclick = () => rattacherPieces(p, 'achats', () => render(true));
+    // (1.263.0) Les heures passées sur le chantier : qui, quel jour, combien, et ce qu'elles coûtent.
+    const colsH = [
+      { label: 'Date', cls: 'nw', get: x => C.fmtDate(x.date) },
+      { label: 'Salarié', cls: 'cl', get: x => `<b>${h(x.employeeName)}</b>${x.note ? `<small>${h(x.note)}</small>` : ''}` },
+      { label: 'Heures', r: true, get: x => `${pct(x.hours)} h` },
+      { label: 'Coût de l\'heure', r: true, get: x => x.inconnu ? '<span class="ambre">inconnu</span>' : `${lfMontant(x.taux, cur)}${x.estime ? '<small class="ambre">estimé</small>' : ''}` },
+      { label: 'Coût', r: true, get: x => lfMontant(x.cout, cur) }];
+    const nomH = x => `${x.employeeName}, ${C.fmtDate(x.date)}`;
+    $('#p-time').innerHTML = m.heures.length
+      ? `${tableau(m.heures, colsH, id => heuresForm(p, (data.projectTime || []).find(x => x.id === id), () => render(true)), nomH, { dit: `${pct(m.hours)} h · au coût employeur de l'heure (brut et charges) ; « estimé » : pas encore de bulletin ce mois-là`, montant: `${lfMontant(m.mainOeuvre, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+        ${ecrit ? `<div class="inline">${geste('p-time-new', 'Noter des heures')}</div>` : ''}`
+      : `<div class="mg-vide">${lfIc('horloge', 24, 1.6)}<b>Aucune heure notée</b><span>${(data.employees || []).length ? 'Le temps de tes salariés sur ce chantier : c\'est souvent le plus gros coût, et sans lui la marge est trop belle.' : 'Ajoute d\'abord tes salariés dans la Paie : leur coût de l\'heure vient de leur bulletin.'}</span>${ecrit && (data.employees || []).length ? geste('p-time-new', 'Noter des heures', m.salesCount > 0) : ''}</div>`;
+    $$('#p-time tr[data-pc]').forEach(tr => tr.onclick = e => { if (!e.target.closest('button, input, a')) heuresForm(p, (data.projectTime || []).find(x => x.id === tr.dataset.pc), () => render(true)); });
+    bindRowMenus($('#p-time'), id => { const x = (data.projectTime || []).find(y => y.id === id); if (!x) return [];
+      return [{ icon: 'modifier', label: 'Modifier', hint: 'le salarié, le jour, les heures', run: () => heuresForm(p, x, () => render(true)) },
+        ...(ecrit ? [{ icon: 'supprimer', label: 'Retirer ces heures', danger: true, hint: 'elles ne comptent plus dans la marge', run: () => {
+          const i = data.projectTime.indexOf(x); data.projectTime.splice(i, 1); save(true); render(true);
+          toastUndo(`Heures retirées : ${nomH(m.heures.find(y => y.id === id) || x)}`, () => { data.projectTime.splice(i, 0, x); save(true); render(true); });
+        } }] : [])]; }, id => { const x = m.heures.find(y => y.id === id); return x ? nomH(x) : ''; });
+    if ($('#p-time-new')) $('#p-time-new').onclick = () => heuresForm(p, null, () => render(true));
     bindRowMenus($('.mg-fiche-t'), () => actionsAffaire(p, () => render(true)), () => p.name);
   };
 
@@ -22830,6 +23053,8 @@
         ${field(`<span class="fl"><span id="adj-qlbl">Quantité sortie</span> ${info('stk.adjustQty')}</span>`, 'qty', '', 'number', 'step="0.01" class="num" placeholder="ex. 10"')}
         ${field(lbl(`Coût unitaire (${h(C.normCurrency(company().currency))}, optionnel)`, 'stk.adjustCost'), 'unitCost', '', 'number', 'step="0.001" min="0" class="num" placeholder="laisse vide : coût moyen"')}
         ${field(lbl('Référence', 'stk.adjustRef'), 'reference', '', 'text', '')}
+        ${/* (1.263.0) La matière utilisée sur un chantier compte dans sa marge : on dit pour quelle affaire. */''}
+        <label class="field span-2" id="adj-aff">${lbl('Pour l\'affaire (matière utilisée)', 'stk.adjustProject')}<select name="projectId"><option value="">Aucune affaire</option>${(data.projects || []).filter(x => x.status === 'en cours').map(x => `<option value="${h(x.id)}">${h(x.name)}</option>`).join('')}</select></label>
         <label class="field span-2">${lbl('Note', 'stk.adjustNote')}<input type="text" name="note" placeholder="Ce qui s'est passé, en une phrase"></label>
         <div class="span-2 annonce-stable" id="adj-hint"></div>
       </form>
@@ -22844,6 +23069,7 @@
           const v = formValues($('#adf', root));
           const sortie = C.SOURCES_SORTIE.includes(v.source);
           $('#adj-qlbl', root).textContent = sortie ? 'Quantité sortie' : 'Quantité (+ entre, − sort)';
+          $('[name=projectId]', root).disabled = v.source !== 'consommation';
           $('[name=qty]', root).placeholder = sortie ? 'ex. 10' : 'ex. -2 ou 3';
           const s = C.stockOf(data, v.itemId);
           const q = C.qteMouvement(v.source, v.qty);
@@ -22864,7 +23090,10 @@
           if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
           if (closedBlock(v.date, 'Ce mouvement de stock')) return;
           if (licenceBlock('Créer un mouvement de stock', 'stock')) return;
-          data.stockAdjustments.push({ ...a, ...v, qty: qte, unitCost: v.unitCost === '' ? '' : Number(v.unitCost) });
+          const mv = { ...a, ...v, qty: qte, unitCost: v.unitCost === '' ? '' : Number(v.unitCost) };
+          // Seule la matière utilisée va à une affaire : une casse ou un inventaire ne se consomme pas sur un chantier.
+          if (v.source !== 'consommation' || !v.projectId) delete mv.projectId;
+          data.stockAdjustments.push(mv);
           save(true); close(); if (done) done();
         };
       });

@@ -3233,10 +3233,149 @@
   // on ne devine plus le coût, on l'a payé.
   const PROJECT_STATUSES = ['en cours', 'terminée', 'annulée'];
 
+  // (1.263.0) L'affaire d'une LIGNE d'achat : la sienne si elle en a reçu une (« Répartir ses lignes »), sinon
+  // celle de la pièce. Une ligne qui porte `projectId: ''` est sortie de toute affaire, même si la pièce en a une.
+  const affaireDeLigne = (p, l) => (l && Object.prototype.hasOwnProperty.call(l, 'projectId') ? (l.projectId || '') : (p.projectId || ''));
+  // Un achat compte dans une affaire dès qu'une de ses lignes y va.
+  function achatDansAffaire(p, projectId) {
+    if (!p || !projectId) return false;
+    const lignes = p.lines || [];
+    return lignes.length ? lignes.some(l => affaireDeLigne(p, l) === projectId) : p.projectId === projectId;
+  }
+  // Un achat dont les lignes vont à plusieurs affaires (ou en partie à aucune).
+  function partageEntreAffaires(p) {
+    const s = new Set((p.lines || []).map(l => affaireDeLigne(p, l)));
+    return s.size > 1;
+  }
+  // Les affaires d'un achat, pour le dire sur sa ligne.
+  function affairesDeLAchat(p) {
+    return [...new Set((p.lines || []).map(l => affaireDeLigne(p, l)).concat(p.lines && p.lines.length ? [] : [p.projectId || '']))].filter(Boolean);
+  }
+  // Ce qu'un achat coûte À UNE AFFAIRE (1.263.0). Les mêmes morceaux que `coutAchat` — HT, TVA non déductible,
+  // frais — pris ligne par ligne, les frais répartis au prorata du HT de chaque ligne. Les montants se convertissent
+  // une fois par morceau, comme `purchaseTotals` : l'achat entier rattaché à une seule affaire, tout en charge,
+  // donne EXACTEMENT `coutAchat` (deux chemins, un chiffre ; test « marges 1.263 »).
+  //   - cout : ce qui se consomme sur l'affaire (charge, et le « stock » d'un article non suivi) ;
+  //   - enStock : la marchandise d'un article suivi, entrée au stock ; elle compte quand elle en sort ;
+  //   - immo : un bien immobilisé ; il s'amortit, il ne se consomme pas sur un chantier ;
+  //   - part : la part de l'achat qui va à l'affaire (pour répartir ce qui a été payé).
+  function coutAchatPourAffaire(p, company, data, projectId) {
+    const out = { cout: 0, enStock: 0, immo: 0, part: 0 };
+    if (!p || p.kind === 'acompte') return out;
+    const t = purchaseTotals(p, company);
+    const sacs = { cout: 0, enStock: 0, immo: 0 };
+    let htAffaire = 0;
+    const n = t.lines.length;
+    t.lines.forEach(l => {
+      if (affaireDeLigne(p, l) !== projectId) return;
+      // Les frais (timbre, port) sont une charge : la page Stock valorise la marchandise sans eux.
+      const frais = t.totalHT ? t.fees * l.ht / t.totalHT : (n ? t.fees / n : 0);
+      const v = l.ht + (l.deductible ? 0 : l.vat);
+      htAffaire += l.ht;
+      sacs.cout += frais;
+      if (l.destination === 'immobilisation') sacs.immo += v;
+      else if (l.destination === 'stock' && articleSuivi(l, data)) sacs.enStock += v;
+      else sacs.cout += v;
+    });
+    if (!n && p.projectId === projectId) sacs.cout += t.fees;
+    const conv = v => round3(t.sens * toBase(p, round3(v), company));
+    out.enStock = conv(sacs.enStock); out.immo = conv(sacs.immo);
+    // L'achat entier va à l'affaire : ce qu'il coûte se lit sur `coutAchat`, au millime, et le reste se retranche.
+    out.cout = partageEntreAffaires(p) ? conv(sacs.cout) : round3(coutAchat(t) - out.enStock - out.immo);
+    out.part = t.totalHT ? htAffaire / t.totalHT : (n ? t.lines.filter(l => affaireDeLigne(p, l) === projectId).length / n : 1);
+    return out;
+  }
+  function articleSuivi(l, data) { const c = itemOfLine(l, data); return !!(c && c.tracked); }
+
+  // La valeur au coût moyen pondéré de chaque SORTIE de stock (1.263.0), par pièce (facture, bon de livraison,
+  // avoir) et par mouvement noté à la main (la « matière utilisée ») : exactement ce que la page Stock retranche.
+  // Une sortie vaut un coût positif ; un retour sur avoir, un coût négatif. Calculé une fois par lot.
+  function sortiesValorisees(data) {
+    const calc = () => {
+      const parArticle = new Map();
+      stockMovements(data, null).forEach(m => { if (!parArticle.has(m.itemId)) parArticle.set(m.itemId, []); parArticle.get(m.itemId).push(m); });
+      const parPiece = new Map();
+      parArticle.forEach(moves => runningStock(moves).rows.forEach(r => {
+        if (!['vente', 'livraison', 'avoir', 'consommation'].includes(r.source)) return;
+        const cle = r.manual ? r.id : r.docId;
+        if (!cle) return;
+        parPiece.set(cle, (parPiece.get(cle) || 0) - (Number(r.qty) || 0) * (Number(r.unitApplied) || 0));
+      }));
+      return parPiece;
+    };
+    return lot ? duLot(data, 'sortiesValorisees', calc) : calc();
+  }
+  // Ce que l'affaire a pris au stock : les sorties de ses ventes émises (le bon de livraison quand la facture en
+  // vient : c'est lui qui sort la marchandise), et la matière utilisée notée pour elle.
+  function clesStockDeLAffaire(data, projectId, sales) {
+    const cles = new Set();
+    (sales || []).forEach(d => {
+      cles.add(d.id);
+      if (d.fromDocType === 'livraison' && d.fromDocId) cles.add(d.fromDocId);
+      (Array.isArray(d.bonsLivraison) ? d.bonsLivraison : []).forEach(b => b && b.id && cles.add(b.id));
+    });
+    (data.documents || []).forEach(d => { if (d.type === 'livraison' && d.projectId === projectId && d.status !== 'brouillon') cles.add(d.id); });
+    (data.stockAdjustments || []).forEach(a => { if (a.projectId === projectId && a.source === 'consommation') cles.add(a.id); });
+    return cles;
+  }
+  function ventesDeLAffaire(data, projectId) {
+    return (data.documents || []).filter(d => d.projectId === projectId && (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée');
+  }
+  // Les quantités sorties du stock pour l'affaire, article par article (pour ne proposer de sortir que ce qui reste).
+  function quantitesSortiesPourAffaire(data, projectId) {
+    const cles = clesStockDeLAffaire(data, projectId, ventesDeLAffaire(data, projectId));
+    const q = new Map();
+    stockMovements(data, null).forEach(m => {
+      const cle = m.manual ? m.id : m.docId;
+      if (!cle || !cles.has(cle) || !['vente', 'livraison', 'avoir', 'consommation'].includes(m.source)) return;
+      q.set(m.itemId, round3((q.get(m.itemId) || 0) - (Number(m.qty) || 0)));
+    });
+    return q;
+  }
+  function coutStockPourAffaire(data, projectId, sales) {
+    const v = sortiesValorisees(data);
+    if (!v.size) return 0;
+    const cles = clesStockDeLAffaire(data, projectId, sales);
+    let s = 0;
+    cles.forEach(k => { if (v.has(k)) s += v.get(k); });
+    return round3(s);
+  }
+
+  // Le coût d'une heure d'un salarié, un mois donné (1.263.0) : son coût employeur du mois (brut et charges
+  // patronales, la même fonction que le bulletin) divisé par les heures du mois du réglage de la paie (`heuresMois`,
+  // celui qui paie les heures sup). Avec son bulletin du mois, c'est son coût réel ; sans bulletin, celui de son
+  // salaire du contrat, et la fiche le dit « estimé ». Sans réglage d'heures ou sans salaire : inconnu, 0, et dit.
+  // À VÉRIFIER avec le comptable : le coût horaire chargé qu'il retient pour tes devis.
+  function coutHoraire(data, employeeId, year, month) {
+    const s = payrollSettings(data);
+    const heuresMois = Number(s.heuresMois) || 0;
+    const emp = (data.employees || []).find(e => e.id === employeeId);
+    if (!emp || !(heuresMois > 0)) return { coutMois: 0, heuresMois, estime: false, inconnu: true };
+    const bulletins = (data.payslips || []).filter(p => p.employeeId === employeeId && Number(p.year) === Number(year) && Number(p.month) === Number(month));
+    if (bulletins.length) {
+      const coutMois = round3(bulletins.reduce((a, b) => a + (payslipView(b, data).c.employerCost || 0), 0));
+      return { coutMois, heuresMois, estime: false, inconnu: !(coutMois > 0) };
+    }
+    const coutMois = round3(computePayslip(emp, {}, s).employerCost || 0);
+    return { coutMois, heuresMois, estime: true, inconnu: !(coutMois > 0) };
+  }
+  // Les heures notées sur une affaire, chacune avec son coût (1.263.0). `data.projectTime` :
+  // { id, projectId, employeeId, date, hours, note }.
+  function heuresDeLAffaire(data, projectId) {
+    return (data.projectTime || []).filter(x => x && x.projectId === projectId).map(x => {
+      const y = Number(String(x.date || '').slice(0, 4)), m = Number(String(x.date || '').slice(5, 7));
+      const ch = coutHoraire(data, x.employeeId, y, m);
+      const hours = round3(Number(x.hours) || 0);
+      const emp = (data.employees || []).find(e => e.id === x.employeeId) || {};
+      return { ...x, hours, employeeName: emp.name || '—', taux: ch.heuresMois > 0 ? round3(ch.coutMois / ch.heuresMois) : 0,
+        cout: ch.heuresMois > 0 ? round3(hours * ch.coutMois / ch.heuresMois) : 0, estime: ch.estime, inconnu: ch.inconnu };
+    }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+
   function projectMargin(data, company, projectId) {
     const sales = (data.documents || []).filter(d => d.projectId === projectId
       && (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée');
-    const buys = (data.purchases || []).filter(p => p.projectId === projectId);
+    const buys = (data.purchases || []).filter(p => achatDansAffaire(p, projectId));
     let revenue = 0, invoiced = 0, collected = 0;
     sales.forEach(d => {
       const sign = d.type === 'avoir' ? -1 : 1;
@@ -3250,13 +3389,29 @@
         collected = round3(collected + (d.payments || []).reduce((s, p) => s + montantRegle(d, p, company), 0));
       }
     });
-    let cost = 0, paid = 0;
+    // (1.263.0, revue métier du 03/11 : « mets-toi à la place d'une entreprise ») Le coût d'une affaire a trois
+    // morceaux, chacun compté une seule fois :
+    //   - les ACHATS rattachés, ligne par ligne (une ligne peut aller à une autre affaire) ; la part partie au
+    //     stock suivi n'y est pas — elle compte quand elle SORT — ni la part immobilisée, qui s'amortit ;
+    //   - la MARCHANDISE SORTIE du stock pour l'affaire, au coût moyen pondéré de la page Stock. Avant, un article
+    //     en stock facturé sur un chantier ne coûtait rien : 100 % de marge ;
+    //   - la MAIN D'ŒUVRE : les heures notées sur l'affaire, au coût employeur de l'heure du salarié ce mois-là.
+    let achats = 0, paid = 0, enStock = 0, immo = 0;
     buys.forEach(p => {
-      const t = purchaseTotals(p, company);
-      cost = round3(cost + coutAchat(t));
-      // Un avoir remboursé RAPPORTE de l'argent (10.14.0) : son « réglé » vient en moins.
-      paid = round3(paid + (p.kind === 'avoir' ? -1 : 1) * (p.payments || []).reduce((s, x) => s + montantRegle(p, x, company), 0));
+      const part = coutAchatPourAffaire(p, company, data, projectId);
+      achats = round3(achats + part.cout);
+      enStock = round3(enStock + part.enStock);
+      immo = round3(immo + part.immo);
+      // Un avoir remboursé RAPPORTE de l'argent (10.14.0) : son « réglé » vient en moins. Un achat partagé entre
+      // deux affaires ne se paie qu'une fois : chacune porte la part de ce qui a été réglé.
+      const regle = (p.kind === 'avoir' ? -1 : 1) * (p.payments || []).reduce((s, x) => s + montantRegle(p, x, company), 0);
+      paid = round3(paid + (partageEntreAffaires(p) ? regle * part.part : regle));
     });
+    const stockSorti = coutStockPourAffaire(data, projectId, sales);
+    const heures = heuresDeLAffaire(data, projectId);
+    const hours = round3(heures.reduce((s, x) => s + x.hours, 0));
+    const mainOeuvre = round3(heures.reduce((s, x) => s + x.cout, 0));
+    const cost = round3(achats + stockSorti + mainOeuvre);
     // Devis en cours : ce qui est proposé mais pas encore FACTURÉ, pour voir l'affaire en entier. Un
     // devis entièrement facturé comptait encore « en devis » à côté de ses propres factures : la fiche
     // annonçait 5 520 DT facturés PLUS 5 520 DT en devis pour un seul chantier (10.12.0, une
@@ -3269,14 +3424,103 @@
       const acomptes = tirees.filter(d => d.deposit && d.fromQuoteId === q.id).reduce((a, d) => a + toBase(d, computeTotals(d, company).netHT, company), 0);
       return s + Math.max(0, toBase(q, computeTotals(q, company).netHT, company) - acomptes);
     }, 0));
+    // (1.263.0) Le PRÉVU : ce que ses devis non refusés annonçaient, vendu et coûté (le coût de chaque ligne de
+    // devis, ou celui de la prestation au catalogue). Sans devis, il n'y a pas de prévu : `null`, jamais zéro.
+    const prevus = quotes.filter(q => q.status !== 'refusé');
+    let planned = null;
+    if (prevus.length) {
+      let pr = 0, pc = 0, lignes = 0, chiffrees = 0;
+      prevus.forEach(q => {
+        const m = documentMargin(q, data, company);
+        pr = round3(pr + toBase(q, m.revenue, company));
+        pc = round3(pc + toBase(q, m.cost, company));
+        lignes += m.lines; chiffrees += m.costed;
+      });
+      planned = { revenue: pr, cost: pc, margin: round3(pr - pc), rate: pr !== 0 ? Math.round((pr - pc) / pr * 1000) / 10 : null,
+        complete: lignes > 0 && chiffrees === lignes, quotes: prevus.length };
+    }
     const margin = round3(revenue - cost);
     return {
       revenue, cost, margin, invoiced, collected, paid, pending,
       rate: revenue !== 0 ? Math.round(margin / revenue * 1000) / 10 : null,
       cash: round3(collected - paid),          // ce que l'affaire a réellement rapporté en caisse
-      salesCount: sales.length, buysCount: buys.length, quotesCount: quotes.length,
-      sales, buys, quotes
+      // `enStockReste` : ce qui, de la marchandise achetée pour l'affaire, n'en est pas encore sorti (en valeur).
+      achats, stockSorti, mainOeuvre, hours, enStock, enStockReste: round3(Math.max(0, enStock - stockSorti)), immo, planned,
+      laborEstimated: heures.some(x => x.estime), laborUnknown: heures.some(x => x.inconnu),
+      salesCount: sales.length, buysCount: buys.length, quotesCount: quotes.length, timeCount: heures.length,
+      sales, buys, quotes, heures
     };
+  }
+
+  // (1.263.0) Le relevé d'une affaire en PDF : pour le client, le banquier, l'associé. Les chiffres sont ceux de la
+  // fiche (`projectMargin`), jamais recalculés à part ; le prévu est celui de ses devis.
+  function affaireHtml(data, company, projectId) {
+    const co = company || {};
+    const p = (data.projects || []).find(x => x.id === projectId) || {};
+    const m = projectMargin(data, co, projectId);
+    const dec = decimalsFor(co.currency || 'DT');
+    const fmt = n => money(n, null, dec, 'fr');
+    const ink = co.primaryColor || '#1b2430';
+    const accent = co.accentColor || '#0f9d8f';
+    const cl = (data.clients || []).find(c => c.id === p.clientId);
+    const e = escapeHtml;
+    const pct = r => r == null ? '—' : `${String(r).replace('.', ',')} %`;
+    const ligne = (l, prevu, reel, cls) => `<tr class="${cls || ''}"><td>${l}</td><td class="n">${prevu == null ? '—' : fmt(prevu)}</td><td class="n">${fmt(reel)}</td></tr>`;
+    const ventes = m.sales.map(d => {
+      const t = computeTotals(d, co), s = d.type === 'avoir' ? -1 : 1;
+      return `<tr><td>${e(fmtDate(d.date))}</td><td>${d.type === 'avoir' ? 'Avoir' : 'Facture'} ${e(d.number || '')}</td><td class="n">${fmt(s * toBase(d, t.netHT, co))}</td></tr>`;
+    }).join('');
+    const achats = m.buys.map(b => {
+      const x = coutAchatPourAffaire(b, co, data, projectId);
+      const sup = (data.suppliers || []).find(s => s.id === b.supplierId);
+      return `<tr><td>${e(fmtDate(b.date))}</td><td>${e((sup && sup.name) || '')} ${e(b.number || '')}${partageEntreAffaires(b) ? ' <i>(en partie)</i>' : ''}</td><td class="n">${fmt(x.cout)}</td></tr>`;
+    }).join('');
+    const heures = m.heures.map(x => `<tr><td>${e(fmtDate(x.date))}</td><td>${e(x.employeeName)} · ${String(x.hours).replace('.', ',')} h${x.estime ? ' <i>(estimé)</i>' : ''}</td><td class="n">${fmt(x.cout)}</td></tr>`).join('');
+    const bloc = (titre, corps, total) => corps ? `<h2>${titre}</h2><table><tbody>${corps}</tbody><tfoot><tr class="tot"><td colspan="2">Total</td><td class="n">${fmt(total)}</td></tr></tfoot></table>` : '';
+    return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>Affaire ${e(p.name || '')}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: ${ink}; font-size: 9pt; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 210mm; min-height: 297mm; padding: 14mm 13mm; background: #fff; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding-bottom: 8px; border-bottom: 2px solid ${accent}; }
+  .co-name { font-size: 12pt; font-weight: 700; }
+  .co-sub { font-size: 8pt; color: #6a7480; line-height: 1.5; }
+  .title { text-align: right; }
+  .title h1 { margin: 0; font-size: 15pt; color: ${accent}; }
+  .title .per { font-size: 10pt; font-weight: 600; margin-top: 2px; }
+  h2 { font-size: 10pt; margin: 16px 0 4px; color: ${accent}; text-transform: uppercase; letter-spacing: .3px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .3px; color: ${accent}; border-bottom: 1px solid ${ink}; padding: 4px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  td { padding: 4px; border-bottom: 1px solid #e6e9ee; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.tot td { border-top: 1.5px solid ${ink}; border-bottom: none; font-weight: 700; }
+  tr.sous td { color: #6a7480; }
+  .note { margin-top: 14px; font-size: 7.5pt; color: #6a7480; }
+</style></head>
+<body><div class="page">
+  <div class="head">
+    <div><div class="co-name">${e(co.name || '')}</div><div class="co-sub">${e(co.address || '').replace(/\n/g, '<br>')}</div></div>
+    <div class="title"><h1>Affaire</h1><div class="per">${e(p.name || '')}</div><div class="co-sub">${cl ? e(cl.name) + ' · ' : ''}${e(p.status || '')}${p.startDate ? ' · depuis le ' + e(fmtDate(p.startDate)) : ''}</div></div>
+  </div>
+  <h2>La marge</h2>
+  <table><thead><tr><th></th><th>Prévu (devis)</th><th>Réel</th></tr></thead><tbody>
+    ${ligne('Vendu HT', m.planned ? m.planned.revenue : null, m.revenue)}
+    ${ligne('Coût', m.planned ? m.planned.cost : null, m.cost)}
+    ${ligne('dont achats', null, m.achats, 'sous')}
+    ${ligne('dont marchandise sortie du stock', null, m.stockSorti, 'sous')}
+    ${ligne(`dont main d'œuvre (${String(m.hours).replace('.', ',')} h)`, null, m.mainOeuvre, 'sous')}
+    <tr class="tot"><td>Marge</td><td class="n">${m.planned ? fmt(m.planned.margin) + ' · ' + pct(m.planned.rate) : '—'}</td><td class="n">${fmt(m.margin)} · ${pct(m.rate)}</td></tr>
+  </tbody></table>
+  ${bloc('Les ventes (HT)', ventes, m.revenue)}
+  ${bloc('Les achats (ce qu’ils coûtent à l’affaire)', achats, m.achats)}
+  ${bloc('Les heures', heures, m.mainOeuvre)}
+  <p class="note">Encaissé : ${fmt(m.collected)} · payé aux fournisseurs : ${fmt(m.paid)} · en caisse : ${fmt(m.cash)}.${m.enStockReste ? ` Acheté pour l'affaire et encore au stock : ${fmt(m.enStockReste)} (compte quand il sort).` : ''}${m.immo ? ` Matériel immobilisé, hors marge : ${fmt(m.immo)}.` : ''}${m.laborEstimated ? ' Une partie des heures est estimée sur le salaire du contrat, faute de bulletin du mois.' : ''} Montants en ${e(co.currency || 'DT')}, établis le ${e(fmtDate(today()))}.</p>
+</div></body></html>`;
   }
 
   function projectList(data, company) {
@@ -3412,6 +3656,36 @@
       result: round3(marginOnVariable - fixed - exceptionnel + r.change),
       reached: point != null && revenue >= point
     };
+  }
+
+  // (1.263.0) L'année MOIS PAR MOIS : pour chaque mois, le chiffre d'affaires, la marge sur coûts variables, les
+  // charges fixes et le résultat, par la MÊME fonction que le seuil de l'année (`breakEven` sur le mois). La somme des
+  // douze résultats est le résultat de l'année (deux chemins, un chiffre : test « marges 1.263 ») ; `ecart` le dit si
+  // un jour ce n'était plus vrai. « Rentable depuis » : le mois où le cumul des résultats repasse au-dessus de zéro
+  // pour ne plus redescendre, sur les mois déjà commencés.
+  function margeMoisParMois(data, company, year, todayIso) {
+    const y = Number(year), t = todayIso || today();
+    const pad = n => String(n).padStart(2, '0');
+    const annee = breakEven(data, company, { from: `${y}-01-01`, to: `${y}-12-31` });
+    let cumul = 0;
+    const mois = [];
+    for (let m = 1; m <= 12; m++) {
+      const from = `${y}-${pad(m)}-01`, to = addDays(from, daysInMonth(y, m) - 1);
+      const b = breakEven(data, company, { from, to });
+      cumul = round3(cumul + b.result);
+      mois.push({ mois: m, from, to, label: MONTHS_FR[m - 1], commence: from <= t,
+        revenue: b.revenue, marginOnVariable: b.marginOnVariable, fixed: round3(b.fixed + b.exceptionnel - b.change), result: b.result, cumul });
+    }
+    const commences = mois.filter(x => x.commence);
+    let depuis = null;
+    if (commences.length && commences[commences.length - 1].cumul >= 0) {
+      for (let i = commences.length - 1; i >= 0; i--) {
+        if (commences[i].cumul < 0) break;
+        depuis = commences[i];
+      }
+    }
+    const somme = round3(mois.reduce((s, x) => s + x.result, 0));
+    return { mois, annee, depuis, ecart: round3(somme - annee.result), dernierCumul: commences.length ? commences[commences.length - 1].cumul : 0 };
   }
 
   // ---------- stock (4.0.0) ----------
@@ -12157,7 +12431,7 @@
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,
-    lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, recurringProfitability, piecesDuContrat, contratSuivi,
+    lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
@@ -12207,7 +12481,7 @@
     'cashForecast', 'cashMovements', 'payablesList', 'stockList', 'stockTotals', 'stockJournal', 'stockAlerts',
     'inventoryDiff', 'costOfGoodsSold', 'salesTotals', 'revenueByMonth', 'topItems', 'clientMovement', 'payerRanking',
     'quoteFunnel', 'releveClient', 'packPlan', 'packChecklist', 'closureChecks', 'simpleResult', 'breakEven',
-    'marginBy', 'projectList', 'clientSummary', 'supplierSummary', 'balanceGenerale', 'grandLivre', 'etatsFinanciers', 'lettrage', 'firstSteps', 'reussites']
+    'marginBy', 'projectList', 'projectMargin', 'margeMoisParMois', 'affaireHtml', 'clientSummary', 'supplierSummary', 'balanceGenerale', 'grandLivre', 'etatsFinanciers', 'lettrage', 'firstSteps', 'reussites']
     .forEach(n => { const f = api[n]; if (typeof f === 'function') api[n] = function () { return enLot(() => f.apply(this, arguments)); }; });
   return api;
 });
