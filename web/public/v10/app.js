@@ -2193,14 +2193,30 @@
   // (27/10/2026, maquette « Compléments » : le retour à la liste) Le « ‹ » d'une pièce ramène à SA liste : celle qu'on a
   // quittée si on en vient (son adresse, ses filtres), sinon la liste de toujours. Une modification non enregistrée pose
   // d'abord sa question (`go`). Au téléphone, « ‹ Factures » du chemin fait le même geste (piece.css).
+  // (1.261.0, Skander 03/11/2026 : « fiche fournisseur, quand on appuie sur une ligne facture, le retour me renvoie vers
+  // achat ») Venue d'une fiche (fournisseur, client, affaire, contrat), la pièce y ramène : la fiche est la page qu'on quittait.
+  const RETOUR_FICHES = new Set(['fournisseur', 'client', 'affaire', 'contrat']);
+  const ficheQuittee = () => { const avant = navStack[navStack.length - 1]; return avant && RETOUR_FICHES.has(routeOf(avant)) ? avant : null; };
+  // Le chemin de la pièce dit d'où l'on vient : « Accueil › Ets Ben Ali › FA-… » plutôt que la liste qu'on n'a pas vue.
+  // Au téléphone, ce lien est le retour (piece.css) : il ramène donc à la fiche, lui aussi.
+  function cheminDepuisFiche() {
+    const fiche = ficheQuittee();
+    const a = fiche && document.querySelector('#view .ed-chemin a.ed-retour');
+    if (!a || routeOf(location.hash) === routeOf(fiche)) return;
+    a.setAttribute('href', fiche);
+    a.textContent = pageLabel(fiche, true);
+    a.onclick = e => { e.preventDefault(); go(() => goBack(fiche)); };
+  }
   function retourListe(liste, nom) {
-    return `<button type="button" class="ed-retour-btn" data-retour-liste="${h(liste)}" aria-label="Revenir aux ${h(nom)}" title="Revenir aux ${h(nom)}">${lfIc('retour', 18, 2.2)}</button>`;
+    const fiche = ficheQuittee();
+    const dit = fiche ? `Revenir à ${pageLabel(fiche, true)}` : `Revenir aux ${nom}`;
+    return `<button type="button" class="ed-retour-btn" data-retour-liste="${h(liste)}" aria-label="${h(dit)}" title="${h(dit)}">${lfIc('retour', 18, 2.2)}</button>`;
   }
   document.addEventListener('click', e => {
     const b = e.target && e.target.closest ? e.target.closest('[data-retour-liste]') : null;
     if (!b) return;
     const liste = b.dataset.retourListe;
-    go(() => { const avant = navStack[navStack.length - 1]; if (avant && routeOf(avant) === routeOf(liste)) goBack(liste); else navigate(liste); });
+    go(() => { const avant = navStack[navStack.length - 1]; if (avant && (routeOf(avant) === routeOf(liste) || ficheQuittee())) goBack(liste); else navigate(liste); });
   });
   function bindBack(fallback, skip) {
     const b = $('#back');
@@ -3208,6 +3224,7 @@
     if (!pageCachee(name)) { if (dessine && typeof dessine.then === 'function') dessine.then(() => bandeauLecture(name), () => {}); else bandeauLecture(name); }
     if (pageChange && !keepScroll) marquerEntree(view);
     if (!pageCachee(name)) Promise.resolve(dessine).then(() => bandeauOrdinateur(name), () => {});
+    Promise.resolve(dessine).then(cheminDepuisFiche, () => {});
     poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
     bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
     // (plateforme) Le message de SkanFact à tous ses clients (0093), posé APRÈS l'exemple pour passer au-dessus de lui.
@@ -17413,49 +17430,64 @@
     if (!years.includes(s.year)) s.year = years[0];
     const period = () => ({ from: `${s.year}-01-01`, to: `${s.year}-12-31` });
 
+    // (1.261.0, Skander 03/11/2026 : « mettre à jour l'écran Marges » dans la nouvelle DA) : l'en-tête des listes (chemin,
+    // phrase), les onglets des fiches, des tableaux comme ceux des factures ; plus de tuiles, les chiffres vont au pied.
+    const nbAffaires = C.projectList(data, company()).length;
+    const nbContrats = (data.recurring || []).length;
+    const compteOnglet = { affaires: nbAffaires, contrats: nbContrats };
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Marges</h1>
-        <div class="actions">
-          <select id="mg-year" ${MG_SANS_ANNEE.includes(s.tab) ? 'hidden' : ''}>${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
-          <button class="btn btn-primary" id="new-proj">+ Nouvelle affaire</button>
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Marges</span></div><h1>Marges</h1><p class="sous">Ce que te rapporte chaque chantier, chaque client, chaque contrat</p></div>
+        <div class="actions mg-act">
+          <button class="btn btn-primary" id="new-proj">${lfIc('croix', 15, 2.4)} Nouvelle affaire</button>
         </div></div>
-      <div class="tabs" id="mg-tabs" role="tablist" aria-label="Les marges">${MARGE_TABS.map(([id, label]) =>
-        `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}</button>`).join('')}</div>
-      <div id="mg-body"></div>`;
+      <div class="lf mg">
+        ${/* (1.261.0, Skander 03/11/2026 : « le style des sous-onglets comme partout ») La barre segmentée de la Paie ; l'année à droite. */''}
+        <div class="mg-barre"><div class="pa-seg" id="mg-tabs" role="tablist" aria-label="Les marges">${MARGE_TABS.map(([id, label]) =>
+          `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === s.tab}" class="${id === s.tab ? 'active' : ''}">${label}${compteOnglet[id] ? ` <small>${compteOnglet[id]}</small>` : ''}</button>`).join('')}</div>
+          <label class="sel mg-an" id="mg-an" ${MG_SANS_ANNEE.includes(s.tab) ? 'hidden' : ''}><select id="mg-year" aria-label="Année">${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>${lfIc('bas', 14)}</label></div>
+        <div class="cf-carte"><div class="cf-onglet" id="mg-body"></div></div></div>`;
 
     const rateCell = (r, complete) => r == null ? '<span class="muted">—</span>'
       : `<strong class="${r < 0 ? 'warn-text' : r >= 30 ? 'ok-text' : ''}">${pct(r)} %</strong>${complete === false ? ' <span class="muted" title="Toutes les lignes n\'ont pas de coût connu : la marge est surestimée">≈</span>' : ''}`;
 
     function drawProjects() {
-      const list = C.projectList(data, company());
+      const toutes = C.projectList(data, company());
+      // (1.261.0) Chercher une affaire (nom, client, notes) et la ranger par statut, chaque statut compté.
+      const pq = (s.pq || '').trim();
+      const parQ = toutes.filter(p => !pq || C.correspondRecherche([p.name, clientName(p.clientId), p.notes].join(' '), pq));
+      const nbSt = st => parQ.filter(p => !st || p.status === st).length;
+      const list = parQ.filter(p => !s.pst || p.status === s.pst);
       // Une liste vide dit à quoi elle sert et donne le geste qui la remplit (7.0.0, 10.12.0) : la
       // boîte expliquait l'affaire en prose, sans un bouton, sous un « + Nouvelle affaire » vert.
       // Seul `#mg-body` se redessine : l'en-tête suit l'état vide dans `draw()`, jamais au dessin de
       // la page (U-11, comme les contrats et les licences).
-      $('#mg-body').innerHTML = list.length ? `
-        <div class="panel"><h2>Affaires ${info('mg.projects')}</h2>
-          <div class="scroll-x"><table class="list compact"><thead><tr><th>Affaire</th><th>Client</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Acheté HT</th><th class="r">Marge</th><th class="r">Taux</th><th class="r">En caisse</th></tr></thead><tbody>
-            ${list.map(p => `<tr class="clickable ${p.margin < 0 ? 'row-warn' : ''}" data-pid="${h(p.id)}">
-              <td><strong>${h(p.name)}</strong>${p.pending ? `<div class="small muted">+ ${C.money(p.pending, cur)} en devis</div>` : ''}</td>
-              <td>${h(clientName(p.clientId)) || '<span class="muted">—</span>'}</td>
-              <td><span class="badge ${p.status === 'en cours' ? 'b-due' : p.status === 'terminée' ? 'b-paid' : ''}">${h(p.status)}</span></td>
-              <td class="r nw">${C.money(p.revenue, cur)}</td>
-              <td class="r nw">${C.money(p.cost, cur)}</td>
-              <td class="r nw ${p.margin < 0 ? 'warn-text' : ''}"><strong>${C.money(p.margin, cur)}</strong>${margeSansAchat(p) ? NOTE_SANS_ACHAT : ''}</td>
-              <td class="r nw">${margeSansAchat(p) ? '<span class="muted" title="Aucun achat rattaché : le coût n\'est pas encore compté">—</span>' : rateCell(p.rate)}</td>
-              <td class="r nw ${p.cash < 0 ? 'warn-text' : ''}">${C.money(p.cash, cur)}</td></tr>`).join('')}
-            <tr class="total-row"><td colspan="3"><strong>Total</strong></td>
-              <td class="r"><strong>${C.money(C.round3(list.reduce((a, p) => a + p.revenue, 0)), cur)}</strong></td>
-              <td class="r"><strong>${C.money(C.round3(list.reduce((a, p) => a + p.cost, 0)), cur)}</strong></td>
-              <td class="r"><strong>${C.money(C.round3(list.reduce((a, p) => a + p.margin, 0)), cur)}</strong></td><td></td>
-              <td class="r"><strong>${C.money(C.round3(list.reduce((a, p) => a + p.cash, 0)), cur)}</strong></td></tr>
-          </tbody></table></div>
-          <p class="small muted mt">« En caisse » : ce que l'affaire a réellement rapporté — encaissé moins payé. Une affaire peut être rentable et n'avoir encore rien rapporté.</p>
-        </div>` : etatVide('Ce que te rapporte chaque chantier',
+      const tot = k => C.round3(list.reduce((a, p) => a + p[k], 0));
+      const filtresAff = `<div class="filters mg-f"><label class="cherche">${lfIc('recherche', 16)}<input id="mg-q" type="search" value="${h(s.pq || '')}" placeholder="Chercher une affaire, un client…" autocomplete="off" aria-label="Chercher une affaire"></label>
+          <div class="pa-seg pa-seg-p" role="group" aria-label="Statut">${[['', 'Toutes'], ...C.PROJECT_STATUSES.map(x => [x, optionStatut(x)])].map(([k, n]) => `<button type="button" data-pst="${h(k)}" aria-pressed="${(s.pst || '') === k}" class="${(s.pst || '') === k ? 'active' : ''}">${h(n)} <small>${nbSt(k)}</small></button>`).join('')}</div>
+          ${info('mg.projects')}</div>`;
+      $('#mg-body').innerHTML = toutes.length && !list.length ? `${filtresAff}<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune affaire ne correspond</b><span>${pq ? `Rien pour « ${h(pq)} »` : 'Aucune affaire à ce statut'}.</span><button class="btn" id="mg-tout">Tout revoir</button></div>` : list.length ? `
+        ${filtresAff}
+        <div class="lf-tab scroll-x"><table class="list lf-table mg-table"><thead><tr><th>Affaire</th><th>Client</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Acheté HT</th><th class="r">Marge</th><th class="r">En caisse</th><th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
+            ${list.map(p => `<tr class="clickable" data-pid="${h(p.id)}">
+              <td class="cn"><b>${h(p.name)}</b>${p.pending ? `<small>+ ${C.money(p.pending, cur)} en devis</small>` : ''}</td>
+              <td class="cl">${p.clientId ? `<span class="cl-i">${pastilleClient(p.clientId)}<span><b>${h(clientName(p.clientId))}</b></span></span>` : '<span class="mu">—</span>'}</td>
+              <td class="st"><span class="badge ${p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon'}">${h(p.status)}</span></td>
+              <td class="r">${lfMontant(p.revenue, cur)}</td>
+              <td class="r">${lfMontant(p.cost, cur)}</td>
+              <td class="r m${p.margin < 0 ? ' rouge' : ''}">${lfMontant(p.margin, cur)}${margeSansAchat(p) ? '<small>aucun achat rattaché</small>' : p.rate == null ? '' : `<small class="${p.rate < 0 ? 'rouge' : p.rate >= 30 ? 'vert' : ''}">${pct(p.rate)} %</small>`}</td>
+              <td class="r${p.cash < 0 ? ' rouge' : ''}">${lfMontant(p.cash, cur)}</td>
+              <td class="actions row-actions lf-act"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(p.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(p.name)}">${lfIc('plus', 16)}</button></td></tr>`).join('')}
+          </tbody>
+          <tfoot><tr><td colspan="3"><span class="pied-t"><b>Total</b><span>${pl(list.length, 'affaire')} · « En caisse » : encaissé moins payé ; une affaire peut être rentable et n'avoir encore rien rapporté</span></span></td>
+            <td class="r m">${lfMontant(tot('revenue'), cur)}</td><td class="r m">${lfMontant(tot('cost'), cur)}</td><td class="r m">${lfMontant(tot('margin'), cur)}</td><td class="r m">${lfMontant(tot('cash'), cur)} <small class="dv">${h(symboleDevise(cur))}</small></td><td></td></tr></tfoot></table></div>` : etatVide('Ce que te rapporte chaque chantier',
         ['Une affaire regroupe les devis, les factures et les achats d\'un même chantier : c\'est le seul endroit où la marge est <b>exacte</b>, parce qu\'elle compare des factures réelles à des achats réels.',
          'Crée-la au début du chantier, puis choisis-la dans le champ « Affaire » de chaque devis, facture ou achat qui la concerne.'],
         [['proj-first', '+ Créer ma première affaire', true]]);
-      $$('#mg-body tr[data-pid]').forEach(tr => tr.onclick = () => navigate('#/affaire/' + tr.dataset.pid));
+      $$('#mg-body tr[data-pid]').forEach(tr => tr.onclick = e => { if (!e.target.closest('button, input, a')) navigate('#/affaire/' + tr.dataset.pid); });
+      if ($('#mg-q')) $('#mg-q').oninput = e => { s.pq = e.target.value; const pos = e.target.selectionStart; drawProjects(); const q = $('#mg-q'); q.focus(); q.setSelectionRange(pos, pos); };
+      $$('#mg-body [data-pst]').forEach(b => b.onclick = () => { s.pst = b.dataset.pst; drawProjects(); });
+      if ($('#mg-tout')) $('#mg-tout').onclick = () => { s.pq = ''; s.pst = ''; drawProjects(); };
+      bindRowMenus($('#mg-body'), id => actionsAffaire(projectById(id), () => render(true)), id => { const p = projectById(id); return p ? [p.name, clientName(p.clientId)].filter(Boolean).join(' · ') : ''; });
       // La première affaire mène à sa fiche : c'est là qu'on lui rattache un devis ou un achat.
       if ($('#proj-first')) $('#proj-first').onclick = () => projectForm(null, p => navigate('#/affaire/' + p.id));
     }
@@ -17472,29 +17504,29 @@
       const totalMar = C.round3(rows.reduce((a, r) => a + r.margin, 0));
       const incomplete = rows.filter(r => !r.complete).length;
       const vue = paginate(rows, s);
+      // (1.261.0) Les trois tuiles (chiffre d'affaires, marge, coût des ventes) descendent au pied du tableau : elles
+      // portent sur toute la sélection, comme avant (7.16.0), pas sur la page affichée.
+      const parClient = s.dim === 'client';
       $('#mg-body').innerHTML = `
-        <div class="filters">
-          <select id="mg-dim"><option value="client" ${s.dim === 'client' ? 'selected' : ''}>Par client</option><option value="item" ${s.dim === 'item' ? 'selected' : ''}>Par prestation</option></select>
+        <div class="filters mg-f">
+          <div class="pa-seg" id="mg-dim" role="group" aria-label="Regarder la marge">${[['client', 'Par client'], ['item', 'Par prestation']].map(([k, n]) => `<button type="button" data-dim="${k}" aria-pressed="${s.dim === k}" class="${s.dim === k ? 'active' : ''}">${n}</button>`).join('')}</div>
           ${info('mg.analysis')}
-          ${incomplete ? `<span class="small warn-text">${pl(incomplete, 'ligne')} sans coût connu : ${incomplete > 1 ? 'leur marge est surestimée' : 'sa marge est surestimée'}.</span>` : '<span class="small muted">Tous les coûts sont connus.</span>'}
+          ${incomplete ? `<span class="small ambre">${pl(incomplete, 'ligne')} sans coût connu : ${incomplete > 1 ? 'leur marge est surestimée' : 'sa marge est surestimée'} (≈)</span>` : '<span class="small mu">Tous les coûts sont connus.</span>'}
         </div>
-        <div class="stats">
-          <div class="stat"><div class="lbl">Chiffre d'affaires ${info('stat.ca')}</div><div class="val">${C.money(totalRev, cur)}</div><div class="sub">année ${s.year}</div></div>
-          <div class="stat"><div class="lbl">Marge totale ${info('mg.total')}</div><div class="val ${totalMar < 0 ? 'due' : 'ok'}">${C.money(totalMar, cur)}</div><div class="sub">${totalRev ? pct(Math.round(totalMar / totalRev * 1000) / 10) + ' % du chiffre d\'affaires' : ''}</div></div>
-          <div class="stat"><div class="lbl">Coût des ventes</div><div class="val">${C.money(C.round3(totalRev - totalMar), cur)}</div><div class="sub">ce que tu as acheté pour vendre</div></div>
-        </div>
-        <div class="panel"><h2>${s.dim === 'client' ? 'Marge par client' : 'Marge par prestation'} — ${s.year}</h2>
-          ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>${s.dim === 'client' ? 'Client' : 'Prestation'}</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Taux</th><th style="width:24%"></th></tr></thead><tbody>
-            ${vue.rows.map(r => `<tr class="${r.margin < 0 ? 'row-warn' : ''}">
-              <td>${h(r.label)}</td><td class="r nw">${C.money(r.revenue, cur)}</td><td class="r nw">${C.money(r.cost, cur)}</td>
-              <td class="r nw ${r.margin < 0 ? 'warn-text' : ''}"><strong>${C.money(r.margin, cur)}</strong></td>
-              <td class="r nw">${rateCell(r.rate, r.complete)}</td>
-              <td><span class="bar"><i class="${r.margin < 0 ? 'f-bad' : 'f-ok'}" style="width:${Math.max(3, Math.round(Math.abs(r.margin) / max * 100))}%"></i></span></td></tr>`).join('')}
-          </tbody></table></div>${pagerBar(vue.pg, { noun: s.dim === 'client' ? 'client' : 'prestation' })}
-          ${incomplete ? '<p class="small muted mt">Le repère « ≈ » signale les lignes dont toutes les prestations n\'ont pas de coût de revient : leur marge est optimiste. Renseigne le coût dans le catalogue pour la rendre juste.</p>' : ''}`
-            : '<div class="empty">Aucune vente sur cette année.</div>'}
-        </div>`;
-      $('#mg-dim').onchange = e => { s.dim = e.target.value; s.page = 1; draw(); };
+        ${rows.length ? `<div class="lf-tab scroll-x"><table class="list lf-table mg-table"><thead><tr><th>${parClient ? 'Client' : 'Prestation'}</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Taux</th><th class="mg-barre-h"><span class="vh">Part de la marge</span></th></tr></thead><tbody>
+            ${vue.rows.map(r => `<tr${parClient && clientById(r.key) ? ` class="clickable" data-cl="${h(r.key)}"` : ''}>
+              <td class="cl">${parClient && r.key ? `<span class="cl-i">${pastilleClient(r.key, r.label)}<span><b>${h(r.label)}</b></span></span>` : `<b>${h(r.label)}</b>`}</td><td class="r">${lfMontant(r.revenue, cur)}</td><td class="r">${lfMontant(r.cost, cur)}</td>
+              <td class="r m${r.margin < 0 ? ' rouge' : ''}">${lfMontant(r.margin, cur)}</td>
+              <td class="r">${rateCell(r.rate, r.complete)}</td>
+              <td class="mg-barre"><span class="bar"><i class="${r.margin < 0 ? 'f-bad' : 'f-ok'}" style="width:${Math.max(3, Math.round(Math.abs(r.margin) / max * 100))}%"></i></span></td></tr>`).join('')}
+          </tbody>
+          <tfoot><tr><td><span class="pied-t"><b>Année ${h(s.year)}</b><span>${pl(rows.length, parClient ? 'client' : 'prestation')} · coût des ventes ${C.money(C.round3(totalRev - totalMar), cur)}${info('mg.total')}</span></span></td>
+            <td class="r m">${lfMontant(totalRev, cur)}</td><td></td><td class="r m${totalMar < 0 ? ' rouge' : ''}">${lfMontant(totalMar, cur)}</td><td class="r">${totalRev ? `${pct(Math.round(totalMar / totalRev * 1000) / 10)} %` : ''}</td><td></td></tr></tfoot></table>
+          ${pagerBar(vue.pg, { noun: parClient ? 'client' : 'prestation' })}</div>
+          ${incomplete ? '<p class="small mu mg-note">Le repère « ≈ » signale les lignes dont toutes les prestations n\'ont pas de coût de revient : leur marge est optimiste. Renseigne le coût dans le catalogue pour la rendre juste.</p>' : ''}`
+          : `<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune vente en ${h(s.year)}</b><span>La marge se lit dès la première facture émise de l'année.</span></div>`}`;
+      $$('#mg-dim [data-dim]').forEach(b => b.onclick = () => { s.dim = b.dataset.dim; s.page = 1; draw(); });
+      $$('#mg-body tr[data-cl]').forEach(tr => tr.onclick = () => navigate('#/client/' + tr.dataset.cl));
       bindPager($('#mg-body'), s, () => draw(), '#mg-body');
     }
 
@@ -17509,19 +17541,17 @@
     function drawContracts() {
       const rows = data.recurring.map(r => ({ r, p: C.recurringProfitability(data, company(), r.id) }))
         .filter(x => x.p.count > 0).sort((a, b) => b.p.margin - a.p.margin);
-      $('#mg-body').innerHTML = `
-        <div class="panel"><h2>Rentabilité des contrats récurrents ${info('mg.contracts')}</h2>
-          ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Contrat</th><th>Client</th><th class="r">Factures</th><th class="r">Facturé HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Par mois</th><th class="r">Taux</th></tr></thead><tbody>
+      $('#mg-body').innerHTML = rows.length ? `
+        <div class="mg-intro"><span>Un contrat qui rapporte peu par mois mais tourne depuis deux ans vaut souvent mieux qu'une grosse affaire ponctuelle : il est prévisible, et il ne demande pas de vendre à nouveau. ${info('mg.contracts')}</span></div>
+        <div class="lf-tab scroll-x"><table class="list lf-table mg-table"><thead><tr><th>Contrat</th><th>Client</th><th class="r">Factures</th><th class="r">Facturé HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Par mois</th></tr></thead><tbody>
             ${rows.map(({ r, p }) => `<tr class="clickable" data-rid="${h(r.id)}">
-              <td><strong>${h(objetDeContrat(r) || 'Contrat')}</strong><div class="small muted">depuis ${C.fmtDate(p.first)}</div></td>
-              <td>${h(clientName(r.clientId))}</td><td class="r nw">${p.count}</td>
-              <td class="r nw">${C.money(p.revenue, cur)}</td><td class="r nw">${C.money(p.cost, cur)}</td>
-              <td class="r nw"><strong>${C.money(p.margin, cur)}</strong></td>
-              <td class="r nw">${C.money(p.perMonth, cur)}</td><td class="r nw">${rateCell(p.rate)}</td></tr>`).join('')}
-          </tbody></table></div>
-          <p class="small muted mt">Un contrat de maintenance qui rapporte peu par mois mais qui tourne depuis deux ans vaut souvent mieux qu'une grosse affaire ponctuelle : il est prévisible, et il ne demande pas de vendre à nouveau.</p>`
-            : `<div class="empty">${videContrats()}<div class="inline mt" style="justify-content:center"><button class="btn" id="mg-vers-contrats">Voir la facturation récurrente</button></div></div>`}
-        </div>`;
+              <td class="cn"><b>${h(objetDeContrat(r) || 'Contrat')}</b><small>depuis le ${C.fmtDate(p.first)}</small></td>
+              <td class="cl"><span class="cl-i">${pastilleClient(r.clientId)}<span><b>${h(clientName(r.clientId))}</b></span></span></td><td class="r">${p.count}</td>
+              <td class="r">${lfMontant(p.revenue, cur)}</td><td class="r">${lfMontant(p.cost, cur)}</td>
+              <td class="r m${p.margin < 0 ? ' rouge' : ''}">${lfMontant(p.margin, cur)}${p.rate == null ? '' : `<small>${pct(p.rate)} %</small>`}</td>
+              <td class="r">${lfMontant(p.perMonth, cur)}</td></tr>`).join('')}
+          </tbody></table></div>`
+        : `<div class="mg-vide">${lfIc('horloge', 24, 1.6)}<b>Pas encore de rentabilité à lire</b><span>${videContrats()}</span><button class="btn" id="mg-vers-contrats">Voir la facturation récurrente</button></div>`;
       $$('#mg-body tr[data-rid]').forEach(tr => tr.onclick = () => navigate('#/contrat/' + tr.dataset.rid));
       if ($('#mg-vers-contrats')) $('#mg-vers-contrats').onclick = () => navigate('#/contrats');
     }
@@ -17531,8 +17561,8 @@
       const cats = C.expenseCategories(data);
       const pctOf = v => b.breakEven ? Math.min(100, Math.round(v / Math.max(b.breakEven, b.revenue) * 100)) : 0;
       $('#mg-body').innerHTML = `
-        <div class="panel"><h2>Seuil de rentabilité — ${s.year} ${info('mg.breakeven')}</h2>
-          ${b.breakEven == null ? '<div class="empty">Aucune vente sur cette année : le seuil ne peut pas se calculer.</div>' : `
+        <div class="panel mg-seuil"><h2>Seuil de rentabilité — ${s.year} ${info('mg.breakeven')}</h2>
+          ${b.breakEven == null ? `<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune vente en ${h(s.year)}</b><span>Le seuil se calcule dès la première facture émise de l'année.</span></div>` : `
           <div class="vat-box" style="max-width:680px">
             <div class="vat-line"><span>Chiffre d'affaires HT</span><span class="num">${C.money(b.revenue, cur)}</span></div>
             <div class="vat-line minus"><span>− Charges variables ${info('mg.variable')}</span><span class="num">${C.money(b.variable, cur)}</span></div>
@@ -17553,7 +17583,7 @@
             <div class="g-legend"><span><strong>${C.money(b.revenue, cur)}</strong> réalisés</span><span class="muted">seuil ${C.money(b.breakEven, cur)}</span></div></div>
           <p class="small muted mt">Autrement dit : il te faut <strong>${C.money(C.round3(b.breakEven / 12), cur)}</strong> par mois, soit <strong>${C.money(C.round3(b.breakEven / 220), cur)}</strong> par jour ouvré, rien que pour rentrer dans tes frais.</p>`}
         </div>
-        <div class="panel"><h2>Fixe ou variable ? ${info('mg.classify')}</h2>
+        <div class="panel mg-seuil"><h2>Fixe ou variable ? ${info('mg.classify')}</h2>
           <p class="small muted mb">Une charge <b>fixe</b> tombe que tu vendes ou non : loyer, assurance, abonnement, salaires. Une charge <b>variable</b> suit les ventes : marchandises, sous-traitance. Ce classement dépend de ton activité — <em>À VÉRIFIER avec ton comptable.</em></p>
           ${/* 10.12.0 — deux colonnes « Fixes » et « Variables » : cocher une catégorie l'envoyait dans
                l'autre colonne, la suivante montait sous le curseur, et un second clic au même endroit
@@ -17583,7 +17613,7 @@
       // Un sélecteur visible et sans effet est pire qu'absent : on change d'année, rien ne bouge, et
       // on croit que l'application est cassée. « Affaires » et « Contrats » portent sur toute la vie
       // de l'affaire ou du contrat, pas sur un exercice.
-      $('#mg-year').hidden = MG_SANS_ANNEE.includes(s.tab);
+      $('#mg-an').hidden = MG_SANS_ANNEE.includes(s.tab);
       // U-11 : « + Nouvelle affaire » n'est l'étape suivante que sur l'onglet des affaires, et seulement
       // quand il y en a déjà — vide, le vert est celui de l'état vide. Sur les onglets d'analyse, il
       // n'y a pas de geste suivant à pousser : aucun vert.
@@ -17595,7 +17625,7 @@
     });
     $$('#mg-tabs button').forEach(b => b.onclick = () => {
       s.tab = b.dataset.tab;
-      $$('#mg-tabs button').forEach(x => x.classList.toggle('active', x === b));
+      $$('#mg-tabs button').forEach(x => { x.setAttribute('aria-selected', String(x === b)); x.classList.toggle('active', x === b); });
       draw();
     });
     $('#mg-year').onchange = e => { s.year = e.target.value; draw(); };
@@ -17695,6 +17725,22 @@
       });
   }
 
+  // (1.261.0) Le menu ⋯ d'une affaire, le même dans la liste des marges et sur sa fiche.
+  function actionsAffaire(p, refaire) {
+    if (!p) return [];
+    const ecrit = !enLecture('projects');
+    const l = [{ icon: 'ouvrir', label: 'Ouvrir', hint: 'ses ventes, ses achats, sa marge', run: () => navigate('#/affaire/' + p.id) }];
+    if (!ecrit) return l;
+    const groupe = (titre, x) => (x.length ? [{ titre }, ...x] : []);
+    return [...l,
+      ...groupe('Y ajouter', [
+        { icon: 'piece', label: 'Un devis', hint: 'il naît rattaché à l\'affaire', run: () => navigate('#/doc/new/devis' + (p.clientId ? '/client/' + p.clientId : '') + '/affaire/' + p.id) },
+        { icon: 'achats', label: 'Un achat', hint: 'c\'est lui qui rend la marge exacte', run: () => navigate('#/achat/new/-/facture/-/affaire/' + p.id) },
+        { icon: 'lien', label: 'Des ventes déjà saisies…', hint: 'cocher celles du chantier', run: () => rattacherPieces(p, 'ventes', refaire) },
+        { icon: 'lien', label: 'Des achats déjà saisis…', hint: 'cocher ceux du chantier', run: () => rattacherPieces(p, 'achats', refaire) }]),
+      ...groupe('L\'affaire', [{ icon: 'modifier', label: 'Modifier…', hint: 'nom, client, statut, dates, notes', run: () => projectForm(p, refaire) }])];
+  }
+
   routes.affaire = (parts) => {
     const p = projectById(parts[0]);
     if (!p) return navigate('#/marges');
@@ -17706,23 +17752,34 @@
     const ventesLibres = piecesPourAffaire(p, 'ventes').filter(d => d.projectId !== p.id).length;
     const suivante = sansVente ? (ventesLibres ? 'rattacher-ventes' : 'devis') : 'achat';
     const vert = k => (suivante === k ? ' btn-primary' : '');
+    // (1.261.0) La fiche dans la nouvelle DA : le chemin et « ‹ », le statut, un résumé au lieu de quatre tuiles, et les
+    // ventes, les achats, les notes en onglets segmentés (ceux de la Paie).
+    const nbVentes = data.documents.filter(d => d.projectId === p.id).length, nbAchats = data.purchases.filter(x => x.projectId === p.id).length;
+    const ong = ['ventes', 'achats', 'notes'].includes(affaireDocState.onglet) ? affaireDocState.onglet : 'ventes';
+    const badgeSt = p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon';
+    const chiffre = (lbl2, val, sous, ton, bulle) => `<div class="mg-chiffre"><span class="mu">${lbl2}${bulle ? ' ' + info(bulle) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
     $('#view').innerHTML = `
-      <div class="page-head"><div><h1>${h(p.name)}</h1>
-        <div class="small muted">${[clientName(p.clientId), p.status, p.startDate ? 'depuis le ' + C.fmtDate(p.startDate) : ''].filter(Boolean).join(' · ')}</div></div>
-        <div class="actions">${backButton('#/marges')}<button class="btn" id="edit-p">Modifier</button>
-          <button class="btn${vert('devis')}" id="p-devis">+ Devis</button><button class="btn${vert('achat')}" id="p-achat">+ Achat</button></div></div>
-      <div class="stats">
-        <div class="stat"><div class="lbl">Vendu HT ${info('mg.projectRevenue')}</div><div class="val">${C.money(m.revenue, cur)}</div><div class="sub">${pl(m.salesCount, 'facture')}${m.pending ? ` · ${C.money(m.pending, cur)} en devis` : ''}</div></div>
-        <div class="stat"><div class="lbl">Acheté HT</div><div class="val">${C.money(m.cost, cur)}</div><div class="sub">${pl(m.buysCount, 'achat')} rattaché${sPl(m.buysCount)}</div></div>
-        <div class="stat"><div class="lbl">Marge ${info('mg.projectMargin')}</div><div class="val ${m.margin < 0 ? 'due' : m.margin > 0 && !margeSansAchat(m) ? 'ok' : ''}">${C.money(m.margin, cur)}</div><div class="sub">${m.rate == null ? '' : margeSansAchat(m) ? 'aucun achat rattaché : le coût n\'est pas encore compté' : pct(m.rate) + ' % du prix de vente'}</div></div>
-        <div class="stat"><div class="lbl">En caisse ${info('mg.projectCash')}</div><div class="val ${m.cash < 0 ? 'due' : ''}">${C.money(m.cash, cur)}</div><div class="sub">${C.money(m.collected, cur)} encaissés − ${C.money(m.paid, cur)} payés</div></div>
-      </div>
-      ${m.margin < 0 ? `<div class="panel" style="border-inline-start:3px solid var(--danger)"><h2 style="color:var(--danger)">Cette affaire perd de l'argent</h2>
-        <p class="small">Tu as acheté ${C.money(m.cost, cur)} et facturé ${C.money(m.revenue, cur)}. Vérifie qu'il ne reste pas quelque chose à facturer, ou qu'un achat n'a pas été rattaché par erreur.</p></div>` : ''}
-      <div class="panel"><h2>Ventes rattachées</h2><div id="p-sales"></div></div>
-      <div class="panel"><h2>Achats rattachés</h2><div id="p-buys"></div></div>
-      ${p.notes ? `<div class="panel"><h2>Notes</h2><p class="small">${C.nl2br(p.notes)}</p></div>` : ''}`;
-    bindBack('#/marges');
+      <div class="page-head ed-tete mg-fiche-t">${retourListe('#/marges', 'marges')}<div class="ed-titre">
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/marges" class="ed-retour">Marges</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(p.name)}</span></div>
+          <div class="ed-h1"><h1>${h(p.name)}</h1><span class="badge ${badgeSt}">${h(p.status)}</span></div>
+          <p class="sous">${[p.clientId ? h(clientName(p.clientId)) : 'sans client précis', p.startDate ? 'depuis le ' + C.fmtDate(p.startDate) : '', p.endDate ? 'fin le ' + C.fmtDate(p.endDate) : ''].filter(Boolean).join(' · ')}</p></div>
+        <div class="actions"><button class="btn" id="edit-p">Modifier</button>
+          <button class="btn${vert('devis')}" id="p-devis">${lfIc('croix', 15, 2.4)} Devis</button><button class="btn${vert('achat')}" id="p-achat">${lfIc('croix', 15, 2.4)} Achat</button></div></div>
+      ${m.margin < 0 ? `<div class="bandeau rouge mg-perte" role="status">${lfIc('alerte', 18, 2)}<span class="txt"><b>Cette affaire perd de l'argent</b><span>Tu as acheté ${C.money(m.cost, cur)} et facturé ${C.money(m.revenue, cur)}. Vérifie qu'il ne reste pas quelque chose à facturer, ou qu'un achat n'a pas été rattaché par erreur.</span></span></div>` : ''}
+      <div class="lf mg">
+        <div class="cf-carte mg-resume">
+          ${chiffre('Vendu HT', montantU(m.revenue, cur), `${pl(m.salesCount, 'facture')}${m.pending ? ` · ${C.money(m.pending, cur)} en devis` : ''}`, '', 'mg.projectRevenue')}
+          ${chiffre('Acheté HT', montantU(m.cost, cur), `${pl(m.buysCount, 'achat')} rattaché${sPl(m.buysCount)}`)}
+          ${chiffre('Marge', montantU(m.margin, cur), m.rate == null ? 'rien de vendu' : margeSansAchat(m) ? 'aucun achat rattaché : le coût n\'est pas encore compté' : `${pct(m.rate)} % du prix de vente`, m.margin < 0 ? 'rouge' : m.margin > 0 && !margeSansAchat(m) ? 'vert' : '', 'mg.projectMargin')}
+          ${chiffre('En caisse', montantU(m.cash, cur), `${C.money(m.collected, cur)} encaissés − ${C.money(m.paid, cur)} payés`, m.cash < 0 ? 'rouge' : '', 'mg.projectCash')}
+        </div>
+        <div class="mg-barre"><div class="pa-seg" id="p-tabs" role="tablist" aria-label="L'affaire">${[['ventes', 'Ventes', nbVentes], ['achats', 'Achats', nbAchats], ['notes', 'Notes', 0]].map(([k, n, nb]) => `<button type="button" role="tab" data-ong="${k}" aria-selected="${ong === k}" class="${ong === k ? 'active' : ''}">${n}${nb ? ` <small>${nb}</small>` : ''}</button>`).join('')}</div></div>
+        <div class="cf-carte"><div class="cf-onglet mg-onglet">
+          <div id="p-sales"${ong === 'ventes' ? '' : ' hidden'}></div><div id="p-buys"${ong === 'achats' ? '' : ' hidden'}></div>
+          <div id="p-notes"${ong === 'notes' ? '' : ' hidden'}>${p.notes ? `<p class="mg-notes">${C.nl2br(p.notes)}</p>` : `<div class="mg-vide">${lfIc('modifier', 24, 1.6)}<b>Pas de note</b><span>Ce qu'il faut retenir du chantier : interlocuteur, accès, conditions. Jamais imprimé.</span><button class="btn" id="p-note-new">Écrire une note</button></div>`}</div>
+        </div></div></div>`;
+    $$('#p-tabs [data-ong]').forEach(b => b.onclick = () => { affaireDocState.onglet = b.dataset.ong; render(true); });
+    if ($('#p-note-new')) $('#p-note-new').onclick = () => projectForm(p, () => render());
     $('#edit-p').onclick = () => projectForm(p, () => render());
     // Les deux créations naissent RATTACHÉES à l'affaire (10.12.0) : elles ouvraient un devis et un
     // achat vierges, qu'on croyait comptés dans la marge du chantier.

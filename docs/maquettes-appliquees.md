@@ -591,3 +591,21 @@ barre du choix, feuille des filtres au téléphone) et remplace l'ancienne `list
 
 La réponse du client (accepté, refusé et son motif) passe par les mêmes fenêtres depuis la liste et depuis le devis
 (`repondreAuDevis`).
+
+## Les marges, et le retour vers la fiche (1.261.0)
+
+Demande de Skander (03/11/2026) : mettre à jour l'écran Marges dans la nouvelle DA, sans maquette à part ; et « fiche
+fournisseur, quand on appuie sur une ligne facture, le retour me renvoie vers achat ». Test :
+`tests/web/marges-retour.test.ts` (photo `marges-1-analyse.png`) ; preuves « marges 1.261 a » à « c » et « f » à « i », « retour 1.261 d » et « e ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | Celui des listes : « Accueil › Marges », « Ce que te rapporte chaque chantier, chaque client, chaque contrat » ; l'année (seulement sur « Où est la marge » et « Seuil »), « Nouvelle affaire » |
+| Les onglets | La barre segmentée de la Paie (Skander, 03/11/2026 : « le style des sous-onglets comme partout ») : Affaires, Où est la marge, Contrats, Seuil de rentabilité, chacun avec son nombre ; l'année à droite, seulement sur « Où est la marge » et « Seuil » |
+| Affaires | La recherche (nom, client, notes) et les statuts comptés (Toutes, En cours, Terminée, Annulée) ; le tableau des factures : l'affaire (et ce qui reste en devis), le client et sa pastille, le statut, vendu HT, acheté HT, la marge et son taux, en caisse, le menu ⋯ (Ouvrir ; y ajouter un devis, un achat, des ventes ou des achats déjà saisis ; Modifier) ; au pied le total et ce que veut dire « En caisse » |
+| Où est la marge | « Par client / Par prestation » en barre segmentée ; un client se clique et ouvre sa fiche. Plus de tuiles : le chiffre d'affaires, la marge, son taux et le coût des ventes passent au pied du tableau, toujours calculés sur toute la sélection ; par client avec pastille, ou par prestation ; la barre de la part de marge (cachée au téléphone) |
+| Contrats | Le même tableau : le contrat et depuis quand, le client, les factures, facturé, coût, marge et taux, par mois |
+| Seuil de rentabilité | Le calcul garde sa boîte et la question « Fixe ou variable ? » ; une année sans vente le dit avec son état vide |
+| Le retour | Une pièce ouverte depuis la fiche d'un fournisseur, d'un client, d'une affaire ou d'un contrat y ramène : le « ‹ » dit « Revenir à … » et le chemin devient « Accueil › la fiche › la pièce » (au téléphone, ce lien est le retour). Ouverte depuis sa liste, elle ramène à la liste, comme avant |
+
+| La fiche d'une affaire | Le chemin « Accueil › Marges › l'affaire » et « ‹ », le statut, client et dates ; « Cette affaire perd de l'argent » en bandeau rouge ; un résumé de quatre chiffres (vendu, acheté, marge, en caisse) au lieu de quatre tuiles ; les ventes, les achats et les notes en onglets segmentés, chacun compté ; une affaire sans note propose d'en écrire une |

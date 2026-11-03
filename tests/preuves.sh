@@ -20515,7 +20515,7 @@ prouver 'compléments 1 : une facture sans bouton pour revenir à la liste' web/
   "\${retourListe(backTo, isQ ? 'devis' : 'factures')}<div class=\"ed-titre\">" "<div class=\"ed-titre\">" \
   'retour à la liste : la facture, le devis et l'"'"'achat ramènent à leur liste'
 prouver 'compléments 2 : le bouton de retour qui ne ramène nulle part' web/public/v10/app.js \
-  "  go(() => { const avant = navStack[navStack.length - 1]; if (avant && routeOf(avant) === routeOf(liste)) goBack(liste); else navigate(liste); });" "  void go;" \
+  "    go(() => { const avant = navStack[navStack.length - 1]; if (avant && (routeOf(avant) === routeOf(liste) || ficheQuittee())) goBack(liste); else navigate(liste); });" "    void go;" \
   'retour à la liste : la facture, le devis et l'"'"'achat ramènent à leur liste'
 prouver 'compléments 3 : la facture électronique relue dans la fenêtre d'"'"'avant' web/public/v10/app.js \
   "      teifComprise(l.lecture, fichier, l.remarques || []);" "      ocrReviewForm(l.lecture, fichier, values => appliquerLecture(values, fichier, 'facture électronique'), { source: 'teif', remarques: l.remarques });" \
@@ -22759,6 +22759,35 @@ prouver 'devis 1.260 c : « Relancer » part pour plusieurs devis à la fois' we
 prouver 'devis 1.260 d : la date de l'\''acceptation ne se dit pas' web/public/v10/app.js \
   "rep && rep.le ? \`accepté le \${lfJm(rep.le)}\` : 'accepté'" "'accepté'" \
   'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
+# Les marges dans la nouvelle DA et le retour vers la fiche (1.261.0, Skander 03/11/2026).
+prouver 'marges 1.261 a : le chiffre d'\''affaires quitte le pied du tableau' web/public/v10/app.js \
+  "<td class=\"r m\">\${lfMontant(totalRev, cur)}</td><td></td>" "<td></td><td></td>" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.261 b : un onglet ne dit plus combien il tient' web/public/v10/app.js \
+  "\${compteOnglet[id] ? \` <small>\${compteOnglet[id]}</small>\` : ''}" "''" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.261 c : le sélecteur d'\''année reste sur les affaires' web/public/v10/app.js \
+  "\$('#mg-an').hidden = MG_SANS_ANNEE.includes(s.tab);" "\$('#mg-an').hidden = false;" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'retour 1.261 d : la pièce ouverte depuis une fiche ramène aux Achats' web/public/v10/app.js \
+  "(routeOf(avant) === routeOf(liste) || ficheQuittee())" "(routeOf(avant) === routeOf(liste))" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'retour 1.261 e : le chemin de la pièce oublie la fiche d'\''où l'\''on vient' web/public/v10/app.js \
+  "    a.textContent = pageLabel(fiche, true);
+" "" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.261 f : le statut choisi ne filtre pas les affaires' web/public/v10/app.js \
+  "      const list = parQ.filter(p => !s.pst || p.status === s.pst);" "      const list = parQ;" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.261 g : la recherche oublie le client de l'\''affaire' web/public/v10/app.js \
+  "C.correspondRecherche([p.name, clientName(p.clientId), p.notes].join(' '), pq)" "C.correspondRecherche([p.name, p.notes].join(' '), pq)" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.261 h : les onglets ne sont plus ceux de la Paie' web/public/v10/app.js \
+  "<div class=\"pa-seg\" id=\"mg-tabs\" role=\"tablist\"" "<div class=\"cf-onglets\" id=\"mg-tabs\" role=\"tablist\"" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
+prouver 'marges 1.261 i : l'\''onglet Achats de la fiche reste caché' web/public/v10/app.js \
+  "<div id=\"p-buys\"\${ong === 'achats' ? '' : ' hidden'}>" "<div id=\"p-buys\" hidden>" \
+  'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

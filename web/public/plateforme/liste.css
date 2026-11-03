@@ -473,3 +473,66 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .cf-dl dd.ff-rib { font-size: 14.5px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .03em; white-space: nowrap; }
 .cf-dl dd.ff-rib small, .cf-dl dd.ff-rib .manque { font-size: 12px; letter-spacing: 0; white-space: normal; }
 .cf-dl dd.ff-rib .manque { font-size: 13.5px; }
+
+/* Les marges (1.261.0) : l'en-tête des listes, les onglets des fiches, les tableaux des factures ; plus de tuiles. */
+.mg-act .sel { position: relative; display: inline-flex; align-items: center; }
+.mg-act .sel[hidden] { display: none; }
+.mg-act .sel select { appearance: none; -webkit-appearance: none; height: 36px; padding: 0 30px 0 12px; border-radius: 10px; border: 1px solid var(--sb-trait); background: var(--sb-papier); font-size: 13.5px; font-weight: 500; color: var(--sb-encre); cursor: pointer; }
+.mg-act .sel svg { position: absolute; right: 10px; pointer-events: none; color: var(--sb-gris-2); }
+.lf.mg .cf-onglet { padding: 0; gap: 0; }
+.lf.mg .mg-intro { padding: 12px 16px; font-size: 13px; color: var(--sb-gris); border-bottom: 1px solid var(--sb-trait); }
+.lf.mg .mg-f { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 16px; margin: 0; border-bottom: 1px solid var(--sb-trait); }
+.lf.mg .lf-tab { border: 0; border-radius: 0; box-shadow: none; }
+.lf.mg table.lf-table th:first-child, .lf.mg table.lf-table td:first-child { padding-left: 16px; }
+.lf.mg table.lf-table th:last-child, .lf.mg table.lf-table td:last-child { padding-right: 16px; }
+.lf.mg td.cn b { font-weight: 600; display: block; }
+.lf.mg td.m small.vert { color: var(--sb-doux-texte); font-weight: 600; }
+.lf.mg td.m small.rouge { font-weight: 600; }
+.lf.mg td.mg-barre, .lf.mg th.mg-barre-h { width: 22%; min-width: 120px; }
+.lf.mg .mg-note { margin: 0; padding: 10px 16px; border-top: 1px solid var(--sb-trait); }
+.lf.mg .mg-vide { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 40px 16px; color: var(--sb-gris); font-size: 13.5px; }
+.lf.mg .mg-vide b { color: var(--sb-encre); font-size: 15px; }
+.lf.mg .mg-vide .btn { margin-top: 8px; }
+.lf.mg .mg-seuil { padding: 16px !important; }
+.lf.mg .mg-seuil + .mg-seuil { border-top: 1px solid var(--sb-trait) !important; border-radius: 0; }
+.lf.mg .vide-utile, .lf.mg #mg-body > .panel:not(.mg-seuil) { margin: 16px; }
+@media (max-width: 760px) {
+  .lf.mg td.mg-barre, .lf.mg th.mg-barre-h { display: none; }
+  .lf.mg .mg-f > .sel { flex: 1 1 0; }
+  .lf.mg .mg-f > .sel select { width: 100%; }
+  .lf.mg .mg-f > button.i { flex: 0 0 auto; }
+}
+/* (1.261.0, suite) Les onglets segmentés de la Paie, la recherche et les statuts des affaires, la fiche d'une affaire. */
+.lf.mg .mg-barre { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.lf.mg .mg-barre .sel[hidden] { display: none; }
+.lf.mg .pa-seg button small { opacity: .7; margin-left: 2px; font-weight: 600; }
+.lf.mg .mg-f .cherche { flex: 1 1 220px; max-width: 320px; }
+.lf.mg .mg-f .pa-seg { flex: none; }
+.lf.mg td.lf-act { width: 52px; }
+.lf.mg .mg-resume { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.lf.mg .mg-chiffre { display: grid; gap: 3px; padding: 14px 16px; min-width: 0; }
+.lf.mg .mg-chiffre + .mg-chiffre { border-left: 1px solid var(--sb-trait); }
+.lf.mg .mg-chiffre > span { font-size: 12.5px; display: flex; gap: 5px; align-items: center; }
+.lf.mg .mg-chiffre b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--sb-encre); }
+.lf.mg .mg-chiffre b.vert { color: var(--sb-doux-texte); }
+.lf.mg .mg-chiffre b .u { font-size: 12px; color: var(--sb-gris-2); font-weight: 600; }
+.lf.mg .mg-chiffre small { font-size: 12px; color: var(--sb-gris-2); }
+.lf.mg .mg-onglet > div > .scroll-x, .lf.mg .mg-onglet > div > .empty { margin: 0; }
+.lf.mg .mg-onglet > div > .inline { padding: 10px 16px; margin: 0; border-top: 1px solid var(--sb-trait); }
+.lf.mg .mg-onglet > div > .empty { padding: 28px 16px; border: 0; }
+.lf.mg .mg-notes { margin: 0; padding: 16px; font-size: 14px; line-height: 1.55; }
+.mg-perte { margin-bottom: 14px; }
+.mg-fiche-t .ed-h1 { display: flex; gap: 10px; align-items: center; }
+.mg-fiche-t .sous { margin: 2px 0 0; font-size: 13.5px; color: var(--sb-gris); }
+@media (max-width: 760px) {
+  .lf.mg .mg-resume { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lf.mg .mg-chiffre:nth-child(3) { border-left: 0; }
+  .lf.mg .mg-chiffre:nth-child(n+3) { border-top: 1px solid var(--sb-trait); }
+  .lf.mg .mg-f .cherche { max-width: none; }
+}
+.lf.mg td.mg-barre { display: table-cell; }
+.lf.mg td.mg-barre .bar { width: 100%; }
+/* Les tableaux partagés (docTable) dans la fiche d'une affaire, au ton des listes : titres sans capitales. */
+.lf.mg .mg-onglet table.list th { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--sb-gris-2); background: var(--sb-papier-2); }
+.lf.mg .mg-onglet table.list { border: 0; border-radius: 0; }
+.lf.mg .mg-onglet table.list th:first-child, .lf.mg .mg-onglet table.list td:first-child { padding-left: 16px; }
