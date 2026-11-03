@@ -21063,7 +21063,7 @@
       // Au téléphone, toute la carte du salarié s'ouvre au doigt (ses choix en grand).
       $$('#ptj .ptj-l').forEach(li => li.addEventListener('click', ev => { if (fige || ev.target.closest('button') || !window.matchMedia('(max-width: 760px)').matches) return; const e = employeeById(li.dataset.ptjE), x = e && etatJour(e, iso); if (x && !x.j.repos) jourChoixFenetre(e, iso, redessin); }));
       $$('#ptj [data-ptj-repos]').forEach(b => b.onclick = () => { const e = employeeById(b.dataset.ptjRepos); if (e) caseFenetre(e, y, m, d, redessin); });
-      $$('#ptj [data-ptj-sortie]').forEach(b => b.onclick = () => { const e = employeeById(b.dataset.ptjSortie); if (e) sortieFenetre(e, iso, redessin); });
+      $$('#ptj [data-ptj-sortie]').forEach(b => b.onclick = () => { const e = employeeById(b.dataset.ptjSortie); if (e) heureSortieFenetre(e, iso, redessin); });
       if ($('#ptj-valider')) $('#ptj-valider').onclick = () => {
         const b = $('#ptj-valider');
         if (b.getAttribute('aria-disabled') === 'true') { toast(`${b.title}.`, true); const c = $('#ptj [data-an-sortie], #ptj [data-ptj-sortie]'); if (c) c.focus(); return; }
@@ -21135,8 +21135,9 @@
         if ($('#hsj-x', root)) $('#hsj-x', root).onclick = () => poser(0);
       });
     }
-    // Une entrée sans sortie, sans horaire d'équipe pour la proposer : l'heure se tape.
-    function sortieFenetre(e, iso, apres) {
+    // Une entrée sans sortie, sans horaire d'équipe pour la proposer : l'heure se tape. (plateforme, 03/11/2026, 16 § 10.1
+    // point 11) Jamais « sortieFenetre » : ce nom, déclaré ici, cachait la fenêtre du départ dans toute la page Paie.
+    function heureSortieFenetre(e, iso, apres) {
       const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
       modal(`<h2>${h(e.name)} · ${h(jourDit(iso))}</h2><p class="sous-f">une entrée badgée, pas de sortie : à quelle heure est-il parti ?</p>
         <form id="sof"><label class="field">${lbl('Sa sortie')}<input type="time" name="h" required></label></form>

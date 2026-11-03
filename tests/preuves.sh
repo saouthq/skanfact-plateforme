@@ -22909,6 +22909,16 @@ prouver 'tréso 1.266 l : le bouton principal ne propose plus de pointer le rele
 prouver 'urgence V1 : l'"'"'achat en devise sans taux lève une erreur au lieu du refus' web/public/v10/app.js \
   'return refus('"'"'[name=exchangeRate]'"'"',' 'return refus(charte ? '"'"'[data-etq=devise]'"'"' : '"'"'[name=exchangeRate]'"'"',' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+# 16 § 10.1, point 11 : « Un départ… » du menu ⋯ de la paie appelait la fenêtre de l'heure de sortie du pointage (même
+# nom depuis 1.259.0, déclarée dans la page Paie : elle cachait celle du départ). Chacune a son nom.
+WPDEP='« Un départ… » du menu ⋯ ouvre la sortie du salarié choisi ; « Mettre sa sortie… » de la journée, son heure de sortie'
+prouver "paie 10.1-11 a : « Un départ… » appelle la fenêtre de l'heure de sortie" web/public/v10/app.js \
+  '    function heureSortieFenetre(e, iso, apres) {|||if (e) heureSortieFenetre(e, iso, redessin); });' \
+  '    function sortieFenetre(e, iso, apres) {|||if (e) sortieFenetre(e, iso, redessin); });' \
+  "$WPDEP"
+prouver "paie 10.1-11 b : « Mettre sa sortie… » ouvre la fenêtre du départ" web/public/v10/app.js \
+  'if (e) heureSortieFenetre(e, iso, redessin); });' 'if (e) sortieFenetre(e, iso, redessin); });' \
+  "$WPDEP"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -2293,3 +2293,15 @@ refusées sans majoration ou après la sortie), `tests/web/paie-1259-gestes.test
 « À régler », l'onglet, la journée validée refusée dans la grille, la validation ; les 4 questions et « Annuler ») ; preuves
 « paie 1.259 a » à « j ». Les tests et preuves anciens qui passaient par la grille d'abord y vont maintenant par « Le mois » ›
 « Voir la grille ». Le pointage par QR code est noté au cadrage, pour plus tard.
+
+## Les corrections urgentes du Personnel (03/11/2026, à partir de 1.266.2)
+
+Le cadrage du module Personnel (`docs/cadrage/16-module-personnel.md` § 10.1) a relevé treize défauts qui faussent
+l'argent ou perdent des données. Ils se réparent dans les gros fichiers (exception « correction urgente » de la règle du
+`CLAUDE.md`), chacun avec son test vu rouge puis vert et sa preuve, et chacun noté pour la sortie du module.
+
+- **1.266.2 — « Un départ… » du menu ⋯** (point 11). Depuis 1.259.0, la fenêtre de l'heure de sortie du pointage portait
+  le même nom que la fenêtre du départ (`sortieFenetre`) et, déclarée dans la page Paie, la cachait : choisir le salarié
+  fermait la fenêtre et rien ne s'ouvrait (« iso.slice is not a function »). Elle s'appelle désormais
+  `heureSortieFenetre`. Test : `tests/web/paie-1256-gestes.test.ts` (les deux chemins, chacun sa fenêtre) ; preuves
+  `paie 10.1-11 a` et `b`.

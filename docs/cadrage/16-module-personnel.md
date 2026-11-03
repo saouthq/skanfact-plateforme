@@ -703,7 +703,8 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
 10. Sans bulletin du mois, le coût d'une heure, le contrôle d'une avance **et le salaire prévu de la trésorerie** oublient
     les primes fixes ; et un salarié d'une équipe aux autres jours de travail a deux chiffres (congés et pointage
     comptent ses jours par deux règles) : la correction urgente se limite au montant faux.
-11. « Un départ… » du menu ⋯ **appelle la mauvaise fonction** et échoue.
+11. « Un départ… » du menu ⋯ **appelle la mauvaise fonction** et échoue. *Réparé le 03/11/2026 (1.266.2) : la fenêtre de
+    l'heure de sortie du pointage s'appelle `heureSortieFenetre` ; chacune part avec sa partie à la sortie (A1).*
 12. Les PDF des bulletins déposés au classeur du cabinet se lisent par **tout membre du cabinet** qui voit le dossier,
     quel que soit son rôle (§ 4).
 13. La CIN et le RIB des salariés sont gardés **en clair** dans le dossier de l'entreprise, sur le serveur (§ 8,

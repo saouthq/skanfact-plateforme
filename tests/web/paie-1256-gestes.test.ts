@@ -6,6 +6,8 @@
 //     qui se refait ; le total de la colonne se lit avant d'enregistrer ;
 //   - « Augmenter les salaires » : + 10 % pour ceux qu'on coche, dès le mois ; la fiche garde l'ancien salaire, celui qu'on
 //     a décoché ne bouge pas.
+//   - (03/11/2026, 16 § 10.1 point 11) « Un départ… » du menu ⋯ ouvre la sortie du salarié, et « Mettre sa sortie… » de la
+//     journée, son heure de sortie : chacun sa fenêtre.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -135,6 +137,41 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
     const h = ((await auServeur(x, 'employees', 'mt'))?.salaires as { des: string; brut: unknown; avant: unknown }[]).map((s) => [s.des, nombre(s.brut), nombre(s.avant)]);
     expect(h).toEqual([[`${x.an}-${String(x.mo).padStart(2, '0')}`, attendu, 1450.375]]);
     expect(nombre((await auServeur(x, 'employees', 'nb'))?.grossSalary)).toBe(880.125);
+    expect(erreurs).toEqual([]);
+  }, 120_000);
+  // 16 § 10.1, point 11 (03/11/2026) : « Un départ… » du menu ⋯ appelait la fonction de l'heure de sortie du pointage
+  // (1.259.0 lui avait donné le même nom que la fenêtre du départ, et la page Paie la cachait) : le choix du salarié
+  // fermait sa fenêtre et rien ne s'ouvrait (« iso.slice is not a function »). Les deux chemins, chacun sa fenêtre.
+  it('« Un départ… » du menu ⋯ ouvre la sortie du salarié choisi ; « Mettre sa sortie… » de la journée, son heure de sortie', async () => {
+    const x = await monter();
+    // Nadia a badgé son entrée aujourd'hui, pas sa sortie ; sans équipe, aucune heure n'est proposée : « Mettre sa sortie… ».
+    const d = new Date(), jj = d.getDate();
+    await api('POST', `/entreprises/${x.ent}/dossier-v10`, x.j, { changements: [{ collection: 'timesheets', cle: 'ts-nb-badge', rang: null, revision: null,
+      contenu: enc({ id: 'ts-nb-badge', employeeId: 'nb', year: d.getFullYear(), month: d.getMonth() + 1, jours: {}, hs: {}, badges: { [String(jj)]: { h: ['08:05'] } } }) }] });
+    const p = await ouvrir(x);
+    // Le départ, depuis le menu ⋯ de la page : la fenêtre de la sortie de Mourad, pas celle d'une heure.
+    await p.locator('#p-plus').click();
+    await p.locator('.row-menu').last().getByText('Un départ…', { exact: true }).click();
+    await p.locator('#cs-l [data-cs="mt"]').click();
+    await expect.poll(() => p.locator('#so').count()).toBe(1);
+    expect(espace(await p.locator('.modal h2').last().innerText())).toBe('La sortie de Mourad Trabelsi');
+    expect(await p.locator('#sof').count()).toBe(0);
+    await p.locator('#so .datefield:has(input[name=endDate]) input.d-txt').fill('31/10/2026');
+    await p.locator('#so .datefield:has(input[name=endDate]) input.d-txt').press('Tab');
+    await p.locator('#so input[name=motif][value=demission]').check();
+    // Embauché le 10/03/2023, parti le 31/10/2026 : 3 ans et 7 mois.
+    expect(espace(await p.locator('#so-anc').innerText())).toBe('Ancienneté au dernier jour : 3 ans et 7 mois.');
+    await p.locator('#so-ok').click();
+    await expect.poll(async () => (await auServeur(x, 'employees', 'mt'))?.sortieMotif).toBe('demission');
+    expect((await auServeur(x, 'employees', 'mt'))?.endDate).toBe('2026-10-31');
+    // L'heure de sortie, depuis la journée : sa fenêtre à elle, et la sortie se note sur le badge du jour.
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#ptj [data-ptj-sortie="nb"]').click();
+    await expect.poll(() => p.locator('#sof').count()).toBe(1);
+    expect(await p.locator('#so').count()).toBe(0);
+    await p.locator('#sof [name=h]').fill('17:35');
+    await p.locator('#sof-ok').click();
+    await expect.poll(async () => ((await auServeur(x, 'timesheets', 'ts-nb-badge'))?.badges as Record<string, { sortieMain?: string }> | undefined)?.[String(jj)]?.sortieMain).toBe('17:35');
     expect(erreurs).toEqual([]);
   }, 120_000);
 });
