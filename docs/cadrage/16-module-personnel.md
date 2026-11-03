@@ -504,7 +504,8 @@ que ce qui le concerne (son planning, ses bulletins, ses congés, ses demandes).
   `pointageOuverts`, `badgeImports`, `projectTime`), et sont donc réservées au propriétaire et à l'administrateur. Le
   rôle Paie ne peut ni valider une journée ni valider le mois (son geste reste sur son poste), et l'écran ne le prévient
   pas ; surtout, il ne voit pas ce que le gérant a validé : pour lui aucun mois n'est verrouillé, il peut changer le
-  pointage d'un mois validé, et le bulletin suivant le reprend. Chacune reçoit sa règle (§ 10.1).
+  pointage d'un mois validé, et le bulletin suivant le reprend. Chacune reçoit sa règle (§ 10.1). *Fait le 03/11/2026
+  (1.266.6) : le pointage validé suit la paie, les heures d'une affaire suivent l'affaire.*
 - **Les gestes sont déclarés** un par un (établir, valider, payer, remettre, noter un congé, accepter une demande,
   pointer, publier le planning…), chacun avec son texte (`CLAUDE.md`, « Un geste ») ; aujourd'hui cinq existent, tous de
   lecture sauf `paie.dossier.modifier`.
@@ -586,7 +587,7 @@ moteur avant leur réponse** ; ensuite chaque règle entre datée, avec sa sourc
 
 Le `01` § 12 décrit « la paie » avec six objets ; la plateforme en a beaucoup plus (inventaire du 03/11/2026). Il reçoit
 (à sa revalidation) : le pointage, **un fait par salarié et par jour**, et sa validation, **gardée au serveur sans limite
-de nombre** (aujourd'hui coupée aux 400 dernières journées) ; les équipes et horaires ; le **planning** ; les demandes ;
+de nombre** (coupée aux 400 dernières jusqu'à 1.266.6) ; les équipes et horaires ; le **planning** ; les demandes ;
 les prêts ; les saisies ; les documents faits et leurs numéros ; les **pièces du dossier** ; les **échéances** et les
 rappels remis à plus tard (par qui, jusqu'à quand) ; le **matériel confié** ; les **listes de tâches** ; les avenants et
 renouvellements ; les régularisations ; les déclarations déposées et payées ; les **cumuls de l'année** repris d'un autre
@@ -699,6 +700,11 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
    (`serveur/compta/paie.ts`), et ils écrivent les avances en un total par jour au lieu d'une par une (`03` § 2.1) ; le
    test qui devait le voir compare à la v10 figée ; l'écran calcule en plus, à chaque affichage, sa propre comptabilité
    de la paie, une écriture par bulletin (§ 4).
+   *Réparé en partie le 03/11/2026 (1.266.6, migration 0188) : les déclarations payées (une par pièce, aux comptes de
+   l'écran) et les versements de saisie (un par un, sans nom) entrent dans les livres du serveur, et un test les compare
+   à l'écran de la plateforme, plus à la v10 figée (`docs/ecritures.md`, D8). Les avances une par une ne changent pas :
+   D8 contre le `03` § 2.1, À DÉCIDER avec un comptable. Une déclaration payée avant la correction n'entre qu'à la
+   prochaine réécriture de son mois (un rattrapage : À DÉCIDER). À sortir avec le Personnel (A1).*
 4. Les rôles qui ne voient pas la paie (comptabilité interne, lecture) calculent **une trésorerie, une prévision, un
    résultat et des marges faux** sans le savoir ; la prévision compte deux fois la part paie de la déclaration quand elle
    a été payée à part, et elle ne prévoit ni la CNSS ni l'impôt des mois dont les bulletins ne sont pas encore faits.
@@ -712,11 +718,27 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
    VÉRIFIER avec un comptable) ; à sortir avec le Personnel (A1).*
 7. Une **période close** ne protège la paie qu'à l'écran : le serveur accepte un bulletin, un congé, une avance ou un
    pointage daté dans un mois clos (il ne lit pas la date de clôture) ; seuls ses livres tiennent.
+   *Réparé le 03/11/2026 (1.266.6) : `garderLaCloture` (serveur/v10/paie.ts) refuse, avant toute écriture, un bulletin, un
+   congé, une avance ou un pointage qu'un envoi crée, change ou retire dans la période close, et le refus nomme la partie
+   et le jour ; un fait d'argent arrivé après (une avance nouvelle, un salaire payé qui ne l'était pas) passe à sa vraie
+   date (04 § 5.1). À l'écran, les gestes qui n'avertissaient pas le font avant (une demande de congé, l'import des badges),
+   et un bulletin d'un mois clos se tient comme un bulletin payé (primes du mois, augmentation, renouvellement d'un CDD :
+   le rappel va au premier mois ouvert). Restent sans garde au serveur : les ventes, les achats, la trésorerie, les
+   versements de saisie, les déclarations payées et `joursValides` ; le Cabinet ne lit pas encore `closedUntil` (À VÉRIFIER).
+   Les deux clôtures (`closedUntil` et `compta.cloture`) restent distinctes : en faire une seule est une décision du socle.
+   À sortir avec le Personnel (A1).*
 8. Cinq parties sans règle de droits : le rôle Paie **ne peut pas valider** une journée ni un mois, **et il ne voit pas ce
    que le gérant a validé** : pour lui aucun mois n'est verrouillé, il peut changer le pointage d'un mois validé, et le
    bulletin le reprend (§ 5.2).
+   *Réparé le 03/11/2026 (1.266.6) : `joursValides`, `pointageVersions`, `pointageOuverts` et `badgeImports` suivent la
+   paie (P, A, Pa lisent et écrivent) ; `projectTime` suit les affaires (ventes : P, A, C écrivent, I et L lisent ; choix
+   par défaut, À VÉRIFIER avec Skander : la page Affaire, elle, ne s'ouvre qu'à P, A, I, L). Les règles ont une empreinte
+   dans le profil de la relecture : une copie gardée sous d'autres règles repart en entier, et la paie reçoit ce que le
+   gérant avait validé avant. Les gestes dédiés (« valider le pointage ») viennent avec P3.*
 9. Les journées validées sont **coupées aux 400 dernières** : les plus anciennes redeviennent « non validées »
    (`app.js`, `validerJour`).
+   *Réparé le 03/11/2026 (1.266.6) : `validerJour` ne coupe plus la liste ; `pointageVersions` et `pointageOuverts` ne
+   coupaient pas ; à sortir avec le Personnel (A1).*
 10. Sans bulletin du mois, le coût d'une heure, le contrôle d'une avance **et le salaire prévu de la trésorerie** oublient
     les primes fixes ; et un salarié d'une équipe aux autres jours de travail a deux chiffres (congés et pointage
     comptent ses jours par deux règles) : la correction urgente se limite au montant faux.
@@ -724,6 +746,12 @@ notée pour la sortie du module (`CLAUDE.md`, « Le code : un dossier par module
     l'heure de sortie du pointage s'appelle `heureSortieFenetre` ; chacune part avec sa partie à la sortie (A1).*
 12. Les PDF des bulletins déposés au classeur du cabinet se lisent par **tout membre du cabinet** qui voit le dossier,
     quel que soit son rôle (§ 4).
+    *Réparé le 03/11/2026 (1.266.6, migration 0187) : un document du classeur porte la marque `paie` (« Les envoyer » la
+    pose ; les bulletins déjà rangés la reçoivent) et suit alors la règle des bulletins (`paie.mes_entreprises`) : au
+    cabinet, le rôle Paie et l'associé sous un mandat qui comprend la paie ; chez le client (« Mon comptable »), qui lit la
+    paie, plus la comptabilité interne. Un dépôt refusé n'écrit plus rien. Restent ouverts (À DÉCIDER) : les exports ZIP du
+    classeur emportent les bulletins de qui les fait, et l'envoi d'un bulletin à la lecture par l'IA. À sortir avec le
+    Personnel (A1).*
 13. La CIN et le RIB des salariés sont gardés **en clair** dans le dossier de l'entreprise, sur le serveur (§ 8,
     décision 1 de l'En bref).
 

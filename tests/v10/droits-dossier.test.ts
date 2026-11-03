@@ -53,7 +53,7 @@ async function entreprise() {
     if (role === 'paie') await appeler('POST', '/moi/code', p.jeton, { methode: 'application' });
     membres[role] = p;
   }
-  const lire = async (jeton: string) => (await appeler('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps as { objets: Objet[]; droits: { cachees: string[]; lectureSeule: string[]; tout: boolean; responsable: boolean } };
+  const lire = async (jeton: string, depuis = '') => (await appeler('GET', `/entreprises/${ent}/dossier-v10${depuis}`, jeton)).corps as { objets: Objet[]; droits: { cachees: string[]; lectureSeule: string[]; ecrivables: string[]; tout: boolean; responsable: boolean }; marque: string; profil: string; partiel?: boolean };
   const envoyer = (jeton: string, changements: unknown[]) => appeler('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements });
   await lire(proprio.jeton);
   expect((await envoyer(proprio.jeton, [
@@ -127,6 +127,73 @@ describe('les droits geste par geste dans le dossier v10', () => {
     expect((await e.envoyer(jci, [{ collection: 'suppliers', cle: 's2', rang: 1, revision: null, contenu: { id: 's2', name: 'Sable du Nord' } }])).statut).toBe(200);
     expect((await e.envoyer(jci, [{ collection: 'documents', cle: 'd2', rang: 1, revision: null, contenu: { ...devis, id: 'd2' } }])).statut).toBe(403);
     expect((await e.envoyer(e.membres.lecture?.jeton ?? '', [{ collection: 'clients', cle: 'c3', rang: 2, revision: null, contenu: { id: 'c3', name: 'X' } }])).statut).toBe(403);
+  });
+
+  // (16 § 10.1, point 8) Cinq parties sans règle tombaient au propriétaire seul : la paie ne voyait aucun mois verrouillé, et
+  // ses validations restaient sur son poste. Le pointage validé est de la paie ; les heures d'une affaire suivent l'affaire.
+  it('le pointage validé par le gérant se lit et s\'écrit par la paie ; les heures d\'une affaire suivent l\'affaire', async () => {
+    const e = await entreprise();
+    const le = '2026-09-08T17:42:00.000Z';
+    expect((await e.envoyer(e.proprio.jeton, [
+      { collection: '_racine', cle: 'joursValides', rang: null, revision: null, contenu: [{ iso: '2026-09-08', le }] },
+      { collection: 'pointageVersions', cle: 'v1', rang: 0, revision: null, contenu: { id: 'v1', ym: '2026-09', le, par: 'Nadia' } },
+      { collection: '_racine', cle: 'pointageOuverts', rang: null, revision: null, contenu: ['2026-08'] },
+      { collection: 'badgeImports', cle: 'b1', rang: 0, revision: null, contenu: { id: 'b1', fichier: 'pointeuse-septembre.csv', lus: 412, rattaches: 409, deja: 0, inconnus: ['0007'], le } },
+      { collection: 'projectTime', cle: 'h1', rang: 0, revision: null, contenu: { id: 'h1', projectId: 'a1', employeeId: 'e1', date: '2026-09-08', hours: { '~n': '7.5' }, note: 'Pose' } },
+    ])).statut).toBe(200);
+    const POINTAGE = ['_racine/joursValides', '_racine/pointageOuverts', 'badgeImports', 'pointageVersions'];
+    const NOMS = ['badgeImports', 'joursValides', 'pointageOuverts', 'pointageVersions'];
+    const jp = e.membres.paie?.jeton ?? '';
+    const pa = await e.lire(jp);
+    expect(parties(pa.objets)).toEqual(expect.arrayContaining(POINTAGE));
+    expect(pa.droits.ecrivables).toEqual(expect.arrayContaining(NOMS));
+    expect(parties(pa.objets)).not.toContain('projectTime');
+    expect(pa.droits.cachees).toContain('projectTime');
+    for (const role of ['commercial', 'comptabilite_interne', 'lecture']) {
+      const l = await e.lire(e.membres[role]?.jeton ?? '');
+      for (const x of POINTAGE) expect(parties(l.objets), role).not.toContain(x);
+      expect(l.droits.cachees, role).toEqual(expect.arrayContaining(NOMS));
+      expect(parties(l.objets), role).toContain('projectTime');
+    }
+    // La paie écrit ce qu'elle vient de lire, et le gérant le relit.
+    const rev = (cle: string) => pa.objets.find((o) => o.cle === cle)?.revision ?? null;
+    expect((await e.envoyer(jp, [
+      { collection: '_racine', cle: 'joursValides', rang: null, revision: rev('joursValides'), contenu: [{ iso: '2026-09-08', le }, { iso: '2026-09-09', le }] },
+      { collection: '_racine', cle: 'pointageOuverts', rang: null, revision: rev('pointageOuverts'), contenu: ['2026-09'] },
+      { collection: 'pointageVersions', cle: 'v2', rang: 1, revision: null, contenu: { id: 'v2', ym: '2026-08', le, par: 'Leila' } },
+      { collection: 'badgeImports', cle: 'b2', rang: 1, revision: null, contenu: { id: 'b2', fichier: 'pointeuse-octobre.csv', lus: 17, rattaches: 17, deja: 0, inconnus: [], le } },
+    ])).statut).toBe(200);
+    const tout = await e.lire(e.proprio.jeton);
+    expect(tout.objets.find((o) => o.cle === 'pointageOuverts')?.contenu).toEqual(['2026-09']);
+    expect(tout.objets.find((o) => o.cle === 'joursValides')?.contenu).toHaveLength(2);
+    // Les autres sont refusés, et le refus nomme la partie.
+    const jc = e.membres.commercial?.jeton ?? '', jci = e.membres.comptabilite_interne?.jeton ?? '';
+    expect((await e.envoyer(jc, [{ collection: '_racine', cle: 'joursValides', rang: null, revision: null, contenu: [] }])).corps.motif).toMatch(/^Ton rôle ne permet pas d'enregistrer les journées validées du pointage /);
+    expect((await e.envoyer(jc, [{ collection: 'pointageVersions', cle: 'v3', rang: 2, revision: null, contenu: { id: 'v3' } }])).corps.motif).toMatch(/^Ton rôle ne permet pas d'enregistrer les versions validées du pointage /);
+    expect((await e.envoyer(jci, [{ collection: '_racine', cle: 'pointageOuverts', rang: null, revision: null, contenu: [] }])).corps.motif).toMatch(/^Ton rôle ne permet pas d'enregistrer les mois de pointage rouverts /);
+    expect((await e.envoyer(jci, [{ collection: 'badgeImports', cle: 'b3', rang: 2, revision: null, contenu: { id: 'b3' } }])).corps.motif).toMatch(/^Ton rôle ne permet pas d'enregistrer les imports de la pointeuse /);
+    // Les heures d'une affaire : qui écrit les affaires les note ; la paie, la comptabilité interne et la lecture non.
+    const h2 = { collection: 'projectTime', cle: 'h2', rang: 1, revision: null, contenu: { id: 'h2', projectId: 'a1', employeeId: 'e1', date: '2026-09-09', hours: { '~n': '3.25' }, note: 'Finitions' } };
+    expect((await e.envoyer(jp, [h2])).corps.motif).toMatch(/^Ton rôle ne permet pas d'enregistrer les heures notées sur les affaires /);
+    expect((await e.envoyer(jci, [h2])).statut).toBe(403);
+    expect((await e.envoyer(e.membres.lecture?.jeton ?? '', [h2])).statut).toBe(403);
+    expect((await e.envoyer(jc, [h2])).statut).toBe(200);
+  });
+
+  // (16 § 10.1, point 8) La copie gardée d'un poste se complète par différence tant que son profil n'a pas changé : une
+  // partie ouverte à un rôle par de nouvelles règles ne lui arrivait qu'au prochain changement de chaque objet.
+  it('une copie gardée sous d\'autres règles des parties repart en entier : la paie reçoit ce que le gérant avait validé avant', async () => {
+    const e = await entreprise();
+    expect((await e.envoyer(e.proprio.jeton, [{ collection: 'pointageVersions', cle: 'v1', rang: 0, revision: null, contenu: { id: 'v1', ym: '2026-09' } }])).statut).toBe(200);
+    const jp = e.membres.paie?.jeton ?? '';
+    const l = await e.lire(jp);
+    // Sous les mêmes règles, la différence marche toujours.
+    expect((await e.lire(jp, `?depuis=${l.marque}&profil=${encodeURIComponent(l.profil)}`)).partiel).toBe(true);
+    // La copie lue sous les règles d'avant (le profil sans leur empreinte) repart en entier, avec le mois validé.
+    const avant = l.profil.split('/').slice(0, 3).join('/');
+    const r = await e.lire(jp, `?depuis=${l.marque}&profil=${encodeURIComponent(avant)}`);
+    expect(r.partiel).toBeUndefined();
+    expect(parties(r.objets)).toContain('pointageVersions');
   });
 
   it('la première facture d\'une entreprise, émise par un commercial, crée sa série de numéros', async () => {

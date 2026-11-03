@@ -284,6 +284,70 @@ describe('le classeur d\'un dossier', () => {
     expect((await voir(d.autre.jeton, d.cab2)).statut).toBe(404);
   });
 
+  // 16 § 10.1, point 12 (03/11/2026, 0187) : la règle du classeur ne regardait ni le rôle ni le mandat ; un bulletin de paie
+  // déposé par « Les envoyer » se lisait par tout membre du cabinet qui voit le dossier, et par la comptabilité interne du
+  // client. Il suit désormais la règle des bulletins eux-mêmes (paie.mes_entreprises).
+  it('un bulletin de paie au classeur : lu par le rôle Paie et l\'associé sous un mandat Paie, jamais par la saisie ni sans le mandat', async () => {
+    const d = await unDossier();
+    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'declarations', 'saisie_achats', 'paie'] })).statut).toBe(200);
+    const collegue = async (prefixe: string, role: string) => {
+      const p = await personne(prefixe);
+      const m = String((await admin.query('insert into socle.membre (utilisateur, organisation, roles) values ($1, $2, $3) returning id', [p.utilisateur, d.cab, [role === 'paie' ? 'revision' : role]])).rows[0].id);
+      expect((await appeler('PUT', `/cabinets/${d.cab}/mandats/${d.mandat}/affectations/${m}`, d.associe.jeton, { role })).statut).toBe(200);
+      return p;
+    };
+    const rim = await collegue('rim', 'paie'), anis = await collegue('anis', 'saisie');
+    const deposer = (jeton: string, x: Record<string, unknown>) => appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/documents`, jeton, { rubrique: 'piece', periode: '2026-10', contenu: PDF, ...x });
+    const r = await deposer(rim.jeton, { titre: 'Bulletin de paie · Sami Trabelsi · octobre 2026', provenance: 'la Paie du cabinet', detail: 'bulletin validé', nom: 'Bulletin_Sami-Trabelsi_2026-10.pdf', paie: true });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    const b = String(r.corps.id);
+    expect((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/documents/${b}/classement`, rim.jeton, { classee: true, raison: 'rien' })).statut).toBe(200);
+    // Une pièce du même mois, au titre voisin, sans la marque : c'est la marque qui réserve, pas le titre.
+    const soins = String((await deposer(anis.jeton, { titre: 'Bulletin de soins CNAM · octobre 2026', nom: 'soins.pdf' })).corps.id);
+    const liste = async (jeton: string) => ((await appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/documents`, jeton)).corps.documents as { id: string; paie: boolean }[]).map((x) => x.id).sort();
+    expect(await liste(rim.jeton)).toEqual([b, soins].sort());
+    expect(await liste(d.associe.jeton)).toEqual([b, soins].sort());
+    expect(await liste(anis.jeton)).toEqual([soins]);
+    expect(((await appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/documents`, rim.jeton)).corps.documents as { id: string; paie: boolean }[]).find((x) => x.id === b)?.paie).toBe(true);
+    const pdf = (jeton: string) => appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/documents/${b}`, jeton);
+    expect((await pdf(rim.jeton)).statut).toBe(200);
+    expect((await pdf(d.associe.jeton)).statut).toBe(200);
+    expect((await pdf(anis.jeton)).statut).toBe(404);
+    // Pièces reçues › classées, sur tout le portefeuille (le classeur d'UN dossier lit ses documents à part) : le bulletin
+    // n'y est pas pour la saisie.
+    const classeesDe = async (jeton: string) => ((await appeler('GET', `/cabinets/${d.cab}/pieces?classees=1`, jeton)).corps.pieces as { id: string }[] | undefined ?? []).map((x) => x.id);
+    expect(await classeesDe(rim.jeton)).toContain(b);
+    expect(await classeesDe(anis.jeton)).not.toContain(b);
+    // La saisie ne fait rien du bulletin : ni l'envoyer à l'IA, ni le changer de mois, ni le remplacer, ni en déposer un.
+    versIA.length = 0;
+    expect((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/lectures`, anis.jeton, { document: b, ia: true })).statut).toBe(404);
+    expect(versIA.length).toBe(0);
+    expect((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/documents/${b}/mois`, anis.jeton, { mois: '2026-09' })).statut).toBe(404);
+    expect((await deposer(anis.jeton, { titre: 'Autre', nom: 'autre.pdf', remplace: b })).statut).toBe(409);
+    // Le refus n'a rien écrit : pas de « remplaçant » rangé derrière le 409.
+    expect(Number((await admin.query('select count(*) n from cabinet.document where entreprise = $1 and titre = $2', [d.ent, 'Autre'])).rows[0].n)).toBe(0);
+    const refus = await deposer(anis.jeton, { titre: 'Bulletin de paie · Faux', nom: 'faux.pdf', paie: true });
+    expect([refus.statut, refus.corps.motif]).toEqual([403, 'Un bulletin de paie se range par qui fait la paie de ce dossier au cabinet (le rôle Paie ou l\'associé), sous un mandat qui comprend la paie.']);
+    const enBase = (await admin.query('select periode, remplace_par from cabinet.document where id = $1', [b])).rows[0];
+    expect([enBase.periode, enBase.remplace_par]).toEqual(['2026-10', null]);
+    expect(Number((await admin.query('select count(*) n from cabinet.document where entreprise = $1 and paie', [d.ent])).rows[0].n)).toBe(1);
+    // Chez le client : le propriétaire lit le bulletin que son cabinet a rangé ; sa comptabilité interne, non.
+    const ci = await personne('ci');
+    const inv = String((await appeler('POST', `/entreprises/${d.ent}/invitations`, d.client.jeton, { email: ci.email, roles: ['comptabilite_interne'] })).corps.jeton);
+    expect((await appeler('POST', '/invitations/accepter', ci.jeton, { jeton: inv })).statut).toBe(200);
+    const range = async (jeton: string) => ((await appeler('GET', `/entreprises/${d.ent}/cabinet/range`, jeton)).corps.pieces as { id: string }[] | undefined ?? []).map((x) => x.id);
+    expect(await range(d.client.jeton)).toContain(b);
+    expect(await range(ci.jeton)).toEqual(expect.arrayContaining([soins]));
+    expect(await range(ci.jeton)).not.toContain(b);
+    expect((await appeler('GET', `/entreprises/${d.ent}/cabinet/range/${b}`, d.client.jeton)).statut).toBe(200);
+    expect((await appeler('GET', `/entreprises/${d.ent}/cabinet/range/${b}`, ci.jeton)).statut).toBe(404);
+    // Le client retire la paie du mandat : plus personne au cabinet ne lit le bulletin.
+    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'declarations', 'saisie_achats'] })).statut).toBe(200);
+    expect(await liste(d.associe.jeton)).toEqual([soins]);
+    expect(await liste(rim.jeton)).toEqual([soins]);
+    expect((await pdf(d.associe.jeton)).statut).toBe(404);
+  });
+
   it('le client lit ce que son cabinet a rangé : les documents déposés, la pièce jointe à son achat ; le cabinet ne passe pas par là', async () => {
     const d = await unDossier();
     const a = await piece(d, 'facture-electricite.png');

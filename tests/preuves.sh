@@ -1692,7 +1692,7 @@ prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts
 # définition EN VIGUEUR (une preuve qui vise une définition remplacée reste verte : code mort).
 # La contrainte des origines est redéfinie par 0021 : ses preuves visent la définition EN VIGUEUR.
 # La liste des origines est redéfinie par 0037 (la reprise de la v10) : ces trois preuves visent la dernière.
-prouver "la base qui refuse l'origine d'une imputation" base/migrations/0156_mouvements_de_tresorerie.sql \
+prouver "la base qui refuse l'origine d'une imputation" base/migrations/0188_paie_payee_dans_les_livres.sql \
   "'achat', 'imputation', 'reglement_fournisseur', 'paie'" "'achat', 'reglement_fournisseur', 'paie'" \
   "$LAC"
 
@@ -1737,7 +1737,7 @@ prouver "la paie réécrite par qui ne la voit pas" $CPA \
 prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
   "    await reecrireLaPaie(tx, entreprise);" "" \
   "$PP"
-prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0156_mouvements_de_tresorerie.sql \
+prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0188_paie_payee_dans_les_livres.sql \
   "'reglement_fournisseur', 'paie', 'salaires', 'avance'," "'reglement_fournisseur', 'salaires', 'avance'," \
   "$PE"
 
@@ -1937,8 +1937,8 @@ S4="contre-passer et extourner une écriture saisie : le miroir validé, jamais 
 S5="lettrer une facture et son règlement : la somme fait zéro, sinon l'écart est dit ; un brouillard ne se lettre pas ; délettrer"
 S6="les mois du portefeuille disent ce que disent les livres : écritures, brouillards, chiffre d'affaires (deux chemins, un chiffre)"
 W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
-prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0156_mouvements_de_tresorerie.sql \
-  "'contre_passation', 'saisie', 'extourne', 'reprise_v10'));" "'contre_passation', 'extourne', 'reprise_v10'));" \
+prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0188_paie_payee_dans_les_livres.sql \
+  "'contre_passation', 'saisie', 'extourne', 'reprise_v10'," "'contre_passation', 'extourne', 'reprise_v10'," \
   "$S1"
 prouver "une saisie déséquilibrée qui entre" $M21 \
   "  if td <> tc then" "  if false then" \
@@ -5750,7 +5750,7 @@ prouver "une marque de l'avenir acceptée" serveur/v10/routes.ts \
   " && BigInt(depuis) <= BigInt(marque)" "" \
   "$RL"
 prouver "une copie d'une autre base complétée quand même" serveur/v10/routes.ts \
-  "      const profil = \`\${base}/\${qui.utilisateur}/\${[...roles].sort().join(',')}\`;" "      const profil = \`00000000-0000-0000-0000-000000000000/\${qui.utilisateur}/\${[...roles].sort().join(',')}\`;" \
+  "      const profil = \`\${base}/\${qui.utilisateur}/\${[...roles].sort().join(',')}/\${EMPREINTE_REGLES}\`;" "      const profil = \`00000000-0000-0000-0000-000000000000/\${qui.utilisateur}/\${[...roles].sort().join(',')}/\${EMPREINTE_REGLES}\`;" \
   "$RL"
 prouver "un numéro d'une autre base dans une différence" serveur/v10/dossier.ts \
   "and xid >= \$2::xid8 and xid < \$3::xid8\`" "and xid >= \$2::xid8 and \$3::text is not null\`" \
@@ -5922,7 +5922,7 @@ prouver "un code qui descend (9876) accepté" serveur/caisse/routes.ts \
   " || pas.every((p) => p === -1)" "" \
   "$CR"
 prouver "la relecture par différence qui rend au suivant ce que le précédent lisait" serveur/v10/routes.ts \
-  "      const profil = \`\${base}/\${qui.utilisateur}/\${[...roles].sort().join(',')}\`;" "      const profil = \`\${base}/\${[...roles].sort().join(',')}\`;" \
+  "      const profil = \`\${base}/\${qui.utilisateur}/\${[...roles].sort().join(',')}/\${EMPREINTE_REGLES}\`;" "      const profil = \`\${base}/\${[...roles].sort().join(',')}/\${EMPREINTE_REGLES}\`;" \
   "$CR"
 prouver "« Changer de caissier » sur un appareil qui ne tient pas la caisse" serveur/caisse/routes.ts \
   "const posteDeCaisse = qui.appareil ? Boolean(" "const posteDeCaisse = qui.appareil ? true || Boolean(" \
@@ -21054,7 +21054,7 @@ prouver 'classeur 20 : l'\''export n'\''est pas noté dans l'\''historique' serv
 prouver 'classeur 21 : sans adresse sur la fiche, la demande ne part pas à celle du client' serveur/cabinet/classeur.ts \
   'fiche?.email?.trim() ? null :' 'true ? null :' \
   'une demande envoyée par e-mail'
-prouver 'classeur 22 : un cabinet lit ce que le client lit de lui' base/migrations/0181_classeur_suite.sql \
+prouver 'classeur 22 : un cabinet lit ce que le client lit de lui' base/migrations/0187_classeur_bulletins.sql \
   'where d.entreprise = p_entreprise and d.remplace_par is null and messagerie.cote_entreprise(p_entreprise)' 'where d.entreprise = p_entreprise and d.remplace_par is null' \
   'le client lit ce que son cabinet a rangé'
 prouver 'classeur 23 : la même photo envoyée deux fois ne se dit pas en double' web/public/v10/cabinet/app.js \
@@ -22409,7 +22409,7 @@ prouver "paie 1.244 c : un dossier aux bulletins validés ne se dit pas « valid
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 
 prouver "paie 1.245 a : renvoyer les bulletins les ajoute au lieu de remplacer ceux d'avant" web/public/v10/cabinet/app.js \
-  "rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', remplace: deja ? deja.id : null," "rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', remplace: null," \
+  "rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', paie: true, remplace: deja ? deja.id : null," "rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', paie: true, remplace: null," \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 prouver "paie 1.245 b : un bulletin envoyé se range hors de la Paie du classeur" web/public/v10/cabinet/app.js \
   "classee: true, rub: 'paie', mois: x.periode, date: x.deposeLe, recue: false," "classee: true, rub: 'achats', mois: x.periode, date: x.deposeLe, recue: false," \
@@ -23058,6 +23058,170 @@ prouver 'paie 10.1-6 f : le calendrier fiscal retire encore la déclaration pay�
   '        if (b.dataset.fsoc) return retirerDeclarationSociale(id, b.dataset.flab, draw);' \
   '        if (b.dataset.fsoc) data.socialFilings = (data.socialFilings || []).filter(f => f.id !== id);' \
   'urgence 6 : le calendrier fiscal retire une déclaration payée par la même question, et « Annuler » la remet'
+
+# 16 § 10.1, point 9 : `validerJour` coupait les journées validées aux 400 dernières ; la plus ancienne redevenait
+# « pas encore validée » et se changeait sans être rouverte. Elles se gardent toutes (16 § 8, « sans limite »).
+prouver 'paie 10.1-9 : les journées validées coupées aux 400 dernières' web/public/v10/app.js \
+  '{ iso, le: new Date().toISOString() }]; };' '{ iso, le: new Date().toISOString() }].slice(-400); };' \
+  'une journée validée le reste, même après 400 autres'
+
+# 16 § 10.1, point 8 : cinq parties du dossier sans règle (réservées au propriétaire et à l'administrateur) : la paie ne
+# validait ni une journée ni un mois, et ne voyait aucun mois verrouillé. Le pointage validé est de la paie ; les heures
+# d'une affaire suivent l'affaire ; une copie gardée sous d'autres règles repart en entier.
+DDP='le pointage validé par le gérant se lit et s'"'"'écrit par la paie ; les heures d'"'"'une affaire suivent l'"'"'affaire'
+DDR='une copie gardée sous d'"'"'autres règles des parties repart en entier : la paie reçoit ce que le gérant avait validé avant'
+prouver 'paie 10.1-8 a : la journée validée réservée au propriétaire' serveur/v10/droits.ts \
+  '  joursValides: PAIE, pointageOuverts: PAIE,' '  pointageOuverts: PAIE,' \
+  "$DDP"
+prouver 'paie 10.1-8 b : le mois rouvert réservé au propriétaire' serveur/v10/droits.ts \
+  '  joursValides: PAIE, pointageOuverts: PAIE,' '  joursValides: PAIE,' \
+  "$DDP"
+prouver 'paie 10.1-8 c : les versions du mois réservées au propriétaire' serveur/v10/droits.ts \
+  '  pointageVersions: PAIE, badgeImports: PAIE,' '  badgeImports: PAIE,' \
+  "$DDP"
+prouver 'paie 10.1-8 d : les imports de la pointeuse réservés au propriétaire' serveur/v10/droits.ts \
+  '  pointageVersions: PAIE, badgeImports: PAIE,' '  pointageVersions: PAIE,' \
+  "$DDP"
+prouver 'paie 10.1-8 e : la journée validée lue et écrite par tous' serveur/v10/droits.ts \
+  '  joursValides: PAIE, pointageOuverts: PAIE,' '  joursValides: TECHNIQUE, pointageOuverts: PAIE,' \
+  "$DDP"
+prouver 'paie 10.1-8 f : les heures d'"'"'une affaire rangées avec la paie' serveur/v10/droits.ts \
+  '  projectTime: VENTES,' '  projectTime: PAIE,' \
+  "$DDP"
+prouver 'paie 10.1-8 g : le refus qui ne sait pas nommer la journée validée' serveur/v10/textes.ts \
+  "  'v10.partie.joursValides': 'les journées validées du pointage',
+" "" \
+  "$DDP"
+prouver 'paie 10.1-8 h : une copie d'"'"'avant les règles complétée par différence' serveur/v10/routes.ts \
+  "/\${EMPREINTE_REGLES}\`;" "\`;" \
+  "$DDR"
+
+
+# 16 § 10.1, point 7 : la période close (`closedUntil`) tient au serveur pour la paie ; un fait d'argent arrivé après la
+# fermeture (une avance versée, un salaire payé) passe, à sa vraie date (04 § 5.1).
+prouver 'paie 10.1-7 a : le serveur ne lit pas la période close' serveur/v10/dossier.ts \
+  '    await garderLaCloture(tx, entreprise, lus);
+' '' \
+  'la période close tient au serveur : bulletin, congé, avance et pointage d'"'"'un mois clos refusés, rien d'"'"'écrit ; une avance versée ou un salaire payé passent, à leur vraie date'
+prouver 'paie 10.1-7 b : une avance versée après la fermeture refusée' serveur/v10/paie.ts \
+  "if (c.collection === 'advances') return av && differe(av, ap," \
+  "if (c.collection === 'advances') return differe(av, ap," \
+  'la période close tient au serveur : bulletin, congé, avance et pointage d'"'"'un mois clos refusés, rien d'"'"'écrit ; une avance versée ou un salaire payé passent, à leur vraie date'
+prouver 'paie 10.1-7 c : un salaire payé après la fermeture refusé' serveur/v10/paie.ts \
+  "if (jourDe(av?.paidDate) && differe(av, ap, ['paidDate', 'method', 'accountId']))" \
+  "if (differe(av, ap, ['paidDate', 'method', 'accountId']))" \
+  'la période close tient au serveur : bulletin, congé, avance et pointage d'"'"'un mois clos refusés, rien d'"'"'écrit ; une avance versée ou un salaire payé passent, à leur vraie date'
+prouver 'paie 10.1-7 d : pointer un salaire sur le relevé refusé dans la période close' serveur/v10/paie.ts \
+  "differe(av, ap, ['paidDate', 'method', 'accountId'])" \
+  "differe(av, ap, ['paidDate', 'method', 'accountId', 'reconciled'])" \
+  'la période close tient au serveur : bulletin, congé, avance et pointage d'"'"'un mois clos refusés, rien d'"'"'écrit ; une avance versée ou un salaire payé passent, à leur vraie date'
+prouver 'paie 10.1-7 e : la clôture vue est la plus longue des deux (rouvrir puis corriger refusé)' serveur/v10/paie.ts \
+  '.reduce((a, b) => (a < b ? a : b));' \
+  '.reduce((a, b) => (a > b ? a : b));' \
+  'la période close tient au serveur : bulletin, congé, avance et pointage d'"'"'un mois clos refusés, rien d'"'"'écrit ; une avance versée ou un salaire payé passent, à leur vraie date'
+prouver 'paie 10.1-7 f : le pointage jugé au mois, pas au jour' serveur/v10/paie.ts \
+  "out.push(/^\\d{1,2}\$/.test(k) ? mois + k.padStart(2, '0') : fin);" \
+  'out.push(fin);' \
+  'la période close tient au serveur : bulletin, congé, avance et pointage d'"'"'un mois clos refusés, rien d'"'"'écrit ; une avance versée ou un salaire payé passent, à leur vraie date'
+prouver 'paie 10.1-7 g : un congé jugé à sa fin seulement' serveur/v10/paie.ts \
+  '[av?.from, av?.to, ap?.from, ap?.to].map(jourDe)' \
+  '[av?.to, ap?.to].map(jourDe)' \
+  'la période close tient au serveur : bulletin, congé, avance et pointage d'"'"'un mois clos refusés, rien d'"'"'écrit ; une avance versée ou un salaire payé passent, à leur vraie date'
+
+# 16 § 10.1, point 7, à l'écran : ce que le serveur refuse désormais dans une période close se dit avant le geste ; un bulletin
+# d'un mois clos se tient comme un bulletin payé (ses primes se lisent, une augmentation y porte un rappel sur le mois ouvert).
+PCE='une période clôturée tient comme un mois payé : primes du mois fermées, rappel sur le mois ouvert, demande refusée avant le geste'
+prouver 'paie 10.1-7 h : une augmentation qui refait le bulletin d'"'"'un mois clos' web/public/v10/app.js \
+  '    const tenu = p => p.paidDate || C.isClosedDate(data, C.payslipDate(p));' '    const tenu = p => p.paidDate;' \
+  "$PCE"
+prouver 'paie 10.1-7 i : le rappel porté sur un mois clos' web/public/v10/app.js \
+  'if ((!b || !b.paidDate) && !C.isClosedDate(data, C.payslipDate({ year: yy, month: mm }))) return' 'if (!b || !b.paidDate) return' \
+  "$PCE"
+prouver 'paie 10.1-7 j : les primes d'"'"'un mois clos ouvertes à la saisie' web/public/v10/app.js \
+  'return b && (b.paidDate || b.valideLe || C.isClosedDate(data, C.payslipDate(b))) ?' 'return b && (b.paidDate || b.valideLe) ?' \
+  "$PCE"
+prouver 'paie 10.1-7 k : une demande de congé d'"'"'un mois clos acceptée sans prévenir' web/public/v10/app.js \
+  "pas à l'envoi.
+        if (closedBlock([l.from, l.to], 'Cette demande')) return;" "pas à l'envoi." \
+  "$PCE"
+prouver 'paie 10.1-7 l : des badges d'"'"'une période close importés sans prévenir' web/public/v10/app.js \
+  "          if (clos.rattaches - clos.deja > 0 && closedBlock(clos.du, 'Cet import de badges')) return;" '' \
+  'la pointeuse dans une période clôturée : le refus se dit avant d'"'"'importer, rien ne s'"'"'écrit'
+
+# 16 § 10.1, point 12 : les bulletins du classeur réservés à qui fait la paie du dossier (0187) : au cabinet, le rôle Paie et
+# l'associé sous un mandat Paie ; chez le client, qui lit la paie. Et un refus du dépôt n'écrit rien.
+B12='un bulletin de paie au classeur : lu par le rôle Paie et l'"'"'associé sous un mandat Paie, jamais par la saisie ni sans le mandat'
+P12='tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
+prouver 'paie 10.1-12 a : la base laisse lire un bulletin du classeur à tout le cabinet' base/migrations/0187_classeur_bulletins.sql \
+  '    and (not paie or entreprise in (select paie.mes_entreprises())));' '    );' \
+  "$B12"
+prouver 'paie 10.1-12 b : la base réserve le bulletin aux rôles sans regarder le mandat' base/migrations/0187_classeur_bulletins.sql \
+  '    and (not paie or entreprise in (select paie.mes_entreprises())));' "    and (not paie or socle.mes_roles(entreprise) && array['supervision', 'paie']::text[]));" \
+  "$B12"
+prouver 'paie 10.1-12 c : le serveur range le bulletin sans sa marque' serveur/cabinet/classeur.ts \
+  'qui.utilisateur, corps.paie])' 'qui.utilisateur, false])' \
+  "$B12"
+prouver 'paie 10.1-12 d : la saisie qui dépose un bulletin reçoit le refus brut de la base' serveur/cabinet/classeur.ts \
+  'if (corps.paie && !(await' 'if (false && !(await' \
+  "$B12"
+prouver 'paie 10.1-12 e : « Les envoyer » range les bulletins sans la marque de la paie' web/public/v10/cabinet/app.js \
+  "detail: 'bulletin validé', paie: true," "detail: 'bulletin validé'," \
+  "$P12"
+prouver 'paie 10.1-12 f : le pont oublie la marque de la paie' web/public/plateforme/pont-cabinet.js \
+  'remplace: o.remplace || null, paie: !!o.paie,' 'remplace: o.remplace || null,' \
+  "$P12"
+prouver 'paie 10.1-12 g : la liste du classeur tait la marque de la paie' serveur/cabinet/classeur.ts \
+  'jointe: l.jointe_ecriture, paie: l.paie,' 'jointe: l.jointe_ecriture, paie: false,' \
+  "$P12"
+prouver 'paie 10.1-12 h : la comptabilité interne du client lit les bulletins rangés par le cabinet' base/migrations/0187_classeur_bulletins.sql \
+  '   where d.entreprise = p_entreprise and d.remplace_par is null and messagerie.cote_entreprise(p_entreprise)
+     and (not d.paie or p_entreprise in (select paie.mes_entreprises()))' '   where d.entreprise = p_entreprise and d.remplace_par is null and messagerie.cote_entreprise(p_entreprise)' \
+  "$B12"
+prouver 'paie 10.1-12 i : la comptabilité interne du client ouvre un bulletin rangé par le cabinet' base/migrations/0187_classeur_bulletins.sql \
+  '   where d.entreprise = p_entreprise and d.id = p_document and messagerie.cote_entreprise(p_entreprise)
+     and (not d.paie or p_entreprise in (select paie.mes_entreprises()))' '   where d.entreprise = p_entreprise and d.id = p_document and messagerie.cote_entreprise(p_entreprise)' \
+  "$B12"
+prouver 'paie 10.1-12 j : un remplacement refusé range quand même le nouveau document' serveur/cabinet/classeur.ts \
+  "      if (corps.remplace && !(await tx.query('select 1 from cabinet.document where id = \$1 and cabinet = \$2 and entreprise = \$3 and remplace_par is null'," \
+  "      if (false && !(await tx.query('select 1 from cabinet.document where id = \$1 and cabinet = \$2 and entreprise = \$3 and remplace_par is null'," \
+  "$B12"
+
+# 16 § 10.1, point 3 : les déclarations sociales payées et les versements de saisie entrent dans les livres du serveur (0188),
+# comme l'écran de la plateforme les écrit ; sans nom.
+LPP='les déclarations sociales payées et les saisies versées entrent dans les livres comme l'"'"'écran de la plateforme les écrit'
+prouver 'paie 10.1-3 a : les déclarations payées absentes des livres du serveur' serveur/compta/paie.ts \
+  "    if (!lisible(f) || f.date < du || f.date > au) continue;" "    continue;" \
+  "$LPP"
+prouver 'paie 10.1-3 b : la CNSS payée qui solde l'"'"'IRPP' serveur/compta/paie.ts \
+  "f.cnss ? [{ compte: P.cnss, debit: f.montant" "f.cnss ? [{ compte: P.irpp, debit: f.montant" \
+  "$LPP"
+prouver 'paie 10.1-3 c : la TFP et le FOPROLOS payés restés dus' serveur/compta/paie.ts \
+  "tfp: cnss ? 0n : tfp < montant ? tfp : montant," "tfp: 0n," \
+  "$LPP"
+prouver 'paie 10.1-3 d : la déclaration payée en caisse portée à la banque' serveur/compta/paie.ts \
+  "    const j = journalDeCompte(plan, f.compte, f.mode);" "    const j = journalDeCompte(plan, null, 'virement');" \
+  "$LPP"
+prouver 'paie 10.1-3 e : les versements de saisie absents des livres du serveur' serveur/compta/paie.ts \
+  "      if (!lisible(v) || v.date < du || v.date > au) continue;" "      continue;" \
+  "$LPP"
+prouver 'paie 10.1-3 f : le nom du salarié sur un versement de saisie' serveur/compta/paie.ts \
+  "      const entree = libelle('compta.libelle.saisies_versees', { periode: periode(m) });" "      const entree = libelle('compta.libelle.saisies_versees', { periode: periode(m) }) + ' ' + String((o.contenu as { name?: unknown }).name);" \
+  "$LPP"
+prouver 'paie 10.1-3 g : une déclaration payée qui ne réécrit pas son mois' serveur/v10/paie.ts \
+  "    for (const f of [avant, apres]) if (f !== null && f !== 'illisible') mois.push(moisDe(f.date));" "" \
+  "$LPP"
+prouver 'paie 10.1-3 h : un versement de saisie retiré qui reste dans les livres' serveur/v10/paie.ts \
+  "    for (const s of [...avant.filter((x) => !b.has(signe(x))), ...apres.filter((x) => !a.has(signe(x)))]) if (s.lu !== null && s.lu !== 'illisible') mois.push(moisDe(s.lu.date));" "" \
+  "$LPP"
+prouver 'paie 10.1-3 i : un plan changé qui oublie le mois des déclarations payées' serveur/compta/paie.ts \
+  "    if (lisible(f)) mois.push(moisDe(f.date));" "" \
+  "$LPP"
+prouver 'paie 10.1-3 j : la base qui refuse l'"'"'origine d'"'"'une déclaration payée' base/migrations/0188_paie_payee_dans_les_livres.sql \
+  "'reprise_v10', 'declaration_sociale', 'saisie_salaire'));" "'reprise_v10', 'saisie_salaire'));" \
+  "$LPP"
+prouver 'paie 10.1-3 k : une déclaration payée illisible acceptée' serveur/v10/paie.ts \
+  "    if (apres === 'illisible') throw new Refus('v10.declaration_illisible');" "" \
+  "$LPP"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

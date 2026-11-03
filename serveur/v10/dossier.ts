@@ -24,7 +24,7 @@ import { controlerCommandes, controlerEncours, controlerReceptions, controlerRem
 import { mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivreIdentite } from './identite.ts';
-import { suivrePaie } from './paie.ts';
+import { garderLaCloture, suivrePaie } from './paie.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
 import { reecrireLaPaie } from '../compta/paie.ts';
 import { planChange } from '../compta/suivre.ts';
@@ -228,6 +228,8 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
     const lus = changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu }));
     await controlerCommandes(tx, entreprise, lus);
     await controlerReceptions(tx, entreprise, lus);
+    // La période close (1.266.6 ; 16 § 10.1, point 7) : la paie qui y tombe se refuse, sauf un fait d'argent (04 § 5.1).
+    await garderLaCloture(tx, entreprise, lus);
   }
   const resultat: { collection: string; cle: string; revision: number | null }[] = [];
   for (const c of changements) {

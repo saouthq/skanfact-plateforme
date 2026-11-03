@@ -62,6 +62,8 @@ declarerTextes({
   'compta.libelle.paie': 'Salaires {periode}',
   'compta.libelle.salaires_verses': 'Salaires versés — {periode}',
   'compta.libelle.avances': 'Avances sur salaire — {periode}',
+  'compta.libelle.declaration_payee': 'Déclaration {piece} payée',
+  'compta.libelle.saisies_versees': 'Saisie sur salaire versée — {periode}',
   // Les mouvements libres de la trésorerie (1.79.0) : les natures de la v10 (`MOVE_KINDS`, core.js), mot pour mot.
   'compta.libelle.mouvement.salaire': 'Salaires et charges',
   'compta.libelle.mouvement.impot': 'Impôts et taxes',

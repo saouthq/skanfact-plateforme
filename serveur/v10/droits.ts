@@ -6,6 +6,8 @@
 // n'est lue et écrite que par ceux qui voient toute l'entreprise (le propriétaire, l'administrateur) : la valeur
 // par défaut qui ne donne rien de plus.
 
+import { createHash } from 'node:crypto';
+
 import { t } from '../../textes/index.ts';
 import { Refus } from '../erreurs.ts';
 import type { Transaction } from '../base.ts';
@@ -59,12 +61,18 @@ const TOUT = R('socle.dossier.tout', 'socle.dossier.tout');
 
 export const LISTES: Record<string, Regle> = {
   documents: VENTES, recurring: VENTES, templates: VENTES, snippets: VENTES, projects: VENTES,
+  // Les heures notées sur une affaire (1.263.0) sont à l'affaire, pas à la paie (16 § 4 : les Projets appellent le coût de
+  // l'heure du Personnel) : qui lit les affaires les lit, qui les écrit les note (l'écran le refuse déjà aux autres).
+  projectTime: VENTES,
   clients: R('ventes.pieces.voir', 'ventes.client.modifier'),
   catalog: R('stock.voir', 'ventes.prix.modifier'), priceLists: R('ventes.pieces.voir', 'ventes.prix.modifier'),
   suppliers: ACHATS, purchases: ACHATS, supplierOrders: ACHATS, receptions: ACHATS,
   accounts: R('tresorerie.comptes.voir', 'tresorerie.comptes.modifier'), movements: R('tresorerie.voir', 'tresorerie.modifier'),
   stockAdjustments: STOCK, serials: STOCK, depots: STOCK,
   employees: PAIE, payslips: PAIE, leaves: PAIE, advances: PAIE, socialFilings: PAIE, timesheets: PAIE,
+  // Le pointage validé (1.257.0, 1.259.0 ; 16 § 10.1, point 8) : sans règle, la paie ne voyait aucun mois verrouillé et
+  // ne validait rien. Les versions du mois et les imports de la pointeuse ; la journée validée et le mois rouvert sont à la racine.
+  pointageVersions: PAIE, badgeImports: PAIE,
   assets: COMPTA, ecrituresOD: COMPTA, fiscalFilings: COMPTA, clotures: COMPTA, fiscalDeadlines: COMPTA,
   deleted: TECHNIQUE, conflictArchive: TECHNIQUE,
 };
@@ -73,10 +81,15 @@ export const RACINE: Record<string, Regle> = {
   version: TECHNIQUE, counters: TECHNIQUE, deleted: TECHNIQUE, conflictArchive: TECHNIQUE, demo: TECHNIQUE, exemple: TECHNIQUE,
   expenseCategories: ACHATS, fixedCategories: ACHATS, depotPrincipalNom: STOCK,
   payrollSettings: PAIE, vatCarryIn: COMPTA,
+  joursValides: PAIE, pointageOuverts: PAIE,
   // Tout le monde doit savoir jusqu'où c'est clôturé (l'écran refuse de modifier avant) ; seuls ceux qui clôturent l'écrivent.
   closedUntil: R('socle.accueil.voir', 'compta.exercice.cloturer'), closureLog: R('socle.accueil.voir', 'compta.exercice.cloturer'),
   auxiliaires: R('socle.accueil.voir', 'socle.reglages_fiscaux.modifier'),
 };
+// L'empreinte de ces règles, dans le profil de la relecture par différence (routes.ts, brique 119) : une copie du poste lue
+// sous d'autres règles repart en entier. Sans elle, une partie ouverte à un rôle ne lui arrivait qu'au prochain changement
+// de chaque objet (16 § 10.1, point 8 : la paie ne voyait toujours pas les mois validés avant).
+export const EMPREINTE_REGLES = createHash('sha256').update(JSON.stringify([LISTES, RACINE])).digest('hex').slice(0, 12);
 // Une liste vide, l'écran l'écrit comme un champ de la racine (`_racine/recurring` = []) : c'est la même partie.
 export function regleDe(collection: string, cle: string): Regle {
   return (collection === '_racine' ? RACINE[cle] ?? LISTES[cle] : LISTES[collection]) ?? TOUT;

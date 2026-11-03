@@ -11,7 +11,7 @@
 import { versTexte } from '../../moteur/argent.ts';
 import { calculerBulletin, type BaremePaie, type Bulletin } from '../../moteur/paie.ts';
 import { t } from '../../textes/index.ts';
-import { lireAvance, moisDe, reecrireLesMois, type Mois } from '../compta/paie.ts';
+import { lireAvance, lireDeclaration, moisDe, reecrireLesMois, versementsDeSaisie, type AvanceLue, type Mois } from '../compta/paie.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import '../paie/textes.ts';
@@ -209,11 +209,81 @@ async function tenirBulletin(tx: Transaction, entreprise: string, utilisateur: s
   }
 }
 
+// ── La période close (1.266.6 ; cadrage 16 § 10.1, point 7 ; 04 § 5.1 et § 6) ──────────────────────────────────
+// Ce qui est daté jusqu'à la clôture des périodes du dossier (`_racine/closedUntil`) ne bouge plus. L'écran le refusait
+// seul (`closedBlock`) ; le serveur acceptait tout. Il refuse désormais un bulletin, un congé, une avance ou un pointage
+// qu'un envoi crée, change ou retire dans la période close. Sauf un FAIT d'argent arrivé après la fermeture (04 § 5.1) :
+// une avance nouvelle, un salaire payé qui ne l'était pas ; il garde sa vraie date, et ses écritures vont au premier jour
+// ouvert des livres (0018). Ce qui ne touche ni l'argent ni la date (le pointage d'un relevé, la remise du bulletin, un
+// justificatif) passe toujours. La clôture vue est la plus courte d'avant et d'après l'envoi : un envoi gardé sans réseau
+// peut rouvrir puis corriger, ou corriger puis clôturer.
+const deuxC = (n: number) => String(n).padStart(2, '0');
+const finDuMois = (o: Json | null) => {
+  const a = Number(o?.year), m = Number(o?.month);
+  return Number.isInteger(a) && Number.isInteger(m) && m >= 1 && m <= 12 ? `${a}-${deuxC(m)}-${deuxC(new Date(Date.UTC(a, m, 0)).getUTCDate())}` : null;
+};
+const jourDe = (v: unknown) => (typeof v === 'string' && v !== '' ? v.slice(0, 10) : null);
+const differe = (x: Json | null, y: Json | null, champs: string[]) => champs.some((k) => canonique(x?.[k]) !== canonique(y?.[k]));
+// Le pointage d'un mois : chaque case, retard ou badge changé à son jour ; le reste (les heures sup du mois) au dernier
+// jour du mois, comme l'écran (`closedBlock(dernier, 'Ce pointage')`).
+const PAR_JOUR = ['jours', 'retards', 'badges'];
+const vide = (v: unknown) => v === undefined || v === null || (estObjet(v) && !Object.keys(v).length);
+function joursDuPointage(x: Json | null, y: Json | null): (string | null)[] {
+  if (!x) return [];
+  const fin = finDuMois(x), mois = fin ? fin.slice(0, 8) : '';
+  const out: (string | null)[] = [];
+  for (const champ of PAR_JOUR) {
+    const u = estObjet(x[champ]) ? x[champ] : {}, v = estObjet(y?.[champ]) ? y[champ] : {};
+    for (const k of new Set([...Object.keys(u), ...Object.keys(v)])) if (canonique(u[k]) !== canonique(v[k])) out.push(/^\d{1,2}$/.test(k) ? mois + k.padStart(2, '0') : fin);
+  }
+  const reste = (o: Json | null) => canonique(Object.fromEntries(Object.entries(o ?? {}).filter(([k, v]) => ![...PAR_JOUR, 'id', 'employeeId', 'year', 'month'].includes(k) && !vide(v))));
+  if (reste(x) !== reste(y)) out.push(fin);
+  return out;
+}
+// Les jours qu'un changement touche, partie par partie (ceux que `closedBlock` regarde à l'écran).
+function joursTouches(c: ChangementLu): (string | null)[] {
+  const av = estObjet(c.avant) ? c.avant : null, ap = estObjet(c.apres) ? c.apres : null;
+  if (c.collection === 'payslips') {
+    const jours: (string | null)[] = [];
+    if (!av || !ap || differe(av, ap, ['employeeId', 'year', 'month', 'computed'])) jours.push(finDuMois(av), finDuMois(ap));
+    // Un salaire payé qui ne l'était pas est un fait ; changer ou retirer un paiement déjà fait ne l'est pas.
+    if (jourDe(av?.paidDate) && differe(av, ap, ['paidDate', 'method', 'accountId'])) jours.push(jourDe(av?.paidDate), jourDe(ap?.paidDate));
+    return jours;
+  }
+  if (c.collection === 'leaves') return differe(av, ap, ['employeeId', 'kind', 'from', 'to', 'paid', 'statut']) ? [av?.from, av?.to, ap?.from, ap?.to].map(jourDe) : [];
+  // Une avance nouvelle est un fait d'argent : acceptée, quelle que soit sa date.
+  if (c.collection === 'advances') return av && differe(av, ap, ['employeeId', 'date', 'amount', 'monthly', 'accountId', 'method']) ? [jourDe(av.date), jourDe(ap?.date)] : [];
+  if (c.collection === 'timesheets') {
+    // Créé, retiré, ou passé à un autre mois : chaque jour qu'il porte, des deux côtés.
+    return !av || !ap || differe(av, ap, ['employeeId', 'year', 'month']) ? [...joursDuPointage(av, null), ...joursDuPointage(ap, null)] : joursDuPointage(av, ap);
+  }
+  return [];
+}
+const PARTIES_DATEES = ['payslips', 'leaves', 'advances', 'timesheets'];
+const enClair = (j: string) => j.split('-').reverse().join('/');
+export async function garderLaCloture(tx: Transaction, entreprise: string, changements: ChangementLu[]): Promise<void> {
+  const paie = changements.filter((c) => PARTIES_DATEES.includes(c.collection) && aVraimentChange(c));
+  if (!paie.length) return;
+  const envoi = changements.find((c) => c.collection === '_racine' && c.cle === 'closedUntil');
+  const avant = envoi ? envoi.avant : (await requetes(tx).selectFrom('socle.dossier_v10').select('contenu')
+    .where('entreprise', '=', entreprise).where('collection', '=', '_racine').where('cle', '=', 'closedUntil').executeTakeFirst())?.contenu;
+  const apres = envoi ? envoi.apres : avant;
+  const jusqua = [avant, apres].map((v) => (estJour(v) ? v : '')).reduce((a, b) => (a < b ? a : b));
+  if (!jusqua) return;
+  for (const c of paie) {
+    const jour = joursTouches(c).filter((j): j is string => estJour(j) && j <= jusqua).sort()[0];
+    if (jour) throw new Refus('v10.paie_periode_close', { valeurs: { partie: t(`v10.partie.${c.collection}`), jour: enClair(jour), jusqua: enClair(jusqua) } });
+  }
+}
+
 export async function suivrePaie(tx: Transaction, entreprise: string, utilisateur: string, changements: ChangementLu[]): Promise<void> {
   const salaries = changements.filter((c) => c.collection === 'employees' && estObjet(c.apres) && aVraimentChange(c));
   const bulletins = changements.filter((c) => c.collection === 'payslips' && aVraimentChange(c));
   const avances = changements.filter((c) => c.collection === 'advances' && aVraimentChange(c));
-  if (!salaries.length && !bulletins.length && !avances.length) return;
+  // (1.266.6 ; 16 § 10.1, point 3) Une déclaration payée, un versement de saisie : leurs mois aussi se réécrivent.
+  const declarations = changements.filter((c) => c.collection === 'socialFilings' && aVraimentChange(c));
+  const fiches = changements.filter((c) => c.collection === 'employees' && aVraimentChange(c));
+  if (!fiches.length && !bulletins.length && !avances.length && !declarations.length) return;
   const db = requetes(tx);
   // Les mois dont les écritures changent (brique 34) : celui de chaque bulletin AVANT l'envoi (un
   // bulletin déplacé quitte son mois), et celui de chaque avance, avant et après.
@@ -224,6 +294,20 @@ export async function suivrePaie(tx: Transaction, entreprise: string, utilisateu
     const avant = lireAvance(c.avant), apres = c.apres === null ? null : lireAvance(c.apres);
     if (apres === 'illisible') throw new Refus('v10.avance_illisible');
     for (const a of [avant, apres]) if (a !== null && a !== 'illisible') mois.push(moisDe(a.date));
+  }
+  for (const c of declarations) {
+    const avant = lireDeclaration(c.avant), apres = c.apres === null ? null : lireDeclaration(c.apres);
+    if (apres === 'illisible') throw new Refus('v10.declaration_illisible');
+    for (const f of [avant, apres]) if (f !== null && f !== 'illisible') mois.push(moisDe(f.date));
+  }
+  // Seuls les versements de saisie qui changent réécrivent leur mois (un RIB modifié ne réécrit rien) ; un versement
+  // illisible NOUVEAU se refuse, une donnée ancienne ne bloque jamais la fiche.
+  const signe = (s: { cle: string; lu: AvanceLue | 'illisible' | null }) => (s.lu === null || s.lu === 'illisible' ? `${s.cle}|${s.lu}` : `${s.cle}|${s.lu.date}|${s.lu.montant}|${s.lu.compte}|${s.lu.mode}`);
+  for (const c of fiches) {
+    const avant = versementsDeSaisie(c.avant), apres = c.apres === null ? [] : versementsDeSaisie(c.apres);
+    const a = new Set(avant.map(signe)), b = new Set(apres.map(signe));
+    if (apres.some((s) => s.lu === 'illisible' && !a.has(signe(s)))) throw new Refus('v10.saisie_illisible');
+    for (const s of [...avant.filter((x) => !b.has(signe(x))), ...apres.filter((x) => !a.has(signe(x)))]) if (s.lu !== null && s.lu !== 'illisible') mois.push(moisDe(s.lu.date));
   }
 
   // 1. Les fiches des salariés changés (avant leurs bulletins : un bulletin et son salarié arrivent souvent ensemble).

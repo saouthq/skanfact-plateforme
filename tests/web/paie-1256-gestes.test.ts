@@ -125,6 +125,52 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
     expect(erreurs).toEqual([]);
   }, 120_000);
 
+  // 16 § 10.1, point 7 (03/11/2026) : le serveur refuse ce qui touche la paie d'une période close ; l'écran le dit avant le
+  // geste. Un bulletin d'un mois clos se tient comme un bulletin payé : ses primes ne s'y écrivent pas, une augmentation y
+  // porte un rappel sur le premier mois ouvert, une demande de congé ne s'y accepte pas.
+  it('une période clôturée tient comme un mois payé : primes du mois fermées, rappel sur le mois ouvert, demande refusée avant le geste', async () => {
+    const x = await monter();
+    const mm = String(x.mo).padStart(2, '0');
+    // Clos jusqu'à la fin du mois PROCHAIN : le rappel saute aussi ce mois-là (pas de bulletin, mais clos) et va au suivant.
+    const fin = new Date(Date.UTC(x.an, x.mo + 1, 0)).toISOString().slice(0, 10);
+    const suivant = x.mo >= 11 ? { an: x.an + 1, mo: x.mo - 10 } : { an: x.an, mo: x.mo + 2 };
+    await api('POST', `/entreprises/${x.ent}/dossier-v10`, x.j, { changements: [
+      { collection: 'leaves', cle: 'l9', rang: null, revision: null, contenu: { id: 'l9', employeeId: 'nb', kind: 'conges', from: `${x.an}-${mm}-10`, to: `${x.an}-${mm}-11`, paid: null, note: '', statut: 'demande', demandeLe: `${x.an}-${mm}-02` } },
+      { collection: '_racine', cle: 'closedUntil', rang: null, revision: null, contenu: fin }] });
+    const p = await ouvrir(x);
+    // Les primes du mois : la case de Mourad se lit, sans s'écrire.
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-sous [data-sous="pointage"]').click();
+    await p.locator('#pv-carte-ouvrir').click();
+    const ligne = p.locator('#pv-t tr[data-pv="mt"]');
+    expect(espace(await ligne.innerText())).toContain('bulletin d\'une période clôturée : il ne change plus');
+    expect(await ligne.locator('[data-pv-r="panier"]').isDisabled()).toBe(true);
+    await fermerTout(p);
+    // L'augmentation dès ce mois : le bulletin du mois clos ne se refait pas, le rappel va sur le mois suivant.
+    await p.locator('#p-plus').click();
+    await p.locator('.row-menu').last().getByText('Augmenter les salaires…', { exact: true }).click();
+    await p.locator('#al [name=valeur]').fill('10');
+    await p.locator('[data-al-c="nb"]').uncheck();
+    await p.locator('#al-ok').click();
+    await expect.poll(() => p.locator('#modal-root .rp-intro').innerText().then(espace).catch(() => '')).toContain('Les bulletins déjà payés ou d\'une période clôturée');
+    const mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][suivant.mo - 1] ?? '';
+    expect(espace(await p.locator('#rp-ok').innerText())).toBe(`Mettre le rappel sur ${mois}`);
+    await p.locator('#rp-ok').click();
+    const rappel = compta.round3(compta.round3(1450.375 * 1.1) - 1450.375);
+    await expect.poll(async () => ((await auServeur(x, 'employees', 'mt'))?.regularisations as { pourMois: string; amount: unknown }[] | undefined)?.map((r) => [r.pourMois, nombre(r.amount)])).toEqual([[`${suivant.an}-${String(suivant.mo).padStart(2, '0')}`, rappel]]);
+    expect(nombre(((await auServeur(x, 'payslips', `p-mt-${x.an}-${x.mo}`))?.computed as Record<string, unknown>).gross)).toBe(1450.375);
+    // La demande de congé du mois clos : la période clôturée le dit, la demande reste à répondre.
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-sous [data-sous="conges"]').click();
+    await p.locator('[data-dem-oui="l9"]').click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().then(espace).catch(() => '')).toBe('Période clôturée');
+    expect(espace(await p.locator('#modal-root .modal').last().innerText())).toContain('Cette demande porte la date du 10/');
+    await fermerTout(p);
+    await p.waitForTimeout(500);
+    expect((await auServeur(x, 'leaves', 'l9'))?.statut).toBe('demande');
+    expect(erreurs).toEqual([]);
+  }, 150_000);
+
   it('augmenter les salaires : + 10 % pour Mourad seul, dès ce mois ; sa fiche garde l\'ancien salaire', async () => {
     const x = await monter();
     const p = await ouvrir(x);

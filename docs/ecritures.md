@@ -204,7 +204,14 @@ mois donne toujours la même famille).
 ### Décisions (par délégation, 29/09/2026)
 
 - **D8.** La paie entre dans les livres en **totaux du mois**, sans un nom (`03` § 2.1). Le salaire
-  versé et l'avance aussi, par jour et par compte de trésorerie.
+  versé et l'avance aussi, par jour et par compte de trésorerie. *Complétée le 03/11/2026 (1.266.6 ;
+  16 § 10.1, point 3, migration 0188)* : la **déclaration sociale payée** entre une par déclaration (c'est
+  une pièce : la CNSS du trimestre au 4531 ; un mois, la TFP et le FOPROLOS au 4335 selon la part figée au
+  paiement, le reste au 4321 ; la banque ou la caisse au crédit), origine `declaration_sociale` ; le
+  **versement d'une saisie sur salaire** entre un par un, au 425 contre la trésorerie, pièce `SAISIE-<date>`,
+  sans le nom du créancier ni du salarié, origine `saisie_salaire` (« saisie » reste la saisie du
+  comptable). L'avance une par une, au nom du salarié (`03` § 2.1, le 16), contredit D8 : À DÉCIDER, avec un
+  comptable, pour le lot Personnel (les mois déjà validés seraient contre-passés).
 - **D9.** Seul qui voit la paie en réécrit le brouillard (le dossier ne s'ouvre qu'au propriétaire et
   à l'administrateur) : à quelqu'un d'autre, les totaux lus seraient vides et le mois s'effacerait ;
   le serveur refuse plutôt que d'écrire un mois faux.

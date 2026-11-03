@@ -96,6 +96,7 @@ export interface BaseDeDonnees {
     jointe_ecriture: string | null;
     double_de: string | null;
     double_de_sorte: string | null;
+    paie: Generated<boolean>;
   };
   'cabinet.export': {
     id: Generated<string>;

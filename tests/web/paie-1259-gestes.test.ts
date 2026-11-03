@@ -220,4 +220,26 @@ describe('la paie 1.259.0 : la journée, le mois en relecture, une seule règle 
     await expect.poll(async () => { const s = await ps(); return [s.pointageRegle, s.retenirRetards, s.nuitDebut, s.equipes[0]?.pointe]; }, { timeout: 15_000 }).toEqual([undefined, undefined, undefined, 'main']);
     expect(erreurs).toEqual([]);
   }, 120_000);
+  // 16 § 10.1, point 9 (03/11/2026) : `validerJour` ne gardait que les 400 dernières journées validées (`.slice(-400)`) :
+  // après treize mois de soirs validés, la plus ancienne redevenait « pas encore validée » et se changeait sans être
+  // rouverte. Le 16 § 8 : la validation se garde sans limite de nombre.
+  it('une journée validée le reste, même après 400 autres', async () => {
+    const x = await monter();
+    const auj = new Date().toISOString().slice(0, 10);
+    const avant = (k: number) => new Date(Date.parse(`${auj}T00:00:00Z`) - k * 86_400_000).toISOString().slice(0, 10);
+    // 400 soirs déjà validés, du plus ancien (il y a 401 jours) à avant-hier : aujourd'hui n'en est pas.
+    const anciens = Array.from({ length: 400 }, (_, i) => { const iso = avant(401 - i); return { iso, le: `${iso}T19:30:00.000Z` }; });
+    expect((await api('POST', `/entreprises/${x.ent}/dossier-v10`, x.j, { changements: [{ collection: '_racine', cle: 'joursValides', rang: null, revision: null, contenu: anciens }] })).statut).toBe(200);
+    const p = await ouvrir(x);
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#ptj').waitFor();
+    const valides = async () => ((await racine(x, 'joursValides')) as { iso: string; le: string; rouvertLe?: string }[] | undefined) ?? [];
+    await p.locator('#ptj-valider').click();
+    await expect.poll(async () => (await valides()).some((v) => v.iso === auj && !v.rouvertLe), { timeout: 15_000 }).toBe(true);
+    // La 401e s'ajoute ; la plus ancienne est toujours là, telle qu'elle a été validée.
+    const L = await valides();
+    expect(L.length).toBe(401);
+    expect(L.find((v) => v.iso === avant(401))).toEqual({ iso: avant(401), le: `${avant(401)}T19:30:00.000Z` });
+    expect(erreurs).toEqual([]);
+  }, 120_000);
 });

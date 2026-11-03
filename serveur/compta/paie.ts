@@ -4,7 +4,10 @@
 //   - une écriture de paie (journal PAIE, au dernier jour du mois) : la somme des bulletins du mois,
 //     compte par compte (`ecritureDeBulletin` du moteur, sur les totaux) ;
 //   - les salaires versés, un total par jour et par compte de trésorerie (`ecritureDePaiementSalaire`) ;
-//   - les avances sur salaire versées ce mois-là, un total par jour et par compte de trésorerie.
+//   - les avances sur salaire versées ce mois-là, un total par jour et par compte de trésorerie ;
+//   - (1.266.6 ; 16 § 10.1, point 3) les déclarations sociales payées ce mois-là, une par déclaration (c'est une pièce :
+//     la CNSS du trimestre, l'IRPP et les taxes d'un mois), aux comptes de l'écran, sans nom ;
+//   - (1.266.6) les versements des saisies sur salaire ce mois-là, un par un, sans nom (le créancier trahirait la saisie).
 // Aucun nom, aucune pièce qui désigne un salarié. Le mois est la FAMILLE (D2) : chaque enregistrement
 // qui touche un bulletin ou une avance réécrit le mois d'avant et le mois d'après.
 
@@ -40,7 +43,28 @@ export function lireAvance(a: unknown): AvanceLue | 'illisible' | null {
   if (montant === 0n) return null;
   return { date: a.date as string, montant, compte: typeof a.accountId === 'string' && a.accountId !== '' ? a.accountId : null, mode: typeof a.method === 'string' ? a.method : '' };
 }
-const lisible = (a: AvanceLue | 'illisible' | null): a is AvanceLue => a !== null && a !== 'illisible';
+const lisible = <T>(a: T | 'illisible' | null): a is T => a !== null && a !== 'illisible';
+
+// Une déclaration sociale payée (`socialFilings`, 1.228.0) : sa date et son montant, la part de la TFP et du FOPROLOS figée
+// au paiement, d'où l'argent part. Déposée sans paiement, ou à montant nul : rien à écrire. Illisible : refusée.
+export type DeclarationLue = { id: string; date: string; montant: bigint; tfp: bigint; cnss: boolean; compte: string | null; mode: string };
+export function lireDeclaration(f: unknown): DeclarationLue | 'illisible' | null {
+  if (!estObjet(f)) return 'illisible';
+  if (f.paidDate === undefined || f.paidDate === null || f.paidDate === '') return null;
+  const montant = exact(f.amount ?? 0, 3), tfp = exact((estObjet(f.parts) ? f.parts.tfp : 0) ?? 0, 3);
+  if (!estJour(f.paidDate) || montant === null || montant < 0n || tfp === null || tfp < 0n) return 'illisible';
+  if (montant === 0n) return null;
+  const id = String(f.id ?? ''), cnss = id.startsWith('cnss-');
+  return { id, date: f.paidDate as string, montant, cnss, tfp: cnss ? 0n : tfp < montant ? tfp : montant,
+    compte: typeof f.accountId === 'string' && f.accountId !== '' ? f.accountId : null, mode: typeof f.method === 'string' ? f.method : '' };
+}
+// Les versements des saisies sur salaire d'un salarié (`employees[].saisies[].versements`, 1.230.0), chacun avec une clé
+// stable (la saisie, puis le versement) : lus comme une avance (une date, un montant, d'où l'argent part).
+export function versementsDeSaisie(e: unknown): { cle: string; lu: AvanceLue | 'illisible' | null }[] {
+  if (!estObjet(e) || !Array.isArray(e.saisies)) return [];
+  return e.saisies.flatMap((x, i) => (estObjet(x) && Array.isArray(x.versements)
+    ? x.versements.map((v, j) => ({ cle: `${String(x.id ?? i)}/${String((estObjet(v) ? v.id : undefined) ?? j)}`, lu: lireAvance(v) })) : []));
+}
 export const moisDe = (jour: string): Mois => ({ annee: Number(jour.slice(0, 4)), mois: Number(jour.slice(5, 7)) });
 
 // Les écritures d'un mois, sans rien écrire (ce que le test confronte à la v10).
@@ -117,6 +141,43 @@ export async function ecrituresDuMois(tx: Transaction, entreprise: string, m: Mo
       lignes: ecritureDePaiementSalaire(v.montant, { personnel: P.personnel, tresorerie: v.compte }).lignes.map((l) => ({ ...l, libelle: entree, tauxTva: null })),
     } });
   }
+
+  // 4. Les déclarations sociales payées ce mois-là : une écriture par déclaration, aux comptes de l'écran (core.js,
+  //    `journalEntries`) ; la CNSS au compte de la CNSS ; un mois, la TFP et le FOPROLOS d'un côté, l'IRPP et la solidarité
+  //    de l'autre ; la banque ou la caisse au crédit. Aucun nom.
+  const declarations = await requetes(tx).selectFrom('socle.dossier_v10').select(['cle', 'contenu']).where('entreprise', '=', entreprise)
+    .where('collection', '=', 'socialFilings').orderBy('rang').orderBy('cle').execute();
+  for (const o of declarations) {
+    const f = lireDeclaration(o.contenu);
+    if (!lisible(f) || f.date < du || f.date > au) continue;
+    const j = journalDeCompte(plan, f.compte, f.mode);
+    const pieceF = (f.id || o.cle).toUpperCase();
+    const entree = libelle('compta.libelle.declaration_payee', { piece: pieceF });
+    const lignes = f.cnss ? [{ compte: P.cnss, debit: f.montant, credit: 0n }]
+      : [{ compte: P.tfpFoprolos, debit: f.tfp, credit: 0n }, { compte: P.irpp, debit: f.montant - f.tfp, credit: 0n }].filter((l) => l.debit !== 0n);
+    lignes.push({ compte: j.compte, debit: 0n, credit: f.montant });
+    ecritures.push({ date: f.date, ordre: ordre++, e: {
+      journal: j.journal, date: f.date, origineType: 'declaration_sociale', origine: identifiant(famille, 'declaration', o.cle), piece: pieceF, tiers: null, libelle: entree,
+      lignes: lignes.map((l) => ({ ...l, libelle: entree, tauxTva: null })),
+    } });
+  }
+
+  // 5. Les versements des saisies sur salaire ce mois-là, un par un : le 425 au débit (la retenue du bulletin l'y avait
+  //    portée), la trésorerie au crédit. Sans nom (le nom attend la décision du 03 § 2.1, À VÉRIFIER).
+  const employes = await requetes(tx).selectFrom('socle.dossier_v10').select(['cle', 'contenu']).where('entreprise', '=', entreprise)
+    .where('collection', '=', 'employees').orderBy('rang').orderBy('cle').execute();
+  for (const o of employes) {
+    for (const s of versementsDeSaisie(o.contenu)) {
+      const v = s.lu;
+      if (!lisible(v) || v.date < du || v.date > au) continue;
+      const j = journalDeCompte(plan, v.compte, v.mode);
+      const entree = libelle('compta.libelle.saisies_versees', { periode: periode(m) });
+      ecritures.push({ date: v.date, ordre: ordre++, e: {
+        journal: j.journal, date: v.date, origineType: 'saisie_salaire', origine: identifiant(famille, 'saisie', o.cle, s.cle), piece: `SAISIE-${v.date}`, tiers: null, libelle: entree,
+        lignes: ecritureDePaiementSalaire(v.montant, { personnel: P.personnel, tresorerie: j.compte }).lignes.map((l) => ({ ...l, libelle: entree, tauxTva: null })),
+      } });
+    }
+  }
   return ecritures.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : x.ordre - y.ordre)).map((x) => x.e);
 }
 
@@ -132,13 +193,21 @@ export async function reecrireLesMois(tx: Transaction, entreprise: string, mois:
   for (const m of liste) await ecrireFamille(tx, entreprise, familleDuMois(entreprise, m), await ecrituresDuMois(tx, entreprise, m, p));
 }
 
-// Tous les mois de la paie (le plan a changé : D3) : ceux qui ont un bulletin ou une avance.
+// Tous les mois de la paie (le plan a changé : D3) : ceux qui ont un bulletin, une avance, une déclaration payée ou un
+// versement de saisie.
 export async function reecrireLaPaie(tx: Transaction, entreprise: string): Promise<number> {
   const mois: Mois[] = (await requetes(tx).selectFrom('paie.bulletin').select(['annee', 'mois']).distinct().where('entreprise', '=', entreprise).execute())
     .map((b) => ({ annee: b.annee, mois: b.mois }));
   for (const o of await requetes(tx).selectFrom('socle.dossier_v10').select('contenu').where('entreprise', '=', entreprise).where('collection', '=', 'advances').execute()) {
     const a = lireAvance(o.contenu);
     if (lisible(a)) mois.push(moisDe(a.date));
+  }
+  for (const o of await requetes(tx).selectFrom('socle.dossier_v10').select('contenu').where('entreprise', '=', entreprise).where('collection', '=', 'socialFilings').execute()) {
+    const f = lireDeclaration(o.contenu);
+    if (lisible(f)) mois.push(moisDe(f.date));
+  }
+  for (const o of await requetes(tx).selectFrom('socle.dossier_v10').select('contenu').where('entreprise', '=', entreprise).where('collection', '=', 'employees').execute()) {
+    for (const s of versementsDeSaisie(o.contenu)) if (lisible(s.lu)) mois.push(moisDe(s.lu.date));
   }
   if (!mois.length) return 0;
   await reecrireLesMois(tx, entreprise, mois);

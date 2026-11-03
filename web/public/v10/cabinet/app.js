@@ -11888,7 +11888,7 @@
           const nom = nomPdf(b.salarieId), titre = titreBulletinPdf(nom, s.annee, s.paieMois);
           const deja = avant.docs.find(x => x.titre === titre);
           await api.classeur.deposerPdf(dossier.id, C.payslipHtml(p, d, societe, { notice: false }), `Bulletin_${nomDeFichier(nom)}_${mois}.pdf`, {
-            rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', remplace: deja ? deja.id : null,
+            rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', paie: true, remplace: deja ? deja.id : null,
           });
           faits++;
         }

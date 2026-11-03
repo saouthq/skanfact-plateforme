@@ -2339,4 +2339,40 @@ l'argent ou perdent des données. Ils se réparent dans les gros fichiers (excep
   référence qui partent, et que la déclaration redevient à payer ; « Annuler » remet la même ligne ; un paiement pointé sur
   un relevé ou daté d'un mois clos ne se retire pas (le refus le dit). Tests : `tests/web/paie-bon-a-payer.test.ts`
   (« urgence 6 », Paie et calendrier) ; preuves `paie 10.1-6 a` à `f`.
+- **1.266.6 — Les journées validées ne se coupent plus** (point 9). La liste des journées validées ne gardait que les 400
+  dernières : après un peu plus d'un an de soirs validés, la plus ancienne redevenait « pas encore validée », se changeait
+  sans être rouverte et revenait dans « À régler ». Elles se gardent toutes (16 § 8). Le poids reste faible (environ 20 Ko
+  par an). Test : `tests/web/paie-1259-gestes.test.ts` (« une journée validée le reste, même après 400 autres ») ; preuve
+  `paie 10.1-9`.
 
+- **1.266.6 — La paie voit et valide le pointage** (point 8). Cinq parties du dossier n'avaient pas de règle de droits et
+  n'étaient lues et écrites que par le propriétaire et l'administrateur : la personne qui fait la paie ne voyait aucun mois
+  validé (pour elle, rien n'était verrouillé) et ses validations restaient sur son poste. Les journées validées, les
+  versions du mois, les mois rouverts et les imports de la pointeuse suivent maintenant la paie ; les heures notées sur
+  une affaire suivent l'affaire (choix par défaut, À VÉRIFIER). Une copie gardée sur un poste sous les anciennes règles
+  repart en entier. Tests : `tests/v10/droits-dossier.test.ts` (« le pointage validé par le gérant… », « une copie gardée
+  sous d'autres règles… ») ; preuves `paie 10.1-8 a` à `h`.
+- **1.266.6 — La période close tient au serveur** (point 7). Le serveur acceptait un bulletin, un congé, une avance ou un
+  pointage daté dans un mois clos : seul l'écran le refusait. Il les refuse maintenant avant d'écrire quoi que ce soit, et
+  le refus dit la partie, le jour touché et jusqu'où c'est clos. Un fait d'argent arrivé après la fermeture passe à sa vraie
+  date : une avance versée, un salaire payé qui ne l'était pas (04 § 5.1, À VÉRIFIER avec un comptable). Un envoi gardé sans
+  réseau peut rouvrir puis corriger dans le même envoi. À l'écran, une demande de congé et l'import des badges avertissent
+  avant le geste ; un bulletin d'un mois clos se tient comme un bulletin payé : ses primes du mois se lisent sans s'écrire,
+  une augmentation y porte un rappel sur le premier mois ouvert. Tests : `tests/v10/paie.test.ts` (« la période close tient
+  au serveur… »), `tests/web/paie-1256-gestes.test.ts` (« une période clôturée tient comme un mois payé… »),
+  `tests/web/paie-1257-gestes.test.ts` (« la pointeuse dans une période clôturée… ») ; preuves `paie 10.1-7 a` à `l`.
+- **1.266.6 — Les bulletins du classeur ne se lisent que par qui fait la paie** (point 12). Les bulletins que « Les
+  envoyer » range au classeur du dossier se lisaient par tout membre du cabinet qui voyait le dossier (un collaborateur de
+  saisie, la révision), et par la comptabilité interne du client dans « Mon comptable ». Un document porte désormais la
+  marque « paie » (migration 0187 ; les bulletins déjà rangés la reçoivent) et suit la règle des bulletins eux-mêmes : au
+  cabinet, le rôle Paie et l'associé, sous un mandat qui comprend la paie ; chez le client, le propriétaire,
+  l'administrateur et la paie. Un dépôt refusé (« déjà remplacé ») n'écrit plus le nouveau document. Restent ouverts :
+  les exports ZIP du classeur, et la lecture d'un bulletin par l'IA (À DÉCIDER). Tests : `tests/cabinet/classeur.test.ts`
+  (« un bulletin de paie au classeur… »), `tests/web/cabinet-paie-parcours.test.ts` ; preuves `paie 10.1-12 a` à `j`.
+- **1.266.6 — Ce que la paie paie entre dans les livres du serveur** (point 3). Le serveur écrivait la paie du mois, les
+  salaires versés et les avances, mais pas la déclaration sociale payée (la CNSS du trimestre, l'IRPP et les taxes du mois)
+  ni le versement d'une saisie sur salaire : dans les livres lus par le cabinet et la comptabilité interne, les dettes
+  envers l'État et la CNSS restaient dues, et la banque trop haute. Elles y entrent maintenant, comme l'écran les écrit
+  (migration 0188 : deux origines nouvelles), sans un nom. Les avances une par une ne changent pas (À DÉCIDER). Test :
+  `tests/compta/paie.test.ts` (« les déclarations sociales payées et les saisies versées… ») ; preuves `paie 10.1-3 a`
+  à `k`.

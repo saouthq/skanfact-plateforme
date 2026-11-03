@@ -309,6 +309,89 @@ describe('la paie du dossier v10, tenue par le serveur', () => {
     expect((await admin.query('select count(*)::int n from paie.bulletin where entreprise = $1', [e.ent])).rows[0].n).toBe(2);
   });
 
+  // 1.266.4 (cadrage 16 § 10.1, point 7 ; 04 § 5.1 et § 6 ; docs/paie.md, « Les corrections urgentes du Personnel ») : la
+  // période close ne protégeait la paie qu'à l'écran. Le serveur refuse désormais un bulletin, un congé, une avance ou un
+  // pointage daté dans la période close ; un fait d'argent arrivé après (une avance versée, un salaire payé) passe, à sa date.
+  it('la période close tient au serveur : bulletin, congé, avance et pointage d\'un mois clos refusés, rien d\'écrit ; une avance versée ou un salaire payé passent, à leur vraie date', async () => {
+    const e = await essai();
+    const s = salarie('s1');
+    const prime = { bonuses: [{ label: 'Rendement', amount: 150.555, taxable: true }] };
+    const b09 = bulletin('b09', s, 2026, 9, prime);
+    const t09 = { id: 't09', employeeId: 's1', year: 2026, month: 9, jours: { 10: 'A' }, hs: {} };
+    const t10 = { id: 't10', employeeId: 's1', year: 2026, month: 10, jours: { 5: 'A' }, hs: {} };
+    const a08 = { id: 'a08', employeeId: 's1', date: '2026-08-20', amount: 200.555, monthly: 50, accountId: '', method: 'especes' };
+    const l09 = { id: 'l09', employeeId: 's1', kind: 'conges', from: '2026-09-10', to: '2026-09-12', statut: 'accepte' };
+    expect((await e.envoyer('employees', [['s1', s]])).statut).toBe(200);
+    for (const [c, o] of [['payslips', b09], ['timesheets', t09], ['timesheets', t10], ['advances', a08], ['leaves', l09]] as [string, { id: string }][]) {
+      expect((await e.envoyer(c, [[o.id, o]])).statut, `${c} ${o.id}`).toBe(200);
+    }
+    expect((await e.envoyer('_racine', [['closedUntil', '2026-09-30']])).statut).toBe(200);
+    const rev = async (c: string, cle: string) => Number((await admin.query('select revision from socle.dossier_v10 where entreprise = $1 and collection = $2 and cle = $3', [e.ent, c, cle])).rows[0].revision);
+    const net = async () => (await admin.query('select net::text n, paye_le from paie.bulletin where entreprise = $1 and ref_v10 = $2', [e.ent, 'b09'])).rows[0];
+    const avant = await net();
+    const refus = (partie: string, jour: string, jusqua = '30/09/2026') => `${partie} : ce que tu enregistres touche le ${jour}, dans la période close jusqu'au ${jusqua}. Rien n'a été enregistré. Rouvre la période (Comptabilité › Clôtures, avec un motif), ou recharge la page pour reprendre ce que le serveur a ; une avance versée ou un salaire payé depuis s'enregistrent toujours.`;
+
+    // 1. Ce qui change un mois clos : refusé, avec la partie, le jour et la clôture ; rien de l'envoi n'est écrit (le
+    //    pointage d'octobre, ouvert, envoyé avec le bulletin de septembre, ne change pas non plus).
+    const r1 = await appeler('POST', `/entreprises/${e.ent}/dossier-v10`, e.jeton, { changements: [
+      { collection: 'timesheets', cle: 't10', rang: 1, revision: await rev('timesheets', 't10'), contenu: { ...t10, jours: { 5: 'A', 20: 'A' } } },
+      { collection: 'payslips', cle: 'b09', rang: 0, revision: await rev('payslips', 'b09'), contenu: encoder(bulletin('b09', s, 2026, 9, { bonuses: [{ label: 'Rendement', amount: 99.999, taxable: true }] })) },
+    ] });
+    expect(r1.statut).toBe(403);
+    expect(r1.corps.motif).toBe(refus('Les bulletins de paie', '30/09/2026'));
+    expect(await net()).toEqual(avant);
+    expect((await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'timesheets' and cle = 't10'`, [e.ent])).rows[0].contenu.jours).toEqual({ 5: 'A' });
+    const tombe = async (c: string, cle: string, contenu: unknown, partie: string, jour: string) => {
+      const r = await e.envoyer(c, [[cle, contenu]]);
+      expect(r.statut, `${c} ${cle}`).toBe(403);
+      expect(r.corps.motif).toBe(refus(partie, jour));
+    };
+    await tombe('payslips', 'b09', null, 'Les bulletins de paie', '30/09/2026');
+    await tombe('payslips', 'b09b', bulletin('b09b', s, 2026, 9), 'Les bulletins de paie', '30/09/2026');
+    await tombe('leaves', 'l09', { ...l09, to: '2026-09-11' }, 'Les congés', '10/09/2026');
+    await tombe('leaves', 'l09b', { ...l09, id: 'l09b', from: '2026-09-29', to: '2026-10-02' }, 'Les congés', '29/09/2026');
+    await tombe('advances', 'a08', { ...a08, amount: 210.555 }, 'Les avances sur salaire', '20/08/2026');
+    await tombe('advances', 'a08', null, 'Les avances sur salaire', '20/08/2026');
+    await tombe('timesheets', 't09', { ...t09, jours: { 10: 'P', 11: 'A' } }, 'Le pointage des salariés', '10/09/2026');
+    await tombe('timesheets', 't09', { ...t09, hs: { 25: 4.5 } }, 'Le pointage des salariés', '30/09/2026');
+    expect(await net()).toEqual(avant);
+
+    // 2. Les faits d'argent (04 § 5.1) : le salaire de septembre payé après la fermeture, daté du 29 (un poste sans réseau),
+    //    une avance versée en espèces le 25 septembre. Acceptés, à leur vraie date ; pointer le salaire sur le relevé aussi.
+    const paye = { ...b09, paidDate: '2026-09-29', method: 'especes' };
+    expect((await e.envoyer('payslips', [['b09', paye]])).statut).toBe(200);
+    expect((await e.envoyer('payslips', [['b09', { ...paye, reconciled: true }]])).statut).toBe(200);
+    expect((await e.envoyer('advances', [['a09', { ...a08, id: 'a09', date: '2026-09-25', amount: 120.375 }]])).statut).toBe(200);
+    expect((await net()).paye_le).toBe('2026-09-29');
+    const ecritures = (await admin.query(`select journal, to_char(date_ecriture, 'YYYY-MM-DD') d, origine_type from compta.ecriture where entreprise = $1 and origine_type in ('salaires', 'avance') order by date_ecriture`, [e.ent])).rows;
+    expect(ecritures).toEqual([{ journal: 'CA', d: '2026-08-20', origine_type: 'avance' }, { journal: 'CA', d: '2026-09-25', origine_type: 'avance' }, { journal: 'CA', d: '2026-09-29', origine_type: 'salaires' }]);
+    // Un paiement déjà fait ne se change plus dans la période close : il se rouvre.
+    await tombe('payslips', 'b09', { ...paye, paidDate: '', reconciled: true }, 'Les bulletins de paie', '29/09/2026');
+
+    // 3. La clôture vue est la plus courte d'avant et d'après l'envoi : rouvrir et corriger dans le même envoi passe ;
+    //    corriger puis clôturer aussi (un envoi gardé sans réseau).
+    const ensemble = async (jusqua: string, conge: Record<string, unknown>) => appeler('POST', `/entreprises/${e.ent}/dossier-v10`, e.jeton, { changements: [
+      { collection: '_racine', cle: 'closedUntil', rang: null, revision: await rev('_racine', 'closedUntil'), contenu: jusqua },
+      { collection: 'leaves', cle: 'l09', rang: 0, revision: await rev('leaves', 'l09'), contenu: conge },
+    ] });
+    const r3 = await ensemble('2026-08-31', { ...l09, to: '2026-09-11' });
+    expect(r3.statut, JSON.stringify(r3.corps)).toBe(200);
+    const r4 = await ensemble('2026-10-15', { ...l09, to: '2026-09-10' });
+    expect(r4.statut, JSON.stringify(r4.corps)).toBe(200);
+
+    // 4. Clos jusqu'au 15 octobre : le pointage se juge jour par jour (le 20 passe, le 5 non) ; un congé à cheval se refuse.
+    const pointer = async (jours: Record<string, string>) => appeler('POST', `/entreprises/${e.ent}/dossier-v10`, e.jeton, { changements: [
+      { collection: 'timesheets', cle: 't10', rang: 1, revision: await rev('timesheets', 't10'), contenu: { ...t10, jours } }] });
+    expect((await pointer({ 5: 'A', 20: 'A' })).statut).toBe(200);
+    const r5 = await pointer({ 5: 'P', 20: 'A' });
+    expect(r5.statut).toBe(403);
+    expect(r5.corps.motif).toBe(refus('Le pointage des salariés', '05/10/2026', '15/10/2026'));
+    expect((await e.envoyer('leaves', [['l10', { ...l09, id: 'l10', from: '2026-10-16', to: '2026-10-17' }]])).statut).toBe(200);
+    const r6 = await e.envoyer('leaves', [['l10b', { ...l09, id: 'l10b', from: '2026-10-14', to: '2026-10-16' }]]);
+    expect(r6.statut).toBe(403);
+    expect(r6.corps.motif).toBe(refus('Les congés', '14/10/2026', '15/10/2026'));
+  });
+
   // 1.62.0 (docs/paie.md, « L'absence du mois d'une entrée ») : le brut d'un mois d'entrée est déjà proratisé ; une absence
   // sans solde s'en retirait encore au prorata (le salarié touchait trop).
   it('le mois d\'une entrée, une absence sans solde se retire au taux du salaire du contrat : l\'écran et le serveur au même millime, et le bulletin garde ce salaire', async () => {

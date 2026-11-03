@@ -38,13 +38,15 @@ const DOCUMENT = z.object({
   contenu: z.string().min(1).max(LIMITE_CORPS),
   // Le document qu'il remplace : l'ancien reste, marqué remplacé.
   remplace: uuid.nullable().default(null),
+  // Un bulletin de paie (16 § 10.1, point 12 ; 0187) : lu seulement par qui fait la paie du dossier.
+  paie: z.boolean().default(false),
 }).strict();
 
 type Ligne = {
   id: string; rubrique: string; categorie: string | null; periode: string | null; titre: string; detail: string | null; echeance: string | null;
   provenance: string | null; nom: string; type: string; taille: number; depose_par: string; depose_nom: string | null; depose_le: Date;
   remplace_par: string | null; classee_le: Date | null; classee_par: string | null; classee_raison: string | null; jointe_ecriture: string | null;
-  double_de: string | null; double_de_sorte: string | null;
+  double_de: string | null; double_de_sorte: string | null; paie: boolean;
 };
 
 // Le dossier est-il au portefeuille de la personne, avec un mandat actif ? Sinon il n'existe pas pour elle (comme sa fiche).
@@ -83,7 +85,7 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       if (!(await auPortefeuille(tx, cabinet, entreprise))) return introuvable;
       const lignes = (await tx.query(`select d.id, d.rubrique, d.categorie, d.periode, d.titre, d.detail, to_char(d.echeance, 'YYYY-MM-DD') echeance,
           d.provenance, d.nom, d.type, d.taille, d.depose_par, u.nom depose_nom, d.depose_le, d.remplace_par, d.classee_le, d.classee_par,
-          d.classee_raison, d.jointe_ecriture, d.double_de, d.double_de_sorte
+          d.classee_raison, d.jointe_ecriture, d.double_de, d.double_de_sorte, d.paie
         from cabinet.document d left join socle.utilisateur u on u.id = d.depose_par
        where d.cabinet = $1 and d.entreprise = $2
        order by d.depose_le desc, d.id desc limit 1000`, [cabinet, entreprise])).rows as Ligne[];
@@ -95,7 +97,7 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
             id: l.id, rubrique: l.rubrique, categorie: l.categorie, periode: l.periode, titre: l.titre, detail: l.detail, echeance: l.echeance,
             provenance: l.provenance, fichier: { nom: l.nom, type: l.type, taille: Number(l.taille) }, deposePar: l.depose_par, deposeNom: l.depose_nom,
             deposeLe: l.depose_le.toISOString(), remplacePar: l.remplace_par, classeeLe: l.classee_le ? l.classee_le.toISOString() : null,
-            classeePar: l.classee_par, raison: l.classee_raison, jointe: l.jointe_ecriture,
+            classeePar: l.classee_par, raison: l.classee_raison, jointe: l.jointe_ecriture, paie: l.paie,
             double: l.double_de ? { sorte: l.double_de_sorte, id: l.double_de } : null,
           })),
         },
@@ -125,17 +127,25 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       if (!(await auPortefeuille(tx, cabinet, entreprise))) return introuvable;
       const ferme = await refusDuDossierTenu(tx, entreprise);
       if (ferme) return { statut: 403, corps: { motif: ferme.motif, bouton: ferme.bouton } };
+      // Un bulletin se range par qui fait la paie (0187) : sans ce refus, la base rejetterait la ligne en anglais.
+      if (corps.paie && !(await tx.query('select $1::uuid in (select paie.mes_entreprises()) v', [entreprise])).rows[0].v) {
+        return { statut: 403, corps: { motif: motif('cabinet.classeur.paie_reservee'), bouton: null } };
+      }
       if ((corps.rubrique === 'permanent') !== (corps.categorie !== null)) return { statut: 400, corps: { motif: motif('cabinet.classeur.categorie'), champ: 'categorie' } };
       if (['accuse', 'piece'].includes(corps.rubrique) && !/^\d{4}-\d{2}$/.test(corps.periode ?? '')) return { statut: 400, corps: { motif: motif('cabinet.classeur.periode'), champ: 'periode' } };
       const fichier = /^[A-Za-z0-9+/]+={0,2}$/.test(corps.contenu) ? Buffer.from(corps.contenu, 'base64') : Buffer.alloc(0);
       if (fichier.length > LIMITE_FICHIER) return { statut: 413, corps: { motif: motif('cabinet.classeur.trop_lourd', { nom: corps.nom }), bouton: null } };
       const sorte = sorteDe(fichier);
       if (!sorte) return { statut: 415, corps: { motif: motif('cabinet.classeur.format', { nom: corps.nom }), bouton: null } };
+      // Le document qu'il remplace se vérifie AVANT d'écrire (03/11/2026) : un refus n'écrit rien. Sinon le nouveau restait
+      // rangé derrière un 409 (vu en écrivant le test du point 12 : un « remplaçant » d'un bulletin que la saisie ne lit pas).
+      if (corps.remplace && !(await tx.query('select 1 from cabinet.document where id = $1 and cabinet = $2 and entreprise = $3 and remplace_par is null',
+        [corps.remplace, cabinet, entreprise])).rowCount) return { statut: 409, corps: { motif: motif('cabinet.classeur.deja_remplace') } };
       const id = (await tx.query(`insert into cabinet.document (cabinet, entreprise, rubrique, categorie, periode, titre, detail, echeance, provenance,
-          nom, type, taille, contenu, empreinte, depose_par)
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) returning id`,
+          nom, type, taille, contenu, empreinte, depose_par, paie)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) returning id`,
       [cabinet, entreprise, corps.rubrique, corps.categorie, corps.periode, corps.titre, corps.detail || null, corps.echeance, corps.provenance,
-        corps.nom, TYPE_DE[sorte], fichier.length, fichier, createHash('sha256').update(fichier).digest('hex'), qui.utilisateur])).rows[0].id as string;
+        corps.nom, TYPE_DE[sorte], fichier.length, fichier, createHash('sha256').update(fichier).digest('hex'), qui.utilisateur, corps.paie])).rows[0].id as string;
       if (corps.remplace) {
         const r = await tx.query('update cabinet.document set remplace_par = $1 where id = $2 and cabinet = $3 and entreprise = $4 and remplace_par is null',
           [id, corps.remplace, cabinet, entreprise]);

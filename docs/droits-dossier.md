@@ -15,17 +15,21 @@ par le propriétaire.
 catalogue, les salariés…) et chaque champ de la racine (la fiche société, les compteurs…) a un geste pour la lire
 et un pour l'écrire, pris dans les gestes des modules (03 § 2.1). Une partie sans règle n'est lue et écrite que
 par le propriétaire et l'administrateur (la valeur qui ne donne rien de plus). Une liste vide, que l'écran écrit
-comme un champ de la racine, garde la règle de sa liste.
+comme un champ de la racine, garde la règle de sa liste. Les règles ont une empreinte, dans le profil de la relecture
+par différence : une copie gardée sous d'autres règles repart en entier (1.266.6 ; sans elle, une partie ouverte à un
+rôle ne lui arrivait qu'au prochain changement de chaque objet).
 
 | Partie | Qui la lit | Qui l'écrit |
 |---|---|---|
 | Pièces de vente, contrats récurrents, modèles, textes, affaires | ventes (P, A, C ; I et L voient) | P, A, C |
+| Heures notées sur les affaires (depuis 1.266.6) | ventes (P, A, C ; I et L voient) | P, A, C |
 | Clients | ventes | P, A, C |
 | Catalogue, listes de prix | P, A, M ; C, K, I, L voient | P, A (les prix) |
 | Fournisseurs, achats, commandes fournisseurs, réceptions | P, A, I ; L voit | P, A, I |
 | Comptes de trésorerie / leurs mouvements | P, A, I ; L voit | P, A / P, A, I |
 | Mouvements de stock, numéros de série, dépôts | stock | P, A, M |
 | Salariés, bulletins, congés, avances, déclarations sociales, barèmes | P, A, Pa | P, A, Pa |
+| Pointage validé : journées validées, versions du mois, mois rouverts, imports de la pointeuse (depuis 1.266.6) | P, A, Pa | P, A, Pa |
 | Immobilisations, opérations diverses, échéances fiscales, clôtures | comptabilité | P, A, I |
 | Fiche de la société | tous | P, A |
 | Compteurs, pièces supprimées, versions écartées | tous | quiconque écrit |

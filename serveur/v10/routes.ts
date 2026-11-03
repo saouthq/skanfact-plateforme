@@ -15,7 +15,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { refuserSiLectureSeule } from '../abonnement/condition.ts';
-import { avecSesTickets, filtrer, mesRoles, permet, regleDe } from './droits.ts';
+import { avecSesTickets, EMPREINTE_REGLES, filtrer, mesRoles, permet, regleDe } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { verserExemple } from './exemple.ts';
 import { nombreEnTexte } from './lecture.ts';
@@ -55,7 +55,7 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       // Sinon, tout. La personne en fait partie (brique 123) : au changement de caissier, le poste ne garde pas ce que
       // le précédent voyait (ses tickets, les pièces qu'il n'a pas faites).
       const { marque, avenir, base } = await marqueDeLecture(tx);
-      const profil = `${base}/${qui.utilisateur}/${[...roles].sort().join(',')}`;
+      const profil = `${base}/${qui.utilisateur}/${[...roles].sort().join(',')}/${EMPREINTE_REGLES}`;
       // Les pièces qu'un autre a faites (brique 117) : l'écran dit, avant le geste, qu'il ne les supprime pas. Seulement
       // pour qui n'est ni propriétaire ni administrateur (eux suppriment tout brouillon).
       const responsable = roles.some((r) => r === 'proprietaire' || r === 'administrateur');

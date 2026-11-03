@@ -9,7 +9,8 @@ import './textes.ts';
 export type LigneAEcrire = { compte: string; libelle: string; debit: bigint; credit: bigint; tauxTva: bigint | null };
 export type EcritureAEcrire = {
   journal: 'VT' | 'AC' | 'BQ' | 'CA' | 'OD' | 'PAIE'; date: string;
-  origineType: 'vente' | 'encaissement' | 'achat' | 'imputation' | 'reglement_fournisseur' | 'paie' | 'salaires' | 'avance' | 'mouvement' | 'contre_passation'; origine: string;
+  origineType: 'vente' | 'encaissement' | 'achat' | 'imputation' | 'reglement_fournisseur' | 'paie' | 'salaires' | 'avance' | 'mouvement' | 'contre_passation'
+    | 'declaration_sociale' | 'saisie_salaire'; origine: string;
   piece: string | null; tiers: string | null; libelle: string; lignes: LigneAEcrire[];
 };
 

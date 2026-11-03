@@ -205,10 +205,12 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     // Les renvoyer remplace (l'ancien reste, marqué remplacé) : le classeur garde 5 bulletins en cours, pas 10.
     expect(espace(await p.locator('#pa-envoyer-pdf').innerText())).toBe('Les renvoyer');
     await p.locator('#pa-envoyer-pdf').click();
-    const enCours = async () => ((await api('GET', `/cabinets/${A.cab}/classeur/${A.ent}/documents`, A.ja)).corps.documents as { titre: string; remplacePar: string | null }[])
+    const enCours = async () => ((await api('GET', `/cabinets/${A.cab}/classeur/${A.ent}/documents`, A.ja)).corps.documents as { titre: string; remplacePar: string | null; paie: boolean }[])
       .filter((x) => /^Bulletin de paie · /.test(x.titre));
     await expect.poll(async () => (await enCours()).length, { timeout: 30_000 }).toBe(10);
     expect((await enCours()).filter((x) => !x.remplacePar).length).toBe(5);
+    // (16 § 10.1, point 12) Chacun porte la marque de la paie : seuls le rôle Paie et l'associé, sous un mandat Paie, le lisent.
+    expect((await enCours()).every((x) => x.paie === true)).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-parcours-6-faits.png'), fullPage: true });
     // Le classeur du dossier les range en Paie, « envoyé au client », sans rien à saisir.
     const ici = p.url();

@@ -119,6 +119,31 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
     expect(erreurs).toEqual([]);
   }, 120_000);
 
+  // 16 § 10.1, point 7 (03/11/2026) : des badges neufs dans une période clôturée, le serveur les refuse ; l'écran le dit avant
+  // d'importer, et rien ne s'écrit.
+  it('la pointeuse dans une période clôturée : le refus se dit avant d\'importer, rien ne s\'écrit', async () => {
+    const x = await monter();
+    const finA = new Date(Date.UTC(x.anA, x.moA, 0)).toISOString().slice(0, 10);
+    expect((await api('POST', `/entreprises/${x.ent}/dossier-v10`, x.j, { changements: [{ collection: '_racine', cle: 'closedUntil', rang: null, revision: null, contenu: finA }] })).statut).toBe(200);
+    const p = await ouvrir(x);
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('[data-sous="pointage"]').click();
+    await p.locator('#pt-vue-grille').click();
+    await p.locator('#pt-grille').waitFor();
+    const { f, n } = fichier(x.anA, x.moA);
+    await p.locator('#pt-import').click();
+    await p.locator('#ib-f').setInputFiles(f);
+    await expect.poll(() => p.locator('#ib-ok').innerText().then(espace)).toBe(`Importer les ${n} badges`);
+    await p.locator('#ib-ok').click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().then(espace).catch(() => '')).toBe('Période clôturée');
+    expect(espace(await p.locator('#modal-root .modal').last().innerText())).toContain('Cet import de badges porte la date du');
+    await p.waitForTimeout(500);
+    const o = (await api('GET', `/entreprises/${x.ent}/dossier-v10`, x.j)).corps.objets as { collection: string; contenu: Record<string, unknown> }[];
+    expect(o.some((z) => z.collection === 'timesheets' && z.contenu.badges)).toBe(false);
+    expect(o.some((z) => z.collection === 'badgeImports')).toBe(false);
+    expect(erreurs).toEqual([]);
+  }, 120_000);
+
   it('la pointeuse : ce que le fichier donnerait, l\'import, l\'anomalie réglée, puis le mois validé et verrouillé', async () => {
     const x = await monter();
     const p = await ouvrir(x);

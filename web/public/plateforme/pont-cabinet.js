@@ -1427,7 +1427,7 @@
         const doc = /** @type {any} */ (await appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents`, {
           rubrique: o.rubrique, categorie: o.categorie || null, periode: o.periode || null, titre: String(o.titre).slice(0, 200),
           detail: o.detail ? String(o.detail).slice(0, 300) : null, echeance: null, provenance: o.provenance ? String(o.provenance).slice(0, 100) : null,
-          nom: String(lu.nom || nom).slice(0, 200), contenu: String(lu.pdf), remplace: o.remplace || null,
+          nom: String(lu.nom || nom).slice(0, 200), contenu: String(lu.pdf), remplace: o.remplace || null, paie: !!o.paie,
         }));
         if (o.raison) {
           await appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(doc.id)}/classement`, { classee: true, raison: o.raison });

@@ -149,6 +149,71 @@ describe('les écritures de la paie, en totaux du mois, contre la v10', () => {
     expect((await lignes())[0]?.lignes.startsWith(`6401 ${m(b1, 'gross')} 0 | `)).toBe(true);
   });
 
+  // 16 § 10.1, point 3 (03/11/2026) : la v10 figée ne connaît ni la déclaration sociale payée (1.228.0) ni le versement
+  // d'une saisie sur salaire (1.230.0) ; le serveur les oubliait, l'écran de la plateforme les écrit. Deux chemins : les
+  // livres du serveur et `journalEntries` de l'écran de la plateforme, jour par jour, compte par compte.
+  it('les déclarations sociales payées et les saisies versées entrent dans les livres comme l\'écran de la plateforme les écrit', async () => {
+    const ecranCore = ecranDeLaPlateforme('core.js') as { journalEntries: (data: unknown, societe: Societe, periode: object, options: object) => LigneJournal[] };
+    const org = (await admin.query(`insert into socle.organisation (type, nom) values ('independant', 'Paie payée') returning id`)).rows[0].id;
+    const e3 = (await admin.query(`insert into socle.entreprise (organisation, raison_sociale) values ($1, 'Paie payée') returning id`, [org])).rows[0].id;
+    await admin.query(`insert into socle.membre (utilisateur, entreprise, roles) values ($1, $2, '{proprietaire}')`, [proprio, e3]);
+    const revisions = new Map<string, number>();
+    const envoyer = (collection: string, cle: string, contenu: unknown) => enTantQue(pool, proprio, async (tx) => {
+      const r = await appliquer(tx, e3, proprio, [{ collection, cle, rang: contenu === null ? null : 0, revision: revisions.get(`${collection}/${cle}`) ?? null, contenu: contenu === null ? null : encoder(contenu) }]);
+      for (const x of r) if (x.revision === null) revisions.delete(`${x.collection}/${x.cle}`); else revisions.set(`${x.collection}/${x.cle}`, x.revision);
+    });
+    const comptes = [{ id: 'b', kind: 'banque', name: 'BIAT', isDefault: true }, { id: 'c', kind: 'caisse', name: 'Caisse' }];
+    for (const c of comptes) await envoyer('accounts', c.id, c);
+    const reglages = core.payrollSettings(donnees);
+    const [s1, s2] = donnees.employees as [Salarie10, Salarie10];
+    // Mourad a une saisie sur salaire : 200,300 versés au créancier le 5 octobre, par la banque.
+    const avecSaisie = (versements: unknown[]) => ({ ...s1, saisies: [{ id: 'z1', creancier: 'Tribunal de Sfax', total: 500.75, mensuel: 200.3, des: '2026-07', versements }] });
+    await envoyer('employees', s1.id, avecSaisie([{ id: 'v1', date: '2026-10-05', amount: 200.3, accountId: 'b', method: 'virement' }]));
+    await envoyer('employees', s2.id, s2);
+    const saisie = (s: Salarie10) => ({ gross: s.grossSalary, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] });
+    const bulletin = (id: string, s: Salarie10) => ({ id, employeeId: s.id, year: 2026, month: 9, ...saisie(s), computed: ecran.computePayslip(s, saisie(s), reglages), paidDate: '2026-09-28', accountId: 'b', method: 'virement' });
+    await envoyer('payslips', 'b1', bulletin('b1', s1));
+    await envoyer('payslips', 'b2', bulletin('b2', s2));
+    // La déclaration du mois payée en espèces (la caisse), la CNSS du trimestre par la banque : des montants qui ne sont
+    // pas ronds, et la part de la TFP et du FOPROLOS figée au paiement.
+    const dm = { id: 'dm-2026-09', label: 'Déclaration mensuelle septembre 2026', paidDate: '2026-10-27', amount: 345.678, parts: { tfp: 45.123 }, accountId: 'c', method: 'especes' };
+    const cnss = { id: 'cnss-2026-T3', label: 'CNSS 3e trimestre 2026', paidDate: '2026-10-14', amount: 1234.567, accountId: 'b', method: 'virement' };
+    await envoyer('socialFilings', dm.id, dm);
+    await envoyer('socialFilings', cnss.id, cnss);
+    // Une déclaration déposée mais pas encore payée : rien n'entre dans les livres.
+    await envoyer('socialFilings', 'dm-2026-10', { id: 'dm-2026-10', label: 'Déclaration mensuelle octobre 2026', amount: 99.111 });
+    const livres = async () => (await admin.query(`select e.origine_type, e.journal, e.date_ecriture::text date, e.piece, e.tiers, e.libelle, l.compte, l.debit, l.credit, l.libelle ligne
+      from compta.ecriture e join compta.ligne l on l.ecriture = e.id where e.entreprise = $1 order by e.date_ecriture, e.rang, l.rang`, [e3])).rows as
+      { origine_type: string; journal: string; date: string; piece: string; tiers: string | null; libelle: string; compte: string; debit: string; credit: string; ligne: string }[];
+    const doss = { company: donnees.company, accounts: comptes, employees: [avecSaisie([{ id: 'v1', date: '2026-10-05', amount: 200.3, accountId: 'b', method: 'virement' }]), s2],
+      payslips: [bulletin('b1', s1), bulletin('b2', s2)], advances: [], socialFilings: [dm, cnss, { id: 'dm-2026-10', amount: 99.111 }] };
+    const ecranLignes = ecranCore.journalEntries(doss, donnees.company, {}, { sections: ['paie'] })
+      .map((l) => ({ date: l.date, journal: l.journal, compte: l.account, debit: entier(l.debit, 3) ?? 0n, credit: entier(l.credit, 3) ?? 0n }));
+    const serveur = (await livres()).map((l) => ({ date: l.date, journal: l.journal, compte: l.compte, debit: BigInt(l.debit), credit: BigInt(l.credit) }));
+    expect(sommes(serveur)).toEqual(sommes(ecranLignes));
+    // Ce que chaque paiement écrit, lu par ses lignes.
+    const parEcriture = async (o: string) => (await livres()).filter((l) => l.origine_type === o).map((l) => `${l.journal} ${l.date} ${l.piece} ${l.compte} ${l.debit} ${l.credit}`);
+    expect(await parEcriture('declaration_sociale')).toEqual([
+      'BQ 2026-10-14 CNSS-2026-T3 4531 1234567 0', 'BQ 2026-10-14 CNSS-2026-T3 532 0 1234567',
+      'CA 2026-10-27 DM-2026-09 4335 45123 0', 'CA 2026-10-27 DM-2026-09 4321 300555 0', 'CA 2026-10-27 DM-2026-09 54 0 345678']);
+    expect(await parEcriture('saisie_salaire')).toEqual(['BQ 2026-10-05 SAISIE-2026-10-05 425 200300 0', 'BQ 2026-10-05 SAISIE-2026-10-05 532 0 200300']);
+    // Aucun nom : ni le salarié ni le créancier, nulle part ; aucun tiers.
+    const tout = await livres();
+    const noms = [s1.name, s2.name, ...s1.name.split(' '), ...s2.name.split(' '), 'Tribunal', 'Sfax'].filter((x) => x.length > 2);
+    expect(tout.filter((l) => [l.libelle, l.ligne, l.piece].some((x) => noms.some((n) => String(x ?? '').includes(n))))).toEqual([]);
+    expect(tout.every((l) => l.tiers === null)).toBe(true);
+    // Les gestes : la déclaration du mois retirée, le versement retiré, le plan changé.
+    await envoyer('socialFilings', dm.id, null);
+    expect((await livres()).some((l) => l.date === '2026-10-27')).toBe(false);
+    await envoyer('employees', s1.id, avecSaisie([]));
+    expect((await livres()).some((l) => l.origine_type === 'saisie_salaire')).toBe(false);
+    await envoyer('_racine', 'chartAccounts', { cnss: '4532' });
+    expect((await livres()).filter((l) => l.date === '2026-10-14' && BigInt(l.debit) > 0n).map((l) => l.compte)).toEqual(['4532']);
+    // Une déclaration payée illisible : refusée, rien n'est écrit.
+    await expect(envoyer('socialFilings', 'cnss-2026-T4', { id: 'cnss-2026-T4', paidDate: '2027-01-14', amount: 10.1234 })).rejects.toThrow();
+    expect((await admin.query(`select count(*)::int n from socle.dossier_v10 where entreprise = $1 and cle = 'cnss-2026-T4'`, [e3])).rows[0].n).toBe(0);
+  });
+
   it('qui ne voit pas la paie ne peut pas en réécrire le brouillard (il l\'effacerait)', async () => {
     const commercial = (await admin.query(`insert into socle.utilisateur (email, nom) values ('compta-paie-commercial@exemple.tn', 'Commercial') returning id`)).rows[0].id;
     await admin.query(`insert into socle.membre (utilisateur, entreprise, roles) values ($1, $2, '{commercial}')`, [commercial, ent]);

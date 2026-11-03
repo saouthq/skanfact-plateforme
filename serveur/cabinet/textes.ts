@@ -21,6 +21,7 @@ declarerTextes({
   'cabinet.classeur.categorie': 'une pièce du dossier permanent se range dans une catégorie (juridique, fiscal, contrats, banque, cabinet) ; les autres n\'en ont pas',
   'cabinet.classeur.periode': 'un accusé de dépôt ou une pièce du mois se range dans son mois (AAAA-MM)',
   'cabinet.classeur.trop_lourd': '« {nom} » dépasse 10 Mo : une photo plus légère, ou le PDF en plusieurs fichiers',
+  'cabinet.classeur.paie_reservee': 'un bulletin de paie se range par qui fait la paie de ce dossier au cabinet (le rôle Paie ou l\'associé), sous un mandat qui comprend la paie',
   'cabinet.classeur.format': '« {nom} » n\'est ni une photo (JPEG, PNG, WebP) ni un PDF : il ne se range pas',
   'cabinet.classeur.deja_remplace': 'ce document a déjà été remplacé : recharge le classeur, rien n\'a été enregistré',
   'cabinet.classeur.classement': 'une pièce se joint à une écriture nommée ; les autres raisons n\'en nomment pas, et défaire n\'a pas de raison',

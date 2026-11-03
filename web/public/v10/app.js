@@ -18347,7 +18347,8 @@
     for (let k = 0; k < 36; k++) {
       mm += 1; if (mm > 12) { mm = 1; yy += 1; }
       const b = (data.payslips || []).find(p => p.employeeId === empId && Number(p.year) === yy && Number(p.month) === mm);
-      if (!b || !b.paidDate) return { year: yy, month: mm, bulletin: b || null };
+      // (plateforme, 03/11/2026 — 16 § 10.1, point 7) Un mois clos n'est pas libre : le serveur refuse d'y refaire un bulletin.
+      if ((!b || !b.paidDate) && !C.isClosedDate(data, C.payslipDate({ year: yy, month: mm }))) return { year: yy, month: mm, bulletin: b || null };
     }
     return null;
   }
@@ -18429,13 +18430,16 @@
     const concernes = (data.payslips || []).filter(p => p.employeeId === e.id && ymDe(p.year, p.month) >= desM);
     if (!concernes.length) return { refaits: 0, payes: [], total: 0, cible: null, lesMois: '' };
     const brutDe = p => { const f = C.brutDuMois(e, Number(p.year), Number(p.month)); return p.prorata ? C.round3(f * Number(p.prorata.jours) / Number(p.prorata.sur)) : f; };
+    // (plateforme, 03/11/2026 — 16 § 10.1, point 7) Un bulletin d'un mois clos ne se refait pas (le serveur le refuse) : il
+    // se tient comme un bulletin payé, et son écart part en rappel sur le premier mois ouvert.
+    const tenu = p => p.paidDate || C.isClosedDate(data, C.payslipDate(p));
     let refaits = 0;
-    concernes.filter(p => !p.paidDate).forEach(p => {
+    concernes.filter(p => !tenu(p)).forEach(p => {
       const g = brutDe(p); if (C.round3(g - Number(p.gross)) === 0) return;
       p.gross = g; if (p.prorata) p.prorata = { ...p.prorata, brutFiche: C.brutDuMois(e, Number(p.year), Number(p.month)), brut: g };
       recalculerBulletin(p, e); refaits++;
     });
-    const payes = concernes.filter(p => p.paidDate).map(p => {
+    const payes = concernes.filter(tenu).map(p => {
       const c0 = p.computed || C.computePayslip(e, p, st);
       const c1 = C.computePayslip(e, { gross: brutDe(p), workedDays: p.workedDays, absentDays: p.absentDays, bonuses: p.bonuses || [], deductions: p.deductions || [], prorata: p.prorata || null }, st);
       return { p, ecart: C.round3(c1.gross - c0.gross) };
@@ -18461,7 +18465,7 @@
       let fini = false;
       const finir = v => { if (fini) return; fini = true; resolve(v); };
       modal(`<h2>Une augmentation qui compte depuis le ${h(dateDes)}</h2>
-        <p class="sous-f rp-intro">Les bulletins déjà payés depuis ${h(moisDes)} ne changent pas : la différence se met sur le bulletin du premier mois pas encore payé, en une ligne « Rappel de salaire ». Les mois pas encore payés, eux, se refont au nouveau salaire.</p>
+        <p class="sous-f rp-intro">Les bulletins déjà payés${L.some(x => x.r.payes.some(y => !y.p.paidDate)) ? ' ou d\'une période clôturée' : ''} depuis ${h(moisDes)} ne changent pas : la différence se met sur le bulletin du premier mois ouvert pas encore payé, en une ligne « Rappel de salaire ». Les mois pas encore payés, eux, se refont au nouveau salaire.</p>
         <table class="mini lu rp-t" id="rp-t"><thead><tr><th>Salarié</th><th class="r">+ par mois</th><th class="r">Mois</th><th class="r">Rappel brut</th></tr></thead><tbody>
           ${L.map(x => { const pm = parMois(x), n = note(x); return `<tr data-rp="${h(x.e.id)}"><td><b>${h(x.e.name)}</b>${n ? `<small>${h(n)}</small>` : ''}${cibles.length > 1 ? `<small>sur ${h(nomMois(ymDe(x.r.cible.year, x.r.cible.month)))}</small>` : ''}</td><td class="r">${pm != null ? h(C.money(pm, cur)) : '—'}</td><td class="r">${x.r.payes.length}</td><td class="r"><b>${h(C.money(x.r.total, cur))}</b></td></tr>`; }).join('')}
         </tbody><tfoot><tr><td colspan="3"><b>${une ? `Rappel ${/^[aeiouyéè]/i.test(une) ? 'd\'' : 'de '}${h(une)}, brut` : 'Les rappels, brut'}</b></td><td class="r"><b>${h(C.money(total, cur))}</b></td></tr></tfoot></table>
@@ -18523,7 +18527,7 @@
   // Le bulletin établi d'un mois reçoit les variables de ce mois (celles d'avant s'en vont) ; payé ou validé, il ne bouge pas.
   function appliquerVariables(e, y, m) {
     const b = (data.payslips || []).find(p => p.employeeId === e.id && Number(p.year) === Number(y) && Number(p.month) === Number(m));
-    if (!b || b.paidDate || b.valideLe) return false;
+    if (!b || b.paidDate || b.valideLe || C.isClosedDate(data, C.payslipDate(b))) return false;
     const v = C.variablesDuMois(e, y, m);
     b.bonuses = [...(b.bonuses || []).filter(x => !x.variableId), ...v.bonuses];
     b.deductions = [...(b.deductions || []).filter(x => !x.variableId), ...v.deductions];
@@ -18538,7 +18542,8 @@
     // La grille : valeur[e.id][rubrique.id] (un nombre, ou '' pour vide).
     const val = {};
     emps.forEach(e => { val[e.id] = {}; (e.variables || []).filter(v => v.mois === ym).forEach(v => { val[e.id][v.rubrique || v.id] = Number(v.amount) || ''; }); });
-    const fige = e => { const b = (data.payslips || []).find(p => p.employeeId === e.id && Number(p.year) === y && Number(p.month) === m); return b && (b.paidDate || b.valideLe) ? (b.paidDate ? 'payé' : 'validé') : ''; };
+    // (16 § 10.1, point 7) Un bulletin d'un mois clos ne change plus non plus, comme un bulletin payé : sa case se lit.
+    const fige = e => { const b = (data.payslips || []).find(p => p.employeeId === e.id && Number(p.year) === y && Number(p.month) === m); return b && (b.paidDate || b.valideLe || C.isClosedDate(data, C.payslipDate(b))) ? (b.paidDate ? 'payé' : b.valideLe ? 'validé' : 'd\'une période clôturée') : ''; };
     let modifie = false;
     modal(`<div class="pv-fen"><h2>Les primes et retenues ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${h(mois)}</h2>
       <p class="small muted">Ce qui change un bulletin ce mois-ci, au-delà de la fiche et du pointage. Chaque rubrique est réglée une fois : elle sait si elle s'ajoute au salaire (et porte la CNSS et l'impôt) ou se retient du net. Une case vide : rien.</p>
@@ -19970,16 +19975,18 @@
         // complet (ses primes et retenues gardées) ; payé, il se régularise (recette du 02/11 : il restait à 18 j sur 26).
         const ymFin = fin.slice(0, 7);
         const touche = (data.payslips || []).filter(p => p.employeeId === x.id && ymDe(p.year, p.month) === ymFin && p.prorata);
-        let refait = '', paye = '';
+        let refait = '', paye = '', clos = '';
         touche.forEach(p => {
           if (p.paidDate) { paye = MONTHS_LONG[Number(p.month) - 1]; return; }
+          // (16 § 10.1, point 7) Dans une période clôturée, il ne se refait pas (le serveur le refuse) : il se régularise.
+          if (C.isClosedDate(data, C.payslipDate(p))) { clos = MONTHS_LONG[Number(p.month) - 1]; return; }
           const f = C.payslipInputFor(data, x, Number(p.year), Number(p.month));
           p.gross = f.gross; p.workedDays = f.workedDays; p.prorata = f.prorata || null;
           recalculerBulletin(p, x); refait = MONTHS_LONG[Number(p.month) - 1];
         });
         save(true); close();
         // Ce qui se répare offre « Annuler » : la fiche et ses bulletins reviennent tels qu'avant.
-        toastUndo(`${suite() === 'cdd' ? `CDD de ${x.name} prolongé jusqu'au ${C.fmtDate(x.endDate)}` : `${x.name} passe en CDI`}${brut !== actuel ? ` ; ${C.money(brut, cur)} dès ${MONTHS_LONG[Number(des.slice(5, 7)) - 1]}` : ''}${refait ? ` ; son bulletin de ${refait} refait au mois complet` : ''}${paye ? ` ; son bulletin de ${paye}, déjà payé au prorata, se régularise depuis son menu` : ''}`, () => {
+        toastUndo(`${suite() === 'cdd' ? `CDD de ${x.name} prolongé jusqu'au ${C.fmtDate(x.endDate)}` : `${x.name} passe en CDI`}${brut !== actuel ? ` ; ${C.money(brut, cur)} dès ${MONTHS_LONG[Number(des.slice(5, 7)) - 1]}` : ''}${refait ? ` ; son bulletin de ${refait} refait au mois complet` : ''}${paye ? ` ; son bulletin de ${paye}, déjà payé au prorata, se régularise depuis son menu` : ''}${clos ? ` ; son bulletin de ${clos}, dans une période clôturée, se régularise depuis son menu` : ''}`, () => {
           const y = employeeById(e.id); if (y) { Object.keys(y).forEach(k => { delete y[k]; }); Object.assign(y, avant); }
           avantBul.forEach(b => { const i = data.payslips.findIndex(p => p.id === b.id); if (i >= 0) data.payslips[i] = b; });
           save(true); if (done) done();
@@ -20912,7 +20919,9 @@
       toast(`${v.length > 1 ? 'Les journées' : 'La journée'} du ${v.slice(0, 6).map(i => C.fmtDate(i).slice(0, 5)).join(', ')}${v.length > 6 ? '…' : ''} ${v.length > 1 ? 'sont validées' : 'est validée'} : un clic sur une de ses cases ${v.length > 1 ? 'les rouvre une à une' : 'la rouvre'}, puis recommence.`, true);
       return true;
     };
-    const validerJour = iso => { data.joursValides = [...joursValides().filter(x => x.iso !== iso), { iso, le: new Date().toISOString() }].slice(-400); };
+    // (plateforme, 03/11/2026 — 16 § 10.1, point 9) Toutes les journées validées se gardent (16 § 8) : la liste n'est plus
+    // coupée aux 400 dernières (la plus ancienne redevenait « pas encore validée » et se changeait sans être rouverte).
+    const validerJour = iso => { data.joursValides = [...joursValides().filter(x => x.iso !== iso), { iso, le: new Date().toISOString() }]; };
     const rouvrirJour = iso => { data.joursValides = joursValides().map(x => x.iso === iso && !x.rouvertLe ? { ...x, rouvertLe: new Date().toISOString() } : x); };
     const instantPt = (y, m) => {
       const st = C.payrollSettings(data), premier = `${ymPt(y, m)}-01`, dernier = C.addDays(premier, C.daysInMonth(y, m) - 1);
@@ -21479,6 +21488,9 @@
         };
         $('#ib-ok', root).onclick = () => {
           if (!lu) return;
+          // (16 § 10.1, point 7) Des badges neufs dans une période clôturée : le refus se dit avant le geste, pas à l'envoi.
+          const clos = C.importerBadges(data, lu.passages.filter(p => C.isClosedDate(data, p.iso)), false);
+          if (clos.rattaches - clos.deja > 0 && closedBlock(clos.du, 'Cet import de badges')) return;
           const avant = { ts: JSON.stringify(data.timesheets || []), im: JSON.stringify(data.badgeImports || []) };
           const r = C.importerBadges(data, lu.passages, true);
           data.badgeImports = (data.badgeImports || []).concat([{ id: C.uid(), le: new Date().toISOString(), fichier: fichier.slice(0, 120), du: r.du, au: r.au, lus: lu.passages.length, rattaches: r.rattaches, deja: r.deja, inconnus: r.inconnus.slice(0, 20) }]).slice(-24);
@@ -22198,6 +22210,8 @@
       const lv = id => (data.leaves || []).find(x => x.id === id);
       $$('#p-body [data-dem-oui]').forEach(b => b.onclick = () => {
         const l = lv(b.dataset.demOui); if (!l) return;
+        // (16 § 10.1, point 7) Une demande d'une période clôturée : le refus se dit avant le geste, pas à l'envoi.
+        if (closedBlock([l.from, l.to], 'Cette demande')) return;
         // (1.256.0) Une demande plus longue que le solde (la maquette, « Une demande de congé (solde trop court) ») : les jours
         // du solde restent un congé payé, la suite devient une absence sans solde, notée comme telle. Rien n'est perdu au défaire.
         const st = C.payrollSettings(data), jours = C.workingDays(l.from, l.to, st.offDays);
@@ -22224,6 +22238,7 @@
       $$('#p-body [data-dem-mod]').forEach(b => b.onclick = () => { const l = lv(b.dataset.demMod); if (l) leaveForm(l, null, apres); });
       $$('#p-body [data-dem-non]').forEach(b => b.onclick = () => {
         const l = lv(b.dataset.demNon); if (!l) return;
+        if (closedBlock([l.from, l.to], 'Cette demande')) return;
         modal(`<h2>Refuser la demande</h2><p class="small muted">Ta raison reste écrite avec la demande, et sa date.</p><form id="dr"><label class="field">${lbl('Pourquoi')}<input type="text" name="raison" placeholder="ex. le fournil ne tiendrait pas la nuit"></label></form>
           <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-danger" id="dr-ok">Refuser la demande</button></div>`, (root, fermer) => {
           $('#dr-ok', root).onclick = () => {
