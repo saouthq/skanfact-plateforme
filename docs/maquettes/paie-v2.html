@@ -1,0 +1,669 @@
+<title>Paie au quotidien</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap">
+<style>
+:root {
+  --fond: #eef1f5; --papier: #ffffff; --papier-2: #f7f9fb; --barre: #f3f5f8; --survol: rgba(27, 36, 48, .055);
+  --actif-ombre: 0 1px 2px rgba(27, 36, 48, .08), 0 0 0 1px rgba(27, 36, 48, .06);
+  --encre: #1b2430; --gris: #5b6675; --gris-2: #6b7685; --trait: #e6eaf0; --trait-fort: #d3d9e2;
+  --sarcelle: #0f9d8f; --sarcelle-f: #0c877b; --sarcelle-texte: #0b7a70; --doux: #e6f5f3; --doux-texte: #0b6b62;
+  --ambre-doux: #fff4e3; --ambre-texte: #a4520b; --ambre: #e8890c;
+  --rouge-doux: #fdecea; --rouge-texte: #b4231d; --rouge: #d2413b;
+  --bleu-doux: #eaf1fd; --bleu-texte: #2459b8;
+  --ombre: 0 1px 2px rgba(20, 40, 60, .04), 0 6px 20px rgba(20, 40, 60, .05);
+  --ombre-pop: 0 0 0 1px rgba(27, 36, 48, .06), 0 12px 32px -8px rgba(20, 40, 60, .22), 0 4px 10px -4px rgba(20, 40, 60, .08);
+  --voile: rgba(17, 24, 33, .36); --cadre-tel: #11151b;
+  --police: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #0d1015; --papier: #1a2029; --papier-2: #151a21; --barre: #12161c; --survol: rgba(230, 234, 240, .06);
+    --actif-ombre: 0 0 0 1px rgba(230, 234, 240, .08);
+    --encre: #e6eaf0; --gris: #a3adbb; --gris-2: #7d8898; --trait: #2a3340; --trait-fort: #3b4656;
+    --sarcelle: #1fb8a8; --sarcelle-f: #26cbba; --sarcelle-texte: #4fd3c4; --doux: #14302e; --doux-texte: #7fe0d3;
+    --ambre-doux: #3a2c1c; --ambre-texte: #f0b06a; --rouge-doux: #3a2224; --rouge-texte: #f4938d;
+    --bleu-doux: #1c2940; --bleu-texte: #8db4f4;
+    --ombre: none; --ombre-pop: 0 0 0 1px #2a3340, 0 16px 40px -10px rgba(0, 0, 0, .6); --voile: rgba(0, 0, 0, .55); --cadre-tel: #05070a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #0d1015; --papier: #1a2029; --papier-2: #151a21; --barre: #12161c; --survol: rgba(230, 234, 240, .06);
+  --actif-ombre: 0 0 0 1px rgba(230, 234, 240, .08);
+  --encre: #e6eaf0; --gris: #a3adbb; --gris-2: #7d8898; --trait: #2a3340; --trait-fort: #3b4656;
+  --sarcelle: #1fb8a8; --sarcelle-f: #26cbba; --sarcelle-texte: #4fd3c4; --doux: #14302e; --doux-texte: #7fe0d3;
+  --ambre-doux: #3a2c1c; --ambre-texte: #f0b06a; --rouge-doux: #3a2224; --rouge-texte: #f4938d;
+  --bleu-doux: #1c2940; --bleu-texte: #8db4f4;
+  --ombre: none; --ombre-pop: 0 0 0 1px #2a3340, 0 16px 40px -10px rgba(0, 0, 0, .6); --voile: rgba(0, 0, 0, .55); --cadre-tel: #05070a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--encre); font-family: var(--police); font-size: 14px; line-height: 1.45; font-feature-settings: 'cv11', 'ss01'; }
+button { font: inherit; color: inherit; cursor: pointer; }
+b, strong { font-weight: 600; }
+.m { font-variant-numeric: tabular-nums; }
+
+/* ── le bandeau de la maquette (hors application) ── */
+.mq { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--encre); color: var(--papier); padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 10px 18px; align-items: center; flex-wrap: wrap; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 21; background: var(--encre); }
+.mq h1 { font-size: 14px; margin: 0; font-weight: 650; }
+.mq .grp { display: flex; gap: 6px; align-items: center; font-size: 12.5px; opacity: .92; }
+.mq .grp > span { opacity: .7; }
+.mq .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 9px; background: rgba(255,255,255,.12); }
+.mq .seg button { border: 0; background: none; border-radius: 7px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; color: inherit; opacity: .8; }
+.mq .seg button.on { background: var(--papier); color: var(--encre); opacity: 1; }
+.mq .lien { margin-left: auto; border: 1px solid rgba(255,255,255,.3); background: none; border-radius: 8px; padding: 4px 10px; font-size: 12.5px; }
+
+/* ── la coquille de l'application ── */
+.app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: calc(100vh - 48px); }
+.nav { background: var(--barre); border-right: 1px solid var(--trait); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+.nav .ent { display: flex; gap: 9px; align-items: center; font-weight: 650; padding: 4px 6px 12px; }
+.nav .ent i { width: 28px; height: 28px; border-radius: 8px; background: var(--sarcelle); color: #fff; font-style: normal; font-size: 12px; display: grid; place-items: center; }
+.nav a { display: flex; gap: 10px; align-items: center; padding: 7px 9px; border-radius: 8px; color: var(--encre); text-decoration: none; font-size: 14px; }
+.nav a.on { background: var(--papier); box-shadow: var(--actif-ombre); font-weight: 600; }
+.nav a small { margin-left: auto; background: var(--ambre-doux); color: var(--ambre-texte); border-radius: 99px; padding: 0 7px; font-size: 11.5px; font-weight: 700; }
+.nav .t { font-size: 11.5px; color: var(--gris-2); padding: 12px 9px 4px; }
+.page { padding-block: 22px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1180px; width: 100%; margin: 0 auto; min-width: 0; }
+.chemin { font-size: 12.5px; color: var(--gris); }
+.chemin a { color: inherit; text-decoration: none; }
+.chemin a:hover { text-decoration: underline; }
+.tete { display: flex; gap: 12px 20px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; margin: 4px 0 16px; }
+.tete h2 { font-size: 26px; margin: 0; letter-spacing: -.02em; }
+.tete .sous { color: var(--gris); margin-top: 2px; }
+.tete .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn { border: 1px solid var(--trait-fort); background: var(--papier); border-radius: 9px; padding: 8px 13px; font-weight: 600; font-size: 13.5px; display: inline-flex; gap: 7px; align-items: center; }
+.btn:hover { background: var(--papier-2); }
+.btn.p { background: var(--sarcelle); border-color: var(--sarcelle); color: #fff; }
+.btn.p:hover { background: var(--sarcelle-f); }
+.btn.s { padding: 5px 10px; font-size: 12.5px; border-radius: 8px; }
+.btn.g { border-color: transparent; background: none; color: var(--gris); }
+.btn:disabled { opacity: .45; cursor: default; }
+.ico { width: 16px; height: 16px; flex: none; }
+
+/* onglets : noirs ; filtres : gris (Skander, 03/11/2026) */
+.onglets { display: inline-flex; gap: 2px; padding: 3px; background: var(--papier); border: 1px solid var(--trait); border-radius: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.onglets button { border: 0; background: none; padding: 7px 14px; border-radius: 9px; font-weight: 500; color: var(--gris); display: inline-flex; gap: 6px; align-items: center; }
+.onglets button.on { background: var(--encre); color: var(--papier); }
+.onglets small { font-size: 11.5px; opacity: .75; font-weight: 600; }
+.filtre { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--survol); flex-wrap: wrap; }
+.filtre button { border: 0; background: none; border-radius: 8px; padding: 5px 9px; font-size: 12.5px; font-weight: 600; color: var(--gris); }
+.filtre button.on { background: var(--papier); color: var(--encre); box-shadow: var(--actif-ombre); }
+.filtre button.on.abs { color: var(--rouge-texte); }
+.filtre button.on.cg { color: var(--bleu-texte); }
+.filtre button.on.mal { color: var(--ambre-texte); }
+
+.carte { background: var(--papier); border: 1px solid var(--trait); border-radius: 14px; box-shadow: var(--ombre); margin-bottom: 14px; min-width: 0; }
+.carte > h3, .carte .h { margin: 0; padding: 14px 16px 10px; font-size: 15px; font-weight: 650; display: flex; gap: 8px 10px; align-items: baseline; flex-wrap: wrap; }
+.carte .h small, .carte > h3 small { color: var(--gris); font-weight: 400; font-size: 13px; }
+.carte .h .d { margin-left: auto; }
+.pied { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--trait); color: var(--gris); font-size: 13px; }
+.grille2 { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+
+.bandeau { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.bandeau.ambre { background: var(--ambre-doux); color: var(--ambre-texte); }
+.bandeau.vert { background: var(--doux); color: var(--doux-texte); }
+.bandeau .txt { flex: 1 1 300px; display: grid; gap: 1px; }
+.bandeau .txt span { color: var(--encre); opacity: .8; font-size: 13px; }
+.bandeau .btn { margin-left: auto; }
+
+.av { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; flex: none; }
+.ligne { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--trait); flex-wrap: wrap; }
+.ligne .qui { flex: 1 1 140px; min-width: 0; display: grid; gap: 1px; }
+.ligne .qui small { color: var(--gris); font-size: 12.5px; }
+.ligne .fin { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.detail { flex-basis: 100%; display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; padding: 8px 0 2px 46px; font-size: 13px; color: var(--gris); }
+.detail input, .detail select, .champ input, .champ select { font: inherit; font-size: 13px; padding: 6px 9px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--papier); color: var(--encre); }
+.detail input.n { width: 74px; text-align: right; }
+.pas { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 600; background: var(--papier-2); color: var(--gris); border: 1px solid var(--trait); white-space: nowrap; }
+.pas.vert { background: var(--doux); color: var(--doux-texte); border-color: transparent; }
+.pas.ambre { background: var(--ambre-doux); color: var(--ambre-texte); border-color: transparent; }
+.pas.rouge { background: var(--rouge-doux); color: var(--rouge-texte); border-color: transparent; }
+.pas.bleu { background: var(--bleu-doux); color: var(--bleu-texte); border-color: transparent; }
+.vide { padding: 18px 16px; color: var(--gris); display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--trait); }
+.muet { color: var(--gris); }
+.petit { font-size: 12.5px; }
+
+/* gestes rapides */
+.gestes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.geste { border: 1px solid var(--trait); background: var(--papier); border-radius: 12px; padding: 12px; text-align: left; display: grid; gap: 4px; box-shadow: var(--ombre); }
+.geste:hover { border-color: color-mix(in srgb, var(--sarcelle) 45%, var(--trait)); }
+.geste b { display: flex; gap: 8px; align-items: center; }
+.geste span { color: var(--gris); font-size: 12.5px; }
+
+/* le chemin du mois : quatre étapes, chacune s'ouvre */
+.chemin-m { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 16px 16px; }
+.etape { border: 1px solid var(--trait); border-radius: 12px; padding: 12px; text-align: left; background: var(--papier); display: grid; gap: 4px; position: relative; }
+.etape .n { width: 24px; height: 24px; border-radius: 99px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--papier-2); color: var(--gris); border: 1px solid var(--trait-fort); }
+.etape b { font-size: 14px; }
+.etape span { font-size: 12.5px; color: var(--gris); }
+.etape.fait .n { background: var(--sarcelle); color: #fff; border-color: var(--sarcelle); }
+.etape.cours { border-color: var(--sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sarcelle) 15%, transparent); }
+.etape.cours .n { color: var(--sarcelle-texte); border-color: var(--sarcelle); }
+.etape.retard { border-color: color-mix(in srgb, var(--rouge) 50%, var(--trait)); }
+.etape.retard .n { background: var(--rouge-doux); color: var(--rouge-texte); border-color: transparent; }
+.etape.ouverte { background: var(--papier-2); }
+.etape.ouverte::after { content: ""; position: absolute; left: 50%; bottom: -17px; width: 12px; height: 12px; background: var(--papier); border-left: 1px solid var(--trait); border-top: 1px solid var(--trait); transform: translateX(-50%) rotate(45deg); }
+
+/* la grille du pointage du mois */
+.gr { overflow-x: auto; padding: 0 16px 12px; }
+.gr table { border-collapse: separate; border-spacing: 2px; font-size: 11.5px; }
+.gr th { font-weight: 600; color: var(--gris-2); padding: 2px; text-align: center; min-width: 24px; }
+.gr th.nom { text-align: left; min-width: 150px; color: var(--encre); font-size: 13px; }
+.gr td.c { width: 26px; height: 26px; border-radius: 6px; text-align: center; font-weight: 700; background: var(--papier-2); color: var(--gris-2); cursor: pointer; }
+.gr td.c.p, .gr td.c.hs { background: var(--doux); color: var(--doux-texte); }
+.gr td.c.hs { outline: 2px solid var(--sarcelle); outline-offset: -2px; }
+.gr td.c.a { background: var(--rouge-doux); color: var(--rouge-texte); }
+.gr td.c.cg { background: var(--bleu-doux); color: var(--bleu-texte); }
+.gr td.c.ml { background: var(--ambre-doux); color: var(--ambre-texte); }
+.gr td.c.r { background: var(--ambre-doux); color: var(--ambre-texte); outline: 2px solid var(--ambre); outline-offset: -2px; }
+.gr td.c.we { background: none; color: var(--trait-fort); cursor: default; }
+.gr td.c.fu { background: none; border: 1px dashed var(--trait-fort); }
+.gr td.t { padding-left: 10px; white-space: nowrap; color: var(--gris); font-size: 12px; }
+.legende { display: flex; gap: 6px 14px; flex-wrap: wrap; padding: 0 16px 12px; font-size: 12px; color: var(--gris); }
+.legende i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: -2px; margin-right: 5px; }
+
+table.liste { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.liste th { text-align: left; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-2); font-weight: 600; padding: 8px 12px; border-top: 1px solid var(--trait); background: var(--papier-2); white-space: nowrap; }
+table.liste td { padding: 10px 12px; border-top: 1px solid var(--trait); vertical-align: middle; }
+table.liste .r { text-align: right; }
+table.liste tfoot td { font-weight: 650; background: var(--papier-2); }
+table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--trait-fort); border-radius: 7px; background: var(--papier); color: var(--encre); }
+.scroll { overflow-x: auto; }
+.chiffres { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--trait); }
+.chiffres > div { padding: 12px 16px; display: grid; gap: 2px; }
+.chiffres > div + div { border-left: 1px solid var(--trait); }
+.chiffres span { font-size: 12.5px; color: var(--gris); }
+.chiffres b { font-size: 19px; font-variant-numeric: tabular-nums; }
+
+/* l'équipe */
+.equipe { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.sal { background: var(--papier); border: 1px solid var(--trait); border-radius: 14px; padding: 14px; display: grid; gap: 10px; text-align: left; box-shadow: var(--ombre); }
+.sal:hover { border-color: color-mix(in srgb, var(--sarcelle) 45%, var(--trait)); }
+.sal .h1 { display: flex; gap: 10px; align-items: center; }
+.sal .h1 div { display: grid; min-width: 0; }
+.sal .h1 small { color: var(--gris); }
+.sal dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
+.sal dt { color: var(--gris); }
+.sal dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* la fenêtre */
+.voile { position: fixed; inset: 0; background: var(--voile); z-index: 40; display: grid; place-items: center; padding: 16px; }
+.fen { background: var(--papier); border-radius: 16px; box-shadow: var(--ombre-pop); width: min(620px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+.fen .fh { padding: 18px 20px 6px; display: flex; gap: 10px; align-items: flex-start; }
+.fen .fh h4 { margin: 0; font-size: 18px; flex: 1; }
+.fen .fh .x { border: 0; background: none; font-size: 20px; color: var(--gris); line-height: 1; }
+.fen .fc { padding: 6px 20px 14px; overflow: auto; display: grid; gap: 12px; }
+.fen .ff { padding: 12px 20px; border-top: 1px solid var(--trait); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.champ { display: grid; gap: 4px; font-size: 13px; }
+.champ > span { color: var(--gris); font-weight: 500; }
+.champ input, .champ select { width: 100%; padding: 8px 10px; font-size: 14px; }
+.deux { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.choix { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+.choix button { border: 1px solid var(--trait); border-radius: 11px; background: var(--papier); padding: 10px; text-align: left; display: grid; gap: 2px; }
+.choix button.on { border-color: var(--sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sarcelle) 15%, transparent); }
+.choix button span { color: var(--gris); font-size: 12px; }
+.etapes-f { display: flex; gap: 6px; font-size: 12.5px; color: var(--gris); }
+.etapes-f span { padding: 2px 9px; border-radius: 99px; background: var(--papier-2); }
+.etapes-f span.on { background: var(--doux); color: var(--doux-texte); font-weight: 600; }
+.calc { background: var(--papier-2); border-radius: 12px; padding: 12px; display: grid; gap: 6px; font-size: 13.5px; }
+.calc div { display: flex; justify-content: space-between; gap: 10px; }
+.calc .tot { border-top: 1px solid var(--trait); padding-top: 6px; font-weight: 650; }
+.doc { border: 1px solid var(--trait); border-radius: 8px; padding: 18px; background: #fff; color: #1b2430; font-size: 12.5px; display: grid; gap: 8px; }
+.doc h5 { margin: 0; text-align: center; font-size: 14px; letter-spacing: .06em; }
+.doc .pt { border-bottom: 1px dotted #9aa3af; min-width: 80px; display: inline-block; }
+
+.toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--encre); color: var(--papier); padding: 10px 14px; border-radius: 10px; z-index: 60; display: flex; gap: 12px; align-items: center; font-size: 13.5px; box-shadow: var(--ombre-pop); max-width: calc(100% - 32px); }
+.toast button { border: 1px solid rgba(255,255,255,.35); background: none; color: inherit; border-radius: 7px; padding: 3px 9px; font-size: 12.5px; }
+
+/* la note de conception, à droite des écrans */
+.note { border-left: 3px solid var(--sarcelle); background: var(--papier); border-radius: 0 12px 12px 0; padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: var(--gris); box-shadow: var(--ombre); }
+.note b { color: var(--encre); }
+.note ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+
+/* le téléphone */
+.tel-fond { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; padding: 24px 16px 60px; }
+.tel { width: 375px; max-width: 100%; border-radius: 38px; background: var(--cadre-tel); padding: 12px; box-shadow: var(--ombre-pop); }
+.tel .ecr { background: var(--fond); border-radius: 28px; height: 760px; overflow: auto; position: relative; }
+.tel .th { position: sticky; top: 0; z-index: 2; background: var(--papier); padding: 14px 14px 10px; border-bottom: 1px solid var(--trait); display: grid; gap: 2px; }
+.tel .th b { font-size: 18px; }
+.tel .th span { font-size: 12.5px; color: var(--gris); }
+.tel .corps { padding: 12px; display: grid; gap: 10px; }
+.tel .tc { background: var(--papier); border: 1px solid var(--trait); border-radius: 14px; }
+.tel .tl { padding: 12px; border-top: 1px solid var(--trait); display: grid; gap: 8px; }
+.tel .tl:first-child { border-top: 0; }
+.tel .tl .q { display: flex; gap: 10px; align-items: center; }
+.tel .tl .filtre { width: 100%; }
+.tel .tl .filtre button { flex: 1; padding: 9px 4px; min-height: 40px; }
+.tel .bas { position: sticky; bottom: 0; background: var(--papier); border-top: 1px solid var(--trait); padding: 10px 12px max(12px, env(safe-area-inset-bottom, 0px)); }
+.tel .bas .btn { width: 100%; justify-content: center; min-height: 44px; }
+.legende-tel { max-width: 300px; font-size: 13px; color: var(--gris); display: grid; gap: 8px; align-content: start; }
+.legende-tel b { color: var(--encre); }
+
+@media (max-width: 1000px) {
+  .grille2 { grid-template-columns: minmax(0, 1fr); }
+  .gestes, .chemin-m { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chiffres > div:nth-child(3) { border-left: 0; }
+  .etape.ouverte::after { display: none; }
+}
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .nav { display: none; }
+  .deux { grid-template-columns: minmax(0, 1fr); }
+  .detail { padding-left: 0; }
+  .tete h2 { font-size: 22px; }
+  .gestes, .chemin-m { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+
+<div class="mq" role="toolbar" aria-label="Commandes de la maquette">
+  <h1>Maquette · la paie au quotidien</h1>
+  <div class="grp"><span>Le jour :</span><div class="seg" id="mq-jour"></div></div>
+  <div class="grp"><span>Écran :</span><div class="seg" id="mq-ecran"></div></div>
+  <button class="lien" id="mq-pourquoi" type="button">Ce qui change, et pourquoi</button>
+</div>
+<div id="racine"></div>
+<div id="fenetres"></div>
+
+<script>
+'use strict';
+// ───────────── données de l'exemple (fictives) ─────────────
+const COUL = ['#d08a3c', '#4f7fd8', '#7a62c9', '#2f9e7f', '#c4566e'];
+const SAL = [
+  { id: 'ah', nom: 'Ahmed Ben Salah', ini: 'AB', poste: 'Technicien', contrat: 'CDI', depuis: '04/2019', brut: 1450.375, net: 1128.640, paie: 'virement', rib: false, conges: 14.5 },
+  { id: 'in', nom: 'Ines Gharbi', ini: 'IG', poste: 'Assistante administrative', contrat: 'CDI', depuis: '09/2021', brut: 980.000, net: 802.215, paie: 'virement', rib: true, conges: 9 },
+  { id: 'mo', nom: 'Mourad Trabelsi', ini: 'MT', poste: 'Ouvrier', contrat: 'CDD', fin: '31/12/2026', depuis: '01/2026', brut: 720.500, net: 611.730, paie: 'virement', rib: true, conges: 6 },
+  { id: 'sa', nom: 'Salma Jlassi', ini: 'SJ', poste: 'Vendeuse', contrat: 'Essai', fin: '15/11/2026', depuis: '09/2026', brut: 650.000, net: 556.480, paie: 'virement', rib: true, conges: 2 },
+  { id: 'ka', nom: 'Karim Haddad', ini: 'KH', poste: 'Chauffeur-livreur', contrat: 'CDI', depuis: '03/2023', brut: 850.250, net: 707.905, avance: 200, paie: 'espèces', rib: false, conges: 11 },
+];
+const aPayer = s => s.net - (s.avance || 0);
+const totalAPayer = () => SAL.reduce((x, s) => x + aPayer(s), 0);
+const money = n => n.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace(/ /g, ' ') + ' DT';
+const h = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const av = (s, t) => `<span class="av" style="background:${COUL[SAL.indexOf(s) % 5]}${t ? `;width:${t}px;height:${t}px` : ''}">${s.ini}</span>`;
+const IC = {
+  coche: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  argent: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', doc: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', pers: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/>', fleche: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  envoi: '<path d="M4 12l16-8-6 16-2-7z"/>', depot: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', cloche: '<path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/>',
+  alerte: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>', points: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+};
+const ic = (n, t = 16) => `<svg class="ico" style="width:${t}px;height:${t}px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+
+// Novembre 2026 : le 1er est un dimanche. Jours travaillés : du lundi au vendredi (21 jours), le samedi en repos dans l'exemple.
+const JOURS = Array.from({ length: 30 }, (_, i) => { const d = i + 1, w = (d) % 7; return { d, we: w === 0 || w === 1 ? false : false, wd: ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][(d - 1) % 7] }; });
+JOURS.forEach(j => { j.we = j.wd === 'sam.' || j.wd === 'dim.'; });
+const OUVRES = JOURS.filter(j => !j.we).length;
+
+// ───────────── l'état ─────────────
+const MOMENTS = [
+  ['d3', 'mardi 3 nov.', 3], ['d18', 'mercredi 18 nov.', 18], ['d27', 'vendredi 27 nov.', 27], ['vide', 'première fois', 3],
+];
+const S = { moment: 'd18', ecran: 'ordi', onglet: 'jour', etape: null, fiche: null, presence: {}, valide: {}, demandes: null, rappels: null, mois: null, toast: null };
+function initMoment() {
+  const jour = (MOMENTS.find(m => m[0] === S.moment) || MOMENTS[1])[2];
+  S.jour = jour;
+  // Salma est confirmée le 18/11 (« La période d'essai de Salma ») : le 27, elle est en CDI.
+  const sal = SAL.find(x => x.id === 'sa'); sal.contrat = S.moment === 'd27' ? 'CDI' : 'Essai';
+  S.presence = {}; SAL.forEach(s => { S.presence[s.id] = { etat: 'p' }; });
+  // Les jours déjà validés du mois : tous les jours ouvrés passés, sauf la veille au 3 novembre (lundi 2 attend).
+  S.valide = {}; JOURS.filter(j => !j.we && j.d < jour).forEach(j => { S.valide[j.d] = !(S.moment === 'd3' && j.d === 2); });
+  S.validAujourdhui = false;
+  S.demandes = S.moment === 'd3' ? [
+    { id: 'q1', s: 'ka', quoi: 'Une avance de 200,000 DT', pourquoi: 'demandée hier, à retenir sur la paie de novembre', ok: 'Accepter' },
+  ] : S.moment === 'd18' ? [
+    { id: 'q2', s: 'sa', quoi: 'Un congé du lundi 30/11 au mercredi 02/12', pourquoi: '3 jours · il lui reste 2 jours acquis : 1 jour sera sans solde', ok: 'Accepter' },
+    { id: 'q3', s: 'in', quoi: 'Une attestation de travail', pourquoi: 'pour sa banque · elle se prépare toute seule', ok: 'Préparer' },
+    { id: 'q4', s: 'ka', quoi: 'Une avance de 150,000 DT', pourquoi: 'il en a déjà une de 200,000 DT ce mois-ci', ok: 'Accepter' },
+  ] : [
+    { id: 'q5', s: 'mo', quoi: 'Un congé du lundi 21/12 au jeudi 31/12', pourquoi: '8 jours · il lui reste 6 jours : 2 jours seront sans solde', ok: 'Accepter' },
+  ];
+  S.rappels = S.moment === 'd3' ? [
+    { id: 'r3', ic: 'pers', t: 'Ahmed Ben Salah : son RIB manque', d: 'payé par virement : sans RIB, son salaire ne peut pas partir', b: 'Compléter', go: () => fiche('ah') },
+  ] : S.moment === 'd18' ? [
+    { id: 'r4', ic: 'cal', t: 'La période d\'essai de Salma finit le 15/11', d: 'passée il y a 3 jours : la confirmer ou y mettre fin', b: 'Décider', go: () => fenEssai() },
+    { id: 'r5', ic: 'doc', t: 'La déclaration d\'octobre, avant le 28/11', d: '461,430 DT (exemple) · plus que 10 jours', b: 'Voir', go: () => ouvrirMois('oct', 4) },
+    { id: 'r6', ic: 'pers', t: 'Le CDD de Mourad finit le 31/12', d: 'le renouveler ou préparer son départ, un mois avant', b: 'Décider', go: () => fiche('mo') },
+  ] : [
+    { id: 'r7', ic: 'cal', t: 'Le CDD de Mourad finit le 31/12', d: 'le renouveler ou préparer son départ', b: 'Décider', go: () => fiche('mo') },
+  ];
+  // Le mois : où en est chaque étape (novembre ; octobre quand on regarde octobre).
+  S.mois = { cle: 'nov', bulletins: false, payes: false, declare: false, pointageValide: false };
+  S.oct = { bulletins: true, payes: S.moment !== 'd3', declare: false, pointageValide: true };
+  S.etape = null; S.fiche = null;
+}
+
+// ───────────── le pointage de l'exemple ─────────────
+// Une case : p présent, a absent, cg congé, ml malade, r retard ; f : à venir.
+function caseDe(s, j) {
+  if (j.we) return 'we';
+  if (j.d > S.jour || (j.d === S.jour && !S.validAujourdhui)) return 'fu';
+  if (s.id === 'ah' && (j.d === 9 || j.d === 10)) return 'ml';
+  if (s.id === 'mo' && j.d === 12) return 'a';
+  if (s.id === 'sa' && j.d === 5) return 'r';
+  if (s.id === 'in' && j.d >= 23 && j.d <= 24) return 'cg';
+  if (j.d === S.jour) { const e = S.presence[s.id].etat; return e === 'mal' ? 'ml' : e; }
+  return 'p';
+}
+const LETTRE = { p: 'P', a: 'A', cg: 'C', ml: 'M', r: 'R', hs: 'H', we: '', fu: '' };
+const joursTravailles = s => JOURS.filter(j => ['p', 'r', 'hs'].includes(caseDe(s, j))).length;
+const aRegler = () => {
+  const l = [];
+  if (S.jour > 12) l.push({ s: 'mo', t: 'Absent le jeudi 12/11, sans motif', b: 'Dire pourquoi' });
+  if (S.jour > 9) l.push({ s: 'ah', t: 'Malade les 9 et 10/11 : le certificat n\'est pas joint', b: 'Joindre' });
+  return l;
+};
+
+// ───────────── les écrans ─────────────
+function render() {
+  const r = document.getElementById('racine');
+  if (S.ecran === 'tel' && S.moment === 'vide') { S.moment = 'd18'; initMoment(); }
+  document.getElementById('mq-jour').innerHTML = MOMENTS.map(([k, l]) => `<button type="button" data-m="${k}" class="${S.moment === k ? 'on' : ''}">${l}</button>`).join('');
+  document.getElementById('mq-ecran').innerHTML = [['ordi', 'ordinateur'], ['tel', 'téléphone']].map(([k, l]) => `<button type="button" data-e="${k}" class="${S.ecran === k ? 'on' : ''}">${l}</button>`).join('');
+  if (S.ecran === 'tel') { r.innerHTML = telephone(); return; }
+  r.innerHTML = `<div class="app">${nav()}<main class="page">${S.moment === 'vide' ? premiereFois() : S.fiche ? ficheSalarie() : pagePaie()}</main></div>`;
+}
+function nav() {
+  return `<nav class="nav" aria-label="Menu de l'application"><div class="ent"><i>AB</i>Atelier Ben Ammar</div>
+    <a href="#">Accueil</a><a href="#">Factures</a><a href="#">Clients</a><a href="#" class="on">Paie${S.moment !== 'vide' ? `<small>${S.demandes.length + S.rappels.length}</small>` : ''}</a>
+    <div class="t">Tout le reste</div><a href="#">Vendre</a><a href="#">Acheter</a><a href="#">Piloter</a></nav>`;
+}
+
+// Le bouton principal : l'étape suivante, selon le jour (une seule chose verte sur la page).
+function principal() {
+  if (S.moment === 'd3' && !S.oct.payes) return ['Payer les salaires d\'octobre', 'argent', () => ouvrirMois('oct', 3)];
+  if (S.moment === 'd27' && !S.mois.bulletins) return ['Préparer les bulletins de novembre', 'doc', () => ouvrirMois('nov', 2)];
+  if (S.moment === 'd27' && !S.mois.payes) return ['Payer les salaires de novembre', 'argent', () => ouvrirMois('nov', 3)];
+  if (!S.validAujourdhui) return ['Valider la journée', 'coche', () => validerJour()];
+  return null;
+}
+function pagePaie() {
+  const p = principal();
+  const nbDem = S.demandes.length + S.rappels.length;
+  return `<div class="chemin">Accueil › Paie</div>
+    <div class="tete"><div><h2>Paie</h2><div class="sous">${SAL.length} salariés · ${(MOMENTS.find(m => m[0] === S.moment) || [])[1].replace(' nov.', ' novembre 2026')}</div></div>
+      <div class="actions"><button class="btn" data-geste="embaucher">${ic('plus', 15)} Embaucher</button><button class="btn" aria-label="Plus" data-geste="plus">${ic('points', 16)}</button>${p && S.onglet !== 'mois' && p[0] !== 'Valider la journée' ? `<button class="btn p" id="principal">${ic(p[1], 15)} ${p[0]}</button>` : ''}</div></div>
+    <div class="onglets" role="tablist">${[['jour', 'Aujourd\'hui', nbDem], ['mois', 'Le mois', ''], ['equipe', 'L\'équipe', SAL.length]].map(([k, l, n]) => `<button type="button" role="tab" data-onglet="${k}" class="${S.onglet === k ? 'on' : ''}">${l}${n ? ` <small>${n}</small>` : ''}</button>`).join('')}</div>
+    ${S.onglet === 'jour' ? ongletJour() : S.onglet === 'mois' ? ongletMois() : ongletEquipe()}`;
+}
+
+// ── Aujourd'hui : qui est là, ce qu'on me demande, ce qu'il ne faut pas oublier, les gestes de tous les jours
+function ongletJour() {
+  const veille = S.moment === 'd3' && !S.valide[2];
+  const absents = SAL.filter(s => S.presence[s.id].etat !== 'p');
+  return `${S.moment === 'd3' && !S.oct.payes ? `<div class="bandeau ambre">${ic('alerte', 18)}<div class="txt"><b>Octobre n'est pas fini</b><span>Les 5 bulletins sont validés, mais les salaires ne sont pas payés, et la déclaration est à déposer avant le 28/11.</span></div><button class="btn s" data-mois="oct">Finir octobre</button></div>` : ''}
+    <div class="grille2"><div>
+      <section class="carte" id="c-presence"><div class="h">Qui est là aujourd'hui ? <small>${['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][(S.jour - 1) % 7]} ${S.jour}/11 · tout le monde est présent par défaut : tu ne touches qu'à ce qui change</small></div>
+        ${veille ? `<div class="ligne" style="background:var(--ambre-doux)"><span class="muet">${ic('cal', 16)}</span><div class="qui"><b>Lundi 2/11 n'est pas validé</b><small>personne n'y a rien changé : 5 présents</small></div><div class="fin"><button class="btn s" id="val-veille">Valider lundi tel quel</button></div></div>` : ''}
+        ${S.validAujourdhui ? `<div class="vide">${ic('coche', 18)} <span><b>Journée validée</b> à 18:04 · ${absents.length ? `${absents.length} absent${absents.length > 1 ? 's' : ''}` : 'tout le monde était là'} · elle part dans le pointage du mois</span><button class="btn s" id="reouvrir" style="margin-left:auto">Modifier</button></div>`
+          : SAL.map(s => lignePresence(s)).join('')}
+        ${S.validAujourdhui ? '' : `<div class="pied"><span>${SAL.length - absents.length} présent${SAL.length - absents.length > 1 ? 's' : ''}${absents.length ? ` · ${absents.map(s => s.nom.split(' ')[0]).join(', ')} : noté` : ''}</span><button class="btn ${principal() && principal()[0] === 'Valider la journée' ? 'p' : ''}" id="valider-jour">${ic('coche', 15)} Valider la journée</button></div>`}
+      </section>
+      <div class="gestes">
+        ${[['absence', 'cal', 'Une absence', 'sur un ou plusieurs jours'], ['avance', 'argent', 'Une avance', 'retenue sur la prochaine paie'], ['document', 'doc', 'Un document', 'attestation, certificat…'], ['depart', 'pers', 'Un départ', 'fin de CDD, démission…']].map(([k, i, t, d]) => `<button class="geste" data-geste="${k}"><b>${ic(i, 16)} ${t}</b><span>${d}</span></button>`).join('')}
+      </div>
+    </div><div>
+      <section class="carte"><div class="h">Ce qu'on te demande <small>${S.demandes.length || 'rien'}</small></div>
+        ${S.demandes.length ? S.demandes.map(q => { const s = SAL.find(x => x.id === q.s); return `<div class="ligne">${av(s)}<div class="qui"><b>${s.nom.split(' ')[0]} : ${h(q.quoi)}</b><small>${h(q.pourquoi)}</small></div><div class="fin"><button class="btn s g" data-refuse="${q.id}">Refuser</button><button class="btn s" data-accepte="${q.id}">${q.ok}</button></div></div>`; }).join('') : `<div class="vide">${ic('coche', 18)} Rien en attente.</div>`}
+      </section>
+      <section class="carte"><div class="h">À ne pas oublier</div>
+        ${S.rappels.map(x => `<div class="ligne"><span class="muet">${ic(x.ic, 18)}</span><div class="qui"><b>${h(x.t)}</b><small>${h(x.d)}</small></div><div class="fin"><button class="btn s" data-rappel="${x.id}">${x.b}</button></div></div>`).join('')}
+      </section>
+    </div></div>`;
+}
+function lignePresence(s) {
+  const e = S.presence[s.id];
+  const det = e.etat === 'a' ? `<div class="detail">Pourquoi ? <span class="filtre">${[['sans', 'Sans solde'], ['just', 'Justifiée, payée'], ['inc', 'Je ne sais pas encore']].map(([k, l]) => `<button type="button" data-motif="${s.id}:${k}" class="${(e.motif || 'inc') === k ? 'on' : ''}">${l}</button>`).join('')}</span><span class="petit">« Je ne sais pas encore » le garde dans « À régler » pour la fin du mois.</span></div>`
+    : e.etat === 'cg' ? `<div class="detail">Congé payé : il lui reste <b>${s.conges} jours</b>. <label>Jusqu'au <input type="date" value="2026-11-${String(S.jour).padStart(2, '0')}"></label> <span class="petit">un seul jour si tu ne changes rien</span></div>`
+      : e.etat === 'mal' ? `<div class="detail">Malade : <button class="btn s">${ic('depot', 14)} Joindre le certificat</button> <span class="petit">ou plus tard : il reste dans « À régler »</span></div>`
+        : e.etat === 'r' ? `<div class="detail">Arrivé(e) avec <input class="n" value="30"> minutes de retard <span class="petit">rien ne se retient sur la paie sans ton accord</span></div>`
+          : e.etat === 'hs' ? `<div class="detail"><input class="n" value="2"> heures supplémentaires <span class="petit">payées à 125 % (À VÉRIFIER selon ton secteur)</span></div>` : '';
+  return `<div class="ligne">${av(s)}<div class="qui"><b>${s.nom}</b><small>${s.poste}</small></div>
+    <div class="fin"><span class="filtre" role="group" aria-label="Présence de ${s.nom}">${[['p', 'Présent'], ['a', 'Absent'], ['cg', 'Congé'], ['mal', 'Malade'], ['r', 'Retard'], ['hs', 'H. sup']].map(([k, l]) => `<button type="button" data-pres="${s.id}:${k}" class="${e.etat === k ? 'on' : ''}${k === 'a' ? ' abs' : k === 'cg' ? ' cg' : k === 'mal' ? ' mal' : ''}">${l}</button>`).join('')}</span></div>${det}</div>`;
+}
+
+// ── Le mois : les quatre étapes, chacune s'ouvre sur ce qu'il y a à faire
+function etatsMois(m) {
+  const o = m === 'oct' ? S.oct : S.mois;
+  const fin = m === 'oct' || S.jour >= 25;
+  const pt = o.pointageValide ? ['fait', 'Pointage validé', `${m === 'oct' ? 22 : OUVRES} jours, ${SAL.length} salariés`] : [S.jour >= 25 ? '' : 'cours', `${Object.values(S.valide).filter(Boolean).length + (S.validAujourdhui ? 1 : 0)} jours validés sur ${OUVRES}`, aRegler().length ? `${aRegler().length} chose${aRegler().length > 1 ? 's' : ''} à régler` : 'rien à régler'];
+  const bu = o.bulletins ? ['fait', `${SAL.length} bulletins validés`, m === 'oct' ? 'le 30/10' : 'aujourd\'hui'] : fin ? ['cours', 'À préparer', 'tout est prêt, il reste à relire'] : ['', 'À partir du 25/11', 'quand le mois est pointé'];
+  const pa = o.payes ? ['fait', 'Salaires payés', `${money(totalAPayer())}`] : o.bulletins ? [m === 'oct' && S.moment === 'd3' ? 'retard' : 'cours', 'À payer', `${money(totalAPayer())} · 4 virements, 1 en espèces`] : ['', 'Après les bulletins', 'virements et espèces'];
+  const de = o.declare ? ['fait', 'Déclaration déposée', ''] : [o.payes ? 'cours' : '', `Avant le 28/${m === 'oct' ? '11' : '12'}`, o.bulletins ? '461,430 DT (exemple)' : 'retenues et contributions du mois'];
+  return [pt, bu, pa, de];
+}
+function ongletMois() {
+  const m = S.vueMois || 'nov';
+  const et = etatsMois(m);
+  const noms = ['Pointer', 'Bulletins', 'Payer', 'Déclarer'];
+  const ouverte = S.etape || (et.findIndex(x => x[0] === 'cours' || x[0] === 'retard') + 1) || 1;
+  return `<section class="carte"><div class="h"><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span> <small>${m === 'oct' ? 'le mois d\'avant : ce qui reste à finir' : 'le mois en cours'}</small><span class="d petit muet">un mois se fait en 4 étapes ; clique celle que tu veux faire</span></div>
+      <div class="chemin-m">${et.map(([cl, t, d], i) => `<button type="button" class="etape ${cl} ${ouverte === i + 1 ? 'ouverte' : ''}" data-etape="${i + 1}"><span class="n">${cl === 'fait' ? '✓' : i + 1}</span><b>${noms[i]}</b><span><b style="font-size:12.5px;color:var(--encre)">${t}</b>${d ? ` · ${d}` : ''}</span></button>`).join('')}</div></section>
+    ${ouverte === 1 ? etapePointage(m) : ouverte === 2 ? etapeBulletins(m) : ouverte === 3 ? etapePayer(m) : etapeDeclarer(m)}
+    <section class="carte"><div class="h">Ce que ${m === 'oct' ? 'octobre' : 'novembre'} te coûte <small>exemple, calculé avec les taux de tes réglages (À VÉRIFIER avec ton comptable)</small></div>
+      <div class="chiffres"><div><span>Salaires bruts</span><b>${money(SAL.reduce((x, s) => x + s.brut, 0))}</b></div><div><span>Charges de l'employeur</span><b>${money(774.393)}</b></div><div><span>Net des salariés (avances comprises)</span><b>${money(SAL.reduce((x, s) => x + s.net, 0))}</b></div><div><span>Coût total</span><b>${money(SAL.reduce((x, s) => x + s.brut, 0) + 774.393)}</b></div></div></section>`;
+}
+function etapePointage(m) {
+  if (m === 'oct') return `<section class="carte"><div class="vide">${ic('coche', 18)} Le pointage d'octobre est validé : 22 jours, rien à régler.</div></section>`;
+  const reg = aRegler();
+  return `<section class="carte"><div class="h">Le pointage de novembre <small>chaque case s'ouvre ; ce qui est validé chaque soir arrive ici tout seul</small><button class="btn s d" data-geste="absence">${ic('cal', 14)} Une absence sur plusieurs jours</button></div>
+    <div class="gr"><table><thead><tr><th class="nom"></th>${JOURS.map(j => `<th>${j.wd.slice(0, 1).toUpperCase()}<br>${j.d}</th>`).join('')}<th></th></tr></thead><tbody>
+      ${SAL.map(s => `<tr><th class="nom">${s.nom}</th>${JOURS.map(j => { const c = caseDe(s, j); return `<td class="c ${c}" title="${s.nom} · ${j.wd} ${j.d}/11">${LETTRE[c]}</td>`; }).join('')}<td class="t">${joursTravailles(s)} j</td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="legende"><span><i style="background:var(--doux)"></i>présent</span><span><i style="background:var(--rouge-doux)"></i>absent</span><span><i style="background:var(--bleu-doux)"></i>congé</span><span><i style="background:var(--ambre-doux)"></i>malade ou retard</span><span><i style="background:var(--doux);outline:2px solid var(--sarcelle);outline-offset:-2px"></i>heures sup</span><span><i style="border:1px dashed var(--trait-fort)"></i>à venir</span></div>
+    ${reg.length ? `<div class="h" style="padding-top:4px">À régler avant les bulletins <small>${reg.length}</small></div>${reg.map(x => { const s = SAL.find(y => y.id === x.s); return `<div class="ligne">${av(s)}<div class="qui"><b>${s.nom.split(' ')[0]} : ${h(x.t)}</b></div><div class="fin"><button class="btn s">${x.b}</button></div></div>`; }).join('')}` : ''}
+    <div class="pied"><span>${S.jour >= 25 ? 'Le mois est presque fini : relis, règle ce qui reste, et passe aux bulletins.' : `Le mois se valide à la fin, d'un geste ; d'ici là, chaque soir suffit.`}</span>${S.jour >= 25 ? `<button class="btn" data-etape="2">Passer aux bulletins ${ic('fleche', 14)}</button>` : ''}</div></section>`;
+}
+function etapeBulletins(m) {
+  const o = m === 'oct' ? S.oct : S.mois;
+  if (!o.bulletins && m === 'nov' && S.jour < 25) return `<section class="carte"><div class="vide">${ic('cal', 18)} Les bulletins de novembre se préparent à partir du 25/11 : d'ici là, le pointage continue chaque jour.</div></section>`;
+  const prime = { ah: 0, in: 0, mo: 50, sa: 0, ka: 0 };
+  return `<section class="carte"><div class="h">Les bulletins de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.bulletins ? 'validés · ils ne se modifient plus' : 'tout vient du pointage et des fiches ; tu ne remplis que ce qui change ce mois-ci'}</small></div>
+    <div class="scroll"><table class="liste"><thead><tr><th>Salarié</th><th class="r">Jours</th><th class="r">Heures sup</th><th class="r">Absences</th><th class="r">Prime du mois</th><th class="r">Avance retenue</th><th class="r">Net à payer</th></tr></thead><tbody>
+      ${SAL.map(s => `<tr><td><span style="display:flex;gap:10px;align-items:center">${av(s, 28)}<span><b>${s.nom}</b><br><small class="muet">${s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : s.contrat === 'Essai' ? 'confirmée le 18/11' : s.poste}</small></span></span></td>
+        <td class="r m">${m === 'oct' ? 22 : joursTravailles(s)}</td><td class="r m">${s.id === 'ka' ? '4 h' : '—'}</td><td class="r m">${s.id === 'mo' ? '1 j sans solde' : s.id === 'ah' ? '2 j maladie' : s.id === 'in' ? '2 j congé' : '—'}</td>
+        <td class="r">${o.bulletins ? (prime[s.id] ? money(prime[s.id]) : '—') : `<input class="n" value="${prime[s.id] ? '50,000' : ''}" placeholder="0" aria-label="Prime de ${s.nom}">`}</td>
+        <td class="r m">${s.id === 'ka' ? '− 200,000 DT' : '—'}</td><td class="r m"><b>${money(aPayer(s))}</b></td></tr>`).join('')}
+    </tbody><tfoot><tr><td>${SAL.length} salariés</td><td></td><td></td><td></td><td></td><td></td><td class="r m">${money(totalAPayer())}</td></tr></tfoot></table></div>
+    <div class="pied">${o.bulletins ? `<span>Validés le ${m === 'oct' ? '30/10' : '27/11'}. Chaque salarié peut recevoir le sien.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('doc', 14)} Voir les bulletins</button><button class="btn s">${ic('envoi', 14)} Les envoyer aux salariés</button><button class="btn s p" data-etape="3">Payer ${ic('fleche', 14)}</button></span>`
+      : `<span>Rien ne part tant que tu n'as pas validé. Ton comptable peut les relire avant (« Lui demander de relire »).</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">Lui demander de relire</button><button class="btn p" id="valider-bulletins">${ic('coche', 15)} Tout est juste : valider les ${SAL.length} bulletins</button></span>`}</div></section>`;
+}
+function etapePayer(m) {
+  const o = m === 'oct' ? S.oct : S.mois;
+  if (!o.bulletins) return `<section class="carte"><div class="vide">${ic('argent', 18)} On paie après avoir validé les bulletins.</div></section>`;
+  const vir = SAL.filter(s => s.paie === 'virement'), esp = SAL.filter(s => s.paie !== 'virement');
+  return `<section class="carte"><div class="h">Payer les salaires de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.payes ? 'payés le ' + (m === 'oct' ? '02/11' : '30/11') : `${money(totalAPayer())} en tout`}</small></div>
+    <div class="ligne"><span class="muet">${ic('envoi', 18)}</span><div class="qui"><b>Par virement · ${vir.length} salariés · ${money(vir.reduce((x, s) => x + aPayer(s), 0))}</b><small>un seul ordre de virement pour ta banque (BIAT), avec le RIB de chacun${vir.some(s => !s.rib) ? ` · <b style="color:var(--rouge-texte)">le RIB d'Ahmed manque</b>` : ''}</small></div><div class="fin">${vir.some(s => !s.rib) ? '<button class="btn s" data-fiche="ah">Compléter le RIB</button>' : ''}<button class="btn s">${ic('depot', 14)} L'ordre de virement (PDF)</button></div></div>
+    <div class="ligne"><span class="muet">${ic('argent', 18)}</span><div class="qui"><b>En espèces · ${esp.length} salarié · ${money(esp.reduce((x, s) => x + aPayer(s), 0))}</b><small>l'avance de 200,000 DT déjà retenue · un reçu à faire signer à ${esp.map(s => s.nom.split(' ')[0]).join(', ')}</small></div><div class="fin"><button class="btn s">${ic('doc', 14)} Le reçu à signer</button></div></div>
+    <div class="pied"><span>Une fois l'argent parti, dis-le : la trésorerie et la comptabilité le voient, et le bulletin est marqué payé.</span>${o.payes ? `<span class="pas vert">${ic('coche', 12)} payés</span>` : `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : marquer les ${SAL.length} salaires</button>`}</div></section>`;
+}
+function etapeDeclarer(m) {
+  const o = m === 'oct' ? S.oct : S.mois;
+  const lignes = [['Impôt sur le revenu retenu sur les salaires', 298.640], ['Contribution sociale de solidarité', 23.256], ['Taxe de formation professionnelle (TFP)', 93.023], ['FOPROLOS', 46.511]];
+  return `<section class="carte"><div class="h">La déclaration de ${m === 'oct' ? 'octobre' : 'novembre'} <small>à déposer avant le 28/${m === 'oct' ? '11' : '12'} · les montants viennent des bulletins validés</small></div>
+    <div class="scroll"><table class="liste"><tbody>${lignes.map(([t, v]) => `<tr><td>${t}</td><td class="r m">${money(v)}</td></tr>`).join('')}</tbody><tfoot><tr><td>À payer avec la déclaration</td><td class="r m">${money(lignes.reduce((x, l) => x + l[1], 0))}</td></tr></tfoot></table></div>
+    <div class="ligne"><span class="muet">${ic('cal', 18)}</span><div class="qui"><b>La CNSS du 4e trimestre</b><small>octobre, novembre, décembre · à déposer avant le 15/01/2027 · la liste des salaires se prépare toute seule</small></div><div class="fin"><span class="pas">en janvier</span></div></div>
+    <div class="pied"><span>Exemple : les taux et les dates sont À VÉRIFIER avec ton comptable. SkanFact prépare, tu déposes.</span>${o.declare ? `<span class="pas vert">${ic('coche', 12)} déposée</span>` : `<span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('depot', 14)} Le détail (PDF)</button><button class="btn p" id="declarer">${ic('coche', 15)} Je l'ai déposée</button></span>`}</div></section>`;
+}
+
+// ── L'équipe : une carte par salarié ; la fiche s'ouvre au clic
+function ongletEquipe() {
+  return `<div class="equipe">${SAL.map(s => `<button type="button" class="sal" data-fiche="${s.id}"><div class="h1">${av(s, 40)}<div><b>${s.nom}</b><small>${s.poste}</small></div></div>
+      <div>${s.contrat === 'CDI' ? '<span class="pas">CDI</span>' : s.contrat === 'CDD' ? `<span class="pas ambre">CDD jusqu'au ${s.fin}</span>` : `<span class="pas bleu">en essai jusqu'au ${s.fin}</span>`}${s.rib === false && s.paie === 'virement' ? ' <span class="pas rouge">RIB manquant</span>' : ''}</div>
+      <dl><dt>Salaire brut</dt><dd>${money(s.brut)}</dd><dt>Congés restants</dt><dd>${String(s.conges).replace('.', ',')} j</dd><dt>Payé par</dt><dd>${s.paie}</dd></dl></button>`).join('')}
+    <button type="button" class="sal" data-geste="embaucher" style="place-items:center;color:var(--gris);border-style:dashed">${ic('plus', 22)}<b>Embaucher</b><span class="petit">la fiche en trois questions</span></button></div>`;
+}
+function ficheSalarie() {
+  const s = SAL.find(x => x.id === S.fiche);
+  return `<div class="chemin"><a href="#" data-retour>Paie</a> › L'équipe › ${s.nom}</div>
+    <div class="tete"><div style="display:flex;gap:12px;align-items:center">${av(s, 48)}<div><h2>${s.nom}</h2><div class="sous">${s.poste} · ${s.contrat === 'CDI' ? 'CDI' : s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : `en essai jusqu'au ${s.fin}`} · depuis ${s.depuis}</div></div></div>
+      <div class="actions"><button class="btn" data-retour>‹ L'équipe</button><button class="btn" data-geste="document">${ic('doc', 15)} Un document</button><button class="btn" data-geste="depart">Un départ</button>${s.contrat === 'CDD' ? '<button class="btn p" data-geste="renouveler">Renouveler le CDD</button>' : s.rib === false && s.paie === 'virement' ? '<button class="btn p" id="rib">Ajouter son RIB</button>' : ''}</div></div>
+    <div class="grille2"><div>
+      <section class="carte"><div class="h">Son mois <small>novembre</small></div>
+        <div class="chiffres"><div><span>Jours travaillés</span><b>${joursTravailles(s)}</b></div><div><span>Absences</span><b>${s.id === 'mo' ? '1' : s.id === 'ah' ? '2' : '0'}</b></div><div><span>Congés restants</span><b>${String(s.conges).replace('.', ',')} j</b></div><div><span>Net à payer</span><b>${money(aPayer(s))}</b></div></div></section>
+      <section class="carte"><div class="h">Ses bulletins <small>un par mois, validés</small></div>
+        ${['Octobre 2026', 'Septembre 2026', 'Août 2026'].map((mo, i) => `<div class="ligne"><span class="muet">${ic('doc', 18)}</span><div class="qui"><b>${mo}</b><small>net ${money(s.net - i * 3)} · payé par ${s.paie}</small></div><div class="fin"><button class="btn s">Voir</button></div></div>`).join('')}</section>
+    </div><div>
+      <section class="carte"><div class="h">Son contrat</div>
+        <div class="ligne"><div class="qui"><small>Salaire brut mensuel</small><b class="m">${money(s.brut)}</b></div><div class="fin"><button class="btn s">Changer</button></div></div>
+        <div class="ligne"><div class="qui"><small>Paiement</small><b>${s.paie}${s.paie === 'virement' ? (s.rib ? ' · RIB enregistré' : ' · <span style="color:var(--rouge-texte)">RIB manquant</span>') : ''}</b></div></div>
+        <div class="ligne"><div class="qui"><small>Horaires</small><b>du lundi au vendredi, 8 h – 17 h</b></div></div></section>
+      <section class="carte"><div class="h">Ses documents</div>
+        ${[['Contrat de travail', 'signé'], ['Attestation de travail', 'faite le 12/10'], ['Certificat médical du 09/11', 'manquant']].map(([t, e]) => `<div class="ligne"><span class="muet">${ic('doc', 16)}</span><div class="qui"><b>${t}</b></div><div class="fin"><span class="pas ${e === 'manquant' ? 'ambre' : ''}">${e}</span></div></div>`).join('')}</section>
+    </div></div>`;
+}
+
+// ── La première fois : trois questions, puis c'est tout
+function premiereFois() {
+  return `<div class="chemin">Accueil › Paie</div><div class="tete"><div><h2>Paie</h2><div class="sous">Tes salariés, leurs jours, leurs bulletins</div></div></div>
+    <section class="carte" style="padding:22px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start">
+      <div style="display:grid;gap:12px"><span class="av" style="background:var(--doux);color:var(--doux-texte);width:46px;height:46px">${ic('pers', 22)}</span>
+        <h3 style="margin:0;font-size:22px">La paie, en deux minutes par jour</h3>
+        <p class="muet" style="margin:0">Chaque soir, tu dis qui n'était pas là. À la fin du mois, SkanFact prépare les bulletins, l'ordre de virement et la déclaration. Tu relis, tu valides, tu paies.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" data-geste="embaucher">${ic('plus', 15)} Ajouter mon premier salarié</button><button class="btn">Importer depuis un tableur</button></div>
+        <p class="petit muet" style="margin:0">Tu as un comptable ? Il peut faire la paie à ta place, ou la relire : tu choisiras après.</p></div>
+      <div style="display:grid;gap:8px">${[['Tes salariés', 'nom, poste, salaire, contrat : trois questions par personne'], ['Leurs horaires', 'les jours travaillés de l\'entreprise, une seule fois'], ['Chaque soir', 'qui n\'était pas là : un clic, le reste est présent'], ['Chaque fin de mois', 'relire, valider, payer, déclarer : quatre étapes guidées']].map(([t, d], i) => `<div class="ligne" style="border:1px solid var(--trait);border-radius:12px"><span class="av" style="background:var(--sarcelle);width:26px;height:26px">${i + 1}</span><div class="qui"><b>${t}</b><small>${d}</small></div></div>`).join('')}</div>
+    </section>`;
+}
+
+// ── Le téléphone : la même journée, pour le soir, depuis la poche
+function telephone() {
+  const p = principal();
+  return `<div class="tel-fond"><div class="tel"><div class="ecr">
+      <div class="th"><b>Qui est là aujourd'hui ?</b><span>${['dim.', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'sam.'][(S.jour - 1) % 7]} ${S.jour}/11 · tout le monde présent par défaut</span></div>
+      <div class="corps">
+        ${S.demandes.length ? `<div class="bandeau ambre" style="margin:0">${ic('cloche', 16)}<div class="txt"><b>${S.demandes.length} demande${S.demandes.length > 1 ? 's' : ''}</b><span>${h(SAL.find(s => s.id === S.demandes[0].s).nom.split(' ')[0])} : ${h(S.demandes[0].quoi)}</span></div><button class="btn s" data-tel-onglet>Voir</button></div>` : ''}
+        <div class="tc">${S.validAujourdhui ? `<div class="tl">${ic('coche', 18)} <b>Journée validée</b><span class="muet petit">elle part dans le pointage du mois</span><button class="btn s" id="reouvrir">Modifier</button></div>` : SAL.map(s => { const e = S.presence[s.id]; return `<div class="tl"><div class="q">${av(s)}<div style="display:grid"><b>${s.nom}</b><small class="muet">${s.poste}</small></div></div>
+          <span class="filtre" role="group" aria-label="Présence de ${s.nom}">${[['p', 'Là'], ['a', 'Absent'], ['cg', 'Congé'], ['mal', 'Malade'], ['r', 'Retard']].map(([k, l]) => `<button type="button" data-pres="${s.id}:${k}" class="${e.etat === k ? 'on' : ''}${k === 'a' ? ' abs' : k === 'cg' ? ' cg' : k === 'mal' ? ' mal' : ''}">${l}</button>`).join('')}</span></div>`; }).join('')}</div>
+      </div>
+      ${S.validAujourdhui ? '' : `<div class="bas"><button class="btn p" id="valider-jour">${ic('coche', 16)} Valider la journée</button></div>`}
+    </div></div>
+    <div class="legende-tel"><b>Au téléphone, le soir</b><span>La journée tient sur un écran : un seul choix par salarié, de gros boutons, et « Valider » toujours au pouce.</span><span>Les demandes arrivent en haut ; les bulletins, le paiement et la déclaration se font aussi au téléphone, dans « Le mois », comme à l'ordinateur.</span><span>Une vendeuse sans le droit « Paie » ne voit ni salaires ni bulletins : seulement sa propre journée.</span>${p ? `<span>Le bouton vert de l'ordinateur, ce jour-là : <b>${p[0]}</b>.</span>` : ''}</div></div>`;
+}
+
+// ───────────── les fenêtres ─────────────
+function fen(titre, corps, pied) {
+  document.getElementById('fenetres').innerHTML = `<div class="voile" id="voile"><div class="fen" role="dialog" aria-modal="true" aria-label="${h(titre)}"><div class="fh"><h4>${titre}</h4><button class="x" data-fermer aria-label="Fermer">×</button></div><div class="fc">${corps}</div><div class="ff">${pied}</div></div></div>`;
+}
+const fermer = () => { document.getElementById('fenetres').innerHTML = ''; };
+function toast(t, annuler) {
+  clearTimeout(S.toastT);
+  let el = document.getElementById('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; document.body.appendChild(el); }
+  el.hidden = false; el.innerHTML = `${ic('coche', 16)}<span>${t}</span>${annuler ? '<button type="button" id="t-annuler">Annuler</button>' : ''}`;
+  if (annuler) document.getElementById('t-annuler').onclick = () => { annuler(); el.hidden = true; render(); };
+  S.toastT = setTimeout(() => { el.hidden = true; }, 6000);
+}
+let embEtape = 1;
+function fenEmbaucher() {
+  const et = ['Qui ?', 'Son contrat', 'Ce que ça coûte'];
+  const c = embEtape === 1 ? `<div class="deux"><label class="champ"><span>Prénom et nom</span><input value="Nour Mansour"></label><label class="champ"><span>Poste</span><input value="Vendeuse"></label></div><div class="deux"><label class="champ"><span>Téléphone</span><input value="+216 22 345 678"></label><label class="champ"><span>N° CIN</span><input placeholder="facultatif aujourd'hui"></label></div><p class="petit muet" style="margin:0">Le reste (CNSS, RIB, adresse) peut attendre : SkanFact te le rappellera avant la première paie.</p>`
+    : embEtape === 2 ? `<div class="choix">${[['CDI', 'sans date de fin'], ['CDD', 'jusqu\'à une date'], ['Essai d\'abord', 'puis CDI'], ['Stage', 'SIVP, stage…']].map(([t, d], i) => `<button type="button" class="${i === 2 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div><div class="deux"><label class="champ"><span>Arrive le</span><input type="date" value="2026-12-01"></label><label class="champ"><span>Fin de l'essai</span><input type="date" value="2027-02-28"></label></div><div class="deux"><label class="champ"><span>Salaire</span><input value="700,000"></label><label class="champ"><span>C'est le</span><select><option>brut mensuel</option><option>net qu'elle touchera</option></select></label></div>`
+      : `<div class="calc"><div><span>Salaire brut</span><b class="m">${money(700)}</b></div><div><span>Ce qu'elle touchera (net, environ)</span><b class="m">${money(598.420)}</b></div><div><span>Charges de l'entreprise</span><b class="m">${money(116.550)}</b></div><div class="tot"><span>Ce qu'elle te coûtera par mois</span><b class="m">${money(816.550)}</b></div></div><p class="petit muet" style="margin:0">Calculé avec les taux de tes réglages : À VÉRIFIER avec ton comptable. Le contrat se prépare ensuite, prêt à signer.</p>`;
+  fen('Embaucher', `<div class="etapes-f">${et.map((t, i) => `<span class="${embEtape === i + 1 ? 'on' : ''}">${i + 1}. ${t}</span>`).join('')}</div>${c}`,
+    `${embEtape > 1 ? '<button class="btn" id="emb-prec">‹ Retour</button>' : '<button class="btn" data-fermer>Annuler</button>'}<button class="btn p" id="emb-suiv">${embEtape < 3 ? 'Continuer' : 'Ajouter Nour à l\'équipe'}</button>`);
+}
+function fenAbsence() {
+  fen('Une absence sur plusieurs jours', `<label class="champ"><span>Qui ?</span><select>${SAL.map(s => `<option>${s.nom}</option>`).join('')}</select></label>
+    <div class="choix">${[['Congé payé', 'pris sur ses jours acquis'], ['Maladie', 'avec un certificat'], ['Sans solde', 'retenu sur la paie'], ['Autre', 'mariage, naissance, deuil…']].map(([t, d], i) => `<button type="button" class="${i === 0 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
+    <div class="deux"><label class="champ"><span>Du</span><input type="date" value="2026-11-23"></label><label class="champ"><span>Au</span><input type="date" value="2026-11-24"></label></div>
+    <div class="calc"><div><span>Jours ouvrés</span><b>2</b></div><div><span>Il restera</span><b>7 jours de congé</b></div></div>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Absence notée : elle est dans le pointage">Noter l'absence</button>`);
+}
+function fenAvance() {
+  fen('Une avance sur salaire', `<label class="champ"><span>Pour qui ?</span><select>${SAL.map(s => `<option ${s.id === 'ka' ? 'selected' : ''}>${s.nom}</option>`).join('')}</select></label>
+    <div class="deux"><label class="champ"><span>Montant</span><input value="150,000"></label><label class="champ"><span>Retenue</span><select><option>en une fois, sur novembre</option><option>en 2 mois</option><option>en 3 mois</option></select></label></div>
+    <div class="calc"><div><span>Déjà avancé ce mois-ci</span><b class="m">${money(200)}</b></div><div><span>Net de novembre après les deux avances</span><b class="m">${money(357.905)}</b></div></div>
+    <p class="petit muet" style="margin:0">L'argent sort de la caisse ou du compte que tu choisis ; la trésorerie le voit tout de suite.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Avance enregistrée : elle sera retenue sur novembre">Donner l'avance</button>`);
+}
+let docChoix = 0;
+function fenDocument() {
+  const D = [['Attestation de travail', 'il travaille chez toi depuis…'], ['Attestation de salaire', 'pour une banque, un loyer'], ['Certificat de travail', 'à la fin du contrat'], ['Solde de tout compte', 'au départ']];
+  fen('Un document', `<label class="champ"><span>Pour qui ?</span><select>${SAL.map(s => `<option ${s.id === 'in' ? 'selected' : ''}>${s.nom}</option>`).join('')}</select></label>
+    <div class="choix">${D.map(([t, d], i) => `<button type="button" data-doc="${i}" class="${docChoix === i ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
+    <div class="doc"><h5>${D[docChoix][0].toUpperCase()}</h5><p style="margin:0">Je soussigné, gérant de la société Atelier Ben Ammar, matricule fiscal <span class="pt"></span>, atteste que Madame <b>Ines Gharbi</b> est employée dans notre société en qualité d'<b>assistante administrative</b> depuis le <b>01/09/2021</b>, en contrat à durée indéterminée.</p><p style="margin:0">Fait à Tunis, le 18/11/2026.</p><p class="muet" style="margin:0;text-align:right">PROJET · à signer</p></div>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn">${ic('envoi', 14)} L'envoyer à Ines</button><button class="btn p" id="ok-fen" data-msg="Attestation faite : rangée dans la fiche d'Ines">${ic('depot', 14)} Le PDF</button>`);
+}
+function fenEssai() {
+  fen('La période d\'essai de Salma', `<p style="margin:0">Elle a commencé le 15/09/2026 ; l'essai finissait le <b>15/11/2026</b>. Que décides-tu ?</p>
+    <div class="choix">${[['La confirmer', 'elle passe en CDI, une lettre se prépare'], ['Prolonger l\'essai', 'une seule fois, À VÉRIFIER selon le contrat'], ['Y mettre fin', 'son dernier jour, et son solde']].map(([t, d], i) => `<button type="button" class="${i === 0 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>`,
+    `<button class="btn" data-fermer>Plus tard</button><button class="btn p" id="ok-fen" data-msg="Salma est confirmée : la lettre est dans sa fiche" data-rappel-fait="r4">Confirmer Salma</button>`);
+}
+function fenDepart() {
+  fen('Un départ', `<div class="deux"><label class="champ"><span>Dernier jour</span><input type="date" value="2026-12-31"></label><label class="champ"><span>Pourquoi</span><select><option>Fin du CDD</option><option>Démission</option><option>Licenciement</option><option>Retraite</option></select></label></div>
+    <div class="calc"><div><span>Salaire du dernier mois</span><b class="m">${money(611.730)}</b></div><div><span>Congés non pris (6 j)</span><b class="m">${money(166.290)}</b></div><div class="tot"><span>Solde de tout compte (exemple)</span><b class="m">${money(778.020)}</b></div></div>
+    <p class="petit muet" style="margin:0">Les montants sont À VÉRIFIER avec ton comptable. Le certificat de travail et le solde se préparent ensemble.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Départ préparé : certificat et solde dans la fiche">Préparer le départ</button>`);
+}
+function fenPourquoi() {
+  fen('Ce qui change, et pourquoi', `<p style="margin:0"><b>Ce que tu as dit</b> : « je ne trouve rien, je ne comprends rien, je ne vois pas comment l'utiliser » ; « c'est un module qu'on utilise tous les jours ».</p>
+    <div class="note" style="margin:0"><b>Ce qui n'allait pas dans la paie actuelle</b><ul>
+      <li>Le geste de tous les jours (dire qui est là) était caché : Paie › Présences › La journée, trois clics.</li>
+      <li>4 onglets, 11 sous-vues et une bande de 12 mois : la page parlait du logiciel, pas de ta journée.</li>
+      <li>Neuf mois en rouge « en retard » en haut de l'écran : une alarme permanente qui ne dit rien.</li>
+      <li>Le bouton vert disait « Établir les bulletins » le 3 novembre, alors qu'il fallait d'abord payer octobre.</li>
+      <li>Les cinq étapes du mois étaient un dessin : on ne pouvait pas cliquer dessus.</li></ul></div>
+    <div class="note" style="margin:0;border-left-color:var(--ambre)"><b>Ce que propose la maquette</b><ul>
+      <li><b>Trois onglets</b> qui suivent ta vie : <b>Aujourd'hui</b> (chaque jour), <b>Le mois</b> (une fois par mois), <b>L'équipe</b> (de temps en temps).</li>
+      <li>La paie s'ouvre sur <b>« Qui est là aujourd'hui ? »</b> : tout le monde est présent, tu ne touches qu'à ce qui change, puis « Valider la journée ».</li>
+      <li><b>Ce qu'on te demande</b> (congés, avances, attestations) et <b>ce qu'il ne faut pas oublier</b> (fin d'essai, CDD, RIB, déclaration), chacun avec son bouton.</li>
+      <li><b>Le mois en 4 étapes cliquables</b> : pointer, bulletins, payer, déclarer. Chacune s'ouvre sur ce qu'il y a à faire.</li>
+      <li><b>Un seul bouton vert</b>, l'étape suivante selon le jour : change « Le jour » en haut pour le voir changer.</li>
+      <li>Les gestes de tous les jours à portée : une absence, une avance, un document, embaucher.</li>
+      <li>Les réglages, l'historique, l'import, « qui fait ma paie » : dans le menu ⋯, plus au milieu de la page.</li></ul></div>`,
+    `<button class="btn p" data-fermer>Essayer la maquette</button>`);
+}
+
+// ───────────── les gestes ─────────────
+function ouvrirMois(m, etape) { S.fiche = null; S.onglet = 'mois'; S.vueMois = m; S.etape = etape; render(); window.scrollTo({ top: 0 }); }
+function fiche(id) { S.fiche = id; render(); window.scrollTo({ top: 0 }); }
+function validerJour() {
+  S.validAujourdhui = true;
+  const abs = SAL.filter(s => S.presence[s.id].etat !== 'p').length;
+  render(); toast(`Journée du ${S.jour}/11 validée · ${abs ? abs + ' changement' + (abs > 1 ? 's' : '') : 'tout le monde était là'}`, () => { S.validAujourdhui = false; });
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('button, a'); if (!t) return;
+  const d = t.dataset;
+  if (t.tagName === 'A') e.preventDefault();
+  if (d.m) { S.moment = d.m; S.onglet = 'jour'; S.vueMois = 'nov'; initMoment(); render(); return; }
+  if (d.e) { S.ecran = d.e; render(); return; }
+  if (t.id === 'mq-pourquoi') return fenPourquoi();
+  if (d.fermer !== undefined) return fermer();
+  if (d.onglet) { S.onglet = d.onglet; S.fiche = null; S.etape = null; render(); return; }
+  if (d.pres) { const [id, k] = d.pres.split(':'); S.presence[id] = { etat: k }; render(); return; }
+  if (d.motif) { const [id, k] = d.motif.split(':'); S.presence[id].motif = k; render(); return; }
+  if (t.id === 'principal') return principal()[2]();
+  if (t.id === 'valider-jour') return validerJour();
+  if (t.id === 'reouvrir') { S.validAujourdhui = false; render(); return; }
+  if (t.id === 'val-veille') { S.valide[2] = true; render(); toast('Lundi 2/11 validé : 5 présents'); return; }
+  if (d.accepte || d.refuse) { const id = d.accepte || d.refuse; const q = S.demandes.find(x => x.id === id); const i = S.demandes.indexOf(q); S.demandes = S.demandes.filter(x => x.id !== id); render(); toast(`${d.accepte ? (q.ok === 'Préparer' ? 'Attestation préparée' : 'Accepté') : 'Refusé'} · ${SAL.find(s => s.id === q.s).nom.split(' ')[0]} est prévenu(e)`, () => { S.demandes.splice(i, 0, q); }); return; }
+  if (d.rappel) { const r = S.rappels.find(x => x.id === d.rappel); if (r) r.go(); return; }
+  if (d.mois) return ouvrirMois(d.mois, 3);
+  if (d.vue) { S.vueMois = d.vue; S.etape = null; render(); return; }
+  if (d.etape) { S.etape = Number(d.etape); render(); return; }
+  if (t.id === 'valider-bulletins') { S.mois.bulletins = true; S.mois.pointageValide = true; S.etape = 3; render(); toast('5 bulletins de novembre validés', () => { S.mois.bulletins = false; }); return; }
+  if (t.id === 'marquer-payes') { const o = S.vueMois === 'oct' ? S.oct : S.mois; o.payes = true; S.rappels = S.rappels.filter(x => x.id !== 'r1'); S.etape = 4; render(); toast(`Salaires ${S.vueMois === 'oct' ? 'd\'octobre' : 'de novembre'} payés · la trésorerie les voit`, () => { o.payes = false; }); return; }
+  if (t.id === 'declarer') { const o = S.vueMois === 'oct' ? S.oct : S.mois; o.declare = true; S.rappels = S.rappels.filter(x => !['r2', 'r5'].includes(x.id)); render(); toast('Déclaration marquée déposée', () => { o.declare = false; }); return; }
+  if (d.fiche) return fiche(d.fiche);
+  if (d.retour !== undefined) { S.fiche = null; S.onglet = 'equipe'; render(); return; }
+  if (t.id === 'rib') { const s = SAL.find(x => x.id === S.fiche); s.rib = true; render(); toast('RIB d\'Ahmed enregistré'); return; }
+  if (d.geste) {
+    if (d.geste === 'embaucher') { embEtape = 1; return fenEmbaucher(); }
+    if (d.geste === 'absence') return fenAbsence();
+    if (d.geste === 'avance') return fenAvance();
+    if (d.geste === 'document') { docChoix = 0; return fenDocument(); }
+    if (d.geste === 'depart' || d.geste === 'renouveler') return fenDepart();
+    if (d.geste === 'plus') return fen('Plus', `<div class="choix">${[['Les réglages', 'taux, horaires, jours fériés'], ['L\'historique', 'les mois passés, l\'année'], ['Importer', 'des salariés depuis un tableur'], ['Qui fait ma paie ?', 'toi, ton comptable, ou à deux']].map(([a, b]) => `<button type="button"><b>${a}</b><span>${b}</span></button>`).join('')}</div>`, '<button class="btn" data-fermer>Fermer</button>');
+  }
+  if (d.doc) { docChoix = Number(d.doc); return fenDocument(); }
+  if (t.id === 'emb-suiv') { if (embEtape < 3) { embEtape++; return fenEmbaucher(); } fermer(); toast('Nour Mansour ajoutée à l\'équipe · son contrat est prêt à signer'); return; }
+  if (t.id === 'emb-prec') { embEtape--; return fenEmbaucher(); }
+  if (t.id === 'ok-fen') { fermer(); if (d.rappelFait) { S.rappels = S.rappels.filter(x => x.id !== d.rappelFait); render(); } toast(d.msg); return; }
+  if (d.telOnglet !== undefined) { S.ecran = 'ordi'; S.onglet = 'jour'; render(); return; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fermer(); });
+document.addEventListener('click', e => { if (e.target.id === 'voile') fermer(); });
+initMoment();
+render();
+</script>
