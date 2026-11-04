@@ -7,7 +7,7 @@ employée y passe (contrat, avenant, salaire, paiement, documents, départ), et 
 lancement. Ce document suit `02-modules.md` (les modules, leurs portes, le sens des dépendances), `03-droits.md`,
 `04-hors-ligne-et-synchro.md`, `05-obligations-legales.md`, `07-offres-et-prix.md` et `14-fonctions-et-integrations.md` ;
 il s'appuie sur la paie déjà construite (`docs/paie.md`) et sur la maquette `docs/maquettes/paie-v2.html` (deuxième passe
-du 03/11/2026, « Aujourd'hui, Le mois, L'équipe », **à compléter** : Skander, 03/11/2026, « on va encore améliorer la
+du 03/11/2026, « Aujourd'hui, Le mois, L'équipe », **à compléter**, fait le 04/11/2026, § 2.2 : Skander, 03/11/2026, « on va encore améliorer la
 maquette, afin d'être sûr qu'on a rien oublié »). Il a été écrit après cinq recherches (ce que la paie fait, ses liens
 avec le reste, le cadrage, la loi tunisienne, les concurrents), puis relu sous quatre angles (rien d'oublié de
 l'existant, cohérence avec le cadrage, justesse de la loi, simplicité pour un gérant), corrigé, et vérifié une seconde
@@ -59,8 +59,8 @@ ces choix) :
    demande et donner une avance en espèces depuis la caisse marchent sans réseau. Cela retire la ligne « bulletin en
    brouillon sans réseau » du `04`. (Oui : les montants viennent du serveur.) § 7.
 3. **Quand un bulletin ne se modifie plus** : au **paiement ou à la remise**, ou dès que tu le **valides** (ce que dit
-   la maquette). (Au paiement ou à la remise ; avant, « validé » veut dire « relu », et la maquette change sa phrase.
-   Annuler un paiement, par exemple un virement rejeté, reste possible sans rouvrir le bulletin. Une erreur se corrige
+   la maquette). (Au paiement ou à la remise ; avant, « validé » veut dire « relu », et la maquette change sa phrase,
+   ce qu'elle fait depuis le 04/11/2026. Annuler un paiement, par exemple un virement rejeté, reste possible sans rouvrir le bulletin. Une erreur se corrige
    ensuite sur le bulletin suivant, jamais en réécrivant le bulletin payé : cela remplace le « bulletin rectificatif »
    d'une règle du `01`.) § 8.
 4. **Ce qui bloque les bulletins** : ce qui change un montant (une journée pas validée, une absence sans motif) et,
@@ -150,6 +150,17 @@ moteur (§ 3.4) ; et les pièces nouvelles du lancement (planning, dossier compl
 droit « Pointer », salarié à l'heure) **se dessinent d'abord** (règle des écrans, `CLAUDE.md`), dans la suite de
 `paie-v2.html`.
 
+*Fait le 04/11/2026 (avant le lot P2, maquette republiée)* : le titre « Personnel » (barre, chemin, page) ; le menu ⋯ en
+quatre groupes, avec la phrase qui dit où sont l'historique, l'année et « qui pointe » ; l'espace des salariés au plan
+(vague 1, avec la restauration) ; « Toute l'année » dans Le mois (le coût mois par mois, les congés qui restent, la fin
+d'année, À VÉRIFIER) ; un jour vaut le brut ÷ 26 et une heure le brut ÷ 208, comme le moteur (l'exemple d'Ahmed passe
+de − 69,065 à − 55,784 DT). Deux décisions de l'En bref y sont aussi : un bulletin **validé se corrige encore jusqu'au
+paiement**, payé il ne se modifie plus (décision 3) ; **rien ne part par e-mail** au lancement, chacun a son bulletin
+en PDF que le gérant remet (décision 5 : « Les envoyer par e-mail » devient « Les PDF à remettre », et l'attestation
+n'a plus de bouton d'envoi). Les pièces nouvelles se dessinent **avant leur propre lot**, pas avant P2, qui ne les
+touche pas : le droit « Pointer » avant P3, le planning avant P4, le dossier complet, les échéances, le matériel, les
+listes de tâches et le salarié à l'heure avant P5 (§ 10.2).
+
 ---
 
 ## 3. Ce qu'il fait
@@ -214,7 +225,7 @@ anomalies, les équipes, les fériés, la nuit, les retards). Ce qui change :
   veut toujours dire « non payé » ; quelles absences sont payées : À VÉRIFIER avec le comptable et la convention) ; ou
   « je ne sais pas encore », qui la met dans « À régler » (Lancement).
 - **L'effet en DT est celui du moteur.** Aujourd'hui, un jour vaut brut ÷ jours du mois complet (26 par défaut,
-  `compta.js`) ; la maquette montre brut ÷ 21 : elle se corrige. Il existe aussi **deux règles** pour les jours de travail
+  `compta.js`) ; la maquette montrait brut ÷ 21 : elle suit le moteur depuis le 04/11/2026. Il existe aussi **deux règles** pour les jours de travail
   (les congés comptent ceux de l'entreprise, le pointage ceux de l'équipe) : une seule fonction, « les jours de travail
   de ce salarié », servira aux deux (§ 10.1). Le bon diviseur : À VÉRIFIER (Lancement).
 - **Les journées oubliées font une seule ligne** dans « À régler » (« 12 journées pas validées »), et « Les relire et les
@@ -315,8 +326,8 @@ un paiement. Ce qui change :
   bouton « Étaler la retenue », § 11). Le dixième, et le salaire sur lequel il se compte (brut ou net, avec les primes
   fixes) : À VÉRIFIER. Aujourd'hui la paie avertit à 30 % du net, calculé sans les
   primes fixes (Lancement, après réponse).
-- **Remettre** : aujourd'hui SkanFact prépare le PDF et le gérant le remet ou l'envoie lui-même. La maquette promet
-  « Les envoyer par e-mail » : proposition (décision 5 de l'En bref), au lancement on garde « préparer le PDF » ; avec
+- **Remettre** : aujourd'hui SkanFact prépare le PDF et le gérant le remet ou l'envoie lui-même. La maquette promettait
+  « Les envoyer par e-mail » (retiré le 04/11/2026) : proposition (décision 5 de l'En bref), au lancement on garde « préparer le PDF » ; avec
   l'espace des salariés, l'e-mail ne porte qu'un lien, jamais le bulletin joint ; la liste de ce qui part est comptée et
   décidée. Un accusé du salarié (signature, reçu) ; la valeur d'un **livre de paie électronique** et de la signature du
   salarié (Code art. 144) : À VÉRIFIER (Lancement).
@@ -608,7 +619,7 @@ membre relié) (règle du `14` : les tables des vagues ont leur forme posée tô
    refuse aucun et ne scelle rien ; la maquette ajoute que le **gérant** aussi valide les bulletins, et l'écran dit « ils
    ne se modifient plus ». **Proposition** : un bulletin **payé ou remis** est scellé dans le journal inaltérable (chaîne
    d'empreintes) ; avant, il se corrige, et la phrase de la maquette devient « validés : ils se corrigent encore jusqu'au
-   paiement ». **Le paiement est un fait à part du bulletin** : « Annuler un paiement » (une erreur de saisie, un
+   paiement » (fait le 04/11/2026). **Le paiement est un fait à part du bulletin** : « Annuler un paiement » (une erreur de saisie, un
    virement rejeté) écrit un fait de plus, « paiement annulé », sans rouvrir le bulletin ; le bulletin redevient « à
    payer », et le nouveau paiement s'y ajoute. Pour sceller à la remise, le serveur doit d'abord la connaître : `paie.bulletin` reçoit les faits datés du
    circuit (bon à payer, validé, remis, correction proposée et acceptée), et la porte reçoit leurs gestes (lot P3). Une
@@ -867,7 +878,7 @@ Ces questions entrent au `05` § 6, avec leurs interlocuteurs ; c'est le père d
   téléphone » ; le reste de la paie reste « pensé pour l'ordinateur ».
 - `15` : la restauration et le personnel (§ 3.15).
 - `17` : la place de Personnel dans le menu et l'ordre de sortie.
-- `docs/maquettes/paie-v2.html` : les mises à jour du § 2.2.
+- `docs/maquettes/paie-v2.html` : les mises à jour du § 2.2 (faites le 04/11/2026).
 - `README.md` : le document 16 et son entrée au journal.
 
 ---

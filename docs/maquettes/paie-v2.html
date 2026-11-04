@@ -1,4 +1,4 @@
-<title>Paie au quotidien</title>
+<title>Personnel au quotidien</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap">
 <style>
@@ -193,7 +193,7 @@ table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 
 .fen .fh { padding: 18px 20px 6px; display: flex; gap: 10px; align-items: flex-start; }
 .fen .fh h4 { margin: 0; font-size: 18px; flex: 1; }
 .fen .fh .x { border: 0; background: none; font-size: 20px; color: var(--gris); line-height: 1; }
-.fen .fc { padding: 6px 20px 14px; overflow: auto; display: grid; gap: 12px; }
+.fen .fc { padding: 6px 20px 14px; overflow: auto; display: grid; gap: 12px; grid-auto-rows: max-content; }
 .fen .ff { padding: 12px 20px; border-top: 1px solid var(--trait); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .champ { display: grid; gap: 4px; font-size: 13px; }
 .champ > span { color: var(--gris); font-weight: 500; }
@@ -314,7 +314,7 @@ table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 
 </style>
 
 <div class="mq" role="toolbar" aria-label="Commandes de la maquette">
-  <h1>Maquette · la paie au quotidien</h1>
+  <h1>Maquette · le personnel au quotidien</h1>
   <div class="grp"><span>Le jour :</span><div class="seg" id="mq-jour"></div></div>
   <div class="grp"><span>L'entreprise :</span><div class="seg" id="mq-taille"></div></div>
   <div class="grp"><span>Écran :</span><div class="seg" id="mq-ecran"></div></div>
@@ -375,11 +375,14 @@ const IC = {
 const ic = (n, t = 16) => `<svg class="ico" style="width:${t}px;height:${t}px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
 
 // Novembre 2026 : le 1er est un dimanche. Jours travaillés : du lundi au vendredi (21 jours), le samedi en repos dans l'exemple.
+// L'effet en DT d'un jour suit le moteur de la paie (16 § 3.4) : le brut ÷ les jours d'un mois complet (26 par défaut, dans
+// les réglages ; le bon diviseur : À VÉRIFIER), et une heure, le brut ÷ les heures d'un mois complet (208).
 const NOMJ = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const JOURS = Array.from({ length: 30 }, (_, i) => { const d = i + 1, w = (d - 1) % 7; return { d, w, wd: NOMJ[w].slice(0, 3) + '.', we: w === 0 || w === 6 }; });
 const OUVRES = JOURS.filter(j => !j.we).length;
-const prixJour = s => r3(s.brut / OUVRES);
-const prixHeure = s => r3(s.brut / (OUVRES * 8));
+const JOURS_MOIS = 26, HEURES_MOIS = 208;
+const prixJour = s => r3(s.brut / JOURS_MOIS);
+const prixHeure = s => r3(s.brut / HEURES_MOIS);
 // Les heures sup majorées, comptées en millimes entiers (jamais de nombre à virgule pour l'argent).
 const majo = (s, hs) => Math.round(hs * Math.round(prixHeure(s) * 1000) * 125 / 100) / 1000;
 
@@ -496,7 +499,7 @@ function render() {
 }
 function nav() {
   return `<nav class="nav" aria-label="Menu de l'application"><div class="ent"><i>AB</i>Atelier Ben Ammar</div>
-    <a href="#">Accueil</a><a href="#">Factures</a><a href="#">Clients</a><a href="#" class="on">Paie${S.moment !== 'vide' ? `<small>${S.demandes.length + S.rappels.length}</small>` : ''}</a>
+    <a href="#">Accueil</a><a href="#">Factures</a><a href="#">Clients</a><a href="#" class="on">Personnel${S.moment !== 'vide' ? `<small>${S.demandes.length + S.rappels.length}</small>` : ''}</a>
     <div class="t">Tout le reste</div><a href="#">Vendre</a><a href="#">Acheter</a><a href="#">Piloter</a></nav>`;
 }
 
@@ -514,8 +517,8 @@ function pagePaie() {
   const nbDem = S.demandes.length + S.rappels.length;
   // Le bouton vert est en haut, sauf quand la carte qui le porte est déjà sous les yeux (le bandeau d'octobre, la journée).
   const enHaut = p && S.onglet !== 'mois' && p[0] !== 'Valider la journée' && !(S.onglet === 'jour' && finOctobre());
-  return `<div class="chemin">Accueil › Paie</div>
-    <div class="tete"><div><h2>Paie</h2><div class="sous">${SAL.length} salariés${S.taille === 'grand' ? ' · 4 équipes' : ''} · ${(MOMENTS.find(m => m[0] === S.moment) || [])[1].replace(' nov.', ' novembre 2026')}</div></div>
+  return `<div class="chemin">Accueil › Personnel</div>
+    <div class="tete"><div><h2>Personnel</h2><div class="sous">${SAL.length} salariés${S.taille === 'grand' ? ' · 4 équipes' : ''} · ${(MOMENTS.find(m => m[0] === S.moment) || [])[1].replace(' nov.', ' novembre 2026')}</div></div>
       <div class="actions"><button class="btn" data-geste="embaucher">${ic('plus', 15)} Embaucher</button><button class="btn" aria-label="Plus" data-geste="plus">${ic('points', 16)}</button>${enHaut ? `<button class="btn p" id="principal">${ic(p[1], 15)} ${p[0]}</button>` : ''}</div></div>
     <div class="onglets" role="tablist">${[['jour', 'Aujourd\'hui', nbDem], ['mois', 'Le mois', aRegler().length], ['equipe', 'L\'équipe', SAL.length]].map(([k, l, n]) => `<button type="button" role="tab" data-onglet="${k}" class="${S.onglet === k ? 'on' : ''}">${l}${n ? ` <small>${n}</small>` : ''}</button>`).join('')}</div>
     ${S.onglet === 'jour' ? ongletJour() : S.onglet === 'mois' ? ongletMois() : ongletEquipe()}`;
@@ -616,7 +619,7 @@ function ongletMois() {
   const m = S.vueMois || 'nov';
   const et = etatsMois(m);
   const ouverte = S.etape || (et.findIndex(x => x[0] === 'cours' || x[0] === 'retard') + 1) || 1;
-  return `<section class="carte"><div class="h"><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span> <small>${m === 'oct' ? 'le mois d\'avant : ce qui reste à finir' : 'le mois en cours'}</small><span class="d petit muet">un mois se fait en 4 étapes ; clique celle que tu veux faire</span></div>
+  return `<section class="carte"><div class="h"><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span> <small>${m === 'oct' ? 'le mois d\'avant : ce qui reste à finir' : 'le mois en cours'}</small><span class="d" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="petit muet">un mois se fait en 4 étapes ; clique celle que tu veux faire</span><button type="button" class="btn s" data-geste="annee">${ic('cal', 14)} Toute l'année</button></span></div>
       <div class="chemin-m">${et.map(([cl, t, d], i) => `<button type="button" class="etape ${cl} ${ouverte === i + 1 ? 'ouverte' : ''}" data-etape="${i + 1}"><span class="n">${cl === 'fait' ? '✓' : i + 1}</span><b>${NOMS_ET[i]}</b><span><b style="font-size:12.5px;color:var(--encre)">${t}</b>${d ? ` · ${d}` : ''}</span></button>`).join('')}</div></section>
     ${ouverte === 1 ? etapePointage(m) : ouverte === 2 ? etapeBulletins(m) : ouverte === 3 ? etapePayer(m) : etapeDeclarer(m)}
     <section class="carte"><div class="h">Ce que ${m === 'oct' ? 'octobre' : 'novembre'} te coûte <small>exemple, calculé avec les taux de tes réglages (À VÉRIFIER avec ton comptable)</small></div>
@@ -640,14 +643,14 @@ function etapeBulletins(m) {
   const o = m === 'oct' ? S.oct : S.mois;
   if (!o.bulletins && m === 'nov' && S.jour < 25) return `<section class="carte"><div class="vide">${ic('cal', 18)} Les bulletins de novembre se préparent à partir du 25/11 : d'ici là, le pointage continue chaque jour.</div></section>`;
   const reg = m === 'oct' ? [] : aRegler();
-  return `<section class="carte"><div class="h">Les bulletins de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.bulletins ? 'validés · ils ne se modifient plus' : 'tout vient du pointage et des fiches ; tu ne remplis que ce qui change ce mois-ci'}</small></div>
+  return `<section class="carte"><div class="h">Les bulletins de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.payes ? 'payés · ils ne se modifient plus' : o.bulletins ? 'validés · ils se corrigent encore jusqu\'au paiement' : 'tout vient du pointage et des fiches ; tu ne remplis que ce qui change ce mois-ci'}</small></div>
     <div class="scroll"><table class="liste"><thead><tr><th>Salarié</th><th class="r">Jours</th><th class="r">Heures sup</th><th class="r">Absences</th><th class="r">Prime du mois</th><th class="r">Avance retenue</th><th class="r">Net à payer</th></tr></thead><tbody>
       ${SAL.map(s => { const c = compteMois(s); const abs = [c.a ? `${c.a} j absent` : '', c.mal ? `${c.mal} j maladie` : '', c.cg ? `${c.cg} j congé` : ''].filter(Boolean).join(', ') || '—'; return `<tr><td><span style="display:flex;gap:10px;align-items:center">${av(s, 28)}<span><b>${s.nom}</b><br><small class="muet">${s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : s.id === 'sa' && s.contrat === 'CDI' ? 'confirmée en CDI le 20/11' : s.poste}</small></span></span></td>
         <td class="r m">${m === 'oct' ? 22 : joursTravailles(s)}</td><td class="r m">${m === 'oct' ? '—' : c.hs ? `${c.hs} h` : '—'}</td><td class="r m">${m === 'oct' ? '—' : abs}</td>
         <td class="r">${o.bulletins ? (s.id === 'mo' ? money(50) : '—') : `<input class="n" value="${s.id === 'mo' ? '50,000' : ''}" placeholder="0" aria-label="Prime de ${s.nom}">`}</td>
         <td class="r m">${s.avance ? `− ${money(s.avance)}` : '—'}</td><td class="r m"><b>${money(aPayer(s))}</b></td></tr>`; }).join('')}
     </tbody><tfoot><tr><td>${SAL.length} salariés</td><td></td><td></td><td></td><td></td><td></td><td class="r m">${money(totalAPayer())}</td></tr></tfoot></table></div>
-    <div class="pied">${o.bulletins ? `<span>Validés le ${m === 'oct' ? '30/10' : '27/11'}. Chacun peut recevoir le sien par e-mail.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('doc', 14)} Voir les bulletins</button><button class="btn s">${ic('envoi', 14)} Les envoyer par e-mail</button><button class="btn s p" data-etape="3">Payer ${ic('fleche', 14)}</button></span>`
+    <div class="pied">${o.bulletins ? `<span>Validés le ${m === 'oct' ? '30/10' : '27/11'}. Chacun a son bulletin en PDF : tu le remets ou l'envoies toi-même.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('doc', 14)} Voir les bulletins</button><button class="btn s">${ic('depot', 14)} Les PDF à remettre</button><button class="btn s p" data-etape="3">Payer ${ic('fleche', 14)}</button></span>`
       : reg.length ? `<span>Le mois a encore ${reg.length} chose${reg.length > 1 ? 's' : ''} à régler (une absence sans motif change la paie).</span><button class="btn p" data-etape="1">Régler ${reg.length === 1 ? 'la chose' : `les ${reg.length} choses`} d'abord ${ic('fleche', 14)}</button>`
         : `<span>Rien ne part tant que tu n'as pas validé. Ton comptable peut les relire avant (« Lui demander de relire »).</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">Lui demander de relire</button><button class="btn p" id="valider-bulletins">${ic('coche', 15)} Tout est juste : valider les ${SAL.length} bulletins</button></span>`}</div></section>`;
 }
@@ -658,7 +661,7 @@ function etapePayer(m) {
   return `<section class="carte"><div class="h">Payer les salaires de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.payes ? 'payés le ' + (m === 'oct' ? '02/11' : '30/11') : `${money(totalAPayer())} en tout`}</small></div>
     <div class="ligne"><span class="muet">${ic('envoi', 18)}</span><div class="qui"><b>Par virement · ${vir.length} salariés · ${money(vir.reduce((x, s) => x + aPayer(s), 0))}</b><small>un seul ordre de virement pour ta banque (BIAT), avec le RIB de chacun${sansRib.length ? ` · <b style="color:var(--rouge-texte)">le RIB ${sansRib.map(s => `d'${prenom(s)}`).join(', ')} manque</b>` : ''}</small></div><div class="fin">${sansRib.length ? `<button class="btn s" data-fiche="${sansRib[0].id}">Compléter le RIB</button>` : ''}<button class="btn s">${ic('depot', 14)} L'ordre de virement (PDF)</button></div></div>
     <div class="ligne"><span class="muet">${ic('argent', 18)}</span><div class="qui"><b>En espèces · ${esp.length} salarié · ${money(esp.reduce((x, s) => x + aPayer(s), 0))}</b><small>l'avance de 200,000 DT déjà retenue · un reçu à faire signer à ${esp.map(prenom).join(', ')}</small></div><div class="fin"><button class="btn s">${ic('doc', 14)} Le reçu à signer</button></div></div>
-    <div class="pied"><span>Une fois l'argent parti, dis-le : la trésorerie et la comptabilité le voient, et le bulletin est marqué payé.</span>${o.payes ? `<span class="pas vert">${ic('coche', 12)} payés</span>` : `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : marquer les ${SAL.length} salaires</button>`}</div></section>`;
+    <div class="pied"><span>Une fois l'argent parti, dis-le : la trésorerie et la comptabilité le voient, et le bulletin est marqué payé ; il ne se modifie plus (une erreur se corrige sur le bulletin suivant).</span>${o.payes ? `<span class="pas vert">${ic('coche', 12)} payés</span>` : `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : marquer les ${SAL.length} salaires</button>`}</div></section>`;
 }
 function etapeDeclarer(m) {
   const o = m === 'oct' ? S.oct : S.mois;
@@ -678,7 +681,7 @@ function ongletEquipe() {
 }
 function ficheSalarie() {
   const s = SAL.find(x => x.id === S.fiche), c = compteMois(s);
-  return `<div class="chemin"><a href="#" data-retour>Paie</a> › L'équipe › ${s.nom}</div>
+  return `<div class="chemin"><a href="#" data-retour>Personnel</a> › L'équipe › ${s.nom}</div>
     <div class="tete"><div style="display:flex;gap:12px;align-items:center">${av(s, 48)}<div><h2>${s.nom}</h2><div class="sous">${s.poste} · ${s.eq} · ${s.contrat === 'CDI' ? 'CDI' : s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : `en essai jusqu'au ${s.fin}`} · depuis ${s.depuis}</div></div></div>
       <div class="actions"><button class="btn" data-retour>‹ L'équipe</button><button class="btn" data-geste="document">${ic('doc', 15)} Un document</button><button class="btn" data-geste="depart">Un départ</button>${s.contrat === 'CDD' ? '<button class="btn p" data-geste="renouveler">Renouveler le CDD</button>' : s.rib === false && s.paie === 'virement' ? '<button class="btn p" id="rib">Ajouter son RIB</button>' : ''}</div></div>
     <div class="grille2"><div>
@@ -698,7 +701,7 @@ function ficheSalarie() {
 
 // ── La première fois : quatre étapes, puis c'est tout
 function premiereFois() {
-  return `<div class="chemin">Accueil › Paie</div><div class="tete"><div><h2>Paie</h2><div class="sous">Tes salariés, leurs jours, leurs bulletins</div></div></div>
+  return `<div class="chemin">Accueil › Personnel</div><div class="tete"><div><h2>Personnel</h2><div class="sous">Tes salariés, leurs jours, leurs bulletins</div></div></div>
     <section class="carte" style="padding:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;align-items:start">
       <div style="display:grid;gap:12px"><span class="av" style="background:var(--doux);color:var(--doux-texte);width:46px;height:46px">${ic('pers', 22)}</span>
         <h3 style="margin:0;font-size:22px">La paie, en deux minutes par jour</h3>
@@ -797,7 +800,30 @@ function fenDocument() {
   fen('Un document', `<label class="champ"><span>Pour qui ?</span><select>${SAL.map(s => `<option ${s.id === 'in' ? 'selected' : ''}>${s.nom}</option>`).join('')}</select></label>
     <div class="choix">${D.map(([t, d], i) => `<button type="button" data-doc="${i}" class="${docChoix === i ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
     <div class="doc"><h5>${D[docChoix][0].toUpperCase()}</h5><p style="margin:0">Je soussigné, gérant de la société Atelier Ben Ammar, matricule fiscal <span class="pt"></span>, atteste que Madame <b>Ines Gharbi</b> est employée dans notre société en qualité d'<b>assistante administrative</b> depuis le <b>01/09/2021</b>, en contrat à durée indéterminée.</p><p style="margin:0">Fait à Tunis, le ${S.jour}/11/2026.</p><p class="muet" style="margin:0;text-align:right">PROJET · à signer</p></div>`,
-    `<button class="btn" data-fermer>Annuler</button><button class="btn">${ic('envoi', 14)} L'envoyer à Ines par e-mail</button><button class="btn p" id="ok-fen" data-msg="Attestation faite : rangée dans la fiche d'Ines">${ic('depot', 14)} Le PDF</button>`);
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Attestation faite : rangée dans la fiche d'Ines">${ic('depot', 14)} Le PDF</button>`);
+}
+// Le menu ⋯ garde tous les gestes de la paie d'aujourd'hui (16 § 2.2), rangés en quatre groupes.
+const PLUS = [
+  ['Ce mois', [['Le journal de paie', 'le mois, salarié par salarié'], ['L\'ordre de virement', 'pour ta banque, les RIB contrôlés'], ['Les primes et retenues du mois', 'une par une, ou « Coller depuis un tableur »']]],
+  ['Les salariés', [['Le registre du personnel', 'la liste que l\'inspection du travail peut demander'], ['Un document', 'attestation, certificat, solde de tout compte…'], ['Importer', 'des salariés depuis un tableur, la pointeuse']]],
+  ['Calculer', [['Combien coûte une embauche ?', 'le brut, le net et ce que ça te coûte'], ['Augmenter les salaires en lot', 'un pourcentage ou un montant, à une date'], ['Une saisie sur salaire reçue', 'la part retenue chaque mois'], ['Un départ', 'fin de CDD, démission, licenciement : ce qui est dû']]],
+  ['Réglages', [['Les réglages de la paie', 'taux, horaires, équipes, jours fériés'], ['Qui fait ma paie ?', 'toi, ton comptable, ou à deux']]],
+];
+function fenPlus() {
+  return fen('Plus', PLUS.map(([g, l]) => `<div><div class="petit muet" style="font-weight:600;margin:0 0 6px">${g}</div><div class="choix">${l.map(([a, b]) => `<button type="button"><b>${a}</b><span>${b}</span></button>`).join('')}</div></div>`).join('')
+    + '<p class="petit muet" style="margin:0">L\'historique de chacun est dans sa fiche ; l\'année, dans Le mois › Toute l\'année ; qui pointe, dans les quatre questions du pointage.</p>', '<button class="btn" data-fermer>Fermer</button>');
+}
+// L'année n'a qu'une place (16 § 2) : « Toute l'année », dans Le mois. Le coût du personnel mois par mois, les congés qui
+// restent à chacun, la fin de l'année (exemple).
+function fenAnnee() {
+  const MS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre'];
+  const brut = SAL.reduce((x, s) => x + s.brut, 0), cout = r3(brut + charges());
+  const etat = i => i < 9 ? '<span class="pas vert">payé, déclaré</span>' : i === 9 ? (S.oct.payes ? '<span class="pas ambre">payé · à déclarer</span>' : '<span class="pas rouge">à payer</span>') : '<span class="pas">en cours</span>';
+  return fen('Toute l\'année 2026', `<p class="petit muet" style="margin:0">La seule place de l'année : ce que le personnel a coûté, les congés qui restent, et la fin de l'année (exemple).</p>
+    <div class="scroll"><table class="liste"><thead><tr><th>Mois</th><th class="r">Salaires bruts</th><th class="r">Coût total</th><th>Où il en est</th></tr></thead><tbody>${MS.map((m, i) => `<tr><td>${cap(m)}</td><td class="r m">${money(brut)}</td><td class="r m">${money(cout)}</td><td>${etat(i)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>De janvier à novembre</td><td class="r m">${money(r3(brut * 11))}</td><td class="r m">${money(r3(cout * 11))}</td><td></td></tr></tfoot></table></div>
+    <div class="scroll"><table class="liste"><thead><tr><th>Congés</th><th class="r">Il lui reste</th></tr></thead><tbody>${SAL.map(s => `<tr><td>${h(s.nom)}</td><td class="r m">${virg(s.conges)} j</td></tr>`).join('')}</tbody></table></div>
+    <div class="note" style="margin:0"><b>La fin de l'année</b> : la déclaration annuelle d'employeur (un salarié par ligne, début 2027 : À VÉRIFIER) ; les congés qui restent passent ou non sur 2027 selon la règle du report (À VÉRIFIER avec ton comptable).</div>`, '<button class="btn" data-fermer>Fermer</button>');
 }
 function fenEssai() {
   fen('La période d\'essai de Salma', `<p style="margin:0">Elle a commencé le 20/09/2026 ; l'essai finit le <b>vendredi 20/11/2026</b>, dans 2 jours. Que décides-tu ?</p>
@@ -847,7 +873,7 @@ function fenPourquoi() {
       <li><b>Un seul bouton vert</b>, l'étape suivante selon le jour : change « Le jour » en haut pour le voir changer.</li></ul></div>
     <div class="note" style="margin:0;border-left-color:var(--bleu-texte)"><b>Ma relecture « tous les jours », et ce que j'ai corrigé</b><ul>
       <li><b>Six boutons par salarié, c'était du bruit</b> : on ne voyait pas qui avait changé. Il en reste quatre (là, absent, congé, malade) ; le retard et les heures sup <b>s'ajoutent</b> à « là » (on peut être là et en retard), et la ligne qui change se colore.</li>
-      <li><b>Chaque choix dit ce qu'il fait</b> sur le bulletin, au millime (« − 69,065 DT sur son brut »), comme la paie actuelle le faisait déjà.</li>
+      <li><b>Chaque choix dit ce qu'il fait</b> sur le bulletin, au millime (« − 55,784 DT sur son brut »), comme la paie actuelle le faisait déjà.</li>
       <li><b>Un congé accepté arrive tout seul sur ses jours</b> (Ines, le 18) : ce jour-là, il n'y a rien à faire.</li>
       <li><b>Corriger hier</b> : la semaine au-dessus de la liste ; un point orange dit le jour pas validé. Dans la grille, chaque case s'ouvre vraiment.</li>
       <li><b>À 27 salariés</b> (essaie « L'entreprise : 27 salariés ») : une recherche, les équipes repliées quand tout le monde est là, la pointeuse qui n'a rien à valider, et chaque chef d'équipe qui pointe la sienne.</li>
@@ -856,7 +882,15 @@ function fenPourquoi() {
       <li><b>Le 3 novembre, un seul bouton vert</b> (payer octobre, dans le bandeau), plus trois.</li>
       <li><b>Au clavier</b> : ↑ ↓ pour passer d'un salarié à l'autre, une lettre pour noter.</li>
       <li><b>Au téléphone</b> : une ligne par salarié, on touche le nom, de gros boutons ; les demandes au pouce ; Le mois aussi (valider, payé, déclaré) ; sans réseau, ce qu'on note attend.</li>
-      <li><b>Les demandes disent qui les a notées</b> : il n'y a pas d'espace pour les salariés au plan, c'est toi ou un chef d'équipe qui les notes.</li></ul></div>`,
+      <li><b>Les demandes disent qui les a notées</b> : l'espace des salariés est au plan (proposé pour la vague 1, avec la restauration) ; d'ici là, c'est toi ou un chef d'équipe qui les notes.</li></ul></div>
+    <div class="note" style="margin:0;border-left-color:var(--ambre)"><b>Complétée le 04/11/2026, avant de refaire les écrans</b> (cadrage du Personnel, § 2.2)<ul>
+      <li>Le module s'appelle <b>Personnel</b> : la vie de tes salariés, pas seulement leurs bulletins.</li>
+      <li>Le menu <b>⋯ garde tous les gestes</b> de la paie d'aujourd'hui, en quatre groupes : ce mois, les salariés, calculer, les réglages.</li>
+      <li><b>L'année n'a qu'une place</b> : « Toute l'année », dans Le mois.</li>
+      <li><b>L'effet en DT est celui du moteur</b> : un jour vaut le brut ÷ 26 (les jours d'un mois complet, réglables ; le bon diviseur : À VÉRIFIER), et non plus le brut ÷ 21.</li>
+      <li><b>L'espace des salariés</b> est au plan : la phrase le dit.</li>
+      <li><b>Un bulletin validé se corrige encore</b> jusqu'au paiement ; payé, il ne se modifie plus (décision 3 du cadrage).</li>
+      <li><b>Rien ne part par e-mail</b> au lancement : chacun a son bulletin en PDF, que tu remets (décision 5).</li></ul></div>`,
     `<button class="btn p" data-fermer>Essayer la maquette</button>`);
 }
 
@@ -926,7 +960,8 @@ document.addEventListener('click', e => {
     if (d.geste === 'demande') return fenDemande();
     if (d.geste === 'document') { docChoix = 0; return fenDocument(); }
     if (d.geste === 'depart' || d.geste === 'renouveler') return fenDepart();
-    if (d.geste === 'plus') return fen('Plus', `<div class="choix">${[['Les réglages', 'taux, horaires, équipes, jours fériés'], ['L\'historique', 'les mois passés, l\'année'], ['Importer', 'des salariés, la pointeuse'], ['Qui fait ma paie ?', 'toi, ton comptable, ou à deux'], ['Qui pointe ?', 'les chefs d\'équipe et leur droit']].map(([a, b]) => `<button type="button"><b>${a}</b><span>${b}</span></button>`).join('')}</div>`, '<button class="btn" data-fermer>Fermer</button>');
+    if (d.geste === 'plus') return fenPlus();
+    if (d.geste === 'annee') return fenAnnee();
   }
   if (d.doc) { docChoix = Number(d.doc); return fenDocument(); }
   if (t.id === 'emb-suiv') { if (embEtape < 3) { embEtape++; return fenEmbaucher(); } fermer(); toast('Nour Mansour ajoutée à l\'équipe · son contrat est prêt à signer'); return; }
