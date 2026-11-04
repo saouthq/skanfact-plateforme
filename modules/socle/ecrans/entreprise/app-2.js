@@ -2978,12 +2978,12 @@
     // Ouvrir ce d'où vient une échéance : sa pièce, son bulletin, son mouvement, la paie, le calendrier fiscal.
     const ouvrirEcheance = e => {
       const src = e.source || '';
-      if (e.kind === 'salaire' || src === 'paie') { const sl = (data.payslips || []).find(x => x.id === e.id); if (sl) payslipForm(sl, (data.employees || []).find(x => x.id === sl.employeeId), sl.year, sl.month, () => draw()); return; }
-      if (e.kind === 'salaire-prevu') return navigate('#/paie');
+      // (17 § 3.3, lot P1b) Une sortie prévue d'un module du bas (un salaire, une avance) : il dit lui-même comment l'ouvrir.
+      const sortie = Socle.lire('sorties-prevues').find(s => s.ouvre(e));
+      if (sortie) return sortie.ouvrir(e, () => draw());
       if (e.kind === 'fiscal') return vers('#/compta', () => { comptaState.tab = 'calendrier'; })();
       if (e.kind === 'repete') { const m = (data.movements || []).find(x => x.id === e.movementId); if (m) movementForm(m, () => draw()); return; }
       if (src === 'libre') { const m = (data.movements || []).find(x => x.id === e.id); if (m) movementForm(m, () => draw()); return; }
-      if (src === 'avance') { const a = (data.advances || []).find(x => x.id === e.id); if (a) advanceForm(a, a.employeeId, () => draw()); return; }
       navigate(e.kind === 'client' || src === 'vente' ? '#/doc/' + e.id : e.kind === 'fournisseur' || src === 'achat' ? '#/achat/' + e.id : '#/contrat/' + e.id);
     };
     // L'essai « et si je décale ce paiement ? » : une autre date pour une échéance, sans rien enregistrer.
@@ -4963,7 +4963,7 @@
                       <table class="list compact"><tbody>
                         ${checks.map(c => `<tr class="${c.level === 'danger' ? 'row-warn' : ''}"><td><strong>${h(c.label)}</strong><div class="small muted">${h(c.detail)}</div></td>
                           <td class="r nw">${c.count == null ? '' : c.count}</td>
-                          <td class="r nw">${CHECK_ACTIONS[c.id] ? `<button class="btn btn-sm" data-check="${h(c.id)}">${h(CHECK_ACTIONS[c.id].label)}</button>` : ''}</td></tr>`).join('')}
+                          <td class="r nw">${actionDeControle(c.id) ? `<button class="btn btn-sm" data-check="${h(c.id)}">${h(actionDeControle(c.id).label)}</button>` : ''}</td></tr>`).join('')}
                       </tbody></table>
                       <p class="small muted">Tu peux clôturer quand même : ces points sont là pour que tu les voies, pas pour t'empêcher d'avancer.</p>
                     </div>`
@@ -5019,7 +5019,7 @@
       // les ouvrir, alors que la même liste porte ses boutons à un onglet de distance (Cabinet).
       // Même table, même branchement — un manque qu'on ne peut pas ouvrir n'est pas un manque,
       // c'est un reproche.
-      $$('[data-check]').forEach(b => b.onclick = () => CHECK_ACTIONS[b.dataset.check].run(checks.find(c => c.id === b.dataset.check)));
+      $$('[data-check]').forEach(b => b.onclick = () => actionDeControle(b.dataset.check).run(checks.find(c => c.id === b.dataset.check)));
 
       // 9.8.0 — le flux RETOUR. Le fichier de clôture pose les à-nouveaux OFFICIELS du comptable et
       // verrouille l'exercice : on montre donc ce qui va changer AVANT d'écrire quoi que ce soit.
@@ -5292,7 +5292,7 @@
             : plan.checklist.length
             ? `<table class="list compact"><tbody>${plan.checklist.map(c => `<tr class="${c.level === 'danger' ? 'row-warn' : ''}">
                 <td><strong>${h(c.label)}</strong><div class="small muted">${h(c.detail)}</div></td><td class="r nw">${c.count}</td>
-                <td class="r nw">${CHECK_ACTIONS[c.id] ? `<button class="btn btn-sm" data-check="${h(c.id)}">${h(CHECK_ACTIONS[c.id].label)}</button>` : ''}</td></tr>`).join('')}</tbody></table>
+                <td class="r nw">${actionDeControle(c.id) ? `<button class="btn btn-sm" data-check="${h(c.id)}">${h(actionDeControle(c.id).label)}</button>` : ''}</td></tr>`).join('')}</tbody></table>
                <p class="small muted mt">Ces points figureront sur la page de garde du paquet. Le comptable saura quoi te réclamer — c'est mieux qu'un dossier qu'il croit complet.</p>`
             : '<p class="small" style="color:var(--primary)">Rien à signaler : le dossier du mois est complet.</p>'}
         </div>
@@ -5429,7 +5429,7 @@
       $$('[data-reveal]').forEach(b2 => { if (b2.dataset.reveal) b2.onclick = () => bridge.showInFolder(b2.dataset.reveal); });
       // Chaque manque mène aux pièces concernées, filtrées. Le `if` n'est pas une précaution : la
       // table est complète par construction, et un test le vérifie contre `core.packChecklist`.
-      $$('[data-check]').forEach(b => b.onclick = () => CHECK_ACTIONS[b.dataset.check].run(plan.checklist.find(c => c.id === b.dataset.check)));
+      $$('[data-check]').forEach(b => b.onclick = () => actionDeControle(b.dataset.check).run(plan.checklist.find(c => c.id === b.dataset.check)));
       $('#cab-build').onclick = async () => {
         // Les contrôles de saisie d'abord, la grande question ensuite : poser une question de fond
         // puis refuser sur un champ trop court, c'est faire répondre pour rien.
@@ -5516,8 +5516,8 @@
         }
         comptaState.tab = 'tva'; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'tva'));
       },
-      cnss: () => { paieState.tab = 'declarations'; navigate('#/paie'); },
-      employeur: () => { paieState.tab = 'declarations'; navigate('#/paie'); }
+      // (17 § 3.3, lot P1b) La CNSS et la déclaration d'employeur : le Personnel dit où elles se préparent.
+      ...Object.fromEntries(Socle.lire('declarations-sociales').map(d => [d.id, d.preparer]))
     };
     function drawFiscal() {
       const rules = C.fiscalDeadlines(data);
@@ -5588,10 +5588,12 @@
           save(true); draw();
         });
       });
+      // (plateforme, 16 § 10.1-6 ; 17 lot P1b) Une déclaration sociale passe par le Personnel, qui remplit le point
+      // « declarations-sociales » : payée, la question dit que le paiement part.
+      const retirerSociale = (id, label, apres) => { const d = Socle.lire('declarations-sociales').find(x => x.retirer); return d && d.retirer(id, label, apres); };
       $$('[data-fundo]').forEach(b => b.onclick = () => {
         const id = b.dataset.fundo;
-        // (plateforme, 16 § 10.1-6) Une déclaration sociale passe par la porte de la Paie : payée, la question dit que le paiement part.
-        if (b.dataset.fsoc) return retirerDeclarationSociale(id, b.dataset.flab, draw);
+        if (b.dataset.fsoc) return retirerSociale(id, b.dataset.flab, draw);
         data.fiscalFilings = (data.fiscalFilings || []).filter(f => f.id !== id);
         save(true); draw();
         toast(`${b.dataset.flab} n'est plus marquée déposée`);

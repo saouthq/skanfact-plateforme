@@ -1,5 +1,5 @@
 {
-  "_": "La fiche du module (17 § 2.2 ; 02 M1), posée au lot R0e (03/11/2026). Ses pages et leur famille au menu (17 § 1), les collections du dossier dont il est le propriétaire, le nom de ses gestes, ses schémas de la base, ses dépendances (02 § 2), ses dossiers du serveur (« serveur » : le contrôle des frontières, F13, lot R0c ; un dossier sans module est au socle). Sa porte, ses points, ses emplacements et ses événements sont posés vides : les registres du socle arrivent au lot B0, et chaque boîte les remplit.",
+  "_": "La fiche du module (17 § 2.2 ; 02 M1), posée au lot R0e (03/11/2026). Ses pages et leur famille au menu (17 § 1), les collections du dossier dont il est le propriétaire, le nom de ses gestes, ses schémas de la base, ses dépendances (02 § 2), ses dossiers du serveur (« serveur » : le contrôle des frontières, F13, lot R0c ; un dossier sans module est au socle). Sa porte, ses points, ses emplacements et ses événements sont posés vides : les registres du socle arrivent au lot B0, et chaque boîte les remplit. Au lot P1b (04/11/2026), sa boîte côté entreprise : il pose ses pages, ses lignes de « À faire », de la palette et de « Créer » (chacune à son rang d'aujourd'hui), et remplit les points de la Trésorerie et des Déclarations ; sa porte reste vide (aucun autre module ne le lit à l'écran).",
   "code": "personnel",
   "nom": "Personnel",
   "phrase": "Salariés, contrats, pointage, absences et congés, avances, bulletins, CNSS trimestrielle, déclaration d'employeur (02 § 2 ; 16).",
@@ -41,9 +41,17 @@
   "porte": [],
   "points": {
     "declare": [],
-    "remplit": []
+    "remplit": [
+      "sorties-prevues",
+      "declarations-sociales"
+    ]
   },
-  "emplacements": [],
+  "emplacements": [
+    "pages",
+    "a-faire",
+    "creer",
+    "palette"
+  ],
   "evenements": {
     "annonce": [],
     "ecoute": []

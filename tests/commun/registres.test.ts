@@ -1,11 +1,19 @@
 // Les registres du socle (docs/cadrage/17-rangement.md § 3.2 et § 3.3 ; lot B0, 04/11/2026) : la porte d'un module, les
-// points, les emplacements et les événements, par quoi les modules se parleront à l'écran. Posés vides : chaque règle se
-// prouve ici sur des modules d'essai, dans un bac à sable qui charge le fichier servi (`plateforme/registres.js`).
+// points, les emplacements et les événements, par quoi les modules se parlent à l'écran. Chaque règle se prouve ici sur des
+// modules d'essai, dans un bac à sable qui charge le fichier servi (`plateforme/registres.js`) ; ce que les vrais écrans y
+// mettent (depuis le lot P1b, le Personnel), leurs fiches le disent.
 
+import fs from 'node:fs';
+import path from 'node:path';
 import vm from 'node:vm';
+import * as acorn from 'acorn';
 import { describe, expect, it } from 'vitest';
-import { lireEcran, lireTable } from '../../commun/assemblage.ts';
+import { lireEcran, lireTable, RACINE_DU_DEPOT } from '../../commun/assemblage.ts';
 import { PAGES, scriptsDeLaPage } from '../../outils/rangement/frontieres.ts';
+import { scriptSansCommentaires } from '../../web/alleger.ts';
+
+type Fiche = { code: string; porte: unknown[]; points: { declare: string[]; remplit: string[] }; emplacements: string[] };
+const lireTexte = (f: string) => fs.readFileSync(path.join(RACINE_DU_DEPOT, f), 'utf8');
 
 type Socle = {
   EMPLACEMENTS: readonly string[];
@@ -28,20 +36,56 @@ function charger(fenetre: EventTarget & { Socle?: Socle } = new EventTarget()) {
 }
 
 describe('les registres du socle', () => {
-  it('posés vides : servis les premiers sur les deux pages, ils ne tiennent rien, et aucun écran ne s\'en sert encore', () => {
+  it('servis les premiers sur les deux pages, ils naissent vides ; ce que les écrans y mettent, la fiche de chaque module le dit', () => {
     expect(lireTable()[SERVI]).toEqual(['modules/socle/registres.js']);
     for (const page of Object.values(PAGES)) expect(scriptsDeLaPage(page)[0], page).toBe(SERVI);
     const { S } = charger();
     expect(S.etat()).toEqual({ portes: [], points: {}, emplacements: Object.fromEntries(S.EMPLACEMENTS.map((e) => [e, 0])) });
-    // Les listes que les écrans écrivent encore en dur (17 § 3.3), chacune son emplacement.
+    // Les listes que les écrans écrivaient en dur (17 § 3.3), chacune son emplacement.
     expect(S.EMPLACEMENTS).toEqual(['a-faire', 'palette', 'creer', 'pages', 'parties-des-pages', 'metiers', 'imports', 'onglets-compta', 'parametres-cabinet']);
-    // Aucun écran ne s'en sert encore : le lot P1b (le Personnel) sera le premier, et sa fiche dira ce qu'il y met.
-    const servis = new Set(Object.values(PAGES).flatMap((p) => scriptsDeLaPage(p)));
-    for (const s of servis) if (s !== SERVI) expect(/\bSocle\s*\./.test(lireEcran(s)), s).toBe(false);
+    // Ce que les écrans servis y mettent (leur code, sans les commentaires), module par module, est ce que disent les
+    // fiches : les emplacements où il pose, les points qu'il déclare et ceux qu'il remplit, sa porte (lot P1b : le
+    // Personnel ; les points de la Trésorerie et des Déclarations, déclarés par leurs écrans, encore au socle). Un appel
+    // dont le module ou l'emplacement n'est pas écrit en toutes lettres ne se lirait pas : il est refusé.
+    const code = [...new Set(Object.values(PAGES).flatMap((p) => scriptsDeLaPage(p)))].filter((s) => s !== SERVI).map((s) => scriptSansCommentaires(s, lireEcran(s))).join('\n');
+    const lettres = (args: string, n: number) => { const m = args.match(new RegExp(`^${Array(n).fill('\'([a-z][a-z0-9-]*)\'').join(', ')}`)); return m ? m.slice(1, n + 1) : null; };
+    const vus = { emplacements: new Set<string>(), declare: new Set<string>(), remplit: new Set<string>(), porte: new Set<string>() };
+    for (const [geste, n, ou] of [['poser', 2, 'emplacements'], ['declarerPoint', 2, 'declare'], ['remplir', 2, 'remplit'], ['declarer', 1, 'porte']] as const) {
+      for (const m of code.matchAll(new RegExp(`\\bSocle\\.${geste}\\(([^)]{0,80})`, 'g'))) {
+        const l = lettres(m[1] ?? '', n);
+        expect(l, `Socle.${geste}(${m[1] ?? ''}`).not.toBeNull();
+        // poser(emplacement, module) ; remplir(point, module) ; declarerPoint(module, point) ; declarer(module).
+        if (l) vus[ou].add(geste === 'declarerPoint' ? `${l[0]} ${l[1]}` : geste === 'declarer' ? `${l[0]}` : `${l[1]} ${l[0]}`);
+      }
+    }
+    const fiches = (JSON.parse(lireTexte('modules/ordre.json')) as { ordre: string[] }).ordre.map((m) => JSON.parse(lireTexte(`modules/${m}/module.json`)) as Fiche);
+    const dits = {
+      emplacements: new Set(fiches.flatMap((f) => f.emplacements.map((e) => `${f.code} ${e}`))),
+      declare: new Set(fiches.flatMap((f) => f.points.declare.map((p) => `${f.code} ${p}`))),
+      remplit: new Set(fiches.flatMap((f) => f.points.remplit.map((p) => `${f.code} ${p}`))),
+      porte: new Set(fiches.filter((f) => f.porte.length).map((f) => f.code)),
+    };
+    for (const k of ['emplacements', 'declare', 'remplit', 'porte'] as const) expect([...vus[k]].sort(), k).toEqual([...dits[k]].sort());
+    expect([...vus.remplit].sort(), 'le Personnel s\'en sert').toEqual(['personnel declarations-sociales', 'personnel sorties-prevues']);
+    // Un point qu'on remplit est déclaré par quelqu'un ; un emplacement où l'on pose existe.
+    const declares = [...vus.declare].map((x) => x.split(' ')[1]);
+    for (const x of vus.remplit) expect(declares, x).toContain(x.split(' ')[1]);
+    for (const x of vus.emplacements) expect(S.EMPLACEMENTS, x).toContain(x.split(' ')[1]);
     // Chargé deux fois, il garde ce qu'il tient.
     const fenetre = new EventTarget() as EventTarget & { Socle?: Socle };
     charger(fenetre).S.declarer('personnel', {});
     expect(charger(fenetre).S.etat().portes).toEqual(['personnel']);
+  });
+
+  it('la boîte du Personnel (lot P1b) : son morceau des écrans de l\'entreprise ne pose aucun nom chez le socle ; il pose ses entrées une fois ses noms définis', () => {
+    const t = lireTexte('modules/personnel/ecrans/entreprise/paie.js');
+    // Le morceau se lit seul : une seule instruction, la fonction appelée sur-le-champ qui le contient (sa boîte).
+    const ast = acorn.parse(t, { ecmaVersion: 'latest', sourceType: 'script' }) as unknown as { body: { type: string; expression?: { type: string; callee?: { type: string } } }[] };
+    expect(ast.body.map((s) => s.type)).toEqual(['ExpressionStatement']);
+    expect(ast.body[0]?.expression?.callee?.type).toBe('FunctionExpression');
+    // Ce qu'il met dans les registres se pose en bas de la boîte : ses pages, ses onglets et ses gestes y sont définis.
+    expect(t.indexOf('Socle.poser(')).toBeGreaterThan(t.lastIndexOf('const PAIE_TABS'));
+    expect(t.indexOf('Socle.poser(')).toBeGreaterThan(t.lastIndexOf('const ficheDuSalarie'));
   });
 
   it('la porte d\'un module : déclarée une fois, figée, lue par les autres ; une porte absente ou un nom mal formé sont refusés et dits', () => {

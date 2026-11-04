@@ -12,7 +12,7 @@ import { comparer, CONNUS, controleDesFrontieres, ecrireConnus, FrontiereRefusee
 import { scriptSansCommentaires } from '../../web/alleger.ts';
 import config from '../../web/vite.config.ts';
 
-type FicheEssai = { dependances?: string[]; porte?: string[]; serveur?: string[] };
+type FicheEssai = { dependances?: string[]; porte?: string[]; serveur?: string[]; collections?: string[]; racine?: string[] };
 // Un petit dépôt : l'ordre, les fiches, la table d'assemblage, la page de l'entreprise et ses fichiers.
 function depot(o: { fichiers: Record<string, string>; table?: Record<string, string[]>; fiches?: Record<string, FicheEssai>; page?: string[] }) {
   const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'frontieres-'));
@@ -75,6 +75,24 @@ describe('le contrôle des frontières', () => {
     expect(ecarts(versLeBas, 'F3')).toEqual({ 'F3 v10/app.js ventes→personnel salaire': 1 });
     const sansDependance = depot({ fichiers: FERMETURE, table: TABLE });
     expect(ecarts(sansDependance, 'F3')).toEqual({ 'F3 v10/app.js personnel→ventes prixVente': 1, 'F3 v10/app.js personnel→ventes totalVentes': 1, 'F3 v10/app.js ventes→personnel salaire': 1 });
+  });
+
+  it('les registres et le dossier (lot P1b) : un nom posé par une constante qui nomme la fenêtre se trouve ; écrire sa propre collection du dossier n\'est pas écrire chez le socle', () => {
+    const r = depot({
+      fichiers: {
+        'modules/socle/registres.js': '(function () {\n  const w = window;\n  if (w.Socle) return;\n  w.Socle = { poser() {} };\n})();\n',
+        [DEBUT]: '(function () {\n  let data = { employes: [], factures: [], reglages: {} };\n',
+        [PAIE]: '  Socle.poser(\'pages\', \'personnel\', {});\n  function embaucher(e) { data.employes = data.employes.concat([e]); data.employes[0].nom = \'x\'; delete data.employes; data.reglages.jours = 6; }\n'
+          + '  function effacer() { data.factures = []; data[\'factures\'] = []; }\n',
+        [FIN]: '  window.demarrer = function () { return Socle && embaucher && effacer; };\n})();\n',
+      },
+      table: { 'plateforme/registres.js': ['modules/socle/registres.js'], 'v10/app.js': [DEBUT, PAIE, FIN] },
+      fiches: { personnel: { collections: ['employes'], racine: ['reglages'] } },
+      page: ['../plateforme/registres.js', 'app.js'],
+    });
+    expect(ecarts(r, 'F1')).toEqual({});
+    // Ses salariés et ses réglages sont à lui (sa fiche) ; les factures, non : c'est écrire chez un autre.
+    expect(ecarts(r, 'F7')).toEqual({ 'F7 v10/app.js personnel→socle data': 2 });
   });
 
   it('F0, F1, F8 : une coupe au milieu d\'une instruction, un morceau non déclaré, un nom introuvable, un nom défini deux fois', () => {

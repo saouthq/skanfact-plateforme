@@ -2087,6 +2087,20 @@
 
   // ---------- routeur ----------
   const routes = {};
+  // (plateforme, 17 § 3.3, lot P1b) La page d'un module sorti : posée dans l'emplacement « pages » (sa route, ce qui la
+  // dessine, ses onglets) ; le socle la trouve par son adresse, sans jamais nommer le module.
+  const pageDeModule = route => Socle.entrees('pages').find(p => p.route === route);
+  // Une liste du socle et les entrées que les modules y posent : chacune reprend sa place d'aujourd'hui (son rang, compté
+  // dans la liste entière) ; celle qui ne se montre pas (`visible`) se retire ensuite, et les autres gardent la leur.
+  const aLeurRang = (liste, entrees, forme) => {
+    const tout = liste.map(x => ({ x }));
+    for (const e of [...entrees].sort((a, b) => a.rang - b.rang)) tout.splice(e.rang, 0, { e });
+    return tout.filter(t => !t.e || !t.e.visible || t.e.visible()).map(t => (t.e ? forme(t.e) : t.x));
+  };
+  // Les points des modules encore au socle, déclarés avant que les modules du bas ne les remplissent : les sorties
+  // prévues de la Trésorerie (ses échéances), les déclarations sociales du calendrier des Déclarations.
+  Socle.declarerPoint('tresorerie', 'sorties-prevues');
+  Socle.declarerPoint('declarations', 'declarations-sociales');
   let currentHash = '';
   let ignoreHashChange = false;
   function navigate(hash) { location.hash = hash; }
@@ -2282,6 +2296,8 @@
   let pieceDuMessage = null;
   // (plateforme) 1.227.0 — un texte prêt pour la conversation (« Demander une correction » d'un bulletin) : relu avant d'envoyer.
   let texteDuMessage = null;
+  // (plateforme, 17 lot P1b) Un module qui prépare ce texte le demande au socle, qui ouvre la conversation.
+  const ecrireAuComptable = texte => { texteDuMessage = texte; navigate('#/comptable'); };
   // (1.191.0) La question du cabinet qu'on vient répondre (« Répondre » d'une pièce, de l'onglet du cabinet) : la
   // conversation s'ouvre sur elle.
   let questionDuMessage = null;
@@ -2729,10 +2745,11 @@
       depense: ['achats', 'Dépense', met === 'restauration' ? 'Marché, gaz, réparation' : met === 'sante' ? 'Produits, matériel' : 'Logiciel, déplacement', met === 'services' ? 'E' : 'D', () => navigate('#/achat/new/-/depense')],
       article: ['catalogue', 'Article', 'Au catalogue, avec son prix', 'A', () => catalogForm(null, () => render(), { titre: 'Nouvel article' })],
       client: ['clients', 'Client', met === 'batiment' ? 'Nom, matricule, chantier' : 'Nom, matricule, contact', 'C', () => clientForm(null, () => render())],
-      pointage: ['paie', 'Pointage', 'Les heures du jour', 'H', vers('#/paie', () => { paieState.tab = 'pointage'; })],
     };
+    // (plateforme, 17 § 3.3, lot P1b) Ce que les modules posent dans « Créer » (le pointage, pour le Personnel).
+    for (const e of Socle.entrees('creer')) A[e.cle] = [e.vue, e.libelle, e.sous, e.lettre, e.faire];
     const cles = role === 'commercial' ? ['devis', 'facture', 'client'] : role === 'caissier' ? ['vente'] : role === 'lecture' ? [] : METIERS[met].creer;
-    const actions = cles.map(k => A[k]).filter(a => vues.has(a[0]));
+    const actions = cles.map(k => A[k]).filter(a => a && vues.has(a[0]));
     return {
       role,
       bloque: aboBloque(true) ? { texte: `${licence.label}. ${licence.detail || ''}`.trim(), bouton: abonnementVisible() ? 'Régler ma facture' : '', aller: () => allerAbonnement() } : null,
@@ -3220,7 +3237,7 @@
     const grand = $('#pv-full'); if (grand) grand.remove();
     pushHistory(currentHash);        // d'où l'on vient, pour le bouton retour de la page qui s'ouvre
     const pageChange = routeOf(currentHash) !== name || (currentHash || '').split('/')[2] !== parts[1];
-    const dessine = pageCachee(name) ? pageInterdite(name) : (routes[name] || routes.dashboard)(parts.slice(1));
+    const dessine = pageCachee(name) ? pageInterdite(name) : (routes[name] || (pageDeModule(name) || {}).ouvrir || routes.dashboard)(parts.slice(1));
     if (!pageCachee(name)) { if (dessine && typeof dessine.then === 'function') dessine.then(() => bandeauLecture(name), () => {}); else bandeauLecture(name); }
     if (pageChange && !keepScroll) marquerEntree(view);
     if (!pageCachee(name)) Promise.resolve(dessine).then(() => bandeauOrdinateur(name), () => {});
@@ -4304,22 +4321,6 @@
   // que l'utilisateur regarde le plus souvent.
   // Le pluriel regarde la VALEUR ABSOLUE : « −3 jour » s'affichait sous un solde de congés
   // négatif (10.12.0). « −1 jour », « −3 jours ».
-  // (1.257.0) Le minimum d'une équipe (« le fournil tient la nuit à deux ») : les jours d'un congé où, ce salarié parti,
-  // il resterait moins de monde que le minimum réglé. Les autres absents se lisent sur leur pointage (congés saisis,
-  // absences, maladies) ; une demande pas encore acceptée ne compte pas. Rien sans minimum réglé.
-  function manqueEquipe(employeeId, du, au) {
-    const st = C.payrollSettings(data), e = employeeById(employeeId), q = e && C.equipeDe(st, e);
-    if (!q || !(Number(q.minimum) > 0) || !du || !au || au < du) return null;
-    const autres = data.employees.filter(x => x.id !== e.id && x.equipeId === q.id && x.active !== false);
-    const jours = [];
-    for (let iso = du; iso <= au && jours.length < 62; iso = C.addDays(iso, 1)) {
-      const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
-      if (!(q.jours || []).includes(new Date(iso + 'T00:00:00Z').getUTCDay())) continue;
-      const la = autres.filter(x => { const j = C.pointageDuMois(data, x, y, m).jours.find(k => k.jour === d); return j && j.code === 'P'; });
-      if (la.length < Number(q.minimum)) jours.push({ iso, restent: la.map(x => String(x.name || '').split(' ')[0]) });
-    }
-    return jours.length ? { q, jours } : null;
-  }
   const manqueDit = r => r ? `${r.q.nom} tient à ${Number(r.q.minimum)} : ${r.jours.length > 3 ? `${r.jours.length} jours` : r.jours.map(j => `le ${C.fmtDate(j.iso).slice(0, 5)}`).join(' et ')}, il ne resterait ${r.jours[0].restent.length ? `que ${r.jours[0].restent.join(' et ')}` : 'personne'}${r.jours.length > 1 ? ' (au plus bas)' : ''}.` : '';
   // (1.257.0) Les jours d'une équipe en clair (« du lundi au samedi ») : pour les écrans hors du pointage.
   const joursDitCourt = L => { const S = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'], o = [1, 2, 3, 4, 5, 6, 0].filter(i => (L || []).includes(i)); if (!o.length) return '—'; const k = o.map(i => [1, 2, 3, 4, 5, 6, 0].indexOf(i)); return k.every((v, j) => !j || v === k[j - 1] + 1) && o.length > 2 ? `du ${S[o[0]]} au ${S[o[o.length - 1]]}` : o.map(i => S[i]).join(', '); };
@@ -4333,6 +4334,9 @@
   // titre, le montant garde les décimales de la devise de la SOCIÉTÉ. Un `money` sans devise en
   // prenait trois quelle qu'elle soit — des euros au millième. Une phrase, elle, nomme sa devise.
   const montantCompta = n => C.money(n, '', C.decimalsFor(company().currency));
+  // (plateforme) 1.234.0 — un montant dont l'unité se lit petite et grise (« 4 076,400 DT », la maquette). Né dans la
+  // paie, il sert aussi aux marges et à la trésorerie : il est au socle (17 lot P1b).
+  const montantU = (n, cur) => h(C.money(n, cur)).replace(/[\s\u00a0\u202f]([A-Z€$]{1,3})$/, ' <small class="u">$1</small>');
 
   // La liste des clients pour un `combo()`. Elle vivait en DOUBLE, déclarée localement dans deux
   // formulaires — et `serialForm` l'appelait sans en avoir : « Modifier » sur un numéro de série
@@ -12498,7 +12502,10 @@
     if (avant) avant();
     if (location.hash === hash) render(); else navigate(hash);
   }, { vers: hash });
-  const todoMeneACache = id => { const a = TODO_ACTIONS[id]; return !!(a && a.run && a.run.vers && pageCachee(routeOf(a.run.vers))); };
+  // (plateforme, 17 § 3.3, lot P1b) L'action d'une ligne de « À faire » : celle du socle, sinon celle qu'un module a
+  // posée dans l'emplacement « a-faire », sous l'id de sa ligne.
+  const actionAFaire = id => TODO_ACTIONS[id] || Socle.entrees('a-faire').find(e => e.id === id);
+  const todoMeneACache = id => { const a = actionAFaire(id); return !!(a && a.run && a.run.vers && pageCachee(routeOf(a.run.vers))); };
   // Poser un filtre sur une liste, en ENTIER. Chaque action recopiait à la main les cinq réglages à
   // remettre, et « Facturer » en oubliait un : `yearTouched`. Sans lui, la liste d'arrivée se
   // re-filtre toute seule sur l'année en cours et cache précisément les pièces que la ligne venait
@@ -12616,17 +12623,7 @@
   const TODO_ACTIONS = {
     // (plateforme) 1.102.0 — ce que le cabinet attend se règle dans son fil.
     'cabinet-attend': { label: 'Répondre', run: vers('#/comptable') },
-    // E-04 : la ligne mène au MOIS du premier bulletin impossible, pas à la liste du mois courant —
-    // un bulletin qu'on doit chercher mois par mois ne se corrige pas.
-    'bulletins-impossibles': { label: 'Voir le bulletin', run: vers('#/paie', () => {
-      const b = C.bulletinsImpossibles(data)[0];
-      paieState.tab = 'bulletins';
-      if (b) { paieState.year = String(b.year); paieState.month = String(Number(b.month)); paieState.moisTouche = true; }
-    }) },
-    // (plateforme) 1.232.0 — la paie qui attend : le mois du premier bulletin concerné, ou les congés.
-    'paie-correction': { label: 'Voir la correction', run: vers('#/paie', () => { const t = (C.todoList(data, company(), C.today()).find(x => x.id === 'paie-correction') || {}).mois; paieState.tab = 'bulletins'; if (t) { paieState.year = t.slice(0, 4); paieState.month = String(Number(t.slice(5, 7))); paieState.moisTouche = true; } }) },
-    'paie-bon-a-payer': { label: 'Approuver', run: vers('#/paie', () => { const t = (C.todoList(data, company(), C.today()).find(x => x.id === 'paie-bon-a-payer') || {}).mois; paieState.tab = 'bulletins'; if (t) { paieState.year = t.slice(0, 4); paieState.month = String(Number(t.slice(5, 7))); paieState.moisTouche = true; } }) },
-    'conges-demandes': { label: 'Répondre', run: vers('#/paie', () => { paieState.tab = 'conges'; }) },
+    // (17 lot P1b) Les lignes de la paie (rangs 1 à 4, 32 et 33) sont posées par le Personnel, dans sa boîte.
     contrats: { label: 'Générer les brouillons', run: () => { const res = generateRecurring(); toast(`${pl(res.n, 'brouillon créé', 'brouillons créés')} — à relire puis émettre`); render(); } },
     retards: { label: 'Voir les relances', run: vers('#/relances') },
     'bons-a-facturer': { label: 'Voir les bons', run: vers('#/autres/livraison') },
@@ -12661,14 +12658,6 @@
     immobilisations: { label: 'Voir les lignes', run: vers('#/immos', () => { immoState.tab = 'attente'; }) },
     // 10.14.1 : la fiche du premier bien qui garde son montant d'avant l'avoir du fournisseur.
     'immobilisations-avoir': { label: 'Corriger la fiche', run: () => { const b = C.biensADiminuer(data)[0]; if (b) navigate('#/immo/' + b.assetId); } },
-    // Le lien ouvre la déclaration qu'il ANNONCE : la plus ancienne CNSS à déposer, son année et son
-    // trimestre (10.14.1) — pas le trimestre en cours, éteint, qu'on trouvait à la place.
-    'declarations-sociales': { label: 'Voir les déclarations', run: vers('#/paie', () => {
-      paieState.tab = 'declarations';
-      const d = C.socialDue(data).find(x => x.kind === 'cnss');
-      if (d) { paieState.year = String(d.year); paieState.quarter = String(d.quarter); }
-    }) },
-    bulletins: { label: 'Voir les bulletins', run: vers('#/paie', () => { paieState.tab = 'bulletins'; }) },
     'salaires-double': { label: 'Voir les mouvements', run: vers('#/tresorerie', () => { tresoState.tab = 'mouvements'; }) },
     tresorerie: { label: 'Voir la prévision', run: vers('#/tresorerie', () => { tresoState.tab = 'prevision'; }) },
     'taux-change': { label: 'Voir les pièces', run: vers('#/factures', filtre('facture')) },
@@ -12706,17 +12695,18 @@
     // achats » ouvrait la liste entière, et il fallait chercher lesquels n'avaient pas leur pièce.
     justificatifs: { label: 'Voir les achats sans justificatif', run: c => vers('#/achats', () => filtreAchats(SANS_JUSTIF, c && c.du, c && c.au))() },
     pointage: { label: 'Pointer les mouvements', run: vers('#/tresorerie', () => { tresoState.tab = 'rapprochement'; }) },
-    // Le PREMIER mois qui manque (10.14.1) : « 44 bulletins de paie à établir » sur trois ans menait au
-    // mois en cours, et laissait chercher, année par année, où l'oubli commençait.
-    bulletins: { label: 'Voir les bulletins', run: c => vers('#/paie', () => {
-      paieState.tab = 'bulletins';
-      if (c && /^\d{4}-\d{2}$/.test(c.mois || '')) { paieState.year = c.mois.slice(0, 4); paieState.month = String(Number(c.mois.slice(5, 7))); paieState.moisTouche = true; }
-    })() },
+    // (17 lot P1b) « bulletins » est posé par le Personnel (sa ligne de « À faire », avec son `controle`).
     stock: { label: 'Voir les alertes', run: vers('#/stock', () => { stockState.tab = 'alertes'; }) },
     series: { label: 'Voir les numéros', run: vers('#/stock', () => { stockState.tab = 'series'; }) },
     attestations: { label: 'Voir les factures', run: vers('#/compta', () => { comptaState.tab = 'ventes'; pageFocus = 'p-rs-clients'; }) },
     // 10.14.1 — la ligne d'achat sans fiche : l'onglet où « Créer la fiche du bien… » l'attend.
     immobilisations: { label: 'Voir les achats à immobiliser', run: vers('#/immos', () => { immoState.tab = 'attente'; }) }
+  };
+  // (17 lot P1b) L'action d'un contrôle : celle du socle, sinon le `controle` qu'un module a joint à sa ligne de « À faire ».
+  const actionDeControle = id => {
+    if (CHECK_ACTIONS[id]) return CHECK_ACTIONS[id];
+    const e = Socle.entrees('a-faire').find(x => x.id === id && x.controle);
+    return e ? { label: e.label, run: e.controle } : undefined;
   };
   // Combien de lignes on montre avant de proposer « voir le reste ». En démo, « À faire » affichait
   // treize lignes et occupait l'écran entier : le chiffre d'affaires, le graphique et tout le reste
@@ -12780,7 +12770,7 @@
       if (!l.length) return '';
       const lignes = l.map(x => {
         const i = rang++;
-        const geste = todoMeneACache(x.id) ? '' : `<button class="btn${i === 0 && premierPrincipal ? ' btn-primary' : ''}" data-todo="${x.id}">${h((TODO_ACTIONS[x.id] || {}).label || 'Voir')}</button>`;
+        const geste = todoMeneACache(x.id) ? '' : `<button class="btn${i === 0 && premierPrincipal ? ' btn-primary' : ''}" data-todo="${x.id}">${h((actionAFaire(x.id) || {}).label || 'Voir')}</button>`;
         // Au téléphone (maquette « Accueil »), trois lignes : les deux suivantes attendent « Voir les autres ».
         return `<li class="lvl-${x.level || 'info'}${i >= TODO_TEL && !todoTout ? ' a-t-ordi' : ''}" ${i >= TODO_VISIBLE && !todoTout ? 'hidden' : ''}><span class="td-dot"></span>
           <span class="td-txt"><strong>${h(x.label)}</strong><span>${h(x.detail || '')}</span></span>${geste}</li>`;
@@ -12807,7 +12797,7 @@
     // pas est pire qu'un bouton absent : on croit avoir mal cliqué. Le test de couverture rend ce
     // cas impossible — et si jamais il revenait, l'application le DIT au lieu de se taire.
     $$('[data-todo]').forEach(b => b.onclick = () => {
-      const a = TODO_ACTIONS[b.dataset.todo];
+      const a = actionAFaire(b.dataset.todo);
       if (a) return a.run();
       toast(`Cette ligne n'a pas encore d'écran dédié (${b.dataset.todo}) — signale-le dans Aide → Signaler un problème.`, true);
     });
@@ -13044,9 +13034,8 @@
   // Catalogue et Paramètres gardent les leurs dans leur fonction de route ; on les reprend ici, et
   // le test « la palette connaît tous les onglets » vérifie que les deux copies concordent.
   function ongletsDePalette() {
-    return [
+    return aLeurRang([
       ['Comptabilité', '#/compta', v => { comptaState.tab = v; }, COMPTA_TABS],
-      ['Paie', '#/paie', v => { paieState.tab = v; }, PAIE_TABS],
       ['Stock', '#/stock', v => { stockState.tab = v; }, STOCK_TABS],
       ['Caisse', '#/caisse', v => { caisseState.tab = v; }, CAISSE_TABS],
       ['Marges', '#/marges', v => { margeState.tab = v; }, MARGE_TABS],
@@ -13055,7 +13044,8 @@
       ['Proforma, bons et contrats', '#/autres', v => { autresTab = v; }, AUTRES_TABS],
       ['Catalogue', '#/catalogue', v => { catalogTab = v; }, CATALOG_TABS],
       ['Paramètres', '#/parametres', v => { settingsTab = v; }, SETTINGS_TABS.filter(t => (t[0] !== 'equipe' || equipeVisible()) && (t[0] !== 'abonnement' || abonnementVisible()))]
-    ];
+    // (17 § 3.3, lot P1b) Les onglets des pages que les modules posent, chacun à son rang (la Paie, au deuxième).
+    ], Socle.entrees('pages').filter(p => p.onglets).map(p => ({ rang: p.onglets.rang, p })), ({ p }) => [p.libelle, '#/' + p.route, p.onglets.ouvrir, p.onglets.liste]);
   }
   // Les réglages, PANNEAU par panneau. La palette n'indexait que les onglets : taper « mot de
   // passe » menait, au mieux, en haut d'un onglet de sept panneaux où il fallait chercher — et
@@ -13120,29 +13110,21 @@
     // (maquette barre V3 « la recherche ») Le champ et sa loupe, les résultats rangés par groupe, l'aide du clavier au pied.
     root.innerHTML = `<div class="palette pal-v3" role="dialog" aria-label="Rechercher"><div class="pal-champ">${lfIc('recherche', 18)}<input type="text" id="pal-q" placeholder="Rechercher une pièce, un client, un fournisseur, un fichier joint, une action…" autocomplete="off" spellcheck="false" aria-label="Rechercher"><kbd>Échap</kbd></div><div class="results" id="pal-res"></div><div class="hint"><kbd>↑</kbd><kbd>↓</kbd> choisir · <kbd>↵</kbd> ouvrir · <kbd>Échap</kbd> fermer</div></div>`;
     const cur = company().currency;
-    const actions = [
+    const actions = aLeurRang([
       ['Nouveau devis', () => navigate('#/doc/new/devis')], ['Nouvelle facture', () => navigate('#/doc/new/facture')], ['Nouvel avoir', () => navigate('#/doc/new/avoir')],
       ['Accueil', () => navigate('#/dashboard')], ['Devis', () => navigate('#/devis')], ['Factures', () => navigate('#/factures')], ['Relances', () => navigate('#/relances')],
-      ['Facturation récurrente (contrats qui refacturent)', () => navigate('#/contrats')], ['Achats et dépenses', () => navigate('#/achats')], ['Nouvelle facture d\'achat', () => navigate('#/achat/new')], ['Nouvelle dépense', () => navigate('#/achat/new/-/depense')], ['Fournisseurs', () => navigate('#/fournisseurs')], ['Trésorerie', () => navigate('#/tresorerie')], ['Marges et rentabilité', () => navigate('#/marges')], ['Paie', () => navigate('#/paie')], ['Nouveau salarié', () => employeeForm(null, () => render())], ['Caisse', () => navigate('#/caisse')], ['Stock', () => navigate('#/stock')], ['Garanties', () => navigate('#/garanties')], ['Entrée de numéros de série', () => serialIntakeForm(null, () => render())], ['Mouvement de stock', () => adjustForm(null, () => render())], ['Immobilisations', () => navigate('#/immos')], ['Nouvelle immobilisation', () => assetForm(null, a => navigate('#/immo/' + a.id))], ['Nouvelle affaire', () => projectForm(null, p => navigate('#/affaire/' + p.id))], ['Nouveau fournisseur', () => supplierForm(null, () => render())], ['Proformas', () => navigate('#/autres/proforma')], ['Bons de commande', () => navigate('#/autres/commande')], ['Bons de livraison', () => navigate('#/autres/livraison')], ['Contrats à signer', () => navigate('#/autres/contrat')], ['Clients', () => navigate('#/clients')], ['Catalogue', () => navigate('#/catalogue')], ['Statistiques', () => navigate('#/stats')], ['Comptabilité', () => navigate('#/compta')], ['Paramètres', () => navigate('#/parametres')],
+      ['Facturation récurrente (contrats qui refacturent)', () => navigate('#/contrats')], ['Achats et dépenses', () => navigate('#/achats')], ['Nouvelle facture d\'achat', () => navigate('#/achat/new')], ['Nouvelle dépense', () => navigate('#/achat/new/-/depense')], ['Fournisseurs', () => navigate('#/fournisseurs')], ['Trésorerie', () => navigate('#/tresorerie')], ['Marges et rentabilité', () => navigate('#/marges')], ['Paie', () => navigate('#/paie')], ['Caisse', () => navigate('#/caisse')], ['Stock', () => navigate('#/stock')], ['Garanties', () => navigate('#/garanties')], ['Entrée de numéros de série', () => serialIntakeForm(null, () => render())], ['Mouvement de stock', () => adjustForm(null, () => render())], ['Immobilisations', () => navigate('#/immos')], ['Nouvelle immobilisation', () => assetForm(null, a => navigate('#/immo/' + a.id))], ['Nouvelle affaire', () => projectForm(null, p => navigate('#/affaire/' + p.id))], ['Nouveau fournisseur', () => supplierForm(null, () => render())], ['Proformas', () => navigate('#/autres/proforma')], ['Bons de commande', () => navigate('#/autres/commande')], ['Bons de livraison', () => navigate('#/autres/livraison')], ['Contrats à signer', () => navigate('#/autres/contrat')], ['Clients', () => navigate('#/clients')], ['Catalogue', () => navigate('#/catalogue')], ['Statistiques', () => navigate('#/stats')], ['Comptabilité', () => navigate('#/compta')], ['Paramètres', () => navigate('#/parametres')],
       ['Aide et guide', () => navigate('#/aide')], ['Me guider (visites guidées)', () => navigate('#/guide')], ['Nouveau client', () => clientForm(null, () => render())],
       ['Importer mes clients depuis un tableur', () => importerTableau('clients', () => render(true))], ['Importer mon catalogue depuis un tableur', () => importerTableau('catalogue', () => render(true))], ['Importer mes fournisseurs depuis un tableur', () => importerTableau('fournisseurs', () => render(true))],
       ['Ta facture à ton image (logo, cachet, couleurs)', () => imageDeMarque(() => render(true))],
-      // (plateforme) 1.232.0 — les gestes de la paie (docs/revue-paie.md, P2) : chacun ouvre « Le mois » et lance le sien.
-      ...(data.employees.length ? [
-        ['Payer les salaires du mois', vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'payer'; })],
-        ['Établir les bulletins du mois', vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'etablir'; })],
-        ['Remettre les bulletins du mois', vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'remettre'; })],
-        ['Approuver les bulletins du mois', vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'approuver'; })]] : []),
-      ['Nouveau salarié', () => employeeForm(null, () => { paieState.tab = 'salaries'; navigate('#/paie'); })],
-      ['Importer mes salariés depuis un tableur', () => importerTableau('salaries', () => { paieState.tab = 'salaries'; navigate('#/paie'); })],
-      ['Combien coûte une embauche ?', () => simulationEmbauche()],
       // La palette liste TOUTES les pages, y compris celles des modules retirés du menu : c'est ce
       // qui rend le filtrage de la barre latérale inoffensif.
       ['Tous les modules', () => navigate('#/modules')],
       ['Revoir l\'assistant de démarrage', () => rejouerAssistant()],
       // La page de l'éditeur n'existe que sur son poste : la palette ne la propose qu'à lui.
       ...(licence.editeur ? [['Licences émises', () => navigate('#/licences')], ['Émettre une licence', () => licenceForm(null, () => render())]] : [])
-    ]
+    // (plateforme, 17 § 3.3, lot P1b) Les gestes que les modules posent dans la palette, chacun à son rang (la paie).
+    ], Socle.entrees('palette'), e => [e.libelle, e.faire])
       // Les ONGLETS. La palette n'en connaissait aucun : « TVA » ne rendait que des articles à lire,
       // « cabinet », « mise à jour », « écritures », « calendrier fiscal » et « apparence » ne
       // rendaient RIEN — deux réponses vides d'affilée, et on en conclut que la chose n'existe pas

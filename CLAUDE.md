@@ -282,7 +282,7 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   `visites.js`, `cabinet/app.js`, `cabinet/cabguide.js`, `cabinet/cabvisites.js` : leurs morceaux du socle, sous
   `modules/socle/` ; les deux ponts de `web/public/plateforme/`) : un module qu'on refait en sort d'abord (le Personnel
   en est sorti au lot A1 : `modules/personnel/`), puis on le change, et il parle aux autres par les registres du socle
-  (`modules/socle/registres.js`, lot B0) ; tous en sortent, y compris ceux déjà refaits. Plan, ordre et
+  (`modules/socle/registres.js`, lot B0 ; le Personnel s'en sert côté entreprise depuis P1b) ; tous en sortent, y compris ceux déjà refaits. Plan, ordre et
   contrôle des frontières (`npm run frontieres`, dans `npm test` : un écart neuf fait tomber, la liste ne fait que baisser,
   un lot A l'agrandit par `--ecrire --deplacement` ; un lot A se fait par `node outils/rangement/deplacer.ts PLAN.json`,
   qui fait suivre les preuves) : `docs/cadrage/17-rangement.md`. Exceptions : une correction urgente, notée pour la sortie ; les

@@ -1,13 +1,31 @@
   // ---------- Paie (5.0.0) ----------
+  // (plateforme, 17 § 3.2, lot P1b) La boîte du Personnel : rien de ce qui suit ne se voit plus du reste de la page. Le
+  // Personnel voit encore ce qui est commun (le socle) ; il ne parle aux autres que par les registres du socle : ses
+  // pages, ses lignes de « À faire », de la palette et de « Créer », et les points qu'il remplit (en bas de la boîte).
+  (function () {
   const employeeById = id => data.employees.find(e => e.id === id);
   const payslipById = id => data.payslips.find(p => p.id === id);
   const MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // (1.257.0) Le minimum d'une équipe (« le fournil tient la nuit à deux ») : les jours d'un congé où, ce salarié parti,
+  // il resterait moins de monde que le minimum réglé. Les autres absents se lisent sur leur pointage (congés saisis,
+  // absences, maladies) ; une demande pas encore acceptée ne compte pas. Rien sans minimum réglé.
+  function manqueEquipe(employeeId, du, au) {
+    const st = C.payrollSettings(data), e = employeeById(employeeId), q = e && C.equipeDe(st, e);
+    if (!q || !(Number(q.minimum) > 0) || !du || !au || au < du) return null;
+    const autres = data.employees.filter(x => x.id !== e.id && x.equipeId === q.id && x.active !== false);
+    const jours = [];
+    for (let iso = du; iso <= au && jours.length < 62; iso = C.addDays(iso, 1)) {
+      const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)), d = Number(iso.slice(8, 10));
+      if (!(q.jours || []).includes(new Date(iso + 'T00:00:00Z').getUTCDay())) continue;
+      const la = autres.filter(x => { const j = C.pointageDuMois(data, x, y, m).jours.find(k => k.jour === d); return j && j.code === 'P'; });
+      if (la.length < Number(q.minimum)) jours.push({ iso, restent: la.map(x => String(x.name || '').split(' ')[0]) });
+    }
+    return jours.length ? { q, jours } : null;
+  }
 
   // (plateforme) 1.230.0 — CORRIGER SANS RÉÉCRIRE (docs/revue-paie.md, lot R3). Un bulletin payé et remis ne se réécrit
   // plus : l'écart passe sur le premier mois suivant qui n'est pas encore payé, en régularisation. Le moteur commun
   // (compta.js, `regulsDuMois`) la reprend sur le bulletin de ce mois quand il s'établit ; s'il existe déjà, elle s'y ajoute.
-  // (plateforme) 1.234.0 — un montant dont l'unité se lit petite et grise (« 4 076,400 DT », la maquette).
-  const montantU = (n, cur) => h(C.money(n, cur)).replace(/[\s\u00a0\u202f]([A-Z€$]{1,3})$/, ' <small class="u">$1</small>');
   const ymDe = (y, m) => `${y}-${String(m).padStart(2, '0')}`;
   function moisLibreApres(empId, y, m) {
     let yy = Number(y), mm = Number(m);
@@ -1870,7 +1888,7 @@
       ${n && n <= 12 ? `<div class="av-b">${Array.from({ length: n }, (_, k) => `<span class="${k < faites ? 'fait' : ''}"><i></i><small>${h(mk(k))} · ${C.money(Math.min(a.monthly, C.round3(a.amount - k * a.monthly)), '')}${k < faites ? ' retenu' : ''}</small></span>`).join('')}</div>`
         : n ? `<div class="pa-ech">${Array.from({ length: Math.min(24, n) }, (_, k) => `<i class="${k < faites ? 'fait' : ''}"></i>`).join('')}</div><small class="mu">${pl(n, 'retenue')} de ${C.money(a.monthly, cur)}${debut ? ` · de ${h(mk(0))} à ${h(derniere)}` : ''}</small>` : ''}</li>`;
   }
-  routes.paie = () => {
+  const pagePaie = () => {
     const cur = company().currency;
     const s = paieState;
     // Le mois s'ouvre là où il y a quelque chose à faire (`C.moisDePaie`) tant qu'on ne l'a pas
@@ -2140,8 +2158,8 @@
           const v = formValues($('#dco', root)), x = bul();
           const texte = String(v.texte || '').trim();
           if (!texte) { const z = $('textarea[name=texte]', root); z.focus(); toast('Écris ce qui ne va pas : c’est ce que ton comptable lira.', true); return; }
-          texteDuMessage = `Bulletin de ${x.employeeName}, ${MONTHS_LONG[m - 1]} ${y} (net ${C.money(x.c.net, cur)})${v.ligne && v.ligne !== 'Autre chose' ? `, la ligne « ${v.ligne} »` : ''} : ${texte}`;
-          fermer(); navigate('#/comptable');
+          const message = `Bulletin de ${x.employeeName}, ${MONTHS_LONG[m - 1]} ${y} (net ${C.money(x.c.net, cur)})${v.ligne && v.ligne !== 'Autre chose' ? `, la ligne « ${v.ligne} »` : ''} : ${texte}`;
+          fermer(); ecrireAuComptable(message);
         };
       });
     }
@@ -4727,8 +4745,8 @@
       else toast({ payer: 'Rien à payer ce mois-ci', etablir: 'Tous les bulletins du mois sont établis', remettre: 'Rien à remettre ce mois-ci', approuver: 'Aucun bulletin à approuver ce mois-ci' }[g] || 'Rien à faire ici', false);
     }
     // Le réseau qui part ou revient redessine la paie : son bandeau « Pas de réseau » suit la vérité du moment.
-    if (!routes.paie.ecoute) {
-      routes.paie.ecoute = true;
+    if (!pagePaie.ecoute) {
+      pagePaie.ecoute = true;
       const suivre = () => { if (routeOf(location.hash) === 'paie' && !document.querySelector('#modal-root .modal-bg')) render(true); };
       window.addEventListener('online', suivre);
       window.addEventListener('offline', suivre);
@@ -4739,7 +4757,7 @@
   // calculé), ce qui manque en bandeau, à gauche ses onglets (bulletins, congés, avances, documents, son départ,
   // l'historique), à droite son contrat, son identité, comment le payer.
   const ficheSal = { onglet: 'bulletins' };
-  routes.salarie = (parts) => {
+  const ficheDuSalarie = (parts) => {
     const e = employeeById(parts[0]);
     if (!e) return navigate('#/paie');
     if (ficheSal.id !== e.id) { ficheSal.id = e.id; ficheSal.onglet = e.hireDate && !(e.endDate && e.endDate < C.today()) && e.hireDate >= C.addDays(C.today(), -62) ? 'arrivee' : 'bulletins'; }
@@ -4967,4 +4985,65 @@
     $$('#view [data-lv]').forEach(tr => tr.onclick = () => leaveForm(data.leaves.find(x => x.id === tr.dataset.lv), null, rouvrir));
     $$('#view [data-av]').forEach(tr => tr.onclick = () => advanceForm(data.advances.find(x => x.id === tr.dataset.av), null, rouvrir));
   };
+
+  // (plateforme, 17 § 3.3, lot P1b) Ce que le Personnel pose chez le socle, chaque entrée à son rang d'aujourd'hui (sa
+  // place dans la liste que le socle écrivait en dur), et les points qu'il remplit. Sa porte reste vide : aucun autre
+  // module ne lit le Personnel à l'écran.
+  // Ses deux pages (rangs 38 et 39 de `PAGE_LABELS`) ; la Paie donne ses onglets à la palette (au rang 1 de ses pages à onglets).
+  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: pagePaie, onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } });
+  Socle.poser('pages', 'personnel', { rang: 39, route: 'salarie', ouvrir: ficheDuSalarie });
+  // Ses lignes de « À faire » (leurs rangs dans `TODO_ACTIONS`).
+  // E-04 : la ligne mène au MOIS du premier bulletin impossible, pas à la liste du mois courant —
+  // un bulletin qu'on doit chercher mois par mois ne se corrige pas.
+  Socle.poser('a-faire', 'personnel', { rang: 1, id: 'bulletins-impossibles', label: 'Voir le bulletin', run: vers('#/paie', () => {
+    const b = C.bulletinsImpossibles(data)[0];
+    paieState.tab = 'bulletins';
+    if (b) { paieState.year = String(b.year); paieState.month = String(Number(b.month)); paieState.moisTouche = true; }
+  }) });
+  // (plateforme) 1.232.0 — la paie qui attend : le mois du premier bulletin concerné, ou les congés.
+  Socle.poser('a-faire', 'personnel', { rang: 2, id: 'paie-correction', label: 'Voir la correction', run: vers('#/paie', () => { const t = (C.todoList(data, company(), C.today()).find(x => x.id === 'paie-correction') || {}).mois; paieState.tab = 'bulletins'; if (t) { paieState.year = t.slice(0, 4); paieState.month = String(Number(t.slice(5, 7))); paieState.moisTouche = true; } }) });
+  Socle.poser('a-faire', 'personnel', { rang: 3, id: 'paie-bon-a-payer', label: 'Approuver', run: vers('#/paie', () => { const t = (C.todoList(data, company(), C.today()).find(x => x.id === 'paie-bon-a-payer') || {}).mois; paieState.tab = 'bulletins'; if (t) { paieState.year = t.slice(0, 4); paieState.month = String(Number(t.slice(5, 7))); paieState.moisTouche = true; } }) });
+  Socle.poser('a-faire', 'personnel', { rang: 4, id: 'conges-demandes', label: 'Répondre', run: vers('#/paie', () => { paieState.tab = 'conges'; }) });
+  // Le lien ouvre la déclaration qu'il ANNONCE : la plus ancienne CNSS à déposer, son année et son
+  // trimestre (10.14.1) — pas le trimestre en cours, éteint, qu'on trouvait à la place.
+  Socle.poser('a-faire', 'personnel', { rang: 32, id: 'declarations-sociales', label: 'Voir les déclarations', run: vers('#/paie', () => {
+    paieState.tab = 'declarations';
+    const d = C.socialDue(data).find(x => x.kind === 'cnss');
+    if (d) { paieState.year = String(d.year); paieState.quarter = String(d.quarter); }
+  }) });
+  // « Voir les bulletins », et le même bouton dans les contrôles avant clôture (`controle`, qui reçoit le contrôle) :
+  // le PREMIER mois qui manque (10.14.1) ; « 44 bulletins de paie à établir » sur trois ans menait au
+  // mois en cours, et laissait chercher, année par année, où l'oubli commençait.
+  Socle.poser('a-faire', 'personnel', { rang: 33, id: 'bulletins', label: 'Voir les bulletins', run: vers('#/paie', () => { paieState.tab = 'bulletins'; }), controle: c => vers('#/paie', () => {
+    paieState.tab = 'bulletins';
+    if (c && /^\d{4}-\d{2}$/.test(c.mois || '')) { paieState.year = c.mois.slice(0, 4); paieState.month = String(Number(c.mois.slice(5, 7))); paieState.moisTouche = true; }
+  })() });
+  // Le pointage dans « Créer » (rang 9 de sa table).
+  Socle.poser('creer', 'personnel', { rang: 9, cle: 'pointage', vue: 'paie', libelle: 'Pointage', sous: 'Les heures du jour', lettre: 'H', faire: vers('#/paie', () => { paieState.tab = 'pointage'; }) });
+  // Ses gestes dans la palette (rangs 15 et 41 à 47). (plateforme) 1.232.0 — les gestes de la paie (docs/revue-paie.md,
+  // P2) : chacun ouvre « Le mois » et lance le sien ; ces quatre-là ne s'y trouvent qu'avec au moins un salarié.
+  Socle.poser('palette', 'personnel', { rang: 15, libelle: 'Nouveau salarié', faire: () => employeeForm(null, () => render()) });
+  const avecSalaries = () => !!data.employees.length;
+  Socle.poser('palette', 'personnel', { rang: 41, libelle: 'Payer les salaires du mois', visible: avecSalaries, faire: vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'payer'; }) });
+  Socle.poser('palette', 'personnel', { rang: 42, libelle: 'Établir les bulletins du mois', visible: avecSalaries, faire: vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'etablir'; }) });
+  Socle.poser('palette', 'personnel', { rang: 43, libelle: 'Remettre les bulletins du mois', visible: avecSalaries, faire: vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'remettre'; }) });
+  Socle.poser('palette', 'personnel', { rang: 44, libelle: 'Approuver les bulletins du mois', visible: avecSalaries, faire: vers('#/paie', () => { paieState.tab = 'bulletins'; paieState.geste = 'approuver'; }) });
+  Socle.poser('palette', 'personnel', { rang: 45, libelle: 'Nouveau salarié', faire: () => employeeForm(null, () => { paieState.tab = 'salaries'; navigate('#/paie'); }) });
+  Socle.poser('palette', 'personnel', { rang: 46, libelle: 'Importer mes salariés depuis un tableur', faire: () => importerTableau('salaries', () => { paieState.tab = 'salaries'; navigate('#/paie'); }) });
+  Socle.poser('palette', 'personnel', { rang: 47, libelle: 'Combien coûte une embauche ?', faire: () => simulationEmbauche() });
+  // Le point « sorties prévues » de la Trésorerie : les salaires et les avances de ses échéances, et comment ouvrir
+  // chacun (le bulletin, l'avance, la paie pour un salaire seulement prévu). Leurs montants viennent encore du moteur.
+  Socle.remplir('sorties-prevues', 'personnel', () => [
+    { sorte: 'salaire', ouvre: e => e.kind === 'salaire' || e.source === 'paie', ouvrir: (e, apres) => { const sl = (data.payslips || []).find(x => x.id === e.id); if (sl) payslipForm(sl, (data.employees || []).find(x => x.id === sl.employeeId), sl.year, sl.month, apres); } },
+    { sorte: 'salaire-prevu', ouvre: e => e.kind === 'salaire-prevu', ouvrir: () => navigate('#/paie') },
+    { sorte: 'avance', ouvre: e => e.source === 'avance', ouvrir: (e, apres) => { const a = (data.advances || []).find(x => x.id === e.id); if (a) advanceForm(a, a.employeeId, apres); } }
+  ]);
+  // Le point « déclarations sociales » du calendrier fiscal : la CNSS et la déclaration d'employeur se préparent sur
+  // l'onglet Déclarations de la paie, et leur mention « déposée » se retire par la même question (16 § 10.1-6).
+  const versDeclarations = () => { paieState.tab = 'declarations'; navigate('#/paie'); };
+  Socle.remplir('declarations-sociales', 'personnel', () => [
+    { id: 'cnss', preparer: versDeclarations, retirer: retirerDeclarationSociale },
+    { id: 'employeur', preparer: versDeclarations, retirer: retirerDeclarationSociale }
+  ]);
+  })(); // la boîte du Personnel se ferme ici
 

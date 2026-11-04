@@ -1,6 +1,6 @@
 {
   "_": "Le cliquet du contrôle des frontières (docs/cadrage/17-rangement.md § 4.2 ; outils/rangement/frontieres.ts). « ecarts » : les écarts d'aujourd'hui, comptés ; un écart neuf fait tomber le contrôle, un écart disparu mais encore listé aussi ; la liste ne peut que baisser (`npm run frontieres -- --ecrire`). « lignes » : les lignes de chaque gros fichier hors de modules/, au plus (F12). « empreinte » : les écrans servis à la dernière écriture (un déplacement à l'identique, et lui seul, peut inscrire les écarts qu'il révèle).",
-  "empreinte": "6e1586d2cd3e70b59c6c2046e1718397c182d1d2336757453a1daea5e55d09f3",
+  "empreinte": "8b37be47c161af9403ebe24064de45710b0a3900fe456898b7787ba5b243ebe1",
   "lignes": {
     "v10/app.js": {
       "auPlus": 0,
@@ -95,15 +95,6 @@
     "F13 serveur/v10/routes.ts → serveur/caisse/routes.ts": 1,
     "F13 serveur/v10/routes.ts → serveur/paie/identite.ts": 1,
     "F13 serveur/ventes/pieces.ts → serveur/compta/ventes.ts": 1,
-    "F4 v10/app.js socle→personnel PAIE_TABS": 1,
-    "F4 v10/app.js socle→personnel advanceForm": 1,
-    "F4 v10/app.js socle→personnel employeeById": 1,
-    "F4 v10/app.js socle→personnel employeeForm": 2,
-    "F4 v10/app.js socle→personnel montantU": 10,
-    "F4 v10/app.js socle→personnel paieState": 35,
-    "F4 v10/app.js socle→personnel payslipForm": 1,
-    "F4 v10/app.js socle→personnel retirerDeclarationSociale": 1,
-    "F4 v10/app.js socle→personnel simulationEmbauche": 1,
     "F4 v10/cabinet/app.js socle→personnel brancherPaie": 1,
     "F4 v10/cabinet/app.js socle→personnel estAccuseCnss": 2,
     "F4 v10/cabinet/app.js socle→personnel salarieForm": 1,
@@ -287,10 +278,6 @@
     "F4 v10/core.js socle→personnel staffRegister": 1,
     "F4 v10/core.js socle→personnel tauxAvant2026": 1,
     "F4 v10/core.js socle→personnel workingDays": 1,
-    "F7 v10/app.js personnel→socle data": 55,
-    "F7 v10/app.js personnel→socle routes": 3,
-    "F7 v10/app.js personnel→socle texteDuMessage": 1,
-    "F7 v10/app.js socle→personnel paieState": 35,
     "F7 v10/cabinet/app.js personnel→socle S": 2,
     "F7 v10/cabinet/app.js personnel→socle pageFocus": 2
   }

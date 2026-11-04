@@ -23059,7 +23059,7 @@ prouver 'paie 10.1-6 e : un paiement daté d'"'"'un mois clos se retire quand m�
   '' \
   'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
 prouver 'paie 10.1-6 f : le calendrier fiscal retire encore la déclaration payée sans rien demander' modules/socle/ecrans/entreprise/app-2.js \
-  '        if (b.dataset.fsoc) return retirerDeclarationSociale(id, b.dataset.flab, draw);' \
+  '        if (b.dataset.fsoc) return retirerSociale(id, b.dataset.flab, draw);' \
   '        if (b.dataset.fsoc) data.socialFilings = (data.socialFilings || []).filter(f => f.id !== id);' \
   'urgence 6 : le calendrier fiscal retire une déclaration payée par la même question, et « Annuler » la remet'
 
@@ -23516,10 +23516,10 @@ prouver 'R0c h : le socle qui nomme un module, sans écart' outils/rangement/fro
   '    if (de === '"'"'socle'"'"') { noter('"'"'F4'"'"', `${a.servi} socle→${chez} ${nom}`, ici, lieu); continue; }' '    if (de === '"'"'socle'"'"') { continue; }' \
   "$RF2"
 prouver 'R0c i : écrire la variable d'"'"'un autre module, sans écart' outils/rangement/frontieres.ts \
-  '    if (ecrit && !(r.init)) noter('"'"'F7'"'"'' '    if (ecrit && false) noter('"'"'F7'"'"'' \
+  '    if (ecrit && !(r.init) && !chezSoi) noter('"'"'F7'"'"'' '    if (ecrit && false) noter('"'"'F7'"'"'' \
   "$RF2"
 prouver 'R0c j : une entrée ajoutée à la table d'"'"'icônes d'"'"'un autre, sans écart' outils/rangement/frontieres.ts \
-  '        } else if (!fenetre) a.ecrituresParPropriete.add(racineObjet);' '        }' \
+  '          a.ecrituresParPropriete.add(racineObjet);' '          void racineObjet;' \
   "$RF2"
 prouver 'R0c k : une coupe au milieu d'"'"'une instruction acceptée' outils/rangement/frontieres.ts \
   '      if (!permis.includes(conteneur.type))' '      if (permis.length < 0)' \
@@ -23755,7 +23755,7 @@ prouver 'R0d m : une route du Cabinet ni comparée ni dite' outils/rangement/ecr
   '  priorites: '"'"'l\'"'"'ancien lien' '  prioritesX: '"'"'l\'"'"'ancien lien' \
   "$RD4"
 # ── 17 § 3.3 et § 5, lot B0 (1.266.13) : les registres du socle, posés vides (modules/socle/registres.js) ──
-RG1='posés vides : servis les premiers sur les deux pages, ils ne tiennent rien, et aucun écran ne s'"'"'en sert encore'
+RG1='servis les premiers sur les deux pages, ils naissent vides ; ce que les écrans y mettent, la fiche de chaque module le dit'
 RG2='la porte d'"'"'un module : déclarée une fois, figée, lue par les autres ; une porte absente ou un nom mal formé sont refusés et dits'
 RG3='un point : déclaré par le module qui en a besoin, rempli par les autres, lu comme la suite de leurs listes ; vide, il rend une liste vide'
 RG4='un emplacement garde le rang de chaque entrée : l'"'"'ordre affiché ne dépend pas de l'"'"'ordre de chargement des modules'
@@ -23805,13 +23805,46 @@ prouver 'B0 n : les registres absents de la page du Cabinet' web/public/v10/cabi
 prouver 'B0 o : les registres hors de la table de l'"'"'assemblage' modules/assemblage.json \
   '"plateforme/registres.js": ["modules/socle/registres.js"],' '' \
   "$RG1"
-RW1='servis et chargés avant tout autre script, sur la page de l'"'"'entreprise comme au Cabinet, ils sont là et vides'
+RW1='servis et chargés avant tout autre script sur les deux pages ; l'"'"'entreprise y trouve le Personnel (ses pages, la palette, ses points), le Cabinet rien encore'
 prouver 'B0 p : les registres posés ailleurs que sur la page' modules/socle/registres.js \
   '  const w = /** @type {any} */ (window);' '  const w = /** @type {any} */ ({});' \
   "$RW1"
 prouver 'B0 q : les registres chargés après un autre script' web/public/v10/index.html \
   '<script src="../plateforme/registres.js"></script>|||<script src="../tiers/qrcode.js"></script>' '|||<script src="../tiers/qrcode.js"></script><script src="../plateforme/registres.js"></script>' \
   "$RW1"
+# ── 17 § 3.2, § 3.3 et § 5, lot P1b (1.266.14) : le Personnel ferme sa porte côté entreprise (sa boîte, ses entrées) ──
+PB1='la boîte du Personnel (lot P1b) : son morceau des écrans de l'"'"'entreprise ne pose aucun nom chez le socle ; il pose ses entrées une fois ses noms définis'
+TF1='les registres et le dossier (lot P1b) : un nom posé par une constante qui nomme la fenêtre se trouve ; écrire sa propre collection du dossier n'"'"'est pas écrire chez le socle'
+prouver 'P1b a : le routeur qui ignore les pages des modules' modules/socle/ecrans/entreprise/app-1.js \
+  '(routes[name] || (pageDeModule(name) || {}).ouvrir || routes.dashboard)' '(routes[name] || routes.dashboard)' \
+  "$RW1"
+prouver 'P1b b : la palette qui oublie les gestes des modules' modules/socle/ecrans/entreprise/app-1.js \
+  '    for (const e of [...entrees].sort((a, b) => a.rang - b.rang)) tout.splice(e.rang, 0, { e });' '' \
+  "$RW1"
+prouver 'P1b c : un geste de la palette montré même quand il ne doit pas l'"'"'être' modules/socle/ecrans/entreprise/app-1.js \
+  '.filter(t => !t.e || !t.e.visible || t.e.visible())' '.filter(t => !!t)' \
+  "$RW1"
+prouver 'P1b d : la fiche du Personnel qui tait un emplacement où il pose' modules/personnel/module.json \
+  '"creer",' '' \
+  "$RG1"
+prouver 'P1b e : une entrée posée au nom d'"'"'un module sans fiche' modules/personnel/ecrans/entreprise/paie.js \
+  "Socle.poser('creer', 'personnel', { rang: 9" "Socle.poser('creer', 'paie', { rang: 9" \
+  "$RG1"
+prouver 'P1b f : la boîte du Personnel ouverte (son code redevient visible du socle)' modules/personnel/ecrans/entreprise/paie.js \
+  '  (function () {|||  })(); // la boîte du Personnel se ferme ici' '  {|||  } // la boîte du Personnel se ferme ici' \
+  "$PB1"
+prouver 'P1b g : la page de la Paie posée avant que ses onglets soient définis' modules/personnel/ecrans/entreprise/paie.js \
+  "  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: pagePaie, onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } });|||  const PAIE_TABS = " "|||  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: pagePaie, onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } }); const PAIE_TABS = " \
+  "$PB1"
+prouver 'P1b h : l'"'"'outil qui ne voit pas une constante qui nomme la fenêtre' outils/rangement/frontieres.ts \
+  '.init ?? undefined)) alias.add(v);' '.init ?? undefined)) void v;' \
+  "$TF1"
+prouver 'P1b i : l'"'"'outil qui compte chez le socle la collection d'"'"'un module' outils/rangement/frontieres.ts \
+  "    if (ecrit && !(r.init) && !chezSoi) noter('F7'" "    if (ecrit && !(r.init)) noter('F7'" \
+  "$TF1"
+prouver 'P1b j : l'"'"'outil qui oublie la racine du dossier dans la fiche' outils/rangement/frontieres.ts \
+  '?.collections?.concat(ctx.fiches.get(de)?.racine ?? [])' '?.collections' \
+  "$TF1"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

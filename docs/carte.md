@@ -172,8 +172,11 @@ vaut pour tout le dépôt.*
   - **Les registres du socle** (1.266.13, lot B0 du `17` § 3.3) : `modules/socle/registres.js`, servi sous
     `plateforme/registres.js` et chargé le premier sur les deux pages, pose `window.Socle` : la porte d'un module
     (`declarer`, `porte`), les points (`declarerPoint`, `remplir`, `lire`), les emplacements (`poser`, `entrees`, à leur
-    rang) et les événements de la page (`annoncer`, `ecouter`). Vides : aucun écran ne s'en sert encore
-    (`tests/commun/registres.test.ts`).
+    rang) et les événements de la page (`annoncer`, `ecouter`) (`tests/commun/registres.test.ts`). Depuis le lot P1b
+    (1.266.14), le Personnel s'en sert côté entreprise, dans sa boîte : ses deux pages, ses lignes de « À faire », le
+    pointage de « Créer », ses gestes de la palette, et les points `sorties-prevues` (la Trésorerie) et
+    `declarations-sociales` (le calendrier fiscal), que les écrans du socle déclarent pour leur module ; le Cabinet n'y met
+    rien encore (`tests/web/registres.test.ts`).
   - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
     (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
     (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs

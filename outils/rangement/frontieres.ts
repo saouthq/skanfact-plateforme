@@ -55,7 +55,9 @@ export const CODES: Record<string, { quoi: string; pourquoi: string; debloque: s
 };
 
 type Noeud = { type: string; start: number; end: number; [cle: string]: unknown };
-type Fiche = { code: string; dependances: string[]; porte: unknown[]; serveur?: string[] };
+type Fiche = { code: string; dependances: string[]; porte: unknown[]; serveur?: string[]; collections?: string[]; racine?: string[] };
+// Le dossier ouvert, dans les écrans de la v10 : ses collections ont chacune leur module (les fiches).
+const DONNEES = 'data';
 // Une mesure : chaque écart (« F2 v10/app.js personnel→ventes nom ») et son nombre (les lectures distinctes), un exemple
 // de lieu pour le dire, et les lignes des gros fichiers hors de modules/.
 // `atteint` dit ce que la mesure a lu, page par page (un instrument qui n'atteint rien annoncerait « tout va bien »).
@@ -102,6 +104,8 @@ type Analyse = {
   // Les noms lus derrière un `typeof` quelque part dans le fichier (un « module » d'un script universel, gardé par
   // `typeof module !== 'undefined'`) ; les objets dont on écrit une propriété (X.y = …).
   typeofs: Set<string>; sousTypeof: Set<Noeud>; ecrituresParPropriete: Set<Noeud>;
+  // Pour chacune de ces écritures, la première clé sous l'objet (`data.payslips[i] = …` : « payslips »), si elle s'écrit.
+  premiereCle: Map<Noeud, string | null>;
   // Pour F9 : la fonction qui contient chaque référence, les appels de chaque fonction, les fonctions appelées sur-le-champ.
   fonctionDe: Map<Reference, Fn>; appels: Map<Fn, { pos: number; vers: Vers }[]>; cadres: Fn[];
 };
@@ -136,7 +140,7 @@ function bornesDe(servi: string, racine: string): Bornes {
 function analyser(servi: string, racine: string): Analyse {
   const texte = lireEcran(servi, racine);
   const base = { servi, texte, debutsDeLigne: lignesDe(texte), bornes: bornesDe(servi, racine), references: [], haut: new Map(), fonctionsDuHaut: new Map(),
-    fenetre: new Map(), typeofs: new Set<string>(), sousTypeof: new Set<Noeud>(), ecrituresParPropriete: new Set<Noeud>(), fonctionDe: new Map(), appels: new Map(), cadres: [] };
+    fenetre: new Map(), typeofs: new Set<string>(), sousTypeof: new Set<Noeud>(), ecrituresParPropriete: new Set<Noeud>(), premiereCle: new Map(), fonctionDe: new Map(), appels: new Map(), cadres: [] };
   let ast: Noeud;
   try {
     ast = acorn.parse(texte, { ecmaVersion: 'latest', sourceType: 'script', allowHashBang: true, ranges: true }) as unknown as Noeud;
@@ -178,6 +182,13 @@ function analyser(servi: string, racine: string): Analyse {
       if (v) alias.add(v);
     });
   };
+  // Ou une constante qui la nomme, une fois pour toutes : `const w = window` (les registres du socle, lot B0 ; lue au lot
+  // P1b, quand les écrans s'en servent). Relevée avant le parcours, qui ne lit pas le texte dans l'ordre.
+  for (const s of portees.scopes) for (const v of s.variables) {
+    const d = v.defs[0];
+    if (v.defs.length === 1 && d?.type === 'Variable' && (d.parent as unknown as { kind: string }).kind === 'const'
+      && estFenetre((d.node as unknown as { init?: Noeud }).init ?? undefined)) alias.add(v);
+  }
   const estAlias = (ident: Noeud) => {
     const v = refDeIdent.get(ident)?.resolved;
     return !!v && alias.has(v);
@@ -213,7 +224,13 @@ function analyser(servi: string, racine: string): Analyse {
           const p = cible.property as Noeud & { name?: string; value?: unknown };
           const nom = cible.computed ? (typeof p.value === 'string' ? p.value : null) : p.name ?? null;
           if (nom) a.fenetre.set(nom, [...(a.fenetre.get(nom) ?? []), n.start]);
-        } else if (!fenetre) a.ecrituresParPropriete.add(racineObjet);
+        } else if (!fenetre) {
+          a.ecrituresParPropriete.add(racineObjet);
+          let m = cible;
+          while ((m.object as Noeud).type === 'MemberExpression') m = m.object as Noeud;
+          const q = m.property as Noeud & { name?: string; value?: unknown };
+          a.premiereCle.set(racineObjet, m.computed ? (typeof q.value === 'string' ? q.value : null) : q.name ?? null);
+        }
       }
     }
     if (n.type === 'CallExpression' || n.type === 'NewExpression') {
@@ -414,7 +431,12 @@ function lireLesReferences(ctx: Contexte, nomPage: string, page: { scripts: Anal
     const ecrit = r.isWrite() || a.ecrituresParPropriete.has(ident);
     const ici = `${a.servi}:${pos}`;
     const lieu = ou(a, pos);
-    if (ecrit && !(r.init)) noter('F7', `${a.servi} ${de}→${chez} ${nom}`, ici, lieu);
+    // Le dossier (`data`) est au socle, mais chacune de ses collections a son module, que sa fiche déclare (17 § 3.3) :
+    // un module qui écrit la sienne écrit chez lui (lot P1b). Le socle qui l'écrit, ou un module celle d'un autre, viendra
+    // avec la porte des données (F6).
+    const cle = nom === DONNEES && chez === 'socle' && !r.isWrite() ? a.premiereCle.get(ident) : null;
+    const chezSoi = !!cle && ctx.fiches.get(de)?.collections?.concat(ctx.fiches.get(de)?.racine ?? []).includes(cle);
+    if (ecrit && !(r.init) && !chezSoi) noter('F7', `${a.servi} ${de}→${chez} ${nom}`, ici, lieu);
     // Écrire seulement (sans lire) : c'est F7, pas une lecture.
     if (chez === 'socle' || (r.isWrite() && !r.isRead())) continue;
     if (de === 'socle') { noter('F4', `${a.servi} socle→${chez} ${nom}`, ici, lieu); continue; }
