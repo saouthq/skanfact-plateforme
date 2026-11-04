@@ -242,7 +242,6 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           const v = machine ? null : limiteurPublic.appel(requete.ip);
           if (v && !v.permis) {
             ctx.adresses?.noter(requete.ip, 'frein');
-            reponse.header('retry-after', String(v.attendreSecondes));
             return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('porte.trop_de_demandes_une') : motif('porte.trop_de_demandes', { secondes: v.attendreSecondes }), attendreSecondes: v.attendreSecondes });
           }
           try {
@@ -283,7 +282,6 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           const v = limiteur.appel(cle.id);
           reponse.header('ratelimit-limit', String(limiteur.limite)).header('ratelimit-remaining', String(v.restants));
           if (!v.permis) {
-            reponse.header('retry-after', String(v.attendreSecondes));
             return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('api.trop_d_appels_une') : motif('api.trop_d_appels', { secondes: v.attendreSecondes }), attendreSecondes: v.attendreSecondes });
           }
         }

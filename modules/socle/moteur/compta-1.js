@@ -6291,4 +6291,7 @@
     return assetCumulated(asset, out && dateIso > out ? out : dateIso);
   }
 
+  // (1.276.1) Ce que les modules ajoutent au moteur (docs/cadrage/17-rangement.md § 2) : le socle ne nomme jamais une
+  // fonction d'un module ; le module la pose ici, et le moteur la rend avec les siennes.
+  const ajoutsDesModules = {};
 

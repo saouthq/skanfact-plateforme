@@ -5147,7 +5147,20 @@
   function redessinerCl(d) {
     // (1.210.0) La Saisie lit les mêmes pièces : elle redessine sa bande quand elles arrivent.
     if (/\/comptabilite\/saisie/.test(location.hash)) redessinerSx(d);
-    if (location.hash.replace(/\/$/, '') !== `#/dossier/${encodeURIComponent(d.id)}/classeur` || $('#modal-root').children.length) return;
+    const ici = () => location.hash.replace(/\/$/, '') === `#/dossier/${encodeURIComponent(d.id)}/classeur`;
+    if (!ici()) return;
+    // (1.276.1, rouge GitHub) Ce qui arrive sous une fenêtre (la proposition d'une visite, au premier passage) ne se perd
+    // plus : le classeur se redessine dès qu'elle se ferme, s'il est toujours à l'écran.
+    if ($('#modal-root').children.length) {
+      if (!clState.apresFenetre) {
+        clState.apresFenetre = setInterval(() => {
+          if (!ici()) { clearInterval(clState.apresFenetre); clState.apresFenetre = null; return; }
+          if ($('#modal-root').children.length) return;
+          clearInterval(clState.apresFenetre); clState.apresFenetre = null; redessinerCl(d);
+        }, 300);
+      }
+      return;
+    }
     const actif = document.activeElement && document.activeElement.id === 'cl-q' ? document.activeElement.selectionStart : null;
     drawClasseur($('#view'), d);
     if (actif != null) { const q = $('#cl-q'); if (q) { q.focus(); q.setSelectionRange(actif, actif); } }

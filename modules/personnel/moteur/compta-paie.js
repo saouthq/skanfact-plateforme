@@ -880,6 +880,8 @@
       .reduce((a, r) => a + r.rappelDe.filter(x => x && x.mois === ym).reduce((t, x) => t + (Number(x.brut) || 0), 0), 0);
     return round3(Number(c1.gross) - Number(c0.gross) - round3(deja));
   }
+  // Rendues par le moteur (1.276.1) sans que le socle les nomme.
+  Object.assign(ajoutsDesModules, { heuresDuMoisDe, ecartDeRappel });
   function brutDuMois(employee, year, month) {
     const e = employee || {}, L = Array.isArray(e.salaires) ? e.salaires.filter(x => x && /^\d{4}-\d{2}$/.test(x.des)).slice().sort((a, b) => a.des.localeCompare(b.des)) : [];
     if (!L.length) return round3(Number(e.grossSalary) || 0);

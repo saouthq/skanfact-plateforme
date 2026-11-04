@@ -145,11 +145,16 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
 
     // 4. Le cabinet a demandé la facture dans le fil : son bandeau le dit, avec qui et quand.
     expect((await api('POST', `/entreprises/${ent}/messages`, hatem, { cote: 'cabinet', texte: '', demande: 'La facture BP-2026-0412 de Bureau Plus', pour: jour(2) })).statut).toBe(201);
+    // (1.276.1, rouge GitHub de 1.276.0) Le cabinet appris APRÈS le dessin de la pièce (une connexion lente, comme sur
+    // GitHub) : le bandeau se remplit quand même. Sa réponse est retenue trois secondes.
+    const lente = '**/messages/attente**';
+    await p.route(lente, async (r) => { await new Promise((ok) => setTimeout(ok, 3000)); await r.continue().catch(() => {}); });
     await p.reload();
     await plusTard(p);
     await p.evaluate(() => { location.hash = '#/achat/a1'; });
     await expect.poll(async () => net(await p.locator('#ac-band-justif').innerText().catch(() => '')), { timeout: 20_000 })
       .toBe(`Aucun justificatif : ni la charge ni la TVA ne sont récupérables sans lui Hatem, de ton cabinet, te l'a demandé le ${jm(auj)} dans votre fil. Joins la photo, le PDF ou le fichier El Fatoora de la pièce : il se range ici, et ton cabinet le verra. Joindre la pièce`);
+    await p.unroute(lente);
     await p.screenshot({ path: path.join(PHOTOS, 'achat-ecarts-2-demande-du-cabinet.png') });
 
     // 5. Un achat en devise sans taux de change est refusé, et le refus le dit (03/11/2026 : il levait « charte is not

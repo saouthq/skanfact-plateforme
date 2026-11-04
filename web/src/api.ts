@@ -72,6 +72,10 @@ export async function appeler<T = Record<string, unknown>>(methode: 'GET' | 'POS
       location.replace(`/v10/?e=${encodeURIComponent(gardee)}`);
       return await new Promise<never>(() => { /* la page s'en va */ });
     }
+    // (1.276.1) Sans entreprise gardée, rien n'attend le réseau : ce qui resterait du poste s'efface ici. L'écran de
+    // l'entreprise a pu partir avant que sa suppression aboutisse (une lecture encore ouverte la retient), et l'entrée,
+    // qui n'ouvre jamais la base du poste, la finit.
+    else effacerLePoste();
   }
   return { statut: r.status, corps: lu };
 }

@@ -1029,8 +1029,7 @@ prouver "les limites d'appels qui ne s'appliquent pas" serveur/app.ts \
   "        if (cle) {" "        if (cle && false) {" \
   "au-delà de sa rafale, une clé reçoit 429"
 prouver "un refus sans l'attente à respecter" serveur/app.ts \
-  "            reponse.header('retry-after', String(v.attendreSecondes));
-            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('api." "            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('api." \
+  "          if ((statut === 429 || statut === 503) && typeof attendre === 'number') reponse.header('retry-after', String(attendre));" "          if (false) reponse.header('retry-after', String(attendre));" \
   "au-delà de sa rafale, une clé reçoit 429"
 
 # ── Les avis d'événement (0008, serveur/avis.ts) ────────────────────────────────────────────────
@@ -7078,8 +7077,7 @@ prouver "les routes sans session jamais limitées" serveur/app.ts \
   "          if (v && !v.permis) {" "          if (false && v && !v.permis) {" \
   "$LA1"
 prouver "le refus sans l'attente dans retry-after" serveur/app.ts \
-  "            reponse.header('retry-after', String(v.attendreSecondes));
-            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('porte." "            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('porte." \
+  "          if ((statut === 429 || statut === 503) && typeof attendre === 'number') reponse.header('retry-after', String(attendre));" "          if (false) reponse.header('retry-after', String(attendre));" \
   "$LA1"
 prouver "un seul seau pour toutes les adresses" serveur/app.ts \
   "limiteurPublic.appel(requete.ip)" "limiteurPublic.appel('tous')" \
@@ -24270,6 +24268,26 @@ prouver 'audit G18 : le tri des performances sous 44 px au téléphone' web/cons
   '  .c-pf-tri { min-height: 44px; min-width: 44px; justify-content: center; }
 ' '' \
   'en clair et en sombre, à l'"'"'ordinateur et au téléphone : l'"'"'instrument ne trouve rien ; en langue factice, tout vient du catalogue'
+
+# (1.276.1) L'entrée finit d'effacer le poste d'un appareil retiré (rouge GitHub de 1.276.0).
+prouver 'un appareil retiré qui garde sa base hors ligne après l'"'"'entrée' web/src/api.ts \
+  '    else effacerLePoste();
+  }' '  }' \
+  'le bureau retire le portable perdu ; le portable, à sa reconnexion, efface ce qu'"'"'il gardait, et l'"'"'entrée le dit'
+
+prouver 'le cabinet appris après le dessin de l'"'"'achat : le bandeau reste sans sa demande' modules/socle/ecrans/entreprise/app-1.js \
+  '    if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet && remplirDemandeAchat) remplirDemandeAchat();
+' '' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+
+prouver 'les lectures du classeur arrivées sous une fenêtre, jamais dessinées' modules/socle/ecrans/cabinet/app-1.js \
+  '    if ($('"'"'#modal-root'"'"').children.length) {
+      if (!clState.apresFenetre) {' '    if ($('"'"'#modal-root'"'"').children.length) { return;
+      if (!clState.apresFenetre) {' \
+  'une pièce lue dont le total est celui d'"'"'un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
+prouver 'la paie nommée par le socle du moteur (le contrôle des frontières)' modules/socle/moteur/compta-2.js \
+  ' journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresSupDuMois,' ' journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresDuMoisDe, heuresSupDuMois,' \
+  'le dépôt tient ses frontières : la mesure atteint chaque page, et la liste des écarts connus est à jour'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

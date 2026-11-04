@@ -2345,6 +2345,9 @@
   // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet, lu au serveur (null : pas encore lu, ou pas pour
   // ce rôle) ; et la photo d'un message en route vers un achat.
   let messagerieVue = null;
+  // (1.276.1) Le bandeau « ton cabinet te l'a demandé » de l'achat ouvert (posé par son dessin), à remplir quand le cabinet
+  // est appris après lui.
+  let remplirDemandeAchat = null;
   let rangementDuMessage = null;
   // (1.155.13) La pièce dont on veut parler à son cabinet (« Écrire au cabinet sur cette pièce », depuis un achat).
   let pieceDuMessage = null;
@@ -2368,6 +2371,7 @@
   function majMessagerie(a) {
     const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
     messagerieVue = a;
+    if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet && remplirDemandeAchat) remplirDemandeAchat();
     // (plateforme) 1.102.0 — l'Accueil compte ce que le cabinet attend (« À faire ») : il se redessine quand ce compte
     // change, jamais sous une fenêtre ni pendant une saisie.
     const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}:${x.enRetard || 0}:${x.pourLe || ''}` : '');
@@ -16373,16 +16377,22 @@
     });
     // (27/10/2026, maquette achat « Sans justificatif ») Le cabinet a demandé cette pièce dans le fil (une demande qui cite son
     // numéro ou sa référence, pas encore reçue) : le bandeau le dit, avec qui et quand. Lu dans le fil, rien n'est écrit.
-    if ($('#ac-band-justif') && stored && bridge.messagerie && bridge.messagerie.fil && avecCabinet) {
+    // (1.276.1) Le cabinet appris après le dessin de la page (une connexion lente) remplit aussi le bandeau : majMessagerie
+    // rappelle cette fonction ; elle ne l'écrit qu'une fois.
+    remplirDemandeAchat = () => {
+      const band = $('#ac-band-justif');
+      if (!band || band.dataset.demande || !stored || !bridge.messagerie || !bridge.messagerie.fil || !(messagerieVue && messagerieVue.cabinet)) return;
+      band.dataset.demande = 'lue';
       const net0 = x => String(x || '').toLowerCase().replace(/\s+/g, '');
       const cles = [stored.number, C.referenceAchat(stored, data)].map(net0).filter(x => x.length >= 3);
       bridge.messagerie.fil().then(r => {
         const d = ((r && r.messages) || []).filter(m => m.cote === 'cabinet' && m.demande && !m.demande.recueLe && cles.some(k => net0(m.demande.texte).includes(k))).pop();
-        const t = d && $('#ac-band-justif .txt > span:last-child'); if (!t) return;
+        const t = d && document.contains(band) && $('#ac-band-justif .txt > span:last-child'); if (!t) return;
         const prenom = String(d.auteur || '').trim().split(/\s+/)[0];
         t.textContent = `${prenom ? `${prenom}, de ton cabinet,` : 'Ton cabinet'} te l'a demandé le ${lfJm(new Date(d.ecritLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))} dans votre fil. ${t.textContent}`;
-      }, () => {});
-    }
+      }, () => { band.dataset.demande = ''; });
+    };
+    if (avecCabinet) remplirDemandeAchat();
     // Le choix fait, le formulaire paraît et la question s'en va.
     const sortirDuChoix = () => { attendChoix = false; const a = $('#ac-arrivee'); if (a) a.remove(); const z = $('#view .ac-attend'); if (z) z.remove(); const e = $('#view .buy-editor'); if (e) e.classList.remove('attend-choix'); const j = $('#attach-top'); if (j) j.hidden = false; const m = $('#view .ed-tete .more'); if (m) m.hidden = false; const u = $('#ac-annuler'); if (u) u.hidden = false; };
     if ($('#ac-main')) $('#ac-main').onclick = () => { sortirDuChoix(); const b = $('[data-combo=supplierId] .combo-btn', head); if (b) b.focus(); };

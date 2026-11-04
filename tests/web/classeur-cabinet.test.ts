@@ -233,7 +233,15 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
       [cab.id, boulangerie, m.corps.id, courrielAssocie]);
     } finally { await admin.end(); }
     const { p, erreurs } = await contexte(associe);
+    // (1.276.1, rouge GitHub) Les lectures arrivent pendant qu'une fenêtre est ouverte (sur GitHub : la proposition d'une
+    // visite) : retenues trois secondes, sous une fenêtre posée à la main, elles se dessinent quand elle se ferme.
+    const lectures = '**/classeur/*/lectures';
+    await p.route(lectures, async (r) => { await new Promise((ok) => setTimeout(ok, 3000)); await r.continue().catch(() => {}); });
     await ouvrir(p, cab.id, boulangerie);
+    await p.evaluate(() => { const f = document.createElement('div'); f.id = 'fenetre-du-test'; document.getElementById('modal-root')?.appendChild(f); });
+    await p.waitForTimeout(4000);
+    await p.evaluate(() => document.getElementById('fenetre-du-test')?.remove());
+    await p.unroute(lectures);
     const ligne = p.locator('li[data-cl-k]').filter({ hasText: 'IMG_8850' });
     // (rouge GitHub de 37ca3e7) La seconde par défaut de l'attente ne suffit pas à une machine chargée : la page arrive.
     await expect.poll(() => ligne.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/un achat du même montant existe déjà : FA-0919, sans justificatif/);
