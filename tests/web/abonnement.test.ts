@@ -150,13 +150,22 @@ describe('l\'abonnement, à la souris', () => {
     // Une liste qui a des lignes : son « + Nouveau client » reste (une fiche se crée encore), mais n'est plus le vert.
     await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton);
     expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
-      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel du Lac' } }] })).statut).toBe(200);
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel du Lac' } },
+      { collection: 'recurring', cle: 'r1', rang: 0, revision: null, contenu: { id: 'r1', clientId: 'c1', subject: 'Maintenance', every: 'month', day: 1, nextDate: '2027-01-01',
+        active: true, withholdingRate: 0, discountRate: 0, notes: '', lines: [{ label: 'Maintenance des chambres', description: '', qty: 1, unit: '', unitPrice: { '~n': '120.5' }, vatRate: 19 }] } }] })).statut).toBe(200);
     await p.reload();
     await plusTard(p);
     await p.evaluate(() => { location.hash = '#/clients'; });
     await p.locator('#view tr').filter({ hasText: 'Hôtel du Lac' }).first().waitFor({ timeout: 15_000 });
     expect(net(await p.locator('#view .page-head #new').innerText())).toBe('Nouveau client');
     expect(await p.locator('#view .btn-primary:visible').count()).toBe(0);
+    // (1.276.0) Une page restée à l'ancien bouton « + … » en tête (la facturation récurrente, avec un contrat : sans lui,
+    // l'état vide prend le vert) : le bouton reste, mais n'est plus vert.
+    await p.evaluate(() => { location.hash = '#/contrats'; });
+    await expect.poll(() => p.locator('#view .page-head #new').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('+ Nouveau contrat');
+    expect(await p.locator('#view .page-head #new').getAttribute('class')).not.toMatch(/\bbtn-primary\b/);
+    await p.evaluate(() => { location.hash = '#/clients'; });
+    await p.locator('#view tr').filter({ hasText: 'Hôtel du Lac' }).first().waitFor({ timeout: 15_000 });
 
     // (maquette « Barre v3 ») « Créer » porte un cadenas, et le dit avant le geste : fermé, pourquoi, et la porte de
     // l'abonnement ; aucune pièce n'y est proposée.

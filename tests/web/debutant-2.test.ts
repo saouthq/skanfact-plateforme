@@ -203,17 +203,20 @@ describe('le lot débutant (2), à la souris', () => {
   it('Avoir : choisir sa facture en reprend les lignes, sans écraser ce qu\'on a déjà tapé ; le bandeau d\'une facture émise passe à la ligne', async () => {
     const { jeton, ent } = await personne(true);
     const numero = await factureEmise(jeton, ent);
-    // Le bandeau de la facture émise tient dans l'écran, sur un portable comme sur un grand écran.
-    for (const [largeur, hauteur] of [[1280, 800], [1440, 900]]) {
+    // Le bandeau de la facture émise tient dans l'écran, sur un portable comme sur un grand écran. (1.276.0) Et sur une
+    // tablette tenue droite (768 px) : le texte de la charte est court, et c'est là que sa phrase, collée à sa bulle « i »,
+    // ne passerait plus à la ligne et sortirait du bandeau.
+    for (const [largeur, hauteur] of [[768, 1024], [1280, 800], [1440, 900]]) {
       const { p, fermer } = await ouvrir(jeton, ent, '#/doc/f1', largeur, hauteur);
       const bandeau = p.locator('.lock-banner').first();
       await bandeau.waitFor();
       const mesure = await bandeau.evaluate((b) => {
         const vue = document.querySelector('#view') as HTMLElement;
-        return { droite: b.getBoundingClientRect().right, vue: vue.getBoundingClientRect().right, deborde: vue.scrollWidth - vue.clientWidth };
+        return { droite: b.getBoundingClientRect().right, vue: vue.getBoundingClientRect().right, deborde: vue.scrollWidth - vue.clientWidth, dedans: b.scrollWidth - b.clientWidth };
       });
       expect(mesure.droite, `${largeur} px`).toBeLessThanOrEqual(mesure.vue);
       expect(mesure.deborde, `${largeur} px`).toBeLessThanOrEqual(0);
+      expect(mesure.dedans, `${largeur} px`).toBeLessThanOrEqual(0);
       if (largeur === 1440) await p.screenshot({ path: path.join(PHOTOS, 'debutant-2-bandeau.png') });
       await fermer();
     }

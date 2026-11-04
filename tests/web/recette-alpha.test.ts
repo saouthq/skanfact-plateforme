@@ -422,9 +422,11 @@ describe('la recette alpha, à la souris', () => {
     const items = choix.locator('.combo-it');
     await expect.poll(() => items.count()).toBe(4);
     expect((await items.allInnerTexts()).every((t) => /^DEV-2026-04\d — Devis — Hôtel du Lac — /.test(net(t)))).toBe(true);
-    // Le dernier article se voit et se clique : la fenêtre ne coupe pas la liste ouverte.
-    const dernier = items.last();
-    expect(await dernier.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === el.querySelector('.ci-main') || document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.combo-it') === el; })).toBe(true);
+    // Le premier et le dernier article se voient et se cliquent : la fenêtre ne coupe pas la liste ouverte. (1.276.0) La
+    // liste s'ouvre vers le haut quand la place manque dessous : c'est alors le premier qui sortirait de la fenêtre.
+    for (const bout of [items.first(), items.last()]) {
+      expect(await bout.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.combo-it') === el; })).toBe(true);
+    }
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

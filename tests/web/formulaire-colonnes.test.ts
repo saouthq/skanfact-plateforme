@@ -1,7 +1,8 @@
 // Les colonnes d'un formulaire ne s'élargissent pas pour un long nom (1.100.0, parcours du 21/10/2026). Sami fait un
 // devis pour « Entreprise Générale de Bâtiment Chaabane » : la colonne du client s'élargissait au nom entier, et les
 // deux dates voisines coupaient l'année (« 21/10/202 »). Les trois colonnes restent égales. (1.166.2, charte de la
-// facture) Le nom a sa propre carte, au-dessus des dates : il s'y lit en entier, sans déborder.
+// facture) Le nom a sa propre carte, au-dessus des dates : il s'y lit en entier, sans déborder. (1.276.0) L'en-tête n'est
+// plus une grille de trois colonnes : la date et l'échéance ont leur ligne (.ed-ligne3), et c'est elle qu'on mesure.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -53,17 +54,14 @@ describe('les colonnes d\'un formulaire, avec un long nom de client', () => {
       // (lot 4, maquette facture) La validité est une case « 30 jours · 20/11/2026 » qui ouvre son choix, plus un champ de date.
       const dates = [...document.querySelectorAll<HTMLInputElement>('#f-head .datefield .d-txt')];
       const validite = document.querySelector<HTMLElement>('#f-head #ed-ech');
-      const colonnes = getComputedStyle(document.querySelector('#f-head') as HTMLElement).gridTemplateColumns.split(' ').map(parseFloat);
       const nom = document.querySelector('#f-head #ed-client .ed-cl-nom b') as HTMLElement;
       const carte = (document.querySelector('#f-head #ed-client') as HTMLElement).getBoundingClientRect();
       return { valeurs: [...dates.map((d) => d.value), (validite?.textContent ?? '').replace(/\s+/g, ' ').trim()],
-        coupees: [...dates, ...(validite ? [validite] : [])].filter((d) => d.scrollWidth > d.clientWidth).length, colonnes,
+        coupees: [...dates, ...(validite ? [validite] : [])].filter((d) => d.scrollWidth > d.clientWidth).length,
         nom: nom.innerText, nomDeborde: nom.scrollWidth > nom.clientWidth || nom.getBoundingClientRect().right > carte.right + 0.5 };
     });
     expect(mesure.valeurs[0]).toBe('21/10/2026');
     expect(mesure.valeurs[1]).toMatch(/· 20\/11\/2026$/);
-    // Trois colonnes égales (au pixel près), quel que soit le nom du client.
-    expect(Math.max(...mesure.colonnes) - Math.min(...mesure.colonnes)).toBeLessThan(1);
     expect(mesure.coupees).toBe(0);
     // Le nom, lui, a la place de toute la carte : entier, et dedans.
     expect(mesure.nom).toBe('Entreprise Générale de Bâtiment Chaabane');

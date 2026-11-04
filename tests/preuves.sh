@@ -16418,10 +16418,10 @@ prouver 'les barèmes d'"'"'avant 2026 tus dans l'"'"'onglet Bulletins' modules/
   '${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026">' \
   '${false ? `<div class="warn-box mb" id="p-2026">' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'la fiche d'"'"'un salarié qui s'"'"'élargit à la première prime' 'web/public/v10/style.css' \
-  '.modal:where(:has(#ef-primes-p, #bf-bon, #sf-primes-p)) { width: 860px; }' \
-  '' \
-  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+# (1.276.0) Retirée : « la fiche d'un salarié qui s'élargit à la première prime ». La fiche est passée à la fenêtre de la
+# maquette (.pm .modal.fen:has(#ef), largeur fixe) et son contenu la remplit dès l'ouverture : aucune règle qu'on retire
+# ne la fait plus grandir sous le curseur. La recette (tests/web/parcours.test.ts) garde sa mesure ; celle du Cabinet,
+# qui vit encore sur l'ancienne règle, garde sa preuve plus bas.
 prouver 'les primes d'"'"'un bulletin serrées à côté des retenues' modules/personnel/styles/paie.css \
   '.bf-c { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);' \
   '.bf-c { display: grid; grid-template-columns: minmax(0, 1fr) minmax(600px, 640px);' \
@@ -18581,8 +18581,8 @@ prouver 'l'\''autre compte qui laisse ouverte la session du premier' web/public/
 prouver 'l'\''autre compte qui rouvre son accueil au lieu de la page' web/public/plateforme/pont.js \
   $"    if (destination) try { sessionStorage.setItem('skanfact.destination', destination); }" $"    if (destination) try { void 0; }" \
   '(1.100.0) ouverte avec le mauvais compte'
-prouver 'la colonne du client qui s'\''élargit et coupe l'\''année des dates' web/public/v10/style.css \
-  $'.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px; }\n.grid-2 > *, .grid-3 > * { min-width: 0; }' $'.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 20px; }' \
+prouver 'la case de la date trop étroite, qui coupe l'\''année' web/public/plateforme/piece.css \
+  '.ed-ligne3 { grid-template-columns: 150px 210px minmax(0, 1fr); }' '.ed-ligne3 { grid-template-columns: 92px 210px minmax(0, 1fr); }' \
   'les deux dates d'\''un devis se lisent en entier'
 prouver 'le champ refusé qui perd le curseur quand son refus s'\''affiche dessous' web/src/composants/Champ.tsx \
   $'  }, [faute, n, rouge]);' $'  }, [faute, n]);' \

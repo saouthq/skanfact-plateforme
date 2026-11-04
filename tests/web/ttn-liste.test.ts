@@ -254,6 +254,8 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     await expect.poll(() => nadia.locator('tr[data-id="f3"]').count(), { timeout: 20_000 }).toBe(1);
     await plusTard(nadia);
     const ou = () => nadia.evaluate(() => [document.querySelector('#view h1'), document.getElementById('new')].map((x) => { const b = x?.getBoundingClientRect(); return b ? [b.left, b.top] : null; }));
+    // (1.276.0) La page entre en glissant (`page-entree`) : on mesure une fois arrivée, sinon le titre bouge de lui-même.
+    await nadia.evaluate(() => Promise.all(document.getAnimations().filter((x) => (x as CSSAnimation).animationName === 'page-entree').map((x) => x.finished)));
     const avant = await ou();
     lacher();
     const bouton = nadia.getByRole('button', { name: 'Signer les 3 pièces en attente…', exact: true });
