@@ -167,7 +167,7 @@
     LEAVE_KINDS, leaveIsPaid,
     // (plateforme) 1.70.0 — les congés.
     leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance, congeRetenu,
-    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, heuresSupDuJour, poserHeuresSupDuJour, poserRetard, equipeDe, joursReposDe, ferieDu, lireBadges, importerBadges, journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresSupDuMois, retardsDuMois, heuresDeNuitDuMois, reprisePointage, pointageSurBulletin,
+    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, heuresSupDuJour, poserHeuresSupDuJour, poserRetard, equipeDe, joursReposDe, ferieDu, lireBadges, importerBadges, journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresDuMoisDe, ecartDeRappel, heuresSupDuMois, retardsDuMois, heuresDeNuitDuMois, reprisePointage, pointageSurBulletin,
     saisieDuMois, brutDuMois, employeAuMois, regulsDuMois, saisiesOf, saisiesDuMois,
     // (plateforme) 1.256.0 — net → brut, l'ancienneté, les variables du mois, l'indemnité de licenciement.
     brutPourNet, anneesAnciennete, trancheAnciennete, primeAncienneteDuMois, variablesDuMois, indemniteLicenciement,

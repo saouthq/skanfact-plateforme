@@ -741,7 +741,7 @@
     // 1.237.0 — les gestes du bulletin, ceux de la maquette : son PDF, le modifier (paie tenue, pas validé) ou proposer sa
     // correction (paie du client), le marquer vérifié.
     const enCorr = !!(b.correction && !b.correction.reponse);
-    const peutModifier = (P.mode === 'cabinet' || P.mode === 'tenue') && !b.valideLe && !(L.exercice || {}).clos;
+    const peutModifier = (P.mode === 'cabinet' || P.mode === 'tenue') && !b.valideLe && !b.payeLe && !(L.exercice || {}).clos;
     const gestes = `<div class="ctrl-geste cp-pa-volet-g"><button type="button" class="btn btn-sm" data-pa-pdf="${esc(b.id)}">Le bulletin (PDF)</button>${peutModifier ? `<button type="button" class="btn btn-sm" data-pa-modifier="${esc(b.id)}">Modifier…</button>` : ''}${P.mode === 'seule' && !b.valideLe && !enCorr ? `<button type="button" class="btn btn-sm" data-pa-proposer="${esc(b.id)}">Proposer une correction…</button>` : ''}${!b.verifieLe && !b.valideLe && !enCorr && P.mode !== 'sans' ? `<button type="button" class="btn btn-sm" data-pa-verifie="${esc(b.id)}">Vérifié</button>` : ''}</div>`;
     const etat = b.valideLe ? 'validé' : enCorr ? 'correction proposée' : b.bonAPayerLe ? 'approuvé' : b.verifieLe ? 'vérifié' : P.mode === 'seule' ? `fait par ${P.client}` : 'à vérifier';
     const sit = c.situation || {};
@@ -912,7 +912,7 @@
         </tr>`).join('')}</tbody></table></div>`
     : `<div class="empty">Aucun salarié en poste ${esc(leMois)}.</div>`}
       ${/* Sous la grille : apparue au-dessus, l'alerte poussait les cases sous la souris (vu dans l'entreprise, 1.60.0). */''}
-      ${ecarts.length ? `<div class="warn-box mt" id="pt-ecarts">${ecarts.map(({ b, r }) => `<div class="ctrl-geste"><span>Le bulletin de <b>${esc(nomDe(b.salarieId))}</b> ne suit plus le pointage : ${esc(ecartDuPointage(r))}.${b.valideLe ? ` Il est validé depuis le ${esc(fmtJour(String(b.valideLe).slice(0, 10)))} : il ne change plus, la différence se régularise sur le bulletin du mois suivant.` : b.payeLe ? ' Il est déjà payé : son net changera.' : ''}</span>${b.valideLe ? '' : `<button type="button" class="btn btn-sm" data-pt-reprendre="${esc(b.id)}">Reprendre le pointage dans le bulletin</button>`}</div>`).join('')}</div>` : ''}
+      ${ecarts.length ? `<div class="warn-box mt" id="pt-ecarts">${ecarts.map(({ b, r }) => `<div class="ctrl-geste"><span>Le bulletin de <b>${esc(nomDe(b.salarieId))}</b> ne suit plus le pointage : ${esc(ecartDuPointage(r))}.${b.valideLe ? ` Il est validé depuis le ${esc(fmtJour(String(b.valideLe).slice(0, 10)))} : il ne change plus, la différence se régularise sur le bulletin du mois suivant.` : b.payeLe ? ' Il est déjà payé : il ne change plus, la différence se régularise sur le bulletin du mois suivant.' : ''}</span>${b.valideLe || b.payeLe ? '' : `<button type="button" class="btn btn-sm" data-pt-reprendre="${esc(b.id)}">Reprendre le pointage dans le bulletin</button>`}</div>`).join('')}</div>` : ''}
       ${majorations.length || clos || !lignes.length ? '' : L.reglagesPaie
     ? '<p class="small muted mt" id="pt-sans-hs">Pour pointer des heures supplémentaires, il faut leurs majorations : ce client les règle dans son SkanFact (<b>Paie › Barèmes</b>).</p>'
     : '<div class="small muted mt ctrl-geste" id="pt-sans-hs"><span>Pour pointer des heures supplémentaires, règle d\'abord leurs majorations. <em>À VÉRIFIER : le Code du travail et la convention collective du client.</em></span><button type="button" class="btn btn-sm" id="pt-taux">Régler les heures supplémentaires…</button></div>'}

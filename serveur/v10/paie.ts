@@ -132,12 +132,16 @@ async function lireBulletin(tx: Transaction, entreprise: string, utilisateur: st
   }
 
   // La saisie telle que le calcul l'a prise (arrondie au millime par la v10).
-  const elements = (liste: unknown) => (Array.isArray(liste) ? liste : []).map((x) => {
+  // (1.274.0, audit du 04/11/2026, G07) Une prime peut être négative : la régularisation d'un trop-perçu sur un mois
+  // suivant (`regularisationFenetre`) et la retenue des retards s'écrivent en primes signées, qui baissent le brut, la CNSS
+  // et l'impôt comme à l'écran. Une retenue reste positive (elle se retire du net).
+  const elements = (liste: unknown, signe: boolean) => (Array.isArray(liste) ? liste : []).map((x) => {
     const o = estObjet(x) ? x : {};
     const montant = exact(o.amount ?? 0, 3);
-    return { libelle: String(o.label ?? '').slice(0, 200), montant: montant !== null && montant >= 0n && montant <= MONTANT_MAX ? montant : null, imposable: o.taxable !== false };
+    const lisible = montant !== null && montant <= MONTANT_MAX && montant >= (signe ? -MONTANT_MAX : 0n);
+    return { libelle: String(o.label ?? '').slice(0, 200), montant: lisible ? montant : null, imposable: o.taxable !== false };
   });
-  const primes = elements(c.bonuses), retenues = elements(c.deductions);
+  const primes = elements(c.bonuses, true), retenues = elements(c.deductions, false);
   const brutDeBase = exact(c.baseGross ?? 0, 3), joursOuvrables = exact(c.workedDays ?? 0, 3), joursAbsence = exact(c.absentDays ?? 0, 3);
   // (1.62.0) Le salaire d'un mois complet sur lequel l'absence s'est retirée, le mois d'une entrée ou d'une sortie ; un
   // bulletin d'avant ne le porte pas : l'absence s'y retirait du brut de base.
@@ -169,7 +173,7 @@ async function lireBulletin(tx: Transaction, entreprise: string, utilisateur: st
     }
   }
   // Ce que le formulaire de la v10 refuse (10.10.0), le serveur le refuse aussi, quel que soit le chemin.
-  if (calcul.brut <= 0n) throw new Refus('v10.bulletin_brut', { valeurs: { salarie: nom, periode } });
+  if (calcul.brut <= 0n || calcul.assietteCnss < 0n) throw new Refus('v10.bulletin_brut', { valeurs: { salarie: nom, periode } });
   if (calcul.net < 0n) throw new Refus('v10.bulletin_net', { valeurs: { salarie: nom, periode } });
 
   const payeLe = p.paidDate === undefined || p.paidDate === null || p.paidDate === '' ? null : p.paidDate;
@@ -201,13 +205,48 @@ async function tenirBulletin(tx: Transaction, entreprise: string, utilisateur: s
   const pourTrace = { annee: b.annee, mois: b.mois, net: k.net, coutEmployeur: k.coutEmployeur, payeLe: b.paye.le };
   const deja = await db.selectFrom('paie.bulletin').select(['id', 'revision', 'annee', 'mois', 'net', 'cout_employeur', 'paye_le'])
     .where('entreprise', '=', entreprise).where('ref_v10', '=', cle).executeTakeFirst();
+  // (1.274.0, audit du 04/11/2026, G06) Un salarié n'a qu'un bulletin par mois : un second (deux postes qui établissent le
+  // même mois, un envoi rejoué, deux envois au même instant) doublerait le salaire, les cotisations et le paiement. La base
+  // le tient (0190, `bulletin_un_par_mois`) ; son refus devient une phrase.
+  const double = () => new Refus('v10.bulletin_double', { valeurs: { salarie: b.salarie.nom, periode: `${String(b.mois).padStart(2, '0')}/${b.annee}` } });
+  const tenu = <T>(p: Promise<T>) => p.catch((e: unknown) => {
+    const pg = e as { code?: string; constraint?: string };
+    throw pg.code === '23505' && pg.constraint === 'bulletin_un_par_mois' ? double() : e;
+  });
   if (deja) {
-    await db.updateTable('paie.bulletin').set({ ...champs, modifie_par: utilisateur, modifie_le: new Date(), revision: deja.revision + 1n }).where('id', '=', deja.id).execute();
+    await tenu(db.updateTable('paie.bulletin').set({ ...champs, modifie_par: utilisateur, modifie_le: new Date(), revision: deja.revision + 1n }).where('id', '=', deja.id).execute());
     await tracer(tx, entreprise, 'paie.bulletin.modifier', { type: 'bulletin', id: deja.id },
       { annee: deja.annee, mois: deja.mois, net: deja.net, coutEmployeur: deja.cout_employeur, payeLe: deja.paye_le, revision: deja.revision }, pourTrace);
   } else {
-    const id = (await db.insertInto('paie.bulletin').values({ entreprise, ref_v10: cle, ...champs, cree_par: utilisateur }).returning('id').executeTakeFirstOrThrow()).id;
+    const id = (await tenu(db.insertInto('paie.bulletin').values({ entreprise, ref_v10: cle, ...champs, cree_par: utilisateur }).returning('id').executeTakeFirstOrThrow())).id;
     await tracer(tx, entreprise, 'paie.bulletin.etablir', { type: 'bulletin', id }, null, pourTrace);
+  }
+}
+
+// ── Un bulletin payé ou validé ne change plus (1.274.0, audit du 04/11/2026, G05) ─────────────────────────────────
+// L'écran le refusait seul ; le serveur acceptait tout bulletin dont le calcul tombait juste. Désormais :
+// - un bulletin VALIDÉ par le cabinet (`valideLe`) ne change plus ni de salarié, ni de mois, ni de montant, et ne se retire
+//   pas : une correction passe par une régularisation sur un mois suivant ;
+// - la validation elle-même (la poser, la retirer, la changer) ne vient que du cabinet qui tient le dossier : l'entreprise
+//   n'écrit pas « validé par ton cabinet » sur son propre bulletin ;
+// - un bulletin PAYÉ (`paidDate`) ne change plus de montant tant qu'il reste payé, et ne se retire pas : ce qui manquait ou
+//   a été payé en trop passe par « Régulariser sur un mois suivant » ; un virement rejeté, par « Annuler le paiement »,
+//   geste à part, après lequel le bulletin redevient à payer. Le paiement lui-même (date, compte, mode) reste corrigeable.
+const FIGE = ['employeeId', 'year', 'month', 'computed'];
+export async function garderLesBulletins(tx: Transaction, entreprise: string, changements: ChangementLu[]): Promise<void> {
+  const bulletins = changements.filter((c) => c.collection === 'payslips' && aVraimentChange(c));
+  if (!bulletins.length) return;
+  let cabinet: boolean | null = null;
+  const parLeCabinet = async () => (cabinet ??= (await tx.query('select socle.perimetre_cabinet($1) is not null v', [entreprise])).rows[0]?.v === true);
+  for (const c of bulletins) {
+    const av = estObjet(c.avant) ? c.avant : null, ap = estObjet(c.apres) ? c.apres : null;
+    const qui = av ?? ap;
+    const valeurs = { periode: `${String(qui?.month ?? '?').padStart(2, '0')}/${String(qui?.year ?? '?')}` };
+    if (av?.valideLe && !ap) throw new Refus('v10.bulletin_valide_retire', { valeurs });
+    if (av?.valideLe && differe(av, ap, FIGE)) throw new Refus('v10.bulletin_valide', { valeurs });
+    if (ap && differe(av, ap, ['valideLe']) && (av?.valideLe || ap.valideLe) && !await parLeCabinet()) throw new Refus('v10.bulletin_validation_cabinet', { valeurs });
+    if (av?.paidDate && !ap) throw new Refus('v10.bulletin_paye_retire', { valeurs });
+    if (av?.paidDate && ap?.paidDate && differe(av, ap, FIGE)) throw new Refus('v10.bulletin_paye', { valeurs });
   }
 }
 
@@ -316,10 +355,8 @@ export async function suivrePaie(tx: Transaction, entreprise: string, utilisateu
   // 1. Les fiches des salariés changés (avant leurs bulletins : un bulletin et son salarié arrivent souvent ensemble).
   for (const c of salaries) await ficheSalarie(tx, entreprise, utilisateur, c.cle, c.apres as Json);
 
-  // 2. Chaque bulletin changé, recalculé et tenu.
-  for (const c of bulletins) if (estObjet(c.apres)) await tenirBulletin(tx, entreprise, utilisateur, c.cle, c.apres);
-
-  // 3. Les bulletins retirés (la v10 le permet, en prévenant : « mieux vaut le corriger »), chacun avec sa trace.
+  // 2. Les bulletins retirés (la v10 le permet, en prévenant : « mieux vaut le corriger »), chacun avec sa trace. Avant
+  //    ceux qui s'établissent (1.274.0, G06) : un bulletin retiré puis refait dans le même envoi ne se compte pas deux fois.
   for (const c of bulletins) {
     if (c.apres !== null) continue;
     const b = await db.selectFrom('paie.bulletin').select(['id', 'annee', 'mois', 'net', 'cout_employeur', 'paye_le']).where('entreprise', '=', entreprise).where('ref_v10', '=', c.cle).executeTakeFirst();
@@ -327,6 +364,10 @@ export async function suivrePaie(tx: Transaction, entreprise: string, utilisateu
     await db.deleteFrom('paie.bulletin').where('id', '=', b.id).execute();
     await tracer(tx, entreprise, 'paie.bulletin.supprimer', { type: 'bulletin', id: b.id }, { annee: b.annee, mois: b.mois, net: b.net, coutEmployeur: b.cout_employeur, payeLe: b.paye_le }, null);
   }
+
+  // 3. Chaque bulletin changé, recalculé et tenu : ceux qui existaient d'abord (un bulletin qui change de mois libère le sien).
+  const tenus = bulletins.filter((c) => estObjet(c.apres)).sort((x, y) => Number(x.avant === null) - Number(y.avant === null));
+  for (const c of tenus) await tenirBulletin(tx, entreprise, utilisateur, c.cle, c.apres as Json);
 
   // 4. Les écritures des mois touchés, avant et après l'envoi (en totaux, sans un nom).
   if (bulletins.length) {

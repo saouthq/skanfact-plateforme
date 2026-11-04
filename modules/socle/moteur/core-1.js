@@ -3362,8 +3362,9 @@
   // À VÉRIFIER avec le comptable : le coût horaire chargé qu'il retient pour tes devis.
   function coutHoraire(data, employeeId, year, month) {
     const s = payrollSettings(data);
-    const heuresMois = Number(s.heuresMois) || 0;
     const emp = (data.employees || []).find(e => e.id === employeeId);
+    // (1.274.0, audit G09) Les heures du mois de CE salarié : celles de son contrat s'il est à temps partiel.
+    const heuresMois = Compta.heuresDuMoisDe(s, emp);
     if (!emp || !(heuresMois > 0)) return { coutMois: 0, heuresMois, estime: false, inconnu: true };
     const bulletins = (data.payslips || []).filter(p => p.employeeId === employeeId && Number(p.year) === Number(year) && Number(p.month) === Number(month));
     if (bulletins.length) {

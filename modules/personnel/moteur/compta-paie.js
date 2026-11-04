@@ -369,6 +369,9 @@
       .filter(l => (!employeeId || l.employeeId === employeeId)
         && (!year || (l.from || '').slice(0, 4) === String(year) || (l.to || '').slice(0, 4) === String(year)))
       .map(l => ({ ...l, days: workingDays(l.from, l.to, (data.payrollSettings || {}).offDays),
+        // (1.274.0, audit du 04/11/2026, G10) Les jours qui tombent DANS l'année demandée : un congé du 30/12 au 02/01 en
+        // compte une part à chaque année, jamais tous ses jours aux deux. Sans année, ce sont tous ses jours.
+        joursAnnee: year ? workingDays(l.from > `${year}-01-01` ? l.from : `${year}-01-01`, l.to < `${year}-12-31` ? l.to : `${year}-12-31`, (data.payrollSettings || {}).offDays) : undefined,
         paid: l.paid != null ? l.paid : leaveIsPaid(l.kind), kindLabel: leaveKindLabel(l.kind), retenu: congeRetenu(l) }))
       .sort((a, b) => (b.from || '').localeCompare(a.from || ''));
   }
@@ -389,9 +392,9 @@
     const acquired = round3(perYear * months / 12);
     const carry = Number((emp.leaveCarry || {})[y]) || 0;
     const list = leavesOf(data, employeeId, y).filter(l => l.retenu);
-    const taken = round3(list.filter(l => l.kind === 'conges').reduce((a, l) => a + l.days, 0));
+    const taken = round3(list.filter(l => l.kind === 'conges').reduce((a, l) => a + l.joursAnnee, 0));
     const byKind = {};
-    LEAVE_KINDS.forEach(([k]) => { byKind[k] = round3(list.filter(l => l.kind === k).reduce((a, l) => a + l.days, 0)); });
+    LEAVE_KINDS.forEach(([k]) => { byKind[k] = round3(list.filter(l => l.kind === k).reduce((a, l) => a + l.joursAnnee, 0)); });
     return { year: y, months, acquired, carry, taken, byKind,
       remaining: round3(acquired + carry - taken), perYear, list };
   }
@@ -725,11 +728,19 @@
     return true;
   }
   const majorationsHs = s => [s && s.hsMaj1, s && s.hsMaj2, s && s.hsMaj3].map(Number).filter(x => x > 0);
+  // (1.274.0, audit du 04/11/2026, G09) Les heures d'un mois complet DE CE SALARIÉ : celles du réglage pour un temps plein ;
+  // pour un temps partiel (heures par semaine sur sa fiche), celles de son contrat, sur 52 semaines rapportées au mois
+  // (24 h par semaine : 104 h). Son brut est celui de ces heures : l'heure sup, la retenue d'un retard et l'heure de nuit
+  // se valorisent sur elles. À VÉRIFIER avec le comptable : les heures complémentaires d'un temps partiel et leur majoration.
+  function heuresDuMoisDe(s, employee) {
+    const h = Number(employee && employee.weeklyHours) || 0;
+    return h > 0 ? round3(h * 52 / 12) : (Number(s && s.heuresMois) || 0);
+  }
   // Une prime imposable par majoration : le brut de la fiche divisé par les heures d'un mois complet, majoré.
   function heuresSupDuMois(data, employee, year, month) {
     const s = baremesPaie((data && data.payrollSettings) || {});
     const t = pointageEnregistre(data, employee.id, year, month);
-    const heuresMois = Number(s.heuresMois) || 0;
+    const heuresMois = heuresDuMoisDe(s, employee);
     if (!t || !t.hs || !(heuresMois > 0)) return [];
     const brut = round3(Number(employee.grossSalary) || 0);
     const pct = n => String(n).replace('.', ',');
@@ -745,7 +756,7 @@
   // complet, comme les heures sup), en une ligne imposable négative : le brut baisse, la CNSS et l'impôt suivent.
   function retardsDuMois(data, employee, year, month, p) {
     const s = baremesPaie((data && data.payrollSettings) || {});
-    const heuresMois = Number(s.heuresMois) || 0, mn = Math.round(Number((p || pointageDuMois(data, employee, year, month)).retards) || 0);
+    const heuresMois = heuresDuMoisDe(s, employee), mn = Math.round(Number((p || pointageDuMois(data, employee, year, month)).retards) || 0);
     if (!s.retenirRetards || !(heuresMois > 0) || !(mn > 0)) return [];
     const montant = round3(round3(Number(employee.grossSalary) || 0) * mn / 60 / heuresMois);
     return montant > 0 ? [{ label: `Retenue pour retards : ${mn} min`, amount: -montant, taxable: true, retard: true, minutes: mn }] : [];
@@ -769,7 +780,7 @@
       if (a == null || d0 == null) continue;
       minutes += recouvre(a, d0 > a ? d0 : d0 + 1440);
     }
-    const heuresMois = Number(s.heuresMois) || 0, maj = Number(s.nuitMajoration) || 0, h = round3(minutes / 60);
+    const heuresMois = heuresDuMoisDe(s, employee), maj = Number(s.nuitMajoration) || 0, h = round3(minutes / 60);
     const pc = n => String(n).replace('.', ',');
     const montant = maj > 0 && heuresMois > 0 ? round3(round3(Number(employee.grossSalary) || 0) * h * maj / 100 / heuresMois) : 0;
     return { minutes, reglee: true, lignes: montant > 0 ? [{ label: `Heures de nuit : ${pc(h)} h à +${pc(maj)} %`, amount: montant, taxable: true, nuit: true, heures: h }] : [] };
@@ -851,6 +862,24 @@
   // Le brut d'un mois est celui du dernier changement entré en vigueur ce mois-là ou avant ; un mois d'avant le premier
   // changement garde l'ancien salaire (`avant`). Sans historique, le brut de la fiche. Un bulletin d'un mois passé, refait
   // plus tard, ne prend donc jamais l'augmentation d'après.
+  // (1.274.0, audit du 04/11/2026, G08) Ce qu'une augmentation qui compte depuis un mois passé doit rappeler pour un bulletin
+  // déjà payé (ou d'un mois clos) : le brut que ce mois aurait eu au salaire d'aujourd'hui, moins celui qu'il a eu, moins ce
+  // qu'un rappel d'avant a déjà porté pour ce mois (`rappelDe`, gardé par le rappel). Le mois d'une entrée ou d'une sortie, son
+  // prorata se refait au nouveau salaire (le salaire du contrat ET le brut proratisé) : avec l'ancien, le moteur ne le
+  // reconnaît plus et retire l'absence du brut proratisé (1 300 → 1 400 DT, 14 jours sur 26, 2 jours d'absence : 95,858 DT
+  // au lieu de 46,154). La façon d'imposer un rappel : À VÉRIFIER avec le comptable.
+  function ecartDeRappel(employee, slip, settings) {
+    const e = employee || {}, p = slip || {}, y = Number(p.year), m = Number(p.month);
+    const fiche = brutDuMois(e, y, m);
+    const g = p.prorata ? round3(fiche * Number(p.prorata.jours) / Number(p.prorata.sur)) : fiche;
+    const prorata = p.prorata ? { ...p.prorata, brutFiche: fiche, brut: g } : null;
+    const c0 = p.computed || computePayslip(e, p, settings);
+    const c1 = computePayslip(e, { year: p.year, month: p.month, gross: g, workedDays: p.workedDays, absentDays: p.absentDays, bonuses: p.bonuses || [], deductions: p.deductions || [], prorata }, settings);
+    const ym = `${y}-${String(m).padStart(2, '0')}`;
+    const deja = (Array.isArray(e.regularisations) ? e.regularisations : []).filter(r => r && r.rappel && Array.isArray(r.rappelDe))
+      .reduce((a, r) => a + r.rappelDe.filter(x => x && x.mois === ym).reduce((t, x) => t + (Number(x.brut) || 0), 0), 0);
+    return round3(Number(c1.gross) - Number(c0.gross) - round3(deja));
+  }
   function brutDuMois(employee, year, month) {
     const e = employee || {}, L = Array.isArray(e.salaires) ? e.salaires.filter(x => x && /^\d{4}-\d{2}$/.test(x.des)).slice().sort((a, b) => a.des.localeCompare(b.des)) : [];
     if (!L.length) return round3(Number(e.grossSalary) || 0);

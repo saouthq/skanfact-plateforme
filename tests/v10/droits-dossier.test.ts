@@ -275,7 +275,10 @@ describe('les droits geste par geste dans le dossier v10', () => {
       expect(texte, role).not.toContain('01234567');
       expect(texte, role).not.toContain('0800600012345678');
       expect(texte, role).toContain('Menuiserie du Lac');
-      expect(l.objets.find((o) => o.collection === 'conflictArchive' && o.cle === 'e1')?.contenu.label, role).toBe('Sami Trabelsi');
+      // (1.273.0, audit G02) La version écartée d'une fiche de salarié se lit avec le droit de lire la paie : aucun de ces rôles
+      // ne la reçoit ; celle d'un client, oui.
+      expect(l.objets.find((o) => o.collection === 'conflictArchive' && o.cle === 'e1'), role).toBeUndefined();
+      expect(l.objets.find((o) => o.collection === 'conflictArchive' && o.cle === 'c1')?.contenu.label, role).toBe('Menuiserie du Lac');
     }
   });
 

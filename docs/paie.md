@@ -2604,3 +2604,29 @@ Tests : `tests/web/paie-267-gestes.test.ts` (la note sur la ligne et au téléph
 `tests/web/cabinet-paie-pointage.test.ts` (la note lue sur la case), `tests/web/cabinet-paie-hors-skanfact.test.ts` (le
 jour choisi), `tests/abonnement/offre.test.ts` (le pointage passe en tenue). Preuves `paie 1.271 a` à `g`. Capture :
 `paie-271-pourquoi.png`.
+
+## L'audit global du 04/11/2026 : ce que la paie tient désormais (1.274.0)
+
+Le suivi : `docs/audit-global-suivi.md`. Chaque règle a sa recette et ses preuves.
+
+- **Un bulletin payé ne change plus de montant** (G05). Ni son salarié, ni son mois, ni son calcul, tant qu'il reste payé ;
+  il ne se retire pas non plus. Ce qui manquait, ou a été payé en trop, passe par « Régulariser sur un mois suivant ». Un
+  virement rejeté passe par « Annuler le paiement » : le bulletin redevient à payer et se corrige. La date, le compte et le
+  mode du paiement restent corrigeables. « Modifier le bulletin payé » n'existe plus, ni dans l'entreprise ni au cabinet.
+- **Un bulletin validé par le cabinet ne bouge plus** (G05) et ne se retire pas. La validation elle-même ne se pose ou ne
+  se retire que par le cabinet qui tient le dossier (le serveur le reconnaît à son périmètre) : l'entreprise n'écrit pas
+  « validé par ton cabinet » sur son propre bulletin.
+- **Un bulletin par salarié et par mois** (G06), tenu par la base (`bulletin_un_par_mois`, 0190), même quand deux postes
+  envoient au même instant. Dans un envoi, les retraits passent d'abord, puis les bulletins qui existaient : retirer puis
+  refaire, ou changer un bulletin de mois, passent.
+- **Une prime peut être négative** (G07) : la régularisation d'un trop-perçu, la retenue des retards. Elle baisse le brut,
+  la CNSS et l'impôt, comme à l'écran. Une retenue reste positive ; un brut soumis à la CNSS négatif se refuse.
+- **Le rappel d'une augmentation** (G08) se calcule au moteur (`ecartDeRappel`). Un mois au prorata refait son prorata au
+  nouveau salaire. Ce qu'un rappel d'avant a déjà porté pour un mois (`rappelDe`, que le rappel garde) ne se rappelle pas
+  deux fois. Un bulletin validé ne se refait pas : son écart part en rappel, comme celui d'un bulletin payé.
+- **Le temps partiel** (G09) : l'heure sup, la retenue d'un retard, l'heure de nuit et le coût d'une heure se valorisent
+  sur les heures du contrat (`heuresDuMoisDe` : heures par semaine × 52 / 12 ; 24 h par semaine font 104 h). Un temps plein
+  garde les heures du réglage. **À VÉRIFIER** avec un comptable : les heures complémentaires d'un temps partiel et leur
+  majoration.
+- **Un congé à cheval sur deux années** (G10) compte, dans chaque année, les jours qui y tombent (`joursAnnee`). La liste
+  montre toujours le congé entier.

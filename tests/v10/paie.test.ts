@@ -536,4 +536,71 @@ describe('la paie du dossier v10, tenue par le serveur', () => {
     await expect(admin.query('update paie.bulletin set tfp = tfp + 1, charges_patronales = charges_patronales + 1 where id = $1', [id])).rejects.toThrow(/bulletin_check/);
     await expect(admin.query(`update paie.bulletin set bareme = '{"cnssSalarie": 9.18}' where id = $1`, [id])).rejects.toThrow(/bulletin_bareme_check/);
   });
+
+  // 1.274.0, audit du 04/11/2026 (docs/audit-global-suivi.md) : G05, G06, G07.
+  it('G05 : un bulletin payé ne change plus de montant ni ne se retire ; validé, il ne bouge plus, et seul le cabinet pose ou retire la validation', async () => {
+    const e = await essai();
+    const s = salarie('s1');
+    await e.envoyer('employees', [['s1', s]]);
+    const paye = bulletin('b', s, 2026, 9, {}, REGLAGES, { paidDate: '2026-09-30' });
+    expect((await e.envoyer('payslips', [['b', paye]])).statut).toBe(200);
+    // La sonde de l'audit : le même bulletin, payé, avec un brut de 2 000 DT et un calcul qui tombe juste.
+    const r1 = await e.envoyer('payslips', [['b', bulletin('b', s, 2026, 9, { gross: 2000 }, REGLAGES, { paidDate: '2026-09-30' })]]);
+    expect([r1.statut, r1.corps.motif]).toEqual([403, expect.stringMatching(/^Le bulletin de 09\/2026 est payé : ses montants ne changent plus/)]);
+    // Ni changé de mois, ni retiré.
+    expect((await e.envoyer('payslips', [['b', { ...paye, month: 10 }]])).statut).toBe(403);
+    expect((await e.envoyer('payslips', [['b', null]])).corps.motif).toMatch(/est payé : il ne se supprime pas/);
+    expect((await e.lire('b'))).toMatchObject({ montants: { brut: Number(paye.computed.gross).toFixed(3) } });
+    // Le paiement lui-même se corrige ; annulé (un virement rejeté), le bulletin redevient à payer et se corrige.
+    expect((await e.envoyer('payslips', [['b', { ...paye, paidDate: '2026-09-29' }]])).statut).toBe(200);
+    expect((await e.envoyer('payslips', [['b', { ...paye, paidDate: '' }]])).statut).toBe(200);
+    const corrige = bulletin('b', s, 2026, 9, { gross: 2000 });
+    expect((await e.envoyer('payslips', [['b', corrige]])).statut).toBe(200);
+    // L'entreprise n'écrit pas « validé par ton cabinet » sur son propre bulletin.
+    const r2 = await e.envoyer('payslips', [['b', { ...corrige, valideLe: '2026-10-29' }]]);
+    expect([r2.statut, r2.corps.motif]).toEqual([403, 'La validation du bulletin de 09/2026 ne se pose ou ne se retire que par ton cabinet : rien n\'a été enregistré.']);
+    // Validé par le cabinet (la marque posée comme son envoi la pose) : il ne change plus, ne se retire pas, la marque reste.
+    await admin.query(`update socle.dossier_v10 set contenu = contenu || '{"valideLe": "2026-10-29"}' where entreprise = $1 and collection = 'payslips' and cle = 'b'`, [e.ent]);
+    const valide = { ...corrige, valideLe: '2026-10-29' };
+    expect((await e.envoyer('payslips', [['b', bulletin('b', s, 2026, 9, { gross: 2100 }, REGLAGES, { valideLe: '2026-10-29' })]])).corps.motif).toMatch(/^Le bulletin de 09\/2026 est validé par ton cabinet : il ne change plus/);
+    expect((await e.envoyer('payslips', [['b', null]])).corps.motif).toMatch(/est validé par ton cabinet : il ne se supprime pas/);
+    expect((await e.envoyer('payslips', [['b', { ...valide, valideLe: '' }]])).statut).toBe(403);
+    // Ce qui ne touche ni l'argent ni le mois passe toujours : la remise au salarié.
+    expect((await e.envoyer('payslips', [['b', { ...valide, remisLe: '2026-10-30' }]])).statut).toBe(200);
+    expect((await e.lire('b'))).toMatchObject({ montants: { brut: '2000.000' } });
+  });
+
+  it('G06 : un salarié n\'a qu\'un bulletin par mois, même envoyé deux fois en même temps ; retirer puis refaire, ou changer de mois, passent', async () => {
+    const e = await essai();
+    const s = salarie('s1');
+    await e.envoyer('employees', [['s1', s]]);
+    expect((await e.envoyer('payslips', [['b1', bulletin('b1', s, 2026, 10)]])).statut).toBe(200);
+    // La sonde de l'audit : une seconde référence pour le même salarié et le même mois.
+    const r = await e.envoyer('payslips', [['b2', bulletin('b2', s, 2026, 10)]]);
+    expect([r.statut, r.corps.motif]).toEqual([403, expect.stringMatching(/^Sonia Trabelsi a déjà un bulletin pour 10\/2026 : un salarié n'a qu'un bulletin par mois/)]);
+    const n = async () => (await admin.query('select count(*)::int n from paie.bulletin where entreprise = $1', [e.ent])).rows[0].n as number;
+    expect(await n()).toBe(1);
+    // Retiré puis refait dans le même envoi (le nouveau d'abord dans la liste) : un seul.
+    expect((await e.envoyer('payslips', [['b2', bulletin('b2', s, 2026, 10)], ['b1', null]])).statut).toBe(200);
+    // Un bulletin qui passe à novembre libère octobre, pour un nouveau du même envoi.
+    expect((await e.envoyer('payslips', [['b3', bulletin('b3', s, 2026, 10)], ['b2', bulletin('b2', s, 2026, 11)]])).statut).toBe(200);
+    expect(await n()).toBe(2);
+    // Deux postes qui établissent décembre au même instant : la base n'en garde qu'un, l'autre reçoit la phrase.
+    const [x, y] = await Promise.all([e.envoyer('payslips', [['c1', bulletin('c1', s, 2026, 12)]]), e.envoyer('payslips', [['c2', bulletin('c2', s, 2026, 12)]])]);
+    expect([x.statut, y.statut].sort()).toEqual([200, 403]);
+    expect([x, y].find((z) => z.statut === 403)?.corps.motif).toMatch(/a déjà un bulletin pour 12\/2026/);
+    expect((await admin.query('select count(*)::int n from paie.bulletin where entreprise = $1 and mois = 12', [e.ent])).rows[0].n).toBe(1);
+  });
+
+  it('G07 : la régularisation d\'un trop-perçu, une prime négative, s\'enregistre au même millime ; une retenue négative reste refusée', async () => {
+    const e = await essai();
+    const s = salarie('s1');
+    await e.envoyer('employees', [['s1', s]]);
+    const regul = bulletin('r', s, 2026, 8, { bonuses: [{ label: 'Régularisation : payé en trop en juillet', amount: -12.5, taxable: true }] });
+    expect(Number(regul.computed.gross)).toBeCloseTo(1234.567 - 12.5, 3);
+    expect((await e.envoyer('payslips', [['r', regul]])).statut).toBe(200);
+    expect(await e.lire('r')).toMatchObject({ montants: { brut: Number(regul.computed.gross).toFixed(3), net: Number(regul.computed.net).toFixed(3) }, saisie: { primes: [{ montant: '-12.500', imposable: true }] } });
+    const r = await e.envoyer('payslips', [['x', bulletin('x', s, 2026, 7, { deductions: [{ label: 'Avance', amount: -10 }] })]]);
+    expect([r.statut, r.corps.motif]).toEqual([403, expect.stringMatching(/une prime ou une retenue illisible/)]);
+  });
 });

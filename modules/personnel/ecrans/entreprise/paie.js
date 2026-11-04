@@ -33,7 +33,7 @@
       mm += 1; if (mm > 12) { mm = 1; yy += 1; }
       const b = (data.payslips || []).find(p => p.employeeId === empId && Number(p.year) === yy && Number(p.month) === mm);
       // (plateforme, 03/11/2026 — 16 § 10.1, point 7) Un mois clos n'est pas libre : le serveur refuse d'y refaire un bulletin.
-      if ((!b || !b.paidDate) && !C.isClosedDate(data, C.payslipDate({ year: yy, month: mm }))) return { year: yy, month: mm, bulletin: b || null };
+      if ((!b || (!b.paidDate && !b.valideLe)) && !C.isClosedDate(data, C.payslipDate({ year: yy, month: mm }))) return { year: yy, month: mm, bulletin: b || null };
     }
     return null;
   }
@@ -48,7 +48,7 @@
   function porterRegularisation(emp, r) {
     emp.regularisations = [...(Array.isArray(emp.regularisations) ? emp.regularisations : []), r];
     const [yy, mm] = r.pourMois.split('-').map(Number);
-    const b = (data.payslips || []).find(p => p.employeeId === emp.id && Number(p.year) === yy && Number(p.month) === mm && !p.paidDate);
+    const b = (data.payslips || []).find(p => p.employeeId === emp.id && Number(p.year) === yy && Number(p.month) === mm && !p.paidDate && !p.valideLe);
     const avant = b ? { bonuses: deepCopy(b.bonuses || []), computed: b.computed, bonAPayerLe: b.bonAPayerLe } : null;
     if (b) { b.bonuses = [...(b.bonuses || []), { label: r.label, amount: r.amount, taxable: r.taxable, regulId: r.id }]; recalculerBulletin(b, emp); }
     return () => {
@@ -76,7 +76,7 @@
       ${(() => {
         // (1.256.0) Des heures oubliées après la validation (la maquette, « Des heures oubliées après validation ») : le
         // montant se calcule au taux du mois payé (le brut du mois ÷ les heures d'un mois complet × les heures × la majoration).
-        const st = C.payrollSettings(data), maj = C.majorationsHs(st), hm = Number(st.heuresMois) || 0;
+        const st = C.payrollSettings(data), maj = C.majorationsHs(st), hm = C.heuresDuMoisDe(st, emp);
         if (!maj.length || !hm) return `<p class="small muted" id="rg-hs-non">Des heures sup oubliées ? Règle d'abord leurs majorations dans « Les horaires » : le montant se calculera ici.</p>`;
         return `<div class="rg-hs" id="rg-hs"><span class="small"><b>Des heures oubliées ?</b> Calcule le montant :</span><input type="text" inputmode="decimal" data-montant id="rg-hs-h" class="num" placeholder="4" aria-label="Le nombre d'heures"><span class="small">h à</span><select id="rg-hs-m" aria-label="La majoration">${maj.map(x => `<option value="${x}">+ ${pct(x)} %</option>`).join('')}</select><span class="small muted" id="rg-hs-r"></span></div>`;
       })()}
@@ -84,7 +84,7 @@
       <div class="modal-actions">${opts && opts.rectificatif && peutEcrireAuCabinet() ? '<button type="button" class="btn" id="rg-rect" style="margin-inline-end:auto" title="Ton cabinet refait le bulletin du mois, au lieu d\'une ligne sur le mois suivant">Demander un rectificatif…</button>' : ''}<button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="rg-ok">Porter sur ${h(nomCible)}</button></div>`, (root, fermer) => {
       if ($('#rg-hs', root)) {
         const calc = () => {
-          const hh = lireMontant($('#rg-hs-h', root).value), mj = Number($('#rg-hs-m', root).value) || 0, st = C.payrollSettings(data), hm = Number(st.heuresMois) || 208;
+          const hh = lireMontant($('#rg-hs-h', root).value), mj = Number($('#rg-hs-m', root).value) || 0, st = C.payrollSettings(data), hm = C.heuresDuMoisDe(st, emp) || 208;
           const brut = C.brutDuMois(emp, Number(b.year), Number(b.month)) || Number(emp.grossSalary) || 0;
           const mt = hh > 0 ? C.round3(brut / hm * hh * (100 + mj) / 100) : 0;
           $('#rg-hs-r', root).textContent = mt ? `${C.money(brut, cur)} ÷ ${pct(hm)} h × ${pct(hh)} h × ${pct((100 + mj) / 100)} = ${C.money(mt, cur)}` : '';
@@ -117,17 +117,18 @@
     const brutDe = p => { const f = C.brutDuMois(e, Number(p.year), Number(p.month)); return p.prorata ? C.round3(f * Number(p.prorata.jours) / Number(p.prorata.sur)) : f; };
     // (plateforme, 03/11/2026 — 16 § 10.1, point 7) Un bulletin d'un mois clos ne se refait pas (le serveur le refuse) : il
     // se tient comme un bulletin payé, et son écart part en rappel sur le premier mois ouvert.
-    const tenu = p => p.paidDate || C.isClosedDate(data, C.payslipDate(p));
+    // (1.274.0, audit G05) Validé par le cabinet, il ne se refait pas non plus.
+    const tenu = p => p.paidDate || p.valideLe || C.isClosedDate(data, C.payslipDate(p));
     let refaits = 0;
     concernes.filter(p => !tenu(p)).forEach(p => {
       const g = brutDe(p); if (C.round3(g - Number(p.gross)) === 0) return;
       p.gross = g; if (p.prorata) p.prorata = { ...p.prorata, brutFiche: C.brutDuMois(e, Number(p.year), Number(p.month)), brut: g };
       recalculerBulletin(p, e); refaits++;
     });
+    // (1.274.0, audit du 04/11/2026, G08) L'écart d'un mois payé se calcule au moteur (`ecartDeRappel`) : prorata refait au
+    // nouveau salaire, moins ce qu'un rappel d'avant a déjà porté pour ce mois.
     const payes = concernes.filter(tenu).map(p => {
-      const c0 = p.computed || C.computePayslip(e, p, st);
-      const c1 = C.computePayslip(e, { gross: brutDe(p), workedDays: p.workedDays, absentDays: p.absentDays, bonuses: p.bonuses || [], deductions: p.deductions || [], prorata: p.prorata || null }, st);
-      return { p, ecart: C.round3(c1.gross - c0.gross) };
+      return { p, ecart: C.ecartDeRappel(e, p, st) };
     }).filter(x => x.ecart !== 0).sort((a, b) => (a.p.year - b.p.year) || (a.p.month - b.p.month));
     const total = C.round3(payes.reduce((a, x) => a + x.ecart, 0));
     const der = payes.length ? payes[payes.length - 1].p : null, cible = der ? moisLibreApres(e.id, der.year, der.month) : null;
@@ -162,8 +163,10 @@
   }
   // Porter le rappel calculé sur le bulletin libre qui suit (une régularisation imposable). Rend la fonction qui le défait.
   function porterRappel(e, desM, r) {
+    // (1.274.0, G08) Le rappel garde, mois par mois, ce qu'il rappelle : une augmentation suivante ne le rappelle pas encore.
     return porterRegularisation(e, { id: C.uid(), pourMois: ymDe(r.cible.year, r.cible.month), label: `Rappel de salaire (${r.lesMois})`, amount: r.total, taxable: true,
-      motif: `Augmentation à partir de ${MONTHS_LONG[Number(desM.slice(5, 7)) - 1]} ${desM.slice(0, 4)}`, rappel: true, le: C.today() });
+      motif: `Augmentation à partir de ${MONTHS_LONG[Number(desM.slice(5, 7)) - 1]} ${desM.slice(0, 4)}`, rappel: true, le: C.today(),
+      rappelDe: r.payes.map(x => ({ mois: ymDe(x.p.year, x.p.month), brut: x.ecart })) });
   }
   async function rappelApresAugmentation(e, desM, done) {
     const cur = company().currency;
@@ -814,6 +817,8 @@
     if (!slip && licenceBlock('Établir un nouveau bulletin', 'paie')) return;
     // (plateforme) 1.235.0 — un bulletin validé par le cabinet ne bouge plus : une correction passe par un mois suivant.
     if (slip && slip.valideLe) { toast('Ce bulletin est validé par ton cabinet : il ne change plus. Une correction passe par une régularisation sur un mois suivant ; demande-la à ton comptable.', true); return; }
+    // (1.274.0, audit du 04/11/2026, G05) Payé, il ne change plus non plus (le serveur le refuse).
+    if (slip && slip.paidDate) { toast('Ce bulletin est payé : il ne change plus. Ce qui manquait, ou a été payé en trop, passe par « Régulariser sur un mois suivant » (menu ⋯ du bulletin) ; un virement rejeté, par « Annuler le paiement ».', true); return; }
     const emp = employee || employeeById(slip.employeeId);
     const s = C.payrollSettings(data);
     const cur = company().currency;
@@ -1673,7 +1678,7 @@
         const touche = (data.payslips || []).filter(p => p.employeeId === x.id && ymDe(p.year, p.month) === ymFin && p.prorata);
         let refait = '', paye = '', clos = '';
         touche.forEach(p => {
-          if (p.paidDate) { paye = MONTHS_LONG[Number(p.month) - 1]; return; }
+          if (p.paidDate || p.valideLe) { paye = MONTHS_LONG[Number(p.month) - 1]; return; }
           // (16 § 10.1, point 7) Dans une période clôturée, il ne se refait pas (le serveur le refuse) : il se régularise.
           if (C.isClosedDate(data, C.payslipDate(p))) { clos = MONTHS_LONG[Number(p.month) - 1]; return; }
           const f = C.payslipInputFor(data, x, Number(p.year), Number(p.month));
@@ -2485,7 +2490,9 @@
           // (1.248.1) « Voir le bulletin » est déjà le bouton de la ligne : le menu ne le répète pas.
           { icon: 'pdf', label: 'Exporter le bulletin en PDF', hint: 'À remettre au salarié', run: () => exportPayslip(x) },
           ...(x.paidDate ? [{ icon: 'restaurer', label: 'Régulariser sur un mois suivant…', hint: 'ce qui manquait, ou ce qui a été payé en trop : le bulletin payé ne change pas', run: () => regularisationFenetre(x, () => draw(), { rectificatif: b0 => demanderCorrection(C.payslipsOf(data, Number(b0.year), Number(b0.month)), Number(b0.year), Number(b0.month)) }) },
-            { icon: 'modifier', label: 'Modifier le bulletin payé', hint: 'une pièce déjà payée change : préfère Régulariser', run: () => payslipForm(x, emp, x.year, x.month, () => draw()) }]
+            // (1.274.0, audit G05) « Modifier le bulletin payé » n'existe plus : le serveur le refuse ; on régularise, ou on
+            // annule le paiement d'un virement qui n'a pas eu lieu.
+            ]
             : [{ icon: 'modifier', label: 'Modifier le bulletin', hint: 'Primes, retenues, date et compte du paiement', run: () => payslipForm(x, emp, x.year, x.month, () => draw()) },
               // (1.248.1) Un bulletin pas encore payé se supprime d'ici (il fallait l'ouvrir pour trouver « Supprimer ») ; « Annuler » le rend.
               ...(x.valideLe || horsLigneP ? [] : [{ icon: 'annuler', label: 'Supprimer le bulletin…', hint: 'pas encore payé : « Établir » le refait ensuite', run: async () => {
@@ -2909,7 +2916,7 @@
       const st = C.payrollSettings(data), p = C.pointageDuMois(data, e, y, m), j = p.jours[d - 1];
       if (!j || j.code === '-') return null;
       const cur = company().currency, brut = C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0;
-      const unJour = C.round3(brut / (Number(p.total) || 26)), hm = Number(st.heuresMois) || 0;
+      const unJour = C.round3(brut / (Number(p.total) || 26)), hm = C.heuresDuMoisDe(st, e);
       const b = C.journeeBadges(data, e, iso), hsj = C.heuresSupDuJour(data, e, y, m, d);
       const an = C.anomaliesPointage(data, y, m, null).find(a => a.employeeId === e.id && a.sorte === 'sortie' && a.jour === d) || null;
       const k = j.code === 'P' ? (hsj ? 'hs' : j.retard ? 'retard' : 'P') : j.code;
@@ -2950,7 +2957,7 @@
     };
     function detailJourHtml(e, iso, x, fige, ouvre) {
       const st = C.payrollSettings(data), cur = company().currency, id = h(e.id), L = [], dis = fige ? ' disabled' : '';
-      const hm = Number(st.heuresMois) || 0, brut = C.brutDuMois(e, x.y, x.m) || Number(e.grossSalary) || 0, c = x.j.code;
+      const hm = C.heuresDuMoisDe(st, e), brut = C.brutDuMois(e, x.y, x.m) || Number(e.grossSalary) || 0, c = x.j.code;
       const du = l => l.from === l.to ? `le ${jjmm(l.from)}` : `du ${jjmm(l.from)} au ${jjmm(l.to)}`;
       if (x.an) L.push(`<span class="ptj-ef alerte">pas de sortie : à régler</span>${fige ? '' : x.an.proposee
         ? `<button type="button" class="btn btn-sm" data-an-sortie="${id}" data-j="${x.d}" data-h="${h(x.an.proposee)}">${lfIc('coche', 13, 2.4)} Mettre la sortie à ${h(x.an.proposee)}</button>`
@@ -3233,7 +3240,7 @@
       const st = C.payrollSettings(data), majs = C.majorationsHs(st);
       if (!majs.length) { toast('Pour noter des heures sup, règle d\'abord leur majoration dans « Les horaires » (À VÉRIFIER : le Code du travail et ta convention).', true); return; }
       const x = etatJour(e, iso); if (!x) return;
-      const { y, m, d } = x, cur = company().currency, hm = Number(st.heuresMois) || 0, brut = C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0;
+      const { y, m, d } = x, cur = company().currency, hm = C.heuresDuMoisDe(st, e), brut = C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0;
       const badge = x.b && x.b.auDela ? C.round3(x.b.auDela / 60) : 0;
       modal(`<h2>${h(e.name)} · ${h(jourDit(iso))}</h2><p class="sous-f">ses heures sup de ce jour : elles s'ajoutent à celles du mois, que son bulletin paie</p>
         <form id="hsj" class="grid-2"><label class="field">${lbl('Combien d\'heures')}<input type="number" class="num" name="heures" min="0" max="16" step="0.25" value="${x.hsj ? x.hsj.heures : badge || ''}" placeholder="1"></label>

@@ -24,7 +24,7 @@ import { controlerCommandes, controlerEncours, controlerReceptions, controlerRem
 import { archiveVisible, mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivreIdentite } from './identite.ts';
-import { garderLaCloture, suivrePaie } from './paie.ts';
+import { garderLaCloture, garderLesBulletins, suivrePaie } from './paie.ts';
 import { archiveSansIdentite, ribGarde } from '../paie/identite.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
 import { reecrireLaPaie } from '../compta/paie.ts';
@@ -268,6 +268,8 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
     await controlerReceptions(tx, entreprise, lus);
     // La période close (1.266.6 ; 16 § 10.1, point 7) : la paie qui y tombe se refuse, sauf un fait d'argent (04 § 5.1).
     await garderLaCloture(tx, entreprise, lus);
+    // Un bulletin payé ou validé ne change plus ; la validation ne vient que du cabinet (1.274.0, audit G05).
+    await garderLesBulletins(tx, entreprise, lus);
   }
   const resultat: { collection: string; cle: string; revision: number | null }[] = [];
   for (const c of changements) {

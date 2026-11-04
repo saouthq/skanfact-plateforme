@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
@@ -24,13 +25,15 @@ const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 
 
 describe('la paie 1.268.0 : avec un cabinet, chaque étape dit qui la fait', () => {
   let nav: Browser; let serveur: Awaited<ReturnType<typeof demarrer>>;
+  const admin = new pg.Client({ connectionString: inject('pgAdmin') });
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-paie-268-'));
   beforeAll(async () => {
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
     nav = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
+    await admin.connect();
   }, 120_000);
-  afterAll(async () => { await nav?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
+  afterAll(async () => { await admin.end(); await nav?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
   const api = async (m: string, c: string, j?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${c}`, { method: m, headers: { ...(j ? { authorization: `Bearer ${j}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) }, ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     const t = await r.text(); return { statut: r.status, corps: (t ? JSON.parse(t) : {}) as Record<string, unknown> };
@@ -58,9 +61,14 @@ describe('la paie 1.268.0 : avec un cabinet, chaque étape dit qui la fait', () 
     };
     for (const e of S) await poser('employees', e.id, e);
     for (const e of S) {
-      const trace = mode === 'tenue' ? { pourAccordLe: `${anA}-${mm(moA)}-26`, bonAPayerLe: `${anA}-${mm(moA)}-27`, valideLe: `${anA}-${mm(moA)}-27` }
+      const trace = mode === 'tenue' ? { pourAccordLe: `${anA}-${mm(moA)}-26`, bonAPayerLe: `${anA}-${mm(moA)}-27` }
         : { verifieLe: `${anA}-${mm(moA)}-27`, ...(e.id === 'mt' ? { correction: { par: 'Anis', le: `${anA}-${mm(moA)}-27T10:00:00Z`, titre: 'la prime de Mourad', reponse: 'acceptee', reponduLe: `${anA}-${mm(moA)}-27T11:00:00Z` } } : {}) };
       await poser('payslips', `p-${e.id}-${anA}-${moA}`, bul(e, anA, moA, { ...trace, paidDate: `${anA}-${mm(moA)}-28`, remisLe: `${anA}-${mm(moA)}-28` }));
+      // (1.274.0, audit G05) La validation ne vient que du cabinet : le jeu d'essai la pose comme son envoi la pose, en base.
+      if (mode === 'tenue') {
+        await admin.query(`update socle.dossier_v10 set contenu = contenu || jsonb_build_object('valideLe', $3::text) where entreprise = $1 and collection = 'payslips' and cle = $2`,
+          [ent, `p-${e.id}-${anA}-${moA}`, `${anA}-${mm(moA)}-27`]);
+      }
       // En paie vérifiée, le gérant a établi le mois d'avant ; le cabinet n'en a relu qu'un (celui de Mourad).
       if (mode === 'seule') await poser('payslips', `p-${e.id}-${an}-${mo}`, bul(e, an, mo, e.id === 'mt' ? { verifieLe: `${an}-${mm(mo)}-29` } : {}));
     }

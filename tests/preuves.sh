@@ -1450,7 +1450,7 @@ prouver "un bulletin au net négatif accepté" $VP \
   "  if (calcul.net < 0n) throw new Refus('v10.bulletin_net', { valeurs: { salarie: nom, periode } });" "" \
   "$PR"
 prouver "un bulletin au brut nul accepté" $VP \
-  "  if (calcul.brut <= 0n) throw new Refus('v10.bulletin_brut', { valeurs: { salarie: nom, periode } });" "" \
+  "  if (calcul.brut <= 0n || calcul.assietteCnss < 0n) throw new Refus('v10.bulletin_brut', { valeurs: { salarie: nom, periode } });" "" \
   "$PR"
 prouver "un taux du barème plus précis que quatre décimales, lu autrement" $VP \
   "  const taux = (v: unknown) => { const x = exact(v ?? 0, 4);" "  const taux = (v: unknown) => { const x = exact(v ?? 0, 6);" \
@@ -17062,8 +17062,8 @@ prouver 'un congé supprimé qui reste dans le dossier' 'web/public/plateforme/p
   '' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
 prouver 'le solde qui compte la maladie comme un congé pris' modules/personnel/moteur/compta-paie.js \
-  'const taken = round3(list.filter(l => l.kind === '"'"'conges'"'"').reduce((a, l) => a + l.days, 0));' \
-  'const taken = round3(list.reduce((a, l) => a + l.days, 0));' \
+  'const taken = round3(list.filter(l => l.kind === '"'"'conges'"'"').reduce((a, l) => a + l.joursAnnee, 0));' \
+  'const taken = round3(list.reduce((a, l) => a + l.joursAnnee, 0));' \
   'le solde : acquis au prorata des mois travaillés, moins les congés payés pris ; la maladie et le sans-solde à part'
 prouver 'un congé à cheval sur deux mois compté entier dans chacun' modules/personnel/moteur/compta-paie.js \
   'const from = leave.from > first ? leave.from : first;' \
@@ -22227,10 +22227,13 @@ prouver 'paie 1.230 d : le versement au créancier n entre pas au grand livre' m
   "          const label = \`Saisie sur salaire \${emp.name || ''}\`.trim();" "          const label = \`Saisie sur salaire \${emp.name || ''}\`.trim(); if (label) return;" \
   "$WR3V"
 prouver 'paie 1.230 e : régulariser ne touche pas le bulletin du mois suivant' modules/personnel/ecrans/entreprise/paie.js \
-  "Number(p.year) === yy && Number(p.month) === mm && !p.paidDate);" "Number(p.year) === yy && Number(p.month) === mm && false);" \
+  "Number(p.year) === yy && Number(p.month) === mm && !p.paidDate && !p.valideLe);" "Number(p.year) === yy && Number(p.month) === mm && false);" \
   "$WRW1"
+# (1.274.0, audit G05) « Modifier le bulletin payé » n'existe plus : le défaut remet une entrée « Modifier le bulletin ».
 prouver 'paie 1.230 f : un bulletin payé s offre à la réécriture' modules/personnel/ecrans/entreprise/paie.js \
-  "label: 'Modifier le bulletin payé'" "label: 'Modifier le bulletin'" \
+  "annule le paiement d'un virement qui n'a pas eu lieu.
+            ]" "annule le paiement d'un virement qui n'a pas eu lieu.
+            { icon: 'modifier', label: 'Modifier le bulletin', run: () => payslipForm(x, emp, x.year, x.month, () => draw()) }]" \
   "$WRW1"
 prouver 'paie 1.230 g : une saisie sans créancier s enregistre' modules/personnel/ecrans/entreprise/paie.js \
   "        if (!String(v.creancier || '').trim()) return refus(" "        if (false) return refus(" \
@@ -22363,7 +22366,7 @@ prouver 'paie cabinet 1.238 c : la CNSS ne se compare pas au livre' modules/pers
   '${paieCnssDuLivre(L, s.annee, t, cnss)}' '' \
   "$WC1"
 prouver 'paie cabinet 1.238 d : un bulletin validé reprend le pointage' modules/personnel/ecrans/cabinet/paie.js \
-  '${b.valideLe ? '"''"' : `<button type="button" class="btn btn-sm" data-pt-reprendre' '${false ? '"''"' : `<button type="button" class="btn btn-sm" data-pt-reprendre' \
+  '${b.valideLe || b.payeLe ? '"''"' : `<button type="button" class="btn btn-sm" data-pt-reprendre' '${false ? '"''"' : `<button type="button" class="btn btn-sm" data-pt-reprendre' \
   "$WC1"
 prouver 'paie cabinet 1.238 e : « Me le rappeler » ne pose pas le rappel' web/public/plateforme/pont-cabinet.js \
   "if (!garde) await appel('PUT'" "if (false) await appel('PUT'" \
@@ -22827,9 +22830,7 @@ prouver 'marges 1.263 e : une heure sans bulletin ne se dit pas estimée' module
   "    return { coutMois, heuresMois, estime: true, inconnu: !(coutMois > 0) };" "    return { coutMois, heuresMois, estime: false, inconnu: !(coutMois > 0) };" \
   'les heures coûtent le coût employeur de l'\''heure : celui du bulletin, sinon celui du contrat (estimé)'
 prouver 'marges 1.263 f : sans heures du mois réglées, un nombre d'\''heures inventé' modules/socle/moteur/core-1.js \
-  "    const heuresMois = Number(s.heuresMois) || 0;
-    const emp = (data.employees || []).find(e => e.id === employeeId);" "    const heuresMois = Number(s.heuresMois) || 208;
-    const emp = (data.employees || []).find(e => e.id === employeeId);" \
+  "    const heuresMois = Compta.heuresDuMoisDe(s, emp);" "    const heuresMois = Compta.heuresDuMoisDe(s, emp) || 208;" \
   'les heures coûtent le coût employeur de l'\''heure : celui du bulletin, sinon celui du contrat (estimé)'
 prouver 'marges 1.263 g : un devis refusé compte dans le prévu' modules/socle/moteur/core-1.js \
   "    const prevus = quotes.filter(q => q.status !== 'refusé');" "    const prevus = quotes;" \
@@ -23142,10 +23143,10 @@ prouver 'paie 10.1-7 g : un congé jugé à sa fin seulement' serveur/v10/paie.t
 # d'un mois clos se tient comme un bulletin payé (ses primes se lisent, une augmentation y porte un rappel sur le mois ouvert).
 PCE='une période clôturée tient comme un mois payé : primes du mois fermées, rappel sur le mois ouvert, demande refusée avant le geste'
 prouver 'paie 10.1-7 h : une augmentation qui refait le bulletin d'"'"'un mois clos' modules/personnel/ecrans/entreprise/paie.js \
-  '    const tenu = p => p.paidDate || C.isClosedDate(data, C.payslipDate(p));' '    const tenu = p => p.paidDate;' \
+  '    const tenu = p => p.paidDate || p.valideLe || C.isClosedDate(data, C.payslipDate(p));' '    const tenu = p => p.paidDate || p.valideLe;' \
   "$PCE"
 prouver 'paie 10.1-7 i : le rappel porté sur un mois clos' modules/personnel/ecrans/entreprise/paie.js \
-  'if ((!b || !b.paidDate) && !C.isClosedDate(data, C.payslipDate({ year: yy, month: mm }))) return' 'if (!b || !b.paidDate) return' \
+  'if ((!b || (!b.paidDate && !b.valideLe)) && !C.isClosedDate(data, C.payslipDate({ year: yy, month: mm }))) return' 'if (!b || (!b.paidDate && !b.valideLe)) return' \
   "$PCE"
 prouver 'paie 10.1-7 j : les primes d'"'"'un mois clos ouvertes à la saisie' modules/personnel/ecrans/entreprise/paie.js \
   'return b && (b.paidDate || b.valideLe || C.isClosedDate(data, C.payslipDate(b))) ?' 'return b && (b.paidDate || b.valideLe) ?' \
@@ -24120,6 +24121,69 @@ prouver 'L9 g : la coupe qui laisse l'"'"'explication des bulles dans la page' w
   '    coupes.push(c.coupe);
     bulles.push(' '    bulles.push(' \
   'la page ne porte plus le texte des bulles'
+# ── 1.274.0 : l'audit du 04/11/2026, lot B (G05 à G10 ; G04 vient à part) ──
+prouver 'audit G05 : un bulletin payé change de montant' serveur/v10/paie.ts \
+  '    if (av?.paidDate && ap?.paidDate && differe(av, ap, FIGE)) throw' '    if (false) throw' \
+  'G05 : un bulletin payé ne change plus'
+prouver 'audit G05 : un bulletin payé se retire' serveur/v10/paie.ts \
+  '    if (av?.paidDate && !ap) throw' '    if (false && !ap) throw' \
+  'G05 : un bulletin payé ne change plus'
+prouver 'audit G05 : un bulletin validé change' serveur/v10/paie.ts \
+  '    if (av?.valideLe && differe(av, ap, FIGE)) throw' '    if (false) throw' \
+  'G05 : un bulletin payé ne change plus'
+prouver 'audit G05 : un bulletin validé se retire' serveur/v10/paie.ts \
+  '    if (av?.valideLe && !ap) throw' '    if (false && !ap) throw' \
+  'G05 : un bulletin payé ne change plus'
+prouver 'audit G05 : l entreprise pose la validation du cabinet' serveur/v10/paie.ts \
+  '&& !await parLeCabinet()) throw' '&& false) throw' \
+  'G05 : un bulletin payé ne change plus'
+prouver 'audit G05 : la garde des bulletins n est pas appelée' serveur/v10/dossier.ts \
+  '    await garderLesBulletins(tx, entreprise, lus);' '    void garderLesBulletins;' \
+  'G05 : un bulletin payé ne change plus'
+prouver 'audit G06 : deux bulletins d un mois tiennent en base' base/migrations/0190_un_bulletin_par_mois.sql \
+  'create unique index bulletin_un_par_mois' 'create index bulletin_un_par_mois' \
+  'G06 : un salarié n'
+prouver 'audit G06 : le refus de la base reste une erreur' serveur/v10/paie.ts \
+  'pg.constraint === '"'"'bulletin_un_par_mois'"'"' ? double() : e' 'pg.constraint === '"'"'aucune'"'"' ? double() : e' \
+  'G06 : un salarié n'
+prouver 'audit G06 : un bulletin qui change de mois ne libère pas le sien' serveur/v10/paie.ts \
+  '.sort((x, y) => Number(x.avant === null) - Number(y.avant === null));' ';' \
+  'G06 : un salarié n'
+prouver 'audit G06 : retirer puis refaire un bulletin' serveur/v10/paie.ts \
+  '    if (c.apres !== null) continue;
+    const b = await db.selectFrom('"'"'paie.bulletin'"'"')' '    if (c.apres !== null || true) continue;
+    const b = await db.selectFrom('"'"'paie.bulletin'"'"')' \
+  'G06 : un salarié n'
+prouver 'audit G07 : une prime négative refusée' serveur/v10/paie.ts \
+  'montant >= (signe ? -MONTANT_MAX : 0n)' 'montant >= 0n' \
+  'G07 : la régularisation'
+prouver 'audit G07 : une retenue négative acceptée' serveur/v10/paie.ts \
+  'elements(c.deductions, false)' 'elements(c.deductions, true)' \
+  'G07 : la régularisation'
+prouver 'audit G08 : le rappel garde l ancien prorata' modules/personnel/moteur/compta-paie.js \
+  '    const prorata = p.prorata ? { ...p.prorata, brutFiche: fiche, brut: g } : null;' '    const prorata = p.prorata || null;' \
+  'G08 : le rappel'
+prouver 'audit G08 : une deuxième augmentation rappelle deux fois' modules/personnel/moteur/compta-paie.js \
+  '    return round3(Number(c1.gross) - Number(c0.gross) - round3(deja));' '    return round3(Number(c1.gross) - Number(c0.gross));' \
+  'G08 : le rappel'
+prouver 'audit G09 : le temps partiel au taux d un temps plein' modules/personnel/moteur/compta-paie.js \
+  '    return h > 0 ? round3(h * 52 / 12) : (Number(s && s.heuresMois) || 0);' '    return Number(s && s.heuresMois) || 0;' \
+  'G09 : l'
+prouver 'audit G09 : l heure sup sur les heures de l entreprise' modules/personnel/moteur/compta-paie.js \
+  '    const heuresMois = heuresDuMoisDe(s, employee);
+    if (!t || !t.hs' '    const heuresMois = Number(s.heuresMois) || 0;
+    if (!t || !t.hs' \
+  'G09 : l'
+prouver 'audit G09 : le retard sur les heures de l entreprise' modules/personnel/moteur/compta-paie.js \
+  '    const heuresMois = heuresDuMoisDe(s, employee), mn = Math.round(' '    const heuresMois = Number(s.heuresMois) || 0, mn = Math.round(' \
+  'G09 : l'
+prouver 'audit G10 : le congé compté entier dans chaque année' modules/personnel/moteur/compta-paie.js \
+  '    const taken = round3(list.filter(l => l.kind === '"'"'conges'"'"').reduce((a, l) => a + l.joursAnnee, 0));' '    const taken = round3(list.filter(l => l.kind === '"'"'conges'"'"').reduce((a, l) => a + l.days, 0));' \
+  'G10 : un congé'
+prouver 'audit G10 : la part de l année vaut tout le congé' modules/personnel/moteur/compta-paie.js \
+  '        joursAnnee: year ? workingDays(' '        joursAnnee: year ? workingDays(l.from, l.to, (data.payrollSettings || {}).offDays) + 0 * workingDays(' \
+  'G10 : un congé'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

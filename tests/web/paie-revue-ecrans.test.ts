@@ -245,7 +245,8 @@ describe('la paie : les écrans de la revue', () => {
     const eMt = { grossSalary: 1500.5, contract: 'cdi', headOfFamily: true, children: 2 };
     await remplacer(mt.id, { ...mt, ...saisieMt, computed: compta.computePayslip(eMt, saisieMt, compta.baremesPaie({})) });
     const saisieNb = { gross: 880.125, workedDays: 26, absentDays: 1, bonuses: [], deductions: [] };
-    await remplacer(nbAvant.id, { ...nbAvant, ...saisieNb, computed: compta.computePayslip({ grossSalary: 880.125, contract: 'cdi', headOfFamily: false, children: 0 }, saisieNb, compta.baremesPaie({})) });
+    // (1.274.0, audit G05) Un bulletin payé ne change plus de montant : celui de Nadia redevient à payer, puis se refait.
+    await remplacer(nbAvant.id, { ...nbAvant, ...saisieNb, paidDate: '', computed: compta.computePayslip({ grossSalary: 880.125, contract: 'cdi', headOfFamily: false, children: 0 }, saisieNb, compta.baremesPaie({})) });
     // Le pointage de Nadia, le mois d'avant : un jour ouvré « absent ».
     let jour = 3; while (new Date(Date.UTC(A.anA, A.moA - 1, jour)).getUTCDay() === 0) jour++;
     await A.poser('timesheets', 'ts-nb', { id: 'ts-nb', employeeId: 'nb', year: A.anA, month: A.moA, jours: { [String(jour)]: 'A' }, hs: {} });
