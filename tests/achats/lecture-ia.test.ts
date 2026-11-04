@@ -14,10 +14,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
-import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { declarerGestesAchats } from '../../serveur/achats/gestes.ts';
 import { appelAnthropic, CONSIGNE, creerLecteurIA, enEntier, IAIndisponible, IARefuse, propositionDeLIA, type AppelIA, type ReponseIA } from '../../serveur/achats/lecture-ia.ts';
-import { routesAchats } from '../../serveur/achats/routes.ts';
+import { prendrePlaceIA, routesAchats } from '../../serveur/achats/routes.ts';
 import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
@@ -311,6 +311,60 @@ describe('la lecture par l\'IA, sur le serveur', () => {
     const samia = await personne(appeler, 'samia');
     await admin.query('insert into socle.membre (utilisateur, entreprise, roles) values ($1, $2, \'{comptabilite_interne}\')', [samia.utilisateur, a.ent]);
     expect((await a.lire(true, undefined, samia.jeton)).statut).toBe(200);
+  });
+
+  it('(G11) l\'appel à l\'IA se fait sans connexion prise à la base ; une deuxième lecture attend la première ; un droit retiré pendant l\'appel ne reçoit rien', async () => {
+    let liberer = () => {};
+    const pendant: number[] = [];
+    let attendre = true;
+    const appeler = await serveur(async () => {
+      pendant.push(pool.totalCount - pool.idleCount);
+      if (attendre) await new Promise<void>((ok) => { liberer = ok; });
+      return { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(bureauPlus()) }] };
+    });
+    const a = await atelier(appeler);
+    const premiere = a.lire(true);
+    await vi.waitFor(() => expect(pendant).toHaveLength(1));
+    // Aucune connexion prise pendant que l'IA lit.
+    expect(pendant).toEqual([0]);
+    // La même personne, pendant ce temps : une seule lecture à la fois, la phrase dit quand réessayer.
+    const seconde = await a.lire(true);
+    expect(seconde.statut).toBe(429);
+    expect(seconde.corps.attendreSecondes).toBe(20);
+    expect(texte(seconde.corps.motif)).toMatch(/^L'IA lit déjà une autre pièce pour toi ou ton entreprise : rien n'a été envoyé/);
+    liberer();
+    expect((await premiere).statut).toBe(200);
+    // La place rendue, la lecture suivante passe.
+    attendre = false;
+    expect((await a.lire(true)).statut).toBe(200);
+    // Samia lit ; son droit lui est retiré pendant l'appel : la réponse ne lui parvient pas.
+    attendre = true;
+    const samia = await personne(appeler, 'samia');
+    await admin.query('insert into socle.membre (utilisateur, entreprise, roles) values ($1, $2, \'{comptabilite_interne}\')', [samia.utilisateur, a.ent]);
+    const n = pendant.length;
+    const sienne = a.lire(true, undefined, samia.jeton);
+    await vi.waitFor(() => expect(pendant).toHaveLength(n + 1));
+    await admin.query('update socle.membre set roles = \'{commercial}\' where utilisateur = $1 and entreprise = $2', [samia.utilisateur, a.ent]);
+    liberer();
+    const r = await sienne;
+    expect(r.statut).toBe(403);
+    expect(r.corps.lecture).toBeUndefined();
+  });
+
+  it('(G11) les places de lecture : une par personne, deux par entreprise, quatre pour le serveur ; rendues d\'elles-mêmes au bout de trois minutes', () => {
+    const t = 1_000_000;
+    const rendre = [prendrePlaceIA('e1', 'p1', t), prendrePlaceIA('e1', 'p2', t)];
+    expect(rendre.every(Boolean)).toBe(true);
+    expect(prendrePlaceIA('e1', 'p3', t)).toBeNull();
+    expect(prendrePlaceIA('e2', 'p1', t)).toBeNull();
+    const autres = [prendrePlaceIA('e2', 'p4', t), prendrePlaceIA('e3', 'p5', t)];
+    expect(prendrePlaceIA('e4', 'p6', t)).toBeNull();
+    rendre[0]?.();
+    const r = prendrePlaceIA('e4', 'p6', t);
+    expect(r).not.toBeNull();
+    // Trois minutes plus tard, une place jamais rendue se libère.
+    expect(prendrePlaceIA('e5', 'p7', t + 180_000)).not.toBeNull();
+    for (const f of [...rendre, ...autres, r]) f?.();
   });
 
   it('ce qui n\'est pas une facture se dit, sans rien proposer', async () => {

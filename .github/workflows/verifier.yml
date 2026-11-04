@@ -127,3 +127,10 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # (1.276.0, audit G16) Les dépendances livrées au serveur : une alerte haute ou critique arrête le verdict. Une
+      # alerte modérée se lit dans le journal et se traite (docs/audit-global-suivi.md), sans bloquer.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Aucune alerte haute dans les dépendances du serveur
+        run: npm audit --omit=dev --audit-level=high

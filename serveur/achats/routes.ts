@@ -38,6 +38,21 @@ const TND = { code: 'TND', decimales: 3 };
 const LIMITE_FICHIER = 10 * 1_048_576;
 const LIMITE_CORPS = 16 * 1_048_576;
 
+// (1.276.0, l'audit G11) Les lectures par l'IA en cours : une par personne (ou clé), deux par entreprise, quatre pour le
+// serveur. Une place se rend à la fin de l'appel, et d'elle-même au bout de trois minutes (une réponse jamais partie).
+export const PLACES_IA = { parPersonne: 1, parEntreprise: 2, serveur: 4 };
+export const ATTENTE_IA = 20;
+const enCours = new Map<symbol, { entreprise: string; qui: string; jusqua: number }>();
+export function prendrePlaceIA(entreprise: string, qui: string, maintenant = Date.now()): (() => void) | null {
+  for (const [k, v] of enCours) if (v.jusqua <= maintenant) enCours.delete(k);
+  const toutes = [...enCours.values()];
+  if (toutes.length >= PLACES_IA.serveur || toutes.filter((v) => v.entreprise === entreprise).length >= PLACES_IA.parEntreprise
+    || toutes.filter((v) => v.qui === qui).length >= PLACES_IA.parPersonne) return null;
+  const k = Symbol('lecture');
+  enCours.set(k, { entreprise, qui, jusqua: maintenant + 180_000 });
+  return () => { enCours.delete(k); };
+}
+
 export function routesAchats(ctx: Contexte): Route<never>[] {
   const routes: Route<never>[] = [];
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
@@ -148,7 +163,7 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
     methode: 'POST', chemin: '/entreprises/:entreprise/achats/lecture', geste: 'achats.facture.lire', limiteCorps: LIMITE_CORPS,
     // `ia` : la personne a dit oui à la lecture par l'IA, pour CE fichier (la question est posée avant chaque envoi).
     corps: z.object({ nom: z.string().trim().min(1).max(200), contenu: z.string().min(1).max(LIMITE_CORPS), ia: z.boolean().optional() }),
-    traiter: async ({ params, corps }, tx) => {
+    traiter: async ({ params, corps, qui }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       // (27/10/2026, Skander) Seule l'IA lit : la lecture de nos serveurs se trompait trop. Sans son accord pour ce fichier,
       // sans clé, ou coupée par l'entreprise, rien ne se lit, et la phrase dit pourquoi.
@@ -166,18 +181,26 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
       const societe = await objetDuDossier(tx, params.entreprise ?? '', '_racine', 'company');
       const entreprise = await requetes(tx).selectFrom('socle.entreprise').select('matricule_fiscal').where('id', '=', params.entreprise ?? '').executeTakeFirst();
       const notreMatricule = (typeof societe?.matricule === 'string' && societe.matricule) || entreprise?.matricule_fiscal || null;
+      // (1.276.0, l'audit G11) Une lecture à la fois par personne, deux par entreprise, quatre pour tout le serveur : une
+      // salve ne prend pas tout le serveur, et la phrase dit quand réessayer.
+      const place = prendrePlaceIA(params.entreprise ?? '', qui?.cle?.id ?? qui?.utilisateur ?? '');
+      if (!place) return { statut: 429, corps: { motif: motif('achats.lecture.ia_occupee', { secondes: ATTENTE_IA }), attendreSecondes: ATTENTE_IA, bouton: null } };
+      const lecteur = ctx.lecteurIA;
       // La pièce part chez Anthropic, rien d'autre (lecture-ia.ts) ; notre matricule se reconnaît ici, au retour. Si l'IA ne
       // répond pas (panne, refus, réponse hors forme), rien n'est lu : la phrase le dit, la pièce se joint et se saisit.
-      let r: ReponseIA;
-      try { r = await ctx.lecteurIA.lire(fichier, sorte); } catch (e) {
-        // Pour l'exploitant (journalctl) : la raison et le message de l'API, jamais la pièce ni la clé.
-        const cause = e instanceof Error && e.cause instanceof Error ? ` : ${e.cause.message.slice(0, 300)}` : '';
-        console.error(`la lecture par l'IA n'a pas abouti (${e instanceof Error ? e.message : String(e)})${cause}`);
-        return { statut: e instanceof IARefuse ? 422 : 503, corps: { motif: motif(e instanceof IARefuse ? 'achats.lecture.ia_refus' : 'achats.lecture.ia_echec', { nom }), bouton: null } };
-      }
-      if (!r.estUneFacture) return { statut: 422, corps: { motif: motif('achats.lecture.ia_pas_facture', { nom }), bouton: null } };
-      const p = propositionDeLIA(r, { notreMatricule });
-      return { corps: { lecture: p.lecture, ou: p.ou, remarques: p.remarques, doutes: p.doutes, moteur: 'ia', pages: 1 } };
+      // L'appel se fait transaction close (`ensuite`) : il dure jusqu'à une minute, sans garder une connexion à la base.
+      return { corps: {}, ensuite: async () => {
+        let r: ReponseIA;
+        try { r = await lecteur.lire(fichier, sorte); } catch (e) {
+          // Pour l'exploitant (journalctl) : la raison et le message de l'API, jamais la pièce ni la clé.
+          const cause = e instanceof Error && e.cause instanceof Error ? ` : ${e.cause.message.slice(0, 300)}` : '';
+          console.error(`la lecture par l'IA n'a pas abouti (${e instanceof Error ? e.message : String(e)})${cause}`);
+          return { statut: e instanceof IARefuse ? 422 : 503, corps: { motif: motif(e instanceof IARefuse ? 'achats.lecture.ia_refus' : 'achats.lecture.ia_echec', { nom }), bouton: null } };
+        } finally { place(); }
+        if (!r.estUneFacture) return { statut: 422, corps: { motif: motif('achats.lecture.ia_pas_facture', { nom }), bouton: null } };
+        const p = propositionDeLIA(r, { notreMatricule });
+        return { corps: { lecture: p.lecture, ou: p.ou, remarques: p.remarques, doutes: p.doutes, moteur: 'ia', pages: 1 } };
+      } };
     },
   });
 

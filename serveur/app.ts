@@ -37,7 +37,10 @@ export type Route<C = unknown> = {
   // personne ; pour un geste public, il n'y a pas de transaction (le travail ouvre les siennes).
   // `apres` (0124, l'audit C07) : ce qui ne se fait qu'une fois la transaction validée (un e-mail qui ne doit partir que
   // pour ce que la base a gardé) ; ce qu'il rend s'ajoute à la réponse.
-  traiter: (r: Requete<C>, tx: Transaction | null) => Promise<{ statut?: number; corps: unknown; apres?: () => Promise<Record<string, unknown>> }>;
+  // `ensuite` (1.276.0, l'audit G11) : un travail long qui n'a pas besoin de la base (l'appel à l'IA) se fait une fois la
+  // transaction close, sans garder de connexion ; les droits de la personne sont revus dans une transaction neuve avant
+  // que sa réponse parte (retirés pendant l'attente, elle ne reçoit rien). Ce qu'il rend remplace la réponse.
+  traiter: (r: Requete<C>, tx: Transaction | null) => Promise<{ statut?: number; corps: unknown; apres?: () => Promise<Record<string, unknown>>; ensuite?: () => Promise<{ statut?: number; corps: unknown }> }>;
   // La lecture sensible d'UN objet (03 D10) : son type, et le paramètre du chemin qui le nomme. La
   // trace de la lecture dit alors quel objet a été lu, pas seulement qu'on a lu.
   objetLu?: { type: string; param: string };
@@ -206,7 +209,12 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
       ...(r.limiteCorps ? { bodyLimit: r.limiteCorps } : {}),
       handler: async (requete, reponse) => {
         const langue = langueDe(requete.headers);
-        const envoyer = (statut: number, corps: unknown) => reponse.code(statut).send(rendreTout(corps, langue));
+        // (1.276.0, l'audit G12) Un refus « réessaie dans N secondes » le dit aussi aux programmes (Retry-After).
+        const envoyer = (statut: number, corps: unknown) => {
+          const attendre = (corps as { attendreSecondes?: unknown } | null)?.attendreSecondes;
+          if ((statut === 429 || statut === 503) && typeof attendre === 'number') reponse.header('retry-after', String(attendre));
+          return reponse.code(statut).send(rendreTout(corps, langue));
+        };
         let corps: unknown = undefined;
         if (r.corps) {
           const lu = r.corps.safeParse(requete.body ?? {});
@@ -329,6 +337,17 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           }, qui.cle?.id ?? null, { instantane: r.instantane === true });
           // La dernière activité d'une personne DANS cette entreprise (0114) : après une requête acceptée, jamais pour une clé.
           if (GESTES.has(r.geste) && !qui.cle && (res.statut ?? 200) < 400) noterActivite(ctx, qui.utilisateur, params.entreprise ?? '');
+          if (res.ensuite && (res.statut ?? 200) < 400) {
+            const fin = await res.ensuite();
+            if (GESTES.has(r.geste)) {
+              const refus = await enTantQue(ctx.pool, qui.cle ? null : qui.utilisateur, async (relu) => {
+                const d = await peut(relu, qui, params.entreprise ?? '', r.geste, r.methode !== 'GET');
+                return d.ok ? null : { statut: d.raison === 'invisible' ? 404 : 403, corps: { motif: d.motif, qui: d.qui, bouton: d.bouton } };
+              }, qui.cle?.id ?? null);
+              if (refus) return envoyer(refus.statut, refus.corps);
+            }
+            return envoyer(fin.statut ?? 200, fin.corps);
+          }
           return envoyer(res.statut ?? 200, await avecLaSuite(res));
         } catch (e) { return erreurVersReponse(e, reponse, langue); }
       },

@@ -31,6 +31,7 @@ declarerTextes({
   // La lecture par l'IA de Claude (Anthropic), hors de Tunisie (24/10/2026, branchée le 27/10/2026 : lecture-ia.ts).
   'achats.lecture.ia_sans_designation': 'ligne sans désignation lisible',
   'achats.lecture.ia_echec': 'l\'IA n\'a pas pu lire « {nom} » : rien n\'a été lu. Réessaie dans un moment, ou saisis la facture à la main',
+  'achats.lecture.ia_occupee': 'l\'IA lit déjà une autre pièce pour toi ou ton entreprise : rien n\'a été envoyé. Réessaie dans {secondes} secondes',
   'achats.lecture.ia_refus': 'l\'IA a refusé de lire « {nom} » : rien n\'a été lu. Saisis la facture à la main',
   'achats.lecture.ia_pas_facture': 'l\'IA ne voit pas de facture d\'achat sur « {nom} » : vérifie que c\'est bien la pièce, nette et entière',
 });

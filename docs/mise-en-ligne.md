@@ -68,9 +68,12 @@ installation, le 05/10/2026). C'est la pratique des grandes plateformes (« GitO
 vérifiée) : personne ne retouche un serveur à la main ; tout passe par le dépôt, tracé et vérifié. La main sur le
 serveur, c'est donc la main sur le dépôt : **la double vérification du compte GitHub de Skander** en est la clé.
 
-**B2. Une installation** : la version prise dans le dépôt, ses dépendances (`npm ci`), ses écrans construits à part,
-les migrations de la base (par le compte d'administration local, sans mot de passe), les écrans remplacés d'un coup,
-le programme redémarré, puis son état vérifié (il doit répondre dans la minute). **Un échec revient à la version
+**B2. Une installation** : la version préparée dans **son propre dossier** (`/opt/skanfact/versions/<empreinte>`, une
+copie de travail de git ; 1.276.0, audit G15 : rien ne s'installe plus sous le serveur qui tourne), ses dépendances
+(`npm ci`), ses écrans construits à part, les migrations de la base (par le compte d'administration local, sans mot de
+passe) ; puis, d'un coup, le lien `/opt/skanfact/courante` (où le serveur tourne) et les écrans remplacés, le programme
+redémarré ; le dépôt des outils de la machine ne suit qu'ensuite. Les trois dernières versions restent préparées : un
+retour en arrière bascule sans rien refaire. Puis son état vérifié (il doit répondre dans la minute). **Un échec revient à la version
 d'avant** (la base, elle, ne recule pas : une migration ne se défait pas), se dit dans l'état, et cette version n'est
 plus retentée.
 
@@ -210,7 +213,12 @@ automatique après 35 jours (12 mois pour le dossier `nuit` ; la garde sur 10 an
 (C bis 5 : une clé neuve pour les copies suivantes), puis
 `curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/rapatrier.sh | sudo bash` :
 le nom de l'ancien serveur et **son ancienne clé de relecture** ; tout revient, déchiffré, là où `restaurer.sh` le
-cherche. Puis `restaurer.sh --jusqua "<la dernière minute>"`, et la base restaurée à part remplace la base vive vide
+cherche. **La clé du coffre** de l'ancien serveur revient avec (1.276.0, audit G13 : elle part chiffrée, seule, dans
+`reprise/coffre-<empreinte>.env`) et remplace celle de la machine neuve dans `/etc/skanfact/serveur.env` : sans elle,
+les secrets des intégrations gardés dans la base ne se relisent plus. Si la clé a changé un jour, il y en a plusieurs :
+le script les laisse dans `/etc/skanfact/reprise/` et on recopie la plus récente à la main. Une machine qu'on installe
+après coup reçoit la clé dès l'installation : `SKANFACT_COFFRE_REPRIS=/etc/skanfact/reprise/coffre-….env` devant
+`installer.sh`. Puis `sudo systemctl restart skanfact`, `restaurer.sh --jusqua "<la dernière minute>"`, et la base restaurée à part remplace la base vive vide
 (`pg_dump` de l'une, `pg_restore` dans l'autre, SkanFact arrêté). **À VÉRIFIER** : l'exercice complet sur une
 machine neuve, deux fois par an (`06` § 4.3).
 

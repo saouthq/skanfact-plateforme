@@ -4,6 +4,7 @@ import { declarerTextes } from '../../textes/index.ts';
 
 declarerTextes({
   'pdf.indisponible': 'ce serveur ne fait pas encore les PDF : la fenêtre d\'impression du navigateur s\'ouvre à la place (choisis « Enregistrer au format PDF »)',
+  'pdf.trop_a_la_fois': 'tu as déjà plusieurs PDF en cours : celui-ci n\'a pas été fait. Réessaie dans {secondes} secondes',
   'pdf.occupe': 'le serveur fait déjà beaucoup de PDF : réessaie dans une minute',
   'pdf.trop_long': 'le PDF de « {nom} » prend trop de temps à faire : rien n\'a été fait. Réessaie dans un instant',
   'pdf.echec': 'le PDF de « {nom} » n\'a pas pu être fait : réessaie, ou imprime-le depuis la fenêtre du navigateur',

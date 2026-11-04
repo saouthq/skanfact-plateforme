@@ -9732,7 +9732,7 @@ prouver 'l'"'"'exercice laissé là, avec toutes les données' exploitation/rest
   echo "Exercice réussi' '  echo "Exercice réussi' \
   "$AR4"
 prouver 'une copie de base d'"'"'après la minute prise quand même' exploitation/restaurer.sh \
-  '  if [ -z "$LIMITE" ] || [[ ! "$marque" > "$LIMITE" ]]; then COPIE=$c; break; fi' '  COPIE=$c; break' \
+  '  if [ -z "$LIMITE" ] || [[ ! "$fin" > "$LIMITE" ]]; then COPIE=$c; break; fi' '  COPIE=$c; break' \
   "$AR5"
 prouver 'la sauvegarde de la nuit écrite sous son nom avant d'"'"'être finie' exploitation/sauvegarder.sh \
   'pg_dump -Fc -f "$f.partiel" "$BASE"
@@ -18316,7 +18316,7 @@ prouver 'au PDF du serveur, une page de 9 Mo imprimée quand même' serveur/pdf/
   $'if (taille > LIMITE_PAGE) {' $'if (taille > LIMITE_PAGE * 4) {' \
   'il faut être connecté ; une page trop lourde se refuse ; un serveur sans Chromium le dit'
 prouver 'au PDF du serveur, une file qui ne se borne pas' serveur/pdf/imprimeur.ts \
-  $'if (file.length >= attente) throw new ImprimeurOccupe(\'file-pleine\');' $'' \
+  $'      if (actives >= simultanees && file.length >= attente) throw new ImprimeurOccupe(\'file-pleine\');' $'' \
   'au-delà de sa file, l'\''imprimeur dit qu'\''il est occupé'
 prouver 'au PDF du serveur, un Chromium absent pris pour une erreur' serveur/pdf/routes.ts \
   $'if (e instanceof ImpressionImpossible && e.message === \'navigateur-absent\') return' $'if (e instanceof ImpressionImpossible && e.message === \'jamais\') return' \
@@ -24214,6 +24214,62 @@ prouver 'audit G04 i : une facture neuve sans règle de calcul' modules/socle/ec
   '      calcul: 2
     };' '    };' \
   'Samia, sans matricule ni RIB : la pièce n'"'"'imprime rien de vide'
+
+# L'audit global du 04/11/2026, lots C et D (1.276.0 ; docs/audit-global-suivi.md).
+prouver 'audit G11 a : l'"'"'appel à l'"'"'IA dans la transaction' serveur/achats/routes.ts \
+  '      return { corps: {}, ensuite: async () => {|||moteur: '"'"'ia'"'"', pages: 1 } };
+      } };' '      const ensuite = async () => {|||moteur: '"'"'ia'"'"', pages: 1 } };
+      }; return ensuite();' \
+  '(G11) l'"'"'appel à l'"'"'IA se fait sans connexion prise à la base ; une deuxième lecture attend la première ; un droit retiré pendant l'"'"'appel ne reçoit rien'
+prouver 'audit G11 b : les droits non revus après l'"'"'appel' serveur/app.ts \
+  '            if (GESTES.has(r.geste)) {
+              const refus' '            if (false) {
+              const refus' \
+  '(G11) l'"'"'appel à l'"'"'IA se fait sans connexion prise à la base ; une deuxième lecture attend la première ; un droit retiré pendant l'"'"'appel ne reçoit rien'
+prouver 'audit G11 c : deux lectures à la fois pour une personne' serveur/achats/routes.ts \
+  '
+    || toutes.filter((v) => v.qui === qui).length >= PLACES_IA.parPersonne) return null;' ') return null;' \
+  '(G11) l'"'"'appel à l'"'"'IA se fait sans connexion prise à la base ; une deuxième lecture attend la première ; un droit retiré pendant l'"'"'appel ne reçoit rien'
+prouver 'audit G11 d : une entreprise prend toutes les places' serveur/achats/routes.ts \
+  ' || toutes.filter((v) => v.entreprise === entreprise).length >= PLACES_IA.parEntreprise' '' \
+  '(G11) les places de lecture : une par personne, deux par entreprise, quatre pour le serveur ; rendues d'"'"'elles-mêmes au bout de trois minutes'
+prouver 'audit G11 e : une place jamais rendue bloque pour toujours' serveur/achats/routes.ts \
+  '  for (const [k, v] of enCours) if (v.jusqua <= maintenant) enCours.delete(k);
+' '' \
+  '(G11) les places de lecture : une par personne, deux par entreprise, quatre pour le serveur ; rendues d'"'"'elles-mêmes au bout de trois minutes'
+prouver 'audit G12 a : le créneau libéré au premier arrivé' serveur/pdf/imprimeur.ts \
+  '(meilleur < 0 || (enCours.get(place.qui) ?? 0) < (enCours.get(file[meilleur]?.qui ?? '"'"''"'"') ?? 0))' 'meilleur < 0' \
+  '(G12) chacun sa part : trois PDF au plus par personne, et le créneau libéré va à celle qui en a le moins en cours'
+prouver 'audit G12 b : une salve sans limite par personne' serveur/pdf/imprimeur.ts \
+  '      if (qui && (enCours.get(qui) ?? 0) >= parPersonne) throw new ImprimeurOccupe('"'"'personne'"'"');
+' '' \
+  '(G12) chacun sa part : trois PDF au plus par personne, et le créneau libéré va à celle qui en a le moins en cours'
+prouver 'audit G13 a : la clé du coffre ne part pas hors de la machine' exploitation/hors-machine.sh \
+  '    coffre_de_reprise; } | sort' '    } | sort' \
+  'chaque minute, ce qui est nouveau part chiffré et vérifié ; rien deux fois ; jamais un fichier à moitié écrit'
+prouver 'audit G13 b : tous les réglages du serveur partent avec la clé' exploitation/hors-machine.sh \
+  'ligne=$(grep -m1 '"'"'^SKANFACT_COFFRE='"'"' "$SERVEUR_ENV" 2>/dev/null) || return 0' 'ligne=$(cat "$SERVEUR_ENV" 2>/dev/null) || return 0' \
+  'chaque minute, ce qui est nouveau part chiffré et vérifié ; rien deux fois ; jamais un fichier à moitié écrit'
+prouver 'audit G13 c : la clé rapatriée n'"'"'est pas reprise' exploitation/rapatrier.sh \
+  'if [ "${#COFFRES[@]}" = 1 ] && [ -f "$SERVEUR_ENV" ]; then' 'if false; then' \
+  'tout revient du stockage, déchiffré avec la clé gardée (page après page), et la base se restaure comme avant'
+prouver 'audit G14 a : la restauration ignore la fin de la copie' exploitation/restaurer.sh \
+  '  if [ -z "$LIMITE" ] || [[ ! "$fin" > "$LIMITE" ]]; then' '  if [ -z "$LIMITE" ] || [[ ! "$marque" > "$LIMITE" ]]; then' \
+  '(G14) une copie qui s'"'"'achève après la minute voulue ne la sert pas : c'"'"'est la précédente qui part'
+prouver 'audit G14 b : la copie de base n'"'"'écrit pas sa fin' exploitation/copie-de-base.sh \
+  'printf '"'"'%s\n'"'"' "$FIN" > "$COPIES/base-$MARQUE.fin"' ':' \
+  'la copie de base de la nuit : vérifiée, rangée avec son premier journal ; les vieilles et leurs journaux s'"'"'en vont, jamais les deux dernières'
+prouver 'audit G14 c : la fin de la copie ne revient pas du stockage' exploitation/rapatrier.sh \
+  '|base/base-*.fin) cible' ') cible' \
+  'tout revient du stockage, déchiffré avec la clé gardée (page après page), et la base se restaure comme avant'
+prouver 'audit G15 : la version installée sous le serveur en marche' exploitation/suivre.ts \
+  '  commeService('"'"'mkdir'"'"', ['"'"'-p'"'"', versions]);' '  commeService('"'"'git'"'"', ['"'"'checkout'"'"', '"'"'-q'"'"', '"'"'--detach'"'"', version]);
+  commeService('"'"'mkdir'"'"', ['"'"'-p'"'"', versions]);' \
+  'se prépare dans son dossier, jamais sous le serveur en marche, et ne bascule qu'"'"'une fois prête'
+prouver 'audit G18 : le tri des performances sous 44 px au téléphone' web/console/src/console.css \
+  '  .c-pf-tri { min-height: 44px; min-width: 44px; justify-content: center; }
+' '' \
+  'en clair et en sombre, à l'"'"'ordinateur et au téléphone : l'"'"'instrument ne trouve rien ; en langue factice, tout vient du catalogue'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

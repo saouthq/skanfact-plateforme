@@ -13,7 +13,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
@@ -116,6 +116,28 @@ describe('le PDF fait par le serveur', () => {
     liberer();
     expect((await premier).pages).toBe(1);
     expect((await second).pages).toBe(1);
+  });
+
+  it('(G12) chacun sa part : trois PDF au plus par personne, et le créneau libéré va à celle qui en a le moins en cours', async () => {
+    const liberations: (() => void)[] = [];
+    const ordre: string[] = [];
+    const file = creerImprimeur({ imprimer: async (html) => { ordre.push(html); await new Promise<void>((ok) => { liberations.push(ok); }); return { pdf: Buffer.from('%PDF-'), pages: 1 }; } }, { simultanees: 1, attente: 8, parPersonne: 3 });
+    // Karim envoie une salve : la première part, deux attendent, la quatrième se refuse aussitôt.
+    const karim = [file.imprimer('k1', 'karim'), file.imprimer('k2', 'karim'), file.imprimer('k3', 'karim')];
+    await expect(file.imprimer('k4', 'karim')).rejects.toThrow('personne');
+    // Nadia arrive après : elle passe avant les deux de Karim qui attendaient.
+    const nadia = file.imprimer('n1', 'nadia');
+    await vi.waitFor(() => expect(liberations).toHaveLength(1));
+    liberations[0]?.();
+    await vi.waitFor(() => expect(ordre).toEqual(['k1', 'n1']));
+    for (let i = 1; i < 4; i++) { await vi.waitFor(() => expect(liberations.length).toBeGreaterThan(i)); liberations[i]?.(); }
+    await Promise.all([...karim, nadia]);
+    expect(ordre).toEqual(['k1', 'n1', 'k2', 'k3']);
+    // Sa salve finie, Karim peut de nouveau en lancer.
+    const encore = file.imprimer('k5', 'karim');
+    await vi.waitFor(() => expect(liberations).toHaveLength(5));
+    liberations[4]?.();
+    expect((await encore).pages).toBe(1);
   });
 
   it('il faut être connecté ; une page trop lourde se refuse ; un serveur sans Chromium le dit', async () => {

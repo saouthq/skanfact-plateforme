@@ -17,7 +17,9 @@ import { codeDeLEcran } from '../v10/teif.ts';
 
 export type Imprime = { pdf: Buffer; pages: number };
 export type Moteur = (html: string) => Promise<Imprime>;
-export type Imprimeur = { imprimer: Moteur; arreter: () => Promise<void> };
+// `qui` (1.276.0, l'audit G12) : la personne qui imprime. Chacune a au plus `parPersonne` PDF en cours ou en attente, et
+// un créneau qui se libère va à celle qui en a le moins en cours ou en attente : une salve d'une seule ne fait pas attendre les autres.
+export type Imprimeur = { imprimer: (html: string, qui?: string) => Promise<Imprime>; arreter: () => Promise<void> };
 
 export class ImprimeurOccupe extends Error {}
 export class ImpressionImpossible extends Error {}
@@ -25,7 +27,7 @@ export class ImpressionTropLongue extends Error {}
 
 type Core = { fitToPage: (d: unknown) => void; paginate: (d: unknown) => void };
 
-export type Reglages = { ms?: number; simultanees?: number; attente?: number; attenteMs?: number };
+export type Reglages = { ms?: number; simultanees?: number; attente?: number; attenteMs?: number; parPersonne?: number };
 
 // Le nombre de pages d'un PDF, par ses objets « /Type /Page » (pas « /Pages », l'arbre qui les range).
 export function pagesDe(pdf: Buffer): number {
@@ -79,32 +81,49 @@ export function moteurDuServeur(r: { ms?: number; navigateur?: string | null } =
   };
 }
 
-// La file : un créneau se passe de main en main, jamais deux impressions de plus que permis.
+// La file : un créneau se passe de main en main, jamais deux impressions de plus que permis ; il va à la personne qui en a
+// le moins en cours ou en attente, dans l'ordre d'arrivée sinon.
 export function creerImprimeur(moteur: { imprimer: Moteur; arreter?: () => Promise<void> }, r: Reglages = {}): Imprimeur {
   const simultanees = r.simultanees ?? 2;
   const attente = r.attente ?? 8;
   const attenteMs = r.attenteMs ?? 60_000;
+  const parPersonne = r.parPersonne ?? 3;
   let actives = 0;
-  const file: { ok: () => void; ko: (e: Error) => void }[] = [];
+  const enCours = new Map<string, number>();
+  const compter = (qui: string, n: number) => { const v = (enCours.get(qui) ?? 0) + n; if (v > 0) enCours.set(qui, v); else enCours.delete(qui); };
+  type Place = { qui: string; ok: () => void; ko: (e: Error) => void };
+  const file: Place[] = [];
+  const suivant = (): Place | undefined => {
+    let meilleur = -1;
+    for (let i = 0; i < file.length; i++) {
+      const place = file[i];
+      if (place && (meilleur < 0 || (enCours.get(place.qui) ?? 0) < (enCours.get(file[meilleur]?.qui ?? '') ?? 0))) meilleur = i;
+    }
+    return meilleur < 0 ? undefined : file.splice(meilleur, 1)[0];
+  };
   return {
-    imprimer: async (html) => {
-      if (actives < simultanees) actives++;
-      else {
-        if (file.length >= attente) throw new ImprimeurOccupe('file-pleine');
-        await new Promise<void>((ok, ko) => {
-          const place = { ok: () => { clearTimeout(minuterie); ok(); }, ko };
-          const minuterie = setTimeout(() => {
-            const i = file.indexOf(place);
-            if (i >= 0) file.splice(i, 1);
-            ko(new ImprimeurOccupe('attente'));
-          }, attenteMs);
-          file.push(place);
-        });
-      }
-      try { return await moteur.imprimer(html); } finally {
-        const suivant = file.shift();
-        if (suivant) suivant.ok(); else actives--;
-      }
+    imprimer: async (html, qui = '') => {
+      if (qui && (enCours.get(qui) ?? 0) >= parPersonne) throw new ImprimeurOccupe('personne');
+      if (actives >= simultanees && file.length >= attente) throw new ImprimeurOccupe('file-pleine');
+      compter(qui, 1);
+      try {
+        if (actives < simultanees) actives++;
+        else {
+          await new Promise<void>((ok, ko) => {
+            const place: Place = { qui, ok: () => { clearTimeout(minuterie); ok(); }, ko };
+            const minuterie = setTimeout(() => {
+              const i = file.indexOf(place);
+              if (i >= 0) file.splice(i, 1);
+              ko(new ImprimeurOccupe('attente'));
+            }, attenteMs);
+            file.push(place);
+          });
+        }
+        try { return await moteur.imprimer(html); } finally {
+          const s = suivant();
+          if (s) s.ok(); else actives--;
+        }
+      } finally { compter(qui, -1); }
     },
     arreter: async () => { await moteur.arreter?.(); },
   };
