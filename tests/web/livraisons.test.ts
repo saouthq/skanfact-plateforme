@@ -102,7 +102,7 @@ describe('une commande livrée en deux fois, et ses bons facturés en une factur
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/autres/commande`);
-    await expect.poll(() => p.locator('#view h1').first().innerText(), { timeout: 20_000 }).toBe('Proforma, bons et contrats');
+    await expect.poll(() => p.locator('#view h1').first().innerText(), { timeout: 20_000 }).toBe('Autres pièces');
     await plusTard(p);
 
     // 1. Le premier bon reprend toute la commande ; on ne livre que ce qui est en stock.

@@ -7196,7 +7196,7 @@
     remiseEffective,
     periodBounds, issuedIn, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress,
     amountToWords, intToWords, intToWordsEn, documentHtml, fitToPage, paginate, pageCount,
-    MODULES, PAGES, moduleById, pageById, pageTitle, moduleCount, moduleCounts, modulesRevenus, moduleOn, moduleWhy, navPages, familleNavOuverte, FAMILLES_OUVERTES_AU_DEBUT,
+    MODULES, PAGES, moduleById, pageById, pageTitle, moduleCount, moduleCounts, modulesRevenus, moduleOn, moduleWhy, navPages, familleNavOuverte, FAMILLES_OUVERTES_AU_DEBUT, FAMILLES_DU_MENU, vuesDePage,
     sousModuleOn, sousModuleById, sousModules, OPTION_LABELS,
     MODULES_PAR_ACTIVITE, modulesSuggeres, wipeData, rendreLesEmprunts, estDemo, exemplePerime, verdictMotDePasse, firstSteps, reussites, liste, defaultVat, seuilRetenue, sousSeuilRetenue, newLine, tauxPourRegime, tvaRecuperable, tvaNonDeductible, achatsHorsRegime, tauxAchatArticle, articlesSansTva, sourcesSansTva, factureSansTvaSuspecte, ligneFactureeSansTva, regimePourPiece, modelesParDefaut, modeleMail,
     contrasteSurBlanc, lisibiliteMarque, ACCENTS_PROPOSES, marquePersonnalisee,

@@ -21,6 +21,21 @@ body.dark { --ch-bleu-doux: color-mix(in srgb, #4d7cf2 24%, var(--sb-papier)); -
 .badge.retard, .badge.b-late { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
 .badge.refusé, .badge.annulée, .badge.brouillon { background: var(--sb-survol); color: var(--sb-gris); }
 
+/* ── La bande des vues d'une page (1.269.0 ; 17 § 1) ──
+   Sous le titre, les vues qui vont ensemble : « Les factures · En retard ». Une pilule par vue ; la vue ouverte est pleine,
+   les autres disent seulement leur nom et ce qui y attend. Elle ne bouge pas d'une vue à l'autre (même place, même taille). */
+.vues-page { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; margin: -4px 0 16px; width: fit-content; max-width: 100%;
+  border: 1px solid var(--sb-trait); border-radius: 12px; background: var(--sb-survol); }
+#view .vues-page a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 13px; border-radius: 9px;
+  font-family: var(--sb-police); font-size: 13.5px; font-weight: 600; color: var(--sb-gris); text-decoration: none; white-space: nowrap; }
+#view .vues-page a:hover, #view .vues-page a:focus { text-decoration: none; }
+#view .vues-page a:hover { color: var(--sb-encre); }
+#view .vues-page a[aria-current="page"] { background: var(--sb-papier); color: var(--sb-encre); box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
+#view .vues-page a:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 1px; }
+#view .vues-page .tab-n { margin: 0; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+/* Au doigt (téléphone, tablette), chaque vue se touche sur 44 px de haut, comme les autres boutons. */
+@media (pointer: coarse), (max-width: 760px) { #view .vues-page a { min-height: 44px; padding: 8px 14px; } }
+
 /* ── Les boutons ──
    Blancs à bordure fine au repos ; le principal, sarcelle, est le seul plein. 36 px de haut, 13,5 px, gras. */
 .btn { font-family: var(--sb-police); font-size: 13.5px; font-weight: 600; min-height: 36px; padding: 7px 14px; border-radius: 10px;

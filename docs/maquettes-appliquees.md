@@ -727,3 +727,26 @@ l'écran reprend les classes des marges (`.lf.mg`) et en ajoute quelques-unes (`
   et dans la Paie « En poste / Partis », prennent le gris de la liste des factures. Les onglets gardent le noir.
 - Test : `tests/web/tresorerie-ecran.test.ts` (à la souris : cartes, bouton principal, filtres, loyer, seuil, essai,
   relevé, traite) et `tests/moteur/tresorerie-1266.test.ts` ; preuves `tréso 1.266 a-l`.
+
+## Le menu à six familles (04/11/2026, 1.269.0)
+
+Maquette : `docs/maquettes/barre-six.html` (la barre v3 de l'application, rangée en six familles ; cadrage 17 § 1).
+Skander, 04/11/2026 : « d'accord pour Relances et Autres pièces, continue ».
+
+- **Six familles, dans cet ordre** : Vendre, Acheter, Articles et stock, Personnel, Argent, Piloter
+  (`FAMILLES_DU_MENU`, core). Le Catalogue, les Listes de prix et le Stock vont dans Articles et stock ; la Paie dans
+  Personnel (elle garde son titre « Paie » jusqu'au lot P2) ; la Trésorerie et la Comptabilité dans Argent ; Piloter
+  garde les Marges et les Statistiques.
+- **Une seule source** : la famille d'une page est celle de sa fiche (`modules/<m>/module.json`) ; le test des fiches
+  refuse tout écart.
+- **Les vues d'une page** (`vueDe`) quittent les volets et s'ouvrent par **la bande des vues**, sous le titre de la page :
+  « Les factures · En retard » (les Relances), « Proforma, bons et contrats · Facturation récurrente » (la page s'appelle
+  désormais « Autres pièces »), « Livres et déclarations · Immobilisations ». Chaque vue garde son adresse (`#/relances`,
+  `#/contrats`, `#/immos`) : un lien, la palette Ctrl K, un favori, « Au quotidien » y mènent toujours. La bande dit le
+  nombre de ce qui attend dans l'autre vue (factures en retard, facturations récurrentes à générer).
+- **Ce qui s'allume** : une vue qui a son lien (Relances « Au quotidien » d'une entreprise de services) s'allume elle-même ;
+  une vue sans lien allume sa page (sur la Facturation récurrente, « Autres pièces »).
+- **Les compteurs** : une page sans compteur porte celui de sa vue dans son volet (« Autres pièces » montre les
+  facturations à générer), sauf si la vue a déjà le sien « Au quotidien ».
+- Tests : `tests/web/barre.test.ts` (les six familles dans l'ordre, le volet Vendre sans les vues, la bande sur une ligne
+  sous le titre, aller et retour entre les vues, ce qui s'allume, « Plus » au téléphone), `tests/commun/fiches-modules.test.ts`.

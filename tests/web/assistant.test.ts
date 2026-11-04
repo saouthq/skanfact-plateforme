@@ -223,8 +223,14 @@ describe('l\'assistant de démarrage, à la souris', () => {
     expect(await interrupteur('Caisse').isChecked()).toBe(false);
     expect(await assistant(p).locator('.as-module .propose').count()).toBe(2);
     const menu = () => assistant(p).locator('#as-menu .page').allInnerTexts();
-    expect(await menu()).toEqual(expect.arrayContaining(['Accueil', 'Factures', 'Achats', 'Proforma, bons et contrats', 'Comptabilité']));
+    expect(await menu()).toEqual(expect.arrayContaining(['Accueil', 'Factures', 'Achats', 'Autres pièces', 'Comptabilité']));
     expect(await menu()).not.toContain('Caisse');
+    // (1.269.0) Le même menu que la barre : les vues d'une page n'ont pas leur ligne, et les familles suivent leur ordre.
+    expect((await menu()).filter((x) => ['Relances', 'Facturation récurrente', 'Immobilisations'].includes(x))).toEqual([]);
+    const familles = await assistant(p).locator('#as-menu .famille').allTextContents();
+    const ORDRE = ['Vendre', 'Acheter', 'Articles et stock', 'Personnel', 'Argent', 'Piloter'];
+    expect(familles).toEqual(ORDRE.filter((x) => familles.includes(x)));
+    expect(familles.length).toBeGreaterThanOrEqual(3);
     // Vu sans y toucher, le menu ne s'écrit pas en route : une reprise le croirait choisi, et ne le rangerait plus
     // d'après le métier.
     await assistant(p).getByRole('button', { name: 'Retour', exact: true }).click();

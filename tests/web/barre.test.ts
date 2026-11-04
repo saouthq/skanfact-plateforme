@@ -94,7 +94,9 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     // Sans cabinet, la propriétaire est invitée à inviter son comptable, au bout des pages du jour.
     expect(await p.locator('#nav .nav-quotidien #b-inviter-comptable').innerText()).toBe('Inviter mon comptable');
     // « Tout le reste » : une ligne par famille ; « Ajouter un module » au bout.
-    expect(await p.locator('#nav .nav-reste .nav-volet').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.famille))).toEqual(['Vendre', 'Acheter', 'Piloter']);
+    // (1.269.0 ; 17 § 1) Les six familles, dans leur ordre, quel que soit l'ordre des pages (le Catalogue vient avant les
+    // Achats dans la liste des pages, Acheter passe pourtant avant Articles et stock).
+    expect(await p.locator('#nav .nav-reste .nav-volet').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.famille))).toEqual(['Vendre', 'Acheter', 'Articles et stock', 'Personnel', 'Argent', 'Piloter']);
     expect(await p.locator('#nav .nav-reste > a[data-route="modules"]').count()).toBe(1);
     // La tête et le pied.
     await expect.poll(() => p.locator('#barre .brand-mark').innerText(), { timeout: 10_000 }).toBe('BE');
@@ -105,6 +107,50 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     // La barre descend jusqu'en bas de l'écran malgré l'échelle (elle s'arrêtait à 810 px sur 900, 26/10/2026).
     expect(await p.locator('#barre').evaluate((b) => Math.round(b.getBoundingClientRect().bottom))).toBe(900);
     await p.screenshot({ path: path.join(PHOTOS, 'barre-bureau.png') });
+
+    // (1.269.0 ; Skander, 04/11/2026) Les vues d'une page quittent les volets : « Vendre » montre « Autres pièces », plus
+    // « Relances » ni « Facturation récurrente » ; la page les porte dans la bande de ses vues, chaque vue à son adresse.
+    await p.locator('#nav .nav-volet[data-famille="Vendre"]').click();
+    const lignesVendre = await p.locator('.sb-panneau .pl-l b').allInnerTexts();
+    expect(lignesVendre.map(net)).toContain('Autres pièces');
+    expect(lignesVendre.map(net).filter((x) => ['Relances', 'Facturation récurrente', 'Proforma, bons et contrats'].includes(x))).toEqual([]);
+    await p.keyboard.press('Escape');
+    const vues = async () => p.locator('#view .vues-page a').evaluateAll((as) => as.map((a) => `${(a as HTMLElement).dataset.vue}${a.getAttribute('aria-current') ? '*' : ''}`));
+    await expect.poll(vues, { timeout: 10_000 }).toEqual(['factures*', 'relances']);
+    await p.locator('#view .vues-page a[data-vue="relances"]').click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).toBe('#/relances');
+    await expect.poll(vues, { timeout: 10_000 }).toEqual(['factures', 'relances*']);
+    expect(net(await p.locator('#view .vues-page a[data-vue="relances"]').innerText())).toBe('En retard');
+    // Une entreprise de services garde « Relances » dans « Au quotidien » (son métier l'y met) : son lien s'allume.
+    const allumes = () => p.locator('#nav a.active').evaluateAll((as) => as.map((a) => (a as HTMLElement).dataset.route));
+    expect(await allumes()).toEqual(['relances']);
+    // La bande, sur une ligne, sous le titre et alignée sur lui (la page Factures a son propre bord, plus à gauche de
+    // 11 px que les pages d'avant sa maquette : la bande suit le bord de chaque page).
+    const sousLeTitre = async () => {
+      const [t, v, liens] = await Promise.all([p.locator('#view h1').first().boundingBox(), p.locator('#view .vues-page').boundingBox(),
+        p.locator('#view .vues-page a').evaluateAll((as) => as.map((a) => Math.round(a.getBoundingClientRect().top)))]);
+      return !!t && !!v && Math.abs(t.x - v.x) <= 14 && v.y > t.y + t.height - 1 && new Set(liens).size === 1;
+    };
+    await expect.poll(sousLeTitre, { timeout: 5_000 }).toBe(true);
+    await p.waitForTimeout(450); // la page entre en fondu : la photo attend qu'elle soit là
+    await p.screenshot({ path: path.join(PHOTOS, 'barre-vues-relances.png') });
+    await p.locator('#view .vues-page a[data-vue="factures"]').click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).toBe('#/factures');
+    await expect.poll(vues, { timeout: 10_000 }).toEqual(['factures*', 'relances']);
+    await expect.poll(sousLeTitre, { timeout: 5_000 }).toBe(true);
+    await p.waitForTimeout(450); // la page entre en fondu : la photo attend qu'elle soit là
+    await p.screenshot({ path: path.join(PHOTOS, 'barre-vues-factures.png') });
+    await p.evaluate(() => { location.hash = '#/contrats'; });
+    await expect.poll(vues, { timeout: 10_000 }).toEqual(['autres', 'contrats*']);
+    // La Facturation récurrente n'a pas de lien dans la barre : sa page, « Autres pièces » (dans le volet Vendre), s'allume.
+    expect(await allumes()).toEqual(['autres']);
+    expect(await p.locator('#view .vues-page a').allInnerTexts().then((l) => l.map(net))).toEqual(['Proforma, bons et contrats', 'Facturation récurrente']);
+    await p.locator('#view .vues-page a[data-vue="autres"]').click();
+    await expect.poll(() => p.locator('#view h1').first().innerText().then(net), { timeout: 10_000 }).toBe('Autres pièces');
+    await p.waitForTimeout(450); // la page entre en fondu : la photo attend qu'elle soit là
+    await p.screenshot({ path: path.join(PHOTOS, 'barre-vues-autres.png') });
+    await p.evaluate(() => { location.hash = '#/factures'; });
+    await expect.poll(vues, { timeout: 10_000 }).toEqual(['factures*', 'relances']);
 
     // Le volet d'une famille s'ouvre à côté de la barre, par-dessus la page : rien ne bouge dans la barre.
     const piloter = p.locator('#nav .nav-volet[data-famille="Piloter"]');
@@ -272,7 +318,7 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await bas.locator('[data-tel="plus"]').click();
     const plus = p.locator('.sb-plus');
     await expect.poll(() => plus.isVisible(), { timeout: 5_000 }).toBe(true);
-    expect(await plus.locator('.plus-titre').allInnerTexts()).toEqual(expect.arrayContaining(['Vendre', 'Acheter', 'Piloter', 'Mon compte']));
+    expect(await plus.locator('.plus-titre').allInnerTexts()).toEqual(expect.arrayContaining(['Vendre', 'Acheter', 'Articles et stock', 'Personnel', 'Argent', 'Piloter', 'Mon compte']));
     await p.screenshot({ path: path.join(PHOTOS, 'barre-telephone-plus.png') });
     await plus.locator('a[href="#/fournisseurs"]').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).toBe('#/fournisseurs');

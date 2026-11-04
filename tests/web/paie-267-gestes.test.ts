@@ -212,6 +212,11 @@ describe('la paie 1.267.0 : la journée de la maquette, le mois qui attend le po
     await p.locator('#modal-root #jav-ok').click();
     await p.locator('#p-sous [data-sous="bulletins"]').click();
     await expect.poll(async () => espace(await p.locator('#p-gen').innerText().catch(() => ''))).toBe('Établir les 2 bulletins');
+    // (1.268.0) Sans cabinet relié, la paie est toute à toi : aucune étape ne dit « toi » ou « ton comptable », aucun
+    // « Envoyer le pointage au cabinet », aucun « Ton cabinet prépare » : le vert établit les bulletins.
+    expect(await p.locator('#p-sous .pa-qui').count()).toBe(0);
+    expect(await p.locator('#p-envoyer, #p-prep').count()).toBe(0);
+    expect(await p.locator('#pt-valider').count() ? espace(await p.locator('#pt-valider').innerText()) : '').not.toContain('cabinet');
     expect(await p.locator('#p-tabs [data-af="bulletins"]').isHidden()).toBe(true);
     expect(await p.locator('#p-regler, #p-regler-b').count()).toBe(0);
     // Le mois en cours, la page au 10 puis au 26 : ses bulletins se préparent à partir du 25, jamais avant.

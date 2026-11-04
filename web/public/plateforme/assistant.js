@@ -414,11 +414,15 @@
       const apercuMenu = () => {
         /** @type {{ nom: string, pages: { id: string, titre: string }[] }[]} */
         const familles = [];
-        o.menu(modulesChoisis()).forEach((p) => {
+        // (1.269.0 ; 17 § 1) Comme la barre : une vue d'une page (`vueDe`) n'a pas sa ligne, et les six familles suivent
+        // leur ordre, pas celui des pages (sinon « Articles et stock » paraîtrait deux fois).
+        const rang = (/** @type {string} */ nom) => { const i = (C.FAMILLES_DU_MENU || []).indexOf(nom); return nom ? (i < 0 ? 99 : i + 1) : 0; };
+        o.menu(modulesChoisis()).filter((/** @type {any} */ p) => !p.vueDe).forEach((/** @type {any} */ p) => {
           const nom = p.famille || '';
-          const g = familles[familles.length - 1];
-          if (g && g.nom === nom) g.pages.push(p); else familles.push({ nom, pages: [p] });
+          const g = familles.find((x) => x.nom === nom);
+          if (g) g.pages.push(p); else familles.push({ nom, pages: [p] });
         });
+        familles.sort((x, y) => rang(x.nom) - rang(y.nom));
         return `<span class="as-etiquette">Ton menu</span><ul class="as-menu" id="as-menu">
             <li class="qui"><span class="as-logo" aria-hidden="true">S</span><span><b>SkanFact</b>${esc(societe().name || '')}</span></li>
             ${familles.map((g) => (g.nom ? `<li class="famille">${esc(g.nom)}</li>` : '') + g.pages.map((p) => `<li class="page${p.id === 'dashboard' ? ' accueil' : ''}">${esc(p.titre)}</li>`).join('')).join('')}

@@ -410,18 +410,20 @@
     { id: 'dashboard', titre: 'Accueil', module: null, hash: '#/dashboard' },
     { id: 'devis', titre: 'Devis', module: 'ventes', famille: 'Vendre',
       quoi: 'Proposer un prix à un client, avant de travailler.' },
-    { id: 'factures', titre: 'Factures', module: 'ventes', famille: 'Vendre',
+    { id: 'factures', titre: 'Factures', module: 'ventes', famille: 'Vendre', vueNom: 'Les factures',
       quoi: 'Réclamer l\'argent du travail fait : la pièce officielle, numérotée et définitive.' },
-    { id: 'relances', titre: 'Relances', module: 'ventes', famille: 'Vendre',
+    // (1.269.0 ; Skander, 04/11/2026 : 17 § 1) Une « vue » d'une page (`vueDe`, la même que sa fiche) quitte les volets du
+    // menu : elle s'ouvre par la bande des vues de sa page. Son adresse, la palette et « Au quotidien » y mènent toujours.
+    { id: 'relances', titre: 'Relances', module: 'ventes', famille: 'Vendre', vueDe: 'factures', vueNom: 'En retard',
       quoi: 'Les factures en retard de paiement, et le message à envoyer pour chacune.' },
     { id: 'caisse', titre: 'Caisse', module: 'caisse', famille: 'Vendre',
       quoi: 'Vendre au comptoir : le panier, l\'encaissement, le ticket, et le bilan de la journée.' },
     { id: 'clients', titre: 'Clients', module: 'fichiers', famille: 'Vendre',
       quoi: 'Les gens et les entreprises à qui tu vends : coordonnées, historique, ce qu\'ils te doivent.' },
-    { id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Vendre',
+    { id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Articles et stock',
       quoi: 'Ce que tu vends, avec son prix : pour insérer une ligne dans un devis sans la retaper.' },
     // Les prix par client ou par catégorie de clients, avec leurs dates (plateforme, brique 93).
-    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre',
+    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Articles et stock',
       quoi: 'Des prix à part pour un client ou une catégorie de clients (revendeurs, chantiers…), à partir d\'une date.' },
     // « Contrats » menait aux contrats RÉCURRENTS (les périodicités qui fabriquent des factures) ;
     // le contrat que le client signe est un onglet d'« Autres documents ». Quelqu'un qui veut
@@ -429,9 +431,9 @@
     // concluait que SkanFact n'en fait pas. Deux libellés, et le mot « contrat » retrouve son sens.
     // `quoi` sur la PAGE : les entrées d'un même module partageaient l'infobulle du module, donc
     // trois pages de la famille « Piloter » affichaient au survol exactement la même phrase.
-    { id: 'autres', titre: 'Proforma, bons et contrats', module: 'pieces', famille: 'Vendre',
-      quoi: 'Proforma, bon de commande, bon de livraison, et le contrat que ton client signe.' },
-    { id: 'contrats', titre: 'Facturation récurrente', module: 'pieces', famille: 'Vendre',
+    { id: 'autres', titre: 'Autres pièces', module: 'pieces', famille: 'Vendre', vueNom: 'Proforma, bons et contrats',
+      quoi: 'Proforma, bon de commande, bon de livraison, le contrat que ton client signe, et ce qui se facture tout seul chaque mois.' },
+    { id: 'contrats', titre: 'Facturation récurrente', module: 'pieces', famille: 'Vendre', vueDe: 'autres', vueNom: 'Facturation récurrente',
       quoi: 'Les factures qui se répètent toutes seules : abonnement, maintenance, forfait mensuel.' },
     { id: 'achats', titre: 'Achats', module: 'achats', famille: 'Acheter',
       quoi: 'Ce que tu dépenses, pièce par pièce, et la TVA que tu récupères dessus.' },
@@ -440,17 +442,17 @@
       quoi: 'Ce que tu commandes à tes fournisseurs, et ce que tu en as reçu : le reste à recevoir, ligne par ligne.' },
     { id: 'fournisseurs', titre: 'Fournisseurs', module: 'achats', famille: 'Acheter',
       quoi: 'Les gens à qui tu achètes, et ce que tu leur dois encore.' },
-    { id: 'stock', titre: 'Stock', module: 'stock', famille: 'Acheter' },
+    { id: 'stock', titre: 'Stock', module: 'stock', famille: 'Articles et stock' },
     { id: 'garanties', titre: 'Garanties', module: 'stock', horsMenu: true },
-    { id: 'immos', titre: 'Immobilisations', module: 'immos', famille: 'Acheter' },
-    { id: 'tresorerie', titre: 'Trésorerie', module: 'pilotage', famille: 'Piloter',
+    { id: 'immos', titre: 'Immobilisations', module: 'immos', famille: 'Argent', vueDe: 'compta', vueNom: 'Immobilisations' },
+    { id: 'tresorerie', titre: 'Trésorerie', module: 'pilotage', famille: 'Argent',
       quoi: 'Ce que tu as vraiment en caisse et en banque, et si ça tiendra le mois prochain.' },
     { id: 'marges', titre: 'Marges', module: 'pilotage', famille: 'Piloter',
       quoi: 'Ce que chaque client et chaque prestation te rapporte vraiment, une fois les achats déduits.' },
     { id: 'stats', titre: 'Statistiques', module: 'pilotage', famille: 'Piloter',
       quoi: 'Ton chiffre d\'affaires dans le temps, comparé à l\'an dernier : ce qui monte, ce qui baisse.' },
-    { id: 'paie', titre: 'Paie', module: 'paie', famille: 'Piloter' },
-    { id: 'compta', titre: 'Comptabilité', module: 'compta', famille: 'Piloter' },
+    { id: 'paie', titre: 'Paie', module: 'paie', famille: 'Personnel' },
+    { id: 'compta', titre: 'Comptabilité', module: 'compta', famille: 'Argent', vueNom: 'Livres et déclarations' },
     { id: 'modules', titre: 'Tous les modules', module: null, horsMenu: true },
     // La page de l'ÉDITEUR de SkanFact (7.33.0) : les licences qu'il a émises. Hors menu ici parce
     // que sa présence dépend du POSTE (la clé privée existe-t-elle sur cet ordinateur ?), que la
@@ -877,6 +879,18 @@
   //   - la famille de la page ouverte s'ouvre le temps d'y être, SANS toucher au choix — sauf si
   //     l'utilisateur vient de la replier sur cette page même.
   const FAMILLES_OUVERTES_AU_DEBUT = ['Vendre'];
+  // (1.269.0 ; 17 § 1) Les six familles du menu, dans leur ordre : « Tout le reste » les range ainsi, quel que soit
+  // l'ordre des pages (le Catalogue vient avant les Achats dans la liste, mais Acheter passe avant Articles et stock).
+  const FAMILLES_DU_MENU = ['Vendre', 'Acheter', 'Articles et stock', 'Personnel', 'Argent', 'Piloter'];
+  // Les vues d'une page (elle comprise, en tête) que le module de chacune ouvre : la bande en haut de la page.
+  function vuesDePage(data, id) {
+    const p = PAGES.find(x => x.id === id);
+    if (!p) return [];
+    const parent = p.vueDe ? PAGES.find(x => x.id === p.vueDe) : p;
+    if (!parent) return [];
+    const l = [parent, ...PAGES.filter(x => x.vueDe === parent.id)].filter(x => !x.module || moduleOn(data, x.module));
+    return l.length > 1 ? l : [];
+  }
   function familleNavOuverte(famille, etat, active, repliIci) {
     const choisi = etat && Object.prototype.hasOwnProperty.call(etat, famille) ? !!etat[famille] : FAMILLES_OUVERTES_AU_DEBUT.includes(famille);
     if (choisi) return true;

@@ -59,6 +59,14 @@ describe('les fiches des modules', () => {
     expect(sansProprietaireUnique(pages, proprietaires((f) => f.pages.map((p) => p.id)))).toEqual([]);
     expect(FICHES.flatMap((f) => f.pages.map((p) => p.id)).filter((p) => !pages.includes(p))).toEqual([]);
     for (const f of FICHES) for (const p of f.pages) if (p.famille) expect(FAMILLES, `${f.code}/${p.id}`).toContain(p.famille);
+    // (1.269.0 ; 17 § 1) Le menu range chaque page dans la famille de sa fiche, et une vue (`vueDe`) sous la page de sa
+    // fiche : une seule source, sinon la barre et la fiche divergent. Et l'ordre des six familles est celui du 17 § 1.
+    const core = ecranDeLaPlateforme('core.js') as { PAGES: Page[]; FAMILLES_DU_MENU: string[] };
+    const ecart = FICHES.flatMap((f) => f.pages.map((p) => ({ p, q: core.PAGES.find((x) => x.id === p.id) })))
+      .filter(({ p, q }) => (q?.famille ?? null) !== (p.famille ?? null) || (q?.vueDe ?? null) !== (p.vueDe ?? null))
+      .map(({ p, q }) => `${p.id} : fiche ${p.famille ?? '—'}${p.vueDe ? ` (vue de ${p.vueDe})` : ''}, menu ${q?.famille ?? '—'}${q?.vueDe ? ` (vue de ${q.vueDe})` : ''}`);
+    expect(ecart).toEqual([]);
+    expect(core.FAMILLES_DU_MENU).toEqual(FAMILLES);
     // Les noms de gestes de la porte (03) : chacun dit son module.
     const noms = [...new Set([...GESTES.values(), ...GESTES_MESSAGERIE, ...GESTES_SUPPORT].map((g) => g.module))];
     expect(sansProprietaireUnique(noms, proprietaires((f) => f.codesDesGestes))).toEqual([]);

@@ -4932,7 +4932,7 @@ prouver "la catégorie de prix absente de la fiche du client" modules/socle/ecra
   "<input type=\"text\" name=\"categorieTarif\"" "<input type=\"text\" name=\"categorieTarifAbsente\"" \
   "$LPW"
 prouver "les listes de prix absentes du menu" modules/socle/moteur/core-1.js \
-  "    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre'," "    { id: 'listesprix-absente', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre'," \
+  "    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Articles et stock'," "    { id: 'listesprix-absente', titre: 'Listes de prix', module: 'fichiers', famille: 'Articles et stock'," \
   "$LPW"
 prouver 'une ancienne ligne à un prix choisi que la quantité écrase' modules/socle/ecrans/entreprise/app-1.js \
   " && Number(auto(ancienneQte)) === Number(l.unitPrice)) {" ") {" \
@@ -23963,6 +23963,38 @@ prouver 'paie 1.268 i : en tenue, valider le pointage ne dit pas qu'\''il part a
 prouver 'paie 1.268 j : en paie vérifiée, payer avant la relecture sans un mot' $F268 \
   "      \${(() => { const nv = verifieeLe(year, month) ?" "      \${(() => { const nv = false ?" \
   "$WE2"
+# Le menu à six familles (1.269.0 ; cadrage 17 § 1 ; Skander, 04/11/2026) : l'ordre des six, les vues hors des volets et
+# dans la bande de leur page, la page qui s'allume pour sa vue, une seule source (la fiche du module).
+WM1="au bureau : les deux groupes, un lien par page, le volet à côté, l'épingle, ranger, « Créer », la cloche, le pied"
+WM2="chaque partie du dossier, chaque page du menu, chaque nom de geste et chaque schéma de la base a un seul propriétaire"
+F269=modules/socle/ecrans/entreprise/app-1.js
+prouver 'menu 1.269 a : les familles dans l'\''ordre des pages' $F269 \
+  "    familles.sort((a, b) => rangFamille(a.nom) - rangFamille(b.nom));" "" \
+  "$WM1"
+prouver 'menu 1.269 b : les vues d'\''une page restent dans les volets' $F269 \
+  "    if (role !== 'caissier') pages.filter(p => p.famille && !p.vueDe).forEach(p => {" "    if (role !== 'caissier') pages.filter(p => p.famille).forEach(p => {" \
+  "$WM1"
+prouver 'menu 1.269 c : la bande des vues jamais posée' $F269 \
+  "    if (!pageCachee(name)) { poserVues(name); Promise.resolve(dessine).then(() => poserVues(name), () => {}); }" "" \
+  "$WM1"
+prouver 'menu 1.269 d : une vue sans lien n'\''allume pas sa page' $F269 \
+  "if (vue && vue.vueDe && !\$(\`nav a[data-route=\"\${active}\"]\`))" "if (false)" \
+  "$WM1"
+prouver 'menu 1.269 e : la page s'\''appelle encore « Proforma, bons et contrats »' $F269 \
+  '      <div class="page-head"><h1>Autres pièces</h1>' '      <div class="page-head"><h1>Proforma, bons et contrats</h1>' \
+  "$WM1"
+prouver 'menu 1.269 f : la bande des vues sur deux lignes' web/public/plateforme/charte.css \
+  '.vues-page { display: flex; flex-wrap: wrap;' '.vues-page { display: grid; flex-wrap: wrap;' \
+  "$WM1"
+prouver 'menu 1.269 h : l'\''aperçu de l'\''assistant garde les vues d'\''une page' web/public/plateforme/assistant.js \
+  "o.menu(modulesChoisis()).filter((/** @type {any} */ p) => !p.vueDe).forEach(" "o.menu(modulesChoisis()).forEach(" \
+  "la porte, puis l'assistant : chaque écran s'écrit et se reprend, la facture de l'aperçu est la vraie, et le métier retenu à la fin décide du catalogue"
+prouver 'menu 1.269 i : au doigt, une vue se touche mal' web/public/plateforme/charte.css \
+  '#view .vues-page a { min-height: 44px; padding: 8px 14px; }' '#view .vues-page a { padding: 8px 14px; }' \
+  "les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'écran, et au doigt tout se touche"
+prouver 'menu 1.269 g : le menu range le Catalogue ailleurs que sa fiche' modules/socle/moteur/core-1.js \
+  "{ id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Articles et stock'," "{ id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Vendre'," \
+  "$WM2"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

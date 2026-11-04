@@ -2284,6 +2284,29 @@
   // Le cadenas d'un module fermé par l'offre (7.33.0), à côté du titre dans la barre.
   const CADENAS = '<svg class="nav-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 
+  // (1.269.0 ; Skander, 04/11/2026 : 17 § 1) La bande des vues d'une page, sous son titre : « Les factures · En retard »,
+  // « Proforma, bons et contrats · Facturation récurrente », « Livres et déclarations · Immobilisations ». Chaque vue
+  // garde son adresse (un lien, une palette, un favori y mènent) ; la bande dit seulement qu'elles vont ensemble, et le
+  // nombre de ce qui attend dans l'autre. Posée une fois par page dessinée ; une page qui se redessine la repose.
+  const COMPTE_DE_VUE = {
+    relances: () => C.overdueInvoices(data, company()).filter(x => !x.snoozed).length,
+    contrats: () => C.dueRecurrences(data).length,
+  };
+  function poserVues(id) {
+    const view = $('#view');
+    if (!view || !data) return;
+    const l = C.vuesDePage(data, id).filter(p => !pageCachee(p.id));
+    const deja = $('.vues-page', view);
+    if (l.length < 2 || !l.some(p => p.id === id)) { if (deja) deja.remove(); return; }
+    if (deja && deja.dataset.page === id) return;
+    if (deja) deja.remove();
+    const tete = $('.page-head', view);
+    const html = `<div class="vues-page" role="navigation" data-page="${h(id)}" aria-label="${h(`Les vues de « ${l[0].titre} »`)}">${l.map(p => {
+      const n = p.id === id ? 0 : (COMPTE_DE_VUE[p.id] || (() => 0))();
+      return `<a href="#/${p.id}" class="vue" data-vue="${p.id}"${p.id === id ? ' aria-current="page"' : ''}>${h(p.vueNom || p.titre)}${n ? ` <span class="tab-n">${n > 99 ? '99+' : n}</span>` : ''}</a>`;
+    }).join('')}</div>`;
+    if (tete) tete.insertAdjacentHTML('afterend', html); else view.insertAdjacentHTML('afterbegin', html);
+  }
   // Les compteurs de la barre : ils vivaient en dur dans index.html (<span id="nav-relances">…).
   // Maintenant qu'on dessine, on les pose en même temps que le lien.
   const NAV_COMPTEURS = { factures: 'nav-factures', devis: 'nav-devis', caisse: 'nav-caisse', relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences' };
@@ -2572,6 +2595,10 @@
     Vendre: '<path d="M4 7h16l-1.5 12a2 2 0 0 1-2 1.8h-9a2 2 0 0 1-2-1.8z"/><path d="M9 7V5.5a3 3 0 0 1 6 0V7"/>',
     Acheter: '<path d="M3 7h13v10H3zM16 10h3.5l1.5 3v4h-5"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
     Piloter: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    // (1.269.0 ; 17 § 1) Les trois familles nouvelles : une boîte (le stock), deux personnes, un billet.
+    'Articles et stock': '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+    Personnel: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4.6a3.2 3.2 0 0 1 0 6.3M18 20a6 6 0 0 0-3-5.2"/>',
+    Argent: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/>',
   };
   // Le rôle, lu dans les droits du dossier (serveur/v10/droits.ts) : ce qu'il ouvre décide de la barre.
   function roleBarre() {
@@ -2660,10 +2687,14 @@
       + accueil + quotidien.map(id => lien(pageDe(id), true)).join('') + '</div>';
     // « Tout le reste » : les familles, sauf pour le caissier (sa caisse, et rien d'autre).
     const familles = [];
-    if (role !== 'caissier') pages.filter(p => p.famille).forEach(p => {
+    // (1.269.0) Une vue d'une page (`vueDe` : les Relances, la Facturation récurrente, les Immobilisations) ne fait pas sa
+    // ligne dans un volet : sa page la porte, dans la bande de ses vues. Les six familles suivent leur ordre (17 § 1).
+    if (role !== 'caissier') pages.filter(p => p.famille && !p.vueDe).forEach(p => {
       const g = familles.find(x => x.nom === p.famille);
       if (g) g.pages.push(p); else familles.push({ nom: p.famille, pages: [p] });
     });
+    const rangFamille = nom => { const i = C.FAMILLES_DU_MENU.indexOf(nom); return i < 0 ? 99 : i; };
+    familles.sort((a, b) => rangFamille(a.nom) - rangFamille(b.nom));
     const phrase = p => { const m = p.module ? C.moduleById(p.module) : null; return p.quoi || (m && m.quoi) || ''; };
     const ligneDuVolet = p => {
       const dedans = quotidien.includes(p.id);
@@ -2671,7 +2702,9 @@
       // Une page que l'offre ferme porte son cadenas dans son volet aussi (ici, on lit ; la création attend l'offre).
       const corps = `<span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)}${pageReservee(p) ? ' ' + CADENAS : ''}</b><span class="d" title="${h(dedans ? '' : phrase(p))}">${h(dedans ? 'Dans « Au quotidien »' : phrase(p))}</span></span>`;
       if (dedans) return `<div class="ligne"><button type="button" class="pl-l" data-aller="${p.id}">${corps}</button>${epingle}</div>`;
-      const cid = NAV_COMPTEURS[p.id];
+      // Une page qui n'a pas de compteur porte celui de sa vue (la Facturation récurrente à générer, sur « Autres pièces »),
+      // sauf si cette vue est déjà « Au quotidien » avec le sien : un compteur ne s'affiche qu'une fois.
+      const cid = NAV_COMPTEURS[p.id] || C.PAGES.filter(v => v.vueDe === p.id && !quotidien.includes(v.id)).map(v => NAV_COMPTEURS[v.id]).find(Boolean);
       return `<div class="ligne"><a href="#/${p.id}" data-route="${p.id}" class="pl-l">${corps}${cid ? `<span class="nav-count compte" id="${cid}" hidden></span>` : ''}</a>${epingle}</div>`;
     };
     if (familles.length) {
@@ -3225,6 +3258,8 @@
     // Les liens du pied (Paramètres, Aide) ne sont pas dans <nav> : sans eux dans le sélecteur, la
     // page ouverte n'aurait jamais été marquée sur ces deux-là.
     $$('nav a, .sidebar-foot a').forEach(a => a.classList.toggle('active', a.dataset.route === active));
+    // (1.269.0) Une vue sans lien dans la barre allume sa page : « En retard » allume Factures, « Immobilisations » la Comptabilité.
+    { const vue = C.pageById(active); if (vue && vue.vueDe && !$(`nav a[data-route="${active}"]`)) $$(`nav a[data-route="${vue.vueDe}"]`).forEach(a => a.classList.add('active')); }
     // `drawNav` réécrit `nav.innerHTML`, ce qui remet le défilement à zéro : sur les quatre dernières
     // pages (Statistiques, Paie, Comptabilité, et tout ce qui suit), l'entrée allumée était cent
     // pixels sous le bord et AUCUNE entrée en vert n'était visible. On arrivait au bon écran sans
@@ -3241,6 +3276,7 @@
     if (!pageCachee(name)) { if (dessine && typeof dessine.then === 'function') dessine.then(() => bandeauLecture(name), () => {}); else bandeauLecture(name); }
     if (pageChange && !keepScroll) marquerEntree(view);
     if (!pageCachee(name)) Promise.resolve(dessine).then(() => bandeauOrdinateur(name), () => {});
+    if (!pageCachee(name)) { poserVues(name); Promise.resolve(dessine).then(() => poserVues(name), () => {}); }
     Promise.resolve(dessine).then(cheminDepuisFiche, () => {});
     poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
     bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
@@ -17334,7 +17370,7 @@
     const aFacturer = type === 'livraison' ? C.bonsAFacturer(data) : [];
 
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Proforma, bons et contrats</h1>
+      <div class="page-head"><h1>Autres pièces</h1>
         <div class="actions">${aFacturer.length ? '<button class="btn btn-primary" id="facturer-bons">Facturer des bons…</button>' : ''}<button class="btn ${vide || aFacturer.length ? '' : 'btn-primary'}" id="new">+ ${h(NEW_LABELS[type])}</button></div></div>
       <div class="tabs" id="a-tabs" role="tablist" aria-label="Les autres pièces">${AUTRES_TABS.map(([t, label]) =>
         `<button role="tab" data-tab="${t}" class="${t === type ? 'active' : ''}">${h(label)}${data.documents.some(d => d.type === t) ? ` <span class="tab-n">${data.documents.filter(d => d.type === t).length}</span>` : ''}</button>`).join('')}</div>
