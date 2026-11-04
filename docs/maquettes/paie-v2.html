@@ -106,6 +106,17 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .bandeau .txt { flex: 1 1 300px; display: grid; gap: 1px; }
 .bandeau .txt span { color: var(--encre); opacity: .8; font-size: 13px; }
 .bandeau .btn { margin-left: auto; }
+.bandeau.rouge { background: var(--rouge-doux); color: var(--rouge-texte); }
+.bandeau.bleu { background: var(--bleu-doux); color: var(--bleu-texte); }
+.bandeau .gestes-b { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.bandeau .gestes-b .btn { margin-left: 0; }
+.champ textarea { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--papier); color: var(--encre); width: 100%; min-height: 72px; resize: vertical; }
+.gr.un { padding: 0 16px 6px; }
+.gr.un th { min-width: 18px; padding: 1px; font-size: 10.5px; }
+.gr.un td.c { width: 18px; height: 22px; font-size: 10.5px; }
+.hist { display: grid; gap: 0; }
+.hist .ligne { align-items: flex-start; }
+.hist .ligne .date { width: 70px; flex: none; color: var(--gris); font-size: 12.5px; padding-top: 1px; }
 
 .av { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; flex: none; }
 .ligne { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--trait); flex-wrap: wrap; }
@@ -302,6 +313,7 @@ table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 
   .etape.ouverte::after { display: none; }
 }
 @media (max-width: 760px) {
+  .mq { position: static; }
   .app { grid-template-columns: minmax(0, 1fr); }
   .nav { display: none; }
   .deux { grid-template-columns: minmax(0, 1fr); }
@@ -318,6 +330,8 @@ table.liste input.n { width: 86px; text-align: right; font: inherit; font-size: 
   <div class="grp"><span>Le jour :</span><div class="seg" id="mq-jour"></div></div>
   <div class="grp"><span>L'entreprise :</span><div class="seg" id="mq-taille"></div></div>
   <div class="grp"><span>Écran :</span><div class="seg" id="mq-ecran"></div></div>
+  <div class="grp"><span>La paie :</span><div class="seg" id="mq-mode"></div></div>
+  <div class="grp"><span>Vu par :</span><div class="seg" id="mq-vu"></div></div>
   <button class="lien" id="mq-pourquoi" type="button">Ce qui change, et pourquoi</button>
 </div>
 <div id="racine"></div>
@@ -350,7 +364,7 @@ function composer() {
 const pointeuse = s => S.taille === 'grand' && !EQUIPES[s.eq].main;
 const r3 = n => Math.round(n * 1000) / 1000;
 const aPayer = s => s.net - (s.avance || 0);
-const totalAPayer = () => SAL.reduce((x, s) => x + aPayer(s), 0);
+const totalAPayer = m => SAL.reduce((x, s) => x + netDe(s, m), 0);
 const money = n => n.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace(/ /g, ' ') + ' DT';
 const h = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const prenom = s => s.nom.split(' ')[0];
@@ -388,7 +402,24 @@ const majo = (s, hs) => Math.round(hs * Math.round(prixHeure(s) * 1000) * 125 / 
 
 // ───────────── l'état ─────────────
 const MOMENTS = [['d3', 'mardi 3 nov.', 3], ['d18', 'mercredi 18 nov.', 18], ['d27', 'vendredi 27 nov.', 27], ['vide', 'première fois', 3]];
-const S = { moment: 'd18', ecran: 'ordi', taille: 'petit', onglet: 'jour', etape: null, fiche: null };
+const S = { moment: 'd18', ecran: 'ordi', taille: 'petit', onglet: 'jour', etape: null, fiche: null, mode: 'seul', vu: 'gerant', filtreEq: 'tous' };
+// Qui fait la paie (les trois choix de l'application, « Qui fait ta paie ? ») et qui regarde (le gérant, un chef d'équipe
+// avec le droit « Pointer », la comptable du cabinet). Le même mois, vu de trois places : ce que l'un fait, l'autre le voit.
+const GERANT = 'Slim', COMPTA = 'Hanen', CABINET = 'Cabinet Ferjani';
+const MODES = [['seul', 'toi seul'], ['verifiee', 'vérifiée par ton comptable'], ['tenue', 'tenue par ton comptable']];
+const QUI = [['seul', 'Je la fais seul', 'SkanFact contrôle tes bulletins ; tu déclares toi-même'],
+  ['verifiee', 'Je la fais, mon comptable la vérifie', 'tu prépares les bulletins ; il les vérifie et propose ses corrections, que tu acceptes'],
+  ['tenue', 'Mon comptable la tient', 'tu pointes et tu paies ; il prépare, tu approuves, il valide et déclare']];
+const VUS = [['gerant', 'le gérant'], ['chef', 'Ahmed, chef d\'atelier'], ['cabinet', 'la comptable']];
+// Ceux que voit la personne qui regarde : un chef d'équipe ne voit que la sienne.
+const vis = () => S.vu === 'chef' ? SAL.filter(s => s.eq === 'Atelier') : SAL;
+// Les bulletins prêts à payer : validés par le gérant, ou, quand le cabinet tient la paie, approuvés par lui (son « bon à payer »).
+const prets = o => S.mode === 'tenue' ? (o.cab === 'approuve' || o.cab === 'valide') : o.bulletins;
+// La correction que la comptable propose sur le bulletin de Karim (paie vérifiée) : la majoration de ses heures sup.
+const HS75 = 28.616, HS25 = 20.440, NET_CORR = 6.386;
+const netDe = (s, m) => aPayer(s) + (m !== 'oct' && s.id === 'ka' && S.mois && S.mois.corrKarim ? NET_CORR : 0);
+// Ceux qui sont partis (L'équipe › Partis) : leur dossier reste consultable.
+const PARTIS = [{ id: 'na', nom: 'Nadia Ayed', ini: 'NA', poste: 'Vendeuse', eq: 'Boutique', contrat: 'CDD', depuis: '02/2025', parti: '30/06/2026', motif: 'fin du CDD' }];
 // Ce qui s'est passé dans le mois de l'exemple (le reste : là, à ses horaires).
 const PAT = {
   ah: { 9: { etat: 'mal' }, 10: { etat: 'mal' } }, mo: { 12: { etat: 'a' } }, sa: { 5: { etat: 'p', retard: 20 } }, ka: { 6: { etat: 'p', hs: 2 }, 13: { etat: 'p', hs: 2 } },
@@ -403,7 +434,7 @@ function etatDe(s, d) {
   return (PAT[s.id] && PAT[s.id][d]) || { etat: 'p' };
 }
 const change = e => e.etat !== 'p' || !!e.retard || !!e.hs;
-const libelle = e => e.etat === 'a' ? (e.motif === 'sans' ? 'absence sans solde' : e.motif === 'just' ? 'absence justifiée' : 'absence') : e.etat === 'cg' ? 'congé' : e.etat === 'mal' ? 'maladie' : [e.retard ? `retard ${e.retard} min` : '', e.hs ? `${e.hs} h sup` : ''].filter(Boolean).join(', ');
+const libelle = e => e.etat === 'a' ? (e.demi ? 'demi-journée d\'absence' : '') + (e.demi ? (e.motif === 'sans' ? ' sans solde' : e.motif === 'just' ? ' justifiée' : '') : e.motif === 'sans' ? 'absence sans solde' : e.motif === 'just' ? 'absence justifiée' : 'absence') : e.etat === 'cg' ? 'congé' : e.etat === 'mal' ? 'maladie' : [e.retard ? `retard ${e.retard} min` : '', e.hs ? `${e.hs} h sup` : ''].filter(Boolean).join(', ');
 function setEtat(id, c) {
   const d = S.jourVu, s = SAL.find(x => x.id === id), e0 = etatDe(s, d);
   if (e0.etat === c && c !== 'p') return;
@@ -425,8 +456,10 @@ function initMoment() {
   BASE.find(x => x.id === 'sa').contrat = S.moment === 'd27' ? 'CDI' : 'Essai';
   BASE.find(x => x.id === 'ah').rib = false;
   S.pres = {}; S.prevusAjoutes = []; S.regle = {}; S.ouvertes = {}; S.cherche = ''; S.feuille = null; S.telOnglet = 'jour'; S.vueMois = 'nov';
-  // Les jours déjà validés : tous les jours ouvrés passés, sauf lundi 2 au matin du 3 novembre.
-  S.valide = {}; JOURS.filter(j => !j.we && j.d < jour).forEach(j => { S.valide[j.d] = !(S.moment === 'd3' && j.d === 2); });
+  S.tard = {}; S.valideChef = {}; S.demandesChef = []; S.quiChoix = S.mode; S.filtreEq = 'tous';
+  // Les jours déjà validés : tous les jours ouvrés passés, sauf lundi 2 au matin du 3 novembre, et, le 27, les trois jours
+  // de la semaine où le gérant n'a rien validé (ils font UNE ligne dans « À régler », 16 § 3.4).
+  S.valide = {}; JOURS.filter(j => !j.we && j.d < jour).forEach(j => { S.valide[j.d] = !(S.moment === 'd3' && j.d === 2) && !(S.moment === 'd27' && [23, 24, 25].includes(j.d)); });
   S.demandes = S.moment === 'd3' ? [
     { id: 'q1', s: 'ka', type: 'avance', quoi: 'Une avance de 200,000 DT', pourquoi: 'à retenir sur la paie de novembre', par: 'il te l\'a demandée hier · notée par toi', ok: 'Accepter' },
   ] : S.moment === 'd18' ? [
@@ -436,17 +469,24 @@ function initMoment() {
   ] : [
     { id: 'q5', s: 'mo', type: 'conge', quoi: 'Un congé du lundi 21/12 au jeudi 31/12', pourquoi: '8 jours · il lui reste 6 jours : 2 jours seront sans solde', par: S.taille === 'grand' ? 'notée par Ahmed, chef d\'atelier' : 'notée par toi hier', ok: 'Accepter' },
   ];
-  S.rappels = S.moment === 'd3' ? [
-    { id: 'r3', ic: 'pers', t: 'Ahmed Ben Salah : son RIB manque', d: 'payé par virement : sans RIB, son salaire ne peut pas partir', b: 'Compléter', go: () => fiche('ah') },
-  ] : S.moment === 'd18' ? [
+  // Ce qu'il ne faut pas oublier, propre au jour de l'exemple ; le RIB qui manque et les certificats s'y ajoutent d'eux-mêmes
+  // (rappels(), une seule fonction pour la liste et son compteur). Quand le cabinet tient la paie, c'est lui qui déclare :
+  // le rappel de la déclaration n'est pas pour le gérant.
+  S.rappels = S.moment === 'd3' ? [] : S.moment === 'd18' ? [
+    { id: 'rev', ic: 'alerte', t: `Le salaire d'octobre d'Ines n'est pas arrivé : ${money(802.215)}`, d: 'virement revenu le 17/11 (compte clôturé, dit ta banque) · son bulletin reste juste, c\'est le paiement qui est à refaire', b: 'Repayer', go: () => fenRepayer() },
     { id: 'r4', ic: 'cal', t: 'L\'essai de Salma finit vendredi 20/11', d: 'dans 2 jours : la confirmer, prolonger l\'essai ou y mettre fin avant', b: 'Décider', go: () => fenEssai() },
-    { id: 'r5', ic: 'doc', t: 'La déclaration d\'octobre, avant le 28/11', d: `${money(totalDecl())} (exemple) · plus que 10 jours`, b: 'Voir', go: () => ouvrirMois('oct', 4) },
+    ...(S.mode === 'tenue' ? [] : [{ id: 'r5', ic: 'doc', t: 'La déclaration d\'octobre, avant le 28/11', d: `${money(totalDecl())} (exemple) · plus que 10 jours`, b: 'Voir', go: () => ouvrirMois('oct', 4) }]),
     { id: 'r6', ic: 'pers', t: 'Le CDD de Mourad finit le 31/12', d: 'dans 43 jours : le renouveler ou préparer son départ, un mois avant', b: 'Décider', go: () => fiche('mo') },
   ] : [
     { id: 'r7', ic: 'cal', t: 'Le CDD de Mourad finit le 31/12', d: 'dans 34 jours : le renouveler ou préparer son départ', b: 'Décider', go: () => fiche('mo') },
   ];
-  S.mois = { cle: 'nov', bulletins: false, payes: false, declare: false, pointageValide: false };
-  S.oct = { bulletins: true, payes: S.moment !== 'd3', declare: false, pointageValide: true };
+  // Le mois : `cab` suit les bulletins préparés par le cabinet (prepare, etabli, envoye, approuve, valide) ; `verif`, la
+  // vérification d'une paie faite par le gérant (corr : une correction proposée ; acceptee, refusee ; verifie).
+  // « Déposée » est une seule mention, pour les deux (qui l'a dite, et quand).
+  const tenue = S.mode === 'tenue';
+  S.mois = { cle: 'nov', bulletins: false, payes: false, declare: false, pointageValide: false, cab: null, verif: null, corrKarim: false };
+  S.oct = { bulletins: true, payes: S.moment !== 'd3', pointageValide: true, cab: 'valide', verif: 'verifie', revenu: S.moment === 'd18',
+    declare: S.moment === 'd27' || (tenue && S.moment === 'd18'), declarePar: tenue ? 'cabinet' : 'gerant', declareLe: tenue ? '16/11' : '20/11' };
   S.etape = null; S.fiche = null;
 }
 
@@ -469,20 +509,34 @@ function compteMois(s) {
   return c;
 }
 const badge = (s, d) => s.id === 'x15' && d === 17 && !S.regle.sortie ? 'arrivé 07:52 · <b style="color:var(--ambre-texte)">pas de sortie</b>' : `arrivé 07:${String(48 + (s.id.length * 3 + d) % 11).padStart(2, '0')} · parti 17:0${(d + 3) % 9}`;
-// « À régler » : une seule fonction pour la liste et son compteur.
+// « À régler » : ce qui change un montant, et qui retient donc les bulletins (16 § 3.7) ; une seule fonction pour la liste
+// et son compteur. Un certificat médical en retard n'en fait pas partie (décision 4 du cadrage) : il va dans « À ne pas
+// oublier », et les bulletins partent.
+const etListe = l => l.length > 1 ? `${l.slice(0, -1).join(', ')} et ${l[l.length - 1]}` : l[0];
 function aRegler() {
   const l = [];
-  JOURS.filter(j => !j.we && j.d < S.jour && !S.valide[j.d]).forEach(j => l.push({ cle: 'j' + j.d, t: `${cap(NOMJ[j.w])} ${j.d}/11 n'est pas validé`, d: 'rien n\'y est noté : relis-le, puis valide-le', b: 'Le relire', go: () => voirJour(j.d) }));
+  const oublis = JOURS.filter(j => !j.we && j.d < S.jour && !S.valide[j.d]);
+  if (oublis.length === 1) { const j = oublis[0]; l.push({ cle: 'j' + j.d, t: `${cap(NOMJ[j.w])} ${j.d}/11 n'est pas validé`, d: 'rien n\'y est noté : relis-le, puis valide-le', b: 'Le relire', go: () => voirJour(j.d) }); }
+  // Plusieurs journées oubliées font une seule ligne, et un seul geste les valide après les avoir montrées (16 § 3.4).
+  if (oublis.length > 1) l.push({ cle: 'jours', t: `${oublis.length} journées pas validées : ${etListe(oublis.map(j => `${NOMJ[j.w]} ${j.d}`))}/11`, d: 'rien n\'y est noté : relis-les, puis valide-les d\'un geste', b: 'Les relire et les valider', go: () => fenJournees(oublis.map(j => j.d)) });
   SAL.forEach(s => {
-    const mal = [];
     JOURS.filter(j => !j.we && j.d <= S.jour).forEach(j => {
       const e = etatDe(s, j.d);
       if (e.etat === 'a' && (e.motif || 'inc') === 'inc') l.push({ cle: `m:${s.id}:${j.d}`, s, t: `absent ${j.d === S.jour ? 'aujourd\'hui' : `le ${NOMJ[j.w]} ${j.d}/11`}, sans motif`, d: 'sans solde, ou justifiée et payée ?', b: 'Dire pourquoi', go: () => fenMotif(s.id, j.d) });
-      if (e.etat === 'mal' && !e.certif && !S.regle['cert:' + s.id]) mal.push(j.d);
     });
-    if (mal.length) l.push({ cle: 'cert:' + s.id, s, t: `malade ${mal.length > 1 ? `les ${mal.slice(0, -1).join(', ')} et ${mal[mal.length - 1]}/11` : `le ${mal[0]}/11`} : le certificat n'est pas joint`, d: 'payée ou non selon ta convention (À VÉRIFIER)', b: 'Joindre', go: () => joindre(s.id) });
   });
   if (S.taille === 'grand' && S.jour > 17 && !S.regle.sortie) l.push({ cle: 'sortie', s: SAL.find(x => x.id === 'x15'), t: 'pas de sortie badgée le mardi 17/11', d: 'entrée à 07:52 · la pointeuse n\'a rien reçu ensuite', b: 'Régler', go: () => fenBadge('x15', 17) });
+  return l;
+}
+// « À ne pas oublier » : les rappels du jour, le RIB qui manque, les certificats pas joints ; une seule fonction pour la
+// liste et son compteur. « Plus tard » remet un rappel à lundi.
+const malSansCertif = s => JOURS.filter(j => !j.we && j.d <= S.jour && etatDe(s, j.d).etat === 'mal' && !etatDe(s, j.d).certif && !S.regle['cert:' + s.id]).map(j => j.d);
+function rappels() {
+  if (S.moment === 'vide') return [];
+  const l = S.rappels.slice();
+  const ah = BASE.find(x => x.id === 'ah');
+  if (!ah.rib && !S.tard.rib) l.unshift({ id: 'rib', ic: 'pers', t: 'Ahmed Ben Salah : son RIB manque', d: S.jour >= 25 ? 'payé par virement : sans RIB, son salaire de novembre ne peut pas partir' : 'payé par virement : à demander avant le jour de paie', b: 'Compléter', go: () => fiche('ah') });
+  SAL.forEach(s => { const mal = malSansCertif(s); if (mal.length && !S.tard['cert:' + s.id]) l.push({ id: 'cert:' + s.id, ic: 'doc', t: `${prenom(s)} : le certificat ${mal.length > 1 ? `des ${etListe(mal)}/11` : `du ${mal[0]}/11`} n'est pas joint`, d: 'il ne retient pas les bulletins · la maladie est payée ou non selon ta convention (À VÉRIFIER)', b: 'Joindre', go: () => joindre(s.id) }); });
   return l;
 }
 
@@ -493,30 +547,51 @@ function render() {
   document.getElementById('mq-jour').innerHTML = MOMENTS.map(([k, l]) => `<button type="button" data-m="${k}" class="${S.moment === k ? 'on' : ''}">${l}</button>`).join('');
   document.getElementById('mq-taille').innerHTML = [['petit', '5 salariés'], ['grand', '27 salariés']].map(([k, l]) => `<button type="button" data-t="${k}" class="${S.taille === k ? 'on' : ''}">${l}</button>`).join('');
   document.getElementById('mq-ecran').innerHTML = [['ordi', 'ordinateur'], ['tel', 'téléphone']].map(([k, l]) => `<button type="button" data-e="${k}" class="${S.ecran === k ? 'on' : ''}">${l}</button>`).join('');
-  r.innerHTML = S.ecran === 'tel' ? telephone() : `<div class="app">${nav()}<main class="page">${S.moment === 'vide' ? premiereFois() : S.fiche ? ficheSalarie() : pagePaie()}</main></div>`;
+  document.getElementById('mq-mode').innerHTML = MODES.map(([k, l]) => `<button type="button" data-mode="${k}" class="${S.mode === k ? 'on' : ''}">${l}</button>`).join('');
+  document.getElementById('mq-vu').innerHTML = VUS.map(([k, l]) => `<button type="button" data-vu="${k}" class="${S.vu === k ? 'on' : ''}">${l}</button>`).join('');
+  // La comptable travaille dans le Cabinet, à l'ordinateur : sa page ne change pas avec « Écran ».
+  r.innerHTML = S.vu === 'cabinet' ? `<div class="app">${navCabinet()}<main class="page">${pageCabinet()}</main></div>`
+    : S.ecran === 'tel' ? telephone() : `<div class="app">${nav()}<main class="page">${S.moment === 'vide' ? (S.vu === 'chef' ? videChef() : premiereFois()) : S.fiche ? ficheSalarie() : pagePaie()}</main></div>`;
   if (S.focus) { const el = document.querySelector(`[data-row="${S.focus}"]`); if (el) el.focus({ preventScroll: true }); S.focus = null; }
   if (S.focusCherche) { const el = document.getElementById('cherche'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } S.focusCherche = false; }
 }
+const aFaire = () => S.demandes.length + rappels().length;
 function nav() {
+  // Un chef d'équipe (droit « Pointer ») n'a que l'accueil et la journée de son équipe.
+  if (S.vu === 'chef') return `<nav class="nav" aria-label="Menu de l'application"><div class="ent"><i>AB</i>Atelier Ben Ammar</div>
+    <a href="#">Accueil</a><a href="#" class="on">Personnel</a><div class="t">Ahmed, chef d'atelier · droit « Pointer »</div></nav>`;
   return `<nav class="nav" aria-label="Menu de l'application"><div class="ent"><i>AB</i>Atelier Ben Ammar</div>
-    <a href="#">Accueil</a><a href="#">Factures</a><a href="#">Clients</a><a href="#" class="on">Personnel${S.moment !== 'vide' ? `<small>${S.demandes.length + S.rappels.length}</small>` : ''}</a>
+    <a href="#">Accueil</a><a href="#">Factures</a><a href="#">Clients</a><a href="#" class="on">Personnel${S.moment !== 'vide' && aFaire() ? `<small>${aFaire()}</small>` : ''}</a>
     <div class="t">Tout le reste</div><a href="#">Vendre</a><a href="#">Acheter</a><a href="#">Piloter</a></nav>`;
 }
 
-// Le bouton principal : l'étape suivante, selon le jour (une seule chose verte sur la page).
+// Le bouton principal : l'étape suivante, selon le jour et selon qui fait la paie (une seule chose verte sur la page).
+const estJournee = p => p && p[0].startsWith('Valider la journée');
 function principal() {
+  if (S.vu === 'chef') return S.valide[S.jour] || S.valideChef[S.jour] ? null : ['Valider la journée de l\'Atelier', 'coche', () => validerJour(S.jour)];
   if (S.moment === 'd3' && !S.oct.payes) return ['Payer les salaires d\'octobre', 'argent', () => ouvrirMois('oct', 3)];
-  if (S.moment === 'd27' && !S.mois.bulletins) return ['Préparer les bulletins de novembre', 'doc', () => ouvrirMois('nov', 2)];
-  if (S.moment === 'd27' && !S.mois.payes) return ['Payer les salaires de novembre', 'argent', () => ouvrirMois('nov', 3)];
+  if (S.moment === 'd27') {
+    const o = S.mois;
+    if (S.mode === 'tenue') {
+      if (!o.pointageValide) return ['Valider le pointage de novembre', 'coche', () => ouvrirMois('nov', 1)];
+      if (o.cab === 'envoye') return ['Approuver les bulletins de novembre', 'doc', () => ouvrirMois('nov', 2)];
+      if (prets(o) && !o.payes) return ['Payer les salaires de novembre', 'argent', () => ouvrirMois('nov', 3)];
+    } else {
+      if (!o.bulletins) return ['Préparer les bulletins de novembre', 'doc', () => ouvrirMois('nov', 2)];
+      if (S.mode === 'verifiee' && o.verif === 'corr' && !o.payes) return [`Voir la correction de ${COMPTA}`, 'doc', () => ouvrirMois('nov', 2)];
+      if (!o.payes) return ['Payer les salaires de novembre', 'argent', () => ouvrirMois('nov', 3)];
+    }
+  }
   if (!S.valide[S.jour]) return ['Valider la journée', 'coche', () => validerJour(S.jour)];
   return null;
 }
 const finOctobre = () => S.moment === 'd3' && !S.oct.payes;
 function pagePaie() {
+  if (S.vu === 'chef') return pageChef();
   const p = principal();
-  const nbDem = S.demandes.length + S.rappels.length;
+  const nbDem = aFaire();
   // Le bouton vert est en haut, sauf quand la carte qui le porte est déjà sous les yeux (le bandeau d'octobre, la journée).
-  const enHaut = p && S.onglet !== 'mois' && p[0] !== 'Valider la journée' && !(S.onglet === 'jour' && finOctobre());
+  const enHaut = p && S.onglet !== 'mois' && !estJournee(p) && !(S.onglet === 'jour' && finOctobre());
   return `<div class="chemin">Accueil › Personnel</div>
     <div class="tete"><div><h2>Personnel</h2><div class="sous">${SAL.length} salariés${S.taille === 'grand' ? ' · 4 équipes' : ''} · ${(MOMENTS.find(m => m[0] === S.moment) || [])[1].replace(' nov.', ' novembre 2026')}</div></div>
       <div class="actions"><button class="btn" data-geste="embaucher">${ic('plus', 15)} Embaucher</button><button class="btn" aria-label="Plus" data-geste="plus">${ic('points', 16)}</button>${enHaut ? `<button class="btn p" id="principal">${ic(p[1], 15)} ${p[0]}</button>` : ''}</div></div>
@@ -526,12 +601,39 @@ function pagePaie() {
 
 // ── Aujourd'hui : qui est là, les demandes, ce qu'il ne faut pas oublier, les gestes de tous les jours
 function ongletJour() {
-  return `${finOctobre() ? `<div class="bandeau ambre">${ic('alerte', 18)}<div class="txt"><b>Octobre n'est pas fini</b><span>Les ${SAL.length} bulletins sont validés ; les salaires ne sont pas payés, et la déclaration est à déposer avant le 28/11.</span></div><button class="btn p" id="principal">${ic('argent', 15)} Payer les salaires d'octobre</button></div>` : ''}
+  return `${finOctobre() ? `<div class="bandeau ambre">${ic('alerte', 18)}<div class="txt"><b>Octobre n'est pas fini</b><span>${S.mode === 'tenue' ? `Les ${SAL.length} bulletins sont validés par ${COMPTA} ; les salaires ne sont pas payés. La déclaration, c'est ${COMPTA} qui la dépose, avant le 28/11.` : `Les ${SAL.length} bulletins sont validés ; les salaires ne sont pas payés, et la déclaration est à déposer avant le 28/11.`}</span></div><button class="btn p" id="principal">${ic('argent', 15)} Payer les salaires d'octobre</button></div>` : ''}
     <div class="grille2"><div>${cartePresence()}
       <div class="gestes">
         ${[['absence', 'cal', 'Une absence prévue', 'congé, sur un ou plusieurs jours'], ['avance', 'argent', 'Une avance', 'retenue sur la prochaine paie'], ['document', 'doc', 'Un document', 'attestation, certificat…'], ['depart', 'pers', 'Un départ', 'fin de CDD, démission…']].map(([k, i, t, d]) => `<button class="geste" data-geste="${k}"><b>${ic(i, 16)} ${t}</b><span>${d}</span></button>`).join('')}
       </div>
     </div><div>${carteDemandes()}${carteRappels()}</div></div>`;
+}
+
+// ── Le chef d'équipe (droit « Pointer », 16 § 5.1, lot P3) : la journée de SON équipe, ses demandes, rien d'autre.
+// Ni Le mois, ni L'équipe, ni salaire, ni bulletin, ni montant : le serveur ne les lui envoie pas.
+function pageChef() {
+  const n = vis().length;
+  return `<div class="chemin">Accueil › Personnel</div>
+    <div class="tete"><div><h2>Personnel</h2><div class="sous">L'équipe Atelier · ${n} salarié${n > 1 ? 's' : ''} · ${(MOMENTS.find(m => m[0] === S.moment) || [])[1].replace(' nov.', ' novembre 2026')}</div></div>
+      <div class="actions"><button class="btn" data-geste="demande">${ic('plus', 15)} Noter une demande</button></div></div>
+    <div class="onglets" role="tablist"><button type="button" role="tab" class="on">Aujourd'hui</button></div>
+    <div class="grille2"><div>${cartePresence()}</div><div>${carteDemandesChef()}
+      <div class="note" style="margin:0"><b>Ce qu'Ahmed voit, et ce qu'il ne voit pas</b><ul>
+        <li>La journée de <b>son équipe</b> (l'Atelier), qu'il note et valide : une journée qu'il a validée compte comme validée, ${GERANT} n'a pas à la refaire.</li>
+        <li>Pour une absence, il dit « absent » et peut joindre un justificatif ; « sans solde » ou « payée », c'est ${GERANT} qui le dit.</li>
+        <li>Une avance se note <b>sans montant</b> ; ${GERANT} décide, et met le montant.</li>
+        <li><b>Ni Le mois, ni L'équipe, ni salaire, ni bulletin, ni montant</b> : son poste et son téléphone n'en reçoivent aucun. « Malade » se voit sur la journée, jamais le certificat.</li></ul></div></div></div>`;
+}
+function videChef() {
+  return `<div class="chemin">Accueil › Personnel</div><div class="tete"><div><h2>Personnel</h2><div class="sous">L'équipe Atelier</div></div></div>
+    <section class="carte"><div class="vide">${ic('pers', 18)}<span>Rien à pointer pour l'instant : ${GERANT} n'a pas encore ajouté les salariés de l'Atelier.</span></div></section>`;
+}
+function carteDemandesChef() {
+  const l = S.demandesChef;
+  return `<section class="carte"><div class="h">Les demandes que tu as notées <small>${l.length || ''}</small></div>
+    ${l.length ? l.map(q => { const s = SAL.find(x => x.id === q.s); return `<div class="ligne">${av(s)}<div class="qui"><b>${prenom(s)} : ${h(q.quoi)}</b><small>${h(q.chef)}</small></div><div class="fin"><span class="pas ambre">${GERANT} décide</span></div></div>`; }).join('')
+      : `<div class="vide">${ic('coche', 18)}<span>Un salarié te demande un congé ou une avance ? Note-la : elle attend la réponse de ${GERANT}, sans se perdre.</span></div>`}
+  </section>`;
 }
 function semaine(court) {
   const j = JOURS[S.jourVu - 1];
@@ -539,30 +641,34 @@ function semaine(court) {
   const jours = [0, 1, 2, 3, 4].map(k => lun + k).filter(x => x >= 1 && x <= 30);
   return `<span class="filtre semaine" role="group" aria-label="Choisir le jour"><button type="button" data-sem="-1" ${lun - 7 < -3 ? 'disabled' : ''} aria-label="Semaine d'avant">‹</button>${jours.map(d => `<button type="button" data-jour="${d}" class="${d === S.jourVu ? 'on' : ''}" ${d > S.jour ? 'disabled' : ''}>${court ? JOURS[d - 1].wd[0].toUpperCase() : JOURS[d - 1].wd} ${d}${d <= S.jour && !S.valide[d] && d !== S.jour ? ' <span class="nv">•</span>' : ''}</button>`).join('')}<button type="button" data-sem="1" ${lun + 7 > S.jour ? 'disabled' : ''} aria-label="Semaine d'après">›</button></span>`;
 }
+// L'Atelier validé par son chef d'équipe : sa journée compte comme validée, le gérant ne la refait pas (16 § 5.1).
+const parChef = (s, d) => S.vu !== 'chef' && S.valideChef[d] && s.eq === 'Atelier';
 function cartePresence() {
-  const d = S.jourVu, j = JOURS[d - 1], auj = d === S.jour, val = !!S.valide[d];
-  const main = SAL.filter(s => !pointeuse(s));
+  const chef = S.vu === 'chef';
+  const d = S.jourVu, j = JOURS[d - 1], auj = d === S.jour, val = !!S.valide[d] || (chef && !!S.valideChef[d]);
+  const main = vis().filter(s => !pointeuse(s) && !parChef(s, d));
   const chg = main.filter(s => change(etatDe(s, d)));
-  const nonVal = aRegler().filter(x => x.cle[0] === 'j');
+  const nonVal = chef ? [] : aRegler().filter(x => x.cle[0] === 'j');
   const p = principal();
-  const resume = `${main.length - chg.filter(s => etatDe(s, d).etat !== 'p').length} là${chg.length ? ` · ${chg.slice(0, 3).map(s => `${prenom(s)} : ${libelle(etatDe(s, d))}`).join(' · ')}${chg.length > 3 ? ` · et ${chg.length - 3} autres` : ''}` : ' · rien de noté'}${S.taille === 'grand' ? ` · ${SAL.length - main.length} à la pointeuse` : ''}`;
+  const resume = `${main.length - chg.filter(s => etatDe(s, d).etat !== 'p').length} là${chg.length ? ` · ${chg.slice(0, 3).map(s => `${prenom(s)} : ${libelle(etatDe(s, d))}`).join(' · ')}${chg.length > 3 ? ` · et ${chg.length - 3} autres` : ''}` : ' · rien de noté'}${S.taille === 'grand' && !chef ? ` · ${SAL.length - vis().filter(s => !pointeuse(s)).length} à la pointeuse` : ''}`;
+  const atelierFait = !chef && S.valideChef[d] && !val ? `<div class="ligne" style="background:var(--doux)"><span class="muet">${ic('coche', 16)}</span><div class="qui"><b>L'Atelier est validé par Ahmed, à 17:40</b><small>${SAL.filter(s => s.eq === 'Atelier').map(prenom).slice(0, 4).join(', ')}${SAL.filter(s => s.eq === 'Atelier').length > 4 ? '…' : ''} · tu n'as pas à le refaire</small></div></div>` : '';
   return `<section class="carte" id="c-presence"><div class="h">${auj ? 'Qui est là aujourd\'hui ?' : `Qui était là ${NOMJ[j.w]} ${d}/11 ?`}<span class="d">${semaine()}</span></div>
     <div class="sous-h"><span>Tout le monde est là par défaut : note seulement ce qui change, c'est enregistré aussitôt.</span>${val ? '' : '<span class="kbd">au clavier : <kbd>↑</kbd> <kbd>↓</kbd> puis <kbd>L</kbd> là <kbd>A</kbd> absent <kbd>C</kbd> congé <kbd>M</kbd> malade <kbd>R</kbd> retard <kbd>H</kbd> h. sup</span>'}</div>
     ${auj && nonVal.length ? nonVal.map(x => `<div class="ligne" style="background:var(--ambre-doux)"><span class="muet">${ic('cal', 16)}</span><div class="qui"><b>${x.t}</b><small>${x.d}</small></div><div class="fin"><button class="btn s" data-regle="${x.cle}">${x.b}</button></div></div>`).join('') : ''}
     ${!auj ? `<div class="ligne" style="background:var(--bleu-doux)"><span class="muet">${ic('cal', 16)}</span><div class="qui"><b>Tu regardes ${NOMJ[j.w]} ${d}/11</b><small>${val ? 'une journée validée : la rouvrir pour la corriger' : 'pas encore validée : corrige ce qui ne va pas, puis valide-la'}</small></div><div class="fin"><button class="btn s" data-jour="${S.jour}">Revenir à aujourd'hui</button></div></div>` : ''}
-    ${val ? `<div class="vide">${ic('coche', 18)}<span><b>Journée ${auj ? '' : `du ${d}/11 `}validée</b>${auj ? ' à 18:04' : ''} · ${chg.length ? chg.map(s => `${prenom(s)} (${libelle(etatDe(s, d))})`).join(', ') : 'tout le monde était là'}</span><button class="btn s" data-rouvrir="${d}" style="margin-left:auto">Rouvrir la journée</button></div>`
-      : `${S.taille === 'grand' ? `<div class="cherche"><input type="search" id="cherche" placeholder="Chercher un salarié : nom, poste…" value="${h(S.cherche)}" aria-label="Chercher un salarié"><span class="petit muet">${SAL.length} salariés · 4 équipes · chaque chef d'équipe ne voit que la sienne</span></div>` : ''}${lignesPresence(d)}
-      <div class="pied"><span>${resume}</span><button class="btn ${(auj && p && p[0] === 'Valider la journée') || (!auj && !finOctobre()) ? 'p' : ''}" id="valider-jour">${ic('coche', 15)} Valider la journée${auj ? '' : ` du ${d}/11`}</button></div>`}
+    ${val ? `<div class="vide">${ic('coche', 18)}<span><b>Journée ${chef ? 'de l\'Atelier ' : ''}${auj ? '' : `du ${d}/11 `}validée</b>${auj ? (chef ? ' à 17:40' : ' à 18:04') : ''} ·${chg.length ? chg.map(s => `${prenom(s)} (${libelle(etatDe(s, d))})`).join(', ') : 'tout le monde était là'}</span><button class="btn s" data-rouvrir="${d}" style="margin-left:auto">Rouvrir la journée</button></div>`
+      : `${S.taille === 'grand' ? `<div class="cherche"><input type="search" id="cherche" placeholder="Chercher un salarié : nom, poste…" value="${h(S.cherche)}" aria-label="Chercher un salarié"><span class="petit muet">${chef ? `${vis().length} salariés dans l'Atelier` : `${SAL.length} salariés · 4 équipes · chaque chef d'équipe ne voit que la sienne`}</span></div>` : ''}${atelierFait}${lignesPresence(d)}
+      <div class="pied"><span>${resume}</span><button class="btn ${(auj && estJournee(p)) || (!auj && !finOctobre()) ? 'p' : ''}" id="valider-jour">${ic('coche', 15)} Valider la journée${chef ? ' de l\'Atelier' : ''}${auj ? '' : ` du ${d}/11`}</button></div>`}
   </section>`;
 }
 function lignesPresence(d) {
-  if (S.taille !== 'grand') return SAL.map(s => lignePresence(s, d)).join('');
+  if (S.taille !== 'grand') return vis().filter(s => !parChef(s, d)).map(s => lignePresence(s, d)).join('');
   const q = S.cherche.trim().toLowerCase();
   const html = ORDRE.map(eq => {
-    const gens = SAL.filter(s => s.eq === eq && (!q || (s.nom + ' ' + s.poste).toLowerCase().includes(q)));
+    const gens = vis().filter(s => s.eq === eq && !parChef(s, d) && (!q || (s.nom + ' ' + s.poste).toLowerCase().includes(q)));
     if (!gens.length) return '';
     const E = EQUIPES[eq], chg = gens.filter(s => change(etatDe(s, d)));
-    const ouverte = q ? true : S.ouvertes[eq] !== undefined ? S.ouvertes[eq] : (E.main && chg.length > 0);
+    const ouverte = q || S.vu === 'chef' ? true : S.ouvertes[eq] !== undefined ? S.ouvertes[eq] : (E.main && chg.length > 0);
     return `<div class="eq-h"><b>${eq}</b><span>${gens.length} · ${E.main ? `pointée par ${E.qui}` : 'à la pointeuse : les badges font foi, rien à valider'}</span><span class="d">${chg.length ? `<span class="pas ambre">${chg.length} changement${chg.length > 1 ? 's' : ''}</span>` : E.main ? '<span class="pas vert">tous là</span>' : '<span class="pas">badges reçus</span>'}</span>${q ? '' : `<button type="button" class="btn s g" data-eq="${eq}">${ouverte ? 'Refermer' : 'Ouvrir'}</button>`}</div>
       ${ouverte ? gens.map(s => pointeuse(s) ? lignePointeuse(s, d) : lignePresence(s, d)).join('') : ''}`;
   }).join('');
@@ -576,12 +682,23 @@ function lignePresence(s, d) {
 }
 function detailPresence(s, d, e) {
   const l = [];
+  // Le chef d'équipe note ce qui se passe, sans aucun montant ni pièce de santé (16 § 5.1 et § 5.2).
+  if (S.vu === 'chef') {
+    if (e.etat === 'a') l.push(`Absent · <span class="effet">payée ou non, c'est ${GERANT} qui le dit</span> <button type="button" class="btn s" data-justif="${s.id}">${ic('depot', 14)} Joindre un justificatif</button>`);
+    if (e.etat === 'cg') l.push(e.prevu ? `Prévu : congé ${e.prevu.du === e.prevu.au ? `le ${e.prevu.du}/11` : `du ${e.prevu.du} au ${e.prevu.au}/11`} · tu n'as rien à faire` : `Congé · ${GERANT} le pose sur ses jours`);
+    if (e.etat === 'mal') l.push(`Malade · le certificat va à ${GERANT} : tu ne le vois pas`);
+    if (e.retard) l.push(`En retard de <input class="n" data-min="${s.id}" value="${e.retard}" aria-label="Minutes de retard de ${s.nom}"> minutes · <span class="effet">noté</span>`);
+    if (e.hs) l.push(`<input class="n" data-hs="${s.id}" value="${e.hs}" aria-label="Heures sup de ${s.nom}"> heures sup · <span class="effet">notées</span>`);
+    return l.length ? `<div class="detail">${l.join('<span style="flex-basis:100%"></span>')}</div>` : '';
+  }
   if (e.etat === 'a') {
     const m = e.motif || 'inc';
-    l.push(`Pourquoi ? <span class="filtre">${[['sans', 'Sans solde'], ['just', 'Justifiée, payée'], ['inc', 'Je ne sais pas encore']].map(([k, t]) => `<button type="button" data-motif="${s.id}:${k}" class="${m === k ? 'on' : ''}">${t}</button>`).join('')}</span><span class="effet">${m === 'sans' ? `− ${money(prixJour(s))} sur son brut (un jour sur ${OUVRES})` : m === 'just' ? 'payée : rien ne change sur son bulletin' : 'elle reste dans « À régler » jusqu\'à ce que tu saches'}</span>`);
+    // L'effet d'un jour est celui du moteur : le brut ÷ les jours d'un mois complet ; une demi-journée en retient la moitié.
+    const retenue = Math.round(prixJour(s) * 1000 * (e.demi ? .5 : 1)) / 1000;
+    l.push(`<span class="filtre">${[['jour', 'Toute la journée'], ['demi', 'Une demi-journée']].map(([k, t]) => `<button type="button" data-demi="${s.id}:${k}" class="${(e.demi ? 'demi' : 'jour') === k ? 'on' : ''}">${t}</button>`).join('')}</span> Pourquoi ? <span class="filtre">${[['sans', 'Sans solde'], ['just', 'Justifiée, payée'], ['inc', 'Je ne sais pas encore']].map(([k, t]) => `<button type="button" data-motif="${s.id}:${k}" class="${m === k ? 'on' : ''}">${t}</button>`).join('')}</span><span class="effet">${m === 'sans' ? `− ${money(retenue)} sur son brut (${e.demi ? 'la moitié d\'un jour' : 'un jour'} : son brut ÷ ${JOURS_MOIS})` : m === 'just' ? 'payée : rien ne change sur son bulletin' : 'elle reste dans « À régler » jusqu\'à ce que tu saches'}</span>`);
   }
   if (e.etat === 'cg') l.push(e.prevu ? `Prévu : congé ${e.prevu.du === e.prevu.au ? `le ${e.prevu.du}/11` : `du ${e.prevu.du} au ${e.prevu.au}/11`} (${e.prevu.note}) · tu n'as rien à faire` : `Congé payé, pris sur ses jours : il lui en reste <b>${virg(s.conges)}</b>, <span class="effet">${virg(s.conges - 1)} après aujourd'hui</span> · plusieurs jours ? <button type="button" class="lien-b" data-geste="absence">Une absence prévue</button>`);
-  if (e.etat === 'mal') l.push(e.certif || S.regle['cert:' + s.id] ? 'Malade · certificat joint' : `Malade : <button type="button" class="btn s" data-certif="${s.id}">${ic('depot', 14)} Joindre le certificat</button> <span>ou plus tard : il reste dans « À régler » · payée ou non selon ta convention (À VÉRIFIER)</span>`);
+  if (e.etat === 'mal') l.push(e.certif || S.regle['cert:' + s.id] ? 'Malade · certificat joint' : `Malade : <button type="button" class="btn s" data-certif="${s.id}">${ic('depot', 14)} Joindre le certificat</button> <span>ou plus tard : il reste dans « À ne pas oublier », sans retenir les bulletins · payée ou non selon ta convention (À VÉRIFIER)</span>`);
   if (e.retard) l.push(`En retard de <input class="n" data-min="${s.id}" value="${e.retard}" aria-label="Minutes de retard de ${s.nom}"> minutes · <span class="effet">noté, rien ne se retient</span> (la retenue des retards est éteinte dans tes réglages)`);
   if (e.hs) l.push(`<input class="n" data-hs="${s.id}" value="${e.hs}" aria-label="Heures sup de ${s.nom}"> heures sup · <span class="effet">+ ${money(majo(s, e.hs))} sur son brut</span>, à +25 % (À VÉRIFIER selon ton secteur)`);
   return l.length ? `<div class="detail">${l.join('<span style="flex-basis:100%"></span>')}</div>` : '';
@@ -596,30 +713,46 @@ function carteDemandes() {
   </section>`;
 }
 function carteRappels() {
-  return `<section class="carte"><div class="h">À ne pas oublier <small>${S.rappels.length || ''}</small></div>
-    ${S.rappels.length ? S.rappels.map(x => `<div class="ligne"><span class="muet">${ic(x.ic, 18)}</span><div class="qui"><b>${h(x.t)}</b><small>${h(x.d)}</small></div><div class="fin"><button class="btn s g" data-tard="${x.id}">Plus tard</button><button class="btn s" data-rappel="${x.id}">${x.b}</button></div></div>`).join('')
+  const R = rappels();
+  return `<section class="carte"><div class="h">À ne pas oublier <small>${R.length || ''}</small></div>
+    ${R.length ? R.map(x => `<div class="ligne"><span class="${x.ic === 'alerte' ? '' : 'muet'}" ${x.ic === 'alerte' ? 'style="color:var(--rouge-texte)"' : ''}>${ic(x.ic, 18)}</span><div class="qui"><b>${h(x.t)}</b><small>${h(x.d)}</small></div><div class="fin"><button class="btn s g" data-tard="${x.id}">Plus tard</button><button class="btn s" data-rappel="${x.id}">${x.b}</button></div></div>`).join('')
       : `<div class="vide">${ic('coche', 18)}<span>Rien à surveiller : fins d'essai, CDD et déclarations arrivent ici un mois avant.</span></div>`}
   </section>`;
 }
 
-// ── Le mois : les quatre étapes, chacune s'ouvre sur ce qu'il y a à faire
+// ── Le mois : les quatre étapes, chacune s'ouvre sur ce qu'il y a à faire. Elles disent la même chose que le Cabinet
+// (« Vu par : la comptable ») : qui a fait quoi, et quand.
 function etatsMois(m) {
-  const o = m === 'oct' ? S.oct : S.mois;
+  const o = m === 'oct' ? S.oct : S.mois, n = SAL.length;
   const fin = m === 'oct' || S.jour >= 25;
   const reg = m === 'oct' ? [] : aRegler();
-  const vir = SAL.filter(s => s.paie === 'virement').length, esp = SAL.length - vir;
-  const pt = o.pointageValide ? ['fait', 'Pointage validé', `${m === 'oct' ? 22 : OUVRES} jours, ${SAL.length} salariés`] : [S.jour >= 25 && !reg.length ? '' : 'cours', `${JOURS.filter(j => !j.we && S.valide[j.d]).length} jours validés sur ${OUVRES}`, reg.length ? `${reg.length} chose${reg.length > 1 ? 's' : ''} à régler` : 'rien à régler'];
-  const bu = o.bulletins ? ['fait', `${SAL.length} bulletins validés`, m === 'oct' ? 'le 30/10' : 'aujourd\'hui'] : fin ? [reg.length ? '' : 'cours', reg.length ? 'Après « À régler »' : 'À préparer', reg.length ? `${reg.length} chose${reg.length > 1 ? 's' : ''} d'abord` : 'tout est prêt, il reste à relire'] : ['', 'À partir du 25/11', 'quand le mois est pointé'];
-  const pa = o.payes ? ['fait', 'Salaires payés', `${money(totalAPayer())}`] : o.bulletins ? [m === 'oct' && S.moment === 'd3' ? 'retard' : 'cours', 'À payer', `${money(totalAPayer())} · ${vir} virement${vir > 1 ? 's' : ''}, ${esp} en espèces`] : ['', 'Après les bulletins', 'virements et espèces'];
-  const de = o.declare ? ['fait', 'Déclaration déposée', ''] : [o.payes ? 'cours' : '', `Avant le 28/${m === 'oct' ? '11' : '12'}`, o.bulletins ? `${money(totalDecl())} (exemple)` : 'retenues et contributions du mois'];
+  const vir = SAL.filter(s => s.paie === 'virement').length, esp = n - vir;
+  const pt = o.pointageValide ? ['fait', 'Pointage validé', m === 'oct' ? `22 jours, ${n} salariés` : S.mode === 'tenue' ? `envoyé à ${COMPTA} le ${S.jour}/11` : `${OUVRES} jours, ${n} salariés`]
+    : [S.jour >= 25 && !reg.length && S.mode !== 'tenue' ? '' : 'cours', `${JOURS.filter(j => !j.we && S.valide[j.d]).length} jours validés sur ${OUVRES}`, reg.length ? `${reg.length} chose${reg.length > 1 ? 's' : ''} à régler` : 'rien à régler'];
+  let bu;
+  if (S.mode === 'tenue') {
+    bu = o.cab === 'valide' ? ['fait', `${n} bulletins validés`, `par ${COMPTA}, ${m === 'oct' ? 'le 30/10' : `le ${S.jour}/11`}`]
+      : o.cab === 'approuve' ? ['fait', 'Approuvés par toi', `${COMPTA} les valide`]
+        : o.cab === 'envoye' ? ['cours', 'À approuver', `${n} bulletins, envoyés par ${COMPTA}`]
+          : o.cab ? ['', `${COMPTA} les prépare`, 'rien à faire d\'ici là']
+            : ['', fin ? 'Après le pointage' : 'À partir du 25/11', `${COMPTA} les prépare`];
+  } else if (o.bulletins) {
+    const v = S.mode === 'verifiee' ? (o.verif === 'verifie' ? `vérifiés par ${COMPTA}` : o.verif === 'corr' ? `une correction de ${COMPTA}` : o.verif === 'acceptee' ? 'correction acceptée' : `${COMPTA} les vérifie`) : (m === 'oct' ? 'le 30/10' : 'aujourd\'hui');
+    bu = [S.mode === 'verifiee' && o.verif === 'corr' && !o.payes ? 'cours' : 'fait', `${n} bulletins validés`, v];
+  } else bu = fin ? [reg.length ? '' : 'cours', reg.length ? 'Après « À régler »' : 'À préparer', reg.length ? `${reg.length} chose${reg.length > 1 ? 's' : ''} d'abord` : 'tout est prêt, il reste à relire'] : ['', 'À partir du 25/11', 'quand le mois est pointé'];
+  const pa = o.payes ? ['fait', 'Salaires payés', `${money(totalAPayer(m))}`] : prets(o) ? [m === 'oct' && S.moment === 'd3' ? 'retard' : bu[0] === 'cours' ? '' : 'cours', 'À payer', `${money(totalAPayer(m))} · ${vir} virement${vir > 1 ? 's' : ''}, ${esp} en espèces`] : ['', 'Après les bulletins', S.mode === 'tenue' ? 'après ton accord' : 'virements et espèces'];
+  const de = o.declare ? ['fait', o.declarePar === 'cabinet' ? `Déposée par ${COMPTA}` : 'Déclaration déposée', `le ${o.declareLe}`]
+    : S.mode === 'tenue' ? ['', `Avant le 28/${m === 'oct' ? '11' : '12'}`, m === 'nov' ? `${COMPTA} la dépose en décembre` : `${COMPTA} la dépose`]
+      : [o.payes && m === 'oct' ? 'cours' : '', `Avant le 28/${m === 'oct' ? '11' : '12'}`, m === 'nov' ? `à déposer en décembre${prets(o) ? ` · ${money(totalDecl())} (exemple)` : ''}` : prets(o) ? `${money(totalDecl())} (exemple)` : 'retenues et contributions du mois'];
   return [pt, bu, pa, de];
 }
 const NOMS_ET = ['Pointer', 'Bulletins', 'Payer', 'Déclarer'];
+const QUI_COURT = { seul: 'tu fais la paie seul', verifiee: `tu fais la paie, ${COMPTA} la vérifie`, tenue: `${COMPTA}, ton comptable, tient la paie` };
 function ongletMois() {
   const m = S.vueMois || 'nov';
   const et = etatsMois(m);
   const ouverte = S.etape || (et.findIndex(x => x[0] === 'cours' || x[0] === 'retard') + 1) || 1;
-  return `<section class="carte"><div class="h"><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span> <small>${m === 'oct' ? 'le mois d\'avant : ce qui reste à finir' : 'le mois en cours'}</small><span class="d" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="petit muet">un mois se fait en 4 étapes ; clique celle que tu veux faire</span><button type="button" class="btn s" data-geste="annee">${ic('cal', 14)} Toute l'année</button></span></div>
+  return `<section class="carte"><div class="h"><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span> <small>${m === 'oct' ? 'le mois d\'avant : ce qui reste à finir' : 'le mois en cours'} · ${QUI_COURT[S.mode]} (<button type="button" class="lien-b" data-geste="qui">changer</button>)</small><span class="d" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="petit muet">un mois se fait en 4 étapes ; clique celle que tu veux faire</span><button type="button" class="btn s" data-geste="annee">${ic('cal', 14)} Toute l'année</button></span></div>
       <div class="chemin-m">${et.map(([cl, t, d], i) => `<button type="button" class="etape ${cl} ${ouverte === i + 1 ? 'ouverte' : ''}" data-etape="${i + 1}"><span class="n">${cl === 'fait' ? '✓' : i + 1}</span><b>${NOMS_ET[i]}</b><span><b style="font-size:12.5px;color:var(--encre)">${t}</b>${d ? ` · ${d}` : ''}</span></button>`).join('')}</div></section>
     ${ouverte === 1 ? etapePointage(m) : ouverte === 2 ? etapeBulletins(m) : ouverte === 3 ? etapePayer(m) : etapeDeclarer(m)}
     <section class="carte"><div class="h">Ce que ${m === 'oct' ? 'octobre' : 'novembre'} te coûte <small>exemple, calculé avec les taux de tes réglages (À VÉRIFIER avec ton comptable)</small></div>
@@ -630,132 +763,327 @@ function listeARegler(reg) {
 }
 function etapePointage(m) {
   if (m === 'oct') return `<section class="carte"><div class="vide">${ic('coche', 18)} Le pointage d'octobre est validé : 22 jours, rien à régler.</div></section>`;
-  const reg = aRegler();
+  const reg = aRegler(), o = S.mois;
+  // Quand le cabinet tient la paie, valider le pointage du mois est le geste qui le lui envoie : il prépare les bulletins.
+  const suite = S.mode === 'tenue'
+    ? (o.pointageValide ? `<span class="pas vert">${ic('coche', 12)} validé le ${S.jour}/11 · ${COMPTA} l'a reçu</span>` : `<button class="btn p" id="envoyer-pointage">${ic('coche', 15)} Valider le pointage : ${COMPTA} prépare les bulletins</button>`)
+    : `<button class="btn p" data-etape="2">Passer aux bulletins ${ic('fleche', 14)}</button>`;
   return `<section class="carte"><div class="h">Le pointage de novembre <small>clique une case pour la voir ou la corriger ; ce que tu notes chaque jour arrive ici tout seul</small><button class="btn s d" data-geste="absence">${ic('cal', 14)} Une absence prévue</button></div>
     <div class="gr"><table><thead><tr><th class="nom"></th>${JOURS.map(j => `<th class="${j.d === S.jour ? 'auj' : ''}">${j.wd.slice(0, 1).toUpperCase()}<br>${j.d}</th>`).join('')}<th></th></tr></thead><tbody>
       ${SAL.map(s => `<tr><th class="nom">${s.nom}</th>${JOURS.map(j => { const c = caseDe(s, j); const ouvrable = !j.we && j.d <= S.jour; return `<td class="c ${c}" ${ouvrable ? `data-case="${s.id}:${j.d}"` : ''} title="${s.nom} · ${j.wd} ${j.d}/11${c.includes('auj') ? ' · pas encore validée' : ''}">${LETTRE[premier(c)] || ''}</td>`; }).join('')}<td class="t">${joursTravailles(s)} j</td></tr>`).join('')}
     </tbody></table></div>
-    <div class="legende"><span><i style="background:var(--doux)"></i>là</span><span><i style="background:var(--rouge-doux)"></i>absent</span><span><i style="background:var(--bleu-doux)"></i>congé</span><span><i style="border:1px dashed var(--bleu-texte)"></i>congé prévu</span><span><i style="background:var(--ambre-doux)"></i>malade ou retard</span><span><i style="background:var(--doux);outline:2px solid var(--sarcelle);outline-offset:-2px"></i>heures sup</span><span><i style="outline:2px dashed var(--sarcelle);outline-offset:-2px"></i>pas encore validée</span><span><i style="border:1px dashed var(--trait-fort)"></i>à venir</span></div>
+    <div class="legende"><span><i style="background:var(--doux)"></i>là</span><span><i style="background:var(--rouge-doux)"></i>absent</span><span><i style="background:var(--bleu-doux)"></i>congé</span><span><i style="border:1px dashed var(--bleu-texte)"></i>congé prévu</span><span><i style="background:var(--ambre-doux)"></i>malade ou retard</span><span><i style="background:var(--doux);outline:2px solid var(--sarcelle);outline-offset:-2px"></i>heures sup</span><span><i style="outline:2px dashed var(--sarcelle);outline-offset:-2px"></i>pas encore validée</span><span><i style="border:1px dashed var(--trait-fort)"></i>à venir</span><span><i style="border:1px solid var(--trait)"></i>repos (samedi, dimanche)</span></div>
     ${listeARegler(reg)}
-    <div class="pied"><span>${S.jour >= 25 ? `Le mois est presque fini. Les jours qui restent (jusqu'au 30) sont comptés présents ; ce qui y changera se régularise sur décembre.` : 'Chaque jour validé arrive ici ; le mois se relit à la fin, d\'un coup d\'œil.'}</span>${S.jour >= 25 ? reg.length ? `<span class="petit">Règle d'abord ${reg.length === 1 ? 'la chose' : `les ${reg.length} choses`} ci-dessus.</span>` : `<button class="btn p" data-etape="2">Passer aux bulletins ${ic('fleche', 14)}</button>` : ''}</div></section>`;
+    <div class="pied"><span>${S.jour >= 25 ? `Le mois est presque fini. Les jours qui restent (jusqu'au 30) sont comptés présents ; ce qui y changera se régularise sur décembre.` : 'Chaque jour validé arrive ici ; le mois se relit à la fin, d\'un coup d\'œil.'}</span>${S.jour >= 25 ? reg.length ? `<span class="petit">Règle d'abord ${reg.length === 1 ? 'la chose' : `les ${reg.length} choses`} ci-dessus.</span>` : suite : ''}</div></section>`;
+}
+// La table des bulletins du mois : la même pour les trois façons ; seul ce qu'on peut y changer diffère.
+function tableBulletins(m, saisie) {
+  const o = m === 'oct' ? S.oct : S.mois, corr = m === 'nov' && o.corrKarim;
+  return `<div class="scroll"><table class="liste"><thead><tr><th>Salarié</th><th class="r">Jours</th><th class="r">Heures sup</th><th class="r">Absences</th><th class="r">Prime du mois</th><th class="r">Avance retenue</th><th class="r">Net à payer</th></tr></thead><tbody>
+      ${SAL.map(s => { const c = compteMois(s); const abs = [c.a ? `${c.a} j absent` : '', c.mal ? `${c.mal} j maladie` : '', c.cg ? `${c.cg} j congé` : ''].filter(Boolean).join(', ') || '—'; return `<tr><td><span style="display:flex;gap:10px;align-items:center">${av(s, 28)}<span><b>${s.nom}</b><br><small class="muet">${s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : s.id === 'sa' && s.contrat === 'CDI' ? 'confirmée en CDI le 20/11' : s.poste}${corr && s.id === 'ka' ? ` · <span style="color:var(--sarcelle-texte)">corrigé par ${COMPTA}, accepté par toi</span>` : ''}</small></span></span></td>
+        <td class="r m">${m === 'oct' ? 22 : joursTravailles(s)}</td><td class="r m">${m === 'oct' ? '—' : c.hs ? `${c.hs} h${corr && s.id === 'ka' ? ' à +75 %' : ''}` : '—'}</td><td class="r m">${m === 'oct' ? '—' : abs}</td>
+        <td class="r">${!saisie ? (s.id === 'mo' ? money(50) : '—') : `<input class="n" value="${s.id === 'mo' ? '50,000' : ''}" placeholder="0" aria-label="Prime de ${s.nom}">`}</td>
+        <td class="r m">${s.avance ? `− ${money(s.avance)}` : '—'}</td><td class="r m"><b>${money(netDe(s, m))}</b></td></tr>`; }).join('')}
+    </tbody><tfoot><tr><td>${SAL.length} salariés</td><td></td><td></td><td></td><td></td><td></td><td class="r m">${money(totalAPayer(m))}</td></tr></tfoot></table></div>`;
+}
+// La correction que la comptable propose (paie vérifiée) : elle ne s'applique que si le gérant l'accepte ; les autres
+// bulletins ne bougent pas ; la trace reste sur le bulletin (l'application le fait depuis 1.227.0).
+function correctionProposee() {
+  const ka = BASE.find(s => s.id === 'ka');
+  return `<div class="bandeau rouge" id="b-corr">${ic('alerte', 18)}<div class="txt"><b>${COMPTA} propose une correction du bulletin de Karim</b><span>Le ${S.jour}/11 : « Karim travaille en régime de 48 h : ses heures sup se majorent de 75 %, pas de 25 % (Code du travail, art. 90 : À VÉRIFIER avec sa convention). » Elle ne s'applique que si tu l'acceptes ; les autres bulletins ne bougent pas.</span></div><span class="gestes-b"><button class="btn" data-corr="non">Refuser, je m'en occupe</button><button class="btn p" data-corr="oui">${ic('coche', 15)} Accepter la correction</button></span></div>
+    <section class="carte"><div class="h">La correction proposée · bulletin de Karim <small>avant, après · exemple</small></div>
+      <div class="scroll"><table class="liste"><thead><tr><th>Ligne</th><th class="r">Ton bulletin</th><th class="r">Corrigé par ${COMPTA}</th></tr></thead><tbody>
+        <tr><td>Heures sup (4 h)</td><td class="r m">+ 25 % · ${money(HS25)}</td><td class="r m"><b>+ 75 % · ${money(HS75)}</b></td></tr>
+        <tr><td>Salaire brut</td><td class="r m">${money(r3(ka.brut + HS25))}</td><td class="r m"><b>${money(r3(ka.brut + HS75))}</b></td></tr>
+        <tr><td>Net à verser (avance retenue)</td><td class="r m">${money(aPayer(ka))}</td><td class="r m"><b>${money(r3(aPayer(ka) + NET_CORR))}</b></td></tr></tbody></table></div>
+      <div class="pied"><span>Acceptée, la correction garde écrit qui l'a proposée et qui l'a acceptée, sur le bulletin. Pour les mois suivants, la majoration se règle une fois dans ⋯ › Les réglages.</span></div></section>`;
 }
 function etapeBulletins(m) {
-  const o = m === 'oct' ? S.oct : S.mois;
+  const o = m === 'oct' ? S.oct : S.mois, n = SAL.length, mo = m === 'oct' ? 'octobre' : 'novembre';
+  if (S.mode === 'tenue') return bulletinsTenus(m);
   if (!o.bulletins && m === 'nov' && S.jour < 25) return `<section class="carte"><div class="vide">${ic('cal', 18)} Les bulletins de novembre se préparent à partir du 25/11 : d'ici là, le pointage continue chaque jour.</div></section>`;
   const reg = m === 'oct' ? [] : aRegler();
-  return `<section class="carte"><div class="h">Les bulletins de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.payes ? 'payés · ils ne se modifient plus' : o.bulletins ? 'validés · ils se corrigent encore jusqu\'au paiement' : 'tout vient du pointage et des fiches ; tu ne remplis que ce qui change ce mois-ci'}</small></div>
-    <div class="scroll"><table class="liste"><thead><tr><th>Salarié</th><th class="r">Jours</th><th class="r">Heures sup</th><th class="r">Absences</th><th class="r">Prime du mois</th><th class="r">Avance retenue</th><th class="r">Net à payer</th></tr></thead><tbody>
-      ${SAL.map(s => { const c = compteMois(s); const abs = [c.a ? `${c.a} j absent` : '', c.mal ? `${c.mal} j maladie` : '', c.cg ? `${c.cg} j congé` : ''].filter(Boolean).join(', ') || '—'; return `<tr><td><span style="display:flex;gap:10px;align-items:center">${av(s, 28)}<span><b>${s.nom}</b><br><small class="muet">${s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : s.id === 'sa' && s.contrat === 'CDI' ? 'confirmée en CDI le 20/11' : s.poste}</small></span></span></td>
-        <td class="r m">${m === 'oct' ? 22 : joursTravailles(s)}</td><td class="r m">${m === 'oct' ? '—' : c.hs ? `${c.hs} h` : '—'}</td><td class="r m">${m === 'oct' ? '—' : abs}</td>
-        <td class="r">${o.bulletins ? (s.id === 'mo' ? money(50) : '—') : `<input class="n" value="${s.id === 'mo' ? '50,000' : ''}" placeholder="0" aria-label="Prime de ${s.nom}">`}</td>
-        <td class="r m">${s.avance ? `− ${money(s.avance)}` : '—'}</td><td class="r m"><b>${money(aPayer(s))}</b></td></tr>`; }).join('')}
-    </tbody><tfoot><tr><td>${SAL.length} salariés</td><td></td><td></td><td></td><td></td><td></td><td class="r m">${money(totalAPayer())}</td></tr></tfoot></table></div>
-    <div class="pied">${o.bulletins ? `<span>Validés le ${m === 'oct' ? '30/10' : '27/11'}. Chacun a son bulletin en PDF : tu le remets ou l'envoies toi-même.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('doc', 14)} Voir les bulletins</button><button class="btn s">${ic('depot', 14)} Les PDF à remettre</button><button class="btn s p" data-etape="3">Payer ${ic('fleche', 14)}</button></span>`
-      : reg.length ? `<span>Le mois a encore ${reg.length} chose${reg.length > 1 ? 's' : ''} à régler (une absence sans motif change la paie).</span><button class="btn p" data-etape="1">Régler ${reg.length === 1 ? 'la chose' : `les ${reg.length} choses`} d'abord ${ic('fleche', 14)}</button>`
-        : `<span>Rien ne part tant que tu n'as pas validé. Ton comptable peut les relire avant (« Lui demander de relire »).</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">Lui demander de relire</button><button class="btn p" id="valider-bulletins">${ic('coche', 15)} Tout est juste : valider les ${SAL.length} bulletins</button></span>`}</div></section>`;
+  const verif = S.mode === 'verifiee';
+  const etat = o.payes ? 'payés · ils ne se modifient plus' : !o.bulletins ? 'tout vient du pointage et des fiches ; tu ne remplis que ce qui change ce mois-ci'
+    : verif ? (o.verif === 'verifie' ? `validés, vérifiés par ${COMPTA} le ${m === 'oct' ? '31/10' : `${S.jour}/11`} · ils se corrigent encore jusqu'au paiement` : o.verif === 'corr' ? `validés · ${COMPTA} propose une correction` : o.verif === 'acceptee' ? 'validés · la correction de Karim acceptée' : `validés · ${COMPTA} les vérifie`)
+      : 'validés · ils se corrigent encore jusqu\'au paiement';
+  const corr = verif && m === 'nov' && o.verif === 'corr' && !o.payes;
+  const pied = o.bulletins
+    ? `<span>Validés le ${m === 'oct' ? '30/10' : `${S.jour}/11`}. Chacun a son bulletin en PDF : tu le remets ou l'envoies toi-même.${verif && m === 'nov' && !['verifie'].includes(o.verif) && !o.payes ? ` Tu peux payer sans attendre ${COMPTA} : si tu as déjà payé, une correction passe sur le bulletin suivant.` : ''}</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('doc', 14)} Voir les bulletins</button><button class="btn s">${ic('depot', 14)} Les PDF à remettre</button><button class="btn s ${corr ? '' : 'p'}" data-etape="3">Payer ${ic('fleche', 14)}</button></span>`
+    : reg.length ? `<span>Le mois a encore ${reg.length} chose${reg.length > 1 ? 's' : ''} à régler (une absence sans motif change la paie).</span><button class="btn p" data-etape="1">Régler ${reg.length === 1 ? 'la chose' : `les ${reg.length} choses`} d'abord ${ic('fleche', 14)}</button>`
+      : verif ? `<span>Rien ne part tant que tu n'as pas validé. ${COMPTA} les vérifie ensuite et te propose ses corrections, que tu acceptes ou non.</span><button class="btn p" id="valider-bulletins">${ic('coche', 15)} Tout est juste : valider les ${n} bulletins</button>`
+        : `<span>Rien ne part tant que tu n'as pas validé. Un doute ? Ton comptable peut les relire : la demande part dans votre conversation.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s" data-geste="relire">Demander à ${COMPTA} de relire</button><button class="btn p" id="valider-bulletins">${ic('coche', 15)} Tout est juste : valider les ${n} bulletins</button></span>`;
+  return `${corr ? correctionProposee() : ''}<section class="carte"><div class="h">Les bulletins de ${mo} <small>${etat}</small></div>
+    ${tableBulletins(m, !o.bulletins)}
+    <div class="pied">${pied}</div></section>`;
+}
+// Quand le cabinet tient la paie : il prépare, il envoie pour accord, le gérant approuve (son « bon à payer »), il valide.
+function bulletinsTenus(m) {
+  const o = m === 'oct' ? S.oct : S.mois, n = SAL.length, mo = m === 'oct' ? 'octobre' : 'novembre';
+  if (m === 'nov' && !o.pointageValide) return `<section class="carte"><div class="vide">${ic('cal', 18)} ${S.jour >= 25 ? `${COMPTA} prépare les bulletins dès que le pointage de novembre est validé : c'est l'étape 1.` : `${COMPTA} prépare les bulletins de novembre à partir du 25/11, quand le pointage est validé : d'ici là, il continue chaque jour.`}</div></section>`;
+  if (o.cab === 'prepare' || o.cab === 'etabli') return `<section class="carte"><div class="bandeau bleu" style="margin:14px 16px">${ic('pers', 18)}<div class="txt"><b>${COMPTA} prépare tes ${n} bulletins de ${mo}</b><span>Elle te les envoie quand ils sont prêts : tu les approuves alors (ton « bon à payer »), puis tu paies. Rien à faire d'ici là.</span></div><button class="btn" data-geste="ecrire">Écrire à ${COMPTA}</button></div>
+    <p class="petit muet" style="margin:0;padding:0 16px 14px">Dans la maquette : passe à « Vu par : la comptable » pour faire sa part, puis reviens ici.</p></section>`;
+  const etat = o.cab === 'envoye' ? `préparés par ${COMPTA}, envoyés le ${S.jour}/11 pour ton accord`
+    : o.cab === 'approuve' ? `approuvés par toi le ${S.jour}/11 · ${COMPTA} les valide`
+      : o.payes ? 'payés · ils ne se modifient plus' : `validés par ${COMPTA} le ${m === 'oct' ? '30/10' : `${S.jour}/11`} · ils se corrigent encore jusqu'au paiement`;
+  const pied = o.cab === 'envoye'
+    ? `<span>C'est ton « bon à payer » : tu regardes ce que chacun touchera et ce que la paie te coûte. Un bulletin changé après ton accord se réapprouve.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s" data-geste="demcorr">Demander une correction…</button><button class="btn p" id="approuver">${ic('coche', 15)} J'approuve les ${n} bulletins</button></span>`
+    : `<span>Chacun a son bulletin en PDF : tu le remets ou l'envoies toi-même.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('doc', 14)} Voir les bulletins</button><button class="btn s">${ic('depot', 14)} Les PDF à remettre</button><button class="btn s p" data-etape="3">Payer ${ic('fleche', 14)}</button></span>`;
+  return `<section class="carte"><div class="h">Les bulletins de ${mo} <small>${etat}</small></div>
+    ${tableBulletins(m, false)}
+    <div class="pied">${pied}</div></section>`;
 }
 function etapePayer(m) {
   const o = m === 'oct' ? S.oct : S.mois;
-  if (!o.bulletins) return `<section class="carte"><div class="vide">${ic('argent', 18)} On paie après avoir validé les bulletins.</div></section>`;
+  if (!prets(o)) return `<section class="carte"><div class="vide">${ic('argent', 18)} ${S.mode === 'tenue' ? `On paie après avoir approuvé les bulletins que ${COMPTA} prépare.` : 'On paie après avoir validé les bulletins.'}</div></section>`;
   const vir = SAL.filter(s => s.paie === 'virement'), esp = SAL.filter(s => s.paie !== 'virement'), sansRib = vir.filter(s => !s.rib);
-  return `<section class="carte"><div class="h">Payer les salaires de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.payes ? 'payés le ' + (m === 'oct' ? '02/11' : '30/11') : `${money(totalAPayer())} en tout`}</small></div>
-    <div class="ligne"><span class="muet">${ic('envoi', 18)}</span><div class="qui"><b>Par virement · ${vir.length} salariés · ${money(vir.reduce((x, s) => x + aPayer(s), 0))}</b><small>un seul ordre de virement pour ta banque (BIAT), avec le RIB de chacun${sansRib.length ? ` · <b style="color:var(--rouge-texte)">le RIB ${sansRib.map(s => `d'${prenom(s)}`).join(', ')} manque</b>` : ''}</small></div><div class="fin">${sansRib.length ? `<button class="btn s" data-fiche="${sansRib[0].id}">Compléter le RIB</button>` : ''}<button class="btn s">${ic('depot', 14)} L'ordre de virement (PDF)</button></div></div>
-    <div class="ligne"><span class="muet">${ic('argent', 18)}</span><div class="qui"><b>En espèces · ${esp.length} salarié · ${money(esp.reduce((x, s) => x + aPayer(s), 0))}</b><small>l'avance de 200,000 DT déjà retenue · un reçu à faire signer à ${esp.map(prenom).join(', ')}</small></div><div class="fin"><button class="btn s">${ic('doc', 14)} Le reçu à signer</button></div></div>
-    <div class="pied"><span>Une fois l'argent parti, dis-le : la trésorerie et la comptabilité le voient, et le bulletin est marqué payé ; il ne se modifie plus (une erreur se corrige sur le bulletin suivant).</span>${o.payes ? `<span class="pas vert">${ic('coche', 12)} payés</span>` : `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : marquer les ${SAL.length} salaires</button>`}</div></section>`;
+  const ines = SAL.find(s => s.id === 'in');
+  // Un virement revenu (1.256.0) : le bulletin reste juste, c'est le paiement qui est à refaire.
+  const revenu = m === 'oct' && o.revenu ? `<div class="ligne" style="background:var(--rouge-doux)"><span style="color:var(--rouge-texte)">${ic('alerte', 18)}</span><div class="qui"><b>Le salaire d'Ines n'est pas arrivé : ${money(aPayer(ines))}</b><small>virement revenu le 17/11 (compte clôturé, dit ta banque) · son bulletin reste juste, c'est le paiement qui est à refaire</small></div><div class="fin"><button class="btn s" data-geste="repayer">Repayer Ines</button></div></div>` : '';
+  return `<section class="carte"><div class="h">Payer les salaires de ${m === 'oct' ? 'octobre' : 'novembre'} <small>${o.payes ? 'payés le ' + (m === 'oct' ? '02/11' : '30/11') : `${money(totalAPayer(m))} en tout`}</small></div>
+    ${revenu}
+    <div class="ligne"><span class="muet">${ic('envoi', 18)}</span><div class="qui"><b>Par virement · ${vir.length} salariés · ${money(vir.reduce((x, s) => x + netDe(s, m), 0))}</b><small>un seul ordre de virement pour ta banque (BIAT), avec le RIB de chacun${sansRib.length ? ` · <b style="color:var(--rouge-texte)">le RIB ${sansRib.map(s => `d'${prenom(s)}`).join(', ')} manque</b>` : ''}</small></div><div class="fin">${sansRib.length ? `<button class="btn s" data-fiche="${sansRib[0].id}">Compléter le RIB</button>` : ''}<button class="btn s">${ic('depot', 14)} L'ordre de virement (PDF)</button></div></div>
+    <div class="ligne"><span class="muet">${ic('argent', 18)}</span><div class="qui"><b>En espèces · ${esp.length} salarié · ${money(esp.reduce((x, s) => x + netDe(s, m), 0))}</b><small>l'avance de 200,000 DT déjà retenue · un reçu à faire signer à ${esp.map(prenom).join(', ')} · payé par chèque, son numéro irait sur le reçu</small></div><div class="fin"><button class="btn s">${ic('doc', 14)} Le reçu à signer</button></div></div>
+    <div class="pied"><span>Une fois l'argent parti, dis-le : la trésorerie et la comptabilité le voient, et le bulletin est marqué payé ; il ne se modifie plus (une erreur se corrige sur le bulletin suivant).${S.mode === 'tenue' ? ` C'est toi qui paies : ${COMPTA} n'a pas ce geste.` : ''}</span>${o.payes ? `<span class="pas vert">${ic('coche', 12)} payés</span>` : `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : marquer les ${SAL.length} salaires</button>`}</div></section>`;
 }
 function etapeDeclarer(m) {
   const o = m === 'oct' ? S.oct : S.mois;
   const lignes = DECL();
+  const par = o.declarePar === 'cabinet' ? `par ${COMPTA} ` : '';
+  const pied = o.declare ? `<span>Une seule mention, pour vous deux : ${COMPTA} la voit déposée, toi aussi.</span><span class="pas vert">${ic('coche', 12)} déposée ${par}le ${o.declareLe}</span>`
+    : S.mode === 'tenue' ? `<span>${COMPTA} la dépose pour toi avant le 28/${m === 'oct' ? '11' : '12'} ; tu la paies quand elle te le dit. Déposée, tu la vois ici : une seule mention, pour vous deux. Les taux et les dates : exemple, À VÉRIFIER.</span><button class="btn s" data-geste="ecrire">Écrire à ${COMPTA}</button>`
+      : `<span>Exemple : les taux et les dates sont À VÉRIFIER avec ton comptable. SkanFact prépare, tu déposes${S.mode === 'verifiee' ? ` ; ${COMPTA} la voit déposée aussi` : ''}.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('depot', 14)} Le détail (PDF)</button>${m === 'nov' ? `<button class="btn" disabled title="une fois le mois fini">${ic('coche', 15)} Je l'ai déposée · à partir du 01/12</button>` : `<button class="btn ${prets(o) ? 'p' : ''}" id="declarer">${ic('coche', 15)} Je l'ai déposée</button>`}</span>`;
   return `<section class="carte"><div class="h">La déclaration de ${m === 'oct' ? 'octobre' : 'novembre'} <small>à déposer avant le 28/${m === 'oct' ? '11' : '12'} · les montants viennent des bulletins validés</small></div>
     <div class="scroll"><table class="liste"><tbody>${lignes.map(([t, v]) => `<tr><td>${t}</td><td class="r m">${money(v)}</td></tr>`).join('')}</tbody><tfoot><tr><td>À payer avec la déclaration</td><td class="r m">${money(totalDecl())}</td></tr></tfoot></table></div>
-    <div class="ligne"><span class="muet">${ic('cal', 18)}</span><div class="qui"><b>La CNSS du 4e trimestre</b><small>octobre, novembre, décembre · à déposer avant le 15/01/2027 · la liste des salaires se prépare toute seule</small></div><div class="fin"><span class="pas">en janvier</span></div></div>
-    <div class="pied"><span>Exemple : les taux et les dates sont À VÉRIFIER avec ton comptable. SkanFact prépare, tu déposes.</span>${o.declare ? `<span class="pas vert">${ic('coche', 12)} déposée</span>` : `<span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn s">${ic('depot', 14)} Le détail (PDF)</button><button class="btn p" id="declarer">${ic('coche', 15)} Je l'ai déposée</button></span>`}</div></section>`;
+    <div class="ligne"><span class="muet">${ic('cal', 18)}</span><div class="qui"><b>La CNSS du 4e trimestre</b><small>octobre, novembre, décembre · à déposer avant le 15/01/2027 · la liste des salaires se prépare toute seule${S.mode === 'tenue' ? ` · ${COMPTA} la dépose` : ''}</small></div><div class="fin"><span class="pas">en janvier</span></div></div>
+    <div class="pied">${pied}</div></section>`;
 }
 
-// ── L'équipe : une carte par salarié ; la fiche s'ouvre au clic
+// ── L'équipe : une carte par salarié ; la fiche s'ouvre au clic. Les filtres reprennent les sous-vues d'aujourd'hui
+// (« Avances et prêts » devient un filtre, 16 § 2.2), et « Partis » garde le dossier de ceux qui sont sortis.
+const FILTRES_EQ = [
+  ['tous', 'Tous', s => true],
+  ['avances', 'Avances en cours', s => !!s.avance],
+  ['fins', 'Contrats qui finissent', s => s.contrat === 'CDD' || s.contrat === 'Essai'],
+  ['completer', 'À compléter', s => s.rib === false && s.paie === 'virement'],
+];
 function ongletEquipe() {
-  return `<div class="equipe">${SAL.map(s => `<button type="button" class="sal" data-fiche="${s.id}"><div class="h1">${av(s, 40)}<div><b>${s.nom}</b><small>${s.poste} · ${s.eq}</small></div></div>
-      <div>${s.contrat === 'CDI' ? '<span class="pas">CDI</span>' : s.contrat === 'CDD' ? `<span class="pas ambre">CDD jusqu'au ${s.fin}</span>` : `<span class="pas bleu">en essai jusqu'au ${s.fin}</span>`}${s.rib === false && s.paie === 'virement' ? ' <span class="pas rouge">RIB manquant</span>' : ''}</div>
+  const f = S.filtreEq, F = FILTRES_EQ.find(x => x[0] === f);
+  const chips = `<div style="margin:0 0 12px"><span class="filtre">${FILTRES_EQ.map(([k, t, p]) => `<button type="button" data-filtre-eq="${k}" class="${f === k ? 'on' : ''}">${t} <small class="muet">${SAL.filter(p).length}</small></button>`).join('')}<button type="button" data-filtre-eq="partis" class="${f === 'partis' ? 'on' : ''}">Partis <small class="muet">${PARTIS.length}</small></button></span></div>`;
+  if (f === 'partis') return `${chips}<div class="equipe">${PARTIS.map(s => `<div class="sal" style="box-shadow:none"><div class="h1"><span class="av" style="background:var(--gris-2);width:40px;height:40px">${s.ini}</span><div><b>${s.nom}</b><small>${s.poste} · ${s.eq}</small></div></div>
+      <div><span class="pas">partie le ${s.parti} · ${s.motif}</span></div>
+      <dl><dt>Chez toi</dt><dd>de ${s.depuis} au ${s.parti.slice(3)}</dd><dt>Son départ</dt><dd>certificat et solde faits</dd></dl>
+      <span class="petit muet">Son dossier reste consultable : ses bulletins, ses documents, sa carrière (durée de conservation : À VÉRIFIER).</span></div>`).join('')}</div>`;
+  const gens = SAL.filter(F[2]);
+  return `${chips}<div class="equipe">${gens.map(s => `<button type="button" class="sal" data-fiche="${s.id}"><div class="h1">${av(s, 40)}<div><b>${s.nom}</b><small>${s.poste} · ${s.eq}</small></div></div>
+      <div>${s.contrat === 'CDI' ? '<span class="pas">CDI</span>' : s.contrat === 'CDD' ? `<span class="pas ambre">CDD jusqu'au ${s.fin}</span>` : `<span class="pas bleu">en essai jusqu'au ${s.fin}</span>`}${s.rib === false && s.paie === 'virement' ? ' <span class="pas rouge">RIB manquant</span>' : ''}${s.avance ? ` <span class="pas">avance · ${money(s.avance)}</span>` : ''}</div>
       <dl><dt>Salaire brut</dt><dd>${money(s.brut)}</dd><dt>Congés restants</dt><dd>${virg(s.conges)} j</dd><dt>Payé par</dt><dd>${s.paie}</dd></dl></button>`).join('')}
-    <button type="button" class="sal" data-geste="embaucher" style="place-items:center;color:var(--gris);border-style:dashed">${ic('plus', 22)}<b>Embaucher</b><span class="petit">la fiche en trois questions</span></button></div>`;
+    ${f === 'tous' ? `<button type="button" class="sal" data-geste="embaucher" style="place-items:center;color:var(--gris);border-style:dashed">${ic('plus', 22)}<b>Embaucher</b><span class="petit">la fiche en trois questions</span></button>` : ''}</div>
+    ${gens.length ? '' : `<section class="carte"><div class="vide">${ic('coche', 18)}<span>Personne ici en ce moment. <button class="lien-b" data-filtre-eq="tous">Tous les salariés</button></span></div></section>`}`;
 }
+// La carrière de chacun (16 § 3.1 : « le montrer comme une carrière lisible ») : postes, contrats, salaires datés.
+const CARRIERE = {
+  ah: [['04/2019', 'Embauché, technicien, en CDI', '1 150,000 DT brut'], ['01/2023', 'Augmentation', '1 350,375 DT'], ['01/2026', 'Augmentation en lot, + 7,4 % pour toute l\'équipe', '1 450,375 DT']],
+  in: [['09/2021', 'Embauchée, assistante administrative, en essai', '900,000 DT brut'], ['12/2021', 'Confirmée en CDI', ''], ['01/2026', 'Augmentation en lot', '980,000 DT']],
+  mo: [['01/2026', 'Embauché, ouvrier, CDD de 6 mois (surcroît de travail)', '720,500 DT brut'], ['07/2026', 'CDD renouvelé jusqu\'au 31/12/2026', '']],
+  sa: [['09/2026', 'Embauchée, vendeuse, en essai jusqu\'au 20/11', '650,000 DT brut']],
+  ka: [['03/2023', 'Embauché, chauffeur-livreur, en CDI', '800,000 DT brut'], ['01/2026', 'Augmentation en lot', '850,250 DT']],
+};
+const PRIS = { ah: 4.5, in: 8, mo: 5, sa: 1, ka: 6 };
 function ficheSalarie() {
   const s = SAL.find(x => x.id === S.fiche), c = compteMois(s);
+  if (s.id === 'sa' && S.moment === 'd27') CARRIERE.sa[1] = ['11/2026', 'Confirmée en CDI le 20/11', ''];
+  const carr = CARRIERE[s.id] || [[s.depuis, `Embauché, ${s.poste.toLowerCase()}, en ${s.contrat}`, `${money(s.brut)} brut`]];
+  // Son mois en une ligne, et d'où vient chaque case (ce que montrait la sous-vue « Par salarié », 16 § 2.2).
+  const notes = JOURS.filter(j => !j.we && j.d <= S.jour && change(etatDe(s, j.d))).map(j => `${NOMJ[j.w]} ${j.d} : ${libelle(etatDe(s, j.d))}${etatDe(s, j.d).prevu ? ' (congé accepté)' : ' (noté par toi)'}`);
+  const pris = PRIS[s.id] != null ? PRIS[s.id] : 3;
   return `<div class="chemin"><a href="#" data-retour>Personnel</a> › L'équipe › ${s.nom}</div>
     <div class="tete"><div style="display:flex;gap:12px;align-items:center">${av(s, 48)}<div><h2>${s.nom}</h2><div class="sous">${s.poste} · ${s.eq} · ${s.contrat === 'CDI' ? 'CDI' : s.contrat === 'CDD' ? `CDD jusqu'au ${s.fin}` : `en essai jusqu'au ${s.fin}`} · depuis ${s.depuis}</div></div></div>
       <div class="actions"><button class="btn" data-retour>‹ L'équipe</button><button class="btn" data-geste="document">${ic('doc', 15)} Un document</button><button class="btn" data-geste="depart">Un départ</button>${s.contrat === 'CDD' ? '<button class="btn p" data-geste="renouveler">Renouveler le CDD</button>' : s.rib === false && s.paie === 'virement' ? '<button class="btn p" id="rib">Ajouter son RIB</button>' : ''}</div></div>
     <div class="grille2"><div>
       <section class="carte"><div class="h">Son mois <small>novembre, jusqu'au ${S.jour}</small></div>
-        <div class="chiffres"><div><span>Jours travaillés</span><b>${joursTravailles(s)}</b></div><div><span>Absences</span><b>${c.a + c.mal}</b></div><div><span>Congés restants</span><b>${virg(s.conges)} j</b></div><div><span>Net à payer</span><b>${money(aPayer(s))}</b></div></div></section>
-      <section class="carte"><div class="h">Ses bulletins <small>un par mois, validés</small></div>
-        ${['Octobre 2026', 'Septembre 2026', 'Août 2026'].map((mo, i) => `<div class="ligne"><span class="muet">${ic('doc', 18)}</span><div class="qui"><b>${mo}</b><small>net ${money(s.net - i * 3)} · payé par ${s.paie}</small></div><div class="fin"><button class="btn s">Voir</button></div></div>`).join('')}</section>
+        <div class="chiffres"><div><span>Jours travaillés</span><b>${joursTravailles(s)}</b></div><div><span>Absences</span><b>${c.a + c.mal}</b></div><div><span>Congés restants</span><b>${virg(s.conges)} j</b></div><div><span>Net à payer</span><b>${money(netDe(s))}</b></div></div></section>
+      <section class="carte"><div class="h">Ses présences <small>novembre · d'où vient chaque case</small></div>
+        <div class="gr un"><table><thead><tr>${JOURS.map(j => `<th class="${j.d === S.jour ? 'auj' : ''}">${j.wd.slice(0, 1).toUpperCase()}<br>${j.d}</th>`).join('')}</tr></thead><tbody><tr>${JOURS.map(j => { const k = caseDe(s, j); return `<td class="c ${k}" title="${j.wd} ${j.d}/11">${LETTRE[premier(k)] || ''}</td>`; }).join('')}</tr></tbody></table></div>
+        <div class="ligne"><div class="qui"><small>${notes.length ? notes.join(' · ') : 'là tous les jours, à ses horaires'} · le reste : là, à ses horaires (${s.eq}, du lundi au vendredi, 8 h – 17 h)</small></div></div></section>
+      <section class="carte"><div class="h">Ses bulletins <small>un par mois</small></div>
+        ${['Octobre 2026', 'Septembre 2026', 'Août 2026'].map((mo, i) => `<div class="ligne"><span class="muet">${ic('doc', 18)}</span><div class="qui"><b>${mo}</b><small>net ${money(s.net - i * 3)} · payé par ${s.paie}${S.mode === 'tenue' ? ` · préparé par ${COMPTA}` : ''}</small></div><div class="fin"><button class="btn s">Voir</button></div></div>`).join('')}</section>
     </div><div>
       <section class="carte"><div class="h">Son contrat</div>
         <div class="ligne"><div class="qui"><small>Salaire brut mensuel</small><b class="m">${money(s.brut)}</b></div><div class="fin"><button class="btn s">Changer</button></div></div>
-        <div class="ligne"><div class="qui"><small>Paiement</small><b>${s.paie}${s.paie === 'virement' ? (s.rib ? ' · RIB enregistré' : ' · <span style="color:var(--rouge-texte)">RIB manquant</span>') : ''}</b></div></div>
+        <div class="ligne"><div class="qui"><small>Payé par (virement, chèque ou espèces contre reçu)</small><b>${s.paie}${s.paie === 'virement' ? (s.rib ? ' · RIB enregistré' : ' · <span style="color:var(--rouge-texte)">RIB manquant</span>') : ''}</b></div></div>
         <div class="ligne"><div class="qui"><small>Équipe et horaires</small><b>${s.eq} · du lundi au vendredi, 8 h – 17 h</b></div></div></section>
+      <section class="carte"><div class="h">Ses congés et ses avances</div>
+        <div class="ligne"><div class="qui"><small>Congés de 2026</small><b>${virg(r3(s.conges + pris))}&nbsp;j acquis · ${virg(pris)}&nbsp;j pris · il lui reste ${virg(s.conges)}&nbsp;j</b></div><div class="fin"><button class="btn s" data-geste="absence">Une absence prévue</button></div></div>
+        <div class="ligne"><div class="qui"><small>Avances en cours</small><b>${s.avance ? `${money(s.avance)} donnée le 02/11 · retenue sur novembre` : 'aucune'}</b></div><div class="fin"><button class="btn s" data-geste="avance">Une avance</button></div></div></section>
+      <section class="carte"><div class="h">Son historique <small>sa carrière chez toi</small></div><div class="hist">
+        ${carr.map(([d, t, v]) => `<div class="ligne"><span class="date">${d}</span><div class="qui"><b>${t}</b>${v ? `<small class="m">${v}</small>` : ''}</div></div>`).join('')}</div></section>
       <section class="carte"><div class="h">Ses documents</div>
         ${[['Contrat de travail', 'signé'], ['Attestation de travail', 'faite le 12/10']].concat(s.id === 'ah' ? [['Certificat médical du 09/11', S.regle['cert:ah'] ? 'joint' : 'manquant']] : []).map(([t, e]) => `<div class="ligne"><span class="muet">${ic('doc', 16)}</span><div class="qui"><b>${t}</b></div><div class="fin"><span class="pas ${e === 'manquant' ? 'ambre' : ''}">${e}</span></div></div>`).join('')}</section>
     </div></div>`;
 }
 
-// ── La première fois : quatre étapes, puis c'est tout
+// ── La première fois : les quatre questions du cadrage (16 § 2.1), une valeur proposée pour chacune, puis c'est tout
 function premiereFois() {
+  const Q = [['Qui sont tes salariés ?', 'nom, poste, salaire, contrat : trois questions par personne ; la CIN, la CNSS, le RIB et l\'adresse te sont rappelés avant la première paie'],
+    ['Quand tu les paies ?', 'proposé : le dernier jour du mois · ou le N du mois suivant ; jamais un jour de repos (À VÉRIFIER)'],
+    ['Qui pointe ?', 'toi, un chef d\'équipe (il ne voit aucun salaire), ou la pointeuse'],
+    ['Qui fait la paie ?', 'toi seul, toi avec ton comptable qui vérifie, ou ton comptable']];
   return `<div class="chemin">Accueil › Personnel</div><div class="tete"><div><h2>Personnel</h2><div class="sous">Tes salariés, leurs jours, leurs bulletins</div></div></div>
     <section class="carte" style="padding:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;align-items:start">
       <div style="display:grid;gap:12px"><span class="av" style="background:var(--doux);color:var(--doux-texte);width:46px;height:46px">${ic('pers', 22)}</span>
         <h3 style="margin:0;font-size:22px">La paie, en deux minutes par jour</h3>
         <p class="muet" style="margin:0">Chaque soir, tu dis qui n'était pas là. À la fin du mois, SkanFact prépare les bulletins, l'ordre de virement et la déclaration. Tu relis, tu valides, tu paies.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" data-geste="embaucher">${ic('plus', 15)} Ajouter mon premier salarié</button><button class="btn">Importer depuis un tableur</button></div>
-        <p class="petit muet" style="margin:0">Tu as un comptable ? Il peut faire la paie à ta place, ou la relire : tu choisiras après.</p></div>
-      <div style="display:grid;gap:8px">${[['Tes salariés', 'nom, poste, salaire, contrat : trois questions par personne'], ['Leurs horaires et leurs équipes', 'les jours travaillés, qui pointe chaque équipe (à la main ou à la pointeuse)'], ['Chaque soir', 'qui n\'était pas là : un clic, le reste est présent'], ['Chaque fin de mois', 'relire, valider, payer, déclarer : quatre étapes guidées']].map(([t, d], i) => `<div class="ligne" style="border:1px solid var(--trait);border-radius:12px"><span class="av" style="background:var(--sarcelle);width:26px;height:26px">${i + 1}</span><div class="qui"><b>${t}</b><small>${d}</small></div></div>`).join('')}</div>
+        <p class="petit muet" style="margin:0">Le reste (convention, majorations, jours fériés, semaine type) garde une valeur qui ne fait rien, et se règle plus tard dans ⋯ › Les réglages. Tu commences en cours d'année ? Ce que l'année a déjà payé à chacun se saisit avant la déclaration annuelle.</p></div>
+      <div style="display:grid;gap:8px"><div class="petit muet">Quatre questions, au plus</div>${Q.map(([t, d], i) => `<div class="ligne" style="border:1px solid var(--trait);border-radius:12px"><span class="av" style="background:var(--sarcelle);width:26px;height:26px">${i + 1}</span><div class="qui"><b>${t}</b><small>${d}</small></div></div>`).join('')}</div>
     </section>`;
 }
 
-// ── Le téléphone : la même paie, au pouce, le soir
+// ── Le téléphone : la même paie, au pouce, le soir. Le chef d'équipe n'y a que la journée de son équipe.
 function telephone() {
-  const o = S.telOnglet;
+  const chef = S.vu === 'chef';
+  const o = chef ? 'jour' : S.telOnglet;
   const p = principal();
+  const val = S.valide[S.jourVu] || (chef && S.valideChef[S.jourVu]);
   return `<div class="tel-fond"><div class="tel"><div class="ecr">${o === 'jour' ? telJour() : o === 'mois' ? telMois() : telEquipe()}
-      <div class="bas">${o === 'jour' && !S.valide[S.jourVu] ? `<button class="btn p" id="valider-jour">${ic('coche', 16)} Valider la journée${S.jourVu === S.jour ? '' : ` du ${S.jourVu}/11`}</button>` : ''}
-        <nav class="tabs-t" aria-label="Paie">${[['jour', 'Aujourd\'hui', 'cal'], ['mois', 'Le mois', 'doc'], ['equipe', 'L\'équipe', 'equipe']].map(([k, l, i]) => `<button type="button" data-tel="${k}" class="${o === k ? 'on' : ''}">${ic(i, 20)}${l}</button>`).join('')}</nav></div>
+      <div class="bas">${o === 'jour' && !val ? `<button class="btn p" id="valider-jour">${ic('coche', 16)} Valider la journée${chef ? ' de l\'Atelier' : ''}${S.jourVu === S.jour ? '' : ` du ${S.jourVu}/11`}</button>` : ''}
+        ${chef ? `<button class="btn" data-geste="demande" style="margin-top:8px">${ic('plus', 15)} Noter une demande</button>` : `<nav class="tabs-t" aria-label="Personnel">${[['jour', 'Aujourd\'hui', 'cal'], ['mois', 'Le mois', 'doc'], ['equipe', 'L\'équipe', 'equipe']].map(([k, l, i]) => `<button type="button" data-tel="${k}" class="${o === k ? 'on' : ''}">${ic(i, 20)}${l}</button>`).join('')}</nav>`}</div>
     </div>${S.feuille ? feuilleTel() : ''}</div>
-    <div class="legende-tel"><b>Au téléphone, le soir</b><span>Une ligne par salarié, avec ce qui a changé ; on touche un nom pour noter, avec de gros boutons et ce que ça fait sur le bulletin.</span><span>Les demandes s'acceptent au pouce, « Valider » reste sous le pouce, et « Le mois » se fait aussi d'ici : valider les bulletins, dire que c'est payé, que c'est déclaré.</span><span>Un chef d'équipe avec le droit « Pointer » ne voit que son équipe, et ni salaires ni bulletins.</span><span>Sans réseau, ce que tu notes reste sur le téléphone et part quand il revient ; seule la validation attend le réseau.</span>${p ? `<span>Le bouton vert de l'ordinateur, ce jour-là : <b>${p[0]}</b>.</span>` : ''}</div></div>`;
+    <div class="legende-tel">${chef ? `<b>Ahmed, chef d'atelier, au téléphone</b><span>Il ne voit que l'Atelier : il touche un nom, note ce qui change, puis valide la journée de son équipe. ${GERANT} n'a pas à la refaire.</span><span>Aucun montant : ni salaire, ni bulletin, ni l'effet en DT d'une absence ; son téléphone n'en reçoit aucun.</span><span>Une demande (un congé, une avance sans montant) attend la réponse de ${GERANT}.</span>`
+      : `<b>Au téléphone, le soir</b><span>Une ligne par salarié, avec ce qui a changé ; on touche un nom pour noter, avec de gros boutons et ce que ça fait sur le bulletin.</span><span>Les demandes s'acceptent au pouce, « Valider » reste sous le pouce, et « Le mois » se fait aussi d'ici : ${S.mode === 'tenue' ? `approuver les bulletins que ${COMPTA} envoie, dire que c'est payé` : 'valider les bulletins, dire que c\'est payé, que c\'est déclaré'}.</span><span>Un chef d'équipe avec le droit « Pointer » ne voit que son équipe, et ni salaires ni bulletins (« Vu par : Ahmed »).</span>`}<span>Sans réseau, ce que tu notes reste sur le téléphone et part quand il revient ; seule la validation attend le réseau.</span>${p && !chef ? `<span>Le bouton vert de l'ordinateur, ce jour-là : <b>${p[0]}</b>.</span>` : ''}</div></div>`;
 }
 function telJour() {
-  const d = S.jourVu, j = JOURS[d - 1], val = !!S.valide[d];
+  const chef = S.vu === 'chef';
+  const d = S.jourVu, j = JOURS[d - 1], val = !!S.valide[d] || (chef && !!S.valideChef[d]);
   const q = S.cherche.trim().toLowerCase();
   const ligne = s => { const e = etatDe(s, d); const cl = e.etat === 'a' ? 'rouge' : e.etat === 'cg' ? 'bleu' : e.etat === 'mal' ? 'ambre' : change(e) ? 'vert' : ''; return pointeuse(s) ? `<div class="tl-b">${av(s)}<span class="nm"><b>${s.nom}</b><small>${badge(s, d)}</small></span></div>` : `<button type="button" class="tl-b" data-feuille="${s.id}">${av(s)}<span class="nm"><b>${s.nom}</b><small>${s.poste}</small></span><span class="pas ${cl}">${change(e) ? cap(libelle(e)) : 'Là'}</span></button>`; };
-  const lignes = S.taille !== 'grand' ? SAL.map(ligne).join('') : ORDRE.map(eq => { const gens = SAL.filter(s => s.eq === eq && (!q || s.nom.toLowerCase().includes(q))); if (!gens.length) return ''; const chg = gens.filter(s => change(etatDe(s, d))); const ouverte = q ? true : S.ouvertes[eq] !== undefined ? S.ouvertes[eq] : (EQUIPES[eq].main && chg.length > 0); return `<div class="eq-h"><b>${eq}</b><span>${gens.length}</span><span class="d">${chg.length ? `<span class="pas ambre">${chg.length}</span>` : EQUIPES[eq].main ? '<span class="pas vert">tous là</span>' : '<span class="pas">pointeuse</span>'}</span><button type="button" class="btn s g" data-eq="${eq}">${ouverte ? 'Refermer' : 'Ouvrir'}</button></div>${ouverte ? gens.map(ligne).join('') : ''}`; }).join('');
-  return `<div class="th"><b>${d === S.jour ? 'Qui est là ?' : `${cap(NOMJ[j.w])} ${d}/11`}</b><span>${NOMJ[j.w]} ${d}/11 · touche un nom pour noter ce qui change${S.demandes.length ? ` · ${S.demandes.length} demande${S.demandes.length > 1 ? 's' : ''} plus bas` : ''}</span>${semaine(true)}</div>
+  const gensVus = vis().filter(s => !parChef(s, d));
+  const lignes = S.taille !== 'grand' ? gensVus.map(ligne).join('') : ORDRE.map(eq => { const gens = gensVus.filter(s => s.eq === eq && (!q || s.nom.toLowerCase().includes(q))); if (!gens.length) return ''; const chg = gens.filter(s => change(etatDe(s, d))); const ouverte = q || chef ? true : S.ouvertes[eq] !== undefined ? S.ouvertes[eq] : (EQUIPES[eq].main && chg.length > 0); return `<div class="eq-h"><b>${eq}</b><span>${gens.length}</span><span class="d">${chg.length ? `<span class="pas ambre">${chg.length}</span>` : EQUIPES[eq].main ? '<span class="pas vert">tous là</span>' : '<span class="pas">pointeuse</span>'}</span>${chef ? '' : `<button type="button" class="btn s g" data-eq="${eq}">${ouverte ? 'Refermer' : 'Ouvrir'}</button>`}</div>${ouverte ? gens.map(ligne).join('') : ''}`; }).join('');
+  const dem = chef ? S.demandesChef : S.demandes;
+  return `<div class="th"><b>${d === S.jour ? (chef ? 'Qui est là, à l\'Atelier ?' : 'Qui est là ?') : `${cap(NOMJ[j.w])} ${d}/11`}</b><span>${NOMJ[j.w]} ${d}/11 · touche un nom pour noter ce qui change${dem.length ? ` · ${dem.length} demande${dem.length > 1 ? 's' : ''} plus bas` : ''}</span>${semaine(true)}</div>
     <div class="corps">
-      ${finOctobre() ? `<div class="bandeau ambre" style="margin:0">${ic('alerte', 16)}<div class="txt"><b>Octobre n'est pas payé</b><span>${money(totalAPayer())} à verser</span></div><button class="btn s" data-tel="mois" data-vue-tel="oct">Le faire</button></div>` : ''}
-      ${S.taille === 'grand' && !val ? `<div class="cherche"><input type="search" id="cherche" placeholder="Chercher un salarié…" value="${h(S.cherche)}" aria-label="Chercher un salarié"></div>` : ''}
-      <div class="tc">${val ? `<div class="tl">${ic('coche', 18)} <b>Journée validée</b><span class="muet petit">elle est dans le pointage du mois</span><button class="btn s" data-rouvrir="${d}">Rouvrir la journée</button></div>` : lignes}</div>
-      ${S.demandes.length ? `<div class="petit muet" style="padding:4px 2px 0">Les demandes</div><div class="tc">${S.demandes.map(x => { const s = SAL.find(y => y.id === x.s); return `<div class="tl"><div class="q">${av(s)}<div style="display:grid;min-width:0"><b>${prenom(s)} : ${h(x.quoi)}</b><small class="muet">${h(x.pourquoi)}</small></div></div><div style="display:flex;gap:8px"><button class="btn" style="flex:1;justify-content:center" data-refuse="${x.id}">Refuser</button><button class="btn" style="flex:1;justify-content:center" data-accepte="${x.id}">${x.ok}</button></div></div>`; }).join('')}</div>` : ''}
+      ${finOctobre() && !chef ? `<div class="bandeau ambre" style="margin:0">${ic('alerte', 16)}<div class="txt"><b>Octobre n'est pas payé</b><span>${money(totalAPayer('oct'))} à verser</span></div><button class="btn s" data-tel="mois" data-vue-tel="oct">Le faire</button></div>` : ''}
+      ${S.taille === 'grand' && !val && !chef ? `<div class="cherche"><input type="search" id="cherche" placeholder="Chercher un salarié…" value="${h(S.cherche)}" aria-label="Chercher un salarié"></div>` : ''}
+      ${!chef && S.valideChef[d] && !val ? `<div class="tc"><div class="tl">${ic('coche', 18)} <b>L'Atelier est validé par Ahmed</b><span class="muet petit">tu n'as pas à le refaire</span></div></div>` : ''}
+      <div class="tc">${val ? `<div class="tl">${ic('coche', 18)} <b>Journée ${chef ? 'de l\'Atelier ' : ''}validée</b><span class="muet petit">elle est dans le pointage du mois</span><button class="btn s" data-rouvrir="${d}">Rouvrir la journée</button></div>` : lignes}</div>
+      ${dem.length ? `<div class="petit muet" style="padding:4px 2px 0">${chef ? 'Les demandes que tu as notées' : 'Les demandes'}</div><div class="tc">${dem.map(x => { const s = SAL.find(y => y.id === x.s); return `<div class="tl"><div class="q">${av(s)}<div style="display:grid;min-width:0"><b>${prenom(s)} : ${h(x.quoi)}</b><small class="muet">${h(chef ? x.chef : x.pourquoi)}</small></div></div>${chef ? '' : `<div style="display:flex;gap:8px"><button class="btn" style="flex:1;justify-content:center" data-refuse="${x.id}">Refuser</button><button class="btn" style="flex:1;justify-content:center" data-accepte="${x.id}">${x.ok}</button></div>`}</div>`; }).join('')}</div>` : ''}
     </div>`;
 }
 function feuilleTel() {
+  const chef = S.vu === 'chef';
   const s = SAL.find(x => x.id === S.feuille), d = S.jourVu, e = etatDe(s, d);
+  const subs = chef ? { p: 'à ses horaires', a: `${GERANT} dira s'il est payé`, cg: `posé par ${GERANT}`, mal: `le certificat va à ${GERANT}` }
+    : { p: 'à ses horaires', a: `− ${money(prixJour(s))} si sans solde`, cg: `il lui reste ${virg(s.conges)} j`, mal: 'certificat plus tard' };
   return `<div class="voile-t" data-fermer-feuille><div class="feuille" role="dialog" aria-label="${h(s.nom)}">
     <div class="q">${av(s)}<div><b>${s.nom}</b><small>${NOMJ[JOURS[d - 1].w]} ${d}/11 · ${s.poste}</small></div></div>
-    <div class="gros">${[['p', 'Là', 'à ses horaires'], ['a', 'Absent', `− ${money(prixJour(s))} si sans solde`], ['cg', 'Congé', `il lui reste ${virg(s.conges)} j`], ['mal', 'Malade', 'certificat plus tard']].map(([c, l, sub]) => `<button type="button" data-pres="${s.id}:${c}" class="${e.etat === c ? 'on' : ''}"><b>${l}</b><span>${sub}</span></button>`).join('')}</div>
-    <div class="gros"><button type="button" data-plus="${s.id}:retard" class="${e.retard ? 'on' : ''}" ${e.etat !== 'p' ? 'disabled' : ''}><b>${e.retard ? `Retard ${e.retard} min` : '+ Retard'}</b><span>noté, pas retenu</span></button><button type="button" data-plus="${s.id}:hs" class="${e.hs ? 'on' : ''}" ${e.etat !== 'p' ? 'disabled' : ''}><b>${e.hs ? `${e.hs} h sup` : '+ Heures sup'}</b><span>${e.hs ? `+ ${money(majo(s, e.hs))}` : 'à +25 %'}</span></button></div>
-    ${e.etat === 'a' ? `<div class="petit muet">Pourquoi ?</div><span class="filtre">${[['sans', 'Sans solde'], ['just', 'Justifiée'], ['inc', 'Je ne sais pas']].map(([k, t]) => `<button type="button" data-motif="${s.id}:${k}" class="${(e.motif || 'inc') === k ? 'on' : ''}">${t}</button>`).join('')}</span>` : ''}
+    <div class="gros">${[['p', 'Là'], ['a', 'Absent'], ['cg', 'Congé'], ['mal', 'Malade']].map(([c, l]) => `<button type="button" data-pres="${s.id}:${c}" class="${e.etat === c ? 'on' : ''}"><b>${l}</b><span>${subs[c]}</span></button>`).join('')}</div>
+    <div class="gros"><button type="button" data-plus="${s.id}:retard" class="${e.retard ? 'on' : ''}" ${e.etat !== 'p' ? 'disabled' : ''}><b>${e.retard ? `Retard ${e.retard} min` : '+ Retard'}</b><span>${chef ? 'noté' : 'noté, pas retenu'}</span></button><button type="button" data-plus="${s.id}:hs" class="${e.hs ? 'on' : ''}" ${e.etat !== 'p' ? 'disabled' : ''}><b>${e.hs ? `${e.hs} h sup` : '+ Heures sup'}</b><span>${chef ? 'notées' : e.hs ? `+ ${money(majo(s, e.hs))}` : 'à +25 %'}</span></button></div>
+    ${e.etat === 'a' && !chef ? `<div class="petit muet">Pourquoi ?</div><span class="filtre">${[['sans', 'Sans solde'], ['just', 'Justifiée'], ['inc', 'Je ne sais pas']].map(([k, t]) => `<button type="button" data-motif="${s.id}:${k}" class="${(e.motif || 'inc') === k ? 'on' : ''}">${t}</button>`).join('')}</span>` : ''}
     <button type="button" class="btn p" style="justify-content:center;min-height:46px" data-fermer-feuille>C'est noté</button></div></div>`;
 }
 function telMois() {
   const m = S.vueMois || 'nov', et = etatsMois(m), act = et.findIndex(x => x[0] === 'cours' || x[0] === 'retard');
-  const o = m === 'oct' ? S.oct : S.mois, reg = m === 'oct' ? [] : aRegler();
-  const action = i => i === 0 ? (reg.length ? `<button class="btn" data-tel-regle>Régler les ${reg.length} choses</button>` : `<button class="btn" data-tel="jour">Pointer aujourd'hui</button>`)
-    : i === 1 ? (o.bulletins ? '' : `<button class="btn p" id="valider-bulletins">${ic('coche', 15)} Valider les ${SAL.length} bulletins</button><span class="petit muet">relis-les d'abord : « Voir les bulletins », ou à l'ordinateur</span>`)
-      : i === 2 ? `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : ${money(totalAPayer())}</button><span class="petit muet">l'ordre de virement (PDF) s'envoie aussi d'ici</span>`
-        : `<button class="btn p" id="declarer">${ic('coche', 15)} Je l'ai déposée</button>`;
-  return `<div class="th"><b>Le mois</b><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span></div>
-    <div class="corps"><div class="tc">${et.map(([cl, t, dd], i) => `<div class="tl"><div class="q"><span class="n-t ${cl}">${cl === 'fait' ? '✓' : i + 1}</span><div style="display:grid;min-width:0"><b>${NOMS_ET[i]}</b><small class="muet">${t}${dd ? ` · ${dd}` : ''}</small></div></div>${i === act ? action(i) : ''}</div>`).join('')}</div></div>`;
+  const o = m === 'oct' ? S.oct : S.mois, reg = m === 'oct' ? [] : aRegler(), n = SAL.length, tenue = S.mode === 'tenue';
+  const action = i => i === 0 ? (reg.length ? `<button class="btn" data-tel-regle>Régler les ${reg.length} choses</button>` : tenue && S.jour >= 25 && !o.pointageValide ? `<button class="btn p" id="envoyer-pointage">${ic('coche', 15)} Valider le pointage</button><span class="petit muet">${COMPTA} le reçoit et prépare les bulletins</span>` : `<button class="btn" data-tel="jour">Pointer aujourd'hui</button>`)
+    : i === 1 ? (tenue ? (o.cab === 'envoye' ? `<button class="btn p" id="approuver">${ic('coche', 15)} J'approuve les ${n} bulletins</button><span class="petit muet">ton « bon à payer » : relis-les d'abord, ou à l'ordinateur</span>` : '')
+      : S.mode === 'verifiee' && o.verif === 'corr' ? `<button class="btn p" data-corr="oui">${ic('coche', 15)} Accepter la correction de ${COMPTA}</button><span class="petit muet">Karim : heures sup à +75 %, + ${money(NET_CORR)} sur son net · à lire à l'ordinateur</span>`
+        : o.bulletins ? '' : `<button class="btn p" id="valider-bulletins">${ic('coche', 15)} Valider les ${n} bulletins</button><span class="petit muet">relis-les d'abord : « Voir les bulletins », ou à l'ordinateur</span>`)
+      : i === 2 ? `<button class="btn p" id="marquer-payes">${ic('coche', 15)} C'est payé : ${money(totalAPayer(m))}</button><span class="petit muet">l'ordre de virement (PDF) s'envoie aussi d'ici</span>`
+        : tenue ? '' : m === 'nov' ? `<span class="petit muet">elle se dépose en décembre, une fois le mois fini</span>` : `<button class="btn p" id="declarer">${ic('coche', 15)} Je l'ai déposée</button>`;
+  return `<div class="th"><b>Le mois</b><span>${QUI_COURT[S.mode]}</span><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span></div>
+    <div class="corps"><div class="tc">${et.map(([cl, t, dd], i) => `<div class="tl"><div class="q"><span class="n-t ${cl}">${cl === 'fait' ? '✓' : i + 1}</span><div style="display:grid;min-width:0"><b>${NOMS_ET[i]}</b><small class="muet">${t}${dd ? ` · ${dd}` : ''}</small></div></div>${i === act || (i === 0 && tenue && S.jour >= 25 && !o.pointageValide && !reg.length && m === 'nov') ? action(i) : ''}</div>`).join('')}</div></div>`;
 }
 function telEquipe() {
   return `<div class="th"><b>L'équipe</b><span>${SAL.length} salariés</span></div><div class="corps"><div class="tc">${SAL.map(s => `<div class="tl-b">${av(s)}<span class="nm"><b>${s.nom}</b><small>${s.poste} · ${s.eq}</small></span>${s.contrat === 'CDD' ? `<span class="pas ambre">CDD</span>` : s.contrat === 'Essai' ? '<span class="pas bleu">essai</span>' : s.rib === false && s.paie === 'virement' ? '<span class="pas rouge">RIB</span>' : ''}</div>`).join('')}</div></div>`;
+}
+
+// ── Le même mois, vu du Cabinet (« Vu par : la comptable ») : la paie du dossier Atelier Ben Ammar, telle que le
+// Cabinet la montre aujourd'hui (1.235.0 : qui la fait, le parcours, le seul bouton principal ; les cinq vues). Ce
+// qu'elle fait ici, le gérant le voit chez lui, et l'inverse : une seule vérité, lue des deux côtés.
+function navCabinet() {
+  const n = gesteCab(S.vueMois || 'nov');
+  return `<nav class="nav" aria-label="Menu du Cabinet"><div class="ent"><i style="background:var(--bleu-texte)">CF</i>${CABINET}</div>
+    <a href="#">Tableau de bord</a><a href="#">Dossiers</a><a href="#">Messages</a>
+    <div class="t">Atelier Ben Ammar</div><a href="#">Le dossier</a><a href="#">Saisie</a><a href="#">Banque</a><a href="#" class="on">Paie${n && n.id ? '<small>1</small>' : ''}</a></nav>`;
+}
+// Le seul bouton principal du Cabinet : l'étape suivante, ou l'attente (un bouton éteint qui dit pourquoi).
+function gesteCab(m) {
+  const o = m === 'oct' ? S.oct : S.mois, n = SAL.length;
+  if (S.moment === 'vide') return null;
+  if (S.mode === 'tenue') {
+    if (!o.pointageValide) return { attente: `En attente du pointage de ${GERANT}` };
+    if (!o.cab || o.cab === 'prepare') return { id: 'etablir', t: `Établir les ${n} bulletins` };
+    if (o.cab === 'etabli') return { id: 'envoyer', t: `Envoyer à ${GERANT} pour accord`, ic: 'envoi' };
+    if (o.cab === 'envoye') return { attente: `En attente de l'accord de ${GERANT}` };
+    if (o.cab === 'approuve') return { id: 'valider', t: `Valider les ${n} bulletins` };
+    if (!o.declare) return m === 'nov' ? { attente: 'La déclaration se dépose en décembre' } : { id: 'declarer', t: 'Je l\'ai déposée', ic: 'coche' };
+    return null;
+  }
+  if (S.mode === 'verifiee') {
+    if (!o.bulletins) return { attente: `Les bulletins sont à faire par ${GERANT}` };
+    if (!o.verif || o.verif === 'attente') return { id: 'proposer', t: `Proposer la correction à ${GERANT}` };
+    if (o.verif === 'corr') return { attente: `En attente de ${GERANT}` };
+    if (o.verif === 'acceptee' || o.verif === 'refusee') return { id: 'verifier', t: `Marquer les ${n} bulletins vérifiés` };
+    return null;
+  }
+  return null;
+}
+function etatsCab(m) {
+  const o = m === 'oct' ? S.oct : S.mois, n = SAL.length, fin = m === 'oct' || S.jour >= 25;
+  const pt = o.pointageValide ? ['fait', `Validé par ${GERANT}`, m === 'oct' ? 'le 30/10' : `le ${S.jour}/11`] : ['', `${GERANT} pointe`, `${JOURS.filter(j => !j.we && S.valide[j.d]).length} jours validés sur ${OUVRES}`];
+  let bu;
+  if (S.mode === 'tenue') bu = !o.pointageValide ? ['', fin ? 'Après le pointage' : 'À partir du 25/11', `quand ${GERANT} l'a validé`]
+    : !o.cab || o.cab === 'prepare' ? ['cours', 'À établir', `${n} bulletins`] : o.cab === 'etabli' ? ['cours', 'Établis', 'à envoyer pour accord']
+      : o.cab === 'envoye' ? ['', `Envoyés le ${S.jour}/11`, `en attente de l'accord de ${GERANT}`] : o.cab === 'approuve' ? ['cours', `Accord de ${GERANT}`, `le ${S.jour}/11 · à valider`]
+        : ['fait', `${n} bulletins validés`, m === 'oct' ? 'le 30/10' : `le ${S.jour}/11`];
+  else if (S.mode === 'verifiee') bu = !o.bulletins ? ['', `${GERANT} les prépare`, fin ? 'après « À régler »' : 'à partir du 25/11']
+    : o.verif === 'verifie' ? ['fait', 'Vérifiés', m === 'oct' ? 'le 31/10' : `le ${S.jour}/11`] : o.verif === 'corr' ? ['', 'Correction proposée', `en attente de ${GERANT}`]
+      : o.verif === 'acceptee' ? ['cours', 'Correction acceptée', 'à marquer vérifiés'] : o.verif === 'refusee' ? ['cours', 'Correction refusée', `${GERANT} s'en occupe`] : ['cours', `Faits par ${GERANT}`, 'à vérifier'];
+  else bu = o.bulletins ? ['fait', `Faits par ${GERANT}`, 'tu les lis'] : ['', `${GERANT} les prépare`, fin ? 'après « À régler »' : 'à partir du 25/11'];
+  const pa = o.payes ? ['fait', `Payés par ${GERANT}`, m === 'oct' ? 'le 02/11' : 'le 30/11'] : ['', `${GERANT} paie`, 'ce geste n\'est pas ici'];
+  const de = o.declare ? ['fait', o.declarePar === 'cabinet' ? 'Déposée par toi' : `Déposée par ${GERANT}`, `le ${o.declareLe}`]
+    : S.mode === 'tenue' ? [o.cab === 'valide' && m === 'oct' ? 'cours' : '', `Avant le 28/${m === 'oct' ? '11' : '12'}`, m === 'nov' ? 'c\'est toi qui la déposes, en décembre' : 'c\'est toi qui la déposes'] : ['', `${GERANT} la dépose`, `avant le 28/${m === 'oct' ? '11' : '12'}`];
+  return [pt, bu, pa, de];
+}
+function pageCabinet() {
+  const tete = `<div class="chemin">Dossiers › Atelier Ben Ammar › Paie</div>`;
+  if (S.moment === 'vide') return `${tete}<div class="tete"><div><h2>Paie</h2><div class="sous">Atelier Ben Ammar</div></div></div><section class="carte"><div class="vide">${ic('pers', 18)}<span>${GERANT} n'a encore aucun salarié dans SkanFact : la paie de ce dossier commencera avec son premier salarié.</span></div></section>`;
+  const m = S.vueMois || 'nov', o = m === 'oct' ? S.oct : S.mois, n = SAL.length, P = gesteCab(m), et = etatsCab(m);
+  const qui = { seul: `faite par ${GERANT} seul dans SkanFact · tu la lis et la passes en comptabilité`, verifiee: `faite par ${GERANT} dans SkanFact · tu la vérifies, et la corriges avec son accord`, tenue: `tenue au cabinet, avec l'accord de ${GERANT}` }[S.mode];
+  const bouton = P ? (P.id ? `<button class="btn p" data-cab="${P.id}">${ic(P.ic || 'coche', 15)} ${P.t}</button>` : `<button class="btn" disabled>${P.attente}</button>`) : '';
+  // L'état de chaque bulletin, tel que le Cabinet le lit.
+  const etatB = s => S.mode === 'tenue' ? ({ prepare: 'à établir', etabli: 'établi', envoye: 'envoyé pour accord', approuve: 'approuvé', valide: 'validé' }[o.cab] || '—')
+    : S.mode === 'verifiee' ? (s.id === 'ka' && o.verif === 'corr' ? 'correction proposée' : s.id === 'ka' && o.verif === 'acceptee' ? 'correction acceptée' : o.verif === 'verifie' ? 'vérifié' : 'fait par ' + GERANT) : 'fait par ' + GERANT;
+  const pret = S.mode === 'tenue' ? !!o.cab && o.pointageValide : o.bulletins;
+  const tableB = pret ? `<div class="scroll"><table class="liste"><thead><tr><th>Salarié</th><th class="r">Heures sup</th><th class="r">Net à verser</th><th>Où il en est</th></tr></thead><tbody>
+      ${SAL.map(s => { const c = compteMois(s); return `<tr><td><span style="display:flex;gap:10px;align-items:center">${av(s, 26)}<b>${s.nom}</b></span></td><td class="r m">${m === 'oct' ? '—' : c.hs ? `${c.hs} h${s.id === 'ka' && o.corrKarim ? ' à +75 %' : ''}` : '—'}</td><td class="r m">${money(netDe(s, m))}</td><td><span class="pas ${/correction proposée/.test(etatB(s)) ? 'rouge' : /validé|vérifié|approuvé|acceptée/.test(etatB(s)) ? 'vert' : ''}">${etatB(s)}</span></td></tr>`; }).join('')}
+    </tbody><tfoot><tr><td>${n} salariés</td><td></td><td class="r m">${money(totalAPayer(m))}</td><td></td></tr></tfoot></table></div>`
+    : `<div class="vide">${ic('cal', 18)}<span>${S.mode === 'tenue' ? `Les bulletins de ${m === 'oct' ? 'octobre' : 'novembre'} s'établissent quand ${GERANT} a validé son pointage (à partir du 25/11). Tu vois le pointage validé, jamais une journée en cours.` : `${GERANT} prépare ses bulletins à partir du 25/11 ; tu les vois dès qu'il les a validés.`}</span></div>`;
+  // Paie vérifiée : l'anomalie que les contrôles du Cabinet trouvent d'eux-mêmes (1.237.0), avec le geste qui la propose.
+  const anomalie = S.mode === 'verifiee' && m === 'nov' && o.bulletins && (!o.verif || o.verif === 'attente') ? `<section class="carte"><div class="h">Les contrôles du mois <small>1 chose à voir</small></div>
+      <div class="ligne">${av(BASE.find(s => s.id === 'ka'))}<div class="qui"><b>Karim Haddad : 4 h sup majorées à +25 %</b><small>il travaille en régime de 48 h : la majoration serait de +75 % (Code du travail, art. 90 : À VÉRIFIER avec sa convention) · son net passerait de ${money(aPayer(BASE.find(s => s.id === 'ka')))} à ${money(r3(aPayer(BASE.find(s => s.id === 'ka')) + NET_CORR))}</small></div><div class="fin"><button class="btn s" data-cab="proposer">Proposer la correction à ${GERANT}</button></div></div>
+      <div class="pied"><span>Rien ne s'écrit chez ${GERANT} sans son accord : la correction lui est proposée, il l'accepte ou la refuse.</span></div></section>` : '';
+  return `${tete}
+    <div class="tete"><div><h2>Paie ${m === 'oct' ? 'octobre' : 'novembre'} 2026</h2><div class="sous">${n} salariés · ${qui}</div></div><div class="actions">${bouton}</div></div>
+    <div class="onglets" role="tablist">${['Le mois', 'Salariés', 'Congés et avances', 'CNSS du trimestre', 'L\'année'].map((t, i) => `<button type="button" role="tab" class="${i === 0 ? 'on' : ''}" ${i ? 'data-cab-vue' : ''}>${t}</button>`).join('')}</div>
+    <section class="carte"><div class="h"><span class="filtre"><button type="button" data-vue="oct" class="${m === 'oct' ? 'on' : ''}">Octobre</button><button type="button" data-vue="nov" class="${m === 'nov' ? 'on' : ''}">Novembre</button></span> <small>le même mois que ${GERANT}, vu d'ici</small></div>
+      <div class="chemin-m">${et.map(([cl, t, d], i) => `<div class="etape ${cl}"><span class="n">${cl === 'fait' ? '✓' : i + 1}</span><b>${NOMS_ET[i]}</b><span><b style="font-size:12.5px;color:var(--encre)">${t}</b>${d ? ` · ${d}` : ''}</span></div>`).join('')}</div></section>
+    ${anomalie}
+    <section class="carte"><div class="h">Les bulletins <small>${S.mode === 'tenue' ? 'tu les établis ; ' + GERANT + ' les approuve avant de payer' : S.mode === 'verifiee' ? 'faits par ' + GERANT + ' ; tu les vérifies' : 'faits par ' + GERANT + ' ; tu les lis'}</small></div>${tableB}
+      ${pret ? `<div class="pied"><span>L'écriture de paie ${m === 'oct' ? 'd\'octobre' : 'de novembre'} : datée du dernier jour du mois, elle suit les bulletins validés.</span><button class="btn s">${ic('doc', 14)} Le journal de paie</button></div>` : ''}</section>
+    <div class="grille2"><div>
+      <section class="carte"><div class="h">La déclaration <small>avant le 28/${m === 'oct' ? '11' : '12'} · ${money(totalDecl())} (exemple)</small></div>
+        <div class="ligne"><span class="muet">${ic('doc', 18)}</span><div class="qui"><b>${o.declare ? `Déposée par ${o.declarePar === 'cabinet' ? 'toi' : GERANT} le ${o.declareLe}` : S.mode === 'tenue' ? 'C\'est toi qui la déposes' : `${GERANT} la dépose`}</b><small>une seule mention pour vous deux : ce que l'un dit, l'autre le voit</small></div><div class="fin">${o.declare ? `<span class="pas vert">${ic('coche', 12)} déposée</span>` : S.mode === 'tenue' && o.cab === 'valide' && m === 'oct' && P && P.id !== 'declarer' ? `<button class="btn s" data-cab="declarer">Je l'ai déposée</button>` : ''}</div></div>
+        <div class="ligne"><span class="muet">${ic('cal', 18)}</span><div class="qui"><b>La CNSS du 4e trimestre</b><small>avant le 15/01/2027 · la liste des salaires et le fichier se préparent tout seuls</small></div><div class="fin"><span class="pas">en janvier</span></div></div></section>
+    </div><div>
+      <div class="note" style="margin:0;border-left-color:var(--bleu-texte)"><b>Ce que tu vois de ce dossier</b><ul>
+        <li>Les salaires, les bulletins et les déclarations : ${GERANT} t'a confié la paie (mandat « Paie »).</li>
+        <li>Le pointage <b>validé</b>, jamais une journée en cours.</li>
+        <li>Les certificats médicaux, avec ce mandat seulement ; chaque lecture est tracée.</li>
+        <li><b>Rien ne s'écrit chez ${GERANT} sans son accord</b> : un bulletin s'envoie pour accord, une correction se propose.</li>
+        <li>Tu n'as pas le geste « payer les salaires » : c'est ${GERANT} qui paie, et tu le vois ici.</li></ul></div>
+    </div></div>`;
 }
 
 // ───────────── les fenêtres ─────────────
@@ -802,28 +1130,35 @@ function fenDocument() {
     <div class="doc"><h5>${D[docChoix][0].toUpperCase()}</h5><p style="margin:0">Je soussigné, gérant de la société Atelier Ben Ammar, matricule fiscal <span class="pt"></span>, atteste que Madame <b>Ines Gharbi</b> est employée dans notre société en qualité d'<b>assistante administrative</b> depuis le <b>01/09/2021</b>, en contrat à durée indéterminée.</p><p style="margin:0">Fait à Tunis, le ${S.jour}/11/2026.</p><p class="muet" style="margin:0;text-align:right">PROJET · à signer</p></div>`,
     `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Attestation faite : rangée dans la fiche d'Ines">${ic('depot', 14)} Le PDF</button>`);
 }
-// Le menu ⋯ garde tous les gestes de la paie d'aujourd'hui (16 § 2.2), rangés en quatre groupes.
+// Le menu ⋯ garde tous les gestes de la paie d'aujourd'hui (16 § 2.2), rangés en quatre groupes. Ceux que la maquette
+// dessine s'ouvrent ; les autres sont ceux de la paie actuelle, gardés tels quels.
 const PLUS = [
   ['Ce mois', [['Le journal de paie', 'le mois, salarié par salarié'], ['L\'ordre de virement', 'pour ta banque, les RIB contrôlés'], ['Les primes et retenues du mois', 'une par une, ou « Coller depuis un tableur »']]],
-  ['Les salariés', [['Le registre du personnel', 'la liste que l\'inspection du travail peut demander'], ['Un document', 'attestation, certificat, solde de tout compte…'], ['Importer', 'des salariés depuis un tableur, la pointeuse']]],
-  ['Calculer', [['Combien coûte une embauche ?', 'le brut, le net et ce que ça te coûte'], ['Augmenter les salaires en lot', 'un pourcentage ou un montant, à une date'], ['Une saisie sur salaire reçue', 'la part retenue chaque mois'], ['Un départ', 'fin de CDD, démission, licenciement : ce qui est dû']]],
-  ['Réglages', [['Les réglages de la paie', 'taux, horaires, équipes, jours fériés'], ['Qui fait ma paie ?', 'toi, ton comptable, ou à deux']]],
+  ['Les salariés', [['Le registre du personnel', 'la liste que l\'inspection du travail peut demander'], ['Un document', 'attestation, certificat, solde de tout compte…', 'document'], ['Importer', 'des salariés depuis un tableur, la pointeuse']]],
+  ['Calculer', [['Combien coûte une embauche ?', 'le brut, le net et ce que ça te coûte', 'cout'], ['Augmenter les salaires en lot', 'un pourcentage ou un montant, à une date'], ['Une saisie sur salaire reçue', 'la part retenue chaque mois'], ['Un départ', 'fin de CDD, démission, licenciement : ce qui est dû', 'depart']]],
+  ['Réglages', [['Les réglages de la paie', 'taux, horaires, équipes, jours fériés'], ['Qui fait ma paie ?', 'toi seul, vérifiée par ton comptable, ou tenue par lui', 'qui']]],
 ];
 function fenPlus() {
-  return fen('Plus', PLUS.map(([g, l]) => `<div><div class="petit muet" style="font-weight:600;margin:0 0 6px">${g}</div><div class="choix">${l.map(([a, b]) => `<button type="button"><b>${a}</b><span>${b}</span></button>`).join('')}</div></div>`).join('')
+  return fen('Plus', PLUS.map(([g, l]) => `<div><div class="petit muet" style="font-weight:600;margin:0 0 6px">${g}</div><div class="choix">${l.map(([a, b, k]) => `<button type="button" data-pg="${k || 'actuel'}"><b>${a}</b><span>${b}</span></button>`).join('')}</div></div>`).join('')
     + '<p class="petit muet" style="margin:0">L\'historique de chacun est dans sa fiche ; l\'année, dans Le mois › Toute l\'année ; qui pointe, dans les quatre questions du pointage.</p>', '<button class="btn" data-fermer>Fermer</button>');
 }
-// L'année n'a qu'une place (16 § 2) : « Toute l'année », dans Le mois. Le coût du personnel mois par mois, les congés qui
-// restent à chacun, la fin de l'année (exemple).
+// L'année n'a qu'une place (16 § 2) : « Toute l'année », dans Le mois. Le coût du personnel mois par mois et face aux
+// ventes, les congés de chacun, les absences de l'année et ce qu'elles ont fait aux bulletins (ce que montrait la
+// sous-vue « Congés et absences », 16 § 2.2), la fin de l'année (exemple).
 function fenAnnee() {
   const MS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre'];
   const brut = SAL.reduce((x, s) => x + s.brut, 0), cout = r3(brut + charges());
-  const etat = i => i < 9 ? '<span class="pas vert">payé, déclaré</span>' : i === 9 ? (S.oct.payes ? '<span class="pas ambre">payé · à déclarer</span>' : '<span class="pas rouge">à payer</span>') : '<span class="pas">en cours</span>';
-  return fen('Toute l\'année 2026', `<p class="petit muet" style="margin:0">La seule place de l'année : ce que le personnel a coûté, les congés qui restent, et la fin de l'année (exemple).</p>
+  const oct = S.oct.payes ? (S.oct.declare ? '<span class="pas vert">payé, déclaré</span>' : '<span class="pas ambre">payé · à déclarer</span>') : '<span class="pas rouge">à payer</span>';
+  const etat = i => i < 9 ? '<span class="pas vert">payé, déclaré</span>' : i === 9 ? oct : '<span class="pas">en cours</span>';
+  const mo = SAL.find(s => s.id === 'mo');
+  const ABS = [['Ahmed Ben Salah', '4 j de maladie', 'payée ou non selon ta convention (À VÉRIFIER)'], ['Mourad Trabelsi', '2 j sans solde', mo ? `− ${money(r3(2 * prixJour(mo)))} sur son brut` : ''], ['Karim Haddad', '1 j justifiée, payée', 'rien n\'a changé sur son bulletin']];
+  return fen('Toute l\'année 2026', `<p class="petit muet" style="margin:0">La seule place de l'année : ce que le personnel a coûté, les congés et les absences de chacun, et la fin de l'année (exemple).</p>
     <div class="scroll"><table class="liste"><thead><tr><th>Mois</th><th class="r">Salaires bruts</th><th class="r">Coût total</th><th>Où il en est</th></tr></thead><tbody>${MS.map((m, i) => `<tr><td>${cap(m)}</td><td class="r m">${money(brut)}</td><td class="r m">${money(cout)}</td><td>${etat(i)}</td></tr>`).join('')}</tbody>
-      <tfoot><tr><td>De janvier à novembre</td><td class="r m">${money(r3(brut * 11))}</td><td class="r m">${money(r3(cout * 11))}</td><td></td></tr></tfoot></table></div>
-    <div class="scroll"><table class="liste"><thead><tr><th>Congés</th><th class="r">Il lui reste</th></tr></thead><tbody>${SAL.map(s => `<tr><td>${h(s.nom)}</td><td class="r m">${virg(s.conges)} j</td></tr>`).join('')}</tbody></table></div>
-    <div class="note" style="margin:0"><b>La fin de l'année</b> : la déclaration annuelle d'employeur (un salarié par ligne, début 2027 : À VÉRIFIER) ; les congés qui restent passent ou non sur 2027 selon la règle du report (À VÉRIFIER avec ton comptable).</div>`, '<button class="btn" data-fermer>Fermer</button>');
+      <tfoot><tr><td>De janvier à novembre</td><td class="r m">${money(r3(brut * 11))}</td><td class="r m">${money(r3(cout * 11))}</td><td>21 % de tes ventes</td></tr></tfoot></table></div>
+    <p class="petit muet" style="margin:0">Face aux ventes : le personnel a coûté 21 % de ce que tu as vendu de janvier à novembre (exemple ; la caisse et les factures sont dans la même base, rien à brancher).</p>
+    <div class="scroll"><table class="liste"><thead><tr><th>Congés de 2026</th><th class="r">Acquis</th><th class="r">Pris</th><th class="r">Il lui reste</th></tr></thead><tbody>${SAL.map(s => { const p = PRIS[s.id] != null ? PRIS[s.id] : 3; return `<tr><td>${h(s.nom)}</td><td class="r m">${virg(r3(s.conges + p))} j</td><td class="r m">${virg(p)} j</td><td class="r m">${virg(s.conges)} j</td></tr>`; }).join('')}</tbody></table></div>
+    <div class="scroll"><table class="liste"><thead><tr><th>Les absences de l'année</th><th>Combien</th><th>Ce que ça a fait au bulletin</th></tr></thead><tbody>${ABS.map(([n, c, e]) => `<tr><td>${n}</td><td>${c}</td><td class="muet">${e}</td></tr>`).join('')}</tbody></table></div>
+    <div class="note" style="margin:0"><b>La fin de l'année</b> : la déclaration annuelle d'employeur (un salarié par ligne, début 2027 : À VÉRIFIER)${S.mode === 'tenue' ? `, que ${COMPTA} prépare et dépose` : ''} ; les congés qui restent passent ou non sur 2027 selon la règle du report (À VÉRIFIER avec ton comptable).</div>`, '<button class="btn" data-fermer>Fermer</button>');
 }
 function fenEssai() {
   fen('La période d\'essai de Salma', `<p style="margin:0">Elle a commencé le 20/09/2026 ; l'essai finit le <b>vendredi 20/11/2026</b>, dans 2 jours. Que décides-tu ?</p>
@@ -838,11 +1173,51 @@ function fenDepart() {
     `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Départ préparé : certificat et solde dans la fiche">Préparer le départ</button>`);
 }
 function fenDemande() {
+  // Le chef d'équipe note pour son équipe, et une avance sans montant : c'est le gérant qui décide et qui le met.
+  if (S.vu === 'chef') return fen('Noter une demande', `<label class="champ"><span>Qui demande ?</span><select id="dem-qui">${vis().map(s => `<option value="${s.id}" ${s.id === 'mo' ? 'selected' : ''}>${s.nom}</option>`).join('')}</select></label>
+    <div class="choix">${[['Un congé', 'des jours : ' + GERANT + ' regarde ce qui lui reste'], ['Une avance', 'sans montant : ' + GERANT + ' le met'], ['Un document', 'attestation, certificat…']].map(([t, d], i) => `<button type="button" class="${i === 0 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
+    <div class="deux"><label class="champ"><span>Du</span><input type="date" value="2026-12-07"></label><label class="champ"><span>Au</span><input type="date" value="2026-12-08"></label></div>
+    <p class="petit muet" style="margin:0">La demande part à ${GERANT}, dans « Les demandes », avec ton nom. C'est lui qui décide.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="dem-chef">Noter la demande</button>`);
   fen('Noter une demande', `<label class="champ"><span>Qui demande ?</span><select>${SAL.map(s => `<option>${s.nom}</option>`).join('')}</select></label>
     <div class="choix">${[['Un congé', 'des jours, avec ce qui lui reste'], ['Une avance', 'un montant, retenu ensuite'], ['Un document', 'attestation, certificat…']].map(([t, d], i) => `<button type="button" class="${i === 0 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
     <div class="deux"><label class="champ"><span>Du</span><input type="date" value="2026-12-07"></label><label class="champ"><span>Au</span><input type="date" value="2026-12-08"></label></div>
     <p class="petit muet" style="margin:0">La demande attend ta réponse dans « Les demandes ». Un chef d'équipe peut en noter aussi ; c'est toi qui décides.</p>`,
     `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Demande notée : elle attend ta réponse">Noter la demande</button>`);
+}
+// Les journées oubliées : montrées, puis validées d'un seul geste (16 § 3.4).
+function fenJournees(ds) {
+  S.fenJours = ds;
+  const resume = d => { const chg = SAL.filter(s => change(etatDe(s, d))); return chg.length ? chg.map(s => `${prenom(s)} : ${libelle(etatDe(s, d))}`).join(' · ') : 'rien de noté : tout le monde était là, à ses horaires'; };
+  fen(`${ds.length} journées pas validées`, `<p style="margin:0">Relis-les : ce qui n'a pas été noté compte « là, à ses horaires ». Une correction ? Ouvre la journée ; sinon, valide-les d'un geste.</p>
+    <div style="border:1px solid var(--trait);border-radius:12px;overflow:hidden">${ds.map(d => `<div class="ligne" style="border-top:${d === ds[0] ? '0' : '1px solid var(--trait)'}"><span class="muet">${ic('cal', 16)}</span><div class="qui"><b>${cap(NOMJ[JOURS[d - 1].w])} ${d}/11</b><small>${resume(d)}</small></div><div class="fin"><button class="btn s" data-jour-voir="${d}">L'ouvrir</button></div></div>`).join('')}</div>`,
+    `<button class="btn" data-fermer>Plus tard</button><button class="btn p" id="valider-jours">${ic('coche', 15)} Les valider toutes (${ds.length})</button>`);
+}
+// « Qui fait ta paie ? » : les trois façons de l'application (1.226.0) ; le choix vaut à partir du mois suivant.
+function fenQui() {
+  const a = QUI.find(x => x[0] === S.mode);
+  fen('Qui fait ta paie ?', `<p class="petit muet" style="margin:0">aujourd'hui : ${a[1]}</p>
+    <div class="choix" style="grid-template-columns:minmax(0,1fr)">${QUI.map(([k, t, d]) => `<button type="button" data-qui="${k}" class="${S.quiChoix === k ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
+    <p class="petit muet" style="margin:0">Le changement vaut à partir de décembre : novembre se finit comme il a commencé. Tes bulletins passés ne bougent pas, et tu peux revenir en arrière. Avec un cabinet, ce que dit votre lettre de mission compte (À VÉRIFIER avec lui). Dans la maquette, « La paie » en haut montre chaque façon tout de suite.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="qui-ok">${S.quiChoix === S.mode ? 'Garder ainsi' : 'Enregistrer'}</button>`);
+}
+// Écrire à la comptable : demander une correction, ou une relecture. La demande part dans la conversation, avec le
+// bulletin en lien ; l'avis qui la signale ne porte aucun montant (16 § 4, messagerie).
+function fenEcrire(quoi) {
+  const titre = quoi === 'demcorr' ? 'Demander une correction' : quoi === 'relire' ? `Demander à ${COMPTA} de relire` : `Écrire à ${COMPTA}`;
+  const texte = quoi === 'demcorr' ? 'La prime de Mourad est de 80 DT ce mois-ci, pas 50.' : quoi === 'relire' ? 'Peux-tu relire les bulletins de novembre avant que je les valide ?' : '';
+  fen(titre, `${quoi === 'demcorr' ? `<label class="champ"><span>Quel bulletin ?</span><select>${SAL.map(s => `<option ${s.id === 'mo' ? 'selected' : ''}>${s.nom}</option>`).join('')}</select></label>` : ''}
+    <label class="champ"><span>${quoi === 'demcorr' ? 'Ce qui ne va pas' : 'Ton message'}</span><textarea>${texte}</textarea></label>
+    <p class="petit muet" style="margin:0">Le message part dans votre conversation${quoi === 'demcorr' ? ', avec le bulletin en lien' : ''} ; ${COMPTA} est prévenue sans qu'aucun montant ne sorte de SkanFact.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="ok-fen" data-msg="Envoyé à ${COMPTA} : sa réponse arrivera dans votre conversation">${ic('envoi', 14)} Envoyer à ${COMPTA}</button>`);
+}
+// Un salaire revenu sur le compte (1.256.0) : repayer en espèces contre un reçu, ou par un nouveau virement.
+function fenRepayer() {
+  fen(`Repayer Ines · ${money(802.215)}`, `<p style="margin:0">Le virement de son salaire d'octobre est revenu le 17/11 : <b>compte clôturé</b>, dit ta banque. Son bulletin reste juste ; c'est le paiement qui est à refaire, et le retard se dit à Ines.</p>
+    <div class="choix">${[['En espèces', 'contre un reçu signé'], ['Par un nouveau virement', 'avec son nouveau RIB']].map(([t, d], i) => `<button type="button" class="${i === 1 ? 'on' : ''}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>
+    <label class="champ"><span>Son nouveau RIB</span><input value="10 006 0351234567890 12"></label>
+    <p class="petit muet" style="margin:0">Le paiement revenu reste écrit sur son bulletin : on voit toujours ce qui s'est passé.</p>`,
+    `<button class="btn" data-fermer>Annuler</button><button class="btn p" id="repayer-ok">Repayer Ines</button>`);
 }
 function fenMotif(id, d) {
   const s = SAL.find(x => x.id === id), j = JOURS[d - 1];
@@ -890,7 +1265,16 @@ function fenPourquoi() {
       <li><b>L'effet en DT est celui du moteur</b> : un jour vaut le brut ÷ 26 (les jours d'un mois complet, réglables ; le bon diviseur : À VÉRIFIER), et non plus le brut ÷ 21.</li>
       <li><b>L'espace des salariés</b> est au plan : la phrase le dit.</li>
       <li><b>Un bulletin validé se corrige encore</b> jusqu'au paiement ; payé, il ne se modifie plus (décision 3 du cadrage).</li>
-      <li><b>Rien ne part par e-mail</b> au lancement : chacun a son bulletin en PDF, que tu remets (décision 5).</li></ul></div>`,
+      <li><b>Rien ne part par e-mail</b> au lancement : chacun a son bulletin en PDF, que tu remets (décision 5).</li></ul></div>
+    <div class="note" style="margin:0;border-left-color:var(--bleu-texte)"><b>Ajoutée le même jour : le cabinet, et ce qui manquait</b><ul>
+      <li><b>Les trois façons de faire la paie</b> de l'application (« La paie », en haut) : toi seul ; toi, vérifiée par ton comptable ; ou tenue par lui. Chacune change les quatre étapes : ${COMPTA} prépare et t'envoie les bulletins, tu donnes ton <b>bon à payer</b> ; ou elle vérifie les tiens et te <b>propose une correction</b>, que tu acceptes ou non ; c'est elle qui <b>dépose</b> la déclaration quand elle tient la paie.</li>
+      <li><b>Le même mois, vu du Cabinet</b> (« Vu par : la comptable ») : ce qu'elle fait (établir, envoyer pour accord, valider, proposer, déposer), tu le vois chez toi, et l'inverse. « Déposée » est une seule mention, pour vous deux.</li>
+      <li><b>Le chef d'équipe</b> (« Vu par : Ahmed ») : la journée de son équipe, sans aucun montant ; ce qu'il valide compte, ce qu'il note arrive dans tes demandes.</li>
+      <li><b>Un certificat en retard ne retient plus les bulletins</b> (décision 4) : il est dans « À ne pas oublier ». Plusieurs <b>journées oubliées font une ligne</b>, validées d'un geste après les avoir vues (le 27).</li>
+      <li><b>La demi-journée</b> d'absence ; l'effet d'un jour dit « son brut ÷ 26 » (il disait encore « un jour sur 21 »).</li>
+      <li><b>La fiche</b> a ses présences (d'où vient chaque case), ses congés et avances, et <b>son historique</b> (le menu ⋯ le promettait) ; L'équipe a ses filtres (avances en cours, contrats qui finissent, à compléter, partis).</li>
+      <li><b>Un salaire revenu</b> (le 18 : le virement d'Ines) : « Repayer », le bulletin reste juste. Le RIB qui manque reste rappelé jusqu'à ce qu'il soit là.</li>
+      <li><b>La première fois</b> pose les quatre questions du cadrage, dont « quand tu les paies » et « qui fait la paie ». <b>Toute l'année</b> montre aussi les absences et ce qu'elles ont fait aux bulletins, et le coût face aux ventes.</li></ul></div>`,
     `<button class="btn p" data-fermer>Essayer la maquette</button>`);
 }
 
@@ -900,11 +1284,29 @@ function fiche(id) { S.fiche = id; S.ecran = 'ordi'; render(); window.scrollTo({
 function voirJour(d) { fermer(); S.fiche = null; S.onglet = 'jour'; S.jourVu = d; S.etape = null; if (S.ecran === 'tel') S.telOnglet = 'jour'; render(); const c = document.getElementById('c-presence'); if (c) c.scrollIntoView({ block: 'start' }); }
 function joindre(id) { S.regle['cert:' + id] = true; render(); toast(`Certificat joint (exemple) : rangé dans les documents ${id === 'ah' ? 'd\'Ahmed' : `de ${prenom(SAL.find(s => s.id === id))}`}`, () => { delete S.regle['cert:' + id]; }); }
 function validerJour(d) {
+  const auj = d === S.jour;
+  // Le chef d'équipe valide la journée de son équipe : elle compte comme validée (16 § 5.1).
+  if (S.vu === 'chef') {
+    S.valideChef[d] = true; S.feuille = null;
+    const n = vis().filter(s => change(etatDe(s, d))).length;
+    render(); toast(`Journée de l'Atelier validée · ${n ? n + ' changement' + (n > 1 ? 's' : '') : 'tout le monde était là'} · ${GERANT} n'a pas à la refaire`, () => { delete S.valideChef[d]; });
+    return;
+  }
   S.valide[d] = true;
   const n = SAL.filter(s => !pointeuse(s) && change(etatDe(s, d))).length;
-  const auj = d === S.jour;
   S.jourVu = S.jour; S.feuille = null;
   render(); toast(`${auj ? 'Journée validée' : `${cap(NOMJ[JOURS[d - 1].w])} ${d}/11 validé`} · ${n ? n + ' changement' + (n > 1 ? 's' : '') : 'tout le monde était là'}${auj ? '' : ' · retour à aujourd\'hui'}`, () => { S.valide[d] = false; S.jourVu = d; });
+}
+// Les gestes de la comptable, dans le Cabinet : ce qu'elle fait change le mois que le gérant voit.
+function gesteCabinet(k) {
+  const m = S.vueMois || 'nov', o = m === 'oct' ? S.oct : S.mois, n = SAL.length, avant = Object.assign({}, o);
+  const annuler = () => { Object.assign(o, avant); };
+  if (k === 'etablir') { o.cab = 'etabli'; render(); return toast(`${n} bulletins établis : relis-les, puis envoie-les à ${GERANT} pour accord`, annuler); }
+  if (k === 'envoyer') { o.cab = 'envoye'; render(); return toast(`Envoyés à ${GERANT} pour accord : il les voit dans Personnel › Le mois, et l'avis ne porte aucun montant`, annuler); }
+  if (k === 'valider') { o.cab = 'valide'; o.bulletins = true; render(); return toast(`${n} bulletins validés · les PDF vont dans les documents de ${GERANT}`, annuler); }
+  if (k === 'declarer') { o.declare = true; o.declarePar = 'cabinet'; o.declareLe = m === 'oct' ? `${Math.min(S.jour, 28)}/11` : `${S.jour}/11`; render(); return toast(`Déclaration marquée déposée : ${GERANT} la voit déposée, une seule mention pour vous deux`, annuler); }
+  if (k === 'proposer') { o.verif = 'corr'; render(); return toast(`Correction proposée à ${GERANT} : elle ne s'applique que s'il l'accepte`, annuler); }
+  if (k === 'verifier') { o.verif = 'verifie'; render(); return toast(`${n} bulletins vérifiés · ${GERANT} le voit dans Le mois`, annuler); }
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('button, a, td[data-case], [data-fermer-feuille]'); if (!t) return;
@@ -914,6 +1316,9 @@ document.addEventListener('click', e => {
   if (d.m) { S.moment = d.m; S.onglet = 'jour'; initMoment(); render(); return; }
   if (d.t) { S.taille = d.t; S.onglet = S.fiche ? 'equipe' : S.onglet; initMoment(); render(); return; }
   if (d.e) { S.ecran = d.e; S.feuille = null; render(); return; }
+  // La façon de faire la paie repart du jour choisi ; qui regarde ne change rien aux données : c'est le même mois.
+  if (d.mode) { S.mode = d.mode; initMoment(); render(); return; }
+  if (d.vu) { S.vu = d.vu; S.fiche = null; S.feuille = null; S.etape = null; if (d.vu === 'chef') { S.onglet = 'jour'; S.telOnglet = 'jour'; S.jourVu = S.jour; } render(); window.scrollTo({ top: 0 }); return; }
   if (t.id === 'mq-pourquoi') return fenPourquoi();
   if (d.fermer !== undefined) return fermer();
   if (d.onglet) { S.onglet = d.onglet; S.fiche = null; S.etape = null; render(); return; }
@@ -923,36 +1328,73 @@ document.addEventListener('click', e => {
   if (d.pres) { const [id, k] = d.pres.split(':'); setEtat(id, k); S.focus = S.feuille ? null : id; render(); return; }
   if (d.plus) { const [id, k] = d.plus.split(':'); basculer(id, k); S.focus = S.feuille ? null : id; render(); return; }
   if (d.motif) { const [id, k] = d.motif.split(':'); const dd = S.jourVu; S.pres[dd] = S.pres[dd] || {}; S.pres[dd][id] = Object.assign({}, etatDe(SAL.find(x => x.id === id), dd), { motif: k }); S.focus = S.feuille ? null : id; render(); return; }
+  if (d.demi) { const [id, k] = d.demi.split(':'); const dd = S.jourVu; S.pres[dd] = S.pres[dd] || {}; S.pres[dd][id] = Object.assign({}, etatDe(SAL.find(x => x.id === id), dd), { demi: k === 'demi' }); S.focus = id; render(); return; }
+  if (d.justif) { toast(`Justificatif joint (exemple) : ${GERANT} le voit, et dit si l'absence est payée`); return; }
   if (d.motifFen) { const [id, dd, k] = d.motifFen.split(':'); const n = Number(dd); S.pres[n] = S.pres[n] || {}; S.pres[n][id] = Object.assign({}, etatDe(SAL.find(x => x.id === id), n), { motif: k }); fermer(); render(); toast(`${prenom(SAL.find(x => x.id === id))}, le ${n}/11 : ${k === 'sans' ? 'absence sans solde' : 'absence justifiée, payée'}`, () => { delete S.pres[n][id].motif; }); return; }
   if (d.certif) return joindre(d.certif);
   if (d.case) { const [id, dd] = d.case.split(':'); const n = Number(dd); const s = SAL.find(x => x.id === id); if (pointeuse(s)) return fenBadge(id, n); if (S.valide[n]) return fen(`${s.nom} · ${NOMJ[JOURS[n - 1].w]} ${n}/11`, `<p style="margin:0">Ce jour-là : <b>${change(etatDe(s, n)) ? cap(libelle(etatDe(s, n))) : 'là, à ses horaires'}</b>.</p><p class="muet" style="margin:0">La journée est validée : rien ne s'y change sans la rouvrir. Rouvrir garde la trace de la première validation.</p>`, `<button class="btn" data-fermer>Fermer</button><button class="btn p" data-rouvrir="${n}">Rouvrir la journée du ${n}/11</button>`); S.focus = id; return voirJour(n); }
   if (d.badge) { const [id, dd] = d.badge.split(':'); return fenBadge(id, Number(dd)); }
+  if (d.jourVoir) return voirJour(Number(d.jourVoir));
   if (d.jour) { S.jourVu = Number(d.jour); render(); return; }
   if (d.sem) { const j = JOURS[S.jourVu - 1]; const lun = S.jourVu - ((j.w + 6) % 7); S.jourVu = Number(d.sem) < 0 ? Math.max(2, lun - 3) : Math.min(S.jour, lun + 7); if (JOURS[S.jourVu - 1].we) S.jourVu -= JOURS[S.jourVu - 1].w === 0 ? 2 : 1; render(); return; }
   if (d.eq) { const E = EQUIPES[d.eq]; const ouv = S.ouvertes[d.eq] !== undefined ? S.ouvertes[d.eq] : (E.main && SAL.some(s => s.eq === d.eq && change(etatDe(s, S.jourVu)))); S.ouvertes[d.eq] = !ouv; render(); return; }
   if (d.vider !== undefined) { S.cherche = ''; render(); return; }
-  if (d.rouvrir) { const n = Number(d.rouvrir); fermer(); S.valide[n] = false; voirJour(n); toast(`${n === S.jour ? 'Journée' : `Le ${n}/11`} rouverte : corrige, puis valide à nouveau`); return; }
+  if (d.rouvrir) { const n = Number(d.rouvrir); fermer(); if (S.vu === 'chef') delete S.valideChef[n]; else S.valide[n] = false; voirJour(n); toast(`${n === S.jour ? 'Journée' : `Le ${n}/11`} rouverte : corrige, puis valide à nouveau`); return; }
   if (d.regle) { const x = aRegler().find(y => y.cle === d.regle); if (x) x.go(); return; }
   if (t.id === 'principal') return principal()[2]();
   if (t.id === 'valider-jour') return validerJour(S.jourVu);
+  if (t.id === 'valider-jours') { const ds = S.fenJours || []; ds.forEach(x => { S.valide[x] = true; }); fermer(); render(); toast(`${ds.length} journées validées · tout le monde était là`, () => { ds.forEach(x => { S.valide[x] = false; }); }); return; }
   if (d.accepte || d.refuse) {
     const id = d.accepte || d.refuse; const q = S.demandes.find(x => x.id === id); const i = S.demandes.indexOf(q); const s = SAL.find(x => x.id === q.s);
     S.demandes = S.demandes.filter(x => x.id !== id);
     if (d.accepte && q.type === 'conge' && q.s === 'sa') S.prevusAjoutes.push({ s: 'sa', du: 30, au: 30, note: 'accepté aujourd\'hui' });
+    // Une demande notée par le chef d'équipe : il voit la réponse dans sa liste.
+    const c = S.demandesChef.find(x => x.id === id); if (c) c.chef = d.accepte ? `acceptée par ${GERANT}` : `refusée par ${GERANT}`;
     render();
     toast(d.refuse ? `Refusé · dis-le à ${prenom(s)}` : q.type === 'conge' ? `Congé accepté · il est sur ses jours dans le pointage de ${prenom(s)}` : q.type === 'avance' ? 'Avance acceptée · elle sera retenue sur novembre' : `Attestation prête · dans la fiche ${prenom(s) === 'Ines' ? 'd\'Ines' : 'de ' + prenom(s)}`, () => { S.demandes.splice(i, 0, q); S.prevusAjoutes = S.prevusAjoutes.filter(x => !(x.s === q.s && x.note === 'accepté aujourd\'hui')); });
     return;
   }
-  if (d.tard) { const r = S.rappels.find(x => x.id === d.tard); const i = S.rappels.indexOf(r); S.rappels = S.rappels.filter(x => x.id !== d.tard); render(); toast('Je te le remontre lundi matin', () => { S.rappels.splice(i, 0, r); }); return; }
-  if (d.rappel) { const r = S.rappels.find(x => x.id === d.rappel); if (r) r.go(); return; }
+  if (t.id === 'dem-chef') {
+    const sid = (document.getElementById('dem-qui') || {}).value || 'mo', s = SAL.find(x => x.id === sid), id = 'qc' + (S.demandesChef.length + 1);
+    const q = { id, s: sid, type: 'conge', quoi: 'Un congé du lundi 07/12 au mardi 08/12', pourquoi: `2 jours · il lui reste ${virg(s.conges)} jours`, par: 'notée par Ahmed, chef d\'atelier, aujourd\'hui', ok: 'Accepter', chef: `attend la réponse de ${GERANT}` };
+    S.demandesChef.push(q); S.demandes.push(q); fermer(); render(); toast(`Demande notée : elle attend la réponse de ${GERANT}`); return;
+  }
+  if (d.tard) {
+    const r = rappels().find(x => x.id === d.tard); if (!r) return;
+    const i = S.rappels.indexOf(r);
+    if (i >= 0) S.rappels = S.rappels.filter(x => x.id !== d.tard); else S.tard[d.tard] = true;
+    render(); toast('Je te le remontre lundi matin', () => { if (i >= 0) S.rappels.splice(i, 0, r); else delete S.tard[d.tard]; }); return;
+  }
+  if (d.rappel) { const r = rappels().find(x => x.id === d.rappel); if (r) r.go(); return; }
   if (d.vue) { S.vueMois = d.vue; S.etape = null; render(); return; }
   if (d.etape) { S.etape = Number(d.etape); render(); return; }
-  if (t.id === 'valider-bulletins') { S.mois.bulletins = true; S.mois.pointageValide = true; S.etape = 3; render(); toast(`${SAL.length} bulletins de novembre validés`, () => { S.mois.bulletins = false; S.mois.pointageValide = false; }); return; }
+  if (d.filtreEq) { S.filtreEq = d.filtreEq; render(); return; }
+  if (d.cab) return gesteCabinet(d.cab);
+  if (d.cabVue !== undefined) { toast('(maquette) Salariés, Congés et avances, CNSS du trimestre, L\'année : les vues du Cabinet d\'aujourd\'hui, gardées telles quelles'); return; }
+  if (t.id === 'valider-bulletins') { S.mois.bulletins = true; S.mois.pointageValide = true; S.mois.verif = S.mode === 'verifiee' ? 'attente' : null; S.etape = S.mode === 'verifiee' ? 2 : 3; render(); toast(`${SAL.length} bulletins de novembre validés${S.mode === 'verifiee' ? ` · ${COMPTA} les vérifie` : ''}`, () => { S.mois.bulletins = false; S.mois.pointageValide = false; S.mois.verif = null; }); return; }
+  if (t.id === 'envoyer-pointage') { S.mois.pointageValide = true; S.mois.cab = 'prepare'; S.etape = 2; render(); toast(`Pointage de novembre validé : ${COMPTA} le reçoit et prépare les bulletins`, () => { S.mois.pointageValide = false; S.mois.cab = null; }); return; }
+  if (t.id === 'approuver') { S.mois.cab = 'approuve'; S.mois.bulletins = true; S.etape = 3; render(); toast(`Bon à payer donné pour les ${SAL.length} bulletins · ${COMPTA} les valide ; tu peux payer`, () => { S.mois.cab = 'envoye'; S.mois.bulletins = false; }); return; }
+  if (d.corr) {
+    const oui = d.corr === 'oui';
+    S.mois.verif = oui ? 'acceptee' : 'refusee'; S.mois.corrKarim = oui; render();
+    toast(oui ? `Correction acceptée · le bulletin de Karim garde écrit qu'elle vient de ${COMPTA}` : `Refusée · ${COMPTA} est prévenue ; tu t'en occupes`, () => { S.mois.verif = 'corr'; S.mois.corrKarim = false; }); return;
+  }
   if (t.id === 'marquer-payes') { const o = S.vueMois === 'oct' ? S.oct : S.mois; o.payes = true; S.etape = 4; render(); toast(`Salaires ${S.vueMois === 'oct' ? 'd\'octobre' : 'de novembre'} payés · la trésorerie les voit`, () => { o.payes = false; }); return; }
-  if (t.id === 'declarer') { const o = S.vueMois === 'oct' ? S.oct : S.mois; o.declare = true; S.rappels = S.rappels.filter(x => x.id !== 'r5'); render(); toast('Déclaration marquée déposée', () => { o.declare = false; }); return; }
+  if (t.id === 'declarer') { const m = S.vueMois === 'oct' ? 'oct' : 'nov', o = m === 'oct' ? S.oct : S.mois; o.declare = true; o.declarePar = 'gerant'; o.declareLe = `${S.jour}/11`; S.rappels = S.rappels.filter(x => x.id !== 'r5'); render(); toast(`Déclaration marquée déposée${S.mode === 'verifiee' ? ` · ${COMPTA} la voit déposée aussi` : ''}`, () => { o.declare = false; }); return; }
+  if (t.id === 'repayer-ok') { S.oct.revenu = false; S.rappels = S.rappels.filter(x => x.id !== 'rev'); fermer(); render(); toast(`Ines repayée · ${money(802.215)} · le paiement revenu reste écrit sur son bulletin`); return; }
+  if (t.id === 'qui-ok') { fermer(); if (S.quiChoix !== S.mode) toast(`À partir de décembre : ${QUI.find(x => x[0] === S.quiChoix)[1]}`); return; }
+  if (d.qui) { S.quiChoix = d.qui; return fenQui(); }
+  if (d.pg) {
+    fermer();
+    if (d.pg === 'document') { docChoix = 0; return fenDocument(); }
+    if (d.pg === 'depart') return fenDepart();
+    if (d.pg === 'qui') { S.quiChoix = S.mode; return fenQui(); }
+    if (d.pg === 'cout') { embEtape = 3; return fenEmbaucher(); }
+    toast('(maquette) Ce geste est celui de la paie d\'aujourd\'hui, gardé tel quel'); return;
+  }
   if (d.fiche) return fiche(d.fiche);
   if (d.retour !== undefined) { S.fiche = null; S.onglet = 'equipe'; render(); return; }
-  if (t.id === 'rib') { const s = SAL.find(x => x.id === S.fiche); s.rib = true; S.rappels = S.rappels.filter(x => x.id !== 'r3'); render(); toast('RIB d\'Ahmed enregistré'); return; }
+  if (t.id === 'rib') { const s = SAL.find(x => x.id === S.fiche); s.rib = true; render(); toast('RIB d\'Ahmed enregistré'); return; }
   if (d.geste) {
     if (d.geste === 'embaucher') { embEtape = 1; return fenEmbaucher(); }
     if (d.geste === 'absence') return fenAbsence();
@@ -962,6 +1404,9 @@ document.addEventListener('click', e => {
     if (d.geste === 'depart' || d.geste === 'renouveler') return fenDepart();
     if (d.geste === 'plus') return fenPlus();
     if (d.geste === 'annee') return fenAnnee();
+    if (d.geste === 'qui') { S.quiChoix = S.mode; return fenQui(); }
+    if (d.geste === 'demcorr' || d.geste === 'relire' || d.geste === 'ecrire') return fenEcrire(d.geste);
+    if (d.geste === 'repayer') return fenRepayer();
   }
   if (d.doc) { docChoix = Number(d.doc); return fenDocument(); }
   if (t.id === 'emb-suiv') { if (embEtape < 3) { embEtape++; return fenEmbaucher(); } fermer(); toast('Nour Mansour ajoutée à l\'équipe · son contrat est prêt à signer'); return; }

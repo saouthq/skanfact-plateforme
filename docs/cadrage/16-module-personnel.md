@@ -161,6 +161,26 @@ n'a plus de bouton d'envoi). Les pièces nouvelles se dessinent **avant leur pro
 touche pas : le droit « Pointer » avant P3, le planning avant P4, le dossier complet, les échéances, le matériel, les
 listes de tâches et le salarié à l'heure avant P5 (§ 10.2).
 
+*Complétée encore le même jour, avec le cabinet* (Skander : « améliore et rajoute ce qu'il manque, vérifie aussi avec
+cabinet ») :
+- **Les trois façons de faire la paie** de l'application (« Qui fait ta paie ? », 1.226.0) changent les quatre étapes du
+  mois : faite seul ; faite par le gérant et **vérifiée** par le comptable, qui propose une correction (ici, la majoration
+  des heures sup de Karim, À VÉRIFIER) que le gérant accepte ou refuse ; **tenue** par le comptable : valider le pointage
+  le lui envoie, il établit les bulletins et les envoie pour accord, le gérant donne son **bon à payer**, le comptable
+  valide, le gérant paie, le comptable dépose. La déclaration de novembre ne se dit « déposée » qu'à partir du 01/12.
+- **Le même mois, vu du Cabinet** (le parcours de 1.235.0, ses cinq vues, son seul bouton principal) : ce que l'un fait,
+  l'autre le voit, et « déposée » est une seule mention pour les deux (§ 3.9). Le cabinet voit le pointage **validé**,
+  jamais une journée en cours, n'écrit rien sans l'accord du client et n'a pas le geste « payer » (§ 5.2).
+- **Le chef d'équipe** (droit « Pointer », P3) est dessiné : sa journée, sans aucun montant ; une journée qu'il valide
+  compte ; ce qu'il note arrive dans les demandes du gérant.
+- **Corrigé** : un certificat médical en retard ne retient plus les bulletins (décision 4 : il va dans « À ne pas
+  oublier ») ; plusieurs journées oubliées font une ligne, validées d'un geste (§ 3.4) ; la demi-journée d'absence ;
+  l'effet d'un jour disait encore « un jour sur 21 ».
+- **Ajouté** : dans la fiche, les présences (d'où vient chaque case), les congés et avances, l'historique (le menu ⋯ le
+  promettait) ; les filtres de L'équipe (« Avances et prêts » devient un filtre, avec « Partis ») ; le salaire revenu sur
+  le compte (« Repayer ») ; les quatre questions de la première fois (§ 2.1) ; dans « Toute l'année », les absences et ce
+  qu'elles ont fait aux bulletins, et le coût face aux ventes (§ 3.14).
+
 ---
 
 ## 3. Ce qu'il fait
