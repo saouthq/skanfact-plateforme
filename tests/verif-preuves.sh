@@ -19,8 +19,8 @@
 #   DETAIL=1 bash tests/verif-preuves.sh     (et les défauts posés dans une migration hors définition)
 set -u
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
-liste="$(mktemp)"; syntaxe="$(mktemp)"
-trap 'rm -f "$liste" "$syntaxe"' EXIT
+liste="$(mktemp)"; syntaxe="$(mktemp)"; rangement="$(mktemp)"
+trap 'rm -f "$liste" "$syntaxe" "$rangement"' EXIT
 (cd "$ICI" && bash tests/lister-preuves.sh tests/preuves.sh) > "$liste" || exit 2
 # La syntaxe des écrans, lue comme le navigateur la lit (V8, sans rien exécuter) : une ligne JSON [nom, détail]
 # par défaut qui la casse. Pour aller vite, seule la plus petite fonction qui contient le défaut est relue (une
@@ -88,8 +88,13 @@ for (let i = 0; i + 5 <= brut.length; i += 5) {
 }
 EOF
 ) || { echo "La syntaxe des écrans n'a pas pu être lue (les dépendances sont-elles installées ? npm ci)." >&2; exit 2; }
-python3 - "$ICI" "$liste" "$syntaxe" ${DETAIL:+detail} <<'EOF'
-import json, pathlib, re, sys
+# Les pièges du rangement (outils/rangement/preuves.ts, 17 § 6) : un motif présent dans plusieurs fichiers de sa famille,
+# un morceau que la table ignore, un défaut qui casse la syntaxe du fichier assemblé, une preuve d'un outil du rangement
+# qui vise un autre test que les siens. Une ligne JSON [genre, nom, détail] par faute.
+(cd "$ICI" && node outils/rangement/preuves.ts --controler "$liste" > "$rangement") \
+  || { echo "Les pièges du rangement n'ont pas pu être lus (les dépendances sont-elles installées ? npm ci)." >&2; exit 2; }
+RANGEMENT="$rangement" python3 - "$ICI" "$liste" "$syntaxe" ${DETAIL:+detail} <<'EOF'
+import json, os, pathlib, re, sys
 from collections import Counter
 
 racine = pathlib.Path(sys.argv[1])
@@ -102,6 +107,10 @@ def court(t): t = ' '.join(t.split()); return t if len(t) <= 90 else t[:87] + '�
 for ligne in open(sys.argv[3], encoding='utf-8').read().splitlines():
     nom, detail = json.loads(ligne)
     faute('SYNTAXE CASSÉE', nom, f'{detail} (le défaut ne prouverait rien : la page entière tombe)')
+
+for ligne in open(os.environ['RANGEMENT'], encoding='utf-8').read().splitlines():
+    genre, nom, detail = json.loads(ligne)
+    faute(genre, nom, detail)
 
 # Le bilan, à la fin.
 lignes = [l for l in (racine / 'tests/preuves.sh').read_text(encoding='utf-8').splitlines() if l.strip()]

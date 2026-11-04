@@ -114,7 +114,7 @@ describe('l\'assemblage des écrans', () => {
         const rel = `${dossier}/${e.name}`;
         if (e.isDirectory()) { if (e.name !== 'node_modules') parcourir(rel); continue; }
         // L'assembleur lui-même, et les tests dont les petits dépôts à part ont leur propre web/public.
-        if (!/\.ts$/.test(e.name) || ['commun/assemblage.ts', 'tests/commun/assemblage.test.ts', 'tests/commun/frontieres.test.ts'].includes(rel)) continue;
+        if (!/\.ts$/.test(e.name) || ['commun/assemblage.ts', 'tests/commun/assemblage.test.ts', 'tests/commun/frontieres.test.ts', 'tests/commun/preuves-suivent.test.ts'].includes(rel)) continue;
         // Le code seul : un commentaire qui cite le fichier n'est pas une lecture.
         const code = scriptSansCommentaires(rel, fs.readFileSync(path.join(RACINE_DU_DEPOT, rel), 'utf8'));
         if (/web\/public\/(v10|plateforme)(['`]|\/\$\{)/.test(code)) fautifs.push(`${rel} : un dossier des écrans lu en entier (web/public/v10 ou plateforme)`);

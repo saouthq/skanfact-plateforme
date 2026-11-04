@@ -282,7 +282,8 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   `web/public/plateforme/`) : un
   module qu'on refait en sort d'abord, puis on le change ; tous en sortent, y compris ceux déjà refaits. Plan, ordre et
   contrôle des frontières (`npm run frontieres`, dans `npm test` : un écart neuf fait tomber, la liste ne fait que baisser,
-  un lot A l'agrandit par `--ecrire --deplacement`) : `docs/cadrage/17-rangement.md`. Exceptions : une correction urgente, notée pour la sortie ; les
+  un lot A l'agrandit par `--ecrire --deplacement` ; un lot A se fait par `node outils/rangement/deplacer.ts PLAN.json`,
+  qui fait suivre les preuves) : `docs/cadrage/17-rangement.md`. Exceptions : une correction urgente, notée pour la sortie ; les
   chantiers commencés avant le 03/11/2026 (devis lot 5, achat 6c et 6d, pointage), finis avant leur déménagement.
 
 **Sécurité (sans exception)**

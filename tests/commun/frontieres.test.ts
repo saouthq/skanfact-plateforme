@@ -186,6 +186,9 @@ describe('le contrôle des frontières', () => {
     // Mais si le code servi a changé, un « déplacement » n'inscrit rien.
     fs.appendFileSync(path.join(r, PAIE), '  function encoreUne() { return prixVente(); }\n');
     expect(ecrireConnus(r, { deplacement: true }).refus[0]).toMatch(/n'inscrit ses écarts que si les écrans servis n'ont pas changé d'un octet/);
+    // Et un déplacement n'inscrit jamais un nom introuvable (ni une coupe au milieu, un nom en double, un nom lu trop tôt).
+    fs.appendFileSync(path.join(r, PAIE), '  function perdu() { return inconnu(); }\n');
+    expect(ecrireConnus(r, { deplacement: true }).refus.join('\n')).toMatch(/Un déplacement n'inscrit jamais « F1 entreprise v10\/app\.js inconnu » \(1\)/);
   });
 
   it('F12 : un gros fichier ne grandit pas hors de modules/ ; son plafond baisse avec lui', () => {

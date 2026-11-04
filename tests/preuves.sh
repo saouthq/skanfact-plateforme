@@ -2130,7 +2130,7 @@ prouver "un article sans objet proposé en ligne" $PC \
   "const ARTICLES_ABSENTS = ['filets', 'demenager', 'licence', 'maj'];" "const ARTICLES_ABSENTS = ['demenager', 'licence', 'maj'];" \
   "$TX2"
 prouver "une liste « jamais montré » qui nomme un disparu" $CG \
-  "    'lic.cle': {" "    'lic.clef': {" \
+  '    '"'"'lic.cle'"'"': { t: '"'"'Coller ta clé'"'"'' '    '"'"'lic.clef'"'"': { t: '"'"'Coller ta clé'"'"'' \
   "$TX3"
 
 # ── Brique 39 : l'exercice et sa balance d'ouverture ; la reprise d'un client (docs/cabinet.md, C16, C17) ──
@@ -16941,12 +16941,16 @@ prouver 'le pointage enregistré sans ses heures supplémentaires' 'web/public/p
   'jours: { ...(t.jours || {}) }, hs: {} };' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 prouver 'les heures supplémentaires d'"'"'un dossier tenu jamais gardées dans sa fiche' 'web/public/plateforme/pont-cabinet.js' \
-  ''"'"'foprolosRate'"'"', '"'"'heuresMois'"'"', '"'"'hsMaj1'"'"', '"'"'hsMaj2'"'"', '"'"'hsMaj3'"'"', '"'"'leaveDaysPerYear'"'"'];' \
-  ''"'"'foprolosRate'"'"', '"'"'leaveDaysPerYear'"'"'];' \
+  'const TAUX_DU_DOSSIER = ['"'"'accidentRate'"'"', '"'"'tfpRate'"'"', '"'"'foprolosRate'"'"', '"'"'heuresMois'"'"', '"'"'hsMaj1'"'"', '"'"'hsMaj2'"'"', '"'"'hsMaj3'"'"', '"'"'leaveDaysPerYear'"'"'];' \
+  'const TAUX_DU_DOSSIER = ['"'"'accidentRate'"'"', '"'"'tfpRate'"'"', '"'"'foprolosRate'"'"', '"'"'leaveDaysPerYear'"'"'];' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
 prouver 'un bulletin nouveau sans le prorata de l'"'"'entrée' 'web/public/v10/compta.js' \
-  'const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;' \
-  'const gross = employee.grossSalary;' \
+  'dernier) motifs.push(`sortie le ${jjmmaaaa(employee.endDate)}`);
+    const brutFiche = round3(Number(employee.grossSalary) || 0);
+    const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;' \
+  'dernier) motifs.push(`sortie le ${jjmmaaaa(employee.endDate)}`);
+    const brutFiche = round3(Number(employee.grossSalary) || 0);
+    const gross = employee.grossSalary;' \
   'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
 prouver 'un mois pointé sans ses heures supplémentaires au bulletin nouveau' 'web/public/v10/compta.js' \
   'return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month), retardsDuMois(data, employee, year, month, p).concat(heuresDeNuitDuMois(data, employee, year, month, p).lignes)) } : i;' \
@@ -17039,8 +17043,8 @@ prouver 'un droit annuel de zéro jour gardé dans la fiche' 'serveur/cabinet/ro
   '.refine((v) => Number(v) <= 60);' \
   '(1.70.0) le droit annuel aux congés payés d'"'"'un dossier tenu se garde dans la fiche, en jours ouvrables ; une forme fausse est refusée'
 prouver 'le droit annuel d'"'"'un dossier tenu jamais gardé dans sa fiche' 'web/public/plateforme/pont-cabinet.js' \
-  ''"'"'hsMaj3'"'"', '"'"'leaveDaysPerYear'"'"'];' \
-  ''"'"'hsMaj3'"'"'];' \
+  'const TAUX_DU_DOSSIER = ['"'"'accidentRate'"'"', '"'"'tfpRate'"'"', '"'"'foprolosRate'"'"', '"'"'heuresMois'"'"', '"'"'hsMaj1'"'"', '"'"'hsMaj2'"'"', '"'"'hsMaj3'"'"', '"'"'leaveDaysPerYear'"'"'];' \
+  'const TAUX_DU_DOSSIER = ['"'"'accidentRate'"'"', '"'"'tfpRate'"'"', '"'"'foprolosRate'"'"', '"'"'heuresMois'"'"', '"'"'hsMaj1'"'"', '"'"'hsMaj2'"'"', '"'"'hsMaj3'"'"'];' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
 prouver 'un congé jamais enregistré' 'web/public/plateforme/pont-cabinet.js' \
   'await ecrirePaieDuDossier(o.dossierId, '"'"'leaves'"'"', c.id, { ...(paieAvant(o.dossierId, '"'"'leaves'"'"', c.id) || {}), ...garde });' \
@@ -23611,6 +23615,85 @@ prouver 'R0c an : le contrôle oublié par la construction' web/vite.config.ts \
 prouver 'R0c ao : un test de navigateur qui pose SKANFACT_CONTROLE' tests/web/leger.test.ts \
   '    process.env[PRECOMPRESSER] = '"'"'1'"'"';' '    process.env[PRECOMPRESSER] = '"'"'1'"'"'; process.env.SKANFACT_CONTROLE = '"'"'1'"'"'; delete process.env.SKANFACT_CONTROLE;' \
   "$RF8"
+# ── 17 § 6, lot R0b (1.266.10) : les preuves qui suivent le code (outils/rangement/preuves.ts, outils/rangement/deplacer.ts) ──
+RB1='un déplacement à l'"'"'identique : les morceaux, la table, le fichier servi inchangé à l'"'"'octet, les écarts révélés inscrits'
+RB2='chaque preuve suit son motif, réécrite à la ligne de son appel, et pose le même défaut qu'"'"'avant'
+RB3='un motif coupé, une coupe au milieu d'"'"'une instruction, une boucle partagée, un fichier hors de sa ligne : refusés, et rien n'"'"'est écrit'
+RB4='le contrôle éclair apprend les pièges du rangement'
+RB5='un fichier servi dont la liste de morceaux change choisit toutes ses preuves ; les scripts des preuves s'"'"'en servent'
+RB6='sur le vrai fichier, la ligne de chaque preuve est celle de son appel'
+prouver 'R0b a : l'"'"'ancien fichier gardé après le déplacement (une copie morte)' outils/rangement/deplacer.ts \
+  '      fs.rmSync(path.join(racine, ancien), { force: true });' '      void ancien;' \
+  "$RB1"
+prouver 'R0b b : le déplacement qui n'"'"'inscrit pas les écarts qu'"'"'il révèle' outils/rangement/deplacer.ts \
+  '  const inscrits = ecrireConnus(racine, { deplacement: true });' '  const inscrits = ecrireConnus(racine);' \
+  "$RB1"
+prouver 'R0b c : un morceau coupé qui perd son saut de ligne' outils/rangement/deplacer.ts \
+  'const partie = lignes.slice(debut, fin).join('"'"'\n'"'"') + (fin < total || texte.endsWith('"'"'\n'"'"') ? '"'"'\n'"'"' : '"'"''"'"');' 'const partie = lignes.slice(debut, fin).join('"'"'\n'"'"');' \
+  "$RB1"
+prouver 'R0b d : un refus qui laisse les morceaux écrits' outils/rangement/deplacer.ts \
+  '  for (const s of suivis) if (!equivalente(s, avant, apres)) refus.push(`Preuve « ${s.preuve.nom} » : suivie dans ${s.fichier}, elle ne poserait pas le même défaut qu'"'"'avant (l'"'"'équivalence).`);
+  if (refus.length) { remettre(); return bilan(refus); }' '  for (const s of suivis) if (!equivalente(s, avant, apres)) refus.push(`Preuve « ${s.preuve.nom} » : suivie dans ${s.fichier}, elle ne poserait pas le même défaut qu'"'"'avant (l'"'"'équivalence).`);
+  if (refus.length) { return bilan(refus); }' \
+  "$RB3"
+prouver 'R0b e : un déplacement lancé sur des frontières rouges' outils/rangement/deplacer.ts \
+  '  if (avantMesure.length) return bilan([' '  if (avantMesure.length < 0) return bilan([' \
+  "$RB3"
+prouver 'R0b w : la table réécrite autrement, qui fait perdre leur motif aux preuves qui la visent' outils/rangement/deplacer.ts \
+  '[${liste.map((m) => JSON.stringify(m)).join('"'"', '"'"')}]' '[${liste.map((m) => JSON.stringify(m)).join('"'"','"'"')}]' \
+  "$RB1"
+prouver 'R0b f : une preuve qui ne suit pas son motif' outils/rangement/preuves.ts \
+  '      if (n === 1 && ou[0]) return ou[0];' '      if (n === 1 && ou[0]) return r.fichier;' \
+  "$RB2"
+prouver 'R0b g : une preuve qui suit un motif présent deux fois' outils/rangement/preuves.ts \
+  '      if (n === 1 && ou[0]) return ou[0];' '      if (n >= 1 && ou[0]) return ou[0];' \
+  "$RB3"
+prouver 'R0b h : l'"'"'équivalence qui ne compare pas les défauts posés' outils/rangement/preuves.ts \
+  '    if (a == null || b == null || a !== b) return false;' '    if (a == null || b == null) return false;' \
+  "$RB2"
+prouver 'R0b i : la réécriture qui prend le nom de la preuve pour son fichier' outils/rangement/preuves.ts \
+  '  if (!mot()) return null;
+  return mot();' '  return mot();' \
+  "$RB2"
+prouver 'R0b j : les preuves d'"'"'une boucle envoyées dans deux morceaux sans refus' outils/rangement/preuves.ts \
+  '    if (cibles.length > 1) { refus.push(' '    if (cibles.length > 2) { refus.push(' \
+  "$RB3"
+prouver 'R0b k : deux fichiers d'"'"'une preuve réécrits sans guillemets (un tube pour bash)' outils/rangement/preuves.ts \
+  'const enMot = (v: string) => (/^[A-Za-z0-9._/-]+$/.test(v) ? v :' 'const enMot = (v: string) => (v.length > 0 ? v :' \
+  "$RB2"
+prouver 'R0b l : un motif présent dans deux fichiers de sa famille, accepté' outils/rangement/preuves.ts \
+  '        if (n > 1) fautes.push({ genre: '"'"'MOTIF DANS LA FAMILLE'"'"'' '        if (n > 2) fautes.push({ genre: '"'"'MOTIF DANS LA FAMILLE'"'"'' \
+  "$RB4"
+prouver 'R0b m : un morceau que la table ignore, accepté' outils/rangement/preuves.ts \
+  '&& !declares.has(r.fichier)) {' '&& declares.has(r.fichier)) {' \
+  "$RB4"
+prouver 'R0b n : un défaut qui casse le fichier assemblé, accepté' outils/rangement/preuves.ts \
+  '      if (casse) fautes.push({ genre: '"'"'SYNTAXE CASSÉE'"'"'' '      if (casse && casse.length < 0) fautes.push({ genre: '"'"'SYNTAXE CASSÉE'"'"'' \
+  "$RB4"
+prouver 'R0b o : une preuve d'"'"'un outil du rangement qui vise un test d'"'"'écran, acceptée' outils/rangement/preuves.ts \
+  '        if (ici.some(([f]) => !f.startsWith(TESTS_DU_RANGEMENT))) {' '        if (ici.some(([f]) => f.startsWith('"'"'nulle-part/'"'"'))) {' \
+  "$RB4"
+prouver 'R0b p : un changement d'"'"'ordre des morceaux qui ne choisit aucune preuve' outils/rangement/preuves.ts \
+  '[...tous].filter((s) => JSON.stringify(avant[s] ?? [`${PUBLIC}/${s}`]) !== JSON.stringify(apres[s] ?? [`${PUBLIC}/${s}`]))' '[...tous].filter((s) => JSON.stringify([...(avant[s] ?? [`${PUBLIC}/${s}`])].sort()) !== JSON.stringify([...(apres[s] ?? [`${PUBLIC}/${s}`])].sort()))' \
+  "$RB5"
+prouver 'R0b q : le déplacement qui oublie les preuves de l'"'"'ancien fichier' outils/rangement/preuves.ts \
+  'servis.flatMap((s) => [...(avant[s] ?? [`${PUBLIC}/${s}`]), ...(apres[s] ?? [`${PUBLIC}/${s}`])])' 'servis.flatMap((s) => [...(apres[s] ?? [`${PUBLIC}/${s}`])])' \
+  "$RB5"
+prouver 'R0b r : le contrôle éclair qui ne lit pas les pièges du rangement' tests/verif-preuves.sh \
+  '(cd "$ICI" && node outils/rangement/preuves.ts --controler "$liste" > "$rangement")' '(cd "$ICI" && : > "$rangement")' \
+  "$RB5"
+prouver 'R0b s : le choix des preuves qui ignore les fichiers réassemblés' tests/preuves-nouvelles.sh \
+  '(cd "$ICI" && node outils/rangement/preuves.ts --choisir "$tmp/table-base.json" "$tmp/ici.lst") >> "$tmp/noms.txt" || exit 2' ': >> "$tmp/noms.txt" || exit 2' \
+  "$RB5"
+prouver 'R0b t : la ligne d'"'"'une preuve décalée d'"'"'une ligne' tests/lister-preuves.sh \
+  '"$((PREMIERE + BASH_LINENO[0] - EVAL))"' '"$((PREMIERE + BASH_LINENO[0] - EVAL - 1))"' \
+  "$RB6"
+prouver 'R0b u : un déplacement qui inscrit un nom introuvable' outils/rangement/frontieres.ts \
+  '    if (jamais.length && options.deplacement) refus.push(' '    if (jamais.length && options.deplacement && jamais.length < 0) refus.push(' \
+  "$RF6"
+prouver 'R0b v : un déplacement qui inscrit une coupe au milieu d'"'"'une instruction' outils/rangement/frontieres.ts \
+  '    if (jamais.length && options.deplacement) refus.push(' '    if (jamais.length && options.deplacement && jamais.length < 0) refus.push(' \
+  "$RB3"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

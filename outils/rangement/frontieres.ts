@@ -586,6 +586,10 @@ export function ecrireConnus(racine = RACINE_DU_DEPOT, options: { deplacement?: 
   const refus: string[] = [];
   if (avant) {
     const hausses = Object.entries(mesures).filter(([cle, n]) => n > (avant.ecarts[cle] ?? 0));
+    // Un déplacement révèle des lectures d'un module à l'autre ; jamais une coupe au milieu d'une instruction, un nom
+    // introuvable, défini deux fois ou lu trop tôt : ceux-là restent refusés (17 § 6, lot B : « F1, F8 et F9 à zéro »).
+    const jamais = hausses.filter(([cle]) => /^F(0|1|8|9) /.test(cle));
+    if (jamais.length && options.deplacement) refus.push(...jamais.map(([cle, n]) => `Un déplacement n'inscrit jamais « ${cle} » (${n}) : ${CODES[cle.split(' ')[0] ?? '']?.quoi ?? ''}.${conseil(cle.split(' ')[0] ?? '')}`));
     if (hausses.length && !options.deplacement) {
       refus.push(...hausses.map(([cle, n]) => `La liste ne peut que baisser : « ${cle} » passerait de ${avant.ecarts[cle] ?? 0} à ${n}.${conseil(cle.split(' ')[0] ?? '')}`));
     } else if (hausses.length && avant.empreinte !== empreinte) {

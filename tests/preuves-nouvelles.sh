@@ -25,6 +25,11 @@ base = set(lire(sys.argv[1]))
 for p in lire(sys.argv[2]):
     if p not in base: print(p[0].decode('utf-8'))
 EOF
+# Et un fichier servi dont la liste de morceaux change (17 § 6, point 4 : un morceau nouveau, retiré ou déplacé) choisit
+# toutes ses preuves, même celles qui n'ont pas changé (outils/rangement/preuves.ts).
+git -C "$ICI" show "$BASE:modules/assemblage.json" > "$tmp/table-base.json" 2>/dev/null || : > "$tmp/table-base.json"
+(cd "$ICI" && node outils/rangement/preuves.ts --choisir "$tmp/table-base.json" "$tmp/ici.lst") >> "$tmp/noms.txt" || exit 2
+sort -u -o "$tmp/noms.txt" "$tmp/noms.txt"
 n="$(grep -c . "$tmp/noms.txt")"
 if [ "$n" -eq 0 ]; then echo "Aucune preuve nouvelle ou changée depuis $BASE."; exit 0; fi
 echo "$n preuves nouvelles ou changées depuis $BASE."

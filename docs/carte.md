@@ -152,6 +152,11 @@ vaut pour tout le dépôt.*
     sauf un déplacement à l'identique (`--deplacement`, prouvé par l'empreinte des écrans). Il tourne dans `npm test`,
     `npm run frontieres` et la construction de la production (`SKANFACT_CONTROLE=1`, posée par le suiveur), jamais dans
     celles des tests (`tests/commun/frontieres.test.ts`).
+  - **Les preuves qui suivent** (1.266.10, lot R0b du `17` § 6) : `outils/rangement/deplacer.ts PLAN.json` coupe un
+    fichier servi en morceaux sous `modules/<module>/`, tout ou rien, à l'identique, et fait suivre chaque preuve
+    (`outils/rangement/preuves.ts` : le morceau de sa famille qui porte son motif, réécrit à la ligne de son appel,
+    l'équivalence de chacune) ; le contrôle éclair dit les pièges du rangement, et un fichier dont la liste de morceaux
+    change choisit toutes ses preuves (`tests/commun/preuves-suivent.test.ts`).
   - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
     (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
     (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs
