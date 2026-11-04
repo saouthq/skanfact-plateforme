@@ -2303,7 +2303,9 @@
     const tete = $('.page-head', view);
     const html = `<div class="vues-page" role="navigation" data-page="${h(id)}" aria-label="${h(`Les vues de « ${l[0].titre} »`)}">${l.map(p => {
       const n = p.id === id ? 0 : (COMPTE_DE_VUE[p.id] || (() => 0))();
-      return `<a href="#/${p.id}" class="vue" data-vue="${p.id}"${p.id === id ? ' aria-current="page"' : ''}>${h(p.vueNom || p.titre)}${n ? ` <span class="tab-n">${n > 99 ? '99+' : n}</span>` : ''}</a>`;
+      // (1.272.0) Une vue que l'offre ferme (les Immobilisations en Essentiel) porte son cadenas ici : le menu n'a plus sa ligne.
+      const ferme = pageReservee(p);
+      return `<a href="#/${p.id}" class="vue" data-vue="${p.id}"${p.id === id ? ' aria-current="page"' : ''}${ferme ? ' title="Dans l\'offre Complet : ici, tu peux lire, pas créer."' : ''}>${h(p.vueNom || p.titre)}${ferme ? CADENAS : ''}${n ? ` <span class="tab-n">${n > 99 ? '99+' : n}</span>` : ''}</a>`;
     }).join('')}</div>`;
     if (tete) tete.insertAdjacentHTML('afterend', html); else view.insertAdjacentHTML('afterbegin', html);
   }
@@ -3338,6 +3340,9 @@
   let askingLeave = false;
   window.addEventListener('hashchange', async () => {
     if (ignoreHashChange) { ignoreHashChange = false; return; }
+    // (1.272.0) Une adresse posée avant que le dossier soit lu (juste après un rechargement) : rien à dessiner encore ;
+    // le premier dessin, au dossier lu, lira l'adresse du moment (vu sur GitHub : « company » de null, caisse-z).
+    if (!data) return;
     if (guard && guard.dirty()) {
       // Une seule question à la fois : chaque clic pendant la question en empilait une autre, et
       // l'application finissait par ne plus répondre du tout.

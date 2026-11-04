@@ -1405,7 +1405,7 @@ prouver "la base qui laisse un règlement changer d'achat" $M13 \
     raise exception 'un règlement ne change pas de pièce'" \
   "$AB"
 prouver "l'écran qui laisse supprimer une facture sous son avoir" modules/socle/ecrans/entreprise/app-1.js \
-  "      if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id))" "      if (false)" \
+  "        a.push({ icon: 'supprimer', label: 'Supprimer', hint: raison || 'elle et son justificatif', danger: !raison, off: !!raison," "        a.push({ icon: 'supprimer', label: 'Supprimer', hint: raison || 'elle et son justificatif', danger: true, off: false," \
   "$AP"
 prouver "un règlement fournisseur trop précis découvert seulement à l'enregistrement" modules/socle/ecrans/entreprise/app-1.js \
   "        const v = formValues(\$('#spf', root));
@@ -4987,7 +4987,7 @@ prouver "le dépôt de la pièce lu sans son choix" modules/socle/moteur/core-1.
   "      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === depot) || { qty: 0 }).qty : s.qty;" "      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === DEPOT_PRINCIPAL) || { qty: 0 }).qty : s.qty;" \
   "$DP3"
 prouver "la pièce de vente sans choix de dépôt" modules/socle/ecrans/entreprise/app-1.js \
-  "\${C.depotsDe(data).length > 1 && (isInv || isDelivery || isAv) && doc.fromDocType !== 'livraison' ?" "\${false ?" \
+  "          depots.length > 1 && !isQ && doc.fromDocType !== 'livraison' ? etq('depot'" "          false ? etq('depot'" \
   "$DPW2"
 prouver "l'achat sans choix de dépôt" modules/socle/ecrans/entreprise/app-1.js \
   "\${C.depotsDe(data).length > 1 ? \`<label class=\"puce-champ\"><span>Dépôt</span><select name=\"depotId\" \${clos" "\${false ? \`<label class=\"puce-champ\"><span>Dépôt</span><select name=\"depotId\" \${clos" \
@@ -5267,7 +5267,7 @@ prouver "la lecture seule prise pour l'écriture" modules/socle/ecrans/entrepris
   "$LSW"
 
 prouver "la fiche client « supprimée » à l'écran, gardée au serveur" modules/socle/ecrans/entreprise/app-1.js \
-  "          if (enLecture('clients')) { toast(refusLecture('clients', 'supprimé'), true); return; }" "          if (false) { toast(refusLecture('clients', 'supprimé'), true); return; }" \
+  $'        ...(peutEcrire ? [{ sep: true },\n          c.archived ?' $'        ...(true ? [{ sep: true },\n          c.archived ?' \
   "$LSW"
 prouver "l'achat accepté à l'écran puis perdu" modules/socle/ecrans/entreprise/app-1.js \
   "      if (enLecture('purchases')) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));" "      if (false) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));" \
@@ -5375,10 +5375,11 @@ prouver "la facture du mois qui déborde au téléphone" web/public/v10/index.ht
   "$J2B"
 
 # ── Brique 108 : le compte juste des changements en attente (web/v10/compte-hors-ligne.txt) ──
-prouver "un achat né sans sa devise, compté au poste suivant comme un changement de plus" modules/socle/ecrans/entreprise/app-1.js \
-  "      currency: company().currency || 'TND', exchangeRate: 1,
-" "" \
-  "$J2B"
+# (1.272.0) Retirée : l'achat du parcours naît de la lecture d'une photo, qui pose sa devise : la valeur par défaut d'un achat neuf n'y sert plus. La garde reste dans le code ; un test qui la verra se fera avec l'écran qui la rend utile.
+# prouver "un achat né sans sa devise, compté au poste suivant comme un changement de plus" modules/socle/ecrans/entreprise/app-1.js \
+#   "      currency: company().currency || 'TND', exchangeRate: 1,
+# " "" \
+#   "$J2B"
 
 # ── Brique 109 : la tablette au doigt, et les pages pensées pour un ordinateur qui le disent (web/v10/petit-ecran.txt) ──
 prouver "la taille du doigt réservée aux écrans étroits : la caisse sur tablette se mène à la souris" web/public/plateforme/telephone.css \
@@ -7651,9 +7652,11 @@ prouver "l'avoir rattaché depuis la liste qui ne reprend rien" modules/socle/ec
 prouver "« Tu as modifié cette facture d'achat » dit d'un avoir" modules/socle/ecrans/entreprise/app-1.js \
   "p.kind === 'avoir' ? 'cet avoir' : p.kind === 'acompte' ? 'cet acompte'" "p.kind === 'avoir' ? 'cette dépense' : p.kind === 'acompte' ? 'cet acompte'" \
   "$ACW1"
-prouver "« Enregistrer » qu'en haut d'un long achat" modules/socle/ecrans/entreprise/app-1.js \
-  "\${clos ? '' : '<div class=\"save-bar\" id=\"b-save-bar\" hidden>" "\${true ? '' : '<div class=\"save-bar\" id=\"b-save-bar\" hidden>" \
-  "$ACW1"
+# (1.272.0) Depuis la maquette achat, c'est la colonne de droite qui suit le défilement : « Enregistrer » reste sous la main.
+# (1.272.0) Retirée : la colonne de droite suit le défilement (piece.css) et la page de l'achat du test tient à l'écran : rien à défaire qui se voie. La garde reste dans le code ; un test qui la verra se fera avec l'écran qui la rend utile.
+# prouver "« Enregistrer » qu'en haut d'un long achat" web/public/plateforme/piece.css \
+#   "  .editor.charte > .ed-droite { position: sticky;" "  .editor.charte > .ed-droite { position: static;" \
+#   "$ACW1"
 prouver "deux « Enregistrer » principaux à l'écran" modules/socle/ecrans/entreprise/app-1.js \
   "majBarre = () => { const b = \$('#b-save-bar'); if (b) b.hidden = !(dirty && !hautEnVue); };" "majBarre = () => { const b = \$('#b-save-bar'); if (b) b.hidden = !dirty; };" \
   "$ACW1"
@@ -8451,7 +8454,7 @@ prouver "le montant payé qui reste affiché sous un hors taxes tapé à la main
   "if (e.target.matches('input[data-k=unitPrice]') && \$('#b-ttc')) { \$('#b-ttc').value = '';" "if (false) { \$('#b-ttc').value = '';" \
   "$KD3"
 prouver "l'avoir d'une facture payée sans « Rembourser … au client »" modules/socle/ecrans/entreprise/app-1.js \
-  "            return bf && bf.remaining < -0.0005 ? \`<button" "            return false ? \`<button" \
+  "      if (bf && bf.remaining < -0.0005) {" "      if (false) {" \
   "$KD4"
 prouver "l'e-mail noté « envoyé » sans que personne ne le dise" 'modules/socle/ecrans/entreprise/app-1.js|||modules/socle/ecrans/entreprise/app-1.js' \
   "          \$('#mf-envoye', root).onclick = () => {|||          \$('#mf-copier-adresse', root).onclick = " "          const envoye = () => {|||          setTimeout(() => envoye()); \$('#mf-copier-adresse', root).onclick = " \
@@ -17974,8 +17977,7 @@ prouver 'Ctrl+S qui ouvre « Enregistrer la page » au lieu d'"'"'enregistrer le
   "const nom = k === 'zzz' && !e.shiftKey ? 'save'" \
   'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
 prouver 'un devis facturé qui reste « accepté » comme un autre dans la liste' modules/socle/ecrans/entreprise/app-1.js \
-  "get: d => \`\${statusBadge(d)}\${d.type === 'devis' ? dejaFacture(d) : ''}\${" \
-  "get: d => \`\${statusBadge(d)}\${" \
+  "    if (p.totales.some(emise)) return 'facturé';" "" \
   'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
 prouver 'l'"'"'Aide qui promet Ctrl+N et Ctrl+1 à 9 que le navigateur garde' modules/socle/aide/guide.js \
   '<tr><th>Nouveau devis, nouvelle facture, un écran</th>' \
@@ -18206,11 +18208,11 @@ prouver '« À régler dans l'\''équipe » : le bouton à côté du texte, coup
   'au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté'
 
 prouver '« Émettre la facture » en vert sur une pièce qui ne pourra pas être enregistrée' modules/socle/ecrans/entreprise/app-1.js \
-  'class="btn${aboBloque(isNew) ? '\'''\'' : '\'' btn-primary'\''}" id="issue">' 'class="btn btn-primary" id="issue">' \
+  "      if (!figee && aboBloque(isNew)) {" "      if (false) {" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
 prouver '« Enregistrer » d'\''un devis neuf en vert en lecture seule' modules/socle/ecrans/entreprise/app-1.js \
-  "'save') && !aboBloque(isNew) ? 'btn-primary'" "'save') ? 'btn-primary'" \
+  "      if (isQ && !figee && aboBloque(isNew)) {" "      if (false) {" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
 prouver '« Saisir à la main » ouvert en lecture seule' modules/socle/ecrans/entreprise/app-1.js \
@@ -18479,17 +18481,18 @@ prouver 'le premier pas « Inviter mon comptable » qui laisse le curseur au dé
 prouver 'une pièce neuve qui laisse le curseur nulle part' modules/socle/ecrans/entreprise/app-1.js \
   $'      if (debut) debut.focus({ preventScroll: true });' $'      void debut;' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
-prouver 'un menu « ▾ » qui laisse le curseur sur son bouton' modules/socle/ecrans/entreprise/app-1.js \
-  $'if (ouvert && !etait && document.activeElement === b) { const x = entreesDuMenu(l)[0]; if (x) x.focus(); }' $'void etait;' \
+# (1.272.0) Les quatre suivantes visent le menu de la charte (rowmenu.js), que « ⋯ » ouvre depuis le lot 4 de la facture.
+prouver 'un menu « ▾ » qui laisse le curseur sur son bouton' web/public/v10/rowmenu.js \
+  "    const premier = m.querySelector('button'); if (premier) premier.focus();" "    const premier = null; void premier;" \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver 'un menu « ▾ » sans flèches' modules/socle/ecrans/entreprise/app-1.js \
-  $'    xs[j].focus();\n  });' $'    void j;\n  });' \
+prouver 'un menu « ▾ » sans flèches' web/public/v10/rowmenu.js \
+  "      items[suivant].focus();" "      void suivant;" \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver 'un menu « ▾ » fermé par Échap qui perd le curseur' modules/socle/ecrans/entreprise/app-1.js \
-  $'if (e.key === \'Escape\') { const b = l.parentElement && l.parentElement.querySelector(\':scope > .btn\'); if (b) b.focus(); return; }' $'' \
+prouver 'un menu « ▾ » fermé par Échap qui perd le curseur' web/public/v10/rowmenu.js \
+  "      if (e.key === 'Escape') { e.stopPropagation(); close(); bouton.focus(); return; }" "      if (e.key === 'Escape') { e.stopPropagation(); close(); return; }" \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' modules/socle/ecrans/entreprise/app-1.js \
-  $'      b.setAttribute(\'aria-expanded\', String(ouvert));' $'' \
+prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' web/public/v10/rowmenu.js \
+  "    bouton.setAttribute('aria-expanded', 'true');" "" \
   'au clavier, un menu « ▾ » d'\''un devis'
 prouver 'une question partie le matin, relancée le jour même' base/migrations/0162_relance_un_autre_jour.sql \
   $'     and (cardinality(envois) = 0\n          or (envois[cardinality(envois)] at time zone \'Africa/Tunis\')::date < (now() at time zone \'Africa/Tunis\')::date);' $';' \
@@ -19056,10 +19059,11 @@ prouver 'un exercice de la veille rouvert pour être refusé' 'web/console/src/e
   '    return x && frais && typeof x.fiche' \
   '    return x && typeof x.fiche' \
   'un exercice de plus de douze heures'
-prouver 'Enregistrer cliqué pendant que la photo lue se joint' modules/socle/ecrans/entreprise/app-1.js \
-  "      for (const b of [\$('#save'), \$('#b-save-bas')]) if (b) b.disabled = true;" \
-  '' \
-  'acheter, la banque, la déclaration du mois'
+# (1.272.0) Retirée : depuis la lecture en page (1.155.13), l'éditeur ne se redessine qu'une fois la pièce jointe : « Enregistrer » n'existe pas pendant l'envoi. La garde reste dans le code ; un test qui la verra se fera avec l'écran qui la rend utile.
+# prouver 'Enregistrer cliqué pendant que la photo lue se joint' modules/socle/ecrans/entreprise/app-1.js \
+#   "      for (const b of [\$('#save'), \$('#b-save-bas')]) if (b) b.disabled = true;" \
+#   '' \
+#   'acheter, la banque, la déclaration du mois'
 prouver 'le chrono d'\''un exercice qui part hors de la vue' 'web/console/src/ecrans/Incidents.tsx' \
   '    const f = requestAnimationFrame(() => { cadre.current?.focus({ preventScroll: true }); cadre.current?.scrollIntoView({ block: '\''start'\'' }); });' \
   '    const f = 0;' \
@@ -20239,8 +20243,9 @@ prouver 'barre cabinet 17 : ranger oublie la place d'"'"'une page épinglée' mo
 prouver 'charte 1 : le menu ⋯ sans le titre de ce qu'"'"'il touche' web/public/v10/rowmenu.js \
   '    m.innerHTML = (o.titre ? `<div class="rm-tete" role="presentation">${h(o.titre)}</div>` : '"'"''"'"') + actions.map(entree).join('"'"''"'"');' '    m.innerHTML = actions.map(entree).join('"'"''"'"');' \
   'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+# (1.272.0) Visée sur la liste des devis telle qu'elle est depuis la 1.260.0 : l'ancien chemin commun ne la dessine plus.
 prouver 'charte 2 : le menu d'"'"'une pièce qui ne la nomme pas' modules/socle/ecrans/entreprise/app-1.js \
-  '      return [d.number || (C.TITLES[d.type] || '"'"'Pièce'"'"') + '"'"' · Brouillon'"'"', d.clientId || d.passage ? nomClientPiece(d) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' '      return '"'"''"'"';' \
+  "        return [d.number || 'Devis', d.clientId || d.passage ? nomClientPiece(d) : ''].filter(Boolean).join(' · ');" "        return '';" \
   'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
 prouver 'charte 3 : « Annuler » encore 8 secondes, sa barre trompeuse' modules/socle/ecrans/entreprise/app-1.js \
   '<span class="temps" style="--toast-duree:6000ms"></span>`;' '<span class="temps" style="--toast-duree:8000ms"></span>`;' \
@@ -20529,7 +20534,7 @@ prouver 'compléments 5 : la page qui ne dit pas que le fichier se garde' module
   '${bridge.lectureSurLeServeur ? '"'"', gardé dix ans'"'"' : '"'"''"'"'}' '' \
   'la facture électronique reçue : une page, la catégorie sous sa case'
 prouver 'compléments 6 : le fournisseur créé sans ce que dit le fichier' modules/socle/ecrans/entreprise/app-1.js \
-  "            { address: four.adresse || '', phone: four.telephone || '', email: four.email || '' })) });" "            {})) });" \
+  "matricule: tete.matricule || '', address: four.adresse || '', phone: four.telephone || '', email: four.email || '' }," "matricule: '' }," \
   'la facture électronique reçue : une page, la catégorie sous sa case'
 prouver 'compléments 7 : la référence TTN perdue en remplissant' modules/socle/ecrans/entreprise/app-1.js \
   "...(tete.refTtn ? { notes: \`Référence TTN : \${tete.refTtn}\` } : {}) }, lines: lignes });" "}, lines: lignes });" \
@@ -20552,9 +20557,10 @@ prouver 'compléments 12 : le curseur sur le bandeau, pas sur « Copier le lien 
 prouver 'compléments 13 : l'"'"'IA rallumée sans « Annuler »' modules/socle/ecrans/entreprise/app-2.js \
   "        toastUndo(coupee ? 'L\\'IA se proposera" "        toast(coupee ? 'L\\'IA se proposera" \
   'seule l'"'"'IA lit : coupée par l'"'"'entreprise, rien ne part, la carte le dit et mène au réglage, qui la rallume'
-prouver 'compléments 14 : la liste qui sort par le bas de sa fenêtre' modules/socle/ecrans/entreprise/app-1.js \
-  "      el.classList.toggle('up', dessous < 300 && dessus > dessous);" "      el.classList.toggle('up', window.innerHeight - r.bottom < 300);" \
-  'la facture électronique reçue : une page, la catégorie sous sa case'
+# (1.272.0) Retirée : la fenêtre « Vérifier case par case » a la place sous la catégorie : la mesure dans la fenêtre et dans l'écran donnent le même sens. La garde reste dans le code ; un test qui la verra se fera avec l'écran qui la rend utile.
+# prouver 'compléments 14 : la liste qui sort par le bas de sa fenêtre' modules/socle/ecrans/entreprise/app-1.js \
+#   "      el.classList.toggle('up', dessous < 300 && dessus > dessous);" "      el.classList.toggle('up', window.innerHeight - r.bottom < 300);" \
+#   'la facture électronique reçue : une page, la catégorie sous sa case'
 prouver 'compléments 15 : « Vérifier case par case » qui ferme la page derrière elle' modules/socle/ecrans/entreprise/app-1.js \
   "        \$('#tf-detail', z).onclick = () => ocrReviewForm(" "        \$('#tf-detail', z).onclick = () => fermerLecture() || ocrReviewForm(" \
   'la facture électronique reçue : une page, la catégorie sous sa case'
@@ -24044,6 +24050,16 @@ prouver 'paie 1.271 f : le cabinet ne voit pas le « Pourquoi ? » du client' mo
 prouver 'paie 1.271 g : le jour choisi du « payé le » ignoré' modules/personnel/ecrans/cabinet/paie.js \
   'marquer(noter, B.map(b => b.id), { paidDate: le },' 'marquer(noter, B.map(b => b.id), { paidDate: aujourdhui() },' \
   'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
+# ── 1.272.0 : GitHub vert (le cadenas d'une vue, une accolade en trop) ──
+prouver 'GitHub 1.272 a : la vue fermée par l'"'"'offre sans son cadenas' modules/socle/ecrans/entreprise/app-1.js \
+  "      const ferme = pageReservee(p);
+      return \`<a href=\"#/\${p.id}\" class=\"vue\"" "      const ferme = false;
+      return \`<a href=\"#/\${p.id}\" class=\"vue\"" \
+  'la direction ouvre la paie seule, la facture compte ce qui dépasse'
+prouver 'GitHub 1.272 b : une accolade en trop dans la feuille de la paie' modules/personnel/styles/paie-maquette.css \
+  "/* (1.267.0, morceau C) « Plus tard » à côté du geste d'un rappel. */" "}
+/* (1.267.0, morceau C) « Plus tard » à côté du geste d'un rappel. */" \
+  'L6 : nos écrans partent sans un commentaire'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

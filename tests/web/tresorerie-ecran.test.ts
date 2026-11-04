@@ -140,7 +140,8 @@ describe('la trésorerie : cartes, seuil, essai, relevé importé, effets', () =
     const pf = p.locator('#modal-root .modal', { hasText: 'Enregistrer un paiement' });
     expect(await pf.locator('[data-effet]').evaluate((x) => getComputedStyle(x).visibility)).toBe('hidden');
     await pf.locator('[data-mode="traite"]').click();
-    expect(await pf.locator('[data-effet]').evaluate((x) => getComputedStyle(x).visibility)).toBe('visible');
+    // La case de l'échéance paraît au dessin qui suit le choix (1.272.0 : lue trop tôt sur GitHub).
+    await expect.poll(() => pf.locator('[data-effet]').evaluate((x) => getComputedStyle(x).visibility), { timeout: 5_000 }).toBe('visible');
     await lireDate(p, '#modal-root [data-effet]', jour(40));
     await pf.locator('[name=reference]').fill('TR-0042');
     await pf.locator('#ok').click();

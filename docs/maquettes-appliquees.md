@@ -750,3 +750,22 @@ Skander, 04/11/2026 : « d'accord pour Relances et Autres pièces, continue ».
   facturations à générer), sauf si la vue a déjà le sien « Au quotidien ».
 - Tests : `tests/web/barre.test.ts` (les six familles dans l'ordre, le volet Vendre sans les vues, la bande sur une ligne
   sous le titre, aller et retour entre les vues, ce qui s'allume, « Plus » au téléphone), `tests/commun/fiches-modules.test.ts`.
+
+## 1.272.0 : GitHub vert (04/11/2026)
+
+- **Le cadenas d'une vue** : depuis le menu à six familles, une page fermée par l'offre peut être une vue (les
+  Immobilisations, vue de la Comptabilité) et n'a plus de ligne dans le menu. Son cadenas est sur l'onglet de la vue,
+  avec la même bulle (« Dans l'offre Complet : ici, tu peux lire, pas créer ») ; le menu n'en montre plus
+  (`tests/web/offre-compte.test.ts`).
+- **Une accolade en trop** dans `modules/personnel/styles/paie-maquette.css` (depuis la 1.267.0) faisait tomber la règle
+  qui suivait (« Plus tard » des rappels) ; vue par le contrôle L6 de `leger.test.ts` (relu par un second analyseur).
+- **Une adresse posée avant la lecture du dossier** (juste après un rechargement) ne dessine plus une page sans données
+  (« company » de null, vu sur GitHub dans `caisse-z.test.ts`).
+- **La lecture seule par la recherche** : « Nouveau client » et l'import des clients restent dans la recherche (Ctrl+K) pour
+  qui ne fait que lire ; le refus tient et se dit (`lecture-seule.test.ts` le joue maintenant).
+- **18 preuves reciblées** sur le code que les écrans refaits utilisent (le menu de la charte `rowmenu.js`, la colonne de
+  droite des pièces, la liste des devis de la 1.260.0, la fiche client, l'étiquette du dépôt) ; le test de la grâce reçoit
+  un devis oublié, pour qu'il y ait un autre vert à éteindre. **Quatre retirées**, la garde gardée dans le code : « Enregistrer »
+  en haut d'un long achat, « Enregistrer » pendant que la photo se joint, la devise d'un achat neuf, la liste qui sortait
+  de sa fenêtre — l'écran refait ne laisse plus voir ces défauts (raison écrite à côté de chacune, `tests/preuves.sh`).
+- **Reste rouge** : S1 (1 399 Ko pour 1 300) ; le levier est le lot suivant (`docs/leger.md`, L9).

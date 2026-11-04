@@ -29,6 +29,7 @@ body.dark { --ch-bleu-doux: color-mix(in srgb, #4d7cf2 24%, var(--sb-papier)); -
 #view .vues-page a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 13px; border-radius: 9px;
   font-family: var(--sb-police); font-size: 13.5px; font-weight: 600; color: var(--sb-gris); text-decoration: none; white-space: nowrap; }
 #view .vues-page a:hover, #view .vues-page a:focus { text-decoration: none; }
+#view .vues-page a .nav-lock { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; opacity: .55; flex: none; }
 #view .vues-page a:hover { color: var(--sb-encre); }
 #view .vues-page a[aria-current="page"] { background: var(--sb-papier); color: var(--sb-encre); box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
 #view .vues-page a:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 1px; }

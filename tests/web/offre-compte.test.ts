@@ -156,7 +156,12 @@ describe('ce que l\'offre compte, à la souris', () => {
     await plusTard(p);
     expect(await p.locator('.sidebar a[data-route="paie"] .nav-lock').count()).toBe(0);
     expect(await p.locator('.offre-banner').count()).toBe(0);
-    expect(await p.locator('.sidebar .nav-lock').count()).toBeGreaterThan(0);
+    // (1.272.0) Ce que l'offre ferme ici, ce sont les Immobilisations : depuis le menu à six familles (1.269.0), une vue de
+    // la Comptabilité, sans ligne dans le menu. Son cadenas est sur l'onglet de la vue ; le menu n'en montre aucun.
+    expect(await p.locator('.sidebar .nav-lock').count()).toBe(0);
+    await p.evaluate(() => { location.hash = '#/compta'; });
+    await expect.poll(() => p.locator('#view .vues-page [data-vue="immos"] .nav-lock').count(), { timeout: 10_000 }).toBe(1);
+    expect(await p.locator('#view .vues-page [data-vue="compta"] .nav-lock').count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/parametres'; });
     await cliquer(p.locator('#set-tabs [data-tab="abonnement"]'));
     await expect.poll(() => p.locator('.abo-offre.courante .abo-pas').innerText().then(net).catch(() => ''), { timeout: 15_000 })

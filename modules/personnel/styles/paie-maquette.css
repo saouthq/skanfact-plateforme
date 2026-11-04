@@ -1545,7 +1545,6 @@ body.dark .pm .papier { color: #1d2327; }
   .pm .apy-l.pa-payer-l li { grid-template-columns: 30px minmax(0, 1fr); }
   .pm .apy-l.pa-payer-l .pa-payer-g { grid-column: 1 / -1; justify-content: flex-start; }
 }
-}
 /* (1.267.0, morceau C) « Plus tard » à côté du geste d'un rappel. */
 .pm .pa-auj-g2 { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 /* Au téléphone, les deux boutons passent sous le texte du rappel (vu à 390 px : ils l'écrasaient). */

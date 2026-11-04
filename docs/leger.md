@@ -153,6 +153,14 @@ servaient pas à la première ouverture :
 - **Reste en réserve** : les visites guidées (environ 100 Ko compressés), à différer avec leur moteur ; la marge est de
   24 Ko : la prochaine page refaite se mesure avant d'être envoyée.
 
+## L9 (prévu, 1.273.0) : les visites et l'aide à la demande
+
+Le 04/11/2026, GitHub a mesuré S1 à **1 399 Ko** pour un seuil de 1 300 (la paie refaite pour le quotidien, 1.267 à
+1.271, et le menu à six familles). Une mesure qui dépasse change le plan, pas le seuil. Le levier gardé depuis L7 est pris,
+comme décidé au cadrage (17 § 9, décision 3) : les visites guidées (`visite.js`, `visites.js`, environ 73 Ko compressés) et le
+texte des articles d'Aide (environ 38 Ko) ne partent plus à la première ouverture ; ils se chargent au premier geste qui les
+demande (« Guide-moi », l'Aide, la recherche), et se gardent alors pour le hors-ligne.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à

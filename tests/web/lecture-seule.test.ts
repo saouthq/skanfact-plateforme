@@ -146,6 +146,29 @@ describe('les pages en lecture seule, à la souris', () => {
     const gestes = await o.getByRole('menuitem').allInnerTexts();
     expect(gestes.join(' | ')).not.toMatch(/Modifier|Archiver|Supprimer/);
     await o.keyboard.press('Escape');
+    // (1.272.0) La recherche (Ctrl+K) propose encore « Nouveau client » et l'import des clients, à qui ne fait que lire :
+    // la fiche remplie et le tableur collé sont refusés en le disant, et rien n'arrive au serveur.
+    const palette = async (q: string, geste: string) => {
+      await o.keyboard.press('Control+k');
+      await o.locator('#pal-q').fill(q);
+      await o.locator('#pal-res .res', { hasText: geste }).first().click();
+    };
+    await palette('nouveau client', 'Nouveau client');
+    await o.locator('#cf input[name=name]').fill('Client fantôme');
+    await o.locator('#modal-root #ok').click();
+    await expect.poll(() => toast(o), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les fiches clients, pas les modifier : rien n\'a été enregistré. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
+    // La fiche remplie se referme en demandant d'abord (une saisie ne se jette pas sans le dire).
+    await o.keyboard.press('Escape');
+    await o.getByRole('button', { name: 'Abandonner la saisie', exact: true }).click();
+    await expect.poll(() => o.locator('#modal-root .modal').count(), { timeout: 5_000 }).toBe(0);
+    await palette('importer mes clients', 'Importer mes clients');
+    await o.locator('#imp-texte').fill('Nom\nClient importé');
+    await o.locator('#imp-ok').click();
+    await expect.poll(() => toast(o), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les fiches clients, pas les modifier : rien n\'a été importé. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
+    await o.locator('#modal-root [data-close]').last().click();
+    const abandon = o.getByRole('button', { name: 'Abandonner la saisie', exact: true });
+    if (await abandon.count()) await abandon.click();
+    await expect.poll(() => o.locator('#modal-root .modal').count(), { timeout: 5_000 }).toBe(0);
     await o.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'lecture-2-client-refuse.png') });
     expect((await lire()).filter((x) => x.collection === 'clients').map((x) => x.contenu.name)).toEqual(['Chantier Ennasr']);
     await o.evaluate(() => { location.hash = '#/achat/new'; });

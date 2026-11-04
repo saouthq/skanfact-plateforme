@@ -89,10 +89,18 @@ describe('l\'abonnement après sa revue, à la souris', () => {
   it('en grâce, le bouton du bandeau est le seul vert : « + Nouvelle facture » ne l\'est plus, les premiers pas se taisent ; la grâce se dit sur sa durée', async () => {
     const sonia = await personne('Sonia');
     const ent = String((await api('POST', '/entreprises', sonia.jeton, { raisonSociale: 'Atelier en Grâce' })).corps.id);
+    // (1.272.0) Un devis oublié en brouillon : la liste « À faire » a une ligne, dont le bouton serait le vert de la page
+    // sans la grâce. Sans elle, l'accueil n'avait aucun autre vert à éteindre et le test ne pouvait pas tomber.
+    await api('GET', `/entreprises/${ent}/dossier-v10`, sonia.jeton);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sonia.jeton, { changements: [
+      { collection: 'documents', cle: 'd-oublie', rang: 0, revision: null, contenu: { id: 'd-oublie', type: 'devis', number: '', status: 'brouillon', date: plusJours(aujourdhui, -20), createdAt: 1,
+        lines: [{ label: 'Table en chêne', qty: 1, unitPrice: 850, vatRate: 19 }], payments: [] } },
+    ] })).statut).toBe(200);
     await finEssai(ent, plusJours(aujourdhui, -2));
     const p = await ouvrir(sonia.jeton, ent, '#/dashboard');
     await expect.poll(() => bandeau(p), { timeout: 15_000 }).toMatch(/^Ton essai est terminé Tout marche encore jusqu'au .+ ; le .+, l'entreprise passe en lecture seule\. Choisis ton offre avant cette date\. Choisir mon offre$/);
     expect(await principaux(p)).toEqual(['abo-accueil-go']);
+    expect(net(await p.locator('#view [data-todo]').first().innerText())).not.toBe('');
     // (1.156.0, maquette « Accueil ») « Nouvelle facture » est dans « Créer » de la barre : l'accueil n'en a plus.
     expect(await p.locator('#view .pp-accueil, #view .premiers-pas').count()).toBe(0);
     await p.locator('#abo-accueil-go').click();
