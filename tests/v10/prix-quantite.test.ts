@@ -1,4 +1,4 @@
-// Le prix par quantité, dans le code de la v10 (web/public/v10/core.js, adapté par web/v10/prix-quantite.txt ;
+// Le prix par quantité, dans le code de la v10 (v10/core.js, adapté par web/v10/prix-quantite.txt ;
 // brique 92, 14 § 3.2 : « prix par quantité (à partir de 10, de 100…) »). Le moteur seul :
 //   - le palier le plus haut que la quantité atteint ; sous le premier, le prix de l'article ;
 //   - ce qu'on tape (« 10 : 20,500 ; 100 : 19 ») se lit, se trie, et un palier illisible ou en double se refuse

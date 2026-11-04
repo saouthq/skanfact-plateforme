@@ -1,4 +1,4 @@
-// Les commandes fournisseurs et leurs réceptions, dans le code de la v10 (web/public/v10/core.js, adapté par
+// Les commandes fournisseurs et leurs réceptions, dans le code de la v10 (v10/core.js, adapté par
 // web/v10/commandes-fournisseurs.txt ; brique 87, 14 § 3.2). Le moteur seul :
 //   - la réception tirée d'une commande reprend ce qui RESTE à recevoir ; en brouillon, elle est « en
 //     préparation » ; annulée, elle ne compte pas ; validée, elle a reçu ;

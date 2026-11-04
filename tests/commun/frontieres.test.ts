@@ -51,7 +51,9 @@ describe('le contrôle des frontières', () => {
       expect(m.atteint[page]?.lectures, page).toBeGreaterThan(100_000);
       expect(m.atteint[page]?.auChargement, page).toBeGreaterThan(100);
     }
-    expect(m.lignes['v10/app.js']).toBeGreaterThan(30_000);
+    // Les lignes hors de modules/ (F12) : celles des ponts, encore à leur place ; plus aucune d'app.js depuis le lot A1.
+    expect(m.lignes['plateforme/pont.js']).toBeGreaterThan(3_000);
+    expect(m.lignes['v10/app.js']).toBe(0);
     expect(Object.keys(m.comptes).filter((k) => k.startsWith('F13 ')).length, 'le serveur est mesuré').toBeGreaterThan(20);
     expect(comparer(m, lireConnus())).toEqual([]);
   });

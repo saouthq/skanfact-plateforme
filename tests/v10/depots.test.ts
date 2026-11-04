@@ -1,4 +1,4 @@
-// Le stock par dépôt et les transferts, dans le code de la v10 (web/public/v10/core.js, adapté par
+// Le stock par dépôt et les transferts, dans le code de la v10 (v10/core.js, adapté par
 // web/v10/depots.txt ; brique 94, 14 § 3.2 : « Stock par dépôt, transferts »). Le moteur seul :
 //   - chaque mouvement appartient au dépôt de sa pièce, de son achat ou de son ajustement ; sinon au principal ;
 //   - le stock d'un article, dépôt par dépôt ;

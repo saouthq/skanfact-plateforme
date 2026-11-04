@@ -24,6 +24,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { lireEcran, lireTable } from '../../commun/assemblage.ts';
 import { DOSSIERS_ALLEGES, PRECOMPRESSER, scriptSansCommentaires, styleSansCommentaires } from '../../web/alleger.ts';
 import { lienLent } from '../lien-lent.ts';
 
@@ -200,12 +201,15 @@ describe('léger sur une connexion lente', () => {
       }
     };
     for (const d of DOSSIERS_ALLEGES) parcourir(path.join(depot, d));
+    // Les fichiers assemblés de leurs morceaux (le rangement, 17 § 3.1) : servis à leur adresse, même absents de
+    // web/public depuis le lot A1 ; le dépôt, pour eux, c'est leur assemblage.
+    for (const s of Object.keys(lireTable())) if (DOSSIERS_ALLEGES.some((d) => s.startsWith(`${d}/`)) && !fichiers.includes(s)) fichiers.push(s);
     // Le test mesure : l'entreprise, le Cabinet, le point de contact et l'espace client en sont.
     expect(fichiers).toEqual(expect.arrayContaining(['v10/app.js', 'v10/core.js', 'v10/style.css', 'v10/cabinet/app.js', 'plateforme/pont.js', 'espace/espace.js']));
     let avant = 0;
     let apres = 0;
     for (const f of fichiers) {
-      const source = fs.readFileSync(path.join(depot, f), 'utf8');
+      const source = lireEcran(f);
       const envoye = fs.readFileSync(path.join(dossier, f), 'utf8');
       avant += source.length;
       apres += envoye.length;

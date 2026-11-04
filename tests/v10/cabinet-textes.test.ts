@@ -8,12 +8,10 @@
 // Les textes sont lus tels que le navigateur les reçoit : les fichiers repris (adaptations comprises) et
 // le point de contact, exécutés dans un bac à sable.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
-const PUBLIC = path.join(import.meta.dirname, '../../web/public');
 // Les mots des paquets (les mêmes que le parcours à la souris, plus le fichier d'appairage).
 const INTERDIT = /paquet|skanpack|skanpair|appairage|clé de secours|mois reçus?\b|reçu le|n'a envoyé|a envoyé ses|t'envoie ses|t'envoient|envoie (?:encore )?ses|ne t'a rien envoyé|pas envoyé|rien envoyé|mois clôturés?|provisoire/i;
 
@@ -53,7 +51,7 @@ function charger() {
   bac.self = bac;
   vm.createContext(bac);
   for (const f of ['plateforme/pont-cabinet.js', 'v10/visite.js', 'v10/cabinet/cabguide.js', 'v10/cabinet/cabvisites.js']) {
-    vm.runInContext(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), bac, { filename: f });
+    vm.runInContext(lireEcran(f), bac, { filename: f });
   }
   return bac as unknown as {
     cabinet: { visitesAbsentes: string[]; articlesAbsents: string[] };

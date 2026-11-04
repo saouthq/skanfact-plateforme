@@ -1,5 +1,5 @@
 // Le fichier de télédéclaration CNSS du trimestre (brique 49 ; docs/cabinet.md, C39), tel que l'écran
-// de la PLATEFORME le fabrique (web/public/v10/compta.js, le moteur de la v10). Les tests du moteur de
+// de la PLATEFORME le fabrique (v10/compta.js, le moteur de la v10). Les tests du moteur de
 // la v10 (test/suites/cnss-fichier.js), portés : le format est celui du document « Trace
 // d'enregistrement du support magnétique des télédéclarations de salaires (nouvelle version 2012) » —
 // 122 caractères par salarié, 12 lignes par page, le salaire en millimes. Chaque champ est à SA place

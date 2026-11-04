@@ -1,6 +1,6 @@
 // La forme d'un matricule fiscal, jugée par l'écran et par le serveur (lot facture, 05/10/2026 ; docs/facture-details.md,
 // D6). La fiche société porte le matricule à l'entreprise quand il est bien formé (serveur/v10/identite.ts) ; l'écran dit
-// avant d'émettre qu'il manque « un matricule fiscal valide » (web/public/v10/core.js, `companyGaps`). Deux chemins, un
+// avant d'émettre qu'il manque « un matricule fiscal valide » (v10/core.js, `companyGaps`). Deux chemins, un
 // verdict : un matricule que l'écran laisse passer et que le serveur ne porte pas resterait faux sans que rien ne le dise.
 // Vu ensuite sur le serveur d'essai (E2, E3) : la lettre-clé n'est jamais I, O ni U (la règle du fichier El Fatoora), et
 // la pièce imprime le matricule sous la forme que le serveur garde, pas tel qu'il a été tapé.

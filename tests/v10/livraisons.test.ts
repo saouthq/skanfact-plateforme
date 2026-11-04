@@ -1,5 +1,5 @@
 // Les commandes livrées en plusieurs fois, et plusieurs bons de livraison en une facture, dans le code de la
-// v10 (web/public/v10/core.js, adapté par web/v10/livraisons.txt ; brique 86, 14 § 3.2). Le moteur seul :
+// v10 (v10/core.js, adapté par web/v10/livraisons.txt ; brique 86, 14 § 3.2). Le moteur seul :
 //   - le bon tiré d'une commande reprend ce qui RESTE à livrer, lignes rattachées ; un bon en brouillon est
 //     « en préparation », un bon annulé ne compte pas, un bon émis ou signé a livré ;
 //   - la commande se dit « livrée en partie », puis « livrée » ; « livrée » choisie à la main la clôt ;

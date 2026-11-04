@@ -4,7 +4,7 @@
 Demande de Skander (02/11/2026) : « reprends les écrans de la maquette et adapte-les : elle est soignée ». Tout est préfixé
 `.pm` (la page Paie de l'application), pour que rien ne déborde sur le reste ; ce qui n'existe que pour présenter la maquette
 (le cadre de l'ordinateur et du téléphone, les boutons « État » et « Ouvrir », la barre de navigation, la page « Rien de
-perdu ») ne se reprend pas. Usage : python3 scripts/maquette/paie-css.py > web/public/plateforme/paie-maquette.css
+perdu ») ne se reprend pas. Usage : python3 scripts/maquette/paie-css.py > modules/personnel/styles/paie-maquette.css
 """
 import re, sys
 

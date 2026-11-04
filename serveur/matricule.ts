@@ -5,7 +5,7 @@
 // l'établissement. Il se garde sous sa forme lisible (1234567A/A/M/000), quelle que soit la façon de l'écrire
 // (1234567 a a m 000, 1234567AAM000) : un matricule ne s'écrit qu'une fois, et l'unicité (un matricule, une seule
 // entreprise active : 0071) le reconnaît sous toutes ses écritures. La même règle que l'écran (`matriculeBienForme`,
-// `matriculeLisible` de web/public/v10/core.js) : tests/v10/matricule.test.ts.
+// `matriculeLisible` de v10/core.js) : tests/v10/matricule.test.ts.
 
 import { motif } from '../textes/index.ts';
 

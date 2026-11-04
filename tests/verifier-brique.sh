@@ -44,8 +44,9 @@ choisis="$(
     # ne sont tombés que sur GitHub).
     if [[ "$f" =~ ^base/migrations/.*\.sql$ ]]; then echo tests/socle/export-entreprise.test.ts; echo tests/socle/textes.test.ts; continue; fi
     if [[ "$f" =~ ^web/console/src/ ]]; then echo tests/web/console.test.ts; continue; fi
-    # Un écran de l'application (web/public/v10, notre code depuis le 26/10/2026) : la barre et le rendu des pages.
-    if [[ "$f" =~ ^web/public/(v10|plateforme)/ ]]; then echo tests/web/barre.test.ts; echo tests/web/rendu.test.ts; continue; fi
+    # Un écran de l'application (web/public/v10, notre code depuis le 26/10/2026 ; ses morceaux rangés sous modules/
+    # depuis le lot A1) : la barre et le rendu des pages.
+    if [[ "$f" =~ ^web/public/(v10|plateforme)/ || "$f" =~ ^modules/.*\.(js|css)$ ]]; then echo tests/web/barre.test.ts; echo tests/web/rendu.test.ts; continue; fi
     # Les tests qui importent directement un fichier changé — sauf un fichier que plus de trois
     # fichiers de test importent (les routes, par exemple) : ceux-là, GitHub les rejoue.
     if [[ "$f" =~ ^(serveur|moteur|commun|textes|base)/.*\.ts$ ]]; then

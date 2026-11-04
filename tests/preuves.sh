@@ -1306,10 +1306,10 @@ prouver "les règlements sans sécurité par ligne forcée" $M12 \
 prouver "l'avoir envoyé par la route de la facture (le pont)" $PONT \
   "doc.type === 'avoir' ? '/dossier-v10/emettre-avoir' : '/dossier-v10/emettre'" "'/dossier-v10/emettre'" \
   "$PX"
-prouver "« Marquer annulée… » encore proposé" $V10A \
+prouver "« Marquer annulée… » encore proposé" modules/socle/ecrans/entreprise/app-1.js \
   "\${bridge.emettre ? '' : s.status === 'annulée' ?" "\${s.status === 'annulée' ?" \
   "$PX"
-prouver "un paiement trop précis découvert seulement à l'enregistrement" $V10A \
+prouver "un paiement trop précis découvert seulement à l'enregistrement" modules/socle/ecrans/entreprise/app-1.js \
   "        const v = formValues(\$('#pf2', root));
         if (enLecture('documents')) return refus(\$('[name=amount]', root), refusLecture('documents'));
         // (plateforme) 1.75.0 — le refus dit ce qui est attendu (recette du 20/10/2026 : « Montant invalide. »).
@@ -1321,7 +1321,7 @@ prouver "un paiement trop précis découvert seulement à l'enregistrement" $V10
         if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
 " \
   "$PX"
-prouver "la caisse qui vend sans le serveur" $V10A \
+prouver "la caisse qui vend sans le serveur" modules/socle/ecrans/entreprise/app-2.js \
   "      if (bridge.encaisser) {" "      if (false) {" \
   "la caisse est en ligne"
 
@@ -1404,10 +1404,10 @@ prouver "la base qui laisse un règlement changer d'achat" $M13 \
     raise exception 'un règlement ne change pas de pièce'" "  if false then
     raise exception 'un règlement ne change pas de pièce'" \
   "$AB"
-prouver "l'écran qui laisse supprimer une facture sous son avoir" $V10A \
+prouver "l'écran qui laisse supprimer une facture sous son avoir" modules/socle/ecrans/entreprise/app-1.js \
   "      if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id))" "      if (false)" \
   "$AP"
-prouver "un règlement fournisseur trop précis découvert seulement à l'enregistrement" $V10A \
+prouver "un règlement fournisseur trop précis découvert seulement à l'enregistrement" modules/socle/ecrans/entreprise/app-1.js \
   "        const v = formValues(\$('#spf', root));
         // (plateforme) 1.75.0 — le refus dit ce qui est attendu, comme le paiement d'une facture.
         if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
@@ -1416,7 +1416,7 @@ prouver "un règlement fournisseur trop précis découvert seulement à l'enregi
         if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
         if (false" \
   "$AP"
-prouver "des frais d'achat trop précis découverts seulement à l'enregistrement" $V10A \
+prouver "des frais d'achat trop précis découverts seulement à l'enregistrement" modules/socle/ecrans/entreprise/app-1.js \
   "      if (bridge.emettre && (String(p.fees || 0)" "      if (false && (String(p.fees || 0)" \
   "$AP"
 
@@ -1476,11 +1476,11 @@ prouver "une modification de bulletin sans sa trace" $VP \
 prouver "un bulletin seulement déplacé dans la liste, recalculé et tracé" serveur/v10/lecture.ts \
   "export const aVraimentChange = (c: ChangementLu) => c.apres === null || c.avant === null || canonique(c.avant) !== canonique(c.apres);" "export const aVraimentChange = (c: ChangementLu) => c.apres !== undefined || canonique(c.avant) === '';" \
   "$PM"
-prouver "un bulletin qui ne fige pas la situation du salarié (la v10 telle quelle)" $V10C \
+prouver "un bulletin qui ne fige pas la situation du salarié (la v10 telle quelle)" modules/personnel/moteur/compta-paie.js \
   "      situation: { headOfFamily: !!emp.headOfFamily, children: Number(emp.children) || 0 },
 " "" \
   "$PX"
-prouver "l'écran qui fige un barème sans les tranches de l'IRPP" $V10C \
+prouver "l'écran qui fige un barème sans les tranches de l'IRPP" modules/personnel/moteur/compta-paie.js \
   "        brackets: (s.brackets || DEFAULT_PAYROLL.brackets).map(b => ({ upTo: b.upTo == null ? null : Number(b.upTo), rate: Number(b.rate) || 0 }))" "        brackets: []" \
   "$PP"
 prouver "la déclaration CNSS qui oublie les jours d'absence" $RP \
@@ -2045,7 +2045,7 @@ prouver "les brouillards du mois mal comptés" base/migrations/0022_compta_exerc
 prouver "une écriture saisie prise pour une pièce du client" web/public/plateforme/pont-cabinet.js \
   "      if (e.origine.type === 'saisie' || e.origine.type === 'extourne') return 'saisie';" "" \
   "$W38"
-prouver "le brouillard d'une pièce du client proposé à la reprise" web/public/v10/cabinet/app.js \
+prouver "le brouillard d'une pièce du client proposé à la reprise" modules/socle/ecrans/cabinet/app-2.js \
   "      if (e.source !== 'skanfact') a.push({ icon: 'modifier', label: 'Reprendre dans la grille'," "      a.push({ icon: 'modifier', label: 'Reprendre dans la grille'," \
   "$W38"
 prouver "un mois au brouillard compté comme définitif" web/public/plateforme/pont-cabinet.js \
@@ -2079,13 +2079,13 @@ prouver "une relance qui n'est pas notée au serveur" $PC \
   "$R1"
 # Réajustée le 31/10/2026 : le panneau « À faire » d'avant (todoPanel) n'est plus dessiné ; le geste vivant est
 # « Réviser » du Tableau de bord, que le test suit jusqu'à la saisie.
-prouver "« Réviser » qui mène aux relances au lieu de la saisie" $CA \
+prouver "« Réviser » qui mène aux relances au lieu de la saisie" modules/socle/ecrans/cabinet/app-1.js \
   "          geste: 'Réviser', faire: () => { location.hash = \`#/dossier/\${encodeURIComponent(d.id)}/comptabilite/saisie\`; } });" "          geste: 'Réviser', faire: () => { location.hash = '#/relances'; } });" \
   "$R1"
-prouver "un mois écrit qui ouvre un paquet" $CA \
+prouver "un mois écrit qui ouvre un paquet" modules/socle/ecrans/cabinet/app-1.js \
   "        const m = c.dataset.m, aValider = c.classList.contains('provisoire');" "        const m = c.dataset.m, aValider = c.classList.contains('provisoire'); if (m) return openPack(dossier, m);" \
   "$R1"
-prouver "l'état d'un dossier qui dit encore « provisoire »" $CA \
+prouver "l'état d'un dossier qui dit encore « provisoire »" modules/socle/ecrans/cabinet/app-1.js \
   "pl(row.provisionalCount, 'mois à valider', 'mois à valider')" "pl(row.provisionalCount, 'provisoire')" \
   "$R1"
 prouver "la fiche qui refuse les relances" serveur/cabinet/routes.ts \
@@ -2114,22 +2114,22 @@ prouver "« Tenir un premier livre » caché des premiers pas" $PC \
 # secours est tenue par DEUX gardes qui se recouvrent : `sansCleDeSecours` (rien ne se réclame) et le style de
 # pont-cabinet.js qui cache `#rec-banniere` et le panneau Sécurité. Chacune suffit seule ; aucune ne se prouve seule
 # (vu à l'écran : sans la première, le bandeau existe mais reste caché). Le test des mots (MO1) tient l'ensemble.
-prouver "une bulle visible qui parle encore de paquets" $CG \
+prouver "une bulle visible qui parle encore de paquets" modules/socle/aide/cabguide.js \
   "Pour un client sur SkanFact, ce sont <b>les mêmes livres que les siens</b>" "Pour un client sur SkanFact, <b>à partir des paquets reçus</b>" \
   "$MO1"
-prouver "une visite qui parle encore de paquets" $CVI \
+prouver "une visite qui parle encore de paquets" modules/socle/visites/cabvisites.js \
   "texte: 'Chaque client sur SkanFact dont un mois passé n\\'a aucune écriture. Le mois en cours n\\'est jamais réclamé.' }," "texte: 'Chaque client qui ne t\\'a pas envoyé un mois terminé, ou seulement du provisoire. Le mois en cours n\\'est jamais réclamé.' }," \
   "$TX1"
 prouver "une visite sans objet proposée en ligne" $PC \
   "'copie-externe', 'recevoir-paquet', 'lire-paquet'," "'copie-externe', 'lire-paquet'," \
   "$TX1"
-prouver "un article de l'Aide qui parle encore de paquets" $CG \
+prouver "un article de l'Aide qui parle encore de paquets" modules/socle/aide/cabguide.js \
   "      <p class=\"small\">Un mois est <b>validé</b> quand plus aucune" "      <p class=\"small\">Un paquet est <b>validé</b> quand plus aucune" \
   "$TX2"
 prouver "un article sans objet proposé en ligne" $PC \
   "const ARTICLES_ABSENTS = ['filets', 'demenager', 'licence', 'maj'];" "const ARTICLES_ABSENTS = ['demenager', 'licence', 'maj'];" \
   "$TX2"
-prouver "une liste « jamais montré » qui nomme un disparu" $CG \
+prouver "une liste « jamais montré » qui nomme un disparu" modules/socle/aide/cabguide.js \
   '    '"'"'lic.cle'"'"': { t: '"'"'Coller ta clé'"'"'' '    '"'"'lic.clef'"'"': { t: '"'"'Coller ta clé'"'"'' \
   "$TX3"
 
@@ -2179,22 +2179,22 @@ prouver "les à-nouveaux qui écrivent janvier au portefeuille" $M22 \
   "     and e.journal <> 'AN'
 " "" \
   "$EX1"
-prouver "les soldes d'ouverture qu'on ne peut pas reprendre depuis le livre" $CA \
+prouver "les soldes d'ouverture qu'on ne peut pas reprendre depuis le livre" modules/socle/ecrans/cabinet/app-1.js \
   "\${api.exerciceOuvert(dossier.id, s.annee) === true ? '' :" "\${api.exerciceOuvert(dossier.id, s.annee) !== undefined ? '' :" \
   "$RP1"
-prouver "un bouton de reprise qui ne mène nulle part" $CA \
+prouver "un bouton de reprise qui ne mène nulle part" modules/socle/ecrans/cabinet/app-1.js \
   "    const ov = \$('#lv-ouvrir'); if (ov) ov.onclick = () => repriseForm(root, dossier);" "" \
   "$RP1"
 prouver "le bouton de reprise qui reste une fois l'exercice ouvert" $PC \
   "    exerciceOuvert: (/** @type {string} */ id, /** @type {string} */ annee) => !!exerciceDe(id, annee)," "    exerciceOuvert: () => false," \
   "$RP1"
-prouver "« Commencer le livre » d'un livre qui a des écritures" $CA \
+prouver "« Commencer le livre » d'un livre qui a des écritures" modules/socle/ecrans/cabinet/app-1.js \
   "\${livreTenu ? 'Reprendre les soldes d\\'ouverture de' : 'Commencer le livre de'}" "Commencer le livre de" \
   "$RP1"
-prouver "« Créer le livre » pour ouvrir un exercice" $CA \
+prouver "« Créer le livre » pour ouvrir un exercice" modules/socle/ecrans/cabinet/app-1.js \
   "\${livreTenu ? 'Ouvrir l\\'exercice' : 'Créer le livre'}" "Créer le livre" \
   "$RP1"
-prouver "« Livre créé » pour un exercice ouvert" $CA \
+prouver "« Livre créé » pour un exercice ouvert" modules/socle/ecrans/cabinet/app-1.js \
   "toast(livreTenu ? \`Exercice \${v.annee} ouvert\` : \`Livre de \${v.annee} créé\`);" "toast(\`Livre de \${v.annee} créé\`);" \
   "$RP1"
 # Le lecteur des classeurs est partagé par l'entreprise et le Cabinet depuis la brique 85 (tableur.js).
@@ -2229,16 +2229,16 @@ prouver "l'année d'un exercice ouvert absente de la liste" $PC \
 prouver "les bornes d'un exercice que le livre ignore" $PC \
   "      livre.exercice.du = ex.du; livre.exercice.au = ex.au;" "" \
   "$RP1"
-prouver "« Aucun paquet reçu » revenu sur le livre vide" $CA \
+prouver "« Aucun paquet reçu » revenu sur le livre vide" modules/socle/ecrans/cabinet/app-1.js \
   "        : 'Aucune écriture pour l\\'instant.'}</b>" "        : 'Aucun paquet reçu pour l\\'instant.'}</b>" \
   "$RP1"
-prouver "un mois au brouillard réclamé par le livre" $CA \
+prouver "un mois au brouillard réclamé par le livre" modules/socle/ecrans/cabinet/app-1.js \
   "KC.lignesDuLivre(s.livre, { brouillard: true }).filter(l => l.journal !== 'AN');" "KC.lignesDuLivre(s.livre, { brouillard: s.brouillard }).filter(l => l.journal !== 'AN');" \
   "$RP1"
-prouver "la balance d'ouverture qui écrit janvier dans le livre" $CA \
+prouver "la balance d'ouverture qui écrit janvier dans le livre" modules/socle/ecrans/cabinet/app-1.js \
   "KC.lignesDuLivre(s.livre, { brouillard: true }).filter(l => l.journal !== 'AN');" "KC.lignesDuLivre(s.livre, { brouillard: true });" \
   "$RP1"
-prouver "« Écrire au client » qui parle encore de paquets" $CVI \
+prouver "« Écrire au client » qui parle encore de paquets" modules/socle/visites/cabvisites.js \
   "Écrit au client qu\\'aucune pièce n\\'est encore enregistrée" "Écrit au client qu\\'aucun paquet n\\'est arrivé" \
   "$TX1"
 
@@ -2299,7 +2299,7 @@ prouver "la visite « Commencer le livre » encore cachée en ligne" $PC \
     'premier-livre',
 " \
   "$TB1"
-prouver "la visite « Commencer le livre » qui choisit un client sur SkanFact" $CVI \
+prouver "la visite « Commencer le livre » qui choisit un client sur SkanFact" modules/socle/visites/cabvisites.js \
   "      const libre = d => !!d && !!d.manual && !d.demo" "      const libre = d => !!d && !d.demo" \
   "$TB1"
 
@@ -2531,7 +2531,7 @@ prouver "le plan qui attend encore un fichier reçu" $CCC \
 prouver "un client hors SkanFact sans écriture tu" $CCC \
   "      if (!dans.length) { if (!d.archived && !d.demo) sansPaquet.push(d.name); return; }" "      if (!dans.length) { if (!d.manual && !d.archived && !d.demo) sansPaquet.push(d.name); return; }" \
   "$WE1"
-prouver "les mois proposés qui attendent un fichier reçu" web/public/v10/cabinet/app.js \
+prouver "les mois proposés qui attendent un fichier reçu" modules/socle/ecrans/cabinet/app-2.js \
   "(S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { s.add(p.month); }));" "(S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { if (p.path) s.add(p.month); }));" \
   "$WE1"
 prouver "la visite de l'export encore absente" $PC \
@@ -2870,7 +2870,7 @@ prouver "l'envoi qui n'atteint pas le serveur" $PC \
 prouver "le questionnaire du cabinet qui ne s'enregistre pas" $PC \
   "        contenu.questionnaire = o.modeles.map(" "        contenu.questionnaire_ = o.modeles.map(" \
   "$WR1"
-prouver "le dossier de révision qui ne voit pas le questionnaire écrit" web/public/v10/cabinet/app.js \
+prouver "le dossier de révision qui ne voit pas le questionnaire écrit" modules/socle/ecrans/cabinet/app-1.js \
   ":\${JSON.stringify([S.questionnaire || [], S.cycles || []])}\`;" "\`;" \
   "$WR1"
 
@@ -2886,7 +2886,7 @@ prouver "une question fermée par le cabinet qui s'affiche chez le client" $PE \
 prouver "la réponse du client qui ne part pas au serveur" $PE \
   "    try { await envoyerReponses(data); } catch (e) {" "    try { void 0; } catch (e) {" \
   "$QC1"
-prouver "l'onglet Cabinet qui fabrique encore un paquet" web/public/v10/app.js \
+prouver "l'onglet Cabinet qui fabrique encore un paquet" modules/socle/ecrans/entreprise/app-2.js \
   "      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
       if (bridge.dessinerMandat) {" "      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
       if (false) {" \
@@ -2927,7 +2927,7 @@ prouver "la porte qui laisse le collaborateur clôturer" serveur/compta/gestes.t
 ];" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
 ];" \
   "$CE3"
-prouver "l'écran qui ouvre la question de clôture sur un brouillard" web/public/v10/cabinet/app.js \
+prouver "l'écran qui ouvre la question de clôture sur un brouillard" modules/socle/ecrans/cabinet/app-1.js \
   "      if (enBrouillard) return toast(enBrouillard.detail, 'error');" "" \
   "$WC1"
 prouver "l'exercice clos que l'écran ne voit pas" $PC \
@@ -2990,7 +2990,7 @@ prouver "un dossier confié que le serveur ne reçoit pas" $PC \
 prouver "« Saisie et validation » envoyé comme saisie" $PC \
   "validation: 'revision'" "validation: 'saisie'" \
   "$WE1"
-prouver "un menu sur sa propre ligne" web/public/v10/cabinet/app.js \
+prouver "un menu sur sa propre ligne" modules/socle/ecrans/cabinet/app-2.js \
   "\${g.ok && c.id !== equipe.moi ? RowMenu.cellule" "\${g.ok ? RowMenu.cellule" \
   "$WE1"
 
@@ -3050,10 +3050,10 @@ prouver "les jours d'échéance qui ne partent pas au serveur" $PC \
 prouver "la grille de saisie qui ne part pas au serveur" $PC \
   "        if (p.saisie) s.saisie =" "        if (false) s.saisie =" \
   "$WF1"
-prouver "une adresse illisible envoyée sans un mot sur le champ" web/public/v10/cabinet/app.js \
+prouver "une adresse illisible envoyée sans un mot sur le champ" modules/socle/ecrans/cabinet/app-2.js \
   "      if (courriel && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+\$/.test(courriel)) {" "      if (false) {" \
   "$WF1"
-prouver "un nom vide refusé sans montrer le champ" web/public/v10/cabinet/app.js \
+prouver "un nom vide refusé sans montrer le champ" modules/socle/ecrans/cabinet/app-2.js \
   "      if (!\$('#c-name').value.trim()) return refus('#c-name'," "      if (false) return refus('#c-name'," \
   "$WF1"
 prouver "la visite « Nommer mon cabinet » encore cachée" $PC \
@@ -3062,7 +3062,7 @@ prouver "la visite « Nommer mon cabinet » encore cachée" $PC \
     'nommer-cabinet',
 " \
   "$WF1"
-prouver "la visite qui promet encore un fichier d'appairage" $CVI \
+prouver "la visite qui promet encore un fichier d'appairage" modules/socle/visites/cabvisites.js \
   "      conclusion: 'Il signe désormais tes relances, et tes clients le lisent quand ils te confient leur dossier.'," "      conclusion: 'Il signe désormais tes relances et le fichier d\\'appairage que tes clients importent.'," \
   "$WF1"
 
@@ -3110,16 +3110,16 @@ prouver "le dernier geste sans son nom" $PC \
 prouver "l'année d'un dossier tenu qui ne commence pas en janvier" $PC \
   "if (!x.has(a)) x.set(a, { annee: a, du: \`\${a}-01-01\`," "if (!x.has(a)) x.set(a, { annee: a, du: \`\${a}-03-01\`," \
   "$WP1"
-prouver 'le tableau de production lu une fois pour toutes' web/public/v10/cabinet/app.js \
+prouver 'le tableau de production lu une fois pour toutes' modules/socle/ecrans/cabinet/app-1.js \
   'if (route !== routeLue && route === '"'"'production'"'"') { prodState.lignes = null; prodState.erreur = '"'"''"'"';' 'if (route !== routeLue && route === '"'"'production'"'"') { prodState.erreur = '"'"''"'"';' \
   'les étapes de chaque mois, « à saisir » relu en revenant, la ligne qui ouvre le client, la visite'
 prouver "le dossier tenu absent des Échéances" $PC \
   "repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares, mois: parMois };" "repondues: q.repondues, employeur, tenu: null, declares, mois: parMois };" \
   "$WP1"
-prouver "la légende qui parle encore de reçu" web/public/v10/cabinet/app.js \
+prouver "la légende qui parle encore de reçu" modules/socle/ecrans/cabinet/app-1.js \
   "recu: ['○', 'pièces manquantes']," "recu: ['○', 'pas encore reçu']," \
   "$WP1"
-prouver "la visite de la production qui parle encore de paquets" $CVI \
+prouver "la visite de la production qui parle encore de paquets" modules/socle/visites/cabvisites.js \
   "      conclusion: 'Le tableau lit les livres : un dossier apparaît dès que sa comptabilité a des écritures," "      conclusion: 'Le tableau lit les livres, pas les paquets : un dossier apparaît dès que sa comptabilité a des écritures," \
   "$WP1"
 prouver "la visite de la production encore cachée" $PC \
@@ -3129,7 +3129,7 @@ prouver "la visite de la production encore cachée" $PC \
 " \
   "$WP1"
 
-prouver "la bulle de la production qui parle encore de paquets" web/public/v10/cabinet/cabguide.js \
+prouver "la bulle de la production qui parle encore de paquets" modules/socle/aide/cabguide.js \
   "Tout est <b>lu</b> — les écritures des livres, les révisions arrêtées" "Tout est <b>lu</b> — les paquets reçus, les révisions arrêtées" \
   "chaque écran du Cabinet, et chaque bulle qu'il porte, se lit sans un mot de paquet"
 # ── Brique 49 : le fichier CNSS du trimestre (docs/cabinet.md, C39) ──
@@ -3144,14 +3144,14 @@ prouver "le fichier CNSS fabriqué mais jamais téléchargé" $PC \
   "      telecharger(f.nom, f.contenu);
       return { ok: true, path: f.nom," "      return { ok: true, path: f.nom," \
   "$WC1"
-prouver "le fichier CNSS téléchargé sans dire de garder son nom" web/public/v10/cabinet/app.js \
+prouver "le fichier CNSS téléchargé sans dire de garder son nom" modules/personnel/ecrans/cabinet/paie.js \
   "Il est dans tes téléchargements. Garde-lui exactement ce nom" "Il est dans tes téléchargements. Garde ce fichier" \
   "$WC1"
 
-prouver "une page du fichier CNSS à onze lignes" web/public/v10/compta.js \
+prouver "une page du fichier CNSS à onze lignes" modules/personnel/moteur/compta-paie.js \
   "  const FORMAT_CNSS = { nom: 'CNSS 2012', longueur: 122, lignesParPage: 12 };" "  const FORMAT_CNSS = { nom: 'CNSS 2012', longueur: 122, lignesParPage: 11 };" \
   "exactement 12 lignes par page, pages et lignes consécutives, chaque ligne finie par un retour chariot, en ASCII"
-prouver "un salaire du fichier CNSS tronqué au lieu d'arrondi" web/public/v10/compta.js \
+prouver "un salaire du fichier CNSS tronqué au lieu d'arrondi" modules/personnel/moteur/compta-paie.js \
   "      const millimes = Math.round((Number(l.salaire) || 0) * 1000);" "      const millimes = Math.floor((Number(l.salaire) || 0) * 1000);" \
   "le salaire en millimes entiers, sans virgule, arrondi au millime"
 # ── Brique 50 : les guides d'écritures et le journal retenu (docs/cabinet.md, C40) ──
@@ -3225,7 +3225,7 @@ prouver "les mois générés oubliés" $PC \
 prouver "les mois faits jamais notés dans la fiche" $PC \
   "      if (notes) {" "      if (false) {" \
   "$WA1"
-prouver "le menu d'un abonnement qui n'ouvre rien" web/public/v10/cabinet/app.js \
+prouver "le menu d'un abonnement qui n'ouvre rien" modules/socle/ecrans/cabinet/app-2.js \
   "    bindRowMenus(box, cle => actionsAbonnement(root, dossier, cle));" "" \
   "$WA1"
 
@@ -3253,10 +3253,10 @@ prouver "la visite de l'équipe encore cachée" $PC \
     'equipe',
 " \
   "$WV1"
-prouver "la visite de l'équipe qui attend un collaborateur déclaré" $CVI \
+prouver "la visite de l'équipe qui attend un collaborateur déclaré" modules/socle/visites/cabvisites.js \
   "      but: n0 => document.querySelectorAll('#eq-invitations [data-inv]').length > n0 && aucuneFenetre()," "      but: n0 => collaborateursActifs() > n0 && aucuneFenetre()," \
   "$WV1"
-prouver "la visite de l'équipe qui déclare encore par le nom" $CVI \
+prouver "la visite de l'équipe qui déclare encore par le nom" modules/socle/visites/cabvisites.js \
   "          titre: 'Son adresse', texte:" "          titre: 'Son nom', texte:" \
   "$WV1"
 
@@ -3305,7 +3305,7 @@ prouver "un taux envoyé en nombre à virgule" $PC \
 prouver "les taux par contrat jamais envoyés" $PC \
   "      contenu.paie = { regimesContrat: regimes };" "" \
   "$TR2"
-prouver "le taux trop fin refusé loin de sa case" web/public/v10/cabinet/app.js \
+prouver "le taux trop fin refusé loin de sa case" modules/personnel/ecrans/cabinet/paie.js \
   "          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, \`« \${t} » : un taux se garde avec quatre décimales au plus.\`);
           (rc[i.dataset.rc]" "          if (false) return refus(i, \`« \${t} » : un taux se garde avec quatre décimales au plus.\`);
           (rc[i.dataset.rc]" \
@@ -3326,13 +3326,13 @@ prouver "retirer un dossier qui ne fait rien" $PC \
 prouver "le mandat d'un dossier oublié par l'écran" $PC \
   "manual: !!d.tenu, mandat: d.mandat, perimetre: d.perimetre });" "manual: !!d.tenu, mandat: '', perimetre: d.perimetre });" \
   "$RD2"
-prouver "le bouton qui dit encore Supprimer" web/public/v10/cabinet/app.js \
+prouver "le bouton qui dit encore Supprimer" modules/socle/ecrans/cabinet/app-2.js \
   'id="del">Retirer du portefeuille…' 'id="del">Supprimer…' \
   "$RD2"
-prouver "la confirmation qui dit encore Supprimer" web/public/v10/cabinet/app.js \
+prouver "la confirmation qui dit encore Supprimer" modules/socle/ecrans/cabinet/app-2.js \
   "            'RETIRER', 'Retirer');" "            'RETIRER');" \
   "$RD2"
-prouver "la confirmation qui tait la règle du dossier tenu" web/public/v10/cabinet/app.js \
+prouver "la confirmation qui tait la règle du dossier tenu" modules/socle/ecrans/cabinet/app-2.js \
   "Tu tiens ce dossier pour un client hors SkanFact : il ne se retire que" "Tu tiens ce dossier pour un client hors SkanFact : il se retire même" \
   "$RD2"
 
@@ -3369,22 +3369,22 @@ prouver "le nom d'un dossier tenu que l'écran n'envoie pas" $PC \
 prouver "un matricule à points envoyé tel quel" commun/matricule.ts \
   '.toUpperCase().replace(/[\s/.\-_]/g, '\'''\'');' '.toUpperCase().replace(/[\s/]/g, '\'''\'');' \
   "$NT2"
-prouver "le nom d'un client sur SkanFact qui s'écrit" web/public/v10/cabinet/app.js \
+prouver "le nom d'un client sur SkanFact qui s'écrit" modules/socle/ecrans/cabinet/app-2.js \
   "id=\"f-name\" value=\"\${esc(d.name || '')}\" \${d.id && !d.manual ? 'readonly' : ''}>" "id=\"f-name\" value=\"\${esc(d.name || '')}\">" \
   "$NT2"
-prouver "le matricule d'un dossier tenu figé par ses mois" web/public/v10/cabinet/app.js \
+prouver "le matricule d'un dossier tenu figé par ses mois" modules/socle/ecrans/cabinet/app-2.js \
   "placeholder=\"1234567X/A/M/000\" \${d.id && !d.manual ? 'readonly' : ''}>" "placeholder=\"1234567X/A/M/000\" \${d.packs && d.packs.length ? 'readonly' : ''}>" \
   "$NT2"
-prouver "la fiche qui parle encore de paquets" web/public/v10/cabinet/app.js \
+prouver "la fiche qui parle encore de paquets" modules/socle/ecrans/cabinet/app-2.js \
   "Ce client est sur SkanFact : son nom et son matricule sont ceux qu'il y a donnés, lui seul les change." "Le matricule vient des paquets de ce client : c'est lui qui identifie le dossier, il ne se modifie plus ici." \
   "$NT2"
-prouver "le matricule d'un dossier tenu retiré de sa fiche" web/public/v10/cabinet/app.js \
+prouver "le matricule d'un dossier tenu retiré de sa fiche" modules/socle/ecrans/cabinet/app-2.js \
   "            // Le nom et le matricule partent avec la fiche : ceux d'un dossier tenu se corrigent (brique 57)." "            if (dossier.packs && dossier.packs.length) delete patch.matricule;" \
   "$NT2"
-prouver "un matricule mal écrit refusé loin de sa case, à la création" web/public/v10/cabinet/app.js \
+prouver "un matricule mal écrit refusé loin de sa case, à la création" modules/socle/ecrans/cabinet/app-2.js \
   "          if (!matriculeFiscalLisible(f.matricule)) return refus(" "          if (false) return refus(" \
   "$NT2"
-prouver "un matricule mal écrit refusé loin de sa case, dans la fiche" web/public/v10/cabinet/app.js \
+prouver "un matricule mal écrit refusé loin de sa case, dans la fiche" modules/socle/ecrans/cabinet/app-2.js \
   "          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) return refus(" "          if (false) return refus(" \
   "$NT2"
 
@@ -3415,15 +3415,15 @@ prouver "un exercice clos qui fige aussi l'année d'après" $M34 \
 prouver "la liasse qui se dit toujours ouverte" $PC \
   "etats: KC.LIASSE_ETATS, clos: !!(livre.exercice && livre.exercice.clos)," "etats: KC.LIASSE_ETATS, clos: false," \
   "$LC2"
-prouver "le taux d'un exercice clos qui s'offre encore" web/public/v10/cabinet/app.js \
+prouver "le taux d'un exercice clos qui s'offre encore" modules/socle/ecrans/cabinet/app-1.js \
   "      \${liasseClose
     ? \`<p class=\"small mt\" id=\"li-close\">" "      \${false
     ? \`<p class=\"small mt\" id=\"li-close\">" \
   "$LC2"
-prouver "un retraitement d'un exercice clos qui se retire encore" web/public/v10/cabinet/app.js \
+prouver "un retraitement d'un exercice clos qui se retire encore" modules/socle/ecrans/cabinet/app-1.js \
   "          \${liasseClose ? '<td></td>' : \`" "          \${false ? '<td></td>' : \`" \
   "$LC2"
-prouver "un retraitement qui s'ajoute encore à un exercice clos" web/public/v10/cabinet/app.js \
+prouver "un retraitement qui s'ajoute encore à un exercice clos" modules/socle/ecrans/cabinet/app-1.js \
   "      \${liasseClose ? '' : '<div class=\"sous-table\">" "      \${false ? '' : '<div class=\"sous-table\">" \
   "$LC2"
 
@@ -3478,7 +3478,7 @@ prouver "la trace demandée pour un collaborateur" $PC \
 prouver "un changement de rôle dit sans l'ancien rôle" $PC \
   "a changé le rôle de \${membre} : \${role((av.roles || [])[0])} → \${role((ap.roles || [])[0])}." "a changé le rôle de \${membre} : \${role((ap.roles || [])[0])}." \
   "$TE2"
-prouver "la trace de l'équipe absente de l'écran" web/public/v10/cabinet/app.js \
+prouver "la trace de l'équipe absente de l'écran" modules/socle/ecrans/cabinet/app-2.js \
   "      \${(equipe.trace || []).length ? \`<p class=\"small mt\"><b>Ce qui a changé dans l'équipe</b>" "      \${false ? \`<p class=\"small mt\"><b>Ce qui a changé dans l'équipe</b>" \
   "$TE2"
 
@@ -3617,7 +3617,7 @@ prouver "les réglages du dossier comptés comme des changements" $PONT \
 prouver "« Attendre le réseau » qui déconnecte quand même" web/public/plateforme/poste.js \
   "const n = document.getElementById('poste-non'); if (n) n.onclick = () => fin(false);" "const n = document.getElementById('poste-non'); if (n) n.onclick = () => fin(true);" \
   "$HE4"
-prouver "l'écran qui ne réenregistre pas au retour du réseau" web/public/v10/app.js \
+prouver "l'écran qui ne réenregistre pas au retour du réseau" modules/socle/ecrans/entreprise/app-1.js \
   "  window.__enregistrerMaintenant = () => save(true);" "  window.__enregistrerMaintenant = () => {};" \
   "$HE1"
 prouver "le bandeau qui tait ce qui attend" web/public/plateforme/poste.js \
@@ -3669,7 +3669,7 @@ prouver "retirer l'appareil où l'on est" web/public/plateforme/compte.js \
 prouver "le nom d'un appareil illisible (la signature du navigateur)" web/src/ecrans/Connexion.tsx \
   "appareil: { nom: nomDeCetAppareil(), type: 'navigateur'" "appareil: { nom: navigator.userAgent.slice(0, 80) || 'Navigateur', type: 'navigateur'" \
   "$AW1"
-prouver "le panneau « Tes appareils » absent des Paramètres" web/public/v10/app.js \
+prouver "le panneau « Tes appareils » absent des Paramètres" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.dessinerAppareils && \$('#appareils-panel')) void bridge.dessinerAppareils(\$('#appareils-panel'));
 " "" \
   "$AW1"
@@ -3740,11 +3740,11 @@ prouver "l'entrée qui efface avant que l'entreprise ne remette" web/src/api.ts 
 prouver "le bandeau qui tait les remises à décider" $PONT \
   "    poste.annoncer(\`\${qui} \${quoi} ta décision.\`, 'Voir', () => {" "    ((..._) => undefined)(\`\${qui} \${quoi} ta décision.\`, 'Voir', () => {" \
   "$AW2"
-prouver "« Voir » qui ne mène nulle part" web/public/v10/app.js \
+prouver "« Voir » qui ne mène nulle part" modules/socle/ecrans/entreprise/app-1.js \
   "  window.__allerParametres = (tab, focus) => allerParametres(tab, focus);
 " "" \
   "$AW2"
-prouver "le panneau des remises jamais dessiné" web/public/v10/app.js \
+prouver "le panneau des remises jamais dessiné" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.dessinerQuarantaine && \$('#quarantaine-panel')) bridge.dessinerQuarantaine(\$('#quarantaine-panel'));
 " "" \
   "$AW2"
@@ -3953,7 +3953,7 @@ prouver "« Retirer » qui ne retire rien" web/public/plateforme/pont.js \
 prouver "le lien du compte qui donne celui de la pièce" web/public/plateforme/pont.js \
   "compte ? { client: doc.clientId } : { client: doc.clientId, piece: doc.id }" "{ client: doc.clientId, piece: doc.id }" \
   "$EC3"
-prouver "« Lien pour le client… » absent d'une facture émise" web/public/v10/app.js \
+prouver "« Lien pour le client… » absent d'une facture émise" modules/socle/ecrans/entreprise/app-1.js \
   "&& !C.estTicket(doc) && bridge.lienClient ? '<button id=\"lien-client\">" "&& !C.estTicket(doc) && false ? '<button id=\"lien-client\">" \
   "$EC3"
 prouver "les nombres exacts illisibles pour le client" web/public/espace/espace.js \
@@ -4130,11 +4130,11 @@ prouver "le lien de l'espace oublié au retour" web/public/espace/espace.js \
 prouver "« Paiement reçu » jamais dit" web/public/espace/retour.js \
   "if (lu.etat === 'encaisse') {" "if (lu.etat === 'jamais') {" \
   "$PW"
-prouver "le panneau « Paiement en ligne » jamais dessiné" web/public/v10/app.js \
+prouver "le panneau « Paiement en ligne » jamais dessiné" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.dessinerPaiement && \$('#paiement-panel')) void bridge.dessinerPaiement(\$('#paiement-panel'));
 " "" \
   "$PW"
-prouver "le mode « Paiement en ligne » inconnu de la v10" web/public/v10/core.js \
+prouver "le mode « Paiement en ligne » inconnu de la v10" modules/socle/moteur/core-1.js \
   "['en_ligne', 'Paiement en ligne'], " "" \
   "$PW"
 prouver "la production qui démarre avec la clé d'essai du coffre" serveur/principal.ts \
@@ -4160,10 +4160,10 @@ prouver "« régler en ligne » promis sans paiement en ligne branché" serveur/
 prouver "« régler en ligne » promis pour une facture réglée" serveur/ventes/routes.ts \
   "(await soldesDeFactures(tx, ent, [{ id: piece.id, net }])).get(piece.id)?.reste ?? null" "net" \
   "$EN1"
-prouver "l'e-mail d'une facture émise parti sans son lien" web/public/v10/app.js \
+prouver "l'e-mail d'une facture émise parti sans son lien" modules/socle/ecrans/entreprise/app-1.js \
   "const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'email'" "const corps = false ? await bridge.ajouterLien(doc, 'email'" \
   "$EN2"
-prouver "le WhatsApp d'une facture émise parti sans son lien" web/public/v10/app.js \
+prouver "le WhatsApp d'une facture émise parti sans son lien" modules/socle/ecrans/entreprise/app-1.js \
   "const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'whatsapp'" "const corps = false ? await bridge.ajouterLien(doc, 'whatsapp'" \
   "$EN2"
 prouver "« Veuillez trouver ci-joint » laissé dans un message sans pièce jointe" web/public/plateforme/pont.js \
@@ -4190,14 +4190,14 @@ prouver "WhatsApp dit « bloqué » d'une fenêtre ouverte (noopener)" web/publi
 prouver "« Lien pour le client… » tait par où le lien est parti" web/public/plateforme/pont.js \
   "\${CANAUX[l.canal] || 'donné'} le" "donné le" \
   "$EN2"
-prouver "la question « Mail ou une autre messagerie » posée dans un navigateur" web/public/v10/app.js \
+prouver "la question « Mail ou une autre messagerie » posée dans un navigateur" modules/socle/ecrans/entreprise/app-1.js \
   "    if (bridge.ajouterLien) return 'mailto';
 " "" \
   "$EN2"
-prouver "Paramètres → Envois propose encore de choisir sa messagerie" web/public/v10/app.js \
+prouver "Paramètres → Envois propose encore de choisir sa messagerie" modules/socle/ecrans/entreprise/app-2.js \
   "\${panneau('p-envoi')}<p class=\"small muted\" id=\"mail-fixe\">" "\${panneau('p-envoi')}<select name=\"mailClient\"></select><p class=\"small muted\" id=\"mail-fixe\">" \
   "$EN2"
-prouver "le relevé dit joint alors qu'un navigateur ne joint rien" web/public/v10/app.js \
+prouver "le relevé dit joint alors qu'un navigateur ne joint rien" modules/socle/ecrans/entreprise/app-1.js \
   "close(); toast(att ? messageOuvert(rm, 'le relevé')" "close(); toast(true ? messageOuvert(rm, 'le relevé')" \
   "$EN2"
 
@@ -4229,22 +4229,22 @@ prouver "un nombre du dossier lu comme un objet par le fichier" serveur/v10/teif
   "    if (cles.length === 1 && cles[0] === '~n') return Number((v as { '~n': string })['~n']);
 " "" \
   "$EF1"
-prouver "« Émettre » d'une entreprise soumise sans le contrôle avant la confirmation" web/public/v10/app.js \
+prouver "« Émettre » d'une entreprise soumise sans le contrôle avant la confirmation" modules/socle/ecrans/entreprise/app-1.js \
   "        if (!validate()) return;
         if (bloqueParEfacture(doc)) return;
 " "        if (!validate()) return;
 " \
   "$EFW"
-prouver "« Fichier pour El Fatoora » refait par l'écran au lieu du fichier du serveur" web/public/v10/app.js \
+prouver "« Fichier pour El Fatoora » refait par l'écran au lieu du fichier du serveur" modules/socle/ecrans/entreprise/app-1.js \
   "    const r = duServeur ? {" "    const r = false ? {" \
   "$EFW"
-prouver "la fenêtre dit « enregistré » d'un fichier téléchargé" web/public/v10/app.js \
+prouver "la fenêtre dit « enregistré » d'un fichier téléchargé" modules/socle/ecrans/entreprise/app-1.js \
   "est \${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}" "est \${false ? 'dans tes Téléchargements' : 'enregistré'}" \
   "$EFW"
-prouver "« Montrer le fichier » proposé dans un navigateur" web/public/v10/app.js \
+prouver "« Montrer le fichier » proposé dans un navigateur" modules/socle/ecrans/entreprise/app-1.js \
   "\${bridge.teifDuServeur ? '' : '<button class=\"btn\" id=\"teif-montrer\">" "\${false ? '' : '<button class=\"btn\" id=\"teif-montrer\">" \
   "$EFW"
-prouver "le réglage « soumise à la facture électronique » jamais dessiné" web/public/v10/app.js \
+prouver "le réglage « soumise à la facture électronique » jamais dessiné" modules/socle/ecrans/entreprise/app-2.js \
   "\${bridge.teifDuServeur ? \`\${panneau('p-efacture'" "\${false ? \`\${panneau('p-efacture'" \
   "$EFW"
 
@@ -4312,17 +4312,17 @@ prouver "après un code faux, le curseur n'est plus dans la case du code" web/pu
   "            else { champ.focus(); champ.select(); }
 " "" \
   "$SGW"
-prouver "« Signer (DigiGo)… » absent du menu d'une pièce émise" web/public/v10/app.js \
+prouver "« Signer (DigiGo)… » absent du menu d'une pièce émise" modules/socle/ecrans/entreprise/app-1.js \
   "&& bridge.signerPiece ? \`<div class=\"ml-ligne\"><button id=\"signer\">" "&& false ? \`<div class=\"ml-ligne\"><button id=\"signer\">" \
   "$SGW"
-prouver "le panneau « Qui signe » jamais dessiné" web/public/v10/app.js \
+prouver "le panneau « Qui signe » jamais dessiné" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.dessinerSignataire && \$('#signataire-panel')) void bridge.dessinerSignataire(\$('#signataire-panel'));
 " "" \
   "$SGW"
-prouver "la fenêtre du fichier signé dit qu'il reste deux gestes" web/public/v10/app.js \
+prouver "la fenêtre du fichier signé dit qu'il reste deux gestes" modules/socle/ecrans/entreprise/app-1.js \
   "\${duServeur && duServeur.signe ? \`Il est signé" "\${false ? \`Il est signé" \
   "$SGW"
-prouver "la fenêtre du fichier signé demande encore de le signer" web/public/v10/app.js \
+prouver "la fenêtre du fichier signé demande encore de le signer" modules/socle/ecrans/entreprise/app-1.js \
   "\${duServeur && duServeur.signe && bridge.ttnDansLaFenetre ? '<div id=\"teif-ttn\"></div>'" "\${false ? '<div id=\"teif-ttn\"></div>'" \
   "$SGW"
 prouver "une session refusée par DigiGo qui garde la demande ouverte" serveur/v10/signature.ts \
@@ -4403,11 +4403,11 @@ prouver "taper le compte El Fatoora propose d'enregistrer les Paramètres" web/p
   "    for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
     const form = /** @type {HTMLElement} */ (el.querySelector('#ttn-form'));" "    const form = /** @type {HTMLElement} */ (el.querySelector('#ttn-form'));" \
   "$TTW"
-prouver "le panneau du compte El Fatoora jamais dessiné" web/public/v10/app.js \
+prouver "le panneau du compte El Fatoora jamais dessiné" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.dessinerTtn && \$('#ttn-panel')) void bridge.dessinerTtn(\$('#ttn-panel'));
 " "" \
   "$TTW"
-prouver "la fenêtre du fichier qui tait où en est l'envoi à la TTN" web/public/v10/app.js \
+prouver "la fenêtre du fichier qui tait où en est l'envoi à la TTN" modules/socle/ecrans/entreprise/app-1.js \
   "        if (bridge.ttnDansLaFenetre && \$('#teif-ttn', root)) bridge.ttnDansLaFenetre(\$('#teif-ttn', root), doc, duServeur, close);
 " "" \
   "$TTW"
@@ -4425,10 +4425,10 @@ prouver "la pièce acceptée par la TTN sans sa référence au dossier" serveur/
 prouver "la référence de la TTN refusée au serveur lui-même" serveur/v10/envoi.ts \
   "le: maintenant.toISOString() } } }], { serveur: true });" "le: maintenant.toISOString() } } }]);" \
   "$TT1"
-prouver "la pièce imprimée sans la référence de la TTN" web/public/v10/core.js \
+prouver "la pièce imprimée sans la référence de la TTN" modules/socle/moteur/core-2.js \
   "\${doc.ttn && doc.ttn.reference ? \`<div class=\"info ttn\">" "\${false ? \`<div class=\"info ttn\">" \
   "$TTW"
-prouver "le code QR de la TTN jamais dessiné sur la pièce" web/public/v10/core.js \
+prouver "le code QR de la TTN jamais dessiné sur la pièce" modules/socle/moteur/core-2.js \
   "\${doc.ttn.qr && typeof api.qrImage === 'function' ? api.qrImage(doc.ttn.qr) : ''}" "\${''}" \
   "$TTW"
 prouver "le dessin des QR branché nulle part dans l'application" web/public/plateforme/pont.js \
@@ -4469,7 +4469,7 @@ prouver "un fichier trop lourd lu quand même" serveur/achats/routes.ts \
 prouver "un commercial qui lit les factures d'achat" serveur/achats/gestes.ts \
   "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', commercial: 'oui' } }," \
   "$LS5"
-prouver "le bouton de lecture caché sur la plateforme" web/public/v10/app.js \
+prouver "le bouton de lecture caché sur la plateforme" modules/socle/ecrans/entreprise/app-1.js \
   "    const statutLecture = (!OCR_EN_PAUSE || (bridge.lectureSurLeServeur && isNew && !clos)) ? bridge.ocrStatus()" "    const statutLecture = (!OCR_EN_PAUSE) ? bridge.ocrStatus()" \
   "$LWB"
 # Lot téléphone (06/10/2026) : les lignes de l'écran d'achat sont une grille au téléphone ; le cadre qui défile ne sert
@@ -4505,83 +4505,83 @@ LC3="plusieurs bons d'un client font une facture égale à la commande ; un bon 
 LC4="chaque bon d'une commande se facture à part : la facture d'un bon ne couvre pas l'autre ; une facture de toute la vente les couvre tous"
 LCW="Nadia livre la commande en deux fois, puis facture les deux bons en une facture égale à la commande"
 LCS="une facture émise ne change plus ce qui a été scellé et ne s'efface pas ; ses règlements et son heure d'émission, oui"
-prouver "le bon suivant d'une commande qui reprend toute la commande" web/public/v10/core.js \
+prouver "le bon suivant d'une commande qui reprend toute la commande" modules/socle/moteur/core-2.js \
   "    out.lines = (out.lines || []).map((l, i) => ({ ...l, qty: s.lignes[i] ? s.lignes[i].aProposer : 0, ligneCommande: i }))" "    out.lines = (out.lines || []).map((l, i) => ({ ...l, ligneCommande: i }))" \
   "$LC1"
-prouver "un bon en brouillon compté comme livré" web/public/v10/core.js \
+prouver "un bon en brouillon compté comme livré" modules/socle/moteur/core-2.js \
   "  const BON_LIVRE = ['émis', 'signé'];" "  const BON_LIVRE = ['émis', 'signé', 'brouillon'];" \
   "$LC1"
-prouver "un bon annulé compté parmi les bons de la commande" web/public/v10/core.js \
+prouver "un bon annulé compté parmi les bons de la commande" modules/socle/moteur/core-2.js \
   "        if (d.type !== 'livraison' || !d.fromDocId || /^annul/.test(d.status || '')) return;" "        if (d.type !== 'livraison' || !d.fromDocId) return;" \
   "$LC1"
-prouver "une commande livrée en partie dite reçue" web/public/v10/core.js \
+prouver "une commande livrée en partie dite reçue" modules/socle/moteur/core-1.js \
   "      return s.livree ? 'livrée' : s.partielle ? 'partielle' : 'reçue';" "      return s.livree ? 'livrée' : 'reçue';" \
   "$LC1"
-prouver "le statut « livrée en partie » dit « partiellement payée »" web/public/v10/core.js \
+prouver "le statut « livrée en partie » dit « partiellement payée »" modules/socle/moteur/core-1.js \
   "    if (s === 'partielle' && type === 'commande') return 'livrée en partie';
 " "" \
   "$LC1"
-prouver "« livrée » choisie à la main rouverte par les bons" web/public/v10/core.js \
+prouver "« livrée » choisie à la main rouverte par les bons" modules/socle/moteur/core-1.js \
   "      if (doc.status !== 'reçue' || !data) return doc.status;" "      if (!data) return doc.status;" \
   "$LC2"
-prouver "un bon d'avant le rattachement ignoré" web/public/v10/core.js \
+prouver "un bon d'avant le rattachement ignoré" modules/socle/moteur/core-2.js \
   "        const i = rattache ? l.ligneCommande : (source[j] && (source[j].label || '') === (l.label || '') ? j : null);" "        const i = l.ligneCommande;" \
   "$LC2"
-prouver "une ligne de commande livrée en deux fois facturée en deux lignes" web/public/v10/core.js \
+prouver "une ligne de commande livrée en deux fois facturée en deux lignes" modules/socle/moteur/core-2.js \
   "      if (deja) { deja.qty = round3((Number(deja.qty) || 0) + (Number(l.qty) || 0)); return; }" "" \
   "$LC3"
-prouver "des bons de deux clients ou de deux devises sur une facture" web/public/v10/core.js \
+prouver "des bons de deux clients ou de deux devises sur une facture" modules/socle/moteur/core-2.js \
   "    if (bons.some(b => b.clientId !== bons[0].clientId || devise(b) !== devise(bons[0]))) return null;" "" \
   "$LC3"
-prouver "un bon facturé encore proposé" web/public/v10/core.js \
+prouver "un bon facturé encore proposé" modules/socle/moteur/core-2.js \
   "BON_LIVRE.includes(d.status) && !factureDuBon(data, d)));" "BON_LIVRE.includes(d.status)));" \
   "$LC3"
-prouver "l'historique d'un bon sans la facture qui le regroupe" web/public/v10/core.js \
+prouver "l'historique d'un bon sans la facture qui le regroupe" modules/socle/moteur/core-2.js \
   "    return (data.documents || []).filter(d => d.fromDocId === doc.id || (d.type === 'facture' && Array.isArray(d.bonsLivraison) && d.bonsLivraison.some(b => b.id === doc.id)))" "    return (data.documents || []).filter(d => d.fromDocId === doc.id)" \
   "$LC3"
-prouver "une pièce tirée d'une facture de plusieurs bons qui les couvre encore" web/public/v10/core.js \
+prouver "une pièce tirée d'une facture de plusieurs bons qui les couvre encore" modules/socle/moteur/core-2.js \
   "    'bonsLivraison'];" "    ];" \
   "$LC3"
-prouver "la facture d'un bon qui couvre les autres bons de la commande" web/public/v10/core.js \
+prouver "la facture d'un bon qui couvre les autres bons de la commande" modules/socle/moteur/core-2.js \
   "        else if (!f.deposit) { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }" "        if (!f.deposit) { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }" \
   "$LC4"
-prouver "une facture d'acompte qui couvre la marchandise" web/public/v10/core.js \
+prouver "une facture d'acompte qui couvre la marchandise" modules/socle/moteur/core-2.js \
   "        else if (!f.deposit) { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }" "        else { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }" \
   "$LC4"
-prouver "une facture de toute la vente qui ne couvre pas ses bons" web/public/v10/core.js \
+prouver "une facture de toute la vente qui ne couvre pas ses bons" modules/socle/moteur/core-2.js \
   "    return x.parBon.get(bon.id) || x.parVente.get(x.racine(bon)) || null;" "    return x.parBon.get(bon.id) || null;" \
   "$LC4"
-prouver "la facture de plusieurs bons sans ses bons imprimés" web/public/v10/core.js \
+prouver "la facture de plusieurs bons sans ses bons imprimés" modules/socle/moteur/core-2.js \
   "        ? [doc.bonsLivraison.length > 1 ? L.deliveryNotes : L.deliveryNote1, doc.bonsLivraison.map(b => b.number).filter(Boolean).join(', ')] : null," "        ? null : null," \
   "$LCW"
-prouver "le panneau des livraisons absent de la commande" web/public/v10/app.js \
+prouver "le panneau des livraisons absent de la commande" modules/socle/ecrans/entreprise/app-1.js \
   "          \${suiviCde && suiviCde.bons.length ? panneauLivraisons(stored, suiviCde) : ''}" "" \
   "$LCW"
-prouver "« Livrer le reste » du panneau qui ne fait rien" web/public/v10/app.js \
+prouver "« Livrer le reste » du panneau qui ne fait rien" modules/socle/ecrans/entreprise/app-1.js \
   "\$\$('#conv-list button, #more-list [data-conv], #livrer-reste')" "\$\$('#conv-list button, #more-list [data-conv]')" \
   "$LCW"
-prouver "le bon suivant tiré de toute la commande" web/public/v10/app.js \
+prouver "le bon suivant tiré de toute la commande" modules/socle/ecrans/entreprise/app-1.js \
   "    const out = src.type === 'commande' && t === 'livraison'" "    const out = false" \
   "$LCW"
-prouver "« Facturer des bons… » absent de la liste des bons" web/public/v10/app.js \
+prouver "« Facturer des bons… » absent de la liste des bons" modules/socle/ecrans/entreprise/app-1.js \
   "\${aFacturer.length ? '<button class=\"btn btn-primary\" id=\"facturer-bons\">Facturer des bons…</button>' : ''}" "" \
   "$LCW"
-prouver "la fenêtre qui annonce la somme des bons pour le montant de la facture" web/public/v10/app.js \
+prouver "la fenêtre qui annonce la somme des bons pour le montant de la facture" modules/socle/ecrans/entreprise/app-1.js \
   "        const total = inv ? C.computeTotals(inv, company()).netHT : 0;" "        const total = inv ? bons.reduce((s, b) => s + C.computeTotals(b, company()).netHT, 0) : 0;" \
   "$LCW"
-prouver "la liste des commandes qui filtre sur le statut enregistré" web/public/v10/app.js \
+prouver "la liste des commandes qui filtre sur le statut enregistré" modules/socle/ecrans/entreprise/app-1.js \
   "        .filter(d => !s.st || effStatus(d) === s.st)" "        .filter(d => !s.st || d.status === s.st)" \
   "$LCW"
-prouver "le menu d'une commande livrée en partie sans « Livrer le reste »" web/public/v10/app.js \
+prouver "le menu d'une commande livrée en partie sans « Livrer le reste »" modules/socle/ecrans/entreprise/app-1.js \
   "          if (suivi && suivi.bons.length && suivi.aProposer && d.status !== 'livrée') {" "          if (false) {" \
   "$LCW"
-prouver "« Facturer avec d'autres bons… » absent du menu d'un bon" web/public/v10/app.js \
+prouver "« Facturer avec d'autres bons… » absent du menu d'un bon" modules/socle/ecrans/entreprise/app-1.js \
   "        a.push({ icon: 'facture', label: 'Facturer avec d\'autres bons…', hint: 'Une seule facture pour plusieurs bons de ce client', run: () => facturerDesBons(d.clientId) });" "        ;" \
   "$LCW"
-prouver "« Transformer » d'une commande livrée en partie qui n'est plus l'étape suivante" web/public/v10/app.js \
+prouver "« Transformer » d'une commande livrée en partie qui n'est plus l'étape suivante" modules/socle/ecrans/entreprise/app-1.js \
   "      : resteALivrer ? 'transform'" "      : false ? 'transform'" \
   "$LCW"
-prouver "une copie de la facture qui reprend ses bons de livraison" web/public/v10/app.js \
+prouver "une copie de la facture qui reprend ses bons de livraison" modules/socle/ecrans/entreprise/app-1.js \
   "settles: undefined, recurringId: undefined, bonsLivraison: undefined };" "settles: undefined, recurringId: undefined };" \
   "$LCW"
 prouver "les bons de livraison d'une facture émise hors du scellé" serveur/v10/dossier.ts \
@@ -4594,254 +4594,254 @@ CF2="« soldée » ou « annulée » à la main clôt la commande ; les numéros
 CF3="une réception validée fait entrer la marchandise en stock, au prix de la commande en dinars ; la facture saisie depuis elle, non"
 CF4="une réception validée attend sa facture jusqu'à ce qu'un achat la couvre ; la commande s'imprime pour le fournisseur"
 CFW="Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions"
-prouver "la réception suivante qui reprend toute la commande" web/public/v10/core.js \
+prouver "la réception suivante qui reprend toute la commande" modules/socle/moteur/core-2.js \
   "    const lines = (commande.lines || []).map((l, i) => ({ ...JSON.parse(JSON.stringify(l)), qty: s.lignes[i] ? s.lignes[i].aProposer : 0, ligneCommande: i }))" "    const lines = (commande.lines || []).map((l, i) => ({ ...JSON.parse(JSON.stringify(l)), ligneCommande: i }))" \
   "$CF1"
-prouver "une réception en brouillon comptée comme reçue" web/public/v10/core.js \
+prouver "une réception en brouillon comptée comme reçue" modules/socle/moteur/core-2.js \
   "      if (r.status === 'validée') x.recue = round3(x.recue + q);" "      if (r.status === 'validée' || r.status === 'brouillon') x.recue = round3(x.recue + q);" \
   "$CF1"
-prouver "une réception annulée comptée parmi celles de la commande" web/public/v10/core.js \
+prouver "une réception annulée comptée parmi celles de la commande" modules/socle/moteur/core-2.js \
   "    return (data.receptions || []).filter(r => r.orderId === commande.id && !/^annul/.test(r.status || ''))" "    return (data.receptions || []).filter(r => r.orderId === commande.id)" \
   "$CF1"
-prouver "une commande reçue en partie qui se dit encore envoyée" web/public/v10/core.js \
+prouver "une commande reçue en partie qui se dit encore envoyée" modules/socle/moteur/core-2.js \
   "    return s.recue ? 'reçue' : s.partielle ? 'partielle' : st;" "    return s.recue ? 'reçue' : st;" \
   "$CF1"
-prouver "« soldée » choisie à la main rouverte par les réceptions" web/public/v10/core.js \
+prouver "« soldée » choisie à la main rouverte par les réceptions" modules/socle/moteur/core-2.js \
   "    if (st === 'soldée' || /^annul/.test(st)) return st;" "    if (/^annul/.test(st)) return st;" \
   "$CF2"
-prouver "le numéro suivant qui ignore les numéros déjà portés" web/public/v10/core.js \
+prouver "le numéro suivant qui ignore les numéros déjà portés" modules/socle/moteur/core-2.js \
   "    const n = Math.max(vus.length ? Math.max(...vus) : 0, data.counters[cle] || 0) + 1;" "    const n = (data.counters[cle] || 0) + 1;" \
   "$CF2"
-prouver "le compteur des commandes et des réceptions oublié" web/public/v10/core.js \
+prouver "le compteur des commandes et des réceptions oublié" modules/socle/moteur/core-2.js \
   "    data.counters[cle] = n;
 " "" \
   "$CF2"
-prouver "une réception en brouillon qui fait entrer la marchandise en stock" web/public/v10/core.js \
+prouver "une réception en brouillon qui fait entrer la marchandise en stock" modules/socle/moteur/core-1.js \
   "      if (r.status !== 'validée') return;
 " "" \
   "$CF3"
-prouver "une réception validée qui ne fait rien entrer en stock" web/public/v10/core.js \
+prouver "une réception validée qui ne fait rien entrer en stock" modules/socle/moteur/core-1.js \
   "    (data.receptions || []).forEach(r => {" "    ([]).forEach(r => {" \
   "$CF3"
-prouver "une réception en devise entrée en stock au prix en devise" web/public/v10/core.js \
+prouver "une réception en devise entrée en stock au prix en devise" modules/socle/moteur/core-1.js \
   "          unitCost: toBase(r, Number(l.unitPrice) || 0, data.company || {})," "          unitCost: Number(l.unitPrice) || 0," \
   "$CF3"
-prouver "une réception comptée comme une charge du mois" web/public/v10/core.js \
+prouver "une réception comptée comme une charge du mois" modules/socle/moteur/core-1.js \
   "  const SOURCES_HORS_CHARGE = ['achat', 'reception', 'depart'];" "  const SOURCES_HORS_CHARGE = ['achat', 'depart'];" \
   "$CF3"
-prouver "la facture des réceptions qui fait entrer leur marchandise une seconde fois" web/public/v10/core.js \
+prouver "la facture des réceptions qui fait entrer leur marchandise une seconde fois" modules/socle/moteur/core-1.js \
   "        if (l.recue) return;
 " "" \
   "$CF3"
-prouver "une ligne de commande reçue en deux fois facturée en deux lignes" web/public/v10/core.js \
+prouver "une ligne de commande reçue en deux fois facturée en deux lignes" modules/socle/moteur/core-2.js \
   "      if (deja) { deja.qty = round3(deja.qty + ligne.qty); return; }" "" \
   "$CF3"
-prouver "la facture des réceptions sans la marque « reçue »" web/public/v10/core.js \
+prouver "la facture des réceptions sans la marque « reçue »" modules/socle/moteur/core-2.js \
   "deductible: true, recue: true, ...(l.itemId ? { itemId: l.itemId } : {}) };" "deductible: true, ...(l.itemId ? { itemId: l.itemId } : {}) };" \
   "$CF3"
-prouver "la marchandise suivie des réceptions facturée en charge" web/public/v10/core.js \
+prouver "la marchandise suivie des réceptions facturée en charge" modules/socle/moteur/core-2.js \
   "        destination: c && c.tracked ? 'stock' : 'charge', deductible: true, recue: true," "        destination: 'charge', deductible: true, recue: true," \
   "$CF3"
-prouver "une réception facturée encore proposée" web/public/v10/core.js \
+prouver "une réception facturée encore proposée" modules/socle/moteur/core-2.js \
   "    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));" "    return (data.receptions || []).filter(r => r.status === 'validée' && (!supplierId || r.supplierId === supplierId));" \
   "$CF4"
-prouver "une réception en brouillon proposée à la facture" web/public/v10/core.js \
+prouver "une réception en brouillon proposée à la facture" modules/socle/moteur/core-2.js \
   "    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));" "    return (data.receptions || []).filter(r => !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));" \
   "$CF4"
-prouver "les réceptions d'un autre fournisseur proposées à la facture" web/public/v10/core.js \
+prouver "les réceptions d'un autre fournisseur proposées à la facture" modules/socle/moteur/core-2.js \
   "    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));" "    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id));" \
   "$CF4"
-prouver "la commande imprimée adressée comme un devis" web/public/v10/core.js \
+prouver "la commande imprimée adressée comme un devis" modules/socle/moteur/core-2.js \
   "\${isSupplierOrder ? L.supplier : isInvoice || isProforma ? L.billedTo" "\${isInvoice || isProforma ? L.billedTo" \
   "$CF4"
-prouver "la commande imprimée sans la livraison souhaitée" web/public/v10/core.js \
+prouver "la commande imprimée sans la livraison souhaitée" modules/socle/moteur/core-2.js \
   "      doc.dueDate ? [L.wantedBy, fmtDate(doc.dueDate)] : null," "      null," \
   "$CF4"
-prouver "la commande imprimée sans la demande de confirmation" web/public/v10/core.js \
+prouver "la commande imprimée sans la demande de confirmation" modules/socle/moteur/core-2.js \
   "\${isDemandePrix ? L.demandePrixNote : L.supplierOrderNote}" "\${isDemandePrix ? L.demandePrixNote : ''}" \
   "$CF4"
-prouver "les commandes fournisseurs absentes du menu" web/public/v10/core.js \
+prouver "les commandes fournisseurs absentes du menu" modules/socle/moteur/core-1.js \
   "    { id: 'commandesf', titre: 'Commandes fournisseurs', module: 'achats', famille: 'Acheter'," "    { id: 'commandesf-absente', titre: 'Commandes fournisseurs', module: 'achats', famille: 'Acheter'," \
   "$CFW"
-prouver "une commande qui n'allume pas son entrée du menu" web/public/v10/app.js \
+prouver "une commande qui n'allume pas son entrée du menu" modules/socle/ecrans/entreprise/app-1.js \
   "    else if (name === 'commandef' || name === 'reception') active = 'commandesf';
 " "" \
   "$CFW"
-prouver "les quantités de la commande arrondies comme un montant" web/public/v10/app.js \
+prouver "les quantités de la commande arrondies comme un montant" modules/socle/ecrans/entreprise/app-1.js \
   "data-k=\"qty\" data-i=\"\${i}\" value=\"\${h(l.qty)}\" step=\"any\"" "data-k=\"qty\" data-i=\"\${i}\" value=\"\${h(l.qty)}\" step=\"0.001\"" \
   "$CFW"
-prouver "les quantités reçues arrondies comme un montant" web/public/v10/app.js \
+prouver "les quantités reçues arrondies comme un montant" modules/socle/ecrans/entreprise/app-1.js \
   "data-rq=\"\${i}\" value=\"\${h(l.qty)}\" step=\"any\"" "data-rq=\"\${i}\" value=\"\${h(l.qty)}\" step=\"0.001\"" \
   "$CFW"
-prouver "une commande enregistrée sans numéro" web/public/v10/app.js \
+prouver "une commande enregistrée sans numéro" modules/socle/ecrans/entreprise/app-1.js \
   "      if (!o.number) o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
 " "" \
   "$CFW"
-prouver "les lignes d'une commande en préparation encore modifiables" web/public/v10/app.js \
+prouver "les lignes d'une commande en préparation encore modifiables" modules/socle/ecrans/entreprise/app-1.js \
   "    const figee = !!(suivi && suivi.receptions.length);" "    const figee = recue;" \
   "$CFW"
-prouver "une réception qui ne se valide pas" web/public/v10/app.js \
+prouver "une réception qui ne se valide pas" modules/socle/ecrans/entreprise/app-1.js \
   "        r.status = 'validée';
 " "" \
   "$CFW"
-prouver "une réception validée sans numéro" web/public/v10/app.js \
+prouver "une réception validée sans numéro" modules/socle/ecrans/entreprise/app-1.js \
   "        r.number = r.number || C.numeroSuivant(data, receptionsF(), 'BR', r.date);
 " "" \
   "$CFW"
-prouver "« Recevoir le reste » qui se dit « Recevoir »" web/public/v10/app.js \
+prouver "« Recevoir le reste » qui se dit « Recevoir »" modules/socle/ecrans/entreprise/app-1.js \
   "\${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}" "Recevoir" \
   "$CFW"
-prouver "le panneau des réceptions absent de la commande" web/public/v10/app.js \
+prouver "le panneau des réceptions absent de la commande" modules/socle/ecrans/entreprise/app-1.js \
   "\${suivi && suivi.receptions.length ? \`<div class=\"panel\" id=\"receptions-panel\">" "\${false ? \`<div class=\"panel\" id=\"receptions-panel\">" \
   "$CFW"
-prouver "« Saisir la facture du fournisseur » absent d'une réception validée" web/public/v10/app.js \
+prouver "« Saisir la facture du fournisseur » absent d'une réception validée" modules/socle/ecrans/entreprise/app-1.js \
   "\${valide && !facturee ? '<button class=\"btn btn-primary\" id=\"rec-facturer\">Saisir la facture du fournisseur</button>' : ''}" "" \
   "$CFW"
-prouver "la facture tirée de la seule réception affichée" web/public/v10/app.js \
+prouver "la facture tirée de la seule réception affichée" modules/socle/ecrans/entreprise/app-1.js \
   "facturerReceptions(C.receptionsAFacturer(data).filter(x => x.orderId === r.orderId || x.id === r.id))" "facturerReceptions(C.receptionsAFacturer(data).filter(x => x.id === r.id))" \
   "$CFW"
-prouver "la facture des réceptions sans son lien aux réceptions" web/public/v10/app.js \
+prouver "la facture des réceptions sans son lien aux réceptions" modules/socle/ecrans/entreprise/app-1.js \
   "    p.receptions = recs.map(r => ({ id: r.id, number: r.number || '' }));
 " "" \
   "$CFW"
-prouver "la copie d'un achat qui couvre encore ses réceptions" web/public/v10/app.js \
+prouver "la copie d'un achat qui couvre encore ses réceptions" modules/socle/ecrans/entreprise/app-1.js \
   "    delete copy.receptions;
 " "" \
   "$CFW"
-prouver "la copie d'un achat dont la marchandise n'entre pas en stock" web/public/v10/app.js \
+prouver "la copie d'un achat dont la marchandise n'entre pas en stock" modules/socle/ecrans/entreprise/app-1.js \
   "    copy.lines = (copy.lines || []).map(C.copieLigneAchat);
 " "" \
   "$CFW"
-prouver "la copie d'une ligne reçue qui garde sa marque" web/public/v10/core.js \
+prouver "la copie d'une ligne reçue qui garde sa marque" modules/socle/moteur/core-2.js \
   "    delete x.recue;
 " "" \
   "$CF3"
-prouver "le bouton ⧉ qui recopie la marque « reçue »" web/public/v10/app.js \
+prouver "le bouton ⧉ qui recopie la marque « reçue »" modules/socle/ecrans/entreprise/app-1.js \
   "p.lines.splice(i + 1, 0, C.copieLigneAchat(p.lines[i]))" "p.lines.splice(i + 1, 0, deepCopy(p.lines[i]))" \
   "$CFW"
-prouver "les lignes reçues d'un achat qui ne le disent pas" web/public/v10/app.js \
+prouver "les lignes reçues d'un achat qui ne le disent pas" modules/socle/ecrans/entreprise/app-1.js \
   "\${l.recue ? \`<div class=\"small muted nw\" data-recue" "\${false ? \`<div class=\"small muted nw\" data-recue" \
   "$CFW"
 
 # ── Brique 88 : les écarts entre la facture du fournisseur et ses réceptions (docs/commandes-fournisseurs.md) ──
 CF5="la facture se compare à ce qui a été reçu : une quantité, un prix, une ligne oubliée ; la copie d'une ligne ne compte pas"
-prouver "une ligne de facture comparée à la première ligne de commande de son nom" web/public/v10/core.js \
+prouver "une ligne de facture comparée à la première ligne de commande de son nom" modules/socle/moteur/core-2.js \
   "      if (cle) { ligne.origine = { commande: r.orderId, ligne: l.ligneCommande }; parCle.set(cle, ligne); }" "      if (cle) parCle.set(cle, ligne);" \
   "$CF5"
-prouver "la copie d'une ligne reçue qui garde sa ligne de commande" web/public/v10/core.js \
+prouver "la copie d'une ligne reçue qui garde sa ligne de commande" modules/socle/moteur/core-2.js \
   "    delete x.origine;
 " "" \
   "$CF3"
-prouver "une quantité facturée autre que la quantité reçue passée sous silence" web/public/v10/core.js \
+prouver "une quantité facturée autre que la quantité reçue passée sous silence" modules/socle/moteur/core-2.js \
   "      if (Math.abs(q - a.qty) > 0.0005) out.push(" "      if (false) out.push(" \
   "$CF5"
-prouver "un prix facturé autre que celui de la commande passé sous silence" web/public/v10/core.js \
+prouver "un prix facturé autre que celui de la commande passé sous silence" modules/socle/moteur/core-2.js \
   "      if (memeDevise && Math.abs(pu - a.unitPrice) > 0.0005) out.push(" "      if (false) out.push(" \
   "$CF5"
-prouver "une ligne reçue oubliée par la facture passée sous silence" web/public/v10/core.js \
+prouver "une ligne reçue oubliée par la facture passée sous silence" modules/socle/moteur/core-2.js \
   "      if (!l) { out.push({ ...quoi, genre: 'absente', recu: a.qty }); return; }" "      if (!l) return;" \
   "$CF5"
-prouver "des prix comparés d'une devise à l'autre" web/public/v10/core.js \
+prouver "des prix comparés d'une devise à l'autre" modules/socle/moteur/core-2.js \
   "    const memeDevise = (p.currency || base) === (recs[0].currency || base);" "    const memeDevise = true;" \
   "$CF5"
-prouver "les écarts qui ne se disent pas pendant la saisie" web/public/v10/app.js \
+prouver "les écarts qui ne se disent pas pendant la saisie" modules/socle/ecrans/entreprise/app-1.js \
   "      if (\$('#b-ecarts')) \$('#b-ecarts').innerHTML" "      if (false) \$('#b-ecarts').innerHTML" \
   "$CFW"
-prouver "la commande qui ne nomme pas la facture de ses réceptions" web/public/v10/app.js \
+prouver "la commande qui ne nomme pas la facture de ses réceptions" modules/socle/ecrans/entreprise/app-1.js \
   "\${factures.length ? \`<p class=\"small\" id=\"cf-factures\">" "\${false ? \`<p class=\"small\" id=\"cf-factures\">" \
   "$CFW"
-prouver "la commande qui tait l'écart de sa facture" web/public/v10/app.js \
+prouver "la commande qui tait l'écart de sa facture" modules/socle/ecrans/entreprise/app-1.js \
   "return \`<a href=\"#/achat/\${h(f.id)}\">\${h(f.number || 'sans numéro')}</a>\${n ?" "return \`<a href=\"#/achat/\${h(f.id)}\">\${h(f.number || 'sans numéro')}</a>\${false ?" \
   "$CFW"
 
 # ── Brique 89 : la demande de prix, à un ou plusieurs fournisseurs (docs/commandes-fournisseurs.md) ──
 CF6="une demande de prix envoyée à trois fournisseurs se compare ligne à ligne, en dinars ; elle s'imprime sans prix"
 CFD="Nadia demande ses prix à deux fournisseurs, compare leurs réponses, puis commande chez le moins cher"
-prouver "la demande de prix absente des statuts" web/public/v10/core.js \
+prouver "la demande de prix absente des statuts" modules/socle/moteur/core-2.js \
   "  const STATUTS_COMMANDE_FOURNISSEUR = ['demande', 'brouillon', 'envoyée', 'soldée', 'annulée'];" "  const STATUTS_COMMANDE_FOURNISSEUR = ['brouillon', 'envoyée', 'soldée', 'annulée'];" \
   "$CFD"
-prouver "une demande commandée encore comparée" web/public/v10/core.js \
+prouver "une demande commandée encore comparée" modules/socle/moteur/core-2.js \
   "    return (data.supplierOrders || []).filter(x => x.status === 'demande' && (x.groupe || x.id) === g);" "    return (data.supplierOrders || []).filter(x => (x.groupe || x.id) === g);" \
   "$CF6"
-prouver "des prix en devise comparés sans être ramenés en dinars" web/public/v10/core.js \
+prouver "des prix en devise comparés sans être ramenés en dinars" modules/socle/moteur/core-2.js \
   "return pu > 0 ? toBase(x, pu, co) : null; });" "return pu > 0 ? pu : null; });" \
   "$CF6"
-prouver "une demande sans toutes ses réponses qui peut gagner" web/public/v10/core.js \
+prouver "une demande sans toutes ses réponses qui peut gagner" modules/socle/moteur/core-2.js \
   "      complete: (x.lines || []).length > 0 && (x.lines || []).every(l => (Number(l.unitPrice) || 0) > 0)," "      complete: true," \
   "$CF6"
-prouver "une demande de prix imprimée avec des prix" web/public/v10/core.js \
+prouver "une demande de prix imprimée avec des prix" modules/socle/moteur/core-2.js \
   "    const noPrices = (isDelivery && doc.hidePrices !== false) || isDemandePrix;" "    const noPrices = isDelivery && doc.hidePrices !== false;" \
   "$CF6"
-prouver "une demande de prix imprimée comme un bon de commande" web/public/v10/core.js \
+prouver "une demande de prix imprimée comme un bon de commande" modules/socle/moteur/core-2.js \
   ": isDemandePrix ? L.demandePrix : (L[doc.type] || 'Document');" ": (L[doc.type] || 'Document');" \
   "$CF6"
-prouver "une demande de prix « commandée le »" web/public/v10/core.js \
+prouver "une demande de prix « commandée le »" modules/socle/moteur/core-2.js \
   "      [isDemandePrix ? L.askedOn : L.orderedOn, fmtDate(doc.date)]," "      [L.orderedOn, fmtDate(doc.date)]," \
   "$CF6"
-prouver "une demande de prix qui demande de confirmer la commande" web/public/v10/core.js \
+prouver "une demande de prix qui demande de confirmer la commande" modules/socle/moteur/core-2.js \
   "\${isDemandePrix ? L.demandePrixNote : L.supplierOrderNote}" "\${L.supplierOrderNote}" \
   "$CF6"
-prouver "« + Demande de prix » qui crée une commande" web/public/v10/app.js \
+prouver "« + Demande de prix » qui crée une commande" modules/socle/ecrans/entreprise/app-1.js \
   "status: parts[1] === 'demande' ? 'demande' : 'brouillon', date: C.today()" "status: 'brouillon', date: C.today()" \
   "$CFD"
-prouver "une demande de prix qu'on peut recevoir" web/public/v10/app.js \
+prouver "une demande de prix qu'on peut recevoir" modules/socle/ecrans/entreprise/app-1.js \
   "suivi.aProposer && !close && !demande);" "suivi.aProposer && !close);" \
   "$CFD"
-prouver "une demande de prix qui se dit commande" web/public/v10/app.js \
+prouver "une demande de prix qui se dit commande" modules/socle/ecrans/entreprise/app-1.js \
   "\${demande ? 'Demande de prix' : 'Commande'}" "Commande" \
   "$CFD"
-prouver "les titres d'une demande de prix qui parlent de commande" web/public/v10/app.js \
+prouver "les titres d'une demande de prix qui parlent de commande" modules/socle/ecrans/entreprise/app-1.js \
   "    const quoi = o.status === 'demande' ? 'demande' : 'commande';" "    const quoi = 'commande';" \
   "$CFD"
-prouver "« Demander aussi à… » qui propose un fournisseur déjà sollicité" web/public/v10/app.js \
+prouver "« Demander aussi à… » qui propose un fournisseur déjà sollicité" modules/socle/ecrans/entreprise/app-1.js \
   "      const pris = new Set(C.demandesDuGroupe(data, src).map(x => x.supplierId));" "      const pris = new Set();" \
   "$CFD"
-prouver "la demande copiée avec les prix de l'autre fournisseur" web/public/v10/app.js \
+prouver "la demande copiée avec les prix de l'autre fournisseur" modules/socle/ecrans/entreprise/app-1.js \
   "lines: (src.lines || []).map(l => ({ ...deepCopy(l), unitPrice: 0 })) };" "lines: deepCopy(src.lines || []) };" \
   "$CFD"
-prouver "une demande commandée sans le prix du fournisseur" web/public/v10/app.js \
+prouver "une demande commandée sans le prix du fournisseur" modules/socle/ecrans/entreprise/app-1.js \
   "      if (sansPrix.length) return toast(" "      if (false) return toast(" \
   "$CFD"
-prouver "les autres demandes gardées après la commande" web/public/v10/app.js \
+prouver "les autres demandes gardées après la commande" modules/socle/ecrans/entreprise/app-1.js \
   "      autres.forEach(x => { x.status = 'annulée'; x.nonRetenue = true; });" "" \
   "$CFD"
-prouver "le prix le moins cher d'une ligne qui ne se lit pas" web/public/v10/app.js \
+prouver "le prix le moins cher d'une ligne qui ne se lit pas" modules/socle/ecrans/entreprise/app-1.js \
   ": j === l.meilleur ? \`<b>" ": false ? \`<b>" \
   "$CFD"
-prouver "« Commander chez… » le moins cher qui n'est pas le bouton principal" web/public/v10/app.js \
+prouver "« Commander chez… » le moins cher qui n'est pas le bouton principal" modules/socle/ecrans/entreprise/app-1.js \
   "\${t.id === groupe.moinsCher ? 'btn-primary' : ''}\" data-commander" "\" data-commander" \
   "$CFD"
 
 # ── Brique 90 : « À faire » annonce les achats et livraisons en attente (docs/commandes-fournisseurs.md) ──
 CF7="« À faire » annonce les bons à facturer, les réceptions sans facture et les commandes en retard, avec les fonctions de leurs listes"
 AFW="Nadia voit sur son accueil la commande en retard et la réception sans facture, et chaque bouton l'y mène"
-prouver "une commande attendue plus tard dite en retard" web/public/v10/core.js \
+prouver "une commande attendue plus tard dite en retard" modules/socle/moteur/core-2.js \
   "(data.supplierOrders || []).filter(o => o.dueDate && o.dueDate < t && ['envoyée', 'partielle']" "(data.supplierOrders || []).filter(o => o.dueDate && ['envoyée', 'partielle']" \
   "$CF7"
-prouver "une commande soldée ou reçue dite en retard" web/public/v10/core.js \
+prouver "une commande soldée ou reçue dite en retard" modules/socle/moteur/core-2.js \
   "o.dueDate < t && ['envoyée', 'partielle'].includes(statutCommandeFournisseur(data, o)));" "o.dueDate < t);" \
   "$CF7"
-prouver "les bons à facturer absents de « À faire »" web/public/v10/core.js \
+prouver "les bons à facturer absents de « À faire »" modules/socle/moteur/core-2.js \
   "    if (bonsAF.length) {" "    if (false) {" \
   "$CF7"
-prouver "les réceptions sans facture absentes de « À faire »" web/public/v10/core.js \
+prouver "les réceptions sans facture absentes de « À faire »" modules/socle/moteur/core-2.js \
   "    if (recAF.length) {" "    if (false) {" \
   "$CF7"
-prouver "les commandes en retard absentes de « À faire »" web/public/v10/core.js \
+prouver "les commandes en retard absentes de « À faire »" modules/socle/moteur/core-2.js \
   "    if (enRetard.length) {" "    if (false) {" \
   "$CF7"
-prouver "la ligne des commandes en retard qui ne mène nulle part" web/public/v10/app.js \
+prouver "la ligne des commandes en retard qui ne mène nulle part" modules/socle/ecrans/entreprise/app-1.js \
   "    'commandesf-retard': { label: 'Voir les commandes', run: vers('#/commandesf/commandes') },
 " "" \
   "$AFW"
-prouver "la ligne des réceptions sans facture qui ne mène nulle part" web/public/v10/app.js \
+prouver "la ligne des réceptions sans facture qui ne mène nulle part" modules/socle/ecrans/entreprise/app-1.js \
   "    'receptions-a-facturer': { label: 'Voir les réceptions', run: vers('#/commandesf/receptions') },
 " "" \
   "$AFW"
-prouver "la liste qui ne marque pas la commande en retard" web/public/v10/app.js \
+prouver "la liste qui ne marque pas la commande en retard" modules/socle/ecrans/entreprise/app-1.js \
   "\${enRetard.has(x.id) ? ' <span" "\${false ? ' <span" \
   "$AFW"
-prouver "la liste qui ne marque pas la réception à facturer" web/public/v10/app.js \
+prouver "la liste qui ne marque pas la réception à facturer" modules/socle/ecrans/entreprise/app-1.js \
   "\${aFacturerR.has(x.id) ? ' <span" "\${false ? ' <span" \
   "$AFW"
 
@@ -4849,31 +4849,31 @@ prouver "la liste qui ne marque pas la réception à facturer" web/public/v10/ap
 EN1="l'encours : les factures non réglées en dinars, plus les bons livrés à facturer ; ni brouillon ni autre client"
 EN2="une pièce qui ferait dépasser le plafond se dit avec ses chiffres ; sous le plafond, rien ; les bons déjà comptés ne comptent pas deux fois"
 ENW="Nadia plafonne l'encours de son client, puis émet quand même la facture qui le dépasse, prévenue avant"
-prouver "une facture en brouillon comptée dans l'encours" web/public/v10/core.js \
+prouver "une facture en brouillon comptée dans l'encours" modules/socle/moteur/core-2.js \
   "d.clientId === clientId && d.type === 'facture' && d.status !== 'brouillon' && d.status !== 'annulée')" "d.clientId === clientId && d.type === 'facture' && d.status !== 'annulée')" \
   "$EN1"
-prouver "l'encours d'une facture en devise compté sans cours" web/public/v10/core.js \
+prouver "l'encours d'une facture en devise compté sans cours" modules/socle/moteur/core-2.js \
   "return s + (r > 0.0005 ? toBase(d, r, co) : 0); }, 0));" "return s + (r > 0.0005 ? r : 0); }, 0));" \
   "$EN1"
-prouver "les bons livrés comptés hors taxes dans l'encours" web/public/v10/core.js \
+prouver "les bons livrés comptés hors taxes dans l'encours" modules/socle/moteur/core-2.js \
   "    const livre = round3(bons.reduce((s, b) => s + toBase(b, computeTotals(b, co).totalTTC, co), 0));" "    const livre = round3(bons.reduce((s, b) => s + toBase(b, computeTotals(b, co).netHT, co), 0));" \
   "$EN1"
-prouver "la facture d'un bon qui le compte deux fois" web/public/v10/core.js \
+prouver "la facture d'un bon qui le compte deux fois" modules/socle/moteur/core-2.js \
   ".filter(b => siens.has(b.id) || b.id === doc.id)" ".filter(b => false)" \
   "$EN2"
-prouver "un client sans plafond averti" web/public/v10/core.js \
+prouver "un client sans plafond averti" modules/socle/moteur/core-2.js \
   "    if (!plafond || !doc.clientId) return null;" "    if (!doc.clientId) return null;" \
   "$EN2"
-prouver "une pièce sous le plafond annoncée comme un dépassement" web/public/v10/core.js \
+prouver "une pièce sous le plafond annoncée comme un dépassement" modules/socle/moteur/core-2.js \
   "    return apres > plafond + 0.0005 ? {" "    return true ? {" \
   "$EN2"
-prouver "émettre au-delà de l'encours sans le dire" web/public/v10/app.js \
+prouver "émettre au-delà de l'encours sans le dire" modules/socle/ecrans/entreprise/app-1.js \
   "      if (enc) w.push(" "      if (false) w.push(" \
   "$ENW"
-prouver "l'encours autorisé absent de la fiche du client" web/public/v10/app.js \
+prouver "l'encours autorisé absent de la fiche du client" modules/socle/ecrans/entreprise/app-1.js \
   "<input type=\"number\" name=\"creditLimit\"" "<input type=\"number\" name=\"creditLimitAbsent\"" \
   "$ENW"
-prouver 'la page du client qui tait son encours' web/public/v10/app.js \
+prouver 'la page du client qui tait son encours' modules/socle/ecrans/entreprise/app-1.js \
   'const encours = Number(c.creditLimit) > 0 ? C.encoursClient(data, c.id, co) : null;' 'const encours = null;' \
   'Nadia plafonne l'"'"'encours de son client, puis émet quand même la facture qui le dépasse, prévenue avant'
 
@@ -4881,28 +4881,28 @@ prouver 'la page du client qui tait son encours' web/public/v10/app.js \
 PQ1="le palier le plus haut que la quantité atteint ; sous le premier, le prix de l'article"
 PQ2="ce qu'on tape se lit et se trie ; un palier illisible, nul ou en double se refuse en disant lequel"
 PQW="Nadia donne au ciment des prix dégressifs, et la ligne de sa facture les suit, jusqu'au prix qu'elle tape"
-prouver "un palier qui ne compte qu'au-delà de sa quantité" web/public/v10/core.js \
+prouver "un palier qui ne compte qu'au-delà de sa quantité" modules/socle/moteur/core-1.js \
   "Number(x.prix) > 0 && q >= Number(x.min))" "Number(x.prix) > 0 && q > Number(x.min))" \
   "$PQ1"
-prouver "le palier le plus bas atteint au lieu du plus haut" web/public/v10/core.js \
+prouver "le palier le plus bas atteint au lieu du plus haut" modules/socle/moteur/core-1.js \
   "      .sort((a, b) => Number(b.min) - Number(a.min))[0];" "      .sort((a, b) => Number(a.min) - Number(b.min))[0];" \
   "$PQ1"
-prouver "un palier sans prix qui vend pour rien" web/public/v10/core.js \
+prouver "un palier sans prix qui vend pour rien" modules/socle/moteur/core-1.js \
   ".filter(x => Number(x.min) > 0 && Number(x.prix) > 0 && q" ".filter(x => Number(x.min) > 0 && q" \
   "$PQ1"
-prouver "deux prix pour la même quantité acceptés" web/public/v10/core.js \
+prouver "deux prix pour la même quantité acceptés" modules/socle/moteur/core-1.js \
   "      if (paliers.some(p => p.min === min)) return {" "      if (false) return {" \
   "$PQ2"
-prouver "des paliers gardés dans le désordre" web/public/v10/core.js \
+prouver "des paliers gardés dans le désordre" modules/socle/moteur/core-1.js \
   "    return { paliers: paliers.sort((a, b) => a.min - b.min) };" "    return { paliers };" \
   "$PQ2"
-prouver "un palier illisible enregistré sans un mot" web/public/v10/app.js \
+prouver "un palier illisible enregistré sans un mot" modules/socle/ecrans/entreprise/app-1.js \
   "          if (lusPaliers.erreur) return refus('#cat-paliers', lusPaliers.erreur);" "" \
   "$PQW"
-prouver 'la quantité qui ne choisit pas le palier' web/public/v10/app.js \
+prouver 'la quantité qui ne choisit pas le palier' modules/socle/ecrans/entreprise/app-1.js \
   "            if (el.dataset.k === 'qty' && l.itemId && !l.prixManuel) {" "            if (false) {" \
   "Nadia donne au ciment des prix dégressifs, et la ligne de sa facture les suit, jusqu'au prix qu'elle tape"
-prouver 'un prix tapé que la quantité écrase' web/public/v10/app.js \
+prouver 'un prix tapé que la quantité écrase' modules/socle/ecrans/entreprise/app-1.js \
   "            if (el.dataset.k === 'unitPrice') { l.prixManuel = true; delete l.puTtc; }" "            if (el.dataset.k === 'unitPrice') { delete l.puTtc; }" \
   "Nadia donne au ciment des prix dégressifs, et la ligne de sa facture les suit, jusqu'au prix qu'elle tape"
 
@@ -4910,31 +4910,31 @@ prouver 'un prix tapé que la quantité écrase' web/public/v10/app.js \
 LP1="valent pour un client à une date : celles qui le nomment, puis celles de sa catégorie, la plus récente d'abord"
 LP2="le prix d'un article : la première liste qui le porte, sinon le palier de sa quantité, sinon le prix de l'article"
 LPW="Nadia fait une liste de prix pour ses revendeurs, et leurs factures la suivent"
-prouver "une liste qui vaut avant sa date" web/public/v10/core.js \
+prouver "une liste qui vaut avant sa date" modules/socle/moteur/core-1.js \
   "(!l.depuis || l.depuis <= d) && (!l.jusquau || d <= l.jusquau)" "(!l.jusquau || d <= l.jusquau)" \
   "$LP1"
-prouver "une liste qui vaut après sa fin" web/public/v10/core.js \
+prouver "une liste qui vaut après sa fin" modules/socle/moteur/core-1.js \
   "(!l.depuis || l.depuis <= d) && (!l.jusquau || d <= l.jusquau)" "(!l.depuis || l.depuis <= d)" \
   "$LP1"
-prouver "la liste d'une catégorie qui passe devant celle qui nomme le client" web/public/v10/core.js \
+prouver "la liste d'une catégorie qui passe devant celle qui nomme le client" modules/socle/moteur/core-1.js \
   "      .sort((a, b) => (nomme(b) ? 1 : 0) - (nomme(a) ? 1 : 0) || String(b.depuis" "      .sort((a, b) => String(b.depuis" \
   "$LP1"
-prouver "une catégorie écrite autrement qui ne se reconnaît pas" web/public/v10/core.js \
+prouver "une catégorie écrite autrement qui ne se reconnaît pas" modules/socle/moteur/core-1.js \
   "  const normCategorie = s => String(s || '').trim().toLowerCase();" "  const normCategorie = s => String(s || '');" \
   "$LP1"
-prouver "le prix de la liste ignoré au profit du catalogue" web/public/v10/core.js \
+prouver "le prix de la liste ignoré au profit du catalogue" modules/socle/moteur/core-1.js \
   "      if (x) return { prix: Number(x.prix), source: 'liste', liste: l.nom || '' };" "" \
   "$LP2"
-prouver "un article choisi au prix du catalogue malgré la liste du client" web/public/v10/app.js \
+prouver "un article choisi au prix du catalogue malgré la liste du client" modules/socle/ecrans/entreprise/app-1.js \
   "const pu = C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, 1).prix, doc, company())" "const pu = C.prixDuCatalogue(it.unitPrice, doc, company())" \
   "$LPW"
-prouver "la catégorie de prix absente de la fiche du client" web/public/v10/app.js \
+prouver "la catégorie de prix absente de la fiche du client" modules/socle/ecrans/entreprise/app-1.js \
   "<input type=\"text\" name=\"categorieTarif\"" "<input type=\"text\" name=\"categorieTarifAbsente\"" \
   "$LPW"
-prouver "les listes de prix absentes du menu" web/public/v10/core.js \
+prouver "les listes de prix absentes du menu" modules/socle/moteur/core-1.js \
   "    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre'," "    { id: 'listesprix-absente', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre'," \
   "$LPW"
-prouver 'une ancienne ligne à un prix choisi que la quantité écrase' web/public/v10/app.js \
+prouver 'une ancienne ligne à un prix choisi que la quantité écrase' modules/socle/ecrans/entreprise/app-1.js \
   " && Number(auto(ancienneQte)) === Number(l.unitPrice)) {" ") {" \
   "Nadia donne au ciment des prix dégressifs, et la ligne de sa facture les suit, jusqu'au prix qu'elle tape"
 
@@ -4942,63 +4942,63 @@ prouver 'une ancienne ligne à un prix choisi que la quantité écrase' web/publ
 DP1="chaque mouvement appartient au dépôt de sa pièce ; le stock se lit dépôt par dépôt"
 DP2="un transfert ne change ni la quantité totale ni le coût moyen ; on ne transfère pas ce qui n'y est pas"
 DPW="Nadia ouvre un second magasin, y reçoit du ciment, puis en transfère une partie"
-prouver "tous les mouvements rangés au dépôt principal" web/public/v10/core.js \
+prouver "tous les mouvements rangés au dépôt principal" modules/socle/moteur/core-1.js \
   "      m.depotId = (art ? art.depotInitial : depotDe.get(m.docId || m.id)) || DEPOT_PRINCIPAL;" "      m.depotId = DEPOT_PRINCIPAL;" \
   "$DP1"
-prouver "une réception qui n'entre pas dans son dépôt" web/public/v10/core.js \
+prouver "une réception qui n'entre pas dans son dépôt" modules/socle/moteur/core-1.js \
   "    [data.purchases, data.receptions, data.documents, data.stockAdjustments].forEach(" "    [data.purchases, data.documents, data.stockAdjustments].forEach(" \
   "$DP1"
-prouver "un transfert de ce que le dépôt n'a pas" web/public/v10/core.js \
+prouver "un transfert de ce que le dépôt n'a pas" modules/socle/moteur/core-1.js \
   "    if (qty > dispo + 0.0005) return {" "    if (false) return {" \
   "$DP2"
-prouver "un transfert d'un dépôt vers lui-même" web/public/v10/core.js \
+prouver "un transfert d'un dépôt vers lui-même" modules/socle/moteur/core-1.js \
   "    if (!t.de || !t.vers || t.de === t.vers) return {" "    if (!t.de || !t.vers) return {" \
   "$DP2"
-prouver "un transfert qui entre à un coût imposé" web/public/v10/core.js \
+prouver "un transfert qui entre à un coût imposé" modules/socle/moteur/core-1.js \
   "    const commun = { date: t.date, itemId: t.itemId, unitCost: ''," "    const commun = { date: t.date, itemId: t.itemId, unitCost: 0," \
   "$DP2"
-prouver "l'entrée d'un transfert rangée avant sa sortie" web/public/v10/core.js \
+prouver "l'entrée d'un transfert rangée avant sa sortie" modules/socle/moteur/core-1.js \
   "depotId: t.vers, createdAt: commun.createdAt + 1," "depotId: t.vers," \
   "$DP2"
-prouver "le dépôt choisi sur la réception oublié" web/public/v10/app.js \
+prouver "le dépôt choisi sur la réception oublié" modules/socle/ecrans/entreprise/app-1.js \
   "      if (v.depotId) r.depotId = v.depotId;
 " "" \
   "$DPW"
-prouver "un transfert qui ne s'enregistre pas" web/public/v10/app.js \
+prouver "un transfert qui ne s'enregistre pas" modules/socle/ecrans/entreprise/app-2.js \
   "          r.ajustements.forEach(a => data.stockAdjustments.push(a));" "" \
   "$DPW"
-prouver "la moitié d'un transfert supprimée seule" web/public/v10/app.js \
+prouver "la moitié d'un transfert supprimée seule" modules/socle/ecrans/entreprise/app-2.js \
   "      const ids = paire.length > 1 ? paire.map(x => x.id) : [b.dataset.rm];" "      const ids = [b.dataset.rm];" \
   "$DPW"
-prouver "la ligne d'une réception qui mène à une page de vente" web/public/v10/app.js \
+prouver "la ligne d'une réception qui mène à une page de vente" modules/socle/ecrans/entreprise/app-2.js \
   " : m.source === 'reception' ? '#/reception/' : '#/doc/'}" " : '#/doc/'}" \
   "$DPW"
-prouver "la page de l'article qui tait son stock par dépôt" web/public/v10/app.js \
+prouver "la page de l'article qui tait son stock par dépôt" modules/socle/ecrans/entreprise/app-2.js \
   "      \${C.depotsDe(data).length > 1 ? \`<p class=\"small mb\" id=\"art-depots\">" "      \${false ? \`<p class=\"small mb\" id=\"art-depots\">" \
   "$DPW"
 
 # ── Brique 95 : le dépôt sur les ventes et les achats (docs/depots.md) ──
 DP3="le stock insuffisant se lit dans le dépôt de la pièce (brique 95)"
 DPW2="Nadia range un achat à Sfax, puis vend depuis le dépôt qui a la marchandise ; l'avoir y rentre"
-prouver "le stock insuffisant lu sur tous les dépôts" web/public/v10/core.js \
+prouver "le stock insuffisant lu sur tous les dépôts" modules/socle/moteur/core-1.js \
   "      const depot = depotsDe(data).length > 1 ? (doc.depotId || DEPOT_PRINCIPAL) : '';" "      const depot = '';" \
   "$DP3"
-prouver "le dépôt de la pièce lu sans son choix" web/public/v10/core.js \
+prouver "le dépôt de la pièce lu sans son choix" modules/socle/moteur/core-1.js \
   "      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === depot) || { qty: 0 }).qty : s.qty;" "      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === DEPOT_PRINCIPAL) || { qty: 0 }).qty : s.qty;" \
   "$DP3"
-prouver "la pièce de vente sans choix de dépôt" web/public/v10/app.js \
+prouver "la pièce de vente sans choix de dépôt" modules/socle/ecrans/entreprise/app-1.js \
   "\${C.depotsDe(data).length > 1 && (isInv || isDelivery || isAv) && doc.fromDocType !== 'livraison' ?" "\${false ?" \
   "$DPW2"
-prouver "l'achat sans choix de dépôt" web/public/v10/app.js \
+prouver "l'achat sans choix de dépôt" modules/socle/ecrans/entreprise/app-1.js \
   "\${C.depotsDe(data).length > 1 ? \`<label class=\"puce-champ\"><span>Dépôt</span><select name=\"depotId\" \${clos" "\${false ? \`<label class=\"puce-champ\"><span>Dépôt</span><select name=\"depotId\" \${clos" \
   "$DPW2"
-prouver "l'avoir tiré d'une facture qui oublie son dépôt" web/public/v10/app.js \
+prouver "l'avoir tiré d'une facture qui oublie son dépôt" modules/socle/ecrans/entreprise/app-1.js \
   "      depotId: inv.depotId || ''          //" "      depotId: ''          //" \
   "$DPW2"
-prouver "l'avoir qui ne suit pas le dépôt de la facture choisie" web/public/v10/app.js \
+prouver "l'avoir qui ne suit pas le dépôt de la facture choisie" modules/socle/ecrans/entreprise/app-1.js \
   "        if (inv && !figee && \$('select[name=depotId]', head)) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL;" "        if (false) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL;" \
   "$DPW2"
-prouver "l'avertissement qui ne propose jamais le transfert" web/public/v10/app.js \
+prouver "l'avertissement qui ne propose jamais le transfert" modules/socle/ecrans/entreprise/app-1.js \
   "\${x.total >= x.need ? \`Les autres dépôts" "\${false ? \`Les autres dépôts" \
   "$DPW2"
 
@@ -5006,43 +5006,43 @@ prouver "l'avertissement qui ne propose jamais le transfert" web/public/v10/app.
 KT1="vendre un kit sort ses composants ; un avoir les rentre ; le kit se compte en kits possibles"
 KT2="« stock insuffisant » regarde les composants du kit"
 KTW="Nadia compose un pack chape, le vend, et ses composants sortent du stock"
-prouver "un article suivi pris pour un kit" web/public/v10/core.js \
+prouver "un article suivi pris pour un kit" modules/socle/moteur/core-1.js \
   "  function estKit(c) { return !!c && !c.tracked && Array.isArray(c.composants)" "  function estKit(c) { return !!c && Array.isArray(c.composants)" \
   "$KT1"
-prouver "un kit vendu qui sort un seul de chaque composant" web/public/v10/core.js \
+prouver "un kit vendu qui sort un seul de chaque composant" modules/socle/moteur/core-1.js \
   "          const qty = par === 1 ? Number(l.qty) || 0 : round3((Number(l.qty) || 0) * par);" "          const qty = Number(l.qty) || 0;" \
   "$KT1"
-prouver "les kits possibles comptés sur le composant le plus abondant" web/public/v10/core.js \
+prouver "les kits possibles comptés sur le composant le plus abondant" modules/socle/moteur/core-1.js \
   "    return Math.max(0, Math.min(...ks.map(k => Math.floor(" "    return Math.max(0, Math.max(...ks.map(k => Math.floor(" \
   "$KT1"
-prouver "les kits possibles arrondis au-dessus" web/public/v10/core.js \
+prouver "les kits possibles arrondis au-dessus" modules/socle/moteur/core-1.js \
   "ks.map(k => Math.floor(round3(stockOf(data, k.item.id, toIso).qty / k.qty) + 1e-9))" "ks.map(k => Math.ceil(round3(stockOf(data, k.item.id, toIso).qty / k.qty)))" \
   "$KT1"
-prouver "le coût d'un kit sans les quantités de ses composants" web/public/v10/core.js \
+prouver "le coût d'un kit sans les quantités de ses composants" modules/socle/moteur/core-1.js \
   "    return round3(composantsDe(data, kit).reduce((a, k) => a + k.qty * (stockOf(" "    return round3(composantsDe(data, kit).reduce((a, k) => a + (stockOf(" \
   "$KT1"
-prouver "le stock insuffisant qui ignore la quantité par kit" web/public/v10/core.js \
+prouver "le stock insuffisant qui ignore la quantité par kit" modules/socle/moteur/core-1.js \
   "qty: round3((Number(l.qty) || 0) * k.qty), kit: c.label" "qty: Number(l.qty) || 0, kit: c.label" \
   "$KT2"
-prouver "le stock insuffisant qui ne regarde pas les composants" web/public/v10/core.js \
+prouver "le stock insuffisant qui ne regarde pas les composants" modules/socle/moteur/core-1.js \
   "    lignesDeStock(doc.lines || [], data).forEach(l => {" "    (doc.lines || []).forEach(l => {" \
   "$KT2"
-prouver "un composant sans article accepté" web/public/v10/app.js \
+prouver "un composant sans article accepté" modules/socle/ecrans/entreprise/app-1.js \
   "          if (kitLu.some(k => !k.itemId)) return refus(" "          if (false) return refus(" \
   "$KTW"
-prouver "un même article deux fois dans le kit" web/public/v10/app.js \
+prouver "un même article deux fois dans le kit" modules/socle/ecrans/entreprise/app-1.js \
   "          if (new Set(kitLu.map(k => k.itemId)).size < kitLu.length) return refus(" "          if (false) return refus(" \
   "$KTW"
-prouver "un kit suivi lui-même en stock" web/public/v10/app.js \
+prouver "un kit suivi lui-même en stock" modules/socle/ecrans/entreprise/app-1.js \
   "          if (kitLu.length && v.tracked) return refus(" "          if (false) return refus(" \
   "$KTW"
-prouver "les composants d'un kit perdus à l'enregistrement" web/public/v10/app.js \
+prouver "les composants d'un kit perdus à l'enregistrement" modules/socle/ecrans/entreprise/app-1.js \
   "          v.composants = kitLu.map(k => ({ itemId: k.itemId, qty: Number(k.qty) }));" "          v.composants = [];" \
   "$KTW"
-prouver "le catalogue qui tait les kits possibles" web/public/v10/app.js \
+prouver "le catalogue qui tait les kits possibles" modules/socle/ecrans/entreprise/app-1.js \
   "        if (C.estKit(c)) {" "        if (false) {" \
   "$KTW"
-prouver "le coût de revient d'un kit laissé à zéro" web/public/v10/app.js \
+prouver "le coût de revient d'un kit laissé à zéro" modules/socle/ecrans/entreprise/app-1.js \
   "            coutAuto = String(C.coutDuKit(data, lu)); champCout.value = coutAuto;" "            coutAuto = '';" \
   "$KTW"
 
@@ -5050,55 +5050,55 @@ prouver "le coût de revient d'un kit laissé à zéro" web/public/v10/app.js \
 LT1="chaque mouvement dit son lot ; le stock se lit lot par lot ; le lot conseillé périme le premier"
 LT2="« À faire » dit les lots qui périment ; une pièce dit ses lots manquants, périmés, courts"
 LTW="Samia saisit ses yaourts par lot, voit ceux qui périment, et vend le plus ancien"
-prouver "la vente qui oublie le lot de sa ligne" web/public/v10/core.js \
+prouver "la vente qui oublie le lot de sa ligne" modules/socle/moteur/core-1.js \
   "      (data.documents || []).forEach(d => (d.lines || []).forEach((l, i) => { if (l.lot) lotDe.set(" "      (data.documents || []).forEach(d => (d.lines || []).forEach((l, i) => { if (false) lotDe.set(" \
   "$LT1"
-prouver "le lot du stock de départ oublié" web/public/v10/core.js \
+prouver "le lot du stock de départ oublié" modules/socle/moteur/core-1.js \
   "      (data.catalog || []).forEach(c => { if (c.initialLot) lotDe.set(" "      (data.catalog || []).forEach(c => { if (false) lotDe.set(" \
   "$LT1"
-prouver "les lots rangés du plus tardif au plus proche" web/public/v10/core.js \
+prouver "les lots rangés du plus tardif au plus proche" modules/socle/moteur/core-1.js \
   "(!a.lot) - (!b.lot) || (a.peremption || '9999').localeCompare(b.peremption || '9999')" "(!a.lot) - (!b.lot) || (b.peremption || '9999').localeCompare(a.peremption || '9999')" \
   "$LT1"
-prouver "un lot périmé conseillé à la vente" web/public/v10/core.js \
+prouver "un lot périmé conseillé à la vente" modules/socle/moteur/core-1.js \
   "x.lot && x.qty > 0 && (!x.peremption || x.peremption >= t)) || null;" "x.lot && x.qty > 0) || null;" \
   "$LT1"
-prouver "« À faire » qui ne regarde que les lots déjà périmés" web/public/v10/core.js \
+prouver "« À faire » qui ne regarde que les lots déjà périmés" modules/socle/moteur/core-1.js \
   "      .filter(x => x.lot && x.qty > 0 && x.peremption && x.peremption <= limite)" "      .filter(x => x.lot && x.qty > 0 && x.peremption && x.peremption < t)" \
   "$LT2"
-prouver "un lot périmé jamais dit périmé" web/public/v10/core.js \
+prouver "un lot périmé jamais dit périmé" modules/socle/moteur/core-1.js \
   "peremption: x.peremption, qty: x.qty, perime: x.peremption < t })))" "peremption: x.peremption, qty: x.qty, perime: false })))" \
   "$LT2"
-prouver "un lot trop court accepté en silence" web/public/v10/core.js \
+prouver "un lot trop court accepté en silence" modules/socle/moteur/core-1.js \
   "      if (doc.type !== 'avoir' && x.qty < qty) out.push(" "      if (false) out.push(" \
   "$LT2"
-prouver "un lot périmé vendu en silence" web/public/v10/core.js \
+prouver "un lot périmé vendu en silence" modules/socle/moteur/core-1.js \
   "      if (x.peremption && doc.date && x.peremption < doc.date) out.push(" "      if (false) out.push(" \
   "$LT2"
-prouver "des lots périmés annoncés comme une simple information" web/public/v10/core.js \
+prouver "des lots périmés annoncés comme une simple information" modules/socle/moteur/core-2.js \
   "      out.push({ id: 'lots-peremption', level: perimes ? 'warn' : 'info'," "      out.push({ id: 'lots-peremption', level: 'info'," \
   "$LT2"
-prouver "« À faire » muet sur les lots qui périment" web/public/v10/core.js \
+prouver "« À faire » muet sur les lots qui périment" modules/socle/moteur/core-2.js \
   "    if (aPerimer.length) {" "    if (false) {" \
   "$LTW"
-prouver "la ligne d'achat sans lot ni péremption" web/public/v10/app.js \
+prouver "la ligne d'achat sans lot ni péremption" modules/socle/ecrans/entreprise/app-1.js \
   "      return \`<div class=\"inline lot-saisie\">" "      return '' && \`<div class=\"inline lot-saisie\">" \
   "$LTW"
-prouver "la ligne de vente sans choix du lot" web/public/v10/app.js \
+prouver "la ligne de vente sans choix du lot" modules/socle/ecrans/entreprise/app-1.js \
   "      return \`<div class=\"lot-choix\">" "      return '' && \`<div class=\"lot-choix\">" \
   "$LTW"
-prouver "l'émission muette sur une ligne sans lot" web/public/v10/app.js \
+prouver "l'émission muette sur une ligne sans lot" modules/socle/ecrans/entreprise/app-1.js \
   "      if ((isInv && doc.fromDocType !== 'livraison') || isAv) C.lotsDeLaPiece(doc, data)" "      if (false) C.lotsDeLaPiece(doc, data)" \
   "$LTW"
-prouver "la page de l'article qui tait son stock par lot" web/public/v10/app.js \
+prouver "la page de l'article qui tait son stock par lot" modules/socle/ecrans/entreprise/app-2.js \
   "      \${item.parLot ? \`<p class=\"small mb\" id=\"art-lots\">" "      \${false ? \`<p class=\"small mb\" id=\"art-lots\">" \
   "$LTW"
-prouver "l'historique qui tait le lot" web/public/v10/core.js \
+prouver "l'historique qui tait le lot" modules/socle/moteur/core-1.js \
   "        if (m.lot) m.note = [m.note, \`lot \${m.lot}\`]" "        if (false) m.note = [m.note, \`lot \${m.lot}\`]" \
   "$LTW"
-prouver "« suivre par lot » qui ne coche pas le suivi en stock" web/public/v10/app.js \
+prouver "« suivre par lot » qui ne coche pas le suivi en stock" modules/socle/ecrans/entreprise/app-1.js \
   "          if (e.target.checked && !cs.checked) { cs.checked = true; cs.onchange({ target: cs }); }" "          if (false) { cs.checked = true; cs.onchange({ target: cs }); }" \
   "$LTW"
-prouver "le lot du départ perdu à l'enregistrement" web/public/v10/app.js \
+prouver "le lot du départ perdu à l'enregistrement" modules/socle/ecrans/entreprise/app-1.js \
   "          v.initialLot = String(v.initialLot ?? it.initialLot ?? '').trim();" "          v.initialLot = '';" \
   "$LTW"
 
@@ -5193,10 +5193,10 @@ prouver "une partie non renvoyée prise pour une partie supprimée" web/public/p
 prouver "la liste de ce qui peut repartir, vide" serveur/v10/droits.ts \
   "    else ecrivables.add(nom);" "    else lectureSeule.add(nom);" \
   "$DDW"
-prouver "le prix d'un article accepté à l'écran puis perdu" web/public/v10/app.js \
+prouver "le prix d'un article accepté à l'écran puis perdu" modules/socle/ecrans/entreprise/app-1.js \
   "          if (!peutEcrireDossier('catalog')) return refus(" "          if (false) return refus(" \
   "$DDW"
-prouver "les paramètres acceptés à l'écran puis perdus" web/public/v10/app.js \
+prouver "les paramètres acceptés à l'écran puis perdus" modules/socle/ecrans/entreprise/app-2.js \
   "      if (!peutEcrireDossier('company')) { toast(" "      if (false) { toast(" \
   "$DDW"
 
@@ -5208,68 +5208,68 @@ prouver "le commercial pris pour un responsable" serveur/v10/droits.ts \
 prouver "le responsable que l'écran ne reconnaît pas" web/public/plateforme/pont.js \
   "    responsable = !!(d && d.responsable === true);" "    responsable = false;" \
   "$ACW"
-prouver "le réglage de l'accord perdu à l'enregistrement" web/public/v10/app.js \
+prouver "le réglage de l'accord perdu à l'enregistrement" modules/socle/ecrans/entreprise/app-2.js \
   "      data.company.encoursAccord = data.company.encoursAccord === true;" "      data.company.encoursAccord = false;" \
   "$ACW"
-prouver "l'avertissement qui dit « émets quand même » à qui ne le peut pas" web/public/v10/app.js \
+prouver "l'avertissement qui dit « émets quand même » à qui ne le peut pas" modules/socle/ecrans/entreprise/app-1.js \
   "\${isInv && co.encoursAccord && accordsEnLigne() && !estResponsable()" "\${false && co.encoursAccord && accordsEnLigne() && !estResponsable()" \
   "$ACW"
-prouver "le refus de l'émission qui ne propose pas l'accord" web/public/v10/app.js \
+prouver "le refus de l'émission qui ne propose pas l'accord" modules/socle/ecrans/entreprise/app-1.js \
   "if (e && e.bouton === 'ventes.accord.demander' && bridge.demanderAccord) demanderAccordPour(" "if (false) demanderAccordPour(" \
   "$ACW"
-prouver "la facture qui ne montre pas ses gestes au responsable" web/public/v10/app.js \
+prouver "la facture qui ne montre pas ses gestes au responsable" modules/socle/ecrans/entreprise/app-1.js \
   "    if (a.statut === 'en_attente' && accordsVus.peutDecider && !a.mienne) {" "    if (false) {" \
   "$ACW"
-prouver "l'accueil du responsable muet sur ce qui l'attend" web/public/v10/app.js \
+prouver "l'accueil du responsable muet sur ce qui l'attend" modules/socle/ecrans/entreprise/app-1.js \
   "l.accords.filter(a => a.statut === 'en_attente' && !a.mienne) : [];" "l.accords.filter(a => a.statut === 'en_attente' && a.mienne) : [];" \
   "$ACW"
-prouver "la page des demandes sans ses gestes" web/public/v10/app.js \
+prouver "la page des demandes sans ses gestes" modules/socle/ecrans/entreprise/app-2.js \
   "            ? (l.peutDecider && !a.mienne ? \`<span class=\"inline\">" "            ? (false ? \`<span class=\"inline\">" \
   "$ACW"
-prouver "l'accueil de qui a demandé muet sur la décision" web/public/v10/app.js \
+prouver "l'accueil de qui a demandé muet sur la décision" modules/socle/ecrans/entreprise/app-1.js \
   "new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece, a.geste));" "new Date(a.decideLe).getTime() > semaine && !pieceEncoreBrouillon(a.piece, a.geste));" \
   "$ACW"
 
 # ── Brique 101 : le menu selon le rôle (web/v10/menu-role.txt) ──
 MRW="chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi"
-prouver "le menu qui propose les pages cachées" web/public/v10/app.js \
+prouver "le menu qui propose les pages cachées" modules/socle/ecrans/entreprise/app-1.js \
   "    const pages = C.navPages(data).filter(p => !pageCachee(p.id));" "    const pages = C.navPages(data).slice();" \
   "$MRW"
-prouver "une page cachée ouverte comme les autres" web/public/v10/app.js \
+prouver "une page cachée ouverte comme les autres" modules/socle/ecrans/entreprise/app-1.js \
   "    const dessine = pageCachee(name) ? pageInterdite(name) :" "    const dessine = false ? pageInterdite(name) :" \
   "$MRW"
-prouver "une page qui lit deux parties, cachée pour une seule" web/public/v10/app.js \
+prouver "une page qui lit deux parties, cachée pour une seule" modules/socle/ecrans/entreprise/app-1.js \
   "    return !!d && (PARTIES_DES_PAGES[id] || []).some(x => d.cachees.includes(x));" "    return !!d && (PARTIES_DES_PAGES[id] || []).every(x => d.cachees.includes(x));" \
   "$MRW"
-prouver "la visite proposée d'une page cachée" web/public/v10/app.js \
+prouver "la visite proposée d'une page cachée" modules/socle/ecrans/entreprise/app-1.js \
   "    if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);" "    if ((guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);" \
   "$MRW"
-prouver "la paie rangée hors de ses parties" web/public/v10/app.js \
+prouver "la paie rangée hors de ses parties" modules/socle/ecrans/entreprise/app-1.js \
   "    paie: ['employees'], salarie: ['employees'], compta: ['ecrituresOD']," "    paie: [], salarie: ['employees'], compta: ['ecrituresOD']," \
   "$MRW"
 
 # ── Brique 102 : les pages en lecture seule (web/v10/lecture-seule.txt) ──
 LSW="Samia lit les factures sans les modifier ; Omar lit les clients sans en créer"
-prouver "la page en lecture qui ne le dit pas" web/public/v10/app.js \
+prouver "la page en lecture qui ne le dit pas" modules/socle/ecrans/entreprise/app-1.js \
   "    if (!pageCachee(name)) { if (dessine && typeof dessine.then === 'function')" "    if (false) { if (dessine && typeof dessine.then === 'function')" \
   "$LSW"
-prouver "le paiement accepté à l'écran puis perdu" web/public/v10/app.js \
+prouver "le paiement accepté à l'écran puis perdu" modules/socle/ecrans/entreprise/app-1.js \
   "        if (enLecture('documents')) return refus(\$('[name=amount]', root), refusLecture('documents'));" "        if (false) return refus(\$('[name=amount]', root), refusLecture('documents'));" \
   "$LSW"
-prouver "le brouillon « enregistré » que le serveur ne reçoit pas" web/public/v10/app.js \
+prouver "le brouillon « enregistré » que le serveur ne reçoit pas" modules/socle/ecrans/entreprise/app-1.js \
   "      if (enLecture('documents')) return refus('#save', refusLecture('documents'));" "      if (false) return refus('#save', refusLecture('documents'));" \
   "$LSW"
-prouver "la fiche client acceptée à l'écran puis perdue" web/public/v10/app.js \
+prouver "la fiche client acceptée à l'écran puis perdue" modules/socle/ecrans/entreprise/app-1.js \
   "          if (enLecture('clients')) return refus('#cf input[name=name]', refusLecture('clients'));" "          if (false) return refus('#cf input[name=name]', refusLecture('clients'));" \
   "$LSW"
-prouver "la lecture seule prise pour l'écriture" web/public/v10/app.js \
+prouver "la lecture seule prise pour l'écriture" modules/socle/ecrans/entreprise/app-1.js \
   "  const enLecture = partie => !peutEcrireDossier(partie);" "  const enLecture = partie => false;" \
   "$LSW"
 
-prouver "la fiche client « supprimée » à l'écran, gardée au serveur" web/public/v10/app.js \
+prouver "la fiche client « supprimée » à l'écran, gardée au serveur" modules/socle/ecrans/entreprise/app-1.js \
   "          if (enLecture('clients')) { toast(refusLecture('clients', 'supprimé'), true); return; }" "          if (false) { toast(refusLecture('clients', 'supprimé'), true); return; }" \
   "$LSW"
-prouver "l'achat accepté à l'écran puis perdu" web/public/v10/app.js \
+prouver "l'achat accepté à l'écran puis perdu" modules/socle/ecrans/entreprise/app-1.js \
   "      if (enLecture('purchases')) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));" "      if (false) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));" \
   "$LSW"
 
@@ -5297,32 +5297,32 @@ prouver "le seuil de remise changé par un commercial en base" base/migrations/0
 prouver "le taux d'une demande réécrit en base" base/migrations/0054_accord_remise.sql \
   "  if (new.taux, new.seuil) is distinct from (old.taux, old.seuil) then" "  if false then" \
   "$AR1"
-prouver "la remise au-delà qui ne se dit pas avant" web/public/v10/app.js \
+prouver "la remise au-delà qui ne se dit pas avant" modules/socle/ecrans/entreprise/app-1.js \
   "      if (isInv && accordsEnLigne() && !estResponsable() && seuilRemise > 0 && tauxRemise > seuilRemise) {" "      if (false) {" \
   "$ARW"
-prouver "le seuil de remise qui ne se règle pas à l'écran" web/public/v10/app.js \
+prouver "le seuil de remise qui ne se règle pas à l'écran" modules/socle/ecrans/entreprise/app-2.js \
   "          \${accordsEnLigne() ? field(lbl('Remise permise sans accord (%)'" "          \${false ? field(lbl('Remise permise sans accord (%)'" \
   "$ARW"
-prouver "le seuil de remise perdu à l'enregistrement" web/public/v10/app.js \
+prouver "le seuil de remise perdu à l'enregistrement" modules/socle/ecrans/entreprise/app-2.js \
   "      data.company.remiseAccordAuDela = Math.min(100, Math.max(0, Number(data.company.remiseAccordAuDela) || 0));" "      data.company.remiseAccordAuDela = 0;" \
   "$ARW"
-prouver "une demande de remise lue comme une demande d'encours" web/public/v10/app.js \
+prouver "une demande de remise lue comme une demande d'encours" modules/socle/ecrans/entreprise/app-1.js \
   "    const remise = a.geste === 'remise';" "    const remise = false;" \
   "$ARW"
 
 # ── Brique 104 : un prix baissé sous celui du client compte comme une remise (docs/accords.md) ──
 RE1="un prix baissé sous celui du client compte comme une remise ; sa liste et son palier sont sa référence"
 RE2="une pièce en euros compare au prix du catalogue converti à son taux"
-prouver "une ligne hors remise comptée comme remisée" web/public/v10/core.js \
+prouver "une ligne hors remise comptée comme remisée" modules/socle/moteur/core-1.js \
   "      if (!item || l.noDiscount) continue;" "      if (!item) continue;" \
   "$RE1"
-prouver "le prix du catalogue pris pour celui du client" web/public/v10/core.js \
+prouver "le prix du catalogue pris pour celui du client" modules/socle/moteur/core-1.js \
   "prixArticlePour(data, item, doc.clientId, doc.date, l.qty).prix, doc, company));" "item.unitPrice, doc, company));" \
   "$RE1"
-prouver "le prix en dinars comparé à un prix en euros" web/public/v10/core.js \
+prouver "le prix en dinars comparé à un prix en euros" modules/socle/moteur/core-1.js \
   "      const ref = Number(prixDuCatalogue(prixArticlePour(data, item, doc.clientId, doc.date, l.qty).prix, doc, company));" "      const ref = Number(prixArticlePour(data, item, doc.clientId, doc.date, l.qty).prix);" \
   "$RE2"
-prouver "la remise globale oubliée sur un prix baissé" web/public/v10/core.js \
+prouver "la remise globale oubliée sur un prix baissé" modules/socle/moteur/core-1.js \
   "      const net = (Number(l.unitPrice) || 0) * (1 - globale / 100);" "      const net = (Number(l.unitPrice) || 0);" \
   "$RE1"
 prouver "le serveur qui ne voit que la remise globale" serveur/v10/accords.ts \
@@ -5334,7 +5334,7 @@ prouver "le serveur qui ignore les listes de prix" serveur/v10/accords.ts \
 prouver "le refus qui ne nomme pas la ligne baissée" serveur/v10/accords.ts \
   "  throw new Refus(r.ligne ? 'ventes.remise_ligne_accord' : 'ventes.remise_accord', {" "  throw new Refus('ventes.remise_accord', {" \
   "$AR1"
-prouver "l'écran qui ne voit que la remise globale" web/public/v10/app.js \
+prouver "l'écran qui ne voit que la remise globale" modules/socle/ecrans/entreprise/app-1.js \
   "      const tauxRemise = effective.taux;" "      const tauxRemise = Number(doc.discountRate) || 0;" \
   "$ARW"
 
@@ -5375,7 +5375,7 @@ prouver "la facture du mois qui déborde au téléphone" web/public/v10/index.ht
   "$J2B"
 
 # ── Brique 108 : le compte juste des changements en attente (web/v10/compte-hors-ligne.txt) ──
-prouver "un achat né sans sa devise, compté au poste suivant comme un changement de plus" web/public/v10/app.js \
+prouver "un achat né sans sa devise, compté au poste suivant comme un changement de plus" modules/socle/ecrans/entreprise/app-1.js \
   "      currency: company().currency || 'TND', exchangeRate: 1,
 " "" \
   "$J2B"
@@ -5384,11 +5384,11 @@ prouver "un achat né sans sa devise, compté au poste suivant comme un changeme
 prouver "la taille du doigt réservée aux écrans étroits : la caisse sur tablette se mène à la souris" web/public/plateforme/telephone.css \
   "@media (max-width: 760px), (pointer: coarse) {" "@media (max-width: 760px) {" \
   "$TEL"
-prouver "une page pensée pour un ordinateur qui ne le dit pas au téléphone" web/public/v10/app.js \
+prouver "une page pensée pour un ordinateur qui ne le dit pas au téléphone" modules/socle/ecrans/entreprise/app-1.js \
   "    if (!pageCachee(name)) Promise.resolve(dessine).then(() => bandeauOrdinateur(name), () => {});
 " "" \
   "$TEL"
-prouver "l'avis « pensée pour un ordinateur » posé aussi sur un ordinateur" web/public/v10/app.js \
+prouver "l'avis « pensée pour un ordinateur » posé aussi sur un ordinateur" modules/socle/ecrans/entreprise/app-1.js \
   "!window.matchMedia('(max-width: 760px)').matches || " "" \
   "$TEL"
 
@@ -5411,21 +5411,21 @@ prouver "« email à renseigner » trop petit pour un doigt" web/public/platefor
   "  .lien-manque { display: inline-flex; align-items: center; min-height: 44px; }
 " "" \
   "$CTEL"
-prouver "un écran du Cabinet pensé pour un ordinateur qui ne le dit pas au téléphone" web/public/v10/cabinet/app.js \
+prouver "un écran du Cabinet pensé pour un ordinateur qui ne le dit pas au téléphone" modules/socle/ecrans/cabinet/app-1.js \
   "    bandeauOrdinateur(route);
 " "" \
   "$CTEL"
 
 # ── Brique 111 : l'accueil selon le rôle (web/v10/accueil-role.txt ; tests/web/menu-role.test.ts) ──
 MR="chacun ne voit dans son menu que les pages de son rôle"
-prouver "la mise en place de l'entreprise proposée à un membre qui ne la tient pas" web/public/v10/app.js \
+prouver "la mise en place de l'entreprise proposée à un membre qui ne la tient pas" modules/socle/ecrans/entreprise/app-1.js \
   "    if (!estResponsable()) return accueilDuRole();
 " "" \
   "$MR"
-prouver "« À faire » qui mène à une page que le rôle ne montre pas" web/public/v10/app.js \
+prouver "« À faire » qui mène à une page que le rôle ne montre pas" modules/socle/ecrans/entreprise/app-1.js \
   "todoMeneACache(x.id) ? '' :" "false ? '' :" \
   "$MR"
-prouver "l'accueil d'un rôle sans bouton principal" web/public/v10/app.js \
+prouver "l'accueil d'un rôle sans bouton principal" modules/socle/ecrans/entreprise/app-1.js \
   "    const premierPrincipal = !abonnementPrincipal();" "    const premierPrincipal = false;" \
   "$MR"
 
@@ -5465,7 +5465,7 @@ prouver "une entreprise d'essai comptée dans le groupe" serveur/groupe.ts \
 prouver "le total du groupe qui ne garde que la dernière société" serveur/groupe.ts \
   "t.somme[k] += brut[k];" "t.somme[k] = brut[k];" \
   "$GS"
-prouver "le groupe absent du menu des entreprises" web/public/v10/app.js \
+prouver "le groupe absent du menu des entreprises" modules/socle/ecrans/entreprise/app-1.js \
   "\${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ? " "\${false ? " \
   "$GW"
 
@@ -5495,25 +5495,25 @@ prouver "une demande de commande en double" serveur/v10/routes.ts \
 prouver "le seuil de commande changé par la comptable en base" base/migrations/0055_accord_commande.sql \
   "  apres := new.contenu -> 'commandeAccordAuDela';" "  return new;" \
   "$KC1"
-prouver "une commande en devise comptée sans son taux" web/public/v10/core.js \
+prouver "une commande en devise comptée sans son taux" modules/socle/moteur/core-2.js \
   "    return toBase(commande, computeTotals(commande, company).netHT, company);" "    return computeTotals(commande, company).netHT;" \
   "$KC2"
 prouver "le propriétaire arrêté par le seuil de commande" serveur/v10/accords.ts \
   "  if (!parties.length || await estResponsable(tx, entreprise)) return;" "  if (!parties.length) return;" \
   "$KC2"
-prouver "le seuil de commande qui ne se règle pas à l'écran" web/public/v10/app.js \
+prouver "le seuil de commande qui ne se règle pas à l'écran" modules/socle/ecrans/entreprise/app-2.js \
   "          \${accordsEnLigne() ? field(lbl(\`Commande fournisseur permise sans accord" "          \${false ? field(lbl(\`Commande fournisseur permise sans accord" \
   "$KCW"
-prouver "une commande au-delà qui part sans proposer l'accord" web/public/v10/app.js \
+prouver "une commande au-delà qui part sans proposer l'accord" modules/socle/ecrans/entreprise/app-1.js \
   "      if (besoin) o.status = stored && stored.status !== 'envoyée' ? stored.status : 'brouillon';" "      if (false) o.status = 'brouillon';" \
   "$KCW"
-prouver "une commande au-delà qui ne se dit pas avant" web/public/v10/app.js \
+prouver "une commande au-delà qui ne se dit pas avant" modules/socle/ecrans/entreprise/app-1.js \
   "    return b ? \`<p class=\"small warn-text mt\" id=\"cf-accord-avis\">" "    return false ? \`<p class=\"small warn-text mt\" id=\"cf-accord-avis\">" \
   "$KCW"
-prouver "l'avertissement qui reste après l'accord" web/public/v10/app.js \
+prouver "l'avertissement qui reste après l'accord" modules/socle/ecrans/entreprise/app-1.js \
   "        relu();" "" \
   "$KCW"
-prouver "une demande de commande lue comme une demande d'encours sur l'accueil" web/public/v10/app.js \
+prouver "une demande de commande lue comme une demande d'encours sur l'accueil" modules/socle/ecrans/entreprise/app-1.js \
   ": a.geste === 'commande' ? \`envoyer à" ": false ? \`envoyer à" \
   "$KCW"
 
@@ -5551,11 +5551,11 @@ prouver "un ticket encaissé sans son paiement" serveur/v10/routes.ts \
 prouver "un passant vendu sans le client du comptoir" serveur/v10/dossier.ts \
   "  const comptoir = (ticket || retour || passage) && !doc.clientId;" "  const comptoir = (retour || passage) && !doc.clientId;" \
   "$TK"
-prouver "la caisse qui refuse encore d'encaisser en ligne" web/public/v10/app.js \
+prouver "la caisse qui refuse encore d'encaisser en ligne" modules/socle/ecrans/entreprise/app-2.js \
   "      if (bridge.encaisser) {" "      if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
       if (bridge.encaisser) {" \
   "$TKW"
-prouver "le numéro du poste gardé au lieu de celui du serveur" web/public/v10/app.js \
+prouver "le numéro du poste gardé au lieu de celui du serveur" modules/socle/ecrans/entreprise/app-2.js \
   "        bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
           data.documents.push(e);" "        bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
           e.number = 'TIC-0000-999'; data.documents.push(e);" \
@@ -5596,13 +5596,13 @@ prouver "un fond tapé avec une virgule illisible" serveur/caisse/routes.ts \
   "$CS"
 # (La caisse tactile, 05/10/2026) Fermée, l'écran de vente laisse la place à la carte « La caisse est fermée » : rien ne
 # s'y vend, elle s'ouvre d'abord.
-prouver "la caisse fermée qui laisse encaisser à l'écran" web/public/v10/app.js \
+prouver "la caisse fermée qui laisse encaisser à l'écran" modules/socle/ecrans/entreprise/app-2.js \
   "      if (caisseEtat && (!ss || (!ss.ici && !(s.ecran === 'fermeture' && fermerDIci())))) { s.ecran = 'vente'; return drawFermee(); }" "      if (false) { s.ecran = 'vente'; return drawFermee(); }" \
   "$CSW"
-prouver "la page Caisse muette sur sa session" web/public/v10/app.js \
+prouver "la page Caisse muette sur sa session" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.caisse) dessinerSession();" "" \
   "$CSW"
-prouver "le Z qui montre le fond au lieu de l'attendu" web/public/v10/app.js \
+prouver "le Z qui montre le fond au lieu de l'attendu" modules/socle/ecrans/entreprise/app-2.js \
   "\`<b>\${h(argentCaisse(z.attendu))}</b>\`" "\`<b>\${h(argentCaisse(z.fond))}</b>\`" \
   "$CSW"
 
@@ -5640,7 +5640,7 @@ prouver "l'écran qui croit siennes les pièces de Lina" serveur/v10/routes.ts \
 prouver "l'écran qui n'apprend pas qui a fait les pièces" web/public/plateforme/pont.js \
   "    autrui = r.autrui || {};" "" \
   "$BAW"
-prouver "« Supprimer » qui pose la question sur le brouillon d'un autre" web/public/v10/app.js \
+prouver "« Supprimer » qui pose la question sur le brouillon d'un autre" modules/socle/ecrans/entreprise/app-1.js \
   "    if (auteurAutre('documents', doc.id) !== null) { toast(refusAuteur(auteurAutre('documents', doc.id), doc.number || 'Ce brouillon'), true); return; }" "" \
   "$BAW"
 
@@ -5828,14 +5828,14 @@ prouver "un ticket sans réseau qui repart avec le dossier" web/public/plateform
 prouver "les tickets qui attendent absents de la page rouverte" web/public/plateforme/pont.js \
   "    for (const t of fileTickets) if (!ids.has(t.document.id)) data.documents.push(" "    for (const t of []) if (!ids.has(t.document.id)) data.documents.push(" \
   "$CHW"
-prouver "la page Caisse muette sans réseau" web/public/v10/app.js \
+prouver "la page Caisse muette sans réseau" modules/socle/ecrans/entreprise/app-2.js \
   "const hl = e && e.horsLigne && bridge.caisseSansReseau ? bridge.caisseSansReseau() : null;" "const hl = null;" \
   "$CHW"
-prouver "la page Caisse qui dit encore « Sans réseau » au retour" web/public/v10/app.js \
+prouver "la page Caisse qui dit encore « Sans réseau » au retour" modules/socle/ecrans/entreprise/app-2.js \
   "  window.addEventListener('skanfact-tickets-remis', () => { if (\$('#cs-session')) dessinerSession(); });
 " "" \
   "$CHW"
-prouver "les alertes de caisse jamais montrées" web/public/v10/app.js \
+prouver "les alertes de caisse jamais montrées" modules/socle/ecrans/entreprise/app-2.js \
   "    if ((caisseEtat.alertes || []).length) el.insertAdjacentHTML('beforeend', alertesCaisse(caisseEtat.alertes));
 " "" \
   "$CHW"
@@ -5848,7 +5848,7 @@ prouver "le caissier qui ne retrouve pas ses tickets" serveur/v10/droits.ts \
 prouver "le caissier qui lit les tickets des autres" serveur/v10/droits.ts \
   "      and cree_par = \$2 and contenu ->> 'ticket' = 'true')" "      and \$2::uuid is not null and contenu ->> 'ticket' = 'true')" \
   "$CW"
-prouver "la page Caisse absente du menu du caissier" web/public/v10/app.js \
+prouver "la page Caisse absente du menu du caissier" modules/socle/ecrans/entreprise/app-1.js \
   "    if (d && id === 'caisse' && d.caisse) return false;
 " "" \
   "$CW"
@@ -5858,7 +5858,7 @@ prouver "le serveur qui ne dit pas qui tient une caisse" serveur/v10/droits.ts \
 prouver "le caissier qui ne sait pas où vont les espèces" serveur/v10/droits.ts \
   "  accounts: R('tresorerie.comptes.voir', 'tresorerie.comptes.modifier')," "  accounts: R('tresorerie.voir', 'tresorerie.comptes.modifier')," \
   "$CW"
-prouver "la caisse dite « en lecture seule » à qui la tient" web/public/v10/app.js \
+prouver "la caisse dite « en lecture seule » à qui la tient" modules/socle/ecrans/entreprise/app-1.js \
   "    if (name === 'caisse' && (bridge.droitsDossier() || {}).caisse) return;
 " "" \
   "$CW"
@@ -5868,20 +5868,20 @@ prouver "le poste qui oublie qu'il tient une caisse" web/public/plateforme/pont.
   "$CW"
 
 # ── Un seul tiroir, compté à l'aveugle (brique 122, 01/10/2026 ; docs/caisse.md) ──
-prouver "le bilan qui dit le tiroir pendant la session (le compte n'est plus à l'aveugle)" web/public/v10/app.js \
+prouver "le bilan qui dit le tiroir pendant la session (le compte n'est plus à l'aveugle)" modules/socle/ecrans/entreprise/app-2.js \
   "      if (!caisseEtat || caisseEtat.session) return 'Le tiroir se compte à la fermeture (Z), sans voir ce qu\\'il devrait contenir.';
 " "" \
   "$CW"
-prouver "sans réseau, le bilan qui redit le tiroir au poste qui tient la caisse" web/public/v10/app.js \
+prouver "sans réseau, le bilan qui redit le tiroir au poste qui tient la caisse" modules/socle/ecrans/entreprise/app-2.js \
   "(caisseEtat || (bridge.caisseSansReseau && bridge.caisseSansReseau()))" "caisseEtat" \
   "$CHW"
-prouver "le bilan après le Z qui ne dit pas le même tiroir que le Z" web/public/v10/app.js \
+prouver "le bilan après le Z qui ne dit pas le même tiroir que le Z" modules/socle/ecrans/entreprise/app-2.js \
   "      if (z && jourTunis(z.fermeeLe) === b.jour) return" "      if (false) return" \
   "$CW"
-prouver "le bilan imprimé qui dit le tiroir pendant la session" web/public/v10/app.js \
+prouver "le bilan imprimé qui dit le tiroir pendant la session" modules/socle/ecrans/entreprise/app-2.js \
   "C.bilanCaisseHtml(bilanAImprimer(C.bilanCaisse(data, company(), s.jour)), company())" "C.bilanCaisseHtml(C.bilanCaisse(data, company(), s.jour), company())" \
   "$CW"
-prouver "le bilan dessiné avant la session lue, jamais redit" web/public/v10/app.js \
+prouver "le bilan dessiné avant la session lue, jamais redit" modules/socle/ecrans/entreprise/app-2.js \
   "    if (\$('#cs-tiroir') && dernierBilan) \$('#cs-tiroir').innerHTML = sousTiroir(dernierBilan.b, dernierBilan.cur);
 " "" \
   "$CW"
@@ -5980,18 +5980,18 @@ prouver "le retour d'un ticket au comptoir, sans client, refusé" serveur/v10/do
 prouver "le caissier qui ne voit pas les retours faits sur ses tickets" serveur/v10/droits.ts \
   "      and contenu ->> 'creditOf' in (select cle from tickets)\`" "      and false\`" \
   "$CT"
-prouver "le retour à l'écran qui ne passe pas par le serveur" web/public/v10/app.js \
+prouver "le retour à l'écran qui ne passe pas par le serveur" modules/socle/ecrans/entreprise/app-2.js \
   "        if (bridge.rendreTicket) { void rendreParLeServeur(doc, r, root, close); return; }
 " "" \
   "$CTW"
-prouver "« Mon code de responsable » absent pour la propriétaire" web/public/v10/app.js \
+prouver "« Mon code de responsable » absent pour la propriétaire" modules/socle/ecrans/entreprise/app-2.js \
   "      d.responsable && bridge.poserCodeResponsable ? '<button" "      false ? '<button" \
   "$CTW"
-prouver "le Z à l'écran qui ne dit pas l'argent rendu" web/public/v10/app.js \
+prouver "le Z à l'écran qui ne dit pas l'argent rendu" modules/socle/ecrans/entreprise/app-2.js \
   '${Object.entries(z.rendu || {}).map(' '${Object.entries({}).map(' \
   "$CTW"
 
-prouver "« Mon code de caisse » qui pose un code de responsable (l'événement du clic pris pour un drapeau)" web/public/v10/app.js \
+prouver "« Mon code de caisse » qui pose un code de responsable (l'événement du clic pris pour un drapeau)" modules/socle/ecrans/entreprise/app-2.js \
   "\$('#cs-mon-code').onclick = () => monCodeDeCaisse(false);" "\$('#cs-mon-code').onclick = monCodeDeCaisse;" \
   "$CRW"
 
@@ -6021,48 +6021,48 @@ prouver "le ticket remisé sans réseau, sans code, qui ne se dit pas" serveur/v
 prouver "le plafond de la caisse changé par un caissier en base" base/migrations/0064_remise_caisse.sql \
   "  if apres is distinct from avant and socle.moi() is not null" "  if false and apres is distinct from avant and socle.moi() is not null" \
   "$CM"
-prouver "le panier qui ne compte pas sa remise" web/public/v10/core.js \
+prouver "le panier qui ne compte pas sa remise" modules/socle/moteur/core-2.js \
   "discountRate: tauxRemise(o.remise)," "discountRate: 0," \
   "$CMW"
-prouver "une remise de 120 % qui s'encaisse" web/public/v10/core.js \
+prouver "une remise de 120 % qui s'encaisse" modules/socle/moteur/core-2.js \
   "    if (!(r >= 0 && r <= 100)) return 'La remise est un pourcentage entre 0 et 100 : tape-la comme 10 ou 7,5.';
 " "" \
   "$CMW"
-prouver "le ticket qui part sans sa remise" web/public/v10/core.js \
+prouver "le ticket qui part sans sa remise" modules/socle/moteur/core-2.js \
   "discountRate: tauxRemise(o.remise) || 0," "discountRate: 0," \
   "$CMW"
-prouver "« Encaisser » qui ne demande pas le code avant le geste" web/public/v10/app.js \
+prouver "« Encaisser » qui ne demande pas le code avant le geste" modules/socle/ecrans/entreprise/app-2.js \
   "        if (remise > plafond && !responsable && !b.dataset.code) {" "        if (false) {" \
   "$CMW"
 prouver "le code du responsable qui ne part pas avec le ticket" web/public/plateforme/pont.js \
   "...(fait ? { poste: fait.poste } : {}), ...(responsable ? { responsable } : {}) });" "...(fait ? { poste: fait.poste } : {}) });" \
   "$CMW"
-prouver "le plafond de la caisse absent des Paramètres" web/public/v10/app.js \
+prouver "le plafond de la caisse absent des Paramètres" modules/socle/ecrans/entreprise/app-2.js \
   "            \${bridge.encaisser ? field(lbl('Remise permise sans code à la caisse (%)'" "            \${false ? field(lbl('Remise permise sans code à la caisse (%)'" \
   "$CMW"
 
 # Vu à l'écran le 01/10/2026 (passage à la main) : le ticket imprimé sans sa remise, la fenêtre du responsable qui
 # parlait d'un retour, le choix d'un responsable seul, la ligne de remise qui poussait « Encaisser ».
-prouver "le ticket imprimé qui ne dit pas sa remise" web/public/v10/core.js \
+prouver "le ticket imprimé qui ne dit pas sa remise" modules/socle/moteur/core-2.js \
   "        \${t.discount ? \`<tr><td>Remise \${escapeHtml(String(t.discountRate).replace('.', ','))} %</td>" "        \${false ? \`<tr><td>Remise \${escapeHtml(String(t.discountRate).replace('.', ','))} %</td>" \
   "$CMW"
-prouver "la ligne de remise qui pousse « Encaisser » en apparaissant" web/public/v10/app.js \
+prouver "la ligne de remise qui pousse « Encaisser » en apparaissant" modules/socle/ecrans/entreprise/app-2.js \
   "' style=\"visibility:hidden\" aria-hidden=\"true\"'" "' style=\"display:none\"'" \
   "$CMW"
-prouver "« Approuver » qu'on clique sans aucun responsable" web/public/v10/app.js \
+prouver "« Approuver » qu'on clique sans aucun responsable" modules/socle/ecrans/entreprise/app-2.js \
   "\$('#rs-ok', root).disabled = !n;" "\$('#rs-ok', root).disabled = false;" \
   "$CMW"
-prouver "la fenêtre d'une remise qui parle d'un retour" web/public/v10/app.js \
+prouver "la fenêtre d'une remise qui parle d'un retour" modules/socle/ecrans/entreprise/app-2.js \
   ", 'Une remise au-delà de celle permise sans code').then(" ").then(" \
   "$CMW"
-prouver "un responsable seul qu'il faut encore choisir" web/public/v10/app.js \
+prouver "un responsable seul qu'il faut encore choisir" modules/socle/ecrans/entreprise/app-2.js \
   "\${liste.length > 1 ? '<option value=\"\">Choisis…</option>' : ''}" "<option value=\"\">Choisis…</option>" \
   "$CTW"
 
-prouver "la remise du panier en HT à côté de lignes en TTC" web/public/v10/app.js \
+prouver "la remise du panier en HT à côté de lignes en TTC" modules/socle/ecrans/entreprise/app-2.js \
   "<span>− \${C.money(t.remiseTtc, cur)}</span>" "<span>− \${C.money(t.discount, cur)}</span>" \
   "$CMW"
-prouver "le code du responsable qu'il faut d'abord cliquer" web/public/v10/app.js \
+prouver "le code du responsable qu'il faut d'abord cliquer" modules/socle/ecrans/entreprise/app-2.js \
   "          if (n) \$('#rd-code', root).focus();" "          if (false) \$('#rd-code', root).focus();" \
   "$CMW"
 
@@ -6073,10 +6073,10 @@ prouver "le retour d'un ticket remisé qui rend le prix plein (serveur)" serveur
 prouver "le retour qui rend aussi le timbre (serveur)" serveur/caisse/retour.ts \
   "      if (!meme(av.discountRate ?? 0, tk.contenu.discountRate ?? 0) || av.applyStamp) {" "      if (!meme(av.discountRate ?? 0, tk.contenu.discountRate ?? 0)) {" \
   "$CM"
-prouver "l'avoir d'un retour qui oublie la remise du ticket (écran)" web/public/v10/core.js \
+prouver "l'avoir d'un retour qui oublie la remise du ticket (écran)" modules/socle/moteur/core-2.js \
   "lines: lignes, discountRate: Number(ticket.discountRate) || 0, applyStamp: false" "lines: lignes, discountRate: 0, applyStamp: false" \
   "$CMW"
-prouver "l'annonce du retour qui oublie la remise du ticket" web/public/v10/app.js \
+prouver "l'annonce du retour qui oublie la remise du ticket" modules/socle/ecrans/entreprise/app-2.js \
   "lines: lignes, discountRate: Number(doc.discountRate) || 0, applyStamp: false, currency: doc.currency" "lines: lignes, applyStamp: false, currency: doc.currency" \
   "$CMW"
 
@@ -6111,30 +6111,30 @@ prouver "les Z sans page suivante" serveur/caisse/routes.ts \
 prouver "un curseur de Z illisible qui casse la lecture" serveur/caisse/routes.ts \
   "      const avant = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z\$/.test(query.avant ?? '') ? query.avant : null;" "      const avant = query.avant ?? null;" \
   "$CZ"
-prouver "le Z à l'écran qui ne dit pas qui l'a fermé" web/public/v10/app.js \
+prouver "le Z à l'écran qui ne dit pas qui l'a fermé" modules/socle/ecrans/entreprise/app-2.js \
   "\${z.fermePar ? \`, fermée par \${h(z.fermePar)} le \${h(heureCaisse(z.fermeeLe))}\` : ''}" "" \
   "$CZW"
-prouver "« Imprimer le Z » qui n'imprime rien" web/public/v10/app.js \
+prouver "« Imprimer le Z » qui n'imprime rien" modules/socle/ecrans/entreprise/app-2.js \
   "\$('#cs-z-imprimer', root).onclick = () => Promise.resolve(" "\$('#cs-z-imprimer', root).onclick = () => false && Promise.resolve(" \
   "$CZW"
-prouver "le Z imprimé sans qui l'a fermé" web/public/v10/core.js \
+prouver "le Z imprimé sans qui l'a fermé" modules/socle/moteur/core-2.js \
   "      <div>Fermée le \${escapeHtml(quand(z.fermeeLe))} par \${escapeHtml(z.fermePar || '')}</div>
 " "" \
   "$CZW"
-prouver "le Z imprimé sans ce que le tiroir devait contenir" web/public/v10/core.js \
+prouver "le Z imprimé sans ce que le tiroir devait contenir" modules/socle/moteur/core-2.js \
   "        \${ligne('Le tiroir devait contenir', m(z.attendu), 'tot')}
 " "" \
   "$CZW"
-prouver "les Z passés absents de « Tickets et bilan du jour »" web/public/v10/app.js \
+prouver "les Z passés absents de « Tickets et bilan du jour »" modules/socle/ecrans/entreprise/app-2.js \
   "      if (\$('#cs-les-z')) void dessinerLesZ(\$('#cs-les-z'));" "" \
   "$CZW"
-prouver "« Plus de Z… » absent quand il en reste" web/public/v10/app.js \
+prouver "« Plus de Z… » absent quand il en reste" modules/socle/ecrans/entreprise/app-2.js \
   "\${r.suite ? '<button type=\"button\" class=\"btn btn-sm mt\" id=\"cs-z-plus\">Plus de Z…</button>' : ''}" "" \
   "$CZW"
-prouver "« Plus de Z… » qui remplace la page lue au lieu de l'allonger" web/public/v10/app.js \
+prouver "« Plus de Z… » qui remplace la page lue au lieu de l'allonger" modules/socle/ecrans/entreprise/app-2.js \
   "    const tous = (deja || []).concat(r.z);" "    const tous = r.z;" \
   "$CZW"
-prouver "un Z passé qui ne se rouvre pas" web/public/v10/app.js \
+prouver "un Z passé qui ne se rouvre pas" modules/socle/ecrans/entreprise/app-2.js \
   "    \$\$('[data-z]', el).forEach(tr => { tr.onclick = () => montrerZ(tous[Number(tr.dataset.z)]); });" "" \
   "$CZW"
 
@@ -6392,23 +6392,23 @@ prouver "un refus noté sans son jour" serveur/v10/contrats.ts \
 prouver "une facture du serveur comparée à un écran qui n'existe pas" serveur/v10/dossier.ts \
   "  if (demande.netAPayer !== null && serveur !== demande.netAPayer) throw" "  if (serveur !== demande.netAPayer) throw" \
   "$CS"
-prouver "un contrat émis seul compté à générer dans le menu" web/public/v10/core.js \
+prouver "un contrat émis seul compté à générer dans le menu" modules/socle/moteur/core-1.js \
   "r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t);" "r.active !== false && r.nextDate && r.nextDate <= t);" \
   "$CSW"
-prouver "un contrat émis seul qui propose son brouillon" web/public/v10/app.js \
+prouver "un contrat émis seul qui propose son brouillon" modules/socle/ecrans/entreprise/app-1.js \
   "    const isDue = active && !r.emettreSeul && r.nextDate <= C.today();" "    const isDue = active && r.nextDate <= C.today();" \
   "$CSW"
-prouver "la fiche d'un contrat émis seul qui ne le dit pas" web/public/v10/app.js \
+prouver "la fiche d'un contrat émis seul qui ne le dit pas" modules/socle/ecrans/entreprise/app-1.js \
   "      \${r.emettreSeul && active ? \`<div class=\"banner info\" id=\"c-seul\">" "      \${false ? \`<div class=\"banner info\" id=\"c-seul\">" \
   "$CSW"
-prouver "la fiche d'un contrat refusé qui ne dit pas pourquoi" web/public/v10/app.js \
+prouver "la fiche d'un contrat refusé qui ne dit pas pourquoi" modules/socle/ecrans/entreprise/app-1.js \
   "      \${r.refusServeur ? \`<div class=\"banner warn\" id=\"c-refus\">" "      \${false ? \`<div class=\"banner warn\" id=\"c-refus\">" \
   "$CSW"
-prouver "un contrat corrigé qui attend demain" web/public/v10/app.js \
+prouver "un contrat corrigé qui attend demain" modules/socle/ecrans/entreprise/app-1.js \
   "          delete r.refusServeur;
 " "" \
   "$CSW"
-prouver "la case « émise seule » ouverte au commercial" web/public/v10/app.js \
+prouver "la case « émise seule » ouverte au commercial" modules/socle/ecrans/entreprise/app-1.js \
   "\${bridge.droitsDossier().responsable ? '' : 'disabled'}>" "\${''}>" \
   "$CSW"
 prouver "le serveur qui ne fait jamais son tour des contrats" serveur/principal.ts \
@@ -6418,13 +6418,13 @@ prouver "un serveur redémarré qui attend une heure son premier tour" serveur/p
   "  tourDesContrats();
 " "" \
   "$CSW"
-prouver "la liste qui dit « à générer » d'un contrat émis seul" web/public/v10/app.js \
+prouver "la liste qui dit « à générer » d'un contrat émis seul" modules/socle/ecrans/entreprise/app-1.js \
   "\${r.emettreSeul && r.active !== false ? ' <span class=\"level\" data-seul>émise seule</span>' : isDue ?" "\${isDue ?" \
   "$CSW"
-prouver "le filtre « À générer » qui montre les contrats émis seuls" web/public/v10/app.js \
+prouver "le filtre « À générer » qui montre les contrats émis seuls" modules/socle/ecrans/entreprise/app-1.js \
   "(r.active !== false && !r.emettreSeul && r.nextDate <= C.today()) : (s.st === 'actif')" "(r.active !== false && r.nextDate <= C.today()) : (s.st === 'actif')" \
   "$CSW"
-prouver "la page vide qui promet que rien n'est jamais émis à ta place" web/public/v10/app.js \
+prouver "la page vide qui promet que rien n'est jamais émis à ta place" modules/socle/ecrans/entreprise/app-1.js \
   "               'Rien n\\'est émis à ta place : un brouillon t\\'attend. Sauf si tu le demandes : un contrat « Émise seule » voit SkanFact émettre ses factures à leur date.'," "               'Rien n\\'est envoyé à ta place : un brouillon t\\'attend, c\\'est tout.'," \
   "$CSW"
 
@@ -6710,10 +6710,10 @@ prouver "la page qui ne fait pas créer l'entreprise" web/src/ecrans/Connecter.t
 
 # Brique 134 : « Services connectés » (voir et couper l'accès d'un partenaire).
 BSC="la boutique reliée se voit avec ce qu'elle peut faire ; « Couper l'accès » demande, puis coupe, et la clé ne vaut plus rien"
-prouver "le panneau Services connectés jamais posé" web/public/v10/app.js \
+prouver "le panneau Services connectés jamais posé" modules/socle/ecrans/entreprise/app-2.js \
   "\${bridge.dessinerServices ? \`\${panneau('p-services')}<div id=\"services-panel\"></div></div>\` : ''}" "" \
   "$BSC"
-prouver "le panneau Services connectés jamais dessiné" web/public/v10/app.js \
+prouver "le panneau Services connectés jamais dessiné" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.dessinerServices && \$('#services-panel')) void bridge.dessinerServices(\$('#services-panel'));
 " "" \
   "$BSC"
@@ -6820,13 +6820,13 @@ prouver "le compte limité aux pièces proposées" serveur/v10/routes.ts \
 prouver "un code demandé par pièce" web/public/plateforme/pont.js \
   "{ pieces: docs.map((x) => x.id) }" "{ pieces: [doc.id] }" \
   "$SW"
-prouver "le bouton hors de sa tuile" web/public/v10/app.js \
+prouver "le bouton hors de sa tuile" modules/socle/ecrans/entreprise/app-1.js \
   "<div class=\"tu-corps\" id=\"sg-a-signer\">" "<div class=\"tu-corps\" id=\"sg-a-signer-x\">" \
   "$SW"
-prouver "le bouton dans une entreprise non soumise" web/public/v10/app.js \
+prouver "le bouton dans une entreprise non soumise" modules/socle/ecrans/entreprise/app-1.js \
   "  const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true;" "  const lfAvecTtn = () => !!bridge.etatsTtn;" \
   "$SW"
-prouver "le bouton jamais posé" web/public/v10/app.js \
+prouver "le bouton jamais posé" modules/socle/ecrans/entreprise/app-1.js \
   "      if (\$('#sg-a-signer')) void bridge.dessinerASigner(" "      if (false) void bridge.dessinerASigner(" \
   "$SW"
 prouver "le refus d'un commercial casse la page" web/public/plateforme/pont.js \
@@ -6875,7 +6875,7 @@ prouver "un appel par ligne" web/public/plateforme/pont.js \
       const lot = manquent.slice(i, i + 1);" \
   "$EW"
 # (1.166.2) Preuve retirée, « chaque frappe redemande les états » : la liste des factures de la charte (1.154.0) filtre sans faire naître de nouvelle place « El Fatoora » à remplir : même sans la mémoire des états, la frappe ne redemande rien ; le test compte toujours les demandes (une seule).
-prouver 'la liste d'"'"'une entreprise non soumise montre l'"'"'état' web/public/v10/app.js \
+prouver 'la liste d'"'"'une entreprise non soumise montre l'"'"'état' modules/socle/ecrans/entreprise/app-1.js \
   "const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true;" "const lfAvecTtn = () => !!bridge.etatsTtn;" \
   "chaque facture émise dit où en est son fichier El Fatoora, en un appel pour la page, sans rien pousser"
 prouver "la raison d'une pièce retenue tue" web/public/plateforme/pont.js \
@@ -6902,10 +6902,10 @@ prouver "les places jamais remplies" web/public/plateforme/pont.js \
 
 # Brique 138 : la caisse imprime par l'agent local (docs/bureau.md, C).
 TB="Nadia règle l'imprimante de son comptoir, encaisse en espèces (ticket et tiroir) puis par carte (ticket seul)"
-prouver "le tiroir s'ouvre pour un ticket payé par carte" web/public/v10/app.js \
+prouver "le tiroir s'ouvre pour un ticket payé par carte" modules/socle/ecrans/entreprise/app-2.js \
   "company().caisseLargeur, !!(e.caisse && e.caisse.mode === 'especes')))" "company().caisseLargeur, true))" \
   "$TB"
-prouver "le ticket encaissé ne sort pas tout seul" web/public/v10/app.js \
+prouver "le ticket encaissé ne sort pas tout seul" modules/socle/ecrans/entreprise/app-2.js \
   "          if (bridge.ticketEncaisse) {" "          if (bridge.ticketEncaisse && false) {" \
   "$TB"
 prouver "réimprimer un ticket ouvre le tiroir" web/public/plateforme/pont.js \
@@ -6936,7 +6936,7 @@ prouver "une adresse oubliée ne montre pas son champ" web/public/plateforme/pon
   "        champ(r.branchement === 'port' ? '#imp-chemin' : (r.hote ? '#imp-port' : '#imp-hote')).focus();
 " "" \
   "$TB"
-prouver "le panneau de l'imprimante jamais posé" web/public/v10/app.js \
+prouver "le panneau de l'imprimante jamais posé" modules/socle/ecrans/entreprise/app-2.js \
   "        \${bridge.dessinerImprimante ? \`\${panneau('p-imprimante')}<div id=\"imprimante-panel\"></div></div>\` : ''}
 " "" \
   "$TB"
@@ -7314,7 +7314,7 @@ prouver "le pied du menu qui redit l'envoi après le numéro" web/public/platefo
 prouver "l'envoi qui tourne oublié par le pont" web/public/plateforme/pont.js \
   "      return { version: numero || 'dev', envoi: envoi || null," "      return { version: numero || 'dev', envoi: null," \
   "$CEP"
-prouver "l'envoi qui tourne absent du survol du numéro" web/public/v10/app.js \
+prouver "l'envoi qui tourne absent du survol du numéro" modules/socle/ecrans/entreprise/app-2.js \
   "      if (el && v.envoi) el.title = 'Envoi ' + v.envoi;
 " "" \
   "$CEP"
@@ -7344,17 +7344,17 @@ prouver "un numéro qui n'en est pas un, au pied du menu" serveur/ecrans.ts \
 # Le fond de caisse proposé à l'ouverture : ce que le tiroir contient déjà (vu sur le vrai serveur le 05/10/2026 : la
 # caisse créée avec 50 DT s'ouvrait à 0).
 CZF="Sami ferme la caisse : le Z dit qu'il l'a fermée, s'imprime, et se relit parmi les Z passés"
-prouver "la caisse qui s'ouvre à 0 alors que le tiroir a son fond" web/public/v10/app.js \
+prouver "la caisse qui s'ouvre à 0 alors que le tiroir a son fond" modules/socle/ecrans/entreprise/app-2.js \
   'id="cs-fond" placeholder="0" value="${h(fondPropose)}"' 'id="cs-fond" placeholder="0"' \
   "$CZF"
-prouver "le fond proposé qui ne lit pas le compte de caisse" web/public/v10/app.js \
+prouver "le fond proposé qui ne lit pas le compte de caisse" modules/socle/ecrans/entreprise/app-2.js \
   "const dansLeTiroir = idCaisse ? C.accountBalance(data, company(), idCaisse, C.today()).balance : 0;" "const dansLeTiroir = 0;" \
   "$CZF"
 
 # Les nouveautés de la v10 (l'application de bureau) jamais montrées sur la plateforme (vu sur le vrai serveur le
 # 05/10/2026 : « Nouveau dans SkanFact 10.15.0 » chez qui avait retenu « vdev »).
 NV10="un navigateur qui avait retenu « vdev » voit la version du code, et aucune nouveauté de la v10"
-prouver "les nouveautés de l'application de bureau montrées en ligne" web/public/v10/app.js \
+prouver "les nouveautés de l'application de bureau montrées en ligne" modules/socle/ecrans/entreprise/app-2.js \
   "typeof Nouveautes !== 'undefined' && !bridge.sansNouveautesV10 && Nouveautes.presenter({" "typeof Nouveautes !== 'undefined' && Nouveautes.presenter({" \
   "$NV10"
 prouver "le point de contact qui laisse passer les nouveautés de la v10" web/public/plateforme/pont.js \
@@ -7363,7 +7363,7 @@ prouver "le point de contact qui laisse passer les nouveautés de la v10" web/pu
 
 # Le premier article créé depuis une caisse vide (vu sur le vrai serveur le 05/10/2026 : « Nouvelle prestation »).
 CPA="« + Nouvel article » ouvre « Nouvel article » ; tapé « 12,500 » HT, il arrive dans la caisse à 14,875 DT"
-prouver "la caisse qui ouvre une « Nouvelle prestation »" web/public/v10/app.js \
+prouver "la caisse qui ouvre une « Nouvelle prestation »" modules/socle/ecrans/entreprise/app-2.js \
   "catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article' });" "catalogForm(null, () => vers('#/caisse')());" \
   "$CPA"
 prouver "le prix d'un article tapé avec la virgule, avalé" web/public/v10/index.html \
@@ -7402,45 +7402,45 @@ prouver "les dates du Cabinet laissées à la langue du navigateur" web/public/v
 # Le prix de l'étiquette, TTC (4,200 HT arrivait à 4,998 en caisse, jamais aux 5,000 de l'étiquette) ; la marge sans
 # « prestation ».
 TTC="le prix TTC de l'étiquette donne le HT ; la TVA changée ne bouge pas l'étiquette ; la caisse affiche 5,000 DT"
-prouver "le TTC tapé recopié comme HT" web/public/v10/app.js \
+prouver "le TTC tapé recopié comme HT" modules/socle/ecrans/entreprise/app-1.js \
   "          champHt.value = String(r.ht);" "          champHt.value = String(r.ttc);" \
   "$TTC"
-prouver "le prix de l'étiquette qui bouge quand la TVA change" web/public/v10/app.js \
+prouver "le prix de l'étiquette qui bouge quand la TVA change" modules/socle/ecrans/entreprise/app-1.js \
   "champTva.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });" "champTva.addEventListener('change', () => { majTtc(); });" \
   "$TTC"
-prouver "un prix TTC inatteignable arrondi sans un mot" web/public/v10/app.js \
+prouver "un prix TTC inatteignable arrondi sans un mot" modules/socle/ecrans/entreprise/app-1.js \
   "if (dire && !r.exact) toast(" "if (false) toast(" \
   "$TTC"
-prouver "le TTC qui ne suit pas le HT tapé" web/public/v10/app.js \
+prouver "le TTC qui ne suit pas le HT tapé" modules/socle/ecrans/entreprise/app-1.js \
   "champTtc.value = ht > 0 ? String(" "champTtc.value = ht < 0 ? String(" \
   "$TTC"
-prouver "le prix TTC enregistré sur l'article, en plus de son HT et de sa TVA" web/public/v10/app.js \
+prouver "le prix TTC enregistré sur l'article, en plus de son HT et de sa TVA" modules/socle/ecrans/entreprise/app-1.js \
   '<input type="number" id="cat-ttc"' '<input type="number" name="prixTtc" id="cat-ttc"' \
   "$TTC"
-prouver "la marge d'une « prestation » chez qui vend des marchandises" web/public/v10/app.js \
+prouver "la marge d'une « prestation » chez qui vend des marchandises" modules/socle/ecrans/entreprise/app-1.js \
   "la marge ne pourra pas se calculer." "la marge de cette prestation ne sera pas calculable." \
   "$TTC"
 
 # Le bilan du jour et le Z disent les retours et le net (« Ventes TTC » restait brut ; le Z ne citait pas l'avoir).
-prouver "le net du jour qui ne déduit pas les retours" web/public/v10/core.js \
+prouver "le net du jour qui ne déduit pas les retours" modules/socle/moteur/core-2.js \
   "net: round3(round3(total) - round3(retoursTtc))," "net: round3(total)," \
   "$CTW"
-prouver "les retours du jour que le bilan ne compte pas" web/public/v10/core.js \
+prouver "les retours du jour que le bilan ne compte pas" modules/socle/moteur/core-2.js \
   "const avoirs = docs.filter(d => d.type === 'avoir' && d.date === j && d.status !== 'brouillon' && idsTickets.has(d.creditOf));" "const avoirs = [];" \
   "$CTW"
-prouver "le bilan qui annonce des ventes brutes après un retour" web/public/v10/app.js \
+prouver "le bilan qui annonce des ventes brutes après un retour" modules/socle/ecrans/entreprise/app-2.js \
   "\${C.money(b.retours ? b.net : b.total, cur)}" "\${C.money(b.total, cur)}" \
   "$CTW"
-prouver "le bilan qui ne dit pas que les retours sont déduits" web/public/v10/app.js \
+prouver "le bilan qui ne dit pas que les retours sont déduits" modules/socle/ecrans/entreprise/app-2.js \
   "\${b.retours ? 'Ventes du jour, retours déduits' : 'Ventes TTC'}" "\${'Ventes TTC'}" \
   "$CTW"
-prouver "le bilan imprimé sans ses retours" web/public/v10/core.js \
+prouver "le bilan imprimé sans ses retours" modules/socle/moteur/core-2.js \
   "\${bilan.retours ? \`<tr><td>Retours (" "\${false ? \`<tr><td>Retours (" \
   "$CTW"
-prouver "le Z à l'écran qui ne cite pas ses retours" web/public/v10/app.js \
+prouver "le Z à l'écran qui ne cite pas ses retours" modules/socle/ecrans/entreprise/app-2.js \
   "\${(z.avoirs || []).length ? ligne(\`Retours : \${z.avoirs.map(a => \`\${h(a.numero)}" "\${false ? ligne(\`Retours : \${z.avoirs.map(a => \`\${h(a.numero)}" \
   "$CTW"
-prouver "le Z imprimé qui ne cite pas ses retours" web/public/v10/core.js \
+prouver "le Z imprimé qui ne cite pas ses retours" modules/socle/moteur/core-2.js \
   "\${(z.avoirs || []).length ? ligne(\`Retours : \${z.avoirs.map(a => escapeHtml(a.numero))" "\${false ? ligne(\`Retours : \${z.avoirs.map(a => escapeHtml(a.numero))" \
   "$CTW"
 prouver "le Z figé sans ses avoirs" serveur/caisse/routes.ts \
@@ -7462,48 +7462,48 @@ TACT="au téléphone : le ticket se replie sous les tuiles, et le tiroir se comp
 TACZ="un détail qui fait le total se garde dans le Z ; un détail faux est refusé, rien n'est fermé"
 TEL="les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'écran, et au doigt tout se touche"
 TB="Nadia règle l'imprimante de son comptoir, encaisse en espèces (ticket et tiroir) puis par carte (ticket seul)"
-prouver "les familles du Catalogue absentes de la caisse" web/public/v10/app.js \
+prouver "les familles du Catalogue absentes de la caisse" modules/socle/ecrans/entreprise/app-2.js \
   "const familles = [...new Set(articles.map(a => String(a.famille || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));" "const familles = [];" \
   "$TAC"
-prouver "la douchette qui n'ajoute pas l'article scanné" web/public/v10/app.js \
+prouver "la douchette qui n'ajoute pas l'article scanné" modules/socle/ecrans/entreprise/app-2.js \
   "        if (liste.length === 1) { scanIn.value = ''; s.q = ''; ajouter(liste[0]); drawFamilles(); drawArticles(); }" "        if (false) { scanIn.value = ''; s.q = ''; ajouter(liste[0]); drawFamilles(); drawArticles(); }" \
   "$TAC"
-prouver "l'article libre au prix arrondi sans un mot" web/public/v10/app.js \
+prouver "l'article libre au prix arrondi sans un mot" modules/socle/ecrans/entreprise/app-2.js \
   "            if (!r.exact) toast(\`Aucun prix HT ne donne exactement" "            if (false) toast(\`Aucun prix HT ne donne exactement" \
   "$TAC"
-prouver "la vente mise en attente, perdue" web/public/v10/app.js \
+prouver "la vente mise en attente, perdue" modules/socle/ecrans/entreprise/app-2.js \
   "        s.attente = (s.attente || []).concat([{ panier: s.panier, remise: s.remise, clientId: s.clientId, le: Date.now() }]);" "        s.attente = s.attente || [];" \
   "$TAC"
-prouver "la vente reprise qui efface le ticket en cours" web/public/v10/app.js \
+prouver "la vente reprise qui efface le ticket en cours" modules/socle/ecrans/entreprise/app-2.js \
   "            if (s.panier.length) l.push({ panier: s.panier, remise: s.remise, clientId: s.clientId, le: Date.now() });
 " "" \
   "$TAC"
-prouver "le ticket annulé sans retour en arrière" web/public/v10/app.js \
+prouver "le ticket annulé sans retour en arrière" modules/socle/ecrans/entreprise/app-2.js \
   "          toastUndo('Ticket annulé.', () => { Object.assign(s, avant); drawTicket(); drawArticles(); });" "          toast('Ticket annulé.');" \
   "$TAC"
-prouver "l'écran du client qui, ouvert, ne sait pas ce que la caisse montre" web/public/v10/app.js \
+prouver "l'écran du client qui, ouvert, ne sait pas ce que la caisse montre" modules/socle/ecrans/entreprise/app-2.js \
   "canalClient.onmessage = m => { if (m.data && m.data.demande && pourLeClient) canalClient.postMessage(pourLeClient); };" "canalClient.onmessage = null;" \
   "$TAC"
-prouver "l'écran du client qui ne suit pas le paiement" web/public/v10/app.js \
+prouver "l'écran du client qui ne suit pas le paiement" modules/socle/ecrans/entreprise/app-2.js \
   "      ecranClient('paiement', { recu:" "      ecranClient('vente', { recu:" \
   "$TAC"
-prouver "un montant tapé après un billet, ajouté au billet" web/public/v10/app.js \
+prouver "un montant tapé après un billet, ajouté au billet" modules/socle/ecrans/entreprise/app-2.js \
   "          let v = s.recuNeuf ? '' : s.recu || '';" "          let v = s.recu || '';" \
   "$TAC"
-prouver "la douchette perdue sur l'écran de la monnaie" web/public/v10/app.js \
+prouver "la douchette perdue sur l'écran de la monnaie" modules/socle/ecrans/entreprise/app-2.js \
   "    if (\$('#cs-rendu-ecran') && \$('#cs-nouvelle')) \$('#cs-nouvelle').click();
 " "" \
   "$TAC"
 prouver "le comptage du tiroir qui ne part pas au serveur" web/public/plateforme/pont.js \
   "...(comptage && comptage.length ? { comptage } : {})" "...({})" \
   "$TAC"
-prouver "le Z à l'écran sans le détail du comptage" web/public/v10/app.js \
+prouver "le Z à l'écran sans le détail du comptage" modules/socle/ecrans/entreprise/app-2.js \
   "        \${(z.comptage || []).map(x => ligne(" "        \${([]).map(x => ligne(" \
   "$TAC"
-prouver "le Z imprimé sans le détail du comptage" web/public/v10/core.js \
+prouver "le Z imprimé sans le détail du comptage" modules/socle/moteur/core-2.js \
   "\${(z.comptage || []).map(x => ligne(\`&nbsp;&nbsp;" "\${([]).map(x => ligne(\`&nbsp;&nbsp;" \
   "$TAC"
-prouver "une coupure comptée que le lecteur d'écran ne dit pas" web/public/v10/app.js \
+prouver "une coupure comptée que le lecteur d'écran ne dit pas" modules/socle/ecrans/entreprise/app-2.js \
   "          b.setAttribute('aria-label', \`\${libelle(i)} : \${n}\`);
 " "" \
   "$TAC"
@@ -7517,10 +7517,10 @@ prouver "le détail du comptage oublié par le Z" serveur/caisse/routes.ts \
 prouver "le refus du comptage qui écrit les montants à l'anglaise" serveur/caisse/routes.ts \
   "somme: versTexte(somme, decimales).replace('.', ',')" "somme: versTexte(somme, decimales)" \
   "$TACZ"
-prouver "le comptage au téléphone sans pavé à portée" web/public/v10/app.js \
+prouver "le comptage au téléphone sans pavé à portée" modules/socle/ecrans/entreprise/app-2.js \
   "        if (!window.matchMedia('(max-width: 920px)').matches) return;" "        return;" \
   "$TACT"
-prouver "le nombre de billets qui accepte une virgule" web/public/v10/app.js \
+prouver "le nombre de billets qui accepte une virgule" modules/socle/ecrans/entreprise/app-2.js \
   "PAVE.map(k => (o.entier && k === ',' ? '<span aria-hidden=\"true\"></span>' : touche(k)))" "PAVE.map(touche)" \
   "$TACT"
 prouver "le ticket replié du téléphone qui garde ses boutons" web/public/plateforme/caisse.css \
@@ -7543,7 +7543,7 @@ prouver "le « + » de l'article libre trop étroit pour un doigt au téléphone
 prouver "la barre de la caisse sous le bandeau du poste" web/public/plateforme/caisse.css \
   "height: calc(100vh - var(--poste-bandeau-h, 0px)); margin-top: var(--poste-bandeau-h, 0px);" "height: 100vh; margin-top: 0;" \
   "$CHW"
-prouver "la caisse revenue d'une autre page, encore sur la monnaie de la vente d'avant" web/public/v10/app.js \
+prouver "la caisse revenue d'une autre page, encore sur la monnaie de la vente d'avant" modules/socle/ecrans/entreprise/app-2.js \
   "    if (s.ecran === 'rendu' && !\$('#cs-body')) s.ecran = 'vente';
 " "" \
   "$TB"
@@ -7552,11 +7552,11 @@ prouver "la caisse revenue d'une autre page, encore sur la monnaie de la vente d
 ACW1="Nadia commande, reçoit en deux fois, saisit et règle la facture, en tire un avoir, lit une facture en photo"
 ACW2="une demande de prix sans prix s'envoie d'abord ; le retour d'une liste de prix répond"
 ACS1="une commande en brouillon ou une demande de prix ne reçoit rien, propriétaire compris ; partie, ou partant avec sa réception, elle reçoit"
-prouver "le bouton retour de la réception qui ne répond pas" web/public/v10/app.js \
+prouver "le bouton retour de la réception qui ne répond pas" modules/socle/ecrans/entreprise/app-1.js \
   "    go(() => goBack(b.dataset.retour || undefined, b.dataset.saut || undefined));
 " "" \
   "$ACW1"
-prouver "l'unité « Autre… » d'une commande qui n'ouvre pas la saisie libre" web/public/v10/app.js \
+prouver "l'unité « Autre… » d'une commande qui n'ouvre pas la saisie libre" modules/socle/ecrans/entreprise/app-1.js \
   "      \$\$('#cf-lines select[data-k=unit]').forEach(sel => bindUnitSelect(" "      [].forEach(sel => bindUnitSelect(" \
   "$ACW1"
 prouver "« Autre… » perdu pendant une recherche dans une liste" web/public/v10/listes.js \
@@ -7565,44 +7565,44 @@ prouver "« Autre… » perdu pendant une recherche dans une liste" web/public/v
 prouver "la recherche d'une liste qui range « demi-journée » avant « mois »" web/public/v10/listes.js \
   ".map((x, k) => ({ x, k, r: rang(x.label) })).sort((a, b) => b.r - a.r || a.k - b.k).map(a => a.x)" "" \
   "$ACW1"
-prouver "la saisie libre d'une unité qui arrive vide" web/public/v10/app.js \
+prouver "la saisie libre d'une unité qui arrive vide" modules/socle/ecrans/entreprise/app-1.js \
   "promptDialog('Unité personnalisée', 'Unité (ex : rouleau, palette, ml)', saisi, v => {" "promptDialog('Unité personnalisée', 'Unité (ex : rouleau, palette, ml)', '', v => {" \
   "$ACW1"
 prouver "« Autre : … » choisi sans emporter la frappe" web/public/v10/listes.js \
   "      if (x.libre) { const f = q ? q.value.trim() : ''; if (f) cible.dataset.saisie = f; else delete cible.dataset.saisie; }
 " "" \
   "$ACW1"
-prouver "une ligne relue avec « __autre__ » pour unité" web/public/v10/app.js \
+prouver "une ligne relue avec « __autre__ » pour unité" modules/socle/ecrans/entreprise/app-1.js \
   "    if (value === UNIT_OTHER) value = '';
 " "" \
   "$ACW2"
-prouver "les unités déjà employées absentes d'une ligne de commande" web/public/v10/app.js \
+prouver "les unités déjà employées absentes d'une ligne de commande" modules/socle/ecrans/entreprise/app-1.js \
   "\${unitOptions(l.unit, unitesCommande())}" "\${unitOptions(l.unit)}" \
   "$ACW1"
-prouver "« Mati » qui propose d'abord ce qui le contient" web/public/v10/app.js \
+prouver "« Mati » qui propose d'abord ce qui le contient" modules/socle/ecrans/entreprise/app-1.js \
   "        shown = shown.map((x, k) => ({ x, k, r: C.rangRecherche(x.label || '', q.value) + entier(x) })).sort((a, b) => b.r - a.r || a.k - b.k).map(a => a.x);
 " "" \
   "$ACW1"
-prouver "« 118 » qui choisit FA-2026/1187" web/public/v10/app.js \
+prouver "« 118 » qui choisit FA-2026/1187" modules/socle/ecrans/entreprise/app-1.js \
   "C.rangRecherche(x.label || '', q.value) + entier(x)" "C.rangRecherche(x.label || '', q.value)" \
   "$ACW1"
-prouver "la catégorie créée qui ne paraît pas dans le champ" web/public/v10/app.js \
+prouver "la catégorie créée qui ne paraît pas dans le champ" modules/socle/ecrans/entreprise/app-1.js \
   "        \$('[data-combo=category]', head).setItems(C.expenseCategories(data).map(c => ({ v: c, label: c })), v);" "        bindCombo(\$('[data-combo=category]', head), { items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— Choisir une catégorie —' }).setValue(v);" \
   "$ACW1"
-prouver "« Achats de matières premières » absente des catégories" web/public/v10/core.js \
+prouver "« Achats de matières premières » absente des catégories" modules/socle/moteur/core-1.js \
   "'Achats de marchandises', 'Achats de matières premières', 'Sous-traitance'" "'Achats de marchandises', 'Sous-traitance'" \
   "$ACW1"
-prouver "la réception qui dit la marchandise entrée en stock quand rien n'est suivi" web/public/v10/app.js \
+prouver "la réception qui dit la marchandise entrée en stock quand rien n'est suivi" modules/socle/ecrans/entreprise/app-1.js \
   "toast(\`Réception \${r.number} validée : \${phraseStockReception(r)}\`)" "toast(\`Réception \${r.number} validée : la marchandise suivie est entrée en stock.\`)" \
   "$ACW1"
-prouver "le bandeau de la facture qui affirme la marchandise entrée sans la compter" web/public/v10/app.js \
+prouver "le bandeau de la facture qui affirme la marchandise entrée sans la compter" modules/socle/ecrans/entreprise/app-1.js \
   "\${phraseReceptionsAchat(p.receptions)}." "sa marchandise est déjà entrée en stock par \${p.receptions.length > 1 ? 'elles' : 'elle'}, ces lignes ne l'y font pas entrer une seconde fois." \
   "$ACW1"
-prouver "« Recevoir » qui laisse la commande en brouillon" web/public/v10/app.js \
+prouver "« Recevoir » qui laisse la commande en brouillon" modules/socle/ecrans/entreprise/app-1.js \
   "        cmdR.status = 'envoyée';
 " "" \
   "$ACW1"
-prouver "une commande qui a reçu, remise en brouillon" web/public/v10/app.js \
+prouver "une commande qui a reçu, remise en brouillon" modules/socle/ecrans/entreprise/app-1.js \
   ".filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s))" "" \
   "$ACW1"
 prouver "le serveur qui valide une réception sur une commande pas partie" serveur/v10/dossier.ts \
@@ -7615,21 +7615,21 @@ prouver "une réception validée sur une demande de prix" serveur/v10/accords.ts
 prouver "« Recevoir » refusé : la commande qui part dans le même envoi n'est pas lue" serveur/v10/accords.ts \
   "    const dansLEnvoi = lus.find((x) => x.collection === 'supplierOrders' && x.cle === id);" "    const dansLEnvoi = undefined as { apres: unknown } | undefined;" \
   "$ACS1"
-prouver "l'invitation posée sur le premier champ de la page" web/public/v10/app.js \
+prouver "l'invitation posée sur le premier champ de la page" modules/socle/ecrans/entreprise/app-2.js \
   "      if (!document.body.classList.contains('mode-caisse')) { el.classList.add('ga-coin'); bouton.classList.add('guide-moi-signale'); return; }
 " "" \
   "$ACW1"
 prouver "l'invitation qui ne va pas dans le coin" web/public/plateforme/ecrans.css \
   ".guide-appel.ga-coin { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }" "" \
   "$ACW1"
-prouver "« Guide-moi » qui reste allumé quand l'invitation s'en va" web/public/v10/app.js \
+prouver "« Guide-moi » qui reste allumé quand l'invitation s'en va" modules/socle/ecrans/entreprise/app-2.js \
   "      bouton.classList.remove('guide-moi-signale');
 " "" \
   "$ACW1"
-prouver '« la déclaration de août »' web/public/v10/app.js \
+prouver '« la déclaration de août »' modules/socle/ecrans/entreprise/app-1.js \
   '(${pct(p.withholdingRate)} %) : tu les reverses avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + '"'"' '"'"' + d0.slice(0, 4))}</b>' '(${pct(p.withholdingRate)} %) : tu les reverses avec la déclaration de ${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}</b>' \
   'Nadia commande, reçoit en deux fois, saisit et règle la facture, en tire un avoir, lit une facture en photo'
-prouver 'l'"'"'attestation de retenue sans dire où elle s'"'"'établit' web/public/v10/app.js \
+prouver 'l'"'"'attestation de retenue sans dire où elle s'"'"'établit' modules/socle/ecrans/entreprise/app-1.js \
   ' (elle s'"'"'établit sur TEJ, la plateforme du ministère des Finances)' '' \
   "$ACW1"
 prouver "le bouton du justificatif encore absent en ligne" web/public/plateforme/pont.js \
@@ -7638,26 +7638,26 @@ prouver "le bouton du justificatif encore absent en ligne" web/public/plateforme
 prouver "la visite « Joindre un justificatif » encore cachée en ligne" web/public/plateforme/pont.js \
   "  const VISITES_PAS_ENCORE = [];" "  const VISITES_PAS_ENCORE = ['justificatif'];" \
   "Skander, sur un compte neuf : l'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu'au brouillon"
-prouver "l'objet d'un avoir qui invite à dire ce qu'on a acheté" web/public/v10/app.js \
+prouver "l'objet d'un avoir qui invite à dire ce qu'on a acheté" modules/socle/ecrans/entreprise/app-1.js \
   "        if (objet) objet.placeholder = inviteObjet(p.kind);
 " "" \
   "$ACW1"
-prouver 'l'"'"'échéance d'"'"'un avoir' web/public/v10/app.js \
+prouver 'l'"'"'échéance d'"'"'un avoir' modules/socle/ecrans/entreprise/app-1.js \
   '      if (bloc) bloc.hidden = C.PURCHASE_LIES.includes(p.kind) || p.kind === '"'"'depense'"'"';' '      if (bloc) bloc.hidden = p.kind === '"'"'depense'"'"';' \
   "$ACW1"
-prouver "l'avoir rattaché depuis la liste qui ne reprend rien" web/public/v10/app.js \
+prouver "l'avoir rattaché depuis la liste qui ne reprend rien" modules/socle/ecrans/entreprise/app-1.js \
   "        if (vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(" "        if (false && vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(" \
   "$ACW1"
-prouver "« Tu as modifié cette facture d'achat » dit d'un avoir" web/public/v10/app.js \
+prouver "« Tu as modifié cette facture d'achat » dit d'un avoir" modules/socle/ecrans/entreprise/app-1.js \
   "p.kind === 'avoir' ? 'cet avoir' : p.kind === 'acompte' ? 'cet acompte'" "p.kind === 'avoir' ? 'cette dépense' : p.kind === 'acompte' ? 'cet acompte'" \
   "$ACW1"
-prouver "« Enregistrer » qu'en haut d'un long achat" web/public/v10/app.js \
+prouver "« Enregistrer » qu'en haut d'un long achat" modules/socle/ecrans/entreprise/app-1.js \
   "\${clos ? '' : '<div class=\"save-bar\" id=\"b-save-bar\" hidden>" "\${true ? '' : '<div class=\"save-bar\" id=\"b-save-bar\" hidden>" \
   "$ACW1"
-prouver "deux « Enregistrer » principaux à l'écran" web/public/v10/app.js \
+prouver "deux « Enregistrer » principaux à l'écran" modules/socle/ecrans/entreprise/app-1.js \
   "majBarre = () => { const b = \$('#b-save-bar'); if (b) b.hidden = !(dirty && !hautEnVue); };" "majBarre = () => { const b = \$('#b-save-bar'); if (b) b.hidden = !dirty; };" \
   "$ACW1"
-prouver "l'échéance qui reste vide après une lecture" web/public/v10/app.js \
+prouver "l'échéance qui reste vide après une lecture" modules/socle/ecrans/entreprise/app-1.js \
   "      if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
 " "" \
   "$ACW1"
@@ -7669,28 +7669,28 @@ prouver "la feuille des réglages d'écran de la plateforme oubliée" web/public
   "  <link rel=\"stylesheet\" href=\"../plateforme/ecrans.css\">
 " "" \
   "$ACW1"
-prouver "la demande de prix qui affiche un total à zéro" web/public/v10/app.js \
+prouver "la demande de prix qui affiche un total à zéro" modules/socle/ecrans/entreprise/app-1.js \
   "      if (o.status === 'demande' && !o.lines.some(l => Number(l.unitPrice) > 0)) {" "      if (false) {" \
   "$ACW2"
-prouver "« Commander » en bouton principal avant l'envoi de la demande" web/public/v10/app.js \
+prouver "« Commander » en bouton principal avant l'envoi de la demande" modules/socle/ecrans/entreprise/app-1.js \
   "<button class=\"btn \${demandeSansPrix ? '' : 'btn-primary'}\" id=\"cf-commander\">" "<button class=\"btn btn-primary\" id=\"cf-commander\">" \
   "$ACW2"
-prouver "le PDF d'une demande sans prix qui n'est pas l'étape suivante" web/public/v10/app.js \
+prouver "le PDF d'une demande sans prix qui n'est pas l'étape suivante" modules/socle/ecrans/entreprise/app-1.js \
   "<button class=\"btn \${demandeSansPrix ? 'btn-primary' : ''}\" id=\"cf-pdf\">" "<button class=\"btn\" id=\"cf-pdf\">" \
   "$ACW2"
-prouver "« Commande … enregistrée » dit d'une demande de prix" web/public/v10/app.js \
+prouver "« Commande … enregistrée » dit d'une demande de prix" modules/socle/ecrans/entreprise/app-1.js \
   "toast(\`\${o.status === 'demande' ? 'Demande de prix' : 'Commande'} \${o.number} enregistrée\`);" "toast(\`Commande \${o.number} enregistrée\`);" \
   "$ACW2"
-prouver "la colonne des prix d'une demande qui dit « P.U. HT »" web/public/v10/app.js \
+prouver "la colonne des prix d'une demande qui dit « P.U. HT »" modules/socle/ecrans/entreprise/app-1.js \
   "\${quoi === 'demande' ? 'Prix répondu HT' : 'P.U. HT'}" "P.U. HT" \
   "$ACW2"
-prouver "la date d'une commande sans sa bulle « i »" web/public/v10/guide.js \
+prouver "la date d'une commande sans sa bulle « i »" modules/socle/aide/guide.js \
   "    'cf.date': { t: 'Date'," "    'cf.date-retiree': { t: 'Date'," \
   "$ACW1"
-prouver "la référence d'une commande sans sa bulle « i »" web/public/v10/app.js \
+prouver "la référence d'une commande sans sa bulle « i »" modules/socle/ecrans/entreprise/app-1.js \
   "lbl('Référence (optionnel)', 'cf.reference')" "lbl('Référence (optionnel)', '')" \
   "$ACW1"
-prouver "la désignation d'une commande écrasée par les autres colonnes" web/public/v10/app.js \
+prouver "la désignation d'une commande écrasée par les autres colonnes" modules/socle/ecrans/entreprise/app-1.js \
   "<th class=\"r\" style=\"width:76px\">Qté</th><th style=\"width:136px\">Unité</th><th class=\"r\" style=\"width:124px\">" "<th class=\"r\">Qté</th><th>Unité</th><th class=\"r\">" \
   "$ACW1"
 
@@ -7854,67 +7854,67 @@ prouver "les puces des Paramètres qui mènent à un panneau absent" $PONT \
 prouver "« Commencer la découverte » qui ouvre l'exemple sans la découverte" web/src/App.tsx \
   "setDemande({ ecran: 'exemple', visite: 'decouvrir' })" "setDemande({ ecran: 'exemple', visite: 'exemple' })" \
   "$EXW"
-prouver "l'exemple chargé à l'écran au lieu d'être versé par le serveur" web/public/v10/app.js \
+prouver "l'exemple chargé à l'écran au lieu d'être versé par le serveur" modules/socle/ecrans/entreprise/app-1.js \
   "  async function loadDemo(visite) {
     if (bridge.exemple) {" "  async function loadDemo(visite) {
     if (false) {" \
   "$EXW"
-prouver "la visite demandée jamais lancée une fois la page chargée" web/public/v10/app.js \
+prouver "la visite demandée jamais lancée une fois la page chargée" modules/socle/ecrans/entreprise/app-2.js \
   "      else if (demandee) { const v = visiteParId(demandee); if (v) lancerVisite(v); }" "      else if (demandee) { void demandee; }" \
   "$EXW"
-prouver "« Passer à ma vraie entreprise » qui oublie les premiers pas" web/public/v10/app.js \
+prouver "« Passer à ma vraie entreprise » qui oublie les premiers pas" modules/socle/ecrans/entreprise/app-2.js \
   "      if (await demoSortie('premiers-pas')) lancerVisite(visiteParId('premiers-pas'));" "      if (await demoSortie()) lancerVisite(visiteParId('premiers-pas'));" \
   "$EXW"
-prouver "« Quitter l'exemple » qui fait comme sur l'ordinateur" web/public/v10/app.js \
+prouver "« Quitter l'exemple » qui fait comme sur l'ordinateur" modules/socle/ecrans/entreprise/app-1.js \
   "    if (bridge.quitterExemple) {" "    if (false) {" \
   "$EPV5"
-prouver "le bandeau de l'exemple qui dit « Quitter » quand il n'y a pas encore de vraie entreprise" web/public/v10/app.js \
+prouver "le bandeau de l'exemple qui dit « Quitter » quand il n'y a pas encore de vraie entreprise" modules/socle/ecrans/entreprise/app-1.js \
   "    const aCreer = !!bridge.aUneVraieEntreprise && bridge.aUneVraieEntreprise() === false;" "    const aCreer = false;" \
   "$EPV5"
-prouver "« Le groupe » proposé avec l'exemple et une seule vraie entreprise" web/public/v10/app.js \
+prouver "« Le groupe » proposé avec l'exemple et une seule vraie entreprise" modules/socle/ecrans/entreprise/app-1.js \
   "\${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ?" "\${bridge.groupe && autres.length ?" \
   "$EPV4"
-prouver "« Gérer les dossiers… » proposé en ligne, vers un panneau absent" web/public/v10/app.js \
+prouver "« Gérer les dossiers… » proposé en ligne, vers un panneau absent" modules/socle/ecrans/entreprise/app-1.js \
   "\${(bridge.panneauxAbsents || []).includes('p-dossiers') ? '' : '<button type=\"button\" id=\"dm-manage\"" "\${false ? '' : '<button type=\"button\" id=\"dm-manage\"" \
   "$EPV4"
-prouver "« Nouvelle entreprise… » qui demande un nom dans une petite fenêtre" web/public/v10/app.js \
+prouver "« Nouvelle entreprise… » qui demande un nom dans une petite fenêtre" modules/socle/ecrans/entreprise/app-1.js \
   "    if (bridge.nouvelleEntreprise) { bridge.nouvelleEntreprise(); return; }
 " "" \
   "$EPV4"
-prouver "la visite du comptable qui vise encore le fichier d'appairage" web/public/v10/visites.js \
+prouver "la visite du comptable qui vise encore le fichier d'appairage" modules/socle/visites/visites.js \
   "si: () => !!\$('#mandat-perimetre'), cible: '#mandat-perimetre'," "si: () => !!\$('#mandat-perimetre'), cible: '#cab-import'," \
   "$VMA"
-prouver "« Me guider » qui propose en ligne les visites sans objet" web/public/v10/app.js \
+prouver "« Me guider » qui propose en ligne les visites sans objet" modules/socle/ecrans/entreprise/app-2.js \
   "  }).filter(v => !(bridge.visitesAbsentes || []).includes(v.id)));" "  }));" \
   "$EXW"
-prouver "« Guide-moi » d'une nouvelle facture sans « Faire une facture »" web/public/v10/visites.js \
+prouver "« Guide-moi » d'une nouvelle facture sans « Faire une facture »" modules/socle/visites/visites.js \
   "      surLaPage: cle => cle !== 'doc' || /^#\\/doc\\/new\\/facture/.test(hash())," "      surLaPage: () => false," \
   "$EXW"
 # (1.107.0) Depuis la 1.89.0, les pièces jointes existent en ligne : le défaut vise un panneau qui, lui, n'y est pas (les
 # mises à jour de l'application de bureau).
-prouver "une étape du devis qui attend un panneau absent en ligne" web/public/v10/visites.js \
+prouver "une étape du devis qui attend un panneau absent en ligne" modules/socle/visites/visites.js \
   "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true," "        { cible: '#p-maj', cote: 'dessus', titre: 'Les pièces jointes'," \
   "$VEL"
-prouver "la découverte qui attend le panneau des mises à jour" web/public/v10/visites.js \
+prouver "la découverte qui attend le panneau des mises à jour" modules/socle/visites/visites.js \
   "        { page: '#/parametres', cible: '#app-version', cote: 'droite', titre: 'Les mises à jour'," "        { page: '#/parametres', cible: '#p-maj', cote: 'droite', titre: 'Les mises à jour'," \
   "$VEL"
-prouver "la découverte qui attend la copie vers une clé" web/public/v10/visites.js \
+prouver "la découverte qui attend la copie vers une clé" modules/socle/visites/visites.js \
   "cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\\'abri'," "cible: '#p-externe', cote: 'dessous', titre: 'Tes données à l\\'abri'," \
   "$VEL"
-prouver "la découverte qui attend la clôture reçue en fichier" web/public/v10/visites.js \
+prouver "la découverte qui attend la clôture reçue en fichier" modules/socle/visites/visites.js \
   "        { page: '#/parametres', avant: onglet('#set-tabs', 'compte'), cible: '#p-appareils'" "        { page: '#/compta', avant: onglet('#c-tabs', 'clotures'), cible: '#p-cloture-cabinet', cote: 'dessus', titre: 'Sa clôture', texte: 'x' },
         { page: '#/parametres', avant: onglet('#set-tabs', 'compte'), cible: '#p-appareils'" \
   "$VEL"
-prouver "la fin de la découverte qui parle de licence" web/public/v10/visites.js \
+prouver "la fin de la découverte qui parle de licence" modules/socle/visites/visites.js \
   "abonnement réglé ou pas, tu gardes la lecture, l\\'impression et l\\'export." "licence ou pas, tu gardes la lecture, l\\'impression, l\\'export et l\\'envoi à ton comptable." \
   "$VELT"
-prouver "la découverte qui décrit le paquet du comptable" web/public/v10/visites.js \
+prouver "la découverte qui décrit le paquet du comptable" modules/socle/visites/visites.js \
   "Rien à lui envoyer : tu lui confies ton entreprise une fois" "Chaque mois, un paquet : tu lui confies ton entreprise une fois" \
   "$VELT"
-prouver "l'exemple qui « rend tes vraies données » en ligne" web/public/v10/visites.js \
+prouver "l'exemple qui « rend tes vraies données » en ligne" modules/socle/visites/visites.js \
   "<b>« Quitter l\\'exemple »</b> l\\'ouvre, <b>« Créer ma vraie entreprise »</b> la crée si tu n\\'en as pas encore." "<b>« Quitter l\\'exemple »</b> te rend tes vraies données — elles ont été mises de côté." \
   "$VELT"
-prouver "la réponse au comptable qui part « dans le paquet du mois »" web/public/v10/visites.js \
+prouver "la réponse au comptable qui part « dans le paquet du mois »" modules/socle/visites/visites.js \
   "Tu réponds en une phrase ; il la lit dès que tu l\\'enregistres." "Tu réponds en une phrase ; ta réponse repart dans le paquet du mois." \
   "$VELT"
 
@@ -7949,52 +7949,52 @@ prouver 'la retenue relue en nombre, prise pour un changement de la pièce scell
 prouver 'tous les taux de retenue d'\''une pièce scellée tenus pour égaux' serveur/v10/dossier.ts \
   'return Number.isFinite(n) && n !== 0 ? String(n) : '\''0'\'';' 'return '\''0'\'';' \
   "$DOSR"
-prouver 'l'\''écran qui laisse passer un matricule que le serveur ne porte pas' web/public/v10/core.js \
+prouver 'l'\''écran qui laisse passer un matricule que le serveur ne porte pas' modules/socle/moteur/core-2.js \
   '  const MF_FORME = /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/;' '  const MF_FORME = /^[0-9]{7}[A-Z]{1,3}[0-9]{0,3}$/;' \
   "$MAT1"
-prouver 'un matricule mal formé que la fiche ne nomme pas' web/public/v10/core.js \
+prouver 'un matricule mal formé que la fiche ne nomme pas' modules/socle/moteur/core-2.js \
   '    else if (!matriculeBienForme(c.matricule)) out.push('\''un matricule fiscal valide' '    else if (false) out.push('\''un matricule fiscal valide' \
   "$MAT2"
-prouver '« MF » imprimé sans matricule' web/public/v10/core.js \
+prouver '« MF » imprimé sans matricule' modules/socle/moteur/core-2.js \
   'String(company.matricule || '\'''\'').trim() ? `${L.mf} ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''' '`${L.mf} ${escapeHtml(matriculeLisible(company.matricule))}`' \
   "$FDW"
-prouver 'le tampon posé sur l'\''objet de la pièce' web/public/v10/core.js \
+prouver 'le tampon posé sur l'\''objet de la pièce' modules/socle/moteur/core-2.js \
   '.stamp { position: absolute; left: 50%; top: 150mm; transform: translate(-50%, -50%) rotate(-24deg);' '.stamp { position: absolute; top: 62mm; right: 24mm; transform: rotate(-12deg);' \
   "$FDW"
-prouver 'le tampon opaque, qui cache ce qu'\''il couvre' web/public/v10/core.js \
+prouver 'le tampon opaque, qui cache ce qu'\''il couvre' modules/socle/moteur/core-2.js \
   'opacity: .16; mix-blend-mode: multiply;' 'opacity: .45;' \
   "$FDW"
-prouver 'l'\''avertissement d'\''émission qui ne nomme pas ce qui manque' web/public/v10/app.js \
+prouver 'l'\''avertissement d'\''émission qui ne nomme pas ce qui manque' modules/socle/ecrans/entreprise/app-1.js \
   'Ton matricule fiscal manque : il est obligatoire sur une facture en Tunisie' 'Ta fiche société est incomplète (raison sociale ou matricule fiscal) : il est obligatoire sur une facture en Tunisie' \
   "$FDW"
-prouver 'la fenêtre d'\''émission sans le geste qui complète la fiche' web/public/v10/app.js \
+prouver 'la fenêtre d'\''émission sans le geste qui complète la fiche' modules/socle/ecrans/entreprise/app-1.js \
   'id="em-fiche">Compléter ma fiche…</button>' 'id="em-fiche" hidden>Compléter ma fiche…</button>' \
   "$FDW"
-prouver 'la fenêtre d'\''émission qui ne se relit pas après la fiche' web/public/v10/app.js \
+prouver 'la fenêtre d'\''émission qui ne se relit pas après la fiche' modules/socle/ecrans/entreprise/app-1.js \
   '              $('\''#em-avert'\'', root).innerHTML = avertir(l);
 ' '' \
   "$FDW"
-prouver 'un matricule mal formé qui part au serveur' web/public/v10/app.js \
+prouver 'un matricule mal formé qui part au serveur' modules/socle/ecrans/entreprise/app-1.js \
   'if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser(' 'if (false) return refuser(' \
   "$FDW"
 # Depuis E5, deux gestes reprennent le matricule refusé : le point de contact (seul refusé, il remet celui du serveur) et
 # la fenêtre (un refus qui lui arrive quand même remet ce qu'elle avait). Le défaut, c'est perdre les deux.
-prouver 'la fiche qui garde le matricule que le serveur a refusé' 'web/public/plateforme/pont.js|||web/public/v10/app.js' \
+prouver 'la fiche qui garde le matricule que le serveur a refusé' 'web/public/plateforme/pont.js|||modules/socle/ecrans/entreprise/app-1.js' \
   '    fiche.matricule = garde;
 |||            Object.assign(co, avant);
 ' '|||' \
   "$FDW"
-prouver 'la retenue émise en texte, telle que la liste l'\''écrit' web/public/v10/app.js \
+prouver 'la retenue émise en texte, telle que la liste l'\''écrit' modules/socle/ecrans/entreprise/app-1.js \
   '      doc.withholdingRate = Number(doc.withholdingRate) || 0;
 ' '' \
   "$FDW"
-prouver '« une retenue subie de août »' web/public/v10/app.js \
+prouver '« une retenue subie de août »' modules/socle/ecrans/entreprise/app-1.js \
   'retenue subie ${/^[aeiou]/i.test(moisRs)' 'retenue subie ${/^$/i.test(moisRs)' \
   "$FDW"
-prouver 'le menu qui promet un PDF joint au message' web/public/v10/app.js \
+prouver 'le menu qui promet un PDF joint au message' modules/socle/ecrans/entreprise/app-1.js \
   'email: !bridge.ajouterLien ? '\''Le PDF est joint au message'\'' :' 'email: true ? '\''Le PDF est joint au message'\'' :' \
   "$FDW"
-prouver '« Ouvrir » qui propose de modifier une pièce émise' web/public/v10/app.js \
+prouver '« Ouvrir » qui propose de modifier une pièce émise' modules/socle/ecrans/entreprise/app-1.js \
   "    if (!d.number) return [
       { icon: 'ouvrir', label: 'Ouvrir', hint: 'Le reprendre et l\\'émettre'" "    if (true) return [
       { icon: 'ouvrir', label: 'Ouvrir', hint: 'Le reprendre et l\\'émettre'" \
@@ -8002,7 +8002,7 @@ prouver '« Ouvrir » qui propose de modifier une pièce émise' web/public/v10/
 prouver 'l'"'"'espace du client sans ce qui a déjà été payé' web/public/espace/espace.js \
   "\${recu(sel) ? \`<p class=\"recu\">\${recu(sel)}</p>\` : ''}</section>" "</section>" \
   "Samia, sans matricule ni RIB : la pièce n'imprime rien de vide, la fiche se complète avant d'émettre, et le reste suit"
-prouver 'le refus du serveur à l'\''émission dans un bandeau de trois secondes' web/public/v10/app.js \
+prouver 'le refus du serveur à l'\''émission dans un bandeau de trois secondes' modules/socle/ecrans/entreprise/app-1.js \
   '          infoDialog(doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' '          toast(motif, true) || void (doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' \
   "$FDW"
 
@@ -8036,69 +8036,69 @@ prouver 'une réponse vide d'\''un relais prise pour celle du serveur, au Cabine
 prouver 'les écrans d'\''entrée qui lisent la réponse d'\''un relais comme du JSON' web/src/api.ts \
   '  try { lu = (texte ? JSON.parse(texte) : {}) as Reponse<T>['\''corps'\'']; } catch { throw new ErreurReseau(); }' '  lu = (texte ? JSON.parse(texte) : {}) as Reponse<T>['\''corps'\''];' \
   "$CPE5"
-prouver 'l'\''en-tête de la pièce qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'l'\''en-tête de la pièce qui imprime le matricule tel que tapé' modules/socle/moteur/core-2.js \
   '`${L.mf} ${escapeHtml(matriculeLisible(company.matricule))}`' '`${L.mf} ${escapeHtml(company.matricule)}`' \
   "$MAT3"
-prouver 'le pied de la pièce qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'le pied de la pièce qui imprime le matricule tel que tapé' modules/socle/moteur/core-2.js \
   ''\''Matricule fiscal '\'') + matriculeLisible(company.matricule)' ''\''Matricule fiscal '\'') + company.matricule' \
   "$MAT3"
-prouver 'la pièce qui imprime le matricule du client tel que tapé' web/public/v10/core.js \
+prouver 'la pièce qui imprime le matricule du client tel que tapé' modules/socle/moteur/core-2.js \
   'L.mfCin + '\'' '\'' + escapeHtml(matriculeLisible(cl.matricule))' 'L.mfCin + '\'' '\'' + escapeHtml(cl.matricule)' \
   "$MAT3"
-prouver 'le ticket de caisse qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'le ticket de caisse qui imprime le matricule tel que tapé' modules/socle/moteur/core-2.js \
   ''\''<br>MF '\'' + escapeHtml(matriculeLisible(co.matricule))' ''\''<br>MF '\'' + escapeHtml(co.matricule)' \
   "$MAT3"
-prouver 'l'\''en-tête du bulletin de paie qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'l'\''en-tête du bulletin de paie qui imprime le matricule tel que tapé' modules/personnel/moteur/core-paie.js \
   '      <div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
       <div class="co-sub">${escapeHtml(company.address || '\'''\'').replace(/\n/g, '\''<br>'\'')}
         ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}`' '      <div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
       <div class="co-sub">${escapeHtml(company.address || '\'''\'').replace(/\n/g, '\''<br>'\'')}
         ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}`' \
   "$MAT3"
-prouver 'le pied du bulletin de paie qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'le pied du bulletin de paie qui imprime le matricule tel que tapé' modules/personnel/moteur/core-paie.js \
   $' — MF \' + escapeHtml(matriculeLisible(company.matricule)) : \'\'} · Bulletin ${' $' — MF \' + escapeHtml(company.matricule) : \'\'} · Bulletin ${' \
   "$MAT3"
-prouver 'l'\''en-tête des documents du personnel qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'l'\''en-tête des documents du personnel qui imprime le matricule tel que tapé' modules/personnel/moteur/core-paie.js \
   '    <div><div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
       <div class="co-sub">${escapeHtml(company.address || '\'''\'').replace(/\n/g, '\''<br>'\'')}
         ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}`' '    <div><div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
       <div class="co-sub">${escapeHtml(company.address || '\'''\'').replace(/\n/g, '\''<br>'\'')}
         ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}`' \
   "$MAT3"
-prouver 'l'\''attestation de travail qui écrit le matricule tel que tapé' web/public/v10/core.js \
+prouver 'l'\''attestation de travail qui écrit le matricule tel que tapé' modules/personnel/moteur/core-paie.js \
   ', matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''}, atteste' ', matricule fiscal ${escapeHtml(company.matricule)}` : '\'''\''}, atteste' \
   "$MAT3"
-prouver 'le certificat de travail qui écrit le matricule tel que tapé' web/public/v10/core.js \
+prouver 'le certificat de travail qui écrit le matricule tel que tapé' modules/personnel/moteur/core-paie.js \
   ', matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''}, certifie' ', matricule fiscal ${escapeHtml(company.matricule)}` : '\'''\''}, certifie' \
   "$MAT3"
-prouver 'le solde de tout compte qui écrit le matricule tel que tapé' web/public/v10/core.js \
+prouver 'le solde de tout compte qui écrit le matricule tel que tapé' modules/personnel/moteur/core-paie.js \
   ', matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''}, d'\''une part' ', matricule fiscal ${escapeHtml(company.matricule)}` : '\'''\''}, d'\''une part' \
   "$MAT3"
-prouver 'le pied des documents du personnel qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'le pied des documents du personnel qui imprime le matricule tel que tapé' modules/personnel/moteur/core-paie.js \
   ''\'' — MF '\'' + escapeHtml(matriculeLisible(company.matricule)) : '\'''\''}</div>' ''\'' — MF '\'' + escapeHtml(company.matricule) : '\'''\''}</div>' \
   "$MAT3"
-prouver 'l'\''en-tête du relevé de compte qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'l'\''en-tête du relevé de compte qui imprime le matricule tel que tapé' modules/socle/moteur/core-2.js \
   '${W.mf} : ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''}</div></div>' '${W.mf} : ${escapeHtml(company.matricule)}` : '\'''\''}</div></div>' \
   "$MAT3"
-prouver 'le relevé de compte qui imprime le matricule du client tel que tapé' web/public/v10/core.js \
+prouver 'le relevé de compte qui imprime le matricule du client tel que tapé' modules/socle/moteur/core-2.js \
   '${W.mf} : ${escapeHtml(matriculeLisible(c.matricule))}' '${W.mf} : ${escapeHtml(c.matricule)}' \
   "$MAT3"
-prouver 'le pied du relevé de compte qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'le pied du relevé de compte qui imprime le matricule tel que tapé' modules/socle/moteur/core-2.js \
   '` — ${W.mf} ` + escapeHtml(matriculeLisible(company.matricule))' '` — ${W.mf} ` + escapeHtml(company.matricule)' \
   "$MAT3"
-prouver 'la page de garde du paquet qui imprime le matricule tel que tapé' web/public/v10/core.js \
+prouver 'la page de garde du paquet qui imprime le matricule tel que tapé' modules/socle/moteur/core-2.js \
   'esc(matriculeLisible(company.matricule))' 'esc(company.matricule)' \
   "$MAT3"
-prouver 'la fiche complétée qui garde le matricule tel que tapé' web/public/v10/app.js \
+prouver 'la fiche complétée qui garde le matricule tel que tapé' modules/socle/ecrans/entreprise/app-1.js \
   'if (manqueMf) co.matricule = C.matriculeLisible(v.matricule);' 'if (manqueMf) co.matricule = v.matricule;' \
   "$FDW"
-prouver 'la lettre-clé I, O ou U acceptée à l'\''écran' web/public/v10/core.js \
+prouver 'la lettre-clé I, O ou U acceptée à l'\''écran' modules/socle/moteur/core-2.js \
   'const MF_FORME = /^[0-9]{7}[A-HJ-NP-TV-Z]' 'const MF_FORME = /^[0-9]{7}[A-Z]' \
   "$MAT1"
 prouver 'la lettre-clé I, O ou U portée à l'\''entreprise par le serveur' commun/matricule.ts \
   '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
   "$MAT1"
-prouver 'la fiche qui ne dit pas que la lettre-clé n'\''est jamais I, O ni U' web/public/v10/core.js \
+prouver 'la fiche qui ne dit pas que la lettre-clé n'\''est jamais I, O ni U' modules/socle/moteur/core-2.js \
   'sept chiffres, une lettre autre que I, O ou U, puis code TVA' 'sept chiffres, une lettre, puis code TVA' \
   "$MAT2"
 
@@ -8170,19 +8170,19 @@ prouver 'le matricule déjà pris d'\''un dossier tenu, sans son champ' serveur/
 prouver 'le matricule déjà pris qui dit « Rien n'\''a été enregistré » quand le reste l'\''est' textes/base.ts \
   'relis-le sur ta carte d\'\''identification fiscale'\'' },' 'relis-le sur ta carte d\'\''identification fiscale. Rien n\'\''a été enregistré'\'' },' \
   "$POR2"
-prouver 'la case du Cabinet qui laisse passer la lettre-clé O' web/public/v10/cabinet/app.js \
+prouver 'la case du Cabinet qui laisse passer la lettre-clé O' modules/socle/ecrans/cabinet/app-2.js \
   'const matriculeFiscalLisible = m => !m || /^[0-9]{7}[A-HJ-NP-TV-Z]' 'const matriculeFiscalLisible = m => !m || /^[0-9]{7}[A-Z]' \
   "$WLE5"
 for t in "$WLE5" "$NDT5"; do
-  prouver "la case du Cabinet qui dit l'ancienne règle (${t:0:40}…)" web/public/v10/cabinet/app.js \
+  prouver "la case du Cabinet qui dit l'ancienne règle (${t:0:40}…)" modules/socle/ecrans/cabinet/app-2.js \
     's\'\''écrit comme sur la carte d\'\''identification fiscale : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000). Laisse' 's\'\''écrit 1234567A/B/C/000 : sept chiffres, trois lettres, trois chiffres. Laisse' \
     "$t"
 done
-prouver 'le matricule déjà pris d'\''un nouveau dossier, dit en bas de l'\''écran seulement' web/public/v10/cabinet/app.js \
+prouver 'le matricule déjà pris d'\''un nouveau dossier, dit en bas de l'\''écran seulement' modules/socle/ecrans/cabinet/app-2.js \
   'matricule mal écrit (il ne se disait qu'\''en bas de l'\''écran).
             if (e && e.champ === '\''matriculeFiscal'\'') return refus($('\''#f-mat'\'', layer), plainError(e));' 'matricule mal écrit (il ne se disait qu'\''en bas de l'\''écran).' \
   "$WLE5"
-prouver 'le matricule déjà pris dans la fiche d'\''un dossier tenu, dit en bas de l'\''écran seulement' web/public/v10/cabinet/app.js \
+prouver 'le matricule déjà pris dans la fiche d'\''un dossier tenu, dit en bas de l'\''écran seulement' modules/socle/ecrans/cabinet/app-2.js \
   'refusé sur sa case.
             if (e && e.champ === '\''matriculeFiscal'\'') return refus($('\''#f-mat'\'', layer), plainError(e));' 'refusé sur sa case.' \
   "$NDT5"
@@ -8205,17 +8205,17 @@ prouver 'la fiche qui garde le matricule refusé' web/public/plateforme/pont.js 
   '    fiche.matricule = garde;
 ' '' \
   "$FDE5"
-prouver 'le matricule refusé seul, sans un mot à l'\''écran' web/public/v10/app.js \
+prouver 'le matricule refusé seul, sans un mot à l'\''écran' modules/socle/ecrans/entreprise/app-1.js \
   'if (r && r.matriculeRefuse) matriculeRefuse(r.matriculeRefuse); ' '' \
   "$FDE5"
-prouver 'la case des Paramètres qui montre le matricule refusé' web/public/v10/app.js \
+prouver 'la case des Paramètres qui montre le matricule refusé' modules/socle/ecrans/entreprise/app-1.js \
   '    if (champ) champ.value = x.garde;
 ' '' \
   "$FDE5"
-prouver '« Corriger mon matricule » qui ne mène pas à la case' web/public/v10/app.js \
+prouver '« Corriger mon matricule » qui ne mène pas à la case' modules/socle/ecrans/entreprise/app-1.js \
   "allerParametres('societe', 'p-identite:matricule'); };" "allerParametres('societe', 'p-identite'); };" \
   "$FDE5"
-prouver '« Compléter ma fiche » qui se ferme sur un matricule refusé' web/public/v10/app.js \
+prouver '« Compléter ma fiche » qui se ferme sur un matricule refusé' modules/socle/ecrans/entreprise/app-1.js \
   "            if (r && r.matriculeRefuse) { b.disabled = false; return refuser('matricule', r.matriculeRefuse.motif); }
 " '' \
   "$FD15"
@@ -8252,7 +8252,7 @@ prouver "« Plus ▾ » accroché à son bouton, hors de l'écran" web/public/pl
 prouver 'l'"'"'étape suivante perdue au milieu de la barre' web/public/plateforme/piece.css \
   "  .ed-geste { position: fixed; left: 0;" "  .ed-geste { left: 0;" \
   "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
-prouver "« WhatsApp » caché dans « Plus » au téléphone" web/public/v10/app.js \
+prouver "« WhatsApp » caché dans « Plus » au téléphone" modules/socle/ecrans/entreprise/app-1.js \
   "\${avecPlus ? '<button class=\"btn tel-seul\" id=\"wa-tel\" title=\"Envoyer par WhatsApp\">WhatsApp</button>' : ''}" "" \
   "$TL3"
 prouver 'le « WhatsApp » du téléphone qui ne se montre pas' web/public/plateforme/piece.css \
@@ -8260,7 +8260,7 @@ prouver 'le « WhatsApp » du téléphone qui ne se montre pas' web/public/plate
   .ed-tete .actions .btn.tel-seul { display: none; }" "@media (min-width: 1px) {
   .ed-tete .actions .btn.tel-seul { display: none; }" \
   "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
-prouver "le « WhatsApp » du téléphone qui n'envoie rien" web/public/v10/app.js \
+prouver "le « WhatsApp » du téléphone qui n'envoie rien" modules/socle/ecrans/entreprise/app-1.js \
   "    if (\$('#wa-tel')) \$('#wa-tel').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
 " "" \
   "$TL3"
@@ -8274,7 +8274,7 @@ prouver "la bulle d'un filtre seule sur sa ligne" web/public/plateforme/telephon
 prouver "la bulle d'un bouton caché qui reste" web/public/plateforme/telephone.css \
   ".colle-bouton:has(> .btn[hidden]) { display: none; }" "" \
   "$TL3"
-prouver '« Facturer ce devis » séparé de sa bulle' web/public/v10/app.js \
+prouver '« Facturer ce devis » séparé de sa bulle' modules/socle/ecrans/entreprise/app-1.js \
   "const ligneMenu = (bouton, cle) => \`<div class=\"ml-ligne\">\${bouton}\${info(cle)}</div>\`;" "const ligneMenu = (bouton, cle) => \`\${bouton}\${info(cle)}\`;" \
   "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
 prouver "le bandeau d'une pièce émise sur la moitié du téléphone" web/public/plateforme/telephone.css \
@@ -8286,13 +8286,13 @@ prouver "les lignes d'un achat et d'une photo relue cachées à droite au télé
 prouver "« Je facturais déjà » qui sort de sa fenêtre" web/public/plateforme/telephone.css \
   "  .modal .btn { white-space: normal; text-align: start; }" "" \
   "$TL5"
-prouver "« les 1 dernières pièces sur 1 »" web/public/v10/app.js \
+prouver "« les 1 dernières pièces sur 1 »" modules/socle/ecrans/entreprise/app-1.js \
   "open.length ? \`\${h(cur)} · \${pl(open.length, 'facture')}\`" "open.length ? \`\${h(cur)} · \${open.length} factures\`" \
   "$TL5"
 prouver "la pastille de la caisse tranchée à 1 180 points" web/public/plateforme/caisse.css \
   "  .ct-puce-qui, .ct-nom small { display: none; }" "  .ct-nom small { display: none; }" \
   "$TL6"
-prouver "la pastille de la caisse sans forme courte" web/public/v10/app.js \
+prouver "la pastille de la caisse sans forme courte" modules/socle/ecrans/entreprise/app-2.js \
   "Ouverte<span class=\"ct-puce-qui\"> par \${h(ss.qui)} le \${h(heureCaisse(ss.ouverteLe))}</span> · fond" "Ouverte par \${h(ss.qui)} le \${h(heureCaisse(ss.ouverteLe))} · fond" \
   "$TL6"
 prouver "« billets » tranché par la case du nombre" web/public/plateforme/caisse.css \
@@ -8301,7 +8301,7 @@ prouver "« billets » tranché par la case du nombre" web/public/plateforme/cai
 prouver "le comptage de 1 024 × 768 sous « Fermer la caisse »" web/public/plateforme/caisse.css \
   "@media (min-width: 921px) and (max-height: 820px) {" "@media (min-width: 921px) and (max-height: 1px) {" \
   "$TL6"
-prouver "« glisse-le » : un geste qu'un téléphone ne fait pas" web/public/v10/app.js \
+prouver "« glisse-le » : un geste qu'un téléphone ne fait pas" modules/socle/ecrans/entreprise/app-1.js \
   "« Exporter en PDF » l\\'enregistre ; joins-le ensuite au message." "« Exporter en PDF » l\\'enregistre ; glisse-le ensuite dans le message." \
   "$ENV9"
 
@@ -8340,20 +8340,20 @@ prouver "les conditions d'un devis qui ne partent pas" serveur/ventes/espace.ts 
   "  'quoteTerms', 'quoteTermsEn',
 " "" \
   "$DV2"
-prouver "l'e-mail d'un devis sans son lien" web/public/v10/app.js \
+prouver "l'e-mail d'un devis sans son lien" modules/socle/ecrans/entreprise/app-1.js \
   "créé à l'envoi par le point de contact (brique 79) ; un devis aussi (le devis par son lien).
     const lien = !!bridge.ajouterLien && (C.isLocked(doc) || doc.type === 'devis')" "créé à l'envoi par le point de contact (brique 79) ; un devis aussi (le devis par son lien).
     const lien = !!bridge.ajouterLien && (C.isLocked(doc))" \
   "$DV3"
-prouver "le WhatsApp d'un devis sans son lien" web/public/v10/app.js \
+prouver "le WhatsApp d'un devis sans son lien" modules/socle/ecrans/entreprise/app-1.js \
   "d'un devis aussi (le devis par son lien).
     const lien = !!bridge.ajouterLien && (C.isLocked(doc) || doc.type === 'devis')" "d'un devis aussi (le devis par son lien).
     const lien = !!bridge.ajouterLien && (C.isLocked(doc))" \
   "$DV3"
-prouver "la fenêtre d'un devis qui promet « ce qu'il en doit »" web/public/v10/app.js \
+prouver "la fenêtre d'un devis qui promet « ce qu'il en doit »" modules/socle/ecrans/entreprise/app-1.js \
   "et ton client y voit la pièce telle que tu l\\'imprimes' + (doc.type === 'devis' ? '.' : ', et ce qu\\'il en doit.') : 'Le message s" "et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Le message s" \
   "$DV3"
-prouver "« Lien pour le client… » absent d'un devis envoyé" web/public/v10/app.js \
+prouver "« Lien pour le client… » absent d'un devis envoyé" modules/socle/ecrans/entreprise/app-1.js \
   "((locked && (isInv || isAv)) || (doc.type === 'devis' && doc.status !== 'brouillon'))" "(locked && (isInv || isAv))" \
   "$DV3"
 prouver "« Pour voir la facture en ligne » sous un devis" web/public/plateforme/pont.js \
@@ -8376,17 +8376,17 @@ KB1='20 000 tickets « prix TTC » tirés au hasard (remises, taux, quantités) 
 KB2="un ticket « prix TTC » : quantité × prix d'étiquette, au millime, quel que soit le prix et la quantité ; HT + TVA = TTC"
 KT1="au comptoir, le prix d'étiquette fait foi : 2 biscuits à 1,200 font 2,400, et leur retour rend 2,400"
 KW1="à la tablette du comptoir : 2 biscuits à 1,200 font 2,400 ; « Créer la caisse » sous le refus ; « Enregistrer » au bas d'une longue fenêtre"
-prouver "le ticket calculé HT d'abord, à l'écran" web/public/v10/core.js \
+prouver "le ticket calculé HT d'abord, à l'écran" modules/socle/moteur/core-1.js \
   "    const prixTtc = doc.prixTtc === true;" "    const prixTtc = false;" \
   "$KB2"
 prouver "le ticket calculé HT d'abord, au serveur" moteur/piece.ts \
   "  if (p.prixTtc) return calculerPieceTtc(p);
 " "" \
   "$KB2"
-prouver "le panier de la caisse au HT d'abord (2 × 1,200 = 2,399)" web/public/v10/core.js \
+prouver "le panier de la caisse au HT d'abord (2 × 1,200 = 2,399)" modules/socle/moteur/core-2.js \
   "    const doc = { type: 'facture', ticket: true, prixTtc: true, lines: lignes || []," "    const doc = { type: 'facture', ticket: true, lines: lignes || []," \
   "$KW1"
-prouver "le ticket encaissé sans son drapeau « prix TTC »" web/public/v10/core.js \
+prouver "le ticket encaissé sans son drapeau « prix TTC »" modules/socle/moteur/core-2.js \
   "      id: uid(), type: 'facture', ticket: true, prixTtc: true, number: nextNumber(data, 'ticket', jour)," "      id: uid(), type: 'facture', ticket: true, number: nextNumber(data, 'ticket', jour)," \
   "$KW1"
 prouver "l'avoir d'un retour qui ne suit pas son ticket « prix TTC »" serveur/caisse/retour.ts \
@@ -8398,13 +8398,13 @@ prouver "une facture qui se calcule TTC d'abord parce que l'écran le dit" serve
 prouver "le drapeau « prix TTC » perdu au serveur" serveur/ventes/pieces.ts \
   "prix_ttc: b.prixTtc === true," "prix_ttc: false," \
   "$KT1"
-prouver "une remise d'un millime inventée sur un ticket sans remise (écran)" web/public/v10/core.js \
+prouver "une remise d'un millime inventée sur un ticket sans remise (écran)" modules/socle/moteur/core-1.js \
   "    const totalHT = prixTtc ? rd(Object.keys(brutParTaux)" "    const totalHT = false ? rd(Object.keys(brutParTaux)" \
   "$KB1"
 prouver "une remise d'un millime inventée sur un ticket sans remise (serveur)" moteur/piece.ts \
   "  const totalHT = [...brutParTaux].reduce((t, [taux, ttc]) => t + ttc - diviserArrondi(ttc * taux, MILLION + taux), 0n);" "  const totalHT = lignes.reduce((t, l) => t + l.ht, 0n);" \
   "$KB1"
-prouver "« Aucun compte de caisse » sous le ticket, sans le bouton qui la crée" web/public/v10/app.js \
+prouver "« Aucun compte de caisse » sous le ticket, sans le bouton qui la crée" modules/socle/ecrans/entreprise/app-2.js \
   "\${s.panier.length && motif && sansCompte ? ' <button" "\${false ? ' <button" \
   "$KW1"
 prouver "« Enregistrer » caché sous le bas d'une fenêtre, à la tablette" web/public/plateforme/telephone.css \
@@ -8426,37 +8426,37 @@ prouver "le mot de passe de SkanFact posé par Chrome dans celui d'El Fatoora" w
 prouver "le mot de passe de SkanFact posé par Chrome dans la clé Konnect" web/public/plateforme/pont.js \
   '<input data-champ="cle" type="password" autocomplete="new-password"' '<input data-champ="cle" type="password" autocomplete="off"' \
   "$KDK"
-prouver "la recherche des réglages compte des panneaux absents" web/public/v10/app.js \
+prouver "la recherche des réglages compte des panneaux absents" modules/socle/ecrans/entreprise/app-2.js \
   "      exclus: bridge.panneauxAbsents || []," "      exclus: []," \
   "$KD1"
-prouver "le bandeau « Il manque » qui ne se redessine pas à l'enregistrement" web/public/v10/app.js \
+prouver "le bandeau « Il manque » qui ne se redessine pas à l'enregistrement" modules/socle/ecrans/entreprise/app-2.js \
   "      if (\$('#set-manque-zone')) \$('#set-manque-zone').innerHTML = bandeauManques(C.companyGaps(company()));" "      if (false) \$('#set-manque-zone').innerHTML = bandeauManques(C.companyGaps(company()));" \
   "$KD1"
-prouver "« Ta fiche est à jour » avec un matricule incomplet" web/public/v10/visites.js \
+prouver "« Ta fiche est à jour » avec un matricule incomplet" modules/socle/visites/visites.js \
   "        && K.matriculeBienForme(c.matricule) && !(String(c.rib" "        && !(String(c.rib" \
   "$KD1"
-prouver "le stock de départ rangé au-dessus de la casse du même jour" web/public/v10/core.js \
+prouver "le stock de départ rangé au-dessus de la casse du même jour" modules/socle/moteur/core-1.js \
   "|| (rang.get(b) - rang.get(a)) || String(b.id)" "|| String(b.id)" \
   "$KD2"
-prouver "« Préparer » la TVA ouvre le mois de l'échéance" web/public/v10/app.js \
+prouver "« Préparer » la TVA ouvre le mois de l'échéance" modules/socle/ecrans/entreprise/app-2.js \
   "comptaState.year = String(m === 1 ? y - 1 : y); comptaState.month = String(m === 1 ? 12 : m - 1).padStart(2, '0');" "comptaState.year = String(y); comptaState.month = String(m).padStart(2, '0');" \
   "$KD2"
-prouver "le montant payé d'une dépense sans effet" web/public/v10/app.js \
+prouver "le montant payé d'une dépense sans effet" modules/socle/ecrans/entreprise/app-1.js \
   "    if (\$('#b-ttc')) \$('#b-ttc').addEventListener('input', appliquerTtc);" "    if (false) \$('#b-ttc').addEventListener('input', appliquerTtc);" \
   "$KD3"
-prouver "le hors taxes d'une dépense qui ne suit pas le taux choisi" web/public/v10/app.js \
+prouver "le hors taxes d'une dépense qui ne suit pas le taux choisi" modules/socle/ecrans/entreprise/app-1.js \
   "if (e.target.matches('select[data-k=vatRate]')) appliquerTtc();" "if (false) appliquerTtc();" \
   "$KD3"
-prouver "le montant payé qui reste affiché sous un hors taxes tapé à la main" web/public/v10/app.js \
+prouver "le montant payé qui reste affiché sous un hors taxes tapé à la main" modules/socle/ecrans/entreprise/app-1.js \
   "if (e.target.matches('input[data-k=unitPrice]') && \$('#b-ttc')) { \$('#b-ttc').value = '';" "if (false) { \$('#b-ttc').value = '';" \
   "$KD3"
-prouver "l'avoir d'une facture payée sans « Rembourser … au client »" web/public/v10/app.js \
+prouver "l'avoir d'une facture payée sans « Rembourser … au client »" modules/socle/ecrans/entreprise/app-1.js \
   "            return bf && bf.remaining < -0.0005 ? \`<button" "            return false ? \`<button" \
   "$KD4"
-prouver "l'e-mail noté « envoyé » sans que personne ne le dise" web/public/v10/app.js \
+prouver "l'e-mail noté « envoyé » sans que personne ne le dise" 'modules/socle/ecrans/entreprise/app-1.js|||modules/socle/ecrans/entreprise/app-1.js' \
   "          \$('#mf-envoye', root).onclick = () => {|||          \$('#mf-copier-adresse', root).onclick = " "          const envoye = () => {|||          setTimeout(() => envoye()); \$('#mf-copier-adresse', root).onclick = " \
   "$KDE"
-prouver "une ligne lue d'un article suivi qui part en charge, pas au stock" web/public/v10/app.js \
+prouver "une ligne lue d'un article suivi qui part en charge, pas au stock" modules/socle/ecrans/entreprise/app-1.js \
   "        if (it) Object.assign(l, { itemId: it.id, destination: 'stock' });" "        if (false) Object.assign(l, { itemId: it.id, destination: 'stock' });" \
   "Nadia dit oui à l'IA, tranche le numéro flou et la quantité tachée ; le recomptage refuse la mauvaise quantité, et la pièce se remplit au millime"
 prouver "le code du téléphone qu'il faut cliquer avant de taper" web/src/composants/Champ.tsx \
@@ -8825,10 +8825,10 @@ prouver "un numéro refusé qui ne montre pas sa case" $CPTJS \
 prouver "le numéro entier à l'écran de connexion" serveur/connexion.ts \
   "telephone: numeroMasque(u.telephone)," "telephone: u.telephone," \
   "le code par SMS : la connexion dit le numéro à demi caché"
-prouver "l'onglet Ton compte absent des Paramètres" web/public/v10/app.js \
+prouver "l'onglet Ton compte absent des Paramètres" modules/socle/ecrans/entreprise/app-1.js \
   "const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), " "const SETTINGS_TABS = [" \
   "$CPTE"
-prouver "l'onglet Ton compte absent des Réglages du Cabinet" web/public/v10/cabinet/app.js \
+prouver "l'onglet Ton compte absent des Réglages du Cabinet" modules/socle/ecrans/cabinet/app-2.js \
   "const REG_TABS = [['compte', 'Ton compte'], " "const REG_TABS = [" \
   "$CPTC"
 prouver "l'écran du code perdu au rechargement" web/src/App.tsx \
@@ -8857,16 +8857,16 @@ AS2="revoir l'assistant : ses réponses y sont, rien ne s'écrit avant la fin, e
 AS3="l'assistant est au propriétaire : un membre de l'équipe ne le voit jamais ; une entreprise créée sans la porte s'ouvre sur son accueil"
 AS4="au téléphone : aucun écran de l'assistant ne défile de côté, tout se touche du doigt, et « Plus tard » mène au bout"
 AS5="ses polices sont celles de l'entrée, à l'octet près, servies comme des polices ; ses couleurs sont les mêmes"
-prouver "l'assistant demandé par la porte, jamais ouvert" $ASAPP \
+prouver "l'assistant demandé par la porte, jamais ouvert" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.assistantDemande && bridge.assistantDemande()) {" "    if (false) {" \
   "$AS1"
-prouver "l'assistant ouvert dans une entreprise créée sans la porte" $ASAPP \
+prouver "l'assistant ouvert dans une entreprise créée sans la porte" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.assistantDemande && bridge.assistantDemande()) {" "    if (true) {" \
   "$AS3"
-prouver "l'assistant ouvert à un membre de l'équipe" $ASAPP \
+prouver "l'assistant ouvert à un membre de l'équipe" modules/socle/ecrans/entreprise/app-2.js \
   "    if (premierLancement && estResponsable()) {" "    if (premierLancement) {" \
   "$AS3"
-prouver "l'accueil qui repose la question de la porte après l'assistant" $ASAPP \
+prouver "l'accueil qui repose la question de la porte après l'assistant" modules/socle/ecrans/entreprise/app-2.js \
   "      visitesPoser(e => { e.accueilVu = true; });
       if (!data.company.setupDone && !data.company.setupStarted) {" "      if (!data.company.setupDone && !data.company.setupStarted) {" \
   "$AS1"
@@ -9051,39 +9051,39 @@ prouver "l'adresse à vérifier lue comme vérifiée" web/public/plateforme/pont
 prouver "le relais d'e-mails du serveur jamais lu" web/public/plateforme/pont.js \
   "courriel: !!c.courriel," "courriel: false," \
   "$PPW2"
-prouver "les premiers pas de la v10 sur la plateforme" $ASAPP \
+prouver "les premiers pas de la v10 sur la plateforme" modules/socle/ecrans/entreprise/app-1.js \
   "  const lesPas = () => (window.SkanPremiersPas && bridge.etatDuDemarrage" "  const lesPas = () => (false" \
   "$PPW1"
-prouver "l'accueil qui ne relit pas le serveur" $ASAPP \
+prouver "l'accueil qui ne relit pas le serveur" modules/socle/ecrans/entreprise/app-1.js \
   "    relireDemarrage();
     const p = lesPas();" "    const p = lesPas();" \
   "$PPW1"
-prouver "l'accueil pas redessiné quand le serveur a changé" $ASAPP \
+prouver "l'accueil pas redessiné quand le serveur a changé" modules/socle/ecrans/entreprise/app-1.js \
   "      if (change && data && location.hash === '#/dashboard') render(true);" "" \
   "$PPW1"
-prouver "la suite des premiers pas pas dite « À faire maintenant »" $ASAPP \
+prouver "la suite des premiers pas pas dite « À faire maintenant »" modules/socle/ecrans/entreprise/app-1.js \
   "\${!e.fait && (e.badge || encours) ? " "\${!e.fait && e.badge ? " \
   "$PPW1"
-prouver "la bulle de la page posée sur les premiers pas" $ASAPP \
+prouver "la bulle de la page posée sur les premiers pas" modules/socle/ecrans/entreprise/app-2.js \
   "    if (\$('#view .pp-accueil, #view .premiers-pas')) return;" "    if (\$('#view .pp-accueil')) return;" \
   "$PPW1"
-prouver "« Ajouter mon RIB » qui ne mène pas à sa case" $ASAPP \
+prouver "« Ajouter mon RIB » qui ne mène pas à sa case" modules/socle/ecrans/entreprise/app-1.js \
   "    rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque:rib')]," "    rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque')]," \
   "$PPW1"
 PPW5="sans relais d'e-mails, « Protège ton compte » reste à faire"
-prouver "« Choisir mon code » qui ne mène pas à Ton compte" $ASAPP \
+prouver "« Choisir mon code » qui ne mène pas à Ton compte" modules/socle/ecrans/entreprise/app-1.js \
   "    code: ['Choisir mon code', () => allerParametres('compte', 'p-compte')]," "    code: ['Choisir mon code', () => allerParametres('societe')]," \
   "$PPW5"
 prouver "le compte dit protégé sans relais d'e-mails" $PPJS \
   "const code = !!(compte && (compte.codeActif || compte.courriel));" "const code = !!(compte && (compte.codeActif || true));" \
   "$PPW5"
-prouver "« Inviter mon comptable » qui ne mène pas à la page « Mon comptable »" $ASAPP \
+prouver "« Inviter mon comptable » qui ne mène pas à la page « Mon comptable »" modules/socle/ecrans/entreprise/app-1.js \
   "    mandat: ['Inviter mon comptable', () => allerInviterComptable()]" "    mandat: ['Inviter mon comptable', () => navigate('#/compta')]" \
   "$PPW1"
-prouver "« Vérifier mon adresse » qui ne mène pas à Ton compte" $ASAPP \
+prouver "« Vérifier mon adresse » qui ne mène pas à Ton compte" modules/socle/ecrans/entreprise/app-1.js \
   "    adresse: ['Vérifier mon adresse', () => allerParametres('compte', 'p-compte')]," "    adresse: ['Vérifier mon adresse', () => allerParametres('societe')]," \
   "$PPW2"
-prouver "« Choisir mon activité » qui écrit en route" $ASAPP \
+prouver "« Choisir mon activité » qui écrit en route" modules/socle/ecrans/entreprise/app-1.js \
   "    assistant: ['Choisir mon activité', () => runSetup(true)" "    assistant: ['Choisir mon activité', () => runSetup(false)" \
   "$PPW2"
 prouver "au téléphone, les boutons d'une étape poussés à droite" $PPCSS \
@@ -9099,7 +9099,7 @@ prouver "au téléphone, les premiers pas de l'entreprise écrasés à côté de
   "  .premiers-pas.pp2 .pp-list li { grid-template-columns: 28px minmax(0, 1fr); }
   .premiers-pas.pp2 .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }" "" \
   "$PPW3"
-prouver "la proposition au cabinet cachée sous une étape faite" $ASAPP \
+prouver "la proposition au cabinet cachée sous une étape faite" modules/socle/ecrans/entreprise/app-1.js \
   "\${e.fait && e.attente ? \`<span class=\"pp-attente\">" "\${e.fait && e.attente ? \`<span class=\"small pp-attente\">" \
   "$PPW1"
 
@@ -9214,13 +9214,13 @@ prouver "« Demander une pièce » qui n'ouvre pas le champ de la pièce" $MJ \
 prouver 'un message vide parti au serveur' web/public/plateforme/messagerie.js \
   'if (!t && !fichier && !d && !piece && !qs.length) {' 'if (false) {' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
-prouver "« Mon comptable » dans le menu sans cabinet" web/public/v10/app.js \
+prouver "« Mon comptable » dans le menu sans cabinet" modules/socle/ecrans/entreprise/app-1.js \
   "  const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));" "  const avecMessagerie = a => !!a;" \
   "$MSGW"
-prouver "la pastille de « Mon comptable » sans les pièces demandées" web/public/v10/app.js \
+prouver "la pastille de « Mon comptable » sans les pièces demandées" modules/socle/ecrans/entreprise/app-1.js \
   "const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0);" "const n = (a.nonLus || 0) + (a.questions || 0);" \
   "$MSGW"
-prouver "la pastille des Messages qui compte tous les clients" web/public/v10/cabinet/app.js \
+prouver "la pastille des Messages qui compte tous les clients" 'modules/socle/ecrans/cabinet/app-1.js|||modules/socle/ecrans/cabinet/app-1.js' \
   "majPastilleMessages(aTraiterDeMaPortee(b.dossiers));|||majPastilleMessages(aTraiterDeMaPortee(tous));" "majPastilleMessages(b.dossiers.length);|||majPastilleMessages(tous.length);" \
   "la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter"
 
@@ -9322,7 +9322,7 @@ prouver "l'aperçu qui en dit plus que le message" serveur/routes/socle.ts \
   "type: r.entreprise ? 'entreprise' : 'cabinet', invitePar" "type: r.entreprise ? 'entreprise' : 'cabinet', roles: [], invitePar" \
   "$EQ5"
 EQW="inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation"
-prouver "l'onglet de l'équipe montré à qui ne la gère pas" web/public/v10/app.js \
+prouver "l'onglet de l'équipe montré à qui ne la gère pas" modules/socle/ecrans/entreprise/app-2.js \
   "    const TABS = SETTINGS_TABS.filter(t => (t[0] !== 'equipe' || equipeVisible()) && (t[0] !== 'abonnement' || abonnementVisible()));" "    const TABS = SETTINGS_TABS.filter(t => t[0] !== 'abonnement' || abonnementVisible());" \
   "$EQW"
 prouver "un rôle coché d'avance à l'invitation" web/public/plateforme/equipe.js \
@@ -9395,7 +9395,7 @@ prouver "le nom du fichier qui perd une raison sociale en arabe" base/entreprise
   ".replace(/[^\\p{L}\\p{N}]+/gu, '-')" ".replace(/[^a-z0-9]+/g, '-')" \
   "$EX7"
 EXW="le propriétaire télécharge le fichier complet ; un commercial ne voit pas le panneau"
-prouver "le panneau de l'export montré à un commercial" web/public/v10/app.js \
+prouver "le panneau de l'export montré à un commercial" modules/socle/ecrans/entreprise/app-1.js \
   "  const exportVisible = () => !!bridge.dessinerExport && !!(bridge.droitsDossier && bridge.droitsDossier().responsable);" "  const exportVisible = () => !!bridge.dessinerExport;" \
   "$EXW"
 prouver "un fichier téléchargé sans le nom de l'entreprise" web/public/plateforme/pont.js \
@@ -9422,13 +9422,13 @@ KNV2="« Faire un devis » et « Faire une facture » : les cases déjà remplie
 KNV3="« Compléter ma fiche société » montre le régime fiscal, avant la banque"
 KNV4="« Ajouter au catalogue » montre le prix TTC à côté du hors taxe, et l'unité avec la TVA"
 KNA="confier son dossier à son comptable : le code du cabinet, sans paquet ni fichier d'appairage"
-prouver "le catalogue d'une quincaillerie qui parle de prestations" web/public/v10/app.js \
+prouver "le catalogue d'une quincaillerie qui parle de prestations" modules/socle/ecrans/entreprise/app-1.js \
   "const METIERS_ARTICLES = ['commerce', 'restauration', 'artisanat'];" "const METIERS_ARTICLES = [];" \
   "$KN1"
-prouver "le coût du stock de départ laissé à 0 à côté d'un coût de revient" web/public/v10/app.js \
+prouver "le coût du stock de départ laissé à 0 à côté d'un coût de revient" modules/socle/ecrans/entreprise/app-1.js \
   "const suivre = () => { if (!departTouche && Number(champRevient.value) > 0) champDepart.value = champRevient.value; };" "const suivre = () => {};" \
   "$KN1"
-prouver "le coût du départ tapé à la main, écrasé par le coût de revient" web/public/v10/app.js \
+prouver "le coût du départ tapé à la main, écrasé par le coût de revient" modules/socle/ecrans/entreprise/app-1.js \
   "champDepart.addEventListener('input', () => { departTouche = true; });" "champDepart.addEventListener('input', () => {});" \
   "$KN1"
 prouver "le curseur absent de la case de texte qu'une étape à lire éclaire" web/public/v10/visite.js \
@@ -9437,37 +9437,37 @@ prouver "le curseur absent de la case de texte qu'une étape à lire éclaire" w
 prouver "l'essai ouvert en choisissant dans la liste que l'étape éclaire" web/public/v10/visite.js \
   "    if (!e || estFaire(e) || !ouvreEssai(t) || dansSaCase(e, t)) return;" "    if (!e || estFaire(e) || !ouvreEssai(t)) return;" \
   "$KN2"
-prouver "l'avoir neuf qui ne reprend pas les lignes de sa facture" web/public/v10/app.js \
+prouver "l'avoir neuf qui ne reprend pas les lignes de sa facture" modules/socle/ecrans/entreprise/app-1.js \
   "if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {" "if (false) {" \
   "$KN3"
-prouver "l'avoir qui écrase une ligne déjà tapée en choisissant sa facture" web/public/v10/app.js \
+prouver "l'avoir qui écrase une ligne déjà tapée en choisissant sa facture" modules/socle/ecrans/entreprise/app-1.js \
   "if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {" "if (inv && !figee) {" \
   "$KN3"
 prouver "le bandeau d'une facture émise qui sort de l'écran" web/public/v10/style.css \
   ".colle-bulle > * { white-space: normal; }" "" \
   "$KN3"
-prouver "la dépense sans fournisseur refusée" web/public/v10/app.js \
+prouver "la dépense sans fournisseur refusée" modules/socle/ecrans/entreprise/app-1.js \
   "if (!p.supplierId && p.kind !== 'depense') return refus(" "if (!p.supplierId) return refus(" \
   "$KN4"
-prouver "une fiche « Dépenses diverses » de plus à chaque dépense" web/public/v10/app.js \
+prouver "une fiche « Dépenses diverses » de plus à chaque dépense" modules/socle/ecrans/entreprise/app-1.js \
   "let s = data.suppliers.find(x => x.divers || x.name === NOM_DIVERS);" "let s = null;" \
   "$KN4"
-prouver "l'étape des notes qui éclaire un panneau absent en ligne" web/public/v10/visites.js \
+prouver "l'étape des notes qui éclaire un panneau absent en ligne" modules/socle/visites/visites.js \
   "texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" "eclairer: '#p-maj', texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" \
   "$KNV1"
-prouver "une étape par case dans l'en-tête du devis" web/public/v10/visites.js \
+prouver "une étape par case dans l'en-tête du devis" modules/socle/visites/visites.js \
   "{ cible: '#f-head', liste: '.datefield .d-txt, input[name=\"reference\"], [data-combo=\"projectId\"] .combo-btn, select[name=\"lang\"], select[name=\"currency\"], select[name=\"status\"]" "{ cible: 'input[name=\"reference\"]', titre: 'Référence' }, { cible: '#f-head', liste: '.datefield .d-txt, input[name=\"reference\"], [data-combo=\"projectId\"] .combo-btn, select[name=\"lang\"], select[name=\"currency\"], select[name=\"status\"]" \
   "$KNV2"
-prouver "l'unité de la ligne qui reprend son étape" web/public/v10/visites.js \
+prouver "l'unité de la ligne qui reprend son étape" modules/socle/visites/visites.js \
   "        { cible: '#totals', cote: 'gauche', titre: 'Les totaux', texte: 'Hors taxe, TVA, total : tout suit" "        { cible: '#lines tr:first-child select[data-k=\"unit\"]', titre: 'Unité' }, { cible: '#totals', cote: 'gauche', titre: 'Les totaux', texte: 'Hors taxe, TVA, total : tout suit" \
   "$KNV2"
-prouver "la visite de la fiche qui saute le régime fiscal" web/public/v10/visites.js \
+prouver "la visite de la fiche qui saute le régime fiscal" modules/socle/visites/visites.js \
   "cible: '#view select[name=\"taxRegime\"]'" "cible: '#view select[name=\"defaultVatRate\"]'" \
   "$KNV3"
-prouver "la visite d'un article qui ne montre pas le prix TTC" web/public/v10/visites.js \
+prouver "la visite d'un article qui ne montre pas le prix TTC" modules/socle/visites/visites.js \
   "eclairer: '#modal-root .modal #cat-ttc'," "" \
   "$KNV4"
-prouver "l'Aide qui fait importer un fichier d'appairage" web/public/v10/guide.js \
+prouver "l'Aide qui fait importer un fichier d'appairage" modules/socle/aide/guide.js \
   "<h3>Confier ton dossier à ton comptable (facultatif)</h3>" "<h3>Relier ton comptable (facultatif)</h3><p>Importe son fichier d'appairage : tes paquets partent chiffrés pour lui seul.</p>" \
   "$KNA"
 prouver "le bouton de « Ton entreprise » qui bouge sous la frappe du matricule" web/src/composants/Fiche.tsx \
@@ -10109,19 +10109,19 @@ prouver 'la v10 qui ne lit pas l'"'"'abonnement' web/public/plateforme/pont.js \
     },
 ' '' \
   "$AW1"
-prouver 'la carte de l'"'"'essai qui mène à la licence de la v10' web/public/v10/app.js \
+prouver 'la carte de l'"'"'essai qui mène à la licence de la v10' modules/socle/ecrans/entreprise/app-1.js \
   "    if (focus === 'p-licence' && bridge.dessinerAbonnement) { allerAbonnement(); return; }
 " '' \
   "$AW1"
-prouver 'une nouvelle pièce qui ne dit la lecture seule qu'"'"'à l'"'"'enregistrement' web/public/v10/app.js \
+prouver 'une nouvelle pièce qui ne dit la lecture seule qu'"'"'à l'"'"'enregistrement' modules/socle/ecrans/entreprise/app-1.js \
   "      \${bandeauAbonnement(isNew, charte, isInv ? 'une facture neuve' : isAv ? 'un avoir neuf' : '')}
       \${bandeauQuestions(doc.number)}" "      \${bandeauQuestions(doc.number)}" \
   "$AW1"
-prouver 'une nouvelle pièce refusée après le contrôle de sa saisie' web/public/v10/app.js \
+prouver 'une nouvelle pièce refusée après le contrôle de sa saisie' modules/socle/ecrans/entreprise/app-1.js \
   "      if (bridge.dessinerAbonnement && !data.documents.some(d => d.id === doc.id) && licenceBlock('Créer un nouveau document')) return false;
 " '' \
   "$AW1"
-prouver 'l'"'"'onglet de l'"'"'abonnement montré à qui ne le règle pas' web/public/v10/app.js \
+prouver 'l'"'"'onglet de l'"'"'abonnement montré à qui ne le règle pas' modules/socle/ecrans/entreprise/app-1.js \
   'function abonnementVisible() { return !!bridge.dessinerAbonnement && !!(bridge.droitsDossier && bridge.droitsDossier().responsable); }' 'function abonnementVisible() { return !!bridge.dessinerAbonnement; }' \
   "$AW1"
 prouver 'la fin de l'"'"'essai qui ne se dit en orange que trois jours avant' web/public/plateforme/abonnement.js \
@@ -11962,7 +11962,7 @@ prouver 'les petits mots qui proposent un article' serveur/console/support.ts \
 prouver 'les accents qui séparent émettre d'"'"'emettre' serveur/console/support.ts \
   't.normalize('"'"'NFD'"'"').replace(/\p{M}/gu, '"'"''"'"').toLowerCase()' 't.toLowerCase()' \
   "$SUPP7"
-prouver 'la demande écrite qui ne mène pas à elle' web/public/v10/app.js \
+prouver 'la demande écrite qui ne mène pas à elle' modules/socle/ecrans/entreprise/app-2.js \
   'navigate('"'"'#/support/'"'"' + encodeURIComponent(r.id));' 'navigate('"'"'#/aide'"'"');' \
   "$SUPW1"
 prouver 'la page Support qui ne tient plus dans la fenêtre' web/console/src/console.css \
@@ -12118,7 +12118,7 @@ prouver 'une demande d'"'"'accès sans motif qui part' web/console/src/ecrans/Ac
   '    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.support.acces.motif_court'"'"')); setFaute((n) => n + 1); return; }
 ' '' \
   "$SACW1"
-prouver 'la demande d'"'"'accès qui n'"'"'apparaît pas en haut de l'"'"'application' web/public/v10/app.js \
+prouver 'la demande d'"'"'accès qui n'"'"'apparaît pas en haut de l'"'"'application' modules/socle/ecrans/entreprise/app-1.js \
   '    if (bridge.accesSupport) bridge.accesSupport.poser(view, { toast: (t, erreur) => toast(t, erreur) });
 ' '' \
   "$SACW2"
@@ -12128,11 +12128,11 @@ prouver 'un accès accordé pour une autre durée que celle cliquée' web/public
 prouver 'la bande d'"'"'un accès qui court sur deux rangées' web/console/src/console.css \
   '.c-sp-acces-bande .c-sp-acces-gestes { flex: none; }' '.c-sp-acces-bande .c-sp-acces-gestes { flex: 1 1 100%; }' \
   "$SACW2"
-prouver 'la lecture sans sa bande' web/public/v10/app.js \
+prouver 'la lecture sans sa bande' modules/socle/ecrans/entreprise/app-1.js \
   '    if (bridge.lecture) bridge.lecture.poser(view);
 ' '' \
   "$SACW3"
-prouver 'la lecture qui invite à la visite de la page' web/public/v10/app.js \
+prouver 'la lecture qui invite à la visite de la page' modules/socle/ecrans/entreprise/app-2.js \
   '    if (bridge.lecture) return;
 ' '' \
   "$SACW3"
@@ -12257,7 +12257,7 @@ prouver 'une facture due rangée sous les offres' web/public/plateforme/abonneme
 prouver 'le retour qui ne ramène pas à l'"'"'abonnement' web/public/espace/retour.js \
   '  const deLAbonnement = /^(c:)?[0-9a-f-]{36}$/.test(abonnement);' '  const deLAbonnement = false;' \
   "$MFW"
-prouver 'l'"'"'abonnement qui ne s'"'"'ouvre pas au retour d'"'"'un paiement' web/public/v10/app.js \
+prouver 'l'"'"'abonnement qui ne s'"'"'ouvre pas au retour d'"'"'un paiement' modules/socle/ecrans/entreprise/app-2.js \
   '    if (bridge.ouvertureDemandee && bridge.ouvertureDemandee() === '"'"'abonnement'"'"') allerAbonnement();
 ' '' \
   "$MFW"
@@ -12294,13 +12294,13 @@ prouver 'l'"'"'offre qui ne passe pas à l'"'"'écran' web/public/plateforme/abo
 prouver 'le grand livre ouvert en Essentiel' web/public/plateforme/abonnement.js \
   "options: fermes.includes('compta') ? [] : ['compta']," "options: ['compta']," \
   "$OFW"
-prouver 'le formulaire du salarié ouvert avant la porte' web/public/v10/app.js \
+prouver 'le formulaire du salarié ouvert avant la porte' modules/personnel/ecrans/entreprise/paie.js \
   "  function employeeForm(employee, done, opts) {
     if (!employee && licenceBlock('Créer une fiche de salarié', 'paie')) return;
 " "  function employeeForm(employee, done, opts) {
 " \
   "$OFW"
-prouver 'le bandeau d'"'"'un module fermé qui ne nomme pas Complet' web/public/v10/app.js \
+prouver 'le bandeau d'"'"'un module fermé qui ne nomme pas Complet' modules/socle/ecrans/entreprise/app-1.js \
   "fait partie de l'offre Complet : tu peux tout lire ici" "fait partie de l'offre Entreprise : tu peux tout lire ici" \
   "$OFW"
 
@@ -15641,88 +15641,88 @@ prouver 'le tiers perdu par le point de contact' 'web/public/plateforme/pont-cab
   '...(tiers ? { tiers } : {}), ' \
   '' \
   'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
-prouver 'le rapport sauté' 'web/public/v10/cabinet/app.js' \
+prouver 'le rapport sauté' modules/socle/ecrans/cabinet/app-1.js \
   '            if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
 ' \
   '' \
   'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
-prouver 'le tiers perdu par la fenêtre' 'web/public/v10/cabinet/app.js' \
+prouver 'le tiers perdu par la fenêtre' modules/socle/ecrans/cabinet/app-1.js \
   'out.push({ compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), tiers: v('"'"'t'"'"'), debit:' \
   'out.push({ compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), debit:' \
   'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
-prouver 'le tiers perdu quand une rangée est retirée' 'web/public/v10/cabinet/app.js' \
+prouver 'le tiers perdu quand une rangée est retirée' modules/socle/ecrans/cabinet/app-1.js \
   'return { compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), tiers: v('"'"'t'"'"'), debit: v('"'"'d'"'"'), credit: v('"'"'k'"'"') };' \
   'return { compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), debit: v('"'"'d'"'"'), credit: v('"'"'k'"'"') };' \
   'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
 
 # 1.51.0 : les fiches reprises d'un autre logiciel (docs/reprise-fiches.md).
-prouver 'le RIB oublié des colonnes d'"'"'un fournisseur' 'web/public/v10/core.js' \
+prouver 'le RIB oublié des colonnes d'"'"'un fournisseur' modules/socle/moteur/core-2.js \
   '{ k: '"'"'rib'"'"', label: '"'"'RIB'"'"',' \
   '{ k: '"'"'ribX'"'"', label: '"'"'RIB'"'"',' \
   'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
-prouver 'la banque et le RIB jamais lus' 'web/public/v10/core.js' \
+prouver 'la banque et le RIB jamais lus' modules/socle/moteur/core-2.js \
   '        if (fournisseur) Object.assign(obj, { bank: lire(r, '"'"'bank'"'"'), rib: lire(r, '"'"'rib'"'"') });
 ' \
   '' \
   'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
-prouver 'une fiche de fournisseur complétée sans sa banque' 'web/public/v10/core.js' \
+prouver 'une fiche de fournisseur complétée sans sa banque' modules/socle/moteur/core-2.js \
   '.concat(fournisseur ? ['"'"'bank'"'"', '"'"'rib'"'"'] : [])' \
   '' \
   'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
-prouver 'un RIB court accepté sans un mot' 'web/public/v10/core.js' \
+prouver 'un RIB court accepté sans un mot' modules/socle/moteur/core-2.js \
   '        if (obj.rib && !/^\d{20}$/.test(obj.rib.replace(/[\s.-]/g, '"'"''"'"'))) ligne.avert.push(' \
   '        if (false) ligne.avert.push(' \
   'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
-prouver 'un fournisseur importé hors du modèle vierge' 'web/public/v10/core.js' \
+prouver 'un fournisseur importé hors du modèle vierge' modules/socle/moteur/core-2.js \
   'fournisseurs ? fournisseurVierge(l.objet) :' \
   'fournisseurs ? clientVierge(l.objet) :' \
   'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
-prouver 'les fournisseurs rangés parmi les clients' 'web/public/v10/core.js' \
+prouver 'les fournisseurs rangés parmi les clients' modules/socle/moteur/core-2.js \
   'const liste = clients ? data.clients : fournisseurs ? data.suppliers : salaries ? data.employees : data.catalog;' \
   'const liste = clients || fournisseurs ? data.clients : salaries ? data.employees : data.catalog;' \
   'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
-prouver 'un RIB sans titre pris pour un téléphone' 'web/public/v10/core.js' \
+prouver 'un RIB sans titre pris pour un téléphone' modules/socle/moteur/core-2.js \
   'else if (type === '"'"'fournisseurs'"'"' && part(i, x => /^\d{20}$/.test(x.replace(/[\s.-]/g, '"'"''"'"'))) >= 0.6) out[i] = '"'"'rib'"'"';' \
   'else if (false) out[i] = '"'"'rib'"'"';' \
   'sans titres, un RIB se reconnaît à ses vingt chiffres ; un tarif collé chez les fournisseurs se dit'
-prouver 'un tarif collé chez les fournisseurs pris pour des fournisseurs' 'web/public/v10/core.js' \
+prouver 'un tarif collé chez les fournisseurs pris pour des fournisseurs' modules/socle/moteur/core-2.js \
   'const autre = type === '"'"'catalogue'"'"' ? '"'"'clients'"'"' : '"'"'catalogue'"'"';' \
   'const autre = type === '"'"'clients'"'"' ? '"'"'catalogue'"'"' : '"'"'clients'"'"';' \
   'sans titres, un RIB se reconnaît à ses vingt chiffres ; un tarif collé chez les fournisseurs se dit'
-prouver 'deux T-shirt aux références différentes confondus' 'web/public/v10/core.js' \
+prouver 'deux T-shirt aux références différentes confondus' modules/socle/moteur/core-2.js \
   'const memeArticle = (a, b) => (String(a.code || '"'"''"'"').trim() && String(b.code || '"'"''"'"').trim() ? plier(String(a.code).trim()) === plier(String(b.code).trim()) : cleNom(a.label) === cleNom(b.label));' \
   'const memeArticle = (a, b) => cleNom(a.label) === cleNom(b.label);' \
   'un article garde sa référence : deux références, deux articles ; une même référence, le même article'
-prouver 'la référence d'"'"'un article jamais lue' 'web/public/v10/core.js' \
+prouver 'la référence d'"'"'un article jamais lue' modules/socle/moteur/core-2.js \
   'const obj = { label, code: lire(r, '"'"'code'"'"'),' \
   'const obj = { label, code: '"'"''"'"',' \
   'un article garde sa référence : deux références, deux articles ; une même référence, le même article'
-prouver 'la référence absente de la fenêtre' 'web/public/v10/core.js' \
+prouver 'la référence absente de la fenêtre' modules/socle/moteur/core-2.js \
   '  IMPORT_CHAMPS.catalogue.splice(1, 0, { k: '"'"'code'"'"',' \
   '  [].splice(1, 0, { k: '"'"'code'"'"',' \
   'un article garde sa référence : deux références, deux articles ; une même référence, le même article'
-prouver 'les titres d'"'"'Odoo oubliés' 'web/public/v10/core.js' \
+prouver 'les titres d'"'"'Odoo oubliés' modules/socle/moteur/core-2.js \
   '  autresTitres('"'"'clients'"'"', '"'"'name'"'"', ['"'"'display name'"'"']);
 ' \
   '' \
   'les titres d'"'"'Odoo et de Sage se reconnaissent'
-prouver 'le complément d'"'"'adresse d'"'"'Odoo oublié' 'web/public/v10/core.js' \
+prouver 'le complément d'"'"'adresse d'"'"'Odoo oublié' modules/socle/moteur/core-2.js \
   '  autresTitres('"'"'clients'"'"', '"'"'address'"'"', ['"'"'street2'"'"']);
 ' \
   '' \
   'les titres d'"'"'Odoo et de Sage se reconnaissent'
-prouver 'l'"'"'import absent de la page vide des fournisseurs' web/public/v10/app.js \
+prouver 'l'"'"'import absent de la page vide des fournisseurs' modules/socle/ecrans/entreprise/app-1.js \
   '<button class="btn" id="vide-import-f">${lfIc('"'"'importer'"'"', 15)} Importer depuis un tableur</button>' '' \
   'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
-prouver '« Annuler » qui garde les fournisseurs importés' 'web/public/v10/app.js' \
+prouver '« Annuler » qui garde les fournisseurs importés' modules/socle/ecrans/entreprise/app-1.js \
   'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'suppliers'"'"', salaries: '"'"'employees'"'"' }[type];' \
   'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'clients'"'"', salaries: '"'"'employees'"'"' }[type];' \
   'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
-prouver 'un fournisseur « importée »' 'web/public/v10/app.js' \
+prouver 'un fournisseur « importée »' modules/socle/ecrans/entreprise/app-1.js \
   '`${T.un} importé${type === '"'"'catalogue'"'"' ? '"'"'e'"'"' : '"'"''"'"'}`, `${T.des} importé${type === '"'"'catalogue'"'"' ? '"'"'e'"'"' : '"'"''"'"'}s`' \
   '`${T.un} importé${type === '"'"'clients'"'"' ? '"'"''"'"' : '"'"'e'"'"'}`, `${T.des} importé${type === '"'"'clients'"'"' ? '"'"''"'"' : '"'"'e'"'"'}s`' \
   'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
-prouver 'un import accepté pour qui lit seulement' 'web/public/v10/app.js' \
+prouver 'un import accepté pour qui lit seulement' modules/socle/ecrans/entreprise/app-1.js \
   '        if (enLecture(cle)) { toast(refusLecture(cle, '"'"'importé'"'"'), true); return; }
 ' \
   '' \
@@ -15764,7 +15764,7 @@ prouver 'un FEC lu comme le tableur du livre' 'web/public/plateforme/pont-cabine
         if (!lu.ok) throw new Error(lu.motif);
         const ex = livre.exercice || {};' \
   'Leïla reprend les écritures de 2026 d'"'"'un client depuis son FEC : ce que le fichier devient, puis trois brouillards, jamais deux fois'
-prouver 'la fenêtre qui tait ce que le FEC devient' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre qui tait ce que le FEC devient' modules/socle/ecrans/cabinet/app-2.js \
   '      ${lu.fec ? lu.fec.html : '"'"''"'"'}
 ' \
   '' \
@@ -16318,99 +16318,99 @@ prouver 'la phrase après l'"'"'inscription qui tait l'"'"'e-mail' 'web/src/ecra
   'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu'"'"'une inscription, et le lien du mot de passe oublié par e-mail'
 
 # 1.59.0 : la paie de 2026, contre un vrai logiciel ; les primes de chaque mois (docs/paie.md, « Le métier de la paie, premier lot »).
-prouver 'la CNSS salariale d'"'"'avant 2026 livrée' 'web/public/v10/compta.js' \
+prouver 'la CNSS salariale d'"'"'avant 2026 livrée' modules/personnel/moteur/compta-paie.js \
   '    cnssEmployee: 9.68,        // part salarié' \
   '    cnssEmployee: 9.18,        // part salarié' \
   'les taux livrés sont ceux des documents de 2026 : CNSS 9,68 % et 17,07 %, solidarité 0,5 %'
-prouver 'la solidarité de 1 % livrée' 'web/public/v10/compta.js' \
+prouver 'la solidarité de 1 % livrée' modules/personnel/moteur/compta-paie.js \
   '    solidarity: 0.5,           // contribution' \
   '    solidarity: 1,           // contribution' \
   'les taux livrés sont ceux des documents de 2026 : CNSS 9,68 % et 17,07 %, solidarité 0,5 %'
-prouver 'la CNSS patronale d'"'"'avant 2026 livrée' 'web/public/v10/compta.js' \
+prouver 'la CNSS patronale d'"'"'avant 2026 livrée' modules/personnel/moteur/compta-paie.js \
   '    cnssEmployer: 17.07,       // part employeur' \
   '    cnssEmployer: 16.57,       // part employeur' \
   'chaque ligne du journal tombe au millime, par l'"'"'écran comme par le serveur, sauf les écarts d'"'"'un millime nommés'
-prouver 'une prime au jour qui ne suit pas les jours payés' 'web/public/v10/compta.js' \
+prouver 'une prime au jour qui ne suit pas les jours payés' modules/personnel/moteur/compta-paie.js \
   'amount: round3(mensuel * j / t), taxable' \
   'amount: mensuel, taxable' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
-prouver 'une prime au jour tronquée au millime' 'web/public/v10/compta.js' \
+prouver 'une prime au jour tronquée au millime' modules/personnel/moteur/compta-paie.js \
   'amount: round3(mensuel * j / t), taxable' \
   'amount: Math.floor(mensuel * j / t * 1000) / 1000, taxable' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
-prouver 'une prime à zéro reprise sur le bulletin' 'web/public/v10/compta.js' \
+prouver 'une prime à zéro reprise sur le bulletin' modules/personnel/moteur/compta-paie.js \
   '.filter(x => x && Number(x.amount) > 0)' \
   '.filter(x => x)' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
-prouver 'des jours payés sans borne' 'web/public/v10/compta.js' \
+prouver 'des jours payés sans borne' modules/personnel/moteur/compta-paie.js \
   'Math.max(0, Math.min(t, round3(p)))' \
   'round3(p)' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
-prouver 'une fiche estimée sans ses primes' 'web/public/v10/core.js' \
+prouver 'une fiche estimée sans ses primes' modules/personnel/moteur/core-paie.js \
   'return { bonuses: primesDuMois(employee, t, t) };' \
   'return { bonuses: [] };' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
-prouver 'le bulletin du mois sans les primes de la fiche' 'web/public/v10/core.js' \
+prouver 'le bulletin du mois sans les primes de la fiche' modules/personnel/moteur/core-paie.js \
   'bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.primeAncienneteDuMois(' \
   'bonuses: [...Compta.primeAncienneteDuMois(' \
   'le bulletin du mois reprend les primes de la fiche : au prorata d'"'"'une absence non payée, et d'"'"'une entrée en cours de mois'
-prouver 'des primes au jour qui oublient l'"'"'absence non payée' 'web/public/v10/core.js' \
+prouver 'des primes au jour qui oublient l'"'"'absence non payée' modules/personnel/moteur/core-paie.js \
   'primesDuMois(employee, total - hors - absentDays, total)' \
   'primesDuMois(employee, total - hors, total)' \
   'le bulletin du mois reprend les primes de la fiche : au prorata d'"'"'une absence non payée, et d'"'"'une entrée en cours de mois'
-prouver 'des primes au jour qui oublient l'"'"'entrée en cours de mois' 'web/public/v10/core.js' \
+prouver 'des primes au jour qui oublient l'"'"'entrée en cours de mois' modules/personnel/moteur/core-paie.js \
   'primesDuMois(employee, total - hors - absentDays, total)' \
   'primesDuMois(employee, total - absentDays, total)' \
   'le bulletin du mois reprend les primes de la fiche : au prorata d'"'"'une absence non payée, et d'"'"'une entrée en cours de mois'
-prouver 'le bulletin imprimé sans ses jours payés' 'web/public/v10/core.js' \
+prouver 'le bulletin imprimé sans ses jours payés' modules/personnel/moteur/core-paie.js \
   '<div class="kv"><span>Jours payés</span>' \
   '<div class="kv"><span>Jours</span>' \
   'le bulletin imprimé dit les jours payés et les jours de chaque prime au jour'
-prouver 'une prime au jour imprimée sans ses jours' 'web/public/v10/core.js' \
+prouver 'une prime au jour imprimée sans ses jours' modules/personnel/moteur/core-paie.js \
   'const auJour = x.parJour && round3(Number(x.amount) || 0) === b.amount ?' \
   'const auJour = false ?' \
   'le bulletin imprimé dit les jours payés et les jours de chaque prime au jour'
-prouver 'un taux choisi autrement pris pour un taux d'"'"'avant 2026' 'web/public/v10/core.js' \
+prouver 'un taux choisi autrement pris pour un taux d'"'"'avant 2026' modules/personnel/moteur/core-paie.js \
   'r[k] !== undefined && Number(r[k]) === ancien && ' \
   'r[k] !== undefined && ' \
   'des barèmes enregistrés avec les taux d'"'"'avant 2026 se reconnaissent ; un taux choisi autrement ne se signale pas'
-prouver 'une prime sans montant gardée sur la fiche' 'web/public/v10/app.js' \
+prouver 'une prime sans montant gardée sur la fiche' modules/personnel/ecrans/entreprise/paie.js \
   'if (!(m > 0)) return refus(caseDe('"'"'amount'"'"'), ' \
   'if (false) return refus(caseDe('"'"'amount'"'"'), ' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'les primes de la fiche jamais gardées' 'web/public/v10/app.js' \
+prouver 'les primes de la fiche jamais gardées' modules/personnel/ecrans/entreprise/paie.js \
   'headOfFamily: !!v.headOfFamily, primes: gardees });' \
   'headOfFamily: !!v.headOfFamily });' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'une prime nouvelle qui n'"'"'est pas au jour d'"'"'office' 'web/public/v10/app.js' \
+prouver 'une prime nouvelle qui n'"'"'est pas au jour d'"'"'office' modules/personnel/ecrans/entreprise/paie.js \
   'primes.push({ label: '"'"''"'"', amount: '"'"''"'"', taxable: true, parJour: true });' \
   'primes.push({ label: '"'"''"'"', amount: '"'"''"'"', taxable: true, parJour: false });' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'le curseur loin de la prime nouvelle' 'web/public/v10/app.js' \
+prouver 'le curseur loin de la prime nouvelle' modules/personnel/ecrans/entreprise/paie.js \
   'const l = $$('"'"'#ef-primes [data-p=label]'"'"', root).pop(); if (l) l.focus();' \
   '' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'l'"'"'aide de la fiche sans ses primes' 'web/public/v10/app.js' \
+prouver 'l'"'"'aide de la fiche sans ses primes' modules/personnel/ecrans/entreprise/paie.js \
   'C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, C.saisieDeLaFiche({ primes }, st), st);' \
   'C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, {}, st);' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'la liste des salariés estimée sans les primes' 'web/public/v10/app.js' \
+prouver 'la liste des salariés estimée sans les primes' modules/personnel/ecrans/entreprise/paie.js \
   '      const estime = e => C.computePayslip(e, C.saisieDeLaFiche(e, st), st);' \
   '      const estime = e => C.computePayslip(e, {}, st);' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'la page d'"'"'un salarié qui tait ses primes' 'web/public/v10/app.js' \
+prouver 'la page d'"'"'un salarié qui tait ses primes' modules/personnel/ecrans/entreprise/paie.js \
   "\${(e.primes || []).length ? dl('Primes de chaque mois'," \
   "\${false ? dl('Primes de chaque mois'," \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'les primes au jour qui ne suivent pas l'"'"'absence tapée' 'web/public/v10/app.js' \
+prouver 'les primes au jour qui ne suivent pas l'"'"'absence tapée' modules/personnel/ecrans/entreprise/paie.js \
   '$('"'"'#bf'"'"', root).oninput = $('"'"'#bf'"'"', root).onchange = () => { suivreLesJours(); calc(); };' \
   '$('"'"'#bf'"'"', root).oninput = $('"'"'#bf'"'"', root).onchange = () => { calc(); };' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'un montant retapé encore dit au jour' 'web/public/v10/app.js' \
+prouver 'un montant retapé encore dit au jour' modules/personnel/ecrans/entreprise/paie.js \
   'if (el.dataset.f === '"'"'amount'"'"' && list[i].parJour) {' \
   'if (false) {' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'les barèmes d'"'"'avant 2026 tus dans l'"'"'onglet Bulletins' 'web/public/v10/app.js' \
+prouver 'les barèmes d'"'"'avant 2026 tus dans l'"'"'onglet Bulletins' modules/personnel/ecrans/entreprise/paie.js \
   '${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026">' \
   '${false ? `<div class="warn-box mb" id="p-2026">' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
@@ -16418,78 +16418,78 @@ prouver 'la fiche d'"'"'un salarié qui s'"'"'élargit à la première prime' 'w
   '.modal:where(:has(#ef-primes-p, #bf-bon, #sf-primes-p)) { width: 860px; }' \
   '' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'les primes d'"'"'un bulletin serrées à côté des retenues' 'web/public/plateforme/paie.css' \
+prouver 'les primes d'"'"'un bulletin serrées à côté des retenues' modules/personnel/styles/paie.css \
   '.bf-c { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);' \
   '.bf-c { display: grid; grid-template-columns: minmax(0, 1fr) minmax(600px, 640px);' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver 'le brut d'"'"'un salarié qui tait ses primes' 'web/public/v10/app.js' \
+prouver 'le brut d'"'"'un salarié qui tait ses primes' modules/personnel/ecrans/entreprise/paie.js \
   '${c.bonuses.length ? `<small>+ ${C.money(' \
   '${false ? `<small>+ ${C.money(' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
-prouver '« Prendre les taux de 2026 » qui ne remplit rien' 'web/public/v10/app.js' \
+prouver '« Prendre les taux de 2026 » qui ne remplit rien' modules/personnel/ecrans/entreprise/paie.js \
   'C.tauxAvant2026(data).forEach(x => { const i = $(`#rf [name=${x.cle}]`); if (i) i.value = x.livre; });' \
   '' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 
 # 1.60.0 : le pointage des salariés, la grille du mois et les heures supplémentaires (docs/paie.md, « Le pointage »).
-prouver 'une majoration d'"'"'heures supplémentaires écrite d'"'"'avance' 'web/public/v10/compta.js' \
+prouver 'une majoration d'"'"'heures supplémentaires écrite d'"'"'avance' modules/personnel/moteur/compta-paie.js \
   '    hsMaj1: 0, hsMaj2: 0, hsMaj3: 0,' \
   '    hsMaj1: 25, hsMaj2: 0, hsMaj3: 0,' \
   'aucune majoration d'"'"'heures supplémentaires n'"'"'est écrite d'"'"'avance ; un mois complet fait 208 heures'
-prouver 'une demi-journée comptée entière' 'web/public/v10/compta.js' \
+prouver 'une demi-journée comptée entière' modules/personnel/moteur/compta-paie.js \
   'j.code === '"'"'D'"'"' ? 0.5 : 0' \
   'j.code === '"'"'D'"'"' ? 1 : 0' \
   'pointer un jour ne garde que ce qui diffère ; une demi-journée retire une moitié ; revenir au calendrier efface'
-prouver 'tout le pointage gardé, même ce que le calendrier donne' 'web/public/v10/compta.js' \
+prouver 'tout le pointage gardé, même ce que le calendrier donne' modules/personnel/moteur/compta-paie.js \
   '    if (naturel.code !== code) t.jours[String(jour)] = code;' \
   '    t.jours[String(jour)] = code;' \
   'pointer un jour ne garde que ce qui diffère ; une demi-journée retire une moitié ; revenir au calendrier efface'
-prouver 'les congés saisis absents de la grille' 'web/public/v10/compta.js' \
+prouver 'les congés saisis absents de la grille' modules/personnel/moteur/compta-paie.js \
   '        if (l) { code = !(l.paid != null' \
   '        if (false) { code = !(l.paid != null' \
   'les congés et absences saisis s'"'"'y posent : une absence sans solde se retire, une maladie et un congé se paient'
-prouver 'une absence comptée un jour de repos' 'web/public/v10/compta.js' \
+prouver 'une absence comptée un jour de repos' modules/personnel/moteur/compta-paie.js \
   '(j.repos ? 0 : j.code === '"'"'A'"'"'' \
   '(false ? 0 : j.code === '"'"'A'"'"'' \
   'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
-prouver 'un jour de repos qui prend une absence' 'web/public/v10/compta.js' \
+prouver 'un jour de repos qui prend une absence' modules/personnel/moteur/compta-paie.js \
   ' || (naturel.repos && !CODES_REPOS.includes(code))' \
   '' \
   'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
-prouver 'un refus qui efface le jour déjà pointé' 'web/public/v10/compta.js' \
+prouver 'un refus qui efface le jour déjà pointé' modules/personnel/moteur/compta-paie.js \
   '      if (garde !== undefined) t.jours[String(jour)] = garde;
 ' \
   '' \
   'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
-prouver 'les jours hors contrat payés' 'web/public/v10/compta.js' \
+prouver 'les jours hors contrat payés' modules/personnel/moteur/compta-paie.js \
   '    const hors = Math.min(total, jours.filter(j => j.code === '"'"'-'"'"' && !off.includes(j.wd)).length);' \
   '    const hors = 0;' \
   'hors contrat, un jour ne se pointe pas ; les jours payés du pointage sont ceux du bulletin proratisé'
-prouver 'des heures supplémentaires sans majoration' 'web/public/v10/compta.js' \
+prouver 'des heures supplémentaires sans majoration' modules/personnel/moteur/compta-paie.js \
   'amount: round3(brut * h * (100 + x) / 100 / heuresMois)' \
   'amount: round3(brut * h / heuresMois)' \
   'les heures supplémentaires : rien sans majoration réglée ; sinon le taux horaire de la fiche, majoré, au millime'
-prouver 'une majoration non réglée payée' 'web/public/v10/compta.js' \
+prouver 'une majoration non réglée payée' modules/personnel/moteur/compta-paie.js \
   'return majorationsHs(s).filter(x => Number(t.hs[String(x)]) > 0)' \
   'return Object.keys(t.hs).map(Number).filter(x => Number(t.hs[String(x)]) > 0)' \
   'les heures supplémentaires : rien sans majoration réglée ; sinon le taux horaire de la fiche, majoré, au millime'
-prouver 'un mois pointé qui ne donne rien au bulletin' 'web/public/v10/core.js' \
+prouver 'un mois pointé qui ne donne rien au bulletin' modules/personnel/moteur/core-paie.js \
   '    if (!pointageEnregistre(data, employee.id, year, month)) return i;' \
   '    return i;' \
   'un mois pointé donne au bulletin ses absences, ses primes au jour et ses heures ; le bulletin calcule comme une saisie à la main'
-prouver 'des primes au jour qui ne suivent pas le pointage' 'web/public/v10/compta.js' \
+prouver 'des primes au jour qui ne suivent pas le pointage' modules/personnel/moteur/compta-paie.js \
   '.map(b => b.parJour ? { ...b, amount: round3(Number(b.mensuel) * j / total), jours: j, sur: total } : b)' \
   '.map(b => b)' \
   'un mois pointé donne au bulletin ses absences, ses primes au jour et ses heures ; le bulletin calcule comme une saisie à la main'
-prouver 'la reprise qui double les heures' 'web/public/v10/compta.js' \
+prouver 'la reprise qui double les heures' modules/personnel/moteur/compta-paie.js \
   '    const bonuses = (i.bonuses || []).filter(b => !b.hs && !b.retard && !b.nuit)' \
   '    const bonuses = (i.bonuses || []).filter(b => !b.retard && !b.nuit)' \
   'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
-prouver 'un bulletin qui ne voit pas qu'"'"'il ne suit plus le pointage' 'web/public/v10/compta.js' \
+prouver 'un bulletin qui ne voit pas qu'"'"'il ne suit plus le pointage' modules/personnel/moteur/compta-paie.js \
   '    const change = absences || empreinte(slip.bonuses) !== empreinte(r.bonuses);' \
   '    const change = false;' \
   'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
-prouver 'un écart d'"'"'heures tu' 'web/public/v10/compta.js' \
+prouver 'un écart d'"'"'heures tu' modules/personnel/moteur/compta-paie.js \
   '    const heures = empreinte((slip.bonuses || []).filter(b => b.hs)) !== empreinte(r.bonuses.filter(b => b.hs));' \
   '    const heures = false;' \
   'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
@@ -16497,27 +16497,27 @@ prouver 'des cases de pointage de 48 px' 'web/public/v10/style.css' \
   'table.list.pt-grille td.pt-td { padding: 3px 1px;' \
   '.pt-grille td.pt-td { padding: 3px 1px;' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
-prouver 'le curseur perdu après Tab dans les heures' 'web/public/v10/app.js' \
+prouver 'le curseur perdu après Tab dans les heures' modules/personnel/ecrans/entreprise/paie.js \
   '        setTimeout(() => drawPointage(ouEstLeCurseur()), 0);' \
   '        drawPointage();' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
-prouver 'Entrée qui ne passe pas au salarié suivant' 'web/public/v10/app.js' \
+prouver 'Entrée qui ne passe pas au salarié suivant' modules/personnel/ecrans/entreprise/paie.js \
   'const pas = ev.key === '"'"'ArrowDown'"'"' || ev.key === '"'"'Enter'"'"' ? 1 :' \
   'const pas = ev.key === '"'"'ArrowDown'"'"' ? 1 :' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
-prouver '« Régler les heures sup » qui ne pose pas le curseur dans la case' 'web/public/v10/app.js' \
+prouver '« Régler les heures sup » qui ne pose pas le curseur dans la case' modules/personnel/ecrans/entreprise/paie.js \
   '        const c = $('"'"'#pt-h input[name="hsMaj1"]'"'"'); if (c) { c.scrollIntoView({ block: '"'"'center'"'"' }); c.focus(); c.select(); }' \
   '' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
-prouver 'l'"'"'alerte du bulletin au-dessus de la grille' 'web/public/v10/app.js' \
+prouver 'l'"'"'alerte du bulletin au-dessus de la grille' modules/personnel/ecrans/entreprise/paie.js \
   'class="warn-box" id="pt-ecarts"' \
   'class="warn-box" id="pt-ecarts" style="position: relative; top: -420px"' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
-prouver 'un dimanche refusé en silence' 'web/public/v10/app.js' \
+prouver 'un dimanche refusé en silence' modules/personnel/ecrans/entreprise/paie.js \
   '          if (b.dataset.repos) toast(' \
   '          if (false) toast(' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
-prouver 'un dimanche qui ne passe pas à « Présent »' 'web/public/v10/app.js' \
+prouver 'un dimanche qui ne passe pas à « Présent »' modules/personnel/ecrans/entreprise/paie.js \
   '        const ordre = b.dataset.repos ? C.CODES_REPOS : ORDRE;' \
   '        const ordre = ORDRE.filter(x => x !== '"'"'P'"'"');' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
@@ -16531,93 +16531,93 @@ prouver 'le pointage ouvert dans l'"'"'offre Essentiel' 'serveur/abonnement/offr
   'en Essentiel, rien de NEUF ne se crée dans la paie ni les immobilisations ; ce qui existe se corrige et se supprime ; les déclarations restent'
 
 # 1.61.0 : le journal de paie, l'état récapitulatif CNSS et la déclaration mensuelle (docs/paie.md, « Le journal de paie et les états »).
-prouver 'le journal par ordre alphabétique, pas celui du registre' 'web/public/v10/core.js' \
+prouver 'le journal par ordre alphabétique, pas celui du registre' modules/personnel/moteur/core-paie.js \
   '}).sort((a, b) => (a.n - b.n) || (a.name || '"'"''"'"').localeCompare(b.name || '"'"''"'"', '"'"'fr'"'"'));' \
   '}).sort((a, b) => (a.name || '"'"''"'"').localeCompare(b.name || '"'"''"'"', '"'"'fr'"'"'));' \
   'le journal de septembre a les colonnes du journal réel, au millime, sauf les écarts d'"'"'un millime déjà nommés ; ses totaux sont la somme de ses lignes'
-prouver 'les jours payés sans les jours hors contrat' 'web/public/v10/core.js' \
+prouver 'les jours payés sans les jours hors contrat' modules/personnel/moteur/core-paie.js \
   '    const hors = slip.prorata ? Math.max(0, Number(slip.prorata.sur) - Number(slip.prorata.jours)) : 0;
     const absences = Number(c.absentDays' \
   '    const hors = 0;
     const absences = Number(c.absentDays' \
   'une ligne du journal se tient : les heures supplémentaires à part, une prime non imposable hors cotisations, une retenue entre le salaire net et le net à payer'
-prouver 'les heures supplémentaires comptées deux fois, dans les indemnités' 'web/public/v10/core.js' \
+prouver 'les heures supplémentaires comptées deux fois, dans les indemnités' modules/personnel/moteur/core-paie.js \
   'indemnites: round3(v('"'"'taxableBonus'"'"') + v('"'"'freeBonus'"'"') - hs)' \
   'indemnites: round3(v('"'"'taxableBonus'"'"') + v('"'"'freeBonus'"'"'))' \
   'une ligne du journal se tient : les heures supplémentaires à part, une prime non imposable hors cotisations, une retenue entre le salaire net et le net à payer'
-prouver 'le salaire net sans les retenues' 'web/public/v10/core.js' \
+prouver 'le salaire net sans les retenues' modules/personnel/moteur/core-paie.js \
   'salaireNet: round3(v('"'"'net'"'"') + v('"'"'otherDeductions'"'"'))' \
   'salaireNet: v('"'"'net'"'"')' \
   'une ligne du journal se tient : les heures supplémentaires à part, une prime non imposable hors cotisations, une retenue entre le salaire net et le net à payer'
-prouver 'le salaire de base sans l'"'"'absence retirée' 'web/public/v10/core.js' \
+prouver 'le salaire de base sans l'"'"'absence retirée' modules/personnel/moteur/core-paie.js \
   'base: round3(v('"'"'baseGross'"'"') - v('"'"'absenceCut'"'"'))' \
   'base: v('"'"'baseGross'"'"')' \
   'le journal de septembre a les colonnes du journal réel, au millime, sauf les écarts d'"'"'un millime déjà nommés ; ses totaux sont la somme de ses lignes'
-prouver 'des jours au point dans le CSV' 'web/public/v10/core.js' \
+prouver 'des jours au point dans le CSV' modules/personnel/moteur/core-paie.js \
   'get: r => r.jours === '"'"''"'"' || r.jours == null ? '"'"''"'"' : String(r.jours).replace('"'"'.'"'"', '"'"','"'"') }' \
   'get: r => r.jours }' \
   'le journal s'"'"'imprime (une page en largeur, les colonnes du journal réel, les totaux, le nombre de salariés) et s'"'"'exporte en CSV'
-prouver 'le journal imprimé sans le nombre de salariés' 'web/public/v10/core.js' \
+prouver 'le journal imprimé sans le nombre de salariés' modules/personnel/moteur/core-paie.js \
   '<span>Nombre de salariés : ${j.nombre}</span>' \
   '<span></span>' \
   'le journal s'"'"'imprime (une page en largeur, les colonnes du journal réel, les totaux, le nombre de salariés) et s'"'"'exporte en CSV'
-prouver 'l'"'"'état CNSS à la somme des bulletins' 'web/public/v10/core.js' \
+prouver 'l'"'"'état CNSS à la somme des bulletins' modules/personnel/moteur/core-paie.js \
   '    const secu = tSecu !== null ? round3(cn.base * tSecu / 100) : round3(cn.employee + cn.employer);' \
   '    const secu = round3(cn.employee + cn.employer);' \
   'l'"'"'état récapitulatif du 3e trimestre : les cotisations sur le total des salaires, au taux du régime, comme l'"'"'état réel ; le total en lettres'
-prouver 'l'"'"'accident du travail à la somme des bulletins' 'web/public/v10/core.js' \
+prouver 'l'"'"'accident du travail à la somme des bulletins' modules/personnel/moteur/core-paie.js \
   '    const accident = tAt !== null ? round3(cn.base * tAt / 100) : cn.accident;' \
   '    const accident = cn.accident;' \
   'l'"'"'état récapitulatif du 3e trimestre : les cotisations sur le total des salaires, au taux du régime, comme l'"'"'état réel ; le total en lettres'
-prouver 'les cotisations en lettres au lieu des salaires' 'web/public/v10/core.js' \
+prouver 'les cotisations en lettres au lieu des salaires' modules/personnel/moteur/core-paie.js \
   '      enLettres: amountToWords(cn.base, '"'"'DT'"'"')' \
   '      enLettres: amountToWords(total, '"'"'DT'"'"')' \
   'l'"'"'état récapitulatif du 3e trimestre : les cotisations sur le total des salaires, au taux du régime, comme l'"'"'état réel ; le total en lettres'
-prouver 'un taux qui varie, dit quand même' 'web/public/v10/core.js' \
+prouver 'un taux qui varie, dit quand même' modules/personnel/moteur/core-paie.js \
   '    const unique = f => { const v = [...new Set(slips.map(p => round3(f(((p.computed || {}).rates) || {}))))]; return v.length === 1 ? v[0] : null; };' \
   '    const unique = f => { const v = [...new Set(slips.map(p => round3(f(((p.computed || {}).rates) || {}))))]; return v[0]; };' \
   'un taux qui n'"'"'est pas le même sur tous les bulletins du trimestre : l'"'"'état reprend la somme des bulletins, sans taux'
-prouver 'la solidarité de la déclaration sur le salaire imposable' 'web/public/v10/core.js' \
+prouver 'la solidarité de la déclaration sur le salaire imposable' modules/personnel/moteur/core-paie.js \
   'base: apresDeductions, taux: unique('"'"'solidarity'"'"')' \
   'base: j.totaux.imposable, taux: unique('"'"'solidarity'"'"')' \
   'la déclaration mensuelle reprend les montants du journal du même mois (IRPP, CSS, TFP, FOPROLOS) et leurs bases, à l'"'"'échéance du calendrier fiscal'
-prouver 'l'"'"'échéance de la déclaration mensuelle au 28 en dur' 'web/public/v10/core.js' \
+prouver 'l'"'"'échéance de la déclaration mensuelle au 28 en dur' modules/personnel/moteur/core-paie.js \
   'pad2(Math.min(Number(r.day) || 28, daysInMonth(ny, nm)))' \
   'pad2(Math.min(28, daysInMonth(ny, nm)))' \
   'la déclaration mensuelle reprend les montants du journal du même mois (IRPP, CSS, TFP, FOPROLOS) et leurs bases, à l'"'"'échéance du calendrier fiscal'
-prouver 'décembre déclaré en décembre' 'web/public/v10/core.js' \
+prouver 'décembre déclaré en décembre' modules/personnel/moteur/core-paie.js \
   '    const ny = m >= 12 ? y + 1 : y, nm = m >= 12 ? 1 : m + 1;' \
   '    const ny = y, nm = m >= 12 ? 1 : m + 1;' \
   'la déclaration mensuelle reprend les montants du journal du même mois (IRPP, CSS, TFP, FOPROLOS) et leurs bases, à l'"'"'échéance du calendrier fiscal'
-prouver 'le journal de paie d'"'"'un mois sans bulletin' 'web/public/v10/app.js' \
+prouver 'le journal de paie d'"'"'un mois sans bulletin' modules/personnel/ecrans/entreprise/paie.js \
   "...(du.length ? [{ icon: 'loupe', label: 'Journal de paie'," \
   "...(true ? [{ icon: 'loupe', label: 'Journal de paie'," \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
-prouver 'un journal qui ne tient pas à l'"'"'ordinateur' 'web/public/v10/app.js' \
+prouver 'un journal qui ne tient pas à l'"'"'ordinateur' modules/personnel/ecrans/entreprise/paie.js \
   '<th class="r" title="${h(l)}">${h(court)}</th>' \
   '<th class="r nw" title="${h(l)}">${h(court)}</th>' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
-prouver 'la déclaration mensuelle sur le mois des bulletins' 'web/public/v10/app.js' \
+prouver 'la déclaration mensuelle sur le mois des bulletins' modules/personnel/ecrans/entreprise/paie.js \
   '      const dmMois = dmRepli ? dmChoisi - 1 : dmChoisi;' \
   '      const dmMois = dmChoisi > 1 ? dmChoisi - 1 : dmChoisi;' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
-prouver 'l'"'"'état récapitulatif sans ses lettres' 'web/public/v10/app.js' \
+prouver 'l'"'"'état récapitulatif sans ses lettres' modules/personnel/ecrans/entreprise/paie.js \
   '<em data-etat="lettres">${h(etat.enLettres)}</em>' \
   '<em data-etat="lettres"></em>' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
 
 # 1.62.0 : l'absence du mois d'une entrée, au taux du salaire du contrat (docs/paie.md, « L'absence du mois d'une entrée »).
-prouver 'l'"'"'absence retirée du brut proratisé, à l'"'"'écran' 'web/public/v10/compta.js' \
+prouver 'l'"'"'absence retirée du brut proratisé, à l'"'"'écran' modules/personnel/moteur/compta-paie.js \
   'round3(brutDuMois * absent / workedDays)' \
   'round3(baseGross * absent / workedDays)' \
   'une entrée et une absence le même mois : l'"'"'absence se retire au taux du salaire du contrat ; la base du journal suit ses jours payés'
-prouver 'un brut retouché encore traité comme proratisé' 'web/public/v10/compta.js' \
+prouver 'un brut retouché encore traité comme proratisé' modules/personnel/moteur/compta-paie.js \
   ' && round3(Number(i.prorata.brut)) === baseGross
 ' \
   '
 ' \
   'une entrée et une absence le même mois : l'"'"'absence se retire au taux du salaire du contrat ; la base du journal suit ses jours payés'
-prouver 'le bulletin imprimé muet sur le salaire de l'"'"'absence' 'web/public/v10/core.js' \
+prouver 'le bulletin imprimé muet sur le salaire de l'"'"'absence' modules/personnel/moteur/core-paie.js \
   'c.brutDuMois && c.brutDuMois !== c.baseGross ? c.brutDuMois : null' \
   'null' \
   'une entrée et une absence le même mois : l'"'"'absence se retire au taux du salaire du contrat ; la base du journal suit ses jours payés'
@@ -16634,43 +16634,43 @@ prouver 'l'"'"'API muette sur le salaire de l'"'"'absence' 'serveur/paie/routes.
 ' \
   '' \
   'le mois d'"'"'une entrée, une absence sans solde se retire au taux du salaire du contrat : l'"'"'écran et le serveur au même millime, et le bulletin garde ce salaire'
-prouver 'la fenêtre du bulletin sans le prorata du mois' 'web/public/v10/app.js' \
+prouver 'la fenêtre du bulletin sans le prorata du mois' modules/personnel/ecrans/entreprise/paie.js \
   '            prorata: p.prorata || null };' \
   '            prorata: null };' \
   'l'"'"'absence du mois d'"'"'une entrée à la souris : établi, rouvert et enregistré, le bulletin retire l'"'"'absence au taux du contrat, et le serveur le refait'
 
 # 1.62.0 : le bulletin imprimé tient sur une page (docs/paie.md, « Le bulletin imprimé tient sur une page »).
-prouver 'les rubriques du bulletin imprimé aérées comme la v10' 'web/public/v10/core.js' \
+prouver 'les rubriques du bulletin imprimé aérées comme la v10' modules/personnel/moteur/core-paie.js \
   '  table.pay td { padding: 1.5px 6px; line-height: 1.3; }
 ' \
   '' \
   'tient sur une page, même chargé (une entrée, une absence, six primes, deux retenues) ; le pied en bas de la page ; plus long, il ne se tronque pas'
-prouver 'le pied du bulletin imprimé au milieu de la page' 'web/public/v10/core.js' \
+prouver 'le pied du bulletin imprimé au milieu de la page' modules/personnel/moteur/core-paie.js \
   '.foot { margin-top: auto; padding-top: 6px; break-before: avoid; }' \
   '.foot { padding-top: 6px; break-before: avoid; }' \
   'tient sur une page, même chargé (une entrée, une absence, six primes, deux retenues) ; le pied en bas de la page ; plus long, il ne se tronque pas'
-prouver 'le bulletin trop long tronqué à une page' 'web/public/v10/core.js' \
+prouver 'le bulletin trop long tronqué à une page' modules/personnel/moteur/core-paie.js \
   '.page { display: flex; flex-direction: column; padding: 12mm 14mm 10mm;' \
   '.page { display: flex; flex-direction: column; height: 297mm; overflow: hidden; padding: 12mm 14mm 10mm;' \
   'tient sur une page, même chargé (une entrée, une absence, six primes, deux retenues) ; le pied en bas de la page ; plus long, il ne se tronque pas'
 
 # 1.63.0 : le Cabinet ne perd rien d'un bulletin (docs/paie.md, « Le Cabinet ne perd rien d'un bulletin »).
-prouver 'le Cabinet qui réécrit une prime sans ses marques' 'web/public/v10/compta.js' \
+prouver 'le Cabinet qui réécrit une prime sans ses marques' modules/personnel/moteur/compta-paie.js \
   ', taxable: p.taxable !== false, ...marquesDePrime(p) })),' \
   ', taxable: p.taxable !== false })),' \
   'garde chaque prime avec ses marques, chaque retenue et le prorata du mois, et se calcule comme dans l'"'"'entreprise'
-prouver 'le Cabinet qui calcule sans le prorata du mois' 'web/public/v10/compta.js' \
+prouver 'le Cabinet qui calcule sans le prorata du mois' modules/personnel/moteur/compta-paie.js \
   '      prorata: prorataDuBulletin(bulletin)
 ' \
   '      prorata: null
 ' \
   'garde chaque prime avec ses marques, chaque retenue et le prorata du mois, et se calcule comme dans l'"'"'entreprise'
-prouver 'un brut retouché au Cabinet qui garde son prorata' 'web/public/v10/compta.js' \
+prouver 'un brut retouché au Cabinet qui garde son prorata' modules/personnel/moteur/compta-paie.js \
   '
     && round3(Number(x.prorata.brut)) === round3(Number(x.brut) || 0) ? x.prorata : null);' \
   ' ? x.prorata : null);' \
   'un brut retouché au Cabinet n'"'"'est plus proratisé : le bulletin perd son prorata, l'"'"'absence se retire de ce brut'
-prouver 'le formulaire du Cabinet qui ne garde que la première prime' 'web/public/v10/cabinet/app.js' \
+prouver 'le formulaire du Cabinet qui ne garde que la première prime' modules/personnel/ecrans/cabinet/paie.js \
   'primes: primes.filter(remplie).map(' \
   'primes: primes.filter(remplie).slice(0, 1).map(' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
@@ -16678,11 +16678,11 @@ prouver 'la paie du dossier absente du livre qu'"'"'ouvre le Cabinet' 'web/publi
   '    return paie ? poserLaPaie(livre, [...paie.values()], annee, ent) : livre;' \
   '    return paie ? livre : livre;' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
-prouver 'un bulletin qui ne se corrige plus au Cabinet dès que l'"'"'écriture du mois existe' 'web/public/v10/cabinet/app.js' \
+prouver 'un bulletin qui ne se corrige plus au Cabinet dès que l'"'"'écriture du mois existe' modules/personnel/ecrans/cabinet/paie.js \
   '      if (!(s.livre.exercice || {}).clos) a.push(' \
   '      if (!b.ecritureId) a.push(' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
-prouver 'la fenêtre du bulletin muette sur l'"'"'écriture validée du mois' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre du bulletin muette sur l'"'"'écriture validée du mois' modules/personnel/ecrans/cabinet/paie.js \
   'est validée : enregistrer ce bulletin la contre-passe (au brouillard) et en écrit une nouvelle à côté.</p>` : '"'"''"'"'}' \
   'est validée.</p>` : '"'"''"'"'}' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
@@ -16692,42 +16692,42 @@ prouver 'le pont du Cabinet qui perd le prorata du bulletin' 'web/public/platefo
   '      prorata: null,
 ' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
-prouver 'la prime au jour qui ne suit plus les jours au Cabinet' 'web/public/v10/cabinet/app.js' \
+prouver 'la prime au jour qui ne suit plus les jours au Cabinet' modules/personnel/ecrans/cabinet/paie.js \
   '      f.oninput = f.onchange = () => { suivreLesJours(); maj(); };' \
   '      f.oninput = f.onchange = maj;' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 
 # 1.64.0 : un bulletin modifié au Cabinet garde son barème (docs/paie.md, « Un bulletin modifié au Cabinet garde son barème »).
-prouver 'un bulletin modifié au Cabinet recalculé avec les taux du dossier' 'web/public/v10/compta.js' \
+prouver 'un bulletin modifié au Cabinet recalculé avec les taux du dossier' modules/personnel/moteur/compta-paie.js \
   ' : baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
   ' : baremesDuDossier;' \
   'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
-prouver 'le régime figé du contrat oublié en modifiant au Cabinet' 'web/public/v10/compta.js' \
+prouver 'le régime figé du contrat oublié en modifiant au Cabinet' modules/personnel/moteur/compta-paie.js \
   '    const regimesContrat = regime && c.contrat ? { ...(r.regimesContrat || {}), [c.contrat]: { ...regime } } : r.regimesContrat;' \
   '    const regimesContrat = r.regimesContrat;' \
   'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
-prouver 'les taux qu'"'"'un régime fixait gardés comme taux de base au Cabinet' 'web/public/v10/compta.js' \
+prouver 'les taux qu'"'"'un régime fixait gardés comme taux de base au Cabinet' modules/personnel/moteur/compta-paie.js \
   '    if (regime) Object.keys(regime).forEach(k => { delete taux[k]; });
 ' \
   '' \
   'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
-prouver 'l'"'"'aperçu du bulletin au Cabinet calculé avec les taux du dossier' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'aperçu du bulletin au Cabinet calculé avec les taux du dossier' modules/personnel/ecrans/cabinet/paie.js \
   '      let baremes = KC.baremesDuBulletin(L, b, reglages);' \
   '      let baremes = reglages;' \
   'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
-prouver 'le bulletin imprimé au Cabinet avec l'"'"'avertissement destiné au comptable' 'web/public/v10/cabinet/app.js' \
+prouver 'le bulletin imprimé au Cabinet avec l'"'"'avertissement destiné au comptable' modules/personnel/ecrans/cabinet/paie.js \
   'return C.payslipHtml(bulletinDuDossier, d, so, { notice: false });' \
   'return C.payslipHtml(bulletinDuDossier, d, so, {});' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
-prouver 'le Cabinet sans journal de paie' 'web/public/v10/cabinet/app.js' \
+prouver 'le Cabinet sans journal de paie' modules/personnel/ecrans/cabinet/paie.js \
   '${bulletins.length ? '"'"'<button type="button" class="btn btn-sm" id="pa-journal">Journal de paie</button>'"'"' : '"'"''"'"'}' \
   '${'"'"''"'"'}' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
-prouver 'le journal de paie du Cabinet sur un autre mois' 'web/public/v10/cabinet/app.js' \
+prouver 'le journal de paie du Cabinet sur un autre mois' modules/personnel/ecrans/cabinet/paie.js \
   'C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois))' \
   'C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois) - 1)' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
-prouver 'l'"'"'employeur absent des documents de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'employeur absent des documents de la paie du Cabinet' modules/personnel/ecrans/cabinet/paie.js \
   'const societe = { name: dossier.name || '"'"''"'"',' \
   'const societe = { name: '"'"''"'"',' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
@@ -16735,7 +16735,7 @@ prouver 'les documents du Cabinet sans les bulletins du dossier' 'web/public/pla
   '        payslips: objets.filter((o) => o.collection === '"'"'payslips'"'"').map((o) => o.contenu),' \
   '        payslips: [],' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
-prouver 'l'"'"'état récapitulatif du Cabinet sur un autre trimestre' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'état récapitulatif du Cabinet sur un autre trimestre' modules/personnel/ecrans/cabinet/paie.js \
   'Number(s.paieTrimestre || Math.ceil(s.paieMois / 3))' \
   '1' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
@@ -16757,24 +16757,24 @@ prouver 'un taux du client vidé que la fiche garde quand même' 'web/public/pla
   'paie: { ...(taux || {}), regimesContrat: regimes, ...(avant' \
   'paie: { ...((f ? depuisFiche(f.contenu) : {}).paie || {}), ...(taux || {}), regimesContrat: regimes, ...(avant' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'la fenêtre des taux qui n'"'"'envoie pas ceux du client' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre des taux qui n'"'"'envoie pas ceux du client' modules/personnel/ecrans/cabinet/paie.js \
   'S = await api.savePaie(dossier.id, rc, taux);' \
   'S = await api.savePaie(dossier.id, rc);' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'un taux du client trop fin envoyé au serveur sans refus sur sa case' 'web/public/v10/cabinet/app.js' \
+prouver 'un taux du client trop fin envoyé au serveur sans refus sur sa case' modules/personnel/ecrans/cabinet/paie.js \
   '          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : un taux se garde avec quatre décimales au plus.`);
           taux[i.dataset.taux] = n;' \
   '          taux[i.dataset.taux] = n;' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'les cases d'"'"'un contrat qui ne suivent pas le taux du client' 'web/public/v10/cabinet/app.js' \
+prouver 'les cases d'"'"'un contrat qui ne suivent pas le taux du client' modules/personnel/ecrans/cabinet/paie.js \
   '$$(`[data-rc][data-k="${i.dataset.taux}"]`, layer).forEach(c => { c.placeholder = pct(gris); });' \
   'void gris;' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'le panneau des salariés qui tait les taux du client' 'web/public/v10/cabinet/app.js' \
+prouver 'le panneau des salariés qui tait les taux du client' modules/personnel/ecrans/cabinet/paie.js \
   '...(propres.length ? [`<b>Ce client</b> : ${esc(propres.join('"'"', '"'"'))}`] : []),' \
   '...([]),' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'la fenêtre des taux rouverte vide, qui effacerait ceux du client' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre des taux rouverte vide, qui effacerait ceux du client' modules/personnel/ecrans/cabinet/paie.js \
   'value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '"'"''"'"' ? esc(pct(Number(dossier.paie[k]))) : '"'"''"'"'}"' \
   'value=""' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
@@ -16782,23 +16782,23 @@ prouver 'la case des taux du jour que le pont ignore' 'web/public/plateforme/pon
   '{ tauxDuJour: !!o.tauxDuJour }' \
   '{ tauxDuJour: false }' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'le moteur qui ignore les taux du jour demandés' 'web/public/v10/compta.js' \
+prouver 'le moteur qui ignore les taux du jour demandés' modules/personnel/moteur/compta-paie.js \
   'const baremes = opts && opts.tauxDuJour ? (baremesDuDossier || {}) : baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
   'const baremes = baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'l'"'"'aperçu qui ne suit pas la case des taux du jour' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'aperçu qui ne suit pas la case des taux du jour' modules/personnel/ecrans/cabinet/paie.js \
   'baremes = caseDuJour.checked ? reglages : KC.baremesDuBulletin(L, b, reglages); maj();' \
   'maj();' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'la fenêtre du bulletin muette sur les taux qui changent' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre du bulletin muette sur les taux qui changent' modules/personnel/ecrans/cabinet/paie.js \
   '${tauxDuJour.length ? `<label class="check small mt" id="bf-taux">' \
   '${false ? `<label class="check small mt" id="bf-taux">' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'la case des taux du jour cochée d'"'"'office' 'web/public/v10/cabinet/app.js' \
+prouver 'la case des taux du jour cochée d'"'"'office' modules/personnel/ecrans/cabinet/paie.js \
   '<input type="checkbox" id="bf-taux-du-jour">' \
   '<input type="checkbox" id="bf-taux-du-jour" checked>' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'la case des taux du jour qui ne part pas avec le bulletin' 'web/public/v10/cabinet/app.js' \
+prouver 'la case des taux du jour qui ne part pas avec le bulletin' modules/personnel/ecrans/cabinet/paie.js \
   'tauxDuJour: !!(caseDuJour && caseDuJour.checked) });' \
   'tauxDuJour: false });' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
@@ -16832,23 +16832,23 @@ prouver 'un dossier tenu lu comme un client sur SkanFact' 'web/public/plateforme
   '(dossiers.get(ent) || {}).manual ? null :' \
   'false ? null :' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'l'"'"'écran qui calcule avec la fiche du Cabinet' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'écran qui calcule avec la fiche du Cabinet' modules/personnel/ecrans/cabinet/paie.js \
   'const reglagesPaie = (dossier, L) => (L && L.reglagesPaie) || dossier.paie || {};' \
   'const reglagesPaie = (dossier) => dossier.paie || {};' \
   'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
-prouver 'le panneau muet sur l'"'"'origine des taux' 'web/public/v10/cabinet/app.js' \
+prouver 'le panneau muet sur l'"'"'origine des taux' modules/personnel/ecrans/cabinet/paie.js \
   '${duClient ? '"'"'<b>Réglés dans son SkanFact</b> — '"'"' : '"'"''"'"'}' \
   '${'"'"''"'"'}' \
   'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
-prouver 'la fenêtre des taux modifiable pour un client sur SkanFact' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre des taux modifiable pour un client sur SkanFact' modules/personnel/ecrans/cabinet/paie.js \
   '(s.livre && s.livre.reglagesPaie ? tauxDuSkanFactDuClient(s.livre.reglagesPaie) : regimesForm(root, dossier))' \
   'regimesForm(root, dossier)' \
   'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
-prouver 'la fenêtre des taux du client qui ne dit pas ce qui suit le barème' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre des taux du client qui ne dit pas ce qui suit le barème' modules/personnel/ecrans/cabinet/paie.js \
   ''"'"'le sien'"'"' : '"'"'le barème général'"'"'' \
   ''"'"'le sien'"'"' : '"'"'le sien'"'"'' \
   'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
-prouver 'la case des taux du jour refusée au client sur SkanFact' 'web/public/v10/cabinet/app.js' \
+prouver 'la case des taux du jour refusée au client sur SkanFact' modules/personnel/ecrans/cabinet/paie.js \
   'if (!(dossier.manual || L.reglagesPaie) || !b || !b.calcul || !b.calcul.bareme) return [];' \
   'if (!dossier.manual || !b || !b.calcul || !b.calcul.bareme) return [];' \
   'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
@@ -16862,40 +16862,40 @@ prouver 'les primes de la fiche du Cabinet qui ne partent pas au serveur' 'web/p
   'primes: Array.isArray(s.primes) ? s.primes : ((avant && avant.primes) || []),' \
   'primes: ((avant && avant.primes) || []),' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
-prouver 'les primes de la fiche que le moteur du Cabinet jette' 'web/public/v10/compta.js' \
+prouver 'les primes de la fiche que le moteur du Cabinet jette' modules/personnel/moteur/compta-paie.js \
   'primes: (Array.isArray(e.primes) ? e.primes : [])' \
   'primes: ([])' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
-prouver 'la prime de la fiche gardée imposable et au jour quoi qu'"'"'on coche' 'web/public/v10/compta.js' \
+prouver 'la prime de la fiche gardée imposable et au jour quoi qu'"'"'on coche' modules/personnel/moteur/compta-paie.js \
   'taxable: p.taxable !== false, parJour: !!p.parJour' \
   'taxable: true, parJour: true' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
-prouver 'les cases d'"'"'une prime de la fiche sans effet' 'web/public/v10/cabinet/app.js' \
+prouver 'les cases d'"'"'une prime de la fiche sans effet' modules/personnel/ecrans/cabinet/paie.js \
   'if (el.type === '"'"'checkbox'"'"') p[el.dataset.fp] = el.checked;' \
   'if (el.type === '"'"'checkbox'"'"') return;' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
-prouver 'une prime négative gardée sur la fiche' 'web/public/v10/cabinet/app.js' \
+prouver 'une prime négative gardée sur la fiche' modules/personnel/ecrans/cabinet/paie.js \
   'if (primeNegative) return refus(' \
   'if (false) return refus(' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
-prouver 'les primes de la fiche oubliées à l'"'"'enregistrement' 'web/public/v10/cabinet/app.js' \
+prouver 'les primes de la fiche oubliées à l'"'"'enregistrement' modules/personnel/ecrans/cabinet/paie.js \
   'primes: primesFiche' \
   'primes: []' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
-prouver 'un bulletin nouveau du Cabinet sans les primes de la fiche' 'web/public/v10/cabinet/app.js' \
+prouver 'un bulletin nouveau du Cabinet sans les primes de la fiche' modules/personnel/ecrans/cabinet/paie.js \
   'primes: depart ? depart.bonuses : [], prorata:' \
   'primes: [], prorata:' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
-prouver 'les primes proposées qui ne suivent pas le salarié choisi' 'web/public/v10/cabinet/app.js' \
+prouver 'les primes proposées qui ne suivent pas le salarié choisi' modules/personnel/ecrans/cabinet/paie.js \
   'let primesTouchees = !!b;' \
   'let primesTouchees = true;' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
-prouver 'une prime retouchée remplacée au changement de salarié' 'web/public/v10/cabinet/app.js' \
+prouver 'une prime retouchée remplacée au changement de salarié' modules/personnel/ecrans/cabinet/paie.js \
   'if (primesTouchees) return;' \
   'if (false) return;' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
 
-prouver 'la liste des salariés du Cabinet qui tait les primes de la fiche' 'web/public/v10/cabinet/app.js' \
+prouver 'la liste des salariés du Cabinet qui tait les primes de la fiche' modules/personnel/ecrans/cabinet/paie.js \
   '+ ${esc(money(Math.round((x.primes || []).reduce((a, p) => a + (Number(p.amount) || 0), 0) * 1000) / 1000))} de primes' \
   '+ ${esc(money(0))} de primes' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
@@ -16944,7 +16944,7 @@ prouver 'les heures supplémentaires d'"'"'un dossier tenu jamais gardées dans 
   'const TAUX_DU_DOSSIER = ['"'"'accidentRate'"'"', '"'"'tfpRate'"'"', '"'"'foprolosRate'"'"', '"'"'heuresMois'"'"', '"'"'hsMaj1'"'"', '"'"'hsMaj2'"'"', '"'"'hsMaj3'"'"', '"'"'leaveDaysPerYear'"'"'];' \
   'const TAUX_DU_DOSSIER = ['"'"'accidentRate'"'"', '"'"'tfpRate'"'"', '"'"'foprolosRate'"'"', '"'"'leaveDaysPerYear'"'"'];' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
-prouver 'un bulletin nouveau sans le prorata de l'"'"'entrée' 'web/public/v10/compta.js' \
+prouver 'un bulletin nouveau sans le prorata de l'"'"'entrée' modules/personnel/moteur/compta-paie.js \
   'dernier) motifs.push(`sortie le ${jjmmaaaa(employee.endDate)}`);
     const brutFiche = round3(Number(employee.grossSalary) || 0);
     const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;' \
@@ -16952,64 +16952,64 @@ prouver 'un bulletin nouveau sans le prorata de l'"'"'entrée' 'web/public/v10/c
     const brutFiche = round3(Number(employee.grossSalary) || 0);
     const gross = employee.grossSalary;' \
   'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
-prouver 'un mois pointé sans ses heures supplémentaires au bulletin nouveau' 'web/public/v10/compta.js' \
+prouver 'un mois pointé sans ses heures supplémentaires au bulletin nouveau' modules/personnel/moteur/compta-paie.js \
   'return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month), retardsDuMois(data, employee, year, month, p).concat(heuresDeNuitDuMois(data, employee, year, month, p).lignes)) } : i;' \
   'return i;' \
   'le mois pointé : ses absences, sa demi-journée et ses heures supplémentaires arrivent au bulletin'
-prouver 'la prime au jour d'"'"'un bulletin nouveau sur le mois entier' 'web/public/v10/compta.js' \
+prouver 'la prime au jour d'"'"'un bulletin nouveau sur le mois entier' modules/personnel/moteur/compta-paie.js \
   'bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...primeAncienneteDuMois(' \
   'bonuses: [...primesDuMois(employee, total, total), ...primeAncienneteDuMois(' \
   'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
-prouver 'les congés tous payés, quelle que soit leur nature' 'web/public/v10/compta.js' \
+prouver 'les congés tous payés, quelle que soit leur nature' modules/personnel/moteur/compta-paie.js \
   'const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };' \
   'const leaveIsPaid = () => true;' \
   'le moteur du pointage vit dans le moteur commun, et l'"'"'entreprise le reprend'
-prouver 'la grille du pointage absente de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
+prouver 'la grille du pointage absente de la paie du Cabinet' modules/personnel/ecrans/cabinet/paie.js \
   '${paiePointageResume(dossier, L, s.annee, m, P)}${vuePointage(dossier, L, s.annee, m)}' \
   '${paiePointageResume(dossier, L, s.annee, m, P)}' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
-prouver 'un bulletin nouveau du Cabinet qui ignore le mois du salarié' 'web/public/v10/cabinet/app.js' \
+prouver 'un bulletin nouveau du Cabinet qui ignore le mois du salarié' modules/personnel/ecrans/cabinet/paie.js \
   'const depart = b ? null : saisieDe((actifs[0] || {}).id, s.paieMois);' \
   'const depart = null;' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
-prouver 'ce qui est proposé qui ne suit pas le salarié choisi' 'web/public/v10/cabinet/app.js' \
+prouver 'ce qui est proposé qui ne suit pas le salarié choisi' modules/personnel/ecrans/cabinet/paie.js \
   'if (choixSal) choixSal.addEventListener('"'"'change'"'"', reprendreLeMois);' \
   '' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
-prouver 'une case pointée jamais enregistrée' 'web/public/v10/cabinet/app.js' \
+prouver 'une case pointée jamais enregistrée' modules/personnel/ecrans/cabinet/paie.js \
   'pointageEnCours = pointageEnCours.then(() => api.savePointage({ dossierId: dossier.id, pointage: copie }))' \
   'pointageEnCours = pointageEnCours.then(() => null)' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
-prouver 'le curseur perdu après une lettre de la grille' 'web/public/v10/cabinet/app.js' \
+prouver 'le curseur perdu après une lettre de la grille' modules/personnel/ecrans/cabinet/paie.js \
   'redessiner({ e: e.id, d: Number(b.dataset.pt) });' \
   'redessiner(null);' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
-prouver 'l'"'"'écart au pointage jamais dit au Cabinet' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'écart au pointage jamais dit au Cabinet' modules/personnel/ecrans/cabinet/paie.js \
   'const ecarts = clos ? [] : KC.bulletinsDuMois(' \
   'const ecarts = true ? [] : KC.bulletinsDuMois(' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
-prouver 'la reprise du pointage qui garde l'"'"'ancienne absence' 'web/public/v10/cabinet/app.js' \
+prouver 'la reprise du pointage qui garde l'"'"'ancienne absence' modules/personnel/ecrans/cabinet/paie.js \
   'joursAbsence: r.absentDays, primes: r.bonuses, retenues: b.retenues || []' \
   'joursAbsence: b.joursAbsence, primes: r.bonuses, retenues: b.retenues || []' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
-prouver 'la note qui tait le brut proratisé' 'web/public/v10/cabinet/app.js' \
+prouver 'la note qui tait le brut proratisé' modules/personnel/ecrans/cabinet/paie.js \
   'if (v.prorata) lignes.push(' \
   'if (false) lignes.push(' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
-prouver 'une majoration illisible gardée dans la fiche' 'web/public/v10/cabinet/app.js' \
+prouver 'une majoration illisible gardée dans la fiche' modules/personnel/ecrans/cabinet/paie.js \
   'if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'"'"'est pas une majoration' \
   'if (false) return refus(i, `« ${t} » n'"'"'est pas une majoration' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
-prouver 'la grille muette sur où régler les heures supplémentaires' 'web/public/v10/cabinet/app.js' \
+prouver 'la grille muette sur où régler les heures supplémentaires' modules/personnel/ecrans/cabinet/paie.js \
   '<button type="button" class="btn btn-sm" id="pt-taux">Régler les heures supplémentaires…</button>' \
   '' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
-prouver 'la fenêtre des taux qui n'"'"'amène pas à la case des majorations' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre des taux qui n'"'"'amène pas à la case des majorations' modules/personnel/ecrans/cabinet/paie.js \
   'if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"], [data-cg-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: '"'"'center'"'"' }); c.focus(); } }' \
   '' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
 
-prouver 'la grille du pointage du Cabinet qui déborde de sa page' 'web/public/v10/cabinet/app.js' \
+prouver 'la grille du pointage du Cabinet qui déborde de sa page' modules/personnel/ecrans/cabinet/paie.js \
   '<div class="panel mt pt-cabinet" id="pt-panneau">' \
   '<div class="panel mt" id="pt-panneau">' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
@@ -17058,86 +17058,86 @@ prouver 'un congé supprimé qui reste dans le dossier' 'web/public/plateforme/p
   'await ecrirePaieDuDossier(o.dossierId, '"'"'leaves'"'"', o.id, null);' \
   '' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'le solde qui compte la maladie comme un congé pris' 'web/public/v10/compta.js' \
+prouver 'le solde qui compte la maladie comme un congé pris' modules/personnel/moteur/compta-paie.js \
   'const taken = round3(list.filter(l => l.kind === '"'"'conges'"'"').reduce((a, l) => a + l.days, 0));' \
   'const taken = round3(list.reduce((a, l) => a + l.days, 0));' \
   'le solde : acquis au prorata des mois travaillés, moins les congés payés pris ; la maladie et le sans-solde à part'
-prouver 'un congé à cheval sur deux mois compté entier dans chacun' 'web/public/v10/compta.js' \
+prouver 'un congé à cheval sur deux mois compté entier dans chacun' modules/personnel/moteur/compta-paie.js \
   'const from = leave.from > first ? leave.from : first;' \
   'const from = leave.from;' \
   'les jours ouvrables d'"'"'un congé, et sa part dans chaque mois'
-prouver 'le droit annuel gardé en texte que le solde ne lit pas' 'web/public/v10/compta.js' \
+prouver 'le droit annuel gardé en texte que le solde ne lit pas' modules/personnel/moteur/compta-paie.js \
   'const perYear = Number(s.leaveDaysPerYear) || 0;' \
   'const perYear = typeof s.leaveDaysPerYear === '"'"'number'"'"' ? s.leaveDaysPerYear : 0;' \
   'deux chemins, un chiffre : le moteur commun et celui de l'"'"'entreprise ; le droit gardé en texte par la fiche du Cabinet'
-prouver 'le panneau des congés absent de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
+prouver 'le panneau des congés absent de la paie du Cabinet' modules/personnel/ecrans/cabinet/paie.js \
   '${paieAbsencesAVenir(dossier, L, P)}${vueConges(dossier, L, s.annee)}' \
   '${paieAbsencesAVenir(dossier, L, P)}' \
   'un client sur SkanFact : ses congés et son droit se lisent, sans geste pour les changer'
-prouver 'un client sur SkanFact dont le Cabinet saisit les congés' 'web/public/v10/cabinet/app.js' \
+prouver 'un client sur SkanFact dont le Cabinet saisit les congés' modules/personnel/ecrans/cabinet/paie.js \
   'const congesTenus = L => !L.reglagesPaie && !(L.exercice || {}).clos;' \
   'const congesTenus = L => !(L.exercice || {}).clos;' \
   'un client sur SkanFact : ses congés et son droit se lisent, sans geste pour les changer'
-prouver 'le solde d'"'"'après jamais dit avant d'"'"'enregistrer' 'web/public/v10/cabinet/app.js' \
+prouver 'le solde d'"'"'après jamais dit avant d'"'"'enregistrer' modules/personnel/ecrans/cabinet/paie.js \
   '        if (v.kind === '"'"'conges'"'"') {' \
   '        if (false) {' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'une correction qui retranche deux fois ses jours' 'web/public/v10/cabinet/app.js' \
+prouver 'une correction qui retranche deux fois ses jours' modules/personnel/ecrans/cabinet/paie.js \
   'const avant = KC.round3(b.remaining + deja), apres = KC.round3(avant - jours);' \
   'const avant = KC.round3(b.remaining), apres = KC.round3(avant - jours);' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'une fin avant le début acceptée par la fenêtre' 'web/public/v10/cabinet/app.js' \
+prouver 'une fin avant le début acceptée par la fenêtre' modules/personnel/ecrans/cabinet/paie.js \
   'if (v.to < v.from) return refus(champ('"'"'to'"'"'), `La fin ne peut pas précéder le début (${fmtJour(v.from)}).`);' \
   '' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'une ligne des congés qui ne s'"'"'ouvre pas au clavier' 'web/public/v10/cabinet/app.js' \
+prouver 'une ligne des congés qui ne s'"'"'ouvre pas au clavier' modules/personnel/ecrans/cabinet/paie.js \
   'if (c) congeForm(root, dossier, c); };
       tr.onclick = ouvrir;
       tr.onkeydown = ev => { if (ev.key === '"'"'Enter'"'"' || ev.key === '"'"' '"'"') { ev.preventDefault(); ouvrir(); } };' \
   'if (c) congeForm(root, dossier, c); };
       tr.onclick = ouvrir;' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'le droit annuel que le panneau ne règle pas' 'web/public/v10/cabinet/app.js' \
+prouver 'le droit annuel que le panneau ne règle pas' modules/personnel/ecrans/cabinet/paie.js \
   'if (regler) regler.onclick = () => regimesForm(root, dossier, { focus: '"'"'leaveDaysPerYear'"'"' });' \
   '' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'un droit annuel de zéro jour gardé par la fenêtre des taux' 'web/public/v10/cabinet/app.js' \
+prouver 'un droit annuel de zéro jour gardé par la fenêtre des taux' modules/personnel/ecrans/cabinet/paie.js \
   'if (!Number.isFinite(n) || n < 1 || n > 60 || Math.round(n * 100) / 100 !== n) return refus(i, `« ${t} » n'"'"'est pas un nombre de jours' \
   'if (false) return refus(i, `« ${t} » n'"'"'est pas un nombre de jours' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'la fenêtre des taux qui n'"'"'amène pas à la case du droit annuel' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre des taux qui n'"'"'amène pas à la case du droit annuel' modules/personnel/ecrans/cabinet/paie.js \
   '[data-hs-k="${opts.focus}"], [data-cg-k="${opts.focus}"]' \
   '[data-hs-k="${opts.focus}"]' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'la fenêtre des taux du client muette sur son droit annuel' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre des taux du client muette sur son droit annuel' modules/personnel/ecrans/cabinet/paie.js \
   'id="rc-lu-conges"' \
   'id="rc-lu-autre"' \
   'un client sur SkanFact : ses congés et son droit se lisent, sans geste pour les changer'
-prouver 'les congés saisis au Cabinet absents de la grille du pointage' 'web/public/v10/cabinet/app.js' \
+prouver 'les congés saisis au Cabinet absents de la grille du pointage' modules/personnel/ecrans/cabinet/paie.js \
   'leaves: L.conges || [], timesheets: L.pointages,' \
   'leaves: [], timesheets: L.pointages,' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
 
 # 1.70.0 (suite) : vu au test humain — Entrée et la fenêtre, une absence hors du contrat.
-prouver 'Entrée qui clique « Supprimer » dans une fenêtre de l'"'"'entreprise' 'web/public/v10/app.js' \
+prouver 'Entrée qui clique « Supprimer » dans une fenêtre de l'"'"'entreprise' modules/socle/ecrans/entreprise/app-1.js \
   'const main = $('"'"'.modal-actions .btn-primary'"'"', layer) || $('"'"'.modal-actions .btn-danger'"'"', layer);' \
   'const main = $('"'"'.modal-actions .btn-primary, .modal-actions .btn-danger'"'"', layer);' \
   'Entrée dans un champ enregistre l'"'"'absence, sans jamais demander de la supprimer ; une absence avant l'"'"'entrée se refuse'
-prouver 'Entrée qui clique « Supprimer » dans une fenêtre du Cabinet' 'web/public/v10/cabinet/app.js' \
+prouver 'Entrée qui clique « Supprimer » dans une fenêtre du Cabinet' modules/socle/ecrans/cabinet/app-1.js \
   '      const principal = $('"'"'.modal-actions .btn-primary'"'"', layer) || $('"'"'.modal-actions .btn-danger'"'"', layer);
       if (principal && !principal.disabled) { e.preventDefault(); principal.click(); }' \
   '      const principal = $('"'"'.modal-actions .btn-primary, .modal-actions .btn-danger'"'"', layer);
       if (principal && !principal.disabled) { e.preventDefault(); principal.click(); }' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'une absence de l'"'"'entreprise avant l'"'"'entrée du salarié acceptée' 'web/public/v10/app.js' \
+prouver 'une absence de l'"'"'entreprise avant l'"'"'entrée du salarié acceptée' modules/personnel/ecrans/entreprise/paie.js \
   'if (salarieLf.hireDate && v.from < salarieLf.hireDate) return refus(' \
   'if (false) return refus(' \
   'Entrée dans un champ enregistre l'"'"'absence, sans jamais demander de la supprimer ; une absence avant l'"'"'entrée se refuse'
-prouver 'une absence du Cabinet avant l'"'"'entrée du salarié acceptée' 'web/public/v10/cabinet/app.js' \
+prouver 'une absence du Cabinet avant l'"'"'entrée du salarié acceptée' modules/personnel/ecrans/cabinet/paie.js \
   '        if (hors) return refus(champ(hors.champ), hors.motif);' \
   '' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
-prouver 'l'"'"'annonce muette sur une absence hors du contrat' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'annonce muette sur une absence hors du contrat' modules/personnel/ecrans/cabinet/paie.js \
   'a.innerHTML = hors ? `<span class="warn-text">${esc(hors.motif)}</span>`' \
   'a.innerHTML = false ? '"'"''"'"'' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
@@ -17155,25 +17155,25 @@ prouver 'la veille qui mesure tous les disques quand aucun chemin réglé n'"'"'
   'une règle en sourdine ne prévient pas ; l'"'"'essai demandé part une fois ; tout se note dans la base, les destinataires masqués'
 
 # 1.71.0 : les avances sur salaire au Cabinet.
-prouver 'la saisie du mois du Cabinet sans les échéances des avances' 'web/public/v10/compta.js' \
+prouver 'la saisie du mois du Cabinet sans les échéances des avances' modules/personnel/moteur/compta-paie.js \
   '      deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month), ...vars.deductions] };' \
   '      deductions: [...saisiesDuMois(data, employee, year, month), ...vars.deductions] };' \
   'deux chemins, un chiffre : le bulletin nouveau du Cabinet retient ce que celui de l'"'"'entreprise retient'
-prouver 'l'"'"'échéance qui prend la retenue convenue même quand il reste moins' 'web/public/v10/compta.js' \
+prouver 'l'"'"'échéance qui prend la retenue convenue même quand il reste moins' modules/personnel/moteur/compta-paie.js \
   'amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))' \
   'amount: round3(a.monthly || a.remaining), advanceId: a.id }))' \
   'l'"'"'échéance d'"'"'un mois : la retenue convenue, jamais plus que ce qui reste ; rien avant le versement'
-prouver 'ce qui est remboursé lu sur les bulletins de tous les salariés' 'web/public/v10/compta.js' \
+prouver 'ce qui est remboursé lu sur les bulletins de tous les salariés' modules/personnel/moteur/compta-paie.js \
   '          .filter(p => p.employeeId === a.employeeId)
           .reduce((s2, p) => s2 + ((p.deductions || []).filter(d => d.advanceId === a.id)' \
   '          .filter(p => p.employeeId === p.employeeId)
           .reduce((s2, p) => s2 + ((p.deductions || []).filter(d => d.advanceId === a.id)' \
   'ce qui reste d'"'"'une avance se lit sur les bulletins de SON salarié, de toutes les années'
-prouver 'les avances de l'"'"'année qui oublient celles d'"'"'avant encore dues' 'web/public/v10/compta.js' \
+prouver 'les avances de l'"'"'année qui oublient celles d'"'"'avant encore dues' modules/personnel/moteur/compta-paie.js \
   '      || (String(a.date || '"'"''"'"') < `${y}-01-01` && (!a.done || retenueEn.has(a.id))));' \
   '      || (String(a.date || '"'"''"'"') < `${y}-01-01` && false));' \
   'les avances d'"'"'une année : versées dans l'"'"'année, ou avant et pas soldées à son début ; ni soldées avant, ni versées après'
-prouver 'un bulletin du Cabinet qui jette le numéro de l'"'"'avance' 'web/public/v10/compta.js' \
+prouver 'un bulletin du Cabinet qui jette le numéro de l'"'"'avance' modules/personnel/moteur/compta-paie.js \
   '        ...(typeof d.advanceId === '"'"'string'"'"' && d.advanceId ? { advanceId: d.advanceId } : {}) })),' \
   '        ...({}) })),' \
   'un bulletin enregistré au Cabinet, établi puis modifié, garde le numéro de l'"'"'avance que chaque retenue rembourse'
@@ -17197,43 +17197,43 @@ prouver 'le livre du Cabinet sans ses avances' 'web/public/plateforme/pont-cabin
   '    Object.assign(livre, avancesDe(objets));' \
   '    Object.assign(livre, {});' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'la paie du dossier sans ce qui rembourse les avances' 'web/public/v10/cabinet/app.js' \
+prouver 'la paie du dossier sans ce qui rembourse les avances' modules/personnel/ecrans/cabinet/paie.js \
   '      advances: L.avances || [], payslips: L.remboursements || []' \
   '      advances: L.avances || [], payslips: []' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'un bulletin nouveau du Cabinet sans les échéances' 'web/public/v10/cabinet/app.js' \
+prouver 'un bulletin nouveau du Cabinet sans les échéances' modules/personnel/ecrans/cabinet/paie.js \
   '      retenues: depart ? depart.deductions : [] };' \
   '      retenues: [] };' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'les échéances qui ne suivent pas le salarié choisi' 'web/public/v10/cabinet/app.js' \
+prouver 'les échéances qui ne suivent pas le salarié choisi' modules/personnel/ecrans/cabinet/paie.js \
   '          retenues.splice(0, retenues.length, ...(i.deductions || []).map(d => ({ ...d })));' \
   '          retenues.splice(0, 0);' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'les avances d'"'"'un client saisissables au Cabinet' 'web/public/v10/cabinet/app.js' \
+prouver 'les avances d'"'"'un client saisissables au Cabinet' modules/personnel/ecrans/cabinet/paie.js \
   '  const avancesTenues = L => !L.reglagesPaie && !(L.exercice || {}).clos;' \
   '  const avancesTenues = L => !(L.exercice || {}).clos;' \
   'un client sur SkanFact : ses avances se lisent, et le bulletin du Cabinet en retient l'"'"'échéance — le client lit le même reste'
-prouver 'une avance du Cabinet hors de l'"'"'année regardée' 'web/public/v10/cabinet/app.js' \
+prouver 'une avance du Cabinet hors de l'"'"'année regardée' modules/personnel/ecrans/cabinet/paie.js \
   'if (v.date.slice(0, 4) !== String(s.annee)) return refus(champ('"'"'date'"'"')' \
   'if (false) return refus(champ('"'"'date'"'"')' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'une avance du Cabinet après la sortie du salarié' 'web/public/v10/cabinet/app.js' \
+prouver 'une avance du Cabinet après la sortie du salarié' modules/personnel/ecrans/cabinet/paie.js \
   'if (sal.sortie && v.date > sal.sortie) return refus(champ('"'"'date'"'"')' \
   'if (false) return refus(champ('"'"'date'"'"')' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'une avance du Cabinet sous ce qui a été retenu' 'web/public/v10/cabinet/app.js' \
+prouver 'une avance du Cabinet sous ce qui a été retenu' modules/personnel/ecrans/cabinet/paie.js \
   'if (v.amount < deja - 0.0005) return refus(champ('"'"'amount'"'"')' \
   'if (false) return refus(champ('"'"'amount'"'"')' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'l'"'"'annonce qui dit soldée une avance qu'"'"'on refusera' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'annonce qui dit soldée une avance qu'"'"'on refusera' modules/personnel/ecrans/cabinet/paie.js \
   '        if (deja && v.amount < deja - 0.0005) { zone.innerHTML' \
   '        if (false) { zone.innerHTML' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'la date proposée avant l'"'"'entrée du salarié' 'web/public/v10/cabinet/app.js' \
+prouver 'la date proposée avant l'"'"'entrée du salarié' modules/personnel/ecrans/cabinet/paie.js \
   '    const a = avance || { id: '"'"''"'"', employeeId: salaries[0].id, date: jour,' \
   '    const a = avance || { id: '"'"''"'"', employeeId: salaries[0].id, date: auMois,' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'le brouillard qui ne compte pas le versement d'"'"'une avance' 'web/public/v10/cabinet/app.js' \
+prouver 'le brouillard qui ne compte pas le versement d'"'"'une avance' modules/personnel/ecrans/cabinet/paie.js \
   '          s.livre = r.livre;
           close();
           toast(`L'"'"'avance de ${sal.nom} est enregistrée.`);' \
@@ -17241,61 +17241,61 @@ prouver 'le brouillard qui ne compte pas le versement d'"'"'une avance' 'web/pub
           close();
           toast(`L'"'"'avance de ${sal.nom} est enregistrée.`);' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
-prouver 'une avance de l'"'"'entreprise déjà retenue qui change de salarié' 'web/public/v10/app.js' \
+prouver 'une avance de l'"'"'entreprise déjà retenue qui change de salarié' modules/personnel/ecrans/entreprise/paie.js \
   'if (retenu && v.employeeId !== a.employeeId) return refus(' \
   'if (false) return refus(' \
   'une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie'
-prouver 'une avance de l'"'"'entreprise sous ce qui a été retenu' 'web/public/v10/app.js' \
+prouver 'une avance de l'"'"'entreprise sous ce qui a été retenu' modules/personnel/ecrans/entreprise/paie.js \
   'if (Number(v.amount) < retenu - 0.0005) return refus(' \
   'if (false) return refus(' \
   'une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie'
-prouver 'une avance de l'"'"'entreprise après la sortie du salarié' 'web/public/v10/app.js' \
+prouver 'une avance de l'"'"'entreprise après la sortie du salarié' modules/personnel/ecrans/entreprise/paie.js \
   'if (sortie && v.date > sortie) return refus(' \
   'if (false) return refus(' \
   'une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie'
-prouver 'l'"'"'aide du montant d'"'"'une avance qui dit son versement absent' 'web/public/v10/guide.js' \
+prouver 'l'"'"'aide du montant d'"'"'une avance qui dit son versement absent' modules/socle/aide/guide.js \
   'Le versement se lit le jour même : il sort de ta Trésorerie (le compte choisi)' \
   'Le versement ne se lit nulle part (le compte choisi)' \
   'l'"'"'aide du montant d'"'"'une avance dit où se lit son versement, comme celle de son mode (10.14.0 l'"'"'y fait sortir le jour même)'
 
 # 1.72.0 : les documents du personnel au Cabinet.
-prouver 'l'"'"'indemnité de congés comptée au jour du document, pas à la sortie' 'web/public/v10/compta.js' \
+prouver 'l'"'"'indemnité de congés comptée au jour du document, pas à la sortie' modules/personnel/moteur/compta-paie.js \
   '    const jour = String(e.endDate || dateIso || jourDeLInstant(Date.now()));' \
   '    const jour = String(dateIso || e.endDate || jourDeLInstant(Date.now()));' \
   'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
-prouver 'l'"'"'indemnité de congés sur le premier bulletin venu' 'web/public/v10/compta.js' \
+prouver 'l'"'"'indemnité de congés sur le premier bulletin venu' modules/personnel/moteur/compta-paie.js \
   '      .sort((a, b) => (Number(b.year) - Number(a.year)) || (Number(b.month) - Number(a.month)))[0];
     const ouvrables' \
   '      .sort(() => 0)[0];
     const ouvrables' \
   'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
-prouver 'l'"'"'indemnité de congés sur les bulletins de tous les salariés' 'web/public/v10/compta.js' \
+prouver 'l'"'"'indemnité de congés sur les bulletins de tous les salariés' modules/personnel/moteur/compta-paie.js \
   '    const dernier = (data.payslips || []).filter(p => p.employeeId === employeeId && p.computed)' \
   '    const dernier = (data.payslips || []).filter(p => p.computed)' \
   'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
-prouver 'des congés pris d'"'"'avance qui s'"'"'indemnisent en négatif' 'web/public/v10/compta.js' \
+prouver 'des congés pris d'"'"'avance qui s'"'"'indemnisent en négatif' modules/personnel/moteur/compta-paie.js \
   '    const jours = Math.max(0, solde);
     return { solde, jours, journalier,' \
   '    const jours = solde;
     return { solde, jours, journalier,' \
   'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
-prouver 'sans bulletin, une indemnité de congés nulle' 'web/public/v10/compta.js' \
+prouver 'sans bulletin, une indemnité de congés nulle' modules/personnel/moteur/compta-paie.js \
   '(dernier ? Number(dernier.computed.gross) || 0 : Number(e.grossSalary) || 0) / ouvrables' \
   '(dernier ? Number(dernier.computed.gross) || 0 : 0) / ouvrables' \
   'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
-prouver 'le document qui compte les congés au jour du document' 'web/public/v10/core.js' \
+prouver 'le document qui compte les congés au jour du document' modules/personnel/moteur/core-paie.js \
   '    const ic = indemniteConges(data, e.id, t);' \
   '    const ic = indemniteConges({ ...data, employees: (data.employees || []).map(x => (x.id === e.id ? { ...x, endDate: '"'"''"'"' } : x)) }, e.id, t);' \
   'deux chemins, un chiffre : la ligne que la fenêtre propose est celle que le document imprime'
-prouver 'la civilité que le document n'"'"'imprime pas' 'web/public/v10/core.js' \
+prouver 'la civilité que le document n'"'"'imprime pas' modules/personnel/moteur/core-paie.js \
   '    const civ = e.gender === '"'"'f'"'"' ? '"'"'Madame '"'"' : e.gender === '"'"'m'"'"' ? '"'"'Monsieur '"'"' : '"'"''"'"';' \
   '    const civ = '"'"''"'"';' \
   'la civilité : « Madame » et l'"'"'accord, « Monsieur », rien quand elle manque'
-prouver 'la fiche du Cabinet qui jette la civilité' 'web/public/v10/compta.js' \
+prouver 'la fiche du Cabinet qui jette la civilité' modules/personnel/moteur/compta-paie.js \
   '      genre: CIVILITES.some(c => c[0] === e.genre) ? e.genre : '"'"''"'"',' \
   '      genre: '"'"''"'"',' \
   'la fiche d'"'"'un salarié du Cabinet garde sa civilité ; ce que la liste ne connaît pas ne se garde pas'
-prouver 'la fiche du Cabinet qui garde une civilité inconnue' 'web/public/v10/compta.js' \
+prouver 'la fiche du Cabinet qui garde une civilité inconnue' modules/personnel/moteur/compta-paie.js \
   '      genre: CIVILITES.some(c => c[0] === e.genre) ? e.genre : '"'"''"'"',' \
   '      genre: e.genre || '"'"''"'"',' \
   'la fiche d'"'"'un salarié du Cabinet garde sa civilité ; ce que la liste ne connaît pas ne se garde pas'
@@ -17329,27 +17329,27 @@ prouver 'la civilité du Cabinet qui ne part pas au serveur' 'web/public/platefo
   '      gender: s.genre || '"'"''"'"',' \
   '      gender: '"'"''"'"',' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'le gérant absent que le document du Cabinet ne dit pas' 'web/public/v10/cabinet/app.js' \
+prouver 'le gérant absent que le document du Cabinet ne dit pas' modules/personnel/ecrans/cabinet/paie.js \
   '      ${dossier.gerant ? '"'"''"'"' : `<div class="warn-box mb" id="dp-gerant">' \
   '      ${true ? '"'"''"'"' : `<div class="warn-box mb" id="dp-gerant">' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'la civilité absente que le document du Cabinet ne dit pas' 'web/public/v10/cabinet/app.js' \
+prouver 'la civilité absente que le document du Cabinet ne dit pas' modules/personnel/ecrans/cabinet/paie.js \
   '      ${e.gender ? '"'"''"'"' : `<div class="warn-box mb" id="dp-civ">' \
   '      ${true ? '"'"''"'"' : `<div class="warn-box mb" id="dp-civ">' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'le bouton de la civilité qui n'"'"'ouvre pas sa case' 'web/public/v10/cabinet/app.js' \
+prouver 'le bouton de la civilité qui n'"'"'ouvre pas sa case' modules/personnel/ecrans/cabinet/paie.js \
   '      if (civ) civ.onclick = () => ficheDuSalarie('"'"'genre'"'"');' \
   '      if (civ) civ.onclick = () => ficheDuSalarie('"'"'cin'"'"');' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'la fiche du salarié qui ne rend pas la main au document' 'web/public/v10/cabinet/app.js' \
+prouver 'la fiche du salarié qui ne rend pas la main au document' modules/personnel/ecrans/cabinet/paie.js \
   '          if (opts && opts.apres) opts.apres(r.livre);' \
   '          if (false) opts.apres(r.livre);' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'le solde qui imprime des montants à zéro' 'web/public/v10/cabinet/app.js' \
+prouver 'le solde qui imprime des montants à zéro' modules/personnel/ecrans/cabinet/paie.js \
   '            gardees.push({ label, amount: KC.round3(Number(l.amount) || 0) });' \
   '            gardees.push({ label, amount: 0 });' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'le solde du Cabinet qui ne dit pas les avances' 'web/public/v10/cabinet/app.js' \
+prouver 'le solde du Cabinet qui ne dit pas les avances' modules/personnel/ecrans/cabinet/paie.js \
   '        ${resteAvances > 0 ? `<p class="small mt" id="dp-avances">' \
   '        ${false ? `<p class="small mt" id="dp-avances">' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
@@ -17357,55 +17357,55 @@ prouver 'la paie du dossier sans ses avances' 'web/public/plateforme/pont-cabine
   '        advances: objets.filter((o) => o.collection === '"'"'advances'"'"').map((o) => o.contenu),' \
   '        advances: [],' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'l'"'"'employeur imprimé sans son adresse' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'employeur imprimé sans son adresse' modules/personnel/ecrans/cabinet/paie.js \
   '      const societe = { name: dossier.name || '"'"''"'"', address: dossier.adresse || '"'"''"'"',' \
   '      const societe = { name: dossier.name || '"'"''"'"', address: '"'"''"'"',' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'l'"'"'employeur imprimé sans son gérant' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'employeur imprimé sans son gérant' modules/personnel/ecrans/cabinet/paie.js \
   '        cnssCode: dossier.cnssCode || '"'"''"'"', managerName: dossier.gerant || '"'"''"'"', currency: '"'"'DT'"'"' };' \
   '        cnssCode: dossier.cnssCode || '"'"''"'"', managerName: '"'"''"'"', currency: '"'"'DT'"'"' };' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'la fiche du dossier qui ne rend pas la main au document' 'web/public/v10/cabinet/app.js' \
+prouver 'la fiche du dossier qui ne rend pas la main au document' modules/socle/ecrans/cabinet/app-2.js \
   '            if (opts && opts.apres && !(r.id && r.id !== dossier.id)) opts.apres();' \
   '            if (false) opts.apres();' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'le document de l'"'"'entreprise rouvert sur l'"'"'attestation au lieu du solde' 'web/public/v10/app.js' \
+prouver 'le document de l'"'"'entreprise rouvert sur l'"'"'attestation au lieu du solde' modules/personnel/ecrans/entreprise/paie.js \
   'employeeForm(e, () => hrDocForm(e, done, v.kind), { focus: '"'"'endDate'"'"' });' \
   'employeeForm(e, () => hrDocForm(e, done), { focus: '"'"'endDate'"'"' });' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
-prouver 'la fiche ouverte pour une date, le curseur dans le champ caché' 'web/public/v10/app.js' \
+prouver 'la fiche ouverte pour une date, le curseur dans le champ caché' modules/personnel/ecrans/entreprise/paie.js \
   '          const c = c0 && c0.type === '"'"'hidden'"'"' && c0.closest('"'"'.datefield'"'"') ? $('"'"'.d-txt'"'"', c0.closest('"'"'.datefield'"'"')) : c0;' \
   '          const c = c0;' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
-prouver 'le document du Cabinet rouvert sur l'"'"'attestation' 'web/public/v10/cabinet/app.js' \
+prouver 'le document du Cabinet rouvert sur l'"'"'attestation' modules/personnel/ecrans/cabinet/paie.js \
   '          if (d) documentPersonnelForm(root, d, x, kind);' \
   '          if (d) documentPersonnelForm(root, d, x);' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
-prouver 'la civilité absente que le document de l'"'"'entreprise ne dit pas' 'web/public/v10/app.js' \
+prouver 'la civilité absente que le document de l'"'"'entreprise ne dit pas' modules/personnel/ecrans/entreprise/paie.js \
   '{ id: '"'"'hf-civ'"'"', si: () => !e.gender,' \
   '{ id: '"'"'hf-civ'"'"', si: () => false,' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
-prouver 'la fiche du salarié de l'"'"'entreprise sans civilité' 'web/public/v10/app.js' \
+prouver 'la fiche du salarié de l'"'"'entreprise sans civilité' modules/personnel/ecrans/entreprise/paie.js \
   '<select name="gender"><option value="">— à préciser —</option>' \
   '<select name="civ"><option value="">— à préciser —</option>' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
-prouver 'la fiche de l'"'"'entreprise qui ne rend pas la main au document' 'web/public/v10/app.js' \
+prouver 'la fiche de l'"'"'entreprise qui ne rend pas la main au document' modules/personnel/ecrans/entreprise/paie.js \
   'close(); employeeForm(e, () => hrDocForm(e, done, k), { focus: m.champ }); }); });' \
   'close(); employeeForm(e, done, { focus: m.champ }); }); });' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
-prouver 'l'"'"'indemnité proposée qui ne suit pas la date du document' 'web/public/v10/app.js' \
+prouver 'l'"'"'indemnité proposée qui ne suit pas la date du document' modules/personnel/ecrans/entreprise/paie.js \
   '          if (v.date && v.date !== dateVue) {' \
   '          if (false) {' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
-prouver 'une ligne retouchée qui suit encore la date du document' 'web/public/v10/app.js' \
+prouver 'une ligne retouchée qui suit encore la date du document' modules/personnel/ecrans/entreprise/paie.js \
   '            lines[i].touche = true;' \
   '            lines[i].touche = false;' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
-prouver 'le solde de l'"'"'entreprise qui ne dit pas les avances' 'web/public/v10/app.js' \
+prouver 'le solde de l'"'"'entreprise qui ne dit pas les avances' modules/personnel/ecrans/entreprise/paie.js \
   '        ${resteAvances > 0 ? `<p class="small mt" id="hf-avances">' \
   '        ${false ? `<p class="small mt" id="hf-avances">' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
-prouver 'core.js sans les lignes que le solde propose' 'web/public/v10/core.js' \
+prouver 'core.js sans les lignes que le solde propose' modules/socle/moteur/core-2.js \
   '    CIVILITES, indemniteConges, lignesDuSolde,
 ' \
   '    CIVILITES, indemniteConges,
@@ -17413,217 +17413,217 @@ prouver 'core.js sans les lignes que le solde propose' 'web/public/v10/core.js' 
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
 
 # 1.73.0 : la déclaration annuelle d'employeur au Cabinet.
-prouver 'les salaires de l'"'"'année qui comptent les bulletins de toutes les années' 'web/public/v10/compta.js' \
+prouver 'les salaires de l'"'"'année qui comptent les bulletins de toutes les années' modules/socle/moteur/compta-1.js \
   '    ((data && data.payslips) || []).filter(p => Number(p.year) === y).forEach(p => {' \
   '    ((data && data.payslips) || []).forEach(p => {' \
   'les salaires de l'"'"'année par salarié : ses bulletins de l'"'"'année, la somme de chaque colonne'
-prouver 'un salarié payé plusieurs mois qui n'"'"'en compte qu'"'"'un' 'web/public/v10/compta.js' \
+prouver 'un salarié payé plusieurs mois qui n'"'"'en compte qu'"'"'un' modules/socle/moteur/compta-1.js \
   '      e.months += 1;
       e.gross = round3(e.gross + (c.gross || 0));' \
   '      e.months = 1;
       e.gross = round3(e.gross + (c.gross || 0));' \
   'les salaires de l'"'"'année par salarié : ses bulletins de l'"'"'année, la somme de chaque colonne'
-prouver 'la contribution sociale d'"'"'un seul bulletin dans l'"'"'année' 'web/public/v10/compta.js' \
+prouver 'la contribution sociale d'"'"'un seul bulletin dans l'"'"'année' modules/socle/moteur/compta-1.js \
   '      e.css = round3(e.css + (c.css || 0));' \
   '      e.css = round3(c.css || 0);' \
   'les salaires de l'"'"'année par salarié : ses bulletins de l'"'"'année, la somme de chaque colonne'
-prouver 'le total d'"'"'une colonne qui n'"'"'est pas la somme de ses lignes' 'web/public/v10/compta.js' \
+prouver 'le total d'"'"'une colonne qui n'"'"'est pas la somme de ses lignes' modules/socle/moteur/compta-1.js \
   '      gross: sum(r => r.gross), cnss: sum(r => r.cnss_), irpp: sum(r => r.irpp), css: sum(r => r.css), net: sum(r => r.net) };' \
   '      gross: rows.length ? rows[0].gross : 0, cnss: sum(r => r.cnss_), irpp: sum(r => r.irpp), css: sum(r => r.css), net: sum(r => r.net) };' \
   'les salaires de l'"'"'année par salarié : ses bulletins de l'"'"'année, la somme de chaque colonne'
-prouver 'les retenues lues sur le solde du compte (ce qui reste à verser)' 'web/public/v10/compta.js' \
+prouver 'les retenues lues sur le solde du compte (ce qui reste à verser)' modules/socle/moteur/compta-1.js \
   '    const credit = pref => round3(lignes.filter(l => String(l.account).startsWith(pref) && l.journal !== '"'"'AN'"'"')
       .reduce((s, l) => s + (l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit)), 0));' \
   '    const credit = pref => round3(bal.rows.filter(r => String(r.account).startsWith(pref))
       .reduce((s, r) => s + r.credit - r.debit, 0));' \
   'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
-prouver 'les à-nouveaux comptés comme des retenues de l'"'"'exercice' 'web/public/v10/compta.js' \
+prouver 'les à-nouveaux comptés comme des retenues de l'"'"'exercice' modules/socle/moteur/compta-1.js \
   'String(l.account).startsWith(pref) && l.journal !== '"'"'AN'"'"')' \
   'String(l.account).startsWith(pref))' \
   'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
-prouver 'une contre-passation qui ne retranche rien des retenues' 'web/public/v10/compta.js' \
+prouver 'une contre-passation qui ne retranche rien des retenues' modules/socle/moteur/compta-1.js \
   '(l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit))' \
   'num(l.credit)' \
   'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
-prouver 'les versements au Trésor retranchés des retenues de l'"'"'exercice' 'web/public/v10/compta.js' \
+prouver 'les versements au Trésor retranchés des retenues de l'"'"'exercice' modules/socle/moteur/compta-1.js \
   '(l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit))' \
   '(l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit) - num(l.debit))' \
   'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
-prouver 'la phrase « le cabinet ne reçoit pas les bulletins » revenue' 'web/public/v10/compta.js' \
+prouver 'la phrase « le cabinet ne reçoit pas les bulletins » revenue' modules/socle/moteur/compta-1.js \
   '    return { exercice: livre.exercice.annee, cases };' \
   '    return { exercice: livre.exercice.annee, cases, raisonNominatif: '"'"'les bulletins, que le cabinet ne reçoit pas'"'"' };' \
   'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
-prouver 'l'"'"'écart des salaires du livre qui ne se dit pas' 'web/public/v10/compta.js' \
+prouver 'l'"'"'écart des salaires du livre qui ne se dit pas' modules/socle/moteur/compta-1.js \
   '    const bulletins = { salaires: round3(num(s.gross)), irpp: round3(num(s.irpp) + num(s.css)) };' \
   '    const bulletins = { irpp: round3(num(s.irpp) + num(s.css)) };' \
   'les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d'"'"'ordinaire'
-prouver 'les retenues des bulletins sans la contribution sociale' 'web/public/v10/compta.js' \
+prouver 'les retenues des bulletins sans la contribution sociale' modules/socle/moteur/compta-1.js \
   'irpp: round3(num(s.irpp) + num(s.css)) };' \
   'irpp: round3(num(s.irpp)) };' \
   'les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d'"'"'ordinaire'
-prouver 'un écart dit dans le mauvais sens' 'web/public/v10/compta.js' \
+prouver 'un écart dit dans le mauvais sens' modules/socle/moteur/compta-1.js \
   'cause: ecart < 0 ? `Le livre porte moins' \
   'cause: ecart > 0 ? `Le livre porte moins' \
   'les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d'"'"'ordinaire'
-prouver 'des masses égales aux bulletins qui disent un écart nul' 'web/public/v10/compta.js' \
+prouver 'des masses égales aux bulletins qui disent un écart nul' modules/socle/moteur/compta-1.js \
   '    }).filter(x => Math.abs(x.ecart) > 0.0005);' \
   '    });' \
   'les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d'"'"'ordinaire'
-prouver 'la colonne « Net versé » revenue dans l'"'"'état des salaires' 'web/public/v10/compta.js' \
+prouver 'la colonne « Net versé » revenue dans l'"'"'état des salaires' modules/socle/moteur/compta-1.js \
   '['"'"'net'"'"', '"'"'Net des bulletins'"'"', true]' \
   '['"'"'net'"'"', '"'"'Net versé'"'"', true]' \
   'deux chemins, un chiffre : la déclaration de l'"'"'entreprise compte avec la fonction du Cabinet, et exporte ses colonnes'
-prouver 'la déclaration de l'"'"'entreprise qui ne dit pas le total du moteur commun' 'web/public/v10/core.js' \
+prouver 'la déclaration de l'"'"'entreprise qui ne dit pas le total du moteur commun' modules/personnel/moteur/core-paie.js \
   '      gross: sal.gross, cnss: sal.cnss, irpp: sal.irpp, css: sal.css, net: sal.net,' \
   '      gross: round3(sal.gross + 0.001), cnss: sal.cnss, irpp: sal.irpp, css: sal.css, net: sal.net,' \
   'deux chemins, un chiffre : la déclaration de l'"'"'entreprise compte avec la fonction du Cabinet, et exporte ses colonnes'
-prouver 'core.js sans les colonnes communes de l'"'"'état des salaires' 'web/public/v10/core.js' \
+prouver 'core.js sans les colonnes communes de l'"'"'état des salaires' modules/socle/moteur/core-2.js \
   'cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,' \
   'cnssNonDeclaree, employerAnnual, salairesAPayer, ordreDeVirementHtml, socialDue,' \
   'deux chemins, un chiffre : la déclaration de l'"'"'entreprise compte avec la fonction du Cabinet, et exporte ses colonnes'
-prouver 'l'"'"'en-tête « Net versé » de la déclaration de l'"'"'entreprise' 'web/public/v10/app.js' \
+prouver 'l'"'"'en-tête « Net versé » de la déclaration de l'"'"'entreprise' modules/personnel/ecrans/entreprise/paie.js \
   '<th class="r">Solidarité</th><th class="r">Net des bulletins</th></tr></thead><tbody>' \
   '<th class="r">Solidarité</th><th class="r">Net versé</th></tr></thead><tbody>' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
-prouver 'le CSV de la déclaration de l'"'"'entreprise sans son total' 'web/public/v10/app.js' \
+prouver 'le CSV de la déclaration de l'"'"'entreprise sans son total' modules/personnel/ecrans/entreprise/paie.js \
   'C.toCsv(an.rows.concat([total]), cols)' \
   'C.toCsv(an.rows, cols)' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
-prouver 'la Liasse du Cabinet sans l'"'"'état des salaires par salarié' 'web/public/v10/cabinet/app.js' \
+prouver 'la Liasse du Cabinet sans l'"'"'état des salaires par salarié' modules/socle/ecrans/cabinet/app-1.js \
   '      ${sal.rows.length
     ? `<div class="scroll-x"><table class="list compact" id="li-salaires">' \
   '      ${false
     ? `<div class="scroll-x"><table class="list compact" id="li-salaires">' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
-prouver 'les salaires du dossier lus sans ses bulletins' 'web/public/v10/cabinet/app.js' \
+prouver 'les salaires du dossier lus sans ses bulletins' modules/socle/ecrans/cabinet/app-1.js \
   '    payslips: ((L && L.bulletins) || []).map(b => ({ employeeId: b.salarieId,' \
   '    payslips: [].map(b => ({ employeeId: b.salarieId,' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
-prouver 'la CIN d'"'"'un salarié perdue en chemin vers l'"'"'état' 'web/public/v10/cabinet/app.js' \
+prouver 'la CIN d'"'"'un salarié perdue en chemin vers l'"'"'état' modules/socle/ecrans/cabinet/app-1.js \
   'name: x.nom, cin: x.cin || '"'"''"'"', cnss: x.cnss || '"'"''"'"', position: x.poste || '"'"''"'"' })),' \
   'name: x.nom, cin: '"'"''"'"', cnss: x.cnss || '"'"''"'"', position: x.poste || '"'"''"'"' })),' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
-prouver 'un écart du livre qui ne se dit pas à la Liasse' 'web/public/v10/cabinet/app.js' \
+prouver 'un écart du livre qui ne se dit pas à la Liasse' modules/socle/ecrans/cabinet/app-1.js \
   '    const ecarts = sal.rows.length ? KC.ecartsEmployeur(L.employeur, sal) : [];' \
   '    const ecarts = [];' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
-prouver 'la CIN à renseigner qui n'"'"'ouvre pas sa case' 'web/public/v10/cabinet/app.js' \
+prouver 'la CIN à renseigner qui n'"'"'ouvre pas sa case' modules/socle/ecrans/cabinet/app-1.js \
   '      if (x) salarieForm(root, dossier, x, { focus: '"'"'cin'"'"' });' \
   '      if (x) salarieForm(root, dossier, x);' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
-prouver 'l'"'"'écart au brouillard sans le chemin de la saisie' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'écart au brouillard sans le chemin de la saisie' modules/socle/ecrans/cabinet/app-1.js \
   '    $$('"'"'[data-ecart-saisie]'"'"', el).forEach(b => { b.onclick = () => allerSousOnglet(root, dossier, '"'"'saisie'"'"'); });' \
   '' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
-prouver 'le CSV du Cabinet sans son total' 'web/public/v10/cabinet/app.js' \
+prouver 'le CSV du Cabinet sans son total' modules/socle/ecrans/cabinet/app-1.js \
   '.concat(sal.rows.map(ligne), [ligne(total)])' \
   '.concat(sal.rows.map(ligne))' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
-prouver 'le CSV du Cabinet aux montants que le tableur ne lit pas' 'web/public/v10/cabinet/app.js' \
+prouver 'le CSV du Cabinet aux montants que le tableur ne lit pas' modules/socle/ecrans/cabinet/app-1.js \
   '(montant ? K.csvMontant(r[k]) : r[k])' \
   '(r[k])' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
 
 # 1.74.0 : payer les salaires du mois.
-prouver 'les salaires à payer qui comptent les bulletins déjà payés' 'web/public/v10/core.js' \
+prouver 'les salaires à payer qui comptent les bulletins déjà payés' modules/personnel/moteur/core-paie.js \
   '    return payslipsOf(data, year, month).filter(x => !x.paidDate).map(x => {' \
   '    return payslipsOf(data, year, month).map(x => {' \
   'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
-prouver 'le mode de la fiche qui l'"'"'emporte sur celui du bulletin' 'web/public/v10/core.js' \
+prouver 'le mode de la fiche qui l'"'"'emporte sur celui du bulletin' modules/personnel/moteur/core-paie.js \
   '      const mode = x.method || e.method || '"'"'virement'"'"';' \
   '      const mode = e.method || x.method || '"'"'virement'"'"';' \
   'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
-prouver 'un virement sans RIB qui ne se dit pas' 'web/public/v10/core.js' \
+prouver 'un virement sans RIB qui ne se dit pas' modules/personnel/moteur/core-paie.js \
   '!rib ? '"'"'rib'"'"' : v.ok ? '"'"''"'"' : '"'"'rib-douteux'"'"'' \
   '!rib ? '"'"''"'"' : v.ok ? '"'"''"'"' : '"'"'rib-douteux'"'"'' \
   'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
-prouver 'un RIB à la clé fausse qui passe pour bon' 'web/public/v10/core.js' \
+prouver 'un RIB à la clé fausse qui passe pour bon' modules/personnel/moteur/core-paie.js \
   '!rib ? '"'"'rib'"'"' : v.ok ? '"'"''"'"' : '"'"'rib-douteux'"'"'' \
   '!rib ? '"'"'rib'"'"' : '"'"''"'"'' \
   'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
-prouver 'un salarié payé en espèces à qui l'"'"'on réclame un RIB' 'web/public/v10/core.js' \
+prouver 'un salarié payé en espèces à qui l'"'"'on réclame un RIB' modules/personnel/moteur/core-paie.js \
   '      const manque = mode !== '"'"'virement'"'"' ? '"'"''"'"' :' \
   '      const manque = false ? '"'"''"'"' :' \
   'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
-prouver 'core.js sans les salaires à payer ni l'"'"'ordre de virement' 'web/public/v10/core.js' \
+prouver 'core.js sans les salaires à payer ni l'"'"'ordre de virement' modules/socle/moteur/core-2.js \
   'COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,' \
   'COLONNES_SALAIRES_ANNEE, socialDue,' \
   'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
-prouver 'le total de l'"'"'ordre qui n'"'"'est pas la somme de ses lignes' 'web/public/v10/core.js' \
+prouver 'le total de l'"'"'ordre qui n'"'"'est pas la somme de ses lignes' modules/personnel/moteur/core-paie.js \
   '    const total = round3(lignes.reduce((s, l) => s + (Number(l.net) || 0), 0));
     const ink' \
   '    const total = round3(lignes.length ? Number(lignes[0].net) || 0 : 0);
     const ink' \
   'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
-prouver 'l'"'"'ordre qui ne dit pas le compte à débiter' 'web/public/v10/core.js' \
+prouver 'l'"'"'ordre qui ne dit pas le compte à débiter' modules/personnel/moteur/core-paie.js \
   '${compte.rib ? ` n° <b class="rib">${escapeHtml(compte.rib)}</b>` : '"'"''"'"'}' \
   '${'"'"''"'"'}' \
   'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
-prouver 'l'"'"'ordre sans son total en lettres' 'web/public/v10/core.js' \
+prouver 'l'"'"'ordre sans son total en lettres' modules/personnel/moteur/core-paie.js \
   '<em>${escapeHtml(amountToWords(total, cur))}</em>' \
   '<em></em>' \
   'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
-prouver 'l'"'"'ordre sans la ville de la société' 'web/public/v10/core.js' \
+prouver 'l'"'"'ordre sans la ville de la société' modules/personnel/moteur/core-paie.js \
   '${ville ? `${escapeHtml(ville)}, le` : '"'"'Le'"'"'} ${fmtDate((o && o.date) || today())}' \
   'Le ${fmtDate((o && o.date) || today())}' \
   'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
-prouver '« Payer les salaires… » absent des bulletins du mois' 'web/public/v10/app.js' \
+prouver '« Payer les salaires… » absent des bulletins du mois' modules/personnel/ecrans/entreprise/paie.js \
   'aPayer.length ? `<button class="btn btn-primary" id="p-payer">' \
   'false ? `<button class="btn btn-primary" id="p-payer">' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver '« Payer les salaires… » jamais l'"'"'étape suivante' 'web/public/v10/app.js' \
+prouver '« Payer les salaires… » jamais l'"'"'étape suivante' modules/personnel/ecrans/entreprise/paie.js \
   '<button class="btn btn-primary" id="p-payer">' \
   '<button class="btn" id="p-payer">' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'le nom de la société absent qui laisse imprimer l'"'"'ordre' 'web/public/v10/app.js' \
+prouver 'le nom de la société absent qui laisse imprimer l'"'"'ordre' modules/personnel/ecrans/entreprise/paie.js \
   '        const sansNom = !String(company().name || '"'"''"'"').trim();' \
   '        const sansNom = false;' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'la fiche société ouverte ailleurs que sur sa raison sociale' 'web/public/v10/app.js' \
+prouver 'la fiche société ouverte ailleurs que sur sa raison sociale' modules/personnel/ecrans/entreprise/paie.js \
   'if (so) so.onclick = () => { close(); allerParametres('"'"'societe'"'"', '"'"'p-identite:name'"'"'); };' \
   'if (so) so.onclick = () => { close(); allerParametres('"'"'societe'"'"', '"'"'p-identite'"'"'); };' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'décocher une ligne qui pousse les boutons sous le curseur' 'web/public/v10/app.js' \
+prouver 'décocher une ligne qui pousse les boutons sous le curseur' modules/personnel/ecrans/entreprise/paie.js \
   '        const horsOrdre = lignes.filter(l => l.mode !== '"'"'virement'"'"' || l.manque);' \
   '        const horsOrdre = ch.filter(l => l.mode !== '"'"'virement'"'"' || l.manque);' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'ceux que l'"'"'ordre ne portera pas, tus' 'web/public/v10/app.js' \
+prouver 'ceux que l'"'"'ordre ne portera pas, tus' modules/personnel/ecrans/entreprise/paie.js \
   '        if (horsOrdre.length) motifs.push(' \
   '        if (false) motifs.push(' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'le compte sans RIB que la fenêtre ne dit pas' 'web/public/v10/app.js' \
+prouver 'le compte sans RIB que la fenêtre ne dit pas' modules/personnel/ecrans/entreprise/paie.js \
   '        else if (compte && !String(compte.rib || '"'"''"'"').trim()) motifs.push(' \
   '        else if (false) motifs.push(' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'le RIB à renseigner qui n'"'"'ouvre pas sa case' 'web/public/v10/app.js' \
+prouver 'le RIB à renseigner qui n'"'"'ouvre pas sa case' modules/personnel/ecrans/entreprise/paie.js \
   'employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: '"'"'iban'"'"' });' \
   'employeeForm(emp, () => payerSalairesFenetre(year, month, done, t));' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'la fiche du salarié qui ne rend pas la main à la fenêtre' 'web/public/v10/app.js' \
+prouver 'la fiche du salarié qui ne rend pas la main à la fenêtre' modules/personnel/ecrans/entreprise/paie.js \
   'employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: '"'"'iban'"'"' });' \
   'employeeForm(emp, done, { focus: '"'"'iban'"'"' });' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'la fenêtre qui revient sans ce qu'"'"'on y avait laissé' 'web/public/v10/app.js' \
+prouver 'la fenêtre qui revient sans ce qu'"'"'on y avait laissé' modules/personnel/ecrans/entreprise/paie.js \
   '    const coches = new Set(g.coches || lignes.map(l => l.id));' \
   '    const coches = new Set(lignes.map(l => l.id));' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'la fiche du compte qui ne s'"'"'ouvre pas sur son RIB' 'web/public/v10/app.js' \
+prouver 'la fiche du compte qui ne s'"'"'ouvre pas sur son RIB' modules/personnel/ecrans/entreprise/paie.js \
   'payerSalairesFenetre(year, month, done, t), null, { focus: '"'"'rib'"'"' }); };' \
   'payerSalairesFenetre(year, month, done, t), null, {}); };' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver 'le RIB d'"'"'un salarié qui ne se contrôle pas à la saisie' 'web/public/v10/app.js' \
+prouver 'le RIB d'"'"'un salarié qui ne se contrôle pas à la saisie' modules/socle/ecrans/entreprise/app-1.js \
   '    $$('"'"'input[name=rib], input[name=iban]'"'"', root || document).forEach(input => {' \
   '    $$('"'"'input[name=rib]'"'"', root || document).forEach(input => {' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver '« Marquer payés » qui ne pose pas le compte' 'web/public/v10/app.js' \
+prouver '« Marquer payés » qui ne pose pas le compte' modules/personnel/ecrans/entreprise/paie.js \
   'x.paidDate = v.date; x.accountId = v.accountId || '"'"''"'"'; });' \
   'x.paidDate = v.date; });' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver '« Marquer payés » qui paie aussi les lignes décochées' 'web/public/v10/app.js' \
+prouver '« Marquer payés » qui paie aussi les lignes décochées' modules/personnel/ecrans/entreprise/paie.js \
   '        const ids = choisies().map(l => l.id);' \
   '        const ids = lignes.map(l => l.id);' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
-prouver '« Annuler » qui ne défait rien' 'web/public/v10/app.js' \
+prouver '« Annuler » qui ne défait rien' modules/personnel/ecrans/entreprise/paie.js \
   'if (x) { x.paidDate = a.paidDate; x.accountId = a.accountId; }' \
   'if (x) { x.accountId = a.accountId; }' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
@@ -17633,11 +17633,11 @@ prouver 'le « i » d'"'"'aide de l'"'"'entrée dans l'"'"'ordre de la touche Ta
   'className="i" tabIndex={-1} aria-expanded' \
   'className="i" aria-expanded' \
   'au clavier, le compte se crée case après case ; le message se lit en haut ; la ville ouvre l'"'"'adresse'
-prouver 'le « i » d'"'"'aide de l'"'"'application dans l'"'"'ordre de la touche Tab' 'web/public/v10/app.js' \
+prouver 'le « i » d'"'"'aide de l'"'"'application dans l'"'"'ordre de la touche Tab' modules/socle/ecrans/entreprise/app-1.js \
   'class="i" tabindex="-1" data-info="${h(key)}"' \
   'class="i" data-info="${h(key)}"' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver 'le « i » d'"'"'aide du Cabinet dans l'"'"'ordre de la touche Tab' 'web/public/v10/cabinet/app.js' \
+prouver 'le « i » d'"'"'aide du Cabinet dans l'"'"'ordre de la touche Tab' modules/socle/ecrans/cabinet/app-1.js \
   'class="i" tabindex="-1" data-info="${esc(key)}"' \
   'class="i" data-info="${esc(key)}"' \
   'la session ouvre le cabinet ; ses dossiers sont le portefeuille du serveur ; le livre d'"'"'un client est celui du serveur'
@@ -17653,11 +17653,11 @@ prouver 'la ville que la fiche prend même absente' 'serveur/v10/dossier.ts' \
   '...(e.ville ? { address: e.ville } : {})' \
   'address: e.ville ?? '"'"''"'"'' \
   'la ville donnée à la création ouvre l'"'"'adresse de la fiche ; sans ville, la fiche n'"'"'a pas d'"'"'adresse'
-prouver 'la pièce neuve qui attend un client quand il n'"'"'y en a qu'"'"'un' 'web/public/v10/app.js' \
+prouver 'la pièce neuve qui attend un client quand il n'"'"'y en a qu'"'"'un' modules/socle/ecrans/entreprise/app-1.js \
   'if (!doc.clientId && doc.type !== '"'"'avoir'"'"' && data.clients.length === 1) {' \
   'if (false) {' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver 'la pièce neuve qui prend un client parmi plusieurs' 'web/public/v10/app.js' \
+prouver 'la pièce neuve qui prend un client parmi plusieurs' modules/socle/ecrans/entreprise/app-1.js \
   'if (!doc.clientId && doc.type !== '"'"'avoir'"'"' && data.clients.length === 1) {' \
   'if (!doc.clientId && doc.type !== '"'"'avoir'"'"' && data.clients.length >= 1) {' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
@@ -17669,29 +17669,29 @@ prouver 'un champ de nombre qui propose les valeurs déjà tapées' 'web/public/
   'el.setAttribute('"'"'autocomplete'"'"', '"'"'off'"'"');' \
   'void el;' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver '« Montant invalide. » qui ne dit pas ce qui est attendu' 'web/public/v10/app.js' \
+prouver '« Montant invalide. » qui ne dit pas ce qui est attendu' modules/socle/ecrans/entreprise/app-1.js \
   '« Montant invalide. »).
         if (!(Number(v.amount) > 0)) return refus($('"'"'[name=amount]'"'"', root), '"'"'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.'"'"');' \
   '« Montant invalide. »).
         if (!(Number(v.amount) > 0)) return refus($('"'"'[name=amount]'"'"', root), '"'"'Montant invalide.'"'"');' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver 'ce qui reste des premiers pas qui part avec le panneau' 'web/public/v10/app.js' \
+prouver 'ce qui reste des premiers pas qui part avec le panneau' modules/socle/ecrans/entreprise/app-1.js \
   '    if (!p.demarrage) return restesDesPremiersPas(p);' \
   '    if (!p.demarrage) return '"'"''"'"';' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver 'ce qui reste des premiers pas avec un bouton vert' 'web/public/v10/app.js' \
+prouver 'ce qui reste des premiers pas avec un bouton vert' modules/socle/ecrans/entreprise/app-1.js \
   '<button class="btn btn-sm" data-pas="${h(e.action)}">${h(PAS_ACTIONS[e.action][0])}</button>' \
   '<button class="btn btn-sm btn-primary" data-pas="${h(e.action)}">${h(PAS_ACTIONS[e.action][0])}</button>' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver '« Ne plus afficher » qui ne retient rien' 'web/public/v10/app.js' \
+prouver '« Ne plus afficher » qui ne retient rien' modules/socle/ecrans/entreprise/app-1.js \
   'visitesPoser(e => { e.restesVus = true; }); render(true); };' \
   'render(true); };' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver 'l'"'"'adresse du comptable sous le même mot que le cabinet' 'web/public/v10/app.js' \
+prouver 'l'"'"'adresse du comptable sous le même mot que le cabinet' modules/socle/ecrans/entreprise/app-1.js \
   'titre: '"'"'Envoyer tes écritures par e-mail'"'"'' \
   'titre: '"'"'Ton comptable'"'"'' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver 'l'"'"'adresse du comptable qui ne renvoie pas au cabinet' 'web/public/v10/app.js' \
+prouver 'l'"'"'adresse du comptable qui ne renvoie pas au cabinet' modules/socle/ecrans/entreprise/app-2.js \
   ' Ton comptable a SkanFact Cabinet ? Relie-le plutôt dans « Ton cabinet comptable », plus bas : il voit tes pièces au fil de l'"'"'eau, sans e-mail.' \
   '' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
@@ -17701,7 +17701,7 @@ prouver 'deux prix voisins écrits l'"'"'un avec ses millimes, l'"'"'autre sans'
   'la direction ouvre la paie seule, la facture compte ce qui dépasse ; le client voit sa paie ouverte et les prix de ce qui s'"'"'ajoute'
 
 # 1.76.0 : la recette du Cabinet et de la console (Dossiers relu, mots, coordonnées du client, brouillard, version).
-prouver 'la page Dossiers qui ne se relit pas au retour' 'web/public/v10/cabinet/app.js' \
+prouver 'la page Dossiers qui ne se relit pas au retour' modules/socle/ecrans/cabinet/app-1.js \
   'if (route !== routeLue && route === '"'"'dossiers'"'"' && routeLue) relirePortefeuille();' \
   'void 0;' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
@@ -17709,23 +17709,23 @@ prouver 'la page Dossiers qui ne se relit pas au retour' 'web/public/v10/cabinet
 # Retirée le 31/10/2026 : « “ton dossier” pour dire que rien n'est en retard » visait une phrase du panneau « À faire »
 # d'avant (todoPanel), que plus aucun écran ne dessine ; la liste des Dossiers dit maintenant « à réviser » sans retard,
 # et le test le lit sur sa ligne.
-prouver '« l'"'"'attente démarre à la première écriture » sous un mois écrit' 'web/public/v10/cabinet/app.js' \
+prouver '« l'"'"'attente démarre à la première écriture » sous un mois écrit' modules/socle/ecrans/cabinet/app-1.js \
   ': (dossier.packs || []).length ? `<span' \
   ': false ? `<span' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
-prouver '« Aucune écriture sur cette période » qui tait le brouillard' 'web/public/v10/cabinet/app.js' \
+prouver '« Aucune écriture sur cette période » qui tait le brouillard' modules/socle/ecrans/cabinet/app-1.js \
   '? (s.livre && (s.livre.ecritures || []).some(e => e.statut === '"'"'brouillard'"'"') && !s.brouillard' \
   '? (false' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
-prouver '« Adresse de l'"'"'employeur » dans la fiche d'"'"'un client' 'web/public/v10/cabinet/app.js' \
+prouver '« Adresse de l'"'"'employeur » dans la fiche d'"'"'un client' modules/socle/ecrans/cabinet/app-2.js \
   'lbl('"'"'Adresse du client'"'"', '"'"'d.adresse'"'"')' \
   'lbl('"'"'Adresse de l\'"'"'employeur'"'"', '"'"'d.adresse'"'"')' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
-prouver '« Abonnements » pour les écritures qui reviennent' 'web/public/v10/cabinet/app.js' \
+prouver '« Abonnements » pour les écritures qui reviennent' modules/socle/ecrans/cabinet/app-2.js \
   '<h2>Écritures qui reviennent ${info('"'"'sa.abonnements'"'"')}</h2>' \
   '<h2>Abonnements ${info('"'"'sa.abonnements'"'"')}</h2>' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
-prouver '« Un abonnement s'"'"'appuie sur un guide » dans la saisie' 'web/public/v10/cabinet/app.js' \
+prouver '« Un abonnement s'"'"'appuie sur un guide » dans la saisie' modules/socle/ecrans/cabinet/app-2.js \
   'Une écriture qui revient s'"'"'appuie sur un guide d'"'"'écritures' \
   'Un abonnement s'"'"'appuie sur un guide d'"'"'écritures' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
@@ -17822,7 +17822,7 @@ prouver 'le navigateur qui retient le nom comme identifiant' 'web/src/ecrans/Ins
   'type="email" autoComplete="username" inputMode="email" {...g.sur('"'"'email'"'"')}' \
   'type="email" autoComplete="email" inputMode="email" {...g.sur('"'"'email'"'"')}' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
-prouver 'la proposition d'"'"'un client sous les premiers pas d'"'"'un cabinet neuf' web/public/v10/cabinet/app.js \
+prouver 'la proposition d'"'"'un client sous les premiers pas d'"'"'un cabinet neuf' modules/socle/ecrans/cabinet/app-1.js \
   '${bandesTb()}${inboxBanner()}${qui}${corps}' '${bandesTb()}${qui}${corps}' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 
@@ -17890,17 +17890,17 @@ prouver 'une adresse du client tenu qui ne va pas, envoyée au serveur' 'web/pub
   '      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { champ.focus(); throw new Error('"'"'Écris l\'"'"'adresse e-mail de ton client' \
   '      if (false) { champ.focus(); throw new Error('"'"'Écris l\'"'"'adresse e-mail de ton client' \
   'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
-prouver 'l'"'"'invitation du client montrée sur un dossier qui n'"'"'est plus tenu' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'invitation du client montrée sur un dossier qui n'"'"'est plus tenu' modules/socle/ecrans/cabinet/app-1.js \
   '${dossier.manual && api.dessinerRejoindre ?' \
   '${api.dessinerRejoindre ?' \
   'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
 
 # ── La recette alpha du 20/10/2026 (1.79.0 ; docs/recette.md) ──
-prouver 'l'"'"'invitation d'"'"'une visite reposée à chaque redessin' 'web/public/v10/app.js' \
+prouver 'l'"'"'invitation d'"'"'une visite reposée à chaque redessin' modules/socle/ecrans/entreprise/app-1.js \
   'if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);' \
   'if (!pageCachee(name)) appelGuide(name, true);' \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
-prouver 'une facture d'"'"'achat réglée supprimée d'"'"'un clic' 'web/public/v10/app.js' \
+prouver 'une facture d'"'"'achat réglée supprimée d'"'"'un clic' modules/socle/ecrans/entreprise/app-1.js \
   'if ((p.payments || []).length) { toast(' \
   'if (false) { toast(' \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
@@ -17908,7 +17908,7 @@ prouver 'le pied d'"'"'une longue fenêtre sous le bord de l'"'"'écran' 'web/pu
   '.modal > .modal-actions:last-child { position: sticky;' \
   '.modal > .modal-actions:last-child { position: static;' \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
-prouver 'la rangée des familles de la caisse qui naît à la première vente' 'web/public/v10/app.js' \
+prouver 'la rangée des familles de la caisse qui naît à la première vente' modules/socle/ecrans/entreprise/app-2.js \
   'onglets.length && articles.length ? onglets.map(' \
   'onglets.length > 1 ? onglets.map(' \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
@@ -17924,29 +17924,29 @@ prouver 'l'"'"'écart du Z qui n'"'"'arrive pas en trésorerie' 'serveur/caisse/
   '      const mouvement = await noterEcartDuZ(tx, ent, qui.utilisateur, s.id, compte - z0.attendu, decimales);' \
   '      const mouvement = null;' \
   'fermée rien ne s'"'"'encaisse ; ouverte sur un appareil, lui seul la tient ; fermée, le Z dit l'"'"'attendu et l'"'"'écart, et ne change plus'
-prouver 'la date tapée après un clic qui s'"'"'ajoute à celle de la case' 'web/public/v10/app.js' \
+prouver 'la date tapée après un clic qui s'"'"'ajoute à celle de la case' modules/socle/ecrans/entreprise/app-1.js \
   'txt.onfocus = () => txt.select();' \
   'txt.onfocus = () => {};' \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
-prouver 'le livre du Cabinet qui ne se relit pas en revenant sur la fenêtre' 'web/public/v10/cabinet/app.js' \
+prouver 'le livre du Cabinet qui ne se relit pas en revenant sur la fenêtre' modules/socle/ecrans/cabinet/app-1.js \
   "window.addEventListener('focus', () => { void relireLeLivreSiChange(); });" \
   '' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'la déclaration lue après un livre resté ancien' 'web/public/v10/cabinet/app.js' \
+prouver 'la déclaration lue après un livre resté ancien' modules/socle/ecrans/cabinet/app-1.js \
   'try { const r = await api.livre(dossier.id, s.annee); if (r && r.livre) s.livre = r.livre; } catch (_) { /* le livre déjà lu */ }' \
   '' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'la saisie du Cabinet redessinée sous la main' 'web/public/v10/cabinet/app.js' \
+prouver 'la saisie du Cabinet redessinée sous la main' modules/socle/ecrans/cabinet/app-1.js \
   "(groupeCompta(s.onglet).id === 'saisir' && s.onglet !== 'paie') ||" \
   'false ||' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 
 # ── La recette alpha, suite (1.80.0 ; docs/recette.md) ──
-prouver 'le Stock qui mène au Catalogue au lieu du geste' 'web/public/v10/app.js' \
+prouver 'le Stock qui mène au Catalogue au lieu du geste' modules/socle/ecrans/entreprise/app-2.js \
   "\$('#st-pick').onclick = () => choisirArticleAStocker(" \
   "\$('#st-pick').onclick = () => navigate('#/catalogue') && choisirArticleAStocker(" \
   'au Stock, « Choisir dans le Catalogue » ouvre le choix, puis la fiche suivie en stock, le curseur dans le stock de départ'
-prouver 'le geste des Relances au fond du menu' 'web/public/v10/app.js' \
+prouver 'le geste des Relances au fond du menu' modules/socle/ecrans/entreprise/app-1.js \
   "\$\$('[data-relancer]').forEach(b => b.onclick = () => { const x = find(b.dataset.relancer); if (x) sendReminder(x); });" \
   '' \
   'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
@@ -17954,50 +17954,50 @@ prouver 'le numéro d'"'"'une facture à relancer coupé en deux' 'web/public/v1
   '#r-wrap table.list td:first-child a { white-space: nowrap; }' \
   '' \
   'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
-prouver 'une échéance pas prête marquée déposée sans un mot' 'web/public/v10/cabinet/app.js' \
+prouver 'une échéance pas prête marquée déposée sans un mot' modules/socle/ecrans/cabinet/app-2.js \
   '      fenToute(x, () => poser(avant.concat([x.cle]), true));' \
   '      poser(avant.concat([x.cle]), true);' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'la ligne vide d'"'"'un achat neuf qui reste sous l'"'"'article du catalogue' 'web/public/v10/app.js' \
+prouver 'la ligne vide d'"'"'un achat neuf qui reste sous l'"'"'article du catalogue' modules/socle/ecrans/entreprise/app-1.js \
   "if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];" \
   '' \
   'au Stock, « Choisir dans le Catalogue » ouvre le choix, puis la fiche suivie en stock, le curseur dans le stock de départ'
-prouver 'l'"'"'accueil qui dit « 0 en retard » d'"'"'une facture échue payée en partie' 'web/public/v10/app.js' \
+prouver 'l'"'"'accueil qui dit « 0 en retard » d'"'"'une facture échue payée en partie' modules/socle/ecrans/entreprise/app-1.js \
   'const late = open.filter(d => enRetard.has(d.id));' \
   "const late = open.filter(d => effStatus(d) === 'retard');" \
   'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
-prouver 'la fiche d'"'"'un client qui oublie sa facture échue payée en partie' web/public/v10/app.js \
+prouver 'la fiche d'"'"'un client qui oublie sa facture échue payée en partie' modules/socle/ecrans/entreprise/app-1.js \
   'const late = C.overdueInvoices(data, co).filter(x => x.doc.clientId === c.id).sort(' 'const late = C.overdueInvoices(data, co).filter(x => x.doc.clientId === c.id && effStatus(x.doc) === '"'"'retard'"'"').sort(' \
   'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
 prouver 'Ctrl+S qui ouvre « Enregistrer la page » au lieu d'"'"'enregistrer le devis' 'web/public/plateforme/pont.js' \
   "const nom = k === 's' && !e.shiftKey ? 'save'" \
   "const nom = k === 'zzz' && !e.shiftKey ? 'save'" \
   'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
-prouver 'un devis facturé qui reste « accepté » comme un autre dans la liste' 'web/public/v10/app.js' \
+prouver 'un devis facturé qui reste « accepté » comme un autre dans la liste' modules/socle/ecrans/entreprise/app-1.js \
   "get: d => \`\${statusBadge(d)}\${d.type === 'devis' ? dejaFacture(d) : ''}\${" \
   "get: d => \`\${statusBadge(d)}\${" \
   'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
-prouver 'l'"'"'Aide qui promet Ctrl+N et Ctrl+1 à 9 que le navigateur garde' 'web/public/v10/guide.js' \
+prouver 'l'"'"'Aide qui promet Ctrl+N et Ctrl+1 à 9 que le navigateur garde' modules/socle/aide/guide.js \
   '<tr><th>Nouveau devis, nouvelle facture, un écran</th>' \
   '<tr><th>Trésorerie</th><td>8</td></tr><tr><th>Nouveau devis, nouvelle facture, un écran</th>' \
   'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
-prouver 'la commande fournisseur qui laisse « Aucun résultat » et rien d'"'"'autre' 'web/public/v10/app.js' \
+prouver 'la commande fournisseur qui laisse « Aucun résultat » et rien d'"'"'autre' modules/socle/ecrans/entreprise/app-1.js \
   "search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau fournisseur', ro: figee })}</div>" \
   "search: 'Rechercher : nom, contact, MF…', ro: figee })}</div>" \
   'une commande fournisseur crée son fournisseur sans quitter la pièce, et le prend'
-prouver 'le fournisseur créé depuis la commande qui n'"'"'y est pas choisi' 'web/public/v10/app.js' \
+prouver 'le fournisseur créé depuis la commande qui n'"'"'y est pas choisi' modules/socle/ecrans/entreprise/app-1.js \
   'cfFournisseur.setItems(fournisseursCF(), sup.id); o.supplierId = sup.id; touch();' \
   'cfFournisseur.setItems(fournisseursCF()); touch();' \
   'une commande fournisseur crée son fournisseur sans quitter la pièce, et le prend'
-prouver 'le seul bouton « Renseigner son RIB… » qui ouvre le compte sous le nom du salarié' 'web/public/v10/app.js' \
+prouver 'le seul bouton « Renseigner son RIB… » qui ouvre le compte sous le nom du salarié' modules/personnel/ecrans/entreprise/paie.js \
   "'Corriger'} le RIB de \${h(l.name)}…</button>\`).join('')}</div>\`);" \
   "'Corriger'} le RIB de \${h(l.name)}…</button>\`).slice(0, 0).join('')}</div>\`);" \
   '« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui'
-prouver 'le bouton du compte qui ne dit pas qu'"'"'il est celui du compte' 'web/public/v10/app.js' \
+prouver 'le bouton du compte qui ne dit pas qu'"'"'il est celui du compte' modules/personnel/ecrans/entreprise/paie.js \
   'id="ps-compte-go">Renseigner le RIB du compte…</button>' \
   'id="ps-compte-go">Renseigner son RIB…</button>' \
   '« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui'
-prouver 'le bouton du salarié dans le cadre qui n'"'"'ouvre rien' 'web/public/v10/app.js' \
+prouver 'le bouton du salarié dans le cadre qui n'"'"'ouvre rien' modules/personnel/ecrans/entreprise/paie.js \
   "\$\$('[data-ps-rib-cadre]', root).forEach(b => { b.onclick = () => {" \
   "\$\$('[data-ps-rien]', root).forEach(b => { b.onclick = () => {" \
   '« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui'
@@ -18007,15 +18007,15 @@ prouver 'le lien « Désigner l'"'"'entreprise SkanFact » qui reste en haut des
   '« Désigner l'"'"'entreprise SkanFact » descend sur la carte « Nos factures » des Réglages (1.80.0)'
 
 # ── La recette alpha, suite (1.81.0 ; docs/recette.md) ──
-prouver 'l'"'"'échéance qui ne dit pas quel dossier est à réviser' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'échéance qui ne dit pas quel dossier est à réviser' modules/socle/ecrans/cabinet/app-2.js \
   "valider: ['ambre', 'À réviser']," \
   "valider: ['ambre', '']," \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'le bouton « Réviser » qui n'"'"'ouvre pas la révision' 'web/public/v10/cabinet/app.js' \
+prouver 'le bouton « Réviser » qui n'"'"'ouvre pas la révision' modules/socle/ecrans/cabinet/app-2.js \
   "revision: id => aller(id, 'comptabilite/revision')," \
   "revision: () => {}," \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'l'"'"'avoir de −16,660 DT proposé à l'"'"'émission' 'web/public/v10/app.js' \
+prouver 'l'"'"'avoir de −16,660 DT proposé à l'"'"'émission' modules/socle/ecrans/entreprise/app-1.js \
   'if (montantNonEmettable(doc)) return Promise.resolve(false);' \
   '' \
   'un avoir négatif ne s'"'"'émet pas : le refus vient avant la fenêtre d'"'"'émission'
@@ -18027,7 +18027,7 @@ prouver 'la petite facture négative que le dinar du timbre cache' 'serveur/vent
   "const horsTimbre = t.netHT + t.fodec + t.totalTVA;" \
   "const horsTimbre = t.totalTTC;" \
   '1.81.0 : une pièce négative ne se scelle pas — ni une facture négative, ni un avoir nul ou négatif — et aucun numéro n'"'"'est pris'
-prouver 'le ticket de caisse proposé comme pièce de départ d'"'"'un bon de livraison' 'web/public/v10/app.js' \
+prouver 'le ticket de caisse proposé comme pièce de départ d'"'"'un bon de livraison' modules/socle/ecrans/entreprise/app-1.js \
   "data.documents.filter(d => d.type !== type && !d.ticket && !!d.clientId && (C.CONVERSIONS[d.type] || []).includes(type))" \
   "data.documents.filter(d => d.type !== type && (C.CONVERSIONS[d.type] || []).includes(type))" \
   '« Partir d'"'"'une pièce existante » ne propose pas un ticket, et sa liste s'"'"'ouvre en entier dans la fenêtre'
@@ -18035,7 +18035,7 @@ prouver 'la liste d'"'"'un choix coupée par une petite fenêtre' 'web/public/v1
   '.modal:has(.combo-pop:not([hidden])) { overflow: visible; }' \
   '' \
   '« Partir d'"'"'une pièce existante » ne propose pas un ticket, et sa liste s'"'"'ouvre en entier dans la fenêtre'
-prouver 'le refus de deux phrases qui disparaît avant sa lecture' 'web/public/v10/app.js' \
+prouver 'le refus de deux phrases qui disparaît avant sa lecture' modules/socle/ecrans/entreprise/app-1.js \
   "    const duree = Math.min(8000, Math.max(6000, String(msg).length * 60));" \
   "    const duree = 2600;" \
   'un avoir négatif ne s'"'"'émet pas : le refus vient avant la fenêtre d'"'"'émission'
@@ -18049,15 +18049,15 @@ prouver 'la balance auxiliaire du Cabinet qui range tous les clients sous « (sa
   "tiers: l.tiers || e.tiersNom || ''," \
   "tiers: l.tiers || ''," \
   'une facture émise chez le client : le livre-journal et la balance auxiliaire disent son nom'
-prouver 'l'"'"'en-tête qui dit « 1 mois à valider » après avoir tout validé' 'web/public/v10/cabinet/app.js' \
+prouver 'l'"'"'en-tête qui dit « 1 mois à valider » après avoir tout validé' modules/socle/ecrans/cabinet/app-1.js \
   'el.hidden = !n;' \
   'el.hidden = false;' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'le client soldé compté dans « Ce qui reste dû »' 'web/public/v10/cabinet/app.js' \
+prouver 'le client soldé compté dans « Ce qui reste dû »' modules/socle/ecrans/cabinet/app-1.js \
   'agee.tiers = agee.tiers.filter(t => t.total);' \
   '' \
   'une facture émise chez le client : le livre-journal et la balance auxiliaire disent son nom'
-prouver 'la TFP d'"'"'un mois sans paie qui dit qu'"'"'aucun compte ne la porte' 'web/public/v10/compta.js' \
+prouver 'la TFP d'"'"'un mois sans paie qui dit qu'"'"'aucun compte ne la porte' modules/socle/moteur/compta-1.js \
   'if (nomTaxe[k] && (livre.bulletins || []).length) {' \
   'if (false) {' \
   'une paie tenue, rien sur ce mois : la case attend la paie, sans prétendre qu'"'"'aucun compte ne la porte'
@@ -18185,7 +18185,7 @@ prouver 'le journal en tableau qui coupe le geste au bord du téléphone' web/co
   "$CTEL"
 
 
-prouver '« Première fois sur cette page ? » qui reste sur l'\''éditeur pendant le défilement du téléphone' web/public/v10/app.js \
+prouver '« Première fois sur cette page ? » qui reste sur l'\''éditeur pendant le défilement du téléphone' modules/socle/ecrans/entreprise/app-2.js \
   "    window.addEventListener('scroll', defile, { passive: true });" '' \
   'au téléphone, faire défiler l'\''éditeur de facture referme « Première fois sur cette page ? »'
 
@@ -18205,23 +18205,23 @@ prouver '« À régler dans l'\''équipe » : le bouton à côté du texte, coup
   '  .c-eq-regler-liste li { flex-wrap: wrap; }' '' \
   'au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté'
 
-prouver '« Émettre la facture » en vert sur une pièce qui ne pourra pas être enregistrée' web/public/v10/app.js \
+prouver '« Émettre la facture » en vert sur une pièce qui ne pourra pas être enregistrée' modules/socle/ecrans/entreprise/app-1.js \
   'class="btn${aboBloque(isNew) ? '\'''\'' : '\'' btn-primary'\''}" id="issue">' 'class="btn btn-primary" id="issue">' \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
-prouver '« Enregistrer » d'\''un devis neuf en vert en lecture seule' web/public/v10/app.js \
+prouver '« Enregistrer » d'\''un devis neuf en vert en lecture seule' modules/socle/ecrans/entreprise/app-1.js \
   "'save') && !aboBloque(isNew) ? 'btn-primary'" "'save') ? 'btn-primary'" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
-prouver '« Saisir à la main » ouvert en lecture seule' web/public/v10/app.js \
+prouver '« Saisir à la main » ouvert en lecture seule' modules/socle/ecrans/entreprise/app-1.js \
   "    const dis = bloqueChoix ? ' disabled title=\"Attend le renouvellement de l\\'abonnement\"' : '';" "    const dis = '';" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
-prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' web/public/v10/cabinet/app.js \
+prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' modules/socle/ecrans/cabinet/app-2.js \
   ' aria-label="Me guider : ${esc(e.titre)}"' '' \
   'le Cabinet qui commence, au téléphone : « Tes premiers pas » ne déborde pas, et chaque étape garde son texte en entier'
 
-prouver 'une comptable remplit toute la fiche d'\''un dossier avant d'\''apprendre qu'\''elle ne peut pas le créer' web/public/v10/cabinet/app.js \
+prouver 'une comptable remplit toute la fiche d'\''un dossier avant d'\''apprendre qu'\''elle ne peut pas le créer' modules/socle/ecrans/cabinet/app-2.js \
   '    if (peut && !peut.ok) {' '    if (false) {' \
   'Walid : en lecture seule, « Nouveau dossier client » refuse en le disant'
 # (Réajustée le 31/10/2026 : depuis la 1.169.0, la comptable non associée ne voit plus le bouton ; le refus avant la
@@ -18231,19 +18231,19 @@ prouver 'un client refusé sans réseau, resté à l'\''écran, qui ne repart pa
   '(attenteGardee || nonEnregistre) && !enCours' 'attenteGardee && !enCours' \
   'un navigateur qui ne promet pas de garder : la page restée ouverte enregistre seule au retour du réseau, et le dit'
 
-prouver '« Rien n'\''a été enregistré » qui reste ouvert après l'\''enregistrement' web/public/v10/app.js \
+prouver '« Rien n'\''a été enregistré » qui reste ouvert après l'\''enregistrement' modules/socle/ecrans/entreprise/app-1.js \
   '.then(r => { if (fermerEchec) fermerEchec(); if (r && r.matriculeRefuse)' '.then(r => { if (r && r.matriculeRefuse)' \
   'un navigateur qui ne promet pas de garder : la page restée ouverte enregistre seule au retour du réseau, et le dit'
 
-prouver 'la saisie du Cabinet qui s'\''ouvre sans curseur' web/public/v10/cabinet/app.js \
+prouver 'la saisie du Cabinet qui s'\''ouvre sans curseur' modules/socle/ecrans/cabinet/app-2.js \
   "const pc = \$('#sa-piece', el); if (pc) pc.focus({ preventScroll: true });" "const pc = \$('#sa-piece', el); void pc;" \
   'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
 
-prouver '« Plus tard » qui emporte le curseur de la saisie' web/public/v10/cabinet/app.js \
+prouver '« Plus tard » qui emporte le curseur de la saisie' modules/socle/ecrans/cabinet/app-2.js \
   '      if (retour && retour !== document.body && document.body.contains(retour)) retour.focus();' '' \
   'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
 
-prouver 'l'\''invitation du Cabinet qui reste posée pendant le défilement du téléphone' web/public/v10/cabinet/app.js \
+prouver 'l'\''invitation du Cabinet qui reste posée pendant le défilement du téléphone' modules/socle/ecrans/cabinet/app-2.js \
   "    window.addEventListener('scroll', defile, { passive: true });" '' \
   'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
 
@@ -18256,16 +18256,16 @@ prouver 'la recherche de l'\''accueil qui ouvre la liste pour un seul nom' web/c
   '    const lien = cherche ? await laSeuleFiche(api, { q: cherche }) : null;' '    const lien = cherche ? null : null;' \
   'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée, depuis Clients comme depuis l'\''accueil'
 
-prouver '« Aperçu » qui masque l'"'"'aperçu du bas de page au téléphone' web/public/v10/app.js \
+prouver '« Aperçu » qui masque l'"'"'aperçu du bas de page au téléphone' modules/socle/ecrans/entreprise/app-1.js \
   "      if (\$('#ed-grand')) \$('#ed-grand').onclick = () => apercuPleinEcran();
 " "" \
   "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
 
-prouver 'un matricule mal formé enregistré sans un mot par la fiche société' web/public/v10/app.js \
+prouver 'un matricule mal formé enregistré sans un mot par la fiche société' modules/socle/ecrans/entreprise/app-2.js \
   "      if (mfEl && String(v.matricule || '').trim() && !C.matriculeBienForme(v.matricule)) {" '      if (false) {' \
   'la fiche société : un matricule mal formé est refusé avant d'\''écrire, la case montrée, rien d'\''autre n'\''est enregistré'
 
-prouver 'la caisse tenue sur un appareil perdu, que personne ne peut plus fermer' web/public/v10/app.js \
+prouver 'la caisse tenue sur un appareil perdu, que personne ne peut plus fermer' modules/socle/ecrans/entreprise/app-2.js \
   '  function fermerDIci() { return Boolean(bridge.droitsDossier && bridge.droitsDossier().responsable); }' '  function fermerDIci() { return false; }' \
   'la caisse tenue sur un appareil perdu : la propriétaire la ferme d'\''ici, le caissier sait à qui le demander'
 
@@ -18350,7 +18350,7 @@ prouver 'une pièce jointe de plus de 10 Mo acceptée' serveur/v10/pieces-jointe
 prouver 'le panneau des pièces jointes encore caché sur la plateforme' web/public/plateforme/pont.js \
   $'\'p-editeur\', \'p-cloture-cabinet\'' $'\'p-editeur\', \'p-pj\', \'p-cloture-cabinet\'' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
-prouver '« Ouvrir » une pièce jointe qui laisse un onglet vide' web/public/v10/app.js \
+prouver '« Ouvrir » une pièce jointe qui laisse un onglet vide' modules/socle/ecrans/entreprise/app-1.js \
   "\${image ? \`<img src=\"\${lu.adresse}\" alt=\"\${h(nom)}\">\`" "\${image ? \`<img alt=\"\${h(nom)}\">\`" \
   "joint, ouvert, téléchargé, gardé après un rechargement, puis retiré"
 prouver '« Télécharger le fichier » qui ne télécharge rien' web/public/plateforme/pont.js \
@@ -18362,7 +18362,7 @@ prouver '« Télécharger le fichier » qui ne télécharge rien' web/public/pla
 prouver 'un seul fichier joint quand on en choisit deux' web/public/plateforme/pont.js \
   $'i.type = \'file\'; i.accept = accepte; i.multiple = true; i.hidden = true;' $'i.type = \'file\'; i.accept = accepte; i.hidden = true;' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
-prouver 'une pièce jointe refusée dont l'"'"'écran ne dit rien' web/public/v10/app.js \
+prouver 'une pièce jointe refusée dont l'"'"'écran ne dit rien' modules/socle/ecrans/entreprise/app-1.js \
   "          } catch (e) { toast(plainError(e), true); }
         };
         const dePiece" "          } catch { /* rien */ }
@@ -18391,20 +18391,20 @@ prouver 'une copie hors de la machine pas en place dite à jour' web/public/plat
 prouver 'une demande de retour en arrière sans motif, sans la case montrée' web/public/plateforme/pont.js \
   $': motif.length < 3 ? \'#sv-motif\' : \'\';' $': \'\';' \
   'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
-prouver 'le panneau des sauvegardes montré à un commercial' web/public/v10/app.js \
+prouver 'le panneau des sauvegardes montré à un commercial' modules/socle/ecrans/entreprise/app-2.js \
   $'${exportVisible() && bridge.dessinerSauvegardes ? `${panneau(\'p-mes-sauvegardes\'' $'${bridge.dessinerSauvegardes ? `${panneau(\'p-mes-sauvegardes\'' \
   'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
 
 prouver 'une erreur de l'\''écran que le journal ne note pas' web/public/plateforme/pont.js \
   $'  window.addEventListener(\'error\', (e) => noterErreur(e.message, e.filename, e.lineno, e.colno));\n' $'' \
   'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
-prouver 'le journal de l'\''écran envoyé même décoché' web/public/v10/app.js \
+prouver 'le journal de l'\''écran envoyé même décoché' modules/socle/ecrans/entreprise/app-2.js \
   $'          if ($(\'#sup-journal\', root) && $(\'#sup-journal\', root).checked) texte = avecJournal(texte, journalEcran);' $'          if ($(\'#sup-journal\', root)) texte = avecJournal(texte, journalEcran);' \
   'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
 prouver '« Aide et dépannage » encore caché en ligne' web/public/plateforme/pont.js \
   $'\'p-editeur\', \'p-cloture-cabinet\'' $'\'p-editeur\', \'p-depannage\', \'p-cloture-cabinet\'' \
   'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
-prouver 'la case du journal décochée d'\''avance' web/public/v10/app.js \
+prouver 'la case du journal décochée d'\''avance' modules/socle/ecrans/entreprise/app-2.js \
   $'<input type="checkbox" id="sup-journal" checked>' $'<input type="checkbox" id="sup-journal">' \
   'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
 
@@ -18414,17 +18414,17 @@ prouver 'au Cabinet, le PDF du serveur que le pont n'\''offre pas' web/public/pl
 prouver 'au Cabinet, un serveur sans l'\''outil du PDF qui ne rend pas la fenêtre d'\''impression' web/public/plateforme/pont-cabinet.js \
   $'      if (!(x && (x.indisponible || x.horsLigne))) throw e;\n      const w = window.open' $'      throw e;\n      const w = window.open' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet'
-prouver 'au Cabinet, le bulletin en PDF sans son nom' web/public/v10/cabinet/app.js \
+prouver 'au Cabinet, le bulletin en PDF sans son nom' modules/personnel/ecrans/cabinet/paie.js \
   $'await api.exportPdf(html, `${nommer(d)}.pdf`);' $'await api.exportPdf(html, \'document.pdf\');' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet'
-prouver 'au Cabinet, un document du personnel en PDF sans le nom du salarié' web/public/v10/cabinet/app.js \
+prouver 'au Cabinet, un document du personnel en PDF sans le nom du salarié' modules/personnel/ecrans/cabinet/paie.js \
   $'_${nomDeFichier(e.name)}`);' $'`);' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document'
 
-prouver 'le pied du bulletin qui dit « Bulletin de octobre »' web/public/v10/core.js \
+prouver 'le pied du bulletin qui dit « Bulletin de octobre »' modules/personnel/moteur/core-paie.js \
   $' · Bulletin ${escapeHtml(Compta.deMois(label))} · ' $' · Bulletin de ${escapeHtml(label)} · ' \
   'une entrée et une absence le même mois : l'\''absence se retire au taux du salaire du contrat'
-prouver 'l'\''ordre de virement qui dit « salaires de octobre »' web/public/v10/core.js \
+prouver 'l'\''ordre de virement qui dit « salaires de octobre »' modules/personnel/moteur/core-paie.js \
   $'virement des salaires ${escapeHtml(Compta.deMois(periode))}</p>' $'virement des salaires de ${escapeHtml(periode)}</p>' \
   'l'\''ordre de virement : une ligne par bénéficiaire, le compte à débiter'
 
@@ -18444,7 +18444,7 @@ prouver '« Exporter tous les PDF » qui ne fait rien en ligne' web/public/plate
 prouver 'le .zip des PDF avec une somme de contrôle fausse' web/public/plateforme/pont.js \
   $'return (c ^ 0xffffffff) >>> 0; };' $'return 0; };' \
   'Exporter tous les PDF de la période'
-prouver 'le .zip des PDF qui ne dit pas son nom' web/public/v10/app.js \
+prouver 'le .zip des PDF qui ne dit pas son nom' modules/socle/ecrans/entreprise/app-2.js \
   $'toast(`${files.length} PDF exportés dans ${dir.split(/[\\\\/]/).pop()}`)' $'toast(`${files.length} PDF exportés`)' \
   'Exporter tous les PDF de la période'
 
@@ -18457,10 +18457,10 @@ prouver 'le refus d'\''une entreprise pas ouverte qui ne nomme pas le compte con
 prouver 'une question du cabinet qui n'\''arrive qu'\''au rechargement' web/public/plateforme/pont.js \
   $'window.dispatchEvent(new CustomEvent(\'skanfact-questions\', { detail: q }));' $'void q;' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
-prouver 'une question du cabinet qui arrive sans que l'\''écran se redessine' web/public/v10/app.js \
+prouver 'une question du cabinet qui arrive sans que l'\''écran se redessine' modules/socle/ecrans/entreprise/app-2.js \
   $'if (!enSaisie && /^(#\\/(dashboard|compta)([?].*)?)?$/.test(location.hash)) render();' $'void enSaisie;' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
-prouver 'une question du cabinet qui redessine l'\''écran sous le champ où l'\''on choisit' web/public/v10/app.js \
+prouver 'une question du cabinet qui redessine l'\''écran sous le champ où l'\''on choisit' modules/socle/ecrans/entreprise/app-2.js \
   $'if (!enSaisie && /^(#\\/(dashboard|compta)' $'if (/^(#\\/(dashboard|compta)' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
 prouver 'Entrée dans l'\''adresse du comptable qui ne l'\''invite pas' web/public/plateforme/pont.js \
@@ -18476,19 +18476,19 @@ prouver 'le premier pas « Inviter mon comptable » qui laisse le curseur au dé
   "    if (o.focus) email.focus();
 " "" \
   "le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien"
-prouver 'une pièce neuve qui laisse le curseur nulle part' web/public/v10/app.js \
+prouver 'une pièce neuve qui laisse le curseur nulle part' modules/socle/ecrans/entreprise/app-1.js \
   $'      if (debut) debut.focus({ preventScroll: true });' $'      void debut;' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
-prouver 'un menu « ▾ » qui laisse le curseur sur son bouton' web/public/v10/app.js \
+prouver 'un menu « ▾ » qui laisse le curseur sur son bouton' modules/socle/ecrans/entreprise/app-1.js \
   $'if (ouvert && !etait && document.activeElement === b) { const x = entreesDuMenu(l)[0]; if (x) x.focus(); }' $'void etait;' \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver 'un menu « ▾ » sans flèches' web/public/v10/app.js \
+prouver 'un menu « ▾ » sans flèches' modules/socle/ecrans/entreprise/app-1.js \
   $'    xs[j].focus();\n  });' $'    void j;\n  });' \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver 'un menu « ▾ » fermé par Échap qui perd le curseur' web/public/v10/app.js \
+prouver 'un menu « ▾ » fermé par Échap qui perd le curseur' modules/socle/ecrans/entreprise/app-1.js \
   $'if (e.key === \'Escape\') { const b = l.parentElement && l.parentElement.querySelector(\':scope > .btn\'); if (b) b.focus(); return; }' $'' \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' web/public/v10/app.js \
+prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' modules/socle/ecrans/entreprise/app-1.js \
   $'      b.setAttribute(\'aria-expanded\', String(ouvert));' $'' \
   'au clavier, un menu « ▾ » d'\''un devis'
 prouver 'une question partie le matin, relancée le jour même' base/migrations/0162_relance_un_autre_jour.sql \
@@ -18505,31 +18505,31 @@ prouver '« Ranger dans mes achats » proposé sous un fichier envoyé avec un d
   'Amine et son comptable s'\''écrivent : la pastille'
 # (1.191.0) Le fichier d'une réponse se joint dans la conversation, plus dans la fenêtre « Répondre à ton comptable » (qui
 # ne sert plus qu'à corriger une réponse donnée) : ces deux preuves sont reprises par « repondre 3 » et « repondre 4 ».
-prouver '« Envoyer au comptable » en geste principal quand le cabinet lit déjà les ventes' web/public/v10/app.js \
+prouver '« Envoyer au comptable » en geste principal quand le cabinet lit déjà les ventes' modules/socle/ecrans/entreprise/app-2.js \
   $'<button class="btn${messagerieVue && messagerieVue.cabinet ? \'\' : \' btn-primary\'}" id="exp-comptable">' $'<button class="btn btn-primary" id="exp-comptable">' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
-prouver 'la Comptabilité qui ne se redessine pas quand elle apprend le cabinet' web/public/v10/app.js \
+prouver 'la Comptabilité qui ne se redessine pas quand elle apprend le cabinet' modules/socle/ecrans/entreprise/app-1.js \
   $'if (/^#\\/(compta|paie)/.test(location.hash) && !$(\'#modal-root .modal\')' $'if (false && !$(\'#modal-root .modal\')' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
-prouver 'la fenêtre d'\''envoi au comptable qui dit le CSV joint' web/public/v10/app.js \
+prouver 'la fenêtre d'\''envoi au comptable qui dit le CSV joint' modules/socle/ecrans/entreprise/app-2.js \
   $'${bridge.dessinerMandat ? \'Le journal des ventes se télécharge' $'${false ? \'Le journal des ventes se télécharge' \
   '« Envoyer au comptable… » : le journal se télécharge'
-prouver '« 1 documents » dans le message au comptable' web/public/v10/app.js \
+prouver '« 1 documents » dans le message au comptable' modules/socle/ecrans/entreprise/app-2.js \
   $'.replace(/(^|\\D)1 documents\\b/, (m, avant) => `${avant}1 document`)' $'' \
   '« Envoyer au comptable… » : le journal se télécharge'
 prouver 'le fichier d'\''un message qui ne s'\''enregistre pas sous son nom' web/public/plateforme/messagerie.js \
   $'      surClic(fil, \'[data-msg-enregistrer]\', async (b) => { await ouvrirFichier(o.appel, String(b.dataset.msgEnregistrer), true); });' $'' \
   'Amine et son comptable s'\''écrivent : la pastille'
-prouver 'un mois en cours qui propose de déclarer un mois d'\''avant le livre' web/public/v10/cabinet/app.js \
+prouver 'un mois en cours qui propose de déclarer un mois d'\''avant le livre' modules/socle/ecrans/cabinet/app-1.js \
   $': ((s.livre && s.livre.ecritures) || []).some(e => String(e.date || \'\').slice(0, 7) <= precedent)' $': true' \
   'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant »'
-prouver 'l'\''alerte du 4367 sur un mois qui n'\''est pas fini' web/public/v10/cabinet/app.js \
+prouver 'l'\''alerte du 4367 sur un mois qui n'\''est pas fini' modules/socle/ecrans/cabinet/app-1.js \
   $'const visibles = enCours && !posee ? echecs.filter(c => c.id !== \'tva-soldee\') : echecs;' $'const visibles = echecs;' \
   'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant »'
-prouver 'le nom et la date du signataire qui élargissent la colonne « Revu »' web/public/v10/cabinet/app.js \
+prouver 'le nom et la date du signataire qui élargissent la colonne « Revu »' modules/socle/ecrans/cabinet/app-1.js \
   $'? \'<span class="badge b-paid">revu</span>\'' $'? \'<span class="badge b-paid">revu</span> \' + esc(c.revuPar || \'\') + \' · 21/10/2026\'' \
   'la révision se tient à la souris'
-prouver 'le menu d'\''un compte signé qui ne dit pas qui l'\''a signé' web/public/v10/cabinet/app.js \
+prouver 'le menu d'\''un compte signé qui ne dit pas qui l'\''a signé' modules/socle/ecrans/cabinet/app-1.js \
   $'.filter(Boolean).join(\' \')} ; le compte redeviendra « à revoir ».`' $'.filter(Boolean).slice(9).join(\' \')}Le compte redevient « à revoir ».`' \
   'la révision se tient à la souris'
 prouver 'la ligne d'\''avancement de la révision plus haute avec son bouton' web/public/v10/cabinet/cabinet.css \
@@ -18547,10 +18547,10 @@ prouver 'la réponse qui ne dit pas à quelle question' web/public/plateforme/me
 prouver 'la page qui glisse de côté quand elle ne défile plus' web/public/v10/style.css \
   $'overflow-y: auto; scrollbar-gutter: stable; padding: var(--main-haut)' $'overflow-y: auto; padding: var(--main-haut)' \
   'Amine et son comptable s'\''écrivent'
-prouver 'une question fermée qui se dit encore « répondue » au Cabinet' web/public/v10/cabinet/app.js \
+prouver 'une question fermée qui se dit encore « répondue » au Cabinet' modules/socle/ecrans/cabinet/app-1.js \
   $'${q.statut === \'close\' ? \'<span class="badge">close</span>\' : \'<span class="badge b-paid">répondue</span>\'}<div class="small">' $'<span class="badge b-paid">répondue</span><div class="small">' \
   'la révision se tient à la souris'
-prouver 'la Production sans mois fini qui promet une grille vide' web/public/v10/cabinet/app.js \
+prouver 'la Production sans mois fini qui promet une grille vide' modules/socle/ecrans/cabinet/app-1.js \
   ': L.length && !P.cols.length ? `${aFaireTb(pri)}' ': false ? `${aFaireTb(pri)}' \
   'sans aucun mois fini'
 prouver '« C'"'"'est traité » offert à un client qui n'"'"'est plus à traiter' web/public/plateforme/messagerie.js \
@@ -18586,55 +18586,55 @@ prouver 'le champ refusé qui perd le curseur quand son refus s'\''affiche desso
 prouver 'la paie confiée qui se montre décochée après l'\''invitation' web/public/plateforme/pont.js \
   $"      if (confie) for (const c of panneau.querySelectorAll('[data-perimetre]'))" $"      if (false) for (const c of panneau.querySelectorAll('[data-perimetre]'))" \
   'le client invite par e-mail'
-prouver 'le brouillard venu de SkanFact validé sans qu'\''on puisse lire ses comptes' web/public/v10/cabinet/app.js \
+prouver 'le brouillard venu de SkanFact validé sans qu'\''on puisse lire ses comptes' modules/socle/ecrans/cabinet/app-2.js \
   $"      if (e.source === 'skanfact' && livresState.onglet === 'saisie') a.push({ icon: 'loupe', label: 'Voir ses lignes'," $"      if (false) a.push({ icon: 'loupe', label: 'Voir ses lignes'," \
   'Consulter se relit en revenant sur la fenêtre'
-prouver '« Voir le brouillard » qui arrive en haut de la grille' web/public/v10/cabinet/app.js \
+prouver '« Voir le brouillard » qui arrive en haut de la grille' modules/socle/ecrans/cabinet/app-1.js \
   $"if (vs) vs.onclick = () => { if (/brouillard/.test(vs.textContent || '')) pageFocus = 'sa-brouillard'; allerSousOnglet" $"if (vs) vs.onclick = () => { allerSousOnglet" \
   'Consulter se relit en revenant sur la fenêtre'
-prouver 'le curseur dans « Pièce » qui fait remonter la page au-dessus du brouillard' web/public/v10/cabinet/app.js \
+prouver 'le curseur dans « Pièce » qui fait remonter la page au-dessus du brouillard' modules/socle/ecrans/cabinet/app-2.js \
   $"if (pc) pc.focus({ preventScroll: true });" $"if (pc) pc.focus();" \
   'Consulter se relit en revenant sur la fenêtre'
 # ── 1.102.0 : la Paie du Cabinet se relit en revenant sur la fenêtre (docs/recette.md, « 1.102.0 ») ──
-prouver 'la Paie du Cabinet qui attend F5 pour montrer le salarié du client' 'web/public/v10/cabinet/app.js' \
+prouver 'la Paie du Cabinet qui attend F5 pour montrer le salarié du client' modules/socle/ecrans/cabinet/app-1.js \
   "(groupeCompta(s.onglet).id === 'saisir' && s.onglet !== 'paie')" \
   "groupeCompta(s.onglet).id === 'saisir'" \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'la Paie relue sans jamais se redessiner' 'web/public/v10/cabinet/app.js' \
+prouver 'la Paie relue sans jamais se redessiner' modules/socle/ecrans/cabinet/app-1.js \
   '(revDuLivre(r.livre) === revDuLivre(s.livre) && paieDuLivre(r.livre) === paieDuLivre(s.livre))' \
   'revDuLivre(r.livre) === revDuLivre(s.livre)' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 
 # ── 1.102.0 : une écriture datée après aujourd'hui le dit avant le geste (docs/recette.md, « 1.102.0 ») ──
-prouver 'la Paie qui pousse à valider une écriture de paie avant son jour' 'web/public/v10/cabinet/app.js' \
+prouver 'la Paie qui pousse à valider une écriture de paie avant son jour' modules/personnel/ecrans/cabinet/paie.js \
   'const paieAttendSonJour = ecrPaie && String(ecrPaie.date || '\'''\'') > K.today() ? String(ecrPaie.date) : '\'''\'';' \
   'const paieAttendSonJour = '\'''\'';' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver '« Valider cette écriture » offert avant le jour de l'\''écriture' 'web/public/v10/cabinet/app.js' \
+prouver '« Valider cette écriture » offert avant le jour de l'\''écriture' modules/socle/ecrans/cabinet/app-2.js \
   'if (String(e.date || '\'''\'') > K.today()) Object.assign(a[a.length - 1],' \
   'if (false) Object.assign(a[a.length - 1],' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver 'un lot qui compte la pièce de paie du 31' 'web/public/v10/cabinet/app.js' \
+prouver 'un lot qui compte la pièce de paie du 31' modules/socle/ecrans/cabinet/app-2.js \
   '    const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
   '    const lotsBl = lotsDuBrouillard(brouillards.filter(e => !e.attente)).filter(' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver 'la pièce qui attend son jour, jamais nommée' 'web/public/v10/cabinet/app.js' \
+prouver 'la pièce qui attend son jour, jamais nommée' modules/socle/ecrans/cabinet/app-2.js \
   '(brouillards.filter(e => String(e.date || '\'''\'') > K.today()))}' \
   '([])}' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver '« Ce qui ne tombe pas juste » sous un brouillard sans lot' 'web/public/v10/cabinet/app.js' \
+prouver '« Ce qui ne tombe pas juste » sous un brouillard sans lot' modules/socle/ecrans/cabinet/app-2.js \
   '${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ?' \
   '${r.validerParLot && peutValiderCl(dossier) ?' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver 'un lot qui demande à valider la pièce de demain' 'web/public/v10/cabinet/app.js' \
+prouver 'un lot qui demande à valider la pièce de demain' modules/socle/ecrans/cabinet/app-2.js \
   '&& (!filtre.mois || String(e.date || '\'''\'').slice(0, 7) === filtre.mois) && String(e.date || '\'''\'') <= K.today());' \
   '&& (!filtre.mois || String(e.date || '\'''\'').slice(0, 7) === filtre.mois));' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver 'un lot qui envoie au serveur la pièce de demain' 'web/public/v10/cabinet/app.js' \
+prouver 'un lot qui envoie au serveur la pièce de demain' modules/socle/ecrans/cabinet/app-2.js \
   'mois: filtre.mois, ids: cibles.map(e => e.id) });' \
   'mois: filtre.mois });' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver '« La valider dans la saisie » qui ouvre le haut de la grille' 'web/public/v10/cabinet/app.js' \
+prouver '« La valider dans la saisie » qui ouvre le haut de la grille' modules/personnel/ecrans/cabinet/paie.js \
   'if (pv) pv.onclick = () => { pageFocus = '\''sa-brouillard'\''; allerSousOnglet(root, dossier, '\''saisie'\''); };' \
   'if (pv) pv.onclick = () => { allerSousOnglet(root, dossier, '\''saisie'\''); };' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
@@ -18653,15 +18653,15 @@ prouver 'le refus de la pièce sans nom qui reste quand on la nomme' 'web/public
   '' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 
-prouver 'l'\''Accueil muet sur la pièce que le cabinet attend' 'web/public/v10/app.js' \
+prouver 'l'\''Accueil muet sur la pièce que le cabinet attend' modules/socle/ecrans/entreprise/app-1.js \
   '    if (attendu.length && !pageCachee('\''comptable'\'')) items = [{ id: '\''cabinet-attend'\'',' \
   '    if (false) items = [{ id: '\''cabinet-attend'\'',' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
-prouver '« À faire » qui ne suit pas ce que le cabinet attend sans recharger' 'web/public/v10/app.js' \
+prouver '« À faire » qui ne suit pas ce que le cabinet attend sans recharger' modules/socle/ecrans/entreprise/app-1.js \
   '    if (cleAttente(vueAvant) !== cleAttente(a) && routeOf(location.hash)' \
   '    if (false && routeOf(location.hash)' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
-prouver '« Répondre » qui ne mène pas au fil du cabinet' 'web/public/v10/app.js' \
+prouver '« Répondre » qui ne mène pas au fil du cabinet' modules/socle/ecrans/entreprise/app-1.js \
   '    '\''cabinet-attend'\'': { label: '\''Répondre'\'', run: vers('\''#/comptable'\'') },' \
   '    '\''cabinet-attend'\'': { label: '\''Répondre'\'', run: vers('\''#/dashboard'\'') },' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
@@ -18781,27 +18781,27 @@ prouver 'le retour qui ne dit pas où sont les écritures' 'web/public/plateform
   'poste.envoyeEcritures(parties, refusees);' \
   'poste.envoye(parties);' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
-prouver 'le brouillard qui ne dit pas ce qui attend le réseau' 'web/public/v10/cabinet/app.js' \
+prouver 'le brouillard qui ne dit pas ce qui attend le réseau' modules/socle/ecrans/cabinet/app-2.js \
   'e.attente ? (e.refus ? `<small class="err-inline sa-refusee"' \
   'false ? (e.refus ? `<small class="err-inline sa-refusee"' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
-prouver 'un lot qui compte l'\''écriture que le serveur n'\''a pas' 'web/public/v10/cabinet/app.js' \
+prouver 'un lot qui compte l'\''écriture que le serveur n'\''a pas' modules/socle/ecrans/cabinet/app-2.js \
   'const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).filter(' \
   'const lotsBl = lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).filter(' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
-prouver 'valider une écriture qui attend le réseau, offert' 'web/public/v10/cabinet/app.js' \
+prouver 'valider une écriture qui attend le réseau, offert' modules/socle/ecrans/cabinet/app-2.js \
   '      if (e.attente) Object.assign(a[a.length - 1], {' \
   '      if (false) Object.assign(a[a.length - 1], {' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
-prouver '« Enregistrer et valider » sans réseau qui écrit d'\''abord' 'web/public/v10/cabinet/app.js' \
+prouver '« Enregistrer et valider » sans réseau qui écrit d'\''abord' modules/socle/ecrans/cabinet/app-2.js \
   '      if (puisValider && typeof api.horsLigne === '\''function'\'' && api.horsLigne()) {' \
   '      if (false) {' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
-prouver 'le message qui dit enregistrée ce qui est gardé' 'web/public/v10/cabinet/app.js' \
+prouver 'le message qui dit enregistrée ce qui est gardé' modules/socle/ecrans/cabinet/app-2.js \
   'toast(res.attente ? '\''Gardée' \
   'toast(false ? '\''Gardée' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
-prouver 'se déconnecter sans dire ce qui serait perdu' 'web/public/v10/cabinet/app.js' \
+prouver 'se déconnecter sans dire ce qui serait perdu' modules/socle/ecrans/cabinet/app-1.js \
   '      + (n ? `<p class="err-inline" id="deco-attente">' \
   '      + (false ? `<p class="err-inline" id="deco-attente">' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
@@ -18813,11 +18813,11 @@ prouver 'le compte de ce qui attend, toujours nul' 'web/public/plateforme/pont-c
   '    ecrituresEnAttente: async () => (await lesAttentes()).length,' \
   '    ecrituresEnAttente: async () => 0,' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
-prouver 'la fenêtre qui refuse de valider sans offrir le brouillard' 'web/public/v10/cabinet/app.js' \
+prouver 'la fenêtre qui refuse de valider sans offrir le brouillard' modules/socle/ecrans/cabinet/app-2.js \
   ''\''Enregistrer en brouillard'\'')) await enregistrer(false);' \
   ''\''Enregistrer en brouillard'\'')) { /* rien */ }' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
-prouver 'joindre un justificatif à une écriture qui attend le réseau, offert' 'web/public/v10/cabinet/app.js' \
+prouver 'joindre un justificatif à une écriture qui attend le réseau, offert' modules/socle/ecrans/cabinet/app-2.js \
   '    if (e.attente) Object.assign(a[a.length - 1], { hint: '\''Une fois partie au serveur, au retour du réseau'\'', off: true,
       run: () => infoDialog('\''Elle attend le réseau'\'', '\''Cette écriture est gardée sur ce poste : son justificatif' \
   '    if (false) Object.assign(a[a.length - 1], { hint: '\''Une fois partie au serveur, au retour du réseau'\'', off: true,
@@ -19056,7 +19056,7 @@ prouver 'un exercice de la veille rouvert pour être refusé' 'web/console/src/e
   '    return x && frais && typeof x.fiche' \
   '    return x && typeof x.fiche' \
   'un exercice de plus de douze heures'
-prouver 'Enregistrer cliqué pendant que la photo lue se joint' 'web/public/v10/app.js' \
+prouver 'Enregistrer cliqué pendant que la photo lue se joint' modules/socle/ecrans/entreprise/app-1.js \
   "      for (const b of [\$('#save'), \$('#b-save-bas')]) if (b) b.disabled = true;" \
   '' \
   'acheter, la banque, la déclaration du mois'
@@ -19134,7 +19134,7 @@ prouver 'la pièce demandée qui part dès le fichier choisi' $MJ \
 prouver 'la question répondue sans étiquette' $MJ \
   "          : q.reponse ? '<span class=\"msg-q-etat ok\">Répondue</span>' : '';" "          : '';" \
   "$MSGW"
-prouver '« Mon comptable » qui ne paraît pas dans le pied du menu' web/public/v10/app.js \
+prouver '« Mon comptable » qui ne paraît pas dans le pied du menu' modules/socle/ecrans/entreprise/app-1.js \
   '      if (lien) lien.hidden = !avecMessagerie(a);' '      if (lien) lien.hidden = true;' \
   "$MSGW"
 # (1.181.0) Au téléphone, la zone tient sa hauteur par trois endroits (messagerie.css, la barre des deux applications dans
@@ -19224,7 +19224,7 @@ prouver 'la photo du client vide (cabinet)' web/public/v10/cabinet/index.html \
 prouver '« Saisir cette pièce » absent' $MJ \
   ": !entreprise && m.cote === 'entreprise' && !m.achat && o.saisirPiece && actif ?" ": false ?" \
   "$MSGW"
-prouver '« Saisir cette pièce » qui ne mène pas à la saisie' web/public/v10/cabinet/app.js \
+prouver '« Saisir cette pièce » qui ne mène pas à la saisie' modules/socle/ecrans/cabinet/app-1.js \
   "      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);" "" \
   "$MSGW"
 prouver 'la demande groupée sans client' $MJ \
@@ -19237,7 +19237,7 @@ prouver 'la demande groupée absente de la conversation ouverte' $MJ \
   "        if (ouverte) void ouverte.c.relire();
         if (o.toast)" "        if (o.toast)" \
   "$MW115"
-prouver 'la pièce citée ouverte sans son numéro cherché' web/public/v10/cabinet/app.js \
+prouver 'la pièce citée ouverte sans son numéro cherché' modules/socle/ecrans/cabinet/app-1.js \
   "      Object.assign(livresState, { brouillard: true, q: numero, journal: '', page: 1, onglet: 'journal' });" "      Object.assign(livresState, { onglet: 'journal' });" \
   "$MW115"
 
@@ -19290,7 +19290,7 @@ prouver 'un client cherché en majuscules, introuvable' $MJ \
   "$MW115"
 # (Réajustée le 31/10/2026 : la pastille de la ligne d'avant, `.dl-msg` posée par majPastillesDossiers, ne trouve plus
 # sa cellule depuis la liste de la maquette (1.169.0) ; la pastille vivante est `.cd-nl`, tirée de `at`.)
-prouver 'la pastille des messages sur un client sans rien à traiter' web/public/v10/cabinet/app.js \
+prouver 'la pastille des messages sur un client sans rien à traiter' modules/socle/ecrans/cabinet/app-1.js \
   "at: m.etat === 'a_traiter' };" "at: !!m.etat };" \
   "$MW115"
 
@@ -19374,14 +19374,14 @@ prouver 'abo 118 : le bandeau qui propose de choisir à qui ne règle pas' $AJ11
 prouver 'abo 118 : le bandeau pendant un essai qui court' $AJ118 \
   "    if (!e || !p.show || p.ton === 'calme') return null;" "    if (!e || !p.show) return null;" \
   "$T118B"
-prouver 'abo 118 : l'\''accueil muet en lecture seule' web/public/v10/app.js \
+prouver 'abo 118 : l'\''accueil muet en lecture seule' modules/socle/ecrans/entreprise/app-1.js \
   "      \${bandeauAbonnementAccueil()}
       \${bandeauAccordsAccueil()}" "      \${bandeauAccordsAccueil()}" \
   "$W118L"
-prouver 'abo 118 : deux verts en grâce' web/public/v10/app.js \
+prouver 'abo 118 : deux verts en grâce' modules/socle/ecrans/entreprise/app-1.js \
   "    const premierPrincipal = !abonnementPrincipal();" "    const premierPrincipal = true;" \
   "$W118G"
-prouver 'abo 118 : les premiers pas pendant la grâce' web/public/v10/app.js \
+prouver 'abo 118 : les premiers pas pendant la grâce' modules/socle/ecrans/entreprise/app-1.js \
   "    const pas = aboPrincipal ? '' : premiersPas();" "    const pas = premiersPas();" \
   "$W118G"
 prouver 'abo 118 : la grâce sans sa durée' $AJ118 \
@@ -19390,13 +19390,13 @@ prouver 'abo 118 : la grâce sans sa durée' $AJ118 \
 prouver 'abo 118 : « À régler » sans facture' $AJ118 \
   "pastille: suite.aFaire === 'payer' ? 'À régler' : e.apresEssai ? 'Essai terminé' : 'Non renouvelé'," "pastille: 'À régler'," \
   "$W118G"
-prouver 'abo 118 : le bouton du bandeau qui ne mène nulle part' web/public/v10/app.js \
+prouver 'abo 118 : le bouton du bandeau qui ne mène nulle part' modules/socle/ecrans/entreprise/app-1.js \
   "      allerAbonnement();
     };
     if (\$('#new-devis'))" "    };
     if (\$('#new-devis'))" \
   "$W118L"
-prouver 'abo 118 : le commercial à qui on ne dit pas qui règle' web/public/v10/app.js \
+prouver 'abo 118 : le commercial à qui on ne dit pas qui règle' modules/socle/ecrans/entreprise/app-1.js \
   "    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
     if (!b) return '';" "    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(true) : null;
     if (!b) return '';" \
@@ -19616,27 +19616,27 @@ prouver 'abo 120 : la pastille qui ne suit pas le panneau' web/public/plateforme
 prouver 'abo 120 : le retour du paiement vers l'\''entreprise' web/public/espace/retour.js \
   "  const duCabinet = abonnement.startsWith('c:');" "  const duCabinet = false;" \
   "$W120"
-prouver 'abo 120 : « Ton abonnement » amené par son milieu' web/public/v10/cabinet/app.js \
+prouver 'abo 120 : « Ton abonnement » amené par son milieu' modules/socle/ecrans/cabinet/app-2.js \
   "        if (haut) { haut.scrollIntoView({ block: 'start' });" "        if (haut) { haut.scrollIntoView({ block: 'center', behavior: 'smooth' });" \
   "$W120"
-prouver 'abo 120 : le second dessin des Réglages qui oublie le panneau demandé' web/public/v10/cabinet/app.js \
+prouver 'abo 120 : le second dessin des Réglages qui oublie le panneau demandé' modules/socle/ecrans/cabinet/app-2.js \
   "    const vise = reglagesFocus || reglagesAAmener;" "    const vise = reglagesFocus;" \
   "$W120"
-prouver 'abo 120 : un redessin sur place qui perd la place du lecteur' web/public/v10/cabinet/app.js \
+prouver 'abo 120 : un redessin sur place qui perd la place du lecteur' modules/socle/ecrans/cabinet/app-2.js \
   "    const lieu = view.querySelector('#set-corps') && !reglagesFocus && !reglagesAAmener ? { haut: defileur.scrollTop, page: window.scrollY } : null;" "    const lieu = null;" \
   "$W120"
-prouver 'abo 120 : la place du lecteur rendue avant que les panneaux soient remplis' web/public/v10/cabinet/app.js \
+prouver 'abo 120 : la place du lecteur rendue avant que les panneaux soient remplis' modules/socle/ecrans/cabinet/app-2.js \
   "      if (lieu) { defileur.scrollTop = lieu.haut; window.scrollTo(0, lieu.page); }
 " "" \
   "$W120"
-prouver 'abo 120 : le panneau ramené de force à chaque redessin' web/public/v10/cabinet/app.js \
+prouver 'abo 120 : le panneau ramené de force à chaque redessin' modules/socle/ecrans/cabinet/app-2.js \
   "      if (reglagesAAmener === vise) reglagesAAmener = '';
 " "" \
   "$W120"
 prouver 'abo 120 : le code d'\''une nouveauté qui déborde du journal au téléphone' web/console/src/console.css \
   ".c-jr-change, .c-jr-sur { overflow-wrap: anywhere; }" "" \
   "en clair et en sombre, à l'ordinateur et au téléphone : l'instrument ne trouve rien ; en langue factice, tout vient du catalogue"
-prouver 'abo 120 : le retour du paiement qui n'\''ouvre pas « Ton abonnement »' web/public/v10/cabinet/app.js \
+prouver 'abo 120 : le retour du paiement qui n'\''ouvre pas « Ton abonnement »' modules/socle/ecrans/cabinet/app-1.js \
   "    if (api.ouvertureAbonnement && api.ouvertureAbonnement()) {" "    if (false) {" \
   "$W120"
 
@@ -19666,7 +19666,7 @@ prouver 'abo 121 : le refus de créer un dossier, sans chemin vers l'\''abonneme
   ",
             vers: 'pan-licence', bouton: 'Ouvrir mon abonnement' };" " };" \
   "$W121"
-prouver 'abo 121 : le bouton du refus qui ne mène nulle part' web/public/v10/cabinet/app.js \
+prouver 'abo 121 : le bouton du refus qui ne mène nulle part' modules/socle/ecrans/cabinet/app-2.js \
   "        if (v) v.onclick = () => { close(); versReglages(peut.vers); };" "        if (v) v.onclick = () => { close(); };" \
   "$W121"
 prouver 'abo 121 : le libellé relié à sa bulle « i », pas à sa case' web/src/composants/Champ.tsx \
@@ -19699,7 +19699,7 @@ prouver 'abo 122 : la pastille de l'\''échéance sur trois lignes' $AJ122 \
 prouver 'abo 122 : le dernier jour de l'\''essai qui ne passe pas au rouge' $AJ122 \
   "return j <= 0 ? { show: true, ton: 'alerte', texte: 'Essai : dernier jour' }" "return j <= 0 ? { show: true, ton: 'attire', texte: 'Essai : dernier jour' }" \
   "$T122P"
-prouver 'abo 122 : la pastille orange à côté d'\''un bandeau rouge' web/public/v10/app.js \
+prouver 'abo 122 : la pastille orange à côté d'\''un bandeau rouge' modules/socle/ecrans/entreprise/app-2.js \
   "    el.classList.toggle('alerte', p.ton === 'alerte');
 " "" \
   "$T122E"
@@ -19709,7 +19709,7 @@ prouver 'abo 122 : « Choisir mon offre » du bandeau qui ouvre le haut de l'\''
 prouver 'abo 122 : l'\''endroit demandé par le bandeau oublié au dessin' $AJ122 \
   "    if (vers) {" "    if (false) {" \
   "$T122L"
-prouver 'abo 122 : le bandeau de l'\''entreprise suspendue qui ouvre un e-mail' web/public/v10/app.js \
+prouver 'abo 122 : le bandeau de l'\''entreprise suspendue qui ouvre un e-mail' modules/socle/ecrans/entreprise/app-1.js \
   "        if (bridge.support) { void ecrireAuSupport('question'); return; }
 " "" \
   "$T122U"
@@ -19757,20 +19757,20 @@ prouver 'abo 122 : l'\''état qui annonce un rappel quand la facture du renouvel
   "          : suite.aFaire === 'payer' ? \`Encore \${pl(j, 'jour')}. Ta facture du renouvellement" "          : false ? \`Encore \${pl(j, 'jour')}. Ta facture du renouvellement" \
   "$T122H"
 # (1.260.0) La liste des devis remplace listView : les trois défauts se posent sur listeDevis.
-prouver 'abo 122 : la liste en lecture seule qui propose de créer' web/public/v10/app.js \
+prouver 'abo 122 : la liste en lecture seule qui propose de créer' modules/socle/ecrans/entreprise/app-1.js \
   "Voir l'abonnement</button>\`
           : \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"new\" aria-keyshortcuts=\"N D\">" "Voir l'abonnement</button><button id=\"new\">Nouveau devis</button>\`
           : \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"new\" aria-keyshortcuts=\"N D\">" \
   "$T122E"
-prouver 'abo 122 : l'\''état vide en lecture seule qui pousse à créer' web/public/v10/app.js \
+prouver 'abo 122 : l'\''état vide en lecture seule qui pousse à créer' modules/socle/ecrans/entreprise/app-1.js \
   ": lecture ? etatVide('Proposer un prix, avant de travailler'" ": false ? etatVide('Proposer un prix, avant de travailler'" \
   "$T122E"
-prouver 'abo 122 : l'\''état vide qui ne dit pas pourquoi la création attend' web/public/v10/app.js \
+prouver 'abo 122 : l'\''état vide qui ne dit pas pourquoi la création attend' modules/socle/ecrans/entreprise/app-1.js \
   "          \`<b>\${h(licence.label)}.</b> \${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.\`], [['vide-abo', 'Voir l\\'abonnement', true]])
         : \`<div class=\"panel premiere\"><div class=\"pr-t\"><span class=\"pr-ic\">\${lfIc('piece', 26, 1.8)}</span><h2>Proposer un prix" "          \`<b>\${h(licence.label)}.</b> \${h(licence.detail || '')}\`], [['vide-abo', 'Voir l\\'abonnement', true]])
         : \`<div class=\"panel premiere\"><div class=\"pr-t\"><span class=\"pr-ic\">\${lfIc('piece', 26, 1.8)}</span><h2>Proposer un prix" \
   "$T122E"
-prouver 'abo 122 : le premier dossier tenu qui ne dit pas qu'\''il est gratuit' web/public/v10/cabinet/app.js \
+prouver 'abo 122 : le premier dossier tenu qui ne dit pas qu'\''il est gratuit' modules/socle/ecrans/cabinet/app-2.js \
   "       \${peut && peut.gratuit ?" "       \${false ?" \
   "$T122C"
 prouver 'abo 122 : la pastille du cabinet sur trois lignes' web/public/plateforme/abonnement-cabinet.js \
@@ -19781,13 +19781,13 @@ prouver 'abo 122 : la pastille du cabinet sur trois lignes' web/public/plateform
 prouver 'mois 123 : la date « pour le » que le serveur tait' serveur/messagerie/routes.ts \
   "pourLe: r.pour_le, aLire" "pourLe: null, aLire" \
   'la date « pour le » : aujourd'\''hui ou plus tard, avec une pièce demandée ; passée sans réponse, la demande est en retard des deux côtés et dans la boîte'
-prouver 'mois 123 : l'\''Accueil « #/ » que l'\''« À faire » ne redessine pas' web/public/v10/app.js \
+prouver 'mois 123 : l'\''Accueil « #/ » que l'\''« À faire » ne redessine pas' modules/socle/ecrans/entreprise/app-1.js \
   "routeOf(location.hash) === 'dashboard' && !\$('#modal-root .modal')" "/^(#\\/dashboard)?\$/.test(location.hash) && !\$('#modal-root .modal')" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
-prouver 'mois 123 : l'\''« À faire » qui tait la date de la pièce attendue' web/public/v10/app.js \
+prouver 'mois 123 : l'\''« À faire » qui tait la date de la pièce attendue' modules/socle/ecrans/entreprise/app-1.js \
   "detail: \`\${quand}Réponds-lui" "detail: \`Réponds-lui" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
-prouver 'mois 123 : la date de la première de plusieurs pièces attendues' web/public/v10/app.js \
+prouver 'mois 123 : la date de la première de plusieurs pièces attendues' modules/socle/ecrans/entreprise/app-1.js \
   "\${mv.demandes > 1 ? 'La première est attendue' : 'Elle est attendue'}" "Elle est attendue" \
   'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 prouver 'mois 123 : la photo qui ne retrouve pas l'\''achat que la demande cite' web/public/plateforme/messagerie.js \
@@ -19804,10 +19804,10 @@ prouver 'mois 123 : « Copier le lien » qui n'\''est pas l'\''étape suivante' 
   "class=\"btn btn-sm btn-primary\" id=\"mandat-lien-copier\"" "class=\"btn btn-sm\" id=\"mandat-lien-copier\"" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
 # (1.169.0) Preuve retirée, « mois 123 : « tout est à jour » à côté d'une ligne à valider » : la phrase « Rien en retard… » de l'ancienne liste des dossiers n'existe plus : la ligne dit son mois « à réviser » (preuve « le point vert d'une ligne à valider »).
-prouver 'mois 123 : le point vert d'\''une ligne à valider' web/public/v10/cabinet/app.js \
+prouver 'mois 123 : le point vert d'\''une ligne à valider' modules/socle/ecrans/cabinet/app-1.js \
   "if (ecrC) return brC ? { cl: 'cours', mot:" "if (ecrC) return brC ? { cl: 'fait', mot:" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
-prouver 'mois 123 : « Ajouter mes clients » vert pendant qu'\''une entreprise attend « Accepter »' web/public/v10/cabinet/app.js \
+prouver 'mois 123 : « Ajouter mes clients » vert pendant qu'\''une entreprise attend « Accepter »' modules/socle/ecrans/cabinet/app-1.js \
   "class=\"btn\${/btn-primary/.test(inboxBanner()) ? '' : ' btn-primary'}\" id=\"new-d\"" "class=\"btn btn-primary\" id=\"new-d\"" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
 
@@ -19821,16 +19821,16 @@ prouver 'mois 124 : le résumé qui déborde avant le début du mois' serveur/co
 prouver 'mois 124 : « Mon comptable » sans la carte « Ce mois-ci »' web/public/plateforme/messagerie.js \
   "const carteMois = mois ?" "const carteMois = false ?" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
-prouver 'mois 124 : l'\''achat sans justificatif que la carte tait' web/public/v10/app.js \
+prouver 'mois 124 : l'\''achat sans justificatif que la carte tait' modules/socle/ecrans/entreprise/app-2.js \
   "const sansPiece = achats.filter(p => C.sansJustificatif(p)).length;" "const sansPiece = 0;" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
-prouver 'mois 124 : la carte qui ne mène pas aux achats sans justificatif' web/public/v10/app.js \
+prouver 'mois 124 : la carte qui ne mène pas aux achats sans justificatif' modules/socle/ecrans/entreprise/app-2.js \
   "action: sansPiece ? {" "action: false ? {" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
-prouver 'mois 124 : « tout le mois » validé qui ne se dit pas' web/public/v10/app.js \
+prouver 'mois 124 : « tout le mois » validé qui ne se dit pas' modules/socle/ecrans/entreprise/app-2.js \
   "if (!r.brouillard) return \`Ton cabinet a validé tout le mois" "if (false) return \`Ton cabinet a validé tout le mois" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
-prouver 'mois 124 : une visite neuve qui garde la lecture d'\''avant la validation' web/public/v10/app.js \
+prouver 'mois 124 : une visite neuve qui garde la lecture d'\''avant la validation' modules/socle/ecrans/entreprise/app-2.js \
   "    ceMoisLu = null; // une visite neuve" "    void 0; // une visite neuve" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
 prouver 'mois 124 : la paie demandée à chaque ouverture d'\''un dossier qui ne la confie pas' web/public/plateforme/pont-cabinet.js \
@@ -19851,38 +19851,38 @@ prouver 'mois 125 : un justificatif compté sur une liste vide' base/migrations/
 prouver 'mois 125 : le Cabinet qui oublie ce que dit le serveur' web/public/plateforme/pont-cabinet.js \
   "justifClient: typeof e.justificatif === 'boolean' ? e.justificatif : null," "justifClient: null," \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 125 : le 📎 qui tait le justificatif du client' web/public/v10/cabinet/app.js \
+prouver 'mois 125 : le 📎 qui tait le justificatif du client' modules/socle/ecrans/cabinet/app-1.js \
   "if (ec && ec.justifClient === true) noms.push(" "if (false) noms.push(" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 125 : la ligne d'\''achat qui ne dit pas « sans justificatif »' web/public/v10/cabinet/app.js \
+prouver 'mois 125 : la ligne d'\''achat qui ne dit pas « sans justificatif »' modules/socle/ecrans/cabinet/app-1.js \
   "if (!noms.length) return ec && ec.justifClient === false ?" "if (!noms.length) return false ?" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 125 : « Demander le justificatif » absent du menu de la ligne' web/public/v10/cabinet/app.js \
+prouver 'mois 125 : « Demander le justificatif » absent du menu de la ligne' modules/socle/ecrans/cabinet/app-2.js \
   "if (e.justifClient === false && !dossier.manual && api.messagerie) {" "if (false) {" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
 prouver 'mois 125 : la demande qui ne porte pas la pièce écrite d'\''avance' web/public/plateforme/messagerie.js \
   "if (demande && o.demandeTexte && !demandeTxt.value) demandeTxt.value = o.demandeTexte;" "" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 125 : valider une écriture d'\''achat sans justificatif sans le dire' web/public/v10/cabinet/app.js \
+prouver 'mois 125 : valider une écriture d'\''achat sans justificatif sans le dire' modules/socle/ecrans/cabinet/app-1.js \
   "\${e.justifClient === false ? \`<p class=\"small\" id=\"ecr-sans-justif\">" "\${false ? \`<p class=\"small\" id=\"ecr-sans-justif\">" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 125 : valider un lot qui tait les achats sans justificatif' web/public/v10/cabinet/app.js \
+prouver 'mois 125 : valider un lot qui tait les achats sans justificatif' modules/socle/ecrans/cabinet/app-2.js \
   "const sansJustif = cibles.filter(e => e.justifClient === false);" "const sansJustif = [];" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
 
 prouver 'mois 126 : des achats dits confiés quand le mandat ne les confie pas' serveur/messagerie/routes.ts \
   "const achatsConfies = !!m && (m.perimetre ?? []).includes('saisie_achats');" "const achatsConfies = !!m;" \
   'ils s'\''écrivent ; chacun voit ce qui l'\''attend, « lu » se dit à l'\''autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier'
-prouver 'mois 126 : la page Achats qui ne regarde pas le périmètre du mandat' web/public/v10/app.js \
+prouver 'mois 126 : la page Achats qui ne regarde pas le périmètre du mandat' modules/socle/ecrans/entreprise/app-1.js \
   "messagerieVue.cabinet && messagerieVue.achatsConfies && bridge.messagerie" "messagerieVue.cabinet && bridge.messagerie" \
   'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
-prouver 'mois 126 : deux verts en haut de la page Achats confiés' web/public/v10/app.js \
+prouver 'mois 126 : deux verts en haut de la page Achats confiés' modules/socle/ecrans/entreprise/app-1.js \
   '<button class="btn ${videAchats || confies || lecture ? '"'"''"'"' : '"'"'btn-primary'"'"'}" id="new">' '<button class="btn ${videAchats || lecture ? '"'"''"'"' : '"'"'btn-primary'"'"'}" id="new">' \
   'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
-prouver 'mois 126 : la photo qui part sans dire qu'\''elle est une facture à saisir' web/public/v10/app.js \
+prouver 'mois 126 : la photo qui part sans dire qu'\''elle est une facture à saisir' modules/socle/ecrans/entreprise/app-1.js \
   "bridge.messagerie.envoyerFichier(f, \`Une facture d'achat à saisir : \${f.name}\`, null)" "bridge.messagerie.envoyerFichier(f, f.name, null)" \
   'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
-prouver 'mois 126 : la page Achats qui ne se redessine pas quand on apprend que les achats sont confiés' web/public/v10/app.js \
+prouver 'mois 126 : la page Achats qui ne se redessine pas quand on apprend que les achats sont confiés' modules/socle/ecrans/entreprise/app-1.js \
   "if (!!(vueAvant && vueAvant.achatsConfies) !== !!(a && a.achatsConfies) && routeOf(location.hash) === 'achats'" "if (false && routeOf(location.hash) === 'achats'" \
   'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
 prouver 'mois 127 : les encaissements comptés comme des ventes' serveur/compta/routes.ts \
@@ -19894,13 +19894,13 @@ prouver 'mois 127 : les règlements comptés comme des achats' serveur/compta/ro
 prouver 'mois 127 : un achat justifié compté sans justificatif' serveur/compta/routes.ts \
   ".filter((x) => !x.justifie).length" ".length" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 127 : le Suivi qui ne lit pas le mois' web/public/v10/cabinet/app.js \
+prouver 'mois 127 : le Suivi qui ne lit pas le mois' modules/socle/ecrans/cabinet/app-1.js \
   "else if (api.ceMois && document.getElementById('d-ce-mois')) dessinerCeMois(dossier, !row.missingCount);" "else if (false) dessinerCeMois(dossier, !row.missingCount);" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 127 : la carte du mois sans son vert' web/public/v10/cabinet/app.js \
+prouver 'mois 127 : la carte du mois sans son vert' modules/socle/ecrans/cabinet/app-1.js \
   "\${vert ? ' btn-primary' : ''}\" data-ce-mois-valider>" "\" data-ce-mois-valider>" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 127 : « Valider » qui mène au livre-journal' web/public/v10/cabinet/app.js \
+prouver 'mois 127 : « Valider » qui mène au livre-journal' modules/socle/ecrans/cabinet/app-1.js \
   "if (v) v.onclick = () => ouvrir(true);" "if (v) v.onclick = () => ouvrir(false);" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
 # (1.166.2) Preuve retirée, « mois 128 : la carte vide des questions avant l'invitation » : la page « Mon comptable » (1.159.0) n'a pas de carte des questions : l'invitation n'y passe plus par Comptabilité › Cabinet.
@@ -19913,62 +19913,62 @@ prouver 'mois 128 : le vert qui ne revient pas au code tapé' web/public/platefo
 prouver 'mois 128 : le cabinet qui nomme un chemin que le client ne prend pas' web/public/plateforme/pont-cabinet.js \
   "dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois)," "dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>," \
   'le client confie son dossier par le code que le Cabinet affiche ; l'\''associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation'
-prouver 'mois 129 : une proposition à chaque page neuve de la même ouverture' web/public/v10/app.js \
+prouver 'mois 129 : une proposition à chaque page neuve de la même ouverture' modules/socle/ecrans/entreprise/app-2.js \
   "if (visiteProposeeIci && !reprise) return;" "if (false) return;" \
   'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
-prouver 'mois 129 : la proposition posée qui ne se compte pas' web/public/v10/app.js \
+prouver 'mois 129 : la proposition posée qui ne se compte pas' modules/socle/ecrans/entreprise/app-2.js \
   "visiteProposeeIci = true;" "visiteProposeeIci = false;" \
   'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
-prouver 'mois 129 : « Ne plus me proposer » qui n'\''éteint rien' web/public/v10/app.js \
+prouver 'mois 129 : « Ne plus me proposer » qui n'\''éteint rien' modules/socle/ecrans/entreprise/app-2.js \
   "visitesPoser(e => { e.proposer = false; });" "visitesPoser(e => { e.proposer = true; });" \
   'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
-prouver 'mois 130 : « Envoyer au comptable… » sous « ton cabinet lit tout en direct »' web/public/v10/app.js \
+prouver 'mois 130 : « Envoyer au comptable… » sous « ton cabinet lit tout en direct »' modules/socle/ecrans/entreprise/app-2.js \
   "\${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable…'}</button>" "Envoyer au comptable…</button>" \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet et en face de la pièce ; la réponse est au serveur'
-prouver 'mois 131 : la validation qui finit encore sur une fenêtre à fermer' web/public/v10/cabinet/app.js \
+prouver 'mois 131 : la validation qui finit encore sur une fenêtre à fermer' modules/socle/ecrans/cabinet/app-2.js \
   "if (r.refusees.length) await infoDialog('Validation', lignes.join('\\n'));" "await infoDialog('Validation', lignes.join('\\n')); if (r.refusees.length) void 0;" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 131 : « prochaine étape » avec des écritures encore au brouillard' web/public/v10/cabinet/app.js \
+prouver 'mois 131 : « prochaine étape » avec des écritures encore au brouillard' modules/socle/ecrans/cabinet/app-2.js \
   "mois.has(String(e.date || '').slice(0, 7))).length;" "mois.has(String(e.date || '').slice(0, 7)) && false).length;" \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver 'mois 132 : le client neuf qui ouvre ses douze cases' web/public/v10/app.js \
+prouver 'mois 132 : le client neuf qui ouvre ses douze cases' modules/socle/ecrans/entreprise/app-1.js \
   "<details class=\"span-2 plus-details\" id=\"cf-plus\">" "<details open class=\"span-2 plus-details\" id=\"cf-plus\">" \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'\''il attend, ce qui reste des premiers pas, les envois'
-prouver 'mois 132 : le fournisseur neuf qui ouvre toutes ses cases' web/public/v10/app.js \
+prouver 'mois 132 : le fournisseur neuf qui ouvre toutes ses cases' modules/socle/ecrans/entreprise/app-1.js \
   "<details class=\"span-2 plus-details\" id=\"sf-plus\">" "<details open class=\"span-2 plus-details\" id=\"sf-plus\">" \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'\''invitation ne revient pas, la date se remplace'
 prouver 'mois 133 : les écritures d'\''une pièce qui ne regardent pas son numéro' serveur/compta/routes.ts \
   ".\$if(query.piece !== undefined, (q) => q.where('piece', '=', query.piece ?? ''))" ".\$if(query.piece === '§', (q) => q)" \
   'les écritures d'\''une pièce, par son numéro : la vente et son encaissement, rien de l'\''avoir ni d'\''une autre pièce'
-prouver 'mois 133 : la pièce émise restée un formulaire grisé' web/public/v10/app.js \
+prouver 'mois 133 : la pièce émise restée un formulaire grisé' modules/socle/ecrans/entreprise/app-1.js \
   "const lecture = locked && (isInv || isAv) && !isNew;" "const lecture = false;" \
   'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
-prouver 'mois 133 : le reçu compté sans les paiements' web/public/v10/app.js \
+prouver 'mois 133 : le reçu compté sans les paiements' modules/socle/ecrans/entreprise/app-1.js \
   "        const recu = C.round3(bal.paid + bal.credited);" "        const recu = C.round3(bal.credited);" \
   "Samia, sans matricule ni RIB : la pièce n'imprime rien de vide, la fiche se complète avant d'émettre, et le reste suit"
 prouver 'mois 133 : les cases grisées encore là sous le résumé' 'web/public/v10/style.css|||web/public/plateforme/piece.css' \
   ".editor.lecture #f-head > :not(#ed-affaire) { display: none; }|||.editor.charte.lecture #f-head > :not(.ed-options), .editor.charte.lecture .ed-options > :not(#ed-affaire) { display: none; }" ".editor.lecture #f-head > :not(#ed-affaire) { }|||.editor.charte.lecture #f-head > :not(.ed-options), .editor.charte.lecture .ed-options > :not(#ed-affaire) {  }" \
   "Samia, sans matricule ni RIB : la pièce n'imprime rien de vide, la fiche se complète avant d'émettre, et le reste suit"
-prouver 'mois 133 : une écriture validée dite au brouillard' web/public/v10/app.js \
+prouver 'mois 133 : une écriture validée dite au brouillard' modules/socle/ecrans/entreprise/app-1.js \
   "el.querySelector('dd').innerHTML = (x.statut === 'validee'" "el.querySelector('dd').innerHTML = (x.statut === 'valide'" \
   'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
 
-prouver 'ux2 134 : l'\''état vide d'\''une liste en lecture seule qui garde son vert de création' web/public/v10/app.js \
+prouver 'ux2 134 : l'\''état vide d'\''une liste en lecture seule qui garde son vert de création' modules/socle/ecrans/entreprise/app-1.js \
   "const retenue = aboBloque(true) && (boutons || []).some(([id]) => CREATION_RETENUE.has(id));" "const retenue = false;" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
-prouver 'ux2 134 : la paie sans salarié, en lecture seule, qui garde son vert' web/public/v10/app.js \
+prouver 'ux2 134 : la paie sans salarié, en lecture seule, qui garde son vert' modules/socle/ecrans/entreprise/app-1.js \
   "'emp-first', 'emp-imp', 'first-acc']);" "'first-acc']);" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
-prouver 'ux2 134 : la trésorerie sans compte, en lecture seule, qui garde son vert' web/public/v10/app.js \
+prouver 'ux2 134 : la trésorerie sans compte, en lecture seule, qui garde son vert' modules/socle/ecrans/entreprise/app-1.js \
   "'emp-first', 'emp-imp', 'first-acc']);" "'emp-first', 'emp-imp']);" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
-prouver 'ux2 134 : le « + Nouveau… » de tête qui reste vert en lecture seule' web/public/v10/app.js \
+prouver 'ux2 134 : le « + Nouveau… » de tête qui reste vert en lecture seule' modules/socle/ecrans/entreprise/app-1.js \
   "if (aboBloque(true)) \$\$('.page-head .btn-primary', view)" "if (false) \$\$('.page-head .btn-primary', view)" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
-prouver 'ux2 134 : le fournisseur neuf qui ne refuse qu'\''à « Enregistrer »' web/public/v10/app.js \
+prouver 'ux2 134 : le fournisseur neuf qui ne refuse qu'\''à « Enregistrer »' modules/socle/ecrans/entreprise/app-1.js \
   "if (!supplier && licenceBlock('Créer un fournisseur', 'achats')) { return; }" "" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
-prouver 'ux2 134 : « Voir l'\''abonnement » de l'\''état vide qui ne mène nulle part' web/public/v10/app.js \
+prouver 'ux2 134 : « Voir l'\''abonnement » de l'\''état vide qui ne mène nulle part' modules/socle/ecrans/entreprise/app-1.js \
   "e.target.closest('#vide-voir-abo')) allerAbonnement();" "e.target.closest('#vide-voir-abo')) void 0;" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 prouver 'ux2 134 : la messagerie hors ligne qui dit « le serveur ne répond pas »' web/public/plateforme/messagerie.js \
@@ -19992,13 +19992,13 @@ prouver 'mois 135 : les justificatifs d'\''une écriture lus par n'\''importe qu
 prouver 'mois 135 : un fichier de l'\''entreprise rendu par une écriture qui ne le porte pas' base/migrations/0180_classeur.sql \
   "with permis as (select l.fichier from compta.justificatifs_ecriture(p_entreprise, p_ecriture) l where l.fichier = p_fichier)" "with permis as (select p_fichier fichier)" \
   'les justificatifs d'\''une écriture : ceux de son achat, octet pour octet ; ni un autre fichier, ni un règlement, ni une autre personne'
-prouver 'mois 135 : le justificatif du client qui ne s'\''ouvre pas depuis la ligne' web/public/v10/cabinet/app.js \
+prouver 'mois 135 : le justificatif du client qui ne s'\''ouvre pas depuis la ligne' modules/socle/ecrans/cabinet/app-2.js \
   "if (e.justifClient === true && !e.attente && api.justificatifsEcriture) {" "if (false && api.justificatifsEcriture) {" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
 prouver 'mois 135 : l'\''onglet du justificatif qui reste vide' web/public/plateforme/pont-cabinet.js \
   "if (onglet) /** @type {any} */ (window).SkanMessagerie.montrerFichier(onglet, adresse, f.nom, f.type);" "void adresse;" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 135 : le mois d'\''avant le livre dit sans déclaration' web/public/v10/cabinet/app.js \
+prouver 'mois 135 : le mois d'\''avant le livre dit sans déclaration' modules/socle/ecrans/cabinet/app-1.js \
   "n'est pas dans ce livre : sa déclaration, à déposer au plus tard le \${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait" "n'est pas dans ce livre : rien à déposer avant lui, se fait" \
   'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant », pas d'\''alerte 4367 avant la fin du mois'
 prouver 'ux2 136 : l'\''entreprise qui s'\''ouvre sur un écran muet' web/public/plateforme/pont.js \
@@ -20016,34 +20016,34 @@ prouver 'ux2 136 : le Cabinet qui s'\''ouvre sur une page blanche' web/public/pl
 prouver 'ux2 136 : le Cabinet refusé à l'\''ouverture qui reste blanc' web/public/plateforme/pont-cabinet.js \
   "poste.echecOuverture('ton cabinet', e);" "throw e;" \
   'le Cabinet : lent, il dit qu'\''il s'\''ouvre ; refusé, il le dit, et « Réessayer » l'\''ouvre'
-prouver 'ux2 137 : « Ce mois-ci » refusé qui disparaît sans rien dire' web/public/v10/cabinet/app.js \
+prouver 'ux2 137 : « Ce mois-ci » refusé qui disparaît sans rien dire' modules/socle/ecrans/cabinet/app-1.js \
   "    if (refus) {" "    if (refus) { zone.remove(); return; } if (false) {" \
   'le Suivi d'\''un dossier : « Ce mois-ci » refusé par le serveur le dit, et « Réessayer » le relit'
-prouver 'ux2 137 : le « Réessayer » de « Ce mois-ci » qui ne relit rien' web/public/v10/cabinet/app.js \
+prouver 'ux2 137 : le « Réessayer » de « Ce mois-ci » qui ne relit rien' modules/socle/ecrans/cabinet/app-1.js \
   "        dessinerCeMois(dossier, vert);" "        void vert;" \
   'le Suivi d'\''un dossier : « Ce mois-ci » refusé par le serveur le dit, et « Réessayer » le relit'
-prouver 'ux2 138 : la Comptabilité refusée dont « Réessayer » ne relit rien' web/public/v10/cabinet/app.js \
+prouver 'ux2 138 : la Comptabilité refusée dont « Réessayer » ne relit rien' modules/socle/ecrans/cabinet/app-1.js \
   "        chargerLivres(dossier).then(() => { if (\$('#c-livres')) drawLivres(document, dossier); });" "        void dossier;" \
   'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
-prouver 'ux2 138 : la Production refusée qui ne dit pas ce qui manque' web/public/v10/cabinet/app.js \
+prouver 'ux2 138 : la Production refusée qui ne dit pas ce qui manque' modules/socle/ecrans/cabinet/app-1.js \
   '        : etat === '"'"'refus'"'"' ? `${aFaireTb(pri)}' '        : false ? `${aFaireTb(pri)}' \
   'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
-prouver 'ux2 138 : les Échéances qui disent « aucune échéance » d'\''une lecture refusée' web/public/v10/cabinet/app.js \
+prouver 'ux2 138 : les Échéances qui disent « aucune échéance » d'\''une lecture refusée' modules/socle/ecrans/cabinet/app-2.js \
   "    if (!liste.length && questionsAttenteRefus) {" "    if (false) {" \
   'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
-prouver 'ux3 139 : la bienvenue qui reste devant une entreprise qui facture déjà' web/public/v10/app.js \
+prouver 'ux3 139 : la bienvenue qui reste devant une entreprise qui facture déjà' modules/socle/ecrans/entreprise/app-1.js \
   " && !et.accueilVu && !metierCommence(); };" " && !et.accueilVu; };" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
-prouver 'ux3 139 : les premiers pas faits qui restent listés une fois le métier commencé' web/public/v10/app.js \
+prouver 'ux3 139 : les premiers pas faits qui restent listés une fois le métier commencé' modules/socle/ecrans/entreprise/app-1.js \
   "p.etapes.filter(e => !(e.fait && metierCommence())).map(e => {" "p.etapes.map(e => {" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
-prouver 'ux3 139 : les premiers pas qui passent devant l'\''À faire et les chiffres' web/public/v10/app.js \
+prouver 'ux3 139 : les premiers pas qui passent devant l'\''À faire et les chiffres' modules/socle/ecrans/entreprise/app-1.js \
   "      \${duGrain && metierCommence() && !commercial ? '' : urgentDabord ? todoPanel() : pas}" "      \${urgentDabord ? todoPanel() : pas}" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
-prouver 'ux3 139 : le cabinet seul à qui l'\''on propose de se confier ses dossiers' web/public/v10/cabinet/app.js \
+prouver 'ux3 139 : le cabinet seul à qui l'\''on propose de se confier ses dossiers' modules/socle/ecrans/cabinet/app-2.js \
   "    if (liste.length < 2) return '';" "    if (!liste.length) return '';" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'ux3 139 : « dont 1 sans justificatif » sans le geste qui le réclame' web/public/v10/cabinet/app.js \
+prouver 'ux3 139 : « dont 1 sans justificatif » sans le geste qui le réclame' modules/socle/ecrans/cabinet/app-1.js \
   "    if (dj) dj.onclick = () => {" "    if (dj) dj.remove(); if (false) {" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
 # (1.169.0) Preuve retirée, « ux3 139 : le nom du client écrasé à zéro sur la carte d'un dossier au téléphone » : l'ancienne carte (table.list.dl-table) ne s'affiche plus : la liste de la maquette a ses propres cartes ; le test mesure le nom sur les cartes.
@@ -20070,10 +20070,10 @@ prouver 'ux3 143 : le client sous le type de la pièce au téléphone' web/publi
 prouver 'ux3 143 : « Actions » allumé sur la seule carte touchée' web/public/plateforme/telephone.css \
   '  table.list[data-cartes] > tbody > tr > td.row-actions .row-menu-btn:not(.btn) { opacity: 1; background: var(--ink-soft); color: var(--text); }' '' \
   'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
-prouver 'ux3 144 : le Cabinet qui propose une visite sur chaque écran neuf de la même ouverture' web/public/v10/cabinet/app.js \
+prouver 'ux3 144 : le Cabinet qui propose une visite sur chaque écran neuf de la même ouverture' modules/socle/ecrans/cabinet/app-2.js \
   '    if (visiteProposeeIci && !reprise) return;' '' \
   'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
-prouver 'ux3 144 : « Ne plus me proposer de visites » du Cabinet qui n'"'"'éteint rien' web/public/v10/cabinet/app.js \
+prouver 'ux3 144 : « Ne plus me proposer de visites » du Cabinet qui n'"'"'éteint rien' modules/socle/ecrans/cabinet/app-2.js \
   '      visitesPoser(e => { e.proposer = false; });' '' \
   'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
 # (1.166.2) Preuve retirée, « ux3 145 : « Enregistrer le brouillon » relégué derrière l'aperçu au téléphone » : la tête de l'ancien formulaire (« Enregistrer » à la ligne, derrière « Aperçu ») ; la facture de la charte met « Garder le brouillon » sous « Émettre » par son dessin, et le test à 320 points le vérifie (['issue', 'save']).
@@ -20083,10 +20083,10 @@ prouver 'ux3 146 : une facture de vente en retard dite en orange, un achat en re
 prouver 'ux3 146 : une échéance passée du Cabinet dite en orange' web/public/v10/cabinet/cabinet.css \
   '.dc-echeance.retard > span:first-child { color: var(--sb-rouge-texte, var(--danger)); }' '.dc-echeance.retard > span:first-child { color: var(--warning); }' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
-prouver 'ux3 147 : « 0 en retard » sous « Reste à encaisser »' web/public/v10/app.js \
+prouver 'ux3 147 : « 0 en retard » sous « Reste à encaisser »' modules/socle/ecrans/entreprise/app-1.js \
   "(late.length ? \`dont \${nb(lateAmount)} en retard\` : 'rien en retard')" "(\`dont \${nb(lateAmount)} en retard\`)" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
-prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' web/public/v10/app.js \
+prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' modules/socle/ecrans/entreprise/app-1.js \
   " : 'aucun devis en attente de réponse', devisX," " : '0 devis envoyé', devisX," \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
 prouver 'ux3 148 : les filtres du téléphone, une rangée chacun' web/public/plateforme/telephone.css \
@@ -20099,7 +20099,7 @@ prouver 'ux3 150 : l'"'"'explication d'"'"'une pièce émise en gras bleu' web/p
   'font-size: 13.5px; font-weight: 400; line-height: 1.45; color: var(--sb-encre);' 'font-size: 13.5px; font-weight: 600; line-height: 1.45; color: var(--sb-encre);' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
 # ── La barre de la maquette « Barre v3 » (1.151.0 ; drawNav, plateforme/barre.js et barre.css ; tests/web/barre.test.ts) ──
-prouver 'barre 1 : une page épinglée a un second lien dans son volet' web/public/v10/app.js \
+prouver 'barre 1 : une page épinglée a un second lien dans son volet' modules/socle/ecrans/entreprise/app-1.js \
   '      if (dedans) return `<div class="ligne"><button' '      if (false) return `<div class="ligne"><button' \
   'au bureau : les deux groupes, un lien par page'
 prouver 'barre 2 : le volet d'"'"'une famille pousse la barre' web/public/plateforme/barre.css \
@@ -20111,7 +20111,7 @@ prouver 'barre 3 : Échap ferme le volet sans rendre le curseur à sa ligne' web
 prouver 'barre 4 : épingler referme le volet' web/public/plateforme/barre.js \
   '    if (voletOuvert && ouverte && ouverte.classList.contains('"'"'sb-panneau'"'"')) {' '    if (false) {' \
   'au bureau : les deux groupes, un lien par page'
-prouver 'barre 5 : les épingles ne sont pas gardées' web/public/v10/app.js \
+prouver 'barre 5 : les épingles ne sont pas gardées' modules/socle/ecrans/entreprise/app-1.js \
   '    const epingles = prefs.get('"'"'navEpingles'"'"', {}) || {};
     const retires' '    const epingles = {};
     const retires' \
@@ -20131,7 +20131,7 @@ prouver 'barre 9 : le pied sans la personne connectée' web/public/plateforme/ba
 prouver 'barre 10 : la barre reste claire en sombre' web/public/plateforme/barre.css \
   '--sb-barre: #12161c;' '--sb-barre: #f3f5f8;' \
   'au bureau : les deux groupes, un lien par page'
-prouver 'barre 11 : « Ajouter un module » hors de « Tout le reste »' web/public/v10/app.js \
+prouver 'barre 11 : « Ajouter un module » hors de « Tout le reste »' modules/socle/ecrans/entreprise/app-1.js \
   'if (r && role === '"'"'proprietaire'"'"') r.appendChild(modules); else' 'if (false) r.appendChild(modules); else' \
   'au bureau : les deux groupes, un lien par page'
 prouver 'barre 12 : pas d'"'"'onglets en bas au téléphone' web/public/plateforme/barre.css \
@@ -20147,13 +20147,13 @@ prouver 'barre 15 : les onglets cachent le bas de la page' web/public/plateforme
   '  body.avec-barre #view { padding-bottom: 104px; }
 ' '' \
   'au téléphone : les onglets du bas'
-prouver 'barre 16 : « Inviter mon comptable » hors de « Au quotidien »' web/public/v10/app.js \
+prouver 'barre 16 : « Inviter mon comptable » hors de « Au quotidien »' modules/socle/ecrans/entreprise/app-1.js \
   'q.insertAdjacentHTML('"'"'beforeend'"'"', `<a href="#/compta" class="lien inviter"' 'nav.insertAdjacentHTML('"'"'beforeend'"'"', `<a href="#/compta" class="lien inviter"' \
   'au bureau : les deux groupes, un lien par page'
 prouver 'barre 17 : « Créer » propose de créer en lecture seule' web/public/plateforme/barre.js \
   '${refus || lignes ||' '${lignes || refus ||' \
   'une nouvelle pièce le dit avant la saisie'
-prouver 'barre 18 : l'"'"'ordre rangé ne se garde pas' web/public/v10/app.js \
+prouver 'barre 18 : l'"'"'ordre rangé ne se garde pas' modules/socle/ecrans/entreprise/app-1.js \
   '    const ordre = (prefs.get('"'"'navOrdre'"'"', {}) || {})[cleMenu()];' '    const ordre = null;' \
   'au bureau : les deux groupes, un lien par page'
 prouver 'barre 19 : la barre repliée ne se garde pas' web/public/plateforme/barre.js \
@@ -20163,7 +20163,7 @@ prouver 'barre 20 : la bulle de la barre repliée ne se montre pas' web/public/p
   '  document.addEventListener('"'"'mouseover'"'"', montrerBulle);
 ' '' \
   'repliée et au clavier'
-prouver 'barre 21 : « Mes onglets » ne choisit rien' web/public/v10/app.js \
+prouver 'barre 21 : « Mes onglets » ne choisit rien' modules/socle/ecrans/entreprise/app-1.js \
   'o[cleMenu()] = [b, id].filter(Boolean); prefs.set('"'"'navOnglets'"'"', o);' '' \
   'au téléphone : les onglets du bas'
 prouver 'barre 22 : pas de rail à la tablette' web/public/plateforme/barre.css \
@@ -20179,39 +20179,39 @@ prouver 'barre 25 : « Envoyer » sous les onglets du téléphone' 'web/public/p
   '  body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }
 |||    const bas = onglets && getComputedStyle(onglets).display !== '"'"'none'"'"' && onglets.getBoundingClientRect().height ? onglets.getBoundingClientRect().top - 10 : window.innerHeight - 24;' '|||    const bas = window.innerHeight - 24;' \
   'la pastille, la question répondue sur place'
-prouver 'barre cabinet 1 : le Cabinet s'"'"'ouvre sur le portefeuille, pas sur son tableau de bord' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 1 : le Cabinet s'"'"'ouvre sur le portefeuille, pas sur son tableau de bord' modules/socle/ecrans/cabinet/app-1.js \
   'if (!location.hash) location.hash = '"'"'#/production'"'"';' 'if (!location.hash) location.hash = '"'"'#/dossiers'"'"';' \
   'au bureau : la tête et son menu'
-prouver 'barre cabinet 2 : le menu du cabinet sans son code' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 2 : le menu du cabinet sans son code' modules/socle/ecrans/cabinet/app-1.js \
   '(code ? `<div class="code-cab">' '(false ? `<div class="code-cab">' \
   'au bureau : la tête et son menu'
-prouver 'barre cabinet 3 : le chiffre des pièces reçues ne suit pas la boîte' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 3 : le chiffre des pièces reçues ne suit pas la boîte' modules/socle/ecrans/cabinet/app-1.js \
   'comptesBarre.pieces = piecesLues.aClasser;' 'comptesBarre.pieces = 0;' \
   'les pièces reçues : chaque pièce a son geste'
-prouver 'barre cabinet 4 : changer de dossier ramène à sa fiche' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 4 : changer de dossier ramène à sa fiche' modules/socle/ecrans/cabinet/app-1.js \
   '${m && m[1] ? m[1].split('"'"'/'"'"').slice(0, 4).join('"'"'/'"'"') : '"'"''"'"'}' '' \
   'au bureau : la tête et son menu'
-prouver 'barre cabinet 5 : la recherche des dossiers ne filtre rien' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 5 : la recherche des dossiers ne filtre rien' modules/socle/ecrans/cabinet/app-1.js \
   'const ok = !q || x.dataset.nomD.includes(q);' 'const ok = true;' \
   'au bureau : la tête et son menu'
-prouver 'barre cabinet 6 : l'"'"'étoile ne garde pas le favori' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 6 : l'"'"'étoile ne garde pas le favori' modules/socle/ecrans/cabinet/app-1.js \
   'prefs.set('"'"'favorisDossiers'"'"', fav.includes(id) ? fav.filter(x => x !== id) : [id, ...fav].slice(0, 9));' '' \
   'au bureau : la tête et son menu'
-prouver 'barre cabinet 7 : Ctrl + chiffre n'"'"'ouvre aucun dossier' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 7 : Ctrl + chiffre n'"'"'ouvre aucun dossier' modules/socle/ecrans/cabinet/app-1.js \
   '    if (!d) return;
     e.preventDefault();
     changerDeDossier(d.id);' '    if (d) return;
     e.preventDefault();
     changerDeDossier(d.id);' \
   'au bureau : la tête et son menu'
-prouver 'barre cabinet 8 : Créer propose une pièce demandée à un dossier tenu' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 8 : Créer propose une pièce demandée à un dossier tenu' modules/socle/ecrans/cabinet/app-1.js \
   'if (!D.manual && role !== '"'"'saisie'"'"' && api.messagerie)' 'if (role !== '"'"'saisie'"'"' && api.messagerie)' \
   'au bureau : la tête et son menu'
-prouver 'barre cabinet 9 : classer ne vide pas la boîte' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 9 : classer ne vide pas la boîte' modules/socle/ecrans/cabinet/app-1.js \
   '        st.classees = null; st.sel = apres; st.menu = false;
         await relirePieces();' '        st.classees = null; st.sel = apres; st.menu = false;' \
   'les pièces reçues : chaque pièce a son geste'
-prouver 'barre cabinet 10 : une écriture commencée se laisse sans un mot' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 10 : une écriture commencée se laisse sans un mot' modules/socle/ecrans/cabinet/app-1.js \
   'if (D && D.id !== id && saleDe(D.id)) {' 'if (false) {' \
   'les pièces reçues : chaque pièce a son geste'
 prouver 'barre cabinet 11 : la base classe deux fois la même pièce' base/migrations/0181_classeur_suite.sql \
@@ -20227,22 +20227,22 @@ prouver 'barre cabinet 13 : qui n'"'"'est pas du cabinet lit sa boîte' serveur/
 prouver 'barre cabinet 14 : au téléphone, le Cabinet a l'"'"'accueil de l'"'"'entreprise' web/public/plateforme/barre.js \
   'auCabinet() ? onglet(accueil()) :' 'false ? onglet(accueil()) :' \
   'au téléphone : Tableau (de bord), Messages'
-prouver 'barre cabinet 15 : une page épinglée n'"'"'entre pas dans « Mon cabinet »' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 15 : une page épinglée n'"'"'entre pas dans « Mon cabinet »' modules/socle/ecrans/cabinet/app-1.js \
   "const dansMonCabinet = ORDRE_CAB.concat(epingles);" "const dansMonCabinet = ORDRE_CAB.concat([]);" \
   '(1.186.0) épingler une page'
-prouver 'barre cabinet 16 : l'"'"'épingle du volet ne retient rien' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 16 : l'"'"'épingle du volet ne retient rien' modules/socle/ecrans/cabinet/app-1.js \
   "prefs.set('navEpinglesCab', e.includes(id) ? e.filter(x => x !== id) : e.concat(id));" "void e;" \
   '(1.186.0) épingler une page'
-prouver 'barre cabinet 17 : ranger oublie la place d'"'"'une page épinglée' web/public/v10/cabinet/app.js \
+prouver 'barre cabinet 17 : ranger oublie la place d'"'"'une page épinglée' modules/socle/ecrans/cabinet/app-1.js \
   "const dans = ORDRE_CAB.concat(epinglesCab()); prefs.set('navOrdreCab'" "const dans = ORDRE_CAB; prefs.set('navOrdreCab'" \
   '(1.186.0) épingler une page'
 prouver 'charte 1 : le menu ⋯ sans le titre de ce qu'"'"'il touche' web/public/v10/rowmenu.js \
   '    m.innerHTML = (o.titre ? `<div class="rm-tete" role="presentation">${h(o.titre)}</div>` : '"'"''"'"') + actions.map(entree).join('"'"''"'"');' '    m.innerHTML = actions.map(entree).join('"'"''"'"');' \
   'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
-prouver 'charte 2 : le menu d'"'"'une pièce qui ne la nomme pas' web/public/v10/app.js \
+prouver 'charte 2 : le menu d'"'"'une pièce qui ne la nomme pas' modules/socle/ecrans/entreprise/app-1.js \
   '      return [d.number || (C.TITLES[d.type] || '"'"'Pièce'"'"') + '"'"' · Brouillon'"'"', d.clientId || d.passage ? nomClientPiece(d) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' '      return '"'"''"'"';' \
   'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
-prouver 'charte 3 : « Annuler » encore 8 secondes, sa barre trompeuse' web/public/v10/app.js \
+prouver 'charte 3 : « Annuler » encore 8 secondes, sa barre trompeuse' modules/socle/ecrans/entreprise/app-1.js \
   '<span class="temps" style="--toast-duree:6000ms"></span>`;' '<span class="temps" style="--toast-duree:8000ms"></span>`;' \
   'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
 prouver 'charte 4 : le toast qui n'"'"'est pas sombre' web/public/plateforme/charte.css \
@@ -20264,53 +20264,53 @@ prouver 'charte 8 : le Cabinet sans la charte' web/public/v10/cabinet/index.html
 prouver 'charte 9 : une pièce annulée dite en rouge, comme ce qui coûte' web/public/plateforme/charte.css \
   '.badge.refusé, .badge.annulée, .badge.brouillon {' '.badge.refusé, .badge.brouillon {' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
-prouver 'liste 1 : un retard de dix jours compté parmi les vieux' web/public/v10/app.js \
+prouver 'liste 1 : un retard de dix jours compté parmi les vieux' modules/socle/ecrans/entreprise/app-1.js \
   '['"'"'1 à 30 j'"'"', d => age(d) <= 30]' '['"'"'1 à 30 j'"'"', d => age(d) < 10]' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 2 : un brouillon daté avant la dernière facture, émissible tel quel' web/public/v10/app.js \
+prouver 'liste 2 : un brouillon daté avant la dernière facture, émissible tel quel' modules/socle/ecrans/entreprise/app-1.js \
   'if (last && d.date && last.date > d.date) return' 'if (false) return' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 3 : les brouillons noyés parmi les pièces émises' web/public/v10/app.js \
+prouver 'liste 3 : les brouillons noyés parmi les pièces émises' modules/socle/ecrans/entreprise/app-1.js \
   'const lfParDefaut = (a, b) => ((a.number ? 1 : 0) - (b.number ? 1 : 0)) || ' 'const lfParDefaut = (a, b) => ' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 4 : le retard dit sans sa couleur' web/public/v10/app.js \
+prouver 'liste 4 : le retard dit sans sa couleur' modules/socle/ecrans/entreprise/app-1.js \
   '<small class="${j < 0 ? '"'"'rouge'"'"' : j <= 7 ? '"'"'ambre'"'"' : '"'"''"'"'}">' '<small class="${j <= 7 ? '"'"'ambre'"'"' : '"'"''"'"'}">' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 5 : un client qui a trop versé, dit « Payée » sans plus' web/public/v10/app.js \
+prouver 'liste 5 : un client qui a trop versé, dit « Payée » sans plus' modules/socle/ecrans/entreprise/app-1.js \
   'if (st === '"'"'payée'"'"' && lfReste(d) < -0.0005) return' 'if (false) return' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 6 : le trop-perçu tu' web/public/v10/app.js \
+prouver 'liste 6 : le trop-perçu tu' modules/socle/ecrans/entreprise/app-1.js \
   ': r < -0.0005 ? `<span class="trop" title="Au crédit du client' ': false ? `<span class="trop" title="Au crédit du client' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 7 : une tuile qui ne se défait pas' web/public/v10/app.js \
+prouver 'liste 7 : une tuile qui ne se défait pas' modules/socle/ecrans/entreprise/app-1.js \
   '      const on = s.st === st && !s.year && !s.q;
       Object.assign(s, on ?' '      const on = false;
       Object.assign(s, on ?' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 8 : un montant tapé qui ne trouve rien' web/public/v10/app.js \
+prouver 'liste 8 : un montant tapé qui ne trouve rien' modules/socle/ecrans/entreprise/app-1.js \
   '|| (parMontant && [C.money(' '|| (false && [C.money(' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 9 : la pièce trouvée par son montant, sans le dire' web/public/v10/app.js \
+prouver 'liste 9 : la pièce trouvée par son montant, sans le dire' modules/socle/ecrans/entreprise/app-1.js \
   'const parMontant = s.q && /^' 'const parMontant = false && /^' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 10 : les gestes du menu en vrac' web/public/v10/app.js \
+prouver 'liste 10 : les gestes du menu en vrac' modules/socle/ecrans/entreprise/app-1.js \
   '    return [...tete, ...groupe('"'"'Envoyer'"'"', envoyer), ...groupe('"'"'Légal'"'"', legal), ...groupe('"'"'La pièce'"'"', piece), ...groupe('"'"'Corriger'"'"', corriger)];' '    return [...tete, ...envoyer, ...legal, ...piece, ...corriger];' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 11 : une facture en retard sans « Relancer » dans son menu' web/public/v10/app.js \
+prouver 'liste 11 : une facture en retard sans « Relancer » dans son menu' modules/socle/ecrans/entreprise/app-1.js \
   '    if (st === '"'"'retard'"'"') {
       const j = C.daysBetween(d.dueDate, C.today());' '    if (false) {
       const j = C.daysBetween(d.dueDate, C.today());' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 12 : « Relancer » qui compte aussi ce qui n'"'"'est pas en retard' web/public/v10/app.js \
+prouver 'liste 12 : « Relancer » qui compte aussi ce qui n'"'"'est pas en retard' modules/socle/ecrans/entreprise/app-1.js \
   'const enRetard = l.filter(d => lfStatut(d) === '"'"'retard'"'"');' 'const enRetard = l;' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 13 : Échap qui garde les pièces choisies' web/public/v10/app.js \
+prouver 'liste 13 : Échap qui garde les pièces choisies' modules/socle/ecrans/entreprise/app-1.js \
   'if (e.key === '"'"'Escape'"'"' && s.sel && s.sel.size) {' 'if (false) {' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 14 : Entrée qui n'"'"'ouvre pas la pièce montrée' web/public/v10/app.js \
+prouver 'liste 14 : Entrée qui n'"'"'ouvre pas la pièce montrée' modules/socle/ecrans/entreprise/app-1.js \
   'if (e.key === '"'"'Enter'"'"' && tr) {' 'if (false) {' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
-prouver 'liste 15 : le menu d'"'"'une facture qui ne la nomme pas' web/public/v10/app.js \
+prouver 'liste 15 : le menu d'"'"'une facture qui ne la nomme pas' modules/socle/ecrans/entreprise/app-1.js \
   'return [d.number || '"'"'Brouillon'"'"', d.clientId || d.passage ? nomClientPiece(d) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' 'return '"'"''"'"';' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 16 : la tuile et la liste demandent chacune les mêmes états' web/public/plateforme/pont.js \
@@ -20333,33 +20333,33 @@ prouver 'copie de dev 4 : la copie de dev posée sur un serveur aux vraies donn�
 prouver 'copie de dev 5 : le suiveur de dev qui bloque celui de main' exploitation/suivre.sh \
   '"/run/$(basename "$MAISON")-suivre.verrou"' '/run/skanfact-suivre.verrou' \
   'sa maison et son verrou : celui de main ne change pas, celui de dev est à part'
-prouver 'facture 1 : l'"'"'e-mail absent du ⋯ d'"'"'une facture' web/public/v10/app.js \
+prouver 'facture 1 : l'"'"'e-mail absent du ⋯ d'"'"'une facture' modules/socle/ecrans/entreprise/app-1.js \
   '${emailDansPlus || ((isInv || isAv) && !isNew) ? `<button id="email">' '${emailDansPlus ? `<button id="email">' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
-prouver 'facture 2 : la retenue du client qui ne le dit pas' web/public/v10/app.js \
+prouver 'facture 2 : la retenue du client qui ne le dit pas' modules/socle/ecrans/entreprise/app-1.js \
   "rs ? \`\${pct(rs)} %\${duClient ? ' · du client' : ''}" "rs ? \`\${pct(rs)} %\${''}" \
   "le brouillon : carte du client, puces, totaux par taux, avant d'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas"
-prouver 'facture 3 : la remise du pied des lignes qui ne change rien' web/public/v10/app.js \
+prouver 'facture 3 : la remise du pied des lignes qui ne change rien' modules/socle/ecrans/entreprise/app-1.js \
   '        head.oninput({ target: champ });
 ' '' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
-prouver 'facture 4 : un client sans matricule tenu pour bon' web/public/v10/app.js \
+prouver 'facture 4 : un client sans matricule tenu pour bon' modules/socle/ecrans/entreprise/app-1.js \
   '[!!(cl && String(cl.matricule || '"'"''"'"').trim()),' '[true,' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
-prouver 'facture 5 : la TVA par taux sans sa base' web/public/v10/app.js \
+prouver 'facture 5 : la TVA par taux sans sa base' modules/socle/ecrans/entreprise/app-1.js \
   ' sur ${nu(t.vatByRate[r].base)}</td>' '</td>' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
-prouver 'facture 6 : Entrée sur la dernière ligne sans ligne de plus' web/public/v10/app.js \
+prouver 'facture 6 : Entrée sur la dernière ligne sans ligne de plus' modules/socle/ecrans/entreprise/app-1.js \
   "          doc.lines.push(C.newLine(company())); touch(); dessinerLignesCharte();
 " "" \
   "le brouillon : carte du client, puces, totaux par taux, avant d'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas"
-prouver 'facture 7 : « Dupliquer la ligne » qui ne duplique rien' web/public/v10/app.js \
+prouver 'facture 7 : « Dupliquer la ligne » qui ne duplique rien' modules/socle/ecrans/entreprise/app-1.js \
   "{ icon: 'copier', label: 'Dupliquer', note: 'Ctrl D', run: () => dupliquerLigneC(i) }," "{ icon: 'copier', label: 'Dupliquer', note: 'Ctrl D', run: () => {} }," \
   "le brouillon : carte du client, puces, totaux par taux, avant d'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas"
-prouver 'facture 8 : une facture payée en partie dite payée' web/public/v10/app.js \
+prouver 'facture 8 : une facture payée en partie dite payée' modules/socle/ecrans/entreprise/app-1.js \
   '      const paye = b && b.remaining <= 0.0005;' '      const paye = !!b;' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
-prouver 'facture 9 : une facture émise due sans « Enregistrer un paiement »' web/public/v10/app.js \
+prouver 'facture 9 : une facture émise due sans « Enregistrer un paiement »' modules/socle/ecrans/entreprise/app-1.js \
   '      if (locked && isInv && doc.status !== '"'"'annulée'"'"' && bal && bal.remaining > 0.0005) {
         const recu' '      if (false) {
         const recu' \
@@ -20367,7 +20367,7 @@ prouver 'facture 9 : une facture émise due sans « Enregistrer un paiement »' 
 prouver 'facture 10 : au téléphone, le geste qui défile avec la pièce' web/public/plateforme/piece.css \
   '  .ed-geste { position: fixed; left: 0;' '  .ed-geste { left: 0;' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
-prouver 'facture 11 : la carte du client sans sa dernière facture' web/public/v10/app.js \
+prouver 'facture 11 : la carte du client sans sa dernière facture' modules/socle/ecrans/entreprise/app-1.js \
   '        derniere ? `<span class="ed-chip">dernière' '        false ? `<span class="ed-chip">dernière' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
 prouver 'facture 12 : la remise d'"'"'une ligne oubliée' moteur/piece.ts \
@@ -20395,7 +20395,7 @@ prouver 'facture 18 : la FODEC sur le hors taxe avant la remise de la pièce' mo
 prouver 'facture 19 : la retenue calculée sans la FODEC' moteur/piece.ts \
   '  const horsTimbre = netHT + fodec + totalTVA;' '  const horsTimbre = netHT + totalTVA;' \
   'la FODEC d'"'"'une ligne est le taux sur sa base remisée'
-prouver 'facture 20 : l'"'"'écran oublie la FODEC dans le TTC' web/public/v10/core.js \
+prouver 'facture 20 : l'"'"'écran oublie la FODEC dans le TTC' modules/socle/moteur/core-1.js \
   '    const totalTTC = rd(netHT + fodec + totalVAT + stamp);' '    const totalTTC = rd(netHT + totalVAT + stamp);' \
   'deux chemins, un chiffre : l'"'"'écran (core.js) calcule la même FODEC'
 prouver 'facture 21 : la FODEC comptée en chiffre d'"'"'affaires' moteur/ecritures.ts \
@@ -20407,13 +20407,13 @@ prouver 'facture 22 : le serveur ne lit pas le taux de la FODEC' serveur/ventes/
 prouver 'facture 23 : la FODEC des lignes perdue en base' serveur/ventes/pieces.ts \
   '    fodec: l.fodec === true,' '    fodec: false,' \
   'le serveur lit le taux à la date de la pièce, scelle la FODEC'
-prouver 'facture 24 : la déclaration du mois oublie la FODEC' web/public/v10/compta.js \
+prouver 'facture 24 : la déclaration du mois oublie la FODEC' modules/socle/moteur/compta-1.js \
   "    const fodec = retenuDuMois(livre, compteDuRole(livre, 'fodec'), du, au, horsMois);" "    const fodec = { v: 0, e: [] };" \
   'lue sur son compte, rangée dans sa rubrique et dans le récapitulatif'
-prouver 'facture 25 : la FODEC hors du récapitulatif du formulaire' web/public/v10/compta.js \
+prouver 'facture 25 : la FODEC hors du récapitulatif du formulaire' modules/socle/moteur/compta-1.js \
   "      ...(avecFodec ? [{ cle: 'fodec', libelle: 'FODEC', montant: m('fodec') }] : [])," "" \
   'lue sur son compte, rangée dans sa rubrique et dans le récapitulatif'
-prouver 'facture 26 : la FODEC dans un mois qui n'"'"'en a pas' web/public/v10/compta.js \
+prouver 'facture 26 : la FODEC dans un mois qui n'"'"'en a pas' modules/socle/moteur/compta-1.js \
   "    const avecFodec = m('fodec') > 0;" "    const avecFodec = m('fodec') != null;" \
   'un mois sans FODEC : ni rubrique ni ligne au récapitulatif'
 # La lecture par l'IA de Claude (27/10/2026, serveur/achats/lecture-ia.ts).
@@ -20442,10 +20442,10 @@ prouver 'ia 7 : une donnée de plus part chez Anthropic' serveur/achats/lecture-
 prouver 'ia 8 : la panne de l'"'"'IA rendue comme une lecture réussie' serveur/achats/routes.ts \
   "        return { statut: e instanceof IARefuse ? 422 : 503," "        return { statut: 200," \
   'si l'"'"'IA ne répond pas ou refuse, rien n'"'"'est lu'
-prouver 'ia 9 : l'"'"'écran envoie sans poser la question' web/public/v10/app.js \
+prouver 'ia 9 : l'"'"'écran envoie sans poser la question' modules/socle/ecrans/entreprise/app-1.js \
   "      if (opts.ia === undefined && await iaProposee()) {" "      if (opts.ia === undefined && await iaProposee()) { opts = { ia: true }; } if (false) {" \
   'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
-prouver 'ia 10 : « Avant d'"'"'enregistrer » oublie le justificatif joint' web/public/v10/app.js \
+prouver 'ia 10 : « Avant d'"'"'enregistrer » oublie le justificatif joint' modules/socle/ecrans/entreprise/app-1.js \
   "      // (27/10/2026) « Avant d'enregistrer » disait encore « Aucun justificatif » juste après « Justificatif joint ».
       refresh();" "" \
   '« Non » joint la photo sans rien envoyer'
@@ -20458,86 +20458,86 @@ prouver 'ia 12 : une case vide de la réponse gardée comme un texte' serveur/ac
 prouver 'ia 13 : la photo lourde d'"'"'un téléphone part telle quelle (refusée par l'"'"'API au-delà de 5 Mo)' web/public/plateforme/pont.js \
   "      const envoye = opts.ia ? await allegerPourIA(f) : f;" "      const envoye = f;" \
   'la photo lourde d'"'"'un téléphone part à l'"'"'IA réduite à 2 400 points, en JPEG'
-prouver 'ia 14 : la lecture qui saute ses étapes, sans dire ce qu'"'"'elle a lu' web/public/v10/app.js \
+prouver 'ia 14 : la lecture qui saute ses étapes, sans dire ce qu'"'"'elle a lu' modules/socle/ecrans/entreprise/app-1.js \
   "      await annulee.finir(read);" "" \
   'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
-prouver 'ia 15 : les zones douteuses absentes de la photo' web/public/v10/app.js \
+prouver 'ia 15 : les zones douteuses absentes de la photo' modules/socle/ecrans/entreprise/app-1.js \
   "      const zones = enImage ? doutesIA.filter(d => Array.isArray(d.zone) && d.zone.length === 4) : [];" "      const zones = [];" \
   'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
-prouver 'ia 16 : la case douteuse qui n'"'"'est pas en ambre sur la pièce' web/public/v10/app.js \
+prouver 'ia 16 : la case douteuse qui n'"'"'est pas en ambre sur la pièce' modules/socle/ecrans/entreprise/app-1.js \
   "class=\"num\${estMarque(i, 'qty') ? ' lu-douteux' : ''}\" data-k=\"qty\"" "class=\"num\" data-k=\"qty\"" \
   '« Non » joint la photo sans rien envoyer'
-prouver 'ia 17 : le bandeau qui ne dit pas les valeurs possibles' web/public/v10/app.js \
+prouver 'ia 17 : le bandeau qui ne dit pas les valeurs possibles' modules/socle/ecrans/entreprise/app-1.js \
   "} (\${d.valeurs.map(v => /date|echeance/.test(d.champ) ? enDate(v.valeur) : v.valeur).join(' ou ')} ?)\`)," "}\`)," \
   '« Non » joint la photo sans rien envoyer'
-prouver 'ia 18 : « Avant d'"'"'enregistrer » qui oublie les cases lues à vérifier' web/public/v10/app.js \
+prouver 'ia 18 : « Avant d'"'"'enregistrer » qui oublie les cases lues à vérifier' modules/socle/ecrans/entreprise/app-1.js \
   "...(marquesLues.length ? [[false," "...(false ? [[false," \
   '« Non » joint la photo sans rien envoyer'
-prouver 'ia 19 : la pièce remplie par l'"'"'IA qui se dit « Brouillon »' web/public/v10/app.js \
+prouver 'ia 19 : la pièce remplie par l'"'"'IA qui se dit « Brouillon »' modules/socle/ecrans/entreprise/app-1.js \
   "      if (!stored && luParIA) return" "      if (false) return" \
   '« Non » joint la photo sans rien envoyer'
-prouver 'ia 20 : le justificatif sans sa photo' web/public/v10/app.js \
+prouver 'ia 20 : le justificatif sans sa photo' modules/socle/ecrans/entreprise/app-1.js \
   "      if (bridge.apercuPiece && !masque) apercuJustificatif(" "      if (false) apercuJustificatif(" \
   '« Non » joint la photo sans rien envoyer'
 prouver 'ia 21 : la zone d'"'"'un doute perdue au serveur' serveur/achats/lecture-ia.ts \
   "zone: zoneDe(d.zone) };" "zone: null };" \
   'départage un doute sur une quantité par le recomptage'
-prouver 'ia 22 : « Justificatif » de la lecture qui n'"'"'ouvre rien' web/public/v10/app.js \
+prouver 'ia 22 : « Justificatif » de la lecture qui n'"'"'ouvre rien' modules/socle/ecrans/entreprise/app-1.js \
   "if (b) b.onclick = () => photoEnGrand(file);" "if (b) b.onclick = () => {};" \
   'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
-prouver 'ia 23 : le PDF montré comme une icône, sans sa page' web/public/v10/app.js \
+prouver 'ia 23 : le PDF montré comme une icône, sans sa page' modules/socle/ecrans/entreprise/app-1.js \
   "      const pdf = f && /pdf/i.test(f.type || '') && bridge.apercuPdf;" "      const pdf = false;" \
   'un PDF lu par l'"'"'IA se montre'
 prouver 'ia 24 : pdf.js servi sans son type (module refusé)' serveur/principal.ts \
   "  '.mjs': 'text/javascript; charset=utf-8'," "" \
   'un PDF lu par l'"'"'IA se montre'
-prouver 'ia 25 : un PDF appelé « la photo »' web/public/v10/app.js \
+prouver 'ia 25 : un PDF appelé « la photo »' modules/socle/ecrans/entreprise/app-1.js \
   "    const motsLu = f => (/pdf/i.test(" "    const motsLu = f => (false && /pdf/i.test(" \
   'un PDF lu par l'"'"'IA se montre'
-prouver 'ia 26 : le fournisseur lu qui ne se crée que depuis la liste' web/public/v10/app.js \
+prouver 'ia 26 : le fournisseur lu qui ne se crée que depuis la liste' modules/socle/ecrans/entreprise/app-1.js \
   "    const creerOuChoisir = (nom, lu) => lu" "    const creerOuChoisir = (nom, lu) => false" \
   'le fournisseur lu qui n'"'"'est pas dans la liste se crée d'"'"'un clic'
-prouver 'ia 27 : « Annuler » qui laisse la fiche créée' web/public/v10/app.js \
+prouver 'ia 27 : « Annuler » qui laisse la fiche créée' modules/socle/ecrans/entreprise/app-1.js \
   "      if (i >= 0) data.suppliers.splice(i, 1);" "" \
   'le fournisseur lu qui n'"'"'est pas dans la liste se crée d'"'"'un clic'
-prouver 'ia 28 : la carte de l'"'"'IA coupée qui disparaît sans rien dire' web/public/v10/app.js \
+prouver 'ia 28 : la carte de l'"'"'IA coupée qui disparaît sans rien dire' modules/socle/ecrans/entreprise/app-1.js \
   "      if (!b || !st || !(st.hasKey || st.iaServeur)) return;" "      if (!b || !st || !st.hasKey) return;" \
   'seule l'"'"'IA lit : coupée par l'"'"'entreprise'
-prouver 'ia 29 : la carte de l'"'"'IA coupée qui ne mène pas au réglage' web/public/v10/app.js \
+prouver 'ia 29 : la carte de l'"'"'IA coupée qui ne mène pas au réglage' modules/socle/ecrans/entreprise/app-1.js \
   "      if (iaCoupee) { allerParametres('donnees', 'p-ocr'); return; }" "" \
   'seule l'"'"'IA lit : coupée par l'"'"'entreprise'
-prouver 'ia 30 : la carte de l'"'"'IA qui croit le réglage d'"'"'avant' web/public/v10/app.js \
+prouver 'ia 30 : la carte de l'"'"'IA qui croit le réglage d'"'"'avant' modules/socle/ecrans/entreprise/app-1.js \
   "      iaCoupee = company().lectureIA === false;" "      iaCoupee = !st.hasKey;" \
   'seule l'"'"'IA lit : coupée par l'"'"'entreprise'
-prouver 'ia 31 : le fournisseur créé d'"'"'un clic qui se dit « reconnu »' web/public/v10/app.js \
+prouver 'ia 31 : le fournisseur créé d'"'"'un clic qui se dit « reconnu »' modules/socle/ecrans/entreprise/app-1.js \
   "            \${sup && sup.id === creeIci ? ligne(" "            \${false ? ligne(" \
   'le fournisseur lu qui n'"'"'est pas dans la liste se crée d'"'"'un clic'
 # Les compléments dessinés le 27/10/2026 (docs/maquettes/complements.html ; tests/web/complements.test.ts).
-prouver 'compléments 1 : une facture sans bouton pour revenir à la liste' web/public/v10/app.js \
+prouver 'compléments 1 : une facture sans bouton pour revenir à la liste' modules/socle/ecrans/entreprise/app-1.js \
   "\${retourListe(backTo, isQ ? 'devis' : 'factures')}<div class=\"ed-titre\">" "<div class=\"ed-titre\">" \
   'retour à la liste : la facture, le devis et l'"'"'achat ramènent à leur liste'
-prouver 'compléments 2 : le bouton de retour qui ne ramène nulle part' web/public/v10/app.js \
+prouver 'compléments 2 : le bouton de retour qui ne ramène nulle part' modules/socle/ecrans/entreprise/app-1.js \
   "    go(() => { const avant = navStack[navStack.length - 1]; if (avant && (routeOf(avant) === routeOf(liste) || ficheQuittee())) goBack(liste); else navigate(liste); });" "    void go;" \
   'retour à la liste : la facture, le devis et l'"'"'achat ramènent à leur liste'
-prouver 'compléments 3 : la facture électronique relue dans la fenêtre d'"'"'avant' web/public/v10/app.js \
+prouver 'compléments 3 : la facture électronique relue dans la fenêtre d'"'"'avant' modules/socle/ecrans/entreprise/app-1.js \
   "      teifComprise(l.lecture, fichier, l.remarques || []);" "      ocrReviewForm(l.lecture, fichier, values => appliquerLecture(values, fichier, 'facture électronique'), { source: 'teif', remarques: l.remarques });" \
   'la facture électronique reçue : une page, la catégorie sous sa case'
 prouver 'compléments 4 : le XML lu qui ne se joint pas à l'"'"'achat' web/public/plateforme/pont.js \
   '      return Object.assign({ nom: f.name, taille: f.size, chemin: garderALire(f) },' '      return Object.assign({ nom: f.name, taille: f.size, chemin: null },' \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 5 : la page qui ne dit pas que le fichier se garde' web/public/v10/app.js \
+prouver 'compléments 5 : la page qui ne dit pas que le fichier se garde' modules/socle/ecrans/entreprise/app-1.js \
   '${bridge.lectureSurLeServeur ? '"'"', gardé dix ans'"'"' : '"'"''"'"'}' '' \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 6 : le fournisseur créé sans ce que dit le fichier' web/public/v10/app.js \
+prouver 'compléments 6 : le fournisseur créé sans ce que dit le fichier' modules/socle/ecrans/entreprise/app-1.js \
   "            { address: four.adresse || '', phone: four.telephone || '', email: four.email || '' })) });" "            {})) });" \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 7 : la référence TTN perdue en remplissant' web/public/v10/app.js \
+prouver 'compléments 7 : la référence TTN perdue en remplissant' modules/socle/ecrans/entreprise/app-1.js \
   "...(tete.refTtn ? { notes: \`Référence TTN : \${tete.refTtn}\` } : {}) }, lines: lignes });" "}, lines: lignes });" \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 8 : une facture adressée ailleurs, sans bandeau' web/public/v10/app.js \
+prouver 'compléments 8 : une facture adressée ailleurs, sans bandeau' modules/socle/ecrans/entreprise/app-1.js \
   "          ailleurs ? \`<div class=\"bandeau rouge\">" "          false ? \`<div class=\"bandeau rouge\">" \
   'la facture électronique adressée à une autre société, pas signée'
-prouver 'compléments 9 : l'"'"'écart du total qui ne compte pas' web/public/v10/app.js \
+prouver 'compléments 9 : l'"'"'écart du total qui ne compte pas' modules/socle/ecrans/entreprise/app-1.js \
   "        const ecart = Math.abs(ecartHT) > 0.0005 || Math.abs(ecartTTC) > 0.0015;" "        const ecart = false;" \
   'la facture électronique adressée à une autre société, pas signée'
 prouver 'compléments 10 : « Mon comptable » sans cabinet, la page vide d'"'"'avant' web/public/plateforme/messagerie.js \
@@ -20549,107 +20549,107 @@ prouver 'compléments 11 : l'"'"'invitation annulée sans un mot' web/public/pla
 prouver 'compléments 12 : le curseur sur le bandeau, pas sur « Copier le lien »' web/public/plateforme/pont.js \
   "(suite.split(',').map((x) => el.querySelector(x.trim())).find(Boolean))?.focus();" "(el.querySelector(suite))?.focus();" \
   '« Mon comptable » sans cabinet : la page dessinée'
-prouver 'compléments 13 : l'"'"'IA rallumée sans « Annuler »' web/public/v10/app.js \
+prouver 'compléments 13 : l'"'"'IA rallumée sans « Annuler »' modules/socle/ecrans/entreprise/app-2.js \
   "        toastUndo(coupee ? 'L\\'IA se proposera" "        toast(coupee ? 'L\\'IA se proposera" \
   'seule l'"'"'IA lit : coupée par l'"'"'entreprise, rien ne part, la carte le dit et mène au réglage, qui la rallume'
-prouver 'compléments 14 : la liste qui sort par le bas de sa fenêtre' web/public/v10/app.js \
+prouver 'compléments 14 : la liste qui sort par le bas de sa fenêtre' modules/socle/ecrans/entreprise/app-1.js \
   "      el.classList.toggle('up', dessous < 300 && dessus > dessous);" "      el.classList.toggle('up', window.innerHeight - r.bottom < 300);" \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 15 : « Vérifier case par case » qui ferme la page derrière elle' web/public/v10/app.js \
+prouver 'compléments 15 : « Vérifier case par case » qui ferme la page derrière elle' modules/socle/ecrans/entreprise/app-1.js \
   "        \$('#tf-detail', z).onclick = () => ocrReviewForm(" "        \$('#tf-detail', z).onclick = () => fermerLecture() || ocrReviewForm(" \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 16 : la catégorie choisie perdue à la vérification' web/public/v10/app.js \
+prouver 'compléments 16 : la catégorie choisie perdue à la vérification' modules/socle/ecrans/entreprise/app-2.js \
   "    const head = { ...prep.head, category: o.categorie || '' };" "    const head = { ...prep.head, category: '' };" \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 17 : le refus d'"'"'un fichier sans le bouton qui débloque' web/public/v10/app.js \
+prouver 'compléments 17 : le refus d'"'"'un fichier sans le bouton qui débloque' modules/socle/ecrans/entreprise/app-1.js \
   "      if (!l.ok) return refusTeif(" "      if (!l.ok) return infoDialog(" \
   'la facture électronique adressée à une autre société, pas signée'
 # ── La revue des écarts de la maquette de l'achat (1.161.0 ; docs/achats.md ; tests/web/achat-ecarts.test.ts) ──
-prouver 'écarts 1 : « paie à 0 jour »' web/public/v10/app.js \
+prouver 'écarts 1 : « paie à 0 jour »' modules/socle/ecrans/entreprise/app-1.js \
   '${Number(sup.paymentTermsDays) > 0 ? `paie à ${pl(Number(sup.paymentTermsDays), '"'"'jour'"'"')}` : '"'"'paie à réception'"'"'}' 'paie à ${pl(Number(sup.paymentTermsDays) || 0, '"'"'jour'"'"')}' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 2 : l'"'"'exonération du fournisseur tue sur sa carte' web/public/v10/app.js \
+prouver 'écarts 2 : l'"'"'exonération du fournisseur tue sur sa carte' modules/socle/ecrans/entreprise/app-1.js \
   '        exo ? `<span class="ed-chip ok" id="ac-sup-exo">' '        false ? `<span class="ed-chip ok" id="ac-sup-exo">' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 3 : les factures électroniques supposées de tout fournisseur' web/public/v10/app.js \
+prouver 'écarts 3 : les factures électroniques supposées de tout fournisseur' modules/socle/ecrans/entreprise/app-1.js \
   '        efacture ? '"'"'<span class="ed-chip">' '        true ? '"'"'<span class="ed-chip">' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 4 : la retenue qui ne dit pas « exonéré »' web/public/v10/app.js \
+prouver 'écarts 4 : la retenue qui ne dit pas « exonéré »' modules/socle/ecrans/entreprise/app-1.js \
   'noteRs && noteRs.ton === '"'"'ok'"'"' ? '"'"'· exonéré'"'"' : ' '' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 5 : l'"'"'échéance qui ne dit pas « à réception »' web/public/v10/app.js \
+prouver 'écarts 5 : l'"'"'échéance qui ne dit pas « à réception »' modules/socle/ecrans/entreprise/app-1.js \
   'p.dueDate === p.date ? '"'"'à réception'"'"' : ' '' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 6 : la frise sans qui a saisi la pièce' web/public/v10/app.js \
+prouver 'écarts 6 : la frise sans qui a saisi la pièce' modules/socle/ecrans/entreprise/app-1.js \
   'par ? `par ${h(par)}` : '"'"''"'"'' ''"'"''"'"'' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
 prouver 'écarts 7 : le prénom de l'"'"'auteur jamais lu du serveur' web/public/plateforme/pont.js \
   '    saisiPar = r.saisiPar || {};
 ' '' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 8 : le règlement sans son compte' web/public/v10/app.js \
+prouver 'écarts 8 : le règlement sans son compte' modules/socle/ecrans/entreprise/app-1.js \
   '<td>${h(accountLabel(x.accountId))}</td>' '' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 9 : le règlement sans ce qu'"'"'il a retenu' web/public/v10/app.js \
+prouver 'écarts 9 : le règlement sans ce qu'"'"'il a retenu' modules/socle/ecrans/entreprise/app-1.js \
   '${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : ' '${partRs(x) > 0 ? '"'"''"'"' : ' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 10 : l'"'"'attestation qui ne s'"'"'imprime pas d'"'"'ici' web/public/v10/app.js \
+prouver 'écarts 10 : l'"'"'attestation qui ne s'"'"'imprime pas d'"'"'ici' modules/socle/ecrans/entreprise/app-1.js \
   '      if ($('"'"'#rs-imprimer'"'"')) $('"'"'#rs-imprimer'"'"').onclick = e => { e.preventDefault(); attestationRetenue(s2); };
 ' '' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 11 : l'"'"'avoir sans son bloc « Remboursement »' web/public/v10/app.js \
+prouver 'écarts 11 : l'"'"'avoir sans son bloc « Remboursement »' modules/socle/ecrans/entreprise/app-1.js \
   '<h2>${av ? '"'"'Remboursement'"'"' : '"'"'Règlements'"'"'}' '<h2>${'"'"'Règlements'"'"'}' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 12 : le conseil d'"'"'un avoir neuf sur un avoir rangé' web/public/v10/app.js \
+prouver 'écarts 12 : le conseil d'"'"'un avoir neuf sur un avoir rangé' modules/socle/ecrans/entreprise/app-1.js \
   '        if (!isNew) { el.hidden = true; el.innerHTML = '"'"''"'"'; return; }
 ' '' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 13 : la demande du cabinet que le bandeau tait' web/public/v10/app.js \
+prouver 'écarts 13 : la demande du cabinet que le bandeau tait' modules/socle/ecrans/entreprise/app-1.js \
   '        t.textContent = `${prenom ?' '        if (0) t.textContent = `${prenom ?' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 14 : la devise et son taux en deux puces' web/public/v10/app.js \
+prouver 'écarts 14 : la devise et son taux en deux puces' modules/socle/ecrans/entreprise/app-1.js \
   '<span class="b-rate-lbl">· 1 ${h(symb(cur))} =</span>' '<span class="b-rate-lbl">Taux · 1 ${h(cur)} =</span>' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
-prouver 'écarts 15 : ↶ qui ne fait rien' web/public/v10/app.js \
+prouver 'écarts 15 : ↶ qui ne fait rien' modules/socle/ecrans/entreprise/app-1.js \
   '    if ($('"'"'#ac-annuler'"'"')) $('"'"'#ac-annuler'"'"').onclick = annulerAchat;
 ' '' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
-prouver 'écarts 16 : « Rétablir » qui empile la pièce d'"'"'avant l'"'"'annulation' web/public/v10/app.js \
+prouver 'écarts 16 : « Rétablir » qui empile la pièce d'"'"'avant l'"'"'annulation' modules/socle/ecrans/entreprise/app-1.js \
   '      annulAchat.pile.push(JSON.stringify(annulAchat.piece()));' '      annulAchat.pile.push(JSON.stringify(p));' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
-prouver 'écarts 17 : une liste qui se pose compte pour une modification' web/public/v10/app.js \
+prouver 'écarts 17 : une liste qui se pose compte pour une modification' modules/socle/ecrans/entreprise/app-1.js \
   '      if (!etatTimer && JSON.stringify(p) === dernierEtat) return;
 ' '' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
-prouver 'écarts 18 : Ctrl Z sans effet sur l'"'"'achat' web/public/v10/app.js \
+prouver 'écarts 18 : Ctrl Z sans effet sur l'"'"'achat' modules/socle/ecrans/entreprise/app-1.js \
   'if (mod && !clos && !champTape(e.target) && (k === '"'"'z'"'"' || k === '"'"'y'"'"'))' 'if (false)' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
-prouver 'écarts 19 : le brouillon d'"'"'un achat neuf jamais gardé' web/public/v10/app.js \
+prouver 'écarts 19 : le brouillon d'"'"'un achat neuf jamais gardé' modules/socle/ecrans/entreprise/app-1.js \
   '      await brouillonA.garder({ p: deepCopy(p), payeeDep, le: Date.now() });
 ' '' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
-prouver 'écarts 20 : le brouillon gardé qui ne se reprend pas' web/public/v10/app.js \
+prouver 'écarts 20 : le brouillon gardé qui ne se reprend pas' modules/socle/ecrans/entreprise/app-1.js \
   '        surOk: () => { achatReprise =' '        surOk: () => { if (1) return; achatReprise =' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
-prouver 'écarts 21 : le brouillon qui survit à l'"'"'enregistrement' web/public/v10/app.js \
+prouver 'écarts 21 : le brouillon qui survit à l'"'"'enregistrement' modules/socle/ecrans/entreprise/app-1.js \
   '      save(true); untouch(); oublierBrouillon();' '      save(true); untouch();' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
 prouver 'écarts 22 : « Reprendre » caché sous « Comment arrive cette pièce ? »' web/public/plateforme/piece.css \
   ':not(#ac-arrivee):not(#ac-reprendre)' ':not(#ac-arrivee)' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
-prouver 'écarts 23 : la dépense neuve qui reste à payer' web/public/v10/app.js \
+prouver 'écarts 23 : la dépense neuve qui reste à payer' modules/socle/ecrans/entreprise/app-1.js \
   '      if (duJour > 0.0005) {' '      if (false) {' \
   'Dépense : elle se saisit par ce qu'
-prouver 'écarts 24 : la dépense sans fournisseur sans sa carte « Dépenses diverses »' web/public/v10/app.js \
+prouver 'écarts 24 : la dépense sans fournisseur sans sa carte « Dépenses diverses »' modules/socle/ecrans/entreprise/app-1.js \
   '      if (!sup) return p.kind === '"'"'depense'"'"' && !clos ? diversCarte() : '"'"''"'"';' '      if (!sup) return '"'"''"'"';' \
   'Dépense : elle se saisit par ce qu'
-prouver 'écarts 25 : la retenue sans ce que reçoit le fournisseur' web/public/v10/app.js \
+prouver 'écarts 25 : la retenue sans ce que reçoit le fournisseur' modules/socle/ecrans/entreprise/app-1.js \
   '<span>Le fournisseur reçoit ${C.money(verse, cur)} ; ' '<span>' \
   'Nadia commande, reçoit en deux fois, saisit et règle la facture'
-prouver 'écarts 26 : la pièce lue d'"'"'El Fatoora sans son bandeau' web/public/v10/app.js \
+prouver 'écarts 26 : la pièce lue d'"'"'El Fatoora sans son bandeau' modules/socle/ecrans/entreprise/app-1.js \
   '${luParIA ? (luParIA.teif ? bandeauLuTeif(luParIA) : bandeauLuParIA(luParIA)) : '"'"''"'"'}' '${luParIA && !luParIA.teif ? bandeauLuParIA(luParIA) : '"'"''"'"'}' \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'écarts 27 : le XML joint montré comme une icône' web/public/v10/app.js \
+prouver 'écarts 27 : le XML joint montré comme une icône' modules/socle/ecrans/entreprise/app-1.js \
   'if (/xml/i.test(r.type) && window.SkanTeif && r.blob) {' 'if (false) {' \
   'la facture électronique reçue : une page, la catégorie sous sa case'
 prouver 'écarts 28 : le XML d'"'"'une facture électronique refusé comme justificatif' serveur/v10/pieces-jointes.ts \
@@ -20667,47 +20667,47 @@ prouver 'écarts 31 : la base qui refuse le XML' base/migrations/0178_justificat
   ''"'"'application/pdf'"'"', '"'"'application/xml'"'"'));' ''"'"'application/pdf'"'"'));' \
   'le XML d'"'"'une facture électronique (TEIF) se joint'
 # ── La revue des écarts des maquettes de la facture et de la liste (1.162.0 ; docs/maquettes-appliquees.md ; tests/web/facture-ecarts.test.ts) ──
-prouver 'écarts facture 1 : les montants en dinars de la liste écrits avec « DT »' web/public/v10/app.js \
+prouver 'écarts facture 1 : les montants en dinars de la liste écrits avec « DT »' modules/socle/ecrans/entreprise/app-1.js \
   '<td class="r m nw cm">${lfMontant(m, cur(d))}' '<td class="r m nw cm">${C.money(m, cur(d))}' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 2 : le net du total de la sélection sans son unité' web/public/v10/app.js \
+prouver 'écarts facture 2 : le net du total de la sélection sans son unité' modules/socle/ecrans/entreprise/app-1.js \
   '${lfMontant(net, base)} <small class="dv">${h(symboleDevise(base))}</small>' '${lfMontant(net, base)}' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 3 : la tuile « À encaisser » qui écrit « EUR »' web/public/v10/app.js \
+prouver 'écarts facture 3 : la tuile « À encaisser » qui écrit « EUR »' modules/socle/ecrans/entreprise/app-1.js \
   'dont ${devises.map(d => argentLu(lfReste(d), cur(d)))' 'dont ${devises.map(d => C.money(lfReste(d), cur(d)))' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 4 : la bulle des filtres en petit « i »' web/public/v10/app.js \
+prouver 'écarts facture 4 : la bulle des filtres en petit « i »' modules/socle/ecrans/entreprise/app-1.js \
   '
         ${info('"'"'list.filters'"'"').replace('"'"'class="i"'"'"', '"'"'class="i i-b"'"'"').replace('"'"'>i</button>'"'"', `>${lfIc('"'"'aide'"'"', 16, 2)}</button>`)}' '
         ${info('"'"'list.filters'"'"').replace('"'"'class="i"'"'"', '"'"'class="i i-b"'"'"')}' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 5 : la phrase d'"'"'une facture en euros qui écrit « EUR »' web/public/v10/app.js \
+prouver 'écarts facture 5 : la phrase d'"'"'une facture en euros qui écrit « EUR »' modules/socle/ecrans/entreprise/app-1.js \
   '${argentLu(recu, cur)} reçus, reste ${argentLu(bal.remaining, cur)}' '${C.money(recu, cur)} reçus, reste ${C.money(bal.remaining, cur)}' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 6 : l'"'"'unité d'"'"'une pièce émise dans une liste à dérouler' web/public/v10/app.js \
+prouver 'écarts facture 6 : l'"'"'unité d'"'"'une pièce émise dans une liste à dérouler' modules/socle/ecrans/entreprise/app-1.js \
   '${figee ? `<span class="unite-lue">${h(uniteLue(l))}</span>`' '${false ? `<span class="unite-lue">${h(uniteLue(l))}</span>`' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 7 : l'"'"'unité lue en code (« j »)' web/public/v10/app.js \
+prouver 'écarts facture 7 : l'"'"'unité lue en code (« j »)' modules/socle/ecrans/entreprise/app-1.js \
   '      return C.uniteAccordee(Number(l.qty) || 0, lib);
     };
     const reperesCharte' '      return u;
     };
     const reperesCharte' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 8 : le timbre imprimé sur une pièce sans ligne' web/public/v10/app.js \
+prouver 'écarts facture 8 : le timbre imprimé sur une pièce sans ligne' modules/socle/ecrans/entreprise/app-1.js \
   '!isQ ? { ...doc, applyStamp: false } : doc);' '!isQ ? doc : doc);' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 9 : la carte d'"'"'un client en retard qui le tait' web/public/v10/app.js \
+prouver 'écarts facture 9 : la carte d'"'"'un client en retard qui le tait' modules/socle/ecrans/entreprise/app-1.js \
   'enRetard > 0.0005 ? `<span class="ed-chip rouge">' 'false ? `<span class="ed-chip rouge">' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 10 : « Relancer » de la carte qui ne mène nulle part' web/public/v10/app.js \
+prouver 'écarts facture 10 : « Relancer » de la carte qui ne mène nulle part' modules/socle/ecrans/entreprise/app-1.js \
   '      if (rl) rl.onclick = () => { relState.q = c.name || '"'"''"'"'; relState.page = 1; navigate('"'"'#/relances'"'"'); };
 ' '' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
-prouver 'écarts facture 11 : la retenue du paiement sans son mois' web/public/v10/app.js \
+prouver 'écarts facture 11 : la retenue du paiement sans son mois' modules/socle/ecrans/entreprise/app-1.js \
   'Elle se compte avec ce paiement, en ${subie}.' 'Elle se compte avec ce paiement.' \
   'Samia, sans matricule ni RIB : la pièce n'"'"'imprime rien de vide, la fiche se complète avant d'"'"'émettre, et le reste suit'
-prouver 'écarts facture 12 : la quantité d'"'"'une ligne sans son numéro de ligne' web/public/v10/app.js \
+prouver 'écarts facture 12 : la quantité d'"'"'une ligne sans son numéro de ligne' modules/socle/ecrans/entreprise/app-1.js \
   'aria-label="Qté, ligne ${i + 1}"' 'aria-label="Quantité"' \
   '(1.87.19) au clavier, chaque case d'"'"'une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 prouver 'écarts facture 13 : la signature sans ses trois temps' web/public/plateforme/pont.js \
@@ -20715,41 +20715,41 @@ prouver 'écarts facture 13 : la signature sans ses trois temps' web/public/plat
 ' '' \
   'Nadia désigne le signataire depuis le refus, puis signe la facture avec le code reçu ; le fichier signé se télécharge'
 # ── Les justificatifs de toute pièce, la lecture en devise, « Vérifier case par case » (1.163.0 ; docs/maquettes-appliquees.md) ──
-prouver 'justificatifs 1 : l'"'"'achat qui dit encore « Sans justificatif » à côté du ticket joint' web/public/v10/app.js \
+prouver 'justificatifs 1 : l'"'"'achat qui dit encore « Sans justificatif » à côté du ticket joint' modules/socle/ecrans/entreprise/app-1.js \
   '      drawBuyAttachments();
       majEtatJustif();
       // (27/10/2026) « Avant d'"'"'enregistrer »' '      drawBuyAttachments();
       // (27/10/2026) « Avant d'"'"'enregistrer »' \
   'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
-prouver 'justificatifs 2 : le retrait du dernier fichier qui laisse « Réglée »' web/public/v10/app.js \
+prouver 'justificatifs 2 : le retrait du dernier fichier qui laisse « Réglée »' modules/socle/ecrans/entreprise/app-1.js \
   '          drawBuyAttachments();
           majEtatJustif();
         },' '          drawBuyAttachments();
         },' \
   'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
-prouver 'justificatifs 3 : le fichier joint qui ne devient pas celui qu'"'"'on regarde' web/public/v10/app.js \
+prouver 'justificatifs 3 : le fichier joint qui ne devient pas celui qu'"'"'on regarde' modules/socle/ecrans/entreprise/app-1.js \
   '    etat.choisi = ajoutes[ajoutes.length - 1].file;' '' \
   'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
-prouver 'justificatifs 4 : les fichiers sans leur liste par leur nom' web/public/v10/app.js \
+prouver 'justificatifs 4 : les fichiers sans leur liste par leur nom' modules/socle/ecrans/entreprise/app-1.js \
   '<div class="pjp-liste" role="listbox"' '<div class="pjp-liste" hidden role="listbox"' \
   'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
-prouver 'justificatifs 5 : le toast qui ne dit pas quel fichier a été pris' web/public/v10/app.js \
+prouver 'justificatifs 5 : le toast qui ne dit pas quel fichier a été pris' modules/socle/ecrans/entreprise/app-1.js \
   '`Justificatif joint : ${ajoutes[0].name || '"'"'le fichier'"'"'}`' ''"'"'Justificatif joint'"'"'' \
   'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
-prouver 'justificatifs 6 : le justificatif ouvert dans un autre onglet' web/public/v10/app.js \
+prouver 'justificatifs 6 : le justificatif ouvert dans un autre onglet' modules/socle/ecrans/entreprise/app-1.js \
   '      if (lu && /^image\/|pdf/i.test(lu.type || '"'"''"'"')) return justificatifEnGrand(ownerId, a, lu, null, etat);
 ' '' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
-prouver 'lecture en devise 1 : la devise lue perdue en remplissant la pièce' web/public/v10/app.js \
+prouver 'lecture en devise 1 : la devise lue perdue en remplissant la pièce' modules/socle/ecrans/entreprise/app-1.js \
   'currency: curP, exchangeRate: enDevise ? '"'"''"'"' : 1 }' 'exchangeRate: enDevise ? '"'"''"'"' : 1 }' \
   'une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir'
-prouver 'lecture en devise 2 : le taux mis à 1 sans rien dire' web/public/v10/app.js \
+prouver 'lecture en devise 2 : le taux mis à 1 sans rien dire' modules/socle/ecrans/entreprise/app-1.js \
   'currency: curP, exchangeRate: enDevise ? '"'"''"'"' : 1 }' 'currency: curP, exchangeRate: 1 }' \
   'une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir'
-prouver 'lecture en devise 3 : « au millime » pour une pièce en euros' web/public/v10/app.js \
+prouver 'lecture en devise 3 : « au millime » pour une pièce en euros' modules/socle/ecrans/entreprise/app-1.js \
   'au ${C.decimalsFor(curP) === 3 ? '"'"'millime'"'"' : '"'"'centime'"'"'}' 'au millime' \
   'une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir'
-prouver 'case par case : ce qui reste à revoir que la pièce ne dit pas' web/public/v10/app.js \
+prouver 'case par case : ce qui reste à revoir que la pièce ne dit pas' modules/socle/ecrans/entreprise/app-1.js \
   'appliquerLecture(values, file, undefined, read.moteur === '"'"'ia'"'"' ? {' 'appliquerLecture(values, file, undefined, false ? {' \
   'une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir'
 prouver 'colonne de droite : son bas hors de l'"'"'écran' web/public/plateforme/barre.js \
@@ -20759,36 +20759,36 @@ prouver 'colonne de droite : son bas hors de l'"'"'écran' web/public/plateforme
     let attente = 0;' \
   'un PDF lu par l'"'"'IA se montre : sa première page, à chaque étape, et les phrases disent « le PDF »'
 # ── Quitter une pièce neuve, la reprendre (1.164.0 ; décision du 27/10/2026, docs/maquettes-appliquees.md) ──
-prouver 'reprendre 1 : la question posée alors que la pièce est gardée' web/public/v10/app.js \
+prouver 'reprendre 1 : la question posée alors que la pièce est gardée' modules/socle/ecrans/entreprise/app-1.js \
   '    if (g.peutGarder && g.peutGarder()) {' '    if (false) {' \
   'sur « mon ordinateur » : quitter ne demande rien, « Rouvrir », puis « Reprendre » ou « Le jeter » ; une facture avec client se reprend du serveur'
-prouver 'reprendre 2 : « Rouvrir » qui ne rouvre rien' web/public/v10/app.js \
+prouver 'reprendre 2 : « Rouvrir » qui ne rouvre rien' modules/socle/ecrans/entreprise/app-1.js \
   '() => rouvrir && rouvrir()' '() => {}' \
   'sur « mon ordinateur » : quitter ne demande rien, « Rouvrir », puis « Reprendre » ou « Le jeter » ; une facture avec client se reprend du serveur'
-prouver 'reprendre 3 : la pièce neuve qui ne propose pas de reprendre' web/public/v10/app.js \
+prouver 'reprendre 3 : la pièce neuve qui ne propose pas de reprendre' modules/socle/ecrans/entreprise/app-1.js \
   '      if (brouillonD && brouillonD.garde()) brouillonD.relire().then(b => {' '      if (false) brouillonD.relire().then(b => {' \
   'sur « mon ordinateur » : quitter ne demande rien, « Rouvrir », puis « Reprendre » ou « Le jeter » ; une facture avec client se reprend du serveur'
-prouver 'reprendre 4 : gardée, la pièce annonce encore « Modifications non enregistrées »' web/public/v10/app.js \
+prouver 'reprendre 4 : gardée, la pièce annonce encore « Modifications non enregistrées »' modules/socle/ecrans/entreprise/app-1.js \
   'guard.dirty() && !(guard.estGarde && guard.estGarde())' 'guard.dirty()' \
   'sur « mon ordinateur » : quitter ne demande rien, « Rouvrir », puis « Reprendre » ou « Le jeter » ; une facture avec client se reprend du serveur'
-prouver 'reprendre 5 : la commande commencée qui ne se reprend pas' web/public/v10/app.js \
+prouver 'reprendre 5 : la commande commencée qui ne se reprend pas' modules/socle/ecrans/entreprise/app-1.js \
   '    if (brouillonCf && !reprisCf) brouillonCf.relire()' '    if (false) brouillonCf.relire()' \
   'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
 # Deux gardes : l'enregistrement efface le brouillon, et le bandeau écarte une commande déjà rangée ; sans les deux, il revient.
-prouver 'reprendre 6 : la commande enregistrée qui reste à reprendre' web/public/v10/app.js \
+prouver 'reprendre 6 : la commande enregistrée qui reste à reprendre' 'modules/socle/ecrans/entreprise/app-1.js|||modules/socle/ecrans/entreprise/app-1.js' \
   "      if (brouillonCf) { clearTimeout(cfTimer); brouillonCf.effacer(); cfEtatGarde = ''; }
 |||> 7 * 86400000 || commandesF().some(x => x.id === d.id)) { brouillonCf.effacer(); return; }" '|||> 7 * 86400000) { brouillonCf.effacer(); return; }' \
   'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
-prouver 'reprendre 7 : la question du poste partagé qui ne dit pas pourquoi' web/public/v10/app.js \
+prouver 'reprendre 7 : la question du poste partagé qui ne dit pas pourquoi' modules/socle/ecrans/entreprise/app-1.js \
   '      partage ? `Rien ne se garde' '      false ? `Rien ne se garde' \
   'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
-prouver 'cabinet reprendre 1 : l'"'"'écriture commencée qui ne se garde pas sur le poste' web/public/v10/cabinet/app.js \
+prouver 'cabinet reprendre 1 : l'"'"'écriture commencée qui ne se garde pas sur le poste' modules/socle/ecrans/cabinet/app-2.js \
   '    if (!apresGarde && brouillonE) { clearTimeout(gardeETimer); gardeETimer = setTimeout(garderSaisies, 1000); }' '' \
   'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
-prouver 'cabinet reprendre 2 : la saisie rouverte qui ne propose pas de reprendre' web/public/v10/cabinet/app.js \
+prouver 'cabinet reprendre 2 : la saisie rouverte qui ne propose pas de reprendre' modules/socle/ecrans/cabinet/app-1.js \
   ' proposerReprise(el, root, dossier); }' ' }' \
   'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
-prouver 'cabinet reprendre 3 : l'"'"'écriture reprise puis enregistrée qui reste sur le poste' web/public/v10/cabinet/app.js \
+prouver 'cabinet reprendre 3 : l'"'"'écriture reprise puis enregistrée qui reste sur le poste' modules/socle/ecrans/cabinet/app-2.js \
   ' gardeesE.set(dossier.id, JSON.stringify(d));' '' \
   'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
 prouver 'cabinet reprendre 4 : le poste partagé qui ferme l'"'"'onglet sans un mot' web/public/plateforme/pont-cabinet.js \
@@ -20799,39 +20799,39 @@ prouver 'cabinet reprendre 5 : gardée, l'"'"'onglet qui demande encore à la fe
   'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
 # ── L'affaire d'une facture émise et les corrections de 1.162.0 enfin testées (1.165.0 ; docs/maquettes-appliquees.md) ──
 T_EMISE='la facture émise et son brouillon parlent comme la maquette : mois clôturé, pas encore vue, l'"'"'heure, encours, stock, affaire'
-prouver 'émise 1 : le brouillon d'"'"'un mois clôturé sans le geste qui ne perd rien' web/public/v10/app.js \
+prouver 'émise 1 : le brouillon d'"'"'un mois clôturé sans le geste qui ne perd rien' modules/socle/ecrans/entreprise/app-1.js \
   "à la date d'aujourd'hui : rien n'est perdu." "à la date d'aujourd'hui." "$T_EMISE"
 prouver 'émise 2 : un lien donné et jamais ouvert qui ne dit rien' web/public/plateforme/pont.js \
   "if (!siens.length) return { vues: 0, vuLe: '' };" 'if (!siens.length) return null;' "$T_EMISE"
-prouver 'émise 3 : l'"'"'historique sans l'"'"'heure' web/public/v10/app.js \
+prouver 'émise 3 : l'"'"'historique sans l'"'"'heure' modules/socle/ecrans/entreprise/app-1.js \
   '${e.ts && Number.isFinite(new Date(e.ts).getTime()) ? ` · ${new Date(e.ts).getHours()}' '${false ? ` · ${new Date(e.ts).getHours()}' "$T_EMISE"
-prouver 'émise 4 : l'"'"'encours dépassé sans dire qui décide' web/public/v10/app.js \
+prouver 'émise 4 : l'"'"'encours dépassé sans dire qui décide' modules/socle/ecrans/entreprise/app-1.js \
   "'ou émets quand même : c\\'est toi qui décides.'" "'ou émets quand même.'" "$T_EMISE"
-prouver 'émise 5 : le stock qui manque sans son dépôt' web/public/v10/app.js \
+prouver 'émise 5 : le stock qui manque sans son dépôt' modules/socle/ecrans/entreprise/app-1.js \
   "dans le dépôt \${dn.replace(/^d[ée]p[ôo]t\\s+/i, '')}" 'dans ${dn}' "$T_EMISE"
-prouver 'émise 6 : la facture émise qui tait son affaire' web/public/v10/app.js \
+prouver 'émise 6 : la facture émise qui tait son affaire' modules/socle/ecrans/entreprise/app-1.js \
   '${charte ? `<div class="lp-ligne" id="lp-affaire">' '${false ? `<div class="lp-ligne" id="lp-affaire">' "$T_EMISE"
-prouver 'émise 7 : « Ranger dans une affaire » qui n'"'"'ouvre rien' web/public/v10/app.js \
+prouver 'émise 7 : « Ranger dans une affaire » qui n'"'"'ouvre rien' modules/socle/ecrans/entreprise/app-1.js \
   'if (b) b.onclick = () => ouvrirEtiquette(b); };' 'if (b) b.onclick = null; };' "$T_EMISE"
-prouver 'émise 8 : l'"'"'affaire choisie que la ligne ne dit pas' web/public/v10/app.js \
+prouver 'émise 8 : l'"'"'affaire choisie que la ligne ne dit pas' modules/socle/ecrans/entreprise/app-1.js \
   "const lpAff = \$('#lp-affaire dd'); if (lpAff) { lpAff.innerHTML = affaireLue(); lierAffaireLue(); }" '' "$T_EMISE"
 # ── Les justificatifs : tous en grand, « Joindre » en tête, l'aperçu qui se masque, la colonne qui suit la page (28/10/2026) ──
-prouver 'justificatifs en grand 1 : « Justificatif » qui n'"'"'ouvre que le premier fichier' web/public/v10/app.js \
+prouver 'justificatifs en grand 1 : « Justificatif » qui n'"'"'ouvre que le premier fichier' modules/socle/ecrans/entreprise/app-1.js \
   'if (deja) return ouvrirJustificatif(p.id, deja, etatJustifs);' 'if (deja) return ouvrirJustificatif(p.id, pjs[0]);' \
   'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
-prouver 'justificatifs en grand 2 : en grand, sans les autres fichiers de la pièce' web/public/v10/app.js \
+prouver 'justificatifs en grand 2 : en grand, sans les autres fichiers de la pièce' modules/socle/ecrans/entreprise/app-1.js \
   'etat.liste = list; etat.joindre = o.joindre;' 'etat.joindre = o.joindre;' \
   '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
-prouver 'justificatifs en grand 3 : le fichier joint en grand qui ne s'"'"'y montre pas' web/public/v10/app.js \
+prouver 'justificatifs en grand 3 : le fichier joint en grand qui ne s'"'"'y montre pas' modules/socle/ecrans/entreprise/app-1.js \
   'if (neuf && el.isConnected) ouvrirJustificatif(ownerId, neuf, etat);' '' \
   '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
-prouver 'justificatifs en grand 4 : « Masquer l'"'"'aperçu » qui ne masque rien' web/public/v10/app.js \
+prouver 'justificatifs en grand 4 : « Masquer l'"'"'aperçu » qui ne masque rien' modules/socle/ecrans/entreprise/app-1.js \
   'etat.masque = b.hasAttribute('"'"'data-pj-masquer'"'"'); masquerApercu(etat.masque);' 'etat.masque = false;' \
   '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
-prouver 'justificatifs en grand 5 : l'"'"'aperçu masqué qui revient au rechargement' web/public/v10/app.js \
+prouver 'justificatifs en grand 5 : l'"'"'aperçu masqué qui revient au rechargement' modules/socle/ecrans/entreprise/app-1.js \
   'const apercuMasque = () => { try { return localStorage.getItem(PJ_APERCU) === '"'"'masque'"'"'; } catch { return false; } };' 'const apercuMasque = () => false;' \
   '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
-prouver 'justificatifs en grand 6 : « Joindre un autre fichier » sous l'"'"'aperçu' web/public/v10/app.js \
+prouver 'justificatifs en grand 6 : « Joindre un autre fichier » sous l'"'"'aperçu' modules/socle/ecrans/entreprise/app-1.js \
   '<button type="button" class="pjp-plus" id="add-att">${lfIc('"'"'ajout'"'"', 15, 2.2)}<b>Joindre un autre fichier</b><small>photo, PDF ou XML · ou glisse-le ici</small></button>
         <div class="pjp-liste"' '<div class="pjp-liste"' \
   '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
@@ -20843,21 +20843,21 @@ prouver 'la bulle « i » des filtres de la liste, trop petite au doigt' web/pub
   'les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'"'"'écran, et au doigt tout se touche'
 # ── Le Cabinet n'appelle plus les paquets quand on glisse (1.166.1, vu par Skander le 28/10/2026) ──
 T_VOILE='au bureau : la tête et son menu, « Mon cabinet » et ses chiffres'
-prouver 'voile des paquets 1 : un fichier glissé qui appelle les paquets absents de la plateforme' web/public/v10/cabinet/app.js \
+prouver 'voile des paquets 1 : un fichier glissé qui appelle les paquets absents de la plateforme' modules/socle/ecrans/cabinet/app-1.js \
   "const paquets = 'pathForFile' in api;" "const paquets = typeof api.pathForFile === 'function';" "$T_VOILE"
-prouver 'voile des paquets 2 : une entrée de la barre glissée qui appelle les paquets' web/public/v10/cabinet/app.js \
+prouver 'voile des paquets 2 : une entrée de la barre glissée qui appelle les paquets' modules/socle/ecrans/cabinet/app-1.js \
   "    const paquets = 'pathForFile' in api;
     const fichier = e => !!e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');" "    const paquets = true;
     const fichier = () => true;" "$T_VOILE"
 # 1.166.2 — la visite « Faire une facture » sur la facture de la charte, la compression préparée (L7), le menu « ⋯ ».
 T_FACG="Skander, sur un compte neuf : l'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu'au brouillon"
-prouver 'facture guidée 1 : la barre d’ajout passée, la désignation visée dans une ligne qui n’existe pas' web/public/v10/visites.js \
+prouver 'facture guidée 1 : la barre d’ajout passée, la désignation visée dans une ligne qui n’existe pas' modules/socle/visites/visites.js \
   "si: () => !!\$('#ed-ajout'), cible: '#ed-ajout', cote: 'dessous', faire: 'valeur', titre: 'Ajouter une ligne',
           texte: 'Tape ce que tu vends : SkanFact te propose ce qui ressemble dans ton catalogue, avec son prix. <b>Entrée</b> ajoute l\\'article choisi, ou une ligne libre avec ce que tu as tapé.',
           action: 'Tape ce que tu factures" "si: () => false, cible: '#ed-ajout', cote: 'dessous', faire: 'valeur', titre: 'Ajouter une ligne',
           texte: 'Tape ce que tu vends : SkanFact te propose ce qui ressemble dans ton catalogue, avec son prix. <b>Entrée</b> ajoute l\\'article choisi, ou une ligne libre avec ce que tu as tapé.',
           action: 'Tape ce que tu factures" "$T_FACG"
-prouver 'facture guidée 2 : « Choisis le client » visé dans une case cachée, la visite saute à « Les autres cases »' web/public/v10/visites.js \
+prouver 'facture guidée 2 : « Choisis le client » visé dans une case cachée, la visite saute à « Les autres cases »' modules/socle/visites/visites.js \
   "{ cible: ['#ed-pourqui', '#ed-client', combo('clientId')], cote: 'droite', faire: 'valeur', bouton: 'C\\'est fait',
           titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\\'il n\\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter la facture." "{ cible: combo('clientId'), cote: 'droite', faire: 'valeur', bouton: 'C\\'est fait',
           titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\\'il n\\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter la facture." "$T_FACG"
@@ -20866,19 +20866,19 @@ prouver 'L7 1 : le brotli préparé à la construction laissé de côté' serveu
   "if (fs.statSync(pret).mtimeMs >= f.mtime) v = fs.readFileSync(pret);" "if (fs.existsSync(pret)) v = fs.readFileSync(pret);" "$T_L7"
 prouver 'L7 2 : « nom.br » servi par son nom' serveur/principal.ts \
   "if (!fs.existsSync(fichier) || fichier.endsWith('.br')) fichier" "if (!fs.existsSync(fichier)) fichier" "$T_L7"
-prouver 'le menu « ⋯ » de la charte refermé par la surveillance des anciens menus' web/public/v10/app.js \
+prouver 'le menu « ⋯ » de la charte refermé par la surveillance des anciens menus' modules/socle/ecrans/entreprise/app-1.js \
   "if (!b || !l || b.dataset.menuCharte) return;" "if (!b || !l) return;" "au clavier, un menu « ▾ » d'un devis : le curseur dans la liste, les flèches, Échap rend le curseur au bouton"
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
 # (1.167.0) Les pièces reçues telles que la maquette : le genre, l'ordre, le clavier, la raison, les demandes.
-prouver 'pièces reçues 1 : un ticket se lit comme une facture' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 1 : un ticket se lit comme une facture' modules/socle/ecrans/cabinet/app-1.js \
   "    if (/ticket|re[çc]u[-_ ]/i.test(nom)) return 'ticket';" '' \
   'les pièces reçues : chaque pièce a son geste'
-prouver 'pièces reçues 2 : la plus récente d'"'"'abord dans un dossier' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 2 : la plus récente d'"'"'abord dans un dossier' modules/socle/ecrans/cabinet/app-1.js \
   'return classees ? x : x.reverse(); };' 'return x; };' \
   'les pièces reçues : chaque pièce a son geste'
-prouver 'pièces reçues 3 : la flèche du bas ne change pas de pièce' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 3 : la flèche du bas ne change pas de pièce' modules/socle/ecrans/cabinet/app-1.js \
   "st.pas(e.key === 'ArrowDown' ? 1 : -1);" '' \
   'les pièces reçues : chaque pièce a son geste'
 prouver 'pièces reçues 4 : la raison ne part pas au serveur' web/public/plateforme/pont-cabinet.js \
@@ -20890,7 +20890,7 @@ prouver 'pièces reçues 5 : la base oublie la raison' base/migrations/0181_clas
 prouver 'pièces reçues 6 : une demande reçue disparaît aussitôt' serveur/messagerie/routes.ts \
   "m.demande_recue_le > now() - interval '3 days'" "m.demande_recue_le > now()" \
   'le fichier d'"'"'un client arrive à classer'
-prouver 'pièces reçues 7 : l'"'"'aperçu ne montre pas la pièce' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 7 : l'"'"'aperçu ne montre pas la pièce' modules/socle/ecrans/cabinet/app-1.js \
   '      zone.className = '"'"'pc-papier'"'"';' '      return;' \
   'les pièces reçues : chaque pièce a son geste'
 prouver 'retard 1 : une déclaration déposée compte encore en retard' web/public/v10/cabinet/cabcore.js \
@@ -20899,7 +20899,7 @@ prouver 'retard 1 : une déclaration déposée compte encore en retard' web/publ
 prouver 'retard 2 : une date à venir compte déjà en retard' web/public/v10/cabinet/cabcore.js \
   'if (!e.passee || e.toutDepose) continue;' 'if (e.toutDepose) continue;' \
   'une date passée sans dépôt compte'
-prouver 'échéances 1 : la première lecture, vide, laisse la page en squelette' web/public/v10/cabinet/app.js \
+prouver 'échéances 1 : la première lecture, vide, laisse la page en squelette' modules/socle/ecrans/cabinet/app-2.js \
   '((premiere && location.hash.startsWith('"'"'#/echeances'"'"')) || JSON.stringify(questionsAttente) !== avant)' '(JSON.stringify(questionsAttente) !== avant)' \
   'des clients sans aucune écriture'
 prouver 'échéances 2 : la relance part sans ses demandes datées' web/public/plateforme/pont-cabinet.js \
@@ -20907,134 +20907,134 @@ prouver 'échéances 2 : la relance part sans ses demandes datées' web/public/p
   '(1.175.0) une personne physique à son jour'
 # (Réajustée le 31/10/2026 : depuis la 1.193.0, le premier essai écrit la relance dans la conversation, sans passer par
 # relancerDossier ; c'est le second qui l'envoie de la fenêtre et compte les demandes chez le client.)
-prouver 'échéances 3 : « Marquer déposée » sans rien de prêt part sans choix' web/public/v10/cabinet/app.js \
+prouver 'échéances 3 : « Marquer déposée » sans rien de prêt part sans choix' modules/socle/ecrans/cabinet/app-2.js \
   'id="ok" disabled title="Choisis d'"'"'abord' 'id="ok" title="Choisis d'"'"'abord' \
   'au bureau : la déclaration en retard'
-prouver 'pièces reçues 8 : « En double » classe sans demander laquelle' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 8 : « En double » classe sans demander laquelle' modules/socle/ecrans/cabinet/app-1.js \
   "        if (r === 'double') { st.menu = false; redessiner(); fenDouble(" "        if (false) { st.menu = false; redessiner(); fenDouble(" \
   'les pièces reçues, les autres états'
-prouver 'pièces reçues 9 : l'"'"'achat que le client saisit lui-même se propose à la saisie' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 9 : l'"'"'achat que le client saisit lui-même se propose à la saisie' modules/socle/ecrans/cabinet/app-1.js \
   "&& !D.perimetre.includes('saisie_achats');" "&& false;" \
   'les pièces reçues, les autres états'
 prouver 'pièces reçues 10 : ce que le client a confié se perd en route' web/public/v10/cabinet/cabcore.js \
   'perimetre: Array.isArray(d.perimetre) ? d.perimetre.map(String) : null,' 'perimetre: null,' \
   'les pièces reçues, les autres états'
-prouver 'pièces reçues 11 : le lot ne classe que la première pièce choisie' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 11 : le lot ne classe que la première pièce choisie' modules/socle/ecrans/cabinet/app-1.js \
   'for (const p of lot) { await api.pieces.classer' 'for (const p of lot.slice(0, 1)) { await api.pieces.classer' \
   'les pièces reçues, les autres états'
-prouver 'échéances 4 : un dossier pointé déposé ne se défait pas depuis sa ligne' web/public/v10/cabinet/app.js \
+prouver 'échéances 4 : un dossier pointé déposé ne se défait pas depuis sa ligne' modules/socle/ecrans/cabinet/app-2.js \
   "      l.st === 'pointee' && x.pointee ? ['annuler-pointage'," "      false ? ['annuler-pointage'," \
   'Consulter se relit en revenant sur la fenêtre'
-prouver 'échéances 5 : la CNSS ne dit plus qui elle compte par prudence' web/public/v10/cabinet/app.js \
+prouver 'échéances 5 : la CNSS ne dit plus qui elle compte par prudence' modules/socle/ecrans/cabinet/app-2.js \
   "x.t.sorte === 'cnss' ? (x.lignes.some(l => l.prudence) ? 'Les cotisations du trimestre des dossiers employeurs.' : esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.'))" "x.t.sorte === 'cnss' ? 'Les cotisations du trimestre des dossiers employeurs.'" \
   'la carte CNSS du dernier trimestre ne vise que'
-prouver 'dossiers 1 : la forme du client disparaît de sa ligne' web/public/v10/cabinet/app.js \
+prouver 'dossiers 1 : la forme du client disparaît de sa ligne' modules/socle/ecrans/cabinet/app-1.js \
   "esc([d.forme, d.ville].filter(Boolean).join(' · ')" "esc([d.ville].filter(Boolean).join(' · ')" \
   'au bureau : la liste, la proposition'
 prouver 'dossiers 2 : la fonction du contact ne se garde pas sur la fiche' web/public/v10/cabinet/cabcore.js \
   "fonction: String(d.fonction || ''), activite:" "activite:" \
   'au bureau : la liste, la proposition'
-prouver 'dossiers 3 : les honoraires de la colonne répètent « DT »' web/public/v10/cabinet/app.js \
+prouver 'dossiers 3 : les honoraires de la colonne répètent « DT »' modules/socle/ecrans/cabinet/app-1.js \
   "const dtCd = v => money(v).replace(/\\s*DT\$/, '');" "const dtCd = v => money(v);" \
   'au bureau : la liste, la proposition'
-prouver 'dossiers 4 : une relance notée au téléphone ne dit pas comment' web/public/v10/cabinet/app.js \
+prouver 'dossiers 4 : une relance notée au téléphone ne dit pas comment' modules/socle/ecrans/cabinet/app-1.js \
   "const via = { tel: ', au téléphone', whatsapp: ', par WhatsApp', autre: '' }[r.via] ?? '';" "const via = '';" \
   'au bureau : la liste, la proposition'
 prouver 'dossiers 5 : la proposition d'\''un client attend un « Accepter » sans dire quoi' web/public/plateforme/pont-cabinet.js \
   ">Accepter le dossier</button>" ">Accepter</button>" \
   'au bureau : la liste, la proposition'
-prouver 'dossiers 6 : au téléphone, une carte n'\''ouvre pas le dossier' web/public/v10/cabinet/app.js \
+prouver 'dossiers 6 : au téléphone, une carte n'\''ouvre pas le dossier' modules/socle/ecrans/cabinet/app-1.js \
   "b.onclick = () => ouvrirD(b.dataset.cdCarte); });" "b.onclick = () => {}; });" \
   'au téléphone : des cartes'
-prouver 'dossiers 7 : au téléphone, le tri absent casse la page' web/public/v10/cabinet/app.js \
+prouver 'dossiers 7 : au téléphone, le tri absent casse la page' modules/socle/ecrans/cabinet/app-1.js \
   "const tri = \$('#cd-tri', view); if (tri) tri.onchange" "const tri = \$('#cd-tri', view); tri.onchange" \
   'au téléphone : des cartes'
-prouver 'dossiers 8 : un clic sur la ligne n'\''ouvre pas le dossier' web/public/v10/cabinet/app.js \
+prouver 'dossiers 8 : un clic sur la ligne n'\''ouvre pas le dossier' modules/socle/ecrans/cabinet/app-1.js \
   "        ouvrirD(tr.dataset.id);" "        redessiner();" \
   'au bureau : la liste, la proposition'
 prouver 'dossiers 9 : écrire et confier poussent la ligne en apparaissant' web/public/plateforme/dossiers.css \
   ".cd-page .cd-vite { display: inline-flex; gap: 2px; opacity: 0;" ".cd-page .cd-vite { display: inline-flex; gap: 2px; opacity: 1;" \
   'au bureau : la liste, la proposition'
-prouver 'dossiers 10 : « Confier à… » au bout de la ligne n'\''ouvre rien' web/public/v10/cabinet/app.js \
+prouver 'dossiers 10 : « Confier à… » au bout de la ligne n'\''ouvre rien' modules/socle/ecrans/cabinet/app-1.js \
   "\${st.confier === d.id ? popConfier([d]) : ''}</span>\` : ''}</span>\`;" "\${''}</span>\` : ''}</span>\`;" \
   'au bureau : la liste, la proposition'
-prouver 'dossiers 11 : le dossier suivant ne s'\''ouvre pas' web/public/v10/cabinet/app.js \
+prouver 'dossiers 11 : le dossier suivant ne s'\''ouvre pas' modules/socle/ecrans/cabinet/app-1.js \
   "if (b.dataset.fdVoisin) { dosState.kb" "if (false) { dosState.kb" \
   'au bureau : la liste, la proposition'
-prouver 'dossiers 12 : le précédent et le suivant pris hors de la liste vue' web/public/v10/cabinet/app.js \
+prouver 'dossiers 12 : le précédent et le suivant pris hors de la liste vue' modules/socle/ecrans/cabinet/app-1.js \
   "const ordre = dosState.ordre.includes(d.id) ? dosState.ordre" "const ordre = false ? dosState.ordre" \
   'au bureau : la liste, la proposition'
-prouver 'dossiers 13 : un client sans début de mission se dit sans pièces' web/public/v10/cabinet/app.js \
+prouver 'dossiers 13 : un client sans début de mission se dit sans pièces' modules/socle/ecrans/cabinet/app-1.js \
   "if (debutAPreciser(d)) return { cl: 'hors', mot: 'début de mission à préciser', aPreciser: true };" "if (false) return { cl: 'hors', mot: 'début de mission à préciser', aPreciser: true };" \
   '(1.185.0) le début de mission'
 prouver 'dossiers 14 : accepter un client ne demande pas son début de mission' web/public/plateforme/pont-cabinet.js \
   "try { sessionStorage.setItem('skanfact.debutMission', String(accepte.entreprise)); }" "try { void accepte; }" \
   '(1.185.0) le début de mission'
-prouver 'dossiers 15 : les Priorités ne rappellent pas un début à préciser' web/public/v10/cabinet/app.js \
+prouver 'dossiers 15 : les Priorités ne rappellent pas un début à préciser' modules/socle/ecrans/cabinet/app-1.js \
   "if (debutAPreciser(d)) avoir.push({ cle: \`dm-\${d.id}\`" "if (false) avoir.push({ cle: \`dm-\${d.id}\`" \
   '(1.185.0) le début de mission'
-prouver 'fiche 1 : août et septembre sans rien reçu font deux relances' web/public/v10/cabinet/app.js \
+prouver 'fiche 1 : août et septembre sans rien reçu font deux relances' modules/socle/ecrans/cabinet/app-1.js \
   'if (sansRien.length) {' 'if (false) {' \
   'au bureau : rien reçu depuis juillet'
-prouver 'fiche 2 : la note de l'\''équipe ne s'\''enregistre pas' web/public/v10/cabinet/app.js \
+prouver 'fiche 2 : la note de l'\''équipe ne s'\''enregistre pas' modules/socle/ecrans/cabinet/app-1.js \
   "S = (await api.saveDossier(d.id, { note: \$('#fd-note-t', layer).value })).state;" "S = await api.saveDossier(d.id, { note: \$('#fd-note-t', layer).value });" \
   'au bureau : rien reçu depuis juillet'
-prouver 'fiche 3 : au téléphone, la fiche se dit « pensée pour un ordinateur »' web/public/v10/cabinet/app.js \
+prouver 'fiche 3 : au téléphone, la fiche se dit « pensée pour un ordinateur »' modules/socle/ecrans/cabinet/app-1.js \
   "|| \$('#page-fd') || \$('#page-cl')) return;" "|| \$('#page-cl')) return;" \
   'au téléphone : rien ne déborde'
-prouver 'fiche 4 : un mois sans rien reçu liste ses points de révision' web/public/v10/cabinet/app.js \
+prouver 'fiche 4 : un mois sans rien reçu liste ses points de révision' modules/socle/ecrans/cabinet/app-1.js \
   'const rienArrive = rv.length && !xm.ecr && !d.manual;' 'const rienArrive = false;' \
   'au bureau : rien reçu depuis juillet'
-prouver 'fiche 5 : sans réseau, la relance part quand même' web/public/v10/cabinet/app.js \
+prouver 'fiche 5 : sans réseau, la relance part quand même' modules/socle/ecrans/cabinet/app-1.js \
   'const bloque = hors && /Relancer' 'const bloque = false && /Relancer' \
   'au téléphone : rien ne déborde'
-prouver 'fiche 6 : un mois en retard ne dit pas depuis quand' web/public/v10/cabinet/app.js \
+prouver 'fiche 6 : un mois en retard ne dit pas depuis quand' modules/socle/ecrans/cabinet/app-1.js \
   "d.archived ? '' : t ? \`en retard depuis le" "d.archived ? '' : false ? \`en retard depuis le" \
   'au bureau : rien reçu depuis juillet'
-prouver 'fiche 7 : un client sans écriture n'\''a pas sa bienvenue' web/public/v10/cabinet/app.js \
+prouver 'fiche 7 : un client sans écriture n'\''a pas sa bienvenue' modules/socle/ecrans/cabinet/app-1.js \
   'const nouveau = L && !Object.values(L.parMois).some(v => v.ecr) && !d.manual;' 'const nouveau = false;' \
   'au bureau : rien reçu depuis juillet'
-prouver 'classeur 1 : « Tout le dossier » ne mène pas au classeur' web/public/v10/cabinet/app.js \
+prouver 'classeur 1 : « Tout le dossier » ne mène pas au classeur' modules/socle/ecrans/cabinet/app-1.js \
   "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/classeur\`," "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/comptabilite/journal\`," \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 2 : les mois d'\''avant la mission se rangent comme les autres' web/public/v10/cabinet/app.js \
+prouver 'classeur 2 : les mois d'\''avant la mission se rangent comme les autres' modules/socle/ecrans/cabinet/app-1.js \
   '<div class="cl-a-ms">${avant.length ? `' '<div class="cl-a-ms">${false ? `' \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 3 : une écriture ouverte ne montre rien à droite' web/public/v10/cabinet/app.js \
+prouver 'classeur 3 : une écriture ouverte ne montre rien à droite' modules/socle/ecrans/cabinet/app-1.js \
   "} else if (sel && sel.sorte === 'ecr') {" "} else if (false) {" \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 4 : la recherche ignore le nom du fournisseur' web/public/v10/cabinet/app.js \
+prouver 'classeur 4 : la recherche ignore le nom du fournisseur' modules/socle/ecrans/cabinet/app-1.js \
   'sansAccentsCl(`${x.titre} ${x.sous} ${x.em' 'sansAccentsCl(`${x.sous} ${x.em' \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 5 : deux mois vides font deux relances' web/public/v10/cabinet/app.js \
+prouver 'classeur 5 : deux mois vides font deux relances' modules/socle/ecrans/cabinet/app-1.js \
   "&& !(x.sorte === 'trou' && x.geste.act === 'relance' && x.premier === false) ?" "?" \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 6 : au téléphone, le classeur se dit « pensé pour un ordinateur »' web/public/v10/cabinet/app.js \
+prouver 'classeur 6 : au téléphone, le classeur se dit « pensé pour un ordinateur »' modules/socle/ecrans/cabinet/app-1.js \
   "|| \$('#page-fd') || \$('#page-cl')) return;" "|| \$('#page-fd')) return;" \
   'au téléphone : les puces des mois'
 # ── 1.172.0 : le classeur refait contre sa maquette, et la pièce jointe à son achat ──
-prouver 'classeur 7 : rien ne s'\''ouvre à droite en arrivant' web/public/v10/cabinet/app.js \
+prouver 'classeur 7 : rien ne s'\''ouvre à droite en arrivant' modules/socle/ecrans/cabinet/app-1.js \
   'if (!clState.sel) { clState.sel = premierVu.k; drawClasseur(view, d); return; }' 'if (false) { clState.sel = premierVu.k; drawClasseur(view, d); return; }' \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 8 : l'\''exercice surligné en même temps que le mois' web/public/v10/cabinet/app.js \
+prouver 'classeur 8 : l'\''exercice surligné en même temps que le mois' modules/socle/ecrans/cabinet/app-1.js \
   "!passe && clState.vue === 'annee' && !clState.q ? ' ici'" "!passe && !clState.q ? ' ici'" \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 9 : « Ce qui manque » compté comme une rubrique' web/public/v10/cabinet/app.js \
+prouver 'classeur 9 : « Ce qui manque » compté comme une rubrique' modules/socle/ecrans/cabinet/app-1.js \
   "CL_RUBS.filter(([r]) => r !== 'manque'), i7" "CL_RUBS.filter(() => true), i7" \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 10 : « 1 factures et tickets »' web/public/v10/cabinet/app.js \
+prouver 'classeur 10 : « 1 factures et tickets »' modules/socle/ecrans/cabinet/app-1.js \
   '[l.length > 1 ? 1 : 0];' '[1];' \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 11 : des mois vides surlignent le dernier' web/public/v10/cabinet/app.js \
+prouver 'classeur 11 : des mois vides surlignent le dernier' modules/socle/ecrans/cabinet/app-1.js \
   'mIci = parMois[i].m;' 'mIci = pm.m;' \
   'au bureau : l'\''arbre, la rubrique'
-prouver 'classeur 12 : la recherche laisse le mois surligné' web/public/v10/cabinet/app.js \
+prouver 'classeur 12 : la recherche laisse le mois surligné' modules/socle/ecrans/cabinet/app-1.js \
   "const ici = !clState.vue && !clState.q && clState.filtre !== 'manque';" "const ici = !clState.vue && clState.filtre !== 'manque';" \
   'au bureau : l'\''arbre, la rubrique'
 prouver 'classeur 13 : au téléphone, la carte du mois à demi-largeur' web/public/plateforme/classeur.css \
   '.cl-g, .cl-g.sans-ap { grid-template-columns: minmax(0, 1fr); }' '.cl-g { grid-template-columns: minmax(0, 1fr); }' \
   'au téléphone : les puces des mois'
-prouver 'classeur 14 : au téléphone, la pièce s'\''ouvre d'\''elle-même' web/public/v10/cabinet/app.js \
+prouver 'classeur 14 : au téléphone, la pièce s'\''ouvre d'\''elle-même' modules/socle/ecrans/cabinet/app-1.js \
   'if (!tel && premierVu' 'if (premierVu' \
   'au téléphone : les puces des mois'
 prouver 'classeur 15 : les pièces classées taisent leur écriture jointe' serveur/messagerie/routes.ts \
@@ -21061,136 +21061,136 @@ prouver 'classeur 21 : sans adresse sur la fiche, la demande ne part pas à cell
 prouver 'classeur 22 : un cabinet lit ce que le client lit de lui' base/migrations/0187_classeur_bulletins.sql \
   'where d.entreprise = p_entreprise and d.remplace_par is null and messagerie.cote_entreprise(p_entreprise)' 'where d.entreprise = p_entreprise and d.remplace_par is null' \
   'le client lit ce que son cabinet a rangé'
-prouver 'classeur 23 : la même photo envoyée deux fois ne se dit pas en double' web/public/v10/cabinet/app.js \
+prouver 'classeur 23 : la même photo envoyée deux fois ne se dit pas en double' modules/socle/ecrans/cabinet/app-1.js \
   'if (!j) continue;' 'continue;' \
   'une pièce en double se marque de sa jumelle'
-prouver 'classeur 24 : le mois de son arrivée renvoie la pièce au mois d'\''avant' web/public/v10/cabinet/app.js \
+prouver 'classeur 24 : le mois de son arrivée renvoie la pièce au mois d'\''avant' modules/socle/ecrans/cabinet/app-1.js \
   'x.p ? x.p.id : x.doc.id, m);' 'x.p ? x.p.id : x.doc.id, x.p && m === arrivee ? null : m);' \
   'une pièce en double se marque de sa jumelle'
-prouver 'classeur 25 : un achat justifié par le cabinet reste sans justificatif chez le client' web/public/v10/core.js \
+prouver 'classeur 25 : un achat justifié par le cabinet reste sans justificatif chez le client' modules/socle/moteur/core-2.js \
   '&& !(p && p.justifCabinet); }' '; }' \
   'n'\''est plus « sans justificatif »'
-prouver 'classeur 26 : une pièce lue du même montant qu'\''un achat sans justificatif ne le dit pas' web/public/v10/cabinet/app.js \
+prouver 'classeur 26 : une pièce lue du même montant qu'\''un achat sans justificatif ne le dit pas' modules/socle/ecrans/cabinet/app-1.js \
   'if (c) x.em = `un achat du même montant' 'if (c && 0) x.em = `un achat du même montant' \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif'
-prouver 'classeur 27 : le même fichier déposé par le cabinet n'\''est pas marqué en double' web/public/v10/cabinet/app.js \
+prouver 'classeur 27 : le même fichier déposé par le cabinet n'\''est pas marqué en double' modules/socle/ecrans/cabinet/app-1.js \
   'if (j && r && r.id) await api.classeur.doubler(' 'if (0 && j && r && r.id) await api.classeur.doubler(' \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif'
-prouver 'classeur 28 : après un geste, la ligne traitée file sous le curseur' web/public/v10/cabinet/app.js \
+prouver 'classeur 28 : après un geste, la ligne traitée file sous le curseur' modules/socle/ecrans/cabinet/app-1.js \
   '(rang.has(a.k) ? rang.get(a.k) : -1) - (rang.has(b.k) ? rang.get(b.k) : -1)' '0' \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif'
-prouver 'classeur 29 : l'\''historique tait la lecture par SkanFact' web/public/v10/cabinet/app.js \
+prouver 'classeur 29 : l'\''historique tait la lecture par SkanFact' modules/socle/ecrans/cabinet/app-1.js \
   "if (sel.lu && sel.lu.luLe) ev.push(['SF', 'SkanFact lit la pièce'" "if (0) ev.push(['SF', 'SkanFact lit la pièce'" \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif'
-prouver 'fiche du dossier : l'\''en-tête garde un vert fixe au lieu de la couleur du dossier' web/public/v10/cabinet/app.js \
+prouver 'fiche du dossier : l'\''en-tête garde un vert fixe au lieu de la couleur du dossier' modules/socle/ecrans/cabinet/app-1.js \
   'id="page-fd" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}"' 'id="page-fd" data-id="${esc(d.id)}"' \
   'au bureau : rien reçu depuis juillet, un seul geste'
-prouver 'classeur 30 : dans un dossier tenu, une rubrique de l'\''arbre ne s'\''ouvre pas' web/public/v10/cabinet/app.js \
+prouver 'classeur 30 : dans un dossier tenu, une rubrique de l'\''arbre ne s'\''ouvre pas' modules/socle/ecrans/cabinet/app-1.js \
   "} else if (d.manual && pm.cl !== 'avenir' && clState.filtre === 'rub' && !clState.ouvrir) {" "} else if (d.manual && pm.cl !== 'avenir') {" \
   'un dossier tenu au cabinet : ce qui est arrivé, puis une rubrique'
-prouver 'classeur 31 : une vue ouverte (les courriers, une déclaration) n'\''a pas de lien pour revenir' web/public/v10/cabinet/app.js \
+prouver 'classeur 31 : une vue ouverte (les courriers, une déclaration) n'\''a pas de lien pour revenir' modules/socle/ecrans/cabinet/app-1.js \
   'if (retourVue) milieu = ' 'if (0) milieu = ' \
   'un courrier se range avec le mois où il est arrivé'
-prouver 'classeur 32 : « précédent » sort du classeur au lieu de revenir à la vue d'\''avant' web/public/v10/cabinet/app.js \
+prouver 'classeur 32 : « précédent » sort du classeur au lieu de revenir à la vue d'\''avant' modules/socle/ecrans/cabinet/app-1.js \
   "else if (JSON.stringify(h) !== JSON.stringify(pos)) history.pushState({ cl: pos }, '');" "" \
   'un courrier se range avec le mois où il est arrivé'
-prouver 'classeur 33 : un courrier se range avec l'\''année seule, sans le mois où il est arrivé' web/public/v10/cabinet/app.js \
+prouver 'classeur 33 : un courrier se range avec l'\''année seule, sans le mois où il est arrivé' modules/socle/ecrans/cabinet/app-1.js \
   "rubrique === 'courrier' ? (\$('#dp-cm', layer).value || K.today().slice(0, 7)) : null," "rubrique === 'courrier' ? K.today().slice(0, 4) : null," \
   'un courrier se range avec le mois où il est arrivé'
-prouver 'classeur 34 : une pièce remplacée reste à traiter à côté de la nouvelle' web/public/v10/cabinet/app.js \
+prouver 'classeur 34 : une pièce remplacée reste à traiter à côté de la nouvelle' modules/socle/ecrans/cabinet/app-1.js \
   'if (vieille && !vieille.classee && r && r.id)' 'if (0 && vieille && !vieille.classee && r && r.id)' \
   'un courrier se range avec le mois où il est arrivé'
-prouver 'classeur 35 : la pièce ouverte d'\''elle-même en arrivant n'\''a ni sa ligne surlignée ni son ⋯' web/public/v10/cabinet/app.js \
+prouver 'classeur 35 : la pièce ouverte d'\''elle-même en arrivant n'\''a ni sa ligne surlignée ni son ⋯' modules/socle/ecrans/cabinet/app-1.js \
   'if (!clState.sel) { clState.sel = premierVu.k; drawClasseur(view, d); return; }' 'if (!clState.sel) clState.sel = premierVu.k;' \
   'un courrier se range avec le mois où il est arrivé'
-prouver 'classeur 36 : le menu ⋯ d'\''une pièce n'\''a pas d'\''icônes' web/public/v10/cabinet/app.js \
+prouver 'classeur 36 : le menu ⋯ d'\''une pièce n'\''a pas d'\''icônes' modules/socle/ecrans/cabinet/app-1.js \
   '<span class="rm-i">${ic}</span><span class="rm-t"><span class="rm-l">${esc(l)}</span>' '<span class="rm-t"><span class="rm-l">${esc(l)}</span>' \
   'un courrier se range avec le mois où il est arrivé'
-prouver 'classeur 37 : « Pas une pièce comptable » manque au menu d'\''une pièce' web/public/v10/cabinet/app.js \
+prouver 'classeur 37 : « Pas une pièce comptable » manque au menu d'\''une pièce' modules/socle/ecrans/cabinet/app-1.js \
   "sortir.push(['rien', CD_IC.archive, " "sortir.push(['rien0', CD_IC.archive, " \
   'un courrier se range avec le mois où il est arrivé'
-prouver 'classeur 38 : une rubrique vide du mois ne dit rien et n'\''offre aucun geste' web/public/v10/cabinet/app.js \
+prouver 'classeur 38 : une rubrique vide du mois ne dit rien et n'\''offre aucun geste' modules/socle/ecrans/cabinet/app-1.js \
   '${l.length ? liste(trie) : `<div class="cl-rub-vide">' '${l.length ? liste(trie) : `<div hidden class="x">' \
   'un courrier se range avec le mois où il est arrivé'
-prouver 'classeur 39 : « Saisir » ouvre une saisie vide, sans lien avec la pièce' web/public/v10/cabinet/app.js \
+prouver 'classeur 39 : « Saisir » ouvre une saisie vide, sans lien avec la pièce' modules/socle/ecrans/cabinet/app-2.js \
   "journalDe: nature, libelle: String(nom || '').replace(/\\.(pdf|jpe?g|png|webp|heic)$/i, '').slice(0, 120), depuisClasseur: depuis };" "journalDe: '', libelle: '', depuisClasseur: null };" \
   'saisir une pièce depuis le classeur'
-prouver 'classeur 40 : la pièce saisie depuis le classeur reste « à saisir »' web/public/v10/cabinet/app.js \
+prouver 'classeur 40 : la pièce saisie depuis le classeur reste « à saisir »' modules/socle/ecrans/cabinet/app-2.js \
   'if (dc && idE && !res.attente) {' 'if (0) {' \
   'saisir une pièce depuis le classeur'
-prouver 'classeur 41 : un montant tapé « 1846,2 » ne trouve pas la pièce de 1 846,200' web/public/v10/cabinet/app.js \
+prouver 'classeur 41 : un montant tapé « 1846,2 » ne trouve pas la pièce de 1 846,200' modules/socle/ecrans/cabinet/app-1.js \
   'const correspond = x => vautQ(x.montant) || ' 'const correspond = x => ' \
   'au bureau : l'\''arbre, la rubrique, la pièce et son écriture'
-prouver 'classeur 42 : une déclaration dont la TVA diffère de ses livres ne le dit pas' web/public/v10/cabinet/app.js \
+prouver 'classeur 42 : une déclaration dont la TVA diffère de ses livres ne le dit pas' modules/socle/ecrans/cabinet/app-1.js \
   "if (!L.length) return '';" "if (L.length) return '';" \
   'au bureau : l'\''arbre, la rubrique, la pièce et son écriture'
-prouver 'classeur 43 : recliquer la rubrique affichée referme la pièce ouverte d'\''elle-même' web/public/v10/cabinet/app.js \
+prouver 'classeur 43 : recliquer la rubrique affichée referme la pièce ouverte d'\''elle-même' modules/socle/ecrans/cabinet/app-1.js \
   "if (ici && !resumeMois && a.dataset.clRub === clState.rub && clState.filtre === 'rub')" "if (false)" \
   'un courrier se range avec le mois où il est arrivé, puis sa réponse ; une vue ouverte se referme (lien et « précédent ») ; une pièce remplacée sort du compte'
-prouver 'classeur 44 : un collaborateur en saisie voit « Relancer Hédi » sur les mois vides' web/public/v10/cabinet/app.js \
+prouver 'classeur 44 : un collaborateur en saisie voit « Relancer Hédi » sur les mois vides' modules/socle/ecrans/cabinet/app-1.js \
   "? reserve(x.geste.act) ? parReviseur(x.geste.act) : \`<button" "? false ? parReviseur(x.geste.act) : \`<button" \
   'un collaborateur en saisie : ni export, ni ce qui parle au client ; la page dit qui le fait'
-prouver 'classeur 45 : un collaborateur en saisie voit « Exporter »' web/public/v10/cabinet/app.js \
+prouver 'classeur 45 : un collaborateur en saisie voit « Exporter »' modules/socle/ecrans/cabinet/app-1.js \
   '${actions && !tel && !enSaisie ?' '${actions && !tel ?' \
   'un collaborateur en saisie : ni export, ni ce qui parle au client ; la page dit qui le fait'
-prouver 'classeur 46 : une pièce dont rien ne dit le même total a « Joindre » pour bouton principal' web/public/v10/cabinet/app.js \
+prouver 'classeur 46 : une pièce dont rien ne dit le même total a « Joindre » pour bouton principal' modules/socle/ecrans/cabinet/app-1.js \
   "const jP = ind === 'montant' || ind === 'numero' || (sel.geste && sel.geste.act === 'joindre');" "const jP = true;" \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
-prouver 'pièces reçues 12 : « Saisir l'\''achat » ouvre une grille vide' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 12 : « Saisir l'\''achat » ouvre une grille vide' modules/socle/ecrans/cabinet/app-1.js \
   '      achat: () => saisirDepuisPc(),' '      achat: () => aller('\''comptabilite/saisie'\''),' \
   'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
-prouver 'pièces reçues 13 : l'\''achat enregistré laisse dans la saisie' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 13 : l'\''achat enregistré laisse dans la saisie' modules/socle/ecrans/cabinet/app-2.js \
   '        if (jointe && dc.retour) {' '        if (false) {' \
   'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
-prouver 'pièces reçues 14 : la saisie ne dit pas qu'\''un mois est déjà déclaré' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 14 : la saisie ne dit pas qu'\''un mois est déjà déclaré' modules/socle/ecrans/cabinet/app-2.js \
   '      b.hidden = !(dc && dc.deposee);' '      b.hidden = true;' \
   'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
-prouver 'pièces reçues 15 : « Classées » dit « Classée » d'\''une pièce jointe' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 15 : « Classées » dit « Classée » d'\''une pièce jointe' modules/socle/ecrans/cabinet/app-1.js \
   'jointe: '\''Jointe à son écriture'\'' };' '};' \
   'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
-prouver 'pièces reçues 16 : « Vérifier » classe sans montrer l'\''achat du client' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 16 : « Vérifier » classe sans montrer l'\''achat du client' modules/socle/ecrans/cabinet/app-1.js \
   '${!classees && p.genre === '\''rangee'\'' ? blocVerifPc(p, D) : '\'''\''}' '' \
   'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
-prouver 'pièces reçues 17 : un ticket ne dit pas qu'\''il n'\''est pas une facture' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 17 : un ticket ne dit pas qu'\''il n'\''est pas une facture' modules/socle/ecrans/cabinet/app-1.js \
   '    if (p.genre === '\''ticket'\'') blocs.push(' '    if (false) blocs.push(' \
   'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
-prouver 'pièces reçues 18 : l'\''achat dont la pièce attend déjà se propose à joindre' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 18 : l'\''achat dont la pièce attend déjà se propose à joindre' modules/socle/ecrans/cabinet/app-1.js \
   ' && !rangees.has(String(e.piece)))' ')' \
   'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
-prouver 'pièces reçues 19 : pas de « Déposer des pièces » dans les pièces reçues' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 19 : pas de « Déposer des pièces » dans les pièces reçues' modules/socle/ecrans/cabinet/app-1.js \
   'id="pc-deposer"' 'id="pc-deposer-x"' \
   'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
-prouver 'pièces reçues 20 : « Classées » dit « En double » sans dire de quelle pièce' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 20 : « Classées » dit « En double » sans dire de quelle pièce' modules/socle/ecrans/cabinet/app-1.js \
   'copie ? `En double : la même que ${copie[1]}`' 'false ? `En double : la même que ${copie[1]}`' \
   'les pièces reçues, les autres états : en double (laquelle), déjà saisie (où), plusieurs d'\''un coup, un achat que le client saisit lui-même, la recherche vide, sans réseau'
-prouver 'pièces reçues 21 : une pièce jointe classée n'\''a pas « Ouvrir l'\''écriture »' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 21 : une pièce jointe classée n'\''a pas « Ouvrir l'\''écriture »' modules/socle/ecrans/cabinet/app-1.js \
   '${p.jointe ? `<a class="btn"' '${false ? `<a class="btn"' \
   'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
-prouver 'pièces reçues 22 : « Classées » garde la phrase des pièces à classer' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 22 : « Classées » garde la phrase des pièces à classer' modules/socle/ecrans/cabinet/app-1.js \
   '${classees ? '\''Ce qui a été fait de chaque pièce' '${false ? '\''Ce qui a été fait de chaque pièce' \
   'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
-prouver 'pièces reçues 23 : un achat que rien ne relie à la pièce lui est proposé' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 23 : un achat que rien ne relie à la pièce lui est proposé' modules/socle/ecrans/cabinet/app-1.js \
   '    const cands = tous.filter(o => o.i);' '    const cands = tous;' \
   'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
-prouver 'pièces reçues 24 : joindre à la main n'\''existe pas sans indice' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 24 : joindre à la main n'\''existe pas sans indice' modules/socle/ecrans/cabinet/app-1.js \
   '...(avant && avant.tous.length ?' '...(false ?' \
   'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
-prouver 'pièces reçues 25 : la facture d'\''électricité ne trouve pas l'\''achat STEG' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 25 : la facture d'\''électricité ne trouve pas l'\''achat STEG' modules/socle/ecrans/cabinet/app-1.js \
   ', ...motsCl(a.tiers).flatMap(w => VEND_CL[w] || [])]' ']' \
   'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
-prouver 'pièces reçues 26 : le titre n'\''a pas sa bulle « D'\''où viennent ces pièces »' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 26 : le titre n'\''a pas sa bulle « D'\''où viennent ces pièces »' modules/socle/ecrans/cabinet/app-1.js \
   "Pièces reçues'} \${info('pc.page')}</h1>" "Pièces reçues'}</h1>" \
   'les pièces reçues, l'\''aide de la page : d'\''où viennent les pièces, ses quatre gestes guidés ; un fichier abîmé se redemande, il ne se saisit pas'
-prouver 'pièces reçues 27 : « Guide-moi » ne propose pas de saisir une facture reçue' web/public/v10/cabinet/cabvisites.js \
+prouver 'pièces reçues 27 : « Guide-moi » ne propose pas de saisir une facture reçue' modules/socle/visites/cabvisites.js \
   "titre: 'Saisir une facture d\\'achat reçue', resume:" "titre: 'Saisir une pièce', resume:" \
   'les pièces reçues, l'\''aide de la page : d'\''où viennent les pièces, ses quatre gestes guidés ; un fichier abîmé se redemande, il ne se saisit pas'
-prouver 'pièces reçues 28 : un fichier abîmé garde « Saisir » pour geste' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 28 : un fichier abîmé garde « Saisir » pour geste' modules/socle/ecrans/cabinet/app-1.js \
   "nc ? 'Lui laisser la saisie' : casse ?" "nc ? 'Lui laisser la saisie' : false ?" \
   'les pièces reçues, l'\''aide de la page : d'\''où viennent les pièces, ses quatre gestes guidés ; un fichier abîmé se redemande, il ne se saisit pas'
 prouver 'pièces reçues 29 : les pièces déposées par le cabinet n'"'"'arrivent pas dans Pièces reçues' serveur/messagerie/routes.ts \
   'const deposees = seul ? [] :' 'const deposees = true ? [] :' \
   'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
-prouver 'pièces reçues 30 : le classeur montre deux fois une pièce déposée' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 30 : le classeur montre deux fois une pièce déposée' modules/socle/ecrans/cabinet/app-1.js \
   'filter(p => p.entreprise === d.id && !p.depot);' 'filter(p => p.entreprise === d.id);' \
   'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
 prouver 'pièces reçues 31 : classer une pièce déposée passe par la conversation' web/public/plateforme/pont-cabinet.js \
@@ -21200,21 +21200,21 @@ prouver 'pièces reçues 31 : classer une pièce déposée passe par la conversa
         ? appel('"'"'POST'"'"', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(entreprise)}/documents/${encodeURIComponent(message)}/classement`,
 ' \
   'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
-prouver 'pièces reçues 32 : une pièce déposée se dit envoyée par le client' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 32 : une pièce déposée se dit envoyée par le client' modules/socle/ecrans/cabinet/app-1.js \
   '        : p.depot ? `<div class="pc-mot">' '        : false ? `<div class="pc-mot">' \
   'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
-prouver 'pièces reçues 33 : une pièce déposée d'"'"'un dossier tenu se redemande à personne' web/public/v10/cabinet/app.js \
+prouver 'pièces reçues 33 : une pièce déposée d'"'"'un dossier tenu se redemande à personne' modules/socle/ecrans/cabinet/app-1.js \
   '...(p.depot && ((S.dossiers' '...(false && ((S.dossiers' \
   'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
-prouver 'classeur 47 : un achat que rien ne relie à la pièce lui est proposé' web/public/v10/cabinet/app.js \
+prouver 'classeur 47 : un achat que rien ne relie à la pièce lui est proposé' modules/socle/ecrans/cabinet/app-1.js \
   '.filter(o => o.i)
       .sort((a, b) => INDICES_CL' '.filter(o => true)
       .sort((a, b) => INDICES_CL' \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
-prouver 'classeur 48 : sans indice, plus moyen de joindre à la main' web/public/v10/cabinet/app.js \
+prouver 'classeur 48 : sans indice, plus moyen de joindre à la main' modules/socle/ecrans/cabinet/app-1.js \
   '${aucun ? `<button type="button" class="btn btn-sm btn-ghost" data-cl-ap="choisir"' '${false ? `<button type="button" class="btn btn-sm btn-ghost" data-cl-ap="choisir"' \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
-prouver 'classeur 49 : la fenêtre « Joindre » fait passer un achat sans indice pour le bon' web/public/v10/cabinet/app.js \
+prouver 'classeur 49 : la fenêtre « Joindre » fait passer un achat sans indice pour le bon' modules/socle/ecrans/cabinet/app-1.js \
   "i === 0 && ind ? ' btn-primary'" "i === 0 ? ' btn-primary'" \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
 prouver 'échéances 20 : les personnes physiques déposent le même jour que les sociétés' web/public/v10/cabinet/cabcore.js \
@@ -21223,28 +21223,28 @@ prouver 'échéances 20 : les personnes physiques déposent le même jour que le
 prouver 'échéances 21 : un jour des personnes physiques aberrant reste tel quel' web/public/v10/cabinet/cabcore.js \
   "['tvaDay', 'cnssDay', 'tvaDayPP'].forEach" "['tvaDay', 'cnssDay'].forEach" \
   'une forme qui n'\''est pas « personne physique » ne l'\''est pas ; un réglage aberrant retombe sur le 15'
-prouver 'échéances 22 : la relance envoyée dans la conversation ne se note pas sur la fiche' web/public/v10/cabinet/app.js \
+prouver 'échéances 22 : la relance envoyée dans la conversation ne se note pas sur la fiche' modules/socle/ecrans/cabinet/app-2.js \
   "await noter('autre', 'Relance envoyée dans votre conversation SkanFact');" ';' \
   '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
-prouver 'échéances 23 : plus de geste « Ce dossier ne la dépose pas »' web/public/v10/cabinet/app.js \
+prouver 'échéances 23 : plus de geste « Ce dossier ne la dépose pas »' modules/socle/ecrans/cabinet/app-2.js \
   "['regime', 'Ce dossier ne la dépose pas'," "false && ['regime', 'Ce dossier ne la dépose pas'," \
   '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
-prouver 'échéances 24 : le bouton du portail ne mène nulle part' web/public/v10/cabinet/app.js \
+prouver 'échéances 24 : le bouton du portail ne mène nulle part' modules/socle/ecrans/cabinet/app-2.js \
   'id="ec-portail" href="${esc(portail.url)}"' 'id="ec-portail" href="#"' \
   '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
 prouver 'échéances 25 : le serveur accepte n'"'"'importe quel payeur des déclarations' serveur/cabinet/routes.ts \
   "paieDecl: z.enum(['', 'client'])," 'paieDecl: z.string(),' \
   '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
-prouver 'échéances 26 : la ligne d'"'"'une personne physique ne le dit pas' web/public/v10/cabinet/app.js \
+prouver 'échéances 26 : la ligne d'"'"'une personne physique ne le dit pas' modules/socle/ecrans/cabinet/app-2.js \
   'x.t.physiques ? '"'"'<span>personne physique</span>'"'"'' 'false ? '"'"'<span>personne physique</span>'"'"'' \
   '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
-prouver 'revue 1 : la pastille des Échéances compte un dossier × une déclaration' web/public/v10/cabinet/app.js \
+prouver 'revue 1 : la pastille des Échéances compte un dossier × une déclaration' modules/socle/ecrans/cabinet/app-1.js \
   'return itemsEcheances().filter(x => x.groupe === '"'"'retard'"'"');' 'return K.enRetard(K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() }));' \
   'au bureau : la déclaration en retard, relancer un client, marquer déposée sans rien de prêt, l'"'"'annuler, la vue Mois'
 prouver 'revue 2 : le dossier permanent du classeur n'"'"'est pas classé pour l'"'"'export' base/entreprise.ts \
   "  'cabinet.document': { classe: 'hors'," "  'cabinet.document-oublie': { classe: 'hors'," \
   'le propriétaire télécharge le fichier complet ; un commercial ne voit pas le panneau'
-prouver 'revue 3 : la CNSS ne dit plus qui elle vise' web/public/v10/cabinet/app.js \
+prouver 'revue 3 : la CNSS ne dit plus qui elle vise' modules/socle/ecrans/cabinet/app-2.js \
   "esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.'))" "'Les cotisations du trimestre des dossiers employeurs.')" \
   'la carte CNSS du dernier trimestre ne vise que l'"'"'employeur, plus le client saisi sans salaire'
 prouver 'messages 1 : E sur une ligne ne marque rien' web/public/plateforme/messagerie.js \
@@ -21253,13 +21253,13 @@ prouver 'messages 1 : E sur une ligne ne marque rien' web/public/plateforme/mess
 prouver 'messages 2 : la pièce demandée ne se lit pas dans « On attend de… »' web/public/plateforme/messagerie.js \
   "const ds = [...demandes().values()].filter((m) => !m.demande.recueLe);" "const ds = [...demandes().values()].filter(() => false);" \
   'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
-prouver 'messages 3 : la pastille compte tout ce que le serveur voit, quelle que soit la portée' web/public/v10/cabinet/app.js \
+prouver 'messages 3 : la pastille compte tout ce que le serveur voit, quelle que soit la portée' modules/socle/ecrans/cabinet/app-1.js \
   "return (ds || []).filter(x => x.etat === 'a_traiter' && ids.has(x.entreprise)).length;" "return (ds || []).filter(x => x.etat === 'a_traiter' || ids.has(x.entreprise)).length;" \
   'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
-prouver 'messages 4 : la phrase de la page ne dit pas qui doit une pièce' web/public/v10/cabinet/app.js \
+prouver 'messages 4 : la phrase de la page ne dit pas qui doit une pièce' modules/socle/ecrans/cabinet/app-1.js \
   "const doivent = ds.filter(x => x.etat === 'attend_client');" "const doivent = [];" \
   'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
-prouver 'messages 5 : le dossier à côté ne mène pas au dossier' web/public/v10/cabinet/app.js \
+prouver 'messages 5 : le dossier à côté ne mène pas au dossier' modules/socle/ecrans/cabinet/app-1.js \
   '<a class="msg-lien msg-cote-ouvrir" href="#/dossier/${encodeURIComponent(d.id)}">' '<a class="msg-lien msg-cote-ouvrir" href="#/dossiers">' \
   'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
 prouver 'messages 6 : « Ouvrir en grand » quitte le menu ⋯' web/public/plateforme/messagerie.js \
@@ -21323,13 +21323,13 @@ prouver 'messages 16 : l'"'"'imputation pose le montant dans le mauvais sens' ba
 prouver 'messages 17 : une question s'"'"'impute deux fois' base/migrations/0184_imputer_question.sql \
   "  update compta.question set imputee_par = v_id where id = p_id;" "" \
   'le virement en attente sort du 471 vers le compte du client, au brouillard, une seule fois'
-prouver 'messages 18 : imputer propose la banque où l'"'"'argent est déjà' web/public/v10/cabinet/app.js \
+prouver 'messages 18 : imputer propose la banque où l'"'"'argent est déjà' modules/socle/ecrans/cabinet/app-1.js \
   "c.compte !== im.compte && !(im.banque && /^5/.test(c.compte))" "c.compte !== im.compte" \
   '(1.180.0) « Imputer le virement » : la réponse du client propose ses comptes, jamais la banque, et l'"'"'écriture va au brouillard'
-prouver 'messages 19 : un acompte n'"'"'est pas proposé au compte des avances' web/public/v10/cabinet/app.js \
+prouver 'messages 19 : un acompte n'"'"'est pas proposé au compte des avances' modules/socle/ecrans/cabinet/app-1.js \
   "...(/acompte|avance|arrhes/i.test(q.reponse) ? [recu ? '419' : '409'] : [])," "" \
   '(1.180.0) « Imputer le virement » : la réponse du client propose ses comptes, jamais la banque, et l'"'"'écriture va au brouillard'
-prouver 'messages 20 : la fenêtre « Imputer » s'"'"'ouvre sur la liste du plan' web/public/v10/cabinet/app.js \
+prouver 'messages 20 : la fenêtre « Imputer » s'"'"'ouvre sur la liste du plan' modules/socle/ecrans/cabinet/app-1.js \
   '        if (proposes.length) $('"'"'#ok'"'"', root).focus();' "" \
   '(1.180.0) « Imputer le virement » : la réponse du client propose ses comptes, jamais la banque, et l'"'"'écriture va au brouillard'
 prouver 'messages 21 : chaque message du groupe redit son auteur et son heure' web/public/plateforme/messagerie.js \
@@ -21356,7 +21356,7 @@ prouver 'messages 27 : les pages de Mon cabinet plafonnées et centrées' web/pu
 prouver 'messages 28 : le menu de la page chevauche ses entrées' web/public/plateforme/messagerie.css \
   ".msg-page-m-t { display: flex; flex-direction: column;" ".msg-page-m-t { display: flex; flex-direction: row;" \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
-prouver 'messages 32 : le menu de la page sans ses icônes' web/public/v10/cabinet/app.js \
+prouver 'messages 32 : le menu de la page sans ses icônes' modules/socle/ecrans/cabinet/app-1.js \
   '<span class="msg-page-m-ic">${dessinMsg(ic)}</span>' '' \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
 prouver 'messages 33 : « Relancer » ouvre la conversation sans le message préparé' web/public/plateforme/messagerie.js \
@@ -21365,16 +21365,16 @@ prouver 'messages 33 : « Relancer » ouvre la conversation sans le message pré
 prouver 'messages 34 : la relance envoyée de la conversation ne se note pas sur la fiche' web/public/plateforme/messagerie.js \
   "if (apresEnvoiPrepare) { const f = apresEnvoiPrepare;" "if (false) { const f = apresEnvoiPrepare;" \
   '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche'
-prouver 'messages 35 : les pièces demandées parlent du client à la troisième personne' web/public/v10/cabinet/app.js \
+prouver 'messages 35 : les pièces demandées parlent du client à la troisième personne' modules/socle/ecrans/cabinet/app-2.js \
   "[\`Vos ventes et vos achats \${K.de(lesMois)}, enregistrés dans SkanFact\`" "[\`Ses ventes et ses achats \${K.de(lesMois)}, enregistrés dans SkanFact\`" \
   'au bureau : la déclaration en retard, relancer un client'
-prouver 'messages 36 : la conversation ouverte d'\''une relance ne ramène pas aux Échéances' web/public/v10/cabinet/app.js \
+prouver 'messages 36 : la conversation ouverte d'\''une relance ne ramène pas aux Échéances' modules/socle/ecrans/cabinet/app-2.js \
   "[/^#\/echeances/, 'Revenir aux Échéances']" "[/^#\/zz/, 'Revenir aux Échéances']" \
   'au bureau : la déclaration en retard, relancer un client'
-prouver 'messages 37 : la relance d'\''un client relié propose l'\''e-mail d'\''abord' web/public/v10/cabinet/app.js \
+prouver 'messages 37 : la relance d'\''un client relié propose l'\''e-mail d'\''abord' modules/socle/ecrans/cabinet/app-2.js \
   "let par = relie ? 'fil' : tel ? 'whatsapp' : 'mail';" "let par = 'mail';" \
   'un mois vide se relance, un mois au brouillard se valide'
-prouver 'messages 38 : un dossier tenu au cabinet se voit proposer la messagerie SkanFact' web/public/v10/cabinet/app.js \
+prouver 'messages 38 : un dossier tenu au cabinet se voit proposer la messagerie SkanFact' modules/socle/ecrans/cabinet/app-2.js \
   "const relie = !D.manual && !!api.messagerie;" "const relie = !!api.messagerie;" \
   'au bureau : la liste, la proposition'
 prouver 'messages 39 : la promesse proposée oublie la pièce dont parle le client' web/public/plateforme/messagerie.js \
@@ -21392,13 +21392,13 @@ prouver 'messages 30 : les modèles sans ce que lira le client' web/public/plate
 prouver 'messages 31 : l'"'"'accueil sans conversation ne propose rien' web/public/plateforme/messagerie.js \
   "\${prochaine ? \`<button type=\"button\" class=\"btn btn-primary\" data-conv-ouvrir" "\${false ? \`<button type=\"button\" class=\"btn btn-primary\" data-conv-ouvrir" \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
-prouver 'questions-prêtes 1 : la phrase proposée ne suit pas la pastille' web/public/v10/cabinet/app.js \
+prouver 'questions-prêtes 1 : la phrase proposée ne suit pas la pastille' modules/socle/ecrans/cabinet/app-1.js \
   "if (txt.value === derniere && propose()) {" "if (false) {" \
   'la révision se tient à la souris'
-prouver 'questions-prêtes 2 : « Garder pour l'"'"'envoi groupé » envoie quand même' web/public/v10/cabinet/app.js \
+prouver 'questions-prêtes 2 : « Garder pour l'"'"'envoi groupé » envoie quand même' modules/socle/ecrans/cabinet/app-1.js \
   "if (g) g.onclick = () => faire(false);" "if (g) g.onclick = () => faire(true);" \
   'la révision se tient à la souris'
-prouver 'questions-prêtes 3 : « Envoyer maintenant » garde la question' web/public/v10/cabinet/app.js \
+prouver 'questions-prêtes 3 : « Envoyer maintenant » garde la question' modules/socle/ecrans/cabinet/app-1.js \
   "if (envoyer && r.id) {" "if (false) {" \
   'la révision se tient à la souris'
 prouver 'questions-prêtes 4 : les questions prêtes ne partent pas avec le message' web/public/plateforme/messagerie.js \
@@ -21413,28 +21413,28 @@ prouver 'questions-prêtes 6 : une question nommée repart le jour même' base/m
 prouver 'questions-prêtes 7 : la conversation du cabinet ne montre pas les questions prêtes' serveur/messagerie/routes.ts \
   "const pretes = cote.data === 'cabinet' && !avant" "const pretes = false && !avant" \
   'chaque client à sa place'
-prouver 'demander 1 : « Demander une pièce » quitte l'"'"'écran' web/public/v10/cabinet/app.js \
+prouver 'demander 1 : « Demander une pièce » quitte l'"'"'écran' modules/socle/ecrans/cabinet/app-1.js \
   "faire: () => fenDemanderCl(D, {}, { hors: true, apres: async () => {} }) });" "faire: () => { location.hash = '#/messages/' + encodeURIComponent(D.id) + '/demande'; } });" \
   'au bureau : la tête et son menu'
-prouver 'demander 2 : la pièce nommée ne compose pas le message' web/public/v10/cabinet/app.js \
+prouver 'demander 2 : la pièce nommée ne compose pas le message' modules/socle/ecrans/cabinet/app-1.js \
   "if (t.value === derniere) { t.value = champPiece.value.trim() ? phraseDe(champPiece.value.trim()) : ''; derniere = t.value; }" "if (false) { derniere = t.value; }" \
   'au bureau : la tête et son menu'
-prouver 'demander 3 : la conversation ne reçoit pas la pièce nommée' web/public/v10/cabinet/app.js \
+prouver 'demander 3 : la conversation ne reçoit pas la pièce nommée' modules/socle/ecrans/cabinet/app-1.js \
   "demandePreparee = { id: d.id, texte: laPiece().slice(0, 300) };" "demandePreparee = null;" \
   'au bureau : la tête et son menu'
-prouver 'demander 4 : la ligne de l'"'"'achat ne demande pas sur place' web/public/v10/cabinet/app.js \
+prouver 'demander 4 : la ligne de l'"'"'achat ne demande pas sur place' modules/socle/ecrans/cabinet/app-2.js \
   "fenDemanderCl(dossier, { piece, mois: String(e.date).slice(0, 7)," "void (dossier, { piece, mois: String(e.date).slice(0, 7)," \
   'Hatem et les justificatifs'
-prouver 'question-ligne 1 : une écriture ne propose pas la question au client' web/public/v10/cabinet/app.js \
+prouver 'question-ligne 1 : une écriture ne propose pas la question au client' modules/socle/ecrans/cabinet/app-2.js \
   "if (!dossier.manual && api.messagerie && api.question && e.statut !== 'extournee') {" "if (false) {" \
   '(1.189.0) une question depuis une écriture'
-prouver 'question-ligne 2 : un dossier tenu propose une question sans conversation' web/public/v10/cabinet/app.js \
+prouver 'question-ligne 2 : un dossier tenu propose une question sans conversation' modules/socle/ecrans/cabinet/app-2.js \
   "if (!dossier.manual && api.messagerie && api.question && e.statut !== 'extournee') {" "if (api.messagerie && api.question && e.statut !== 'extournee') {" \
   '(1.189.0) une question depuis une écriture'
-prouver 'question-ligne 3 : la ligne du relevé ne se demande pas' web/public/v10/cabinet/app.js \
+prouver 'question-ligne 3 : la ligne du relevé ne se demande pas' modules/socle/ecrans/cabinet/app-2.js \
   "const peutDemander = !dossier.manual && api.messagerie && api.question && x.g !== 'att';" "const peutDemander = false;" \
   '(1.189.0) une question depuis une écriture'
-prouver 'question-ligne 4 : la phrase ne cite pas ce que la question vise' web/public/v10/cabinet/app.js \
+prouver 'question-ligne 4 : la phrase ne cite pas ce que la question vise' modules/socle/ecrans/cabinet/app-1.js \
   "if (b.quoi) return b.quoi;" "if (false) return b.quoi;" \
   '(1.189.0) une question depuis une écriture'
 prouver 'questionnaire 1 : le serveur refuse le lien vers la question partie' serveur/cabinet/revision.ts \
@@ -21443,22 +21443,22 @@ prouver 'questionnaire 1 : le serveur refuse le lien vers la question partie' se
 prouver 'questionnaire 2 : le lien vers la question partie se perd en route' web/public/plateforme/pont-cabinet.js \
   "...(q.demande ? { demande: String(q.demande) } : {}) }))," "}))," \
   '(1.190.0) le questionnaire de fin'
-prouver 'questionnaire 3 : un dossier tenu propose de demander au client' web/public/v10/cabinet/app.js \
+prouver 'questionnaire 3 : un dossier tenu propose de demander au client' modules/socle/ecrans/cabinet/app-1.js \
   "const relieQq = relieRv && !!api.question;" "const relieQq = !!api.question;" \
   '(1.190.0) le questionnaire de fin'
-prouver 'questionnaire 4 : la réponse du client ne se montre pas en face' web/public/v10/cabinet/app.js \
+prouver 'questionnaire 4 : la réponse du client ne se montre pas en face' modules/socle/ecrans/cabinet/app-1.js \
   ': repCl ? `<span class="badge b-paid">${esc(quiQq)} a répondu</span>' ': false ? `<span class="badge b-paid">${esc(quiQq)} a répondu</span>' \
   '(1.190.0) le questionnaire de fin'
-prouver 'questionnaire 5 : posé, il ne se propose pas au client' web/public/v10/cabinet/app.js \
+prouver 'questionnaire 5 : posé, il ne se propose pas au client' modules/socle/ecrans/cabinet/app-1.js \
   "if (s.qqOuvrir) { s.qqOuvrir = false; if (qqDem) fenQuestionnaireClient(root, dossier); }" "if (false) { s.qqOuvrir = false; if (qqDem) fenQuestionnaireClient(root, dossier); }" \
   '(1.190.0) le questionnaire de fin'
-prouver 'questionnaire 6 : une question décochée part quand même' web/public/v10/cabinet/app.js \
+prouver 'questionnaire 6 : une question décochée part quand même' modules/socle/ecrans/cabinet/app-1.js \
   "const choisies = () => cases.filter(c => c.checked).map(c => c.dataset.qqPart);" "const choisies = () => cases.map(c => c.dataset.qqPart);" \
   '(1.190.0) le questionnaire de fin'
-prouver 'repondre 1 : « Répondre » ouvre encore la fenêtre à part' web/public/v10/app.js \
+prouver 'repondre 1 : « Répondre » ouvre encore la fenêtre à part' modules/socle/ecrans/entreprise/app-1.js \
   "if (bridge.messagerie && !(q.reponse && q.reponse.texte) && q.statut !== 'close') {" "if (false) {" \
   'le client voit les questions envoyées'
-prouver 'repondre 2 : la conversation ne mène pas à la question' web/public/v10/app.js \
+prouver 'repondre 2 : la conversation ne mène pas à la question' modules/socle/ecrans/entreprise/app-2.js \
   "const questionDepart = questionDuMessage; questionDuMessage = null;" "const questionDepart = null; questionDuMessage = null;" \
   'le client voit les questions envoyées'
 prouver 'repondre 3 : le fichier de la réponse ne part pas' web/public/plateforme/messagerie.js \
@@ -21467,89 +21467,89 @@ prouver 'repondre 3 : le fichier de la réponse ne part pas' web/public/platefor
 prouver 'repondre 4 : le fichier choisi est oublié' web/public/plateforme/messagerie.js \
   "fichiersQ.set(id, f);" "void f;" \
   'le client voit les questions envoyées'
-prouver 'ecrire 1 : une vente ne propose pas d'"'"'écrire au cabinet' web/public/v10/app.js \
+prouver 'ecrire 1 : une vente ne propose pas d'"'"'écrire au cabinet' modules/socle/ecrans/entreprise/app-1.js \
   "if (peutEcrireAuCabinet() && stored && (stored.number || stored.status !== 'brouillon')) a.push(" "if (false) a.push(" \
   'le client voit les questions envoyées'
-prouver 'ecrire 2 : la conversation ne nomme pas la vente' web/public/v10/app.js \
+prouver 'ecrire 2 : la conversation ne nomme pas la vente' modules/socle/ecrans/entreprise/app-1.js \
   "    pieceDuMessage = { genre: d.type === 'avoir' ? 'avoir'" "    void { genre: d.type === 'avoir' ? 'avoir'" \
   'le client voit les questions envoyées'
-prouver 'relance 1 : la relance ne part pas de sa fenêtre' web/public/v10/cabinet/app.js \
+prouver 'relance 1 : la relance ne part pas de sa fenêtre' modules/socle/ecrans/cabinet/app-2.js \
   "          await api.relancerDossier(D.id, t, demandes, lePour);" "          void (D.id, t, demandes, lePour);" \
   'la relance notée sur la fiche'
-prouver 'relance 2 : « Écrire plutôt dans la conversation » ne mène nulle part' web/public/v10/cabinet/app.js \
+prouver 'relance 2 : « Écrire plutôt dans la conversation » ne mène nulle part' modules/socle/ecrans/cabinet/app-2.js \
   "const conv = \$('#ec-conv', layer);" "const conv = null;" \
   'au bureau : la déclaration en retard'
 # ── 1.194.0 : le Tableau de bord, Priorités comprises (tests/web/tableau-de-bord.test.ts et les parcours retournés) ──
-prouver 'tableau 1 : l'"'"'ancien lien des Priorités ne mène plus nulle part' web/public/v10/cabinet/app.js \
+prouver 'tableau 1 : l'"'"'ancien lien des Priorités ne mène plus nulle part' modules/socle/ecrans/cabinet/app-1.js \
   "    else if (route === 'priorites') location.replace('#/production');" "" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 2 : une étape de la campagne ne filtre pas la grille' web/public/v10/cabinet/app.js \
+prouver 'tableau 2 : une étape de la campagne ne filtre pas la grille' modules/socle/ecrans/cabinet/app-1.js \
   "const filtre = tbState.filtre.startsWith('et:') ?" "const filtre = false ?" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 3 : le choix d'"'"'une personne ne vaut pas pour la grille' web/public/v10/cabinet/app.js \
+prouver 'tableau 3 : le choix d'"'"'une personne ne vaut pas pour la grille' modules/socle/ecrans/cabinet/app-1.js \
   "const L = etat ? [] : lignesTb().filter(x => !tbState.qui || (x.eq.suit || {}).id === tbState.qui);" "const L = etat ? [] : lignesTb();" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 4 : « À voir » déplié d'"'"'office' web/public/v10/cabinet/app.js \
+prouver 'tableau 4 : « À voir » déplié d'"'"'office' modules/socle/ecrans/cabinet/app-1.js \
   'tbState.avoir || !u.length ? `<div class' 'true ? `<div class' \
   'une page : À faire, la campagne du mois'
 prouver 'tableau 5 : le menu ⋯ trop petit pour le doigt' web/public/plateforme/tableau-de-bord.css \
   '  #page-bord .row-menu-btn.tb-trois { width: 44px; height: 44px; }' '' \
   'au téléphone : rien ne déborde'
-prouver 'tableau 6 : la recherche perd le curseur à chaque lettre' web/public/v10/cabinet/app.js \
+prouver 'tableau 6 : la recherche perd le curseur à chaque lettre' modules/socle/ecrans/cabinet/app-1.js \
   "const n = \$('#tb-q', view); if (n) { n.focus(); n.setSelectionRange(pos, pos); }" "" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 7 : l'"'"'invitation de visite couvre « Accepter le dossier »' web/public/v10/cabinet/app.js \
+prouver 'tableau 7 : l'"'"'invitation de visite couvre « Accepter le dossier »' modules/socle/ecrans/cabinet/app-2.js \
   "if (\$('#view .premiers-pas, #view .cd-prop')) return;" "if (\$('#view .premiers-pas')) return;" \
   'le client invite par e-mail'
-prouver 'tableau 8 : au téléphone, le tableau de bord se dit pensé pour un ordinateur' web/public/v10/cabinet/app.js \
+prouver 'tableau 8 : au téléphone, le tableau de bord se dit pensé pour un ordinateur' modules/socle/ecrans/cabinet/app-1.js \
   "  const ECRANS_ORDINATEUR = ['dossier', 'ecritures'];" "  const ECRANS_ORDINATEUR = ['dossier', 'production', 'ecritures'];" \
   'au téléphone : rien ne déborde'
-prouver 'tableau 9 : l'"'"'onglet du téléphone coupé (« Tableau de b… »)' web/public/v10/cabinet/app.js \
+prouver 'tableau 9 : l'"'"'onglet du téléphone coupé (« Tableau de b… »)' modules/socle/ecrans/cabinet/app-1.js \
   "...(id === 'production' ? { court: 'Tableau' } : {})," "" \
   'au téléphone : rien ne déborde'
-prouver 'tableau 10 : une case de la grille perd son détail au survol' web/public/v10/cabinet/app.js \
+prouver 'tableau 10 : une case de la grille perd son détail au survol' modules/socle/ecrans/cabinet/app-1.js \
   '} — ${esc(detail)}">' '}">' \
   "$WP1"
-prouver 'tableau 11 : une grille refusée le reste en revenant sur la page' web/public/v10/cabinet/app.js \
+prouver 'tableau 11 : une grille refusée le reste en revenant sur la page' modules/socle/ecrans/cabinet/app-1.js \
   'prodState.lignes = null; prodState.erreur = '"'"''"'"'; revState' 'prodState.lignes = null; revState' \
   'au Cabinet, la Comptabilité, la Production'
 # ── 1.195.0 : les écarts du Tableau de bord contre sa maquette (revue du 30/10/2026) ──
-prouver 'tableau 12 : la ligne du haut ne suit pas la personne choisie' web/public/v10/cabinet/app.js \
+prouver 'tableau 12 : la ligne du haut ne suit pas la personne choisie' modules/socle/ecrans/cabinet/app-1.js \
   "const ctx = ctxCabinet(quiC ? {" "const ctx = ctxCabinet(false ? {" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 13 : un filtre vide ne dit pas chez qui' web/public/v10/cabinet/app.js \
+prouver 'tableau 13 : un filtre vide ne dit pas chez qui' modules/socle/ecrans/cabinet/app-1.js \
   "const chez = tbState.qui && collabDe(tbState.qui) ?" "const chez = false ?" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 14 : le menu ⋯ d'"'"'un dossier sans « Confier à quelqu'"'"'un… »' web/public/v10/cabinet/app.js \
+prouver 'tableau 14 : le menu ⋯ d'"'"'un dossier sans « Confier à quelqu'"'"'un… »' modules/socle/ecrans/cabinet/app-1.js \
   "if (estAssocie()) a.push({ icon: 'client', label: 'Confier" "if (false) a.push({ icon: 'client', label: 'Confier" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 15 : la période choisie ne change pas la grille' web/public/v10/cabinet/app.js \
+prouver 'tableau 15 : la période choisie ne change pas la grille' modules/socle/ecrans/cabinet/app-1.js \
   "if (tbState.periode && typeof tbState.periode === 'object') {" "if (false) {" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 16 : les prochaines dates comptent n'"'"'importe quoi' web/public/v10/cabinet/app.js \
+prouver 'tableau 16 : les prochaines dates comptent n'"'"'importe quoi' modules/socle/ecrans/cabinet/app-1.js \
   "n = mesDossiers().filter(concerneAVenir(x.e)).length;" "n = 1425;" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 17 : au téléphone, la grille garde « Sur la période » et douze dossiers' web/public/v10/cabinet/app.js \
+prouver 'tableau 17 : au téléphone, la grille garde « Sur la période » et douze dossiers' modules/socle/ecrans/cabinet/app-1.js \
   "    const tel = telTb();" "    const tel = false;" \
   'au téléphone : rien ne déborde'
 
 # (1.196.0) Le Tableau de bord, lot B : les onglets Révision et Bilans, la fiche d'un mois.
-prouver 'tableau 18 : une case de la grille ne s'"'"'ouvre plus' web/public/v10/cabinet/app.js \
+prouver 'tableau 18 : une case de la grille ne s'"'"'ouvre plus' modules/socle/ecrans/cabinet/app-1.js \
   "const cel = e.target.closest('[data-tb-case]');" "const cel = null;" \
   'Révision, Bilans et la fiche'
-prouver 'tableau 19 : Échap ne referme pas la fiche d'"'"'un mois' web/public/v10/cabinet/app.js \
+prouver 'tableau 19 : Échap ne referme pas la fiche d'"'"'un mois' modules/socle/ecrans/cabinet/app-1.js \
   "if (e.key !== 'Escape' || !tbState.fiche" "if (true || !tbState.fiche" \
   'Révision, Bilans et la fiche'
-prouver 'tableau 20 : un clic ailleurs laisse la fiche ouverte' web/public/v10/cabinet/app.js \
+prouver 'tableau 20 : un clic ailleurs laisse la fiche ouverte' modules/socle/ecrans/cabinet/app-1.js \
   'tbState.fiche = null; pageTableau($('"'"'#view'"'"'), '"''"');' 'return;' \
   'Révision, Bilans et la fiche'
 prouver 'tableau 21 : le compte d'"'"'attente se lit toujours soldé' serveur/cabinet/routes.ts \
   "sum(l.debit - l.credit)::text solde" "'0'::text solde" \
   'Révision, Bilans et la fiche'
-prouver 'tableau 22 : une échéance annuelle passée ne met aucun bilan en retard' web/public/v10/cabinet/app.js \
+prouver 'tableau 22 : une échéance annuelle passée ne met aucun bilan en retard' modules/socle/ecrans/cabinet/app-1.js \
   "if (!ex.clos && dates.length && dates[0].date < K.today())" "if (false)" \
   'Révision, Bilans et la fiche'
-prouver 'tableau 23 : la charge oublie les bilans en retard' web/public/v10/cabinet/app.js \
+prouver 'tableau 23 : la charge oublie les bilans en retard' modules/socle/ecrans/cabinet/app-1.js \
   "&& bilanDe(x).retard).length : 0;" "&& false).length : 0;" \
   'Révision, Bilans et la fiche'
 prouver 'tableau 24 : un exercice clos se lit ouvert' serveur/cabinet/routes.ts \
@@ -21564,10 +21564,10 @@ prouver 'tableau 26 : la revue de l'"'"'année se cherche sur la mauvaise pério
 prouver 'tableau 27 : la revue accepte une année qui n'"'"'en est pas une' serveur/cabinet/routes.ts \
   "return champInvalide('annee', t('cabinet.champ.annee'))" "void 0" \
   'Révision, Bilans et la fiche'
-prouver 'tableau 28 : « Ouvrir » de la fiche perd l'"'"'année' web/public/v10/cabinet/app.js \
+prouver 'tableau 28 : « Ouvrir » de la fiche perd l'"'"'année' modules/socle/ecrans/cabinet/app-1.js \
   '/comptabilite/${b.dataset.tbOuvrir}/${f.mois.slice(0, 4)}' '/comptabilite/${b.dataset.tbOuvrir}' \
   'Révision, Bilans et la fiche'
-prouver 'tableau 29 : la ligne d'"'"'un exercice n'"'"'ouvre plus sa clôture' web/public/v10/cabinet/app.js \
+prouver 'tableau 29 : la ligne d'"'"'un exercice n'"'"'ouvre plus sa clôture' modules/socle/ecrans/cabinet/app-1.js \
   '${tr.dataset.tbAn ? `/exercice/${tr.dataset.tbAn}` : '"''"'}' "" \
   'Révision, Bilans et la fiche'
 prouver 'tableau 30 : au téléphone, les onglets élargissent la page' web/public/plateforme/tableau-de-bord.css \
@@ -21578,47 +21578,47 @@ prouver 'tableau 30 : au téléphone, les onglets élargissent la page' web/publ
 prouver 'tableau 31 : le relevé importé ne date plus l'"'"'arrivée du mois' serveur/cabinet/routes.ts \
   "to_char(r.au, 'YYYY-MM'), r.importe_le from" "to_char(r.au, 'YYYY-MM'), r.importe_le - interval '40 days' from" \
   'Quand les pièces arrivent'
-prouver 'tableau 32 : le seuil réglé ne compte pas' web/public/v10/cabinet/app.js \
+prouver 'tableau 32 : le seuil réglé ne compte pas' modules/socle/ecrans/cabinet/app-1.js \
   "const seuilTb = () => { const v = Number((S.settings || {}).seuilPieces);" "const seuilTb = () => { const v = 20;" \
   'Quand les pièces arrivent'
 prouver 'tableau 33 : le seuil ne part pas au serveur' web/public/plateforme/pont-cabinet.js \
   "'relanceDay', 'seuilPieces', 'deadlines'" "'relanceDay', 'deadlines'" \
   'Quand les pièces arrivent'
-prouver 'tableau 34 : le jour d'"'"'arrivée se lit de travers' web/public/v10/cabinet/app.js \
+prouver 'tableau 34 : le jour d'"'"'arrivée se lit de travers' modules/socle/ecrans/cabinet/app-1.js \
   "le.slice(0, 7) === moisApres(m) ? Number(le.slice(8, 10)) : 32" "le.slice(0, 7) === moisApres(m) ? 15 : 32" \
   'Quand les pièces arrivent'
-prouver 'tableau 35 : qui n'"'"'envoie rien ne passe plus en tête' web/public/v10/cabinet/app.js \
+prouver 'tableau 35 : qui n'"'"'envoie rien ne passe plus en tête' modules/socle/ecrans/cabinet/app-1.js \
   "const rang = a => (a.rien ? 100 + a.sans : a.max);" "const rang = a => (a.rien ? 0 : a.max);" \
   'Quand les pièces arrivent'
 
 # (1.198.0) Le Tableau de bord, lot D : Exporter, les bandes hors ligne et lecture seule.
-prouver 'tableau 36 : la page n'"'"'a plus de menu Exporter' web/public/v10/cabinet/app.js \
+prouver 'tableau 36 : la page n'"'"'a plus de menu Exporter' modules/socle/ecrans/cabinet/app-1.js \
   "if (id === 'TBP') return [{ titre: 'La grille' }," "if (id === 'TBP') return []; if (false) return [{ titre: 'La grille' }," \
   'Exporter la grille'
-prouver 'tableau 37 : le tableur oublie les filtres posés' web/public/v10/cabinet/app.js \
+prouver 'tableau 37 : le tableur oublie les filtres posés' modules/socle/ecrans/cabinet/app-1.js \
   "toCsv(cols, triTb(L, P))" "toCsv(cols, L)" \
   'Exporter la grille'
-prouver 'tableau 38 : sans réseau, rien ne le dit' web/public/v10/cabinet/app.js \
+prouver 'tableau 38 : sans réseau, rien ne le dit' modules/socle/ecrans/cabinet/app-1.js \
   "if (navigator.onLine === false) {" "if (false) {" \
   'Exporter la grille'
-prouver 'tableau 39 : la lecture seule ne se dit pas' web/public/v10/cabinet/app.js \
+prouver 'tableau 39 : la lecture seule ne se dit pas' modules/socle/ecrans/cabinet/app-1.js \
   "if (e && e.etat === 'lecture_seule') {" "if (false) {" \
   'Exporter la grille'
-prouver 'tableau 40 : le réseau qui revient laisse la bande' web/public/v10/cabinet/app.js \
+prouver 'tableau 40 : le réseau qui revient laisse la bande' modules/socle/ecrans/cabinet/app-1.js \
   "for (const ev of ['online', 'offline']) window.addEventListener" "for (const ev of []) window.addEventListener" \
   'Exporter la grille'
 
 # (1.199.0) Les clients, lot 1 : la liste telle que la maquette (docs/maquettes/clients.html).
 LC1='les colonnes, les filtres et leurs nombres, la ville, le pied, la relance, le menu, le clavier, le téléphone'
-prouver 'clients 1 : « En retard » compte ceux qui doivent' web/public/v10/app.js \
+prouver 'clients 1 : « En retard » compte ceux qui doivent' modules/socle/ecrans/entreprise/app-1.js \
   "f === 'retard' ? r.retard > 0.0005 :" "f === 'retard' ? r.sum.net > 0.0005 :" "$LC1"
-prouver 'clients 2 : un client sans courriel n'"'"'est plus à compléter' web/public/v10/app.js \
+prouver 'clients 2 : un client sans courriel n'"'"'est plus à compléter' modules/socle/ecrans/entreprise/app-1.js \
   "aCompleter: manqueMf || manqueMail," "aCompleter: manqueMf," "$LC1"
-prouver 'clients 3 : la ville ne se cherche plus' web/public/v10/app.js \
+prouver 'clients 3 : la ville ne se cherche plus' modules/socle/ecrans/entreprise/app-1.js \
   "String(r.c.phone || '').replace(/\s/g, ''), r.c.city, r.c.code].join(' ')" "String(r.c.phone || '').replace(/\s/g, ''), r.c.code].join(' ')" "$LC1"
-prouver 'clients 5 : la relance n'"'"'envoie rien' web/public/v10/app.js \
+prouver 'clients 5 : la relance n'"'"'envoie rien' modules/socle/ecrans/entreprise/app-1.js \
   "const lcRelancer = r => { const x = r.relances[0]; if (x) sendReminder(x, 'email'); };" "const lcRelancer = () => {};" "$LC1"
-prouver 'clients 6 : Entrée n'"'"'ouvre plus la fiche' web/public/v10/app.js \
+prouver 'clients 6 : Entrée n'"'"'ouvre plus la fiche' modules/socle/ecrans/entreprise/app-1.js \
   "if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/client/' + lignes[s.cur].dataset.cid); }" "" "$LC1"
 prouver 'clients 7 : au téléphone, pas de cartes' web/public/plateforme/liste.css \
   "  .lc .lc-cartes { display: grid; gap: 8px; }" "  .lc .lc-cartes { display: none; }" "$LC1"
@@ -21628,95 +21628,95 @@ prouver 'clients 8 : à la tablette, toutes les colonnes se serrent' web/public/
 
 # (1.200.0) Les clients, lot 2 : la fiche d'un client telle que la maquette (docs/maquettes/clients.html).
 FC2="l'en-tête, les bandeaux, les onglets, la colonne de droite, le menu, archiver, le délai"
-prouver 'fiche client 1 : une seule facture en retard ne se relance plus d'"'"'un geste' web/public/v10/app.js \
+prouver 'fiche client 1 : une seule facture en retard ne se relance plus d'"'"'un geste' modules/socle/ecrans/entreprise/app-1.js \
   "late.length === 1 && peutVendre && !horsLigne ? " "false ? " "$FC2"
-prouver 'fiche client 2 : plusieurs retards, pas de relevé en geste principal' web/public/v10/app.js \
+prouver 'fiche client 2 : plusieurs retards, pas de relevé en geste principal' modules/socle/ecrans/entreprise/app-1.js \
   ': late.length > 1 ? `<button' ': false ? `<button' "$FC2"
-prouver 'fiche client 3 : le retard tait sa dernière relance' web/public/v10/app.js \
+prouver 'fiche client 3 : le retard tait sa dernière relance' modules/socle/ecrans/entreprise/app-1.js \
   '${dr ? ` · dernière relance le' '${false ? ` · dernière relance le' "$FC2"
-prouver 'fiche client 4 : l'"'"'encours dépassé se tait' web/public/v10/app.js \
+prouver 'fiche client 4 : l'"'"'encours dépassé se tait' modules/socle/ecrans/entreprise/app-1.js \
   "if (depasse) bandeaux.push(" "if (false) bandeaux.push(" "$FC2"
-prouver 'fiche client 5 : le trop-payé se tait' web/public/v10/app.js \
+prouver 'fiche client 5 : le trop-payé se tait' modules/socle/ecrans/entreprise/app-1.js \
   "if (enTrop) bandeaux.push(" "if (false) bandeaux.push(" "$FC2"
-prouver 'fiche client 6 : le matricule manquant se tait' web/public/v10/app.js \
+prouver 'fiche client 6 : le matricule manquant se tait' modules/socle/ecrans/entreprise/app-1.js \
   "if (!c.matricule && !etranger) bandeaux.push(" "if (false) bandeaux.push(" "$FC2"
-prouver 'fiche client 7 : un client archivé reste dans la liste' web/public/v10/app.js \
+prouver 'fiche client 7 : un client archivé reste dans la liste' modules/socle/ecrans/entreprise/app-1.js \
   "r.c.archived ? false : !f ? true" "!f ? true" "$FC2"
-prouver 'fiche client 8 : la facture neuve oublie le délai du client' web/public/v10/app.js \
+prouver 'fiche client 8 : la facture neuve oublie le délai du client' modules/socle/ecrans/entreprise/app-1.js \
   "if (doc.type === 'facture' && !doc.number && c.paymentTermsDays !== ''" "if (false && doc.type === 'facture' && !doc.number && c.paymentTermsDays !== ''" "$FC2"
-prouver 'fiche client 9 : « Relevé de compte » n'"'"'ouvre rien' web/public/v10/app.js \
+prouver 'fiche client 9 : « Relevé de compte » n'"'"'ouvre rien' modules/socle/ecrans/entreprise/app-1.js \
   "if (\$('#cf-releve')) \$('#cf-releve').onclick = () => releveForm(c.id);" "" "$FC2"
-prouver 'fiche client 10 : l'"'"'onglet Relances oublie ce qui a été fait' web/public/v10/app.js \
+prouver 'fiche client 10 : l'"'"'onglet Relances oublie ce qui a été fait' modules/socle/ecrans/entreprise/app-1.js \
   "const hist = factures.flatMap(d => (d.reminders || [])" "const hist = [].flatMap(d => (d.reminders || [])" "$FC2"
-prouver 'fiche client 11 : un client archivé ne revient pas' web/public/v10/app.js \
+prouver 'fiche client 11 : un client archivé ne revient pas' modules/socle/ecrans/entreprise/app-1.js \
   "    c.archived = ''; save(true); if (refaire) refaire();
     toast(" "    save(true); if (refaire) refaire();
     toast(" "$FC2"
 # (1.201.0) Revue de la fiche : sans réseau, et le matricule de la fenêtre d'un client.
-prouver 'fiche client 12 : sans réseau, la fiche ne le dit pas' web/public/v10/app.js \
+prouver 'fiche client 12 : sans réseau, la fiche ne le dit pas' modules/socle/ecrans/entreprise/app-1.js \
   "if (horsLigne) bandeaux.push(bandeauHorsLigneClients('la fiche'));" "" "$FC2"
-prouver 'fiche client 13 : sans réseau, la relance reste proposée' web/public/v10/app.js \
+prouver 'fiche client 13 : sans réseau, la relance reste proposée' modules/socle/ecrans/entreprise/app-1.js \
   "late.length === 1 && peutVendre && !horsLigne ? " "late.length === 1 && peutVendre ? " "$FC2"
-prouver 'fiche client 14 : un matricule déjà connu crée un second client' web/public/v10/app.js \
+prouver 'fiche client 14 : un matricule déjà connu crée un second client' modules/socle/ecrans/entreprise/app-1.js \
   "          if (autre) return refus('#cf input[name=matricule]'," "          if (false) return refus('#cf input[name=matricule]'," "$FC2"
-prouver 'fiche client 15 : un matricule mal écrit se tait' web/public/v10/app.js \
+prouver 'fiche client 15 : un matricule mal écrit se tait' modules/socle/ecrans/entreprise/app-1.js \
   "? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.' : ''" "? '' : ''" "$FC2"
 
 # (1.202.0) Les achats, lot 1 : la liste telle que la maquette (docs/maquettes/achats-fournisseurs.html, passe 3).
 LA1='« À payer » en tête, le tableau par mois, son pied, les filtres, « Régler », le téléphone'
-prouver 'achats 1 : « À payer » montre quatre pièces avant « tout voir »' web/public/v10/app.js \
+prouver 'achats 1 : « À payer » montre quatre pièces avant « tout voir »' modules/socle/ecrans/entreprise/app-1.js \
   "laApTout ? due : due.slice(0, 5)" "laApTout ? due : due.slice(0, 4)" "$LA1"
-prouver 'achats 2 : le pied ajoute un avoir au lieu de le retrancher' web/public/v10/app.js \
+prouver 'achats 2 : le pied ajoute un avoir au lieu de le retrancher' modules/socle/ecrans/entreprise/app-1.js \
   "(a, p) => a + C.purchaseTotals(p, company()).base.totalHT, 0)" "(a, p) => a + Math.abs(C.purchaseTotals(p, company()).base.totalHT), 0)" "$LA1"
-prouver 'achats 3 : la liste ne se range plus par mois' web/public/v10/app.js \
+prouver 'achats 3 : la liste ne se range plus par mois' modules/socle/ecrans/entreprise/app-1.js \
   "const parMois = !s.sort || s.sort.key === 'date';" "const parMois = false;" "$LA1"
-prouver 'achats 4 : la recherche ne lit plus le montant' web/public/v10/app.js \
+prouver 'achats 4 : la recherche ne lit plus le montant' modules/socle/ecrans/entreprise/app-1.js \
   "C.nomsJustificatifs(p), C.money(netOf(p), '')].join(' ')" "C.nomsJustificatifs(p)].join(' ')" "$LA1"
-prouver 'achats 5 : « Régler » dans « À payer » n'"'"'ouvre rien' web/public/v10/app.js \
+prouver 'achats 5 : « Régler » dans « À payer » n'"'"'ouvre rien' modules/socle/ecrans/entreprise/app-1.js \
   "\$\$('#payables [data-payx]').forEach(b => b.onclick = () => supplierPaymentForm(purchaseById(b.dataset.payx), () => render(true)));" "" "$LA1"
-prouver 'achats 6 : « sans justificatif » ne mène nulle part' web/public/v10/app.js \
+prouver 'achats 6 : « sans justificatif » ne mène nulle part' modules/socle/ecrans/entreprise/app-1.js \
   "if (\$('#la-justif')) \$('#la-justif').onclick = () => { filtreAchats(SANS_JUSTIF); render(true); };" "" "$LA1"
-prouver 'achats 7 : le menu ⋯ d'"'"'une pièce ne s'"'"'ouvre plus' web/public/v10/app.js \
+prouver 'achats 7 : le menu ⋯ d'"'"'une pièce ne s'"'"'ouvre plus' modules/socle/ecrans/entreprise/app-1.js \
   "      bindRowMenus(w, actionsAchat," "      (() => {})(w, actionsAchat," "$LA1"
-prouver 'achats 8 : les puces du téléphone ne filtrent rien' web/public/v10/app.js \
+prouver 'achats 8 : les puces du téléphone ne filtrent rien' modules/socle/ecrans/entreprise/app-1.js \
   "\$\$('#lf-puces [data-tst]').forEach(b => b.onclick" "[].forEach(b => b.onclick" "$LA1"
-prouver 'achats 9 : la référence répète le numéro' web/public/v10/app.js \
+prouver 'achats 9 : la référence répète le numéro' modules/socle/ecrans/entreprise/app-1.js \
   "const sous = [ref !== p.number ? " "const sous = [true ? " "$LA1"
-prouver 'achats 10 : l'"'"'échéance tait les jours de retard' web/public/v10/app.js \
+prouver 'achats 10 : l'"'"'échéance tait les jours de retard' modules/socle/ecrans/entreprise/app-1.js \
   "<small class=\"rouge\">\${pl(C.daysBetween(p.dueDate, auj), 'jour')} de retard</small>" "" "$LA1"
 prouver 'achats 11 : au téléphone, pas de cartes' web/public/plateforme/liste.css \
   "  .la .la-cartes { display: grid; gap: 8px; }" "  .la .la-cartes { display: none; }" "$LA1"
 prouver 'achats 12 : à la tablette, l'"'"'échéance garde sa colonne' web/public/plateforme/liste.css \
   "  .la table.la-table thead th:nth-child(5), .la table.la-table tbody tr:not(.mois) td:nth-child(5) { display: none; }" "" "$LA1"
-prouver 'achats 13 : Entrée n'"'"'ouvre plus la pièce choisie au clavier' web/public/v10/app.js \
+prouver 'achats 13 : Entrée n'"'"'ouvre plus la pièce choisie au clavier' modules/socle/ecrans/entreprise/app-1.js \
   "if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/achat/' + lignes[s.cur].dataset.id); }" "" "$LA1"
 # (1.203.0) Les achats, lot 1 b : choisir plusieurs pièces et les régler d'un seul virement.
-prouver 'achats 14 : « Régler ensemble » s'"'"'offre pour deux fournisseurs' web/public/v10/app.js \
+prouver 'achats 14 : « Régler ensemble » s'"'"'offre pour deux fournisseurs' modules/socle/ecrans/entreprise/app-1.js \
   "          : fs.size > 1 ? 'Un règlement va à un seul fournisseur : choisis des pièces du même'" "          : false ? ''" "$LA1"
-prouver 'achats 15 : le virement se répartit sans commencer par la plus ancienne' web/public/v10/app.js \
+prouver 'achats 15 : le virement se répartit sans commencer par la plus ancienne' modules/socle/ecrans/entreprise/app-1.js \
   "const l = pieces.slice().sort((a, b) => quand(a).localeCompare(quand(b)) || String(a.date || '').localeCompare(String(b.date || '')));" "const l = pieces.slice().reverse();" "$LA1"
-prouver 'achats 16 : une pièce reçoit plus que ce qui lui reste' web/public/v10/app.js \
+prouver 'achats 16 : une pièce reçoit plus que ce qui lui reste' modules/socle/ecrans/entreprise/app-1.js \
   "const m = C.round3(Math.min(reste(p), Math.max(0, x)));" "const m = C.round3(Math.max(0, x));" "$LA1"
-prouver 'achats 17 : Échap ne défait plus le choix' web/public/v10/app.js \
+prouver 'achats 17 : Échap ne défait plus le choix' modules/socle/ecrans/entreprise/app-1.js \
   "    if (e.key === 'Escape' && s.sel && s.sel.size && \$('#bc-rien')) { e.preventDefault(); \$('#bc-rien').click(); }" "" "$LA1"
 prouver 'achats 18 : la pastille du nombre étire les boutons de la barre' web/public/plateforme/liste.css \
   ".lf .cpt { display: inline-block; grid-template-columns: none; gap: 0;" ".lf .cpt {" "$LA1"
 
 # (1.204.0) Les achats, lot 2 : la liste des fournisseurs telle que la maquette.
 LFO='les colonnes, les filtres et leurs nombres, la ville, le pied, « Régler », le menu, le clavier, le téléphone'
-prouver 'fournisseurs 1 : « En retard » compte ceux qui doivent' web/public/v10/app.js \
+prouver 'fournisseurs 1 : « En retard » compte ceux qui doivent' modules/socle/ecrans/entreprise/app-1.js \
   "f === 'retard' ? r.sum.late > 0.0005 :" "f === 'retard' ? r.sum.remaining > 0.0005 :" "$LFO"
-prouver 'fournisseurs 2 : un fournisseur sans RIB qu'"'"'on doit payer n'"'"'est plus à compléter' web/public/v10/app.js \
+prouver 'fournisseurs 2 : un fournisseur sans RIB qu'"'"'on doit payer n'"'"'est plus à compléter' modules/socle/ecrans/entreprise/app-1.js \
   "manqueRib = !f.rib && sum.remaining > 0.0005;" "manqueRib = false;" "$LFO"
-prouver 'fournisseurs 3 : la ville ne se cherche plus' web/public/v10/app.js \
+prouver 'fournisseurs 3 : la ville ne se cherche plus' modules/socle/ecrans/entreprise/app-1.js \
   "String(r.f.phone || '').replace(/\s/g, ''), r.f.city].join(' ')" "String(r.f.phone || '').replace(/\s/g, '')].join(' ')" "$LFO"
-prouver 'fournisseurs 4 : « Régler » règle une seule pièce sur deux en retard' web/public/v10/app.js \
+prouver 'fournisseurs 4 : « Régler » règle une seule pièce sur deux en retard' modules/socle/ecrans/entreprise/app-1.js \
   "const lfoRegler = (r, done) => (r.ret.length > 1 &&" "const lfoRegler = (r, done) => (false &&" "$LFO"
-prouver 'fournisseurs 5 : le pied tait la retenue à garder' web/public/v10/app.js \
+prouver 'fournisseurs 5 : le pied tait la retenue à garder' modules/socle/ecrans/entreprise/app-1.js \
   "\${rs > 0.0005 ? \` · tu garderas \${m(rs)}" "\${false ? \` · tu garderas \${m(rs)}" "$LFO"
-prouver 'fournisseurs 6 : « sous 7 jours » ne se dit plus' web/public/v10/app.js \
+prouver 'fournisseurs 6 : « sous 7 jours » ne se dit plus' modules/socle/ecrans/entreprise/app-1.js \
   "else if (p.dueDate && p.dueDate >= auj && C.daysBetween(auj, p.dueDate) <= 7 &&" "else if (false &&" "$LFO"
-prouver 'fournisseurs 7 : Entrée n'"'"'ouvre plus la fiche' web/public/v10/app.js \
+prouver 'fournisseurs 7 : Entrée n'"'"'ouvre plus la fiche' modules/socle/ecrans/entreprise/app-1.js \
   "if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/fournisseur/' + lignes[s.cur].dataset.sid); }" "" "$LFO"
 prouver 'fournisseurs 8 : à la tablette, « Régler » disparaît' web/public/plateforme/liste.css \
   "  .lc.lfo table.lfo-table thead th:nth-child(7) { display: table-cell; }" "  .lc.lfo table.lfo-table thead th:nth-child(7) { display: table-cell; }
@@ -21726,27 +21726,27 @@ prouver 'fournisseurs 9 : au téléphone, la bulle des filtres reste seule sur s
 
 # (1.205.0) Les achats, lot 3 : la fiche d'un fournisseur telle que la maquette.
 FF="l'en-tête, le bouton calculé, les bandeaux, les onglets, le fil, la colonne de droite, le menu, sans réseau, le téléphone"
-prouver 'fiche fournisseur 1 : ses pièces en retard se règlent une à une' web/public/v10/app.js \
+prouver 'fiche fournisseur 1 : ses pièces en retard se règlent une à une' modules/socle/ecrans/entreprise/app-1.js \
   "urgent.length > 1 && memeDevise(urgent) ? reglerEnsemble(urgent, refaire) : supplierPaymentForm(urgent[0], refaire)" "supplierPaymentForm(urgent[0], refaire)" "$FF"
-prouver 'fiche fournisseur 2 : « dont 137,445 en retard » sur 128,282 dus' web/public/v10/app.js \
+prouver 'fiche fournisseur 2 : « dont 137,445 en retard » sur 128,282 dus' modules/socle/ecrans/entreprise/app-1.js \
   "sum.late > sum.remaining - 0.0005 ? ', tout en retard'" "Math.abs(sum.late - sum.remaining) < 0.0005 ? ', tout en retard'" "$FF"
-prouver 'fiche fournisseur 3 : le retard tait la retenue à garder' web/public/v10/app.js \
+prouver 'fiche fournisseur 3 : le retard tait la retenue à garder' modules/socle/ecrans/entreprise/app-1.js \
   '${rsAGarder > 0.0005 ? ` En payant' '${false ? ` En payant' "$FF"
-prouver 'fiche fournisseur 4 : les attestations à remettre ne se disent plus' web/public/v10/app.js \
+prouver 'fiche fournisseur 4 : les attestations à remettre ne se disent plus' modules/socle/ecrans/entreprise/app-1.js \
   "if (aRemettre.length) bandeaux.push(" "if (false) bandeaux.push(" "$FF"
-prouver 'fiche fournisseur 5 : l'"'"'objet d'"'"'une pièce ne lit plus ses lignes' web/public/v10/app.js \
+prouver 'fiche fournisseur 5 : l'"'"'objet d'"'"'une pièce ne lit plus ses lignes' modules/socle/ecrans/entreprise/app-1.js \
   "get: p => h(contenuAchat(p)) || '<span class=\"muted\">—</span>' });" "get: p => h(p.subject || '') || '<span class=\"muted\">—</span>' });" "$FF"
-prouver 'fiche fournisseur 6 : sans réseau, on règle quand même' web/public/v10/app.js \
+prouver 'fiche fournisseur 6 : sans réseau, on règle quand même' modules/socle/ecrans/entreprise/app-1.js \
   "peutAcheter = !lecture && !enLecture('purchases'), peutRegler = !roleLit && !enLecture('purchases') && !horsLigne;" "peutAcheter = !lecture && !enLecture('purchases'), peutRegler = !roleLit && !enLecture('purchases');" "$FF"
-prouver 'fiche fournisseur 7 : deux boutons principaux sur une fiche sans achat' web/public/v10/app.js \
+prouver 'fiche fournisseur 7 : deux boutons principaux sur une fiche sans achat' modules/socle/ecrans/entreprise/app-1.js \
   'class="btn" id="ff-premier"' 'class="btn btn-primary" id="ff-premier"' "$FF"
-prouver 'fiche fournisseur 8 : le fil dans le désordre' web/public/v10/app.js \
+prouver 'fiche fournisseur 8 : le fil dans le désordre' modules/socle/ecrans/entreprise/app-1.js \
   ".filter(x => x[0]).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);" ".filter(x => x[0]).slice(0, 6);" "$FF"
 prouver 'fiche fournisseur 9 : le RIB se casse sur deux lignes' web/public/plateforme/liste.css \
   ".cf-dl dt.ff-rib-t, .cf-dl dd.ff-rib { grid-column: 1 / -1; }" "" "$FF"
 
 # (1.206.0) La Banque du Cabinet en deux colonnes, comme la maquette : les gestes, l'équation, l'état, le téléphone.
-prouver 'banque 1 : l'"'"'import ne rapproche plus d'"'"'office' web/public/v10/cabinet/app.js \
+prouver 'banque 1 : l'"'"'import ne rapproche plus d'"'"'office' modules/socle/ecrans/cabinet/app-2.js \
   'const a = await api.rapprocherAuto({ dossierId: dossier.id, annee: s.annee, releveId: r.releve.id, jours });' 'const a = { livre: s.livre, compte: {} }; void jours;' \
   "$WB1"
 prouver 'banque 2 : « Valider la proposée » ne pose rien au serveur' web/public/plateforme/pont-cabinet.js \
@@ -21754,22 +21754,22 @@ prouver 'banque 2 : « Valider la proposée » ne pose rien au serveur' web/publ
       return { ok: true, livre: await livreDe(o.dossierId, o.annee) };' '      void poses;
       return { ok: true, livre: await livreDe(o.dossierId, o.annee) };' \
   "$WB1"
-prouver 'banque 3 : « Annuler » ne défait pas le rapprochement' web/public/v10/cabinet/app.js \
+prouver 'banque 3 : « Annuler » ne défait pas le rapprochement' modules/socle/ecrans/cabinet/app-2.js \
   '          () => defaireBq(dossier, R, l.id));' '          null);' \
   "$WB1"
-prouver 'banque 4 : la touche Entrée ne rapproche plus' web/public/v10/cabinet/app.js \
+prouver 'banque 4 : la touche Entrée ne rapproche plus' modules/socle/ecrans/cabinet/app-2.js \
   '        if (b) { ev.preventDefault(); b.click(); }' '        void b;' \
   "$WB1"
-prouver 'banque 5 : « Annuler » après « Défaire tous » ne repose rien' web/public/v10/cabinet/app.js \
+prouver 'banque 5 : « Annuler » après « Défaire tous » ne repose rien' modules/socle/ecrans/cabinet/app-2.js \
   '      const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)' '      const avant = [].filter(l => l)' \
   "$WB1"
 prouver 'banque 6 : reposées, les lignes de l'"'"'automatique passent « à la main »' web/public/plateforme/pont-cabinet.js \
   'niveau: '"'"'certain'"'"', auto: c.auto === true }' 'niveau: '"'"'certain'"'"', auto: false }' \
   "$WB1"
-prouver 'banque 7 : le pied oublie les écritures pas encore en banque' web/public/v10/cabinet/app.js \
+prouver 'banque 7 : le pied oublie les écritures pas encore en banque' modules/socle/ecrans/cabinet/app-2.js \
   '    const livreRec = sus.livre.filter(x => x.date >= premier);' '    const livreRec = [];' \
   "$WB1"
-prouver 'banque 8 : l'"'"'état dit les soldes inégaux' web/public/v10/cabinet/app.js \
+prouver 'banque 8 : l'"'"'état dit les soldes inégaux' modules/socle/ecrans/cabinet/app-2.js \
   '    const egaux = KC.round3(banqueRect - livreRect) === 0;' '    const egaux = false;' \
   "$WB1"
 prouver 'banque 9 : au téléphone, le tableau du bureau reste' web/public/plateforme/banque.css \
@@ -21778,7 +21778,7 @@ prouver 'banque 9 : au téléphone, le tableau du bureau reste' web/public/plate
 prouver 'banque 10 : au téléphone, le livre en face se tasse en cartes' web/public/plateforme/telephone.js \
   'document.querySelectorAll('"'"'table.list:not([data-sans-cartes])'"'"')' 'document.querySelectorAll('"'"'table.list'"'"')' \
   "$WB1"
-prouver 'banque 11 : au téléphone, l'"'"'écriture en face sort de son cadre' 'web/public/plateforme/banque.css|||web/public/v10/cabinet/app.js' \
+prouver 'banque 11 : au téléphone, l'"'"'écriture en face sort de son cadre' 'web/public/plateforme/banque.css|||modules/socle/ecrans/cabinet/app-2.js' \
   '  .bq-ecran table.bq-ec { display: table; table-layout: fixed; width: 100%; font-size: 12px; }|||<td class="tronq" title="${esc(z.libelle || '"'"''"'"')}">' '  .bq-ecran table.bq-ec { font-size: 12px; }|||<td title="${esc(z.libelle || '"'"''"'"')}" style="white-space:nowrap">' \
   "$WB1"
 prouver 'banque 12 : au téléphone, le mois rapproché pousse l'"'"'écran' web/public/plateforme/banque.css \
@@ -21787,71 +21787,71 @@ prouver 'banque 12 : au téléphone, le mois rapproché pousse l'"'"'écran' web
   .bq-fini > .btn { flex: 1 1 100%; margin-left: 0; white-space: normal; }
 ' '' \
   "$WB1"
-prouver 'question-ligne 5 : la question d'"'"'une ligne perd son montant' web/public/v10/cabinet/app.js \
+prouver 'question-ligne 5 : la question d'"'"'une ligne perd son montant' modules/socle/ecrans/cabinet/app-1.js \
   'montant: b.solde || b.montant || 0,' 'montant: b.solde || 0,' \
   '(1.189.0) une question depuis une écriture'
-prouver 'banque 13 : deux montants inégaux se rapprochent quand même' web/public/v10/cabinet/app.js \
+prouver 'banque 13 : deux montants inégaux se rapprochent quand même' modules/socle/ecrans/cabinet/app-2.js \
   "principal = cc && !ecart ? 'Rapprocher' : '';" "principal = cc ? 'Rapprocher' : '';" \
   "$WB1"
 
 # (1.207.0, 31/10/2026) La Banque et la page de la comptabilité comme leur maquette (docs/maquettes/cabinet/ecarts-banque.md).
-prouver 'banque 14 : la pièce redit le code du journal (« BQ CHQ-1234 »)' web/public/v10/cabinet/app.js \
+prouver 'banque 14 : la pièce redit le code du journal (« BQ CHQ-1234 »)' modules/socle/ecrans/cabinet/app-2.js \
   "const pieceBq = e => (e ? String(e.piece || '').trim() ||" "const pieceBq = e => (e ? \`\${e.journal || ''} \${e.piece || ''}\`.trim() ||" \
   "$WB1"
-prouver 'banque 15 : le geste ne se dit plus dans la carte' web/public/v10/cabinet/app.js \
+prouver 'banque 15 : le geste ne se dit plus dans la carte' modules/socle/ecrans/cabinet/app-2.js \
   '${banqueState.annonce && banqueState.annonce.sel === banqueState.sel ?' '${false ?' \
   "$WB1"
-prouver 'banque 16 : les gestes du relevé absents du ⋯ de la page' web/public/v10/cabinet/app.js \
+prouver 'banque 16 : les gestes du relevé absents du ⋯ de la page' modules/socle/ecrans/cabinet/app-1.js \
   "...(livresState.onglet === 'banque' && banqueState.gestesReleve ?" "...(false && banqueState.gestesReleve ?" \
   "$WB1"
-prouver 'banque 17 : le relevé rapproché reste une liste (pas la carte au milieu)' web/public/v10/cabinet/app.js \
+prouver 'banque 17 : le relevé rapproché reste une liste (pas la carte au milieu)' modules/socle/ecrans/cabinet/app-2.js \
   "const toutFait = !restent.length && banqueState.revoir !== R.id;" "const toutFait = false;" \
   "$WB1"
-prouver 'compta 1 : la barre perd la comptabilité du dossier ouvert' web/public/v10/cabinet/app.js \
+prouver 'compta 1 : la barre perd la comptabilité du dossier ouvert' modules/socle/ecrans/cabinet/app-1.js \
   "+ comptaDansBarre(D, base, dansCeDossier" "+ (() => '')(D, base, dansCeDossier" \
   'au bureau : la tête et son menu'
 # (1.208.0) Ce qu'une ligne du relevé PAIE : des factures encore ouvertes (moteur et écran).
 WB2="la remise se rapproche et se lettre d'un geste ; le prélèvement s'écrit au brouillard et s'annule ; la retenue se lit une fois son taux réglé ; une somme fausse se refuse"
-prouver 'règlements 1 : un règlement pas encore lettré ne couvre plus sa facture (on la paierait deux fois)' web/public/v10/compta.js \
+prouver 'règlements 1 : un règlement pas encore lettré ne couvre plus sa facture (on la paierait deux fois)' modules/socle/moteur/compta-1.js \
   "const pris = Math.min(due, couvert);" "const pris = 0;" \
   'une facture déjà couverte par un règlement non lettré du même tiers ne se propose plus'
-prouver 'règlements 2 : deux factures du même montant, la première se propose' web/public/v10/compta.js \
+prouver 'règlements 2 : deux factures du même montant, la première se propose' modules/socle/moteur/compta-1.js \
   "return haut > 0 && sc.filter(x => x === haut).length === 1 ? liste[sc.indexOf(haut)] : null;" "return liste[0] || null;" \
   'deux factures du même montant : le tiers que la banque nomme départage, sinon rien ne se propose'
-prouver 'règlements 3 : une retenue se lit sans taux réglé (un taux écrit en dur)' web/public/v10/compta.js \
+prouver 'règlements 3 : une retenue se lit sans taux réglé (un taux écrit en dur)' modules/socle/moteur/compta-1.js \
   "const T = (Array.isArray(taux) ? taux : []).map(Number)" "const T = (Array.isArray(taux) && taux.length ? taux : [1.5]).map(Number)" \
   'au net de sa retenue : reconnue au millime à un taux du cabinet, jamais sans taux réglé'
-prouver 'règlements 4 : un paiement partiel passe pour une retenue (à un millime près)' web/public/v10/compta.js \
+prouver 'règlements 4 : un paiement partiel passe pour une retenue (à un millime près)' modules/socle/moteur/compta-1.js \
   "if (rs && total - rs === ligne) return" "if (rs && Math.abs(total - rs - ligne) <= 1) return" \
   'au net de sa retenue : reconnue au millime à un taux du cabinet, jamais sans taux réglé'
-prouver 'règlements 5 : la retenue opérée sur un fournisseur va au compte de la retenue subie' web/public/v10/compta.js \
+prouver 'règlements 5 : la retenue opérée sur un fournisseur va au compte de la retenue subie' modules/socle/moteur/compta-1.js \
   ": { compte: COMPTES_FISCAUX.rsOperee," ": { compte: COMPTES_FISCAUX.rsSubie," \
   'au net de sa retenue : reconnue au millime à un taux du cabinet, jamais sans taux réglé'
-prouver 'règlements 6 : deux combinaisons tombent juste, la première se propose' web/public/v10/compta.js \
+prouver 'règlements 6 : deux combinaisons tombent juste, la première se propose' modules/socle/moteur/compta-1.js \
   "if (trouvees.length === 1) remise = trouvees[0]" "if (trouvees.length >= 1) remise = trouvees[0]" \
   'une remise de chèques : trois factures dont la somme fait la ligne, ventilées une par une'
-prouver 'règlements 7 : une facture au brouillard se dit « lettrée »' web/public/v10/cabinet/app.js \
+prouver 'règlements 7 : une facture au brouillard se dit « lettrée »' modules/socle/ecrans/cabinet/app-2.js \
   "pieces.every(p => p.statut !== 'brouillard' && p.entiere && p.seule)" "pieces.every(p => p.entiere && p.seule)" \
   "$WB2"
-prouver 'règlements 8 : « Rapprocher et lettrer » ne lettre pas' web/public/v10/cabinet/app.js \
+prouver 'règlements 8 : « Rapprocher et lettrer » ne lettre pas' modules/socle/ecrans/cabinet/app-2.js \
   "    if (!lettrer) return { id: r.id, msg:" "    if (lettrer || !lettrer) return { id: r.id, msg:" \
   "$WB2"
-prouver 'règlements 9 : un règlement écrit au brouillard ne s'"'"'annule pas' web/public/v10/cabinet/app.js \
+prouver 'règlements 9 : un règlement écrit au brouillard ne s'"'"'annule pas' modules/socle/ecrans/cabinet/app-2.js \
   "rg.lettrable ? null : () => defaireEcriteBq(dossier, R, l.id, fait && fait.id));" "null);" \
   "$WB2"
-prouver 'règlements 10 : « Valider les proposées » laisse de côté celles qui paient une facture' web/public/v10/cabinet/app.js \
+prouver 'règlements 10 : « Valider les proposées » laisse de côté celles qui paient une facture' modules/socle/ecrans/cabinet/app-2.js \
   "const factures = choisies.filter(x => !x.c && x.fact);" "const factures = [];" \
   "$WB2"
-prouver 'règlements 11 : la même facture se propose à deux lignes' web/public/v10/cabinet/app.js \
+prouver 'règlements 11 : la même facture se propose à deux lignes' modules/socle/ecrans/cabinet/app-2.js \
   "if (rep.proposees.length && !rep.proposees.some(p => proposees.has(cleP(p)))) {" "if (rep.proposees.length) {" \
   "$WB2"
-prouver 'règlements 12 : un taux de retenue faux se retient sans un mot' web/public/v10/cabinet/app.js \
+prouver 'règlements 12 : un taux de retenue faux se retient sans un mot' modules/socle/ecrans/cabinet/app-2.js \
   "if (faux) { refus(champT," "if (false) { refus(champT," \
   "$WB2"
 prouver 'règlements 13 : le serveur ne garde pas les taux de retenue du cabinet' serveur/cabinet/routes.ts \
   "  tauxRetenue: z.array(TAUX_POUR_CENT).max(20)," "" \
   "$WB2"
-prouver 'banque 18 : une rapprochée ne dit plus ce qu'"'"'elle paie' web/public/v10/cabinet/app.js \
+prouver 'banque 18 : une rapprochée ne dit plus ce qu'"'"'elle paie' modules/socle/ecrans/cabinet/app-2.js \
   "    const quoi = quoiBq(x);" "    const quoi = '';" \
   "$WB2"
 
@@ -21861,77 +21861,77 @@ MB5="le sens : une règle « débit » ne prend pas l'argent qui entre, et sans 
 MB5M="le montant au plus, au millime : 50,000 passe, 50,001 non"
 MB5P="la plus précise passe : le mot le plus long d'abord, puis la règle bornée"
 MB5T="la TVA se sépare d'après la règle : hors taxe à son compte, la TVA au sien, l'écriture tombe juste au millime"
-prouver 'règles 1 : une règle « crédit » prend l'"'"'argent qui sort' web/public/v10/compta.js \
+prouver 'règles 1 : une règle « crédit » prend l'"'"'argent qui sort' modules/socle/moteur/compta-1.js \
   "    if (x.sens === 'credit' && !(m > 0)) return false;" "" \
   "$MB5"
-prouver 'règles 2 : le montant au plus compté large' web/public/v10/compta.js \
+prouver 'règles 2 : le montant au plus compté large' modules/socle/moteur/compta-1.js \
   "if (num(x.auPlusMillimes) > 0 && Math.round(Math.abs(m) * 1000) > num(x.auPlusMillimes)) return false;" "if (num(x.auPlusMillimes) > 0 && Math.round(Math.abs(m) * 1000) > num(x.auPlusMillimes) + 1) return false;" \
   "$MB5M"
-prouver 'règles 3 : la règle bornée ne passe pas devant' web/public/v10/compta.js \
+prouver 'règles 3 : la règle bornée ne passe pas devant' modules/socle/moteur/compta-1.js \
   "  const precisionRegle = x => txt(x.motif).length * 4 + (x.sens ? 2 : 0) + (num(x.auPlusMillimes) > 0 ? 1 : 0);" "  const precisionRegle = x => txt(x.motif).length * 4;" \
   "$MB5P"
-prouver 'règles 4 : la TVA de la règle oubliée' web/public/v10/compta.js \
+prouver 'règles 4 : la TVA de la règle oubliée' modules/socle/moteur/compta-1.js \
   "    const tva = trouve && trouve.tva ? round3(a - round3(a / (1 + trouve.tva.taux / 100))) : 0;" "    const tva = 0;" \
   "$MB5T"
 prouver 'règles 5 : le serveur refuse le sens d'"'"'une règle' serveur/cabinet/routes.ts \
   "    sens: z.enum(['debit', 'credit']).optional()," "" \
   "$WB1"
-prouver 'règles 6 : la nouvelle règle tait la règle qui prenait ses lignes' web/public/v10/cabinet/app.js \
+prouver 'règles 6 : la nouvelle règle tait la règle qui prenait ses lignes' modules/socle/ecrans/cabinet/app-2.js \
   "    const vole = prend.filter(y => avant.get(y));" "    const vole = [];" \
   "$WB1"
-prouver 'règles 7 : un mot trop courant retenu comme règle' web/public/v10/cabinet/app.js \
+prouver 'règles 7 : un mot trop courant retenu comme règle' modules/socle/ecrans/cabinet/app-2.js \
   "      if (!KC.motifDeLibelle(x.motif)) {" "      if (false) {" \
   "$WB1"
-prouver 'état 1 : l'"'"'état joint mais pas classé (à saisir dans le classeur)' web/public/v10/cabinet/app.js \
+prouver 'état 1 : l'"'"'état joint mais pas classé (à saisir dans le classeur)' modules/socle/ecrans/cabinet/app-2.js \
   "          rubrique: 'piece', periode: mois, titre: titreEtatBq(R), provenance: 'la Banque du cabinet', raison: 'banque'," "          rubrique: 'piece', periode: mois, titre: titreEtatBq(R), provenance: 'la Banque du cabinet'," \
   "$WB1"
-prouver 'état 2 : la page ne sait pas que l'"'"'état est déjà au classeur' web/public/v10/cabinet/app.js \
+prouver 'état 2 : la page ne sait pas que l'"'"'état est déjà au classeur' modules/socle/ecrans/cabinet/app-2.js \
   "      if (avant && banqueState.etat === R.id) {" "      if (false) {" \
   "$WB1"
-prouver 'import 1 : le mois qui manque passe sans un mot' web/public/v10/cabinet/app.js \
+prouver 'import 1 : le mois qui manque passe sans un mot' modules/socle/ecrans/cabinet/app-2.js \
   "          if (prec && du) { for (let m = moisSuivant(String(prec.au).slice(0, 7)); m < du.slice(0, 7); m = moisSuivant(m)) trou.push(m); }" "" \
   "$WB1"
-prouver 'import 2 : « Importer » reste ouvert quand un mois manque' web/public/v10/cabinet/app.js \
+prouver 'import 2 : « Importer » reste ouvert quand un mois manque' modules/socle/ecrans/cabinet/app-2.js \
   "          ok.disabled = !lignes.length || !!deja || !!bloqueTrou;" "          ok.disabled = !lignes.length || !!deja;" \
   "$WB1"
-prouver 'import 3 : le solde de début pris au livre plutôt qu'"'"'à la fin du relevé d'"'"'avant' web/public/v10/cabinet/app.js \
+prouver 'import 3 : le solde de début pris au livre plutôt qu'"'"'à la fin du relevé d'"'"'avant' modules/socle/ecrans/cabinet/app-2.js \
   "          if (prec && prec.soldeFin != null) {" "          if (false) {" \
   "$WB1"
-prouver 'import 4 : « Avant d'"'"'importer » ne voit pas les lignes déjà importées' web/public/v10/cabinet/app.js \
+prouver 'import 4 : « Avant d'"'"'importer » ne voit pas les lignes déjà importées' modules/socle/ecrans/cabinet/app-2.js \
   "          const doubles = lignes.filter(l => deja.has(cle(l))).length;" "          const doubles = lignes.length;" \
   "$WB1"
 
 # (1.210.0) La Saisie face à la pièce (tests/web/cabinet-saisie-piece.test.ts).
 WSX1="septembre, pièce par pièce : vérifier, saisir payée par carte, joindre, le mauvais mois, les euros, le mois vide"
 WSX2="au téléphone : la pièce puis sa fiche, sur toute la largeur, sans rien qui déborde"
-prouver 'saisie 1 : la contre-valeur oublie le taux de change' web/public/v10/cabinet/app.js \
+prouver 'saisie 1 : la contre-valeur oublie le taux de change' modules/socle/ecrans/cabinet/app-2.js \
   "    return Number.isFinite(c) && Number.isFinite(t) && c > 0 && t > 0 ? Math.round(c * t / 1000) : 0;" "    return Number.isFinite(c) && Number.isFinite(t) && c > 0 && t > 0 ? Math.round(c * 10) : 0;" \
   "$WSX1"
-prouver 'saisie 2 : un ticket compté avec sa TVA' web/public/v10/cabinet/app.js \
+prouver 'saisie 2 : un ticket compté avec sa TVA' modules/socle/ecrans/cabinet/app-2.js \
   "      tva: h.n ? h.taux : ticket ? 'sans' : '', tvaAutre: '', tvaSrc: h.n ? 'hab' : ticket ? 'ticket' : ''," "      tva: h.n ? h.taux : '', tvaAutre: '', tvaSrc: h.n ? 'hab' : ''," \
   "$WSX1"
-prouver 'saisie 3 : le paiement par carte du relevé ne se voit pas' web/public/v10/cabinet/app.js \
+prouver 'saisie 3 : le paiement par carte du relevé ne se voit pas' modules/socle/ecrans/cabinet/app-2.js \
   "        if (mtSx(l.montant) !== -ttcM) continue;" "        continue;" \
   "$WSX1"
-prouver 'saisie 4 : la pièce saisie ne se joint pas à son écriture' web/public/v10/cabinet/app.js \
+prouver 'saisie 4 : la pièce saisie ne se joint pas à son écriture' modules/socle/ecrans/cabinet/app-2.js \
   "      try { await joindreSx(dossier, x, res.id); dit += ', la pièce jointe'; }" "      try { dit += ', la pièce jointe'; }" \
   "$WSX1"
-prouver 'saisie 5 : le refus ne montre pas le champ' web/public/v10/cabinet/app.js \
+prouver 'saisie 5 : le refus ne montre pas le champ' modules/socle/ecrans/cabinet/app-2.js \
   "      const c = champ && \$(champ); if (c) { c.focus();" "      const c = null; if (c) { c.focus();" \
   "$WSX1"
-prouver 'saisie 6 : la pièce déjà au livre se saisit une seconde fois' web/public/v10/cabinet/app.js \
+prouver 'saisie 6 : la pièce déjà au livre se saisit une seconde fois' modules/socle/ecrans/cabinet/app-2.js \
   "      if (c) return { k: 'deja', e: c.c.e, i: c.i, ton: 'bleu', mot: 'déjà saisie ?' };" "" \
   "$WSX1"
-prouver 'saisie 7 : la facture au mauvais mois passe pour vérifiée' web/public/v10/cabinet/app.js \
+prouver 'saisie 7 : la facture au mauvais mois passe pour vérifiée' modules/socle/ecrans/cabinet/app-2.js \
   "      if (x.lu && x.lu.date && String(x.lu.date).slice(0, 7) !== String(e.date).slice(0, 7)) return { k: 'mois', e, ton: 'ambre', mot: 'à reclasser' };" "" \
   "$WSX1"
 prouver 'saisie 8 : « Ne plus me faire vérifier » ne se garde pas' web/public/plateforme/pont-cabinet.js \
   "    if (Array.isArray(f.sansVerifier)) contenu.sansVerifier =" "    if (false) contenu.sansVerifier =" \
   "$WSX1"
-prouver 'saisie 9 : le même numéro au kilomètre se tait' web/public/v10/cabinet/app.js \
+prouver 'saisie 9 : le même numéro au kilomètre se tait' modules/socle/ecrans/cabinet/app-2.js \
   "    const doublonDe = () => { const n = String(p.piece || '').trim();" "    const doublonDe = () => { const n = '';" \
   "$WSX1"
-prouver 'saisie 10 : « Une écriture à la main » n’ouvre pas la grille du mois vide' web/public/v10/cabinet/app.js \
+prouver 'saisie 10 : « Une écriture à la main » n’ouvre pas la grille du mois vide' modules/socle/ecrans/cabinet/app-2.js \
   "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${cache ? ' hidden' : ''}>" "<div class=\"sx-km\${cote ? '' : ' seul'}\"\${cache || !P.liste.length ? ' hidden' : ''}>" \
   "$WSX1"
 prouver 'saisie 11 : au téléphone la fiche reste à côté de la pièce' web/public/plateforme/saisie.css \
@@ -21940,77 +21940,77 @@ prouver 'saisie 11 : au téléphone la fiche reste à côté de la pièce' web/p
 
 # (1.211.0) Lot S7 « la fiche finie » (tests/web/cabinet-saisie-piece.test.ts).
 WSX3="Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie"
-prouver 'saisie 12 : « Enregistrer et valider » laisse au brouillard' web/public/v10/cabinet/app.js \
+prouver 'saisie 12 : « Enregistrer et valider » laisse au brouillard' modules/socle/ecrans/cabinet/app-2.js \
   "      if (valider) {" "      if (false) {" \
   "$WSX1"
-prouver 'saisie 13 : la saisie valide sans en avoir le droit' web/public/v10/cabinet/app.js \
+prouver 'saisie 13 : la saisie valide sans en avoir le droit' modules/socle/ecrans/cabinet/app-1.js \
   "  const peutValiderCl = d => { const r = d && d.droits && S && d.droits[S.moi]; return r ? ['revision', 'supervision'].includes(r) : monRole() !== 'saisie'; };" "  const peutValiderCl = () => true;" \
   "$WSX3"
-prouver 'saisie 14 : la photo illisible sort de la bande' web/public/v10/cabinet/app.js \
+prouver 'saisie 14 : la photo illisible sort de la bande' modules/socle/ecrans/cabinet/app-2.js \
   "&& (x.etat[1] !== 'illisible' || x.p) &&" "&& x.etat[1] !== 'illisible' &&" \
   "$WSX1"
-prouver 'saisie 15 : « Joindre » tait la TVA justifiée' web/public/v10/cabinet/app.js \
+prouver 'saisie 15 : « Joindre » tait la TVA justifiée' modules/socle/ecrans/cabinet/app-2.js \
   "        const tvaJ = tvaSx(x.sx.e), reste = Math.max(0, P.liste.length - 1);" "        const tvaJ = 0, reste = Math.max(0, P.liste.length - 1);" \
   "$WSX1"
-prouver 'saisie 16 : la TVA à payer du mois de la pièce ne bouge pas' web/public/v10/cabinet/app.js \
+prouver 'saisie 16 : la TVA à payer du mois de la pièce ne bouge pas' modules/socle/ecrans/cabinet/app-2.js \
   "\${esc(aPayer(payP - tva))}" "\${esc(aPayer(payP))}" \
   "$WSX1"
-prouver 'saisie 17 : le dépôt du mois de la pièce se tait' web/public/v10/cabinet/app.js \
+prouver 'saisie 17 : le dépôt du mois de la pièce se tait' modules/socle/ecrans/cabinet/app-2.js \
   "    const depotTxt = declP ? 'déjà déposé' : !depot ? '' :" "    const depotTxt = declP ? 'déjà déposé' : true ? '' :" \
   "$WSX1"
-prouver 'saisie 18 : « Lire la pièce » manque à une pièce pas lue' web/public/v10/cabinet/app.js \
+prouver 'saisie 18 : « Lire la pièce » manque à une pièce pas lue' modules/socle/ecrans/cabinet/app-2.js \
   "    if (L.ia) return \`<button" "    if (false) return \`<button" \
   "$WSX1"
-prouver 'saisie 19 : lue, la fiche garde ce qu'\''elle proposait avant' web/public/v10/cabinet/app.js \
+prouver 'saisie 19 : lue, la fiche garde ce qu'\''elle proposait avant' modules/socle/ecrans/cabinet/app-2.js \
   "      on('#sx-lire', () => fenLireCl(dossier, x, () => { sxState.fiches.delete(x.k); redessinerSx(dossier, true); }));" "      on('#sx-lire', () => fenLireCl(dossier, x, () => { redessinerSx(dossier, true); }));" \
   "$WSX1"
-prouver 'saisie 20 : la grille reste visible sous la fiche après un geste' web/public/v10/cabinet/app.js \
+prouver 'saisie 20 : la grille reste visible sous la fiche après un geste' modules/socle/ecrans/cabinet/app-2.js \
   "    const grille = \$('.sx-km'); if (grille) grille.hidden = !!(P.pret && P.liste.length && sxState.mode === 'face') || grilleCacheeSx(P);" "" \
   "$WSX1"
-prouver 'saisie 21 : le libellé en euros garde le montant brut' web/public/v10/cabinet/app.js \
+prouver 'saisie 21 : le libellé en euros garde le montant brut' modules/socle/ecrans/cabinet/app-2.js \
   "\${montantDevSx(f).replace(/[\\u202f\\u00a0]/g, ' ')} à \${String(f.taux).replace('.', ',')}" "\${f.montantDev} \${f.devise} à \${f.taux}" \
   "$WSX1"
-prouver 'saisie 22 : la saisie marque vérifiée à la place de la direction' web/public/v10/cabinet/app.js \
+prouver 'saisie 22 : la saisie marque vérifiée à la place de la direction' modules/socle/ecrans/cabinet/app-2.js \
   "    const gestes = enSaisie ? \`<span class=\"fd-qui\" id=\"sx-qui-verifie\">" "    const gestes = false ? \`<span class=\"fd-qui\" id=\"sx-qui-verifie\">" \
   "$WSX3"
-prouver 'saisie 23 : « Corriger… » ne demande rien' web/public/v10/cabinet/app.js \
+prouver 'saisie 23 : « Corriger… » ne demande rien' modules/socle/ecrans/cabinet/app-2.js \
   "    on('#sx-corriger', () => corrigerSx(dossier, x));" "" \
   "$WSX1"
 
 # (1.212.0) Lot S8 « le brouillard du mois » (tests/web/cabinet-saisie-piece.test.ts).
-prouver 'saisie 24 : le brouillard d'\''un mois montre tout l'\''exercice' web/public/v10/cabinet/app.js \
+prouver 'saisie 24 : le brouillard d'\''un mois montre tout l'\''exercice' modules/socle/ecrans/cabinet/app-2.js \
   "    const mBl = livresState.mode === 'mois' && livresState.mois && !sxState.blTout ? livresState.mois : '';" "    const mBl = '';" \
   "$WSX1"
-prouver 'saisie 25 : la fenêtre de validation ne liste pas ce qu'\''elle valide' web/public/v10/cabinet/app.js \
+prouver 'saisie 25 : la fenêtre de validation ne liste pas ce qu'\''elle valide' modules/socle/ecrans/cabinet/app-2.js \
   "<div class=\"lot-fen\">\${liste}\${enDemande" "<div class=\"lot-fen\">\${enDemande" \
   "$WSX1"
-prouver 'saisie 26 : la fenêtre de validation ne vérifie rien avant' web/public/v10/cabinet/app.js \
+prouver 'saisie 26 : la fenêtre de validation ne vérifie rien avant' modules/socle/ecrans/cabinet/app-2.js \
   "    const verif = !fausses.length && !deposes.length" "    const verif = false" \
   "$WSX1"
-prouver 'saisie 27 : la saisie voit le bouton qui valide le mois' web/public/v10/cabinet/app.js \
+prouver 'saisie 27 : la saisie voit le bouton qui valide le mois' modules/socle/ecrans/cabinet/app-2.js \
   "(peutValiderCl(dossier) ? \`<button type=\"button\" class=\"btn btn-sm\" data-lot-mois" "(true ? \`<button type=\"button\" class=\"btn btn-sm\" data-lot-mois" \
   "$WSX3"
-prouver 'saisie 28 : le mois vide tait ce qui arrive seul au livre' web/public/v10/cabinet/app.js \
+prouver 'saisie 28 : le mois vide tait ce qui arrive seul au livre' modules/socle/ecrans/cabinet/app-2.js \
   " Ses ventes et sa caisse arrivent seules au livre." "" \
   "$WSX1"
-prouver 'saisie 29 : le brouillard ne dit pas qui a saisi' web/public/v10/cabinet/app.js \
+prouver 'saisie 29 : le brouillard ne dit pas qui a saisi' modules/socle/ecrans/cabinet/app-2.js \
   "e.source === 'an' ? 'reprise' : 'le cabinet')" "e.source === 'an' ? 'reprise' : '')" \
   "$WSX1"
 
 # (1.213.0) Lot S9 « Au kilomètre, le journal du mois » (tests/web/cabinet-saisie-piece.test.ts).
-prouver 'saisie 30 : « Au kilomètre » n'\''a pas le journal du mois' web/public/v10/cabinet/app.js \
+prouver 'saisie 30 : « Au kilomètre » n'\''a pas le journal du mois' modules/socle/ecrans/cabinet/app-2.js \
   "return barreSx(P, dossier) + (moisSx() && !(saisieState.piece && saisieState.piece.depuisClasseur) ? (grilleCacheeSx(P)" "return barreSx(P, dossier) + (false ? (grilleCacheeSx(P)" \
   "$WSX1"
-prouver 'saisie 31 : la ligne en cours ne propose pas la charge du fournisseur' web/public/v10/cabinet/app.js \
+prouver 'saisie 31 : la ligne en cours ne propose pas la charge du fournisseur' modules/socle/ecrans/cabinet/app-2.js \
   "    const f = { four, date, ttc: L.ttc, tva: h.n ? h.taux : '', tvaAutre: '', compte: h.n ? h.compte : ''" "    const f = { four, date, ttc: L.ttc, tva: '', tvaAutre: '', compte: ''" \
   "$WSX1"
-prouver 'saisie 32 : un fournisseur sans pièce d'\''avant reçoit une charge inventée' web/public/v10/cabinet/app.js \
+prouver 'saisie 32 : un fournisseur sans pièce d'\''avant reçoit une charge inventée' modules/socle/ecrans/cabinet/app-2.js \
   "    const refus = !four ? 'Le fournisseur manque.' : !h.n ?" "    const refus = !four ? 'Le fournisseur manque.' : false ?" \
   "$WSX1"
-prouver 'saisie 33 : le journal du mois tait le justificatif' web/public/v10/cabinet/app.js \
+prouver 'saisie 33 : le journal du mois tait le justificatif' modules/socle/ecrans/cabinet/app-2.js \
   "avecJ.has(e.id) || e.justifClient === true ?" "false ?" \
   "$WSX1"
-prouver 'saisie 34 : Entrée sur la ligne en cours n'\''enregistre rien' web/public/v10/cabinet/app.js \
+prouver 'saisie 34 : Entrée sur la ligne en cours n'\''enregistre rien' modules/socle/ecrans/cabinet/app-2.js \
   "e.preventDefault(); e.stopPropagation(); enregistrerJmSx(root, dossier); }" "e.preventDefault(); e.stopPropagation(); }" \
   "$WSX1"
 
@@ -22019,7 +22019,7 @@ WSX4="à 1 024 pixels : la pièce reste face à sa fiche, et rien ne se coupe"
 prouver 'saisie 35 : au téléphone, les douze mois prennent trois rangées' web/public/plateforme/comptabilite.css \
   "  .cp-an { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none; }" "" \
   "$WSX2"
-prouver 'saisie 36 : au téléphone, la frise s'\''ouvre sur janvier' web/public/v10/cabinet/app.js \
+prouver 'saisie 36 : au téléphone, la frise s'\''ouvre sur janvier' modules/socle/ecrans/cabinet/app-1.js \
   "    if (fr && fr.scrollWidth > fr.clientWidth + 4) {" "    if (false) {" \
   "$WSX2"
 prouver 'saisie 37 : à 1 024 pixels, la fiche part sous la pièce' web/public/plateforme/saisie.css \
@@ -22033,68 +22033,68 @@ prouver 'saisie 39 : le choix du mode reste à droite de la bande (la maquette :
   "$WSX4"
 
 WSX5="la farine payée net de sa retenue : le certificat se prépare depuis la pièce"
-prouver 'saisie 41 : le certificat de retenue ne se prépare pas' web/public/v10/cabinet/app.js \
+prouver 'saisie 41 : le certificat de retenue ne se prépare pas' modules/socle/ecrans/cabinet/app-2.js \
   "    on('#sx-certif', () => certificatSx(dossier, x));" "" \
   "$WSX5"
-prouver 'saisie 42 : la retenue passée au règlement ne se voit pas' web/public/v10/cabinet/app.js \
+prouver 'saisie 42 : la retenue passée au règlement ne se voit pas' modules/socle/ecrans/cabinet/app-2.js \
   "    const rs = rsDe(e) || (reglt ? rsDe(reglt) : 0);" "    const rs = rsDe(e);" \
   "$WSX5"
-prouver 'saisie 43 : payée net de sa retenue, la pièce se dit « pas encore payée »' web/public/v10/cabinet/app.js \
+prouver 'saisie 43 : payée net de sa retenue, la pièce se dit « pas encore payée »' modules/socle/ecrans/cabinet/app-2.js \
   " : reglt ? ['ok', \`Payée le \${jjmm(reglt.date)}\`" " : false ? ['ok', \`Payée le \${jjmm(reglt.date)}\`" \
   "$WSX5"
-prouver 'saisie 44 : le brouillard de la Saisie garde « Actions » et l'\''italique' web/public/v10/cabinet/app.js \
+prouver 'saisie 44 : le brouillard de la Saisie garde « Actions » et l'\''italique' modules/socle/ecrans/cabinet/app-2.js \
   "RowMenu.bouton('B:' + e.id, '⋯', 'sx-bl-plus')" "RowMenu.bouton('B:' + e.id, 'Actions', 'sx-bl-plus')" \
   "$WSX5"
 
-prouver 'saisie 45 : une fiche touchée ignore ce que l'\''IA a lu' web/public/v10/cabinet/app.js \
+prouver 'saisie 45 : une fiche touchée ignore ce que l'\''IA a lu' modules/socle/ecrans/cabinet/app-2.js \
   "on('#sx-lire', () => fenLireCl(dossier, x, () => { sxState.fiches.delete(x.k);" "on('#sx-lire', () => fenLireCl(dossier, x, () => { if (!f.touchee) sxState.fiches.delete(x.k);" \
   "$WSX1"
-prouver 'saisie 46 : quitter le fournisseur pour « Lire la pièce » perd le clic' web/public/v10/cabinet/app.js \
+prouver 'saisie 46 : quitter le fournisseur pour « Lire la pièce » perd le clic' modules/socle/ecrans/cabinet/app-2.js \
   "        if (vise) { let fait = false;" "        if (false) { let fait = false;" \
   "$WSX1"
-prouver 'saisie 47 : « Au kilomètre », la grille reste sous le journal du mois' web/public/v10/cabinet/app.js \
+prouver 'saisie 47 : « Au kilomètre », la grille reste sous le journal du mois' modules/socle/ecrans/cabinet/app-2.js \
   "const grilleCacheeSx = P => sxState.mode === 'km'" "const grilleCacheeSx = P => false && sxState.mode === 'km'" \
   "$WSX1"
-prouver 'saisie 48 : le journal du mois ne nomme pas la TVA déductible' web/public/v10/cabinet/app.js \
+prouver 'saisie 48 : le journal du mois ne nomme pas la TVA déductible' modules/socle/ecrans/cabinet/app-2.js \
   "estTva ? \`TVA déductible\${" "estTva ? \`TVA\${" \
   "$WSX1"
-prouver 'saisie 50 : le mois vide étale la grille au lieu de sa carte (maquette « savide »)' web/public/v10/cabinet/app.js \
+prouver 'saisie 50 : le mois vide étale la grille au lieu de sa carte (maquette « savide »)' modules/socle/ecrans/cabinet/app-2.js \
   "    const cache = face || grilleCacheeSx(P) || videSx;" "    const cache = face || grilleCacheeSx(P);" \
   "$WSX1"
-prouver 'banque 19 : un mois sans relevé montre celui d’un autre mois (maquette « bqvide »)' web/public/v10/cabinet/app.js \
+prouver 'banque 19 : un mois sans relevé montre celui d’un autre mois (maquette « bqvide »)' modules/socle/ecrans/cabinet/app-2.js \
   "    if (mBq && !duMois.length && !banqueState.etat && !banqueState.regles) return banqueVide(dossier, mBq, releves);" "" \
   "$WB1"
-prouver 'saisie 51 : la date demandée au client se redemande d’un Entrée' web/public/v10/cabinet/app.js \
+prouver 'saisie 51 : la date demandée au client se redemande d’un Entrée' modules/socle/ecrans/cabinet/app-2.js \
   "    const demDate = client ? dateDemandeeSx(dossier, e) : null;" "    const demDate = null;" \
   "$WSX1"
-prouver 'saisie 52 : la validation du mois valide l’achat dont la date est demandée' web/public/v10/cabinet/app.js \
+prouver 'saisie 52 : la validation du mois valide l’achat dont la date est demandée' modules/socle/ecrans/cabinet/app-2.js \
   "    const enDemande = toutes.filter(e => achatSx(e) && dateDemandeeSx(dossier, e));" "    const enDemande = [];" \
   "$WSX1"
-prouver 'saisie 49 : « Au kilomètre » sur toute l'\''année reste sur la grille vide (pas le journal du mois de la pièce)' web/public/v10/cabinet/app.js \
+prouver 'saisie 49 : « Au kilomètre » sur toute l'\''année reste sur la grille vide (pas le journal du mois de la pièce)' modules/socle/ecrans/cabinet/app-2.js \
   "if (y && y.mois) { livresState.mode = 'mois';" "if (false) { livresState.mode = 'mois';" \
   'les pièces reçues : chaque pièce a son geste, classer vide la boîte et les chiffres, « Annuler » la remet ; une écriture commencée retient avant de changer de dossier'
 
 # 1.221.0 — l'épreuve d'un mois, jouée au clavier des deux côtés.
 WSX6="(1.221.0) la photo renvoyée prend la place de l'illisible ; la facture tapée : le fournisseur complété, la date, le timbre hors de la TVA ; l'achat comparé à lui-même, pas à son règlement"
-prouver 'saisie 53 : la photo renvoyée arrive dans le mois où elle tombe, l'\''illisible attend encore' web/public/v10/cabinet/app.js \
+prouver 'saisie 53 : la photo renvoyée arrive dans le mois où elle tombe, l'\''illisible attend encore' modules/socle/ecrans/cabinet/app-1.js \
   "      const ill = !p.mois && p.raison !== 'illisible' ? remplaceDe(p) : null;" "      const ill = null;" \
   "$WSX6"
-prouver 'saisie 54 : l'\''achat se compare à son règlement du même numéro' web/public/v10/cabinet/app.js \
+prouver 'saisie 54 : l'\''achat se compare à son règlement du même numéro' modules/socle/ecrans/cabinet/app-1.js \
   "      if (!d || sienne(e) || !sienne(d)) parPiece.set(k, e);" "      parPiece.set(k, e);" \
   "$WSX6"
-prouver 'saisie 55 : « Minoterie » reste un fournisseur nouveau' web/public/v10/cabinet/app.js \
+prouver 'saisie 55 : « Minoterie » reste un fournisseur nouveau' modules/socle/ecrans/cabinet/app-2.js \
   "          if (seul) { f.four = seul; four.value = seul; }" "" \
   "$WSX6"
-prouver 'saisie 56 : la date d'\''arrivée se saute, le curseur va au total' web/public/v10/cabinet/app.js \
+prouver 'saisie 56 : la date d'\''arrivée se saute, le curseur va au total' modules/socle/ecrans/cabinet/app-2.js \
   "redessinerSx(dossier, true, f.dateSrc === 'arrivee' ? '#sx-date' : '#sx-ttc')" "redessinerSx(dossier, true, '#sx-ttc')" \
   "$WSX6"
-prouver 'saisie 57 : le timbre entre dans la base de la TVA' web/public/v10/cabinet/app.js \
+prouver 'saisie 57 : le timbre entre dans la base de la TVA' modules/socle/ecrans/cabinet/app-2.js \
   "    const timbre = f.devise ? 0 : millimesSx(f.timbre || '0') || 0, base = ttc - timbre;" "    const timbre = f.devise ? 0 : millimesSx(f.timbre || '0') || 0, base = ttc;" \
   "$WSX6"
-prouver 'déclaration 1.221 a : l'\''écriture du mois ne se valide pas depuis la déclaration' web/public/v10/cabinet/app.js \
+prouver 'déclaration 1.221 a : l'\''écriture du mois ne se valide pas depuis la déclaration' modules/socle/ecrans/cabinet/app-1.js \
   "      if (attend) {" "      if (false) {" \
   "$WD1"
-prouver 'déclaration 1.221 b : « déposée » condamne le brouillard du mois' web/public/v10/cabinet/app.js \
+prouver 'déclaration 1.221 b : « déposée » condamne le brouillard du mois' modules/socle/ecrans/cabinet/app-1.js \
   "        if (brM.length) {" "        if (false) {" \
   "$WD1"
 
@@ -22102,96 +22102,96 @@ WMSG7="(1.221.0) la date d'un achat demandée : « Corriger la date… » redate
 prouver 'messagerie 1.221 a : la date demandée se présente comme une pièce à envoyer' web/public/plateforme/messagerie.js \
   "        const aDater = entreprise && o.corrigerDateAchat ? numeroADater(m) : '';" "        const aDater = '';" \
   "$WMSG7"
-prouver 'messagerie 1.221 b : « Corriger la date » ne redate pas l'\''achat' web/public/v10/app.js \
+prouver 'messagerie 1.221 b : « Corriger la date » ne redate pas l'\''achat' modules/socle/ecrans/entreprise/app-2.js \
   "        p.date = date;
         await save(true);" "        await save(true);" \
   "$WMSG7"
 
 WPAIE1="le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
-prouver 'paie 1.222 a : la frise compte remis ce qui ne l'\''est pas' web/public/v10/core.js \
+prouver 'paie 1.222 a : la frise compte remis ce qui ne l'\''est pas' modules/personnel/moteur/core-paie.js \
   "remis = L.filter(x => x.remisLe);" "remis = L.filter(x => x.paidDate);" \
   "$WPAIE1"
-prouver 'paie 1.222 b : « Remettre » ne garde pas la remise sur le bulletin' web/public/v10/app.js \
+prouver 'paie 1.222 b : « Remettre » ne garde pas la remise sur le bulletin' modules/personnel/ecrans/entreprise/paie.js \
   "          for (const x of C2) { const b = payslipById(x.id); if (b) b.remisLe = jour; }" "" \
   "$WPAIE1"
-prouver 'paie 1.222 c : un statut que tous partagent revient en colonne' web/public/v10/app.js \
+prouver 'paie 1.222 c : un statut que tous partagent revient en colonne' modules/personnel/ecrans/entreprise/paie.js \
   "\${uni ? '' : '<th>Statut</th>'}" "\${'<th>Statut</th>'}" \
   "$WPAIE1"
-prouver 'paie 1.222 d : la pastille de « Salariés » compte l'\''effectif' web/public/v10/app.js \
+prouver 'paie 1.222 d : la pastille de « Salariés » compte l'\''effectif' modules/personnel/ecrans/entreprise/paie.js \
   "new Set(C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').map(x => x.salarie)).size;" "data.employees.length;" \
   "$WPAIE1"
-prouver 'paie 1.222 e : les bulletins qui changent ne passent plus d'\''abord' web/public/v10/app.js \
+prouver 'paie 1.222 e : les bulletins qui changent ne passent plus d'\''abord' modules/personnel/ecrans/entreprise/paie.js \
   "const change = month.filter(x => r.avant[x.employeeId] == null || Math.abs(x.c.net - r.avant[x.employeeId]) >= 0.0005)" "const change = month.filter(x => r.avant[x.employeeId] == null)" \
   "$WPAIE1"
-prouver 'paie 1.222 f : tout payé, la tuile promet encore un versement' web/public/v10/app.js \
+prouver 'paie 1.222 f : tout payé, la tuile promet encore un versement' modules/personnel/ecrans/entreprise/paie.js \
   "tuile(month.every(x => x.paidDate) ? 'Net versé' : 'Net à verser'" "tuile('Net à verser'" \
   "$WPAIE1"
 
 WPAIE2="le bulletin en aperçu, puis les documents du personnel : la feuille à droite suit chaque choix, les montants viennent des bulletins"
-prouver 'paie 1.223 a : l'\''attestation de salaire prend quatre mois' web/public/v10/core.js \
+prouver 'paie 1.223 a : l'\''attestation de salaire prend quatre mois' modules/personnel/moteur/core-paie.js \
   "const L = bulletinsDe(data, e.id, t).slice(-3);" "const L = bulletinsDe(data, e.id, t).slice(-4);" \
   "$WPAIE2"
-prouver 'paie 1.223 b : l'\''aperçu ne suit plus le choix du document' web/public/v10/app.js \
+prouver 'paie 1.223 b : l'\''aperçu ne suit plus le choix du document' modules/personnel/ecrans/entreprise/paie.js \
   "\$('#hf', root).onchange = () => { sync(); apercu(); };" "\$('#hf', root).onchange = () => { sync(); };" \
   "$WPAIE2"
-prouver 'paie 1.223 c : le bulletin ne s'\''ouvre plus en aperçu' web/public/v10/app.js \
+prouver 'paie 1.223 c : le bulletin ne s'\''ouvre plus en aperçu' modules/personnel/ecrans/entreprise/paie.js \
   "const x = payslipById(b.dataset.voirB); if (x) apercuBulletin(x, () => draw()); });" "const x = payslipById(b.dataset.voirB); if (x) payslipForm(x, employeeById(x.employeeId), x.year, x.month, () => draw()); });" \
   "$WPAIE2"
-prouver 'paie 1.223 d : le contrat sort sans la mention PROJET' web/public/v10/core.js \
+prouver 'paie 1.223 d : le contrat sort sans la mention PROJET' modules/personnel/moteur/core-paie.js \
   "      contrat: \`
         <p class=\"projet\">PROJET — à relire, compléter et signer des deux parties</p>" "      contrat: \`" \
   "$WPAIE2"
 
 WPAIE3='aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
-prouver 'paie 1.224 a : « aujourd'\''hui » ne garde pas le code au serveur' web/public/v10/app.js \
+prouver 'paie 1.224 a : « aujourd'\''hui » ne garde pas le code au serveur' modules/personnel/ecrans/entreprise/paie.js \
   'Rien à noter sur ces jours.'\'', true); return; }
           save(); fermer(); apres();' 'Rien à noter sur ces jours.'\'', true); return; }
           fermer(); apres();' \
   "$WPAIE3"
-prouver 'paie 1.224 b : « Annuler » ne défait pas le code du jour' web/public/v10/app.js \
+prouver 'paie 1.224 b : « Annuler » ne défait pas le code du jour' modules/personnel/ecrans/entreprise/paie.js \
   'min de retard` : '\'''\''}`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });' 'min de retard` : '\'''\''}`, () => {});' \
   "$WPAIE3"
-prouver 'paie 1.224 c : la période oublie son dernier jour' web/public/v10/app.js \
+prouver 'paie 1.224 c : la période oublie son dernier jour' modules/personnel/ecrans/entreprise/paie.js \
   "for (let iso = v.du; iso <= v.au && L.length < 400;" "for (let iso = v.du; iso < v.au && L.length < 400;" \
   "$WPAIE3"
-prouver 'paie 1.224 d : un jour corrigé par salarié ne se garde pas' web/public/v10/app.js \
+prouver 'paie 1.224 d : un jour corrigé par salarié ne se garde pas' modules/personnel/ecrans/entreprise/paie.js \
   "        save(); drawPtSalarie('jour');" "        drawPtSalarie('jour');" \
   "$WPAIE3"
 
 WPAIE6a="approuver avant de payer ; les contrôles ; « Annuler »"
 WPAIE6b="une correction proposée : accepter change le net et garde la trace ; refuser garde la raison"
 # Re-pointée en 1.234.0 : « Marquer payé » vit dans le menu de la ligne (1.234 a prouve qu'il n'y est pas avant l'accord).
-prouver 'paie 1.227 a : « Marquer payé » ne revient pas après le bon à payer' web/public/v10/app.js \
+prouver 'paie 1.227 a : « Marquer payé » ne revient pas après le bon à payer' modules/personnel/ecrans/entreprise/paie.js \
   "!(bapDuMois(Number(x.year), Number(x.month)) && !x.bonAPayerLe) && !horsLigneP ?" "!bapDuMois(Number(x.year), Number(x.month)) && !horsLigneP ?" \
   "$WPAIE6a"
-prouver 'paie 1.227 b : approuver ne garde pas son accord sur le bulletin' web/public/v10/app.js \
+prouver 'paie 1.227 b : approuver ne garde pas son accord sur le bulletin' modules/personnel/ecrans/entreprise/paie.js \
   "ids.forEach(id => { const p = payslipById(id); if (p) p.bonAPayerLe = jour; });" "ids.forEach(id => { const p = payslipById(id); if (p) p.bonAPayerLe = ''; });" \
   "$WPAIE6a"
-prouver 'paie 1.227 c : les contrôles qui demandent un geste ne passent pas en tête' web/public/v10/core.js \
+prouver 'paie 1.227 c : les contrôles qui demandent un geste ne passent pas en tête' modules/personnel/moteur/core-paie.js \
   "    return out.filter(c => !c.ok).concat(out.filter(c => c.ok));" "    return out;" \
   "$WPAIE6a"
-prouver 'paie 1.227 d : accepter la correction ne recalcule pas le bulletin' web/public/v10/app.js \
+prouver 'paie 1.227 d : accepter la correction ne recalcule pas le bulletin' modules/personnel/ecrans/entreprise/paie.js \
   "Object.assign(p, champs, { computed: C.computePayslip(emp, input, st) });" "Object.assign(p, champs);" \
   "$WPAIE6b"
-prouver 'paie 1.227 e : refuser la correction perd la raison' web/public/v10/app.js \
+prouver 'paie 1.227 e : refuser la correction perd la raison' modules/personnel/ecrans/entreprise/paie.js \
   "...(raison ? { raison } : {}) };" "};" \
   "$WPAIE6b"
 
 WR1M="sortent de la trésorerie et soldent leurs dettes, au millime, comme la banque du grand livre"
 WR1W="la retenue du mois déposée et payée ; un virement de salaire rejeté redevient à payer"
-prouver 'paie 1.228 a : la CNSS payée ne sort pas de la trésorerie' web/public/v10/core.js \
+prouver 'paie 1.228 a : la CNSS payée ne sort pas de la trésorerie' modules/socle/moteur/core-2.js \
   "      if (!f.paidDate || !montant || !inPeriod(f.paidDate, period && period.from, period && period.to) || !keep(f.accountId)) return;" "      if (true) return;" \
   "$WR1M"
-prouver 'paie 1.228 b : la CNSS payée ne solde pas sa dette' web/public/v10/core.js \
+prouver 'paie 1.228 b : la CNSS payée ne solde pas sa dette' modules/socle/moteur/core-2.js \
   "          if (cnss) e.debit(acc.cnss, label, montant);" "          if (cnss) e.debit(acc.irpp, label, montant);" \
   "$WR1M"
-prouver 'paie 1.228 c : la TFP et le FOPROLOS payés restent dus' web/public/v10/core.js \
+prouver 'paie 1.228 c : la TFP et le FOPROLOS payés restent dus' modules/socle/moteur/core-2.js \
   "            const tfp = round3(Math.min(montant, Number(parts.tfp) || 0));" "            const tfp = 0;" \
   "$WR1M"
-prouver 'paie 1.228 d : la déclaration payée ne garde pas son montant' web/public/v10/app.js \
+prouver 'paie 1.228 d : la déclaration payée ne garde pas son montant' modules/personnel/ecrans/entreprise/paie.js \
   "paidDate: v.paidDate, amount: m.montant, parts: m.parts," "paidDate: v.paidDate, amount: 0, parts: m.parts," \
   "$WR1W"
-prouver 'paie 1.228 e : un virement rejeté reste payé' web/public/v10/app.js \
+prouver 'paie 1.228 e : un virement rejeté reste payé' modules/personnel/ecrans/entreprise/paie.js \
   "          q.paidDate = ''; q.accountId = '';" "          q.accountId = '';" \
   "$WR1W"
 
@@ -22205,58 +22205,58 @@ WR5A="une correction proposée, des bulletins à approuver, une demande de cong�
 WRW1="un bulletin payé se régularise sur le mois suivant, sans changer"
 WRW2="une saisie sur salaire se note et se lit sur la fiche ; la simulation d'une embauche ; la recherche d'un salarié"
 WRW3="importer ses salariés depuis la page vide ; un arrêt maladie et son certificat ; un seul mois au pointage"
-prouver 'paie 1.229 a : un bulletin passé prend le salaire d après' web/public/v10/compta.js \
+prouver 'paie 1.229 a : un bulletin passé prend le salaire d après' modules/personnel/moteur/compta-paie.js \
   "    const vu = L.filter(x => x.des <= ym).pop();" "    const vu = L[L.length - 1];" \
   "$WR2S"
-prouver 'paie 1.230 a : une régularisation entre sur tous les mois' web/public/v10/compta.js \
+prouver 'paie 1.230 a : une régularisation entre sur tous les mois' modules/personnel/moteur/compta-paie.js \
   "filter(r => r && r.pourMois === ym && Number(r.amount))" "filter(r => r && Number(r.amount))" \
   "$WR3R"
-prouver 'paie 1.230 b : une saisie retient au-delà de son total' web/public/v10/compta.js \
+prouver 'paie 1.230 b : une saisie retient au-delà de son total' modules/personnel/moteur/compta-paie.js \
   "amount: round3(Math.min(x.monthly || x.reste, x.reste)), saisieId: x.id" "amount: round3(x.monthly || x.reste), saisieId: x.id" \
   "$WR3S"
-prouver 'paie 1.230 c : le versement au créancier ne sort pas de la trésorerie' web/public/v10/core.js \
+prouver 'paie 1.230 c : le versement au créancier ne sort pas de la trésorerie' modules/socle/moteur/core-2.js \
   "      if (!montant || !v.date || !inPeriod(v.date, period && period.from, period && period.to) || !keep(v.accountId)) return;" "      if (true) return;" \
   "$WR3V"
-prouver 'paie 1.230 d : le versement au créancier n entre pas au grand livre' web/public/v10/core.js \
+prouver 'paie 1.230 d : le versement au créancier n entre pas au grand livre' modules/socle/moteur/core-2.js \
   "          const label = \`Saisie sur salaire \${emp.name || ''}\`.trim();" "          const label = \`Saisie sur salaire \${emp.name || ''}\`.trim(); if (label) return;" \
   "$WR3V"
-prouver 'paie 1.230 e : régulariser ne touche pas le bulletin du mois suivant' web/public/v10/app.js \
+prouver 'paie 1.230 e : régulariser ne touche pas le bulletin du mois suivant' modules/personnel/ecrans/entreprise/paie.js \
   "Number(p.year) === yy && Number(p.month) === mm && !p.paidDate);" "Number(p.year) === yy && Number(p.month) === mm && false);" \
   "$WRW1"
-prouver 'paie 1.230 f : un bulletin payé s offre à la réécriture' web/public/v10/app.js \
+prouver 'paie 1.230 f : un bulletin payé s offre à la réécriture' modules/personnel/ecrans/entreprise/paie.js \
   "label: 'Modifier le bulletin payé'" "label: 'Modifier le bulletin'" \
   "$WRW1"
-prouver 'paie 1.230 g : une saisie sans créancier s enregistre' web/public/v10/app.js \
+prouver 'paie 1.230 g : une saisie sans créancier s enregistre' modules/personnel/ecrans/entreprise/paie.js \
   "        if (!String(v.creancier || '').trim()) return refus(" "        if (false) return refus(" \
   "$WRW2"
-prouver 'paie 1.230 h : la simulation donne le brut pour le coût' web/public/v10/app.js \
+prouver 'paie 1.230 h : la simulation donne le brut pour le coût' modules/personnel/ecrans/entreprise/paie.js \
   '<span><b>Coût par mois</b></span><span class="num"><b>${C.money(c.employerCost, cur)}</b>' '<span><b>Coût par mois</b></span><span class="num"><b>${C.money(c.gross, cur)}</b>' \
   "$WRW2"
-prouver 'paie 1.231 a : un salarié sans embauche s importe' web/public/v10/core.js \
+prouver 'paie 1.231 a : un salarié sans embauche s importe' modules/socle/moteur/core-2.js \
   "        if (ligne.statut !== 'refus' && !obj.hireDate) refus(" "        if (false) refus(" \
   "$WR4I"
-prouver 'paie 1.231 b : un CIN déjà là se double' web/public/v10/core.js \
+prouver 'paie 1.231 b : un CIN déjà là se double' modules/socle/moteur/core-2.js \
   "    if (ca && cb) return ca === cb;" "    if (ca && cb) return false;" \
   "$WR4I"
-prouver 'paie 1.231 c : l import des salariés perd leur embauche' web/public/v10/core.js \
+prouver 'paie 1.231 c : l import des salariés perd leur embauche' modules/socle/moteur/core-2.js \
   "contract: o.contract || 'cdi', hireDate: o.hireDate, endDate: ''," "contract: o.contract || 'cdi', endDate: ''," \
   "$WRW3"
-prouver 'paie 1.231 d : l arrêt maladie oublie son certificat' web/public/v10/core.js \
+prouver 'paie 1.231 d : l arrêt maladie oublie son certificat' modules/personnel/moteur/core-paie.js \
   "l.statut !== 'refuse' && !l.certificatLe && l.to" "l.statut !== 'refuse' && l.to" \
   "$WR5A"
-prouver 'paie 1.231 e : les papiers de l arrêt restent sur un congé' web/public/v10/app.js \
+prouver 'paie 1.231 e : les papiers de l arrêt restent sur un congé' modules/personnel/ecrans/entreprise/paie.js \
   "\$('#lf-maladie', root).hidden = formValues(\$('#lf', root)).kind !== 'maladie'; hint();" "hint();" \
   "$WRW3"
-prouver 'paie 1.232 a : un bulletin en correction s approuve' web/public/v10/core.js \
+prouver 'paie 1.232 a : un bulletin en correction s approuve' modules/socle/moteur/core-2.js \
   "modeP(p) === 'tenue' && !(p.correction && !p.correction.reponse)" "modeP(p) === 'tenue'" \
   "$WR5A"
-prouver 'paie 1.232 b : la recherche ignore les salariés' web/public/v10/app.js \
+prouver 'paie 1.232 b : la recherche ignore les salariés' modules/socle/ecrans/entreprise/app-1.js \
   "...fournisseurs, ...salaries, ...items" "...fournisseurs, ...items" \
   "$WRW2"
-prouver 'paie 1.232 c : sans réseau la paie offre son geste' web/public/v10/app.js \
+prouver 'paie 1.232 c : sans réseau la paie offre son geste' modules/personnel/ecrans/entreprise/paie.js \
   "      if (prin && navigator.onLine === false) prin = prin.replace(" "      if (false) prin = prin.replace(" \
   "$WRW3"
-prouver 'paie 1.233 a, 1.249 : le pointage s'\''ouvre sur le mois de paie, pas sur le mois du jour' web/public/v10/app.js \
+prouver 'paie 1.233 a, 1.249 : le pointage s'\''ouvre sur le mois de paie, pas sur le mois du jour' modules/personnel/ecrans/entreprise/paie.js \
   "['pointage', 'pt-jour', 'pt-salarie'].includes(s.tab) ? { year: Number(C.today().slice(0, 4)), month: Number(C.today().slice(5, 7)) } : entree;" "entree;" \
   'aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
 
@@ -22265,19 +22265,19 @@ WI1="approuver avant de payer ; les contrôles ; « Annuler »"
 WI2="la fiche d'une arrivée, ce que tu verses et quand, l'année par poste"
 WI3="le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
 WI4="les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'ordre de virement, marquer payés puis annuler"
-prouver 'paie 1.234 a : « Marquer payé » offert avant le bon à payer' web/public/v10/app.js \
+prouver 'paie 1.234 a : « Marquer payé » offert avant le bon à payer' modules/personnel/ecrans/entreprise/paie.js \
   "...(!x.paidDate && !(bapDuMois(Number(x.year), Number(x.month)) && !x.bonAPayerLe) && !horsLigneP ?" "...(!x.paidDate && !horsLigneP ?" \
   "$WI1"
-prouver 'paie 1.234 b : « Ce que tu verses » sans son geste' web/public/v10/app.js \
+prouver 'paie 1.234 b : « Ce que tu verses » sans son geste' modules/personnel/ecrans/entreprise/paie.js \
   "const geste = (id, lab) => \`<button" "const geste = (id, lab) => '' && \`<button" \
   "$WI2"
-prouver 'paie 1.234 c : les avances en cours absentes des avances et prêts' web/public/v10/app.js \
+prouver 'paie 1.234 c : les avances en cours absentes des avances et prêts' modules/personnel/ecrans/entreprise/paie.js \
   "\$('#p-body').innerHTML = \`\${avancesEnCours()}" "\$('#p-body').innerHTML = \`" \
   "$WI3"
-prouver 'paie 1.234 d : le RIB en entier dans « Payer les salaires »' web/public/v10/app.js \
+prouver 'paie 1.234 d : le RIB en entier dans « Payer les salaires »' modules/personnel/ecrans/entreprise/paie.js \
   "··· \${h(String(l.rib).replace(/\\s/g, '').slice(-4))}" "\${h(l.rib)}" \
   "$WI4"
-prouver 'paie 1.234 e : une case « présent » écrit sa lettre' web/public/plateforme/paie.css \
+prouver 'paie 1.234 e : une case « présent » écrit sa lettre' modules/personnel/styles/paie.css \
   "#pt-grille .pt-c.pt-P, #pt-grille .pt-c.pt-R { background: transparent; color: transparent; }" "#pt-grille .pt-c.pt-R { background: transparent; color: transparent; }" \
   "$WRW3"
 
@@ -22289,116 +22289,116 @@ WC4="1.235.0 — tant que le cabinet prépare (pas envoyés), rien ne s'approuve
 prouver 'paie cabinet 1.235 a : le Cabinet ne lit pas qui fait la paie' web/public/plateforme/pont-cabinet.js \
   'modesPaie.set(ent, r.modePaie || null)' 'modesPaie.set(ent, null)' \
   "$WC1"
-prouver 'paie cabinet 1.235 b : « Envoyer pour accord » n'\''écrit rien' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.235 b : « Envoyer pour accord » n'\''écrit rien' modules/personnel/ecrans/cabinet/paie.js \
   '{ pourAccordLe: aujourdhui() }' '{}' \
   "$WC1"
 prouver 'paie cabinet 1.235 c : un bulletin validé se réécrit encore' web/public/plateforme/pont-cabinet.js \
   "if (o.bulletin && o.bulletin.id && (paieAvant(o.dossierId, 'payslips', o.bulletin.id) || {}).valideLe)" "if (false)" \
   "$WC1"
-prouver 'paie cabinet 1.235 d : « Modifier » sur une paie faite par le client (D3)' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.235 d : « Modifier » sur une paie faite par le client (D3)' modules/personnel/ecrans/cabinet/paie.js \
   "if (Pm.mode === 'seule' || Pm.mode === 'sans' || b.valideLe) return a;" "" \
   "$WC3"
 prouver 'paie cabinet 1.235 e : la correction réécrit le bulletin du client' 'web/public/plateforme/pont-cabinet.js|||web/public/plateforme/pont-cabinet.js' \
   "const PERMIS = ['pourAccordLe',|||champs: { correction } });" "const PERMIS = ['deductions', 'pourAccordLe',|||champs: { correction, deductions: champs.deductions } });" \
   "$WC2"
-prouver 'paie cabinet 1.235 f : une demande de congé se dit « payée » (D1)' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.235 f : une demande de congé se dit « payée » (D1)' modules/personnel/ecrans/cabinet/paie.js \
   '${!l.retenu ? `<span class="muted">' '${false ? `<span class="muted">' \
   "$WC2"
-prouver 'paie cabinet 1.235 g : les vues débordent au téléphone' 'web/public/plateforme/paie-cabinet.css|||web/public/plateforme/paie-cabinet.css' \
+prouver 'paie cabinet 1.235 g : les vues débordent au téléphone' 'modules/personnel/styles/paie-cabinet.css|||modules/personnel/styles/paie-cabinet.css' \
   ".cp-pa-titre, .cp-pa-vues { width: 100%; min-width: 0; }|||max-width: 100%; min-width: 0; }" ".cp-pa-titre { width: 100%; min-width: 0; }|||}" \
   "$WC3"
-prouver 'paie 1.235 h : l'\''entreprise approuve ce que le cabinet prépare encore' web/public/v10/app.js \
+prouver 'paie 1.235 h : l'\''entreprise approuve ce que le cabinet prépare encore' modules/personnel/ecrans/entreprise/paie.js \
   "mo.filter(x => !x.paidDate && !x.bonAPayerLe && x.pourAccordLe)" "mo.filter(x => !x.paidDate && !x.bonAPayerLe)" \
   "$WC4"
 
 # 1.236.0 — après la validation (C4), l'année mois par mois, la fin d'un CDD (C5), le pointage attendu (C6).
-prouver 'paie cabinet 1.236 a : « Marquer remis » n'\''écrit rien' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.236 a : « Marquer remis » n'\''écrit rien' modules/personnel/ecrans/cabinet/paie.js \
   '{ remisLe: aujourdhui() }' '{}' \
   "$WC1"
-prouver 'paie cabinet 1.236 b : l'\''écriture de paie compte par compte absente' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.236 b : l'\''écriture de paie compte par compte absente' modules/personnel/ecrans/cabinet/paie.js \
   '${table}${paieEcriture(L, m, bulletins, P)}${paieMoisDAvant' '${table}${paieMoisDAvant' \
   "$WC1"
-prouver 'paie cabinet 1.236 c : les douze mois ne refont pas l'\''année' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.236 c : les douze mois ne refont pas l'\''année' modules/personnel/ecrans/cabinet/paie.js \
   "const M = KC.MOIS_PAIE.map((lab, i) => ({ lab, x: KC.masseSalariale(KC.bulletinsDuMois(L, annee, i + 1)) }));" "const M = KC.MOIS_PAIE.map((lab, i) => ({ lab, x: KC.masseSalariale(KC.bulletinsDuMois(L, annee, i + 1).slice(1)) }));" \
   "$WC1"
-prouver 'paie cabinet 1.236 d : le CDD qui finit ne se dit pas' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.236 d : le CDD qui finit ne se dit pas' modules/personnel/ecrans/cabinet/paie.js \
   'x.sortie <= dansJours(45));' 'x.sortie <= dansJours(-1));' \
   "$WC1"
-prouver 'paie cabinet 1.236 e : le pointage attendu ne se demande pas' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.236 e : le pointage attendu ne se demande pas' modules/personnel/ecrans/cabinet/paie.js \
   "P.mode === 'tenue' && api.messagerie && !dossier.manual ? \`<button type=\"button\" class=\"btn btn-sm\" id=\"pa-demander-pt\">" "false ? \`<button type=\"button\" class=\"btn btn-sm\" id=\"pa-demander-pt\">" \
   "$WC1"
 
 # 1.237.0 — l'inventaire des maquettes (docs/revue-paie-cabinet.md § 8) : l'avance oubliée, les contrôles, le volet, les vues.
 WC5="1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
-prouver 'paie cabinet 1.237 a : l'\''avance oubliée ne se dit pas' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.237 a : l'\''avance oubliée ne se dit pas' modules/personnel/ecrans/cabinet/paie.js \
   '${bandeaux}${paieAnomalies(L, P, o)}' '${bandeaux}' \
   "$WC5"
-prouver 'paie cabinet 1.237 b : la correction proposée ne rembourse pas l'\''avance' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.237 b : la correction proposée ne rembourse pas l'\''avance' modules/personnel/ecrans/cabinet/paie.js \
   '...(pre && pre.advanceId ? { advanceId: pre.advanceId } : {})' '...{}' \
   "$WC5"
 prouver 'paie cabinet 1.237 c : le Cabinet ne lit pas le RIB du salarié' web/public/plateforme/pont-cabinet.js \
   "rib: e.iban || ''," "rib: ''," \
   "$WC5"
-prouver 'paie cabinet 1.237 d : le mois d'\''avant ne se montre pas' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.237 d : le mois d'\''avant ne se montre pas' modules/personnel/ecrans/cabinet/paie.js \
   '${paieMoisDAvant(L, annee, m, avants)}`;' '`;' \
   "$WC5"
-prouver 'paie cabinet 1.237 e : les vues ne disent pas leur nombre' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.237 e : les vues ne disent pas leur nombre' modules/personnel/ecrans/cabinet/paie.js \
   "\${nb ? \` <span class=\"cp-pa-nb" "\${false ? \` <span class=\"cp-pa-nb" \
   "$WC5"
 
 # 1.238.0 — ce qui restait des maquettes : l'échéancier, le volet contrôlé, la CNSS face au livre, le mois validé, mon rappel.
-prouver 'paie cabinet 1.238 a : l'\''échéancier ne dit pas la retenue oubliée' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.238 a : l'\''échéancier ne dit pas la retenue oubliée' modules/personnel/ecrans/cabinet/paie.js \
   'prevues.push({ y, m, montant: x, oubli: avecBulletin.has(`${y}-${m}`) });' 'prevues.push({ y, m, montant: x, oubli: false });' \
   "$WC5"
-prouver 'paie cabinet 1.238 b : le volet dit l'\''avance retenue quand elle ne l'\''est pas' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.238 b : le volet dit l'\''avance retenue quand elle ne l'\''est pas' modules/personnel/ecrans/cabinet/paie.js \
   "dues.every(d => retenues.has(d.advanceId)) ? ['ok', 'avance retenue']" "true ? ['ok', 'avance retenue']" \
   "$WC5"
-prouver 'paie cabinet 1.238 c : la CNSS ne se compare pas au livre' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.238 c : la CNSS ne se compare pas au livre' modules/personnel/ecrans/cabinet/paie.js \
   '${paieCnssDuLivre(L, s.annee, t, cnss)}' '' \
   "$WC1"
-prouver 'paie cabinet 1.238 d : un bulletin validé reprend le pointage' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.238 d : un bulletin validé reprend le pointage' modules/personnel/ecrans/cabinet/paie.js \
   '${b.valideLe ? '"''"' : `<button type="button" class="btn btn-sm" data-pt-reprendre' '${false ? '"''"' : `<button type="button" class="btn btn-sm" data-pt-reprendre' \
   "$WC1"
 prouver 'paie cabinet 1.238 e : « Me le rappeler » ne pose pas le rappel' web/public/plateforme/pont-cabinet.js \
   "if (!garde) await appel('PUT'" "if (false) await appel('PUT'" \
   "$WC1"
-prouver 'paie cabinet 1.238 f : le mois validé tait le pointage changé' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.238 f : le mois validé tait le pointage changé' modules/personnel/ecrans/cabinet/paie.js \
   "paieDepuisLaValidation(dossier, L, m, bulletins, o), paieVirementsRevenus(" "'', paieVirementsRevenus(" \
   "$WC1"
-prouver 'paie cabinet 1.238 g : l'\''en-tête du pointage ne suit pas la grille' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.238 g : l'\''en-tête du pointage ne suit pas la grille' modules/personnel/ecrans/cabinet/paie.js \
   "const resume = \$('#pt-resume', el);" "const resume = null;" \
   "$WC1"
 
 # 1.239.0 — le rouge GitHub réparé : le jour d'une écriture de paie se dit avant le geste ; la messagerie chargée à la demande.
 WMSG1="Amine et son comptable s'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet"
-prouver 'paie cabinet 1.239 a : le jour de l'\''écriture de paie se tait avant la validation des bulletins' web/public/v10/cabinet/app.js \
+prouver 'paie cabinet 1.239 a : le jour de l'\''écriture de paie se tait avant la validation des bulletins' modules/personnel/ecrans/cabinet/paie.js \
   "o.auBrouillard && (o.paieAttendSonJour || P.valides !== false) ?" "o.auBrouillard && P.valides !== false ?" \
   "la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour"
 prouver 'léger 1.239 b : sans réseau, la messagerie chargée à la demande ne dit pas pourquoi' web/public/plateforme/pont.js \
   "<b>Pas de réseau : la messagerie attend la connexion.</b>" "<b>Échec.</b>" \
   "$WMSG1"
-prouver "classeur 1.239.1 : un mois sans écriture cache les pièces qu'il a reçues (« rien reçu », « aucune pièce »)" web/public/v10/cabinet/app.js \
+prouver "classeur 1.239.1 : un mois sans écriture cache les pièces qu'il a reçues (« rien reçu », « aucune pièce »)" modules/socle/ecrans/cabinet/app-1.js \
   "const etat = etatL[0] === 'manque' && l.some(x => x.etat[2] !== 'manque') ? ['pc', 'à saisir', etatL[2]] : etatL;" "const etat = etatL;" \
   "une pièce en double se marque de sa jumelle, côte à côte ; une pièce se range dans un autre mois"
-prouver "paie 1.240 a : Ctrl + Entrée sur une ligne ne fait pas l'étape suivante" web/public/v10/cabinet/app.js \
+prouver "paie 1.240 a : Ctrl + Entrée sur une ligne ne fait pas l'étape suivante" modules/personnel/ecrans/cabinet/paie.js \
   "if (g && !g.disabled) { e.preventDefault(); g.click(); } return; }" "return; }" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
-prouver "paie 1.240 b : une ligne de Salariés n'ouvre pas la fiche du salarié" web/public/v10/cabinet/app.js \
+prouver "paie 1.240 b : une ligne de Salariés n'ouvre pas la fiche du salarié" modules/personnel/ecrans/cabinet/paie.js \
   "      const choisir = () => { s.paieSal = s.paieSal === tr.dataset.sal ? null : tr.dataset.sal; redraw(); };" "      const choisir = () => {};" \
   "1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
-prouver "paie 1.241 a : le départ compte le salaire d'un mois complet pour un CDD qui part le 22" web/public/v10/cabinet/app.js \
+prouver "paie 1.241 a : le départ compte le salaire d'un mois complet pour un CDD qui part le 22" modules/personnel/ecrans/cabinet/paie.js \
   "      if (e) sal = KC.saisieDuMois(data, e, Number(an), mois);" "" \
   "1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
-prouver "paie 1.241 b : le brut du dernier bulletin oublie les congés pas pris" web/public/v10/cabinet/app.js \
+prouver "paie 1.241 b : le brut du dernier bulletin oublie les congés pas pris" modules/personnel/ecrans/cabinet/paie.js \
   "    const brut = KC.round3(salaire + ic.montant);" "    const brut = KC.round3(salaire);" \
   "1.237.0 — l'inventaire de la maquette : l'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l'année, les salariés, les absences à venir"
 prouver "paie 1.242 a : « Annuler » après la validation n'efface rien (le pont refuse)" web/public/plateforme/pont-cabinet.js \
   "        const annuler = o.annulerValidation === true &&" "        const annuler = false &&" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
-prouver "paie 1.243 a : l'accusé CNSS rangé depuis la Paie n'y apparaît pas (l'écran ne se redessine pas)" web/public/v10/cabinet/app.js \
+prouver "paie 1.243 a : l'accusé CNSS rangé depuis la Paie n'y apparaît pas (l'écran ne se redessine pas)" modules/socle/ecrans/cabinet/app-1.js \
   "          if (opts.apres) await opts.apres();" "" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
-prouver "paie 1.243 b : la Paie ne reconnaît pas l'accusé CNSS du trimestre" web/public/v10/cabinet/app.js \
+prouver "paie 1.243 b : la Paie ne reconnaît pas l'accusé CNSS du trimestre" modules/personnel/ecrans/cabinet/paie.js \
   "x.rubrique === 'accuse' && x.periode === per && x.titre === titre" "x.rubrique === 'accuse' && x.periode === per && false" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 prouver "paie 1.244 a : la paie de tous mes dossiers se montre au collaborateur comptable" serveur/cabinet/routes.ts \
@@ -22408,14 +22408,14 @@ prouver "paie 1.244 b : la paie de tous mes dossiers répond à qui n'est pas du
   "      if (!(await tx.query('select exists (select 1 from socle.mes_organisations() o where o = \$1) v', [params.cabinet])).rows[0].v) return introuvable;
       const mois = query.mois ?? '';" "      const mois = query.mois ?? '';" \
   "(1.244.0) la paie de tous mes dossiers : une ligne par dossier dont je fais la paie, ses bulletins étape par étape ; un dossier sans la paie au mandat n'y est pas, ni pour un collaborateur comptable"
-prouver "paie 1.244 c : un dossier aux bulletins validés ne se dit pas « validés »" web/public/v10/cabinet/app.js \
+prouver "paie 1.244 c : un dossier aux bulletins validés ne se dit pas « validés »" modules/personnel/ecrans/cabinet/paie.js \
   "    if (x.valides >= n) return ['ok', x.remis >= n ? 'validés · remis' : 'validés'];" "" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 
-prouver "paie 1.245 a : renvoyer les bulletins les ajoute au lieu de remplacer ceux d'avant" web/public/v10/cabinet/app.js \
+prouver "paie 1.245 a : renvoyer les bulletins les ajoute au lieu de remplacer ceux d'avant" modules/personnel/ecrans/cabinet/paie.js \
   "rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', paie: true, remplace: deja ? deja.id : null," "rubrique: 'piece', periode: mois, titre, provenance: 'la Paie du cabinet', raison: 'rien', detail: 'bulletin validé', paie: true, remplace: null," \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
-prouver "paie 1.245 b : un bulletin envoyé se range hors de la Paie du classeur" web/public/v10/cabinet/app.js \
+prouver "paie 1.245 b : un bulletin envoyé se range hors de la Paie du classeur" modules/socle/ecrans/cabinet/app-1.js \
   "classee: true, rub: 'paie', mois: x.periode, date: x.deposeLe, recue: false," "classee: true, rub: 'achats', mois: x.periode, date: x.deposeLe, recue: false," \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 
@@ -22425,61 +22425,61 @@ prouver "paie 1.246 a : le réglage de la paie garde ce que le poste prétend (q
 prouver "paie 1.246 b : un dossier copie le paramétrage de lui-même" serveur/cabinet/routes.ts \
   "where entreprise = \$2 and statut = 'actif' and entreprise <> \$3\`, [cabinet, copieDe, entreprise]" "where entreprise = \$2 and statut = 'actif' and \$3::uuid is not null\`, [cabinet, copieDe, entreprise]" \
   "(1.246.0) le paramétrage de la paie : qui l'a réglé et quand, écrit par le serveur quand il change ; copié d'un autre dossier du portefeuille, jamais d'un étranger"
-prouver "paie 1.246 c : la copie prend le taux d'accident du travail sans qu'on le coche" web/public/v10/cabinet/app.js \
+prouver "paie 1.246 c : la copie prend le taux d'accident du travail sans qu'on le coche" modules/personnel/ecrans/cabinet/paie.js \
   "const at = \$('#pa-copier-at', layer).checked ? p.accidentRate : mien.accidentRate;" "const at = p.accidentRate;" \
   "les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'un salarié en CIVP les suit"
 
-prouver "paie 1.247 a : un crédit du même montant passe pour un salaire revenu" web/public/v10/compta.js \
+prouver "paie 1.247 a : un crédit du même montant passe pour un salaire revenu" modules/personnel/moteur/compta-paie.js \
   "      if (!MOTS_DU_REJET.test(lib)) continue;" "      if (!lib && !MOTS_DU_REJET.test(lib)) continue;" \
   "ce qui n'est pas un rejet ne se dit pas"
-prouver "paie 1.247 b : la Paie tait le virement revenu" web/public/v10/cabinet/app.js \
+prouver "paie 1.247 b : la Paie tait le virement revenu" modules/personnel/ecrans/cabinet/paie.js \
   "    const R = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe);
     if (!R.length) return '';" "    const R = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe);
     if (R.length >= 0) return '';" \
   "tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)"
 
-prouver "paie 1.248 a : le salarié sorti en cours de mois n'a pas de bulletin" web/public/v10/core.js \
+prouver "paie 1.248 a : le salarié sorti en cours de mois n'a pas de bulletin" modules/personnel/moteur/core-paie.js \
   "(!e.endDate || e.endDate >= first) && !done.has(e.id)" "(!e.endDate || e.endDate >= last) && !done.has(e.id)" \
   "un CDD qui finit le 20 a son bulletin du mois, au prorata ; un salarié sorti avant le mois n'en a pas"
-prouver "paie 1.248 b : un mois sans mois d'avant se dit « juste » sur les écarts" web/public/v10/core.js \
+prouver "paie 1.248 b : un mois sans mois d'avant se dit « juste » sur les écarts" modules/personnel/moteur/core-paie.js \
   "    if (Object.keys(avant).length) add('ecarts', true," "    if (true) add('ecarts', true," \
   "un CDD qui finit le 20 a son bulletin du mois, au prorata ; un salarié sorti avant le mois n'en a pas"
-prouver "paie 1.248 c : deux salariés sur le même RIB passent" web/public/v10/core.js \
+prouver "paie 1.248 c : deux salariés sur le même RIB passent" modules/personnel/moteur/core-paie.js \
   "    const doubles = Object.values(parRib).filter(l => l.length > 1);" "    const doubles = Object.values(parRib).filter(l => l.length > 9);" \
   "deux salariés sur le même RIB (virement) ou le même n° CNSS : le contrôle le dit ; les espèces ne comptent pas"
-prouver "paie 1.248 d : le même n° CNSS écrit avec un tiret passe" web/public/v10/core.js \
+prouver "paie 1.248 d : le même n° CNSS écrit avec un tiret passe" modules/personnel/moteur/core-paie.js \
   "const c = String(x.employee.cnss || '').replace(/[\s-]/g, '');" "const c = String(x.employee.cnss || '').replace(/\s/g, '');" \
   "deux salariés sur le même RIB (virement) ou le même n° CNSS : le contrôle le dit ; les espèces ne comptent pas"
-prouver "paie 1.248 e : l'écart d'une sortie se dit « brut changé »" web/public/v10/core.js \
+prouver "paie 1.248 e : l'écart d'une sortie se dit « brut changé »" modules/personnel/moteur/core-paie.js \
   "pq.push(sortie ? " "pq.push(false ? " \
   "l'écart avec le mois d'avant d'une sortie se dit « sortie le … »"
 
-prouver "paie 1.248.1 a : deux fiches sur le même n° CNSS ne sont pas « à traiter »" web/public/v10/core.js \
+prouver "paie 1.248.1 a : deux fiches sur le même n° CNSS ne sont pas « à traiter »" modules/personnel/moteur/core-paie.js \
   "        if (premier[k][v]) L.push({ ...base, focus: k," "        if (false) L.push({ ...base, focus: k," \
   "le même n° CNSS (avec ou sans tiret) ou le même RIB qu'un collègue : le second est à traiter ; les espèces ne comptent pas"
-prouver "paie 1.248.1 b : la page reste sur le mois payé quand le suivant attend" web/public/v10/core.js \
+prouver "paie 1.248.1 b : la page reste sur le mois payé quand le suivant attend" modules/personnel/moteur/core-paie.js \
   "      if (payslipsOf(data, a.year, a.month).every(x => x.paidDate) && payslipsOf(data, c.year, c.month).some(x => !x.paidDate)) return c;" "" \
   "octobre payé, novembre établi mais pas payé : le mois de paie est novembre ; tout payé, il reste octobre"
-prouver "paie 1.248.1 c : l'avenant d'un passage en CDI ne le dit pas" web/public/v10/core.js \
+prouver "paie 1.248.1 c : l'avenant d'un passage en CDI ne le dit pas" modules/personnel/moteur/core-paie.js \
   "          if (recent && ren.cdi) art.push(" "          if (false) art.push(" \
   "l'avenant d'un passage en CDI le dit, à compter du lendemain de l'ancienne fin ; un mois plus tard, il redevient général"
-prouver "paie 1.248.1 d : le fichier CNSS sort avec deux salariés sous le même n° d'assuré" web/public/v10/compta.js \
+prouver "paie 1.248.1 d : le fichier CNSS sort avec deux salariés sous le même n° d'assuré" modules/personnel/moteur/compta-paie.js \
   "      else if (vus.has(cn.texte)) refus.push(" "      else if (false) refus.push(" \
   "deux salariés sous le même n° d'assuré (écrit avec ou sans tiret) : pas de fichier, le second est nommé avec le premier"
 WP249='aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
-prouver "paie 1.249 a : une lettre ne pose pas son code dans le calendrier d'un salarié" web/public/v10/app.js \
+prouver "paie 1.249 a : une lettre ne pose pas son code dans le calendrier d'un salarié" modules/personnel/ecrans/entreprise/paie.js \
   "codesDe(sel).includes(c)) { ev.preventDefault(); poser(c); }" "codesDe(sel).includes(c)) { ev.preventDefault(); }" \
   "$WP249"
-prouver "paie 1.249 b : les horaires s'enregistrent sans aucun jour de travail" web/public/v10/app.js \
+prouver "paie 1.249 b : les horaires s'enregistrent sans aucun jour de travail" modules/personnel/ecrans/entreprise/paie.js \
   "        \$('#pt-h-ok').disabled = !change || !jours.length || !!bad;" "        \$('#pt-h-ok').disabled = !change || !!bad;" \
   "$WP249"
-prouver "paie 1.249 c : enregistrer les Réglages efface les jours de repos" web/public/v10/app.js \
+prouver "paie 1.249 c : enregistrer les Réglages efface les jours de repos" modules/personnel/ecrans/entreprise/paie.js \
   "        data.payrollSettings = { ...(Array.isArray((data.payrollSettings || {}).offDays) ? { offDays: data.payrollSettings.offDays } : {}), ...readRates()," "        data.payrollSettings = { ...readRates()," \
   "$WP249"
-prouver "paie 1.249 d : les horaires ne s'enregistrent pas" web/public/v10/app.js \
+prouver "paie 1.249 d : les horaires ne s'enregistrent pas" modules/personnel/ecrans/entreprise/paie.js \
   "        data.payrollSettings = { ...(data.payrollSettings || {}), ...out };" "        void out;" \
   "$WP249"
-prouver "paie 1.249 e : le salarié précédent n'est pas à côté de son nom" web/public/v10/app.js \
+prouver "paie 1.249 e : le salarié précédent n'est pas à côté de son nom" modules/personnel/ecrans/entreprise/paie.js \
   "\$('#pt-sal-prec').onclick = () => { if (k > 0) aller(emps[k - 1].id); };" "\$('#pt-sal-prec').onclick = () => {};" \
   "$WP249"
 
@@ -22487,41 +22487,41 @@ prouver "paie 1.249 e : le salarié précédent n'est pas à côté de son nom" 
 # congés change de mois par ‹ › et une case libre ouvre la fenêtre du congé à ce jour.
 WP250J='le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'\''état récapitulatif CNSS'
 WP250M='le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
-prouver "paie 1.250 a : une ligne du journal de paie n'ouvre pas son bulletin" web/public/v10/app.js \
+prouver "paie 1.250 a : une ligne du journal de paie n'ouvre pas son bulletin" modules/personnel/ecrans/entreprise/paie.js \
   "if (x) apercuBulletin(x); }; tr.onclick = ouvrir;" "if (x) apercuBulletin(x); }; tr.onclick = null;" \
   "$WP250J"
-prouver "paie 1.250 b : la légende du journal ne dit pas ce que veulent dire ses sigles" web/public/v10/app.js \
+prouver "paie 1.250 b : la légende du journal ne dit pas ce que veulent dire ses sigles" modules/personnel/ecrans/entreprise/paie.js \
   '<b>${h(c)}</b> ${h(/^[A-Z]{2,}/.test(l) ? l : l.charAt(0).toLowerCase() + l.slice(1))}' '<b>${h(c)}</b>' \
   "$WP250J"
-prouver "paie 1.250 c : une case libre du calendrier des congés n'ouvre pas la fenêtre à son jour" web/public/v10/app.js \
+prouver "paie 1.250 c : une case libre du calendrier des congés n'ouvre pas la fenêtre à son jour" modules/personnel/ecrans/entreprise/paie.js \
   "leaveForm(null, id, apres, iso); });" "leaveForm(null, id, apres); });" \
   "$WP250M"
-prouver "paie 1.250 d, 1.251 : le calendrier des congés ne suit pas le mois choisi" web/public/v10/app.js \
+prouver "paie 1.250 d, 1.251 : le calendrier des congés ne suit pas le mois choisi" modules/personnel/ecrans/entreprise/paie.js \
   "s.moisCal = String(s.month);" "s.moisCal = '1';" \
   "$WP250M"
 
 # 1.251.0 (Skander, 02/11/2026) : un seul mois pour toute la paie, choisi dans la bande des douze mois, chacun avec son état ;
 # aujourd'hui marqué dans la grille ; plus de second cadre autour des tableaux des cartes ; la déclaration du mois en cours.
 WP251R='importer ses salariés depuis la page vide ; un arrêt maladie et son certificat ; un seul mois au pointage'
-prouver "paie 1.251 a : un mois de la bande ne change pas le mois de la page" web/public/v10/app.js \
+prouver "paie 1.251 a : un mois de la bande ne change pas le mois de la page" modules/personnel/ecrans/entreprise/paie.js \
   "s.month = m2; s.quarter = String(Math.ceil(Number(m2) / 3));" "s.quarter = String(Math.ceil(Number(m2) / 3));" \
   "$WP251R"
-prouver "paie 1.251 b : la bande ne dit pas qu'un mois reste à payer" web/public/v10/app.js \
+prouver "paie 1.251 b : la bande ne dit pas qu'un mois reste à payer" modules/personnel/ecrans/entreprise/paie.js \
   "if (C.payslipsOf(data, y, m).some(b => !b.paidDate)) return ['ambre', 'à payer'];" "" \
   "$WP250M"
-prouver "paie 1.251 c : les mois d'avant SkanFact se disent « à faire »" web/public/v10/app.js \
+prouver "paie 1.251 c : les mois d'avant SkanFact se disent « à faire »" modules/personnel/ecrans/entreprise/paie.js \
   "if (ym < premierMoisPaie) return ['vide', '—'];" "" \
   "$WP250M"
-prouver "paie 1.251 d : la grille du pointage ne dit pas quel jour on est" web/public/v10/app.js \
+prouver "paie 1.251 d : la grille du pointage ne dit pas quel jour on est" modules/personnel/ecrans/entreprise/paie.js \
   "const estAuj = j => \`\${y}-\${String(m).padStart(2, '0')}-\${String(j.jour).padStart(2, '0')}\` === C.today();" "const estAuj = () => false;" \
   "$WP251R"
-prouver "paie 1.251 e : la page saute au mois suivant une fois les bulletins établis" web/public/v10/app.js \
+prouver "paie 1.251 e : la page saute au mois suivant une fois les bulletins établis" modules/personnel/ecrans/entreprise/paie.js \
   ": entree; s.year = String(mp.year);" ": C.moisDePaie(data); s.year = String(mp.year);" \
   "$WP250J"
-prouver "paie 1.251 f : un tableau garde son cadre collé à celui de sa carte" web/public/plateforme/paie.css \
+prouver "paie 1.251 f : un tableau garde son cadre collé à celui de sa carte" modules/personnel/styles/paie.css \
   ".pa-carte table.list { border: 0; border-radius: 0; box-shadow: none; background: transparent; }" ".pa-carte table.list { }" \
   "$WP250M"
-prouver "paie 1.251 g : la déclaration du mois en cours manque dans « Ce que tu verses »" web/public/v10/app.js \
+prouver "paie 1.251 g : la déclaration du mois en cours manque dans « Ce que tu verses »" modules/personnel/ecrans/entreprise/paie.js \
   "['echeance', \`Déclaration \${/^[aeiouyéè]/i.test(MONTHS_LONG[tm - 1]) ? 'd\\'' : 'de '}\${MONTHS_LONG[tm - 1]} : retenues et taxes sur les salaires\`, \`en cours : " "['x', \`en cours : " \
   "la fiche d'une arrivée, ce que tu verses et quand, l'année par poste"
 
@@ -22530,425 +22530,425 @@ prouver "paie 1.251 g : la déclaration du mois en cours manque dans « Ce que t
 WP253M="le mois en cours se pointe jusqu'à son dernier jour ; le mois fini, pointé, le dit"
 WP253D='le doublon dit de qui il est le double : trois fiches sur un numéro en donnent deux, nommant la première'
 WP253B='approuver avant de payer ; les contrôles ; « Annuler »'
-prouver "paie 1.253 a : le mois en cours se dit « pointé » dès le 2" web/public/v10/core.js \
+prouver "paie 1.253 a : le mois en cours se dit « pointé » dès le 2" modules/personnel/moteur/core-paie.js \
   "fait: L.length > 0 && !enCours, dit: enCours ? \`en cours, jusqu'au \${fmtDate(finMois)}\` : pointe" "fait: L.length > 0, dit: pointe" \
   "$WP253M"
-prouver "paie 1.253 b : un doublon ne dit pas de qui il est le double" web/public/v10/core.js \
+prouver "paie 1.253 b : un doublon ne dit pas de qui il est le double" modules/personnel/moteur/core-paie.js \
   ", double: { de: premier[k][v], nom: e.name, quoi } });" " });" \
   "$WP253D"
-prouver "paie 1.253 c : « À traiter » répète chaque fiche d'un même n° CNSS ou d'un même RIB" web/public/v10/app.js \
+prouver "paie 1.253 c : « À traiter » répète chaque fiche d'un même n° CNSS ou d'un même RIB" modules/personnel/ecrans/entreprise/paie.js \
   "if (!x.double) { lignesT.push({ x, i }); return; }" "{ lignesT.push({ x, i }); return; }" \
   "$WP253B"
-prouver "paie 1.253 d : la pastille de « Salariés » compte les choses, pas les fiches" web/public/v10/app.js \
+prouver "paie 1.253 d : la pastille de « Salariés » compte les choses, pas les fiches" modules/personnel/ecrans/entreprise/paie.js \
   "new Set(C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').map(x => x.salarie)).size;" "C.paieATraiter(data, C.today()).filter(x => x.vue === 'salaries').length;" \
   "$WP253B"
-prouver "paie 1.253 e : le tableau des congés ne suit pas l'ordre du calendrier" web/public/v10/app.js \
+prouver "paie 1.253 e : le tableau des congés ne suit pas l'ordre du calendrier" modules/personnel/ecrans/entreprise/paie.js \
   "paginate(emps.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')), s.compteurs)" "paginate(emps, s.compteurs)" \
   "$WP250M"
 
 # 1.254.0 (revue de la paie, suite, 02/11/2026) : l'historique de la fiche dit le salaire de base ; l'onglet Congés dit les
 # absences du pointage ; « Où va la paie » de l'année entière ; les taux des réglages à la française.
 WP254F='la fiche : le salaire de base qui change, au 1er du mois ; les absences du pointage sous les congés'
-prouver "paie 1.254 a : l'historique compare le brut du mois, absences comprises" web/public/v10/app.js \
+prouver "paie 1.254 a : l'historique compare le brut du mois, absences comprises" modules/personnel/ecrans/entreprise/paie.js \
   "const baseDe = x => C.round3(Number(x.prorata ? x.prorata.brutFiche : x.gross) || 0);" "const baseDe = x => x.c.gross;" \
   "$WP254F"
-prouver "paie 1.254 b : l'onglet Congés tait les absences du pointage" web/public/v10/app.js \
+prouver "paie 1.254 b : l'onglet Congés tait les absences du pointage" modules/personnel/ecrans/entreprise/paie.js \
   "const pointesAn = og !== 'conges' ? [] :" "const pointesAn = true ? [] :" \
   "$WP254F"
-prouver "paie 1.254 c : « Où va la paie » ne lit que le dernier mois" web/public/v10/app.js \
+prouver "paie 1.254 c : « Où va la paie » ne lit que le dernier mois" modules/personnel/ecrans/entreprise/paie.js \
   "const L = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap(mm => C.payslipsOf(data, y, mm))," "const L = C.payslipsOf(data, y, dernier)," \
   "la fiche d'une arrivée, ce que tu verses et quand, l'année par poste"
-prouver "paie 1.254 d : un taux des réglages s'écrit « 9.68 »" web/public/v10/app.js \
+prouver "paie 1.254 d : un taux des réglages s'écrit « 9.68 »" modules/personnel/ecrans/entreprise/paie.js \
   "value=\"\${h(String(st[k] == null ? '' : st[k]).replace('.', ','))}\" class=\"num\">" "value=\"\${st[k]}\" class=\"num\">" \
   'aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
 
 # 1.255.0 (fin de la revue de la paie, 02/11/2026) : la sortie d'un salarié (motif obligatoire, ancienneté), l'icône
 # « modifier », la saisie en mois français, « d'octobre », et au téléphone le pointage en liste et les gestes sous le nom.
 WP255='la sortie d'\''un salarié, son motif et son ancienneté ; la saisie dès un mois ; au téléphone, le pointage en liste'
-prouver "paie 1.255 a : la sortie s'enregistre sans motif" web/public/v10/app.js \
+prouver "paie 1.255 a : la sortie s'enregistre sans motif" modules/personnel/ecrans/entreprise/paie.js \
   "if (!v.motif) return refus('Le motif manque" "if (false) return refus('Le motif manque" \
   "$WP255"
-prouver "paie 1.255 b : le bouton « Modifier sa sortie » sans dessin" web/public/v10/app.js \
+prouver "paie 1.255 b : le bouton « Modifier sa sortie » sans dessin" modules/personnel/ecrans/entreprise/paie.js \
   "Object.assign(LF_IC, { modifier:" "Object.assign(LF_IC, { modifier_retire:" \
   "$WP255"
-prouver "paie 1.255 c : « Régulariser le bulletin de octobre »" web/public/v10/app.js \
+prouver "paie 1.255 c : « Régulariser le bulletin de octobre »" modules/personnel/ecrans/entreprise/paie.js \
   "Régulariser le bulletin \${/^[aeiouyéè]/i.test(nomDe) ? 'd\\'' : 'de '}" "Régulariser le bulletin \${'de '}" \
   "$WP255"
-prouver "paie 1.255 d : la saisie part d'un mois écrit par le navigateur" web/public/v10/app.js \
+prouver "paie 1.255 d : la saisie part d'un mois écrit par le navigateur" modules/personnel/ecrans/entreprise/paie.js \
   "return \`<option value=\"\" \${x.debut ? '' : 'selected'}>dès le prochain bulletin</option>\`" "return \`<option value=\"\" \${x.debut ? '' : 'selected'}>dès le mois</option>\`" \
   "$WP255"
-prouver "paie 1.255 e : au téléphone, la grille du pointage déborde (pas de liste)" web/public/plateforme/paie.css \
+prouver "paie 1.255 e : au téléphone, la grille du pointage déborde (pas de liste)" modules/personnel/styles/paie.css \
   "  .pt-tel { display: block; list-style: none; margin: 0; padding: 0; }" "  .pt-tel { list-style: none; margin: 0; padding: 0; }" \
   "$WP255"
-prouver "paie 1.255 f : au téléphone, les gestes d'un bulletin recouvrent son nom" web/public/plateforme/paie.css \
+prouver "paie 1.255 f : au téléphone, les gestes d'un bulletin recouvrent son nom" modules/personnel/styles/paie.css \
   "td.row-actions { position: static; grid-column: 1 / -1; order: 9;" "td.row-actions { grid-column: 1 / -1; order: 9;" \
   "$WP255"
 
 # 1.256.0 (les manques métier de la paie, et la page Paie reprise de sa maquette, 02/11/2026) : net → brut, ancienneté,
 # primes et retenues du mois, indemnité de licenciement, reçu d'espèces ; un tableau dans sa carte sans second cadre.
-prouver "paie 1.256 a : le brut trouvé dépasse d'un millime le plus petit" web/public/v10/compta.js \
+prouver "paie 1.256 a : le brut trouvé dépasse d'un millime le plus petit" modules/personnel/moteur/compta-paie.js \
   "return { gross: round3(haut / 1000), net: netDe(haut) };" "return { gross: round3(haut / 1000 + 0.001), net: netDe(haut + 1) };" \
   'un net voulu donne le plus petit brut qui l'\''atteint, au millime'
-prouver "paie 1.256 b : l'ancienneté compte une année commencée" web/public/v10/compta.js \
+prouver "paie 1.256 b : l'ancienneté compte une année commencée" modules/personnel/moteur/compta-paie.js \
   "return d1.slice(5, 10) < d0.slice(5, 10) ? a - 1 : a;" "return a;" \
   'l'\''ancienneté se compte en années pleines, au jour près ; la tranche atteinte est la plus haute'
-prouver "paie 1.256 c : une tranche d'ancienneté sans taux compte" web/public/v10/compta.js \
+prouver "paie 1.256 c : une tranche d'ancienneté sans taux compte" modules/personnel/moteur/compta-paie.js \
   ".filter(t => t.ans > 0 && t.taux > 0).sort((a, b) => a.ans - b.ans);" ".filter(t => t.ans > 0).sort((a, b) => a.ans - b.ans);" \
   'l'\''ancienneté se compte en années pleines, au jour près ; la tranche atteinte est la plus haute'
-prouver "paie 1.256 d : les primes d'un autre mois entrent au bulletin" web/public/v10/compta.js \
+prouver "paie 1.256 d : les primes d'un autre mois entrent au bulletin" modules/personnel/moteur/compta-paie.js \
   "filter(v => v && v.mois === ym && Number(v.amount) > 0);" "filter(v => v && Number(v.amount) > 0);" \
   'les primes et retenues du mois : celles du mois seul, une prime au brut, une retenue hors du net'
-prouver "paie 1.256 e : une démission reçoit une indemnité de licenciement" web/public/v10/compta.js \
+prouver "paie 1.256 e : une démission reçoit une indemnité de licenciement" modules/personnel/moteur/compta-paie.js \
   "if (e.sortieMotif !== 'licenciement') return null;" "if (false) return null;" \
   'l'\''indemnité de licenciement : rien hors licenciement, rien sans barème, sinon jours × années × un jour'
-prouver "paie 1.256 f : le reçu d'espèces ne dit plus ce qu'il est" web/public/v10/core.js \
+prouver "paie 1.256 f : le reçu d'espèces ne dit plus ce qu'il est" modules/personnel/moteur/core-paie.js \
   "<h1>Reçu de salaire payé en espèces</h1>" "<h1>Reçu</h1>" \
   'le reçu d'\''un salaire en espèces dit qui, combien (en chiffres et en lettres), pour quel mois'
-prouver "paie 1.256 g : le tableau des bulletins garde un second cadre dans sa carte" web/public/plateforme/paie-maquette.css \
+prouver "paie 1.256 g : le tableau des bulletins garde un second cadre dans sa carte" modules/personnel/styles/paie-maquette.css \
   ".pm .carte.tab table.list { border: 0; box-shadow: none; border-radius: 0; background: none; margin: 0; }" ".pm .carte.tab table.list { margin: 0; }" \
   'le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
-prouver "paie 1.256 h : « Le confirmer dans son poste » ne note pas la date" web/public/v10/app.js \
+prouver "paie 1.256 h : « Le confirmer dans son poste » ne note pas la date" modules/personnel/ecrans/entreprise/paie.js \
   "x.essaiConfirmeLe = C.today(); save(true);" "save(true);" \
   'la fin d'\''essai : « À traiter » la dit, « Le confirmer dans son poste » la note et ouvre le courrier'
-prouver "paie 1.256 i : la grille du mois ne refait pas le bulletin établi" web/public/v10/app.js \
+prouver "paie 1.256 i : la grille du mois ne refait pas le bulletin établi" modules/personnel/ecrans/entreprise/paie.js \
   "if (appliquerVariables(e, y, m)) refaits++;" "if (false) refaits++;" \
   'les primes et retenues du mois : une case de la grille entre au bulletin établi, qui se refait'
-prouver "paie 1.256 j : l'augmentation en lot prend aussi ceux qu'on décoche" web/public/v10/app.js \
+prouver "paie 1.256 j : l'augmentation en lot prend aussi ceux qu'on décoche" modules/personnel/ecrans/entreprise/paie.js \
   "const coches = () => \$\$('[data-al-c]', root).filter(c => c.checked)" "const coches = () => \$\$('[data-al-c]', root).filter(c => c)" \
   'augmenter les salaires : + 10 % pour Mourad seul, dès ce mois ; sa fiche garde l'\''ancien salaire'
-prouver "paie 1.256 k : un bouton radio non coché dit quand même sa valeur" web/public/v10/app.js \
+prouver "paie 1.256 k : un bouton radio non coché dit quand même sa valeur" modules/socle/ecrans/entreprise/app-1.js \
   "      if (el.type === 'radio' && !el.checked) return;" "" \
   'augmenter les salaires : + 10 % pour Mourad seul, dès ce mois ; sa fiche garde l'\''ancien salaire'
-prouver "paie 1.256 l : copier « rien » casse l'enregistrement de la grille du mois" web/public/v10/app.js \
+prouver "paie 1.256 l : copier « rien » casse l'enregistrement de la grille du mois" modules/socle/ecrans/entreprise/app-1.js \
   "const deepCopy = o => (o === undefined ? undefined : JSON.parse(JSON.stringify(o)));" "const deepCopy = o => JSON.parse(JSON.stringify(o));" \
   'les primes et retenues du mois : une case de la grille entre au bulletin établi, qui se refait'
-prouver "paie 1.256 m : le journal de paie dans une fenêtre de 720 px" web/public/plateforme/paie-maquette.css \
+prouver "paie 1.256 m : le journal de paie dans une fenêtre de 720 px" modules/personnel/styles/paie-maquette.css \
   ".pm .modal.fen:has(#jp-table) { width: min(1380px, calc(100vw - 32px)); max-width: none; }" "" \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'\''état récapitulatif CNSS'
-prouver "paie 1.256 n : le bulletin à modifier dans une fenêtre de 720 px" web/public/plateforme/paie-maquette.css \
+prouver "paie 1.256 n : le bulletin à modifier dans une fenêtre de 720 px" modules/personnel/styles/paie-maquette.css \
   ".pm .modal.fen.pa-bf, .pm .modal.fen.pv-large { width: min(1040px, 96vw); max-width: min(1040px, 96vw); }" "" \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'\''avant 2026 se disent'
 
-prouver "paie 1.257 a : l'équipe ne fait plus les jours de repos" web/public/v10/compta.js \
+prouver "paie 1.257 a : l'équipe ne fait plus les jours de repos" modules/personnel/moteur/compta-paie.js \
   "    const off = joursReposDe(s, employee);" "    const off = Array.isArray(s.offDays) ? s.offDays : [0];" \
   'l'\''équipe fait les jours de repos : le lundi de la boutique, le dimanche du fournil, le dimanche sans équipe'
-prouver "paie 1.257 b : un férié de la liste ne se pose plus" web/public/v10/compta.js \
+prouver "paie 1.257 b : un férié de la liste ne se pose plus" modules/personnel/moteur/compta-paie.js \
   "        if (fe) { code = 'F'; source = 'ferie'; }" "" \
   'un férié de la liste se pose de lui-même, payé, jamais sur un jour de repos ; la main gagne'
-prouver "paie 1.257 c : les zéros devant un n° de badge comptent" web/public/v10/compta.js \
+prouver "paie 1.257 c : les zéros devant un n° de badge comptent" modules/personnel/moteur/compta-paie.js \
   "      passages.push({ badge: m[1].replace(/^0+(?=\\d)/, ''), iso," "      passages.push({ badge: m[1], iso," \
   'le fichier de la pointeuse : les deux formats de date, les zéros du badge, l'\''en-tête ignoré, l'\''illisible compté'
-prouver "paie 1.257 d : un passage déjà importé compte deux fois" web/public/v10/compta.js \
+prouver "paie 1.257 d : un passage déjà importé compte deux fois" modules/personnel/moteur/compta-paie.js \
   "      const neufs = [...new Set(h)].filter(x => !vus.has(x));" "      const neufs = [...new Set(h)];" \
   'l'\''import : chaque passage à la fiche de son badge, un passage déjà lu ignoré, un badge inconnu dit, la main intacte'
-prouver "paie 1.257 e : le seuil d'un retard ne compte pas" web/public/v10/compta.js \
+prouver "paie 1.257 e : le seuil d'un retard ne compte pas" modules/personnel/moteur/compta-paie.js \
   "    const seuil = Math.max(1, Math.round(Number(s.retardMinimum) || 0));" "    const seuil = 1;" \
   'la journée lue sur les badges : le retard dès le seuil, la fin du planning dépassée, arrondie au pas réglé'
-prouver "paie 1.257 f : les heures sup des badges ne s'arrondissent pas" web/public/v10/compta.js \
+prouver "paie 1.257 f : les heures sup des badges ne s'arrondissent pas" modules/personnel/moteur/compta-paie.js \
   "    const au_dela = apres > 0 && apres < 720 ? Math.floor(apres / pas) * pas : 0;" "    const au_dela = apres > 0 && apres < 720 ? apres : 0;" \
   'la journée lue sur les badges : le retard dès le seuil, la fin du planning dépassée, arrondie au pas réglé'
-prouver "paie 1.257 g : un jour badgé passe pour un jour sans badge" web/public/v10/compta.js \
+prouver "paie 1.257 g : un jour badgé passe pour un jour sans badge" modules/personnel/moteur/compta-paie.js \
   "&& !j.repos && j.code === 'P' && j.source === 'calendrier' && !B[String(j.jour)]).map(j => j.jour);" "&& !j.repos && j.code === 'P' && j.source === 'calendrier').map(j => j.jour);" \
   'les anomalies : l'\''entrée sans sortie (la fin du planning proposée), les jours sans badge ni justificatif'
-prouver "paie 1.257 h : la case ne note pas le retard du jour" web/public/v10/app.js \
+prouver "paie 1.257 h : la case ne note pas le retard du jour" modules/personnel/ecrans/entreprise/paie.js \
   "            if (d === iso) C.poserRetard(data, e, yy, mm, dd, o.code === 'P' && !o.au ? o.retard : 0);" "" \
   'la case du pointage : ce que chaque choix fait, le retard du jour, « Au » pour plusieurs jours, « Annuler »'
-prouver "paie 1.257 i : l'aperçu de l'import écrit avant le geste" web/public/v10/app.js \
+prouver "paie 1.257 i : l'aperçu de l'import écrit avant le geste" modules/personnel/ecrans/entreprise/paie.js \
   "          const r = C.importerBadges(data, lu.passages, false);" "          const r = C.importerBadges(data, lu.passages, true);" \
   'la pointeuse : ce que le fichier donnerait, l'\''import, l'\''anomalie réglée, puis le mois validé et verrouillé'
-prouver "paie 1.257 j : un pointage validé se change encore" web/public/v10/app.js \
+prouver "paie 1.257 j : un pointage validé se change encore" modules/personnel/ecrans/entreprise/paie.js \
   "      if (iso && ptVerrouille(String(iso).slice(0, 7))) {" "      if (false) {" \
   'la pointeuse : ce que le fichier donnerait, l'\''import, l'\''anomalie réglée, puis le mois validé et verrouillé'
-prouver "paie 1.257 k : le texte des compteurs ne passe plus à la ligne au téléphone" 'web/public/plateforme/paie-maquette.css|||web/public/plateforme/paie-maquette.css|||web/public/plateforme/paie-maquette.css|||web/public/plateforme/paie-maquette.css' \
+prouver "paie 1.257 k : le texte des compteurs ne passe plus à la ligne au téléphone" 'modules/personnel/styles/paie-maquette.css|||modules/personnel/styles/paie-maquette.css|||modules/personnel/styles/paie-maquette.css|||modules/personnel/styles/paie-maquette.css' \
   '.pm .pt-cpt td small { display: block; color: var(--gris-2); font-size: 12px; white-space: normal; }|||.pm .pt-cpt td { white-space: normal; overflow-wrap: anywhere; }|||.pm table.mini.pt-cpt td.r { width: 45%; white-space: normal; }|||.pm table.mini.pt-cpt .r small { display: block; margin-left: 0; }' \
   '.pm .pt-cpt td small { color: var(--gris-2); font-size: 12px; }|||||||||' \
   'la sortie d'\''un salarié, son motif et son ancienneté ; la saisie dès un mois ; au téléphone, le pointage en liste'
 # 1.257.1 : un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF (vu par
 # Skander sur dev.skanfact.tn le 02/11/2026 : « j'ai exporté le document et rien n'a été pris en compte »).
-prouver "paie 1.257.1 a : sans PDF du serveur, le document exporté ne se note pas" web/public/v10/app.js \
+prouver "paie 1.257.1 a : sans PDF du serveur, le document exporté ne se note pas" modules/personnel/ecrans/entreprise/paie.js \
   "            noter(v);" "            if (f) noter(v);" \
   'un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF'
 prouver "paie 1.257.1 b : une fenêtre d'impression bloquée ne dit rien" web/public/plateforme/pont.js \
   "    if (!w) throw new Error('Le PDF ne se fait pas" "    if (!w) return null; void new Error('Le PDF ne se fait pas" \
   'un document du salarié exporté se note dans ses documents, même quand le serveur ne fait pas le PDF'
-prouver 'paie 1.258 a : les retards se retiennent sans le réglage' web/public/v10/compta.js \
+prouver 'paie 1.258 a : les retards se retiennent sans le réglage' modules/personnel/moteur/compta-paie.js \
   '    if (!s.retenirRetards || !(heuresMois > 0) || !(mn > 0)) return [];' '    if (!(heuresMois > 0) || !(mn > 0)) return [];' \
   'par défaut, rien ne change : le mois se valide d'\''un coup, aucun retard retenu, aucune heure de nuit comptée'
-prouver 'paie 1.258 b : la retenue des retards se double' web/public/v10/compta.js \
+prouver 'paie 1.258 b : la retenue des retards se double' modules/personnel/moteur/compta-paie.js \
   '    const bonuses = (i.bonuses || []).filter(b => !b.hs && !b.retard && !b.nuit)' '    const bonuses = (i.bonuses || []).filter(b => !b.hs && !b.nuit)' \
   'les retards retenus : au taux horaire de la fiche, une ligne imposable qui baisse le brut, jamais deux fois'
-prouver 'paie 1.258 c : la nuit ne passe plus minuit' web/public/v10/compta.js \
+prouver 'paie 1.258 c : la nuit ne passe plus minuit' modules/personnel/moteur/compta-paie.js \
   '    const fenetre = [ns, ne > ns ? ne : ne + 1440];' '    const fenetre = [ns, ne];' \
   'les heures de nuit : la plage qui passe minuit, les badges d'\''abord, l'\''horaire de l'\''équipe sinon, la majoration'
-prouver 'paie 1.258 d : la nuit ne lit plus les badges' web/public/v10/compta.js \
+prouver 'paie 1.258 d : la nuit ne lit plus les badges' modules/personnel/moteur/compta-paie.js \
   '      const b = j.badge ? journeeBadges(data, employee, j.iso) : null;' '      const b = null;' \
   'les heures de nuit : la plage qui passe minuit, les badges d'\''abord, l'\''horaire de l'\''équipe sinon, la majoration'
-prouver 'paie 1.258 e : une journée validée se change encore' web/public/v10/app.js \
+prouver 'paie 1.258 e : une journée validée se change encore' modules/personnel/ecrans/entreprise/paie.js \
   '      const jv = iso && jourValide(iso);' '      const jv = null;' \
   'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
-prouver 'paie 1.258 g : le rappel se porte sans se montrer' web/public/v10/app.js \
+prouver 'paie 1.258 g : le rappel se porte sans se montrer' modules/personnel/ecrans/entreprise/paie.js \
   '        if (aRappeler.length && await rappelFenetre(aRappeler, o.des)) {' '        if (aRappeler.length) {' \
   'le rappel d'\''une augmentation (O05) : qui, combien par mois, le rappel du mois payé, porté sur le mois en cours'
-prouver 'paie 1.258 h : un document fait n'\''a plus de numéro' web/public/v10/app.js \
+prouver 'paie 1.258 h : un document fait n'\''a plus de numéro' modules/personnel/ecrans/entreprise/paie.js \
   'kind: v.kind, date: v.date || C.today(), le: C.today(), numero: numeroSuivant() }]' 'kind: v.kind, date: v.date || C.today(), le: C.today() }]' \
   'les documents (O08, O18, O19) : « Pour », la liste, « Prêt », le numéro qui naît au document fait ; le journal en paysage'
-prouver 'paie 1.258 i : le journal se pose en portrait' web/public/v10/app.js \
+prouver 'paie 1.258 i : le journal se pose en portrait' modules/personnel/ecrans/entreprise/paie.js \
   '    const paysage = /size:\s*A4\s+landscape/i.test(String(html).slice(0, 4000));' '    const paysage = false;' \
   'les documents (O08, O18, O19) : « Pour », la liste, « Prêt », le numéro qui naît au document fait ; le journal en paysage'
-prouver 'paie 1.258 j : le bulletin en document perd « Pour »' web/public/v10/app.js \
+prouver 'paie 1.258 j : le bulletin en document perd « Pour »' modules/personnel/ecrans/entreprise/paie.js \
   '      pour: { liste: duMois.map(x => ({ id: x.id, name: x.employeeName || '\'''\'' })), id: slip.id,' '      pour: { liste: [], id: slip.id,' \
   'les documents (O08, O18, O19) : « Pour », la liste, « Prêt », le numéro qui naît au document fait ; le journal en paysage'
-prouver 'paie 1.258 k : la déclaration du mois perd une ligne' web/public/v10/app.js \
+prouver 'paie 1.258 k : la déclaration du mois perd une ligne' modules/personnel/ecrans/entreprise/paie.js \
   '          ${dmD.lignes.filter(r => Number(r.montant) > 0).map(r =>' '          ${dmD.lignes.filter(r => Number(r.montant) > 0).slice(1).map(r =>' \
   'la déclaration du mois (O17), le mois avant ses bulletins (O28), les réglages des retards et de la nuit'
-prouver 'paie 1.258 l : le mois avant ses bulletins ne montre plus le pointage' web/public/v10/app.js \
+prouver 'paie 1.258 l : le mois avant ses bulletins ne montre plus le pointage' modules/personnel/ecrans/entreprise/paie.js \
   '        ${!month.length && missing.length ? `${moisPointageHtml(y, m)}${variablesCarte(y, m)}` : '\'''\''}' '        ${'\'''\''}' \
   'la déclaration du mois (O17), le mois avant ses bulletins (O28), les réglages des retards et de la nuit'
-prouver 'paie 1.258 m : la plage de nuit ne s'\''enregistre pas' web/public/v10/app.js \
+prouver 'paie 1.258 m : la plage de nuit ne s'\''enregistre pas' modules/personnel/ecrans/entreprise/paie.js \
   '        ['\''nuitDebut'\'', '\''nuitFin'\''].forEach(k => { out[k] = String(v[k] || '\'''\'').trim(); });' '' \
   'la déclaration du mois (O17), le mois avant ses bulletins (O28), les réglages des retards et de la nuit'
-prouver 'paie 1.258 n : la demande de correction perd sa ligne' web/public/v10/app.js \
+prouver 'paie 1.258 n : la demande de correction perd sa ligne' modules/personnel/ecrans/entreprise/paie.js \
   '${v.ligne && v.ligne !== '\''Autre chose'\'' ? `, la ligne « ${v.ligne} »` : '\'''\''} : ${texte}`;' ' : ${texte}`;' \
   'la correction demandée au cabinet (O25) : le bulletin, sa ligne, ce qui ne va pas, et la règle'
 # La refonte du pointage (1.259.0, docs/maquettes/pointage.html) : la journée, le mois en relecture, une seule règle.
-prouver 'paie 1.259 a : les heures sup d'\''un jour changées s'\''ajoutent au lieu de remplacer' web/public/v10/compta.js \
+prouver 'paie 1.259 a : les heures sup d'\''un jour changées s'\''ajoutent au lieu de remplacer' modules/personnel/moteur/compta-paie.js \
   '    if (avant && Number(avant.heures) > 0) ajouter(avant.majoration, -Number(avant.heures));' '' \
   's'\''ajoutent au mois, se relisent, se remplacent et se retirent'
-prouver 'paie 1.259 b : des heures sup sans majoration passent' web/public/v10/compta.js \
+prouver 'paie 1.259 b : des heures sup sans majoration passent' modules/personnel/moteur/compta-paie.js \
   '    if (h > 0 && !(maj > 0)) return false;
     let t = pointageEnregistre(data, employee.id, year, month);' '    let t = pointageEnregistre(data, employee.id, year, month);' \
   'ne descend jamais sous zéro, refuse sans majoration et hors contrat'
-prouver 'paie 1.259 c : « Présent » laisse les heures sup du jour' web/public/v10/app.js \
+prouver 'paie 1.259 c : « Présent » laisse les heures sup du jour' modules/personnel/ecrans/entreprise/paie.js \
   'C.poserRetard(data, e, y, m, d, 0); C.poserHeuresSupDuJour(data, e, y, m, d, 0, 0);' 'C.poserRetard(data, e, y, m, d, 0);' \
   'la journée : Absent, Retard et Heures sup disent ce que le bulletin en fera ; valider la fige, « Rouvrir » la rend'
-prouver 'paie 1.259 d : le prix des heures sup oublie la majoration' web/public/v10/app.js \
+prouver 'paie 1.259 d : le prix des heures sup oublie la majoration' modules/personnel/ecrans/entreprise/paie.js \
   'brut * o.heures * (100 + o.maj) / 100 / hm' 'brut * o.heures / hm' \
   'la journée : Absent, Retard et Heures sup disent ce que le bulletin en fera ; valider la fige, « Rouvrir » la rend'
-prouver 'paie 1.259 e : « À régler » oublie les journées pas validées' web/public/v10/app.js \
+prouver 'paie 1.259 e : « À régler » oublie les journées pas validées' modules/personnel/ecrans/entreprise/paie.js \
   'const J = joursNonValides(y, m);' 'const J = [];' \
   'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
-prouver 'paie 1.259 f : le mois se valide avec des choses à régler' web/public/v10/app.js \
+prouver 'paie 1.259 f : le mois se valide avec des choses à régler' modules/personnel/ecrans/entreprise/paie.js \
   '        if (aR.length) { toast(' '        if (false) { toast(' \
   'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
-prouver 'paie 1.259 g : l'\''onglet « Le mois » ne dit pas combien de choses sont à régler' web/public/v10/app.js \
+prouver 'paie 1.259 g : l'\''onglet « Le mois » ne dit pas combien de choses sont à régler' modules/personnel/ecrans/entreprise/paie.js \
   'const n = ptVerrouille(ymPt(s.ptY, s.ptM)) ? 0 : aReglerMois(Number(s.ptY), Number(s.ptM)).length;' 'const n = 0;' \
   'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
-prouver 'paie 1.259 h : une case de la grille parle de la dernière journée du mois, pas de la sienne' web/public/v10/app.js \
+prouver 'paie 1.259 h : une case de la grille parle de la dernière journée du mois, pas de la sienne' modules/personnel/ecrans/entreprise/paie.js \
   'if (ptVerrouille(ymPt(y, m)) && !peutPointerLe(dernier)) return false;' 'if (!peutPointerLe(dernier)) return false;' \
   'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
-prouver 'paie 1.259 i : la plage de nuit s'\''écrit à moitié' web/public/v10/app.js \
+prouver 'paie 1.259 i : la plage de nuit s'\''écrit à moitié' modules/personnel/ecrans/entreprise/paie.js \
   'if (r.nuit === '\''oui'\'' && !(r.nuitDebut && r.nuitFin)) {' 'if (false) {' \
   'les 4 questions : rien ne s'\''écrit avant « C'\''est réglé », et tout se défait d'\''un geste'
-prouver 'paie 1.259 j : « Annuler » ne défait pas les 4 questions' web/public/v10/app.js \
+prouver 'paie 1.259 j : « Annuler » ne défait pas les 4 questions' modules/personnel/ecrans/entreprise/paie.js \
   '            data.payrollSettings = avant.ps;' '' \
   'les 4 questions : rien ne s'\''écrit avant « C'\''est réglé », et tout se défait d'\''un geste'
-prouver 'paie 1.259 k : le bandeau de l'\''offre ne vient pas sur la paie (son en-tête est dans .pm)' web/public/v10/app.js \
+prouver 'paie 1.259 k : le bandeau de l'\''offre ne vient pas sur la paie (son en-tête est dans .pm)' modules/socle/ecrans/entreprise/app-1.js \
   '    if (head && head.parentNode) head.parentNode.insertBefore(el, head.nextSibling); else view.appendChild(el);
     $('\''#offre-voir'\'').onclick' '    if (head && head.nextSibling) view.insertBefore(el, head.nextSibling); else view.appendChild(el);
     $('\''#offre-voir'\'').onclick' \
   'en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s'\''ouvre'
 
 # La liste des devis (1.260.0), faite sur le modèle de celle des factures, sans tuiles (Skander, 03/11/2026).
-prouver 'devis 1.260 a : « Accepté, à facturer » perd le devis facturé en partie' web/public/v10/app.js \
+prouver 'devis 1.260 a : « Accepté, à facturer » perd le devis facturé en partie' modules/socle/ecrans/entreprise/app-1.js \
   "choix === 'à facturer' ? st === 'à facturer' || st === 'en facturation'" "choix === 'à facturer' ? st === 'à facturer'" \
   'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
-prouver 'devis 1.260 b : un acompte émis ne compte pas, le devis reste « à facturer »' web/public/v10/app.js \
+prouver 'devis 1.260 b : un acompte émis ne compte pas, le devis reste « à facturer »' modules/socle/ecrans/entreprise/app-1.js \
   "if (p.acomptes.some(emise) || p.totales.length || p.brouillons.length) return 'en facturation';" "if (p.totales.length || p.brouillons.length) return 'en facturation';" \
   'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
-prouver 'devis 1.260 c : « Relancer » part pour plusieurs devis à la fois' web/public/v10/app.js \
+prouver 'devis 1.260 c : « Relancer » part pour plusieurs devis à la fois' modules/socle/ecrans/entreprise/app-1.js \
   'aRelancer.length === 1' 'aRelancer.length > 0' \
   'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
-prouver 'devis 1.260 d : la date de l'\''acceptation ne se dit pas' web/public/v10/app.js \
+prouver 'devis 1.260 d : la date de l'\''acceptation ne se dit pas' modules/socle/ecrans/entreprise/app-1.js \
   "rep && rep.le ? \`accepté le \${lfJm(rep.le)}\` : 'accepté'" "'accepté'" \
   'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
 # Les marges dans la nouvelle DA et le retour vers la fiche (1.261.0, Skander 03/11/2026).
-prouver 'marges 1.261 a : le chiffre d'\''affaires quitte le pied du tableau' web/public/v10/app.js \
+prouver 'marges 1.261 a : le chiffre d'\''affaires quitte le pied du tableau' modules/socle/ecrans/entreprise/app-1.js \
   "<td class=\"r m\">\${lfMontant(totalRev, cur)}</td><td></td>" "<td></td><td></td>" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.261 b : un onglet ne dit plus combien il tient' web/public/v10/app.js \
+prouver 'marges 1.261 b : un onglet ne dit plus combien il tient' modules/socle/ecrans/entreprise/app-1.js \
   "\${compteOnglet[id] ? \` <small>\${compteOnglet[id]}</small>\` : ''}" "''" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.261 c : le sélecteur d'\''année reste sur les affaires' web/public/v10/app.js \
+prouver 'marges 1.261 c : le sélecteur d'\''année reste sur les affaires' modules/socle/ecrans/entreprise/app-1.js \
   "\$('#mg-an').hidden = MG_SANS_ANNEE.includes(s.tab);" "\$('#mg-an').hidden = false;" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'retour 1.261 d : la pièce ouverte depuis une fiche ramène aux Achats' web/public/v10/app.js \
+prouver 'retour 1.261 d : la pièce ouverte depuis une fiche ramène aux Achats' modules/socle/ecrans/entreprise/app-1.js \
   "(routeOf(avant) === routeOf(liste) || ficheQuittee())" "(routeOf(avant) === routeOf(liste))" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'retour 1.261 e : le chemin de la pièce oublie la fiche d'\''où l'\''on vient' web/public/v10/app.js \
+prouver 'retour 1.261 e : le chemin de la pièce oublie la fiche d'\''où l'\''on vient' modules/socle/ecrans/entreprise/app-1.js \
   "    a.textContent = pageLabel(fiche, true);
 " "" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.261 f : le statut choisi ne filtre pas les affaires' web/public/v10/app.js \
+prouver 'marges 1.261 f : le statut choisi ne filtre pas les affaires' modules/socle/ecrans/entreprise/app-1.js \
   "      const list = parQ.filter(p => !s.pst || p.status === s.pst);" "      const list = parQ;" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.261 g : la recherche oublie le client de l'\''affaire' web/public/v10/app.js \
+prouver 'marges 1.261 g : la recherche oublie le client de l'\''affaire' modules/socle/ecrans/entreprise/app-1.js \
   "C.correspondRecherche([p.name, clientName(p.clientId), p.notes].join(' '), pq)" "C.correspondRecherche([p.name, p.notes].join(' '), pq)" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.261 h : les onglets ne sont plus ceux de la Paie' web/public/v10/app.js \
+prouver 'marges 1.261 h : les onglets ne sont plus ceux de la Paie' modules/socle/ecrans/entreprise/app-1.js \
   "<div class=\"pa-seg\" id=\"mg-tabs\" role=\"tablist\"" "<div class=\"cf-onglets\" id=\"mg-tabs\" role=\"tablist\"" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.261 i : l'\''onglet Achats de la fiche reste caché' web/public/v10/app.js \
+prouver 'marges 1.261 i : l'\''onglet Achats de la fiche reste caché' modules/socle/ecrans/entreprise/app-1.js \
   "<div id=\"p-buys\"\${ong === 'achats' ? '' : ' hidden'}>" "<div id=\"p-buys\" hidden>" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # Le module Marges fini (1.262.0) : la fiche d'une affaire, le budget, détacher, le seuil en cascade.
-prouver 'marges 1.262 a : « Annuler » ne remet pas la pièce détachée' web/public/v10/app.js \
+prouver 'marges 1.262 a : « Annuler » ne remet pas la pièce détachée' modules/socle/ecrans/entreprise/app-1.js \
   "if (avantP) x.projectId = avantP; if (x.lines)" "if (x.lines)" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.262 b : un budget dépassé ne se voit pas en rouge' web/public/v10/app.js \
+prouver 'marges 1.262 b : un budget dépassé ne se voit pas en rouge' modules/socle/ecrans/entreprise/app-1.js \
   "<span class=\"\${resteB < 0 ? 'rouge' : ''}\" id=\"p-budget-dit\">" "<span class=\"\" id=\"p-budget-dit\">" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.262 c : l'\''encaissé se compare au HT au lieu du facturé TTC' web/public/v10/app.js \
+prouver 'marges 1.262 c : l'\''encaissé se compare au HT au lieu du facturé TTC' modules/socle/ecrans/entreprise/app-1.js \
   "\`\${C.money(m.collected, cur)} sur \${C.money(m.invoiced, cur)} TTC · il manque" "\`\${C.money(m.collected, cur)} sur \${C.money(m.revenue, cur)} TTC · il manque" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.262 d : la cascade du seuil oublie le résultat' web/public/v10/app.js \
+prouver 'marges 1.262 d : la cascade du seuil oublie le résultat' modules/socle/ecrans/entreprise/app-1.js \
   "            \${ligne('=', b.result < 0 ? 'Perte' : 'Résultat', b.result, \`total \${b.result < 0 ? 'rouge' : 'vert'}\`)}
 " "" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # La marge d'une affaire juste (1.263.0) : le stock, les lignes réparties, le matériel, les heures, le prévu, les mois.
-prouver 'marges 1.263 a : la marchandise sortie du stock ne coûte rien à l'\''affaire' web/public/v10/core.js \
+prouver 'marges 1.263 a : la marchandise sortie du stock ne coûte rien à l'\''affaire' modules/socle/moteur/core-1.js \
   "    const stockSorti = coutStockPourAffaire(data, projectId, sales);" "    const stockSorti = 0;" \
   'la marchandise vendue sur l'\''affaire coûte ce que le stock a perdu, au coût moyen'
-prouver 'marges 1.263 b : une ligne d'\''achat ne peut pas aller à une autre affaire' web/public/v10/core.js \
+prouver 'marges 1.263 b : une ligne d'\''achat ne peut pas aller à une autre affaire' modules/socle/moteur/core-1.js \
   "  const affaireDeLigne = (p, l) => (l && Object.prototype.hasOwnProperty.call(l, 'projectId') ? (l.projectId || '') : (p.projectId || ''));" "  const affaireDeLigne = (p) => (p.projectId || '');" \
   'un achat entier rattaché coûte exactement `coutAchat` ; partagé, ses deux parts refont le tout'
-prouver 'marges 1.263 c : le matériel immobilisé se consomme sur le chantier' web/public/v10/core.js \
+prouver 'marges 1.263 c : le matériel immobilisé se consomme sur le chantier' modules/socle/moteur/core-1.js \
   "      if (l.destination === 'immobilisation') sacs.immo += v;" "      if (l.destination === 'immobilisation') sacs.cout += v;" \
   'un bien immobilisé et la marchandise entrée au stock ne sont pas consommés sur l'\''affaire'
-prouver 'marges 1.263 d : les frais d'\''un achat attendent au stock une sortie qui ne les emporte pas' web/public/v10/core.js \
+prouver 'marges 1.263 d : les frais d'\''un achat attendent au stock une sortie qui ne les emporte pas' modules/socle/moteur/core-1.js \
   "      sacs.cout += frais;" "      if (l.destination === 'stock') sacs.enStock += frais; else sacs.cout += frais;" \
   'un bien immobilisé et la marchandise entrée au stock ne sont pas consommés sur l'\''affaire'
-prouver 'marges 1.263 e : une heure sans bulletin ne se dit pas estimée' web/public/v10/core.js \
+prouver 'marges 1.263 e : une heure sans bulletin ne se dit pas estimée' modules/socle/moteur/core-1.js \
   "    return { coutMois, heuresMois, estime: true, inconnu: !(coutMois > 0) };" "    return { coutMois, heuresMois, estime: false, inconnu: !(coutMois > 0) };" \
   'les heures coûtent le coût employeur de l'\''heure : celui du bulletin, sinon celui du contrat (estimé)'
-prouver 'marges 1.263 f : sans heures du mois réglées, un nombre d'\''heures inventé' web/public/v10/core.js \
+prouver 'marges 1.263 f : sans heures du mois réglées, un nombre d'\''heures inventé' modules/socle/moteur/core-1.js \
   "    const heuresMois = Number(s.heuresMois) || 0;
     const emp = (data.employees || []).find(e => e.id === employeeId);" "    const heuresMois = Number(s.heuresMois) || 208;
     const emp = (data.employees || []).find(e => e.id === employeeId);" \
   'les heures coûtent le coût employeur de l'\''heure : celui du bulletin, sinon celui du contrat (estimé)'
-prouver 'marges 1.263 g : un devis refusé compte dans le prévu' web/public/v10/core.js \
+prouver 'marges 1.263 g : un devis refusé compte dans le prévu' modules/socle/moteur/core-1.js \
   "    const prevus = quotes.filter(q => q.status !== 'refusé');" "    const prevus = quotes;" \
   'le prévu vient des devis non refusés ; sans devis, il n'\''y a pas de prévu'
-prouver 'marges 1.263 h : un mois compte aussi le premier jour du suivant' web/public/v10/core.js \
+prouver 'marges 1.263 h : un mois compte aussi le premier jour du suivant' modules/socle/moteur/core-1.js \
   "      const b = breakEven(data, company, { from, to });" "      const b = breakEven(data, company, { from, to: addDays(to, 1) });" \
   'l'\''année mois par mois : la somme des douze résultats est le résultat de l'\''année (exemple de cinq ans)'
-prouver 'marges 1.263 i : les heures ne comptent pas dans le coût de l'\''affaire' web/public/v10/core.js \
+prouver 'marges 1.263 i : les heures ne comptent pas dans le coût de l'\''affaire' modules/socle/moteur/core-1.js \
   "    const cost = round3(achats + stockSorti + mainOeuvre);" "    const cost = round3(achats + stockSorti);" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.263 j : « 7,5 » heures se lisent 0' web/public/v10/app.js \
+prouver 'marges 1.263 j : « 7,5 » heures se lisent 0' modules/socle/ecrans/entreprise/app-1.js \
   "  const heuresLues = x => Number(String(x == null ? '' : x).replace(/\\s/g, '').replace(',', '.')) || 0;" "  const heuresLues = x => Number(x) || 0;" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # Où en est le chantier (1.264.0) : la frise des pièces, le geste suivant, la pastille de la liste, le graphe des mois.
-prouver 'marges 1.264 a : le reste à encaisser compte le TTC entier, paiements oubliés' web/public/v10/core.js \
+prouver 'marges 1.264 a : le reste à encaisser compte le TTC entier, paiements oubliés' modules/socle/moteur/core-1.js \
   "const r = toBase(d, invoiceBalance(d, data, company).remaining, company); if (r > 0.0005) aEncaisser" "const r = toBase(d, computeTotals(d, company).netToPay, company); if (r > 0.0005) aEncaisser" \
   'rien, puis un devis, puis la facture : l'\''étape en cours avance, et le geste avec elle'
-prouver 'marges 1.264 b : un achat partagé fait payer tout son reste à chaque affaire' web/public/v10/core.js \
+prouver 'marges 1.264 b : un achat partagé fait payer tout son reste à chaque affaire' modules/socle/moteur/core-1.js \
   "      const part = partageEntreAffaires(b) ? coutAchatPourAffaire(b, company, data, projectId).part : 1;" "      const part = 1;" \
   'ce qui reste à payer : un achat entier compte tout son reste, un achat partagé la part de l'\''affaire'
-prouver 'marges 1.264 c : un chantier sans achat attend un paiement qui ne viendra jamais' web/public/v10/core.js \
+prouver 'marges 1.264 c : un chantier sans achat attend un paiement qui ne viendra jamais' modules/socle/moteur/core-1.js \
   "    const ici = etapes.find(e => !e.fait && !(e.k === 'paye' && e.rien));" "    const ici = etapes.find(e => !e.fait);" \
   'un chantier sans achat n'\''a rien à payer : il est soldé quand tout est encaissé'
-prouver 'marges 1.264 d : chaque étape porte son geste, plus un seul bouton principal' web/public/v10/app.js \
+prouver 'marges 1.264 d : chaque étape porte son geste, plus un seul bouton principal' modules/socle/ecrans/entreprise/app-1.js \
   "      const ici = k => ecritP && sv.ici === k;" "      const ici = k => ecritP;" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.264 e : la liste ne dit plus ce qui reste à encaisser' web/public/v10/app.js \
+prouver 'marges 1.264 e : la liste ne dit plus ce qui reste à encaisser' modules/socle/ecrans/entreprise/app-1.js \
   "<td class=\"cn\"><b>\${h(p.name)}</b>\${pastilleAffaire(p)}</td>" "<td class=\"cn\"><b>\${h(p.name)}</b></td>" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
-prouver 'marges 1.264 f : le graphe des mois perd la courbe du cumul' web/public/v10/app.js \
+prouver 'marges 1.264 f : le graphe des mois perd la courbe du cumul' modules/socle/ecrans/entreprise/app-1.js \
   "    s += \`<polyline points=" "    if (0) s += \`<polyline points=" \
   'Marges : chemin, onglets comptés, pas de tuiles, les chiffres au pied ; une pièce ouverte depuis une fiche y ramène'
 # Les premiers écrans des modules au modèle des maquettes (1.265.0) : l'icône, les étapes, le téléphone, le catalogue.
-prouver 'vides 1.265 a : le premier écran d'\''un module perd son icône' web/public/v10/app.js \
+prouver 'vides 1.265 a : le premier écran d'\''un module perd son icône' modules/socle/ecrans/entreprise/app-1.js \
   "<span class=\"pr-ic\">\${lfIc(o.ic || 'piece', 26, 1.8)}</span>" "" \
   'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
-prouver 'vides 1.265 b : les étapes des modules ne se montrent plus' web/public/v10/app.js \
+prouver 'vides 1.265 b : les étapes des modules ne se montrent plus' modules/socle/ecrans/entreprise/app-1.js \
   "    const o = { ...(VIDE_MODELE[titre] || {}), ...o0 };" "    const o = { ...o0 };" \
   'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
 prouver 'vides 1.265 c : au téléphone, la paie garde ses deux colonnes serrées' web/public/plateforme/liste.css \
   "  .panel.premiere, .pm .panel.premiere { grid-template-columns: minmax(0, 1fr);" "  .panel.premiere { grid-template-columns: minmax(0, 1fr);" \
   'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
-prouver 'vides 1.265 d : le catalogue vide redevient une phrase grise sous une recherche' web/public/v10/app.js \
+prouver 'vides 1.265 d : le catalogue vide redevient une phrase grise sous une recherche' modules/socle/ecrans/entreprise/app-1.js \
   "        if (opts.vide && !rows().length) {" "        if (false && opts.vide && !rows().length) {" \
   'chaque module vide montre la carte des maquettes : icône, titre, un seul bouton principal, les étapes'
 # La trésorerie dans la nouvelle DA, « go faire tout » (1.266.0) : le moteur (seuil, habitude, salaires et impôts estimés,
 # dépenses qui reviennent, essai, relevé) et l'écran (filtres gris, bouton principal, traite datée de son échéance).
-prouver 'tréso 1.266 a : une ligne du relevé déjà pointée redevient « absente de SkanFact »' web/public/v10/core.js \
+prouver 'tréso 1.266 a : une ligne du relevé déjà pointée redevient « absente de SkanFact »' modules/socle/moteur/core-2.js \
   '      if (d) dejaPointees.push(d); else absentes.push(l);' '      absentes.push(l);' \
   'le portefeuille des effets et l'\''appariement d'\''un relevé'
-prouver 'tréso 1.266 b : « comme ils paient d'\''habitude » attend tout le monde à l'\''échéance' web/public/v10/core.js \
+prouver 'tréso 1.266 b : « comme ils paient d'\''habitude » attend tout le monde à l'\''échéance' modules/socle/moteur/core-2.js \
   '      if (dl && dl.jours > 0) { const at' '      if (false && dl && dl.jours > 0) { const at' \
   '« habitude » attend un client à son délai réel ; sans deux factures soldées, à l'\''échéance'
-prouver 'tréso 1.266 c : le seuil de l'\''entreprise est ignoré, seul zéro alerte' web/public/v10/core.js \
+prouver 'tréso 1.266 c : le seuil de l'\''entreprise est ignoré, seul zéro alerte' modules/socle/moteur/core-2.js \
   '    for (const p of points) if (p.balance < seuil - 0.0005)' '    for (const p of points) if (p.balance < 0 - 0.0005)' \
   'le seuil donne la date du premier passage dessous ; un seuil illisible vaut zéro'
-prouver 'tréso 1.266 d : les salaires des mois sans bulletin ne sortent plus' web/public/v10/core.js \
+prouver 'tréso 1.266 d : les salaires des mois sans bulletin ne sortent plus' modules/socle/moteur/core-2.js \
   '    if (o.salaires !== false) {' '    if (false) {' \
   'les salaires des mois sans bulletin sortent, au net du contrat, à la fin de chaque mois'
-prouver 'tréso 1.266 e : une TVA déjà déclarée sort encore de la prévision' web/public/v10/core.js \
+prouver 'tréso 1.266 e : une TVA déjà déclarée sort encore de la prévision' modules/socle/moteur/core-2.js \
   '          if (!done.has(fiscalFilingId('\''tva'\'', d))) {' '          if (true) {' \
   'la TVA du mois écoulé sort le 28, estimée sur ce qui est saisi ; déclarée, elle ne sort plus'
-prouver 'tréso 1.266 f : un loyer déjà noté payé sort une seconde fois' web/public/v10/core.js \
+prouver 'tréso 1.266 f : un loyer déjà noté payé sort une seconde fois' modules/socle/moteur/core-2.js \
   '        if (d <= t || notees.has(`${m.id}@${d}`)) continue;' '        if (d <= t) continue;' \
   'un loyer qui se répète sort chaque mois ; une occurrence notée ne sort plus deux fois'
-prouver 'tréso 1.266 g : l'\''essai de décalage ne décale plus rien' web/public/v10/core.js \
+prouver 'tréso 1.266 g : l'\''essai de décalage ne décale plus rien' modules/socle/moteur/core-2.js \
   '      if (!dec[cle]) continue;' '      continue;' \
   'l'\''essai de décalage déplace une échéance sans rien enregistrer'
-prouver 'tréso 1.266 h : « sans les retards » garde les factures déjà échues' web/public/v10/core.js \
+prouver 'tréso 1.266 h : « sans les retards » garde les factures déjà échues' modules/socle/moteur/core-2.js \
   '    if (prudent && d.dueDate && d.dueDate < t) return;' '' \
   'les semaines refont la prévision au millime ; « prudent » retire exactement les factures déjà échues'
-prouver 'tréso 1.266 i : l'\''horizon redevient un onglet noir au lieu d'\''un filtre gris' web/public/v10/app.js \
+prouver 'tréso 1.266 i : l'\''horizon redevient un onglet noir au lieu d'\''un filtre gris' modules/socle/ecrans/entreprise/app-2.js \
   '<div class="pa-seg filtre" id="t-days"' '<div class="pa-seg" id="t-days"' \
   'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
-prouver 'tréso 1.266 j : les filtres gris reprennent le noir des onglets' web/public/plateforme/paie.css \
+prouver 'tréso 1.266 j : les filtres gris reprennent le noir des onglets' modules/personnel/styles/paie.css \
   '.pa-seg.filtre button.active { background: var(--sb-papier);' '.pa-seg.filtre button.active { background: var(--sb-encre);' \
   'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
-prouver 'tréso 1.266 k : une traite est datée du jour où on la reçoit, pas de son échéance' web/public/v10/app.js \
+prouver 'tréso 1.266 k : une traite est datée du jour où on la reçoit, pas de son échéance' modules/socle/ecrans/entreprise/app-1.js \
   '        const champs = { date: ech || v.date, amount: C.round3(rend ? -v.amount : v.amount)' '        const champs = { date: v.date, amount: C.round3(rend ? -v.amount : v.amount)' \
   'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
-prouver 'tréso 1.266 l : le bouton principal ne propose plus de pointer le relevé' web/public/v10/app.js \
+prouver 'tréso 1.266 l : le bouton principal ne propose plus de pointer le relevé' modules/socle/ecrans/entreprise/app-2.js \
   '        : aPointer > 0 ? { id: '\''tr-pointer'\''' '        : false ? { id: '\''tr-pointer'\''' \
   'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
 # ── Les corrections urgentes de la paie et de l'achat (16 § 10.1, 17 lot V1 ; nuit du 03/11/2026) ──
-prouver 'urgence V1 : l'"'"'achat en devise sans taux lève une erreur au lieu du refus' web/public/v10/app.js \
+prouver 'urgence V1 : l'"'"'achat en devise sans taux lève une erreur au lieu du refus' modules/socle/ecrans/entreprise/app-1.js \
   'return refus('"'"'[name=exchangeRate]'"'"',' 'return refus(charte ? '"'"'[data-etq=devise]'"'"' : '"'"'[name=exchangeRate]'"'"',' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
 # 16 § 10.1, point 11 : « Un départ… » du menu ⋯ de la paie appelait la fenêtre de l'heure de sortie du pointage (même
 # nom depuis 1.259.0, déclarée dans la page Paie : elle cachait celle du départ). Chacune a son nom.
 WPDEP='« Un départ… » du menu ⋯ ouvre la sortie du salarié choisi ; « Mettre sa sortie… » de la journée, son heure de sortie'
-prouver "paie 10.1-11 a : « Un départ… » appelle la fenêtre de l'heure de sortie" web/public/v10/app.js \
+prouver "paie 10.1-11 a : « Un départ… » appelle la fenêtre de l'heure de sortie" 'modules/personnel/ecrans/entreprise/paie.js|||modules/personnel/ecrans/entreprise/paie.js' \
   '    function heureSortieFenetre(e, iso, apres) {|||if (e) heureSortieFenetre(e, iso, redessin); });' \
   '    function sortieFenetre(e, iso, apres) {|||if (e) sortieFenetre(e, iso, redessin); });' \
   "$WPDEP"
-prouver "paie 10.1-11 b : « Mettre sa sortie… » ouvre la fenêtre du départ" web/public/v10/app.js \
+prouver "paie 10.1-11 b : « Mettre sa sortie… » ouvre la fenêtre du départ" modules/personnel/ecrans/entreprise/paie.js \
   'if (e) heureSortieFenetre(e, iso, redessin); });' 'if (e) sortieFenetre(e, iso, redessin); });' \
   "$WPDEP"
 
 # 16 § 10.1, point 1 : la CSS de 0,5 % ne vaut que pour 2026 (À VÉRIFIER) ; sa règle porte sa date de fin, lue par l'écran,
 # le Cabinet, l'exemple et le serveur ; la page et la fenêtre « Établir » disent « Barèmes de 2027 pas encore relus ».
-prouver 'paie 10.1-1 a : la CSS retenue après sa règle' web/public/v10/compta.js \
+prouver 'paie 10.1-1 a : la CSS retenue après sa règle' modules/personnel/moteur/compta-paie.js \
   'if (cssFinie) s.solidarity = 0;' \
   'if (false) s.solidarity = 0;' \
   'la CSS de 2026 s'"'"'arrête le 31/12/2026 : décembre la retient, janvier 2027 n'"'"'en retient aucune, quel que soit son taux'
-prouver 'paie 10.1-1 b : la CSS sans date de fin' web/public/v10/compta.js \
+prouver 'paie 10.1-1 b : la CSS sans date de fin' modules/personnel/moteur/compta-paie.js \
   'const CSS_JUSQU_AU = '"'"'2026-12-31'"'"';' \
   'const CSS_JUSQU_AU = '"'"'9999-12-31'"'"';' \
   'la CSS de 2026 s'"'"'arrête le 31/12/2026 : décembre la retient, janvier 2027 n'"'"'en retient aucune, quel que soit son taux'
-prouver 'paie 10.1-1 c : la CSS coupée dès décembre 2026' web/public/v10/compta.js \
+prouver 'paie 10.1-1 c : la CSS coupée dès décembre 2026' modules/personnel/moteur/compta-paie.js \
   'return j === null || j <= CSS_JUSQU_AU; }' \
   'return j === null || j < CSS_JUSQU_AU.slice(0, 7); }' \
   'la CSS de 2026 s'"'"'arrête le 31/12/2026 : décembre la retient, janvier 2027 n'"'"'en retient aucune, quel que soit son taux'
-prouver 'paie 10.1-1 d : la CSS d'"'"'un régime de contrat gardée en 2027' web/public/v10/compta.js \
+prouver 'paie 10.1-1 d : la CSS d'"'"'un régime de contrat gardée en 2027' modules/personnel/moteur/compta-paie.js \
   'if (cssFinie) s.solidarity = 0;' \
   'if (cssFinie && !regime.solidarity) s.solidarity = 0;' \
   'la CSS de 2026 s'"'"'arrête le 31/12/2026 : décembre la retient, janvier 2027 n'"'"'en retient aucune, quel que soit son taux'
-prouver 'paie 10.1-1 e : le bulletin imprimé tait la CSS non retenue' web/public/v10/core.js \
+prouver 'paie 10.1-1 e : le bulletin imprimé tait la CSS non retenue' modules/personnel/moteur/core-paie.js \
   ': c.cssFinie ? row(' \
   ': false ? row(' \
   'le bulletin imprimé dit pourquoi janvier 2027 n'"'"'a pas de CSS ; décembre 2026 garde sa ligne à 5,421'
-prouver 'paie 10.1-1 f : le contrôle du mois tait les barèmes de 2027' web/public/v10/core.js \
+prouver 'paie 10.1-1 f : le contrôle du mois tait les barèmes de 2027' modules/personnel/moteur/core-paie.js \
   'const nonRelus = Compta.baremesNonRelus(y, m);' \
   'const nonRelus = null;' \
   'le contrôle du mois dit « Barèmes de 2027 pas encore relus », pas en décembre 2026'
-prouver 'paie 10.1-1 g : le Cabinet calcule un bulletin sans son mois' web/public/v10/compta.js \
+prouver 'paie 10.1-1 g : le Cabinet calcule un bulletin sans son mois' modules/personnel/moteur/compta-paie.js \
   '      year: Number(bulletin.annee), month: Number(bulletin.mois),' \
   '' \
   'au Cabinet, le bulletin de janvier 2027 d'"'"'un dossier tenu n'"'"'a pas de CSS ; celui de décembre 2026 la garde'
@@ -22964,15 +22964,15 @@ prouver 'paie 10.1-1 j : le serveur refuse la CSS de décembre 2026' serveur/v10
   'if (bareme.solidarite > 0n && !Regles().cssPoseePour(annee, mois)) {' \
   'if (bareme.solidarite > 0n && !Regles().cssPoseePour(annee + 1, mois)) {' \
   'la CSS s'"'"'arrête avec sa règle : décembre 2026 la retient, janvier 2027 non, au même millime à l'"'"'écran et au serveur ; un bulletin de 2027 qui la retient encore est refusé'
-prouver 'paie 10.1-1 k : Établir les bulletins du mois oublie le mois' web/public/v10/app.js \
+prouver 'paie 10.1-1 k : Établir les bulletins du mois oublie le mois' 'modules/personnel/ecrans/entreprise/paie.js|||modules/personnel/ecrans/entreprise/paie.js' \
   'const input = { ...C.payslipInputFor(data, e, y, m), year: y, month: m };|||data.payslips.push({ id: C.uid(), employeeId: e.id, ...input,' \
   'const input = C.payslipInputFor(data, e, y, m);|||data.payslips.push({ id: C.uid(), employeeId: e.id, year: y, month: m, ...input,' \
   'janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d'"'"'établir, les bulletins sans CSS au serveur'
-prouver 'paie 10.1-1 l : la fenêtre Établir sans l'"'"'avertissement des barèmes' web/public/v10/app.js \
+prouver 'paie 10.1-1 l : la fenêtre Établir sans l'"'"'avertissement des barèmes' modules/personnel/ecrans/entreprise/paie.js \
   '${C.baremesNonRelus(y, m) ? `<div class="warn-box mt" id="p-etab-relus">' \
   '${false ? `<div class="warn-box mt" id="p-etab-relus">' \
   'janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d'"'"'établir, les bulletins sans CSS au serveur'
-prouver 'paie 10.1-1 m : la page sans l'"'"'avertissement des barèmes' web/public/v10/app.js \
+prouver 'paie 10.1-1 m : la page sans l'"'"'avertissement des barèmes' modules/personnel/ecrans/entreprise/paie.js \
   '${nonRelus ? `<div class="warn-box mb" id="p-relus">' \
   '${false ? `<div class="warn-box mb" id="p-relus">' \
   'janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d'"'"'établir, les bulletins sans CSS au serveur'
@@ -22987,47 +22987,47 @@ PTF6='les versions, les imports, les mois rouverts et les journées validées se
 PTF7='un rôle qui ne voit pas le pointage : la fusion n'\''invente aucune partie'
 PTW1='un poste note pendant qu'\''un autre change un client : la journée notée et la case effacée tiennent, seul le client est en conflit'
 PTW2='rouverte avec le réseau : le pointage noté sans réseau et celui d'\''un autre poste, le même mois, restent tous les deux ; la case effacée ne revient pas'
-prouver 'urgence 2 a : la fusion oublie le pointage' web/public/v10/core.js \
+prouver 'urgence 2 a : la fusion oublie le pointage' modules/socle/moteur/core-2.js \
   "    fusionnerPointage(anc, winner, loser, out, conflicts, archive, theirsWins ? 'autre poste' : 'ce poste');
 " "" \
   "$PTF1"
-prouver 'urgence 2 b : une case effacée revient (l'\''ancêtre ignoré)' web/public/v10/core.js \
+prouver 'urgence 2 b : une case effacée revient (l'\''ancêtre ignoré)' modules/socle/moteur/core-2.js \
   'const x = (anc || {})[k], y' 'const x = undefined, y' \
   "$PTF3"
-prouver 'urgence 2 c : la même case changée des deux côtés passe sous silence' web/public/v10/core.js \
+prouver 'urgence 2 c : la même case changée des deux côtés passe sous silence' modules/socle/moteur/core-2.js \
   '            dire(t.id, `${nom}, le ${a2(j)}/${a2(t.month)}/${t.year}`, { champ: c, jour: j, valeur: z === undefined ? null : z });
 ' '' \
   "$PTF4"
-prouver 'urgence 2 d : les heures sup du mois d'\''un seul poste' web/public/v10/core.js \
+prouver 'urgence 2 d : les heures sup du mois d'\''un seul poste' modules/socle/moteur/core-2.js \
   '        t.hs = hs;
         ts.push(t);' '        ts.push(t);' \
   "$PTF2"
-prouver 'urgence 2 e : deux postes créent chacun leur pointage du mois' web/public/v10/compta.js \
+prouver 'urgence 2 e : deux postes créent chacun leur pointage du mois' modules/personnel/moteur/compta-paie.js \
   'const idPointage = (employeeId, year, month) => `pt-${employeeId}-${Number(year)}-${String(Number(month)).padStart(2, '\''0'\'')}`;' 'const idPointage = () => uid();' \
   "$PTF5"
-prouver 'urgence 2 f : deux objets du même mois restent deux' web/public/v10/core.js \
+prouver 'urgence 2 f : deux objets du même mois restent deux' modules/socle/moteur/core-2.js \
   'const k = t.employeeId ? `${t.employeeId}|${Number(t.year)}|${Number(t.month)}` : `?${t.id}`;' 'const k = t.id;' \
   "$PTF5"
-prouver 'urgence 2 g : les journées validées ne se fusionnent pas' web/public/v10/core.js \
+prouver 'urgence 2 g : les journées validées ne se fusionnent pas' modules/socle/moteur/core-2.js \
   '      out.joursValides = Object.values(' '      void Object.values(' \
   "$PTF6"
-prouver 'urgence 2 h : les versions validées et les imports de la pointeuse ne se fusionnent pas' web/public/v10/core.js \
+prouver 'urgence 2 h : les versions validées et les imports de la pointeuse ne se fusionnent pas' modules/socle/moteur/core-2.js \
   "    ['pointageVersions', 'badgeImports'].forEach(c => {" '    [].forEach(c => {' \
   "$PTF6"
-prouver 'urgence 2 i : un mois rouvert se perd' web/public/v10/core.js \
+prouver 'urgence 2 i : un mois rouvert se perd' modules/socle/moteur/core-2.js \
   '      out.pointageOuverts = Object.keys(' '      void Object.keys(' \
   "$PTF6"
-prouver 'urgence 2 j : la fusion invente les journées validées d'\''un rôle qui ne les voit pas' web/public/v10/core.js \
+prouver 'urgence 2 j : la fusion invente les journées validées d'\''un rôle qui ne les voit pas' modules/socle/moteur/core-2.js \
   '    if (Array.isArray(winner.joursValides) || Array.isArray(loser.joursValides)) {' '    {' \
   "$PTF7"
-prouver 'urgence 2 k : des passages de la pointeuse perdus' web/public/v10/core.js \
+prouver 'urgence 2 k : des passages de la pointeuse perdus' modules/socle/moteur/core-2.js \
   "            if (c === 'badges' && plat(y) && plat(z)) return { ...z, ...y, h: [...new Set([...(y.h || []), ...(z.h || [])])].sort() };
 " "" \
   "$PTF4"
 prouver 'urgence 2 l : le conflit rendu sans ce que la page avait du serveur' $PONT \
   'return { conflict: true, ancetre: assembler(objetsVus()), disk:' 'return { conflict: true, disk:' \
   "$PTW1"
-prouver 'urgence 2 m : la page fusionne sans l'\''ancêtre' web/public/v10/app.js \
+prouver 'urgence 2 m : la page fusionne sans l'\''ancêtre' modules/socle/ecrans/entreprise/app-1.js \
   '      const m = C.mergeData(data, r.disk, r.ancetre);' '      const m = C.mergeData(data, r.disk);' \
   "$PTW1"
 prouver 'urgence 2 n : rouverte, le pointage fusionné repart dans une révision périmée' $PONT \
@@ -23038,34 +23038,34 @@ prouver 'urgence 2 o : rouverte, la fusion sans l'\''ancêtre' $PONT \
   "$PTW2"
 
 # 16 § 10.1, point 6 : « Retirer déposée » d'une déclaration payée effaçait son paiement sans le dire (Paie et calendrier).
-prouver 'paie 10.1-6 a : la Paie retire encore la déclaration payée sans rien en dire' web/public/v10/app.js \
+prouver 'paie 10.1-6 a : la Paie retire encore la déclaration payée sans rien en dire' modules/personnel/ecrans/entreprise/paie.js \
   '        if (f) return retirerDeclarationSociale(id, label, draw);' \
   '        if (f) { data.socialFilings = data.socialFilings.filter(x => x.id !== id); save(true); draw(); return; }' \
   'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
-prouver 'paie 10.1-6 b : la question ne dit plus que le paiement part avec la mention' web/public/v10/app.js \
+prouver 'paie 10.1-6 b : la question ne dit plus que le paiement part avec la mention' modules/personnel/ecrans/entreprise/paie.js \
   '    const paye = !!(f.paidDate && Number(f.amount));' \
   '    const paye = false;' \
   'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
-prouver 'paie 10.1-6 c : « Annuler » ne remet plus la déclaration ni son paiement' web/public/v10/app.js \
+prouver 'paie 10.1-6 c : « Annuler » ne remet plus la déclaration ni son paiement' modules/personnel/ecrans/entreprise/paie.js \
   '      data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id).concat([f]);' \
   '      data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id);' \
   'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
-prouver 'paie 10.1-6 d : un paiement pointé sur un relevé se retire quand même' web/public/v10/app.js \
+prouver 'paie 10.1-6 d : un paiement pointé sur un relevé se retire quand même' modules/personnel/ecrans/entreprise/paie.js \
   '    if (paye && f.reconciled) {' \
   '    if (false) {' \
   'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
-prouver 'paie 10.1-6 e : un paiement daté d'"'"'un mois clos se retire quand même' web/public/v10/app.js \
+prouver 'paie 10.1-6 e : un paiement daté d'"'"'un mois clos se retire quand même' modules/personnel/ecrans/entreprise/paie.js \
   '    if (paye && closedBlock(f.paidDate, '"'"'Ce paiement'"'"')) return;' \
   '' \
   'urgence 6 : « Retirer la mention » d'"'"'une déclaration payée dit que le paiement part, et « Annuler » la remet ; pointée sur un relevé ou datée d'"'"'un mois clos, elle reste'
-prouver 'paie 10.1-6 f : le calendrier fiscal retire encore la déclaration payée sans rien demander' web/public/v10/app.js \
+prouver 'paie 10.1-6 f : le calendrier fiscal retire encore la déclaration payée sans rien demander' modules/socle/ecrans/entreprise/app-2.js \
   '        if (b.dataset.fsoc) return retirerDeclarationSociale(id, b.dataset.flab, draw);' \
   '        if (b.dataset.fsoc) data.socialFilings = (data.socialFilings || []).filter(f => f.id !== id);' \
   'urgence 6 : le calendrier fiscal retire une déclaration payée par la même question, et « Annuler » la remet'
 
 # 16 § 10.1, point 9 : `validerJour` coupait les journées validées aux 400 dernières ; la plus ancienne redevenait
 # « pas encore validée » et se changeait sans être rouverte. Elles se gardent toutes (16 § 8, « sans limite »).
-prouver 'paie 10.1-9 : les journées validées coupées aux 400 dernières' web/public/v10/app.js \
+prouver 'paie 10.1-9 : les journées validées coupées aux 400 dernières' modules/personnel/ecrans/entreprise/paie.js \
   '{ iso, le: new Date().toISOString() }]; };' '{ iso, le: new Date().toISOString() }].slice(-400); };' \
   'une journée validée le reste, même après 400 autres'
 
@@ -23135,20 +23135,20 @@ prouver 'paie 10.1-7 g : un congé jugé à sa fin seulement' serveur/v10/paie.t
 # 16 § 10.1, point 7, à l'écran : ce que le serveur refuse désormais dans une période close se dit avant le geste ; un bulletin
 # d'un mois clos se tient comme un bulletin payé (ses primes se lisent, une augmentation y porte un rappel sur le mois ouvert).
 PCE='une période clôturée tient comme un mois payé : primes du mois fermées, rappel sur le mois ouvert, demande refusée avant le geste'
-prouver 'paie 10.1-7 h : une augmentation qui refait le bulletin d'"'"'un mois clos' web/public/v10/app.js \
+prouver 'paie 10.1-7 h : une augmentation qui refait le bulletin d'"'"'un mois clos' modules/personnel/ecrans/entreprise/paie.js \
   '    const tenu = p => p.paidDate || C.isClosedDate(data, C.payslipDate(p));' '    const tenu = p => p.paidDate;' \
   "$PCE"
-prouver 'paie 10.1-7 i : le rappel porté sur un mois clos' web/public/v10/app.js \
+prouver 'paie 10.1-7 i : le rappel porté sur un mois clos' modules/personnel/ecrans/entreprise/paie.js \
   'if ((!b || !b.paidDate) && !C.isClosedDate(data, C.payslipDate({ year: yy, month: mm }))) return' 'if (!b || !b.paidDate) return' \
   "$PCE"
-prouver 'paie 10.1-7 j : les primes d'"'"'un mois clos ouvertes à la saisie' web/public/v10/app.js \
+prouver 'paie 10.1-7 j : les primes d'"'"'un mois clos ouvertes à la saisie' modules/personnel/ecrans/entreprise/paie.js \
   'return b && (b.paidDate || b.valideLe || C.isClosedDate(data, C.payslipDate(b))) ?' 'return b && (b.paidDate || b.valideLe) ?' \
   "$PCE"
-prouver 'paie 10.1-7 k : une demande de congé d'"'"'un mois clos acceptée sans prévenir' web/public/v10/app.js \
+prouver 'paie 10.1-7 k : une demande de congé d'"'"'un mois clos acceptée sans prévenir' modules/personnel/ecrans/entreprise/paie.js \
   "pas à l'envoi.
         if (closedBlock([l.from, l.to], 'Cette demande')) return;" "pas à l'envoi." \
   "$PCE"
-prouver 'paie 10.1-7 l : des badges d'"'"'une période close importés sans prévenir' web/public/v10/app.js \
+prouver 'paie 10.1-7 l : des badges d'"'"'une période close importés sans prévenir' modules/personnel/ecrans/entreprise/paie.js \
   "          if (clos.rattaches - clos.deja > 0 && closedBlock(clos.du, 'Cet import de badges')) return;" '' \
   'la pointeuse dans une période clôturée : le refus se dit avant d'"'"'importer, rien ne s'"'"'écrit'
 
@@ -23168,7 +23168,7 @@ prouver 'paie 10.1-12 c : le serveur range le bulletin sans sa marque' serveur/c
 prouver 'paie 10.1-12 d : la saisie qui dépose un bulletin reçoit le refus brut de la base' serveur/cabinet/classeur.ts \
   'if (corps.paie && !(await' 'if (false && !(await' \
   "$B12"
-prouver 'paie 10.1-12 e : « Les envoyer » range les bulletins sans la marque de la paie' web/public/v10/cabinet/app.js \
+prouver 'paie 10.1-12 e : « Les envoyer » range les bulletins sans la marque de la paie' modules/personnel/ecrans/cabinet/paie.js \
   "detail: 'bulletin validé', paie: true," "detail: 'bulletin validé'," \
   "$P12"
 prouver 'paie 10.1-12 f : le pont oublie la marque de la paie' web/public/plateforme/pont-cabinet.js \
@@ -23236,31 +23236,31 @@ PTR2='les mois sans bulletins : leur part paie le 28 et leur CNSS au trimestre, 
 PTR3='le salaire prévu et le coût d'"'"'une heure d'"'"'un mois sans bulletin comptent les primes de la fiche'
 WPAV='« Une avance ou un prêt » : le net habituel compte les primes de la fiche, et la retenue de 360 DT n'"'"'est pas « beaucoup »'
 CPAV='une avance au Cabinet : le net habituel compte les primes de la fiche, et 360 DT ne se dit pas « lourd »'
-prouver 'paie 10.1-4 a : la part paie payée à part sort une seconde fois' web/public/v10/core.js \
+prouver 'paie 10.1-4 a : la part paie payée à part sort une seconde fois' modules/socle/moteur/core-2.js \
   'if (!sociales.has(`dm-${yy}-${pad2(mois)}`)) {' 'if (true) {' \
   "$PTR1"
-prouver 'paie 10.1-4 b : la part paie d'"'"'un mois sans bulletins n'"'"'est pas prévue' web/public/v10/core.js \
+prouver 'paie 10.1-4 b : la part paie d'"'"'un mois sans bulletins n'"'"'est pas prévue' modules/socle/moteur/core-2.js \
   '              sal = round3(sansBulletin(yy, mois).reduce(' '              void (sansBulletin(yy, mois).reduce(' \
   "$PTR2"
-prouver 'paie 10.1-4 c : la CNSS du trimestre ne compte que les bulletins faits' web/public/v10/core.js \
+prouver 'paie 10.1-4 c : la CNSS du trimestre ne compte que les bulletins faits' modules/socle/moteur/core-2.js \
   'const total = c ? round3(c.months.reduce(' 'const total = c ? round3([].reduce(' \
   "$PTR2"
-prouver 'paie 10.1-4 d : un mois passé sans bulletin estimé aux impôts, pas au salaire' web/public/v10/core.js \
+prouver 'paie 10.1-4 d : un mois passé sans bulletin estimé aux impôts, pas au salaire' modules/socle/moteur/core-2.js \
   '      if (fin < t) return [];' '      if (false) return [];' \
   "$PTR2"
-prouver 'paie 10.1-4 e : un salarié sorti estimé après sa sortie' web/public/v10/core.js \
+prouver 'paie 10.1-4 e : un salarié sorti estimé après sa sortie' modules/socle/moteur/core-2.js \
   ' || (e.endDate && e.endDate < debut)) && !aBulletin' ') && !aBulletin' \
   "$PTR2"
-prouver 'paie 10.1-10 a : le salaire prévu sans les primes de la fiche' web/public/v10/core.js \
+prouver 'paie 10.1-10 a : le salaire prévu sans les primes de la fiche' modules/socle/moteur/core-2.js \
   'return computePayslip(e, saisieDeLaFiche(e, sPaie), sPaie) || {};' 'return computePayslip(e, {}, sPaie) || {};' \
   "$PTR3"
-prouver 'paie 10.1-10 b : le coût d'"'"'une heure sans les primes de la fiche' web/public/v10/core.js \
+prouver 'paie 10.1-10 b : le coût d'"'"'une heure sans les primes de la fiche' modules/socle/moteur/core-1.js \
   'computePayslip(emp, saisieDeLaFiche(emp, s), s).employerCost' 'computePayslip(emp, {}, s).employerCost' \
   "$PTR3"
-prouver 'paie 10.1-10 c : le contrôle d'"'"'une avance sans les primes de la fiche' web/public/v10/app.js \
+prouver 'paie 10.1-10 c : le contrôle d'"'"'une avance sans les primes de la fiche' modules/personnel/ecrans/entreprise/paie.js \
   'net = emp ? C.computePayslip(emp, C.saisieDeLaFiche(emp, st), st).net : 0;' 'net = emp ? C.computePayslip(emp, {}, st).net : 0;' \
   "$WPAV"
-prouver 'paie 10.1-10 d : l'"'"'avance du Cabinet sans les primes de la fiche' web/public/v10/cabinet/app.js \
+prouver 'paie 10.1-10 d : l'"'"'avance du Cabinet sans les primes de la fiche' modules/personnel/ecrans/cabinet/paie.js \
   '{ bonuses: KC.primesDuMois({ primes: sal.primes }) }' '{}' \
   "$CPAV"
 
@@ -23292,25 +23292,25 @@ prouver 'paie 10.1-4 k : la copie du poste oublie « sans la paie »' web/public
 prouver 'paie 10.1-4 l : la page ne reçoit pas « sans la paie »' web/public/plateforme/pont.js \
   'responsable, caisse: tientCaisse, paieCachee }),' 'responsable, caisse: tientCaisse }),' \
   "$SPP1"
-prouver 'paie 10.1-4 m : la trésorerie se tait sur la paie' web/public/v10/app.js \
+prouver 'paie 10.1-4 m : la trésorerie se tait sur la paie' modules/socle/ecrans/entreprise/app-2.js \
   '${bandeauSansPaie('"'"'ces soldes et cette prévision'"'"', true)}' '' \
   "$SPW1"
-prouver 'paie 10.1-4 n : « À décaisser » promet encore les salaires' web/public/v10/app.js \
+prouver 'paie 10.1-4 n : « À décaisser » promet encore les salaires' modules/socle/ecrans/entreprise/app-2.js \
   'paieCachee() ? '"'"'achats et saisies, sans les salaires'"'"' : ' '' \
   "$SPW1"
-prouver 'paie 10.1-4 o : le relevé pousse à créer un salaire' web/public/v10/app.js \
+prouver 'paie 10.1-4 o : le relevé pousse à créer un salaire' modules/socle/ecrans/entreprise/app-2.js \
   '${paieCachee() ? '"'"' <b id="imp-sans-paie">' '${false ? '"'"' <b id="imp-sans-paie">' \
   "$SPW1"
-prouver 'paie 10.1-4 p : la comptabilité se tait sur la paie' web/public/v10/app.js \
+prouver 'paie 10.1-4 p : la comptabilité se tait sur la paie' modules/socle/ecrans/entreprise/app-2.js \
   '${bandeauSansPaie('"'"'cette comptabilité'"'"')}<div id="c-body"></div>' '<div id="c-body"></div>' \
   "$SPW1"
-prouver 'paie 10.1-4 q : un FEC sans la paie s'"'"'écrit' web/public/v10/app.js \
+prouver 'paie 10.1-4 q : un FEC sans la paie s'"'"'écrit' modules/socle/ecrans/entreprise/app-2.js \
   'if (paieCachee()) return infoDialog(' 'if (false) return infoDialog(' \
   "$SPW1"
-prouver 'paie 10.1-4 r : les marges se taisent sur la paie' web/public/v10/app.js \
+prouver 'paie 10.1-4 r : les marges se taisent sur la paie' modules/socle/ecrans/entreprise/app-1.js \
   '${bandeauSansPaie('"'"'le point mort et la marge des affaires'"'"', true)}' '' \
   "$SPW1"
-prouver 'paie 10.1-4 s : l'"'"'affaire se tait sur la paie' web/public/v10/app.js \
+prouver 'paie 10.1-4 s : l'"'"'affaire se tait sur la paie' modules/socle/ecrans/entreprise/app-1.js \
   '${bandeauSansPaie('"'"'la marge de cette affaire (la main d\'"'"'œuvre notée)'"'"')}' '' \
   "$SPW1"
 
@@ -23346,10 +23346,10 @@ prouver 'urgence 5 h : le paiement refusé parce que la caisse est fermée' serv
 prouver 'urgence 5 i : une sortie notée dans une session déjà fermée' serveur/caisse/sortie.ts \
   'where entreprise = $1 and fermee_le is null order by ouverte_le limit 1 for update' 'where entreprise = $1 order by ouverte_le desc limit 1 for update' \
   "$SOR2"
-prouver 'urgence 5 j : le Z à l'\''écran sans ce que la paie a pris au tiroir' web/public/v10/app.js \
+prouver 'urgence 5 j : le Z à l'\''écran sans ce que la paie a pris au tiroir' modules/socle/ecrans/entreprise/app-2.js \
   "\${Number(z.sorties) ? ligne('Payé du tiroir pour la paie (salaires, avances)'" "\${false ? ligne('Payé du tiroir pour la paie (salaires, avances)'" \
   "$SORW"
-prouver 'urgence 5 k : le Z imprimé sans ce que la paie a pris au tiroir' web/public/v10/core.js \
+prouver 'urgence 5 k : le Z imprimé sans ce que la paie a pris au tiroir' modules/socle/moteur/core-2.js \
   "\${Number(z.sorties) ? ligne('Payé du tiroir pour la paie'" "\${false ? ligne('Payé du tiroir pour la paie'" \
   "$SORW"
 
@@ -23398,7 +23398,7 @@ prouver 'paie 10.1-13 k : une trace à chaque réponse, même sans CIN ni RIB' s
 #    web/vite.config.ts, le chargeur de Node `lireEcran`) ──
 RA1='un fichier servi est la suite de ses morceaux ; une ligne retrouve son morceau ; un module retrouve les siens'
 RA2='l'"'"'assemblage refuse une coupe au milieu d'"'"'une ligne, un morceau en double, absent, vide ou hors des dossiers, et une copie morte'
-RA3='au lot R0a, chaque gros fichier passe par l'"'"'assemblage, et il est son unique morceau, à l'"'"'octet'
+RA3='depuis le lot A1, les écrans et le moteur vivent sous modules/ : le Personnel coupé dans chacun, ses styles chez lui, les ponts encore à leur place'
 RA4='la construction écrit chaque fichier assemblé avant de l'"'"'alléger, même absent de web/public ; le développement le sert assemblé'
 RA5='aucun code de Node ne lit un fichier assemblé en direct sous web/public : il passe par lireEcran'
 prouver 'R0a a : un fichier servi réduit à son premier morceau' commun/assemblage.ts \
@@ -23425,7 +23425,7 @@ prouver 'R0a g : un morceau vide servi' commun/assemblage.ts \
   '    if (!b.length) throw new AssemblageRefuse(' '    if (false) throw new AssemblageRefuse(' \
   "$RA2"
 prouver 'R0a h : un gros fichier qui ne passe plus par l'"'"'assemblage' modules/assemblage.json \
-  '    "v10/cabinet/app.js": ["web/public/v10/cabinet/app.js"],
+  '    "v10/cabinet/app.js": ["modules/socle/ecrans/cabinet/app-1.js", "modules/personnel/ecrans/cabinet/paie.js", "modules/socle/ecrans/cabinet/app-2.js"],
 ' '' \
   "$RA3"
 prouver 'R0a i : la construction qui n'"'"'écrit pas les fichiers assemblés' web/vite.config.ts \

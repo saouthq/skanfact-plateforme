@@ -1,6 +1,7 @@
 // L'assemblage des écrans (docs/cadrage/17-rangement.md § 3.1 et § 4.1 ; lot R0a, 03/11/2026). Un fichier servi est la
 // suite de ses morceaux, octet pour octet ; la construction et le serveur de développement le servent assemblé ; Node
-// le lit par un seul chargeur ; au lot R0a, chaque fichier est son unique morceau, et rien ne change d'un octet.
+// le lit par un seul chargeur. Au lot R0a, chaque fichier était son unique morceau ; depuis le lot A1 (04/11/2026), les
+// écrans et le moteur vivent sous modules/, le Personnel coupé à l'identique dans chacun.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -70,13 +71,19 @@ describe('l\'assemblage des écrans', () => {
     expect(refus({ 'web/public/v10/app.js': 'ancien();\n' }, { 'v10/app.js': ['web/public/v10/app.js'] })).toBeNull();
   });
 
-  it('au lot R0a, chaque gros fichier passe par l\'assemblage, et il est son unique morceau, à l\'octet', () => {
+  it('depuis le lot A1, les écrans et le moteur vivent sous modules/ : le Personnel coupé dans chacun, ses styles chez lui, les ponts encore à leur place', () => {
     const table = lireTable();
     for (const f of GROS) expect(Object.keys(table), f).toContain(f);
-    for (const [servi, liste] of Object.entries(table)) {
-      expect(liste, servi).toEqual([`web/public/${servi}`]);
-      expect(assemblerOctets(servi).equals(fs.readFileSync(path.join(RACINE_DU_DEPOT, 'web/public', servi))), servi).toBe(true);
+    // Les deux ponts : encore leur unique morceau, sous web/public (les lots de fin, 17 § 5).
+    for (const f of GROS.filter((g) => g.startsWith('plateforme/'))) expect(table[f], f).toEqual([`web/public/${f}`]);
+    // Les autres : tous leurs morceaux sous modules/, plus rien à leur adresse sous web/public.
+    for (const f of [...GROS.filter((g) => !g.startsWith('plateforme/')), 'plateforme/paie.css', 'plateforme/paie-maquette.css', 'plateforme/paie-cabinet.css']) {
+      expect(table[f]?.length && table[f]?.every((m) => m.startsWith('modules/')), f).toBe(true);
+      expect(fs.existsSync(path.join(RACINE_DU_DEPOT, 'web/public', f)), f).toBe(false);
     }
+    // Le Personnel : un morceau dans les deux écrans et les deux moteurs, et ses trois feuilles de style.
+    expect(morceauxDuModule('personnel').map((m) => m.servi).sort()).toEqual(['plateforme/paie-cabinet.css', 'plateforme/paie-maquette.css',
+      'plateforme/paie.css', 'v10/app.js', 'v10/cabinet/app.js', 'v10/compta.js', 'v10/core.js']);
   });
 
   it('la construction écrit chaque fichier assemblé avant de l\'alléger, même absent de web/public ; le développement le sert assemblé', async () => {

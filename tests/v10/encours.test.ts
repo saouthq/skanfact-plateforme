@@ -1,4 +1,4 @@
-// L'encours autorisé d'un client, dans le code de la v10 (web/public/v10/core.js, adapté par
+// L'encours autorisé d'un client, dans le code de la v10 (v10/core.js, adapté par
 // web/v10/commandes-fournisseurs.txt ; brique 91, 14 § 3.2 : « Encours autorisé par client : au-delà,
 // SkanFact avertit »). Le moteur seul :
 //   - l'encours : le reste à payer de ses factures émises (en dinars), plus ses bons livrés à facturer (TTC) ;

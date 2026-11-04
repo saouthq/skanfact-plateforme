@@ -1,14 +1,21 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import fs from 'node:fs';
 import globals from 'globals';
 
+// Les morceaux du code de la v10 déjà rangés sous modules/ (depuis le lot A1, 04/11/2026), lus dans la table de
+// l'assemblage : ceux-là seuls, le code neuf d'un module reste contrôlé.
+const morceauxV10 = Object.entries(JSON.parse(fs.readFileSync(new URL('./modules/assemblage.json', import.meta.url), 'utf8')).fichiers)
+  .filter(([servi]) => servi.startsWith('v10/')).flatMap(([, morceaux]) => morceaux).filter((m) => m.startsWith('modules/'));
+
 export default tseslint.config(
-  // Le code repris de la v10 (web/public/v10) est le nôtre depuis la 1.151.0 (26/10/2026), mais il est écrit dans le
-  // style de la v10 : il n'entre pas encore dans ce contrôle. Le rangement (docs/cadrage/17-rangement.md § 5, lot « Fin »)
-  // l'y fait entrer, module par module, une fois rangé dans modules/. Sa source figée (web/v10/source) reste une archive.
+  // Le code repris de la v10 (servi sous v10/ ; ses morceaux sous web/public/v10 ou sous modules/) est le nôtre depuis la
+  // 1.151.0 (26/10/2026), mais il est écrit dans le style de la v10 : il n'entre pas encore dans ce contrôle. Le rangement
+  // (docs/cadrage/17-rangement.md § 5, lot « Fin ») l'y fait entrer, module par module. Sa source figée (web/v10/source)
+  // reste une archive.
   // Le code d'un tiers recopié tel quel (web/public/tiers : le dessin des codes QR, brique 83) : un test le
   // compare octet pour octet à la version épinglée du paquet npm, il ne se reformule pas.
-  { ignores: ['node_modules/**', 'banc/v10/**', 'dist/**', 'web/public/v10/**', 'web/v10/source/**', 'web/public/tiers/**'] },
+  { ignores: ['node_modules/**', 'banc/v10/**', 'dist/**', 'web/public/v10/**', 'web/v10/source/**', 'web/public/tiers/**', ...morceauxV10] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

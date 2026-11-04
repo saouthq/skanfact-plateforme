@@ -157,6 +157,13 @@ vaut pour tout le dépôt.*
     (`outils/rangement/preuves.ts` : le morceau de sa famille qui porte son motif, réécrit à la ligne de son appel,
     l'équivalence de chacune) ; le contrôle éclair dit les pièges du rangement, et un fichier dont la liste de morceaux
     change choisit toutes ses preuves (`tests/commun/preuves-suivent.test.ts`).
+  - **Où vit le code des écrans** (1.266.11, lot A1 du `17` § 5) : `app.js`, `cabinet/app.js`, `core.js`, `compta.js`,
+    les deux guides et les deux visites ne sont plus sous `web/public/v10/` mais sous `modules/socle/` (`ecrans/`,
+    `moteur/`, `aide/`, `visites/`) ; la paie en est sortie, à l'identique, dans `modules/personnel/` (`ecrans/entreprise/
+    paie.js`, `ecrans/cabinet/paie.js`, `moteur/core-paie.js`, `moteur/compta-paie.js`, et ses trois feuilles de style
+    sous `styles/`). Ce que le navigateur reçoit ne change pas d'un octet : `modules/assemblage.json` dit, pour chaque
+    fichier servi, la suite de ses morceaux. Pour trouver une ligne d'un fichier servi : `origine()` de
+    `commun/assemblage.ts`. Les deux ponts restent sous `web/public/plateforme/`.
   - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
     (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
     (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs

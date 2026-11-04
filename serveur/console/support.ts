@@ -6,7 +6,7 @@
 //   - une demande sans réponse depuis plus de vingt-quatre heures (deux, si elle est urgente : 0115) remonte en tête, la
 //     plus ancienne d'abord : c'est la promesse faite au client (« on te répond dans la journée ») ;
 //   - une réponse type n'est pas un second texte à tenir : c'est un article de l'Aide de l'application, celui que le
-//     client a sous les yeux (web/public/v10/guide.js, lu tel que le navigateur le reçoit). On cite son identifiant.
+//     client a sous les yeux (v10/guide.js, lu tel que le navigateur le reçoit). On cite son identifiant.
 
 import vm from 'node:vm';
 import { lireEcran } from '../../commun/assemblage.ts';

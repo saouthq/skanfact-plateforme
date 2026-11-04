@@ -1,4 +1,4 @@
-// La relecture d'une facture lue, dans le code de la v10 (web/public/v10/core.js, `ocrToPurchase` ; brique 84) :
+// La relecture d'une facture lue, dans le code de la v10 (v10/core.js, `ocrToPurchase` ; brique 84) :
 // un taux que la lecture n'a pas trouvé (null) n'est PAS une TVA à 0 % ; la ligne reçoit le taux d'une ligne
 // neuve de la v10, et la fenêtre le dit (web/v10/lecture-photo.txt). Un taux lu est gardé tel quel.
 

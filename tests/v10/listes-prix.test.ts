@@ -1,4 +1,4 @@
-// Les listes de prix, dans le code de la v10 (web/public/v10/core.js, adapté par web/v10/listes-prix.txt ; brique
+// Les listes de prix, dans le code de la v10 (v10/core.js, adapté par web/v10/listes-prix.txt ; brique
 // 93, 14 § 3.2 et 01 § 5 `liste_prix` : « prix par client ou par catégorie de client, avec dates d'effet »). Le
 // moteur seul :
 //   - valent pour un client à une date : les listes qui le nomment, puis celles de sa catégorie ; à égalité, la

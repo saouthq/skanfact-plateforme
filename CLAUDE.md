@@ -22,12 +22,13 @@ qu'une règle qui vaut pour TOUT le dépôt, en une ou deux lignes.*
   millime de la v10) ; le Cabinet complet, sans paquets ; la caisse (tactile, sans réseau) ; le hors-ligne et le
   téléphone ; l'entrée, l'équipe, la messagerie, l'abonnement ; la console de l'équipe SkanFact. **Avant de toucher un
   domaine : sa ligne dans `docs/carte.md`, puis son document.**
-- **L'application web EST notre code** (repris de la v10 le 28/09/2026, `web/public/v10` ; le Cabinet dans `cabinet/`) :
+- **L'application web EST notre code** (repris de la v10 le 28/09/2026, servi sous `v10/` ; le Cabinet dans `cabinet/`) :
   **depuis le 26/10/2026 il se modifie directement** (Skander : « la vraie version à jour est dans skanfact-plateforme ») ;
   les fiches de retouche d'avant (`web/v10/`) ne sont plus qu'une archive, à ne plus rejouer. Le pont
   (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur ; la coquille (barre, menus) vit dans
   `web/public/plateforme/barre.js`. Les écrans écrits pour la plateforme (l'entrée, la console) sont en React. Les gros
-  fichiers sont **assemblés** de leurs morceaux (`modules/assemblage.json`) : Node les lit par `lireEcran`, jamais en direct.
+  fichiers sont **assemblés** de leurs morceaux (`modules/assemblage.json`), rangés sous `modules/` depuis le lot A1 : Node
+  les lit par `lireEcran`, jamais en direct.
 - **Les serveurs** (`docs/mise-en-ligne.md`, B et L) : chacun suit sa branche tout seul. `app.skanfact.tn` (données
   inventées) suit **`main`**, les versions validées ; `dev.skanfact.tn` (données inventées) suit **`dev`**, le travail du
   jour, dès qu'il est envoyé ; personne ne s'y connecte, sauf Claude
@@ -277,10 +278,10 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 - Chaque module du `02` § 2 vit dans **son dossier** (écrans, moteur, tests, aide, visites), avec **une seule porte** : ce
   qu'il déclare public. Aucun module ne lit les données d'un autre en direct : il passe par sa porte, un point ou un
   événement, dans le sens du `02` § 2 (`02` § 4).
-- **Rien de nouveau n'entre dans les gros fichiers** (sous `web/public/v10/` : `app.js`, `core.js`, `compta.js`,
-  `guide.js`, `visites.js`, `cabinet/app.js`, `cabinet/cabguide.js`, `cabinet/cabvisites.js` ; les deux ponts de
-  `web/public/plateforme/`) : un
-  module qu'on refait en sort d'abord, puis on le change ; tous en sortent, y compris ceux déjà refaits. Plan, ordre et
+- **Rien de nouveau n'entre dans les gros fichiers** (servis comme `app.js`, `core.js`, `compta.js`, `guide.js`,
+  `visites.js`, `cabinet/app.js`, `cabinet/cabguide.js`, `cabinet/cabvisites.js` : leurs morceaux du socle, sous
+  `modules/socle/` ; les deux ponts de `web/public/plateforme/`) : un module qu'on refait en sort d'abord (le Personnel
+  en est sorti au lot A1 : `modules/personnel/`), puis on le change ; tous en sortent, y compris ceux déjà refaits. Plan, ordre et
   contrôle des frontières (`npm run frontieres`, dans `npm test` : un écart neuf fait tomber, la liste ne fait que baisser,
   un lot A l'agrandit par `--ecrire --deplacement` ; un lot A se fait par `node outils/rangement/deplacer.ts PLAN.json`,
   qui fait suivre les preuves) : `docs/cadrage/17-rangement.md`. Exceptions : une correction urgente, notée pour la sortie ; les
