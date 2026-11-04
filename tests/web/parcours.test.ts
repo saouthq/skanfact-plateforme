@@ -38,6 +38,18 @@ const phrase = (cle: string, v = {}) => rendre(motif(cle, v), 'fr');
 const fine = (s: string) => s.replace(/ ([?!;:»%])/g, ' $1').replace(/« /g, '« ');
 
 describe('le parcours, à la souris', () => {
+  // (1.267.0) Les bulletins attendent que le pointage du mois soit réglé (16 § 3.7) : ses journées se relisent et se valident
+  // d'un geste, puis « Établir » s'offre.
+  const reglerPuisEtablir = async (p: Page) => {
+    await p.locator('#p-gen, #p-regler').first().waitFor({ timeout: 20_000 });
+    if (await p.locator('#p-regler').count()) {
+      await p.locator('#p-regler').click();
+      await p.locator('#pt-jav').click();
+      await p.locator('#modal-root #jav-ok').click();
+      await p.locator('#p-sous [data-sous="bulletins"]').click();
+    }
+    await p.locator('#p-gen').click();
+  };
   let navigateur: Browser;
   let serveur: Awaited<ReturnType<typeof demarrer>>;
   const admin = new pg.Client({ connectionString: inject('pgAdmin') });
@@ -552,7 +564,8 @@ describe('le parcours, à la souris', () => {
 
     // Le bulletin du mois (« Établir le bulletin manquant »), puis une prime de rendement.
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
-    await p.locator('#p-gen').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click(); // (1.267.0) « Le mois » s'ouvre sur son étape en cours
+    await reglerPuisEtablir(p);
     await p.locator('#modal-root #ok').click();
     await expect.poll(async () => (await auServeur()).length).toBe(1);
     await p.locator('#p-body tr', { hasText: 'Sonia Trabelsi' }).getByRole('button', { name: /Actions/ }).click();
@@ -573,20 +586,23 @@ describe('le parcours, à la souris', () => {
     await p.locator('#rf-save').click();
     await expect.poll(async () => (await admin.query(`select contenu->'cnssEmployee'->>'~n' c from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.c).toBe('9.93');
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click(); // (1.267.0) « Le mois » s'ouvre sur son étape en cours
     // « Marquer payé » vit dans le menu de la ligne (1.234.0).
     await p.locator('#p-body tr[data-bul]').first().getByRole('button', { name: /Actions/ }).click();
     await p.getByText('Marquer payé', { exact: true }).click();
     await expect.poll(async () => (await auServeur())[0]?.paye_le).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect((await auServeur())[0]).toMatchObject({ net: 1120386n, cnss: '96800' });
 
-    // Le mois suivant se calcule avec le nouveau barème.
-    const suivant = Number(premier?.mois) === 12 ? 1 : Number(premier?.mois) + 1;
-    if (suivant === 1) { for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(Number(premier?.annee) + 1); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(Number(premier?.annee) + 1) ? '#p-an-prec' : '#p-an-suiv').click(); }
-    await p.locator(`#p-mois [data-p-mois="${suivant}"]`).click();
-    await p.locator('#p-gen').click();
+    // Un autre mois se calcule avec le nouveau barème : celui d'avant (1.267.0 : le mois qui suit est souvent le mois en
+    // cours, dont les bulletins ne se préparent qu'à partir du 25).
+    const autre = Number(premier?.mois) === 1 ? 12 : Number(premier?.mois) - 1;
+    const anAutre = Number(premier?.mois) === 1 ? Number(premier?.annee) - 1 : Number(premier?.annee);
+    for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== anAutre; i++) await p.locator(Number(await p.locator('#p-an').innerText()) > anAutre ? '#p-an-prec' : '#p-an-suiv').click();
+    await p.locator(`#p-mois [data-p-mois="${autre}"]`).click();
+    await reglerPuisEtablir(p);
     await p.locator('#modal-root #ok').click();
     await expect.poll(async () => (await auServeur()).length).toBe(2);
-    const [, second] = await auServeur();
+    const second = (await auServeur()).find((b) => String(b.id) !== String(premier?.id));
     expect(second).toMatchObject({ cnss: '99300', brut: 1234567n });
     await p.screenshot({ path: path.join(PHOTOS, 'paie.png') });
 
@@ -602,7 +618,7 @@ describe('le parcours, à la souris', () => {
     }
     // Dans l'ordre des mois (le 1er octobre, « 2026-10 » se rangeait en texte avant « 2026-9 »).
     expect(serveur.sort((a, b) => a.cle - b.cle).map(({ periode, net, cout }) => ({ periode, net, cout }))).toEqual(ecran);
-    expect(ecran[0]).toMatchObject({ net: '1120.386' });
+    expect(ecran.find((x) => x.periode === `${Number(premier?.annee)}-${Number(premier?.mois)}`)).toMatchObject({ net: '1120.386' });
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 
@@ -661,7 +677,8 @@ describe('le parcours, à la souris', () => {
 
     // « Établir le bulletin manquant » : un mois plein, les deux primes entières.
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
-    await p.locator('#p-gen').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click(); // (1.267.0) « Le mois » s'ouvre sur son étape en cours
+    await reglerPuisEtablir(p);
     await p.locator('#modal-root #ok').click();
     await expect.poll(async () => (await auServeur())[0]?.primes?.map((x: { montant: number }) => x.montant)).toEqual([30000, 50000]);
     expect((await auServeur())[0]?.brut).toBe(692000n);
@@ -694,6 +711,7 @@ describe('le parcours, à la souris', () => {
     await p.locator('#rf input[name=solidarity]').fill('1');
     await p.locator('#rf-save').click();
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click(); // (1.267.0) « Le mois » s'ouvre sur son étape en cours
     await expect.poll(() => p.locator('#p-2026').innerText()).toMatch(/Tes barèmes gardent des taux d'avant 2026 \(CNSS salarié 9,18\s%, CNSS employeur 16,57\s%, solidarité 1\s%\)/);
     await p.locator('#p-2026-voir').click();
     await expect.poll(() => p.locator('#p-tabs button.active').getAttribute('data-tab')).toBe('baremes');
@@ -707,6 +725,7 @@ describe('le parcours, à la souris', () => {
     await expect.poll(async () => (await admin.query(`select contenu->'cnssEmployee'->>'~n' c from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.c).toBe('9.68');
     await expect.poll(() => p.locator('#rf-2026').count()).toBe(0);
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click(); // (1.267.0) « Le mois » s'ouvre sur son étape en cours
     expect(await p.locator('#p-2026').count()).toBe(0);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-primes.png') });
     expect(qui.erreurs).toEqual([]);
@@ -728,8 +747,8 @@ describe('le parcours, à la souris', () => {
     const pointage = async () => (await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'timesheets' and contenu->>'employeeId' = 'sal-1'`, [qui.essai])).rows[0]?.contenu;
     // Le bulletin du salarié 1 d'abord (son brut de base est le plus grand).
     const auServeur = async () => (await admin.query('select brut, net, primes from paie.bulletin where entreprise = $1 order by brut_de_base desc', [qui.essai])).rows;
-    await p.locator('#p-tabs button[data-tab=pointage]').click();
-    // (1.259.0) L'onglet ouvre « La journée » ; « Le mois » se relit par ses écarts, sa grille est à un clic.
+    // (1.259.0) « Le mois » du pointage se relit par ses écarts, sa grille est à un clic ; (1.267.0) c'est l'étape « Pointer » de « Le mois ».
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
     await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-grille').waitFor();
@@ -797,7 +816,7 @@ describe('le parcours, à la souris', () => {
     // Les heures supplémentaires : la majoration se règle dans « Les horaires » (1.249.0 : sur place, à côté de la grille),
     // puis la grille a sa colonne. Le bouton amène à la case, et elle se tape d'emblée.
     await p.locator('#pt-baremes').click();
-    await expect.poll(() => p.locator('#p-sous [data-sous="pt-horaires"]').getAttribute('aria-selected')).toBe('true');
+    await expect.poll(() => p.locator('#p-sous [data-sous="pt-horaires"]').getAttribute('aria-pressed')).toBe('true');
     expect(await p.locator('#pt-h input[name=heuresMois]').inputValue()).toBe('208');
     await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe('hsMaj1');
     await p.keyboard.type('25');
@@ -824,7 +843,8 @@ describe('le parcours, à la souris', () => {
 
     // Le bulletin du mois reprend le pointage : deux jours retirés, la prime au jour sur 24 jours, les heures majorées.
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
-    await p.locator('#p-gen').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click(); // (1.267.0) « Le mois » s'ouvre sur son étape en cours
+    await reglerPuisEtablir(p);
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.evaluate(() => (window as unknown as { __data: { payslips: { employeeId: string; absentDays: number }[] } }).__data.payslips.find((x) => x.employeeId === 'sal-1')?.absentDays)).toBe(2);
     // 80 × 24 / 26 = 73,846 ; 1 234,567 × 6 × 1,25 / 208 = 44,516.
@@ -834,9 +854,13 @@ describe('le parcours, à la souris', () => {
     expect(String(Number((await auServeur())[0]?.net) / 1000)).toBe(String(Number(await netEcran())));
 
     // Le lundi était un oubli : il revient « Présent ». Le bulletin établi ne suit plus le pointage, et la grille le dit.
-    await p.locator('#p-tabs button[data-tab=pointage]').click();
     await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('#pt-grille').waitFor();
+    // (1.267.0) « Régler d'abord » a validé ses journées : la case le dit et offre « Rouvrir la journée », puis la lettre pose.
+    await kase(lundi).focus();
+    await p.keyboard.press('p');
+    expect(await p.locator('#toast-undo').innerText()).toMatch(/Rouvrir la journée/);
+    await p.locator('#toast-undo').click();
     await kase(lundi).focus();
     await p.keyboard.press('p');
     await expect.poll(payes).toBe('25');
@@ -871,10 +895,11 @@ describe('le parcours, à la souris', () => {
     const p = await qui.ouvrir(qui.essai, '#/paie');
     await pageV10(p, /Paie/);
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click(); // (1.267.0) « Le mois » s'ouvre sur son étape en cours
     // (1.256.0) Le journal est dans le menu ⋯ du mois, comme la maquette. Sans bulletin, pas de journal.
     const journalAuMenu = async () => { await p.locator('#p-plus').click(); const n = await p.locator('.row-menu').last().getByText('Journal de paie', { exact: true }).count(); await p.keyboard.press('Escape'); return n; };
     expect(await journalAuMenu()).toBe(0);
-    await p.locator('#p-gen').click();
+    await reglerPuisEtablir(p);
     await p.locator('#modal-root #ok').click();
     await expect.poll(journalAuMenu).toBe(1);
     const ouvrirJournal = async () => { await p.locator('#p-plus').click(); await p.locator('.row-menu').last().getByText('Journal de paie', { exact: true }).click(); };
@@ -928,7 +953,7 @@ describe('le parcours, à la souris', () => {
     const moisBulletins = Number((await bulletins())[0]?.month);
 
     // Les déclarations : ce que la paie du mois ajoute à la déclaration mensuelle, les montants des bulletins.
-    await p.locator('#p-tabs button[data-tab=declarations]').click();
+    await p.locator('#p-sous [data-sous="declarations"]').click();
     const annee = Number(await p.locator('#p-an').innerText());
     const mois = Number(await p.locator('#p-mois .cp-mo.on').getAttribute('data-p-mois'));
     expect(mois).toBe(moisBulletins);
@@ -991,7 +1016,8 @@ describe('le parcours, à la souris', () => {
     const p = await qui.ouvrir(qui.essai, '#/paie');
     await pageV10(p, /Paie/);
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
-    await p.locator('#p-gen').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click(); // (1.267.0) « Le mois » s'ouvre sur son étape en cours
+    await reglerPuisEtablir(p);
     await p.locator('#modal-root #ok').click();
     type Calcul = { baseGross: number; absenceCut: number; absentDays: number; brutDuMois: number; net: number };
     const calcul = () => p.evaluate(() => (window as unknown as { __data: { payslips: { computed: Calcul }[] } }).__data.payslips[0]?.computed);

@@ -82,8 +82,10 @@ describe('la paie : les documents en aperçu fidèle', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/paie`);
     await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
     const dernier = bulletins[3] as (typeof bulletins)[number];
+    await p.locator('#p-tabs [data-tab="bulletins"]').click(); // (1.267.0) la bande des mois est sur « Le mois »
     for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(dernier.year); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(dernier.year) ? '#p-an-prec' : '#p-an-suiv').click();
     await p.locator(`#p-mois [data-p-mois="${dernier.month}"]`).click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
     const feuille = (cadre: string) => p.frameLocator(`${cadre} iframe`).locator('body');
     const lireFeuille = async (cadre: string) => espace(await feuille(cadre).innerText().catch(() => ''));
 

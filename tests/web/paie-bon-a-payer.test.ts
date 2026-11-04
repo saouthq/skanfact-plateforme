@@ -94,7 +94,8 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${x.ent}${o.hash || '#/paie'}`);
     await p.locator(o.hash && o.hash.startsWith('#/salarie') ? '#fs-head' : '#p-tabs').waitFor({ timeout: 20_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3000 }).catch(() => undefined);
-    if (!(o.hash && o.hash.startsWith('#/salarie'))) { for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(x.an); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(x.an) ? '#p-an-prec' : '#p-an-suiv').click(); await p.locator(`#p-mois [data-p-mois="${x.mo}"]`).click(); }
+    // (1.267.0) La page s'ouvre sur « Aujourd'hui » : la bande des mois est sur « Le mois », et le parcours lit l'étape « Bulletins ».
+    if (!(o.hash && o.hash.startsWith('#/salarie'))) { await p.locator('#p-tabs [data-tab="bulletins"]').click(); for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(x.an); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(x.an) ? '#p-an-prec' : '#p-an-suiv').click(); await p.locator(`#p-mois [data-p-mois="${x.mo}"]`).click(); await p.locator('#p-sous [data-sous="bulletins"]').click(); }
     if (o.sombre) await p.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     await p.waitForTimeout(500);
     return p;
@@ -118,22 +119,26 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(await p.getByText('Marquer payé', { exact: true }).count()).toBe(0);
     await p.keyboard.press('Escape');
     expect(espace(await p.locator('#p-head .sous').innerText())).toContain('tenue par ton cabinet');
-    expect(espace(await p.locator('#p-frise .et:nth-child(2)').innerText())).toContain('5 à approuver');
-    // Le bandeau du bon à payer passe avant la frise.
-    expect(await p.locator('#p-body > #p-bap-b + #p-frise').count()).toBe(1);
+    expect(espace(await p.locator('#p-sous .pa-etape:nth-child(2)').innerText())).toContain('5 à approuver');
+    // (1.267.0) Le bandeau du bon à payer ouvre l'étape « Bulletins », sous les quatre étapes.
+    expect(await p.locator('#p-body > #p-bap-b').count()).toBe(1);
     // Les contrôles : ce qui demande un geste d'abord, chacun nommé.
     const ko = (await p.locator('#p-ctrl li.ko b').allInnerTexts()).map(espace);
     // (1.248.0) Le jeu d'essai donne le même RIB et le même n° CNSS à tous : les deux contrôles des doublons le disent.
     expect(ko).toEqual(['Pas deux salariés sur le même RIB', 'Une avance pas retenue', 'L\'entrée de Salma au prorata', 'N° CNSS de chaque salarié', 'Pas deux salariés sur le même n° CNSS']);
     expect(espace(await p.locator('#p-ctrl li.ko').nth(1).innerText())).toContain('Hamza Mejri, Mourad Trabelsi');
-    // (1.253.0) « À traiter » : quatre fiches sur le même n° CNSS et le même RIB tiennent sur deux lignes, pas six ; la
+    // (1.253.0) « À traiter » (1.267.0 : « À ne pas oublier », sur « Aujourd'hui ») : quatre fiches sur le même n° CNSS et le même RIB tiennent sur deux lignes, pas six ; la
     // pastille de « Salariés » compte les fiches à reprendre, pas les choses : la première fiche du dossier (Hamza, rangé par
     // clé) garde son numéro et se compte par son CDD ; les trois autres doublons ; Salma sans n° CNSS. Cinq fiches, pas huit.
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-traiter').waitFor();
     const lignesT = (await p.locator('#p-traiter li b').allInnerTexts()).map(espace);
     expect(lignesT.filter((x) => /^Le même (n° CNSS|RIB) sur 4 fiches$/.test(x)).sort()).toEqual(['Le même RIB sur 4 fiches', 'Le même n° CNSS sur 4 fiches']);
     expect(lignesT.filter((x) => / : le même /.test(x))).toEqual([]);
     expect(espace(await p.locator('#p-traiter li[data-double="cnss"] small').innerText())).toMatch(/ et .+ : la déclaration du trimestre mettrait leurs salaires sur un seul assuré$/);
     expect(await p.locator('#p-tabs [data-af="salaries"]').innerText()).toBe('5');
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
     await p.locator('#p-ctrl-tout').click();
     expect(await p.locator('#p-ctrl li').count()).toBe(11);
     // Tout voir garde l'ordre : ceux qui demandent un geste d'abord.
@@ -173,7 +178,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     let p = await ouvrir(B);
     await expect.poll(() => p.locator('#p-corr').count()).toBe(1);
     expect(espace(await p.locator('#p-corr-ok').innerText())).toBe('Accepter la correction de Anis');
-    expect(espace(await p.locator('#p-frise .et:nth-child(2)').innerText())).toContain('1 correction proposée');
+    expect(espace(await p.locator('#p-sous .pa-etape:nth-child(2)').innerText())).toContain('1 correction proposée');
     expect(espace(await p.locator('#p-corr-detail').innerText())).toContain(`Net à verser ${montant(net0)} DT ${montant(Math.round((net0 - 100) * 1000) / 1000)} DT`);
     expect(espace(await p.locator('#p-bulletins tr[data-bul="' + hm.id + '"]').innerText())).toContain('correction proposée');
     await p.screenshot({ path: path.join(PHOTOS, 'paie-correction.png'), fullPage: true });
@@ -219,7 +224,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     const annules = (await bulletins(A)).find((b) => b.id === id)?.paiementsAnnules as { raison: string }[];
     expect(annules.map((x) => x.raison)).toEqual(['Virement rejeté par la banque']);
     // La retenue du mois : déposée ET payée, du montant de la déclaration.
-    await p.locator('#p-tabs button[data-tab="declarations"]').click();
+    await p.locator('#p-sous [data-sous="declarations"]').click();
     await p.locator('#dm-file').click();
     await p.locator('#pd-ok').click();
     await expect.poll(async () => (await declarations()).find((f) => String(f.id).startsWith('dm-'))?.paidDate).toBeTruthy();
@@ -245,7 +250,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(espace(await p.locator('.pa-h1-av .statut').innerText())).toBe('Son n° CNSS manque'); // payé en espèces : son RIB n'est pas exigé
     await p.close();
     p = await ouvrir(A);
-    await p.locator('#p-tabs button[data-tab="declarations"]').click();
+    await p.locator('#p-sous [data-sous="declarations"]').click();
     // (1.251.0) Cinq lignes : le trimestre passé, le mois écoulé, le mois en cours, le trimestre en cours, l'année.
     await expect.poll(() => p.locator('#dc-verses li').count()).toBe(5);
     expect(espace(await p.locator('#dc-verses li').nth(1).innerText())).toMatch(/^Déclaration (de |d')\S+ : retenues et taxes sur les salaires/);
@@ -254,9 +259,8 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect(await p.locator('#p-body h2', { hasText: 'À déposer' }).count()).toBe(0);
     expect(await p.locator('#dc-verses li').first().locator('[data-file]').count()).toBe(1);
     expect(await p.locator('#dm-panneau .pa-carte-t b').first().innerText()).toMatch(/^La déclaration d.\S+, sa part paie/);
-    // (1.256.0) « L'année » est une sous-vue de « Déclarations ».
-    await p.locator('#p-tabs [data-tab="declarations"]').click();
-    await p.locator('#p-sous [data-sous="annee"]').click();
+    // (1.256.0) « L'année » était une sous-vue de « Déclarations » ; (1.267.0) elle est « Toute l'année », dans la bande du mois.
+    await p.locator('#p-mois [data-p-mois=""]').click();
     // (1.253.0) Les postes de l'année entière : le livreur parti le mois d'avant y compte encore (s'il était dans l'année).
     const livreurDansLAnnee = A.mo !== 1;
     await expect.poll(() => p.locator('#p-annee-postes tbody tr').count()).toBe(livreurDansLAnnee ? 5 : 4);
@@ -282,7 +286,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     expect((await poserSociale(A, P)).statut).toBe(200);
     const versDeclarations = async () => {
       const p = await ouvrir(A);
-      await p.locator('#p-tabs button[data-tab="declarations"]').click();
+      await p.locator('#p-sous [data-sous="declarations"]').click();
       await p.locator('#dm-paye').waitFor({ timeout: 20_000 });
       return p;
     };

@@ -106,8 +106,8 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
   it('les primes et retenues du mois : une case de la grille entre au bulletin établi, qui se refait', async () => {
     const x = await monter();
     const p = await ouvrir(x);
-    await p.locator('#p-tabs [data-tab="pointage"]').click();
-    // 1.259.0 : les primes du mois vivent dans « Le mois », l'onglet ouvre « La journée ».
+    // 1.259.0 : les primes du mois vivent dans la grille du mois ; (1.267.0) elle est l'étape « Pointer » de « Le mois ».
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
     await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('#pv-carte-ouvrir').click();
     const caseP = p.locator('#pv-t tr[data-pv="mt"] [data-pv-r="panier"]');
@@ -139,7 +139,7 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
       { collection: '_racine', cle: 'closedUntil', rang: null, revision: null, contenu: fin }] });
     const p = await ouvrir(x);
     // Les primes du mois : la case de Mourad se lit, sans s'écrire.
-    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
     await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('#pv-carte-ouvrir').click();
     const ligne = p.locator('#pv-t tr[data-pv="mt"]');
@@ -251,8 +251,16 @@ describe('la paie 1.256.0 : fin d\'essai, primes du mois, augmentation en lot', 
   it('janvier 2027 à la souris : « Barèmes de 2027 pas encore relus » lu avant d\'établir, les bulletins sans CSS au serveur', async () => {
     const x = await monter();
     const p = await ouvrir(x, new Date('2027-02-10T10:00:00+01:00'));
+    // (1.267.0) « Le mois » s'ouvre sur l'étape en cours de janvier (le pointage) ; ses bulletins sont l'étape d'après.
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
     await expect.poll(() => p.locator('#p-relus').innerText().then(espace).catch(() => '')).toContain('Barèmes de 2027 pas encore relus.');
     expect(espace(await p.locator('#p-relus').innerText())).toBe('Barèmes de 2027 pas encore relus. SkanFact n\'a pas encore lu la loi de finances 2027 : les bulletins de janvier ne retiennent aucune contribution sociale de solidarité (sa règle s\'arrête le 31/12/2026) et gardent les autres taux de tes réglages. À VÉRIFIER avec ton comptable avant de payer.');
+    // (1.267.0) Janvier attend d'abord que ses journées soient validées (ce qui change un montant retient les bulletins).
+    await p.locator('#p-regler').click();
+    await p.locator('#pt-jav').click();
+    await p.locator('#modal-root #jav-ok').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
     await p.locator('#p-gen').click();
     await expect.poll(() => p.locator('#p-etab-relus').count()).toBe(1);
     expect(espace(await p.locator('#p-etab-relus').innerText())).toContain('Barèmes de 2027 pas encore relus.');

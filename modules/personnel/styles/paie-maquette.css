@@ -247,7 +247,9 @@ body.dark .pm { --fond: #0d1015; --cadre-tel: #05070a; --ombre-forte: 0 24px 60p
 .pm .ou.menu { background: var(--survol); color: var(--gris); }
 .pm .ou.neuf { background: var(--ambre-doux); color: var(--ambre-texte); }
 .pm .note-v { font-size: 12.5px; color: var(--gris-2); display: flex; gap: 6px; align-items: flex-start; }
-body.dark .pm { color: #222; }
+/* (1.267.0) Ce sombre-là est celui de la feuille blanche (un document), pas de toute la page : écrit sur « .pm », il
+   éteignait en mode sombre les noms, les montants et les titres des étapes (vu sur la photo du mois en sombre). */
+body.dark .pm .papier, body.dark .pm .doc-g { color: #222; }
 .pm .presence { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px 0 4px; border-radius: 99px; background: color-mix(in srgb, #6d7cf2 12%, var(--papier)); color: #3d4bb8; font-size: 12.5px; white-space: nowrap; }
 .pm .presence b { font-weight: 600; }
 .pm .pres-av { width: 24px; height: 24px; border-radius: 99px; display: grid; place-items: center; background: #6d7cf2; color: #fff; font-weight: 700; font-size: 11px; box-shadow: 0 0 0 2px var(--papier); }
@@ -473,7 +475,9 @@ body.dark .pm { color: #222; }
 .pm .tf-art.on { border-color: var(--sarcelle); background: var(--doux); }
 .pm .tf-art.libre { justify-content: flex-start; border-style: dashed; }
 .pm .doc-g { width: 640px; background: #fff; color: #222; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.12); padding: 34px 36px 22px; font-size: 11.5px; line-height: 1.45; display: grid; gap: 16px; }
-body.dark .pm { color: #222; }
+/* (1.267.0) Ce sombre-là est celui de la feuille blanche (un document), pas de toute la page : écrit sur « .pm », il
+   éteignait en mode sombre les noms, les montants et les titres des étapes (vu sur la photo du mois en sombre). */
+body.dark .pm .papier, body.dark .pm .doc-g { color: #222; }
 .pm .dg-h { display: flex; justify-content: space-between; gap: 20px; }
 .pm .dg-h > span { display: grid; gap: 1px; }
 .pm .dg-h b { font-size: 15px; }
@@ -1069,7 +1073,7 @@ body.dark .pm { color: #222; }
 .pm .doc-i b { color: var(--encre); font-size: 12px; }
 .pm .doc-z { background: color-mix(in srgb, var(--trait) 55%, var(--papier-2)); border-radius: 12px; padding: 22px; }
 .pm .papier { position: relative; background: #fff; color: #1d2327; max-width: 680px; margin: 0 auto; padding: 34px 40px 24px; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.14), 0 10px 30px rgba(0,0,0,.08); font-size: 12px; line-height: 1.55; display: grid; gap: 14px; overflow: hidden; }
-body.dark .pm { color: #1d2327; }
+body.dark .pm .papier { color: #1d2327; }
 .pm .papier p { margin: 0; }
 .pm .papier .p-t { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
 .pm .papier .p-em, .pm .papier .p-n { display: grid; gap: 1px; }
@@ -1319,6 +1323,15 @@ body.dark .pm { color: #1d2327; }
 .pm .ptj-d.auj i, .pm .ptj-d.nv i { color: var(--ambre-texte); font-weight: 600; }
 .pm .ptj-d.fu { opacity: .55; }
 .pm .ptj-d.repos { background: var(--papier-2); }
+/* (1.267.0) Au téléphone, les sept jours tiennent sur une ligne (44 px chacun au moins) ; les flèches passent dessous, aux deux bouts
+   (vu à 390 px : « sam. » et la flèche tombaient seuls à la ligne). Le toucher ne laisse pas de voile bleu sur la ligne. */
+@media (max-width: 760px) {
+  .pm .ptj-nav { display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); gap: 4px; flex-wrap: nowrap; }
+  .pm .ptj-nav .ptj-d { width: auto; min-width: 0; }
+  .pm .ptj-nav #ptj-prec { grid-row: 2; grid-column: 1; }
+  .pm .ptj-nav #ptj-suiv { grid-row: 2; grid-column: 7; justify-self: end; }
+  .pm #ptj, .pm #ptjc { -webkit-tap-highlight-color: transparent; }
+}
 .pm .ptj-d[aria-pressed="true"] { border-color: var(--sarcelle); box-shadow: 0 0 0 2px var(--doux); }
 .pm .ptj-nav-t { font-size: 12.5px; }
 .pm .ptj-gestes { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
@@ -1326,7 +1339,29 @@ body.dark .pm { color: #1d2327; }
 .pm .ptj-eq { border-top: 1px solid var(--trait); }
 .pm .ptj-eq-t { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; padding: 10px 16px 4px; font-size: 13px; }
 .pm .ptj-ll { list-style: none; margin: 0; padding: 0; }
-.pm .ptj-l { display: grid; grid-template-columns: 34px minmax(150px, 210px) minmax(110px, 160px) auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 16px; }
+/* (1.267.0, morceau B) La ligne d'un salarié, comme la maquette : qui il est (et d'où vient sa journée), ses quatre choix et
+   ses ajouts à droite ; dessous, ce que le bulletin en fera, avec ce qui se règle sur place. */
+.pm .ptj-l { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; grid-template-areas: "av nom fin" "av bad fin" "e e e"; gap: 2px 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--trait); }
+.pm .ptj-ll .ptj-l:first-child { border-top: 0; }
+.pm .ptj-l > .pa-av { grid-area: av; }
+.pm .ptj-l > .ptj-n { grid-area: nom; }
+.pm .ptj-l > .ptj-bad, .pm .ptj-l > .ptj-badw { grid-area: bad; justify-self: start; }
+.pm .ptj-l > .ptj-fin, .pm .ptj-l > [data-ptj-repos] { grid-area: fin; justify-self: end; }
+.pm .ptj-l > .ptj-tel { grid-area: fin; }
+.pm .ptj-l:focus-visible { outline: 2px solid var(--sarcelle); outline-offset: -2px; border-radius: 10px; }
+.pm .ptj-l[hidden], .pm .ptj-eq[hidden] { display: none; }
+.pm .ptj-fin { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.pm .ptj-aj { border: 1px dashed var(--trait-fort); background: none; color: var(--gris); border-radius: 99px; padding: 5px 10px; font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.pm .ptj-aj:hover:not(:disabled) { color: var(--encre); border-color: var(--gris-2); }
+.pm .ptj-aj.on { border-style: solid; border-color: transparent; background: var(--doux); color: var(--doux-texte); font-weight: 600; }
+.pm .ptj-aj:disabled { opacity: .45; cursor: not-allowed; }
+.pm .ptj-aj:focus-visible { outline: 2px solid var(--sarcelle); outline-offset: 1px; }
+.pm .ptj-sous { display: flex; gap: 6px 16px; flex-wrap: wrap; justify-content: space-between; margin: 0; padding: 0 16px 10px; font-size: 12.5px; color: var(--gris); }
+.pm .ptj-kbd kbd { display: inline-block; min-width: 18px; padding: 0 4px; border: 1px solid var(--trait-fort); border-bottom-width: 2px; border-radius: 5px; background: var(--papier); font: inherit; font-size: 11px; text-align: center; color: var(--encre); }
+.pm .ptj-cherche { display: flex; gap: 10px; align-items: center; padding: 0 16px 10px; }
+.pm .ptj-cherche input { flex: 1; min-width: 0; height: 36px; padding: 0 12px; border: 1px solid var(--trait-fort); border-radius: 10px; background: var(--papier); color: var(--encre); font: inherit; font-size: 13.5px; }
+.pm .ptj-cherche .mu { font-size: 12px; white-space: nowrap; }
+.pm .ptj-resume { font-size: 13px; color: var(--encre); }
 .pm .ptj-l.a-regler { background: color-mix(in srgb, var(--ambre-doux) 55%, transparent); }
 .pm .ptj-l .pa-av, .pm .ptj-ex .pa-av { width: 34px; height: 34px; border-radius: 10px; font-size: 12px; }
 .pm .ptj-n { display: grid; gap: 1px; min-width: 0; }
@@ -1339,9 +1374,17 @@ body.dark .pm { color: #1d2327; }
 .pm .ptj-seg button:hover:not(:disabled) { color: var(--encre); }
 .pm .ptj-seg button[aria-pressed="true"] { background: var(--papier); color: var(--encre); box-shadow: var(--actif-ombre); font-weight: 600; }
 .pm .ptj-seg button:disabled { cursor: not-allowed; opacity: .7; }
-.pm .ptj-e { font-size: 12.5px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; text-align: right; flex-wrap: wrap; }
-.pm .ptj-e.alerte { color: var(--rouge-texte); }
-.pm .ptj-e.attire { color: var(--sarcelle-texte); }
+.pm .ptj-e { grid-area: e; font-size: 12.5px; display: flex; gap: 6px 10px; align-items: center; flex-wrap: wrap; padding: 6px 0 0 46px; }
+.pm .ptj-e:empty { display: none; }
+.pm .ptj-e .mu { color: var(--gris); }
+.pm .ptj-ef { font-weight: 600; }
+.pm .ptj-ef.alerte { color: var(--rouge-texte); }
+.pm .ptj-ef.attire { color: var(--sarcelle-texte); }
+.pm .ptj-mini { display: inline-flex; padding: 2px; gap: 2px; border-radius: 9px; background: var(--papier-2); border: 1px solid var(--trait); }
+.pm .ptj-mini button { border: 0; background: none; padding: 4px 9px; border-radius: 7px; font: inherit; font-size: 12px; color: var(--gris); cursor: pointer; }
+.pm .ptj-mini button[aria-pressed="true"] { background: var(--papier); color: var(--encre); box-shadow: var(--actif-ombre); font-weight: 600; }
+.pm .ptj-in { display: inline-flex; gap: 6px; align-items: center; }
+.pm .ptj-num { width: 64px; height: 30px; padding: 0 8px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--papier); color: var(--encre); font: inherit; font-size: 13px; text-align: right; }
 .pm .ptj-tel { display: none; }
 .pm .ptj-pied { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--trait); font-size: 12.5px; }
 .pm .ptj-pied .mu { display: inline-flex; gap: 6px; align-items: center; }
@@ -1401,16 +1444,18 @@ body.dark .pm { color: #1d2327; }
 @media (max-width: 760px) {
   /* (1.259.0) La journée au téléphone : une carte par salarié ; un nom touché ouvre ses choix en grand. */
   .pm .ptj-nav .ptj-d { width: 46px; }
+  /* (1.267.0) « Aujourd'hui » s'ouvre sur la journée : au doigt, ses flèches et chaque ligne font 44 points. */
+  .pm .ptj-nav .pt-nav-b { width: 44px; height: 44px; }
   .pm .ptj-nav .ptj-d i { font-size: 0; }
   .pm .ptj-nav .ptj-d.ok i, .pm .ptj-nav .ptj-d.nv i::after { font-size: 10px; }
   .pm .ptj-nav .ptj-d.nv i::after { content: "•"; }
   .pm .ptj-gestes { margin-left: 0; }
   .pm .ptj-l { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 10px; padding: 10px 14px; }
   .pm .ptj-l > .ptj-bad, .pm .ptj-l > .ptj-badw { grid-column: 2 / 3; grid-row: 2; }
-  .pm .ptj-l .ptj-seg { display: none; }
-  .pm .ptj-l .ptj-e { grid-column: 1 / -1; justify-content: flex-start; text-align: left; padding-left: 44px; }
+  .pm .ptj-l .ptj-fin, .pm .ptj-kbd { display: none; }
+  .pm .ptj-l .ptj-e { grid-column: 1 / -1; padding-left: 44px; }
   .pm .ptj-l .ptj-e:empty { display: none; }
-  .pm .ptj-tel:not([hidden]) { display: inline-flex; grid-column: 3; grid-row: 1 / 3; align-items: center; gap: 6px; border: 0; background: none; color: var(--gris); font: inherit; cursor: pointer; padding: 6px; }
+  .pm .ptj-tel:not([hidden]) { display: inline-flex; grid-column: 3; grid-row: 1 / 3; align-items: center; gap: 6px; border: 0; background: none; color: var(--gris); font: inherit; cursor: pointer; padding: 6px; min-width: 44px; min-height: 44px; justify-content: flex-end; }
   .pm .ptj-fl { font-size: 22px; line-height: 1; color: var(--gris-2); }
   .pm .ptj-l { cursor: pointer; }
   .pm .ptj-pas { white-space: nowrap; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 99px; background: var(--papier-2); color: var(--encre); }
@@ -1452,3 +1497,79 @@ body.dark .pm { color: #1d2327; }
 /* Un tableau dans sa carte n'a pas de second cadre (le tableau de l'application en porte un). */
 .pm .carte.tab table.list { border: 0; box-shadow: none; border-radius: 0; background: none; margin: 0; }
 
+
+/* (1.267.0) La paie refaite (maquette docs/maquettes/paie-v2.html) : « Aujourd'hui » en deux colonnes et ses quatre gestes,
+   « Le mois » en quatre étapes qu'on clique, l'étape « Payer ». */
+.pm .pa-auj { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.pm .pa-auj-g, .pm .pa-auj-d { display: grid; gap: 14px; min-width: 0; align-content: start; }
+.pm .pa-auj-d > *, .pm .pa-auj-g > * { margin: 0; }
+.pm .pa-gestes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pm .pa-geste { border: 1px solid var(--trait); background: var(--papier); border-radius: 12px; padding: 12px; text-align: left; display: grid; gap: 4px; box-shadow: var(--ombre); cursor: pointer; font: inherit; color: inherit; }
+.pm .pa-geste:hover { border-color: color-mix(in srgb, var(--sarcelle) 45%, var(--trait)); }
+.pm .pa-geste:focus-visible { outline: 2px solid var(--sarcelle); outline-offset: 2px; }
+.pm .pa-geste b { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.pm .pa-geste b svg { color: var(--gris-2); flex: none; }
+.pm .pa-geste span { color: var(--gris); font-size: 12.5px; }
+.pm .apy-l.pa-auj-l li, .pm .apy-l.pa-payer-l li { grid-template-columns: 30px minmax(0, 1fr) auto; cursor: default; }
+.pm .apy-l.pa-auj-l li:hover, .pm .apy-l.pa-payer-l li:hover { background: none; }
+.pm .apy-ic { color: var(--gris-2); display: grid; place-items: center; }
+.pm .pa-payer-g { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pm .pa-auj-vide { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; color: var(--gris); font-size: 13px; border-top: 1px solid var(--trait); }
+.pm .pa-auj-vide svg { color: var(--sarcelle-texte); flex: none; margin-top: 1px; }
+.pm #p-payer-c .pa-pied { margin: 0; padding: 12px 16px; border-top: 1px solid var(--trait); display: flex; gap: 6px; align-items: flex-start; }
+.pm .pa-chemin { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
+.pm .pa-etape { border: 1px solid var(--trait); border-radius: 12px; padding: 12px; text-align: left; background: var(--papier); display: grid; gap: 4px; align-content: start; position: relative; cursor: pointer; font: inherit; color: inherit; min-width: 0; }
+.pm .pa-etape:hover { border-color: color-mix(in srgb, var(--sarcelle) 45%, var(--trait)); }
+.pm .pa-etape:focus-visible { outline: 2px solid var(--sarcelle); outline-offset: 2px; }
+.pm .pa-etape .n { width: 24px; height: 24px; border-radius: 99px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--papier-2); color: var(--gris); border: 1px solid var(--trait-fort); box-sizing: border-box; }
+.pm .pa-etape b { font-size: 14px; }
+.pm .pa-etape .d { font-size: 12.5px; color: var(--gris); }
+.pm .pa-etape.fait .n { background: var(--sarcelle); color: #fff; border-color: var(--sarcelle); }
+.pm .pa-etape.cours { border-color: var(--sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sarcelle) 15%, transparent); }
+.pm .pa-etape.cours .n { color: var(--sarcelle-texte); border-color: var(--sarcelle); }
+.pm .pa-etape.ouverte { background: var(--papier-2); }
+.pm .pa-etape .pm-nb { position: absolute; top: 10px; right: 10px; margin: 0; }
+.pm .pa-sous-l { display: flex; gap: 6px; flex-wrap: wrap; margin: -4px 0 14px; }
+.pm .pa-sous-l button { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--trait); background: var(--papier); border-radius: 99px; padding: 5px 12px; font: inherit; font-size: 13px; color: var(--gris); cursor: pointer; }
+.pm .pa-sous-l button:hover { color: var(--encre); }
+.pm .pa-sous-l button[aria-pressed="true"] { background: var(--doux); color: var(--doux-texte); border-color: transparent; font-weight: 600; }
+@media (max-width: 1100px) {
+  .pm .pa-auj { grid-template-columns: minmax(0, 1fr); }
+  .pm .pa-gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .pm .pa-chemin { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pm .apy-l.pa-payer-l li { grid-template-columns: 30px minmax(0, 1fr); }
+  .pm .apy-l.pa-payer-l .pa-payer-g { grid-column: 1 / -1; justify-content: flex-start; }
+}
+}
+/* (1.267.0, morceau C) « Plus tard » à côté du geste d'un rappel. */
+.pm .pa-auj-g2 { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+/* Au téléphone, les deux boutons passent sous le texte du rappel (vu à 390 px : ils l'écrasaient). */
+@media (max-width: 760px) {
+  .pm .apy-l.pa-auj-l li { grid-template-columns: 30px minmax(0, 1fr); }
+  .pm .apy-l.pa-auj-l li > .pa-auj-g2, .pm .apy-l.pa-auj-l li > button { grid-column: 2 / -1; justify-self: start; justify-content: flex-start; }
+}
+/* (1.267.0, morceau D) Au téléphone (la maquette, « feuilleTel ») : la feuille d'un salarié, à gros boutons, chacun avec ce
+   qu'il fait sur le bulletin ; « Valider la journée » reste sous le pouce, au-dessus de la barre ; les demandes se répondent
+   au pouce. */
+.pm .ptj-feuille, .ptj-feuille { display: grid; gap: 10px; }
+.ptj-feuille .ptj-fq { display: flex; gap: 10px; align-items: center; }
+.ptj-feuille .ptj-fq > div { display: grid; gap: 1px; min-width: 0; }
+.ptj-feuille .ptj-fq small { color: var(--gris); font-size: 12.5px; }
+.ptj-feuille .ptj-gros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ptj-feuille .ptj-g { position: relative; display: grid; justify-items: start; gap: 3px; min-height: 64px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--trait); background: var(--papier); color: var(--encre); font: inherit; text-align: left; cursor: pointer; }
+.ptj-feuille .ptj-g b { font-size: 15px; }
+.ptj-feuille .ptj-g small { font-size: 12px; color: var(--gris); }
+.ptj-feuille .ptj-g.on { border-color: var(--sarcelle); background: var(--doux); box-shadow: 0 0 0 1px var(--sarcelle) inset; }
+.ptj-feuille .ptj-g:disabled { opacity: .45; cursor: not-allowed; }
+.ptj-feuille .ptj-gros2 .ptj-g { border-style: dashed; }
+.ptj-feuille .ptj-gros2 .ptj-g.on { border-style: solid; }
+.ptj-feuille .ptj-note { justify-content: center; min-height: 48px; }
+@media (max-width: 760px) {
+  .pm #ptj-valider.btn-primary { position: fixed; left: 16px; right: 16px; width: auto; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 70; min-height: 48px; justify-content: center; box-shadow: 0 8px 24px rgba(20, 40, 60, .22); }
+  body:not(.avec-barre) .pm #ptj-valider.btn-primary, body.sans-onglets .pm #ptj-valider.btn-primary { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .pm .pa-auj:has(#ptj-valider.btn-primary) { padding-bottom: 72px; }
+  .pm #cg-demandes .pa-dem-g { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
+  .pm #cg-demandes .pa-dem-g .btn { flex: 1 1 30%; min-height: 44px; justify-content: center; }
+}

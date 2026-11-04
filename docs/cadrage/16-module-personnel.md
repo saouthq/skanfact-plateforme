@@ -834,6 +834,23 @@ congés par un client en Essentiel dont le cabinet tient la paie (une question d
 | **P7** | La loi : contrats (2025-9), mineurs, congés et leur report, maladie, préavis, indemnités, SMIG, mentions, majorations, fériés payés et leur majoration, quotité saisissable, retenue d'une avance — **après la réponse du comptable et du juriste** | Chaque règle datée, sourcée, prouvée par un test |
 | **Vague 1** (proposé) | Espace des salariés, pourboires, repas, extras, planning tiré des réservations | Avec la reprise de Slate |
 
+*P2 commencé le 04/11/2026 (1.267.0, morceau A sur quatre)* : les trois onglets (« Aujourd'hui », « Le mois »,
+« L'équipe ») ; « Aujourd'hui » en deux colonnes, comme la maquette (la journée et quatre gestes à gauche ; les demandes
+et « À ne pas oublier », l'ancien « À traiter », à droite) ; « Le mois » en quatre étapes qu'on clique (Pointer, Bulletins,
+Payer, Déclarer), qui s'ouvre sur celle en cours ; « Payer » est une étape à elle (par virement, en espèces, puis
+remettre chaque bulletin) ; **un seul bouton vert**, calculé selon le jour : le mois d'avant pas fini (son bandeau),
+puis le mois en cours dès que ses bulletins existent, ou à partir du 25 pour les établir, sinon « Valider la journée ».
+La bande des douze mois reste sur « Le mois » (elle se simplifie au morceau C) ; l'année y est « Toute l'année ».
+*B, C et D le même jour (1.267.0, Skander : « enchaîne toute la paie et teste à la fin »)* : la journée de la maquette
+(quatre choix d'un clic, « + Retard » et « + H. sup » qui s'ajoutent à « Là », l'effet en DT sous la ligne, le congé prévu,
+le clavier, la recherche dès 12 salariés) ; le mois (ce qui change un montant retient les bulletins tant que le pointage
+n'est pas validé, avec « Régler d'abord » ; les bulletins du mois en cours à partir du 25, jamais un mois à venir ;
+« Plus tard » remet un rappel à lundi) ; le téléphone (la feuille à gros boutons, « Valider la journée » sous le pouce, les
+demandes au pouce). **Restent, à décider ou à faire** : « Pourquoi ? » d'une absence (un champ de plus dans le pointage,
+ou un congé saisi), « comptés présents jusqu'au 30 » écrit sur le bulletin lui-même (aujourd'hui dans la question
+d'« Établir »), les étapes du mois selon la façon de faire la paie avec le cabinet, et la revue complète à la souris.
+`docs/paie.md`, « La paie refaite, morceaux B à D ».
+
 **Pourquoi P0 passe avant P1** : on ne déménage pas un code qui fausse l'argent sans d'abord le prouver juste, et la
 règle du 03/11/2026 l'autorise pour une correction urgente. **Pourquoi P1 passe avant P2** : on ne refait pas un écran
 dans un fichier qu'on va quitter (même règle).

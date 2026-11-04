@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { chromium, type Browser } from 'playwright-core';
+import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
@@ -284,8 +284,8 @@ describe('la recette alpha, à la souris', () => {
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^FAC-\d{4}-\d{3}$/);
     await p.evaluate(() => { location.hash = '#/devis'; });
     const ligne = p.locator('#view tbody tr').filter({ hasText: 'DEV-2026-041' });
-    await expect.poll(() => ligne.innerText().then(net), { timeout: 15_000 }).toMatch(/accepté facturé/);
-    expect(await p.locator('#view tbody tr').filter({ hasText: 'Vitrine' }).innerText().then(net)).not.toMatch(/facturé/);
+    await expect.poll(() => ligne.innerText().then(net), { timeout: 15_000 }).toMatch(/accepté facturé/i);
+    expect(await p.locator('#view tbody tr').filter({ hasText: 'Vitrine' }).innerText().then(net)).not.toMatch(/facturé/i);
     // 3. L'Aide ne promet plus Ctrl+N ni Ctrl+1 à 9 (le navigateur les garde) ; elle garde Ctrl+S.
     await p.evaluate(() => { location.hash = '#/aide/raccourcis'; });
     const aide = p.locator('#view table.keys');
@@ -318,6 +318,18 @@ describe('la recette alpha, à la souris', () => {
     await cx.close();
   }, 240_000);
 
+  // (1.267.0) Les bulletins attendent que le pointage du mois soit réglé (16 § 3.7) : ses journées se relisent et se valident
+  // d'un geste, puis « Établir » s'offre.
+  const reglerPuisEtablir = async (p: Page) => {
+    await p.locator('#p-gen, #p-regler').first().waitFor({ timeout: 20_000 });
+    if (await p.locator('#p-regler').count()) {
+      await p.locator('#p-regler').click();
+      await p.locator('#pt-jav').click();
+      await p.locator('#modal-root #jav-ok').click();
+      await p.locator('#p-sous [data-sous="bulletins"]').click();
+    }
+    await p.locator('#p-gen').click();
+  };
   it('« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui', async () => {
     const { jeton, ent } = await commerce();
     expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
@@ -330,7 +342,10 @@ describe('la recette alpha, à la souris', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/paie`);
-    await p.locator('#p-gen').click({ timeout: 20_000 });
+    // (1.267.0) La paie s'ouvre sur « Aujourd'hui » : les bulletins vivent dans Le mois, à leur étape.
+    await p.locator('#p-tabs [data-tab="bulletins"]').click({ timeout: 20_000 });
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
+    await reglerPuisEtablir(p);
     await p.locator('#modal-root #ok').click();
     await p.getByRole('button', { name: /^Payer les salaires/ }).click({ timeout: 15_000 });
     const fenetre = p.locator('#modal-root .modal').last();

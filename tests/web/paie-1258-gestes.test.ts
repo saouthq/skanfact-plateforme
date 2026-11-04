@@ -83,7 +83,9 @@ describe('la paie 1.258.0 : la journée validée, le rappel, les documents, la d
     return p;
   };
   // Le mois dernier dans la bande des douze mois (l'année d'avant en janvier).
+  // (1.267.0) La bande est sur « Le mois » (la page s'ouvre sur « Aujourd'hui ») ; l'étape ouverte ne change pas.
   const auMoisDernier = async (p: Page, x: { an: number; anA: number; moA: number }) => {
+    if (await p.locator('#p-mois').isHidden()) await p.locator('#p-tabs [data-tab="bulletins"]').click();
     if (x.anA !== x.an) { await p.locator('#p-an-prec').click(); await p.waitForTimeout(300); }
     await p.locator(`#p-mois [data-p-mois="${x.moA}"]`).click();
     await p.waitForTimeout(400);
@@ -124,6 +126,7 @@ describe('la paie 1.258.0 : la journée validée, le rappel, les documents, la d
     await p.route('**/v1/pdf', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ motif: { code: 'pdf.indisponible', texte: 'indisponible' }, bouton: null, indisponible: true }) }));
     await p.evaluate(() => { (window as unknown as { open: unknown }).open = () => ({ document: { write() {}, close() {} }, focus() {}, print() {} }); });
     await auMoisDernier(p, x);
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
     // Le bulletin de Mourad, en document : à gauche « Pour » (les deux bulletins du mois), la liste des documents, « Prêt ».
     await p.locator(`#p-bulletins tr[data-bul="p-mt-${x.anA}-${x.moA}"]`).click();
     await p.locator('#bg-doc').click();
@@ -164,7 +167,9 @@ describe('la paie 1.258.0 : la journée validée, le rappel, les documents, la d
   it('la déclaration du mois (O17), le mois avant ses bulletins (O28), les réglages des retards et de la nuit', async () => {
     const x = await monter({ sansCeMois: true });
     const p = await ouvrir(x);
-    // Le mois en cours n'a pas de bulletin : « Le mois » montre le pointage qu'ils reprendront, et mène au pointage.
+    // Le mois en cours n'a pas de bulletin : son étape « Bulletins » montre le pointage qu'ils reprendront, et mène au pointage.
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
     await p.locator('#mp-pointage').waitFor();
     expect(await p.locator('#mp-t tr').count()).toBe(2);
     expect(espace(await p.locator('#mp-t tr').first().innerText())).toMatch(/^MT Mourad Trabelsi \d+ j$/);
@@ -183,7 +188,7 @@ describe('la paie 1.258.0 : la journée validée, le rappel, les documents, la d
     await expect.poll(() => p.locator('#pt-compteurs').innerText().then(espace)).toMatch(/Heures de nuit du mois \d+(,\d+)? h de 21:00 à 05:00, majorées de 25 % sur le bulletin/);
     expect(espace(await p.locator('#pt-compteurs').innerText())).toContain('retenus sur le salaire (ton réglage)');
     // La déclaration du mois dernier, sans cabinet : ce qu'elle reporte, et le total qui fait le montant.
-    await p.locator('#p-tabs [data-tab="declarations"]').click();
+    await p.locator('#p-sous [data-sous="declarations"]').click();
     await auMoisDernier(p, x);
     await p.locator('#dm-file').click();
     await p.locator('#pd-t').waitFor();
@@ -208,6 +213,7 @@ describe('la paie 1.258.0 : la journée validée, le rappel, les documents, la d
     await p.evaluate(() => { location.hash = '#/paie'; });
     await p.locator('#p-head').waitFor();
     await auMoisDernier(p, x);
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
     await p.locator(`#p-bulletins tr[data-bul="p-nb-${x.anA}-${x.moA}"]`).getByRole('button', { name: /Actions/ }).click();
     await p.getByText('Régulariser sur un mois suivant…', { exact: true }).click();
     await p.locator('#rg-rect').click();

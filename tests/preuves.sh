@@ -22107,7 +22107,7 @@ prouver 'messagerie 1.221 b : « Corriger la date » ne redate pas l'\''achat' m
         await save(true);" "        await save(true);" \
   "$WMSG7"
 
-WPAIE1="le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
+WPAIE1="Aujourd'hui et son bouton vert, les quatre étapes, « À ne pas oublier », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
 prouver 'paie 1.222 a : la frise compte remis ce qui ne l'\''est pas' modules/personnel/moteur/core-paie.js \
   "remis = L.filter(x => x.remisLe);" "remis = L.filter(x => x.paidDate);" \
   "$WPAIE1"
@@ -22257,13 +22257,13 @@ prouver 'paie 1.232 c : sans réseau la paie offre son geste' modules/personnel/
   "      if (prin && navigator.onLine === false) prin = prin.replace(" "      if (false) prin = prin.replace(" \
   "$WRW3"
 prouver 'paie 1.233 a, 1.249 : le pointage s'\''ouvre sur le mois de paie, pas sur le mois du jour' modules/personnel/ecrans/entreprise/paie.js \
-  "['pointage', 'pt-jour', 'pt-salarie'].includes(s.tab) ? { year: Number(C.today().slice(0, 4)), month: Number(C.today().slice(5, 7)) } : entree;" "entree;" \
-  'aujourd'\''hui qui n'\''est pas là, une période d'\''un coup (jours à venir), le mois par salarié, les horaires'
+  "['pt-jour', 'conges'].includes(s.tab) ? { year: Number(C.today().slice(0, 4)), month: Number(C.today().slice(5, 7)) } : entree;" "entree;" \
+  "le mois : ce qui change un montant retient les bulletins, « Régler d'abord » mène au pointage ; « Plus tard » remet un rappel à lundi"
 
 # L'interface de la paie au plus près de sa maquette (1.234.0) : chaque défaut remis fait tomber son test.
 WI1="approuver avant de payer ; les contrôles ; « Annuler »"
 WI2="la fiche d'une arrivée, ce que tu verses et quand, l'année par poste"
-WI3="le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
+WI3="Aujourd'hui et son bouton vert, les quatre étapes, « À ne pas oublier », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
 WI4="les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'ordre de virement, marquer payés puis annuler"
 prouver 'paie 1.234 a : « Marquer payé » offert avant le bon à payer' modules/personnel/ecrans/entreprise/paie.js \
   "...(!x.paidDate && !(bapDuMois(Number(x.year), Number(x.month)) && !x.bonAPayerLe) && !horsLigneP ?" "...(!x.paidDate && !horsLigneP ?" \
@@ -22486,7 +22486,7 @@ prouver "paie 1.249 e : le salarié précédent n'est pas à côté de son nom" 
 # 1.250.0 (recette du 02/11/2026) : le journal de paie se lit (sigles) et s'ouvre sur un bulletin ; le calendrier des
 # congés change de mois par ‹ › et une case libre ouvre la fenêtre du congé à ce jour.
 WP250J='le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'\''état récapitulatif CNSS'
-WP250M='le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
+WP250M='Aujourd'\''hui et son bouton vert, les quatre étapes, « À ne pas oublier », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
 prouver "paie 1.250 a : une ligne du journal de paie n'ouvre pas son bulletin" modules/personnel/ecrans/entreprise/paie.js \
   "if (x) apercuBulletin(x); }; tr.onclick = ouvrir;" "if (x) apercuBulletin(x); }; tr.onclick = null;" \
   "$WP250J"
@@ -22606,7 +22606,7 @@ prouver "paie 1.256 f : le reçu d'espèces ne dit plus ce qu'il est" modules/pe
   'le reçu d'\''un salaire en espèces dit qui, combien (en chiffres et en lettres), pour quel mois'
 prouver "paie 1.256 g : le tableau des bulletins garde un second cadre dans sa carte" modules/personnel/styles/paie-maquette.css \
   ".pm .carte.tab table.list { border: 0; box-shadow: none; border-radius: 0; background: none; margin: 0; }" ".pm .carte.tab table.list { margin: 0; }" \
-  'le geste suivant, la frise, « À traiter », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
+  'Aujourd'\''hui et son bouton vert, les quatre étapes, « À ne pas oublier », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
 prouver "paie 1.256 h : « Le confirmer dans son poste » ne note pas la date" modules/personnel/ecrans/entreprise/paie.js \
   "x.essaiConfirmeLe = C.today(); save(true);" "save(true);" \
   'la fin d'\''essai : « À traiter » la dit, « Le confirmer dans son poste » la note et ouvre le courrier'
@@ -23845,6 +23845,88 @@ prouver 'P1b i : l'"'"'outil qui compte chez le socle la collection d'"'"'un mod
 prouver 'P1b j : l'"'"'outil qui oublie la racine du dossier dans la fiche' outils/rangement/frontieres.ts \
   '?.collections?.concat(ctx.fiches.get(de)?.racine ?? [])' '?.collections' \
   "$TF1"
+# La paie refaite, morceau A (1.267.0) : « Aujourd'hui », le bouton vert du jour, les quatre étapes du mois.
+WA1="Aujourd'hui et son bouton vert, les quatre étapes, « À ne pas oublier », trois chiffres, les bulletins qui changent d'abord, remettre puis annuler"
+WA2="le mois : « À régler » tient tout ce qui bloque, l'onglet dit le même chiffre ; le mois se valide une fois la liste vide"
+WA3="aujourd'hui qui n'est pas là, une période d'un coup (jours à venir), le mois par salarié, les horaires"
+prouver 'paie 1.267 a : « Aujourd'\''hui » oublie le mois d'\''avant qui n'\''est pas fini' modules/personnel/ecrans/entreprise/paie.js \
+  ">= premierMoisPaie) { const a = actionDuMois(yP, mP); if (a) return" ">= premierMoisPaie) { const a = null; if (a) return" \
+  "$WA1"
+prouver 'paie 1.267 b : l'\''étape « Pointer » tait ce qui reste à régler' modules/personnel/ecrans/entreprise/paie.js \
+  "nbReg = ptVerrouille(ymPt(y, m)) ? 0 : aReglerMois(y, m).length;" "nbReg = 0;" \
+  "le mois : ce qui change un montant retient les bulletins, « Régler d'abord » mène au pointage ; « Plus tard » remet un rappel à lundi"
+prouver 'paie 1.267 c : l'\''étape « Payer » sans son bouton vert' modules/personnel/ecrans/entreprise/paie.js \
+  "      else if (s.tab === 'bulletins' || s.tab === 'payer') {" "      else if (s.tab === 'bulletins') {" \
+  "$WA1"
+prouver 'paie 1.267 d : depuis l'\''étape « Pointer », l'\''onglet « Aujourd'\''hui » ne mène nulle part' modules/personnel/ecrans/entreprise/paie.js \
+  "const deja = b.dataset.tab === 'pointage' ? s.tab === 'pt-jour' : b.dataset.tab === 'bulletins' ? !!ETAPE_DE[s.tab] : b.dataset.tab === s.tab;" "const deja = b.dataset.tab === s.tab;" \
+  "$WA3"
+# La paie refaite, morceaux B à D (1.267.0) : la journée de la maquette, le mois qui attend le pointage, le téléphone.
+WB1="la journée : quatre choix d'un clic, « + Retard » et « + H. sup » sur la ligne, l'effet en dinars, le congé prévu"
+WB2="au clavier, à 13 salariés : ↑ ↓ puis une lettre ; la recherche cache ce qui ne répond pas"
+WB3="le mois : ce qui change un montant retient les bulletins, « Régler d'abord » mène au pointage ; « Plus tard » remet un rappel à lundi"
+WB4="au téléphone : la feuille à gros boutons, chacun avec ce qu'il fait ; « Valider la journée » sous le pouce"
+F267=modules/personnel/ecrans/entreprise/paie.js
+prouver 'paie 1.267 e : un choix de la journée rouvre la fenêtre de la case' $F267 \
+  '      if (!C.poserPointage(data, e, y, m, d, c)) return;' '      if (c !== '\''P'\'') return caseFenetre(e, y, m, d, apres, { code: c }); if (!C.poserPointage(data, e, y, m, d, c)) return;' \
+  "$WB1"
+prouver 'paie 1.267 f : la demi-journée retient un jour entier sous la ligne' $F267 \
+  'C.round3(x.unJour / 2) : x.unJour, cur)} sur son brut' 'x.unJour : x.unJour, cur)} sur son brut' \
+  "$WB1"
+prouver 'paie 1.267 g : « + Retard » écrit avant qu'\''un nombre soit tapé' $F267 \
+  '      s.ptjOuvre = { id: e.id, iso, quoi }; apres();' '      if (quoi === '\''retard'\'') C.poserRetard(data, e, x.y, x.m, x.d, 15); s.ptjOuvre = { id: e.id, iso, quoi }; apres();' \
+  "$WB1"
+prouver 'paie 1.267 h : les heures sup d'\''un jour sans leur majoration' $F267 \
+  'C.round3(brut * hh * (100 + maj) / 100 / hm) : 0;' 'C.round3(brut * hh / hm) : 0;' \
+  "$WB1"
+prouver 'paie 1.267 i : le congé saisi d'\''avance ne se dit pas' $F267 \
+  'if (l) L.push(`<span>Prévu : congé ${du(l)}' 'if (false) L.push(`<span>Prévu : congé ${du(l)}' \
+  "$WB1"
+prouver 'paie 1.267 j : le pied compte « là » ceux qui sont absents' $F267 \
+  "const nLa = attendus - notes.filter(([, x]) => ['A', 'C', 'M', 'F'].includes(x.k)).length;" 'const nLa = attendus;' \
+  "$WB1"
+prouver 'paie 1.267 k : une absence garde le retard et les heures sup du jour' $F267 \
+  "      if (c !== 'P') { C.poserRetard(data, e, y, m, d, 0); C.poserHeuresSupDuJour(data, e, y, m, d, 0, 0); }" '      if (false) { /* rien */ }' \
+  "$WB1"
+prouver 'paie 1.267 l : les flèches ne passent plus d'\''un salarié à l'\''autre' $F267 \
+  "const n = R[R.indexOf(li) + (ev.key === 'ArrowDown' ? 1 : -1)]; if (n) n.focus();" 'const n = null; if (n) n.focus();' \
+  "$WB2"
+prouver 'paie 1.267 m : la lettre A pose « Là »' $F267 \
+  "const TOUCHE_J = { l: 'P', a: 'A'," "const TOUCHE_J = { l: 'P', a: 'P'," \
+  "$WB2"
+prouver 'paie 1.267 n : la recherche ne cache rien' $F267 \
+  'li.hidden = !ok; if (ok) n++;' 'li.hidden = false; n++;' \
+  "$WB2"
+prouver 'paie 1.267 o : les bulletins s'\''offrent avec un pointage à régler' $F267 \
+  '              : miss.length && bloquantsDe(y, m).length ? `<button class="btn btn-primary" id="p-regler">' '              : false ? `<button class="btn btn-primary" id="p-regler">' \
+  "$WB3"
+prouver 'paie 1.267 p : le bouton vert du jour oublie le pointage à régler' $F267 \
+  "        if (bloquantsDe(y, m).length) return { etape: 'pointage'," "        if (false) return { etape: 'pointage'," \
+  "$WB3"
+prouver 'paie 1.267 q : la pastille de « Le mois » tait ce qui retient les bulletins' $F267 \
+  'const nMo = C.missingPayslips(data, Number(s.year), Number(s.month)).length ? bloquantsDe(Number(s.year), Number(s.month)).length : 0,' 'const nMo = 0,' \
+  "$WB3"
+prouver 'paie 1.267 r : le mois en cours s'\''établit avant le 25' $F267 \
+  'return ym > auj.slice(0, 7) || (ym === auj.slice(0, 7) && Number(auj.slice(8, 10)) < 25);' 'return ym > auj.slice(0, 7);' \
+  "$WB3"
+prouver 'paie 1.267 s : « Plus tard » ne cache pas le rappel' $F267 \
+  'return C.paieATraiter(data, auj).filter(x => !x.demande && !(T[cleRappel(x)] > auj));' 'return C.paieATraiter(data, auj).filter(x => !x.demande);' \
+  "$WB3"
+prouver 'paie 1.267 t : la pastille d'\''« Aujourd'\''hui » ne compte pas les rappels' $F267 \
+  'const rap = rappelsDuJour().length, nAuj = dem + rap;' 'const rap = rappelsDuJour().length, nAuj = dem;' \
+  "$WB3"
+prouver 'paie 1.267 u : au téléphone, une ligne qui ne change rien ne dit rien' $F267 \
+  "const pastille = { P: 'Là', A:" "const pastille = { P: '', A:" \
+  "$WB4"
+prouver 'paie 1.267 v : au téléphone, « C'\''est noté » se touche mal' modules/personnel/styles/paie-maquette.css \
+  '.ptj-feuille .ptj-note { justify-content: center; min-height: 48px; }' '.ptj-feuille .ptj-note { justify-content: center; min-height: 0; height: 30px; }' \
+  "$WB4"
+prouver 'paie 1.267 w : au téléphone, « Valider la journée » quitte le pouce' modules/personnel/styles/paie-maquette.css \
+  '  .pm #ptj-valider.btn-primary { position: fixed;' '  .pm #ptj-valider.btn-primary { position: static;' \
+  "$WB4"
+prouver 'paie 1.267 x : en sombre, l'\''encre de la feuille A4 éteint toute la page' modules/personnel/styles/paie-maquette.css \
+  'body.dark .pm .papier { color: #1d2327; }' 'body.dark .pm { color: #1d2327; }' \
+  "$WA1"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

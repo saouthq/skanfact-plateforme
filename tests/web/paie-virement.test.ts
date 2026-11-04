@@ -102,8 +102,10 @@ describe('payer les salaires du mois, à la souris', () => {
 
     // ── Sans le nom de la société, l'ordre ne dirait pas qui l'envoie : la fenêtre le dit, l'ordre est éteint, et le bouton
     //    ouvre la fiche société sur la case ──────────────────────────────────────────────────────────────────
+    if (await p.locator('#p-mois').isHidden()) await p.locator('#p-tabs [data-tab="bulletins"]').click(); // (1.267.0) la bande est sur « Le mois »
     for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(annee); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(annee) ? '#p-an-prec' : '#p-an-suiv').click();
     await p.locator(`#p-mois [data-p-mois="${mois}"]`).click();
+    await p.locator('#p-sous [data-sous="payer"]').click(); // (1.267.0) l'étape « Payer » du mois
     await p.locator('#p-payer').click();
     await expect.poll(async () => (await titre()).startsWith(`Payer les salaires ${dePeriode}`)).toBe(true);
     expect(await lire('#ps-societe')).toBe('Le nom de ta société n\'est pas sur ta fiche : l\'ordre de virement ne dirait pas qui l\'envoie. Renseigner ta fiche…');
@@ -120,6 +122,7 @@ describe('payer les salaires du mois, à la souris', () => {
     // ── L'étape suivante : tous les bulletins établis, « Payer les salaires… » est le bouton principal ──────
     // La page s'ouvre sur le mois dont les bulletins restent à établir ; ceux de l'essai sont du mois d'avant.
     // (En janvier, le mois d'avant est de l'année d'avant.)
+    if (await p.locator('#p-mois').isHidden()) await p.locator('#p-tabs [data-tab="bulletins"]').click(); // (1.267.0) la bande est sur « Le mois »
     for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(annee); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(annee) ? '#p-an-prec' : '#p-an-suiv').click();
     await p.locator(`#p-mois [data-p-mois="${mois}"]`).click();
     const payer = p.locator('#p-payer');

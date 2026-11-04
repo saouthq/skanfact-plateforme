@@ -294,6 +294,9 @@
 /* 1.234.0 — L'année : le récapitulatif sous le graphique tient dans sa carte. */
 .pa-annee-w { padding: 0 16px 10px; }
 .pa-annee-w table.pa-annee-t { margin: 4px 0 0; width: 100%; box-sizing: border-box; }
+/* (1.267.0) Son cadre a déjà la marge du titre : ses colonnes ne la reprennent pas (14 px de trop, vu au contrôle de L'année). */
+.pa-carte .pa-annee-w table.pa-annee-t tr > :first-child { padding-left: 0; }
+.pa-carte .pa-annee-w table.pa-annee-t tr > :last-child { padding-right: 0; }
 .pa-tuile .m small.u { font-size: 13px; }
 
 /* 1.234.0 — Pointage : la grille comme la maquette (case vide = présent, repos en colonne grise, totaux à droite). */

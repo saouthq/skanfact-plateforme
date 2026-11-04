@@ -2402,3 +2402,102 @@ l'argent ou perdent des données. Ils se réparent dans les gros fichiers (excep
   reçoivent, ne garde plus ni CIN ni RIB. Une lecture de la CIN ou du RIB en clair se trace. Le scellement au repos (lot B)
   attend la décision de la clé. Tests : `tests/cabinet/paie.test.ts` (« (16 § 10.1, 13) le cabinet lit la CIN… »),
   `tests/v10/droits-dossier.test.ts` (« (16 § 10.1, 13) … ») ; preuves `paie 10.1-13 a` à `k`.
+
+## La paie refaite, morceau A : trois onglets, « Aujourd'hui », le mois en quatre étapes (04/11/2026, 1.267.0)
+
+Skander, 04/11 : « je ne trouve rien ». La maquette `docs/maquettes/paie-v2.html` (16 § 2.2) se pose dans l'application en
+quatre morceaux ; celui-ci est le premier (16 § 10.2, P2).
+
+- **Trois onglets** : « Aujourd'hui », « Le mois », « L'équipe » (et « Réglages », à droite). L'onglet « Aujourd'hui »
+  garde l'identifiant `pointage` de l'ancien « Présences » ; la vue `pointage` elle-même (la grille du mois) devient
+  l'étape 1 du mois. La recherche (Ctrl K) propose toujours chaque vue.
+- **« Aujourd'hui »** s'ouvre sur le jour même, sans la bande des mois ; ‹ › passent d'un mois à l'autre, « Revenir à
+  aujourd'hui » y ramène. À gauche, la journée (la même qu'avant, sur deux rangs par salarié) et quatre gestes : une absence
+  prévue, une avance, un document, un départ. À droite, les demandes (« Noter une demande… » ouvre la fenêtre du congé, la
+  case « c'est une demande » cochée) et **« À ne pas oublier »**, l'ancien « À traiter » de « Le mois » (`#p-traiter`, les
+  mêmes lignes, la même fonction `C.paieATraiter`, sans les demandes, qui ont leur carte).
+- **« Le mois » en quatre étapes** qu'on clique (`etapesDuMois`) : Pointer, Bulletins, Payer, Déclarer. Elles se lisent des
+  étapes du moteur (`C.paieDuMois`, les mêmes faits que l'ancienne frise) ; « Payer » réunit payer et remettre. L'onglet
+  s'ouvre sur l'étape en cours du mois à traiter. « Pointer » porte le compte de ce qui reste à régler, même sur une étape
+  faite (le compteur et sa liste disent le même chiffre), « Déclarer » celui des déclarations proches (l'ancienne pastille de l'onglet « Déclarations ») ; « Par salarié »
+  et « Les horaires » sont sous « Pointer » ; l'année est « Toute l'année », dans la bande.
+- **« Payer », une étape à elle** (`drawPayer`) : par virement (un seul ordre pour la banque, le RIB qui manque nommé, avec
+  son bouton), en espèces (contre un reçu), puis remettre les bulletins. Avant des bulletins prêts, elle dit pourquoi et mène
+  aux bulletins.
+- **Un seul bouton vert, calculé selon le jour** (`principalDuJour`, la maquette, « principal ») : d'abord le mois d'avant
+  s'il n'est pas fini (la correction, ton accord, établir, payer, remettre) — dans un bandeau ambre « Octobre n'est pas
+  fini » en tête d'« Aujourd'hui » ; puis le mois en cours dès que ses bulletins existent, ou à partir du 25 pour les
+  établir — en haut ; sinon « Valider la journée », dans sa carte. Le bouton mène au mois et à son étape. Le mois d'avant
+  se lit lui-même : `C.moisDePaie` passe au mois en cours dès qu'il lui manque un bulletin, salaires d'avant payés ou non.
+  Avant le premier bulletin fait dans SkanFact, le mois d'avant n'a rien à finir (la règle de la bande). Sur « Le mois », le
+  vert est celui de l'étape ouverte (établir ou approuver sur « Bulletins », payer puis remettre sur « Payer » ; une fois
+  les bulletins prêts, « Payer les salaires » reste aussi sur « Bulletins », qui vient de les faire) ;
+  « Pointer » et « Déclarer » portent le leur dans leur carte.
+- « Embaucher » est sur chaque vue (sur « L'équipe », c'est le vert « Un salarié »). Les raccourcis suivent : « Répondre »
+  et « Créer › Pointage » ouvrent « Aujourd'hui » ; « Payer » et « Remettre » de la palette, l'étape « Payer ».
+- Une icône « argent » rejoint celles de la page : les boutons qui l'appelaient restaient sans dessin.
+- Au téléphone, les flèches du jour et chaque ligne de la journée font 44 points, comme toute cible du doigt.
+
+Les morceaux B à D suivent, dans la même version (ci-dessous).
+
+## La paie refaite, morceaux B à D : la journée, le mois, le téléphone (04/11/2026, 1.267.0)
+
+Skander, 04/11 : « enchaîne toute la paie et teste à la fin ». Les trois morceaux qui restaient sont posés ensemble, dans la
+même version que le morceau A.
+
+**B — la journée de la maquette** (`ligneJourHtml`, `detailJourHtml`, `choisirJour`, `ouvrirAjout`) :
+
+- **Quatre choix qui se posent d'un clic, sans fenêtre** : Là, Absent, Congé, Malade ; chacun se défait d'« Annuler ». Un jour
+  de repos garde sa fenêtre (il ne passe que de « Repos » à « Présent »).
+- **Le retard et les heures sup s'ajoutent à « Là »** (« + Retard », « + H. sup ») : la ligne s'ouvre sur sa case (les
+  minutes, les heures) ; rien ne s'écrit avant qu'un nombre soit tapé ; Entrée le pose, Échap referme. Les heures sup
+  prennent la première majoration réglée (À VÉRIFIER selon le secteur) ; sans majoration réglée, le bouton le dit.
+- **Ce que le bulletin en fera, sous la ligne, en dinars** : l'absence (toute la journée ou une demi-journée, et « − X DT sur
+  son brut : son brut ÷ 26 »), le congé (il lui en reste N, « Une absence prévue… » pour plusieurs jours), la maladie
+  (« Noter l'arrêt et son certificat… », qui ne retient pas les bulletins), le retard (noté, ou retenu selon le réglage), les
+  heures sup (+ X DT).
+- **Le congé prévu se dit** : un jour couvert par un congé ou un arrêt saisi d'avance montre « Prévu : congé du … au … · tu
+  n'as rien à faire ».
+- **Au clavier** : ↑ ↓ d'un salarié à l'autre, puis L (là), A, C, M, R (retard), H (heures sup).
+- **À partir de 12 salariés, une recherche** (nom, poste) ; une équipe sans personne de trouvé se cache, « Tout montrer » remet
+  la liste.
+- Le titre dit « Qui est là aujourd'hui ? » (ou « Qui était là … ? »), le pied résume la journée (« 4 là · Karim : absent ·
+  Nadia : retard 15 min ») et le bouton dit « Valider la journée ».
+- **Pas encore** : « Pourquoi ? » d'une absence (sans solde, justifiée et payée, je ne sais pas encore). Il demande un champ
+  de plus dans le pointage, ou de passer par un congé saisi : décision à prendre (rapport du 04/11).
+
+**C — le mois** (`bloquantsDe`, `avant25`, « Plus tard ») :
+
+- **Ce qui change un montant retient les bulletins** (16 § 3.7, décision 4) : tant que le pointage du mois n'est pas validé,
+  la liste « À régler » (une journée pas validée, une sortie que la pointeuse n'a pas reçue, une demande sans réponse)
+  remplace « Établir » par « Régler d'abord N choses du pointage », qui mène à l'étape « Pointer » ; le bandeau de l'étape
+  « Bulletins » le dit, et « Établir » refuse avec la même phrase. La même fonction donne la liste, son compteur (la pastille
+  de « Le mois ») et le refus. Un certificat en retard n'en fait pas partie.
+- **Les bulletins du mois en cours à partir du 25**, jamais un mois à venir : avant, l'étape le dit (« d'ici là, le pointage
+  continue chaque jour ») et rien ne s'établit ; à partir du 25, la question d'« Établir » dit que les jours qui restent sont
+  comptés présents et que ce qui change se régularise sur le mois suivant. Le dernier bulletin d'un salarié qui part avant
+  se fait depuis « Son départ ».
+- **« Plus tard » sur chaque rappel d'« À ne pas oublier »** : il revient lundi prochain, « Annuler » le remet. Une commodité
+  de ce poste (rien ne part au serveur). La pastille d'« Aujourd'hui » compte les demandes et les rappels visibles, avec la
+  même liste.
+
+**D — le téléphone** :
+
+- **La feuille d'un salarié** (un nom touché) : quatre gros boutons, chacun avec ce qu'il fait (« − X DT sur son brut », « il
+  lui reste N j »), puis « + Retard » et « + Heures sup », et « C'est noté ».
+- **« Valider la journée » reste sous le pouce**, au-dessus de la barre du bas, quand c'est le bouton vert de la page.
+- **Les demandes se répondent au pouce** : leurs boutons prennent la largeur, à 44 points.
+- Une ligne qui ne change rien dit « Là » (la maquette).
+
+**Vu à l'essai des captures (04/11/2026, avant l'envoi de 1.267.0)** — trois défauts d'écran, corrigés et tenus par un test :
+
+- **Le mode sombre éteignait la paie.** Trois règles copiées de la maquette (`body.dark .pm { color: … }`) donnaient
+  l'encre noire de la feuille A4 à toute la page : en sombre, les noms des salariés, les montants des tuiles et les titres
+  des étapes ne se lisaient plus (présent depuis 1.256.0). Elles ne visent plus que la feuille (`.papier`, `.doc-g`).
+  Le test du mois lit la couleur d'un nom en sombre ; preuve `paie 1.267 x`.
+- **Au téléphone, la rangée des jours débordait** (« sam. » et la flèche tombaient seuls à la ligne) : les sept jours
+  tiennent sur une ligne, 44 px chacun au moins, les deux flèches passent dessous, aux deux bouts. Les deux boutons d'un
+  rappel (« Plus tard » et son geste) passent sous son texte, qu'ils écrasaient à 390 px.
+- **Sur « L'année », le petit tableau sous le graphique** était décalé de 14 px par rapport au titre de sa carte (sa
+  marge et celle de sa première colonne s'ajoutaient). Le contrôle du double cadre se fait désormais sur « L'année »
+  puis sur les bulletins du mois (preuves `paie 1.251 f` et `paie 1.256 g`).

@@ -90,7 +90,7 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
   it('la case du pointage : ce que chaque choix fait, le retard du jour, « Au » pour plusieurs jours, « Annuler »', async () => {
     const x = await monter();
     const p = await ouvrir(x);
-    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-tabs [data-tab="bulletins"]').click(); // (1.267.0) la grille est l'étape « Pointer » de « Le mois »
     // (1.259.0) La grille du mois : « Le mois », puis « Vue grille ».
     await p.locator('[data-sous="pointage"]').click();
     await p.locator('#pt-vue-grille').click();
@@ -126,7 +126,7 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
     const finA = new Date(Date.UTC(x.anA, x.moA, 0)).toISOString().slice(0, 10);
     expect((await api('POST', `/entreprises/${x.ent}/dossier-v10`, x.j, { changements: [{ collection: '_racine', cle: 'closedUntil', rang: null, revision: null, contenu: finA }] })).statut).toBe(200);
     const p = await ouvrir(x);
-    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-tabs [data-tab="bulletins"]').click(); // (1.267.0) la grille est l'étape « Pointer » de « Le mois »
     await p.locator('[data-sous="pointage"]').click();
     await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-grille').waitFor();
@@ -147,7 +147,7 @@ describe('la paie 1.257.0 : la case, la pointeuse, ses anomalies, le pointage va
   it('la pointeuse : ce que le fichier donnerait, l\'import, l\'anomalie réglée, puis le mois validé et verrouillé', async () => {
     const x = await monter();
     const p = await ouvrir(x);
-    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-tabs [data-tab="bulletins"]').click(); // (1.267.0) la grille est l'étape « Pointer » de « Le mois »
     // (1.259.0) La grille du mois : « Le mois », puis « Vue grille ».
     await p.locator('[data-sous="pointage"]').click();
     await p.locator('#pt-vue-grille').click();

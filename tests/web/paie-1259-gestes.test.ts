@@ -82,7 +82,9 @@ describe('la paie 1.259.0 : la journée, le mois en relecture, une seule règle 
     return p;
   };
   // Le mois dernier dans la bande des douze mois (l'année d'avant en janvier).
+  // (1.267.0) La bande est sur « Le mois » (la page s'ouvre sur « Aujourd'hui ») ; l'étape ouverte ne change pas.
   const auMoisDernier = async (p: Page, x: { an: number; anA: number; moA: number }) => {
+    if (await p.locator('#p-mois').isHidden()) await p.locator('#p-tabs [data-tab="bulletins"]').click();
     if (x.anA !== x.an) { await p.locator('#p-an-prec').click(); await p.waitForTimeout(300); }
     await p.locator(`#p-mois [data-p-mois="${x.moA}"]`).click();
     await p.waitForTimeout(400);
@@ -98,43 +100,41 @@ describe('la paie 1.259.0 : la journée, le mois en relecture, une seule règle 
     const iso = new Date().toISOString().slice(0, 10), d = Number(iso.slice(8, 10)), ym = iso.slice(0, 7);
     const ligne = (id: string) => p.locator(`#ptj [data-ptj-e="${id}"]`);
     const tsDe = async (id: string) => (await objets(x)).find((o) => o.collection === 'timesheets' && o.contenu.employeeId === id && `${o.contenu.year}-${mm(Number(o.contenu.month))}` === ym)?.contenu as Record<string, Record<string, unknown>> | undefined;
-    // Nadia absente : la case s'ouvre sur « Absent, sans solde » ; un jour de son brut (880,125 / 26 = 33,851) se lit sur sa ligne.
+    // (1.267.0) Nadia absente, d'un clic, sans fenêtre ; un jour de son brut (880,125 / 26 = 33,851) se lit sous sa ligne.
     await ligne('nb').getByRole('button', { name: 'Absent', exact: true }).click();
-    expect(await p.locator('#pc input[name=code]:checked').getAttribute('value')).toBe('A');
-    await p.locator('#pc-ok').click();
     await expect.poll(async () => (await tsDe('nb'))?.jours?.[String(d)], { timeout: 15_000 }).toBe('A');
-    expect(espace(await ligne('nb').locator('.ptj-e').innerText())).toBe('− 33,851 DT sur son brut');
-    // Mourad, 2 h sup : elles s'ajoutent au mois ; 1 450,375 × 2 × 1,25 / 208 = 17,432.
-    await ligne('mt').getByRole('button', { name: 'Heures sup', exact: true }).click();
-    await p.locator('#hsj [name=heures]').fill('2');
-    await expect.poll(async () => espace(await p.locator('#hsj-dit').innerText())).toBe('+ 17,432 DT sur son brut du mois.');
-    await p.locator('#hsj-ok').click();
+    expect(await p.locator('#modal-root #pc').count()).toBe(0);
+    expect(espace(await ligne('nb').locator('.ptj-e').innerText())).toContain('− 33,851 DT sur son brut');
+    // Mourad, 2 h sup : « + H. sup » ouvre sa case sous la ligne ; elles s'ajoutent au mois ; 1 450,375 × 2 × 1,25 / 208 = 17,432.
+    await ligne('mt').locator('[data-ptj-plus="mt:hs"]').click();
+    await p.locator('#ptj [data-ptj-hs="mt"]').fill('2');
+    await p.locator('#ptj [data-ptj-hs="mt"]').press('Enter');
     await expect.poll(async () => (await tsDe('mt'))?.hs?.['25'], { timeout: 15_000 }).toBe(2);
-    expect(espace(await ligne('mt').locator('.ptj-e').innerText())).toBe('+ 2 h à +25 % · + 17,432 DT');
-    expect(await ligne('mt').locator('[aria-pressed="true"]').innerText()).toBe('Heures sup');
-    // Un retard de Mourad : la case s'ouvre, le curseur sur les minutes ; noté, pas retenu (le réglage est éteint).
-    await ligne('mt').getByRole('button', { name: 'Retard', exact: true }).click();
-    expect(await p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe('retard');
-    await p.locator('#pc [name=retard]').fill('25');
-    await p.locator('#pc-ok').click();
+    expect(espace(await ligne('mt').locator('.ptj-e').innerText())).toContain('+ 17,432 DT sur son brut');
+    expect(await ligne('mt').locator('[data-ptj-plus="mt:hs"]').innerText()).toBe('2 h sup');
+    // Un retard de Mourad : « + Retard », le curseur sur les minutes ; noté, pas retenu (le réglage est éteint).
+    await ligne('mt').locator('[data-ptj-plus="mt:retard"]').click();
+    expect(await p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.ptjMin)).toBe('mt');
+    await p.keyboard.type('25'); await p.keyboard.press('Enter');
     await expect.poll(async () => (await tsDe('mt'))?.retards?.[String(d)], { timeout: 15_000 }).toBe(25);
-    // « Présent » remet la journée à la normale : le retard et les heures sup du jour s'en vont, du jour et du mois.
-    await ligne('mt').getByRole('button', { name: 'Présent', exact: true }).click();
+    // Les minutes et les heures effacées, la journée revient à la normale, du jour et du mois.
+    await p.locator('#ptj [data-ptj-min="mt"]').fill(''); await p.locator('#ptj [data-ptj-min="mt"]').press('Enter');
+    await p.locator('#ptj [data-ptj-hs="mt"]').fill(''); await p.locator('#ptj [data-ptj-hs="mt"]').press('Enter');
     await expect.poll(async () => { const t = await tsDe('mt'); return [t?.retards?.[String(d)], t?.hs?.['25']]; }, { timeout: 15_000 }).toEqual([undefined, undefined]);
-    expect(espace(await ligne('mt').locator('.ptj-e').innerText())).toBe('rien ne change');
+    expect(espace(await ligne('mt').locator('.ptj-e').innerText())).toBe('');
     // Valider : la journée est figée (ses choix ne se cliquent plus), « Rouvrir la journée » la rend.
     const valides = async () => ((await racine(x, 'joursValides')) as { iso: string; rouvertLe?: string }[] | undefined) ?? [];
-    expect(espace(await p.locator('#ptj-valider').innerText())).toBe('Tout le reste est là : valider la journée');
+    expect(espace(await p.locator('#ptj-valider').innerText())).toBe('Valider la journée');
     await p.locator('#ptj-valider').click();
     await expect.poll(async () => (await valides()).filter((v) => v.iso === iso && !v.rouvertLe).length).toBe(1);
     await p.locator('#ptj-valide').waitFor();
     expect(await ligne('nb').getByRole('button', { name: 'Absent', exact: true }).isDisabled()).toBe(true);
     await p.locator('#ptj-rouvrir').click();
     await expect.poll(async () => (await valides()).filter((v) => v.iso === iso && !v.rouvertLe).length).toBe(0);
-    expect(await ligne('nb').getByRole('button', { name: 'Présent', exact: true }).isDisabled()).toBe(false);
-    // Au téléphone : les choix se cachent, un nom touché les ouvre en grand.
+    expect(await ligne('nb').getByRole('button', { name: 'Là', exact: true }).isDisabled()).toBe(false);
+    // Au téléphone : les choix se cachent, un nom touché les ouvre en grand (quatre, puis le retard et les heures sup).
     await p.setViewportSize({ width: 390, height: 844 });
-    expect(await ligne('mt').locator('.ptj-seg').isVisible()).toBe(false);
+    expect(await ligne('mt').locator('.ptj-fin').isVisible()).toBe(false);
     await ligne('mt').locator('.ptj-tel').click();
     await p.locator('#ptjc').waitFor();
     expect(await p.locator('#ptjc [data-ptjc]').count()).toBe(6);
@@ -145,7 +145,7 @@ describe('la paie 1.259.0 : la journée, le mois en relecture, une seule règle 
   it('le mois : « À régler » tient tout ce qui bloque, l\'onglet dit le même chiffre ; le mois se valide une fois la liste vide', async () => {
     const x = await monter();
     const p = await ouvrir(x);
-    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#p-tabs [data-tab="bulletins"]').click(); // (1.267.0) la grille est l'étape « Pointer » de « Le mois »
     await p.locator('[data-sous="pointage"]').click();
     await p.locator('#pt-prog').waitFor();
     // Le mois du jour attend sa dernière journée (sauf le dernier jour du mois, où la journée du jour reste à valider).
@@ -195,7 +195,9 @@ describe('la paie 1.259.0 : la journée, le mois en relecture, une seule règle 
     const p = await ouvrir(x);
     await p.locator('#p-tabs [data-tab="pointage"]').click();
     await p.locator('#ptj').waitFor();
-    // `ouvrir` a rangé les bandeaux (« Plus tard ») : les questions s'ouvrent aussi depuis « Les horaires ».
+    // `ouvrir` a rangé les bandeaux (« Plus tard ») : les questions s'ouvrent aussi depuis « Les horaires », sous « Le mois › Pointer ».
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('[data-sous="pt-horaires"]').click();
     await p.locator('#pt-h-q').click();
     await p.locator('#pq-c').waitFor();

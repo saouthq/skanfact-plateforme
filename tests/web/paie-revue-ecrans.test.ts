@@ -74,7 +74,8 @@ describe('la paie : les écrans de la revue', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${x.ent}${hash}`);
     await p.locator(hash.startsWith('#/salarie') ? '#fs-head' : '#p-head').waitFor({ timeout: 20_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3000 }).catch(() => undefined);
-    if (an && mo) { for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(an); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(an) ? '#p-an-prec' : '#p-an-suiv').click(); await p.locator(`#p-mois [data-p-mois="${mo}"]`).click(); }
+    // (1.267.0) La bande des mois est sur « Le mois » (la page s'ouvre sur « Aujourd'hui ») ; le parcours lit l'étape « Bulletins ».
+    if (an && mo) { await p.locator('#p-tabs [data-tab="bulletins"]').click(); for (let i = 0; i < 6 && Number(await p.locator('#p-an').innerText()) !== Number(an); i++) await p.locator(Number(await p.locator('#p-an').innerText()) > Number(an) ? '#p-an-prec' : '#p-an-suiv').click(); await p.locator(`#p-mois [data-p-mois="${mo}"]`).click(); await p.locator('#p-sous [data-sous="bulletins"]').click(); }
     await p.waitForTimeout(400);
     return p;
   };
@@ -161,6 +162,8 @@ describe('la paie : les écrans de la revue', () => {
     const d = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
     await A.poser('leaves', 'lm', { id: 'lm', employeeId: 'nb', kind: 'maladie', from: d(-3), to: d(-2), paid: null, note: '' });
     p = await ouvrir(A, '#/paie', A.an, A.mo);
+    // (1.267.0) « À ne pas oublier » (l'ancien « À traiter ») est sur « Aujourd'hui ».
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
     await expect.poll(async () => espace(await p.locator('#p-traiter').innerText())).toContain('Nadia Ben Salah : le certificat de son arrêt');
     await p.locator('#p-traiter li', { hasText: 'le certificat de son arrêt' }).locator('[data-traiter]').click();
     expect(await p.locator('#lf-maladie').isVisible()).toBe(true);
@@ -174,8 +177,8 @@ describe('la paie : les écrans de la revue', () => {
     // Le pointage : (1.251.0) le mois est celui de la bande des douze mois, commune à toute la page ; tant qu'on n'en a pas
     // choisi, le pointage s'ouvre sur le mois du jour (recette du 02/11 : il s'ouvrait sur le mois de paie, octobre, le 2
     // novembre). Un autre mois de la bande : la grille passe à ce mois, la bande garde sa place (rien ne glisse).
-    await p.locator('#p-tabs button[data-tab="pointage"]').click();
-    // 1.259.0 : l'onglet ouvre « La journée » ; la grille du mois se demande dans « Le mois ».
+    // 1.259.0 : la grille du mois se demande dans « Le mois » ; (1.267.0) c'est son étape « Pointer ».
+    await p.locator('#p-tabs button[data-tab="bulletins"]').click();
     await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-panneau').waitFor();
@@ -203,7 +206,7 @@ describe('la paie : les écrans de la revue', () => {
     expect(await present.textContent()).toBe('P');
     expect(await present.evaluate((el) => getComputedStyle(el).color)).toBe('rgba(0, 0, 0, 0)');
     // Sans réseau, la paie se consulte et le dit ; son geste principal attend la connexion.
-    await p.locator('#p-tabs button[data-tab="bulletins"]').click();
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
     await expect.poll(() => p.locator('#p-payer').count()).toBe(1);
     await p.context().setOffline(true);
     await expect.poll(() => p.locator('#p-hors-ligne').count()).toBe(1);
@@ -324,8 +327,8 @@ describe('la paie : les écrans de la revue', () => {
     if (!nom || !gestes) throw new Error('la carte du bulletin ne se mesure pas');
     expect(gestes.y).toBeGreaterThanOrEqual(nom.y + nom.height - 1);
     // Le pointage : une ligne par salarié (ses jours payés), la grille cachée ; « Son mois » ouvre le pointage du salarié.
-    await p.locator('#p-tabs button[data-tab="pointage"]').click();
-    // 1.259.0 : l'onglet ouvre « La journée » ; la grille du mois se demande dans « Le mois ».
+    // 1.259.0 : la grille du mois se demande dans « Le mois » ; (1.267.0) c'est son étape « Pointer ».
+    await p.locator('#p-tabs button[data-tab="bulletins"]').click();
     await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('#pt-vue-grille').click();
     await p.locator('#pt-panneau').waitFor();

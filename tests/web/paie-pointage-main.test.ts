@@ -90,13 +90,13 @@ describe('la paie : le pointage à la main', () => {
     expect(await p.locator('#ptj-q').count()).toBe(0);
     expect(await p.locator('#ptj .ptj-l').count()).toBe(2);
     const karim = p.locator('#ptj [data-ptj-e="s1"]');
-    expect(await karim.locator('[aria-pressed="true"]').innerText()).toBe('Présent');
-    await karim.getByRole('button', { name: 'Absent' }).click();
-    await p.locator('#pc-ok').click();
+    // (1.267.0) « Là » par défaut ; « Absent » se pose d'un clic, sans fenêtre (la maquette).
+    expect(await karim.locator('.ptj-seg [aria-pressed="true"]').innerText()).toBe('Là');
+    await karim.getByRole('button', { name: 'Absent', exact: true }).click();
     await expect.poll(async () => (await codesDe('s1'))[aujIso], { timeout: 15_000 }).toBe('A');
-    expect(await p.locator('#ptj [data-ptj-e="s1"] [aria-pressed="true"]').innerText()).toBe('Absent');
-    expect(espace(await p.locator('#toast').innerText())).toContain('Karim Numéro Un : ');
-    expect(espace(await p.locator('#toast').innerText())).toContain(', absent');
+    expect(await p.locator('#ptj [data-ptj-e="s1"] .ptj-seg [aria-pressed="true"]').innerText()).toBe('Absent');
+    expect(espace(await p.locator('#toast').innerText())).toContain('Karim Numéro Un, ');
+    expect(espace(await p.locator('#toast').innerText())).toContain(' : absent : − ');
     await p.screenshot({ path: path.join(PHOTOS, 'paie-pointage-main.png') });
     await p.locator('#toast-undo').click();
     await expect.poll(async () => (await codesDe('s1'))[aujIso], { timeout: 15_000 }).toBeUndefined();
@@ -116,9 +116,12 @@ describe('la paie : le pointage à la main', () => {
     expect((await codesDe('s2'))[plus(6)]).toBeUndefined();
 
     // ── Par salarié : son mois en calendrier (1.249.0), d'où vient chaque code ; un jour se corrige au clavier ──────────
+    // (1.267.0) « Par salarié » est sous l'étape « Pointer » de « Le mois », au mois de la bande : celui du jour.
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    await p.locator(`#p-mois [data-p-mois="${m}"]`).click();
+    await p.locator('#p-sous [data-sous="pointage"]').click();
     await p.locator('#p-sous [data-sous="pt-salarie"]').click();
     await p.locator('#pt-sal').waitFor();
-    // Le mois du jour, sans rien choisir (recette du 02/11 : il s'ouvrait sur le mois de paie).
     expect(await p.locator(`#pt-sal-t [data-ptj="${d}"]`).getAttribute('class')).toContain('pt-jour-auj');
     await p.locator('#pt-sal-e').selectOption('s2');
     // Le lendemain (s'il est dans le mois) est un congé pointé à la main.
