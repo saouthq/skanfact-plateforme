@@ -23699,7 +23699,7 @@ RD1='la photo du moteur est la même d'"'"'une fois sur l'"'"'autre (la date fig
 RD2='une photo qui n'"'"'atteint pas le moteur fait refuser la comparaison ; une fonction nouvelle ou disparue est dite'
 RD3='deux captures d'"'"'une page qui diffèrent par le texte, la structure, les pixels ou les registres sont dites ; une page non atteinte, ou qui ne se pose pas, aussi'
 RD4='chaque route de l'"'"'entreprise et du Cabinet est comparée, ou dite non ouverte avec sa raison'
-RD5='deux photos qui ne diffèrent que par le lissage de quelques pixels sont les mêmes ; au-delà du seuil, ou d'"'"'une autre taille, elles diffèrent'
+RD5='deux photos qui ne diffèrent que par le lissage (quelques pixels, ou des nuances de quelques niveaux) sont les mêmes ; au-delà du seuil, ou d'"'"'une autre taille, elles diffèrent'
 prouver 'R0d a : la photo du moteur à la vraie date' outils/rangement/moteur.ts \
   '    globalThis.Date = Figee;' '    void Figee;' \
   "$RD1"
@@ -23745,12 +23745,73 @@ prouver 'R0d p : un seuil de lissage qui avale un vrai changement' outils/rangem
 prouver 'R0d q : une photo d'"'"'une autre taille, comparée comme si elle avait la même' outils/rangement/pixels.ts \
   '  if (a.largeur !== b.largeur || a.hauteur !== b.hauteur || a.canaux !== b.canaux) return Infinity;' '  if (a.largeur !== b.largeur) return Infinity;' \
   "$RD5"
+prouver 'R0d r : une nuance de lissage comptée comme un changement' outils/rangement/pixels.ts \
+  ') > TOLERANCE) { n++; break; }' ') > 0) { n++; break; }' \
+  "$RD5"
 prouver 'R0d n : une page qui bouge encore, comparée comme si elle était posée' outils/rangement/ecrans.ts \
   'm.avant.stable === false || m.apres.stable === false ?' 'false ?' \
   "$RD3"
 prouver 'R0d m : une route du Cabinet ni comparée ni dite' outils/rangement/ecrans.ts \
   '  priorites: '"'"'l\'"'"'ancien lien' '  prioritesX: '"'"'l\'"'"'ancien lien' \
   "$RD4"
+# ── 17 § 3.3 et § 5, lot B0 (1.266.13) : les registres du socle, posés vides (modules/socle/registres.js) ──
+RG1='posés vides : servis les premiers sur les deux pages, ils ne tiennent rien, et aucun écran ne s'"'"'en sert encore'
+RG2='la porte d'"'"'un module : déclarée une fois, figée, lue par les autres ; une porte absente ou un nom mal formé sont refusés et dits'
+RG3='un point : déclaré par le module qui en a besoin, rempli par les autres, lu comme la suite de leurs listes ; vide, il rend une liste vide'
+RG4='un emplacement garde le rang de chaque entrée : l'"'"'ordre affiché ne dépend pas de l'"'"'ordre de chargement des modules'
+RG5='un événement passe par la page : les écoutes d'"'"'aujourd'"'"'hui l'"'"'entendent, il garde son nom, et une écoute se retire'
+prouver 'B0 a : la porte d'"'"'un module, l'"'"'objet même et non sa copie figée' modules/socle/registres.js \
+  '    const figee = Object.freeze({ ...porte });' '    const figee = porte;' \
+  "$RG2"
+prouver 'B0 b : une porte déclarée deux fois' modules/socle/registres.js \
+  '    if (portes.has(module)) refus(' '    if (false) refus(' \
+  "$RG2"
+prouver 'B0 c : un point qui rend des listes de listes' modules/socle/registres.js \
+  '      tout.push(...part);' '      tout.push(part);' \
+  "$RG3"
+prouver 'B0 d : un module qui remplit son propre point' modules/socle/registres.js \
+  '      if (x.module === module) refus(' '      if (false) refus(' \
+  "$RG3"
+prouver 'B0 e : un module qui remplit deux fois le même point' modules/socle/registres.js \
+  '      if (x.remplis.some((r) => r.module === module)) refus(' '      if (false) refus(' \
+  "$RG3"
+prouver 'B0 f : un point rempli par autre chose qu'"'"'une liste, accepté' modules/socle/registres.js \
+  '      if (!Array.isArray(part)) refus(' '      if (false) refus(' \
+  "$RG3"
+prouver 'B0 g : un emplacement rangé dans l'"'"'ordre de chargement' modules/socle/registres.js \
+  '.sort((a, b) => a.rang - b.rang)' '' \
+  "$RG4"
+prouver 'B0 h : deux entrées au même rang' modules/socle/registres.js \
+  '    if (prise) refus(' '    if (false) refus(' \
+  "$RG4"
+prouver 'B0 i : une écoute qui ne se retire pas' modules/socle/registres.js \
+  '      return () => w.removeEventListener(n, h);' '      return () => undefined;' \
+  "$RG5"
+prouver 'B0 j : un événement annoncé sans ce qu'"'"'il porte' modules/socle/registres.js \
+  ', { detail }))' ', { detail: null }))' \
+  "$RG5"
+prouver 'B0 k : les registres rechargés qui oublient ce qu'"'"'ils tiennent' modules/socle/registres.js \
+  '  if (w.Socle) return;' '' \
+  "$RG1"
+prouver 'B0 l : un emplacement du socle oublié' modules/socle/registres.js \
+  ''"'"'onglets-compta'"'"', ' '' \
+  "$RG1"
+prouver 'B0 m : les registres absents de la page de l'"'"'entreprise' web/public/v10/index.html \
+  '<script src="../plateforme/registres.js"></script>' '' \
+  "$RG1"
+prouver 'B0 n : les registres absents de la page du Cabinet' web/public/v10/cabinet/index.html \
+  '<script src="../../plateforme/registres.js"></script>' '' \
+  "$RG1"
+prouver 'B0 o : les registres hors de la table de l'"'"'assemblage' modules/assemblage.json \
+  '"plateforme/registres.js": ["modules/socle/registres.js"],' '' \
+  "$RG1"
+RW1='servis et chargés avant tout autre script, sur la page de l'"'"'entreprise comme au Cabinet, ils sont là et vides'
+prouver 'B0 p : les registres posés ailleurs que sur la page' modules/socle/registres.js \
+  '  const w = /** @type {any} */ (window);' '  const w = /** @type {any} */ ({});' \
+  "$RW1"
+prouver 'B0 q : les registres chargés après un autre script' web/public/v10/index.html \
+  '<script src="../plateforme/registres.js"></script>|||<script src="../tiers/qrcode.js"></script>' '|||<script src="../tiers/qrcode.js"></script><script src="../plateforme/registres.js"></script>' \
+  "$RW1"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

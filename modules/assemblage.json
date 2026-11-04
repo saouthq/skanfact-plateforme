@@ -11,6 +11,7 @@
     "v10/cabinet/cabvisites.js": ["modules/socle/visites/cabvisites.js"],
     "plateforme/pont.js": ["web/public/plateforme/pont.js"],
     "plateforme/pont-cabinet.js": ["web/public/plateforme/pont-cabinet.js"],
+    "plateforme/registres.js": ["modules/socle/registres.js"],
     "plateforme/paie.css": ["modules/personnel/styles/paie.css"],
     "plateforme/paie-maquette.css": ["modules/personnel/styles/paie-maquette.css"],
     "plateforme/paie-cabinet.css": ["modules/personnel/styles/paie-cabinet.css"]

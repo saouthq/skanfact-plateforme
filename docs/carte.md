@@ -169,6 +169,11 @@ vaut pour tout le dépôt.*
     ce qui change ; `SKANFACT_COMPARER_AVEC=<commit> npx vitest run tests/web/ecrans-comparer.test.ts` compare les écrans
     du commit et ceux du dépôt, page par page, au bureau et au téléphone (les photos dans le dossier qu'il nomme)
     (`tests/commun/comparer.test.ts`).
+  - **Les registres du socle** (1.266.13, lot B0 du `17` § 3.3) : `modules/socle/registres.js`, servi sous
+    `plateforme/registres.js` et chargé le premier sur les deux pages, pose `window.Socle` : la porte d'un module
+    (`declarer`, `porte`), les points (`declarerPoint`, `remplir`, `lire`), les emplacements (`poser`, `entrees`, à leur
+    rang) et les événements de la page (`annoncer`, `ecouter`). Vides : aucun écran ne s'en sert encore
+    (`tests/commun/registres.test.ts`).
   - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
     (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
     (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs

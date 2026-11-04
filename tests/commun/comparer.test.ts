@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { lireEcran } from '../../commun/assemblage.ts';
 import { comparerLesMoteurs, photographierLeMoteur, SEUILS } from '../../outils/rangement/moteur.ts';
 import { ecarts, pagesCabinet, pagesEntreprise, ROUTES_CABINET_NON_OUVERTES, ROUTES_NON_OUVERTES, type Capture } from '../../outils/rangement/ecrans.ts';
-import { ecrirePng, lirePng, pixelsDifferents, SEUIL_PIXELS, type Image } from '../../outils/rangement/pixels.ts';
+import { ecrirePng, lirePng, pixelsDifferents, SEUIL_PIXELS, TOLERANCE, type Image } from '../../outils/rangement/pixels.ts';
 
 const COMPTA = 'module.exports = { taux: function (annee) { return annee >= 2026 ? 19 : 18; } };\n';
 const CORE = [
@@ -30,11 +30,14 @@ const CORE = [
 const DEMO = 'module.exports = { buildDemoData: function (c, jour) { return { company: c, documents: [{ id: \'f1\', type: \'facture\' }], jour: jour }; } };\n';
 const PETIT = { fonctions: 1, rendus: 1 };
 
-function moteur(fichiers: Record<string, string> = {}) {
+// Un petit dépôt à part : son moteur assemblé comme le vrai (la table de l'assemblage, un morceau par fichier servi).
+function moteur(fichiers: { compta?: string; core?: string } = {}) {
   const r = fs.mkdtempSync(path.join(os.tmpdir(), 'comparer-'));
   const ecrire = (f: string, t: string) => { fs.mkdirSync(path.dirname(path.join(r, f)), { recursive: true }); fs.writeFileSync(path.join(r, f), t); };
-  ecrire('modules/assemblage.json', JSON.stringify({ fichiers: {} }));
-  for (const [f, t] of Object.entries({ 'web/public/v10/compta.js': COMPTA, 'web/public/v10/core.js': CORE, 'web/public/v10/demo.js': DEMO, ...fichiers })) ecrire(f, t);
+  ecrire('modules/assemblage.json', JSON.stringify({ fichiers: { 'v10/compta.js': ['modules/essai/compta.js'], 'v10/core.js': ['modules/essai/core.js'] } }));
+  ecrire('modules/essai/compta.js', fichiers.compta ?? COMPTA);
+  ecrire('modules/essai/core.js', fichiers.core ?? CORE);
+  ecrire('web/public/v10/demo.js', DEMO);
   return r;
 }
 const capture = (x: Partial<Capture> = {}): Capture => ({ texte: 't', structure: 's', pixels: 'p', registres: 'r', ...x });
@@ -46,16 +49,16 @@ describe('la comparaison des écrans et du moteur', () => {
     expect(a.mesure).toEqual({ fonctions: 8, appels: 24, rendus: 24, erreurs: 0 });
     expect(comparerLesMoteurs(a, b, PETIT)).toEqual([]);
     // Un taux qui change : la fonction qui le rend, et celle qui s'en sert.
-    const taux = photographierLeMoteur(moteur({ 'web/public/v10/compta.js': COMPTA.replace('? 19', '? 20') }));
+    const taux = photographierLeMoteur(moteur({ compta: COMPTA.replace('? 19', '? 20') }));
     expect(comparerLesMoteurs(a, taux, PETIT)).toEqual(expect.arrayContaining(['compta.taux : l\'appel 1 ne rend plus la même chose', 'core.total : l\'appel 1 ne rend plus la même chose']));
     // Ce qu'une fonction écrit dans ce qu'on lui passe, même quand elle rend la même chose.
-    const ecrit = photographierLeMoteur(moteur({ 'web/public/v10/core.js': CORE.replace('{ id: \'n1\' }', '{ id: \'n2\' }') }));
+    const ecrit = photographierLeMoteur(moteur({ core: CORE.replace('{ id: \'n1\' }', '{ id: \'n2\' }') }));
     expect(comparerLesMoteurs(a, ecrit, PETIT)).toEqual(['core.ajoute : l\'appel 1 ne rend plus la même chose', 'core.ajoute : l\'appel 2 ne rend plus la même chose', 'core.ajoute : l\'appel 3 ne rend plus la même chose']);
     // La date est figée au jour de la photo (le 15 juin : le mois 5), quel que soit le jour où elle est prise.
-    const juin = photographierLeMoteur(moteur({ 'web/public/v10/core.js': CORE.replace('return new Date().getUTCMonth();', 'return 5;') }));
+    const juin = photographierLeMoteur(moteur({ core: CORE.replace('return new Date().getUTCMonth();', 'return 5;') }));
     expect(comparerLesMoteurs(a, juin, PETIT)).toEqual([]);
     // Chaque appel reçoit sa copie de ce qu'on lui passe : ce qu'une fonction écrit ne se voit pas chez la suivante.
-    expect(a.fonctions['core.compte']).toEqual(photographierLeMoteur(moteur({ 'web/public/v10/core.js': CORE.replace('data.documents.push({ id: \'n1\' });', '') })).fonctions['core.compte']);
+    expect(a.fonctions['core.compte']).toEqual(photographierLeMoteur(moteur({ core: CORE.replace('data.documents.push({ id: \'n1\' });', '') })).fonctions['core.compte']);
     // Un paramètre reçoit sa valeur par son nom : un mois pour `month`.
     expect(a.fonctions['core.duMois']).toHaveLength(3);
     expect(new Set(a.fonctions['core.duMois']).size).toBe(3);
@@ -64,7 +67,7 @@ describe('la comparaison des écrans et du moteur', () => {
   it('une photo qui n\'atteint pas le moteur fait refuser la comparaison ; une fonction nouvelle ou disparue est dite', () => {
     const a = photographierLeMoteur(moteur());
     expect(comparerLesMoteurs(a, a).join('\n')).toMatch(new RegExp(`n'a pas atteint le moteur : 8 fonctions, 24 appels rendus \\(au moins ${SEUILS.fonctions} et ${SEUILS.rendus}\\)`));
-    const moins = photographierLeMoteur(moteur({ 'web/public/v10/core.js': CORE.replace('  hasard: function () { return Math.random(); },\n', '') }));
+    const moins = photographierLeMoteur(moteur({ core: CORE.replace('  hasard: function () { return Math.random(); },\n', '') }));
     expect(comparerLesMoteurs(a, moins, PETIT)).toEqual(['core.hasard : disparue']);
     expect(comparerLesMoteurs(moins, a, PETIT)).toEqual(['core.hasard : nouvelle (le moteur rendu public a changé)']);
     expect(comparerLesMoteurs(a, { ...a, jour: '2026-06-16' }, PETIT)).toEqual(['Les deux photos ne sont pas prises au même jour (2026-06-15, 2026-06-16).']);
@@ -99,21 +102,25 @@ describe('la comparaison des écrans et du moteur', () => {
     // La page par défaut du Cabinet (la liste des dossiers) est comparée, et un dossier dans chacune de ses parties.
     expect(pc).toEqual(expect.arrayContaining(['#/dossiers', '#/dossier/d1', '#/dossier/d1/classeur', '#/dossier/d1/comptabilite/paie']));
   });
-  it('deux photos qui ne diffèrent que par le lissage de quelques pixels sont les mêmes ; au-delà du seuil, ou d\'une autre taille, elles diffèrent', () => {
+  it('deux photos qui ne diffèrent que par le lissage (quelques pixels, ou des nuances de quelques niveaux) sont les mêmes ; au-delà du seuil, ou d\'une autre taille, elles diffèrent', () => {
     // Une image d'essai sans motif (chaque octet tiré d'une graine), lue comme le navigateur l'écrit : chaque ligne a son filtre.
     let g = 7;
     const hasard = () => { g = (g * 16807) % 2147483647; return g % 256; };
     const im: Image = { largeur: 60, hauteur: 25, canaux: 3, donnees: Uint8Array.from({ length: 60 * 25 * 3 }, hasard) };
     expect(lirePng(ecrirePng(im))).toEqual(im);
     expect(lirePng(ecrirePng({ ...im, canaux: 4, donnees: Uint8Array.from({ length: 60 * 25 * 4 }, hasard) })).canaux).toBe(4);
-    const touche = (n: number) => { const d = im.donnees.slice(); for (let i = 0; i < n; i++) { const k = (i * 37 % (60 * 25)) * 3 + 1; d[k] = (d[k] ?? 0) ^ 1; } return { ...im, donnees: d }; };
+    // Des pixels vraiment changés (de 40 niveaux), et une image entière à peine nuancée (de TOLERANCE niveaux).
+    const touche = (n: number) => { const d = im.donnees.slice(); for (let i = 0; i < n; i++) { const k = (i * 37 % (60 * 25)) * 3 + 1; d[k] = ((d[k] ?? 0) + 40) % 256; } return { ...im, donnees: d }; };
+    const nuancee = { ...im, donnees: im.donnees.map((x) => (x < 128 ? x + TOLERANCE : x - TOLERANCE)) };
     expect(pixelsDifferents(im, touche(SEUIL_PIXELS))).toBe(SEUIL_PIXELS);
+    expect(pixelsDifferents(im, nuancee)).toBe(0);
     // Écrites dans des fichiers, comme la comparaison les lit.
     const r = fs.mkdtempSync(path.join(os.tmpdir(), 'pixels-'));
     const ecrire = (nom: string, x: Image) => { const f = path.join(r, `${nom}.png`); fs.writeFileSync(f, ecrirePng(x)); return f; };
     const a = capture({ pixels: 'a', png: ecrire('a', im) });
     const m = (b: Capture) => ({ page: 'entreprise #/paie', largeur: 1440, avant: a, apres: b, atteinte: true });
     expect(ecarts(m(capture({ pixels: 'b', png: ecrire('lisse', touche(SEUIL_PIXELS)) })))).toEqual([]);
+    expect(ecarts(m(capture({ pixels: 'e', png: ecrire('nuancee', nuancee) })))).toEqual([]);
     expect(ecarts(m(capture({ pixels: 'c', png: ecrire('change', touche(SEUIL_PIXELS + 1)) })))).toEqual(['entreprise #/paie (1440) : les pixels change']);
     expect(ecarts(m(capture({ pixels: 'd', png: ecrire('plus-haute', { ...im, hauteur: 26, donnees: Uint8Array.from([...im.donnees, ...new Array<number>(60 * 3).fill(0)]) }) })))).toEqual(['entreprise #/paie (1440) : les pixels change']);
   });

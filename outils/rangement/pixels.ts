@@ -1,14 +1,17 @@
 // Les pixels d'une photo d'écran (docs/cadrage/17-rangement.md § 6 ; lot R0d, 04/11/2026). Deux photos des mêmes
 // écrans, prises l'une après l'autre, peuvent différer de quelques pixels : le lissage du bord d'une lettre ou d'un rond,
 // que le navigateur ne dessine pas toujours au même octet. La comparaison des écrans compte donc les pixels qui
-// changent, au lieu de comparer les fichiers : jusqu'à SEUIL_PIXELS, c'est ce lissage ; au-delà, c'est un changement
-// (un style changé sur un seul titre en déplace des milliers). Lu sans dépendance : le PNG que le navigateur écrit
+// changent, au lieu de comparer les fichiers : un pixel change quand une de ses couleurs bouge de plus de TOLERANCE
+// niveaux sur 255 (le lissage mesuré le 04/11/2026 : 3 à 15 ; un style changé, jusqu'à 218) ; jusqu'à SEUIL_PIXELS
+// pixels changés, c'est ce lissage ; au-delà, c'est un changement (un style changé sur un seul titre en déplace des
+// milliers). Lu sans dépendance : le PNG que le navigateur écrit
 // (8 bits, en couleurs, avec ou sans transparence, non entrelacé).
 
 import zlib from 'node:zlib';
 
 export type Image = { largeur: number; hauteur: number; canaux: number; donnees: Uint8Array };
 export const SEUIL_PIXELS = 32;
+export const TOLERANCE = 16;
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 export function lirePng(png: Buffer): Image {
@@ -82,12 +85,12 @@ export function ecrirePng(im: Image): Buffer {
   return Buffer.concat([SIGNATURE, morceau('IHDR', ihdr), morceau('IDAT', zlib.deflateSync(brut)), morceau('IEND', Buffer.alloc(0))]);
 }
 
-// Le nombre de pixels qui changent entre deux images ; deux tailles différentes : tous.
+// Le nombre de pixels qui changent (de plus de TOLERANCE niveaux) entre deux images ; deux tailles différentes : tous.
 export function pixelsDifferents(a: Image, b: Image): number {
   if (a.largeur !== b.largeur || a.hauteur !== b.hauteur || a.canaux !== b.canaux) return Infinity;
   let n = 0;
   for (let i = 0; i < a.donnees.length; i += a.canaux) {
-    for (let k = 0; k < a.canaux; k++) if (a.donnees[i + k] !== b.donnees[i + k]) { n++; break; }
+    for (let k = 0; k < a.canaux; k++) if (Math.abs((a.donnees[i + k] ?? 0) - (b.donnees[i + k] ?? 0)) > TOLERANCE) { n++; break; }
   }
   return n;
 }
