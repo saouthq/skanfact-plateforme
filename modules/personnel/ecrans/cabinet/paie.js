@@ -906,7 +906,9 @@
         ${lignes.map(({ e, p }) => `<tr data-pe="${esc(e.id)}"><td class="nw"><strong>${esc(e.name)}</strong></td>
           <td class="r nw"><strong data-pt-payes>${esc(joursFr(p.payes))}</strong></td><td class="r nw" data-pt-abs>${p.absences ? esc(joursFr(p.absences)) : '<span class="muted">—</span>'}</td>
           ${majorations.map(x => `<td class="r"><input type="number" class="num pt-hs" data-hs="${x}" value="${p.hs[String(x)] || ''}" min="0" step="0.5" placeholder="0" ${clos ? 'disabled' : ''} aria-label="${esc(e.name)} : heures supplémentaires à +${esc(pct(x))} %"></td>`).join('')}
-          ${p.jours.map(j => `<td class="pt-td"><button type="button" class="pt-c pt-${j.code === '-' ? 'hors' : j.code}${j.source === 'pointe' ? ' pt-main' : ''}" data-pt="${j.jour}"${j.repos ? ' data-repos="1"' : ''} ${j.code === '-' || clos ? 'disabled' : ''} title="${esc(libelleDuJour(j))}" aria-label="${esc(e.name)}, ${j.jour} ${esc(KC.moisPaie(m))} : ${esc(libelleDuJour(j))}">${affichePointage(j.code)}</button></td>`).join('')}
+          ${p.jours.map(j => { const tm = KC.pointageEnregistre(data, e.id, Number(annee), Number(m)), pq = (tm && tm.motifs && tm.motifs[String(j.jour)]) || '', dit = `${libelleDuJour(j)}${pq ? ` · pourquoi : ${pq}` : ''}`;
+    // (1.271.0) Le « Pourquoi ? » que le client a noté sur une absence se lit au survol de sa case, et un point le signale.
+    return `<td class="pt-td"><button type="button" class="pt-c pt-${j.code === '-' ? 'hors' : j.code}${j.source === 'pointe' ? ' pt-main' : ''}${pq ? ' pt-note' : ''}" data-pt="${j.jour}"${j.repos ? ' data-repos="1"' : ''}${pq ? ` data-motif="${esc(pq)}"` : ''} ${j.code === '-' || clos ? 'disabled' : ''} title="${esc(dit)}" aria-label="${esc(e.name)}, ${j.jour} ${esc(KC.moisPaie(m))} : ${esc(dit)}">${affichePointage(j.code)}</button></td>`; }).join('')}
         </tr>`).join('')}</tbody></table></div>`
     : `<div class="empty">Aucun salarié en poste ${esc(leMois)}.</div>`}
       ${/* Sous la grille : apparue au-dessus, l'alerte poussait les cases sous la souris (vu dans l'entreprise, 1.60.0). */''}
@@ -1192,7 +1194,22 @@
     const rem = $('#pa-remettre', el);
     if (rem) rem.onclick = () => { const B = duMois().filter(b => !b.remisLe); marquer(rem, B.map(b => b.id), { remisLe: aujourdhui() }, `${B.length > 1 ? `${B.length} bulletins remis` : 'Bulletin remis'} aux salariés.`); };
     const noter = $('#pa-noter-payes', el);
-    if (noter) noter.onclick = () => { const B = duMois().filter(b => !b.payeLe); marquer(noter, B.map(b => b.id), { paidDate: aujourdhui() }, `${B.length > 1 ? `${B.length} salaires notés payés` : 'Salaire noté payé'} aujourd'hui.`); };
+    // (1.271.0 ; Skander, 04/11/2026 : « donne la liberté à l'utilisateur ») Le jour du paiement se choisit : le client a payé
+    // le 28, le cabinet l'apprend le 3. Aujourd'hui par défaut.
+    if (noter) noter.onclick = () => {
+      const B = duMois().filter(b => !b.payeLe);
+      modal(`<h2>${B.length > 1 ? `Noter les ${B.length} salaires payés` : 'Noter le salaire payé'}</h2>
+        <p class="small">${esc(dossier.name)} n'est pas sur SkanFact : c'est toi qui notes le jour où il a payé ${B.length > 1 ? 'ses salariés' : 'son salarié'}. Les montants ne changent pas.</p>
+        <label class="field"><span>Payé le</span><input id="pa-paye-le" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(aujourdhui()))}"></label>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="pa-paye-ok">Noter payé${B.length > 1 ? 's' : ''}</button></div>`, (layer, close) => {
+        $('#pa-paye-ok', layer).onclick = () => {
+          const i = $('#pa-paye-le', layer), tape = String((i || {}).value || '').trim(), le = tape ? K.dateTapee(tape, s.annee) : '';
+          if (!le) { if (i) i.focus(); toast(tape ? `« ${tape} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.` : 'Dis le jour où il a payé.', 'error'); return; }
+          close();
+          marquer(noter, B.map(b => b.id), { paidDate: le }, `${B.length > 1 ? `${B.length} salaires notés payés` : 'Salaire noté payé'} le ${fmtJour(le)}.`);
+        };
+      });
+    };
     const mo = () => KC.deMois(KC.moisPaie(s.paieMois));
     const rap = $('#pa-rappel', el);
     if (rap) rap.onclick = () => {

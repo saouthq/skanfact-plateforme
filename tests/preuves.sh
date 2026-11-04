@@ -24021,6 +24021,29 @@ prouver 'paie 1.270 g : le cabinet parti, la paie reste « tenue » par ses anci
 prouver 'paie 1.270 h : le serveur ne dit pas que le cabinet est parti' serveur/messagerie/routes.ts \
   'anciens, achatsConfies: false, cabinetQuitte } };' 'anciens, achatsConfies: false } };' \
   'le cabinet ne lit plus ; l'\''entreprise relit l'\''ancien fil sans y écrire ; un nouveau cabinet ne le lit pas'
+# (1.271.0) Les décisions du 04/11 au soir (Skander : « décide pour moi et donne la liberté à l'utilisateur ») : le pointage
+# ouvert au client d'un cabinet qui tient la paie, le « Pourquoi ? » facultatif d'une absence, le jour du « payé le » au Cabinet.
+prouver 'paie 1.271 a : en Essentiel tenu, le pointage du client refusé' serveur/abonnement/offre.ts \
+  '['\''leaves'\'', '\''advances'\'', '\''timesheets'\''];' '['\''leaves'\'', '\''advances'\''];' \
+  "$WE3"
+prouver 'paie 1.271 b : pas de « Pourquoi ? » sur une absence' modules/personnel/ecrans/entreprise/paie.js \
+  '        if (x.j.source !== '\''conge'\'') L.push(`<label class="ptj-in ptj-pourquoi">' '        if (false) L.push(`<label class="ptj-in ptj-pourquoi">' \
+  'la journée : quatre choix d'\''un clic, « + Retard » et « + H. sup » sur la ligne, l'\''effet en dinars, le congé prévu'
+prouver 'paie 1.271 c : la note d'\''une absence ne s'\''écrit pas' modules/personnel/ecrans/entreprise/paie.js \
+  '      if (v) t.motifs[String(d)] = v; else delete t.motifs[String(d)];' '      if (!v) t.motifs[String(d)] = v; else delete t.motifs[String(d)];' \
+  'la journée : quatre choix d'\''un clic, « + Retard » et « + H. sup » sur la ligne, l'\''effet en dinars, le congé prévu'
+prouver 'paie 1.271 d : la note reste quand l'\''absence s'\''en va' modules/personnel/moteur/compta-paie.js \
+  '    if (code !== '\''A'\'' && code !== '\''D'\'' && t.motifs && t.motifs[String(jour)] !== undefined)' '    if (false && t.motifs && t.motifs[String(jour)] !== undefined)' \
+  'la journée : quatre choix d'\''un clic, « + Retard » et « + H. sup » sur la ligne, l'\''effet en dinars, le congé prévu'
+prouver 'paie 1.271 e : au téléphone, la note de l'\''absence ne s'\''écrit pas' modules/personnel/ecrans/entreprise/paie.js \
+  '        const mo = $('\''#ptjc-motif'\'', root);' '        const mo = null;' \
+  'au téléphone : la feuille à gros boutons, chacun avec ce qu'\''il fait ; « Valider la journée » sous le pouce'
+prouver 'paie 1.271 f : le cabinet ne voit pas le « Pourquoi ? » du client' modules/personnel/ecrans/cabinet/paie.js \
+  'pq = (tm && tm.motifs && tm.motifs[String(j.jour)]) || '\'''\'', dit' 'pq = '\'''\'', dit' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'paie 1.271 g : le jour choisi du « payé le » ignoré' modules/personnel/ecrans/cabinet/paie.js \
+  'marquer(noter, B.map(b => b.id), { paidDate: le },' 'marquer(noter, B.map(b => b.id), { paidDate: aujourdhui() },' \
+  'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

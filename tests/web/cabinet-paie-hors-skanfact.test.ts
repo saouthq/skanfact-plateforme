@@ -119,7 +119,12 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     expect(net(await p.locator('#pa-noter-payes').innerText())).toBe('Noter les 2 salaires payés');
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-hors-2-valides.png'), fullPage: true });
     await p.locator('#pa-noter-payes').click();
-    await expect.poll(async () => (await bulletins()).filter((b) => b.paidDate === jour).length).toBe(2);
+    // (1.271.0) Le jour se choisit : aujourd'hui par défaut, ici le dernier jour du mois.
+    const fen = p.locator('#modal-root .modal').last();
+    expect(await fen.locator('#pa-paye-le').inputValue()).toBe(jour.split('-').reverse().join('/'));
+    await fen.locator('#pa-paye-le').fill('31/10/2025');
+    await fen.locator('#pa-paye-ok').click();
+    await expect.poll(async () => (await bulletins()).filter((b) => b.paidDate === '2025-10-31').length).toBe(2);
     await expect.poll(salaires).toContain('payés, notés au cabinet');
     expect(await p.locator('#pa-noter-payes').count()).toBe(0);
     // Payés, les bulletins ne se dévalident plus, même le jour de leur validation (« Annuler » du toast).
@@ -129,7 +134,7 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     expect(net(await p.locator('#pa-frise li').nth(3).innerText())).toContain('payés');
     expect(await p.locator('#pa-frise li').nth(3).getAttribute('class')).toContain('fait');
     // Les montants n'ont pas bougé : seule la marque « payé le » s'est écrite.
-    expect((await bulletins()).map((b) => [b.employeeId ?? b.salarieId, b.paidDate]).sort()).toEqual([['s1', jour], ['s2', jour]]);
+    expect((await bulletins()).map((b) => [b.employeeId ?? b.salarieId, b.paidDate]).sort()).toEqual([['s1', '2025-10-31'], ['s2', '2025-10-31']]);
     // Remettre reste possible après : le dernier geste du mois.
     await p.locator('#pa-remettre').click();
     await expect.poll(async () => (await bulletins()).filter((b) => b.remisLe === jour).length).toBe(2);

@@ -2846,7 +2846,8 @@
         return false;
       }
       if (closedBlock(iso, 'Ce pointage')) return false;
-      if (!(data.timesheets || []).length && licenceBlock('Pointer les salariés', 'paie')) return false;
+      // (1.271.0) En Essentiel, le client dont le cabinet tient la paie pointe aussi (le serveur le permet : FAITS_DU_CLIENT).
+      if (!(data.timesheets || []).length && faitBloque('Pointer les salariés')) return false;
       return true;
     };
     // (1.259.0) LA REFONTE DU POINTAGE (docs/maquettes/pointage.html, validée par Skander le 02/11/2026). Deux vues au lieu
@@ -2935,6 +2936,18 @@
     // Le congé ou l'arrêt saisi d'avance qui couvre ce jour (celui que lit le pointage, source « conge »).
     const congePrevu = (e, iso) => (data.leaves || []).find(l => l.employeeId === e.id && l.from <= iso && iso <= l.to && (!l.statut || l.statut === 'accepte')) || null;
     const prenomDe = e => String((e && e.name) || '').split(' ')[0];
+    // (1.271.0 ; Skander, 04/11/2026 : « décide pour moi et donne la liberté à l'utilisateur, faut pas le bloquer ») Pourquoi
+    // une absence : une note du jour, facultative, jamais exigée ; elle ne change aucun montant. Vide, elle s'efface. Rangée
+    // dans le pointage du mois (`motifs`), qu'une absence a toujours ; le moteur l'efface avec l'absence (poserPointage).
+    const motifAbsence = (eId, y, m, d) => { const t = C.pointageEnregistre(data, eId, y, m); return (t && t.motifs && t.motifs[String(d)]) || ''; };
+    const poserMotifAbsence = (e, y, m, d, texte) => {
+      const t = C.pointageEnregistre(data, e.id, y, m), v = String(texte == null ? '' : texte).replace(/\s+/g, ' ').trim().slice(0, 120);
+      if (!t) return !v;
+      t.motifs = t.motifs || {};
+      if (v) t.motifs[String(d)] = v; else delete t.motifs[String(d)];
+      if (!Object.keys(t.motifs).length) delete t.motifs;
+      return true;
+    };
     function detailJourHtml(e, iso, x, fige, ouvre) {
       const st = C.payrollSettings(data), cur = company().currency, id = h(e.id), L = [], dis = fige ? ' disabled' : '';
       const hm = Number(st.heuresMois) || 0, brut = C.brutDuMois(e, x.y, x.m) || Number(e.grossSalary) || 0, c = x.j.code;
@@ -2946,6 +2959,8 @@
       else if (c === 'A' || c === 'D') {
         L.push(`<span class="ptj-mini" role="group" aria-label="${h(prenomDe(e))} : combien de temps">${[['A', 'Toute la journée'], ['D', 'Une demi-journée']].map(([k, t]) => `<button type="button" data-ptj-demi="${id}:${k}" aria-pressed="${c === k}"${dis}>${t}</button>`).join('')}</span>`);
         L.push(`<span class="ptj-ef alerte">− ${C.money(c === 'D' ? C.round3(x.unJour / 2) : x.unJour, cur)} sur son brut</span><span class="mu">(${c === 'D' ? 'la moitié d\'un jour' : 'un jour'} : son brut ÷ ${pct(Number(x.p.total) || 26)}${x.j.source === 'conge' ? ' · une absence sans solde saisie d\'avance' : ''})</span>`);
+        // (1.271.0 ; Skander, 04/11/2026 : « donne la liberté à l'utilisateur ») Pourquoi : une note facultative, jamais exigée.
+        if (x.j.source !== 'conge') L.push(`<label class="ptj-in ptj-pourquoi">Pourquoi ? <input type="text" class="ptj-txt" data-ptj-motif="${id}" maxlength="120" value="${h(motifAbsence(e.id, x.y, x.m, x.d))}" placeholder="si tu veux le noter" aria-label="Pourquoi ${h(prenomDe(e))} est absent (facultatif)"${dis}></label>`);
       } else if (c === 'C') {
         const l = x.j.source === 'conge' ? congePrevu(e, iso) : null;
         if (l) L.push(`<span>Prévu : congé ${du(l)}${l.note ? ` (${h(l.note)})` : ''}</span><span class="mu">tu n'as rien à faire</span>`);
@@ -3090,6 +3105,14 @@
           poserEtDire(e, () => C.poserRetard(data, e, y, m, d, min), min ? `${min} min de retard` : 'retard retiré');
         };
       });
+      $$('#ptj [data-ptj-motif]').forEach(i => {
+        i.onkeydown = toucheCase(i, i.dataset.ptjMotif);
+        i.onchange = () => {
+          const e = employeeById(i.dataset.ptjMotif); if (!e || !peutPointerLe(iso)) return;
+          const v = String(i.value).replace(/\s+/g, ' ').trim().slice(0, 120);
+          poserEtDire(e, () => poserMotifAbsence(e, y, m, d, v), v ? `noté : « ${v} »` : 'la note est retirée');
+        };
+      });
       $$('#ptj [data-ptj-hs]').forEach(i => {
         i.onkeydown = toucheCase(i, i.dataset.ptjHs);
         i.onchange = () => {
@@ -3197,8 +3220,12 @@
       modal(`<div class="ptj-feuille" id="ptjc"><div class="ptj-fq">${avPaie(e)}<div><b>${h(e.name)}</b><small>${h(jourDit(iso))} · ${h(q ? q.nom : (e.position || 'les horaires de l\'entreprise'))}</small></div></div>
         <div class="ptj-gros">${CHOIX_J.map(([c, l]) => `<button type="button" class="ptj-g${fam === c ? ' on' : ''}" data-ptjc="${c}"><b>${l}</b><small>${h(sous[c])}</small></button>`).join('')}</div>
         <div class="ptj-gros ptj-gros2"><button type="button" class="ptj-g${x.j.retard ? ' on' : ''}" data-ptjc="retard"${x.j.code !== 'P' ? ' disabled' : ''}><b>${x.j.retard ? `Retard ${x.j.retard} min` : '+ Retard'}</b><small>${st.retenirRetards ? 'retenu (ton réglage)' : 'noté, pas retenu'}</small></button><button type="button" class="ptj-g${x.hsj ? ' on' : ''}" data-ptjc="hs"${x.j.code !== 'P' ? ' disabled' : ''}><b>${x.hsj ? `${pct(x.hsj.heures)} h sup` : '+ Heures sup'}</b><small>${majs.length ? `à +${pct(x.hsj ? x.hsj.majoration : majs[0])} %` : 'leur majoration se règle d\'abord'}</small></button></div>
+        ${fam === 'A' && x.j.source !== 'conge' ? `<label class="field ptj-pourquoi-f">${lbl('Pourquoi ? (facultatif)')}<input type="text" id="ptjc-motif" maxlength="120" value="${h(motifAbsence(e.id, x.y, x.m, x.d))}" placeholder="si tu veux le noter"></label>` : ''}
         <button type="button" class="btn btn-primary ptj-note" data-close>${lfIc('coche', 15, 2.4)} C'est noté</button></div>`, (root, fermer) => {
         $$('[data-ptjc]', root).forEach(b => b.onclick = () => { fermer(); choisirJour(e, iso, b.dataset.ptjc, apres); });
+        // (1.271.0) La note de l'absence, au pouce : elle s'écrit en quittant la case, sans rien exiger.
+        const mo = $('#ptjc-motif', root);
+        if (mo) mo.onchange = () => { if (poserMotifAbsence(e, x.y, x.m, x.d, mo.value)) { save(); if (apres) apres(); } };
       });
     }
     // Les heures sup d'un jour : elles s'ajoutent à celles du mois (que le bulletin paie), et se retirent d'un geste.
@@ -4091,7 +4118,7 @@
         if (ptVerrouille(ymPt(y, m)) && !peutPointerLe(dernier)) return false;
         if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return false; }
         if (closedBlock(dernier, 'Ce pointage')) return false;
-        if (!(data.timesheets || []).length && licenceBlock('Pointer les salariés', 'paie')) return false;
+        if (!(data.timesheets || []).length && faitBloque('Pointer les salariés')) return false;
         return true;
       };
       const poser = (b, code) => {

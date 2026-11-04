@@ -95,6 +95,8 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
       { collection: 'employees', cle: 's2', rang: null, revision: null, contenu: encoder(salarie('s2', 'Salarié Numéro Deux', 980, '2025-01-01')) },
     ] })).statut).toBe(200);
     expect(await dossierV10('leaves', 'l1', { id: 'l1', employeeId: 's1', kind: 'sans-solde', from: '2026-10-20', to: '2026-10-21' })).toBe(200);
+    // (1.271.0) Le « Pourquoi ? » que le client note sur une absence (facultatif) : le cabinet le lit sur la case.
+    expect(await dossierV10('timesheets', 'pt-s1-2026-10', { id: 'pt-s1-2026-10', employeeId: 's1', year: 2026, month: 10, jours: {}, hs: {}, motifs: { 20: 'son fils malade' } })).toBe(200);
     const objets = async () => ((await api('GET', `/entreprises/${boulangerie}/paie/dossier`, associe)).corps.objets as Objet[]).map((o) => ({ ...o, contenu: decoder(o.contenu) as Record<string, unknown> }));
     // La base laisse le cabinet lire les congés du client, sans les écrire.
     expect((await objets()).filter((o) => o.collection === 'leaves').map((o) => o.cle)).toEqual(['l1']);
@@ -111,7 +113,9 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
     expect(await caseDu(p, 'Numéro Un', 13).isDisabled()).toBe(true);
     expect(await caseDu(p, 'Numéro Un', 14).isDisabled()).toBe(false);
     expect(await caseDu(p, 'Numéro Un', 20).innerText()).toBe('A');
-    expect(await caseDu(p, 'Numéro Un', 20).getAttribute('title')).toBe('Absent, non payé (Congés et absences)');
+    expect(await caseDu(p, 'Numéro Un', 20).getAttribute('title')).toBe('Absent, non payé (Congés et absences) · pourquoi : son fils malade');
+    expect(await caseDu(p, 'Numéro Un', 20).getAttribute('class')).toContain('pt-note');
+    expect(await caseDu(p, 'Numéro Un', 21).getAttribute('class')).not.toContain('pt-note');
     expect(await ligneDe(p, 'Numéro Un').locator('[data-pt-payes]').innerText()).toBe('13');
     expect(await p.locator('#pt-grille thead').innerText()).toContain('HS +25 %');
     expect(await p.locator('#pt-sans-hs').count()).toBe(0);

@@ -124,9 +124,11 @@ describe('ce que l\'offre ouvre', () => {
     await fiche('seule');
     expect((await ecrire(ent, client.jeton, [nouveau('leaves', 'cg-0', { employeeId: 'sal-1', kind: 'conges', from: jour, to: jour })])).statut).toBe(403);
     await fiche('tenue');
-    const faits = await ecrire(ent, client.jeton, [nouveau('leaves', 'cg-1', { employeeId: 'sal-1', kind: 'conges', from: jour, to: jour }), nouveau('advances', 'av-1', { employeeId: 'sal-1', date: jour, amount: 200, monthly: 100 })]);
+    // (1.271.0) Le pointage du mois aussi : c'est lui qui nourrit les bulletins du cabinet.
+    const faits = await ecrire(ent, client.jeton, [nouveau('leaves', 'cg-1', { employeeId: 'sal-1', kind: 'conges', from: jour, to: jour }), nouveau('advances', 'av-1', { employeeId: 'sal-1', date: jour, amount: 200, monthly: 100 }),
+      nouveau('timesheets', 'pt-1', { employeeId: 'sal-1', year: Number(jour.slice(0, 4)), month: Number(jour.slice(5, 7)), jours: { [String(Number(jour.slice(8, 10)))]: 'A' }, hs: {} })]);
     expect(faits.statut, JSON.stringify(faits.corps)).toBe(200);
-    for (const collection of ['employees', 'payslips', 'timesheets']) expect((await ecrire(ent, client.jeton, [nouveau(collection, `${collection}-tenue`)])).statut, collection).toBe(403);
+    for (const collection of ['employees', 'payslips']) expect((await ecrire(ent, client.jeton, [nouveau(collection, `${collection}-tenue`)])).statut, collection).toBe(403);
     // Avec un fait du client dans le même envoi qu'un salarié (que l'associé, lui, écrit sans peine) : rien n'est écrit.
     const mele = await ecrire(ent, client.jeton, [nouveau('leaves', 'cg-2', { employeeId: 'sal-1', kind: 'conges', from: jour, to: jour }), nouveau('employees', 'sal-3', SALARIE)]);
     expect(mele.statut, JSON.stringify(mele.corps)).toBe(403);

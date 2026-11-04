@@ -63,7 +63,9 @@ export async function modulesFermesPourMoi(tx: Transaction, entreprise: string, 
 // cabinet qui la fait, sous son mandat). Les deux conditions sont des faits écrits, jamais déduits : un mandat actif qui
 // comprend la paie, et le choix « mon cabinet la tient » de la fiche de l'entreprise pour le mois du jour (paieModeDes :
 // le mois d'où il vaut, paieModeAvant : le choix d'avant).
-export const FAITS_DU_CLIENT: readonly string[] = ['leaves', 'advances'];
+// (1.271.0 ; Skander, 04/11/2026 : « décide pour moi et donne la liberté à l'utilisateur, faut pas le bloquer ») Le pointage
+// aussi : c'est lui qui nourrit les bulletins que le cabinet prépare, et le client est seul à savoir qui était là.
+export const FAITS_DU_CLIENT: readonly string[] = ['leaves', 'advances', 'timesheets'];
 export async function cabinetTientLaPaie(tx: Transaction, entreprise: string, jour = aujourdhuiATunis()): Promise<boolean> {
   const mandat = (await tx.query(`select exists (select 1 from socle.mandat where entreprise = $1 and statut = 'actif' and 'paie' = any(perimetre)
       and debut <= $2::date and (fin is null or fin >= $2::date)) v`, [entreprise, jour])).rows[0]?.v === true;

@@ -679,3 +679,6 @@ details.pa-replie[open] > summary::after { content: '▴'; }
   .pa-fa li { grid-template-columns: 1fr auto; }
   .pa-fa .pa-fa-q { grid-column: 1 / -1; }
 }
+/* (1.271.0) Une absence dont le client a noté le « Pourquoi ? » : un point dans le coin de sa case (le texte au survol). */
+#pt-grille .pt-c.pt-note { position: relative; }
+#pt-grille .pt-c.pt-note::after { content: ""; position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }

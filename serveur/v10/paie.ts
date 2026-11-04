@@ -228,7 +228,8 @@ const jourDe = (v: unknown) => (typeof v === 'string' && v !== '' ? v.slice(0, 1
 const differe = (x: Json | null, y: Json | null, champs: string[]) => champs.some((k) => canonique(x?.[k]) !== canonique(y?.[k]));
 // Le pointage d'un mois : chaque case, retard ou badge changé à son jour ; le reste (les heures sup du mois) au dernier
 // jour du mois, comme l'écran (`closedBlock(dernier, 'Ce pointage')`).
-const PAR_JOUR = ['jours', 'retards', 'badges'];
+// (1.271.0) `motifs` : le « Pourquoi ? » facultatif d'une absence, une note à son jour.
+const PAR_JOUR = ['jours', 'retards', 'badges', 'motifs'];
 const vide = (v: unknown) => v === undefined || v === null || (estObjet(v) && !Object.keys(v).length);
 function joursDuPointage(x: Json | null, y: Json | null): (string | null)[] {
   if (!x) return [];

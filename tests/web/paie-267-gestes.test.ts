@@ -89,7 +89,7 @@ describe('la paie 1.267.0 : la journée de la maquette, le mois qui attend le po
   const jourDe = async (x: { j: string; ent: string; auj: string }, id: string) => {
     const t = (await objets(x)).find((o) => o.collection === 'timesheets' && o.contenu.employeeId === id && `${o.contenu.year}-${mm(Number(o.contenu.month))}` === x.auj.slice(0, 7))?.contenu as Record<string, Record<string, unknown>> | undefined;
     const d = String(Number(x.auj.slice(8, 10)));
-    return { code: t?.jours?.[d], retard: t?.retards?.[d], hs: t?.hs?.['25'] };
+    return { code: t?.jours?.[d], retard: t?.retards?.[d], hs: t?.hs?.['25'], motif: (t as Record<string, Record<string, unknown>> | undefined)?.motifs?.[d] };
   };
   const toast = (p: Page) => p.locator('#toast').innerText().then(espace);
 
@@ -108,7 +108,15 @@ describe('la paie 1.267.0 : la journée de la maquette, le mois qui attend le po
     await ligne('mt').getByRole('button', { name: 'Absent', exact: true }).click();
     await expect.poll(async () => (await jourDe(x, 'mt')).code, { timeout: 15_000 }).toBe('A');
     expect(await p.locator('#modal-root .modal').count()).toBe(0);
-    expect(await effet('mt')).toBe('Toute la journée Une demi-journée − 55,784 DT sur son brut (un jour : son brut ÷ 26)');
+    // (1.271.0) « Pourquoi ? » : une note facultative sur la ligne ; elle s'écrit en quittant la case, rien ne l'exige.
+    const pq = ligne('mt').locator('[data-ptj-motif]');
+    expect(await pq.inputValue()).toBe('');
+    await pq.fill('rendez-vous chez le médecin');
+    await pq.press('Enter');
+    await expect.poll(async () => (await jourDe(x, 'mt')).motif, { timeout: 15_000 }).toBe('rendez-vous chez le médecin');
+    expect(await ligne('mt').locator('[data-ptj-motif]').inputValue()).toBe('rendez-vous chez le médecin');
+    await p.locator('#ptj').screenshot({ path: path.join(PHOTOS, 'paie-271-pourquoi.png') });
+    expect(await effet('mt')).toBe('Toute la journée Une demi-journée − 55,784 DT sur son brut (un jour : son brut ÷ 26) Pourquoi ?');
     expect(await toast(p)).toContain('Mourad Trabelsi, ');
     await ligne('mt').getByRole('button', { name: 'Une demi-journée', exact: true }).click();
     await expect.poll(async () => (await jourDe(x, 'mt')).code, { timeout: 15_000 }).toBe('D');
@@ -117,6 +125,8 @@ describe('la paie 1.267.0 : la journée de la maquette, le mois qui attend le po
     await ligne('mt').getByRole('button', { name: 'Là', exact: true }).click();
     await expect.poll(async () => (await jourDe(x, 'mt')).code, { timeout: 15_000 }).toBeUndefined();
     expect(await effet('mt')).toBe('');
+    // (1.271.0) La note s'en va avec l'absence.
+    expect((await jourDe(x, 'mt')).motif).toBeUndefined();
     // « + Retard » : la ligne s'ouvre sur ses minutes, le curseur dedans ; rien ne s'écrit avant le nombre.
     await ligne('mt').locator('[data-ptj-plus="mt:retard"]').click();
     expect(await p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.ptjMin)).toBe('mt');
@@ -273,6 +283,14 @@ describe('la paie 1.267.0 : la journée de la maquette, le mois qui attend le po
     await expect.poll(async () => (await jourDe(x, 'mt')).code, { timeout: 15_000 }).toBe('A');
     expect(await p.locator('#ptjc').count()).toBe(0);
     expect(await ligne.locator('.ptj-pas').innerText()).toBe('Absent');
+    // (1.271.0) Rouverte sur une absence, la feuille offre « Pourquoi ? (facultatif) » ; la note s'écrit en quittant la case.
+    await ligne.locator('.ptj-n').tap();
+    await p.locator('#ptjc-motif').waitFor();
+    await p.locator('#ptjc-motif').fill('enfant malade');
+    await p.locator('#ptjc-motif').blur();
+    await expect.poll(async () => (await jourDe(x, 'mt')).motif, { timeout: 15_000 }).toBe('enfant malade');
+    await p.locator('#ptjc [data-close]').tap();
+    await expect.poll(() => p.locator('#ptjc').count()).toBe(0);
     // Sans autre geste du jour (le 10, le mois d'avant fini), le bouton vert est la journée, sous le pouce.
     expect(await p.locator('#ptj-valider').evaluate((b) => getComputedStyle(b).position)).toBe('fixed');
     expect(await p.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);

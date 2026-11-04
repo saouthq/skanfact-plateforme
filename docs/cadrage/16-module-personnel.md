@@ -693,7 +693,8 @@ s'ils sont salariés, ils comptent comme salariés).
    cabinet tient la paie (un mandat actif qui couvre la paie, et « Le cabinet fait la paie » choisi pour ce mois), le client
    saisit ses **congés et ses avances**, rien d'autre (ni salarié, ni bulletin, ni pointage). Le serveur le tient
    (`serveur/abonnement/offre.ts`, `FAITS_DU_CLIENT`) ; un envoi qui mêle un congé et un bulletin est refusé en entier.
-   *Reste à décider* : le pointage, qui nourrit les bulletins du cabinet, reste fermé en Essentiel (rapport du 04/11).
+   **Le pointage aussi** (décidé le 04/11/2026 par délégation, Skander : « décide pour moi et donne la liberté à l'utilisateur, faut pas le bloquer ») : c'est lui qui nourrit les bulletins que le cabinet prépare. Le serveur ajoute `timesheets`
+   aux faits du client (1.271.0).
 4. **Les obligations de l'employeur dans un module payant** : Personnel porte des obligations (registres, affichages,
    mentions du bulletin, état CNSS, déclaration annuelle ; lesquelles sont obligatoires : À VÉRIFIER). En Essentiel,
    sans Personnel ni cabinet, personne ne les produit. Le principe 2 du `07` (« aucune obligation légale n'est vendue en
@@ -852,7 +853,7 @@ le clavier, la recherche dès 12 salariés) ; le mois (ce qui change un montant 
 n'est pas validé, avec « Régler d'abord » ; les bulletins du mois en cours à partir du 25, jamais un mois à venir ;
 « Plus tard » remet un rappel à lundi) ; le téléphone (la feuille à gros boutons, « Valider la journée » sous le pouce, les
 demandes au pouce). **Restent, à décider ou à faire** : « Pourquoi ? » d'une absence (un champ de plus dans le pointage,
-ou un congé saisi), « comptés présents jusqu'au 30 » écrit sur le bulletin lui-même (aujourd'hui dans la question
+ou un congé saisi : **fait en 1.271.0**, une note facultative sur la ligne, que le cabinet lit sur la case), « comptés présents jusqu'au 30 » écrit sur le bulletin lui-même (aujourd'hui dans la question
 d'« Établir »), les étapes du mois selon la façon de faire la paie avec le cabinet, et la revue complète à la souris.
 `docs/paie.md`, « La paie refaite, morceaux B à D ».
 
@@ -985,3 +986,4 @@ VÉRIFIER (le droit, les taux) le reste : aucune règle de droit n'entre avant l
 | 04/11/2026 (**Skander**, même phrase) | Paie vérifiée : payer avant la vérification du cabinet reste permis ; la fenêtre « Payer les salaires » le dit **avant** le geste (« Tu peux payer quand même. S'il trouve une erreur, elle se corrige sur le bulletin suivant. ») |
 | 04/11/2026 (**Skander**, même phrase) | Les trois façons de faire la paie (seul, vérifiée, tenue) passent dans les nouveaux écrans **avant** le menu des six familles ; ensuite l'ordre du `17` reprend |
 | 04/11/2026 (**Skander** : « es ce que t'as pensé au personne qui n'ont pas un comptable sur skanfact […] et pareil pour cabinet aussi, les entreprises (hors skanfact) aussi y'en aura beaucoup ») | Sans comptable sur SkanFact, rien ne parle d'un cabinet. L'entreprise qui **a quitté** son cabinet refait sa paie seule : le serveur le dit (`cabinetQuitte`), ses anciens bulletins ne la gardent plus « tenue ». Au Cabinet, un dossier **hors SkanFact** se tient de bout en bout : le cabinet note lui-même les salaires payés, après la validation (1.270.0, `docs/paie.md`) |
+| 04/11/2026 (décidé le 04/11/2026 par délégation, Skander : « décide pour moi et donne la liberté à l'utilisateur, faut pas le bloquer ») | Trois décisions : en Essentiel, le client dont le cabinet tient la paie **pointe** aussi ; le « Pourquoi ? » d'une absence est une **note facultative** du jour (jamais exigée, sans effet sur les montants, effacée avec l'absence) ; au Cabinet, le jour du « payé le » d'un dossier hors SkanFact **se choisit** (aujourd'hui par défaut). Les questions de prix (§ 9, 1, 2 et 4) restent à discuter : la règle dit qu'on en parle d'abord (1.271.0) |

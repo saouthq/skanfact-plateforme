@@ -680,6 +680,8 @@
     }
     t.jours = t.jours || {};
     if (naturel.code !== code) t.jours[String(jour)] = code;
+    // (1.271.0) Le « Pourquoi ? » d'une absence s'en va avec elle.
+    if (code !== 'A' && code !== 'D' && t.motifs && t.motifs[String(jour)] !== undefined) { delete t.motifs[String(jour)]; if (!Object.keys(t.motifs).length) delete t.motifs; }
     return true;
   }
   // Les heures supplémentaires du mois, par majoration (en %).

@@ -2582,3 +2582,25 @@ messagerie.test.ts` (`cabinetQuitte` après l'arrêt du mandat). Preuves `paie 1
 
 **Pas encore fait** : le cabinet note les salaires payés au jour du geste. Il ne peut pas encore saisir une autre date (le
 client a payé le 28, le cabinet le note le 3).
+
+## Les décisions du 04/11 au soir : liberté sans blocage (1.271.0)
+
+Skander, 04/11/2026 : « décide pour moi et donne la liberté à l'utilisateur, faut pas le bloquer ». Trois décisions, prises
+par délégation et écrites au `16` (§ 9 et § 14) :
+
+- **En Essentiel, le pointage s'ouvre au client dont le cabinet tient la paie.** C'est lui qui nourrit les bulletins que le
+  cabinet prépare, et le client est seul à savoir qui était là. Le serveur ajoute `timesheets` aux faits du client
+  (`FAITS_DU_CLIENT`, à côté des congés et des avances) ; l'écran ne montre plus le cadenas en pointant (`faitBloque`).
+  Un salarié, un bulletin restent fermés.
+- **« Pourquoi ? » d'une absence : une note facultative.** Sur la ligne d'un salarié absent (journée ou demi-journée), une
+  case « Pourquoi ? » ; au téléphone, dans la feuille rouverte. Rien ne l'exige, elle ne change aucun montant, elle
+  s'écrit en quittant la case et s'efface quand l'absence s'en va (« Là »). Une absence saisie d'avance (un congé) n'en a
+  pas : sa note est celle du congé. Au Cabinet, la case du jour porte un point et la note se lit au survol. Rangée dans le
+  pointage du mois (`motifs`, à son jour), le contrôle des mois clôturés la regarde jour par jour.
+- **Au Cabinet, « Noter les salaires payés » demande le jour**, aujourd'hui par défaut (le client a payé le 28, le
+  cabinet l'apprend le 3), au format JJ/MM/AAAA des autres fenêtres du Cabinet.
+
+Tests : `tests/web/paie-267-gestes.test.ts` (la note sur la ligne et au téléphone, effacée par « Là »),
+`tests/web/cabinet-paie-pointage.test.ts` (la note lue sur la case), `tests/web/cabinet-paie-hors-skanfact.test.ts` (le
+jour choisi), `tests/abonnement/offre.test.ts` (le pointage passe en tenue). Preuves `paie 1.271 a` à `g`. Capture :
+`paie-271-pourquoi.png`.
