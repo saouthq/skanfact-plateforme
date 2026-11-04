@@ -120,6 +120,16 @@ describe('la paie : le pointage à la main', () => {
     await p.locator('#p-tabs [data-tab="bulletins"]').click();
     await p.locator(`#p-mois [data-p-mois="${m}"]`).click();
     await p.locator('#p-sous [data-sous="pointage"]').click();
+    // (1.276.0) La grille du mois : un clic sur la case du jour ouvre sa fenêtre ; « Absent » s'y note au serveur, et
+    // « Annuler » du message le défait (la fenêtre que la journée n'ouvre plus que pour un jour de repos).
+    await p.locator('#pt-vue-grille').click();
+    await p.locator(`#pt-grille tr[data-pe="s1"] .pt-c[data-pt="${d}"]`).click();
+    const pc = p.locator('#modal-root .modal').last();
+    await pc.locator('input[name=code][value=A]').check({ force: true });
+    await pc.locator('#pc-ok').click();
+    await expect.poll(async () => (await codesDe('s1'))[aujIso], { timeout: 15_000 }).toBe('A');
+    await p.locator('#toast-undo').click();
+    await expect.poll(async () => (await codesDe('s1'))[aujIso], { timeout: 15_000 }).toBeUndefined();
     await p.locator('#p-sous [data-sous="pt-salarie"]').click();
     await p.locator('#pt-sal').waitFor();
     expect(await p.locator(`#pt-sal-t [data-ptj="${d}"]`).getAttribute('class')).toContain('pt-jour-auj');

@@ -16521,10 +16521,9 @@ prouver 'un dimanche refusé en silence' modules/personnel/ecrans/entreprise/pai
   '          if (b.dataset.repos) toast(' \
   '          if (false) toast(' \
   'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
-prouver 'un dimanche qui ne passe pas à « Présent »' modules/personnel/ecrans/entreprise/paie.js \
-  '        const ordre = b.dataset.repos ? C.CODES_REPOS : ORDRE;' \
-  '        const ordre = ORDRE.filter(x => x !== '"'"'P'"'"');' \
-  'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
+# (1.276.0) Retirée : « un dimanche qui ne passe pas à « Présent » ». Depuis 1.257, un clic sur la case ouvre sa fenêtre
+# (Repos ou Présent pour un jour de repos) et une lettre passe par `poser` ; la liste `ordre` qu'elle cassait n'était plus
+# lue : elle est retirée du code. La recette joue toujours le dimanche (« Repos » puis « Présent », l'absence refusée).
 prouver 'le pointage écrit par qui ne fait pas la paie' 'serveur/v10/droits.ts' \
   ' socialFilings: PAIE, timesheets: PAIE,' \
   ' socialFilings: PAIE,' \
@@ -22139,7 +22138,7 @@ prouver 'paie 1.223 a : l'\''attestation de salaire prend quatre mois' modules/p
   "const L = bulletinsDe(data, e.id, t).slice(-3);" "const L = bulletinsDe(data, e.id, t).slice(-4);" \
   "$WPAIE2"
 prouver 'paie 1.223 b : l'\''aperçu ne suit plus le choix du document' modules/personnel/ecrans/entreprise/paie.js \
-  "\$('#hf', root).onchange = () => { sync(); apercu(); };" "\$('#hf', root).onchange = () => { sync(); };" \
+  "\$('#hf [name=kind]', root).value = b.dataset.hfKind; sync(); apercu(); });" "\$('#hf [name=kind]', root).value = b.dataset.hfKind; sync(); });" \
   "$WPAIE2"
 prouver 'paie 1.223 c : le bulletin ne s'\''ouvre plus en aperçu' modules/personnel/ecrans/entreprise/paie.js \
   "const x = payslipById(b.dataset.voirB); if (x) apercuBulletin(x, () => draw()); });" "const x = payslipById(b.dataset.voirB); if (x) payslipForm(x, employeeById(x.employeeId), x.year, x.month, () => draw()); });" \
@@ -22731,9 +22730,9 @@ prouver 'paie 1.259 b : des heures sup sans majoration passent' modules/personne
 prouver 'paie 1.259 c : « Présent » laisse les heures sup du jour' modules/personnel/ecrans/entreprise/paie.js \
   'C.poserRetard(data, e, y, m, d, 0); C.poserHeuresSupDuJour(data, e, y, m, d, 0, 0);' 'C.poserRetard(data, e, y, m, d, 0);' \
   'la journée : Absent, Retard et Heures sup disent ce que le bulletin en fera ; valider la fige, « Rouvrir » la rend'
-prouver 'paie 1.259 d : le prix des heures sup oublie la majoration' modules/personnel/ecrans/entreprise/paie.js \
-  'brut * o.heures * (100 + o.maj) / 100 / hm' 'brut * o.heures / hm' \
-  'la journée : Absent, Retard et Heures sup disent ce que le bulletin en fera ; valider la fige, « Rouvrir » la rend'
+# (1.276.0) Retirée : « paie 1.259 d : le prix des heures sup oublie la majoration ». La fenêtre des heures sup d'un jour
+# (hsJourFenetre) n'était plus ouverte par rien depuis la journée de 1.267 (« + H. sup » sur la ligne) : elle est retirée
+# du code. Le prix majoré de la ligne reste tenu par la recette (« + 17,432 DT sur son brut », 1,25 × 2 h).
 prouver 'paie 1.259 e : « À régler » oublie les journées pas validées' modules/personnel/ecrans/entreprise/paie.js \
   'const J = joursNonValides(y, m);' 'const J = [];' \
   'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'

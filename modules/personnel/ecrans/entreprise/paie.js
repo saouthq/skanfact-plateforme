@@ -3235,34 +3235,6 @@
         if (mo) mo.onchange = () => { if (poserMotifAbsence(e, x.y, x.m, x.d, mo.value)) { save(); if (apres) apres(); } };
       });
     }
-    // Les heures sup d'un jour : elles s'ajoutent à celles du mois (que le bulletin paie), et se retirent d'un geste.
-    function hsJourFenetre(e, iso, apres) {
-      const st = C.payrollSettings(data), majs = C.majorationsHs(st);
-      if (!majs.length) { toast('Pour noter des heures sup, règle d\'abord leur majoration dans « Les horaires » (À VÉRIFIER : le Code du travail et ta convention).', true); return; }
-      const x = etatJour(e, iso); if (!x) return;
-      const { y, m, d } = x, cur = company().currency, hm = C.heuresDuMoisDe(st, e), brut = C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0;
-      const badge = x.b && x.b.auDela ? C.round3(x.b.auDela / 60) : 0;
-      modal(`<h2>${h(e.name)} · ${h(jourDit(iso))}</h2><p class="sous-f">ses heures sup de ce jour : elles s'ajoutent à celles du mois, que son bulletin paie</p>
-        <form id="hsj" class="grid-2"><label class="field">${lbl('Combien d\'heures')}<input type="number" class="num" name="heures" min="0" max="16" step="0.25" value="${x.hsj ? x.hsj.heures : badge || ''}" placeholder="1"></label>
-          <label class="field">${lbl('Leur majoration')}<select name="maj">${majs.map(k => `<option value="${k}" ${x.hsj && x.hsj.majoration === k ? 'selected' : ''}>+ ${pct(k)} %</option>`).join('')}</select></label></form>
-        ${badge ? `<p class="small muted">Ses badges : ${h(hDit(x.b.auDela))} au-delà de son horaire.</p>` : ''}
-        <p class="small muted" id="hsj-dit" role="status" aria-live="polite"></p>
-        <div class="modal-actions">${x.hsj ? '<button type="button" class="btn btn-danger" id="hsj-x" style="margin-inline-end:auto">Retirer ses heures sup du jour</button>' : ''}<button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="hsj-ok">${lfIc('coche', 15, 2.4)} Noter</button></div>`, (root, fermer) => {
-        const lire = () => { const v = formValues($('#hsj', root)); return { heures: C.round3(Number(v.heures) || 0), maj: Number(v.maj) }; };
-        const dire = () => { const o = lire(); $('#hsj-dit', root).textContent = !(o.heures > 0) ? 'Combien d\'heures ? Par exemple 2, ou 1,5.' : hm > 0 ? `+ ${C.money(C.round3(brut * o.heures * (100 + o.maj) / 100 / hm), cur)} sur son brut du mois.` : 'Les heures d\'un mois complet ne sont pas réglées (« Les horaires ») : le prix d\'une heure ne se calcule pas encore.'; };
-        $('#hsj', root).oninput = $('#hsj', root).onchange = dire; dire();
-        const poser = heures => {
-          if (!peutPointerLe(iso)) return;
-          const avant = JSON.stringify(data.timesheets || []), o = lire();
-          if (heures > 0 && x.j.code !== 'P' && !x.j.repos) C.poserPointage(data, e, y, m, d, 'P');
-          if (!C.poserHeuresSupDuJour(data, e, y, m, d, o.maj, heures)) return;
-          save(); fermer(); apres();
-          toastUndo(heures > 0 ? `${e.name}, ${jourDit(iso)} : ${pct(heures)} h sup à +${pct(o.maj)} %` : `${e.name}, ${jourDit(iso)} : heures sup du jour retirées`, () => { data.timesheets = JSON.parse(avant); save(); apres(); });
-        };
-        $('#hsj-ok', root).onclick = () => { const o = lire(); if (!(o.heures > 0)) { toast('Combien d\'heures ? Tape un nombre : 2, ou 1,5.', true); $('#hsj [name=heures]', root).focus(); return; } poser(o.heures); };
-        if ($('#hsj-x', root)) $('#hsj-x', root).onclick = () => poser(0);
-      });
-    }
     // Une entrée sans sortie, sans horaire d'équipe pour la proposer : l'heure se tape. (plateforme, 03/11/2026, 16 § 10.1
     // point 11) Jamais « sortieFenetre » : ce nom, déclaré ici, cachait la fenêtre du départ dans toute la page Paie.
     function heureSortieFenetre(e, iso, apres) {
@@ -4140,8 +4112,8 @@
       };
       const ORDRE = C.CODES_POINTAGE.map(x => x[0]);
       $$('#pt-grille .pt-c[data-pt]').forEach(b => {
-        // Un jour de repos ne passe que de « Repos » à « Présent » et retour.
-        const ordre = b.dataset.repos ? C.CODES_REPOS : ORDRE;
+        // Un jour de repos ne passe que de « Repos » à « Présent » et retour : sa case n'offre que ces deux-là, et une
+        // lettre d'absence tapée dessus se refuse dans `poser`, qui le dit.
         // (1.257.0) Un clic ouvre la case (ce que chaque choix fait) ; les lettres au clavier posent le code d'un coup.
         b.onclick = () => { const e = employeeById(b.closest('tr').dataset.pe); if (!e || !peutPointer()) return; caseFenetre(e, y, m, Number(b.dataset.pt), () => drawPointage({ e: e.id, d: Number(b.dataset.pt) })); };
         b.onkeydown = ev => {

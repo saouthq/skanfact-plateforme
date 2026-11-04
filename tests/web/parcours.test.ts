@@ -902,6 +902,11 @@ describe('le parcours, à la souris', () => {
     await reglerPuisEtablir(p);
     await p.locator('#modal-root #ok').click();
     await expect.poll(journalAuMenu).toBe(1);
+    // (1.276.0) Les bulletins établis font avancer le « mois à traiter » : aller à l'équipe puis revenir au mois ne fait pas
+    // sauter la page au mois suivant (qui n'a pas encore de bulletin, donc pas de journal).
+    await p.locator('#p-tabs button[data-tab=salaries]').click();
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await expect.poll(journalAuMenu).toBe(1);
     const ouvrirJournal = async () => { await p.locator('#p-plus').click(); await p.locator('.row-menu').last().getByText('Journal de paie', { exact: true }).click(); };
     type Bulletin = { employeeId: string; month: number; computed: Record<string, number> };
     const bulletins = () => p.evaluate(() => (window as unknown as { __data: { payslips: Bulletin[] } }).__data.payslips);

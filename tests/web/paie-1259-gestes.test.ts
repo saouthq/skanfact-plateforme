@@ -122,6 +122,15 @@ describe('la paie 1.259.0 : la journée, le mois en relecture, une seule règle 
     await p.locator('#ptj [data-ptj-hs="mt"]').fill(''); await p.locator('#ptj [data-ptj-hs="mt"]').press('Enter');
     await expect.poll(async () => { const t = await tsDe('mt'); return [t?.retards?.[String(d)], t?.hs?.['25']]; }, { timeout: 15_000 }).toEqual([undefined, undefined]);
     expect(espace(await ligne('mt').locator('.ptj-e').innerText())).toBe('');
+    // (1.276.0) Des heures sup notées, puis « Absent » : un jour d'absence ne garde ni ses heures sup ni son retard.
+    await ligne('mt').locator('[data-ptj-plus="mt:hs"]').click();
+    await p.locator('#ptj [data-ptj-hs="mt"]').fill('3');
+    await p.locator('#ptj [data-ptj-hs="mt"]').press('Enter');
+    await expect.poll(async () => (await tsDe('mt'))?.hs?.['25'], { timeout: 15_000 }).toBe(3);
+    await ligne('mt').getByRole('button', { name: 'Absent', exact: true }).click();
+    await expect.poll(async () => { const t = await tsDe('mt'); return [t?.jours?.[String(d)], t?.hs?.['25']]; }, { timeout: 15_000 }).toEqual(['A', undefined]);
+    await ligne('mt').getByRole('button', { name: 'Là', exact: true }).click();
+    await expect.poll(async () => (await tsDe('mt'))?.jours?.[String(d)], { timeout: 15_000 }).toBeUndefined();
     // Valider : la journée est figée (ses choix ne se cliquent plus), « Rouvrir la journée » la rend.
     const valides = async () => ((await racine(x, 'joursValides')) as { iso: string; rouvertLe?: string }[] | undefined) ?? [];
     expect(espace(await p.locator('#ptj-valider').innerText())).toBe('Valider la journée');
