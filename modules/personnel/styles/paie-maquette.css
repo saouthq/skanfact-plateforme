@@ -1573,3 +1573,5 @@ body.dark .pm .papier { color: #1d2327; }
   .pm #cg-demandes .pa-dem-g { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
   .pm #cg-demandes .pa-dem-g .btn { flex: 1 1 30%; min-height: 44px; justify-content: center; }
 }
+/* (1.268.0) Qui fait l'étape (« toi », « ton comptable »), entre son titre et ce qu'elle dit. */
+.pm .pa-etape .pa-qui { font-size: 11.5px; font-weight: 600; color: var(--sarcelle-texte); letter-spacing: .01em; }

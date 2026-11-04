@@ -58,14 +58,34 @@ export async function modulesFermesPourMoi(tx: Transaction, entreprise: string, 
   return perimetre ? [] : fermes;
 }
 
+// (1.268.0 ; Skander, 04/11/2026 : 16 § 9, décision 3) En Essentiel, quand le cabinet TIENT la paie, le client lui donne les
+// faits qu'il est seul à connaître : un congé, une avance se notent. Le reste de la paie reste fermé au client (c'est le
+// cabinet qui la fait, sous son mandat). Les deux conditions sont des faits écrits, jamais déduits : un mandat actif qui
+// comprend la paie, et le choix « mon cabinet la tient » de la fiche de l'entreprise pour le mois du jour (paieModeDes :
+// le mois d'où il vaut, paieModeAvant : le choix d'avant).
+export const FAITS_DU_CLIENT: readonly string[] = ['leaves', 'advances'];
+export async function cabinetTientLaPaie(tx: Transaction, entreprise: string, jour = aujourdhuiATunis()): Promise<boolean> {
+  const mandat = (await tx.query(`select exists (select 1 from socle.mandat where entreprise = $1 and statut = 'actif' and 'paie' = any(perimetre)
+      and debut <= $2::date and (fin is null or fin >= $2::date)) v`, [entreprise, jour])).rows[0]?.v === true;
+  if (!mandat) return false;
+  const c = (await tx.query(`select contenu->>'paieMode' mode, contenu->>'paieModeDes' des, contenu->>'paieModeAvant' avant
+      from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'company'`, [entreprise])).rows[0] as { mode: string | null; des: string | null; avant: string | null } | undefined;
+  if (!c) return false;
+  return (c.des && jour.slice(0, 7) < c.des ? c.avant : c.mode) === 'tenue';
+}
+
 // Avant d'écrire dans le dossier : un objet NOUVEAU dans une partie d'un module fermé est refusé, quoi que l'écran
 // envoie ; le refus dit ce qui est fermé, ce qui reste, et mène à l'abonnement.
 export async function refuserHorsOffre(tx: Transaction, entreprise: string, nouveaux: readonly { collection: string }[]): Promise<void> {
   const touches = MODULES_OPTIONNELS.filter((m) => nouveaux.some((c) => PARTIES_DU_MODULE[m].includes(c.collection)));
   if (!touches.length) return;
   const fermes = await modulesFermesPourMoi(tx, entreprise);
-  const ferme = touches.find((m) => fermes.includes(m));
-  if (ferme) throw new Refus(`abonnement.offre.${ferme}`, { bouton: 'socle.abonnement.voir' });
+  for (const m of touches) {
+    if (!fermes.includes(m)) continue;
+    const faitsSeuls = m === 'paie' && nouveaux.every((c) => !PARTIES_DU_MODULE.paie.includes(c.collection) || FAITS_DU_CLIENT.includes(c.collection));
+    if (faitsSeuls && await cabinetTientLaPaie(tx, entreprise)) continue;
+    throw new Refus(`abonnement.offre.${m}`, { bouton: 'socle.abonnement.voir' });
+  }
 }
 
 // Ce que l'offre compte aujourd'hui (14c, deuxième partie ; 0100) : ce que l'entreprise utilise et ce que l'offre qui

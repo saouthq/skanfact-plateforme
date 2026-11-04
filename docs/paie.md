@@ -2501,3 +2501,46 @@ même version que le morceau A.
 - **Sur « L'année », le petit tableau sous le graphique** était décalé de 14 px par rapport au titre de sa carte (sa
   marge et celle de sa première colonne s'ajoutaient). Le contrôle du double cadre se fait désormais sur « L'année »
   puis sur les bulletins du mois (preuves `paie 1.251 f` et `paie 1.256 g`).
+
+## La paie et son cabinet : seul, vérifiée, tenue (04/11/2026, 1.268.0)
+
+Skander, 04/11 : « oublie pas aussi si le comptable il tient aussi la partie personnel […] comment ça doit marcher et comment
+on l'affiche sur les écrans », puis « je suis d'accord avec les trois choses à décider ». Les trois façons de faire la paie
+(« Qui fait la paie ? », `company.paieMode`, datées par `paieModeDes`) se lisent maintenant dans les nouveaux écrans.
+
+**Qui fait chaque étape** : sous le titre de chaque étape du mois, une petite ligne le dit (`etapesDuMois`, `QUI`).
+
+| Étape | Seul (sans cabinet relié) | Vérifiée (`seule`) | Tenue (`tenue`) |
+|---|---|---|---|
+| Pointage | — | toi | toi |
+| Bulletins | — | toi, ton comptable vérifie | ton comptable |
+| Payer | — | toi | toi |
+| Déclarations | — | toi | ton comptable |
+
+**Tenue : le vert ne propose que tes gestes.** Le cabinet prépare les bulletins ; le gérant pointe, envoie et paie.
+
+- L'étape des bulletins dit où on en est : « après la fin du mois et ton pointage », « après l'envoi de ton pointage », puis
+  « il les prépare, puis te les envoie ».
+- L'en-tête ne montre jamais « Établir les bulletins » : « Envoyer d'abord le pointage au cabinet » (qui mène au pointage),
+  puis « Ton cabinet prépare les N bulletins » (grisé : ce n'est pas ton geste). La carte vide le dit aussi, sans bouton
+  (« ton cabinet prépare les 2 bulletins dès que tu lui envoies le pointage »).
+- **Valider le pointage, c'est l'envoyer** : le bouton dit « Valider le pointage d'octobre et l'envoyer au cabinet », le
+  message « … verrouillé ; ton cabinet le reçoit et prépare les bulletins ». Rien d'autre ne part : le cabinet lit déjà le
+  pointage verrouillé.
+- « Aujourd'hui » rappelle le mois d'avant tant que son pointage n'est pas envoyé : « Régler le pointage » s'il reste un
+  point « À régler », sinon « Envoyer le pointage … au cabinet ». Une fois envoyé, il ne demande plus rien de ce mois.
+
+**Vérifiée : payer avant la vérification reste permis, et se dit avant le geste.** Dans « Payer les salaires », quand un
+bulletin n'a pas encore été vérifié par le cabinet : « Ton cabinet n'a pas encore vérifié un de ces bulletins. Tu peux payer
+quand même. S'il trouve une erreur, elle se corrige sur le bulletin suivant. » « Marquer payés » reste ouvert.
+
+**Essentiel avec un cabinet qui tient la paie** (16 § 9, question 3) : le client saisit ses congés et ses avances. Le serveur
+le permet seulement si un mandat actif du cabinet couvre la paie **et** que la paie est tenue ce mois-là
+(`cabinetTientLaPaie`) ; un envoi qui ne contient pas que des congés et des avances (`FAITS_DU_CLIENT`) est refusé en entier.
+À l'écran, « Nouvelle absence » et « Nouvelle avance » ne montrent plus le cadenas dans ce cas (`faitBloque`).
+
+**Ce qui reste à décider** : le pointage reste fermé en Essentiel, même tenu ; or c'est lui qui nourrit les bulletins du
+cabinet. L'ouvrir aussi aux faits du client se décide avec Skander.
+
+Tests : `tests/web/paie-268-cabinet.test.ts` (tenue de bout en bout, vérifiée et son avertissement),
+`tests/abonnement/offre.test.ts` (les faits du client passent en tenue, pas en seule, pas sans mandat de paie, pas mêlés).

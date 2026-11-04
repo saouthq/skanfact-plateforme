@@ -115,5 +115,24 @@ describe('ce que l\'offre ouvre', () => {
     const r = await appeler('POST', `/entreprises/${ent}/paie/dossier`, associe.jeton, { changements: [nouveau('employees', 'sal-1', SALARIE)] });
     expect(r.statut, JSON.stringify(r.corps)).toBe(200);
     expect((await ecrire(ent, client.jeton, [nouveau('employees', 'sal-2', SALARIE)])).statut).toBe(403);
+    // (1.268.0 ; 16 § 9, décision 3) Le cabinet qui TIENT la paie : le client lui donne ses faits, un congé et une avance
+    // se notent ; un salarié, un bulletin, un pointage restent fermés. Tant que la fiche dit qu'il la fait lui-même (le
+    // cabinet ne fait que vérifier), rien ne s'ouvre.
+    const fiche = async (paieMode: string) => { const f = (await lire(ent, client.jeton)).find((o) => o.collection === '_racine' && o.cle === 'company');
+      const contenu = { ...((f as unknown as { contenu?: Record<string, unknown> })?.contenu ?? {}), paieMode, paieModeDes: jour.slice(0, 7) };
+      expect((await ecrire(ent, client.jeton, [{ collection: '_racine', cle: 'company', rang: null, revision: f ? f.revision : null, contenu }])).statut).toBe(200); };
+    await fiche('seule');
+    expect((await ecrire(ent, client.jeton, [nouveau('leaves', 'cg-0', { employeeId: 'sal-1', kind: 'conges', from: jour, to: jour })])).statut).toBe(403);
+    await fiche('tenue');
+    const faits = await ecrire(ent, client.jeton, [nouveau('leaves', 'cg-1', { employeeId: 'sal-1', kind: 'conges', from: jour, to: jour }), nouveau('advances', 'av-1', { employeeId: 'sal-1', date: jour, amount: 200, monthly: 100 })]);
+    expect(faits.statut, JSON.stringify(faits.corps)).toBe(200);
+    for (const collection of ['employees', 'payslips', 'timesheets']) expect((await ecrire(ent, client.jeton, [nouveau(collection, `${collection}-tenue`)])).statut, collection).toBe(403);
+    // Avec un fait du client dans le même envoi qu'un salarié (que l'associé, lui, écrit sans peine) : rien n'est écrit.
+    const mele = await ecrire(ent, client.jeton, [nouveau('leaves', 'cg-2', { employeeId: 'sal-1', kind: 'conges', from: jour, to: jour }), nouveau('employees', 'sal-3', SALARIE)]);
+    expect(mele.statut, JSON.stringify(mele.corps)).toBe(403);
+    expect(JSON.stringify(mele.corps)).toContain('La paie n\u0027est pas dans l\u0027offre Essentiel');
+    // Sans la paie dans le mandat, la fiche seule n'ouvre rien.
+    expect((await appeler('PUT', `/entreprises/${ent}/mandat/perimetre`, client.jeton, { perimetre: ['comptabilite'] })).statut).toBe(200);
+    expect((await ecrire(ent, client.jeton, [nouveau('leaves', 'cg-3', { employeeId: 'sal-1' })])).statut).toBe(403);
   });
 });

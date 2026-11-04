@@ -1006,6 +1006,13 @@
   // (plateforme) 1.227.0 — quand le cabinet tient la paie (un choix écrit, valable pour ce mois), un bulletin se paie après
   // le bon à payer de l'entreprise : la fenêtre ne propose que les bulletins approuvés, et dit pourquoi les autres manquent.
   const bapExige = (y, m) => { if (sansCabinetRelie()) return false; const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return (co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || '')) === 'tenue'; };
+  // (1.268.0) Qui fait la paie d'un mois, lu ici aussi par les fenêtres (« seule » : tu la fais, ton cabinet la vérifie).
+  const verifieeLe = (y, m) => { if (sansCabinetRelie()) return false; const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return (co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || '')) === 'seule'; };
+  // (1.268.0 ; Skander, 04/11/2026 : 16 § 9, décision 3) En Essentiel, quand le cabinet tient la paie, un congé et une avance
+  // se notent : le client lui donne les faits qu'il est seul à connaître (le serveur le vérifie : serveur/abonnement/offre.ts).
+  // La lecture seule d'un abonnement retient toujours.
+  const tenueCeMois = () => { const t = C.today(); return bapExige(Number(t.slice(0, 4)), Number(t.slice(5, 7))); };
+  const faitBloque = what => licenceBlock(what, tenueCeMois() ? null : 'paie');
   function payerSalairesFenetre(year, month, done, garde) {
     const tous = C.salairesAPayer(data, year, month);
     const lignes = bapExige(year, month) ? tous.filter(l => (payslipById(l.id) || {}).bonAPayerLe) : tous;
@@ -1039,6 +1046,10 @@
           <td class="ps-comment"><span class="${l.mode === 'virement' ? '' : 'ambre'}">${h(modeDe(l.mode).toLowerCase())}${l.mode === 'especes' ? ', contre reçu' : ''}</span>${l.rib ? `<small class="mono">··· ${h(String(l.rib).replace(/\s/g, '').slice(-4))}${l.manque || ribDouble(l) ? '' : ' · contrôlé'}</small>` : ''}${!l.manque && ribDouble(l) ? '<small class="warn-text">le même RIB qu\'un autre salarié</small>' : ''}${l.manque ? `<small><button type="button" class="montant-lien warn-text small" data-ps-rib="${h(l.employeeId)}">${l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'}</button></small>` : ''}${l.raison ? `<small class="warn-text">${h(l.raison)}</small>` : ''}</td>
           <td class="r"><b>${C.money(l.net, '')}</b></td></tr>`).join('')}</tbody>
         <tfoot><tr><td></td><td id="ps-compte"></td><td id="ps-detail"></td><td class="r"><span id="ps-total"></span></td></tr></tfoot></table></div>
+      ${(() => { const nv = verifieeLe(year, month) ? lignes.filter(l => !(payslipById(l.id) || {}).verifieLe).length : 0;
+        // (1.268.0 ; Skander, 04/11/2026 : 16 § 9) Ton cabinet vérifie ta paie : tu peux payer avant sa relecture ; la fenêtre le
+        // dit avant le geste, et ce qu'il trouverait se corrige sur le bulletin suivant.
+        return nv ? `<div class="bandeau ambre pa-bandeau" id="ps-pas-verifie" role="status">${lfIc('comptable', 18)}<span class="txt"><b>Ton cabinet n'a pas encore vérifié ${nv > 1 ? `${nv} de ces bulletins` : 'un de ces bulletins'}</b><span>Tu peux payer quand même. S'il trouve une erreur, elle se corrige sur le bulletin suivant.</span></span></div>` : ''; })()}
       <div id="ps-avert"></div>
       <p class="regle">${lfIc('aide', 13, 2)} SkanFact ne fait aucun virement : l'ordre de virement se remet à ta banque (ou se téléverse sur son site). « Marquer payés » sort l'argent de la trésorerie au jour choisi ; la Banque le reconnaîtra sur ton relevé. Ne saisis pas en plus un mouvement « Salaires » : il compterait deux fois.${especesL.length ? ` Payé en espèces, chacun signe son reçu : ta caisse se justifie par lui.` : ''}</p>
       <div class="modal-actions"><button type="button" class="btn" data-close style="margin-inline-end:auto">Annuler</button><button type="button" class="btn" id="ps-ordre">${lfIc('oeil', 15)} Ordre de virement</button>${especesL.length ? `<button type="button" class="btn" id="ps-recu">${lfIc('oeil', 15)} ${especesL.length > 1 ? 'Reçus des espèces' : `Reçu de ${h(prenom(especesL[0].name))}`}</button>` : ''}<button type="button" class="btn btn-primary" id="ps-payer"></button></div>`,
@@ -1297,7 +1308,7 @@
   }
 
   function leaveForm(leave, employeeId, done, jour) {
-    if (!leave && licenceBlock('Créer une absence', 'paie')) return;
+    if (!leave && faitBloque('Créer une absence')) return;
     const emps = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     if (!emps.length) return toast('Crée d\'abord la fiche d\'un salarié.', true);
     const l = leave || { id: C.uid(), employeeId: employeeId || emps[0].id, kind: 'conges',
@@ -1369,7 +1380,7 @@
           if (salarieLf.hireDate && v.from < salarieLf.hireDate) return refus(champ('from'), `L'entrée de ${salarieLf.name} est le ${C.fmtDate(salarieLf.hireDate)} : une absence ne commence pas avant.`);
           if (salarieLf.endDate && v.to > salarieLf.endDate) return refus(champ('to'), `La sortie de ${salarieLf.name} est le ${C.fmtDate(salarieLf.endDate)} : une absence ne finit pas après.`);
           if (closedBlock([l.from, l.to, v.from, v.to], 'Cette absence')) return;
-          if (!leave && licenceBlock('Créer une absence', 'paie')) return;
+          if (!leave && faitBloque('Créer une absence')) return;
           const statut = v.demande ? 'demande' : (l.statut === 'demande' ? 'accepte' : l.statut);
           delete v.demande;
           if (v.kind !== 'maladie') { delete v.certificatLe; delete v.cnssLe; delete l.certificatLe; delete l.cnssLe; }
@@ -1393,7 +1404,7 @@
   }
 
   function advanceForm(advance, employeeId, done) {
-    if (!advance && licenceBlock('Créer une avance sur salaire', 'paie')) return;
+    if (!advance && faitBloque('Créer une avance sur salaire')) return;
     const emps = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     if (!emps.length) return toast('Crée d\'abord la fiche d\'un salarié.', true);
     const a = advance || { id: C.uid(), employeeId: employeeId || emps[0].id, date: C.today(), amount: 0, monthly: 0, note: '' };
@@ -1465,7 +1476,7 @@
           const sortie = (employeeById(v.employeeId) || {}).endDate;
           if (sortie && v.date > sortie) return refus(champ('date'), `La sortie de ${employeeById(v.employeeId).name} est le ${C.fmtDate(sortie)} : aucun bulletin ne retiendrait une avance versée après.`);
           if (closedBlock([a.date, v.date], 'Cette avance')) return;
-          if (!advance && licenceBlock('Créer une avance sur salaire', 'paie')) return;
+          if (!advance && faitBloque('Créer une avance sur salaire')) return;
           Object.assign(a, v, { amount: Number(v.amount), monthly: Number(v.monthly) });
           if (!a.debut) delete a.debut;
           if (a.kind !== 'pret') delete a.kind;
@@ -1946,9 +1957,16 @@
       const [pt, bu, pa, re, de] = C.paieDuMois(data, y, m, { bap: bapDuMois(y, m) }).etapes;
       const paye = { titre: 'Payer', fait: pa.fait && re.fait, dit: !pa.fait || re.fait ? pa.dit : `${pa.dit} · ${re.dit}` };
       let ici = false;
+      // (1.268.0 ; Skander, 04/11/2026) Avec un cabinet, chaque étape dit qui la fait : en paie tenue, tu pointes et tu paies,
+      // ton comptable prépare les bulletins et dépose la déclaration ; en paie vérifiée, tu fais tout, il relit tes bulletins.
+      // Pendant son tour, l'étape dit où il en est, au lieu d'un compte de bulletins « à établir » qui n'est pas à toi.
+      const mode = modeDuMois(y, m), QUI = { tenue: { pointage: 'toi', bulletins: 'ton comptable', payer: 'toi', declarations: 'ton comptable' },
+        seule: { pointage: 'toi', bulletins: 'toi, ton comptable vérifie', payer: 'toi', declarations: 'toi' } }[mode] || {};
+      const dits = {};
+      if (mode === 'tenue' && C.missingPayslips(data, y, m).length) dits.bulletins = ptEnvoye(y, m) ? 'il les prépare, puis te les envoie' : moisFini(y, m) ? 'après l\'envoi de ton pointage' : 'après la fin du mois et ton pointage';
       return [['pointage', pt], ['bulletins', bu], ['payer', paye], ['declarations', de]].map(([id, e]) => {
         const etat = e.fait ? 'fait' : ici ? '' : 'ici'; if (!e.fait) ici = true;
-        return { id, titre: e.titre, dit: e.dit, etat };
+        return { id, titre: e.titre, dit: e.fait ? e.dit : dits[id] || e.dit, etat, qui: QUI[id] || '' };
       });
     }
     // Ce que le mois attend de toi, et à quelle étape : la correction proposée, ton accord, établir, payer, remettre. Rien quand
@@ -1961,6 +1979,10 @@
     function bloquantsDe(y, m) {
       try { return ptVerrouille(ymPt(y, m)) ? [] : aReglerMois(y, m); } catch (_) { return []; }
     }
+    // (1.268.0) Le pointage d'un mois est envoyé au cabinet quand il est validé (verrouillé) ; un mois est fini après son
+    // dernier jour. Comme « À régler », l'en-tête les lit avant que les outils du pointage soient posés.
+    function ptEnvoye(y, m) { try { return ptVerrouille(ymPt(y, m)); } catch (_) { return false; } }
+    function moisFini(y, m) { return C.today() > C.addDays(`${y}-${String(m).padStart(2, '0')}-01`, C.daysInMonth(y, m) - 1); }
     // Les bulletins du mois en cours se préparent à partir du 25 (16 § 3.7) ; un mois à venir, jamais.
     function avant25(y, m) {
       const auj = C.today(), ym = `${y}-${String(m).padStart(2, '0')}`;
@@ -1980,6 +2002,13 @@
       if (!miss.length && corr) return { etape: 'bulletins', sorte: 'correction', ic: 'comptable', dit: `Voir la correction${corr.correction.par ? ` de ${corr.correction.par}` : ''}` };
       if (!miss.length && aApprouverDe(mo, y, m).length) return { etape: 'bulletins', sorte: 'approuver', ic: 'coche', dit: `Approuver les bulletins ${de}` };
       if (!miss.length && enPreparationDe(mo, y, m).length) return null;
+      // (1.268.0 ; Skander, 04/11/2026) Ton cabinet tient la paie : ton geste est d'envoyer le pointage d'un mois fini (le
+      // valider) ; les bulletins, il les prépare. Le bouton vert ne propose que tes gestes : rien tant que c'est son tour.
+      if (miss.length && modeDuMois(y, m) === 'tenue') {
+        if (!moisFini(y, m) || ptEnvoye(y, m)) return null;
+        return bloquantsDe(y, m).length ? { etape: 'pointage', sorte: 'regler', ic: 'alerte', dit: `Régler le pointage ${de}` }
+          : { etape: 'pointage', sorte: 'envoyer', ic: 'envoi', dit: `Envoyer le pointage ${de} au cabinet` };
+      }
       // (1.267.0, morceau C) Un mois dont les bulletins ne s'établissent pas encore (avant le 25) n'attend rien d'eux ; ceux
       // qui sont établis se paient et se remettent.
       if (miss.length && !avant25(y, m)) {
@@ -2018,6 +2047,8 @@
         const avantPaie = !miss.length && corr ? `<button class="btn btn-primary" id="p-corr-ok">${lfIc('coche', 15, 2.4)} Accepter la correction${corr.correction.par ? ` de ${h(corr.correction.par)}` : ''}</button>`
           : !miss.length && enPrep.length && !aApprouver.length ? `<button class="btn btn-primary" id="p-prep" disabled title="Ton cabinet te les envoie quand ils sont prêts : tu les approuves alors">${lfIc('comptable', 15)} Ton cabinet prépare ${enPrep.length > 1 ? `les ${enPrep.length} bulletins` : 'le bulletin'}</button>`
             : !miss.length && aApprouver.length ? `<button class="btn btn-primary" id="p-bap">${lfIc('coche', 15, 2.4)} ${aApprouver.length > 1 ? `J'approuve les ${aApprouver.length} bulletins` : 'J’approuve le bulletin'}</button>`
+              : miss.length && modeDuMois(y, m) === 'tenue' ? (ptEnvoye(y, m) ? `<button class="btn btn-primary" id="p-prep" disabled title="Ton cabinet te les envoie quand ils sont prêts : tu les approuves alors">${lfIc('comptable', 15)} Ton cabinet prépare ${miss.length > 1 ? `les ${miss.length} bulletins` : 'le bulletin'}</button>`
+                : moisFini(y, m) ? `<button class="btn btn-primary" id="p-envoyer">${lfIc('envoi', 15)} Envoyer d'abord le pointage au cabinet</button>` : '')
               : miss.length && avant25(y, m) ? ''
               : miss.length && bloquantsDe(y, m).length ? `<button class="btn btn-primary" id="p-regler">${lfIc('alerte', 15)} Régler d'abord ${pl(bloquantsDe(y, m).length, 'chose')} du pointage</button>`
               : miss.length ? `<button class="btn btn-primary" id="p-gen">${lfIc('croix', 15, 2.4)} ${miss.length > 1 ? `Établir les ${miss.length} bulletins` : 'Établir le bulletin'}</button>` : '';
@@ -2401,7 +2432,9 @@
               <td colspan="${nc - 4}" class="nw">${uni ? `<span class="mu" style="font-size:12.5px;display:inline">${month.length > 1 ? `les ${month.length} :` : ''}</span> ${statut(month[0])}` : ''}</td></tr></tfoot>
           </table>${pagerBar(bulPage.pg, { noun: 'bulletin' })}`
             : `<div class="empty" id="p-vide">${missing.length
-              ? `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : ${pl(missing.length, 'salarié')} à payer ce mois-là.${enLecture('payslips') ? ''
+              ? modeDuMois(y, m) === 'tenue'
+                ? `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : ton cabinet prépare les ${missing.length > 1 ? `${missing.length} bulletins` : 'bulletin'} ${ptEnvoye(y, m) ? (missing.length > 1 ? 'et te les envoie' : 'et te l\'envoie') : 'dès que tu lui envoies le pointage'}.`
+                : `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : ${pl(missing.length, 'salarié')} à payer ce mois-là.${enLecture('payslips') ? ''
                 : `<div class="mt"><button class="btn" id="p-gen-vide">Établir ${missing.length > 1 ? `les ${missing.length} bulletins` : 'le bulletin'}</button></div>`}`
               : `Aucun salarié en poste en ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : il n'y a pas de bulletin à établir ce mois-là.${ailleurs
                 ? `<div class="mt"><button class="btn btn-primary" id="p-vers-mois">Voir ${h(MONTHS_LONG[ailleurs.month - 1])} ${ailleurs.year}</button></div>` : ''}`}</div>`}
@@ -2525,7 +2558,8 @@
         const quoi = { correction: 'une correction proposée par ton cabinet attend ta réponse, avant le paiement',
           approuver: 'ton cabinet a préparé les bulletins : ils attendent ton accord (ton « bon à payer »), puis tu paies',
           etablir: `${pl(n, 'bulletin')} à établir, puis à payer`,
-          regler: `${pl(bloquantsDe(p.y, p.m).length, 'chose')} à régler dans le pointage (${bloquantsDe(p.y, p.m).length > 1 ? 'elles changent' : 'elle change'} un montant), puis ${pl(n, 'bulletin')} à établir`,
+          regler: `${pl(bloquantsDe(p.y, p.m).length, 'chose')} à régler dans le pointage (${bloquantsDe(p.y, p.m).length > 1 ? 'elles changent' : 'elle change'} un montant), puis ${modeDuMois(p.y, p.m) === 'tenue' ? 'tu l\'envoies à ton cabinet, qui prépare les bulletins' : `${pl(n, 'bulletin')} à établir`}`,
+          envoyer: 'son pointage attend d\'être validé : c\'est l\'envoyer à ton cabinet, qui prépare les bulletins',
           payer: `les bulletins sont établis ; ${pl(mo.filter(x => !x.paidDate).length, 'salaire')} ${mo.filter(x => !x.paidDate).length > 1 ? 'ne sont' : 'n\'est'} pas encore payé${mo.filter(x => !x.paidDate).length > 1 ? 's' : ''}`,
           remettre: `les salaires sont payés ; ${pl(mo.filter(x => x.paidDate && !x.remisLe).length, 'bulletin')} à remettre` }[p.sorte];
         const decl = deposee || !dE.salaries ? '' : modeDuMois(p.y, p.m) === 'tenue' ? ` Sa déclaration, c'est ton cabinet qui la dépose, avant le ${C.fmtDate(dE.dueDate)}.` : ` Sa déclaration est à déposer avant le ${C.fmtDate(dE.dueDate)}.`;
@@ -3380,7 +3414,8 @@
       if (fin > C.today()) return `<button type="button" class="btn btn-sm" id="pt-valider" aria-disabled="true" data-pas-fini="1" title="Ses journées jusqu'au ${jjmm(fin)} restent à vivre">${lfIc('cadenas', 14)} Valider le mois le ${Number(fin.slice(8, 10))}, après sa dernière journée</button>`;
       const n = aReglerMois(y, m).length;
       if (n) return `<button type="button" class="btn btn-sm" id="pt-valider" aria-disabled="true" title="Règle d'abord ${n > 1 ? `les ${n} choses` : 'la chose'} de « À régler »">${lfIc('cadenas', 14)} Régler ${n > 1 ? `les ${n} choses` : 'la dernière chose'}, puis valider le mois</button>`;
-      return `<button type="button" class="btn btn-sm btn-primary" id="pt-valider">${lfIc('coche', 14, 2.4)} ${v ? `Valider la version ${v + 1}` : `Valider le pointage ${h(deMois(mois))}`}</button>`;
+      const env = modeDuMois(y, m) === 'tenue' ? ' et l\'envoyer au cabinet' : '';
+      return `<button type="button" class="btn btn-sm btn-primary" id="pt-valider">${lfIc(env ? 'envoi' : 'coche', 14, 2.4)} ${v ? `Valider la version ${v + 1}${env}` : `Valider le pointage ${h(deMois(mois))}${env}`}</button>`;
     }
     function ptValideHtml(y, m) {
       const ym = ymPt(y, m), V = versionsPt(ym); if (!V.length) return '';
@@ -3433,7 +3468,7 @@
         data.pointageVersions = (data.pointageVersions || []).concat([{ id: C.uid(), ym, le: new Date().toISOString(), note: reglees, instant: inst }]);
         data.pointageOuverts = (data.pointageOuverts || []).filter(x => x !== ym);
         save(true); apres();
-        toastUndo(`Pointage ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${mois} validé : version ${V.length + 1}, verrouillé`, () => { data.pointageVersions = JSON.parse(avant.v); data.pointageOuverts = JSON.parse(avant.o); save(true); apres(); });
+        toastUndo(`Pointage ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${mois} validé : version ${V.length + 1}, verrouillé${modeDuMois(y, m) === 'tenue' ? ' ; ton cabinet le reçoit et prépare les bulletins' : ''}`, () => { data.pointageVersions = JSON.parse(avant.v); data.pointageOuverts = JSON.parse(avant.o); save(true); apres(); });
       };
     }
     // (maquette E20) Les totaux du mois, ce que les bulletins reprendront ; et les compteurs, pour ne pas découvrir un
@@ -4975,7 +5010,7 @@
       const dues = C.socialDue(data, C.today()).filter(x => x.late || x.dueDate <= C.addDays(C.today(), 31)).length;
       const nb = { pointage: nbReg ? [nbReg, `${pl(nbReg, 'chose')} à régler`] : null, declarations: dues ? [dues, `${pl(dues, 'déclaration')} à déposer bientôt`] : null };
       return `<div class="pa-chemin" role="tablist" aria-label="${h(capi(MONTHS_LONG[m - 1]))} ${y} en quatre étapes">${ET.map((e, i) =>
-        `<button type="button" role="tab" class="pa-etape${e.etat === 'fait' ? ' fait' : e.etat === 'ici' ? ' cours' : ''}${ouverte === e.id ? ' ouverte' : ''}" data-sous="${e.id}" data-etat="${e.etat}" aria-selected="${ouverte === e.id}"><span class="n">${e.etat === 'fait' ? lfIc('coche', 13, 3) : i + 1}</span><b>${h(e.titre)}</b><span class="d">${h(e.dit)}</span>${nb[e.id] ? `<span class="pm-nb" title="${h(nb[e.id][1])}">${nb[e.id][0]}</span>` : ''}</button>`).join('')}</div>
+        `<button type="button" role="tab" class="pa-etape${e.etat === 'fait' ? ' fait' : e.etat === 'ici' ? ' cours' : ''}${ouverte === e.id ? ' ouverte' : ''}" data-sous="${e.id}" data-etat="${e.etat}" aria-selected="${ouverte === e.id}"><span class="n">${e.etat === 'fait' ? lfIc('coche', 13, 3) : i + 1}</span><b>${h(e.titre)}</b>${e.qui ? `<small class="pa-qui">${h(e.qui)}</small>` : ''}<span class="d">${h(e.dit)}</span>${nb[e.id] ? `<span class="pm-nb" title="${h(nb[e.id][1])}">${nb[e.id][0]}</span>` : ''}</button>`).join('')}</div>
         ${ouverte === 'pointage' ? `<div class="pa-sous-l" role="group" aria-label="Le pointage du mois"><button type="button" data-sous="pt-salarie" aria-pressed="${s.tab === 'pt-salarie'}">${lfIc('personne', 14)} Par salarié</button><button type="button" data-sous="pt-horaires" aria-pressed="${s.tab === 'pt-horaires'}">${lfIc('horloge', 14)} Les horaires</button></div>` : ''}`;
     };
     const bindHead = () => {
@@ -4997,6 +5032,7 @@
 
       if ($('#p-gen')) $('#p-gen').onclick = () => etablirBulletins();
       if ($('#p-regler')) $('#p-regler').onclick = () => allerVue('pointage');
+      if ($('#p-envoyer')) $('#p-envoyer').onclick = () => allerVue('pointage');
       if ($('#p-ecrire')) $('#p-ecrire').onclick = () => navigate('#/comptable');
       if ($('#p-bap')) $('#p-bap').onclick = () => approuverBulletins(Number(s.year), Number(s.month));
       if ($('#p-corr-ok')) $('#p-corr-ok').onclick = () => { const x = C.payslipsOf(data, Number(s.year), Number(s.month)).find(b => correctionEnAttente(b)); if (x) accepterCorrection(x); };

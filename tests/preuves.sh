@@ -23927,6 +23927,42 @@ prouver 'paie 1.267 w : au téléphone, « Valider la journée » quitte le pouc
 prouver 'paie 1.267 x : en sombre, l'\''encre de la feuille A4 éteint toute la page' modules/personnel/styles/paie-maquette.css \
   'body.dark .pm .papier { color: #1d2327; }' 'body.dark .pm { color: #1d2327; }' \
   "$WA1"
+# La paie et son cabinet (1.268.0 ; Skander, 04/11/2026) : seul, vérifiée, tenue dans les nouveaux écrans ; en Essentiel,
+# le client d'un cabinet qui tient sa paie saisit ses congés et ses avances.
+WE1="paie tenue : tu pointes et tu paies, ton comptable prépare ; le vert ne propose que tes gestes"
+WE2="paie vérifiée : tu fais tout, ton comptable relit ; payer avant sa relecture se peut, la fenêtre le dit avant"
+WE3="le cabinet qui a le mandat de la paie la fait toujours, quelle que soit l'offre du client ; le client, lui, ne crée plus"
+F268=modules/personnel/ecrans/entreprise/paie.js
+prouver 'paie 1.268 a : en Essentiel, le congé du client refusé même quand son cabinet tient la paie' serveur/abonnement/offre.ts \
+  "    if (faitsSeuls && await cabinetTientLaPaie(tx, entreprise)) continue;" "" \
+  "$WE3"
+prouver 'paie 1.268 b : en Essentiel, un salarié du client passe avec un congé' serveur/abonnement/offre.ts \
+  "nouveaux.every((c) => !PARTIES_DU_MODULE.paie.includes(c.collection) || FAITS_DU_CLIENT.includes(c.collection));" "nouveaux.some((c) => FAITS_DU_CLIENT.includes(c.collection));" \
+  "$WE3"
+prouver 'paie 1.268 c : les faits du client passent sans mandat qui couvre la paie' serveur/abonnement/offre.ts \
+  "  if (!mandat) return false;" "" \
+  "$WE3"
+prouver 'paie 1.268 d : les faits du client passent quand le gérant fait sa paie seul' serveur/abonnement/offre.ts \
+  "  return (c.des && jour.slice(0, 7) < c.des ? c.avant : c.mode) === 'tenue';" "  return true;" \
+  "$WE3"
+prouver 'paie 1.268 e : en tenue, « Aujourd'\''hui » demande d'\''établir les bulletins du cabinet' $F268 \
+  "      if (miss.length && modeDuMois(y, m) === 'tenue') {" "      if (false) {" \
+  "$WE1"
+prouver 'paie 1.268 f : les étapes ne disent plus qui les fait' $F268 \
+  "return { id, titre: e.titre, dit: e.fait ? e.dit : dits[id] || e.dit, etat, qui: QUI[id] || '' };" "return { id, titre: e.titre, dit: e.fait ? e.dit : dits[id] || e.dit, etat, qui: '' };" \
+  "$WE1"
+prouver 'paie 1.268 g : en tenue, l'\''en-tête n'\''envoie pas au pointage' $F268 \
+  "      if (\$('#p-envoyer')) \$('#p-envoyer').onclick = () => allerVue('pointage');" "" \
+  "$WE1"
+prouver 'paie 1.268 h : en tenue, la carte vide propose « Établir »' $F268 \
+  "              ? modeDuMois(y, m) === 'tenue'" "              ? false" \
+  "$WE1"
+prouver 'paie 1.268 i : en tenue, valider le pointage ne dit pas qu'\''il part au cabinet' $F268 \
+  "verrouillé\${modeDuMois(y, m) === 'tenue' ? ' ; ton cabinet le reçoit et prépare les bulletins' : ''}" "verrouillé" \
+  "$WE1"
+prouver 'paie 1.268 j : en paie vérifiée, payer avant la relecture sans un mot' $F268 \
+  "      \${(() => { const nv = verifieeLe(year, month) ?" "      \${(() => { const nv = false ?" \
+  "$WE2"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

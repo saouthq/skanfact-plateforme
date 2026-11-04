@@ -689,6 +689,11 @@ s'ils sont salariés, ils comptent comme salariés).
    lecture, sans rien créer ; il ne peut donc saisir ni un congé ni une avance, alors que c'est lui qui les connaît. Le
    laisser les saisir change ce que l'offre ouvre. *Avis : oui, dans Essentiel, puisque c'est le cabinet qui fait la paie
    et que le client ne fait que lui donner les faits.* À décider avant tout code.
+   **Décidé le 04/11/2026** (Skander : « je suis d'accord avec les trois chose a decider ») : en Essentiel, quand un
+   cabinet tient la paie (un mandat actif qui couvre la paie, et « Le cabinet fait la paie » choisi pour ce mois), le client
+   saisit ses **congés et ses avances**, rien d'autre (ni salarié, ni bulletin, ni pointage). Le serveur le tient
+   (`serveur/abonnement/offre.ts`, `FAITS_DU_CLIENT`) ; un envoi qui mêle un congé et un bulletin est refusé en entier.
+   *Reste à décider* : le pointage, qui nourrit les bulletins du cabinet, reste fermé en Essentiel (rapport du 04/11).
 4. **Les obligations de l'employeur dans un module payant** : Personnel porte des obligations (registres, affichages,
    mentions du bulletin, état CNSS, déclaration annuelle ; lesquelles sont obligatoires : À VÉRIFIER). En Essentiel,
    sans Personnel ni cabinet, personne ne les produit. Le principe 2 du `07` (« aucune obligation légale n'est vendue en
@@ -976,3 +981,6 @@ VÉRIFIER (le droit, les taux) le reste : aucune règle de droit n'entre avant l
 | 03/11/2026 (proposé) | Seul ce qui change un montant bloque les bulletins (décision 4) ; les bulletins ne partent pas par e-mail au lancement (décision 5) |
 | 03/11/2026 (proposé) | Les corrections urgentes du § 10.1 passent **avant** tout le reste ; aucune règle de droit ne change avant la réponse du comptable et du juriste, et d'ici là une règle nouvelle avertit sans bloquer |
 | 03/11/2026 | Le prix ne change pas ici ; les quatre questions du § 9 se discutent avec Skander |
+| 04/11/2026 (**Skander** : « je suis d'accord avec les trois chose a decider, on va le faire le prochain lot ») | Essentiel avec un cabinet qui tient la paie : le client saisit ses congés et ses avances (§ 9, question 3), le serveur le tient |
+| 04/11/2026 (**Skander**, même phrase) | Paie vérifiée : payer avant la vérification du cabinet reste permis ; la fenêtre « Payer les salaires » le dit **avant** le geste (« Tu peux payer quand même. S'il trouve une erreur, elle se corrige sur le bulletin suivant. ») |
+| 04/11/2026 (**Skander**, même phrase) | Les trois façons de faire la paie (seul, vérifiée, tenue) passent dans les nouveaux écrans **avant** le menu des six familles ; ensuite l'ordre du `17` reprend |
