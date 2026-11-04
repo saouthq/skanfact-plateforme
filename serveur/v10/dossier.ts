@@ -53,7 +53,7 @@ export class Conflit extends Perimee {
 // de livraison qu'une facture regroupe (brique 86) s'impriment sur elle et décident que le stock ne
 // sort pas une seconde fois : ils sont scellés avec elle.
 const PIECES_LEGALES = ['facture', 'avoir'];
-const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'bonsLivraison', 'stampFee', 'creditOf', 'creditReason', 'prixTtc', 'export', 'seuilRetenue', 'passage', 'fodecRate'];
+const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'bonsLivraison', 'stampFee', 'creditOf', 'creditReason', 'prixTtc', 'export', 'seuilRetenue', 'passage', 'fodecRate', 'calcul'];
 // Le statut d'une pièce émise, tel que la v10 l'écrit (STATUSES de core.js).
 const STATUT_EMISE: Record<string, string> = { facture: 'envoyée', avoir: 'émis' };
 const emise = (d: Json | null) => !!d && typeof d.number === 'string' && d.number !== '' && d.status !== 'brouillon';
@@ -425,6 +425,8 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     // Le prix d'étiquette fait foi (lot caisse 3) : le ticket et l'avoir de son retour se calculent TTC d'abord ;
     // une facture, jamais (le drapeau qu'un écran y mettrait ne change rien).
     ...((ticket || retour) && doc.prixTtc === true ? { prixTtc: true } : {}),
+    // (1.275.0, audit G04) La règle de calcul de la pièce du dossier : 2 pour celle qui naît depuis 1.275.0, 1 pour celle d'avant.
+    calcul: doc.calcul === 2 ? 2 : 1,
     ...(doc.subject ? { objet: String(doc.subject) } : {}), ...(doc.notes ? { notes: String(doc.notes).slice(0, 4000) } : {}),
     // Une ligne de titre (1.155.0) ne compte pour rien : elle ne passe pas au serveur (le PDF et l'écran la gardent).
     lignes: (Array.isArray(doc.lines) ? doc.lines as LigneV10[] : []).filter((l) => l.kind !== 'titre').map((l) => ({

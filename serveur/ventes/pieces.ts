@@ -39,6 +39,8 @@ export type BrouillonSaisi = {
   corrige?: string | undefined;
   // Une pièce « prix TTC » (le ticket de caisse et l'avoir de son retour, lot caisse 3) : le prix d'étiquette fait foi.
   prixTtc?: boolean | undefined;
+  // (1.275.0, G04) La règle de calcul (0191) : 2 pour une pièce neuve ; 1, celle de la v10, pour la pièce d'avant qu'on refait.
+  calcul?: 1 | 2 | undefined;
   lignes: LigneSaisie[];
 };
 // Les décimales de chaque nombre saisi (01 R3).
@@ -49,7 +51,7 @@ export type LignePieceLue = Pick<Selectable<BaseDeDonnees['ventes.ligne']>,
   'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'taux_remise' | 'fodec' | 'ht' | 'tva' | 'ttc'>;
 export type PieceLue = {
   id: string; entreprise: string; type: TypePiece; statut: string; tiers: string; date_piece: string; echeance: string | null;
-  corrige: string | null; prix_ttc: boolean;
+  corrige: string | null; prix_ttc: boolean; calcul: number;
   devise: string; cours: bigint | null; taux_remise: bigint; taux_retenue: bigint; appliquer_timbre: boolean | null;
   objet: string | null; notes: string | null; serie: string | null; numero_texte: string | null; revision: number;
   totaux: Record<string, bigint> | null; tva_par_taux: Record<string, { base: string; tva: string; fodec?: string }> | null;
@@ -89,7 +91,7 @@ export function pieceDeLaLigne(r: Selectable<BaseDeDonnees['ventes.piece']>): Pi
   }
   return {
     id: r.id, entreprise: r.entreprise, type: r.type as TypePiece, statut: r.statut, tiers: r.tiers, date_piece: r.date_piece, echeance: r.echeance,
-    corrige: r.corrige, prix_ttc: r.prix_ttc,
+    corrige: r.corrige, prix_ttc: r.prix_ttc, calcul: Number(r.calcul),
     devise: r.devise, cours: r.cours, taux_remise: r.taux_remise, taux_retenue: r.taux_retenue,
     appliquer_timbre: r.appliquer_timbre, objet: r.objet, notes: r.notes, serie: r.serie, numero_texte: r.numero_texte,
     revision: Number(r.revision), totaux,
@@ -111,7 +113,7 @@ function valeurs(b: BrouillonSaisi) {
     taux_remise: b.tauxRemise === undefined ? 0n : depuisTexte(b.tauxRemise, DECIMALES.taux),
     taux_retenue: b.tauxRetenue === undefined ? 0n : depuisTexte(b.tauxRetenue, DECIMALES.taux),
     appliquer_timbre: b.appliquerTimbre ?? null, objet: b.objet ?? null, notes: b.notes ?? null,
-    corrige: b.corrige ?? null, prix_ttc: b.prixTtc === true,
+    corrige: b.corrige ?? null, prix_ttc: b.prixTtc === true, calcul: b.calcul ?? 2,
   };
 }
 
@@ -167,6 +169,7 @@ async function calculer(tx: Transaction, p: PieceLue, lignes: LignePieceLue[]): 
     type: p.type, devise, cours: p.cours ?? undefined, tauxRemise: p.taux_remise, tauxRetenue: p.taux_retenue,
     ...(p.appliquer_timbre === null ? {} : { appliquerTimbre: p.appliquer_timbre }),
     ...(p.prix_ttc ? { prixTtc: true } : {}),
+    ...(p.calcul === 2 ? { calcul: 2 as const } : {}),
     timbre: 0n,
     lignes: lignes.map((l) => ({ quantite: l.quantite, prixUnitaire: l.prix_unitaire, tauxTva: l.taux_tva, ...(l.sans_remise ? { sansRemise: true } : {}),
       ...(l.taux_remise ? { tauxRemise: l.taux_remise } : {}), ...(l.fodec ? { fodec: true } : {}) })),
@@ -210,6 +213,8 @@ export function contenuScelle(p: PieceLue, lignes: LignePieceLue[]) {
     ...(p.type === 'avoir' ? { corrige: p.corrige } : {}),
     // Sa façon de se calculer (lot caisse 3), pour une pièce « prix TTC » seulement : l'empreinte des autres ne change pas.
     ...(p.prix_ttc ? { prixTtc: true } : {}),
+    // (1.275.0, G04) La règle de calcul, pour une pièce en règle 2 seulement : l'empreinte des pièces d'avant ne change pas.
+    ...(p.calcul === 2 ? { calcul: 2 } : {}),
   };
 }
 

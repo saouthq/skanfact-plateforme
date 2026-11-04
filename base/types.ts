@@ -1949,6 +1949,7 @@ export interface BaseDeDonnees {
     corrige: string | null;
     prix_ttc: Generated<boolean>;
     fodec: bigint | null;
+    calcul: Generated<number>;
   };
   'ventes.prestataire': {
     entreprise: string;

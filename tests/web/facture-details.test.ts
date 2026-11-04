@@ -180,6 +180,10 @@ describe('le lot facture, à l\'écran', () => {
     expect(net(await apercu.locator('.after').innerText())).toContain('08100012345678901269');
     const f1 = (await surLeServeur()).find((o) => o.collection === 'documents' && o.contenu.number === 'FAC-2026-001');
     expect(f1?.contenu.withholdingRate).toBe(1);
+    // (1.275.0, audit G04) Créée à l'écran, la facture naît en règle de calcul 2 (la remise répartie exactement, la TVA d'un taux
+    // sur sa base entière), et le serveur l'a scellée ainsi.
+    expect(f1?.contenu.calcul).toBe(2);
+    expect((await admin.query(`select calcul from ventes.piece where entreprise = $1 and numero_texte = 'FAC-2026-001'`, [ent])).rows[0]?.calcul).toBe(2);
 
     // 5. La page rechargée, un paiement de 100,000 s'enregistre ; sa fenêtre dit le mois de la retenue, élidé.
     await p.reload();

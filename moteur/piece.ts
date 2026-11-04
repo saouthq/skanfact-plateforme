@@ -50,6 +50,11 @@ export type Piece = {
   // (1.155.0) Le taux de la FODEC, à six décimales (1 % = 10 000), lu à la date de la pièce (règle `fodec.taux`). Absent
   // ou nul : aucune FODEC, la règle qui ne fait rien. Une pièce « prix TTC » (le comptoir) n'en porte jamais.
   tauxFodec?: bigint;
+  // (1.275.0, audit du 04/11/2026, G04 ; 0191) La règle de calcul, gardée avec la pièce. Absente ou 1 : celle de la v10 (la
+  // remise arrondie ligne à ligne, la TVA d'un taux arrondie à chaque ligne ajoutée), pour relire une pièce d'avant au
+  // millime où on l'a scellée. 2 : la remise répartie exactement (`repartir`) et la TVA d'un taux sur sa base entière.
+  // À VÉRIFIER avec un comptable : la règle d'arrondi de la TVA sur une facture.
+  calcul?: 1 | 2;
 };
 
 // `brut` : le montant de la ligne avant sa propre remise (le HT, ou le TTC d'une pièce « prix TTC »).
@@ -74,6 +79,21 @@ export type TotauxPiece = {
 
 // Montant × taux (à six décimales), arrondi dans la même unité.
 const auTaux = (montant: bigint, taux: bigint) => diviserArrondi(montant * taux, MILLION);
+
+// (1.275.0, G04) La répartition exacte d'un montant `cible` au prorata de `parts` (dont la somme est `total`) : par les
+// cumuls, chaque part reçoit l'arrondi de son cumul moins celui du cumul d'avant. Les parts tombent à un millime au plus de
+// leur prorata, leur somme vaut `cible` exactement (aucun reliquat), et le résultat ne dépend que de l'ordre des lignes.
+export function repartir(parts: bigint[], total: bigint, cible: bigint): bigint[] {
+  if (total === 0n) return parts.map(() => 0n);
+  let cumul = 0n, avant = 0n;
+  return parts.map((x) => {
+    cumul += x;
+    const fin = diviserArrondi(cumul * cible, total);
+    const part = fin - avant;
+    avant = fin;
+    return part;
+  });
+}
 
 export function timbreApplique(p: Piece): boolean {
   return (p.type === 'facture' && p.appliquerTimbre !== false)
@@ -103,17 +123,25 @@ export function calculerPiece(p: Piece): TotauxPiece {
   // La FODEC d'une ligne (1.155.0) : le taux sur sa base remisée, arrondi à la ligne, ajouté à la base de son taux de TVA.
   const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint; fodec?: bigint }>();
   let fodec = 0n;
+  const regle2 = p.calcul === 2;
+  // Règle 2 : la part remisée de chaque ligne remisable, répartie exactement (leur somme est le HT net remisable).
+  const remisables = lignes.filter((l) => !l.sansRemise);
+  const parts = regle2 && remisable > 0n ? repartir(remisables.map((l) => l.ht), remisable, remisable - remise) : [];
+  let k = 0;
   for (const l of lignes) {
-    const remisee = l.sansRemise || remisable <= 0n ? l.ht : diviserArrondi(l.ht * (remisable - remise), remisable);
+    const remisee = l.sansRemise || remisable <= 0n ? l.ht
+      : regle2 ? (parts[k++] as bigint) : diviserArrondi(l.ht * (remisable - remise), remisable);
     const f = l.fodec ? auTaux(remisee, p.tauxFodec ?? 0n) : 0n;
     fodec += f;
     const base = remisee + f;
     const t = tvaParTaux.get(l.tauxTva) ?? { base: 0n, tva: 0n };
     t.base += base;
-    t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);
+    // Règle 1 (la v10) : la TVA d'un taux s'arrondit à chaque ligne ajoutée ; règle 2 : sur la base entière, plus bas.
+    if (!regle2) t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);
     if (f) t.fodec = (t.fodec ?? 0n) + f;
     tvaParTaux.set(l.tauxTva, t);
   }
+  if (regle2) for (const [taux, t] of tvaParTaux) t.tva = auTaux(t.base, taux);
   const totalTVA = [...tvaParTaux.values()].reduce((t, v) => t + v.tva, 0n);
   return finir(p, s, { lignes, totalHT, remise, netHT, tvaParTaux, totalTVA, fodec });
 }
@@ -140,8 +168,13 @@ function calculerPieceTtc(p: Piece): TotauxPiece {
   const remiseTtc = auTaux(remisable, p.tauxRemise ?? 0n);
   // Le TTC remisé de chaque taux (la remise répartie au prorata, ligne à ligne, comme la v10), puis sa TVA et sa base.
   const ttcParTaux = new Map<bigint, bigint>();
+  // (1.275.0, G04) Règle 2 : le TTC remisé de chaque ligne, réparti exactement (sans reliquat).
+  const remisables = lignes.filter((l) => !l.sansRemise);
+  const parts = p.calcul === 2 && remisable > 0n ? repartir(remisables.map((l) => l.ttc), remisable, remisable - remiseTtc) : [];
+  let k = 0;
   for (const l of lignes) {
-    const ttc = l.sansRemise || remisable <= 0n ? l.ttc : diviserArrondi(l.ttc * (remisable - remiseTtc), remisable);
+    const ttc = l.sansRemise || remisable <= 0n ? l.ttc
+      : p.calcul === 2 ? (parts[k++] as bigint) : diviserArrondi(l.ttc * (remisable - remiseTtc), remisable);
     ttcParTaux.set(l.tauxTva, (ttcParTaux.get(l.tauxTva) ?? 0n) + ttc);
   }
   const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint }>();

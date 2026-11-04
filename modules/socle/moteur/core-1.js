@@ -1579,10 +1579,18 @@
     const factor = discountable > 0 ? (discountable - remiseCalculee) / discountable : 1;
     const vatByRate = {};
     let fodec = 0;
+    // (plateforme, 1.275.0, audit du 04/11/2026, G04) La règle de calcul de la pièce (`calcul`, gardée avec elle, la même
+    // que le serveur : moteur/piece.ts, `repartir`). Absente : celle de la v10 (la remise arrondie ligne à ligne, la TVA
+    // d'un taux arrondie à chaque ligne ajoutée), pour qu'une pièce d'avant se relise au millime où elle a été émise. 2 :
+    // la remise répartie exactement par les cumuls (aucun reliquat : la somme des bases remisées est le HT net) et la TVA
+    // d'un taux sur sa base entière. À VÉRIFIER avec un comptable : la règle d'arrondi de la TVA sur une facture.
+    const regle2 = doc.calcul === 2;
+    let cumul = 0, avant = 0;
+    const partRepartie = m => { cumul = rd(cumul + m); const fin = rd(cumul * (discountable - remiseCalculee) / discountable); const p = rd(fin - avant); avant = fin; return p; };
     if (prixTtc) {
       const ttcParTaux = {};
       // Une seule division (comme le serveur) : un facteur en virgule flottante perdait un millime sur des millions.
-      lines.forEach(l => { if (l.titre) return; ttcParTaux[l.vatRate] = rd((ttcParTaux[l.vatRate] || 0) + rd(l.noDiscount || discountable <= 0 ? l.ttc : l.ttc * (discountable - remiseCalculee) / discountable)); });
+      lines.forEach(l => { if (l.titre) return; ttcParTaux[l.vatRate] = rd((ttcParTaux[l.vatRate] || 0) + rd(l.noDiscount || discountable <= 0 ? l.ttc : regle2 ? partRepartie(l.ttc) : l.ttc * (discountable - remiseCalculee) / discountable)); });
       Object.keys(ttcParTaux).forEach(k => {
         const rate = Number(k), vat = rd(ttcParTaux[k] * rate / (100 + rate));
         vatByRate[k] = { base: rd(ttcParTaux[k] - vat), vat };
@@ -1595,15 +1603,16 @@
       const tauxFodec = Number(doc.fodecRate) || 0;
       lines.forEach(l => {
         if (l.titre) return;
-        const remisee = rd(l.noDiscount ? l.ht : l.ht * factor);
+        const remisee = rd(l.noDiscount || discountable <= 0 ? l.ht : regle2 ? partRepartie(l.ht) : l.ht * factor);
         const f = l.fodec === true && tauxFodec ? rd(remisee * tauxFodec / 100) : 0;
         if (f) fodec = rd(fodec + f);
         const base = rd(remisee + f);
         vatByRate[l.vatRate] = vatByRate[l.vatRate] || { base: 0, vat: 0 };
         vatByRate[l.vatRate].base = rd(vatByRate[l.vatRate].base + base);
-        vatByRate[l.vatRate].vat = rd(vatByRate[l.vatRate].vat + base * l.vatRate / 100);
+        if (!regle2) vatByRate[l.vatRate].vat = rd(vatByRate[l.vatRate].vat + base * l.vatRate / 100);
         if (f) vatByRate[l.vatRate].fodec = rd((vatByRate[l.vatRate].fodec || 0) + f);
       });
+      if (regle2) Object.keys(vatByRate).forEach(k => { vatByRate[k].vat = rd(vatByRate[k].base * Number(k) / 100); });
     }
     const netHT = prixTtc ? rd(Object.values(vatByRate).reduce((s, v) => s + v.base, 0)) : rd(totalHT - remiseCalculee);
     const discount = prixTtc ? rd(totalHT - netHT) : remiseCalculee;

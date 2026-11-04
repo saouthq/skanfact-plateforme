@@ -393,6 +393,32 @@ describe('le dossier v10 tenu par le serveur', () => {
     expect((await e.envoyer([{ collection: 'documents', cle: 'f2', rang: 1, revision: 1, contenu: { ...brouillon('f2', client.cle), type: 'devis' } }])).statut).toBe(200);
   });
 
+  // (1.275.0, audit G04) La règle de calcul part avec la pièce : la facture neuve (règle 2) s'émet au millime de l'écran, celle
+  // d'avant (sans règle) comme la v10 ; émise, sa règle est scellée.
+  it('G04 : la remise répartie exactement — la facture en règle 2 s\'émet à son montant, celle d\'avant au sien ; la règle ne change plus', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients');
+    if (!client) throw new Error('client d\'exemple absent');
+    // L'exemple de l'audit : 100 lignes à 0,101 DT, 50 % de remise, TVA 19 %, timbre 1 DT.
+    const cent = Array.from({ length: 100 }, (_, i) => ({ label: `Vis ${i + 1}`, description: '', qty: 1, unit: '', unitPrice: { '~n': '0.101' }, vatRate: 19 }));
+    const piece = (id: string, regle: object) => ({ ...brouillon(id, client.cle), discountRate: 50, lines: cent, ...regle });
+    const emettre = (id: string, regle: object, net: string, rang: number) => appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: piece(id, regle), client: client.contenu, revision: 1, rang, netAPayer: net });
+    await e.envoyer([{ collection: 'documents', cle: 'g2', rang: 0, revision: null, contenu: piece('g2', { calcul: 2 }) }, { collection: 'documents', cle: 'g1', rang: 1, revision: null, contenu: piece('g1', {}) }]);
+    // Règle 2 : 5,050 de HT net, 0,960 de TVA (19 % de 5,050), 1 de timbre. La règle de la v10 dirait 7,050 : refusé.
+    expect((await emettre('g2', { calcul: 2 }, '7.050', 0)).corps.motif).toMatch(/7\.010/);
+    const r2 = await emettre('g2', { calcul: 2 }, '7.010', 0);
+    expect(r2.statut).toBe(200);
+    // Une pièce d'avant (sans règle) : la TVA arrondie ligne à ligne, comme la v10 l'a toujours émise.
+    expect((await emettre('g1', {}, '7.050', 1)).statut).toBe(200);
+    const regles = (await admin.query(`select ref_v10, calcul from ventes.piece where entreprise = $1 and statut = 'emise' order by ref_v10`, [e.ent])).rows;
+    expect(regles).toEqual([{ ref_v10: 'g1', calcul: 1 }, { ref_v10: 'g2', calcul: 2 }]);
+    // Émise, sa règle est scellée : la remettre à celle d'avant (ou la retirer) se refuse.
+    const emise = r2.corps.contenu as Record<string, unknown>;
+    for (const autre of [{ ...emise, calcul: 1 }, { ...emise, calcul: undefined }]) {
+      expect((await e.envoyer([{ collection: 'documents', cle: 'g2', rang: 0, revision: 2, contenu: autre }])).statut).toBe(403);
+    }
+  });
+
   // (1.273.0, audit G02) Une version écartée est une copie : elle se lit et s'écrit avec les droits de ce qu'elle copie.
   it('G02 : un commercial ne lit pas la paie dans les versions écartées, et n\'efface pas celles qu\'il ne voit pas', async () => {
     const e = await essai();

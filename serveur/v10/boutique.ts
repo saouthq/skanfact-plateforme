@@ -200,6 +200,8 @@ export function routesBoutique(): Route<never>[] {
       }
 
       const { lignes, ttcTotal } = lignesDeFacture(corps.lignes, await catalogueParCode(tx, ent));
+      // (1.275.0, audit G04) La facture d'une commande garde la règle de calcul 1 (la TVA ligne à ligne) : c'est la commande, calculée
+      // ainsi par la boutique, qui fait foi au millime (« la facture ferait 9,006 et la commande 9,005 »).
       const cle = cleDeCommande(corps.reference);
       const doc = {
         id: cle, type: 'facture', number: '', status: 'brouillon', date: corps.date, dueDate: corps.date, clientId: clientCle, subject: `Commande ${corps.reference}`,

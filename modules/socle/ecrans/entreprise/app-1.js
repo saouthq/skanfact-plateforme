@@ -5512,7 +5512,10 @@
       lines: [C.newLine(company())],
       discountRate: 0, applyStamp: type === 'facture', status: 'brouillon', notes: '', payments: [],
       withholdingRate: ['facture', 'avoir', 'proforma'].includes(type) ? (Number(company().defaultWithholdingRate) || 0) : 0, createdAt: Date.now(),
-      lang: company().defaultLang || 'fr', currency: company().currency, exchangeRate: ''
+      lang: company().defaultLang || 'fr', currency: company().currency, exchangeRate: '',
+      // (plateforme, 1.275.0, audit G04) Une pièce neuve naît en règle de calcul 2 (la remise répartie exactement, la TVA d'un
+      // taux sur sa base entière) ; une pièce d'avant, sans ce champ, garde la sienne (core.js, `computeTotals`).
+      calcul: 2
     };
     if (type === 'contrat') d.clauses = { ...C.DEFAULT_CLAUSES };
     if (type === 'livraison') d.hidePrices = true;

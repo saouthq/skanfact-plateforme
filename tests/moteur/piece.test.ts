@@ -219,3 +219,62 @@ describe('1.155.0 : la FODEC (maquette de la facture, « FODEC »)', () => {
     expect(Math.round((e.vatByRate['19']?.fodec ?? 0) * 1000)).toBe(Number(s.fodec));
   });
 });
+
+// 1.275.0, audit du 04/11/2026, G04 (docs/audit-global-suivi.md) : la remise de toute la pièce se répartit EXACTEMENT sur les
+// lignes (par les cumuls, sans reliquat) et la TVA d'un taux se calcule sur sa base entière. Règle 2, gardée avec la pièce
+// (`calcul`) ; une pièce d'avant (sans elle) se calcule toujours comme la v10. À VÉRIFIER avec un comptable.
+describe('1.275.0 : G04, la remise répartie exactement et la TVA sur la base de son taux (règle 2)', () => {
+  const cent = (prix: string, tva = '19') => Array.from({ length: 100 }, () => ligne('1', prix, tva));
+  const somme = (r: ReturnType<typeof calculerPiece>) => [...r.tvaParTaux.values()].reduce((a, v) => a + v.base, 0n);
+
+  it('l\'exemple de l\'audit : 100 lignes à 0,101 DT, remise de 50 % — les bases font le HT net, la TVA est celle de la base', () => {
+    const avant = calculerPiece(piece({ tauxRemise: taux('50'), lignes: cent('0.101') }));
+    // La règle de la v10 (pièces d'avant) : bases 5 100 pour un HT net de 5 050, TVA 1 000 (le cumul des arrondis).
+    expect([avant.netHT, somme(avant), avant.totalTVA]).toEqual([5_050n, 5_100n, 1_000n]);
+    const r = calculerPiece(piece({ calcul: 2, tauxRemise: taux('50'), lignes: cent('0.101') }));
+    // 19 % de 5 050 = 959,5 → 960.
+    expect([r.netHT, somme(r), r.totalTVA]).toEqual([5_050n, 5_050n, 960n]);
+    expect(r.totalTTC).toBe(5_050n + 960n + TIMBRE);
+  });
+
+  it('plusieurs taux, des lignes sans remise, la FODEC et un avoir : la somme des bases remisées est toujours le HT net', () => {
+    const lignes = [...cent('0.101', '19').slice(0, 37), ...cent('1.333', '7').slice(0, 23), ligne('3', '17.777', '13'), ligne('1', '-50', '19', true), { ...ligne('2', '99.999', '19'), fodec: true }];
+    for (const remise of ['3.3333', '12.5', '50', '99.9']) {
+      for (const type of ['facture', 'avoir'] as const) {
+        const r = calculerPiece(piece({ calcul: 2, type, tauxRemise: taux(remise), tauxFodec: taux('1'), lignes }));
+        // Les bases portent le HT net et la FODEC, rien de plus, rien de moins.
+        expect(somme(r), `${type} ${remise} %`).toBe(r.netHT + r.fodec);
+        for (const [t, v] of r.tvaParTaux) expect(v.tva).toBe(diviserArrondi(v.base * t, 1_000_000n));
+      }
+    }
+  });
+
+  it('au comptoir (prix TTC), le TTC remisé se répartit aussi sans reliquat', () => {
+    const r = calculerPiece(piece({ calcul: 2, prixTtc: true, appliquerTimbre: false, tauxRemise: taux('50'), lignes: cent('0.0933') }));
+    const avant = calculerPiece(piece({ prixTtc: true, appliquerTimbre: false, tauxRemise: taux('50'), lignes: cent('0.0933') }));
+    // 100 × 0,111 TTC = 11 100 ; la remise de 50 % en retire 5 550 : il reste 5 550 exactement. Ligne à ligne (la v10), chaque
+    // 55,5 s'arrondissait à 56 : 5 600, cinquante millimes de trop.
+    expect(r.netHT + r.totalTVA).toBe(5_550n);
+    expect(avant.netHT + avant.totalTVA).toBe(5_600n);
+  });
+
+  it('deux chemins, un chiffre : l\'écran (core.js) calcule en règle 2 les mêmes bases, la même TVA et le même net, au millime', async () => {
+    const { ecranDeLaPlateforme } = await import('./v10.ts');
+    const core = ecranDeLaPlateforme('core.js') as { computeTotals: (d: unknown, c: unknown) => { netHT: number; totalVAT: number; netToPay: number; vatByRate: Record<string, { base: number; vat: number }> } };
+    // L'exemple de l'audit, à l'écran : 5,050 de HT net, 0,960 de TVA (la règle de la v10 y disait 1,000).
+    const audit = core.computeTotals({ type: 'facture', calcul: 2, currency: 'DT', stampFee: 1, withholdingRate: 0, discountRate: 50,
+      lines: Array.from({ length: 100 }, () => ({ qty: 1, unitPrice: 0.101, vatRate: 19 })) }, { currency: 'DT', stampFee: 1 });
+    expect([audit.netHT, audit.totalVAT, audit.vatByRate['19']?.base]).toEqual([5.05, 0.96, 5.05]);
+    let graine = 42;
+    const hasard = (n: number) => { graine = (graine * 1103515245 + 12345) % 2147483648; return graine % n; };
+    for (let essai = 0; essai < 60; essai++) {
+      const ls = Array.from({ length: 1 + hasard(30) }, () => ({ qty: 1 + hasard(5), unitPrice: (1 + hasard(99_999)) / 1000, vatRate: [0, 7, 13, 19][hasard(4)] as number, noDiscount: hasard(10) === 0 }));
+      const remise = [0, 5, 12.5, 33.3333, 50][hasard(5)] as number;
+      const doc = { type: 'facture', calcul: 2, currency: 'DT', stampFee: 1, withholdingRate: 0, discountRate: remise, lines: ls };
+      const e = core.computeTotals(doc, { currency: 'DT', stampFee: 1 });
+      const s = calculerPiece(piece({ calcul: 2, tauxRemise: depuisTexte(String(remise), 4), lignes: ls.map((l) => ligne(String(l.qty), String(l.unitPrice), String(l.vatRate), l.noDiscount)) }));
+      expect([e.netHT, e.totalVAT, e.netToPay].map((x) => Math.round(x * 1000)), `essai ${essai}`).toEqual([s.netHT, s.totalTVA, s.netAPayer].map(Number));
+      for (const [t, v] of s.tvaParTaux) expect(Math.round((e.vatByRate[versTexte(t, 4).replace(/\.?0+$/, '')]?.base ?? NaN) * 1000), `essai ${essai}, taux ${t}`).toBe(Number(v.base));
+    }
+  });
+});

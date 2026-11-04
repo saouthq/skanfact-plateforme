@@ -511,10 +511,11 @@ prouver "la remise portée sur la déduction d'acompte" $MP \
   "const remisable = lignes.filter((l) => !l.sansRemise).reduce((t, l) => t + l.ht, 0n);" "const remisable = lignes.filter(() => true).reduce((t, l) => t + l.ht, 0n);" \
   "la remise globale ne porte pas sur la déduction d'un acompte"
 prouver "la TVA calculée avant la remise" $MP \
-  "    const remisee = l.sansRemise || remisable <= 0n ? l.ht : diviserArrondi(l.ht * (remisable - remise), remisable);" "    const remisee = l.ht;" \
+  "    const remisee = l.sansRemise || remisable <= 0n ? l.ht
+      : regle2 ? (parts[k++] as bigint) : diviserArrondi(l.ht * (remisable - remise), remisable);" "    const remisee = l.ht;" \
   "un devis n'a pas de timbre ; la remise globale réduit la base de TVA"
 prouver "la TVA d'un taux arrondie ligne par ligne (et non en cumul comme la v10)" $MP \
-  "    t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);" "    t.tva += auTaux(base, l.tauxTva);" \
+  "    if (!regle2) t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);" "    if (!regle2) t.tva += auTaux(base, l.tauxTva);" \
   "un demi-millime EXACT s'arrondit loin de zéro"
 prouver "le timbre d'office sur un avoir" $MP \
   "|| ((p.type === 'avoir' || p.type === 'proforma') && p.appliquerTimbre === true);" "|| p.type === 'avoir' || (p.type === 'proforma' && p.appliquerTimbre === true);" \
@@ -24183,6 +24184,37 @@ prouver 'audit G10 : le congé compté entier dans chaque année' modules/person
 prouver 'audit G10 : la part de l année vaut tout le congé' modules/personnel/moteur/compta-paie.js \
   '        joursAnnee: year ? workingDays(' '        joursAnnee: year ? workingDays(l.from, l.to, (data.payrollSettings || {}).offDays) + 0 * workingDays(' \
   'G10 : un congé'
+
+# ── 1.275.0 : l'audit du 04/11/2026, G04 (la remise répartie exactement, la TVA sur la base de son taux) ──
+prouver 'audit G04 a : la remise de la règle 2 arrondie ligne à ligne' moteur/piece.ts \
+  ': regle2 ? (parts[k++] as bigint) : diviserArrondi(l.ht * (remisable - remise), remisable);' ': regle2 ? diviserArrondi(l.ht * (remisable - remise), remisable) : diviserArrondi(l.ht * (remisable - remise), remisable);' \
+  'l'"'"'exemple de l'"'"'audit : 100 lignes à 0,101 DT'
+prouver 'audit G04 b : la TVA de la règle 2 arrondie à chaque ligne' moteur/piece.ts \
+  '    if (!regle2) t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);|||  if (regle2) for (const [taux, t] of tvaParTaux) t.tva = auTaux(t.base, taux);' '    t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);|||' \
+  'l'"'"'exemple de l'"'"'audit : 100 lignes à 0,101 DT'
+prouver 'audit G04 c : le TTC remisé de la règle 2 arrondi ligne à ligne' moteur/piece.ts \
+  ': p.calcul === 2 ? (parts[k++] as bigint) : diviserArrondi(l.ttc * (remisable - remiseTtc), remisable);' ': p.calcul === 2 ? diviserArrondi(l.ttc * (remisable - remiseTtc), remisable) : diviserArrondi(l.ttc * (remisable - remiseTtc), remisable);' \
+  'au comptoir (prix TTC), le TTC remisé se répartit aussi sans reliquat'
+prouver 'audit G04 d : l écran répartit la remise ligne à ligne' modules/socle/moteur/core-1.js \
+  ': regle2 ? partRepartie(l.ht) : l.ht * factor);' ': regle2 ? l.ht * factor : l.ht * factor);' \
+  'deux chemins, un chiffre : l'"'"'écran (core.js) calcule en règle 2'
+prouver 'audit G04 e : l écran arrondit la TVA à chaque ligne' modules/socle/moteur/core-1.js \
+  '        if (!regle2) vatByRate[l.vatRate].vat = rd(|||      if (regle2) Object.keys(vatByRate).forEach(k => { vatByRate[k].vat = rd(vatByRate[k].base * Number(k) / 100); });' '        vatByRate[l.vatRate].vat = rd(|||' \
+  'deux chemins, un chiffre : l'"'"'écran (core.js) calcule en règle 2'
+prouver 'audit G04 f : la pièce du dossier émise toujours en règle 1' serveur/v10/dossier.ts \
+  '    calcul: doc.calcul === 2 ? 2 : 1,' '    calcul: 1,' \
+  'G04 : la remise répartie exactement'
+prouver 'audit G04 g : la règle de calcul non scellée' serveur/v10/dossier.ts \
+  ''"'"'passage'"'"', '"'"'fodecRate'"'"', '"'"'calcul'"'"'];' ''"'"'passage'"'"', '"'"'fodecRate'"'"'];' \
+  'G04 : la remise répartie exactement'
+prouver 'audit G04 h : le brouillon du serveur oublie sa règle' serveur/ventes/pieces.ts \
+  '    ...(p.calcul === 2 ? { calcul: 2 as const } : {}),
+' '' \
+  'G04 : la remise répartie exactement'
+prouver 'audit G04 i : une facture neuve sans règle de calcul' modules/socle/ecrans/entreprise/app-1.js \
+  '      calcul: 2
+    };' '    };' \
+  'Samia, sans matricule ni RIB : la pièce n'"'"'imprime rien de vide'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

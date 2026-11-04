@@ -42,7 +42,7 @@ export function factureDuContrat(rec: Json, date: string, societe: Json, client:
     type: 'facture', number: '', status: 'brouillon', date, dueDate: echeance.toISOString().slice(0, 10),
     clientId: rec.clientId, subject: remplir(rec.subject, v), reference: rec.reference ?? '',
     lines: (Array.isArray(rec.lines) ? rec.lines as Json[] : []).map((l) => ({ ...l, label: remplir(l.label, v), description: remplir(l.description ?? '', v) })),
-    discountRate: rec.discountRate ?? 0, applyStamp: !(client && client.stampExempt), notes: remplir(rec.notes ?? '', v), payments: [],
+    calcul: 2, discountRate: rec.discountRate ?? 0, applyStamp: !(client && client.stampExempt), notes: remplir(rec.notes ?? '', v), payments: [],
     withholdingRate: rec.withholdingRate ?? 0, recurringId: rec.id, lang: rec.lang ?? societe.defaultLang ?? 'fr',
     currency: rec.currency ?? societe.currency, exchangeRate: rec.exchangeRate ?? '',
   };
