@@ -23694,6 +23694,63 @@ prouver 'R0b u : un déplacement qui inscrit un nom introuvable' outils/rangemen
 prouver 'R0b v : un déplacement qui inscrit une coupe au milieu d'"'"'une instruction' outils/rangement/frontieres.ts \
   '    if (jamais.length && options.deplacement) refus.push(' '    if (jamais.length && options.deplacement && jamais.length < 0) refus.push(' \
   "$RB3"
+# ── 17 § 6, lot R0d (1.266.12) : la comparaison des écrans et du moteur (outils/rangement/moteur.ts, outils/rangement/ecrans.ts) ──
+RD1='la photo du moteur est la même d'"'"'une fois sur l'"'"'autre (la date figée, le hasard tiré d'"'"'une graine), et voit ce qu'"'"'une fonction rend ou écrit de différent'
+RD2='une photo qui n'"'"'atteint pas le moteur fait refuser la comparaison ; une fonction nouvelle ou disparue est dite'
+RD3='deux captures d'"'"'une page qui diffèrent par le texte, la structure, les pixels ou les registres sont dites ; une page non atteinte, ou qui ne se pose pas, aussi'
+RD4='chaque route de l'"'"'entreprise et du Cabinet est comparée, ou dite non ouverte avec sa raison'
+RD5='deux photos qui ne diffèrent que par le lissage de quelques pixels sont les mêmes ; au-delà du seuil, ou d'"'"'une autre taille, elles diffèrent'
+prouver 'R0d a : la photo du moteur à la vraie date' outils/rangement/moteur.ts \
+  '    globalThis.Date = Figee;' '    void Figee;' \
+  "$RD1"
+prouver 'R0d b : le hasard du moteur sans graine' outils/rangement/moteur.ts \
+  '    let g = 1104; Math.random = () => { g = (g * 16807) % 2147483647; return (g - 1) / 2147483646; };' '    void 0;' \
+  "$RD1"
+prouver 'R0d c : chaque appel du moteur sur le même dossier, sans copie' outils/rangement/moteur.ts \
+  'return v && typeof v === '"'"'object'"'"' ? structuredClone(v) : v;' 'return v;' \
+  "$RD1"
+prouver 'R0d d : la comparaison qui ne voit pas un appel changé' outils/rangement/moteur.ts \
+  '    else a.forEach((x, i) => { if (b[i] !== x)' '    else a.forEach((x, i) => { if (b[i] !== x && !x)' \
+  "$RD1"
+prouver 'R0d e : une photo qui n'"'"'atteint pas le moteur, acceptée' outils/rangement/moteur.ts \
+  '    if (p.mesure.fonctions < seuils.fonctions || p.mesure.rendus < seuils.rendus)' '    if (p.mesure.fonctions < 0)' \
+  "$RD2"
+prouver 'R0d f : une fonction disparue du moteur, tue' outils/rangement/moteur.ts \
+  '    else if (!b) refus.push(`${nom} : disparue`);' '    else if (!b) void 0;' \
+  "$RD2"
+prouver 'R0d g : ce qu'"'"'un appel écrit, oublié par la photo' outils/rangement/moteur.ts \
+  '        res.push(empreinte(`${t}\u0000${enTexte(args)}`));' '        res.push(empreinte(t));' \
+  "$RD1"
+prouver 'R0d h : un paramètre « month » qui ne reçoit plus de mois' outils/rangement/moteur.ts \
+  '[/^(month|mois|ym|periode|period)$/,' '[/^(mois|ym|periode|period)$/,' \
+  "$RD1"
+prouver 'R0d i : des pixels changés, tus' outils/rangement/ecrans.ts \
+  '(['"'"'texte'"'"', '"'"'structure'"'"', '"'"'pixels'"'"', '"'"'registres'"'"'] as const)' '(['"'"'texte'"'"', '"'"'structure'"'"', '"'"'registres'"'"'] as const)' \
+  "$RD3"
+prouver 'R0d j : une page non atteinte, comparée comme les autres' outils/rangement/ecrans.ts \
+  '  if (!m.atteinte || !m.avant || !m.apres) return' '  if (false) return' \
+  "$RD3"
+prouver 'R0d k : une route de l'"'"'entreprise oubliée par la comparaison' outils/rangement/ecrans.ts \
+  ''"'"'#/parametres'"'"', '"'"'#/aide'"'"', '"'"'#/comptable'"'"', '"'"'#/support'"'"',' ''"'"'#/parametres'"'"', '"'"'#/aide'"'"', '"'"'#/comptable'"'"',' \
+  "$RD4"
+prouver 'R0d l : la liste des dossiers du Cabinet oubliée par la comparaison' outils/rangement/ecrans.ts \
+  '  return ['"'"'#/dossiers'"'"', '"'"'#/production'"'"',' '  return ['"'"'#/production'"'"',' \
+  "$RD4"
+prouver 'R0d o : le filtre Paeth d'"'"'une photo mal lu' outils/rangement/pixels.ts \
+  '        r = v + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c);' '        r = v + a;' \
+  "$RD5"
+prouver 'R0d p : un seuil de lissage qui avale un vrai changement' outils/rangement/ecrans.ts \
+  '<= SEUIL_PIXELS);' '<= SEUIL_PIXELS * 100);' \
+  "$RD5"
+prouver 'R0d q : une photo d'"'"'une autre taille, comparée comme si elle avait la même' outils/rangement/pixels.ts \
+  '  if (a.largeur !== b.largeur || a.hauteur !== b.hauteur || a.canaux !== b.canaux) return Infinity;' '  if (a.largeur !== b.largeur) return Infinity;' \
+  "$RD5"
+prouver 'R0d n : une page qui bouge encore, comparée comme si elle était posée' outils/rangement/ecrans.ts \
+  'm.avant.stable === false || m.apres.stable === false ?' 'false ?' \
+  "$RD3"
+prouver 'R0d m : une route du Cabinet ni comparée ni dite' outils/rangement/ecrans.ts \
+  '  priorites: '"'"'l\'"'"'ancien lien' '  prioritesX: '"'"'l\'"'"'ancien lien' \
+  "$RD4"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

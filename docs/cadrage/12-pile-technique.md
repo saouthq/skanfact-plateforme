@@ -47,7 +47,8 @@ skanfact-plateforme/
                  socle et le Personnel depuis le lot A1) ;
                  ordre.json (le sens des dépendances du 02 § 2) et assemblage.json (les morceaux de chaque fichier servi)
   commun/        ce que le serveur, les écrans et les tests partagent ; assemblage.ts (17 § 4.1)
-  outils/        les outils du rangement (17) : rangement/frontieres.ts (17 § 4.2), deplacer.ts et preuves.ts (17 § 6)
+  outils/        les outils du rangement (17) : rangement/frontieres.ts (17 § 4.2), deplacer.ts et preuves.ts (17 § 6),
+                 moteur.ts et ecrans.ts (17 § 6 : le moteur et les écrans, avant et après un lot)
   exploitation/  installation des serveurs, sauvegardes, bascule, fiches d'incident
   tests/         invariants, droits, charge, parcours
 ```

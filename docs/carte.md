@@ -164,6 +164,11 @@ vaut pour tout le dépôt.*
     sous `styles/`). Ce que le navigateur reçoit ne change pas d'un octet : `modules/assemblage.json` dit, pour chaque
     fichier servi, la suite de ses morceaux. Pour trouver une ligne d'un fichier servi : `origine()` de
     `commun/assemblage.ts`. Les deux ponts restent sous `web/public/plateforme/`.
+  - **Comparer avant et après un lot** (1.266.12, lot R0d du `17` § 6) : `node outils/rangement/moteur.ts --photo F
+    [RACINE]` photographie le moteur (chaque fonction jouée sur l'exemple de cinq ans, à date fixe), `--comparer A B` dit
+    ce qui change ; `SKANFACT_COMPARER_AVEC=<commit> npx vitest run tests/web/ecrans-comparer.test.ts` compare les écrans
+    du commit et ceux du dépôt, page par page, au bureau et au téléphone (les photos dans le dossier qu'il nomme)
+    (`tests/commun/comparer.test.ts`).
   - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
     (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
     (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs

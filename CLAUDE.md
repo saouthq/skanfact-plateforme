@@ -328,6 +328,7 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |
 | `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |
+| `SKANFACT_COMPARER_AVEC=<commit> npx vitest run tests/web/ecrans-comparer.test.ts` | Les écrans d'un commit et ceux du dépôt, page par page (`17` § 6) ; le moteur : `node outils/rangement/moteur.ts --photo F [RACINE]`, puis `--comparer A B` |
 
 Les tests demandent aussi xmllint et Poppler (la facture électronique, les PDF du serveur) : `apt-get install -y
 libxml2-utils poppler-utils` s'ils manquent (GitHub les installe à chaque envoi). Les factures d'achat ne se lisent
