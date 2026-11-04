@@ -2229,7 +2229,9 @@
     // 1.244.0 — la paie d'un mois de tous les dossiers dont la personne fait la paie (une lecture du serveur, en lot).
     paieDeTousMesDossiers: (/** @type {string} */ mois) => appel('GET', `/cabinets/${cabinetId}/paie?mois=${encodeURIComponent(mois)}`),
     marquerBulletins: async (/** @type {any} */ o) => {
-      const PERMIS = ['pourAccordLe', 'verifieLe', 'valideLe', 'remisLe', 'correction'];
+      // (1.270.0) `paidDate` (le « payé le » du bulletin, dans les termes de l'entreprise) : le cabinet note payés les salaires
+      // d'un client hors SkanFact, le seul à pouvoir le faire.
+      const PERMIS = ['pourAccordLe', 'verifieLe', 'valideLe', 'remisLe', 'paidDate', 'correction'];
       const lus = paieLue.get(o.dossierId) || new Map();
       const changements = (o.ids || []).map((/** @type {string} */ id) => {
         const avant = lus.get(`payslips/${id}`);
@@ -2237,9 +2239,11 @@
         const champs = Object.fromEntries(Object.entries(o.champs || {}).filter(([k]) => PERMIS.includes(k)));
         // 1.242.0 — la seule exception : « Annuler » du toast, juste après la validation (la maquette « paieapres ») ; elle
         // n'efface que la validation du jour, d'un bulletin ni remis ni payé. Après, un bulletin validé ne change plus.
+        // (1.270.0) « payé » se lit `paidDate`, le champ du bulletin (`payeLe` n'est que son nom dans le livre du cabinet).
         const annuler = o.annulerValidation === true && Object.keys(champs).length === 1 && champs.valideLe === null
-          && avant.contenu.valideLe === o.valideLe && !avant.contenu.remisLe && !avant.contenu.payeLe;
-        if (avant.contenu.valideLe && !annuler && Object.keys(champs).some((k) => k !== 'remisLe')) throw new Error('Ce bulletin est validé : il ne change plus.');
+          && avant.contenu.valideLe === o.valideLe && !avant.contenu.remisLe && !avant.contenu.paidDate;
+        if (avant.contenu.valideLe && !annuler && Object.keys(champs).some((k) => k !== 'remisLe' && k !== 'paidDate')) throw new Error('Ce bulletin est validé : il ne change plus.');
+        if ('paidDate' in champs && !avant.contenu.valideLe) throw new Error('Un salaire se note payé une fois son bulletin validé.');
         // null ou '' efface la marque : elle ne part pas avec le contenu.
         const contenu = Object.fromEntries(Object.entries({ ...avant.contenu, ...champs }).filter(([k, v]) => !(k in champs && (v === null || v === ''))));
         return { collection: 'payslips', cle: id, rang: avant.rang, revision: avant.revision, contenu: encoder(contenu) };

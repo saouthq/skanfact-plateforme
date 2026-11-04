@@ -150,4 +150,30 @@ describe('la paie 1.268.0 : avec un cabinet, chaque étape dit qui la fait', () 
     await p.screenshot({ path: path.join(PHOTOS, 'paie-268-verifiee.png') });
     expect(erreurs).toEqual([]);
   }, 120_000);
+
+  // (1.270.0) Skander, 04/11 : « es ce que t'as pensé aux personnes qui n'ont pas un comptable sur SkanFact ». Une
+  // entreprise en paie tenue quitte son cabinet : ses anciens bulletins portent encore l'accord du cabinet, mais plus
+  // personne ne prépare ses bulletins. La paie redevient la sienne : « Établir », sans « ton comptable » ni envoi.
+  it('le cabinet parti : la paie tenue redevient la tienne, malgré les anciens bulletins du cabinet', async () => {
+    const x = await monter('tenue');
+    const email = `cab-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Anis', motDePasse: 'Un-bon-mot-de-passe' });
+    const ja = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    await api('POST', '/moi/code', ja, { methode: 'application' });
+    const c = await api('POST', '/cabinets', ja, { nom: 'Cabinet Ennour' });
+    const mandat = String((await api('POST', `/entreprises/${x.ent}/mandat`, x.j, { codeCabinet: String(c.corps.code) })).corps.mandat);
+    expect((await api('POST', `/cabinets/${String(c.corps.id)}/mandats/${mandat}/accepter`, ja)).statut).toBe(200);
+    expect((await api('GET', `/entreprises/${x.ent}/messages/attente`, x.j)).corps).toMatchObject({ cabinet: c.corps.id });
+    expect((await api('DELETE', `/entreprises/${x.ent}/mandat`, x.j)).statut).toBe(200);
+    expect((await api('GET', `/entreprises/${x.ent}/messages/attente`, x.j)).corps).toMatchObject({ cabinet: null, cabinetQuitte: true });
+    const p = await ouvrir(x);
+    await leMois(p, x);
+    await p.locator('#p-sous [data-sous="bulletins"]').click();
+    await expect.poll(async () => espace(await p.locator('#p-gen, #p-regler').first().innerText().catch(() => ''))).toMatch(/^(Établir les 2 bulletins|Régler d'abord)/);
+    expect(await p.locator('#p-sous .pa-qui').count()).toBe(0);
+    expect(await p.locator('#p-envoyer, #p-prep').count()).toBe(0);
+    expect(espace(await p.locator('#p-body').innerText())).not.toMatch(/ton cabinet|ton comptable/i);
+    await p.screenshot({ path: path.join(PHOTOS, 'paie-270-cabinet-parti.png'), fullPage: true });
+    expect(erreurs).toEqual([]);
+  }, 120_000);
 });

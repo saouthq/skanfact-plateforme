@@ -23995,6 +23995,32 @@ prouver 'menu 1.269 i : au doigt, une vue se touche mal' web/public/plateforme/c
 prouver 'menu 1.269 g : le menu range le Catalogue ailleurs que sa fiche' modules/socle/moteur/core-1.js \
   "{ id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Articles et stock'," "{ id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Vendre'," \
   "$WM2"
+# (1.270.0) Les entreprises sans cabinet sur SkanFact (Skander, 04/11/2026) : le dossier hors SkanFact au Cabinet note ses
+# salaires payés ; l'entreprise qui a quitté son cabinet refait sa paie seule.
+prouver 'paie 1.270 a : hors SkanFact, aucun bouton pour noter les salaires payés' modules/personnel/ecrans/cabinet/paie.js \
+  '        : P.payes < P.n && horsSk && P.valides ? ' '        : false ? ' \
+  'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
+prouver 'paie 1.270 b : hors SkanFact, l'\''étape dit encore « par » le client' modules/personnel/ecrans/cabinet/paie.js \
+  'à noter quand ${P.client} te le dit' 'par ${P.client}' \
+  'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
+prouver 'paie 1.270 c : le pont refuse la marque « payé le »' web/public/plateforme/pont-cabinet.js \
+  ''\''remisLe'\'', '\''paidDate'\'', '\''correction'\''];' ''\''remisLe'\'', '\''correction'\''];' \
+  'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
+prouver 'paie 1.270 d : un bulletin validé refuse « payé le »' web/public/plateforme/pont-cabinet.js \
+  'some((k) => k !== '\''remisLe'\'' && k !== '\''paidDate'\'')) throw' 'some((k) => k !== '\''remisLe'\'')) throw' \
+  'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
+prouver 'paie 1.270 e : un salaire noté payé avant la validation' web/public/plateforme/pont-cabinet.js \
+  'if ('\''paidDate'\'' in champs && !avant.contenu.valideLe) throw new Error('\''Un salaire se note payé une fois son bulletin validé.'\'');' '' \
+  'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
+prouver 'paie 1.270 f : un bulletin payé se dévalide encore' web/public/plateforme/pont-cabinet.js \
+  '&& !avant.contenu.remisLe && !avant.contenu.paidDate;' '&& !avant.contenu.remisLe && !avant.contenu.payeLe;' \
+  'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
+prouver 'paie 1.270 g : le cabinet parti, la paie reste « tenue » par ses anciens bulletins' modules/socle/ecrans/entreprise/app-1.js \
+  '    && (!!messagerieVue.cabinetQuitte || !((data' '    && (false || !((data' \
+  'le cabinet parti : la paie tenue redevient la tienne, malgré les anciens bulletins du cabinet'
+prouver 'paie 1.270 h : le serveur ne dit pas que le cabinet est parti' serveur/messagerie/routes.ts \
+  'anciens, achatsConfies: false, cabinetQuitte } };' 'anciens, achatsConfies: false } };' \
+  'le cabinet ne lit plus ; l'\''entreprise relit l'\''ancien fil sans y écrire ; un nouveau cabinet ne le lit pas'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

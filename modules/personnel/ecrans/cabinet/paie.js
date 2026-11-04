@@ -447,8 +447,12 @@
     const envoyer = peutEnvoyer ? `<button type="button" class="btn btn-sm" id="pa-envoyer-pdf">${env && env.n ? 'Les renvoyer' : `Les envoyer à ${esc(P.client)}`}</button>` : '';
     const L1 = P.mode === 'seule' ? '' : etape(1, P.remis, 'Les remettre aux salariés', [P.remis ? 'remis' : 'chaque bulletin s\'imprime depuis le menu de sa ligne', dejaEnv].filter(Boolean).join(' · '), envoyer);
     const revenus = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe).length;
-    const L2 = etape(P.mode === 'seule' ? 1 : 2, P.payes === P.n && !revenus, 'Les salaires', `${P.payes === P.n ? `payés par ${P.client}` : `${P.payes} sur ${P.n} payés · par ${P.client}`}${revenus ? ` · ${revenus > 1 ? `${revenus} virements revenus` : '1 virement revenu'}` : ''}`,
-      P.payes < P.n && relie ? (pourLe => `<button type="button" class="btn btn-sm" id="pa-rappel" data-pour="${esc(pourLe)}">Lui rappeler${pourLe ? `, pour le ${esc(jourCourt(pourLe))}` : ''}</button>`)(finDuMoisPaie(annee, m) > aujourdhuiPaie() ? finDuMoisPaie(annee, m) : '') : '');
+    // (1.270.0 ; Skander, 04/11/2026 : « les entreprises hors SkanFact, il y en aura beaucoup ») Un client qui n'est pas sur
+    // SkanFact ne marque rien payé : c'est le cabinet qui le note, quand le client le lui dit (sinon l'étape restait ouverte).
+    const horsSk = !!dossier.manual;
+    const L2 = etape(P.mode === 'seule' ? 1 : 2, P.payes === P.n && !revenus, 'Les salaires', `${P.payes === P.n ? (horsSk ? 'payés, notés au cabinet' : `payés par ${P.client}`) : `${P.payes} sur ${P.n} payés · ${horsSk ? `à noter quand ${P.client} te le dit` : `par ${P.client}`}`}${revenus ? ` · ${revenus > 1 ? `${revenus} virements revenus` : '1 virement revenu'}` : ''}`,
+      P.payes < P.n && relie ? (pourLe => `<button type="button" class="btn btn-sm" id="pa-rappel" data-pour="${esc(pourLe)}">Lui rappeler${pourLe ? `, pour le ${esc(jourCourt(pourLe))}` : ''}</button>`)(finDuMoisPaie(annee, m) > aujourdhuiPaie() ? finDuMoisPaie(annee, m) : '')
+        : P.payes < P.n && horsSk && P.valides ? `<button type="button" class="btn btn-sm" id="pa-noter-payes">Noter ${P.n - P.payes > 1 ? `les ${P.n - P.payes} salaires payés` : 'le salaire payé'}</button>` : '');
     const ms = KC.masseSalariale(bulletins);
     const L3 = etape(P.mode === 'seule' ? 2 : 3, false, 'Les déclarer', `avec la déclaration ${KC.deMois(mo)} : retenues sur salaires (IRPP et CSS) ${money(KC.round3(ms.irpp + ms.css))}, TFP ${money(ms.tfp)}, FOPROLOS ${money(ms.foprolos)} · la CNSS au trimestre`, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>');
     return `<section class="panel cp-pa-faits" id="pa-faits"><h3>Les bulletins ${esc(KC.deMois(mo))} sont faits</h3><ol>${L1}${L2}${L3}</ol></section>`;
@@ -1187,6 +1191,8 @@
     if (van) van.onclick = () => { pageFocus = 'li-employeur'; allerSousOnglet(root, dossier, 'liasse'); };
     const rem = $('#pa-remettre', el);
     if (rem) rem.onclick = () => { const B = duMois().filter(b => !b.remisLe); marquer(rem, B.map(b => b.id), { remisLe: aujourdhui() }, `${B.length > 1 ? `${B.length} bulletins remis` : 'Bulletin remis'} aux salariés.`); };
+    const noter = $('#pa-noter-payes', el);
+    if (noter) noter.onclick = () => { const B = duMois().filter(b => !b.payeLe); marquer(noter, B.map(b => b.id), { paidDate: aujourdhui() }, `${B.length > 1 ? `${B.length} salaires notés payés` : 'Salaire noté payé'} aujourd'hui.`); };
     const mo = () => KC.deMois(KC.moisPaie(s.paieMois));
     const rap = $('#pa-rappel', el);
     if (rap) rap.onclick = () => {

@@ -2544,3 +2544,41 @@ cabinet. L'ouvrir aussi aux faits du client se décide avec Skander.
 
 Tests : `tests/web/paie-268-cabinet.test.ts` (tenue de bout en bout, vérifiée et son avertissement),
 `tests/abonnement/offre.test.ts` (les faits du client passent en tenue, pas en seule, pas sans mandat de paie, pas mêlés).
+
+## Sans comptable sur SkanFact : les deux cas oubliés (04/11/2026, 1.270.0)
+
+Skander, 04/11/2026 : « es ce que t'as pensé aux personnes qui n'ont pas un comptable sur SkanFact […] qui sont plus
+certainement au début du lancement », puis « et pareil pour cabinet aussi, les entreprises (hors SkanFact) aussi y'en aura
+beaucoup ». Relu des deux côtés, à la souris.
+
+**L'entreprise sans cabinet** : rien à changer. Sans cabinet relié, la paie se fait seule depuis la 1.248.0, et la 1.268.0
+a retiré tout « toi » ou « ton comptable » (preuves `paie 1.268`, `tests/web/paie-267-gestes.test.ts`).
+
+**L'entreprise qui a quitté son cabinet** : elle restait « tenue ». Ses anciens bulletins portaient l'accord du cabinet
+(`pourAccordLe`), et cette trace suffisait à garder le circuit du cabinet : « Ton cabinet prépare les 2 bulletins », sans
+cabinet pour les préparer. Désormais, l'attente de la messagerie (`GET …/messages/attente`) dit `cabinetQuitte` quand
+aucun cabinet ne tient le dossier et qu'un mandat a pris fin (arrêté, ou sa date de fin passée). Alors la paie redevient
+la sienne : « tu la fais seul · aucun cabinet relié », « Établir les 2 bulletins ». La trace des anciens bulletins ne joue
+plus que pour un dossier qui n'a jamais eu de mandat (données reprises).
+
+**Le dossier hors SkanFact au Cabinet** (le client n'a pas SkanFact, le cabinet tient tout) : le mois se faisait de bout en
+bout, sauf une étape. « Les salaires » attendait « payés par Menuiserie Ben Ali » : un client absent de SkanFact ne marque
+jamais rien, l'étape restait ouverte et la frise ne finissait pas. Maintenant :
+
+- l'étape dit « 0 sur 2 payés · à noter quand ton client te le dit », puis « payés, notés au cabinet » ;
+- une fois les bulletins validés, « Noter les 2 salaires payés » écrit le « payé le » du jour sur chacun (le champ
+  `paidDate` du bulletin, le seul qui change : les montants ne bougent pas) ;
+- le pont du cabinet accepte `paidDate` sur un bulletin validé, et le refuse avant la validation : « Un salaire se note
+  payé une fois son bulletin validé. » ;
+- rien ne s'envoie à ce client : ni « Lui rappeler », ni « Envoyer les PDF ».
+
+**Corrigé au passage** : « Annuler » la validation (le toast du jour) lisait `payeLe`, le nom du livre du cabinet, et non
+`paidDate`, le champ du bulletin. Un bulletin payé pouvait donc se dévalider le jour même. Ce n'est plus possible.
+
+Tests : `tests/web/cabinet-paie-hors-skanfact.test.ts` (le mois entier d'un dossier hors SkanFact : établir, valider, noter
+payés, remettre, la CNSS du trimestre), `tests/web/paie-268-cabinet.test.ts` (le cabinet parti), `tests/messagerie/
+messagerie.test.ts` (`cabinetQuitte` après l'arrêt du mandat). Preuves `paie 1.270 a` à `h`. Captures :
+`cabinet-hors-1-mois.png` à `cabinet-hors-3-payes.png`, `paie-270-cabinet-parti.png`.
+
+**Pas encore fait** : le cabinet note les salaires payés au jour du geste. Il ne peut pas encore saisir une autre date (le
+client a payé le 28, le cabinet le note le 3).

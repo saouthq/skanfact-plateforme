@@ -2331,7 +2331,9 @@
   // (1.248.0) Le serveur a dit qu'aucun cabinet n'est relié (null : pas encore lu, ou pas pour ce rôle : on ne sait pas).
   // Alors la paie se fait seule, quel que soit le mode écrit avant (recette du 02/11 : « faites par ton cabinet » sans cabinet).
   // Un bulletin envoyé ou corrigé par un cabinet prouve qu'il a tenu la paie : son circuit (le bon à payer) reste en place.
-  const sansCabinetRelie = () => !!(messagerieVue && !messagerieVue.cabinet) && !((data && data.payslips) || []).some(p => p.pourAccordLe || p.correction);
+  // (1.270.0) Sauf si le serveur dit que ce cabinet est parti (`cabinetQuitte`) : ses anciens bulletins ne le font pas revenir.
+  const sansCabinetRelie = () => !!(messagerieVue && !messagerieVue.cabinet)
+    && (!!messagerieVue.cabinetQuitte || !((data && data.payslips) || []).some(p => p.pourAccordLe || p.correction));
   function majMessagerie(a) {
     const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
     messagerieVue = a;

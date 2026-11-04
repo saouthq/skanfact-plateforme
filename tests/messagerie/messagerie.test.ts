@@ -327,6 +327,8 @@ describe('un mandat qui s\'arrête', () => {
     const sans = (await fil(ent, client, 'entreprise')).corps;
     expect(sans.fil).toBeNull();
     expect(sans.anciens).toEqual([{ cabinet: cab.id, nom: 'Cabinet Ennour' }]);
+    // (1.270.0) L'attente dit que le cabinet est parti : la paie de l'entreprise se fait seule.
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ cabinet: null, cabinetQuitte: true });
     expect((await ecrire(ent, client, 'entreprise', { texte: 'Allô ?' })).corps.motif).toBe('Aucun cabinet ne tient ce dossier : la messagerie s\'ouvre quand tu confies ton dossier à un cabinet.');
     const ancien = (await fil(ent, client, 'entreprise', `&cabinet=${cab.id}`)).corps;
     expect(ancien.fil.actif).toBe(false);
