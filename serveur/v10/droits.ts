@@ -90,7 +90,9 @@ export const RACINE: Record<string, Regle> = {
 // L'empreinte de ces règles, dans le profil de la relecture par différence (routes.ts, brique 119) : une copie du poste lue
 // sous d'autres règles repart en entier. Sans elle, une partie ouverte à un rôle ne lui arrivait qu'au prochain changement
 // de chaque objet (16 § 10.1, point 8 : la paie ne voyait toujours pas les mois validés avant).
-export const EMPREINTE_REGLES = createHash('sha256').update(JSON.stringify([LISTES, RACINE])).digest('hex').slice(0, 12);
+// (1.273.0, G02) Le numéro qui suit l'empreinte change quand une règle change hors de ces tables (les versions écartées lues
+// avec les droits de ce qu'elles copient) : une copie du poste lue avant repart en entier, sans ce qu'elle n'a plus à garder.
+export const EMPREINTE_REGLES = createHash('sha256').update(JSON.stringify([LISTES, RACINE, 'archives-par-droit-1'])).digest('hex').slice(0, 12);
 // Une liste vide, l'écran l'écrit comme un champ de la racine (`_racine/recurring` = []) : c'est la même partie.
 export function regleDe(collection: string, cle: string): Regle {
   return (collection === '_racine' ? RACINE[cle] ?? LISTES[cle] : LISTES[collection]) ?? TOUT;
@@ -109,12 +111,31 @@ export function permet(roles: string[], geste: string, ecrire: boolean): boolean
   return roles.some((r) => { const a = (g.roles as Record<string, string | undefined>)[r]; return a === 'oui' || (!ecrire && a === 'voir'); });
 }
 
+// (1.273.0, audit du 04/11/2026, G02) Une version écartée (`conflictArchive`, que la fusion de la v10 écrit) est une COPIE
+// d'un objet d'une autre partie, nommée par `kind` : elle se lit avec les droits de cette partie. La partie technique
+// était lisible de tous : un commercial y lisait le salaire et les saisies d'un salarié. Sans `kind` lisible : la
+// partie la plus fermée (TOUT).
+export function archiveVisible(roles: string[], e: unknown): boolean {
+  const kind = e && typeof e === 'object' && !Array.isArray(e) && typeof (e as { kind?: unknown }).kind === 'string' ? (e as { kind: string }).kind : '';
+  return permet(roles, (kind ? regleDe('_racine', kind) : TOUT).voir, false);
+}
+function archivesVisibles(roles: string[], collection: string, cle: string, contenu: unknown): { garder: boolean; contenu: unknown } {
+  if (collection === 'conflictArchive') return { garder: archiveVisible(roles, contenu), contenu };
+  if (collection === '_racine' && cle === 'conflictArchive' && Array.isArray(contenu)) return { garder: true, contenu: contenu.filter((e) => archiveVisible(roles, e)) };
+  return { garder: true, contenu };
+}
+
 // Ce qu'une personne lit : les objets dont la partie lui est visible ; et, pour l'écran, les parties qu'il ne
 // doit ni montrer ni renvoyer (`cachees`), et celles qu'il lit sans pouvoir les écrire (`lectureSeule`).
 export function filtrer<O extends { collection: string; cle: string }>(roles: string[], objets: O[]) {
-  // (1.266.7 ; 16 § 10.1, point 13) Une version écartée d'une fiche de salarié ne rend ni CIN ni RIB, même écrite avant.
+  // (1.266.7 ; 16 § 10.1, point 13) Une version écartée d'une fiche de salarié ne rend ni CIN ni RIB, même écrite avant ;
+  // (1.273.0, G02) et elle ne se lit qu'avec le droit de lire ce qu'elle copie.
   const visibles = objets.filter((o) => permet(roles, regleDe(o.collection, o.cle).voir, false))
-    .map((o) => ('contenu' in o ? { ...o, contenu: archiveSansIdentite(o.collection, o.cle, (o as { contenu: unknown }).contenu) } as O : o));
+    .flatMap((o) => {
+      if (!('contenu' in o)) return [o];
+      const a = archivesVisibles(roles, o.collection, o.cle, (o as { contenu: unknown }).contenu);
+      return a.garder ? [{ ...o, contenu: archiveSansIdentite(o.collection, o.cle, a.contenu) } as O] : [];
+    });
   const parties = [...Object.keys(LISTES).map((c) => ['', c] as const), ...Object.keys(RACINE).map((k) => ['_racine', k] as const)];
   const cachees = new Set<string>(), lectureSeule = new Set<string>(), ecrivables = new Set<string>();
   for (const [col, nom] of parties) {

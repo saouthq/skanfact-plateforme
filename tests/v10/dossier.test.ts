@@ -369,6 +369,63 @@ describe('le dossier v10 tenu par le serveur', () => {
       .rejects.toThrow(/corrige_seulement_avoir/);
   });
 
+  // (1.273.0, audit du 04/11/2026, G01) Une facture émise se juge sur ce qu'elle était : renvoyée en devis (sans numéro,
+  // sans lignes), elle passait le contrôle, puis s'effaçait comme un devis, sa pièce restée émise au serveur.
+  it('G01 : une facture émise ne devient pas un devis, ni autre chose, et ne se glisse pas dans une liste à la racine', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients');
+    if (!client) throw new Error('client d\'exemple absent');
+    await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: brouillon('f1', client.cle) }]);
+    const emise = (await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: brouillon('f1', client.cle), client: client.contenu, revision: 1, rang: 0, netAPayer: '1073.190' })).corps.contenu as Record<string, unknown>;
+    const changer = (contenu: unknown) => e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: 2, contenu }]);
+    for (const autre of [{ ...emise, type: 'devis', status: 'brouillon', number: '', lines: [] }, { ...emise, type: 'proforma' }, { ...emise, type: undefined }, 'une chaîne', [emise]]) {
+      expect((await changer(autre)).statut).toBe(403);
+    }
+    // La liste des pièces à la racine : seulement la liste vide que l'écran y écrit.
+    expect((await e.envoyer([{ collection: '_racine', cle: 'documents', rang: null, revision: null, contenu: [{ ...emise, lines: [] }] }])).corps.motif)
+      .toBe('Les pièces de vente s\'enregistrent une à une, pour que chacune soit contrôlée : rien n\'a été enregistré.');
+    expect((await e.envoyer([{ collection: '_racine', cle: 'documents', rang: null, revision: null, contenu: [] }])).statut).toBe(200);
+    // Rien n'a bougé : la facture est là, émise, dans le dossier et au serveur.
+    expect((await e.lire()).find((o) => o.collection === 'documents' && o.cle === 'f1')?.contenu).toMatchObject({ type: 'facture', number: 'FAC-2026-001', status: 'envoyée' });
+    expect((await admin.query(`select count(*)::int n from ventes.piece where entreprise = $1 and statut = 'emise'`, [e.ent])).rows[0].n).toBe(1);
+    // Un brouillon, lui, change de nature comme on veut.
+    await e.envoyer([{ collection: 'documents', cle: 'f2', rang: 1, revision: null, contenu: brouillon('f2', client.cle) }]);
+    expect((await e.envoyer([{ collection: 'documents', cle: 'f2', rang: 1, revision: 1, contenu: { ...brouillon('f2', client.cle), type: 'devis' } }])).statut).toBe(200);
+  });
+
+  // (1.273.0, audit G02) Une version écartée est une copie : elle se lit et s'écrit avec les droits de ce qu'elle copie.
+  it('G02 : un commercial ne lit pas la paie dans les versions écartées, et n\'efface pas celles qu\'il ne voit pas', async () => {
+    const e = await essai();
+    const salarie = { at: '2026-10-01T08:00:00.000Z', kind: 'employees', id: 'x', label: 'SALARIE_CONFIDENTIEL', record: { id: 'x', name: 'SALARIE_CONFIDENTIEL', grossSalary: 7345, cin: '01234567', saisies: [{ creancier: 'Banque du Sud', montant: 120 }] } };
+    const devis = { at: '2026-10-01T08:00:00.000Z', kind: 'documents', id: 'd9', label: 'DEV-2026-009', record: { id: 'd9', type: 'devis', subject: 'Cuisine' } };
+    expect((await e.envoyer([
+      { collection: 'conflictArchive', cle: 'a1', rang: 0, revision: null, contenu: salarie },
+      { collection: 'conflictArchive', cle: 'a2', rang: 1, revision: null, contenu: devis },
+      { collection: '_racine', cle: 'conflictArchive', rang: null, revision: null, contenu: [salarie, devis] },
+    ])).statut).toBe(200);
+    const email = `commercial-g02-${Date.now()}@exemple.tn`;
+    await appeler('POST', '/inscription', undefined, { email, nom: 'Commercial', motDePasse: 'Un-bon-mot-de-passe' });
+    const jc = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const invitation = String((await appeler('POST', `/entreprises/${e.ent}/invitations`, e.jeton, { email, roles: ['commercial'] })).corps.jeton);
+    await appeler('POST', '/invitations/accepter', jc, { jeton: invitation });
+    const lu = await appeler('GET', `/entreprises/${e.ent}/dossier-v10`, jc);
+    expect(lu.statut).toBe(200);
+    const texte = JSON.stringify(lu.corps);
+    for (const secret of ['SALARIE_CONFIDENTIEL', '7345', 'Banque du Sud']) expect(texte).not.toContain(secret);
+    // Ce qui copie sa propre part, il le lit.
+    const objets = lu.corps.objets as Objet[];
+    expect(objets.find((o) => o.collection === 'conflictArchive' && o.cle === 'a2')).toBeTruthy();
+    expect(objets.find((o) => o.collection === '_racine' && o.cle === 'conflictArchive')?.contenu).toEqual([devis]);
+    // Il n'efface ni ne réécrit la copie d'un salarié ; la liste qu'il renvoie garde ce qu'il ne voyait pas.
+    const ecrire = (changements: unknown[]) => appeler('POST', `/entreprises/${e.ent}/dossier-v10`, jc, { changements });
+    expect((await ecrire([{ collection: 'conflictArchive', cle: 'a1', rang: 0, revision: 1, contenu: null }])).statut).toBe(403);
+    expect((await ecrire([{ collection: 'conflictArchive', cle: 'a3', rang: 2, revision: null, contenu: salarie }])).statut).toBe(403);
+    const racine = objets.find((o) => o.collection === '_racine' && o.cle === 'conflictArchive');
+    expect((await ecrire([{ collection: '_racine', cle: 'conflictArchive', rang: null, revision: racine?.revision ?? null, contenu: [] }])).statut).toBe(200);
+    const proprietaire = (await e.lire()).find((o) => o.collection === '_racine' && o.cle === 'conflictArchive')?.contenu as unknown as { label: string }[];
+    expect(proprietaire.map((x) => x.label)).toEqual(['SALARIE_CONFIDENTIEL']);
+  });
+
   it('les droits : une autre entreprise n\'y lit rien ; un commercial n\'y lit et n\'y écrit que sa part (brique 99)', async () => {
     const e = await essai();
     const autre = await essai();

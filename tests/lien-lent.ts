@@ -12,7 +12,8 @@
 import net from 'node:net';
 
 // Des instants (Date.now()) ; `recue` vaut -1 tant que rien de la réponse n'est arrivé.
-export type Demande = { chemin: string; posee: number; recue: number };
+// `octets` : ce que sa réponse a fait passer (en-têtes compris), pour dire ce qui pèse (1.273.0).
+export type Demande = { chemin: string; posee: number; recue: number; octets: number };
 export type LienLent = { adresse: string; octets: () => number; demandes: () => Demande[]; remettre: () => void; fermer: () => Promise<void> };
 
 // Le début d'une demande : une connexion n'en porte qu'une à la fois (un navigateur n'en pose pas une seconde sur la même
@@ -34,7 +35,7 @@ export async function lienLent(cible: string, debitOctetsParSeconde: number, all
     let courante: Demande | null = null;
     client.on('data', (b) => {
       const chemin = DEMANDE.exec(b.subarray(0, 2048).toString('latin1'))?.[1];
-      if (chemin) { courante = { chemin, posee: Date.now(), recue: -1 }; demandes.push(courante); }
+      if (chemin) { courante = { chemin, posee: Date.now(), recue: -1, octets: 0 }; demandes.push(courante); }
       dernierMontant = Math.max(Date.now() + demi, dernierMontant);
       setTimeout(() => { if (!serveur.destroyed) serveur.write(b); }, dernierMontant - Date.now());
     });
@@ -43,7 +44,7 @@ export async function lienLent(cible: string, debitOctetsParSeconde: number, all
       const debut = Math.max(Date.now(), libre);
       libre = debut + (b.length / debitOctetsParSeconde) * 1000;
       dernierDescendant = Math.max(libre + demi, dernierDescendant);
-      if (courante) courante.recue = dernierDescendant;
+      if (courante) { courante.recue = dernierDescendant; courante.octets += b.length; }
       setTimeout(() => { if (!client.destroyed) client.write(b); }, dernierDescendant - Date.now());
     });
     client.on('end', () => setTimeout(() => serveur.end(), Math.max(0, dernierMontant - Date.now())));

@@ -208,4 +208,20 @@ describe('les visites de l\'entreprise, en ligne', () => {
     // Le geste pas encore fait : on attend, geste ou pas.
     expect(moteur.decider({ ...entree, fait: false, geste: true })).toBe('present');
   });
+
+  // (1.273.0, L9) L'accueil et la porte du premier jour disent la durée et les chapitres de la découverte et des premiers
+  // pas avant que les visites soient chargées (app-2.js, `RESUME_VISITES`). Ce résumé dit ce que disent les visites.
+  it('le résumé que l\'accueil montre avant de charger les visites dit leur durée et leurs chapitres', () => {
+    const { visites, moteur } = charger();
+    const code = lireEcran('v10/app.js').replace(/^\s*\/\/.*$/gm, '');
+    const ecrit = /const RESUME_VISITES = (\{[^\n]*\});/.exec(code)?.[1];
+    expect(ecrit).toBeTruthy();
+    const resume = vm.runInNewContext(`(${ecrit})`) as Record<string, { duree: string; chapitres: number }>;
+    const chapitres = (moteur as unknown as { chapitres: (e: unknown[]) => unknown[] }).chapitres;
+    for (const id of ['decouvrir', 'premiers-pas']) {
+      const v = visites.find((x) => x.id === id) as (Visite & { duree?: string }) | undefined;
+      expect(v, id).toBeTruthy();
+      expect(resume[id], id).toEqual({ duree: v?.duree, chapitres: chapitres(v?.etapes ?? []).length });
+    }
+  });
 });

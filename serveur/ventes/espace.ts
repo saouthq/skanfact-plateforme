@@ -29,8 +29,13 @@ export const CHAMPS_PIECE = [
   'type', 'number', 'date', 'dueDate', 'status', 'lang', 'currency', 'exchangeRate', 'subject', 'reference', 'notes',
   'deposit', 'settles', 'fromQuoteNumber', 'creditOfNumber', 'creditReason', 'regimeTva', 'exonerationRS',
   'discountRate', 'applyStamp', 'stampFee', 'withholdingRate', 'lines', 'ttn',
+  // (1.273.0, audit du 04/11/2026, G03) Ce qui sert au calcul depuis le lot facture (1.155.0) : sans eux, l'espace
+  // recalculait la pièce sans sa FODEC, ses prix TTC, son export ni son seuil de retenue, et imprimait un autre total.
+  // Un champ que `computeTotals` ou le gabarit apprend à lire s'ajoute ici : tests/v10/espace-client.test.ts le vérifie.
+  'fodecRate', 'prixTtc', 'export', 'seuilRetenue',
 ] as const;
-export const CHAMPS_LIGNE = ['label', 'description', 'qty', 'unit', 'unitPrice', 'vatRate', 'noDiscount'] as const;
+// La remise d'une ligne (`discount`), sa FODEC (`fodec`), et les titres de section (`kind`) : au calcul aussi.
+export const CHAMPS_LIGNE = ['label', 'description', 'qty', 'unit', 'unitPrice', 'vatRate', 'noDiscount', 'discount', 'fodec', 'kind'] as const;
 // Ce qu'une pièce imprime de l'acompte, du solde d'un devis, de l'exonération de retenue figée, et de la
 // facture électronique acceptée par la TTN (sa référence et le contenu de son code QR, brique 83).
 export const SOUS_CHAMPS = { deposit: ['percent', 'montant', 'quoteNumber'], settles: ['quoteNumber'], exonerationRS: ['numero', 'au'], ttn: ['reference', 'qr'] } as const;

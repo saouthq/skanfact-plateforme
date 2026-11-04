@@ -744,6 +744,25 @@
   // ---------- bulles d'explication « i » ----------
   // info(clé) pose un petit bouton rond à côté d'un libellé ; le texte vient de guide.js.
   const G = window.SkanGuide || { INFO: {}, ARTICLES: [] };
+  // (1.273.0, L9 ; docs/leger.md) Ce que la première ouverture n'emporte plus : le texte des bulles et des articles d'Aide
+  // (`guide-textes.js`, coupé de guide.js à la construction) et les visites guidées (`visite.js`, `visites.js`) se
+  // chargent au premier geste qui les demande, une fois ; le service des écrans les garde alors pour le hors-ligne. Un
+  // script qui ne vient pas (sans réseau, jamais gardé) rend « false », et le prochain geste réessaie.
+  const scriptsCharges = new Map();
+  function chargerScript(nom) {
+    if (!scriptsCharges.has(nom)) scriptsCharges.set(nom, new Promise(ok => {
+      const s = document.createElement('script');
+      s.src = new URL(nom, document.baseURI).href;
+      s.onload = () => ok(true);
+      s.onerror = () => { scriptsCharges.delete(nom); s.remove(); ok(false); };
+      document.head.appendChild(s);
+    }));
+    return scriptsCharges.get(nom);
+  }
+  // Le texte de l'aide : déjà là quand guide.js est entier (le développement), sinon chargé.
+  const textesPrets = () => !G.textesPrets || G.textesPrets();
+  const chargerTextes = () => (textesPrets() ? Promise.resolve(true) : chargerScript('guide-textes.js').then(ok => ok && textesPrets()));
+  const SANS_RESEAU_AIDE = 'L\'aide n\'est pas encore sur ce poste, et le réseau manque : elle se charge dès qu\'il revient.';
   function info(key) {
     const x = G.INFO[key];
     if (!x) return '';
@@ -952,11 +971,21 @@
     // 10.13.0 — chaque bulle a son article : le sien (`a`), sinon celui de sa famille de clés.
     const idArt = G.articleDe ? G.articleDe(btn.dataset.info) : x.a;
     const art = idArt ? (G.ARTICLES.find(y => y.id === idArt) || null) : null;
+    // (1.273.0, L9) Le texte de la bulle se charge à la première bulle ouverte : son titre s'affiche tout de suite, son
+    // explication dès qu'elle arrive (la bulle se redessine à sa place, si elle est toujours ouverte).
+    const pret = x.d != null;
     pop.innerHTML = `<div class="ip-head">${h(x.t)}<button type="button" class="ip-close" aria-label="Fermer">✕</button></div>`
-      + `<div class="ip-body">${clavierLocal(x.d)}`
+      + `<div class="ip-body">${pret ? clavierLocal(x.d) : '<p class="muted" data-ip-attente>Un instant…</p>'}`
       + (art ? `<p class="ip-more"><a href="#/aide/${h(art.id)}">Lire « ${h(art.title)} » →</a></p>` : '')
       + '</div>';
+    pop._key = btn.dataset.info;
     document.body.appendChild(pop);
+    if (!pret) chargerTextes().then(ok => {
+      if ($('#info-pop') !== pop) return;
+      if (ok && G.INFO[btn.dataset.info] && G.INFO[btn.dataset.info].d != null) { openInfoPop(btn); return; }
+      const attente = $('[data-ip-attente]', pop);
+      if (attente) attente.textContent = SANS_RESEAU_AIDE;
+    });
     // Le lien ferme la bulle : sans ça, elle restait ouverte par-dessus l'article qu'elle vient d'ouvrir.
     const lien = $('.ip-more a', pop);
     if (lien) lien.onclick = () => closeInfoPop();
@@ -3019,7 +3048,7 @@
     $('#demo-out').onclick = demoSortie;
     // Une découverte laissée en route REPREND là où elle s'était arrêtée : la recommencer au début
     // ferait relire dix bulles déjà lues.
-    if ($('#demo-visite')) $('#demo-visite').onclick = () => { const r = decouverteEnPause(); lancerVisite(visiteParId('decouvrir'), r ? r.i : 0); };
+    if ($('#demo-visite')) $('#demo-visite').onclick = () => { const r = decouverteEnPause(); lancerVisite('decouvrir', r ? r.i : 0); };
   }
 
   // Charger l'exemple. Sorti des Paramètres pour que l'accueil puisse le proposer vraiment : le
@@ -3422,7 +3451,7 @@
     sauvegarde: ['Choisir un dossier', () => allerParametres('donnees', 'p-externe')],
     // Les deux étapes facultatives (10.14.0). La découverte REPREND là où elle s'était arrêtée : la
     // recommencer au début ferait relire dix bulles déjà lues.
-    decouverte: ['Faire la découverte', () => { const r = decouverteEnPause(); lancerVisite(visiteParId('decouvrir'), r ? r.i : 0); }],
+    decouverte: ['Faire la découverte', () => { const r = decouverteEnPause(); lancerVisite('decouvrir', r ? r.i : 0); }],
     comptable: ['Relier mon comptable', () => allerParametres('envois', 'p-comptable')],
     // (plateforme, lot onboarding) Les gestes des premiers pas de la plateforme (plateforme/premiers-pas.js) : vérifier son
     // adresse et choisir son code de connexion (Ton compte), choisir son activité (l'assistant, revu : rien ne s'écrit avant la fin), le
@@ -3521,9 +3550,10 @@
     const accueil = accueilVisible();
     // L'accueil se présente comme une PORTE, pas comme une alerte : deux grands choix côte à côte,
     // chacun avec ce qu'il coûte (sa durée) et ce qu'il donne. La durée et le nombre de chapitres se
-    // LISENT sur les visites — un compte recopié à la main mentirait au premier chapitre ajouté.
-    const dec = accueil ? visiteParId('decouvrir') : null, pre = accueil ? visiteParId('premiers-pas') : null;
-    const nChap = dec ? Visite.chapitres(dec.etapes).length : 0;
+    // LISENT sur les visites — un compte recopié à la main mentirait au premier chapitre ajouté. (1.273.0, L9) Avant que
+    // les visites soient chargées, leur résumé (`resumeVisite`), qu'un test confronte aux visites elles-mêmes.
+    const dec = accueil ? resumeVisite('decouvrir') : null, pre = accueil ? resumeVisite('premiers-pas') : null;
+    const nChap = dec ? dec.chapitres : 0;
     return `${accueil ? `<section class="pp-accueil" aria-labelledby="pp-acc-t">
         ${ILLUS_ACCUEIL}
         <div class="pp-acc-intro"><span class="pp-acc-sur">Bienvenue dans SkanFact</span>
@@ -3575,12 +3605,12 @@
       const a = PAS_ACTIONS[b.dataset.pas];
       if (a) a[1]();
     });
-    $$('[data-pas-guide]').forEach(b => b.onclick = () => lancerVisite(visiteParId(b.dataset.pasGuide)));
+    $$('[data-pas-guide]').forEach(b => b.onclick = () => lancerVisite(b.dataset.pasGuide));
     $$('[data-pas-import]').forEach(b => b.onclick = () => importerTableau(b.dataset.pasImport, () => render(true)));
     // (plateforme) 1.75.0 — ce qui reste des premiers pas, masqué pour la personne.
     if ($('#pp-restes-masquer')) $('#pp-restes-masquer').onclick = () => { visitesPoser(e => { e.restesVus = true; }); render(true); };
-    if ($('#pp-decouvrir')) $('#pp-decouvrir').onclick = () => lancerVisite(visiteParId('decouvrir'));
-    if ($('#pp-guider')) $('#pp-guider').onclick = () => { visitesPoser(e => { e.accueilVu = true; }); lancerVisite(visiteParId('premiers-pas')); };
+    if ($('#pp-decouvrir')) $('#pp-decouvrir').onclick = () => lancerVisite('decouvrir');
+    if ($('#pp-guider')) $('#pp-guider').onclick = () => { visitesPoser(e => { e.accueilVu = true; }); lancerVisite('premiers-pas'); };
     if ($('#pp-plus-tard')) $('#pp-plus-tard').onclick = () => {
       visitesPoser(e => { e.accueilVu = true; });
       toast('D\'accord. La découverte et chaque visite guidée restent dans « Me guider », en bas du menu.');
@@ -3638,8 +3668,12 @@
   // Le menu : la visite de la page, ce qu'on peut faire ICI (l'onglet ouvert d'abord), puis l'article
   // et toutes les visites. Rangé par le moteur (`Visite.guideDeLaPage`, `Visite.menuDuGuide`), le
   // même que dans le Cabinet ; l'application ne prête que ses gestes.
-  function ouvrirGuideMoi(bouton) {
+  // (1.273.0, L9) Les visites se chargent au premier « Guide-moi » ; le menu s'ouvre dès qu'elles sont là.
+  async function ouvrirGuideMoi(bouton) {
     fermerAppelGuide();
+    const hash = location.hash;
+    if (!await chargerVisites()) return;
+    if (location.hash !== hash || !bouton.isConnected) return;
     const route = cleDePage(location.hash);
     const et = visitesEtat();
     const ongletActif = barre => { const t = $(barre + ' button[data-tab].active'); return t ? t.dataset.tab : null; };
@@ -13209,11 +13243,12 @@
     // ouvre et avant l'Aide. Les mots d'une question (« comment », « je veux ») ne comptent pas : ils
     // ne sont dans aucun titre, et exiger chacun d'eux ne rendrait jamais rien.
     const MOTS_VIDES = new Set(['comment', 'je', 'j', 'veux', 'voudrais', 'on', 'fait', 'fais', 'un', 'une', 'le', 'la', 'les', 'l', 'de', 'des', 'du', 'd', 'mon', 'ma', 'mes', 'ton', 'ta', 'tes', 'a', 'au', 'aux', 'et', 'pour', 'en', 'est', 'ce', 'que', 'qu', 'faut', 'il', 'guide', 'guider', 'visite', 'me', 'moi']);
-    const visitesPal = visitesVisibles().filter(v => !visiteManque(v)).map(v => ({
+    const lesVisitesPal = () => visitesVisibles().filter(v => !visiteManque(v)).map(v => ({
       kind: 'Me guider', main: v.titre, sub: v.resume,
       text: C.plier(`me guider visite guidée ${v.titre} ${v.resume || ''} ${(v.mots || []).join(' ')}`),
       run: () => lancerVisite(v)
     }));
+    let visitesPal = lesVisitesPal();
     const visitesPour = words => {
       const utiles = words.map(w => w.replace(/[?!.,;:'’]/g, '')).filter(w => w && !MOTS_VIDES.has(w));
       if (!utiles.length) return words.some(w => /^(guid|visit)/.test(w)) ? visitesPal.slice(0, 3) : [];
@@ -13307,6 +13342,15 @@
     };
     root.onclick = e => { if (e.target === root) closePalette(); };
     draw(); input.focus();
+    // (1.273.0, L9) La recherche cherche aussi dans les visites et dans le corps des articles : ouvrir la palette les
+    // charge, et ses résultats se refont dès qu'ils sont là (sans réseau, elle cherche dans le reste).
+    if (!visitesChargees() || !textesPrets()) {
+      Promise.all([chargerVisites(true), chargerTextes()]).then(() => {
+        if (root.hidden || !input.isConnected) return;
+        visitesPal = lesVisitesPal();
+        draw();
+      });
+    }
   }
   const closeMenus = () => $$('.more-list').forEach(l => l.hidden = true);
   // (plateforme) 1.94.0 — chaque menu « ▾ » (`.more`) : son bouton dit ce qu'il ouvre et si c'est ouvert ; la liste
@@ -13365,7 +13409,7 @@
       if (!$('#palette-root').hidden) { closePalette(); return; }
       if (modalClose) { modalClose(); return; }
       // Rien d'autre à fermer : Échap met la visite guidée en pause (on la reprend dans « Me guider »).
-      if (Visite.enCours()) Visite.quitter();
+      if (visiteEnCours()) Visite.quitter();
     }
   });
   document.addEventListener('click', e => { if (!e.target.closest('.more')) closeMenus(); });

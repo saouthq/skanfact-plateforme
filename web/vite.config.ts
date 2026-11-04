@@ -14,6 +14,7 @@ import { assemblerOctets, ecrireLesAssembles, lireTable } from '../commun/assemb
 import { PLANCHER } from '../commun/navigateurs.ts';
 import { controleDesFrontieres } from '../outils/rangement/frontieres.ts';
 import { allegerLesEcrans, PRECOMPRESSER, precompresserLesEcrans } from './alleger.ts';
+import { decouperLeGuideConstruit } from './decouper-guide.ts';
 
 // La console se construit À PART, dans console/ (ses fichiers sous /console/assets) : construite avec l'entrée, les deux
 // pages se partageaient un morceau de code (React), que l'entrée aurait téléchargé deux fois à sa première ouverture —
@@ -64,6 +65,8 @@ export default defineConfig({
       if (!sortie.dir) return;
       ecrireLesAssembles(sortie.dir);
       allegerLesEcrans(sortie.dir);
+      // Le texte des bulles et des articles d'Aide part à part, chargé au premier geste qui le lit (docs/leger.md, L9).
+      decouperLeGuideConstruit(sortie.dir);
       // La production les compresse aussi d'avance, au plus fort (docs/leger.md, L7).
       if (process.env[PRECOMPRESSER] === '1') precompresserLesEcrans(sortie.dir);
     },

@@ -1868,5 +1868,16 @@ rencontres. Si un mot affiché dans l'application manque ici, c'est un défaut :
     return r ? r[1] : null;
   };
 
-  return { INFO, ARTICLES, THEMES, GESTES, PAR_PAGE, PAR_ONGLET, articleDeLaPage, themeOf, ARTICLE_PAR_CLE, articleDe };
+  // (1.273.0, L9 ; docs/leger.md) À la construction, l'explication de chaque bulle (`d`) et le corps de chaque article
+  // (`body`) partent dans `guide-textes.js` (web/decouper-guide.ts) : les écrans n'en ont besoin qu'en ouvrant une bulle
+  // ou un article, et les chargent alors (app-1.js, `chargerTextes`). Ce fichier entier (Node, le développement) les a déjà.
+  let prets = false;
+  const textesPrets = () => prets || (prets = ARTICLES.every(a => typeof a.body === 'string') && Object.values(INFO).every(x => typeof x.d === 'string'));
+  function poserTextes(t) {
+    const info = (t && t.info) || {}, corps = (t && t.corps) || {};
+    for (const k of Object.keys(info)) if (INFO[k] && typeof info[k] === 'string') INFO[k].d = info[k];
+    for (const a of ARTICLES) if (typeof corps[a.id] === 'string') a.body = corps[a.id];
+  }
+
+  return { INFO, ARTICLES, THEMES, GESTES, PAR_PAGE, PAR_ONGLET, articleDeLaPage, themeOf, ARTICLE_PAR_CLE, articleDe, textesPrets, poserTextes };
 });

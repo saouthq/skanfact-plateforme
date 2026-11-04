@@ -120,9 +120,8 @@
   <!-- L'écran des mises à jour, le même dans les deux applications (voir majui.js). -->
   <script src="majui.js"></script>
   <script src="nouveautes.js"></script>
-  <!-- La visite guidée (10.14.0) : le moteur, sans métier, puis le contenu de cette application. -->
-  <script src="visite.js"></script>
-  <script src="visites.js"></script>
+  <!-- La visite guidée (10.14.0) : le moteur (visite.js) et le contenu (visites.js) se chargent au premier geste qui les
+       demande (1.273.0, docs/leger.md, L9 : app-2.js, `chargerVisites`), comme le texte de l'aide (guide-textes.js). -->
   <script src="app.js"></script>
 </body>
 </html>

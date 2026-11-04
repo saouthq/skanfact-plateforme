@@ -21,7 +21,7 @@ import { annoncerReglements, resteAvant } from '../ventes/annonces.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
 import { controlerCommandes, controlerEncours, controlerReceptions, controlerRemise } from './accords.ts';
-import { mesRoles, verifierEcriture } from './droits.ts';
+import { archiveVisible, mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivreIdentite } from './identite.ts';
 import { garderLaCloture, suivrePaie } from './paie.ts';
@@ -67,7 +67,9 @@ const tauxRelu = (v: unknown) => {
 const scellee = (champ: string, v: unknown) => (champ === 'withholdingRate' ? tauxRelu(v) : canonique(v));
 
 function verifierPiece(avant: Json | null, apres: Json | null, serveur: boolean) {
-  const type = String((apres ?? avant)?.type ?? '');
+  // (1.273.0, audit du 04/11/2026, G01) Une pièce émise se juge sur ce qu'elle ÉTAIT : renvoyée en « devis », elle
+  // repartait avant tout contrôle, puis s'effaçait comme un devis, sa pièce légale restée émise au serveur.
+  const type = String((emise(avant) && PIECES_LEGALES.includes(String(avant?.type ?? '')) ? avant : apres ?? avant)?.type ?? '');
   if (!PIECES_LEGALES.includes(type)) return;
   // La référence de la TTN et son code QR (brique 83) : seul le serveur les pose, quand la TTN accepte la
   // pièce ; personne ne les écrit ni ne les change depuis un écran (une référence inventée s'imprimerait).
@@ -207,7 +209,8 @@ export async function lireDepuis(tx: Transaction, entreprise: string, depuis: st
 export async function appliquer(tx: Transaction, entreprise: string, utilisateur: string, changements: Changement[], options: { serveur?: boolean } = {}): Promise<{ collection: string; cle: string; revision: number | null }[]> {
   const db = requetes(tx);
   // Chaque partie s'écrit selon le geste de son module (brique 99) ; le serveur lui-même n'a pas de rôle.
-  if (!options.serveur) verifierEcriture(await mesRoles(tx, entreprise), changements);
+  const roles = options.serveur ? null : await mesRoles(tx, entreprise);
+  if (roles) verifierEcriture(roles, changements);
   const actuels = new Map<string, { contenu: unknown; revision: number; creePar: string | null }>();
   const conflits: { collection: string; cle: string }[] = [];
   for (const c of changements) {
@@ -218,6 +221,31 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   }
   // Rien n'est écrit tant qu'un seul objet a changé ailleurs : on ne mélange jamais deux versions.
   if (conflits.length) throw new Conflit(conflits);
+  // (1.273.0, audit G01) Les pièces de vente sont une liste d'objets (`documents/<id>`) : la racine n'en porte que la liste
+  // vide que l'écran y écrit. Une liste de pièces écrite là échapperait au contrôle de chacune (une facture émise réécrite).
+  for (const c of changements) {
+    if (c.collection === '_racine' && c.cle === 'documents' && c.contenu !== null && !(Array.isArray(c.contenu) && c.contenu.length === 0)) {
+      throw new Refus('v10.pieces_a_la_racine');
+    }
+  }
+  // (1.273.0, audit G02) Une version écartée suit les droits de la donnée qu'elle copie (`kind`) : on n'écrit ni n'efface
+  // la copie de ce qu'on ne lit pas, et une liste des versions écartées renvoyée par qui n'en voit qu'une part garde
+  // celles qu'il ne voyait pas.
+  if (roles) {
+    for (const c of changements) {
+      if (c.collection === 'conflictArchive') {
+        const a = actuels.get(`conflictArchive/${c.cle}`)?.contenu;
+        if ((a !== undefined && !archiveVisible(roles, a)) || (c.contenu !== null && !archiveVisible(roles, c.contenu))) {
+          throw new Refus('v10.partie_interdite', { valeurs: { partie: t('v10.partie.conflictArchive') } });
+        }
+      }
+      if (c.collection === '_racine' && c.cle === 'conflictArchive' && Array.isArray(c.contenu)) {
+        const a = actuels.get('_racine/conflictArchive')?.contenu;
+        const caches = Array.isArray(a) ? a.filter((e) => !archiveVisible(roles, e)) : [];
+        c.contenu = [...caches, ...c.contenu.filter((e) => archiveVisible(roles, e))];
+      }
+    }
+  }
   // (1.266.7 ; 16 § 10.1, point 13) Le RIB qu'un cabinet n'a pas lu (il le reçoit masqué), il ne l'écrit pas : la fiche
   // garde celui du serveur. Une version écartée d'une fiche de salarié s'écrit sans CIN ni RIB.
   const parCabinet = !options.serveur && changements.some((c) => c.collection === 'employees')

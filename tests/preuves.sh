@@ -3882,11 +3882,11 @@ prouver "les règlements d'une facture oubliés par l'espace" base/migrations/00
   "where r.entreprise = p.entreprise and r.piece = p.id" "where false" \
   "$EC1"
 prouver "le prix de revient d'une ligne envoyé au client" serveur/ventes/espace.ts \
-  "'unitPrice', 'vatRate', 'noDiscount'] as const;" "'unitPrice', 'vatRate', 'noDiscount', 'unitCost'] as const;" \
+  "'noDiscount', 'discount', 'fodec', 'kind'] as const;" "'noDiscount', 'discount', 'fodec', 'kind', 'unitCost'] as const;" \
   "$EC1"
 prouver "les paiements envoyés au client" serveur/ventes/espace.ts \
-  "'withholdingRate', 'lines', 'ttn',
-] as const;" "'withholdingRate', 'lines', 'ttn', 'payments',
+  "'fodecRate', 'prixTtc', 'export', 'seuilRetenue',
+] as const;" "'fodecRate', 'prixTtc', 'export', 'seuilRetenue', 'payments',
 ] as const;" \
   "$EC1"
 prouver "la fiche société entière envoyée au client" serveur/ventes/espace.ts \
@@ -5167,7 +5167,7 @@ prouver "la paie rangée avec les ventes" serveur/v10/droits.ts \
   "  employees: PAIE, payslips: PAIE," "  employees: VENTES, payslips: PAIE," \
   "$DD1"
 prouver "l'écriture sans contrôle des parties" serveur/v10/dossier.ts \
-  "  if (!options.serveur) verifierEcriture(await mesRoles(tx, entreprise), changements);" "  if (false) verifierEcriture(await mesRoles(tx, entreprise), changements);" \
+  "  if (roles) verifierEcriture(roles, changements);" "  if (false) verifierEcriture(roles, changements);" \
   "$DD2"
 prouver "« voir » pris pour « écrire »" serveur/v10/droits.ts \
   "return a === 'oui' || (!ecrire && a === 'voir');" "return a === 'oui' || a === 'voir';" \
@@ -7863,10 +7863,10 @@ prouver "l'exemple chargé à l'écran au lieu d'être versé par le serveur" mo
     if (false) {" \
   "$EXW"
 prouver "la visite demandée jamais lancée une fois la page chargée" modules/socle/ecrans/entreprise/app-2.js \
-  "      else if (demandee) { const v = visiteParId(demandee); if (v) lancerVisite(v); }" "      else if (demandee) { void demandee; }" \
+  "      else if (demandee) lancerVisite(demandee);" "      else if (demandee) void demandee;" \
   "$EXW"
 prouver "« Passer à ma vraie entreprise » qui oublie les premiers pas" modules/socle/ecrans/entreprise/app-2.js \
-  "      if (await demoSortie('premiers-pas')) lancerVisite(visiteParId('premiers-pas'));" "      if (await demoSortie()) lancerVisite(visiteParId('premiers-pas'));" \
+  "      if (await demoSortie('premiers-pas')) lancerVisite('premiers-pas');" "      if (await demoSortie()) lancerVisite('premiers-pas');" \
   "$EXW"
 prouver "« Quitter l'exemple » qui fait comme sur l'ordinateur" modules/socle/ecrans/entreprise/app-1.js \
   "    if (bridge.quitterExemple) {" "    if (false) {" \
@@ -23384,7 +23384,7 @@ prouver 'paie 10.1-13 f : une version écartée d'"'"'un salarié écrite avec s
 ' '' \
   "$IR2"
 prouver 'paie 10.1-13 g : une archive d'"'"'avant rendue en clair à qui ouvre le dossier' serveur/v10/droits.ts \
-  'contenu: archiveSansIdentite(o.collection, o.cle, (o as { contenu: unknown }).contenu)' 'contenu: (o as { contenu: unknown }).contenu' \
+  'contenu: archiveSansIdentite(o.collection, o.cle, a.contenu) } as O]' 'contenu: a.contenu } as O]' \
   "$IR2"
 prouver 'paie 10.1-13 h : la fiche écartée vidée de tout ce qui avait été tapé' serveur/paie/identite.ts \
   '  const record: Json = { ...e.record };' '  const record: Json = { id: e.record.id };' \
@@ -24060,6 +24060,66 @@ prouver 'GitHub 1.272 b : une accolade en trop dans la feuille de la paie' modul
   "/* (1.267.0, morceau C) « Plus tard » à côté du geste d'un rappel. */" "}
 /* (1.267.0, morceau C) « Plus tard » à côté du geste d'un rappel. */" \
   'L6 : nos écrans partent sans un commentaire'
+# ── 1.273.0 : L9 (l'aide et les visites à la demande) et l'audit du 04/11/2026 (G01, G02, G03) ──
+prouver 'audit G01 : une facture émise renvoyée en devis passe le contrôle' serveur/v10/dossier.ts \
+  '  const type = String((emise(avant) && PIECES_LEGALES.includes(String(avant?.type ?? '"'"''"'"')) ? avant : apres ?? avant)?.type ?? '"'"''"'"');' '  const type = String((apres ?? avant)?.type ?? '"'"''"'"');' \
+  'G01 : une facture émise ne devient pas un devis'
+prouver 'audit G01 : une liste de pièces écrite à la racine' serveur/v10/dossier.ts \
+  'c.cle === '"'"'documents'"'"' && c.contenu !== null' 'c.cle === '"'"'aucune'"'"' && c.contenu !== null' \
+  'G01 : une facture émise ne devient pas un devis'
+prouver 'audit G02 : la copie d'"'"'une fiche de salarié lue par un commercial' serveur/v10/droits.ts \
+  '      return a.garder ? [{ ...o, contenu: archiveSansIdentite(o.collection, o.cle, a.contenu) } as O] : [];' '      return [{ ...o, contenu: archiveSansIdentite(o.collection, o.cle, a.contenu) } as O];' \
+  'G02 : un commercial ne lit pas la paie'
+prouver 'audit G02 : la liste des versions écartées lue entière par un commercial' serveur/v10/droits.ts \
+  '{ garder: true, contenu: contenu.filter((e) => archiveVisible(roles, e)) };' '{ garder: true, contenu };' \
+  'G02 : un commercial ne lit pas la paie'
+prouver 'audit G02 : la liste renvoyée par un commercial efface ce qu'"'"'il ne voyait pas' serveur/v10/dossier.ts \
+  'c.contenu = [...caches, ...c.contenu.filter((e) => archiveVisible(roles, e))];' 'c.contenu = [...c.contenu.filter((e) => archiveVisible(roles, e))];' \
+  'G02 : un commercial ne lit pas la paie'
+prouver 'audit G02 : un commercial efface la copie d'"'"'un salarié' serveur/v10/dossier.ts \
+  'if ((a !== undefined && !archiveVisible(roles, a)) || (c.contenu !== null && !archiveVisible(roles, c.contenu))) {' 'if (c.contenu !== null && !archiveVisible(roles, c.contenu)) {' \
+  'G02 : un commercial ne lit pas la paie'
+prouver 'audit G02 : un commercial écrit la copie d'"'"'un salarié' serveur/v10/dossier.ts \
+  'if ((a !== undefined && !archiveVisible(roles, a)) || (c.contenu !== null && !archiveVisible(roles, c.contenu))) {' 'if (a !== undefined && !archiveVisible(roles, a)) {' \
+  'G02 : un commercial ne lit pas la paie'
+prouver 'audit G03 : l'"'"'espace client sans la FODEC, le TTC, l'"'"'export ni le seuil' serveur/ventes/espace.ts \
+  '  '"'"'fodecRate'"'"', '"'"'prixTtc'"'"', '"'"'export'"'"', '"'"'seuilRetenue'"'"',
+' '' \
+  'une pièce réduite à ce qu'"'"'elle imprime'
+prouver 'audit G03 : l'"'"'espace client sans la remise d'"'"'une ligne, sa FODEC ni ses titres' serveur/ventes/espace.ts \
+  ''"'"'noDiscount'"'"', '"'"'discount'"'"', '"'"'fodec'"'"', '"'"'kind'"'"'] as const;' ''"'"'noDiscount'"'"'] as const;' \
+  'une pièce réduite à ce qu'"'"'elle imprime'
+prouver 'L9 a : les visites reparties avec la page' web/public/v10/index.html \
+  'comme le texte de l'"'"'aide (guide-textes.js). -->
+' 'comme le texte de l'"'"'aide (guide-textes.js). -->
+  <script src="visite.js"></script>
+  <script src="visites.js"></script>
+' \
+  'L9 : l'"'"'aide et les visites arrivent au premier geste'
+prouver 'L9 b : le texte de l'"'"'aide reparti avec la page' web/vite.config.ts \
+  '      decouperLeGuideConstruit(sortie.dir);
+' '' \
+  'L9 : l'"'"'aide et les visites arrivent au premier geste'
+prouver 'L9 c : la bulle qui reste sur « Un instant… »' modules/socle/ecrans/entreprise/app-1.js \
+  '{ openInfoPop(btn); return; }' '{ return; }' \
+  'L9 : l'"'"'aide et les visites arrivent au premier geste'
+prouver 'L9 d : « Guide-moi » sans les visites' modules/socle/ecrans/entreprise/app-1.js \
+  '    if (!await chargerVisites()) return;
+    if (location.hash !== hash || !bouton.isConnected) return;
+' '' \
+  'L9 : l'"'"'aide et les visites arrivent au premier geste'
+# (1.273.0) Retirée : dans le parcours, l'Aide s'ouvre après la première bulle, son texte est déjà là ; la garde reste
+# dans le code (`routes.aide = attendreAvant(…)`).
+# prouver 'L9 e : l'"'"'Aide dessinée sans son texte' modules/socle/ecrans/entreprise/app-2.js \
+#   '  routes.aide = attendreAvant(textesPrets, chargerTextes, '"'"'Aide'"'"', SANS_RESEAU_AIDE, pageAide);' '  routes.aide = pageAide;' \
+#   'L9 : l'"'"'aide et les visites arrivent au premier geste'
+prouver 'L9 f : l'"'"'accueil qui annonce un chapitre de trop' modules/socle/ecrans/entreprise/app-2.js \
+  'decouvrir: { duree: '"'"'12 min'"'"', chapitres: 12 }' 'decouvrir: { duree: '"'"'12 min'"'"', chapitres: 13 }' \
+  'le résumé que l'"'"'accueil montre'
+prouver 'L9 g : la coupe qui laisse l'"'"'explication des bulles dans la page' web/decouper-guide.ts \
+  '    coupes.push(c.coupe);
+    bulles.push(' '    bulles.push(' \
+  'la page ne porte plus le texte des bulles'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

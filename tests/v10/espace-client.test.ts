@@ -279,7 +279,7 @@ describe('l\'espace client', () => {
   // l'entreprise imprime) et sur la pièce réduite (ce que le client reçoit). Chaque champ imprimé est
   // présent, avec une valeur qui se voit : un champ oublié dans les listes fermées change le document.
   it('une pièce réduite à ce qu\'elle imprime s\'imprime exactement comme la pièce entière', () => {
-    const C = ecranDeLaPlateforme('core.js') as { documentHtml: (d: unknown, c: unknown, s: unknown, o: unknown) => string; qrImage: ((texte: string) => string) | null };
+    const C = ecranDeLaPlateforme('core.js') as { documentHtml: (d: unknown, c: unknown, s: unknown, o: unknown) => string; qrImage: ((texte: string) => string) | null; computeTotals: (d: unknown, s: unknown) => { lines: Record<string, unknown>[] } & Record<string, unknown> };
     const societe = {
       name: 'Atelier Ben Salah', matricule: '1234567/A/M/000', rc: 'B0123452026', capital: '20000', address: '12 rue de Marseille\n1000 Tunis',
       phone: '+216 71 000 000', email: 'contact@atelier.tn', website: 'atelier.tn', rib: '08 000 0001234567890 12', bank: 'Banque de Tunisie',
@@ -323,6 +323,17 @@ describe('l\'espace client', () => {
         subject: 'Cuisine équipée', reference: 'RFQ-12', notes: 'Pose comprise', lines: lignes, discountRate: 5, applyStamp: true, stampFee: 1, withholdingRate: 0 },
       { ...secrets, type: 'devis', number: 'DEV-2026-005', date: '2026-10-01', dueDate: '2026-10-31', status: 'accepté', lang: 'en', currency: 'EUR', exchangeRate: 3.35,
         subject: 'Kitchen', lines: lignes, discountRate: 0, applyStamp: false, withholdingRate: 0 },
+      // (1.273.0, audit du 04/11/2026, G03) Ce que le calcul a gagné depuis : la remise d'une ligne, la FODEC et son taux, les
+      // titres de section, les prix TTC, l'export et le seuil de la retenue. Retirés par le filtre, la facture de
+      // l'espace se recalculait à 119 DT au lieu de 108,171 DT.
+      { ...facture, discountRate: 0, fodecRate: 1, seuilRetenue: true, lines: [
+        { kind: 'titre', label: 'Fabrication' },
+        { ...lignes[0], discount: 10, fodec: true },
+        { kind: 'titre', label: 'Pose' },
+        { ...lignes[1], discount: 5 },
+      ] },
+      { ...facture, prixTtc: true, discountRate: 5, lines: [{ ...lignes[0], discount: 10 }, lignes[1]] },
+      { ...facture, export: true, applyStamp: false, lines: lignes.map((l) => ({ ...l, vatRate: 0 })) },
     ];
     let compares = 0;
     // Le code QR se dessine par le point d'extension du moteur : ici, un dessin qui écrit ce qu'il reçoit.
@@ -335,7 +346,12 @@ describe('l\'espace client', () => {
         }
       }
     }
-    expect(compares).toBe(42);
+    expect(compares).toBe(60);
+    // Le montant que l'espace imprime est celui de la pièce, au millime, pour chacune.
+    // Le coût d'une ligne et son article restent dans l'entreprise : ils ne comptent dans aucun montant.
+    type Totaux = { lines: Record<string, unknown>[] } & Record<string, unknown>;
+    const montants = (t: Totaux) => ({ ...t, lines: t.lines.map((l) => { const c = { ...l }; delete c.unitCost; delete c.itemId; return c; }) });
+    for (const p of pieces) expect(montants(C.computeTotals(nettoyerPiece(p), nettoyerSociete(societe)))).toEqual(montants(C.computeTotals(p, societe)));
     expect(C.documentHtml(facture, client, societe, {})).toContain('<svg data-qr="https://elfatoora.tn/verif?ref=TTN260000000042"></svg>');
     C.qrImage = null;
     expect(nettoyerPiece(facture).ttn).toEqual({ reference: 'TTN260000000042', qr: 'https://elfatoora.tn/verif?ref=TTN260000000042' });

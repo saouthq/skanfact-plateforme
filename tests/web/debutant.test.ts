@@ -95,6 +95,10 @@ describe('le lot débutant (1), à la souris', () => {
     await poser(jeton, ent, [{ collection: '_racine', cle: 'company', rang: null, revision: f?.revision ?? null,
       contenu: { ...f?.contenu, name: 'Amine Informatique', address: 'Avenue Habib Bourguiba\n4000 Sousse', matricule: '1234' } }]);
     const { p, erreurs, fermer } = await ouvrir(jeton, ent, '#/parametres');
+    // Les visites se chargent au premier geste qui les demande (1.273.0, L9) : « Guide-moi », ouvert puis refermé.
+    await p.locator('#guide-moi').click();
+    await p.waitForFunction(() => 'SkanVisites' in window);
+    await p.keyboard.press('Escape');
     // La preuve de la visite « Compléter ma fiche » : sa fin (« Ta fiche est à jour ») est fausse sur ce matricule.
     const ficheAJour = () => p.evaluate(() => {
       const w = window as unknown as { SkanVisites: { parcours: (c: unknown) => { id: string; preuve: () => boolean }[] }; __data: unknown };

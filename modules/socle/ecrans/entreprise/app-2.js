@@ -6747,7 +6747,7 @@
     const notes = [];
     arts.forEach((a, i) => {
       const titre = C.plier(a.title), sous = C.plier(a.sub);
-      const corps = C.plier(sansBalises(a.body));
+      const corps = C.plier(sansBalises(a.body || ''));
       if (!mots.every(m => titre.includes(m) || sous.includes(m) || corps.includes(m))) return;
       const rang = mots.every(m => titre.includes(m)) ? 0
         : mots.every(m => `${titre} ${sous}`.includes(m)) ? 1 : 2;
@@ -6780,7 +6780,7 @@
     const mots = aideMots(q);
     // `sansBalises` remplace chaque balise par une espace : un titre collé à la phrase suivante
     // donnerait « comptable . La TVA ». On recolle la ponctuation, sinon l'extrait a l'air cassé.
-    const texte = sansBalises(a.body).replace(/\s+([.,)])/g, '$1').trim();
+    const texte = sansBalises(a.body || '').replace(/\s+([.,)])/g, '$1').trim();
     const bas = plierPareil(texte);
     let i = -1;
     mots.forEach(m => { const k = bas.indexOf(m); if (k >= 0 && (i < 0 || k < i)) i = k; });
@@ -6855,7 +6855,33 @@
   const visitesEtat = () => Object.assign({ faites: {}, reprise: null, vues: {}, proposer: true }, prefs.get(VISITES_PREF, {}) || {});
   const visitesPoser = modif => { const e = visitesEtat(); modif(e); prefs.set(VISITES_PREF, e); };
   let VISITES = null;
-  const visites = () => VISITES || (VISITES = SkanVisites.parcours({
+  // (1.273.0, L9 ; docs/leger.md) Les visites ne partent plus avec la page : `visite.js` (le moteur) et `visites.js` (le
+  // contenu) se chargent au premier geste qui les demande (`chargerVisites`). Avant, aucune visite n'existe : la liste
+  // est vide, et ce qui les montre les charge d'abord.
+  const visitesChargees = () => typeof SkanVisites !== 'undefined' && typeof Visite !== 'undefined';
+  const visiteEnCours = () => typeof Visite !== 'undefined' && Visite.enCours();
+  let visitesInstallees = false;
+  async function chargerVisites(silencieux) {
+    const ok = (typeof Visite !== 'undefined' || await chargerScript('visite.js'))
+      && (typeof SkanVisites !== 'undefined' || await chargerScript('visites.js'))
+      && await chargerTextes();
+    if (!ok) {
+      if (!silencieux) toast(SANS_RESEAU_VISITES, true);
+      return false;
+    }
+    if (!visitesInstallees) { visitesInstallees = true; installerVisites(); }
+    return true;
+  }
+  // Ce que l'accueil et la porte du premier jour disent de la découverte et des premiers pas AVANT que les visites soient
+  // chargées : leur durée et leurs chapitres. Un test le confronte aux visites (tests/v10/visites-en-ligne.test.ts) :
+  // un résumé qui ne dirait plus la même chose qu'elles fait tomber le test, jamais l'accueil.
+  const RESUME_VISITES = { decouvrir: { duree: '12 min', chapitres: 12 }, 'premiers-pas': { duree: '3 min', chapitres: 1 } };
+  function resumeVisite(id) {
+    const v = visiteParId(id);
+    if (v) return { duree: v.duree, chapitres: Visite.chapitres(v.etapes || []).length };
+    return RESUME_VISITES[id] || null;
+  }
+  const visites = () => VISITES || (!visitesChargees() ? [] : VISITES = SkanVisites.parcours({
     data: () => data, premier: premierObjet, estDemo: () => C.estDemo(data), editeur: () => !!licence.editeur, Visite, G,
     // Les données sont-elles déjà chiffrées ? La visite du mot de passe n'a alors plus rien à faire.
     chiffre: () => !!security.encrypted
@@ -6955,7 +6981,9 @@
     }
   }
 
+  // `p` : la visite, ou son identifiant (1.273.0, L9 : les visites se chargent alors d'abord).
   async function lancerVisite(p, depart) {
+    if (typeof p === 'string') p = await chargerVisites() ? visiteParId(p) : null;
     if (!p) return;
     // Rien ne reste ouvert par-dessus l'écran qu'on va montrer : la palette, une bulle « i », une
     // liste déroulante, le sélecteur d'entreprise, un menu.
@@ -7011,7 +7039,7 @@
   // découverte — le moment où l'on a vu, et où l'on veut faire pour de vrai.
   async function actionDeVisite(id) {
     if (id === 'passer-au-reel') {
-      if (await demoSortie('premiers-pas')) lancerVisite(visiteParId('premiers-pas'));
+      if (await demoSortie('premiers-pas')) lancerVisite('premiers-pas');
     } else if (id === 'rester') {
       toast('Bonne exploration ! « Quitter l\'exemple », en haut de chaque page, te rend tes données.');
     }
@@ -7035,7 +7063,8 @@
   }
   const minuscule = t => String(t || '').charAt(0).toLowerCase() + String(t || '').slice(1);
   const VISITES_DES_PAS = new Set(['premiers-pas', ...Object.values(PAS_VISITES)]);
-  Visite.installer({
+  // Le moteur reçoit ses gestes une fois chargé (1.273.0, L9 : `chargerVisites`).
+  const installerVisites = () => Visite.installer({
     aller: hash => vers(hash)(),
     hash: () => location.hash || '#/dashboard',
     parcours: visiteParId,
@@ -7108,19 +7137,26 @@
   }
   function appelGuide(route, reprise) {
     // Sur « Me guider » et sur l'Aide, la page EST déjà l'invitation : la proposer encore serait du bruit.
-    if (!data || Visite.enCours() || route === 'guide' || route === 'aide') return;
+    if (!data || visiteEnCours() || route === 'guide' || route === 'aide') return;
     // (plateforme, Support S2) En lecture pour le support, la page n'est pas celle de qui la lit : aucune invitation (vue le
     // 14/10/2026 par-dessus la fenêtre qui ferme la lecture).
     if (bridge.lecture) return;
-    const p = visitePage(route);
     const et = visitesEtat();
-    if (!p || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX)) return;
+    // (1.273.0, L9) Ce qui la tait sans lire les visites passe d'abord : elles ne se chargent que pour une invitation
+    // qui peut encore se montrer, puis l'invitation reprend, si l'on est toujours sur la page.
+    if (!et.proposer || et.faites['page-' + route] || (!reprise && (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX)) return;
     if (visiteProposeeIci && !reprise) return;
     // Deux invitations l'une sous l'autre se contredisent (7.18.0) : quand l'accueil propose déjà
     // « Nouveau sur SkanFact ? », la visite de la page se tait — et ne compte pas cette ouverture.
     // (plateforme, lot onboarding) Les premiers pas sont l'invitation de l'accueil : la bulle de la visite de la page s'y
     // posait par-dessus, et couvrait le tiers de l'écran d'un téléphone (vu sur app.skanfact.tn le 09/10/2026).
     if ($('#view .pp-accueil, #view .premiers-pas')) return;
+    if (!visitesChargees()) {
+      chargerVisites(true).then(ok => { if (ok && cleDePage(location.hash) === route) appelGuide(route, reprise); });
+      return;
+    }
+    const p = visitePage(route);
+    if (!p) return;
     const bouton = $('#guide-moi');
     // Une page asynchrone n'a pas encore son en-tête : l'invitation attend le bouton (`poserGuideMoi`).
     if (!bouton) { appelEnAttente = route; return; }
@@ -7257,7 +7293,25 @@
     if (v.reel && ex) return 'Quitter l\'exemple et ' + verbe;
     return verbe.charAt(0).toUpperCase() + verbe.slice(1);
   }
-  routes.guide = () => {
+  // (1.273.0, L9) Une page qui lit les visites ou le texte de l'aide les attend : son titre et « Un instant… », puis la
+  // page entière, redessinée si l'on y est toujours. Sans réseau et jamais chargés : la page le dit, et se redessine
+  // seule au retour du réseau.
+  function attendreAvant(pret, charger, titre, sansReseau, dessiner) {
+    return parts => {
+      if (pret()) return dessiner(parts);
+      const hash = location.hash;
+      $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)}</h1></div><p class="muted" data-attente-page>Un instant…</p>`;
+      return charger(true).then(ok => {
+        if (location.hash !== hash) return;
+        if (ok) { render(true); return; }
+        const p = $('[data-attente-page]');
+        if (p) p.textContent = sansReseau;
+        window.addEventListener('online', () => { if (location.hash === hash) render(true); }, { once: true });
+      });
+    };
+  }
+  const SANS_RESEAU_VISITES = 'Les visites guidées ne sont pas encore sur ce poste, et le réseau manque : elles se chargent dès qu\'il revient.';
+  const pageGuide = () => {
     const et = visitesEtat();
     const toutes = visitesVisibles();
     const gestes = toutes.filter(v => v.type !== 'page');
@@ -7413,7 +7467,8 @@
     if (guideQ) filtrer();
   };
 
-  routes.aide = (parts) => {
+  routes.guide = attendreAvant(visitesChargees, chargerVisites, 'Me guider', SANS_RESEAU_VISITES, pageGuide);
+  const pageAide = (parts) => {
     const arts = G.ARTICLES;
     const vise = parts && parts[0] ? parts[0] : '';
     // `#/aide` seul ouvre l'ACCUEIL. Avant, il ouvrait d'office le premier article : on ne voyait
@@ -7554,6 +7609,7 @@
     $('#aide-idee').onclick = ideeForm;
     if ($('#aide-demandes')) $('#aide-demandes').onclick = () => navigate('#/support');
   };
+  routes.aide = attendreAvant(textesPrets, chargerTextes, 'Aide', SANS_RESEAU_AIDE, pageAide);
 
   // ---------- signaler un problème (6.6.0) ----------
   // Un rapport utile tient en trois choses : ce qui s'est passé, la version, et le journal technique.
@@ -9367,8 +9423,8 @@
         // ce qu'elles demandent se lisent sur `OB.STEPS` ; la durée et les chapitres de la découverte,
         // sur la visite elle-même : un compte recopié à la main mentirait au premier écran ajouté.
         if (s.porte) {
-          const dec = visiteParId('decouvrir');
-          const nChap = dec ? Visite.chapitres(dec.etapes).length : 0;
+          const dec = resumeVisite('decouvrir');
+          const nChap = dec ? dec.chapitres : 0;
           const quoi = C.liste(questions.map(x => x.quoi));
           return `<div class="setup-porte">
             <p class="sp-lead">Deux façons de commencer — et tu peux faire l'une puis l'autre.</p>
@@ -9659,7 +9715,7 @@
   // l'assistant reprend là où la porte l'a laissé : personne ne reste devant un accueil vide sans
   // savoir par quoi commencer.
   async function decouvrirDepuisLaPorte() {
-    if (await loadDemo('decouvrir')) { lancerVisite(visiteParId('decouvrir')); return; }
+    if (await loadDemo('decouvrir')) { lancerVisite('decouvrir'); return; }
     if (await reprendreAssistant()) render();
   }
   // L'assistant que la porte a laissé EN ATTENTE, repris là où il s'était arrêté (« Ton entreprise ») :
@@ -9920,7 +9976,7 @@
     if (bridge.visiteDemandee) {
       const demandee = bridge.visiteDemandee();
       if (demandee === 'exemple') { if (!C.estDemo(data)) loadDemo(); }
-      else if (demandee) { const v = visiteParId(demandee); if (v) lancerVisite(v); }
+      else if (demandee) lancerVisite(demandee);
     }
     if (bridge.ouvertureDemandee && bridge.ouvertureDemandee() === 'abonnement') allerAbonnement();
     if (loaded && loaded.corruptFile) {

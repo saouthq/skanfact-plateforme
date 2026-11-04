@@ -153,13 +153,29 @@ servaient pas à la première ouverture :
 - **Reste en réserve** : les visites guidées (environ 100 Ko compressés), à différer avec leur moteur ; la marge est de
   24 Ko : la prochaine page refaite se mesure avant d'être envoyée.
 
-## L9 (prévu, 1.273.0) : les visites et l'aide à la demande
+## L9 : les visites et l'aide à la demande (04/11/2026, 1.273.0)
 
-Le 04/11/2026, GitHub a mesuré S1 à **1 399 Ko** pour un seuil de 1 300 (la paie refaite pour le quotidien, 1.267 à
-1.271, et le menu à six familles). Une mesure qui dépasse change le plan, pas le seuil. Le levier gardé depuis L7 est pris,
-comme décidé au cadrage (17 § 9, décision 3) : les visites guidées (`visite.js`, `visites.js`, environ 73 Ko compressés) et le
-texte des articles d'Aide (environ 38 Ko) ne partent plus à la première ouverture ; ils se chargent au premier geste qui les
-demande (« Guide-moi », l'Aide, la recherche), et se gardent alors pour le hors-ligne.
+Le 04/11/2026, GitHub a mesuré S1 à **1 399 Ko** pour un seuil de 1 300. La paie refaite pour le quotidien (1.267 à
+1.271) et le menu à six familles l'avaient fait grossir. Une mesure qui dépasse change le plan, pas le seuil. On prend le
+levier gardé depuis L7, comme décidé au cadrage (17 § 9, décision 3).
+
+Mesuré fichier par fichier sur la connexion lente (`tests/lien-lent.ts` compte désormais les octets de chaque demande) :
+`guide.js` pesait 94 Ko, dont 61 Ko pour l'explication des bulles « i » et 38 Ko pour le corps des articles d'Aide ;
+`visites.js` et `visite.js` pesaient ensemble 75 Ko.
+
+- **Les visites guidées** (`visite.js`, `visites.js`) ne sont plus dans la page. Elles se chargent au premier geste qui
+  les demande : « Guide-moi », la page « Me guider », la recherche, une visite lancée d'un bouton, ou l'invitation
+  « Première fois sur cette page ? » quand elle peut encore se montrer. L'accueil et la porte du premier jour disent
+  avant cela la durée et les chapitres de la découverte grâce à un résumé (`RESUME_VISITES`, dans `app-2.js`). Un test
+  le confronte aux visites elles-mêmes (`tests/v10/visites-en-ligne.test.ts`).
+- **Le texte de l'aide** est coupé de `guide.js` à la construction (`web/decouper-guide.ts`, sur l'arbre du script,
+  comme pour les commentaires). Il part dans `guide-textes.js`. La page garde le titre de chaque bulle (la bulle se
+  pose et se nomme) et le titre de chaque article. Le texte arrive à la première bulle ouverte, à l'Aide ou à la
+  recherche. Le fichier du dépôt reste un seul fichier ; Node et le développement le lisent entier.
+- Un fichier chargé ainsi est gardé par le service des écrans au passage, pour le hors-ligne. Sans réseau et jamais
+  chargé, la page le dit (« … le réseau manque : elles se chargent dès qu'il revient ») et se redessine au retour du réseau.
+- **Mesuré** : S1 **1 243 Ko en 13,9 s** (1 243 Ko avec la copie gardée ; 1 397 Ko avant) ; S2 inchangé (6 Ko, 1,8 s).
+  La marge est de 57 Ko.
 
 ## Ce qui reste (et pourquoi)
 
@@ -173,9 +189,8 @@ demande (« Guide-moi », l'Aide, la recherche), et se gardent alors pour le hor
   la mesure se fait en HTTP/1.1, le cas le plus lent.
 - **Brotli 11 à la construction** : environ 8 % de moins encore (mesuré avant L6 : 80 Ko de S1, pour 7 s de calcul) ;
   quand on préparera la mise en production.
-- **Les visites guidées** (`visite.js`, `visites.js` : environ 80 Ko compressés après L6 ; `guide.js` porte aussi les
-  bulles « i » de chaque champ) pourraient ne se charger qu'à la demande ; pas nécessaire pour tenir les seuils, à
-  reconsidérer si un écran neuf les fait dépasser.
+- **En réserve après L9** : la feuille de la messagerie (12 Ko) avec la messagerie, et celles de la paie (27 Ko) à la
+  première page du Personnel.
 
 ## Ce que fait la brique 119 : relire le dossier par différence (S4, 01/10/2026)
 

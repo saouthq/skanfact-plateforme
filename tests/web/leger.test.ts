@@ -26,6 +26,7 @@ import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { lireEcran, lireTable } from '../../commun/assemblage.ts';
 import { DOSSIERS_ALLEGES, PRECOMPRESSER, scriptSansCommentaires, styleSansCommentaires } from '../../web/alleger.ts';
+import { decouperLeGuide } from '../../web/decouper-guide.ts';
 import { lienLent } from '../lien-lent.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
@@ -209,7 +210,9 @@ describe('léger sur une connexion lente', () => {
     let avant = 0;
     let apres = 0;
     for (const f of fichiers) {
-      const source = lireEcran(f);
+      // (1.273.0, L9) `v10/guide.js` part sans le texte de ses bulles et de ses articles (web/decouper-guide.ts) : il se
+      // compare à sa source ainsi découpée, et ce texte, à part, se relit plus bas.
+      const source = f === 'v10/guide.js' ? decouperLeGuide(lireEcran(f)).leger : lireEcran(f);
       const envoye = fs.readFileSync(path.join(dossier, f), 'utf8');
       avant += source.length;
       apres += envoye.length;
@@ -230,6 +233,10 @@ describe('léger sur une connexion lente', () => {
     }
     // Le gain, avant compression : plus d'un cinquième.
     expect(apres).toBeLessThan(avant * 0.8);
+    // Le texte de l'aide part à côté, sans un commentaire de plus que ce qu'il annonce, et c'est celui du dépôt.
+    const textes = fs.readFileSync(path.join(dossier, 'v10/guide-textes.js'), 'utf8');
+    expect(parseSync('guide-textes.js', textes).errors).toEqual([]);
+    expect(textes).toBe(decouperLeGuide(scriptSansCommentaires('v10/guide.js', lireEcran('v10/guide.js'))).textes);
     // Le code d'un tiers part tel quel, avec sa licence.
     expect(fs.readFileSync(path.join(dossier, 'tiers/qrcode.js')).equals(fs.readFileSync(path.join(depot, 'tiers/qrcode.js')))).toBe(true);
   });

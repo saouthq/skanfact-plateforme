@@ -44,6 +44,58 @@ describe('les propositions de visite, une par ouverture', () => {
   };
   const net = (s: string) => s.replace(/\s+/g, ' ').trim();
 
+  // (1.273.0, L9 ; docs/leger.md) Le texte de l'aide et les visites ne partent plus avec la page (la première ouverture
+  // dépassait 1 300 Ko) : ils arrivent au premier geste qui les demande, et ce geste aboutit — la bulle dit son texte,
+  // « Guide-moi » ouvre son menu, l'Aide ses articles. Les propositions de visite éteintes, rien ne les charge avant.
+  it('L9 : l\'aide et les visites arrivent au premier geste qui les demande, et ce geste aboutit', async () => {
+    const email = `ines-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Inès Gharbi', motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).jeton);
+    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Librairie El Kitab' })).id);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => {
+      if (!location.protocol.startsWith('http')) return;
+      sessionStorage.setItem('skanfact.jeton', j);
+      localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false }));
+    }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    const demandes: string[] = [];
+    p.on('request', (r) => demandes.push(new URL(r.url()).pathname));
+    const demande = (f: string) => demandes.some((d) => d === `/v10/${f}`);
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    await passerAssistant(p);
+    const bulle = p.locator('#view .i[data-info]').first();
+    await bulle.waitFor({ timeout: 20_000 });
+    await p.waitForTimeout(2_500);
+    for (const f of ['visite.js', 'visites.js', 'guide-textes.js']) expect(demande(f), f).toBe(false);
+    // Une bulle « i » : son explication arrive, à sa place.
+    await bulle.click();
+    const corps = p.locator('#info-pop .ip-body');
+    await expect.poll(async () => net(await corps.innerText()), { timeout: 10_000 }).not.toMatch(/^Un instant/);
+    expect(net(await corps.innerText()).length).toBeGreaterThan(40);
+    expect(demande('guide-textes.js')).toBe(true);
+    expect(demande('visite.js')).toBe(false);
+    await p.locator('#info-pop .ip-close').click();
+    // « Guide-moi » : les visites arrivent, et son menu s'ouvre avec la visite de la page et ses gestes.
+    await p.locator('#guide-moi').click();
+    const menu = p.locator('.guide-menu');
+    await menu.waitFor({ timeout: 10_000 });
+    expect(demande('visite.js') && demande('visites.js')).toBe(true);
+    expect(await menu.locator('button').count()).toBeGreaterThan(1);
+    await p.keyboard.press('Escape');
+    // L'Aide : ses articles, et l'un d'eux s'ouvre sur son texte.
+    await p.evaluate(() => { location.hash = '#/aide'; });
+    await p.locator('#view .help-art').first().waitFor({ timeout: 10_000 });
+    expect(await p.locator('#view .help-art').count()).toBeGreaterThan(10);
+    await p.locator('#view .help-art').first().click();
+    await expect.poll(async () => net(await p.locator('#view').innerText()).length, { timeout: 10_000 }).toBeGreaterThan(1_000);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  });
+
   it('la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint', async () => {
     const email = `nour-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nour Ayari', motDePasse: 'Un-bon-mot-de-passe' });

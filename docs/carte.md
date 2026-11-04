@@ -127,7 +127,11 @@ vaut pour tout le dépôt.*
   avec le dépôt `skanfact`. **À la construction**, nos scripts et nos styles (`v10`, `plateforme`, `espace`) perdent leurs
   commentaires et rien d'autre, chaque ligne à sa place (`web/alleger.ts`, 05/10/2026, `docs/leger.md` L6 : la
   première ouverture dépassait son seuil) ; un test relit l'arbre de syntaxe de chaque écran construit contre le
-  dépôt. Une erreur signalée depuis un poste pointe donc la ligne du dépôt.
+  dépôt. Une erreur signalée depuis un poste pointe donc la ligne du dépôt. Le texte des bulles et des articles d'Aide
+  quitte `v10/guide.js` pour `v10/guide-textes.js`, chargé au premier geste qui le lit, comme les visites guidées
+  (`web/decouper-guide.ts`, 04/11/2026, `docs/leger.md` L9).
+  - **L'audit global du 04/11/2026** : `docs/audit-global-2026-11-04.md` (le rapport) et `docs/audit-global-suivi.md`
+    (chaque constat, vérifié, corrigé, prouvé).
   - **L'assemblage** (1.266.8, lot R0a du `17` § 4.1 ; `commun/assemblage.ts`, `modules/assemblage.json`) : les gros
     fichiers servis (`v10/app.js`, `core.js`, `compta.js`, `guide.js`, `visites.js`, `cabinet/app.js`, `cabguide.js`,
     `cabvisites.js`, les deux ponts, les trois feuilles de la paie) sont chacun la **suite de leurs morceaux**, octet
@@ -160,7 +164,7 @@ vaut pour tout le dépôt.*
   - **Où vit le code des écrans** (1.266.11, lot A1 du `17` § 5) : `app.js`, `cabinet/app.js`, `core.js`, `compta.js`,
     les deux guides et les deux visites ne sont plus sous `web/public/v10/` mais sous `modules/socle/` (`ecrans/`,
     `moteur/`, `aide/`, `visites/`) ; la paie en est sortie, à l'identique, dans `modules/personnel/` (`ecrans/entreprise/
-    paie.js`, `ecrans/cabinet/paie.js`, `moteur/core-paie.js`, `moteur/compta-paie.js`, et ses trois feuilles de style
+    paie.js`, `ecrans/cabinet/paie.js`, `modules/personnel/moteur/core-paie.js`, `modules/personnel/moteur/compta-paie.js`, et ses trois feuilles de style
     sous `styles/`). Ce que le navigateur reçoit ne change pas d'un octet : `modules/assemblage.json` dit, pour chaque
     fichier servi, la suite de ses morceaux. Pour trouver une ligne d'un fichier servi : `origine()` de
     `commun/assemblage.ts`. Les deux ponts restent sous `web/public/plateforme/`.
@@ -287,7 +291,7 @@ vaut pour tout le dépôt.*
     `salairesAPayer`/`ordreDeVirementHtml` dans `core.js`, la fenêtre « Payer les salaires… »). La paie appliquée, lot 1 :
     « Le mois » tel que la maquette (1.222.0 ; `docs/maquettes/paie.html`, `docs/paie.md` « La paie appliquée » ;
     `paieDuMois`/`paieATraiter` dans `core.js`, `pHead`/`drawSlips`/`remettreBulletins`/`drawAnnee` dans `app.js`,
-    `web/public/plateforme/paie.css`, `tests/web/paie-mois.test.ts`) ; lot 2, les documents en aperçu fidèle (1.223.0 ; `apercuDocument`, cinq documents de `HR_DOCS`,
+    `modules/personnel/styles/paie.css`, `tests/web/paie-mois.test.ts`) ; lot 2, les documents en aperçu fidèle (1.223.0 ; `apercuDocument`, cinq documents de `HR_DOCS`,
     `tests/web/paie-documents.test.ts`) ; lot 3, le pointage à la main (1.224.0 ;
     `ptAujourdhui`, `ptPeriodeFenetre`, `drawPtSalarie`, `drawPtHoraires`, `tests/web/paie-pointage-main.test.ts`) ;
     lot 4, les salariés et la fiche d'un salarié (1.225.0 ; `drawEmployees`, `routes.salarie`) ; lot 5, congés demandés et

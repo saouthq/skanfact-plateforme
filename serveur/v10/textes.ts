@@ -59,6 +59,7 @@ declarerTextes({
   'v10.achat_lie_nature': 'l\'achat {numero} se rattache à une pièce qui n\'est ni une facture ni une dépense : rien n\'a été enregistré',
   'v10.achat_rattache': 'un avoir ou un acompte est rattaché à cet achat : détache-le (ou supprime-le) d\'abord, puis supprime l\'achat. Rien n\'a été supprimé',
   'v10.emise_ne_se_modifie_plus': 'la facture {numero} est émise : elle ne se modifie plus, on la corrige par un avoir',
+  'v10.pieces_a_la_racine': 'les pièces de vente s\'enregistrent une à une, pour que chacune soit contrôlée : rien n\'a été enregistré',
   'v10.emise_ne_s_efface_pas': 'la facture {numero} est émise : elle ne s\'efface jamais, on la corrige par un avoir',
   'ventes.encours_accord': '{client} dépasserait son encours autorisé de {depasse} ({encours} déjà dus, {piece} pour cette facture, {plafond} autorisés) : il faut l\'accord du propriétaire ou d\'un administrateur. Demande-le ; la facture s\'émettra une fois l\'accord donné',
   'ventes.remise_accord': '{client} : la remise de {taux} dépasse les {seuil} permis sans accord : il faut l\'accord du propriétaire ou d\'un administrateur. Demande-le ; la facture s\'émettra une fois l\'accord donné',
