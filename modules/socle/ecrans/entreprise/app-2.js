@@ -1284,7 +1284,7 @@
     // pas encore faire — ni mouvement, ni export d'un stock qui n'existe pas.
     const stHead = () => {
       const a = items.length ? ST_ACTION[s.tab] : null;
-      return `<h1>Stock</h1>
+      return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Stock</span></div><h1>Stock</h1><p class="sous">Ce que tu as en rayon, ce qui entre et sort, ce qu'il faut recommander</p></div>
         <div class="actions">
           ${items.length ? `<button class="btn" id="st-csv" data-csv="${h(s.tab)}">Exporter ${h(ST_LABELS[s.tab] || ST_LABELS.etat)}</button>` : ''}
           <button class="btn" id="st-war">Garanties</button>
@@ -1293,14 +1293,40 @@
         </div>`;
     };
     $('#view').innerHTML = `
-      <div class="page-head" id="st-head">${stHead()}</div>
+      <div class="page-head lf-tete" id="st-head">${stHead()}</div>
       ${items.length ? '' : etatVide('Ce que tu as en rayon', [
         'Le stock ne se saisit pas : il se déduit de tes achats et de tes ventes. Un article compté est un article du Catalogue marqué <b>« Suivi en stock »</b> : indique ce que tu as en rayon aujourd\'hui, et SkanFact suit le reste tout seul.',
         'Les prestations (du temps, du conseil) n\'ont pas de stock : on ne suit que de la marchandise.'],
         [['st-new', '+ Nouvel article suivi', true], ...(data.catalog.length ? [['st-pick', 'Choisir dans le Catalogue']] : [])])}
-      <div class="tabs" id="st-tabs" role="tablist" aria-label="Le stock" ${items.length ? '' : 'hidden'}>${STOCK_TABS.map(([id, label]) =>
-        `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}${id === 'alertes' && alerts.length ? ` <span class="nav-count">${alerts.length}</span>` : ''}</button>`).join('')}</div>
-      <div id="st-body"></div>`;
+      <div class="lf mg st" ${items.length ? '' : 'hidden'}>
+        <div class="cf-carte mg-resume" id="st-resume"></div>
+        <div class="mg-barre"><div class="pa-seg" id="st-tabs" role="tablist" aria-label="Le stock">${STOCK_TABS.map(([id, label]) =>
+          `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === s.tab}" class="${id === s.tab ? 'active' : ''}">${label}${id === 'alertes' && alerts.length ? ` <span class="nav-count">${alerts.length}</span>` : ''}</button>`).join('')}</div></div>
+        <div class="cf-carte"><div class="cf-onglet" id="st-body"></div></div>
+      </div>`;
+
+    // (1.277.0, la nouvelle DA, comme la Trésorerie) Les quatre chiffres du stock, au-dessus des onglets : redessinés à
+    // chaque dessin (un inventaire, un mouvement les changent). Ceux qui annoncent un problème ouvrent les alertes.
+    const chiffreS = (lbl2, val, sous, ton, bulle, stat) => `<div class="mg-chiffre"${stat ? ` data-stat="${stat}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}${bulle ? ' ' + info(bulle) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
+    function drawResume() {
+      const el = $('#st-resume'); if (!el) return;
+      const t = C.stockTotals(data);
+      // Un article sans prix de vente (une planche qu'on transforme, pas qu'on revend) ne vaut pas « 0 » vendu : il n'a pas
+      // de prix (10.12.0, une menuiserie).
+      const prix = t.rows.filter(r => Number(r.unitPrice) > 0), sans = t.rows.length - prix.length;
+      const vente = C.round3(prix.reduce((a, r) => a + Math.max(0, r.qty) * r.unitPrice, 0));
+      el.innerHTML = chiffreS('Valeur du stock', montantU(t.value, cur), `${pl(t.count, 'article')} suivi${sPl(t.count)}, au coût moyen`, '', 'stk.value')
+        + chiffreS('Sous le seuil', String(t.low), t.low ? 'à recommander — voir lesquels' : 'rien à recommander', t.low ? 'rouge' : 'vert', 'stk.min', t.low ? 'low' : '')
+        + chiffreS('Stocks négatifs', String(t.negative), t.negative ? 'une entrée manque quelque part — voir lesquels' : 'rien d\'impossible', t.negative ? 'rouge' : '', 'stk.negative', t.negative ? 'neg' : '')
+        + chiffreS('Prix de vente du stock', prix.length ? montantU(vente, cur) : '—', !prix.length ? 'aucun prix de vente fixé' : sans ? `ce qu'il rapporterait vendu — ${pl(sans, 'article')} sans prix, non compté${sPl(sans)}` : 'ce qu\'il rapporterait vendu', '');
+      // Un compteur rouge qui nomme un ensemble doit l'ouvrir (7.15.0).
+      $$('#st-resume [data-stat]').forEach(x => {
+        const go = e2 => { if (e2.target.closest('.i[data-info]')) return; s.tab = 'alertes'; marquerOnglet(); draw(); };
+        x.onclick = go;
+        x.onkeydown = e2 => { if (e2.key === 'Enter' || e2.key === ' ') { e2.preventDefault(); go(e2); } };
+      });
+    }
+    const marquerOnglet = () => $$('#st-tabs button').forEach(x => { x.classList.toggle('active', x.dataset.tab === s.tab); x.setAttribute('aria-selected', String(x.dataset.tab === s.tab)); });
 
     const qtyCell = (st) => `<span class="${st.negative ? 'warn-text' : st.low ? 'warn-text' : ''}"><strong>${pct(st.qty)}</strong>${st.unit ? ' ' + h(C.uniteAccordee(st.qty, st.unit)) : ''}</span>`;
 
@@ -1313,20 +1339,6 @@
       // lui, porte la sélection entière, jamais la page (2.2.0, 7.16.0).
       const pageEtat = paginate(rows, s.etat);
       $('#st-body').innerHTML = `
-        <div class="stats">
-          <div class="stat"><div class="lbl">Valeur du stock ${info('stk.value')}</div><div class="val">${C.money(t.value, cur)}</div><div class="sub">${pl(t.count, 'article')} suivi${sPl(t.count)}</div></div>
-          <div class="stat" ${t.low ? 'data-stat="low" role="button" tabindex="0"' : ''}><div class="lbl">Sous le seuil ${info('stk.min')}</div><div class="val ${t.low ? 'due' : ''}">${t.low}</div><div class="sub">${t.low ? 'à recommander — voir lesquels' : 'à recommander'}</div></div>
-          <div class="stat" ${t.negative ? 'data-stat="neg" role="button" tabindex="0"' : ''}><div class="lbl">Stocks négatifs ${info('stk.negative')}</div><div class="val ${t.negative ? 'due' : ''}">${t.negative}</div><div class="sub">${t.negative ? 'une entrée manque quelque part — voir lesquels' : 'rien d\'impossible'}</div></div>
-          ${(() => {
-            // Un article sans prix de vente (une planche qu'on transforme, pas qu'on revend) ne vaut
-            // pas « 0 » vendu : il n'a pas de prix. Le compter à zéro faisait annoncer « 0,000 DT, ce
-            // qu'il rapporterait vendu » sur 1 540 DT de bois (10.12.0, une menuiserie).
-            const prices = t.rows.filter(r => Number(r.unitPrice) > 0), sans = t.rows.length - prices.length;
-            const total = C.round3(prices.reduce((a, r) => a + Math.max(0, r.qty) * r.unitPrice, 0));
-            return `<div class="stat"><div class="lbl">Prix de vente du stock</div><div class="val">${prices.length ? C.money(total, cur) : '—'}</div>
-              <div class="sub">${!prices.length ? 'aucun prix de vente fixé' : sans ? `ce qu'il rapporterait vendu — ${pl(sans, 'article')} sans prix, non compté${sPl(sans)}` : 'ce qu\'il rapporterait vendu'}</div></div>`;
-          })()}
-        </div>
         <div class="panel"><h2>État du stock ${info('stk.state')}</h2>
           <div class="filters">
             <input type="search" id="st-q" placeholder="Rechercher un article…" value="${h(s.q)}">
@@ -1352,14 +1364,6 @@
       $('#st-q').oninput = e => { s.q = e.target.value; s.etat.page = 1; sansPerdreLaFrappe(e.target, drawState); };
       $('#st-only').onchange = e => { s.only = e.target.value; s.etat.page = 1; drawState(); };
       bindPager($('#st-body'), s.etat, () => drawState(), '#st-body');
-      // Un compteur rouge qui nomme un ensemble doit l'ouvrir (7.15.0) : ces deux-là annonçaient un
-      // problème et laissaient chercher les articles concernés à la main dans toute la liste.
-      const versAlertes = () => { s.tab = 'alertes'; $$('#st-tabs button').forEach(x => x.classList.toggle('active', x.dataset.tab === 'alertes')); draw(); };
-      $$('#st-body .stat[data-stat]').forEach(el => {
-        const go = e2 => { if (e2.target.closest('.i[data-info]')) return; versAlertes(); };
-        el.onclick = go;
-        el.onkeydown = e2 => { if (e2.key === 'Enter' || e2.key === ' ') { e2.preventDefault(); versAlertes(); } };
-      });
       $$('#st-body tr[data-iid]').forEach(tr => tr.onclick = () => navigate('#/article/' + tr.dataset.iid));
     }
 
@@ -1583,6 +1587,7 @@
     const draw = dansUnLot(() => {
       $('#st-head').innerHTML = stHead(); bindStHead(); poserGuideMoi();
       if (!items.length) { $('#st-body').innerHTML = ''; return; }
+      drawResume();
       if (s.tab === 'series') return drawSerials();
       if (s.tab === 'mouvements') return drawMoves();
       relireAlertes();
@@ -1592,7 +1597,7 @@
     });
     $$('#st-tabs button').forEach(b => b.onclick = () => {
       s.tab = b.dataset.tab;
-      $$('#st-tabs button').forEach(x => x.classList.toggle('active', x === b));
+      marquerOnglet();
       draw();
     });
     // Le bouton exportait l'état du stock quel que soit l'onglet ouvert : depuis « Mouvements », on

@@ -269,7 +269,7 @@ describe('les versions du service, à la souris', () => {
     try {
       const p = await ouvrir();
       await expect.poll(async () => net(await p.locator('.c-ve-consignes .c-alerte').innerText().catch(() => '')), { timeout: 10_000 })
-        .toMatch(/^Le suiveur n'a pas pu les lire à \d\d:\d\d, à son dernier tour : il n'installe rien tant qu'il ne les relit pas\. Les dernières lues, à \d\d:\d\d, restent ci-dessous\.$/);
+        .toMatch(/^Le suiveur n'a pas pu les lire à \d\d:\d\d, à son dernier tour : il n'installe rien tant qu'il ne les relit pas\. Les dernières lues, (?:hier )?à \d\d:\d\d, restent ci-dessous\.$/);
       expect(net(await p.locator('.c-ve-prochaine').innerText())).toContain('Prête, mais le suiveur n\'a pas pu lire les consignes à son dernier tour');
       expect(erreurs).toEqual([]);
       await fermer(p);

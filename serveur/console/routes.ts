@@ -307,7 +307,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   // ── La session ───────────────────────────────────────────────────────────────────────────────────────────────────────
   ajouter({
     methode: 'GET', chemin: '/console/moi', geste: 'console.session',
-    traiter: async (_r, tx) => ({ corps: { aujourdhui: aujourdhuiATunis(), ...await lireJson<Record<string, unknown>>(transaction(tx), 'select plateforme.console_moi() v') } }),
+    traiter: async (_r, tx) => ({ corps: { aujourdhui: aujourdhuiATunis(maintenant()), ...await lireJson<Record<string, unknown>>(transaction(tx), 'select plateforme.console_moi() v') } }),
   });
   ajouter({
     methode: 'POST', chemin: '/console/deconnexion', geste: 'console.session',
@@ -320,7 +320,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     traiter: async ({ qui }, tx) => {
       const role = roleDe(qui);
       const instant = maintenant();
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const veille = await lireLaVeille(fichierVeille, instant);
       // La technique ne lit aucune donnée de client (03 § 5) : ni la liste, ni ses chiffres, ni les demandes au support.
       // La liste : le calcul que l'écran Clients partage (C65), et l'instant où il a été fait.
@@ -425,7 +425,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   ajouter({
     methode: 'GET', chemin: '/console/entreprises', geste: 'console.clients.voir',
     traiter: async ({ query, qui }, tx) => {
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const role = roleDe(qui);
       // `frais=1` : « Actualiser » (C65) ; sinon le calcul partagé, s'il a moins d'une minute.
       const lu = await lesClients(tx, qui, jour, query.frais === '1');
@@ -464,7 +464,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     corps: z.object({ motif: z.string().max(400), filtres: z.record(z.string(), z.string().max(200)).optional() }),
     traiter: async ({ corps, qui }, tx) => {
       if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const f = corps.filtres ?? {};
       // Le même calcul que l'écran qu'on regarde (C65) : ce qui s'exporte est ce qui se voit.
       const s = selectionClients((await lesClients(tx, qui, jour)).valeur, jour, f);
@@ -483,7 +483,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       if (!uuid.safeParse(id).success) throw new Introuvable();
       const fiche = await lireJson<Record<string, unknown> | null>(transaction(tx), 'select plateforme.console_entreprise($1) v', [id]);
       if (!fiche) throw new Introuvable();
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const faits = await faitsDeLaFiche(transaction(tx), fiche);
       const etat = etatAbonnement(faits, jour);
       const ligne = lireLigne(fiche.ligne);
@@ -671,7 +671,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     traiter: async ({ params, qui, query }, tx) => {
       const id = params.id ?? '';
       if (!uuid.safeParse(id).success) throw new Introuvable();
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const s = selectionClients((await lesClients(tx, qui, jour)).valeur, jour, { ...query, q: '', vue: '', etat: '', type: '', offre: '', cabinet: '', nouvelles: '' });
       const o = s.gardees.find((x) => x.id === id && x.sorte === 'groupe');
       if (!o) throw new Introuvable();
@@ -700,7 +700,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     methode: 'GET', chemin: '/console/abonnements', geste: 'console.clients.voir',
     traiter: async ({ query }, tx) => {
       const t = transaction(tx);
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const entreprises = await lesEntreprises(t, jour);
       const extras = lireExtras(await lireJson(t, 'select plateforme.console_echeances() v'));
       // Ce que chaque prochaine facture dira (0113), par la règle de la facture : la liste des clients dit le même chiffre.
@@ -724,7 +724,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     methode: 'GET', chemin: '/console/cabinets', geste: 'console.clients.voir',
     traiter: async ({ query }, tx) => {
       const t = transaction(tx);
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const connues = new Set((await lesEntreprises(t, jour)).map((e) => e.id));
       const tous = lireCabinets(await lireJson(t, 'select plateforme.console_cabinets() v')).map((c) => ligneCabinet(c, connues));
       const gardes = chercherCabinets(tous, String(query.q ?? ''));
@@ -741,7 +741,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const t = transaction(tx);
       const cabinet = lireCabinets(await lireJson(t, 'select plateforme.console_cabinets() v')).find((c) => c.id === id);
       if (!cabinet) throw new Introuvable();
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const entreprises = await lesEntreprises(t, jour);
       // Son abonnement (0172) : la direction et le support le lisent ; la technique, non (aucune donnée de client).
       const role = roleDe(qui);
@@ -777,7 +777,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     if (!uuid.safeParse(id).success) throw new Introuvable();
     const fiche = await lireJson<Record<string, unknown> | null>(tx, 'select plateforme.console_entreprise($1) v', [id]);
     if (!fiche) throw new Introuvable();
-    const jour = aujourdhuiATunis();
+    const jour = aujourdhuiATunis(maintenant());
     const ligne = lireLigne(fiche.ligne);
     if (!memeLigne(ligne, lireLigne(corps.ligne))) throw new Perimee('console.abonnement_change');
     const faits = await faitsDeLaFiche(tx, fiche);
@@ -899,7 +899,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     traiter: async ({ query, qui }, tx) => {
       const m = CURSEUR.exec(query.avant ?? '');
       const n = limite(query);
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const f = filtresDuJournal(query, jour);
       const x = transaction(tx);
       // Les gestes réservés à la direction : ceux du journal dont le geste de la console n'est ouvert qu'à elle (lu dans la
@@ -931,7 +931,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     traiter: async ({ query }, tx) => {
       const debut = Math.max(Math.trunc(Number(query.debut ?? 0)) || 0, 0);
       const lu = await lireJson<{ total: number; lignes: unknown[] }>(transaction(tx), 'select plateforme.console_acces_tous($1, $2) v', [debut, maintenant()]);
-      return { corps: { aujourdhui: aujourdhuiATunis(), debut, total: lu.total, lignes: lu.lignes, parPage: 50 } };
+      return { corps: { aujourdhui: aujourdhuiATunis(maintenant()), debut, total: lu.total, lignes: lu.lignes, parPage: 50 } };
     },
   });
   // Exporter la sélection du journal : la direction seule, avec son motif ; le geste s'écrit au journal (le nombre de lignes
@@ -941,7 +941,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     corps: z.object({ motif: z.string().max(400), filtres: z.record(z.string(), z.string().max(200)).optional() }),
     traiter: async ({ corps }, tx) => {
       if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const q = corps.filtres ?? {};
       const f = filtresDuJournal(q, jour);
       const x = transaction(tx);
@@ -976,7 +976,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       if (!uuid.safeParse(params.membre).success) throw new Introuvable();
       const lu = await lireJson<Record<string, unknown> | null>(transaction(tx), 'select plateforme.console_appareils_membre($1, $2) v', [params.membre, maintenant()]);
       if (!lu) throw new Introuvable();
-      return { corps: { aujourdhui: aujourdhuiATunis(), ...lu } };
+      return { corps: { aujourdhui: aujourdhuiATunis(maintenant()), ...lu } };
     },
   });
   ajouter({
@@ -1009,7 +1009,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const lu = await lireJson<Record<string, unknown>>(transaction(tx), 'select plateforme.console_mon_compte($1) v', [maintenant()]);
       const role = qui?.console?.role ?? 'technique';
       return { corps: {
-        aujourdhui: aujourdhuiATunis(), ...lu, telephone: lu.telephone ? numeroMasque(String(lu.telephone)) : null,
+        aujourdhui: aujourdhuiATunis(maintenant()), ...lu, telephone: lu.telephone ? numeroMasque(String(lu.telephone)) : null,
         droits: LISTE_GESTES_CONSOLE.filter((g) => g.code !== 'console.session' && g.roles.includes(role)).map((g) => g.code),
       } };
     },
@@ -2196,7 +2196,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     methode: 'GET', chemin: '/console/paiements', geste: 'console.paiements.voir',
     traiter: async ({ query }, tx) => {
       const x = transaction(tx);
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const mois = moisDemande(query.mois, jour);
       const p = lirePaiements(await lireJson(x, 'select plateforme.console_paiements($1::date) v', [`${mois}-01`]));
       const e = p.editeur ? encaisse(p.recus, p.editeur, p.horsPlateforme) : null;
@@ -2266,7 +2266,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   ajouter({
     methode: 'GET', chemin: '/console/nos-factures', geste: 'console.factures.voir',
     traiter: async ({ query }, tx) => {
-      const jour = aujourdhuiATunis();
+      const jour = aujourdhuiATunis(maintenant());
       const mois = moisDemande(query.mois, jour);
       const n = lireNosFactures(await lireJson(transaction(tx), 'select plateforme.console_nos_factures($1::date) v', [`${mois}-01`]));
       const filtre: Filtre = FILTRES.includes(query.filtre as Filtre) ? query.filtre as Filtre : 'toutes';

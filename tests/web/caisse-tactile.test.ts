@@ -68,6 +68,9 @@ describe('la caisse tactile, à l\'écran', () => {
     // Le navigateur d'un commerçant est à l'heure de Tunis, comme le serveur (CI rouge du 01/10/2026 sur 6bf2b1b).
     const cx = await navigateur.newContext({ viewport: { width: o.largeur, height: o.hauteur }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', isMobile: !!o.doigt, hasTouch: !!o.doigt });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    // (rouge GitHub de 1.276.1) La proposition de visite arrivait après plusTard() sur une machine lente et couvrait la
+    // caisse : ce test ne la regarde pas, on ne la propose pas.
+    await cx.addInitScript(() => { if (location.protocol.startsWith('http')) localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false })); });
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));

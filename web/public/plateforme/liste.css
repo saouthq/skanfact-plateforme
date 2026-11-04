@@ -480,6 +480,11 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .mg-act .sel select { appearance: none; -webkit-appearance: none; height: 36px; padding: 0 30px 0 12px; border-radius: 10px; border: 1px solid var(--sb-trait); background: var(--sb-papier); font-size: 13.5px; font-weight: 500; color: var(--sb-encre); cursor: pointer; }
 .mg-act .sel svg { position: absolute; right: 10px; pointer-events: none; color: var(--sb-gris-2); }
 .lf.mg .cf-onglet { padding: 0; gap: 0; }
+/* (1.277.0) Le Stock dans la nouvelle DA : ses onglets gardent leurs panneaux d'avant, posés dans la carte avec la marge
+   de la fiche ; au téléphone, la barre des onglets défile au lieu de passer sur deux lignes. */
+.lf.mg.st .cf-onglet { padding: 14px 16px 16px; gap: 12px; }
+.lf.mg.st .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+.lf.mg.st .pa-seg button { flex: none; white-space: nowrap; }
 .lf.mg .mg-intro { padding: 12px 16px; font-size: 13px; color: var(--sb-gris); border-bottom: 1px solid var(--sb-trait); }
 .lf.mg .mg-f { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 16px; margin: 0; border-bottom: 1px solid var(--sb-trait); }
 .lf.mg .lf-tab { border: 0; border-radius: 0; box-shadow: none; }

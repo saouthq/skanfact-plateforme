@@ -81,6 +81,9 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    // (rouge GitHub de 1.276.1) La proposition d'une visite arrivait après le « Plus tard » d'ouvrir() sur une machine
+    // lente, et restait ouverte : le classeur attendait qu'elle se ferme. Ici, on ne la propose pas (ce test ne la regarde pas).
+    await p.addInitScript(() => { if (location.protocol.startsWith('http')) localStorage.setItem('cab.visites', JSON.stringify({ proposer: false })); });
     return { p, erreurs };
   }
   async function ouvrir(p: Page, cabinet: string, ent: string) {

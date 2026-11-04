@@ -24289,6 +24289,22 @@ prouver 'la paie nommée par le socle du moteur (le contrôle des frontières)' 
   ' journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresSupDuMois,' ' journeeBadges, anomaliesPointage, poserSortie, majorationsHs, heuresDuMoisDe, heuresSupDuMois,' \
   'le dépôt tient ses frontières : la mesure atteint chaque page, et la liste des écarts connus est à jour'
 
+# Le Stock dans la nouvelle DA (1.277.0).
+prouver 'stock 1.277 a : le chiffre rouge n'"'"'ouvre plus les alertes' modules/socle/ecrans/entreprise/app-2.js \
+  '        x.onclick = go;
+        x.onkeydown = e2 => { if (e2.key === '"'"'Enter'"'"' || e2.key === '"'"' '"'"') { e2.preventDefault(); go(e2); } };' '' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; un chiffre rouge ouvre les alertes ; au téléphone rien ne déborde'
+prouver 'stock 1.277 b : l'"'"'onglet ouvert ne le dit pas' modules/socle/ecrans/entreprise/app-2.js \
+  ' x.setAttribute('"'"'aria-selected'"'"', String(x.dataset.tab === s.tab));' '' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; un chiffre rouge ouvre les alertes ; au téléphone rien ne déborde'
+prouver 'stock 1.277 c : les onglets sur deux lignes au téléphone' web/public/plateforme/liste.css \
+  '.lf.mg.st .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+' '' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; un chiffre rouge ouvre les alertes ; au téléphone rien ne déborde'
+
+prouver 'console 1.277 : un jour lu du vrai calendrier' serveur/console/routes.ts \
+  'corps: { aujourdhui: aujourdhuiATunis(maintenant()), ...await lireJson' 'corps: { aujourdhui: aujourdhuiATunis(), ...await lireJson' \
+  'aucun jour de la console ne se lit du vrai calendrier : toujours de l'"'"'heure du contexte'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

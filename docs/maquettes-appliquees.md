@@ -769,3 +769,31 @@ Skander, 04/11/2026 : « d'accord pour Relances et Autres pièces, continue ».
   en haut d'un long achat, « Enregistrer » pendant que la photo se joint, la devise d'un achat neuf, la liste qui sortait
   de sa fenêtre — l'écran refait ne laisse plus voir ces défauts (raison écrite à côté de chacune, `tests/preuves.sh`).
 - **Reste rouge** : S1 (1 399 Ko pour 1 300) ; le levier est le lot suivant (`docs/leger.md`, L9).
+
+## Le Stock (1.277.0)
+
+Suite de la refonte des pages en attente dans la nouvelle DA (Skander, 04/11/2026 : « refonte d'autres pages en attente
+afin d'avoir une cohérence globale »). Sans maquette à part : l'écran reprend le modèle de la trésorerie (`.lf.mg`) et
+ajoute `.lf.mg.st`.
+
+- **L'en-tête** de la trésorerie : le chemin (Accueil › Stock), le titre, une phrase qui dit à quoi sert la page, les
+  gestes à droite.
+- **Quatre chiffres** en tête : la valeur du stock (au coût moyen, avec le nombre d'articles suivis), ce qui est sous le
+  seuil, les stocks négatifs, et le prix de vente du stock. Ce dernier ne compte pas les articles sans prix et le dit
+  (« 1 article sans prix »), pour qu'un chiffre bas ne se lise pas comme une perte.
+- Un chiffre **en rouge** (sous le seuil, négatif) ouvre les alertes, à la souris ou par Entrée.
+- **Les onglets** sont ceux de la barre des marges (`role=tab`, `aria-selected`). Au téléphone ils restent sur une ligne
+  et défilent ; rien ne déborde de l'écran.
+- L'ancien bloc de chiffres, en bas de l'état, est retiré : les mêmes chiffres ne se disent plus deux fois.
+- Test : `tests/web/stock-da.test.ts` (au bureau et au téléphone) ; preuves `stock 1.277 a-c`.
+
+**Avec, le rouge GitHub de 1.276.1**
+- **La console n'a qu'une horloge.** Ses routes écrivaient à l'heure du contexte mais lisaient leur jour du vrai
+  calendrier. Un essai lancé avant minuit et fini après voyait la reprise ouverte un jour plus tard, et la fiche d'un
+  groupe introuvable. Le jour se lit maintenant de la même horloge (`tests/console/une-horloge.test.ts`, preuve
+  `console 1.277`). Les autres parties du serveur lisent encore le vrai calendrier : sans effet tant qu'elles n'ont
+  qu'une horloge, à revoir le jour où l'une mélange les deux.
+- **La proposition de visite** arrivait, sur une machine lente, après le « Plus tard » des tests du classeur et de la
+  caisse, et restait ouverte (le classeur attend qu'une fenêtre se ferme pour se redessiner). Ces tests ne la proposent
+  plus ; la visite a ses propres tests.
+- Le test des versions accepte « hier à 23:32 » quand il passe minuit : l'écran disait juste.
