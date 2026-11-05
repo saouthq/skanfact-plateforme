@@ -145,5 +145,16 @@ Joué à la souris (ordinateur puis téléphone), une commande de 40 sacs de cim
 | G2 | 30 sacs reçus au lieu de 40 : la « Valeur reçue HT » restait celle de 40 (807,000 DT au lieu de 639,000). | Le résumé suit la saisie. |
 | G3 | Au téléphone, la frise restait en quatre colonnes et débordait (page de 438 px sur 390) : une règle posée plus loin dans `piece.css` écrasait celle du téléphone — sur l'achat aussi. | La règle du téléphone est reposée après elle. |
 
-Reste pour ce module : la demande de prix comparée (le tableau des réponses) à jouer dans la nouvelle présentation ; le
-bon de commande au téléphone joué avec la frise réparée.
+### Fait en 1.288.0 (05/11/2026) : la demande de prix comparée et le téléphone
+
+Joué à la souris : deux fournisseurs ont répondu (Grossiste Sfax 807,000 DT HT, Matériaux du Cap Bon 789,000 DT HT).
+
+| # | Trouvé | Fait |
+|---|---|---|
+| H1 | La colonne de droite disait « Rien n'attend » avec une coche ; le seul bouton vert était au fond du tableau des réponses. | Le grand bouton est « Commander chez » le moins cher pour l'ensemble, avec son total ; le tableau garde un bouton par fournisseur, sans vert. |
+| H2 | Commander chez l'un passait la commande « envoyée » (et proposait déjà « Recevoir ») sous un toast qui demandait de l'envoyer. | Elle devient la commande en brouillon ; son grand bouton est « Envoyer au fournisseur… » (PDF joint, puis « envoyée »). |
+| H3 | Au téléphone, les lignes d'une commande défilaient dans leur cadre : prix, TVA et total cachés à droite. | Une carte par ligne, comme l'achat (désignation, puis quantité, unité, prix, puis TVA, total). |
+| H4 | « 0 ligne sur 2 en entier » se lisait mal. | « 0 sur 2 lignes en entier ». |
+
+Le module des commandes fournisseurs est joué en entier (stock → commande → envoi → réception → facture ; demande de
+prix comparée ; téléphone). Suivant : les immobilisations.

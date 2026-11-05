@@ -182,7 +182,12 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(net(await p.locator('#sx-ttc').inputValue())).toBe('92,300');
     expect(await p.locator('#sx-date').inputValue()).toBe('22/09/2026');
     // La grille est là, cachée : « Au kilomètre » la montre (1.211.0 : aussi après un geste qui relit les pièces).
+    // (1.288.0, rouge GitHub de 27ac55d) Les pièces se relisent après la lecture : sur une machine lente, la grille était
+    // encore cachée quand on regardait, et réapparaissait au dessin suivant. Elle doit le rester, une fois tout relu.
     await expect.poll(() => p.locator('.sx-km').isHidden()).toBe(true);
+    await p.waitForLoadState('networkidle');
+    await p.waitForTimeout(1_500);
+    expect(await p.locator('.sx-km').isHidden()).toBe(true);
 
     // S1 : la farine, saisie par Sarra. Ses contrôles, et la charge « comme ses 2 factures d'avant ».
     await puce(p, 'Minoterie').click();

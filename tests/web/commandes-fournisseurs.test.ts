@@ -174,7 +174,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     expect(net(await p.locator('#receptions-panel').innerText())).toMatch(/^Réceptions i DÉSIGNATION COMMANDÉ REÇU RESTE Ciment gris 50 kg \(sac\) 100 60 40 Fer à béton 12 mm \(t\) 2,5 1,25 1,25 Transport 1 1 0 Réception : BR-\d{4}-001 \(validée, /);
     expect(await p.locator('#cf-recevoir').innerText()).toBe('Recevoir le reste');
     // Des sacs, des tonnes et un transport ne s'additionnent pas : la frise compte les lignes reçues en entier.
-    expect(net(await p.locator('#cf-frise li').nth(2).innerText())).toMatch(/^3 Reçue en partie 1 ligne sur 3 en entier/);
+    expect(net(await p.locator('#cf-frise li').nth(2).innerText())).toMatch(/^3 Reçue en partie 1 sur 3 lignes en entier/);
     await p.locator('#receptions-panel').scrollIntoViewIfNeeded();
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-3-recue-en-partie.png') });
     expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK (I )?60 SACS .* Réception BR-\d{4}-001 \+60 17,250 DT 60/i);

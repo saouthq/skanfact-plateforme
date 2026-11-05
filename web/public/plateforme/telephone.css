@@ -261,6 +261,23 @@
     #b-lines > tr > td:nth-child(5)::before { content: 'Destination'; }
     #b-lines > tr > td:nth-child(6)::before { content: 'TVA déductible'; }
     #b-lines > tr > td:nth-child(7)::before, #orf-lines > tr > td:nth-child(5)::before { content: 'Total HT'; }
+    /* (1.288.0, joué au téléphone) Les lignes d'une commande et d'une demande de prix, rangées de même : le prix, la TVA
+       et le total étaient cachés à droite du tableau qui défilait dans son cadre. */
+    table.buy-lines:has(> #cf-lines) { display: block; overflow: visible; }
+    table.buy-lines:has(> #cf-lines) > tbody { display: block; }
+    table.buy-lines:has(> #cf-lines) > thead { display: none; }
+    #cf-lines > tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "lab lab lab" "qte unite pu" "tva total outils"; column-gap: 6px; row-gap: 4px; align-items: start; }
+    #cf-lines > tr + tr { border-top: 1px solid var(--ink-soft); padding-top: 8px; }
+    #cf-lines > tr > td { display: block; width: auto !important; min-width: 0; border-top: 0; }
+    #cf-lines > tr > td :is(input, select) { min-width: 0; width: 100%; }
+    #cf-lines > tr > td:nth-child(1) { grid-area: lab; } #cf-lines > tr > td:nth-child(2) { grid-area: qte; }
+    #cf-lines > tr > td:nth-child(3) { grid-area: unite; } #cf-lines > tr > td:nth-child(4) { grid-area: pu; }
+    #cf-lines > tr > td:nth-child(5) { grid-area: tva; } #cf-lines > tr > td:nth-child(6) { grid-area: total; }
+    #cf-lines > tr > td:nth-child(7) { grid-area: outils; text-align: end; align-self: end; }
+    #cf-lines > tr > td:nth-child(-n + 6)::before { display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+    #cf-lines > tr > td:nth-child(1)::before { content: 'Désignation'; } #cf-lines > tr > td:nth-child(2)::before { content: 'Qté'; }
+    #cf-lines > tr > td:nth-child(3)::before { content: 'Unité'; } #cf-lines > tr > td:nth-child(4)::before { content: 'P.U. HT'; }
+    #cf-lines > tr > td:nth-child(5)::before { content: 'TVA'; } #cf-lines > tr > td:nth-child(6)::before { content: 'Total HT'; }
   }
 
   /* Une pièce émise : la phrase qui le dit, sa bulle et ses gestes ; le pourquoi est dans la bulle. Le bandeau prenait

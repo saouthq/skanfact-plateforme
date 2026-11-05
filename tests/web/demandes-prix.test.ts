@@ -126,19 +126,24 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     await p.locator('#save').click();
     await expect.poll(async () => net(await p.locator('#cf-comparer').innerText())).toMatch(/Ciment gris 50 kg 100 sac 17,250 DT 16,900 DT Total HT 1 725,000 DT 1 690,000 DT Commander chez Ciments de Bizerte Commander chez Béton du Nord/);
     expect((await p.locator('#cf-comparer b').allInnerTexts()).map(net)).toEqual(['16,900 DT', 'Total HT', '1 690,000 DT']);
-    expect(await p.locator('#cf-comparer .btn-primary').innerText()).toBe('Commander chez Béton du Nord');
+    // (1.288.0) L'étape suivante est dans la colonne de droite : commander chez le moins cher ; le tableau n'a plus de vert.
+    expect(await p.locator('#cf-comparer .btn-primary').count()).toBe(0);
+    expect(net(await p.locator('#ed-geste .btn-primary').innerText())).toBe('Commander chez Béton du Nord');
+    expect(net(await p.locator('#ed-geste .ed-phrase').innerText())).toMatch(/^Le moins cher pour l'ensemble : 1 690,000 DT HT\./);
     await p.locator('#cf-comparer').scrollIntoViewIfNeeded();
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'demandes-prix-2-comparaison.png') });
 
     // 6. Commander chez Béton du Nord : sa demande devient la commande, l'autre est écartée.
-    await p.locator('#cf-comparer .btn-primary').click();
+    await p.locator('#ed-geste .btn-primary').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-\d{4}-002/);
-    expect(net(await p.locator('#view .ed-h1').innerText())).toContain('envoyée');
+    // Elle devient la commande en brouillon : rien n'est encore parti, l'étape suivante est de l'envoyer.
+    expect(net(await p.locator('#view .ed-h1').innerText())).toContain('brouillon');
     expect(net(await p.locator('#cf-sous').innerText())).toBe('Béton du Nord');
-    expect(await p.locator('#cf-recevoir').innerText()).toBe('Recevoir');
+    expect(net(await p.locator('#ed-geste .btn-primary').innerText())).toBe('Envoyer au fournisseur…');
+    expect(net(await p.locator('#toast').innerText())).toMatch(/Envoie-la-lui : « Envoyer au fournisseur… »\.$/);
     await p.evaluate(() => { location.hash = '#/commandesf'; });
     await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 10_000 })
-      .toMatch(/BCF-\d{4}-002 Béton du Nord .* envoyée 1 690,000 DT BCF-\d{4}-001 Ciments de Bizerte .* annulée 1 725,000 DT/);
+      .toMatch(/BCF-\d{4}-002 Béton du Nord .* brouillon 1 690,000 DT BCF-\d{4}-001 Ciments de Bizerte .* annulée 1 725,000 DT/);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'demandes-prix-3-liste.png') });
     expect(erreurs).toEqual([]);
     await cn.close();
@@ -169,6 +174,9 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     await t.goto(`${serveur.adresse}/v10/?e=${ent}#/commandef/d1`);
     await expect.poll(() => titre(t), { timeout: 20_000 }).toMatch(/^Demande de prix BCF-2026-001/);
     await plusTard(t);
+    // (1.288.0) Les lignes se rangent en cartes : le prix répondu se lit dans l'écran, pas caché à droite d'un tableau qui défile.
+    const prix = await t.locator('#cf-lines [data-k=unitPrice]').first().boundingBox();
+    expect(prix && prix.x + prix.width).toBeLessThanOrEqual(390);
     await t.locator('#cf-comparer').scrollIntoViewIfNeeded();
     expect(await t.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await t.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'demandes-prix-4-telephone.png') });

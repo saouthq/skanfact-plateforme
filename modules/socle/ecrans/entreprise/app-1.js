@@ -14364,7 +14364,7 @@
     const lignesFinies = lignesSuivies.filter(x => x.recue + 0.0005 >= x.commandee).length;
     const avanceeCF = unitesCF.size <= 1
       ? `${pct(qRecu)} sur ${pct(qCmd)}${[...unitesCF][0] ? ' ' + h([...unitesCF][0]) : ''}`
-      : `${lignesFinies} ligne${lignesFinies > 1 ? 's' : ''} sur ${lignesSuivies.length} en entier`;
+      : `${lignesFinies} sur ${lignesSuivies.length} lignes en entier`;
     const sousCF = stored ? [h(supplierName(o.supplierId)), badgeCF(statut), o.dueDate ? `livraison souhaitée le ${h(C.fmtDate(o.dueDate))}${enRetardCF ? ' <span class="warn-text">— en retard</span>' : ''}` : '']
       : [o.status === 'demande' ? 'les prix se saisissent quand le fournisseur répond' : 'elle prend son numéro quand tu l\'enregistres'];
     const friseCF = () => {
@@ -14392,6 +14392,7 @@
     // (1.285.0, Skander : « respecter la DA de ce qu'on a déjà fait avec facture et devis ») Le squelette de l'achat et de la
     // facture : en-tête de pièce (‹, chemin, titre et sa pastille), frise, à gauche la pièce, à droite les totaux et UN
     // grand bouton — l'étape suivante, calculée ; les autres gestes restent à côté, en secondaires.
+    const moinsCherCF = groupe && groupe.demandes.length > 1 && groupe.moinsCher ? groupe.totaux.find(t => t.id === groupe.moinsCher) || null : null;
     const gesteCF = () => {
       const t = o.status === 'demande' && !o.lines.some(l => Number(l.unitPrice) > 0) ? null : C.computeTotals(o, company());
       const net = t ? `<div class="ed-net-tel"><span>${demande || o.status === 'demande' ? 'Total de la demande HT' : 'Total de la commande TTC'}</span><b id="ed-net-tel">${C.money(demande ? t.netHT : t.totalTTC, cur)}</b></div>` : '';
@@ -14403,9 +14404,14 @@
       if (!stored) phrase = o.status === 'demande' ? 'Elle prend son numéro à l\'enregistrement, puis part en PDF à chaque fournisseur.' : 'Elle prend son numéro à l\'enregistrement ; tu l\'envoies ensuite au fournisseur.';
       else if (demande) {
         prim = demandeSansPrix ? `<button class="btn btn-primary btn-grand" id="cf-pdf">${lfIc('envoi', 17)}Envoyer la demande (PDF)</button>`
-          : groupe.demandes.length < 2 ? `<button class="btn btn-primary btn-grand" id="cf-commander">${lfIc('coche', 17, 2.4)}Commander</button>` : '';
+          : groupe.demandes.length < 2 ? `<button class="btn btn-primary btn-grand" id="cf-commander">${lfIc('coche', 17, 2.4)}Commander</button>`
+          // (1.288.0, joué à la souris) Plusieurs réponses : l'étape suivante est de commander chez le moins cher ; la
+          // colonne disait « Rien n'attend » avec une coche, et le seul bouton vert était au fond du tableau.
+          : moinsCherCF ? `<button class="btn btn-primary btn-grand" data-commander="${h(moinsCherCF.id)}">${lfIc('coche', 17, 2.4)}Commander chez ${h(supplierName(moinsCherCF.supplierId))}</button>` : '';
         if (demandeSansPrix && groupe.demandes.length < 2) sec.push('<button class="btn" id="cf-commander">Commander</button>');
-        phrase = demandeSansPrix ? 'Les prix se saisissent quand le fournisseur répond.' : groupe.demandes.length > 1 ? 'Compare les réponses ci-dessous, puis commande chez l\'un.' : 'Les prix répondus sont saisis : la demande devient une commande.';
+        phrase = demandeSansPrix ? 'Les prix se saisissent quand le fournisseur répond.'
+          : groupe.demandes.length > 1 ? (moinsCherCF ? `Le moins cher pour l'ensemble : ${h(C.money(moinsCherCF.totalHT, company().currency))} HT. Compare ligne par ligne ci-dessous ; commander chez l'un écarte les autres demandes.` : 'Saisis les prix que chaque fournisseur a répondus : la comparaison se fait dès qu\'une réponse est complète.')
+          : 'Les prix répondus sont saisis : la demande devient une commande.';
       } else if (aEnvoyer) {
         prim = `<button class="btn btn-primary btn-grand" id="cf-envoyer">${lfIc('envoi', 17)}Envoyer au fournisseur…</button>`;
         if (aRecevoir) sec.push(`<button class="btn" id="cf-recevoir">${recevoirTxt}</button>`);
@@ -14418,7 +14424,7 @@
         prim = `<button class="btn btn-primary btn-grand" id="cf-facturer">${lfIc('carte', 17)}Saisir la facture du fournisseur</button>`;
         phrase = 'Tout est reçu : la facture se pré-remplit depuis les réceptions.';
       }
-      if (prim || !stored) return `<div class="panel ed-geste" id="ed-geste">${net}${stored ? prim : sauver}${phrase ? `<p class="ed-phrase">${phrase}</p>` : ''}${stored ? sauver : ''}${sec.length ? `<div class="ed-deux">${sec.join('')}</div>` : ''}</div>`;
+      if (prim || !stored || (demande && phrase)) return `<div class="panel ed-geste" id="ed-geste">${net}${stored ? prim : sauver}${phrase ? `<p class="ed-phrase">${phrase}</p>` : ''}${stored ? sauver : ''}${sec.length ? `<div class="ed-deux">${sec.join('')}</div>` : ''}</div>`;
       const etat = close ? (stored.status === 'soldée' ? 'Soldée : le reste n\'est plus attendu.' : 'Annulée.') : factures.length ? 'Reçue et facturée : plus rien n\'attend.' : 'Rien n\'attend.';
       return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${etat}</span></p>${sauver}</div>`;
     };
@@ -14473,7 +14479,7 @@
         <div class="scroll-x"><table class="list compact"><thead><tr><th>Désignation</th><th class="r">Qté</th>${groupe.demandes.map(d => `<th class="r">${d.id === o.id ? h(supplierName(d.supplierId)) : `<a href="#/commandef/${h(d.id)}">${h(supplierName(d.supplierId))}</a>`}</th>`).join('')}</tr></thead><tbody>
           ${groupe.lignes.map(l => `<tr><td>${h(l.label || '—')}</td><td class="r num">${pct(l.qty)}${l.unit ? ` <span class="small muted">${h(l.unit)}</span>` : ''}</td>${l.prix.map((v, j) => `<td class="r num nw">${v === null ? '<span class="muted">sans réponse</span>' : j === l.meilleur ? `<b>${h(C.money(v, company().currency))}</b>` : h(C.money(v, company().currency))}</td>`).join('')}</tr>`).join('')}
           <tr><td colspan="2"><b>Total HT</b></td>${groupe.totaux.map(t => `<td class="r num nw">${!t.complete ? '<span class="muted">incomplète</span>' : t.id === groupe.moinsCher ? `<b>${h(C.money(t.totalHT, company().currency))}</b>` : h(C.money(t.totalHT, company().currency))}</td>`).join('')}</tr>
-          <tr><td colspan="2"></td>${groupe.totaux.map(t => `<td class="r"><button class="btn btn-sm ${t.id === groupe.moinsCher ? 'btn-primary' : ''}" data-commander="${h(t.id)}">Commander chez ${h(supplierName(t.supplierId))}</button></td>`).join('')}</tr>
+          <tr><td colspan="2"></td>${groupe.totaux.map(t => `<td class="r"><button class="btn btn-sm" data-commander="${h(t.id)}">Commander chez ${h(supplierName(t.supplierId))}</button></td>`).join('')}</tr>
         </tbody></table></div>
         <p class="small muted mt">Prix hors taxes enregistrés, ramenés en ${h(company().currency)} ; le moins cher de chaque ligne est en gras. Commander chez l'un écarte les autres demandes.</p></div>` : ''}
       <div class="panel"><h2>Notes (imprimées sur la ${quoi})</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>
@@ -14690,10 +14696,12 @@
       const besoin = commandeSansAccord({ ...d, status: 'envoyée' }, d);
       if (besoin) return proposerAccordCommande({ ...d, status: 'envoyée' }, besoin, () => render(true));
       const autres = C.demandesDuGroupe(data, d).filter(x => x.id !== d.id);
-      d.status = 'envoyée';
+      // (1.288.0, joué à la souris) Elle devient la commande en brouillon : « envoyée » se disait avant que rien ne parte,
+      // sous un toast qui demandait de l'envoyer, et la page proposait déjà « Recevoir ». L'étape suivante est l'envoi.
+      d.status = 'brouillon';
       autres.forEach(x => { x.status = 'annulée'; x.nonRetenue = true; });
       save(true); dirty = false; clearGuard(garde);
-      toast(`${d.number} devient la commande chez ${supplierName(d.supplierId)}${autres.length ? ` ; ${autres.length > 1 ? autres.length + ' autres demandes sont écartées' : 'l\'autre demande est écartée'}` : ''}. Envoie-la-lui (PDF).`);
+      toast(`${d.number} devient la commande chez ${supplierName(d.supplierId)}${autres.length ? ` ; ${autres.length > 1 ? autres.length + ' autres demandes sont écartées' : 'l\'autre demande est écartée'}` : ''}. Envoie-la-lui : « Envoyer au fournisseur… ».`);
       if (d.id === o.id) render(true); else navigate('#/commandef/' + d.id);
     };
     if ($('#cf-commander')) $('#cf-commander').onclick = () => commanderDemande(o.id);

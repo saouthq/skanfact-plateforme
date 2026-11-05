@@ -4809,7 +4809,7 @@ prouver "le prix le moins cher d'une ligne qui ne se lit pas" modules/socle/ecra
   ": j === l.meilleur ? \`<b>" ": false ? \`<b>" \
   "$CFD"
 prouver "« Commander chez… » le moins cher qui n'est pas le bouton principal" modules/socle/ecrans/entreprise/app-1.js \
-  "\${t.id === groupe.moinsCher ? 'btn-primary' : ''}\" data-commander" "\" data-commander" \
+  "          : moinsCherCF ? \`<button class=\"btn btn-primary btn-grand\" data-commander" "          : false ? \`<button class=\"btn btn-primary btn-grand\" data-commander" \
   "$CFD"
 
 # ── Brique 90 : « À faire » annonce les achats et livraisons en attente (docs/commandes-fournisseurs.md) ──
@@ -24463,6 +24463,33 @@ prouver "la frise à quatre étapes qui reste en quatre colonnes au téléphone"
 prouver "« Ajouter un client » qui empile une fenêtre par clic pendant l'attente du serveur" modules/socle/ecrans/cabinet/app-2.js \
   "    if (ndEnCours || document.getElementById('nd-coller')) return;" "" \
   "une ligne fausse arrête tout ; la liste corrigée ajoute chaque client, un doublon est ignoré et nommé"
+
+# 1.288.0 : la demande de prix comparée, jouée à la souris.
+prouver "une commande tirée d'une demande de prix qui se dit envoyée avant d'être partie" modules/socle/ecrans/entreprise/app-1.js \
+  "      d.status = 'brouillon';" "      d.status = 'envoyée';" \
+  "$CFD"
+prouver "un second bouton vert au fond du tableau des réponses" modules/socle/ecrans/entreprise/app-1.js \
+  "<button class=\"btn btn-sm\" data-commander=\"\${h(t.id)}\">" "<button class=\"btn btn-sm btn-primary\" data-commander=\"\${h(t.id)}\">" \
+  "$CFD"
+
+prouver "les lignes d'une commande en tableau qui défile au téléphone (prix caché à droite)" web/public/plateforme/telephone.css \
+  "    table.buy-lines:has(> #cf-lines) { display: block; overflow: visible; }
+    table.buy-lines:has(> #cf-lines) > tbody { display: block; }
+    table.buy-lines:has(> #cf-lines) > thead { display: none; }
+    #cf-lines > tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: \"lab lab lab\" \"qte unite pu\" \"tva total outils\"; column-gap: 6px; row-gap: 4px; align-items: start; }
+    #cf-lines > tr + tr { border-top: 1px solid var(--ink-soft); padding-top: 8px; }
+    #cf-lines > tr > td { display: block; width: auto !important; min-width: 0; border-top: 0; }
+    #cf-lines > tr > td :is(input, select) { min-width: 0; width: 100%; }
+    #cf-lines > tr > td:nth-child(1) { grid-area: lab; } #cf-lines > tr > td:nth-child(2) { grid-area: qte; }
+    #cf-lines > tr > td:nth-child(3) { grid-area: unite; } #cf-lines > tr > td:nth-child(4) { grid-area: pu; }
+    #cf-lines > tr > td:nth-child(5) { grid-area: tva; } #cf-lines > tr > td:nth-child(6) { grid-area: total; }
+    #cf-lines > tr > td:nth-child(7) { grid-area: outils; text-align: end; align-self: end; }
+    #cf-lines > tr > td:nth-child(-n + 6)::before { display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+    #cf-lines > tr > td:nth-child(1)::before { content: 'Désignation'; } #cf-lines > tr > td:nth-child(2)::before { content: 'Qté'; }
+    #cf-lines > tr > td:nth-child(3)::before { content: 'Unité'; } #cf-lines > tr > td:nth-child(4)::before { content: 'P.U. HT'; }
+    #cf-lines > tr > td:nth-child(5)::before { content: 'TVA'; } #cf-lines > tr > td:nth-child(6)::before { content: 'Total HT'; }
+" "" \
+  "au téléphone, la comparaison des réponses tient dans la largeur"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
