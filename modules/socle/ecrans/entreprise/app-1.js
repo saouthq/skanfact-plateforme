@@ -14358,6 +14358,13 @@
     const enRetardCF = !!(stored && C.commandesFournisseurEnRetard(data).some(x => x.id === stored.id));
     const lignesSuivies = suivi ? suivi.lignes.filter(x => x.commandee > 0) : [];
     const qCmd = C.round3(lignesSuivies.reduce((a2, x) => a2 + x.commandee, 0)), qRecu = C.round3(lignesSuivies.reduce((a2, x) => a2 + Math.min(x.recue, x.commandee), 0));
+    // (1.287.0, joué à la souris) Des sacs et des mètres cubes ne s'additionnent pas : « 0 sur 43 » mêlait 40 sacs de
+    // ciment et 3 m³ de sable. Une seule unité se compte en quantités ; plusieurs, en lignes reçues en entier.
+    const unitesCF = new Set(lignesSuivies.map(x => x.unit || ''));
+    const lignesFinies = lignesSuivies.filter(x => x.recue + 0.0005 >= x.commandee).length;
+    const avanceeCF = unitesCF.size <= 1
+      ? `${pct(qRecu)} sur ${pct(qCmd)}${[...unitesCF][0] ? ' ' + h([...unitesCF][0]) : ''}`
+      : `${lignesFinies} ligne${lignesFinies > 1 ? 's' : ''} sur ${lignesSuivies.length} en entier`;
     const sousCF = stored ? [h(supplierName(o.supplierId)), badgeCF(statut), o.dueDate ? `livraison souhaitée le ${h(C.fmtDate(o.dueDate))}${enRetardCF ? ' <span class="warn-text">— en retard</span>' : ''}` : '']
       : [o.status === 'demande' ? 'les prix se saisissent quand le fournisseur répond' : 'elle prend son numéro quand tu l\'enregistres'];
     const friseCF = () => {
@@ -14371,7 +14378,7 @@
         { t: annulee ? 'Annulée' : 'Envoyée', fait: partie, alerte: annulee, d: partie ? 'au fournisseur' : annulee ? 'plus rien n\'est attendu' : `à ${h(supplierName(stored.supplierId))}`,
           g: aEnvoyer ? '<button type="button" class="btn btn-sm" data-frise="cf-envoyer">Envoyer</button>' : '' },
         { t: toutRecu ? 'Reçue' : qRecu > 0 ? 'Reçue en partie' : 'Reçue', fait: toutRecu, partiel: !toutRecu && qRecu > 0, alerte: enRetardCF,
-          d: qCmd ? `${pct(qRecu)} sur ${pct(qCmd)}${enRetardCF ? ' — en retard' : ''}` : '—',
+          d: qCmd ? `${avanceeCF}${enRetardCF ? ' — en retard' : ''}` : '—',
           g: aRecevoir && !aEnvoyer ? `<button type="button" class="btn btn-sm" data-frise="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : '' },
         { t: 'Facturée', fait: facturee && !aFacturer.length, partiel: facturee && aFacturer.length > 0,
           d: facturee ? factures.map(f => h(f.number || 'sans numéro')).join(', ') : aFacturer.length ? 'reçue, la facture manque' : 'à la réception',
@@ -14406,7 +14413,7 @@
       } else if (aRecevoir) {
         prim = `<button class="btn btn-primary btn-grand" id="cf-recevoir">${lfIc('depot', 17)}${recevoirTxt}</button>`;
         if (aFacturer.length) sec.push('<button class="btn" id="cf-facturer">Saisir la facture du fournisseur</button>');
-        phrase = `${qRecu ? `${pct(qRecu)} sur ${pct(qCmd)} reçus` : 'Rien n\'est encore arrivé'}${o.dueDate ? ` · livraison souhaitée le ${lfJm(o.dueDate)}` : ''}. Ce qui arrive entre en stock à la réception.`;
+        phrase = `${qRecu ? `Reçu : ${avanceeCF}` : 'Rien n\'est encore arrivé'}${o.dueDate ? ` · livraison souhaitée le ${lfJm(o.dueDate)}` : ''}. Ce qui arrive entre en stock à la réception.`;
       } else if (aFacturer.length) {
         prim = `<button class="btn btn-primary btn-grand" id="cf-facturer">${lfIc('carte', 17)}Saisir la facture du fournisseur</button>`;
         phrase = 'Tout est reçu : la facture se pré-remplit depuis les réceptions.';
@@ -14505,10 +14512,10 @@
         return;
       }
       const t = C.computeTotals(o, company());
-      $('#cf-totals').innerHTML = `<table>
+      $('#cf-totals').innerHTML = `<table class="ed-tot">
         <tr><td>Total HT</td><td>${h(C.money(t.netHT, cur))}</td></tr>
         <tr><td>TVA</td><td>${h(C.money(t.totalVAT, cur))}</td></tr>
-        <tr class="grand"><td>Total TTC</td><td>${h(C.money(t.totalTTC, cur))}</td></tr></table>`;
+        <tr class="trait"><td>Total TTC</td><td>${h(C.money(t.totalTTC, cur))}</td></tr></table>`;
       $$('#cf-lines tr').forEach((tr, i) => { const l = o.lines[i]; const c = tr.querySelector('[data-ht]'); if (l && c) c.textContent = C.money(C.round3((Number(l.qty) || 0) * (Number(l.unitPrice) || 0)), cur); });
       // Au-delà du montant permis sans accord, la page le dit avant le geste (brique 114).
       $('#cf-accord').innerHTML = avisAccordCommande(o, stored);
@@ -14756,18 +14763,60 @@
     const autres = cmd ? C.suiviCommandeFournisseur({ ...data, receptions: receptionsF().filter(x => x.id !== r.id) }, cmd) : null;
     const facturee = valide && !C.receptionsAFacturer(data).some(x => x.id === r.id);
     const facture = facturee ? (data.purchases || []).find(p => (p.receptions || []).some(x => x.id === r.id)) : null;
+    // (1.287.0, Skander : « respecter la DA de ce qu'on a déjà fait avec facture et devis ») La réception prend le squelette
+    // des pièces : en-tête (‹, chemin, titre et pastille), frise Commandée → Arrivée → En stock → Facturée, à gauche ce qui
+    // est arrivé, à droite son résumé et UN grand bouton, l'étape suivante (valider, puis saisir la facture).
+    const depotsR = C.depotsDe(data);
+    const curR = r.currency || (cmd && cmd.currency) || company().currency;
+    const titreR = r.number ? `Réception ${r.number}` : 'Réception (brouillon)';
+    const friseR = () => {
+      const etapes = [
+        { t: 'Commandée', fait: !!cmd, d: cmd ? `<a href="#/commandef/${h(cmd.id)}">${h(cmd.number || 'commande')}</a>` : 'sans commande' },
+        { t: 'Arrivée', fait: true, d: `${h(C.fmtDate(r.date))}${depotsR.length > 1 ? ' · ' + h(C.nomDepot(data, r.depotId || C.DEPOT_PRINCIPAL)) : ''}` },
+        { t: annulee ? 'Annulée' : 'En stock', fait: valide, alerte: annulee, d: valide ? 'entrée à la validation' : annulee ? 'ressortie du stock' : 'à la validation',
+          g: !ro ? '<button type="button" class="btn btn-sm" data-frise="rec-valider">Valider</button>' : '' },
+        { t: 'Facturée', fait: facturee, d: facture ? `<a href="#/achat/${h(facture.id)}">${h(facture.number || 'sans numéro')}</a>` : valide ? 'la facture manque' : 'après la validation',
+          g: valide && !facturee ? '<button type="button" class="btn btn-sm" data-frise="rec-facturer">Saisir la facture</button>' : '' },
+      ];
+      return `<div class="panel ed-frise quatre" id="rec-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : ''}${x.alerte ? ' alerte' : ''}">
+          <span class="rond" aria-hidden="true">${x.fait ? lfIc('coche', 13, 3) : i + 1}</span>
+          <span class="ed-fr-txt"><b>${x.t}</b><span>${x.d}</span></span>${x.g ? `<span class="ed-fr-geste">${x.g}</span>` : ''}
+          <span class="vh">${x.fait ? ' : fait' : ' : pas encore'}</span></li>`).join('')}</ol></div>`;
+    };
+    // Le résumé suit la saisie (joué à la souris : 30 sacs au lieu de 40 laissaient la valeur de 40).
+    const resumeR = () => {
+    const lignesRecues = r.lines.filter(l => Number(l.qty) > 0).length;
+    const valeurR = C.round3(r.lines.reduce((a, l) => a + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0));
+    return `<div class="totals-box" id="rec-resume"><table class="ed-tot">
+        <tr><td>Lignes reçues</td><td>${lignesRecues} sur ${r.lines.length}</td></tr>
+        ${depotsR.length > 1 ? `<tr><td>Dépôt</td><td>${h(C.nomDepot(data, r.depotId || C.DEPOT_PRINCIPAL))}</td></tr>` : ''}
+        ${valeurR > 0 ? `<tr class="trait"><td>Valeur reçue HT</td><td>${h(C.money(valeurR, curR))}</td></tr>` : ''}
+      </table></div>`;
+    };
+    const gesteR = () => {
+      const sauver = !ro ? '<button class="btn" id="save" hidden>Enregistrer le brouillon</button>' : '';
+      if (!ro) return `<div class="panel ed-geste" id="ed-geste"><button class="btn btn-primary btn-grand" id="rec-valider">${lfIc('depot', 17)}Valider la réception</button>
+        <p class="ed-phrase">Ce qui est reçu entre en stock à la validation${depotsR.length > 1 ? ', dans le dépôt choisi' : ''} ; elle prend alors son numéro.</p>${sauver}</div>`;
+      if (valide && !facturee) return `<div class="panel ed-geste" id="ed-geste"><button class="btn btn-primary btn-grand" id="rec-facturer">${lfIc('carte', 17)}Saisir la facture du fournisseur</button>
+        <p class="ed-phrase">La facture se pré-remplit depuis ${cmd && C.receptionsAFacturer(data).filter(x => x.orderId === r.orderId).length > 1 ? 'les réceptions de la commande' : 'cette réception'}.</p></div>`;
+      const etat = annulee ? 'Annulée : sa marchandise est ressortie du stock.' : 'Reçue et facturée : plus rien n\'attend.';
+      return `<div class="panel ed-geste ed-geste-calme" id="ed-geste"><p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${etat}</span></p>
+        ${facture ? `<div class="ed-deux"><a class="btn" href="#/achat/${h(facture.id)}">Voir la facture ${h(facture.number || '')}</a></div>` : ''}</div>`;
+    };
     $('#view').innerHTML = `
-      <div class="page-head">
-        <div><h1>${r.number ? `Réception ${h(r.number)}` : 'Réception (brouillon)'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1>
-          <div class="small muted">${h(supplierName(r.supplierId))}${cmd ? ` · commande <a href="#/commandef/${h(cmd.id)}">${h(cmd.number)}</a>` : ''} · ${badgeCF(r.status)}</div></div>
+      <div class="page-head ed-tete">
+        ${retourListe('#/commandesf/receptions', 'réceptions')}<div class="ed-titre">
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/commandesf" class="ed-retour">Commandes fournisseurs</a><span class="sep" aria-hidden="true">›</span>${cmd ? `<a href="#/commandef/${h(cmd.id)}">${h(cmd.number || 'commande')}</a><span class="sep" aria-hidden="true">›</span>` : ''}<span aria-current="page">${h(r.number || 'Réception')}</span></div>
+          <div class="ed-h1"><h1>${h(titreR)}</h1>${badgeCF(r.status)}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
+          <div class="small muted" id="rec-sous">${h(supplierName(r.supplierId))}${cmd ? ` · commande <a href="#/commandef/${h(cmd.id)}">${h(cmd.number)}</a>` : ''}</div>
+        </div>
         <div class="actions">
-          ${backButton(cmd ? '#/commandef/' + cmd.id : '#/commandesf/receptions')}
-          ${!ro ? '<button class="btn" id="save">Enregistrer</button><button class="btn btn-primary" id="rec-valider">Valider la réception</button>' : ''}
-          ${valide && !facturee ? '<button class="btn btn-primary" id="rec-facturer">Saisir la facture du fournisseur</button>' : ''}
-          ${facture ? `<a class="btn" href="#/achat/${h(facture.id)}">Voir la facture ${h(facture.number || '')}</a>` : ''}
-          ${annulee ? '' : `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
+          ${annulee ? '' : `<div class="more"><button class="btn ico" id="more-btn" aria-label="Tous les gestes de la pièce" title="Tous les gestes de la pièce">${lfIc('plus', 18)}</button><div class="more-list" id="more-list" hidden>
             ${valide ? '<button id="rec-annuler" class="danger">Annuler la réception…</button>' : '<button id="rec-del" class="danger">Supprimer</button>'}</div></div>`}
         </div></div>
+      <div class="buy-editor editor charte" data-devise="${h(curR)}">
+        <div class="ed-gauche">
+      ${friseR()}
       <div class="panel"><h2>Ce qui est arrivé ${info('rec.lignes')}</h2>
         <form id="rec-head" class="grid-3">${dateFieldHtml(lbl('Date de réception', ''), 'date', r.date, { ro: !!ro })}
           ${C.depotsDe(data).length > 1 ? `<label class="field">${lbl('Dépôt', 'dep.reception')}<select name="depotId" ${ro}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (r.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}</form>
@@ -14778,9 +14827,15 @@
             <td>${h(l.unit || '')}</td></tr>`; }).join('')}</tbody></table></div>
         <div id="rec-avis" class="mt"></div>
         <label class="field mt">Notes<textarea id="rec-notes" placeholder="État de la marchandise, numéro du bon de livraison du fournisseur…" ${ro}>${h(r.notes || '')}</textarea></label>
+      </div>
+        </div>
+        <aside class="ed-droite">
+          <div class="panel ed-totaux" id="rec-totaux">${resumeR()}</div>
+          ${gesteR()}
+        </aside>
       </div>`;
     let dirty = false;
-    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; };
+    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; enregistrerDevientPrincipal(); };
     // Ce qui arrive en plus de la commande se dit AVANT de valider (un avertissement se lit avant le geste).
     const avis = () => {
       const trop = autres ? r.lines.map(l => {
@@ -14790,7 +14845,7 @@
       }).filter(Boolean) : [];
       $('#rec-avis').innerHTML = trop.length ? `<div class="warn-box">${trop.map(h).join('<br>')}. Vérifie avant de valider : ce qui est reçu en plus entre quand même en stock.</div>` : '';
     };
-    $$('[data-rq]').forEach(el => { el.oninput = () => { r.lines[Number(el.dataset.rq)].qty = Number(el.value) || 0; touch(); avis(); }; });
+    $$('[data-rq]').forEach(el => { el.oninput = () => { r.lines[Number(el.dataset.rq)].qty = Number(el.value) || 0; touch(); avis(); $('#rec-totaux').innerHTML = resumeR(); }; });
     $('#rec-notes').oninput = e => { r.notes = e.target.value; touch(); };
     $('#rec-head').addEventListener('change', touch);
     avis();
@@ -14816,6 +14871,7 @@
     setGuard(garde);
     if ($('#save')) $('#save').onclick = () => { if (enregistrer(false)) { toast('Réception enregistrée (brouillon) : rien n\'est reçu tant qu\'elle n\'est pas validée.'); render(true); } };
     if ($('#rec-valider')) $('#rec-valider').onclick = () => { if (enregistrer(true)) { toast(`Réception ${r.number} validée : ${phraseStockReception(r)}`); render(true); } };
+    $$('#rec-frise [data-frise]').forEach(b => { b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); }; });
     if ($('#rec-facturer')) $('#rec-facturer').onclick = () => facturerReceptions(C.receptionsAFacturer(data).filter(x => x.orderId === r.orderId || x.id === r.id));
     if ($('#more-btn')) $('#more-btn').onclick = () => { $('#more-list').hidden = !$('#more-list').hidden; };
     if ($('#rec-del')) $('#rec-del').onclick = async () => {

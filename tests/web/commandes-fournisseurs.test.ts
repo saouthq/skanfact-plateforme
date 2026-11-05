@@ -140,19 +140,41 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     expect(await p.locator('#cf-recevoir').count()).toBe(0);
     await p.goForward();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception \(brouillon\)/);
+    // (1.287.0) La réception a le squelette des pièces : frise, un seul bouton principal (l'étape suivante), son résumé.
+    const principaux = () => p.locator('#view .btn-primary').evaluateAll((bs) => bs.filter((b) => !(b as HTMLElement).hidden).map((b) => (b as HTMLElement).innerText.trim()));
+    const etapesFaites = () => p.locator('#rec-frise li.fait').count();
+    expect(await principaux()).toEqual(['Valider la réception']);
+    expect(await etapesFaites()).toBe(2);
     await recu(0).fill('60');
     await recu(1).fill('1.25');
-    await p.locator('#rec-valider').click();
+    // Une quantité saisie : « Enregistrer le brouillon » paraît et devient le geste principal.
+    expect(await principaux()).toEqual(['Enregistrer le brouillon']);
+    expect(net(await p.locator('#rec-resume').innerText())).toMatch(/^Lignes reçues 3 sur 3/);
+    // Le résumé suit la saisie : une ligne remise à 0 n'est pas reçue.
+    await recu(2).fill('0');
+    await expect.poll(async () => net(await p.locator('#rec-resume').innerText()), { timeout: 5_000 }).toMatch(/^Lignes reçues 2 sur 3/);
+    await recu(2).fill('1');
+    await p.locator('#rec-frise [data-frise=rec-valider]').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception BR-\d{4}-001/);
+    expect(await principaux()).toEqual(['Saisir la facture du fournisseur']);
+    expect(await etapesFaites()).toBe(3);
+    // Au téléphone, la frise se met en colonne et rien ne déborde (une règle tardive y remettait quatre colonnes).
+    const ecran = p.viewportSize();
+    await p.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => p.locator('#rec-frise li').evaluateAll((ls) => new Set(ls.map((l) => Math.round(l.getBoundingClientRect().left))).size)).toBe(1);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    if (ecran) await p.setViewportSize(ecran);
 
     // 4. La commande est reçue en partie ; son panneau compte ; « Recevoir le reste » ne reprend que le reste.
-    await p.locator('#view .page-head a').filter({ hasText: numero }).click();
+    await p.locator('#rec-sous a').filter({ hasText: numero }).click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
     // (1.285.0) L'en-tête de pièce (comme l'achat) : le statut en pastille à côté du titre, le fournisseur dessous.
     expect(net(await p.locator('#view .ed-h1').innerText())).toContain('reçue en partie');
     expect(net(await p.locator('#cf-sous').innerText())).toBe('Ciments de Bizerte');
     expect(net(await p.locator('#receptions-panel').innerText())).toMatch(/^Réceptions i DÉSIGNATION COMMANDÉ REÇU RESTE Ciment gris 50 kg \(sac\) 100 60 40 Fer à béton 12 mm \(t\) 2,5 1,25 1,25 Transport 1 1 0 Réception : BR-\d{4}-001 \(validée, /);
     expect(await p.locator('#cf-recevoir').innerText()).toBe('Recevoir le reste');
+    // Des sacs, des tonnes et un transport ne s'additionnent pas : la frise compte les lignes reçues en entier.
+    expect(net(await p.locator('#cf-frise li').nth(2).innerText())).toMatch(/^3 Reçue en partie 1 ligne sur 3 en entier/);
     await p.locator('#receptions-panel').scrollIntoViewIfNeeded();
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-3-recue-en-partie.png') });
     expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK (I )?60 SACS .* Réception BR-\d{4}-001 \+60 17,250 DT 60/i);

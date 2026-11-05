@@ -4695,7 +4695,7 @@ prouver "le panneau des réceptions absent de la commande" modules/socle/ecrans/
   "\${suivi && suivi.receptions.length ? \`<div class=\"panel\" id=\"receptions-panel\">" "\${false ? \`<div class=\"panel\" id=\"receptions-panel\">" \
   "$CFW"
 prouver "« Saisir la facture du fournisseur » absent d'une réception validée" modules/socle/ecrans/entreprise/app-1.js \
-  "\${valide && !facturee ? '<button class=\"btn btn-primary\" id=\"rec-facturer\">Saisir la facture du fournisseur</button>' : ''}" "" \
+  "      if (valide && !facturee) return \`<div class=\"panel ed-geste\" id=\"ed-geste\"><button class=\"btn btn-primary btn-grand\" id=\"rec-facturer\">" "      if (false) return \`<div class=\"panel ed-geste\" id=\"ed-geste\"><button class=\"btn btn-primary btn-grand\" id=\"rec-facturer\">" \
   "$CFW"
 prouver "la facture tirée de la seule réception affichée" modules/socle/ecrans/entreprise/app-1.js \
   "facturerReceptions(C.receptionsAFacturer(data).filter(x => x.orderId === r.orderId || x.id === r.id))" "facturerReceptions(C.receptionsAFacturer(data).filter(x => x.id === r.id))" \
@@ -24429,6 +24429,37 @@ prouver 'commandes 1.285 c : la frise de la commande ne voit pas qu'"'"'elle est
 prouver 'commandes 1.285 d : la commande reçue n'"'"'a plus « Recevoir » pour étape suivante' modules/socle/ecrans/entreprise/app-1.js \
   'prim = `<button class="btn btn-primary btn-grand" id="cf-recevoir">' 'prim = `<button class="btn btn-grand" id="cf-recevoir">' \
   'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+# 1.287.0 : la réception dans le squelette des pièces (frise, un seul bouton principal, résumé).
+prouver "la frise d'une réception sans son geste « Valider »" modules/socle/ecrans/entreprise/app-1.js \
+  "g: !ro ? '<button type=\"button\" class=\"btn btn-sm\" data-frise=\"rec-valider\">Valider</button>' : '' }," "g: '' }," \
+  "$CFW"
+prouver "une modification de la réception qui laisse « Valider » principal" modules/socle/ecrans/entreprise/app-1.js \
+  "dirty = true; \$('#dirty-dot').hidden = false; enregistrerDevientPrincipal(); };
+    // Ce qui arrive en plus" "dirty = true; \$('#dirty-dot').hidden = false; };
+    // Ce qui arrive en plus" \
+  "$CFW"
+prouver "l'étape « En stock » d'une réception validée qui reste à faire" modules/socle/ecrans/entreprise/app-1.js \
+  "{ t: annulee ? 'Annulée' : 'En stock', fait: valide," "{ t: annulee ? 'Annulée' : 'En stock', fait: false," \
+  "$CFW"
+prouver "le résumé d'une réception qui compte toutes ses lignes comme reçues" modules/socle/ecrans/entreprise/app-1.js \
+  "const lignesRecues = r.lines.filter(l => Number(l.qty) > 0).length;" "const lignesRecues = r.lines.length;" \
+  "$CFW"
+prouver "la flèche de la réception qui ne mène pas à la liste des réceptions" modules/socle/ecrans/entreprise/app-1.js \
+  "\${retourListe('#/commandesf/receptions', 'réceptions')}" "\${retourListe('#/commandesf', 'réceptions')}" \
+  "$ACW1"
+
+prouver "l'avancée d'une commande qui additionne des sacs et des tonnes" modules/socle/ecrans/entreprise/app-1.js \
+  "    const avanceeCF = unitesCF.size <= 1" "    const avanceeCF = true" \
+  "$CFW"
+
+prouver "le résumé d'une réception qui ne suit pas la saisie" modules/socle/ecrans/entreprise/app-1.js \
+  " avis(); \$('#rec-totaux').innerHTML = resumeR(); }; });" " avis(); }; });" \
+  "$CFW"
+
+prouver "la frise à quatre étapes qui reste en quatre colonnes au téléphone" web/public/plateforme/piece.css \
+  "@media (max-width: 760px) { .ed-frise.quatre ol { grid-template-columns: minmax(0, 1fr); } }" "" \
+  "$CFW"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

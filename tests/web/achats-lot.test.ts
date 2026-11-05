@@ -156,7 +156,7 @@ describe('le lot achats, à l\'écran', () => {
     await expect.poll(() => toast(p), { timeout: 10_000 }).toMatch(/^Réception BR-\d{4}-001 validée : aucune de ses lignes n'est un article suivi en stock, donc le stock ne bouge pas\. Pour suivre un article, coche « Suivi en stock » sur sa fiche, dans le Catalogue\.$/);
     // Le bouton retour de la réception répond.
     const ici = await p.evaluate(() => location.hash);
-    await p.locator('#back').click();
+    await p.locator('#rec-sous a').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).not.toBe(ici);
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
     // Une commande qui a reçu ne se remet ni en brouillon ni en demande de prix.
@@ -167,7 +167,14 @@ describe('le lot achats, à l\'écran', () => {
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception \(brouillon\)/);
     await p.locator('#rec-valider').click();
     await expect.poll(() => toast(p), { timeout: 10_000 }).toMatch(/^Réception BR-\d{4}-002 validée : sa ligne est entrée en stock\.$/);
-    await p.locator('#back').click();
+    // (1.287.0) La réception a la flèche « ‹ » des pièces : elle ramène à la liste des réceptions ; la commande s'ouvre
+    // depuis la ligne sous le titre.
+    const surReception = await p.evaluate(() => location.hash);
+    await p.locator('#view .ed-retour-btn').click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).toBe('#/commandesf/receptions');
+    await aller(p, surReception);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception BR-/);
+    await p.locator('#rec-sous a').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
     // Le retour de la commande répond aussi (1.285.0 : la flèche « ‹ » des pièces, comme l'achat et la facture).
     const surCommande = await p.evaluate(() => location.hash);

@@ -1070,6 +1070,9 @@
 /* (1.155.12) L'achat rangé, tel que la maquette : la frise à quatre ou cinq étapes, les puces du fournisseur, le reste dû qui
    attire ou alerte, la note sous les lignes, et le justificatif absent. */
 .ed-frise.quatre ol { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* (1.287.0, joué au téléphone) La règle ci-dessus, posée après celle du téléphone, remettait quatre colonnes à 390 px : la
+   frise de l'achat, de la commande et de la réception débordait de l'écran (page de 438 px). */
+@media (max-width: 760px) { .ed-frise.quatre ol { grid-template-columns: minmax(0, 1fr); } }
 .ed-frise li.afaire .rond { border: 1.5px solid var(--sb-sarcelle); color: var(--sb-sarcelle-texte); }
 .ed-chip.ok { background: var(--sb-doux); color: var(--sb-doux-texte); border-color: transparent; }
 .ed-chip.rouge { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); border-color: transparent; }

@@ -129,5 +129,21 @@ et sur « Commander tout ce qui manque », « Prévenir mon comptable » vu avec
   partie », « Saisir la facture » apparaît) ; la désignation des lignes gardait 164 px dans la colonne plus étroite : les
   autres colonnes sont resserrées.
 
-Reste pour ce module : la réception (`#/reception/…`) et la demande de prix comparée sont encore dans l'ancienne
-présentation ; le téléphone du bon de commande à jouer.
+### Fait en 1.287.0 (05/11/2026) : la réception, et ce que le jeu a trouvé
+
+- **La réception dans le squelette des pièces** : ‹ (vers la liste des réceptions), chemin « Commandes fournisseurs ›
+  BCF-… › Réception », titre et pastille, le fournisseur et la commande dessous ; frise « Commandée → Arrivée → En stock →
+  Facturée » avec son geste ; à droite le résumé (lignes reçues, dépôt, valeur reçue HT) et **un seul grand bouton** :
+  « Valider la réception », puis « Saisir la facture du fournisseur », puis un état calme (« Reçue et facturée », « Voir la
+  facture »). Une quantité modifiée fait paraître « Enregistrer le brouillon » en principal (la règle de la facture).
+
+Joué à la souris (ordinateur puis téléphone), une commande de 40 sacs de ciment et 3 m³ de sable :
+
+| # | Trouvé | Fait |
+|---|---|---|
+| G1 | La frise de la commande disait « Reçue 0 sur 43 » : elle additionnait des sacs et des mètres cubes. | Une seule unité se compte en quantités (« 60 sur 100 sac ») ; plusieurs, en lignes reçues en entier (« 1 ligne sur 2 en entier »). |
+| G2 | 30 sacs reçus au lieu de 40 : la « Valeur reçue HT » restait celle de 40 (807,000 DT au lieu de 639,000). | Le résumé suit la saisie. |
+| G3 | Au téléphone, la frise restait en quatre colonnes et débordait (page de 438 px sur 390) : une règle posée plus loin dans `piece.css` écrasait celle du téléphone — sur l'achat aussi. | La règle du téléphone est reposée après elle. |
+
+Reste pour ce module : la demande de prix comparée (le tableau des réponses) à jouer dans la nouvelle présentation ; le
+bon de commande au téléphone joué avec la frise réparée.
