@@ -2313,6 +2313,11 @@
       comptesBarre.piecesLues = true;
       redessinerPrioritesSiOuvertes();
       if (/^#\/pieces/.test(location.hash) && !$('#modal-root').children.length) drawPieces($('#view'), location.hash.split('/')[2]);
+      // (rouge GitHub de 1.278.0) Le classeur et la Saisie lisent ces pièces : ouverts avant qu'elles arrivent (une machine
+      // lente, un réseau lent), ils ne montraient jamais celles du client tant que rien d'autre ne les redessinait.
+      const ouvert = /^#\/dossier\/([^/]+)\//.exec(location.hash);
+      const dOuvert = ouvert && S ? (S.dossiers || []).find(x => x.id === decodeURIComponent(ouvert[1])) : null;
+      if (dOuvert) redessinerCl(dOuvert);
     } catch { /* sans réseau : la barre garde ce qu'elle savait */ }
   }
 
@@ -6010,9 +6015,12 @@
     const nb = r => r === 'manque' ? pm.manque : r === 'declaration' ? 0 : r === 'retenues' ? pm.lp.filter(x => x.rs).length : pm.lp.filter(x => x.rub === r).length;
     const rubsDuMois = CL_RUBS;
     const rubsPleines = CL_RUBS.filter(([r]) => r === 'declaration' ? !!Lfd.decl[pm.m] : nb(r) > 0);
-    if (!CL_RUBS.some(([r]) => r === clState.rub)) {
+    // (rouge GitHub de 1.278.0) Une rubrique choisie par la page sur ce qu'elle savait (« Ce qui manque », avant que les pièces
+    // du client arrivent) se rechoisit quand elle s'est vidée ; celle que le comptable a choisie, jamais.
+    if (!CL_RUBS.some(([r]) => r === clState.rub) || (clState.rubAuto && nb(clState.rub) === 0 && rubsPleines.length)) {
       const premiere = rubsPleines.find(([r]) => pm.lp.some(x => x.rub === r && x.etat[2] === 'traiter')) || rubsPleines.find(([r]) => r !== 'declaration' && r !== 'manque') || rubsPleines[0];
       clState.rub = premiere ? premiere[0] : 'achats';
+      clState.rubAuto = true;
     }
 
     // ---------- l'en-tête ----------
@@ -6512,7 +6520,7 @@
     $$('[data-cl-rub]', view).forEach(a => { a.onclick = e => { e.preventDefault();
       // Recliquer la rubrique déjà affichée ne referme pas la pièce ouverte à droite.
       if (ici && !resumeMois && a.dataset.clRub === clState.rub && clState.filtre === 'rub') { if (clState.menu) { clState.menu = ''; re(); } return; }
-      Object.assign(clState, { rub: a.dataset.clRub, filtre: 'rub', plus: false, sel: '', vue: '', ouvrir: true, menu: '' }); re(); }; });
+      Object.assign(clState, { rub: a.dataset.clRub, rubAuto: false, filtre: 'rub', plus: false, sel: '', vue: '', ouvrir: true, menu: '' }); re(); }; });
     $$('[data-cl-ouvrir]', view).forEach(a => { a.onclick = e => { e.preventDefault(); Object.assign(clState, { rub: a.dataset.clOuvrir, filtre: 'rub', ouvrir: true }); re(); }; });
     $$('[data-cl-aller]', view).forEach(a => { a.onclick = e => { e.preventDefault(); choisir(a.dataset.clAller, { rub: a.dataset.clArub, ouvrir: true }); }; });
     $$('[data-cl-f]', view).forEach(b => { b.onclick = () => { Object.assign(clState, { filtre: b.dataset.clF, plus: false, menu: '' }); if (b.dataset.clF === 'manque') clState.sel = ''; re(); }; });

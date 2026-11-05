@@ -884,3 +884,12 @@ Sixième page de la refonte (proformas, bons de commande, bons de livraison, con
   n'ouvre rien, pour ne jamais annoncer une liste qui ne dit pas le même nombre.
 - **Les onglets** prennent la barre segmentée et disent lequel est ouvert ; la liste vit dans sa carte.
 - Test : `tests/web/autres-da.test.ts` ; preuves `autres 1.281 a-c`.
+
+## Le rouge GitHub de 1.278.0 (1.281.1)
+
+- **Le classeur du Cabinet** : ouvert avant que les pièces reçues du client arrivent du serveur (une machine lente, un
+  réseau lent), il ne les montrait jamais. Il se redessine maintenant quand elles arrivent ; et la rubrique que la page
+  avait choisie seule sur un mois encore vide (« Ce qui manque ») se rechoisit si elle s'est vidée — jamais celle que le
+  comptable a choisie. Le test retarde ces pièces de 2,5 s, comme sur GitHub ; preuves `classeur 1.281.1 a-b`.
+- **Le lot achats** : le test lisait le serveur aussitôt la commande enregistrée à l'écran ; il attend maintenant que
+  l'envoi y arrive (l'écran enregistre d'abord, l'envoi suit).

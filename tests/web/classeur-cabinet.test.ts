@@ -179,6 +179,12 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     // (rouge GitHub de 1.239.0) Les pièces sont datées par le serveur, au vrai jour : le navigateur vit le même jour, et les
     // mois attendus se calculent de lui (le test ne marchait qu'en octobre).
     const { p, erreurs } = await contexte(associe, false, null);
+    // (rouge GitHub de 1.278.0, sur les deux machines et jamais ici) Les pièces reçues arrivaient après l'ouverture du
+    // classeur, qui ne se redessinait pas : on les retarde comme une machine lente, et elles doivent se montrer.
+    await p.route((u) => /\/cabinets\/[^/]+\/pieces$/.test(u.pathname) && !u.searchParams.has('classees'), async (r) => {
+      await new Promise((ok) => setTimeout(ok, 2500));
+      await r.continue();
+    });
     const [an, mo] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis', year: 'numeric', month: '2-digit' }).format(new Date()).split('-').map(Number) as [number, number];
     const nomDu = (a: number, m: number) => new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(a, m - 1, 15)));
     const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);

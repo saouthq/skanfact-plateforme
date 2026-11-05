@@ -24354,6 +24354,12 @@ prouver 'autres 1.281 b : « À facturer » n'"'"'ouvre pas la facturation des b
 prouver 'autres 1.281 c : l'"'"'onglet ouvert ne le dit pas' modules/socle/ecrans/entreprise/app-1.js \
   'data-tab="${t}" aria-selected="${t === type}" ' 'data-tab="${t}" ' \
   'l'"'"'en-tête, les quatre chiffres de l'"'"'onglet, les onglets ; « Brouillons » filtre, « À facturer » ouvre la facturation ; au téléphone rien ne déborde'
+prouver 'classeur 1.281.1 a : les pièces reçues arrivées après l'"'"'ouverture du classeur ne s'"'"'y montrent pas' modules/socle/ecrans/cabinet/app-1.js \
+  '      if (dOuvert) redessinerCl(dOuvert);' '' \
+  'une pièce en double se marque de sa jumelle, côte à côte ; une pièce se range dans un autre mois'
+prouver 'classeur 1.281.1 b : la rubrique choisie par la page sur un classeur vide y reste quand les pièces arrivent' modules/socle/ecrans/cabinet/app-1.js \
+  ' || (clState.rubAuto && nb(clState.rub) === 0 && rubsPleines.length)' '' \
+  'une pièce en double se marque de sa jumelle, côte à côte ; une pièce se range dans un autre mois'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -137,6 +137,8 @@ describe('le lot achats, à l\'écran', () => {
     expect(await ligne(0, 'unit').locator('option[value="ballot"]').count()).toBe(1);
     await p.locator('#save').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-\d{4}-001/);
+    // (rouge GitHub de 1.278.0) L'écran dit la commande enregistrée avant que l'envoi au serveur arrive : on l'attend.
+    await expect.poll(async () => (await b.surLeServeur('supplierOrders')).length, { timeout: 10_000 }).toBe(1);
     const [cmd] = await b.surLeServeur('supplierOrders');
     expect((cmd?.lines as { unit: string }[]).map((l) => l.unit)).toEqual(['sac', 'ballot']);
     expect(cmd?.status).toBe('brouillon');
