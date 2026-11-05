@@ -12326,6 +12326,25 @@
       { key: 'state', label: 'État', asc: true, val: r => r.active !== false ? 'actif' : 'suspendu', get: r => r.active !== false ? '<span class="badge envoyée">actif</span>' : '<span class="badge">suspendu</span>' }
     ];
     const STATES = [['', 'Tous les contrats'], ['actif', 'Actifs'], ['suspendu', 'Suspendus'], ['due', 'À générer']];
+    // Les chiffres portent sur TOUS les contrats (pas la sélection filtrée) : ils disent l'état de l'entreprise ; le pied du
+    // tableau, lui, compte la sélection.
+    const chiffreR = (lbl2, val, sous, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
+    function drawResumeC(all, due) {
+      const el = $('#c-resume'); if (!el) return;
+      el.hidden = !all.length;
+      if (!all.length) { el.innerHTML = ''; return; }
+      const actifs = all.filter(r => r.active !== false), suspendus = all.length - actifs.length;
+      const parAn = C.round3(actifs.reduce((a2, r) => a2 + htBase(r) * (PAR_AN[r.every] || 12), 0));
+      const prochain = actifs.filter(r => r.nextDate).sort((x, y) => x.nextDate.localeCompare(y.nextDate))[0];
+      el.innerHTML = chiffreR('Contrats actifs', String(actifs.length), suspendus ? `${pl(suspendus, 'suspendu')}` : 'aucun suspendu')
+        + chiffreR('Rapportent par mois', montantU(C.round3(parAn / 12), cur), `${C.money(parAn, cur)} HT par an`)
+        + chiffreR('À générer', String(due.length), due.length ? 'brouillons à préparer — voir lesquels' : 'rien en attente', due.length ? 'ambre' : 'vert', due.length ? 'due' : '')
+        + chiffreR('Prochaine facture', prochain ? h(C.fmtDate(prochain.nextDate)) : '—', prochain ? h(clientName(prochain.clientId)) : 'aucun contrat actif');
+      $$('[data-aller]', el).forEach(x => {
+        const aller = () => { s.st = x.dataset.aller; s.page = 1; draw(); };
+        x.onclick = aller; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(); } };
+      });
+    }
     const draw = dansUnLot((sortKey) => {
       if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
       const due = C.dueRecurrences(data);
@@ -12340,6 +12359,7 @@
       const actifs = kept.filter(r => r.active !== false);
       const parAn = C.round3(actifs.reduce((a2, r) => a2 + htBase(r) * (PAR_AN[r.every] || 12), 0));
       const parMois = C.round3(parAn / 12);
+      drawResumeC(all, due);
       $('#c-wrap').innerHTML = `${due.length ? `<div class="banner">${pl(due.length, 'facture')} récurrente${sPl(due.length)} à générer<button class="btn" id="gen-due">Générer les brouillons</button></div>` : ''}
         ${filtersBar(`
           <input type="text" id="q" placeholder="Rechercher : client, objet…" value="${h(s.q)}">
@@ -12444,7 +12464,11 @@
         ];
       });
     });
-    $('#view').innerHTML = `<div class="page-head"><h1>Facturation récurrente ${info('contrat.form')}</h1><div class="actions"><button class="btn btn-primary" id="new">+ Nouveau contrat</button></div></div><div id="c-wrap"></div>`;
+    // (1.280.0) L'en-tête du modèle et quatre chiffres au-dessus de la liste, comme le Stock et les Commandes : ce qui est
+    // actif, ce que ça rapporte par mois (en dinars, contrats actifs seulement), ce qui est à générer (qui filtre la liste),
+    // la prochaine échéance. Rien tant qu'il n'y a aucun contrat.
+    $('#view').innerHTML = `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Facturation récurrente</span></div><h1>Facturation récurrente ${info('contrat.form')}</h1><p class="sous">Les factures qui reviennent toutes seules : abonnements, maintenances, forfaits</p></div><div class="actions"><button class="btn btn-primary" id="new">+ Nouveau contrat</button></div></div>
+      <div class="lf mg ca rc"><div class="cf-carte mg-resume" id="c-resume"></div><div class="cf-carte"><div class="cf-onglet"><div id="c-wrap"></div></div></div></div>`;
     $('#new').onclick = () => recurrenceForm(contratNeuf(), draw);
     draw();
   };

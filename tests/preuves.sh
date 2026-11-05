@@ -24336,6 +24336,15 @@ prouver 'immos 1.279 b : les montants en grand débordent au téléphone' module
 prouver 'immos 1.279 c : l'"'"'en-tête ne dit pas à quoi sert la page' modules/socle/ecrans/entreprise/app-2.js \
   '<p class="sous">Ce que tu gardes plusieurs années, ce qu'"'"'il coûte chaque année, ce qu'"'"'il vaut encore</p>' '' \
   'l'"'"'en-tête, les quatre chiffres du tableau, les onglets ; au téléphone rien ne déborde'
+prouver 'contrats 1.280 a : un contrat suspendu compte parmi ce qui rapporte' modules/socle/ecrans/entreprise/app-1.js \
+  'const actifs = all.filter(r => r.active !== false), suspendus = all.length - actifs.length;' 'const actifs = all, suspendus = 0;' \
+  'l'"'"'en-tête, les quatre chiffres sur tous les contrats ; « À générer » filtre la liste ; au téléphone rien ne déborde'
+prouver 'contrats 1.280 b : « À générer » ne filtre pas la liste' modules/socle/ecrans/entreprise/app-1.js \
+  'const aller = () => { s.st = x.dataset.aller; s.page = 1; draw(); };' 'const aller = () => { s.page = 1; draw(); };' \
+  'l'"'"'en-tête, les quatre chiffres sur tous les contrats ; « À générer » filtre la liste ; au téléphone rien ne déborde'
+prouver 'contrats 1.280 c : l'"'"'en-tête ne dit pas à quoi sert la page' modules/socle/ecrans/entreprise/app-1.js \
+  '<p class="sous">Les factures qui reviennent toutes seules : abonnements, maintenances, forfaits</p>' '' \
+  'l'"'"'en-tête, les quatre chiffres sur tous les contrats ; « À générer » filtre la liste ; au téléphone rien ne déborde'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

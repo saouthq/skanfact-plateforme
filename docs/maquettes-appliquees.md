@@ -854,3 +854,18 @@ Quatrième page de la refonte.
   comptable) gardent leur calcul et leurs phrases ; ils prennent le dessin des autres pages, l'unité en petit. Au
   téléphone, en grand, deux d'entre eux sortaient de leur case.
 - Test : `tests/web/immos-da.test.ts` ; preuves `immos 1.279 a-c`.
+
+## La Facturation récurrente (1.280.0)
+
+Cinquième page de la refonte.
+
+- **L'en-tête** : le chemin, le titre, une phrase (« les factures qui reviennent toutes seules : abonnements,
+  maintenances, forfaits ») ; « + Nouveau contrat » reste à droite et ne devient principal que tant qu'il n'y a aucun
+  contrat (règle d'avant, gardée).
+- **Quatre chiffres** au-dessus de la liste, sur **tous** les contrats (le pied du tableau, lui, compte la sélection) :
+  les contrats actifs (et combien sont suspendus) ; ce qu'ils rapportent par mois, HT, ramené à la devise de base, avec
+  l'année en dessous — un contrat suspendu ne rapporte rien ; combien de brouillons sont à générer (ambre, et le chiffre
+  filtre la liste) ; la prochaine facture et son client. Cachés tant qu'il n'y a aucun contrat : la page vide garde son
+  explication.
+- **La liste** vit dans sa carte.
+- Test : `tests/web/contrats-da.test.ts` ; preuves `contrats 1.280 a-c`.
