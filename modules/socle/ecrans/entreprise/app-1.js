@@ -12588,6 +12588,26 @@
       // Vide, mais pas faute de factures : on dit laquelle arrive à échéance, et quand (10.12.0).
       const aVenir = rienDuTout ? C.facturesAVenir(data, company()) : [];
       const prochaine = aVenir[0];
+      // (1.283.0) Les quatre chiffres, sur TOUTES les factures (pas la recherche) : ce qu'il faut relancer et ce que ça
+      // représente, ce qui traîne au-delà de 45 jours (le ton « dernière relance »), ce qui arrive à échéance, les devis
+      // sans réponse. Ceux qui nomment une section y mènent.
+      const enCours = all.filter(x => !x.snoozed);
+      const aRecuperer = C.round3(enCours.reduce((s2, x) => s2 + C.toBase(x.doc, x.remaining, company()), 0));
+      const vieux = enCours.filter(x => x.level === 3);
+      const soonAll = q ? data.documents.filter(d => d.type === 'facture' && ['envoyée', 'partielle'].includes(effStatus(d)) && d.dueDate >= C.today() && C.daysBetween(C.today(), d.dueDate) <= 7) : soon;
+      const quotesAll = q ? data.documents.filter(d => d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)) && d.date && C.daysBetween(d.date, C.today()) > 10) : quotes;
+      const bientotDT = C.round3(soonAll.reduce((s2, d) => s2 + C.toBase(d, balance(d).remaining, company()), 0));
+      const chiffreRl = (lbl2, val, sous, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
+      const resumeEl = $('#rel-resume');
+      resumeEl.hidden = rienDuTout;
+      resumeEl.innerHTML = rienDuTout ? '' : chiffreRl('À relancer', String(enCours.length), enCours.length ? `${montantU(aRecuperer, cur)} à récupérer` : 'aucune facture en retard', enCours.length ? 'rouge' : 'vert')
+        + chiffreRl('Plus de 45 jours', String(vieux.length), vieux.length ? `au ton « ${h(C.REMINDER_LABELS[3])} »` : 'aucun retard ancien', vieux.length ? 'rouge' : '')
+        + chiffreRl('Échéances sous 7 jours', String(soonAll.length), soonAll.length ? `${montantU(bientotDT, cur)} attendus — voir lesquelles` : 'rien n\'arrive à échéance', soonAll.length ? 'ambre' : '', soonAll.length ? 'r-bientot' : '')
+        + chiffreRl('Devis sans réponse', String(quotesAll.length), quotesAll.length ? 'envoyés il y a plus de 10 jours — voir lesquels' : 'aucun devis en attente', quotesAll.length ? 'ambre' : '', quotesAll.length ? 'r-devis' : '');
+      $$('[data-aller]', resumeEl).forEach(x => {
+        const aller = () => { const cible = $('#' + x.dataset.aller); if (cible) cible.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+        x.onclick = aller; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(); } };
+      });
       $('#r-wrap').innerHTML = rienDuTout ? etatVide('Relancer tes impayés',
         [...(prochaine ? [`<b>Aucune facture n'est en retard aujourd'hui.</b> La prochaine échéance est celle de <a href="#/doc/${h(prochaine.doc.id)}">${h(prochaine.doc.number)}</a> (${h(clientName(prochaine.doc.clientId))}, ${C.money(prochaine.remaining, docCur(prochaine.doc))}) le <b>${C.fmtDate(prochaine.dueDate)}</b>${aVenir.length > 1 ? `, puis ${pl(aVenir.length - 1, 'autre facture', 'autres factures')} non échue${sPl(aVenir.length - 1)}` : ''} : si elle n'est pas réglée ce jour-là, elle apparaîtra ici.`] : []),
          'Dès qu\'une facture dépasse son échéance, elle apparaît ici toute seule : le nombre de jours de retard, ce qui reste à récupérer, et un email prêt à partir. <b>Tu n\'as rien à saisir sur cette page.</b>',
@@ -12645,7 +12665,8 @@
       // case puis emmenait sur la facture — on ne voyait jamais que c'était noté.
       $$('tr.clickable[data-id]').forEach(tr => tr.onclick = e => { if (e.target.closest('button')) return; navigate('#/doc/' + tr.dataset.id); });
     });
-    $('#view').innerHTML = `<div class="page-head"><h1>Relances ${info('rel.levels')}</h1></div><div id="r-wrap"></div>`;
+    $('#view').innerHTML = `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Relances</span></div><h1>Relances ${info('rel.levels')}</h1><p class="sous">Les factures en retard, celles qui arrivent à échéance et les devis sans réponse : chacun avec son message prêt à partir</p></div></div>
+      <div class="lf mg ca rl"><div class="cf-carte mg-resume" id="rel-resume" hidden></div><div class="cf-carte"><div class="cf-onglet"><div id="r-wrap"></div></div></div></div>`;
     draw();
   };
 

@@ -24369,6 +24369,15 @@ prouver 'listesprix 1.282 b : les clients concernés ne suivent pas la règle qu
 prouver 'listesprix 1.282 c : un prix nul compte comme un prix négocié' modules/socle/ecrans/entreprise/app-1.js \
   '.filter(x => x.itemId && Number(x.prix) > 0).map(x => x.itemId)' '.filter(x => x.itemId).map(x => x.itemId)' \
   'l'"'"'en-tête, les quatre chiffres sur les listes en vigueur, l'"'"'état de chaque liste ; au téléphone rien ne déborde'
+prouver 'relances 1.283 a : les chiffres suivent la recherche' modules/socle/ecrans/entreprise/app-1.js \
+  'const enCours = all.filter(x => !x.snoozed);' 'const enCours = od;' \
+  'l'"'"'en-tête, les quatre chiffres sur toutes les factures ; la recherche ne les change pas ; au téléphone rien ne déborde'
+prouver 'relances 1.283 b : « Plus de 45 jours » compte aussi les retards plus courts' modules/socle/ecrans/entreprise/app-1.js \
+  'const vieux = enCours.filter(x => x.level === 3);' 'const vieux = enCours.filter(x => x.level >= 2);' \
+  'l'"'"'en-tête, les quatre chiffres sur toutes les factures ; la recherche ne les change pas ; au téléphone rien ne déborde'
+prouver 'relances 1.283 c : « Échéances sous 7 jours » ne mène pas à sa section' modules/socle/ecrans/entreprise/app-1.js \
+  'if (cible) cible.scrollIntoView(' 'if (cible && 0) cible.scrollIntoView(' \
+  'l'"'"'en-tête, les quatre chiffres sur toutes les factures ; la recherche ne les change pas ; au téléphone rien ne déborde'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

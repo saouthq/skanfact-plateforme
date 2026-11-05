@@ -906,3 +906,18 @@ Septième page de la refonte.
   n'y a aucune liste : la page vide garde son explication.
 - **La liste** vit dans sa carte et dit l'état de chaque liste (en vigueur, à venir, terminée).
 - Test : `tests/web/listes-prix-da.test.ts` ; preuves `listesprix 1.282 a-c`.
+
+## Les Relances (1.283.0)
+
+Huitième et dernière page de ce plan de refonte.
+
+- **L'en-tête** : le chemin, le titre, une phrase (« les factures en retard, celles qui arrivent à échéance et les devis
+  sans réponse : chacun avec son message prêt à partir »).
+- **Quatre chiffres** sur toutes les factures, pas la recherche (elle réduit la liste, eux disent l'état de
+  l'entreprise) : à relancer et ce qu'il reste à récupérer, en devise de base ; plus de 45 jours (le ton « dernière
+  relance », la même règle que le ton choisi pour l'email) ; les échéances sous 7 jours et ce qu'elles apportent ; les
+  devis sans réponse depuis plus de 10 jours. Les deux derniers mènent à leur section. Cachés quand il n'y a rien du
+  tout : la page vide garde son explication.
+- **La liste et ses sections** vivent dans une carte.
+- Test : `tests/web/relances-da.test.ts` (les factures sont émises après une première ouverture de l'application, comme
+  à l'écran) ; preuves `relances 1.283 a-c`.
