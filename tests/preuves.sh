@@ -24318,6 +24318,24 @@ prouver 'catalogue 1.278 c : les fiches coupées au téléphone' web/public/plat
 prouver 'catalogue 1.278 d : la marge comptée sans coût' modules/socle/ecrans/entreprise/app-1.js \
   'const avecCout = cat.filter(c => Number(c.unitCost) > 0 && Number(c.unitPrice) > 0);' 'const avecCout = cat.filter(c => Number(c.unitPrice) > 0);' \
   'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
+prouver 'commandes 1.279 a : « Reçu, à facturer » n'"'"'ouvre rien' modules/socle/ecrans/entreprise/app-1.js \
+  'const aller = () => navigate('"'"'#/commandesf/'"'"' + x.dataset.aller);' 'const aller = () => {};' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; « Reçu, à facturer » ouvre les réceptions ; au téléphone rien ne déborde'
+prouver 'commandes 1.279 b : les brouillons comptés dans l'"'"'engagé' modules/socle/ecrans/entreprise/app-1.js \
+  'const engage = C.round3(enCours.reduce(' 'const engage = C.round3(cmds.reduce(' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; « Reçu, à facturer » ouvre les réceptions ; au téléphone rien ne déborde'
+prouver 'commandes 1.279 c : l'"'"'onglet des réceptions ne dit pas qu'"'"'il est ouvert' modules/socle/ecrans/entreprise/app-1.js \
+  'aria-selected="${onglet === '"'"'receptions'"'"'}"' '' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; « Reçu, à facturer » ouvre les réceptions ; au téléphone rien ne déborde'
+prouver 'immos 1.279 a : l'"'"'onglet choisi ne le dit pas' modules/socle/ecrans/entreprise/app-2.js \
+  '$$('"'"'#im-tabs button'"'"').forEach(x => { x.classList.toggle('"'"'active'"'"', x === b); x.setAttribute('"'"'aria-selected'"'"', String(x === b)); });' '$$('"'"'#im-tabs button'"'"').forEach(x => { x.classList.toggle('"'"'active'"'"', x === b); });' \
+  'l'"'"'en-tête, les quatre chiffres du tableau, les onglets ; au téléphone rien ne déborde'
+prouver 'immos 1.279 b : les montants en grand débordent au téléphone' modules/socle/ecrans/entreprise/app-2.js \
+  '<b>${montantU(t.grossActif, cur)}</b>|||<b>${montantU(t.nbv, cur)}</b>' '<b>${C.money(t.grossActif, cur)}</b>|||<b>${C.money(t.nbv, cur)}</b>' \
+  'l'"'"'en-tête, les quatre chiffres du tableau, les onglets ; au téléphone rien ne déborde'
+prouver 'immos 1.279 c : l'"'"'en-tête ne dit pas à quoi sert la page' modules/socle/ecrans/entreprise/app-2.js \
+  '<p class="sous">Ce que tu gardes plusieurs années, ce qu'"'"'il coûte chaque année, ce qu'"'"'il vaut encore</p>' '' \
+  'l'"'"'en-tête, les quatre chiffres du tableau, les onglets ; au téléphone rien ne déborde'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

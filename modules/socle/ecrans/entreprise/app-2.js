@@ -2326,15 +2326,17 @@
     const waiting = C.assetsToCreate(data);
 
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Immobilisations</h1>
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Immobilisations</span></div><h1>Immobilisations</h1><p class="sous">Ce que tu gardes plusieurs années, ce qu'il coûte chaque année, ce qu'il vaut encore</p></div>
         <div class="actions">
           <select id="im-year" ${s.tab === 'attente' ? 'hidden' : ''}>${years.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
           <button class="btn" id="im-csv">Exporter en CSV</button>
           <button class="btn btn-primary" id="new-imm">+ Nouveau bien</button>
         </div></div>
-      <div class="tabs" id="im-tabs" role="tablist" aria-label="Les immobilisations">${IMMO_TABS.map(([id, label]) =>
-        `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}${id === 'attente' && waiting.length ? ` <span class="nav-count">${waiting.length}</span>` : ''}</button>`).join('')}</div>
-      <div id="im-body"></div>`;
+      <div class="lf mg ca im">
+        <div class="mg-barre"><div class="pa-seg" id="im-tabs" role="tablist" aria-label="Les immobilisations">${IMMO_TABS.map(([id, label]) =>
+          `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === s.tab}" class="${id === s.tab ? 'active' : ''}">${label}${id === 'attente' && waiting.length ? ` <span class="nav-count">${waiting.length}</span>` : ''}</button>`).join('')}</div></div>
+        <div class="cf-carte"><div class="cf-onglet" id="im-body"></div></div>
+      </div>`;
 
     // 10.12.0 — « 1 bien à l'actif » sous une carte dont le seul bien était sorti de l'actif : le
     // compte portait sur les lignes du tableau de l'exercice, qui gardent un bien sorti en cours
@@ -2403,11 +2405,11 @@
         return;
       }
       $('#im-body').innerHTML = `${horsTableauHtml(hors, s.year)}
-        <div class="stats">
-          <div class="stat"><div class="lbl">Valeur d'acquisition ${info('immo.gross')}</div><div class="val">${C.money(t.grossActif, cur)}</div><div class="sub">${biensAuBilan(t, s.year)}</div></div>
-          <div class="stat"><div class="lbl">Dotation ${s.year} ${info('immo.annuity')}</div><div class="val">${C.money(t.annuity, cur)}</div><div class="sub">la charge de l'exercice</div></div>
-          <div class="stat"><div class="lbl">Amortissement cumulé</div><div class="val">${C.money(t.cumulActif, cur)}</div><div class="sub">au 31/12/${s.year}, depuis l'origine</div></div>
-          <div class="stat"><div class="lbl">Valeur nette comptable ${info('immo.nbv')}</div><div class="val">${C.money(t.nbv, cur)}</div><div class="sub">au 31/12/${s.year} : ce qu'il reste à amortir</div></div>
+        <div class="mg-resume im-chiffres">
+          <div class="mg-chiffre"><span class="mu">Valeur d'acquisition ${info('immo.gross')}</span><b>${montantU(t.grossActif, cur)}</b><small>${biensAuBilan(t, s.year)}</small></div>
+          <div class="mg-chiffre"><span class="mu">Dotation ${s.year} ${info('immo.annuity')}</span><b>${montantU(t.annuity, cur)}</b><small>la charge de l'exercice</small></div>
+          <div class="mg-chiffre"><span class="mu">Amortissement cumulé</span><b>${montantU(t.cumulActif, cur)}</b><small>au 31/12/${s.year}, depuis l'origine</small></div>
+          <div class="mg-chiffre"><span class="mu">Valeur nette comptable ${info('immo.nbv')}</span><b>${montantU(t.nbv, cur)}</b><small>au 31/12/${s.year} : ce qu'il reste à amortir</small></div>
         </div>
         <div class="panel"><h2>Tableau des amortissements — ${s.year} ${info('immo.table')}</h2>
           ${t.rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
@@ -2514,7 +2516,7 @@
     });
     $$('#im-tabs button').forEach(b => b.onclick = () => {
       s.tab = b.dataset.tab;
-      $$('#im-tabs button').forEach(x => x.classList.toggle('active', x === b));
+      $$('#im-tabs button').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-selected', String(x === b)); });
       draw();
     });
     $('#im-year').onchange = e => { s.year = e.target.value; draw(); };

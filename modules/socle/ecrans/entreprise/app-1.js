@@ -14152,22 +14152,39 @@
     const enRetard = new Set(C.commandesFournisseurEnRetard(data).map(x => x.id));
     const aFacturerR = new Set(C.receptionsAFacturer(data).map(x => x.id));
     const vide = !cmds.length && !recs.length;
+    // (1.279.0) L'en-tête du modèle (chemin, titre, phrase) et quatre chiffres au-dessus des onglets, comme le Stock et le
+    // Catalogue : ce qui est en cours (et ce qu'il engage, en dinars), ce qui est en retard, ce qui est reçu sans être
+    // facturé, les brouillons. Les deux chiffres qui demandent un geste ouvrent l'onglet où il se fait.
+    const enCours = cmds.filter(x => ['envoyée', 'partielle'].includes(C.statutCommandeFournisseur(data, x)));
+    const engage = C.round3(enCours.reduce((a, x) => a + (Number(C.montantCommandeFournisseur(x, company())) || 0), 0));
+    const brouillons = cmds.filter(x => C.statutCommandeFournisseur(data, x) === 'brouillon').length;
+    const chiffreCF = (lbl2, val, sous, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Commandes fournisseurs ${info('cf.page')}</h1>
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Commandes fournisseurs</span></div><h1>Commandes fournisseurs ${info('cf.page')}</h1><p class="sous">Ce que tu commandes, ce qui est livré, ce qui reste à recevoir et à facturer</p></div>
         <div class="actions"><button class="btn" id="cf-new-demande">+ Demande de prix</button><button class="btn ${vide ? '' : 'btn-primary'}" id="cf-new">+ Nouvelle commande</button></div></div>
       ${vide ? etatVide('Ce que tu commandes à tes fournisseurs', ['La commande part chez le fournisseur en PDF ; chaque livraison se reçoit, et ce qui manque reste à recevoir, ligne par ligne. La marchandise reçue entre en stock.'],
         [['cf-vide-new', '+ Nouvelle commande', true]]) : `
-      <div class="tabs" id="cf-tabs" role="tablist" aria-label="Commandes et réceptions">
-        <button role="tab" data-tab="commandes" class="${onglet === 'commandes' ? 'active' : ''}">Commandes <span class="tab-n">${cmds.length}</span></button>
-        <button role="tab" data-tab="receptions" class="${onglet === 'receptions' ? 'active' : ''}">Réceptions <span class="tab-n">${recs.length}</span></button>
-      </div>
-      <div id="cf-list"></div>`}`;
+      <div class="lf mg ca cf">
+        <div class="cf-carte mg-resume" id="cf-resume">${chiffreCF('En cours', String(enCours.length), enCours.length ? `${montantU(engage, company().currency)} HT engagés` : 'rien qui attende une livraison')
+          + chiffreCF('En retard', String(enRetard.size), enRetard.size ? 'livraison souhaitée dépassée — voir lesquelles' : 'rien en retard', enRetard.size ? 'rouge' : 'vert', enRetard.size ? 'commandes' : '')
+          + chiffreCF('Reçu, à facturer', String(aFacturerR.size), aFacturerR.size ? 'la facture du fournisseur manque — voir lesquelles' : 'tout ce qui est reçu est facturé', aFacturerR.size ? 'ambre' : '', aFacturerR.size ? 'receptions' : '')
+          + chiffreCF('Brouillons', String(brouillons), brouillons ? 'pas encore envoyées au fournisseur' : 'aucune commande en attente d\'envoi')}</div>
+        <div class="mg-barre"><div class="pa-seg" id="cf-tabs" role="tablist" aria-label="Commandes et réceptions">
+          <button type="button" role="tab" data-tab="commandes" aria-selected="${onglet === 'commandes'}" class="${onglet === 'commandes' ? 'active' : ''}">Commandes <span class="tab-n">${cmds.length}</span></button>
+          <button type="button" role="tab" data-tab="receptions" aria-selected="${onglet === 'receptions'}" class="${onglet === 'receptions' ? 'active' : ''}">Réceptions <span class="tab-n">${recs.length}</span></button>
+        </div></div>
+        <div class="cf-carte"><div class="cf-onglet"><div id="cf-list"></div></div></div>
+      </div>`}`;
     const nouvelle = () => navigate('#/commandef/new');
     $('#cf-new-demande').onclick = () => navigate('#/commandef/new/demande');
     $('#cf-new').onclick = nouvelle;
     if ($('#cf-vide-new')) $('#cf-vide-new').onclick = nouvelle;
     if (vide) return;
     $$('#cf-tabs button').forEach(b => { b.onclick = () => navigate('#/commandesf/' + b.dataset.tab); });
+    $$('#cf-resume [data-aller]').forEach(x => {
+      const aller = () => navigate('#/commandesf/' + x.dataset.aller);
+      x.onclick = aller; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(); } };
+    });
     const dessiner = () => {
       const liste = onglet === 'commandes' ? cmds : recs;
       const st = etatCF[onglet];

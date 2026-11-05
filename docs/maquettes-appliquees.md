@@ -822,3 +822,35 @@ Deuxième page de la refonte, sur le même modèle que le Stock (`.lf.mg.ca`).
 - Le classeur, la saisie et les dossiers du Cabinet tombent sur GitHub et jamais ici. Ces tests disent maintenant ce
   qu'ils voient quand ils échouent (la fenêtre posée, les lignes, ce que garde le serveur), pour trouver la cause au
   prochain verdict plutôt que de la deviner.
+
+## Les Commandes fournisseurs (1.279.0)
+
+Troisième page de la refonte, sur le modèle du Stock et du Catalogue.
+
+- **L'en-tête** : le chemin (Accueil › Commandes fournisseurs), le titre, une phrase qui dit à quoi sert la page, les
+  gestes à droite (« + Demande de prix », « + Nouvelle commande »).
+- **Quatre chiffres** :
+  - **en cours** (envoyées ou reçues en partie), avec ce qu'elles engagent hors taxes, ramené en dinars par le calcul qui
+    sert à l'accord d'un responsable (`montantCommandeFournisseur`) : une commande en euros ne s'additionne pas telle
+    quelle ;
+  - **en retard** (livraison souhaitée dépassée), en rouge, qui ouvre la liste des commandes ;
+  - **reçu, à facturer** (une réception validée que la facture du fournisseur ne couvre pas encore), en ambre, qui
+    ouvre les réceptions ;
+  - **les brouillons**, pas encore envoyés.
+  Ces chiffres se calculent avec les mêmes fonctions que les marques de la liste (« en retard », « à facturer ») et que
+  « À faire » de l'accueil.
+- **Les onglets** Commandes / Réceptions prennent la barre segmentée ; la liste vit dans sa carte.
+- Test : `tests/web/commandes-da.test.ts` ; preuves `commandes 1.279 a-c`.
+
+## Les Immobilisations (1.279.0)
+
+Quatrième page de la refonte.
+
+- **L'en-tête** : le chemin, le titre, une phrase (« ce que tu gardes plusieurs années, ce qu'il coûte chaque année, ce
+  qu'il vaut encore »), l'année, l'export et « + Nouveau bien » à droite.
+- **Les onglets** (tableau des amortissements, à immobiliser, sorties et cessions) prennent la barre segmentée et disent
+  lequel est ouvert ; le contenu vit dans sa carte.
+- **Les quatre chiffres** du tableau (valeur d'acquisition, dotation de l'année, amortissement cumulé, valeur nette
+  comptable) gardent leur calcul et leurs phrases ; ils prennent le dessin des autres pages, l'unité en petit. Au
+  téléphone, en grand, deux d'entre eux sortaient de leur case.
+- Test : `tests/web/immos-da.test.ts` ; preuves `immos 1.279 a-c`.
