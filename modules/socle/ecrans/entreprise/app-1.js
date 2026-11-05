@@ -14351,22 +14351,87 @@
     let cur = o.currency || company().currency;
     // Une demande de prix se nomme comme telle, jusque dans ses titres (brique 89).
     const quoi = o.status === 'demande' ? 'demande' : 'commande';
+    // (1.285.0, revue des commandes fournisseurs) L'en-tête du modèle (chemin, titre, phrase) et, pour une commande
+    // enregistrée, la frise de la pièce comme sur la facture : préparée, envoyée, reçue, facturée — où elle en est, et le
+    // geste de l'étape qui attend, à sa place.
+    const titreCF = stored ? `${demande ? 'Demande de prix' : 'Commande'} ${o.number || '(brouillon)'}` : o.status === 'demande' ? 'Nouvelle demande de prix' : 'Nouvelle commande fournisseur';
+    const enRetardCF = !!(stored && C.commandesFournisseurEnRetard(data).some(x => x.id === stored.id));
+    const lignesSuivies = suivi ? suivi.lignes.filter(x => x.commandee > 0) : [];
+    const qCmd = C.round3(lignesSuivies.reduce((a2, x) => a2 + x.commandee, 0)), qRecu = C.round3(lignesSuivies.reduce((a2, x) => a2 + Math.min(x.recue, x.commandee), 0));
+    const sousCF = stored ? [h(supplierName(o.supplierId)), badgeCF(statut), o.dueDate ? `livraison souhaitée le ${h(C.fmtDate(o.dueDate))}${enRetardCF ? ' <span class="warn-text">— en retard</span>' : ''}` : '']
+      : [o.status === 'demande' ? 'les prix se saisissent quand le fournisseur répond' : 'elle prend son numéro quand tu l\'enregistres'];
+    const friseCF = () => {
+      if (!stored || demande) return '';
+      const annulee = /^annul/.test(stored.status || '');
+      const partie = !['brouillon'].includes(stored.status || 'brouillon') && !annulee;
+      const toutRecu = statut === 'reçue' || stored.status === 'soldée';
+      const facturee = factures.length > 0;
+      const etapes = [
+        { t: 'Préparée', fait: true, d: h(C.fmtDate(stored.date)) },
+        { t: annulee ? 'Annulée' : 'Envoyée', fait: partie, alerte: annulee, d: partie ? 'au fournisseur' : annulee ? 'plus rien n\'est attendu' : `à ${h(supplierName(stored.supplierId))}`,
+          g: aEnvoyer ? '<button type="button" class="btn btn-sm" data-frise="cf-envoyer">Envoyer</button>' : '' },
+        { t: toutRecu ? 'Reçue' : qRecu > 0 ? 'Reçue en partie' : 'Reçue', fait: toutRecu, partiel: !toutRecu && qRecu > 0, alerte: enRetardCF,
+          d: qCmd ? `${pct(qRecu)} sur ${pct(qCmd)}${enRetardCF ? ' — en retard' : ''}` : '—',
+          g: aRecevoir && !aEnvoyer ? `<button type="button" class="btn btn-sm" data-frise="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : '' },
+        { t: 'Facturée', fait: facturee && !aFacturer.length, partiel: facturee && aFacturer.length > 0,
+          d: facturee ? factures.map(f => h(f.number || 'sans numéro')).join(', ') : aFacturer.length ? 'reçue, la facture manque' : 'à la réception',
+          g: aFacturer.length ? '<button type="button" class="btn btn-sm" data-frise="cf-facturer">Saisir la facture</button>' : '' },
+      ];
+      return `<div class="panel ed-frise quatre" id="cf-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : ''}${x.alerte ? ' alerte' : ''}${x.partiel ? ' partiel' : ''}">
+          <span class="rond" aria-hidden="true">${x.fait ? lfIc('coche', 13, 3) : i + 1}</span>
+          <span class="ed-fr-txt"><b>${x.t}</b><span>${x.d}</span></span>${x.g ? `<span class="ed-fr-geste">${x.g}</span>` : ''}
+          <span class="vh">${x.fait ? ' : fait' : ' : pas encore'}</span></li>`).join('')}</ol></div>`;
+    };
+    // (1.285.0, Skander : « respecter la DA de ce qu'on a déjà fait avec facture et devis ») Le squelette de l'achat et de la
+    // facture : en-tête de pièce (‹, chemin, titre et sa pastille), frise, à gauche la pièce, à droite les totaux et UN
+    // grand bouton — l'étape suivante, calculée ; les autres gestes restent à côté, en secondaires.
+    const gesteCF = () => {
+      const t = o.status === 'demande' && !o.lines.some(l => Number(l.unitPrice) > 0) ? null : C.computeTotals(o, company());
+      const net = t ? `<div class="ed-net-tel"><span>${demande || o.status === 'demande' ? 'Total de la demande HT' : 'Total de la commande TTC'}</span><b id="ed-net-tel">${C.money(demande ? t.netHT : t.totalTTC, cur)}</b></div>` : '';
+      const sauver = stored ? '<button class="btn" id="save" hidden>Enregistrer les modifications</button>'
+        : `<button class="btn btn-primary btn-grand" id="save">${o.status === 'demande' ? 'Enregistrer la demande' : 'Enregistrer la commande'}</button>`;
+      const recevoirTxt = suivi && suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir';
+      const sec = [];
+      let prim = '', phrase = '';
+      if (!stored) phrase = o.status === 'demande' ? 'Elle prend son numéro à l\'enregistrement, puis part en PDF à chaque fournisseur.' : 'Elle prend son numéro à l\'enregistrement ; tu l\'envoies ensuite au fournisseur.';
+      else if (demande) {
+        prim = demandeSansPrix ? `<button class="btn btn-primary btn-grand" id="cf-pdf">${lfIc('envoi', 17)}Envoyer la demande (PDF)</button>`
+          : groupe.demandes.length < 2 ? `<button class="btn btn-primary btn-grand" id="cf-commander">${lfIc('coche', 17, 2.4)}Commander</button>` : '';
+        if (demandeSansPrix && groupe.demandes.length < 2) sec.push('<button class="btn" id="cf-commander">Commander</button>');
+        phrase = demandeSansPrix ? 'Les prix se saisissent quand le fournisseur répond.' : groupe.demandes.length > 1 ? 'Compare les réponses ci-dessous, puis commande chez l\'un.' : 'Les prix répondus sont saisis : la demande devient une commande.';
+      } else if (aEnvoyer) {
+        prim = `<button class="btn btn-primary btn-grand" id="cf-envoyer">${lfIc('envoi', 17)}Envoyer au fournisseur…</button>`;
+        if (aRecevoir) sec.push(`<button class="btn" id="cf-recevoir">${recevoirTxt}</button>`);
+        phrase = 'Le bon part en PDF joint au courriel du fournisseur ; une commande passée par téléphone se reçoit sans l\'envoyer.';
+      } else if (aRecevoir) {
+        prim = `<button class="btn btn-primary btn-grand" id="cf-recevoir">${lfIc('depot', 17)}${recevoirTxt}</button>`;
+        if (aFacturer.length) sec.push('<button class="btn" id="cf-facturer">Saisir la facture du fournisseur</button>');
+        phrase = `${qRecu ? `${pct(qRecu)} sur ${pct(qCmd)} reçus` : 'Rien n\'est encore arrivé'}${o.dueDate ? ` · livraison souhaitée le ${lfJm(o.dueDate)}` : ''}. Ce qui arrive entre en stock à la réception.`;
+      } else if (aFacturer.length) {
+        prim = `<button class="btn btn-primary btn-grand" id="cf-facturer">${lfIc('carte', 17)}Saisir la facture du fournisseur</button>`;
+        phrase = 'Tout est reçu : la facture se pré-remplit depuis les réceptions.';
+      }
+      if (prim || !stored) return `<div class="panel ed-geste" id="ed-geste">${net}${stored ? prim : sauver}${phrase ? `<p class="ed-phrase">${phrase}</p>` : ''}${stored ? sauver : ''}${sec.length ? `<div class="ed-deux">${sec.join('')}</div>` : ''}</div>`;
+      const etat = close ? (stored.status === 'soldée' ? 'Soldée : le reste n\'est plus attendu.' : 'Annulée.') : factures.length ? 'Reçue et facturée : plus rien n\'attend.' : 'Rien n\'attend.';
+      return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${etat}</span></p>${sauver}</div>`;
+    };
     $('#view').innerHTML = `
-      <div class="page-head">
-        <div><h1>${stored ? `${demande ? 'Demande de prix' : 'Commande'} ${h(o.number || '(brouillon)')}` : o.status === 'demande' ? 'Nouvelle demande de prix' : 'Nouvelle commande fournisseur'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1>
-          ${stored ? `<div class="small muted">${h(supplierName(o.supplierId))} · ${badgeCF(statut)}</div>` : ''}</div>
+      <div class="page-head ed-tete">
+        ${retourListe('#/commandesf', 'commandes fournisseurs')}<div class="ed-titre">
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/commandesf" class="ed-retour">Commandes fournisseurs</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(stored ? (o.number || '(brouillon)') : titreCF)}</span></div>
+          <div class="ed-h1"><h1>${h(titreCF)}</h1>${stored ? badgeCF(statut) : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
+          <div class="small muted" id="cf-sous">${sousCF.filter((x, k) => x && !(stored && k === 1)).join(' · ')}</div>
+        </div>
         <div class="actions">
-          ${backButton('#/commandesf')}
-          ${stored ? `<button class="btn ${demandeSansPrix ? 'btn-primary' : ''}" id="cf-pdf">PDF</button>` : ''}
-          ${demande ? `<button class="btn" id="cf-aussi">Demander aussi à…</button>${groupe.demandes.length < 2 ? `<button class="btn ${demandeSansPrix ? '' : 'btn-primary'}" id="cf-commander">Commander</button>` : ''}` : ''}
-          ${aEnvoyer ? '<button class="btn btn-primary" id="cf-envoyer">Envoyer au fournisseur…</button>' : ''}
-          ${aRecevoir ? `<button class="btn ${aEnvoyer ? '' : 'btn-primary'}" id="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : ''}
-          ${aFacturer.length ? `<button class="btn ${aRecevoir ? '' : 'btn-primary'}" id="cf-facturer">Saisir la facture du fournisseur</button>` : ''}
-          <button class="btn ${!stored ? 'btn-primary' : ''}" id="save">Enregistrer</button>
-          ${stored ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
+          ${stored && !demandeSansPrix ? `<button class="btn" id="cf-pdf">${lfIc('oeil', 16)}PDF</button>` : ''}
+          ${demande ? '<button class="btn" id="cf-aussi">Demander aussi à…</button>' : ''}
+          ${stored ? `<div class="more"><button class="btn ico" id="more-btn" aria-label="Tous les gestes de la pièce" title="Tous les gestes de la pièce">${lfIc('plus', 18)}</button><div class="more-list" id="more-list" hidden>
             <button id="cf-del" class="danger">Supprimer</button></div></div>` : ''}
         </div></div>
       ${stored ? bandeauAccordCommande(stored, () => { $('[name=status]', $('#cf-head')).value = 'envoyée'; $('#save').click(); }, () => totaux()) : ''}
+      <div class="buy-editor editor charte" data-devise="${h(cur)}">
+        <div class="ed-gauche">
+      ${friseCF()}
       <div class="panel"><h2>La ${quoi} ${info('cf.head')}</h2>
         <form id="cf-head" class="grid-3">
           <div class="field">${lbl('Fournisseur', 'cf.fournisseur')}
@@ -14383,9 +14448,8 @@
         ${figee ? `<p class="small muted mb" id="cf-figee">${recue ? 'Cette commande a déjà reçu de la marchandise : ses lignes ne changent plus (ses réceptions s\'y rattachent ligne par ligne).'
           : 'Cette commande a une réception en préparation : ses lignes ne changent plus tant qu\'elle existe (elle s\'y rattache ligne par ligne). Pour les modifier, supprime d\'abord cette réception.'}</p>` : `<div class="catalog-pick"><div id="cf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher un article…' })}</div>
           <button class="btn btn-sm" id="cf-add">+ Ligne</button></div>`}
-        <div class="lignes-cadre"><table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:76px">Qté</th><th style="width:136px">Unité</th><th class="r" style="width:124px">${quoi === 'demande' ? 'Prix répondu HT' : 'P.U. HT'}</th><th style="width:84px">TVA</th><th class="r" style="width:140px">Total HT</th><th style="width:44px"></th></tr></thead>
+        <div class="lignes-cadre"><table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:70px">Qté</th><th style="width:96px">Unité</th><th class="r" style="width:104px">${quoi === 'demande' ? 'Prix répondu HT' : 'P.U. HT'}</th><th style="width:68px">TVA</th><th class="r" style="width:108px">Total HT</th><th style="width:36px"></th></tr></thead>
           <tbody id="cf-lines"></tbody></table></div>
-        <div class="totals-box" id="cf-totals"></div>
         <div id="cf-accord"></div>
       </div>
       ${suivi && suivi.receptions.length ? `<div class="panel" id="receptions-panel"><h2>Réceptions ${info('cf.receptions')}</h2>
@@ -14405,7 +14469,13 @@
           <tr><td colspan="2"></td>${groupe.totaux.map(t => `<td class="r"><button class="btn btn-sm ${t.id === groupe.moinsCher ? 'btn-primary' : ''}" data-commander="${h(t.id)}">Commander chez ${h(supplierName(t.supplierId))}</button></td>`).join('')}</tr>
         </tbody></table></div>
         <p class="small muted mt">Prix hors taxes enregistrés, ramenés en ${h(company().currency)} ; le moins cher de chaque ligne est en gras. Commander chez l'un écarte les autres demandes.</p></div>` : ''}
-      <div class="panel"><h2>Notes (imprimées sur la ${quoi})</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>`;
+      <div class="panel"><h2>Notes (imprimées sur la ${quoi})</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>
+        </div>
+        <aside class="ed-droite">
+          <div class="panel ed-totaux"><div class="totals-box" id="cf-totals"></div></div>
+          ${gesteCF()}
+        </aside>
+      </div>`;
 
     let dirty = false;
     // (1.164.0, comme la facture et l'achat) Neuve, la commande se garde sur cet appareil (« mon ordinateur ») 1,5 s après la
@@ -14575,6 +14645,8 @@
         render(true);
       } catch (e) { b.disabled = false; b.textContent = 'Envoyer au fournisseur…'; toast(plainError(e), true); }
     };
+    // Les gestes de la frise appuient sur le bouton de l'en-tête : un seul geste, deux places.
+    $$('#cf-frise [data-frise]').forEach(b => { b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); }; });
     if ($('#cf-pdf')) $('#cf-pdf').onclick = async () => {
       if (dirty && !enregistrer()) return;
       const cmd = commandeFById(o.id);

@@ -255,7 +255,7 @@ describe('la revue du Stock', () => {
     await p.locator('#st-body [data-commander="a2"]').click();
     await p.locator('#cf-lines input[data-k=qty]').first().waitFor();
     await p.locator('#cf-lines input[data-k=qty]').first().fill('2');
-    await p.locator('#view .page-head').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await p.locator('#save').click();
     await expect.poll(async () => (await surLeServeur('supplierOrders')).length, { timeout: 15_000 }).toBe(1);
     const numero = String((await surLeServeur('supplierOrders'))[0]?.number);
     // Ce qui est en commande se retire de « à commander » et se lit sur la ligne.
@@ -280,15 +280,19 @@ describe('la revue du Stock', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/commandef/${bcf.id}`);
     await p.locator('#cf-lines input[data-k=qty]').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
-    expect(await p.locator('#view .page-head .actions .btn-primary').allInnerTexts()).toEqual(['Envoyer au fournisseur…']);
+    // Le squelette de l'achat : un seul bouton principal, dans la colonne de droite.
+    expect((await p.locator('#view .btn-primary').allInnerTexts()).map(net)).toEqual(['Envoyer au fournisseur…']);
     await p.locator('#cf-envoyer').click();
     await expect.poll(async () => (await surLeServeur('supplierOrders'))[0]?.status, { timeout: 15_000 }).toBe('envoyée');
+    // La frise de la pièce, comme la facture : préparée et envoyée faites, la réception attend.
+    await expect.poll(() => p.locator('#cf-frise li.fait').count(), { timeout: 10_000 }).toBe(2);
+    expect((await p.locator('#view .btn-primary').allInnerTexts()).map(net)).toEqual(['Recevoir']);
     // Un bon sans fournisseur refusé montre le champ, pas seulement un message.
     await p.goto('about:blank');
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/commandef/new`);
     await p.locator('#cf-lines input[data-k=qty]').first().waitFor({ timeout: 20_000 });
     await p.locator('#cf-lines input[data-k=label]').first().fill('Ciment blanc');
-    await p.locator('#view .page-head').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await p.locator('#save').click();
     await expect.poll(() => p.locator('#cf-head .field.champ-faute [data-combo=supplierId]').count()).toBe(1);
 
     // L'achat oublié d'un stock à −3 propose 3 (le stock revient à 0), et sa flèche ramène au Stock.

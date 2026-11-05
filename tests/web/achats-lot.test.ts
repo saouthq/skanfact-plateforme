@@ -169,9 +169,9 @@ describe('le lot achats, à l\'écran', () => {
     await expect.poll(() => toast(p), { timeout: 10_000 }).toMatch(/^Réception BR-\d{4}-002 validée : sa ligne est entrée en stock\.$/);
     await p.locator('#back').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
-    // Le bouton retour de la commande répond aussi.
+    // Le retour de la commande répond aussi (1.285.0 : la flèche « ‹ » des pièces, comme l'achat et la facture).
     const surCommande = await p.evaluate(() => location.hash);
-    await p.locator('#back').click();
+    await p.locator('#view .ed-retour-btn').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).not.toBe(surCommande);
     await aller(p, surCommande);
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);

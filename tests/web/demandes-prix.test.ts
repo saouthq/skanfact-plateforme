@@ -91,7 +91,8 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     await p.locator('#cf-lines [data-k=qty][data-i="0"]').fill('100');
     await p.locator('#save').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Demande de prix BCF-\d{4}-001/);
-    expect(net(await p.locator('#view .page-head .small').first().innerText())).toBe('Ciments de Bizerte · demande de prix');
+    expect(net(await p.locator('#view .ed-h1').innerText())).toContain('demande de prix');
+    expect(net(await p.locator('#cf-sous').innerText())).toBe('Ciments de Bizerte');
     expect(await p.locator('#cf-recevoir').count()).toBe(0);
     // Elle se nomme comme telle, jusque dans ses titres.
     expect((await p.locator('#view .panel h2').allInnerTexts()).map(net).filter((t) => /^(La|Notes)/.test(t))).toEqual(['La demande i', 'Notes (imprimées sur la demande)']);
@@ -109,7 +110,8 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     await expect.poll(() => p.locator('#aussi-f option').allInnerTexts()).toEqual(['Béton du Nord']);
     await p.locator('#aussi-ok').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Demande de prix BCF-\d{4}-002/);
-    expect(net(await p.locator('#view .page-head .small').first().innerText())).toBe('Béton du Nord · demande de prix');
+    expect(net(await p.locator('#view .ed-h1').innerText())).toContain('demande de prix');
+    expect(net(await p.locator('#cf-sous').innerText())).toBe('Béton du Nord');
     expect(await p.locator('#cf-lines [data-k=unitPrice][data-i="0"]').inputValue()).toMatch(/^0(\.000)?$/);
     expect(net(await p.locator('#cf-comparer').innerText())).toMatch(/Ciment gris 50 kg 100 sac 17,250 DT sans réponse Total HT 1 725,000 DT incomplète/);
 
@@ -131,7 +133,8 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     // 6. Commander chez Béton du Nord : sa demande devient la commande, l'autre est écartée.
     await p.locator('#cf-comparer .btn-primary').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-\d{4}-002/);
-    expect(net(await p.locator('#view .page-head .small').first().innerText())).toBe('Béton du Nord · envoyée');
+    expect(net(await p.locator('#view .ed-h1').innerText())).toContain('envoyée');
+    expect(net(await p.locator('#cf-sous').innerText())).toBe('Béton du Nord');
     expect(await p.locator('#cf-recevoir').innerText()).toBe('Recevoir');
     await p.evaluate(() => { location.hash = '#/commandesf'; });
     await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 10_000 })

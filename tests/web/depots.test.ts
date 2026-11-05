@@ -116,7 +116,9 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Magasin de Tunis 100 sacs · Magasin de Sfax 60 sacs');
     expect(net(await p.locator('#view').innerText())).not.toMatch(/Transfert entre dépôts/);
     // La ligne de la réception mène à la réception.
-    await p.locator('#view a', { hasText: /^BR-/ }).first().click();
+    const lienBR = p.locator('#view tr a', { hasText: /^BR-/ }).first();
+    expect(await lienBR.getAttribute('href')).toBe('#/reception/r1');
+    await lienBR.click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception BR-/);
     expect(erreurs).toEqual([]);
     await cn.close();

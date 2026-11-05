@@ -7675,10 +7675,10 @@ prouver "la demande de prix qui affiche un total à zéro" modules/socle/ecrans/
   "      if (o.status === 'demande' && !o.lines.some(l => Number(l.unitPrice) > 0)) {" "      if (false) {" \
   "$ACW2"
 prouver "« Commander » en bouton principal avant l'envoi de la demande" modules/socle/ecrans/entreprise/app-1.js \
-  "<button class=\"btn \${demandeSansPrix ? '' : 'btn-primary'}\" id=\"cf-commander\">" "<button class=\"btn btn-primary\" id=\"cf-commander\">" \
+  'sec.push('"'"'<button class="btn" id="cf-commander">Commander</button>'"'"');' 'sec.push('"'"'<button class="btn btn-primary" id="cf-commander">Commander</button>'"'"');' \
   "$ACW2"
 prouver "le PDF d'une demande sans prix qui n'est pas l'étape suivante" modules/socle/ecrans/entreprise/app-1.js \
-  "<button class=\"btn \${demandeSansPrix ? 'btn-primary' : ''}\" id=\"cf-pdf\">" "<button class=\"btn\" id=\"cf-pdf\">" \
+  'prim = demandeSansPrix ? `<button class="btn btn-primary btn-grand" id="cf-pdf">' 'prim = demandeSansPrix ? `<button class="btn btn-grand" id="cf-pdf">' \
   "$ACW2"
 prouver "« Commande … enregistrée » dit d'une demande de prix" modules/socle/ecrans/entreprise/app-1.js \
   "toast(\`\${o.status === 'demande' ? 'Demande de prix' : 'Commande'} \${o.number} enregistrée\`);" "toast(\`Commande \${o.number} enregistrée\`);" \
@@ -7693,7 +7693,7 @@ prouver "la référence d'une commande sans sa bulle « i »" modules/socle/ecra
   "lbl('Référence (optionnel)', 'cf.reference')" "lbl('Référence (optionnel)', '')" \
   "$ACW1"
 prouver "la désignation d'une commande écrasée par les autres colonnes" modules/socle/ecrans/entreprise/app-1.js \
-  "<th class=\"r\" style=\"width:76px\">Qté</th><th style=\"width:136px\">Unité</th><th class=\"r\" style=\"width:124px\">" "<th class=\"r\">Qté</th><th>Unité</th><th class=\"r\">" \
+  '<th class="r" style="width:70px">Qté</th><th style="width:96px">Unité</th><th class="r" style="width:104px">' '<th class="r">Qté</th><th>Unité</th><th class="r">' \
   "$ACW1"
 
 # ── L'exemple rempli, et « Faire une facture » pas à pas (retour de Skander, 05/10/2026 ; serveur/v10/exemple.ts,
@@ -24422,6 +24422,12 @@ prouver 'commandes 1.285 a : un bon en brouillon n'"'"'a pas « Envoyer au fourn
   'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
 prouver 'commandes 1.285 b : le refus du fournisseur ne montre pas le champ' modules/socle/ecrans/entreprise/app-1.js \
   'if (!o.supplierId) return refus($('"'"'[data-combo=supplierId] .combo-btn'"'"'), ' 'if (!o.supplierId) return refus(null, ' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+prouver 'commandes 1.285 c : la frise de la commande ne voit pas qu'"'"'elle est partie' modules/socle/ecrans/entreprise/app-1.js \
+  'const partie = !['"'"'brouillon'"'"'].includes(stored.status || '"'"'brouillon'"'"') && !annulee;' 'const partie = false;' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+prouver 'commandes 1.285 d : la commande reçue n'"'"'a plus « Recevoir » pour étape suivante' modules/socle/ecrans/entreprise/app-1.js \
+  'prim = `<button class="btn btn-primary btn-grand" id="cf-recevoir">' 'prim = `<button class="btn btn-grand" id="cf-recevoir">' \
   'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

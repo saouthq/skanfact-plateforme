@@ -112,3 +112,22 @@ La preuve : `stock-commander.test.ts` (7 règles), un second parcours dans `stoc
 
 Reste à examiner pour ce module : la visite guidée du stock (ses fins), la lecture seule et le hors ligne sur l'inventaire
 et sur « Commander tout ce qui manque », « Prévenir mon comptable » vu avec un vrai cabinet relié.
+
+## Les commandes fournisseurs
+
+### Fait en 1.285.0 et 1.286.0 (05/11/2026)
+
+- **F1, F2 du Stock** : le refus montre le champ ; un bon en brouillon a pour étape suivante « Envoyer au fournisseur… »
+  (PDF joint au courriel prêt, puis « envoyée », l'accord demandé avant s'il le faut).
+- **La DA de la facture et du devis** (Skander, 05/11/2026 : « il faut respecter la DA de ce qu'on a déjà fait avec
+  facture et devis ») : le bon de commande prend le squelette de l'achat — en-tête de pièce (‹, chemin, titre et sa
+  pastille, le fournisseur dessous), frise « Préparée → Envoyée → Reçue (x sur y, en retard) → Facturée » avec le geste de
+  l'étape qui attend, à gauche la commande, les lignes, les réceptions et les notes, à droite les totaux et **un seul grand
+  bouton** (envoyer, recevoir, saisir la facture, ou « Enregistrer la commande » quand elle est neuve) ; les autres gestes
+  en secondaires dessous, « Enregistrer » caché tant que rien n'a changé (comme le devis).
+- Joué à la souris : brouillon → envoyer (le message dit où trouver le PDF à joindre) → recevoir 2 sur 4 (frise « Reçue en
+  partie », « Saisir la facture » apparaît) ; la désignation des lignes gardait 164 px dans la colonne plus étroite : les
+  autres colonnes sont resserrées.
+
+Reste pour ce module : la réception (`#/reception/…`) et la demande de prix comparée sont encore dans l'ancienne
+présentation ; le téléphone du bon de commande à jouer.
