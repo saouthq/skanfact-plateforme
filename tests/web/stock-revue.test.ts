@@ -113,6 +113,23 @@ describe('la revue du Stock', () => {
     expect(Number(await p.locator('#cf-lines input[data-k=unitPrice]').inputValue())).toBe(17.5);
     expect(await surLeServeur('supplierOrders')).toEqual([]);
 
+    // La fiche du ciment : chemin, quatre chiffres, d'où il vient, combien il se vend ; l'étape suivante est de commander.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/article/a1`);
+    await p.locator('#art-resume .mg-chiffre').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    expect(net(await p.locator('#view .page-head.lf-tete .chemin').innerText())).toBe('Accueil Stock Ciment gris 50 kg');
+    expect((await p.locator('#art-resume .mg-chiffre span.mu').allInnerTexts()).map(net)).toEqual(['En stock i', 'Coût moyen pondéré i', 'Valeur du stock', 'Marge unitaire']);
+    expect(net(await p.locator('#art-resume .mg-chiffre').first().innerText())).toBe('En stock i 8 sacs seuil 10 — 32 à commander');
+    expect(net(await p.locator('#art-dernier-achat').innerText())).toMatch(/Ciments du Nord · 17,500 DT HT l'unité · le \d\d\/\d\d\/\d{4} · FA-p2/);
+    expect(net(await p.locator('#art-vendu').innerText())).toBe('Vendu sur 12 mois i Aucune vente facturée depuis un an.');
+    expect(await p.locator('#view .page-head .actions .btn-primary').allInnerTexts()).toEqual(['Commander…']);
+    await p.screenshot({ path: path.join(PHOTOS, 'stock-revue-2-fiche.png') });
+    await p.locator('#art-commander').click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/commandef/new');
+    await p.locator('#cf-lines input[data-k=qty]').first().waitFor();
+    expect(await p.locator('#cf-lines input[data-k=qty]').inputValue()).toBe('32');
+
     // Tout ce qui manque : deux bons en brouillon et numérotés (un par fournisseur connu), et le gravier, sans fournisseur,
     // dans un bon ouvert à l'écran.
     await p.goto('about:blank');
@@ -133,23 +150,6 @@ describe('la revue du Stock', () => {
     expect(await p.locator('#cf-lines input[data-k=label]').inputValue()).toBe('Gravier 15/25');
     expect(await p.locator('#cf-lines input[data-k=qty]').inputValue()).toBe('3');
     expect(net(await p.locator('[data-combo=supplierId]').innerText())).not.toContain('Grossiste');
-
-    // La fiche du ciment : chemin, quatre chiffres, d'où il vient, combien il se vend ; l'étape suivante est de commander.
-    await p.goto('about:blank');
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/article/a1`);
-    await p.locator('#art-resume .mg-chiffre').first().waitFor({ timeout: 20_000 });
-    await plusTard(p);
-    expect(net(await p.locator('#view .page-head.lf-tete .chemin').innerText())).toBe('Accueil Stock Ciment gris 50 kg');
-    expect((await p.locator('#art-resume .mg-chiffre span.mu').allInnerTexts()).map(net)).toEqual(['En stock i', 'Coût moyen pondéré i', 'Valeur du stock', 'Marge unitaire']);
-    expect(net(await p.locator('#art-resume .mg-chiffre').first().innerText())).toBe('En stock i 8 sacs seuil 10 — 32 à commander');
-    expect(net(await p.locator('#art-dernier-achat').innerText())).toMatch(/Ciments du Nord · 17,500 DT HT l'unité · le \d\d\/\d\d\/\d{4} · FA-p2/);
-    expect(net(await p.locator('#art-vendu').innerText())).toBe('Vendu sur 12 mois i Aucune vente facturée depuis un an.');
-    expect(await p.locator('#view .page-head .actions .btn-primary').allInnerTexts()).toEqual(['Commander…']);
-    await p.screenshot({ path: path.join(PHOTOS, 'stock-revue-2-fiche.png') });
-    await p.locator('#art-commander').click();
-    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/commandef/new');
-    await p.locator('#cf-lines input[data-k=qty]').first().waitFor();
-    expect(await p.locator('#cf-lines input[data-k=qty]').inputValue()).toBe('32');
 
     // L'enduit : 30 mouvements, 25 par page ; rien à commander, le bouton principal est « + Mouvement ».
     await p.goto('about:blank');
@@ -189,6 +189,106 @@ describe('la revue du Stock', () => {
     });
     expect(debord).toEqual({ page: 0, hors: 0 });
     await p.screenshot({ path: path.join(PHOTOS, 'stock-revue-3-telephone.png'), fullPage: true });
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
+
+  // (1.284.2) Ce que le jeu à la souris a trouvé (docs/revue-modules.md, « Joué comme un vrai utilisateur ») : un article
+  // déjà commandé ne se recommande pas (le bon en cours se retire de « à commander ») ; « tout ce qui manque » complète le
+  // brouillon déjà ouvert chez le même fournisseur, en grandissant la ligne de l'article plutôt qu'en la doublant ; l'achat
+  // oublié d'un stock à −3 propose 3, pas 1 ; sa flèche ramène au Stock ; un article suivi se modifie sous ce nom.
+  it('un article déjà commandé ne se recommande pas, le brouillon se complète, l\'achat oublié propose le manque et ramène au Stock', async () => {
+    const email = `stock-joue-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Hédi Ben Salah', motDePasse: 'Un-bon-mot-de-passe' });
+    const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    const r = await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Chrome sur Linux', type: 'navigateur' } });
+    const jeton = String((await api('POST', '/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Quincaillerie Ben Salah' })).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    const surLeServeur = async (collection: string) => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
+      .filter((o) => o.collection === collection).map((o) => o.contenu);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => {
+      if (!location.protocol.startsWith('http')) return;
+      sessionStorage.setItem('skanfact.jeton', j);
+      localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false }));
+    }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/stock`);
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await p.waitForTimeout(1500);
+    await p.goto('about:blank');
+    const auj = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis' }).format(new Date());
+    const jour = (k: number) => new Date(Date.parse(auj) + k * 86_400_000).toISOString().slice(0, 10);
+    const o = (collection: string, cle: string, rang: number, contenu: Record<string, unknown>) => ({ collection, cle, rang, revision: null, contenu: { id: cle, ...contenu } });
+    const achat = (cle: string, rang: number, supplierId: string, date: string, itemId: string, label: string, qty: number, prix: string) => o('purchases', cle, rang, {
+      kind: 'facture', number: `FA-${cle}`, date, dueDate: date, supplierId, currency: 'DT', fees: 0, withholdingRate: 0, createdAt: Date.parse(date), payments: [],
+      lines: [{ label, itemId, qty, unitPrice: n(prix), vatRate: 19, destination: 'stock', deductible: true }] });
+    // Le sable (Grossiste Sfax, 1 en stock, seuil 5) manque de 4 ; la chaux (Grossiste Sfax, 2 en stock, seuil 5) de 3 ;
+    // la peinture est à −3 (sortie sans pièce).
+    const ecrit = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      o('suppliers', 's1', 0, { name: 'Grossiste Sfax' }),
+      o('catalog', 'a2', 0, { label: 'Sable lavé', unit: 'm³', unitPrice: n('60'), unitCost: n('44'), vatRate: 19, tracked: true, minStock: 5 }),
+      o('catalog', 'a5', 1, { label: 'Chaux vive', unit: 'sac', unitPrice: n('18'), unitCost: n('11'), vatRate: 19, tracked: true, minStock: 5 }),
+      o('catalog', 'a6', 2, { label: 'Peinture blanche 20 L', unit: 'seau', unitPrice: n('95'), unitCost: n('68'), vatRate: 19, tracked: true, minStock: 2 }),
+      achat('p3', 0, 's1', jour(-10), 'a2', 'Sable lavé', 1, '45'),
+      achat('p4', 1, 's1', jour(-8), 'a5', 'Chaux vive', 2, '12.4'),
+      o('stockAdjustments', 'aj1', 0, { createdAt: Date.now(), date: jour(-3), itemId: 'a6', qty: -3, unitCost: '', source: 'ajustement', reference: '', note: 'Sortie sans pièce' }),
+    ] });
+    expect(ecrit.statut, JSON.stringify(ecrit.corps)).toBe(200);
+    const alertes = async () => {
+      await p.goto('about:blank');
+      await p.goto(`${serveur.adresse}/v10/?e=${ent}#/stock`);
+      await p.locator('#st-tabs button[data-tab="alertes"]').waitFor({ timeout: 20_000 });
+      await plusTard(p);
+      await p.locator('#st-tabs button[data-tab="alertes"]').click();
+      await p.locator('#st-body tr[data-see]').first().waitFor();
+      return Object.fromEntries(await p.locator('#st-body tr[data-see]').evaluateAll((trs) => trs.map((tr) => [tr.getAttribute('data-see'),
+        [tr.children[4]?.textContent?.trim(), tr.querySelector('[data-en-commande]')?.textContent?.replace(/\s+/g, ' ').trim() ?? '', tr.querySelector('button')?.textContent]])));
+    };
+
+    // Le sable commandé seul, 2 au lieu de 4, enregistré en brouillon.
+    await alertes();
+    await p.locator('#st-body [data-commander="a2"]').click();
+    await p.locator('#cf-lines input[data-k=qty]').first().waitFor();
+    await p.locator('#cf-lines input[data-k=qty]').first().fill('2');
+    await p.locator('#view .page-head').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(async () => (await surLeServeur('supplierOrders')).length, { timeout: 15_000 }).toBe(1);
+    const numero = String((await surLeServeur('supplierOrders'))[0]?.number);
+    // Ce qui est en commande se retire de « à commander » et se lit sur la ligne.
+    expect(await alertes()).toEqual({
+      a6: ['—', '', 'Saisir l\'achat oublié…'],
+      a5: ['3', '', 'Commander…'],
+      a2: ['2', `Déjà en commande : 2 — ${numero}`, 'Commander…'],
+    });
+    // Tout ce qui manque : le brouillon de Grossiste Sfax se complète (la ligne du sable passe à 4, la chaux s'ajoute), pas
+    // de second bon chez le même fournisseur.
+    await p.locator('#st-cmd-tout').click();
+    await expect.poll(async () => JSON.stringify((await surLeServeur('supplierOrders')).map((b) => (b.lines as { itemId: string; qty: number }[]).map((l) => [l.itemId, Number(l.qty)]))), { timeout: 15_000 })
+      .toBe(JSON.stringify([[['a2', 4], ['a5', 3]]]));
+    const apres = await alertes();
+    expect([apres.a2?.[0], apres.a2?.[2], apres.a5?.[0], apres.a5?.[2]]).toEqual(['0', 'Voir la commande', '0', 'Voir la commande']);
+    expect(await p.locator('#st-cmd-tout').count()).toBe(0);
+
+    // L'achat oublié d'un stock à −3 propose 3 (le stock revient à 0), et sa flèche ramène au Stock.
+    await p.locator('#st-body [data-achat="a6"]').click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/achat/new/-/facture/-/article/a6/3');
+    await expect.poll(async () => net(await p.locator('#view [data-stk]').first().innerText().catch(() => ''))).toMatch(/^en stock : .3 → 0$/);
+    await p.locator('#view .ed-retour-btn').click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/stock');
+
+    // La fiche d'un article suivi : « Modifier l'article », et son historique respire dans sa carte.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/article/a2`);
+    await p.locator('#art-resume .mg-chiffre').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    const marge = await p.locator('#art-hist').evaluate((x) => x.getBoundingClientRect().left - (x.closest('.cf-carte') as HTMLElement).getBoundingClientRect().left);
+    expect(marge).toBeGreaterThanOrEqual(12);
+    await p.getByRole('button', { name: 'Modifier l\'article', exact: true }).click();
+    expect(net(await p.locator('#modal-root h2').last().innerText())).toBe('Modifier l\'article');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);

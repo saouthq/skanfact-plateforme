@@ -4146,14 +4146,16 @@
     const rows = stockList(data, toIso);
     const neg = rows.filter(r => r.negative).map(r => ({ ...r, kind: 'negatif' }));
     const low = rows.filter(r => r.low).map(r => ({ ...r, kind: r.qty === 0 ? 'rupture' : 'bas' }));
-    return neg.concat(low.sort((a, b) => a.qty - b.qty)).map(r => r.kind === 'negatif' ? r : { ...r, aCommander: quantiteACommander(data, r) });
+    return neg.concat(low.sort((a, b) => a.qty - b.qty)).map(r => r.kind === 'negatif' ? r : { ...r, aCommander: quantiteACommander(data, r), enCommande: commandesEnCoursDeLArticle(data, r.itemId) });
   }
   // (1.284.0, revue du Stock S2) Ce qu'il faut commander pour un article sous son seuil : jusqu'au « stock à atteindre »
   // de l'article s'il en a un (au-dessus du seuil), sinon jusqu'au seuil — la règle d'avant, quand rien n'est réglé.
   function quantiteACommander(data, r) {
     const it = (data.catalog || []).find(c => c.id === r.itemId) || {};
     const cible = Math.max(Number(it.stockCible) || 0, Math.max(Number(r.minStock) || 0, 1));
-    return round3(Math.max(0, cible - (Number(r.qty) || 0)));
+    // Ce qui est déjà commandé et pas encore reçu viendra : on ne le recommande pas (1.284.2).
+    const enCommande = commandesEnCoursDeLArticle(data, r.itemId).reduce((a, x) => a + x.reste, 0);
+    return round3(Math.max(0, cible - (Number(r.qty) || 0) - enCommande));
   }
   // (1.284.0, revue du Stock S1) D'où vient un article : le fournisseur de son dernier achat ou de sa dernière réception,
   // son coût d'entrée (en devise de base) et sa date. Rien d'acheté encore : null — l'écran demande le fournisseur.

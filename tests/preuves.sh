@@ -24399,6 +24399,24 @@ prouver 'stock 1.284 f : le résumé de l'"'"'inventaire lu après ses mouvement
 prouver 'classeur 1.284 c : le mois choisi avant les pièces reçues ne se rechoisit plus' modules/socle/ecrans/cabinet/app-1.js \
   'if (!clState.mois || !trouve(clState.mois) || moisRevu) {' 'if (!clState.mois || !trouve(clState.mois)) {' \
   'une pièce lue dont le total est celui d'"'"'un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
+prouver 'stock 1.284 g : ce qui est déjà en commande se recommande' modules/socle/moteur/core-1.js \
+  'const enCommande = commandesEnCoursDeLArticle(data, r.itemId).reduce((a, x) => a + x.reste, 0);' 'const enCommande = 0;' \
+  'ce qui est déjà en commande (bon pas encore reçu) se retire ; une réception partielle n'"'"'en retire que le reste'
+prouver 'stock 1.284 h : le brouillon complété double la ligne de l'"'"'article' modules/socle/ecrans/entreprise/app-2.js \
+  'const deja = ouvert.lines.find(x => x.itemId && x.itemId === l.itemId);' 'const deja = null;' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+prouver 'stock 1.284 i : un seul fournisseur ouvre un bon neuf à côté de son brouillon' modules/socle/ecrans/entreprise/app-2.js \
+  'if (!ouvert) return ouvrirBon(bonDesArticles(rows, cle));' 'return ouvrirBon(bonDesArticles(rows, cle));' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+prouver 'stock 1.284 j : l'"'"'achat oublié d'"'"'un stock négatif propose 1' modules/socle/ecrans/entreprise/app-2.js \
+  'data-qte="${C.round3(Math.abs(r.qty))}"' 'data-qte=""' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+prouver 'stock 1.284 k : l'"'"'achat ouvert depuis le Stock ramène aux Achats' modules/socle/ecrans/entreprise/app-1.js \
+  ''"'"'contrat'"'"', '"'"'stock'"'"', '"'"'article'"'"']);' ''"'"'contrat'"'"']);' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+prouver 'stock 1.284 l : un article suivi se modifie comme « la prestation »' modules/socle/ecrans/entreprise/app-1.js \
+  '`Modifier ${item && item.tracked ? '"'"'l\'"'"'article'"'"' : motsCatalogue().le}`' '`Modifier ${motsCatalogue().le}`' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

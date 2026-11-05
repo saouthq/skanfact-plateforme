@@ -30,6 +30,20 @@ describe('commander ce qui manque', () => {
     expect(al).toEqual({ a: 33, b: 3, d: 3, e: 3 });
   });
 
+  it('ce qui est déjà en commande (bon pas encore reçu) se retire ; une réception partielle n\'en retire que le reste', () => {
+    // (1.284.2, joué à la souris) Le sable commandé restait « 4 à commander » : un second clic faisait une seconde commande.
+    const bon = (id: string, status: string, qty: number) => ({ id, number: `BCF-${id}`, status, supplierId: 's1', date: '2026-10-01', lines: [{ label: 'Sable', itemId: 'a', qty, unitPrice: 45, vatRate: 19 }] });
+    const data = (cmds: Donnees[]) => ({ company: societe, catalog: [article('a', { minStock: 5, stockCible: 20, initialQty: 1 })], purchases: [], documents: [], supplierOrders: cmds });
+    const aCmd = (cmds: Donnees[]) => core.stockAlerts(data(cmds))[0]?.aCommander;
+    expect(aCmd([])).toBe(19);
+    expect(aCmd([bon('1', 'brouillon', 4)])).toBe(15);
+    expect(aCmd([bon('1', 'envoyée', 4), bon('2', 'brouillon', 3)])).toBe(12);
+    // Une demande de prix n'engage rien, une commande annulée non plus.
+    expect(aCmd([bon('1', 'demande', 4), bon('2', 'annulée', 7)])).toBe(19);
+    // Plus en commande qu'il n'en manque : rien à commander, jamais un nombre négatif.
+    expect(aCmd([bon('1', 'brouillon', 30)])).toBe(0);
+  });
+
   it('un stock négatif n\'a rien « à commander » : il lui manque un achat', () => {
     const data = { company: societe, catalog: [article('a', { minStock: 5 })], purchases: [], documents: [],
       stockAdjustments: [{ id: 'x', date: '2026-10-01', itemId: 'a', qty: -2, unitCost: '', source: 'ajustement' }] };

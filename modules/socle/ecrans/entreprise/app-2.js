@@ -10,7 +10,7 @@
   // Un article : son bon, chez le fournisseur de son dernier achat (s'il existe encore), pour ce qui manque.
   const ouvrirBonArticle = itemId => {
     const r = C.stockAlerts(data).find(x => x.itemId === itemId && x.kind !== 'negatif');
-    if (!r) return;
+    if (!r || !(r.aCommander > 0)) return;
     const f = C.fournisseurDeLArticle(data, itemId);
     ouvrirBon(bonDesArticles([r], f && supplierById(f.supplierId) ? f.supplierId : ''));
   };
@@ -1518,22 +1518,44 @@
       });
       return groupes;
     };
+    // Le brouillon déjà ouvert chez ce fournisseur (pas encore parti), et ce qui le complète : un article déjà sur le bon voit
+    // sa quantité grandir — deux lignes « Sable lavé » sur le même bon se liraient comme deux commandes.
+    const brouillonChez = cle => cle ? commandesF().find(x => x.supplierId === cle && x.status === 'brouillon' && C.statutCommandeFournisseur(data, x) === 'brouillon') : null;
+    const completer = (ouvert, rows) => {
+      ouvert.lines = ouvert.lines || [];
+      bonDesArticles(rows, ouvert.supplierId).lines.forEach(l => { const deja = ouvert.lines.find(x => x.itemId && x.itemId === l.itemId); if (deja) deja.qty = C.round3((Number(deja.qty) || 0) + l.qty); else ouvert.lines.push(l); });
+    };
     const commanderTout = () => {
       const groupes = aCommanderParFournisseur();
       if (!groupes.size) return;
-      if (groupes.size === 1) { const [[cle, rows]] = [...groupes]; return ouvrirBon(bonDesArticles(rows, cle)); }
+      // Un seul fournisseur : son brouillon ouvert se complète et s'ouvre (1.284.2, joué à la souris : le bouton ouvrait un
+      // bon neuf à côté du brouillon du même fournisseur) ; sans brouillon, le bon se prépare à l'écran.
+      if (groupes.size === 1) {
+        const [[cle, rows]] = [...groupes];
+        const ouvert = brouillonChez(cle);
+        if (!ouvert) return ouvrirBon(bonDesArticles(rows, cle));
+        if (licenceBlock('Préparer les bons de commande', 'stock')) return;
+        completer(ouvert, rows); save(true);
+        toast(`Brouillon ${ouvert.number} complété (${pl(rows.length, 'article')}) : relis-le, puis envoie-le.`);
+        return navigate('#/commandef/' + ouvert.id);
+      }
       if (licenceBlock('Préparer les bons de commande', 'stock')) return;
       // Un bon par fournisseur, en brouillon et numéroté : il se relit, puis part. Les articles sans fournisseur connu font
       // un bon à part, ouvert à l'écran : le fournisseur se choisit avant de l'enregistrer.
-      let n = 0;
+      // Un fournisseur qui a déjà un bon en brouillon (pas encore parti) le complète : un seul bon par fournisseur (1.284.2,
+      // joué à la main : le gravier commandé d'un clic, puis « tout ce qui manque », faisaient deux bons chez le même).
+      let n = 0, completes = 0;
       [...groupes].filter(([cle]) => cle).forEach(([cle, rows]) => {
-        const o = bonDesArticles(rows, cle);
-        o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
-        commandesF().push(o); n++;
+        const ouvert = brouillonChez(cle);
+        if (ouvert) { completer(ouvert, rows); completes++; return; }
+        const nouveau = bonDesArticles(rows, cle);
+        nouveau.number = C.numeroSuivant(data, commandesF(), 'BCF', nouveau.date);
+        commandesF().push(nouveau); n++;
       });
       save(true);
       const sans = groupes.get('');
-      toast(`${pl(n, 'bon de commande', 'bons de commande')} préparé${sPl(n)} en brouillon, un par fournisseur : relis-les, puis envoie-les.${sans ? ` Reste ${pl(sans.length, 'article')} sans fournisseur connu : choisis-le sur ce bon.` : ''}`);
+      const fait = [n ? `${pl(n, 'bon de commande', 'bons de commande')} préparé${sPl(n)} en brouillon` : '', completes ? `${pl(completes, 'brouillon')} déjà ouvert${sPl(completes)} complété${sPl(completes)}` : ''].filter(Boolean).join(', ');
+      toast(`${fait.replace(/^./, c => c.toUpperCase())}, un bon par fournisseur : relis-les, puis envoie-les.${sans ? ` Reste ${pl(sans.length, 'article')} sans fournisseur connu : choisis-le sur ce bon.` : ''}`);
       if (sans) ouvrirBon(bonDesArticles(sans, '')); else { etatCF.onglet = 'commandes'; navigate('#/commandesf'); }
     };
 
@@ -1550,24 +1572,29 @@
               <td><strong>${h(r.label)}</strong>${r.location ? `<div class="small muted">${h(r.location)}</div>` : ''}</td>
               <td>${r.kind === 'negatif' ? '<span class="warn-text">Stock négatif — tu as vendu plus que tu n\'as acheté. Un achat manque, ou une quantité a été saisie de travers.</span>'
                 : r.kind === 'rupture' ? '<span class="warn-text">Rupture : il n\'en reste plus.</span>'
-                : 'Sous le seuil d\'alerte.'}</td>
+                : 'Sous le seuil d\'alerte.'}${(r.enCommande || []).length ? `<div class="small muted" data-en-commande>Déjà en commande : ${r.enCommande.map(x => `${pct(x.reste)} — <a href="#/commandef/${h(x.id)}">${h(x.number || 'brouillon')}</a>`).join(', ')}</div>` : ''}</td>
               <td class="r nw">${qtyCell(r)}</td>
               <td class="r nw">${r.minStock ? pct(r.minStock) : '<span class="muted">—</span>'}</td>
               <td class="r nw">${r.kind === 'negatif' ? '<span class="muted">—</span>' : `<strong>${pct(r.aCommander)}</strong>`}</td>
               <td class="r">${/* Un seul bouton par ligne (règle 7.29.0) ; un stock négatif ne s'ajuste jamais (règle 4.0.0) : c'est
                    un achat oublié. Sous le seuil, le geste est le bon de commande (1.284.0). La ligne ouvre la fiche. */''}${r.kind === 'negatif'
-                ? `<button class="btn btn-sm" data-achat="${h(r.itemId)}">Saisir l'achat oublié…</button>`
-                : `<button class="btn btn-sm" data-commander="${h(r.itemId)}">Commander…</button>`}</td></tr>`).join('')}
+                ? `<button class="btn btn-sm" data-achat="${h(r.itemId)}" data-qte="${C.round3(Math.abs(r.qty))}">Saisir l'achat oublié…</button>`
+                : r.aCommander > 0 ? `<button class="btn btn-sm" data-commander="${h(r.itemId)}">Commander…</button>`
+                : `<button class="btn btn-sm" data-voir-commande="${h(r.enCommande[0].id)}">Voir la commande</button>`}</td></tr>`).join('')}
           </tbody></table></div>${pagerBar(alPage.pg, { noun: 'article' })}`
             : '<div class="empty">Rien à signaler : aucun stock négatif, aucun article sous son seuil.</div>'}
         </div>`;
       bindPager($('#st-body'), s.alertes, () => drawAlerts(), '#st-body');
-      $$('#st-body [data-achat]').forEach(b => b.onclick = e => { e.stopPropagation(); navigate(`#/achat/new/-/facture/-/article/${b.dataset.achat}`); });
+      // L'achat oublié d'un stock négatif : au moins ce qui manque pour revenir à zéro (1.284.2, joué à la main : 1 seau
+      // proposé pour -3, le stock restait négatif après l'achat).
+      $$('#st-body [data-achat]').forEach(b => b.onclick = e => { e.stopPropagation(); navigate(`#/achat/new/-/facture/-/article/${b.dataset.achat}${Number(b.dataset.qte) > 0 ? '/' + b.dataset.qte : ''}`); });
       $$('#st-body [data-commander]').forEach(b => b.onclick = e => {
         e.stopPropagation();
         ouvrirBonArticle(b.dataset.commander);
       });
       if ($('#st-cmd-tout')) $('#st-cmd-tout').onclick = commanderTout;
+      $$('#st-body [data-voir-commande]').forEach(b => b.onclick = e => { e.stopPropagation(); navigate('#/commandef/' + b.dataset.voirCommande); });
+      $$('#st-body [data-en-commande] a').forEach(a2 => a2.onclick = e => e.stopPropagation());
       $$('#st-body tr[data-see]').forEach(tr => tr.onclick = () => navigate('#/article/' + tr.dataset.see));
     }
 
@@ -1737,7 +1764,8 @@
     const ilYaUnAn = new Date(Date.parse(t) - 365 * 86_400_000).toISOString().slice(0, 10);
     const vendu = C.ventesDeLArticle(data, company(), item.id, ilYaUnAn, t);
     const unite = q => st.unit ? ' ' + h(C.uniteAccordee(q, st.unit)) : '';
-    const principal = alerte && alerte.kind === 'negatif' ? ['art-achat', 'Saisir l\'achat oublié…'] : alerte ? ['art-commander', 'Commander…'] : ['adj-item', '+ Mouvement'];
+    const principal = alerte && alerte.kind === 'negatif' ? ['art-achat', 'Saisir l\'achat oublié…'] : alerte && alerte.aCommander > 0 ? ['art-commander', 'Commander…'] : ['adj-item', '+ Mouvement'];
+    const enCmd = alerte && alerte.enCommande ? alerte.enCommande.reduce((a, x) => a + x.reste, 0) : 0;
     const bouton = (id, txt) => `<button class="btn ${principal[0] === id ? 'btn-primary' : ''}" id="${id}">${txt}</button>`;
     const chiffreA = (lbl2, val, sous, ton, aide) => `<div class="mg-chiffre"><span class="mu">${lbl2}${aide ? ' ' + info(aide) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
     const marge = C.round3(st.unitPrice - st.cmp);
@@ -1754,7 +1782,7 @@
       ${st.negative ? `<div class="panel" style="border-inline-start:3px solid var(--danger)"><h2 style="color:var(--danger)">Stock négatif</h2>
         <p class="small">D'après les pièces saisies, il en reste <b>${pct(st.qty)}</b> — ce qui est impossible. Il manque une entrée : un achat non saisi, une quantité mal recopiée, ou un stock de départ oublié. Corrige la pièce en cause plutôt que d'ajuster, sinon l'erreur restera dans les chiffres.</p></div>` : ''}
       <div class="cf-carte mg-resume" id="art-resume">${chiffreA('En stock', `${pct(st.qty)}${unite(st.qty)}`,
-          alerte && alerte.kind !== 'negatif' ? `seuil ${pct(st.minStock)} — ${pct(alerte.aCommander)} à commander` : st.minStock ? `seuil d'alerte : ${pct(st.minStock)}` : 'aucun seuil défini',
+          alerte && alerte.kind !== 'negatif' ? `seuil ${pct(st.minStock)} — ${alerte.aCommander > 0 ? `${pct(alerte.aCommander)} à commander` : ''}${alerte.aCommander > 0 && enCmd ? ' · ' : ''}${enCmd ? `${pct(enCmd)} en commande` : ''}` : st.minStock ? `seuil d'alerte : ${pct(st.minStock)}` : 'aucun seuil défini',
           st.negative || (alerte && alerte.kind === 'rupture') ? 'rouge' : alerte ? 'ambre' : '', 'stk.min')
         + chiffreA('Coût moyen pondéré', montantU(st.cmp, cur), 'recalculé à chaque entrée', '', 'stk.cmp')
         + chiffreA('Valeur du stock', montantU(Math.max(0, st.value), cur), 'au coût moyen')
@@ -1768,7 +1796,7 @@
           ${vendu.pieces ? `<p><b>${pct(vendu.qty)}${unite(vendu.qty)}</b> · ${C.money(vendu.ht, cur)} HT · sur ${pl(vendu.pieces, 'facture')}</p>`
             : '<p class="muted">Aucune vente facturée depuis un an.</p>'}</div>
       </div></div>
-      <div class="cf-carte"><h2>Historique des mouvements</h2><div id="art-hist"></div></div>
+      <div class="cf-carte" style="padding:14px 18px"><h2>Historique des mouvements</h2><div id="art-hist"></div></div>
       </div>`;
     const drawHist = () => {
       const pg = paginate(moves, ficheArticle);
@@ -1829,7 +1857,7 @@
     }); }
     drawHist();
     if ($('#art-commander')) $('#art-commander').onclick = () => ouvrirBonArticle(item.id);
-    if ($('#art-achat')) $('#art-achat').onclick = () => navigate(`#/achat/new/-/facture/-/article/${item.id}`);
+    if ($('#art-achat')) $('#art-achat').onclick = () => navigate(`#/achat/new/-/facture/-/article/${item.id}/${C.round3(Math.abs(st.qty))}`);
   };
 
   // ---------- validation de ce qui a été lu sur la photo (4.2.0) ----------

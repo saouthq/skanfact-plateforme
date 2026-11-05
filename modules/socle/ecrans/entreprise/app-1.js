@@ -2238,7 +2238,9 @@
   // d'abord sa question (`go`). Au téléphone, « ‹ Factures » du chemin fait le même geste (piece.css).
   // (1.261.0, Skander 03/11/2026 : « fiche fournisseur, quand on appuie sur une ligne facture, le retour me renvoie vers
   // achat ») Venue d'une fiche (fournisseur, client, affaire, contrat), la pièce y ramène : la fiche est la page qu'on quittait.
-  const RETOUR_FICHES = new Set(['fournisseur', 'client', 'affaire', 'contrat']);
+  // (1.284.2, joué à la souris) L'achat oublié ouvert depuis le Stock ou la fiche d'un article y ramène, lui aussi : la flèche
+  // menait aux Achats, une liste qu'on n'avait pas vue, et il fallait rouvrir le Stock pour voir l'alerte disparaître.
+  const RETOUR_FICHES = new Set(['fournisseur', 'client', 'affaire', 'contrat', 'stock', 'article']);
   const ficheQuittee = () => { const avant = navStack[navStack.length - 1]; return avant && RETOUR_FICHES.has(routeOf(avant)) ? avant : null; };
   // Le chemin de la pièce dit d'où l'on vient : « Accueil › Ets Ben Ali › FA-… » plutôt que la liste qu'on n'a pas vue.
   // Au téléphone, ce lien est le retour (piece.css) : il ramène donc à la fiche, lui aussi.
@@ -10875,7 +10877,7 @@
     // `suivre` (10.12.0) : la fiche d'un article EXISTANT s'ouvre cases cochées, depuis « choisir une
     // prestation à suivre ». Rien n'est écrit sur l'article tant qu'on n'a pas enregistré.
     const suit = { tracked: it.tracked || !!opts.suivre || !!opts.stock, serialized: it.serialized || !!opts.suivre };
-    modal(`<h2>${opts.titre || (neuf ? motsCatalogue().nouveau : `Modifier ${motsCatalogue().le}`)}</h2>
+    modal(`<h2>${opts.titre || (neuf ? motsCatalogue().nouveau : `Modifier ${item && item.tracked ? 'l\'article' : motsCatalogue().le}`)}</h2>
       <form id="kf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Désignation', 'cat.catalog')}<input type="text" name="label" value="${h(it.label)}"></label>
         <label class="field span-2">${lbl('Description', 'cat.description')}<textarea name="description">${h(it.description || '')}</textarea></label>
@@ -11586,7 +11588,7 @@
       // depuis la page Stock. Un chiffre qu'on lit doit s'ouvrir (7.15.0).
       ouvrir: (c, redraw) => catalogForm(c, redraw),
       menu: (c, redraw) => c ? [
-        { icon: 'modifier', label: `Modifier ${motsCatalogue().le}`, hint: 'Prix, coût, TVA, unité, suivi en stock', run: () => catalogForm(c, redraw) },
+        { icon: 'modifier', label: `Modifier ${c.tracked ? 'l\'article' : motsCatalogue().le}`, hint: 'Prix, coût, TVA, unité, suivi en stock', run: () => catalogForm(c, redraw) },
         c.tracked ? { icon: 'stock', label: 'Voir la fiche stock', hint: 'Mouvements, coût moyen, historique', run: () => navigate('#/article/' + c.id) } : null,
         { sep: true },
         { icon: 'copier', label: 'Dupliquer', hint: 'La même fiche, à renommer et à ajuster', run: () => duplicateCatalogItem(c, redraw) }

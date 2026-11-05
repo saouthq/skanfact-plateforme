@@ -3449,6 +3449,20 @@
       aProposer: utiles.some(x => x.aProposer > 0)
     };
   }
+  // (1.284.2, revue du Stock joué à la main) Ce qu'un article a déjà en commande chez les fournisseurs : le reste à
+  // recevoir de chaque commande ouverte (brouillon, envoyée, reçue en partie), pas une demande de prix, pas une commande
+  // soldée ou annulée. Sans lui, l'article commandé restait « à commander » et se commandait deux fois.
+  function commandesEnCoursDeLArticle(data, itemId) {
+    const out = [];
+    (data.supplierOrders || []).forEach(o => {
+      const st = o.status || 'brouillon';
+      if (st === 'demande' || st === 'soldée' || /^annul/.test(st)) return;
+      const suivi = suiviCommandeFournisseur(data, o);
+      const reste = round3((o.lines || []).reduce((a, l, i) => a + (l.itemId === itemId ? (suivi.lignes[i] ? suivi.lignes[i].reste : 0) : 0), 0));
+      if (reste > 0) out.push({ id: o.id, number: o.number || '', reste });
+    });
+    return out;
+  }
   // Le statut d'une commande fournisseur : celui qu'on choisit, et, dès qu'elle a reçu quelque chose,
   // celui que disent ses réceptions (« reçue en partie », « reçue »). « Soldée » choisie à la main clôt une
   // commande dont le reste ne viendra pas ; « annulée » n'attend plus rien.
@@ -7194,7 +7208,7 @@
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
     moisDePaie, anneesDePaie, paieDuMois, paieATraiter, controlesDuMois, montantSocial, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
-    stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, quantiteACommander, fournisseurDeLArticle, ventesDeLArticle, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
+    stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, quantiteACommander, fournisseurDeLArticle, ventesDeLArticle, commandesEnCoursDeLArticle, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,
     DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide, primesDuMois, saisieDeLaFiche, tauxAvant2026,
