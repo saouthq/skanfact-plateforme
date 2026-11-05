@@ -4751,9 +4751,14 @@
     };
   }
 
+  // (1.287.1, rouge GitHub de 0902db2) La fenêtre attend le serveur avant de s'ouvrir : chaque clic pendant l'attente en
+  // ouvrait une de plus (trois fenêtres empilées, trois « Coller une liste… »). Une seule à la fois.
+  let ndEnCours = false;
   async function newDossierForm() {
+    if (ndEnCours || document.getElementById('nd-coller')) return;
+    ndEnCours = true;
     // (plateforme, 1.87.5) Le refus avant la saisie : seul un associé crée un dossier (vu en recette le 21/10/2026).
-    const peut = api.creationDossier ? await api.creationDossier().catch(() => null) : null;
+    const peut = await Promise.resolve(api.creationDossier ? api.creationDossier().catch(() => null) : null).finally(() => { ndEnCours = false; });
     if (peut && !peut.ok) {
       // (plateforme, abonnement du cabinet) Un refus qui se lève ailleurs offre le bouton qui y mène : « Règle-la dans
       // Réglages » avec un seul « Compris » laissait chercher le panneau (recette du 23/10/2026).

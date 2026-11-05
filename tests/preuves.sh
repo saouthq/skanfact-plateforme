@@ -24460,6 +24460,10 @@ prouver "la frise à quatre étapes qui reste en quatre colonnes au téléphone"
   "@media (max-width: 760px) { .ed-frise.quatre ol { grid-template-columns: minmax(0, 1fr); } }" "" \
   "$CFW"
 
+prouver "« Ajouter un client » qui empile une fenêtre par clic pendant l'attente du serveur" modules/socle/ecrans/cabinet/app-2.js \
+  "    if (ndEnCours || document.getElementById('nd-coller')) return;" "" \
+  "une ligne fausse arrête tout ; la liste corrigée ajoute chaque client, un doublon est ignoré et nommé"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

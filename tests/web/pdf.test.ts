@@ -100,6 +100,7 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
     await expect.poll(() => bouton.getAttribute('aria-expanded')).toBe('false');
     // Il ouvre le menu de la charte, qui naît à l'ouverture : il le dit (« aria-haspopup »), sans viser la liste cachée.
     expect(await bouton.getAttribute('aria-haspopup')).toBe('menu');
+    expect(await bouton.getAttribute('aria-controls')).toBeNull();
     await bouton.focus();
     await p.keyboard.press('Enter');
     await expect.poll(() => bouton.getAttribute('aria-expanded')).toBe('true');
@@ -108,6 +109,11 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
     const entrees = '.row-menu:not([hidden]) [role="menuitem"]:not([disabled])';
     const dedans = () => p.evaluate((sel) => { const xs = [...document.querySelectorAll(sel)].filter((x) => x.getClientRects().length); return xs.indexOf(document.activeElement as Element); }, entrees);
     await expect.poll(dedans).toBe(0);
+    // Le suivi des anciens menus repasse à l'image suivante : il ne doit pas reprendre ce bouton (le dire fermé, viser la
+    // liste cachée).
+    await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
+    expect(await bouton.getAttribute('aria-expanded')).toBe('true');
+    expect(await bouton.getAttribute('aria-controls')).toBeNull();
     const n = await p.evaluate((sel) => [...document.querySelectorAll(sel)].filter((x) => x.getClientRects().length).length, entrees);
     expect(n).toBeGreaterThan(1);
     await p.keyboard.press('ArrowDown');
