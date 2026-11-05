@@ -10915,6 +10915,7 @@
         <div class="field span-2" id="stock-block" ${suit.tracked ? '' : 'hidden'}>
           <div class="grid-2">
             ${field(lbl('Seuil d\'alerte', 'stk.min'), 'minStock', it.minStock || 0, 'number', 'step="0.01" min="0" class="num"')}
+            ${field(lbl('Stock à atteindre (facultatif)', 'stk.cible'), 'stockCible', it.stockCible || '', 'number', 'step="0.01" min="0" class="num" placeholder="le seuil"')}
             ${field(lbl('Emplacement', 'stk.location'), 'location', it.location || '', 'text', 'placeholder="Étagère A, réserve…"')}
             ${field(lbl('Stock de départ', 'stk.initial'), 'initialQty', it.initialQty || 0, 'number', 'step="0.01" class="num"' + (already && already.moves.length > 1 ? ' disabled' : ''))}
             ${field(lbl(`Coût unitaire du départ (${h(C.normCurrency(company().currency))})`, 'stk.initialCost'), 'initialCost', it.initialCost || 0, 'number', 'step="0.001" min="0" class="num"' + (already && already.moves.length > 1 ? ' disabled' : ''))}
@@ -11095,7 +11096,7 @@
           // passe par le garde-fou de l'offre comme un ajustement, la première fois seulement.
           if (v.tracked && Number(v.initialQty) && !(it.tracked && Number(it.initialQty)) && licenceBlock('Créer un stock de départ', 'stock')) return;
           Object.assign(it, v, { vatRate: Number(v.vatRate), unitCost: Number(v.unitCost) || 0, unit,
-            tracked: !!v.tracked, minStock: Number(v.minStock) || 0,
+            tracked: !!v.tracked, minStock: Number(v.minStock) || 0, stockCible: Number(v.stockCible) > 0 ? Number(v.stockCible) : 0,
             serialized: !!v.tracked && !!v.serialized, warrantyMonths: Number(v.warrantyMonths) || 0,
             initialQty: Number(v.initialQty) || 0, initialCost: Number(v.initialCost) || 0,
             initialDate: it.initialDate || C.today() });

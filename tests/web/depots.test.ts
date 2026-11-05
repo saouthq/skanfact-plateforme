@@ -104,7 +104,7 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     await p.locator('#tr-ok').click();
     await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Magasin de Tunis 125 sacs · Magasin de Sfax 35 sacs');
     const fiche = net(await p.locator('#view').innerText());
-    expect(fiche).toMatch(/EN STOCK 160 sacs/);
+    expect(fiche).toMatch(/EN STOCK (I )?160 SACS/i);
     expect(fiche).toMatch(/Transfert entre dépôts depuis Magasin de Sfax — Magasin de Tunis \+25/);
     expect(fiche).toMatch(/Transfert entre dépôts vers Magasin de Tunis — Magasin de Sfax -25|Transfert entre dépôts vers Magasin de Tunis — Magasin de Sfax −25/);
     await plusTard(p);

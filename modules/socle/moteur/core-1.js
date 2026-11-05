@@ -4146,7 +4146,32 @@
     const rows = stockList(data, toIso);
     const neg = rows.filter(r => r.negative).map(r => ({ ...r, kind: 'negatif' }));
     const low = rows.filter(r => r.low).map(r => ({ ...r, kind: r.qty === 0 ? 'rupture' : 'bas' }));
-    return neg.concat(low.sort((a, b) => a.qty - b.qty));
+    return neg.concat(low.sort((a, b) => a.qty - b.qty)).map(r => r.kind === 'negatif' ? r : { ...r, aCommander: quantiteACommander(data, r) });
+  }
+  // (1.284.0, revue du Stock S2) Ce qu'il faut commander pour un article sous son seuil : jusqu'au « stock à atteindre »
+  // de l'article s'il en a un (au-dessus du seuil), sinon jusqu'au seuil — la règle d'avant, quand rien n'est réglé.
+  function quantiteACommander(data, r) {
+    const it = (data.catalog || []).find(c => c.id === r.itemId) || {};
+    const cible = Math.max(Number(it.stockCible) || 0, Math.max(Number(r.minStock) || 0, 1));
+    return round3(Math.max(0, cible - (Number(r.qty) || 0)));
+  }
+  // (1.284.0, revue du Stock S1) D'où vient un article : le fournisseur de son dernier achat ou de sa dernière réception,
+  // son coût d'entrée (en devise de base) et sa date. Rien d'acheté encore : null — l'écran demande le fournisseur.
+  function fournisseurDeLArticle(data, itemId, toIso) {
+    const entrees = stockMovements(data, itemId, toIso).filter(m => (m.source === 'achat' || m.source === 'reception') && m.qty > 0)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (Number(b.ts) || 0) - (Number(a.ts) || 0));
+    for (const m of entrees) {
+      const pieces = (m.source === 'achat' ? data.purchases : data.receptions) || [];
+      const p = pieces.find(x => x.id === m.docId);
+      if (!p || !p.supplierId) continue;
+      // Le prix du bon suivant est le prix HT de la ligne quand la pièce est dans la devise de l'entreprise ; sinon le coût
+      // d'entrée ramené en dinars (le mouvement compte aussi la TVA non déductible : ce n'est pas un prix d'achat).
+      const base = (data.company && data.company.currency) || 'DT';
+      const l = (p.lines || []).find(x => x.itemId === itemId);
+      const prix = (!p.currency || p.currency === base) && l && Number(l.unitPrice) > 0 ? round3(Number(l.unitPrice)) : m.unitCost;
+      return { supplierId: p.supplierId, unitCost: prix, date: m.date, docId: m.docId, source: m.source, ref: m.ref || '' };
+    }
+    return null;
   }
 
   // Le coût des marchandises vendues sur une période : les sorties de stock, valorisées au coût moyen

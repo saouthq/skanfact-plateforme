@@ -3824,6 +3824,27 @@
     return Object.values(totals).filter(t => !t.acomptes || Math.abs(t.ht) > 0.0005).sort((a, b) => b.ht - a.ht).slice(0, limit || 8);
   }
 
+  // (1.284.0, revue du Stock S5) Ce qu'un article s'est vendu sur la période : la quantité et le chiffre HT (remise
+  // globale comprise, en devise de base), factures émises moins avoirs — la règle de `topItems`, mais par article (son
+  // identifiant), pas par libellé : un article renommé reste le même.
+  function ventesDeLArticle(data, company, itemId, fromIso, toIso) {
+    let ht = 0, qty = 0, pieces = 0;
+    issuedIn(data, fromIso, toIso).forEach(d => {
+      const sign = d.type === 'avoir' ? -1 : 1;
+      const tt = computeTotals(d, company);
+      const factor = facteurRemise(tt);
+      let vu = false;
+      tt.lines.forEach(l => {
+        if (l.noDiscount || l.itemId !== itemId) return;
+        ht = round3(ht + sign * toBase(d, round3(l.ht * factor), company));
+        qty = round3(qty + sign * (Number(l.qty) || 0));
+        vu = true;
+      });
+      if (vu) pieces++;
+    });
+    return { ht, qty, pieces };
+  }
+
   // Clients nouveaux sur la période (première facture dedans) et clients endormis (plus rien depuis `dormantDays`).
   function clientMovement(data, company, fromIso, toIso, dormantDays, todayIso) {
     const t = todayIso || today();
@@ -7173,7 +7194,7 @@
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
     moisDePaie, anneesDePaie, paieDuMois, paieATraiter, controlesDuMois, montantSocial, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
-    stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
+    stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, quantiteACommander, fournisseurDeLArticle, ventesDeLArticle, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,
     DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide, primesDuMois, saisieDeLaFiche, tauxAvant2026,

@@ -1,3 +1,20 @@
+  const bonDesArticles = (rows, supplierId) => ({ id: C.uid(), type: 'commandeFournisseur', number: '', status: 'brouillon', date: C.today(), dueDate: '',
+    supplierId: supplierId || '', reference: '', currency: company().currency, exchangeRate: '', discountRate: 0, notes: '', createdAt: Date.now(),
+    lines: rows.map(r => {
+      const it = data.catalog.find(c => c.id === r.itemId) || {};
+      const f = C.fournisseurDeLArticle(data, r.itemId);
+      return { label: it.label || r.label, description: '', qty: r.aCommander, unit: it.unit || '',
+        unitPrice: f && f.supplierId === supplierId ? f.unitCost : (Number(it.unitCost) || 0), vatRate: C.tauxAchatArticle(it, company()), itemId: r.itemId };
+    }) });
+  const ouvrirBon = o => { cfReprise = { hash: '#/commandef/new', o }; navigate('#/commandef/new'); };
+  // Un article : son bon, chez le fournisseur de son dernier achat (s'il existe encore), pour ce qui manque.
+  const ouvrirBonArticle = itemId => {
+    const r = C.stockAlerts(data).find(x => x.itemId === itemId && x.kind !== 'negatif');
+    if (!r) return;
+    const f = C.fournisseurDeLArticle(data, itemId);
+    ouvrirBon(bonDesArticles([r], f && supplierById(f.supplierId) ? f.supplierId : ''));
+  };
+
   // ---------- Stock (4.0.0) ----------
   const stockState = { tab: 'etat', q: '', only: '', counts: {}, countDate: C.today(), year: C.today().slice(0, 4), moves: { page: 1 }, etat: { page: 1 }, inv: { page: 1 }, alertes: { page: 1 },
     ser: { q: '', status: '', page: 1 } };
@@ -1436,6 +1453,9 @@
       // calculent sur TOUS les articles (`etatInventaire`), pas sur la page affichée.
       const invPage = paginate(rows, s.inv);
       $('#st-body').innerHTML = `
+        ${s.dernierInventaire ? `<div class="cf-carte" id="inv-fait"><p><b>Inventaire du ${C.fmtDate(s.dernierInventaire.date)} enregistré</b> : ${pl(s.dernierInventaire.comptes, 'article compté', 'articles comptés')}, ${pl(s.dernierInventaire.ecarts, 'écart')} pour ${C.money(s.dernierInventaire.valeur, company().currency)} au coût moyen.
+          ${peutEcrireAuCabinet() ? 'La valeur du stock a changé : c\'est ce que ton cabinet passe en variation de stock à la clôture.' : ''}</p>
+          <div class="inline">${peutEcrireAuCabinet() ? '<button class="btn btn-primary btn-sm" id="inv-prevenir">Prévenir mon comptable</button>' : ''}<button class="btn btn-sm btn-ghost" id="inv-fait-ok">Fermer</button></div></div>` : ''}
         <div class="panel"><h2>Inventaire physique ${info('stk.inventory')}</h2>
           <p class="small muted mb">Une fois par an au minimum, on compte ce qu'il y a vraiment en rayon et on le compare à ce que dit l'application. Un écart n'est pas une faute : c'est de la casse non déclarée, une sortie oubliée ou une erreur de saisie. L'important est de le voir.</p>
           <div class="filters">
@@ -1463,23 +1483,67 @@
       majInventaire();
       $$('#st-body .inv-in').forEach(el => el.oninput = () => { s.counts[el.dataset.iid] = el.value; majInventaire(); });
       $('#inv-clear').onclick = () => { s.counts = {}; drawInventory(); };
+      if ($('#inv-fait-ok')) $('#inv-fait-ok').onclick = () => { s.dernierInventaire = null; drawInventory(); };
+      if ($('#inv-prevenir')) $('#inv-prevenir').onclick = () => {
+        const x = s.dernierInventaire;
+        const effet = x.valeur ? `soit ${C.money(Math.abs(x.valeur), company().currency)} ${x.valeur < 0 ? 'en moins' : 'en plus'} au coût moyen` : 'sans changement de la valeur du stock';
+        ecrireAuComptable(`Bonjour, j'ai fait l'inventaire du stock au ${C.fmtDate(x.date)} : ${pl(x.comptes, 'article compté', 'articles comptés')}, ${pl(x.ecarts, 'écart')}, ${effet}. Les mouvements d'inventaire sont enregistrés dans SkanFact.`);
+      };
       bindPager($('#st-body'), s.inv, () => drawInventory(), '#st-body');
       $('#inv-apply').onclick = async () => {
-        const { gaps } = etatInventaire();
+        // Le résumé se lit AVANT les mouvements : après eux, le stock compté et le stock théorique sont les mêmes.
+        const { gaps, counted, value } = etatInventaire();
         if (!gaps.length) return;
         if (licenceBlock('Créer les mouvements de cet inventaire', 'stock')) return;
         if (!await confirmDialog(`Enregistrer ${pl(gaps.length, 'mouvement')} d'inventaire au ${C.fmtDate(s.countDate)} ? Le stock théorique sera aligné sur ce que tu as compté. Cette opération est tracée dans les mouvements et se corrige comme n'importe quel ajustement.`, 'Enregistrer')) return;
         if (closedBlock(s.countDate, 'Cet inventaire')) return;
         gaps.forEach(r => data.stockAdjustments.push({ id: C.uid(), createdAt: Date.now(), date: s.countDate, itemId: r.itemId, qty: r.gap,
           unitCost: '', source: 'inventaire', reference: '', note: `Inventaire du ${C.fmtDate(s.countDate)}` }));
+        // (1.284.0, revue du Stock S6) Le résumé reste à l'écran : c'est lui que « Prévenir mon comptable » envoie.
+        s.dernierInventaire = { date: s.countDate, comptes: counted.length, ecarts: gaps.length, valeur: value };
         s.counts = {}; save(true); toast(`${pl(gaps.length, 'écart')} enregistré${sPl(gaps.length)}`); draw();
       };
     }
 
+    // (1.284.0, revue du Stock S1-S3) Le geste d'un article sous son seuil est de le COMMANDER, pas de saisir sa facture
+    // d'achat (on payait avant d'avoir commandé) : un bon de commande fournisseur, au fournisseur de son dernier achat, à
+    // son dernier prix, pour la quantité qui ramène au « stock à atteindre ». Un stock négatif garde l'achat oublié.
+    const aCommanderParFournisseur = () => {
+      const groupes = new Map();
+      alerts.filter(r => r.kind !== 'negatif' && r.aCommander > 0).forEach(r => {
+        const f = C.fournisseurDeLArticle(data, r.itemId);
+        const cle = f && supplierById(f.supplierId) ? f.supplierId : '';
+        if (!groupes.has(cle)) groupes.set(cle, []);
+        groupes.get(cle).push(r);
+      });
+      return groupes;
+    };
+    const commanderTout = () => {
+      const groupes = aCommanderParFournisseur();
+      if (!groupes.size) return;
+      if (groupes.size === 1) { const [[cle, rows]] = [...groupes]; return ouvrirBon(bonDesArticles(rows, cle)); }
+      if (licenceBlock('Préparer les bons de commande', 'stock')) return;
+      // Un bon par fournisseur, en brouillon et numéroté : il se relit, puis part. Les articles sans fournisseur connu font
+      // un bon à part, ouvert à l'écran : le fournisseur se choisit avant de l'enregistrer.
+      let n = 0;
+      [...groupes].filter(([cle]) => cle).forEach(([cle, rows]) => {
+        const o = bonDesArticles(rows, cle);
+        o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
+        commandesF().push(o); n++;
+      });
+      save(true);
+      const sans = groupes.get('');
+      toast(`${pl(n, 'bon de commande', 'bons de commande')} préparé${sPl(n)} en brouillon, un par fournisseur : relis-les, puis envoie-les.${sans ? ` Reste ${pl(sans.length, 'article')} sans fournisseur connu : choisis-le sur ce bon.` : ''}`);
+      if (sans) ouvrirBon(bonDesArticles(sans, '')); else { etatCF.onglet = 'commandes'; navigate('#/commandesf'); }
+    };
+
     function drawAlerts() {
       const alPage = paginate(alerts, s.alertes);
+      const groupes = aCommanderParFournisseur();
+      const nbArt = [...groupes.values()].reduce((a, x) => a + x.length, 0);
       $('#st-body').innerHTML = `
-        <div class="panel"><h2>Ce qui demande ton attention ${info('stk.alerts')}</h2>
+        <div class="panel"><div class="st-alertes-tete" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2>Ce qui demande ton attention ${info('stk.alerts')}</h2>
+          ${nbArt > 1 ? `<button class="btn btn-primary btn-sm" id="st-cmd-tout">Commander tout ce qui manque (${pl(nbArt, 'article')}${groupes.size > 1 ? `, ${groupes.size} bons` : ''})</button>` : ''}</div>
           ${alerts.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
             <th>Article</th><th>Problème</th><th class="r">En stock</th><th class="r">Seuil</th><th class="r">À commander</th><th></th></tr></thead><tbody>
             ${alPage.rows.map(r => `<tr class="clickable ${r.kind === 'negatif' ? 'row-warn' : ''}" data-see="${h(r.itemId)}">
@@ -1489,15 +1553,21 @@
                 : 'Sous le seuil d\'alerte.'}</td>
               <td class="r nw">${qtyCell(r)}</td>
               <td class="r nw">${r.minStock ? pct(r.minStock) : '<span class="muted">—</span>'}</td>
-              <td class="r nw">${r.kind === 'negatif' ? '<span class="muted">—</span>' : `<strong>${pct(C.round3(Math.max(r.minStock, 1) - r.qty))}</strong>`}</td>
-              <td class="r">${/* 10.12.0 — deux boutons par ligne (règle 7.29.0 : au plus UN), et « Ajuster » pour
-                   un stock négatif, que la règle 4.0.0 interdit d'ajuster. Le geste est l'ACHAT : oublié
-                   (négatif) ou à passer (seuil). La ligne ouvre la fiche de l'article. */''}<button class="btn btn-sm" data-achat="${h(r.itemId)}" data-qte="${r.kind === 'negatif' ? '' : C.round3(Math.max(r.minStock, 1) - r.qty)}">${r.kind === 'negatif' ? 'Saisir l\'achat oublié…' : 'Commander…'}</button></td></tr>`).join('')}
+              <td class="r nw">${r.kind === 'negatif' ? '<span class="muted">—</span>' : `<strong>${pct(r.aCommander)}</strong>`}</td>
+              <td class="r">${/* Un seul bouton par ligne (règle 7.29.0) ; un stock négatif ne s'ajuste jamais (règle 4.0.0) : c'est
+                   un achat oublié. Sous le seuil, le geste est le bon de commande (1.284.0). La ligne ouvre la fiche. */''}${r.kind === 'negatif'
+                ? `<button class="btn btn-sm" data-achat="${h(r.itemId)}">Saisir l'achat oublié…</button>`
+                : `<button class="btn btn-sm" data-commander="${h(r.itemId)}">Commander…</button>`}</td></tr>`).join('')}
           </tbody></table></div>${pagerBar(alPage.pg, { noun: 'article' })}`
             : '<div class="empty">Rien à signaler : aucun stock négatif, aucun article sous son seuil.</div>'}
         </div>`;
       bindPager($('#st-body'), s.alertes, () => drawAlerts(), '#st-body');
-      $$('#st-body [data-achat]').forEach(b => b.onclick = e => { e.stopPropagation(); navigate(`#/achat/new/-/facture/-/article/${b.dataset.achat}${b.dataset.qte ? '/' + b.dataset.qte : ''}`); });
+      $$('#st-body [data-achat]').forEach(b => b.onclick = e => { e.stopPropagation(); navigate(`#/achat/new/-/facture/-/article/${b.dataset.achat}`); });
+      $$('#st-body [data-commander]').forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        ouvrirBonArticle(b.dataset.commander);
+      });
+      if ($('#st-cmd-tout')) $('#st-cmd-tout').onclick = commanderTout;
       $$('#st-body tr[data-see]').forEach(tr => tr.onclick = () => navigate('#/article/' + tr.dataset.see));
     }
 
@@ -1637,7 +1707,7 @@
           { key: 'label', label: 'Article' }, { key: 'location', label: 'Emplacement' },
           { key: 'kind', label: 'Problème' }, { key: 'qty', label: 'En stock' },
           { key: 'minStock', label: 'Seuil' },
-          { label: 'À commander', get: r => r.kind === 'negatif' ? '' : C.round3(Math.max(r.minStock, 1) - r.qty) }]
+          { label: 'À commander', get: r => r.kind === 'negatif' ? '' : r.aCommander }]
       })
     };
     async function exportStock() {
@@ -1649,32 +1719,62 @@
     draw();
   };
 
+  // (1.284.0, revue du Stock S4-S5) La fiche d'un article dans la nouvelle DA : chemin, titre, phrase, quatre chiffres, et ce
+  // qui décide d'une commande — d'où il vient (le dernier achat : fournisseur, prix, date) et combien il se vend (12 mois).
+  // L'historique des mouvements se pagine (règle des listes) ; un seul bouton principal : l'étape suivante.
+  const ficheArticle = { id: '', page: 1 };
   routes.article = (parts) => {
     const item = data.catalog.find(c => c.id === parts[0]);
     if (!item) return navigate('#/stock');
+    if (ficheArticle.id !== item.id) Object.assign(ficheArticle, { id: item.id, page: 1 });
     const cur = company().currency;
     const st = C.stockOf(data, item.id);
     const moves = st.moves.slice().reverse();
+    const alerte = item.tracked ? C.stockAlerts(data).find(r => r.itemId === item.id) : null;
+    const dernier = C.fournisseurDeLArticle(data, item.id);
+    const fourn = dernier ? supplierById(dernier.supplierId) : null;
+    const t = C.today();
+    const ilYaUnAn = new Date(Date.parse(t) - 365 * 86_400_000).toISOString().slice(0, 10);
+    const vendu = C.ventesDeLArticle(data, company(), item.id, ilYaUnAn, t);
+    const unite = q => st.unit ? ' ' + h(C.uniteAccordee(q, st.unit)) : '';
+    const principal = alerte && alerte.kind === 'negatif' ? ['art-achat', 'Saisir l\'achat oublié…'] : alerte ? ['art-commander', 'Commander…'] : ['adj-item', '+ Mouvement'];
+    const bouton = (id, txt) => `<button class="btn ${principal[0] === id ? 'btn-primary' : ''}" id="${id}">${txt}</button>`;
+    const chiffreA = (lbl2, val, sous, ton, aide) => `<div class="mg-chiffre"><span class="mu">${lbl2}${aide ? ' ' + info(aide) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
+    const marge = C.round3(st.unitPrice - st.cmp);
     $('#view').innerHTML = `
-      <div class="page-head"><div><h1>${h(item.label)}</h1>
-        <div class="small muted">${[item.location, item.unit ? 'unité : ' + item.unit : '', item.tracked ? 'suivi en stock' : 'non suivi'].filter(Boolean).join(' · ')}</div></div>
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<a href="#/stock">Stock</a>${ICONE_CHEVRON}<span>${h(item.label)}</span></div>
+        <h1>${h(item.label)}</h1>
+        <p class="sous">${[item.code ? 'réf. ' + h(item.code) : '', item.location ? h(item.location) : '', item.unit ? 'unité : ' + h(item.unit) : '', item.tracked ? 'suivi en stock' : 'non suivi en stock'].filter(Boolean).join(' · ')}</p></div>
         <div class="actions">${backButton('#/stock')}<button class="btn" id="edit-item">Modifier l'article</button>
           ${C.depotsDe(data).length > 1 ? '<button class="btn" id="transfert">Transférer…</button>' : ''}
-          <button class="btn btn-primary" id="adj-item">+ Mouvement</button></div></div>
-      ${C.depotsDe(data).length > 1 ? `<p class="small mb" id="art-depots">Par dépôt ${info('dep.depots')} : ${C.stockParDepot(data, item.id).map(x => `<b>${h(x.nom)}</b> ${pct(x.qty)}${st.unit ? ' ' + h(C.uniteAccordee(x.qty, st.unit)) : ''}`).join(' · ')}</p>` : ''}
-      ${item.parLot ? `<p class="small mb" id="art-lots">Par lot ${info('lot.parLot')} : ${C.stockParLot(data, item.id).map(x => `<b>${h(x.lot || 'sans lot')}</b> ${pct(x.qty)}${st.unit ? ' ' + h(C.uniteAccordee(x.qty, st.unit)) : ''}${x.peremption ? ` <span class="${x.peremption < C.today() ? 'warn-text' : 'muted'}">(${x.peremption < C.today() ? 'périmé le' : 'périme le'} ${C.fmtDate(x.peremption)})</span>` : ''}`).join(' · ') || 'rien en stock'}</p>` : ''}
+          ${principal[0] !== 'adj-item' ? bouton(principal[0], principal[1]) : ''}${bouton('adj-item', '+ Mouvement')}</div></div>
+      <div class="lf mg ca art">
+      ${C.depotsDe(data).length > 1 ? `<p class="small mb" id="art-depots">Par dépôt ${info('dep.depots')} : ${C.stockParDepot(data, item.id).map(x => `<b>${h(x.nom)}</b> ${pct(x.qty)}${unite(x.qty)}`).join(' · ')}</p>` : ''}
+      ${item.parLot ? `<p class="small mb" id="art-lots">Par lot ${info('lot.parLot')} : ${C.stockParLot(data, item.id).map(x => `<b>${h(x.lot || 'sans lot')}</b> ${pct(x.qty)}${unite(x.qty)}${x.peremption ? ` <span class="${x.peremption < C.today() ? 'warn-text' : 'muted'}">(${x.peremption < C.today() ? 'périmé le' : 'périme le'} ${C.fmtDate(x.peremption)})</span>` : ''}`).join(' · ') || 'rien en stock'}</p>` : ''}
       ${st.negative ? `<div class="panel" style="border-inline-start:3px solid var(--danger)"><h2 style="color:var(--danger)">Stock négatif</h2>
         <p class="small">D'après les pièces saisies, il en reste <b>${pct(st.qty)}</b> — ce qui est impossible. Il manque une entrée : un achat non saisi, une quantité mal recopiée, ou un stock de départ oublié. Corrige la pièce en cause plutôt que d'ajuster, sinon l'erreur restera dans les chiffres.</p></div>` : ''}
-      <div class="stats">
-        <div class="stat"><div class="lbl">En stock</div><div class="val ${st.negative || st.low ? 'due' : ''}">${pct(st.qty)}${st.unit ? ' ' + h(C.uniteAccordee(st.qty, st.unit)) : ''}</div><div class="sub">${st.minStock ? 'seuil d\'alerte : ' + pct(st.minStock) : 'aucun seuil défini'}</div></div>
-        <div class="stat"><div class="lbl">Coût moyen pondéré ${info('stk.cmp')}</div><div class="val">${C.money(st.cmp, cur)}</div><div class="sub">recalculé à chaque entrée</div></div>
-        <div class="stat"><div class="lbl">Valeur du stock</div><div class="val">${C.money(Math.max(0, st.value), cur)}</div><div class="sub">au coût moyen</div></div>
-        <div class="stat"><div class="lbl">Marge unitaire</div><div class="val ${st.unitPrice - st.cmp < 0 ? 'due' : 'ok'}">${C.money(C.round3(st.unitPrice - st.cmp), cur)}</div><div class="sub">vendu ${C.money(st.unitPrice, cur)}</div></div>
-      </div>
-      <div class="panel"><h2>Historique des mouvements</h2>
-        ${moves.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
+      <div class="cf-carte mg-resume" id="art-resume">${chiffreA('En stock', `${pct(st.qty)}${unite(st.qty)}`,
+          alerte && alerte.kind !== 'negatif' ? `seuil ${pct(st.minStock)} — ${pct(alerte.aCommander)} à commander` : st.minStock ? `seuil d'alerte : ${pct(st.minStock)}` : 'aucun seuil défini',
+          st.negative || (alerte && alerte.kind === 'rupture') ? 'rouge' : alerte ? 'ambre' : '', 'stk.min')
+        + chiffreA('Coût moyen pondéré', montantU(st.cmp, cur), 'recalculé à chaque entrée', '', 'stk.cmp')
+        + chiffreA('Valeur du stock', montantU(Math.max(0, st.value), cur), 'au coût moyen')
+        + chiffreA('Marge unitaire', montantU(marge, cur), `vendu ${C.money(st.unitPrice, cur)} HT`, marge < 0 ? 'rouge' : 'vert')}</div>
+      <div class="cf-carte" id="art-decide" style="padding:14px 18px"><div class="grid-2">
+        <div id="art-dernier-achat"><div class="mu small">Dernier achat ${info('stk.dernierAchat')}</div>
+          ${dernier ? `<p><b>${fourn ? `<a href="#/fournisseur/${h(fourn.id)}">${h(fourn.name)}</a>` : 'Fournisseur supprimé'}</b> · ${C.money(dernier.unitCost, cur)} HT l'unité · le ${C.fmtDate(dernier.date)}
+            · <a href="${dernier.source === 'achat' ? '#/achat/' : '#/reception/'}${h(dernier.docId)}">${h(dernier.ref) || 'voir la pièce'}</a></p>`
+            : `<p class="muted">Aucun achat ni réception de cet article : le premier bon de commande demandera le fournisseur.</p>`}</div>
+        <div id="art-vendu"><div class="mu small">Vendu sur 12 mois ${info('stk.vendu12')}</div>
+          ${vendu.pieces ? `<p><b>${pct(vendu.qty)}${unite(vendu.qty)}</b> · ${C.money(vendu.ht, cur)} HT · sur ${pl(vendu.pieces, 'facture')}</p>`
+            : '<p class="muted">Aucune vente facturée depuis un an.</p>'}</div>
+      </div></div>
+      <div class="cf-carte"><h2>Historique des mouvements</h2><div id="art-hist"></div></div>
+      </div>`;
+    const drawHist = () => {
+      const pg = paginate(moves, ficheArticle);
+      $('#art-hist').innerHTML = moves.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
           <th>Date</th><th>Origine</th><th>Référence</th><th class="r">Quantité</th><th class="r">Coût unitaire</th><th class="r">Stock après</th><th class="r">Coût moyen après</th><th></th></tr></thead><tbody>
-          ${moves.map(m => `<tr>
+          ${pg.rows.map(m => `<tr>
             <td class="nw">${C.fmtDate(m.date)}</td>
             <td>${h(C.moveSourceLabel(m.source))}${m.note ? `<div class="small muted">${h(m.note)}</div>` : ''}</td>
             <td class="nw">${m.docId ? `<a href="${m.source === 'achat' ? '#/achat/' : m.source === 'reception' ? '#/reception/' : '#/doc/'}${h(m.docId)}">${h(m.ref) || 'voir'}</a>` : (h(m.ref) || '<span class="muted">—</span>')}${C.depotsDe(data).length > 1 ? `<div class="small muted" data-depot>${h(C.nomDepot(data, m.depotId))}</div>` : ''}</td>
@@ -1683,9 +1783,11 @@
             <td class="r nw ${m.qtyAfter < 0 ? 'warn-text' : ''}">${pct(m.qtyAfter)}</td>
             <td class="r nw">${C.money(m.cmpAfter, cur)}</td>
             <td class="r">${m.manual ? `<button class="btn btn-sm btn-ghost" data-rm="${h(m.id)}" title="Supprimer ce mouvement">✕</button>` : ''}</td></tr>`).join('')}
-        </tbody></table></div>`
-          : '<div class="empty">Aucun mouvement. Le stock bougera dès qu\'un achat en destination « stock » ou une vente portera cet article.</div>'}
-      </div>`;
+        </tbody></table></div>${pagerBar(pg.pg, { noun: 'mouvement' })}`
+        : '<div class="empty">Aucun mouvement. Le stock bougera dès qu\'un achat en destination « stock » ou une vente portera cet article.</div>';
+      bindPager($('#art-hist'), ficheArticle, drawHist, '#art-hist');
+      bindRm();
+    };
     bindBack('#/stock');
     $('#edit-item').onclick = () => catalogForm(item, () => render());
     $('#adj-item').onclick = () => adjustForm(item.id, () => render());
@@ -1713,7 +1815,7 @@
         };
       });
     };
-    $$('[data-rm]').forEach(b => b.onclick = async () => {
+    function bindRm() { $$('#art-hist [data-rm]').forEach(b => b.onclick = async () => {
       // Un transfert (brique 94) : ses deux mouvements partent ensemble, sinon un dépôt garderait ce que l'autre a rendu.
       const cible = (data.stockAdjustments || []).find(x => x.id === b.dataset.rm);
       const paire = cible && cible.transfertId ? (data.stockAdjustments || []).filter(x => x.transfertId === cible.transfertId) : [];
@@ -1724,7 +1826,10 @@
       ids.forEach(id => forget('stockAdjustments', id, item.label));
       data.stockAdjustments = data.stockAdjustments.filter(x => !ids.includes(x.id));
       save(true); render();
-    });
+    }); }
+    drawHist();
+    if ($('#art-commander')) $('#art-commander').onclick = () => ouvrirBonArticle(item.id);
+    if ($('#art-achat')) $('#art-achat').onclick = () => navigate(`#/achat/new/-/facture/-/article/${item.id}`);
   };
 
   // ---------- validation de ce qui a été lu sur la photo (4.2.0) ----------

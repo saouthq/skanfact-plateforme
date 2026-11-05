@@ -24378,6 +24378,24 @@ prouver 'relances 1.283 b : « Plus de 45 jours » compte aussi les retards plus
 prouver 'relances 1.283 c : « Échéances sous 7 jours » ne mène pas à sa section' modules/socle/ecrans/entreprise/app-1.js \
   'if (cible) cible.scrollIntoView(' 'if (cible && 0) cible.scrollIntoView(' \
   'l'"'"'en-tête, les quatre chiffres sur toutes les factures ; la recherche ne les change pas ; au téléphone rien ne déborde'
+prouver 'stock 1.284 a : « À commander » oublie le stock à atteindre' modules/socle/moteur/core-1.js \
+  'const cible = Math.max(Number(it.stockCible) || 0, Math.max(Number(r.minStock) || 0, 1));' 'const cible = Math.max(Number(r.minStock) || 0, 1);' \
+  'jusqu'"'"'au stock à atteindre ; sans lui, jusqu'"'"'au seuil (la règle inconnue ne fait rien)'
+prouver 'stock 1.284 b : le fournisseur du plus ancien achat' modules/socle/moteur/core-1.js \
+  'String(b.date || '"'"''"'"').localeCompare(String(a.date || '"'"''"'"'))' 'String(a.date || '"'"''"'"').localeCompare(String(b.date || '"'"''"'"'))' \
+  'le fournisseur de l'"'"'entrée la plus récente, à son prix HT, pas le premier venu'
+prouver 'stock 1.284 c : le prix du bon compte la TVA non déductible' modules/socle/moteur/core-1.js \
+  'const prix = (!p.currency || p.currency === base) && l && Number(l.unitPrice) > 0 ? round3(Number(l.unitPrice)) : m.unitCost;' 'const prix = m.unitCost;' \
+  'la TVA non déductible n'"'"'entre pas dans le prix du bon suivant ; un achat en devise donne le coût en dinars'
+prouver 'stock 1.284 d : « Vendu sur 12 mois » oublie la remise globale' modules/socle/moteur/core-2.js \
+  'ht = round3(ht + sign * toBase(d, round3(l.ht * factor), company));' 'ht = round3(ht + sign * toBase(d, l.ht, company));' \
+  'factures émises moins avoirs, remise globale comprise, par article ; brouillons, annulées et hors période ne comptent pas'
+prouver 'stock 1.284 e : « Commander… » ouvre encore une facture d'"'"'achat' modules/socle/ecrans/entreprise/app-2.js \
+  'ouvrirBonArticle(b.dataset.commander);' 'navigate(`#/achat/new/-/facture/-/article/${b.dataset.commander}`);' \
+  'commander au dernier fournisseur et jusqu'"'"'au stock à atteindre, un bon par fournisseur ; la fiche dit d'"'"'où il vient et combien il se vend'
+prouver 'stock 1.284 f : le résumé de l'"'"'inventaire lu après ses mouvements' modules/socle/ecrans/entreprise/app-2.js \
+  'valeur: value };' 'valeur: etatInventaire().value };' \
+  'commander au dernier fournisseur et jusqu'"'"'au stock à atteindre, un bon par fournisseur ; la fiche dit d'"'"'où il vient et combien il se vend'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

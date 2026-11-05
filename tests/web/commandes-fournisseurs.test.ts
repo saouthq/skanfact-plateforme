@@ -153,7 +153,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     expect(await p.locator('#cf-recevoir').innerText()).toBe('Recevoir le reste');
     await p.locator('#receptions-panel').scrollIntoViewIfNeeded();
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-3-recue-en-partie.png') });
-    expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK 60 sacs .* Réception BR-\d{4}-001 \+60 17,250 DT 60/);
+    expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK (I )?60 SACS .* Réception BR-\d{4}-001 \+60 17,250 DT 60/i);
     await p.goBack();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
     await p.locator('#cf-recevoir').click();
@@ -204,7 +204,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
 
     // 6. Le stock n'est entré qu'une fois (100 sacs, par les réceptions) ; la commande est reçue et facturée.
     const fiche = await stockDe(p, 'ciment');
-    expect(fiche).toMatch(/EN STOCK 100 sacs/);
+    expect(fiche).toMatch(/EN STOCK (I )?100 SACS/i);
     const mouvements = fiche.slice(fiche.indexOf('Historique des mouvements'));
     expect(mouvements).toMatch(/Réception BR-\d{4}-002 \+40 17,250 DT 100 .* Réception BR-\d{4}-001 \+60 17,250 DT 60/);
     expect(mouvements).not.toMatch(/Achat/);
@@ -217,7 +217,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.getByRole('menuitem').filter({ hasText: 'Dupliquer' }).click(); // (1.155.13) le menu « ⋯ » de la maquette
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture d'achat du \d\d\/\d\d$/); // (1.155.12) sans numéro, une pièce s'appelle par sa date
     expect(await p.locator('#b-receptions').count()).toBe(0);
-    expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK 200 sacs/);
+    expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK (I )?200 SACS/i);
     await p.evaluate(() => { location.hash = '#/commandesf'; });
     await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 10_000 }).toMatch(/BCF-\d{4}-001 Ciments de Bizerte .* reçue 7 311,250 DT/);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-5-liste.png') });
