@@ -20842,9 +20842,9 @@ prouver 'justificatifs en grand 6 : « Joindre un autre fichier » sous l'"'"'ap
 prouver 'justificatifs en grand 7 : la colonne de droite qui défile seule' web/public/plateforme/piece.css \
   '.editor.charte > .ed-droite { position: sticky; top: calc(var(--bande-h, 82px) + 14px); align-self: start; }' '.editor.charte > .ed-droite { position: sticky; top: calc(var(--bande-h, 82px) + 14px); align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; }' \
   'un PDF lu par l'"'"'IA se montre : sa première page, à chaque étape, et les phrases disent « le PDF »'
-prouver 'la bulle « i » des filtres de la liste, trop petite au doigt' web/public/plateforme/liste.css \
-  '@media (max-width: 760px) { .lf #lf-filtres button.i.i-b { width: 44px; height: 44px; flex-basis: 44px; } }' '' \
-  'les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'"'"'écran, et au doigt tout se touche'
+# (1.278.0, rouge GitHub de 1.277.0) Retirée : « la bulle « i » des filtres de la liste, trop petite au doigt ». Depuis la
+# 1.204.0, cette bulle est cachée au téléphone (ses sélecteurs le sont) ; sa règle de 44 points ne servait plus et part
+# avec la preuve. La règle qui la cache, elle, est tenue par `tests/web/rendu.test.ts` (rien ne sort de l'écran).
 # ── Le Cabinet n'appelle plus les paquets quand on glisse (1.166.1, vu par Skander le 28/10/2026) ──
 T_VOILE='au bureau : la tête et son menu, « Mon cabinet » et ses chiffres'
 prouver 'voile des paquets 1 : un fichier glissé qui appelle les paquets absents de la plateforme' modules/socle/ecrans/cabinet/app-1.js \
@@ -24298,13 +24298,26 @@ prouver 'stock 1.277 b : l'"'"'onglet ouvert ne le dit pas' modules/socle/ecrans
   ' x.setAttribute('"'"'aria-selected'"'"', String(x.dataset.tab === s.tab));' '' \
   'l'"'"'en-tête, les quatre chiffres, les onglets ; un chiffre rouge ouvre les alertes ; au téléphone rien ne déborde'
 prouver 'stock 1.277 c : les onglets sur deux lignes au téléphone' web/public/plateforme/liste.css \
-  '.lf.mg.st .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  '.lf.mg.st .pa-seg, .lf.mg.ca .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
 ' '' \
   'l'"'"'en-tête, les quatre chiffres, les onglets ; un chiffre rouge ouvre les alertes ; au téléphone rien ne déborde'
 
 prouver 'console 1.277 : un jour lu du vrai calendrier' serveur/console/routes.ts \
   'corps: { aujourdhui: aujourdhuiATunis(maintenant()), ...await lireJson' 'corps: { aujourdhui: aujourdhuiATunis(), ...await lireJson' \
   'aucun jour de la console ne se lit du vrai calendrier : toujours de l'"'"'heure du contexte'
+prouver 'catalogue 1.278 a : le chiffre des modèles n'"'"'ouvre rien' modules/socle/ecrans/entreprise/app-1.js \
+  'const aller = () => showTab(x.dataset.aller);' 'const aller = () => {};' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
+prouver 'catalogue 1.278 b : les chiffres ne suivent pas la liste' modules/socle/ecrans/entreprise/app-1.js \
+  '        if (opts.apres) opts.apres();
+        if (opts.ouvrir) $$(' '        if (opts.ouvrir) $$(' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
+prouver 'catalogue 1.278 c : les fiches coupées au téléphone' web/public/plateforme/liste.css \
+  '.lf.mg.st .cf-onglet > *, .lf.mg.ca .cf-onglet > * { min-width: 0; }' '' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
+prouver 'catalogue 1.278 d : la marge comptée sans coût' modules/socle/ecrans/entreprise/app-1.js \
+  'const avecCout = cat.filter(c => Number(c.unitCost) > 0 && Number(c.unitPrice) > 0);' 'const avecCout = cat.filter(c => Number(c.unitPrice) > 0);' \
+  'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

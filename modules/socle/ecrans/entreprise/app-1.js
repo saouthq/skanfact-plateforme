@@ -11457,7 +11457,7 @@
         if (typeof sortKey === 'string' && sortKey) { state.sort = toggleSort(state.sort, sortKey, cols); state.page = 1; }
         // (1.265.0) Une liste qui n'a encore rien montre le premier écran du module (celui des maquettes), pas une
         // barre de recherche au-dessus d'une phrase grise.
-        if (opts.vide && !rows().length) { wrap.innerHTML = opts.vide(); built = false; if (opts.videLie) opts.videLie(wrap, redraw); return; }
+        if (opts.vide && !rows().length) { wrap.innerHTML = opts.vide(); built = false; if (opts.videLie) opts.videLie(wrap, redraw); if (opts.apres) opts.apres(); return; }
         if (!built) {
           // La barre de recherche est construite une seule fois : la redessiner à chaque frappe ferait perdre le curseur.
           wrap.innerHTML = `<div class="filters">
@@ -11489,6 +11489,8 @@
         // La ligne s'ouvre au clic, comme celles des Clients, des Factures et des Achats. Le Catalogue
         // était la seule liste où « Ouvre-en une » (Tes premiers pas) voulait dire « trouve le menu
         // Actions ▾ puis Modifier » : un clic sur la ligne ne faisait rien, sans un mot (10.12.0).
+        // (1.278.0) Ce qui dépend de la liste (les chiffres en tête) se redessine avec elle, après chaque geste.
+        if (opts.apres) opts.apres();
         if (opts.ouvrir) $$('tr[data-ouvrir]', wrap).forEach(tr => tr.onclick = e => {
           if (e.target.closest('button, a, input, select, textarea, label')) return;
           const r = rows().find(x => x.id === tr.dataset.ouvrir);
@@ -11528,6 +11530,7 @@
       } }
     ];
     const draw = dansUnLot(drawList('#list-wrap', catalogState.presta, prestaCols, () => data.catalog.slice(), {
+      apres: () => drawResume(),
       noun: motsCatalogue().un, placeholder: `Rechercher ${motsCatalogue().unNom}…`, text: c => `${c.label} ${c.description || ''} ${c.unit || ''} ${c.code || ''}`,
       // 10.12.0 (H-E26, vu au test humain) — deux chiffres du pied mentaient sans rien casser :
       // « moyenne 58,333 DT » faisait la moyenne de 25 DT de l'heure, d'un lot à 0 DT et d'une pièce
@@ -11595,19 +11598,57 @@
     });
     const TABS = CATALOG_TABS.map(t => t[0] === 'presta' ? [t[0], motsCatalogue().des, t[2]] : t);
     if (!TABS.some(t => t[0] === catalogTab)) catalogTab = 'presta';
+    // (1.278.0) L'en-tête de la trésorerie et du stock : le chemin, le titre de l'onglet ouvert, une phrase qui dit à quoi
+    // il sert ; les gestes de l'onglet à droite.
+    const SOUS = { presta: 'Ce que tu vends, avec son prix, sa TVA et son unité : tes devis et tes factures le reprennent d\'un clic',
+      modeles: 'Des devis et des factures prêts à reprendre, enregistrés depuis une pièce', textes: 'Des phrases que tu ajoutes aux notes d\'une pièce en un clic' };
     const head = () => {
       const t = TABS.find(x => x[0] === catalogTab);
-      return `<h1>${t[1]} ${info(t[2])}</h1><div class="actions">
+      return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Catalogue</span></div><h1>${t[1]} ${info(t[2])}</h1><p class="sous">${h(SOUS[catalogTab] || '')}</p></div><div class="actions">
         ${catalogTab === 'presta' ? `<button class="btn" id="imp-catalogue">Importer…</button><button class="btn${data.catalog.length ? ' btn-primary' : ''}" id="new">+ ${motsCatalogue().nouveau}</button>` : ''}
         ${catalogTab === 'textes' ? '<button class="btn btn-primary" id="new-snip">+ Nouveau texte</button>' : ''}
         ${catalogTab === 'modeles' ? '<span class="small muted">Depuis un devis ou une facture : Plus ▾ → « Enregistrer comme modèle »</span>' : ''}
       </div>`;
     };
-    $('#view').innerHTML = `<div class="page-head" id="cat-head">${head()}</div>
-      <div class="tabs" id="cat-tabs" role="tablist" aria-label="Le catalogue">${TABS.map(([id, label]) => `<button role="tab" data-tab="${id}" class="${id === catalogTab ? 'active' : ''}">${label}</button>`).join('')}</div>
-      <div data-pane="presta"><div id="list-wrap"></div></div>
-      <div data-pane="modeles" hidden><div id="tpl-wrap"></div></div>
-      <div data-pane="textes" hidden><div id="snip-wrap"></div></div>`;
+    $('#view').innerHTML = `<div class="page-head lf-tete" id="cat-head">${head()}</div>
+      <div class="lf mg ca">
+        <div class="cf-carte mg-resume" id="cat-resume"></div>
+        <div class="mg-barre"><div class="pa-seg" id="cat-tabs" role="tablist" aria-label="Le catalogue">${TABS.map(([id, label]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === catalogTab}" class="${id === catalogTab ? 'active' : ''}">${label}</button>`).join('')}</div></div>
+        <div class="cf-carte"><div class="cf-onglet">
+          <div data-pane="presta"><div id="list-wrap"></div></div>
+          <div data-pane="modeles" hidden><div id="tpl-wrap"></div></div>
+          <div data-pane="textes" hidden><div id="snip-wrap"></div></div>
+        </div></div>
+      </div>`;
+    // (1.278.0) Quatre chiffres en tête, comme le stock : ce que tu vends, ce qui n'a pas de prix, la marge, et ce qui reste
+    // à ajuster (les exemples de l'assistant) ou, sinon, les modèles prêts. Rien tant que le catalogue est vide : son premier
+    // écran le dit mieux que des zéros.
+    const chiffreC = (lbl2, val, sous, ton, bulle, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}${bulle ? ' ' + info(bulle) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
+    const drawResume = () => {
+      const el = $('#cat-resume'); if (!el) return;
+      const cat = data.catalog;
+      el.hidden = !cat.length;
+      if (!cat.length) { el.innerHTML = ''; return; }
+      const m = motsCatalogue();
+      const suivis = cat.filter(c => c.tracked).length;
+      const sansPrix = cat.filter(c => !(Number(c.unitPrice) > 0)).length;
+      // La marge se lit sur ce qui a un prix ET un coût : un article sans coût n'a pas « 100 % » de marge, il n'a pas de coût.
+      const avecCout = cat.filter(c => Number(c.unitCost) > 0 && Number(c.unitPrice) > 0);
+      const ventes = avecCout.reduce((a, c) => a + Number(c.unitPrice), 0);
+      const marge = avecCout.reduce((a, c) => a + Number(c.unitPrice) - Number(c.unitCost), 0);
+      const aPerte = avecCout.filter(c => Number(c.unitPrice) <= Number(c.unitCost)).length;
+      const taux = ventes ? Math.round(marge / ventes * 1000) / 10 : null;
+      const exemples = cat.filter(c => c.fromSetup).length;
+      el.innerHTML = chiffreC(m.des, String(cat.length), suivis ? `dont ${pl(suivis, m.suivi)} en stock` : 'aucun suivi en stock', '', 'cat.catalog')
+        + chiffreC('Sans prix', String(sansPrix), sansPrix ? 'à compléter avant de les vendre' : 'tous ont un prix', sansPrix ? 'ambre' : 'vert')
+        + chiffreC('Marge moyenne', taux == null ? '—' : pct(taux) + ' %', taux == null ? 'mets un coût pour la lire' : aPerte ? `${pl(aPerte, m.un)} sans marge (prix ≤ coût)` : `sur ${pl(avecCout.length, m.un)} qui ont un coût`, aPerte ? 'rouge' : '')
+        + (exemples ? chiffreC('Exemples à ajuster', String(exemples), 'proposés par l\'assistant : mets ton prix', 'ambre')
+          : chiffreC('Modèles de documents', String(data.templates.length), data.templates.length ? 'prêts à reprendre — voir lesquels' : 'depuis un devis : Plus ▾', '', 'ed.template', 'modeles'));
+      $$('[data-aller]', el).forEach(x => {
+        const aller = () => showTab(x.dataset.aller);
+        x.onclick = aller; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(); } };
+      });
+    };
     const bindHead = () => {
       if ($('#new')) $('#new').onclick = () => catalogForm(null, draw);
       if ($('#imp-catalogue')) $('#imp-catalogue').onclick = () => importerTableau('catalogue', () => draw());
@@ -11615,13 +11656,13 @@
     };
     const showTab = id => {
       catalogTab = id;
-      $$('#cat-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+      $$('#cat-tabs button').forEach(b => { b.classList.toggle('active', b.dataset.tab === id); b.setAttribute('aria-selected', String(b.dataset.tab === id)); });
       $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== id);
       $('#cat-head').innerHTML = head(); bindHead(); poserGuideMoi();
     };
     $$('#cat-tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
     showTab(catalogTab);
-    draw(); drawTemplates(); drawSnippets();
+    draw(); drawTemplates(); drawSnippets(); drawResume();
   };
 
   function snippetForm(sn, done) {

@@ -203,7 +203,9 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     // Accepter le dossier : la page revenue demande d'abord à partir de quand le cabinet le tient.
     await p.locator('.cd-prop').getByRole('button', { name: 'Accepter le dossier' }).click();
     const fen = p.locator('#modal-root');
-    await expect.poll(() => fen.locator('h2').innerText().catch(() => ''), { timeout: 25_000 }).toBe('À partir de quand tiens-tu Hôtel Les Pins ?');
+    // (rouge GitHub de 1.277.0, une machine sur quatre) Si la fenêtre ne vient pas, le test dit ce que la page montre.
+    await expect.poll(() => fen.locator('h2').innerText().catch(() => ''), { timeout: 25_000 }).toBe('À partir de quand tiens-tu Hôtel Les Pins ?')
+      .catch(async (e: unknown) => { throw new Error(`${String(e)} — fenêtre : « ${(await fen.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300)} » ; proposition : « ${(await p.locator('.cd-prop').first().innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200)} »`); });
     expect((await fen.locator('[data-dm] b').allInnerTexts())).toEqual(['Ce mois-ci · octobre 2026', 'Depuis janvier 2026', 'Un autre mois…']);
     expect(await fen.locator('#ok').isDisabled()).toBe(true);
     // « Plus tard » : la ligne le dit, sans rien réclamer (pas de mois en retard, pas de relance), et Priorités le rappelle.

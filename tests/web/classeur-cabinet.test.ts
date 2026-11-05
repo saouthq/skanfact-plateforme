@@ -86,6 +86,9 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await p.addInitScript(() => { if (location.protocol.startsWith('http')) localStorage.setItem('cab.visites', JSON.stringify({ proposer: false })); });
     return { p, erreurs };
   }
+  // (rouge GitHub de 1.277.0) Ce que voit la page quand une attente échoue : la fenêtre posée et les lignes du classeur.
+  const vuDe = async (p: Page) => JSON.stringify({ fenetre: (await p.locator('#modal-root').innerHTML().catch(() => '')).replace(/\s+/g, ' ').slice(0, 500),
+    lignes: (await p.locator('li[data-cl-k]').allInnerTexts().catch(() => [] as string[])).map((t) => t.replace(/\s+/g, ' ').slice(0, 100)) });
   async function ouvrir(p: Page, cabinet: string, ent: string) {
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/classeur`);
     await p.locator('#page-cl .cl-res').first().waitFor({ timeout: 25_000 });
@@ -186,7 +189,9 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     expect(await p.locator('.cl-a-m.ici').innerText()).toMatch(new RegExp(`^${majuscule(avant)}`));
     // La seconde photo se dit « en double ? », et son geste la marque en double de la première.
     const dbl = p.locator('li[data-cl-k]').filter({ hasText: 'en double ?' });
-    await expect.poll(() => dbl.count()).toBe(1);
+    // (rouge GitHub de 1.277.0, sur les deux machines et jamais ici) Quand l'attente échoue, le test dit ce qu'il voit : la
+    // fenêtre posée (ce qui empêche le classeur de se redessiner) et les lignes affichées.
+    await expect.poll(() => dbl.count(), { timeout: 15_000 }).toBe(1).catch(async (e: unknown) => { throw new Error(`${String(e)} — vu : ${await vuDe(p)}`); });
     expect(await dbl.innerText()).toMatch(/la même que facture-steg\.png \?/);
     await dbl.click();
     await expect.poll(() => p.locator('.cl-ap .cl-dbl figure').count()).toBe(2);
@@ -247,7 +252,8 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await p.unroute(lectures);
     const ligne = p.locator('li[data-cl-k]').filter({ hasText: 'IMG_8850' });
     // (rouge GitHub de 37ca3e7) La seconde par défaut de l'attente ne suffit pas à une machine chargée : la page arrive.
-    await expect.poll(() => ligne.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/un achat du même montant existe déjà : FA-0919, sans justificatif/);
+    await expect.poll(() => ligne.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/un achat du même montant existe déjà : FA-0919, sans justificatif/)
+      .catch(async (e: unknown) => { throw new Error(`${String(e)} — vu : ${await vuDe(p)}`); });
     // (1.276.0) Ce que la lecture a vu arrive avec la ligne, mais pas toujours au même dessin sur une machine chargée.
     await expect.poll(() => ligne.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/STEG[\s\S]*113,396/);
     // Le ticket, que rien ne relie à FA-0919 (ni total lu, ni numéro, ni fournisseur) : l'achat STEG ne lui est pas proposé

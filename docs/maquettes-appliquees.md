@@ -797,3 +797,28 @@ ajoute `.lf.mg.st`.
   caisse, et restait ouverte (le classeur attend qu'une fenêtre se ferme pour se redessiner). Ces tests ne la proposent
   plus ; la visite a ses propres tests.
 - Le test des versions accepte « hier à 23:32 » quand il passe minuit : l'écran disait juste.
+
+## Le Catalogue (1.278.0)
+
+Deuxième page de la refonte, sur le même modèle que le Stock (`.lf.mg.ca`).
+
+- **L'en-tête** : le chemin (Accueil › Catalogue), le titre de l'onglet ouvert (« Prestations » ou « Articles » selon le
+  métier, « Modèles de documents », « Textes prédéfinis ») et une phrase qui dit à quoi il sert.
+- **Quatre chiffres** en tête, qui suivent la liste après chaque geste :
+  - ce que tu vends, avec ce qui est suivi en stock ;
+  - ce qui n'a **pas de prix** (en ambre : à compléter) ;
+  - la **marge moyenne**. Elle se lit seulement sur ce qui a un prix **et** un coût : un article sans coût n'a pas
+    « 100 % » de marge, il n'a pas de coût. Un article vendu sous son coût la met en rouge et se compte ;
+  - les **exemples de l'assistant** encore à ajuster, ou sinon les modèles de documents. Ce chiffre ouvre leur onglet.
+- Rien de ces chiffres tant que le catalogue est vide : son premier écran le dit mieux que des zéros.
+- **Au téléphone**, les fiches de la liste restaient coupées à droite : la rangée des tris (qui défile) élargissait la
+  case de la grille. Les cases ne s'élargissent plus à leur contenu, pour le Stock comme pour le Catalogue.
+- Test : `tests/web/catalogue-da.test.ts` ; preuves `catalogue 1.278 a-d`.
+
+**Avec, le rouge GitHub de 1.277.0**
+- La preuve « la bulle « i » des filtres trop petite au doigt » ne pouvait plus tomber. Depuis la 1.204.0, cette bulle
+  est cachée au téléphone ; sa règle de 44 points ne servait plus. La règle part, et la preuve est retirée (raison
+  écrite dans `tests/preuves.sh`).
+- Le classeur, la saisie et les dossiers du Cabinet tombent sur GitHub et jamais ici. Ces tests disent maintenant ce
+  qu'ils voient quand ils échouent (la fenêtre posée, les lignes, ce que garde le serveur), pour trouver la cause au
+  prochain verdict plutôt que de la deviner.
