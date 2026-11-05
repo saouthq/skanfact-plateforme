@@ -24360,6 +24360,15 @@ prouver 'classeur 1.281.1 a : les pièces reçues arrivées après l'"'"'ouvertu
 prouver 'classeur 1.281.1 b : la rubrique choisie par la page sur un classeur vide y reste quand les pièces arrivent' modules/socle/ecrans/cabinet/app-1.js \
   ' || (clState.rubAuto && nb(clState.rub) === 0 && rubsPleines.length)' '' \
   'une pièce en double se marque de sa jumelle, côte à côte ; une pièce se range dans un autre mois'
+prouver 'listesprix 1.282 a : une liste finie se dit encore en vigueur' modules/socle/ecrans/entreprise/app-1.js \
+  'const etatListe = l => l.depuis && l.depuis > t ? '"'"'avenir'"'"' : l.jusquau && l.jusquau < t ? '"'"'terminee'"'"' : '"'"'vigueur'"'"';' 'const etatListe = l => l.depuis && l.depuis > t ? '"'"'avenir'"'"' : '"'"'vigueur'"'"';' \
+  'l'"'"'en-tête, les quatre chiffres sur les listes en vigueur, l'"'"'état de chaque liste ; au téléphone rien ne déborde'
+prouver 'listesprix 1.282 b : les clients concernés ne suivent pas la règle qui pose le prix sur une pièce' modules/socle/ecrans/entreprise/app-1.js \
+  'C.listesPrixApplicables(data, c.id, t).length' '(c.categorieTarif || ls.some(l => (l.clientIds || []).includes(c.id)))' \
+  'l'"'"'en-tête, les quatre chiffres sur les listes en vigueur, l'"'"'état de chaque liste ; au téléphone rien ne déborde'
+prouver 'listesprix 1.282 c : un prix nul compte comme un prix négocié' modules/socle/ecrans/entreprise/app-1.js \
+  '.filter(x => x.itemId && Number(x.prix) > 0).map(x => x.itemId)' '.filter(x => x.itemId).map(x => x.itemId)' \
+  'l'"'"'en-tête, les quatre chiffres sur les listes en vigueur, l'"'"'état de chaque liste ; au téléphone rien ne déborde'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

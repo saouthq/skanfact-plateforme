@@ -10253,14 +10253,36 @@
   const aQuiListe = l => l.categorie ? `la catégorie « ${l.categorie} »` : `${(l.clientIds || []).length > 1 ? (l.clientIds || []).length + ' clients' : ((clientById((l.clientIds || [])[0]) || {}).name || 'aucun client')}`;
   routes.listesprix = () => {
     const ls = listesPrix().slice().sort((a, b) => String(b.depuis || '').localeCompare(String(a.depuis || '')) || String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
+    // (1.282.0) La nouvelle DA, comme le Catalogue : l'en-tête, quatre chiffres sur toutes les listes, la liste dans sa carte.
+    // « En vigueur » est la règle du moteur (`listesPrixApplicables`) : la date d'aujourd'hui entre « du » et « au ».
+    const t = C.today();
+    const etatListe = l => l.depuis && l.depuis > t ? 'avenir' : l.jusquau && l.jusquau < t ? 'terminee' : 'vigueur';
+    const ETATS_LP = { vigueur: '<span class="badge envoyée">en vigueur</span>', avenir: '<span class="badge">à venir</span>', terminee: '<span class="badge annulée">terminée</span>' };
+    const chiffreL = (lbl2, val, sous, ton) => `<div class="mg-chiffre"><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
+    let resume = '';
+    if (ls.length) {
+      const vig = ls.filter(l => etatListe(l) === 'vigueur'), avenir = ls.filter(l => etatListe(l) === 'avenir').length, finies = ls.length - vig.length - avenir;
+      const clientsVises = (data.clients || []).filter(c => C.listesPrixApplicables(data, c.id, t).length).length;
+      const articles = new Set(vig.flatMap(l => (l.lignes || []).filter(x => x.itemId && Number(x.prix) > 0).map(x => x.itemId)));
+      const fin = vig.filter(l => l.jusquau).sort((a, b) => a.jusquau.localeCompare(b.jusquau))[0];
+      const jours = fin ? Math.round((Date.parse(fin.jusquau) - Date.parse(t)) / 86400000) : 0;
+      const autres = [avenir ? `${avenir} à venir` : '', finies ? `${pl(finies, 'terminée')}` : ''].filter(Boolean).join(' · ');
+      resume = `<div class="cf-carte mg-resume" id="lp-resume">${chiffreL('Listes en vigueur', String(vig.length), autres || 'toutes s\'appliquent aujourd\'hui')}`
+        + chiffreL('Clients concernés', String(clientsVises), `sur ${pl((data.clients || []).length, 'client')}, aujourd\'hui`)
+        + chiffreL('Articles à prix négocié', String(articles.size), `sur ${(data.catalog || []).length} au catalogue`)
+        + chiffreL('Prochaine fin', fin ? h(C.fmtDate(fin.jusquau)) : '—', fin ? `${h(fin.nom || '(sans nom)')} — ${jours === 0 ? 'aujourd\'hui' : jours === 1 ? 'demain' : `dans ${jours} jours`}` : 'aucune liste en vigueur n\'a de date de fin', fin && jours <= 30 ? 'ambre' : '')
+        + '</div>';
+    }
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Listes de prix ${info('lp.page')}</h1>
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Listes de prix</span></div><h1>Listes de prix ${info('lp.page')}</h1><p class="sous">Des prix à part pour une catégorie de clients ou des clients choisis, à partir d'une date : leurs devis et factures les reprennent</p></div>
         <div class="actions"><button class="btn btn-primary" id="lp-new">+ Nouvelle liste</button></div></div>
+      <div class="lf mg ca lpx">${resume}<div class="cf-carte"><div class="cf-onglet">
       ${!ls.length ? etatVide('Des prix à part pour certains clients', ['Un revendeur paie moins qu\'un particulier, un grand chantier a son prix négocié : une liste de prix vaut pour une catégorie de clients ou pour des clients choisis, à partir d\'une date. Sur leurs devis et leurs factures, ses prix remplacent ceux du catalogue.'], [])
-        : `<div class="scroll-x"><table class="list" id="lp-list"><thead><tr><th>Nom</th><th>S'applique à</th><th>Du</th><th>Au</th><th class="r">Articles</th></tr></thead><tbody>
+        : `<div class="scroll-x"><table class="list" id="lp-list"><thead><tr><th>Nom</th><th>S'applique à</th><th>Du</th><th>Au</th><th class="r">Articles</th><th>État</th></tr></thead><tbody>
           ${ls.map(l => `<tr><td><a href="#/listeprix/${h(l.id)}"><b>${h(l.nom || '(sans nom)')}</b></a></td><td>${h(aQuiListe(l))}</td>
-            <td class="nw">${l.depuis ? h(C.fmtDate(l.depuis)) : '—'}</td><td class="nw">${l.jusquau ? h(C.fmtDate(l.jusquau)) : '—'}</td><td class="r num">${(l.lignes || []).length}</td></tr>`).join('')}
-        </tbody></table></div>`}`;
+            <td class="nw">${l.depuis ? h(C.fmtDate(l.depuis)) : '—'}</td><td class="nw">${l.jusquau ? h(C.fmtDate(l.jusquau)) : '—'}</td><td class="r num">${(l.lignes || []).length}</td><td>${ETATS_LP[etatListe(l)]}</td></tr>`).join('')}
+        </tbody></table></div>`}
+      </div></div></div>`;
     $('#lp-new').onclick = () => navigate('#/listeprix/new');
   };
 

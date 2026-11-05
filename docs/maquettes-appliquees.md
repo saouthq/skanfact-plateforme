@@ -893,3 +893,16 @@ Sixième page de la refonte (proformas, bons de commande, bons de livraison, con
   comptable a choisie. Le test retarde ces pièces de 2,5 s, comme sur GitHub ; preuves `classeur 1.281.1 a-b`.
 - **Le lot achats** : le test lisait le serveur aussitôt la commande enregistrée à l'écran ; il attend maintenant que
   l'envoi y arrive (l'écran enregistre d'abord, l'envoi suit).
+
+## Les Listes de prix (1.282.0)
+
+Septième page de la refonte.
+
+- **L'en-tête** : le chemin, le titre, une phrase (« des prix à part pour une catégorie de clients ou des clients
+  choisis, à partir d'une date : leurs devis et factures les reprennent ») ; « + Nouvelle liste » à droite.
+- **Quatre chiffres** sur toutes les listes : celles en vigueur aujourd'hui (et combien à venir, combien terminées) ; les
+  clients concernés, comptés par la règle même qui pose le prix sur une pièce (`listesPrixApplicables` du moteur) ; les
+  articles à prix négocié (un prix nul ne compte pas) ; la prochaine fin, en ambre à 30 jours ou moins. Cachés tant qu'il
+  n'y a aucune liste : la page vide garde son explication.
+- **La liste** vit dans sa carte et dit l'état de chaque liste (en vigueur, à venir, terminée).
+- Test : `tests/web/listes-prix-da.test.ts` ; preuves `listesprix 1.282 a-c`.
