@@ -288,10 +288,11 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     // Sous les filtres d'une liste, la bulle est à côté de la case qui la précède, pas seule sur une ligne. (1.154.0 : la
     // liste des factures range ses filtres dans sa feuille, au téléphone ; 1.260.0 : celle des devis aussi. La règle se
     // lit sur « Où est la marge », qui garde les siens.)
-    await aller(p, '#/marges', /^Marges/);
-    await p.locator('#mg-tabs [data-tab="analyse"]').click();
-    const filtre = await p.locator('#view .filters button.i').evaluate((b) => { const v = (b.previousElementSibling ?? b).getBoundingClientRect(); const r = b.getBoundingClientRect(); return { case: (v.top + v.bottom) / 2, bulle: (r.top + r.bottom) / 2 }; });
-    expect(Math.abs(filtre.case - filtre.bulle)).toBeLessThanOrEqual(6);
+    // (1.289.0) Les Marges ont leurs propres règles depuis 1.261.0 : la règle commune se lit sur le Catalogue.
+    await aller(p, '#/catalogue', /^(Catalogue|Prestations|Articles)/);
+    const ecarts = await p.locator('#view .filters button.i').evaluateAll((bs) => bs.filter((b) => (b as HTMLElement).offsetParent).map((b) => { const v = (b.previousElementSibling ?? b).getBoundingClientRect(); const r = b.getBoundingClientRect(); return Math.round(Math.abs((v.top + v.bottom) / 2 - (r.top + r.bottom) / 2)); }));
+    expect(ecarts.length).toBeGreaterThan(0);
+    expect(Math.max(...ecarts)).toBeLessThanOrEqual(6);
 
     // L'achat : la bulle de « Lire avec l'IA » se cache avec lui.
     await aller(p, '#/achat/new', /^Nouvelle facture d'achat/);

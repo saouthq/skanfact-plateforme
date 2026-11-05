@@ -142,8 +142,14 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'factures', hash: '#/factures', titre: /^Factures/ },
     { nom: 'facture-nouvelle', hash: '#/doc/new/facture', titre: /^Nouvelle facture/ },
     { nom: 'clients', hash: '#/clients', titre: /^Clients/ },
+    // (1.289.0) Les « autres pièces » gardent la grille de lignes de la v10 (la facture et le devis ont la leur) :
+    // l'instrument n'en ouvrait aucune, et la preuve de leurs lignes au téléphone restait verte.
+    { nom: 'proforma-nouvelle', hash: '#/doc/new/proforma', titre: /pro ?forma/i },
     // Photographier une facture d'achat se fait au téléphone (14 § 2.6 ; brique 84).
     { nom: 'achat-nouveau', hash: '#/achat/new', titre: /^Nouvelle facture d'achat/ },
+    // (1.289.0) Une facture d'achat remplie : la nouvelle ne montre plus que « Comment arrive cette pièce ? » (6b), et
+    // l'instrument ne voyait plus aucune ligne d'achat au téléphone (les preuves de leurs cartes restaient vertes).
+    { nom: 'achat', hash: '#/achat/p1', titre: /CB-2026-0457|d'achat/ },
     { nom: 'parametres', hash: '#/parametres', titre: /^Paramètres/ },
     // Le responsable décide d'un accord depuis son téléphone (brique 100).
     { nom: 'accords', hash: '#/accords', titre: /^Demandes d'accord/ },
@@ -158,6 +164,8 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'fournisseur', hash: '#/fournisseur/s1', titre: /^Les Ciments de Bizerte/ },
     { nom: 'client', hash: '#/client/c-rendu', titre: /^Société Méditerranéenne/ },
     { nom: 'stock', hash: '#/stock', titre: /^Stock/ },
+    // (1.289.0) Les noms des meilleurs clients, des liens à toucher du doigt : aucune autre page n'en dessine.
+    { nom: 'statistiques', hash: '#/stats', titre: /^Statistiques/ },
     { nom: 'tresorerie', hash: '#/tresorerie', titre: /^Trésorerie/ },
     { nom: 'paie', hash: '#/paie', titre: /^Paie/ }, // 1.227.0 : la paie a sa mise en page de téléphone (la maquette)
     { nom: 'compta', hash: '#/compta', titre: /^Comptabilit/, ordinateur: true },

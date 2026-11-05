@@ -3231,7 +3231,8 @@
   // Les pages pensées pour un ordinateur (plateforme, brique 109 ; 14 § 2.6) : au téléphone, elles le disent sous
   // leur titre. La largeur est celle où la mise en page du téléphone prend la main (telephone.css).
   // (plateforme) 1.227.0 — la paie et la fiche d'un salarié ont leur mise en page de téléphone (la maquette) : plus de bandeau.
-  const PAGES_ORDINATEUR = ['compta', 'immos', 'immo', 'stats', 'marges'];
+  // (1.289.0) Les statistiques tiennent au téléphone (l'instrument du rendu l'a mesuré) : le bandeau n'y disait pas vrai.
+  const PAGES_ORDINATEUR = ['compta', 'immos', 'immo', 'marges'];
   function bandeauOrdinateur(name) {
     if (!PAGES_ORDINATEUR.includes(name) || !window.matchMedia('(max-width: 760px)').matches || $('#bandeau-ordinateur')) return;
     const tete = $('#view .page-head');
@@ -4652,7 +4653,7 @@
   function duplicateDoc(doc) {
     const isQ = doc.type === 'devis';
     const numbered = isQ || C.EXTRA_TYPES.includes(doc.type);   // ces pièces portent un numéro dès l'enregistrement
-    const copy = { ...deepCopy(doc), id: C.uid(), number: '', status: 'brouillon', date: C.today(), createdAt: Date.now(), issuedTs: undefined, regimeTva: undefined, exonerationRS: undefined, payments: [], emails: [], reminders: [], attachments: [], withholdingCertificate: false, ticket: undefined, caisse: undefined, fromQuoteId: undefined, fromQuoteNumber: undefined, fromDocId: undefined, fromDocType: undefined, fromDocNumber: undefined, deposit: undefined, settles: undefined, recurringId: undefined, bonsLivraison: undefined };
+    const copy = { ...deepCopy(doc), id: C.uid(), number: '', status: 'brouillon', date: C.today(), createdAt: Date.now(), issuedTs: undefined, regimeTva: undefined, exonerationRS: undefined, payments: [], emails: [], reminders: [], attachments: [], withholdingCertificate: false, ticket: undefined, caisse: undefined, fromQuoteId: undefined, fromQuoteNumber: undefined, fromDocId: undefined, fromDocType: undefined, fromDocNumber: undefined, deposit: undefined, settles: undefined, recurringId: undefined, bonsLivraison: undefined, assetId: undefined };
     if (copy.dueDate) copy.dueDate = C.addDays(copy.date, C.delaiJours(isQ ? company().quoteValidityDays : company().paymentTermsDays, 30));
     if (numbered) copy.number = C.nextNumber(data, doc.type, copy.date);
     data.documents.push(copy); save(true);
@@ -5598,8 +5599,20 @@
     } else if (parts[0] === 'new') {
       const type = ['devis', 'facture', 'avoir'].concat(C.EXTRA_TYPES).includes(parts[1]) ? parts[1] : 'devis';
       doc = newDocument(type); isNew = true;
-      if (type === 'avoir' && parts[2] && !['tpl', 'client', 'affaire'].includes(parts[2])) { const inv = docById(parts[2]); if (inv) { Object.assign(doc, creditDraftFrom(inv)); if (parts[3] === 'total') doc.creditReason = 'Annulation totale'; } }
+      if (type === 'avoir' && parts[2] && !['tpl', 'client', 'affaire', 'cession'].includes(parts[2])) { const inv = docById(parts[2]); if (inv) { Object.assign(doc, creditDraftFrom(inv)); if (parts[3] === 'total') doc.creditReason = 'Annulation totale'; } }
       if (parts[2] === 'tpl' && parts[3]) applyTemplate(doc, parts[3]);
+      // (1.289.0) Depuis la fiche d'un bien vendu : la facture de la cession naît avec le bien et son prix de vente, et
+      // garde le lien (la fiche la retrouve et ne propose plus d'en faire une seconde). Le taux de TVA reste celui de la
+      // ligne neuve, à confirmer : la TVA sur la vente d'un bien d'occasion se discute avec le comptable (À VÉRIFIER).
+      if (parts[2] === 'cession' && parts[3] && type === 'facture') {
+        const bien = (data.assets || []).find(x => x.id === parts[3]);
+        const sortie = bien ? C.disposalResult(bien) : null;
+        if (bien && sortie && sortie.price > 0) {
+          Object.assign(doc.lines[0], { label: `Cession : ${bien.label}`, qty: 1, unitPrice: sortie.price });
+          doc.assetId = bien.id;
+          setTimeout(() => toast(`Facture de la cession préparée : choisis l'acheteur. La TVA sur la vente d'un bien d'occasion se confirme avec ton comptable (À VÉRIFIER).`), 0);
+        }
+      }
       // Depuis la fiche client : le client est déjà choisi, avec sa langue, sa devise et sa retenue
       if (parts[2] === 'client' && parts[3] && clientById(parts[3])) {
         doc.clientId = parts[3];
@@ -14336,6 +14349,8 @@
     const demandeSansPrix = demande && !(stored.lines || []).some(l => Number(l.unitPrice) > 0);
     const groupe = demande ? C.comparerDemandes(data, stored) : null;
     const aRecevoir = !!(stored && stored.number && suivi.aProposer && !close && !demande);
+    // Le même mot dans la frise et dans la colonne de droite : « Recevoir le reste » dès qu'une réception existe.
+    const recevoirLibelle = suivi && suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir';
     // (1.285.0, F2 du Stock joué à la souris) Un bon en brouillon n'est pas encore parti : son étape suivante est de
     // l'envoyer au fournisseur (le PDF joint, puis « envoyée »), pas de le recevoir — on recevait une marchandise jamais
     // commandée. « Recevoir » reste à côté : une commande passée par téléphone se reçoit sans être envoyée.
@@ -14379,7 +14394,7 @@
           g: aEnvoyer ? '<button type="button" class="btn btn-sm" data-frise="cf-envoyer">Envoyer</button>' : '' },
         { t: toutRecu ? 'Reçue' : qRecu > 0 ? 'Reçue en partie' : 'Reçue', fait: toutRecu, partiel: !toutRecu && qRecu > 0, alerte: enRetardCF,
           d: qCmd ? `${avanceeCF}${enRetardCF ? ' — en retard' : ''}` : '—',
-          g: aRecevoir && !aEnvoyer ? `<button type="button" class="btn btn-sm" data-frise="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : '' },
+          g: aRecevoir && !aEnvoyer ? `<button type="button" class="btn btn-sm" data-frise="cf-recevoir">${recevoirLibelle}</button>` : '' },
         { t: 'Facturée', fait: facturee && !aFacturer.length, partiel: facturee && aFacturer.length > 0,
           d: facturee ? factures.map(f => h(f.number || 'sans numéro')).join(', ') : aFacturer.length ? 'reçue, la facture manque' : 'à la réception',
           g: aFacturer.length ? '<button type="button" class="btn btn-sm" data-frise="cf-facturer">Saisir la facture</button>' : '' },
@@ -14398,7 +14413,7 @@
       const net = t ? `<div class="ed-net-tel"><span>${demande || o.status === 'demande' ? 'Total de la demande HT' : 'Total de la commande TTC'}</span><b id="ed-net-tel">${C.money(demande ? t.netHT : t.totalTTC, cur)}</b></div>` : '';
       const sauver = stored ? '<button class="btn" id="save" hidden>Enregistrer les modifications</button>'
         : `<button class="btn btn-primary btn-grand" id="save">${o.status === 'demande' ? 'Enregistrer la demande' : 'Enregistrer la commande'}</button>`;
-      const recevoirTxt = suivi && suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir';
+      const recevoirTxt = recevoirLibelle;
       const sec = [];
       let prim = '', phrase = '';
       if (!stored) phrase = o.status === 'demande' ? 'Elle prend son numéro à l\'enregistrement, puis part en PDF à chaque fournisseur.' : 'Elle prend son numéro à l\'enregistrement ; tu l\'envoies ensuite au fournisseur.';

@@ -108,7 +108,7 @@ describe('les alertes du service, à la souris', () => {
   afterAll(async () => {
     await navigateur?.close(); await serveur?.arreter(); await admin.end();
     fs.rmSync(dossier, { recursive: true, force: true }); fs.rmSync(path.dirname(veille), { recursive: true, force: true });
-  });
+  }, 60_000); // le serveur qui s'arrête attend ses travaux en cours : 10 s ne suffisaient pas sur GitHub (1.288.0)
   beforeEach(() => { fs.utimesSync(veille, new Date(), new Date()); });
 
   it('un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus reste jusqu\'au clic suivant', async () => {

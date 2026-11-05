@@ -2281,6 +2281,8 @@
 
   // ---------- Immobilisations et amortissements (3.5.0) ----------
   const assetById = id => data.assets.find(a => a.id === id);
+  // (1.289.0) La facture de la cession d'un bien : la même recherche pour la fiche et le tableau des sorties (6.8.1).
+  const factureDeCession = a => data.documents.find(d => d.assetId === a.id && d.type === 'facture') || null;
   // `supplierItems` vit dans l'éditeur d'achat : ici on refait la liste, sans la sortir de son contexte.
   const supItems = () => data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'))
     .map(x => ({ v: x.id, label: x.name, sub: x.contact || '', text: `${x.name} ${x.contact || ''}` }));
@@ -2618,11 +2620,12 @@
       const loss = C.round3(rows.reduce((t, x) => t + Math.min(0, x.d.result), 0));
       $('#im-body').innerHTML = `
         <div class="panel"><h2>Sorties de ${s.year} ${info('immo.disposal')}</h2>
-          ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Date</th><th>Bien</th><th>Motif</th><th class="r">Valeur HT</th><th class="r">VNC à la sortie</th><th class="r">Prix obtenu</th><th class="r">Résultat</th></tr></thead><tbody>
+          ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Date</th><th>Bien</th><th>Motif</th><th class="r">Valeur HT</th><th class="r">VNC à la sortie</th><th class="r">Prix obtenu</th><th class="r">Résultat</th><th>Facture</th></tr></thead><tbody>
             ${rows.map(({ a, d }) => `<tr class="clickable" data-aid="${h(a.id)}">
               <td class="nw">${C.fmtDate(d.date)}</td><td><strong>${h(a.label)}</strong></td><td>${h(d.reason) || '<span class="muted">—</span>'}</td>
               <td class="r nw">${C.money(a.amount, cur)}</td><td class="r nw">${C.money(d.nbv, cur)}</td><td class="r nw">${d.price > 0 ? C.money(d.price, cur) : '<span class="muted">sans prix</span>'}</td>
-              <td class="r nw ${d.result < 0 ? 'warn-text' : 'ok-text'}"><strong>${C.money(d.result, cur)}</strong></td></tr>`).join('')}
+              <td class="r nw ${d.result < 0 ? 'warn-text' : 'ok-text'}"><strong>${C.money(d.result, cur)}</strong></td>
+              <td class="nw">${(() => { if (!(d.price > 0)) return '<span class="muted">—</span>'; const f = factureDeCession(a); return f ? (f.status === 'brouillon' ? '<span class="muted">brouillon</span>' : `<a href="#/doc/${h(f.id)}">${h(f.number)}</a>`) : '<span class="warn-text">à facturer</span>'; })()}</td></tr>`).join('')}
           </tbody></table></div>
           ${/* 10.12.0 — « Plus-values : 0,000 DT » en VERT quand il n'y en a aucune : un zéro dans la
                couleur d'une bonne nouvelle. Un total nul se dit « aucune », en gris. */''}
@@ -2630,7 +2633,7 @@
           <em>À VÉRIFIER avec ton comptable : une plus-value de cession est en principe imposable, une moins-value déductible.</em></p>`
             : '<div class="empty">Aucune sortie sur cet exercice. Un bien vendu, mis au rebut ou volé se sort depuis sa fiche.</div>'}
         </div>`;
-      $$('#im-body tr[data-aid]').forEach(tr => tr.onclick = () => navigate('#/immo/' + tr.dataset.aid));
+      $$('#im-body tr[data-aid]').forEach(tr => tr.onclick = e => { if (!e.target.closest('a')) navigate('#/immo/' + tr.dataset.aid); });
     }
 
     const draw = dansUnLot(() => {
@@ -2683,47 +2686,86 @@
     const dis = C.disposalResult(a);
     const thisYear = Number(C.today().slice(0, 4));
     const buy = a.purchaseId ? purchaseById(a.purchaseId) : null;
+    // (1.289.0, Skander : « respecter la DA de ce qu'on a déjà fait avec facture et devis ») La fiche d'un bien prend le
+    // squelette des pièces : ‹ vers la liste, chemin, titre et pastille ; frise mise en service → amortissement → fin ; à
+    // gauche le plan, l'achat d'origine et les notes ; à droite ce que le bien vaut et ses gestes. Un bien en service n'a
+    // pas d'étape suivante (son plan court seul) : la colonne le dit, sans bouton vert (10.12.0).
+    const amorti = C.assetCumulated(a, dis ? dis.date : C.today());
+    const partAmortie = a.amount ? Math.min(100, Math.round(amorti / a.amount * 1000) / 10) : 0;
+    const fin = rows.length ? rows[rows.length - 1].to : '';
+    const fini = !dis && !!fin && fin <= C.today();
+    const etatImmo = dis ? 'sorti' : fini ? 'amorti' : 'en service';
+    const ligneAn = rows.find(r => r.year === thisYear);
+    const friseImmo = `<div class="panel ed-frise trois" id="im-frise"><ol>
+        <li class="fait"><span class="rond" aria-hidden="true">${lfIc('coche', 13, 3)}</span><span class="ed-fr-txt"><b>Mis en service</b><span>${h(C.fmtDate(a.date))}${buy ? ` · <a href="#/achat/${h(buy.id)}">${h(C.referenceAchat(buy, data))}</a>` : ''}</span></span><span class="vh"> : fait</span></li>
+        <li class="${dis || fini ? 'fait' : 'partiel'}"><span class="rond" aria-hidden="true">${dis || fini ? lfIc('coche', 13, 3) : 2}</span><span class="ed-fr-txt"><b>Amortissement</b><span>${pct(partAmortie)} % de sa valeur${dis ? ' à la sortie' : ''}</span></span><span class="vh">${dis || fini ? ' : fait' : ' : en cours'}</span></li>
+        <li class="${dis || fini ? 'fait' : ''}"><span class="rond" aria-hidden="true">${dis || fini ? lfIc('coche', 13, 3) : 3}</span><span class="ed-fr-txt"><b>${dis ? 'Sorti' : 'Fin du plan'}</b><span>${dis ? h(C.fmtDate(dis.date)) + (dis.reason ? ' · ' + h(dis.reason) : '') : fin ? (fini ? 'amorti le ' : 'le ') + h(C.fmtDate(fin)) : '—'}</span></span><span class="vh">${dis || fini ? ' : fait' : ' : pas encore'}</span></li>
+      </ol></div>`;
+    const resumeImmo = `<div class="totals-box" id="im-resume"><table class="ed-tot">
+        <tr><td>Valeur d'acquisition</td><td>${h(C.money(a.amount, cur))}</td></tr>
+        ${Number(a.residual) ? `<tr class="sous"><td>Valeur résiduelle</td><td>${h(C.money(a.residual, cur))}</td></tr>` : ''}
+        <tr><td>Durée</td><td>${a.years} an${a.years > 1 ? 's' : ''}</td></tr>
+        <tr><td>Amorti ${dis ? 'à la sortie' : 'à ce jour'}</td><td>${h(C.money(amorti, cur))}</td></tr>
+        <tr class="trait"><td>Valeur nette comptable ${info('immo.nbv')}</td><td>${dis ? h(C.money(0, cur)) : h(C.money(C.assetNBV(a, C.today()), cur))}</td></tr>
+      </table></div>`;
+    const phraseImmo = dis ? (dis.price > 0 ? `Vendu ${h(C.money(dis.price, cur))} : ${dis.result >= 0 ? `plus-value de ${h(C.money(dis.result, cur))}` : `moins-value de ${h(C.money(-dis.result, cur))}`}.` : `Sorti sans prix : moins-value de ${h(C.money(dis.nbv, cur))}.`)
+      : fini ? 'Entièrement amorti : il ne coûte plus rien chaque année, et reste au bilan tant que tu le gardes.'
+      : `En service : ${ligneAn ? `${h(C.money(ligneAn.annuity, cur))} de dotation en ${thisYear}` : 'pas de dotation cette année'}, jusqu'au ${h(C.fmtDate(fin))}. Rien à faire : le plan court seul.`;
+    // (1.289.0) Un bien vendu se facture à l'acheteur : la fiche l'offre tant qu'aucune facture de la cession n'existe,
+    // puis montre celle qui existe. Le bouton reste secondaire : la vente a pu être facturée ailleurs.
+    const factCession = dis && dis.price > 0 ? factureDeCession(a) : null;
+    // Vendu et pas encore facturé : c'est l'étape suivante, le seul bouton vert de la page (rien ne l'impose : la vente a pu
+    // être facturée ailleurs, la fiche reste libre).
+    const aFacturer = !!(dis && dis.price > 0 && !factCession);
+    // Préparée mais pas émise : l'étape suivante est de l'émettre, le bouton vert y mène.
+    const brouillonCession = factCession && factCession.status === 'brouillon' ? factCession : null;
+    const gesteCession = factCession && !brouillonCession ? `<p class="small" id="im-cession">Facturée : <a href="#/doc/${h(factCession.id)}">${h(factCession.number || 'brouillon de facture')}</a>${factCession.clientId ? ' · ' + h(clientName(factCession.clientId)) : ''}</p>` : '';
     $('#view').innerHTML = `
-      <div class="page-head"><div><h1>${h(a.label)}</h1>
-        <div class="small muted">${[C.assetClassLabel(a.category), 'mis en service le ' + C.fmtDate(a.date), a.supplierId ? supplierName(a.supplierId) : ''].filter(Boolean).join(' · ')}</div></div>
-        <div class="actions">${backButton('#/immos')}<button class="btn" id="edit-imm">Modifier</button>
-          ${/* 10.12.0 — « Sortir du patrimoine » en vert sur un bien qu'on vient d'acheter : le vert dit
-               l'étape SUIVANTE (U-11), et sortir un bien n'est la suite de rien — c'est un geste
-               exceptionnel (vente, rebut, vol). Un bien en service n'a pas d'étape suivante : son
-               plan court tout seul. Aucun vert. */''}
-          <button class="btn" id="dispose">${dis ? 'Modifier la sortie' : 'Sortir du patrimoine'}</button></div></div>
-      ${/* 10.12.0 — « Vendu 0,000 DT » sur un bien mis au rebut, sous un liseré ROUGE : un bien sorti
-           n'est pas une erreur, et un bien qu'on n'a vendu à personne n'a pas été vendu. Le liseré
-           est neutre ; la phrase suit le prix. */''}
-      ${dis ? `<div class="panel" style="border-inline-start:3px solid var(--line)">
+      <div class="page-head ed-tete">
+        ${retourListe('#/immos', 'immobilisations')}<div class="ed-titre">
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/immos" class="ed-retour">Immobilisations</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(a.label)}</span></div>
+          <div class="ed-h1"><h1>${h(a.label)}</h1><span class="badge ${dis ? '' : fini ? 'facturé' : 'payée'}" id="im-etat">${etatImmo}</span></div>
+          <div class="small muted" id="im-sous">${[C.assetClassLabel(a.category), 'mis en service le ' + C.fmtDate(a.date), a.supplierId ? supplierName(a.supplierId) : ''].filter(Boolean).map(h).join(' · ')}</div>
+        </div>
+        <div class="actions"></div></div>
+      <div class="buy-editor editor charte">
+        <div class="ed-gauche">
+      ${friseImmo}
+      ${/* 10.12.0 — un bien sorti n'est pas une erreur : liseré neutre ; la phrase suit le prix. */''}
+      ${dis ? `<div class="panel" id="im-sortie">
         <h2>Sorti le ${C.fmtDate(dis.date)}${dis.reason ? ' — ' + h(dis.reason) : ''}</h2>
         <p class="small">${dis.price > 0
           ? `Vendu ${C.money(dis.price, cur)} alors qu'il valait encore ${C.money(dis.nbv, cur)} dans les comptes : ${dis.result >= 0 ? `<b class="ok-text">plus-value de ${C.money(dis.result, cur)}</b>` : `<b class="warn-text">moins-value de ${C.money(-dis.result, cur)}</b>`}.`
           : `Sorti sans prix (mis au rebut, volé) alors qu'il valait encore ${C.money(dis.nbv, cur)} dans les comptes : <b>moins-value de ${C.money(dis.nbv, cur)}</b>.`}
         <em>À VÉRIFIER avec ton comptable.</em></p>
         ${vatWarning(a, dis.date, { passe: true }) ? `<p class="small warn-text">${vatWarning(a, dis.date, { passe: true })}</p>` : ''}</div>` : ''}
-      <div class="stats">
-        <div class="stat"><div class="lbl">Valeur d'acquisition</div><div class="val">${C.money(a.amount, cur)}</div><div class="sub">${Number(a.residual) ? 'valeur résiduelle ' + C.money(a.residual, cur) : 'aucune valeur résiduelle'}</div></div>
-        <div class="stat"><div class="lbl">Durée</div><div class="val">${a.years} an${a.years > 1 ? 's' : ''}</div><div class="sub">jusqu'au ${rows.length ? C.fmtDate(rows[rows.length - 1].to) : '—'}</div></div>
-        <div class="stat"><div class="lbl">Amorti à ce jour</div><div class="val">${C.money(C.assetCumulated(a, dis ? dis.date : C.today()), cur)}</div><div class="sub">${a.amount ? pct(Math.round(C.assetCumulated(a, dis ? dis.date : C.today()) / a.amount * 1000) / 10) + ' % de la valeur' : ''}</div></div>
-        <div class="stat"><div class="lbl">Valeur nette comptable ${info('immo.nbv')}</div><div class="val">${dis ? C.money(0, cur) : C.money(C.assetNBV(a, C.today()), cur)}</div><div class="sub">${dis ? 'bien sorti de l\'actif' : 'aujourd\'hui'}</div></div>
-      </div>
       <div class="panel"><h2>Plan d'amortissement ${info('immo.plan')}</h2>
-        ${rows.length ? `<table class="list compact"><thead><tr><th>Exercice</th><th>Période</th><th class="r">Jours</th><th class="r">Dotation</th><th class="r">Cumul</th><th class="r">VNC au 31/12</th></tr></thead><tbody>
+        ${rows.length ? `<div class="scroll-x"><table class="list compact" id="im-plan"><thead><tr><th>Exercice</th><th>Période</th><th class="r">Jours</th><th class="r">Dotation</th><th class="r">Cumul</th><th class="r">VNC au 31/12</th></tr></thead><tbody>
           ${rows.map(r => `<tr class="${r.year === thisYear ? 'row-now' : ''}">
             <td><strong>${r.year}</strong>${r.year === thisYear ? ' <span class="small muted">(exercice en cours)</span>' : ''}</td>
             <td class="nw">${C.fmtDate(r.from)} → ${C.fmtDate(r.to)}</td>
             <td class="r nw">${r.days}</td><td class="r nw"><strong>${C.money(r.annuity, cur)}</strong></td>
             <td class="r nw">${C.money(r.cumulated, cur)}</td><td class="r nw">${C.money(r.nbv, cur)}</td></tr>`).join('')}
-        </tbody></table>` : '<div class="empty">Plan indisponible : vérifie la valeur, la durée et la date de mise en service.</div>'}
+        </tbody></table></div>` : '<div class="empty">Plan indisponible : vérifie la valeur, la durée et la date de mise en service.</div>'}
         ${dis ? `<p class="small muted mt">Ce tableau est le plan <b>d'origine</b>, celui qui aurait couru si le bien était resté. Il est sorti le ${C.fmtDate(dis.date)} : l'exercice ${dis.date.slice(0, 4)} n'a été amorti que jusqu'à ce jour-là (${C.money(C.round3(C.assetCumulated(a, dis.date) - C.assetCumulated(a, `${Number(dis.date.slice(0, 4)) - 1}-12-31`)), cur)}), et les suivants n'ont plus aucune dotation. C'est ce que montre le tableau des amortissements de l'exercice.</p>` : ''}
       </div>
       ${buy ? `<div class="panel"><h2>Achat d'origine</h2>
         <p class="small">Ce bien vient de la pièce <a href="#/achat/${h(buy.id)}">${h(C.referenceAchat(buy, data))}</a> du ${C.fmtDate(buy.date)}${buy.supplierId ? ', ' + h(supplierName(buy.supplierId)) : ''}. Modifier l'achat ne change pas cette fiche : la valeur immobilisée est recopiée à la création.</p></div>` : ''}
-      ${a.notes ? `<div class="panel"><h2>Notes</h2><p class="small">${C.nl2br(a.notes)}</p></div>` : ''}`;
-    bindBack('#/immos');
+      ${a.notes ? `<div class="panel"><h2>Notes</h2><p class="small">${C.nl2br(a.notes)}</p></div>` : ''}
+        </div>
+        <aside class="ed-droite">
+          <div class="panel ed-totaux">${resumeImmo}</div>
+          ${aFacturer ? `<div class="panel ed-geste" id="ed-geste"><button class="btn btn-primary btn-grand" id="im-facturer">Facturer la cession</button>
+            <p class="ed-phrase">${phraseImmo} Il reste à facturer l'acheteur : la facture s'ouvre avec le bien et son prix.</p>`
+          : brouillonCession ? `<div class="panel ed-geste" id="ed-geste"><button class="btn btn-primary btn-grand" id="im-cession-ouvrir">Émettre la facture de la cession</button>
+            <p class="ed-phrase">${phraseImmo} Sa facture est préparée${brouillonCession.clientId ? ' pour ' + h(clientName(brouillonCession.clientId)) : ''}, pas encore émise.</p>` : `<div class="panel ed-geste ed-geste-calme" id="ed-geste"><p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${phraseImmo}</span></p>`}
+            <div class="ed-deux"><button class="btn" id="edit-imm">Modifier</button><button class="btn" id="dispose">${dis ? 'Modifier la sortie' : 'Sortir du patrimoine'}</button></div>${gesteCession}</div>
+        </aside>
+      </div>`;
     $('#edit-imm').onclick = () => assetForm(a, () => render());
     $('#dispose').onclick = () => disposalForm(a, () => render());
+    if ($('#im-facturer')) $('#im-facturer').onclick = () => navigate(`#/doc/new/facture/cession/${a.id}`);
+    if ($('#im-cession-ouvrir')) $('#im-cession-ouvrir').onclick = () => navigate(`#/doc/${brouillonCession.id}`);
   };
 
   // ---------- Trésorerie ----------

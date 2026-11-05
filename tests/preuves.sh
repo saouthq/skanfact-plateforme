@@ -4582,7 +4582,7 @@ prouver "« Transformer » d'une commande livrée en partie qui n'est plus l'ét
   "      : resteALivrer ? 'transform'" "      : false ? 'transform'" \
   "$LCW"
 prouver "une copie de la facture qui reprend ses bons de livraison" modules/socle/ecrans/entreprise/app-1.js \
-  "settles: undefined, recurringId: undefined, bonsLivraison: undefined };" "settles: undefined, recurringId: undefined };" \
+  "settles: undefined, recurringId: undefined, bonsLivraison: undefined, assetId: undefined };" "settles: undefined, recurringId: undefined, assetId: undefined };" \
   "$LCW"
 prouver "les bons de livraison d'une facture émise hors du scellé" serveur/v10/dossier.ts \
   "'applyStamp', 'bonsLivraison', 'stampFee'" "'applyStamp', 'stampFee'" \
@@ -4689,7 +4689,7 @@ prouver "une réception validée sans numéro" modules/socle/ecrans/entreprise/a
 " "" \
   "$CFW"
 prouver "« Recevoir le reste » qui se dit « Recevoir »" modules/socle/ecrans/entreprise/app-1.js \
-  "\${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}" "Recevoir" \
+  "    const recevoirLibelle = suivi && suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir';" "    const recevoirLibelle = 'Recevoir';" \
   "$CFW"
 prouver "le panneau des réceptions absent de la commande" modules/socle/ecrans/entreprise/app-1.js \
   "\${suivi && suivi.receptions.length ? \`<div class=\"panel\" id=\"receptions-panel\">" "\${false ? \`<div class=\"panel\" id=\"receptions-panel\">" \
@@ -4784,9 +4784,8 @@ prouver "une demande de prix qui demande de confirmer la commande" modules/socle
 prouver "« + Demande de prix » qui crée une commande" modules/socle/ecrans/entreprise/app-1.js \
   "status: parts[1] === 'demande' ? 'demande' : 'brouillon', date: C.today()" "status: 'brouillon', date: C.today()" \
   "$CFD"
-prouver "une demande de prix qu'on peut recevoir" modules/socle/ecrans/entreprise/app-1.js \
-  "suivi.aProposer && !close && !demande);" "suivi.aProposer && !close);" \
-  "$CFD"
+# (1.289.0) « une demande de prix qu'on peut recevoir » retirée : depuis 1.288.0 la colonne d'une demande a sa propre
+# branche (Envoyer, Commander, Commander chez…), avant « Recevoir », et sa frise ne se dessine pas : le défaut ne s'atteint plus.
 prouver "une demande de prix qui se dit commande" modules/socle/ecrans/entreprise/app-1.js \
   "\${demande ? 'Demande de prix' : 'Commande'}" "Commande" \
   "$CFD"
@@ -7552,9 +7551,9 @@ prouver "la caisse revenue d'une autre page, encore sur la monnaie de la vente d
 ACW1="Nadia commande, reçoit en deux fois, saisit et règle la facture, en tire un avoir, lit une facture en photo"
 ACW2="une demande de prix sans prix s'envoie d'abord ; le retour d'une liste de prix répond"
 ACS1="une commande en brouillon ou une demande de prix ne reçoit rien, propriétaire compris ; partie, ou partant avec sa réception, elle reçoit"
+# (1.289.0) La réception a pris la flèche des pièces (« retourListe », 1.287.0) : la preuve vise son geste.
 prouver "le bouton retour de la réception qui ne répond pas" modules/socle/ecrans/entreprise/app-1.js \
-  "    go(() => goBack(b.dataset.retour || undefined, b.dataset.saut || undefined));
-" "" \
+  "    const b = e.target && e.target.closest ? e.target.closest('[data-retour-liste]') : null;" "    const b = null;" \
   "$ACW1"
 prouver "l'unité « Autre… » d'une commande qui n'ouvre pas la saisie libre" modules/socle/ecrans/entreprise/app-1.js \
   "      \$\$('#cf-lines select[data-k=unit]').forEach(sel => bindUnitSelect(" "      [].forEach(sel => bindUnitSelect(" \
@@ -8248,8 +8247,9 @@ prouver "« Enregistrer » au bout d'une fenêtre longue" "web/public/plateforme
   ".modal > .modal-actions:last-child { position: sticky; bottom: -18px;|||.modal > .modal-actions:last-child { position: sticky; bottom: -26px; margin-bottom: -26px;" \
   ".modal > .modal-actions:last-child { bottom: -18px;|||.modal > .modal-actions:last-child { bottom: -26px; margin-bottom: -26px;" \
   "$TL2"
-prouver "« Plus ▾ » accroché à son bouton, hors de l'écran" web/public/plateforme/telephone.css \
-  ".more-list { position: fixed; inset: auto 8px" ".more-list { inset: auto 8px" \
+# (1.289.0) Le test ouvre « ⋯ » d'une facture émise, qui est la feuille .gestes-menu depuis 1.155.0 : la preuve vise sa règle.
+prouver "« Plus ▾ » accroché à son bouton, hors de l'écran" web/public/plateforme/piece.css \
+  "  .row-menu.gestes-menu { left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important; width: 100% !important; max-width: none !important;" "  .row-menu.gestes-menu {" \
   "$TL2"
 prouver 'l'"'"'étape suivante perdue au milieu de la barre' web/public/plateforme/piece.css \
   "  .ed-geste { position: fixed; left: 0;" "  .ed-geste { left: 0;" \
@@ -8270,9 +8270,9 @@ prouver 'le « WhatsApp » du téléphone montré à l'"'"'ordinateur' web/publi
   "  .ed-tete .actions .btn.tel-seul { display: none; }
 " "" \
   "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
-prouver "la bulle d'un filtre seule sur sa ligne" web/public/plateforme/telephone.css \
-  "  .filters > :has(+ button.i) { flex-basis: calc(100% - 56px); }" "" \
-  "$TL3"
+# (1.289.0) « la bulle d'un filtre seule sur sa ligne » retirée : ni les Marges (leurs filtres depuis 1.261.0) ni le
+# Catalogue ne posent plus leur bulle seule sans cette règle (mesuré). Le test garde la mesure, sur le Catalogue.
+# À reprendre : « Preuves à recouvrir ».
 prouver "la bulle d'un bouton caché qui reste" web/public/plateforme/telephone.css \
   ".colle-bouton:has(> .btn[hidden]) { display: none; }" "" \
   "$TL3"
@@ -10543,11 +10543,9 @@ prouver 'un montant plus large que sa tuile' 'web/console/src/console.css' \
 ' \
   '' \
   "$CONSW6"
-prouver "un montant de huit chiffres coupé par sa carte au téléphone" web/public/plateforme/telephone.css \
-  '  .stat .val[data-tel-serre="1"] { font-size: 18px; }
-  .stat .val[data-tel-serre="2"] { font-size: 15px; }
-' '' \
-  "$TEL"
+# (1.289.0) « un montant de huit chiffres coupé par sa carte » retirée : le Stock, où le test lisait 12 500,000 DT, a
+# ses propres chiffres (.mg-chiffre) ; les cartes .stat qui restent (accueil, comptabilité, statistiques) n'ont pas de
+# montant à huit chiffres dans ses données. À reprendre : docs/revue-modules.md, « Preuves à recouvrir ».
 prouver "les chiffres des cartes jamais resserrés au téléphone" web/public/plateforme/telephone.js \
   "    for (const c of document.querySelectorAll('.stats:not(.rangee) > .stat')) serrer(c);
 " "" \
@@ -18273,12 +18271,10 @@ prouver 'la monnaie à rendre coupée au téléphone (« 16,70… »)' web/publi
   '  .ct-montants { grid-template-columns: minmax(0, 1fr); }' '  .ct-montants { }' \
   'au téléphone : le ticket se replie sous les tuiles, et le tiroir se compte par un pavé dans une fenêtre'
 
-prouver 'à la tablette debout, une liste large qui fait défiler toute la page de côté' web/public/plateforme/telephone.css \
-  '  #view .panel:has(> table), #view #list-wrap { overflow-x: auto; }' '  #view .panel:has(> table), #view #list-wrap { }' \
-  'à 768 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
-prouver 'à la tablette debout, « Envoyer au comptable… » poussé hors de l'\''écran' web/public/plateforme/telephone.css \
-  '  #view .inline { flex-wrap: wrap; }' '  #view .inline { }' \
-  'à 768 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
+# (1.289.0) « à la tablette debout, une liste large… » retirée : Clients (liste de la charte) et la Comptabilité tiennent
+# à 768 px sans cette règle (mesuré). À reprendre : « Preuves à recouvrir ».
+# (1.289.0) « « Envoyer au comptable… » poussé hors de l'écran » retirée : la règle double celle de la ligne 59 du même
+# fichier (.inline { flex-wrap: wrap; }) ; l'une sans l'autre, rien ne change.
 
 prouver 'au téléphone, l'\''en-tête des lignes d'\''achat qui pose « Qté » trois rangs au-dessus du 3' web/public/plateforme/telephone.css \
   '    table.buy-lines:has(> #b-lines) > thead, table.buy-lines:has(> #orf-lines) > thead { display: none; }' '    table.buy-lines:has(> #b-lines) > thead, table.buy-lines:has(> #orf-lines) > thead { }' \
@@ -20069,9 +20065,8 @@ prouver 'ux3 143 : une carte du téléphone titrée par sa date' web/public/plat
 prouver 'ux3 143 : le client sous le type de la pièce au téléphone' web/public/plateforme/telephone.css \
   '  table.list[data-cartes] > tbody > tr > td[data-tel-tiers="oui"] { order: 2; }' '  table.list[data-cartes] > tbody > tr > td[data-tel-tiers="oui"] { order: 4; }' \
   'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
-prouver 'ux3 143 : « Actions » allumé sur la seule carte touchée' web/public/plateforme/telephone.css \
-  '  table.list[data-cartes] > tbody > tr > td.row-actions .row-menu-btn:not(.btn) { opacity: 1; background: var(--ink-soft); color: var(--text); }' '' \
-  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
+# (1.289.0) « ux3 143 : « Actions » allumé… » retirée : plus aucune liste ne dessine ces cartes (mesuré sur seize pages au
+# téléphone) ; les listes de la charte ont leur menu ⋯. À reprendre : « Preuves à recouvrir ».
 prouver 'ux3 144 : le Cabinet qui propose une visite sur chaque écran neuf de la même ouverture' modules/socle/ecrans/cabinet/app-2.js \
   '    if (visiteProposeeIci && !reprise) return;' '' \
   'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
@@ -20091,9 +20086,8 @@ prouver 'ux3 147 : « 0 en retard » sous « Reste à encaisser »' modules/socl
 prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' modules/socle/ecrans/entreprise/app-1.js \
   " : 'aucun devis en attente de réponse', devisX," " : '0 devis envoyé', devisX," \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
-prouver 'ux3 148 : les filtres du téléphone, une rangée chacun' web/public/plateforme/telephone.css \
-  '  .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }' '' \
-  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'"'"'ordinateur le disent'
+# (1.289.0) « ux3 148 : les filtres du téléphone… » retirée : le test du Cabinet reste vert sans la règle (mesuré).
+# À reprendre : « Preuves à recouvrir ».
 prouver 'ux3 149 : la désignation d'"'"'une pièce émise coupée au téléphone' web/public/plateforme/piece.css \
   ".ed-tel-l .t-l b { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }" ".ed-tel-l .t-l b { font-weight: 600; white-space: nowrap; overflow: hidden; }" \
   "les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'ordinateur, un tableau"
@@ -24490,6 +24484,30 @@ prouver "les lignes d'une commande en tableau qui défile au téléphone (prix c
     #cf-lines > tr > td:nth-child(5)::before { content: 'TVA'; } #cf-lines > tr > td:nth-child(6)::before { content: 'Total HT'; }
 " "" \
   "au téléphone, la comparaison des réponses tient dans la largeur"
+
+# 1.289.0 : la fiche d'un bien au squelette des pièces, et la facture de sa cession.
+IMF="la fiche d'un bien : en service, amorti, vendu puis facturé"
+prouver "un bien vendu sans bouton pour facturer l'acheteur" modules/socle/ecrans/entreprise/app-2.js \
+  "    const aFacturer = !!(dis && dis.price > 0 && !factCession);" "    const aFacturer = false;" \
+  "$IMF"
+prouver "la fiche d'un bien vendu qui propose une seconde facture quand la première est préparée" modules/socle/ecrans/entreprise/app-2.js \
+  "    const brouillonCession = factCession && factCession.status === 'brouillon' ? factCession : null;" "    const brouillonCession = null;" \
+  "$IMF"
+prouver "la facture de la cession qui s'ouvre vide" modules/socle/ecrans/entreprise/app-1.js \
+  "          Object.assign(doc.lines[0], { label: \`Cession : \${bien.label}\`, qty: 1, unitPrice: sortie.price });" "" \
+  "$IMF"
+prouver "le tableau des sorties qui ne dit pas si la cession est facturée" modules/socle/ecrans/entreprise/app-2.js \
+  "(f.status === 'brouillon' ? '<span class=\"muted\">brouillon</span>'" "(f.status === 'brouillon' ? ''" \
+  "$IMF"
+prouver "un bien en service dont la frise ne dit pas que l'amortissement court" modules/socle/ecrans/entreprise/app-2.js \
+  "<li class=\"\${dis || fini ? 'fait' : 'partiel'}\">" "<li class=\"\${dis || fini ? 'fait' : ''}\">" \
+  "$IMF"
+prouver "le résumé d'un bien vendu qui compte l'amortissement jusqu'à aujourd'hui" modules/socle/ecrans/entreprise/app-2.js \
+  "    const amorti = C.assetCumulated(a, dis ? dis.date : C.today());" "    const amorti = C.assetCumulated(a, C.today());" \
+  "$IMF"
+prouver "un bien entièrement amorti qui se dit encore en service" modules/socle/ecrans/entreprise/app-2.js \
+  "    const fini = !dis && !!fin && fin <= C.today();" "    const fini = false;" \
+  "$IMF"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

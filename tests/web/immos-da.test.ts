@@ -103,4 +103,93 @@ describe('les Immobilisations dans la nouvelle DA', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);
+
+  // (1.289.0) La fiche d'un bien au squelette des pièces : frise, résumé à droite, une colonne calme quand rien n'attend,
+  // et, pour un bien vendu, « Facturer la cession » qui ouvre la facture avec le bien et son prix, retrouvée ensuite.
+  it('la fiche d\'un bien : en service, amorti, vendu puis facturé', async () => {
+    const email = `immo-fiche-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Leïla Ben Ammar', motDePasse: 'Un-bon-mot-de-passe' });
+    const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).adresseApplication))?.[1] ?? '';
+    const r = await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Chrome sur Linux', type: 'navigateur' } });
+    const jeton = String((await api('POST', '/connexion/code', undefined, { defi: r.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).jeton);
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Transports Ben Ammar' })).id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    const bien = (id: string, label: string, category: string, amount: string, date: string, years: number, extra: Record<string, unknown> = {}) => ({ collection: 'assets', cle: id, rang: 0, revision: null,
+      contenu: { id, label, category, amount: { '~n': amount }, date, years, ...extra } });
+    // La camionnette, vendue 15 000 le 30/06/2026 : amortie 7 706,111 + 9 700 + 9 700 + 4 850 (180 jours) = 31 956,111,
+    // elle valait encore 16 543,889 : moins-value de 1 543,889.
+    const ecrit = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      bien('mob', 'Mobilier de l\'agence', 'mobilier', '12480.5', '2024-03-15', 10),
+      bien('vieux', 'Ancien copieur', 'informatique', '2400', '2019-01-01', 3),
+      bien('cam', 'Camionnette Peugeot Partner', 'transport', '48500', '2023-03-15', 5, { disposal: { date: '2026-06-30', amount: { '~n': '15000' }, reason: 'Revendue à un artisan' } })] });
+    expect(ecrit.motif ?? 'écrit').toBe('écrit');
+
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => {
+      if (!location.protocol.startsWith('http')) return;
+      sessionStorage.setItem('skanfact.jeton', j);
+      localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false }));
+    }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    const ouvrir = async (id: string) => {
+      await p.goto(`${serveur.adresse}/v10/?e=${ent}#/immo/${id}`);
+      await p.locator('#im-resume').waitFor({ timeout: 20_000 });
+      await plusTard(p);
+    };
+
+    // En service : la frise le dit, la colonne de droite est calme, aucun bouton vert.
+    await ouvrir('mob');
+    expect(await p.locator('#im-etat').innerText()).toBe('en service');
+    expect(await p.locator('#im-frise li.fait').count()).toBe(1);
+    expect(await p.locator('#im-frise li.partiel').count()).toBe(1);
+    expect(await p.locator('#ed-geste.ed-geste-calme').count()).toBe(1);
+    expect(await p.locator('#view .btn-primary').count()).toBe(0);
+    expect(net(await p.locator('#ed-geste .ed-phrase').innerText())).toMatch(/^En service : [\d\s,]+ DT de dotation en \d{4}, jusqu'au 14\/03\/2034\. Rien à faire : le plan court seul\.$/);
+    expect(net(await p.locator('#im-resume').innerText())).toContain('Valeur d\'acquisition 12 480,500 DT');
+    await p.locator('.ed-retour-btn').click();
+    await p.waitForURL(/#\/immos$/);
+
+    // Entièrement amorti : les trois étapes faites, la VNC à zéro, toujours calme.
+    await ouvrir('vieux');
+    expect(await p.locator('#im-etat').innerText()).toBe('amorti');
+    expect(await p.locator('#im-frise li.fait').count()).toBe(3);
+    expect(net(await p.locator('#ed-geste .ed-phrase').innerText())).toContain('Entièrement amorti');
+    expect(net(await p.locator('#im-resume tr.trait').innerText())).toBe('Valeur nette comptable i 0,000 DT');
+    expect(await p.locator('#view .btn-primary').count()).toBe(0);
+
+    // Vendu : la moins-value juste, et l'étape suivante est de facturer l'acheteur.
+    await ouvrir('cam');
+    expect(await p.locator('#im-etat').innerText()).toBe('sorti');
+    expect(net(await p.locator('#im-sortie').innerText())).toContain('Vendu 15 000,000 DT alors qu\'il valait encore 16 543,889 DT dans les comptes : moins-value de 1 543,889 DT.');
+    expect(net(await p.locator('#im-resume').innerText())).toContain('Amorti à la sortie 31 956,111 DT');
+    expect(await p.locator('#view .btn-primary').count()).toBe(1);
+    await p.locator('#ed-geste .btn-primary').click();
+    await p.waitForURL(/#\/doc\/new\/facture\/cession\/cam$/);
+    await p.getByRole('button', { name: 'Garder le brouillon' }).waitFor({ timeout: 20_000 });
+    expect(await p.locator('#view input, #view textarea').evaluateAll((xs) => xs.map((x) => (x as HTMLInputElement).value))).toContain('Cession : Camionnette Peugeot Partner');
+    expect(net(await p.locator('#view .ed-totaux').innerText())).toContain('Total HT 15 000,000');
+    await plusTard(p);
+    await p.getByText('une facture sans fiche, pour un particulier qui paie sur place').click();
+    await p.getByRole('button', { name: 'Garder le brouillon' }).click();
+    await p.waitForURL(/#\/doc\/(?!new)/, { timeout: 20_000 });
+
+    // La fiche retrouve la facture préparée : le bouton vert mène à elle, pas à une seconde facture.
+    await ouvrir('cam');
+    expect(await p.locator('#ed-geste .btn-primary').innerText()).toBe('Émettre la facture de la cession');
+    expect(await p.locator('#im-facturer').count()).toBe(0);
+    await p.screenshot({ path: path.join(PHOTOS, 'immos-da-3-fiche-vendue.png') });
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/immos`);
+    await p.locator('#im-tabs button[data-tab=sorties]').click();
+    expect(net(await p.locator('#im-body tr[data-aid=cam]').innerText())).toMatch(/Revendue à un artisan .* brouillon$/);
+
+    // Au téléphone : la fiche ne déborde pas.
+    await p.setViewportSize({ width: 390, height: 844 });
+    await ouvrir('cam');
+    expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });
