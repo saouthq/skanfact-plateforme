@@ -251,6 +251,12 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     // visite) : retenues trois secondes, sous une fenêtre posée à la main, elles se dessinent quand elle se ferme.
     const lectures = '**/classeur/*/lectures';
     await p.route(lectures, async (r) => { await new Promise((ok) => setTimeout(ok, 3000)); await r.continue().catch(() => {}); });
+    // (rouge GitHub de 1.281.1, sur les deux machines) Les pièces reçues arrivent après le premier dessin : le classeur a
+    // déjà choisi le mois des achats (septembre) ; il doit passer au mois où des pièces attendent d'être traitées.
+    await p.route((u) => /\/cabinets\/[^/]+\/pieces$/.test(u.pathname) && !u.searchParams.has('classees'), async (r) => {
+      await new Promise((ok) => setTimeout(ok, 2500));
+      await r.continue().catch(() => {});
+    });
     await ouvrir(p, cab.id, boulangerie);
     await p.evaluate(() => { const f = document.createElement('div'); f.id = 'fenetre-du-test'; document.getElementById('modal-root')?.appendChild(f); });
     await p.waitForTimeout(4000);

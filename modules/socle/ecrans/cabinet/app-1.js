@@ -6004,11 +6004,17 @@
     const nouveau = !items.length && !passe;
     const complets = parMois.filter(x => x.complet).length;
     const trouve = m => parMois.find(x => x.m === m);
-    if (!clState.mois || !trouve(clState.mois)) {
+    // (rouge GitHub de 1.281.1) Le mois choisi par la page sur ce qu'elle savait (les achats, avant que les pièces reçues du
+    // client arrivent) se rechoisit quand un mois a des pièces à traiter et que le sien n'en a pas ; celui que le comptable a
+    // choisi, jamais. Sa rubrique se rechoisit avec lui.
+    const moisRevu = !!clState.mois && clState.moisAuto === clState.mois && !(trouve(clState.mois) || {}).traiter && parMois.some(x => x.m <= mc && x.traiter);
+    if (moisRevu && clState.rubAuto) clState.rub = '';
+    if (!clState.mois || !trouve(clState.mois) || moisRevu) {
       // Le mois qui attend un geste : des pièces à traiter, même dans le mois en cours (un dossier tenu les reçoit au fil
       // du mois) ; sinon le plus récent qui a un trou ou un retard.
       const attend = [...parMois].reverse().find(x => x.m <= mc && x.traiter) || [...parMois].reverse().find(x => x.m <= mp && (x.traiter || x.manque || x.cl === 'rouge'));
       clState.mois = (attend || trouve(mp) || parMois[parMois.length - 1] || { m: mc }).m;
+      clState.moisAuto = clState.mois;
       if (passe && !clState.vue) clState.vue = 'annee';
     }
     const pm = trouve(clState.mois) || { m: clState.mois, l: [], lp: [], trous: [], traiter: 0, manque: 0, ordre: 0, cl: 'avenir', mot: '', etat: ['avenir'] };
@@ -6505,7 +6511,7 @@
 
     // ---------- les gestes ----------
     const re = () => drawClasseur(view, d);
-    const choisir = (m, extra = {}) => { Object.assign(clState, { mois: m, vue: '', decl: '', sel: '', plus: false, ouvrir: false, filtre: 'rub', rub: '', menu: '', hist: false, ...extra }); re(); };
+    const choisir = (m, extra = {}) => { Object.assign(clState, { mois: m, moisAuto: '', vue: '', decl: '', sel: '', plus: false, ouvrir: false, filtre: 'rub', rub: '', menu: '', hist: false, ...extra }); re(); };
     $$('[data-cl-m]', view).forEach(a => { a.onclick = e => { e.preventDefault(); choisir(a.dataset.clM); }; });
     // (1.174.0) L'arbre au clavier : ↑ et ↓ passent d'une ligne à l'autre (les mois d'avant la mission se sautent).
     const nav = $('.cl-arbre', view);

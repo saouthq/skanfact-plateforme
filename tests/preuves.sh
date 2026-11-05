@@ -24396,6 +24396,9 @@ prouver 'stock 1.284 e : « Commander… » ouvre encore une facture d'"'"'achat
 prouver 'stock 1.284 f : le résumé de l'"'"'inventaire lu après ses mouvements' modules/socle/ecrans/entreprise/app-2.js \
   'valeur: value };' 'valeur: etatInventaire().value };' \
   'commander au dernier fournisseur et jusqu'"'"'au stock à atteindre, un bon par fournisseur ; la fiche dit d'"'"'où il vient et combien il se vend'
+prouver 'classeur 1.284 c : le mois choisi avant les pièces reçues ne se rechoisit plus' modules/socle/ecrans/cabinet/app-1.js \
+  'if (!clState.mois || !trouve(clState.mois) || moisRevu) {' 'if (!clState.mois || !trouve(clState.mois)) {' \
+  'une pièce lue dont le total est celui d'"'"'un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

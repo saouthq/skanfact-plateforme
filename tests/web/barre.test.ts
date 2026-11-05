@@ -349,7 +349,8 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await expect.poll(() => rail.isVisible(), { timeout: 10_000 }).toBe(true);
     expect((await rail.boundingBox())?.width).toBe(84);
     expect(await rail.locator('a.rail-l').first().getAttribute('href')).toBe('#/dashboard');
-    expect(await p.locator('#barre').evaluate((b) => b.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+    // (rouge GitHub de 1.281.1) La barre sort en glissant : sur une machine lente, elle était lue au milieu de sa sortie.
+    await expect.poll(() => p.locator('#barre').evaluate((b) => b.getBoundingClientRect().right), { timeout: 5_000 }).toBeLessThanOrEqual(0);
     await p.screenshot({ path: path.join(PHOTOS, 'barre-tablette.png') });
     await rail.locator('[data-rail="plus"]').click();
     await expect.poll(() => p.locator('#barre').evaluate((b) => Math.round(b.getBoundingClientRect().left)), { timeout: 5_000 }).toBe(0);

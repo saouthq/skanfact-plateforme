@@ -921,3 +921,13 @@ Huitième et dernière page de ce plan de refonte.
 - **La liste et ses sections** vivent dans une carte.
 - Test : `tests/web/relances-da.test.ts` (les factures sont émises après une première ouverture de l'application, comme
   à l'écran) ; preuves `relances 1.283 a-c`.
+
+## Le rouge GitHub de 1.281.1 (1.284.1)
+
+- **Classeur du Cabinet** (sur les deux machines) : quand les pièces reçues du client arrivent après le premier dessin, le
+  classeur avait déjà choisi le mois des achats et y restait. Le mois choisi par la page se rechoisit maintenant quand un mois
+  a des pièces à traiter et que le sien n'en a pas ; celui que le comptable a choisi, jamais. Le test retarde ces pièces
+  comme sur GitHub (reproduit à l'identique sans la correction) ; preuve `classeur 1.284 c`.
+- **Barre en tablette** : la barre sort en glissant ; le test la lisait au milieu de sa sortie, il attend maintenant qu'elle
+  soit sortie.
+- **Listes de prix** : le test choisissait la première proposition de la barre d'ajout ; il choisit celle du ciment.

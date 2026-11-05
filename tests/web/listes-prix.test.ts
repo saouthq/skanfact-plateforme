@@ -80,7 +80,9 @@ describe('les listes de prix, à la souris', () => {
     // (lot 4, maquette facture) La barre d'ajout (Ctrl L) remplace « Ajouter depuis le catalogue ».
     const choisirArticle = async () => {
       await p.locator('#ed-ajout').fill('Ciment');
-      await p.locator('.aj-pop [data-aj]').first().dispatchEvent('mousedown');
+      // (rouge GitHub de 1.281.1) La proposition qui ajoute CE ciment, pas la première venue : sur une machine lente, la liste
+      // n'est pas encore celle de la recherche.
+      await p.locator('.aj-pop [data-aj]', { hasText: 'Ciment gris 50 kg' }).first().dispatchEvent('mousedown');
     };
     const ouvrir = async (hash: string, titreAttendu: RegExp) => {
       await p.evaluate((h) => { location.hash = h; }, hash);
