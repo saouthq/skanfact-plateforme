@@ -24417,6 +24417,12 @@ prouver 'stock 1.284 k : l'"'"'achat ouvert depuis le Stock ramène aux Achats' 
 prouver 'stock 1.284 l : un article suivi se modifie comme « la prestation »' modules/socle/ecrans/entreprise/app-1.js \
   '`Modifier ${item && item.tracked ? '"'"'l\'"'"'article'"'"' : motsCatalogue().le}`' '`Modifier ${motsCatalogue().le}`' \
   'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+prouver 'commandes 1.285 a : un bon en brouillon n'"'"'a pas « Envoyer au fournisseur » pour étape suivante' modules/socle/ecrans/entreprise/app-1.js \
+  'const aEnvoyer = !!(stored && stored.number' 'const aEnvoyer = false && !!(stored && stored.number' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
+prouver 'commandes 1.285 b : le refus du fournisseur ne montre pas le champ' modules/socle/ecrans/entreprise/app-1.js \
+  'if (!o.supplierId) return refus($('"'"'[data-combo=supplierId] .combo-btn'"'"'), ' 'if (!o.supplierId) return refus(null, ' \
+  'un article déjà commandé ne se recommande pas, le brouillon se complète, l'"'"'achat oublié propose le manque et ramène au Stock'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

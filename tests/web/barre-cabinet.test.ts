@@ -195,8 +195,12 @@ describe('la barre du Cabinet, à la souris', () => {
     // Dans « Créer », un dossier relié propose aussi de demander une pièce, et D l'ouvre. La page de la banque se dessine
     // d'abord (sinon N arrive pendant son dessin), et le volet s'ouvre après la touche : on l'attend, on ne le lit pas une fois.
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
-    await p.keyboard.press('n');
-    await expect.poll(() => p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche)), { timeout: 10_000 }).toEqual(['E', 'R', 'D', 'O']);
+    // (1.285.0, GitHub Node 24 sur 1.284.1) La page finit parfois de se dessiner APRÈS la touche et referme le volet : on
+    // le rouvre tant qu'il n'est pas là, comme pour D plus bas.
+    await expect.poll(async () => {
+      if (!(await p.locator('.sb-creer').isVisible())) await p.keyboard.press('n');
+      return p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche));
+    }, { timeout: 15_000 }).toEqual(['E', 'R', 'D', 'O']);
     // Sur une machine lente, la page de la banque finit de se dessiner après l'ouverture du volet et le referme : D
     // n'arrive alors à rien (GitHub, 1.152.1 et 1.153.0). On rouvre le volet s'il s'est refermé, puis D.
     // (1.188.0) « Demander une pièce » s'ouvre sur place, la fenêtre commune ; « Écrire plutôt dans la conversation » y mène.

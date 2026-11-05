@@ -273,7 +273,26 @@ describe('la revue du Stock', () => {
     expect([apres.a2?.[0], apres.a2?.[2], apres.a5?.[0], apres.a5?.[2]]).toEqual(['0', 'Voir la commande', '0', 'Voir la commande']);
     expect(await p.locator('#st-cmd-tout').count()).toBe(0);
 
+    // Le brouillon complété s'envoie : son bouton principal est « Envoyer au fournisseur… » (pas « Recevoir »), et l'envoi
+    // le passe « envoyée ».
+    const bcf = (await surLeServeur('supplierOrders'))[0] as { id: string };
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/commandef/${bcf.id}`);
+    await p.locator('#cf-lines input[data-k=qty]').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    expect(await p.locator('#view .page-head .actions .btn-primary').allInnerTexts()).toEqual(['Envoyer au fournisseur…']);
+    await p.locator('#cf-envoyer').click();
+    await expect.poll(async () => (await surLeServeur('supplierOrders'))[0]?.status, { timeout: 15_000 }).toBe('envoyée');
+    // Un bon sans fournisseur refusé montre le champ, pas seulement un message.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/commandef/new`);
+    await p.locator('#cf-lines input[data-k=qty]').first().waitFor({ timeout: 20_000 });
+    await p.locator('#cf-lines input[data-k=label]').first().fill('Ciment blanc');
+    await p.locator('#view .page-head').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(() => p.locator('#cf-head .field.champ-faute [data-combo=supplierId]').count()).toBe(1);
+
     // L'achat oublié d'un stock à −3 propose 3 (le stock revient à 0), et sa flèche ramène au Stock.
+    await alertes();
     await p.locator('#st-body [data-achat="a6"]').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/achat/new/-/facture/-/article/a6/3');
     await expect.poll(async () => net(await p.locator('#view [data-stk]').first().innerText().catch(() => ''))).toMatch(/^en stock : .3 → 0$/);

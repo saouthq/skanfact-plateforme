@@ -14308,6 +14308,15 @@
 
   // (1.164.0) Une commande au fournisseur neuve rouverte depuis son brouillon gardé sur cet appareil (« Reprendre »).
   let cfReprise = null;
+  // Une commande qui a une réception (même en préparation) ne change plus : elle ne se « renvoie » pas non plus.
+  const figeeAvant = cmd => C.suiviCommandeFournisseur(data, cmd).receptions.length > 0;
+  // Le courriel prêt d'un bon de commande : le numéro, la date, la livraison souhaitée, ce qu'on attend en retour.
+  const mailCommandeFournisseur = cmd => {
+    const nom = company().name || '';
+    return { subject: `Bon de commande ${cmd.number}${nom ? ' — ' + nom : ''}`,
+      body: `Bonjour,\n\nVeuillez trouver ci-joint notre bon de commande ${cmd.number} du ${C.fmtDate(cmd.date)}${cmd.dueDate ? `, à livrer le ${C.fmtDate(cmd.dueDate)}` : ''}.\n\n`
+        + 'Merci de nous confirmer la disponibilité et le délai de livraison.\n\nCordialement,\n' + nom };
+  };
   routes.commandef = (parts) => {
     const isNew = parts[0] === 'new';
     const stored = isNew ? null : commandeFById(parts[0]);
@@ -14327,6 +14336,10 @@
     const demandeSansPrix = demande && !(stored.lines || []).some(l => Number(l.unitPrice) > 0);
     const groupe = demande ? C.comparerDemandes(data, stored) : null;
     const aRecevoir = !!(stored && stored.number && suivi.aProposer && !close && !demande);
+    // (1.285.0, F2 du Stock joué à la souris) Un bon en brouillon n'est pas encore parti : son étape suivante est de
+    // l'envoyer au fournisseur (le PDF joint, puis « envoyée »), pas de le recevoir — on recevait une marchandise jamais
+    // commandée. « Recevoir » reste à côté : une commande passée par téléphone se reçoit sans être envoyée.
+    const aEnvoyer = !!(stored && stored.number && stored.status === 'brouillon' && !close && !demande && !figeeAvant(stored));
     const aFacturer = stored ? C.receptionsAFacturer(data).filter(r => r.orderId === stored.id) : [];
     // Les factures du fournisseur qui couvrent ses réceptions (brique 88 : avec leurs écarts).
     const factures = suivi ? (data.purchases || []).filter(x => (x.receptions || []).some(y => suivi.receptions.some(r => r.id === y.id))) : [];
@@ -14346,7 +14359,8 @@
           ${backButton('#/commandesf')}
           ${stored ? `<button class="btn ${demandeSansPrix ? 'btn-primary' : ''}" id="cf-pdf">PDF</button>` : ''}
           ${demande ? `<button class="btn" id="cf-aussi">Demander aussi à…</button>${groupe.demandes.length < 2 ? `<button class="btn ${demandeSansPrix ? '' : 'btn-primary'}" id="cf-commander">Commander</button>` : ''}` : ''}
-          ${aRecevoir ? `<button class="btn btn-primary" id="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : ''}
+          ${aEnvoyer ? '<button class="btn btn-primary" id="cf-envoyer">Envoyer au fournisseur…</button>' : ''}
+          ${aRecevoir ? `<button class="btn ${aEnvoyer ? '' : 'btn-primary'}" id="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : ''}
           ${aFacturer.length ? `<button class="btn ${aRecevoir ? '' : 'btn-primary'}" id="cf-facturer">Saisir la facture du fournisseur</button>` : ''}
           <button class="btn ${!stored ? 'btn-primary' : ''}" id="save">Enregistrer</button>
           ${stored ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
@@ -14495,10 +14509,11 @@
     // Enregistrer : le fournisseur et au moins une ligne ; le numéro naît au premier enregistrement.
     const enregistrer = () => {
       lire();
-      if (!o.supplierId) { toast('Choisis le fournisseur de la commande : c\'est à lui qu\'elle part.', true); $('[data-combo=supplierId] .combo-btn').focus(); return false; }
+      // (1.285.0, F1 du Stock joué à la souris) Le refus MONTRE le champ (`refus`) : le message seul laissait chercher où.
+      if (!o.supplierId) return refus($('[data-combo=supplierId] .combo-btn'), 'Choisis le fournisseur de la commande : c\'est à lui qu\'elle part.');
       if (!figee) o.lines = o.lines.filter(l => String(l.label || '').trim() || Number(l.unitPrice));
-      if (!o.lines.some(l => Number(l.qty) > 0)) { toast('Ajoute au moins une ligne à commander, avec sa quantité.', true); if (!o.lines.length) o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); dessinerLignes(); return false; }
-      if (o.currency !== company().currency && !(Number(o.exchangeRate) > 0)) { toast(`Saisis le taux de change : 1 ${o.currency} = combien de ${company().currency} ?`, true); $('[name=exchangeRate]').focus(); return false; }
+      if (!o.lines.some(l => Number(l.qty) > 0)) { if (!o.lines.length) o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); dessinerLignes(); return refus(figee ? null : $('#cf-lines input[data-k=qty]'), 'Ajoute au moins une ligne à commander, avec sa quantité.'); }
+      if (o.currency !== company().currency && !(Number(o.exchangeRate) > 0)) return refus($('[name=exchangeRate]', tete), `Saisis le taux de change : 1 ${o.currency} = combien de ${company().currency} ?`);
       if (!o.number) o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
       // Au-delà du montant permis sans accord, elle ne part pas : elle s'enregistre telle qu'elle était, et la page
       // propose de demander l'accord (brique 114 ; le serveur refuserait de l'envoyer).
@@ -14541,6 +14556,24 @@
       if (!enregistrer()) return;
       toast(`${o.status === 'demande' ? 'Demande de prix' : 'Commande'} ${o.number} enregistrée`);
       if (neuf) remplacerPage('#/commandef/' + o.id); else render(true);
+    };
+    // Envoyer : le bon part en PDF joint au courriel du fournisseur, puis passe « envoyée » par le même chemin que le statut
+    // choisi à la main (l'accord, au-delà du montant permis, se demande avant).
+    if ($('#cf-envoyer')) $('#cf-envoyer').onclick = async () => {
+      if (dirty && !enregistrer()) return;
+      const mode = await messagerie(); if (!mode) return;
+      const cmd = commandeFById(o.id), sup = supplierById(cmd.supplierId) || {};
+      const b = $('#cf-envoyer'); b.disabled = true; b.textContent = 'Préparation…';
+      try {
+        const html = C.documentHtml({ ...cmd, type: 'commandeFournisseur' }, sup, company());
+        const att = await bridge.exportPdfSilent(html, `${cmd.number}_${String(sup.name || '').replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_')}.pdf`);
+        const rm = await bridge.composeMail({ to: sup.email || '', mode, attachment: att, ...mailCommandeFournisseur(cmd) });
+        // Un seul message (« enregistrée » écrasait celui qui dit où trouver le PDF à joindre).
+        $('[name=status]', tete).value = 'envoyée'; touch();
+        if (!enregistrer()) return;
+        toast(messageOuvert(rm, 'le bon de commande') + (commandeFById(o.id).status === 'envoyée' ? ' ; la commande passe « envoyée ».' : '.'));
+        render(true);
+      } catch (e) { b.disabled = false; b.textContent = 'Envoyer au fournisseur…'; toast(plainError(e), true); }
     };
     if ($('#cf-pdf')) $('#cf-pdf').onclick = async () => {
       if (dirty && !enregistrer()) return;
