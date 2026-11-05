@@ -869,3 +869,18 @@ Cinquième page de la refonte.
   explication.
 - **La liste** vit dans sa carte.
 - Test : `tests/web/contrats-da.test.ts` ; preuves `contrats 1.280 a-c`.
+
+## Les Autres pièces (1.281.0)
+
+Sixième page de la refonte (proformas, bons de commande, bons de livraison, contrats à signer).
+
+- **L'en-tête** : le chemin, le titre (« Autres pièces », inchangé), et la phrase de l'onglet ouvert, qui dit à quoi sert
+  la pièce (elle était sous les onglets, en petit). « Facturer des bons… » et « + Nouvelle … » restent à droite.
+- **Quatre chiffres** sur toutes les pièces de l'onglet (pas la sélection filtrée) : combien (et combien cette année) ;
+  les brouillons (ambre, le chiffre filtre la liste) ; ce qui attend la suite — proformas envoyées, commandes à livrer,
+  bons à facturer (le chiffre ouvre la facturation des bons), contrats à faire signer ; le montant HT de l'année, en
+  devise de base, hors brouillons et annulées. Cachés tant que l'onglet est vide : son état vide garde l'explication.
+  Les commandes « à livrer » comptent deux statuts (reçue, partielle) que le filtre ne sait pas réunir : ce chiffre-là
+  n'ouvre rien, pour ne jamais annoncer une liste qui ne dit pas le même nombre.
+- **Les onglets** prennent la barre segmentée et disent lequel est ouvert ; la liste vit dans sa carte.
+- Test : `tests/web/autres-da.test.ts` ; preuves `autres 1.281 a-c`.

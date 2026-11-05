@@ -17515,12 +17515,34 @@
     // Brique 86 : des bons émis ou signés qu'aucune facture ne couvre. Les facturer est alors l'étape suivante.
     const aFacturer = type === 'livraison' ? C.bonsAFacturer(data) : [];
 
+    // (1.281.0) La nouvelle DA, comme le Catalogue : l'en-tête dit à quoi sert la pièce de l'onglet ouvert ; quatre
+    // chiffres sur toutes les pièces de cet onglet (pas la sélection filtrée), dont celui qui attend la suite.
+    const chiffreA = (lbl2, val, sous, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
+    const annee = C.today().slice(0, 4);
+    const nStatut = (...sts) => mine.filter(d => sts.includes(effStatus(d))).length;
+    const brouillons = nStatut('brouillon');
+    const ANNULE = ['annulée', 'annulé'];
+    const htAnnee = C.round3(mine.filter(d => (d.date || '').startsWith(annee) && !ANNULE.includes(effStatus(d)) && effStatus(d) !== 'brouillon')
+      .reduce((a2, d) => a2 + C.toBase({ currency: d.currency, exchangeRate: d.exchangeRate }, C.computeTotals(d, company()).netHT, company()), 0));
+    // Ce qui attend la suite, selon la pièce : le client (proforma), la livraison (commande), la facture (bon), la signature (contrat).
+    const attente = {
+      proforma: () => { const n = nStatut('envoyée'); return chiffreA('Envoyées', String(n), n ? 'en attente du client — voir lesquelles' : 'aucune en attente', '', n ? 'envoyée' : ''); },
+      commande: () => { const n = nStatut('reçue', 'partielle'); return chiffreA('À livrer', String(n), n ? 'reçues, pas encore livrées en entier' : 'tout est livré', n ? 'ambre' : ''); },
+      livraison: () => chiffreA('À facturer', String(aFacturer.length), aFacturer.length ? 'émis ou signés, sans facture — les facturer' : 'chaque bon a sa facture', aFacturer.length ? 'ambre' : '', aFacturer.length ? 'facturer' : ''),
+      contrat: () => { const n = nStatut('envoyé'); return chiffreA('À faire signer', String(n), n ? 'envoyés, pas encore signés — voir lesquels' : 'aucun en attente de signature', n ? 'ambre' : '', n ? 'envoyé' : ''); },
+    }[type];
+    const nAnnee = mine.filter(d => (d.date || '').startsWith(annee)).length;
+    const resume = vide ? '' : `<div class="cf-carte mg-resume" id="a-resume">${chiffreA(h(tab[1]), String(mine.length), nAnnee === mine.length ? 'toutes de cette année' : `dont ${nAnnee} en ${annee}`)
+      + chiffreA('Brouillons', String(brouillons), brouillons ? 'à finir et envoyer — voir lesquels' : 'aucun en attente', brouillons ? 'ambre' : '', brouillons ? 'brouillon' : '')
+      + attente()
+      + chiffreA(`Montant ${annee}`, montantU(htAnnee, company().currency), 'HT, hors brouillons et annulées')}</div>`;
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Autres pièces</h1>
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Autres pièces</span></div><h1>Autres pièces</h1><p class="sous">${h(tab[2])} ${info('autres.' + type)}</p></div>
         <div class="actions">${aFacturer.length ? '<button class="btn btn-primary" id="facturer-bons">Facturer des bons…</button>' : ''}<button class="btn ${vide || aFacturer.length ? '' : 'btn-primary'}" id="new">+ ${h(NEW_LABELS[type])}</button></div></div>
-      <div class="tabs" id="a-tabs" role="tablist" aria-label="Les autres pièces">${AUTRES_TABS.map(([t, label]) =>
-        `<button role="tab" data-tab="${t}" class="${t === type ? 'active' : ''}">${h(label)}${data.documents.some(d => d.type === t) ? ` <span class="tab-n">${data.documents.filter(d => d.type === t).length}</span>` : ''}</button>`).join('')}</div>
-      ${vide ? '' : `<p class="small muted mb">${h(tab[2])} ${info('autres.' + type)}</p>`}
+      <div class="lf mg ca ap">${resume}
+      <div class="mg-barre"><div class="pa-seg" id="a-tabs" role="tablist" aria-label="Les autres pièces">${AUTRES_TABS.map(([t, label]) =>
+        `<button type="button" role="tab" data-tab="${t}" aria-selected="${t === type}" class="${t === type ? 'active' : ''}">${h(label)}${data.documents.some(d => d.type === t) ? ` <span class="tab-n">${data.documents.filter(d => d.type === t).length}</span>` : ''}</button>`).join('')}</div></div>
+      <div class="cf-carte"><div class="cf-onglet">
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : n°, client, objet…" value="${h(s.q)}">
         <select id="st"><option value="">Tous les statuts</option>${(C.DISPLAY_STATUSES[type] || C.STATUSES[type]).map(x => `<option value="${x}" ${s.st === x ? 'selected' : ''}>${h(optionStatut(x, type))}</option>`).join('')}</select>
@@ -17529,7 +17551,8 @@
         <span class="f-note" id="f-note" hidden></span>
       `, mine.length, filtreActif)}
       ${vide ? etatVide(VIDE_AUTRES[type][0], [`${h(tab[2])} ${info('autres.' + type)}`, h(VIDE_AUTRES[type][aPartir ? 1 : 2])],
-        [['vide-new', '+ ' + NEW_LABELS[type], true], ...(aPartir ? [['vide-depuis', DEPUIS_AUTRES[type] || 'Partir d\'une pièce existante']] : [])]) : '<div id="list-wrap"></div>'}`;
+        [['vide-new', '+ ' + NEW_LABELS[type], true], ...(aPartir ? [['vide-depuis', DEPUIS_AUTRES[type] || 'Partir d\'une pièce existante']] : [])]) : '<div id="list-wrap"></div>'}
+      </div></div></div>`;
 
     const draw = dansUnLot((sortKey) => {
       if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
@@ -17551,6 +17574,11 @@
       bindDocTable(draw, s, '#list-wrap');
     });
     $$('#a-tabs button').forEach(b => b.onclick = () => { autresTab = b.dataset.tab; navigate('#/autres/' + b.dataset.tab); });
+    // Un chiffre qui nomme un ensemble l'ouvre : le statut filtre la liste, « À facturer » ouvre la facturation des bons.
+    $$('#a-resume [data-aller]').forEach(x => {
+      const aller = () => { if (x.dataset.aller === 'facturer') return facturerDesBons(); s.st = x.dataset.aller; s.page = 1; if ($('#st')) $('#st').value = s.st; draw(); };
+      x.onclick = aller; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(); } };
+    });
     $('#new').onclick = () => navigate('#/doc/new/' + type);
     if ($('#facturer-bons')) $('#facturer-bons').onclick = () => facturerDesBons();
     if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/' + type);

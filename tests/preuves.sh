@@ -23986,7 +23986,7 @@ prouver 'menu 1.269 d : une vue sans lien n'\''allume pas sa page' $F269 \
   "if (vue && vue.vueDe && !\$(\`nav a[data-route=\"\${active}\"]\`))" "if (false)" \
   "$WM1"
 prouver 'menu 1.269 e : la page s'\''appelle encore « Proforma, bons et contrats »' $F269 \
-  '      <div class="page-head"><h1>Autres pièces</h1>' '      <div class="page-head"><h1>Proforma, bons et contrats</h1>' \
+  '<span>Autres pièces</span></div><h1>Autres pièces</h1>' '<span>Autres pièces</span></div><h1>Proforma, bons et contrats</h1>' \
   "$WM1"
 prouver 'menu 1.269 f : la bande des vues sur deux lignes' web/public/plateforme/charte.css \
   '.vues-page { display: flex; flex-wrap: wrap;' '.vues-page { display: grid; flex-wrap: wrap;' \
@@ -24345,6 +24345,15 @@ prouver 'contrats 1.280 b : « À générer » ne filtre pas la liste' modules/s
 prouver 'contrats 1.280 c : l'"'"'en-tête ne dit pas à quoi sert la page' modules/socle/ecrans/entreprise/app-1.js \
   '<p class="sous">Les factures qui reviennent toutes seules : abonnements, maintenances, forfaits</p>' '' \
   'l'"'"'en-tête, les quatre chiffres sur tous les contrats ; « À générer » filtre la liste ; au téléphone rien ne déborde'
+prouver 'autres 1.281 a : le montant de l'"'"'année compte les brouillons et les annulées' modules/socle/ecrans/entreprise/app-1.js \
+  '!ANNULE.includes(effStatus(d)) && effStatus(d) !== '"'"'brouillon'"'"'' 'true' \
+  'l'"'"'en-tête, les quatre chiffres de l'"'"'onglet, les onglets ; « Brouillons » filtre, « À facturer » ouvre la facturation ; au téléphone rien ne déborde'
+prouver 'autres 1.281 b : « À facturer » n'"'"'ouvre pas la facturation des bons' modules/socle/ecrans/entreprise/app-1.js \
+  'if (x.dataset.aller === '"'"'facturer'"'"') return facturerDesBons(); ' '' \
+  'l'"'"'en-tête, les quatre chiffres de l'"'"'onglet, les onglets ; « Brouillons » filtre, « À facturer » ouvre la facturation ; au téléphone rien ne déborde'
+prouver 'autres 1.281 c : l'"'"'onglet ouvert ne le dit pas' modules/socle/ecrans/entreprise/app-1.js \
+  'data-tab="${t}" aria-selected="${t === type}" ' 'data-tab="${t}" ' \
+  'l'"'"'en-tête, les quatre chiffres de l'"'"'onglet, les onglets ; « Brouillons » filtre, « À facturer » ouvre la facturation ; au téléphone rien ne déborde'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
