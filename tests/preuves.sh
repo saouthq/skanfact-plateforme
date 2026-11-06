@@ -1140,10 +1140,8 @@ prouver "une phrase écrite en dur dans un écran de l'entrée" web/src/ecrans/P
 prouver "un bouton de l'entrée trop petit pour un doigt" web/src/entree.css \
   "  min-height: 50px; height: auto; padding: 10px 18px;" "  min-height: 30px; height: 30px; padding: 0 18px;" \
   "$RE"
-prouver "les lignes d'une facture plus larges que le téléphone (la grille de la v10)" $TEL \
-  '    grid-template-columns: repeat(3, minmax(0, 1fr));|||    grid-template-areas: "lab lab lab" "qte unite pu" "tva total total" "outils outils outils";' \
-  '    grid-template-columns: 64px 104px 108px 84px minmax(0, 1fr) 126px;|||    grid-template-areas: "lab lab lab lab lab outils" "qte unite pu tva total total";' \
-  "$RV"
+# (1.297.0) « les lignes d'une facture plus larges que le téléphone (la grille de la v10) » : retirée avec sa règle de
+# telephone.css, qui ne s'appliquait plus à aucune page (toutes les pièces ont les cartes de la facture au téléphone).
 prouver "les listes et les onglets de la v10 laissés à la taille de la souris" $TEL \
   "  .combo-btn, .tabs button, .somm-chip, .row-menu-btn, .pp-guide, .collapse-h { min-height: 44px; }" "" \
   "$RV"
@@ -2068,8 +2066,10 @@ TX3="ce qui est déclaré « jamais montré » existe encore : une liste qui nom
 prouver "un mois au brouillard relancé chez le client" $CC \
   "    return dossierList(state, todayIso).filter(r => r.missingCount > 0);" "    return dossierList(state, todayIso).filter(r => r.missingCount > 0 || r.provisionalCount > 0);" \
   "$R1"
-prouver "le mail de relance qui réclame encore un paquet" $CC \
-  "'\nIl vous suffit de les enregistrer dans SkanFact" "'\nFabriquez le paquet du mois et envoyez-le-moi" \
+# (1.297.0) La fenêtre des relances écrit son propre message depuis 1.184.0 : le mail de cabcore.js ne sert plus qu'au
+# WhatsApp de la fiche, et la preuve qui le visait restait verte.
+prouver "le mail de relance qui réclame encore un paquet" modules/socle/ecrans/cabinet/app-2.js \
+  "Il vous suffit d'enregistrer vos ventes et vos achats dans SkanFact" "Fabriquez le paquet du mois et envoyez-le-moi" \
   "$R1"
 prouver "une relance qui ne s'ouvre pas dans la messagerie" $PC \
   "      ouvrirLien(u.url);" "" \
@@ -7662,9 +7662,11 @@ prouver "l'échéance qui reste vide après une lecture" modules/socle/ecrans/en
   "      if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
 " "" \
   "$ACW1"
-prouver "la fiche du fournisseur à 1366 px : la liste à côté des coordonnées, ses montants coupés" web/public/plateforme/ecrans.css \
-  "  .dash-grid:has(#sup-docs) { grid-template-columns: 1fr; }
-" "" \
+# (1.297.0) Les achats du fournisseur vivent dans leur carte (1.205.0) : la règle de ecrans.css ne s'appliquait plus. La
+# liste se garde deux fois (elle défile d'elle-même, et sa case de grille peut rétrécir) : une seule des deux retirée ne
+# change rien, et la preuve qui n'en retirait qu'une restait verte (06/11/2026). Les deux tombent ensemble.
+prouver "la fiche du fournisseur à 1366 px : la liste à côté des coordonnées, ses montants coupés" "web/public/plateforme/liste.css|||web/public/plateforme/ecrans.css" \
+  ".cf-onglet #sup-docs { min-width: 0; }|||#sup-docs { overflow-x: auto; }" "|||" \
   "$ACW1"
 prouver "la feuille des réglages d'écran de la plateforme oubliée" web/public/v10/index.html \
   "  <link rel=\"stylesheet\" href=\"../plateforme/ecrans.css\">
@@ -9091,8 +9093,9 @@ prouver "« Choisir mon activité » qui écrit en route" modules/socle/ecrans/e
 prouver "au téléphone, les boutons d'une étape poussés à droite" $PPCSS \
   "gap: 8px; justify-content: flex-start; }" "gap: 8px; }" \
   "$PPW3"
-prouver "au téléphone, le lien vers l'aide collé au bord du panneau" $PPCSS \
-  "  .premiers-pas.pp2 > p { padding: 0 18px 18px; }" "  .premiers-pas.pp2 > p { padding: 0; }" \
+# (1.297.0) Le retrait du lien vient de piece.css (lot 7, l'accueil) : celui de premiers-pas.css ne s'appliquait plus.
+prouver "au téléphone, le lien vers l'aide collé au bord du panneau" web/public/plateforme/piece.css \
+  "#view .premiers-pas.pp2 > p { padding: 0 18px 14px; }" "#view .premiers-pas.pp2 > p { padding: 0; }" \
   "$PPW3"
 # Les boutons d'une étape à côté de son texte, comme à l'ordinateur (13/10/2026 : la preuve de telephone.css, faite pour
 # ce panneau-là avant lui, ne le voyait plus ; c'est cette règle-ci qui le tient, et celle de telephone.css ne vise plus
@@ -18698,15 +18701,15 @@ prouver 'se déconnecter du Cabinet, introuvable' 'web/public/v10/cabinet/index.
   '<button type="button" class="foot-link" id="se-deconnecter-retire" hidden>' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
 
-prouver 'le bandeau hors ligne qui recouvre le haut du Cabinet' 'web/public/plateforme/cabinet.css' \
-  'body { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }' \
-  '' \
+# (1.297.0) Le retrait du corps est celui de la barre commune (barre.css) : celui du Cabinet, en double, est retiré.
+prouver 'le bandeau hors ligne qui recouvre le haut du Cabinet' 'web/public/plateforme/barre.css' \
+  'body.avec-barre:not(.mode-caisse) { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }' \
+  'body.avec-barre:not(.mode-caisse) { box-sizing: border-box; }' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
 
 prouver 'la page du Cabinet qui déborde sous le bandeau hors ligne' 'web/public/plateforme/cabinet.css' \
-  'body { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }
-#app { height: 100%; }' \
-  '#app { height: calc(100vh - var(--poste-bandeau-h, 0px)); margin-top: var(--poste-bandeau-h, 0px); }' \
+  '#app { height: 100%; }' \
+  '#app { height: 100%; margin-top: var(--poste-bandeau-h, 0px); }' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
 
 # ── 1.105.0 : la saisie au brouillard du Cabinet sans réseau (docs/hors-ligne.md, H15) ──
@@ -24720,6 +24723,32 @@ prouver 'statistiques 1.296 i : au téléphone, le nom d'"'"'un fournisseur pous
 prouver 'statistiques 1.296 j : « tout est encaissé » félicite qui n'"'"'a jamais facturé' modules/socle/ecrans/entreprise/app-2.js \
   ': factures ? vide('"'"'Rien en attente de paiement'"'"', '"'"'Tout est encaissé.'"'"')' ': true ? vide('"'"'Rien en attente de paiement'"'"', '"'"'Tout est encaissé.'"'"')' \
   'une entreprise neuve : chaque onglet dit ce qui le remplira, aucune phrase rassurante sur un univers vide'
+# (1.297.0) Le montant d'un paiement est une case de texte (1.155.0) avec ses gardes à elle ; les deux preuves de
+# virgule.js passent désormais par la remise de la pièce, une vraie case de nombre.
+prouver 'le montant d'"'"'un paiement qui laisse passer le signe moins' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'if (propre !== x.value) x.value = propre;' \
+  'if (false) x.value = propre;' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'le montant d'"'"'un paiement qui propose les valeurs déjà tapées' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'class="num" autocomplete="off">' \
+  'class="num">' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+
+# (1.297.0) La caisse poussée deux fois sous le bandeau du poste (par le corps de la barre commune, puis par elle-même) :
+# son bas sortait de l'écran de la hauteur du bandeau.
+prouver 'la caisse poussée deux fois sous le bandeau du poste' 'web/public/plateforme/barre.css' \
+  'body.avec-barre:not(.mode-caisse) { box-sizing' \
+  'body.avec-barre { box-sizing' \
+  "$CHW"
+
+# (1.297.0) Les crans du resserrement sans #view : la règle des cartes de l'accueil (#view .ch-c .val) l'emportait, et un
+# montant de dix chiffres sortait de sa carte au téléphone.
+# Les deux crans à la fois : le second suffit à faire tenir le montant, et le premier seul cassé restait vert.
+prouver 'le resserrement des chiffres sans effet sur les cartes de l'"'"'accueil' 'web/public/plateforme/telephone.css' \
+  '#view .stat .val[data-tel-serre="1"], .stat|||#view .stat .val[data-tel-serre="2"], .stat' \
+  '.stat|||.stat' \
+  "$TEL"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -101,13 +101,13 @@ describe('la caisse en ligne, à la souris', () => {
 
     // 3. Le bilan du jour : deux tickets, 23,266 DT (8,391 + 14,875).
     await p.locator('#cs-tabs [data-tab=tickets]').click();
-    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 10_000 }).toContain('23,266 DT');
-    expect(net(await p.locator('#cs-body .stat').first().innerText())).toContain('2 tickets');
+    await expect.poll(async () => net(await p.locator('#cs-ventes').innerText()), { timeout: 10_000 }).toContain('23,266 DT');
+    expect(net(await p.locator('#cs-ventes').innerText())).toContain('2 tickets');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caisse-2-bilan.png') });
     // Rouverte, la page a toujours ses deux tickets (ils sont au serveur, pas seulement sur l'écran).
     await p.reload();
     await p.locator('#cs-tabs [data-tab=tickets]').click();
-    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 15_000 }).toContain('23,266 DT');
+    await expect.poll(async () => net(await p.locator('#cs-ventes').innerText()), { timeout: 15_000 }).toContain('23,266 DT');
 
     // 4. Le soir : Nadia ferme la caisse (le menu ⋯) ; elle tape le total compté, 123 DT ; le tiroir devait contenir
     // 100 + 8,391 + 14,875 = 123,266.

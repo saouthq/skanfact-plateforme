@@ -7,11 +7,8 @@
    grandit plus avec son contenu ; la liste défile dans son panneau. */
 .dash-grid > * { min-width: 0; }
 #sup-docs { overflow-x: auto; }
-/* Ses achats demandent 820 px (le net à payer et le reste sont les dernières colonnes) : en dessous de 1620 px d'écran,
-   la liste prend toute la largeur et les coordonnées passent dessous, plutôt que de cacher les montants à droite. */
-@media (max-width: 1620px) {
-  .dash-grid:has(#sup-docs) { grid-template-columns: 1fr; }
-}
+/* (1.297.0) Ses achats ne vivent plus dans cette grille mais dans leur carte (1.205.0, liste.css) : la règle qui passait
+   la liste sur toute la largeur sous 1620 px ne s'appliquait plus à rien, et s'en va. */
 
 /* L'invitation « Première fois sur cette page ? » se pose dans le coin bas droit (achats-lot.txt) : sous « Guide-moi »,
    elle couvrait le premier champ de la page. « Guide-moi » s'allume tant qu'elle est là. */

@@ -280,6 +280,14 @@ describe('les droits geste par geste dans le dossier v10', () => {
       expect(l.objets.find((o) => o.collection === 'conflictArchive' && o.cle === 'e1'), role).toBeUndefined();
       expect(l.objets.find((o) => o.collection === 'conflictArchive' && o.cle === 'c1')?.contenu.label, role).toBe('Menuiserie du Lac');
     }
+    // Qui a le droit de la lire la reçoit, et toujours sans CIN ni RIB, même restée en clair en base : depuis que les autres
+    // rôles ne la reçoivent plus (G02), seul ce lecteur voyait ce que la lecture retire.
+    const lp = await e.lire(e.proprio.jeton);
+    expect(lp.objets.find((o) => o.collection === 'conflictArchive' && o.cle === 'e1')?.contenu.record).toEqual({ id: 'e1', name: 'Sami Trabelsi' });
+    const archives = JSON.stringify(lp.objets.filter((o) => o.collection === 'conflictArchive' || (o.collection === '_racine' && o.cle === 'conflictArchive')));
+    expect(archives).toContain('Sami Trabelsi');
+    expect(archives).not.toContain('01234567');
+    expect(archives).not.toContain('0800600012345678');
   });
 
   it('(16 § 10.1, 13) la CIN et le RIB rendus en clair à l\'écran : chaque lecture tracée, une fois par réponse ; rien pour qui ne les reçoit pas', async () => {

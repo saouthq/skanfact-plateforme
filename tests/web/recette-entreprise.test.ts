@@ -174,6 +174,16 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     const suite = await nouvellePage(jeton);
     p = suite.p;
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
+    // Une case de nombre qui ne descend pas sous zéro (la remise de la pièce, plateforme/virgule.js) : elle ne propose pas
+    // les valeurs déjà tapées, et le signe moins ne s'y écrit pas. Le montant d'un paiement, lui, est une case de texte
+    // qui a ses propres gardes (plus bas) : l'instrument ne passait plus par aucune case de nombre.
+    const remise = p.locator('#ed-remise');
+    await remise.click({ timeout: 20_000 });
+    expect(await remise.getAttribute('autocomplete')).toBe('off');
+    await p.keyboard.press('Control+A');
+    await p.keyboard.type('-5');
+    expect(await remise.inputValue()).toBe('5');
+    await remise.fill('0');
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 20_000 });
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toBe('FAC-2026-001');

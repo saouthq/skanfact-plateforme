@@ -21,7 +21,9 @@
 
 .premiers-pas.pp2 .pp-list { padding: 8px 28px 20px; }
 /* Le lien vers l'aide, sous la liste : la marge du panneau, que le haut sombre a fait passer à zéro. */
-.premiers-pas.pp2 > p { margin: 0; padding: 0 28px 22px; }
+/* (1.297.0) Son retrait vient de piece.css (#view .premiers-pas.pp2 > p, à toutes les largeurs) : les deux d'ici ne
+   s'appliquaient plus (la preuve de la nuit restait verte). */
+.premiers-pas.pp2 > p { margin: 0; }
 .premiers-pas.pp2 .pp-list li { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px 18px; padding: 16px 0; }
 .premiers-pas.pp2 .pp-marque { width: 28px; height: 28px; font-size: 14px; }
 .premiers-pas.pp2 .pp-txt { gap: 4px; }
@@ -50,7 +52,6 @@
 @media (max-width: 760px) {
   .premiers-pas.pp2 .pp-tete { padding: 20px 18px; }
   .premiers-pas.pp2 .pp-list { padding: 4px 18px 16px; }
-  .premiers-pas.pp2 > p { padding: 0 18px 18px; }
   .premiers-pas.pp2 .pp-list li { grid-template-columns: 28px minmax(0, 1fr); }
   .premiers-pas.pp2 .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
 }

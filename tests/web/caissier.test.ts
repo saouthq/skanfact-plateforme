@@ -103,7 +103,7 @@ describe('le caissier à l\'écran', () => {
     await p.locator('#cs-tabs [data-tab=tickets]').click();
     await expect.poll(async () => net(await p.locator('#cs-body').innerText()), { timeout: 10_000 }).toContain(`TIC-${annee}-002`);
     expect(net(await p.locator('#cs-body').innerText())).not.toContain(`TIC-${annee}-001`);
-    expect(net(await p.locator('#cs-body .stat').first().innerText())).toContain('1 ticket');
+    expect(net(await p.locator('#cs-ventes').innerText())).toContain('1 ticket');
     // La session est ouverte : le bilan ne dit pas ce que le tiroir devrait contenir (il se compte à l'aveugle au Z).
     await expect.poll(async () => net(await p.locator('#cs-tiroir').innerText()), { timeout: 10_000 })
       .toBe('Le tiroir se compte à la fermeture (Z), sans voir ce qu\'il devrait contenir.');

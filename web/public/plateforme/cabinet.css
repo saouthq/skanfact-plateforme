@@ -13,8 +13,9 @@
 
 /* (1.104.0) Le bandeau du poste (sans réseau : plateforme/poste.js) se tient en haut de la fenêtre : le Cabinet se pousse
    dessous de sa hauteur (--poste-bandeau-h), et rien ne passe sous lui (le nom du cabinet était rogné). Un retrait du
-   corps, pas une marge du Cabinet : la marge traversait le corps et la page débordait d'autant (barre de défilement). */
-body { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }
+   corps, pas une marge du Cabinet : la marge traversait le corps et la page débordait d'autant (barre de défilement).
+   (1.297.0) Ce retrait est celui de la barre commune (barre.css, `body.avec-barre`), que le Cabinet porte depuis 1.152.0 :
+   le sien, en double, ne faisait plus rien (la preuve de la nuit restait verte en le retirant). */
 #app { height: 100%; }
 @media (max-width: 760px) { #app .sidebar { top: var(--poste-bandeau-h, 0px); } }
 

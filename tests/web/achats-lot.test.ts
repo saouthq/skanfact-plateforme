@@ -314,6 +314,15 @@ describe('le lot achats, à l\'écran', () => {
     expect(reste && gauche && reste.x + reste.width <= gauche.x + gauche.width + 1).toBe(true);
     expect(gauche && droite && (droite.x >= gauche.x + gauche.width - 1 || droite.y >= gauche.y + gauche.height - 1)).toBe(true);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'achats-lot-3-fiche-fournisseur.png') });
+    // (1.297.0) Avec ces deux achats, la liste tient dans sa carte quelle que soit sa garde : la preuve restait verte. Une
+    // liste plus large que sa carte (des numéros de fournisseur très longs, une police plus large) est posée exprès : elle
+    // défile DANS sa carte, la carte garde sa largeur et la page ne défile pas de côté.
+    // Mesuré sur la liste elle-même : la carte garde sa largeur et la page ne défile pas, même quand la liste en sort.
+    await p.addStyleTag({ content: '#sup-docs table { min-width: 1600px; }' });
+    await p.waitForTimeout(150);
+    const [liste2, carte2] = [await p.locator('#sup-docs').boundingBox(), await p.locator('#view .cf-gauche > .cf-carte').first().boundingBox()];
+    expect(liste2 && carte2 && liste2.x + liste2.width <= carte2.x + carte2.width + 1).toBe(true);
+    expect(await p.locator('#sup-docs').evaluate((x) => [x, ...x.querySelectorAll('.scroll-x')].some((s) => s.scrollWidth > s.clientWidth + 1))).toBe(true);
 
     expect(erreurs).toEqual([]);
     await cx.close();

@@ -297,6 +297,9 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages/${ent}`);
     const saisir = c.p.locator('[data-msg-fil] .msg-fichier').filter({ hasText: 'facture-steg-aout.png' }).getByRole('button', { name: 'Saisir cette pièce', exact: true }).first();
     await saisir.waitFor({ timeout: 20_000 });
+    // Ouverte seule (hors de la boîte), la conversation dit ce qui attend le client : rien, sans affirmer qu'il a répondu à
+    // des questions jamais posées. La boîte ne montre ce bloc que s'il y a quelque chose : seule cette page le voyait vide.
+    expect(net(await c.p.locator('[data-msg-cote] [data-msg-attente]').innerText())).toBe('Ce qui attend le client Rien : aucune question ni pièce demandée n\'attend sa réponse.');
     const [photoSaisie] = await Promise.all([c.p.waitForEvent('popup'), saisir.click()]);
     await photoSaisie.close();
     await expect.poll(() => c.p.url(), { timeout: 15_000 }).toMatch(new RegExp(`#/dossier/${ent}/comptabilite/saisie/\\d{4}$`));
@@ -349,6 +352,17 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await expect.poll(() => h.p.locator('[data-msg-echec]').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toBe('Pas de réseau : la messagerie attend la connexion. Elle s\'ouvre toute seule dès que le réseau revient. Réessayer');
     expect(await h.p.locator('.msg-page h1').innerText()).toBe('Mon comptable');
+    await h.p.context().setOffline(false);
+    await h.p.locator('[data-msg-fil]').waitFor({ timeout: 8_000 });
+    // La messagerie maintenant chargée, le réseau retombe : c'est elle qui le dit, avec les mêmes mots (et non « La
+    // messagerie ne s'est pas ouverte »). Plus haut, la page ne l'avait pas encore chargée : c'est son écran de secours
+    // qui parlait, et rien ne voyait celui de la messagerie.
+    await h.p.evaluate(() => { location.hash = '#/dashboard'; });
+    await h.p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await h.p.context().setOffline(true);
+    await h.p.evaluate(() => { location.hash = '#/comptable'; });
+    await expect.poll(() => h.p.locator('[data-msg-echec]').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe('Pas de réseau : la messagerie attend la connexion. Elle s\'ouvre toute seule dès que le réseau revient. Réessayer');
     await h.p.context().setOffline(false);
     await h.p.locator('[data-msg-fil]').waitFor({ timeout: 8_000 });
     expect(h.erreurs).toEqual([]);

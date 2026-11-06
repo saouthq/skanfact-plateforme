@@ -186,6 +186,20 @@ describe('les Échéances du Cabinet, à la souris', () => {
     if (!(await ligne.count())) await carte.click();
     await expect.poll(() => ligne.innerText()).toMatch(/relancé le 29\/10/);
     expect(((await fiche())?.contenu.relances as unknown[]).length).toBe(1);
+    // Un fichier à joindre : « Écrire plutôt dans la conversation » l'ouvre, le message posé ; la relance se note quand il
+    // part de la conversation (l'instrument ne passait que par la fenêtre : rien ne vérifiait la note faite de là-bas).
+    await ligne.getByRole('button', { name: 'Relancer' }).click();
+    await fen.locator('#ec-pour').fill(AVENIR);
+    await fen.getByRole('button', { name: 'Écrire plutôt dans la conversation', exact: true }).click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toMatch(/^#\/messages\//);
+    const envoyer = p.locator('[data-msg-envoyer]');
+    // Le message se pose dans la zone d'écriture : « Envoyer » quitte son état vide.
+    await expect.poll(() => envoyer.getAttribute('class'), { timeout: 15_000 }).not.toMatch(/\bvide\b/);
+    await envoyer.click();
+    await expect.poll(async () => ((await fiche())?.contenu.relances as unknown[]).length, { timeout: 15_000 }).toBe(2);
+    await p.evaluate(() => { location.hash = '#/echeances'; });
+    await carte.waitFor({ timeout: 15_000 });
+    if (!(await ligne.count())) await carte.click();
 
     // Le menu ⋯ : écrire au contact par son prénom ; « Ce dossier ne la dépose pas » ouvre sa fiche, sur la périodicité.
     await ligne.getByRole('button', { name: /Les autres gestes/ }).click();

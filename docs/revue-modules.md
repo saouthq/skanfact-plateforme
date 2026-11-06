@@ -373,4 +373,41 @@ Un payeur plus lent que le délai annoncé s'écrit en ambre. Une entreprise neu
 la page, jamais « tout est encaissé » quand rien n'a été facturé. À VÉRIFIER avec un comptable : la marge estimée suit le
 coût de revient du catalogue, pas le coût réel des achats (celui-là se lit dans la fiche d'une affaire).
 
+## Les preuves de la nuit qui restaient vertes
+
+### Fait en 1.297.0 (06/11/2026) : seize preuves, deux vrais défauts
+
+La nuit du 05 au 06/11/2026 (« Toutes les preuves ») a laissé seize preuves vertes : on remettait le défaut, et le test
+passait quand même. Chacune a été reprise une par une, puis rejouée ici, défaut remis.
+
+- **Le test ne regardait pas assez** (il se retourne vers la règle) : la relance envoyée depuis la conversation, la
+  messagerie hors ligne (avec la messagerie chargée, et le Cabinet seul), l'archive d'avant lue par la propriétaire,
+  le portable retiré (mesuré au sortir de son effacement : l'entrée efface elle aussi la base, et une base recréée par
+  la page de l'entreprise y passait inaperçue), la remise d'une pièce, le badge pâle du Cabinet hors ligne, le
+  Cabinet qui déborde sous le bandeau (mesuré au retour du réseau, quand le bandeau est en entier), la caisse hors ligne
+  (sa place exacte sous le bandeau, rien qui dépasse), et la facture imprimée avec un long libellé et un gros prix
+  unitaire.
+- **La règle avait déménagé** (la preuve vise celle qui travaille vraiment) : le retrait du lien des premiers pas (dans
+  piece.css depuis l'accueil), la fiche du fournisseur à 1 366 px (dans liste.css depuis 1.205.0 ; la liste s'y garde deux
+  fois, elle défile d'elle-même et sa case peut rétrécir, donc la preuve retire les deux ; et avec deux achats courts elle
+  tenait dans sa carte quoi qu'il arrive : le test pose exprès une liste plus large que la carte), le message de relance
+  du Cabinet (écrit par la fenêtre des relances depuis 1.184.0), le montant d'un paiement (une case de texte avec ses
+  propres gardes depuis 1.155.0).
+- **La règle ne servait plus à rien** (retirée avec sa preuve) : la grille des lignes de la v10 au téléphone (toutes les
+  pièces ont les cartes de la facture), la colonne pleine largeur de la fiche fournisseur, le retrait du corps propre au
+  Cabinet (la barre commune le fait déjà).
+
+Deux vrais défauts, trouvés en reprenant ces preuves :
+- **La caisse poussée deux fois sous le bandeau du poste.** Hors ligne, le corps de la page descendait de la hauteur du
+  bandeau (la barre commune), puis la caisse redescendait d'autant : le bas de la caisse sortait de l'écran. Le corps ne
+  descend plus en mode caisse ; la caisse se place elle-même.
+- **Les chiffres de l'accueil jamais resserrés au téléphone.** Un montant de dix chiffres (« Tu dois 1 469 391,770 »)
+  devait passer à une taille plus petite, mais la règle des cartes de l'accueil l'emportait : il sortait de sa carte. Les
+  deux crans du resserrement s'appliquent maintenant aussi dans l'accueil (la preuve casse les deux : le second cran seul
+  suffit à faire tenir le montant).
+
+Les deux rouges GitHub de 1.295.0 : les tests de la caisse et du caissier lisaient le chiffre des ventes par l'ancienne
+tuile (`.stat`), retirée par la revue de la caisse ; ils le lisent maintenant par son nom (`#cs-ventes`). La preuve « la
+barre de la caisse sous le bandeau du poste » retombe : le test de la caisse hors ligne mesure sa place exacte.
+
 Suivant : la suite de la revue des modules.

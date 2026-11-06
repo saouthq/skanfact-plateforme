@@ -58,29 +58,12 @@
 
   .page-head .actions, .catalog-pick, .inline { flex-wrap: wrap; }
 
-  /* Les lignes d'une pièce : la désignation sur toute la largeur, les chiffres en dessous sur deux
-     rangées, les outils (↑ ↓ ⧉ ✕) sur la dernière. La grille de la v10 (486 points de colonnes
-     fixes) ne tenait pas dans un téléphone. */
-  table.lignes-doc tr {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-areas: "lab lab lab" "qte unite pu" "tva total total" "outils outils outils";
-  }
-  table.lignes-doc td.line-tools { text-align: start; }
-  /* (1.87.21) L'en-tête, rangé sur la grille du bureau, posait « Qté », « Unité » et « P.U. HT » loin de leurs cases
-     (vu au devis, le 21/10/2026) : il se cache, et chaque case porte son titre juste au-dessus, comme les lignes d'un
-     achat (1.87.17). */
-  table.lignes-doc > thead { display: none; }
+  /* (1.297.0) Les lignes d'une pièce : depuis 1.291.0, toutes les pièces (facture, devis, avoir, pro forma, bons,
+     commande, contrat) prennent la page de la facture, dont les lignes deviennent des cartes au téléphone (piece.css).
+     La grille de la v10 qui vivait ici ne s'appliquait plus à aucune page : elle s'en va (sa preuve restait verte). */
   /* (1.93.0) Les bulles « i » de l'en-tête caché, rangées au-dessus des lignes (telephone.js, 6). */
   .aide-colonnes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 6px; }
   .aide-colonnes > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-  table.lignes-doc > tbody > tr > td:nth-child(-n + 6)::before {
-    display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
-  table.lignes-doc > tbody > tr > td:nth-child(1)::before { content: 'Désignation'; }
-  table.lignes-doc > tbody > tr > td:nth-child(2)::before { content: 'Qté'; }
-  table.lignes-doc > tbody > tr > td:nth-child(3)::before { content: 'Unité'; }
-  table.lignes-doc > tbody > tr > td:nth-child(4)::before { content: 'P.U. HT'; }
-  table.lignes-doc > tbody > tr > td:nth-child(5)::before { content: 'TVA'; }
-  table.lignes-doc > tbody > tr > td:nth-child(6)::before { content: 'Total HT'; }
 
   /* Les lignes d'un achat ailleurs (une commande, une demande de prix) : le tableau défile dans son cadre, jamais la
      page. Celles de l'écran d'achat et de la relecture d'une photo se rangent comme les lignes d'une pièce (plus bas). */
@@ -105,8 +88,10 @@
 
   /* Un chiffre trop long pour sa carte se resserre (telephone.js, `data-tel-serre`) : un montant ne passe pas à la
      ligne, et sa carte ne le coupe plus (« 12 500,000 DT », le prix de vente d'un stock, à 390 points). */
-  .stat .val[data-tel-serre="1"] { font-size: 18px; }
-  .stat .val[data-tel-serre="2"] { font-size: 15px; }
+  /* (1.297.0) Avec #view devant : les cartes de l'accueil fixent leur chiffre par `#view .ch-c .val` (piece.css), qui
+     l'emportait, et le resserrement n'y faisait rien (« Tu dois 1 469 391,770 » coupé à 390 points). */
+  #view .stat .val[data-tel-serre="1"], .stat .val[data-tel-serre="1"] { font-size: 18px; }
+  #view .stat .val[data-tel-serre="2"], .stat .val[data-tel-serre="2"] { font-size: 15px; }
 }
 
 /* La taille du doigt : au téléphone, et sur tout écran qu'on touche (une tablette au comptoir). */

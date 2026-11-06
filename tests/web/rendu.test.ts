@@ -189,6 +189,10 @@ describe('l\'instrument de rendu des écrans', () => {
       { collection: 'documents', cle: 'dv1', rang: 0, revision: null, contenu: { id: 'dv1', type: 'devis', number: 'DEV-2026-001', status: 'envoyé', date: aujourdhui, clientId: client.id, createdAt: 1, lines: [ligne], discountRate: 0, withholdingRate: 0, payments: [] } },
       { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'Les Ciments de Bizerte' } },
       { collection: 'purchases', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1', kind: 'facture', number: 'CB-2026-0457', supplierId: 's1', date: aujourdhui, createdAt: 1, lines: [{ ...ligne, unitPrice: 18, destination: 'stock' }], payments: [] } },
+      // (1.297.0) Un gros achat à payer : « Tu dois » à l'accueil porte un montant de dix chiffres. Avec de petits montants,
+      // aucun chiffre de carte ne débordait au téléphone, et le resserrement des cartes (telephone.js) n'avait jamais à agir :
+      // le retirer restait vert.
+      { collection: 'purchases', cle: 'p2', rang: 1, revision: null, contenu: { id: 'p2', kind: 'facture', number: 'CB-2026-0458', supplierId: 's1', date: aujourdhui, createdAt: 2, lines: [{ label: 'Rond à béton 12 mm — chantier du port', description: '', qty: 1, unit: '', unitPrice: 1234567, vatRate: 19 }], payments: [] } },
       { collection: 'employees', cle: 'e1', rang: 0, revision: null, contenu: { id: 'e1', name: 'Sami Trabelsi', firstName: 'Sami', lastName: 'Trabelsi', grossSalary: 1450, hireDate: '2025-01-15' } },
     ] });
     expect(ecrit.objets ?? ecrit.revisions ?? ecrit).toBeTruthy();

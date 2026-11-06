@@ -109,6 +109,16 @@ describe('la caisse sans réseau, à la souris', () => {
     await p.evaluate(() => { const w = window as unknown as { __enregistrerMaintenant?: () => void }; w.__enregistrerMaintenant?.(); });
     await p.waitForTimeout(800);
     expect(net(await p.locator('#poste-bandeau').innerText())).toMatch(/2 changements/);
+    // La caisse se pousse sous le bandeau, juste dessous : sa barre du haut reste touchable, et rien ne sort de l'écran.
+    // Rien ne mesurait la place de la caisse : la page était poussée DEUX fois (par le corps de la barre commune et par la
+    // caisse), à 62 points sous un bandeau de 31, et son bas sortait de l'écran d'autant (1.297.0).
+    const place = await p.evaluate(() => {
+      const b = document.getElementById('poste-bandeau')?.getBoundingClientRect();
+      const v = document.querySelector('main#view')?.getBoundingClientRect();
+      return b && v ? { bandeau: Math.round(b.height), ecart: Math.round(v.top - b.bottom) || 0, deborde: document.documentElement.scrollHeight - innerHeight } : null;
+    });
+    expect(place && place.bandeau).toBeGreaterThan(20);
+    expect(place && [place.ecart, place.deborde]).toEqual([0, 0]);
     await p.locator('#cs-tabs [data-tab=tickets]').click();
     await expect.poll(async () => net(await p.locator('#cs-body').innerText()), { timeout: 10_000 }).toMatch(new RegExp(`3 tickets.*TIC-${annee}-003.*TIC-${annee}-002.*TIC-${annee}-001`));
     // Sans réseau aussi, la session est ouverte : le bilan ne dit pas ce que le tiroir devrait contenir.

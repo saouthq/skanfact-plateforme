@@ -71,14 +71,23 @@ describe('tes appareils, à la souris', () => {
     await cp.addInitScript((j) => { if (location.protocol.startsWith('http') && !localStorage.getItem('test.pose')) { localStorage.setItem('test.pose', '1'); localStorage.setItem('skanfact.jeton', j); } }, portableJeton);
     // Une lecture ou une écriture du poste qui part juste après l'effacement (la copie qu'on rafraîchit, ce qui attend le
     // réseau) rouvrait la base supprimée et la recréait. Sur une machine, ce moment arrive tout seul ; sur une autre,
-    // jamais : il est posé ici exprès, au moment même de l'effacement.
+    // jamais : il est posé ici exprès, au moment même de l'effacement. Et mesuré au sortir de l'effacement du poste, pas
+    // à l'arrivée sur l'entrée : l'entrée efface elle aussi la base (1.276.1), et une base recréée par la page de
+    // l'entreprise y passait inaperçue (le défaut remis à la main restait vert). La déconnexion, elle, n'a pas ce filet.
     await cp.addInitScript(() => {
       type Poste = { effacer: () => Promise<void>; effacerAttente: (id: string) => Promise<void> };
       let poste: Poste | undefined;
       Object.defineProperty(window, 'SkanPoste', { configurable: true, get: () => poste, set: (v: Poste) => {
         poste = v;
         const effacer = v.effacer;
-        v.effacer = () => { const fini = effacer(); void v.effacerAttente('juste-apres').catch(() => undefined); return fini; };
+        v.effacer = async () => {
+          const fini = effacer();
+          const apres = v.effacerAttente('juste-apres').catch(() => undefined);
+          await fini;
+          await apres;
+          const reste = (await indexedDB.databases()).some((b) => b.name === 'skanfact-poste');
+          try { sessionStorage.setItem('test.poste_apres', reste ? 'recree' : 'efface'); } catch { /* sans stockage : le test le dira */ }
+        };
       } });
     });
     const portable = await cp.newPage();
@@ -119,6 +128,7 @@ describe('tes appareils, à la souris', () => {
     await expect.poll(() => portable.locator('#toast').innerText(), { timeout: 15_000 })
       .toBe('Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé ; reconnecte-toi pour continuer.');
     await portable.screenshot({ path: path.join(PHOTOS, 'appareils-3-efface.png') });
+    expect(await portable.evaluate(() => sessionStorage.getItem('test.poste_apres'))).toBe('efface');
     expect(await posteGarde(portable)).toBe(false);
     expect(await portable.evaluate(() => [localStorage.getItem('skanfact.jeton'), sessionStorage.getItem('skanfact.jeton')])).toEqual([null, null]);
 

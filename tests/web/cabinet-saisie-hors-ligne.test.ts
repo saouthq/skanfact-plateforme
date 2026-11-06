@@ -143,8 +143,17 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     await fenetre.getByRole('button', { name: 'Enregistrer en brouillard', exact: true }).click();
     await expect.poll(() => p.locator('#toast').innerText()).toBe('Gardée sur ce poste, au brouillard : elle partira seule au serveur au retour du réseau.');
     await expect.poll(() => ligne('OD-HL1').locator('.sa-attente').innerText().catch(() => ''), { timeout: 10_000 }).toBe('attend le réseau');
-    // Sa marque se lit : droite, dans une ligne de brouillard en italique.
-    expect(await ligne('OD-HL1').locator('.sa-attente').evaluate((e) => getComputedStyle(e).fontStyle)).toBe('normal');
+    // Sa marque se lit : droite, aux couleurs d'un avertissement, et non dans le gris pâle d'une étiquette ordinaire. (Le
+    // brouillard n'est plus en italique depuis 1.215.0 : ne mesurer que l'italique ne voyait plus rien.)
+    expect(await ligne('OD-HL1').locator('.sa-attente').evaluate((e) => {
+      const repere = document.createElement('span');
+      repere.style.color = 'var(--warning)'; repere.style.background = 'var(--warning-soft)';
+      e.after(repere);
+      const [m, r] = [getComputedStyle(e), getComputedStyle(repere)];
+      const vu = [m.fontStyle, m.color === r.color, m.backgroundColor === r.backgroundColor];
+      repere.remove();
+      return vu;
+    })).toEqual(['normal', true, true]);
     await expect.poll(async () => net(await bandeau.innerText())).toMatch(/Une écriture attend le réseau : gardée sur ce poste, elle partira seule à son retour\.$/);
     expect(await lAttente(p, cabinet)).toEqual({ lisible: false });
     const idDuPoste = await ligne('OD-HL1').getAttribute('data-br');

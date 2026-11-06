@@ -130,14 +130,6 @@ describe('le Cabinet sans réseau, à la souris', () => {
     await expect.poll(() => p.locator('#c-livres').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/1 écriture de l'exercice attend au brouillard/);
     await expect.poll(() => p.locator('#poste-bandeau').innerText())
       .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. Tu consultes la copie de ce poste, du \d\d\/\d\d\/\d{4} à \d{1,2} h \d\d\. Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau\.$/);
-    // Le Cabinet se pousse sous le bandeau : rien ne passe dessous (le nom du cabinet était rogné).
-    await expect.poll(() => p.evaluate(() => {
-      const b = document.getElementById('poste-bandeau')?.getBoundingClientRect();
-      const barre = document.querySelector('.sidebar')?.getBoundingClientRect();
-      return !!b && !!barre && b.height > 0 && barre.top >= b.bottom - 1;
-    })).toBe(true);
-    // …et la page tient dans la fenêtre : pas de barre de défilement (la marge du Cabinet traversait le corps).
-    expect(await p.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0);
     // La page se recharge sans réseau, et le livre se consulte encore.
     await p.reload();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
@@ -168,6 +160,16 @@ describe('le Cabinet sans réseau, à la souris', () => {
     await retablir();
     await c.setOffline(false);
     await expect.poll(() => p.locator('#poste-bandeau').innerText(), { timeout: 15_000 }).toMatch(/^Le réseau est revenu\. Recharge pour voir ce que les autres ont fait depuis ta copie\./);
+    // Le Cabinet se pousse sous le bandeau : rien ne passe dessous (le nom du cabinet était rogné), et la page tient dans la
+    // fenêtre (la marge du Cabinet traversait le corps : une barre de défilement). Mesuré ici, quand le bandeau se voit en
+    // haut de l'écran : hors ligne, la puce de la barre le dit et le bandeau ne se montre plus (1.155.0), et la mesure
+    // d'avant passait sur un bandeau d'un point de haut.
+    expect(await p.evaluate(() => {
+      const b = document.getElementById('poste-bandeau')?.getBoundingClientRect();
+      const barre = document.querySelector('.sidebar')?.getBoundingClientRect();
+      return !!b && !!barre && b.height > 20 && barre.top >= b.bottom - 1;
+    })).toBe(true);
+    expect(await p.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0);
     await p.getByRole('button', { name: 'Recharger', exact: true }).click();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
