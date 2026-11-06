@@ -350,9 +350,9 @@ describe('le lot achats, à l\'écran', () => {
 
     // Le bouton retour d'une liste de prix répond.
     await aller(p, '#/listeprix/new');
-    await p.locator('#back').waitFor({ timeout: 10_000 });
+    await p.locator('[data-retour-liste]').waitFor({ timeout: 10_000 });
     await plusTard(p);
-    await p.locator('#back').click();
+    await p.locator('[data-retour-liste]').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).not.toBe('#/listeprix/new');
     expect(erreurs).toEqual([]);
     await cx.close();

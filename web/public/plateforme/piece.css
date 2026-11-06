@@ -240,6 +240,9 @@
   .ed-geste .ed-net-tel { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--sb-gris); }
   .ed-geste .ed-net-tel b { font-size: 24px; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
   .ed-geste .ed-phrase, .ed-geste #ed-grand, .ed-geste .btn-grand + .i { display: none; }
+  /* (1.292.0) Sans bouton vert, la phrase calme EST l'étape : elle reste lisible au téléphone (sinon on ne voyait qu'un
+     bouton secondaire, « Dupliquer » ou « Modifier »). */
+  .ed-geste.ed-geste-calme .ed-phrase.ed-etat { display: flex; font-size: 14px; }
   .ed-geste .ed-deux { grid-template-columns: minmax(0, 1fr); }
   .ed-geste .btn-grand { height: 48px; }
   #view:has(.ed-geste) { padding-bottom: 190px; }
@@ -1607,5 +1610,35 @@
 #ac-garde:not([hidden]) ~ .dirty-dot, #ed-garde:not([hidden]) ~ .dirty-dot { display: none; }
 
 /* (1.290.0) La fiche d'un contrat : supprimer est un lien discret sous les factures, jamais à côté du bouton vert. */
-.ed-gauche .btn-lien#c-del { font: inherit; font-weight: 600; color: var(--sb-rouge-texte); background: none; border: 0; padding: 4px 0; min-height: 32px; cursor: pointer; }
-.ed-gauche .btn-lien#c-del:hover { text-decoration: underline; }
+.ed-gauche .btn-lien#c-del, .ed-gauche .btn-lien#lp-del { font: inherit; font-weight: 600; color: var(--sb-rouge-texte); background: none; border: 0; padding: 4px 0; min-height: 32px; cursor: pointer; }
+.ed-gauche .btn-lien#c-del:hover, .ed-gauche .btn-lien#lp-del:hover { text-decoration: underline; }
+
+/* (1.292.0) La fiche d'une liste de prix : les outils sous les prix (ajouter, tout le catalogue à −x %), la liste des
+   clients choisis qui défile, un seul geste à côté. */
+.lp-fiche .ed-deux { grid-template-columns: 1fr; }
+.lp-fiche .lp-outils { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.lp-fiche .lp-remise { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--sb-gris); }
+.lp-fiche .lp-remise input { width: 76px; }
+.lp-fiche .lp-clients-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 12px; max-height: 240px; overflow: auto; }
+.lp-fiche .lp-ecart { color: var(--sb-gris); width: 170px; white-space: nowrap; }
+.lp-fiche .lp-ecart .small { white-space: normal; line-height: 1.3; }
+.lp-fiche .lp-noms { margin: 6px 0 0; }
+.lp-fiche #lp-lignes td { vertical-align: middle; }
+
+/* (1.292.0) Au téléphone, les prix d'une liste en cartes : l'article sur sa ligne, puis le prix du catalogue, celui de la
+   liste et l'écart côte à côte (le tableau serrait le prix à deux chiffres). */
+@media (max-width: 640px) {
+  .lp-fiche .lines-edit thead { display: none; }
+  .lp-fiche .lines-edit, .lp-fiche .lines-edit tbody { display: block; }
+  .lp-fiche .lines-edit tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: 'art art rm' 'cat prix ecart'; gap: 6px 10px; padding: 10px 0; border-bottom: 1px solid var(--sb-trait); }
+  .lp-fiche .lines-edit td { display: block; padding: 0; border: 0; width: auto; text-align: start; }
+  .lp-fiche .lines-edit td:nth-child(1) { grid-area: art; }
+  .lp-fiche .lines-edit td:nth-child(1) select { width: 100%; }
+  .lp-fiche .lines-edit td:nth-child(2) { grid-area: cat; align-self: center; }
+  .lp-fiche .lines-edit td:nth-child(3) { grid-area: prix; }
+  .lp-fiche .lines-edit td:nth-child(3) input { width: 100%; }
+  .lp-fiche .lines-edit td:nth-child(4) { grid-area: ecart; align-self: center; width: auto; }
+  .lp-fiche .lines-edit td:nth-child(5) { grid-area: rm; }
+  .lp-fiche .lines-edit td[data-lib]::before { content: attr(data-lib); display: block; font-size: 11px; color: var(--sb-gris-2); }
+  .lp-fiche .lp-remise { width: 100%; }
+}

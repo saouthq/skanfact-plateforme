@@ -10399,10 +10399,14 @@
       const fin = vig.filter(l => l.jusquau).sort((a, b) => a.jusquau.localeCompare(b.jusquau))[0];
       const jours = fin ? Math.round((Date.parse(fin.jusquau) - Date.parse(t)) / 86400000) : 0;
       const autres = [avenir ? `${avenir} à venir` : '', finies ? `${pl(finies, 'terminée')}` : ''].filter(Boolean).join(' · ');
+      // (1.292.0) La fin d'une liste dont la suivante est prête (mêmes clients, dès le lendemain) n'est plus une alerte.
+      const nC = x => String(x || '').trim().toLowerCase();
+      const suiteDe = f => f && ls.some(x => x.id !== f.id && x.depuis && x.depuis > (f.depuis || '') && x.depuis <= C.addDays(f.jusquau, 1)
+        && (f.categorie ? nC(x.categorie) === nC(f.categorie) : !x.categorie && (x.clientIds || []).length && (x.clientIds || []).every(id => (f.clientIds || []).includes(id))));
       resume = `<div class="cf-carte mg-resume" id="lp-resume">${chiffreL('Listes en vigueur', String(vig.length), autres || 'toutes s\'appliquent aujourd\'hui')}`
         + chiffreL('Clients concernés', String(clientsVises), `sur ${pl((data.clients || []).length, 'client')}, aujourd\'hui`)
         + chiffreL('Articles à prix négocié', String(articles.size), `sur ${(data.catalog || []).length} au catalogue`)
-        + chiffreL('Prochaine fin', fin ? h(C.fmtDate(fin.jusquau)) : '—', fin ? `${h(fin.nom || '(sans nom)')} — ${jours === 0 ? 'aujourd\'hui' : jours === 1 ? 'demain' : `dans ${jours} jours`}` : 'aucune liste en vigueur n\'a de date de fin', fin && jours <= 30 ? 'ambre' : '')
+        + chiffreL('Prochaine fin', fin ? h(C.fmtDate(fin.jusquau)) : '—', fin ? `${h(fin.nom || '(sans nom)')} — ${jours === 0 ? 'aujourd\'hui' : jours === 1 ? 'demain' : `dans ${jours} jours`}${suiteDe(fin) ? ' · la suivante est prête' : ''}` : 'aucune liste en vigueur n\'a de date de fin', fin && jours <= 30 && !suiteDe(fin) ? 'ambre' : '')
         + '</div>';
     }
     $('#view').innerHTML = `
@@ -10418,52 +10422,185 @@
     $('#lp-new').onclick = () => navigate('#/listeprix/new');
   };
 
+  // (1.292.0) Une liste préparée depuis une autre (« Dupliquer », « Préparer la liste suivante ») arrive ici, pas encore
+  // enregistrée : rien n'existe tant qu'on n'a pas cliqué « Enregistrer ».
+  let listeAPreparer = null;
   routes.listeprix = (parts) => {
     const isNew = parts[0] === 'new';
     const stored = isNew ? null : listesPrix().find(l => l.id === parts[0]);
     if (!isNew && !stored) return navigate('#/listesprix');
-    const l = stored ? deepCopy(stored) : { id: C.uid(), nom: '', categorie: '', clientIds: [], depuis: C.today(), jusquau: '', lignes: [{ itemId: '', prix: '' }] };
+    const l = stored ? deepCopy(stored) : listeAPreparer || { id: C.uid(), nom: '', categorie: '', clientIds: [], depuis: C.today(), jusquau: '', lignes: [{ itemId: '', prix: '' }] };
+    const preparee = !stored && !!listeAPreparer;
+    listeAPreparer = null;
+    if (!(l.lignes || []).length) l.lignes = [{ itemId: '', prix: '' }];
     let mode = l.categorie || !(l.clientIds || []).length ? 'categorie' : 'clients';
+    const co = company(), cur = co.currency, t = C.today();
+    const norm = x => String(x || '').trim().toLowerCase();
     const categories = Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...listesPrix().map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr'));
     const articles = data.catalog.slice().sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'));
+    const etatDe = x => x.depuis && x.depuis > t ? 'avenir' : x.jusquau && x.jusquau < t ? 'terminee' : 'vigueur';
+    const etat = stored ? etatDe(stored) : 'nouvelle';
+    const ETAT_LP = { nouvelle: ['', 'Brouillon · pas encore enregistrée'], vigueur: ['envoyée', 'en vigueur'], avenir: ['', 'à venir'], terminee: ['annulée', 'terminée'] };
+    const ecart = (prix, it) => { const c = Number(it && it.unitPrice) || 0, p = Number(prix) || 0; return c > 0 && p > 0 ? Math.round((p - c) / c * 1000) / 10 : null; };
+    const fmtPct = v => `${v > 0 ? '+' : v < 0 ? '−' : ''}${String(Math.abs(v)).replace('.', ',')} %`;
+    // (1.292.0) Le nom de la suivante : l'année qu'il porte avance d'un an (« Revendeurs 2026 » → « Revendeurs 2027 »).
+    const nomSuivant = n => /\b(20\d\d)\b/.test(n || '') ? String(n).replace(/\b(20\d\d)\b/, y => String(Number(y) + 1)) : `${n || 'Liste'} (suite)`;
     $('#view').innerHTML = `
-      <div class="page-head"><div><h1>${stored ? h(l.nom || 'Liste de prix') : 'Nouvelle liste de prix'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1></div>
-        <div class="actions">${backButton('#/listesprix')}<button class="btn btn-primary" id="save">Enregistrer</button>
-          ${stored ? '<button class="btn btn-danger" id="lp-del">Supprimer</button>' : ''}</div></div>
-      <div class="panel"><h2>La liste ${info('lp.liste')}</h2>
-        <form id="lp-head" class="grid-2" onsubmit="return false">
-          <label class="field obligatoire">${lbl('Nom', '')}<input type="text" name="nom" value="${h(l.nom)}" placeholder="Revendeurs 2026"></label>
-          <label class="field">${lbl('S\'applique à', 'lp.aqui')}<select name="mode"><option value="categorie" ${mode === 'categorie' ? 'selected' : ''}>Une catégorie de clients</option><option value="clients" ${mode === 'clients' ? 'selected' : ''}>Des clients choisis</option></select></label>
-          <label class="field" id="lp-cat" ${mode === 'categorie' ? '' : 'hidden'}>${lbl('Catégorie', 'cl.categorie')}<input type="text" name="categorie" value="${h(l.categorie || '')}" list="lp-categories" placeholder="Revendeur"><datalist id="lp-categories">${categories.map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
-          ${dateFieldHtml(lbl('À partir du', ''), 'depuis', l.depuis || '')}
-          ${dateFieldHtml(lbl('Jusqu\'au (optionnel)', ''), 'jusquau', l.jusquau || '')}
-        </form>
-        <div id="lp-clients" class="mt" ${mode === 'clients' ? '' : 'hidden'}>
-          <input type="search" id="lp-filtre" placeholder="Filtrer les clients…" class="mb">
-          <div class="lp-clients-liste">${data.clients.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')).map(c => `<label class="check" data-nom="${h((c.name || '').toLowerCase())}"><input type="checkbox" value="${h(c.id)}" ${(l.clientIds || []).includes(c.id) ? 'checked' : ''}> ${h(c.name)}</label>`).join('')}</div>
+      <div class="page-head ed-tete">
+        ${retourListe('#/listesprix', 'listes de prix')}<div class="ed-titre">
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/listesprix" class="ed-retour">Listes de prix</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${stored ? h(l.nom || 'Liste de prix') : 'Nouvelle liste'}</span></div>
+          <div class="ed-h1"><h1>${stored ? h(l.nom || 'Liste de prix') : 'Nouvelle liste de prix'} ${info('lp.page')}</h1><span class="badge ${ETAT_LP[etat][0]}" id="lp-etat">${ETAT_LP[etat][1]}</span><span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
+          <div class="small muted" id="lp-sous">${preparee ? 'Préparée depuis une autre liste : vérifie ses dates et ses prix, puis enregistre-la.' : 'Des prix à part pour une catégorie de clients ou des clients choisis, à partir d\'une date'}</div>
         </div>
-      </div>
-      <div class="panel"><h2>Les prix ${info('lp.prix')}</h2>
-        <div class="scroll-x"><table class="lines-edit"><thead><tr><th>Article</th><th class="r">Prix du catalogue</th><th class="r">Prix de la liste HT (${h(company().currency)})</th><th></th></tr></thead><tbody id="lp-lignes"></tbody></table></div>
-        <button class="btn btn-sm mt" id="lp-add">+ Article</button>
+        <div class="actions"></div></div>
+      <div class="buy-editor editor charte lp-fiche">
+        <div class="ed-gauche">
+          <div class="panel ed-frise trois" id="lp-frise"></div>
+          <div id="lp-masque"></div>
+          <div class="panel"><h2>La liste ${info('lp.liste')}</h2>
+            <form id="lp-head" class="grid-2" onsubmit="return false">
+              <label class="field obligatoire">${lbl('Nom', '')}<input type="text" name="nom" value="${h(l.nom)}" placeholder="Revendeurs 2026"></label>
+              <label class="field">${lbl('S\'applique à', 'lp.aqui')}<select name="mode"><option value="categorie" ${mode === 'categorie' ? 'selected' : ''}>Une catégorie de clients</option><option value="clients" ${mode === 'clients' ? 'selected' : ''}>Des clients choisis</option></select></label>
+              <label class="field" id="lp-cat" ${mode === 'categorie' ? '' : 'hidden'}>${lbl('Catégorie', 'cl.categorie')}<input type="text" name="categorie" value="${h(l.categorie || '')}" list="lp-categories" placeholder="Revendeur"><datalist id="lp-categories">${categories.map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
+              ${dateFieldHtml(lbl('À partir du', ''), 'depuis', l.depuis || '')}
+              ${dateFieldHtml(lbl('Jusqu\'au (optionnel)', ''), 'jusquau', l.jusquau || '')}
+            </form>
+            <div id="lp-clients" class="mt" ${mode === 'clients' ? '' : 'hidden'}>
+              <input type="search" id="lp-filtre" placeholder="Filtrer les clients…" class="mb">
+              <div class="lp-clients-liste">${data.clients.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')).map(c => `<label class="check" data-nom="${h((c.name || '').toLowerCase())}"><input type="checkbox" value="${h(c.id)}" ${(l.clientIds || []).includes(c.id) ? 'checked' : ''}> ${h(c.name)}</label>`).join('')}</div>
+            </div>
+          </div>
+          <div class="panel"><h2>Les prix ${info('lp.prix')}</h2>
+            <div class="scroll-x"><table class="lines-edit"><thead><tr><th>Article</th><th class="r">Prix du catalogue</th><th class="r">Prix de la liste HT (${h(cur)})</th><th class="r lp-ecart">Écart</th><th></th></tr></thead><tbody id="lp-lignes"></tbody></table></div>
+            <div class="lp-outils"><button class="btn btn-sm" id="lp-add">+ Article</button>
+              <span class="lp-remise"><label for="lp-pct">Tout le catalogue à</label><input type="number" id="lp-pct" class="num" min="0" max="99" step="0.5" placeholder="10"><span>% de remise</span><button class="btn btn-sm" id="lp-pct-ok">Remplir</button><button class="btn btn-sm btn-ghost" id="lp-pct-annuler" hidden>Annuler le remplissage</button></span></div>
+          </div>
+          ${stored ? '<p class="small"><button type="button" class="btn-lien danger-text" id="lp-del">Supprimer la liste</button> <span class="muted">· les pièces déjà faites gardent leurs prix</span></p>' : ''}
+        </div>
+        <aside class="ed-droite">
+          <div class="panel ed-totaux"><div class="totals-box" id="lp-resume"></div></div>
+          <div id="lp-geste-wrap"></div>
+        </aside>
       </div>`;
-    let dirty = false;
-    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; };
+    let dirty = false, gesteDessine = '';
+    // Ce que le formulaire dit en ce moment : à qui, depuis quand, jusqu'à quand (le résumé suit la saisie).
+    const lireCible = () => {
+      const v = formValues($('#lp-head'));
+      const cible = mode === 'categorie' ? { categorie: String(v.categorie || '').trim(), clientIds: [] } : { categorie: '', clientIds: $$('#lp-clients input[type=checkbox]:checked').map(x => x.value) };
+      return Object.assign(cible, { nom: String(v.nom || '').trim(), depuis: v.depuis || '', jusquau: v.jusquau || '' });
+    };
+    const clientsDe = c => (data.clients || []).filter(x => c.categorie ? norm(x.categorieTarif) === norm(c.categorie) : c.clientIds.includes(x.id));
+    // (1.292.0) Une autre liste qui passe avant celle-ci pour un client (elle le nomme, ou elle est plus récente) : la même
+    // règle que le moteur (`listesPrixApplicables`), à la date où celle-ci s'applique.
+    const masquages = (c, vis) => {
+      const d0 = c.depuis && c.depuis > t ? c.depuis : t;
+      const ici = Object.assign({}, l, c, { lignes: l.lignes.filter(x => x.itemId && Number(x.prix) > 0) });
+      const simul = Object.assign({}, data, { priceLists: [...listesPrix().filter(x => x.id !== l.id), ici] });
+      // Le jour où elle commence, et chaque jour où une autre liste commence pendant sa durée (une promotion de décembre
+      // passe avant une liste de l'année pour ce qu'elles ont en commun).
+      const dates = [d0, ...listesPrix().filter(x => x.id !== l.id && x.depuis && x.depuis > d0 && (!c.jusquau || x.depuis <= c.jusquau)).map(x => x.depuis)];
+      const parListe = new Map();
+      for (const cl of vis) for (const d of new Set(dates)) {
+        const app = C.listesPrixApplicables(simul, cl.id, d);
+        for (const x of ici.lignes) {
+          const gagne = app.find(y => (y.lignes || []).some(z => z.itemId === x.itemId && Number(z.prix) > 0));
+          if (gagne && gagne.id !== l.id) { const e = parListe.get(gagne.id) || { nom: gagne.nom || '(sans nom)', depuis: gagne.depuis && gagne.depuis > d0 ? gagne.depuis : '', clients: new Set() }; e.clients.add(cl.name); parListe.set(gagne.id, e); }
+        }
+      }
+      return [...parListe.values()];
+    };
+    const dessinerFrise = c => {
+      const termine = stored && etat === 'terminee';
+      const commence = c.depuis && c.depuis <= t;
+      $('#lp-frise').innerHTML = `<ol>
+        <li class="${stored ? 'fait' : 'partiel'}"><span class="rond" aria-hidden="true">${stored ? lfIc('coche', 13, 3) : 1}</span><span class="ed-fr-txt"><b>Préparée</b><span>${stored ? 'enregistrée' : 'pas encore enregistrée'}</span></span></li>
+        <li class="${stored && (commence || !c.depuis) ? 'fait' : ''}"><span class="rond" aria-hidden="true">${stored && (commence || !c.depuis) ? lfIc('coche', 13, 3) : 2}</span><span class="ed-fr-txt"><b>En vigueur</b><span>${c.depuis ? (commence ? 'depuis le ' : 'dès le ') + h(C.fmtDate(c.depuis)) : 'dès maintenant'}</span></span></li>
+        <li class="${termine ? 'fait alerte' : ''}"><span class="rond" aria-hidden="true">${termine ? lfIc('coche', 13, 3) : 3}</span><span class="ed-fr-txt"><b>${termine ? 'Terminée' : 'Fin'}</b><span>${c.jusquau ? (termine ? 'le ' : 'jusqu\'au ') + h(C.fmtDate(c.jusquau)) : 'sans fin'}</span></span></li></ol>`;
+    };
+    const majVue = () => {
+      const c = lireCible();
+      const vis = clientsDe(c);
+      const valides = l.lignes.filter(x => x.itemId && Number(x.prix) > 0);
+      const ecarts = valides.map(x => ecart(x.prix, articles.find(a => a.id === x.itemId))).filter(v => v !== null);
+      const moy = ecarts.length ? Math.round(ecarts.reduce((a, b) => a + b, 0) / ecarts.length * 10) / 10 : null;
+      const noms = vis.slice(0, 5).map(x => h(x.name)).join(', ') + (vis.length > 5 ? ` et ${pl(vis.length - 5, 'autre')}` : '');
+      $('#lp-resume').innerHTML = `<table class="ed-tot">
+        <tr><td>Articles à prix à part</td><td id="lp-r-art">${valides.length}</td></tr>
+        <tr class="sous"><td>Écart moyen avec le catalogue</td><td id="lp-r-ecart">${moy === null ? '—' : fmtPct(moy)}</td></tr>
+        <tr class="trait"><td>Clients concernés</td><td id="lp-r-cl">${vis.length}</td></tr></table>
+        <p class="small muted lp-noms" id="lp-r-noms">${vis.length ? noms : c.categorie ? `Aucune fiche client ne porte la catégorie « ${h(c.categorie)} ».` : 'Aucun client choisi.'}</p>`;
+      // Une liste finie ne se compare plus à rien : le bandeau parlerait d'aujourd'hui.
+      const m = c.jusquau && c.jusquau < t ? [] : masquages(c, vis);
+      $('#lp-masque').innerHTML = m.length ? `<div class="banner warn" id="lp-masque-b">${m.map(x => `Pour ${[...x.clients].slice(0, 3).map(h).join(', ')}${x.clients.size > 3 ? ` et ${pl(x.clients.size - 3, 'autre')}` : ''}, la liste « ${h(x.nom)} » passe avant celle-ci sur certains articles${x.depuis ? ` à partir du ${h(C.fmtDate(x.depuis))}` : ''}.`).join(' ')} Une liste qui nomme le client l'emporte sur celle de sa catégorie ; à égalité, la plus récente.</div>` : '';
+      dessinerFrise(c);
+      // Le bouton vert : enregistrer tant qu'il y a quelque chose à enregistrer ; une liste qui finit ou qui a fini prépare
+      // la suivante. Sinon la phrase dit où elle en est, sans vert.
+      const jours = stored && stored.jusquau ? Math.round((Date.parse(stored.jusquau) - Date.parse(t)) / 86400000) : null;
+      // (1.292.0) Sa suivante existe déjà (les mêmes clients, à partir de sa fin) : rien à préparer, la colonne y mène.
+      const memeCible = x => stored && (stored.categorie ? norm(x.categorie) === norm(stored.categorie) : !x.categorie && (x.clientIds || []).length && (x.clientIds || []).every(id => (stored.clientIds || []).includes(id)));
+      const suivante = stored && stored.jusquau ? listesPrix().filter(x => x.id !== stored.id && memeCible(x) && x.depuis && x.depuis > stored.depuis && x.depuis <= C.addDays(stored.jusquau, 1)).sort((a2, b2) => a2.depuis.localeCompare(b2.depuis))[0] : null;
+      let geste;
+      if (stored && !dirty && suivante && (etat === 'terminee' || etat === 'vigueur')) geste = `<div class="panel ed-geste ed-geste-calme" id="ed-geste"><p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${etat === 'terminee' ? `Terminée le ${h(C.fmtDate(stored.jusquau))}.` : `Elle finit le ${h(C.fmtDate(stored.jusquau))}.`} Sa suivante : <a href="#/listeprix/${h(suivante.id)}" id="lp-suivante">${h(suivante.nom || 'liste suivante')}</a>, ${suivante.depuis <= t ? 'depuis' : 'dès'} le ${h(C.fmtDate(suivante.depuis))}.</span></p>`;
+      else if (!stored || dirty) geste = `<div class="panel ed-geste" id="ed-geste"><button class="btn btn-primary btn-grand" id="save">${lfIc('coche', 17, 2.4)}${stored ? 'Enregistrer les modifications' : 'Enregistrer la liste'}</button>
+          <p class="ed-phrase">Ses prix vaudront sur les nouvelles lignes des devis et factures de ${pl(vis.length, 'client')}${c.depuis && c.depuis > t ? `, à partir du ${h(C.fmtDate(c.depuis))}` : ''}. Les pièces déjà faites gardent les leurs.</p>`;
+      else if (etat === 'terminee' || (etat === 'vigueur' && jours !== null && jours <= 30)) geste = `<div class="panel ed-geste" id="ed-geste"><button class="btn btn-primary btn-grand" id="lp-suite">${lfIc('recurrent', 17, 2.2)}Préparer la liste suivante</button>
+          <p class="ed-phrase">${etat === 'terminee' ? `Terminée le ${h(C.fmtDate(stored.jusquau))} : ses prix ne valent plus.` : `Elle finit le ${h(C.fmtDate(stored.jusquau))} (${jours === 0 ? 'aujourd\'hui' : jours === 1 ? 'demain' : `dans ${jours} jours`}).`} La suivante reprend ses clients et ses prix, à partir du lendemain et pour un an ; tu les relis avant de l'enregistrer.</p>`;
+      else geste = `<div class="panel ed-geste ed-geste-calme" id="ed-geste"><p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${etat === 'avenir' ? `Commence le ${h(C.fmtDate(stored.depuis))} : d'ici là, ses clients ont les prix du catalogue.` : vis.length ? `En vigueur${stored.depuis ? ` depuis le ${h(C.fmtDate(stored.depuis))}` : ''} : ses prix valent sur les nouvelles lignes de ${pl(vis.length, 'client')}.` : 'En vigueur, mais elle ne s\'applique à personne : mets la catégorie sur la fiche des clients concernés, ou choisis des clients.'}</span></p>`;
+      // Redessinée seulement si elle change : quitter le champ du prix pour cliquer « Enregistrer » redessine la page, et un
+      // bouton remplacé sous le curseur perdait le clic.
+      const html = geste + `${stored ? '<div class="ed-deux"><button class="btn" id="lp-dup">Dupliquer</button></div>' : ''}</div>`;
+      if (html === gesteDessine) return;
+      gesteDessine = html;
+      $('#lp-geste-wrap').innerHTML = html;
+      $('#save') && ($('#save').onclick = sauver);
+      $('#lp-suite') && ($('#lp-suite').onclick = () => {
+        // La suivante commence le lendemain de la fin et dure un an (jusqu'à la veille du même jour l'an prochain) : la
+        // durée d'une liste raccourcie (01/01 → 20/11) recopiée donnait une fin sans raison (10/10).
+        const debut = C.addDays(stored.jusquau, 1);
+        const unAn = new Date(Date.UTC(Number(debut.slice(0, 4)) + 1, Number(debut.slice(5, 7)) - 1, Number(debut.slice(8, 10)))).toISOString().slice(0, 10);
+        listeAPreparer = Object.assign(deepCopy(stored), { id: C.uid(), nom: nomSuivant(stored.nom), depuis: debut, jusquau: C.addDays(unAn, -1) });
+        navigate('#/listeprix/new');
+      });
+      $('#lp-dup') && ($('#lp-dup').onclick = () => { listeAPreparer = Object.assign(deepCopy(stored), { id: C.uid(), nom: `${stored.nom || 'Liste'} (copie)` }); navigate('#/listeprix/new'); });
+    };
+    const touch = () => { if (!dirty) { dirty = true; $('#dirty-dot').hidden = false; } majVue(); };
     const dessiner = () => {
-      $('#lp-lignes').innerHTML = l.lignes.map((x, i) => { const it = articles.find(a => a.id === x.itemId); return `<tr>
+      $('#lp-lignes').innerHTML = l.lignes.map((x, i) => {
+        const it = articles.find(a => a.id === x.itemId);
+        const e = ecart(x.prix, it), cout = Number(it && it.unitCost) || 0, perte = cout > 0 && Number(x.prix) > 0 && Number(x.prix) < cout;
+        return `<tr>
         <td><select data-lk="itemId" data-i="${i}"><option value="">— Choisir un article —</option>${articles.map(a => `<option value="${h(a.id)}" ${a.id === x.itemId ? 'selected' : ''}>${h(a.label)}</option>`).join('')}</select></td>
-        <td class="r num nw">${it ? h(C.money(Number(it.unitPrice) || 0, company().currency)) : '—'}</td>
-        <td><input type="number" class="num" data-lk="prix" data-i="${i}" value="${h(x.prix)}" step="0.001" min="0"></td>
-        <td><button type="button" class="btn btn-ghost btn-sm" data-lrm="${i}" aria-label="Retirer la ligne ${i + 1}">✕</button></td></tr>`; }).join('');
-      $$('#lp-lignes [data-lk]').forEach(el => { el[el.tagName === 'SELECT' ? 'onchange' : 'oninput'] = () => { l.lignes[Number(el.dataset.i)][el.dataset.lk] = el.value; touch(); if (el.tagName === 'SELECT') dessiner(); }; });
+        <td class="r num nw" data-lib="Catalogue">${it ? h(C.money(Number(it.unitPrice) || 0, cur)) : '—'}</td>
+        <td data-lib="Prix de la liste"><input type="number" class="num" data-lk="prix" data-i="${i}" value="${h(x.prix)}" step="0.001" min="0" aria-label="Prix de la liste HT"></td>
+        <td class="r lp-ecart" data-lib="Écart" data-ecart="${i}">${e === null ? '—' : fmtPct(e)}${perte ? `<div class="small danger-text" data-perte="${i}">sous son coût (${h(C.money(cout, cur))})</div>` : ''}</td>
+        <td><button type="button" class="btn btn-ghost btn-sm" data-lrm="${i}" aria-label="Retirer la ligne ${i + 1}">✕</button></td></tr>`;
+      }).join('');
+      $$('#lp-lignes [data-lk]').forEach(el => { el[el.tagName === 'SELECT' ? 'onchange' : 'onchange'] = () => { l.lignes[Number(el.dataset.i)][el.dataset.lk] = el.value; touch(); dessiner(); }; if (el.tagName !== 'SELECT') el.oninput = () => { l.lignes[Number(el.dataset.i)].prix = el.value; touch(); }; });
       $$('#lp-lignes [data-lrm]').forEach(b => { b.onclick = () => { l.lignes.splice(Number(b.dataset.lrm), 1); if (!l.lignes.length) l.lignes.push({ itemId: '', prix: '' }); touch(); dessiner(); }; });
     };
     dessiner();
+    majVue();
+    if (preparee) touch();
     $('#lp-add').onclick = () => { l.lignes.push({ itemId: '', prix: '' }); touch(); dessiner(); };
+    // (1.292.0) « Tout le catalogue à −x % » : chaque article qui a un prix prend ce prix moins la remise (au millime) ;
+    // le remplissage se défait d'un geste tant que la liste n'est pas enregistrée.
+    let avantRemplissage = null;
+    $('#lp-pct-ok').onclick = () => {
+      const pct = Number(String($('#lp-pct').value).replace(',', '.'));
+      if (!(pct > 0 && pct < 100)) return refus('#lp-pct', 'Indique une remise entre 0 et 100 % (par exemple 10) : chaque article du catalogue prendra son prix moins cette remise.');
+      const avecPrix = articles.filter(a => Number(a.unitPrice) > 0);
+      if (!avecPrix.length) return refus('#lp-pct', 'Aucun article du catalogue n\'a de prix : ajoute les prix au catalogue, ou saisis ceux de la liste un par un.');
+      avantRemplissage = deepCopy(l.lignes);
+      l.lignes = avecPrix.map(a => ({ itemId: a.id, prix: C.round3(Number(a.unitPrice) * (1 - pct / 100)) }));
+      $('#lp-pct-annuler').hidden = false;
+      touch(); dessiner();
+      toast(`${pl(avecPrix.length, 'article')} à ${String(pct).replace('.', ',')} % sous le prix du catalogue. Retouche ceux qui ont un prix négocié, puis enregistre.`);
+    };
+    $('#lp-pct-annuler').onclick = () => { if (avantRemplissage) l.lignes = avantRemplissage; avantRemplissage = null; $('#lp-pct-annuler').hidden = true; touch(); dessiner(); };
     $('#lp-head').addEventListener('input', touch);
     $('#lp-head').addEventListener('change', e => {
-      touch();
       if (e.target.name === 'mode') { mode = e.target.value; $('#lp-cat').hidden = mode !== 'categorie'; $('#lp-clients').hidden = mode !== 'clients'; }
+      touch();
     });
     $('#lp-clients').addEventListener('change', touch);
     $('#lp-filtre').oninput = e => { const q = e.target.value.trim().toLowerCase(); $$('#lp-clients label.check').forEach(x => { x.hidden = !!q && !x.dataset.nom.includes(q); }); };
@@ -10480,6 +10617,14 @@
         l.categorie = ''; l.clientIds = $$('#lp-clients input[type=checkbox]:checked').map(x => x.value);
         if (!l.clientIds.length) { toast('Coche au moins un client à qui elle s\'applique.', true); return false; }
       }
+      // (1.292.0) Un article deux fois : le moteur prendrait la première ligne, sans le dire. On refuse, sur la ligne.
+      const vus = new Map();
+      for (let i = 0; i < l.lignes.length; i++) {
+        const x = l.lignes[i];
+        if (!x.itemId || !(Number(x.prix) > 0)) continue;
+        if (vus.has(x.itemId)) { const a = articles.find(y => y.id === x.itemId); return refus(`#lp-lignes select[data-i="${i}"]`, `« ${(a && a.label) || 'Cet article'} » est deux fois dans la liste : garde une seule ligne par article.`), false; }
+        vus.set(x.itemId, i);
+      }
       l.lignes = l.lignes.filter(x => x.itemId && Number(x.prix) > 0).map(x => ({ itemId: x.itemId, prix: C.round3(Number(x.prix)) }));
       if (!l.lignes.length) { l.lignes.push({ itemId: '', prix: '' }); dessiner(); toast('Ajoute au moins un article et son prix.', true); return false; }
       const i = listesPrix().findIndex(x => x.id === l.id);
@@ -10489,7 +10634,7 @@
     };
     const garde = { dirty: () => dirty, save: enregistrer, what: 'cette liste de prix' };
     setGuard(garde);
-    $('#save').onclick = () => { if (enregistrer()) { toast(`Liste « ${l.nom} » enregistrée : ses prix valent sur les nouvelles lignes des devis et factures de ses clients.`); if (!stored) remplacerPage('#/listeprix/' + l.id); else render(true); } };
+    function sauver() { if (enregistrer()) { toast(`Liste « ${l.nom} » enregistrée : ses prix valent sur les nouvelles lignes des devis et factures de ses clients.`); if (!stored) remplacerPage('#/listeprix/' + l.id); else render(true); } }
     if ($('#lp-del')) $('#lp-del').onclick = async () => {
       if (!await confirmDialog(`Supprimer la liste « ${l.nom} » ? Les pièces déjà faites gardent leurs prix.`, 'Supprimer', true)) return;
       data.priceLists = listesPrix().filter(x => x.id !== l.id); save(true);

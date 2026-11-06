@@ -24566,6 +24566,47 @@ prouver "une commande livrée en partie dont le vert n'est pas « Livrer le rest
   "const libConv = x => x === 'livraison' && resteALivrer ? 'Livrer le reste' :" "const libConv = x => false ? '' :" \
   "$ALIV"
 
+# 1.292.0 : la fiche d'une liste de prix au squelette des pièces.
+LPF="fin proche, liste qui passe avant, suivante préparée puis prête, remise sur le catalogue"
+LPN="Nadia fait une liste de prix pour ses revendeurs, et leurs factures la suivent"
+prouver "une liste qui passe avant pour un client, que la fiche tait" modules/socle/ecrans/entreprise/app-1.js \
+  "          if (gagne && gagne.id !== l.id) {" "          if (false) {" \
+  "$LPF"
+prouver "une promotion qui commence pendant la liste, que la fiche ne voit pas" modules/socle/ecrans/entreprise/app-1.js \
+  "const dates = [d0, ...listesPrix().filter(x => x.id !== l.id && x.depuis && x.depuis > d0" "const dates = [d0, ...[].filter(x => x.id !== l.id && x.depuis && x.depuis > d0" \
+  "$LPF"
+prouver "une liste finie qui parle encore de ce qui passe avant elle aujourd'hui" modules/socle/ecrans/entreprise/app-1.js \
+  "      const m = c.jusquau && c.jusquau < t ? [] : masquages(c, vis);" "      const m = masquages(c, vis);" \
+  "$LPF"
+prouver "la liste suivante qui finit le même jour que l'ancienne" modules/socle/ecrans/entreprise/app-1.js \
+  "jusquau: C.addDays(unAn, -1) });" "jusquau: stored.jusquau });" \
+  "$LPF"
+prouver "la liste suivante qui garde l'année de l'ancienne dans son nom" modules/socle/ecrans/entreprise/app-1.js \
+  "String(n).replace(/\\b(20\\d\\d)\\b/, y => String(Number(y) + 1))" "String(n).replace(/\\b(20\\d\\d)\\b/, y => String(Number(y)))" \
+  "$LPF"
+prouver "tout le catalogue rempli sans la remise" modules/socle/ecrans/entreprise/app-1.js \
+  "prix: C.round3(Number(a.unitPrice) * (1 - pct / 100))" "prix: C.round3(Number(a.unitPrice))" \
+  "$LPF"
+prouver "« Annuler le remplissage » qui ne rend pas les prix d'avant" modules/socle/ecrans/entreprise/app-1.js \
+  "if (avantRemplissage) l.lignes = avantRemplissage; " "" \
+  "$LPF"
+prouver "un prix de liste sous le coût de l'article, sans le dire" modules/socle/ecrans/entreprise/app-1.js \
+  "perte = cout > 0 && Number(x.prix) > 0 && Number(x.prix) < cout;" "perte = false;" \
+  "$LPF"
+prouver "un article deux fois dans la même liste, enregistré" modules/socle/ecrans/entreprise/app-1.js \
+  "        if (vus.has(x.itemId)) {" "        if (false) {" \
+  "$LPF"
+prouver "une liste dont la suivante est prête, qui pousse à la refaire" modules/socle/ecrans/entreprise/app-1.js \
+  "      if (stored && !dirty && suivante && (etat" "      if (false && (etat" \
+  "$LPF"
+prouver "la prochaine fin qui ne dit pas que la suivante est prête" modules/socle/ecrans/entreprise/app-1.js \
+  "\${suiteDe(fin) ? ' · la suivante est prête' : ''}" "" \
+  "$LPF"
+prouver "« Enregistrer » redessiné sous le curseur quand on quitte le prix" modules/socle/ecrans/entreprise/app-1.js \
+  "      if (html === gesteDessine) return;
+" "" \
+  "$LPN"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
