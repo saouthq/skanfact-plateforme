@@ -188,7 +188,9 @@ describe('l\'abonnement, à la souris', () => {
     // dans la colonne de droite (« Renouveler l'abonnement »), le bandeau garde un bouton discret.
     expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-renouveler']);
     // Une facture aussi : « Émettre la facture » n'est plus le bouton principal.
+    // On attend la page de la facture elle-même : « #abo-renouveler » du devis d'avant suffisait à l'attente.
     await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
+    await expect.poll(() => p.locator('#view h1').first().innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/facture/i);
     await p.locator('#abo-renouveler').waitFor({ timeout: 15_000 });
     expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-renouveler']);
     // Et un achat.

@@ -4558,7 +4558,7 @@ prouver "le panneau des livraisons absent de la commande" modules/socle/ecrans/e
   "          \${suiviCde && suiviCde.bons.length ? panneauLivraisons(stored, suiviCde) : ''}" "" \
   "$LCW"
 prouver "« Livrer le reste » du panneau qui ne fait rien" modules/socle/ecrans/entreprise/app-1.js \
-  "\$\$('#conv-list button, #more-list [data-conv], #livrer-reste')" "\$\$('#conv-list button, #more-list [data-conv]')" \
+  "\$\$('#conv-list button, #more-list [data-conv], #ed-geste [data-conv], #livrer-reste')" "\$\$('#conv-list button, #more-list [data-conv], #ed-geste [data-conv]')" \
   "$LCW"
 prouver "le bon suivant tiré de toute la commande" modules/socle/ecrans/entreprise/app-1.js \
   "    const out = src.type === 'commande' && t === 'livraison'" "    const out = false" \
@@ -4986,7 +4986,7 @@ prouver "le dépôt de la pièce lu sans son choix" modules/socle/moteur/core-1.
   "      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === depot) || { qty: 0 }).qty : s.qty;" "      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === DEPOT_PRINCIPAL) || { qty: 0 }).qty : s.qty;" \
   "$DP3"
 prouver "la pièce de vente sans choix de dépôt" modules/socle/ecrans/entreprise/app-1.js \
-  "          depots.length > 1 && !isQ && doc.fromDocType !== 'livraison' ? etq('depot'" "          false ? etq('depot'" \
+  "          depots.length > 1 && (isInv || isAv || isDelivery) && doc.fromDocType !== 'livraison' ? etq('depot'" "          false ? etq('depot'" \
   "$DPW2"
 prouver "l'achat sans choix de dépôt" modules/socle/ecrans/entreprise/app-1.js \
   "\${C.depotsDe(data).length > 1 ? \`<label class=\"puce-champ\"><span>Dépôt</span><select name=\"depotId\" \${clos" "\${false ? \`<label class=\"puce-champ\"><span>Dépôt</span><select name=\"depotId\" \${clos" \
@@ -20511,7 +20511,7 @@ prouver 'ia 31 : le fournisseur créé d'"'"'un clic qui se dit « reconnu »' m
   'le fournisseur lu qui n'"'"'est pas dans la liste se crée d'"'"'un clic'
 # Les compléments dessinés le 27/10/2026 (docs/maquettes/complements.html ; tests/web/complements.test.ts).
 prouver 'compléments 1 : une facture sans bouton pour revenir à la liste' modules/socle/ecrans/entreprise/app-1.js \
-  "\${retourListe(backTo, isQ ? 'devis' : 'factures')}<div class=\"ed-titre\">" "<div class=\"ed-titre\">" \
+  "\${retourListe(backTo, isQ ? 'devis' : isExtra ? 'autres pièces' : 'factures')}<div class=\"ed-titre\">" "<div class=\"ed-titre\">" \
   'retour à la liste : la facture, le devis et l'"'"'achat ramènent à leur liste'
 prouver 'compléments 2 : le bouton de retour qui ne ramène nulle part' modules/socle/ecrans/entreprise/app-1.js \
   "    go(() => { const avant = navStack[navStack.length - 1]; if (avant && (routeOf(avant) === routeOf(liste) || ficheQuittee())) goBack(liste); else navigate(liste); });" "    void go;" \
@@ -24534,6 +24534,37 @@ prouver "un contrat suspendu qui promet sa première facture à une date passée
 prouver "la liste qui ne sait pas qu'un contrat est terminé" modules/socle/ecrans/entreprise/app-1.js \
   "const etatContrat = r => C.contratTermine(r) ? 'terminé' :" "const etatContrat = r => false ? 'terminé' :" \
   "$CFF"
+
+# 1.291.0 : les autres pièces (proforma, bon de livraison, commande, contrat) au squelette des pièces.
+APF="proforma, bon, commande, contrat : la frise et le bouton vert de chaque étape"
+ALIV="Nadia livre la commande en deux fois, puis facture les deux bons en une facture égale à la commande"
+prouver "les autres pièces restées dans l'ancienne mise en page" modules/socle/ecrans/entreprise/app-1.js \
+  "    const charte = isInv || isAv || isQ || isExtra;" "    const charte = isInv || isAv || isQ;" \
+  "$APF"
+prouver "une facture en brouillon tirée d'une proforma que la frise dit faite ou absente" modules/socle/ecrans/entreprise/app-1.js \
+  "partiel: !!fact && fact.status === 'brouillon', d: fact" "partiel: false, d: fact" \
+  "$APF"
+prouver "une proforma facturée en brouillon dont le vert ne mène pas à la facture" modules/socle/ecrans/entreprise/app-1.js \
+  "      if (fact && fact.status === 'brouillon' && !/^annul/.test(st)) return" "      if (false) return" \
+  "$APF"
+prouver "un bon remis dont la signature ne se note pas" modules/socle/ecrans/entreprise/app-1.js \
+  "        const signer = isDelivery && doc.status === 'émis' ?" "        const signer = false ?" \
+  "$APF"
+prouver "le geste « Le client a signé » qui ne change pas le statut" modules/socle/ecrans/entreprise/app-1.js \
+  "      sel.value = b.dataset.statut; sel.dispatchEvent" "      sel.dispatchEvent" \
+  "$APF"
+prouver "la puce Prix du bon qui n'imprime jamais les prix" modules/socle/ecrans/entreprise/app-1.js \
+  "mettre('hidePrices', x.dataset.px === '1')" "mettre('hidePrices', true)" \
+  "$APF"
+prouver "la facturation à date fixe d'un contrat signé qui ne reprend pas le contrat" modules/socle/ecrans/entreprise/app-1.js \
+  "subject: \`\${src.subject || 'Contrat ' + (src.number || '')} — {mois}\`.trim() }" "}" \
+  "$APF"
+prouver "une proforma annulée qui se dit seulement « Annulée. »" modules/socle/ecrans/entreprise/app-1.js \
+  "\${fem ? 'Annulée' : 'Annulé'} : \${fem ? 'elle' : 'il'} ne compte plus." "\${fem ? 'Annulée' : 'Annulé'}." \
+  "$APF"
+prouver "une commande livrée en partie dont le vert n'est pas « Livrer le reste »" modules/socle/ecrans/entreprise/app-1.js \
+  "const libConv = x => x === 'livraison' && resteALivrer ? 'Livrer le reste' :" "const libConv = x => false ? '' :" \
+  "$ALIV"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

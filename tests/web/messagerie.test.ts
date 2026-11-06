@@ -602,8 +602,9 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.locator('#msg-cd-ok').click();
     type Objet = { collection: string; cle: string; contenu: Record<string, unknown> };
     await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, amine)).corps.objets as Objet[]).find((x) => x.collection === 'purchases' && x.cle === 'p1')?.contenu.date, { timeout: 15_000 }).toBe('2026-08-29');
-    const fil = ((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).corps.messages ?? []) as unknown as { texte: string; demande: { recueLe?: string | null } | null }[];
-    expect(fil.map((m) => m.texte)).toContain('J\'ai corrigé la date de FA-0913 : 29/08/2026.');
+    // La réponse part après l'enregistrement de l'achat : on l'attend (une machine lente l'a lue entre les deux).
+    await expect.poll(async () => (((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).corps.messages ?? []) as unknown as { texte: string }[]).map((m) => m.texte), { timeout: 15_000 })
+      .toContain('J\'ai corrigé la date de FA-0913 : 29/08/2026.');
     await expect.poll(async () => net(await a.p.locator('[data-msg-fil]').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/Corrigée/);
     await a.p.screenshot({ path: path.join(PHOTOS, 'messagerie-corriger-date.png') });
     expect(a.erreurs).toEqual([]);

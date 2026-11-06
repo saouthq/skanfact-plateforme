@@ -386,7 +386,7 @@
 .ed-pop .pop-n { margin: 0; font-size: 12px; line-height: 1.45; color: var(--sb-gris-2); }
 .ed-pop .pop-vide { margin: 0; padding: 6px 2px; font-size: 13px; color: var(--sb-gris-2); }
 .ed-pop .pop-sep { border: 0; border-top: 1px solid var(--sb-trait); margin: 2px 0; }
-.ed-pop .pop-o { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 1px solid transparent; border-radius: 9px; background: none; font: inherit; color: inherit; text-align: start; cursor: pointer; }
+.ed-pop .pop-o { display: flex; align-items: center; gap: 10px; width: 100%; height: auto; padding: 8px 10px; border: 1px solid transparent; border-radius: 9px; background: none; font: inherit; color: inherit; text-align: start; cursor: pointer; }
 .ed-pop .pop-o > span { flex: 1; min-width: 0; }
 .ed-pop .pop-o small { display: block; font-size: 12px; color: var(--sb-gris-2); }
 .ed-pop.pop-txt { width: 440px; }
