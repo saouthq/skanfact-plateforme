@@ -101,9 +101,11 @@ describe('les premiers écrans des modules, au modèle des maquettes', () => {
     // Au téléphone : une seule colonne, les étapes sous le texte.
     await p.setViewportSize({ width: 390, height: 844 });
     await p.evaluate(() => { location.hash = '#/paie'; });
-    await p.locator('#view .panel.premiere .pr-e').waitFor();
+    // La carte de la PAIE (dans .pm) : celle des achats est encore là un instant sur une machine lente, et se mesurait à sa
+    // place (vu sur GitHub le 06/11/2026 : la preuve « la paie garde ses deux colonnes » restait verte).
+    await p.locator('#view .pm .panel.premiere .pr-e').waitFor();
     // L'écran se redessine au changement de largeur : les deux boîtes se lisent d'un coup, sur la carte affichée.
-    const boites = () => p.evaluate(() => { const c = document.querySelector('#view .panel.premiere'); const t = c?.querySelector('.pr-t')?.getBoundingClientRect(); const e = c?.querySelector('.pr-e')?.getBoundingClientRect(); return t && e && t.height ? { bas: t.bottom, haut: e.top } : null; });
+    const boites = () => p.evaluate(() => { const c = document.querySelector('#view .pm .panel.premiere'); const t = c?.querySelector('.pr-t')?.getBoundingClientRect(); const e = c?.querySelector('.pr-e')?.getBoundingClientRect(); return t && e && t.height ? { bas: t.bottom, haut: e.top } : null; });
     await expect.poll(boites).not.toBeNull();
     const b = await boites();
     if (!b) throw new Error('la carte de la paie a disparu au téléphone');

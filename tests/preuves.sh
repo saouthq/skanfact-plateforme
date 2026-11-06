@@ -24656,6 +24656,40 @@ prouver 'caisse 1.294 c : un vrai manque n'"'"'est plus en alerte dans la liste 
 prouver 'caisse 1.294 d : les tickets du jour gardent les tuiles d'"'"'avant' modules/socle/ecrans/entreprise/app-2.js \
   '<div class="cf-carte mg-resume" id="cs-resume">' '<div class="stats" id="cs-resume">' \
   'compter le tiroir au clavier tout de suite ; 9 millimes d'"'"'écart ne sont pas un manque ; les tickets dans la DA'
+# 1.295.0 — les garanties jouées comme un installateur (docs/revue-modules.md, « Les garanties »).
+prouver 'garanties 1.295 a : une garantie déjà proposée reste à proposer' modules/socle/moteur/core-2.js \
+  'return warrantiesEnding(data, days, todayIso).filter(x => !ix.has(x.id));' 'return warrantiesEnding(data, days, todayIso);' \
+  'une garantie proposée ne se compte plus ; annulée, elle revient ; la page et l'"'"'accueil disent le même chiffre'
+prouver 'garanties 1.295 b : une proposition annulée compte encore' modules/socle/moteur/core-2.js \
+  "if (d.status === 'annulé' || d.status === 'annulée') continue;" '' \
+  'une garantie proposée ne se compte plus ; annulée, elle revient ; la page et l'"'"'accueil disent le même chiffre'
+prouver 'garanties 1.295 c : l'"'"'accueil compte les garanties déjà proposées' modules/socle/moteur/core-2.js \
+  'const war = garantiesAProposer(data, 60, t);' 'const war = warrantiesEnding(data, 60, t);' \
+  'une garantie proposée ne se compte plus ; annulée, elle revient ; la page et l'"'"'accueil disent le même chiffre'
+prouver 'garanties 1.295 d : tous les appareils dans un seul groupe' modules/socle/moteur/core-2.js \
+  "const k = x.clientId || ('sans:' + x.id);" "const k = 'tous';" \
+  'un groupe par client, dans l'"'"'ordre de la fin la plus proche ; un numéro sans client reste seul'
+prouver 'garanties 1.295 e : la ligne de maintenance tait le numéro de série' modules/socle/moteur/core-2.js \
+  'N° de série ${x' '${x' \
+  'la ligne de maintenance : une désignation courte, le numéro et le jour où elle prend le relais'
+prouver 'garanties 1.295 f : la page part sur 90 jours, l'"'"'accueil sur 60' modules/socle/ecrans/entreprise/app-2.js \
+  'const garState = { days: 60,' 'const garState = { days: 90,' \
+  'proposer un contrat pour trois climatiseurs ; la page, l'"'"'accueil et la fiche le savent ; la recherche répond'
+prouver 'garanties 1.295 g : le contrat oublie les numéros qu'"'"'il propose' modules/socle/ecrans/entreprise/app-1.js \
+  'doc.garanties = vus.map(x => x.id);' '' \
+  'proposer un contrat pour trois climatiseurs ; la page, l'"'"'accueil et la fiche le savent ; la recherche répond'
+prouver 'garanties 1.295 h : pas de bouton principal quand la première ligne est sans client' modules/socle/ecrans/entreprise/app-2.js \
+  "principal === g ? ' btn-primary'" "pgA.rows[0] === g ? ' btn-primary'" \
+  'proposer un contrat pour trois climatiseurs ; la page, l'"'"'accueil et la fiche le savent ; la recherche répond'
+prouver 'garanties 1.295 i : l'"'"'appareil décoché part quand même sur le contrat' modules/socle/ecrans/entreprise/app-2.js \
+  'close(); proposerMaintenance(g.clientId, g.items.filter(x => ids.includes(x.id)), type);' 'close(); proposerMaintenance(g.clientId, g.items, type);' \
+  'proposer un contrat pour trois climatiseurs ; la page, l'"'"'accueil et la fiche le savent ; la recherche répond'
+prouver 'garanties 1.295 j : la fiche du client ne propose pas le contrat' modules/socle/ecrans/entreprise/app-1.js \
+  'id="cl-proposer"' 'id="cl-proposer-x"' \
+  'proposer un contrat pour trois climatiseurs ; la page, l'"'"'accueil et la fiche le savent ; la recherche répond'
+prouver 'visite 1.295 : l'"'"'étape reprend le curseur à qui tape dans la case qu'"'"'elle éclaire' web/public/v10/visite.js \
+  $'        if (dansLaCaseEclairee(e, c)) return;\n        if (c && document' '        if (c && document' \
+  'Visites : une étape à lire posée sur une case de texte y met le curseur ; choisir dans la case qu'"'"'elle éclaire n'"'"'ouvre pas l'"'"'essai'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

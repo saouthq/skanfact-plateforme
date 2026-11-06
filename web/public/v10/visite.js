@@ -1284,6 +1284,14 @@
   // phrase qu'elle expliquait (vu au guide, un comptable débutant, 10.14.1). Le bouton « i » posé DANS
   // le libellé reste un contrôle : c'est le plus proche qui décide. Pure (sur `closest`).
   const CHAMP_TEXTE = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=submit]), textarea';
+  // (1.295.0) Une étape qui ÉCLAIRE une autre case que la sienne la propose aussi (« Tape le prix hors taxe — ou le prix
+  // TTC, à côté ») : qui y écrit déjà la garde, la visite ne lui reprend pas le curseur (vu sur GitHub : « 11.9 » tapé dans
+  // le TTC partait dans le HT, l'écran lent à poser le curseur de l'étape).
+  const dansLaCaseEclairee = (e, c) => {
+    const a = document.activeElement;
+    if (!e || !e.eclairer || !a || a === c || !a.matches) return false;
+    try { return a.matches(e.eclairer); } catch (_) { return false; }
+  };
   function ouvreEssai(t) {
     const x = t && t.closest ? t.closest(INTERACTIF) : null;
     if (!x) return false;
@@ -1828,6 +1836,7 @@
         setTimeout(() => {
           if (cur !== moi || cur.i !== iMoi) return;
           const c = cibleDe(e);
+          if (dansLaCaseEclairee(e, c)) return;
           if (c && document.activeElement !== c && !c.disabled) { try { c.focus({ preventScroll: true }); } catch (_) { /* rien */ } }
         }, 0);
       } else focaliser('.vb-suiv');
@@ -1842,6 +1851,7 @@
       setTimeout(() => {
         if (cur !== moi || cur.i !== iMoi) return;
         const c = cibleDe(e);
+        if (dansLaCaseEclairee(e, c)) return;
         if (c && document.activeElement !== c && !c.disabled) { try { c.focus({ preventScroll: true }); } catch (_) { /* rien */ } }
       }, 0);
     }

@@ -2236,22 +2236,60 @@
     lireAccords().then(() => { if (routeOf(location.hash) === 'accords') dessiner(); },
       e => { if (routeOf(location.hash) === 'accords' && !accordsVus) { $('#view .panel').innerHTML = `<p class="small">${h(plainError(e))}</p>`; } });
   };
-  const garState = { days: 90, page: 1 };
+  // (1.295.0) La fenêtre part sur 60 jours : celle de la ligne « garanties » de l'accueil, qui y mène ; les deux disent le
+  // même chiffre (6.8.1). Chaque liste nommée se pagine.
+  const garState = { days: 60, q: '', pages: { ap: { page: 1 }, pr: { page: 1 }, ex: { page: 1 }, q: { page: 1 } } };
+  // Proposer un contrat de maintenance (ou un devis) pour un ou plusieurs appareils d'un client : la pièce naît avec une
+  // ligne par appareil et garde leurs numéros (`garanties`), pour que la page et l'accueil ne la redemandent plus.
+  function proposerMaintenance(clientId, serials, type) {
+    if (!clientId || !serials.length) return;
+    if (licenceBlock('Créer une pièce')) return;
+    navigate(`#/doc/new/${type === 'devis' ? 'devis' : 'contrat'}/client/${clientId}/garantie/${serials.map(x => x.id).join(',')}`);
+  }
+  // Un client qui a plusieurs appareils à proposer : on choisit lesquels, et la pièce (contrat à faire signer, ou devis).
+  function proposerPourClient(g) {
+    if (g.items.length === 1) return proposerMaintenance(g.clientId, g.items, 'contrat');
+    modal(`<h2>Proposer la maintenance à ${h(g.clientName)}</h2>
+      <p class="small muted">Une seule pièce pour ses appareils : une ligne par appareil, avec son numéro et le jour où la maintenance prend le relais de la garantie. Les prix se donnent sur la pièce.</p>
+      <div class="gar-choix">${g.items.map(x => `<label class="check"><input type="checkbox" data-gar="${h(x.id)}" checked> <span><b>${h(x.itemLabel)}</b> n° ${h(x.serial)} <span class="muted">· garantie jusqu'au ${C.fmtDate(x.warrantyEndDate)}</span></span></label>`).join('')}</div>
+      <div class="choix-t" role="radiogroup" aria-label="La pièce"><button type="button" data-gar-type="contrat" class="on" aria-pressed="true">Contrat de maintenance</button><button type="button" data-gar-type="devis" aria-pressed="false">Devis</button></div>
+      <p class="small muted" id="gar-type-aide">Un contrat se fait signer, puis se facture chaque mois depuis sa page.</p>
+      <p class="small warn-text" id="gar-refus" role="alert"></p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="gar-ok">Préparer la proposition</button></div>`,
+    (root, close) => {
+      let type = 'contrat';
+      $$('[data-gar-type]', root).forEach(b => { b.onclick = () => {
+        type = b.dataset.garType;
+        $$('[data-gar-type]', root).forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+        $('#gar-type-aide', root).textContent = type === 'devis' ? 'Un devis se fait accepter ; il se transforme ensuite en contrat ou en facture.' : 'Un contrat se fait signer, puis se facture chaque mois depuis sa page.';
+      }; });
+      $('#gar-ok', root).onclick = () => {
+        const ids = $$('[data-gar]', root).filter(c => c.checked).map(c => c.dataset.gar);
+        if (!ids.length) { $('#gar-refus', root).textContent = 'Coche au moins un appareil.'; $('[data-gar]', root).focus(); return; }
+        close(); proposerMaintenance(g.clientId, g.items.filter(x => ids.includes(x.id)), type);
+      };
+    });
+  }
+  // L'état d'un numéro, dit comme on le dit au téléphone à un client qui appelle avec une panne.
+  const etatGarantie = x => x.status !== 'vendu' ? `<span class="badge">${h(C.serialStatusLabel(x.status))}</span>`
+    : !x.warrantyEndDate ? '<span class="badge">Sans garantie</span>'
+    : x.expired ? `<span class="badge">Hors garantie depuis le ${C.fmtDate(x.warrantyEndDate)}</span>`
+    : `<span class="badge ${x.warrantyDays <= 30 ? 'b-due' : 'b-paid'}">Garantie jusqu'au ${C.fmtDate(x.warrantyEndDate)}</span>`;
+  const pieceDeProposition = d => d ? `<a href="#/doc/${h(d.id)}">${h(d.number || (d.type === 'devis' ? 'Devis en brouillon' : 'Contrat en brouillon'))}</a> <span class="badge ${['signé', 'accepté'].includes(d.status) ? 'b-paid' : ['refusé', 'terminé'].includes(d.status) ? '' : 'b-due'}">${h(d.status)}</span><small class="mu"> ${d.type === 'devis' ? 'devis' : 'contrat'} du ${C.fmtDate(d.date)}</small>` : '';
   routes.garanties = () => {
+    const tete = actions => `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<a href="#/stock">Stock</a>${ICONE_CHEVRON}<span>Garanties</span></div><h1>Garanties ${info('ser.ending')}</h1><p class="sous">Ce que tes clients ont chez eux, jusqu'à quand c'est garanti, et le bon moment pour leur proposer un contrat de maintenance</p></div><div class="actions">${actions || ''}</div></div>`;
     // 10.12.0 — une entreprise qui ne suit AUCUN article par numéro de série lisait « aucune
     // garantie ne se termine dans les 90 prochains jours », sous un sélecteur de durée : une
     // phrase rassurante sur un univers vide (7.0.0). La page dit à quoi elle sert et donne le geste
     // qui la remplit — la fiche d'un article, arrivée déjà suivie par numéro.
     if (!C.serializedItems(data).length) {
-      $('#view').innerHTML = `
-        <div class="page-head"><h1>Garanties</h1><div class="actions">${backButton('#/stock')}</div></div>
+      $('#view').innerHTML = `${tete()}<div class="lf mg ca gar">
         ${etatVide('Aucun article suivi par numéro de série', [
           'Cette page annonce les garanties qui se terminent chez tes clients : c\'est le moment naturel de proposer un contrat de maintenance. Elle se remplit à partir des numéros de série enregistrés à la vente.',
           'Un article se suit par numéro quand on veut savoir <b>quel appareil</b> est chez <b>quel client</b> : un ordinateur, une machine, un climatiseur. Les fournitures vendues au mètre ou au kilo ne se suivent pas ainsi.'
         ], data.catalog.length
           ? [['g-choisir', 'Choisir un article à suivre…', true], ['g-suivre', '+ Nouvel article suivi']]
-          : [['g-suivre', '+ Nouvel article suivi', true]])}`;
-      bindBack('#/stock');
+          : [['g-suivre', '+ Nouvel article suivi', true]])}</div>`;
       // Les mêmes gestes que « Numéros de série » dans le Stock : une prestation du catalogue qu'on
       // se met à suivre, ou une fiche neuve suivie en stock ET par numéro (un numéro de série suppose
       // une quantité), avec le garde-fou de création du formulaire.
@@ -2259,36 +2297,112 @@
       $('#g-suivre').onclick = () => catalogForm(articleNeuf({ tracked: true, serialized: true }), it => { if (it) render(); }, { creation: true, titre: 'Nouvel article suivi par numéro' });
       return;
     }
-    const rows = C.warrantiesEnding(data, garState.days);
-    const expired = C.serialList(data, { status: 'vendu' }).filter(x => x.expired);
-    $('#view').innerHTML = `
-      <div class="page-head"><h1>Garanties</h1>
-        <div class="actions">${backButton('#/stock')}
-          <select id="g-days">${[30, 60, 90, 180, 365].map(d => `<option value="${d}" ${garState.days === d ? 'selected' : ''}>${d} jours</option>`).join('')}</select>
-        </div></div>
-      <div class="panel"><h2>Garanties qui se terminent ${info('ser.ending')}</h2>
-        <p class="small muted mb">Une fin de garantie n'est pas une mauvaise nouvelle : c'est le moment naturel de proposer un contrat de maintenance. Le client y pense rarement tout seul.</p>
-        ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Fin</th><th>Dans</th><th>Article</th><th>Numéro</th><th>Client</th><th>Livré le</th><th></th></tr></thead><tbody>
-          ${rows.map(x => `<tr class="${x.warrantyDays <= 30 ? 'row-warn' : ''}">
-            <td class="nw"><strong>${C.fmtDate(x.warrantyEndDate)}</strong></td>
-            <td class="nw">${x.warrantyDays} jour${x.warrantyDays > 1 ? 's' : ''}</td>
-            <td>${h(x.itemLabel)}</td><td class="nw">${h(x.serial)}</td>
-            <td>${x.clientId ? `<a href="#/client/${h(x.clientId)}">${h(x.clientName)}</a>` : '<span class="muted">—</span>'}</td>
-            <td class="nw">${C.fmtDate(x.outDate)}</td>
-            <td class="r">${x.clientId ? `<button class="btn btn-sm" data-quote="${h(x.clientId)}">Proposer un contrat</button>` : ''}</td></tr>`).join('')}
-        </tbody></table></div>`
-          : `<div class="empty">Aucune garantie ne se termine dans les ${garState.days} prochains jours.</div>`}
-      </div>
-      ${expired.length ? `<div class="panel"><h2>Déjà hors garantie <span class="small muted">(${expired.length})</span></h2>
-        <div class="scroll-x"><table class="list compact"><thead><tr><th>Article</th><th>Numéro</th><th>Client</th><th>Livré le</th><th>Garantie expirée le</th></tr></thead><tbody>
-          ${expired.slice(0, 30).map(x => `<tr><td>${h(x.itemLabel)}</td><td class="nw">${h(x.serial)}</td>
-            <td>${x.clientId ? `<a href="#/client/${h(x.clientId)}">${h(x.clientName)}</a>` : '<span class="muted">—</span>'}</td>
-            <td class="nw">${C.fmtDate(x.outDate)}</td><td class="nw">${C.fmtDate(x.warrantyEndDate)}</td></tr>`).join('')}
-        </tbody></table></div>
-        ${expired.length > 30 ? `<p class="small muted mt">30 affichés sur ${expired.length}.</p>` : ''}</div>` : ''}`;
-    bindBack('#/stock');
-    $('#g-days').onchange = e => { garState.days = Number(e.target.value); render(); };
-    $$('[data-quote]').forEach(b => b.onclick = () => navigate('#/doc/new/devis/client/' + b.dataset.quote));
+    const s = garState;
+    const peutProposer = !enLecture('documents');
+    const draw = () => {
+      const ix = C.propositionsDeGarantie(data);
+      const tous = C.serialList(data);
+      const vendus = tous.filter(x => x.status === 'vendu');
+      const aProposer = C.garantiesAProposer(data, s.days, undefined, ix);
+      const groupes = C.garantiesParClient(aProposer);
+      const proposees = vendus.filter(x => ix.has(x.id)).sort((a, b) => (a.warrantyEndDate || '9').localeCompare(b.warrantyEndDate || '9'));
+      const expirees = vendus.filter(x => x.expired && !ix.has(x.id)).sort((a, b) => b.warrantyEndDate.localeCompare(a.warrantyEndDate));
+      const sous = vendus.filter(x => x.underWarranty);
+      const nClients = new Set(sous.map(x => x.clientId).filter(Boolean)).size;
+      // Les pièces, pas les appareils : un contrat pour trois climatiseurs est UNE proposition qui attend sa réponse.
+      const pieces = [...new Set(proposees.map(x => ix.get(x.id)))];
+      const nSignees = pieces.filter(d => ['signé', 'accepté'].includes(d.status)).length;
+      const nRefusees = pieces.filter(d => d.status === 'refusé').length;
+      const nAttente = pieces.length - nSignees - nRefusees;
+      const prochaine = vendus.filter(x => x.underWarranty && !ix.has(x.id)).sort((a, b) => a.warrantyEndDate.localeCompare(b.warrantyEndDate))[0];
+      const chiffre = (l, v, sousT, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${l}</span><b class="${ton || ''}">${v}</b><small>${sousT}</small></div>`;
+      $('#gar-resume').innerHTML = chiffre('À proposer', String(aProposer.length), aProposer.length ? `finissent d'ici ${s.days} jours, chez ${pl(groupes.length, 'client')}` : `rien d'ici ${s.days} jours`, aProposer.length ? 'ambre' : 'vert', aProposer.length ? 'g-aproposer' : '')
+        + chiffre('Déjà proposées', String(proposees.length), proposees.length ? `en ${pl(pieces.length, 'pièce')} : ${[nSignees ? `${nSignees} signée${nSignees > 1 ? 's' : ''}` : '', nAttente ? `${nAttente} en attente de réponse` : '', nRefusees ? `${nRefusees} refusée${nRefusees > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}` : 'aucune proposition faite', nSignees === pieces.length && pieces.length ? 'vert' : '', proposees.length ? 'g-proposees' : '')
+        + chiffre('Sous garantie', String(sous.length), sous.length ? `chez ${pl(nClients, 'client')}` : 'aucun appareil garanti chez un client', '')
+        + chiffre('Hors garantie', String(expirees.length), expirees.length ? 'sans contrat proposé — voir lesquels' : 'aucun', '', expirees.length ? 'g-expirees' : '');
+      $$('#gar-resume [data-aller]').forEach(x => {
+        const aller = () => { const c = $('#' + x.dataset.aller); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+        x.onclick = aller; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(); } };
+      });
+      const client = x => x.clientId ? `<a href="#/client/${h(x.clientId)}">${h(x.clientName || 'Client')}</a>` : '<span class="mu">sans client</span>';
+      const appareil = x => `<b>${h(x.itemLabel)}</b><div class="small muted">n° ${h(x.serial)}</div>`;
+      const q = s.q.trim().toLowerCase();
+      let corps;
+      if (q) {
+        const trouves = tous.filter(x => `${x.serial} ${x.itemLabel} ${x.clientName}`.toLowerCase().includes(q));
+        const pg = paginate(trouves, s.pages.q);
+        corps = trouves.length ? `<div class="section-head"><h2>Ce que la recherche trouve</h2></div>
+          <table class="list gar-t" id="g-trouves"><thead><tr><th>Appareil</th><th>Client</th><th>Livré le</th><th>Garantie</th><th>Proposition</th></tr></thead><tbody>
+          ${pg.rows.map(x => `<tr data-ser-id="${h(x.id)}"><td>${appareil(x)}</td><td>${x.status === 'vendu' ? client(x) : '<span class="mu">—</span>'}</td><td class="nw">${x.outDate ? C.fmtDate(x.outDate) : '<span class="mu">—</span>'}</td><td>${etatGarantie(x)}</td><td>${pieceDeProposition(ix.get(x.id)) || '<span class="mu">—</span>'}</td></tr>`).join('')}
+          </tbody></table>${pagerBar(pg.pg, { noun: 'numéro' })}`
+          : `<div class="mg-vide"><b>Aucun numéro ne correspond à « ${h(s.q.trim())} »</b><span>La recherche lit le numéro de série, l'article et le client, sur tous les numéros (en stock, chez un client, retournés).</span></div>`;
+      } else {
+        const pgA = paginate(groupes, s.pages.ap), pgP = paginate(proposees, s.pages.pr), pgE = paginate(expirees, s.pages.ex);
+        // Un seul bouton principal : celui du premier client à qui l'on peut proposer (un numéro sans client n'en a pas).
+        const principal = pgA.rows.find(g => g.clientId);
+        const ligneGroupe = g => {
+          const f = g.items[0];
+          return `<tr data-groupe="${h(g.clientId || f.id)}"><td>${g.clientId ? `<a href="#/client/${h(g.clientId)}"><b>${h(g.clientName)}</b></a>` : '<span class="mu">sans client</span>'}</td>
+            <td>${g.items.map(x => `<div>${h(x.itemLabel)} <span class="small muted">n° ${h(x.serial)}</span></div>`).join('')}</td>
+            <td class="nw"><b>${C.fmtDate(f.warrantyEndDate)}</b><div class="small ${f.warrantyDays <= 30 ? 'ambre' : 'muted'}">dans ${pl(f.warrantyDays, 'jour')}</div></td>
+            ${g.clientId ? rowMenuCell('g:' + g.clientId, peutProposer ? `<button type="button" class="btn btn-sm${principal === g ? ' btn-primary' : ''}" data-proposer="${h(g.clientId)}">${g.items.length > 1 ? `Proposer un contrat (${g.items.length})` : 'Proposer un contrat'}</button>` : '')
+              : `<td class="actions row-actions"><button type="button" class="btn btn-sm" data-rattacher="${h(f.id)}">Rattacher un client…</button></td>`}</tr>`;
+        };
+        corps = `<div id="g-aproposer"><div class="section-head"><h2>À proposer ${info('gar.aproposer')}</h2></div>
+          ${groupes.length ? `<table class="list gar-t gar-groupes"><thead><tr><th>Client</th><th>Appareils</th><th>Fin de garantie</th><th></th></tr></thead><tbody>${pgA.rows.map(ligneGroupe).join('')}</tbody></table>${pagerBar(pgA.pg, { noun: 'client' })}`
+            : `<div class="mg-vide"><b>Rien à proposer d'ici ${s.days} jours</b><span>${prochaine ? `La prochaine garantie qui finit sans proposition : ${h(prochaine.itemLabel)} n° ${h(prochaine.serial)} chez ${h(prochaine.clientName || 'un client')}, le <b>${C.fmtDate(prochaine.warrantyEndDate)}</b>. Elle viendra ici ${s.days} jours avant.` : 'Aucune garantie en cours sans proposition. Les appareils livrés avec une durée de garantie viendront ici avant qu\'elle finisse.'}</span></div>`}</div>
+          ${proposees.length ? `<div id="g-proposees"><div class="section-head"><h2>Déjà proposées ${info('gar.proposees')}</h2></div>
+            <table class="list gar-t"><thead><tr><th>Appareil</th><th>Client</th><th>Garantie</th><th>Proposition</th></tr></thead><tbody>
+            ${pgP.rows.map(x => `<tr><td>${appareil(x)}</td><td>${client(x)}</td><td>${etatGarantie(x)}</td><td>${pieceDeProposition(ix.get(x.id))}</td></tr>`).join('')}
+            </tbody></table>${pagerBar(pgP.pg, { noun: 'appareil' })}</div>` : ''}
+          ${expirees.length ? `<div id="g-expirees"><div class="section-head"><h2>Hors garantie, sans contrat</h2></div>
+            <table class="list gar-t"><thead><tr><th>Appareil</th><th>Client</th><th>Livré le</th><th>Garantie expirée le</th><th></th></tr></thead><tbody>
+            ${pgE.rows.map(x => `<tr><td>${appareil(x)}</td><td>${client(x)}</td><td class="nw">${C.fmtDate(x.outDate)}</td><td class="nw">${C.fmtDate(x.warrantyEndDate)}</td>${rowMenuCell('e:' + x.id)}</tr>`).join('')}
+            </tbody></table>${pagerBar(pgE.pg, { noun: 'appareil' })}</div>` : ''}`;
+      }
+      $('#gar-wrap').innerHTML = `<div class="mg-f"><input type="search" class="cherche" id="g-q" placeholder="Un numéro de série, un article, un client…" value="${h(s.q)}" aria-label="Chercher un appareil">
+          <label class="sel nw">Finit d'ici <select id="g-days">${[30, 60, 90, 180, 365].map(d => `<option value="${d}" ${s.days === d ? 'selected' : ''}>${d} jours</option>`).join('')}</select></label></div>${corps}`;
+      const qEl = $('#g-q');
+      qEl.oninput = e => { s.q = e.target.value; s.pages.q.page = 1; sansPerdreLaFrappe(e.target, draw); };
+      $('#g-days').onchange = e => { s.days = Number(e.target.value); s.pages.ap.page = 1; draw(); };
+      $$('[data-proposer]').forEach(b => b.onclick = () => { const g = groupes.find(x => x.clientId === b.dataset.proposer); if (g) proposerPourClient(g); });
+      $$('[data-rattacher]').forEach(b => b.onclick = () => { const x = serialById(b.dataset.rattacher); if (x) serialForm(x, () => draw()); });
+      bindRowMenus($('#gar-wrap'), cle => {
+        const [genre, id] = [cle.slice(0, 1), cle.slice(2)];
+        if (genre === 'g') {
+          const g = groupes.find(x => (x.clientId || x.items[0].id) === id); if (!g) return [];
+          return [
+            ...(g.clientId && peutProposer ? [
+              { icon: 'contrat', label: 'Proposer un contrat de maintenance', hint: g.items.length > 1 ? `Une pièce pour ses ${g.items.length} appareils, à faire signer` : 'À faire signer, puis à facturer chaque mois', run: () => proposerPourClient(g) },
+              { icon: 'nouveau', label: 'Faire un devis plutôt', hint: 'Une ligne par appareil, à faire accepter', run: () => proposerMaintenance(g.clientId, g.items, 'devis') }] : []),
+            ...(g.clientId ? [{ icon: 'client', label: 'Ouvrir la fiche du client', hint: 'Son matériel, ses pièces', run: () => navigate('#/client/' + g.clientId) }] : []),
+            ...g.items.map(x => ({ icon: 'modifier', label: `Modifier le numéro ${x.serial}…`, hint: 'Client, date de livraison, durée de garantie', run: () => { const sx = serialById(x.id); if (sx) serialForm(sx, () => draw()); } })),
+          ];
+        }
+        const x = expirees.find(y => y.id === id); if (!x) return [];
+        return [
+          ...(x.clientId && peutProposer ? [{ icon: 'contrat', label: 'Proposer un contrat de maintenance', hint: 'La garantie est finie : la maintenance la remplace', run: () => proposerMaintenance(x.clientId, [x], 'contrat') }] : []),
+          { icon: 'modifier', label: 'Modifier le numéro…', hint: 'Client, date de livraison, durée de garantie', run: () => { const sx = serialById(x.id); if (sx) serialForm(sx, () => draw()); } },
+        ];
+      });
+      $$('#gar-wrap .pager').forEach(el => {
+        const sec = el.closest('#g-aproposer') ? s.pages.ap : el.closest('#g-proposees') ? s.pages.pr : el.closest('#g-expirees') ? s.pages.ex : s.pages.q;
+        bindPager(el.parentElement, sec, draw);
+      });
+    };
+    const exporter = async () => {
+      const ix = C.propositionsDeGarantie(data);
+      const rows = C.serialList(data, { status: 'vendu' }).map(x => { const d = ix.get(x.id); return { article: x.itemLabel, numero: x.serial, client: x.clientName, livre: x.outDate || '', fin: x.warrantyEndDate || '',
+        etat: !x.warrantyEndDate ? 'sans garantie' : x.expired ? 'hors garantie' : 'sous garantie', proposition: d ? `${d.number || 'brouillon'} (${d.status})` : '' }; });
+      const cols = [{ key: 'article', label: 'Article' }, { key: 'numero', label: 'Numéro de série' }, { key: 'client', label: 'Client' }, { key: 'livre', label: 'Livré le', type: 'date' },
+        { key: 'fin', label: 'Fin de garantie', type: 'date' }, { key: 'etat', label: 'État' }, { key: 'proposition', label: 'Proposition' }];
+      const f = await bridge.saveText(`garanties-${C.today()}.csv`, C.toCsv(rows, cols));
+      if (f) toast('Exporté : ' + String(f).split(/[\\/]/).pop());
+    };
+    $('#view').innerHTML = `${tete('<button type="button" class="btn" id="g-export">Exporter</button>')}
+      <div class="lf mg ca gar"><div class="cf-carte mg-resume" id="gar-resume"></div><div class="cf-carte"><div class="cf-onglet"><div id="gar-wrap"></div></div></div></div>`;
+    $('#g-export').onclick = () => exporter().catch(e => toast(plainError(e), true));
+    draw();
   };
 
   // ---------- Immobilisations et amortissements (3.5.0) ----------

@@ -175,8 +175,17 @@ describe('le lot débutant (2), à la souris', () => {
     await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLTextAreaElement | null)?.name ?? '')).toBe('description');
     await p.keyboard.type('Isolée 1000 V');
     expect(await p.locator('#modal-root .modal textarea[name=description]').inputValue()).toBe('Isolée 1000 V');
-    await suivant('Son prix');
-    await p.locator('#modal-root .modal #cat-ttc').fill('11.9');
+    // (1.295.0) Un écran lent à poser le curseur de l'étape (sur GitHub, « 11.9 » tapé dans le TTC est parti dans le HT) :
+    // on retarde ce qui part « tout de suite », et l'on tape lentement dans « Prix TTC », comme la bulle le propose. La
+    // visite ne reprend pas le curseur à qui a choisi sa case.
+    await p.evaluate(() => { const w = window as unknown as { __st?: typeof setTimeout; setTimeout: unknown }; w.__st = window.setTimeout;
+      w.setTimeout = (f: () => void, d?: number, ...a: unknown[]) => (w.__st as (f: () => void, d?: number, ...a: unknown[]) => number)(f, d ? d : 250, ...a); });
+    await bulle.locator('.vb-suiv').click();
+    await expect.poll(etape, { interval: 20 }).toBe('Son prix');
+    await p.locator('#modal-root .modal #cat-ttc').click();
+    await p.keyboard.type('11.9', { delay: 120 });
+    await p.evaluate(() => { const w = window as unknown as { __st?: typeof setTimeout; setTimeout: unknown }; if (w.__st) w.setTimeout = w.__st; });
+    expect(await p.locator('#modal-root .modal #cat-ttc').inputValue()).toBe('11.9');
     await expect.poll(() => p.locator('#modal-root .modal input[name=unitPrice]').inputValue()).toMatch(/^10(\.0+)?$/);
     await suivant('Ce que ça te coûte');
     await p.locator('#modal-root .modal input[name=unitCost]').fill('6');

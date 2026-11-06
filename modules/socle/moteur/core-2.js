@@ -150,6 +150,50 @@
       .sort((a, b) => a.warrantyEndDate.localeCompare(b.warrantyEndDate));
   }
 
+  // (1.295.0) Une fin de garantie se propose UNE fois. La pièce faite depuis la page Garanties (un contrat de
+  // maintenance, ou un devis) garde les numéros qu'elle couvre (`garanties`) : la page, l'accueil et la fiche du client
+  // la retrouvent, et ne poussent plus à la refaire. Une pièce annulée ne compte plus : la garantie redevient à proposer.
+  // L'index se fait en un seul passage sur les pièces (un calcul qui lit tout se fait en lot).
+  function propositionsDeGarantie(data) {
+    const m = new Map();
+    for (const d of data.documents || []) {
+      if ((d.type !== 'contrat' && d.type !== 'devis') || !Array.isArray(d.garanties) || !d.garanties.length) continue;
+      if (d.status === 'annulé' || d.status === 'annulée') continue;
+      for (const id of d.garanties) {
+        const avant = m.get(id);
+        if (!avant || (d.date || '') > (avant.date || '') || ((d.date || '') === (avant.date || '') && (d.createdAt || 0) > (avant.createdAt || 0))) m.set(id, d);
+      }
+    }
+    return m;
+  }
+  // Ce qui reste à proposer : les garanties qui se terminent dans la fenêtre, sans pièce qui les propose. L'accueil et
+  // la page comptent par cette même fonction (6.8.1).
+  function garantiesAProposer(data, days, todayIso, index) {
+    const ix = index || propositionsDeGarantie(data);
+    return warrantiesEnding(data, days, todayIso).filter(x => !ix.has(x.id));
+  }
+  // Un client qui a plusieurs appareils en fin de garantie reçoit UNE proposition qui les nomme tous : un groupe par
+  // client, dans l'ordre de la fin la plus proche. Un numéro sans client (livré sans fiche) reste seul.
+  function garantiesParClient(items) {
+    const g = new Map();
+    for (const x of items) {
+      const k = x.clientId || ('sans:' + x.id);
+      if (!g.has(k)) g.set(k, { clientId: x.clientId || '', clientName: x.clientName || '', items: [] });
+      g.get(k).items.push(x);
+    }
+    return [...g.values()].map(v => ({ ...v, items: v.items.slice().sort((a, b) => (a.warrantyEndDate || '').localeCompare(b.warrantyEndDate || '')) }))
+      .map(v => ({ ...v, premiere: v.items[0].warrantyEndDate }))
+      .sort((a, b) => a.premiere.localeCompare(b.premiere) || a.clientName.localeCompare(b.clientName, 'fr'));
+  }
+  // La ligne d'une proposition : l'appareil, son numéro, et le jour où la maintenance prend le relais de la garantie.
+  // Le prix reste à zéro : SkanFact ne l'invente pas (la règle inconnue ne fait rien).
+  function ligneDeMaintenance(x) {
+    const relais = x.warrantyEndDate ? addDays(x.warrantyEndDate, 1) : '';
+    // Le numéro va dans la description : la désignation reste courte (elle se lit en entier sur la pièce et le PDF).
+    return { label: `Maintenance : ${x.itemLabel || 'appareil'}`,
+      description: `N° de série ${x.serial || '—'}${relais ? ` · à partir du ${fmtDate(relais)}, à la fin de la garantie du constructeur` : ''}.` };
+  }
+
   // Le stock compté en quantité et le stock compté en numéros doivent dire la même chose. Quand ils
   // divergent, c'est qu'un numéro n'a pas été saisi à l'entrée ou pas attribué à la sortie.
   function serialGap(data, itemId, todayIso) {
@@ -4710,7 +4754,8 @@
       });
     }
     // Garanties qui se terminent : une occasion de proposer un contrat, pas une mauvaise nouvelle.
-    const war = warrantiesEnding(data, 60, t);
+    // (1.295.0) Une garantie déjà proposée (contrat ou devis) ne se compte plus : la page dit le même chiffre.
+    const war = garantiesAProposer(data, 60, t);
     if (war.length) out.push({
       id: 'garanties', level: 'info',
       label: `${war.length} garantie${war.length > 1 ? 's' : ''} se termine${war.length > 1 ? 'nt' : ''} dans moins de deux mois`,
@@ -7295,6 +7340,7 @@
     CIVILITES, indemniteConges, lignesDuSolde,
     SERIAL_STATUSES, serialStatusLabel, WARRANTY_CHOICES, serializedItems, warrantyEnd, serialView,
     serialList, availableSerials, clientFleet, warrantiesEnding, serialGap, serialGaps,
+    propositionsDeGarantie, garantiesAProposer, garantiesParClient, ligneDeMaintenance,
     mergeData, trackDeletion, MERGE_LISTS, LIST_LABELS, LIST_PLURIELS, compteListe, piecesLiees,
     purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatDoublon, facturesDuDevis, payablesList, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
     remiseEffective,

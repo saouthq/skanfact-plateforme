@@ -317,4 +317,35 @@ comptage à l'aveugle, Z. Les montants étaient justes partout.
 - l'arrondi de la monnaie rendue (4,629 DT encaissés, 4,620 DT reçus en pièces) : comment il veut voir ces millimes ;
 - la pièce de 5 millimes, encore émise mais rare : elle n'est pas dans le comptage du tiroir.
 
+Suivant : les garanties.
+
+
+## Les garanties
+
+### Fait en 1.295.0 (06/11/2026) : proposer la maintenance une fois, et la retrouver
+
+Jouées comme un installateur de climatisation et d'informatique (Clim et Info Jlassi) : l'Hôtel Le Golfe a quatre
+climatiseurs dont la garantie finit (trois dans 13 jours, un dans 38), la Clinique Les Pins un onduleur, un onduleur est
+parti sans fiche client, un PC est hors garantie, Mme Trabelsi a un climatiseur garanti jusqu'en 2028, deux sont en stock.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| G1 | « Proposer un contrat » ouvrait un devis vide de toute ligne, et rien ne gardait qu'on l'avait fait : le lendemain, la même ligne, le même bouton, et l'accueil comptait toujours la garantie. | La proposition (un contrat de maintenance, ou un devis par le menu) naît avec une ligne par appareil — désignation courte, « N° de série … · à partir du … », prix à donner — et garde les numéros qu'elle couvre. L'appareil passe dans « Déjà proposées » avec la pièce et son état ; la page, l'accueil et la fiche du client comptent par la même fonction (`garantiesAProposer`). Une pièce annulée rend l'appareil à proposer. |
+| G2 | Un client qui a quatre appareils en fin de garantie : quatre lignes, quatre devis. | Une ligne par client (ses appareils l'un sous l'autre, la fin la plus proche), « Proposer un contrat (4) », et une fenêtre pour cocher lesquels et choisir contrat ou devis. |
+| G3 | La page partait sur 90 jours, la ligne de l'accueil qui y mène sur 60 : deux chiffres pour la même chose. | La page part sur 60 jours ; la fenêtre reste au choix. |
+| G4 | Un client appelle avec une panne : rien ne permettait de chercher son appareil. | La recherche (numéro, article, client, sur tous les numéros) dit « Garantie jusqu'au … », « Hors garantie depuis le … », « Sans garantie » ou « En stock », et la proposition faite. |
+| G5 | « Déjà hors garantie » coupé à 30 lignes ; pas d'export. | Chaque liste se pagine ; « Exporter » donne le parc entier (article, numéro, client, livraison, fin, état, proposition). |
+| G6 | Un appareil livré sans fiche client n'offrait aucun geste. | « Rattacher un client… » ouvre le numéro ; il n'y a pas de bouton « Proposer » sans client. |
+| G7 | Ancienne mise en page (panneaux, sélecteur à côté du titre). | La DA des listes : chemin Accueil › Stock › Garanties, quatre chiffres qui mènent à leur section, une carte avec la recherche et la fenêtre ; un seul bouton principal, sur le premier client à qui l'on peut proposer. Au téléphone, le geste passe en bas de la carte. |
+| G8 | La fiche du client disait « 1 garantie se termine… » même quand le contrat était déjà proposé, sans geste. | La phrase ne compte que ce qui reste à proposer, avec « Proposer un contrat » ; la colonne dit « maintenance proposée : CTR-… (état) ». |
+
+L'article d'aide « Savoir qui a quoi » dit maintenant ce que fait la page.
+
+Les deux rouges GitHub de 1.293.0, réparés à la racine :
+- la visite « Ajouter au catalogue » reprenait le curseur à qui tapait déjà le prix TTC (la case qu'elle éclaire comme
+  alternative) quand l'écran tardait à poser le sien : « 11.9 » partait dans le HT. Elle laisse désormais le curseur dans
+  la case qu'elle éclaire ; le test tape lentement, l'écran ralenti, comme une machine lente ;
+- le test des écrans vides mesurait au téléphone la carte des Achats, encore affichée un instant, au lieu de celle de la
+  Paie : il attend la carte de la paie elle-même (la preuve « la paie garde ses deux colonnes » retombe).
+
 Suivant : la suite de la revue des modules.

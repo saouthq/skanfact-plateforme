@@ -849,3 +849,21 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 }
 .lf.rl .rl-vue { margin: 4px 0 10px; }
 .rg-factures { display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow: auto; }
+/* (1.295.0) Les garanties dans la DA des listes : la recherche et la fenêtre en tête de la carte ; les appareils d'un client
+   l'un sous l'autre ; la fenêtre qui choisit les appareils d'une proposition. */
+.lf.gar .mg-f { padding: 0 0 12px; border-bottom: 0; }
+.lf.gar .section-head { margin-top: 14px; }
+.lf.gar .section-head h2 { font-size: 15px; }
+.lf.gar table.gar-t td .badge { white-space: normal; }
+.lf.gar table.gar-groupes td:nth-child(2) > div + div { margin-top: 3px; }
+.lf.gar td small.mu { display: inline; }
+.gar-choix { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-height: 240px; overflow: auto; }
+.lf.gar .mg-f label.sel { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.lf.gar td.row-actions { white-space: nowrap; text-align: end; }
+.lf.gar td.row-actions > .btn + .row-menu-btn { margin-inline-start: 8px; }
+@media (max-width: 760px) {
+  /* Au téléphone, « Proposer un contrat » est le geste de la carte : en bas, à pleine place, sans couvrir le client. */
+  .lf.gar table.gar-groupes[data-cartes] > tbody > tr > td.row-actions { position: static; order: 9; width: auto; flex-basis: 100%; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; white-space: normal; padding-top: 6px; }
+  .lf.gar table.gar-groupes[data-cartes] > tbody > tr > td.row-actions > .btn + .row-menu-btn { margin-inline-start: 0; }
+  .lf.gar table.gar-groupes[data-cartes] > tbody > tr > [data-tel="titre"] { padding-inline-end: 0 !important; }
+}

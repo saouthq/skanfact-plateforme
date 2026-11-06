@@ -5619,6 +5619,20 @@
         applyClientDefaults(doc, doc.clientId);
         if (type !== 'devis') doc.withholdingRate = clientWithholding(doc.clientId);
       }
+      // (1.295.0) Depuis la page Garanties : la proposition de maintenance naît avec une ligne par appareil (son numéro, le
+      // jour où la maintenance prend le relais) et garde les numéros qu'elle couvre (`garanties`) : la page et l'accueil
+      // ne la redemandent plus. Seuls les numéros de CE client passent ; le prix reste à donner (rien d'inventé).
+      const iGar = parts.indexOf('garantie');
+      if (iGar > 1 && parts[iGar + 1] && (type === 'contrat' || type === 'devis') && doc.clientId) {
+        const ids = parts[iGar + 1].split(',');
+        const vus = C.serialList(data, { clientId: doc.clientId, status: 'vendu' }).filter(x => ids.includes(x.id));
+        if (vus.length) {
+          doc.lines = vus.map(x => C.newLine(company(), C.ligneDeMaintenance(x)));
+          doc.garanties = vus.map(x => x.id);
+          doc.subject = vus.length > 1 ? `Maintenance de ${vus.length} appareils après leur garantie` : `Maintenance après garantie : ${vus[0].itemLabel}`;
+          setTimeout(() => toast(`${vus.length > 1 ? `${vus.length} appareils` : 'L\'appareil'} sur le ${type === 'devis' ? 'devis' : 'contrat'} : donne le prix de la maintenance, puis enregistre.`), 0);
+        }
+      }
       // Depuis la fiche d'une affaire : la pièce naît RATTACHÉE (10.12.0). « + Devis » y ouvrait un
       // devis sans affaire — on le croyait compté dans la marge du chantier, il ne l'était pas.
       const iAff = parts.indexOf('affaire');
@@ -10764,11 +10778,14 @@
     }
     function ongletMateriel() {
       if (!parc.length) return vide('Aucun matériel suivi chez ce client', 'Un article suivi par numéro de série, livré sur une de ses pièces, vient ici tout seul, avec sa garantie.');
-      const bientot = parc.filter(x => x.warrantyEndingSoon).length;
-      return `${bientot ? `<p class="cf-pied ambre">${lfIc('aide', 13)} ${pl(bientot, 'garantie')} ${bientot > 1 ? 'se terminent' : 'se termine'} dans moins de deux mois : le moment de proposer un contrat de maintenance.</p>` : ''}
+      // (1.295.0) Ce qui est déjà proposé se voit : la phrase ne compte que les garanties sans proposition (la règle de la
+      // page Garanties et de l'accueil), avec le geste ; la colonne dit la pièce qui les propose.
+      const ixG = C.propositionsDeGarantie(data);
+      const aProp = C.garantiesAProposer(data, 60, undefined, ixG).filter(x => x.clientId === c.id);
+      return `${aProp.length ? `<p class="cf-pied ambre">${lfIc('aide', 13)} ${pl(aProp.length, 'garantie')} ${aProp.length > 1 ? 'se terminent' : 'se termine'} dans moins de deux mois, sans proposition : le moment de proposer un contrat de maintenance. ${enLecture('documents') ? '' : `<button type="button" class="btn btn-sm" id="cl-proposer">Proposer un contrat${aProp.length > 1 ? ` (${aProp.length})` : ''}</button>`}</p>` : ''}
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Article</th><th>Numéro de série</th><th>Livré le</th><th>Garantie</th><th>Pièce</th></tr></thead><tbody>
         ${parc.map(x => `<tr${x.outDocId && docById(x.outDocId) ? ` class="clic" data-doc="${h(x.outDocId)}"` : ''}><td><b>${h(x.itemLabel)}</b></td><td class="nw">${h(x.serial)}</td><td class="nw">${C.fmtDate(x.outDate)}</td>
-          <td class="nw">${!x.warrantyEndDate ? '<span class="mu">aucune</span>' : x.expired ? `<span class="mu">expirée le ${C.fmtDate(x.warrantyEndDate)}</span>` : `<span class="${x.warrantyEndingSoon ? 'trop' : ''}">jusqu'au ${C.fmtDate(x.warrantyEndDate)}</span>`}</td>
+          <td class="nw">${!x.warrantyEndDate ? '<span class="mu">aucune</span>' : x.expired ? `<span class="mu">expirée le ${C.fmtDate(x.warrantyEndDate)}</span>` : `<span class="${x.warrantyEndingSoon && !ixG.has(x.id) ? 'trop' : ''}">jusqu'au ${C.fmtDate(x.warrantyEndDate)}</span>`}${ixG.has(x.id) ? `<small>maintenance proposée : ${h(ixG.get(x.id).number || 'brouillon')} (${h(ixG.get(x.id).status)})</small>` : ''}</td>
           <td class="nw">${x.outDocId && docById(x.outDocId) ? h(docById(x.outDocId).number || 'voir') : '<span class="mu">—</span>'}</td></tr>`).join('')}
         </tbody></table></div>`;
     }
@@ -10822,6 +10839,10 @@
     }
     $$('#view [data-onglet]').forEach(b => b.onclick = () => { st.onglet = b.dataset.onglet; refaire(); });
     $$('#view [data-doc]').forEach(x => x.onclick = () => navigate('#/doc/' + x.dataset.doc));
+    if ($('#cl-proposer')) $('#cl-proposer').onclick = () => {
+      const aProp = C.garantiesAProposer(data, 60).filter(x => x.clientId === c.id);
+      if (aProp.length) proposerPourClient({ clientId: c.id, clientName: c.name, items: aProp });
+    };
     $$('#view tr[data-pid]').forEach(tr => tr.onclick = () => navigate('#/affaire/' + tr.dataset.pid));
     $$('#view tr[data-rid]').forEach(tr => tr.onclick = () => navigate('#/contrat/' + tr.dataset.rid));
     $$('#view [data-modifier]').forEach(b => b.onclick = () => clientForm(c, refaire));
