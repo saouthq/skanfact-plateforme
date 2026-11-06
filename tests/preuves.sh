@@ -2334,25 +2334,25 @@ prouver "les lignes de relevé que la voisine lit" $M23 \
 prouver "un montant de relevé illisible accepté" $BQS \
   "        if (m === null) return champInvalide(\`lignes.\${i}.montant\`, t('compta.champ.montant_signe'));" "" \
   "$BQ1"
-prouver "une ligne d'un autre compte rapprochée" $M23 \
-  "      if v_compte <> r.compte then" "      if false then" \
+prouver "une ligne d'un autre compte rapprochée" base/migrations/0193_remise_de_cheques.sql \
+  "        if v_compte <> r.compte then" "        if false then" \
   "$BQ2"
-prouver "une ligne d'écriture qui répond de deux lignes de relevé" $M23 \
-  "      if exists (select 1 from compta.rapprochement where ligne = v_face and releve_ligne <> v_ligne) then" "      if false then" \
+prouver "une ligne d'écriture qui répond de deux lignes de relevé" base/migrations/0193_remise_de_cheques.sql \
+  "        if exists (select 1 from compta.rapprochement where ligne = v_faces[i] and releve_ligne <> v_ligne) then" "        if false then" \
   "$BQ2"
 prouver "un rapprochement qui retient un brouillard changé" $M23 \
   "  ligne uuid not null unique references compta.ligne(id) on delete cascade," "  ligne uuid not null unique references compta.ligne(id)," \
   "$BQ2"
-prouver "un jugement « certain » sans écriture en face" $M23 \
+prouver "un jugement « certain » sans écriture en face" base/migrations/0193_remise_de_cheques.sql \
   "      if v_niveau not in ('aucun', 'probable', 'a-confirmer') then perform socle.refus('un jugement" "      if false then perform socle.refus('un jugement" \
   "$BQ2"
-prouver "le jugement de l'automatique perdu" $M23 \
+prouver "le jugement de l'automatique perdu" base/migrations/0193_remise_de_cheques.sql \
   "      update compta.releve_ligne set niveau = v_niveau where id = v_ligne;" "      update compta.releve_ligne set niveau = 'aucun' where id = v_ligne;" \
   "$BQ2"
-prouver "« tout défaire » qui ne défait rien" $M23 \
-  "where a.releve_ligne = l.id and l.releve = p_releve;" "where false;" \
+prouver "« tout défaire » qui ne défait rien" base/migrations/0193_remise_de_cheques.sql \
+  "where a.releve_ligne = l.id and l.releve = p_releve returning" "where false returning" \
   "$BQ2"
-prouver "rapprocher sans saisir, dans la base" $M23 \
+prouver "rapprocher sans saisir, dans la base" base/migrations/0193_remise_de_cheques.sql \
   "declare v_n int;
 begin
   perform compta.exiger(p_entreprise, 'compta.ecritures.saisir');" "declare v_n int;
@@ -2360,7 +2360,7 @@ begin
   perform compta.exiger(p_entreprise, 'compta.livres.voir');" \
   "$BQ2"
 prouver "le rang de la ligne en face perdu" $BQS \
-  "rang: Number(l.rang_face)," "rang: 1," \
+  "ecriture: f.ecriture, rang: Number(f.rang), niveau" "ecriture: f.ecriture, rang: 1, niveau" \
   "$BQ2"
 prouver "des réglages du cabinet qui prennent un champ de plus" $CRT \
   "  }).strict()).max(30),
@@ -7664,9 +7664,10 @@ prouver "l'échéance qui reste vide après une lecture" modules/socle/ecrans/en
   "$ACW1"
 # (1.297.0) Les achats du fournisseur vivent dans leur carte (1.205.0) : la règle de ecrans.css ne s'appliquait plus. La
 # liste se garde deux fois (elle défile d'elle-même, et sa case de grille peut rétrécir) : une seule des deux retirée ne
-# change rien, et la preuve qui n'en retirait qu'une restait verte (06/11/2026). Les deux tombent ensemble.
+# change rien, et la preuve qui n'en retirait qu'une restait verte (06/11/2026). Les deux tombent ensemble. (1.299.0) Sa
+# case rétrécit par la règle de tout bloc d'onglet (1.298.0) : la preuve retire celle-là, la sienne n'existant plus.
 prouver "la fiche du fournisseur à 1366 px : la liste à côté des coordonnées, ses montants coupés" "web/public/plateforme/liste.css|||web/public/plateforme/ecrans.css" \
-  ".cf-onglet #sup-docs { min-width: 0; }|||#sup-docs { overflow-x: auto; }" "|||" \
+  ".cf-onglet > * { min-width: 0; }|||#sup-docs { overflow-x: auto; }" "|||" \
   "$ACW1"
 prouver "la feuille des réglages d'écran de la plateforme oubliée" web/public/v10/index.html \
   "  <link rel=\"stylesheet\" href=\"../plateforme/ecrans.css\">
@@ -21765,7 +21766,7 @@ prouver 'banque 5 : « Annuler » après « Défaire tous » ne repose rien' mod
   '      const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)' '      const avant = [].filter(l => l)' \
   "$WB1"
 prouver 'banque 6 : reposées, les lignes de l'"'"'automatique passent « à la main »' web/public/plateforme/pont-cabinet.js \
-  'niveau: '"'"'certain'"'"', auto: c.auto === true }' 'niveau: '"'"'certain'"'"', auto: false }' \
+  'niveau: '"'"'certain'"'"', auto: c.auto === true, ...autresDuLivre' 'niveau: '"'"'certain'"'"', auto: false, ...autresDuLivre' \
   "$WB1"
 prouver 'banque 7 : le pied oublie les écritures pas encore en banque' modules/socle/ecrans/cabinet/app-2.js \
   '    const livreRec = sus.livre.filter(x => x.date >= premier);' '    const livreRec = [];' \
@@ -21841,7 +21842,7 @@ prouver 'règlements 9 : un règlement écrit au brouillard ne s'"'"'annule pas'
   "rg.lettrable ? null : () => defaireEcriteBq(dossier, R, l.id, fait && fait.id));" "null);" \
   "$WB2"
 prouver 'règlements 10 : « Valider les proposées » laisse de côté celles qui paient une facture' modules/socle/ecrans/cabinet/app-2.js \
-  "const factures = choisies.filter(x => !x.c && x.fact);" "const factures = [];" \
+  "const factures = choisies.filter(x => !x.c && !x.remise && x.fact);" "const factures = [];" \
   "$WB2"
 prouver 'règlements 11 : la même facture se propose à deux lignes' modules/socle/ecrans/cabinet/app-2.js \
   "if (rep.proposees.length && !rep.proposees.some(p => proposees.has(cleP(p)))) {" "if (rep.proposees.length) {" \
@@ -24846,6 +24847,105 @@ prouver 'les mouvements qui sortent de l'"'"'écran au téléphone' 'web/public/
   '.cf-onglet > * { min-width: 0; }' \
   '' \
   "$T98W"
+
+# (1.299.0) Le pont de la trésorerie : la remise de chèques au Cabinet (Menuiserie Ben Salah, relevé BIAT d'octobre, 06/11/2026).
+C1=modules/socle/moteur/compta-1.js
+A2C=modules/socle/ecrans/cabinet/app-2.js
+MIG99=base/migrations/0193_remise_de_cheques.sql
+BQ99=serveur/compta/banque.ts
+PONT99=web/public/plateforme/pont-cabinet.js
+T99M1='trois écritures des vingt jours qui font la ligne au millime, et seulement elles'
+T99M3="hors des vingt jours, d'un autre sens, à plus de quatre, ou déjà prise par une autre ligne : pas de remise"
+T99M5='une somme qui ne fait pas la ligne, une écriture deux fois, une hors du compte, une déjà prise : refusées en le disant'
+T99W="l'entreprise encaisse, pointe et écrit ; le comptable rapproche la remise avec ses trois écritures"
+prouver 'la remise au Cabinet passée pour « rien dans le livre en face »' "$C1" \
+  'if (trouvees.length === 1) return { ecritures: enOrdre(trouvees[0]), possibles: [], combinaisons: 1 };' \
+  'if (false) return { ecritures: enOrdre(trouvees[0]), possibles: [], combinaisons: 1 };' \
+  "$T99M1"
+prouver 'la remise au Cabinet proposée quand deux combinaisons font la ligne' "$C1" \
+  'return { ecritures: [], possibles: enOrdre(union), combinaisons: trouvees.length };' \
+  'return { ecritures: enOrdre(trouvees[0]), possibles: enOrdre(union), combinaisons: trouvees.length };' \
+  'deux combinaisons qui font la ligne : rien ne se propose, les écritures en jeu se montrent à cocher'
+prouver 'la remise au Cabinet qui remonte au-delà des vingt jours' "$C1" \
+  '&& avant(c) <= 20 && avant(c) >= -jours)' \
+  '&& avant(c) <= 40 && avant(c) >= -jours)' \
+  "$T99M3"
+prouver 'la remise au Cabinet qui mêle une sortie aux encaissements' "$C1" \
+  'Math.sign(c.montant) === Math.sign(m) && round3(c.montant)' \
+  'round3(c.montant)' \
+  "$T99M3"
+prouver 'la remise au Cabinet à cinq écritures' "$C1" \
+  'if (faces.length === 4 || total >= cible) return;' \
+  'if (faces.length === 5 || total >= cible) return;' \
+  "$T99M3"
+prouver 'la remise au Cabinet qui reprend une écriture déjà rapprochée' "$C1" \
+  ".filter(c => !prises.has(c.ecritureId + '#' + c.ligne) && Math.sign(c.montant)" \
+  '.filter(c => Math.sign(c.montant)' \
+  "$T99M3"
+prouver 'une écriture de la remise reproposée à une autre ligne du relevé' "$C1" \
+  'return [{ ecritureId: r.ecritureId, ligne: r.ligne }].concat((Array.isArray(r.autres) ? r.autres : []).filter(a => a && a.ecritureId));' \
+  'return [{ ecritureId: r.ecritureId, ligne: r.ligne }];' \
+  "posée, la ligne porte les trois écritures ; aucune ne se propose plus ailleurs, aucune n'est un suspens"
+prouver 'une remise rapprochée qui ne fait pas la ligne' "$C1" \
+  'if (total !== Math.round(num(l.montant) * 1000)) {' \
+  'if (false) {' \
+  "$T99M5"
+prouver 'une écriture rapprochée deux fois, dans une remise' "$C1" \
+  "if (ailleurs.has(f.ecritureId + '#' + f.ligne)) return" \
+  'if (false) return' \
+  "$T99M5"
+prouver 'une écriture de la remise modifiée en douce' "$C1" \
+  '[R0].concat(Array.isArray(R0.autres) ? R0.autres : []).forEach(f => { if (f && f.ecritureId === e.id) liens.push(f); });' \
+  '[R0].forEach(f => { if (f && f.ecritureId === e.id) liens.push(f); });' \
+  "une écriture de la remise ne se supprime pas en douce ; son montant ne change pas sans défaire ; défaire rend les trois"
+prouver 'le serveur pose une remise qui ne fait pas la ligne' "$MIG99" \
+  'if v_somme <> v_montant then' \
+  'if false then' \
+  "$T99W"
+prouver 'tout défaire compte les trois chèques d'"'"'une remise' "$MIG99" \
+  'select count(distinct releve_ligne) into v_n from d;' \
+  'select count(*) into v_n from d;' \
+  "$T99W"
+prouver 'le serveur relit une remise sans ses autres écritures' "$BQ99" \
+  '...(autres.length ? { autres: autres.map(' \
+  '...(false ? { autres: autres.map(' \
+  "$T99W"
+prouver 'le pont lit une remise sans ses autres écritures' "$PONT99" \
+  '? { autres: l.rapprochement.autres.map((/** @type {any} */ a) => ({ ecritureId: a.ecriture, ligne: Number(a.rang) - 1 })) } : {}) }' \
+  '? {} : {}) }' \
+  "$T99W"
+prouver 'le pont envoie une remise sans ses autres écritures' "$PONT99" \
+  'const autresDuLivre = (livre, autres) => (Array.isArray(autres) && autres.length' \
+  'const autresDuLivre = (livre, autres) => (false' \
+  "$T99W"
+prouver 'la Banque du Cabinet ne propose pas la remise' "$A2C" \
+  'if (rem.ecritures.length && !rem.ecritures.some(c => enRemise.has(cleE(c)))) {' \
+  'if (false) {' \
+  "$T99W"
+prouver '« Valider les N » laisse la remise de côté' "$A2C" \
+  'const lot = choisies.filter(x => x.c || (x.remise && x.remise.length > 1));' \
+  'const lot = choisies.filter(x => x.c);' \
+  "$T99W"
+prouver 'la remise rapprochée nommée par son premier chèque seul' "$A2C" \
+  'const lignes = [e].concat((x.autres || []).map(f => f.e).filter(Boolean)).flatMap(y => y.lignes || []);' \
+  'const lignes = e.lignes || [];' \
+  "$T99W"
+prouver '« chacune avec l'"'"'écriture proposée » pour une remise' "$A2C" \
+  'remises.length ? (remises.length > 1 ? ' \
+  'false ? (remises.length > 1 ? ' \
+  "$T99W"
+prouver 'la remise proposée dont on ne peut plus sortir' "$A2C" \
+  "\${lect ? '' : '<button type=\"button\" class=\"cp-plus\" id=\"bq-remise-non\"" \
+  "\${true ? '' : '<button type=\"button\" class=\"cp-plus\" id=\"bq-remise-non\"" \
+  "$T99W"
+prouver 'la remise choisie à la main impossible' "$A2C" \
+  "sur('#bq-remise-oui', () => { if (sel) {" \
+  "sur('#bq-remise-oui', () => { if (false) {" \
+  "$T99W"
+prouver 'Entrée ne rapproche pas la remise cochée' "$A2C" \
+  'const rm = remiseBq(dossier, R, sel);' \
+  'const rm = null;' \
+  "$T99W"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

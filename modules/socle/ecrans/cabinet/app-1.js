@@ -6356,7 +6356,7 @@
       const bq = autres.find(x => ['BQ', 'CA'].includes(String(x.journal).toUpperCase()));
       if (bq) return `${bq.journal === 'CA' ? 'en espèces' : 'par la banque'} le ${jjmm(bq.date)} : ${dtCd((bq.lignes || []).reduce((t, l) => t + (Number(l.debit) || 0), 0))} DT${bq.piece ? ` (${bq.piece})` : ''} · lettré`;
       const ids = new Set((e.lignes || []).map(l => l.ligneId));
-      const rl = ((livre.releves || [])).flatMap(r => (r.lignes || []).map(l => ({ r, l }))).find(({ l }) => l.rapprochement && l.rapprochement.ecritureId === e.id);
+      const rl = ((livre.releves || [])).flatMap(r => (r.lignes || []).map(l => ({ r, l }))).find(({ l }) => KC.facesDuRapprochement(l.rapprochement).some(f => f.ecritureId === e.id));
       if (rl) return `sur le relevé ${rl.r.banque || ''} du ${jjmm(rl.l.date)} : ${dtCd(Math.abs(Number(rl.l.montant)))} DT · rapproché`;
       void ids;
       return /^(AC|VT)$/i.test(e.journal) ? 'pas encore lettré : aucun paiement de ses livres ne lui répond' : '';

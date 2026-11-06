@@ -906,8 +906,11 @@
       fichier: x.fichier, empreinte: x.empreinte, importeLe: x.importeLe, par: '',
       lignes: x.lignes.map((/** @type {any} */ l) => ({
         id: l.id, date: l.date, libelle: l.libelle, reference: l.reference, montant: nombre(l.montant), ecritureId: '',
+        // (1.299.0) Une remise de chèques : les `autres` écritures qui font la ligne avec la première.
         rapprochement: l.rapprochement
-          ? { niveau: l.rapprochement.niveau, ecritureId: l.rapprochement.ecriture, ligne: l.rapprochement.rang - 1, le: l.rapprochement.le || '', par: l.rapprochement.auto ? 'auto' : '' }
+          ? { niveau: l.rapprochement.niveau, ecritureId: l.rapprochement.ecriture, ligne: l.rapprochement.rang - 1, le: l.rapprochement.le || '', par: l.rapprochement.auto ? 'auto' : '',
+            ...(Array.isArray(l.rapprochement.autres) && l.rapprochement.autres.length
+              ? { autres: l.rapprochement.autres.map((/** @type {any} */ a) => ({ ecritureId: a.ecriture, ligne: Number(a.rang) - 1 })) } : {}) }
           : { niveau: l.niveau, ecritureId: '', ligne: -1, le: '', par: l.niveau === 'aucun' ? '' : 'auto' },
       })),
     }));
@@ -920,6 +923,11 @@
     if (!l || !l.ligneId) throw new Error('Cette écriture n\'existe pas.');
     return String(l.ligneId);
   };
+  // (1.299.0) Les autres lignes d'écriture d'une remise ({ ecritureId, ligne } du livre), en identifiants du serveur ; rien
+  // quand il n'y en a pas (un rapprochement d'une seule écriture part tel qu'avant).
+  /** @param {any} livre @param {any} autres */
+  const autresDuLivre = (livre, autres) => (Array.isArray(autres) && autres.length
+    ? { autres: autres.map((/** @type {any} */ a) => ligneDuLivre(livre, a.ecritureId, a.ligne)) } : {});
   // Un montant signé en texte exact (les soldes et les mouvements d'un relevé, au sens de la banque).
   /** @param {unknown} n */
   const signe = (n) => (Math.round((Number(n) || 0) * 1000) / 1000).toFixed(3);
@@ -1744,8 +1752,9 @@
     },
     rapprocher: async (/** @type {any} */ o) => {
       const c = o.choix || {};
+      const livre0 = c.ecritureId ? await livreDe(o.dossierId, o.annee) : null;
       const pose = c.ecritureId
-        ? { ligne: o.ligneId, ecritureLigne: ligneDuLivre(await livreDe(o.dossierId, o.annee), c.ecritureId, c.ligne), niveau: c.niveau || 'certain', auto: false }
+        ? { ligne: o.ligneId, ecritureLigne: ligneDuLivre(livre0, c.ecritureId, c.ligne), niveau: c.niveau || 'certain', auto: false, ...autresDuLivre(livre0, c.autres) }
         : { ligne: o.ligneId, ecritureLigne: null, niveau: 'aucun', auto: false };
       await appel('POST', `/entreprises/${o.dossierId}/compta/releves/${o.releveId}/rapprochements`, { poses: [pose] });
       return { ok: true, niveau: pose.niveau, livre: await livreDe(o.dossierId, o.annee) };
@@ -1755,7 +1764,7 @@
     rapprocherPlusieurs: async (/** @type {any} */ o) => {
       const livre = await livreDe(o.dossierId, o.annee);
       const poses = (o.choix || []).map((/** @type {any} */ c) => (c.ecritureId
-        ? { ligne: c.ligneId, ecritureLigne: ligneDuLivre(livre, c.ecritureId, c.ligne), niveau: 'certain', auto: c.auto === true }
+        ? { ligne: c.ligneId, ecritureLigne: ligneDuLivre(livre, c.ecritureId, c.ligne), niveau: 'certain', auto: c.auto === true, ...autresDuLivre(livre, c.autres) }
         : { ligne: c.ligneId, ecritureLigne: null, niveau: 'aucun', auto: false }));
       if (poses.length) await appel('POST', `/entreprises/${o.dossierId}/compta/releves/${o.releveId}/rapprochements`, { poses });
       return { ok: true, livre: await livreDe(o.dossierId, o.annee) };

@@ -33,6 +33,8 @@ const RELEVE = z.object({
 const POSES = z.object({
   poses: z.array(z.object({
     ligne: uuid, ecritureLigne: uuid.nullable(), niveau: z.enum(['certain', 'probable', 'a-confirmer', 'aucun']), auto: z.boolean().default(false),
+    // (1.299.0) Une remise de chèques : les autres lignes d'écriture qui font la ligne du relevé avec la première.
+    autres: z.array(uuid).max(49).optional(),
   }).strict()).min(1).max(5000),
 }).strict();
 
@@ -53,10 +55,19 @@ export function routesBanque(ctx: Contexte): Route<never>[] {
       if (!Number.isInteger(annee) || annee < 1900 || annee > 2999) return champInvalide('annee', t('compta.champ.annee'));
       const releves = (await tx.query(`select id, compte, banque, to_char(du, 'YYYY-MM-DD') du, to_char(au, 'YYYY-MM-DD') au, solde_debut, solde_fin,
           fichier, empreinte, importe_le from compta.releve where entreprise = $1 and annee = $2 order by du, importe_le`, [params.entreprise ?? '', annee])).rows;
+      // (1.299.0) Ce qui répond d'une ligne, dans l'ordre de la pose : la première, puis les autres d'une remise.
       const lignes = releves.length ? (await tx.query(`select l.id, l.releve, l.rang, to_char(l.date_operation, 'YYYY-MM-DD') date, l.libelle, l.reference, l.montant, l.niveau,
-          a.ligne face, a.niveau niveau_face, a.auto, to_char(a.pose_le, 'YYYY-MM-DD') pose_le, g.ecriture, g.rang rang_face
-          from compta.releve_ligne l left join compta.rapprochement a on a.releve_ligne = l.id left join compta.ligne g on g.id = a.ligne
+          (select json_agg(json_build_object('ligne', a.ligne, 'niveau', a.niveau, 'auto', a.auto, 'le', to_char(a.pose_le, 'YYYY-MM-DD'), 'ecriture', g.ecriture, 'rang', g.rang) order by a.rang)
+             from compta.rapprochement a join compta.ligne g on g.id = a.ligne where a.releve_ligne = l.id) faces
+          from compta.releve_ligne l
           where l.releve = any($1::uuid[]) order by l.releve, l.rang`, [releves.map((r) => r.id)])).rows : [];
+      type Face = { ligne: string; niveau: string; auto: boolean; le: string; ecriture: string; rang: number };
+      const enFace = (faces: Face[] | null) => {
+        const [f, ...autres] = faces ?? [];
+        if (!f) return null;
+        return { ligne: f.ligne, ecriture: f.ecriture, rang: Number(f.rang), niveau: f.niveau, auto: f.auto, le: f.le,
+          ...(autres.length ? { autres: autres.map((x) => ({ ligne: x.ligne, ecriture: x.ecriture, rang: Number(x.rang) })) } : {}) };
+      };
       return {
         corps: {
           releves: releves.map((r) => ({
@@ -64,7 +75,7 @@ export function routesBanque(ctx: Contexte): Route<never>[] {
             fichier: r.fichier, empreinte: r.empreinte, importeLe: r.importe_le,
             lignes: lignes.filter((l) => l.releve === r.id).map((l) => ({
               id: l.id, rang: Number(l.rang), date: l.date, libelle: l.libelle, reference: l.reference, montant: versTexte(BigInt(l.montant), 3), niveau: l.niveau,
-              rapprochement: l.face ? { ligne: l.face, ecriture: l.ecriture, rang: Number(l.rang_face), niveau: l.niveau_face, auto: l.auto, le: l.pose_le } : null,
+              rapprochement: enFace(l.faces as Face[] | null),
             })),
           })),
         },

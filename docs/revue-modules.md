@@ -435,4 +435,27 @@ rapprochement à écart nul, le loyer noté qui sort de « À surveiller » et d
 avec un comptable : les montants estimés (salaires des mois sans bulletin, déclaration du mois) restent des ordres de
 grandeur, marqués « estimés ».
 
-Suivant : les Marges, puis la Comptabilité de l'entreprise.
+### Fait en 1.299.0 (06/11/2026) : le pont — la remise de chèques jusqu'au Cabinet, l'état jusqu'au comptable
+
+La même menuiserie, jouée des deux côtés : Youssef encaisse trois chèques un par un (1 011,500, 1 755,845 et 728,637 DT,
+les 24, 25 et 27 octobre), importe son relevé BIAT (la remise du 28 octobre, 3 495,982 DT, et des frais de tenue de
+compte de 18,500 DT), pointe et envoie l'état à sa comptable ; Leïla, au Cabinet Ennour, importe le même relevé dans la
+Banque du dossier. Puis la Banque au téléphone.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| P1 | Au Cabinet, la ligne de la remise restait **« Rien dans le livre en face »** : le pont avait écrit les trois encaissements un par un, et une ligne du relevé ne savait répondre que d'**une** écriture. L'écrire d'après la règle ou à la main comptait l'encaissement deux fois au 532. | Une ligne du relevé peut répondre de plusieurs écritures (une remise) : dans le calcul, dans la base (migration 0193 : une ligne du relevé, plusieurs lignes d'écriture, chacune ne répondant toujours que d'une ligne), dans le serveur et dans le pont. La Banque propose « Remise de 3 écritures · leur somme fait la ligne au millime », les trois cochées ; « Rapprocher les 3 », ou « Valider les 2 » avec le reste. Même règle que l'import de l'entreprise : deux à quatre écritures du même sens, des vingt jours d'avant la ligne, et seulement quand une seule combinaison fait la ligne. |
+| P2 | Deux combinaisons possibles, ou une remise que le calcul ne voit pas : rien ne permettait d'en poser une soi-même. | « Plusieurs écritures font cette ligne ? » ouvre les écritures du même sens des vingt jours, à cocher ; la somme et l'écart se lisent avant le geste (« Les 2 écritures cochées font 2 767,345 DT, la ligne 3 495,982 DT »). Deux combinaisons : les écritures en jeu se montrent, rien n'est coché d'office. « Une seule écriture » ramène au choix habituel. |
+| P3 | Rien n'empêchait, au serveur, une remise fausse. | La base refuse une remise dont les écritures ne font pas la ligne au millime, une écriture choisie deux fois, une écriture qui répond déjà d'une autre ligne, ou d'un autre compte ; « Tout défaire » compte les lignes (une remise en est une). Une écriture d'une remise ne se modifie ni ne se supprime en douce, comme celle d'un rapprochement simple. |
+| P4 | Rapprochée, la remise se lisait par son premier chèque seul (« encaissement de c1 »), et le message disait « chacune avec l'écriture proposée ». | La ligne dit « avec FAC-2026-001 et 2 autres écritures (une remise) · encaissement de c1, c2, c3 » ; en face, les trois écritures, chacune avec « Ouvrir », et la somme. Le message dit ce que chaque ligne a reçu (« 1 avec l'écriture proposée, une remise avec ses 3 écritures »). « Défaire » rend la ligne à traiter, « Annuler » repose la remise entière. |
+| P5 | Le pont, vérifié de bout en bout : les frais créés depuis le relevé de l'entreprise (1.298.0, « Frais bancaires ») arrivent bien au **627** du Cabinet ; l'état de rapprochement envoyé par l'entreprise arrive dans la conversation du cabinet (« solde du relevé 3 477,482 DT, aucun écart »). | Rien à corriger ; un parcours le tient désormais, des deux côtés. |
+
+Une preuve de 1.297.0 est restée verte sur GitHub après la 1.298.0 : la règle générale « un bloc d'onglet tient dans sa
+largeur » (1.298.0) faisait déjà ce que faisait la garde propre à la fiche du fournisseur. La garde est retirée, la
+preuve vise la règle qui travaille.
+
+Limite connue, à reprendre avec la Comptabilité : avant que la remise soit rapprochée, le pied de la Banque lit les
+chèques écrits avant la première ligne du relevé comme « d'avant le relevé » et parle d'un premier relevé qui « ne part
+pas du solde du livre » ; une fois la remise rapprochée, l'écart est expliqué au millime.
+
+Suivant : les Marges, puis la Comptabilité de l'entreprise (chacune avec son côté Cabinet et le pont).

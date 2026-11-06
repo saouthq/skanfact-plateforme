@@ -452,8 +452,8 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lc.lfo table.lfo-table thead th:nth-child(7) { width: 15% !important; }
 }
 /* (1.205.0) La fiche d'un fournisseur : ses achats tiennent dans leur carte (ils défilent dans elle,
-   jamais sous la colonne de droite), et le fil de la relation se lit d'un coup d'œil. */
-.cf-onglet #sup-docs { min-width: 0; }
+   jamais sous la colonne de droite), et le fil de la relation se lit d'un coup d'œil. Que la carte puisse rétrécir, c'est
+   la règle de tout bloc d'onglet (« .cf-onglet > * », 1.298.0) : la sienne, devenue la même, est retirée (1.299.0). */
 .cf-onglet #sup-docs .scroll-x { overflow-x: auto; }
 .cf-onglet #sup-docs table th, .cf-onglet #sup-docs table td { padding-inline: 7px; }
 .cf-onglet #sup-docs table td { font-size: 13px; }

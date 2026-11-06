@@ -164,7 +164,7 @@
   // `suspens`) : l'écran ne refait aucun calcul de son côté.
   // `pieces` : les factures cochées en face d'une ligne (1.208.0), une liste par ligne ; `toutes` : la ligne dont on montre
   // toutes les pièces non réglées (« Partager entre plusieurs pièces »).
-  const banqueState = { importer: false, etat: '', etatJoint: null, regles: '', nouvelle: null, nouvelleVoir: false, releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {}, pieces: {}, toutes: '', annonce: null, gestesReleve: null };
+  const banqueState = { importer: false, etat: '', etatJoint: null, regles: '', nouvelle: null, nouvelleVoir: false, releve: '', filtre: '', sel: '', coches: new Set(), voirFaites: false, cherche: '', choix: {}, pieces: {}, remise: {}, toutes: '', annonce: null, gestesReleve: null };
 
   const svgBq = (d, t = 16) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const BQ_IC = {
@@ -257,10 +257,14 @@
     // plus à une autre (deux virements du même client du même montant ne paient pas deux fois la même facture).
     const ouvertes = { 1: KC.piecesOuvertes(L, 1), [-1]: KC.piecesOuvertes(L, -1) };
     const proposees = new Set();
+    // (1.299.0) Les écritures proposées en remise à une ligne ne se proposent plus à une autre (le même chèque ne fait pas
+    // deux remises).
+    const enRemise = new Set();
     const taux = tauxRetenueBq();
     return R.lignes.map(l => {
       const r = l.rapprochement || {};
-      if (r.ecritureId) return { l, g: 'ok', e: ecritureDuLivre(L, r.ecritureId), rang: Number(r.ligne) };
+      if (r.ecritureId) return { l, g: 'ok', e: ecritureDuLivre(L, r.ecritureId), rang: Number(r.ligne),
+        autres: KC.facesDuRapprochement(r).slice(1).map(f => ({ e: ecritureDuLivre(L, f.ecritureId), rang: Number(f.ligne), ecritureId: f.ecritureId })) };
       const q = qs.find(x => String(x.compte || '') === String(R.compte) && String(x.periode || '') === String(l.date).slice(0, 7)
         && KC.round3(Math.abs(Number(x.montant) || 0) - Math.abs(Number(l.montant) || 0)) === 0);
       if (q) return { l, g: 'att', q, titre: q.statut === 'repondue' ? `${contactBq(dossier) || 'Le client'} a répondu` : `Question ${aClientBq(dossier)}`,
@@ -271,6 +275,15 @@
         return { l, g: 'prop', jug, c, titre: `${pieceBq(e)}${c.libelle ? `${pieceBq(e) ? ' · ' : ''}${c.libelle}` : ''}`, pq: pourquoiBq(l, c, jug.niveau), ton: 'sur' };
       }
       if (jug.niveau === 'a-confirmer') return { l, g: 'dec', jug, titre: `${jug.candidats.length} écritures au même montant`, pq: 'rien ne les départage : à toi de choisir', ton: 'choix' };
+      // (1.299.0) Une remise de chèques : aucune écriture seule, deux à quatre qui font la ligne au millime (le client les a
+      // notées une par une). Une seule combinaison se propose ; plusieurs, c'est au comptable de cocher (plus bas).
+      const rem = KC.remiseDeLigne(L, R.id, l.id, { jours });
+      const cleE = c => c.ecritureId + '#' + c.ligne;
+      if (rem.ecritures.length && !rem.ecritures.some(c => enRemise.has(cleE(c)))) {
+        rem.ecritures.forEach(c => enRemise.add(cleE(c)));
+        const noms = rem.ecritures.map(c => c.piece || pieceBq(ecritureDuLivre(L, c.ecritureId))).filter(Boolean);
+        return { l, g: 'prop', jug, remise: rem.ecritures, titre: `Remise de ${rem.ecritures.length} écritures`, pq: `leur somme fait la ligne au millime${noms.length ? ` · ${noms.join(', ')}` : ''}`, ton: 'sur' };
+      }
       // (1.208.0) Rien au compte de banque : la ligne paie peut-être une facture encore ouverte (la même, au net de sa
       // retenue, ou plusieurs qui font une remise de chèques). Une réponse unique se propose, comme une écriture trouvée.
       const rep = KC.reponsesDeLigne(L, R.id, l.id, { taux, ouvertes });
@@ -280,6 +293,9 @@
         const p0 = rep.proposees[0];
         const titre = rep.proposees.length > 1 ? `${rep.proposees.map(p => p.piece || p.tiers).join(' · ')}` : `${p0.piece || 'Une facture'}${p0.tiers ? ` · ${p0.tiers}` : ''}`;
         return { l, g: 'prop', jug, rep, fact: rep.proposees, titre, pq: rep.pourquoi, ton: 'sur' };
+      }
+      if (rem.possibles.length) {
+        return { l, g: 'dec', jug, rep, remisePossibles: rem.possibles, titre: `${rem.combinaisons > 2 ? 'Plusieurs remises' : 'Deux remises'} possibles`, pq: `${pl(rem.possibles.length, 'écriture')} en jeu : coche celles du bordereau`, ton: 'choix' };
       }
       const prop = KC.ecritureProposee(l, table, { compte: R.compte, journal: 'BQ' });
       if (prop.regle) {
@@ -314,7 +330,8 @@
     const premierR = rels[0] || R, premier = premierR.du;
     // Pas encore au livre À LA DATE du relevé : sans écriture en face, ou rapprochée d'une écriture datée après (la banque
     // paie les salaires le 30/08, le livre les écrit le 31/08 : au 30/08, le livre ne les a pas encore). `ecritLe` le dit.
-    const ecritLe = l => { const r = l.rapprochement || {}; return r.ecritureId ? String((ecritureDuLivre(L, r.ecritureId) || {}).date || '') : ''; };
+    // Une remise (1.299.0) est au livre quand sa DERNIÈRE écriture l'est.
+    const ecritLe = l => KC.facesDuRapprochement(l.rapprochement).map(f => String((ecritureDuLivre(L, f.ecritureId) || {}).date || '')).sort().pop() || '';
     const banqueAll = rels.flatMap(x => x.lignes.map(l => ({ ...l, releve: x, ecritLe: ecritLe(l) }))
       .filter(l => !(l.rapprochement && l.rapprochement.ecritureId) || l.ecritLe > String(R.au)));
     const livreRec = sus.livre.filter(x => x.date >= premier);
@@ -338,7 +355,7 @@
     const duMois = mBq ? releves.filter(r => String(r.du || '').slice(0, 7) <= mBq && String(r.au || r.du || '').slice(0, 7) >= mBq) : releves;
     if (mBq && !duMois.length && !banqueState.etat && !banqueState.regles) return banqueVide(dossier, mBq, releves);
     const R = duMois.find(r => r.id === banqueState.releve) || releves.find(r => r.id === banqueState.releve && (banqueState.etat === r.id || banqueState.regles === r.id)) || duMois[0] || releves[0];
-    if (banqueState.releve !== R.id) { banqueState.releve = R.id; banqueState.sel = ''; banqueState.coches.clear(); banqueState.choix = {}; banqueState.pieces = {}; }
+    if (banqueState.releve !== R.id) { banqueState.releve = R.id; banqueState.sel = ''; banqueState.coches.clear(); banqueState.choix = {}; banqueState.pieces = {}; banqueState.remise = {}; }
     if (banqueState.etat === R.id) return vueEtatBq(dossier, R, ecartBanque(R), lectureSeuleLivre());
     if (banqueState.regles === R.id) return vueReglesBq(dossier, R, lectureSeuleLivre());
     const lus = lectureBanque(dossier, R);
@@ -361,7 +378,7 @@
         <td class="bq-c">${x.g === 'prop' ? `<input type="checkbox" data-bq-coche="${esc(l.id)}"${banqueState.coches.has(l.id) ? ' checked' : ''} aria-label="Choisir ${esc(l.libelle)}">` : ''}</td>
         <td class="bq-d">${esc(fmtJour(l.date).slice(0, 5))}</td>
         <td><div class="bq-lb">${icNature(l.libelle, l.montant)}<div><span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok'
-          ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(pieceBq(x.e))}</b>${x.e && x.e.libelle ? ` · ${esc(x.e.libelle)}` : ''}${origineBq(x)}</small>`
+          ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(pieceBq(x.e))}</b>${(x.autres || []).length ? ` et ${pl(x.autres.length, 'autre écriture', 'autres écritures')} (une remise)` : x.e && x.e.libelle ? ` · ${esc(x.e.libelle)}` : ''}${origineBq(x)}</small>`
           : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(x.titre)}</b> · ${esc(x.pq)}</small>`}</div></div></td>
         <td class="r">${montantSigne(l.montant)}</td>
         <td class="r bq-mc">${x.g === 'ok' && !lect ? `<button type="button" class="cp-plus bq-defaire1" data-bq-defaire="${esc(l.id)}" title="Défaire ce rapprochement : la ligne revient « À traiter », l'écriture reste">Défaire</button>` : RowMenu.bouton('LIG:' + l.id, '⋯', 'bq-menu btn-ghost')}</td></tr>`;
@@ -370,7 +387,7 @@
       const l = x.l;
       return `<div class="bq-k1${l.id === banqueState.sel ? ' on' : ''}" data-bq-ligne="${esc(l.id)}" data-groupe="${x.g}" role="button" tabindex="0">
         <div class="bq-k1h"><span class="bq-lb">${icNature(l.libelle, l.montant)}<span class="bq-d">${esc(fmtJour(l.date).slice(0, 5))}</span></span>${montantSigne(l.montant)}</div>
-        <span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok' ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(pieceBq(x.e))}</b></small>`
+        <span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok' ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(pieceBq(x.e))}</b>${(x.autres || []).length ? ` + ${x.autres.length}` : ''}</small>`
           : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(x.titre)}</b> · ${esc(x.pq)}</small>`}</div>`;
     };
     const valider = n('prop') && !lect ? `<button type="button" class="btn btn-sm" data-bq-valider>${svgBq(BQ_IC.ok, 14)} Valider ${coches.length ? `les ${coches.length} cochées` : n('prop') > 1 ? `les ${n('prop')}` : 'la proposée'}</button>` : '';
@@ -439,7 +456,8 @@
   const quoiBq = x => {
     const e = x.e, l = x.l;
     if (!e) return '';
-    const lignes = e.lignes || [];
+    // (1.299.0) Une remise : ce que portent TOUTES ses écritures (les trois chèques, pas le premier seul).
+    const lignes = [e].concat((x.autres || []).map(f => f.e).filter(Boolean)).flatMap(y => y.lignes || []);
     const sur = c => lignes.some(z => String(z.compte || '').startsWith(c));
     const mois = String(e.date || '').slice(0, 7);
     if (e.journal === 'PAIE' || sur('421')) return /^\d{4}-\d{2}$/.test(mois) ? `la paie ${deMois(mois)}` : 'la paie';
@@ -469,6 +487,17 @@
     const L = livresState.livre;
     const l = x.l;
     const tete = `<div class="bq-lh"><b>Le livre</b><span>en face de <b class="mono">${esc(String(l.libelle || '').slice(0, 34))}</b> · ${esc(money(l.montant))}</span></div>`;
+    if (x.g === 'ok' && (x.autres || []).length) {
+      // (1.299.0) Une remise : la ligne répond de plusieurs écritures ; chacune s'ouvre, et la somme se relit.
+      const faces = [{ e: x.e, rang: x.rang, ecritureId: x.e ? x.e.id : '' }].concat(x.autres);
+      const mt = f => { const z = f.e && (f.e.lignes || [])[f.rang]; return z ? KC.round3((Number(z.debit) || 0) - (Number(z.credit) || 0)) : 0; };
+      const total = KC.round3(faces.reduce((t, f) => t + mt(f), 0));
+      return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
+        <div class="bq-ok">${svgBq(BQ_IC.ok, 15)}<span>Rapprochée avec <b>${faces.length} écritures</b> : une remise${(l.rapprochement || {}).par === 'auto' ? ', d\'office' : ''}</span></div>
+        <table class="list compact bq-ec bq-rem" data-sans-cartes><thead><tr><th>Pièce</th><th>Date</th><th class="r">Montant</th><th></th></tr></thead><tbody>${faces.map(f => `<tr><td><div class="bq-lb"><div><b class="mono">${esc(pieceBq(f.e) || '—')}</b><small class="bq-p">${esc(((f.e && (f.e.lignes || [])[f.rang]) || {}).libelle || (f.e && f.e.libelle) || '')}</small></div></div></td><td>${esc(f.e ? fmtJour(f.e.date) : '')}</td><td class="r">${esc(montant(mt(f)))}</td><td class="r">${f.e ? `<button type="button" class="cp-plus" data-bq-voir-ecriture="${esc(f.e.id)}">Ouvrir</button>` : ''}</td></tr>`).join('')}</tbody></table>
+        <div class="bq-som ${KC.round3(Number(l.montant) - total) ? 'ko' : 'ok'}"><span>La ligne ${esc(money(l.montant))}</span><span>${faces.length} écritures ${esc(money(total))}</span><b>${KC.round3(Number(l.montant) - total) ? `écart ${esc(money(KC.round3(Number(l.montant) - total)))}` : `${svgBq(BQ_IC.ok, 13)} écart 0`}</b></div>
+        <div class="cp-gestes">${lect ? '' : '<button type="button" class="btn btn-ghost" id="bq-defaire">Défaire</button>'}</div></aside>`;
+    }
     if (x.g === 'ok') {
       const e = x.e;
       return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
@@ -540,6 +569,30 @@
         <td class="r">${esc(montant(Math.abs(p.reste)))}</td></tr>`;
       }).join('')}</tbody></table>`
       : (sansRien && rep.ouvertes.length ? `<p class="bq-rien">${pl(rep.ouvertes.length, 'facture', 'factures')} ${deQui} non réglée${rep.ouvertes.length > 1 ? 's' : ''} : cherche un tiers, une pièce ou un montant, ou ${voirToutes || 'les voir toutes'}.</p>` : '');
+    // (1.299.0) Une remise : plusieurs écritures du livre qui font la ligne ensemble. Proposée (une seule combinaison), à
+    // cocher (deux combinaisons possibles), ou choisie à la main (« Plusieurs écritures font cette ligne ? »). Cochées, leur
+    // somme et l'écart se lisent AVANT le geste.
+    const rm = rg ? null : remiseBq(dossier, R, x);
+    let remiseHtml = '';
+    if (rm) {
+      const cleE = c => c.ecritureId + '#' + c.ligne;
+      const vuesR = [];
+      const ajouteR = c => { if (c && !vuesR.some(y => cleE(y) === cleE(c))) vuesR.push(c); };
+      rm.faces.forEach(ajouteR); (x.remise || []).forEach(ajouteR); (x.remisePossibles || []).forEach(ajouteR);
+      rm.voisines.forEach(ajouteR); trouves.forEach(ajouteR);
+      const n = rm.faces.length;
+      remiseHtml = `<div class="bq-st"><b>Une remise : plusieurs écritures font la ligne</b><span class="mu">${n ? pl(n, 'cochée', 'cochées') : 'aucune cochée'}</span>${lect ? '' : '<button type="button" class="cp-plus" id="bq-remise-non" title="Revenir au choix d\'une seule écriture, ou écrire la ligne">Une seule écriture</button>'}</div>
+        ${x.remisePossibles && !banqueState.remise[l.id] ? `<p class="bq-rien">Plusieurs combinaisons de ces écritures font ${esc(money(l.montant))} : coche celles que la banque a remises ensemble (le bordereau de remise les nomme).</p>` : ''}
+        <table class="list compact bq-pc bq-rem" data-sans-cartes><tbody>${vuesR.map(c => {
+          const e = ecritureDuLivre(L, c.ecritureId), on = rm.cles.includes(cleE(c));
+          return `<tr class="${on ? 'on' : ''}" data-bq-remise="${esc(cleE(c))}"><td class="bq-c"><input type="checkbox"${on ? ' checked' : ''} aria-label="${esc(c.piece || pieceBq(e) || 'l\'écriture')}"></td>
+          <td><div class="bq-lb"><span class="bqx doc">${svgBq(BQ_IC.doc)}</span><div><span><b class="mono">${esc(c.piece || pieceBq(e) || '—')}</b> <small>du ${esc(fmtJour(c.date))}${e && e.statut === 'brouillard' ? ' · brouillard' : ''}</small></span>
+            <small class="bq-p">${esc(c.libelle || '')}</small></div></div></td>
+          <td class="r">${esc(montant(c.montant))}</td></tr>`;
+        }).join('')}</tbody></table>
+        ${n ? `<div class="bq-som ${rm.ecart ? 'ko' : 'ok'}"><span>La ligne ${esc(money(l.montant))}</span><span>${pl(n, 'cochée', 'cochées')} ${esc(money(rm.somme))}</span><b>${rm.ecart ? `écart ${esc(money(rm.ecart))}` : `${svgBq(BQ_IC.ok, 13)} écart 0`}</b></div>` : ''}
+        ${n && rm.ecart ? `<p class="bq-rien bq-refus" id="bq-ecart-refus">${n > 1 ? `Les ${n} écritures cochées font` : 'L\'écriture cochée fait'} ${esc(money(rm.somme))}, la ligne ${esc(money(l.montant))} : coche celles que la banque a remises ensemble, ou cherche celle qui manque.</p>` : ''}`;
+    }
     let reglementHtml = '';
     if (rg) {
       const n = rg.pieces.length, m = Number(l.montant);
@@ -570,6 +623,9 @@
     if (rg) {
       corps = (liste.length ? pieces : '') + ouvertesHtml + reglementHtml;
       principal = rg.ecart ? '' : rg.lettrable ? (rg.pieces.length > 1 ? `Rapprocher et lettrer les ${rg.pieces.length}` : 'Rapprocher et lettrer') : 'Écrire et rapprocher';
+    } else if (rm) {
+      corps = remiseHtml + ouvertesHtml;
+      principal = rm.faces.length && !rm.ecart ? (rm.faces.length > 1 ? `Rapprocher les ${rm.faces.length}` : 'Rapprocher') : '';
     } else if (!sansRien) {
       // (1.206.0) Un rapprochement relie deux montants égaux : une écriture d'un autre montant (trouvée par la recherche) ne
       // se rapproche pas ; la phrase dit l'écart et le geste qui débloque.
@@ -582,14 +638,14 @@
       corps = `<p class="bq-rien">Rien dans le livre pour cette ligne. <b>Sa règle « ${esc(prop.regle)} »</b> propose l'écriture${aussi.length ? ` ; elle sert aussi ${aussi.length > 1 ? `à ${aussi.length} autres lignes` : `à « ${esc(String(aussi[0].libelle || '').slice(0, 30))} »`} du relevé` : ''}.</p>${tableEcriture([...prop.lignes].sort((u, v) => (v.debit > 0) - (u.debit > 0)), -1)}${ouvertesHtml}`;
       principal = 'Écrire et rapprocher';
     } else {
-      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ou demander ${esc(aClientBq(dossier))} ce que c'est.</p>${ouvertesHtml}`;
+      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ou demander ${esc(aClientBq(dossier))} ce que c'est.${lect ? '' : ' <button type="button" class="cp-plus" id="bq-remise-oui">Plusieurs écritures font cette ligne ?</button>'}</p>${ouvertesHtml}`;
       principal = 'Écrire l\'écriture…';
     }
     return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
       <label class="bq-ch">${svgBq(BQ_IC.loupe, 15)}<input type="search" id="bq-cherche" value="${esc(banqueState.cherche)}" placeholder="Chercher un montant, un tiers, une pièce…  ( / )" aria-label="Chercher dans le livre"></label>
       ${corps}
       ${lect ? '' : `<div class="cp-gestes">${principal ? `<button type="button" class="btn btn-primary" id="bq-principal">${esc(principal)} <kbd class="bq-k">Entrée</kbd></button>` : ''}
-        ${sansRien && !prop && !rg ? (!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : '') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
+        ${sansRien && !prop && !rg && !rm ? (!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : '') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
     </aside>`;
   }
   // (1.208.0) Le règlement que la ligne choisie paierait : les factures cochées (celles qu'on a cochées, sinon la proposée),
@@ -608,6 +664,24 @@
     const ec = KC.ecritureDeReglement(l, pieces, { compte: R.compte, journal: 'BQ', retenue });
     const lettrable = !ecart && pieces.every(p => p.statut !== 'brouillard' && p.entiere && p.seule);
     return { cles: pieces.map(cleP), pieces, somme, retenue, ecart, ec, lettrable };
+  }
+  // (1.299.0) La remise que la ligne choisie rapprocherait : les écritures cochées (celles qu'on a cochées, sinon la
+  // proposée), leur somme, l'écart. `voisines` : les écritures du même sens des vingt jours d'avant la ligne, à cocher
+  // à la main. Hors du mode remise (rien de proposé, rien demandé, ou « Une seule écriture »), rien. UNE fonction pour
+  // l'écran et pour Entrée : ce qu'on lit est ce qui se pose.
+  function remiseBq(dossier, R, x) {
+    const l = x.l, choisies = banqueState.remise[l.id];
+    if (x.g === 'ok' || x.g === 'att' || choisies === false || (choisies == null && !x.remise && !x.remisePossibles)) return null;
+    const cleE = c => c.ecritureId + '#' + c.ligne;
+    const libres = (x.jug || { libres: [] }).libres || [];
+    const cles = Array.isArray(choisies) ? choisies : (x.remise || []).map(cleE);
+    const faces = cles.map(k => libres.find(c => cleE(c) === k)).filter(Boolean);
+    const somme = KC.round3(faces.reduce((t, c) => t + c.montant, 0));
+    const t = Date.parse(String(l.date) + 'T00:00:00Z'), jours = joursBanque(dossier);
+    const avant = c => (t - Date.parse(String(c.date) + 'T00:00:00Z')) / 86400000;
+    const voisines = libres.filter(c => Math.sign(c.montant) === Math.sign(Number(l.montant)) && avant(c) <= 20 && avant(c) >= -jours)
+      .sort((a, b) => Math.abs(avant(a)) - Math.abs(avant(b))).slice(0, 12);
+    return { cles: faces.map(cleE), faces, somme, ecart: KC.round3(Number(l.montant) - somme), voisines };
   }
   const tableEcriture = (lignes, marque) => `<table class="list compact bq-ec" data-sans-cartes><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>${lignes.map((z, i) =>
     `<tr class="${i === marque ? 'br-ligne' : ''}"><td class="mono">${esc(z.compte || '')}</td><td class="tronq" title="${esc(z.libelle || '')}">${esc(z.libelle || '')}</td><td class="r">${Number(z.debit) ? esc(montant(z.debit)) : ''}</td><td class="r">${Number(z.credit) ? esc(montant(z.credit)) : ''}</td></tr>`).join('')}</tbody></table>`;
@@ -706,8 +780,10 @@
       drawLivres(root, dossier);
     } catch (e) { toast(plainError(e), 'error'); }
   }
-  const poserBq = async (dossier, R, ligneId, ecritureId, rang) => {
-    const x = await api.rapprocher({ dossierId: dossier.id, annee: livresState.annee, releveId: R.id, ligneId, choix: { ecritureId, ligne: Number(rang), niveau: 'certain', date: K.today() } });
+  // `autres` (1.299.0) : les autres écritures d'une remise ({ ecritureId, ligne }).
+  const poserBq = async (dossier, R, ligneId, ecritureId, rang, autres) => {
+    const plus = (autres || []).map(c => ({ ecritureId: c.ecritureId, ligne: Number(c.ligne) }));
+    const x = await api.rapprocher({ dossierId: dossier.id, annee: livresState.annee, releveId: R.id, ligneId, choix: { ecritureId, ligne: Number(rang), niveau: 'certain', date: K.today(), ...(plus.length ? { autres: plus } : {}) } });
     livresState.livre = x.livre;
   };
   const defaireBq = async (dossier, R, ligneId) => {
@@ -820,6 +896,16 @@
       redessiner();
     }; });
     sur('#bq-toutes', () => { if (sel) { banqueState.toutes = sel.l.id; redessiner(); } });
+    // (1.299.0) Cocher une écriture de la remise ; entrer dans le mode remise à la main, ou en sortir.
+    $$('[data-bq-remise]', el).forEach(tr => { tr.onclick = () => {
+      if (!sel) return;
+      const avant = (remiseBq(dossier, R, sel) || { cles: [] }).cles;
+      const k = tr.dataset.bqRemise;
+      banqueState.remise[sel.l.id] = avant.includes(k) ? avant.filter(x => x !== k) : avant.concat(k);
+      redessiner();
+    }; });
+    sur('#bq-remise-oui', () => { if (sel) { banqueState.remise[sel.l.id] = []; delete banqueState.choix[sel.l.id]; redessiner(); } });
+    sur('#bq-remise-non', () => { if (sel) { banqueState.remise[sel.l.id] = false; redessiner(); } });
     // La recherche relit le livre à chaque frappe, sans perdre le curseur.
     const ch = $('#bq-cherche', el);
     if (ch) {
@@ -836,15 +922,18 @@
     const validerProposees = async () => {
       const coches = [...banqueState.coches].filter(id => (parId.get(id) || {}).g === 'prop');
       const choisies = (coches.length ? coches.map(id => parId.get(id)) : lus.filter(x => x.g === 'prop')).filter(Boolean);
-      const lot = choisies.filter(x => x.c);
+      // (1.299.0) Une remise proposée se pose avec ses autres écritures, dans le même appel.
+      const lot = choisies.filter(x => x.c || (x.remise && x.remise.length > 1));
+      const choixDe = x => (x.c ? { ligneId: x.l.id, ecritureId: x.c.ecritureId, ligne: x.c.ligne }
+        : { ligneId: x.l.id, ecritureId: x.remise[0].ecritureId, ligne: x.remise[0].ligne, autres: x.remise.slice(1).map(c => ({ ecritureId: c.ecritureId, ligne: c.ligne })) });
       // (1.208.0) Une proposée qui paie une facture n'a pas encore d'écriture : elle s'écrit au brouillard (jamais validée
       // en lot : le lettrage se fait ligne à ligne, ou une fois le mois validé), puis se rapproche.
-      const factures = choisies.filter(x => !x.c && x.fact);
+      const factures = choisies.filter(x => !x.c && !x.remise && x.fact);
       if (!lot.length && !factures.length) return;
       const ecrites = [];
       try {
         if (lot.length) {
-          const r = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(x => ({ ligneId: x.l.id, ecritureId: x.c.ecritureId, ligne: x.c.ligne })) });
+          const r = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(choixDe) });
           s.livre = r.livre;
         }
         for (const x of factures) {
@@ -854,7 +943,12 @@
         banqueState.coches.clear();
         redessiner();
         const n = lot.length + ecrites.length;
-        toastUndo(`${pl(n, 'ligne rapprochée', 'lignes rapprochées')}${ecrites.length ? ` : ${ecrites.length === n ? '' : `${lot.length} avec l'écriture proposée, `}${pl(ecrites.length, 'règlement écrit', 'règlements écrits')} au brouillard d'après ${ecrites.length > 1 ? 'leurs factures' : 'sa facture'}` : ' : chacune avec l\'écriture proposée'}.`, async () => {
+        // Ce que chaque ligne a reçu, dit tel quel : l'écriture proposée, une remise et ses écritures, un règlement écrit.
+        const remises = lot.filter(x => !x.c);
+        const parts = [lot.length - remises.length ? `${lot.length - remises.length === n ? 'chacune' : lot.length - remises.length} avec l'écriture proposée` : '',
+          remises.length ? (remises.length > 1 ? `${remises.length} remises avec leurs écritures` : `une remise avec ses ${remises[0].remise.length} écritures`) : '',
+          ecrites.length ? `${pl(ecrites.length, 'règlement écrit', 'règlements écrits')} au brouillard d'après ${ecrites.length > 1 ? 'leurs factures' : 'sa facture'}` : ''].filter(Boolean);
+        toastUndo(`${pl(n, 'ligne rapprochée', 'lignes rapprochées')} : ${parts.join(', ')}.`, async () => {
           try {
             if (lot.length) { const r2 = await api.rapprocherPlusieurs({ dossierId: dossier.id, annee: s.annee, releveId: R.id, choix: lot.map(x => ({ ligneId: x.l.id })) }); s.livre = r2.livre; }
             for (const e of ecrites) await defaireEcriteBq(dossier, R, e.ligneId, e.id);
@@ -882,6 +976,17 @@
         return gesteBanque(root, dossier, R, l.id, async () => { fait = await reglerBq(dossier, R, l, rg, rg.lettrable); return fait.msg; },
           rg.lettrable ? null : () => defaireEcriteBq(dossier, R, l.id, fait && fait.id));
       }
+      const rm = remiseBq(dossier, R, sel);
+      if (rm) {
+        if (!rm.faces.length) { toast('Coche les écritures que la banque a remises ensemble.', 'error'); return; }
+        if (rm.ecart) { toast(`Les écritures cochées ne font pas la ligne (écart ${money(rm.ecart)}) : coche celles de la remise.`, 'error'); return; }
+        const [p0, ...plus] = rm.faces;
+        return gesteBanque(root, dossier, R, l.id, async () => {
+          await poserBq(dossier, R, l.id, p0.ecritureId, p0.ligne, plus);
+          delete banqueState.remise[l.id];
+          return plus.length ? `Rapprochée avec ${rm.faces.length} écritures (une remise).` : `Rapprochée avec ${pieceBq(ecritureDuLivre(s.livre, p0.ecritureId)) || 'l\'écriture'}.`;
+        }, () => defaireBq(dossier, R, l.id));
+      }
       const cle = c => c.ecritureId + '#' + c.ligne;
       const jug = sel.jug || { candidats: [], libres: [] };
       const choisi = banqueState.choix[l.id] != null ? banqueState.choix[l.id] : (sel.c ? cle(sel.c) : (jug.candidats.length === 1 ? cle(jug.candidats[0]) : ''));
@@ -907,9 +1012,9 @@
     sur('#bq-voir-ecriture', () => { if (sel && sel.e) ecritureDialog(sel.e, sel.rang); });
     sur('#bq-defaire', () => {
       if (!sel || !sel.e) return;
-      const e = sel.e, rang = sel.rang, l = sel.l;
-      gesteBanque(root, dossier, R, l.id, async () => { await defaireBq(dossier, R, l.id); return 'Rapprochement défait : la ligne revient à traiter, l\'écriture reste au livre.'; },
-        () => poserBq(dossier, R, l.id, e.id, rang));
+      const e = sel.e, rang = sel.rang, l = sel.l, autres = (sel.autres || []).map(f => ({ ecritureId: f.ecritureId, ligne: f.rang }));
+      gesteBanque(root, dossier, R, l.id, async () => { await defaireBq(dossier, R, l.id); return autres.length ? 'Rapprochement défait : la ligne revient à traiter, les écritures de la remise restent au livre.' : 'Rapprochement défait : la ligne revient à traiter, l\'écriture reste au livre.'; },
+        () => poserBq(dossier, R, l.id, e.id, rang, autres));
     });
     $$('[data-bq-voir-ecriture]', el).forEach(b => { b.onclick = () => { const e = ecritureDuLivre(s.livre, b.dataset.bqVoirEcriture); if (e) ecritureDialog(e, -1); }; });
     // Les termes de l'équation s'ouvrent : les lignes du relevé sans écriture se montrent dans la liste ; les écritures
@@ -997,7 +1102,8 @@
     const defaireTous = async rel => {
       // « Annuler » repose chaque ligne sur l'écriture qu'elle avait.
       const avant = rel.lignes.filter(l => l.rapprochement && l.rapprochement.ecritureId)
-        .map(l => ({ ligneId: l.id, ecritureId: l.rapprochement.ecritureId, ligne: l.rapprochement.ligne, auto: l.rapprochement.par === 'auto' }));
+        .map(l => ({ ligneId: l.id, ecritureId: l.rapprochement.ecritureId, ligne: l.rapprochement.ligne, auto: l.rapprochement.par === 'auto',
+          ...(Array.isArray(l.rapprochement.autres) && l.rapprochement.autres.length ? { autres: l.rapprochement.autres.map(a => ({ ecritureId: a.ecritureId, ligne: a.ligne })) } : {}) }));
       try {
         const x = await api.derapprocher({ dossierId: dossier.id, annee: s.annee, releveId: rel.id });
         s.livre = x.livre;
@@ -1025,8 +1131,8 @@
     $$('[data-bq-defaire]', el).forEach(b => { b.onclick = () => {
       const x = parId.get(b.dataset.bqDefaire);
       if (!x || lectureSeuleLivre()) return;
-      const e = x.e, rang = x.rang;
-      gesteBanque(root, dossier, R, x.l.id, async () => { await defaireBq(dossier, R, x.l.id); return 'Rapprochement défait : la ligne revient à traiter, l\'écriture reste au livre.'; }, e ? () => poserBq(dossier, R, x.l.id, e.id, rang) : null);
+      const e = x.e, rang = x.rang, autres = (x.autres || []).map(f => ({ ecritureId: f.ecritureId, ligne: f.rang }));
+      gesteBanque(root, dossier, R, x.l.id, async () => { await defaireBq(dossier, R, x.l.id); return autres.length ? 'Rapprochement défait : la ligne revient à traiter, les écritures de la remise restent au livre.' : 'Rapprochement défait : la ligne revient à traiter, l\'écriture reste au livre.'; }, e ? () => poserBq(dossier, R, x.l.id, e.id, rang, autres) : null);
     }; });
 
     // UNE seule table d'actions par racine : `bindRowMenus` écrase la précédente en silence (9.4.8).

@@ -1695,9 +1695,18 @@
   // « rapproché ». Même parade que pour le lettrage — on nomme, et on dit le geste qui débloque.
   function rapprochementDe(livre, id) {
     for (const r of (livre.releves || [])) {
-      for (const l of r.lignes) if (l.rapprochement && l.rapprochement.ecritureId === id) return { releve: r, ligne: l };
+      for (const l of r.lignes) if (facesDuRapprochement(l.rapprochement).some(f => f.ecritureId === id)) return { releve: r, ligne: l };
     }
     return null;
+  }
+
+  // (1.299.0) Ce qui répond d'une ligne de relevé : l'écriture qu'elle désigne, et, pour une remise de chèques (une ligne
+  // de la banque pour trois chèques écrits un par un), les `autres`. Chaque endroit qui compte ce qui est déjà pris lit
+  // CETTE fonction : un compte qui oublierait les autres proposerait le deuxième chèque à une autre ligne, et
+  // l'encaissement compterait deux fois.
+  function facesDuRapprochement(r) {
+    if (!r || !r.ecritureId) return [];
+    return [{ ecritureId: r.ecritureId, ligne: r.ligne }].concat((Array.isArray(r.autres) ? r.autres : []).filter(a => a && a.ecritureId));
   }
 
   // 10.14.1 — ce que le rapprochement TIENT, c'est la ligne qu'il désigne (son compte, son montant)
@@ -1706,25 +1715,30 @@
   // juste après — était refusé, alors que la ligne 532 n'avait pas bougé (vu au test humain). Rend
   // l'index que chaque ligne désignée prend dans les nouvelles lignes, ou le motif du refus.
   function rapprochementTient(livre, e, p) {
+    // Un lien est l'objet qui porte `ligne` : le rapprochement lui-même, ou l'une de ses `autres` (1.299.0, une remise).
     const liens = [];
     for (const r of (livre.releves || [])) {
-      for (const l of r.lignes) if (l.rapprochement && l.rapprochement.ecritureId === e.id) liens.push(l);
+      for (const l of r.lignes) {
+        const R0 = l.rapprochement;
+        if (!R0 || !R0.ecritureId) continue;
+        [R0].concat(Array.isArray(R0.autres) ? R0.autres : []).forEach(f => { if (f && f.ecritureId === e.id) liens.push(f); });
+      }
     }
     if (!liens.length) return { ok: true, liens: [] };
     const refus = quoi => ({ ok: false, motif: `Cette écriture est rapprochée d'une ligne de relevé : ${quoi} change, et le rapprochement désignerait un montant qui n'est plus le même. Défais le rapprochement d'abord (onglet Banque) — ou ne change que les autres lignes : ventiler la TVA ou corriger la contrepartie reste possible.` });
     if (p.date !== undefined && String(p.date || '') !== String(e.date || '')) return refus('sa date');
-    if (!Array.isArray(p.lignes)) return { ok: true, liens: liens.map(l => ({ l, i: l.rapprochement.ligne })) };
+    if (!Array.isArray(p.lignes)) return { ok: true, liens: liens.map(f => ({ f, i: f.ligne })) };
     const neuves = p.lignes.map(l => ({ compte: String((l && l.compte) || '').trim(), debit: round3(Math.max(0, Number(l && l.debit) || 0)), credit: round3(Math.max(0, Number(l && l.credit) || 0)) }));
     const pris = new Set();
     const places = [];
-    for (const l of liens) {
-      const ancienne = (e.lignes || [])[l.rapprochement.ligne];
+    for (const f of liens) {
+      const ancienne = (e.lignes || [])[f.ligne];
       if (!ancienne) return refus('la ligne désignée');
       const pareille = j => !pris.has(j) && neuves[j] && neuves[j].compte === ancienne.compte
         && neuves[j].debit === round3(ancienne.debit || 0) && neuves[j].credit === round3(ancienne.credit || 0);
-      const i = pareille(l.rapprochement.ligne) ? l.rapprochement.ligne : neuves.findIndex((_, j) => pareille(j));
+      const i = pareille(f.ligne) ? f.ligne : neuves.findIndex((_, j) => pareille(j));
       if (i < 0) return refus(`la ligne ${ancienne.compte} de ${fmtMontant(ancienne.debit || ancienne.credit || 0)}`);
-      pris.add(i); places.push({ l, i });
+      pris.add(i); places.push({ f, i });
     }
     return { ok: true, liens: places };
   }
@@ -1738,7 +1752,7 @@
     const tient = rapprochementTient(livre, e, patch || {});
     if (!tient.ok) return { ok: false, motif: tient.motif };
     // La ligne désignée a pu changer de rang (une ligne insérée au-dessus) : le lien la suit.
-    tient.liens.forEach(x => { x.l.rapprochement.ligne = x.i; });
+    tient.liens.forEach(x => { x.f.ligne = x.i; });
     const p = patch || {};
     ['journal', 'piece', 'libelle'].forEach(k => { if (p[k] !== undefined) e[k] = String(p[k] == null ? '' : p[k]); });
     if (p.pieceJointe !== undefined) e.pieceJointe = p.pieceJointe || null;
@@ -2604,7 +2618,7 @@
     // deux lignes du relevé, et le compte tomberait juste deux fois pour un seul mouvement.
     const prises = new Set();
     (livre.releves || []).forEach(x => x.lignes.forEach(l => {
-      if (l.rapprochement && l.rapprochement.ecritureId) prises.add(l.rapprochement.ecritureId + '#' + l.rapprochement.ligne);
+      facesDuRapprochement(l.rapprochement).forEach(f => prises.add(f.ecritureId + '#' + f.ligne));
     }));
     const compte = { certain: 0, probable: 0, 'a-confirmer': 0, aucun: 0 };
     const detail = [];
@@ -2661,12 +2675,56 @@
     if (!l) return { candidats: [], niveau: 'aucun', meilleur: null, libres: [] };
     const prises = new Set();
     (livre.releves || []).forEach(x => x.lignes.forEach(y => {
-      if (y.id !== l.id && y.rapprochement && y.rapprochement.ecritureId) prises.add(y.rapprochement.ecritureId + '#' + y.rapprochement.ligne);
+      if (y.id !== l.id) facesDuRapprochement(y.rapprochement).forEach(f => prises.add(f.ecritureId + '#' + f.ligne));
     }));
     const dispo = lignesARapprocher(livre, R.compte);
     // `libres` : tout le compte encore disponible, quel qu'en soit le montant — la fenêtre montre
     // aussi « les autres écritures du compte », et elle ne refait pas le tri des déjà-prises.
     return { ...jugerLigne(l, dispo, prises, jours), libres: dispo.filter(c => !prises.has(c.ecritureId + '#' + c.ligne)) };
+  }
+
+  // (1.299.0) La REMISE de chèques : la banque crédite en une ligne trois chèques que le livre porte un par un (l'entreprise
+  // les a notés à leur arrivée, le pont en a fait trois écritures). Aucune écriture ne fait la ligne seule ; deux à quatre
+  // la font ensemble, au millime. Même règle que l'import de l'entreprise (apparierReleve, 1.298.0) : les écritures du
+  // même sens, des vingt jours d'avant la ligne (jusqu'à `jours` après), les vingt plus proches ; et seulement quand UNE
+  // combinaison tombe juste. Deux combinaisons, c'est au comptable de choisir (`possibles`) : une ambiguïté n'est jamais
+  // sûre. Rien n'est posé ici : la proposition se confirme d'un geste.
+  function remiseDeLigne(livre, releveId, ligneId, opts) {
+    const o = opts || {};
+    const jours = o.jours == null ? RELEVE_JOURS : Math.max(0, Number(o.jours) || 0);
+    const vide = { ecritures: [], possibles: [], combinaisons: 0 };
+    const R = (livre.releves || []).find(x => x.id === releveId);
+    const l = R && R.lignes.find(x => x.id === ligneId);
+    const m = l ? round3(num(l.montant)) : 0;
+    if (!l || !m || !/^\d{4}-\d{2}-\d{2}$/.test(String(l.date || ''))) return vide;
+    const prises = new Set();
+    (livre.releves || []).forEach(x => x.lignes.forEach(y => {
+      if (y.id !== l.id) facesDuRapprochement(y.rapprochement).forEach(f => prises.add(f.ecritureId + '#' + f.ligne));
+    }));
+    const t = Date.parse(l.date + 'T00:00:00Z');
+    const avant = c => (t - Date.parse(String(c.date) + 'T00:00:00Z')) / 86400000;
+    const C = lignesARapprocher(livre, R.compte)
+      .filter(c => !prises.has(c.ecritureId + '#' + c.ligne) && Math.sign(c.montant) === Math.sign(m) && round3(c.montant)
+        && /^\d{4}-\d{2}-\d{2}$/.test(String(c.date)) && avant(c) <= 20 && avant(c) >= -jours)
+      .sort((a, b) => Math.abs(avant(a)) - Math.abs(avant(b)))
+      .slice(0, 20)
+      .map(c => ({ c, v: Math.round(Math.abs(c.montant) * 1000) }));
+    const cible = Math.round(Math.abs(m) * 1000);
+    const trouvees = [];
+    const essayer = (debut, faces, total) => {
+      if (trouvees.length > 1) return;
+      if (faces.length >= 2 && total === cible) { trouvees.push(faces.slice()); return; }
+      if (faces.length === 4 || total >= cible) return;
+      for (let i = debut; i < C.length; i++) { faces.push(C[i].c); essayer(i + 1, faces, total + C[i].v); faces.pop(); }
+    };
+    essayer(0, [], 0);
+    // Dans l'ordre du bordereau : du plus ancien au plus récent.
+    const enOrdre = liste => liste.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.piece || '').localeCompare(String(b.piece || '')));
+    if (trouvees.length === 1) return { ecritures: enOrdre(trouvees[0]), possibles: [], combinaisons: 1 };
+    if (!trouvees.length) return vide;
+    const union = [];
+    trouvees.flat().forEach(c => { if (!union.some(u => u.ecritureId === c.ecritureId && u.ligne === c.ligne)) union.push(c); });
+    return { ecritures: [], possibles: enOrdre(union), combinaisons: trouvees.length };
   }
 
   // (1.208.0) Les pièces de tiers ENCORE OUVERTES, celles qu'une ligne de relevé peut payer quand le livre n'a pas encore
@@ -2829,6 +2887,32 @@
     }
     const niveau = RELEVE_NIVEAUX.includes(c.niveau) ? c.niveau : 'certain';
     if (niveau === 'aucun') return { ok: false, motif: 'Un rapprochement posé ne peut pas être « aucun » : c\'est ce que veut dire le défaire.' };
+    // (1.299.0) Une remise : les `autres` écritures qui font la ligne avec la première. Chacune touche le compte, aucune
+    // n'est déjà prise par une autre ligne, aucune n'est deux fois, et leur somme fait la ligne AU MILLIME — sinon le
+    // relevé dirait « rapproché » d'un montant qui n'est pas le sien.
+    const autres = Array.isArray(c.autres) ? c.autres : [];
+    if (autres.length) {
+      if (autres.length > 49) return { ok: false, motif: 'Une ligne de relevé se rapproche de cinquante écritures au plus.' };
+      const faces = [{ ecritureId: e.id, ligne: i }].concat(autres.map(a => ({ ecritureId: txt(a && a.ecritureId), ligne: Number(a && a.ligne) })));
+      const cles = faces.map(f => f.ecritureId + '#' + f.ligne);
+      if (new Set(cles).size !== cles.length) return { ok: false, motif: 'La même ligne d\'écriture est choisie deux fois.' };
+      const ailleurs = new Set();
+      (livre.releves || []).forEach(x => x.lignes.forEach(y => { if (y.id !== l.id) facesDuRapprochement(y.rapprochement).forEach(f => ailleurs.add(f.ecritureId + '#' + f.ligne)); }));
+      let total = 0;
+      for (const f of faces) {
+        const ef = (livre.ecritures || []).find(x => x.id === f.ecritureId);
+        const lf = ef && (ef.lignes || [])[f.ligne];
+        if (!lf || txt(lf.compte) !== txt(R.compte)) return { ok: false, motif: `Une des écritures choisies ne touche pas le compte ${R.compte}.` };
+        if (ailleurs.has(f.ecritureId + '#' + f.ligne)) return { ok: false, motif: `${ef.piece || ef.libelle || 'Une des écritures'} répond déjà d'une autre ligne du relevé : défais ce rapprochement d'abord.` };
+        total += Math.round((num(lf.debit) - num(lf.credit)) * 1000);
+      }
+      if (total !== Math.round(num(l.montant) * 1000)) {
+        return { ok: false, motif: `Les ${faces.length} écritures font ${fmtMontant(total / 1000)}, la ligne ${fmtMontant(num(l.montant))} : une remise se rapproche quand ses écritures font la ligne au millime.` };
+      }
+      l.rapprochement = { niveau, ecritureId: e.id, ligne: i, le: txt(c.date), par: txt(qui), autres: faces.slice(1) };
+      trace(livre, qui, 'rapprochement', `${R.compte} ${fmtJour(l.date)} ${fmtMontant(num(l.montant))} → ${faces.length} écritures (remise)`, quand);
+      return { ok: true, niveau };
+    }
     l.rapprochement = { niveau, ecritureId: e.id, ligne: i, le: txt(c.date), par: txt(qui) };
     trace(livre, qui, 'rapprochement', `${R.compte} ${fmtJour(l.date)} ${fmtMontant(num(l.montant))} → ${e.journal} ${e.piece || ''}`, quand);
     return { ok: true, niveau };
@@ -2857,7 +2941,7 @@
     if (!R) return { banque: [], livre: [], ecart: 0, totalBanque: 0, totalLivre: 0 };
     const rapprochees = new Set();
     (livre.releves || []).filter(x => x.compte === R.compte).forEach(x => x.lignes.forEach(l => {
-      if (l.rapprochement && l.rapprochement.ecritureId) rapprochees.add(l.rapprochement.ecritureId + '#' + l.rapprochement.ligne);
+      facesDuRapprochement(l.rapprochement).forEach(f => rapprochees.add(f.ecritureId + '#' + f.ligne));
     }));
     const cote = R.lignes.filter(l => !(l.rapprochement && l.rapprochement.ecritureId));
     const toutes = lignesBancaires(livre, R.compte).filter(c => c.date <= (R.au || '9999-12-31'));

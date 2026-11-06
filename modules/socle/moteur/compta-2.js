@@ -112,7 +112,7 @@
     // La banque (9.5.0)
     RELEVE_NIVEAUX, RELEVE_JOURS, AGING_BUCKETS,
     colonnesReleve, releveDepuisCsv, releveValide, releveDejaImporte, ajouterReleve, supprimerReleve,
-    lignesBancaires, lignesARapprocher, candidatsDeLigne, piecesOuvertes, retenueDeReglement, reponsesDeLigne, ecritureDeReglement, rapprocherAuto, rapprocherLigne, derapprocherReleve, suspens,
+    lignesBancaires, lignesARapprocher, candidatsDeLigne, remiseDeLigne, facesDuRapprochement, piecesOuvertes, retenueDeReglement, reponsesDeLigne, ecritureDeReglement, rapprocherAuto, rapprocherLigne, derapprocherReleve, suspens,
     compteDuLibelle, regleAdmet, motifDeLibelle, ecritureProposee, lettrageAuto,
     echeancierDepuisLignes, balanceAgeeDepuisLignes,
     // La déclaration mensuelle (9.6.0)

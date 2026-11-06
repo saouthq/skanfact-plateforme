@@ -407,6 +407,7 @@ export interface BaseDeDonnees {
     auto: Generated<boolean>;
     pose_par: string | null;
     pose_le: Generated<Date>;
+    rang: Generated<number>;
   };
   'compta.releve': {
     id: Generated<string>;
