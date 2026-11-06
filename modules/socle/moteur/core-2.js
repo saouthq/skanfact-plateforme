@@ -4198,9 +4198,75 @@
         const reminders = x.doc.reminders || [];
         const last = reminders.length ? reminders[reminders.length - 1] : null;
         const snoozed = !!(x.doc.remindAfter && x.doc.remindAfter > t);
-        return { doc: x.doc, remaining: x.balance.remaining, daysLate, level: reminderLevel(daysLate), reminders, lastReminder: last, status: x.status, snoozed, remindAfter: x.doc.remindAfter || '' };
+        // (1.293.0) Relancée il y a moins de RELANCE_ATTENTE jours : on attend la réponse. La facture reste en retard, mais
+        // elle sort de « À relancer » jusqu'au jour où on la remontre (le lendemain du délai) : relancer deux fois la même
+        // semaine, c'est harceler un client qui a peut-être déjà payé. Un report (snoozed) l'emporte sur l'attente.
+        const remontre = last && last.date ? addDays(last.date, RELANCE_ATTENTE) : '';
+        const attente = !snoozed && !!remontre && remontre > t;
+        return { doc: x.doc, remaining: x.balance.remaining, daysLate, level: reminderLevel(daysLate), reminders, lastReminder: last, status: x.status, snoozed, remindAfter: x.doc.remindAfter || '', attente, remontre: attente ? remontre : '' };
       })
       .sort((a, b) => (a.snoozed ? 1 : 0) - (b.snoozed ? 1 : 0) || b.daysLate - a.daysLate);
+  }
+  const RELANCE_ATTENTE = 7;
+  // Ce qu'il faut relancer AUJOURD'HUI : ni reporté, ni relancé il y a moins d'une semaine. Le chiffre du menu, celui de
+  // la page et sa liste passent tous par ici (un compteur et la liste qu'il annonce : la même fonction).
+  const aRelancer = x => !x.snoozed && !x.attente;
+
+  // (1.293.0) Les factures à relancer, rangées par client : un client qui en doit trois reçoit UN message, pas trois.
+  // Chaque groupe : le client, ses factures (de la plus en retard à la moins), le reste dû en devise de base, le plus grand
+  // retard et son ton, la dernière relance faite sur l'une d'elles.
+  function relancesParClient(items, company) {
+    const parClient = new Map();
+    items.forEach(x => {
+      const k = x.doc.clientId || '';
+      if (!parClient.has(k)) parClient.set(k, []);
+      parClient.get(k).push(x);
+    });
+    return [...parClient.entries()].map(([clientId, liste]) => {
+      const factures = liste.slice().sort((a, b) => b.daysLate - a.daysLate);
+      const devises = [...new Set(factures.map(x => x.doc.currency || (company || {}).currency || 'DT'))];
+      const derniere = factures.map(x => x.lastReminder).filter(Boolean).sort((a, b) => (a.date || '').localeCompare(b.date || '')).pop() || null;
+      return {
+        clientId, factures, devises,
+        reste: round3(factures.reduce((s, x) => s + toBase(x.doc, x.remaining, company), 0)),
+        retard: factures[0].daysLate, level: Math.max(...factures.map(x => x.level)), derniere
+      };
+    }).sort((a, b) => b.retard - a.retard || b.reste - a.reste);
+  }
+
+  // (1.293.0) Le message d'une relance groupée : une ligne par facture (numéro, date, échéance, reste, retard), le total
+  // quand elles sont dans la même devise, au ton du plus grand retard. Jamais de taux ni de pénalité inventés : le texte
+  // rappelle ce qui est dû, rien de plus.
+  function relanceGroupee(factures, client, company, level) {
+    const en = ((client || {}).lang || (company || {}).defaultLang) === 'en';
+    const nom = (company || {}).name || '';
+    const lang = en ? 'en' : 'fr';
+    const devises = [...new Set(factures.map(x => x.doc.currency || (company || {}).currency || 'DT'))];
+    const m = x => money(x.remaining, x.doc.currency || (company || {}).currency, null, lang);
+    const lignes = factures.map(x => en
+      ? `- ${x.doc.number} of ${fmtDate(x.doc.date)}, due ${fmtDate(x.doc.dueDate)}: ${m(x)} (${x.daysLate} day${x.daysLate > 1 ? 's' : ''} overdue)`
+      : `- ${x.doc.number} du ${fmtDate(x.doc.date)}, échue le ${fmtDate(x.doc.dueDate)} : ${m(x)} (${x.daysLate} jour${x.daysLate > 1 ? 's' : ''} de retard)`).join('\n');
+    const total = devises.length === 1 ? money(round3(factures.reduce((s, x) => s + x.remaining, 0)), devises[0], null, lang) : '';
+    const n = factures.length;
+    // « Malgré nos précédentes relances » ne se dit que s'il y en a eu : le ton ferme vient du retard, pas d'un historique
+    // qu'on inventerait.
+    const dejaRelance = factures.some(x => (x.reminders || []).length);
+    if (en) {
+      const intro = level >= 3 ? (dejaRelance ? `Despite our previous reminders, the following invoice${n > 1 ? 's remain' : ' remains'} unpaid:` : `The following invoice${n > 1 ? 's are' : ' is'} now long overdue and still unpaid:`)
+        : level === 2 ? `Unless we are mistaken, the following invoice${n > 1 ? 's have' : ' has'} not been paid yet:`
+        : `This is a friendly reminder that the following invoice${n > 1 ? 's are' : ' is'} past due:`;
+      const fin = level >= 3 ? 'Please settle this amount within 8 days, or contact us to agree on a date.'
+        : 'Could you let us know when payment is planned?';
+      return { subject: `${level >= 3 ? 'Final reminder' : level === 2 ? 'Reminder' : 'Payment reminder'}: ${n} unpaid invoice${n > 1 ? 's' : ''} — ${nom}`,
+        body: `Hello,\n\n${intro}\n${lignes}\n${total ? `\nTotal due: ${total}.\n` : ''}\n${fin}\nIf a payment crossed with this message, please disregard it.\n\nBest regards,\n${nom}` };
+    }
+    const intro = level >= 3 ? (dejaRelance ? `Malgré nos précédentes relances, ${n > 1 ? 'ces factures restent impayées' : 'cette facture reste impayée'} :` : `${n > 1 ? 'Ces factures sont échues depuis longtemps et restent impayées' : 'Cette facture est échue depuis longtemps et reste impayée'} :`)
+      : level === 2 ? `Sauf erreur de notre part, ${n > 1 ? 'ces factures n\'ont' : 'cette facture n\'a'} pas encore été réglée${n > 1 ? 's' : ''} :`
+      : `Petit rappel : ${n > 1 ? 'ces factures sont arrivées' : 'cette facture est arrivée'} à échéance :`;
+    const fin = level >= 3 ? 'Merci de procéder au règlement sous 8 jours, ou de nous contacter pour convenir d\'une date.'
+      : 'Pouvez-vous nous indiquer la date de règlement prévue ?';
+    return { subject: `${REMINDER_LABELS[Math.min(3, Math.max(1, level))]} : ${n} facture${n > 1 ? 's' : ''} en attente de règlement — ${nom}`,
+      body: `Bonjour,\n\n${intro}\n${lignes}\n${total ? `\nTotal dû : ${total}.\n` : ''}\n${fin}\nSi un règlement s'est croisé avec ce message, merci de ne pas en tenir compte.\n\nCordialement,\n${nom}` };
   }
 
   // Les factures qui restent dues mais ne sont PAS encore en retard, de la plus proche échéance à la
@@ -4400,12 +4466,15 @@
     // retard » sur la carte, à dix centimètres, c'est deux chiffres justes qui se contredisent :
     // quand un report existe, la ligne dit « à relancer » et nomme les autres (règle 6.8.1).
     const tousRetards = overdueInvoices(data, company, t);
-    const overdue = tousRetards.filter(x => !x.snoozed);
-    const reportes = tousRetards.length - overdue.length;
+    // (1.293.0) Même chose pour une facture relancée cette semaine : elle attend sa réponse, la page Relances la range à
+    // part, et la ligne compte ce que la page compte (`aRelancer`).
+    const overdue = tousRetards.filter(aRelancer);
+    const reportes = tousRetards.filter(x => x.snoozed).length;
+    const enAttente = tousRetards.filter(x => x.attente).length;
     const overdueAmount = round3(overdue.reduce((s, x) => s + toBase(x.doc, x.remaining, company), 0));
     if (overdue.length) out.push({
-      id: 'retards', level: 'danger', label: `${overdue.length} facture${overdue.length > 1 ? 's' : ''} en retard${reportes ? ' à relancer' : ''}`,
-      detail: `${fmt(overdueAmount)} à récupérer · plus ancienne : ${plFr(overdue[0].daysLate, 'jour')} de retard${reportes ? ` · ${reportes > 1 ? `${reportes} autres` : '1 autre'} en retard, relance reportée` : ''}`,
+      id: 'retards', level: 'danger', label: `${overdue.length} facture${overdue.length > 1 ? 's' : ''} en retard${reportes || enAttente ? ' à relancer' : ''}`,
+      detail: `${fmt(overdueAmount)} à récupérer · plus ancienne : ${plFr(overdue[0].daysLate, 'jour')} de retard${reportes ? ` · ${reportes > 1 ? `${reportes} autres` : '1 autre'} en retard, relance reportée` : ''}${enAttente ? ` · ${enAttente > 1 ? `${enAttente} relancées` : '1 relancée'} cette semaine, en attente de réponse` : ''}`,
       count: overdue.length, amount: overdueAmount, route: '#/relances', docs: overdue.map(x => x.doc)
     });
 
@@ -7194,7 +7263,7 @@
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, contratTermine, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
     estTitre, sousTotauxDeSections,
-    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
+    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, RELANCE_ATTENTE, aRelancer, relancesParClient, relanceGroupee, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,

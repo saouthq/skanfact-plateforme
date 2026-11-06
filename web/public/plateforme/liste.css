@@ -831,3 +831,21 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lf.tr .tr-s { flex-wrap: wrap; }
   .lf.tr .tr-s .btn { width: 100%; justify-content: center; }
 }
+
+/* (1.293.0) Relances : des colonnes à largeur fixe (la dernière relance qui apparaît ne pousse plus les autres), le choix
+   « Par facture / Par client », la liste des factures cochées de la relance groupée. */
+@media (min-width: 641px) {
+  .lf.rl table.rl-t { table-layout: fixed; width: 100%; }
+  .lf.rl table.rl-t col.c-fac { width: 13%; }
+  .lf.rl table.rl-t col.c-cli { width: 15%; }
+  .lf.rl table.rl-t col.c-ech { width: 10%; }
+  .lf.rl table.rl-t col.c-ret { width: 15%; }
+  .lf.rl table.rl-t col.c-reste { width: 13%; }
+  .lf.rl table.rl-t col.c-der { width: 17%; }
+  .lf.rl table.rl-t col.c-act { width: 17%; }
+  .lf.rl table.rl-clients col.c-cl { width: 34%; }
+  .lf.rl table.rl-clients col.c-act { width: 21%; }
+  .lf.rl table.rl-t td { overflow-wrap: anywhere; }
+}
+.lf.rl .rl-vue { margin: 4px 0 10px; }
+.rg-factures { display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow: auto; }

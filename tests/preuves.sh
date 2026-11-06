@@ -24364,10 +24364,10 @@ prouver 'listesprix 1.282 c : un prix nul compte comme un prix négocié' module
   '.filter(x => x.itemId && Number(x.prix) > 0).map(x => x.itemId)' '.filter(x => x.itemId).map(x => x.itemId)' \
   'l'"'"'en-tête, les quatre chiffres sur les listes en vigueur, l'"'"'état de chaque liste ; au téléphone rien ne déborde'
 prouver 'relances 1.283 a : les chiffres suivent la recherche' modules/socle/ecrans/entreprise/app-1.js \
-  'const enCours = all.filter(x => !x.snoozed);' 'const enCours = od;' \
+  'const enCours = all.filter(C.aRelancer);' 'const enCours = od;' \
   'l'"'"'en-tête, les quatre chiffres sur toutes les factures ; la recherche ne les change pas ; au téléphone rien ne déborde'
 prouver 'relances 1.283 b : « Plus de 45 jours » compte aussi les retards plus courts' modules/socle/ecrans/entreprise/app-1.js \
-  'const vieux = enCours.filter(x => x.level === 3);' 'const vieux = enCours.filter(x => x.level >= 2);' \
+  'const vieux = all.filter(x => !x.snoozed && x.level === 3);' 'const vieux = all.filter(x => !x.snoozed && x.level >= 2);' \
   'l'"'"'en-tête, les quatre chiffres sur toutes les factures ; la recherche ne les change pas ; au téléphone rien ne déborde'
 prouver 'relances 1.283 c : « Échéances sous 7 jours » ne mène pas à sa section' modules/socle/ecrans/entreprise/app-1.js \
   'if (cible) cible.scrollIntoView(' 'if (cible && 0) cible.scrollIntoView(' \
@@ -24607,6 +24607,42 @@ prouver "« Enregistrer » redessiné sous le curseur quand on quitte le prix" m
 " "" \
   "$LPN"
 
+prouver 'relances 1.293 a : une facture relancée hier reste à relancer' modules/socle/moteur/core-2.js \
+  'const aRelancer = x => !x.snoozed && !x.attente;' 'const aRelancer = x => !x.snoozed;' \
+  'relancée il y a moins de 7 jours : elle attend sa réponse, sort de « À relancer », et revient le jour dit'
+prouver 'relances 1.293 b : l'"'"'attente dure un jour de trop' modules/socle/moteur/core-2.js \
+  'const attente = !snoozed && !!remontre && remontre > t;' 'const attente = !snoozed && !!remontre && remontre >= t;' \
+  'relancée il y a moins de 7 jours : elle attend sa réponse, sort de « À relancer », et revient le jour dit'
+prouver 'relances 1.293 c : « À faire » compte les factures qui attendent leur réponse' modules/socle/moteur/core-2.js \
+  'const overdue = tousRetards.filter(aRelancer);' 'const overdue = tousRetards.filter(x => !x.snoozed);' \
+  'relancée il y a moins de 7 jours : elle attend sa réponse, sort de « À relancer », et revient le jour dit'
+prouver 'relances 1.293 d : le reste dû d'"'"'un client oublie une facture' modules/socle/moteur/core-2.js \
+  'reste: round3(factures.reduce((s, x) => s + toBase(x.doc, x.remaining, company), 0)),' 'reste: round3(factures.slice(1).reduce((s, x) => s + toBase(x.doc, x.remaining, company), 0)),' \
+  'par client : un groupe par client, le plus grand retard et son ton, le reste dû total'
+prouver 'relances 1.293 e : le ton d'"'"'un client est celui de sa première facture' modules/socle/moteur/core-2.js \
+  'retard: factures[0].daysLate, level: Math.max(...factures.map(x => x.level)), derniere' 'retard: factures[0].daysLate, level: factures[factures.length - 1].level, derniere' \
+  'par client : un groupe par client, le plus grand retard et son ton, le reste dû total'
+prouver 'relances 1.293 f : « précédentes relances » sans relance passée' modules/socle/moteur/core-2.js \
+  'const dejaRelance = factures.some(x => (x.reminders || []).length);' 'const dejaRelance = true;' \
+  'le message groupé nomme chaque facture et le total ; « précédentes relances » seulement s'"'"'il y en a eu'
+prouver 'relances 1.293 g : un total additionne deux devises' modules/socle/moteur/core-2.js \
+  'const total = devises.length === 1 ? money(' 'const total = devises.length >= 1 ? money(' \
+  'le message groupé nomme chaque facture et le total ; « précédentes relances » seulement s'"'"'il y en a eu'
+prouver 'relances 1.293 h : le chiffre du menu garde l'"'"'ancien compte' modules/socle/ecrans/entreprise/app-1.js \
+  '      updateNavCounts();
+      // Recherche : la page Relances' '      // Recherche : la page Relances' \
+  'relancer un client pour toutes ses factures d'"'"'un message, puis attendre sa réponse une semaine ; le menu dit le même chiffre'
+prouver 'relances 1.293 i : la relance groupée se note aussi sur la facture décochée' modules/socle/ecrans/entreprise/app-1.js \
+  '        choisies().forEach(x => {
+          const s = docById(x.doc.id); if (!s) return;' '        g.factures.forEach(x => {
+          const s = docById(x.doc.id); if (!s) return;' \
+  'relancer un client pour toutes ses factures d'"'"'un message, puis attendre sa réponse une semaine ; le menu dit le même chiffre'
+prouver 'relances 1.293 j : un message retouché à la main se refait au changement de ton' modules/socle/ecrans/entreprise/app-1.js \
+  '        if (corps.value === genere.body) corps.value = n.body;' '        corps.value = n.body;' \
+  'relancer un client pour toutes ses factures d'"'"'un message, puis attendre sa réponse une semaine ; le menu dit le même chiffre'
+prouver 'relances 1.293 k : « Plus de 45 jours » oublie la facture qui attend sa réponse' modules/socle/ecrans/entreprise/app-1.js \
+  'const vieux = all.filter(x => !x.snoozed && x.level === 3);' 'const vieux = enCours.filter(x => x.level === 3);' \
+  'relancer un client pour toutes ses factures d'"'"'un message, puis attendre sa réponse une semaine ; le menu dit le même chiffre'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -2320,7 +2320,7 @@
   // garde son adresse (un lien, une palette, un favori y mènent) ; la bande dit seulement qu'elles vont ensemble, et le
   // nombre de ce qui attend dans l'autre. Posée une fois par page dessinée ; une page qui se redessine la repose.
   const COMPTE_DE_VUE = {
-    relances: () => C.overdueInvoices(data, company()).filter(x => !x.snoozed).length,
+    relances: () => C.overdueInvoices(data, company()).filter(C.aRelancer).length,
     contrats: () => C.dueRecurrences(data).length,
   };
   function poserVues(id) {
@@ -12209,7 +12209,7 @@
             const stored = docById(doc.id) || doc;
             stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: v.to, subject: v.subject, kind });
             if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
-            if (afterSend) afterSend(stored, kind);
+            if (afterSend) afterSend(stored, kind, 'email');
             save(true); close();
             toast(`Envoi noté sur ${stored.number || 'la pièce'}.`);
             render();
@@ -12219,7 +12219,8 @@
   }
   function sendReminder(item, canal) {
     const level = item.level;
-    (canal === 'whatsapp' ? sendByWhatsApp : sendByEmail)(item.doc, 'relance' + level, { jours: item.daysLate }, (stored, k) => { stored.reminders = stored.reminders || []; stored.reminders.push({ date: C.today(), level: /^relance\d$/.test(k || '') ? Number(k.slice(-1)) : level }); });
+    // (1.293.0) Le canal réel se note (on peut passer de l'e-mail à WhatsApp dans la fenêtre) : la ligne dit par où c'est parti.
+    (canal === 'whatsapp' ? sendByWhatsApp : sendByEmail)(item.doc, 'relance' + level, { jours: item.daysLate }, (stored, k, canalReel) => { stored.reminders = stored.reminders || []; stored.reminders.push({ date: C.today(), level: /^relance\d$/.test(k || '') ? Number(k.slice(-1)) : level, channel: canalReel === 'whatsapp' ? 'whatsapp' : 'email' }); });
   }
 
   // ---------- WhatsApp (10.15.0, H2) ----------
@@ -12277,7 +12278,7 @@
             const stored = docById(doc.id) || doc;
             stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: '+' + n.numero, kind, canal: 'whatsapp' });
             if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
-            if (afterSend) afterSend(stored);
+            if (afterSend) afterSend(stored, kind, 'whatsapp');
             save(true); close();
             toast(fichier ? `WhatsApp s'ouvre sur la conversation : glisse le PDF qui s'affiche dans ${EXPLORATEUR}` : corps !== v.body ? 'WhatsApp s\'ouvre sur la conversation, avec le lien de la pièce' : 'WhatsApp s\'ouvre sur la conversation');
             render();
@@ -12828,7 +12829,7 @@
       <p class="small muted">${h(nomClientPiece(d))} · ${C.money(item.remaining, docCur(d))} · ${pl(item.daysLate, 'jour')} de retard</p>
       <form id="tf" class="grid-2">
         ${dateFieldHtml(lbl('Date de l\'appel', 'rel.dateTel'), 'date', C.today(), { obligatoire: true })}
-        <label class="field">${lbl('Niveau', 'rel.niveauTel')}<select name="level">${[1, 2, 3].map(l => `<option value="${l}" ${l === item.level ? 'selected' : ''}>${h(C.REMINDER_LABELS[l])}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Ton', 'rel.niveauTel')}<select name="level">${[1, 2, 3].map(l => `<option value="${l}" ${l === item.level ? 'selected' : ''}>${h(C.REMINDER_LABELS[l])}</option>`).join('')}</select></label>
         <label class="field span-2">${lbl('Ce qui a été dit', 'rel.noteTel')}<input type="text" name="note" placeholder="Promet un virement avant le 20, relancer si rien"></label>
         ${dateFieldHtml(lbl('Ne pas relancer avant le (optionnel)', 'rel.snooze'), 'remindAfter', '', { quick: true, clearable: true })}
       </form>
@@ -12859,16 +12860,115 @@
       });
   }
 
-  const relState = { sort: null, page: 1, q: '' };   // tri, page et recherche de la liste des factures à relancer
+  const relState = { sort: null, page: 1, q: '', vue: 'facture' };   // tri, page, recherche et vue (par facture, par client)
+  // (1.293.0) La dernière relance, en mots : la date, le canal, le ton (« niveau 2 » ne disait rien), combien en tout.
+  const CANAL_RELANCE = { tel: 'téléphone', whatsapp: 'WhatsApp' };
+  function derniereRelance(x, court) {
+    const l = x.lastReminder;
+    if (!l) return '<span class="muted">jamais</span>';
+    const n = (x.reminders || []).length;
+    return `${C.fmtDate(l.date)} <span class="small muted">· ${CANAL_RELANCE[l.channel] || 'e-mail'}${C.REMINDER_LABELS[l.level] ? ` · ${h(C.REMINDER_LABELS[l.level])}` : ''}${!court && n > 1 ? ` · ${n}ᵉ` : ''}</span>${l.note ? `<div class="small muted">« ${h(l.note)} »</div>` : ''}`;
+  }
+
+  // (1.293.0) Relancer un client pour TOUTES ses factures en retard, d'un seul message : la liste à cocher (toutes cochées),
+  // le ton (celui du plus grand retard, qu'on peut changer), le message prêt et retouchable. L'envoi se note sur chaque
+  // facture cochée, et seulement quand on dit qu'il est parti (une messagerie ne dit pas si elle s'est ouverte).
+  async function relanceClientForm(g, done) {
+    if (await demoBlock('Envoyer une relance')) return;
+    const client = clientById(g.clientId);
+    if (!client) return toast('Ce client n\'existe plus.', true);
+    let level = g.level, canal = 'email';
+    const coches = new Set(g.factures.map(x => x.doc.id));
+    const choisies = () => g.factures.filter(x => coches.has(x.doc.id));
+    const message = () => C.relanceGroupee(choisies(), client, company(), level);
+    let genere = message();
+    modal(`<h2>Relancer ${h(client.name)}</h2>
+      <div class="choix-t env-canal" role="tablist" aria-label="Comment l'envoyer"><button type="button" class="on" data-canal="email">${lfIc('message', 15)}E-mail</button><button type="button" data-canal="wa">WhatsApp</button></div>
+      <form id="rgf" class="env-charte">
+        <div class="field"><span>${g.factures.length > 1 ? 'Les factures du message' : 'La facture du message'}</span>
+          <div class="rg-factures">${g.factures.map(x => `<label class="pop-case"><input type="checkbox" data-fac="${x.doc.id}" checked> <b>${h(x.doc.number)}</b> <small class="muted">· ${C.money(x.remaining, docCur(x.doc))} · ${pl(x.daysLate, 'jour')} de retard${x.lastReminder ? ` · relancée le ${C.fmtDate(x.lastReminder.date)}` : ''}</small></label>`).join('')}</div></div>
+        <label class="field">${lbl('Ton', 'mail.relanceModele')}<select id="rg-ton">${Object.entries(C.REMINDER_LABELS).map(([n, l]) => `<option value="${n}"${Number(n) === level ? ' selected' : ''}>${h(l)}${n === '1' ? ' · courtois' : n === '3' ? ' · ferme' : ''}</option>`).join('')}</select></label>
+        <label class="field" data-pour="email">${lbl('À', 'mail.to')}<input type="email" name="to" value="${h(client.email || '')}" placeholder="email@client.tn"></label>
+        <label class="field" data-pour="wa" hidden>${lbl('Numéro WhatsApp', 'wa.numero')}<input type="tel" name="tel" value="${h(client.phone || '')}" placeholder="98 123 456"></label>
+        <label class="field" data-pour="email">${lbl('Objet', 'mail.objet')}<input type="text" name="subject" value="${h(genere.subject)}"></label>
+        <label class="field env-msg"><span class="vh">Message</span><textarea name="body" rows="11">${h(genere.body)}</textarea></label>
+      </form>
+      <p class="small muted" id="rg-note">Le message s'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. La relance se note sur chaque facture cochée.</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${lfIc('message', 15)}Envoyer la relance</button></div>`,
+    (root, close) => {
+      const f = $('#rgf', root), corps = $('[name=body]', f), objet = $('[name=subject]', f), ok = $('#ok', root);
+      // Le message se refait quand on change le ton ou les factures, sauf si on l'a retouché : on ne jette pas une phrase
+      // écrite à la main.
+      const refaire = () => {
+        const n = message();
+        if (corps.value === genere.body) corps.value = n.body;
+        if (objet.value === genere.subject) objet.value = n.subject;
+        genere = n;
+        const k = choisies().length;
+        ok.disabled = !k;
+        ok.innerHTML = `${lfIc('message', 15)}${k > 1 ? `Envoyer la relance des ${k} factures` : 'Envoyer la relance'}`;
+      };
+      $$('[data-fac]', root).forEach(c => c.onchange = () => { if (c.checked) coches.add(c.dataset.fac); else coches.delete(c.dataset.fac); refaire(); });
+      $('#rg-ton', root).onchange = e => { level = Number(e.target.value) || g.level; refaire(); };
+      $$('[data-canal]', root).forEach(b => b.onclick = () => {
+        canal = b.dataset.canal;
+        $$('[data-canal]', root).forEach(x => x.classList.toggle('on', x === b));
+        $$('[data-pour]', root).forEach(x => { x.hidden = x.dataset.pour !== canal; });
+        $('#rg-note', root).textContent = canal === 'wa' ? 'WhatsApp s\'ouvre sur la conversation, le message déjà écrit. La relance se note sur chaque facture cochée.'
+          : 'Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. La relance se note sur chaque facture cochée.';
+      });
+      refaire();
+      const noter = (to, canalNote) => {
+        choisies().forEach(x => {
+          const s = docById(x.doc.id); if (!s) return;
+          s.reminders = s.reminders || [];
+          s.reminders.push({ date: C.today(), level, channel: canalNote, ...(choisies().length > 1 ? { groupe: true } : {}) });
+          s.emails = s.emails || [];
+          s.emails.push({ date: C.today(), to, subject: objet.value, kind: 'relance' + level, ...(canalNote === 'whatsapp' ? { canal: 'whatsapp' } : {}) });
+        });
+        save(true); close();
+        toast(choisies().length > 1 ? `Relance notée sur ${pl(choisies().length, 'facture')} de ${client.name}.` : `Relance notée sur ${choisies()[0].doc.number}.`);
+        if (done) done();
+      };
+      ok.onclick = async () => {
+        if (!choisies().length) return refus($('[data-fac]', root), 'Coche au moins une facture.');
+        const v = formValues(f);
+        if (canal === 'wa') {
+          const n = C.numeroWhatsApp(v.tel);
+          if (!n.ok) return refus($('[name=tel]', f), n.vide ? 'Le numéro WhatsApp du client manque.' : n.motif.charAt(0).toUpperCase() + n.motif.slice(1) + '.');
+          try { await bridge.ouvrirWhatsApp({ numero: n.numero, texte: v.body, fichier: null }); } catch (e) { return toast(plainError(e), true); }
+          if (!String(client.phone || '').trim()) client.phone = v.tel.trim();
+          return noter('+' + n.numero, 'whatsapp');
+        }
+        if (!v.to || !String(v.to).split(',').every(x => /^[^@\s]+@[^@\s]+$/.test(x.trim()))) return refus($('[name=to]', f), 'Adresse e-mail invalide.');
+        if (!await messagerie()) return;
+        ok.disabled = true; ok.textContent = 'Préparation…';
+        try { await bridge.composeMail({ to: v.to, subject: v.subject, body: v.body, attachment: null, mode: modeEnvoi() }); }
+        catch (e) { ok.disabled = false; refaire(); return toast(plainError(e), true); }
+        $('.modal', root).innerHTML = `<h2>Le message est-il parti ?</h2>
+          <p>Ta messagerie a dû s'ouvrir avec le message prêt : relis-le et clique sur Envoyer. <b>Si rien ne s'est ouvert</b> (Gmail ou Outlook dans le navigateur), copie l'objet et le message, et colle-les dans un nouvel e-mail à <b>${h(v.to)}</b>.</p>
+          <div class="inline mt"><button class="btn" id="rg-copier-adresse">Copier l'adresse</button><button class="btn" id="rg-copier">Copier l'objet et le message</button></div>
+          <p class="small muted mt">SkanFact ne voit pas ta messagerie : dis-lui quand le message est parti.</p>
+          <div class="modal-actions"><button class="btn" id="rg-pas-envoye">Pas encore</button><button class="btn btn-primary" id="rg-envoye">Je l'ai envoyé</button></div>`;
+        $('#rg-copier-adresse', root).onclick = () => copierTexte(v.to, 'Adresse copiée');
+        $('#rg-copier', root).onclick = () => copierTexte(`${v.subject}\n\n${v.body}`, 'Objet et message copiés : colle-les dans un nouvel e-mail');
+        $('#rg-pas-envoye', root).onclick = () => { close(); toast('Rien n\'est noté : aucune relance n\'est inscrite.'); };
+        $('#rg-envoye', root).onclick = () => { if (!client.email) client.email = v.to; noter(v.to, 'email'); };
+      };
+    });
+  }
   // Les trois tableaux secondaires ont chacun LEUR page (10.14.0) : avec huit mille pièces, « Devis
   // sans réponse » en listait quatre cent quarante d'un bloc, et la page faisait vingt-huit mille
   // pixels sous une liste principale, elle, paginée. Une page par tableau, parce qu'une page
   // partagée ferait tourner les quatre tableaux ensemble.
-  const relPages = { reportees: { page: 1 }, bientot: { page: 1 }, devis: { page: 1 } };
+  const relPages = { attente: { page: 1 }, reportees: { page: 1 }, bientot: { page: 1 }, devis: { page: 1 } };
   routes.relances = () => {
     const cur = company().currency;
     const draw = dansUnLot(() => {
       const all = C.overdueInvoices(data, company());
+      // (1.293.0) Le chiffre du menu suit la page à chaque dessin : un appel noté, un report, une relance groupée le
+      // changent, et il gardait l'ancien jusqu'au changement de page.
+      updateNavCounts();
       // Recherche : la page Relances était l'une des deux seules listes à ne pas en avoir (audit).
       const q = relState.q.trim().toLowerCase();
       // La recherche ne filtrait qu'un tableau sur quatre : on tapait le nom d'un client, le premier
@@ -12876,7 +12976,9 @@
       // le bandeau annonçait « n sur N ». Un filtre qui ne s'applique qu'à une partie de l'écran ment.
       const matchDoc = d => !q || C.correspondRecherche(`${d.number || ''} ${nomClientPiece(d)} ${d.subject || ''}`, q);
       const match = x => matchDoc(x.doc);
-      const od = all.filter(x => !x.snoozed && match(x)), later = all.filter(x => x.snoozed && match(x));
+      // (1.293.0) Trois rangs : à relancer aujourd'hui, relancées cette semaine (on attend la réponse), reportées.
+      const od = all.filter(x => C.aRelancer(x) && match(x)), later = all.filter(x => x.snoozed && match(x));
+      const attente = all.filter(x => x.attente && match(x));
       const soon = data.documents.filter(d => d.type === 'facture' && ['envoyée', 'partielle'].includes(effStatus(d)) && d.dueDate >= C.today() && C.daysBetween(C.today(), d.dueDate) <= 7 && matchDoc(d));
       const quotes = data.documents.filter(d => d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)) && d.date && C.daysBetween(d.date, C.today()) > 10 && matchDoc(d))
         .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -12887,9 +12989,22 @@
         <td>${C.fmtDate(x.doc.dueDate)}</td>
         <td class="r">${x.daysLate} j <span class="level l${x.level}">${h(C.REMINDER_LABELS[x.level])}</span></td>
         <td class="r">${C.money(x.remaining, docCur(x.doc))}</td>
-        <td>${x.lastReminder ? `${C.fmtDate(x.lastReminder.date)} <span class="small muted">(${x.lastReminder.channel === 'tel' ? 'téléphone' : 'email'}, niveau ${x.lastReminder.level}, ${x.reminders.length} au total)</span>${x.lastReminder.note ? `<div class="small muted">« ${h(x.lastReminder.note)} »</div>` : ''}` : '<span class="muted">jamais</span>'}
-          ${x.snoozed ? `<div class="small warn-link">reporté au ${C.fmtDate(x.remindAfter)}</div>` : ''}</td>
-        ${rowMenuCell(x.doc.id, `<button type="button" class="btn btn-sm" data-relancer="${x.doc.id}" title="Par email, au ton « ${h(C.REMINDER_LABELS[x.level])} »">Relancer</button> `)}</tr>`;
+        <td>${derniereRelance(x)}
+          ${x.snoozed ? `<div class="small warn-link">reporté au ${C.fmtDate(x.remindAfter)}</div>` : ''}
+          ${x.attente ? `<div class="small muted" data-remontre>on te la remontre le ${C.fmtDate(x.remontre)}</div>` : ''}</td>
+        ${rowMenuCell(x.doc.id, x.attente ? '' : `<button type="button" class="btn btn-sm" data-relancer="${x.doc.id}" title="Par email, au ton « ${h(C.REMINDER_LABELS[x.level])} »">Relancer</button> `)}</tr>`;
+      // (1.293.0) La vue par client : une ligne par client, ses factures nommées, le reste dû, le plus grand retard et son
+      // ton, la dernière relance faite sur l'une d'elles ; UN geste pour toutes.
+      const groupes = C.relancesParClient(od, company());
+      const plusieurs = groupes.some(g => g.factures.length > 1);
+      const vue = relState.vue === 'client' ? 'client' : 'facture';
+      const ligneClient = g => `<tr data-groupe="${h(g.clientId)}">
+        <td><a href="#/client/${h(g.clientId)}"><strong>${h(clientName(g.clientId))}</strong></a><div class="small muted">${g.factures.length > 1 ? `${g.factures.length} factures : ` : ''}${g.factures.map(x => `<a href="#/doc/${x.doc.id}">${h(x.doc.number)}</a>`).join(', ')}</div></td>
+        <td class="r nw">${g.retard} j <span class="level l${g.level}">${h(C.REMINDER_LABELS[g.level])}</span></td>
+        <td class="r nw">${C.money(g.reste, cur)}${g.devises.length > 1 || g.devises[0] !== cur ? '<div class="small muted">converti en ' + h(cur) + '</div>' : ''}</td>
+        <td>${g.derniere ? derniereRelance({ lastReminder: g.derniere, reminders: [g.derniere] }, true) : '<span class="muted">jamais</span>'}</td>
+        <td class="actions nw"><button type="button" class="btn btn-sm" data-rel-client="${h(g.clientId)}">${g.factures.length > 1 ? `Relancer les ${g.factures.length}` : 'Relancer'}</button>
+          <button type="button" class="btn btn-sm btn-lien" data-releve="${h(g.clientId)}">Relevé</button></td></tr>`;
       const relCols = [
         { key: 'number', label: 'Facture', asc: true, val: x => x.doc.number || '' },
         { key: 'client', label: 'Client', asc: true, val: x => clientName(x.doc.clientId).toLowerCase() },
@@ -12902,8 +13017,8 @@
       const headFixed = `<thead>${sortHead(relCols.map(c => ({ ...c, val: null })), null, '<th class="row-actions-h"></th>')}</thead>`;
       const odSorted = applySort(od, relCols, relState.sort);
       const odPage = paginate(odSorted, relState);
-      const laterPage = paginate(later, relPages.reportees), soonPage = paginate(soon, relPages.bientot), quotesPage = paginate(quotes, relPages.devis);
-      const nAll = all.filter(x => !x.snoozed).length;
+      const attentePage = paginate(attente, relPages.attente), laterPage = paginate(later, relPages.reportees), soonPage = paginate(soon, relPages.bientot), quotesPage = paginate(quotes, relPages.devis);
+      const nAll = all.filter(C.aRelancer).length;
       // Rien à relancer ET rien à venir : la page ne dit jamais la seule chose qui compte ici, à
       // savoir qu'elle se remplit TOUTE SEULE et qu'il n'y a rien à y saisir. Elle ouvrait sur un
       // moteur de recherche posé au-dessus de zéro ligne, et une note sur trois niveaux de relance
@@ -12916,17 +13031,20 @@
       // (1.283.0) Les quatre chiffres, sur TOUTES les factures (pas la recherche) : ce qu'il faut relancer et ce que ça
       // représente, ce qui traîne au-delà de 45 jours (le ton « dernière relance »), ce qui arrive à échéance, les devis
       // sans réponse. Ceux qui nomment une section y mènent.
-      const enCours = all.filter(x => !x.snoozed);
+      const enCours = all.filter(C.aRelancer);
+      const nAttente = all.filter(x => x.attente).length;
       const aRecuperer = C.round3(enCours.reduce((s2, x) => s2 + C.toBase(x.doc, x.remaining, company()), 0));
-      const vieux = enCours.filter(x => x.level === 3);
+      // « Plus de 45 jours » dit un retard, pas un geste à faire : une facture relancée qui attend sa réponse y reste.
+      const vieux = all.filter(x => !x.snoozed && x.level === 3);
+      const vieuxAttente = vieux.filter(x => x.attente).length;
       const soonAll = q ? data.documents.filter(d => d.type === 'facture' && ['envoyée', 'partielle'].includes(effStatus(d)) && d.dueDate >= C.today() && C.daysBetween(C.today(), d.dueDate) <= 7) : soon;
       const quotesAll = q ? data.documents.filter(d => d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)) && d.date && C.daysBetween(d.date, C.today()) > 10) : quotes;
       const bientotDT = C.round3(soonAll.reduce((s2, d) => s2 + C.toBase(d, balance(d).remaining, company()), 0));
       const chiffreRl = (lbl2, val, sous, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
       const resumeEl = $('#rel-resume');
       resumeEl.hidden = rienDuTout;
-      resumeEl.innerHTML = rienDuTout ? '' : chiffreRl('À relancer', String(enCours.length), enCours.length ? `${montantU(aRecuperer, cur)} à récupérer` : 'aucune facture en retard', enCours.length ? 'rouge' : 'vert')
-        + chiffreRl('Plus de 45 jours', String(vieux.length), vieux.length ? `au ton « ${h(C.REMINDER_LABELS[3])} »` : 'aucun retard ancien', vieux.length ? 'rouge' : '')
+      resumeEl.innerHTML = rienDuTout ? '' : chiffreRl('À relancer', String(enCours.length), (enCours.length ? `${montantU(aRecuperer, cur)} à récupérer` : nAttente ? 'rien à relancer aujourd\'hui' : 'aucune facture en retard') + (nAttente ? ` · ${nAttente > 1 ? `${nAttente} attendent` : '1 attend'} leur réponse` : ''), enCours.length ? 'rouge' : 'vert', nAttente && !enCours.length ? 'r-attente' : '')
+        + chiffreRl('Plus de 45 jours', String(vieux.length), !vieux.length ? 'aucun retard ancien' : vieuxAttente === vieux.length ? (vieux.length > 1 ? 'relancées, elles attendent leur réponse' : 'relancée, elle attend sa réponse') : `au ton « ${h(C.REMINDER_LABELS[3])} »`, vieux.length ? (vieuxAttente === vieux.length ? 'ambre' : 'rouge') : '')
         + chiffreRl('Échéances sous 7 jours', String(soonAll.length), soonAll.length ? `${montantU(bientotDT, cur)} attendus — voir lesquelles` : 'rien n\'arrive à échéance', soonAll.length ? 'ambre' : '', soonAll.length ? 'r-bientot' : '')
         + chiffreRl('Devis sans réponse', String(quotesAll.length), quotesAll.length ? 'envoyés il y a plus de 10 jours — voir lesquels' : 'aucun devis en attente', quotesAll.length ? 'ambre' : '', quotesAll.length ? 'r-devis' : '');
       $$('[data-aller]', resumeEl).forEach(x => {
@@ -12942,9 +13060,13 @@
         ${filtersBar(`
           <input type="search" id="rel-q" placeholder="Rechercher : n°, client, objet…" value="${h(relState.q)}">
           ${q ? `<span class="small muted">${od.length} sur ${nAll}</span>${filterReset(true)}` : ''}`, all.length, !!q)}
-        ${od.length ? `<div class="banner">${pl(od.length, 'facture')} à relancer — ${C.money(total, cur)} à récupérer</div>` : `<div class="banner info">${q ? 'Aucune facture ne correspond à cette recherche.' : `Aucune facture à relancer${later.length ? ` (${pl(later.length, 'reportée')})` : ''}.`}</div>`}
-        ${od.length ? `<table class="list sortable">${head}<tbody>${odPage.rows.map(row).join('')}</tbody></table>${pagerBar(odPage.pg, { noun: 'facture' })}` : ''}
-        ${later.length ? `<div id="r-reportees"><div class="section-head"><h2>Reportées ${info('rel.snooze')}</h2></div><table class="list">${headFixed}<tbody>${laterPage.rows.map(row).join('')}</tbody></table>${pagerBar(laterPage.pg, { noun: 'facture' })}</div>` : ''}
+        ${od.length ? `<div class="banner">${pl(od.length, 'facture')} à relancer${vue === 'client' ? ` chez ${pl(groupes.length, 'client')}` : ''} — ${C.money(total, cur)} à récupérer</div>`
+          : `<div class="banner info">${q ? 'Aucune facture ne correspond à cette recherche.' : `Aucune facture à relancer aujourd'hui${attente.length ? ` : ${attente.length > 1 ? `${attente.length} relancées attendent` : '1 relancée attend'} leur réponse` : ''}${later.length ? `${attente.length ? ', ' : ' ('}${pl(later.length, 'reportée')}${attente.length ? '' : ')'}` : ''}.`}</div>`}
+        ${od.length && plusieurs ? `<div class="choix-t rl-vue" role="tablist" aria-label="Ranger par"><button type="button" data-rl-vue="facture"${vue === 'facture' ? ' class="on"' : ''}>Par facture</button><button type="button" data-rl-vue="client"${vue === 'client' ? ' class="on"' : ''}>Par client</button></div>` : ''}
+        ${od.length && vue === 'client' && plusieurs ? `<table class="list rl-t rl-clients"><colgroup><col class="c-cl"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup><thead><tr><th>Client</th><th class="r">Plus grand retard</th><th class="r">Reste à payer</th><th>Dernière relance</th><th></th></tr></thead><tbody>${groupes.map(ligneClient).join('')}</tbody></table>`
+          : od.length ? `<table class="list sortable rl-t"><colgroup><col class="c-fac"><col class="c-cli"><col class="c-ech"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup>${head}<tbody>${odPage.rows.map(row).join('')}</tbody></table>${pagerBar(odPage.pg, { noun: 'facture' })}` : ''}
+        ${attente.length ? `<div id="r-attente"><div class="section-head"><h2>Relancées, en attente de réponse ${info('rel.attente')}</h2></div><table class="list rl-t"><colgroup><col class="c-fac"><col class="c-cli"><col class="c-ech"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup>${headFixed}<tbody>${attentePage.rows.map(row).join('')}</tbody></table>${pagerBar(attentePage.pg, { noun: 'facture' })}</div>` : ''}
+        ${later.length ? `<div id="r-reportees"><div class="section-head"><h2>Reportées ${info('rel.snooze')}</h2></div><table class="list rl-t"><colgroup><col class="c-fac"><col class="c-cli"><col class="c-ech"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup>${headFixed}<tbody>${laterPage.rows.map(row).join('')}</tbody></table>${pagerBar(laterPage.pg, { noun: 'facture' })}</div>` : ''}
         ${soon.length ? `<div id="r-bientot"><div class="section-head"><h2>Échéances dans les 7 jours ${info('rel.soon')}</h2></div><table class="list compact"><thead><tr><th>Facture</th><th>Client</th><th>Échéance</th><th class="r">Reste</th></tr></thead><tbody>
           ${soonPage.rows.map(d => `<tr class="clickable" data-id="${d.id}"><td><strong><a href="#/doc/${d.id}">${h(d.number)}</a></strong></td><td>${h(nomClientPiece(d))}</td><td>${C.fmtDate(d.dueDate)}</td><td class="r">${C.money(balance(d).remaining, docCur(d))}</td></tr>`).join('')}
         </tbody></table>${pagerBar(soonPage.pg, { noun: 'facture' })}</div>` : ''}
@@ -12963,14 +13085,14 @@
       // Chaque pager est lié à SON tableau : lié à la page entière, « Suivant » des devis aurait
       // fait tourner la liste des factures.
       bindPager($('#r-wrap'), relState, () => draw(), '#r-wrap');
-      [['#r-reportees', relPages.reportees], ['#r-bientot', relPages.bientot], ['#r-devis', relPages.devis]]
+      [['#r-attente', relPages.attente], ['#r-reportees', relPages.reportees], ['#r-bientot', relPages.bientot], ['#r-devis', relPages.devis]]
         .forEach(([sel, st]) => { if ($(sel)) bindPager($(sel), st, () => draw(), sel); });
       bindRowMenus(document, id => {
         const x = find(id); if (!x) return [];
         return [
           { icon: 'ouvrir', label: 'Ouvrir la facture', hint: 'Ses lignes, ses paiements, ses relances', run: () => navigate('#/doc/' + id) },
           { sep: true },
-          { icon: 'cloche', cle: 'relancer-mail', label: 'Relancer par email', hint: `Ton de niveau ${x.level} — ${C.REMINDER_LABELS[x.level]}`, run: () => sendReminder(x) },
+          { icon: 'cloche', cle: 'relancer-mail', label: x.attente ? 'Relancer quand même par e-mail' : 'Relancer par e-mail', hint: x.attente ? `Déjà relancée le ${C.fmtDate(x.lastReminder.date)}` : `Au ton « ${C.REMINDER_LABELS[x.level]} »`, run: () => sendReminder(x) },
           { icon: 'message', cle: 'relancer-whatsapp', label: 'Relancer par WhatsApp', hint: `Le même message, dans la conversation du client`, run: () => sendReminder(x, 'whatsapp') },
           { icon: 'telephone', cle: 'relancer-appel', label: 'Noter un appel téléphonique', hint: 'Ce que le client a répondu, et quand rappeler', run: () => phoneReminderForm(x, draw) },
           { sep: true },
@@ -12985,6 +13107,13 @@
       $$('[data-qrem]').forEach(b => b.onclick = () => sendByEmail(docById(b.dataset.qrem), 'relanceDevis', null, () => {}));
       // (plateforme) 1.80.0 — le geste de la page, sur sa ligne.
       $$('[data-relancer]').forEach(b => b.onclick = () => { const x = find(b.dataset.relancer); if (x) sendReminder(x); });
+      // (1.293.0) Par facture / par client ; dans la vue par client, un geste pour toutes ses factures, et son relevé.
+      $$('[data-rl-vue]').forEach(b => b.onclick = () => { relState.vue = b.dataset.rlVue; draw(); });
+      $$('[data-rel-client]').forEach(b => b.onclick = () => {
+        const g = groupes.find(x => x.clientId === b.dataset.relClient); if (!g) return;
+        if (g.factures.length === 1) sendReminder(g.factures[0]); else relanceClientForm(g, draw);
+      });
+      $$('[data-releve]').forEach(b => b.onclick = () => releveForm(b.dataset.releve));
       // `if (e.target.closest('button')) return` comme les sept autres liaisons de ligne : sans lui,
       // un bouton posé DANS la ligne agit ET fait quitter la page. « Attestation reçue » cochait la
       // case puis emmenait sur la facture — on ne voyait jamais que c'était noté.
@@ -13365,7 +13494,7 @@
       const a = cs.closest('a'); if (a) a.dataset.tip = 'Caisse' + (ouverte ? ' · ouverte' : '');
     }
     const rel = $('#nav-relances');
-    if (rel) { const n = C.overdueInvoices(data, company()).filter(x => !x.snoozed).length; rel.hidden = !n; rel.textContent = n > 99 ? '99+' : n; ton(rel, 'attire', `${n} à faire`); }
+    if (rel) { const n = C.overdueInvoices(data, company()).filter(C.aRelancer).length; rel.hidden = !n; rel.textContent = n > 99 ? '99+' : n; ton(rel, 'attire', `${n} à faire`); }
     const ct = $('#nav-contrats');
     if (ct) { const n = C.dueRecurrences(data).length; ct.hidden = !n; ct.textContent = n; }
     const ach = $('#nav-achats');
