@@ -24690,6 +24690,36 @@ prouver 'garanties 1.295 j : la fiche du client ne propose pas le contrat' modul
 prouver 'visite 1.295 : l'"'"'étape reprend le curseur à qui tape dans la case qu'"'"'elle éclaire' web/public/v10/visite.js \
   $'        if (dansLaCaseEclairee(e, c)) return;\n        if (c && document' '        if (c && document' \
   'Visites : une étape à lire posée sur une case de texte y met le curseur ; choisir dans la case qu'"'"'elle éclaire n'"'"'ouvre pas l'"'"'essai'
+prouver 'statistiques 1.296 a : le retour d'"'"'un ticket compte dans les factures' modules/socle/moteur/core-2.js \
+  'const k = estTicket(d) || (d.type === '"'"'avoir'"'"' && tickets.has(d.creditOf)) ? out.comptoir : out.factures;' 'const k = estTicket(d) ? out.comptoir : out.factures;' \
+  'le chiffre d'"'"'affaires se coupe entre factures et comptoir sans rien perdre ; un brouillon ne vend rien'
+prouver 'statistiques 1.296 b : l'"'"'argent rendu au comptoir ne vient pas en moins de l'"'"'encaissé' modules/socle/moteur/core-2.js \
+  'montant: round3(rows.reduce((s, r) => s + r.amount, 0))' 'montant: round3(rows.reduce((s, r) => s + Math.max(0, r.amount), 0))' \
+  'l'"'"'encaissé est celui du journal des encaissements : daté de la période, l'"'"'argent rendu en moins'
+prouver 'statistiques 1.296 c : un acompte versé compte comme un achat' modules/socle/moteur/core-2.js \
+  'if (p.kind === '"'"'acompte'"'"' || !inPeriod(p.date, fromIso, toIso)) return;' 'if (!inPeriod(p.date, fromIso, toIso)) return;' \
+  'les achats par fournisseur et par catégorie : un avoir en moins, un acompte dehors, la casse ne sépare pas'
+prouver 'statistiques 1.296 d : « marchandises » et « Marchandises » font deux catégories' modules/socle/moteur/core-2.js \
+  'const kc = cat.toLowerCase();' 'const kc = cat;' \
+  'les achats par fournisseur et par catégorie : un avoir en moins, un acompte dehors, la casse ne sépare pas'
+prouver 'statistiques 1.296 e : « Trop cher » et « trop cher » font deux motifs' modules/socle/moteur/core-2.js \
+  'const k = brut.toLowerCase();' 'const k = brut;' \
+  'les refus se rangent par motif, la casse et les espaces ne séparent pas, un refus sans motif vient en dernier'
+prouver 'statistiques 1.296 f : des achats qui montent s'"'"'affichent en vert, comme une bonne nouvelle' modules/socle/ecrans/entreprise/app-2.js \
+  '<span class="delta ${neutre ? '"'"''"'"' : d > 0 ? '"'"'up'"'"' : d < 0 ? '"'"'down'"'"' : '"'"''"'"'}"' '<span class="delta ${d > 0 ? '"'"'up'"'"' : d < 0 ? '"'"'down'"'"' : '"'"''"'"'}"' \
+  'une quincaillerie : quatre chiffres, factures et comptoir, les refus par motif, les achats répartis, l'"'"'export, le téléphone'
+prouver 'statistiques 1.296 g : l'"'"'encaissé tait ce qui reste dû' modules/socle/ecrans/entreprise/app-2.js \
+  'aging.total > 0.0005 ? `${pl(enc.reglements, '"'"'règlement'"'"')}' 'false ? `${pl(enc.reglements, '"'"'règlement'"'"')}' \
+  'une quincaillerie : quatre chiffres, factures et comptoir, les refus par motif, les achats répartis, l'"'"'export, le téléphone'
+prouver 'statistiques 1.296 h : l'"'"'export oublie les motifs de refus' modules/socle/ecrans/entreprise/app-2.js \
+  '...(plus ? plus.refus.map(' '...(false ? plus.refus.map(' \
+  'une quincaillerie : quatre chiffres, factures et comptoir, les refus par motif, les achats répartis, l'"'"'export, le téléphone'
+prouver 'statistiques 1.296 i : au téléphone, le nom d'"'"'un fournisseur pousse son tableau hors de la carte' web/public/plateforme/liste.css \
+  '  .lf.mg.sx td.cl { min-width: 0; }' '  .lf.mg.sx td.cl { }' \
+  'une quincaillerie : quatre chiffres, factures et comptoir, les refus par motif, les achats répartis, l'"'"'export, le téléphone'
+prouver 'statistiques 1.296 j : « tout est encaissé » félicite qui n'"'"'a jamais facturé' modules/socle/ecrans/entreprise/app-2.js \
+  ': factures ? vide('"'"'Rien en attente de paiement'"'"', '"'"'Tout est encaissé.'"'"')' ': true ? vide('"'"'Rien en attente de paiement'"'"', '"'"'Tout est encaissé.'"'"')' \
+  'une entreprise neuve : chaque onglet dit ce qui le remplira, aucune phrase rassurante sur un univers vide'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

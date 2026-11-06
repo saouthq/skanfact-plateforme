@@ -348,4 +348,29 @@ Les deux rouges GitHub de 1.293.0, réparés à la racine :
 - le test des écrans vides mesurait au téléphone la carte des Achats, encore affichée un instant, au lieu de celle de la
   Paie : il attend la carte de la paie elle-même (la preuve « la paie garde ses deux colonnes » retombe).
 
+## Les statistiques
+
+### Fait en 1.296.0 (06/11/2026) : vendu, encaissé, gagné, acheté — dans la DA des listes
+
+Jouées comme une quincaillerie qui facture des chantiers et vend au comptoir (Quincaillerie Ben Youssef, Sfax) : dix
+factures sur deux ans, un avoir, trois tickets du jour, huit devis dont quatre refusés (« Trop cher » deux fois, écrit de
+deux façons, « Un concurrent », un sans motif), des achats chez un grossiste, la STEG, une station-service, un acompte
+versé, une dépense sans fournisseur ni catégorie ; la même page en année, en mois, au téléphone, et pour une entreprise
+neuve.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| S1 | Ancienne mise en page : quatre tuiles, puis neuf panneaux les uns sous les autres. | La DA des listes : chemin Accueil › Statistiques, phrase, « Exporter » ; quatre chiffres dans une carte ; quatre onglets (Ventes, Devis, Clients, Achats), la période à droite comme l'année des Marges. Chaque chiffre ouvre l'onglet qui le détaille (la marge ouvre la page Marges). |
+| S2 | Les chiffres ne disaient que le facturé (« ils ne disent pas ce que tu as gagné », écrivait l'aide). | Quatre chiffres : Vendu HT, Encaissé (le journal des encaissements de la période, l'argent rendu en moins, avec ce qu'on doit encore aujourd'hui), Marge estimée (le calcul de la page Marges, « ≈ » quand des coûts manquent), Acheté HT. Chacun comparé à la même période de l'an dernier ; la flèche des achats reste grise. |
+| S3 | Les tickets de caisse comptaient comme des factures : « 312 factures émises » pour une épicerie, un panier moyen qui mélangeait un ticket de 4 DT et un chantier de 5 000 DT. | « Factures et comptoir » : les deux canaux, chacun avec ses pièces, ses avoirs (un retour au comptoir reste au comptoir) et son panier moyen ; la somme est le chiffre de la carte. La TVA collectée sous le tableau. |
+| S4 | Les répartitions des achats, retirées de la liste des achats (Skander, 30/10/2026 : « elles iront à la page Statistiques »), n'y étaient pas. | L'onglet Achats : par fournisseur (la ligne ouvre sa fiche) et par catégorie, HT en dinars, un avoir en moins, un acompte dehors (sa facture le reprend), la casse ne sépare pas « marchandises » de « Marchandises » ; paginé ; le même total des deux côtés. |
+| S5 | Le motif noté au refus d'un devis (« Trop cher », « Un concurrent »…) ne servait nulle part. | « Pourquoi les clients refusent » : les refus de la période rangés par motif, sans tenir compte des majuscules, un refus sans motif à part ; « « Trop cher » revient dans 2 refus sur 3 » quand un motif fait au moins la moitié. Le taux d'acceptation et l'entonnoir y restent (Skander, 03/11/2026). |
+| S6 | Des phrases que rien ne tenait : le délai moyen « — », la note sur les acomptes sans acompte, l'aide qui disait les achats absents. | Le délai ne s'écrit que s'il existe ; la note des acomptes seulement s'il y en a ; l'article d'aide « Lire tes statistiques » décrit la page telle qu'elle est, et dit ce que la marge n'est pas (le loyer et les salaires n'y sont pas). |
+| S7 | Au téléphone, des tableaux qui débordaient de leur carte. | Les petits tableaux restent des tableaux, en pleine largeur ; la colonne la moins utile se cache (la part, la date de première facture), les titres passent à la ligne ; rien ne déborde, onglet après onglet. |
+| S8 | L'export ne disait pas tout. | L'export ajoute le comptoir, l'encaissé, la marge, les achats par fournisseur et par catégorie, et les motifs de refus. |
+
+Un payeur plus lent que le délai annoncé s'écrit en ambre. Une entreprise neuve lit, onglet par onglet, ce qui remplira
+la page, jamais « tout est encaissé » quand rien n'a été facturé. À VÉRIFIER avec un comptable : la marge estimée suit le
+coût de revient du catalogue, pas le coût réel des achats (celui-là se lit dans la fiche d'une affaire).
+
 Suivant : la suite de la revue des modules.

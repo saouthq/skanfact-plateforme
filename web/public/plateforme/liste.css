@@ -867,3 +867,58 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lf.gar table.gar-groupes[data-cartes] > tbody > tr > td.row-actions > .btn + .row-menu-btn { margin-inline-start: 0; }
   .lf.gar table.gar-groupes[data-cartes] > tbody > tr > [data-tel="titre"] { padding-inline-end: 0 !important; }
 }
+
+/* (1.296.0) Les statistiques dans la DA des listes : quatre chiffres, la période à droite des onglets, des sections séparées
+   d'un trait dans la carte, deux colonnes qui passent l'une sous l'autre sur un écran étroit. */
+.lf.mg.sx .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+.lf.mg.sx .pa-seg button { flex: none; white-space: nowrap; }
+.lf.mg.sx .sx-periode { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.lf.mg.sx .sx-periode .sel[hidden] { display: none; }
+.lf.mg.sx .mg-chiffre small .ambre { color: var(--sb-ambre-texte); font-weight: 600; }
+.lf.mg.sx .mg-chiffre .delta.up { color: var(--sb-doux-texte); }
+.lf.mg.sx .mg-chiffre .delta.down { color: var(--sb-rouge-texte); }
+.lf.mg.sx .mg-chiffre .delta { font-size: 12px; }
+.lf.mg.sx .sx-s { padding: 14px 16px 16px; min-width: 0; }
+.lf.mg.sx .sx-s + .sx-s, .lf.mg.sx .sx-s + .sx-deux, .lf.mg.sx .sx-deux + .sx-s, .lf.mg.sx .sx-s + .sx-note { border-top: 1px solid var(--sb-trait); }
+.lf.mg.sx .sx-s > .section-head { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 0 0 10px; }
+.lf.mg.sx .sx-s > .section-head h2 { font-size: 15px; margin: 0; }
+.lf.mg.sx .sx-s .lf-tab { margin: 0 -16px; }
+.lf.mg.sx .sx-deux { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lf.mg.sx .sx-deux > .sx-s + .sx-s { border-top: 0; border-left: 1px solid var(--sb-trait); }
+.lf.mg.sx .sx-s .sx-deux { gap: 20px; }
+.lf.mg.sx .sx-s .sx-deux > div { min-width: 0; }
+.lf.mg.sx .sx-s .sx-deux .lf-tab, .lf.mg.sx .sx-s .sx-deux table { margin: 0; }
+.lf.mg.sx .sx-note { margin: 10px 0 0; }
+.lf.mg.sx > .cf-carte > .cf-onglet > .sx-note { margin: 0; padding: 10px 16px; }
+.lf.mg.sx .sx-obj { margin-top: 14px; }
+.lf.mg.sx .sx-obj p { margin: 8px 0 0; }
+.lf.mg.sx .sub-h { margin: 0 0 8px; }
+.lf.mg.sx .mg-vide { padding: 28px 16px; }
+@media (max-width: 920px) {
+  .lf.mg.sx .sx-deux { grid-template-columns: 1fr; }
+  .lf.mg.sx .sx-deux > .sx-s + .sx-s { border-left: 0; border-top: 1px solid var(--sb-trait); }
+}
+@media (max-width: 760px) {
+  .lf.mg.sx .mg-barre { flex-direction: column; align-items: stretch; }
+  .lf.mg.sx .sx-periode .sel { flex: 1 1 0; }
+  .lf.mg.sx .sx-periode .sel select { width: 100%; }
+}
+.lf.mg.sx .sx-avoirs { display: block; font-size: 11.5px; }
+@media (max-width: 760px) {
+  /* Les petits tableaux des statistiques restent des tableaux, en pleine largeur, sans la barre de part. */
+  .lf.mg.sx .sx-s table.list { display: table; width: 100%; border: 0; border-radius: 0; box-shadow: none; }
+  .lf.mg.sx td.mg-barre, .lf.mg.sx th.mg-barre-h { display: none; }
+  .lf.mg.sx .sx-s .lf-tab { margin: 0; }
+  .lf.mg.sx table.list th, .lf.mg.sx table.list td { padding-left: 8px; padding-right: 8px; }
+}
+@media (max-width: 760px) {
+  .lf.mg.sx .sx-part, .lf.mg.sx .sx-date { display: none; }
+}
+@media (max-width: 760px) {
+  .lf.mg.sx td.cl { min-width: 0; }
+  .lf.mg.sx td.cl .cl-i { gap: 8px; }
+  .lf.mg.sx td.cl .av { width: 26px; height: 26px; font-size: 10px; }
+}
+@media (max-width: 760px) {
+  .lf.mg.sx table.list th { white-space: normal; }
+}

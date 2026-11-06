@@ -4222,6 +4222,72 @@
     };
   }
 
+  // ---------- (1.296.0) la revue des Statistiques ----------
+  // Le chiffre d'affaires d'une période partagé entre les factures et le comptoir : la même assiette que `salesTotals`
+  // (factures et avoirs émis, avoirs en moins, en devise de base), coupée en deux. Un ticket de caisse est une facture
+  // marquée `ticket` ; l'avoir d'un retour au comptoir porte le ticket dans `creditOf` : il compte au comptoir. Le panier
+  // moyen d'une épicerie se compte par ticket, celui d'un bureau d'études par facture : les deux ne se mélangent plus.
+  function ventesParCanal(data, company, fromIso, toIso) {
+    const tickets = new Set((data.documents || []).filter(estTicket).map(d => d.id));
+    const z = () => ({ ht: 0, pieces: 0, avoirs: 0 });
+    const out = { factures: z(), comptoir: z() };
+    issuedIn(data, fromIso, toIso).forEach(d => {
+      const k = estTicket(d) || (d.type === 'avoir' && tickets.has(d.creditOf)) ? out.comptoir : out.factures;
+      k.ht = round3(k.ht + (d.type === 'avoir' ? -1 : 1) * toBase(d, computeTotals(d, company).netHT, company));
+      if (d.type === 'avoir') k.avoirs++; else k.pieces++;
+    });
+    out.factures.panier = out.factures.pieces ? round3(out.factures.ht / out.factures.pieces) : 0;
+    out.comptoir.panier = out.comptoir.pieces ? round3(out.comptoir.ht / out.comptoir.pieces) : 0;
+    return out;
+  }
+
+  // Ce qui est entré en caisse et en banque sur la période : les règlements des factures et des tickets DATÉS de la
+  // période (l'argent rendu au comptoir, un règlement négatif, en moins), en dinars reçus. La même liste que le journal
+  // des encaissements (`paymentsJournal`) : deux écrans qui montrent la même chose disent le même chiffre.
+  function encaisseSur(data, company, fromIso, toIso) {
+    const rows = paymentsJournal(data, company, { from: fromIso, to: toIso });
+    return { montant: round3(rows.reduce((s, r) => s + r.amount, 0)), reglements: rows.length };
+  }
+
+  // Ce que l'entreprise a acheté sur la période, rangé par fournisseur et par catégorie : la répartition que la liste des
+  // achats ne montre plus (Skander, 30/10/2026 : « les répartitions iront à la page Statistiques »). Le HT de chaque
+  // pièce en devise de base, signé par `base` (un avoir en moins, règle 6.3.0). Un acompte versé n'est pas un achat :
+  // sa facture le reprend en entier (la règle de `coutAchat`) ; le compter ferait acheter deux fois.
+  function achatsRepartis(data, company, fromIso, toIso) {
+    const noms = new Map((data.suppliers || []).map(s => [s.id, s.name || '—']));
+    const parF = new Map(), parC = new Map();
+    let ht = 0, pieces = 0;
+    (data.purchases || []).forEach(p => {
+      if (p.kind === 'acompte' || !inPeriod(p.date, fromIso, toIso)) return;
+      const v = purchaseTotals(p, company).base.totalHT;
+      ht = round3(ht + v); pieces++;
+      const kf = p.supplierId || '';
+      const f = parF.get(kf) || { supplierId: kf, label: kf ? noms.get(kf) || '—' : 'Sans fournisseur', ht: 0, pieces: 0 };
+      f.ht = round3(f.ht + v); f.pieces++; parF.set(kf, f);
+      const cat = String(p.category || '').trim();
+      const kc = cat.toLowerCase();
+      const c = parC.get(kc) || { label: cat || 'Sans catégorie', ht: 0, pieces: 0 };
+      c.ht = round3(c.ht + v); c.pieces++; parC.set(kc, c);
+    });
+    const tri = m => [...m.values()].sort((a, b) => b.ht - a.ht || a.label.localeCompare(b.label, 'fr'));
+    return { ht, pieces, fournisseurs: tri(parF), categories: tri(parC) };
+  }
+
+  // Pourquoi les devis de la période ont été refusés : le motif noté avec la réponse du client (« Trop cher », « Un
+  // concurrent »… ou ce qu'on a écrit), regroupé sans tenir compte des majuscules ; un refus sans motif se compte à part.
+  // Quatre « trop cher » sur six refus disent quelque chose du prix ; c'est ce que le taux d'acceptation ne dit pas.
+  function motifsDeRefus(data, company, fromIso, toIso) {
+    const m = new Map();
+    (data.documents || []).filter(d => d.type === 'devis' && d.status === 'refusé' && inPeriod(d.date, fromIso, toIso)).forEach(d => {
+      const brut = String((d.reponse && d.reponse.motif) || '').trim();
+      const k = brut.toLowerCase();
+      const x = m.get(k) || { label: brut || 'Sans motif noté', sans: !brut, count: 0, ttc: 0 };
+      x.count++; x.ttc = round3(x.ttc + toBase(d, computeTotals(d, company).totalTTC, company));
+      m.set(k, x);
+    });
+    return [...m.values()].sort((a, b) => (a.sans - b.sans) || b.count - a.count || b.ttc - a.ttc);
+  }
+
   // ---------- relances ----------
 
   function reminderLevel(daysLate) { return daysLate > 45 ? 3 : daysLate > 15 ? 2 : 1; }
@@ -7344,7 +7410,7 @@
     mergeData, trackDeletion, MERGE_LISTS, LIST_LABELS, LIST_PLURIELS, compteListe, piecesLiees,
     purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatDoublon, facturesDuDevis, payablesList, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
     remiseEffective,
-    periodBounds, issuedIn, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress,
+    periodBounds, issuedIn, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress, ventesParCanal, encaisseSur, achatsRepartis, motifsDeRefus,
     amountToWords, intToWords, intToWordsEn, documentHtml, fitToPage, paginate, pageCount,
     MODULES, PAGES, moduleById, pageById, pageTitle, moduleCount, moduleCounts, modulesRevenus, moduleOn, moduleWhy, navPages, familleNavOuverte, FAMILLES_OUVERTES_AU_DEBUT, FAMILLES_DU_MENU, vuesDePage,
     sousModuleOn, sousModuleById, sousModules, OPTION_LABELS,
