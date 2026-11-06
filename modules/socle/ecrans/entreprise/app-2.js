@@ -472,13 +472,17 @@
     const tous = (deja || []).concat(r.z);
     el.innerHTML = `<h2>Les Z</h2>${tous.length ? `<div class="scroll-x"><table class="list compact" id="cs-z-liste"><thead><tr><th>Fermée le</th><th>Ouverte par</th><th>Fermée par</th><th class="r">Tickets</th><th class="r">Ventes TTC</th><th class="r">Écart</th></tr></thead><tbody>
       ${tous.map((z, i) => `<tr class="clickable" data-z="${i}"><td class="nw">${h(heureCaisse(z.fermeeLe))}</td><td>${h(z.ouvertePar)}</td><td>${h(z.fermePar)}</td>
-        <td class="r">${z.nombre}</td><td class="r nw">${h(argentCaisse(z.total))}</td><td class="r nw${Number(z.ecart) ? ' warn-text' : ''}">${h(argentCaisse(z.ecart))}</td></tr>`).join('')}
+        <td class="r">${z.nombre}</td><td class="r nw">${h(argentCaisse(z.total))}</td><td class="r nw${Number(z.ecart) && !ecartDArrondi(z.ecart) ? ' warn-text' : ''}">${h(argentCaisse(z.ecart))}</td></tr>`).join('')}
       </tbody></table></div>` : '<p class="small muted">Aucun Z pour l\'instant : le premier s\'écrit à la fermeture de la caisse.</p>'}
       ${r.suite ? '<button type="button" class="btn btn-sm mt" id="cs-z-plus">Plus de Z…</button>' : ''}`;
     $$('[data-z]', el).forEach(tr => { tr.onclick = () => montrerZ(tous[Number(tr.dataset.z)]); });
     if ($('#cs-z-plus', el)) $('#cs-z-plus', el).onclick = () => dessinerLesZ(el, r.suite, tous);
   }
   const MODES_Z = { especes: 'Espèces', carte: 'Carte', cheque: 'Chèque' };
+  // (1.294.0) Un écart plus petit que la plus petite pièce en usage (10 millimes) ne dit pas qu'il « manque de l'argent » :
+  // 4,629 DT ne se rendent pas en pièces, la monnaie s'arrondit au comptoir. Il reste écrit, en clair, sans alarme.
+  // À VÉRIFIER : la pièce de 5 millimes, encore émise mais rare ; et comment le comptable veut voir ces arrondis.
+  const ecartDArrondi = e => Math.abs(Number(e) || 0) > 0.0005 && Math.abs(Number(e)) < 0.0095;
   function montrerZ(z) {
     const ligne = (l, v, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${l}</td><td class="r num nw">${v}</td></tr>`;
     const ecart = Number(z.ecart);
@@ -494,9 +498,9 @@
         ${ligne('Fond de caisse', h(argentCaisse(z.fond)))}${ligne('<b>Le tiroir devait contenir</b>', `<b>${h(argentCaisse(z.attendu))}</b>`)}
         ${ligne('Espèces comptées', h(argentCaisse(z.compte)))}
         ${(z.comptage || []).map(x => ligne(`<span class="small muted">${x.nombre} × ${Number(x.valeur) >= 1 ? `${Number(x.valeur)} DT` : `${Math.round(Number(x.valeur) * 1000)} millimes`}</span>`, `<span class="small muted">${h(argentCaisse(x.total))}</span>`)).join('')}
-        ${ligne('<b>Écart</b>', `<b>${h(argentCaisse(z.ecart))}</b>`, ecart ? 'warn-text' : '')}
+        ${ligne('<b>Écart</b>', `<b>${h(argentCaisse(z.ecart))}</b>`, ecart && !ecartDArrondi(ecart) ? 'warn-text' : '')}
       </tbody></table>
-      <p class="small ${ecart ? 'warn-text' : 'muted'}">${ecart < 0 ? 'Il manque de l\'argent dans le tiroir.' : ecart > 0 ? 'Il y a plus d\'argent que prévu dans le tiroir.' : 'Le tiroir tombe juste.'} Le Z est figé : il garde ces chiffres.</p>
+      <p class="small ${ecart && !ecartDArrondi(ecart) ? 'warn-text' : 'muted'}" id="cs-z-ecart">${ecartDArrondi(ecart) ? `Écart de ${h(argentCaisse(Math.abs(ecart)))}, moins que la plus petite pièce (10 millimes) : l'arrondi de la monnaie rendue suffit à l'expliquer.` : ecart < 0 ? 'Il manque de l\'argent dans le tiroir.' : ecart > 0 ? 'Il y a plus d\'argent que prévu dans le tiroir.' : 'Le tiroir tombe juste.'} Le Z est figé : il garde ces chiffres.</p>
       <div class="modal-actions"><button class="btn" id="cs-z-imprimer">Imprimer le Z</button><button class="btn btn-primary" id="cs-z-ok">Terminé</button></div>`,
       (root, close) => {
         $('#cs-z-ok', root).onclick = () => { close(); vers('#/caisse')(); };
@@ -1209,6 +1213,10 @@
         } catch (e) { b.disabled = false; refus(plainError(e)); }
       };
       maj();
+      // 1.294.0 : le comptage s'ouvre depuis le menu, le focus n'est nulle part dans l'écran ; le premier chiffre tapé se
+      // perdait. La coupure choisie reçoit le focus (sur grand écran : sur un téléphone, le clavier s'ouvrirait pour rien).
+      const choisie = $(`#cs-fermeture [data-coupure="${c.actif}"]`) || $('#cs-fermeture [data-coupure]');
+      if (dinars && choisie && !window.matchMedia('(max-width: 920px)').matches) choisie.focus({ preventScroll: true });
     };
     // L'écran de vente suit la session lue au serveur (la page a pu se dessiner avant sa réponse) : il se redessine si elle
     // change ce qu'il montre (fermée, tenue ailleurs, la vente) ; sinon seul « Encaisser » suit.
@@ -1223,17 +1231,20 @@
     const drawTickets = () => {
       const b = C.bilanCaisse(data, company(), s.jour);
       $('#cs-actions').innerHTML = b.nombre || b.rembourse ? '<button class="btn" id="cs-bilan-print">Imprimer le bilan du jour</button>' : '';
-      $('#cs-body').innerHTML = `
-        <div class="filters">${dateFieldHtml(lbl('Jour', 'cs.jour'), 'csJour', s.jour, {})}</div>
-        <div class="stats">
-          <div class="stat" id="cs-ventes"><div class="lbl">${b.retours ? 'Ventes du jour, retours déduits' : 'Ventes TTC'} ${info('cs.bilan')}</div><div class="val">${C.money(b.retours ? b.net : b.total, cur)}</div><div class="sub">${b.retours
+      // (1.294.0) Les tickets du jour dans la DA des listes (relances, catalogue) : quatre chiffres dans une carte, la
+      // liste et les Z chacun dans la sienne.
+      const chiffreT = (id, l, v, sous) => `<div class="mg-chiffre"${id ? ` id="${id}"` : ''}><span class="mu lbl">${l}</span><b class="val">${v}</b><small class="sub">${sous}</small></div>`;
+      $('#cs-body').innerHTML = `<div class="lf mg ca cs-tk">
+        <div class="cf-carte mg-resume" id="cs-resume">
+          ${chiffreT('cs-ventes', `${b.retours ? 'Ventes du jour, retours déduits' : 'Ventes TTC'} ${info('cs.bilan')}`, C.money(b.retours ? b.net : b.total, cur), b.retours
             ? `${C.money(b.total, cur)} vendus en ${pl(b.nombre, 'ticket')} − ${C.money(b.retoursTtc, cur)} en ${pl(b.retours, 'retour')} (${h(b.avoirs.join(', '))})`
-            : `${pl(b.nombre, 'ticket')}${b.nombre ? ' · dont TVA ' + C.money(b.tva, cur) : ''}${b.rembourse ? ' · rendu aux clients : ' + C.money(b.rembourse, cur) : ''}`}</div></div>
-          <div class="stat"><div class="lbl">Espèces du jour</div><div class="val">${C.money(b.parMode.especes, cur)}</div><div class="sub"><span id="cs-tiroir">${sousTiroir(b, cur)}</span></div></div>
-          <div class="stat"><div class="lbl">Carte</div><div class="val">${C.money(b.parMode.carte, cur)}</div><div class="sub">${b.parMode.carte < 0 ? 'rendu aux clients par carte' : 'versé par ta banque'}</div></div>
-          <div class="stat"><div class="lbl">Chèques</div><div class="val">${C.money(b.parMode.cheque, cur)}</div><div class="sub">${b.parMode.cheque < 0 ? 'rendu aux clients par chèque' : 'à remettre en banque'}</div></div>
+            : `${pl(b.nombre, 'ticket')}${b.nombre ? ' · dont TVA ' + C.money(b.tva, cur) : ''}${b.rembourse ? ' · rendu aux clients : ' + C.money(b.rembourse, cur) : ''}`)}
+          ${chiffreT('', 'Espèces du jour', C.money(b.parMode.especes, cur), `<span id="cs-tiroir">${sousTiroir(b, cur)}</span>`)}
+          ${chiffreT('', 'Carte', C.money(b.parMode.carte, cur), b.parMode.carte < 0 ? 'rendu aux clients par carte' : 'versé par ta banque')}
+          ${chiffreT('', 'Chèques', C.money(b.parMode.cheque, cur), b.parMode.cheque < 0 ? 'rendu aux clients par chèque' : 'à remettre en banque')}
         </div>
-        <div class="panel"><h2>Les tickets du ${h(C.fmtDate(s.jour))}</h2>
+        <div class="cf-carte"><div class="cf-onglet">
+          <div class="cs-tk-tete"><h2>Les tickets du ${h(C.fmtDate(s.jour))}</h2>${dateFieldHtml(lbl('Jour', 'cs.jour'), 'csJour', s.jour, {})}</div>
           ${b.tickets.length ? `<div class="scroll-x"><table class="list compact" id="cs-liste"><thead><tr><th>Ticket</th><th>Heure</th><th>Articles</th><th>Paiement</th><th class="r">Total TTC</th></tr></thead><tbody>
             ${b.tickets.slice().sort((x, y) => (y.issuedTs || 0) - (x.issuedTs || 0)).map(d => {
               const tt = C.computeTotals(d, company());
@@ -1245,9 +1256,10 @@
                 <td>${h(mode)}${d.clientId ? `<div class="small muted">${h(nomClientPiece(d))}</div>` : ''}</td>
                 <td class="r nw">${C.money(tt.netToPay, cur)}</td></tr>`;
             }).join('')}
-          </tbody></table></div>` : `<p class="small muted">Aucun ticket ce jour-là. ${s.jour === C.today() ? '<button type="button" class="btn btn-sm btn-primary" id="cs-aller-vendre">Ouvrir la caisse</button>' : ''}</p>`}
-        </div>
-        ${bridge.listeZ ? '<div class="panel" id="cs-les-z"><h2>Les Z</h2><p class="small muted">Lecture des Z…</p></div>' : ''}`;
+          </tbody></table></div>` : `<div class="mg-vide"><b>Aucun ticket ce jour-là</b>${s.jour === C.today() ? '<span>Les ventes encaissées aujourd\'hui s\'écrivent ici.</span><button type="button" class="btn btn-primary" id="cs-aller-vendre">Ouvrir la caisse</button>' : '<span>Choisis un autre jour.</span>'}</div>`}
+        </div></div>
+        ${bridge.listeZ ? '<div class="cf-carte"><div class="cf-onglet" id="cs-les-z"><h2>Les Z</h2><p class="small muted">Lecture des Z…</p></div></div>' : ''}
+      </div>`;
       if ($('#cs-les-z')) void dessinerLesZ($('#cs-les-z'));
       bindDateFields($('#cs-body'));
       const j = $('#cs-body [name=csJour]');

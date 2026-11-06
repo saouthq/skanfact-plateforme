@@ -7428,7 +7428,7 @@ prouver "les retours du jour que le bilan ne compte pas" modules/socle/moteur/co
   "const avoirs = docs.filter(d => d.type === 'avoir' && d.date === j && d.status !== 'brouillon' && idsTickets.has(d.creditOf));" "const avoirs = [];" \
   "$CTW"
 prouver "le bilan qui annonce des ventes brutes après un retour" modules/socle/ecrans/entreprise/app-2.js \
-  "\${C.money(b.retours ? b.net : b.total, cur)}" "\${C.money(b.total, cur)}" \
+  "C.money(b.retours ? b.net : b.total, cur), b.retours" "C.money(b.total, cur), b.retours" \
   "$CTW"
 prouver "le bilan qui ne dit pas que les retours sont déduits" modules/socle/ecrans/entreprise/app-2.js \
   "\${b.retours ? 'Ventes du jour, retours déduits' : 'Ventes TTC'}" "\${'Ventes TTC'}" \
@@ -24643,6 +24643,19 @@ prouver 'relances 1.293 j : un message retouché à la main se refait au changem
 prouver 'relances 1.293 k : « Plus de 45 jours » oublie la facture qui attend sa réponse' modules/socle/ecrans/entreprise/app-1.js \
   'const vieux = all.filter(x => !x.snoozed && x.level === 3);' 'const vieux = enCours.filter(x => x.level === 3);' \
   'relancer un client pour toutes ses factures d'"'"'un message, puis attendre sa réponse une semaine ; le menu dit le même chiffre'
+# 1.294.0 — la caisse jouée comme une épicière (docs/revue-modules.md, « La caisse »).
+prouver 'caisse 1.294 a : le premier chiffre du comptage se perd (rien n'"'"'a le focus)' modules/socle/ecrans/entreprise/app-2.js \
+  "      if (dinars && choisie && !window.matchMedia('(max-width: 920px)').matches) choisie.focus({ preventScroll: true });" '' \
+  'compter le tiroir au clavier tout de suite ; 9 millimes d'"'"'écart ne sont pas un manque ; les tickets dans la DA'
+prouver 'caisse 1.294 b : le Z crie au manque pour 9 millimes' modules/socle/ecrans/entreprise/app-2.js \
+  'const ecartDArrondi = e => Math.abs(Number(e) || 0) > 0.0005 && Math.abs(Number(e)) < 0.0095;' 'const ecartDArrondi = () => false;' \
+  'compter le tiroir au clavier tout de suite ; 9 millimes d'"'"'écart ne sont pas un manque ; les tickets dans la DA'
+prouver 'caisse 1.294 c : un vrai manque n'"'"'est plus en alerte dans la liste des Z' modules/socle/ecrans/entreprise/app-2.js \
+  "Number(z.ecart) && !ecartDArrondi(z.ecart) ? ' warn-text' : ''" "''" \
+  'compter le tiroir au clavier tout de suite ; 9 millimes d'"'"'écart ne sont pas un manque ; les tickets dans la DA'
+prouver 'caisse 1.294 d : les tickets du jour gardent les tuiles d'"'"'avant' modules/socle/ecrans/entreprise/app-2.js \
+  '<div class="cf-carte mg-resume" id="cs-resume">' '<div class="stats" id="cs-resume">' \
+  'compter le tiroir au clavier tout de suite ; 9 millimes d'"'"'écart ne sont pas un manque ; les tickets dans la DA'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

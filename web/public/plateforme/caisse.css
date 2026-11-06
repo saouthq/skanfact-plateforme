@@ -420,3 +420,12 @@ body.dark .ct-pastille { background: hsl(var(--teinte, 175) 35% 22%); color: hsl
   .ct-coupure-total { min-width: 0; flex: 1 1 auto; }
   .ct-fermee-carte { padding: 20px 16px; }
 }
+/* (1.294.0) Les tickets du jour dans la DA des listes : les cartes s'empilent avec l'écart de la fiche ; le jour se
+   choisit à côté du titre de la liste ; les titres de la carte au ton des fiches. */
+.ct-corps .lf.mg.cs-tk { display: grid; gap: 14px; max-width: 1180px; width: 100%; margin: 0 auto; }
+.ct-corps .cs-tk .cs-tk-tete { display: flex; gap: 12px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
+.ct-corps .cs-tk h2 { margin: 0; font-size: 15px; font-weight: 700; color: var(--sb-encre); }
+.ct-corps .cs-tk .cs-tk-tete .field { margin: 0; }
+.ct-corps .cs-tk table.list { border: 0; }
+.ct-corps .cs-tk .mg-chiffre small b { font-size: inherit; font-weight: 600; color: var(--sb-encre); }
+.ct-corps .cs-tk .cs-tk-tete h2 { padding-bottom: 9px; }
