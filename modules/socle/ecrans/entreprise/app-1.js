@@ -12060,6 +12060,7 @@
         <label class="field span-2 obligatoire">${lbl('Objet des factures', 'contrat.objet')}<input type="text" name="subject" value="${h(r.subject)}" placeholder="Entretien des portes — {mois}"></label>
         ${field(lbl('Jour du mois', 'contrat.jour'), 'day', r.day || 1, 'number', 'min="1" max="31" class="num"')}
         ${dateFieldHtml(lbl('Prochaine facture', 'contrat.next'), 'nextDate', r.nextDate || C.today(), { quick: true, obligatoire: true })}
+        ${dateFieldHtml(lbl('Fin du contrat (facultatif)', 'contrat.fin'), 'endDate', r.endDate || '', { clearable: true })}
         <label class="field">${lbl('Retenue à la source', 'ed.withholding')}${withholdingSelect('withholdingRate', r.withholdingRate)}</label>
         ${field(lbl('Remise (%)', 'ed.discount'), 'discountRate', r.discountRate || 0, 'number', 'min="0" max="100" step="0.5" class="num"')}
         <label class="field">${lbl('Devise des factures', 'contrat.devise')}<select name="currency">${C.CURRENCIES.map(x => `<option value="${x}" ${x === cur ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
@@ -12164,6 +12165,10 @@
           if (!v.subject.trim()) return refus($('input[name=subject]', root), 'Indique l\'objet des factures — il apparaît sur chacune.');
           if (!r.lines.some(l => l.label && l.label.trim())) return refus($('#rl [data-k=label]', root), 'Ajoute au moins une ligne : ce que le contrat facture.');
           if (!v.nextDate) return refus($('[name=nextDate]', root), 'Indique la date de la prochaine facture.');
+          // Une fin avant la prochaine facture ne laisserait rien à facturer : on le dit sur le champ, sans rien perdre.
+          // Un contrat déjà terminé se retouche librement (ses notes, ses lignes) : le refus ne vise qu'une fin ou une date changée.
+          const datesTouchees = isNew || v.endDate !== (rec.endDate || '') || v.nextDate !== rec.nextDate;
+          if (v.endDate && v.endDate < v.nextDate && datesTouchees) return refus($('[name=endDate]', root), `La fin du contrat (${C.fmtDate(v.endDate)}) tombe avant sa prochaine facture (${C.fmtDate(v.nextDate)}) : il ne facturerait plus rien. Recule la fin, ou vide la case pour un contrat sans fin.`);
           // Le taux de change est obligatoire en devise, comme sur une pièce (7.0.1) : sans lui, chaque
           // facture du contrat compterait 1 € pour 1 DT jusqu'à ce qu'on la corrige à la main.
           if (enDevise() && !(Number(v.exchangeRate) > 0)) return refus(txTaux, `Indique le taux de change : combien vaut 1 ${cur} en ${co0.currency} ? Chaque facture du contrat le reprendra — tu pourras l'ajuster sur la facture.`);
@@ -12196,7 +12201,7 @@
         const inv = { ...C.buildRecurringInvoice(rec, rec.nextDate, company(), clientById(rec.clientId)), id: C.uid(), createdAt: Date.now() };
         data.documents.push(inv); n++; ids.push(inv.id);
         rec.lastIssued = rec.nextDate; rec.nextDate = C.nextRecurrenceDate(rec.nextDate, rec.every, rec.day);
-      } while (!force && rec.active !== false && rec.nextDate <= C.today() && ++guard < 12);
+      } while (!force && rec.active !== false && rec.nextDate <= C.today() && !C.contratTermine(rec) && ++guard < 12);
     });
     if (n || skipped) save(true);
     if (skipped) toast(`${pl(skipped, 'échéance passée', 'échéances passées')} : leur mois est clôturé. Rouvre la période si ces factures doivent exister.`, true);
@@ -12207,10 +12212,10 @@
   // supprime le brouillon créé et les remet. Sur un contrat suspendu ou dont l'échéance n'est pas
   // encore arrivée, on demande d'abord — c'est un geste qui avance le calendrier de facturation.
   async function genererContrat(r, apres) {
-    const avance = r.active === false || r.nextDate > C.today();
+    const avance = r.active === false || r.nextDate > C.today() || C.contratTermine(r);
     if (avance) {
-      const quoi = r.active === false
-        ? 'Ce contrat est suspendu.' : `La prochaine échéance est le ${C.fmtDate(r.nextDate)}, elle n'est pas encore arrivée.`;
+      const quoi = C.contratTermine(r) ? `Ce contrat a pris fin le ${C.fmtDate(r.endDate)}.`
+        : r.active === false ? 'Ce contrat est suspendu.' : `La prochaine échéance est le ${C.fmtDate(r.nextDate)}, elle n'est pas encore arrivée.`;
       if (!await confirmDialog(`${quoi}\n\nGénérer quand même le brouillon de facture ? L'échéance suivante sera repoussée d'une période.`, 'Générer', false, { titre: 'Générer la facture en avance ?' })) return;
     }
     const avant = { lastIssued: r.lastIssued, nextDate: r.nextDate };
@@ -12241,52 +12246,88 @@
     const next = C.buildRecurringInvoice(r, r.nextDate, co, clientById(r.clientId));   // la facture que le contrat produira
     const t = C.computeTotals(next, co);
     const active = r.active !== false;
-    const isDue = active && !r.emettreSeul && r.nextDate <= C.today();
+    const termine = C.contratTermine(r);
+    const isDue = active && !r.emettreSeul && r.nextDate <= C.today() && !termine;
     const period = (C.PERIODS.find(p => p[0] === r.every) || [])[1] || '';
     const subj = C.fillTemplate(r.subject, { mois: C.monthLabel(r.nextDate), annee: (r.nextDate || '').slice(0, 4) });
+    // (1.290.0) Le brouillon que le contrat a préparé et que personne n'a encore émis : c'est l'étape suivante. La fiche
+    // disait « Générer » sans voir qu'une facture attendait déjà sa relecture (le plus ancien d'abord).
+    const enAttente = invoices.filter(d => d.type === 'facture' && d.status === 'brouillon').sort((x, y) => (x.date || '').localeCompare(y.date || ''));
+    const brouillon = enAttente[0] || null;
+    const etat = termine ? 'terminé' : !active ? 'suspendu' : r.emettreSeul ? 'émise seule' : 'actif';
+    // (1.290.0, Skander : « respecter la DA de ce qu'on a déjà fait avec facture et devis ») La fiche d'un contrat prend le
+    // squelette des pièces : ‹ vers la liste, chemin, titre et pastille ; frise contrat → prochaine facture → encaissé ; à
+    // gauche ce qu'il facture et ce qu'il a facturé ; à droite son résumé, UN bouton vert (l'étape suivante), l'aperçu.
+    const enc = !suivi.emises ? 'aucune facture émise' : suivi.restant > 0 ? `${C.money(suivi.restant, co.currency)} à encaisser` : 'tout est encaissé';
+    const frise = `<div class="panel ed-frise trois" id="c-frise"><ol>
+        <li class="fait"><span class="rond" aria-hidden="true">${lfIc('coche', 13, 3)}</span><span class="ed-fr-txt"><b>Contrat</b><span>${h(period)}${r.endDate ? ' · jusqu\'au ' + h(C.fmtDate(r.endDate)) : ' · sans fin'}</span></span><span class="vh"> : fait</span></li>
+        <li class="${termine ? 'fait' : isDue || brouillon ? 'alerte' : 'partiel'}"><span class="rond" aria-hidden="true">${termine ? lfIc('coche', 13, 3) : 2}</span><span class="ed-fr-txt"><b>${termine ? 'Dernière facture' : 'Prochaine facture'}</b><span>${termine ? (r.lastIssued ? h(C.fmtDate(r.lastIssued)) : '—') : brouillon ? 'brouillon à émettre' : isDue ? 'à générer · ' + h(C.fmtDate(r.nextDate)) : !active ? 'en pause' : h(C.fmtDate(r.nextDate))}</span></span><span class="vh">${termine ? ' : fait' : isDue || brouillon ? ' : à faire' : ' : à venir'}</span></li>
+        <li class="${suivi.emises && !(suivi.restant > 0) ? 'fait' : suivi.encaisse > 0 ? 'partiel' : ''}"><span class="rond" aria-hidden="true">${suivi.emises && !(suivi.restant > 0) ? lfIc('coche', 13, 3) : 3}</span><span class="ed-fr-txt"><b>Encaissé</b><span>${h(enc)}</span></span><span class="vh">${suivi.emises && !(suivi.restant > 0) ? ' : fait' : ' : en cours'}</span></li>
+      </ol></div>`;
+    const resume = `<div class="totals-box" id="c-resume-fiche"><table class="ed-tot">
+        <tr><td>Par facture (HT) ${info('contrat.montant')}</td><td>${h(C.money(t.netHT, cur))}</td></tr>
+        <tr class="sous"><td>Soit TTC</td><td>${h(C.money(t.totalTTC, cur))}</td></tr>
+        <tr><td>Facturé depuis le début (HT) ${info('contrat.total')}</td><td>${h(C.money(suivi.facture, co.currency))}</td></tr>
+        <tr class="sous"><td colspan="2">${suivi.emises ? `${pl(suivi.emises, 'facture')} émise${sPl(suivi.emises)}` : 'aucune facture émise'}${suivi.avoirs ? ` · ${pl(suivi.avoirs, 'avoir')} déduit${sPl(suivi.avoirs)}` : ''}${suivi.brouillons ? ` · ${pl(suivi.brouillons, 'brouillon')}` : ''}</td></tr>
+        <tr><td>Encaissé ${info('contrat.encaisse')}</td><td>${h(C.money(suivi.encaisse, co.currency))}</td></tr>
+        <tr class="trait"><td>Reste à encaisser (TTC)</td><td>${h(C.money(Math.max(0, suivi.restant || 0), co.currency))}</td></tr>
+        ${suivi.tropPercu > 0 ? `<tr class="sous"><td>Trop-perçu</td><td>${h(C.money(suivi.tropPercu, co.currency))}</td></tr>` : ''}
+      </table></div>`;
+    // Le bouton vert : l'étape suivante, calculée (10.12.0, U-11). Un refus du serveur se corrige d'abord ; puis l'échéance
+    // arrivée se génère ; puis le brouillon préparé s'émet ; un contrat suspendu se reprend. Sinon rien à faire : la phrase
+    // le dit, sans vert. Les autres gestes restent à côté, jamais retirés (Skander : « ne pas bloquer l'utilisateur »).
+    const moisBr = brouillon ? C.monthLabel(brouillon.date) : '';
+    const principal = r.refusServeur ? { id: 'c-edit', txt: 'Corriger le contrat', phrase: 'Le serveur n\'a pas pu émettre la dernière facture : corrige le contrat, SkanFact la retente dans l\'heure.' }
+      : isDue ? { id: 'c-gen2', txt: 'Générer le brouillon', phrase: `L'échéance du ${h(C.fmtDate(r.nextDate))} est arrivée : SkanFact prépare la facture, tu la relis puis tu l'émets.` }
+      : brouillon ? { id: 'c-emettre', txt: `Émettre la facture de ${h(moisBr)}`, phrase: `Le brouillon du ${h(C.fmtDate(brouillon.date))} attend ta relecture${enAttente.length > 1 ? ` (et ${pl(enAttente.length - 1, 'autre')})` : ''}. Il n'est pas encore envoyé au client.` }
+      : !active && !termine ? { id: 'c-toggle', txt: 'Reprendre le contrat', phrase: 'Contrat suspendu : aucune facture n\'est préparée tant qu\'il n\'est pas repris. Les échéances passées ne seront pas facturées.' }
+      : null;
+    const calme = termine ? `Contrat terminé le ${h(C.fmtDate(r.endDate))} : il ne prépare plus de facture. Recule sa fin (Modifier) pour le prolonger.`
+      : r.emettreSeul ? `Émise seule : SkanFact émettra la prochaine facture le ${h(C.fmtDate(r.nextDate))}, avec son numéro. Rien à faire.`
+      : `Prochaine facture le ${h(C.fmtDate(r.nextDate))} : SkanFact préparera le brouillon ce jour-là. Rien à faire d'ici là.`;
+    const second = [
+      principal && principal.id === 'c-edit' ? '' : '<button class="btn" id="c-edit">Modifier</button>',
+      // Un contrat terminé ne se suspend pas : il se prolonge (Modifier, sa fin).
+      (principal && principal.id === 'c-toggle') || termine ? '' : `<button class="btn" id="c-toggle">${active ? 'Suspendre' : 'Reprendre'}</button>`,
+      // Générer en avance reste offert (un client qui veut sa facture plus tôt) ; il demande avant d'avancer le calendrier.
+      isDue ? '' : '<button class="btn" id="c-gen">Générer maintenant</button>',
+      '<button class="btn" id="c-client">Fiche client</button>'
+    ].filter(Boolean).join('');
+    const geste = principal
+      ? `<div class="panel ed-geste" id="ed-geste"><button class="btn btn-primary btn-grand" id="${principal.id}">${principal.txt}</button>
+          <p class="ed-phrase">${principal.phrase}</p>`
+      : `<div class="panel ed-geste ed-geste-calme" id="ed-geste"><p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${calme}</span></p>`;
 
     $('#view').innerHTML = `
-      <div class="page-head">
-        <div><h1>${h(subj || 'Contrat')} ${info('contrat.fiche')}</h1>
-          <div class="small muted">${h(clientName(r.clientId))} · ${h(period)} · ${active ? 'actif' : 'suspendu'}${r.subject !== subj ? ` · gabarit « ${h(r.subject)} »` : ''}</div></div>
-        <div class="actions">
-          ${backButton('#/contrats')}
-          <button class="btn" id="c-client">Fiche client</button>
-          <button class="btn" id="c-edit">Modifier</button>
-          <button class="btn" id="c-toggle">${active ? 'Suspendre' : 'Reprendre'}</button>
-          ${/* 10.12.0 — le bouton principal est l'étape SUIVANTE (U-11) : un contrat dont la
-                prochaine facture est au 1er octobre n'a rien à générer le 24 septembre, et un vert
-                l'invitait à facturer une semaine trop tôt. Il se rallume à l'échéance. */''}
-          <button class="btn${isDue ? ' btn-primary' : ''}" id="c-gen">Générer maintenant</button>
-          <div class="more"><button class="btn" id="c-more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="c-more" hidden>
-            <button id="c-del" class="danger">Supprimer le contrat</button>
-          </div></div>
-        </div></div>
-      ${r.emettreSeul && active ? `<div class="banner info" id="c-seul">Émise seule : SkanFact émet chaque facture à sa date, avec son numéro. La prochaine : le ${C.fmtDate(r.nextDate)}.</div>` : ''}
+      <div class="page-head ed-tete">
+        ${retourListe('#/contrats', 'contrats')}<div class="ed-titre">
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/contrats" class="ed-retour">Facturation récurrente</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(subj || 'Contrat')}</span></div>
+          <div class="ed-h1"><h1>${h(subj || 'Contrat')} ${info('contrat.fiche')}</h1><span class="badge ${termine ? '' : !active ? '' : r.refusServeur ? 'retard' : 'envoyée'}" id="c-etat">${etat}</span></div>
+          <div class="small muted" id="c-sous">${[clientName(r.clientId), period, r.endDate ? 'jusqu\'au ' + C.fmtDate(r.endDate) : '', cur !== co.currency ? 'en ' + cur : ''].filter(Boolean).map(h).join(' · ')}${r.subject !== subj ? ` · gabarit « ${h(r.subject)} »` : ''}</div>
+        </div>
+        <div class="actions"></div></div>
+      <div class="buy-editor editor charte">
+        <div class="ed-gauche">
+      ${frise}
+      ${r.emettreSeul && active ? `<div class="banner info" id="c-seul">Émise seule : SkanFact émet chaque facture à sa date, avec son numéro. ${termine ? 'Le contrat est terminé.' : `La prochaine : le ${C.fmtDate(r.nextDate)}.`}</div>` : ''}
       ${r.refusServeur ? `<div class="banner warn" id="c-refus">La facture du ${C.fmtDate(r.refusServeur.echeance)} n'a pas pu être émise : ${h(r.refusServeur.motif)} Corrige le contrat (Modifier) : SkanFact la retente dans l'heure.</div>` : ''}
-      ${isDue ? `<div class="banner">Une facture est à générer pour le ${C.fmtDate(r.nextDate)}<button class="btn" id="c-gen2">Générer le brouillon</button></div>` : ''}
-      ${!active ? `<div class="banner info">Contrat suspendu : aucune facture n'est générée tant qu'il n'est pas repris.</div>` : ''}
-      <div class="stats">
-        <div class="stat"><div class="lbl">Par facture (HT) ${info('contrat.montant')}</div><div class="val">${C.money(t.netHT, cur)}</div><div class="sub">${C.money(t.totalTTC, cur)} TTC</div></div>
-        <div class="stat"><div class="lbl">Prochaine facture ${info('contrat.next')}</div><div class="val">${C.fmtDate(r.nextDate)}</div><div class="sub">${isDue ? 'à générer' : period.toLowerCase()}${r.lastIssued ? ' · dernière : ' + C.fmtDate(r.lastIssued) : ''}</div></div>
-        <div class="stat"><div class="lbl">Facturé depuis le début (HT) ${info('contrat.total')}</div><div class="val">${C.money(suivi.facture, co.currency)}</div><div class="sub">${pl(suivi.emises, 'facture')} émise${sPl(suivi.emises)}${suivi.avoirs ? ` · ${pl(suivi.avoirs, 'avoir')} déduit${sPl(suivi.avoirs)}` : ''}${suivi.brouillons ? ` · ${pl(suivi.brouillons, 'brouillon')}` : ''}</div></div>
-        <div class="stat"><div class="lbl">Encaissé ${info('contrat.encaisse')}</div><div class="val">${C.money(suivi.encaisse, co.currency)}</div><div class="sub">${!suivi.emises ? 'aucune facture émise' : suivi.restant > 0 ? `${C.money(suivi.restant, co.currency)} reste à encaisser (TTC)` : 'rien ne reste à encaisser'}${suivi.tropPercu > 0 ? ` · ${C.money(suivi.tropPercu, co.currency)} trop-perçu` : ''}</div></div>
-      </div>
-      <div class="editor editor-short">
-        <div>
-          <div class="panel"><h2>Ce qui sera facturé ${info('contrat.lignes')}</h2>
-            ${(r.lines || []).length ? `<table class="list compact"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">P.U. HT</th><th class="r">TVA</th><th class="r">Total HT</th></tr></thead><tbody>
+          <div class="panel"><h2>${termine ? 'Ce qu\'il facturait' : 'Ce qui sera facturé'} ${info('contrat.lignes')}</h2>
+            ${(r.lines || []).length ? `<div class="scroll-x"><table class="list compact" id="c-lignes"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">P.U. HT</th><th class="r">TVA</th><th class="r">Total HT</th></tr></thead><tbody>
               ${t.lines.map(l => `<tr><td><strong>${h(C.fillTemplate(l.label, { mois: C.monthLabel(r.nextDate) }))}</strong>${l.description ? `<div class="small muted">${h(l.description)}</div>` : ''}</td>
                 <td class="r nw">${h(String(l.qty))}</td><td>${h(l.unit || '')}</td><td class="r nw">${C.money(l.unitPrice, cur)}</td><td class="r nw">${l.vatRate} %</td><td class="r nw">${C.money(l.ht, cur)}</td></tr>`).join('')}
-            </tbody></table>` : '<div class="empty">Aucune ligne. Clique sur « Modifier » pour en ajouter.</div>'}
+            </tbody></table></div>` : '<div class="empty">Aucune ligne. Clique sur « Modifier » pour en ajouter.</div>'}
           </div>
+          <div class="panel"><h2>Factures de ce contrat ${info('contrat.factures')}</h2><div id="c-docs"></div></div>
+          <p class="small"><button type="button" class="btn-lien danger-text" id="c-del">Supprimer le contrat</button> <span class="muted">· les factures déjà faites sont gardées</span></p>
         </div>
-        <div class="preview">
-          <div class="pv-head"><span class="k-label">Aperçu de la prochaine facture ${info('contrat.apercu')}</span><span class="pv-pages" id="pv-pages"></span></div>
-          <iframe id="preview" title="Aperçu de la facture que ce contrat produira"></iframe>
-        </div>
-      </div>
-      <div class="panel"><h2>Factures générées par ce contrat ${info('contrat.factures')}</h2><div id="c-docs"></div></div>`;
+        <aside class="ed-droite">
+          <div class="panel ed-totaux">${resume}</div>
+          ${geste}
+            <div class="ed-deux">${second}</div></div>
+          <div class="preview panel ed-apercu"><div class="pv-head"><span class="k-label">${termine ? 'Aperçu · la facture qu\'il produisait' : 'Aperçu · la prochaine facture'} ${info('contrat.apercu')}</span><span class="pv-pages" id="pv-pages"></span></div>
+            <iframe id="preview" title="Aperçu de la facture que ce contrat produira"></iframe></div>
+        </aside>
+      </div>`;
 
     // Aperçu : exactement le rendu de la facture que « Générer » produira, mois résolu compris.
     const pv = $('#preview');
@@ -12310,17 +12351,17 @@
       if (typeof sortKey === 'string' && sortKey) { contratDocState.sort = toggleSort(contratDocState.sort, sortKey, cols); contratDocState.page = 1; }
       $('#c-docs').innerHTML = docTable(invoices, {
         hideClient: true, sort: contratDocState.sort, onSort: true, page: contratDocState, mini: true,
-        empty: 'Aucune facture générée pour l\'instant. La première le sera le ' + C.fmtDate(r.nextDate) + '.'
+        empty: termine ? 'Ce contrat n\'a produit aucune facture.' : !active ? 'Aucune facture pour l\'instant : le contrat est suspendu.'
+          : `Aucune facture pour l'instant. La première sera ${r.emettreSeul ? 'émise' : 'préparée'} le ${C.fmtDate(r.nextDate)}.`
       });
       bindDocTable(drawDocs, contratDocState, '#c-docs');
     };
     drawDocs();
 
-    bindBack('#/contrats');
     $('#c-client').onclick = () => navigate('#/client/' + r.clientId);
     $('#c-edit').onclick = () => recurrenceForm(r, () => render(true));
-    $('#c-more-btn').onclick = e => { e.stopPropagation(); const l = $('#c-more'); l.hidden = !l.hidden; };
-    $('#c-toggle').onclick = () => {
+    if ($('#c-emettre')) $('#c-emettre').onclick = () => navigate('#/doc/' + brouillon.id);
+    if ($('#c-toggle')) $('#c-toggle').onclick = () => {
       const avant = { active: r.active, nextDate: r.nextDate };
       r.active = !active;
       let msg = r.active ? 'Contrat repris' : 'Contrat suspendu — plus aucun brouillon ne sera préparé';
@@ -12332,10 +12373,10 @@
       toastUndo(msg, () => { Object.assign(r, avant); save(true); render(true); });
     };
     const generate = () => genererContrat(r, () => render(true));
-    $('#c-gen').onclick = generate;
+    if ($('#c-gen')) $('#c-gen').onclick = generate;
     if ($('#c-gen2')) $('#c-gen2').onclick = generate;
     $('#c-del').onclick = async () => {
-      if (!await confirmDialog('Supprimer ce contrat ? Les factures déjà générées sont conservées.', 'Supprimer', true)) return;
+      if (!await confirmDialog(`Supprimer ce contrat ?${invoices.length ? ` ${pl(invoices.length, 'facture')} en ${invoices.length > 1 ? 'sont issues : elles sont conservées' : 'est issue : elle est conservée'}.` : ''}`, 'Supprimer', true)) return;
       forget('recurring', r.id, r.subject || '');
       data.recurring = data.recurring.filter(x => x.id !== r.id);
       save(true); navigate('#/contrats');
@@ -12343,6 +12384,8 @@
   };
 
   const contratState = { q: '', st: '', sort: { key: 'next', dir: 'asc' }, page: 1 };
+  // L'état d'un contrat, en un mot, pour la liste et ses filtres : terminé (sa fin est passée), suspendu, ou actif.
+  const etatContrat = r => C.contratTermine(r) ? 'terminé' : r.active !== false ? 'actif' : 'suspendu';
   routes.contrats = () => {
     const cur = company().currency;
     const s = contratState;
@@ -12350,6 +12393,9 @@
     // colonne l'affichait pourtant en dinars, quel que soit le contrat. Et le tri comparait des
     // euros à des dinars — donc classait de travers.
     const curOf = r => r.currency || cur;
+    // (1.290.0) Un brouillon préparé par le contrat et pas encore émis : la ligne le dit, comme la fiche (« Émettre la facture »).
+    const attente = new Set(data.documents.filter(d => d.recurringId && d.type === 'facture' && d.status === 'brouillon').map(d => d.recurringId));
+    const enAttenteDe = r => attente.has(r.id);
     const htOf = r => C.computeTotals({ type: 'facture', lines: r.lines, discountRate: r.discountRate,
       currency: r.currency, exchangeRate: r.exchangeRate }, company()).netHT;
     const htBase = r => C.toBase({ currency: r.currency, exchangeRate: r.exchangeRate }, htOf(r), company());
@@ -12359,11 +12405,12 @@
       { key: 'client', label: 'Client', asc: true, val: r => clientName(r.clientId).toLowerCase(), get: r => `<strong>${h(clientName(r.clientId))}</strong>` },
       { key: 'subject', label: 'Objet', asc: true, val: r => (r.subject || '').toLowerCase(), get: r => { const subj = C.fillTemplate(r.subject, { mois: C.monthLabel(r.nextDate) }); return `${h(subj)}${subj !== r.subject ? `<div class="small muted">${h(r.subject)}</div>` : ''}`; } },
       { key: 'every', label: 'Période', asc: true, nw: true, val: r => r.every || '', get: r => (C.PERIODS.find(p => p[0] === r.every) || [])[1] || '' },
-      { key: 'next', label: 'Prochaine facture', asc: true, val: r => r.nextDate || '', get: r => { const isDue = r.active !== false && r.nextDate <= C.today(); return `${C.fmtDate(r.nextDate)}${r.emettreSeul && r.active !== false ? ' <span class="level" data-seul>émise seule</span>' : isDue ? ' <span class="level l2">à générer</span>' : ''}${r.lastIssued ? `<div class="small muted">dernière : ${C.fmtDate(r.lastIssued)}</div>` : ''}`; } },
+      { key: 'next', label: 'Prochaine facture', asc: true, val: r => r.nextDate || '', get: r => { const isDue = r.active !== false && r.nextDate <= C.today(); return C.contratTermine(r) ? `<span class="muted">—</span><div class="small muted">fini le ${C.fmtDate(r.endDate)}</div>` : `${C.fmtDate(r.nextDate)}${r.emettreSeul && r.active !== false ? ' <span class="level" data-seul>émise seule</span>' : enAttenteDe(r) ? ' <span class="level l2" data-attente>brouillon à émettre</span>' : isDue ? ' <span class="level l2">à générer</span>' : ''}${r.lastIssued ? `<div class="small muted">dernière : ${C.fmtDate(r.lastIssued)}</div>` : ''}`; } },
       { key: 'ht', label: 'HT / facture', r: true, val: htBase, get: r => C.money(htOf(r), curOf(r)) },
-      { key: 'state', label: 'État', asc: true, val: r => r.active !== false ? 'actif' : 'suspendu', get: r => r.active !== false ? '<span class="badge envoyée">actif</span>' : '<span class="badge">suspendu</span>' }
+      // (1.290.0) Un contrat arrivé à sa fin n'est ni actif ni suspendu : il est terminé (`contratTermine`, la même règle que la fiche).
+      { key: 'state', label: 'État', asc: true, val: r => etatContrat(r), get: r => etatContrat(r) === 'actif' ? '<span class="badge envoyée">actif</span>' : `<span class="badge">${etatContrat(r)}</span>` }
     ];
-    const STATES = [['', 'Tous les contrats'], ['actif', 'Actifs'], ['suspendu', 'Suspendus'], ['due', 'À générer']];
+    const STATES = [['', 'Tous les contrats'], ['actif', 'Actifs'], ['suspendu', 'Suspendus'], ['due', 'À générer'], ['terminé', 'Terminés']];
     // Les chiffres portent sur TOUS les contrats (pas la sélection filtrée) : ils disent l'état de l'entreprise ; le pied du
     // tableau, lui, compte la sélection.
     const chiffreR = (lbl2, val, sous, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
@@ -12371,12 +12418,12 @@
       const el = $('#c-resume'); if (!el) return;
       el.hidden = !all.length;
       if (!all.length) { el.innerHTML = ''; return; }
-      const actifs = all.filter(r => r.active !== false), suspendus = all.length - actifs.length;
+      const actifs = all.filter(r => etatContrat(r) === 'actif'), suspendus = all.filter(r => etatContrat(r) === 'suspendu').length;
       const parAn = C.round3(actifs.reduce((a2, r) => a2 + htBase(r) * (PAR_AN[r.every] || 12), 0));
       const prochain = actifs.filter(r => r.nextDate).sort((x, y) => x.nextDate.localeCompare(y.nextDate))[0];
       el.innerHTML = chiffreR('Contrats actifs', String(actifs.length), suspendus ? `${pl(suspendus, 'suspendu')}` : 'aucun suspendu')
         + chiffreR('Rapportent par mois', montantU(C.round3(parAn / 12), cur), `${C.money(parAn, cur)} HT par an`)
-        + chiffreR('À générer', String(due.length), due.length ? 'brouillons à préparer — voir lesquels' : 'rien en attente', due.length ? 'ambre' : 'vert', due.length ? 'due' : '')
+        + chiffreR('À générer', String(due.length), due.length ? `${due.length > 1 ? 'brouillons' : 'brouillon'} à préparer — voir ${due.length > 1 ? 'lesquels' : 'lequel'}` : 'rien en attente', due.length ? 'ambre' : 'vert', due.length ? 'due' : '')
         + chiffreR('Prochaine facture', prochain ? h(C.fmtDate(prochain.nextDate)) : '—', prochain ? h(clientName(prochain.clientId)) : 'aucun contrat actif');
       $$('[data-aller]', el).forEach(x => {
         const aller = () => { s.st = x.dataset.aller; s.page = 1; draw(); };
@@ -12388,13 +12435,13 @@
       const due = C.dueRecurrences(data);
       const all = data.recurring.slice();
       const kept = applySort(all
-        .filter(r => !s.st || (s.st === 'due' ? (r.active !== false && !r.emettreSeul && r.nextDate <= C.today()) : (s.st === 'actif') === (r.active !== false)))
+        .filter(r => !s.st || (s.st === 'due' ? due.includes(r) : etatContrat(r) === s.st))
         .filter(r => !s.q || C.correspondRecherche(`${clientName(r.clientId)} ${r.subject || ''}`, s.q)), cols, s.sort);
       const { rows: page, pg } = paginate(kept, s);
       const filtered = !!(s.q || s.st);
       // Le pied porte sur la sélection ENTIÈRE (règle des listes depuis la 2.2.0), et ne compte que
       // les contrats actifs : un contrat suspendu ne rapporte rien ce mois-ci.
-      const actifs = kept.filter(r => r.active !== false);
+      const actifs = kept.filter(r => etatContrat(r) === 'actif');
       const parAn = C.round3(actifs.reduce((a2, r) => a2 + htBase(r) * (PAR_AN[r.every] || 12), 0));
       const parMois = C.round3(parAn / 12);
       drawResumeC(all, due);

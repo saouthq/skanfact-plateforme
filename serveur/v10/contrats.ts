@@ -65,7 +65,9 @@ export async function emettreUnContrat(tx: Transaction, entreprise: string, cle:
   const rec = { ...ligne.contenu };
   const societe = (await lire(tx, entreprise, '_racine', 'company'))?.contenu ?? {};
   let n = 0, periodes = 0;
-  while (typeof rec.nextDate === 'string' && rec.nextDate <= jour && periodes < 12) {
+  // (1.290.0) Un contrat qui a une fin s'arrête après sa dernière échéance (la règle `contratTermine` du moteur).
+  const fin = typeof rec.endDate === 'string' && rec.endDate ? rec.endDate : null;
+  while (typeof rec.nextDate === 'string' && rec.nextDate <= jour && !(fin && rec.nextDate > fin) && periodes < 12) {
     const date = rec.nextDate;
     const client = (await lire(tx, entreprise, 'clients', String(rec.clientId ?? '')))?.contenu ?? null;
     // L'identifiant de la facture dit son contrat et sa date : deux tours ne la font jamais deux fois.

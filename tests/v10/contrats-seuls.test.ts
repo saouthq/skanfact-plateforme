@@ -166,4 +166,33 @@ describe('les factures périodiques émises seules', () => {
     const r1 = await relire('r1');
     expect((await envoyer(sami.jeton, [{ collection: 'recurring', cle: 'r1', rang: 0, revision: r1.revision, contenu: { ...r1.contenu, notes: 'Merci pour votre confiance' } }])).statut).toBe(200);
   });
+
+  // (1.290.0) Un contrat qui a une fin : le tour émet ses échéances jusqu'à la fin, puis plus rien, et ne le relit plus.
+  it('un contrat émis seul s\'arrête à sa fin', async () => {
+    const leila = await personne('leila');
+    const ent = String((await appeler('POST', '/entreprises-essai', leila.jeton)).corps.id);
+    entreprises.push(ent);
+    await appeler('POST', '/moi/code', leila.jeton, { methode: 'application' });
+    const objets = (await appeler('GET', `/entreprises/${ent}/dossier-v10`, leila.jeton)).corps.objets as Objet[];
+    const client = objets.find((o) => o.collection === 'clients' && String(o.contenu.name).startsWith('Menuiserie'));
+    if (!client) throw new Error('client d\'exemple absent');
+    // Le 5 de chaque mois depuis août, fini le 10 septembre : août et septembre, pas octobre.
+    expect((await appeler('POST', `/entreprises/${ent}/dossier-v10`, leila.jeton, { changements: [
+      { collection: 'recurring', cle: 'f1', rang: 0, revision: null, contenu: contrat('f1', client.cle, { emettreSeul: true, endDate: '2026-09-10' }) },
+    ] })).statut).toBe(200);
+    const leur = async () => (await admin.query(`select ref_v10 from ventes.piece where entreprise = $1 order by ref_v10`, [ent])).rows.map((x) => x.ref_v10);
+    await emettreLesContrats(ctx, le('2026-10-06'));
+    expect(await leur()).toEqual(['contrat-f1-2026-08-05', 'contrat-f1-2026-09-05']);
+    const f1 = (await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'recurring' and cle = 'f1'`, [ent])).rows[0].contenu;
+    expect(f1).toMatchObject({ lastIssued: '2026-09-05', nextDate: '2026-10-05', endDate: '2026-09-10' });
+    // Terminé : le tour ne le liste plus (il ne le réécrit pas), un mois plus tard non plus.
+    const dus = async (jour: string) => ((await admin.query('select ventes.contrats_dus($1) v', [jour])).rows[0].v as { entreprise: string }[]).filter((d) => d.entreprise === ent);
+    expect(await dus('2026-11-06')).toEqual([]);
+    await emettreLesContrats(ctx, le('2026-11-06'));
+    expect(await leur()).toHaveLength(2);
+    // Prolongé (la fin reculée), il repart.
+    await admin.query(`update socle.dossier_v10 set contenu = jsonb_set(contenu, '{endDate}', '"2027-06-30"') where entreprise = $1 and collection = 'recurring' and cle = 'f1'`, [ent]);
+    expect(await dus('2026-11-06')).toHaveLength(1);
+  });
 });
+

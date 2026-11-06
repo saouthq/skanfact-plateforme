@@ -6316,22 +6316,22 @@ prouver "un abonnement à « facture réglée » refusé" serveur/avis.ts \
 # Brique 129 : les factures périodiques émises seules (docs/api-situation.md, S7).
 CS="le serveur émet les factures dues des contrats émis seuls, rattrape les périodes, n'émet rien deux fois, note un refus"
 CSW="la propriétaire coche « Émise seule » ; la fiche le dit, ne propose plus de brouillon, et dit un refus ; la case est grisée pour le commercial"
-prouver "un contrat ordinaire lu par le tour des contrats émis seuls" base/migrations/0065_contrats_seuls.sql \
+prouver "un contrat ordinaire lu par le tour des contrats émis seuls" base/migrations/0192_fin_de_contrat.sql \
   "     and d.contenu ->> 'emettreSeul' = 'true'
 " "" \
   "$CS"
-prouver "un contrat suspendu lu par le tour des contrats émis seuls" base/migrations/0065_contrats_seuls.sql \
+prouver "un contrat suspendu lu par le tour des contrats émis seuls" base/migrations/0192_fin_de_contrat.sql \
   "     and coalesce(d.contenu ->> 'active', 'true') <> 'false'
 " "" \
   "$CS"
-prouver "un contrat à la date mal écrite lu par le tour" base/migrations/0065_contrats_seuls.sql \
+prouver "un contrat à la date mal écrite lu par le tour" base/migrations/0192_fin_de_contrat.sql \
   "     and d.contenu ->> 'nextDate' ~ '^\\d{4}-\\d{2}-\\d{2}\$'
 " "" \
   "$CS"
-prouver "un contrat dû aujourd'hui attendu demain" base/migrations/0065_contrats_seuls.sql \
+prouver "un contrat dû aujourd'hui attendu demain" base/migrations/0192_fin_de_contrat.sql \
   "     and d.contenu ->> 'nextDate' <= p_jour::text" "     and d.contenu ->> 'nextDate' < p_jour::text" \
   "$CS"
-prouver "un contrat refusé retenté à chaque tour du même jour" base/migrations/0065_contrats_seuls.sql \
+prouver "un contrat refusé retenté à chaque tour du même jour" base/migrations/0192_fin_de_contrat.sql \
   "     and coalesce(d.contenu -> 'refusServeur' ->> 'le', '') <> p_jour::text
 " "" \
   "$CS"
@@ -6393,10 +6393,10 @@ prouver "une facture du serveur comparée à un écran qui n'existe pas" serveur
   "  if (demande.netAPayer !== null && serveur !== demande.netAPayer) throw" "  if (serveur !== demande.netAPayer) throw" \
   "$CS"
 prouver "un contrat émis seul compté à générer dans le menu" modules/socle/moteur/core-1.js \
-  "r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t);" "r.active !== false && r.nextDate && r.nextDate <= t);" \
+  "r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t && !contratTermine(r));" "r.active !== false && r.nextDate && r.nextDate <= t && !contratTermine(r));" \
   "$CSW"
 prouver "un contrat émis seul qui propose son brouillon" modules/socle/ecrans/entreprise/app-1.js \
-  "    const isDue = active && !r.emettreSeul && r.nextDate <= C.today();" "    const isDue = active && r.nextDate <= C.today();" \
+  "    const isDue = active && !r.emettreSeul && r.nextDate <= C.today() && !termine;" "    const isDue = active && r.nextDate <= C.today() && !termine;" \
   "$CSW"
 prouver "la fiche d'un contrat émis seul qui ne le dit pas" modules/socle/ecrans/entreprise/app-1.js \
   "      \${r.emettreSeul && active ? \`<div class=\"banner info\" id=\"c-seul\">" "      \${false ? \`<div class=\"banner info\" id=\"c-seul\">" \
@@ -6419,10 +6419,10 @@ prouver "un serveur redémarré qui attend une heure son premier tour" serveur/p
 " "" \
   "$CSW"
 prouver "la liste qui dit « à générer » d'un contrat émis seul" modules/socle/ecrans/entreprise/app-1.js \
-  "\${r.emettreSeul && r.active !== false ? ' <span class=\"level\" data-seul>émise seule</span>' : isDue ?" "\${isDue ?" \
+  "\${r.emettreSeul && r.active !== false ? ' <span class=\"level\" data-seul>émise seule</span>' : enAttenteDe(r) ?" "\${enAttenteDe(r) ?" \
   "$CSW"
 prouver "le filtre « À générer » qui montre les contrats émis seuls" modules/socle/ecrans/entreprise/app-1.js \
-  "(r.active !== false && !r.emettreSeul && r.nextDate <= C.today()) : (s.st === 'actif')" "(r.active !== false && r.nextDate <= C.today()) : (s.st === 'actif')" \
+  "(s.st === 'due' ? due.includes(r) : etatContrat(r) === s.st)" "(s.st === 'due' ? (r.active !== false && r.nextDate <= C.today()) : etatContrat(r) === s.st)" \
   "$CSW"
 prouver "la page vide qui promet que rien n'est jamais émis à ta place" modules/socle/ecrans/entreprise/app-1.js \
   "               'Rien n\\'est émis à ta place : un brouillon t\\'attend. Sauf si tu le demandes : un contrat « Émise seule » voit SkanFact émettre ses factures à leur date.'," "               'Rien n\\'est envoyé à ta place : un brouillon t\\'attend, c\\'est tout.'," \
@@ -24331,7 +24331,7 @@ prouver 'immos 1.279 c : l'"'"'en-tête ne dit pas à quoi sert la page' modules
   '<p class="sous">Ce que tu gardes plusieurs années, ce qu'"'"'il coûte chaque année, ce qu'"'"'il vaut encore</p>' '' \
   'l'"'"'en-tête, les quatre chiffres du tableau, les onglets ; au téléphone rien ne déborde'
 prouver 'contrats 1.280 a : un contrat suspendu compte parmi ce qui rapporte' modules/socle/ecrans/entreprise/app-1.js \
-  'const actifs = all.filter(r => r.active !== false), suspendus = all.length - actifs.length;' 'const actifs = all, suspendus = 0;' \
+  'const actifs = all.filter(r => etatContrat(r) === '"'"'actif'"'"'), suspendus = all.filter(r => etatContrat(r) === '"'"'suspendu'"'"').length;' 'const actifs = all, suspendus = 0;' \
   'l'"'"'en-tête, les quatre chiffres sur tous les contrats ; « À générer » filtre la liste ; au téléphone rien ne déborde'
 prouver 'contrats 1.280 b : « À générer » ne filtre pas la liste' modules/socle/ecrans/entreprise/app-1.js \
   'const aller = () => { s.st = x.dataset.aller; s.page = 1; draw(); };' 'const aller = () => { s.page = 1; draw(); };' \
@@ -24508,6 +24508,32 @@ prouver "le résumé d'un bien vendu qui compte l'amortissement jusqu'à aujourd
 prouver "un bien entièrement amorti qui se dit encore en service" modules/socle/ecrans/entreprise/app-2.js \
   "    const fini = !dis && !!fin && fin <= C.today();" "    const fini = false;" \
   "$IMF"
+
+# 1.290.0 : la fiche d'un contrat récurrent au squelette des pièces, et la fin d'un contrat.
+CFF="dû, généré puis à émettre ; suspendu puis repris ; terminé"
+CFIN="un contrat émis seul s'arrête à sa fin"
+prouver "un contrat fini encore compté à générer" modules/socle/moteur/core-1.js \
+  " && !contratTermine(r));" ");" \
+  "$CFF"
+prouver "un contrat fini que le serveur émet encore" serveur/v10/contrats.ts \
+  "!(fin && rec.nextDate > fin) && " "" \
+  "$CFIN"
+prouver "un contrat fini que le tour relit à chaque passage" base/migrations/0192_fin_de_contrat.sql \
+  "     and not (coalesce(d.contenu ->> 'endDate', '') ~ '^\d{4}-\d{2}-\d{2}\$' and d.contenu ->> 'nextDate' > d.contenu ->> 'endDate')
+" "" \
+  "$CFIN"
+prouver "un brouillon préparé par le contrat que la fiche ne propose pas d'émettre" modules/socle/ecrans/entreprise/app-1.js \
+  "      : brouillon ? { id: 'c-emettre'" "      : false ? { id: 'c-emettre'" \
+  "$CFF"
+prouver "un contrat terminé qui propose encore « Suspendre »" modules/socle/ecrans/entreprise/app-1.js \
+  "(principal && principal.id === 'c-toggle') || termine ? ''" "(principal && principal.id === 'c-toggle') ? ''" \
+  "$CFF"
+prouver "un contrat suspendu qui promet sa première facture à une date passée" modules/socle/ecrans/entreprise/app-1.js \
+  "!active ? 'Aucune facture pour l\\'instant : le contrat est suspendu.'" "false ? ''" \
+  "$CFF"
+prouver "la liste qui ne sait pas qu'un contrat est terminé" modules/socle/ecrans/entreprise/app-1.js \
+  "const etatContrat = r => C.contratTermine(r) ? 'terminé' :" "const etatContrat = r => false ? 'terminé' :" \
+  "$CFF"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

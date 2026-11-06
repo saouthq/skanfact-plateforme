@@ -2160,7 +2160,14 @@
   function dueRecurrences(data, todayIso) {
     const t = todayIso || today();
     // (plateforme, brique 129) Un contrat émis seul ne propose pas de brouillon : le serveur émet sa facture à sa date.
-    return (data.recurring || []).filter(r => r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t);
+    return (data.recurring || []).filter(r => r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t && !contratTermine(r));
+  }
+
+  // (1.290.0) Un contrat peut avoir une fin (un entretien de douze mois, un bail) : passé sa dernière échéance, il ne
+  // produit plus rien. Sans fin, il court toujours. La liste, la fiche, le tour du serveur et la génération lisent CETTE
+  // règle : l'échéance suivante est après la fin.
+  function contratTermine(r) {
+    return !!(r && r.endDate && r.nextDate && r.nextDate > r.endDate);
   }
 
   // Reprise d'un contrat suspendu : première échéance à partir d'aujourd'hui (les mois suspendus ne sont pas facturés).

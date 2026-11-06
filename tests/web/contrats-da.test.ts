@@ -86,7 +86,7 @@ describe('la Facturation récurrente dans la nouvelle DA', () => {
     expect(chiffres).toEqual([
       'Contrats actifs 2 1 suspendu',
       'Rapportent par mois 239,167 DT 2 870,000 DT HT par an',
-      'À générer 1 brouillons à préparer — voir lesquels',
+      'À générer 1 brouillon à préparer — voir lequel',
       'Prochaine facture 05/01/2026 Pharmacie Ben Youssef',
     ]);
     expect(await p.locator('#c-resume b.ambre').count()).toBe(1);

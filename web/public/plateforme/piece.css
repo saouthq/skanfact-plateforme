@@ -1605,3 +1605,7 @@
 .bandeau.reprise .rep-g { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-self: center; }
 .bandeau.reprise .rep-ok { font-weight: 600; }
 #ac-garde:not([hidden]) ~ .dirty-dot, #ed-garde:not([hidden]) ~ .dirty-dot { display: none; }
+
+/* (1.290.0) La fiche d'un contrat : supprimer est un lien discret sous les factures, jamais à côté du bouton vert. */
+.ed-gauche .btn-lien#c-del { font: inherit; font-weight: 600; color: var(--sb-rouge-texte); background: none; border: 0; padding: 4px 0; min-height: 32px; cursor: pointer; }
+.ed-gauche .btn-lien#c-del:hover { text-decoration: underline; }
