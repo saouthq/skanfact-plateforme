@@ -410,4 +410,29 @@ Les deux rouges GitHub de 1.295.0 : les tests de la caisse et du caissier lisaie
 tuile (`.stat`), retirée par la revue de la caisse ; ils le lisent maintenant par son nom (`#cs-ventes`). La preuve « la
 barre de la caisse sous le bandeau du poste » retombe : le test de la caisse hors ligne mesure sa place exacte.
 
-Suivant : la suite de la revue des modules.
+## La trésorerie
+
+### Fait en 1.298.0 (06/11/2026) : la remise de chèques, le loyer oublié, et le relevé jusqu'au comptable
+
+Jouée comme une menuiserie de Sousse (Menuiserie Ben Salah) : un compte BIAT et une caisse, six factures dont quatre
+payées (un virement, trois chèques déposés ensemble à la banque), trois achats (deux réglés, un en retard), un loyer
+mensuel marqué « se répète », un acompte provisionnel ; le relevé d'octobre de la BIAT importé tel que la banque le
+donne (CSV, solde final compris), un 6 novembre, soit le lendemain du loyer. Puis la même page au téléphone.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| T1 | La ligne « REMISE CHEQUES 3 CHQ » du relevé (3 495,923 DT) passait pour **absente de SkanFact** : les trois chèques y sont un par un, chacun sur sa facture. « Créer le mouvement » comptait l'encaissement deux fois. | L'import cherche, pour une ligne restée seule, deux à quatre encaissements pas encore pointés, du même sens, des vingt jours qui la précèdent, dont la somme fait la ligne au millime. Une seule combinaison possible : elle se propose (« Une ligne du relevé, plusieurs mouvements : une remise »), cochée, et ses chèques se pointent avec elle. Deux combinaisons, ou plus de quatre chèques : rien n'est proposé, la ligne reste à décider. Bulle d'aide sur la remise. |
+| T2 | Le loyer du 5, lu le 6 sans avoir été noté, était **cru payé** : ni dans la prévision ni nulle part (1 200 DT de trop dans la caisse, sans une question). | Une dépense qui revient, passée sans être notée (sur les trois derniers mois), se compte aujourd'hui, « déjà échue (le 05/11/2026) ». « Où j'en suis » la demande (« Loyer de l'atelier du 05/11/2026 : 1 200,000 DT, pas encore noté ») avec « Noter comme payé », qui ouvre le mouvement prérempli à la date du loyer. Un mouvement du même compte, de même nature et de même montant, saisi à la main à sept jours près, vaut aussi pour elle (sans quoi le loyer noté à la main sortait deux fois). |
+| T3 | Les frais créés depuis le relevé (« FRAIS TENUE DE COMPTE ») tombaient en « Autre sortie ». | La nature se devine du libellé : FRAIS, COMMISSION, AGIOS, TENUE DE COMPTE donnent « Frais bancaires » ; IMPOT, TVA, CNSS, RECETTE DES FINANCES, ACOMPTE PROVISIONNEL donnent « Impôts et taxes ». Une entrée n'est jamais classée en frais. Ce n'est qu'une proposition, à relire dans la fenêtre. |
+| T4 | Les salaires en retard et les dépenses qui reviennent se rangeaient avec les fournisseurs en retard. | Les retards se rangent par sorte : clients, fournisseurs, salaires (« À surveiller » ouvre la paie), dépenses qui reviennent. |
+| T5 | L'état de rapprochement fini n'allait nulle part : le comptable le redemande à chaque fin de mois. | « Envoyer l'état à mon comptable » (écart nul) ou « Demander à mon comptable » (un écart qu'on ne trouve pas) ouvre la conversation avec le résumé prêt à relire. Sans comptable relié, les deux boutons ne paraissent pas (ils menaient à la page d'invitation, et le texte se perdait) ; « Exporter l'état » suffit. |
+| T6 | La prévision ne s'exportait pas : c'est le tableau qu'on montre à son banquier avant un trou. | « Exporter » dans « Ce qui arrive » : la prévision telle qu'on la lit (horizon, façon d'attendre les clients, essai compris), avec la note « estimé » ou « déjà échue le … ». |
+| T7 | Les mouvements libres (loyer, impôts, frais) n'ont que leur justificatif pour se prouver, et rien ne retrouvait ceux qui n'en ont pas. | « Sans justificatif » dans l'onglet Mouvements, à côté du sens ; le solde après se cache tant que la liste est filtrée. |
+| T8 | Au téléphone, les cartes des mouvements sortaient de l'écran à droite : la rangée des titres en pastilles élargissait la colonne de l'onglet. | La règle posée en 1.278.0 pour le Stock et la Caisse vaut maintenant pour tout onglet (fiches client et fournisseur comprises) : un bloc d'onglet tient dans sa largeur, ce qui est plus large défile en lui. Les chèques d'une remise s'alignent, montant à droite. |
+
+Ce qui tenait déjà, rejoué : le relevé retrouvé ligne à ligne à cinq jours près, le solde final recopié, l'état de
+rapprochement à écart nul, le loyer noté qui sort de « À surveiller » et des chiffres, l'export du relevé. À VÉRIFIER
+avec un comptable : les montants estimés (salaires des mois sans bulletin, déclaration du mois) restent des ordres de
+grandeur, marqués « estimés ».
+
+Suivant : les Marges, puis la Comptabilité de l'entreprise.

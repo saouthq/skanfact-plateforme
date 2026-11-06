@@ -749,6 +749,19 @@
     return { effets: out, aRecevoir: tot('recevoir'), aPayer: tot('payer') };
   }
 
+  // (1.298.0) La nature proposée pour une ligne du relevé qu'on crée en mouvement, devinée de son libellé : les frais de la
+  // banque (« FRAIS », « COMMISSION », « AGIOS », « TENUE DE COMPTE ») et les impôts payés (« IMPOT », « TVA », « CNSS »,
+  // « RECETTE DES FINANCES »). Ce n'est qu'une proposition, corrigée d'un clic dans la fenêtre ; sans indice, le sens dit
+  // « Autre entrée » ou « Autre sortie ». Une entrée n'est jamais classée en frais : un remboursement de frais reste une
+  // entrée à décider.
+  function natureDuReleve(libelle, montant) {
+    const t = String(libelle || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    if (Number(montant) > 0) return 'autre-entree';
+    if (/\b(FRAIS|COMMISSIONS?|AGIOS?|TENUE DE COMPTE|COTISATION CARTE|INTERETS? DEBITEURS?)\b/.test(t)) return 'banque';
+    if (/\b(IMPOTS?|TVA|CNSS|RECETTE DES FINANCES|ACOMPTE PROVISIONNEL|TAXE)\b/.test(t)) return 'impot';
+    return 'autre-sortie';
+  }
+
   // (1.266.0) Un relevé de banque face aux mouvements d'un compte : chaque ligne du relevé cherche le mouvement pas encore
   // pointé de MÊME montant (au millime), le plus proche en date à cinq jours près, pris une seule fois. Faute de quoi, elle
   // cherche parmi ceux DÉJÀ pointés : un relevé importé recouvre souvent des jours déjà rapprochés, et dire « absente de
@@ -775,7 +788,35 @@
       const d = chercher(l, pointes);
       if (d) dejaPointees.push(d); else absentes.push(l);
     });
-    return { paires, dejaPointees, absentes, restants: libres.filter(x => !x.pris).map(x => x.m) };
+    // (1.298.0, revue de la Trésorerie) Une remise de chèques : la banque crédite en UNE ligne les chèques déposés ensemble
+    // (« REMISE CHEQUES 3 CHQ »), que SkanFact porte un par un, chacun sur sa facture. Une ligne restée seule cherche deux à
+    // quatre mouvements pas encore pointés, du même sens, datés des vingt jours qui la précèdent (à `max` jours près après),
+    // dont la somme fait la ligne au millime ; seule une combinaison UNIQUE se propose (la règle de la Banque du Cabinet :
+    // au-delà de quatre, ou à deux réponses, la somme ne prouve plus rien). Sans elle, la ligne passait pour absente de
+    // SkanFact, et « Créer le mouvement » comptait l'encaissement deux fois (vu le 06/11/2026, Menuiserie Ben Salah).
+    const remises = [];
+    const seules = absentes.filter(l => {
+      const cible = Math.round(Math.abs(Number(l.montant) || 0) * 1000);
+      const signe = Math.sign(Number(l.montant) || 0);
+      if (!cible || !signe || !l.date) return true;
+      const cands = libres.filter(x => !x.pris && Math.sign(Number(x.m.amount) || 0) === signe && x.m.date
+        && x.m.date >= addDays(l.date, -20) && x.m.date <= addDays(l.date, max))
+        .sort((a, b) => Math.abs(daysBetween(a.m.date, l.date)) - Math.abs(daysBetween(b.m.date, l.date)))
+        .slice(0, 20).map(x => ({ x, v: Math.round(Math.abs(Number(x.m.amount) || 0) * 1000) }));
+      const trouvees = [];
+      const essayer = (debut, cheques, somme) => {
+        if (trouvees.length > 1) return;
+        if (cheques.length >= 2 && somme === cible) { trouvees.push(cheques.slice()); return; }
+        if (cheques.length === 4 || somme >= cible) return;
+        for (let i = debut; i < cands.length; i++) { cheques.push(cands[i]); essayer(i + 1, cheques, somme + cands[i].v); cheques.pop(); }
+      };
+      essayer(0, [], 0);
+      if (trouvees.length !== 1) return true;
+      trouvees[0].forEach(c => { c.x.pris = true; });
+      remises.push({ ligne: l, mouvements: trouvees[0].map(c => c.x.m).sort((a, b) => (a.date || '').localeCompare(b.date || '')) });
+      return false;
+    });
+    return { paires, dejaPointees, remises, absentes: seules, restants: libres.filter(x => !x.pris).map(x => x.m) };
   }
 
   // (1.266.0) La prévision semaine par semaine : ce qui rentre, ce qui sort, le solde au soir du dernier jour. Les semaines
@@ -970,6 +1011,23 @@
     // (`repeteDe` + `occurrence`) ne se projette plus : elle est dans les mouvements.
     const PAS_REPETE = { mois: 1, trimestre: 3, annee: 12 };
     const notees = new Set((data.movements || []).filter(m => m.repeteDe).map(m => `${m.repeteDe}@${m.occurrence}`));
+    // (1.298.0, revue de la Trésorerie) Une occurrence se reconnaît notée aussi quand elle a été saisie à la main, sans
+    // « Noter comme payé » : un mouvement simple du même compte, de même nature et de même montant, à sept jours près (pris
+    // une seule fois). Sans quoi le loyer noté à la main se comptait deux fois dans la prévision.
+    const simples = (data.movements || []).filter(x => !x.repete && !x.repeteDe && x.date);
+    const prisAMain = new Set();
+    const noteeAMain = (m, d) => {
+      const montant = round3(Math.abs(Number(m.amount) || 0));
+      const c = simples.find(x => !prisAMain.has(x.id) && x.id !== m.id && x.accountId === m.accountId && x.kind === m.kind
+        && Math.abs(round3(Math.abs(Number(x.amount) || 0) - montant)) < 0.0005 && Math.abs(daysBetween(x.date, d)) <= 7);
+      if (c) prisAMain.add(c.id);
+      return !!c;
+    };
+    // (1.298.0) Une occurrence PASSÉE que personne n'a notée (le loyer du 5, lu le 6) : la prévision la croyait payée et
+    // ne la montrait nulle part — 1 200 DT de trop dans la caisse, sans une question (vu le 06/11/2026). Elle se compte
+    // aujourd'hui, « déjà échue », comme un achat en retard, et l'écran demande si elle est payée. Seulement les trois
+    // derniers mois : plus loin, c'est le rapprochement du relevé qui le dira.
+    const depuisRetard = addDays(t, -92);
     (data.movements || []).filter(m => PAS_REPETE[m.repete] && m.date && !(virementCotes(data, m) || {}).vers).forEach(m => {
       const pas = PAS_REPETE[m.repete];
       const j = Number(m.date.slice(8, 10));
@@ -978,9 +1036,13 @@
         const y = y0 + Math.floor(m0 / 12), mo = (m0 % 12) + 1;
         const d = `${y}-${pad2(mo)}-${pad2(Math.min(j, daysInMonth(y, mo)))}`;
         if (d > horizon || (m.repeteJusqu && d > m.repeteJusqu)) break;
-        if (d <= t || notees.has(`${m.id}@${d}`)) continue;
+        if (d <= t && d < depuisRetard) continue;
+        if (notees.has(`${m.id}@${d}`) || noteeAMain(m, d)) continue;
         const montant = round3(Math.abs(Number(m.amount) || 0));
-        if (montant) events.push({ date: d, amount: round3(moveSign(m.kind) * montant), kind: 'repete', label: m.label || (MOVE_KINDS.find(x => x[0] === m.kind) || [null, 'Mouvement'])[1], id: `${m.id}@${d}`, movementId: m.id });
+        if (!montant) continue;
+        const passee = d < t;
+        events.push({ date: passee ? t : d, amount: round3(moveSign(m.kind) * montant), kind: 'repete', late: passee, occurrence: d,
+          label: m.label || (MOVE_KINDS.find(x => x[0] === m.kind) || [null, 'Mouvement'])[1], id: `${m.id}@${d}`, movementId: m.id });
       }
     });
     // Les échéances fiscales : la date de toutes, pour la liste ; les montants estimés sont dans la courbe ci-dessus.
@@ -1015,7 +1077,10 @@
       // Le seul chiffre qui compte vraiment : à quelle date, si rien ne change, on passe sous le seuil. Le PREMIER passage
       // (la date où il faut agir), avec le point le plus bas à côté (`lowest`).
       shortfall: sous ? { ...sous, lowest } : null,
-      late: { clients: events.filter(e => e.late && e.amount > 0), suppliers: events.filter(e => e.late && e.amount < 0) }
+      // (1.298.0) Ce qui est déjà dû se range par ce que c'est : « déjà dus à tes fournisseurs » comptait aussi les
+      // salaires en retard (et aurait compté le loyer pas noté) sous « achats échus ».
+      late: { clients: events.filter(e => e.late && e.amount > 0), suppliers: events.filter(e => e.late && e.amount < 0 && e.kind === 'fournisseur'),
+        salaires: events.filter(e => e.late && e.amount < 0 && e.kind === 'salaire'), repetes: events.filter(e => e.late && e.amount < 0 && e.kind === 'repete') }
     };
   }
 
@@ -7381,7 +7446,7 @@
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
-    ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, apparierReleve, reconciliation,
+    ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,
     lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,

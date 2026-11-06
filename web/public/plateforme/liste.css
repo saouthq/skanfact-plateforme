@@ -320,6 +320,10 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 .cf-onglets button[aria-selected="true"] { color: var(--sb-encre); border-bottom-color: var(--sb-sarcelle); }
 .cf-onglets button[aria-selected="true"] small:not(.r) { background: var(--sb-doux); color: var(--sb-doux-texte); }
 .cf-onglet { padding: 14px 16px 16px; display: grid; gap: 12px; min-width: 0; }
+/* (1.298.0) Chaque bloc d'un onglet tient dans la largeur de l'onglet : sans cela, un bloc dont le contenu ne se plie pas
+   (au téléphone, la rangée des titres en pastilles d'une liste en cartes) élargit la colonne de la grille, et toutes les
+   cartes de la liste sortent de l'écran à droite. Ce qui est plus large défile dans son propre bloc. */
+.cf-onglet > * { min-width: 0; }
 .cf-onglet .panel, .cf-onglet #cl-docs .panel { border: 0; box-shadow: none; padding: 0; margin: 0; }
 /* Les documents du client tiennent dans leur carte : au-delà, ils défilent dans elle, jamais sous la colonne de droite. */
 .cf-onglet #cl-docs { min-width: 0; overflow-x: auto; }
@@ -481,8 +485,7 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
    de la fiche ; au téléphone, la barre des onglets défile au lieu de passer sur deux lignes. */
 .lf.mg.st .cf-onglet, .lf.mg.ca .cf-onglet { padding: 14px 16px 16px; gap: 12px; }
 /* (1.278.0) Une case de la grille ne s'élargit pas à son contenu : la rangée des tris du téléphone, qui défile, poussait
-   les fiches de la liste hors de leur carte. */
-.lf.mg.st .cf-onglet > *, .lf.mg.ca .cf-onglet > * { min-width: 0; }
+   les fiches de la liste hors de leur carte. Depuis la 1.298.0, la règle vaut pour tout onglet (.cf-onglet > *). */
 .lf.mg.st .pa-seg, .lf.mg.ca .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
 .lf.mg.st .pa-seg button, .lf.mg.ca .pa-seg button { flex: none; white-space: nowrap; }
 /* (1.278.0) Un chiffre qui s'ouvre le dit au survol ; ce qui reste à faire prend l'ambre de la charte. */
@@ -813,6 +816,10 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.tr .tr-stmt #stmt-verdict { padding-bottom: 9px; }
 .tr-imp-res { display: flex; gap: 8px 20px; flex-wrap: wrap; margin: 10px 0 4px; font-size: 13.5px; color: var(--sb-gris); }
 .tr-imp-res b { color: var(--sb-encre); font-size: 16px; }
+/* (1.298.0) Les chèques d'une remise : la date, le libellé qui peut passer à la ligne, le montant à droite, sur une seule ligne. */
+#imp-remises .tr-imp-m { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; }
+#imp-remises .tr-imp-m + .tr-imp-m { margin-top: 3px; }
+#imp-remises .tr-imp-m .m { text-align: right; font-variant-numeric: tabular-nums; }
 .pf-effet-off { visibility: hidden; }
 .mf-jusqu > .field { margin: 0; }
 @media (max-width: 760px) {

@@ -22889,7 +22889,7 @@ prouver 'tréso 1.266 e : une TVA déjà déclarée sort encore de la prévision
   '          if (!done.has(fiscalFilingId('\''tva'\'', d))) {' '          if (true) {' \
   'la TVA du mois écoulé sort le 28, estimée sur ce qui est saisi ; déclarée, elle ne sort plus'
 prouver 'tréso 1.266 f : un loyer déjà noté payé sort une seconde fois' modules/socle/moteur/core-2.js \
-  '        if (d <= t || notees.has(`${m.id}@${d}`)) continue;' '        if (d <= t) continue;' \
+  '        if (notees.has(`${m.id}@${d}`) || noteeAMain(m, d)) continue;' '        if (noteeAMain(m, d)) continue;' \
   'un loyer qui se répète sort chaque mois ; une occurrence notée ne sort plus deux fois'
 prouver 'tréso 1.266 g : l'\''essai de décalage ne décale plus rien' modules/socle/moteur/core-2.js \
   '      if (!dec[cle]) continue;' '      continue;' \
@@ -24310,7 +24310,7 @@ prouver 'catalogue 1.278 b : les chiffres ne suivent pas la liste' modules/socle
         if (opts.ouvrir) $$(' '        if (opts.ouvrir) $$(' \
   'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
 prouver 'catalogue 1.278 c : les fiches coupées au téléphone' web/public/plateforme/liste.css \
-  '.lf.mg.st .cf-onglet > *, .lf.mg.ca .cf-onglet > * { min-width: 0; }' '' \
+  '.cf-onglet > * { min-width: 0; }' '' \
   'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
 prouver 'catalogue 1.278 d : la marge comptée sans coût' modules/socle/ecrans/entreprise/app-1.js \
   'const avecCout = cat.filter(c => Number(c.unitCost) > 0 && Number(c.unitPrice) > 0);' 'const avecCout = cat.filter(c => Number(c.unitPrice) > 0);' \
@@ -24748,6 +24748,104 @@ prouver 'le resserrement des chiffres sans effet sur les cartes de l'"'"'accueil
   '#view .stat .val[data-tel-serre="1"], .stat|||#view .stat .val[data-tel-serre="2"], .stat' \
   '.stat|||.stat' \
   "$TEL"
+
+# (1.298.0) La trésorerie jouée comme un vrai commerçant (Menuiserie Ben Salah, relevé BIAT d'octobre, 06/11/2026).
+CORE2=modules/socle/moteur/core-2.js
+APP2=modules/socle/ecrans/entreprise/app-2.js
+T98R='une ligne du relevé retrouve les trois chèques dont la somme la fait au millime, et seulement eux'
+T98W="à la souris, du loyer oublié au relevé pointé, puis au téléphone"
+prouver 'la remise de chèques passée pour absente du relevé' "$CORE2" \
+  'if (trouvees.length !== 1) return true;' \
+  'if (true) return true;' \
+  "$T98R"
+prouver 'la remise de chèques proposée quand deux combinaisons font la somme' "$CORE2" \
+  'if (trouvees.length !== 1) return true;' \
+  'if (trouvees.length < 1) return true;' \
+  'deux combinaisons qui font la somme : rien ne se propose, la ligne reste à décider'
+prouver 'la remise de chèques qui remonte au-delà des vingt jours' "$CORE2" \
+  'x.m.date >= addDays(l.date, -20)' \
+  'x.m.date >= addDays(l.date, -40)' \
+  "hors des vingt jours, d'un autre sens, ou à plus de quatre chèques : pas de remise"
+prouver 'la remise de chèques qui mêle une sortie aux encaissements' "$CORE2" \
+  'Math.sign(Number(x.m.amount) || 0) === signe && x.m.date' \
+  'x.m.date' \
+  "hors des vingt jours, d'un autre sens, ou à plus de quatre chèques : pas de remise"
+prouver 'la remise de chèques à cinq chèques' "$CORE2" \
+  'if (cheques.length === 4 || somme >= cible) return;' \
+  'if (cheques.length === 5 || somme >= cible) return;' \
+  "hors des vingt jours, d'un autre sens, ou à plus de quatre chèques : pas de remise"
+prouver 'la remise de chèques qui reprend un chèque déjà apparié' "$CORE2" \
+  'const cands = libres.filter(x => !x.pris && Math.sign' \
+  'const cands = libres.filter(x => Math.sign' \
+  "un chèque déjà apparié un pour un n'entre pas dans une remise"
+prouver 'le loyer passé sans être noté, cru payé' "$CORE2" \
+  'if (d <= t && d < depuisRetard) continue;' \
+  'if (d <= t) continue;' \
+  "le loyer d'octobre et celui du 5 novembre, jamais notés, sortent aujourd'hui « déjà échus » ; décembre reste à sa date"
+prouver 'le loyer noté à la main compté deux fois' "$CORE2" \
+  'if (notees.has(`${m.id}@${d}`) || noteeAMain(m, d)) continue;' \
+  'if (notees.has(`${m.id}@${d}`)) continue;' \
+  'noté par « Noter comme payé » ou saisi à la main (même compte, même nature, même montant, à sept jours près) : il sort de la prévision'
+prouver 'le loyer noté par un mouvement d'"'"'un autre montant' "$CORE2" \
+  '&& Math.abs(round3(Math.abs(Number(x.amount) || 0) - montant)) < 0.0005 && Math.abs(daysBetween(x.date, d)) <= 7);' \
+  '&& Math.abs(daysBetween(x.date, d)) <= 7);' \
+  'noté par « Noter comme payé » ou saisi à la main (même compte, même nature, même montant, à sept jours près) : il sort de la prévision'
+prouver 'le loyer noté par un mouvement d'"'"'un autre compte' "$CORE2" \
+  'x.id !== m.id && x.accountId === m.accountId && x.kind === m.kind' \
+  'x.id !== m.id && x.kind === m.kind' \
+  'noté par « Noter comme payé » ou saisi à la main (même compte, même nature, même montant, à sept jours près) : il sort de la prévision'
+prouver 'le loyer oublié recherché sans limite dans le passé' "$CORE2" \
+  'const depuisRetard = addDays(t, -92);' \
+  'const depuisRetard = addDays(t, -400);' \
+  "plus de trois mois en arrière, c'est le relevé qui le dira : la prévision ne remonte pas au-delà"
+prouver 'le loyer oublié rangé avec les fournisseurs en retard' "$CORE2" \
+  "suppliers: events.filter(e => e.late && e.amount < 0 && e.kind === 'fournisseur')," \
+  'suppliers: events.filter(e => e.late && e.amount < 0),' \
+  "les retards se rangent par sorte : un achat en retard n'est pas un loyer"
+prouver 'un remboursement de frais classé en frais bancaires' "$CORE2" \
+  "if (Number(montant) > 0) return 'autre-entree';" \
+  '' \
+  "se devine de son libellé, sans jamais classer une entrée en frais"
+prouver 'les frais du relevé créés en « Autre sortie »' "$CORE2" \
+  "INTERETS? DEBITEURS?)\\b/.test(t)) return 'banque';" \
+  "INTERETS? DEBITEURS?)\\b/.test(t)) return 'autre-sortie';" \
+  "se devine de son libellé, sans jamais classer une entrée en frais"
+prouver 'l'"'"'écran qui ne demande pas le loyer pas noté' "$APP2" \
+  '...dusRepetes.slice(0, 3).map(' \
+  '...[].slice(0, 3).map(' \
+  "$T98W"
+prouver 'la prévision qui tait la date d'"'"'une dépense échue' "$APP2" \
+  'déjà échue${e.occurrence ? ` (le ${C.fmtDate(e.occurrence)})` : '"''"'}</div>' \
+  'déjà échue</div>' \
+  "$T98W"
+prouver 'l'"'"'export de la prévision qui tait la date d'"'"'une dépense échue' "$APP2" \
+  'déjà échue${e.occurrence ? ` le ${C.fmtDate(e.occurrence)}` : '"''"'}` : '"''"', e.estime' \
+  'déjà échue` : '"''"', e.estime' \
+  "$T98W"
+prouver 'le loyer noté comme payé à la date du jour' "$APP2" \
+  'date: quand > C.today() ? C.today() : quand, repeteDe: src.id' \
+  'date: C.today(), repeteDe: src.id' \
+  "$T98W"
+prouver 'les chèques d'"'"'une remise pas pointés avec elle' "$APP2" \
+  "...\$\$('[data-remise]', root).filter(c => c.checked).flatMap(c => ap.remises[Number(c.dataset.remise)].mouvements)];" \
+  '];' \
+  "$T98W"
+prouver 'les frais du relevé créés sans deviner leur nature (écran)' "$APP2" \
+  'kind: C.natureDuReleve(l.libelle, l.montant), accountId: accId,' \
+  "kind: l.montant > 0 ? 'autre-entree' : 'autre-sortie', accountId: accId," \
+  "$T98W"
+prouver 'écrire au comptable proposé sans comptable relié' "$APP2" \
+  '${peutEcrireAuCabinet() ? `<button class="btn" id="t-etat-compta">' \
+  '${true ? `<button class="btn" id="t-etat-compta">' \
+  "$T98W"
+prouver 'le filtre « Sans justificatif » qui garde tout' "$APP2" \
+  '&& (!s.sansPj || sansPj(m)));' \
+  ');' \
+  "$T98W"
+prouver 'les mouvements qui sortent de l'"'"'écran au téléphone' 'web/public/plateforme/liste.css' \
+  '.cf-onglet > * { min-width: 0; }' \
+  '' \
+  "$T98W"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
