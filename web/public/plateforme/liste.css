@@ -631,7 +631,23 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lf.mg table.mg-table td.r { text-align: right; }
   .lf.mg table.mg-table tfoot tr { background: var(--sb-papier-2); }
   .lf.mg table.mg-table td:empty { display: none; }
+  /* (1.300.0, revue des Marges : l'électricien au téléphone) Chaque montant dit ce qu'il est : quatre nombres sans nom
+     (7 890,000 · 10 215,558 · − 2 325,558 · 9 389,100) ne se lisaient qu'en se souvenant de l'ordre des colonnes. */
+  .lf.mg table.mg-table td[data-l]::before { content: attr(data-l); display: block; font-size: 10.5px; font-weight: 600; color: var(--sb-gris-2); text-transform: none; }
+  .lf.mg table.mg-table tfoot td[data-l]::before { content: none; }
 }
+/* (1.300.0) Le chantier en cours : sa marge attendue sous la marge à ce jour, et la ligne de l'avancement. */
+.lf.mg .mg-att { color: var(--sb-gris-2); }
+.lf.mg .mg-att.rouge { color: var(--sb-rouge-texte, var(--sb-rouge)); }
+.lf.mg .mg-av-l { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--sb-trait); font-size: 13px; line-height: 1.5; }
+/* (1.300.0) L'état des chantiers : une fenêtre large, sa date et ses deux raccourcis sur une ligne. */
+.modal.mg-etat-f { width: min(880px, calc(100vw - 32px)); }
+.modal.mg-etat-f .mg-etat-date { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin: 4px 0 12px; }
+.modal.mg-etat-f .mg-etat-date .field { margin: 0; min-width: 180px; }
+.modal.mg-etat-f .mg-etat-vite { display: flex; gap: 8px; padding-bottom: 6px; }
+.modal.mg-etat-f .mg-etat-phrase { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; }
+.modal.mg-etat-f td small { display: block; color: var(--sb-gris-2); font-size: 11.5px; }
+.modal.mg-etat-f td small.rouge { color: var(--sb-rouge-texte, var(--sb-rouge)); }
 #pf3 .pa-seg { width: fit-content; max-width: 100%; }
 /* (1.264.0) Le module Marges : la frise du chantier, le coût en trois lignes, prévu et réel en trois cases, la semaine
    d'heures, le graphique de l'année (colonnes et courbe), les pastilles d'état de la liste. */

@@ -64,7 +64,25 @@ const tauxRelu = (v: unknown) => {
   const n = Number(estObjet(v) && typeof v['~n'] === 'string' ? v['~n'] : v);
   return Number.isFinite(n) && n !== 0 ? String(n) : '0';
 };
-const scellee = (champ: string, v: unknown) => (champ === 'withholdingRate' ? tauxRelu(v) : canonique(v));
+// (1.300.0, revue des Marges) Un nombre scellé se compare par sa VALEUR : « 450.500 » (un appel de l'API, un import) et
+// 450,5 relu par la page (`decoder`, puis `encoder` : « 450.5 ») sont le même prix. Comparés en texte, la page qui renvoyait
+// le dossier entier (une mise à jour de ses données) se voyait refuser TOUT l'envoi, et plus rien ne s'enregistrait.
+const decimalCanon = (s: string) => {
+  const m = /^(-?)(\d+)(?:\.(\d+))?$/.exec(s);
+  if (!m) return s;
+  const ent = (m[2] ?? '').replace(/^0+(?=\d)/, ''), dec = (m[3] ?? '').replace(/0+$/, '');
+  const t = dec ? `${ent}.${dec}` : ent;
+  return t === '0' ? '0' : `${m[1]}${t}`;
+};
+const parValeur = (v: unknown): unknown => {
+  if (typeof v === 'number' && Number.isFinite(v)) return { '~n': decimalCanon(String(v)) };
+  if (Array.isArray(v)) return v.map(parValeur);
+  if (!estObjet(v)) return v;
+  const cles = Object.keys(v);
+  if (cles.length === 1 && cles[0] === '~n' && typeof v['~n'] === 'string') return { '~n': decimalCanon(v['~n']) };
+  return Object.fromEntries(cles.map((k) => [k, parValeur(v[k])]));
+};
+const scellee = (champ: string, v: unknown) => (champ === 'withholdingRate' ? tauxRelu(v) : canonique(parValeur(v)));
 
 function verifierPiece(avant: Json | null, apres: Json | null, serveur: boolean) {
   // (1.273.0, audit du 04/11/2026, G01) Une pièce émise se juge sur ce qu'elle ÉTAIT : renvoyée en « devis », elle

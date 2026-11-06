@@ -18385,6 +18385,65 @@
       });
   }
 
+  // (1.300.0, revue des Marges : l'électricien, ses chantiers, et la comptable qui ferme l'année) L'état des chantiers à une
+  // date : ce que le comptable demande à la clôture pour chaque chantier pas fini (`C.etatDesChantiers`, les chiffres de la
+  // fiche de l'affaire sur les pièces datées au plus tard ce jour). Il s'exporte, et part dans la conversation du cabinet
+  // quand un cabinet tient le dossier — c'est l'entreprise qui l'envoie : le cabinet ne lit rien chez elle sans elle.
+  function etatChantiersFenetre() {
+    const cur = company().currency;
+    const auj = C.today();
+    const finAn = `${Number(auj.slice(0, 4)) - 1}-12-31`;
+    let au = Number(auj.slice(5, 7)) <= 3 ? finAn : auj;
+    const relie = !!(messagerieVue && messagerieVue.cabinet);
+    const lignesMessage = e => {
+      const l = e.chantiers.filter(c => !c.fini).map(c => `- ${c.name}${c.clientId ? ` (${clientName(c.clientId)})` : ''}, en cours : facturé ${C.money(c.vendu, cur)} HT, coût engagé ${C.money(c.cout, cur)}${c.av
+        ? ` sur ${C.money(c.av.prevuCout, cur)} prévus (${pct(c.av.pourcent)} %) ; travaux faits environ ${C.money(c.av.faits, cur)}${c.av.ecart > 0.0005 ? ` : ${C.money(c.av.ecart, cur)} restent à facturer` : c.av.ecart < -0.0005 ? ` : ${C.money(-c.av.ecart, cur)} facturés d'avance` : ''}. ${c.av.attendue < 0 ? `Perte attendue à la fin : ${C.money(-c.av.attendue, cur)}` : `Marge attendue à la fin : ${C.money(c.av.attendue, cur)}`}.`
+        : ' ; pas de devis chiffré : son avancement ne se calcule pas.'}`);
+      const finis = e.chantiers.filter(c => c.fini).map(c => c.name);
+      return `Bonjour, voici l'état de mes chantiers au ${C.fmtDate(e.au)}.\n${l.length ? l.join('\n') : 'Aucun chantier en cours à cette date.'}${finis.length ? `\nTerminés à cette date : ${finis.join(', ')}.` : ''}\nL'état est dans SkanFact (Marges, État des chantiers).`;
+    };
+    modal(`<h2>L'état des chantiers ${info('mg.etat')}</h2>
+      <p class="small mu">Pour ton comptable, à la clôture : ce que chaque chantier pas fini a coûté jusqu'à la date, ce qui en est facturé, et où il en est. <em>À VÉRIFIER avec lui : la méthode et les comptes.</em></p>
+      <div class="mg-etat-date">${dateFieldHtml(lbl('Au', 'mg.etat'), 'au', au, {})}<span class="mg-etat-vite"><button type="button" class="btn btn-sm" data-au="${finAn}">Au 31/12/${finAn.slice(0, 4)}</button><button type="button" class="btn btn-sm" data-au="${auj}">Aujourd'hui</button></span></div>
+      <div id="mg-etat-corps"></div>
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button><button class="btn" id="mg-etat-csv">Exporter (CSV)</button>${relie ? '<button class="btn btn-primary" id="mg-etat-envoi">Envoyer à mon comptable</button>' : ''}</div>`, (root, close) => {
+      bindDateFields(root);
+      // Entrée dans la date la pose et redessine l'état : elle n'envoie rien au comptable (le geste principal de la fenêtre,
+      // qu'Entrée déclenche ailleurs). Vu en jouant : taper « 20/10/2026 » puis Entrée ouvrait la conversation.
+      $$('.datefield .d-txt', root).forEach(x => x.addEventListener('keydown', ev => { if (ev.key === 'Enter') ev.stopPropagation(); }));
+      const dessiner = () => {
+        const e = C.etatDesChantiers(data, company(), au);
+        const enCours = e.chantiers.filter(c => !c.fini), finis = e.chantiers.filter(c => c.fini);
+        const m = v => h(C.money(v, '', C.decimalsFor(cur)).trim());
+        $('#mg-etat-corps', root).innerHTML = `${enCours.length ? `<p class="mg-etat-phrase" id="mg-etat-phrase">${pl(enCours.length, 'chantier')} en cours au ${C.fmtDate(au)}${e.resteAFacturer > 0.0005 ? ` : <b>${h(C.money(e.resteAFacturer, cur))}</b> de travaux faits pas encore facturés` : ''}${e.factureDAvance > 0.0005 ? `${e.resteAFacturer > 0.0005 ? ',' : ' :'} ${h(C.money(e.factureDAvance, cur))} facturés d'avance` : ''}${e.pertes < -0.0005 ? `, <b class="rouge">une perte attendue de ${h(C.money(-e.pertes, cur))}</b>` : ''}.${e.sansDevis ? ` ${pl(e.sansDevis, 'chantier')} sans devis chiffré : son avancement ne se calcule pas.` : ''}</p>
+          <div class="lf-tab scroll-x"><table class="list lf-table mg-table mg-etat-t" data-sans-cartes><thead><tr><th>Chantier</th><th class="r">Facturé HT</th><th class="r">Coût engagé</th><th class="r">Avancement</th><th class="r">Travaux faits</th><th class="r">Reste à facturer</th></tr></thead><tbody>
+            ${enCours.map(c => `<tr data-pid="${h(c.id)}"><td class="cn"><b>${h(c.name)}</b>${c.clientId ? `<small>${h(clientName(c.clientId))}</small>` : ''}${c.perte < -0.0005 ? `<small class="rouge">perte attendue ${m(-c.perte)}</small>` : ''}</td>
+              <td class="r" data-l="Facturé HT">${m(c.vendu)}</td><td class="r" data-l="Coût engagé">${m(c.cout)}${c.av ? `<small>sur ${m(c.av.prevuCout)} prévus</small>` : ''}</td>
+              <td class="r" data-l="Avancement">${c.av ? `${pct(c.av.pourcent)} %` : '<span class="mu">sans devis</span>'}</td><td class="r" data-l="Travaux faits">${c.av ? m(c.av.faits) : '—'}</td>
+              <td class="r m" data-l="Reste à facturer">${c.av ? (c.av.ecart < -0.0005 ? `<span>− ${m(-c.av.ecart)}</span><small>facturé d'avance</small>` : m(c.av.ecart)) : '—'}</td></tr>`).join('')}
+          </tbody></table></div>` : `<div class="mg-vide"><b>Aucun chantier en cours au ${C.fmtDate(au)}</b><span>Rien à reporter à cette date : chaque chantier commencé est terminé.</span></div>`}
+          ${finis.length ? `<p class="small mu" id="mg-etat-finis">Terminés à cette date, rien à reporter : ${finis.map(c => h(c.name)).join(', ')}.</p>` : ''}`;
+        const envoi = $('#mg-etat-envoi', root);
+        if (envoi) envoi.disabled = !e.chantiers.length;
+        return e;
+      };
+      let etat = dessiner();
+      $('input[name=au]', root).onchange = ev => { if (ev.target.value) { au = ev.target.value; etat = dessiner(); } };
+      $$('[data-au]', root).forEach(b => b.onclick = () => { au = b.dataset.au; poserDateField(root, 'au', au); etat = dessiner(); });
+      $('#mg-etat-csv', root).onclick = async () => {
+        const rows = etat.chantiers.map(c => ({ chantier: c.name, client: c.clientId ? clientName(c.clientId) : '', statut: c.fini ? 'terminé' : 'en cours',
+          facture: c.vendu, cout: c.cout, prevuVendu: c.av ? c.av.prevuVendu : '', prevuCout: c.av ? c.av.prevuCout : '', avancement: c.av ? c.av.pourcent : '',
+          faits: c.av ? c.av.faits : '', reste: c.av ? c.av.ecart : '', perte: c.perte ? -c.perte : '' }));
+        const f = await bridge.saveText(`etat-des-chantiers-${au}.csv`, C.toCsv(rows, [{ key: 'chantier', label: 'Chantier' }, { key: 'client', label: 'Client' }, { key: 'statut', label: 'À la date' },
+          { key: 'facture', label: 'Facturé HT', type: 'money' }, { key: 'cout', label: 'Coût engagé', type: 'money' }, { key: 'prevuVendu', label: 'Vendu prévu', type: 'money' },
+          { key: 'prevuCout', label: 'Coût prévu', type: 'money' }, { key: 'avancement', label: 'Avancement (%)' }, { key: 'faits', label: 'Travaux faits', type: 'money' },
+          { key: 'reste', label: 'Reste à facturer (− : facturé d\'avance)', type: 'money' }, { key: 'perte', label: 'Perte attendue', type: 'money' }]));
+        if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
+      };
+      if ($('#mg-etat-envoi', root)) $('#mg-etat-envoi', root).onclick = () => { const texte = lignesMessage(etat); close(); ecrireAuComptable(texte); };
+    }, null, { classe: 'mg-etat-f' });
+  }
+
   const margeState = { tab: 'affaires', year: C.today().slice(0, 4), dim: 'client', page: 1 };
   const MARGE_TABS = [['affaires', 'Affaires'], ['analyse', 'Où est la marge'], ['contrats', 'Contrats'], ['seuil', 'Seuil de rentabilité']];
   // Les onglets qui ne lisent pas l'année : le sélecteur y disparaît au lieu d'y être inerte.
@@ -18405,6 +18464,7 @@
     $('#view').innerHTML = `
       <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Marges</span></div><h1>Marges</h1><p class="sous">Ce que te rapporte chaque chantier, chaque client, chaque contrat</p></div>
         <div class="actions mg-act">
+          ${nbAffaires ? '<button class="btn" id="mg-etat">État des chantiers</button>' : ''}
           <button class="btn btn-primary" id="new-proj">${lfIc('croix', 15, 2.4)} Nouvelle affaire</button>
         </div></div>
       ${bandeauSansPaie('le point mort et la marge des affaires', true)}
@@ -18451,10 +18511,15 @@
               <td class="cn"><b>${h(p.name)}</b>${pastilleAffaire(p)}</td>
               <td class="cl">${p.clientId ? `<span class="cl-i">${pastilleClient(p.clientId)}<span><b>${h(clientName(p.clientId))}</b></span></span>` : '<span class="mu">—</span>'}</td>
               <td class="st"><span class="badge ${p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon'}">${h(p.status)}</span></td>
-              <td class="r">${lfMontant(p.revenue, cur)}</td>
-              <td class="r">${lfMontant(p.cost, cur)}</td>
-              <td class="r m${p.margin < 0 ? ' rouge' : ''}">${lfMontant(p.margin, cur)}${margeSansAchat(p) ? '<small>aucun coût rattaché</small>' : p.rate == null ? '' : `<small class="${p.rate < 0 ? 'rouge' : p.rate >= 30 ? 'vert' : ''}">${pct(p.rate)} %</small>`}</td>
-              <td class="r${p.cash < 0 ? ' rouge' : ''}">${lfMontant(p.cash, cur)}</td>
+              <td class="r" data-l="Vendu HT">${lfMontant(p.revenue, cur)}</td>
+              <td class="r" data-l="Coût">${lfMontant(p.cost, cur)}</td>
+              ${/* (1.300.0) Un chantier en cours n'est jamais rouge pour sa marge « à ce jour » (ses achats précèdent ses factures) :
+                  il dit sa marge attendue à la fin, rouge seulement si elle est une perte. */''}
+              <td class="r m${p.margin < 0 && p.status !== 'en cours' ? ' rouge' : ''}" data-l="Marge">${lfMontant(p.margin, cur)}${p.status === 'en cours' && p.av
+                ? `<small class="mg-att${p.av.attendue < 0 ? ' rouge' : ''}">en cours · ${p.av.attendue < 0 ? 'perte attendue' : 'attendue'} ${h(C.money(Math.abs(p.av.attendue), '', C.decimalsFor(cur)).trim())}</small>`
+                : p.status === 'en cours' && p.margin < 0 ? '<small class="mg-att">en cours · à ce jour</small>'
+                : margeSansAchat(p) ? '<small>aucun coût rattaché</small>' : p.rate == null ? '' : `<small class="${p.rate < 0 ? 'rouge' : p.rate >= 30 ? 'vert' : ''}">${pct(p.rate)} %</small>`}</td>
+              <td class="r${p.cash < 0 ? ' rouge' : ''}" data-l="En caisse">${lfMontant(p.cash, cur)}</td>
               <td class="actions row-actions lf-act"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(p.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(p.name)}">${lfIc('plus', 16)}</button></td></tr>`).join('')}
           </tbody>
           <tfoot><tr><td colspan="3"><span class="pied-t"><b>Total</b><span>${pl(list.length, 'affaire')} · « En caisse » : encaissé moins payé ; une affaire peut être rentable et n'avoir encore rien rapporté</span></span></td>
@@ -18495,9 +18560,9 @@
         </div>
         ${rows.length ? `<div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>${parClient ? 'Client' : 'Prestation'}</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Taux</th><th class="mg-barre-h"><span class="vh">Part de la marge</span></th></tr></thead><tbody>
             ${vue.rows.map(r => `<tr${parClient && clientById(r.key) ? ` class="clickable" data-cl="${h(r.key)}"` : ''}>
-              <td class="cl">${parClient && r.key ? `<span class="cl-i">${pastilleClient(r.key, r.label)}<span><b>${h(r.label)}</b></span></span>` : `<b>${h(r.label)}</b>`}</td><td class="r">${lfMontant(r.revenue, cur)}</td><td class="r">${lfMontant(r.cost, cur)}</td>
-              <td class="r m${r.margin < 0 ? ' rouge' : ''}">${lfMontant(r.margin, cur)}</td>
-              <td class="r">${rateCell(r.rate, r.complete)}</td>
+              <td class="cl">${parClient && r.key ? `<span class="cl-i">${pastilleClient(r.key, r.label)}<span><b>${h(r.label)}</b></span></span>` : `<b>${h(r.label)}</b>`}</td><td class="r" data-l="Vendu HT">${lfMontant(r.revenue, cur)}</td><td class="r" data-l="Coût">${lfMontant(r.cost, cur)}</td>
+              <td class="r m${r.margin < 0 ? ' rouge' : ''}" data-l="Marge">${lfMontant(r.margin, cur)}</td>
+              <td class="r" data-l="Taux">${rateCell(r.rate, r.complete)}</td>
               <td class="mg-barre"><span class="bar"><i class="${r.margin < 0 ? 'f-bad' : 'f-ok'}" style="width:${Math.max(3, Math.round(Math.abs(r.margin) / max * 100))}%"></i></span></td></tr>`).join('')}
           </tbody>
           <tfoot><tr><td><span class="pied-t"><b>Année ${h(s.year)}</b><span>${pl(rows.length, parClient ? 'client' : 'prestation')} · coût des ventes ${C.money(C.round3(totalRev - totalMar), cur)}${info('mg.total')}</span></span></td>
@@ -18526,10 +18591,10 @@
         <div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>Contrat</th><th>Client</th><th class="r">Factures</th><th class="r">Facturé HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Par mois</th></tr></thead><tbody>
             ${rows.map(({ r, p }) => `<tr class="clickable" data-rid="${h(r.id)}">
               <td class="cn"><b>${h(objetDeContrat(r) || 'Contrat')}</b><small>depuis le ${C.fmtDate(p.first)}</small></td>
-              <td class="cl"><span class="cl-i">${pastilleClient(r.clientId)}<span><b>${h(clientName(r.clientId))}</b></span></span></td><td class="r">${p.count}</td>
-              <td class="r">${lfMontant(p.revenue, cur)}</td><td class="r">${lfMontant(p.cost, cur)}</td>
-              <td class="r m${p.margin < 0 ? ' rouge' : ''}">${lfMontant(p.margin, cur)}${p.rate == null ? '' : `<small>${pct(p.rate)} %</small>`}</td>
-              <td class="r">${lfMontant(p.perMonth, cur)}</td></tr>`).join('')}
+              <td class="cl"><span class="cl-i">${pastilleClient(r.clientId)}<span><b>${h(clientName(r.clientId))}</b></span></span></td><td class="r" data-l="Factures">${p.count}</td>
+              <td class="r" data-l="Facturé HT">${lfMontant(p.revenue, cur)}</td><td class="r" data-l="Coût">${lfMontant(p.cost, cur)}</td>
+              <td class="r m${p.margin < 0 ? ' rouge' : ''}" data-l="Marge">${lfMontant(p.margin, cur)}${p.rate == null ? '' : `<small>${pct(p.rate)} %</small>`}</td>
+              <td class="r" data-l="Par mois">${lfMontant(p.perMonth, cur)}</td></tr>`).join('')}
           </tbody>
           <tfoot><tr><td colspan="3"><span class="pied-t"><b>Total</b><span>${pl(rows.length, 'contrat')} · ${rows.reduce((x, { p }) => x + p.count, 0)} factures émises</span></span></td>
             <td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.revenue, 0)), cur)}</td><td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.cost, 0)), cur)}</td>
@@ -18563,13 +18628,19 @@
             ${b.change ? ligne(b.change < 0 ? '−' : '+', `${b.change < 0 ? 'Perte' : 'Gain'} de change`, Math.abs(b.change), '', 'compta.change') : ''}
             ${ligne('=', b.result < 0 ? 'Perte' : 'Résultat', b.result, `total ${b.result < 0 ? 'rouge' : 'vert'}`)}
           </div>
-          <div class="mg-point"><div class="mg-st"><b>Le chiffre d'affaires minimum</b></div>
+          ${/* (1.300.0, revue des Marges : l'électricien sans loyer ni bulletin notés) Sans charge fixe notée, le seuil valait
+              zéro et la page disait « Tu l'as dépassé » : une phrase rassurante sur un univers vide. Elle dit ce qui manque. */''}
+          ${b.fixed < 0.0005 ? `<div class="mg-point" id="mg-sans-fixe"><div class="mg-st"><b>Le chiffre d'affaires minimum</b></div>
+            <b class="mg-gros">—</b>
+            <p>Aucune charge fixe n'est notée en ${h(s.year)} : ni loyer, ni assurance, ni abonnement, ni bulletin de paie. Le seuil ne se calcule pas encore, et sans elles toute ta marge paraîtrait un bénéfice.</p>
+            <p class="small mu">Note tes dépenses fixes dans les Achats (catégories « Loyer et charges locatives », « Assurances »…) et tes salaires dans la Paie : le seuil se lira ici.</p>
+          </div>` : `<div class="mg-point"><div class="mg-st"><b>Le chiffre d'affaires minimum</b></div>
             <b class="mg-gros">${montantU(b.breakEven, cur)}</b>
             <p>pour couvrir tes charges fixes sur l'année. ${b.reached ? `<span class="vert">Tu l'as dépassé de ${C.money(b.gap, cur)}.</span>` : `<span class="rouge">Il t'en manque ${C.money(-b.gap, cur)}.</span>`}</p>
             <div class="gauge"><div class="g-bar"><i style="width:${pctOf(b.revenue)}%"></i><span class="g-mark" style="inset-inline-start:${pctOf(b.breakEven)}%" title="Seuil de rentabilité"></span></div>
               <div class="g-legend"><span><strong>${C.money(b.revenue, cur)}</strong> réalisés</span><span class="mu">seuil ${C.money(b.breakEven, cur)}</span></div></div>
             <div class="mg-par"><span><b>${C.money(C.round3(b.breakEven / 12), cur)}</b><small>par mois</small></span><span><b>${C.money(C.round3(b.breakEven / 220), cur)}</b><small>par jour ouvré</small></span></div>
-          </div></div>`;
+          </div>`}</div>`;
       // (1.263.0, revue métier du 03/11) L'année MOIS PAR MOIS : quand l'entreprise devient-elle rentable ? Chaque mois par
       // la même fonction que l'année ; le cumul dit le mois où l'on repasse au-dessus de zéro pour de bon.
       if (b.breakEven != null) {
@@ -18631,6 +18702,7 @@
     });
     $('#mg-year').onchange = e => { s.year = e.target.value; draw(); };
     $('#new-proj').onclick = () => projectForm(null, () => render());
+    if ($('#mg-etat')) $('#mg-etat').onclick = () => etatChantiersFenetre();
     draw();
   };
 
@@ -18777,16 +18849,19 @@
     return l.length ? `<div class="bandeau mg-hors" role="note">${lfIc('stock', 18, 2)}<span class="txt">${l.join('')}</span>${ecrit && m.enStockReste > 0.0005 ? '<button type="button" class="btn" id="p-sortir">Les sortir pour l\'affaire</button>' : ''}</div>` : '';
   };
   // Le prévu (ses devis) contre le réel : vendu, coût, marge, et l'écart de chacun.
-  const prevuReel = (m, cur) => {
+  const prevuReel = (m, cur, av) => {
     if (!m.planned) return '';
     const P = m.planned;
     // (1.264.0) Trois cases côte à côte : vendu, coût, marge — le prévu, le réel en grand, l'écart en couleur (vert s'il
     // t'est favorable). Un tableau de trois lignes laissait une grande colonne vide.
+    // (1.300.0) Sur un chantier en cours, l'écart au prévu n'est ni une perte ni un gain : il n'est pas fini. Seul un coût
+    // qui dépasse déjà le prévu se dit en rouge ; la ligne de l'avancement dit le reste.
     const kase = (lib, prevu, reel, bon) => { const d = C.round3(reel - prevu);
-      const ton = Math.abs(d) < 0.0005 ? '' : (bon === 'haut' ? d > 0 : d < 0) ? 'vert' : 'rouge';
+      const ton = Math.abs(d) < 0.0005 ? '' : av ? (bon === 'bas' && d > 0 ? 'rouge' : '') : (bon === 'haut' ? d > 0 : d < 0) ? 'vert' : 'rouge';
       return `<div class="mg-pr-k"><span class="mu">${lib}</span><b class="num">${montantU(reel, cur)}</b><span class="mg-pr-p">prévu <span class="num">${h(C.money(prevu, cur))}</span></span>${Math.abs(d) < 0.0005 ? '<span class="mg-pr-e">comme prévu</span>' : `<span class="mg-pr-e ${ton}">${d > 0 ? '+' : '−'} ${h(C.money(Math.abs(d), cur))}</span>`}</div>`; };
     return `<div class="cf-carte mg-prevu"><div class="mg-av-tete"><b>Prévu et réel</b>${info('mg.projectPlanned')}<span class="mu small">d'après ${pl(P.quotes, 'devis')} non refusé${sPl(P.quotes)}${P.complete ? '' : ' · des lignes de devis sans coût : coût prévu trop bas (≈)'}${m.pending > 0.0005 ? ` · encore ${h(C.money(m.pending, cur))} en devis` : ''}</span></div>
-      <div class="mg-pr-g">${kase('Vendu HT', P.revenue, m.revenue, 'haut')}${kase('Coût', P.cost, m.cost, 'bas')}${kase('Marge', P.margin, m.margin, 'haut')}</div></div>`;
+      <div class="mg-pr-g">${kase('Vendu HT', P.revenue, m.revenue, 'haut')}${kase('Coût', P.cost, m.cost, 'bas')}${kase('Marge', P.margin, m.margin, 'haut')}</div>
+      ${av ? `<p class="mg-av-l" id="p-avancement">Chantier en cours : <b>${pct(av.pourcent)} %</b> du coût prévu est engagé. Les travaux faits valent environ <b>${h(C.money(av.faits, cur))}</b> ; ${h(C.money(m.revenue, cur))} ${m.revenue > 0.0005 ? 'sont facturés' : 'facturés'}${av.ecart > 0.0005 ? ` : <b>${h(C.money(av.ecart, cur))}</b> restent à facturer` : av.ecart < -0.0005 ? ` : ${h(C.money(-av.ecart, cur))} sont facturés d'avance` : ''}. ${av.attendue < 0 ? 'Perte attendue à la fin' : 'Marge attendue à la fin'} : <b class="${av.attendue < 0 ? 'rouge' : ''}">${h(C.money(av.attendue, cur))}</b>${av.taux == null ? '' : ` (${pct(av.taux)} %)`}. ${info('mg.avancement')}</p>` : ''}</div>`;
   };
 
 
@@ -19060,6 +19135,10 @@
     // étape dit son montant et ce qui reste ; celle en cours porte LE geste suivant (le seul bouton principal de la fiche).
     // Sous la frise, le coût à ce jour face au budget, en une ligne.
     const sv = C.suiviAffaire(data, company(), p.id);
+    // (1.300.0) Un chantier en cours se lit à l'avancement (`C.avancementAffaire`, la même que la liste et l'état des chantiers).
+    const enCours = p.status === 'en cours';
+    const av = enCours ? C.avancementAffaire(m) : null;
+    const perte = enCours ? !!(av && av.attendue < 0) : m.margin < 0;
     const avancement = () => {
       const E = Object.fromEntries(sv.etapes.map(e => [e.k, e]));
       const geste = (id, txt, prim) => `<button class="btn${prim ? ' btn-primary' : ''}" type="button" id="${id}">${h(txt)}</button>`;
@@ -19100,17 +19179,21 @@
         <div class="actions"><button class="btn" id="edit-p">Modifier</button>
           <button class="btn${vert('devis')}" id="p-devis">${lfIc('croix', 15, 2.4)} Devis</button><button class="btn${vert('achat')}" id="p-achat">${lfIc('croix', 15, 2.4)} Achat</button><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(p.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Les autres gestes" title="Les autres gestes">${lfIc('plus', 16)}</button></div></div>
       ${bandeauSansPaie('la marge de cette affaire (la main d\'œuvre notée)')}
-      ${m.margin < 0 ? `<div class="bandeau rouge mg-perte" role="status">${lfIc('alerte', 18, 2)}<span class="txt"><b>Cette affaire perd de l'argent</b><span>Elle a coûté ${C.money(m.cost, cur)} et ${C.money(m.revenue, cur)} sont facturés. Vérifie qu'il ne reste pas quelque chose à facturer, ou qu'un achat ou des heures n'ont pas été rattachés par erreur.</span></span></div>` : ''}
+      ${perte ? `<div class="bandeau rouge mg-perte" role="status">${lfIc('alerte', 18, 2)}<span class="txt">${av
+        ? `<b>Ce chantier va perdre de l'argent</b><span>Son devis le vend ${C.money(av.prevuVendu, cur)} ; il coûtera au moins ${C.money(Math.max(av.prevuCout, m.cost), cur)} (${C.money(m.cost, cur)} déjà engagés) : la perte attendue à la fin est de ${C.money(-av.attendue, cur)}. Facture ce qui a été ajouté au chantier, ou vérifie qu'un achat ou des heures n'ont pas été rattachés par erreur.</span>`
+        : `<b>Cette affaire perd de l'argent</b><span>Elle a coûté ${C.money(m.cost, cur)} et ${C.money(m.revenue, cur)} sont facturés. Vérifie qu'il ne reste pas quelque chose à facturer, ou qu'un achat ou des heures n'ont pas été rattachés par erreur.</span>`}</span></div>` : ''}
       <div class="lf mg">
         <div class="cf-carte mg-resume">
           ${chiffre('Vendu HT', montantU(m.revenue, cur), `${pl(m.salesCount, 'facture')}${m.pending ? ` · ${C.money(m.pending, cur)} en devis` : ''}`, '', 'mg.projectRevenue')}
           ${chiffre('Coût', montantU(m.cost, cur), coutDit(m, cur), '', 'mg.projectCost')}
-          ${chiffre('Marge', montantU(m.margin, cur), m.rate == null ? 'rien de vendu' : margeSansAchat(m) ? 'aucun coût rattaché : ni achat, ni stock, ni heure' : `${pct(m.rate)} % du prix de vente`, m.margin < 0 ? 'rouge' : m.margin > 0 && !margeSansAchat(m) ? 'vert' : '', 'mg.projectMargin')}
+          ${enCours && (av || m.margin < 0)
+            ? chiffre('Marge à ce jour', montantU(m.margin, cur), av ? `${av.attendue < 0 ? 'perte attendue' : 'attendue'} à la fin : ${C.money(av.attendue, cur)}${av.taux == null ? '' : ` (${pct(av.taux)} %)`}` : 'le chantier est en cours : ses factures suivront', av && av.attendue < 0 ? 'rouge' : '', 'mg.avancement')
+            : chiffre('Marge', montantU(m.margin, cur), m.rate == null ? 'rien de vendu' : margeSansAchat(m) ? 'aucun coût rattaché : ni achat, ni stock, ni heure' : `${pct(m.rate)} % du prix de vente`, m.margin < 0 ? 'rouge' : m.margin > 0 && !margeSansAchat(m) ? 'vert' : '', 'mg.projectMargin')}
           ${chiffre('En caisse', montantU(m.cash, cur), `${C.money(m.collected, cur)} encaissés − ${C.money(m.paid, cur)} payés`, m.cash < 0 ? 'rouge' : '', 'mg.projectCash')}
         </div>
         ${horsMarge(m, cur, ecritP)}
         ${avancement()}
-        ${prevuReel(m, cur)}
+        ${prevuReel(m, cur, av)}
         <div class="mg-barre"><div class="pa-seg" id="p-tabs" role="tablist" aria-label="L'affaire">${[['ventes', 'Ventes', nbVentes], ['achats', 'Achats', nbAchats], ['heures', 'Heures', m.timeCount], ['notes', 'Notes', 0]].map(([k, n, nb]) => `<button type="button" role="tab" data-ong="${k}" aria-selected="${ong === k}" class="${ong === k ? 'active' : ''}">${n}${nb ? ` <small>${nb}</small>` : ''}</button>`).join('')}</div></div>
         <div class="cf-carte"><div class="cf-onglet mg-onglet">
           <div id="p-sales"${ong === 'ventes' ? '' : ' hidden'}></div><div id="p-buys"${ong === 'achats' ? '' : ' hidden'}></div><div id="p-time"${ong === 'heures' ? '' : ' hidden'}></div>

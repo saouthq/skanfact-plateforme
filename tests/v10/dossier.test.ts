@@ -206,6 +206,29 @@ describe('le dossier v10 tenu par le serveur', () => {
       .toBe('La facture FAC-2026-001 est émise : elle ne se modifie plus, on la corrige par un avoir.');
   });
 
+  // (1.300.0, revue des Marges) Une facture émise avec ses prix écrits « 450.500 » (un appel de l'API, un import) revient de la
+  // page en « 450.5 » ou en nombre, comme `encoder` les écrit : c'est le même prix. Comparé en texte, l'envoi entier du dossier
+  // était refusé (« elle ne se modifie plus ») et plus rien ne s'enregistrait. Un autre prix reste refusé.
+  it('une facture émise dont les prix sont écrits « 450.500 » reste la même relue « 450.5 » : le dossier s\'enregistre ; un autre prix, non', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients');
+    if (!client) throw new Error('client d\'exemple absent');
+    const doc = { ...brouillon('f1', client.cle), lines: [{ label: 'Table en chêne massif', description: '', qty: { '~n': '2.000' }, unit: '', unitPrice: { '~n': '450.500' }, vatRate: 19 }] };
+    await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: doc }]);
+    // 901,000 + TVA 19 % (171,190) + timbre 1,000 = 1 073,190.
+    const r = await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: doc, client: client.contenu, revision: 1, rang: 0, netAPayer: '1073.190' });
+    expect(r.statut).toBe(200);
+    const emise = r.corps.contenu as Record<string, unknown>;
+    expect((emise.lines as { unitPrice: unknown }[])[0]?.unitPrice).toEqual({ '~n': '450.500' });
+    // Relue par la page : la quantité en nombre entier, le prix sans ses zéros, et la fiche société avec elle dans le même envoi.
+    const relue = { ...emise, lines: [{ label: 'Table en chêne massif', description: '', qty: 2, unit: '', unitPrice: { '~n': '450.5' }, vatRate: 19 }], payments: [{ id: 'p1', date: '2026-10-05', amount: 200 }] };
+    expect((await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: Number(r.corps.revision), contenu: relue }])).statut).toBe(200);
+    expect((await e.lire()).find((o) => o.cle === 'f1')?.contenu).toMatchObject({ payments: [{ id: 'p1' }] });
+    const f1 = (await e.lire()).find((o) => o.cle === 'f1') as Objet;
+    expect((await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: f1.revision, contenu: { ...f1.contenu, lines: [{ label: 'Table en chêne massif', description: '', qty: 2, unit: '', unitPrice: { '~n': '450.51' }, vatRate: 19 }] } }])).corps.motif)
+      .toBe('La facture FAC-2026-001 est émise : elle ne se modifie plus, on la corrige par un avoir.');
+  });
+
   // Une facture émise par le serveur, telle que le parcours de l'interface la laisse.
   async function factureEmise(e: Awaited<ReturnType<typeof essai>>, cle: string, doc: Record<string, unknown>, netAPayer: string) {
     const client = (await e.lire()).find((o) => o.collection === 'clients' && o.cle === doc.clientId);

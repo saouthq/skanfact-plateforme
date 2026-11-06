@@ -1212,7 +1212,7 @@ prouver "les lignes d'une facture émise encore modifiables" $DV \
   "'exchangeRate', 'lines', 'discountRate'" "'exchangeRate', 'discountRate'" \
   "une facture émise ne change plus ce qui a été scellé"
 prouver "une facture émise refusée parce que la base a rangé ses clés autrement" $DV \
-  "(champ === 'withholdingRate' ? tauxRelu(v) : canonique(v));" "(champ === 'withholdingRate' ? tauxRelu(v) : JSON.stringify(v));" \
+  "(champ === 'withholdingRate' ? tauxRelu(v) : canonique(parValeur(v)));" "(champ === 'withholdingRate' ? tauxRelu(v) : JSON.stringify(parValeur(v)));" \
   "une facture émise ne change plus ce qui a été scellé"
 prouver "une facture émise qu'on peut effacer" $DV \
   "    if (!apres) throw new Refus(av ? 'v10.avoir_ne_s_efface_pas' : 'v10.emise_ne_s_efface_pas', numero);" "    if (!apres) return;" \
@@ -7948,7 +7948,7 @@ prouver 'l'\''entreprise d'\''essai renommée par la fiche de son exemple' base/
   'if not found or e.essai or e.tenue_par is not null then return null; end if;' 'if not found or e.tenue_par is not null then return null; end if;' \
   "$IDS3"
 prouver 'la retenue relue en nombre, prise pour un changement de la pièce scellée' serveur/v10/dossier.ts \
-  'const scellee = (champ: string, v: unknown) => (champ === '\''withholdingRate'\'' ? tauxRelu(v) : canonique(v));' 'const scellee = (_champ: string, v: unknown) => canonique(v);' \
+  'const scellee = (champ: string, v: unknown) => (champ === '\''withholdingRate'\'' ? tauxRelu(v) : canonique(parValeur(v)));' 'const scellee = (_champ: string, v: unknown) => canonique(parValeur(v));' \
   "$DOSR"
 prouver 'tous les taux de retenue d'\''une pièce scellée tenus pour égaux' serveur/v10/dossier.ts \
   'return Number.isFinite(n) && n !== 0 ? String(n) : '\''0'\'';' 'return '\''0'\'';' \
@@ -24946,6 +24946,85 @@ prouver 'Entrée ne rapproche pas la remise cochée' "$A2C" \
   'const rm = remiseBq(dossier, R, sel);' \
   'const rm = null;' \
   "$T99W"
+
+# (1.300.0) La revue des Marges jouée par un électricien de Tunis (trois chantiers, un contrat d'entretien, sa comptable).
+CO1=modules/socle/moteur/core-1.js
+A1E=modules/socle/ecrans/entreprise/app-1.js
+LCSS=web/public/plateforme/liste.css
+DV10=serveur/v10/dossier.ts
+T300W="trois chantiers, un contrat : ce que l'électricien lit, et ce que sa comptable reçoit"
+T300M1="un chantier en cours se lit à l'avancement : sa marge à ce jour est négative, sa marge attendue ne l'est pas"
+T300M2="l'état des chantiers au 20 octobre : les seules pièces d'avant, l'immeuble encore en cours avec sa perte ; deux chemins, un chiffre"
+T300M3="« Où est la marge » : un client qui n'a reçu qu'un acompte n'a pas de taux ; avec ses prestations, il en a un"
+T300D="une facture émise dont les prix sont écrits « 450.500 » reste la même relue « 450.5 » : le dossier s'enregistre ; un autre prix, non"
+prouver 'le chantier en cours peint en rouge dans la liste' "$A1E" \
+  "\${p.margin < 0 && p.status !== 'en cours' ? ' rouge' : ''}\" data-l=\"Marge\">" \
+  "\${p.margin < 0 ? ' rouge' : ''}\" data-l=\"Marge\">" \
+  "$T300W"
+prouver 'la marge attendue du chantier en cours absente de la liste' "$A1E" \
+  "\${lfMontant(p.margin, cur)}\${p.status === 'en cours' && p.av" \
+  "\${lfMontant(p.margin, cur)}\${false && p.av" \
+  "$T300W"
+prouver "« Cette affaire perd de l'argent » à mi-chantier" "$A1E" \
+  'const perte = enCours ? !!(av && av.attendue < 0) : m.margin < 0;' \
+  'const perte = m.margin < 0;' \
+  "$T300W"
+prouver "l'avancement du chantier en cours absent de la fiche" "$A1E" \
+  'const av = enCours ? C.avancementAffaire(m) : null;' \
+  'const av = null;' \
+  "$T300W"
+prouver "l'avancement d'un chantier qui dépasse son devis au-delà de 100 %" "$CO1" \
+  'const avancement = Math.min(1, m.cost / pr.cost);' \
+  'const avancement = m.cost / pr.cost;' \
+  "$T300M1"
+prouver 'la marge attendue lue sur le seul coût prévu' "$CO1" \
+  'const attendue = round3(pr.revenue - Math.max(pr.cost, m.cost));' \
+  'const attendue = round3(pr.revenue - pr.cost);' \
+  "$T300M1"
+prouver "un avancement inventé pour un chantier sans devis chiffré" "$CO1" \
+  'if (!pr || !(pr.cost > 0)) return null;' \
+  'if (!(pr && pr.cost > 0)) return { avancement: 0, pourcent: 0, faits: 0, ecart: 0, attendue: 0, taux: 0 };' \
+  "$T300M1"
+prouver "l'état des chantiers qui compte les pièces d'après sa date" "$CO1" \
+  'const vue = piecesAu(data, au);' \
+  'const vue = data;' \
+  "$T300M2"
+prouver "un chantier terminé après la date compté fini dans l'état" "$CO1" \
+  "const fini = p.status === 'terminée' && (!p.endDate || p.endDate <= au);" \
+  "const fini = p.status === 'terminée';" \
+  "$T300M2"
+prouver "le client qui n'a reçu qu'un acompte à 100 % de marge" "$CO1" \
+  "rate: a.key !== '__acomptes__' && a.lines > 0 && a.revenue !== 0 ?" \
+  "rate: a.key !== '__acomptes__' && a.revenue !== 0 ?" \
+  "$T300M3"
+prouver "le seuil « dépassé » quand aucune charge fixe n'est notée" "$A1E" \
+  "\${b.fixed < 0.0005 ? \`<div class=\"mg-point\" id=\"mg-sans-fixe\">" \
+  "\${false ? \`<div class=\"mg-point\" id=\"mg-sans-fixe\">" \
+  "$T300W"
+prouver "Entrée dans la date de l'état ouvre la conversation du comptable" "$A1E" \
+  "x.addEventListener('keydown', ev => { if (ev.key === 'Enter') ev.stopPropagation(); })" \
+  "x.addEventListener('keydown', ev => { if (ev.key === 'Enter') void 0; })" \
+  "$T300W"
+prouver "la date de l'état des chantiers sans effet" "$A1E" \
+  "\$('input[name=au]', root).onchange = ev => { if (ev.target.value) { au = ev.target.value; etat = dessiner(); } };" \
+  "\$('input[name=au]', root).onchange = () => {};" \
+  "$T300W"
+prouver "l'état des chantiers qui n'arrive pas au comptable" "$A1E" \
+  'const texte = lignesMessage(etat); close(); ecrireAuComptable(texte);' \
+  'close();' \
+  "$T300W"
+prouver 'les montants des marges sans nom au téléphone' "$LCSS" \
+  '.lf.mg table.mg-table td[data-l]::before { content: attr(data-l);' \
+  '.lf.mg table.mg-table td[data-l]::before { content: none;' \
+  "$T300W"
+prouver "un prix scellé comparé en texte (« 450.500 » contre « 450.5 ») : plus rien ne s'enregistre" "$DV10" \
+  "ent = (m[2] ?? '').replace(/^0+(?=\\d)/, ''), dec = (m[3] ?? '').replace(/0+\$/, '');" \
+  "ent = (m[2] ?? '').replace(/^0+(?=\\d)/, ''), dec = (m[3] ?? '');" \
+  "$T300D"
+prouver "une quantité scellée relue en nombre (2 contre « 2.000 ») : plus rien ne s'enregistre" "$DV10" \
+  "if (typeof v === 'number' && Number.isFinite(v)) return { '~n': decimalCanon(String(v)) };" \
+  "if (false) return { '~n': decimalCanon(String(v)) };" \
+  "$T300D"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

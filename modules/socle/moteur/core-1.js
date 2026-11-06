@@ -3244,9 +3244,12 @@
     // La ligne des acomptes n'a pas de taux : son coût arrivera avec la facture de solde, et « 100 % »
     // serait une marge qu'elle n'a pas. Elle n'est pas non plus « sans coût connu » : elle n'a pas de
     // prestation, donc rien à chiffrer au catalogue.
+    // (1.300.0, revue des Marges) Le taux d'un client se lit sur ses PRESTATIONS : un client qui n'a encore reçu qu'un
+    // acompte (le chantier en cours de l'électricien) s'affichait à 100 % de marge, sans « ≈ » — un acompte n'a pas de coût
+    // parce que son coût arrive avec le solde, pas parce qu'il n'en a pas. Sans prestation facturée, pas de taux.
     const rows = Object.values(acc).filter(a => a.lines > 0 || Math.abs(a.revenue) > 0.0005).map(a => ({
       ...a, margin: round3(a.revenue - a.cost), acomptes: a.key === '__acomptes__',
-      rate: a.key !== '__acomptes__' && a.revenue !== 0 ? Math.round((a.revenue - a.cost) / a.revenue * 1000) / 10 : null,
+      rate: a.key !== '__acomptes__' && a.lines > 0 && a.revenue !== 0 ? Math.round((a.revenue - a.cost) / a.revenue * 1000) / 10 : null,
       complete: a.lines === 0 || a.costed === a.lines
     })).sort((x, y) => y.margin - x.margin);
     // `limit` à 0 veut dire « tout ». La page Marges calculait ses trois cartes — chiffre d'affaires,
@@ -3595,9 +3598,63 @@
     return { etapes, ici: ici ? ici.k : null, solde: !ici && encaisse, aEncaisser, aPayer, m };
   }
 
+  // (1.300.0, revue des Marges : un électricien et ses trois chantiers) Un chantier EN COURS se lit à l'avancement : ses
+  // achats et ses heures arrivent avant ses factures, et sa marge « à ce jour » est négative alors qu'il suit son devis —
+  // la liste le peignait en rouge et la fiche disait « Cette affaire perd de l'argent » à mi-chantier. L'avancement est le
+  // coût engagé rapporté au coût prévu de ses devis (au plus 100 %) ; les travaux faits valent ce pourcentage du vendu
+  // prévu, et ce qui en dépasse le facturé reste à facturer (négatif : facturé d'avance). La marge attendue est le vendu
+  // prévu moins le plus grand du coût prévu et du coût déjà engagé : elle n'est négative que si le chantier va vraiment
+  // perdre de l'argent. Sans devis chiffré (aucun coût prévu), rien ne se calcule : null, jamais un pourcentage inventé.
+  // À VÉRIFIER avec le comptable : c'est la méthode à l'avancement (NC 9, contrats de construction) ; il peut en retenir
+  // une autre.
+  function avancementAffaire(m) {
+    const pr = m && m.planned;
+    if (!pr || !(pr.cost > 0)) return null;
+    const avancement = Math.min(1, m.cost / pr.cost);
+    const faits = round3(avancement * pr.revenue);
+    const attendue = round3(pr.revenue - Math.max(pr.cost, m.cost));
+    return { avancement, pourcent: Math.round(avancement * 1000) / 10, faits, ecart: round3(faits - m.revenue), attendue,
+      taux: pr.revenue ? Math.round(attendue / pr.revenue * 1000) / 10 : null, prevuVendu: pr.revenue, prevuCout: pr.cost };
+  }
+
   function projectList(data, company) {
-    return (data.projects || []).map(p => ({ ...p, ...projectMargin(data, company, p.id) }))
-      .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+    return (data.projects || []).map(p => {
+      const m = projectMargin(data, company, p.id);
+      return { ...p, ...m, av: p.status === 'en cours' ? avancementAffaire(m) : null };
+    }).sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+  }
+
+  // ---------- l'état des chantiers à une date (1.300.0) ----------
+  // Ce que le comptable demande à la clôture pour chaque chantier qui n'est pas fini : ce qu'il a coûté jusque-là, ce qui
+  // en a été facturé, et où il en est (À VÉRIFIER avec lui : la méthode et les comptes). Les chiffres sont ceux de la fiche
+  // de l'affaire (`projectMargin`, `avancementAffaire`), calculés sur les seules pièces datées au plus tard ce jour : une
+  // facture de janvier ne compte pas dans l'état au 31 décembre, ni les achats ou les heures d'après.
+  function piecesAu(data, au) {
+    const avant = x => !(x && x.date) || x.date <= au;
+    return { ...data, documents: (data.documents || []).filter(avant), purchases: (data.purchases || []).filter(avant),
+      projectTime: (data.projectTime || []).filter(avant), stockAdjustments: (data.stockAdjustments || []).filter(avant) };
+  }
+  // Chaque affaire commencée au plus tard ce jour, pas annulée, qui a une pièce ou une heure avant la date. Elle est finie à
+  // la date si elle est « terminée » et que sa fin (quand elle est dite) n'est pas après ; sinon elle est en cours, et la
+  // perte attendue à la fin (la marge attendue quand elle est négative) se provisionne (À VÉRIFIER).
+  function etatDesChantiers(data, company, au) {
+    const vue = piecesAu(data, au);
+    const chantiers = [];
+    (data.projects || []).forEach(p => {
+      if (p.status === 'annulée' || (p.startDate && p.startDate > au)) return;
+      const m = projectMargin(vue, company, p.id);
+      if (!m.salesCount && !m.buysCount && !m.timeCount && !m.stockSorti) return;
+      const fini = p.status === 'terminée' && (!p.endDate || p.endDate <= au);
+      const av = fini ? null : avancementAffaire(m);
+      chantiers.push({ id: p.id, name: p.name || '', clientId: p.clientId || '', fini, endDate: p.endDate || '',
+        vendu: m.revenue, cout: m.cost, marge: m.margin, av, perte: av ? round3(Math.min(0, av.attendue)) : 0, laborEstimated: m.laborEstimated });
+    });
+    chantiers.sort((a, b) => Number(a.fini) - Number(b.fini) || a.name.localeCompare(b.name, 'fr'));
+    const enCours = chantiers.filter(c => !c.fini);
+    const somme = f => round3(enCours.reduce((s, c) => s + f(c), 0));
+    return { au, chantiers, enCours: enCours.length, finis: chantiers.length - enCours.length,
+      resteAFacturer: somme(c => (c.av && c.av.ecart > 0 ? c.av.ecart : 0)), factureDAvance: somme(c => (c.av && c.av.ecart < 0 ? -c.av.ecart : 0)),
+      pertes: somme(c => c.perte), sansDevis: enCours.filter(c => !c.av).length };
   }
 
   // Les pièces d'un contrat récurrent (10.14.1). Une facture générée porte `recurringId` ; l'avoir

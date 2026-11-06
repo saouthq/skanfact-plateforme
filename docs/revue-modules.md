@@ -459,3 +459,27 @@ chèques écrits avant la première ligne du relevé comme « d'avant le relevé
 pas du solde du livre » ; une fois la remise rapprochée, l'écart est expliqué au millime.
 
 Suivant : les Marges, puis la Comptabilité de l'entreprise (chacune avec son côté Cabinet et le pont).
+
+### Fait en 1.300.0 (06/11/2026) : les Marges — l'électricien et ses trois chantiers, l'état des chantiers jusqu'au comptable
+
+Joué comme un électricien de Tunis (« Électricité Ben Ammar », un salarié, deux fournisseurs) : la villa Karoui à Gammarth
+(devis 12 450 DT, acompte de 30 %, solde, achats, 72 h — terminée, rentable), l'immeuble Ennasr (16 900 DT au devis,
+17 540 facturés, 17 759 DT de câbles et coffrets — terminé à perte), les bureaux du Lac 2 (devis 26 300 DT, acompte de
+7 890 DT, 9 874 DT de câbles, 46 h — en cours), et l'entretien mensuel de la résidence Les Orangers (six factures de
+385 DT). Sa comptable, au Cabinet Ennour, reçoit l'état des chantiers.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| M1 | Le chantier en cours, qui suit son devis, s'affichait **en rouge** (« − 2 325,558 · −29,5 % ») et sa fiche disait **« Cette affaire perd de l'argent »** : ses câbles et ses heures arrivent avant ses factures. Son « Prévu et réel » peignait aussi en rouge le « − 18 410 » qui reste simplement à facturer. | Un chantier en cours se lit **à l'avancement** (une seule fonction, `avancementAffaire`, pour la liste, la fiche et l'état) : coût engagé rapporté au coût prévu de ses devis, travaux faits, reste à facturer, marge attendue à la fin. La liste dit « en cours · attendue 8 449,600 » sans rouge ; la fiche dit « Marge à ce jour … attendue à la fin : 8 449,600 DT (32,1 %) » et « Chantier en cours : 57,2 % du coût prévu est engagé … 7 161,157 DT restent à facturer ». Le rouge ne vient que d'une perte attendue (« Ce chantier va perdre de l'argent »). Sans devis chiffré, rien ne s'invente. À VÉRIFIER : la méthode à l'avancement. |
+| M2 | Le Cabinet ne voyait **rien** des chantiers : à la clôture, la comptable n'avait ni le coût des chantiers pas finis, ni ce qui en restait à facturer, ni la perte à provisionner. | **L'état des chantiers à une date** (Marges › « État des chantiers ») : pour chaque chantier pas fini à la date, le facturé, le coût engagé sur le prévu, l'avancement, les travaux faits, le reste à facturer (ou facturé d'avance) et la perte attendue ; seules comptent les pièces et les heures datées au plus tard ce jour (au 20 octobre, l'immeuble Ennasr n'était pas fini : 1 748,888 DT de perte attendue). Il s'exporte en CSV, et **« Envoyer à mon comptable »** l'ouvre, chiffres compris, dans la conversation du cabinet — c'est l'entreprise qui l'envoie. Vérifié de bout en bout : le message arrive au Cabinet, lisible ligne par ligne. |
+| M3 | En jouant : taper la date puis **Entrée** ouvrait la conversation (le geste principal de la fenêtre). | Entrée pose la date et redessine l'état ; elle n'envoie rien. |
+| M4 | « Où est la marge » donnait **100 %** de marge, sans « ≈ », au client qui n'avait reçu qu'un acompte (les bureaux du Lac). | Sans prestation facturée, pas de taux : « — ». Le reste ne change pas. |
+| M5 | Le seuil de rentabilité, sans aucune charge fixe notée (ni loyer, ni bulletin), annonçait un minimum de **0,000 DT** et « Tu l'as dépassé de 40 190 DT ». | « Aucune charge fixe n'est notée en 2026 … le seuil ne se calcule pas encore », et où les noter. |
+| M6 | Au téléphone, les cartes des marges montraient **quatre nombres sans nom**. | Chaque montant porte son nom (Vendu HT, Coût, Marge, En caisse ; Facturé, Par mois pour les contrats). |
+| M7 | Trouvé en préparant le jeu : une facture émise dont les prix sont écrits « 385.000 » (un appel de l'API, un import) revenait de la page en « 385 » ; le serveur comparait le texte et **refusait tout l'enregistrement du dossier** (« Rien n'a été enregistré »), et plus rien ne s'enregistrait. | Un nombre scellé se compare par sa valeur ; un autre prix reste refusé. |
+
+Limite connue : l'état des chantiers part dans la conversation en texte ; il ne propose pas encore l'écriture d'en-cours ou
+de provision au Cabinet (la comptable la passe en Saisie). La marge d'un chantier n'est pas encore lue dans le livre du
+Cabinet (l'axe « Affaires » sur les lignes d'écriture, prévu au cadrage 01, reste à faire).
+
+Suivant : la Comptabilité de l'entreprise (avec son côté Cabinet et le pont).
