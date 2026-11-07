@@ -1668,6 +1668,8 @@
   // prix, ouvrait une fiche de prestation. Une proposition que personne n'a demandée ne se met pas
   // sous le prochain clic ; elle reste en bout de liste quand la liste a de quoi s'ouvrir.
   function propositionsCatalogue(items, query, peutCreer, demandee) {
+    // (1.318.0) Un article archivé ne se propose plus (il reste sur les pièces qui le portent, et dans le stock).
+    items = (items || []).filter(c => !c.archived);
     const q = String(query || '').trim();
     const words = sansAccents(q).split(/\s+/).filter(Boolean);
     const correspond = c => {
@@ -11446,6 +11448,27 @@
     if (!paieCachee()) return '';
     return `<div class="bandeau ambre sans-paie" id="sans-paie" role="status">${lfIc('cadenas', 18, 2)}<span class="txt"><b>Sans la paie</b><span>Ton rôle ne voit pas les salaires : ${quoi} ne compte${pluriel ? 'nt' : ''} ni les salaires versés ou à verser, ni les avances, ni la CNSS et les impôts sur les salaires. Les chiffres complets se lisent avec le droit « Paie » : demande-les à ${h(company().managerName || 'la direction')}.</span></span></div>`;
   }
+  // (1.318.0, le catalogue joué) Archiver un article : il ne se vend plus (ni sur une pièce, ni à la caisse), son stock, sa
+  // valeur et ses pièces restent ; « Annuler » le remet, comme un client ou un fournisseur.
+  function archiverArticle(it, refaire) {
+    if (!peutEcrireDossier('catalog')) return toast('Ton rôle ne permet pas de modifier le catalogue.', true);
+    const st = it.tracked ? C.stockOf(data, it.id) : null;
+    // La page entière se redessine : l'en-tête du catalogue dit « Archivés (n) », pas seulement sa liste.
+    it.archived = C.today(); save(true); render(); void refaire;
+    toastUndo(`« ${it.label} » est archivé : il ne se propose plus sur une pièce ni à la caisse${st && st.qty ? `, et ses ${pct(st.qty)} en stock restent dans l'inventaire` : ''}.`, () => { it.archived = ''; save(true); render(); }, 'Annuler');
+  }
+  function desarchiverArticle(it, refaire) {
+    if (!peutEcrireDossier('catalog')) return toast('Ton rôle ne permet pas de modifier le catalogue.', true);
+    it.archived = ''; save(true); render(); void refaire;
+    toast(`« ${it.label} » est de retour dans le catalogue.`);
+  }
+  // (1.318.0) Les trois natures d'une vente, avec le compte du plan de l'entreprise (« compte 707 »).
+  function natureChoix(valeur) {
+    const plan = C.chartAccounts(data);
+    return [['marchandises', 'Une marchandise que je revends telle quelle', plan.ventesMarchandises], ['services', 'Une prestation (un service, un travail)', plan.ventes],
+      ['produits', 'Un produit que je fabrique', plan.ventesProduits]]
+      .map(([v, t, c]) => `<option value="${v}" ${valeur === v ? 'selected' : ''}>${h(t)} · compte ${h(c)}</option>`).join('');
+  }
   function catalogForm(item, done, opts) {
     opts = opts || {};
     const neuf = !item || !!opts.creation;
@@ -11475,6 +11498,9 @@
         <div class="span-2 prix-rang"><div class="annonce-stable" id="marge-hint"></div><button type="button" class="btn btn-sm" id="cat-calc">Calculer le prix…</button></div>
         <label class="field">${lbl('TVA', 'cat.vat')}<select name="vatRate">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(it.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select>${C.assujettiTVA(company()) ? '' : `<span class="small muted taux-regime">Sur tes devis et factures : 0\u00a0%, ton régime ne facture pas de TVA.</span>`}</label>
         <div class="field">${lbl('Unité', 'ed.unit')}<select name="unit" id="cat-unit">${unitOptions(it.unit || '', C.usedUnits(data))}</select></div>
+        ${/* (1.318.0, le catalogue joué) Ce que l'article vend : le compte de sa vente (707, 706, 701), proposé d'après le suivi
+           du stock et la FODEC tant qu'on ne l'a pas choisi. La droguerie revendait sa peinture au 706 des prestations. */''}
+        <div class="field span-2">${lbl('Ce que tu vends', 'cat.nature')}<select name="nature" id="cat-nature">${natureChoix(it.nature || C.natureDeLArticle({ ...it, tracked: suit.tracked }) || 'services')}</select></div>
         <label class="check span-2"><input type="checkbox" name="tracked" ${suit.tracked ? 'checked' : ''}> Suivi en stock ${info('stk.tracked')}</label>
         ${company().fodec === true ? `<label class="check span-2"><input type="checkbox" name="fodec" ${it.fodec === true ? 'checked' : ''}> Produit fabriqué : ses lignes portent la FODEC ${info('cat.fodec')}</label>` : ''}
         <!-- Cette case vivait À L'INTÉRIEUR du bloc masqué par « Suivi en stock » : quelqu'un qui
@@ -11507,17 +11533,26 @@
         </div>
       </form>
       <div class="modal-actions">
-        ${neuf ? '' : '<button class="btn btn-danger" id="del-cat" style="margin-inline-end:auto">Supprimer</button>'}
+        ${neuf ? '' : it.archived ? '<button class="btn" id="desarch-cat" style="margin-inline-end:auto">Le remettre dans le catalogue</button>' : '<button class="btn btn-danger" id="del-cat" style="margin-inline-end:auto">Supprimer</button>'}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
         let unit = it.unit || '';
         // Ouverte pour UNE case (le prix qui manque, depuis la caisse), elle y met le curseur : modal()
         // ne reprend pas un curseur déjà posé dans la fenêtre (10.13.0).
         if (opts.focus) { const c = $(`[name=${opts.focus}]`, root); if (c) c.focus(); }
+        if ($('#desarch-cat', root)) $('#desarch-cat', root).onclick = () => { close(); desarchiverArticle(it, done ? () => done(it) : null); };
         if ($('#del-cat', root)) $('#del-cat', root).onclick = async () => {
           const used = data.documents.filter(d => (d.lines || []).some(l => l.itemId === it.id
             || (l.label || '').trim().toLowerCase() === (it.label || '').trim().toLowerCase())).length;
           const st = it.tracked ? C.stockOf(data, it.id) : null;
+          // (1.318.0, le catalogue joué) Un article qui a une histoire — sur une pièce, ou des mouvements de stock — ne s'efface
+          // plus : son stock disparaissait de l'inventaire, et sa fiche des pièces qui le portent. Il s'archive : il ne se vend
+          // plus, son stock et ses pièces restent ; « Annuler » le remet.
+          if (used || (st && st.moves.length)) {
+            if (!await confirmDialog(`« ${it.label} » a déjà une histoire : ${[used ? pl(used, 'document') + (used > 1 ? ' le portent' : ' le porte') : '', st && st.qty ? `il en reste ${pct(st.qty)} en stock` : st && st.moves.length ? 'il a des mouvements de stock' : ''].filter(Boolean).join(', ')}. Il ne s'efface pas : archive-le. Il sort du catalogue, des choix d'une pièce et de la caisse ; son stock, sa valeur et ses pièces restent.`, 'Archiver', false, { titre: 'Archiver cet article ?' })) return;
+            close(); archiverArticle(it, done ? () => done(it) : null);
+            return;
+          }
           if (!await confirmDialog(`Supprimer « ${it.label} » du catalogue ?`
             + (used ? ` ${pl(used, 'document')} la ${used > 1 ? 'portent' : 'porte'} déjà : ${used > 1 ? 'ils ne changent pas' : 'il ne change pas'}, elle ne sera simplement plus proposée.` : '')
             + (st && st.qty ? ` Attention : il en reste ${pct(st.qty)} en stock, et son suivi disparaîtra avec elle.` : ''))) return;
@@ -11632,8 +11667,20 @@
         // Le bloc stock n'apparaît que si l'article est suivi : inutile d'imposer quatre champs de plus
         // à qui ne vend que des prestations.
         const caseStock = $('input[name=tracked]', root), caseSerie = $('input[name=serialized]', root);
+        // (1.318.0) Tant qu'on n'a pas choisi « Ce que tu vends », il suit le suivi du stock (et la FODEC) : cocher « Suivi en
+        // stock » propose la marchandise ; une fois choisi, il ne bouge plus.
+        const choixNature = $('#cat-nature', root);
+        let natureChoisie = !!it.nature;
+        choixNature.onchange = () => { natureChoisie = true; };
+        const proposerNature = () => {
+          if (natureChoisie) return;
+          const caseFodec = $('input[name=fodec]', root);
+          choixNature.value = C.natureDeLArticle({ ...it, nature: '', tracked: caseStock.checked, fodec: caseFodec ? caseFodec.checked : it.fodec }) || 'services';
+        };
+        if ($('input[name=fodec]', root)) $('input[name=fodec]', root).addEventListener('change', proposerNature);
         caseStock.onchange = e => {
           $('#stock-block', root).hidden = !e.target.checked;
+          proposerNature();
           // Décocher le stock retire forcément le suivi par numéro (il s'appuie dessus) : on le dit
           // en le faisant, plutôt que de laisser une case cochée qui ne s'enregistrera pas.
           if (!e.target.checked && caseSerie.checked) { caseSerie.checked = false; caseSerie.onchange({ target: caseSerie }); }
@@ -12106,7 +12153,7 @@
       // 10.12.0 — une prestation que l'assistant a posée le DIT : « Ajuster les prix de ton
       // catalogue » envoyait ici, et rien ne distinguait les exemples des tarifs décidés. Le repère
       // part à l'enregistrement de la fiche (`catalogForm`).
-      { key: 'label', label: 'Désignation', asc: true, val: c => c.label.toLowerCase(), get: c => `<strong>${h(c.label)}</strong>${c.fromSetup ? ' <span class="badge" title="Proposée par l’assistant : mets ton prix et enregistre-la pour qu’elle devienne la tienne.">exemple</span>' : ''}<div class="small muted">${h(c.description || '')}</div>` },
+      { key: 'label', label: 'Désignation', asc: true, val: c => c.label.toLowerCase(), get: c => `<strong>${h(c.label)}</strong>${c.archived ? ` <span class="badge" title="Archivé le ${h(C.fmtDate(c.archived))} : il ne se vend plus">archivé</span>` : ''}${c.fromSetup ? ' <span class="badge" title="Proposée par l’assistant : mets ton prix et enregistre-la pour qu’elle devienne la tienne.">exemple</span>' : ''}<div class="small muted">${h(c.description || '')}</div>` },
       { key: 'price', label: 'P.U. HT', r: true, val: c => Number(c.unitPrice) || 0, get: c => C.money(c.unitPrice, cur) },
       { key: 'cost', label: 'Coût', r: true, val: c => Number(c.unitCost) || 0, get: c => Number(c.unitCost) ? C.money(c.unitCost, cur) : '<span class="muted">—</span>' },
       { key: 'margin', label: 'Marge', r: true, val: c => Number(c.unitCost) ? (Number(c.unitPrice) || 0) - Number(c.unitCost) : -Infinity, get: c => {
@@ -12131,7 +12178,8 @@
         return `<span class="${cls}"><strong>${pct(st.qty)}</strong>${c.unit ? ' ' + h(C.uniteAccordee(st.qty, c.unit)) : ''}</span>${st.negative ? '<div class="small warn-text">négatif</div>' : st.low ? '<div class="small warn-text">sous le seuil</div>' : ''}`;
       } }
     ];
-    const draw = dansUnLot(drawList('#list-wrap', catalogState.presta, prestaCols, () => data.catalog.slice(), {
+    // (1.318.0) Les articles archivés vivent à part (« Archivés », en haut) : ils ne se vendent plus, leur stock et leurs pièces restent.
+    const draw = dansUnLot(drawList('#list-wrap', catalogState.presta, prestaCols, () => data.catalog.filter(c => !c.archived === !catalogState.archives), {
       apres: () => drawResume(),
       noun: motsCatalogue().un, placeholder: `Rechercher ${motsCatalogue().unNom}…`, text: c => `${c.label} ${c.description || ''} ${c.unit || ''} ${c.code || ''}`,
       // 10.12.0 (H-E26, vu au test humain) — deux chiffres du pied mentaient sans rien casser :
@@ -12168,7 +12216,9 @@
         { icon: 'modifier', label: `Modifier ${c.tracked ? 'l\'article' : motsCatalogue().le}`, hint: 'Prix, coût, TVA, unité, suivi en stock', run: () => catalogForm(c, redraw) },
         c.tracked ? { icon: 'stock', label: 'Voir la fiche stock', hint: 'Mouvements, coût moyen, historique', run: () => navigate('#/article/' + c.id) } : null,
         { sep: true },
-        { icon: 'copier', label: 'Dupliquer', hint: 'La même fiche, à renommer et à ajuster', run: () => duplicateCatalogItem(c, redraw) }
+        { icon: 'copier', label: 'Dupliquer', hint: 'La même fiche, à renommer et à ajuster', run: () => duplicateCatalogItem(c, redraw) },
+        enLecture('catalog') ? null : c.archived ? { icon: 'restaurer', label: 'Le remettre dans le catalogue', hint: 'Il revient dans les choix d\'une pièce et de la caisse', run: () => desarchiverArticle(c, redraw) }
+          : { icon: 'dossier', label: 'Archiver', hint: 'Il ne se vend plus ; son stock et ses pièces restent', run: () => archiverArticle(c, redraw) }
       ] : []
     }));
 
@@ -12207,6 +12257,7 @@
     const head = () => {
       const t = TABS.find(x => x[0] === catalogTab);
       return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Catalogue</span></div><h1>${t[1]} ${info(t[2])}</h1><p class="sous">${h(SOUS[catalogTab] || '')}</p></div><div class="actions">
+        ${catalogTab === 'presta' && (catalogState.archives || data.catalog.some(c => c.archived)) ? `<button class="btn btn-ghost" id="cat-archives" aria-pressed="${!!catalogState.archives}">${catalogState.archives ? 'Retour au catalogue' : `Archivés (${data.catalog.filter(c => c.archived).length})`}</button>` : ''}
         ${catalogTab === 'presta' ? `<button class="btn" id="imp-catalogue">Importer…</button><button class="btn${data.catalog.length ? ' btn-primary' : ''}" id="new">+ ${motsCatalogue().nouveau}</button>` : ''}
         ${catalogTab === 'textes' ? '<button class="btn btn-primary" id="new-snip">+ Nouveau texte</button>' : ''}
         ${catalogTab === 'modeles' ? '<span class="small muted">Depuis un devis ou une facture : Plus ▾ → « Enregistrer comme modèle »</span>' : ''}
@@ -12228,7 +12279,9 @@
     const chiffreC = (lbl2, val, sous, ton, bulle, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}${bulle ? ' ' + info(bulle) : ''}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
     const drawResume = () => {
       const el = $('#cat-resume'); if (!el) return;
-      const cat = data.catalog;
+      // (1.318.0) Les chiffres comptent ce que la liste montre : le catalogue en vente, ou ses archivés quand on les regarde.
+      const enArchives = !!catalogState.archives;
+      const cat = data.catalog.filter(c => !c.archived === !enArchives);
       el.hidden = !cat.length;
       if (!cat.length) { el.innerHTML = ''; return; }
       const m = motsCatalogue();
@@ -12241,9 +12294,9 @@
       const aPerte = avecCout.filter(c => Number(c.unitPrice) <= Number(c.unitCost)).length;
       const taux = ventes ? Math.round(marge / ventes * 1000) / 10 : null;
       const exemples = cat.filter(c => c.fromSetup).length;
-      el.innerHTML = chiffreC(m.des, String(cat.length), suivis ? `dont ${pl(suivis, m.suivi)} en stock` : 'aucun suivi en stock', '', 'cat.catalog')
+      el.innerHTML = chiffreC(enArchives ? 'Archivés' : m.des, String(cat.length), suivis ? `dont ${pl(suivis, m.suivi)} en stock` : 'aucun suivi en stock', '', 'cat.catalog')
         + chiffreC('Sans prix', String(sansPrix), sansPrix ? 'à compléter avant de les vendre' : 'tous ont un prix', sansPrix ? 'ambre' : 'vert')
-        + chiffreC('Marge moyenne', taux == null ? '—' : pct(taux) + ' %', taux == null ? 'mets un coût pour la lire' : aPerte ? `${pl(aPerte, m.un)} sans marge (prix ≤ coût)` : `sur ${pl(avecCout.length, m.un)} qui ont un coût`, aPerte ? 'rouge' : '')
+        + chiffreC('Marge moyenne', taux == null ? '—' : pct(taux) + ' %', taux == null ? 'mets un coût pour la lire' : aPerte ? `${pl(aPerte, m.un)} sans marge (prix ≤ coût)` : `sur ${pl(avecCout.length, m.un)} qui ${avecCout.length > 1 ? 'ont' : 'a'} un coût`, aPerte ? 'rouge' : '')
         + (exemples ? chiffreC('Exemples à ajuster', String(exemples), 'proposés par l\'assistant : mets ton prix', 'ambre')
           : chiffreC('Modèles de documents', String(data.templates.length), data.templates.length ? 'prêts à reprendre — voir lesquels' : 'depuis un devis : Plus ▾', '', 'ed.template', 'modeles'));
       $$('[data-aller]', el).forEach(x => {
@@ -12253,6 +12306,7 @@
     };
     const bindHead = () => {
       if ($('#new')) $('#new').onclick = () => catalogForm(null, draw);
+      if ($('#cat-archives')) $('#cat-archives').onclick = () => { catalogState.archives = !catalogState.archives; catalogState.presta.page = 1; $('#cat-head').innerHTML = head(); bindHead(); poserGuideMoi(); draw(); };
       if ($('#imp-catalogue')) $('#imp-catalogue').onclick = () => importerTableau('catalogue', () => draw());
       if ($('#new-snip')) $('#new-snip').onclick = () => snippetForm(null, drawSnippets);
     };

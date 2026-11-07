@@ -3,7 +3,8 @@
 //
 // L'écriture d'une facture, dans la devise de la COMPTABILITÉ (le dinar, au millime) :
 //   D clients        le TTC (le brut : la retenue naît au règlement, pas ici — 10.14.0)
-//   C ventes         la base remisée de chaque taux
+//   C ventes         la base remisée de chaque taux, ventilée par ce que vendent ses lignes (1.318.0) : les prestations
+//                    au compte des ventes (706), les marchandises au leur (707), les produits fabriqués au leur (701)
 //   C TVA collectée  la TVA de chaque taux
 //   C timbre         le timbre, tel que la loi le fixe en dinars (10.14.1)
 //   C FODEC          la FODEC des produits fabriqués, quand la pièce en porte (1.155.0 ; compte À VÉRIFIER)
@@ -30,6 +31,9 @@ export type ComptesVente = {
   clients: string; ventes: string; tvaCollectee: string; timbre: string; gainsChange: string; pertesChange: string;
   retenueSubie?: string;   // pour la régularisation de retenue d'un avoir
   fodec?: string;          // (1.155.0) pour une pièce qui porte la FODEC
+  // (1.318.0) Les ventes de marchandises et de produits fabriqués ; absents, elles vont au compte des ventes.
+  ventesMarchandises?: string;
+  ventesProduits?: string;
 };
 export type NatureLigne = 'client' | 'ventes' | 'tva' | 'timbre' | 'fodec' | 'change' | 'tresorerie' | 'retenue' | 'fournisseur' | 'achat' | 'frais' | 'avance';
 export type LigneEcriture = { compte: string; nature: NatureLigne; debit: bigint; credit: bigint; tauxTva?: bigint };
@@ -120,7 +124,19 @@ export function ecritureDeVente(
     poser(comptes.clients, 'client', b, 'credit');
   }
   for (const r of taux) {
-    poser(comptes.ventes, 'ventes', bases.get(r) ?? 0n, 'credit', r);
+    // (1.318.0) La base du taux, ventilée : chaque part se convertit, et ce que la conversion (ou la remise répartie entre
+    // deux taux) laisse va à la plus grosse des trois (à égalité : les prestations, puis les marchandises). Un même compte
+    // pour deux natures n'écrit qu'une ligne.
+    const v = t.tvaParTaux.get(r);
+    const m = v?.marchandises ?? 0n, p = v?.produits ?? 0n;
+    const parts = [conv((v?.base ?? 0n) - (v?.fodec ?? 0n) - m - p), conv(m), conv(p)];
+    const abs = (x: bigint) => (x < 0n ? -x : x);
+    const k = parts.reduce((g, x, i) => (abs(x) > abs(parts[g] as bigint) ? i : g), 0);
+    parts[k] = (parts[k] as bigint) + (bases.get(r) ?? 0n) - parts.reduce((a, x) => a + x, 0n);
+    const comptesDuTaux = [comptes.ventes, comptes.ventesMarchandises ?? comptes.ventes, comptes.ventesProduits ?? comptes.ventes];
+    const parCompte = new Map<string, bigint>();
+    comptesDuTaux.forEach((c, i) => parCompte.set(c, (parCompte.get(c) ?? 0n) + (parts[i] as bigint)));
+    for (const [c, montant] of parCompte) poser(c, 'ventes', montant, 'credit', r);
     poser(comptes.tvaCollectee, 'tva', tvas.get(r) ?? 0n, 'credit', r);
   }
   poser(comptes.timbre, 'timbre', timbre, 'credit');

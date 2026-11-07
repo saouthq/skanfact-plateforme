@@ -1596,10 +1596,20 @@
     if (prixTtc) {
       const ttcParTaux = {};
       // Une seule division (comme le serveur) : un facteur en virgule flottante perdait un millime sur des millions.
-      lines.forEach(l => { if (l.titre) return; ttcParTaux[l.vatRate] = rd((ttcParTaux[l.vatRate] || 0) + rd(l.noDiscount || discountable <= 0 ? l.ttc : regle2 ? partRepartie(l.ttc) : l.ttc * (discountable - remiseCalculee) / discountable)); });
+      // (1.318.0) Le TTC remisé de chaque nature (marchandises, produits fabriqués), par taux : la base du taux se ventile à
+      // son prorata, comme le serveur (calculerPieceTtc).
+      const ttcParNature = {};
+      lines.forEach(l => {
+        if (l.titre) return;
+        const part = rd(l.noDiscount || discountable <= 0 ? l.ttc : regle2 ? partRepartie(l.ttc) : l.ttc * (discountable - remiseCalculee) / discountable);
+        ttcParTaux[l.vatRate] = rd((ttcParTaux[l.vatRate] || 0) + part);
+        const n = natureDeLigneVendue(l);
+        if (n) { ttcParNature[l.vatRate] = ttcParNature[l.vatRate] || {}; ttcParNature[l.vatRate][n] = rd((ttcParNature[l.vatRate][n] || 0) + part); }
+      });
       Object.keys(ttcParTaux).forEach(k => {
         const rate = Number(k), vat = rd(ttcParTaux[k] * rate / (100 + rate));
         vatByRate[k] = { base: rd(ttcParTaux[k] - vat), vat };
+        Object.keys(ttcParNature[k] || {}).forEach(n => { vatByRate[k][n] = ttcParTaux[k] ? rd(ttcParNature[k][n] * vatByRate[k].base / ttcParTaux[k]) : 0; });
       });
     } else {
       // (1.155.0) La FODEC d'une ligne qui la porte (`fodec`) : le taux de la pièce (`fodecRate`, en %, lu à la règle
@@ -1615,6 +1625,9 @@
         const base = rd(remisee + f);
         vatByRate[l.vatRate] = vatByRate[l.vatRate] || { base: 0, vat: 0 };
         vatByRate[l.vatRate].base = rd(vatByRate[l.vatRate].base + base);
+        // (1.318.0) La part de la ligne, hors FODEC, va à sa nature (moteur/piece.ts, la même règle).
+        const n = natureDeLigneVendue(l);
+        if (n) vatByRate[l.vatRate][n] = rd((vatByRate[l.vatRate][n] || 0) + remisee);
         if (!regle2) vatByRate[l.vatRate].vat = rd(vatByRate[l.vatRate].vat + base * l.vatRate / 100);
         if (f) vatByRate[l.vatRate].fodec = rd((vatByRate[l.vatRate].fodec || 0) + f);
       });
@@ -1916,6 +1929,19 @@
 
   function inPeriod(iso, from, to) { return (!from || iso >= from) && (!to || iso <= to); }
 
+  // (1.318.0) Ce que vend une ligne de vente, figé sur elle à l'émission (serveur/v10/dossier.ts) : `marchandises`, `produits`,
+  // ou rien (une prestation de services). Une pièce d'avant n'en porte pas : ses ventes restent au compte des ventes (706).
+  function natureDeLigneVendue(l) { return l && (l.nature === 'marchandises' || l.nature === 'produits') ? l.nature : ''; }
+  // La nature qu'un article donne à sa ligne, la règle du serveur (natureDeLaLigne) : celle de sa fiche, sinon fabriqué (FODEC)
+  // → produits, suivi en stock ou kit → marchandises, sinon une prestation (''). À VÉRIFIER avec un comptable.
+  function natureDeLArticle(item) {
+    if (!item) return '';
+    if (item.nature === 'marchandises' || item.nature === 'produits') return item.nature;
+    if (item.nature === 'services') return '';
+    if (item.fodec === true) return 'produits';
+    return item.tracked === true || (Array.isArray(item.composants) && item.composants.length > 0) ? 'marchandises' : '';
+  }
+
   function salesJournal(data, company, period) {
     period = period || {};
     const docs = (data.documents || [])
@@ -1933,6 +1959,10 @@
       const vatByRate = {};
       // (1.155.0) La FODEC est dans la base de la TVA de son taux : elle en sort, le chiffre d'affaires reste le net HT.
       VAT_RATES.forEach(r => { const v = t.vatByRate[r]; vatByRate[r] = { base: round3((v ? v.base - (v.fodec || 0) : 0) * sign), vat: round3((v ? v.vat : 0) * sign) }; });
+      // (1.318.0) La part des marchandises et des produits fabriqués de chaque taux, dans la devise de la pièce : le journal
+      // la convertit et la ventile (`ventilerBase`).
+      const natures = {};
+      VAT_RATES.forEach(r => { const v = t.vatByRate[r]; if (v && (v.marchandises || v.produits)) natures[r] = { base: v.base - (v.fodec || 0), marchandises: v.marchandises || 0, produits: v.produits || 0 }; });
       const fodec = round3(Object.values(t.vatByRate).reduce((a, v) => a + round3((v.fodec || 0) * sign), 0));
       // 10.14.1 — le timbre se déclare en dinars, tel que la loi le fixe : reconverti depuis la
       // devise, il valait 1,002 DT sur une facture en euros à 3,35 (0,299 € × 3,35). Et la pièce se
@@ -1957,7 +1987,7 @@
       } else ecartConversion = ecart;
       return {
         id: d.id, date: d.date, number: d.number, type: d.type, typeLabel: estTicket(d) ? 'Ticket' : TITLES[d.type], client: clientName(d.clientId) || (estTicket(d) || estRetourDeTicket(d, data) ? CLIENT_COMPTOIR : ''), clientId: d.clientId || '', subject: d.subject || '',
-        ht: round3(VAT_RATES.reduce((a, r) => a + vatByRate[r].base, 0)), vatByRate, tva, timbre, fodec, ttc, ecartConversion,
+        ht: round3(VAT_RATES.reduce((a, r) => a + vatByRate[r].base, 0)), vatByRate, natures, sign, tva, timbre, fodec, ttc, ecartConversion,
         rs: round3(t.withholding * sign), net: round3(t.netToPay * sign), status, statusLabel: statusLabel(status),
         paid: bal ? round3(bal.paid * rate) : 0, remaining: bal ? round3(bal.remaining * rate) : 0, currency: d.currency || company.currency, rate,
         withholdingCertificate: !!d.withholdingCertificate, creditOfNumber: d.creditOfNumber || ''

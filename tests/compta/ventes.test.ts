@@ -111,10 +111,12 @@ const enLigne = (date: string, journal: string, compte: string, debit: bigint, c
 
 describe('les écritures des ventes, tenues par le serveur, contre la v10', () => {
   it('le plan comptable par défaut est celui de la v10, rôle pour rôle', () => {
-    // La FODEC (1.155.0) est un rôle né sur la plateforme, que la v10 figée n'a pas : celui de l'écran de la plateforme.
-    const { fodec, ...communs } = PLAN_PAR_DEFAUT;
+    // La FODEC (1.155.0), les ventes de marchandises et de produits fabriqués (1.318.0) sont des rôles nés sur la plateforme,
+    // que la v10 figée n'a pas : ceux de l'écran de la plateforme.
+    const { fodec, ventesMarchandises, ventesProduits, ...communs } = PLAN_PAR_DEFAUT;
     expect(communs).toEqual(core.DEFAULT_ACCOUNTS);
-    expect(fodec).toBe((ecranDeLaPlateforme('core.js') as { DEFAULT_ACCOUNTS: Record<string, string> }).DEFAULT_ACCOUNTS.fodec);
+    const plateforme = (ecranDeLaPlateforme('core.js') as { DEFAULT_ACCOUNTS: Record<string, string> }).DEFAULT_ACCOUNTS;
+    expect([fodec, ventesMarchandises, ventesProduits]).toEqual([plateforme.fodec, plateforme.ventesMarchandises, plateforme.ventesProduits]);
   });
 
   it('chaque facture, chaque avoir et chaque encaissement de l\'exemple s\'écrit au serveur comme la v10 l\'écrit : journal, date, compte, millime, ordre', async () => {

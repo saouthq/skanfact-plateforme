@@ -8,6 +8,10 @@ export const PLAN_PAR_DEFAUT = {
   clients: '411',
   fournisseurs: '401',
   ventes: '706',
+  // (1.318.0) Les ventes de marchandises (revendues telles qu'achetées) et de produits fabriqués : la base d'une ligne
+  // y va selon sa nature (moteur/piece.ts) ; les prestations restent au compte des ventes. À VÉRIFIER avec le comptable.
+  ventesMarchandises: '707',
+  ventesProduits: '701',
   tvaCollectee: '4367',
   tvaDeductible: '4366',
   timbre: '4368',

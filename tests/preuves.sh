@@ -25754,7 +25754,7 @@ prouver 'une dotation passée ne se dit qu'\''au refus' "$COMPTA1" \
   "ecrite: !!(tenue && (tenue.plan || []).some(p => p && p.ecritureId))," "ecrite: false," \
   "$T314"
 prouver 'la revente d'\''un bien va aux ventes chez l'\''entreprise' "$CORE2" \
-  "const cptVente = estCession(docsById[r.id], data) ? acc.produitsCession : acc.ventes;" "const cptVente = acc.ventes;" \
+  "        const cptVente = cession ? acc.produitsCession : acc.ventes;" "        const cptVente = acc.ventes;" \
   "$T314"
 prouver 'la revente d'\''un bien va aux ventes au serveur' serveur/compta/ventes.ts \
   "ventes: cession ? plan.plan.produitsCession : plan.plan.ventes," "ventes: plan.plan.ventes," \
@@ -25955,6 +25955,79 @@ prouver '« --jusqua dernier » se lit comme une date' "$RESTAURER" \
   'if [ "${1:-}" = --jusqua ] && [ "${2:-}" = dernier ]; then' 'if false; then' \
   "$TR2"
 
+# (1.318.0) Le catalogue joué par une droguerie de l'Ariana : chaque vente au compte de ce qu'elle vend (707 les marchandises,
+# 706 les prestations, 701 les produits fabriqués), la même chez l'entreprise et au Cabinet ; un article qui a une histoire
+# s'archive au lieu de s'effacer (tests/moteur/catalogue-1318.test.ts, tests/web/catalogue-1318.test.ts).
+CM1="la facture de la droguerie : 707 pour ce qu'elle revend, 706 pour la pose, 701 pour son mastic, au même millime des deux côtés"
+CM2="le ticket au prix d'étiquette : la base de son taux se ventile au prorata du TTC, la même des deux côtés"
+CM3="la nature d'une ligne : celle qu'elle porte, sinon celle de son article ; la même règle chez l'entreprise et au serveur"
+CW1="la droguerie range ce qu'elle vend, facture l'hôtel, archive sa peinture, et sa comptable lit chaque vente à son compte"
+prouver 'catalogue 1.318 a : la part des marchandises ne se compte pas au serveur' moteur/piece.ts \
+  '    if (l.nature) t[l.nature] = (t[l.nature] ?? 0n) + remisee;' '' \
+  "$CM1"
+prouver 'catalogue 1.318 b : au ticket, la part d'\''une nature est son TTC' moteur/piece.ts \
+  '      t[nature] = ttc === 0n ? 0n : diviserArrondi(part * t.base, ttc);' '      t[nature] = part;' \
+  "$CM2"
+prouver 'catalogue 1.318 c : le serveur écrit toute vente au compte des ventes' moteur/ecritures.ts \
+  '    const comptesDuTaux = [comptes.ventes, comptes.ventesMarchandises ?? comptes.ventes, comptes.ventesProduits ?? comptes.ventes];' '    const comptesDuTaux = [comptes.ventes, comptes.ventes, comptes.ventes];' \
+  "$CM1"
+prouver 'catalogue 1.318 d : le livre du serveur ne donne pas les comptes des marchandises' serveur/compta/ventes.ts \
+  '    ventesMarchandises: cession ? plan.plan.produitsCession : plan.plan.ventesMarchandises, ventesProduits: cession ? plan.plan.produitsCession : plan.plan.ventesProduits,' '' \
+  "$CW1"
+prouver 'catalogue 1.318 e : la part scellée des marchandises ne se relit pas' serveur/compta/ventes.ts \
+  '      ...(v.marchandises ? { marchandises: BigInt(v.marchandises) } : {}), ...(v.produits ? { produits: BigInt(v.produits) } : {}) });' ' });' \
+  "$CW1"
+prouver 'catalogue 1.318 f : la pièce scellée oublie la part des marchandises' serveur/ventes/pieces.ts \
+  '    ...(v.marchandises ? { marchandises: v.marchandises.toString() } : {}), ...(v.produits ? { produits: v.produits.toString() } : {}) }]));' ' }]));' \
+  "$CW1"
+prouver 'catalogue 1.318 g : l'\''émission ne donne pas sa nature à la ligne du serveur' serveur/v10/dossier.ts \
+  '      ...((n) => (n ? { nature: n } : {}))(natureDe(l)),' '' \
+  "$CW1"
+prouver 'catalogue 1.318 h : la facture émise ne garde pas la nature de ses lignes' serveur/v10/dossier.ts \
+  '  const lignesFigees = ticket ? doc.lines : lignesV10.map((l) => {' '  const lignesFigees = doc.lines; void lignesV10.map((l) => {' \
+  "$CW1"
+prouver 'catalogue 1.318 i : un article fabriqué et suivi en stock se dit marchandise' serveur/v10/dossier.ts \
+  '    if (article.fodec === true || l.fodec === true) return '\''produits'\'';' '' \
+  "$CM3"
+prouver 'catalogue 1.318 j : un article suivi en stock se dit prestation' serveur/v10/dossier.ts \
+  '    return article.tracked === true || (Array.isArray(article.composants) && article.composants.length > 0) ? '\''marchandises'\'' : null;' '    return null;' \
+  "$CM3"
+prouver 'catalogue 1.318 k : l'\''entreprise ne compte pas la part des marchandises' modules/socle/moteur/core-1.js \
+  '        if (n) vatByRate[l.vatRate][n] = rd((vatByRate[l.vatRate][n] || 0) + remisee);' '' \
+  "$CM1"
+prouver 'catalogue 1.318 l : au ticket de l'\''entreprise, la part d'\''une nature est son TTC' modules/socle/moteur/core-1.js \
+  '        Object.keys(ttcParNature[k] || {}).forEach(n => { vatByRate[k][n] = ttcParTaux[k] ? rd(ttcParNature[k][n] * vatByRate[k].base / ttcParTaux[k]) : 0; });' '        Object.keys(ttcParNature[k] || {}).forEach(n => { vatByRate[k][n] = ttcParNature[k][n]; });' \
+  "$CM2"
+prouver 'catalogue 1.318 m : le journal de l'\''entreprise écrit toute vente au 706' modules/socle/moteur/core-2.js \
+  '        const comptesDuTaux = [cptVente, cession ? cptVente : acc.ventesMarchandises || cptVente, cession ? cptVente : acc.ventesProduits || cptVente];' '        const comptesDuTaux = [cptVente, cptVente, cptVente];' \
+  "$CM1"
+prouver 'catalogue 1.318 n : le panier de la caisse ne porte pas la nature de l'\''article' modules/socle/moteur/core-2.js \
+  '      unitPrice: Number(item.unitPrice) || 0, vatRate: tauxPourRegime(company, Number(item.vatRate) || 0), ...(nature ? { nature } : {}) };' '      unitPrice: Number(item.unitPrice) || 0, vatRate: tauxPourRegime(company, Number(item.vatRate) || 0) };' \
+  "$CM3"
+prouver 'catalogue 1.318 o : la fiche ne propose pas la marchandise pour un article suivi en stock' modules/socle/ecrans/entreprise/app-1.js \
+  "natureChoix(it.nature || C.natureDeLArticle({ ...it, tracked: suit.tracked }) || 'services')" "natureChoix(it.nature || 'services')" \
+  "$CW1"
+prouver 'catalogue 1.318 p : cocher « Suivi en stock » ne propose rien' modules/socle/ecrans/entreprise/app-1.js \
+  '          proposerNature();' '' \
+  "$CW1"
+prouver 'catalogue 1.318 q : le choix de la nature se perd quand on recoche le stock' modules/socle/ecrans/entreprise/app-1.js \
+  '          if (natureChoisie) return;' '' \
+  "$CW1"
+prouver 'catalogue 1.318 r : un article vendu et en stock s'\''efface encore' modules/socle/ecrans/entreprise/app-1.js \
+  '          if (used || (st && st.moves.length)) {' '          if (false) {' \
+  "$CW1"
+prouver 'catalogue 1.318 s : l'\''article archivé reste dans la liste du catalogue' modules/socle/ecrans/entreprise/app-1.js \
+  '() => data.catalog.filter(c => !c.archived === !catalogState.archives), {' '() => data.catalog.slice(), {' \
+  "$CW1"
+prouver 'catalogue 1.318 t : l'\''article archivé garde sa tuile à la caisse' modules/socle/ecrans/entreprise/app-2.js \
+  '    const articles = (data.catalog || []).filter(c => !c.archived).sort(' '    const articles = (data.catalog || []).slice().sort(' \
+  "$CW1"
+prouver 'catalogue 1.318 u : la liste des archivés ne dit pas qu'\''il est archivé' modules/socle/ecrans/entreprise/app-1.js \
+  '${c.archived ? ` <span class="badge" title="Archivé le ${h(C.fmtDate(c.archived))} : il ne se vend plus">archivé</span>` : '\'''\''}' '' \
+  "$CW1"
+prouver 'catalogue 1.318 v : les chiffres du catalogue comptent les articles archivés' modules/socle/ecrans/entreprise/app-1.js \
+  '      const cat = data.catalog.filter(c => !c.archived === !enArchives);' '      const cat = data.catalog;' \
+  "$CW1"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

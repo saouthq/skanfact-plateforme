@@ -251,9 +251,10 @@ describe('les listes de prix 1.317.0 : la droguerie, ses artisans, son hôtel et
     const livre = await c.evaluate(() => [...document.querySelectorAll('#c-livres tbody tr')].map((tr) => (tr.textContent ?? '').replace(/\s+/g, ' ').trim()));
     // G. Le comptable lit les mêmes prix : 139,300 HT à la facture du plombier, 206,400 à son ticket, 89 au passant.
     const an = auj.slice(0, 4);
-    expect(livre).toContain(`706 Chedly Plomberie Facture FAC-${an}-001 — Chedly Plomberie (HT 19 %) 139,300 DT`);
-    expect(livre).toContain(`706 Chedly Plomberie Facture TIC-${an}-001 — Chedly Plomberie (HT 19 %) 206,400 DT`);
-    expect(livre).toContain(`706 Vente au comptoir Facture TIC-${an}-002 — Vente au comptoir (HT 19 %) 89,000 DT`);
+    // (1.318.0) La droguerie revend ses articles tels qu'achetés (suivis en stock) : ventes de marchandises, 707.
+    expect(livre).toContain(`707 Chedly Plomberie Facture FAC-${an}-001 — Chedly Plomberie (HT 19 %) 139,300 DT`);
+    expect(livre).toContain(`707 Chedly Plomberie Facture TIC-${an}-001 — Chedly Plomberie (HT 19 %) 206,400 DT`);
+    expect(livre).toContain(`707 Vente au comptoir Facture TIC-${an}-002 — Vente au comptoir (HT 19 %) 89,000 DT`);
     await c.screenshot({ path: path.join(PHOTOS, 'prix-1317-g-cabinet.png'), fullPage: true });
     await cxC.close();
     expect(erreurs).toEqual([]);

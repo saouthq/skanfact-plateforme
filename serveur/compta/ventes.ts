@@ -6,6 +6,7 @@
 
 import { TND, versTexte, type Devise } from '../../moteur/argent.ts';
 import { ecritureDeVente, type LigneEcriture } from '../../moteur/ecritures.ts';
+import type { BaseDeTaux } from '../../moteur/piece.ts';
 import { ecritureDEncaissement, retenueAuFil, type PieceLiee, type Reglement } from '../../moteur/reglements.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { lirePieceBrute, type PieceLue } from '../ventes/pieces.ts';
@@ -19,8 +20,12 @@ const deMois = (iso: string) => { const m = `${MOIS[Number(iso.slice(5, 7)) - 1]
 
 // Les totaux scellés d'une pièce émise : ce que son écriture reprend.
 function totauxScelles(p: PieceLue) {
-  const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint; fodec?: bigint }>();
-  for (const [taux, v] of Object.entries(p.tva_par_taux ?? {})) tvaParTaux.set(BigInt(taux), { base: BigInt(v.base), tva: BigInt(v.tva), ...(v.fodec ? { fodec: BigInt(v.fodec) } : {}) });
+  const tvaParTaux = new Map<bigint, BaseDeTaux>();
+  for (const [taux, v] of Object.entries(p.tva_par_taux ?? {})) {
+    tvaParTaux.set(BigInt(taux), { base: BigInt(v.base), tva: BigInt(v.tva), ...(v.fodec ? { fodec: BigInt(v.fodec) } : {}),
+      // (1.318.0) La part des marchandises et des produits fabriqués, scellée avec la pièce : absente sur une pièce d'avant.
+      ...(v.marchandises ? { marchandises: BigInt(v.marchandises) } : {}), ...(v.produits ? { produits: BigInt(v.produits) } : {}) });
+  }
   return { tvaParTaux, timbreBase: p.totaux?.timbre_base ?? 0n, totalTTC: p.totaux?.total_ttc ?? 0n };
 }
 
@@ -67,6 +72,8 @@ export async function ecrituresDeLaFamille(tx: Transaction, entreprise: string, 
   const cession = (await tx.query('select ventes.est_une_cession($1, $2) c', [entreprise, facture])).rows[0]?.c === true;
   const comptesVente = {
     clients: client, ventes: cession ? plan.plan.produitsCession : plan.plan.ventes, tvaCollectee: plan.plan.tvaCollectee, timbre: plan.plan.timbre, fodec: plan.plan.fodec,
+    // (1.318.0) Les marchandises et les produits fabriqués ont leur compte ; la revente d'un bien va tout entière aux cessions.
+    ventesMarchandises: cession ? plan.plan.produitsCession : plan.plan.ventesMarchandises, ventesProduits: cession ? plan.plan.produitsCession : plan.plan.ventesProduits,
     gainsChange: plan.plan.gainsChange, pertesChange: plan.plan.pertesChange, retenueSubie: plan.plan.rsSubie,
   };
   const numeroF = f.numero_texte ?? '';

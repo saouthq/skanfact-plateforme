@@ -512,7 +512,8 @@
     const cur = company().currency;
     if (!s.jour) s.jour = C.today();
     const comptes = C.comptesDeCaisse(data);
-    const articles = (data.catalog || []).slice().sort((a, b) => String(a.label || '').localeCompare(String(b.label || ''), 'fr'));
+    // (1.318.0) Un article archivé ne se vend plus : sa tuile part (la douchette le trouve encore, s'il en reste un en rayon).
+    const articles = (data.catalog || []).filter(c => !c.archived).sort((a, b) => String(a.label || '').localeCompare(String(b.label || ''), 'fr'));
     // (1.317.0) La tuile dit le prix du client choisi (sa liste de prix), comme la ligne qu'elle posera.
     const ttcDe = it => C.computeTotals({ type: 'facture', applyStamp: false, lines: C.prixDuPanier(data, [C.ligneDePanier(it, company())], s.clientId, C.today()) }, company()).totalTTC;
     // (05/10/2026) La caisse tactile prend tout l'écran (`body.mode-caisse`, posé par le routeur) : une barre du haut — la

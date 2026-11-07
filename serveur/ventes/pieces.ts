@@ -8,7 +8,7 @@
 import { sql, type Selectable } from 'kysely';
 import type { BaseDeDonnees } from '../../base/types.ts';
 import { depuisTexte, versTexte, type Devise } from '../../moteur/argent.ts';
-import { calculerPiece, timbreApplique, type Piece, type TotauxPiece, type TypePiece } from '../../moteur/piece.ts';
+import { calculerPiece, NATURES_VENTE, timbreApplique, type NatureVente, type Piece, type TotauxPiece, type TypePiece } from '../../moteur/piece.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Introuvable, Perimee, Refus } from '../erreurs.ts';
 import { annoncerReglements, resteAvant } from './annonces.ts';
@@ -30,6 +30,8 @@ export type LigneSaisie = {
   tauxRemise?: string | undefined;
   // (1.155.0) La ligne porte la FODEC (un produit que l'entreprise fabrique) ; le taux est la règle `fodec.taux`.
   fodec?: boolean | undefined;
+  // (1.318.0) Ce que la ligne vend (moteur/piece.ts, `nature`) : absente, une prestation de services.
+  nature?: NatureVente | undefined;
 };
 export type BrouillonSaisi = {
   type: TypePiece; tiers: string; datePiece: string; echeance?: string | undefined;
@@ -48,13 +50,13 @@ export const DECIMALES = { quantite: 3, prix: 6, taux: 4, cours: 6 } as const;
 
 // ── Ce qu'on lit dans la base ───────────────────────────────────────────────────────────────────
 export type LignePieceLue = Pick<Selectable<BaseDeDonnees['ventes.ligne']>,
-  'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'taux_remise' | 'fodec' | 'ht' | 'tva' | 'ttc'>;
+  'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'taux_remise' | 'fodec' | 'nature' | 'ht' | 'tva' | 'ttc'>;
 export type PieceLue = {
   id: string; entreprise: string; type: TypePiece; statut: string; tiers: string; date_piece: string; echeance: string | null;
   corrige: string | null; prix_ttc: boolean; calcul: number;
   devise: string; cours: bigint | null; taux_remise: bigint; taux_retenue: bigint; appliquer_timbre: boolean | null;
   objet: string | null; notes: string | null; serie: string | null; numero_texte: string | null; revision: number;
-  totaux: Record<string, bigint> | null; tva_par_taux: Record<string, { base: string; tva: string; fodec?: string }> | null;
+  totaux: Record<string, bigint> | null; tva_par_taux: Record<string, { base: string; tva: string; fodec?: string; marchandises?: string; produits?: string }> | null;
   copie: unknown; empreinte: string | null;
 };
 
@@ -62,7 +64,7 @@ const MONTANTS = ['total_ht', 'remise', 'net_ht', 'total_tva', 'timbre', 'timbre
 
 async function lireLignes(tx: Transaction, piece: string): Promise<LignePieceLue[]> {
   return requetes(tx).selectFrom('ventes.ligne')
-    .select(['rang', 'designation', 'description', 'quantite', 'prix_unitaire', 'taux_tva', 'sans_remise', 'taux_remise', 'fodec', 'ht', 'tva', 'ttc'])
+    .select(['rang', 'designation', 'description', 'quantite', 'prix_unitaire', 'taux_tva', 'sans_remise', 'taux_remise', 'fodec', 'nature', 'ht', 'tva', 'ttc'])
     .where('piece', '=', piece).orderBy('rang').execute();
 }
 
@@ -124,6 +126,7 @@ async function ecrireLignes(tx: Transaction, entreprise: string, piece: string, 
     taux_tva: depuisTexte(l.tauxTva, DECIMALES.taux), sans_remise: l.sansRemise ?? false,
     taux_remise: l.tauxRemise === undefined ? 0n : depuisTexte(l.tauxRemise, DECIMALES.taux),
     fodec: l.fodec === true,
+    nature: estNature(l.nature) ? l.nature : null,
   }))).execute();
 }
 
@@ -172,7 +175,8 @@ async function calculer(tx: Transaction, p: PieceLue, lignes: LignePieceLue[]): 
     ...(p.calcul === 2 ? { calcul: 2 as const } : {}),
     timbre: 0n,
     lignes: lignes.map((l) => ({ quantite: l.quantite, prixUnitaire: l.prix_unitaire, tauxTva: l.taux_tva, ...(l.sans_remise ? { sansRemise: true } : {}),
-      ...(l.taux_remise ? { tauxRemise: l.taux_remise } : {}), ...(l.fodec ? { fodec: true } : {}) })),
+      ...(l.taux_remise ? { tauxRemise: l.taux_remise } : {}), ...(l.fodec ? { fodec: true } : {}),
+      ...(estNature(l.nature) ? { nature: l.nature } : {}) })),
   };
   const applique = timbreApplique(piece);
   const timbre = applique ? await regle(tx, p.entreprise, 'timbre.facture', p.date_piece) : null;
@@ -189,9 +193,12 @@ async function calculer(tx: Transaction, p: PieceLue, lignes: LignePieceLue[]): 
   return { devise, totaux: calculerPiece(piece), timbre, timbreManquant: applique && !timbre, fodec };
 }
 
-// La part de FODEC d'un taux (1.155.0), seulement quand il en porte : le JSON des pièces d'avant ne change pas.
+// La part de FODEC d'un taux (1.155.0), et celles des marchandises et des produits fabriqués (1.318.0), seulement quand il
+// en porte : le JSON des pièces d'avant ne change pas.
 const tvaParTauxJson = (t: TotauxPiece) => Object.fromEntries([...t.tvaParTaux.entries()].map(([taux, v]) => [taux.toString(),
-  { base: v.base.toString(), tva: v.tva.toString(), ...(v.fodec ? { fodec: v.fodec.toString() } : {}) }]));
+  { base: v.base.toString(), tva: v.tva.toString(), ...(v.fodec ? { fodec: v.fodec.toString() } : {}),
+    ...(v.marchandises ? { marchandises: v.marchandises.toString() } : {}), ...(v.produits ? { produits: v.produits.toString() } : {}) }]));
+const estNature = (n: unknown): n is NatureVente => typeof n === 'string' && (NATURES_VENTE as readonly string[]).includes(n);
 
 // Ce que la chaîne scelle : la pièce telle qu'émise, avec ses lignes et sa copie figée. La MÊME
 // fonction sert à l'émission et au contrôle (relire), pour que les deux chemins donnent un chiffre.
@@ -206,6 +213,8 @@ export function contenuScelle(p: PieceLue, lignes: LignePieceLue[]) {
       // La remise de la ligne (1.155.0), quand elle existe : l'empreinte des lignes d'avant ne change pas.
       ...(l.taux_remise ? { tauxRemise: l.taux_remise } : {}),
       ...(l.fodec ? { fodec: true } : {}),
+      // (1.318.0) Sa nature, quand la ligne en a une : l'empreinte des lignes d'avant ne change pas.
+      ...(l.nature ? { nature: l.nature } : {}),
     })),
     totaux: p.totaux, tvaParTaux: p.tva_par_taux, copie: p.copie,
     // La facture qu'un avoir corrige, scellée avec lui. Pour un avoir seulement : l'empreinte des

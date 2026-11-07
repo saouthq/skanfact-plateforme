@@ -1891,6 +1891,7 @@ export interface BaseDeDonnees {
     ttc: bigint | null;
     taux_remise: Generated<bigint>;
     fodec: Generated<boolean>;
+    nature: string | null;
   };
   'ventes.paiement_en_ligne': {
     id: Generated<string>;

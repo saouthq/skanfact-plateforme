@@ -230,7 +230,10 @@ describe('les autres pièces 1.316.0 : le négoce de matériaux, du bon de comma
     const livre = await c.evaluate(() => [...document.querySelectorAll('#c-livres tbody tr')].map((tr) => (tr.textContent ?? '').replace(/\s+/g, ' ').trim()));
     const FAC = `FAC-${auj.slice(0, 4)}-001`;
     expect(livre.some((x) => x.startsWith(`brouillard ${auj.slice(8, 10)}/${auj.slice(5, 7)}/${auj.slice(0, 4)} VT ${FAC} 411 Société Bâtir Plus Facture ${FAC} — Société Bâtir Plus 9 367,341 DT`))).toBe(true);
-    expect(livre).toContain(`706 Société Bâtir Plus Facture ${FAC} — Société Bâtir Plus (HT 19 %) 7 870,875 DT`);
+    // (1.318.0) Le négoce revend ses matériaux tels qu'achetés (suivis en stock) : ventes de marchandises, 707 ; la course du
+    // transport, une prestation sans article, reste au 706.
+    expect(livre).toContain(`707 Société Bâtir Plus Facture ${FAC} — Société Bâtir Plus (HT 19 %) 7 810,875 DT`);
+    expect(livre).toContain(`706 Société Bâtir Plus Facture ${FAC} — Société Bâtir Plus (HT 19 %) 60,000 DT`);
     await c.screenshot({ path: path.join(PHOTOS, 'autres-1316-k-cabinet.png'), fullPage: true });
     await cxC.close();
     expect(erreurs).toEqual([]);

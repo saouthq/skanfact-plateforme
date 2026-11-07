@@ -989,3 +989,35 @@ change la date ne reprend pas les prix d'une liste qui commence ou finit entre l
 les listes de prix (il n'en a pas besoin pour ses écritures).
 
 Suivant : le catalogue.
+
+## Le catalogue
+
+*Joué le 07/11/2026 (1.318.0) par la Droguerie El Amen (Ariana) : la peinture qu'elle revend et compte en stock, les brosses
+qu'elle revend sans les compter, la pose qu'elle facture à l'heure, le mastic qu'elle fait elle-même ; la facture de l'hôtel
+avec 5 % de remise sur deux taux ; la peinture qu'elle ne veut plus vendre ; puis sa comptable au Cabinet.*
+
+**Ce qui n'allait pas**
+- Toute vente partait au 706 (prestations de services), même la peinture revendue : l'achat de la marchandise allait au 607,
+  sa revente au 706, et la comptable devait reclasser chaque mois au 707 (ventes de marchandises), le mastic fabriqué au 701.
+  Le chiffre d'affaires d'un commerce et sa marge commerciale (707 − 607) étaient faux dans les livres des deux côtés.
+- « Supprimer » un article déjà vendu, ou encore en stock, l'effaçait : son stock disparaissait de l'inventaire (et de la
+  valeur du stock de fin d'année), sa fiche des pièces qui le portaient.
+- Le code-barres déjà pris par un autre article était déjà refusé (rien à changer).
+
+**Ce qui change (1.318.0)**
+- « Ce que tu vends » sur la fiche d'un article : une marchandise revendue telle quelle (707), une prestation (706), un
+  produit que je fabrique (701), chaque choix avec le numéro du plan de l'entreprise. Proposé d'après « Suivi en stock » (et
+  la FODEC) tant qu'on ne l'a pas choisi ; une fois choisi, il ne bouge plus.
+- La nature se fige sur chaque ligne quand le serveur émet la facture ou l'avoir (celle que la ligne porte déjà, sinon celle
+  de son article) ; le ticket la porte dès le panier, chaîné tel quel par le poste de caisse. La base de chaque taux se
+  ventile (le reste d'arrondi à la plus grosse part) ; la FODEC garde son compte. Le moteur de l'entreprise et celui du
+  serveur disent la même écriture ligne à ligne (test du moteur, et le Cabinet au millime de l'entreprise).
+- Une pièce d'avant, sans nature sur ses lignes, ne change pas (tout au 706 ; ni ses montants, ni son empreinte).
+- Un article qui a une histoire s'archive au lieu de s'effacer (« Il ne s'efface pas : archive-le »), avec « Annuler » ;
+  archivé, il quitte la liste (« Archivés (n) » en haut), les propositions d'une pièce et les tuiles de la caisse ; son stock,
+  sa valeur et ses pièces restent ; sa fiche le remet d'un geste.
+- Les chiffres en tête du catalogue comptent ce que la liste montre (les articles en vente, ou les archivés quand on les
+  regarde) : ils comptaient l'article archivé avec ceux qu'on vend (« 4 articles » au-dessus d'une liste de trois).
+
+**À VÉRIFIER** avec un comptable : 701, 706, 707 ; un article suivi en stock qu'on fabrique sans FODEC (le pain d'une
+boulangerie) se dit « produit fabriqué » sur sa fiche.

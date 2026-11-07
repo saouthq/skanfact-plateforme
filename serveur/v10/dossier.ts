@@ -355,7 +355,24 @@ async function verifierAuteurs(tx: Transaction, entreprise: string, utilisateur:
 // ── Émettre une facture ou un avoir du dossier ──────────────────────────────────────────────────
 // La série de la v10 de chaque pièce (« FAC-2026-001 », « AVO-2026-001 ») : core.js, PREFIXES.
 const SERIE_V10: Record<string, string> = { facture: 'FAC', avoir: 'AVO' };
-type LigneV10 = { label?: unknown; description?: unknown; qty?: unknown; unitPrice?: unknown; vatRate?: unknown; noDiscount?: unknown; discount?: unknown; kind?: unknown; fodec?: unknown };
+type LigneV10 = { label?: unknown; description?: unknown; qty?: unknown; unitPrice?: unknown; vatRate?: unknown; noDiscount?: unknown; discount?: unknown; kind?: unknown; fodec?: unknown; itemId?: unknown; nature?: unknown };
+
+// (1.318.0) Ce que vend une ligne (moteur/piece.ts, `nature`) : celle qu'elle porte déjà (l'avoir copié de sa facture, le
+// ticket dont l'article est entré au panier), sinon celle de son article — dite sur sa fiche, ou à défaut : fabriqué (la
+// FODEC) → produits, suivi en stock ou kit → marchandises, sinon une prestation. Une ligne sans article qui porte la FODEC
+// est un produit fabriqué. À VÉRIFIER avec un comptable : un article suivi en stock qu'on fabrique sans FODEC (le pain d'une
+// boulangerie) se dit « produit fabriqué » sur sa fiche.
+export function natureDeLaLigne(l: LigneV10, article: Json | null): 'marchandises' | 'produits' | null {
+  if (l.nature === 'marchandises' || l.nature === 'produits') return l.nature;
+  if (l.nature === 'services') return null;
+  if (article) {
+    if (article.nature === 'marchandises' || article.nature === 'produits') return article.nature;
+    if (article.nature === 'services') return null;
+    if (article.fodec === true || l.fodec === true) return 'produits';
+    return article.tracked === true || (Array.isArray(article.composants) && article.composants.length > 0) ? 'marchandises' : null;
+  }
+  return l.fodec === true ? 'produits' : null;
+}
 // Un nombre de la v10 à `dec` décimales au plus : lu exactement, jamais arrondi en silence (un nombre
 // qui en a trop est refusé par le calcul, sur la pièce).
 const decimal = (v: unknown, dec: number) => { const t = nombreEnTexte(v); depuisTexte(t, dec); return t; };
@@ -432,6 +449,14 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     corrige = piece.id;
   }
 
+  // (1.318.0) Les articles des lignes, pour la nature de chacune.
+  const lignesV10 = Array.isArray(doc.lines) ? doc.lines as LigneV10[] : [];
+  const idsArticles = [...new Set(lignesV10.map((l) => (typeof l.itemId === 'string' ? l.itemId : '')).filter((x) => x !== ''))];
+  const articles = new Map(idsArticles.length ? (await db.selectFrom('socle.dossier_v10').select(['cle', 'contenu'])
+    .where('entreprise', '=', entreprise).where('collection', '=', 'catalog').where('cle', 'in', idsArticles).execute())
+    .map((o) => [o.cle, estObjet(o.contenu) ? commeLaV10(o.contenu) as Json : null]) : []);
+  const natureDe = (l: LigneV10) => natureDeLaLigne(l, typeof l.itemId === 'string' ? articles.get(l.itemId) ?? null : null);
+
   // 2. Le brouillon du serveur, refait à partir de la pièce du dossier.
   const ancien = await db.selectFrom('ventes.piece').select(['id', 'statut']).where('entreprise', '=', entreprise).where('ref_v10', '=', cle).executeTakeFirst();
   if (ancien?.statut === 'emise') throw new Refus('ventes.deja_emise');
@@ -450,7 +475,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     calcul: doc.calcul === 2 ? 2 : 1,
     ...(doc.subject ? { objet: String(doc.subject) } : {}), ...(doc.notes ? { notes: String(doc.notes).slice(0, 4000) } : {}),
     // Une ligne de titre (1.155.0) ne compte pour rien : elle ne passe pas au serveur (le PDF et l'écran la gardent).
-    lignes: (Array.isArray(doc.lines) ? doc.lines as LigneV10[] : []).filter((l) => l.kind !== 'titre').map((l) => ({
+    lignes: lignesV10.filter((l) => l.kind !== 'titre').map((l) => ({
       designation: String(l.label ?? '').trim() || '—', ...(l.description ? { description: String(l.description) } : {}),
       quantite: decimal(l.qty ?? 0, DECIMALES.quantite), prixUnitaire: decimal(l.unitPrice ?? 0, DECIMALES.prix), tauxTva: decimal(l.vatRate ?? 0, DECIMALES.taux),
       ...(l.noDiscount ? { sansRemise: true } : {}),
@@ -458,6 +483,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
       ...(Number(nombreEnTexte(l.discount)) ? { tauxRemise: decimal(l.discount, DECIMALES.taux) } : {}),
       // La FODEC de la ligne (1.155.0) : un drapeau ; son taux, le serveur le lit à la date de la pièce.
       ...(l.fodec === true ? { fodec: true } : {}),
+      ...((n) => (n ? { nature: n } : {}))(natureDe(l)),
     })),
   };
   const piece = await creerBrouillon(tx, utilisateur, entreprise, b);
@@ -480,7 +506,15 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
 
   // 5. La pièce du dossier devient émise, avec le numéro du serveur.
   // L'instant de l'émission (`issuedTs`), la v10 le pose elle-même juste après, comme avant.
-  const contenu = { ...doc, number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)),
+  // (1.318.0) Chaque ligne d'une facture ou d'un avoir garde sa nature, figée comme ses montants : le livre de l'entreprise la
+  // lit (core.js) comme celui du serveur, et un article qui change de nature ne déplace aucune vente déjà émise. Le ticket
+  // la porte depuis le panier (son contenu, chaîné par le poste de caisse, ne change pas ici).
+  const lignesFigees = ticket ? doc.lines : lignesV10.map((l) => {
+    if (!estObjet(l) || l.kind === 'titre') return l;
+    const n = natureDe(l);
+    return n && l.nature !== n ? { ...l, nature: n } : l;
+  });
+  const contenu = { ...doc, ...(Array.isArray(doc.lines) ? { lines: lignesFigees } : {}), number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)),
     // La pièce émise avec un accord porte les deux noms (03 D11).
     ...(accord ? { accordEncours: accord } : {}), ...(accordRemise ? { accordRemise } : {}) };
   // 6. Le fichier de la facture électronique, écrit maintenant et gardé (jamais réécrit) ; ses montants

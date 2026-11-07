@@ -2191,7 +2191,10 @@
   const DEFAULT_ACCOUNTS = {
     clients: '411',              // Clients
     fournisseurs: '401',         // Fournisseurs d'exploitation
-    ventes: '706',               // Prestations de services (707 pour les ventes de marchandises)
+    ventes: '706',               // Prestations de services
+    // (1.318.0) La base d'une ligne va au compte de ce qu'elle vend (sa `nature`, figée à l'émission) — À VÉRIFIER
+    ventesMarchandises: '707',   // Ventes de marchandises (revendues telles qu'achetées)
+    ventesProduits: '701',       // Ventes de produits finis (fabriqués par l'entreprise)
     tvaCollectee: '4367',        // TVA collectée
     tvaDeductible: '4366',       // TVA déductible
     timbre: '4368',              // Timbre fiscal encaissé pour le compte de l'État
@@ -2241,7 +2244,8 @@
     gainsChange: '755'           // Gains de change
   };
   const ACCOUNT_LABELS = {
-    clients: 'Clients', fournisseurs: 'Fournisseurs', ventes: 'Ventes',
+    clients: 'Clients', fournisseurs: 'Fournisseurs', ventes: 'Ventes (prestations de services)',
+    ventesMarchandises: 'Ventes de marchandises', ventesProduits: 'Ventes de produits fabriqués',
     tvaCollectee: 'TVA collectée', tvaDeductible: 'TVA déductible', timbre: 'Timbre fiscal', fodec: 'FODEC collectée',
     rsSubie: 'Retenue à la source subie', rsOperee: 'Retenue à la source opérée',
     achatsStock: 'Achats de marchandises', charges: 'Charges', immobilisations: 'Immobilisations',
@@ -2450,10 +2454,25 @@
             e.credit(cptClient(r.clientId), label, b, { role: 'clients' });
           }
         }
-        const cptVente = estCession(docsById[r.id], data) ? acc.produitsCession : acc.ventes;
+        const cession = estCession(docsById[r.id], data);
+        const cptVente = cession ? acc.produitsCession : acc.ventes;
+        // (1.318.0) La base du taux, ventilée par ce que vendent ses lignes : chaque part se convertit, et ce que la
+        // conversion (ou la remise répartie entre deux taux) laisse va à la plus grosse des trois (à égalité : les
+        // prestations, puis les marchandises). Un même compte pour deux natures n'écrit qu'une ligne. La règle du serveur
+        // (moteur/ecritures.ts).
+        const comptesDuTaux = [cptVente, cession ? cptVente : acc.ventesMarchandises || cptVente, cession ? cptVente : acc.ventesProduits || cptVente];
         VAT_RATES.forEach(rate => {
           const v = r.vatByRate[rate];
-          if (v && v.base) e.credit(cptVente, `${label} (HT ${rate} %)`, v.base, { vatRate: rate });
+          const nat = r.natures && r.natures[rate];
+          if (v && v.base && nat) {
+            const parts = [round3((nat.base - nat.marchandises - nat.produits) * r.sign), round3(nat.marchandises * r.sign), round3(nat.produits * r.sign)];
+            let k = 0;
+            parts.forEach((x, i) => { if (Math.abs(x) > Math.abs(parts[k]) + 0.0000001) k = i; });
+            parts[k] = round3(parts[k] + v.base - parts[0] - parts[1] - parts[2]);
+            const parCompte = new Map();
+            comptesDuTaux.forEach((c, i) => parCompte.set(c, round3((parCompte.get(c) || 0) + parts[i])));
+            parCompte.forEach((m, c) => { if (m) e.credit(c, `${label} (HT ${rate} %)`, m, { vatRate: rate }); });
+          } else if (v && v.base) e.credit(cptVente, `${label} (HT ${rate} %)`, v.base, { vatRate: rate });
           if (v && v.vat) e.credit(acc.tvaCollectee, `TVA ${rate} % — ${r.number}`, v.vat, { vatRate: rate });
         });
         if (r.timbre) e.credit(acc.timbre, `Timbre fiscal ${r.number}`, r.timbre);
@@ -6648,8 +6667,11 @@
   // Une ligne de panier tirée du catalogue : son prix HT et son taux, ramené à zéro sous un régime
   // qui ne facture pas de TVA (7.22.0).
   function ligneDePanier(item, company) {
+    // (1.318.0) Le ticket porte la nature de sa ligne dès le panier (ce que l'article vend : le compte de sa vente) : le poste
+    // de caisse le chaîne tel quel, même sans réseau, et le serveur la lit sans toucher au ticket.
+    const nature = natureDeLArticle(item);
     return { itemId: item.id, label: item.label || '', unit: item.unit || '', qty: 1,
-      unitPrice: Number(item.unitPrice) || 0, vatRate: tauxPourRegime(company, Number(item.vatRate) || 0) };
+      unitPrice: Number(item.unitPrice) || 0, vatRate: tauxPourRegime(company, Number(item.vatRate) || 0), ...(nature ? { nature } : {}) };
   }
   // (1.317.0, la droguerie jouée) Le prix au comptoir est celui de la facture : la liste de prix du client choisi et le
   // palier de la quantité (`prixArticlePour`). Le plombier payait au comptoir 89 DT le pot que sa liste met à 78, et
@@ -6722,7 +6744,9 @@
     const mode = o.mode || 'especes';
     const ls = (lignes || []).filter(l => (Number(l.qty) || 0) > 0).map(l => ({
       itemId: l.itemId || '', label: String(l.label || '').trim() || 'Article', unit: l.unit || '',
-      qty: Number(l.qty) || 0, unitPrice: Number(l.unitPrice) || 0, vatRate: Number(l.vatRate) || 0 }));
+      qty: Number(l.qty) || 0, unitPrice: Number(l.unitPrice) || 0, vatRate: Number(l.vatRate) || 0,
+      // (1.318.0) La nature de la ligne, prise au panier (`ligneDePanier`) : le compte de sa vente.
+      ...(l.nature === 'marchandises' || l.nature === 'produits' ? { nature: l.nature } : {}) }));
     const t = totauxDuPanier(ls, co, { recu: o.recu, remise: o.remise });
     const maintenant = o.maintenant || Date.now();
     const doc = {
@@ -7497,7 +7521,7 @@
 
   const api = {
     enLot, duLot,
-    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, estCession, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, prixDuPanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
+    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, estCession, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, prixDuPanier, totauxDuPanier, natureDeLArticle, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
     VAT_RATES, WITHHOLDING_RATES, PAYMENT_METHODS, PREFIX, TITLES, DEFAULT_DATA, DEFAULT_COMPANY, ACTIVITIES, STATUSES, STATUT_ENVOI, DISPLAY_STATUSES, STATUS_LABELS,
     REGIMES, regimeOf, regimeSuggere, tfpSuggere, assujettiTVA, mentionTVA, estLiberal, docLabel, ribAttendu,
     DOC_FILTRES, docFiltre,

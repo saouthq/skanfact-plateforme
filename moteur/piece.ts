@@ -25,7 +25,13 @@ export type LignePiece = {
   // taux de la pièce (`tauxFodec`) sur la base remisée de la ligne ; il entre dans la base de la TVA. À VÉRIFIER avec
   // un comptable : l'assiette (le HT après remise) et l'entrée dans la base de la TVA.
   fodec?: boolean;
+  // (1.318.0) Ce que la ligne vend : une marchandise revendue telle qu'achetée (`marchandises`), un produit que l'entreprise
+  // fabrique (`produits`) ; absente, une prestation de services (le compte des ventes d'avant). Elle ne change aucun
+  // montant : seulement le compte où va sa part de la base (moteur/ecritures.ts). Figée sur la ligne à l'émission.
+  nature?: NatureVente;
 };
+export type NatureVente = 'marchandises' | 'produits';
+export const NATURES_VENTE: readonly NatureVente[] = ['marchandises', 'produits'];
 
 export type Piece = {
   type: TypePiece;
@@ -66,8 +72,9 @@ export type TotauxPiece = {
   remise: bigint;
   netHT: bigint;
   // Par taux (clé : le taux à six décimales) : la base remisée et la TVA ; `fodec`, la part de la base qui est de la FODEC
-  // (1.155.0), seulement quand ce taux en porte.
-  tvaParTaux: Map<bigint, { base: bigint; tva: bigint; fodec?: bigint }>;
+  // (1.155.0), seulement quand ce taux en porte ; `marchandises` et `produits` (1.318.0), la part de la base (hors FODEC)
+  // des lignes de cette nature, seulement quand le taux en a ; le reste de la base est fait de prestations.
+  tvaParTaux: Map<bigint, BaseDeTaux>;
   totalTVA: bigint;
   fodec: bigint;            // (1.155.0) dans la devise de la pièce ; zéro sans ligne qui la porte
   timbre: bigint;           // dans la devise de la pièce
@@ -76,6 +83,8 @@ export type TotauxPiece = {
   retenue: bigint;
   netAPayer: bigint;
 };
+
+export type BaseDeTaux = { base: bigint; tva: bigint; fodec?: bigint; marchandises?: bigint; produits?: bigint };
 
 // Montant × taux (à six décimales), arrondi dans la même unité.
 const auTaux = (montant: bigint, taux: bigint) => diviserArrondi(montant * taux, MILLION);
@@ -121,7 +130,7 @@ export function calculerPiece(p: Piece): TotauxPiece {
   // La remise se répartit sur les lignes remisables au prorata ; la TVA se calcule par taux sur la
   // base remisée. Comme la v10, le total de TVA d'un taux s'arrondit à chaque ligne ajoutée.
   // La FODEC d'une ligne (1.155.0) : le taux sur sa base remisée, arrondi à la ligne, ajouté à la base de son taux de TVA.
-  const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint; fodec?: bigint }>();
+  const tvaParTaux = new Map<bigint, BaseDeTaux>();
   let fodec = 0n;
   const regle2 = p.calcul === 2;
   // Règle 2 : la part remisée de chaque ligne remisable, répartie exactement (leur somme est le HT net remisable).
@@ -136,6 +145,8 @@ export function calculerPiece(p: Piece): TotauxPiece {
     const base = remisee + f;
     const t = tvaParTaux.get(l.tauxTva) ?? { base: 0n, tva: 0n };
     t.base += base;
+    // (1.318.0) La part de la ligne, hors FODEC, va à sa nature (la FODEC a son compte).
+    if (l.nature) t[l.nature] = (t[l.nature] ?? 0n) + remisee;
     // Règle 1 (la v10) : la TVA d'un taux s'arrondit à chaque ligne ajoutée ; règle 2 : sur la base entière, plus bas.
     if (!regle2) t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);
     if (f) t.fodec = (t.fodec ?? 0n) + f;
@@ -168,6 +179,8 @@ function calculerPieceTtc(p: Piece): TotauxPiece {
   const remiseTtc = auTaux(remisable, p.tauxRemise ?? 0n);
   // Le TTC remisé de chaque taux (la remise répartie au prorata, ligne à ligne, comme la v10), puis sa TVA et sa base.
   const ttcParTaux = new Map<bigint, bigint>();
+  // (1.318.0) Le TTC remisé de chaque nature, par taux : la base du taux se ventile à son prorata.
+  const ttcParNature = new Map<bigint, Partial<Record<NatureVente, bigint>>>();
   // (1.275.0, G04) Règle 2 : le TTC remisé de chaque ligne, réparti exactement (sans reliquat).
   const remisables = lignes.filter((l) => !l.sansRemise);
   const parts = p.calcul === 2 && remisable > 0n ? repartir(remisables.map((l) => l.ttc), remisable, remisable - remiseTtc) : [];
@@ -176,11 +189,16 @@ function calculerPieceTtc(p: Piece): TotauxPiece {
     const ttc = l.sansRemise || remisable <= 0n ? l.ttc
       : p.calcul === 2 ? (parts[k++] as bigint) : diviserArrondi(l.ttc * (remisable - remiseTtc), remisable);
     ttcParTaux.set(l.tauxTva, (ttcParTaux.get(l.tauxTva) ?? 0n) + ttc);
+    if (l.nature) { const n = ttcParNature.get(l.tauxTva) ?? {}; n[l.nature] = (n[l.nature] ?? 0n) + ttc; ttcParNature.set(l.tauxTva, n); }
   }
-  const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint }>();
+  const tvaParTaux = new Map<bigint, BaseDeTaux>();
   for (const [taux, ttc] of ttcParTaux) {
     const tva = diviserArrondi(ttc * taux, MILLION + taux);
-    tvaParTaux.set(taux, { base: ttc - tva, tva });
+    const t: BaseDeTaux = { base: ttc - tva, tva };
+    for (const [nature, part] of Object.entries(ttcParNature.get(taux) ?? {}) as [NatureVente, bigint][]) {
+      t[nature] = ttc === 0n ? 0n : diviserArrondi(part * t.base, ttc);
+    }
+    tvaParTaux.set(taux, t);
   }
   const totalTVA = [...tvaParTaux.values()].reduce((t, v) => t + v.tva, 0n);
   const netHT = [...tvaParTaux.values()].reduce((t, v) => t + v.base, 0n);
