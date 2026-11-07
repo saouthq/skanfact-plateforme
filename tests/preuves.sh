@@ -4861,7 +4861,7 @@ prouver "la facture d'un bon qui le compte deux fois" modules/socle/moteur/core-
   ".filter(b => siens.has(b.id) || b.id === doc.id)" ".filter(b => false)" \
   "$EN2"
 prouver "un client sans plafond averti" modules/socle/moteur/core-2.js \
-  "    if (!plafond || !doc.clientId) return null;" "    if (!doc.clientId) return null;" \
+  "    if (!plafond || !doc.clientId || doc.type === 'avoir') return null;" "    if (!doc.clientId || doc.type === 'avoir') return null;" \
   "$EN2"
 prouver "une pièce sous le plafond annoncée comme un dépassement" modules/socle/moteur/core-2.js \
   "    return apres > plafond + 0.0005 ? {" "    return true ? {" \
@@ -18291,9 +18291,11 @@ prouver 'au clavier, les cases d'\''une ligne qu'\''un lecteur d'\''écran ne no
   '  function demarrer() { suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { suivre(); apercuEnGrand(); }' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
-prouver 'au clavier, les listes de filtre d'\''une page sans nom (l'\''année, le mois)' web/public/plateforme/telephone.js \
+# (1.309.0) La Comptabilité nomme ses listes Année et Mois elle-même : la liste qui dépend encore de `nommerFiltres` est
+# celle des statuts des autres pièces (nuit 53 : le défaut ne faisait plus tomber le test de la Comptabilité).
+prouver 'au clavier, les listes de filtre d'\''une page sans nom (le statut des autres pièces)' web/public/plateforme/telephone.js \
   '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); bullesDesColonnes(); }' '(/** @type {HTMLTableElement} */ (t)); lierVoisins(); bullesDesColonnes(); }' \
-  'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
+  'l'\''en-tête, les quatre chiffres de l'\''onglet, les onglets ; « Brouillons » filtre, « À facturer » ouvre la facturation ; au téléphone rien ne déborde'
 
 # (1.155.0) Au téléphone, les lignes d'un devis sont des cartes : la grille (et son en-tête) n'y paraît plus.
 prouver 'au téléphone, la grille des lignes d'\''un devis qui reste au lieu des cartes' web/public/plateforme/piece.css \
@@ -25484,6 +25486,41 @@ prouver '« Suivant » cliqué pendant que l'\''étape prépare son écran saute
 prouver 'la visite du mandat n'\''attend pas que le panneau soit dessiné' modules/socle/visites/visites.js \
   "          for (let n = 0; n < 40 && !(\$('#cab-pair') && \$('#cab-pair').children.length); n++) await new Promise(r => setTimeout(r, 50));" '          void 0;' \
   "$TMANDAT"
+# (1.309.0) Les Clients joués (la quincaillerie de Sousse) : Bâtir Plus en retard au-delà de son plafond, son avoir de carrelage,
+# la retenue qu'il gardera dite à côté de ce qu'il doit ; le matricule d'une même société ; Karim cherché par son téléphone ; le
+# café qui paie trop ; l'atelier de Marseille en euros ; l'hôtel archivé qui doit encore ; au Cabinet, la balance âgée selon
+# l'échéance de chaque facture.
+T309="la quincaillerie de Sousse tient ses clients : Bâtir Plus en retard au-delà de son plafond, Karim sans matricule, le café qui paie trop, l'atelier de Marseille, l'hôtel archivé"
+prouver 'un avoir compté comme une facture de plus dans l'\''encours du client' modules/socle/moteur/core-2.js \
+  "if (!plafond || !doc.clientId || doc.type === 'avoir') return null;" "if (!plafond || !doc.clientId) return null;" \
+  "$T309"
+prouver 'la fiche du client tait la retenue qu'\''il gardera : son compte chez le comptable ne se retrouve pas' "$APP1" \
+  'sum.rsASubir > 0.0005 && sum.net > 0.0005 ? `<p class="sous" id="cf-rs">' 'false ? `<p class="sous" id="cf-rs">' \
+  "$T309"
+prouver 'un client à l'\''étranger ne dit ce qu'\''il doit qu'\''en dinars' "$APP1" \
+  'const enSaDevise = rvNatif && rvNatif.currency && rvNatif.currency !== cur && rvNatif.total > 0.0005 ?' 'const enSaDevise = false ?' \
+  "$T309"
+prouver 'archiver un client qui doit encore ne le dit pas' "$APP1" \
+  'const doitEncore = net > 0.0005 ?' 'const doitEncore = false ?' \
+  "$T309"
+prouver 'le matricule d'\''une même société ne dit rien' "$APP1" \
+  'const memeSociete = v => (racine(v) ? data.clients.find(' 'const memeSociete = v => (false ? data.clients.find(' \
+  "$T309"
+prouver 'un téléphone tapé avec ses espaces trouve aussi un matricule' "$APP1" \
+  'if (/^[\d\s.()+-]+$/.test(t) && /[\s.()-]/.test(t) && chiffres.length >= 4) return' 'if (false) return' \
+  "$T309"
+prouver 'le serveur ne donne pas l'\''échéance de la vente à son écriture' serveur/compta/routes.ts \
+  "echeance: e.origine_type === 'vente' ? echeances.get(e.origine) ?? null : null," 'echeance: null,' \
+  "$T309"
+prouver 'le pont du Cabinet perd l'\''échéance de l'\''écriture' web/public/plateforme/pont-cabinet.js \
+  "echeance: typeof e.echeance === 'string' ? e.echeance : ''," "echeance: ''," \
+  "$T309"
+prouver 'le livre aplati perd l'\''échéance : la balance âgée range selon la date' modules/socle/moteur/compta-1.js \
+  "        echeance: e.echeance || ''," "        echeance: ''," \
+  "$T309"
+prouver 'la base ne rend pas l'\''échéance des ventes' base/migrations/0195_echeance_des_ventes.sql \
+  '  select p.id, p.echeance' '  select p.id, null::date' \
+  "$T309"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

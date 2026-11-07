@@ -708,4 +708,50 @@ faisait sauter les étapes qui le décrivent. Désormais la première étape att
 « Suivant » cliqué pendant qu'une étape prépare son écran se garde et se joue juste après (pour toutes les visites, de
 l'entreprise et du Cabinet). Le test le rejoue en ralentissant exprès la lecture du mandat.
 
-Suivant : les clients, puis les achats, les fournisseurs et l'accueil.
+## Les clients
+
+### Fait en 1.309.0 (07/11/2026) : qui ils sont, ce qu'ils doivent, et le même chiffre chez le comptable
+
+Joué par une quincaillerie de Sousse (Mourad) et sa comptable au Cabinet Sahel Conseil (Sonia), avec cinq clients :
+Bâtir Plus SARL, une entreprise du bâtiment (retenue de 1,5 %, encours autorisé de 6 000 DT, deux factures en retard et
+une à venir, puis un avoir de 5 m² de carrelage cassé) ; Karim Trabelsi, un particulier sans matricule ni e-mail ; le
+Café Boujaafar, qui paie 520 DT une facture de 500,800 DT ; Atelier Provence SARL, à Marseille, facturé en euros ;
+l'Hôtel Marhaba, qui ne commande plus et doit encore une facture du printemps. Mourad crée aussi deux fiches : une
+« Bâtir Plus » (le matricule de la même société) et Nadia Gharbi, une particulière, avec son CIN.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| K1 | La fiche disait « te doit 7 567,822 DT » ; la balance auxiliaire de la comptable, 7 683,022 DT pour le même client. L'écart (115,200 DT) est la retenue que le client gardera en payant : son 411 est débité du brut. Rien ne le disait (seul l'onglet Paiements en parlait, et seulement après un paiement). | Sous l'en-tête : « En payant, il gardera aussi 115,200 DT de retenue à la source pour l'État : son compte chez ton comptable porte 7 683,022 DT. » Le test lit ce chiffre sur la fiche et dans la balance du Cabinet : le même. |
+| K2 | Au Cabinet, « Ce qui reste dû, par ancienneté » rangeait les factures selon leur date, pas leur échéance : la peinture à 30 jours, émise il y a 5 jours, tombait dans « 1 à 30 jours » ; la colonne « Pas encore échu » ne tenait que ce qui était daté du jour. | L'écriture d'une vente porte l'échéance de sa facture (migration 0195 : le serveur la donne à qui lit les livres, rien d'autre de la vente) ; le pont et le livre la gardent ; la balance âgée range selon elle. La peinture est « pas encore échue », l'hôtel « plus de 90 jours ». |
+| K3 | L'avoir de carrelage, avant l'émission : « Encours : 1 948,770 DT au-delà de ce qui est permis pour ce client », comme si l'avoir s'ajoutait à ce qu'il doit. | Un avoir diminue l'encours : il ne le dépasse jamais (le moteur, pour toutes les pièces). |
+| K4 | Archiver l'Hôtel Marhaba, qui doit 1 064,860 DT depuis 170 jours, ne disait rien de cet argent. | Le toast le dit : « Il te doit encore 1 064,860 DT : ses factures restent dans les relances. » (Annuler reste offert ; la page Relances le garde.) |
+| K5 | Le matricule de Bâtir Plus tapé sans sa fin (« 1456789K ») disait seulement que la forme était fausse ; celui d'un autre de ses établissements (« 1456789K/B/M/001 ») ne disait rien. | « Même société que « Bâtir Plus SARL » (1456789K/A/M/000) : un autre de ses établissements ? Sinon, ouvrir sa fiche. » Sans bloquer : un second établissement a sa fiche. |
+| K6 | Chercher Karim par le numéro de sa carte, « 98 765 », sortait aussi le café : « 98 » et « 765 » sont dans son matricule (0987654L). | Un numéro tapé avec ses espaces se cherche d'un bloc, dans le téléphone. |
+| K7 | Atelier Provence « te doit 2 848,505 DT » : le client doit des euros. | « te doit 850,30 EUR, soit 2 848,505 DT ». |
+
+Vérifié en jouant, sans rien à changer : la liste (filtre « En retard », recherche par matricule, le total de la
+sélection) ; le relevé de compte de Bâtir Plus (ses trois factures, « dont 5 475,120 DT échu ») ; le bandeau du
+plafond (« une nouvelle facture le dira avant l'émission ; tu émets quand même si tu veux ») ; le paiement de trop du
+café, annoncé avant (« Enregistrer · un trop-perçu », puis « Enregistrer quand même ? ») et dit ensuite partout (la
+liste « 19,200 en sa faveur », la fiche et son bandeau, le 411 créditeur de 19,200 DT au Cabinet) ; « Supprimer »
+refusé pour un client qui a des pièces (« archive-le plutôt ») ; un CIN de 8 chiffres accepté sans remarque.
+
+Limites connues : une facture à l'export en euros porte le timbre converti (0,30 €) : la mention d'exonération et le
+timbre à l'export sont À VÉRIFIER avec un comptable (déjà dit sur la fiche). La retenue d'un avoir sur une facture qui en
+porte (2,901 DT ici) suit celle de la facture (À VÉRIFIER). La balance âgée range une écriture saisie au Cabinet (sans
+échéance) selon sa date.
+
+Les deux preuves restées vertes la nuit 53 (06/11/2026), réparées ici : « les listes de filtre d'une page sans nom »
+visait la Comptabilité, qui nomme ses listes Année et Mois elle-même depuis la 1.302 ; le seul endroit qui dépend
+encore de `nommerFiltres` (telephone.js) est la liste des statuts des autres pièces, et le test de cette page le lit
+désormais. « Des repères d'axe jamais éclaircis » dépendait de l'heure : certaines nuits, les étiquettes sous les
+graphiques de la console sont assez courtes pour tenir toutes au téléphone. Le test resserre aussi chaque axe à 90
+pixels, où elles ne tiennent jamais toutes. Les deux sont prouvées.
+
+Le rouge GitHub de 1.308.0 (Node 22), réparé ici : dans la recette d'une entreprise neuve, « Enregistrer un paiement »
+restait couvert par une fenêtre. Ce qui est coché « juste après l'émission » (signer par DigiGo, l'envoyer par e-mail)
+s'ouvre 400 ms après l'émission ; plus rapide que ça sur cette machine, le test passait. Rejoué ici avec 800 ms
+d'attente : la même panne. Le test décoche ces gestes avant d'émettre, comme celui de la charte de la facture, et garde
+les 800 ms ; la recette alpha, qui clique « Corriger par un avoir… » juste après l'émission, fait de même.
+
+Suivant : les achats, puis les fournisseurs et l'accueil.

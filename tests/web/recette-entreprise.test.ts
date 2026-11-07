@@ -185,8 +185,14 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     expect(await remise.inputValue()).toBe('5');
     await remise.fill('0');
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 20_000 });
+    // (1.309.0) « Juste après l'émission » : ni signature ni envoi, le paiement s'enregistre d'ici. Laissé coché, ce qui
+    // suit s'ouvre 400 ms après l'émission, par-dessus « Enregistrer un paiement » d'un utilisateur moins pressé que
+    // l'instrument (rouge GitHub de 1.308.0, Node 22). Le test attend comme lui, 800 ms.
+    await p.locator('#modal-root #ok').waitFor();
+    for (const c of await p.locator('#modal-root [data-apres]:checked').all()) await c.uncheck();
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toBe('FAC-2026-001');
+    await p.waitForTimeout(800);
     await p.locator('#pay').click();
     const montant = p.locator('#pf2 [name=amount]');
     await montant.click();

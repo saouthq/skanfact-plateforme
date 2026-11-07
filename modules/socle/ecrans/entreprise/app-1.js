@@ -10002,12 +10002,20 @@
         // l'écrit : un autre client qui l'a déjà (« ouvrir sa fiche »), ou une forme qui n'est ni un matricule ni un CIN.
         const mfC = v => String(v || '').toUpperCase().replace(/[\s/.\-_]/g, '');
         const dejaLa = v => (mfC(v) ? data.clients.find(x => x !== c && mfC(x.matricule) === mfC(v)) : null);
+        // (1.309.0) La même société sous un autre établissement, ou son matricule tapé sans sa fin : ses huit premiers signes
+        // (7 chiffres et la clé) sont ceux d'un client déjà là. On le dit sans bloquer (un second établissement a sa fiche) ;
+        // « 1456789K » et « 1456789K/B/M/001 » ne disaient rien, ou seulement que la forme était fausse.
+        const racine = v => (mfC(v).match(/^\d{7}[A-Z]/) || [''])[0];
+        const memeSociete = v => (racine(v) ? data.clients.find(x => x !== c && racine(x.matricule) === racine(v)) : null);
         const aideMf = () => {
-          const v = $('#cf input[name=matricule]', root).value, z = $('#cf-mf-aide', root), autre = dejaLa(v);
+          const v = $('#cf input[name=matricule]', root).value, z = $('#cf-mf-aide', root), autre = dejaLa(v), voisin = autre ? null : memeSociete(v);
+          const mal = v.trim() && !C.matriculeBienForme(v) && !/^\d{8}$/.test(mfC(v));
           z.className = 'cf-aide' + (autre ? ' ko' : '');
           z.innerHTML = autre ? `Déjà la fiche de « ${h(autre.name)} » · <a href="#/client/${h(autre.id)}" id="cf-mf-ouvrir">ouvrir sa fiche</a>`
-            : v.trim() && !C.matriculeBienForme(v) && !/^\d{8}$/.test(mfC(v)) ? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.' : '';
-          if ($('#cf-mf-ouvrir', root)) $('#cf-mf-ouvrir', root).onclick = e => { e.preventDefault(); close(); navigate('#/client/' + autre.id); };
+            : voisin ? `Même société que « ${h(voisin.name)} » (${h(voisin.matricule)})${mal ? ', et il manque la fin du matricule' : ''} : un autre de ses établissements ? Sinon, <a href="#/client/${h(voisin.id)}" id="cf-mf-ouvrir">ouvrir sa fiche</a>.`
+              : mal ? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.' : '';
+          const qui = autre || voisin;
+          if ($('#cf-mf-ouvrir', root)) $('#cf-mf-ouvrir', root).onclick = e => { e.preventDefault(); close(); navigate('#/client/' + qui.id); };
         };
         $('#cf input[name=matricule]', root).addEventListener('input', aideMf);
         aideMf();
@@ -10374,7 +10382,14 @@
   }
   // (1.200.0) Un client archivé ne se voit que dans « Archivés » ; il ne compte nulle part ailleurs.
   const lcPasse = (r, f) => (f === 'archives' ? !!r.c.archived : r.c.archived ? false : !f ? true : f === 'doivent' ? r.sum.net > 0.0005 : f === 'retard' ? r.retard > 0.0005 : f === 'completer' ? r.aCompleter : f === 'sans' ? r.sum.count === 0 : true);
-  const lcTrouve = (r, q) => !q || C.correspondRecherche([r.c.name, r.c.contact, r.c.matricule, r.c.email, r.c.phone, String(r.c.phone || '').replace(/\s/g, ''), r.c.city, r.c.code].join(' '), q);
+  // (1.309.0) Un numéro tapé comme sur une carte de visite (« 98 765 432 ») se cherche d'un bloc, dans le téléphone : mot à
+  // mot, « 98 » et « 765 » se trouvaient aussi dans le matricule d'un autre client (0987654L), qui sortait avec lui.
+  const lcTrouve = (r, q) => {
+    if (!q) return true;
+    const t = String(q).trim(), chiffres = t.replace(/[\s.()+-]/g, '');
+    if (/^[\d\s.()+-]+$/.test(t) && /[\s.()-]/.test(t) && chiffres.length >= 4) return String(r.c.phone || '').replace(/\D/g, '').includes(chiffres);
+    return C.correspondRecherche([r.c.name, r.c.contact, r.c.matricule, r.c.email, r.c.phone, String(r.c.phone || '').replace(/\s/g, ''), r.c.city, r.c.code].join(' '), q);
+  };
   // Relancer la facture en retard la plus ancienne d'un client : le même message que la page Relances, à son niveau.
   const lcRelancer = r => { const x = r.relances[0]; if (x) sendReminder(x, 'email'); };
   // (1.201.0, maquette Clients « Hors ligne ») Sans réseau, la liste et la fiche le disent, et ne proposent pas de relancer :
@@ -10852,8 +10867,12 @@
   // Archiver : le client sort de la liste et des choix d'une pièce ; ses documents restent. « Annuler » le remet.
   function archiverClient(c, refaire) {
     if (enLecture('clients')) { toast(refusLecture('clients', 'archivé'), true); return; }
+    // (1.309.0) Archiver n'efface pas une dette : un client qui doit encore le dit, et ses factures restent dans les
+    // relances (la page Relances et l'accueil les comptent toujours). Le toast le taisait.
+    const co = company(), net = C.clientSummary(data, co, c.id).net;
+    const doitEncore = net > 0.0005 ? ` Il te doit encore ${C.money(net, co.currency)} : ses factures restent dans les relances.` : '';
     c.archived = C.today(); save(true); if (refaire) refaire();
-    toastUndo(`${c.name} est archivé : il sort de la liste et des choix d'une pièce ; ses documents restent.`, () => { c.archived = ''; save(true); if (refaire) refaire(); }, 'Annuler');
+    toastUndo(`${c.name} est archivé : il sort de la liste et des choix d'une pièce ; ses documents restent.${doitEncore}`, () => { c.archived = ''; save(true); if (refaire) refaire(); }, 'Annuler');
   }
   function desarchiverClient(c, refaire) {
     if (enLecture('clients')) { toast(refusLecture('clients'), true); return; }
@@ -10899,7 +10918,10 @@
     const pill = c.archived ? '<span class="badge">Archivé</span>' : late.length ? '<span class="badge b-late">En retard</span>' : !sum.count ? '<span class="badge">Nouveau</span>'
       : sum.net < -0.0005 ? '<span class="badge partielle">En sa faveur</span>' : sum.net > 0.0005 ? '<span class="badge b-due">Te doit</span>' : '<span class="badge b-paid">À jour</span>';
     const depuis = sum.first ? `client depuis ${cfMois(sum.first)}` : 'aucun document pour l\'instant';
-    const doit = sum.net > 0.0005 ? ` · <b class="${retard > 0.0005 ? 'rouge' : ''}">te doit ${mo(sum.net)}</b>${retard > 0.0005 ? ` <span class="rouge">dont ${mo(retard)} en retard</span>` : ''}`
+    // (1.309.0) Un client à l'étranger doit dans sa devise : elle d'abord, le dinar ensuite (au taux de ses pièces).
+    const rvNatif = etranger ? C.releveClient(data, c.id, co, { natif: true }) : null;
+    const enSaDevise = rvNatif && rvNatif.currency && rvNatif.currency !== cur && rvNatif.total > 0.0005 ? `${C.money(rvNatif.total, rvNatif.currency)}, soit ` : '';
+    const doit = sum.net > 0.0005 ? ` · <b class="${retard > 0.0005 ? 'rouge' : ''}">te doit ${enSaDevise}${mo(sum.net)}</b>${retard > 0.0005 ? ` <span class="rouge">dont ${mo(retard)} en retard</span>` : ''}`
       : sum.net < -0.0005 ? ` · <b class="trop">${mo(-sum.net)} en sa faveur</b>` : sum.count ? ' · ne te doit rien' : '';
     // Le bouton principal : relancer sa facture en retard (une seule) ; plusieurs, lui envoyer son relevé ; sinon la prochaine pièce.
     const principal = lecture ? boutonRetenue()
@@ -11002,7 +11024,11 @@
     $('#view').innerHTML = `
       <div class="page-head lf-tete cf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<a href="#/clients">Clients</a>${ICONE_CHEVRON}<span>${h(c.name)}</span></div>
           <div class="cf-nom">${pastilleClient(c.id, c.name)}<h1>${h(c.name)} ${pill}</h1></div>
-          <p class="sous">${[c.code ? h(c.code) : '', c.city ? h(c.city) : '', depuis].filter(Boolean).join(' · ')}${doit}</p></div>
+          <p class="sous">${[c.code ? h(c.code) : '', c.city ? h(c.city) : '', depuis].filter(Boolean).join(' · ')}${doit}</p>${
+  /* (1.309.0) Ce qu'il te doit est ce qu'il versera ; son compte chez ton comptable porte aussi la retenue qu'il gardera pour
+     l'État en payant (le 411 est débité du brut, 10.14.0). Sans cette ligne, la fiche disait 7 567,822 DT et la balance du
+     cabinet 7 683,022 DT, sans que rien dise d'où venait l'écart. */
+  sum.rsASubir > 0.0005 && sum.net > 0.0005 ? `<p class="sous" id="cf-rs">En payant, il gardera aussi ${mo(sum.rsASubir)} de retenue à la source pour l'État : son compte chez ton comptable porte ${mo(C.round3(sum.net + sum.rsASubir))}.</p>` : ''}</div>
         <div class="actions">${secondaire}${releveSec}<button type="button" class="row-menu-btn btn ico" data-rowmenu="CL:${h(c.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions" title="Les autres gestes">${lfIc('plus', 16)}</button>${principal}</div></div>
       ${bandeaux.length ? `<div class="cf-bandeaux">${bandeaux.join('')}<div id="cf-ttn"></div></div>` : '<div class="cf-bandeaux"><div id="cf-ttn"></div></div>'}
       <div class="cf-fiche"><div class="cf-gauche"><div class="cf-carte">

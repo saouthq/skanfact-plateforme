@@ -115,11 +115,19 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
         ? ((await tx.query('select piece, justifie from compta.achats_justifies($1, $2::uuid[])', [entreprise, achats])).rows as { piece: string; justifie: boolean }[])
           .map((x) => [x.piece, x.justifie])
         : []);
+      // (1.309.0) L'écriture née d'une vente porte l'échéance de sa pièce (compta.echeances_des_ventes, 0195) : la balance
+      // âgée du Cabinet range la facture selon son échéance, plus selon sa date. Sans échéance : null (rangée selon sa date).
+      const ventes = ecritures.filter((e) => e.origine_type === 'vente').map((e) => e.origine);
+      const echeances = new Map(ventes.length
+        ? ((await tx.query('select piece, echeance::text as echeance from compta.echeances_des_ventes($1, $2::uuid[])', [entreprise, ventes])).rows as { piece: string; echeance: string }[])
+          .map((x) => [x.piece, x.echeance])
+        : []);
       const dernier = ecritures.at(-1);
       return {
         corps: {
           ecritures: ecritures.map((e) => ({
             justificatif: e.origine_type === 'achat' ? justifies.get(e.origine) ?? null : null,
+            echeance: e.origine_type === 'vente' ? echeances.get(e.origine) ?? null : null,
             id: e.id, journal: e.journal, date: e.date_ecriture, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numero,
             // Son rang dans la chaîne des livres (validée) : l'ordre unique de validation, tous journaux confondus.
             chaine: e.chaine_rang === null ? null : Number(e.chaine_rang),

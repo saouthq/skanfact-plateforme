@@ -99,6 +99,9 @@ describe('les Autres pièces dans la nouvelle DA', () => {
     await p.locator('#a-resume [data-aller=brouillon]').click();
     await expect.poll(() => p.locator('#list-wrap table.list tbody tr').count()).toBe(1);
     expect(await p.locator('select#st').inputValue()).toBe('brouillon');
+    // (1.309.0) Au clavier, cette liste se nomme « Statut » : rien ne la nomme dans la page, c'est telephone.js
+    // (`nommerFiltres`) qui le fait ; la Comptabilité nomme désormais ses listes elle-même.
+    expect(await p.getByRole('combobox', { name: 'Statut', exact: true }).count()).toBe(1);
     // « À facturer » ouvre la facturation des bons, comme le bouton de l'en-tête.
     await p.locator('#a-resume [data-aller=facturer]').click();
     await expect.poll(async () => net(await p.locator('#modal-root').innerText())).toContain('Chantier Ennasr');

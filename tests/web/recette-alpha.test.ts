@@ -379,6 +379,10 @@ describe('la recette alpha, à la souris', () => {
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 20_000 });
+    // (1.309.0) Ni signature ni envoi juste après : « Corriger par un avoir… » se clique tout de suite, et ce qui reste coché
+    // s'ouvrirait 400 ms après l'émission, par-dessus (le rouge de 1.308.0 dans la recette d'une entreprise neuve).
+    await p.locator('#modal-root #ok').waitFor();
+    for (const c of await p.locator('#modal-root [data-apres]:checked').all()) await c.uncheck();
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^FAC-\d{4}-\d{3}$/);
     await p.getByRole('button', { name: 'Corriger par un avoir…', exact: true }).click();

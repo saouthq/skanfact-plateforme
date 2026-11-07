@@ -1525,6 +1525,9 @@
         tiersId: l.tiersId || '', ecritureId: e.id, statut: e.statut,
         // Le libellé de PIÈCE (« Contre-passation — … ») et les liens du miroir vers son origine.
         libellePiece: e.libelle || '', mois: e.mois || '',
+        // (1.309.0) L'échéance de la pièce, quand l'écriture en porte une (une vente lue du serveur) : l'échéancier et la
+        // balance âgée la lisent (`echeancierDepuisLignes`) ; sans elle, une facture se rangeait selon sa date.
+        echeance: e.echeance || '',
         contrepasseDe: e.contrepasseDe || '', extourneDe: e.extourneDe || '',
         origineNumero: numeroDe(e.contrepasseDe || e.extourneDe)
       })));

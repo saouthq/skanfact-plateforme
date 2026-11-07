@@ -3711,7 +3711,9 @@
     const co = company || data.company || {};
     const c = (data.clients || []).find(x => x.id === doc.clientId);
     const plafond = Number(c && c.creditLimit) || 0;
-    if (!plafond || !doc.clientId) return null;
+    // (1.309.0) Un avoir diminue l'encours : il ne le dépasse jamais. Compté comme une facture de plus, l'avoir de 5 m² de
+    // carrelage annonçait avant l'émission « 1 948,770 DT au-delà de ce qui est permis pour ce client ».
+    if (!plafond || !doc.clientId || doc.type === 'avoir') return null;
     const e = encoursClient(data, doc.clientId, co);
     const siens = new Set([...(Array.isArray(doc.bonsLivraison) ? doc.bonsLivraison.map(b => b.id) : []), doc.fromDocId].filter(Boolean));
     const dejaComptes = round3(e.bons.filter(b => siens.has(b.id) || b.id === doc.id).reduce((s, b) => s + toBase(b, computeTotals(b, co).totalTTC, co), 0));

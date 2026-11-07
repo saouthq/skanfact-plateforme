@@ -159,6 +159,14 @@ describe('le service de la console, à la souris, sur de vraies mesures', () => 
       for (const nom of ['1 h', '24 h', '7 j', '30 j']) {
         await periode(p, nom);
         faux.push(...(await p.evaluate(axes)).map((x) => `${largeur}, ${nom} : ${x}`));
+        if (largeur < 600) {
+          // (1.309.0) Un cadre plus étroit encore (une fenêtre partagée en deux) : là, quelle que soit l'heure, les repères
+          // ne tiennent jamais tous ; l'axe se remesure et tait ceux qui toucheraient. Sans ce cadre, des étiquettes
+          // courtes (selon l'heure de la nuit) tenaient toutes, et un axe jamais éclairci passait (nuit 53, 06/11/2026).
+          await p.evaluate(() => { for (const a of document.querySelectorAll<HTMLElement>('.c-courbe-axe')) a.style.width = '90px'; });
+          await expect.poll(() => p.evaluate(axes), { timeout: 5_000, message: `${largeur} serré, ${nom}` }).toEqual([]);
+          await p.evaluate(() => { for (const a of document.querySelectorAll<HTMLElement>('.c-courbe-axe')) a.style.width = ''; });
+        }
       }
       await fermer(p);
     }
