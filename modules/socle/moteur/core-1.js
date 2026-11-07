@@ -4001,10 +4001,11 @@
       if (!isSale && !isDelivery && !isReturn) return;
       if (limit && d.date > limit) return;
       // Une facture tirée d'un bon de livraison sortirait le stock une seconde fois : c'est le bon de
-      // livraison qui fait foi, la facture ne fait que le suivre.
-      if (isSale && d.fromDocType === 'livraison') return;
+      // livraison qui fait foi, la facture ne fait que le suivre. (1.316.0) Ligne par ligne (`sortieAuBon`) : une ligne
+      // ajoutée sur cette facture sort le stock comme toute vente.
       (d.lines || []).forEach((l, i) => {
         if (l.noDiscount) return;              // ligne d'acompte ou de déduction : aucune marchandise
+        if (isSale && sortieAuBon(d, l)) return;
         // Un kit (brique 96) : ce sont ses composants qui sortent (ou rentrent, sur un avoir), chacun à sa
         // quantité par kit ; la ligne d'un article ordinaire est son propre et unique composant.
         const art = itemOfLine(l, data);
@@ -4392,9 +4393,16 @@
     return round3(composantsDe(data, kit).reduce((a, k) => a + k.qty * (stockOf(data, k.item.id).cmp || Number(k.item.unitCost) || 0), 0));
   }
 
+  // (1.316.0) La ligne d'une facture qui a quitté l'entrepôt avec son bon de livraison (`fromBon`) ; une facture d'avant,
+  // tirée d'un bon sans marquer ses lignes, reste entière au bon, comme avant.
+  function sortieAuBon(d, l) {
+    if (!d || d.type !== 'facture' || !l) return false;
+    if (l.fromBon) return true;
+    return d.fromDocType === 'livraison' && !(d.lines || []).some(x => x && x.fromBon);
+  }
   function stockImpact(doc, data) {
     const out = [];
-    lignesDeStock(doc.lines || [], data).forEach(l => {
+    lignesDeStock((doc.lines || []).filter(l => !sortieAuBon(doc, l)), data).forEach(l => {
       if (l.noDiscount) return;
       const c = itemOfLine(l, data);
       if (!c || !c.tracked) return;

@@ -4528,7 +4528,7 @@ prouver "un bon d'avant le rattachement ignoré" modules/socle/moteur/core-2.js 
   "        const i = rattache ? l.ligneCommande : (source[j] && (source[j].label || '') === (l.label || '') ? j : null);" "        const i = l.ligneCommande;" \
   "$LC2"
 prouver "une ligne de commande livrée en deux fois facturée en deux lignes" modules/socle/moteur/core-2.js \
-  "      if (deja) { deja.qty = round3((Number(deja.qty) || 0) + (Number(l.qty) || 0)); return; }" "" \
+  "      if (deja) { deja.qty = round3((Number(deja.qty) || 0) + (Number(l.qty) || 0)); if (b.number && !String(deja.fromBon || '').split(', ').includes(b.number)) deja.fromBon = [deja.fromBon, b.number].filter(Boolean).join(', '); return; }" "" \
   "$LC3"
 prouver "des bons de deux clients ou de deux devises sur une facture" modules/socle/moteur/core-2.js \
   "    if (bons.some(b => b.clientId !== bons[0].clientId || devise(b) !== devise(bons[0]))) return null;" "" \
@@ -5024,7 +5024,7 @@ prouver "le stock insuffisant qui ignore la quantité par kit" modules/socle/mot
   "qty: round3((Number(l.qty) || 0) * k.qty), kit: c.label" "qty: Number(l.qty) || 0, kit: c.label" \
   "$KT2"
 prouver "le stock insuffisant qui ne regarde pas les composants" modules/socle/moteur/core-1.js \
-  "    lignesDeStock(doc.lines || [], data).forEach(l => {" "    (doc.lines || []).forEach(l => {" \
+  "    lignesDeStock((doc.lines || []).filter(l => !sortieAuBon(doc, l)), data).forEach(l => {" "    (doc.lines || []).filter(l => !sortieAuBon(doc, l)).forEach(l => {" \
   "$KT2"
 prouver "un composant sans article accepté" modules/socle/ecrans/entreprise/app-1.js \
   "          if (kitLu.some(k => !k.itemId)) return refus(" "          if (false) return refus(" \
@@ -25839,6 +25839,51 @@ prouver 'émettre la facture ne dit pas laquelle' "$APP1" \
 prouver 'le bouton vert mène au brouillon le plus récent' "$APP1" \
   "const enAttente = invoices.filter(d => d.type === 'facture' && d.status === 'brouillon').sort((x, y) => (x.periode || x.date || '').localeCompare(y.periode || y.date || ''));" "const enAttente = invoices.filter(d => d.type === 'facture' && d.status === 'brouillon');" \
   "$T315"
+
+# (1.316.0) Les autres pièces jouées (un négoce de matériaux de Sousse et sa comptable) : la facture des bons de livraison ne
+# ressort pas ce que les bons ont sorti, ligne par ligne (`fromBon`) — une ligne ajoutée sur elle sort le stock, sa copie
+# est une autre vente ; plus de fausse alerte « il en manque ». Et deux fiches identiques dont seul l'ordre des champs
+# diffère ne sont pas « modifiées des deux côtés ».
+APP1=modules/socle/ecrans/entreprise/app-1.js
+CORE1=modules/socle/moteur/core-1.js
+CORE2=modules/socle/moteur/core-2.js
+T316="le négoce livre une commande en deux bons, facture les bons avec un sac de plâtre en plus, fait une proforma et un contrat, et le comptable lit la vente"
+TB316a="« Facturer ce bon » : ses lignes disent leur bon et ne ressortent pas ; dix sacs ajoutés sortent ; sa copie est une autre vente"
+TB316b="une facture d'avant 1.316 tirée d'un bon, sans marque sur ses lignes, reste entière au bon"
+TB316c="deux fiches identiques, champs dans un autre ordre (le serveur rend le sien) : aucune « modifiée des deux côtés »"
+prouver 'deux fiches dans un autre ordre se disent en conflit' "$CORE2" \
+  "JSON.stringify(a) === JSON.stringify(b) || JSON.stringify(enOrdre(a)) === JSON.stringify(enOrdre(b));" "JSON.stringify(a) === JSON.stringify(b);" \
+  "$TB316c"
+prouver 'la facture des bons ne dit pas de quel bon vient sa ligne' "$CORE2" \
+  "      l.fromBon = b.number || '';" "" \
+  "$T316"
+prouver 'une ligne livrée en deux bons ne nomme que le premier' "$CORE2" \
+  "if (b.number && !String(deja.fromBon || '').split(', ').includes(b.number)) deja.fromBon = [deja.fromBon, b.number].filter(Boolean).join(', '); return; }" "return; }" \
+  "$T316"
+prouver 'facturer un seul bon ne marque pas ses lignes' "$CORE2" \
+  "out.lines = (out.lines || []).map(l => (l && !l.noDiscount ? { ...l, fromBon: doc.number || '' } : l));" "out.lines = out.lines || [];" \
+  "$TB316a"
+prouver 'un avoir garde la marque du bon' "$CORE2" \
+  "    else (out.lines || []).forEach(l => { if (l) delete l.fromBon; });" "" \
+  "$TB316a"
+prouver 'la ligne ajoutée sur la facture des bons ne sort pas le stock' "$CORE1" \
+  "        if (isSale && sortieAuBon(d, l)) return;" "        if (isSale && d.fromDocType === 'livraison') return;" \
+  "$T316"
+prouver 'une ligne marquée de son bon ressort le stock' "$CORE1" \
+  "    if (l.fromBon) return true;" "" \
+  "$TB316a"
+prouver 'une facture d'\''avant 1.316 ressort le stock de son bon' "$CORE1" \
+  "    return d.fromDocType === 'livraison' && !(d.lines || []).some(x => x && x.fromBon);" "    return false;" \
+  "$TB316b"
+prouver 'l'\''émission de la facture des bons crie au stock insuffisant' "$CORE1" \
+  "lignesDeStock((doc.lines || []).filter(l => !sortieAuBon(doc, l)), data)" "lignesDeStock(doc.lines || [], data)" \
+  "$T316"
+prouver 'la copie de la facture des bons garde la marque des bons' "$APP1" \
+  "    (copy.lines || []).forEach(l => { if (l) delete l.fromBon; });   // (1.316.0) une copie est une autre vente : elle sort le stock" "" \
+  "$T316"
+prouver 'un transport livré avec le bon se dit sorti du stock' "$APP1" \
+  "\${it && it.tracked ? \`\${h(l.fromBon)} · déjà sorti du stock\` : \`livré avec \${h(l.fromBon)}\`}" "\${h(l.fromBon)} · déjà sorti du stock" \
+  "$T316"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

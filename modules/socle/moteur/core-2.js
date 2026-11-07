@@ -1130,7 +1130,11 @@
   // « 5 prestations », « 1 bulletin de paie » : le compte d'une liste, accordé.
   const compteListe = (k, n) => plFr(n, LIST_LABELS[k] || k, LIST_PLURIELS[k]);
 
-  function sameJson(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+  // (1.316.0) Le même contenu, quel que soit l'ordre de ses champs : le serveur (PostgreSQL) rend une fiche dans son ordre à
+  // lui, la page dans le sien ; comparées en texte, trois fiches d'articles que personne n'avait touchées se disaient
+  // « modifiées des deux côtés » au rechargement suivant (« Modifications des deux côtés », trois articles).
+  const enOrdre = v => Array.isArray(v) ? v.map(enOrdre) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => { o[k] = enOrdre(v[k]); return o; }, {}) : v;
+  function sameJson(a, b) { return JSON.stringify(a) === JSON.stringify(b) || JSON.stringify(enOrdre(a)) === JSON.stringify(enOrdre(b)); }
 
   // Étiquette lisible d'une pièce, pour dire à l'utilisateur ce qui a bougé.
   function recordLabel(kind, rec) {
@@ -3498,6 +3502,8 @@
     else if (doc.fromQuoteId) { out.fromQuoteId = doc.fromQuoteId; out.fromQuoteNumber = doc.fromQuoteNumber || ''; }
     if (targetType === 'contrat') out.clauses = { ...DEFAULT_CLAUSES, ...(doc.clauses || {}) };
     if (targetType === 'livraison') out.hidePrices = true;   // un bon de livraison accompagne la marchandise : les prix n'ont rien à y faire
+    if (doc.type === 'livraison' && targetType === 'facture') out.lines = (out.lines || []).map(l => (l && !l.noDiscount ? { ...l, fromBon: doc.number || '' } : l));
+    else (out.lines || []).forEach(l => { if (l) delete l.fromBon; });
     return out;
   }
 
@@ -3876,7 +3882,10 @@
       delete l.ligneCommande;
       const cle = Number.isInteger(rang) && b.fromDocId ? JSON.stringify([b.fromDocId, rang, { ...l, qty: 0 }]) : '';
       const deja = cle ? parCle.get(cle) : null;
-      if (deja) { deja.qty = round3((Number(deja.qty) || 0) + (Number(l.qty) || 0)); return; }
+      // (1.316.0) Chaque ligne dit de quel bon elle vient (`fromBon`) : elle a déjà quitté l'entrepôt avec lui. Une ligne
+      // qu'on ajoute ensuite sur la facture (dix sacs pris au comptoir) n'en a pas, et sort le stock comme toute vente.
+      if (deja) { deja.qty = round3((Number(deja.qty) || 0) + (Number(l.qty) || 0)); if (b.number && !String(deja.fromBon || '').split(', ').includes(b.number)) deja.fromBon = [deja.fromBon, b.number].filter(Boolean).join(', '); return; }
+      l.fromBon = b.number || '';
       if (cle) parCle.set(cle, l);
       out.lines.push(l);
     }));
@@ -7517,7 +7526,7 @@
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
     moisDePaie, anneesDePaie, paieDuMois, paieATraiter, controlesDuMois, montantSocial, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
-    stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, quantiteACommander, fournisseurDeLArticle, ventesDeLArticle, commandesEnCoursDeLArticle, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
+    stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, quantiteACommander, fournisseurDeLArticle, ventesDeLArticle, commandesEnCoursDeLArticle, stockImpact, sortieAuBon, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,
     DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide, primesDuMois, saisieDeLaFiche, tauxAvant2026,

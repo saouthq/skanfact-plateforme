@@ -933,3 +933,28 @@ période d'un contrat trimestriel ou annuel se dit par son premier mois ; les pr
 exercice (un an d'hébergement facturé en octobre) restent au comptable (À VÉRIFIER : produits constatés d'avance).
 
 Suivant : proforma, bons et contrats.
+
+## Proforma, bons et contrats
+
+### Fait en 1.316.0 (07/11/2026) : le stock sort une fois, au bon ; ce qu'on ajoute sur la facture sort aussi
+
+Joué par un négoce de matériaux de Sousse (« Matériaux du Sahel SARL ») : la commande d'un chantier (100 sacs de ciment,
+2,5 t de fer, un transport) livrée en deux bons, puis les deux bons facturés en une facture où Lotfi ajoute les 10 sacs de
+plâtre que le chef de chantier a pris au comptoir ; une proforma pour le dossier de crédit d'un particulier, puis sa
+facture ; un contrat d'approvisionnement envoyé à un hôtel. Amira, sa comptable, lit le journal des ventes.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| A1 | La facture des bons criait au manque : « stock : 0, il en manque 100 » sur la ligne, « Stock : il manque 100 » avant d'émettre, « le stock passerait à -100 » dans la fenêtre d'émission — alors que les bons avaient déjà sorti le ciment. La marque prévue pour le dire (`fromBon`) n'était posée nulle part. | Chaque ligne venue d'un bon porte son bon (« BL-2026-001, BL-2026-002 · déjà sorti du stock » ; « livré avec BL-2026-001 » pour un transport) ; ni la ligne, ni « Avant d'émettre », ni la fenêtre d'émission ne comptent ce qui est parti avec un bon. |
+| A2 | Les 10 sacs de plâtre ajoutés sur la facture des bons ne sortaient jamais du stock (30 avant, 30 après) : toute la facture était laissée au bon. | Ligne par ligne (`sortieAuBon`) : seules les lignes d'un bon ne ressortent pas ; le plâtre passe à 20. Une facture d'avant 1.316 (lignes sans marque) reste entière au bon, comme avant ; une copie (« Dupliquer ») ou un avoir ne reprend pas la marque. |
+| A3 | Au rechargement d'une page après celle du stock, « Modifications des deux côtés : 3 pièces modifiées » (les trois articles, dits « prestation ») : la page avait complété les fiches (seuil, série, garantie) et le serveur les rendait dans un autre ordre de champs ; la fusion comparait le texte. | La fusion compare le contenu, quel que soit l'ordre des champs : deux fiches identiques ne sont jamais en conflit ; un vrai conflit sur un article se dit « article du catalogue ». |
+
+Vérifié en jouant : 100 → 40 → 0 sacs de ciment et 3 → 1,75 → 0,5 t de fer aux deux bons, rien de plus à la facture ;
+le plâtre 30 → 20 ; la facture des bons au serveur (9 367,341 DT) et au journal du Cabinet (7 870,875 DT au 706) ; la
+facture de la proforma reprend ses 150 sacs et 40 sacs, et la proforma dit « Facturée en brouillon ».
+
+Limites connues : une ligne d'un bon dont on augmente la quantité sur la facture ne sort pas la différence (elle reste
+« partie avec le bon ») ; le contrôle « le client n'a pas de matricule (obligatoire pour une entreprise) » vaut aussi pour
+un particulier tant que sa fiche ne dit pas qu'il en est un ; la proforma et le contrat ne réservent pas le stock.
+
+Suivant : les listes de prix.

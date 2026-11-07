@@ -389,7 +389,7 @@
         ${m.counts.conflicts ? `<div class="panel" style="margin:12px 0">
           <h2>${pl(m.counts.conflicts, 'pièce')} modifiée${sPl(m.counts.conflicts)} des deux côtés</h2>
           <p class="small">La version du fichier enregistré en dernier (<strong>${h(m.keptFrom)}</strong>) a été gardée. L'autre version n'est pas détruite : elle est conservée dans tes données et ton comptable peut la retrouver si besoin.</p>
-          <ul class="small">${m.conflicts.slice(0, 12).map(c => `<li>${h(c.label)} <span class="muted">(${h(C.LIST_LABELS[c.kind] || c.kind)})</span></li>`).join('')}</ul>
+          <ul class="small">${m.conflicts.slice(0, 12).map(c => `<li>${h(c.label)} <span class="muted">(${h(c.kind === 'catalog' ? 'article du catalogue' : C.LIST_LABELS[c.kind] || c.kind)})</span></li>`).join('')}</ul>
         </div>` : ''}
         <div class="modal-actions"><button class="btn btn-primary" data-close>J'ai compris</button></div>`);
     } else if (m.counts.added) {
@@ -4670,6 +4670,7 @@
     const copy = { ...deepCopy(doc), id: C.uid(), number: '', status: 'brouillon', date: C.today(), createdAt: Date.now(), issuedTs: undefined, regimeTva: undefined, exonerationRS: undefined, payments: [], emails: [], reminders: [], attachments: [], withholdingCertificate: false, ticket: undefined, caisse: undefined, fromQuoteId: undefined, fromQuoteNumber: undefined, fromDocId: undefined, fromDocType: undefined, fromDocNumber: undefined, deposit: undefined, settles: undefined, recurringId: undefined, bonsLivraison: undefined, assetId: undefined };
     // (1.306.0) Le refus (ou l'acceptation) d'un devis et sa marque « modifié après l'envoi » restent au devis d'origine.
     delete copy.reponse; delete copy.modifieApresEnvoi;
+    (copy.lines || []).forEach(l => { if (l) delete l.fromBon; });   // (1.316.0) une copie est une autre vente : elle sort le stock
     if (copy.dueDate) copy.dueDate = C.addDays(copy.date, C.delaiJours(isQ ? company().quoteValidityDays : company().paymentTermsDays, 30));
     if (numbered) copy.number = C.nextNumber(data, doc.type, copy.date);
     data.documents.push(copy); save(true);
@@ -6818,7 +6819,7 @@
     // Le lot d'une ligne de vente (plateforme, brique 97) : un article suivi par lot dit de quel lot il sort
     // (il rentre, pour un avoir). Seulement sur une pièce qui bouge le stock.
     const lotChoix = (l, i) => {
-      const bouge = (isInv && doc.fromDocType !== 'livraison') || isDelivery || isAv;
+      const bouge = (isInv && !C.sortieAuBon(doc, l)) || isDelivery || isAv;
       const it = bouge ? C.itemOfLine(l, data) : null;
       if (!it || !it.parLot || !it.tracked) return '';
       const lots = C.stockParLot(data, it.id).filter(x => x.lot && (x.qty > 0 || x.lot === l.lot || isAv));
@@ -6868,8 +6869,8 @@
       const k = l.itemId || String(l.label || '').trim().toLowerCase();
       const v = k && ventes ? ventes.get(k) : null;
       if (v) r.push(`<span>dernière vente à ce client : ${C.money(v.pu, null, C.decimalsFor(v.cur))} le ${lfJm(v.date)}</span>`);
-      if (l.fromBon) r.push(`<span>${h(l.fromBon)} · déjà sorti du stock</span>`);
       const it = C.itemOfLine(l, data);
+      if (l.fromBon) r.push(`<span>${it && it.tracked ? `${h(l.fromBon)} · déjà sorti du stock` : `livré avec ${h(l.fromBon)}`}</span>`);
       if (it && it.tracked && !l.fromBon && !isAv) {
         const st = C.stockOf(data, it.id).qty, q = Number(l.qty) || 0;
         r.push(q > st ? `<span class="alerte">stock : ${pct(st)}, il en manque ${pct(C.round3(q - st))}</span>` : `<span class="${st > 0 ? 'ok' : 'alerte'}">en stock : ${pct(st)}</span>`);
