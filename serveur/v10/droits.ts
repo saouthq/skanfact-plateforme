@@ -69,7 +69,7 @@ export const LISTES: Record<string, Regle> = {
   catalog: R('stock.voir', 'ventes.prix.modifier'), priceLists: R('ventes.pieces.voir', 'ventes.prix.modifier'),
   suppliers: ACHATS, purchases: ACHATS, supplierOrders: ACHATS, receptions: ACHATS,
   accounts: R('tresorerie.comptes.voir', 'tresorerie.comptes.modifier'), movements: R('tresorerie.voir', 'tresorerie.modifier'),
-  stockAdjustments: STOCK, serials: STOCK, depots: STOCK, etatsStock: STOCK,
+  stockAdjustments: STOCK, serials: STOCK, depots: STOCK, etatsStock: STOCK, etatsGaranties: STOCK,
   employees: PAIE, payslips: PAIE, leaves: PAIE, advances: PAIE, socialFilings: PAIE, timesheets: PAIE,
   // Le pointage validé (1.257.0, 1.259.0 ; 16 § 10.1, point 8) : sans règle, la paie ne voyait aucun mois verrouillé et
   // ne validait rien. Les versions du mois et les imports de la pointeuse ; la journée validée et le mois rouvert sont à la racine.

@@ -39,6 +39,16 @@ function impayesDuClient(e: Record<string, unknown>) {
   }));
   return { date: texteDe(e.date).slice(0, 10), envoyeLe: texteDe(e.envoyeLe).slice(0, 40), total: nombreV10(e.total), contestees: nombreV10(e.contestees), lignes };
 }
+// (1.322.0) Le parc sous garantie envoyé par le client, champ par champ : par article, combien d'appareils, leur valeur de
+// vente hors taxes, la garantie la plus longue ; les ventes garanties de l'année. Ni client ni numéro de série.
+function garantiesDuClient(e: Record<string, unknown>) {
+  const articles = (Array.isArray(e.articles) ? e.articles : []).filter(estObjet).slice(0, 2000).map((a) => ({
+    libelle: texteDe(a.libelle).slice(0, 200), nombre: nombreV10(a.nombre), ht: nombreV10(a.ht), fin: texteDe(a.fin).slice(0, 10),
+  }));
+  const an = estObjet(e.annee) ? e.annee : {};
+  return { date: texteDe(e.date).slice(0, 10), envoyeLe: texteDe(e.envoyeLe).slice(0, 40), nombre: nombreV10(e.nombre), clients: nombreV10(e.clients),
+    ht: nombreV10(e.ht), articles, annee: { nombre: nombreV10(an.nombre), ht: nombreV10(an.ht) } };
+}
 function etatDuClient(e: Record<string, unknown>) {
   const lignes = (Array.isArray(e.lignes) ? e.lignes : []).filter(estObjet).slice(0, 10000).map((l) => ({
     ref: texteDe(l.ref).slice(0, 60), libelle: texteDe(l.libelle).slice(0, 200), unite: texteDe(l.unite).slice(0, 20),
@@ -76,6 +86,10 @@ export function routesInventaire(ctx: Contexte): Route<never>[] {
       const impayes = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'etatsImpayes'
           order by contenu->>'envoyeLe' desc limit 1`, [params.entreprise ?? ''])).rows
         .filter((e) => estObjet(e.contenu)).map((e) => impayesDuClient(e.contenu as Record<string, unknown>))[0] ?? null;
+      // (1.322.0) Le parc sous garantie que le client a envoyé pour cette année (0202), à la date la plus tardive.
+      const garanties = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'etatsGaranties'
+          and contenu->>'date' like $2 order by contenu->>'date' desc limit 1`, [params.entreprise ?? '', `${annee}-%`])).rows
+        .filter((e) => estObjet(e.contenu)).map((e) => garantiesDuClient(e.contenu as Record<string, unknown>))[0] ?? null;
       return {
         corps: {
           inventaire: x ? {
@@ -85,7 +99,7 @@ export function routesInventaire(ctx: Contexte): Route<never>[] {
               ...(typeof l.valeur === 'number' ? { valeur: versTexte(BigInt(l.valeur), 3) } : {}),
             })),
           } : null,
-          duClient: etats, impayes,
+          duClient: etats, impayes, garanties,
         },
       };
     },

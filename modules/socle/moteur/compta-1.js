@@ -4485,6 +4485,29 @@
   // (6817), la provision au crédit (491), du montant hors taxes que le comptable retient — au plus ce qui reste dû hors
   // taxes —, au dernier jour de l'exercice. Elle ne s'extourne pas : elle se reprend quand le risque disparaît. Les comptes
   // sont À VÉRIFIER avec un comptable (plan tunisien), comme le reclassement en 416 (clients douteux), qui ne se fait pas ici.
+  // (1.322.0) LA PROVISION POUR GARANTIES : les réparations que le client fera gratuitement sur ce qu'il a déjà vendu, sous
+  // garantie au jour de l'état (le dernier jour de l'exercice). Le montant, c'est le comptable qui le juge (ce que coûtent
+  // d'habitude ces réparations) : rien n'est proposé, aucun taux inventé. Au plus ce que ces appareils ont été vendus hors
+  // taxes : au-delà, c'est une faute de frappe. À VÉRIFIER avec un comptable : 6815 / 1512.
+  const COMPTES_PROVISION_GARANTIES = { dotation: '6815', provision: '1512' };
+  function ecritureProvisionGaranties(etat, montant, annee) {
+    const e = etat || {};
+    if (!(Number(num(e.nombre)) > 0)) return { ok: false, motif: 'Aucun appareil n\'est sous garantie à cette date : il n\'y a pas de provision à passer.' };
+    const date = txt(e.date), jour = date.split('-').reverse().join('/');
+    if (String(annee) !== date.slice(0, 4)) return { ok: false, motif: `L'état du ${jour} n'est pas de l'exercice ${annee}.` };
+    const saisi = String(montant == null ? '' : montant).replace(/[\s\u00a0\u202f]/g, '').replace(',', '.');
+    const m = round3(num(saisi));
+    if (!(m > 0)) return { ok: false, motif: 'Le montant de la provision manque : écris ce que tu retiens.' };
+    const plafond = round3(num(e.ht));
+    if (plafond > 0 && round3(m - plafond) > 0) return { ok: false, motif: `Une provision pour garanties ne dépasse pas ce que ces appareils ont été vendus hors taxes (${fmtMontant(plafond)}).` };
+    const libelle = `Provision pour garanties au ${jour}`;
+    return {
+      ok: true, montant: m,
+      ecriture: { journal: 'OD', date, piece: `PROV-GAR-${annee}`, libelle, source: 'inventaire', lignes: [
+        { compte: COMPTES_PROVISION_GARANTIES.dotation, libelle, debit: m, credit: 0 },
+        { compte: COMPTES_PROVISION_GARANTIES.provision, libelle, debit: 0, credit: m }] }
+    };
+  }
   const COMPTES_PROVISION = { dotation: '6817', provision: '491' };
   function ecritureProvisionCreance(ligne, montant, au) {
     const m = round3(num(String(montant == null ? '' : montant).replace(/[\s\u00a0\u202f]/g, '').replace(',', '.')));

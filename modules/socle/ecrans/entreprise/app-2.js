@@ -2381,6 +2381,58 @@
     : x.expired ? `<span class="badge">Hors garantie depuis le ${C.fmtDate(x.warrantyEndDate)}</span>`
     : `<span class="badge ${x.warrantyDays <= 30 ? 'b-due' : 'b-paid'}">Garantie jusqu'au ${C.fmtDate(x.warrantyEndDate)}</span>`;
   const pieceDeProposition = d => d ? `<a href="#/doc/${h(d.id)}">${h(d.number || (d.type === 'devis' ? 'Devis en brouillon' : 'Contrat en brouillon'))}</a> <span class="badge ${['signé', 'accepté'].includes(d.status) ? 'b-paid' : ['refusé', 'terminé'].includes(d.status) ? '' : 'b-due'}">${h(d.status)}</span><small class="mu"> ${d.type === 'devis' ? 'devis' : 'contrat'} du ${C.fmtDate(d.date)}</small>` : '';
+  // (1.322.0) Le parc sous garantie pour le comptable : à la clôture, il juge s'il faut une provision pour les réparations que
+  // l'entreprise fera gratuitement sur ce qu'elle a déjà vendu. Elle lui envoie l'état à une date (le 31 décembre passé s'il
+  // y avait des appareils garantis, sinon aujourd'hui ; la date se change) ; renvoyé pour la même date, il remplace le premier.
+  const garComptable = { date: '' };
+  const signatureGaranties = e => JSON.stringify([Number(e.nombre) || 0, Number(e.ht) || 0,
+    (e.articles || []).map(a => [a.libelle, Number(a.nombre) || 0, Number(a.ht) || 0, a.fin]), Number((e.annee || {}).nombre) || 0, Number((e.annee || {}).ht) || 0]);
+  function dateGarantiesParDefaut() {
+    const finAn = `${Number(C.today().slice(0, 4)) - 1}-12-31`;
+    return C.etatDesGaranties(data, finAn, company()).nombre ? finAn : C.today();
+  }
+  function carteGarantiesPourLeComptable() {
+    if (!garComptable.date) garComptable.date = dateGarantiesParDefaut();
+    const e = C.etatDesGaranties(data, garComptable.date, company()), cur = company().currency;
+    const deja = (data.etatsGaranties || []).find(x => x.date === e.date) || null;
+    const pareil = !!deja && signatureGaranties(deja) === signatureGaranties(e);
+    const longue = e.articles.reduce((m, a) => (a.fin > m ? a.fin : m), '');
+    const resume = e.nombre ? `${pl(e.nombre, 'appareil')} sous garantie chez ${pl(e.clients, 'client')}, vendus <b class="nw">${C.money(e.ht, cur)}</b> HT ; la plus longue garantie court jusqu'au ${C.fmtDate(longue)}.`
+      : 'Aucun appareil livré n\'est sous garantie à cette date : il n\'y a rien à envoyer.';
+    const an = e.annee.nombre ? ` Vendus avec une garantie en ${e.date.slice(0, 4)} : ${pl(e.annee.nombre, 'appareil')}, ${C.money(e.annee.ht, cur)} HT.` : '';
+    const le = deja ? C.fmtDate(String(deja.envoyeLe || '').slice(0, 10)) : '';
+    const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="gc-deja"><span aria-hidden="true">✓</span> Envoyé le ${le} : c'est l'état d'aujourd'hui.</p>`
+      : `<p class="small warn-text" id="gc-deja">Envoyé le ${le} : depuis, un appareil livré ou rendu, ou une garantie, l'a changé. Renvoie-le pour que ton comptable ait le bon.</p>`;
+    return `<div class="cf-carte" id="gc-carte"><h2>Le parc sous garantie pour ton comptable ${info('gar.etatComptable')}</h2>
+      <p class="small muted">À la clôture, ton comptable juge s'il faut une provision pour les réparations que tu feras gratuitement sous garantie. Envoie-lui ce qui est encore garanti à cette date : par article, combien d'appareils et ce qu'ils ont été vendus (ni tes clients ni les numéros).</p>
+      <div class="filters"><label class="small">${lbl('Au', 'gar.etatDate')} ${dateFieldHtml('', 'garDate', garComptable.date, {})}</label></div>
+      <p class="small" id="gc-resume">${resume}${an}</p>
+      ${envoi}
+      <div class="inline"><button class="btn btn-sm" id="gc-envoyer" ${e.nombre && !pareil ? '' : 'disabled'}
+        title="${!e.nombre ? 'Rien sous garantie à cette date.' : pareil ? 'Ton comptable a déjà cet état.' : ''}">${deja && !pareil ? 'Renvoyer' : 'Envoyer'} l'état du ${C.fmtDate(e.date)}</button></div></div>`;
+  }
+  function envoyerEtatDesGaranties() {
+    const e = C.etatDesGaranties(data, garComptable.date, company());
+    if (!e.nombre) return null;
+    data.etatsGaranties = (data.etatsGaranties || []).filter(x => x.date !== e.date)
+      .concat([{ id: 'eg-' + e.date, date: e.date, envoyeLe: new Date().toISOString(), nombre: e.nombre, clients: e.clients, ht: e.ht, articles: e.articles, annee: e.annee }]);
+    save(true);
+    return e;
+  }
+  function brancherGarantiesPourLeComptable(redessiner) {
+    const champ = $('#gar-comptable input[name=garDate]');
+    if (champ) champ.onchange = () => { garComptable.date = champ.value || C.today(); redessiner(); };
+    const b = $('#gc-envoyer');
+    if (b) b.onclick = () => {
+      if (licenceBlock('Envoyer l\'état du parc sous garantie', 'stock')) return;
+      const e = envoyerEtatDesGaranties();
+      if (!e) return;
+      redessiner();
+      const cur = company().currency;
+      toastUndo(`Le parc sous garantie au ${C.fmtDate(e.date)} est chez ton comptable : ${pl(e.nombre, 'appareil')}, vendus ${C.money(e.ht, cur)} HT. Il juge s'il faut une provision.`,
+        () => ecrireAuComptable(`Bonjour, l'état de mon parc sous garantie au ${C.fmtDate(e.date)} est envoyé : ${pl(e.nombre, 'appareil')}, vendus ${C.money(e.ht, cur)} HT. Peux-tu en tenir compte à la clôture ?`), 'Le dire à mon comptable');
+    };
+  }
   routes.garanties = () => {
     const tete = actions => `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<a href="#/stock">Stock</a>${ICONE_CHEVRON}<span>Garanties</span></div><h1>Garanties ${info('ser.ending')}</h1><p class="sous">Ce que tes clients ont chez eux, jusqu'à quand c'est garanti, et le bon moment pour leur proposer un contrat de maintenance</p></div><div class="actions">${actions || ''}</div></div>`;
     // 10.12.0 — une entreprise qui ne suit AUCUN article par numéro de série lisait « aucune
@@ -2437,8 +2489,8 @@
         const trouves = tous.filter(x => `${x.serial} ${x.itemLabel} ${x.clientName}`.toLowerCase().includes(q));
         const pg = paginate(trouves, s.pages.q);
         corps = trouves.length ? `<div class="section-head"><h2>Ce que la recherche trouve</h2></div>
-          <table class="list gar-t" id="g-trouves"><thead><tr><th>Appareil</th><th>Client</th><th>Livré le</th><th>Garantie</th><th>Proposition</th></tr></thead><tbody>
-          ${pg.rows.map(x => `<tr data-ser-id="${h(x.id)}"><td>${appareil(x)}</td><td>${x.status === 'vendu' ? client(x) : '<span class="mu">—</span>'}</td><td class="nw">${x.outDate ? C.fmtDate(x.outDate) : '<span class="mu">—</span>'}</td><td>${etatGarantie(x)}</td><td>${pieceDeProposition(ix.get(x.id)) || '<span class="mu">—</span>'}</td></tr>`).join('')}
+          <table class="list gar-t" id="g-trouves"><thead><tr><th>Appareil</th><th>Client</th><th>Livré le</th><th>Garantie</th><th>Proposition</th><th></th></tr></thead><tbody>
+          ${pg.rows.map(x => `<tr data-ser-id="${h(x.id)}"><td>${appareil(x)}</td><td>${x.status === 'vendu' ? client(x) : '<span class="mu">—</span>'}</td><td class="nw">${x.outDate ? C.fmtDate(x.outDate) : '<span class="mu">—</span>'}</td><td>${etatGarantie(x)}</td><td>${pieceDeProposition(ix.get(x.id)) || '<span class="mu">—</span>'}</td><td class="actions"><button type="button" class="btn btn-sm" data-ouvrir-ser="${h(x.id)}">Ouvrir le numéro…</button></td></tr>`).join('')}
           </tbody></table>${pagerBar(pg.pg, { noun: 'numéro' })}`
           : `<div class="mg-vide"><b>Aucun numéro ne correspond à « ${h(s.q.trim())} »</b><span>La recherche lit le numéro de série, l'article et le client, sur tous les numéros (en stock, chez un client, retournés).</span></div>`;
       } else {
@@ -2465,6 +2517,8 @@
             ${pgE.rows.map(x => `<tr><td>${appareil(x)}</td><td>${client(x)}</td><td class="nw">${C.fmtDate(x.outDate)}</td><td class="nw">${C.fmtDate(x.warrantyEndDate)}</td>${rowMenuCell('e:' + x.id)}</tr>`).join('')}
             </tbody></table>${pagerBar(pgE.pg, { noun: 'appareil' })}</div>` : ''}`;
       }
+      const garC = $('#gar-comptable');
+      if (garC) { garC.innerHTML = !q && peutEcrireAuCabinet() ? carteGarantiesPourLeComptable() : ''; bindDateFields(garC); brancherGarantiesPourLeComptable(draw); }
       $('#gar-wrap').innerHTML = `<div class="mg-f"><input type="search" class="cherche" id="g-q" placeholder="Un numéro de série, un article, un client…" value="${h(s.q)}" aria-label="Chercher un appareil">
           <label class="sel nw">Finit d'ici <select id="g-days">${[30, 60, 90, 180, 365].map(d => `<option value="${d}" ${s.days === d ? 'selected' : ''}>${d} jours</option>`).join('')}</select></label></div>${corps}`;
       const qEl = $('#g-q');
@@ -2472,6 +2526,8 @@
       $('#g-days').onchange = e => { s.days = Number(e.target.value); s.pages.ap.page = 1; draw(); };
       $$('[data-proposer]').forEach(b => b.onclick = () => { const g = groupes.find(x => x.clientId === b.dataset.proposer); if (g) proposerPourClient(g); });
       $$('[data-rattacher]').forEach(b => b.onclick = () => { const x = serialById(b.dataset.rattacher); if (x) serialForm(x, () => draw()); });
+      // (1.322.0) Un client appelle : son appareil trouvé, sa fiche s'ouvre d'ici (rendu, client, livraison, garantie).
+      $$('[data-ouvrir-ser]').forEach(b => b.onclick = () => { const x = serialById(b.dataset.ouvrirSer); if (x) serialForm(x, () => draw()); });
       bindRowMenus($('#gar-wrap'), cle => {
         const [genre, id] = [cle.slice(0, 1), cle.slice(2)];
         if (genre === 'g') {
@@ -2505,7 +2561,7 @@
       if (f) toast('Exporté : ' + String(f).split(/[\\/]/).pop());
     };
     $('#view').innerHTML = `${tete('<button type="button" class="btn" id="g-export">Exporter</button>')}
-      <div class="lf mg ca gar"><div class="cf-carte mg-resume" id="gar-resume"></div><div class="cf-carte"><div class="cf-onglet"><div id="gar-wrap"></div></div></div></div>`;
+      <div class="lf mg ca gar"><div class="cf-carte mg-resume" id="gar-resume"></div><div id="gar-comptable"></div><div class="cf-carte"><div class="cf-onglet"><div id="gar-wrap"></div></div></div></div>`;
     $('#g-export').onclick = () => exporter().catch(e => toast(plainError(e), true));
     draw();
   };

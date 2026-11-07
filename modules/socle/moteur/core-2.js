@@ -185,6 +185,39 @@
       .map(v => ({ ...v, premiere: v.items[0].warrantyEndDate }))
       .sort((a, b) => a.premiere.localeCompare(b.premiere) || a.clientName.localeCompare(b.clientName, 'fr'));
   }
+  // (1.322.0) LE PARC SOUS GARANTIE à une date, pour le comptable : à la clôture, il juge s'il faut une provision pour les
+  // réparations que l'entreprise fera gratuitement. Ce qu'il lui faut, par article : combien d'appareils livrés sont encore
+  // garantis ce jour-là, ce qu'ils ont été vendus hors taxes (la ligne de la pièce qui les a livrés, remises comprises, en
+  // dinars) et jusqu'à quand court la plus longue garantie ; et, pour l'année, combien d'appareils garantis ont été vendus.
+  // Ni client ni numéro de série : le comptable n'en a pas besoin pour juger.
+  function venteHTDeLUnite(doc, itemId, company) {
+    if (!doc) return 0;
+    const t = computeTotals(doc, company);
+    const l = (t.lines || []).find(x => !x.titre && x.itemId === itemId && x.qty > 0);
+    if (!l || !(t.totalHT > 0)) return 0;
+    return round3(toBase(doc, (l.ht / l.qty) * (t.netHT / t.totalHT), company));
+  }
+  function etatDesGaranties(data, dateIso, company) {
+    const date = String(dateIso || today()).slice(0, 10), annee = date.slice(0, 4);
+    const co = company || data.company || {};
+    const docs = new Map((data.documents || []).map(d => [d.id, d]));
+    const libelle = id => String(((data.catalog || []).find(c => c.id === id) || {}).label || 'Article').trim();
+    const parArticle = new Map(), clients = new Set();
+    let nombre = 0, ht = 0, anNombre = 0, anHt = 0;
+    for (const x of data.serials || []) {
+      const fin = warrantyEnd(x);
+      if (!fin || !x.outDate || x.outDate > date) continue;
+      const v = venteHTDeLUnite(docs.get(x.outDocId), x.itemId, co);
+      if (x.outDate.slice(0, 4) === annee) { anNombre += 1; anHt = round3(anHt + v); }
+      if (x.status !== 'vendu' || fin < date) continue;
+      const a = parArticle.get(x.itemId) || { libelle: libelle(x.itemId), nombre: 0, ht: 0, fin: '' };
+      a.nombre += 1; a.ht = round3(a.ht + v); if (fin > a.fin) a.fin = fin;
+      parArticle.set(x.itemId, a);
+      nombre += 1; ht = round3(ht + v); if (x.clientId) clients.add(x.clientId);
+    }
+    const articles = [...parArticle.values()].sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'));
+    return { date, nombre, clients: clients.size, ht, articles, annee: { nombre: anNombre, ht: anHt } };
+  }
   // La ligne d'une proposition : l'appareil, son numéro, et le jour où la maintenance prend le relais de la garantie.
   // Le prix reste à zéro : SkanFact ne l'invente pas (la règle inconnue ne fait rien).
   function ligneDeMaintenance(x) {
@@ -7610,7 +7643,7 @@
     CIVILITES, indemniteConges, lignesDuSolde,
     SERIAL_STATUSES, serialStatusLabel, WARRANTY_CHOICES, serializedItems, warrantyEnd, serialView,
     serialList, availableSerials, clientFleet, warrantiesEnding, serialGap, serialGaps,
-    propositionsDeGarantie, garantiesAProposer, garantiesParClient, ligneDeMaintenance,
+    propositionsDeGarantie, garantiesAProposer, garantiesParClient, ligneDeMaintenance, etatDesGaranties,
     mergeData, trackDeletion, MERGE_LISTS, LIST_LABELS, LIST_PLURIELS, compteListe, piecesLiees,
     purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatEnRetard, achatDoublon, facturesDuDevis, payablesList, detteFournisseurs, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
     remiseEffective,

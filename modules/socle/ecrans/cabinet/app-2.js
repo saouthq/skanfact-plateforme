@@ -57,6 +57,19 @@
           <td class="nw">${prov ? `<span class="small ligne-ok"><span aria-hidden="true">✓</span> provisionnée (${esc(prov.piece)})</span>`
     : aProvisionner(l) ? `<button class="btn btn-sm" data-provision="${esc(l.numero)}">Provisionner…</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>
       </div>`;
+    // (1.322.0) Le parc sous garantie que le client a envoyé depuis sa page Garanties : les réparations qu'il fera gratuitement
+    // sont une charge à venir que ses livres ne disent pas. Par article, ce qui est encore garanti ; « Provisionner les
+    // garanties… » une fois pour l'exercice (déjà passée, la ligne le dit).
+    const gar = d.garanties || null;
+    const provGar = gar ? ecritureProvisionGarantiesDe(s.livre, s.annee) : null;
+    const panneauGaranties = !gar || !(gar.articles || []).length ? '' : `<div class="panel mt" id="iv-garanties"><h2>Les garanties en cours chez les clients de ${esc(dossier.name || 'ce dossier')} ${info('iv.garanties')}</h2>
+        <p class="small">${esc(pl(Number(gar.nombre) || 0, 'appareil'))} sous garantie au ${esc(fmtJour(gar.date))}, vendus <b class="nw">${esc(money(Number(gar.ht) || 0))}</b> hors taxes${
+          Number((gar.annee || {}).nombre) ? ` · vendus avec une garantie dans l'année : ${esc(pl(Number(gar.annee.nombre), 'appareil'))}, ${esc(money(Number(gar.annee.ht) || 0))} HT` : ''}${gar.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(String(gar.envoyeLe).slice(0, 10)))}</span>` : ''}.</p>
+        <div class="scroll-x"><table class="list compact" id="iv-garanties-t"><thead><tr><th>Article</th><th class="r nw">Appareils</th><th class="r nw">Vendus HT</th><th class="nw">Garantis jusqu'au</th></tr></thead>
+        <tbody>${gar.articles.map(a => `<tr><td>${esc(a.libelle)}</td><td class="r nw">${esc(String(Number(a.nombre) || 0))}</td><td class="r nw">${esc(money(Number(a.ht) || 0))}</td><td class="nw">au plus tard le ${esc(fmtJour(a.fin))}</td></tr>`).join('')}</tbody></table></div>
+        <div class="inline mt">${provGar ? `<span class="small ligne-ok" id="iv-gar-faite"><span aria-hidden="true">✓</span> Provision passée (${esc(provGar.piece)}) : la repasser compterait la charge deux fois.</span>`
+    : `<button class="btn btn-sm" id="iv-gar-provision">Provisionner les garanties…</button>`}</div>
+      </div>`;
     return `<div class="filters">
       ${info('iv.etat')}
       <span class="small muted">Exercice ${esc(s.annee)}</span>
@@ -66,6 +79,7 @@
     </div>
     ${panneauClient}
     ${panneauImpayes}
+    ${panneauGaranties}
     ${!inv
     ? `<div class="empty">Aucun inventaire saisi pour ${esc(s.annee)}.
         <p class="small muted">Un inventaire, c'est ce qui reste au dernier jour, compté et valorisé.
@@ -112,6 +126,8 @@
         if (l) provisionForm(root, dossier, l);
       };
     });
+    const gb = $('#iv-gar-provision', el);
+    if (gb) gb.onclick = () => provisionGarantiesForm(root, dossier, s.inv.garanties);
     const fb = $('#iv-fnp', el);
     if (fb) fb.onclick = () => facturesNonParvenuesForm(root, dossier, (s.inv.duClient || [])[0] || null);
     const ec = $('#iv-ecrire', el);
@@ -170,6 +186,48 @@
           const res = await api.saisir(dossier.id, s.annee, r.ecriture);
           s.livre = res.livre; close();
           toast(`Provision de ${ligne.numero} passée au brouillard : ${money(r.montant)} au 491.`);
+          await chargerInventaire(root, dossier);
+        } catch (err) { toast(plainError(err), 'error'); b.disabled = false; }
+      };
+    });
+  }
+  function ecritureProvisionGarantiesDe(livre, annee) {
+    return ((livre && livre.ecritures) || []).find(e => e.piece === `PROV-GAR-${annee}` && !e.contrepassee && e.statut !== 'contrepassee') || null;
+  }
+  // (1.322.0) Le montant, c'est la comptable qui le juge : la case part vide (aucun taux inventé) ; l'écriture se montre avant.
+  function provisionGarantiesForm(root, dossier, etat) {
+    const s = livresState;
+    modal(`<h2>Provisionner les garanties de ${esc(s.annee)}</h2>
+      <p class="small muted">${esc(dossier.name || 'Le client')} a ${esc(pl(Number(etat.nombre) || 0, 'appareil'))} sous garantie au ${esc(fmtJour(etat.date))}, vendus ${esc(money(Number(etat.ht) || 0))} hors taxes.
+      Les réparations qu'il fera gratuitement sont une charge de cet exercice : le montant, c'est toi qui le juges (ce que coûtent d'habitude ces réparations, pour ce qui reste à courir).</p>
+      <form id="pg" class="grid-2"><label class="field obligatoire">${lbl('Provision retenue (hors taxes)', 'iv.garanties')}
+        <input name="montant" inputmode="decimal" value="" placeholder="0,000"></label></form>
+      <div class="scroll-x"><table class="list compact mt" id="pg-lignes"><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody></tbody></table></div>
+      <div id="pg-motif" class="small annonce-stable"></div>
+      <p class="small muted mt">Elle arrive au <b>brouillard</b> (pièce PROV-GAR-${esc(s.annee)}) : relis-la, puis valide-la. Elle se reprend quand la garantie a couru. Comptes à vérifier avec ton plan.</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        <button class="btn btn-primary" id="ok">Passer au brouillard</button></div>`,
+    (rootModal, close) => {
+      const lire = () => KC.ecritureProvisionGaranties(etat, ($('[name=montant]', rootModal) || {}).value, s.annee);
+      const maj = () => {
+        const r = lire();
+        $('#pg-lignes tbody', rootModal).innerHTML = r.ok ? r.ecriture.lignes.map(l => `<tr><td class="nw">${esc(l.compte)}</td><td>${esc(l.libelle)}</td>
+          <td class="r nw">${l.debit ? esc(money(l.debit)) : ''}</td><td class="r nw">${l.credit ? esc(money(l.credit)) : ''}</td></tr>`).join('') : '';
+        $('#pg-motif', rootModal).innerHTML = r.ok ? '' : `<div class="warn-box">${esc(r.motif)}</div>`;
+        const ok = $('#ok', rootModal); ok.disabled = !r.ok; ok.title = r.ok ? '' : r.motif;
+      };
+      $('[name=montant]', rootModal).oninput = maj;
+      maj();
+      $('#ok', rootModal).onclick = async () => {
+        const r = lire();
+        if (!r.ok) return toast(r.motif, 'error');
+        const b = $('#ok', rootModal);
+        b.disabled = true;
+        try {
+          if (ecritureProvisionGarantiesDe(s.livre, s.annee)) throw new Error(`Les garanties de ${s.annee} sont déjà provisionnées (PROV-GAR-${s.annee}) : les reprovisionner compterait la charge deux fois.`);
+          const res = await api.saisir(dossier.id, s.annee, r.ecriture);
+          s.livre = res.livre; close();
+          toast(`Provision pour garanties passée au brouillard : ${money(r.montant)} au 1512.`);
           await chargerInventaire(root, dossier);
         } catch (err) { toast(plainError(err), 'error'); b.disabled = false; }
       };

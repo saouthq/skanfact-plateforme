@@ -339,6 +339,8 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 #st-body > .cf-carte > h2 { margin-top: 0; }
 #r-wrap .cf-carte#ei-comptable { padding: 14px 16px 16px; }
 #r-wrap .cf-carte#ei-comptable > h2 { margin-top: 0; }
+#gar-comptable > .cf-carte { padding: 14px 16px 16px; }
+#gar-comptable > .cf-carte > h2 { margin-top: 0; }
 .cf-o-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cf-o-t .mu { font-size: 12.5px; flex: 1 1 260px; }
 .cf-o-t .btn { margin-left: auto; }

@@ -1128,3 +1128,39 @@ doit encore 1 976 sur sa facture de maintenance de septembre (2 976, 1 000 vers�
 
 **À VÉRIFIER** avec un comptable : les comptes 6817 / 491, la provision sur la base hors taxes, et le seuil de 90 jours (il
 ne fait que proposer le geste ; la comptable juge).
+
+## Les garanties, jusqu'au bilan
+
+*1.322.0, 07/11/2026. Jouées par un installateur de climatisation de Sousse (« Clim et Froid Jlassi », Walid) à la clôture
+de 2025 : deux climatiseurs garantis deux ans chez l'Hôtel Le Golfe et la Clinique Les Pins (le second remisé de 5 %), un
+onduleur garanti un an livré le 20 décembre (remise globale de 5 %), un vieux climatiseur dont la garantie a fini en
+novembre, un autre en stock ; la Clinique rend ensuite son climatiseur. Puis sa comptable, Inès, au Cabinet.*
+
+**Ce qui n'allait pas**
+- Les réparations que Walid fera gratuitement sur ce qu'il a déjà vendu sont une charge à venir : rien ne la disait à sa
+  comptable. Elle ne savait ni combien d'appareils étaient encore garantis au 31 décembre, ni ce qu'ils avaient été vendus ;
+  le jugement d'une provision pour garanties se faisait de mémoire, ou pas du tout.
+- Un client appelle avec une panne : la recherche des Garanties trouvait l'appareil, mais sa fiche ne s'ouvrait pas d'ici
+  (pour noter qu'il est rendu, changer son client ou sa garantie).
+
+**Ce qui change (1.322.0)**
+- `C.etatDesGaranties(data, date)` : par article, les appareils livrés ce jour-là ou avant dont la garantie court encore
+  (un appareil rendu n'y est plus), leur valeur de vente hors taxes (la ligne de la pièce qui les a livrés, remise de la
+  ligne et remise globale comprises, ramenée en dinars : 2 380,500 − 5 % = 2 261,475 ; 1 890,333 − 5 % = 1 795,816), la
+  plus longue garantie ; et les appareils garantis vendus dans l'année. Ni client ni numéro de série.
+- Sur la page Garanties, la carte « Le parc sous garantie pour ton comptable » propose le 31 décembre passé, dit « 3
+  appareils sous garantie chez 2 clients, vendus 6 507,291 DT HT ; la plus longue garantie court jusqu'au 09/06/2027 », et
+  l'envoie ; envoyé, elle dit « ✓ c'est l'état d'aujourd'hui », ou qu'un appareil livré ou rendu l'a changé, avec
+  « Renvoyer » (qui remplace l'état de cette date). La date se change.
+- Dans la recherche, « Ouvrir le numéro… » ouvre la fiche de l'appareil trouvé.
+- Au Cabinet, l'onglet Inventaire montre « Les garanties en cours chez les clients de … » (par article : appareils, vendus
+  HT, garantis jusqu'au) et « Provisionner les garanties… » : la case part vide (c'est la comptable qui juge), refuse plus
+  que la valeur de vente (en le disant, le bouton éteint), montre l'écriture (6815 / 1512 au jour de l'état, pièce
+  PROV-GAR-2025) et la pose au brouillard. Passée, la ligne le dit et le geste s'en va.
+- Le serveur rend au cabinet le parc envoyé pour l'exercice, à la date la plus tardive (base 0202), nettoyé champ par champ ;
+  le pont du Cabinet le porte sans grandir (une seule table pour ce que le client envoie : impayés et garanties).
+- La preuve : `tests/moteur/garanties-1322.test.ts` (3 règles, dont une facture en euros arrondie au centime),
+  `tests/web/garanties-1322.test.ts` (l'entreprise, le téléphone, le Cabinet, l'écriture lue au serveur au millime),
+  preuves `garanties 1.322 a-ab`.
+
+**À VÉRIFIER** avec un comptable : les comptes 6815 / 1512, et la provision sur la base hors taxes.

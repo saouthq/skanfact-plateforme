@@ -18513,7 +18513,7 @@ prouver '« Envoyer au comptable » en geste principal quand le cabinet lit déj
   $'<button class="btn${messagerieVue && messagerieVue.cabinet ? \'\' : \' btn-primary\'}" id="exp-comptable">' $'<button class="btn btn-primary" id="exp-comptable">' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
 prouver 'la Comptabilité qui ne se redessine pas quand elle apprend le cabinet' modules/socle/ecrans/entreprise/app-1.js \
-  $'if (/^#\\/(compta|paie|relances)/.test(location.hash) && !$(\'#modal-root .modal\')' $'if (false && !$(\'#modal-root .modal\')' \
+  $'if (/^#\\/(compta|paie|relances|garanties)/.test(location.hash) && !$(\'#modal-root .modal\')' $'if (false && !$(\'#modal-root .modal\')' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
 prouver 'la fenêtre d'\''envoi au comptable qui dit le CSV joint' modules/socle/ecrans/entreprise/app-2.js \
   $'${bridge.dessinerMandat ? \'Le journal des ventes se télécharge' $'${false ? \'Le journal des ventes se télécharge' \
@@ -26079,7 +26079,7 @@ prouver 'stock 1.319 m : le Cabinet n'\''envoie pas la valeur des lignes reprise
   '          ...(l.valeurDite ? { valeur: signe(l.valeur) } : {}) })),' '          })),' \
   "$SW1"
 prouver 'stock 1.319 n : le point de contact du Cabinet perd les états du client' web/public/plateforme/pont-cabinet.js \
-  '        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [], impayes:' '        duClient: [], impayes:' \
+  '        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [], ...(lus' '        duClient: [], ...(lus' \
   "$SW1"
 prouver 'stock 1.319 o : renvoyer l'\''état du stock le double au lieu de le remplacer' modules/socle/ecrans/entreprise/app-2.js \
   '      data.etatsStock = (data.etatsStock || []).filter(x => x.date !== e.date)' '      data.etatsStock = (data.etatsStock || [])' \
@@ -26197,7 +26197,7 @@ prouver 'relances 1.321 l : la carte ne voit pas qu'\''un litige a changé l'\''
   '[l.numero, Number(l.resteTTC) || 0, l.litige || '\'''\'', Number(l.relances) || 0]' '[l.numero, Number(l.resteTTC) || 0, Number(l.relances) || 0]' \
   "$RELW"
 prouver 'relances 1.321 m : la page Relances attend un changement de page pour savoir qu'\''un cabinet est relié' modules/socle/ecrans/entreprise/app-1.js \
-  '/^#\/(compta|paie|relances)/' '/^#\/(compta|paie)/' \
+  '/^#\/(compta|paie|relances|garanties)/' '/^#\/(compta|paie|garanties)/' \
   "$RELW"
 prouver 'relances 1.321 n : la tuile des retards anciens promet une relance à la contestée' modules/socle/ecrans/entreprise/app-1.js \
   '      const vieuxLitige = vieux.filter(x => x.litige).length;' '      const vieuxLitige = 0;' \
@@ -26215,10 +26215,10 @@ prouver 'relances 1.321 r : l'\''état des impayés n'\''a pas de droits' serveu
   '  documents: VENTES, etatsImpayes: VENTES, recurring:' '  documents: VENTES, recurring:' \
   'chaque partie du dossier, chaque page du menu, chaque nom de geste et chaque schéma de la base a un seul propriétaire'
 prouver 'relances 1.321 s : le pont du Cabinet ne garde pas l'\''état des impayés' web/public/plateforme/pont-cabinet.js \
-  '    impayesClient.set(`${ent}:${Number(annee)}`, r.impayes || null);' '    impayesClient.set(`${ent}:${Number(annee)}`, null);' \
+  '{ impayes: r.impayes || null, garanties:' '{ impayes: null, garanties:' \
   "$RELW"
 prouver 'relances 1.321 t : le pont du Cabinet ne rend pas l'\''état des impayés à l'\''écran' web/public/plateforme/pont-cabinet.js \
-  '|| [], impayes: impayesClient.get(' '|| [], _i: impayesClient.get(' \
+  '...(lusDuClient.get(`${o.dossierId}:${Number(o.annee)}`) || { impayes: null, garanties: null }) };' '_l: lusDuClient.get(`${o.dossierId}:${Number(o.annee)}`) };' \
   "$RELW"
 prouver 'relances 1.321 u : l'\''inventaire du Cabinet tait les impayés du client' modules/socle/ecrans/cabinet/app-2.js \
   '    ${panneauImpayes}' '' \
@@ -26238,6 +26238,96 @@ prouver 'relances 1.321 y : la provision ne propose pas le reste hors taxes' mod
 prouver 'relances 1.321 z : le Cabinet ne lit pas ce que dit le client' modules/socle/ecrans/cabinet/app-2.js \
   '${l.litige ? `<div class="small warn-text"><b>Contestée</b> : ${esc(l.litige)}</div>` : '\'''\''}' '' \
   "$RELW"
+# (1.322.0) Les garanties jusqu'au bilan : le parc sous garantie à une date (par article, ce qui est livré et encore
+# garanti, à sa valeur de vente hors taxes) part chez le comptable, qui le lit au Cabinet et en tire une provision (6815 / 1512).
+GAR1="au 31/12 : ce qui est livré et encore garanti, par article, à sa valeur de vente hors taxes ; et les ventes garanties de l'année"
+GAR2="un appareil rendu n'est plus garanti chez le client ; une facture en euros se compte en dinars"
+GAR3="au Cabinet : la provision au jour de l'état, 6815 / 1512, au plus ce que ces appareils ont été vendus hors taxes"
+GARW="le parc sous garantie au 31/12 part chez la comptable, se renvoie quand un appareil est rendu, et se provisionne au Cabinet"
+prouver 'garanties 1.322 a : la remise globale de la facture n'\''entre pas dans la valeur de l'\''appareil' modules/socle/moteur/core-2.js \
+  '    return round3(toBase(doc, (l.ht / l.qty) * (t.netHT / t.totalHT), company));' '    return round3(toBase(doc, (l.ht / l.qty), company));' \
+  "$GAR1"
+prouver 'garanties 1.322 b : la remise de la ligne n'\''entre pas dans la valeur de l'\''appareil' modules/socle/moteur/core-2.js \
+  '    return round3(toBase(doc, (l.ht / l.qty) * (t.netHT / t.totalHT), company));' '    return round3(toBase(doc, l.unitPrice * (t.netHT / t.totalHT), company));' \
+  "$GAR1"
+prouver 'garanties 1.322 c : une facture en euros se compte en euros' modules/socle/moteur/core-2.js \
+  '    return round3(toBase(doc, (l.ht / l.qty) * (t.netHT / t.totalHT), company));' '    return round3((l.ht / l.qty) * (t.netHT / t.totalHT));' \
+  "$GAR2"
+prouver 'garanties 1.322 d : une garantie finie compte encore' modules/socle/moteur/core-2.js \
+  '      if (x.status !== '\''vendu'\'' || fin < date) continue;' '      if (x.status !== '\''vendu'\'') continue;' \
+  "$GAR1"
+prouver 'garanties 1.322 e : un appareil rendu reste garanti chez le client' modules/socle/moteur/core-2.js \
+  '      if (x.status !== '\''vendu'\'' || fin < date) continue;' '      if (fin < date) continue;' \
+  "$GAR2"
+prouver 'garanties 1.322 f : un appareil livré après la date compte' modules/socle/moteur/core-2.js \
+  '      if (!fin || !x.outDate || x.outDate > date) continue;' '      if (!fin || !x.outDate) continue;' \
+  "$GAR1"
+prouver 'garanties 1.322 g : un appareil vendu dans l'\''année puis rendu sort des ventes de l'\''année' modules/socle/moteur/core-2.js \
+  '      if (x.outDate.slice(0, 4) === annee) { anNombre += 1;' '      if (x.outDate.slice(0, 4) === annee && x.status === '\''vendu'\'') { anNombre += 1;' \
+  "$GAR2"
+prouver 'garanties 1.322 h : la plus longue garantie est la plus courte' modules/socle/moteur/core-2.js \
+  '      a.nombre += 1; a.ht = round3(a.ht + v); if (fin > a.fin) a.fin = fin;' '      a.nombre += 1; a.ht = round3(a.ht + v); if (!a.fin || fin < a.fin) a.fin = fin;' \
+  "$GAR1"
+prouver 'garanties 1.322 i : une provision pour garanties dépasse ce que les appareils ont été vendus' modules/socle/moteur/compta-1.js \
+  'round3(m - plafond) > 0) return { ok: false, motif: `Une provision pour garanties' 'round3(m - plafond) > 1e9) return { ok: false, motif: `Une provision pour garanties' \
+  "$GAR3"
+prouver 'garanties 1.322 j : la dotation pour garanties passe au 1512' modules/socle/moteur/compta-1.js \
+  '        { compte: COMPTES_PROVISION_GARANTIES.dotation, libelle, debit: m, credit: 0 },' '        { compte: COMPTES_PROVISION_GARANTIES.provision, libelle, debit: m, credit: 0 },' \
+  "$GAR3"
+prouver 'garanties 1.322 k : la provision ignore la date de l'\''état' modules/socle/moteur/compta-1.js \
+  '    const date = txt(e.date), jour = date.split('\''-'\'').reverse().join('\''/'\'');' '    const date = `${annee}-12-31`, jour = date.split('\''-'\'').reverse().join('\''/'\'');' \
+  "$GAR3"
+prouver 'garanties 1.322 l : une provision se passe sans appareil sous garantie' modules/socle/moteur/compta-1.js \
+  '    if (!(Number(num(e.nombre)) > 0)) return' '    if (false) return' \
+  "$GAR3"
+prouver 'garanties 1.322 m : la page Garanties ne montre pas le parc pour le comptable' modules/socle/ecrans/entreprise/app-2.js \
+  'garC.innerHTML = !q && peutEcrireAuCabinet() ? carteGarantiesPourLeComptable() : '\'''\'';' 'garC.innerHTML = '\'''\'';' \
+  "$GARW"
+prouver 'garanties 1.322 n : la carte croit l'\''état d'\''aujourd'\''hui quand un appareil est rendu' modules/socle/ecrans/entreprise/app-2.js \
+  '    const pareil = !!deja && signatureGaranties(deja) === signatureGaranties(e);' '    const pareil = !!deja;' \
+  "$GARW"
+prouver 'garanties 1.322 o : l'\''état du parc part sans ses articles' modules/socle/ecrans/entreprise/app-2.js \
+  'ht: e.ht, articles: e.articles, annee: e.annee }]);' 'ht: e.ht, articles: [], annee: e.annee }]);' \
+  "$GARW"
+prouver 'garanties 1.322 p : renvoyer l'\''état du parc le double au lieu de le remplacer' modules/socle/ecrans/entreprise/app-2.js \
+  '    data.etatsGaranties = (data.etatsGaranties || []).filter(x => x.date !== e.date)' '    data.etatsGaranties = (data.etatsGaranties || [])' \
+  "$GARW"
+prouver 'garanties 1.322 q : la date du parc ne se change pas' modules/socle/ecrans/entreprise/app-2.js \
+  'carteGarantiesPourLeComptable() : '\'''\''; bindDateFields(garC);' 'carteGarantiesPourLeComptable() : '\'''\'';' \
+  "$GARW"
+prouver 'garanties 1.322 r : un appareil trouvé par la recherche ne s'\''ouvre pas' modules/socle/ecrans/entreprise/app-2.js \
+  '      $$('\''[data-ouvrir-ser]'\'').forEach(b => b.onclick =' '      $$('\''[data-ouvrir-ser-x]'\'').forEach(b => b.onclick =' \
+  "$GARW"
+prouver 'garanties 1.322 s : la date proposée n'\''est pas le 31 décembre passé' modules/socle/ecrans/entreprise/app-2.js \
+  '    return C.etatDesGaranties(data, finAn, company()).nombre ? finAn : C.today();' '    return C.today();' \
+  "$GARW"
+prouver 'garanties 1.322 t : la page Garanties attend un changement de page pour savoir qu'\''un cabinet est relié' modules/socle/ecrans/entreprise/app-1.js \
+  '/^#\/(compta|paie|relances|garanties)/' '/^#\/(compta|paie|relances)/' \
+  "$GARW"
+prouver 'garanties 1.322 u : le serveur ne rend pas le parc sous garantie au cabinet' serveur/compta/inventaire.ts \
+  '          duClient: etats, impayes, garanties,' '          duClient: etats, impayes, garanties: null,' \
+  "$GARW"
+prouver 'garanties 1.322 v : le serveur perd les articles du parc' serveur/compta/inventaire.ts \
+  '.filter(estObjet).slice(0, 2000).map((a) => ({' '.filter(estObjet).slice(0, 0).map((a) => ({' \
+  "$GARW"
+prouver 'garanties 1.322 w : l'\''état du parc n'\''a pas de droits' serveur/v10/droits.ts \
+  'etatsStock: STOCK, etatsGaranties: STOCK,' 'etatsStock: STOCK,' \
+  'chaque partie du dossier, chaque page du menu, chaque nom de geste et chaque schéma de la base a un seul propriétaire'
+prouver 'garanties 1.322 x : le pont du Cabinet ne garde pas le parc sous garantie' web/public/plateforme/pont-cabinet.js \
+  '{ impayes: r.impayes || null, garanties: r.garanties || null }' '{ impayes: r.impayes || null, garanties: null }' \
+  "$GARW"
+prouver 'garanties 1.322 y : l'\''inventaire du Cabinet tait les garanties du client' modules/socle/ecrans/cabinet/app-2.js \
+  '    ${panneauGaranties}' '' \
+  "$GARW"
+prouver 'garanties 1.322 z : les garanties provisionnées se provisionnent encore' modules/socle/ecrans/cabinet/app-2.js \
+  '    return ((livre && livre.ecritures) || []).find(e => e.piece === `PROV-GAR-${annee}`' '    return null && ((livre && livre.ecritures) || []).find(e => e.piece === `PROV-GAR-${annee}`' \
+  "$GARW"
+prouver 'garanties 1.322 aa : une provision pour garanties invalide se passe quand même' modules/socle/ecrans/cabinet/app-2.js \
+  'ok.disabled = !r.ok;' 'ok.disabled = false;' \
+  "$GARW"
+prouver 'garanties 1.322 ab : la provision pour garanties propose un montant' modules/socle/ecrans/cabinet/app-2.js \
+  '<input name="montant" inputmode="decimal" value="" placeholder="0,000">' '<input name="montant" inputmode="decimal" value="${esc(montantChamp(Number(etat.ht) || 0))}" placeholder="0,000">' \
+  "$GARW"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

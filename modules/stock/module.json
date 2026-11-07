@@ -24,7 +24,8 @@
     "stockAdjustments",
     "serials",
     "depots",
-    "etatsStock"
+    "etatsStock",
+    "etatsGaranties"
   ],
   "racine": [
     "depotPrincipalNom"

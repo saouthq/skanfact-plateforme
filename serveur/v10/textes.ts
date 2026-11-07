@@ -96,6 +96,7 @@ declarerTextes({
   'v10.partie.stockAdjustments': 'les mouvements de stock',
   'v10.partie.etatsStock': 'les états du stock envoyés au comptable',
   'v10.partie.etatsImpayes': 'l\'état des impayés envoyé au comptable',
+  'v10.partie.etatsGaranties': 'les états du parc sous garantie envoyés au comptable',
   'v10.partie.serials': 'les numéros de série',
   'v10.partie.depots': 'les dépôts',
   'v10.partie.employees': 'les salariés',

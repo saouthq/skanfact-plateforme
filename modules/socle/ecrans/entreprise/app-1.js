@@ -2451,7 +2451,8 @@
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
       // (1.321.0) Les Relances aussi : la carte de l'état des impayés pour le comptable n'attend pas un changement de page.
-      if (/^#\/(compta|paie|relances)/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
+      // (1.322.0) Les Garanties aussi : la carte du parc sous garantie pour le comptable.
+      if (/^#\/(compta|paie|relances|garanties)/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
       const lien = $('#foot-comptable');
       if (lien) lien.hidden = !avecMessagerie(a);
     }
