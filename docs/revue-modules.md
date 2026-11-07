@@ -754,4 +754,36 @@ s'ouvre 400 ms après l'émission ; plus rapide que ça sur cette machine, le te
 d'attente : la même panne. Le test décoche ces gestes avant d'émettre, comme celui de la charte de la facture, et garde
 les 800 ms ; la recette alpha, qui clique « Corriger par un avoir… » juste après l'émission, fait de même.
 
-Suivant : les achats, puis les fournisseurs et l'accueil.
+## Les achats
+
+### Fait en 1.310.0 (07/11/2026) : ce qu'on doit, ce qu'on garde pour l'État, et ce que lit la comptable
+
+Joué par la même quincaillerie de Sousse et sa comptable, côté fournisseurs. Céramique du Sahel SARL (retenue de 1,5 %,
+paie à 60 jours) : le carrelage, échu depuis 15 jours, payé en partie par un chèque de 3 000 DT ; la faïence, à payer
+dans 40 jours ; un avoir de 20 m² cassés au déchargement. Ferramenta Milano, à Milan, facture en euros. La STEG, payée
+par virement. Transport Ben Salah, à payer dans le mois. Mourad règle le reste du carrelage par virement, rattache
+l'avoir, puis tape par erreur le numéro du carrelage sur la facture de faïence. Sonia ouvre la balance auxiliaire et
+la balance âgée des fournisseurs.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| A1 | « À payer » disait « dont 4 660,000 DT en retard » ; la puce « En retard » disait 0, son filtre ne montrait rien, la liste des fournisseurs ne trouvait pas Céramique en retard, et sa fiche ne le disait pas. Le carrelage, payé en partie, a le statut « partiel » : seul « À payer » le comptait en retard. | En retard n'est pas un statut de plus, c'est un fait : échue et pas soldée, même payée en partie. Une règle (`achatEnRetard`, dans le moteur), lue par « À payer », la puce, le filtre, la liste et la fiche du fournisseur. La fiche dit « dont 4 660,000 DT en retard », le badge « En retard », et son bouton principal devient « Régler CS-26-1104 ». |
+| A2 | La fiche disait « tu lui dois 6 785,108 DT », la balance auxiliaire de la comptable 6 888,435 DT : l'écart est la retenue qu'on gardera pour l'État en le payant (son 401 est crédité du brut). | Sous l'en-tête : « En le payant, tu garderas aussi 103,327 DT de retenue à la source pour l'État : son compte chez ton comptable porte 6 888,435 DT. » Après le virement, 2 157,470 DT : le test lit le même chiffre dans la balance du Cabinet. |
+| A3 | Sur la pièce en retard, « tu lui dois 7 117,999 DT » ; sur la fiche, 6 785,108 DT : la pièce oubliait l'avoir de casse. | La pièce lit ce que dit la fiche (le même calcul). |
+| A4 | « Tu paies 4 660,000 DT et tu retiens 116,650 DT » : le premier chèque avait déjà gardé 45,685 DT ; la fenêtre du règlement, elle, comptait juste. | La phrase dit la retenue qui reste à garder : 70,965 DT, comme la fenêtre. |
+| A5 | L'avoir, libre, disait « L'avoir ne trouve plus rien à déduire » alors que la faïence de Céramique est à payer. | « Il n'est déduit d'aucune facture : CS-26-1187 est à payer. Choisis-la dans « Facture concernée » pour l'en déduire, ou enregistre le remboursement quand il te rend l'argent. » (et, s'il n'y en a aucune, il le dit). |
+| A6 | Au Cabinet, la balance âgée des fournisseurs rangeait selon la date de la pièce : la faïence à 60 jours, reçue il y a 20 jours, tombait dans « 1 à 30 jours ». | L'écriture d'un achat porte son échéance (migration 0196, la pendante de 0195 : seule la date d'échéance sort, pour qui lit les livres) ; la faïence est « pas encore échue ». |
+| A7 | Ferramenta Milano : « tu lui dois 4 225,000 DT », et deux bandeaux lui demandaient un matricule fiscal tunisien et un RIB à 20 chiffres. | « tu lui dois 1 250,00 EUR, soit 4 225,000 DT » ; pour un fournisseur à l'étranger, ni matricule ni RIB ne se disent « à renseigner » : « à l'étranger, il se paie sur son IBAN : note-le dans ses notes internes » (décidé par délégation le 07/11/2026). La STEG, tunisienne, garde la demande de son matricule. |
+
+Vérifié en jouant, sans rien à changer : la fenêtre du règlement dit avant d'enregistrer « Ce règlement retient
+70,965 DT (1,5 %) » ; après le virement, « 1 attestation de retenue à lui remettre — CS-26-1104 · 116,650 DT
+retenus » ; l'avoir rattaché à la faïence dit « Il retire 53,960 DT de TVA de celle que tu récupères », la faïence
+reste à payer 2 125,108 DT, et la fiche ne dit plus l'avoir « à toi » ; le même numéro sur une autre facture pose la
+question avant d'enregistrer (« Cette facture est déjà saisie … celle du …, de 7 776,650 DT TTC, réglée le … ») ; la
+balance auxiliaire du Cabinet porte Milan en dinars, au taux de sa facture.
+
+Limites connues : la retenue d'un avoir suit celle de sa facture (À VÉRIFIER avec un comptable) ; la retenue sur un
+fournisseur à l'étranger (non-résident) n'est pas calculée à part (À VÉRIFIER) ; la fiche n'a pas de champ IBAN (il va
+dans les notes internes) ; le prélèvement n'est pas un mode de règlement (la STEG se note en virement).
+
+Suivant : les fournisseurs, puis l'accueil.

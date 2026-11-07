@@ -102,7 +102,9 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
     // 1. Le meunier : l'en-tête, la pastille, ce que tu lui dois, et UN bouton principal : régler la pièce en retard.
     expect(await texte('#view .ff-tete .chemin')).toBe('Accueil Fournisseurs Les Grands Moulins de Tunis');
     expect(await texte('#view .ff-tete h1')).toBe('Les Grands Moulins de Tunis En retard');
-    expect(await texte('#view .ff-tete .sous')).toMatch(/^Ben Arous · fournisseur depuis août 2026 · tu lui dois 410,479 DT, tout en retard$/);
+    expect(await texte('#view .ff-tete .sous:not(#ff-rs-compte)')).toMatch(/^Ben Arous · fournisseur depuis août 2026 · tu lui dois 410,479 DT, tout en retard$/);
+    // (1.310.0) Son compte chez le comptable porte aussi la retenue qu'on gardera : la ligne le dit sous l'en-tête.
+    expect(await texte('#ff-rs-compte')).toMatch(/^En le payant, tu garderas aussi 4,146 DT de retenue à la source pour l'État : son compte chez ton comptable porte 414,625 DT\.$/);
     expect(await primaires()).toEqual(['Régler FA-2026/0812']);
     expect(await texte('#view .ff-tete .actions #buy')).toBe('Enregistrer un achat');
     // Les bandeaux : le retard (et ce qu'on garde pour l'État), l'attestation de la facture payée ; ni matricule ni RIB ne manquent.
@@ -160,7 +162,7 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     await expect.poll(() => p.locator('#ff-retard').count()).toBe(0);
     expect(await texte('#view .ff-tete h1')).toBe('Les Grands Moulins de Tunis À jour');
-    expect(await texte('#view .ff-tete .sous')).toBe('Ben Arous · fournisseur depuis août 2026 · tu ne lui dois rien');
+    expect(await texte('#view .ff-tete .sous:not(#ff-rs-compte)')).toBe('Ben Arous · fournisseur depuis août 2026 · tu ne lui dois rien');
     expect(await primaires()).toEqual(['Enregistrer un achat']);
     expect(await texte('#ff-attest')).toMatch(/^2 attestations de retenue à lui remettre — FA-2026\/0700 · 3,317 DT retenus ; FA-2026\/0812 · 4,146 DT retenus\./);
 
@@ -168,7 +170,7 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
     await ouvrir('s-sahel');
     expect(await texte('#view .ff-tete h1')).toBe('Emballages du Sahel En retard');
     // L'avoir de 9,163 est déduit de ce que tu lui dois : le retard (137,445) le dépasse, c'est donc « tout en retard ».
-    expect(await texte('#view .ff-tete .sous')).toBe('Sfax · fournisseur depuis septembre 2026 · tu lui dois 128,282 DT, tout en retard');
+    expect(await texte('#view .ff-tete .sous:not(#ff-rs-compte)')).toBe('Sfax · fournisseur depuis septembre 2026 · tu lui dois 128,282 DT, tout en retard');
     expect(await primaires()).toEqual(['Régler ses 2 pièces en retard · 137,445 DT']);
     expect(await texte('#ff-retard')).toMatch(/^137,445 DT en retard depuis 20 jours — 2 pièces : ES-4471 \(échue le .+\), ES-4502 \(échue le .+\)\.$/);
     expect(await texte('#ff-avoir')).toBe('9,163 DT sont à toi : l\'avoir AV-ES-09 n\'est déduit de rien — déduis-le de sa prochaine facture ou demande-lui le remboursement ; jusque-là, son compte le compte en ta faveur. Ouvrir AV-ES-09');
@@ -194,7 +196,7 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
     // 6. L'imprimerie : nouvelle, exonérée pour 30 jours encore ; l'état vide offre le premier achat sans second bouton principal.
     await ouvrir('s-neuf');
     expect(await texte('#view .ff-tete h1')).toBe('Imprimerie Al Amal Nouveau');
-    expect(await texte('#view .ff-tete .sous')).toBe('Tunis · aucun achat pour l\'instant');
+    expect(await texte('#view .ff-tete .sous:not(#ff-rs-compte)')).toBe('Tunis · aucun achat pour l\'instant');
     expect(await primaires()).toEqual(['Enregistrer un achat']);
     expect(await texte('#view .ff-tete .actions #ff-commande')).toBe('Nouvelle commande');
     expect(await texte('#ff-exo')).toBe(`Son attestation d'exonération de retenue finit le ${fr(finExo)}, dans 30 jours — n° EX-2026-118. Après cette date, la retenue de 1,5 % revient sur ses factures. Demande-lui la nouvelle attestation et note-la sur sa fiche. Noter la nouvelle`);

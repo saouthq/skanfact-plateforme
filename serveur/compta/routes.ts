@@ -122,12 +122,18 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
         ? ((await tx.query('select piece, echeance::text as echeance from compta.echeances_des_ventes($1, $2::uuid[])', [entreprise, ventes])).rows as { piece: string; echeance: string }[])
           .map((x) => [x.piece, x.echeance])
         : []);
+      // (1.310.0) Et celle d'un achat (compta.echeances_des_achats, 0196) : la balance âgée des fournisseurs (401) rangeait une
+      // facture à 60 jours, reçue il y a 20 jours, dans « 1 à 30 jours ».
+      const echeancesAchats = new Map(achats.length
+        ? ((await tx.query('select piece, echeance::text as echeance from compta.echeances_des_achats($1, $2::uuid[])', [entreprise, achats])).rows as { piece: string; echeance: string }[])
+          .map((x) => [x.piece, x.echeance])
+        : []);
       const dernier = ecritures.at(-1);
       return {
         corps: {
           ecritures: ecritures.map((e) => ({
             justificatif: e.origine_type === 'achat' ? justifies.get(e.origine) ?? null : null,
-            echeance: e.origine_type === 'vente' ? echeances.get(e.origine) ?? null : null,
+            echeance: e.origine_type === 'vente' ? echeances.get(e.origine) ?? null : e.origine_type === 'achat' ? echeancesAchats.get(e.origine) ?? null : null,
             id: e.id, journal: e.journal, date: e.date_ecriture, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numero,
             // Son rang dans la chaîne des livres (validée) : l'ordre unique de validation, tous journaux confondus.
             chaine: e.chaine_rang === null ? null : Number(e.chaine_rang),

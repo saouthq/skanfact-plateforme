@@ -14453,8 +14453,8 @@
   function lfoLignes() {
     const auj = C.today(), retards = new Map(), semaine = new Map();
     (data.purchases || []).forEach(p => {
-      const st = buyStatus(p);
-      if (st === 'retard') { const r = retards.get(p.supplierId) || []; r.push(p); retards.set(p.supplierId, r); }
+      // (1.310.0) En retard : échue et pas soldée, même payée en partie (`C.achatEnRetard`, la règle de « À payer »).
+      if (C.achatEnRetard(p, C.purchaseBalance(p, company(), data).remaining, auj)) { const r = retards.get(p.supplierId) || []; r.push(p); retards.set(p.supplierId, r); }
       else if (p.dueDate && p.dueDate >= auj && C.daysBetween(auj, p.dueDate) <= 7 && C.purchaseBalance(p, company(), data).remaining > 0.0005) {
         semaine.set(p.supplierId, C.round3((semaine.get(p.supplierId) || 0) + C.toBase(p, C.purchaseBalance(p, company(), data).remaining, company())));
       }
@@ -14650,8 +14650,9 @@
     const peutEcrire = !lecture && !roleLit, peutAcheter = !lecture && !enLecture('purchases'), peutRegler = !roleLit && !enLecture('purchases') && !horsLigne;
     const reste = p => C.purchaseBalance(p, co, data).remaining;
     // Ce qui presse : les pièces en retard (la plus ancienne d'abord), puis celles à payer sous 7 jours.
-    const ret = mine.filter(p => buyStatus(p) === 'retard').sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
-    const semaine = mine.filter(p => buyStatus(p) !== 'retard' && p.dueDate && p.dueDate >= auj && C.daysBetween(auj, p.dueDate) <= 7 && reste(p) > 0.0005);
+    // (1.310.0) Une pièce payée en partie et échue est en retard aussi (`C.achatEnRetard`) : la fiche la taisait.
+    const ret = mine.filter(p => C.achatEnRetard(p, reste(p), auj)).sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+    const semaine = mine.filter(p => !C.achatEnRetard(p, reste(p), auj) && p.dueDate && p.dueDate >= auj && C.daysBetween(auj, p.dueDate) <= 7 && reste(p) > 0.0005);
     const urgent = [...ret, ...semaine];
     const jours = ret.length ? C.daysBetween(ret[0].dueDate, auj) : 0;
     const exo = C.exonerationRS(s, auj), attSup = C.derniereAttestationRS(s);
@@ -14666,7 +14667,12 @@
     const pill = !sum.count ? '<span class="badge">Nouveau</span>' : ret.length ? '<span class="badge b-late">En retard</span>'
       : sum.remaining < -0.0005 ? '<span class="badge partielle">En ta faveur</span>' : sum.remaining > 0.0005 ? '<span class="badge b-due">Tu lui dois</span>' : '<span class="badge b-paid">À jour</span>';
     const depuis = sum.first ? `fournisseur depuis ${cfMois(sum.first)}` : 'aucun achat pour l\'instant';
-    const doit = sum.remaining > 0.0005 ? ` · <b class="${sum.late > 0.0005 ? 'rouge' : ''}">tu lui dois ${mo(sum.remaining)}</b>${sum.late > 0.0005 ? `<span class="rouge">${sum.late > sum.remaining - 0.0005 ? ', tout en retard' : ` dont ${mo(sum.late)} en retard`}</span>` : ''}`
+    // (1.310.0) Un fournisseur à l'étranger facture dans sa devise : ce qu'on lui doit se dit d'abord en euros (la règle de la
+    // fiche client, 1.309.0), puis converti au taux de chaque pièce.
+    const etranger = !!(s.currency && C.normCurrency(s.currency) !== C.normCurrency(cur));
+    const resteNatif = etranger && mine.length && mine.every(p => C.normCurrency(p.currency || cur) === C.normCurrency(s.currency)) ? C.round3(mine.reduce((t, p) => t + reste(p), 0)) : 0;
+    const enSaDevise = resteNatif > 0.0005 ? `${C.money(resteNatif, s.currency)}, soit ` : '';
+    const doit = sum.remaining > 0.0005 ? ` · <b class="${sum.late > 0.0005 ? 'rouge' : ''}">tu lui dois ${enSaDevise}${mo(sum.remaining)}</b>${sum.late > 0.0005 ? `<span class="rouge">${sum.late > sum.remaining - 0.0005 ? ', tout en retard' : ` dont ${mo(sum.late)} en retard`}</span>` : ''}`
       : sum.remaining < -0.0005 ? ` · <b class="trop">${mo(-sum.remaining)} en ta faveur</b>` : sum.count ? ' · tu ne lui dois rien' : '';
     // Le bouton principal, calculé : régler ce qui presse (une pièce, ou toutes d'un virement), sinon le prochain achat.
     const totalUrgent = C.round3(urgent.reduce((t, p) => t + C.toBase(p, reste(p), co), 0));
@@ -14684,8 +14690,10 @@
     if (avoirLibre) bandeaux.push(`<div class="banner" id="ff-avoir"><span><b>${C.money(-reste(avoirLibre), avoirLibre.currency || cur)} sont à toi : ${avoirLibre.kind === 'avoir' ? `l'avoir ${h(avoirLibre.number || '')} n'est déduit de rien` : `${h(avoirLibre.number || '')} est payée en trop`}</b> — déduis-le de sa prochaine facture ou demande-lui le remboursement ; jusque-là, son compte le compte en ta faveur.</span><button type="button" class="btn" data-achat="${h(avoirLibre.id)}">Ouvrir ${h(avoirLibre.number || 'la pièce')}</button></div>`);
     if (exo && exo.au && C.daysBetween(auj, exo.au) <= 60) bandeaux.push(`<div class="banner" id="ff-exo"><span><b>Son attestation d'exonération de retenue finit le ${C.fmtDate(exo.au)}, dans ${pl(C.daysBetween(auj, exo.au), 'jour')}</b> — ${exo.numero ? `n° ${h(exo.numero)}. ` : ''}Après cette date, la retenue${Number(s.withholdingRate) ? ` de ${pct(s.withholdingRate)} %` : ''} revient sur ses factures. Demande-lui la nouvelle attestation et note-la sur sa fiche.</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Noter la nouvelle</button>' : ''}</div>`);
     if (aRemettre.length) bandeaux.push(`<div class="banner info" id="ff-attest"><span><b>${pl(aRemettre.length, 'attestation')} de retenue à lui remettre</b> — ${aRemettre.map(x => `${h(x.number || '')} · ${mo(x.amount)} retenus`).join(' ; ')}. Il en a besoin pour déduire cette retenue de ses impôts.</span><button type="button" class="btn" data-onglet="retenues">Les préparer</button></div>`);
-    if (!s.matricule) bandeaux.push(`<div class="banner" id="ff-mf"><span><b>Son matricule fiscal manque</b> — il s'écrit sur l'attestation de retenue et sur ta déclaration des retenues : demande-le avant de le payer.</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Compléter la fiche</button>' : ''}</div>`);
-    if (!s.rib && sum.remaining > 0.0005) bandeaux.push(`<div class="banner" id="ff-rib"><span><b>Son RIB manque : tu lui dois ${mo(sum.remaining)}</b> — pour le payer par virement sans le chercher, note son RIB sur sa fiche ; il se contrôle à la saisie (20 chiffres, clé juste).</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Ajouter son RIB</button>' : ''}</div>`);
+    // (1.310.0) Un fournisseur à l'étranger n'a pas de matricule fiscal tunisien, et se paie sur un IBAN, pas sur un RIB à 20
+    // chiffres : les deux bandeaux lui demandaient ce qu'il n'a pas (sa retenue éventuelle, À VÉRIFIER avec le comptable).
+    if (!s.matricule && !etranger) bandeaux.push(`<div class="banner" id="ff-mf"><span><b>Son matricule fiscal manque</b> — il s'écrit sur l'attestation de retenue et sur ta déclaration des retenues : demande-le avant de le payer.</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Compléter la fiche</button>' : ''}</div>`);
+    if (!s.rib && !etranger && sum.remaining > 0.0005) bandeaux.push(`<div class="banner" id="ff-rib"><span><b>Son RIB manque : tu lui dois ${mo(sum.remaining)}</b> — pour le payer par virement sans le chercher, note son RIB sur sa fiche ; il se contrôle à la saisie (20 chiffres, clé juste).</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Ajouter son RIB</button>' : ''}</div>`);
 
     const nbOnglet = { pieces: mine.length, reglements: reglements.length, commandes: commandes.length, retenues: aRemettre.length };
     const vide = (t, p, gestes) => `<div class="cf-vide"><b>${t}</b><span>${p}</span>${gestes || ''}</div>`;
@@ -14739,13 +14747,13 @@
         <dt>Téléphone</dt><dd>${s.phone ? telLisible(s.phone) : '<span class="mu">—</span>'}</dd>
         <dt>E-mail</dt><dd>${s.email ? h(s.email) : '<span class="manque">à renseigner</span><small>pour lui envoyer tes commandes et ses attestations</small>'}</dd>
         <dt>Adresse</dt><dd>${s.address ? `${h(s.address).replace(/\n/g, '<br>')}${s.city ? `<small>${h(s.city)}</small>` : ''}` : s.city ? h(s.city) : '<span class="mu">—</span>'}</dd>
-        <dt>Matricule</dt><dd>${s.matricule ? `${mfCoupable(s.matricule)}${efact ? `<small>${pl(efact, 'facture reçue', 'factures reçues')} par El Fatoora</small>` : ''}` : '<span class="manque">à renseigner</span><small>il s\'écrit sur l\'attestation de retenue</small>'}</dd></dl></div>
+        <dt>Matricule</dt><dd>${s.matricule ? `${mfCoupable(s.matricule)}${efact ? `<small>${pl(efact, 'facture reçue', 'factures reçues')} par El Fatoora</small>` : ''}` : etranger ? '<span class="mu">—</span><small>à l\'étranger : pas de matricule fiscal tunisien</small>' : '<span class="manque">à renseigner</span><small>il s\'écrit sur l\'attestation de retenue</small>'}</dd></dl></div>
       <div class="cf-carte cf-bloc"><div class="cf-bloc-t"><b>Ses conditions</b><span class="mu">reprises sur chaque achat</span></div>
         <dl class="cf-dl"><dt>Délai</dt><dd id="ff-delai">${delaiDit}</dd>
         <dt>Retenue ${info('sup.withholding')}</dt><dd id="ff-rs">${rsDit}</dd></dl></div>
       <div class="cf-carte cf-bloc"><div class="cf-bloc-t"><b>Pour le payer</b>${s.rib ? `<button type="button" class="btn btn-sm" id="ff-copier-rib">${lfIc('copier', 13)} Copier le RIB</button>` : ''}</div>
         <dl class="cf-dl"><dt>Banque</dt><dd>${s.bank ? h(s.bank) : '<span class="mu">—</span>'}</dd>
-        <dt class="ff-rib-t">RIB</dt><dd class="ff-rib" id="ff-rib-v">${s.rib ? h(s.rib) : '<span class="manque">à renseigner</span><small>20 chiffres, contrôlés à la saisie</small>'}</dd></dl></div>
+        <dt class="ff-rib-t">RIB</dt><dd class="ff-rib" id="ff-rib-v">${s.rib ? h(s.rib) : etranger ? '<span class="mu">—</span><small>à l\'étranger, il se paie sur son IBAN : note-le dans ses notes internes</small>' : '<span class="manque">à renseigner</span><small>20 chiffres, contrôlés à la saisie</small>'}</dd></dl></div>
       <div class="cf-carte cf-bloc"><div class="cf-bloc-t"><b>Notes internes</b><span class="mu">jamais sur un document</span></div>
         <textarea id="sup-notes" rows="4" placeholder="Ce qu'il faut savoir : délais réels, interlocuteur, conditions négociées…"${peutEcrire ? '' : ' readonly'}>${h(s.notes || '')}</textarea>
         <span class="cf-pied">S'enregistrent toutes seules, au fil de la frappe. <span class="ok-text" id="sup-notes-saved" hidden>✓ enregistré</span></span></div>`;
@@ -14753,7 +14761,11 @@
     $('#view').innerHTML = `
       <div class="page-head lf-tete cf-tete ff-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<a href="#/fournisseurs">Fournisseurs</a>${ICONE_CHEVRON}<span>${h(s.name)}</span></div>
           <div class="cf-nom">${pastilleClient(s.id, s.name)}<h1>${h(s.name)} ${pill}</h1></div>
-          <p class="sous">${[s.city ? h(s.city) : '', depuis].filter(Boolean).join(' · ')}${doit}</p></div>
+          <p class="sous">${[s.city ? h(s.city) : '', depuis].filter(Boolean).join(' · ')}${doit}</p>${
+  /* (1.310.0) Ce qu'on lui doit est ce qu'on lui versera ; son compte chez ton comptable porte aussi la retenue qu'on gardera
+     pour l'État en le payant (le 401 est crédité du brut, 10.14.0). Sans cette ligne, la fiche disait 6 785,108 DT et la
+     balance du cabinet 6 888,435 DT, sans que rien dise d'où venait l'écart (la règle de la fiche client, 1.309.0). */
+  sum.rsAOperer > 0.0005 && sum.remaining > 0.0005 ? `<p class="sous" id="ff-rs-compte">En le payant, tu garderas aussi ${mo(sum.rsAOperer)} de retenue à la source pour l'État : son compte chez ton comptable porte ${mo(C.round3(sum.remaining + sum.rsAOperer))}.</p>` : ''}</div>
         <div class="actions">${secondaire}<button type="button" class="row-menu-btn btn ico" data-rowmenu="FF:${h(s.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions" title="Les autres gestes">${lfIc('plus', 16)}</button>${principal}</div></div>
       <div class="cf-bandeaux">${bandeaux.join('')}</div>
       <div class="cf-fiche"><div class="cf-gauche"><div class="cf-carte">
@@ -15635,6 +15647,8 @@
     const cur = company().currency;
     const s = buyState;
     const { netOf, restOf } = purchaseColumns({ q: () => s.q });
+    // (1.310.0) « En retard » : la puce, son filtre et le total des retards lisent la même règle (`C.achatEnRetard`).
+    const enRetardA = p => C.achatEnRetard(p, C.purchaseBalance(p, company(), data).remaining, C.today());
     const all = data.purchases;
     const years = Array.from(new Set(all.map(p => (p.date || '').slice(0, 4)).filter(Boolean))).sort().reverse();
     const cats = Array.from(new Set(all.map(p => p.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr'));
@@ -15696,7 +15710,7 @@
         // déduction de rien ? Elle vit dans le même sélecteur parce que c'est là qu'on la cherche,
         // et elle se réinitialise comme les autres — un filtre qu'on ne voit pas est un piège.
         .filter(p => !s.st || (s.st === A_RATTACHER ? C.aRattacherAchat(p, company(), data)
-          : s.st === SANS_JUSTIF ? C.sansJustificatif(p) : buyStatus(p) === s.st))
+          : s.st === SANS_JUSTIF ? C.sansJustificatif(p) : s.st === 'retard' ? enRetardA(p) : buyStatus(p) === s.st))
         .filter(p => !s.q || C.correspondRecherche([C.referenceAchat(p, data), supplierName(p.supplierId), p.subject, p.category, contenuAchat(p), C.nomsJustificatifs(p), C.money(netOf(p), '')].join(' '), s.q)), cols, s.sort);
       const filtre = !!(s.q || s.st || s.kind || s.cat || s.year || s.du);
       const { rows: page, pg } = paginate(rows, s);
@@ -15705,7 +15719,7 @@
       const totTVA = rows.reduce((a, p) => a + C.purchaseTotals(p, company()).base.totalVAT, 0);
       const totNet = rows.reduce((a, p) => a + netOf(p), 0);
       const totRest = rows.reduce((a, p) => a + Math.max(0, restOf(p)), 0);
-      const totRet = rows.filter(p => buyStatus(p) === 'retard').reduce((a, p) => a + Math.max(0, restOf(p)), 0);
+      const totRet = rows.filter(enRetardA).reduce((a, p) => a + Math.max(0, restOf(p)), 0);
       const nomSt = s.st === A_RATTACHER ? 'À rattacher' : s.st === SANS_JUSTIF ? 'Sans justificatif' : s.st ? optionStatut(s.st) : '';
       const puces = [s.st ? ['st', nomSt] : null, s.kind ? ['kind', (LA_SORTES.find(x => x[0] === s.kind) || [])[1] || s.kind] : null, s.cat ? ['cat', s.cat] : null, s.year ? ['year', `Année ${s.year}`] : null, s.du ? ['du', `du ${C.fmtDate(s.du)} au ${C.fmtDate(s.au)}`] : null, s.q ? ['q', `« ${s.q} »`] : null].filter(Boolean);
       const focus = document.activeElement && document.activeElement.id === 'q' ? $('#q').selectionStart : null;
@@ -15717,7 +15731,7 @@
           ${info('list.filters').replace('class="i"', 'class="i i-b"').replace('>i</button>', `>${lfIc('aide', 16, 2)}</button>`)}
           <span class="f-note" id="f-note">${filtre ? `<b>${rows.length}</b> sur ${pl(all.length, 'pièce')}` : `<b>${all.length}</b> ${all.length > 1 ? 'pièces' : 'pièce'}`}</span></div>
         ${puces.length ? `<div class="puces-f">${puces.map(([k, n]) => `<button type="button" class="pf" data-ote="${k}" aria-label="Retirer le filtre ${h(n)}">${h(n)}${lfIc('croix', 12, 2.4)}</button>`).join('')}<button type="button" class="btn-lien" id="reset-f">Tout effacer</button></div>` : ''}
-        <div class="t-puces" id="lf-puces">${laPuce('retard', 'alerte', 'En retard', all.filter(p => buyStatus(p) === 'retard').length)}${bridge.piecesJointes === false ? '' : laPuce(SANS_JUSTIF, '', 'À justifier', all.filter(p => C.sansJustificatif(p)).length)}</div>`;
+        <div class="t-puces" id="lf-puces">${laPuce('retard', 'alerte', 'En retard', all.filter(enRetardA).length)}${bridge.piecesJointes === false ? '' : laPuce(SANS_JUSTIF, '', 'À justifier', all.filter(p => C.sansJustificatif(p)).length)}</div>`;
       if (focus !== null) { const q = $('#q'); q.focus(); q.setSelectionRange(focus, focus); }
       // Rangée par mois quand elle suit la date (le tri par défaut) ; un autre tri défait les mois.
       const parMois = !s.sort || s.sort.key === 'date';
@@ -16440,11 +16454,13 @@
       const enRetard = autres.filter(x => x.dueDate && x.dueDate < C.today()).length;
       // (1.155.13, maquette « En retard ») La pièce elle-même en retard : ce qu'on lui doit en tout, et ce qui est échu.
       const ceRetard = !isNew && solde && solde.remaining > 0.0005 && p.kind !== 'avoir' && p.dueDate && p.dueDate < C.today();
-      // La somme de plusieurs pièces se dit dans la devise de la société : chaque reste se convertit au taux de sa pièce.
-      const enBase = (x, v) => C.normCurrency(x.currency || base) === C.normCurrency(base) ? v : v * (Number(x.exchangeRate) || 0);
-      const doitTout = ceRetard ? C.round3(enBase(p, solde.remaining) + autres.reduce((a, x) => a + enBase(x, C.purchaseBalance(x, company(), data).remaining), 0)) : 0;
+      // (1.310.0) Ce qu'on lui doit en tout est celui de sa fiche (`C.supplierSummary`, le net de son compte 401) : un avoir
+      // qu'il nous doit s'en déduit. La pièce disait 7 117,999 DT où la fiche disait 6 785,108 DT (l'avoir de casse oublié).
+      const sumSup = ceRetard ? C.supplierSummary(data, company(), sup.id, C.today()) : null;
+      const joursRetard = ceRetard ? Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000) : 0;
+      const autresEnRetard = sumSup && sumSup.late > C.toBase(p, solde.remaining, company()) + 0.0005;
       const puces = [
-        ceRetard ? `<span class="ed-chip rouge">tu lui dois ${C.money(doitTout, base)} · dont ${C.money(solde.remaining, cur)} en retard de ${pl(Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000), 'jour')}</span>` : autres.length ? `<span class="ed-chip${enRetard ? ' rouge' : ''}">${pl(autres.length, 'autre facture', 'autres factures')} à payer · ${enRetard ? `${enRetard} en retard` : 'rien en retard'}</span>` : solde && solde.remaining > 0.0005 ? '<span class="ed-chip">rien d\'autre à lui payer</span>' : '<span class="ed-chip ok">ne lui dois rien</span>',
+        ceRetard ? `<span class="ed-chip rouge" id="ac-sup-doit">tu lui dois ${C.money(sumSup.remaining, base)} · dont ${autresEnRetard ? `${C.money(sumSup.late, base)} en retard, celle-ci de ${pl(joursRetard, 'jour')}` : `${C.money(solde.remaining, cur)} en retard de ${pl(joursRetard, 'jour')}`}</span>` : autres.length ? `<span class="ed-chip${enRetard ? ' rouge' : ''}">${pl(autres.length, 'autre facture', 'autres factures')} à payer · ${enRetard ? `${enRetard} en retard` : 'rien en retard'}</span>` : solde && solde.remaining > 0.0005 ? '<span class="ed-chip">rien d\'autre à lui payer</span>' : '<span class="ed-chip ok">ne lui dois rien</span>',
         sup.paymentTermsDays !== '' && sup.paymentTermsDays != null ? `<span class="ed-chip">${Number(sup.paymentTermsDays) > 0 ? `paie à ${pl(Number(sup.paymentTermsDays), 'jour')}` : 'paie à réception'}</span>` : '',
         exo ? `<span class="ed-chip ok" id="ac-sup-exo">exonéré de retenue jusqu'au ${C.fmtDate(exo.au)}${exo.numero ? ` (attestation n° ${h(exo.numero)})` : ''}</span>` : '',
         efacture ? '<span class="ed-chip">factures électroniques : oui (El Fatoora)</span>' : '',
@@ -16526,8 +16542,11 @@
         ? `<button class="btn${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand" id="save">${libelleSauver()}</button>`
         : '<button class="btn" id="save" hidden>Enregistrer les modifications</button>';
       if (isNew) return `<div class="panel ed-geste" id="ed-geste">${net}${sauver}<p class="ed-phrase" id="ac-phrase">${phraseNeuve()}</p>${avertValide}</div>`;
+      // (1.310.0) La retenue qui RESTE à garder : un premier règlement en a déjà gardé sa part (45,685 DT sur 116,650 DT),
+      // la phrase disait la retenue entière ; la fenêtre du règlement, elle, comptait juste (`C.retenueAOperer`).
+      const aRetenir = solde && solde.remaining > 0.0005 && !isNew ? C.retenueAOperer(p, company(), data) : 0;
       if (solde && solde.remaining > 0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="pay">${lfIc('carte', 17)}Enregistrer un règlement</button>
-        <p class="ed-phrase">Tu paies ${C.money(solde.remaining, cur)}${t.withholding ? ` et tu retiens ${C.money(t.withholding, cur)}` : ''}${p.dueDate ? ` · échéance le ${lfJm(p.dueDate)}` : ''}. Un règlement partiel se note aussi.</p>${sauver}${avertValide}</div>`;
+        <p class="ed-phrase" id="ac-phrase-regler">Tu paies ${C.money(solde.remaining, cur)}${aRetenir > 0.0005 ? ` et tu retiens ${C.money(aRetenir, cur)}` : ''}${p.dueDate ? ` · échéance le ${lfJm(p.dueDate)}` : ''}. Un règlement partiel se note aussi.</p>${sauver}${avertValide}</div>`;
       if (solde && solde.remaining < -0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="recu">${lfIc('carte', 17)}Enregistrer le remboursement</button>
         <p class="ed-phrase">Le fournisseur te doit ${C.money(-solde.remaining, cur)}. Le remboursement solde l'avoir : il n'est plus « à récupérer ».</p>${sauver}${avertValide}</div>`;
       // (1.155.13, maquette « Sans justificatif ») Une pièce réglée sans justificatif : le geste qui reste est de le joindre.
@@ -16560,7 +16579,13 @@
       const sup = supplierById(p.supplierId), nomSup = sup ? sup.name : 'ce fournisseur';
       if (p.kind === 'avoir' && solde.remaining < -0.0005) {
         const L = p.achatLie ? purchaseById(p.achatLie) : null;
-        return band('info', 'carte', `${nomSup} te doit ${C.money(-solde.remaining, cur)}${L ? ` : ${L.number || 'la facture'} était déjà réglée` : ''}`, 'L\'avoir ne trouve plus rien à déduire. Quand le fournisseur te rembourse, enregistre-le ici ; tant qu\'il ne l\'a pas fait, l\'avoir reste « à récupérer » dans tes achats.', '', 'ac-band-rembourse');
+        // Les factures d'où il peut se déduire : celles de ce fournisseur, dans la devise de l'avoir, qui restent à payer.
+        const aDeduire = L ? [] : (data.purchases || []).filter(x => x.supplierId === p.supplierId && x.id !== p.id && x.kind === 'facture'
+          && C.normCurrency(x.currency || company().currency) === C.normCurrency(p.currency || company().currency) && C.purchaseBalance(x, company(), data).remaining > 0.0005);
+        return band('info', 'carte', `${nomSup} te doit ${C.money(-solde.remaining, cur)}${L ? ` : ${L.number || 'la facture'} était déjà réglée` : ''}`, L ? 'L\'avoir ne trouve plus rien à déduire. Quand le fournisseur te rembourse, enregistre-le ici ; tant qu\'il ne l\'a pas fait, l\'avoir reste « à récupérer » dans tes achats.'
+          // (1.310.0) Libre, alors que ce fournisseur a des factures à payer : « ne trouve plus rien à déduire » était faux.
+          : aDeduire.length ? `Il n'est déduit d'aucune facture : ${aDeduire.length > 1 ? `${pl(aDeduire.length, 'facture')} de ${h(nomSup)} sont à payer` : `${h(aDeduire[0].number || C.referenceAchat(aDeduire[0], data))} est à payer`}. Choisis-${aDeduire.length > 1 ? 'en une' : 'la'} dans « Facture concernée » pour l'en déduire, ou enregistre le remboursement quand il te rend l'argent.`
+            : 'Aucune de ses factures n\'est à payer : il n\'y a rien d\'où le déduire. Quand le fournisseur te rembourse, enregistre-le ici ; tant qu\'il ne l\'a pas fait, l\'avoir reste « à récupérer » dans tes achats.', '', 'ac-band-rembourse');
       }
       if (retardRange()) {
         const jours = Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000);

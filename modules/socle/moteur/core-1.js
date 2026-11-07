@@ -2805,6 +2805,13 @@
     if (purchase.dueDate && purchase.dueDate < (todayIso || today())) return 'retard';
     return 'à payer';
   }
+  // (1.310.0) EN RETARD n'est pas un statut de plus : c'est un fait sur la pièce, échue et pas soldée. Une facture payée en
+  // partie reste « partiel » (son statut), et elle est en retard quand même : la fiche du fournisseur, la liste des
+  // fournisseurs et le filtre « En retard » la taisaient, pendant que « À payer » la comptait (`payablesList`). Une règle,
+  // lue partout ; `reste` est celui de `purchaseBalance` (dans la devise de la pièce).
+  function achatEnRetard(purchase, reste, todayIso) {
+    return purchase.kind !== 'avoir' && reste > 0.0005 && !!purchase.dueDate && purchase.dueDate < (todayIso || today());
+  }
 
   // Ce qu'on doit, par fournisseur et par échéance. Le pendant des relances, côté sortant.
   function payablesList(data, company, todayIso) {
@@ -2923,7 +2930,7 @@
       const reste = toBase(p, b.remaining, company);
       if (reste > 0.0005) {
         due = round3(due + reste);
-        if (purchaseStatus(p, company, todayIso, data) === 'retard') late = round3(late + reste);
+        if (achatEnRetard(p, b.remaining, todayIso)) late = round3(late + reste);
       }
       // Ce qu'on DÉTIENT chez ce fournisseur : un avoir non imputé (10.2.0), et un trop-payé sur une
       // facture (10.14.0). Les deux sont des crédits de même nature — la fiche comptait le premier

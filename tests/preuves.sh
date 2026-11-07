@@ -25510,7 +25510,7 @@ prouver 'un téléphone tapé avec ses espaces trouve aussi un matricule' "$APP1
   'if (/^[\d\s.()+-]+$/.test(t) && /[\s.()-]/.test(t) && chiffres.length >= 4) return' 'if (false) return' \
   "$T309"
 prouver 'le serveur ne donne pas l'\''échéance de la vente à son écriture' serveur/compta/routes.ts \
-  "echeance: e.origine_type === 'vente' ? echeances.get(e.origine) ?? null : null," 'echeance: null,' \
+  "echeance: e.origine_type === 'vente' ? echeances.get(e.origine) ?? null :" "echeance: e.origine_type === 'vente' ? null :" \
   "$T309"
 prouver 'le pont du Cabinet perd l'\''échéance de l'\''écriture' web/public/plateforme/pont-cabinet.js \
   "echeance: typeof e.echeance === 'string' ? e.echeance : ''," "echeance: ''," \
@@ -25521,6 +25521,62 @@ prouver 'le livre aplati perd l'\''échéance : la balance âgée range selon la
 prouver 'la base ne rend pas l'\''échéance des ventes' base/migrations/0195_echeance_des_ventes.sql \
   '  select p.id, p.echeance' '  select p.id, null::date' \
   "$T309"
+# (1.310.0) Les Achats joués (la quincaillerie de Sousse) : le carrelage de Céramique, échu et payé en partie, dit en retard
+# partout ; la retenue qu'on gardera dite à côté de ce qu'on doit ; la retenue qui reste à garder ; l'avoir de casse qui dit
+# d'où il peut se déduire ; Milan en euros, sans matricule ni RIB tunisiens demandés ; au Cabinet, la balance âgée des
+# fournisseurs selon l'échéance de chaque achat.
+T310="la quincaillerie de Sousse tient ses achats : le carrelage en retard payé avec sa retenue, l'avoir de casse, la facture saisie deux fois, Milan en euros, la STEG"
+prouver 'une pièce payée en partie et échue ne se dit pas en retard' modules/socle/moteur/core-1.js \
+  "return purchase.kind !== 'avoir' && reste > 0.0005 && " "return purchase.kind !== 'avoir' && !(purchase.payments || []).length && reste > 0.0005 && " \
+  "$T310"
+prouver 'la fiche du fournisseur tait la pièce en retard payée en partie' "$APP1" \
+  'const ret = mine.filter(p => C.achatEnRetard(p, reste(p), auj))' "const ret = mine.filter(p => buyStatus(p) === 'retard')" \
+  "$T310"
+prouver 'la liste des fournisseurs ne trouve pas en retard celui dont la pièce est payée en partie' "$APP1" \
+  'if (C.achatEnRetard(p, C.purchaseBalance(p, company(), data).remaining, auj)) { const r = retards' "if (buyStatus(p) === 'retard') { const r = retards" \
+  "$T310"
+prouver 'le filtre « En retard » des achats ne montre pas la pièce payée en partie' "$APP1" \
+  "s.st === 'retard' ? enRetardA(p) : buyStatus(p) === s.st" 'buyStatus(p) === s.st' \
+  "$T310"
+prouver 'la puce « En retard » des achats ne compte pas la pièce payée en partie' "$APP1" \
+  "laPuce('retard', 'alerte', 'En retard', all.filter(enRetardA).length)" "laPuce('retard', 'alerte', 'En retard', all.filter(p => buyStatus(p) === 'retard').length)" \
+  "$T310"
+prouver 'le total des retards de la liste des achats oublie la pièce payée en partie' "$APP1" \
+  'const totRet = rows.filter(enRetardA)' "const totRet = rows.filter(p => buyStatus(p) === 'retard')" \
+  "$T310"
+prouver 'la pièce en retard dit ce qu'\''on doit au fournisseur sans son avoir' "$APP1" \
+  'tu lui dois ${C.money(sumSup.remaining, base)}' 'tu lui dois ${C.money(sumSup.due, base)}' \
+  "$T310"
+prouver 'la phrase du règlement dit la retenue entière, déjà gardée en partie' "$APP1" \
+  ' et tu retiens ${C.money(aRetenir, cur)}' ' et tu retiens ${C.money(t.withholding, cur)}' \
+  "$T310"
+prouver 'l'\''avoir libre dit qu'\''il ne trouve rien à déduire alors qu'\''une facture est à payer' "$APP1" \
+  'const aDeduire = L ? [] :' 'const aDeduire = L || true ? [] :' \
+  "$T310"
+prouver 'la fiche du fournisseur tait la retenue qu'\''on gardera : son compte chez le comptable ne se retrouve pas' "$APP1" \
+  'sum.rsAOperer > 0.0005 && sum.remaining > 0.0005 ? `<p class="sous" id="ff-rs-compte">' 'false ? `<p class="sous" id="ff-rs-compte">' \
+  "$T310"
+prouver 'un fournisseur à l'\''étranger ne dit ce qu'\''on lui doit qu'\''en dinars' "$APP1" \
+  'const enSaDevise = resteNatif > 0.0005 ?' 'const enSaDevise = false ?' \
+  "$T310"
+prouver 'un fournisseur à l'\''étranger se voit demander un matricule fiscal tunisien' "$APP1" \
+  'if (!s.matricule && !etranger) bandeaux.push' 'if (!s.matricule) bandeaux.push' \
+  "$T310"
+prouver 'un fournisseur à l'\''étranger se voit demander un RIB à 20 chiffres' "$APP1" \
+  'if (!s.rib && !etranger && sum.remaining > 0.0005)' 'if (!s.rib && sum.remaining > 0.0005)' \
+  "$T310"
+prouver 'la carte d'\''un fournisseur à l'\''étranger dit son RIB à renseigner' "$APP1" \
+  '${s.rib ? h(s.rib) : etranger ? ' '${s.rib ? h(s.rib) : false ? ' \
+  "$T310"
+prouver 'la carte d'\''un fournisseur à l'\''étranger dit son matricule à renseigner' "$APP1" \
+  "par El Fatoora</small>\` : ''}\` : etranger ? " "par El Fatoora</small>\` : ''}\` : false ? " \
+  "$T310"
+prouver 'le serveur ne donne pas l'\''échéance de l'\''achat à son écriture' serveur/compta/routes.ts \
+  "e.origine_type === 'achat' ? echeancesAchats.get(e.origine) ?? null : null," 'null,' \
+  "$T310"
+prouver 'la base ne rend pas l'\''échéance des achats' base/migrations/0196_echeance_des_achats.sql \
+  '  select p.id, p.echeance' '  select p.id, null::date' \
+  "$T310"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
