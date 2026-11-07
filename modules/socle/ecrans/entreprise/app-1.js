@@ -2450,7 +2450,8 @@
       && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
-      if (/^#\/(compta|paie)/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
+      // (1.321.0) Les Relances aussi : la carte de l'état des impayés pour le comptable n'attend pas un changement de page.
+      if (/^#\/(compta|paie|relances)/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
       const lien = $('#foot-comptable');
       if (lien) lien.hidden = !avecMessagerie(a);
     }
@@ -6145,7 +6146,7 @@
         const echueG = C.overdueInvoices(data, company()).find(x => x.doc.id === doc.id);
         const quandG = echueG ? `en retard de ${pl(echueG.daysLate, 'jour')}` : doc.dueDate ? `échéance le ${lfJm(doc.dueDate)}` : '';
         const ouEnEst = `${recuG}${payeG > 0.0005 || avoirsG > 0.0005 ? `, reste ${argentLu(bal.remaining, cur)}` : ''}${quandG ? ` · ${quandG}` : ''}.`;
-        if (echueG && !echueG.snoozed && !echueG.attente) {
+        if (echueG && !echueG.snoozed && !echueG.attente && !echueG.litige) {
           return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="ed-relancer">${lfIc('cloche', 17)}Relancer ${h(nomClientPiece(doc) || 'le client')}…</button>
           <p class="ed-phrase">${ouEnEst} Le ${C.REMINDER_LABELS[echueG.level].toLowerCase()} est prêt à partir ; un paiement arrivé se note à côté.</p>
           <div class="ed-deux"><button class="btn" id="pay">${lfIc('carte', 15)}Enregistrer un paiement</button></div>
@@ -13239,6 +13240,47 @@
       });
   }
 
+  // (1.321.0) Le client CONTESTE une facture : ce qu'il dit, en une phrase (obligatoire : c'est ce que le comptable lira).
+  // Elle ne se relance plus et se range à part ; « Le litige est réglé » la rend aux relances.
+  function litigeForm(item, done) {
+    const d = item.doc;
+    const avant = docById(d.id).litige || null;
+    modal(`<h2>Le client conteste — ${h(d.number)}</h2>
+      <p class="small muted">La facture reste due et en retard, mais elle ne se relance plus : on ne réclame pas ce qu'on discute. Elle se range dans « Contestées par le client », et ton comptable le saura à la clôture.</p>
+      <form id="lt" class="grid-1"><label class="field obligatoire">${lbl('Ce que dit le client', 'rel.litigeNote')}
+        <textarea name="note" rows="3" maxlength="500" placeholder="Ex. : il dit n'avoir reçu que 8 cabines sur 10">${h((avant && avant.note) || '')}</textarea></label></form>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Noter le litige</button></div>`,
+      (root, close) => {
+        $('#ok', root).onclick = () => {
+          const note = String(($('[name=note]', root) || {}).value || '').trim();
+          if (!note) return refus($('[name=note]', root), 'Écris ce que dit le client : c\'est ce que ton comptable lira.');
+          docById(d.id).litige = { depuis: (avant && avant.depuis) || C.today(), note };
+          save(true); close();
+          toastUndo(`${d.number} : facture contestée. Elle ne se relance plus.`, () => { const x = docById(d.id); if (avant) x.litige = avant; else delete x.litige; save(true); if (done) done(); });
+          if (done) done();
+        };
+      });
+  }
+  // (1.321.0) L'état des impayés pour le comptable : un seul état, celui d'aujourd'hui (le renvoyer le remplace).
+  function etatImpayesEnvoye() { return (data.etatsImpayes || [])[0] || null; }
+  const signatureImpayes = lignes => JSON.stringify((lignes || []).map(l => [l.numero, Number(l.resteTTC) || 0, l.litige || '', Number(l.relances) || 0]));
+  function carteImpayesPourLeComptable() {
+    const e = C.etatDesImpayes(data, company()), deja = etatImpayesEnvoye(), cur = company().currency;
+    const pareil = !!deja && signatureImpayes(deja.lignes) === signatureImpayes(e.lignes);
+    const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="ei-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} : c'est l'état d'aujourd'hui.</p>`
+      : `<p class="small warn-text" id="ei-deja">Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} : depuis, un paiement, une relance ou un litige l'a changé. Renvoie-le pour que ton comptable ait le bon.</p>`;
+    return `<div class="cf-carte mb" id="ei-comptable"><h2>L'état des impayés pour ton comptable ${info('rel.etatComptable')}</h2>
+      <p class="small" id="ei-resume">${pl(e.lignes.length, 'facture')} en retard, <b class="nw">${C.money(e.total, cur)}</b>${e.contestees ? `, dont ${pl(e.contestees, 'contestée')} par le client` : ''}. À la clôture, ton comptable juge s'il faut une provision pour ce qui risque de ne pas être payé : envoie-lui où tu en es (relances, litiges).</p>
+      ${envoi}
+      <div class="inline"><button class="btn btn-sm" id="ei-envoyer" ${pareil ? 'disabled title="Ton comptable a déjà cet état."' : ''}>${deja && !pareil ? 'Renvoyer' : 'Envoyer'} l'état des impayés</button></div></div>`;
+  }
+  function envoyerEtatDesImpayes() {
+    const e = C.etatDesImpayes(data, company());
+    data.etatsImpayes = [{ id: 'ei', date: C.today(), envoyeLe: new Date().toISOString(), total: e.total, contestees: e.contestees, lignes: e.lignes }];
+    save(true);
+    return e;
+  }
+
   const relState = { sort: null, page: 1, q: '', vue: 'facture' };   // tri, page, recherche et vue (par facture, par client)
   // (1.293.0) La dernière relance, en mots : la date, le canal, le ton (« niveau 2 » ne disait rien), combien en tout.
   const CANAL_RELANCE = { tel: 'téléphone', whatsapp: 'WhatsApp' };
@@ -13356,8 +13398,10 @@
       const matchDoc = d => !q || C.correspondRecherche(`${d.number || ''} ${nomClientPiece(d)} ${d.subject || ''}`, q);
       const match = x => matchDoc(x.doc);
       // (1.293.0) Trois rangs : à relancer aujourd'hui, relancées cette semaine (on attend la réponse), reportées.
-      const od = all.filter(x => C.aRelancer(x) && match(x)), later = all.filter(x => x.snoozed && match(x));
-      const attente = all.filter(x => x.attente && match(x));
+      // (1.321.0) Une facture contestée par le client ne se relance pas : elle quitte les relances, les reports et l'attente.
+      const od = all.filter(x => C.aRelancer(x) && match(x)), later = all.filter(x => x.snoozed && !x.litige && match(x));
+      const attente = all.filter(x => x.attente && !x.litige && match(x));
+      const litiges = all.filter(x => x.litige && match(x));
       const soon = data.documents.filter(d => d.type === 'facture' && ['envoyée', 'partielle'].includes(effStatus(d)) && d.dueDate >= C.today() && C.daysBetween(C.today(), d.dueDate) <= 7 && matchDoc(d));
       const quotes = data.documents.filter(d => d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)) && d.date && C.daysBetween(d.date, C.today()) > 10 && matchDoc(d))
         .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -13416,6 +13460,11 @@
       // « Plus de 45 jours » dit un retard, pas un geste à faire : une facture relancée qui attend sa réponse y reste.
       const vieux = all.filter(x => !x.snoozed && x.level === 3);
       const vieuxAttente = vieux.filter(x => x.attente).length;
+      // (1.321.0) Une facture contestée reste un retard ancien, mais ne se relance pas : la tuile le dit au lieu d'un ton.
+      const vieuxLitige = vieux.filter(x => x.litige).length;
+      const vieuxSous = !vieux.length ? 'aucun retard ancien' : vieuxLitige === vieux.length ? (vieux.length > 1 ? 'contestées par le client' : 'contestée par le client')
+        : vieuxAttente === vieux.length ? (vieux.length > 1 ? 'relancées, elles attendent leur réponse' : 'relancée, elle attend sa réponse')
+          : `au ton « ${h(C.REMINDER_LABELS[3])} »${vieuxLitige ? ` · dont ${pl(vieuxLitige, 'contestée')}` : ''}`;
       const soonAll = q ? data.documents.filter(d => d.type === 'facture' && ['envoyée', 'partielle'].includes(effStatus(d)) && d.dueDate >= C.today() && C.daysBetween(C.today(), d.dueDate) <= 7) : soon;
       const quotesAll = q ? data.documents.filter(d => d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)) && d.date && C.daysBetween(d.date, C.today()) > 10) : quotes;
       const bientotDT = C.round3(soonAll.reduce((s2, d) => s2 + C.toBase(d, balance(d).remaining, company()), 0));
@@ -13423,7 +13472,7 @@
       const resumeEl = $('#rel-resume');
       resumeEl.hidden = rienDuTout;
       resumeEl.innerHTML = rienDuTout ? '' : chiffreRl('À relancer', String(enCours.length), (enCours.length ? `${montantU(aRecuperer, cur)} à récupérer` : nAttente ? 'rien à relancer aujourd\'hui' : 'aucune facture en retard') + (nAttente ? ` · ${nAttente > 1 ? `${nAttente} attendent` : '1 attend'} leur réponse` : ''), enCours.length ? 'rouge' : 'vert', nAttente && !enCours.length ? 'r-attente' : '')
-        + chiffreRl('Plus de 45 jours', String(vieux.length), !vieux.length ? 'aucun retard ancien' : vieuxAttente === vieux.length ? (vieux.length > 1 ? 'relancées, elles attendent leur réponse' : 'relancée, elle attend sa réponse') : `au ton « ${h(C.REMINDER_LABELS[3])} »`, vieux.length ? (vieuxAttente === vieux.length ? 'ambre' : 'rouge') : '')
+        + chiffreRl('Plus de 45 jours', String(vieux.length), vieuxSous, vieux.length ? (vieuxAttente + vieuxLitige >= vieux.length ? 'ambre' : 'rouge') : '')
         + chiffreRl('Échéances sous 7 jours', String(soonAll.length), soonAll.length ? `${montantU(bientotDT, cur)} attendus — voir lesquelles` : 'rien n\'arrive à échéance', soonAll.length ? 'ambre' : '', soonAll.length ? 'r-bientot' : '')
         + chiffreRl('Devis sans réponse', String(quotesAll.length), quotesAll.length ? 'envoyés il y a plus de 10 jours — voir lesquels' : 'aucun devis en attente', quotesAll.length ? 'ambre' : '', quotesAll.length ? 'r-devis' : '');
       $$('[data-aller]', resumeEl).forEach(x => {
@@ -13441,10 +13490,16 @@
           ${q ? `<span class="small muted">${od.length} sur ${nAll}</span>${filterReset(true)}` : ''}`, all.length, !!q)}
         ${od.length ? `<div class="banner">${pl(od.length, 'facture')} à relancer${vue === 'client' ? ` chez ${pl(groupes.length, 'client')}` : ''} — ${C.money(total, cur)} à récupérer</div>`
           : `<div class="banner info">${q ? 'Aucune facture ne correspond à cette recherche.' : `Aucune facture à relancer aujourd'hui${attente.length ? ` : ${attente.length > 1 ? `${attente.length} relancées attendent` : '1 relancée attend'} leur réponse` : ''}${later.length ? `${attente.length ? ', ' : ' ('}${pl(later.length, 'reportée')}${attente.length ? '' : ')'}` : ''}.`}</div>`}
+        ${!q && all.length && peutEcrireAuCabinet() ? carteImpayesPourLeComptable() : ''}
         ${od.length && plusieurs ? `<div class="choix-t rl-vue" role="tablist" aria-label="Ranger par"><button type="button" data-rl-vue="facture"${vue === 'facture' ? ' class="on"' : ''}>Par facture</button><button type="button" data-rl-vue="client"${vue === 'client' ? ' class="on"' : ''}>Par client</button></div>` : ''}
         ${od.length && vue === 'client' && plusieurs ? `<table class="list rl-t rl-clients"><colgroup><col class="c-cl"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup><thead><tr><th>Client</th><th class="r">Plus grand retard</th><th class="r">Reste à payer</th><th>Dernière relance</th><th></th></tr></thead><tbody>${groupes.map(ligneClient).join('')}</tbody></table>`
           : od.length ? `<table class="list sortable rl-t"><colgroup><col class="c-fac"><col class="c-cli"><col class="c-ech"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup>${head}<tbody>${odPage.rows.map(row).join('')}</tbody></table>${pagerBar(odPage.pg, { noun: 'facture' })}` : ''}
         ${attente.length ? `<div id="r-attente"><div class="section-head"><h2>Relancées, en attente de réponse ${info('rel.attente')}</h2></div><table class="list rl-t"><colgroup><col class="c-fac"><col class="c-cli"><col class="c-ech"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup>${headFixed}<tbody>${attentePage.rows.map(row).join('')}</tbody></table>${pagerBar(attentePage.pg, { noun: 'facture' })}</div>` : ''}
+        ${litiges.length ? `<div id="r-litiges"><div class="section-head"><h2>Contestées par le client ${info('rel.litige')}</h2></div><div class="scroll-x"><table class="list compact" id="litiges-t"><thead><tr><th>Facture</th><th>Client</th><th class="r">Retard</th><th class="r">Reste</th><th>Ce que dit le client</th><th></th></tr></thead><tbody>
+          ${litiges.map(x => `<tr data-litige="${h(x.doc.id)}"><td class="nw"><strong><a href="#/doc/${h(x.doc.id)}">${h(x.doc.number)}</a></strong></td><td>${h(nomClientPiece(x.doc))}</td><td class="r nw">${pl(x.daysLate, 'jour')}</td>
+            <td class="r nw">${C.money(x.remaining, docCur(x.doc))}</td><td>${h(x.litige.note)}<div class="small muted">depuis le ${C.fmtDate(x.litige.depuis)}</div></td>
+            <td class="actions"><button type="button" class="btn btn-sm" data-litige-regle="${h(x.doc.id)}">Le litige est réglé</button></td></tr>`).join('')}
+        </tbody></table></div></div>` : ''}
         ${later.length ? `<div id="r-reportees"><div class="section-head"><h2>Reportées ${info('rel.snooze')}</h2></div><table class="list rl-t"><colgroup><col class="c-fac"><col class="c-cli"><col class="c-ech"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup>${headFixed}<tbody>${laterPage.rows.map(row).join('')}</tbody></table>${pagerBar(laterPage.pg, { noun: 'facture' })}</div>` : ''}
         ${soon.length ? `<div id="r-bientot"><div class="section-head"><h2>Échéances dans les 7 jours ${info('rel.soon')}</h2></div><table class="list compact"><thead><tr><th>Facture</th><th>Client</th><th>Échéance</th><th class="r">Reste</th></tr></thead><tbody>
           ${soonPage.rows.map(d => `<tr class="clickable" data-id="${d.id}"><td><strong><a href="#/doc/${d.id}">${h(d.number)}</a></strong></td><td>${h(nomClientPiece(d))}</td><td>${C.fmtDate(d.dueDate)}</td><td class="r">${C.money(balance(d).remaining, docCur(d))}</td></tr>`).join('')}
@@ -13469,6 +13524,8 @@
       bindRowMenus(document, id => {
         const x = find(id); if (!x) return [];
         return [
+          { icon: 'message', label: 'Le client conteste…', hint: 'Elle ne se relance plus ; ton comptable le saura à la clôture', run: () => litigeForm(x, draw) },
+          { sep: true },
           { icon: 'ouvrir', label: 'Ouvrir la facture', hint: 'Ses lignes, ses paiements, ses relances', run: () => navigate('#/doc/' + id) },
           { sep: true },
           { icon: 'cloche', cle: 'relancer-mail', label: x.attente ? 'Relancer quand même par e-mail' : 'Relancer par e-mail', hint: x.attente ? `Déjà relancée le ${C.fmtDate(x.lastReminder.date)}` : `Au ton « ${C.REMINDER_LABELS[x.level]} »`, run: () => sendReminder(x) },
@@ -13484,6 +13541,19 @@
         ];
       });
       $$('[data-qrem]').forEach(b => b.onclick = () => sendByEmail(docById(b.dataset.qrem), 'relanceDevis', null, () => {}));
+      $$('[data-litige-regle]').forEach(b => b.onclick = () => {
+        const d = docById(b.dataset.litigeRegle); if (!d || !d.litige) return;
+        const avant = d.litige;
+        delete d.litige; save(); draw();
+        toastUndo(`${d.number} : le litige est réglé, la facture revient dans les relances.`, () => { d.litige = avant; save(); draw(); });
+      });
+      if ($('#ei-envoyer')) $('#ei-envoyer').onclick = () => {
+        if (licenceBlock('Envoyer l\'état des impayés', 'ventes')) return;
+        const e = envoyerEtatDesImpayes();
+        draw();
+        toastUndo(`L'état des impayés est chez ton comptable : ${pl(e.lignes.length, 'facture')} en retard, ${C.money(e.total, cur)}${e.contestees ? `, dont ${pl(e.contestees, 'contestée')}` : ''}. Il en tient compte à la clôture.`,
+          () => ecrireAuComptable(`Bonjour, l'état de mes impayés est envoyé : ${pl(e.lignes.length, 'facture')} en retard, ${C.money(e.total, cur)}${e.contestees ? `, dont ${pl(e.contestees, 'contestée')} par le client` : ''}. Peux-tu en tenir compte à la clôture ?`), 'Le dire à mon comptable');
+      };
       // (plateforme) 1.80.0 — le geste de la page, sur sa ligne.
       $$('[data-relancer]').forEach(b => b.onclick = () => { const x = find(b.dataset.relancer); if (x) sendReminder(x); });
       // (1.293.0) Par facture / par client ; dans la vue par client, un geste pour toutes ses factures, et son relevé.

@@ -18513,7 +18513,7 @@ prouver '« Envoyer au comptable » en geste principal quand le cabinet lit déj
   $'<button class="btn${messagerieVue && messagerieVue.cabinet ? \'\' : \' btn-primary\'}" id="exp-comptable">' $'<button class="btn btn-primary" id="exp-comptable">' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
 prouver 'la Comptabilité qui ne se redessine pas quand elle apprend le cabinet' modules/socle/ecrans/entreprise/app-1.js \
-  $'if (/^#\\/(compta|paie)/.test(location.hash) && !$(\'#modal-root .modal\')' $'if (false && !$(\'#modal-root .modal\')' \
+  $'if (/^#\\/(compta|paie|relances)/.test(location.hash) && !$(\'#modal-root .modal\')' $'if (false && !$(\'#modal-root .modal\')' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
 prouver 'la fenêtre d'\''envoi au comptable qui dit le CSV joint' modules/socle/ecrans/entreprise/app-2.js \
   $'${bridge.dessinerMandat ? \'Le journal des ventes se télécharge' $'${false ? \'Le journal des ventes se télécharge' \
@@ -24618,7 +24618,7 @@ prouver "« Enregistrer » redessiné sous le curseur quand on quitte le prix" m
   "$LPN"
 
 prouver 'relances 1.293 a : une facture relancée hier reste à relancer' modules/socle/moteur/core-2.js \
-  'const aRelancer = x => !x.snoozed && !x.attente;' 'const aRelancer = x => !x.snoozed;' \
+  'const aRelancer = x => !x.snoozed && !x.attente && !x.litige;' 'const aRelancer = x => !x.snoozed && !x.litige;' \
   'relancée il y a moins de 7 jours : elle attend sa réponse, sort de « À relancer », et revient le jour dit'
 prouver 'relances 1.293 b : l'"'"'attente dure un jour de trop' modules/socle/moteur/core-2.js \
   'const attente = !snoozed && !!remontre && remontre > t;' 'const attente = !snoozed && !!remontre && remontre >= t;' \
@@ -25455,7 +25455,7 @@ prouver 'la facture ne dit pas ce que l'\''avoir a retiré' "$APP1" \
   "avoirsG > 0.0005 ? \`\${argentLu(avoirsG, cur)} retirés par avoir\` : ''" "''" \
   "$T308"
 prouver 'une facture échue garde le paiement pour étape suivante' "$APP1" \
-  '        if (echueG && !echueG.snoozed && !echueG.attente) {' '        if (false) {' \
+  '        if (echueG && !echueG.snoozed && !echueG.attente && !echueG.litige) {' '        if (false) {' \
   "$T308"
 prouver 'une facture échue ne dit pas son retard' "$APP1" \
   "const quandG = echueG ? \`en retard de" "const quandG = null ? \`en retard de" \
@@ -26079,7 +26079,7 @@ prouver 'stock 1.319 m : le Cabinet n'\''envoie pas la valeur des lignes reprise
   '          ...(l.valeurDite ? { valeur: signe(l.valeur) } : {}) })),' '          })),' \
   "$SW1"
 prouver 'stock 1.319 n : le point de contact du Cabinet perd les états du client' web/public/plateforme/pont-cabinet.js \
-  '        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [] };' '        duClient: [] };' \
+  '        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [], impayes:' '        duClient: [], impayes:' \
   "$SW1"
 prouver 'stock 1.319 o : renvoyer l'\''état du stock le double au lieu de le remplacer' modules/socle/ecrans/entreprise/app-2.js \
   '      data.etatsStock = (data.etatsStock || []).filter(x => x.date !== e.date)' '      data.etatsStock = (data.etatsStock || [])' \
@@ -26154,6 +26154,90 @@ prouver 'commandes 1.320 m : les factures non parvenues se repassent une seconde
 prouver 'commandes 1.320 n : deux boutons principaux dans l'\''inventaire du Cabinet' modules/socle/ecrans/cabinet/app-2.js \
   '    : `<button class="btn btn-sm" id="iv-fnp">' '    : `<button class="btn btn-sm btn-primary" id="iv-fnp">' \
   "$FNPW"
+# (1.321.0) Les relances jusqu'au bilan : une facture que le client conteste ne se relance plus ; l'état des impayés part
+# chez le comptable (reste TTC et HT au prorata, retard, relances, litige) ; le Cabinet en tire une provision (6817 / 491).
+REL1="une facture contestée reste en retard mais ne se relance plus ; un litige sans note n'en est pas un"
+REL2="l'état des impayés : le reste TTC et HT au prorata, le retard, les relances, le litige ; la contestée d'abord"
+REL3="au Cabinet : la provision au dernier jour de l'exercice, 6817 / 491, au plus le reste hors taxes"
+RELW="une facture contestée sort des relances, part avec l'état des impayés, et se provisionne au Cabinet"
+prouver 'relances 1.321 a : une facture contestée se relance encore' modules/socle/moteur/core-2.js \
+  '  const aRelancer = x => !x.snoozed && !x.attente && !x.litige;' '  const aRelancer = x => !x.snoozed && !x.attente;' \
+  "$REL1"
+prouver 'relances 1.321 b : un litige sans un mot du client compte comme un litige' modules/socle/moteur/core-2.js \
+  '    return l && typeof l === '\''object'\'' && String(l.note || '\'''\'').trim() ? {' '    return l && typeof l === '\''object'\'' ? {' \
+  "$REL1"
+prouver 'relances 1.321 c : le reste hors taxes est le reste toutes taxes' modules/socle/moteur/core-2.js \
+  '        resteHT: t.totalTTC > 0 ? round3(toBase(x.doc, x.remaining * t.netHT / t.totalTTC, co)) : 0,' '        resteHT: round3(toBase(x.doc, x.remaining, co)),' \
+  "$REL2"
+prouver 'relances 1.321 d : la contestée ne vient pas d'\''abord' modules/socle/moteur/core-2.js \
+  '    }).sort((a, b) => (b.litige ? 1 : 0) - (a.litige ? 1 : 0) || b.retard - a.retard);' '    }).sort((a, b) => b.retard - a.retard);' \
+  "$REL2"
+prouver 'relances 1.321 e : la dernière relance est la première' modules/socle/moteur/core-2.js \
+  'derniereRelance: relances.length ? String(relances[relances.length - 1].date).slice(0, 10) : '\'''\'',' 'derniereRelance: relances.length ? String(relances[0].date).slice(0, 10) : '\'''\'',' \
+  "$REL2"
+prouver 'relances 1.321 f : une provision dépasse ce qui reste dû hors taxes' modules/socle/moteur/compta-1.js \
+  '    if (plafond > 0 && m > plafond + 0.0005) return' '    if (plafond > 0 && m > plafond + 1) return' \
+  "$REL3"
+prouver 'relances 1.321 g : le montant écrit à la française ne se lit pas' modules/socle/moteur/compta-1.js \
+  '    const m = round3(num(String(montant == null ? '\'''\'' : montant).replace(/[\s\u00a0\u202f]/g, '\'''\'').replace('\'','\'', '\''.'\'')));' '    const m = round3(num(montant));' \
+  "$REL3"
+prouver 'relances 1.321 h : la dotation passe au 491' modules/socle/moteur/compta-1.js \
+  '        { compte: COMPTES_PROVISION.dotation, libelle, debit: m, credit: 0 },' '        { compte: COMPTES_PROVISION.provision, libelle, debit: m, credit: 0 },' \
+  "$REL3"
+prouver 'relances 1.321 i : la page Relances ne montre pas l'\''état des impayés pour le comptable' modules/socle/ecrans/entreprise/app-1.js \
+  '        ${!q && all.length && peutEcrireAuCabinet() ? carteImpayesPourLeComptable() : '\'''\''}' '        ${'\'''\''}' \
+  "$RELW"
+prouver 'relances 1.321 j : un litige se note sans ce que dit le client' modules/socle/ecrans/entreprise/app-1.js \
+  '          if (!note) return refus(' '          if (false) return refus(' \
+  "$RELW"
+prouver 'relances 1.321 k : « Le litige est réglé » laisse le litige' modules/socle/ecrans/entreprise/app-1.js \
+  '        delete d.litige; save(); draw();' '        save(); draw();' \
+  "$RELW"
+prouver 'relances 1.321 l : la carte ne voit pas qu'\''un litige a changé l'\''état' modules/socle/ecrans/entreprise/app-1.js \
+  '[l.numero, Number(l.resteTTC) || 0, l.litige || '\'''\'', Number(l.relances) || 0]' '[l.numero, Number(l.resteTTC) || 0, Number(l.relances) || 0]' \
+  "$RELW"
+prouver 'relances 1.321 m : la page Relances attend un changement de page pour savoir qu'\''un cabinet est relié' modules/socle/ecrans/entreprise/app-1.js \
+  '/^#\/(compta|paie|relances)/' '/^#\/(compta|paie)/' \
+  "$RELW"
+prouver 'relances 1.321 n : la tuile des retards anciens promet une relance à la contestée' modules/socle/ecrans/entreprise/app-1.js \
+  '      const vieuxLitige = vieux.filter(x => x.litige).length;' '      const vieuxLitige = 0;' \
+  "$RELW"
+prouver 'relances 1.321 o : l'\''état des impayés part sans ses factures' modules/socle/ecrans/entreprise/app-1.js \
+  'contestees: e.contestees, lignes: e.lignes }];' 'contestees: e.contestees, lignes: [] }];' \
+  "$RELW"
+prouver 'relances 1.321 p : le serveur ne rend pas l'\''état des impayés au cabinet' serveur/compta/inventaire.ts \
+  '          duClient: etats, impayes,' '          duClient: etats, impayes: null,' \
+  "$RELW"
+prouver 'relances 1.321 q : le serveur perd ce que dit le client' serveur/compta/inventaire.ts \
+  '    litige: texteDe(l.litige).slice(0, 500), litigeDepuis:' '    litige: '\'''\'', litigeDepuis:' \
+  "$RELW"
+prouver 'relances 1.321 r : l'\''état des impayés n'\''a pas de droits' serveur/v10/droits.ts \
+  '  documents: VENTES, etatsImpayes: VENTES, recurring:' '  documents: VENTES, recurring:' \
+  'chaque partie du dossier, chaque page du menu, chaque nom de geste et chaque schéma de la base a un seul propriétaire'
+prouver 'relances 1.321 s : le pont du Cabinet ne garde pas l'\''état des impayés' web/public/plateforme/pont-cabinet.js \
+  '    impayesClient.set(`${ent}:${Number(annee)}`, r.impayes || null);' '    impayesClient.set(`${ent}:${Number(annee)}`, null);' \
+  "$RELW"
+prouver 'relances 1.321 t : le pont du Cabinet ne rend pas l'\''état des impayés à l'\''écran' web/public/plateforme/pont-cabinet.js \
+  '|| [], impayes: impayesClient.get(' '|| [], _i: impayesClient.get(' \
+  "$RELW"
+prouver 'relances 1.321 u : l'\''inventaire du Cabinet tait les impayés du client' modules/socle/ecrans/cabinet/app-2.js \
+  '    ${panneauImpayes}' '' \
+  "$RELW"
+prouver 'relances 1.321 v : une facture très en retard sans litige ne se provisionne pas' modules/socle/ecrans/cabinet/app-2.js \
+  '    const aProvisionner = l => !!l.litige || (Number(l.retard) || 0) > 90;' '    const aProvisionner = l => !!l.litige;' \
+  "$RELW"
+prouver 'relances 1.321 w : une facture provisionnée se provisionne encore' modules/socle/ecrans/cabinet/app-2.js \
+  '    return ((livre && livre.ecritures) || []).find(e => e.piece === `PROV-${numero}`' '    return null && ((livre && livre.ecritures) || []).find(e => e.piece === `PROV-${numero}`' \
+  "$RELW"
+prouver 'relances 1.321 x : une provision trop forte se passe quand même' modules/socle/ecrans/cabinet/app-2.js \
+  'b.disabled = !r.ok; b.title = r.ok ? '\'''\'' : r.motif;' 'b.disabled = false; b.title = r.ok ? '\'''\'' : r.motif;' \
+  "$RELW"
+prouver 'relances 1.321 y : la provision ne propose pas le reste hors taxes' modules/socle/ecrans/cabinet/app-2.js \
+  'value="${esc(montantChamp(Number(ligne.resteHT) || 0))}"></label></form>' 'value=""></label></form>' \
+  "$RELW"
+prouver 'relances 1.321 z : le Cabinet ne lit pas ce que dit le client' modules/socle/ecrans/cabinet/app-2.js \
+  '${l.litige ? `<div class="small warn-text"><b>Contestée</b> : ${esc(l.litige)}</div>` : '\'''\''}' '' \
+  "$RELW"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -641,13 +641,14 @@
   // L'inventaire d'une année (brique 42 bis), dans la forme de la v10 : son total est celui que le
   // serveur a calculé ; l'écriture de variation, tant qu'elle vaut encore.
   // (1.319.0) Et les états du stock envoyés par le client pour l'année (`duClient`), lus, jamais écrits ; une ligne qui dit sa valeur la garde.
-  /** @type {Map<string, any[]>} */ const etatsStockClient = new Map();
+  /** @type {Map<string, any[]>} */ const etatsStockClient = new Map(); /** @type {Map<string, any>} */ const impayesClient = new Map();
   /** @param {string} ent @param {string|number} annee */
   async function inventaireDe(ent, annee) {
     const r = await appel('GET', `/entreprises/${ent}/compta/inventaires/${Number(annee)}`);
     etatsStockClient.set(`${ent}:${Number(annee)}`, (r.duClient || []).map((/** @type {any} */ e) => ({ ...e, total: nombre(e.total),
       lignes: (e.lignes || []).map((/** @type {any} */ l) => ({ ...l, quantite: nombre(l.quantite), cout: nombre(l.cout), valeur: nombre(l.valeur) })),
       sansFacture: { total: nombre((e.sansFacture || {}).total), receptions: ((e.sansFacture || {}).receptions || []).map((/** @type {any} */ r) => ({ ...r, ht: nombre(r.ht) })) } })));
+    impayesClient.set(`${ent}:${Number(annee)}`, r.impayes || null); // (1.321.0) l'état des impayés envoyé par le client, lu
     const x = r.inventaire;
     if (!x) return null;
     return {
@@ -2091,7 +2092,7 @@
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = await livreDe(o.dossierId, o.annee);
       return { inventaire: livre.inventaires[0] || null, variation: KC.variationDeStock(livre, o.annee),
-        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [] };
+        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [], impayes: impayesClient.get(`${o.dossierId}:${Number(o.annee)}`) || null };
     },
     saveInventaire: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;

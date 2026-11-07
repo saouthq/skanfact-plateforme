@@ -4481,6 +4481,28 @@
     };
   }
 
+  // (1.321.0) La PROVISION d'une créance douteuse, d'après l'état des impayés envoyé par le client : la dotation au débit
+  // (6817), la provision au crédit (491), du montant hors taxes que le comptable retient — au plus ce qui reste dû hors
+  // taxes —, au dernier jour de l'exercice. Elle ne s'extourne pas : elle se reprend quand le risque disparaît. Les comptes
+  // sont À VÉRIFIER avec un comptable (plan tunisien), comme le reclassement en 416 (clients douteux), qui ne se fait pas ici.
+  const COMPTES_PROVISION = { dotation: '6817', provision: '491' };
+  function ecritureProvisionCreance(ligne, montant, au) {
+    const m = round3(num(String(montant == null ? '' : montant).replace(/[\s\u00a0\u202f]/g, '').replace(',', '.')));
+    const plafond = round3(num(ligne && ligne.resteHT));
+    if (!(m > 0)) return { ok: false, motif: 'Le montant de la provision manque : écris ce que tu retiens, hors taxes.' };
+    if (plafond > 0 && m > plafond + 0.0005) return { ok: false, motif: `Une provision ne dépasse pas ce qui reste dû hors taxes (${fmtMontant(plafond)}).` };
+    const date = txt(au);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, motif: 'Le dernier jour de l\'exercice manque.' };
+    const numero = txt(ligne && ligne.numero), client = txt(ligne && ligne.client);
+    const libelle = `Provision — ${numero}${client ? ` (${client})` : ''}`;
+    return {
+      ok: true, montant: m,
+      ecriture: { journal: 'OD', date, piece: 'PROV-' + numero, libelle, source: 'inventaire', lignes: [
+        { compte: COMPTES_PROVISION.dotation, libelle, debit: m, credit: 0 },
+        { compte: COMPTES_PROVISION.provision, libelle, debit: 0, credit: m }] }
+    };
+  }
+
   // ---------- la clôture d'exercice (9.8.0) ----------
   //
   // Ce que cette section fait : les écritures d'inventaire guidées, les contrôles avant clôture,

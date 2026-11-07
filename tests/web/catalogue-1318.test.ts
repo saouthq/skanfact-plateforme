@@ -129,7 +129,11 @@ describe('le catalogue 1.318.0 : la droguerie, ce qu\'elle revend, ce qu\'elle f
     await photo('a-mastic');
     await modale.locator('#ok').click();
     await modale.waitFor({ state: 'detached' });
-    const catalogue = (await objets()).filter((o) => o.collection === 'catalog').map((o) => o.contenu as Obj);
+    // L'enregistrement part au serveur après la fermeture de la fenêtre : on attend qu'il y soit (rouge GitHub de 1.319.0,
+    // Node 22 : lu une seule fois, trop tôt, le mastic n'y était pas encore).
+    const leCatalogue = async () => (await objets()).filter((o) => o.collection === 'catalog').map((o) => o.contenu as Obj);
+    await expect.poll(async () => (await leCatalogue()).some((c) => c.label === 'Mastic de la maison'), { timeout: 15_000 }).toBe(true);
+    const catalogue = await leCatalogue();
     const mastic = catalogue.find((c) => c.label === 'Mastic de la maison') as Obj;
     expect([catalogue.find((c) => c.id === 'brosse')?.nature, mastic.nature, mastic.tracked]).toEqual(['marchandises', 'produits', true]);
 

@@ -40,6 +40,23 @@
         ${commeLeClient ? '' : `<button class="btn btn-sm${inv ? '' : ' btn-primary'}" id="iv-reprendre-client">Le reprendre comme inventaire…</button>`}
         ${blocSansFacture}
       </div>`;
+    // (1.321.0) L'état des impayés que le client a envoyé : ce qu'il sait de ses clients (relances, litiges), que les livres ne
+    // disent pas. Une facture contestée ou très en retard se provisionne d'ici ; déjà provisionnée, la ligne le dit. Ce que dit
+    // le client se lit sous son nom (une colonne à part écrasait le nom et le litige).
+    const imp = d.impayes || null;
+    const aProvisionner = l => !!l.litige || (Number(l.retard) || 0) > 90;
+    const panneauImpayes = !imp || !(imp.lignes || []).length ? '' : `<div class="panel mt" id="iv-impayes"><h2>Les impayés de ${esc(dossier.name || 'du client')} ${info('iv.impayes')}</h2>
+        <p class="small">${esc(pl(imp.lignes.length, 'facture'))} en retard, <b class="nw">${esc(money(Number(imp.total) || 0))}</b> toutes taxes${
+          Number(imp.contestees) ? `, dont ${esc(pl(Number(imp.contestees), 'contestée'))} par son client` : ''}${imp.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(String(imp.envoyeLe).slice(0, 10)))}</span>` : ''}.</p>
+        <div class="scroll-x"><table class="list compact" id="iv-impayes-t"><thead><tr><th>Facture</th><th>Client</th><th class="r nw">Retard</th><th class="r nw">Reste TTC</th>
+          <th class="r nw">Reste HT</th><th class="nw">Relances</th><th></th></tr></thead>
+        <tbody>${imp.lignes.map(l => { const prov = ecritureProvisionDe(s.livre, l.numero); return `<tr data-impaye="${esc(l.numero)}"><td class="nw">${esc(l.numero)} <span class="muted small">· échue le ${esc(fmtJour(l.echeance))}</span></td>
+          <td>${esc(l.client || '—')}${l.litige ? `<div class="small warn-text"><b>Contestée</b> : ${esc(l.litige)}</div>` : ''}</td><td class="r nw">${esc(pl(Number(l.retard) || 0, 'jour'))}</td>
+          <td class="r nw">${esc(money(Number(l.resteTTC) || 0))}</td><td class="r nw">${esc(money(Number(l.resteHT) || 0))}</td>
+          <td class="nw">${Number(l.relances) ? `${esc(String(Number(l.relances)))}${l.derniereRelance ? ` <span class="muted small">· la dernière le ${esc(fmtJour(l.derniereRelance))}</span>` : ''}` : '<span class="muted">aucune</span>'}</td>
+          <td class="nw">${prov ? `<span class="small ligne-ok"><span aria-hidden="true">✓</span> provisionnée (${esc(prov.piece)})</span>`
+    : aProvisionner(l) ? `<button class="btn btn-sm" data-provision="${esc(l.numero)}">Provisionner…</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>
+      </div>`;
     return `<div class="filters">
       ${info('iv.etat')}
       <span class="small muted">Exercice ${esc(s.annee)}</span>
@@ -48,6 +65,7 @@
         title="${esc(pourquoi)}">Écrire la variation de stock</button>` : ''}
     </div>
     ${panneauClient}
+    ${panneauImpayes}
     ${!inv
     ? `<div class="empty">Aucun inventaire saisi pour ${esc(s.annee)}.
         <p class="small muted">Un inventaire, c'est ce qui reste au dernier jour, compté et valorisé.
@@ -88,6 +106,12 @@
     [$('#iv-saisir', el), $('#iv-saisir2', el)].forEach(b => { if (b) b.onclick = () => inventaireForm(root, dossier); });
     const rc = $('#iv-reprendre-client', el);
     if (rc) rc.onclick = () => inventaireForm(root, dossier, (s.inv.duClient || [])[0] || null);
+    $$('[data-provision]', el).forEach(b => {
+      b.onclick = () => {
+        const l = ((s.inv.impayes || {}).lignes || []).find(x => x.numero === b.dataset.provision);
+        if (l) provisionForm(root, dossier, l);
+      };
+    });
     const fb = $('#iv-fnp', el);
     if (fb) fb.onclick = () => facturesNonParvenuesForm(root, dossier, (s.inv.duClient || [])[0] || null);
     const ec = $('#iv-ecrire', el);
@@ -105,6 +129,51 @@
   // supprimée) : sa pièce est FNP-<année>, celle que pose `facturesNonParvenuesForm`.
   function ecritureFnpDeLAnnee(livre, annee) {
     return ((livre && livre.ecritures) || []).find(e => e.piece === `FNP-${annee}` && !e.contrepassee && e.statut !== 'contrepassee') || null;
+  }
+  // (1.321.0) La provision d'une facture du client, si elle est passée et compte encore : sa pièce est PROV-<numéro>.
+  function ecritureProvisionDe(livre, numero) {
+    return ((livre && livre.ecritures) || []).find(e => e.piece === `PROV-${numero}` && !e.contrepassee && e.statut !== 'contrepassee') || null;
+  }
+  // Le montant se retient ici (hors taxes, au plus ce qui reste dû) ; l'écriture se montre avant, et arrive au brouillard.
+  function provisionForm(root, dossier, ligne) {
+    const s = livresState;
+    const au = (s.livre && s.livre.exercice && s.livre.exercice.au) || `${s.annee}-12-31`;
+    modal(`<h2>Provisionner ${esc(ligne.numero)}</h2>
+      <p class="small muted">${esc(ligne.client || 'Le client')} doit encore ${esc(money(Number(ligne.resteTTC) || 0))} toutes taxes
+      (${esc(money(Number(ligne.resteHT) || 0))} hors taxes), en retard de ${esc(pl(Number(ligne.retard) || 0, 'jour'))}${ligne.litige ? `, et la conteste : « ${esc(ligne.litige)} »` : ''}.
+      La provision se passe au ${esc(fmtJour(au))}, hors taxes.</p>
+      <form id="pv" class="grid-2"><label class="field obligatoire">${lbl('Provision retenue (hors taxes)', 'iv.impayes')}
+        <input name="montant" inputmode="decimal" value="${esc(montantChamp(Number(ligne.resteHT) || 0))}"></label></form>
+      <div class="scroll-x"><table class="list compact mt" id="pv-lignes"><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody></tbody></table></div>
+      <div id="pv-motif" class="small annonce-stable"></div>
+      <p class="small muted mt">Elle arrive au <b>brouillard</b> (pièce PROV-${esc(ligne.numero)}) : relis-la, puis valide-la. Elle ne s'extourne pas : elle se reprend quand le risque disparaît. Comptes à vérifier avec ton plan.</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        <button class="btn btn-primary" id="ok">Passer au brouillard</button></div>`,
+    (rootModal, close) => {
+      const lire = () => KC.ecritureProvisionCreance(ligne, ($('[name=montant]', rootModal) || {}).value, au);
+      const maj = () => {
+        const r = lire();
+        $('#pv-lignes tbody', rootModal).innerHTML = r.ok ? r.ecriture.lignes.map(l => `<tr><td class="nw">${esc(l.compte)}</td><td>${esc(l.libelle)}</td>
+          <td class="r nw">${l.debit ? esc(money(l.debit)) : ''}</td><td class="r nw">${l.credit ? esc(money(l.credit)) : ''}</td></tr>`).join('') : '';
+        $('#pv-motif', rootModal).innerHTML = r.ok ? '' : `<div class="warn-box">${esc(r.motif)}</div>`;
+        const b = $('#ok', rootModal); b.disabled = !r.ok; b.title = r.ok ? '' : r.motif;
+      };
+      $('[name=montant]', rootModal).oninput = maj;
+      maj();
+      $('#ok', rootModal).onclick = async () => {
+        const r = lire();
+        if (!r.ok) return toast(r.motif, 'error');
+        const b = $('#ok', rootModal);
+        b.disabled = true;
+        try {
+          if (ecritureProvisionDe(s.livre, ligne.numero)) throw new Error(`${ligne.numero} est déjà provisionnée (PROV-${ligne.numero}) : la reprovisionner compterait la charge deux fois.`);
+          const res = await api.saisir(dossier.id, s.annee, r.ecriture);
+          s.livre = res.livre; close();
+          toast(`Provision de ${ligne.numero} passée au brouillard : ${money(r.montant)} au 491.`);
+          await chargerInventaire(root, dossier);
+        } catch (err) { toast(plainError(err), 'error'); b.disabled = false; }
+      };
+    });
   }
   // Ce qui s'écrit, montré avant : la date, les comptes, les montants ; au brouillard, donc encore modifiable.
   function facturesNonParvenuesForm(root, dossier, etat) {

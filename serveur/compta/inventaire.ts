@@ -28,6 +28,17 @@ const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 const texteDe = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const nombreV10 = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? String(v)
   : estObjet(v) && typeof v['~n'] === 'string' ? v['~n'] : '0');
+// (1.321.0) L'état des impayés que le client a envoyé (0201) : chaque facture en retard, son reste (TTC et HT), son retard,
+// ses relances et le litige noté. Rien d'autre de la facture (ni ses lignes, ni ses prix) ne sort.
+function impayesDuClient(e: Record<string, unknown>) {
+  const lignes = (Array.isArray(e.lignes) ? e.lignes : []).filter(estObjet).slice(0, 5000).map((l) => ({
+    numero: texteDe(l.numero).slice(0, 60), date: texteDe(l.date).slice(0, 10), echeance: texteDe(l.echeance).slice(0, 10),
+    client: texteDe(l.client).slice(0, 200), retard: nombreV10(l.retard), resteTTC: nombreV10(l.resteTTC), resteHT: nombreV10(l.resteHT),
+    relances: nombreV10(l.relances), derniereRelance: texteDe(l.derniereRelance).slice(0, 10),
+    litige: texteDe(l.litige).slice(0, 500), litigeDepuis: texteDe(l.litigeDepuis).slice(0, 10),
+  }));
+  return { date: texteDe(e.date).slice(0, 10), envoyeLe: texteDe(e.envoyeLe).slice(0, 40), total: nombreV10(e.total), contestees: nombreV10(e.contestees), lignes };
+}
 function etatDuClient(e: Record<string, unknown>) {
   const lignes = (Array.isArray(e.lignes) ? e.lignes : []).filter(estObjet).slice(0, 10000).map((l) => ({
     ref: texteDe(l.ref).slice(0, 60), libelle: texteDe(l.libelle).slice(0, 200), unite: texteDe(l.unite).slice(0, 20),
@@ -61,6 +72,10 @@ export function routesInventaire(ctx: Contexte): Route<never>[] {
       const etats = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'etatsStock'
           and contenu->>'date' like $2 order by contenu->>'date' desc, cle collate "C"`, [params.entreprise ?? '', `${annee}-%`])).rows
         .filter((e) => estObjet(e.contenu)).map((e) => etatDuClient(e.contenu as Record<string, unknown>));
+      // (1.321.0) L'état des impayés que le client a envoyé (0201), le dernier.
+      const impayes = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'etatsImpayes'
+          order by contenu->>'envoyeLe' desc limit 1`, [params.entreprise ?? ''])).rows
+        .filter((e) => estObjet(e.contenu)).map((e) => impayesDuClient(e.contenu as Record<string, unknown>))[0] ?? null;
       return {
         corps: {
           inventaire: x ? {
@@ -70,7 +85,7 @@ export function routesInventaire(ctx: Contexte): Route<never>[] {
               ...(typeof l.valeur === 'number' ? { valeur: versTexte(BigInt(l.valeur), 3) } : {}),
             })),
           } : null,
-          duClient: etats,
+          duClient: etats, impayes,
         },
       };
     },

@@ -37,6 +37,7 @@
   ],
   "collections": [
     "documents",
+    "etatsImpayes",
     "recurring",
     "templates",
     "snippets",

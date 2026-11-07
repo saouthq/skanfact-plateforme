@@ -61,7 +61,7 @@ const TECHNIQUE = R('socle.dossier.voir', 'socle.dossier.modifier');
 const TOUT = R('socle.dossier.tout', 'socle.dossier.tout');
 
 export const LISTES: Record<string, Regle> = {
-  documents: VENTES, recurring: VENTES, templates: VENTES, snippets: VENTES, projects: VENTES,
+  documents: VENTES, etatsImpayes: VENTES, recurring: VENTES, templates: VENTES, snippets: VENTES, projects: VENTES,
   // Les heures notées sur une affaire (1.263.0) sont à l'affaire, pas à la paie (16 § 4 : les Projets appellent le coût de
   // l'heure du Personnel) : qui lit les affaires les lit, qui les écrit les note (l'écran le refuse déjà aux autres).
   projectTime: VENTES,

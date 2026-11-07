@@ -4456,14 +4456,42 @@
         // semaine, c'est harceler un client qui a peut-être déjà payé. Un report (snoozed) l'emporte sur l'attente.
         const remontre = last && last.date ? addDays(last.date, RELANCE_ATTENTE) : '';
         const attente = !snoozed && !!remontre && remontre > t;
-        return { doc: x.doc, remaining: x.balance.remaining, daysLate, level: reminderLevel(daysLate), reminders, lastReminder: last, status: x.status, snoozed, remindAfter: x.doc.remindAfter || '', attente, remontre: attente ? remontre : '' };
+        return { doc: x.doc, remaining: x.balance.remaining, daysLate, level: reminderLevel(daysLate), reminders, lastReminder: last, status: x.status, snoozed, remindAfter: x.doc.remindAfter || '', attente, remontre: attente ? remontre : '',
+          litige: litigeDe(x.doc) };
       })
       .sort((a, b) => (a.snoozed ? 1 : 0) - (b.snoozed ? 1 : 0) || b.daysLate - a.daysLate);
   }
   const RELANCE_ATTENTE = 7;
   // Ce qu'il faut relancer AUJOURD'HUI : ni reporté, ni relancé il y a moins d'une semaine. Le chiffre du menu, celui de
   // la page et sa liste passent tous par ici (un compteur et la liste qu'il annonce : la même fonction).
-  const aRelancer = x => !x.snoozed && !x.attente;
+  // (1.321.0) Une facture que le client CONTESTE ne se relance pas : on ne réclame pas ce qu'on discute. Elle reste due et en
+  // retard ; la relancer, c'est fâcher le client sur un désaccord, et le comptable doit le savoir à la clôture.
+  const aRelancer = x => !x.snoozed && !x.attente && !x.litige;
+  function litigeDe(doc) {
+    const l = doc && doc.litige;
+    return l && typeof l === 'object' && String(l.note || '').trim() ? { depuis: String(l.depuis || '').slice(0, 10), note: String(l.note).trim() } : null;
+  }
+
+  // (1.321.0) L'ÉTAT DES IMPAYÉS que l'entreprise envoie à son comptable pour la clôture : chaque facture en retard, ce qu'il
+  // en reste (toutes taxes, et hors taxes au prorata de la facture), son retard, ses relances (appels notés compris) et, si
+  // le client la conteste, depuis quand et pourquoi. Le reste, le comptable le lit dans ses livres ; ce qu'il n'y lit pas,
+  // c'est ce que l'entreprise sait de son client — de quoi juger s'il faut une provision.
+  function etatDesImpayes(data, company, todayIso) {
+    const co = company || data.company || {};
+    const nom = d => String(((data.clients || []).find(c => c.id === d.clientId) || {}).name || (d.client && d.client.name) || '').trim();
+    const lignes = overdueInvoices(data, co, todayIso).map(x => {
+      const t = computeTotals(x.doc, co);
+      const relances = (x.reminders || []).filter(r => r && r.date);
+      return {
+        numero: x.doc.number || '', date: x.doc.date || '', echeance: x.doc.dueDate || '', client: nom(x.doc), retard: x.daysLate,
+        resteTTC: round3(toBase(x.doc, x.remaining, co)),
+        resteHT: t.totalTTC > 0 ? round3(toBase(x.doc, x.remaining * t.netHT / t.totalTTC, co)) : 0,
+        relances: relances.length, derniereRelance: relances.length ? String(relances[relances.length - 1].date).slice(0, 10) : '',
+        litige: x.litige ? x.litige.note : '', litigeDepuis: x.litige ? x.litige.depuis : ''
+      };
+    }).sort((a, b) => (b.litige ? 1 : 0) - (a.litige ? 1 : 0) || b.retard - a.retard);
+    return { lignes, total: round3(lignes.reduce((a, l) => a + l.resteTTC, 0)), contestees: lignes.filter(l => l.litige).length };
+  }
 
   // (1.293.0) Les factures à relancer, rangées par client : un client qui en doit trois reçoit UN message, pas trois.
   // Chaque groupe : le client, ses factures (de la plus en retard à la moins), le reste dû en devise de base, le plus grand
@@ -7550,7 +7578,7 @@
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, periodesDues, contratTermine, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
     estTitre, sousTotauxDeSections,
-    reminderLevel, REMINDER_LABELS, daysBetween, factureEnRetard, overdueInvoices, RELANCE_ATTENTE, aRelancer, relancesParClient, relanceGroupee, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
+    reminderLevel, REMINDER_LABELS, daysBetween, factureEnRetard, overdueInvoices, RELANCE_ATTENTE, aRelancer, litigeDe, etatDesImpayes, relancesParClient, relanceGroupee, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,

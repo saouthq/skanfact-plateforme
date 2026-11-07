@@ -1089,3 +1089,42 @@ Quincaillerie du Nord reçues le 30, sans facture ; 10 pots reçus le 15 et fact
 **À VÉRIFIER** avec un comptable : 607 / 408 pour une marchandise reçue sans facture, et la TVA de ces factures (rien, ou un
 compte de TVA à régulariser).
 
+## Les relances, jusqu'au bilan
+
+*1.321.0, 07/11/2026. Jouées par une société d'ascenseurs de Sousse (« Ascenseurs du Sahel », Nadia) : Bâtiments Ezzahra
+doit encore 1 976 sur sa facture de maintenance de septembre (2 976, 1 000 versés), relancée deux fois, et la conteste
+(« 8 cabines reçues sur 10 ») ; l'Hôtel Le Golfe doit sa facture de novembre (1 001,195). Puis sa comptable, Inès, au Cabinet.*
+
+**Ce qui n'allait pas**
+- Une facture que le client conteste se relançait comme les autres, au ton « Dernière relance » : on réclamait ce qu'on
+  discute, et rien ne gardait ce que le client avait dit.
+- À la clôture, la comptable ne savait rien de ce que l'entreprise sait de ses clients : ses livres disent qu'une facture
+  est due, pas qu'elle est contestée ni combien de fois elle a été réclamée. Le jugement d'une provision pour créance
+  douteuse se faisait au téléphone, ou pas du tout.
+- La page Relances ne se redessinait pas quand elle apprenait qu'un cabinet est relié : ce qui dépend du cabinet n'y
+  apparaissait qu'après un changement de page.
+
+**Ce qui change (1.321.0)**
+- `C.litigeDe(doc)` : un litige est ce que dit le client (une note vide n'en est pas un) et depuis quand.
+  `C.overdueInvoices` le porte ; `C.aRelancer` écarte une facture contestée. Dans Relances, « Le client conteste… » (menu
+  de la ligne) le note, champ obligatoire ; la facture se range dans « Contestées par le client » (ce que dit le client,
+  depuis quand) ; « Le litige est réglé » la remet dans les relances, avec « Annuler ». La facture elle-même n'offre plus le
+  paiement comme étape suivante d'une relance.
+- La tuile « Plus de 45 jours » compte toujours la contestée (c'est un retard) mais ne lui promet plus de relance : « au
+  ton « Dernière relance » · dont 1 contestée ».
+- `C.etatDesImpayes(data, company, today)` : chaque facture en retard, ce qui en reste toutes taxes et hors taxes (au
+  prorata de la facture : 1 976 × 2 500 / 2 976 = 1 659,946), son retard, ses relances (la dernière), le litige ; la
+  contestée d'abord, puis la plus en retard. La carte « L'état des impayés pour ton comptable » l'envoie (un seul état, celui
+  du jour ; le renvoyer le remplace) ; envoyé, elle dit « ✓ c'est l'état d'aujourd'hui », ou qu'un paiement, une relance ou
+  un litige l'a changé depuis, avec « Renvoyer ».
+- Au Cabinet, l'onglet Inventaire montre « Les impayés de … » (ce que dit le client sous son nom) et « Provisionner… » pour
+  une facture contestée ou en retard de plus de 90 jours : la fenêtre propose le reste hors taxes, refuse plus (en le
+  disant, le bouton éteint), montre l'écriture (6817 / 491 au dernier jour de l'exercice, pièce PROV-numéro) et la pose au
+  brouillard. Passée, la ligne le dit et le geste s'en va : la reprovisionner compterait la charge deux fois.
+- Le serveur rend au cabinet le dernier état envoyé (base 0201 : le cabinet du dossier le lit, rien d'autre), nettoyé
+  champ par champ.
+- La preuve : `tests/moteur/relances-1321.test.ts` (3 règles), `tests/web/relances-1321.test.ts` (l'entreprise, le
+  téléphone, le Cabinet, l'écriture lue au serveur au millime), preuves `relances 1.321 a-z`.
+
+**À VÉRIFIER** avec un comptable : les comptes 6817 / 491, la provision sur la base hors taxes, et le seuil de 90 jours (il
+ne fait que proposer le geste ; la comptable juge).
