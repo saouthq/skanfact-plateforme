@@ -84,6 +84,10 @@ describe('le reste à payer et le statut d\'une facture', () => {
     const partielle = soldeFacture(net, [200_000n], [300_000n]);
     expect(partielle).toEqual({ credite: 200_000n, paye: 300_000n, reste: 500_000n });
     expect(statutFacture(net, partielle, '2026-01-01', '2026-09-28')).toBe('partielle');
+    // (1.308.0) Un avoir seul n'est pas un paiement : la facture qu'il réduit reste à payer, puis en retard après l'échéance.
+    const avoirSeul = soldeFacture(net, [200_000n], []);
+    expect(statutFacture(net, avoirSeul, '2026-10-30', '2026-09-28')).toBe('a_payer');
+    expect(statutFacture(net, avoirSeul, '2026-09-27', '2026-09-28')).toBe('en_retard');
     expect(statutFacture(net, soldeFacture(net, [], [1_000_000n]), undefined, '2026-09-28')).toBe('payee');
     // Un trop-perçu est payé (le remboursement se fait à part).
     expect(statutFacture(net, soldeFacture(net, [], [1_200_000n]), undefined, '2026-09-28')).toBe('payee');

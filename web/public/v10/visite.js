@@ -698,7 +698,7 @@
     // Ce qui ne vaut que pour l'étape qu'on quitte : un essai en cours, un geste, la zone déjà vue,
     // l'état du geste à l'entrée, les boutons nommés.
     cur.essai = null; cur.geste = 0; cur.vu = false; cur.faitAvant = undefined; cur.dejaFait = false; cur.dejaRempli = false; cur.curseur = false; cur.mini = false; cur.couvert = false; cur.nommes = []; cur.pointeN = -1;
-    cur.note = cur.noteProchaine || ''; cur.noteProchaine = ''; cur.defait = false;
+    cur.note = cur.noteProchaine || ''; cur.noteProchaine = ''; cur.defait = false; cur.suivantApres = null;
     // La première étape apparaît ; les suivantes glissent depuis la précédente.
     if (cur.vues++ > 0) glisser();
     const e = etape();
@@ -734,6 +734,8 @@
         .then(() => {
           if (cur !== moi || cur.i !== iMoi) return;
           cur.attente = false; cur.t0 = Date.now(); cur.defile = false; cur.couper = false;
+          const apres = cur.suivantApres; cur.suivantApres = null;
+          if (apres && !deplier) { suivant(apres.passer); return; }
           if (deplier) {
             const neuves = etapesDepliees(e);
             cur.p.etapes.splice(iMoi, 1, ...neuves);
@@ -784,6 +786,10 @@
   }
   function suivant(passer) {
     if (!cur) return;
+    // (1.308.0) L'étape prépare encore son écran (`avant`) : « Suivant » se garde et se joue quand elle a fini.
+    // Joué tout de suite, il lisait l'écran pas encore dessiné : les étapes conditionnelles (`si`) se sautaient,
+    // et la visite finissait sur « Ce n'est pas encore fait ».
+    if (cur.attente) { cur.suivantApres = { passer: !!passer }; return; }
     const e = etape();
     if (!passer && e && e.faire === 'valeur' && !cur.pret) return;
     // Un GESTE passé sans être fait se retient : la fin ne félicite pas ce qui n'a pas eu lieu

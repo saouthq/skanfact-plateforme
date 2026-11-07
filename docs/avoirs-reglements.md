@@ -80,6 +80,11 @@ serveur refuse le statut « annulée » sur une facture émise. On corrige par u
   avoir au-delà de la facture restent possibles, comme dans la v10, qui prévient avant.
 - **D5.** Un avoir n'annonce pas encore d'avis d'événement (seule « facture.emise » existe) ; il
   viendra avec les autres événements de l'API.
+- **D6.** (Décidé le 07/11/2026, 1.308.0, par délégation.) Un avoir **diminue ce qui est dû, ce n'est pas un
+  paiement** : une facture que seul un avoir réduit, sans rien de reçu (ou moins que rien, un remboursement), reste
+  « à payer », puis « en retard » le lendemain de son échéance ; elle n'est plus « payée en partie ». La même règle
+  dans le moteur des écrans (`effectiveStatus`) et dans celui du serveur (`statutFacture`), donc dans la liste, la
+  fiche du client, l'espace client et la console. Écart avec la v10, tranché dans le banc des règlements.
 
 ## Ce qui reste hors de la brique
 

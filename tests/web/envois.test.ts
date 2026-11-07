@@ -205,6 +205,9 @@ describe('les envois, à la souris', () => {
     await devis.getByRole('button', { name: 'Annuler', exact: true }).click();
     const waDevis = await envoi(nadia, /^(WhatsApp$|Envoyer par WhatsApp…$|Par WhatsApp)/);
     expect(await waDevis.getByLabel(/Ajouter le lien de la pièce/).isChecked()).toBe(true);
+    // (1.308.0) Depuis la 1.306, le devis part par la fenêtre de la facture, qui ne promet rien de ce qu'on doit ; WhatsApp,
+    // lui, le dit encore pour une facture : pas pour un devis (un devis ne se doit pas).
+    expect(net(await waDevis.innerText())).toContain('et ton client y voit la pièce telle que tu l\'imprimes.');
     await waDevis.getByRole('button', { name: 'Ouvrir WhatsApp', exact: true }).click();
     await expect.poll(async () => (await ouverts(nadia)).length, { timeout: 15_000 }).toBe(5);
     const texteDevis = new URL((await ouverts(nadia))[4] ?? '').searchParams.get('text') ?? '';

@@ -1853,7 +1853,13 @@
       bravo: 'Ton dossier est confié',
       conclusion: 'Ton cabinet le voit dès qu\'il a accepté : il lira tes écritures à jour et validera tes mois. Ses questions arriveront dans cet onglet, en face de la pièce qu\'elles visent — « Répondre aux questions de mon comptable » te montre comment y répondre.',
       etapes: [
-        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#p-cabinet-mandat', cote: 'dessus', titre: 'Ton cabinet comptable',
+        // (1.308.0) Le panneau se dessine après sa lecture du serveur : l'étape attend qu'il le soit (deux secondes
+        // au plus). « Suivant » cliqué avant sautait les étapes qui le décrivent, et la visite finissait sur « Ce
+        // n'est pas encore fait » (rouge GitHub de la 1.307.0, sur une machine lente).
+        { page: '#/compta', avant: Object.assign(async () => {
+          await ctx.Visite.ouvrirOnglet('#c-tabs', 'cabinet');
+          for (let n = 0; n < 40 && !($('#cab-pair') && $('#cab-pair').children.length); n++) await new Promise(r => setTimeout(r, 50));
+        }, { barre: '#c-tabs', cle: 'cabinet' }), cible: '#p-cabinet-mandat', cote: 'dessus', titre: 'Ton cabinet comptable',
           texte: 'Ton comptable tient tes livres <b>ici même</b> : il lit tes écritures à jour, et valide tes mois. Tu lui confies ton entreprise une fois ; ensuite, rien à lui envoyer.' },
         { page: '#/compta', si: () => !!$('#mandat-perimetre'), cible: '#mandat-perimetre', cote: 'droite', titre: 'Ce que tu lui confies',
           texte: 'Coché d\'office : la comptabilité, les déclarations et la saisie de tes achats ; la paie, seulement si tu la lui confies. Il ne touche jamais à tes factures, à ta caisse ni à ton équipe.' },

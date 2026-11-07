@@ -282,6 +282,10 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     await as.getByRole('button', { name: 'Plus tard', exact: true }).click();
     await as.getByRole('heading', { level: 1 }).filter({ hasText: /^Factures-tu la TVA/ }).waitFor();
     await as.getByRole('button', { name: 'Continuer', exact: true }).click();
+    // (1.308.0) Une connexion lente : le panneau du mandat attend sa lecture du serveur 1,2 s. « Suivant » cliqué aussitôt
+    // ne saute plus les étapes qui le décrivent (rouge GitHub de la 1.307.0 : la visite finissait sur « Ce n'est pas
+    // encore fait » sur une machine lente).
+    await p.route(/\/mandat$/, async (r) => { if (r.request().method() === 'GET') await new Promise((ok) => setTimeout(ok, 1200)); await r.continue(); });
     await as.getByRole('button', { name: 'Ouvrir mon entreprise', exact: true }).click();
     await as.waitFor({ state: 'detached' });
 

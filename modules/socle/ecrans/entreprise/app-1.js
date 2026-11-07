@@ -6125,9 +6125,22 @@
           <p class="ed-phrase">${h(fi.number)} est payée en trop depuis cet avoir : le client attend son argent.</p>${tous}</div>`;
       }
       if (locked && isInv && doc.status !== 'annulée' && bal && bal.remaining > 0.0005) {
-        const recu = C.round3(bal.paid + bal.credited);
+        // (1.308.0) Ce qu'un avoir retire n'est pas de l'argent reçu (« 172,848 DT reçus » sur une facture que le café n'avait pas
+        // payée) ; et une facture échue le dit, avec le rappel pour étape suivante, comme la page Relances qui la compte déjà.
+        const payeG = C.round3(bal.paid), avoirsG = C.round3(bal.credited);
+        const recuG = [payeG > 0.0005 ? `${argentLu(payeG, cur)} reçus` : 'Rien de reçu', avoirsG > 0.0005 ? `${argentLu(avoirsG, cur)} retirés par avoir` : ''].filter(Boolean).join(', ');
+        const echueG = C.overdueInvoices(data, company()).find(x => x.doc.id === doc.id);
+        const quandG = echueG ? `en retard de ${pl(echueG.daysLate, 'jour')}` : doc.dueDate ? `échéance le ${lfJm(doc.dueDate)}` : '';
+        const ouEnEst = `${recuG}${payeG > 0.0005 || avoirsG > 0.0005 ? `, reste ${argentLu(bal.remaining, cur)}` : ''}${quandG ? ` · ${quandG}` : ''}.`;
+        if (echueG && !echueG.snoozed && !echueG.attente) {
+          return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="ed-relancer">${lfIc('cloche', 17)}Relancer ${h(nomClientPiece(doc) || 'le client')}…</button>
+          <p class="ed-phrase">${ouEnEst} Le ${C.REMINDER_LABELS[echueG.level].toLowerCase()} est prêt à partir ; un paiement arrivé se note à côté.</p>
+          <div class="ed-deux"><button class="btn" id="pay">${lfIc('carte', 15)}Enregistrer un paiement</button></div>
+          <p class="ed-phrase ed-tous">Tous les gestes de la facture : ⋯ en haut à droite.</p>${tous}</div>`;
+        }
+        const attendG = echueG && echueG.attente && echueG.lastReminder ? ` Relancée le ${lfJm(echueG.lastReminder.date)} : on attend sa réponse jusqu'au ${lfJm(echueG.remontre)}.` : '';
         return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="pay">${lfIc('carte', 17)}Enregistrer un paiement</button>
-          <p class="ed-phrase">${roleBarre() === 'commercial' ? 'Tu es commercial : le propriétaire signe et corrige. Toi, tu envoies la facture et tu suis son paiement.' : `${recu > 0.0005 ? `${argentLu(recu, cur)} reçus, reste ${argentLu(bal.remaining, cur)}` : 'Rien de reçu'}${doc.dueDate ? ` · échéance le ${lfJm(doc.dueDate)}` : ''}. Un paiement partiel se note aussi.`}</p>
+          <p class="ed-phrase">${roleBarre() === 'commercial' ? 'Tu es commercial : le propriétaire signe et corrige. Toi, tu envoies la facture et tu suis son paiement.' : `${ouEnEst}${attendG} Un paiement partiel se note aussi.`}</p>
           <p class="ed-phrase ed-tous">Tous les gestes de la facture : ⋯ en haut à droite.</p>${tous}</div>`;
       }
       const etat = !bal ? (isAv ? `Avoir émis${doc.creditOfNumber ? ` sur ${h(doc.creditOfNumber)}` : ''} : il diminue ce que le client doit.` : '')
@@ -6149,7 +6162,9 @@
       const b = bal;
       const annuleeF = !!(b && b.annulee) || (stored && effStatus(stored) === 'annulée');
       const paye = b && b.remaining <= 0.0005;
-      const recu = b ? C.round3(b.paid + b.credited) : 0;
+      // (1.308.0) La frise dit ce qui est reçu : un avoir diminue ce que la facture laisse à payer, il n'en paie rien.
+      const recu = b ? C.round3(b.paid) : 0;
+      const duApresAvoirs = b ? C.round3(b.totals.netToPay - b.credited) : 0;
       const etapes = [
         { t: 'Émise', fait: true, d: doc.issuedTs ? quand(doc.issuedTs) : `le ${C.fmtDate(doc.date)}` },
         { t: 'Signée', fait: signee, d: signee ? 'DigiGo' : 'DigiGo, à faire', g: !signee && bridge.signerPiece && roleBarre() !== 'commercial' ? '<button type="button" class="btn btn-sm" data-frise="signer">Signer</button>' : '' },
@@ -6157,7 +6172,7 @@
           d: C.estDemo(data) ? 'jamais : entreprise d\'essai' : e === 'acceptee' ? `acceptée${ttn.reference ? ` · ${h(ttn.reference)}` : ''}` : e === 'refusee' ? 'refusée : le motif est dans « Fichier pour El Fatoora »' : e === 'retenue' ? 'retenue : à reprendre' : e === 'deposee' ? 'déposée, en attente' : e === 'a_envoyer' || e === 'signee' ? 'en route' : 'partira après la signature' },
         { t: 'Envoyée', k: 'envoyee', fait: !!dernier, d: dernier ? `<span${dernier.to ? ` title="envoyée à ${h(dernier.to)}"` : ''}>${dernier.date ? lfJm(dernier.date) : ''}${dernier.canal === 'whatsapp' ? ' · par WhatsApp' : ''}</span>` : `<span class="ed-fr-adr" title="${h(cl.email || '')}">à ${h(cl.email || 'ton client')}</span>`,
           g: dernier ? '' : '<button type="button" class="btn btn-sm" data-frise="email">Envoyer</button>' },
-        { t: annuleeF ? 'Annulée' : !paye && recu > 0.0005 ? 'Payée en partie' : 'Payée', fait: !!paye && !annuleeF, alerte: annuleeF, partiel: !paye && recu > 0.0005, d: annuleeF ? (b && b.credits.length ? `par ${b.credits.map(a => h(a.number)).join(', ')}` : 'plus rien n\'est dû') : b && b.remaining < -0.0005 ? `${argentLu(-b.remaining, cur)} à son crédit` : paye ? 'plus rien n\'est dû' : recu > 0.0005 ? `${C.money(recu, null, C.decimalsFor(cur))} sur ${argentLu(((b && b.totals) || C.computeTotals(doc, company())).netToPay, cur)}` : `rien de reçu${doc.dueDate ? ` · échéance ${lfJm(doc.dueDate)}` : ''}` },
+        { t: annuleeF ? 'Annulée' : !paye && recu > 0.0005 ? 'Payée en partie' : 'Payée', fait: !!paye && !annuleeF, alerte: annuleeF, partiel: !paye && recu > 0.0005, d: annuleeF ? (b && b.credits.length ? `par ${b.credits.map(a => h(a.number)).join(', ')}` : 'plus rien n\'est dû') : b && b.remaining < -0.0005 ? `${argentLu(-b.remaining, cur)} à son crédit` : paye ? 'plus rien n\'est dû' : recu > 0.0005 ? `${C.money(recu, null, C.decimalsFor(cur))} sur ${argentLu(duApresAvoirs, cur)}` : b && b.credited > 0.0005 ? `rien de reçu · reste ${argentLu(b.remaining, cur)}` : `rien de reçu${doc.dueDate ? ` · échéance ${lfJm(doc.dueDate)}` : ''}` },
       ];
       return friseHtml(etapes);
     };
@@ -8079,8 +8094,11 @@
         if (b2) { b2.className = 'btn btn-sm'; b2.innerHTML = `${lfIc('ajout', 14, 2.4)}Enregistrer un paiement`; tete.appendChild(b2); }
         if (!rows.length && s.status !== 'annulée' && b.remaining > 0.0005) {
           const vide = $('p.small.muted', el);
-          const envoyee = ((s.emails || []).length > 0);
-          if (vide) vide.outerHTML = `<p class="note-v">${lfIc('info', 13)}Rien de reçu pour l'instant.${envoyee ? ' Les relances suivent l\'échéance, selon tes réglages de relance.' : ' Les relances commencent une fois la facture envoyée au client.'}${t.withholding ? ' La retenue naîtra quand le client paiera : il te remettra alors son attestation.' : ''}</p>`;
+          // (1.308.0) « Les relances commencent une fois la facture envoyée » : faux, la page Relances compte une facture échue
+          // qu'elle soit partie par SkanFact ou remise de la main à la main. La phrase dit ce qui se passe, et quand.
+          const echueS = C.overdueInvoices(data, company()).find(x => x.doc.id === s.id);
+          const relanceS = echueS ? ` En retard de ${pl(echueS.daysLate, 'jour')} : « Relancer » prépare le rappel.` : s.dueDate ? ` Si rien n'arrive, elle passera dans les relances le ${lfJm(C.addDays(s.dueDate, 1))}.` : '';
+          if (vide) vide.outerHTML = `<p class="note-v">${lfIc('info', 13)}Rien de reçu pour l'instant.${relanceS}${t.withholding ? ' La retenue naîtra quand le client paiera : il te remettra alors son attestation.' : ''}</p>`;
           const rsLigne = [...el.querySelectorAll('.inline.mt .small.muted')].find(x => /naîtra quand le client paiera/.test(x.textContent)); if (rsLigne) rsLigne.remove();
         }
       }
@@ -8651,6 +8669,8 @@
     // Les gestes eux-mêmes restent les boutons de la liste cachée (`#more-list`) : un seul chemin pour chacun.
     const parBouton = id => () => { const b = $('#' + id); if (b) b.click(); };
     const relancerPiece = d => { const it = C.overdueInvoices(data, company()).find(x => x.doc.id === d.id); sendReminder(it || { doc: d, level: 1, daysLate: 0 }, 'email'); };
+    // (1.308.0) Le rappel d'une facture échue, l'étape suivante de la pièce (page Relances : la même fonction, le même message).
+    if ($('#ed-relancer')) $('#ed-relancer').onclick = () => relancerPiece(stored || doc);
     // L'historique de la pièce (maquette « Historique ») : qui a fait quoi, du plus récent au plus ancien.
     function ouvrirHistorique() {
       // Un panneau posé à droite, la pièce reste visible à côté (maquette « Historique »).
@@ -8694,7 +8714,8 @@
         if ($('#email')) a.push({ icon: 'email', label: 'Par e-mail', hint: envois.length ? 'déjà envoyée : la renvoyer' : 'choisir les contacts', run: parBouton('email') });
         if ($('#wa')) a.push({ icon: 'message', label: 'Par WhatsApp', hint: 'le message porte le lien', run: parBouton('wa') });
         if ($('#lien-client')) a.push({ icon: 'client', label: 'Lien pour le client', hint: 'il la lit en ligne', run: parBouton('lien-client') });
-        if (isInv && bal && bal.remaining > 0.0005 && envois.length) a.push({ icon: 'cloche', label: 'Relancer', hint: 'le rappel courtois, prêt à partir', run: () => relancerPiece(st) });
+        // (1.308.0) Une facture échue se relance même remise de la main à la main : la page Relances la compte déjà.
+        if (isInv && bal && bal.remaining > 0.0005 && (envois.length || C.overdueInvoices(data, company()).some(x => x.doc.id === st.id))) a.push({ icon: 'cloche', label: 'Relancer', hint: 'le rappel courtois, prêt à partir', run: () => relancerPiece(st) });
         a.push({ titre: 'Légal' });
         if ($('#signer')) a.push({ icon: 'modifier', label: 'Signer par DigiGo', hint: ttnConnu && ttnConnu.etat && ttnConnu.etat !== 'a_signer' ? 'signée' : estResponsable() ? 'à faire' : 'le propriétaire signe', off: !estResponsable() && !!accordsEnLigne(), run: parBouton('signer') });
         if ($('#teif')) a.push({ icon: 'facture', label: 'El Fatoora', hint: ttnConnu ? ({ acceptee: 'acceptée', refusee: 'refusée : voir le motif', retenue: 'retenue : à reprendre', deposee: 'déposée, en attente', a_envoyer: 'en route', signee: 'en route', a_signer: 'après la signature' })[ttnConnu.etat] || 'après la signature' : 'après la signature', run: parBouton('teif') });

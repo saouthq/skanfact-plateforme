@@ -678,5 +678,34 @@ pas dans les livres.
 Limites connues : le solde d'un devis à plusieurs acomptes les déduit tous, sans choisir ; un acompte se rembourse
 encore par un avoir à la main.
 
-Suivant : les factures (le paiement en plusieurs fois, la relance, la retenue, l'avoir), puis les clients, les achats, les
-fournisseurs et l'accueil.
+## Les factures
+
+### Fait en 1.308.0 (07/11/2026) : encaisser, relancer, corriger par un avoir
+
+Joué par le même menuisier de Sfax et sa comptable au Cabinet Ennour. L'Hôtel Thyna (retenue à la source de 1,5 %) paie
+ses quatre portes en deux fois : un chèque de 2 000 DT, puis le reste par virement. Ines Ben Ammar n'a rien payé de son
+dressing, échu depuis 15 jours (facture remise de la main à la main, jamais partie par SkanFact). Le Café El Medina rend
+une chaise abîmée : un avoir d'une chaise, puis il paie le reste en espèces. Enfin la comptable ouvre le livre-journal.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| F1 | Après l'avoir d'une chaise, la facture du café se disait « Payée en partie » et « 172,848 DT reçus » : il n'avait rien payé. Et une facture échue réduite par un avoir ne se disait plus en retard. | Un avoir diminue ce qui est dû, ce n'est pas un paiement (décision D6 de `docs/avoirs-reglements.md`) : la facture reste « Émise » (ou « En retard »), et dit « Rien de reçu, 172,848 DT retirés par avoir, reste 1 317,437 DT ». La même règle dans les deux moteurs (écrans et serveur), donc dans la liste, la fiche du client, l'espace client et la console ; l'écart avec la v10 est tranché dans le banc des règlements. La frise dit « rien de reçu · reste … ». |
+| F2 | La facture d'Ines, échue depuis 15 jours, disait « Rien de reçu · échéance le 23/10 », avec « Enregistrer un paiement » pour seule étape ; son menu n'offrait pas « Relancer » (il ne le faisait que pour une facture partie par SkanFact), alors que la page Relances la comptait « à relancer ». | Une facture échue le dit (« en retard de 15 jours ») et son bouton principal devient « Relancer Ines Ben Ammar… » (le rappel courtois du bon niveau, le même message que la page Relances), le paiement juste dessous ; le menu ⋯ l'offre aussi. Relancée, elle dit « Relancée le 07/11 : on attend sa réponse jusqu'au 14/11 », comme la page Relances, et le paiement redevient l'étape suivante. |
+| F3 | « Paiements et situation » disait « Les relances commencent une fois la facture envoyée au client » : faux, une facture échue se relance qu'elle soit partie ou non. | « En retard de 15 jours : « Relancer » prépare le rappel. », ou, avant l'échéance, « Si rien n'arrive, elle passera dans les relances le 05/12. » |
+
+Vérifié en jouant : le paiement en deux fois avec retenue tombe juste (30,452 puis 58,825 DT gardés par l'hôtel, 89,277 en
+tout, chaque part dite avant d'enregistrer et comptée en retenue subie de novembre) ; la case « Attestation de retenue
+à la source reçue » apparaît ; l'avoir se prépare depuis la facture (« Retour de marchandise », une chaise) et dit avant
+d'émettre ce que la facture laissera à payer. Côté Cabinet et pont : le livre-journal montre chaque paiement avec sa part
+de retenue au 4358, l'avoir qui recrédite le client (411) et annule sa vente et sa TVA, les espèces en caisse (54).
+
+Limites connues : un chèque reçu va au compte de la banque (532) dès qu'il est noté, sans passer par « chèques à
+encaisser » tant qu'il n'est pas remis (À VÉRIFIER avec un comptable) ; l'avoir ne rend pas le timbre (À VÉRIFIER).
+
+Le rouge GitHub de la 1.307.0, réparé ici : sur une machine lente, la visite « Confier mon dossier à mon comptable »
+finissait sur « Ce n'est pas encore fait ». « Suivant », cliqué avant que le panneau du cabinet ait fini de se charger,
+faisait sauter les étapes qui le décrivent. Désormais la première étape attend que le panneau soit dessiné, et un
+« Suivant » cliqué pendant qu'une étape prépare son écran se garde et se joue juste après (pour toutes les visites, de
+l'entreprise et du Cabinet). Le test le rejoue en ralentissant exprès la lecture du mandat.
+
+Suivant : les clients, puis les achats, les fournisseurs et l'accueil.

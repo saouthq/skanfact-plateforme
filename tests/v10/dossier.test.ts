@@ -285,9 +285,10 @@ describe('le dossier v10 tenu par le serveur', () => {
     expect((await changer({ ...emis, creditOf: 'f2' })).corps.motif).toBe('L\'avoir AVO-2026-001 est émis : il ne se modifie plus.');
     expect((await changer({ ...emis, creditReason: 'autre chose' })).statut).toBe(403);
     expect((await changer(null)).corps.motif).toBe('L\'avoir AVO-2026-001 est émis : il ne s\'efface jamais.');
-    // La facture lue par l'API : l'avoir la crédite, le reste le dit.
+    // La facture lue par l'API : l'avoir la crédite, le reste le dit. (1.308.0) Un avoir n'est pas un paiement : rien n'étant
+    // reçu, la facture échue est en retard, pas « payée en partie » (décision D6 de docs/avoirs-reglements.md).
     const lue = (await appeler('GET', `/entreprises/${e.ent}/ventes/${f.piece}`, e.jeton)).corps;
-    expect(lue.suivi).toMatchObject({ credite: '536.095', reste: '537.095', statut: 'partielle', avoirs: [{ numero: 'AVO-2026-001', netAPayer: '536.095' }] });
+    expect(lue.suivi).toMatchObject({ credite: '536.095', reste: '537.095', statut: 'en_retard', avoirs: [{ numero: 'AVO-2026-001', netAPayer: '536.095' }] });
   });
 
   it('1.81.0 : une pièce négative ne se scelle pas — ni une facture négative, ni un avoir nul ou négatif — et aucun numéro n\'est pris', async () => {

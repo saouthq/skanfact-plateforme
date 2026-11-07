@@ -73,7 +73,8 @@ export type StatutFacture = 'payee' | 'annulee' | 'partielle' | 'en_retard' | 'a
 export function statutFacture(netAPayer: bigint, solde: SoldeFacture, echeance: string | undefined, aujourdhui: string, annulee = false): StatutFacture {
   if (annulee) return 'annulee';
   if (solde.reste <= 0n) return netAPayer > 0n && solde.credite >= netAPayer ? 'annulee' : 'payee';
-  if (solde.paye > 0n || solde.credite > 0n) return 'partielle';
+  // (1.308.0) Un avoir diminue ce qui est dû, ce n'est pas un paiement : sans rien de reçu, la facture reste à payer (ou en retard).
+  if (solde.paye > 0n) return 'partielle';
   if (echeance && echeance < aujourdhui) return 'en_retard';
   return 'a_payer';
 }

@@ -8356,7 +8356,7 @@ prouver "le WhatsApp d'un devis sans son lien" modules/socle/ecrans/entreprise/a
     const lien = !!bridge.ajouterLien && (C.isLocked(doc))" \
   "$DV3"
 prouver "la fenêtre d'un devis qui promet « ce qu'il en doit »" modules/socle/ecrans/entreprise/app-1.js \
-  "et ton client y voit la pièce telle que tu l\\'imprimes' + (doc.type === 'devis' ? '.' : ', et ce qu\\'il en doit.') : 'Le message s" "et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Le message s" \
+  "et ton client y voit la pièce telle que tu l\\'imprimes' + (doc.type === 'devis' ? '.' : ', et ce qu\\'il en doit.') : 'Un lien WhatsApp" "et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Un lien WhatsApp" \
   "$DV3"
 prouver "« Lien pour le client… » absent d'un devis envoyé" modules/socle/ecrans/entreprise/app-1.js \
   "((locked && (isInv || isAv)) || (doc.type === 'devis' && doc.status !== 'brouillon'))" "(locked && (isInv || isAv))" \
@@ -19946,7 +19946,7 @@ prouver 'mois 133 : la pièce émise restée un formulaire grisé' modules/socle
   "const lecture = locked && (isInv || isAv) && !isNew;" "const lecture = false;" \
   'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
 prouver 'mois 133 : le reçu compté sans les paiements' modules/socle/ecrans/entreprise/app-1.js \
-  "        const recu = C.round3(bal.paid + bal.credited);" "        const recu = C.round3(bal.credited);" \
+  'const payeG = C.round3(bal.paid),' 'const payeG = 0,' \
   "Samia, sans matricule ni RIB : la pièce n'imprime rien de vide, la fiche se complète avant d'émettre, et le reste suit"
 prouver 'mois 133 : les cases grisées encore là sous le résumé' 'web/public/v10/style.css|||web/public/plateforme/piece.css' \
   ".editor.lecture #f-head > :not(#ed-affaire) { display: none; }|||.editor.charte.lecture #f-head > :not(.ed-options), .editor.charte.lecture .ed-options > :not(#ed-affaire) { display: none; }" ".editor.lecture #f-head > :not(#ed-affaire) { }|||.editor.charte.lecture #f-head > :not(.ed-options), .editor.charte.lecture .ed-options > :not(#ed-affaire) {  }" \
@@ -20361,9 +20361,7 @@ prouver 'facture 8 : une facture payée en partie dite payée' modules/socle/ecr
   '      const paye = b && b.remaining <= 0.0005;' '      const paye = !!b;' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
 prouver 'facture 9 : une facture émise due sans « Enregistrer un paiement »' modules/socle/ecrans/entreprise/app-1.js \
-  '      if (locked && isInv && doc.status !== '"'"'annulée'"'"' && bal && bal.remaining > 0.0005) {
-        const recu' '      if (false) {
-        const recu' \
+  '      if (locked && isInv && doc.status !== '"'"'annulée'"'"' && bal && bal.remaining > 0.0005) {' '      if (false) {' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
 prouver 'facture 10 : au téléphone, le geste qui défile avec la pièce' web/public/plateforme/piece.css \
   '  .ed-geste { position: fixed; left: 0;' '  .ed-geste { left: 0;' \
@@ -20684,7 +20682,7 @@ prouver 'écarts facture 4 : la bulle des filtres en petit « i »' modules/socl
         ${info('"'"'list.filters'"'"').replace('"'"'class="i"'"'"', '"'"'class="i i-b"'"'"')}' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
 prouver 'écarts facture 5 : la phrase d'"'"'une facture en euros qui écrit « EUR »' modules/socle/ecrans/entreprise/app-1.js \
-  '${argentLu(recu, cur)} reçus, reste ${argentLu(bal.remaining, cur)}' '${C.money(recu, cur)} reçus, reste ${C.money(bal.remaining, cur)}' \
+  '${argentLu(payeG, cur)} reçus' '${C.money(payeG, cur)} reçus' \
   'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
 prouver 'écarts facture 6 : l'"'"'unité d'"'"'une pièce émise dans une liste à dérouler' modules/socle/ecrans/entreprise/app-1.js \
   '${figee ? `<span class="unite-lue">${h(uniteLue(l))}</span>`' '${false ? `<span class="unite-lue">${h(uniteLue(l))}</span>`' \
@@ -25435,6 +25433,57 @@ prouver '« Voir » la facture déjà faite ne mène nulle part' "$APP1" \
 prouver 'une facture faite sans réponse notée laisse le devis sans acceptation' "$APP1" \
   '    orig.reponse = rep;' '    void rep;' \
   "$T307"
+# (1.308.0) Les Factures jouées (le menuisier de Sfax) : l'hôtel paie en deux fois et garde sa retenue ; Ines, en retard, se
+# relance depuis sa facture comme depuis la page Relances ; le café rend une chaise : l'avoir diminue ce qu'il doit, il ne
+# « paie » rien (la règle du statut, la même dans les deux moteurs).
+T308="le menuisier de Sfax encaisse ses factures : l'hôtel paie en deux fois avec sa retenue, Ines relancée, le café rend une chaise"
+TREG="le reste : le net, moins les avoirs, moins les règlements ; le statut s'en déduit"
+APP1=modules/socle/ecrans/entreprise/app-1.js
+prouver 'une facture que seul un avoir réduit se dit payée en partie (écrans)' modules/socle/moteur/core-1.js \
+  "    if (b.paid > 0) return 'partielle';" "    if (b.paid > 0 || b.credited > 0) return 'partielle';" \
+  "$T308"
+prouver 'une facture que seul un avoir réduit se dit payée en partie (serveur)' moteur/reglements.ts \
+  "  if (solde.paye > 0n) return 'partielle';" "  if (solde.paye > 0n || solde.credite > 0n) return 'partielle';" \
+  "$TREG"
+prouver 'ce qu'\''un avoir retire se compte comme reçu' "$APP1" \
+  '        const payeG = C.round3(bal.paid), avoirsG = C.round3(bal.credited);' '        const payeG = C.round3(bal.paid + bal.credited), avoirsG = 0;' \
+  "$T308"
+prouver 'la facture ne dit pas ce que l'\''avoir a retiré' "$APP1" \
+  "avoirsG > 0.0005 ? \`\${argentLu(avoirsG, cur)} retirés par avoir\` : ''" "''" \
+  "$T308"
+prouver 'une facture échue garde le paiement pour étape suivante' "$APP1" \
+  '        if (echueG && !echueG.snoozed && !echueG.attente) {' '        if (false) {' \
+  "$T308"
+prouver 'une facture échue ne dit pas son retard' "$APP1" \
+  "const quandG = echueG ? \`en retard de" "const quandG = null ? \`en retard de" \
+  "$T308"
+prouver 'une facture relancée ne dit pas qu'\''on attend la réponse' "$APP1" \
+  '        const attendG = echueG && echueG.attente && echueG.lastReminder ?' '        const attendG = false ?' \
+  "$T308"
+prouver '« Relancer » de la facture ne fait rien' "$APP1" \
+  "    if (\$('#ed-relancer')) \$('#ed-relancer').onclick = () => relancerPiece(stored || doc);" '    void 0;' \
+  "$T308"
+prouver 'une facture remise de la main à la main ne se relance pas depuis son menu' "$APP1" \
+  '(envois.length || C.overdueInvoices(data, company()).some(x => x.doc.id === st.id))' '(envois.length)' \
+  "$T308"
+prouver 'les paiements d'\''une facture échue promettent les relances pour plus tard' "$APP1" \
+  'const relanceS = echueS ?' 'const relanceS = false ?' \
+  "$T308"
+prouver 'la frise compte l'\''avoir comme reçu' "$APP1" \
+  '      const recu = b ? C.round3(b.paid) : 0;' '      const recu = b ? C.round3(b.paid + b.credited) : 0;' \
+  "$T308"
+prouver 'la frise oublie ce que l'\''avoir laisse à payer' "$APP1" \
+  ": b && b.credited > 0.0005 ? \`rien de reçu · reste" ": false ? \`rien de reçu · reste" \
+  "$T308"
+# (1.308.0) Le rouge GitHub de la 1.307.0 : sur une machine lente, « Suivant » cliqué avant que le panneau du mandat soit
+# dessiné sautait les étapes qui le décrivent. Le test fait attendre la lecture du mandat 1,2 s.
+TMANDAT='l'\''exemple déjà là s'\''ouvre aussitôt ; sans vraie entreprise, son bandeau la crée ; « Confier mon dossier à mon comptable » y démarre, après l'\''assistant'
+prouver '« Suivant » cliqué pendant que l'\''étape prépare son écran saute les étapes suivantes' web/public/v10/visite.js \
+  '    if (cur.attente) { cur.suivantApres = { passer: !!passer }; return; }' '    void 0;' \
+  "$TMANDAT"
+prouver 'la visite du mandat n'\''attend pas que le panneau soit dessiné' modules/socle/visites/visites.js \
+  "          for (let n = 0; n < 40 && !(\$('#cab-pair') && \$('#cab-pair').children.length); n++) await new Promise(r => setTimeout(r, 50));" '          void 0;' \
+  "$TMANDAT"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

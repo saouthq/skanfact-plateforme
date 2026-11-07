@@ -29,6 +29,8 @@ const COMPTES: ComptesEncaissement = {
 };
 const STATUTS: Record<string, StatutFacture> = { 'payée': 'payee', 'annulée': 'annulee', partielle: 'partielle', retard: 'en_retard', 'envoyée': 'a_payer' };
 const cleDe = (p: PaiementV10, i: number) => p.id || `#${i}`;
+// Les factures que seul un avoir réduit (écart tranché le 07/11/2026, 1.308.0) : le tirage doit en rencontrer.
+const avoirsSeuls: string[] = [];
 
 // Ce que la v10 et le nouveau moteur disent d'une facture ; la liste des différences (vide : les
 // mêmes). `centimes` recueille les parts de retenue en devise, que la v10 tient au millième d'euro
@@ -88,7 +90,12 @@ function comparer(f: FactureV10, data: Donnees, societe: Societe, jour: string, 
   }
   const s10 = STATUTS[core.effectiveStatus(f, data, societe, jour)];
   const statut = statutFacture(t.netAPayer, solde, f.dueDate, jour, annulee);
-  if (s10 !== statut) faux.push(`statut : v10 ${s10}, nouveau ${statut}`);
+  // (1.308.0, écart tranché) La v10 disait « payée en partie » une facture que seul un avoir réduisait, rien n'ayant été reçu (ou
+  // moins que rien : un remboursement) :
+  // le nouveau moteur dit ce qui est dû (à payer, ou en retard après l'échéance). Un avoir n'est pas un paiement.
+  const avoirSeul = s10 === 'partielle' && solde.paye <= 0n && solde.credite > 0n && (statut === 'a_payer' || statut === 'en_retard');
+  if (avoirSeul) avoirsSeuls.push(f.id);
+  else if (s10 !== statut) faux.push(`statut : v10 ${s10}, nouveau ${statut}`);
 
   // 3. L'écriture de chaque encaissement, dans l'ordre des dates (la v10 les trie de même).
   const lignes10 = core.journalEntries(data, societe, {}, { sections: ['encaissements'] }).filter((l) => l.docId === f.id);
@@ -217,6 +224,7 @@ describe('le banc des règlements, contre la v10', () => {
     expect(vus.soldees).toBeGreaterThan(2000);
     // L'écart tranché existe bien dans le tirage (sinon sa règle n'a rien vérifié).
     expect(centimes.length).toBeGreaterThan(0);
+    expect(avoirsSeuls.length).toBeGreaterThan(0);
   });
 });
 

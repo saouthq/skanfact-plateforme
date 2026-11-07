@@ -1812,7 +1812,9 @@
     if (b.remaining <= 0.0005) {
       return b.totals.netToPay > 0 && b.credited >= b.totals.netToPay - 0.0005 ? 'annulée' : 'payée';
     }
-    if (b.paid > 0 || b.credited > 0) return 'partielle';
+    // (1.308.0) Un avoir diminue ce qui est dû ; il n'est pas un paiement : la facture qu'il réduit sans que rien ne soit reçu
+    // reste à payer, ou en retard le lendemain de son échéance (le café qui rend une chaise n'a rien « payé en partie »).
+    if (b.paid > 0) return 'partielle';
     if (doc.dueDate && doc.dueDate < (todayIso || today())) return 'retard';
     return 'envoyée';
   }
