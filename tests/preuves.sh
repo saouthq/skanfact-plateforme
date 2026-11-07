@@ -26328,6 +26328,100 @@ prouver 'garanties 1.322 aa : une provision pour garanties invalide se passe qua
 prouver 'garanties 1.322 ab : la provision pour garanties propose un montant' modules/socle/ecrans/cabinet/app-2.js \
   '<input name="montant" inputmode="decimal" value="" placeholder="0,000">' '<input name="montant" inputmode="decimal" value="${esc(montantChamp(Number(etat.ht) || 0))}" placeholder="0,000">' \
   "$GARW"
+# (1.323.0) Les Statistiques jusqu'au comptable : « Vendu HT » est le chiffre d'affaires que lit le Cabinet (les comptes 70) ;
+# la revente d'un bien (775) est dite à part et sa TVA reste collectée ; le matériel immobilisé est un achat, au bilan.
+STA1="« Vendu HT » est le chiffre d'affaires du comptable : la revente du four est dite à part, sa TVA reste collectée"
+STA2="le livre du comptable dit le même chiffre : 903,174 aux comptes 70, 9 000,300 au 775"
+STA3="le voisin qui rachète le four n'est ni le meilleur client, ni un nouveau client ; le four ne se vend pas « le mieux » ; mai se lit sans lui"
+STA4="la marge ne compte pas la revente comme une vente sans coût : la page Marges vend ce que vendent les Statistiques"
+STA5="le four neuf est un achat, mais pas une charge de l'année : la part immobilisée se dit à côté des achats"
+STAW="la boulangerie revend son vieux four : « Vendu HT » est le chiffre d'affaires du comptable, la revente est dite à part"
+prouver 'statistiques 1.323 a : « Vendu HT » compte la revente du four' modules/socle/moteur/core-2.js \
+  '    const docs = ventesDuMetier(data, fromIso, toIso);
+    let ht = 0, ttc = 0, vat = 0;' '    const docs = issuedIn(data, fromIso, toIso);
+    let ht = 0, ttc = 0, vat = 0;' \
+  "$STA1"
+prouver 'statistiques 1.323 b : la TVA collectée oublie celle de la revente' modules/socle/moteur/core-2.js \
+  'tvaCollectee: round3(vat + cession.tva) };' 'tvaCollectee: vat };' \
+  "$STA1"
+prouver 'statistiques 1.323 c : les ventes du métier gardent la revente' modules/socle/moteur/core-2.js \
+  '    return docs.some(d => estRevente(d, biens)) ? docs.filter(d => !estRevente(d, biens)) : docs;' '    return docs;' \
+  "$STA1"
+prouver 'statistiques 1.323 d : l'\''avoir sur la revente compte comme une vente' modules/socle/moteur/core-2.js \
+  '(d.type === '\''facture'\'' ? !!d.assetId : d.type === '\''avoir'\'' && biens.has(d.creditOf))' '(d.type === '\''facture'\'' ? !!d.assetId : false)' \
+  "$STA1"
+prouver 'statistiques 1.323 e : l'\''avoir sur la revente s'\''ajoute à la revente' modules/socle/moteur/core-2.js \
+  'const v = round3(sign * toBase(d, t.netHT, company)), x =' 'const v = round3(toBase(d, t.netHT, company)), x =' \
+  "$STA1"
+prouver 'statistiques 1.323 f : la facture d'\''un bien n'\''est pas reconnue' modules/socle/moteur/core-2.js \
+  'filter(d => d.type === '\''facture'\'' && d.assetId).map(d => d.id));' 'filter(() => false).map(d => d.id));' \
+  "$STA1"
+prouver 'statistiques 1.323 g : les factures et le comptoir comptent la revente' modules/socle/moteur/core-2.js \
+  '    const out = { factures: z(), comptoir: z() };
+    ventesDuMetier(data, fromIso, toIso)' '    const out = { factures: z(), comptoir: z() };
+    issuedIn(data, fromIso, toIso)' \
+  "$STA1"
+prouver 'statistiques 1.323 h : la revente du bien passe aux ventes chez le comptable' modules/socle/moteur/core-2.js \
+  'const cptVente = cession ? acc.produitsCession : acc.ventes;' 'const cptVente = acc.ventes;' \
+  "$STA2"
+prouver 'statistiques 1.323 i : le meilleur client est celui qui rachète le four' modules/socle/moteur/core-1.js \
+  '    ventesDuMetier(data, fromIso, toIso)
+      .forEach(d => { totals[d.clientId]' '    issuedIn(data, fromIso, toIso)
+      .forEach(d => { totals[d.clientId]' \
+  "$STA3"
+prouver 'statistiques 1.323 j : le four est « ce qui se vend le mieux »' modules/socle/moteur/core-2.js \
+  '    const totals = {};
+    ventesDuMetier(data, fromIso, toIso)' '    const totals = {};
+    issuedIn(data, fromIso, toIso)' \
+  "$STA3"
+prouver 'statistiques 1.323 k : le mois de mai compte la revente' modules/socle/moteur/core-2.js \
+  '    const byKey = Object.fromEntries(out.map(x => [x.month, x]));
+    ventesDuMetier(data, fromIso, toIso)' '    const byKey = Object.fromEntries(out.map(x => [x.month, x]));
+    issuedIn(data, fromIso, toIso)' \
+  "$STA3"
+prouver 'statistiques 1.323 l : le voisin qui rachète le four est un nouveau client' modules/socle/moteur/core-2.js \
+  '|| !d.date || estRevente(d, biens)) return;' '|| !d.date) return;' \
+  "$STA3"
+prouver 'statistiques 1.323 m : la revente devient une marge sans coût connu' modules/socle/moteur/core-1.js \
+  '    ventesDuMetier(data, fromIso, toIso).forEach(d => {
+      const sign = d.type === '\''avoir'\'' ? -1 : 1;
+      const clientKey = d.clientId || COMPTOIR;' '    issuedIn(data, fromIso, toIso).forEach(d => {
+      const sign = d.type === '\''avoir'\'' ? -1 : 1;
+      const clientKey = d.clientId || COMPTOIR;' \
+  "$STA4"
+prouver 'statistiques 1.323 n : le matériel immobilisé n'\''est pas compté à part' modules/socle/moteur/core-2.js \
+  'immo = round3(immo + (tp.base.byDestination.immobilisation || 0));' 'immo = round3(immo + 0);' \
+  "$STA5"
+prouver 'statistiques 1.323 o : la carte « Vendu HT » ne dit pas la revente mise à part' modules/socle/ecrans/entreprise/app-2.js \
+  '${cur1.cession.biens.length ? `<span class="mu" id="s-c-hors">' '${false ? `<span class="mu" id="s-c-hors">' \
+  "$STAW"
+prouver 'statistiques 1.323 p : la phrase de la TVA oublie la revente' modules/socle/ecrans/entreprise/app-2.js \
+  '<b>${h(C.money(cur1.tvaCollectee, cur))}</b>' '<b>${h(C.money(cur1.vat, cur))}</b>' \
+  "$STAW"
+prouver 'statistiques 1.323 q : la revente n'\''est dite nulle part sur la page' modules/socle/ecrans/entreprise/app-2.js \
+  '          ${ligneCession(cur1.cession)}`)' '          `)' \
+  "$STAW"
+prouver 'statistiques 1.323 r : le bien revendu ne s'\''ouvre pas depuis la phrase' modules/socle/ecrans/entreprise/app-2.js \
+  '`<a href="#/immo/${h(b.assetId)}">${h(b.label)}</a>`' '`<b>${h(b.label)}</b>`' \
+  "$STAW"
+prouver 'statistiques 1.323 s : la part immobilisée des achats n'\''est pas dite' modules/socle/ecrans/entreprise/app-2.js \
+  '(Math.abs(ach.immo) > 0.0005 ? `<p class="small sx-note" id="s-immo">' '(false ? `<p class="small sx-note" id="s-immo">' \
+  "$STAW"
+prouver 'statistiques 1.323 t : l'\''export ne dit pas la revente' modules/socle/ecrans/entreprise/app-2.js \
+  '        ...cur1.cession.biens.map(b => ({ section:' '        ...[].map(b => ({ section:' \
+  "$STAW"
+prouver 'statistiques 1.323 u : le montant de la revente reste seul en bout de ligne' web/public/plateforme/liste.css \
+  '.lf.mg.sx .mg-chiffre small #s-c-hors { display: block; margin-top: 2px; }' '.lf.mg.sx .mg-chiffre small #s-c-hors { margin-top: 2px; }' \
+  "$STAW"
+prouver 'statistiques 1.323 v : au Cabinet, le mois tiré des livres se dit « exemple »' web/public/plateforme/pont-cabinet.js \
+  'integrity: null, livre: true,' 'integrity: null,' \
+  "$STAW"
+prouver 'statistiques 1.323 w : au Cabinet, le mois des livres ne s'\''ouvre pas sur ses écritures' modules/socle/ecrans/cabinet/app-1.js \
+  ': p.livre ? `<td class="row-actions"><a class="btn btn-sm"' ': false ? `<td class="row-actions"><a class="btn btn-sm"' \
+  "$STAW"
+prouver 'statistiques 1.323 x : le serveur passe la revente aux ventes' serveur/compta/ventes.ts \
+  'ventes: cession ? plan.plan.produitsCession : plan.plan.ventes,' 'ventes: plan.plan.ventes,' \
+  "$STAW"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

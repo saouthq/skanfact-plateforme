@@ -4400,7 +4400,8 @@
       const aging = C.agedReceivables(data, company(), now);
 
       $('#s-resume').innerHTML =
-        chiffre('s-c-ventes', 'Vendu HT', montantU(cur1.ht, cur), compare(cur1.ht, prev.ht, an), '', 'stat.ca', 'ventes')
+        // (1.323.0) Le chiffre d'affaires du comptable (ses comptes 70) : la revente d'un bien n'y est pas, la carte le dit.
+        chiffre('s-c-ventes', 'Vendu HT', montantU(cur1.ht, cur), `${compare(cur1.ht, prev.ht, an)}${cur1.cession.biens.length ? `<span class="mu" id="s-c-hors">hors revente d'un bien : ${h(C.money(cur1.cession.ht, cur))}</span>` : ''}`, '', 'stat.ca', 'ventes')
         // Ce qui est entré ne se compare pas seulement à l'an dernier : ce qui reste dû aujourd'hui se lit à côté (l'onglet
         // Clients le range par retard).
         + chiffre('s-c-encaisse', 'Encaissé', montantU(enc.montant, cur), aging.total > 0.0005 ? `${pl(enc.reglements, 'règlement')} · <span class="ambre">${h(C.money(aging.total, cur))} encore dus</span>` : compare(enc.montant, encPrev.montant, an), '', 'stat.encaisse', 'clients')
@@ -4437,6 +4438,15 @@
       };
     });
 
+    // (1.323.0) La revente d'un bien de la période, dite sous les ventes : chaque bien, ses pièces, son HT. Ce n'est pas une
+    // vente du métier : le comptable la passe aux produits des cessions (775), et aucun chiffre de la page ne la compte, sauf
+    // la TVA collectée. Le bien s'ouvre sur sa fiche, où se lit ce que la revente a laissé.
+    function ligneCession(cs) {
+      if (!cs.biens.length) return '';
+      const bien = b => `${b.assetId && (data.assets || []).some(a => a.id === b.assetId) ? `<a href="#/immo/${h(b.assetId)}">${h(b.label)}</a>` : `<b>${h(b.label)}</b>`} (${h(b.pieces.map(x => x.number || C.fmtDate(x.date)).join(', '))}), ${h(C.money(b.ht, cur))} HT`;
+      return `<p class="small sx-note" id="s-cession">${cs.biens.length > 1 ? 'Ces reventes ne sont pas des ventes' : 'Cette revente n\'est pas une vente'} de ton métier : ${cs.biens.map(bien).join(' ; ')}. Ton comptable ${cs.biens.length > 1 ? 'les' : 'la'} passe à part, aux produits des cessions (775) : ${cs.biens.length > 1 ? 'elles ne sont' : 'elle n\'est'} dans aucun chiffre de cette page, sauf la TVA collectée. ${info('stat.cession')}</p>`;
+    }
+
     function ongletVentes(p, cur1, canaux, now) {
       const series = C.revenueByMonth(data, company(), `${p.year}-01-01`, `${p.year}-12-31`);
       const seriesPrev = C.revenueByMonth(data, company(), `${p.year - 1}-01-01`, `${p.year - 1}-12-31`);
@@ -4462,7 +4472,8 @@
         + section('s-canaux', comptoir ? 'Factures et comptoir' : 'Les factures', 'stat.canaux', `<div class="lf-tab scroll-x"><table class="list lf-table" data-sans-cartes><thead><tr><th>Vendu par</th><th class="r">Pièces</th><th class="r">HT</th><th class="r">Panier moyen HT</th></tr></thead><tbody>
             ${ligneCanal('Factures', canaux.factures)}${comptoir ? ligneCanal('Tickets de caisse', canaux.comptoir) : ''}</tbody>
             <tfoot><tr><td><span class="pied-t"><b>${h(p.label.charAt(0).toUpperCase() + p.label.slice(1))}</b></span></td><td class="r m">${cur1.invoices}</td><td class="r m">${lfMontant(cur1.ht, cur)}</td><td></td></tr></tfoot></table></div>
-          <p class="small mu sx-note" id="s-tva">TVA collectée sur la période : <b>${h(C.money(cur1.vat, cur))}</b>, à reverser, avoirs déduits. ${info('stat.vat')}</p>`)
+          <p class="small mu sx-note" id="s-tva">TVA collectée sur la période : <b>${h(C.money(cur1.tvaCollectee, cur))}</b>, à reverser, avoirs déduits${Math.abs(cur1.cession.tva) > 0.0005 ? `, dont ${h(C.money(cur1.cession.tva, cur))} sur la revente d'un bien` : ''}. ${info('stat.vat')}</p>
+          ${ligneCession(cur1.cession)}`)
         + `<div class="sx-deux">${section('s-items', 'Ce qui se vend le mieux', 'stat.items', items.length ? `<ul class="rank">${items.map(x => `<li><span class="name">${h(x.label)}</span><span class="bar"><i style="width:${largeurRang(x.ht, itemMax)}%"></i></span><span class="amt">${C.money(x.ht, cur)}</span></li>`).join('')}</ul>
             <p class="small mu sx-note">Regroupées par libellé, remises comprises.${items.some(x => x.acomptes) ? ' Un acompte facturé a sa ligne, le mois où il est facturé ; le mois du solde, sa déduction vient en moins de cette ligne.' : ''}</p>` : vide('Aucune vente sur cette période', 'Le classement se remplit dès la première facture émise.'))}
           ${section('s-clients', 'Meilleurs clients (HT)', 'stat.clients', clients.length ? `<ul class="rank">${clients.map(x => `<li><a class="name" href="${x.clientId ? '#/client/' + h(x.clientId) : '#/caisse'}">${h(x.name)}</a><span class="bar"><i style="width:${largeurRang(x.ht, clientMax)}%"></i></span><span class="amt">${C.money(x.ht, cur)}</span></li>`).join('')}</ul>
@@ -4534,7 +4545,10 @@
       return section('s-fournisseurs', 'Par fournisseur', 'stat.achats', tableau('s-sx-f', 'Fournisseur', ach.fournisseurs, s.pagesF, 'fournisseur', x => x.supplierId ? ` class="clickable" data-fournisseur="${h(x.supplierId)}"` : ''),
           `<a class="btn btn-sm" href="#/achats">Voir les achats</a>`)
         + section('s-categories', 'Par catégorie', 'stat.achats-cat', tableau('s-sx-c', 'Catégorie', ach.categories, s.pagesC, 'catégorie', () => ''))
-        + `<p class="small mu sx-note">Hors taxes, en ${h(C.normCurrency(cur))}, factures d'achat et dépenses de la période ; un avoir fournisseur vient en moins, un acompte versé n'y est pas (sa facture le reprend). ${achPrev.ht ? `${C.money(achPrev.ht, cur)} sur la même période de ${an}.` : ''}</p>`;
+        + `<p class="small mu sx-note">Hors taxes, en ${h(C.normCurrency(cur))}, factures d'achat et dépenses de la période ; un avoir fournisseur vient en moins, un acompte versé n'y est pas (sa facture le reprend). ${achPrev.ht ? `${C.money(achPrev.ht, cur)} sur la même période de ${an}.` : ''}</p>`
+        // (1.323.0) Le matériel acheté pour rester (une ligne « immobilisation ») est un achat, mais pas une charge de l'année :
+        // le comptable le met au bilan et l'amortit. Les deux chiffres se lisent, l'écart se comprend.
+        + (Math.abs(ach.immo) > 0.0005 ? `<p class="small sx-note" id="s-immo">Dont <b>${h(C.money(ach.immo, cur))}</b> de matériel gardé dans l'entreprise : ton comptable le met au bilan et le déduit un peu chaque année (l'amortissement), ce n'est pas une charge de ${p.year}. <a href="#/immos">Voir les immobilisations</a></p>` : '');
     }
 
     fillN();
@@ -4596,7 +4610,8 @@
       { section: 'Période', label: 'Du', value: p.from }, { section: 'Période', label: 'Au', value: p.to },
       { section: 'Ventes', label: 'Chiffre d\'affaires HT', value: m(cur1.ht) },
       { section: 'Ventes', label: 'Chiffre d\'affaires HT — même période l\'an dernier', value: m(prev.ht) },
-      { section: 'Ventes', label: 'TVA collectée', value: m(cur1.vat) },
+      { section: 'Ventes', label: 'TVA collectée', value: m(cur1.tvaCollectee) },
+      ...(cur1.cession.biens.length ? [{ section: 'Ventes', label: 'Dont TVA sur la revente d\'un bien', value: m(cur1.cession.tva) }] : []),
       { section: 'Ventes', label: 'Total TTC', value: m(cur1.ttc) },
       { section: 'Ventes', label: 'Factures émises', value: cur1.invoices },
       { section: 'Ventes', label: 'Panier moyen HT', value: m(cur1.avgTicket) },
@@ -4605,7 +4620,9 @@
         { section: 'Ventes', label: 'Dont tickets de caisse', value: `${m(plus.canaux.comptoir.ht)} (${pl(plus.canaux.comptoir.pieces, 'ticket')})` },
         { section: 'Encaissements', label: 'Encaissé sur la période', value: `${m(plus.enc.montant)} (${pl(plus.enc.reglements, 'règlement')})` },
         { section: 'Marge', label: 'Marge estimée', value: `${m(plus.marge)}${plus.margeIncomplete ? ' (surestimée : des coûts manquent)' : ''}` },
+        ...cur1.cession.biens.map(b => ({ section: 'Revente d\'un bien (hors chiffre d\'affaires, 775)', label: b.label, value: `${m(b.ht)} HT (${b.pieces.map(x => x.number).join(', ')})` })),
         { section: 'Achats', label: 'Achats HT de la période', value: `${m(plus.ach.ht)} (${pl(plus.ach.pieces, 'pièce')})` },
+        ...(Math.abs(plus.ach.immo) > 0.0005 ? [{ section: 'Achats', label: 'Dont matériel immobilisé (au bilan)', value: m(plus.ach.immo) }] : []),
         ...plus.ach.fournisseurs.map(x => ({ section: 'Achats par fournisseur', label: x.label, value: `${m(x.ht)} (${pl(x.pieces, 'pièce')})` })),
         ...plus.ach.categories.map(x => ({ section: 'Achats par catégorie', label: x.label, value: `${m(x.ht)} (${pl(x.pieces, 'pièce')})` }))
       ] : []),

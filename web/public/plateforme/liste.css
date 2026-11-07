@@ -912,6 +912,8 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.mg.sx .sx-periode { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .lf.mg.sx .sx-periode .sel[hidden] { display: none; }
 .lf.mg.sx .mg-chiffre small .ambre { color: var(--sb-ambre-texte); font-weight: 600; }
+/* (1.323.0) « hors revente d'un bien » : sa propre ligne sous la comparaison, le montant ne reste pas seul en bout de ligne. */
+.lf.mg.sx .mg-chiffre small #s-c-hors { display: block; margin-top: 2px; }
 .lf.mg.sx .mg-chiffre .delta.up { color: var(--sb-doux-texte); }
 .lf.mg.sx .mg-chiffre .delta.down { color: var(--sb-rouge-texte); }
 .lf.mg.sx .mg-chiffre .delta { font-size: 12px; }

@@ -2277,7 +2277,8 @@
 
   function topClients(data, company, fromIso, toIso, limit) {
     const totals = {};
-    (data.documents || []).filter(d => (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée' && inPeriod(d.date, fromIso, toIso))
+    // (1.323.0) Les ventes du métier : celui qui rachète l'utilitaire de l'entreprise n'est pas son meilleur client.
+    ventesDuMetier(data, fromIso, toIso)
       .forEach(d => { totals[d.clientId] = round3((totals[d.clientId] || 0) + (d.type === 'avoir' ? -1 : 1) * toBase(d, computeTotals(d, company).netHT, company)); });
     // Les tickets sans client se rangent sous « Vente au comptoir » (10.15.0), jamais sous « — ».
     const name = id => id ? ((data.clients || []).find(c => c.id === id) || {}).name || '—' : CLIENT_COMPTOIR;
@@ -3284,7 +3285,9 @@
     // Statistiques dès la première vente en caisse (10.15.0, trouvé par la vérité comptable).
     const COMPTOIR = '__comptoir__';
     const clientName = id => id === COMPTOIR ? CLIENT_COMPTOIR : ((data.clients || []).find(c => c.id === id) || {}).name || '—';
-    issuedIn(data, fromIso, toIso).forEach(d => {
+    // (1.323.0) La revente d'un bien n'a pas de marge : son prix est un produit de cession (775), et ce qu'il laisse se lit
+    // contre sa valeur restante au tableau des biens. La compter ici en faisait une vente « sans coût connu ».
+    ventesDuMetier(data, fromIso, toIso).forEach(d => {
       const sign = d.type === 'avoir' ? -1 : 1;
       const clientKey = d.clientId || COMPTOIR;
       const t = computeTotals(d, company);

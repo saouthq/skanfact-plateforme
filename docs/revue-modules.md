@@ -1164,3 +1164,37 @@ novembre, un autre en stock ; la Clinique rend ensuite son climatiseur. Puis sa 
   preuves `garanties 1.322 a-ab`.
 
 **À VÉRIFIER** avec un comptable : les comptes 6815 / 1512, et la provision sur la base hors taxes.
+
+## Les statistiques, jusqu'au comptable
+
+*1.323.0, 07/11/2026. Jouées par une boulangerie de Monastir (« Boulangerie El Amen », Amel) : elle livre l'Hôtel Les Dunes
+(40 croissants rendus, un avoir) et le Restaurant La Marina (une remise de 3 %), vend au comptoir, revend son vieux four à la
+boulangerie Jaziri depuis sa fiche (« Facturer la cession ») et achète un four neuf. Puis son comptable, Hichem, au Cabinet.*
+
+**Ce qui n'allait pas**
+- La revente du four (9 450,500 DT HT) comptait comme une vente : « Vendu HT » disait 10 355,549 DT quand le comptable, dans
+  ses livres, lisait 905,049 DT de chiffre d'affaires (le prix d'un bien revendu va aux produits des cessions, 775, pas aux
+  comptes 70). La boulangerie Jaziri devenait le meilleur client (« pèse 91 % du chiffre d'affaires »), le four « ce qui se
+  vend le mieux », novembre un mois record, et la page Marges en faisait une vente sans coût connu (marge surestimée).
+- Le four neuf (38 500,750 DT) gonflait « Acheté HT » sans que rien dise qu'il n'est pas une charge de l'année.
+- Au Cabinet, chaque mois tiré des livres d'un client relié portait la mention « exemple », comme les paquets inventés du
+  cabinet d'exemple, à côté d'un chiffre d'affaires bien réel.
+
+**Ce qui change (1.323.0)**
+- `C.ventesDuMetier` : les pièces émises sans la revente d'un bien (la facture née de sa fiche et l'avoir qui la corrige), la
+  base de « Vendu HT », des factures et du comptoir, du mois par mois, de ce qui se vend le mieux, des meilleurs clients
+  (Statistiques et Accueil), des nouveaux clients et de la page Marges. La règle même du serveur (`ventes.ts`) : deux chemins,
+  un chiffre.
+- `C.cessionsSur` dit la revente à part : par bien, ses pièces, son HT et sa TVA. La carte « Vendu HT » ajoute « hors revente
+  d'un bien : 9 450,500 DT » ; l'onglet Ventes dit « Cette revente n'est pas une vente de ton métier : Four à sole 6 bouches
+  (FAC-…), 9 450,500 DT HT. Ton comptable la passe à part, aux produits des cessions (775) » (le bien s'ouvre sur sa fiche) ;
+  la TVA collectée garde celle de la revente et le dit (« dont 1 795,595 DT sur la revente d'un bien »). L'export aussi.
+- L'onglet Achats dit « Dont 38 500,750 DT de matériel gardé dans l'entreprise : ton comptable le met au bilan et le déduit un
+  peu chaque année (l'amortissement), ce n'est pas une charge de 2026 », avec le lien vers les immobilisations.
+- Au Cabinet, le mois d'un client relié s'ouvre sur ses écritures (« Voir les écritures ») au lieu de se dire « exemple ».
+  Le chiffre d'affaires que le comptable y lit est celui de la carte « Vendu HT ».
+- La preuve : `tests/moteur/statistiques-1323.test.ts` (5 règles, dont le livre du comptable : 903,174 aux comptes 70,
+  9 000,300 au 775), `tests/web/statistiques-1323.test.ts` (la revente facturée depuis la fiche du four, les Statistiques,
+  l'export, le téléphone, le Cabinet et son journal), preuves `statistiques 1.323 a-x`.
+
+**À VÉRIFIER** avec un comptable : la TVA sur la revente d'un bien dont la TVA n'a pas été déduite à l'achat.

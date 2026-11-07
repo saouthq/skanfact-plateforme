@@ -361,7 +361,7 @@
       month: m.mois, label: K.monthLabel(m.mois), definitive: m.brouillards === 0,
       receivedAt: Date.parse(m.dernier) || null, generatedAt: m.dernier || null,
       files: 0, missing: [], absent: 0, digest: '', bytes: 0, path: '', sealed: false, appVersion: '',
-      figures: { ca: Number(m.ca), devise: 'DT' }, integrity: null,
+      figures: { ca: Number(m.ca), devise: 'DT' }, integrity: null, livre: true,
     })).sort((a, b) => (a.month < b.month ? 1 : -1));
   }
 

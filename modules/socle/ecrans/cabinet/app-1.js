@@ -7066,7 +7066,11 @@
           <td class="r">${(p.missing || []).reduce((s, m) => s + (m.count || 0), 0) || '—'}</td>
           <td class="muted nw">${esc(fmtWhen(p.receivedAt))}</td>
           <td class="muted nw" title="${esc('Poids du fichier : ' + fmtBytes(p.bytes))}">${esc(p.generatedAt ? fmtWhen(Date.parse(p.generatedAt)) : '—')}</td>
-          ${p.path ? rowMenuCell(p.month) : '<td class="row-actions"><span class="muted small">exemple</span></td>'}</tr>`).join('')}</tbody>
+          ${p.path ? rowMenuCell(p.month)
+            // (1.323.0) Le mois d'un client relié vient de ses livres sur SkanFact : il s'ouvre sur ses écritures. Il se disait
+            // « exemple », comme les paquets inventés du cabinet d'exemple, à côté d'un chiffre d'affaires bien réel.
+            : p.livre ? `<td class="row-actions"><a class="btn btn-sm" href="#/dossier/${esc(encodeURIComponent(dossier.id))}/comptabilite/journal/${esc(String(p.month).slice(0, 4))}" title="Ce mois vient des livres du client sur SkanFact">Voir les écritures</a></td>`
+              : '<td class="row-actions"><span class="muted small">exemple</span></td>'}</tr>`).join('')}</tbody>
         <tfoot><tr><td class="nw"><strong>${pl(packs.length, 'mois', 'mois')}</strong></td><td></td>
           <td class="r nw"><strong>${esc(money(caTousMois))}</strong></td><td colspan="6"></td></tr></tfoot></table></div>
         `

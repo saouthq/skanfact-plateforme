@@ -3986,8 +3986,41 @@
     return (data.documents || []).filter(d => (d.type === 'facture' || d.type === 'avoir')
       && d.status !== 'brouillon' && d.status !== 'annulée' && inPeriod(d.date, fromIso, toIso));
   }
-  function salesTotals(data, company, fromIso, toIso) {
+  // (1.323.0) La facture qui revend un bien de l'entreprise et l'avoir qui la corrige (`estCession`), reconnus en une passe : un
+  // avoir se reconnaît à sa facture, et chercher celle-ci pour chacun des mille avoirs d'un commerce relirait toutes les pièces.
+  const facturesDeBiens = data => new Set((data.documents || []).filter(d => d.type === 'facture' && d.assetId).map(d => d.id));
+  const estRevente = (d, biens) => (d.type === 'facture' ? !!d.assetId : d.type === 'avoir' && biens.has(d.creditOf));
+  // (1.323.0) Les ventes du métier d'une période : les pièces émises sans la revente d'un bien. Son prix va aux produits des
+  // cessions (775) chez le comptable (`ventes.ts`, le serveur), hors des comptes 70 que le Cabinet lit comme le chiffre
+  // d'affaires du dossier : les Statistiques comptaient l'utilitaire revendu dans « Vendu HT », dans le meilleur client et
+  // dans ce qui se vend le mieux, et la page Marges en faisait une marge sans coût connu. Deux chemins, un chiffre.
+  function ventesDuMetier(data, fromIso, toIso) {
     const docs = issuedIn(data, fromIso, toIso);
+    const biens = facturesDeBiens(data);
+    return docs.some(d => estRevente(d, biens)) ? docs.filter(d => !estRevente(d, biens)) : docs;
+  }
+  // (1.323.0) Ce que la période a revendu de ses biens, dit à part : par bien (sa facture, l'avoir qui la corrige en moins), le
+  // HT et la TVA en devise de base. La TVA d'une revente se reverse comme celle d'une vente : la TVA collectée la compte
+  // (À VÉRIFIER avec le comptable : la revente d'un bien dont la TVA n'a pas été déduite à l'achat).
+  function cessionsSur(data, company, fromIso, toIso) {
+    const biens = facturesDeBiens(data);
+    const noms = new Map((data.assets || []).map(a => [a.id, a.label || '']));
+    const parBien = new Map();
+    let ht = 0, tva = 0;
+    issuedIn(data, fromIso, toIso).forEach(d => {
+      if (!estRevente(d, biens)) return;
+      const f = d.type === 'facture' ? d : (data.documents || []).find(x => x.id === d.creditOf) || {};
+      const t = computeTotals(d, company), sign = d.type === 'avoir' ? -1 : 1;
+      const v = round3(sign * toBase(d, t.netHT, company)), x = round3(sign * toBase(d, t.totalVAT, company));
+      ht = round3(ht + v); tva = round3(tva + x);
+      const b = parBien.get(f.assetId) || { assetId: f.assetId || '', label: noms.get(f.assetId) || ((t.lines || [])[0] || {}).label || 'Un bien', ht: 0, pieces: [] };
+      b.ht = round3(b.ht + v); b.pieces.push({ id: d.id, number: d.number || '', date: d.date, type: d.type });
+      parBien.set(f.assetId, b);
+    });
+    return { ht, tva, biens: [...parBien.values()] };
+  }
+  function salesTotals(data, company, fromIso, toIso) {
+    const docs = ventesDuMetier(data, fromIso, toIso);
     let ht = 0, ttc = 0, vat = 0;
     docs.forEach(d => {
       const t = computeTotals(d, company), sign = d.type === 'avoir' ? -1 : 1;
@@ -3996,7 +4029,9 @@
       vat = round3(vat + sign * toBase(d, t.totalVAT, company));
     });
     const invoices = docs.filter(d => d.type === 'facture').length;
-    return { ht, ttc, vat, count: docs.length, invoices, avgTicket: invoices ? round3(ht / invoices) : 0 };
+    const cession = cessionsSur(data, company, fromIso, toIso);
+    // `vat` est celle des ventes du métier (ht + vat + timbres = ttc) ; la TVA collectée de la période y ajoute `cession.tva`.
+    return { ht, ttc, vat, count: docs.length, invoices, avgTicket: invoices ? round3(ht / invoices) : 0, cession, tvaCollectee: round3(vat + cession.tva) };
   }
 
   // CA HT mois par mois sur une période quelconque (sert au graphique et à la saisonnalité).
@@ -4010,7 +4045,7 @@
       m++; if (m > 12) { m = 1; y++; }
     }
     const byKey = Object.fromEntries(out.map(x => [x.month, x]));
-    issuedIn(data, fromIso, toIso).forEach(d => {
+    ventesDuMetier(data, fromIso, toIso).forEach(d => {
       const k = (d.date || '').slice(0, 7);
       if (!byKey[k]) return;
       byKey[k].ht = round3(byKey[k].ht + (d.type === 'avoir' ? -1 : 1) * toBase(d, computeTotals(d, company).netHT, company));
@@ -4022,7 +4057,7 @@
   // Prestations les plus vendues sur la période, regroupées par libellé (les lignes de déduction d'acompte sont ignorées).
   function topItems(data, company, fromIso, toIso, limit) {
     const totals = {};
-    issuedIn(data, fromIso, toIso).forEach(d => {
+    ventesDuMetier(data, fromIso, toIso).forEach(d => {
       const sign = d.type === 'avoir' ? -1 : 1;
       const tt = computeTotals(d, company);
       // La remise globale ampute le prix de chaque prestation (10.14.0) : sans elle, le « top » des
@@ -4056,7 +4091,7 @@
   // identifiant), pas par libellé : un article renommé reste le même.
   function ventesDeLArticle(data, company, itemId, fromIso, toIso) {
     let ht = 0, qty = 0, pieces = 0;
-    issuedIn(data, fromIso, toIso).forEach(d => {
+    ventesDuMetier(data, fromIso, toIso).forEach(d => {
       const sign = d.type === 'avoir' ? -1 : 1;
       const tt = computeTotals(d, company);
       const factor = facteurRemise(tt);
@@ -4077,12 +4112,14 @@
     const t = todayIso || today();
     const seuil = Number(dormantDays) || 180;
     const nouveaux = [], dormants = [];
-    const inside = issuedIn(data, fromIso, toIso);
+    const inside = ventesDuMetier(data, fromIso, toIso);
     // Les pièces se rangent par client UNE fois (10.14.0) : relire toutes les pièces pour chacun des
     // mille cinq cents clients coûtait un tiers de seconde à chaque ouverture des Statistiques.
     const parClient = new Map(), dedans = new Map();
+    // (1.323.0) Celui qui rachète l'utilitaire n'est pas un nouveau client du métier.
+    const biens = facturesDeBiens(data);
     (data.documents || []).forEach(d => {
-      if (!(d.type === 'facture' || d.type === 'avoir') || d.status === 'brouillon' || d.status === 'annulée' || !d.date) return;
+      if (!(d.type === 'facture' || d.type === 'avoir') || d.status === 'brouillon' || d.status === 'annulée' || !d.date || estRevente(d, biens)) return;
       if (!parClient.has(d.clientId)) parClient.set(d.clientId, []);
       parClient.get(d.clientId).push(d.date);
     });
@@ -4400,7 +4437,7 @@
     const tickets = new Set((data.documents || []).filter(estTicket).map(d => d.id));
     const z = () => ({ ht: 0, pieces: 0, avoirs: 0 });
     const out = { factures: z(), comptoir: z() };
-    issuedIn(data, fromIso, toIso).forEach(d => {
+    ventesDuMetier(data, fromIso, toIso).forEach(d => {
       const k = estTicket(d) || (d.type === 'avoir' && tickets.has(d.creditOf)) ? out.comptoir : out.factures;
       k.ht = round3(k.ht + (d.type === 'avoir' ? -1 : 1) * toBase(d, computeTotals(d, company).netHT, company));
       if (d.type === 'avoir') k.avoirs++; else k.pieces++;
@@ -4425,11 +4462,14 @@
   function achatsRepartis(data, company, fromIso, toIso) {
     const noms = new Map((data.suppliers || []).map(s => [s.id, s.name || '—']));
     const parF = new Map(), parC = new Map();
-    let ht = 0, pieces = 0;
+    // (1.323.0) `immo` : la part du matériel gardé dans l'entreprise (une ligne « immobilisation ») : achetée, mais au bilan
+    // chez le comptable (22), pas dans les charges de l'année.
+    let ht = 0, pieces = 0, immo = 0;
     (data.purchases || []).forEach(p => {
       if (p.kind === 'acompte' || !inPeriod(p.date, fromIso, toIso)) return;
-      const v = purchaseTotals(p, company).base.totalHT;
+      const tp = purchaseTotals(p, company), v = tp.base.totalHT;
       ht = round3(ht + v); pieces++;
+      immo = round3(immo + (tp.base.byDestination.immobilisation || 0));
       const kf = p.supplierId || '';
       const f = parF.get(kf) || { supplierId: kf, label: kf ? noms.get(kf) || '—' : 'Sans fournisseur', ht: 0, pieces: 0 };
       f.ht = round3(f.ht + v); f.pieces++; parF.set(kf, f);
@@ -4439,7 +4479,7 @@
       c.ht = round3(c.ht + v); c.pieces++; parC.set(kc, c);
     });
     const tri = m => [...m.values()].sort((a, b) => b.ht - a.ht || a.label.localeCompare(b.label, 'fr'));
-    return { ht, pieces, fournisseurs: tri(parF), categories: tri(parC) };
+    return { ht, pieces, immo, fournisseurs: tri(parF), categories: tri(parC) };
   }
 
   // Pourquoi les devis de la période ont été refusés : le motif noté avec la réponse du client (« Trop cher », « Un
@@ -7647,7 +7687,7 @@
     mergeData, trackDeletion, MERGE_LISTS, LIST_LABELS, LIST_PLURIELS, compteListe, piecesLiees,
     purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatEnRetard, achatDoublon, facturesDuDevis, payablesList, detteFournisseurs, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
     remiseEffective,
-    periodBounds, issuedIn, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress, ventesParCanal, encaisseSur, achatsRepartis, motifsDeRefus,
+    periodBounds, issuedIn, ventesDuMetier, cessionsSur, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress, ventesParCanal, encaisseSur, achatsRepartis, motifsDeRefus,
     amountToWords, intToWords, intToWordsEn, documentHtml, fitToPage, paginate, pageCount,
     MODULES, PAGES, moduleById, pageById, pageTitle, moduleCount, moduleCounts, modulesRevenus, moduleOn, moduleWhy, navPages, familleNavOuverte, FAMILLES_OUVERTES_AU_DEBUT, FAMILLES_DU_MENU, vuesDePage,
     sousModuleOn, sousModuleById, sousModules, OPTION_LABELS,
