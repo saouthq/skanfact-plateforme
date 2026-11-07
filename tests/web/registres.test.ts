@@ -54,7 +54,8 @@ describe('les registres du socle, dans le navigateur', () => {
     expect(cab).toMatch(/\S{8}/);
     const attendus = {
       entreprise: {
-        portes: [],
+        // (1.301.0) Le pont pose la sienne : les morceaux de modules/<m>/pont/ parlent au serveur par elle (17 § 3.3).
+        portes: ['pont'],
         points: { 'sorties-prevues': { module: 'tresorerie', remplis: ['personnel'] }, 'declarations-sociales': { module: 'declarations', remplis: ['personnel'] } },
         emplacements: { ...VIDES, 'a-faire': 6, palette: 8, creer: 1, pages: 2 },
       },

@@ -177,7 +177,7 @@
     }
     return lu;
   }
-
+  /** @type {any} */ (window).Socle?.declarer('pont', { appel }); // (1.301.0) le serveur des morceaux modules/<m>/pont/ (17 § 3.3)
   // ── Les nombres : texte exact à l'aller, nombre au retour ───────────────────────────────────
   /** @param {unknown} v @returns {unknown} */
   function encoder(v) {

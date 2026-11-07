@@ -9,7 +9,7 @@
     "v10/cabinet/app.js": ["modules/socle/ecrans/cabinet/app-1.js", "modules/personnel/ecrans/cabinet/paie.js", "modules/socle/ecrans/cabinet/app-2.js"],
     "v10/cabinet/cabguide.js": ["modules/socle/aide/cabguide.js"],
     "v10/cabinet/cabvisites.js": ["modules/socle/visites/cabvisites.js"],
-    "plateforme/pont.js": ["web/public/plateforme/pont.js"],
+    "plateforme/pont.js": ["web/public/plateforme/pont.js", "modules/declarations/pont/entreprise.js"],
     "plateforme/pont-cabinet.js": ["web/public/plateforme/pont-cabinet.js"],
     "plateforme/registres.js": ["modules/socle/registres.js"],
     "plateforme/paie.css": ["modules/personnel/styles/paie.css"],

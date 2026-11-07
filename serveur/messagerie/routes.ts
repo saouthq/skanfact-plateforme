@@ -309,13 +309,16 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       if (!fil.cabinet) {
         const cabinetQuitte = (await tx.query(`select exists (select 1 from socle.mandat where entreprise = $1
             and (statut = 'termine' or (statut = 'actif' and fin is not null and fin < current_date))) q`, [entreprise])).rows[0].q === true;
-        return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens, achatsConfies: false, cabinetQuitte } };
+        return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens, achatsConfies: false, declarationsConfiees: false, cabinetQuitte } };
       }
       // (1.126.0) Le mandat confie-t-il la saisie des achats ? La page Achats propose alors d'abord la photo au cabinet
       // (revue du mois d'un client, point 6).
       const m = (await tx.query(`select perimetre from socle.mandat where entreprise = $1 and cabinet = $2 and statut = 'actif' limit 1`, [entreprise, fil.cabinet])).rows[0] as { perimetre: string[] } | undefined;
       const achatsConfies = !!m && (m.perimetre ?? []).includes('saisie_achats');
-      return { corps: { cabinet: fil.cabinet, ...(await attente(tx, entreprise, fil.cabinet, 'entreprise')), anciens, achatsConfies } };
+      // (1.301.0) Les déclarations confiées : la Comptabilité de l'entreprise lit alors celles de son cabinet (déposée le…, en
+      // retard) au lieu de les lui faire pointer à la main.
+      const declarationsConfiees = !!m && (m.perimetre ?? []).includes('declarations');
+      return { corps: { cabinet: fil.cabinet, ...(await attente(tx, entreprise, fil.cabinet, 'entreprise')), anciens, achatsConfies, declarationsConfiees } };
     },
   });
 

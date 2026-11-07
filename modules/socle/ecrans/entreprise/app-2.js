@@ -4452,6 +4452,10 @@
     return rows;
   }
 
+  // (1.301.0) Les livres du cabinet lus au serveur (`bridge.livresDuCabinet`) : ses déclarations de l'année, sa période validée.
+  let livresCabinetLus = null;
+  // « d'octobre », « d'août », « de septembre » : l'élision devant une voyelle.
+  const deMois = m => (/^[aeiouyéèêâh]/i.test(String(m)) ? `d'${m}` : `de ${m}`);
   routes.compta = () => {
     const cur = company().currency;
     const years = Array.from(new Set(data.documents.map(d => (d.date || '').slice(0, 4)).filter(Boolean).concat([C.today().slice(0, 4)]))).sort().reverse();
@@ -4464,21 +4468,44 @@
       : { from: `${comptaState.year}-01-01`, to: `${comptaState.year}-12-31` };
     const periodLabel = () => comptaState.month ? `${MONTHS[Number(comptaState.month) - 1]} ${comptaState.year}` : `année ${comptaState.year}`;
 
+    // (1.301.0) La DA des listes, comme les Statistiques et les Marges : le chemin, la phrase, les onglets dans leur barre et la
+    // période à droite, chaque onglet dans sa carte. Les identifiants restent (`#c-tabs`, `#c-year`, `#c-month`, `#c-body`).
+    const choixPeriode = (id, label, opts) => `<label class="sel"><select id="${id}" aria-label="${h(label)}">${opts}</select>${lfIc('bas', 14)}</label>`;
+    const avecCabinet = !!(messagerieVue && messagerieVue.cabinet);
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Comptabilité</h1>
-        <div class="actions" id="c-period" ${comptaState.tab === 'calendrier' ? 'hidden' : ''}>
-          <select id="c-year">${years.map(y => `<option ${y === comptaState.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
-          <select id="c-month"><option value="">Toute l'année</option>${MONTHS.map((m, i) => { const v = String(i + 1).padStart(2, '0'); return `<option value="${v}" ${v === comptaState.month ? 'selected' : ''}>${m}</option>`; }).join('')}</select>
-        </div></div>
-      <div class="tabs" id="c-tabs" role="tablist" aria-label="La comptabilité">${COMPTA_TABS.filter(([id]) => !ONGLETS_OPTION.includes(id) || C.sousModuleOn(data, 'compta.livres')).map(([id, label]) =>
-        `<button role="tab" data-tab="${id}" class="${id === comptaState.tab ? 'active' : ''}${ONGLETS_OPTION.includes(id) ? ' opt' : ''}">${label}${ONGLETS_OPTION.includes(id) && !(licence.options || []).includes('compta') ? ' 🔒' : ''}</button>`).join('')}
-        ${!C.sousModuleOn(data, 'compta.livres') ? `<button class="btn btn-sm btn-ghost" id="c-plus" title="Grand livre, balance, états financiers">+ Comptabilité complète</button>` : ''}</div>
-      ${bandeauSansPaie('cette comptabilité')}<div id="c-body"></div>`;
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Comptabilité</span></div><h1>Comptabilité</h1>
+        <p class="sous">${avecCabinet ? 'Tes ventes, tes achats, ta TVA et tes livres, mois par mois — et ce que ton cabinet en a fait' : 'Tes ventes, tes achats, ta TVA et tes livres, mois par mois'}</p></div>
+        ${!C.sousModuleOn(data, 'compta.livres') ? `<div class="actions mg-act"><button class="btn" id="c-plus" title="Grand livre, balance, états financiers">+ Comptabilité complète</button></div>` : ''}</div>
+      ${bandeauSansPaie('cette comptabilité')}
+      <div class="lf mg cpt">
+        <div class="mg-barre"><div class="pa-seg" id="c-tabs" role="tablist" aria-label="La comptabilité">${COMPTA_TABS.filter(([id]) => !ONGLETS_OPTION.includes(id) || C.sousModuleOn(data, 'compta.livres')).map(([id, label]) =>
+          `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === comptaState.tab}" class="${id === comptaState.tab ? 'active' : ''}${ONGLETS_OPTION.includes(id) ? ' opt' : ''}">${label}${ONGLETS_OPTION.includes(id) && !(licence.options || []).includes('compta') ? ' 🔒' : ''}</button>`).join('')}</div>
+          <div class="sx-periode" id="c-period" ${['calendrier', 'clotures', 'cabinet'].includes(comptaState.tab) ? 'hidden' : ''}>
+            ${choixPeriode('c-year', 'Année', years.map(y => `<option ${y === comptaState.year ? 'selected' : ''}>${y}</option>`).join(''))}
+            ${choixPeriode('c-month', 'Mois', `<option value="">Toute l'année</option>${MONTHS.map((m, i) => { const v = String(i + 1).padStart(2, '0'); return `<option value="${v}" ${v === comptaState.month ? 'selected' : ''}>${m}</option>`; }).join('')}`)}</div></div>
+        <div class="cf-carte"><div class="cf-onglet" id="c-body"></div></div>
+      </div>`;
+    // (1.301.0) Ce que le cabinet a fait des livres (ses déclarations, sa période validée), lu au serveur pour les onglets qui le
+    // disent ; relu au plus toutes les 30 secondes, et l'onglet se redessine quand la réponse arrive — jamais sous une fenêtre
+    // ni pendant une saisie.
+    const lireLivresDuCabinet = () => {
+      if (!(messagerieVue && messagerieVue.cabinet) || !bridge.livresDuCabinet || !['tva', 'calendrier', 'clotures'].includes(comptaState.tab)) return;
+      const annee = Number(comptaState.tab === 'tva' ? comptaState.year : C.today().slice(0, 4));
+      if (livresCabinetLus && livresCabinetLus.annee === annee && Date.now() - livresCabinetLus.lu < 30000) return;
+      livresCabinetLus = { annee, declarations: [], valideJusqua: '', lu: Date.now(), enCours: true };
+      void bridge.livresDuCabinet(annee).then(l => {
+        livresCabinetLus = l ? { ...l, lu: Date.now() } : { annee, declarations: [], valideJusqua: '', lu: Date.now(), illisible: true };
+        if (routeOf(location.hash) === 'compta' && ['tva', 'calendrier', 'clotures'].includes(comptaState.tab) && !$('#modal-root .modal')
+          && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) draw();
+      });
+    };
     const draw = dansUnLot(() => {
       // Un onglet masqué ne peut pas rester l'onglet courant : la page s'ouvrirait sur du vide,
       // sans onglet allumé, et on croirait s'être trompé de page.
       if (ONGLETS_OPTION.includes(comptaState.tab) && !C.sousModuleOn(data, 'compta.livres')) comptaState.tab = 'ventes';
       $('#c-period').hidden = ['calendrier', 'clotures', 'cabinet'].includes(comptaState.tab);
+      $$('#c-tabs [data-tab]').forEach(b => { const on = b.dataset.tab === comptaState.tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); });
+      lireLivresDuCabinet();
       if (comptaState.tab === 'achats') return drawBuyJournal(period(), periodLabel());
       if (comptaState.tab === 'tva') return drawVat();
       if (comptaState.tab === 'ecritures') return drawEntries();
@@ -4789,6 +4816,22 @@
            <div class="inline"><button class="btn btn-sm" id="carry-voir">Voir la déclaration de décembre ${h(rep.depuis)}</button>${carryIn && carryIn !== rep.montant ? `<button class="btn btn-sm" id="carry-oublier">Oublier le ${C.money(carryIn, cur)} saisi à la main</button>` : ''}</div>
            ${carryIn && carryIn !== rep.montant ? `<p class="small muted">Un crédit de ${C.money(carryIn, cur)} avait été saisi à la main pour ${h(year)} : il n'est plus repris, SkanFact connaît ${h(rep.depuis)} et en calcule le report.</p>` : ''}`
         : `<div class="inline mt"><button class="btn btn-sm" id="set-carry">${carryIn ? `Crédit de TVA venu de ${Number(year) - 1} : ${C.money(carryIn, cur)} — corriger…` : `Reporter un crédit de TVA de ${Number(year) - 1}…`}</button>${info('compta.carryIn')}</div>`;
+      // (1.301.0) La déclaration du mois chez le cabinet : déposée le…, et ce que les pièces du mois disent depuis. Un achat de
+      // septembre saisi après le dépôt changeait la TVA de septembre ici sans un mot, alors que le cabinet en avait déclaré une
+      // autre : deux écrans, deux chiffres (le Cabinet disait « déposée »). Rien tant que ses livres ne sont pas lus.
+      const livresLus = messagerieVue && messagerieVue.cabinet && livresCabinetLus && !livresCabinetLus.enCours && !livresCabinetLus.illisible && livresCabinetLus.annee === Number(year);
+      const lignesCabinet = livresLus ? C.declarationsDuCabinet(data, company(), year, livresCabinetLus.declarations, C.today()) : [];
+      const parCabinet = lignesCabinet.find(x => x.periode === `${year}-${String(upTo).padStart(2, '0')}`) || null;
+      const moisNom = `${MONTHS[upTo - 1]} ${year}`;
+      const signe = n => `${n > 0 ? '+' : '−'} ${C.money(Math.abs(n), cur)}`;
+      const blocCabinet = !parCabinet ? '' : parCabinet.deposee
+        ? `<p class="small cpt-cab" id="vat-cabinet">${lfIc('coche', 15, 2.4)}<span>Déposée par ton cabinet le ${h(C.fmtDate(parCabinet.deposee.le))}${parCabinet.deposee.reference ? ` (réf. ${h(parCabinet.deposee.reference)})` : ''}. ${info('compta.cabinetDecl')}</span></p>
+          ${parCabinet.ecarts.length ? `<div class="warn-box cpt-ecart" id="vat-ecart"><p>${parCabinet.ecarts.map(e => `Tes pièces ${h(deMois(moisNom))} disent aujourd'hui une TVA ${e.nom} de <b class="nw">${h(C.money(e.maintenant, cur))}</b> ; ton cabinet en a déclaré <span class="nw">${h(C.money(e.declare, cur))}</span> (<span class="nw">${h(signe(e.ecart))}</span>).`).join(' ')}
+            Une pièce arrivée après le dépôt se reprend sur une déclaration suivante : dis-le à ton cabinet. <em>À VÉRIFIER avec ton comptable.</em></p>
+            <div class="inline"><button class="btn btn-sm btn-primary" id="vat-ecart-dire">Le dire à mon comptable</button></div></div>` : ''}`
+        : messagerieVue.declarationsConfiees
+          ? `<p class="small cpt-cab${parCabinet.retard ? ' warn-text' : ''}" id="vat-cabinet"><span>${parCabinet.retard ? `Ton cabinet ne l'a pas encore déposée : la date limite était le ${h(C.fmtDate(parCabinet.limite))}.` : `Ton cabinet ne l'a pas encore déposée : il a jusqu'au ${h(C.fmtDate(parCabinet.limite))}.`}</span> <button type="button" class="btn-lien" id="vat-cabinet-ecrire">Lui écrire</button></p>` : '';
+      const deposeesParMois = new Map(lignesCabinet.filter(x => x.deposee).map(x => [x.periode, x]));
       $('#c-body').innerHTML = `
         <div class="panel"><h2>Déclaration de TVA — ${h(MONTHS[upTo - 1])} ${year} ${info('compta.vatReturn')}</h2>
           ${auto ? `<p class="small muted mb">La TVA se déclare mois par mois : voici ${h(MONTHS[upTo - 1])}. Choisis un autre mois en haut à droite, ou lis le tableau ci-dessous pour toute l'année.</p>` : ''}
@@ -4808,16 +4851,17 @@
               <span class="num">${C.money(cur1.toPay || cur1.carryOut, cur)}</span></div>
           </div>
           <p class="small muted mt">Timbres fiscaux encaissés sur la période : ${C.money(cur1.stamps, cur)} · retenues subies : ${C.money(cur1.withheldBySale, cur)} · retenues que tu as opérées : ${C.money(cur1.withheldOnBuys, cur)}. Ces trois lignes se déclarent séparément de la TVA. <em>À VÉRIFIER avec ton comptable.</em></p>` : ''}
+          ${blocCabinet}
           ${cur1 && (cur1.collected || cur1.deductible) ? `<div class="inline mt">
-            <button class="btn btn-sm" id="vat-ventes">Voir les ventes de ${h(MONTHS[upTo - 1])}</button>
-            <button class="btn btn-sm" id="vat-achats">Voir les achats de ${h(MONTHS[upTo - 1])}</button>
+            <button class="btn btn-sm" id="vat-ventes">Voir les ventes ${h(deMois(MONTHS[upTo - 1]))}</button>
+            <button class="btn btn-sm" id="vat-achats">Voir les achats ${h(deMois(MONTHS[upTo - 1]))}</button>
           </div>` : ''}
           ${ligneReport}
         </div>
         ${chain.some(m => m.collected || m.deductible || m.carryIn) ? `
         <div class="panel"><h2>Mois par mois — ${year} ${info('compta.vatMonths')}</h2>
           <table class="list compact"><thead><tr><th>Mois</th><th class="r">Collectée</th><th class="r">Déductible</th><th class="r">Crédit repris</th><th class="r">À payer</th><th class="r">Crédit reporté</th></tr></thead><tbody>
-            ${chain.map((m, i) => `<tr class="clickable ${m.toPay ? '' : 'row-ok'}" data-vm="${String(i + 1).padStart(2, '0')}" title="Voir la déclaration de ${h(m.label)}"><td>${h(m.label)}</td><td class="r nw">${montantCompta(m.collected)}</td><td class="r nw">${montantCompta(m.deductible)}</td>
+            ${chain.map((m, i) => `<tr class="clickable ${m.toPay ? '' : 'row-ok'}" data-vm="${String(i + 1).padStart(2, '0')}" title="Voir la déclaration ${h(deMois(m.label))}"><td>${h(m.label)}${deposeesParMois.has(m.month) ? ' <small class="ok-text cpt-dep">déposée</small>' : ''}</td><td class="r nw">${montantCompta(m.collected)}</td><td class="r nw">${montantCompta(m.deductible)}</td>
               <td class="r nw">${m.carryIn ? montantCompta(m.carryIn) : '<span class="muted">—</span>'}</td>
               <td class="r nw">${m.toPay ? `<strong>${montantCompta(m.toPay)}</strong>` : '<span class="muted">—</span>'}</td>
               <td class="r nw">${m.carryOut ? montantCompta(m.carryOut) : '<span class="muted">—</span>'}</td></tr>`).join('')}
@@ -4838,7 +4882,7 @@
             ${res.horsSuivi ? `<div class="stat"><div class="lbl">Marchandises sans article suivi ${info('compta.horsSuivi')}</div><div class="val">${C.money(res.horsSuivi, cur)}</div><div class="sub">achetées pour le stock, jamais entrées dans un stock suivi</div></div>` : ''}
             ${res.autres ? `<div class="stat"><div class="lbl">${res.autres > 0 ? 'Autres charges' : 'Autres produits'} ${info('compta.autres')}</div><div class="val">${C.money(Math.abs(res.autres), cur)}</div><div class="sub">frais bancaires, écritures diverses, cessions</div></div>` : ''}
             ${res.change ? `<div class="stat"><div class="lbl">${res.change < 0 ? 'Perte de change' : 'Gain de change'} ${info('compta.change')}</div><div class="val">${C.money(Math.abs(res.change), cur)}</div><div class="sub">avoir ou acompte à un autre taux que sa pièce</div></div>` : ''}
-            <div class="stat"><div class="lbl">Résultat avant impôt</div><div class="val ${res.resultat >= 0 ? 'ok' : 'due'}">${C.money(res.resultat, cur)}</div><div class="sub">${res.marge == null ? '' : res.marge + ' % du chiffre d\'affaires'}</div></div>
+            <div class="stat"><div class="lbl">Résultat avant impôt</div><div class="val ${res.resultat >= 0 ? 'ok' : 'due'}">${C.money(res.resultat, cur)}</div><div class="sub">${res.marge == null ? '' : `${pct(res.marge).replace('-', '−')} % du chiffre d'affaires`}</div></div>
             <div class="stat"><div class="lbl">Non comptés en charges</div><div class="val">${C.money(C.round3(res.stock - res.horsSuivi + res.immo), cur)}</div><div class="sub">${C.money(C.round3(res.stock - res.horsSuivi), cur)} en stock · ${C.money(res.immo, cur)} en immobilisations</div></div>
           </div>
           <p class="small muted mt">Sur un exercice terminé, ce résultat est celui des écritures, au millime. En cours d'année, les amortissements y sont comptés jour par jour (<a href="#/immos">Immobilisations</a>) et le stock par ses sorties (<a href="#/stock">Stock</a>), alors que les écritures ne les passent qu'au 31 décembre. Il n'y manque que les provisions et l'impôt. <em>À VÉRIFIER avec ton comptable.</em></p>
@@ -4850,6 +4894,8 @@
       $$('#c-body tr[data-vm]').forEach(tr => tr.onclick = () => { comptaState.month = tr.dataset.vm; if ($('#c-month')) $('#c-month').value = tr.dataset.vm; draw(); });
       if ($('#vat-ventes')) $('#vat-ventes').onclick = () => versOnglet('ventes', String(upTo).padStart(2, '0'));
       if ($('#vat-achats')) $('#vat-achats').onclick = () => versOnglet('achats', String(upTo).padStart(2, '0'));
+      if ($('#vat-ecart-dire')) $('#vat-ecart-dire').onclick = () => ecrireAuComptable(`Bonjour, ma TVA ${deMois(moisNom)} : ${parCabinet.ecarts.map(e => `tu as déclaré une TVA ${e.nom} de ${C.money(e.declare, cur)}, mes pièces disent aujourd'hui ${C.money(e.maintenant, cur)} (${signe(e.ecart)})`).join(' ; ')}. Une pièce est sans doute arrivée après le dépôt : peux-tu la reprendre sur la prochaine déclaration ?`);
+      if ($('#vat-cabinet-ecrire')) $('#vat-cabinet-ecrire').onclick = () => ecrireAuComptable(`Bonjour, où en est ma déclaration de TVA ${deMois(moisNom)} ? ${parCabinet.retard ? `La date limite était le ${C.fmtDate(parCabinet.limite)}.` : `Elle est à déposer d'ici le ${C.fmtDate(parCabinet.limite)}.`}`);
       if ($('#carry-voir')) $('#carry-voir').onclick = vers('#/compta', () => { comptaState.year = rep.depuis; comptaState.month = '12'; resetPages(); });
       if ($('#carry-oublier')) $('#carry-oublier').onclick = () => {
         const avant = { ...(data.vatCarryIn || {}) };
@@ -4898,7 +4944,7 @@
 
       $('#c-body').innerHTML = `
         <div class="panel"><h2>Livre-journal — ${h(periodLabel())} ${info('ecr.quoi')}</h2>
-          <p class="small">Les pièces de la période transformées en écritures comptables, en partie double, prêtes à importer dans le logiciel de ton comptable. Il n'a plus rien à retaper. Chaque pièce porte son numéro dans l'exercice ${h(exo)} ${info('ecr.numero')}${clos ? ` — les mois clôturés (jusqu'au ${C.fmtDate(clos)}) ne bougent plus, leurs numéros non plus` : ' — clôture les mois envoyés pour que leurs numéros ne bougent plus'}.</p>
+          <p class="small">Les pièces de la période transformées en écritures comptables, en partie double, ${messagerieVue && messagerieVue.cabinet ? 'celles que ton cabinet lit dans ses livres.' : 'prêtes à importer dans le logiciel de ton comptable. Il n\'a plus rien à retaper.'} Chaque pièce porte son numéro dans l'exercice ${h(exo)} ${info('ecr.numero')}${clos ? ` — les mois clôturés (jusqu'au ${C.fmtDate(clos)}) ne bougent plus, leurs numéros non plus` : ' — clôture les mois envoyés pour que leurs numéros ne bougent plus'}.</p>
           <div class="pay-grid">
             <div><div class="k-label">Lignes</div><div class="v">${bal.lines}</div></div>
             <div><div class="k-label">Pièces</div><div class="v">${bal.pieces}</div></div>
@@ -4915,9 +4961,10 @@
             <button class="btn btn-primary" id="ecr-od">Saisir une opération diverse…</button>
             <button class="btn" id="ecr-csv" ${bal.lines ? '' : 'disabled'}>Exporter en CSV</button>
             <button class="btn" id="ecr-fec" ${bal.lines ? '' : 'disabled'}>Fichier FEC…</button>${info('ecr.fec')}
-            <button class="btn" id="ecr-mail" ${bal.lines ? '' : 'disabled'}>Envoyer au comptable</button>
+            <button class="btn" id="ecr-mail" ${bal.lines ? '' : 'disabled'}>${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable'}</button>
             <button class="btn btn-ghost" id="ecr-plan">Plan de comptes…</button>
           </div>
+          ${messagerieVue && messagerieVue.cabinet ? '<p class="small muted mt" id="ecr-cabinet-lit">Ton cabinet lit ces écritures en direct : il n\'y a rien à lui envoyer. Ce bouton sert à les envoyer à quelqu\'un d\'autre, par e-mail.</p>' : ''}
         </div>
 
         <div class="panel" id="ecr-ods"><h2>Opérations diverses saisies à la main ${info('ecr.od')}</h2>
@@ -5004,7 +5051,7 @@
         if (!await messagerie()) return;
         const att = await bridge.saveTextSilent(`ecritures-${tag}.csv`, C.toCsv(sorted, C.entryCsvColumns()));
         const r = await bridge.composeMail({
-          to: company().accountantEmail || '', subject: `Écritures ${periodLabel()} — ${company().name || ''}`,
+          to: messagerieVue && messagerieVue.cabinet ? '' : company().accountantEmail || '', subject: `Écritures ${periodLabel()} — ${company().name || ''}`,
           body: `Bonjour,\n\nVoici les écritures comptables de ${periodLabel()} : ${bal.lines} lignes, ${bal.pieces} pièces, débit = crédit = ${C.money(bal.debit, cur)}.\n\nLes numéros de compte sont ceux réglés dans SkanFact ; dis-moi s'ils ne correspondent pas aux tiens, je les change.\n\nBien à toi,\n${company().name || ''}`,
           attachments: att ? [att] : [], mode: modeEnvoi()
         });
@@ -5375,12 +5422,29 @@
       const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false }) : [];
       const log = C.closureLog(data);
       const blocking = checks.filter(c => c.level === 'danger');
+      // (1.301.0) Le cabinet valide ses livres de son côté : jusqu'où, lu au serveur. L'onglet disait « Aucune période n'est
+      // clôturée » à un client dont le cabinet avait validé septembre — et un achat de septembre saisi ensuite lui arrivait
+      // comme une correction, sans que personne ne l'ait dit.
+      const avecCab = !!(messagerieVue && messagerieVue.cabinet);
+      const valideCab = avecCab && livresCabinetLus && !livresCabinetLus.enCours && !livresCabinetLus.illisible ? livresCabinetLus.valideJusqua || '' : '';
+      // Un seul bouton pour un geste : quand le mois validé est le prochain à clôturer, c'est « Clôturer septembre », plus bas.
+      const clotPossible = valideCab && valideCab > (closed || '') && months.some(m => m.to === valideCab);
+      const aligner = clotPossible && !(next && next.to === valideCab) ? valideCab : '';
+      const ligneCabinet = !valideCab ? '' : `<div class="cpt-cab-clot" id="clot-cabinet"><p>${lfIc('coche', 15, 2.4)}<span>Ton cabinet a validé tes livres jusqu'au <strong>${h(C.fmtDate(valideCab))}</strong> : ses écritures de cette période ne bougent plus chez lui. ${info('clot.cabinet2')}</span></p>
+          ${valideCab > (closed || '') ? `<p class="small">Chez toi, des pièces de cette période peuvent encore changer : un changement lui arriverait comme une correction, à reprendre sur un mois ouvert.${clotPossible ? ' Clôture-les aussi, pour qu\'elles restent comme il les a validées.' : ''}</p>
+          ${aligner ? `<div class="inline"><button class="btn btn-sm" id="clot-aligner">Clôturer jusqu'au ${h(C.fmtDate(aligner))}</button></div>` : ''}` : ''}</div>`;
+      // Le texte prêt pour la conversation : ce qui vient d'être clôturé ou rouvert.
+      const texteClotureAuCabinet = e => (e.action === 'reouverture'
+        ? `Bonjour, j'ai rouvert ${e.until ? `mes mois à partir du ${C.fmtDate(C.addDays(e.until, 1))}` : 'toutes mes périodes clôturées'}${e.reason ? `, motif : ${e.reason}` : ''}. Des pièces de ces mois peuvent changer : je te dirai lesquelles.`
+        : `Bonjour, j'ai clôturé jusqu'au ${C.fmtDate(e.until)} : mes pièces jusqu'à cette date ne bougeront plus.`);
+      const direAuCabinet = (msg, e) => { if (avecCab) toastUndo(msg, () => ecrireAuComptable(texteClotureAuCabinet(e)), 'Le dire à mon comptable'); else toast(msg); };
 
       $('#c-body').innerHTML = `
         <div class="panel"><h2>État ${info('clot.etat')}</h2>
           ${closed
             ? `<p>Tout ce qui est daté jusqu'au <strong>${C.fmtDate(closed)}</strong> est clôturé : plus aucune pièce de cette période ne peut être créée, modifiée ou supprimée.</p>`
-            : '<p>Aucune période n\'est clôturée. Tes pièces passées peuvent encore être modifiées — y compris celles que ton comptable a déjà reçues.</p>'}
+            : `<p>Aucune période n'est clôturée${avecCab ? ' chez toi' : ''}. Tes pièces passées peuvent encore être modifiées — y compris celles que ton comptable a déjà reçues.</p>`}
+          ${ligneCabinet}
           <p class="small muted">Clôturer un mois est la promesse que ce mois ne bougera plus. C'est ce qui permet à ton comptable de travailler sur un dossier stable. Une réouverture reste possible, avec un motif, et elle est inscrite dans le journal ci-dessous.</p>
         </div>
 
@@ -5408,7 +5472,7 @@
         ${/* 10.12.0 — « Rien n'est clôturé, donc rien à rouvrir » dans un cadre de 110 px, sous un État
              qui venait de le dire : un panneau qui n'a rien à proposer ne s'affiche pas. */''}
         ${closed ? `<div class="panel"><h2>Rouvrir ${info('clot.rouvrir')}</h2>
-          <p class="small">Rouvrir sert quand une pièce a été oubliée dans une période déjà clôturée. <strong>Préviens ton comptable</strong> : les chiffres qu'il a reçus vont changer. Le motif que tu écris ici reste dans le journal des clôtures, avec la date — il ne part pas tout seul chez lui.</p>
+          <p class="small">Rouvrir sert quand une pièce a été oubliée dans une période déjà clôturée. <strong>Préviens ton comptable</strong> : les chiffres qu'il a reçus vont changer. ${avecCab ? 'Le motif que tu écris ici reste dans le journal des clôtures, avec la date ; « Le dire à mon comptable » l\'ouvre ensuite dans votre conversation, déjà écrit.' : 'Le motif que tu écris ici reste dans le journal des clôtures, avec la date — il ne part pas tout seul chez lui.'}</p>
           <button class="btn btn-danger" id="do-reopen">Rouvrir une période…</button>
         </div>` : ''}
 
@@ -5438,11 +5502,12 @@
 
         <div class="panel"><h2>Journal des clôtures ${info('clot.journal')}</h2>
           ${log.length
-            ? `<table class="list compact"><thead><tr><th>Action</th><th>Jusqu'au</th><th>Motif</th></tr></thead><tbody>
-                ${log.map(e => `<tr><td><span class="badge ${e.action === 'reouverture' ? 'b-late' : 'b-paid'}">${h(C.CLOSURE_ACTIONS[e.action] || e.action)}</span></td>
+            ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Action</th><th>Jusqu'au</th><th>Motif</th>${avecCab ? '<th></th>' : ''}</tr></thead><tbody>
+                ${log.map((e, i) => `<tr><td><span class="badge ${e.action === 'reouverture' ? 'b-late' : 'b-paid'}">${h(C.CLOSURE_ACTIONS[e.action] || e.action)}</span></td>
                   <td class="nw">${e.until ? C.fmtDate(e.until) : '<span class="muted">tout rouvert</span>'}</td>
-                  <td class="small">${h(e.reason || '')}${e.previous ? `<div class="muted">auparavant : ${C.fmtDate(e.previous)}</div>` : ''}</td></tr>`).join('')}
-              </tbody></table>`
+                  <td class="small">${h(e.reason || '')}${e.previous ? `<div class="muted">auparavant : ${C.fmtDate(e.previous)}</div>` : ''}</td>
+                  ${avecCab ? `<td class="r">${i === 0 ? '<button class="btn btn-sm" id="clot-dire">Le dire à mon comptable</button>' : ''}</td>` : ''}</tr>`).join('')}
+              </tbody></table></div>`
             : '<div class="empty mini">Aucune clôture pour l\'instant : chaque clôture et chaque réouverture s\'inscriront ici, avec leur motif.</div>'}
         </div>`;
 
@@ -5534,7 +5599,7 @@
         if (!await confirmDialog(`Clôturer ${next.label} ?\n\nAprès ça, aucune pièce datée du ${C.fmtDate(next.from)} au ${C.fmtDate(next.to)} ne pourra plus être créée, modifiée ou supprimée. Tu pourras rouvrir si besoin, avec un motif.${warn}`, 'Clôturer', false)) return;
         const r = C.closePeriod(data, next.to, { at: Date.now(), by: deviceLabel() });
         if (r.error) return toast(r.error, true);
-        save(true); toast(`${next.label} clôturé`); draw(); updateNavCounts();
+        save(true); draw(); updateNavCounts(); direAuCabinet(`${next.label} clôturé`, { action: 'cloture', until: next.to });
       };
 
       // `vise` : le dernier mois demandé par un autre écran (le paquet d'août propose « Clôturer
@@ -5568,11 +5633,14 @@
               const r = C.closePeriod(data, to, { at: Date.now(), by: deviceLabel() });
               close();
               if (r.error) return toast(r.error, true);
-              save(true); toast('Clôturé jusqu\'au ' + C.fmtDate(to)); draw(); updateNavCounts();
+              save(true); draw(); updateNavCounts(); direAuCabinet('Clôturé jusqu\'au ' + C.fmtDate(to), { action: 'cloture', until: to });
             };
           });
       };
       if ($('#close-to')) $('#close-to').onclick = () => ouvrirJusqua('');
+      // (1.301.0) Clôturer comme le cabinet a validé ; redire au cabinet la dernière clôture ou réouverture.
+      if ($('#clot-aligner')) $('#clot-aligner').onclick = () => ouvrirJusqua(aligner);
+      if ($('#clot-dire')) $('#clot-dire').onclick = () => ecrireAuComptable(texteClotureAuCabinet(log[0]));
       if (comptaState.clotJusqua) {
         const vise = comptaState.clotJusqua;
         comptaState.clotJusqua = '';
@@ -5594,7 +5662,8 @@
               const v = formValues($('#rf', root));
               const r = C.reopenPeriod(data, v.all ? '' : v.until, { at: Date.now(), by: deviceLabel(), reason: (v.reason || '').trim() });
               if (r.error) return toast(r.error, true);
-              close(); save(true); toast('Période rouverte'); draw(); updateNavCounts();
+              close(); save(true); draw(); updateNavCounts();
+              direAuCabinet('Période rouverte', { action: 'reouverture', until: v.all ? '' : v.until, reason: (v.reason || '').trim() });
             };
           });
       };
@@ -5972,12 +6041,43 @@
         id: f.id, at: f.filedAt ? Date.parse(f.filedAt + 'T12:00:00Z') : 0, date: C.dateLimiteDeclarationSociale(data, f.id), label: f.label || f.id, sociale: true
       })));
       const attente = x => `${x.label} porte sur une période qui se termine le ${C.fmtDate(x.fin)} : on la marque déposée une fois la période terminée, sinon il manquerait ses derniers bulletins.`;
+      // (1.301.0) Le cabinet tient les déclarations : ce qu'il a déposé (le, la référence), ce qui attend, ce qui est en retard,
+      // lu dans ses livres. Le calendrier ne savait rien de son dépôt : la TVA de septembre, déposée par le cabinet le 27/10,
+      // n'y était nulle part, et « Marquer déposée » attendait un geste que le client n'avait pas à faire.
+      const anneeCab = C.today().slice(0, 4);
+      const cabDecl = !!(messagerieVue && messagerieVue.cabinet && messagerieVue.declarationsConfiees);
+      const livresOk = cabDecl && livresCabinetLus && !livresCabinetLus.enCours && livresCabinetLus.annee === Number(anneeCab);
+      const lignesCab = livresOk && !livresCabinetLus.illisible ? C.declarationsDuCabinet(data, company(), anneeCab, livresCabinetLus.declarations, C.today()) : [];
+      const parPeriodeCab = new Map(lignesCab.map(x => [x.periode, x]));
+      const periodeDeLEcheance = iso => { const [y, m] = String(iso).split('-').map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`; };
+      const etatCab = x => (x.deposee ? `<span class="ok-text">Déposée le ${h(C.fmtDate(x.deposee.le))}</span>${x.deposee.reference ? ` <span class="small muted">réf. ${h(x.deposee.reference)}</span>` : ''}${x.ecarts.length ? '<div class="small warn-text">tes pièces du mois ont changé depuis</div>' : ''}`
+        : x.retard ? `<span class="badge retard">en retard</span> <span class="small">${x.preparee ? 'préparée, pas encore déposée' : 'pas encore préparée'}</span>`
+        : `<span class="small">${x.preparee ? 'préparée, pas encore déposée' : 'à préparer'}</span>`);
+      const panneauCabinet = !cabDecl ? '' : `<div class="panel" id="p-decl-cabinet"><h2>Tes déclarations de TVA, chez ton cabinet ${info('compta.cabinetDecl')}</h2>
+          ${!livresOk ? '<p class="small muted">Lecture des livres de ton cabinet…</p>'
+            : livresCabinetLus.illisible ? '<p class="small muted">Les déclarations de ton cabinet ne se lisent pas d\'ici pour l\'instant (pas de réseau, ou pas le droit de lire les livres) : le calendrier ci-dessous reste le tien.</p>'
+            : !lignesCab.length ? `<p class="small muted">Aucun mois terminé à déclarer en ${h(anneeCab)} pour l'instant.</p>`
+            : `<div class="scroll-x"><table class="list compact" id="decl-cabinet"><thead><tr><th>Mois</th><th>Date limite</th><th>Chez ton cabinet</th><th></th></tr></thead><tbody>
+              ${lignesCab.map(x => `<tr data-periode="${h(x.periode)}" class="${x.retard ? 'row-warn' : ''}"><td><strong>${h(x.label)}</strong></td><td class="nw">${h(C.fmtDate(x.limite))}</td><td>${etatCab(x)}</td>
+                <td class="actions">${x.ecarts.length ? `<button class="btn btn-sm" data-decl-voir="${h(x.periode)}">Voir la TVA</button>` : !x.deposee ? `<button class="btn btn-sm" data-decl-ecrire="${h(x.periode)}">Lui écrire</button>` : ''}</td></tr>`).join('')}
+            </tbody></table></div><p class="small muted mt">Ton cabinet dépose ces déclarations : son dépôt s'affiche ici de lui-même, tu n'as rien à pointer. <em>À VÉRIFIER avec ton comptable</em> pour les dates limites.</p>`}
+        </div>`;
+      // La ligne « tva » de « Ce qui arrive » quand le cabinet dépose : son dépôt s'il est fait, sinon « Ton cabinet la dépose » ;
+      // le client garde la main (« Je l'ai déposée moi-même »).
+      const actionEcheance = x => {
+        const cab = cabDecl && x.id === 'tva' ? parPeriodeCab.get(periodeDeLEcheance(x.date)) || null : null;
+        if (cab && cab.deposee) return `<span class="ok-text small">Déposée par ton cabinet le ${h(C.fmtDate(cab.deposee.le))}</span>`;
+        const prep = FISCAL_VERS[x.id] ? `<button class="btn btn-sm btn-ghost" data-fvers="${h(x.id)}" data-fdate="${h(x.date)}">Préparer</button>` : '';
+        if (cabDecl && x.id === 'tva') return `<span class="small muted">Ton cabinet la dépose</span> <button class="btn btn-sm btn-ghost" data-fdone="${h(x.filingId)}" data-fsoc="" data-flab="${h(x.label)}"${x.enCours ? ` disabled title="${h(attente(x))}"` : ''}>Je l'ai déposée moi-même</button>`;
+        return `${prep}<button class="btn btn-sm" data-fdone="${h(x.filingId)}" data-fsoc="${h(x.socialId || '')}" data-flab="${h(x.label)}"${x.enCours ? ` disabled title="${h(attente(x))}"` : ''}>Marquer déposée</button>`;
+      };
       $('#c-body').innerHTML = `
+        ${panneauCabinet}
         <div class="panel"><h2>Ce qui arrive ${info('compta.fiscal')}</h2>
           ${up.length ? `<table class="list compact"><thead><tr><th>Échéance</th><th>Date</th><th class="r">Dans</th><th></th></tr></thead><tbody>
             ${up.map(x => `<tr class="${x.retard || (x.days <= 7 && !x.enCours) ? 'row-warn' : ''}"><td><strong>${h(x.label)}</strong>${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}${x.enCours ? `<div class="small muted">Déposable après le ${C.fmtDate(x.fin)}, une fois la période terminée.</div>` : ''}${x.retard ? `<div class="small">${x.id === 'cnss' ? 'Cotisations du trimestre' : 'Retenues de l\'année'} : ${C.money(x.amount, company().currency)}. Pas encore marquée déposée : si tu l'as déjà fait, marque-la ; sinon, dépose-la au plus vite.</div>` : ''}</td>
               <td class="nw">${C.fmtDate(x.date)}</td><td class="r nw">${x.retard ? `<span class="badge retard">en retard de ${pl(-x.days, 'jour')}</span>` : x.days === 0 ? "aujourd'hui" : x.days + ' j'}</td>
-              <td class="actions">${FISCAL_VERS[x.id] ? `<button class="btn btn-sm btn-ghost" data-fvers="${h(x.id)}" data-fdate="${h(x.date)}">Préparer</button>` : ''}<button class="btn btn-sm" data-fdone="${h(x.filingId)}" data-fsoc="${h(x.socialId || '')}" data-flab="${h(x.label)}"${x.enCours ? ` disabled title="${h(attente(x))}"` : ''}>Marquer déposée</button></td></tr>`).join('')}
+              <td class="actions">${actionEcheance(x)}</td></tr>`).join('')}
           </tbody></table>` : '<div class="empty">Aucune échéance activée. Active celles qui te concernent ci-dessous.</div>'}
           <p class="small muted mt"><em>À VÉRIFIER avec ton comptable :</em> les dates limites, la périodicité et les déclarations qui te concernent dépendent de ta forme juridique, de ton régime fiscal et de la présence de salariés. Ce calendrier est un pense-bête que tu règles toi-même, pas une source officielle.</p>
         </div>
@@ -6031,6 +6131,17 @@
       });
       // Et chaque échéance mène à l'écran où on la prépare : la TVA du mois, les déclarations de paie.
       $$('[data-fvers]').forEach(b => b.onclick = () => FISCAL_VERS[b.dataset.fvers](b.dataset.fdate));
+      // (1.301.0) Les déclarations du cabinet : la TVA d'un mois dont les pièces ont changé depuis le dépôt ; un mot au cabinet.
+      $$('[data-decl-voir]').forEach(b => b.onclick = () => {
+        const per = b.dataset.declVoir;
+        comptaState.tab = 'tva'; comptaState.year = per.slice(0, 4); comptaState.month = per.slice(5, 7);
+        if ($('#c-month')) $('#c-month').value = comptaState.month;
+        draw();
+      });
+      $$('[data-decl-ecrire]').forEach(b => b.onclick = () => {
+        const x = parPeriodeCab.get(b.dataset.declEcrire);
+        if (x) ecrireAuComptable(`Bonjour, où en est ma déclaration de TVA ${deMois(x.label)} ? ${x.retard ? `La date limite était le ${C.fmtDate(x.limite)}.` : `Elle est à déposer d'ici le ${C.fmtDate(x.limite)}.`}`);
+      });
       $$('[data-active]').forEach(c => c.onchange = () => { setRule(c.dataset.active, { active: c.checked }); draw(); });
       $$('[data-day]').forEach(i => i.onchange = () => { setRule(i.dataset.day, { day: Math.min(31, Math.max(1, Number(i.value) || 28)) }); draw(); });
     }

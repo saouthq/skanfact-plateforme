@@ -945,3 +945,36 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 @media (max-width: 760px) {
   .lf.mg.sx table.list th { white-space: normal; }
 }
+
+/* (1.301.0) La Comptabilité de l'entreprise dans la DA des listes : les onglets dans leur barre et la période à droite (comme
+   les Statistiques), chaque onglet dans sa carte, ses panneaux séparés d'un trait ; ce que le cabinet a fait (déposée,
+   validé) en vert, l'écart avec ses chiffres en encadré. */
+.lf.mg.cpt .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+.lf.mg.cpt > *, .lf.mg.cpt .mg-barre, .lf.mg.cpt .mg-barre > .pa-seg { min-width: 0; max-width: 100%; }
+.lf.mg.cpt .pa-seg button { flex: none; white-space: nowrap; }
+.lf.mg.cpt .sx-periode { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.lf.mg.cpt .sx-periode[hidden] { display: none; }
+.lf.mg.cpt > .cf-carte > .cf-onglet { gap: 0; padding: 0; }
+.lf.mg.cpt > .cf-carte > .cf-onglet > .panel { padding: 14px 16px 16px; }
+.lf.mg.cpt > .cf-carte > .cf-onglet > .panel + .panel { border-top: 1px solid var(--sb-trait); border-radius: 0; }
+.lf.mg.cpt > .cf-carte > .cf-onglet > .filters { padding: 14px 16px 0; margin: 0; }
+.lf.mg.cpt > .cf-carte > .cf-onglet > .stats { padding: 12px 16px; margin: 0; }
+.lf.mg.cpt .panel > h2 { font-size: 15px; }
+.lf.mg.cpt .cpt-cab { display: flex; gap: 6px; align-items: flex-start; margin: 10px 0 0; color: var(--sb-doux-texte); }
+.lf.mg.cpt .cpt-cab.warn-text { color: var(--sb-ambre-texte); }
+.lf.mg.cpt .cpt-cab svg { flex: none; margin-top: 1px; }
+.lf.mg.cpt .cpt-cab .btn-lien { margin-inline-start: 4px; }
+.lf.mg.cpt .cpt-ecart { margin: 10px 0 0; }
+.lf.mg.cpt .cpt-ecart p { margin: 0 0 8px; }
+.lf.mg.cpt .cpt-dep { margin-inline-start: 4px; font-weight: 600; }
+.lf.mg.cpt .cpt-cab-clot { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--sb-trait); border-radius: 10px; background: var(--sb-survol); }
+.lf.mg.cpt .cpt-cab-clot > p:first-child { display: flex; gap: 6px; align-items: flex-start; margin: 0; }
+.lf.mg.cpt .cpt-cab-clot > p:first-child svg { flex: none; margin-top: 2px; color: var(--sb-doux-texte); }
+.lf.mg.cpt .cpt-cab-clot > p.small { margin: 8px 0 0; }
+.lf.mg.cpt .cpt-cab-clot .inline { margin-top: 8px; }
+.lf.mg.cpt #decl-cabinet td.actions { white-space: nowrap; }
+@media (max-width: 760px) {
+  .lf.mg.cpt .mg-barre { flex-direction: column; align-items: stretch; }
+  .lf.mg.cpt .sx-periode .sel { flex: 1 1 0; }
+  .lf.mg.cpt .sx-periode .sel select { width: 100%; }
+}

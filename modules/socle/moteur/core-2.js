@@ -1386,6 +1386,41 @@
     return out;
   }
 
+  // (1.301.0) Les déclarations mensuelles du cabinet, mois par mois, face aux chiffres de l'entreprise. Un cabinet à qui l'on
+  // confie les déclarations les dépose depuis ses livres (le serveur) : la Comptabilité de l'entreprise les lit, au lieu de
+  // les lui faire pointer à la main. Pour chaque mois terminé de l'année qui a une activité ou une déclaration : sa date
+  // limite (la règle « tva » du calendrier, au mois suivant), déposée (le, la référence) ou non, en retard ou non, et l'ÉCART
+  // entre ce que le cabinet a déclaré et ce que les pièces disent aujourd'hui — une pièce du mois arrivée après le dépôt.
+  // Une case que le cabinet n'a pas remplie ne fait pas d'écart (la règle inconnue ne fait rien). Le plus récent d'abord.
+  function declarationsDuCabinet(data, company, annee, declarations, todayIso) {
+    const t = todayIso || today();
+    const y = Number(annee);
+    const regle = fiscalDeadlines(data).find(r => r.id === 'tva') || { day: 28 };
+    const parPeriode = new Map((declarations || []).filter(d => d && d.type === 'mensuelle').map(d => [String(d.periode), d]));
+    const lu = v => (v === null || v === undefined || v === '' ? null : Number(String(v).replace(',', '.')));
+    const out = [];
+    vatChain(data, company, String(y), 12).forEach((m, i) => {
+      const periode = `${y}-${pad2(i + 1)}`;
+      if (`${periode}-${pad2(daysInMonth(y, i + 1))}` >= t) return;   // un mois pas terminé ne se déclare pas encore
+      const d = parPeriode.get(periode) || null;
+      if (!d && !m.collected && !m.deductible) return;
+      const [ly, lm] = i === 11 ? [y + 1, 1] : [y, i + 2];
+      const limite = `${ly}-${pad2(lm)}-${pad2(Math.min(Number(regle.day) || 28, daysInMonth(ly, lm)))}`;
+      const deposee = d && d.deposee && d.deposee.le ? { le: String(d.deposee.le).slice(0, 10), reference: d.deposee.reference || '' } : null;
+      const ecarts = [];
+      if (deposee) {
+        [['tvaCollectee', 'collectée', m.collected], ['tvaDeductible', 'déductible', m.deductible]].forEach(([cle, nom, maintenant]) => {
+          const declare = lu(d.cases && d.cases[cle]);
+          if (declare === null || !Number.isFinite(declare)) return;
+          const ecart = round3(maintenant - declare);
+          if (Math.abs(ecart) > 0.0005) ecarts.push({ cle, nom, declare: round3(declare), maintenant: round3(maintenant), ecart });
+        });
+      }
+      out.push({ periode, label: `${MONTHS_FR[i]} ${y}`, limite, deposee, preparee: !!d, retard: !deposee && limite < t, ecarts, collectee: m.collected, deductible: m.deductible });
+    });
+    return out.reverse();
+  }
+
   // Échéances fiscales récurrentes. Les dates et la périodicité dépendent du régime et de la forme
   // juridique : tout est paramétrable, rien n'est imposé. À VÉRIFIER avec le comptable.
   const DEFAULT_FISCAL_DEADLINES = [
@@ -7445,7 +7480,7 @@
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
-    vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
+    vatReturn, vatChain, declarationsDuCabinet, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,
     lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, avancementAffaire, etatDesChantiers, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,

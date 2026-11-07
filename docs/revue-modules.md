@@ -483,3 +483,44 @@ de provision au Cabinet (la comptable la passe en Saisie). La marge d'un chantie
 Cabinet (l'axe « Affaires » sur les lignes d'écriture, prévu au cadrage 01, reste à faire).
 
 Suivant : la Comptabilité de l'entreprise (avec son côté Cabinet et le pont).
+
+
+## La comptabilité de l'entreprise
+
+### Fait en 1.301.0 (07/11/2026) : ce que le cabinet a déclaré et validé, et l'achat oublié après le dépôt
+
+Joué comme un grossiste en produits d'entretien de Sousse (« Hygiène Plus Sahel ») avec sa comptable au Cabinet Ennour, sur
+deux mois : en septembre, un gros achat chez Sahel Chimie (retenue de 1,5 % opérée en payant) et deux factures, donc un
+crédit de TVA ; en octobre, trois factures (l'hôtel retient 1,5 % en payant), un avoir, du carburant à TVA non déductible,
+des emballages. La comptable dépose la TVA de septembre le 27/10 et valide septembre dans ses livres ; le grossiste saisit
+ensuite un achat de septembre oublié (des bidons, 507 DT HT). Puis il clôture septembre, le rouvre avec un motif. Une
+entreprise sans cabinet a fait le même tour. Les chiffres tiennent des deux côtés (chiffre d'affaires 2026 : 16 095,420 DT
+HT ici et dans le dossier du Cabinet).
+
+| # | Trouvé | Fait |
+|---|---|---|
+| C1 | L'ancienne mise en page : un titre seul, des onglets gris, des tuiles et des panneaux empilés. | La DA des listes, comme les Statistiques : le chemin, une phrase (« … et ce que ton cabinet en a fait » quand il y en a un), les onglets dans leur barre et la période à droite, chaque onglet dans sa carte, ses panneaux séparés d'un trait. Au téléphone, la barre défile dans sa carte. L'intérieur des onglets garde son dessin (lot suivant). |
+| C2 | La comptable a déposé la TVA de septembre : la Comptabilité de l'entreprise n'en savait rien, ni l'onglet TVA, ni le calendrier. | L'onglet TVA lit les livres du cabinet : « Déposée par ton cabinet le 27/10/2026 (réf. TEJ-2026-0927) », et « déposée » au mois dans le tableau de l'année. Un mois terminé pas encore déposé : « Ton cabinet ne l'a pas encore déposée : il a jusqu'au 28/11/2026 » (ou « la date limite était le … ») et « Lui écrire ». |
+| C3 | L'achat de septembre saisi après le dépôt changeait la TVA de septembre **sans un mot** : 4 222,769 DT de déductible ici, 4 126,439 DT déclarés par le cabinet. | L'écart se dit, au millime (« ton cabinet en a déclaré 4 126,439 DT (+ 96,330 DT) »), et « Le dire à mon comptable » ouvre la conversation, le message écrit. Une case que le cabinet n'a pas remplie ne fait pas d'écart. À VÉRIFIER : la reprise d'une pièce oubliée sur une déclaration suivante. |
+| C4 | Le calendrier faisait « Marquer déposée » une TVA que le cabinet dépose, et la TVA de septembre, passée, n'y était plus nulle part. | « Tes déclarations de TVA, chez ton cabinet » : chaque mois terminé, sa date limite (la règle du calendrier), déposée le…, en retard, à préparer ; « Lui écrire », « Voir la TVA ». Dans « Ce qui arrive » : « Ton cabinet la dépose », et le client garde « Je l'ai déposée moi-même ». Le serveur dit si les déclarations sont confiées au cabinet. |
+| C5 | Les clôtures disaient « Aucune période n'est clôturée » à un client dont le cabinet avait validé septembre. | « Ton cabinet a validé tes livres jusqu'au 30/09/2026 : ses écritures de cette période ne bougent plus chez lui », ce qui peut encore changer chez soi, et clôturer pareil d'un seul bouton (le même que « Clôturer septembre » quand c'est le mois suivant). |
+| C6 | « Rouvrir » disait de prévenir son comptable soi-même (« le motif ne part pas chez lui ») alors que la conversation est à côté. | Après une clôture ou une réouverture, « Le dire à mon comptable » ouvre la conversation, le message prêt (motif compris) ; la dernière ligne du journal le redit, le bandeau passé. Vérifié : les trois messages arrivent au Cabinet. |
+| C7 | Les écritures proposaient « Envoyer au comptable » (un e-mail) à un cabinet qui les lit en direct. | « Envoyer par e-mail… », et la phrase qui le dit, comme pour les ventes ; le livre-journal dit que ce sont celles que le cabinet lit. |
+| C8 | « Voir les ventes de octobre », un résultat à perte écrit « -335 % ». | « d'octobre », « −335 % ». |
+| C9 | En jouant : « Ton cabinet la dépose » collé à son bouton ; deux boutons pour clôturer le même septembre ; au téléphone, la barre des onglets élargissait la page (217 px) et le journal des clôtures était coupé. | L'espace, un seul bouton, la barre et les tableaux défilent dans leur carte. |
+
+Le rouge GitHub de 1.299.0, réparé dans le même envoi : le contrôle des frontières (F12) refusait le pont du Cabinet grandi
+de neuf lignes. La remise de chèques change une traduction que ce pont faisait déjà : son plafond passe de 2 788 à 2 797
+lignes, avec sa raison. La lecture neuve de ce lot (les livres du cabinet) ne fait pas grandir le pont de l'entreprise : elle
+vit dans `modules/declarations/pont/entreprise.js`, assemblé à la suite du pont, qui pose sa porte au socle
+(`Socle.porte('pont').appel`) ; c'est le premier morceau de pont d'un module (cadrage 17, journal du 07/11/2026).
+
+Sans cabinet, rien de ce qui précède : la phrase d'en-tête est la sienne, le calendrier garde « Marquer déposée ».
+
+Limites connues : l'intérieur des onglets (les quatre tuiles des ventes et des achats, les tableaux des journaux, du grand
+livre, de la balance et des états) garde son dessin d'avant ; un achat daté dans une période que le cabinet a validée
+s'enregistre sans avertissement au moment de la saisie (la TVA le dit ensuite) ; les déclarations lues sont celles de la
+TVA mensuelle.
+
+Suivant : l'intérieur des onglets de la Comptabilité dans la DA (chiffres en carte, journaux, grand livre, balance, états,
+téléphone), puis l'avertissement à la saisie d'une pièce dans une période validée par le cabinet.

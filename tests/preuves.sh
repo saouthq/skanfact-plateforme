@@ -23305,7 +23305,7 @@ prouver 'paie 10.1-4 o : le relevé pousse à créer un salaire' modules/socle/e
   '${paieCachee() ? '"'"' <b id="imp-sans-paie">' '${false ? '"'"' <b id="imp-sans-paie">' \
   "$SPW1"
 prouver 'paie 10.1-4 p : la comptabilité se tait sur la paie' modules/socle/ecrans/entreprise/app-2.js \
-  '${bandeauSansPaie('"'"'cette comptabilité'"'"')}<div id="c-body"></div>' '<div id="c-body"></div>' \
+  '${bandeauSansPaie('"'"'cette comptabilité'"'"')}' '${'"'"''"'"'}' \
   "$SPW1"
 prouver 'paie 10.1-4 q : un FEC sans la paie s'"'"'écrit' modules/socle/ecrans/entreprise/app-2.js \
   'if (paieCachee()) return infoDialog(' 'if (false) return infoDialog(' \
@@ -24022,7 +24022,7 @@ prouver 'paie 1.270 g : le cabinet parti, la paie reste « tenue » par ses anci
   '    && (!!messagerieVue.cabinetQuitte || !((data' '    && (false || !((data' \
   'le cabinet parti : la paie tenue redevient la tienne, malgré les anciens bulletins du cabinet'
 prouver 'paie 1.270 h : le serveur ne dit pas que le cabinet est parti' serveur/messagerie/routes.ts \
-  'anciens, achatsConfies: false, cabinetQuitte } };' 'anciens, achatsConfies: false } };' \
+  'anciens, achatsConfies: false, declarationsConfiees: false, cabinetQuitte } };' 'anciens, achatsConfies: false, declarationsConfiees: false } };' \
   'le cabinet ne lit plus ; l'\''entreprise relit l'\''ancien fil sans y écrire ; un nouveau cabinet ne le lit pas'
 # (1.271.0) Les décisions du 04/11 au soir (Skander : « décide pour moi et donne la liberté à l'utilisateur ») : le pointage
 # ouvert au client d'un cabinet qui tient la paie, le « Pourquoi ? » facultatif d'une absence, le jour du « payé le » au Cabinet.
@@ -25026,6 +25026,80 @@ prouver "une quantité scellée relue en nombre (2 contre « 2.000 ») : plus ri
   "if (false) return { '~n': decimalCanon(String(v)) };" \
   "$T300D"
 
+# (1.301.0) La revue de la Comptabilité de l'entreprise jouée par un grossiste de Sousse (deux mois, un avoir, des retenues,
+# sa comptable qui dépose septembre et le valide, un achat de septembre oublié, une clôture et une réouverture).
+A2E=modules/socle/ecrans/entreprise/app-2.js
+CO2=modules/socle/moteur/core-2.js
+PONT=modules/declarations/pont/entreprise.js
+MSGR=serveur/messagerie/routes.ts
+T301W="un grossiste, deux mois, sa comptable : ce qu'il lit, ce qu'il fait, ce qu'elle sait"
+T301M1="septembre déposée par le cabinet, puis un achat oublié : l'écart se dit au millime, octobre attend"
+T301M2="la date limite suit la règle du calendrier ; passée sans dépôt, en retard ; un mois en cours ou vide n'a pas de ligne"
+T301M3="une case vide ne fait pas d'écart ; une déclaration d'un mois sans pièce garde sa ligne"
+T301MSG="ils s'écrivent ; chacun voit ce qui l'attend, « lu » se dit à l'autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier"
+prouver 'la TVA déposée par le cabinet tue dans l'\''onglet TVA' "$A2E" \
+  "const blocCabinet = !parCabinet ? '' : parCabinet.deposee" "const blocCabinet = true ? '' : parCabinet.deposee" \
+  "$T301W"
+prouver 'l'\''achat oublié après le dépôt : la TVA du mois change sans un mot' "$A2E" \
+  '${parCabinet.ecarts.length ? `<div class="warn-box cpt-ecart" id="vat-ecart">' '${false ? `<div class="warn-box cpt-ecart" id="vat-ecart">' \
+  "$T301W"
+prouver 'l'\''écart entre la déclaration du cabinet et les pièces jamais compté' "$CO2" \
+  'if (Math.abs(ecart) > 0.0005) ecarts.push(' 'if (false) ecarts.push(' \
+  "$T301M1"
+prouver 'une case que le cabinet n'\''a pas remplie lue comme zéro' "$CO2" \
+  "const lu = v => (v === null || v === undefined || v === '' ? null : Number(String(v).replace(',', '.')));" 'const lu = v => Number(v);' \
+  "$T301M3"
+prouver 'une déclaration pas déposée après sa date limite jamais en retard' "$CO2" \
+  'retard: !deposee && limite < t, ecarts' 'retard: false, ecarts' \
+  "$T301M2"
+prouver 'la date limite au 28 quel que soit le jour réglé au calendrier' "$CO2" \
+  'Math.min(Number(regle.day) || 28, daysInMonth(ly, lm))' 'Math.min(28, daysInMonth(ly, lm))' \
+  "$T301M2"
+prouver 'un mois pas encore fini à déclarer chez le cabinet' "$CO2" \
+  'if (`${periode}-${pad2(daysInMonth(y, i + 1))}` >= t) return;' 'if (false) return;' \
+  "$T301M2"
+prouver 'décembre dû en décembre au lieu de janvier' "$CO2" \
+  'const [ly, lm] = i === 11 ? [y + 1, 1] : [y, i + 2];' 'const [ly, lm] = [y, i + 2];' \
+  "$T301M2"
+prouver 'le calendrier qui ignore les déclarations du cabinet' "$A2E" \
+  "const panneauCabinet = !cabDecl ? '' :" "const panneauCabinet = true ? '' :" \
+  "$T301W"
+prouver '« Marquer déposée » une TVA que le cabinet dépose' "$A2E" \
+  "if (cabDecl && x.id === 'tva') return \`<span" "if (false) return \`<span" \
+  "$T301W"
+prouver 'le serveur ne dit pas que les déclarations sont confiées' "$MSGR" \
+  "const declarationsConfiees = !!m && (m.perimetre ?? []).includes('declarations');" 'const declarationsConfiees = false;' \
+  "$T301MSG"
+prouver '« Aucune période n'\''est clôturée » quand le cabinet a validé septembre' "$A2E" \
+  "const ligneCabinet = !valideCab ? '' :" "const ligneCabinet = true ? '' :" \
+  "$T301W"
+prouver 'deux boutons pour clôturer le même septembre' "$A2E" \
+  "const aligner = clotPossible && !(next && next.to === valideCab) ? valideCab : '';" "const aligner = clotPossible ? valideCab : '';" \
+  "$T301W"
+prouver 'clôturer sans pouvoir le dire au comptable' "$A2E" \
+  'const direAuCabinet = (msg, e) => { if (avecCab) toastUndo(' 'const direAuCabinet = (msg, e) => { if (false) toastUndo(' \
+  "$T301W"
+prouver 'la dernière clôture ou réouverture qui ne se redit plus, le bandeau passé' "$A2E" \
+  "\${i === 0 ? '<button class=\"btn btn-sm\" id=\"clot-dire\">" "\${false ? '<button class=\"btn btn-sm\" id=\"clot-dire\">" \
+  "$T301W"
+prouver '« Envoyer au comptable » les écritures que le cabinet lit en direct' "$A2E" \
+  "? 'Envoyer par e-mail…' : 'Envoyer au comptable'}" "? 'Envoyer au comptable' : 'Envoyer au comptable'}" \
+  "$T301W"
+prouver '« Voir les ventes de octobre »' "$A2E" \
+  'const deMois = m => (/^[aeiouyéèêâh]/i.test(String(m))' 'const deMois = m => (/^[]/i.test(String(m))' \
+  "$T301W"
+prouver 'un résultat à perte écrit « -335 % »' "$A2E" \
+  "\${pct(res.marge).replace('-', '−')} % du chiffre" "\${pct(res.marge)} % du chiffre" \
+  "$T301W"
+prouver 'le pont qui ne lit pas la période validée par le cabinet' "$PONT" \
+  "valideJusqua: typeof c.jusqua === 'string' ? c.jusqua.slice(0, 10) : ''" "valideJusqua: ''" \
+  "$T301W"
+prouver 'la barre des onglets de la Comptabilité qui élargit la page au téléphone' "$LCSS" \
+  '.lf.mg.cpt > *, .lf.mg.cpt .mg-barre, .lf.mg.cpt .mg-barre > .pa-seg { min-width: 0; max-width: 100%; }' '/* rien */' \
+  "$T301W"
+prouver '« Ton cabinet la dépose » collé à son bouton' "$A2E" \
+  'Ton cabinet la dépose</span> <button' 'Ton cabinet la dépose</span><button' \
+  "$T301W"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
