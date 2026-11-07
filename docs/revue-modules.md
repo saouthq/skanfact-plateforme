@@ -1021,3 +1021,39 @@ avec 5 % de remise sur deux taux ; la peinture qu'elle ne veut plus vendre ; pui
 
 **À VÉRIFIER** avec un comptable : 701, 706, 707 ; un article suivi en stock qu'on fabrique sans FODEC (le pain d'une
 boulangerie) se dit « produit fabriqué » sur sa fiche.
+
+## Le stock, jusqu'au bilan
+
+*Joué le 07/11/2026 (1.319.0) par la Droguerie El Amen (Ariana) à la clôture de 2025 : 40 pots de peinture à 61 puis 20 à 63,
+23 sortis en juin ; le mastic qu'elle fait ; le vernis tout parti ; une casse de décembre oubliée ; puis sa comptable au Cabinet.
+Le côté entreprise du stock (commandes, inventaire, fiche d'un article) a été joué en 1.284 : cette passe suit le stock jusqu'au
+bilan.*
+
+**Ce qui n'allait pas**
+- Le serveur n'écrit jamais la variation de stock dans les livres d'un client SkanFact (le moteur de l'entreprise la calcule pour
+  son propre journal, pas pour le livre du Cabinet). La comptable devait recopier l'inventaire, ligne à ligne, depuis un tableur :
+  sans ce geste, le bilan d'un commerce n'avait pas de stock et son résultat comptait toute la marchandise achetée comme vendue.
+- Recopié, l'inventaire ne valait pas la page Stock du client : le coût moyen s'arrondit à chaque sortie, et la quantité fois le
+  coût moyen arrondi n'est pas la valeur du stock (37 pots : 2 281,679 au lieu de 2 281,659).
+- Une ligne collée dont la référence est vide (une tabulation en tête) perdait cette case : avec une colonne de plus, les
+  colonnes se décalaient.
+- Les cartes posées dans l'onglet Inventaire collaient leur texte au bord.
+
+**Ce qui change (1.319.0)**
+- Stock › Inventaire : « L'état du stock pour ton comptable », quand un cabinet est relié. Le 31 décembre passé est proposé
+  (s'il y avait du stock), la date se change ; la carte dit le nombre d'articles et la valeur au coût moyen, et « Envoyer l'état
+  du … ». Envoyé, elle le dit (« c'est l'état d'aujourd'hui ») ; si le stock de cette date a changé depuis (une casse saisie en
+  retard), elle le dit en orange avec « Renvoyer », qui remplace l'état chez la comptable. « Le dire à mon comptable » ouvre la
+  conversation avec le résumé prêt ; « Prévenir mon comptable » après un inventaire envoie aussi l'état du jour compté.
+- L'état (`etatsStock` du dossier, module Stock) : chaque article suivi qui a du stock ce jour-là, sa quantité, sa valeur au
+  millime de la page Stock et son coût unitaire (la valeur divisée par la quantité) ; ni le prix de vente, ni le fournisseur.
+  Le Cabinet le lit sous mandat comptable, jamais il ne l'écrit (base 0200).
+- Au Cabinet, l'onglet Inventaire montre « L'état du stock envoyé par … » (date, articles, valeur, quand) ; « Le reprendre comme
+  inventaire… » remplit la saisie (cinq colonnes : la dernière est la valeur), qu'elle relit puis enregistre ; ensuite « ✓
+  L'inventaire de 2025 est celui que le client a envoyé », ou, s'il diffère, l'écart dit. La variation de stock s'écrit à ce
+  millime (2 194,325 au 37 et au 603, le compte de stock étant à zéro).
+- Une ligne d'inventaire peut dire sa valeur (cinquième colonne, collée aussi depuis un tableur) : elle doit rester la quantité
+  fois le coût unitaire, à un demi-millime par unité près ; le Cabinet et la base refusent sinon, en le disant.
+
+**À VÉRIFIER** avec un comptable : les comptes 37 / 603 pour un commerce, et l'inventaire au coût moyen pondéré.
+

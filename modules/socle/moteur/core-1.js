@@ -4253,6 +4253,24 @@
     };
   }
 
+  // (1.319.0) L'état du stock à une date, tel que le comptable le reprend pour son inventaire : chaque article suivi qui a du
+  // stock ce jour-là, sa quantité, sa VALEUR — celle de la page Stock, au millime — et son coût unitaire, qui est cette valeur
+  // divisée par la quantité, arrondie au millime. Ni la quantité fois le coût moyen arrondi : le coût moyen s'arrondit à
+  // chaque sortie, et l'écart qui s'en accumule dépend de ce qui est entré, pas de ce qui reste (40 pots à 61 et 20 à 63, 23
+  // vendus : il en reste 37 qui valent 2 281,659, pas 37 × 61,667 = 2 281,679). Le total est la valeur du stock au même
+  // millime. Un article à zéro ou en négatif n'y est pas (on n'inventorie pas ce qu'on n'a pas ; le négatif vaut zéro dans la
+  // valeur du stock). Un article archivé y reste : il ne se vend plus, son stock est là.
+  function etatDuStock(data, dateIso) {
+    const date = String(dateIso || today()).slice(0, 10);
+    const lignes = stockList(data, date).filter(r => r.qty > 0).map(r => {
+      const item = (data.catalog || []).find(c => c.id === r.itemId) || {};
+      const quantite = round3(r.qty), valeur = round3(Math.max(0, r.value));
+      return { itemId: r.itemId, ref: String(item.code || '').trim().slice(0, 60), libelle: r.label, unite: r.unit,
+        quantite, cout: round3(valeur / quantite), valeur };
+    });
+    return { date, lignes, total: round3(lignes.reduce((s, l) => s + l.valeur, 0)) };
+  }
+
   // Le journal des mouvements, tous articles confondus, avec le stock de l'article après chaque ligne.
   function stockJournal(data, period) {
     const byItem = {};

@@ -1500,6 +1500,56 @@
       imp.textContent = gaps.length ? `Impact sur la valeur du stock : ${C.money(value, cur)}` : counted.length ? 'Aucun écart : ce que tu as compté est ce que dit l\'application.' : 'Aucun écart pour l\'instant.';
     }
 
+    // (1.319.0) L'état du stock pour le comptable : à la fin de l'exercice, son cabinet passe la valeur du stock dans le bilan.
+    // L'entreprise lui envoie l'état à une date (chaque article qui a du stock, sa quantité, son coût moyen, sa valeur, au
+    // millime de la page Stock) ; son cabinet le reprend comme inventaire, sans rien recopier. Par défaut : le 31 décembre
+    // passé, s'il y avait du stock ; sinon aujourd'hui. La date se change : c'est l'entreprise qui choisit ce qu'elle envoie.
+    function dateEtatParDefaut() {
+      const finAn = `${Number(C.today().slice(0, 4)) - 1}-12-31`;
+      return C.etatDuStock(data, finAn).lignes.length ? finAn : C.today();
+    }
+    function etatEnvoye(date) { return (data.etatsStock || []).find(x => x.date === date) || null; }
+    function carteEtatPourLeComptable() {
+      if (!s.etatDate) s.etatDate = dateEtatParDefaut();
+      const e = C.etatDuStock(data, s.etatDate), deja = etatEnvoye(s.etatDate), cur = company().currency;
+      const pareil = deja && Math.abs((Number(deja.total) || 0) - e.total) < 0.0005 && (deja.lignes || []).length === e.lignes.length;
+      const resume = e.lignes.length ? `${pl(e.lignes.length, 'article')} en stock, ${C.money(e.total, cur)} au coût moyen` : 'aucun article en stock à cette date';
+      const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="etat-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} : c'est l'état d'aujourd'hui.</p>`
+        : `<p class="small warn-text" id="etat-deja">Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} avec ${C.money(Number(deja.total) || 0, cur)} : le stock de cette date a changé depuis. Renvoie-le pour que ton comptable ait le bon.</p>`;
+      return `<div class="cf-carte mb" id="etat-comptable"><h2>L'état du stock pour ton comptable ${info('stk.etatComptable')}</h2>
+        <p class="small muted">À la clôture, ton comptable passe la valeur de ton stock dans ton bilan. Envoie-lui l'état à cette date : il le reprend tel quel, au coût moyen, sans rien recopier.</p>
+        <div class="filters">
+          <label class="small">${lbl('Au', 'stk.etatDate')} ${dateFieldHtml('', 'etatDate', s.etatDate, {})}</label>
+          <span class="small" id="etat-resume">${resume}</span>
+        </div>
+        ${envoi}
+        <div class="inline"><button class="btn btn-sm" id="etat-envoyer" ${e.lignes.length && !pareil ? '' : 'disabled'}
+          title="${e.lignes.length ? (pareil ? 'Ton comptable a déjà cet état.' : '') : 'Rien en stock à cette date : il n\'y a rien à envoyer.'}">${deja && !pareil ? 'Renvoyer' : 'Envoyer'} l'état du ${C.fmtDate(s.etatDate)}</button></div></div>`;
+    }
+    function envoyerEtatDuStock(date) {
+      const e = C.etatDuStock(data, date);
+      if (!e.lignes.length) return null;
+      data.etatsStock = (data.etatsStock || []).filter(x => x.date !== e.date)
+        .concat([{ id: 'es-' + e.date, date: e.date, total: e.total, envoyeLe: new Date().toISOString(),
+          lignes: e.lignes.map(l => ({ itemId: l.itemId, ref: l.ref, libelle: l.libelle, unite: l.unite, quantite: l.quantite, cout: l.cout, valeur: l.valeur })) }]);
+      save(true);
+      return e;
+    }
+    const texteEtatDuStock = e => `l'état du stock au ${C.fmtDate(e.date)} est envoyé : ${pl(e.lignes.length, 'article')}, ${C.money(e.total, company().currency)} au coût moyen, à reprendre dans l'inventaire.`;
+    function brancherEtatPourLeComptable() {
+      const champ = $('#st-body input[name=etatDate]');
+      if (champ) champ.onchange = () => { s.etatDate = champ.value || C.today(); drawInventory(); };
+      const b = $('#etat-envoyer');
+      if (b) b.onclick = () => {
+        if (licenceBlock('Envoyer l\'état du stock', 'stock')) return;
+        const e = envoyerEtatDuStock(s.etatDate);
+        if (!e) return;
+        drawInventory();
+        toastUndo(`L'état du stock au ${C.fmtDate(e.date)} est chez ton comptable : ${pl(e.lignes.length, 'article')}, ${C.money(e.total, company().currency)}. Il le reprend dans son inventaire.`,
+          () => ecrireAuComptable(`Bonjour, ${texteEtatDuStock(e)}`), 'Le dire à mon comptable');
+      };
+    }
+
     function drawInventory() {
       const { rows } = etatInventaire();
       // Paginé : le comptage d'un article d'une autre page reste dans `s.counts`, et les écarts se
@@ -1509,6 +1559,7 @@
         ${s.dernierInventaire ? `<div class="cf-carte" id="inv-fait"><p><b>Inventaire du ${C.fmtDate(s.dernierInventaire.date)} enregistré</b> : ${pl(s.dernierInventaire.comptes, 'article compté', 'articles comptés')}, ${pl(s.dernierInventaire.ecarts, 'écart')} pour ${C.money(s.dernierInventaire.valeur, company().currency)} au coût moyen.
           ${peutEcrireAuCabinet() ? 'La valeur du stock a changé : c\'est ce que ton cabinet passe en variation de stock à la clôture.' : ''}</p>
           <div class="inline">${peutEcrireAuCabinet() ? '<button class="btn btn-primary btn-sm" id="inv-prevenir">Prévenir mon comptable</button>' : ''}<button class="btn btn-sm btn-ghost" id="inv-fait-ok">Fermer</button></div></div>` : ''}
+        ${peutEcrireAuCabinet() ? carteEtatPourLeComptable() : ''}
         <div class="panel"><h2>Inventaire physique ${info('stk.inventory')}</h2>
           <p class="small muted mb">Une fois par an au minimum, on compte ce qu'il y a vraiment en rayon et on le compare à ce que dit l'application. Un écart n'est pas une faute : c'est de la casse non déclarée, une sortie oubliée ou une erreur de saisie. L'important est de le voir.</p>
           <div class="filters">
@@ -1531,6 +1582,7 @@
           <p class="small muted mt">Rien n'est modifié tant que tu ne cliques pas : le comptage reste à l'écran, et c'est toi qui décides de le passer en mouvements d'inventaire.</p>
         </div>`;
       bindDateFields($('#st-body'));
+      brancherEtatPourLeComptable();
       const hid = $('#st-body input[name=countDate]');
       if (hid) hid.onchange = () => { s.countDate = hid.value || C.today(); drawInventory(); };
       majInventaire();
@@ -1540,7 +1592,9 @@
       if ($('#inv-prevenir')) $('#inv-prevenir').onclick = () => {
         const x = s.dernierInventaire;
         const effet = x.valeur ? `soit ${C.money(Math.abs(x.valeur), company().currency)} ${x.valeur < 0 ? 'en moins' : 'en plus'} au coût moyen` : 'sans changement de la valeur du stock';
-        ecrireAuComptable(`Bonjour, j'ai fait l'inventaire du stock au ${C.fmtDate(x.date)} : ${pl(x.comptes, 'article compté', 'articles comptés')}, ${pl(x.ecarts, 'écart')}, ${effet}. Les mouvements d'inventaire sont enregistrés dans SkanFact.`);
+        // (1.319.0) L'état du stock compté part avec le message : le comptable le reprend comme inventaire.
+        const e = envoyerEtatDuStock(x.date);
+        ecrireAuComptable(`Bonjour, j'ai fait l'inventaire du stock au ${C.fmtDate(x.date)} : ${pl(x.comptes, 'article compté', 'articles comptés')}, ${pl(x.ecarts, 'écart')}, ${effet}. Les mouvements d'inventaire sont enregistrés dans SkanFact${e ? `, et ${texteEtatDuStock(e)}` : '.'}`);
       };
       bindPager($('#st-body'), s.inv, () => drawInventory(), '#st-body');
       $('#inv-apply').onclick = async () => {

@@ -640,16 +640,20 @@
   }
   // L'inventaire d'une année (brique 42 bis), dans la forme de la v10 : son total est celui que le
   // serveur a calculé ; l'écriture de variation, tant qu'elle vaut encore.
+  // (1.319.0) Et les états du stock envoyés par le client pour l'année (`duClient`), lus, jamais écrits ; une ligne qui dit sa valeur la garde.
+  /** @type {Map<string, any[]>} */ const etatsStockClient = new Map();
   /** @param {string} ent @param {string|number} annee */
   async function inventaireDe(ent, annee) {
     const r = await appel('GET', `/entreprises/${ent}/compta/inventaires/${Number(annee)}`);
+    etatsStockClient.set(`${ent}:${Number(annee)}`, (r.duClient || []).map((/** @type {any} */ e) => ({ ...e, total: nombre(e.total),
+      lignes: (e.lignes || []).map((/** @type {any} */ l) => ({ ...l, quantite: nombre(l.quantite), cout: nombre(l.cout), valeur: nombre(l.valeur) })) })));
     const x = r.inventaire;
     if (!x) return null;
     return {
       id: `inv_${x.annee}`, date: x.date, compte: x.compte, total: nombre(x.total), saisiLe: 0, par: '', ecritureId: x.ecriture || '',
       lignes: x.lignes.map((/** @type {any} */ l) => {
-        const quantite = nombre(l.quantite), cout = nombre(l.cout);
-        return { ref: l.ref, libelle: l.libelle, quantite, cout, valeur: Math.round(quantite * cout * 1000) / 1000 };
+        const quantite = nombre(l.quantite), cout = nombre(l.cout), dite = l.valeur != null;
+        return { ref: l.ref, libelle: l.libelle, quantite, cout, valeur: dite ? nombre(l.valeur) : Math.round(quantite * cout * 1000) / 1000, ...(dite ? { valeurDite: true } : {}) };
       }),
     };
   }
@@ -2085,7 +2089,8 @@
     inventaire: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = await livreDe(o.dossierId, o.annee);
-      return { inventaire: livre.inventaires[0] || null, variation: KC.variationDeStock(livre, o.annee) };
+      return { inventaire: livre.inventaires[0] || null, variation: KC.variationDeStock(livre, o.annee),
+        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [] };
     },
     saveInventaire: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
@@ -2097,7 +2102,8 @@
       const quantite = (n) => (Math.round((Number(n) || 0) * 1000) / 1000).toFixed(3);
       await appel('PUT', `/entreprises/${o.dossierId}/compta/inventaires/${Number(o.annee)}`, {
         date: r.inventaire.date, compte: r.inventaire.compte,
-        lignes: r.inventaire.lignes.map((/** @type {any} */ l) => ({ ref: String(l.ref || '').slice(0, 60), libelle: String(l.libelle || ''), quantite: quantite(l.quantite), cout: signe(l.cout) })),
+        lignes: r.inventaire.lignes.map((/** @type {any} */ l) => ({ ref: String(l.ref || '').slice(0, 60), libelle: String(l.libelle || ''), quantite: quantite(l.quantite), cout: signe(l.cout),
+          ...(l.valeurDite ? { valeur: signe(l.valeur) } : {}) })),
       });
       const apres = await livreDe(o.dossierId, o.annee);
       return { ok: true, inventaire: apres.inventaires[0] || null, livre: apres };

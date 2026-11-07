@@ -4339,6 +4339,11 @@
       if (!txt(l.libelle)) motifs.push(`Ligne ${k + 1} : la désignation manque.`);
       if (num(l.quantite) < 0) motifs.push(`Ligne ${k + 1} : une quantité négative ne s\'inventorie pas.`);
       if (num(l.cout) < 0) motifs.push(`Ligne ${k + 1} : un coût unitaire négatif n\'existe pas.`);
+      // (1.319.0) Une ligne peut dire sa valeur : celle du coût moyen exact du SkanFact du client, dont le coût unitaire
+      // n'est que l'arrondi au millime. Elle doit rester la quantité fois ce coût, à l'arrondi près.
+      if (aUneValeur(l) && !valeurTenue(l)) {
+        motifs.push(`Ligne ${k + 1} : la valeur ${fmtMontant(num(l.valeur))} n\'est pas la quantité fois le coût unitaire (${fmtMontant(num(l.quantite) * num(l.cout))}).`);
+      }
     });
     return { ok: !motifs.length, motifs };
   }
@@ -4356,27 +4361,37 @@
     if (!/^[+\-\u2212]?[\d\s\u00a0\u202f.,]+$/.test(t) || !/\d/.test(t)) return NaN;
     return nombreDepuisCsv(t);
   }
+  // (1.319.0) La valeur d'une ligne, quand elle est dite : jamais négative, et à moins d'un demi-millime par unité de la
+  // quantité fois le coût unitaire (le coût moyen arrondi au millime), plus le millime de l'arrondi de la valeur elle-même.
+  const aUneValeur = l => l != null && l.valeur != null && l.valeur !== '';
+  const valeurTenue = l => num(l.valeur) >= 0 && Math.abs(num(l.valeur) - num(l.quantite) * num(l.cout)) <= Math.abs(num(l.quantite)) * 0.0005 + 0.001 + 1e-9;
+  const valeurDeLigne = l => (aUneValeur(l) ? round3(num(l.valeur)) : round3(num(l.quantite) * num(l.cout)));
   function lignesInventaireDepuisTexte(texte) {
     const lignes = [], refus = [];
     String(texte || '').split(/\r?\n/).forEach((brut, k) => {
-      const l = brut.trim();
-      if (!l) return;
+      // (1.319.0) Seule la fin de la ligne se nettoie : une tabulation de tête est la case vide de la référence. Rognée,
+      // elle décalait les colonnes d'une ligne à cinq cases (la désignation devenait la référence, la quantité le nom).
+      const l = brut.replace(/[\t; \u00a0]+$/, '');
+      if (!l.trim()) return;
       const p = l.split(/\t|;/).map(x => x.trim());
       // Quatre colonnes attendues ; avec trois, la référence manque — le cas le plus courant d'un
       // tableur qui n'en tient pas.
-      const [ref, libelle, q, c] = p.length >= 4 ? p : ['', p[0], p[1], p[2]];
-      const quantite = nombreStrict(q), cout = nombreStrict(c);
+      // (1.319.0) Une cinquième colonne, la valeur de la ligne (l'état du stock d'un client SkanFact la porte).
+      const [ref, libelle, q, c, v] = p.length >= 4 ? p : ['', p[0], p[1], p[2]];
+      const quantite = nombreStrict(q), cout = nombreStrict(c), valeur = v == null ? null : nombreStrict(v);
       const n = k + 1;
       if (quantite === null) refus.push({ ligne: n, motif: `Ligne ${n} (${libelle || ref || '?'}) : la quantité manque.` });
       else if (Number.isNaN(quantite)) refus.push({ ligne: n, motif: `Ligne ${n} (${libelle || ref || '?'}) : « ${q} » n'est pas une quantité. Écris-la en chiffres.` });
       if (Number.isNaN(cout)) refus.push({ ligne: n, motif: `Ligne ${n} (${libelle || ref || '?'}) : « ${c} » n'est pas un coût unitaire. Écris-le en chiffres.` });
-      lignes.push({ ref: ref || '', libelle: libelle || '', quantite: Number.isNaN(quantite) || quantite === null ? 0 : quantite, cout: Number.isNaN(cout) || cout === null ? 0 : cout });
+      if (Number.isNaN(valeur)) refus.push({ ligne: n, motif: `Ligne ${n} (${libelle || ref || '?'}) : « ${v} » n'est pas une valeur. Écris-la en chiffres.` });
+      lignes.push({ ref: ref || '', libelle: libelle || '', quantite: Number.isNaN(quantite) || quantite === null ? 0 : quantite, cout: Number.isNaN(cout) || cout === null ? 0 : cout,
+        ...(valeur === null || Number.isNaN(valeur) ? {} : { valeur }) });
     });
     return { lignes, refus };
   }
 
   const totalInventaire = inv => round3(((inv && inv.lignes) || [])
-    .reduce((s, l) => s + round3(num(l.quantite) * num(l.cout)), 0));
+    .reduce((s, l) => s + valeurDeLigne(l), 0));
 
   function poserInventaire(livre, inv, qui, quand) {
     const v = inventaireValide(inv);
@@ -4395,7 +4410,7 @@
       lignes: (inv.lignes || []).map(l => ({
         ref: txt(l.ref), libelle: txt(l.libelle),
         quantite: num(l.quantite), cout: round3(num(l.cout)),
-        valeur: round3(num(l.quantite) * num(l.cout))
+        valeur: valeurDeLigne(l), ...(aUneValeur(l) ? { valeurDite: true } : {})
       })),
       total: totalInventaire(inv),
       compte: txt(inv.compte) || compteImmo(livre, 'stocks'),

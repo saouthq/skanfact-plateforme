@@ -333,6 +333,10 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 .cf-onglet #cl-docs table td { font-size: 13px; }
 .cf-onglet #cl-docs td.actions .row-menu-btn { padding-inline: 8px; }
 .cf-carte { overflow: hidden; }
+/* (1.319.0) Une carte posée dans le corps d'un onglet du Stock (l'état pour le comptable, l'inventaire enregistré) a sa
+   marge intérieure : son titre et son texte collaient au bord. */
+#st-body > .cf-carte { padding: 14px 16px 16px; }
+#st-body > .cf-carte > h2 { margin-top: 0; }
 .cf-o-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cf-o-t .mu { font-size: 12.5px; flex: 1 1 260px; }
 .cf-o-t .btn { margin-left: auto; }

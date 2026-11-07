@@ -16,8 +16,24 @@ const anneeDe = (v: string | undefined) => { const n = Number(v); return Number.
 const INVENTAIRE = z.object({
   date: z.string().refine(estJour, { message: 'champ.jour' }),
   compte: z.string().max(12),
-  lignes: z.array(z.object({ ref: z.string().max(60).default(''), libelle: z.string().max(200), quantite: z.string().max(30), cout: z.string().max(30) }).strict()).max(10000),
+  lignes: z.array(z.object({ ref: z.string().max(60).default(''), libelle: z.string().max(200), quantite: z.string().max(30), cout: z.string().max(30),
+    valeur: z.string().max(30).optional() }).strict()).max(10000),
 }).strict();
+
+// (1.319.0) L'état du stock que le client a envoyé (`etatsStock` de son dossier, 0200) → ce que son cabinet en lit : la date,
+// quand et par qui il est parti, et ses lignes. Un nombre non entier y est rangé en texte exact (`{ "~n": "61.667" }`,
+// pont.js) : il ressort tel quel. Rien d'autre de l'article (ni son prix de vente, ni son fournisseur) ne sort.
+const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const texteDe = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+const nombreV10 = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? String(v)
+  : estObjet(v) && typeof v['~n'] === 'string' ? v['~n'] : '0');
+function etatDuClient(e: Record<string, unknown>) {
+  const lignes = (Array.isArray(e.lignes) ? e.lignes : []).filter(estObjet).slice(0, 10000).map((l) => ({
+    ref: texteDe(l.ref).slice(0, 60), libelle: texteDe(l.libelle).slice(0, 200), unite: texteDe(l.unite).slice(0, 20),
+    quantite: nombreV10(l.quantite), cout: nombreV10(l.cout), valeur: nombreV10(l.valeur),
+  }));
+  return { date: texteDe(e.date).slice(0, 10), envoyeLe: texteDe(e.envoyeLe).slice(0, 40), par: texteDe(e.par).slice(0, 120), total: nombreV10(e.total), lignes };
+}
 
 export function routesInventaire(ctx: Contexte): Route<never>[] {
   void ctx;
@@ -33,14 +49,20 @@ export function routesInventaire(ctx: Contexte): Route<never>[] {
       const x = (await tx.query(`select to_char(date_inventaire, 'YYYY-MM-DD') date, compte, lignes, total,
           case when compta.ecriture_vivante(ecriture) then ecriture end ecriture from compta.inventaire where entreprise = $1 and annee = $2`,
       [params.entreprise ?? '', annee])).rows[0];
+      // (1.319.0) Les états du stock que le client a envoyés pour cette année (0200), le plus récent d'abord.
+      const etats = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'etatsStock'
+          and contenu->>'date' like $2 order by contenu->>'date' desc, cle collate "C"`, [params.entreprise ?? '', `${annee}-%`])).rows
+        .filter((e) => estObjet(e.contenu)).map((e) => etatDuClient(e.contenu as Record<string, unknown>));
       return {
         corps: {
           inventaire: x ? {
             annee, date: x.date, compte: x.compte, total: versTexte(BigInt(x.total), 3), ecriture: x.ecriture ?? null,
-            lignes: (x.lignes as { ref: string; libelle: string; quantite: number; cout: number }[]).map((l) => ({
+            lignes: (x.lignes as { ref: string; libelle: string; quantite: number; cout: number; valeur?: number }[]).map((l) => ({
               ref: l.ref, libelle: l.libelle, quantite: versTexte(BigInt(l.quantite), 3), cout: versTexte(BigInt(l.cout), 3),
+              ...(typeof l.valeur === 'number' ? { valeur: versTexte(BigInt(l.valeur), 3) } : {}),
             })),
           } : null,
+          duClient: etats,
         },
       };
     },
@@ -55,10 +77,11 @@ export function routesInventaire(ctx: Contexte): Route<never>[] {
       if (annee === null) return champInvalide('annee', t('compta.champ.annee'));
       const lignes = [];
       for (const [i, l] of corps.lignes.entries()) {
-        let quantite: bigint, cout: bigint;
+        let quantite: bigint, cout: bigint, valeur: bigint | null = null;
         try { quantite = depuisTexte(l.quantite, 3); } catch { return champInvalide(`lignes.${i}.quantite`, t('compta.champ.quantite')); }
         try { cout = depuisTexte(l.cout, 3); } catch { return champInvalide(`lignes.${i}.cout`, t('compta.champ.montant')); }
-        lignes.push({ ref: l.ref, libelle: l.libelle.trim(), quantite: Number(quantite), cout: Number(cout) });
+        if (l.valeur !== undefined) { try { valeur = depuisTexte(l.valeur, 3); } catch { return champInvalide(`lignes.${i}.valeur`, t('compta.champ.montant')); } }
+        lignes.push({ ref: l.ref, libelle: l.libelle.trim(), quantite: Number(quantite), cout: Number(cout), ...(valeur === null ? {} : { valeur: Number(valeur) }) });
       }
       const total = (await tx.query('select compta.poser_inventaire($1, $2, $3::jsonb) total', [params.entreprise ?? '', annee,
         JSON.stringify({ date: corps.date, compte: corps.compte.trim(), lignes })])).rows[0].total;

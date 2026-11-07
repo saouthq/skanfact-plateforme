@@ -610,6 +610,8 @@
     'hr.docDate': { t: 'Daté du', d: 'La date imprimée sur le document — en général le jour où tu le remets.' },
     'stk.adjustDate': { t: 'Date du mouvement', d: 'Le jour où la matière a été utilisée, cassée ou comptée. Elle range le mouvement dans le journal du stock et dans le mois dont il change le coût des ventes.' },
     'stk.adjustItem': { t: 'Article', d: 'L\'article dont la quantité change. Seuls les articles suivis en stock sont proposés.' },
+    'stk.etatComptable': { t: 'L\'état du stock pour ton comptable', d: 'Ce que vaut ton stock à une date, article par article : la quantité, le coût moyen et la valeur, les mêmes que la page Stock. À la clôture, ton comptable en a besoin pour ton bilan (le stock, et sa variation dans le résultat). Envoyé, il le reprend dans son inventaire sans rien recopier ; il le lit, il ne change rien chez toi. Un article à zéro n\'y figure pas.' },
+    'stk.etatDate': { t: 'Au', d: 'La date de l\'état : en général le dernier jour de l\'exercice (le 31 décembre). Le stock est celui de ce jour-là, avec tout ce qui est entré et sorti jusqu\'au soir. Si tu as compté ton stock ce jour-là, enregistre d\'abord les écarts de l\'inventaire, puis envoie.' },
     'stk.countDate': { t: 'Date du comptage', d: 'Le jour où tu as compté. Les écarts enregistrés prennent cette date : fais-la correspondre au comptage réel, en général le dernier jour de l\'exercice.' },
     'ser.item': { t: 'Article', d: 'L\'article suivi par numéro de série auquel ces unités appartiennent. Seuls les articles suivis par numéro sont proposés.' },
     'ser.purchase': { t: 'Facture d\'achat', d: 'Facultatif : la facture qui a fait entrer ces unités. Elle sert à retrouver d\'où vient une unité.' },

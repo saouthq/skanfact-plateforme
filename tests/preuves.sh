@@ -2715,30 +2715,32 @@ prouver "l'acquisition d'où vient un bien oubliée" $PC \
 
 # ── Brique 42 bis : l'inventaire de stock (docs/cabinet.md, C30) ──
 M27=base/migrations/0027_compta_inventaire.sql
+# (1.319.0) compta.poser_inventaire se définit désormais en 0200 (la valeur dite d'une ligne) : ses preuves y visent.
+M200=base/migrations/0200_etat_du_stock_au_cabinet.sql
 INS=serveur/compta/inventaire.ts
 IV1="un inventaire : posé, son total calculé au serveur au millime ; ce qui ne tient pas se refuse ; une voisine n'en lit rien"
 IV2="la variation : au brouillard, liée ; repassée, refusée ; l'inventaire ne se refait pas sous elle ; supprimée ou contre-passée, le lien tombe"
 WV1="l'inventaire collé s'enregistre au millime ; la variation s'écrit au brouillard, liée ; dessous, l'inventaire ne se refait pas"
-prouver "un inventaire daté dans une autre année" $M27 \
+prouver "un inventaire daté dans une autre année" $M200 \
   "  if extract(year from v_date) <> p_annee then perform socle.refus(" "  if false then perform socle.refus(" \
   "$IV1"
-prouver "un inventaire sans ligne" $M27 \
+prouver "un inventaire sans ligne" $M200 \
   "  if jsonb_typeof(p_inventaire->'lignes') <> 'array' or jsonb_array_length(p_inventaire->'lignes') = 0 then" "  if false then" \
   "$IV1"
-prouver "une ligne d'inventaire sans désignation" $M27 \
+prouver "une ligne d'inventaire sans désignation" $M200 \
   "    if length(trim(coalesce(l->>'libelle', ''))) = 0 then perform socle.refus(format('ligne %s : la désignation manque', k)); end if;" "" \
   "$IV1"
-prouver "une quantité négative ou à virgule inventoriée" $M27 \
+prouver "une quantité négative ou à virgule inventoriée" $M200 \
   "    if jsonb_typeof(l->'quantite') <> 'number' or not socle.sans_virgule(l->'quantite') or (l->>'quantite')::numeric < 0 then" "    if false then" \
   "$IV1"
-prouver "un coût unitaire négatif inventorié" $M27 \
+prouver "un coût unitaire négatif inventorié" $M200 \
   "    if jsonb_typeof(l->'cout') <> 'number' or not socle.sans_virgule(l->'cout') or (l->>'cout')::numeric < 0 then" "    if false then" \
   "$IV1"
-prouver "un inventaire sans compte de stock" $M27 \
+prouver "un inventaire sans compte de stock" $M200 \
   "  if coalesce(p_inventaire->>'compte', '') !~ '^[0-9]{1,12}\$' then perform socle.refus(" "  if false then perform socle.refus(" \
   "$IV1"
-prouver "la valeur d'une ligne tronquée au lieu d'arrondie" $M27 \
-  "    v_total := v_total + round((l->>'quantite')::numeric * (l->>'cout')::numeric / 1000)::bigint;" "    v_total := v_total + trunc((l->>'quantite')::numeric * (l->>'cout')::numeric / 1000)::bigint;" \
+prouver "la valeur d'une ligne tronquée au lieu d'arrondie" $M200 \
+  "      v_total := v_total + round(v_calcule)::bigint;" "      v_total := v_total + trunc(v_calcule)::bigint;" \
   "$IV1"
 prouver "l'inventaire d'une voisine lu" $M27 \
   "create policy visible on compta.inventaire using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.inventaire using (true);" \
@@ -2746,7 +2748,7 @@ prouver "l'inventaire d'une voisine lu" $M27 \
 prouver "une quantité lue en entiers seulement" $INS \
   "try { quantite = depuisTexte(l.quantite, 3); }" "try { quantite = depuisTexte(l.quantite, 0); }" \
   "$IV1"
-prouver "un inventaire refait sous sa variation" $M27 \
+prouver "un inventaire refait sous sa variation" $M200 \
   "  if found and compta.ecriture_vivante(x.ecriture) then" "  if false then" \
   "$IV2"
 prouver "une variation de stock passée deux fois" $M27 \
@@ -26028,6 +26030,81 @@ prouver 'catalogue 1.318 u : la liste des archivés ne dit pas qu'\''il est arch
 prouver 'catalogue 1.318 v : les chiffres du catalogue comptent les articles archivés' modules/socle/ecrans/entreprise/app-1.js \
   '      const cat = data.catalog.filter(c => !c.archived === !enArchives);' '      const cat = data.catalog;' \
   "$CW1"
+# (1.319.0) Le stock joué par la droguerie de l'Ariana à la clôture : l'état du stock à une date part chez la comptable (au
+# millime de la page Stock, le coût unitaire étant la valeur divisée par la quantité), se renvoie quand le stock de cette date
+# a changé, et le Cabinet le reprend comme inventaire d'un geste ; une ligne d'inventaire peut dire sa valeur, contrôlée à
+# l'arrondi près dans le navigateur et dans la base (tests/moteur/stock-1319.test.ts, tests/web/stock-1319.test.ts).
+SM1="au 31/12 : chaque article qui a du stock, à sa valeur de la page Stock ; le total est la valeur du stock au millime"
+SM2="l'inventaire du Cabinet repris de cet état vaut la même somme : la valeur dite de chaque ligne, contrôlée"
+SM3="une valeur qui n'est pas la quantité fois le coût, à l'arrondi près, est refusée en le disant"
+SM4="la tabulation de tête reste la case vide de la référence ; une ligne à quatre ou trois cases se lit comme avant"
+SW1="l'état du stock au 31/12 part au cabinet, se renvoie quand le stock a changé, et se reprend comme inventaire au millime"
+prouver 'stock 1.319 a : l'\''état du stock compte les articles à zéro' modules/socle/moteur/core-1.js \
+  '    const lignes = stockList(data, date).filter(r => r.qty > 0).map(r => {' '    const lignes = stockList(data, date).map(r => {' \
+  "$SM1"
+prouver 'stock 1.319 b : le coût unitaire de l'\''état est le coût moyen arrondi' modules/socle/moteur/core-1.js \
+  '        quantite, cout: round3(valeur / quantite), valeur };' '        quantite, cout: round3(r.cmp), valeur };' \
+  "$SM1"
+prouver 'stock 1.319 c : la valeur de l'\''état est la quantité fois le coût moyen' modules/socle/moteur/core-1.js \
+  '      const quantite = round3(r.qty), valeur = round3(Math.max(0, r.value));' '      const quantite = round3(r.qty), valeur = round3(r.qty * r.cmp);' \
+  "$SM1"
+prouver 'stock 1.319 d : la valeur dite d'\''une ligne d'\''inventaire est ignorée' modules/socle/moteur/compta-1.js \
+  '  const valeurDeLigne = l => (aUneValeur(l) ? round3(num(l.valeur)) : round3(num(l.quantite) * num(l.cout)));' '  const valeurDeLigne = l => round3(num(l.quantite) * num(l.cout));' \
+  "$SM2"
+prouver 'stock 1.319 e : une valeur fausse passe le contrôle de l'\''inventaire' modules/socle/moteur/compta-1.js \
+  '      if (aUneValeur(l) && !valeurTenue(l)) {' '      if (false) {' \
+  "$SM3"
+prouver 'stock 1.319 f : la cinquième colonne de l'\''inventaire ne se lit pas' modules/socle/moteur/compta-1.js \
+  '      const quantite = nombreStrict(q), cout = nombreStrict(c), valeur = v == null ? null : nombreStrict(v);' '      const quantite = nombreStrict(q), cout = nombreStrict(c), valeur = null;' \
+  "$SM2"
+prouver 'stock 1.319 g : la tabulation de tête d'\''une ligne collée est rognée' modules/socle/moteur/compta-1.js \
+  '      const l = brut.replace(' '      const l = brut.trim() || brut.replace(' \
+  "$SM4"
+prouver 'stock 1.319 h : la base ignore la valeur d'\''une ligne d'\''inventaire' base/migrations/0200_etat_du_stock_au_cabinet.sql \
+  '      v_total := v_total + (l->>'\''valeur'\'')::bigint;' '      v_total := v_total + round(v_calcule)::bigint;' \
+  "$SW1"
+prouver 'stock 1.319 i : la base accepte une valeur qui n'\''est pas la quantité fois le coût' base/migrations/0200_etat_du_stock_au_cabinet.sql \
+  '      if abs((l->>'\''valeur'\'')::numeric - v_calcule) > (l->>'\''quantite'\'')::numeric / 2000 + 1 then' '      if false then' \
+  "$SW1"
+prouver 'stock 1.319 j : le cabinet ne lit pas l'\''état du stock du client' base/migrations/0200_etat_du_stock_au_cabinet.sql \
+  '  collection = '\''etatsStock'\'' and entreprise in (select compta.mes_entreprises()));' '  false);' \
+  "$SW1"
+prouver 'stock 1.319 k : le serveur ne rend pas les états du stock envoyés' serveur/compta/inventaire.ts \
+  '          duClient: etats,' '          duClient: [],' \
+  "$SW1"
+prouver 'stock 1.319 l : le serveur perd la valeur d'\''une ligne d'\''inventaire' serveur/compta/inventaire.ts \
+  '        lignes.push({ ref: l.ref, libelle: l.libelle.trim(), quantite: Number(quantite), cout: Number(cout), ...(valeur === null ? {} : { valeur: Number(valeur) }) });' '        lignes.push({ ref: l.ref, libelle: l.libelle.trim(), quantite: Number(quantite), cout: Number(cout) });' \
+  "$SW1"
+prouver 'stock 1.319 m : le Cabinet n'\''envoie pas la valeur des lignes reprises' web/public/plateforme/pont-cabinet.js \
+  '          ...(l.valeurDite ? { valeur: signe(l.valeur) } : {}) })),' '          })),' \
+  "$SW1"
+prouver 'stock 1.319 n : le point de contact du Cabinet perd les états du client' web/public/plateforme/pont-cabinet.js \
+  '        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [] };' '        duClient: [] };' \
+  "$SW1"
+prouver 'stock 1.319 o : renvoyer l'\''état du stock le double au lieu de le remplacer' modules/socle/ecrans/entreprise/app-2.js \
+  '      data.etatsStock = (data.etatsStock || []).filter(x => x.date !== e.date)' '      data.etatsStock = (data.etatsStock || [])' \
+  "$SW1"
+prouver 'stock 1.319 p : la carte ne voit pas que le stock de la date a changé' modules/socle/ecrans/entreprise/app-2.js \
+  '      const pareil = deja && Math.abs((Number(deja.total) || 0) - e.total) < 0.0005 && (deja.lignes || []).length === e.lignes.length;' '      const pareil = !!deja;' \
+  "$SW1"
+prouver 'stock 1.319 q : la date proposée n'\''est pas le 31 décembre passé' modules/socle/ecrans/entreprise/app-2.js \
+  '      return C.etatDuStock(data, finAn).lignes.length ? finAn : C.today();' '      return C.today();' \
+  "$SW1"
+prouver 'stock 1.319 r : reprendre l'\''état du client n'\''est pas le bouton principal' modules/socle/ecrans/cabinet/app-2.js \
+  '        ${commeLeClient ? '\'''\'' : `<button class="btn btn-sm${inv ? '\'''\'' : '\'' btn-primary'\''}" id="iv-reprendre-client">' '        ${commeLeClient ? '\'''\'' : `<button class="btn btn-sm" id="iv-reprendre-client">' \
+  "$SW1"
+prouver 'stock 1.319 s : deux boutons principaux dans l'\''inventaire vide' modules/socle/ecrans/cabinet/app-2.js \
+  '        <button class="btn${etat ? '\'''\'' : '\'' btn-primary'\''}" id="iv-saisir2">Saisir l'\''inventaire…</button>' '        <button class="btn btn-primary" id="iv-saisir2">Saisir l'\''inventaire…</button>' \
+  "$SW1"
+prouver 'stock 1.319 t : la saisie reprise perd la valeur des lignes' modules/socle/ecrans/cabinet/app-2.js \
+  '.concat(l.valeurDite ? [montantChamp(l.valeur) || '\''0'\''] : [])' '.concat([])' \
+  "$SW1"
+prouver 'stock 1.319 u : le Cabinet ne dit pas que l'\''inventaire est celui du client' modules/socle/ecrans/cabinet/app-2.js \
+  '    const commeLeClient = !!(inv && etat && inv.date === etat.date && Math.abs((Number(inv.total) || 0) - (Number(etat.total) || 0)) < 0.0005);' '    const commeLeClient = false;' \
+  "$SW1"
+prouver 'stock 1.319 v : le Cabinet relit l'\''inventaire sans la valeur dite de ses lignes' web/public/plateforme/pont-cabinet.js \
+  '        const quantite = nombre(l.quantite), cout = nombre(l.cout), dite = l.valeur != null;' '        const quantite = nombre(l.quantite), cout = nombre(l.cout), dite = false;' \
+  "$SW1"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

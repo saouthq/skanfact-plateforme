@@ -262,6 +262,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'ligne %s : la désignation manque', cle: 'base.compta.inv_libelle', fr: 'ligne {ligne} : la désignation manque', valeurs: ['ligne'] },
   { base: 'ligne %s : une quantité négative ne s\'inventorie pas', cle: 'base.compta.inv_quantite', fr: 'ligne {ligne} : une quantité négative ne s\'inventorie pas', valeurs: ['ligne'] },
   { base: 'ligne %s : un coût unitaire négatif n\'existe pas', cle: 'base.compta.inv_cout', fr: 'ligne {ligne} : un coût unitaire négatif n\'existe pas', valeurs: ['ligne'] },
+  { base: 'ligne %s : une valeur négative ne s\'inventorie pas', cle: 'base.compta.inv_valeur', fr: 'ligne {ligne} : une valeur négative ne s\'inventorie pas', valeurs: ['ligne'] },
+  { base: 'ligne %s : la valeur n\'est pas la quantité fois le coût unitaire', cle: 'base.compta.inv_valeur_calcul', fr: 'ligne {ligne} : la valeur n\'est pas la quantité fois le coût unitaire', valeurs: ['ligne'] },
   { base: 'l\'inventaire de %s est déjà passé en écriture (la variation de stock) : contre-passe-la ou supprime-la, puis refais-le', cle: 'base.compta.inv_ecrit', fr: 'l\'inventaire de {annee} est déjà passé en écriture (la variation de stock) : contre-passe-la ou supprime-la, puis refais-le', valeurs: ['annee'] },
   { base: 'aucun inventaire saisi pour %s', cle: 'base.compta.inv_absent', fr: 'aucun inventaire saisi pour {annee}', valeurs: ['annee'] },
   { base: 'la variation de stock de cet exercice est déjà passée : la repasser compterait le stock deux fois', cle: 'base.compta.inv_variation_ecrite', fr: 'la variation de stock de cet exercice est déjà passée : la repasser compterait le stock deux fois' },

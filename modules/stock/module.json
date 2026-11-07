@@ -23,7 +23,8 @@
   "collections": [
     "stockAdjustments",
     "serials",
-    "depots"
+    "depots",
+    "etatsStock"
   ],
   "racine": [
     "depotPrincipalNom"

@@ -16,6 +16,17 @@
     // donc JUSTE sous la barre (le résumé avant le détail), et sa ligne d'état est cette raison.
     // Sous deux cents lignes comptées, elle n'était plus « à côté » de rien.
     const pourquoi = !inv || ecrivable ? '' : inv.ecritureId ? 'L\'écriture de variation est passée : la repasser compterait le stock deux fois.' : (v.motif || '');
+    // (1.319.0) L'état du stock que le client a envoyé depuis son SkanFact (le plus récent de l'année) : lu, jamais écrit ;
+    // il se reprend comme inventaire d'un geste, au coût moyen et à la valeur de sa page Stock.
+    const etat = (d.duClient || [])[0] || null;
+    const commeLeClient = !!(inv && etat && inv.date === etat.date && Math.abs((Number(inv.total) || 0) - (Number(etat.total) || 0)) < 0.0005);
+    const panneauClient = !etat ? '' : `<div class="panel mt" id="iv-client"><h2>L'état du stock envoyé par ${esc(dossier.name || 'le client')} ${info('iv.client')}</h2>
+        <p class="small">Au <b>${esc(fmtJour(etat.date))}</b> : ${esc(pl(etat.lignes.length, 'article'))}, <b class="nw">${esc(money(etat.total))}</b> au coût moyen de son SkanFact${
+          etat.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(String(etat.envoyeLe).slice(0, 10)))}</span>` : ''}.</p>
+        ${commeLeClient ? `<p class="small ligne-ok" id="iv-client-ok"><span aria-hidden="true">✓</span> L'inventaire de ${esc(s.annee)} est celui que le client a envoyé.</p>`
+    : inv ? `<p class="small warn-text" id="iv-client-ecart">L'inventaire saisi (${esc(money(inv.total))} au ${esc(fmtJour(inv.date))}) n'est pas l'état envoyé par le client.</p>` : ''}
+        ${commeLeClient ? '' : `<button class="btn btn-sm${inv ? '' : ' btn-primary'}" id="iv-reprendre-client">Le reprendre comme inventaire…</button>`}
+      </div>`;
     return `<div class="filters">
       ${info('iv.etat')}
       <span class="small muted">Exercice ${esc(s.annee)}</span>
@@ -23,11 +34,12 @@
       <button class="${cls('ecrire')}" id="iv-ecrire" ${ecrivable ? '' : 'disabled'}
         title="${esc(pourquoi)}">Écrire la variation de stock</button>` : ''}
     </div>
+    ${panneauClient}
     ${!inv
     ? `<div class="empty">Aucun inventaire saisi pour ${esc(s.annee)}.
         <p class="small muted">Un inventaire, c'est ce qui reste au dernier jour, compté et valorisé.
         La différence avec ce que portent les comptes devient une écriture <span class="nw">(${esc(KC.COMPTES_IMMO.variationStocks)} / ${esc(KC.COMPTES_IMMO.stocks)})</span>.</p>
-        <button class="btn btn-primary" id="iv-saisir2">Saisir l'inventaire…</button>
+        <button class="btn${etat ? '' : ' btn-primary'}" id="iv-saisir2">Saisir l'inventaire…</button>
         <div class="small mt">${lienArticle('immobilisations')}</div></div>`
     : `<div class="panel mt" id="iv-variation"><h2>La variation ${info('iv.variation')}</h2>
         ${v.ok
@@ -61,6 +73,8 @@
     if (!s.inv || s.invRev !== rev) { s.invRev = rev; chargerInventaire(root, dossier); return; }
     if (s.inv.erreur) return;
     [$('#iv-saisir', el), $('#iv-saisir2', el)].forEach(b => { if (b) b.onclick = () => inventaireForm(root, dossier); });
+    const rc = $('#iv-reprendre-client', el);
+    if (rc) rc.onclick = () => inventaireForm(root, dossier, (s.inv.duClient || [])[0] || null);
     const ec = $('#iv-ecrire', el);
     if (ec) ec.onclick = async () => {
       ec.disabled = true;
@@ -80,22 +94,25 @@
     drawLivres(root, dossier);
   }
 
-  function inventaireForm(root, dossier) {
+  function inventaireForm(root, dossier, depuisLeClient) {
     const s = livresState;
     const dejaLa = (s.inv && s.inv.inventaire) || null;
+    // (1.319.0) Repris de l'état envoyé par le client : ses lignes, sa date, et la valeur de chaque ligne (cinquième colonne :
+    // le coût moyen exact de son SkanFact, dont le coût unitaire n'est que l'arrondi au millime).
+    const source = depuisLeClient ? { date: depuisLeClient.date, compte: dejaLa && dejaLa.compte, lignes: depuisLeClient.lignes.map(l => ({ ...l, valeurDite: true })) } : dejaLa;
+    const colonnes = l => [l.ref, l.libelle, String(l.quantite).replace('.', ','), montantChamp(l.cout) || '0'].concat(l.valeurDite ? [montantChamp(l.valeur) || '0'] : []).join('\t');
     // On saisit en COLLANT une liste depuis un tableur : ligne par ligne dans un formulaire,
     // personne ne compterait deux cents références (même règle que les dossiers collés, 6.8.0).
     // Ce qu'on rouvre se relit en français (H-3) : « 7.5 » dans une liste de coûts, c'est sept
     // mille cinq cents pour qui lit « 7.500 ». Le moteur relit les deux formes.
-    const depart = dejaLa
-      ? dejaLa.lignes.map(l => [l.ref, l.libelle, String(l.quantite).replace('.', ','), montantChamp(l.cout) || '0'].join('\t')).join('\n')
-      : '';
+    const depart = source ? source.lignes.map(colonnes).join('\n') : '';
     modal(`<h2>L'inventaire de ${esc(s.annee)}</h2>
-      <p class="small muted">Une ligne par référence : <b>référence, désignation, quantité, coût unitaire</b>,
-      séparées par une tabulation ou un point-virgule. Colle-les depuis ton tableur.</p>
+      <p class="small muted">Une ligne par référence : <b>référence, désignation, quantité, coût unitaire</b> (et, si tu l'as, sa
+      <b>valeur</b>), séparées par une tabulation ou un point-virgule. Colle-les depuis ton tableur.</p>
+      ${depuisLeClient ? `<p class="small ligne-ok" id="iv-repris"><span aria-hidden="true">✓</span> Repris de l'état envoyé par ${esc(dossier.name || 'le client')} au ${esc(fmtJour(depuisLeClient.date))} : la dernière colonne est la valeur au coût moyen de son SkanFact.</p>` : ''}
       <form id="iv" class="grid-2">
         <label class="field obligatoire">${lbl('Date de l\'inventaire', 'iv.date')}
-          <input name="date" placeholder="31/12/${esc(s.annee)}" value="${esc(fmtJour((dejaLa && dejaLa.date) || (s.livre.exercice.au || '')))}"></label>
+          <input name="date" placeholder="31/12/${esc(s.annee)}" value="${esc(fmtJour((source && source.date) || (s.livre.exercice.au || '')))}"></label>
         <label class="field">${lbl('Compte de stock', 'iv.compte')}
           <input name="compte" value="${esc((dejaLa && dejaLa.compte) || KC.COMPTES_IMMO.stocks)}"></label>
       </form>
@@ -133,7 +150,7 @@
         const b = $('#ok', rootModal);
         b.disabled = !v.ok; b.title = v.ok ? '' : v.motifs[0];
       };
-      let touche = !!dejaLa;
+      let touche = !!source;
       $$('input,textarea', rootModal).forEach(x => { x.oninput = () => { touche = true; maj(); }; });
       maj();
       $('#ok', rootModal).onclick = async () => {
