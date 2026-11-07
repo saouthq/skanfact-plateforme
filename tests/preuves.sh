@@ -20300,12 +20300,12 @@ prouver 'liste 10 : les gestes du menu en vrac' modules/socle/ecrans/entreprise/
   '    return [...tete, ...groupe('"'"'Envoyer'"'"', envoyer), ...groupe('"'"'Légal'"'"', legal), ...groupe('"'"'La pièce'"'"', piece), ...groupe('"'"'Corriger'"'"', corriger)];' '    return [...tete, ...envoyer, ...legal, ...piece, ...corriger];' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 11 : une facture en retard sans « Relancer » dans son menu' modules/socle/ecrans/entreprise/app-1.js \
-  '    if (st === '"'"'retard'"'"') {
+  '    if (lfEchue(d)) {
       const j = C.daysBetween(d.dueDate, C.today());' '    if (false) {
       const j = C.daysBetween(d.dueDate, C.today());' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 12 : « Relancer » qui compte aussi ce qui n'"'"'est pas en retard' modules/socle/ecrans/entreprise/app-1.js \
-  'const enRetard = l.filter(d => lfStatut(d) === '"'"'retard'"'"');' 'const enRetard = l;' \
+  'const enRetard = l.filter(lfEchue);' 'const enRetard = l;' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 13 : Échap qui garde les pièces choisies' modules/socle/ecrans/entreprise/app-1.js \
   'if (e.key === '"'"'Escape'"'"' && s.sel && s.sel.size) {' 'if (false) {' \
@@ -25635,6 +25635,54 @@ prouver 'le bouton « Le remettre dans la liste » de la fiche d'\''un fournisse
 prouver 'supprimer un fournisseur qui a des achats ne dit pas d'\''archiver' "$APP1" \
   "pl(mine.length, 'achat lié', 'achats liés')} ; archive-le plutôt" "pl(mine.length, 'achat lié', 'achats liés')}" \
   "$T311"
+# (1.312.0) L'Accueil joué (la quincaillerie de Sousse, un lundi matin) : chaque carte dit le chiffre de la page qu'elle
+# ouvre. La facture échue payée en partie est en retard partout ; « Tu dois » ouvre les trois achats qui restent à payer,
+# et dit le net du compte des fournisseurs (l'avoir de Céramique déduit) ; un fournisseur archivé qu'on paie encore se dit
+# sous le total ; la carte des devis dit le fait. Au Cabinet, le même chiffre d'affaires et le même compte de Céramique.
+APP1=modules/socle/ecrans/entreprise/app-1.js
+CORE1=modules/socle/moteur/core-1.js
+CORE2=modules/socle/moteur/core-2.js
+T312="la quincaillerie de Sousse ouvre son accueil un lundi matin : chaque carte dit le chiffre de sa page, et le Cabinet le même chiffre d'affaires"
+prouver 'une facture échue payée en partie n'\''est pas en retard' "$CORE2" \
+  "!!d.dueDate && d.dueDate < (todayIso || today()) && reste > 0.0005;" "!!d.dueDate && d.dueDate < (todayIso || today()) && reste > 0.0005 && !(d.payments || []).length;" \
+  "$T312"
+prouver 'la liste des factures ne compte en retard que le statut « En retard »' "$APP1" \
+  "const lfEchue = d => C.factureEnRetard(d, lfReste(d), C.today());" "const lfEchue = d => lfStatut(d) === 'retard';" \
+  "$T312"
+prouver 'le filtre « En retard » des factures ne garde que le statut' "$APP1" \
+  ".filter(d => (st === 'retard' ? lfEchue(d) : C.docFiltre(st, lfStatut(d))))" ".filter(d => (C.docFiltre(st, lfStatut(d))))" \
+  "$T312"
+prouver 'le menu ⋯ ne relance pas une facture échue payée en partie' "$APP1" \
+  "    if (lfEchue(d)) {" "    if (lfStatut(d) === 'retard') {" \
+  "$T312"
+prouver 'la carte « Tu dois » ouvre le seul statut « À payer »' "$APP1" \
+  "dois: vers('#/achats', () => filtreAchats(A_REGLER))," "dois: vers('#/achats', () => filtreAchats('à payer'))," \
+  "$T312"
+prouver '« Tout ce qui reste à payer » montre tous les achats' "$APP1" \
+  "s.st === A_REGLER ? aRegler.has(p.id) :" "s.st === A_REGLER ? true :" \
+  "$T312"
+prouver 'le sélecteur des achats n'\''a pas « Tout ce qui reste à payer »' "$APP1" \
+  "<option value=\"\${A_REGLER}\" \${s.st === A_REGLER ? 'selected' : ''}>Tout ce qui reste à payer</option>" "" \
+  "$T312"
+prouver 'ce que l'\''on doit ne déduit pas l'\''avoir d'\''un fournisseur' "$CORE1" \
+  "const total = round3(brut - aDeduire);" "const total = brut;" \
+  "$T312"
+prouver 'la carte « Tu dois » ne dit pas l'\''avoir déduit' "$APP1" \
+  "\${dette.aDeduire > 0.0005 ? \`, \${dette.avoirs.length > 1 ? 'avoirs déduits' : 'avoir déduit'}\` : ''}" "" \
+  "$T312"
+prouver 'le bloc « À payer » tait ce qu'\''un fournisseur te doit déjà' "$APP1" \
+  "const avoirs = dette.aDeduire > 0.0005 ? \`<p class=\"la-ap-av\"" "const avoirs = false ? \`<p class=\"la-ap-av\"" \
+  "$T312"
+prouver '« Rattacher l'\''avoir » n'\''ouvre pas l'\''avoir' "$APP1" \
+  "data-id=\"\${libres.length === 1 ? h(libres[0].id) : ''}\"" "data-id=\"\"" \
+  "$T312"
+prouver 'un fournisseur archivé qu'\''on paie encore sort du total sans un mot' "$APP1" \
+  "\${archDu > 0.0005 ? \`<p class=\"small muted lfo-arch\"" "\${false ? \`<p class=\"small muted lfo-arch\"" \
+  "$T312"
+prouver 'la carte des devis dit d'\''un devis expiré « à refaire »' "$APP1" \
+  "'expirés' : 'expiré'} sans réponse</a>" "'expirés' : 'expiré'}, à refaire</a>" \
+  "$T312"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

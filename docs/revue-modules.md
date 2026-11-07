@@ -815,4 +815,33 @@ grandisse, et les trois lignes de l'échéance portaient le pont du Cabinet (`po
 permises. L'échéance tient sur la ligne voisine : le fichier ne grandit plus, la preuve du pont tombe toujours. La brique
 locale ne jouait pas ce contrôle quand un écran change : elle le joue désormais, avec la barre et le rendu.
 
-Suivant : l'accueil.
+## L'accueil
+
+### Fait en 1.312.0 (07/11/2026) : chaque chiffre du matin est celui de la page qu'il ouvre
+
+Joué par la même quincaillerie de Sousse, un lundi matin. On lui doit : Bâtir Plus, en retard sur son ciment et payé en
+partie (1 500 DT par virement), sa peinture du mois (il rend quatre seaux : un avoir), le café, l'atelier de Marseille en
+euros, l'hôtel qui ne paie plus depuis le printemps. Elle doit : la faïence de Céramique (et un avoir de Céramique pour la
+faïence cassée, déduit d'aucune facture), Milan en euros, le transporteur en retard et payé en partie. Un devis attend sa
+réponse, un autre a expiré, un troisième est accepté. Mourad clique chaque carte et compare ; puis il archive le
+transporteur ; Sonia ouvre la fiche du dossier et la balance auxiliaire.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| H1 | L'accueil, les Relances et les Clients disaient « 2 factures en retard, 1 800,916 DT » ; la page Factures, qu'ouvre la carte, disait « En retard · 1 facture, 1 064,860 DT », rangeait les 736,056 DT de Bâtir Plus « à échoir » et sa tranche « 1 à 30 j » vide : elle ne comptait que le statut « En retard », pas une facture échue payée en partie. | Une règle au moteur (`factureEnRetard`, celle des Relances) que la tuile, son filtre, ses âges, la puce du téléphone, « Relancer » et le menu ⋯ lisent tous : la facture payée en partie et échue est en retard, et se relance d'un clic. |
+| H2 | « Tu dois · 3 achats » ouvrait la liste des achats filtrée sur le statut « À payer » : deux achats (le transporteur, payé en partie, n'y était pas). | Un choix « Tout ce qui reste à payer » (la liste du bloc « À payer ») : la carte l'ouvre, il montre les trois. |
+| H3 | L'accueil disait « Tu dois 7 105,249 DT », la liste des fournisseurs « 6 832,138 » : l'avoir de Céramique (273,111 DT) était déduit d'un côté seulement. | Le chiffre du compte du fournisseur, partout (`detteFournisseurs`) : « 6 832,138 DT · 3 achats, avoir déduit ». Le bloc « À payer » le dit (« Céramique te doit déjà 273,111 DT … tu dois en fait 6 832,138 DT ») avec « Rattacher l'avoir », qui ouvre l'avoir. Le crédit d'un fournisseur ne diminue plus ce qu'on doit à un autre dans le total de la liste. |
+| H4 | Un fournisseur archivé qu'on paie encore sortait du total de la liste des fournisseurs, pas de « Tu dois » : les deux chiffres divergeaient sans le dire. | Sous le total : « Et 422,250 DT que tu dois encore à « Transport Ben Salah », archivé : ses pièces restent dans « À payer ». » |
+| H5 | La carte des devis disait d'un devis expiré « à refaire », « À faire » disait « relance ou classe-le en refusé ». | « + 1 expiré sans réponse » : le fait, le geste est dans la page. |
+
+Vérifié en jouant : « Facturé en novembre » (2 107,400 DT HT, l'avoir déduit) est le chiffre du journal des ventes du mois
+et celui de la barre du mois dans la fiche du dossier au Cabinet ; le chiffre de l'année du graphique est celui de la
+tuile « Chiffre d'affaires » du Cabinet ; « Devis en attente » ouvre le seul devis du café, l'expiré ouvre le sien ; le
+compte de Céramique dans la balance auxiliaire (2 218,160 DT, l'avoir déduit, la retenue à opérer comprise) est celui
+que sa fiche annonce. Au téléphone, les quatre chiffres tiennent dans leur carte.
+
+Limites connues : une dépense sans fournisseur qui reste à payer compte dans « Tu dois » mais dans aucune ligne de la
+liste des fournisseurs (elle n'a pas de fournisseur) ; « Tu dois » ne dit pas la retenue que les règlements garderont pour
+l'État (la fiche de chaque fournisseur la dit).
+
+Suivant : la caisse.

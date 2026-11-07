@@ -4402,12 +4402,19 @@
 
   // Factures échues (ou partiellement payées et échues), avec jours de retard et dernière relance.
   // `snoozed` : l'utilisateur a demandé de ne pas relancer avant une date (doc.remindAfter).
+  // (1.312.0) Une facture EN RETARD : émise, ni brouillon ni annulée, échue et pas soldée, payée en partie ou non. La règle
+  // des Relances, lue aussi par la liste des factures : sa tuile « En retard » comptait la seule facture au statut « retard »
+  // (1 064,860 DT) là où l'accueil, les Relances et les Clients en comptaient deux (1 800,916 DT) ; `reste` est celui de
+  // `invoiceBalance`, dans la devise de la facture.
+  function factureEnRetard(d, reste, todayIso) {
+    return !!d && d.type === 'facture' && d.status !== 'brouillon' && d.status !== 'annulée' && !!d.dueDate && d.dueDate < (todayIso || today()) && reste > 0.0005;
+  }
   function overdueInvoices(data, company, todayIso) {
     const t = todayIso || today();
     return (data.documents || [])
-      .filter(d => d.type === 'facture' && d.status !== 'brouillon' && d.status !== 'annulée' && d.dueDate && d.dueDate < t)
+      .filter(d => d.type === 'facture' && d.dueDate && d.dueDate < t)
       .map(d => ({ doc: d, balance: invoiceBalance(d, data, company), status: effectiveStatus(d, data, company, t) }))
-      .filter(x => x.balance.remaining > 0.0005)
+      .filter(x => factureEnRetard(x.doc, x.balance.remaining, t))
       .map(x => {
         const daysLate = daysBetween(x.doc.dueDate, t);
         const reminders = x.doc.reminders || [];
@@ -7482,7 +7489,7 @@
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, contratTermine, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
     estTitre, sousTotauxDeSections,
-    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, RELANCE_ATTENTE, aRelancer, relancesParClient, relanceGroupee, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
+    reminderLevel, REMINDER_LABELS, daysBetween, factureEnRetard, overdueInvoices, RELANCE_ATTENTE, aRelancer, relancesParClient, relanceGroupee, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
@@ -7516,7 +7523,7 @@
     serialList, availableSerials, clientFleet, warrantiesEnding, serialGap, serialGaps,
     propositionsDeGarantie, garantiesAProposer, garantiesParClient, ligneDeMaintenance,
     mergeData, trackDeletion, MERGE_LISTS, LIST_LABELS, LIST_PLURIELS, compteListe, piecesLiees,
-    purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatEnRetard, achatDoublon, facturesDuDevis, payablesList, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
+    purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatEnRetard, achatDoublon, facturesDuDevis, payablesList, detteFournisseurs, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
     remiseEffective,
     periodBounds, issuedIn, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress, ventesParCanal, encaisseSur, achatsRepartis, motifsDeRefus,
     amountToWords, intToWords, intToWordsEn, documentHtml, fitToPage, paginate, pageCount,
@@ -7539,7 +7546,7 @@
   // processus principal, ils profitent des index sans que l'appelant y pense. Aucun ne modifie les
   // données — un calcul qui écrit n'a rien à faire ici, il lirait ses propres index périmés.
   ['overdueInvoices', 'todoList', 'journalEntries', 'livreJournal', 'journalCentralisateur', 'agedReceivables',
-    'cashForecast', 'cashMovements', 'payablesList', 'stockList', 'stockTotals', 'stockJournal', 'stockAlerts',
+    'cashForecast', 'cashMovements', 'payablesList', 'detteFournisseurs', 'stockList', 'stockTotals', 'stockJournal', 'stockAlerts',
     'inventoryDiff', 'costOfGoodsSold', 'salesTotals', 'revenueByMonth', 'topItems', 'clientMovement', 'payerRanking',
     'quoteFunnel', 'releveClient', 'packPlan', 'packChecklist', 'closureChecks', 'simpleResult', 'breakEven',
     'marginBy', 'projectList', 'projectMargin', 'suiviAffaire', 'margeMoisParMois', 'affaireHtml', 'clientSummary', 'supplierSummary', 'balanceGenerale', 'grandLivre', 'etatsFinanciers', 'lettrage', 'firstSteps', 'reussites']

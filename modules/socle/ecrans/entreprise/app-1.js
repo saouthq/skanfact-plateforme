@@ -3821,9 +3821,11 @@
     // chacun la liste qu'ils résument ; « À faire » rangé par urgence et le graphique à gauche ; les meilleurs clients et
     // les dernières pièces à droite. « Nouvelle facture » et « Nouveau devis » passent dans « Créer » (N, puis F ou D).
     const lateAmount = late.reduce((a, d) => a + enDinars(d, balance(d).remaining), 0);
-    const dettes = C.payablesList(data, company());
-    const doisTout = dettes.reduce((a, x) => a + x.remaining, 0);
-    const doisRetard = dettes.filter(x => x.late > 0).reduce((a, x) => a + x.remaining, 0);
+    // (1.312.0) Ce que tu dois : le net des comptes de tes fournisseurs (`C.detteFournisseurs`), le chiffre de leur liste et du
+    // comptable — un avoir pas encore déduit d'une facture s'en retire.
+    const dette = C.detteFournisseurs(data, company());
+    const dettes = dette.pieces;
+    const doisTout = dette.total, doisRetard = dette.late;
     const moisAvant = C.addMonths(C.today(), -1, 1).slice(0, 7);
     const ofAvant = issued.filter(d => d.date && d.date.startsWith(moisAvant));
     const nomMois = m => LF_MOIS[Number(m.slice(5, 7)) - 1];
@@ -3846,7 +3848,7 @@
     const bandeauHorsLigne = horsLigne ? `<div class="bandeau gris a-band" id="a-hors-ligne">${lfIc('nuage', 18)}<span class="txt"><b>Pas de réseau : l'accueil montre ce que ce poste a gardé</b><span>${posteGarde() ? 'Tu peux écrire un devis, une facture en brouillon, un achat. Signer, émettre et envoyer attendent le retour du réseau.' : 'Ce navigateur ne garde rien sur l\'appareil : garde la page ouverte. Signer, émettre et envoyer attendent le retour du réseau.'}</span></span></div>` : '';
     const plusVieuxDevis = pendingQuotes.map(d => d.date).filter(Boolean).sort()[0];
     const ilYa = j => j <= 0 ? 'aujourd\'hui' : j === 1 ? 'hier' : `il y a ${j} jours`;
-    const devisX = expiredQuotes.length ? `<a href="#/devis" id="go-expired">+ ${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'}, à refaire</a>`
+    const devisX = expiredQuotes.length ? `<a href="#/devis" id="go-expired">+ ${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'} sans réponse</a>`
       : plusVieuxDevis ? `${pendingQuotes.length > 1 ? 'le plus ancien daté' : 'daté'} ${ilYa(C.daysBetween(plusVieuxDevis, C.today()))}` : '';
     const jourLong = new Date(C.today() + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     const carte = (id, nom, v, sub, x, ton, titre) => `<div class="stat ch-c" data-stat="${id}" role="button" tabindex="0" title="${h(titre)}"><span class="lbl">${nom}</span><span class="val">${v}</span><span class="sub">${sub}</span>${x ? `<span class="x ${ton || ''}">${x}</span>` : ''}</div>`;
@@ -3867,7 +3869,7 @@
       <div class="stats a-ch${commercial ? ' a-ch2' : ''}${horsLigne ? ' a-gris' : ''}">
         ${commercial ? carteDevis() : ''}
         ${carte('encaisser', 'On te doit', nb(openAmount), open.length ? `${h(cur)} · ${pl(open.length, 'facture')}` : 'rien à encaisser', open.length ? (late.length ? `dont ${nb(lateAmount)} en retard` : 'rien en retard') : '', late.length ? 'alerte' : '', open.length ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : 'Aucune facture ne reste à encaisser')}
-        ${commercial ? '' : carte('dois', 'Tu dois', nb(doisTout), dettes.length ? `${h(cur)} · ${pl(dettes.length, 'achat')}` : 'rien à payer', dettes.length ? (doisRetard > 0.0005 ? `dont ${nb(doisRetard)} en retard` : 'rien en retard') : '', doisRetard > 0.0005 ? 'alerte' : '', 'Voir les achats à payer')}
+        ${commercial ? '' : carte('dois', 'Tu dois', nb(doisTout), dettes.length ? `${h(cur)} · ${pl(dettes.length, 'achat')}${dette.aDeduire > 0.0005 ? `, ${dette.avoirs.length > 1 ? 'avoirs déduits' : 'avoir déduit'}` : ''}` : 'rien à payer', dettes.length ? (doisRetard > 0.0005 ? `dont ${nb(doisRetard)} en retard` : 'rien en retard') : '', doisRetard > 0.0005 ? 'alerte' : '', 'Voir les achats à payer')}
         ${commercial ? '' : carte('ca-mois', `Facturé en ${nomMois(month)}`, nb(sumHT(ofMonth)), `${h(cur)} HT · ${nb(sumTTC(ofMonth))} TTC`, `${nomMois(moisAvant)} : ${nb(sumHT(ofAvant))}`, '', 'Voir le journal des ventes du mois')}
         ${commercial ? '' : carteDevis()}
       </div>
@@ -3945,7 +3947,7 @@
       'ca-mois': vers('#/compta', () => { comptaState.tab = 'ventes'; comptaState.year = C.today().slice(0, 4); comptaState.month = C.today().slice(5, 7); }),
       'ca-annee': vers('#/stats'),
       encaisser: vers('#/factures', filtre('facture', 'à encaisser')),
-      dois: vers('#/achats', () => filtreAchats('à payer')),
+      dois: vers('#/achats', () => filtreAchats(A_REGLER)),
       devis: vers('#/devis', filtre('devis', 'envoyé'))
     };
     $$('[data-stat]').forEach(c => {
@@ -4768,6 +4770,9 @@
   const lfStatut = d => d.type === 'facture' ? effStatus(d) : d.status;
   // Le reste d'une facture émise : positif, ce qu'on te doit ; négatif, ce que le client a versé en trop.
   const lfReste = d => d.type === 'facture' && d.number && d.status !== 'brouillon' ? balance(d).remaining : 0;
+  // (1.312.0) En retard : échue et pas soldée, même payée en partie — la règle des Relances et de l'accueil
+  // (`C.factureEnRetard`). La tuile, le filtre, la puce, « Relancer » et le menu ⋯ la lisent tous.
+  const lfEchue = d => C.factureEnRetard(d, lfReste(d), C.today());
   // Une seule fonction pour la liste, ses tuiles, ses puces et ses compteurs (règle 6.8.1).
   function lfPieces() {
     return data.documents.filter(d => (d.type === 'facture' && !C.estTicket(d)) || d.type === 'avoir');
@@ -4780,7 +4785,7 @@
     return mine
       .filter(d => !s.kind || d.type === s.kind)
       .filter(d => !an || (d.date || '').startsWith(an))
-      .filter(d => C.docFiltre(st, lfStatut(d)))
+      .filter(d => (st === 'retard' ? lfEchue(d) : C.docFiltre(st, lfStatut(d))))
       .filter(d => !q || C.correspondRecherche([d.number, nomClientPiece(d), d.subject, d.reference, C.nomsJustificatifs(d)].join(' '), q)
         || (parMontant && [C.money(montantDeListe(d), docCur(d)), C.money(Math.abs(lfReste(d)), docCur(d))].some(m => lfChiffres(m).includes(qc))));
   }
@@ -4856,10 +4861,10 @@
     // ── les tuiles ──
     function tuiles() {
       const enc = lfFiltrer(mine, s, { st: 'à encaisser', year: '', q: '' }).filter(d => d.type === 'facture');
-      const ret = enc.filter(d => lfStatut(d) === 'retard');
+      const ret = enc.filter(lfEchue);
       const brl = mine.filter(d => d.status === 'brouillon');
       const somme = l => l.reduce((a, d) => a + Math.max(0, versBase(d, lfReste(d))), 0);
-      const bloq = ttn ? enc.filter(d => lfStatut(d) !== 'retard' && (lfEtats.get(d.id) || {}).etat === 'refusee') : [];
+      const bloq = ttn ? enc.filter(d => !lfEchue(d) && (lfEtats.get(d.id) || {}).etat === 'refusee') : [];
       const tot = somme(enc), enRet = somme(ret), enBloq = somme(bloq), aEch = Math.max(0, tot - enRet - enBloq);
       const age = d => C.daysBetween(d.dueDate, C.today());
       const tr = [['1 à 30 j', d => age(d) <= 30], ['31 à 60 j', d => age(d) > 30 && age(d) <= 60], ['plus de 60 j', d => age(d) > 60]].map(([n, f]) => [n, somme(ret.filter(f))]);
@@ -4956,7 +4961,7 @@
       const l = [...s.sel].map(docById).filter(Boolean);
       if (!l.length) return '';
       const r = l.reduce((a, d) => a + Math.max(0, versBase(d, lfReste(d))), 0);
-      const enRetard = l.filter(d => lfStatut(d) === 'retard');
+      const enRetard = l.filter(lfEchue);
       const aSigner = l.filter(d => lfASigner.has(d.id));
       const g = (id, ic, t, n, ok, dit) => `<button type="button" class="btn" id="${id}"${ok ? '' : ` disabled title="${h(dit)}"`}>${lfIc(ic, 15)} ${t}${n !== null ? ` <span class="cpt">${n}</span>` : ''}</button>`;
       return `<div class="barre-choix" role="region" aria-label="Pièces choisies"><b>${pl(l.length, 'pièce choisie', 'pièces choisies')}</b><span class="mu">reste ${C.money(r, base)}</span>
@@ -4967,7 +4972,7 @@
     // ── au téléphone : la synthèse, deux puces et la feuille des filtres ──
     function puces() {
       const enc = lfFiltrer(mine, s, { st: 'à encaisser', year: '', q: '' }).filter(d => d.type === 'facture');
-      const ret = enc.filter(d => lfStatut(d) === 'retard');
+      const ret = enc.filter(lfEchue);
       const nb = (s.st ? 1 : 0) + (s.kind ? 1 : 0) + (s.year ? 1 : 0);
       const p = (st, n, ton, t) => `<button type="button" class="t-puce ${ton}" data-tuile="${h(st)}" aria-pressed="${s.st === st && !s.year && !s.q}">${t} <b>${n}</b></button>`;
       return `<div class="t-puces" id="lf-puces">${p('à encaisser', enc.length, 'calme', 'À encaisser')}${p('retard', ret.length, 'alerte', 'En retard')}<button type="button" class="t-puce" id="lf-tfil">${lfIc('reglages', 14)} Filtres${nb ? ` <b>${nb}</b>` : ''}</button></div>`;
@@ -5038,7 +5043,7 @@
       $('#bc-rien').onclick = () => { s.sel.clear(); draw(); };
       $('#bc-pdf').onclick = async () => { for (const d of choisies()) await exportPdf(d); };
       $('#bc-relancer').onclick = () => {
-        const l = choisies().filter(d => lfStatut(d) === 'retard');
+        const l = choisies().filter(lfEchue);
         if (l.length === 1) { const j = C.daysBetween(l[0].dueDate, C.today()); sendReminder({ doc: l[0], daysLate: j, level: C.reminderLevel(j) }, 'email'); return; }
         // Plusieurs relances : la page Relances les prépare une à une, chacune avec son niveau (le rappel courtois, puis le ferme).
         navigate('#/relances');
@@ -5138,7 +5143,7 @@
       { icon: 'email', label: 'Par e-mail', hint: envoi.email, run: () => sendByEmail(d) },
       { icon: 'message', label: 'Par WhatsApp', hint: envoi.whatsapp, run: () => sendByWhatsApp(d) }
     ];
-    if (st === 'retard') {
+    if (lfEchue(d)) {
       const j = C.daysBetween(d.dueDate, C.today());
       const derniere = (d.reminders || []).map(x => x.date).filter(Boolean).sort().pop();
       envoyer.push({ icon: 'cloche', label: 'Relancer', hint: derniere ? `dernière relance le ${lfJm(derniere)}` : 'le rappel courtois, prêt à partir', run: () => sendReminder({ doc: d, daysLate: j, level: C.reminderLevel(j) }, 'email') });
@@ -14577,12 +14582,19 @@
       const paged = paginate(sorted, s);
       const somme = fn => C.round3(sorted.reduce((a, r) => a + fn(r), 0));
       const ret = somme(r => r.sum.late), rs = somme(r => r.sum.rsAOperer);
+      // (1.312.0) Le total dit ce que tu dois (le chiffre de l'accueil, `C.detteFournisseurs`) : le crédit d'un fournisseur ne
+      // diminue pas ce que tu dois à un autre ; il se dit à part. Un fournisseur archivé qu'on paie encore se dit aussi : il
+      // n'est plus dans la liste, sa dette reste dans « Tu dois ».
+      const du = somme(r => Math.max(0, r.sum.remaining)), faveur = somme(r => Math.max(0, -r.sum.remaining));
+      const archDus = s.f === 'archives' ? [] : tout.filter(r => r.f.archived && r.sum.remaining > 0.0005);
+      const archDu = C.round3(archDus.reduce((a, r) => a + r.sum.remaining, 0));
       const head = sortHead(cols, s.sort, '<th class="row-actions-h" style="width:9%"><span class="vh">Actions</span></th>');
       // Au téléphone, chaque fournisseur est une carte (la maquette) : son nom, ce qui presse, ce que tu lui dois.
       const cartes = `<div class="lc-cartes">${paged.rows.map(r => `<button type="button" class="lc-carte" data-sid="${h(r.f.id)}"><span class="lc-c-h">${pastilleClient(r.f.id, r.f.name)}<span class="lc-c-n"><b>${h(r.f.name)}</b><small>${[r.f.contact, r.f.city].filter(Boolean).map(h).join(' · ')}</small></span></span>
         <span class="lc-c-b"><small>${r.sum.late > 0.0005 ? `<span class="rouge">${m(r.sum.late)} en retard · ${pl(r.jours, 'jour')}</span>` : r.sum.remaining > 0.0005 ? 'rien en retard' : r.sum.count ? 'à jour' : 'aucun achat'}${r.aCompleter ? ' · <span class="manque">à compléter</span>' : ''}</small><small>${r.sum.remaining > 0.0005 ? `tu lui dois <b>${m(r.sum.remaining)} ${h(symboleDevise(base))}</b>` : r.sum.remaining < -0.0005 ? `<span class="trop">${m(-r.sum.remaining)} en ta faveur</span>` : ''}</small></span></button>`).join('')}</div>`;
       return `${cartes}<div class="panel lf-tab scroll-x"><table class="list sortable lf-table lc-table lfo-table"><thead>${head}</thead><tbody>${paged.rows.map(ligne).join('')}</tbody>
-        <tfoot><tr><td colspan="2"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'fournisseur')}${rs > 0.0005 ? ` · tu garderas ${m(rs)} ${h(symboleDevise(base))} de retenue pour l'État en les payant` : ''}</span></span></td><td class="ct"></td><td class="r m nw">${m(somme(r => r.sum.ht))} <small class="dv">${h(symboleDevise(base))}</small></td><td class="r m nw"><div>${m(somme(r => r.sum.remaining))}</div>${ret > 0.0005 ? `<div class="rouge pied-s">dont ${m(ret)} en retard</div>` : ''}</td><td class="der"></td><td></td></tr></tfoot></table>
+        <tfoot><tr><td colspan="2"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'fournisseur')}${rs > 0.0005 ? ` · tu garderas ${m(rs)} ${h(symboleDevise(base))} de retenue pour l'État en les payant` : ''}</span></span></td><td class="ct"></td><td class="r m nw">${m(somme(r => r.sum.ht))} <small class="dv">${h(symboleDevise(base))}</small></td><td class="r m nw"><div>${m(du)}</div>${ret > 0.0005 ? `<div class="rouge pied-s">dont ${m(ret)} en retard</div>` : ''}${faveur > 0.0005 ? `<div class="ambre pied-s">et ${m(faveur)} en ta faveur</div>` : ''}</td><td class="der"></td><td></td></tr></tfoot></table>
+        ${archDu > 0.0005 ? `<p class="small muted lfo-arch" id="lfo-arch">Et ${m(archDu)} ${h(symboleDevise(base))} que tu dois encore à ${archDus.length > 1 ? `${archDus.length} fournisseurs archivés` : `« ${h(archDus[0].f.name)} », archivé`} : ${archDus.length > 1 ? 'leurs pièces restent' : 'ses pièces restent'} dans « À payer ».</p>` : ''}
         ${pagerBar(paged.pg, { noun: 'fournisseur', grandTotal: tout.length })}</div>`;
     }
 
@@ -14909,6 +14921,10 @@
   // S-04). Elle vit dans le même sélecteur, et le contrôle de clôture « n achats sans justificatif »
   // y mène avec sa période — la même règle (`C.sansJustificatif`) compte et montre.
   const SANS_JUSTIF = 'sans justificatif';
+  // (1.312.0) « Tout ce qui reste à payer » n'est pas un statut non plus : c'est la liste que la carte « Tu dois » de
+  // l'accueil et le bloc « À payer » annoncent (`C.payablesList`) — à payer, payée en partie, en retard. La carte ouvrait le
+  // statut « À payer » : elle annonçait trois achats, la liste en montrait deux.
+  const A_REGLER = 'à régler';
 
   // Ce qu'un achat a acheté, en quelques mots : son objet s'il en a un, sinon les libellés de ses
   // lignes (les deux premiers, et le compte des autres).
@@ -15688,6 +15704,15 @@
     const total = due.reduce((s, x) => s + x.remaining, 0), ret = due.filter(x => x.late > 0);
     const totRet = ret.reduce((s, x) => s + x.remaining, 0);
     const montre = laApTout ? due : due.slice(0, 5);
+    // (1.312.0) Un fournisseur qui te doit déjà (un avoir déduit d'aucune facture, un trop-payé) : les pièces restent à payer
+    // telles quelles, ce que tu lui dois est moindre. La phrase le dit, avec le chiffre de l'accueil et de la liste des
+    // fournisseurs (`C.detteFournisseurs`), et le geste qui le règle : rattacher l'avoir à sa facture.
+    const dette = C.detteFournisseurs(data, company(), C.today());
+    const libres = dette.aDeduire > 0.0005 ? (data.purchases || []).filter(p => dette.avoirs.some(a => a.supplierId === p.supplierId) && C.aRattacherAchat(p, company(), data)) : [];
+    const aRattacher = libres.length > 0;
+    const avoirs = dette.aDeduire > 0.0005 ? `<p class="la-ap-av" id="la-avoir"><span>${dette.avoirs.length > 1
+      ? `${pl(dette.avoirs.length, 'fournisseur')} te doivent déjà ${C.money(dette.aDeduire, cur)} (un avoir déduit d'aucune facture, ou un trop-payé)`
+      : `${h(supplierName(dette.avoirs[0].supplierId))} te doit déjà ${C.money(dette.aDeduire, cur)} (${aRattacher ? 'un avoir déduit d\'aucune facture' : 'un trop-payé'})`} : tu dois en fait <b>${C.money(dette.total, cur)}</b>.</span>${aRattacher ? `<button type="button" class="btn btn-sm" id="la-rattacher" data-id="${libres.length === 1 ? h(libres[0].id) : ''}">${libres.length > 1 ? 'Rattacher les avoirs' : 'Rattacher l\'avoir'}</button>` : ''}</p>` : '';
     const quand = x => {
       const d = x.dueDate ? C.daysBetween(C.today(), x.dueDate) : null;
       return x.late ? [`en retard de ${pl(x.late, 'jour')}`, 'rouge'] : d === 0 ? ['aujourd\'hui', 'ambre'] : d != null && d <= 7 ? [`dans ${pl(d, 'jour')}`, 'ambre'] : x.dueDate ? [`le ${lfJm(x.dueDate)}`, ''] : ['sans échéance', ''];
@@ -15695,6 +15720,7 @@
     return `<div class="panel la-ap" id="payables"><div class="la-ap-t"><b>À payer</b> ${info('buy.payables')}<span class="mu">${pl(due.length, 'pièce')} · ${C.money(total, cur)}${ret.length ? ` · <span class="rouge">dont ${C.money(totRet, cur)} en retard</span>` : ''}</span>${justif}</div>
       <ul class="la-ap-l">${montre.map(x => { const [t, ton] = quand(x); const p = purchaseById(x.id); const nom = supplierName(x.supplierId);
         return `<li data-id="${h(x.id)}">${pastilleClient(x.supplierId || x.id, nom)}<span class="la-n"><b>${h(nom)}</b><small>${h(x.number || C.referenceAchat(p, data))}${x.subject ? ` · ${h(x.subject)}` : ''}</small></span><span class="la-e ${ton}">${t}</span><b class="la-m">${x.currency !== cur ? `${h(C.money(C.purchaseBalance(p, company(), data).remaining, x.currency))}` : C.money(x.remaining, cur)}</b>${peutRegler ? `<button type="button" class="btn btn-sm" data-payx="${h(x.id)}">Régler</button>` : '<span></span>'}</li>`; }).join('')}</ul>
+      ${avoirs}
       ${due.length > 5 ? `<button type="button" class="la-plus" id="la-tout">${laApTout ? 'Replier' : `${pl(due.length - 5, 'autre pièce', 'autres pièces')} à payer · tout voir`}</button>` : ''}</div>`;
   }
 
@@ -15756,6 +15782,7 @@
     const draw = dansUnLot((sortKey) => {
       if (!$('#list-wrap')) return;
       if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
+      const aRegler = new Set(C.payablesList(data, company(), C.today()).map(x => x.id));
       const rows = applySort(all
         .filter(p => !s.kind || p.kind === s.kind)
         .filter(p => !s.year || (p.date || '').startsWith(s.year))
@@ -15764,7 +15791,7 @@
         // `à rattacher` n'est pas un statut mais une QUESTION : quelles pièces ne viennent en
         // déduction de rien ? Elle vit dans le même sélecteur parce que c'est là qu'on la cherche,
         // et elle se réinitialise comme les autres — un filtre qu'on ne voit pas est un piège.
-        .filter(p => !s.st || (s.st === A_RATTACHER ? C.aRattacherAchat(p, company(), data)
+        .filter(p => !s.st || (s.st === A_REGLER ? aRegler.has(p.id) : s.st === A_RATTACHER ? C.aRattacherAchat(p, company(), data)
           : s.st === SANS_JUSTIF ? C.sansJustificatif(p) : s.st === 'retard' ? enRetardA(p) : buyStatus(p) === s.st))
         .filter(p => !s.q || C.correspondRecherche([C.referenceAchat(p, data), supplierName(p.supplierId), p.subject, p.category, contenuAchat(p), C.nomsJustificatifs(p), C.money(netOf(p), '')].join(' '), s.q)), cols, s.sort);
       const filtre = !!(s.q || s.st || s.kind || s.cat || s.year || s.du);
@@ -15775,12 +15802,12 @@
       const totNet = rows.reduce((a, p) => a + netOf(p), 0);
       const totRest = rows.reduce((a, p) => a + Math.max(0, restOf(p)), 0);
       const totRet = rows.filter(enRetardA).reduce((a, p) => a + Math.max(0, restOf(p)), 0);
-      const nomSt = s.st === A_RATTACHER ? 'À rattacher' : s.st === SANS_JUSTIF ? 'Sans justificatif' : s.st ? optionStatut(s.st) : '';
+      const nomSt = s.st === A_REGLER ? 'Tout ce qui reste à payer' : s.st === A_RATTACHER ? 'À rattacher' : s.st === SANS_JUSTIF ? 'Sans justificatif' : s.st ? optionStatut(s.st) : '';
       const puces = [s.st ? ['st', nomSt] : null, s.kind ? ['kind', (LA_SORTES.find(x => x[0] === s.kind) || [])[1] || s.kind] : null, s.cat ? ['cat', s.cat] : null, s.year ? ['year', `Année ${s.year}`] : null, s.du ? ['du', `du ${C.fmtDate(s.du)} au ${C.fmtDate(s.au)}`] : null, s.q ? ['q', `« ${s.q} »`] : null].filter(Boolean);
       const focus = document.activeElement && document.activeElement.id === 'q' ? $('#q').selectionStart : null;
       $('#lf-barre').innerHTML = `<div class="filtres" id="lf-filtres"><label class="cherche">${lfIc('recherche', 16)}<input id="q" type="search" value="${h(s.q)}" placeholder="${matchMedia('(max-width: 760px)').matches ? 'N°, fournisseur, objet…' : 'N°, fournisseur, objet, montant, pièce jointe…'}" autocomplete="off" aria-label="Chercher une pièce"><kbd>/</kbd></label>
           <div class="segment petit" role="group" aria-label="Sorte">${LA_SORTES.map(([k, n]) => `<button type="button" data-kind="${k}" aria-pressed="${s.kind === k}">${n}</button>`).join('')}</div>
-          <label class="sel"><select id="st" aria-label="Statut"><option value="">Tous les statuts</option>${C.PURCHASE_STATUSES.map(x => `<option value="${x}" ${s.st === x ? 'selected' : ''}>${h(optionStatut(x))}</option>`).join('')}<option value="${A_RATTACHER}" ${s.st === A_RATTACHER ? 'selected' : ''}>À rattacher (avoir ou acompte)</option>${bridge.piecesJointes === false && s.st !== SANS_JUSTIF ? '' : `<option value="${SANS_JUSTIF}" ${s.st === SANS_JUSTIF ? 'selected' : ''}>Sans justificatif</option>`}</select></label>
+          <label class="sel"><select id="st" aria-label="Statut"><option value="">Tous les statuts</option><option value="${A_REGLER}" ${s.st === A_REGLER ? 'selected' : ''}>Tout ce qui reste à payer</option>${C.PURCHASE_STATUSES.map(x => `<option value="${x}" ${s.st === x ? 'selected' : ''}>${h(optionStatut(x))}</option>`).join('')}<option value="${A_RATTACHER}" ${s.st === A_RATTACHER ? 'selected' : ''}>À rattacher (avoir ou acompte)</option>${bridge.piecesJointes === false && s.st !== SANS_JUSTIF ? '' : `<option value="${SANS_JUSTIF}" ${s.st === SANS_JUSTIF ? 'selected' : ''}>Sans justificatif</option>`}</select></label>
           ${cats.length > 1 ? `<label class="sel"><select id="cat" aria-label="Catégorie"><option value="">Toutes les catégories</option>${cats.map(c => `<option value="${h(c)}" ${s.cat === c ? 'selected' : ''}>${h(c)}</option>`).join('')}</select></label>` : ''}
           ${years.length > 1 ? `<label class="sel"><select id="yr" aria-label="Année"><option value="">Toutes les années</option>${years.map(y => `<option value="${y}" ${s.year === y ? 'selected' : ''}>${y}</option>`).join('')}</select></label>` : ''}
           ${info('list.filters').replace('class="i"', 'class="i i-b"').replace('>i</button>', `>${lfIc('aide', 16, 2)}</button>`)}
@@ -15922,6 +15949,8 @@
     $$('#payables li[data-id]').forEach(li => li.onclick = e => { if (e.target.closest('button')) return; navigate('#/achat/' + li.dataset.id); });
     $$('#payables [data-payx]').forEach(b => b.onclick = () => supplierPaymentForm(purchaseById(b.dataset.payx), () => render(true)));
     if ($('#la-tout')) $('#la-tout').onclick = () => { laApTout = !laApTout; render(true); };
+    // L'avoir à rattacher s'ouvre (« Imputer sur une facture » y est) ; plusieurs : la liste de ceux qui ne déduisent rien.
+    if ($('#la-rattacher')) $('#la-rattacher').onclick = e => { const id = e.currentTarget.dataset.id; if (id) navigate('#/achat/' + id); else { filtreAchats(A_RATTACHER); render(true); } };
     if ($('#la-justif')) $('#la-justif').onclick = () => { filtreAchats(SANS_JUSTIF); render(true); };
     draw();
   };

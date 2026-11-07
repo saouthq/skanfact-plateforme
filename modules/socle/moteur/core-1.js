@@ -2830,6 +2830,25 @@
       };
     }).filter(Boolean).sort((a, b) => (b.late - a.late) || (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
   }
+  // (1.312.0) Ce que l'entreprise DOIT, en un chiffre : les pièces qui restent à payer (`payablesList`), moins ce qu'un
+  // fournisseur lui doit déjà (un avoir déduit d'aucune facture, un trop-payé), à hauteur de ce qu'on lui doit à lui. C'est
+  // le net de son compte (`supplierSummary.remaining`), celui de la liste des fournisseurs, de sa fiche et du 401 chez le
+  // comptable : l'accueil disait 7 105,249 DT là où la liste des fournisseurs disait 6 832,138 (un avoir de 273,111 DT).
+  // Le crédit d'un fournisseur ne diminue jamais ce qu'on doit à un autre.
+  function detteFournisseurs(data, company, todayIso) {
+    const pieces = payablesList(data, company, todayIso);
+    const parF = new Map();
+    pieces.forEach(x => { if (x.supplierId) parF.set(x.supplierId, round3((parF.get(x.supplierId) || 0) + x.remaining)); });
+    const avoirs = [];
+    parF.forEach((du, id) => {
+      const d = round3(Math.min(supplierSummary(data, company, id, todayIso).aRecuperer, du));
+      if (d > 0.0005) avoirs.push({ supplierId: id, montant: d });
+    });
+    const brut = round3(pieces.reduce((a, x) => a + x.remaining, 0));
+    const aDeduire = round3(avoirs.reduce((a, x) => a + x.montant, 0));
+    const total = round3(brut - aDeduire);
+    return { pieces, brut, aDeduire, avoirs, total, late: Math.min(total, round3(pieces.filter(x => x.late > 0).reduce((a, x) => a + x.remaining, 0))) };
+  }
 
   // Journal des décaissements : un règlement fournisseur par ligne. Le symétrique de paymentsJournal.
   function supplierPayments(data, company, period) {
