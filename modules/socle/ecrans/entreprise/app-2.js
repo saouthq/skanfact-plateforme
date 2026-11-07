@@ -1080,13 +1080,50 @@
         <p>Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</p>
         ${licence.locked && bridge.dessinerAbonnement ? `<p class="ct-abo" id="cs-abo"><b>${h(licence.label)} :</b> la caisse ne s'ouvre plus tant que l'abonnement n'est pas réglé. ${h(licence.detail)} Les tickets déjà faits se lisent toujours.</p>` : ''}
         <label class="field">Fond de caisse (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-fond" placeholder="0" value="${h(fondPropose)}"></label>
+        <div class="ct-fond-ecart" id="cs-fond-ecart" aria-live="polite"></div>
         <button type="button" class="ct-principal" id="cs-ouvrir">Ouvrir la caisse</button></div></div>`;
+      // (1.313.0) Un fond qui n'est pas ce que la Trésorerie garde pour la caisse : la différence est de l'argent qui entre
+      // dans le tiroir, ou en sort, à l'ouverture. Rien ne la notait : le Z du soir comptait un tiroir de 66 DT quand la
+      // Trésorerie, le livre et le comptable gardaient 16 DT pour la caisse (les 50 DT du fond n'étaient entrés nulle part).
+      // L'écran le dit sous le champ, avant le geste ; il propose d'où vient l'argent (une banque, un apport du gérant) ou
+      // où il est allé (versé à une banque, un manque), et l'ouverture le note dans la Trésorerie.
+      const autres = (data.accounts || []).filter(a => a.id !== idCaisse && a.kind !== 'caisse');
+      const fondTape = () => { const v = Number(String($('#cs-fond').value || '0').replace(/\s/g, '').replace(',', '.')); return isFinite(v) ? C.round3(v) : NaN; };
+      const ecartFond = () => { const v = fondTape(); return isFinite(v) && idCaisse ? C.round3(v - dansLeTiroir) : 0; };
+      const dessinerEcart = () => {
+        const d = ecartFond(), boite = $('#cs-fond-ecart');
+        if (Math.abs(d) < 0.0005) { boite.innerHTML = ''; return; }
+        const choix = d > 0
+          ? [['apport', 'apportés par le gérant'], ...autres.map(a => [`compte:${a.id}`, `retirés de « ${a.name} »`])]
+          : [...autres.map(a => [`compte:${a.id}`, `versés à « ${a.name} »`]), ['retrait', 'pris par le gérant'], ['manque', 'un manque : sortis sans être notés']];
+        const garde = $('#cs-fond-origine') ? $('#cs-fond-origine').value : '';
+        boite.innerHTML = `<p>Ta caisse, dans la Trésorerie, a ${argentCaisse(dansLeTiroir)} : ${d > 0 ? `les ${argentCaisse(d)} de plus y entrent` : `les ${argentCaisse(-d)} qui manquent en sortent`} à l'ouverture.</p>
+          <label class="field">${d > 0 ? 'D\'où viennent-ils ?' : 'Où sont-ils allés ?'}<select id="cs-fond-origine">${choix.map(([k, l]) => `<option value="${h(k)}"${k === garde ? ' selected' : ''}>${h(l)}</option>`).join('')}</select></label>`;
+      };
+      dessinerEcart();
+      $('#cs-fond').addEventListener('input', dessinerEcart);
+      // Le mouvement de l'ouverture, du jour, dans le compte de la caisse : un virement avec une banque, un apport, un manque.
+      const noterEcartDuFond = d => {
+        const o = $('#cs-fond-origine') ? $('#cs-fond-origine').value : (d > 0 ? 'apport' : 'manque');
+        const vers = o.startsWith('compte:') ? o.slice(7) : '';
+        const m = { id: C.uid(), date: C.today(), amount: Math.abs(d), method: 'especes', reference: 'Ouverture de la caisse', label: '' };
+        if (vers) Object.assign(m, d > 0 ? { kind: 'virement', accountId: vers, versAccountId: idCaisse, label: 'Fond de caisse retiré de la banque' } : { kind: 'virement', accountId: idCaisse, versAccountId: vers, label: 'Espèces du tiroir versées à la banque' });
+        else if (d > 0) Object.assign(m, { kind: 'apport', accountId: idCaisse, label: 'Fond de caisse apporté par le gérant' });
+        else if (o === 'retrait') Object.assign(m, { kind: 'retrait', accountId: idCaisse, label: 'Espèces du tiroir prises par le gérant' });
+        else Object.assign(m, { kind: 'autre-sortie', accountId: idCaisse, compte: '658', label: 'Manque dans le tiroir à l\'ouverture' });
+        data.movements = data.movements || [];
+        data.movements.push(m);
+        save(true);
+        return m;
+      };
       $('#cs-ouvrir').onclick = async () => {
         if (licenceBlock('Ouvrir la caisse', 'caisse')) return;
         const b = $('#cs-ouvrir'); b.disabled = true;
+        const d = ecartFond();
         try {
           const r = await bridge.ouvrirCaisse($('#cs-fond').value.trim() || '0');
-          toast(`Caisse ouverte, fond de caisse ${argentCaisse(r.fond)}`);
+          const m = Math.abs(d) >= 0.0005 ? noterEcartDuFond(d) : null;
+          toast(`Caisse ouverte, fond de caisse ${argentCaisse(r.fond)}${m ? ` ; ${m.label.charAt(0).toLowerCase()}${m.label.slice(1)} : ${argentCaisse(m.amount)}, noté dans la Trésorerie` : ''}`);
           vers('#/caisse')();
         } catch (e) { b.disabled = false; toast(plainError(e), true); $('#cs-fond').focus(); }
       };

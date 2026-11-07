@@ -1950,7 +1950,7 @@
         vatByRate[r0].base = round3(vatByRate[r0].base + ecart);
       } else ecartConversion = ecart;
       return {
-        id: d.id, date: d.date, number: d.number, type: d.type, typeLabel: estTicket(d) ? 'Ticket' : TITLES[d.type], client: clientName(d.clientId) || (estTicket(d) ? CLIENT_COMPTOIR : ''), clientId: d.clientId || '', subject: d.subject || '',
+        id: d.id, date: d.date, number: d.number, type: d.type, typeLabel: estTicket(d) ? 'Ticket' : TITLES[d.type], client: clientName(d.clientId) || (estTicket(d) || estRetourDeTicket(d, data) ? CLIENT_COMPTOIR : ''), clientId: d.clientId || '', subject: d.subject || '',
         ht: round3(VAT_RATES.reduce((a, r) => a + vatByRate[r].base, 0)), vatByRate, tva, timbre, fodec, ttc, ecartConversion,
         rs: round3(t.withholding * sign), net: round3(t.netToPay * sign), status, statusLabel: statusLabel(status),
         paid: bal ? round3(bal.paid * rate) : 0, remaining: bal ? round3(bal.remaining * rate) : 0, currency: d.currency || company.currency, rate,

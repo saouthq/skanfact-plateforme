@@ -6594,6 +6594,9 @@
   const CLIENT_COMPTOIR = 'Vente au comptoir';
   const MODES_CAISSE = [['especes', 'Espèces'], ['carte', 'Carte'], ['cheque', 'Chèque']];
   function estTicket(d) { return !!(d && d.type === 'facture' && d.ticket); }
+  // (1.313.0) Le retour d'un article de caisse : l'avoir d'un ticket. Il se nomme comme son ticket (« Vente au comptoir »
+  // quand le ticket n'avait pas de client) : l'accueil, la liste des factures et le journal des ventes disaient « — ».
+  function estRetourDeTicket(d, data) { return !!(d && d.type === 'avoir' && d.creditOf && estTicket(((data && data.documents) || []).find(x => x.id === d.creditOf))); }
   // La série d'une pièce décide de son numéro : un ticket a la sienne.
   function serieDe(d) { return estTicket(d) ? 'ticket' : (d || {}).type; }
   function titreDePiece(d, company, lang) { return estTicket(d) ? (lang === 'en' ? 'Receipt' : 'Ticket') : docLabel((d || {}).type, company, lang); }
@@ -7460,7 +7463,7 @@
 
   const api = {
     enLot, duLot,
-    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
+    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
     VAT_RATES, WITHHOLDING_RATES, PAYMENT_METHODS, PREFIX, TITLES, DEFAULT_DATA, DEFAULT_COMPANY, ACTIVITIES, STATUSES, STATUT_ENVOI, DISPLAY_STATUSES, STATUS_LABELS,
     REGIMES, regimeOf, regimeSuggere, tfpSuggere, assujettiTVA, mentionTVA, estLiberal, docLabel, ribAttendu,
     DOC_FILTRES, docFiltre,

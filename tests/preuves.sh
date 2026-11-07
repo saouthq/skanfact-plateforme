@@ -25683,6 +25683,36 @@ prouver 'la carte des devis dit d'\''un devis expiré « à refaire »' "$APP1" 
   "'expirés' : 'expiré'} sans réponse</a>" "'expirés' : 'expiré'}, à refaire</a>" \
   "$T312"
 
+# (1.313.0) La Caisse jouée (l'épicerie de Sfax, un samedi) : le fond de caisse tapé qui n'est pas ce que la Trésorerie garde
+# pour la caisse se dit avant le geste, avec d'où vient l'argent (apport du gérant, retrait d'une banque) ou où il est allé
+# (versé à une banque, pris par le gérant, un manque), et l'ouverture le note : le soir, la caisse de la Trésorerie et du
+# Cabinet est le tiroir compté. Le retour d'un article de caisse se nomme « Vente au comptoir », comme son ticket.
+APP1=modules/socle/ecrans/entreprise/app-1.js
+APP2=modules/socle/ecrans/entreprise/app-2.js
+CORE1=modules/socle/moteur/core-1.js
+T313="l'épicerie de Sfax tient sa caisse un samedi : trois tickets, un pain rendu, le tiroir compté, et la journée se retrouve partout"
+prouver 'le fond tapé à l'\''ouverture n'\''entre pas dans la Trésorerie' "$APP2" \
+  "const m = Math.abs(d) >= 0.0005 ? noterEcartDuFond(d) : null;" "const m = null;" \
+  "$T313"
+prouver 'l'\''ouverture tait l'\''écart du fond jusqu'\''au geste' "$APP2" \
+  "\$('#cs-fond').addEventListener('input', dessinerEcart);" "void 0;" \
+  "$T313"
+prouver 'l'\''ouverture ne propose pas l'\''apport du gérant' "$APP2" \
+  "? [['apport', 'apportés par le gérant'], ...autres.map(" "? [...autres.map(" \
+  "$T313"
+prouver 'le gérant qui garde des espèces du tiroir n'\''a pas de choix' "$APP2" \
+  "['retrait', 'pris par le gérant'], ['manque'," "['manque'," \
+  "$T313"
+prouver 'les espèces prises par le gérant sortent comme un manque' "$APP2" \
+  "else if (o === 'retrait') Object.assign(m, { kind: 'retrait', accountId: idCaisse" "else if (false) Object.assign(m, { kind: 'retrait', accountId: idCaisse" \
+  "$T313"
+prouver 'le retour d'\''un article de caisse se nomme « — » à l'\''écran' "$APP1" \
+  ": d && !d.clientId && (C.estTicket(d) || C.estRetourDeTicket(d, data)) ? C.CLIENT_COMPTOIR : clientName(d && d.clientId);" ": d && !d.clientId && C.estTicket(d) ? C.CLIENT_COMPTOIR : clientName(d && d.clientId);" \
+  "$T313"
+prouver 'le journal des ventes nomme le retour de caisse « — »' "$CORE1" \
+  "client: clientName(d.clientId) || (estTicket(d) || estRetourDeTicket(d, data) ? CLIENT_COMPTOIR : '')," "client: clientName(d.clientId) || (estTicket(d) ? CLIENT_COMPTOIR : '')," \
+  "$T313"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

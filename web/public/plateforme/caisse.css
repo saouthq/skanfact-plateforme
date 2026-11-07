@@ -99,6 +99,11 @@ span.ct-caissier { padding-inline-end: 4px; }
 .ct-fermee-carte p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ct-texte2); }
 .ct-fermee-carte .field input { font-size: 22px; height: 56px; text-align: end; }
 .ct-fermee-carte .ct-principal { width: 100%; }
+/* (1.313.0) Le fond qui n'est pas ce que la Trésorerie garde : la phrase et le choix, avant le geste. */
+.ct-fond-ecart:empty { display: none; }
+.ct-fond-ecart { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--sb-ambre-doux); }
+.ct-fond-ecart p { color: var(--sb-ambre-texte); font-size: 14px; }
+.ct-fond-ecart select { min-height: 44px; font-size: 15px; }
 
 /* ── Vendre ── */
 .ct-vente { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 440px; }

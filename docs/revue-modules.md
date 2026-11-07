@@ -845,3 +845,30 @@ liste des fournisseurs (elle n'a pas de fournisseur) ; « Tu dois » ne dit pas 
 l'État (la fiche de chaque fournisseur la dit).
 
 Suivant : la caisse.
+
+## La caisse
+
+### Fait en 1.313.0 (07/11/2026) : le tiroir compté est la caisse de la Trésorerie, du livre et du comptable
+
+Joué par une épicerie de Sfax, un samedi. Nour ouvre la caisse avec 50 DT de monnaie apportée de chez elle (la Trésorerie
+n'a rien pour la caisse) ; elle vend deux pains et une huile en espèces (un billet de 20, 2,557 DT rendus), trois laits par
+carte, deux huiles par chèque ; une cliente rapporte un pain ; le soir, le tiroir compté billet par billet donne 66 DT pour
+66,159 attendus. Elle rouvre pour une course tardive en gardant 6 DT pour elle. Puis elle regarde l'accueil, la
+comptabilité, la Trésorerie, les factures ; Sonia ouvre la fiche du dossier et la balance.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| K1 | Le fond tapé à l'ouverture (50 DT) n'entrait nulle part : le Z comptait un tiroir de 66 DT, la Trésorerie, le livre et le Cabinet gardaient 16 DT pour la caisse. | Sous le champ, avant le geste : « Ta caisse, dans la Trésorerie, a 0,000 DT : les 50,000 DT de plus y entrent à l'ouverture », et d'où ils viennent (apportés par le gérant, retirés d'une banque). L'ouverture le note dans la Trésorerie (un apport, un virement). Le soir, la caisse de la Trésorerie et le 54 du Cabinet valent le tiroir compté. |
+| K2 | Un fond plus petit que la caisse de la Trésorerie (le gérant garde 6 DT) restait sans trace. | La même phrase (« les 6,000 DT qui manquent en sortent ») et où ils sont allés : versés à une banque, pris par le gérant, un manque. |
+| K3 | Le retour d'un pain (l'avoir du ticket) se nommait « — » dans les dernières pièces de l'accueil, la liste des factures et le journal des ventes. | Il se nomme comme son ticket : « Vente au comptoir ». |
+
+Vérifié en jouant : le bilan du jour, le Z, l'accueil (« Facturé en novembre 45,751 DT HT · 54,300 TTC »), le journal des
+ventes et la barre du mois au Cabinet disent les mêmes chiffres, le retour déduit ; la carte et le chèque vont à la banque
+(38,141 DT), le manque du Z (0,159 DT) sort de la caisse ; l'huile vendue sans stock monte dans « À faire » (stock négatif).
+
+Limites connues : les ventes d'une épicerie vont, par défaut, au compte 706 (prestations de services) et non au 707 (ventes
+de marchandises) : le compte se règle dans le plan comptable du dossier, À VÉRIFIER avec un comptable (une règle par
+article, bien ou service, serait plus juste) ; le manque du Z va au 658, À VÉRIFIER aussi ; la caisse vend un article suivi
+en stock qui n'en a plus sans le dire au comptoir.
+
+Suivant : le stock.

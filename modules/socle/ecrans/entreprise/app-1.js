@@ -585,7 +585,9 @@
   // (maquette de l'avoir) Les motifs proposés ; « Autre motif… » laisse taper le sien.
   const MOTIFS_AVOIR = ['Prestation non faite', 'Remise accordée', 'Retour de marchandise', 'Erreur de prix', 'Annulation totale'];
   // Le nom du client d'une pièce ; une facture « de passage » n'a pas de fiche : le nom tapé sur la pièce.
-  const nomClientPiece = d => d && !d.clientId && d.passage ? (d.passage.nom || 'Client de passage') : clientName(d && d.clientId);
+  // (1.313.0) Un ticket, ou le retour d'un article de caisse, sans client : « Vente au comptoir », jamais « — ».
+  const nomClientPiece = d => d && !d.clientId && d.passage ? (d.passage.nom || 'Client de passage')
+    : d && !d.clientId && (C.estTicket(d) || C.estRetourDeTicket(d, data)) ? C.CLIENT_COMPTOIR : clientName(d && d.clientId);
   const effStatus = doc => C.effectiveStatus(doc, data, data.company);
   const balance = doc => C.invoiceBalance(doc, data, data.company);
   // Le nom d'une pièce À L'ÉCRAN est celui qu'elle imprime (10.14.1, MR-09) : une profession libérale
