@@ -17,7 +17,7 @@ body.dark { --ch-bleu-doux: color-mix(in srgb, #4d7cf2 24%, var(--sb-papier)); -
 .badge { display: inline-block; font-size: 12px; font-weight: 600; line-height: 1.45; padding: 3px 9px; border-radius: 99px; background: var(--sb-survol); color: var(--sb-gris); white-space: nowrap; letter-spacing: 0; }
 .badge.envoyé, .badge.envoyée, .badge.émis, .badge.b-due { background: var(--ch-bleu-doux); color: var(--ch-bleu-texte); }
 .badge.accepté, .badge.payée, .badge.b-paid { background: var(--sb-doux); color: var(--sb-doux-texte); }
-.badge.partielle, .badge.b-part, .badge.expiré { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.badge.partielle, .badge.b-part, .badge.expiré, .badge.modifie { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
 .badge.retard, .badge.b-late { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
 .badge.refusé, .badge.annulée, .badge.brouillon { background: var(--sb-survol); color: var(--sb-gris); }
 

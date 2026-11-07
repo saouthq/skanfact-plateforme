@@ -5202,7 +5202,8 @@
   const envoisDuDevis = d => ((d && d.emails) || []).filter(x => !/^relance/.test(x.kind || ''));
   const devisChezLeClient = d => !!d && d.type === 'devis' && envoisDuDevis(d).length > 0 && ['envoyé', 'expiré'].includes(effStatus(d));
   // Le renvoyer par le canal du dernier envoi (WhatsApp ou e-mail).
-  const renvoyerDevis = d => { const e = envoisDuDevis(d), der = e[e.length - 1]; return der && der.canal === 'whatsapp' ? sendByWhatsApp(d) : sendByEmail(d); };
+  // (1.307.0) Le message de la nouvelle version (« Voici la nouvelle version de notre devis… », Paramètres → Envois).
+  const renvoyerDevis = d => { const e = envoisDuDevis(d), der = e[e.length - 1]; return der && der.canal === 'whatsapp' ? sendByWhatsApp(d, 'devisModifie') : sendByEmail(d, 'devisModifie'); };
   function ldStatut(d) {
     const st = effStatus(d);
     if (st !== 'accepté') return st;
@@ -5970,8 +5971,10 @@
       if (isQ) {
         const st = stored ? effStatus(stored) : 'brouillon';
         const facture = !isNew && piecesDuDevis(doc.id).totales.length;
-        const mot = facture ? 'Facturé' : MOTS_DEVIS[st] || C.statusLabel(st, 'devis');
-        return `<span class="badge ${h(facture ? 'facturé' : st)} ed-pill">${h(mot)}</span>`;
+        // (1.307.0, maquette « Modifié après l'envoi ») Changé depuis qu'il est parti : la pastille le dit.
+        const modifie = !facture && devisChezLeClient(stored) && !!stored.modifieApresEnvoi;
+        const mot = facture ? 'Facturé' : modifie ? 'Envoyé · modifié depuis' : MOTS_DEVIS[st] || C.statusLabel(st, 'devis');
+        return `<span class="badge ${h(facture ? 'facturé' : modifie ? 'modifie' : st)} ed-pill">${h(mot)}</span>`;
       }
       // (1.291.0) Une autre pièce prend son numéro à l'enregistrement ; ensuite la pastille dit son statut.
       if (isExtra) {
@@ -6178,6 +6181,10 @@
       if (envoiSuivant) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="email">${lfIc('envoi', 17)}Envoyer le devis</button>
         <p class="ed-phrase">Par e-mail, avec le PDF et le lien pour le lire : il passe « envoyé », et les relances le suivent.</p>${sauver}
         <div class="ed-deux">${facturerMenu}${grand}</div></div>`;
+      // (1.307.0, maquette) Changé après l'envoi : l'étape suivante est de le renvoyer ; la réponse du client reste à côté.
+      if (devisFacturable && st !== 'accepté' && devisChezLeClient(stored) && stored.modifieApresEnvoi) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="ed-renvoyer">${lfIc(envoisDuDevis(stored).slice(-1)[0].canal === 'whatsapp' ? 'message' : 'envoi', 17)}Renvoyer la nouvelle version</button>
+        <p class="ed-phrase">Son lien montre déjà cette version ; le message lui dit qu'elle remplace la précédente. Il garde son numéro.</p>${sauver}
+        <div class="ed-deux"><button class="btn" id="accepter">Il a accepté…</button><button class="btn" id="refuser">Il a refusé</button></div></div>`;
       if (devisFacturable && st !== 'accepté') return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="accepter">${lfIc('coche', 17, 2.4)}Le client a accepté…</button>
         <p class="ed-phrase">Il a répondu au téléphone ? Note-le : « Accepter et facturer » fait la facture dans la foulée.</p>${sauver}
         <div class="ed-deux"><div class="more"><button class="btn" id="bill-btn">Facturer ▾</button><div class="more-list" id="bill-list" hidden>${ligneMenu('<button id="convert">Facturer ce devis</button>', 'ed.convert')}${autresChemins}</div></div><button class="btn" id="refuser">Le client a refusé</button></div></div>`;
@@ -6334,8 +6341,7 @@
       ].filter(Boolean);
       // (1.306.0) Changé après cet envoi : pendant la saisie, puis enregistré, jusqu'à ce qu'il reparte (`majRecuChange`).
       return `<div class="panel ed-recu"><h3>Ce que le client a reçu</h3><ul>${l.map(x => `<li>${lfIc('coche', 14, 2.4)}<span>${x}</span></li>`).join('')}</ul>
-        <p class="cab-valide" id="ed-recu-change" role="status" hidden>${lfIc('aide', 15)}<span></span></p>
-        <button type="button" class="btn btn-sm" id="ed-renvoyer" hidden>${dernier.canal === 'whatsapp' ? 'Le renvoyer par WhatsApp' : 'Le renvoyer par e-mail'}</button></div>`;
+        <p class="cab-valide" id="ed-recu-change" role="status" hidden>${lfIc('aide', 15)}<span></span></p></div>`;
     };
     // Le paragraphe suit la saisie : des changements pas encore enregistrés, ou une version enregistrée que le client n'a pas.
     const majRecuChange = () => {
@@ -6346,7 +6352,6 @@
       // Son lien lit le devis du jour (l'espace du client) : ce qui manque, c'est qu'on le lui dise.
       $('span', p).textContent = enCours ? `Déjà envoyé à ${qui} le ${le} : enregistré, personne ne lui aura dit ces changements. Renvoie-le ensuite, il garde son numéro.`
         : apres ? `Modifié le ${lfJm(apres)}, après l'envoi du ${le} : personne ne l'a dit à ${qui}.` : '';
-      const b = $('#ed-renvoyer'); if (b) b.hidden = enCours || !apres;
     };
 
     // L'en-tête de la maquette : le client en carte (dessinée par `majFicheClient`), la date, l'échéance et l'objet sur une
@@ -8469,12 +8474,17 @@
       // seulement une fois le brouillon créé. Les deux modes vivent dans la même fenêtre, et le TTC
       // obtenu s'affiche en direct — l'écart d'arrondi se voit AVANT, pas après.
       const ttcDevis = C.computeTotals(doc, company()).totalTTC;
-      modal(`<h2>Facture d'acompte</h2><p class="small muted">Une part du devis ${h(doc.number)} (${C.money(ttcDevis, cur)} TTC). La facture de solde déduira automatiquement cet acompte.</p>
-        <form id="df" class="grid-2" data-devise="${h(cur)}">
-          <label class="field">${lbl('Exprimé en', 'ed.depositMode')}<select name="mode"><option value="pct">Pourcentage du devis</option><option value="dt">Montant TTC (${h(cur)})</option></select></label>
-          <label class="field" id="dp-pct">${lbl('Pourcentage du devis', 'ed.depositPct')}<input type="number" name="percent" value="30" min="0.1" max="99.9" step="0.5" class="num"></label>
-          <label class="field" id="dp-dt" hidden>${lbl(`Montant TTC (${h(cur)})`, 'ed.depositAmount')}<input type="number" name="montant" value="${C.arrondiDevise(cur)(ttcDevis * 0.3)}" min="0" step="0.001" class="num"></label>
-          <div class="small muted span-2" id="dp-apercu"></div>
+      // (1.307.0, maquette « Facture d'acompte ») En pourcentage ou en dinars, d'un clic (30, 40, 50 %) ; l'acompte et le solde
+      // côte à côte, tels qu'ils naîtront ; les deux timbres dits avant. Le calcul est celui d'avant (ACP-01, rapport QA E-02).
+      const deviseDit = cur === 'DT' || cur === 'TND' ? 'dinars' : h(cur);
+      modal(`<h2>Facture d'acompte · ${h(doc.number)}</h2><p class="small muted">Une part du devis (${C.money(ttcDevis, cur)} TTC). La facture de solde déduira cet acompte : rien n'est facturé deux fois.</p>
+        <form id="df" class="ac-f" data-devise="${h(cur)}">
+          <input type="hidden" name="mode" value="pct">
+          <div class="choix-t" role="group" aria-label="Exprimé en"><button type="button" data-ac="pct" class="on" aria-pressed="true">En pourcentage</button><button type="button" data-ac="dt" aria-pressed="false">En ${deviseDit} TTC</button></div>
+          <div class="ac-g" id="dp-pct"><label class="field">${lbl('Pourcentage du devis', 'ed.depositPct')}<span class="in-u"><input type="number" name="percent" value="30" min="0.1" max="99.9" step="0.5" class="num grand"><small>%</small></span></label>
+            <div class="choix-t ac-vite" role="group" aria-label="Pourcentages courants">${[30, 40, 50].map(x => `<button type="button" data-acp="${x}" class="${x === 30 ? 'on' : ''}">${x} %</button>`).join('')}</div></div>
+          <div class="ac-g" id="dp-dt" hidden><label class="field">${lbl(`Montant TTC (${h(cur)})`, 'ed.depositAmount')}<span class="in-u"><input type="number" name="montant" value="${C.arrondiDevise(cur)(ttcDevis * 0.3)}" min="0" step="0.001" class="num grand"><small>${h(cur)}</small></span></label></div>
+          <div id="dp-apercu" aria-live="polite"></div>
         </form>
         <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Créer le brouillon</button></div>`,
         (root, close) => {
@@ -8493,10 +8503,12 @@
           const ok = p > 0 && p < 100;
           return { ok, pct: p, montant: null, lignes: ok ? C.depositLines(doc, p, company()) : [], champ: 'percent' };
         };
+        // Une seule facture du devis entier : ce que le client paierait sans acompte (pour dire ce que coûte le second timbre).
+        const toutEnUne = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
         const apercu = () => {
           const q = demande();
           const el = $('#dp-apercu', root);
-          if (!q.ok) { el.textContent = 'Un acompte est une PART du devis : entre 0 et 100 % de son total TTC.'; return; }
+          if (!q.ok) { el.innerHTML = `<div class="bandeau rouge">${lfIc('aide', 18)}<span class="txt"><b>Un acompte est une part du devis</b><span>Entre 0 et 100 % de son total TTC (${h(C.money(ttcDevis, cur))}).</span></span></div>`; return; }
           // Les DEUX factures telles qu'elles naîtront, par le MÊME constructeur que « Créer le
           // brouillon » et que « Facture de solde » (rapport QA E-02). Le solde se calculait à la main,
           // « total du devis − acompte » : il retranchait le timbre de l'acompte et oubliait celui du
@@ -8505,26 +8517,39 @@
           const acompte = invoiceFromQuote(doc, q.lignes, 0);
           const solde = invoiceFromQuote(doc, C.settlementLines(doc, [acompte]), doc.discountRate);
           const ta = C.computeTotals(acompte, company()), ts = C.computeTotals(solde, company());
-          const timbre = Number(ta.stamp) > 0 ? ', timbre compris' : '';
-          el.innerHTML = `L'acompte fera <b id="dp-acompte">${h(C.money(ta.netToPay, cur))}</b> à payer (${pct(q.pct)} % du devis${timbre}). `
-            + `La facture de solde fera <b id="dp-solde">${h(C.money(ts.netToPay, cur))}</b>${Number(ts.stamp) > 0 ? ', avec son propre timbre' : ''}.`;
+          const detail = t => [`${C.money(t.totalTTC, cur)} TTC`, Number(t.stamp) > 0 ? `+ timbre ${C.money(t.stamp, cur)}` : '', Number(t.withholding) > 0 ? `− retenue ${C.money(t.withholding, cur)}` : ''].filter(Boolean).join(' ');
+          const deDeux = C.round3(ta.netToPay + ts.netToPay - toutEnUne.netToPay);
+          el.innerHTML = `<div class="ac-2"><div><span>L'acompte · ${pct(q.pct)} %</span><b id="dp-acompte">${h(C.money(ta.netToPay, cur))}</b><small>à payer · ${h(detail(ta))}</small></div>
+            <div><span>Le solde, plus tard</span><b id="dp-solde">${h(C.money(ts.netToPay, cur))}</b><small>à payer · ${h(detail(ts))}</small></div></div>
+            ${Math.abs(deDeux) > 0.0005 ? `<p class="note-v">${lfIc('aide', 13, 2)}<span>Deux factures, donc deux timbres : le client paiera ${h(C.money(C.round3(ta.netToPay + ts.netToPay), cur))} en tout, ${h(C.money(Math.abs(deDeux), cur))} de ${deDeux > 0 ? 'plus' : 'moins'} qu'en une seule facture.</span></p>` : ''}`;
         };
-        $('#df', root).oninput = $('#df', root).onchange = () => {
-          const v = formValues($('#df', root));
-          $('#dp-pct', root).hidden = v.mode === 'dt';
-          $('#dp-dt', root).hidden = v.mode !== 'dt';
+        const f = $('#df', root);
+        const majMode = mode => {
+          $('[name=mode]', f).value = mode;
+          $$('[data-ac]', root).forEach(b => { b.classList.toggle('on', b.dataset.ac === mode); b.setAttribute('aria-pressed', String(b.dataset.ac === mode)); });
+          $('#dp-pct', root).hidden = mode === 'dt';
+          $('#dp-dt', root).hidden = mode !== 'dt';
           apercu();
         };
+        $$('[data-ac]', root).forEach(b => b.onclick = () => majMode(b.dataset.ac));
+        $$('[data-acp]', root).forEach(b => b.onclick = () => { $('[name=percent]', f).value = b.dataset.acp; f.oninput(); });
+        f.oninput = f.onchange = () => {
+          const p = Number($('[name=percent]', f).value);
+          $$('[data-acp]', root).forEach(b => b.classList.toggle('on', Number(b.dataset.acp) === p));
+          apercu();
+        };
+        f.onsubmit = e => { e.preventDefault(); $('#ok', root).click(); };
         apercu();
         $('#ok', root).onclick = () => {
           const q = demande();
-          if (!q.ok) return refus('#df [name=' + q.champ + ']', 'Un acompte est une part du devis : entre 0 et 100 % de son total TTC.');
+          if (!q.ok) return refus($('[name=' + q.champ + ']', f), 'Un acompte est une part du devis : entre 0 et 100 % de son total TTC.');
           const inv = invoiceFromQuote(doc, q.lignes, 0);
           inv.deposit = { percent: q.pct, quoteId: doc.id, quoteNumber: doc.number, ...(q.montant ? { montant: q.montant } : {}) };
           inv.fromQuoteId = doc.id; inv.fromQuoteNumber = doc.number;
           inv.subject = `Acompte ${C.acompteDit(inv.deposit, cur)} — ${doc.subject || doc.number}`;
-          acceptQuote(doc.id); data.documents.push(inv); save(true); close(); toast('Brouillon de facture d\'acompte créé'); navigate('#/doc/' + inv.id);
+          acceptQuote(doc.id); data.documents.push(inv); save(true); close(); toast(`Facture d'acompte de ${C.money(C.computeTotals(inv, company()).netToPay, cur)} en brouillon : à émettre`); navigate('#/doc/' + inv.id);
         };
+        $('[name=percent]', f).focus();
       });
     };
     if ($('#settle2')) $('#settle2').onclick = () => $('#settle') ? $('#settle').click() : null;
@@ -9419,14 +9444,28 @@
     if (!q) return;
     const { totales, acomptes, brouillons } = piecesDuDevis(q.id);
     const deja = totales.concat(acomptes, brouillons);
+    // (1.307.0, maquette « Refacturer la totalité ? ») Ce que le devis a déjà donné, en bandeau ; le chemin sûr (voir la
+    // facture, la corriger par un avoir, ou facturer le solde) avant le geste qui fait payer deux fois.
     if (deja.length) {
       const avecAcompte = acomptes.length || brouillons.length;
-      if (!await confirmDialog(
-        `Ce devis a déjà donné ${deja.map(nomDePiece).join(', ')}.\n\nFacturer la totalité créerait une facture de plus, `
-        + `pour le montant entier du devis${avecAcompte ? ' — acompte compris, le client serait facturé plus que le devis' : ''}. `
-        + (brouillons.length ? 'Pour ne facturer que le reste : émets d\'abord l\'acompte, puis utilise « Facture de solde » sur le devis.'
-          : 'Si tu veux seulement le reste à payer, ouvre le devis et utilise « Facture de solde ».'),
-        'Refacturer la totalité', true)) return;
+      const premiere = deja[0];
+      const suite = await new Promise(resolve => {
+        let fini = false;
+        const fin = (close, v) => { fini = true; close(); resolve(v); };
+        modal(`<h2>Refacturer la totalité ?</h2>
+          <div class="bandeau ambre">${lfIc('aide', 18)}<span class="txt"><b>${h(q.number)} a déjà donné ${h(deja.map(nomDePiece).join(', '))}</b>
+            <span>${avecAcompte ? (brouillons.length ? 'Un acompte attend en brouillon : émets-le, puis « Facture de solde » ne facturera que le reste.' : '« Facture de solde » ne facture que le reste : elle déduit l\'acompte.')
+              : totales.every(f => f.status === 'brouillon') ? 'Elle est encore en brouillon : corrige-la plutôt. Une seconde facture du devis entier ferait payer le client deux fois.'
+                : 'Une seconde facture du devis entier ferait payer le client deux fois. Si la première est fausse, corrige-la par un avoir : c\'est le chemin sûr.'}</span></span></div>
+          <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn" id="rf-voir">Voir ${h(premiere.number || 'le brouillon')}</button><button class="btn btn-danger" id="rf-ok">Refacturer quand même</button></div>`,
+        (root, close) => {
+          $('[data-close]', root).onclick = () => fin(close, false);
+          $('#rf-voir', root).onclick = () => { fin(close, false); navigate('#/doc/' + premiere.id); };
+          $('#rf-ok', root).onclick = () => fin(close, true);
+          $('[data-close]', root).focus();
+        }, () => { if (!fini) resolve(false); });
+      });
+      if (!suite) return;
     }
     const inv = invoiceFromQuote(q, deepCopy(q.lines), q.discountRate);
     inv.fromQuoteId = q.id; inv.fromQuoteNumber = q.number;
@@ -9449,9 +9488,36 @@
     const inv = invoiceFromQuote(q, C.settlementLines(q, acomptes), q.discountRate);
     inv.settles = { quoteId: q.id, quoteNumber: q.number, depositIds: acomptes.map(d => d.id) }; inv.fromQuoteId = q.id; inv.fromQuoteNumber = q.number;
     inv.subject = `Solde — ${q.subject || q.number}`;
-    data.documents.push(inv); save(true);
-    toast(`Brouillon de facture de solde créé (${pl(acomptes.length, 'acompte')} déduit${sPl(acomptes.length)})`);
-    navigate('#/doc/' + inv.id);
+    // (1.307.0, maquette « Facture de solde ») Avant le brouillon, ce qu'il facture : le devis, les acomptes déduits et le
+    // solde, taux de TVA par taux (un acompte est une part de chaque taux, `depositLines`), puis ce que le client paiera.
+    const cur = docCur(q);
+    const tq = C.computeTotals(q, company()), ts = C.computeTotals(inv, company());
+    const tas = acomptes.map(a => C.computeTotals(a, company()));
+    const taux = [...new Set([...Object.keys(tq.vatByRate), ...Object.keys(ts.vatByRate)])].map(Number).sort((x, y) => x - y);
+    const base = (t, r) => (t.vatByRate[r] ? Number(t.vatByRate[r].base) || 0 : 0);
+    const deduit = r => C.round3(tas.reduce((x, t) => x + base(t, r), 0));
+    const mt = x => h(C.money(x, cur));
+    const ligne = (titre, d, a, so, cls) => `<div class="cmp${cls ? ` ${cls}` : ''}"><span>${titre}</span><span>${mt(d)}</span><span class="neg">${a ? `− ${mt(a)}` : '—'}</span><span><b>${mt(so)}</b></span></div>`;
+    const detail = [`TTC ${C.money(ts.totalTTC, cur)}`, Number(ts.stamp) > 0 ? `+ timbre ${C.money(ts.stamp, cur)}` : '', Number(ts.withholding) > 0 ? `− retenue ${C.money(ts.withholding, cur)}` : ''].filter(Boolean).join(' ');
+    const somme = f => C.round3(taux.reduce((x, r) => x + f(r), 0));
+    modal(`<h2>Facture de solde · ${h(q.number)}</h2>
+      <div class="cmp t"><span>Taux de TVA</span><span>Devis HT</span><span>Acompte${acomptes.length > 1 ? 's' : ''}</span><span>Solde HT</span></div>
+      ${taux.map(r => ligne(`TVA ${pct(r)} %`, base(tq, r), deduit(r), base(ts, r))).join('')}
+      ${ligne('<b>Total HT</b>', somme(r => base(tq, r)), somme(deduit), somme(r => base(ts, r)), 'tot')}
+      <dl class="ed-recap">
+        <div><dt>Acompte${acomptes.length > 1 ? 's' : ''} déduit${acomptes.length > 1 ? 's' : ''}</dt><dd>${acomptes.map(a => `${h(a.number)} du ${lfJm(a.date)} · ${h(C.acompteDit(a.deposit, cur))}`).join('<br>')}</dd></div>
+        <div><dt>La facture de solde</dt><dd><b id="sd-net">${mt(ts.netToPay)} à payer</b> · ${h(detail)}</dd></div>
+      </dl>
+      <p class="small muted">Une fois émise, le devis est facturé en entier. Elle arrive en brouillon : tu l'émets quand tu veux.</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="sd-ok">${lfIc('facture', 15)}Créer la facture de solde</button></div>`,
+    (root, close) => {
+      $('#sd-ok', root).onclick = () => {
+        data.documents.push(inv); save(true); close();
+        toast(`Facture de solde de ${C.money(ts.netToPay, cur)} en brouillon : à émettre (${pl(acomptes.length, 'acompte')} déduit${sPl(acomptes.length)})`);
+        navigate('#/doc/' + inv.id);
+      };
+      $('#sd-ok', root).focus();
+    });
   }
 
   function invoiceFromQuote(quote, lines, discountRate) {
@@ -9471,7 +9537,17 @@
     if (cl) inv.applyStamp = !cl.stampExempt;
     return inv;
   }
-  function acceptQuote(id) { const orig = docById(id); if (orig && orig.status !== 'accepté') orig.status = 'accepté'; }
+  // (1.307.0) Facturer un devis encore en attente, c'est que le client a dit oui : le jour où l'on facture se note comme sa
+  // réponse (la frise disait « Accepté · le client a dit oui », sans date). Une réponse déjà notée (« Le client a accepté… »)
+  // ne se réécrit pas ; qui l'a noté s'ajoute quand le profil répond.
+  function acceptQuote(id) {
+    const orig = docById(id); if (!orig || orig.status === 'accepté') return;
+    orig.status = 'accepté';
+    if (orig.reponse && orig.reponse.statut === 'accepté') return;
+    const rep = { statut: 'accepté', le: C.today() };
+    orig.reponse = rep;
+    if (bridge.profil) bridge.profil().then(p => { if (p && p.nom && orig.reponse === rep) { rep.par = p.nom.trim().split(/\s+/)[0]; save(true); } }).catch(() => {});
+  }
   function creditDraftFrom(inv) {
     return {
       creditOf: inv.id, creditOfNumber: inv.number, clientId: inv.clientId, subject: `Avoir sur facture ${inv.number}${inv.subject ? ' — ' + inv.subject : ''}`,
@@ -12242,7 +12318,7 @@
     const histoRelance = () => `${envoisD.length ? `Envoyée le ${h(C.fmtDate(envoisD[0].date))}` : 'Pas encore envoyée'} · ${relancesD.length ? `${pl(relancesD.length, 'relance')} jusqu'ici, la dernière le ${h(C.fmtDate(relancesD[relancesD.length - 1].date))}` : 'aucune relance pour l\'instant'}.`;
     // Le lien seul d'un devis en brouillon : l'espace ne montre jamais un devis en brouillon (le serveur le refuse).
     const lienSeul = lien && !(doc.type === 'devis' && (doc.status || 'brouillon') === 'brouillon');
-    const formeCharteM = () => `<h2>${relanceM ? `Relancer ${h(client.name)}` : kind === 'relanceDevis' ? `Relancer le devis ${h(doc.number)}` : `Envoyer ${h(doc.number || docLabel(doc))}`}</h2>
+    const formeCharteM = () => `<h2>${relanceM ? `Relancer ${h(client.name)}` : kind === 'relanceDevis' ? `Relancer le devis ${h(doc.number)}` : kind === 'devisModifie' ? `Renvoyer ${h(doc.number)}` : `Envoyer ${h(doc.number || docLabel(doc))}`}</h2>
       <div class="choix-t env-canal" role="tablist" aria-label="Comment l'envoyer"><button type="button" class="on" data-canal="email">${lfIc('message', 15)}E-mail${relanceM && adresses[0] ? ` · ${h(adresses[0])}` : ''}</button><button type="button" data-canal="wa">WhatsApp</button>${lienSeul ? '<button type="button" data-canal="lien">Le lien seul</button>' : ''}</div>
       <form id="mf" class="env-charte">
         ${relanceM ? `<label class="field">${lbl('Modèle', 'mail.relanceModele')}<select id="env-modele">${Object.entries(C.REMINDER_LABELS).map(([n, l]) => `<option value="${n}"${'relance' + n === kind ? ' selected' : ''}>${h(l)}${n === '1' ? ' · courtois' : n === '3' ? ' · ferme' : ''}</option>`).join('')}</select></label>` : ''}
@@ -12356,6 +12432,7 @@
     const corpsOrigine = m.body;
     if (lien) m.body = bridge.sansPieceJointe(m.body);
     const titre = kind === 'relanceDevis' ? 'Relancer le devis ' + h(doc.number) + ' par WhatsApp'
+      : kind === 'devisModifie' ? 'Renvoyer le devis ' + h(doc.number) + ' par WhatsApp'
       : /^relance\d$/.test(kind) ? C.REMINDER_LABELS[Number(kind.slice(-1))] + ' par WhatsApp — ' + h(doc.number)
       : 'Envoyer ' + h(docLabel(doc)) + ' par WhatsApp';
     modal(`<h2>${titre}</h2>

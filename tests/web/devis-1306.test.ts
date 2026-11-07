@@ -139,7 +139,9 @@ describe('les devis 1.306.0 : le devis changé après l\'envoi, la réponse not�
     expect(await p.locator('#toast').getByRole('button', { name: 'Le renvoyer' }).count()).toBe(1);
     const apres = `Modifié le ${jm(auj)}, après l'envoi du ${jm(jourDe(-12))} : personne ne l'a dit à Ines Ben Ammar.`;
     await expect.poll(async () => net(await change().innerText().catch(() => '')), { timeout: 10_000 }).toBe(apres);
-    expect(net(await p.locator('#ed-renvoyer').innerText())).toBe('Le renvoyer par e-mail');
+    // (1.307.0, maquette) Le renvoi est l'étape suivante : le bouton principal, plus dans « Ce que le client a reçu ».
+    expect(net(await p.locator('#ed-geste #ed-renvoyer').innerText())).toBe('Renvoyer la nouvelle version');
+    expect(await p.locator('.ed-recu #ed-renvoyer').count()).toBe(0);
     await expect.poll(async () => (await devisLu('q1')).modifieApresEnvoi, { timeout: 10_000 }).toBe(auj);
     // Rechargé : il le redit.
     await ouvrir('q1');
@@ -148,18 +150,18 @@ describe('les devis 1.306.0 : le devis changé après l\'envoi, la réponse not�
     await p.locator('.ed-recu').screenshot({ path: path.join(PHOTOS, 'devis-1306-a-apres-recu.png') });
     await photo('a-apres');
 
-    // « Le renvoyer par e-mail » : la fenêtre d'envoi, le message parti, et le devis ne le dit plus.
+    // « Renvoyer la nouvelle version » : la fenêtre d'envoi, le message parti, et le devis ne le dit plus.
     await p.locator('#ed-renvoyer').click();
     const envoi = p.locator('.modal').filter({ has: p.locator('#mf') });
     await envoi.waitFor({ timeout: 10_000 });
-    expect(net(await envoi.locator('h2').innerText())).toBe('Envoyer DEV-2026-021');
+    expect(net(await envoi.locator('h2').innerText())).toBe('Renvoyer DEV-2026-021');
     expect(net(await envoi.locator('#ok').innerText())).toBe('Envoyer à 1 contact');
     expect(await envoi.locator('[data-canal="lien"]').count()).toBe(1);
     await envoi.locator('#ok').click();
     await expect.poll(() => p.evaluate(() => (window as unknown as { __mailto?: string }).__mailto ?? ''), { timeout: 15_000 }).not.toBe('');
     const mail = new URL(await p.evaluate(() => (window as unknown as { __mailto: string }).__mailto));
     expect(decodeURIComponent(mail.pathname)).toBe('ines.benammar@exemple.tn');
-    expect(mail.searchParams.get('body') ?? '').toMatch(/^Bonjour,\n\nVoici notre devis DEV-2026-021[\s\S]*\n\nPour voir le devis en ligne : /);
+    expect(mail.searchParams.get('body') ?? '').toMatch(/^Bonjour,\n\nVoici la nouvelle version de notre devis DEV-2026-021[\s\S]*\n\nPour voir le devis en ligne : /);
     await p.locator('#mf-envoye').click();
     await expect.poll(() => change().isVisible(), { timeout: 10_000 }).toBe(false);
     await expect.poll(async () => (await devisLu('q1')).modifieApresEnvoi ?? null, { timeout: 10_000 }).toBe(null);

@@ -656,4 +656,27 @@ Limites connues : SkanFact ne sait pas quelle version le client a lue (son lien 
 ne se pose que sur un devis encore en attente (envoyé ou expiré) ; la fenêtre WhatsApp reste l'ancienne (pour la facture
 aussi) ; un devis changé ne propose pas encore de garder sa version envoyée en pièce jointe.
 
-Suivant : les factures, puis les clients, les achats, les fournisseurs et l'accueil.
+### Fait en 1.307.0 (07/11/2026) : du devis à la facture, tel que la maquette
+
+Le même menuisier, la suite. Ines a reçu la nouvelle version (la pose à 420 DT), dit oui au téléphone et verse 40 % à la
+commande ; le dressing posé, Hatem fait la facture de solde. L'Hôtel Thyna commande son comptoir par téléphone : Hatem
+le facture tout de suite, sans noter la réponse, puis, le lendemain, ouvre « Refacturer la totalité » par erreur.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| G1 | Le devis changé après l'envoi ne gardait pour étape suivante que « Le client a accepté… » ; « Le renvoyer » vivait dans un coin, et le message reparti était celui du premier envoi (« Voici notre devis… »). | La pastille dit « Envoyé · modifié depuis » ; le bouton principal est « Renvoyer la nouvelle version » (par le canal du dernier envoi), avec « Son lien montre déjà cette version ; le message lui dit qu'elle remplace la précédente. Il garde son numéro. », la réponse du client juste dessous. La fenêtre s'appelle « Renvoyer DEV-… », et le message est un modèle à lui (« Nouvelle version du devis … — … Elle remplace celle que nous vous avions envoyée. »), réglable dans Paramètres › Envois comme les autres. Reparti, le devis redit « Envoyé · attend la réponse ». |
+| G2 | La fenêtre d'acompte était un formulaire nu : un pourcentage à taper, le montant découvert après. | En pourcentage ou en dinars TTC, d'un clic (30, 40, 50 %) ; l'acompte et « le solde, plus tard » côte à côte, tels qu'ils naîtront (même calcul que la facture) ; le second timbre dit avant (« Deux factures, donc deux timbres : le client paiera … en tout, 1,000 DT de plus qu'en une seule facture. ») ; hors du devis, le bandeau rouge le dit et le refus montre le champ. |
+| G3 | « Facture de solde » faisait le brouillon sans montrer ce qu'il déduisait. | Avant le brouillon, la fenêtre de la maquette : taux par taux, le devis HT, l'acompte déduit, le solde HT ; quel acompte (numéro, date, part) ; ce que le client paiera (TTC, timbre, retenue). |
+| G4 | Facturé sans que la réponse soit notée (le cas du téléphone), le devis passait « accepté » sans dire quand : la frise restait vide. | La facture faite note l'acceptation du jour, et qui l'a faite ; une réponse déjà notée n'est pas réécrite. |
+| G5 | « Refacturer la totalité » demandait par une boîte de texte, sans le chemin sûr. | La fenêtre « Refacturer la totalité ? » : ce que le devis a déjà donné, en bandeau ; le chemin sûr selon le cas (la facture de solde s'il y a un acompte ; la corriger si elle est encore en brouillon ; un avoir si elle est émise) ; « Voir » la première facture ; « Refacturer quand même » reste possible. |
+| G6 | (vu sur la photo) Les deux boutons de la réponse dépassaient de leur carte de 14 px. | « Il a accepté… » et « Il a refusé » tiennent dans la carte ; le test le mesure. |
+
+Vérifié côté Cabinet et pont : les factures d'acompte et de solde sont celles d'avant (mêmes lignes, une ligne négative
+par taux pour l'acompte déduit, même écriture), donc rien ne change à ce que la comptable lit ; un devis n'entre toujours
+pas dans les livres.
+
+Limites connues : le solde d'un devis à plusieurs acomptes les déduit tous, sans choisir ; un acompte se rembourse
+encore par un avoir à la main.
+
+Suivant : les factures (le paiement en plusieurs fois, la relance, la retenue, l'avoir), puis les clients, les achats, les
+fournisseurs et l'accueil.

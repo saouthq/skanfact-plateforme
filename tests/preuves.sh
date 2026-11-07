@@ -25387,6 +25387,54 @@ prouver 'une pièce tirée d'\''un devis porte son acceptation' modules/socle/mo
   "    'reponse', 'modifieApresEnvoi'," '' \
   "$T306"
 
+# (1.307.0) Du devis à la facture, tel que la maquette (le menuisier de Sfax) : le devis changé après l'envoi se renvoie
+# d'un bouton principal, avec un message de nouvelle version ; l'acompte en pourcentage ou en dinars, l'acompte et le
+# solde côte à côte, le second timbre dit avant ; le solde comparé taux par taux ; « Refacturer la totalité ? » montre
+# le chemin sûr ; une facture faite sans réponse notée note l'acceptation.
+T307="le menuisier de Sfax facture ses devis : la nouvelle version renvoyée, 40 % d'acompte, le solde comparé, l'hôtel facturé sans réponse notée"
+APP1=modules/socle/ecrans/entreprise/app-1.js
+prouver 'la pastille d'\''un devis changé après l'\''envoi dit qu'\''il attend la réponse' "$APP1" \
+  '      const modifie = !facture && devisChezLeClient(stored) && !!stored.modifieApresEnvoi;' '      const modifie = false;' \
+  "$T307"
+prouver 'le devis changé après l'\''envoi garde « Le client a accepté » pour étape suivante' "$APP1" \
+  "      if (devisFacturable && st !== 'accepté' && devisChezLeClient(stored) && stored.modifieApresEnvoi) return" "      if (false) return" \
+  "$T307"
+prouver 'la nouvelle version repart avec le message du premier envoi' "$APP1" \
+  "sendByWhatsApp(d, 'devisModifie') : sendByEmail(d, 'devisModifie')" "sendByWhatsApp(d) : sendByEmail(d)" \
+  "$T307"
+prouver 'le message d'\''une nouvelle version garde l'\''objet du premier' modules/socle/moteur/core-2.js \
+  "subject: 'Nouvelle version du devis {numero} — {societe}'" "subject: 'Devis {numero} — {societe}'" \
+  "$T307"
+prouver 'les boutons de la réponse débordent de leur carte' "$APP1" \
+  '<button class="btn" id="accepter">Il a accepté…</button><button class="btn" id="refuser">Il a refusé</button>' '<button class="btn" id="accepter">Le client a accepté…</button><button class="btn" id="refuser">Le client a refusé</button>' \
+  "$T307"
+prouver 'les pourcentages courants de l'\''acompte ne font rien' "$APP1" \
+  "\$\$('[data-acp]', root).forEach(b => b.onclick = () => { \$('[name=percent]', f).value = b.dataset.acp; f.oninput(); });" 'void 0;' \
+  "$T307"
+prouver 'le second timbre d'\''un acompte ne se dit pas avant' "$APP1" \
+  '${Math.abs(deDeux) > 0.0005 ?' '${false ?' \
+  "$T307"
+prouver 'un acompte hors du devis ne se dit pas en rouge' "$APP1" \
+  "el.innerHTML = \`<div class=\"bandeau rouge\">" "el.innerHTML = \`<div class=\"x\">" \
+  "$T307"
+prouver 'la facture de solde ne montre pas ses taux' "$APP1" \
+  "      \${taux.map(r => ligne(\`TVA \${pct(r)} %\`, base(tq, r), deduit(r), base(ts, r))).join('')}" "      \${''}" \
+  "$T307"
+prouver 'la facture de solde ne dit pas l'\''acompte déduit de chaque taux' "$APP1" \
+  '    const deduit = r => C.round3(tas.reduce((x, t) => x + base(t, r), 0));' '    const deduit = r => 0;' \
+  "$T307"
+prouver 'refacturer un devis déjà facturé ne demande rien' "$APP1" \
+  '    const deja = totales.concat(acomptes, brouillons);' '    const deja = [];' \
+  "$T307"
+prouver 'refacturer propose un avoir pour une facture encore en brouillon' "$APP1" \
+  "totales.every(f => f.status === 'brouillon')" 'false' \
+  "$T307"
+prouver '« Voir » la facture déjà faite ne mène nulle part' "$APP1" \
+  "\$('#rf-voir', root).onclick = () => { fin(close, false); navigate('#/doc/' + premiere.id); };" "\$('#rf-voir', root).onclick = () => fin(close, false);" \
+  "$T307"
+prouver 'une facture faite sans réponse notée laisse le devis sans acceptation' "$APP1" \
+  '    orig.reponse = rep;' '    void rep;' \
+  "$T307"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

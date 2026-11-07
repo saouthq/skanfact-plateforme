@@ -1015,6 +1015,28 @@
 .modal .ed-recap dt { color: var(--sb-gris-2); font-size: 13.5px; }
 .modal .ed-recap dd { margin: 0; font-size: 14px; }
 .modal .ed-recap input[type=date] { width: auto; }
+/* (1.307.0, maquette du devis) La facture d'acompte : pourcentage ou montant d'un clic, l'acompte et le solde côte à côte. */
+.modal .ac-f .choix-t { margin-bottom: 10px; }
+.modal .ac-g { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin-bottom: 12px; }
+.modal .ac-g .field { margin: 0; }
+.modal .ac-g .ac-vite { margin: 0; }
+.modal .in-u { display: flex; align-items: center; gap: 6px; }
+.modal .in-u small { font-size: 14px; color: var(--sb-gris); font-weight: 600; }
+.modal .in-u input.grand { width: 130px; height: 42px; font-size: 18px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.modal .ac-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.modal .ac-2 > div { border-radius: 12px; padding: 12px 14px; background: var(--sb-doux); display: grid; gap: 2px; }
+.modal .ac-2 > div + div { background: var(--sb-survol); }
+.modal .ac-2 span { font-size: 12px; font-weight: 600; color: var(--sb-gris); }
+.modal .ac-2 b { font-size: 22px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.modal .ac-2 small { font-size: 11.5px; color: var(--sb-gris); }
+@media (max-width: 560px) { .modal .ac-2 { grid-template-columns: 1fr; } }
+/* (1.307.0, maquette du devis) La facture de solde : le devis, les acomptes et le solde, taux par taux. */
+.modal .cmp { display: grid; grid-template-columns: minmax(0, 1fr) 104px 104px 104px; gap: 8px; padding: 8px 2px; border-top: 1px solid var(--sb-trait); font-size: 13px; font-variant-numeric: tabular-nums; }
+.modal .cmp > span:not(:first-child) { text-align: right; }
+.modal .cmp.t { border-top: 0; font-size: 11.5px; font-weight: 600; color: var(--sb-gris-2); padding-block: 0 4px; }
+.modal .cmp.tot { border-top: 1.5px solid var(--sb-trait-fort); }
+.modal .cmp .neg { color: var(--sb-rouge-texte); }
+@media (max-width: 560px) { .modal .cmp { grid-template-columns: minmax(0, 1fr) 80px 80px 84px; font-size: 12px; } }
 .modal .ed-recap-choix { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
 .modal .ed-recap dd.ed-recap-choix { margin: 0; }
 .modal .ed-recap-choix .btn.on { background: var(--sb-doux); color: var(--sb-doux-texte); border-color: color-mix(in srgb, var(--sb-sarcelle) 55%, transparent); }
