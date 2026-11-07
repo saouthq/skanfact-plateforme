@@ -10354,7 +10354,11 @@
     // septembre, les dotations de décembre ne le sont pas. Le bouton reste armé (on peut préparer
     // l'inventaire plus tôt), il ne prend plus la couleur — la même règle que la pastille.
     const dues = KC.aReclamerImmobilisations(e, s.livre && s.livre.exercice, K.today());
-    const suivante = d.aCreer.length ? 'creer' : dues ? 'ecrire' : !e.rows.length ? 'neuf' : '';
+    // (1.314.0) Les biens que le client tient dans son SkanFact : un bien qu'il a et que ce registre n'a pas encore se reprend
+    // AVANT d'écrire les dotations (sans sa fiche, sa dotation ne s'écrirait pas).
+    const duClient = d.duClient || [];
+    const aReprendre = duClient.filter(b => !b.tenue);
+    const suivante = d.aCreer.length ? 'creer' : aReprendre.length ? 'reprendre' : dues ? 'ecrire' : !e.rows.length ? 'neuf' : '';
     const cls = pas => 'btn btn-sm' + (pas === suivante ? ' btn-primary' : '');
     // U-23 — un bouton éteint dit POURQUOI à côté de lui : l'infobulle ne se voit ni au clavier ni
     // au doigt. « Passées » seulement si une écriture l'est vraiment — un parc entièrement amorti
@@ -10387,9 +10391,26 @@
       <tbody>${d.aCreer.slice(0, 12).map((l, k) => `<tr>
         <td class="nw">${esc(fmtJour(l.date))}</td><td class="tronq" title="${esc(l.libelle)}">${esc(l.libelle)}</td>
         <td class="nw">${esc(l.compte)}</td><td class="r nw">${esc(money(l.montant))}</td>
-        <td class="row-actions"><button class="btn btn-sm${k === 0 ? ' btn-primary' : ''}" data-creer="${esc(l.docId)}">Créer la fiche du bien…</button></td>
+        <td class="row-actions">${KC.bienDuClientPourLaLigne(s.livre, l, d.biens)
+    ? `<button class="btn btn-sm${k === 0 ? ' btn-primary' : ''}" data-creer="${esc(l.docId)}" title="${esc(dossier.name || 'Le client')} a déjà la fiche de ce bien dans son SkanFact : sa durée et sa mise en service se reprennent">Reprendre la fiche du client…</button>`
+    : `<button class="btn btn-sm${k === 0 ? ' btn-primary' : ''}" data-creer="${esc(l.docId)}">Créer la fiche du bien…</button>`}</td>
       </tr>`).join('')}</tbody></table></div>${d.aCreer.length > 12
     ? `<p class="small mt">… et ${esc(pl(d.aCreer.length - 12, 'autre ligne', 'autres lignes'))} : elles remontent ici à mesure que les fiches se créent.</p>` : ''}</div>` : ''}
+    ${duClient.length ? `<div class="panel mt" id="im-client"><h2>Les biens tenus par ${esc(dossier.name || 'le client')} dans son SkanFact</h2>
+      <p class="small muted">Ses fiches, avec le plan qu'il voit : tu les lis, tu ne les modifies pas. Ta fiche se reprend de la sienne,
+        et un plan qui diffère du sien se dit ici.</p>
+      <div class="scroll-x"><table class="list compact"><thead><tr><th>Bien</th><th class="nw">Mise en service</th><th class="r nw">Durée</th>
+        <th class="r nw">Valeur</th><th class="r">Dotation ${esc(s.annee)}</th><th class="r nw">VNC</th><th>Dans ton registre</th></tr></thead>
+      <tbody>${duClient.map(b => `<tr data-bien="${esc(b.id)}">
+        <td class="tronq" title="${esc(b.fiche.libelle)}">${esc(b.fiche.libelle)}${b.sorti ? ` <span class="badge b-part">${b.fiche.cession.prix ? 'cédé' : 'rebut'} le ${esc(fmtJour(b.fiche.cession.date))}</span>` : ''}</td>
+        <td class="nw">${esc(fmtJour(b.fiche.dateMiseEnService))}</td><td class="r nw">${esc(String(b.fiche.duree).replace('.', ','))} an${b.fiche.duree >= 2 ? 's' : ''}</td>
+        <td class="r nw">${esc(money(b.fiche.valeur))}</td><td class="r nw">${esc(money(b.dotation))}</td>
+        <td class="r nw">${esc(money(b.sorti ? 0 : KC.round3(b.fiche.valeur - b.cumul)))}</td>
+        <td>${!b.tenue ? `<button class="btn btn-sm${suivante === 'reprendre' && b === aReprendre[0] ? ' btn-primary' : ''}" data-reprendre="${esc(b.id)}">Reprendre sa fiche…</button>`
+    : !b.ecarts.length ? '<span class="badge b-paid">même plan</span>'
+      : `<span class="badge b-part">plan différent</span><div class="small muted im-ecarts">${b.ecarts.map(esc).join(' · ')}</div>${b.ecrite
+    ? '<div class="small ambre im-ecrite">Une dotation de ce bien est déjà passée : retire-la d\'abord de la Saisie pour reprendre son plan.</div>' : ''}
+        <button class="btn btn-sm btn-ghost mt" data-aligner="${esc(b.id)}">Reprendre son plan…</button>`}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
     <div class="panel mt"><h2>Les biens de l'exercice ${info('im.tableau')}</h2>
       ${!e.rows.length
     ? `<div class="empty mini">Aucun bien sur cet exercice. <button class="btn btn-sm" id="im-neuf2">Ajouter un bien…</button></div>`
@@ -10465,12 +10486,32 @@
     $$('[data-creer]', el).forEach(b => {
       b.onclick = () => {
         const l = (s.immo.aCreer || []).find(x => x.docId === b.dataset.creer);
+        const duClient = l && KC.bienDuClientPourLaLigne(s.livre, l, s.immo.biens);
+        if (duClient) { immoForm(root, dossier, { ...KC.ficheDuClient(duClient), origine: { source: 'paquet', docId: l.docId, mois: String(l.date).slice(0, 7) } }); return; }
         // 10.10.0 (C-10) — une ligne datée du PREMIER JOUR de l'exercice est un à-nouveau : elle
         // porte un bien (ou tout un parc) DÉJÀ amorti. La date proposée n'est donc pas sa date de
         // mise en service, et le formulaire le dit avant qu'on l'enregistre.
         if (l) immoForm(root, dossier, { libelle: l.libelle, compte: l.compte, valeur: l.montant, dateAcquisition: l.date, dateMiseEnService: l.date,
           reprise: l.date === (s.livre.exercice || {}).du || /nouveau/i.test(l.libelle || ''),
           origine: { source: 'paquet', docId: l.docId, mois: String(l.date).slice(0, 7) } });
+      };
+    });
+    // (1.314.0) Reprendre la fiche du client : le formulaire s'ouvre avec SON plan (nom, valeur, durée, mise en service, sortie),
+    // les comptes restent ceux du cabinet ; rien ne s'enregistre sans « Ajouter ». Son plan, sur une fiche déjà reprise, de même
+    // (le nom que le comptable a donné au bien reste le sien : c'est le plan qu'on reprend).
+    const duClientDe = id => (s.immo.duClient || []).find(x => x.id === id);
+    $$('[data-reprendre]', el).forEach(b => {
+      b.onclick = () => {
+        const x = duClientDe(b.dataset.reprendre);
+        if (x) immoForm(root, dossier, { ...x.fiche, reprise: false, origine: { source: 'client', docId: x.id, mois: '' } });
+      };
+    });
+    $$('[data-aligner]', el).forEach(b => {
+      b.onclick = () => {
+        const x = duClientDe(b.dataset.aligner);
+        const f = x && (s.immo.fiches || []).find(y => y.id === x.tenue);
+        if (f) immoForm(root, dossier, { ...f, valeur: x.fiche.valeur, residuelle: x.fiche.residuelle, duree: x.fiche.duree,
+          methode: 'lineaire', dateMiseEnService: x.fiche.dateMiseEnService, dateAcquisition: x.fiche.dateAcquisition, cession: x.fiche.cession });
       };
     });
     bindRowMenus(el, cle => {

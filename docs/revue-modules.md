@@ -846,7 +846,7 @@ l'État (la fiche de chaque fournisseur la dit).
 
 Suivant : la caisse.
 
-## La caisse
+## La caisse, vue de partout (seconde passe)
 
 ### Fait en 1.313.0 (07/11/2026) : le tiroir compté est la caisse de la Trésorerie, du livre et du comptable
 
@@ -871,4 +871,35 @@ de marchandises) : le compte se règle dans le plan comptable du dossier, À VÉ
 article, bien ou service, serait plus juste) ; le manque du Z va au 658, À VÉRIFIER aussi ; la caisse vend un article suivi
 en stock qui n'en a plus sans le dire au comptoir.
 
-Suivant : le stock.
+Suivant : les immobilisations (le stock a été joué en 1.284).
+
+## Les immobilisations
+
+### Fait en 1.314.0 (07/11/2026) : un seul registre pour l'entreprise et son comptable
+
+Joué par l'épicerie de Sfax sur l'exercice passé. Nour crée la fiche de la vitrine réfrigérée achetée en mars (une ligne
+d'achat marquée « immobilisation », posée le 15/03, cinq jours après la facture), garde l'utilitaire de l'an d'avant, revend
+la vieille balance 120 DT fin septembre à l'épicerie voisine et lui en émet la facture. Sonia, sa comptable, ouvre les
+immobilisations du dossier, reprend les fiches, passe les écritures d'inventaire ; Nour change ensuite deux fois d'avis sur
+la durée de la vitrine (7 ans, puis 6).
+
+| # | Trouvé | Fait |
+|---|---|---|
+| I1 | Deux registres pour une entreprise (« à réunir », 29/09/2026) : le Cabinet ne voyait aucune des fiches que le client tient dans son SkanFact ; il recréait chaque bien de mémoire (« Aucun bien sur cet exercice »), avec le risque de deux plans d'amortissement pour un seul bien. | Le Cabinet LIT les biens du client (règle de la base 0197, sous un mandat qui comprend la comptabilité ; jamais il ne les écrit) : « Les biens tenus par … dans son SkanFact », avec le plan que le client voit (le même moteur), et pour chacun « Reprendre sa fiche… » (le formulaire s'ouvre avec sa durée, sa mise en service, sa valeur, sa sortie ; rien ne s'enregistre sans « Ajouter »). La ligne de l'achat au compte 22 dont le client a déjà la fiche dit « Reprendre la fiche du client… ». |
+| I2 | Un plan qui diverge ne se voyait d'aucun côté. | « même plan », ou « plan différent » et ce qui diffère (« 5 ans ici, 7 ans chez le client »), avec « Reprendre son plan… » (le nom que le comptable a donné au bien reste le sien : il se reconnaît par l'achat d'où il est né). Une dotation déjà passée le dit avant le geste (« retire-la d'abord de la Saisie ») ; le refus de la v10 reste. |
+| I3 | La facture qui revend un bien (née de sa fiche) s'écrivait en ventes (706), chez l'entreprise comme chez le comptable. | Aux produits des cessions d'immobilisations (775), des deux côtés (le journal de l'entreprise et les écritures du serveur, base 0197) ; la carte « Facturé » de l'accueil dit « dont 120,000 de revente d'un bien ». |
+| I4 | La fiche d'un bien montrait le plan de l'ancienne date de mise en service (727,500 DT au lieu de 715,000) tant qu'on ne tapait rien d'autre ; la fenêtre de sortie, la valeur nette de l'ancienne date de sortie. | L'aperçu suit la date validée en quittant son champ. |
+
+Vérifié en jouant : le tableau de l'exercice de l'entreprise (66 500,000 DT, dotation 13 212,500 DT, cumul 25 032,778 DT,
+VNC 41 467,222 DT) est celui du Cabinet au millime, puis 13 008,214 DT des deux côtés quand la vitrine passe à 7 ans ; la
+sortie de la balance (VNC 86,667 DT, plus-value 33,333 DT) et sa facture se retrouvent dans « Sorties et cessions » ; les
+écritures d'inventaire passent (quatre : trois dotations et la sortie) ; la balance du Cabinet et le journal de l'entreprise
+portent 120,000 DT au 775, rien au 706.
+
+Limites connues : les comptes 775 et 675 sont ceux du plan par défaut, À VÉRIFIER avec un comptable (le plan du dossier les
+règle) ; la TVA sur la revente d'un bien d'occasion reste à confirmer (À VÉRIFIER) ; le livre du Cabinet ne porte la valeur
+d'un bien acheté avant SkanFact qu'avec sa balance d'ouverture (reprise ou FEC), pas depuis la fiche du client ;
+l'entreprise ne voit pas encore le plan que son cabinet a retenu quand il diffère du sien ; « Passer les écritures
+d'inventaire (3) » compte les biens, le message compte les écritures (quatre : la balance a une dotation et une sortie).
+
+Suivant : les récurrentes (facturation récurrente).

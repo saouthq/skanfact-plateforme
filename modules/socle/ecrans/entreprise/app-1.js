@@ -3787,6 +3787,8 @@
     const sumHT = list => list.reduce((s, d) => s + sign(d) * enDinars(d, C.computeTotals(d, company()).netHT), 0);
     const sumTTC = list => list.reduce((s, d) => s + sign(d) * enDinars(d, C.computeTotals(d, company()).totalTTC), 0);
     const ofMonth = issued.filter(d => d.date && d.date.startsWith(month));
+    // (1.314.0) La revente d'un bien est facturée, mais ce n'est pas du chiffre d'affaires (775 chez le comptable) : la carte le dit.
+    const cessionsMois = sumHT(ofMonth.filter(d => C.estCession(d, data)));
     const ofYear = issued.filter(d => d.date && d.date.startsWith(year));
     const open = data.documents.filter(d => d.type === 'facture' && ['envoyée', 'partielle', 'retard'].includes(effStatus(d)));
     const openAmount = open.reduce((s, d) => s + enDinars(d, balance(d).remaining), 0);
@@ -3872,7 +3874,7 @@
         ${commercial ? carteDevis() : ''}
         ${carte('encaisser', 'On te doit', nb(openAmount), open.length ? `${h(cur)} · ${pl(open.length, 'facture')}` : 'rien à encaisser', open.length ? (late.length ? `dont ${nb(lateAmount)} en retard` : 'rien en retard') : '', late.length ? 'alerte' : '', open.length ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : 'Aucune facture ne reste à encaisser')}
         ${commercial ? '' : carte('dois', 'Tu dois', nb(doisTout), dettes.length ? `${h(cur)} · ${pl(dettes.length, 'achat')}${dette.aDeduire > 0.0005 ? `, ${dette.avoirs.length > 1 ? 'avoirs déduits' : 'avoir déduit'}` : ''}` : 'rien à payer', dettes.length ? (doisRetard > 0.0005 ? `dont ${nb(doisRetard)} en retard` : 'rien en retard') : '', doisRetard > 0.0005 ? 'alerte' : '', 'Voir les achats à payer')}
-        ${commercial ? '' : carte('ca-mois', `Facturé en ${nomMois(month)}`, nb(sumHT(ofMonth)), `${h(cur)} HT · ${nb(sumTTC(ofMonth))} TTC`, `${nomMois(moisAvant)} : ${nb(sumHT(ofAvant))}`, '', 'Voir le journal des ventes du mois')}
+        ${commercial ? '' : carte('ca-mois', `Facturé en ${nomMois(month)}`, nb(sumHT(ofMonth)), `${h(cur)} HT · ${nb(sumTTC(ofMonth))} TTC${cessionsMois > 0.0005 ? ` · dont ${nb(cessionsMois)} de revente d'un bien` : ''}`, `${nomMois(moisAvant)} : ${nb(sumHT(ofAvant))}`, '', 'Voir le journal des ventes du mois')}
         ${commercial ? '' : carteDevis()}
       </div>
       ${metierCommence() && !commercial ? pas : ''}

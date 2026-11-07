@@ -60,8 +60,10 @@ export async function ecrituresDeLaFamille(tx: Transaction, entreprise: string, 
   const deviseDe = (code: string): Devise => devises.get(code) ?? { code, decimales: 3 };
   const enDevise = (p: PieceLue) => ({ devise: deviseDe(p.devise), cours: p.cours ?? undefined });
   const client = compteClient(plan, f.tiers);
+  // (1.314.0) La facture qui revend un bien de l'entreprise (et ses avoirs) : son prix va aux produits des cessions (775).
+  const cession = (await tx.query('select ventes.est_une_cession($1, $2) c', [entreprise, facture])).rows[0]?.c === true;
   const comptesVente = {
-    clients: client, ventes: plan.plan.ventes, tvaCollectee: plan.plan.tvaCollectee, timbre: plan.plan.timbre, fodec: plan.plan.fodec,
+    clients: client, ventes: cession ? plan.plan.produitsCession : plan.plan.ventes, tvaCollectee: plan.plan.tvaCollectee, timbre: plan.plan.timbre, fodec: plan.plan.fodec,
     gainsChange: plan.plan.gainsChange, pertesChange: plan.plan.pertesChange, retenueSubie: plan.plan.rsSubie,
   };
   const numeroF = f.numero_texte ?? '';

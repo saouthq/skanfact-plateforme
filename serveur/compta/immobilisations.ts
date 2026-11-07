@@ -11,6 +11,7 @@ import type { Route } from '../app.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import { ECRITURE, estJour, versLaBase } from './saisie.ts';
+import { estObjet } from '../v10/lecture.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
@@ -82,6 +83,21 @@ function versLApi(f: FicheBase) {
   };
 }
 
+// (1.314.0) Un bien du dossier du client (`assets` de la v10) → ce que son cabinet en lit. Un nombre non entier y est rangé
+// en texte exact (`{ "~n": "650.5" }`, pont.js) : il ressort tel quel, jamais arrondi.
+const texteDe = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+const nombreV10 = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? String(v)
+  : estObjet(v) && typeof v['~n'] === 'string' ? v['~n'] : '0');
+function bienDuClient(cle: string, b: Record<string, unknown>, achats: Map<string, string>) {
+  const sortie = estObjet(b.disposal) && texteDe(b.disposal.date) ? b.disposal : null;
+  return {
+    id: cle, libelle: texteDe(b.label).slice(0, 200), famille: texteDe(b.category).slice(0, 40), date: texteDe(b.date).slice(0, 10),
+    valeur: nombreV10(b.amount), residuelle: nombreV10(b.residual), duree: nombreV10(b.years),
+    achat: achats.get(texteDe(b.purchaseId)) ?? '',
+    sortie: sortie ? { date: texteDe(sortie.date).slice(0, 10), prix: nombreV10(sortie.amount), motif: texteDe(sortie.reason).slice(0, 200) } : null,
+  };
+}
+
 const ECRIRE = z.object({
   annee: z.number().int().min(1900).max(2999),
   pieces: z.array(z.object({ immobilisation: uuid, genre: z.enum(['dotation', 'subvention', 'cession']), ecriture: ECRITURE }).strict()).min(1).max(1000),
@@ -100,12 +116,20 @@ export function routesImmobilisations(ctx: Contexte): Route<never>[] {
       const fiches = (await tx.query('select id, fiche, revision from compta.immobilisation where entreprise = $1 order by cree_le, id', [params.entreprise ?? ''])).rows;
       const liens = (await tx.query(`select l.immobilisation, l.annee, l.genre, l.ecriture from compta.immobilisation_ecriture l
           where l.entreprise = $1 and compta.ecriture_vivante(l.ecriture) order by l.annee, l.genre`, [params.entreprise ?? ''])).rows;
+      // (1.314.0) Les biens que le client tient dans son SkanFact (`assets`, 0197) : lus, jamais écrits, et seulement ce qui
+      // fait leur plan (pas leurs notes ni leur fournisseur). Un registre pour une entreprise.
+      const biens = (await tx.query(`select cle, contenu from socle.dossier_v10 where entreprise = $1 and collection = 'assets'
+          order by rang, cle collate "C"`, [params.entreprise ?? ''])).rows.filter((b) => estObjet(b.contenu));
+      const refs = [...new Set(biens.map((b) => texteDe((b.contenu as Record<string, unknown>).purchaseId)).filter(Boolean))];
+      const achats = new Map(refs.length ? (await tx.query('select ref, piece from compta.achats_des_biens($1, $2)', [params.entreprise ?? '', refs])).rows
+        .map((a) => [a.ref as string, a.piece as string]) : []);
       return {
         corps: {
           immobilisations: fiches.map((f) => ({
             id: f.id, revision: Number(f.revision), fiche: versLApi(f.fiche as FicheBase),
             ecritures: liens.filter((l) => l.immobilisation === f.id).map((l) => ({ annee: Number(l.annee), genre: l.genre, ecriture: l.ecriture })),
           })),
+          duClient: biens.map((b) => bienDuClient(b.cle as string, b.contenu as Record<string, unknown>, achats)),
         },
       };
     },

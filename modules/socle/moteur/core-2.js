@@ -2444,9 +2444,10 @@
             e.credit(cptClient(r.clientId), label, b, { role: 'clients' });
           }
         }
+        const cptVente = estCession(docsById[r.id], data) ? acc.produitsCession : acc.ventes;
         VAT_RATES.forEach(rate => {
           const v = r.vatByRate[rate];
-          if (v && v.base) e.credit(acc.ventes, `${label} (HT ${rate} %)`, v.base, { vatRate: rate });
+          if (v && v.base) e.credit(cptVente, `${label} (HT ${rate} %)`, v.base, { vatRate: rate });
           if (v && v.vat) e.credit(acc.tvaCollectee, `TVA ${rate} % — ${r.number}`, v.vat, { vatRate: rate });
         });
         if (r.timbre) e.credit(acc.timbre, `Timbre fiscal ${r.number}`, r.timbre);
@@ -6594,6 +6595,14 @@
   const CLIENT_COMPTOIR = 'Vente au comptoir';
   const MODES_CAISSE = [['especes', 'Espèces'], ['carte', 'Carte'], ['cheque', 'Chèque']];
   function estTicket(d) { return !!(d && d.type === 'facture' && d.ticket); }
+  // (plateforme 1.314.0) La facture qui revend un bien de l'entreprise (née de sa fiche, `assetId`) et l'avoir qui la corrige :
+  // leur prix n'est pas une vente du métier, c'est le produit d'une cession (775), hors du chiffre d'affaires du comptable.
+  function estCession(d, data) {
+    if (!d) return false;
+    if (d.type === 'facture') return !!d.assetId;
+    const f = d.type === 'avoir' && d.creditOf ? ((data && data.documents) || []).find(x => x.id === d.creditOf) : null;
+    return !!(f && f.type === 'facture' && f.assetId);
+  }
   // (1.313.0) Le retour d'un article de caisse : l'avoir d'un ticket. Il se nomme comme son ticket (« Vente au comptoir »
   // quand le ticket n'avait pas de client) : l'accueil, la liste des factures et le journal des ventes disaient « — ».
   function estRetourDeTicket(d, data) { return !!(d && d.type === 'avoir' && d.creditOf && estTicket(((data && data.documents) || []).find(x => x.id === d.creditOf))); }
@@ -7463,7 +7472,7 @@
 
   const api = {
     enLot, duLot,
-    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
+    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, estCession, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
     VAT_RATES, WITHHOLDING_RATES, PAYMENT_METHODS, PREFIX, TITLES, DEFAULT_DATA, DEFAULT_COMPANY, ACTIVITIES, STATUSES, STATUT_ENVOI, DISPLAY_STATUSES, STATUS_LABELS,
     REGIMES, regimeOf, regimeSuggere, tfpSuggere, assujettiTVA, mentionTVA, estLiberal, docLabel, ribAttendu,
     DOC_FILTRES, docFiltre,

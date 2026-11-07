@@ -653,15 +653,14 @@
       }),
     };
   }
-  // Les biens de l'entreprise (brique 42), dans la forme de la v10 : une fiche par bien pour toute la
-  // vie de l'entreprise, son plan recalculé par la v10, chaque année écrite retenant l'écriture qui
-  // porte sa dotation ou sa sortie (le serveur ne rend que celles qui valent encore).
-  /** @type {Map<string, number>} */
-  const revisionsImmo = new Map();
+  // Les biens de l'entreprise (brique 42), dans la forme de la v10 : une fiche par bien pour toute la vie de l'entreprise, son plan
+  // recalculé par la v10, chaque année écrite retenant l'écriture de sa dotation ou de sa sortie (le serveur rend celles qui valent).
+  // (1.314.0) Et ceux que le client tient dans son SkanFact (`duClient`), lus, jamais écrits : un registre pour une entreprise.
+  /** @type {Map<string, number>} */ const revisionsImmo = new Map(); /** @type {Map<string, any[]>} */ const biensClient = new Map();
   /** @param {string} ent */
   async function immobilisationsDe(ent) {
     /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
-    const r = await appel('GET', `/entreprises/${ent}/compta/immobilisations`);
+    const r = await appel('GET', `/entreprises/${ent}/compta/immobilisations`); biensClient.set(ent, (r.duClient || []).map((/** @type {any} */ b) => ({ ...b, valeur: nombre(b.valeur), residuelle: nombre(b.residuelle), duree: nombre(b.duree), sortie: b.sortie ? { ...b.sortie, prix: nombre(b.sortie.prix) } : null })));
     return (r.immobilisations || []).map((/** @type {any} */ x) => {
       revisionsImmo.set(x.id, x.revision);
       const f = x.fiche;
@@ -2045,7 +2044,8 @@
     immobilisations: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = await livreDe(o.dossierId, o.annee);
-      return { etat: KC.etatImmobilisations(livre, o.annee), aCreer: KC.immobilisationsACreer(livre, o.annee), aEcrire: KC.ecrituresImmobilisations(livre, o.annee), fiches: livre.immobilisations };
+      const biens = biensClient.get(o.dossierId) || [];
+      return { etat: KC.etatImmobilisations(livre, o.annee), aCreer: KC.immobilisationsACreer(livre, o.annee), aEcrire: KC.ecrituresImmobilisations(livre, o.annee), fiches: livre.immobilisations, biens, duClient: KC.biensDuClient(livre, biens, o.annee) };
     },
     saveImmobilisation: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;

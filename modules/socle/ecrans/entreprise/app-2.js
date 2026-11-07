@@ -2495,7 +2495,9 @@
           if (!yearsTouched && e.target.value) $('input[name=years]', root).value = C.assetClassYears(e.target.value);
           hint();
         };
-        $('#imf', root).oninput = hint; hint();
+        // (1.314.0) Une date se valide en quittant son champ (« change » sur le champ caché) : l'aperçu la suit, sinon il
+        // montrait le plan de l'ancienne date (vitrine posée le 15/03, plan calculé au 10/03).
+        $('#imf', root).oninput = hint; $('#imf', root).onchange = hint; hint();
         $('#ok', root).onclick = () => {
           const v = formValues($('#imf', root));
           // Un refus MONTRE le champ (7.20.0) : sept champs, et un bandeau de 2,6 secondes.
@@ -2587,7 +2589,7 @@
           el.innerHTML = annonceSortie(r, Number(v.amount) > 0, cur)
             + (tva ? `<div class="small warn-text mt">${tva}</div>` : '');
         };
-        $('#dsf', root).oninput = hint; hint();
+        $('#dsf', root).oninput = hint; $('#dsf', root).onchange = hint; hint();
         $('#ok', root).onclick = async () => {
           const v = formValues($('#dsf', root));
           const champ = n => $(`#dsf [name=${n}]`, root);

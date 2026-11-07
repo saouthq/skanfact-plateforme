@@ -4205,6 +4205,58 @@
     return out.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
 
+  // (plateforme 1.314.0) Les biens que le CLIENT tient dans son SkanFact (`data.assets`), lus par son cabinet : un seul
+  // registre pour une entreprise (« deux registres, à réunir », 29/09/2026). Le cabinet ne les écrit jamais ; il les voit
+  // avec le plan que le client voit (le même moteur, `assetSchedule`), et sa propre fiche se reprend de la leur. Un bien
+  // se reconnaît dans le registre du cabinet par sa fiche reprise (`origine` « client » + l'identifiant du bien), par
+  // l'achat dont il est né (la ligne au compte 22 de cet achat, de même montant), sinon par son nom, sa valeur et sa date.
+  const ficheDuClient = b => ({
+    libelle: txt(b.libelle), valeur: num(b.valeur), residuelle: num(b.residuelle), duree: num(b.duree), methode: 'lineaire',
+    tauxDegressif: null, bascule: false, dateMiseEnService: txt(b.date), dateAcquisition: txt(b.date),
+    cession: b.sortie && txt(b.sortie.date) ? { date: txt(b.sortie.date), prix: num(b.sortie.prix), motif: num(b.sortie.prix) ? 'cession' : 'rebut' } : null
+  });
+  function biensDuClient(livre, biens, annee) {
+    const y = Number(annee) || 0;
+    const fiches = livre.immobilisations || [];
+    const parId = new Map((livre.ecritures || []).map(e => [e.id, e]));
+    // La pièce d'origine d'une fiche née d'une ligne du livre (« id#rang ») : l'achat que la ligne porte.
+    const achatDe = f => { const e = f.origine && parId.get(txt(f.origine.docId).split('#')[0]); return e ? txt(e.docId) : ''; };
+    const jour = fmtJour, money = v => fmtMontant(v, 'DT'), ans = n => `${String(n).replace('.', ',')} an${n >= 2 ? 's' : ''}`;
+    return (biens || []).map(b => {
+      const fiche = ficheDuClient(b);
+      const ligne = planDuBien(fiche).find(p => p.annee === y);
+      const tenue = fiches.find(f => f.origine && f.origine.source === 'client' && f.origine.docId === txt(b.id))
+        || (txt(b.achat) && fiches.find(f => achatDe(f) === txt(b.achat) && Math.abs(num(f.valeur) - fiche.valeur) < 0.0005))
+        || fiches.find(f => txt(f.libelle).toLowerCase() === fiche.libelle.toLowerCase() && Math.abs(num(f.valeur) - fiche.valeur) < 0.0005
+          && (txt(f.dateMiseEnService) || txt(f.dateAcquisition)) === fiche.dateMiseEnService) || null;
+      const ecarts = [];
+      if (tenue) {
+        if (Math.abs(num(tenue.valeur) - fiche.valeur) >= 0.0005) ecarts.push(`valeur ${money(num(tenue.valeur))} ici, ${money(fiche.valeur)} chez le client`);
+        if (Math.abs(num(tenue.duree) - fiche.duree) >= 0.005) ecarts.push(`${ans(num(tenue.duree))} ici, ${ans(fiche.duree)} chez le client`);
+        const mes = txt(tenue.dateMiseEnService) || txt(tenue.dateAcquisition);
+        if (mes !== fiche.dateMiseEnService) ecarts.push(`mis en service le ${jour(mes)} ici, le ${jour(fiche.dateMiseEnService)} chez le client`);
+        if (Math.abs(num(tenue.residuelle) - fiche.residuelle) >= 0.0005) ecarts.push(`valeur résiduelle ${money(num(tenue.residuelle))} ici, ${money(fiche.residuelle)} chez le client`);
+        if (txt(tenue.methode) === 'degressif') ecarts.push('dégressif ici, linéaire chez le client');
+        const ct = tenue.cession, cc = fiche.cession;
+        if (cc && !ct) ecarts.push(`sorti le ${jour(cc.date)} chez le client${cc.prix ? ` (vendu ${money(cc.prix)})` : ''}, toujours à l'actif ici`);
+        else if (ct && !cc) ecarts.push(`sorti le ${jour(ct.date)} ici, toujours à l'actif chez le client`);
+        else if (ct && cc && (txt(ct.date) !== cc.date || Math.abs(num(ct.prix) - cc.prix) >= 0.0005)) ecarts.push(`sortie du ${jour(ct.date)} à ${money(num(ct.prix))} ici, du ${jour(cc.date)} à ${money(cc.prix)} chez le client`);
+      }
+      return { id: txt(b.id), achat: txt(b.achat), fiche, dotation: ligne ? ligne.dotation : 0,
+        cumul: ligne ? ligne.cumul : round3(cumulDuBien(fiche, `${y}-12-31`)),
+        sorti: !!(fiche.cession && Number(fiche.cession.date.slice(0, 4)) <= y), tenue: tenue ? tenue.id : '', ecarts,
+        // Une dotation de la fiche du cabinet déjà passée : son plan ne se reprend qu'une fois l'écriture retirée (C29).
+        ecrite: !!(tenue && (tenue.plan || []).some(p => p && p.ecritureId)),
+        actif: fiche.dateMiseEnService <= `${y}-12-31` && !(fiche.cession && Number(fiche.cession.date.slice(0, 4)) < y) };
+    }).filter(r => r.actif).sort((a, b) => a.fiche.dateMiseEnService.localeCompare(b.fiche.dateMiseEnService));
+  }
+  // La ligne du livre (à créer) dont le client a déjà la fiche : la même pièce d'achat, le même montant.
+  function bienDuClientPourLaLigne(livre, ligne, biens) {
+    const e = (livre.ecritures || []).find(x => x.id === ligne.ecritureId);
+    const achat = e ? txt(e.docId) : '';
+    return (achat && (biens || []).find(b => txt(b.achat) === achat && Math.abs(num(b.valeur) - num(ligne.montant)) < 0.0005)) || null;
+  }
+
   // Les écritures d'inventaire des immobilisations, au dernier jour de l'exercice. Une pièce par
   // bien : « 14 biens » sur une seule pièce serait équilibré et illisible, et la première question
   // du comptable devant un cumul est toujours « lequel ? ».

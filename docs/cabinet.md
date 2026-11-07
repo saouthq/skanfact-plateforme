@@ -1064,10 +1064,22 @@ sa fiche créée sur cinq ans, la dotation de 2025 écrite au millime (6 000,100
 liée ; puis la durée qui ne change plus et le bien qui ne se supprime pas.
 
 **Reste connu** :
-- Les immobilisations que l'**entreprise** tient dans son propre SkanFact (son écran « Immobilisations »
-  de la v10) ne sont pas encore ce registre : deux registres pour une entreprise, à réunir.
+- ~~Les immobilisations que l'**entreprise** tient dans son propre SkanFact ne sont pas encore ce registre~~ :
+  réunies le 07/11/2026 (1.314.0, C29 bis ci-dessous).
 - Une reprise de subvention n'est pas liée à son bien (comme dans la v10) : elle se propose tant que
   l'année a une dotation ou une sortie à écrire.
+
+**C29 bis. Un registre pour une entreprise : le Cabinet lit les biens du client** (07/11/2026, 1.314.0, par délégation ;
+migration `0197`). Sous un mandat qui comprend la comptabilité, le Cabinet LIT les fiches de biens que le client tient
+dans son SkanFact (`assets` de son dossier), jamais il ne les écrit. **Ce qui sort** (compté) : le nom du bien, sa famille,
+sa mise en service, sa valeur, sa valeur résiduelle, sa durée, sa sortie (date, prix, motif) et la pièce du serveur de
+l'achat d'où il est né ; ni ses notes ni son fournisseur. L'écran « Les biens tenus par … dans son SkanFact » montre leur
+plan (le même moteur que celui du client) ; « Reprendre sa fiche… » ouvre le formulaire du Cabinet avec ce plan ; un bien
+se reconnaît dans le registre par sa fiche reprise (origine « client »), par l'achat dont il est né (la ligne au compte 22
+de même montant), sinon par son nom, sa valeur et sa date. Un plan qui diffère se dit (« 5 ans ici, 7 ans chez le
+client »), avec « Reprendre son plan… » ; une dotation passée le bloque (C29), et la ligne le dit avant le geste. Et la
+facture qui revend un bien (née de sa fiche, `assetId`) va aux produits des cessions (775), pas aux ventes (706), chez le
+client comme au serveur (`ventes.est_une_cession`).
 
 ## Brique 42 bis : l'inventaire de stock (fait le 29/09/2026)
 

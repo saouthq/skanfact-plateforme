@@ -25713,6 +25713,66 @@ prouver 'le journal des ventes nomme le retour de caisse « — »' "$CORE1" \
   "client: clientName(d.clientId) || (estTicket(d) || estRetourDeTicket(d, data) ? CLIENT_COMPTOIR : '')," "client: clientName(d.clientId) || (estTicket(d) ? CLIENT_COMPTOIR : '')," \
   "$T313"
 
+# (1.314.0) Les Immobilisations jouées (l'épicerie de Sfax et sa comptable) : un seul registre des biens pour une entreprise
+# et son cabinet. Le Cabinet lit les fiches que le client tient dans son SkanFact (0197), les voit avec le plan du client,
+# reprend la sienne d'un geste et voit tout plan qui diffère (une dotation passée le dit avant le geste). La facture qui
+# revend un bien va aux produits des cessions (775), chez l'entreprise et au serveur. L'aperçu du plan et de la sortie suit
+# la date validée en quittant son champ.
+APP2=modules/socle/ecrans/entreprise/app-2.js
+APP1=modules/socle/ecrans/entreprise/app-1.js
+CAB1=modules/socle/ecrans/cabinet/app-1.js
+COMPTA1=modules/socle/moteur/compta-1.js
+CORE2=modules/socle/moteur/core-2.js
+T314="l'épicerie de Sfax tient son matériel : la vitrine achetée en mars, l'utilitaire, la balance revendue, et le comptable lit le même plan"
+prouver 'le cabinet ne lit pas les biens du client' base/migrations/0197_biens_du_client_au_cabinet.sql \
+  "  collection = 'assets' and entreprise in (select compta.mes_entreprises()));" "  collection = 'assets' and false);" \
+  "$T314"
+prouver 'la route des immobilisations tait les biens du client' serveur/compta/immobilisations.ts \
+  "where entreprise = \$1 and collection = 'assets'" "where entreprise = \$1 and collection = 'aucun'" \
+  "$T314"
+prouver 'ce qui sort vers le cabinet porte les notes du client' serveur/compta/immobilisations.ts \
+  "id: cle, libelle: texteDe(b.label).slice(0, 200), famille:" "id: cle, notes: b.notes, libelle: texteDe(b.label).slice(0, 200), famille:" \
+  "$T314"
+prouver 'le pont du cabinet perd les biens du client' web/public/plateforme/pont-cabinet.js \
+  "biensClient.set(ent, (r.duClient || []).map(" "biensClient.set(ent, ([]).map(" \
+  "$T314"
+prouver 'la fiche née de la ligne d'\''achat ne retrouve pas le bien du client' "$COMPTA1" \
+  "|| (txt(b.achat) && fiches.find(f => achatDe(f) === txt(b.achat)" "|| (false && fiches.find(f => achatDe(f) === txt(b.achat)" \
+  "$T314"
+prouver 'la ligne au compte 22 ignore la fiche que le client a déjà' "$CAB1" \
+  "<td class=\"row-actions\">\${KC.bienDuClientPourLaLigne(s.livre, l, d.biens)" "<td class=\"row-actions\">\${false" \
+  "$T314"
+prouver 'reprendre la fiche du client ouvre un formulaire vide' "$CAB1" \
+  "if (x) immoForm(root, dossier, { ...x.fiche, reprise: false," "if (x) immoForm(root, dossier, { reprise: false," \
+  "$T314"
+prouver 'une durée qui diffère du client ne se dit pas' "$COMPTA1" \
+  "if (Math.abs(num(tenue.duree) - fiche.duree) >= 0.005) ecarts.push(" "if (false) ecarts.push(" \
+  "$T314"
+prouver 'reprendre son plan garde la durée du cabinet' "$CAB1" \
+  "residuelle: x.fiche.residuelle, duree: x.fiche.duree," "residuelle: x.fiche.residuelle, duree: f.duree," \
+  "$T314"
+prouver 'une dotation passée ne se dit qu'\''au refus' "$COMPTA1" \
+  "ecrite: !!(tenue && (tenue.plan || []).some(p => p && p.ecritureId))," "ecrite: false," \
+  "$T314"
+prouver 'la revente d'\''un bien va aux ventes chez l'\''entreprise' "$CORE2" \
+  "const cptVente = estCession(docsById[r.id], data) ? acc.produitsCession : acc.ventes;" "const cptVente = acc.ventes;" \
+  "$T314"
+prouver 'la revente d'\''un bien va aux ventes au serveur' serveur/compta/ventes.ts \
+  "ventes: cession ? plan.plan.produitsCession : plan.plan.ventes," "ventes: plan.plan.ventes," \
+  "$T314"
+prouver 'la base ne reconnaît pas la facture d'\''une cession' base/migrations/0197_biens_du_client_au_cabinet.sql \
+  "and coalesce(d.contenu->>'assetId', '') <> ''" "and false" \
+  "$T314"
+prouver 'l'\''accueil tait la revente d'\''un bien dans le facturé' "$APP1" \
+  "TTC\${cessionsMois > 0.0005 ? \` · dont" "TTC\${false ? \` · dont" \
+  "$T314"
+prouver 'le plan d'\''un bien garde l'\''ancienne date de mise en service' "$APP2" \
+  "\$('#imf', root).oninput = hint; \$('#imf', root).onchange = hint; hint();" "\$('#imf', root).oninput = hint; hint();" \
+  "$T314"
+prouver 'la sortie d'\''un bien garde l'\''ancienne date pour sa valeur nette' "$APP2" \
+  "\$('#dsf', root).oninput = hint; \$('#dsf', root).onchange = hint; hint();" "\$('#dsf', root).oninput = hint; hint();" \
+  "$T314"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

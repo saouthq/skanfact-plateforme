@@ -124,7 +124,7 @@
     bienVersActif, planDegressif, planDuBien, cumulDuBien, vncDuBien,
     resultatCession, repriseSubvention, immoValide,
     ajouterImmobilisation, modifierImmobilisation, supprimerImmobilisation,
-    etatImmobilisations, aReclamerImmobilisations, immobilisationsACreer, ecrituresImmobilisations, noterEcritureImmo,
+    etatImmobilisations, aReclamerImmobilisations, immobilisationsACreer, biensDuClient, bienDuClientPourLaLigne, ficheDuClient, ecrituresImmobilisations, noterEcritureImmo,
     inventaireValide, lignesInventaireDepuisTexte, totalInventaire, poserInventaire, variationDeStock,
     // La clôture d'exercice (9.8.0)
     GUIDES_INVENTAIRE, controlesCloture, soldesDepuisOuverture, soldesRepris,
