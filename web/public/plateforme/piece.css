@@ -156,6 +156,9 @@
 .ed-geste .btn-grand + .i { display: none; }
 .ed-phrase { margin: 0; font-size: 13px; color: var(--sb-gris); line-height: 1.45; }
 .ed-phrase.small { font-size: 12.5px; color: var(--sb-gris-2); }
+/* (1.302.0) Une pièce datée dans la période que le cabinet a validée : la phrase, en ambre, sous le bouton. */
+.ed-phrase.ac-cab-valide { display: flex; gap: 6px; align-items: flex-start; color: var(--sb-ambre-texte); }
+.ed-phrase.ac-cab-valide svg { flex: none; margin-top: 2px; }
 .ed-etat { display: flex; align-items: flex-start; gap: 8px; color: var(--sb-doux-texte); font-weight: 600; }
 .ed-etat svg { flex: none; margin-top: 1px; }
 .ed-deux { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -243,6 +246,8 @@
   /* (1.292.0) Sans bouton vert, la phrase calme EST l'étape : elle reste lisible au téléphone (sinon on ne voyait qu'un
      bouton secondaire, « Dupliquer » ou « Modifier »). */
   .ed-geste.ed-geste-calme .ed-phrase.ed-etat { display: flex; font-size: 14px; }
+  /* (1.302.0) L'avertissement d'une pièce dans la période validée par le cabinet se lit AVANT le geste, au téléphone aussi. */
+  .ed-geste .ed-phrase.ac-cab-valide:not([hidden]) { display: flex; }
   .ed-geste .ed-deux { grid-template-columns: minmax(0, 1fr); }
   .ed-geste .btn-grand { height: 48px; }
   #view:has(.ed-geste) { padding-bottom: 190px; }

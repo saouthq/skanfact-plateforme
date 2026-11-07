@@ -74,8 +74,13 @@ describe('l\'assemblage des écrans', () => {
   it('depuis le lot A1, les écrans et le moteur vivent sous modules/ : le Personnel coupé dans chacun, ses styles chez lui, les ponts encore à leur place', () => {
     const table = lireTable();
     for (const f of GROS) expect(Object.keys(table), f).toContain(f);
-    // Les deux ponts : encore leur unique morceau, sous web/public (les lots de fin, 17 § 5).
-    for (const f of GROS.filter((g) => g.startsWith('plateforme/'))) expect(table[f], f).toEqual([`web/public/${f}`]);
+    // Les deux ponts : leur premier morceau reste le pont lui-même, sous web/public (les lots de fin, 17 § 5) ; ce qui s'y
+    // ajoute vient d'un module, du dossier pont/ de ce module (1.301.0 : les livres du cabinet, modules/declarations/pont/).
+    // Le test d'avant exigeait l'unique morceau : il décrivait l'état du jour, il dit maintenant la règle (rouge de 1.301.0).
+    for (const f of GROS.filter((g) => g.startsWith('plateforme/'))) {
+      expect(table[f]?.[0], f).toBe(`web/public/${f}`);
+      for (const m of (table[f] ?? []).slice(1)) expect(m, f).toMatch(/^modules\/[a-z0-9-]+\/pont\/[a-z0-9-]+\.js$/);
+    }
     // Les autres : tous leurs morceaux sous modules/, plus rien à leur adresse sous web/public.
     for (const f of [...GROS.filter((g) => !g.startsWith('plateforme/')), 'plateforme/paie.css', 'plateforme/paie-maquette.css', 'plateforme/paie-cabinet.css']) {
       expect(table[f]?.length && table[f]?.every((m) => m.startsWith('modules/')), f).toBe(true);

@@ -958,7 +958,7 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.mg.cpt > .cf-carte > .cf-onglet > .panel { padding: 14px 16px 16px; }
 .lf.mg.cpt > .cf-carte > .cf-onglet > .panel + .panel { border-top: 1px solid var(--sb-trait); border-radius: 0; }
 .lf.mg.cpt > .cf-carte > .cf-onglet > .filters { padding: 14px 16px 0; margin: 0; }
-.lf.mg.cpt > .cf-carte > .cf-onglet > .stats { padding: 12px 16px; margin: 0; }
+.lf.mg.cpt > .cf-carte > .cf-onglet > .stats { padding: 0; margin: 14px 0 0; border-top: 1px solid var(--sb-trait); border-bottom: 1px solid var(--sb-trait); }
 .lf.mg.cpt .panel > h2 { font-size: 15px; }
 .lf.mg.cpt .cpt-cab { display: flex; gap: 6px; align-items: flex-start; margin: 10px 0 0; color: var(--sb-doux-texte); }
 .lf.mg.cpt .cpt-cab.warn-text { color: var(--sb-ambre-texte); }
@@ -977,4 +977,44 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lf.mg.cpt .mg-barre { flex-direction: column; align-items: stretch; }
   .lf.mg.cpt .sx-periode .sel { flex: 1 1 0; }
   .lf.mg.cpt .sx-periode .sel select { width: 100%; }
+}
+/* (1.302.0) L'intérieur des onglets de la Comptabilité dans la DA, comme les Marges et les Statistiques : les chiffres en
+   rangée, séparés d'un trait, sans tuile à bande de couleur (`.stats`, `.pay-grid`) ; les tableaux à pleine largeur de la
+   carte, sans cadre dans le cadre ; les colonnes des états côte à côte, séparées d'un trait. Les gestes, les identifiants et
+   le texte ne bougent pas. Chaque chiffre trace son trait à gauche et au-dessus de lui : la carte coupe ceux du bord, et une
+   rangée incomplète (sept chiffres sur quatre colonnes) ne laisse pas de case vide tracée. */
+.lf.mg.cpt .cf-onglet .stats:not(.rangee), .lf.mg.cpt .cf-onglet .pay-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; overflow: hidden; }
+.lf.mg.cpt .cf-onglet .panel > .stats:not(.rangee), .lf.mg.cpt .cf-onglet .panel > .pay-grid { margin: 12px -16px; border-top: 1px solid var(--sb-trait); border-bottom: 1px solid var(--sb-trait); }
+.lf.mg.cpt .cf-onglet .stats:not(.rangee) > .stat, .lf.mg.cpt .cf-onglet .pay-grid > div { min-width: 0; margin: 0; padding: 14px 16px; background: none; border: 0; border-radius: 0; box-shadow: -1px 0 0 var(--sb-trait), 0 -1px 0 var(--sb-trait); }
+.lf.mg.cpt .cf-onglet .stats > .stat::before { content: none; }
+.lf.mg.cpt .cf-onglet .stat .lbl, .lf.mg.cpt .cf-onglet .pay-grid .k-label { font-size: 12.5px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sb-gris); }
+.lf.mg.cpt .cf-onglet .stat .val, .lf.mg.cpt .cf-onglet .pay-grid .v { margin-top: 3px; font-size: 20px; font-weight: 700; letter-spacing: 0; color: var(--sb-encre); }
+.lf.mg.cpt .cf-onglet .stat .val.ok, .lf.mg.cpt .cf-onglet .pay-grid .v.ok { color: var(--sb-doux-texte); }
+.lf.mg.cpt .cf-onglet .stat .val.due, .lf.mg.cpt .cf-onglet .pay-grid .v.due { color: var(--sb-rouge-texte); }
+.lf.mg.cpt .cf-onglet .stat .sub { font-size: 12px; color: var(--sb-gris-2); }
+.lf.mg.cpt .cf-onglet .stat[data-cstat]:hover { transform: none; border: 0; background: var(--sb-survol); box-shadow: -1px 0 0 var(--sb-trait), 0 -1px 0 var(--sb-trait); }
+.lf.mg.cpt .cf-onglet .panel table.list { border: 0; border-top: 1px solid var(--sb-trait); border-radius: 0; box-shadow: none; background: none; }
+.lf.mg.cpt .cf-onglet .panel table.list th { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--sb-gris-2); background: var(--sb-papier-2); }
+.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]) { margin-inline: -16px; }
+.lf.mg.cpt .cf-onglet .panel > table.list { width: calc(100% + 32px); }
+.lf.mg.cpt .cf-onglet .panel table.list :is(th, td):first-child { padding-inline-start: 16px; }
+.lf.mg.cpt .cf-onglet .panel table.list :is(th, td):last-child { padding-inline-end: 16px; }
+.lf.mg.cpt .cf-onglet .panel > .scroll-x > table.list, .lf.mg.cpt .cf-onglet .panel > [id$="-wrap"] > table.list { width: 100%; }
+.lf.mg.cpt .cf-onglet > .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 0; border-top: 1px solid var(--sb-trait); }
+.lf.mg.cpt .cf-onglet > .split > .panel { margin: 0; padding: 14px 16px 16px; border: 0; border-radius: 0; box-shadow: none; background: none; }
+.lf.mg.cpt .cf-onglet > .split > .panel + .panel { border-inline-start: 1px solid var(--sb-trait); }
+.lf.mg.cpt .cf-onglet > .split > .panel > table.list + table.list { border-top: 0; }
+.lf.mg.cpt .cf-onglet .vat-box { max-width: 620px; }
+.lf.mg.cpt .cf-onglet .cpt-tel-seul { display: none; }
+@media (max-width: 760px) {
+  .lf.mg.cpt .cf-onglet .stats:not(.rangee), .lf.mg.cpt .cf-onglet .pay-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]) { margin-inline: 0; }
+  .lf.mg.cpt .cf-onglet .panel > table.list { width: 100%; }
+  .lf.mg.cpt .cf-onglet .panel table.list { border-top: 0; }
+  .lf.mg.cpt .cf-onglet > .split { grid-template-columns: 1fr; }
+  .lf.mg.cpt .cf-onglet > .split > .panel + .panel { border-inline-start: 0; border-top: 1px solid var(--sb-trait); }
+  /* Au téléphone, un mois de la TVA sans rien (ni vente, ni achat, ni crédit) ne fait plus sa carte : douze cartes, dont huit
+     de zéros, faisaient la page longue de 4 500 px. La phrase qui le dit les nomme (`#vat-mois-vides`). */
+  .lf.mg.cpt .cf-onglet tr.cpt-rien { display: none !important; }
+  .lf.mg.cpt .cf-onglet .cpt-tel-seul { display: block; }
 }

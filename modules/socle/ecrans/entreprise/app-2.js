@@ -4832,6 +4832,17 @@
         : messagerieVue.declarationsConfiees
           ? `<p class="small cpt-cab${parCabinet.retard ? ' warn-text' : ''}" id="vat-cabinet"><span>${parCabinet.retard ? `Ton cabinet ne l'a pas encore déposée : la date limite était le ${h(C.fmtDate(parCabinet.limite))}.` : `Ton cabinet ne l'a pas encore déposée : il a jusqu'au ${h(C.fmtDate(parCabinet.limite))}.`}</span> <button type="button" class="btn-lien" id="vat-cabinet-ecrire">Lui écrire</button></p>` : '';
       const deposeesParMois = new Map(lignesCabinet.filter(x => x.deposee).map(x => [x.periode, x]));
+      // (1.302.0) Les mois sans rien (ni vente, ni achat, ni crédit, ni déclaration déposée) : au téléphone, ils ne font plus
+      // leur carte (douze cartes, dont huit de zéros, faisaient une page de 4 500 px), et la phrase les nomme.
+      const moisRien = chain.map((m, i) => (!m.collected && !m.deductible && !m.carryIn && !m.toPay && !m.carryOut && !deposeesParMois.has(m.month) ? i : -1)).filter(i => i >= 0);
+      const plages = [];
+      for (let k = 0; k < moisRien.length; k++) {
+        let f = k;
+        while (f + 1 < moisRien.length && moisRien[f + 1] === moisRien[f] + 1) f++;
+        plages.push(f === k ? MONTHS[moisRien[k]] : f === k + 1 ? `${MONTHS[moisRien[k]]}, ${MONTHS[moisRien[f]]}` : `${MONTHS[moisRien[k]]} à ${MONTHS[moisRien[f]]}`);
+        k = f;
+      }
+      const moisRienDits = plages.length > 1 ? `${plages.slice(0, -1).join(', ')} et ${plages[plages.length - 1]}` : plages[0] || '';
       $('#c-body').innerHTML = `
         <div class="panel"><h2>Déclaration de TVA — ${h(MONTHS[upTo - 1])} ${year} ${info('compta.vatReturn')}</h2>
           ${auto ? `<p class="small muted mb">La TVA se déclare mois par mois : voici ${h(MONTHS[upTo - 1])}. Choisis un autre mois en haut à droite, ou lis le tableau ci-dessous pour toute l'année.</p>` : ''}
@@ -4861,7 +4872,7 @@
         ${chain.some(m => m.collected || m.deductible || m.carryIn) ? `
         <div class="panel"><h2>Mois par mois — ${year} ${info('compta.vatMonths')}</h2>
           <table class="list compact"><thead><tr><th>Mois</th><th class="r">Collectée</th><th class="r">Déductible</th><th class="r">Crédit repris</th><th class="r">À payer</th><th class="r">Crédit reporté</th></tr></thead><tbody>
-            ${chain.map((m, i) => `<tr class="clickable ${m.toPay ? '' : 'row-ok'}" data-vm="${String(i + 1).padStart(2, '0')}" title="Voir la déclaration ${h(deMois(m.label))}"><td>${h(m.label)}${deposeesParMois.has(m.month) ? ' <small class="ok-text cpt-dep">déposée</small>' : ''}</td><td class="r nw">${montantCompta(m.collected)}</td><td class="r nw">${montantCompta(m.deductible)}</td>
+            ${chain.map((m, i) => `<tr class="clickable ${m.toPay ? '' : 'row-ok'}${moisRien.includes(i) ? ' cpt-rien' : ''}" data-vm="${String(i + 1).padStart(2, '0')}" title="Voir la déclaration ${h(deMois(m.label))}"><td>${h(m.label)}${deposeesParMois.has(m.month) ? ' <small class="ok-text cpt-dep">déposée</small>' : ''}</td><td class="r nw">${montantCompta(m.collected)}</td><td class="r nw">${montantCompta(m.deductible)}</td>
               <td class="r nw">${m.carryIn ? montantCompta(m.carryIn) : '<span class="muted">—</span>'}</td>
               <td class="r nw">${m.toPay ? `<strong>${montantCompta(m.toPay)}</strong>` : '<span class="muted">—</span>'}</td>
               <td class="r nw">${m.carryOut ? montantCompta(m.carryOut) : '<span class="muted">—</span>'}</td></tr>`).join('')}
@@ -4869,6 +4880,7 @@
               <td class="r">${montantCompta(chain.reduce((s, m) => s + m.deductible, 0))}</td><td></td>
               <td class="r"><strong>${montantCompta(chain.reduce((s, m) => s + m.toPay, 0))}</strong></td><td></td></tr>
           </tbody></table>
+          ${moisRien.length ? `<p class="small muted mt cpt-tel-seul" id="vat-mois-vides">Au téléphone, les mois sans rien ne s'affichent pas : ${h(moisRienDits)}.</p>` : ''}
           <p class="small muted mt">Le crédit d'un mois vient en déduction du suivant : c'est pour ça que le total ne se lit pas ligne par ligne. <em>Ces chiffres sont l'arithmétique exacte de tes données, pas une déclaration officielle : à faire valider par ton comptable avant tout dépôt.</em></p>
         </div>
         ` : ''}
@@ -5224,7 +5236,8 @@
       const vue = balState.vue;
       const tag = comptaState.month ? `${comptaState.year}-${comptaState.month}` : comptaState.year;
       const VUES = [['generale', 'Générale'], ['clients', 'Auxiliaire clients'], ['fournisseurs', 'Auxiliaire fournisseurs'], ['lettrage', 'Lettrage']];
-      const sel = `<div class="tabs mt" id="bal-vues" role="tablist" aria-label="Les vues de la balance">${VUES.map(([id, label]) => `<button role="tab" data-vue="${id}" class="${id === vue ? 'active' : ''}">${label}</button>`).join('')}</div>`;
+      // (1.302.0) Les vues de la balance en boutons segmentés, comme les onglets de la page (la DA des listes).
+      const sel = `<div class="pa-seg mt" id="bal-vues" role="tablist" aria-label="Les vues de la balance">${VUES.map(([id, label]) => `<button type="button" role="tab" data-vue="${id}" aria-selected="${id === vue}" class="${id === vue ? 'active' : ''}">${label}</button>`).join('')}</div>`;
       let corps, csvRows = [], csvCols = [], nomCsv = '';
       if (vue === 'generale') {
         const b = C.balanceGenerale(data, company(), p, {});

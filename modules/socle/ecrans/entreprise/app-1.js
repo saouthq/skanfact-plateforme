@@ -2357,6 +2357,22 @@
   let texteDuMessage = null;
   // (plateforme, 17 lot P1b) Un module qui prépare ce texte le demande au socle, qui ouvre la conversation.
   const ecrireAuComptable = texte => { texteDuMessage = texte; navigate('#/comptable'); };
+  // (1.302.0) Jusqu'où le cabinet a validé les livres (sa clôture), pour le dire AVANT d'enregistrer une pièce datée dans cette
+  // période : elle lui arriverait comme une correction, à reprendre sur un mois ouvert. Lu au serveur (le pont du module
+  // Déclarations), au plus toutes les 30 secondes ; tant que rien n'est lu, rien ne se dit, et rien ne se bloque. `quandLu`
+  // redessine ce qui attendait la réponse.
+  let valideCabinet = { jusqua: '', lu: 0, enCours: false };
+  const valideParLeCabinet = quandLu => {
+    if (!(messagerieVue && messagerieVue.cabinet) || !bridge.livresDuCabinet) return '';
+    if (!valideCabinet.enCours && Date.now() - valideCabinet.lu > 30000) {
+      valideCabinet = { ...valideCabinet, enCours: true };
+      void bridge.livresDuCabinet(Number(C.today().slice(0, 4))).then(l => {
+        valideCabinet = { jusqua: l ? l.valideJusqua || '' : valideCabinet.jusqua, lu: Date.now(), enCours: false };
+        if (quandLu) quandLu();
+      });
+    }
+    return valideCabinet.jusqua;
+  };
   // (1.191.0) La question du cabinet qu'on vient répondre (« Répondre » d'une pièce, de l'onglet du cabinet) : la
   // conversation s'ouvre sur elle.
   let questionDuMessage = null;
@@ -16259,21 +16275,38 @@
       }
       return `La TVA récupérable${stock ? ', le stock' : ''} et la charge se mettent à jour ; ton cabinet la verra dans les écritures du mois.`;
     };
+    // (1.302.0) Une pièce datée dans la période que le cabinet a validée lui arrive comme une correction : la phrase le dit sous
+    // le bouton, AVANT d'enregistrer (une pièce neuve, ou modifiée), et l'enregistrement offre « Le dire à mon comptable ». Rien
+    // ne se bloque : la pièce est vraie, elle s'enregistre. L'ancienne date compte aussi : sortir une pièce de la période
+    // validée la change chez le cabinet autant que l'y faire entrer.
+    const dateValidee = () => {
+      if (clos) return '';
+      const j = valideParLeCabinet(majValide);
+      return j ? [p.date, stored && stored.date].filter(Boolean).find(d => d <= j) || '' : '';
+    };
+    function majValide() {
+      const el = $('#ac-cab-valide');
+      if (!el) return;
+      const d = isNew || dirty ? dateValidee() : '';
+      el.hidden = !d;
+      el.innerHTML = d ? `${lfIc('aide', 15)}<span>Cette pièce ${d === p.date ? 'est' : 'était'} datée du ${h(C.fmtDate(d))}, dans la période que ton cabinet a validée (jusqu'au ${h(C.fmtDate(valideCabinet.jusqua))}) : elle lui arrivera comme une correction, à reprendre sur un mois ouvert. En l'enregistrant, tu pourras le lui dire.</span>` : '';
+    }
+    const avertValide = clos ? '' : '<p class="ed-phrase ac-cab-valide" id="ac-cab-valide" role="status" hidden></p>';
     const gesteAchat = () => {
       const t = C.purchaseTotals(p, company());
       const net = `<div class="ed-net-tel"><span>${p.kind === 'avoir' ? 'Montant de l\'avoir' : 'Net à payer'}</span><b id="ed-net-tel">${C.money(t.netToPay, cur)}</b></div>`;
       const sauver = clos ? '' : isNew
         ? `<button class="btn${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand" id="save">${libelleSauver()}</button>`
         : '<button class="btn" id="save" hidden>Enregistrer les modifications</button>';
-      if (isNew) return `<div class="panel ed-geste" id="ed-geste">${net}${sauver}<p class="ed-phrase" id="ac-phrase">${phraseNeuve()}</p></div>`;
+      if (isNew) return `<div class="panel ed-geste" id="ed-geste">${net}${sauver}<p class="ed-phrase" id="ac-phrase">${phraseNeuve()}</p>${avertValide}</div>`;
       if (solde && solde.remaining > 0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="pay">${lfIc('carte', 17)}Enregistrer un règlement</button>
-        <p class="ed-phrase">Tu paies ${C.money(solde.remaining, cur)}${t.withholding ? ` et tu retiens ${C.money(t.withholding, cur)}` : ''}${p.dueDate ? ` · échéance le ${lfJm(p.dueDate)}` : ''}. Un règlement partiel se note aussi.</p>${sauver}</div>`;
+        <p class="ed-phrase">Tu paies ${C.money(solde.remaining, cur)}${t.withholding ? ` et tu retiens ${C.money(t.withholding, cur)}` : ''}${p.dueDate ? ` · échéance le ${lfJm(p.dueDate)}` : ''}. Un règlement partiel se note aussi.</p>${sauver}${avertValide}</div>`;
       if (solde && solde.remaining < -0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="recu">${lfIc('carte', 17)}Enregistrer le remboursement</button>
-        <p class="ed-phrase">Le fournisseur te doit ${C.money(-solde.remaining, cur)}. Le remboursement solde l'avoir : il n'est plus « à récupérer ».</p>${sauver}</div>`;
+        <p class="ed-phrase">Le fournisseur te doit ${C.money(-solde.remaining, cur)}. Le remboursement solde l'avoir : il n'est plus « à récupérer ».</p>${sauver}${avertValide}</div>`;
       // (1.155.13, maquette « Sans justificatif ») Une pièce réglée sans justificatif : le geste qui reste est de le joindre.
       if (stored && C.sansJustificatif(stored) && bridge.piecesJointes !== false && !C.PURCHASE_LIES.includes(p.kind)) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="ac-geste-joindre">${lfIc('photo', 17)}${p.kind === 'depense' ? 'Joindre le ticket' : 'Joindre le justificatif'}</button>
-        <p class="ed-phrase">${p.kind === 'depense' ? 'Le ticket se photographie depuis le téléphone ; il se joint ici, et ton cabinet le verra.' : 'La photo ou le PDF de la pièce se joint ici, et ton cabinet le verra.'}</p>${sauver}</div>`;
-      return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>Réglée : plus rien n'est dû.</span></p>${sauver}</div>`;
+        <p class="ed-phrase">${p.kind === 'depense' ? 'Le ticket se photographie depuis le téléphone ; il se joint ici, et ton cabinet le verra.' : 'La photo ou le PDF de la pièce se joint ici, et ton cabinet le verra.'}</p>${sauver}${avertValide}</div>`;
+      return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>Réglée : plus rien n'est dû.</span></p>${sauver}${avertValide}</div>`;
     };
     const avecFriseAchat = !isNew && !!stored && p.kind !== 'acompte';
     // (1.155.13) Le bandeau d'une pièce rangée, celui de la maquette pour son état : saisie sous l'ancien régime de TVA,
@@ -16755,6 +16788,7 @@
       const t = C.purchaseTotals(p, company());
       majBandeauLie();
       const phr = $('#ac-phrase'); if (phr) phr.textContent = phraseNeuve();
+      majValide();
       const pDev = $('#ac-puce-dev'); if (pDev) pDev.classList.toggle('on', cur !== company().currency);
       const svR = $('#save'); if (svR && isNew && !clos) { const lib = libelleSauver(); if (svR.innerHTML !== lib) svR.innerHTML = lib; }
       // Sous les lignes : ce qui apparaît ne pousse pas la ligne qu'on est en train de taper.
@@ -16950,6 +16984,7 @@
       p.withholdingRate = Number(p.withholdingRate) || 0;
       touch();
       noteEcheance();
+      majValide();
       const neufDue = e && e.target && e.target.name === 'date' ? echeanceSuivie(p.date, p.dueDate, dueAuto, delaiAchat(p.supplierId)) : '';
       if (neufDue) {
         const avant = p.dueDate;
@@ -18065,12 +18100,21 @@
       return true;
     }
     bindBack('#/achats');
+    majValide();
     if ($('#save')) $('#save').onclick = async () => {
       if (!validate()) return;            // les contrôles de saisie AVANT la grande question (7.6.0)
       if (!await doublonOk()) return;
+      // (1.302.0) La date dans la période que le cabinet a validée, lue AVANT l'enregistrement (la pièce enregistrée change
+      // `stored`) : le message qui suit offre de le lui dire, la phrase prête.
+      const dv = dateValidee(), jv = valideCabinet.jusqua;
       if (!persist()) return;
       const fiches = creerFichesProposees();
-      toast(fiches.length ? `Enregistré, avec ${fiches.length > 1 ? `les fiches de ${fiches.length} biens` : 'la fiche du bien'} : ${fiches.length > 1 ? 'ils s\'amortissent' : `il s'amortit sur ${pl(fiches[0].years, 'an')}`} dès le ${lfJm(fiches[0].date)}` : 'Enregistré');
+      const dit = fiches.length ? `Enregistré, avec ${fiches.length > 1 ? `les fiches de ${fiches.length} biens` : 'la fiche du bien'} : ${fiches.length > 1 ? 'ils s\'amortissent' : `il s'amortit sur ${pl(fiches[0].years, 'an')}`} dès le ${lfJm(fiches[0].date)}` : 'Enregistré';
+      if (dv) {
+        const t = C.purchaseTotals(p, company());
+        const quoi = `${p.kind === 'avoir' ? 'un avoir' : p.kind === 'depense' ? 'une dépense' : 'un achat'} daté du ${C.fmtDate(dv)}${p.supplierId ? ` (${supplierName(p.supplierId)}${p.number ? `, n° ${p.number}` : ''}, ${C.money(t.netToPay, p.currency || company().currency)})` : ''}`;
+        toastUndo(`${dit} — dans la période que ton cabinet a validée`, () => ecrireAuComptable(`Bonjour, je viens ${isNew ? 'd\'enregistrer' : 'de modifier'} ${quoi} : il tombe dans la période que tu as validée jusqu'au ${C.fmtDate(jv)}. Peux-tu le reprendre sur un mois ouvert ?`), 'Le dire à mon comptable');
+      } else toast(dit);
       if (isNew && rangementDuMessage && rangementDuMessage.lu && bridge.messagerie) {
         const r = rangementDuMessage;
         rangementDuMessage = null;

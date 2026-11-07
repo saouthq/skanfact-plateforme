@@ -524,3 +524,27 @@ TVA mensuelle.
 
 Suivant : l'intérieur des onglets de la Comptabilité dans la DA (chiffres en carte, journaux, grand livre, balance, états,
 téléphone), puis l'avertissement à la saisie d'une pièce dans une période validée par le cabinet.
+
+### Fait en 1.302.0 (07/11/2026) : l'intérieur des onglets dans la DA, et l'achat daté dans une période validée, dit avant
+
+Rejoué avec le même grossiste de Sousse et sa comptable : septembre déposé puis validé par le cabinet jusqu'au 30/09/2026,
+chaque onglet lu au bureau puis au téléphone (390 px), puis l'achat de septembre oublié (des bidons chez Emballages du
+Centre, 603,330 DT TTC) saisi à la souris. Une entreprise sans cabinet a fait la même saisie.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| C10 | Dans la nouvelle carte de chaque onglet, l'intérieur gardait l'ancien dessin : des tuiles en boîtes ombrées aux coins ronds (ventes, achats, TVA), des tableaux encadrés à titres en capitales, en retrait du bord de la carte. | Les chiffres comme ceux des Marges et des Statistiques : quatre cases séparées d'un trait, sans boîte, le nom en gris et le montant en gras (vert ce qui est réglé, rouge ce qui est dû). Les tableaux des journaux, du grand livre, de la balance et des états vont d'un bord à l'autre de la carte, titres en clair, sans cadre. Les deux colonnes (bilan, résultat) séparées d'un trait. |
+| C11 | Les vues de la balance (générale, auxiliaires, lettrage) étaient une deuxième rangée d'onglets, pareille à celle de la page. | Des boutons segmentés, comme ailleurs dans les écrans de la DA. |
+| C12 | Au téléphone, le tableau de l'année de la TVA faisait douze cartes, dont huit de zéros (janvier à août) : une page de 4 500 px. | Les mois sans rien (ni vente, ni achat, ni crédit, ni déclaration déposée) ne font plus leur carte, et la phrase les nomme : « Au téléphone, les mois sans rien ne s'affichent pas : janvier à août. » (2 873 px). Au bureau, les douze lignes restent. Les chiffres passent sur deux colonnes, rien ne déborde. |
+| C13 | Un achat daté du 15/09, dans la période que le cabinet a validée, s'enregistrait sans un mot (la TVA le disait ensuite). | Pendant la saisie, sous la date : « Cette pièce est datée du 15/09/2026, dans la période que ton cabinet a validée (jusqu'au 30/09/2026) : elle lui arrivera comme une correction, à reprendre sur un mois ouvert. En l'enregistrant, tu pourras le lui dire. » Rien n'est bloqué. Enregistré, « Le dire à mon comptable » ouvre la conversation, le message écrit (la date, le fournisseur, le numéro, le montant). Une pièce déjà enregistrée rouverte ne le redit que si on la change ; une date d'octobre ne dit rien ; sans cabinet, rien. Aussi au téléphone. |
+
+Le rouge GitHub de 1.301.0, réparé dans le même envoi : le test de l'assemblage exigeait que chaque pont n'ait que son
+unique morceau, l'état d'avant le premier morceau de pont d'un module ; il dit maintenant la règle (le pont d'abord, puis
+les morceaux des modules, chacun dans son dossier `pont/`), et sa preuve remet le morceau du module avant le pont.
+
+Limites connues : l'avertissement de C13 n'est que dans la saisie d'un achat, d'une dépense ou d'un avoir reçu (pas encore
+dans une facture de vente, un règlement ni une opération diverse) ; la date validée se relit au plus toutes les 30 secondes ;
+les déclarations lues restent celles de la TVA mensuelle.
+
+Suivant : le même avertissement dans les autres saisies (facture de vente, règlement, opération diverse), puis le module
+suivant de la revue.

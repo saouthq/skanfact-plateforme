@@ -23431,6 +23431,11 @@ prouver 'R0a h : un gros fichier qui ne passe plus par l'"'"'assemblage' modules
   '    "v10/cabinet/app.js": ["modules/socle/ecrans/cabinet/app-1.js", "modules/personnel/ecrans/cabinet/paie.js", "modules/socle/ecrans/cabinet/app-2.js"],
 ' '' \
   "$RA3"
+# (1.302.0) Le rouge GitHub de 1.301.0 : ce test exigeait l'unique morceau d'un pont ; il dit maintenant la règle (le pont
+# d'abord, puis les morceaux des modules, chacun dans son dossier pont/).
+prouver 'R0a h2 : un morceau de module assemblé avant le pont qu'"'"'il ouvre' modules/assemblage.json \
+  '"plateforme/pont.js": ["web/public/plateforme/pont.js", "modules/declarations/pont/entreprise.js"],' '"plateforme/pont.js": ["modules/declarations/pont/entreprise.js", "web/public/plateforme/pont.js"],' \
+  "$RA3"
 prouver 'R0a i : la construction qui n'"'"'écrit pas les fichiers assemblés' web/vite.config.ts \
   '      ecrireLesAssembles(sortie.dir);
 ' '' \
@@ -25100,6 +25105,50 @@ prouver 'la barre des onglets de la Comptabilité qui élargit la page au télé
 prouver '« Ton cabinet la dépose » collé à son bouton' "$A2E" \
   'Ton cabinet la dépose</span> <button' 'Ton cabinet la dépose</span><button' \
   "$T301W"
+# (1.302.0) L'intérieur des onglets de la Comptabilité dans la DA (les chiffres en rangée, les tableaux à pleine largeur de la
+# carte), la TVA de l'année au téléphone sans ses mois vides, et l'achat daté dans la période que le cabinet a validée.
+PCSS=web/public/plateforme/piece.css
+T302W="le grossiste lit chaque onglet dans la DA, au bureau et au téléphone, puis saisit l'achat de septembre oublié"
+prouver 'les chiffres de la Comptabilité gardent leur bande de couleur' "$LCSS" \
+  '.lf.mg.cpt .cf-onglet .stats > .stat::before { content: none; }' '/* rien */' \
+  "$T302W"
+prouver 'les chiffres de la Comptabilité restent des tuiles arrondies' "$LCSS" \
+  'min-width: 0; margin: 0; padding: 14px 16px; background: none; border: 0; border-radius: 0; box-shadow: -1px 0 0 var(--sb-trait), 0 -1px 0 var(--sb-trait); }' 'min-width: 0; margin: 0; padding: 14px 16px; }' \
+  "$T302W"
+prouver 'les tableaux de la Comptabilité gardent leur cadre dans la carte' "$LCSS" \
+  '.lf.mg.cpt .cf-onglet .panel table.list { border: 0; border-top: 1px solid var(--sb-trait); border-radius: 0; box-shadow: none; background: none; }' '/* rien */' \
+  "$T302W"
+prouver 'les tableaux de la Comptabilité en retrait des bords de la carte' "$LCSS" \
+  '.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]) { margin-inline: -16px; }' '/* rien */' \
+  "$T302W"
+prouver 'au téléphone, les mois vides de la TVA font encore leur carte' "$LCSS" \
+  '.lf.mg.cpt .cf-onglet tr.cpt-rien { display: none !important; }' '/* rien */' \
+  "$T302W"
+prouver 'au téléphone, la phrase des mois cachés ne se lit pas' "$LCSS" \
+  '.lf.mg.cpt .cf-onglet .cpt-tel-seul { display: block; }' '/* rien */' \
+  "$T302W"
+prouver 'les mois vides de la TVA jamais marqués' "$A2E" \
+  "\${moisRien.includes(i) ? ' cpt-rien' : ''}" "\${false ? ' cpt-rien' : ''}" \
+  "$T302W"
+prouver 'les mois cachés nommés un par un au lieu de « janvier à août »' "$A2E" \
+  ': `${MONTHS[moisRien[k]]} à ${MONTHS[moisRien[f]]}`);' ': MONTHS[moisRien[k]]);' \
+  "$T302W"
+prouver 'l'\''achat daté dans la période validée par le cabinet, sans un mot avant d'\''enregistrer' "$A1E" \
+  '      el.hidden = !d;' '      el.hidden = true;' \
+  "$T302W"
+prouver 'la pièce rouverte sans changement redit l'\''avertissement' "$A1E" \
+  "      const d = isNew || dirty ? dateValidee() : '';" '      const d = dateValidee();' \
+  "$T302W"
+prouver 'l'\''enregistrement n'\''offre pas de le dire au comptable' "$A1E" \
+  'toastUndo(`${dit} — dans la période que ton cabinet a validée`' 'toastUndo(`${dit}`' \
+  "$T302W"
+prouver 'le message au comptable ne demande pas de reprendre la pièce' "$A1E" \
+  "Peux-tu le reprendre sur un mois ouvert ?\`), 'Le dire à mon comptable');" "\`), 'Le dire à mon comptable');" \
+  "$T302W"
+prouver 'au téléphone, l'\''avertissement caché avec la phrase sous le bouton' "$PCSS" \
+  '.ed-geste .ed-phrase.ac-cab-valide:not([hidden]) { display: flex; }' '/* rien */' \
+  "$T302W"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
