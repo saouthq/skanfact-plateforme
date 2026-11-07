@@ -2358,9 +2358,10 @@
   // (plateforme, 17 lot P1b) Un module qui prépare ce texte le demande au socle, qui ouvre la conversation.
   const ecrireAuComptable = texte => { texteDuMessage = texte; navigate('#/comptable'); };
   // (1.302.0) Jusqu'où le cabinet a validé les livres (sa clôture), pour le dire AVANT d'enregistrer une pièce datée dans cette
-  // période : elle lui arriverait comme une correction, à reprendre sur un mois ouvert. Lu au serveur (le pont du module
-  // Déclarations), au plus toutes les 30 secondes ; tant que rien n'est lu, rien ne se dit, et rien ne se bloque. `quandLu`
-  // redessine ce qui attendait la réponse.
+  // période : chez lui, elle s'écrira au premier jour encore ouvert (1.303.0). Lu au serveur (le pont du module Déclarations),
+  // au plus toutes les 30 secondes ; tant que rien n'est lu, rien ne se dit, et rien ne se bloque. `quandLu` redessine ce qui
+  // attendait la réponse. (1.304.0) Une lecture qui échoue (une coupure) ne reste pas « en cours » pour toujours : elle se
+  // refera, et ce qui était déjà lu reste su.
   let valideCabinet = { jusqua: '', lu: 0, enCours: false };
   const valideParLeCabinet = quandLu => {
     if (!(messagerieVue && messagerieVue.cabinet) || !bridge.livresDuCabinet) return '';
@@ -2369,9 +2370,16 @@
       void bridge.livresDuCabinet(Number(C.today().slice(0, 4))).then(l => {
         valideCabinet = { jusqua: l ? l.valideJusqua || '' : valideCabinet.jusqua, lu: Date.now(), enCours: false };
         if (quandLu) quandLu();
-      });
+      }, () => { valideCabinet = { ...valideCabinet, enCours: false }; });
     }
     return valideCabinet.jusqua;
+  };
+  // (1.304.0) La même lecture, attendue un instant (deux secondes au plus) : pour un geste qui demande AVANT de faire (une
+  // suppression), la question doit déjà savoir. Sans cabinet, ou déjà lue, elle répond tout de suite.
+  const periodeValideeLue = async () => {
+    valideParLeCabinet();
+    for (let i = 0; i < 20 && valideCabinet.enCours; i++) await new Promise(r => setTimeout(r, 100));
+    return valideParLeCabinet();
   };
   // (1.303.0) La même règle dans chaque saisie datée (l'achat, la facture qu'on émet, le paiement, le règlement, l'opération
   // diverse) : la première des dates (la nouvelle, puis l'ancienne d'une pièce qu'on modifie) qui tombe dans la période validée,
@@ -2385,11 +2393,14 @@
   // La phrase dite AVANT le geste : `sujet` (« Cette facture »), `fem`, `neuve` (une pièce qu'on crée ou émet ; sinon c'est une
   // correction), `geste` (« En l'émettant »).
   const phrasePeriodeValidee = (d, nouvelle, { sujet, fem, neuve, geste }) => `${sujet} ${d === nouvelle ? 'est' : 'était'} daté${fem ? 'e' : ''} du ${C.fmtDate(d)}, dans la période que ton cabinet a validée (jusqu'au ${C.fmtDate(valideCabinet.jusqua)}) : chez lui, ${neuve ? `${fem ? 'elle' : 'il'} s'écrira` : 'la correction s\'écrira'} au ${C.fmtDate(premierJourOuvert())}, le premier jour encore ouvert. ${geste}, tu pourras le lui dire.`;
+  // (1.304.0) La phrase de la question avant de SUPPRIMER une pièce de cette période : chez le cabinet, ce qui était validé se
+  // contre-passe au premier jour encore ouvert (0018) ; on le dit « son annulation ». `sujet` : « Il », « Elle ».
+  const phraseAnnulationValidee = (d, { sujet, fem }) => `${sujet} est daté${fem ? 'e' : ''} du ${C.fmtDate(d)}, dans la période que ton cabinet a validée (jusqu'au ${C.fmtDate(valideCabinet.jusqua)}) : chez lui, son annulation s'écrira au ${C.fmtDate(premierJourOuvert())}, le premier jour encore ouvert.`;
   // Après le geste : le message habituel, et « Le dire à mon comptable » qui ouvre la conversation, le texte écrit. `quoi` nomme
-  // la pièce (« un paiement daté du 29/09/2026 (…) »).
-  const direAuComptableApres = (dit, { fait, quoi, fem }) => {
+  // la pièce (« un paiement daté du 29/09/2026 (…) ») ; `annule` : elle vient d'être supprimée.
+  const direAuComptableApres = (dit, { fait, quoi, fem, annule }) => {
     const j = valideCabinet.jusqua, ouvert = premierJourOuvert();
-    toastUndo(`${dit} — dans la période que ton cabinet a validée`, () => ecrireAuComptable(`Bonjour, je viens ${fait} ${quoi} : ${fem ? 'elle' : 'il'} tombe dans la période que tu as validée jusqu'au ${C.fmtDate(j)}, ${fem ? 'elle' : 'il'} s'écrit donc chez toi au ${C.fmtDate(ouvert)}. Peux-tu en tenir compte ?`), 'Le dire à mon comptable');
+    toastUndo(`${dit} — dans la période que ton cabinet a validée`, () => ecrireAuComptable(`Bonjour, je viens ${fait} ${quoi} : ${fem ? 'elle' : 'il'} ${annule ? 'tombait' : 'tombe'} dans la période que tu as validée jusqu'au ${C.fmtDate(j)}, ${annule ? 'son annulation' : fem ? 'elle' : 'il'} s'écrit donc chez toi au ${C.fmtDate(ouvert)}. Peux-tu en tenir compte ?`), 'Le dire à mon comptable');
   };
   // Le paragraphe d'une fenêtre (paiement, règlement, opération diverse) : caché tant qu'il n'y a rien à dire, posé sous le
   // formulaire (rien ne bouge sous le curseur, qui est sur la date).
@@ -8059,8 +8070,16 @@
             const apres = C.round3(b.remaining + (Number(p.amount) || 0));
             const suite = apres > 0.0005 ? `${s.number} redeviendra due de ${C.money(apres, cur)}.` : apres < -0.0005 ? `${C.money(-apres, cur)} redeviendront à rendre au client.` : `${s.number} restera réglée.`;
             const rend = C.estRemboursement(p);
-            if (!await confirmDialog(`Supprimer ${rend ? 'le remboursement' : 'le paiement'} de ${C.money(Math.abs(p.amount), cur)} du ${C.fmtDate(p.date)}${p.reference ? ` (${p.reference})` : ''} ? ${suite}`, rend ? 'Supprimer le remboursement' : 'Supprimer le paiement')) return;
+            // (1.304.0) Daté dans la période que le cabinet a validée, il s'annule chez lui au premier jour encore ouvert : la
+            // question le dit, le message après offre de le lui dire.
+            await periodeValideeLue();
+            const dvSup = dateDansLaPeriodeValidee([p.date]);
+            if (!await confirmDialog(`Supprimer ${rend ? 'le remboursement' : 'le paiement'} de ${C.money(Math.abs(p.amount), cur)} du ${C.fmtDate(p.date)}${p.reference ? ` (${p.reference})` : ''} ? ${suite}${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Il', fem: false })}` : ''}`, rend ? 'Supprimer le remboursement' : 'Supprimer le paiement')) return;
             s.payments = s.payments.filter(x => x.id !== p.id); save(true); render();
+            if (dvSup) {
+              const clS = clientById(s.clientId);
+              direAuComptableApres(rend ? 'Remboursement supprimé' : 'Paiement supprimé', { fait: 'de supprimer', fem: false, annule: true, quoi: `${rend ? 'un remboursement' : 'un paiement'} daté du ${C.fmtDate(dvSup)} (facture ${s.number}${clS ? `, ${clS.name}` : ''}, ${C.money(Math.abs(p.amount), cur)})` });
+            }
           } }
         ];
       });
@@ -18058,8 +18077,12 @@
             // Ce que l'achat redevient vraiment, avoirs et acomptes compris (jumeau du paiement client).
             const apres = C.round3(b.remaining + (Number(x.amount) || 0));
             const suite = apres > 0.0005 ? `${s2.number || 'L\'achat'} redeviendra dû de ${C.money(apres, cur)}.` : `${s2.number || 'L\'achat'} restera réglé.`;
-            if (!await confirmDialog(`Supprimer le règlement de ${C.money(x.amount, cur)} du ${C.fmtDate(x.date)}${x.reference ? ` (${x.reference})` : ''} ? ${suite}`, 'Supprimer le règlement')) return;
+            // (1.304.0) Daté dans la période que le cabinet a validée : la question le dit, le message après offre de le lui dire.
+            await periodeValideeLue();
+            const dvSup = dateDansLaPeriodeValidee([x.date]);
+            if (!await confirmDialog(`Supprimer le règlement de ${C.money(x.amount, cur)} du ${C.fmtDate(x.date)}${x.reference ? ` (${x.reference})` : ''} ? ${suite}${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Il', fem: false })}` : ''}`, 'Supprimer le règlement')) return;
             s2.payments = s2.payments.filter(y => y.id !== x.id); save(true); render();
+            if (dvSup) direAuComptableApres('Règlement supprimé', { fait: 'de supprimer', fem: false, annule: true, quoi: `un règlement daté du ${C.fmtDate(dvSup)} (${supplierName(s2.supplierId)}${s2.number ? `, n° ${s2.number}` : ''}, ${C.money(Math.abs(Number(x.amount) || 0), cur)})` });
           } }
         ];
       });
@@ -18286,9 +18309,17 @@
       if (closedBlock(p.date, 'Cet achat')) return;
       // (plateforme) 1.79.0 — un règlement est de l'argent sorti de la banque, et sa retenue un fait fiscal de son mois.
       if ((p.payments || []).length) { toast(`${p.number || 'Cette pièce'} porte ${(p.payments || []).length > 1 ? 'des règlements' : 'un règlement'} : retire-${(p.payments || []).length > 1 ? 'les' : 'le'} d'abord (« Actions » sur sa ligne, dans « Règlements »). Rien n'a été supprimé.`, true); return; }
-      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ?`)) return;
+      // (1.304.0) Datée dans la période que le cabinet a validée (telle qu'enregistrée), elle s'annule chez lui au premier jour
+      // encore ouvert : la question le dit, le message après offre de le lui dire.
+      const rangee = purchaseById(p.id) || p;
+      await periodeValideeLue();
+      const dvSup = dateDansLaPeriodeValidee([rangee.date]);
+      const femSup = rangee.kind === 'depense';
+      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ?${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: femSup ? 'Elle' : 'Il', fem: femSup })}` : ''}`)) return;
+      const totalSup = C.purchaseTotals(rangee, company()).netToPay;
       forget('purchases', p.id, p.number || '');
       data.purchases = data.purchases.filter(x => x.id !== p.id); save(true); untouch(); navigate('#/achats');
+      if (dvSup) direAuComptableApres(`${p.number || 'La pièce'} supprimée`, { fait: 'de supprimer', fem: femSup, annule: true, quoi: `${rangee.kind === 'avoir' ? 'un avoir' : femSup ? 'une dépense' : 'un achat'} daté${femSup ? 'e' : ''} du ${C.fmtDate(dvSup)}${rangee.supplierId ? ` (${supplierName(rangee.supplierId)}${rangee.number ? `, n° ${rangee.number}` : ''}, ${C.money(totalSup, rangee.currency || company().currency)})` : ''}` });
     };
 
     if ($('#buy-clos-avoir')) $('#buy-clos-avoir').onclick = () => navigate(`#/achat/new/${p.supplierId || '-'}/avoir/${p.id}`);

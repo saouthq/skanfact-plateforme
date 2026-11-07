@@ -3011,6 +3011,7 @@
         <label class="field span-2" id="mf-cp" ${m.kind === 'virement' ? 'hidden' : ''}>${lbl('Contrepartie comptable', 'tre.compte')}<select name="compte">${C.COMPTES_CONTREPARTIE.map(([v, l]) => `<option value="${v}" ${String(m.compte || '') === v ? 'selected' : ''}>${v ? v + ' — ' : ''}${l}</option>`).join('')}${m.compte && !C.COMPTES_CONTREPARTIE.some(([v]) => v === String(m.compte)) ? `<option value="${h(m.compte)}" selected>${h(m.compte)} — ${h(C.accountLabel(data, m.compte))}</option>` : ''}</select></label>
         <label class="field span-2" id="mf-vers" ${m.kind === 'virement' ? '' : 'hidden'}>${lbl('Vers le compte', 'tre.moveVers')}<select name="versAccountId"><option value="">— Choisir le compte qui reçoit —</option>${data.accounts.map(a => `<option value="${a.id}" ${m.versAccountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
       </form>
+      ${avertValideHtml('mf-valide')}
       <div class="mv-pj"><div class="field">${lbl('Justificatifs', 'tre.moveJustif')}</div><div id="mv-pj"></div></div>
       <div class="modal-actions">
         ${mv ? '<button class="btn btn-danger" id="del-mv" style="margin-inline-end:auto">Supprimer</button>' : ''}
@@ -3045,6 +3046,15 @@
         versSel.addEventListener('change', accorder);
         $('[name=accountId]', root).addEventListener('change', accorder);
         accorder();
+        // (1.304.0) Daté dans la période que le cabinet a validée : la phrase pendant la saisie, comme le paiement d'une facture.
+        // Rouvert sans rien changer de ce qui s'écrit chez lui (date, nature, montant, compte, contrepartie, compte qui reçoit),
+        // rien : un libellé ou une référence ne change pas ses livres.
+        const empreinteMv = x => JSON.stringify([x.date, x.kind, Math.abs(Number(x.amount)) || 0, x.accountId || '', x.kind === 'virement' ? '' : String(x.compte || '').trim(), x.kind === 'virement' ? x.versAccountId || '' : '']);
+        const valideDuMouvement = (v, quandLu) => (!mv || empreinteMv(v) !== empreinteMv(mv) ? dateDansLaPeriodeValidee([v.date, mv && mv.date], quandLu) : '');
+        const majValideM = () => { const v = formValues($('#mf2', root)); majAvertValide($('#mf-valide', root), valideDuMouvement(v, majValideM), v.date, { sujet: 'Ce mouvement', fem: false, neuve: !mv, geste: 'En l\'enregistrant' }); };
+        $('#mf2', root).addEventListener('input', majValideM);
+        $('#mf2', root).addEventListener('change', majValideM);
+        majValideM();
         // L'instantané des champs APRÈS le montage et les montants complétés (modal() le fait juste
         // après ce rappel) : le garde-fou additionne les champs et les fichiers joints.
         queueMicrotask(() => { champs = suivreSaisie(root); });
@@ -3087,21 +3097,29 @@
           if (!mv && licenceBlock('Créer un mouvement de trésorerie', 'pilotage')) return;
           if (v.date > C.today() && !await confirmDialog(`La date (${C.fmtDate(v.date)}) est dans le futur. Un mouvement de trésorerie se saisit quand il a eu lieu. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un mouvement daté dans le futur' })) return;
           if (closedBlock([mv && mv.date, v.date], 'Ce mouvement')) return;
+          // Lu AVANT de ranger : `m` est le mouvement rangé lui-même quand on le modifie.
+          const dvM = valideDuMouvement(v);
           const vir = v.kind === 'virement';
           Object.assign(m, v, { amount: Math.abs(Number(v.amount)), compte: vir ? '' : String(v.compte || '').trim() });
           if (!vir) { delete m.versAccountId; delete m.reconciledVers; }
           if (vir || !m.repete) { delete m.repete; delete m.repeteJusqu; } else if (!m.repeteJusqu) delete m.repeteJusqu;
           if (!mv) data.movements.push(m);
           enregistre = true;
-          save(true); close(); if (done) done(m);
+          save(true); close();
+          if (dvM) direAuComptableApres(mv ? 'Mouvement modifié' : 'Mouvement enregistré', { fait: mv ? 'de modifier' : 'd\'enregistrer', fem: false, quoi: `un mouvement daté du ${C.fmtDate(dvM)} (${m.label || (C.MOVE_KINDS.find(k => k[0] === m.kind) || [])[1] || 'mouvement'}, ${C.money(m.amount, company().currency)})` });
+          if (done) done(m);
         };
         if ($('#del-mv', root)) $('#del-mv', root).onclick = async () => {
           const pj = (m.attachments || []).length;
-          if (!await confirmDialog(`Supprimer ce mouvement ?${pj ? ` ${pj > 1 ? `Ses ${pj} justificatifs partent` : 'Son justificatif part'} avec lui.` : ''}`, 'Supprimer')) return;
+          // (1.304.0) La date RANGÉE (celle que le cabinet a lue), pas celle qu'on aurait tapée sans enregistrer.
+          await periodeValideeLue();
+          const dvSup = dateDansLaPeriodeValidee([m.date]);
+          if (!await confirmDialog(`Supprimer ce mouvement ?${pj ? ` ${pj > 1 ? `Ses ${pj} justificatifs partent` : 'Son justificatif part'} avec lui.` : ''}${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Il', fem: false })}` : ''}`, 'Supprimer')) return;
           if (closedBlock(m.date, 'Ce mouvement')) return;
           forget('movements', m.id, m.label || '');
           (m.attachments || []).forEach(a => { try { bridge.removeAttachment(m.id, a.file); } catch (_) { /* une copie déjà partie */ } });
           data.movements = data.movements.filter(x => x.id !== m.id); enregistre = true; save(true); close(); render();
+          if (dvSup) direAuComptableApres('Mouvement supprimé', { fait: 'de supprimer', fem: false, annule: true, quoi: `un mouvement daté du ${C.fmtDate(dvSup)} (${m.label || (C.MOVE_KINDS.find(k => k[0] === m.kind) || [])[1] || 'mouvement'}, ${C.money(m.amount, company().currency)})` });
         };
       },
       // Une fenêtre abandonnée ne laisse pas de copie derrière elle (le jumeau de `discard` des
@@ -5078,9 +5096,13 @@
           { sep: true },
           { icon: 'supprimer', label: 'Supprimer l\'opération', hint: 'Elle disparaît des écritures', danger: true, run: async () => {
             if (closedBlock(o.date, 'Cette opération diverse')) return;
-            if (!await confirmDialog(`Supprimer l'opération ${o.piece} — ${o.label} ?`, 'Supprimer', true)) return;
+            await periodeValideeLue();
+            const dvSup = dateDansLaPeriodeValidee([o.date]);
+            if (!await confirmDialog(`Supprimer l'opération ${o.piece} — ${o.label} ?${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Elle', fem: true })}` : ''}`, 'Supprimer', true)) return;
+            const totalSup = C.odValide(o, company()).debit || 0;
             forget('ecrituresOD', o.id, o.label || '');
             data.ecrituresOD = data.ecrituresOD.filter(x => x.id !== o.id); save(true); drawEntries();
+            if (dvSup) direAuComptableApres(`${o.piece} supprimée`, { fait: 'de supprimer', fem: true, annule: true, quoi: `l'opération diverse ${o.piece} « ${o.label} » datée du ${C.fmtDate(dvSup)} (${C.money(totalSup, company().currency)})` });
           } }
         ];
       });

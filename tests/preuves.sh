@@ -25229,6 +25229,46 @@ prouver 'la base refuse l'\''origine des opérations diverses du client' base/mi
   "                          'operation_diverse'));" "                          'saisie_salaire'));" \
   "$T303S"
 
+# (1.304.0) La période validée par le cabinet dite aussi dans la trésorerie (le mouvement qu'on saisit, qu'on corrige), et
+# avant de SUPPRIMER ce qui y tombait (un mouvement, un paiement, un règlement, un achat, une opération diverse).
+T304W="début novembre, le grossiste fait le ménage dans septembre : chaque geste le dit avant, et la comptable lit chaque annulation au 1er octobre"
+prouver 'le mouvement dans la période validée, sans un mot avant' "$A2E" \
+  "\$('#mf-valide', root), valideDuMouvement(v, majValideM), v.date," "\$('#mf-valide', root), null, v.date," \
+  "$T304W"
+prouver 'le mouvement rouvert sans changement redit l'\''avertissement' "$A2E" \
+  '(!mv || empreinteMv(v) !== empreinteMv(mv) ?' '(true ?' \
+  "$T304W"
+prouver 'le libellé d'\''un mouvement compté comme un changement chez le cabinet' "$A2E" \
+  'JSON.stringify([x.date, x.kind,' 'JSON.stringify([x.label, x.date, x.kind,' \
+  "$T304W"
+prouver 'le mouvement n'\''offre pas de le dire au comptable' "$A2E" \
+  'const dvM = valideDuMouvement(v);' "const dvM = '';" \
+  "$T304W"
+prouver 'la suppression d'\''un mouvement de la période validée, sans un mot dans la question' "$A2E" \
+  'const dvSup = dateDansLaPeriodeValidee([m.date]);' "const dvSup = '';" \
+  "$T304W"
+prouver 'la suppression d'\''un mouvement n'\''offre pas de le dire au comptable' "$A2E" \
+  "if (dvSup) direAuComptableApres('Mouvement supprimé'" "if (false) direAuComptableApres('Mouvement supprimé'" \
+  "$T304W"
+prouver 'la suppression d'\''une opération diverse de la période validée, sans un mot' "$A2E" \
+  'const dvSup = dateDansLaPeriodeValidee([o.date]);' "const dvSup = '';" \
+  "$T304W"
+prouver 'la suppression d'\''un paiement de la période validée, sans un mot' "$A1E" \
+  'const dvSup = dateDansLaPeriodeValidee([p.date]);' "const dvSup = '';" \
+  "$T304W"
+prouver 'la suppression d'\''un règlement de la période validée, sans un mot' "$A1E" \
+  'const dvSup = dateDansLaPeriodeValidee([x.date]);' "const dvSup = '';" \
+  "$T304W"
+prouver 'la suppression d'\''un achat de la période validée, sans un mot' "$A1E" \
+  'const dvSup = dateDansLaPeriodeValidee([rangee.date]);' "const dvSup = '';" \
+  "$T304W"
+prouver 'l'\''annulation annoncée au dernier jour validé, pas au premier jour ouvert' "$A1E" \
+  "son annulation s'écrira au \${C.fmtDate(premierJourOuvert())}" "son annulation s'écrira au \${C.fmtDate(valideCabinet.jusqua)}" \
+  "$T304W"
+prouver 'le message d'\''une suppression parle au présent d'\''une pièce qui n'\''est plus' "$A1E" \
+  "\${annule ? 'tombait' : 'tombe'}" "\${'tombe'}" \
+  "$T304W"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

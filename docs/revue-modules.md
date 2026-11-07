@@ -578,3 +578,24 @@ mouvements de la trésorerie, la caisse et la paie ne disent pas encore la péri
 plus toutes les 30 secondes.
 
 Suivant : la même phrase dans les mouvements de la trésorerie et la paie, puis le module suivant de la revue.
+
+### Fait en 1.304.0 (07/11/2026) : la période validée dite dans la trésorerie, et avant de supprimer ce qui y tombait
+
+Rejoué avec le même grossiste de Sousse et sa comptable, septembre validé jusqu'au 30/09/2026 : début novembre, on fait le
+ménage. Un impôt payé le 20/09 et jamais noté (retenues à la source d'août, 1 286,400 DT), saisi dans la trésorerie puis
+corrigé (1 312,600 DT) ; des frais bancaires du 10/09 saisis deux fois, supprimés ; un paiement noté par erreur le 26/09 sur
+la facture du Café des Arts, le règlement du 25/09 à Emballages du Centre, un achat du 18/09 saisi à tort (c'était le
+devis), une assurance passée deux fois en opération diverse le 12/09 : supprimés. Puis la comptable ouvre son livre-journal.
+Des frais d'octobre supprimés, et une entreprise sans cabinet, ne disent rien.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| C19 | Un mouvement de la trésorerie (un impôt, des frais, un apport) daté dans la période validée s'enregistrait sans un mot : la trésorerie était la dernière saisie datée qui ne le disait pas. | La même phrase sous le formulaire, pendant la saisie de la date (« Ce mouvement est daté du 20/09/2026, dans la période que ton cabinet a validée (jusqu'au 30/09/2026) : chez lui, il s'écrira au 01/10/2026… »), et « Le dire à mon comptable » après. Rouvert sans rien changer de ce qui s'écrit chez lui (date, nature, montant, compte, contrepartie, compte qui reçoit), rien : un libellé ou une référence ne change pas ses livres. Le montant corrigé, la phrase parle de la correction. |
+| C20 | **Supprimer** ce qui tombait dans la période validée (un mouvement, le paiement d'une facture, le règlement d'un achat, un achat, une opération diverse) ne disait rien, alors que chez le cabinet l'écriture validée se contre-passe au premier jour encore ouvert : la comptable découvrait l'annulation sans savoir d'où elle venait. | La question qui demande avant de supprimer le dit : « Il est daté du 10/09/2026, dans la période que ton cabinet a validée (jusqu'au 30/09/2026) : chez lui, son annulation s'écrira au 01/10/2026, le premier jour encore ouvert. » Rien n'est bloqué. Supprimé, « Le dire à mon comptable » ouvre la conversation, le message écrit (« je viens de supprimer un mouvement daté du 10/09/2026 (…) : il tombait dans la période que tu as validée…, son annulation s'écrit donc chez toi au 01/10/2026 »). Vérifié chez la comptable : l'écriture validée reste au 10/09, sa contre-passation arrive au 01/10, au brouillard, et le message dans sa conversation. |
+| C21 | La question d'une suppression doit savoir AVANT de demander : la date validée se lit au serveur, et au tout premier geste d'une page elle n'était pas encore là. | La suppression attend la réponse un instant (deux secondes au plus) ; sans cabinet, ou déjà lue, elle répond tout de suite. Une lecture qui échoue ne bloque plus les suivantes. |
+
+Limites connues : la paie (bulletins, salaires payés, avances) et la caisse ne disent pas encore la période validée (le
+mouvement créé depuis le relevé de la banque, lui, passe par la même fenêtre et le dit) ; une opération diverse saisie avant 1.303.0 n'arrive chez le cabinet qu'à
+sa prochaine modification ; la date validée se relit au plus toutes les 30 secondes.
+
+Suivant : la même phrase dans la paie (1.305), puis le module suivant de la revue.
