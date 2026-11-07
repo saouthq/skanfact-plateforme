@@ -958,3 +958,34 @@ Limites connues : une ligne d'un bon dont on augmente la quantité sur la factur
 un particulier tant que sa fiche ne dit pas qu'il en est un ; la proforma et le contrat ne réservent pas le stock.
 
 Suivant : les listes de prix.
+
+## Les listes de prix
+
+### Fait en 1.317.0 (07/11/2026) : chacun son prix, au comptoir comme sur la facture
+
+Joué par une droguerie de l'Ariana (« Droguerie El Amen ») : la liste des artisans (une catégorie, « Artisans 2026 » : le
+pot de peinture à 78 DT au lieu de 89, le silicone à 10,900), une hausse à venir, la liste de l'hôtel des Jasmins à son
+nom pour la saison (le pot à 74) et sa liste du printemps terminée ; les vis en boîte à 4,900, 4,200 dès 10, 3,900 dès 50.
+Hédi facture le plombier (rangé en « artisans », en minuscules), commence une facture pour une particulière puis
+s'aperçoit qu'elle est pour l'hôtel, facture le devis que l'hôtel avait accepté avant sa liste, puis tient le comptoir :
+le plombier y prend deux pots et douze boîtes de vis, un passant un pot. Inès, sa comptable, lit les ventes.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| L1 | À la caisse, la liste du client et les paliers ne comptaient pas : le plombier payait 89 DT le pot que sa liste met à 78, et les douze boîtes de vis 4,900 au lieu de 4,200 ; la tuile disait aussi le prix du catalogue. | Le panier prend le prix d'une facture au même client (`prixDuPanier`, la règle de `prixArticlePour`) à chaque dessin : le client choisi, la quantité changée, la vente reprise. La ligne dit d'où vient son prix (« prix « Artisans 2026 » », « prix par quantité ») ; la tuile dit le prix du client. |
+| L2 | Dans la barre d'ajout de la facture, « prix du client (Artisans 2026) » s'affichait à côté de 89,000 (le prix du catalogue), et la ligne se posait à 78. | Le choix dit le prix que la ligne prendra, et le premier palier plus bas (« 4,200 DT dès 10 »). |
+| L3 | Une facture commencée pour un client puis passée à un autre (« Changer ») gardait les prix de l'ancien : les pots restaient à 89 pour l'hôtel. | Les lignes du catalogue posées au prix de l'ancien client prennent celui du nouveau, et un message le dit ; un prix tapé à la main ne change pas ; dans une autre devise, rien ne se convertit tout seul (M-10, inchangé). |
+| L4 | La fiche du plombier disait « aucune liste de prix pour elle : les prix du catalogue » (sa catégorie en minuscules, la liste en majuscule) ; celle de l'hôtel « ceux du catalogue », à côté de la liste à son nom ; le nom d'une liste ne s'affichait jamais. | La fiche lit la liste par la règle du moteur, à la date du jour : « la liste « Artisans 2026 » remplace les prix du catalogue », « une liste à son nom … jusqu'au 31/12/2026 », avec le lien vers la liste ; une liste à venir le dit. |
+| L5 | La facture du devis accepté avant la liste de l'hôtel garde les prix du devis (89 DT) sans rien dire. | Le prix convenu reste ; « Avant d'émettre » dit « 2 lignes plus chères que sa liste « Hôtel Les Jasmins — saison » … » avec « Reprendre ses prix », qui les pose d'un geste si on le veut. |
+| L6 | Le client d'une liste payait plus cher qu'un passant au-delà d'un palier (une liste à 4,600 la boîte, le palier de 10 à 4,200 pour tous). | Décidé par délégation : au-delà d'un palier plus bas que sa liste, c'est le palier (moteur, donc aussi la remise contrôlée par le serveur). |
+
+Vérifié en jouant : la facture du plombier 78 / 4,200 / 10,900 (166,767 DT à payer) ; l'hôtel 74 après « Changer », le
+pinceau tapé à 6 resté à 6 ; la facture du devis 89 puis 74 et 11 après « Reprendre ses prix » ; au comptoir 245,616 DT
+pour le plombier (2 × 92,820 et 12 × 4,998), 105,910 pour le passant ; le ticket porte 78 et 4,2 au serveur ; au journal
+du Cabinet, 139,300 au 706 pour la facture, 206,400 pour le ticket du plombier, 89,000 pour celui du passant.
+
+Limites connues : une liste ne porte qu'un prix par article (pas de paliers propres à la liste) ; un brouillon dont on
+change la date ne reprend pas les prix d'une liste qui commence ou finit entre les deux dates ; le Cabinet ne voit pas
+les listes de prix (il n'en a pas besoin pour ses écritures).
+
+Suivant : le catalogue.

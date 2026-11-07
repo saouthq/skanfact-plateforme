@@ -6802,7 +6802,14 @@
         // Un produit fabriqué (sa fiche : « Produit fabriqué : FODEC ») la porte d'office, chez une entreprise qui fabrique.
         ...(fabrique && it.fodec === true ? { fodec: true } : {}) };
     };
-    const prixAffiche = c => { const pu = C.prixDuCatalogue(c.unitPrice, doc, company()); return pu === null ? C.money(c.unitPrice, company().currency) : C.money(pu, cur); };
+    // (1.317.0) Le prix qu'un article montre dans les choix de ce document est celui que sa ligne prendra : celui de la liste
+    // du client (la droguerie jouée : « prix du client (Artisans 2026) » s'affichait à côté de 89,000, la ligne se posait à 78).
+    const enDevise = prix => { const pu = C.prixDuCatalogue(prix, doc, company()); return pu === null ? C.money(prix, company().currency) : C.money(pu, cur); };
+    const prixDuChoix = c => { const pr = C.prixArticlePour(data, c, doc.clientId, doc.date, 1); return pr.source === 'article' ? c.unitPrice : pr.prix; };
+    const prixAffiche = c => enDevise(prixDuChoix(c));
+    // Le premier palier de quantité plus bas que ce prix (« 4,200 dès 10 ») : le vendeur le dit au client avant la quantité.
+    const palierDuChoix = c => { const p = Number(prixDuChoix(c)) || 0; const x = (Array.isArray(c.paliers) ? c.paliers : []).filter(y => Number(y.min) > 1 && Number(y.prix) > 0 && Number(y.prix) < p).sort((a, b) => Number(a.min) - Number(b.min))[0];
+      return x ? `${enDevise(Number(x.prix))} dès ${pct(Number(x.min))}` : ''; };
     let catCombo = null;
     const poserArticle = (i, it) => {
       const l = doc.lines[i]; if (!l) return;
@@ -7430,10 +7437,24 @@
         direDevise();
       }
       if (e && e.target && e.target.name === 'clientId' && doc.clientId !== appliedClient && doc.status === 'brouillon') {
+        const ancienClient = appliedClient, ancienneDevise = { currency: doc.currency, exchangeRate: doc.exchangeRate };
         appliedClient = doc.clientId;
         // nouveau client : on reprend son taux de retenue à la source, sa langue et sa devise
         if (!isQ) { doc.withholdingRate = clientWithholding(doc.clientId); const sel = $('select[name=withholdingRate]', head); if (sel) sel.innerHTML = withholdingOptions(doc.withholdingRate); }
         applyClientDefaults(doc, doc.clientId);
+        // (1.317.0, la droguerie jouée) Les lignes du catalogue posées au prix de l'ancien client prennent celui du nouveau
+        // (sa liste de prix, le palier de leur quantité) : le brouillon commencé pour un particulier puis passé à l'hôtel
+        // gardait ses pots à 89 DT, la liste de l'hôtel les met à 74. Un prix tapé reste ; une autre devise aussi (M-10 :
+        // sans taux, rien ne se convertit tout seul, l'écran le dit).
+        let reprises = 0;
+        if (docCur(ancienneDevise) === docCur(doc)) doc.lines.forEach(l => {
+          const it = l && l.itemId && !l.prixManuel ? data.catalog.find(c => c.id === l.itemId) : null; if (!it) return;
+          const avant = C.prixDuCatalogue(C.prixArticlePour(data, it, ancienClient, doc.date, l.qty).prix, ancienneDevise, company());
+          const apres = C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, l.qty).prix, doc, company());
+          if (avant === null || apres === null || apres === '' || Number(avant) !== Number(l.unitPrice) || Number(apres) === Number(l.unitPrice)) return;
+          l.unitPrice = apres; delete l.puTtc; reprises++;
+        });
+        if (reprises) toast(`${pl(reprises, 'ligne')} ${reprises > 1 ? 'prennent' : 'prend'} le prix de ${clientName(doc.clientId)} ; un prix que tu as tapé ne change pas.`);
         // La case du timbre suit le nouveau client (9.1.1). Sans cette ligne, `doc.applyStamp`
         // serait juste et l'écran faux — et le prochain `formValues(head)` relirait la case restée
         // en arrière et écraserait la donnée. Un champ qu'on change dans les données et pas dans le
@@ -7751,6 +7772,7 @@
       const cl = clientById(doc.clientId);
       const manque = C.companyGaps(co).concat(String(co.address || '').trim() ? [] : ['l\'adresse']);
       const tvaFausse = (!C.assujettiTVA(co) && C.computeTotals(doc, co).totalVAT > 0.0005) || C.factureSansTvaSuspecte(doc, co);
+      let prixAReprendre = [];
       const points = [
         [!manque.length, manque.length ? `Ta fiche : il manque ${C.liste(manque)}` : `Ta fiche : matricule, ${C.ribAttendu(co) ? 'RIB, ' : ''}adresse`, manque.length ? '<button type="button" class="lien" data-avant="fiche">Compléter</button>' : ''],
         isInv && !cl && doc.passage ? [true, String(doc.passage.matricule || '').trim() ? 'Le client a son identifiant' : 'Sans matricule : permis pour un particulier', ''] :
@@ -7787,6 +7809,21 @@
           if (avant) points.push([false, `La date (${lfJm(doc.date)}) précède ${avant.number} du ${lfJm(avant.date)} : la numérotation ne suivrait plus l'ordre des dates`, '']);
         }
         if (doc.dueDate && doc.date && doc.dueDate < doc.date) points.push([false, 'L\'échéance tombe avant la date de la facture', '']);
+        // (1.317.0, la droguerie jouée) Une ligne du catalogue plus chère que le prix du client (sa liste, le palier de sa
+        // quantité) : la facture d'un devis fait avant la liste de l'hôtel gardait ses pots à 89 DT, la liste les met à 74.
+        // Le devis accepté reste le prix convenu : on le dit, et « Reprendre ses prix » les pose d'un geste, si on le veut.
+        // Un prix tapé à la main est un choix : il ne se signale pas.
+        if (isInv && !figee && cl) {
+          prixAReprendre = doc.lines.map(l => {
+            const it = l && l.itemId && !l.prixManuel && !C.estTitre(l) ? data.catalog.find(c => c.id === l.itemId) : null; if (!it) return null;
+            const pr = C.prixArticlePour(data, it, doc.clientId, doc.date, l.qty);
+            const pu = pr.source === 'article' ? null : C.prixDuCatalogue(pr.prix, doc, co);
+            return pu !== null && pu !== '' && Number(l.unitPrice) > Number(pu) + 0.0005 ? { l, pu: Number(pu), pr } : null;
+          }).filter(Boolean);
+          const x = prixAReprendre[0];
+          if (x) points.push([false, `${prixAReprendre.length > 1 ? `${prixAReprendre.length} lignes plus chères` : 'Une ligne plus chère'} que ${x.pr.liste ? `sa liste « ${x.pr.liste} »` : 'le palier de sa quantité'} : « ${x.l.label} » ${C.money(Number(x.l.unitPrice), cur)} au lieu de ${C.money(x.pu, cur)}`,
+            '<button type="button" class="lien" data-avant="prix">Reprendre ses prix</button>']);
+        }
         // (maquette « sur 2 pages ») Le nombre de pages, compté par la mise en page de l'aperçu (la même que le PDF).
         if (pagesApercu > 1) points.push([true, `${pagesApercu} pages : chaque page reprend l'en-tête des colonnes`, '']);
         if (t.sousLeSeuil) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur la facture ; elle se fera au paiement si le client en règle plusieurs pour ce montant ou plus`, '']);
@@ -7799,6 +7836,13 @@
       el.innerHTML = `<h3>${isQ || (isExtra && envoiSuivant) ? 'Avant d\'envoyer' : isExtra ? 'Avant d\'enregistrer' : 'Avant d\'émettre'}</h3><ul>${points.map(([ok, txt, g]) => `<li class="${ok ? 'ok' : 'alerte'}">${lfIc(ok ? 'coche' : 'aide', 15, 2.4)}<span>${h(txt)}</span>${g}</li>`).join('')}</ul>`;
       const f = $('[data-avant=fiche]', el); if (f) f.onclick = () => allerParametres('societe', 'p-identite');
       const c = $('[data-avant=client]', el); if (c) c.onclick = ouvrirFicheClient;
+      const px = $('[data-avant=prix]', el);
+      if (px) px.onclick = () => {
+        const n = prixAReprendre.length;
+        prixAReprendre.forEach(({ l, pu }) => { l.unitPrice = pu; delete l.puTtc; });
+        touch(); drawLines(); refreshTotals();
+        toast(`${pl(n, 'ligne')} au prix de ${clientName(doc.clientId)}.`);
+      };
     }
     // (1.155.0, maquette de la facture, « les états d'un brouillon ») Ce que la pièce a de particulier, dit en haut et
     // AVANT le geste : un bandeau par fait, son ton (bleu : à savoir ; ambre : à vérifier ; rouge : rien ne s'émet), sa
@@ -9125,7 +9169,7 @@
             ${montres.map((c, i) => {
               const pr = C.prixArticlePour(data, c, doc.clientId, doc.date, 1);
               const v = ventes.get(c.id);
-              const sous = [c.code ? h(c.code) : '', c.unit ? h(c.unit) : '', pr.source === 'liste' ? `prix du client${pr.liste ? ` (${h(pr.liste)})` : ''}` : pr.source === 'palier' ? 'prix au palier' : c.tracked ? '' : 'prestation', v ? `la dernière fois : ${C.money(v.pu, null, C.decimalsFor(v.cur))}` : ''].filter(Boolean).join(' · ');
+              const sous = [c.code ? h(c.code) : '', c.unit ? h(c.unit) : '', pr.source === 'liste' ? `prix du client${pr.liste ? ` (${h(pr.liste)})` : ''}` : pr.source === 'palier' ? 'prix au palier' : c.tracked ? '' : 'prestation', palierDuChoix(c), v ? `la dernière fois : ${C.money(v.pu, null, C.decimalsFor(v.cur))}` : ''].filter(Boolean).join(' · ');
               return `<button type="button" class="aj-o${i === selA ? ' sel' : ''}" data-aj="${i}"><span class="aj-n"><b>${h(c.label)}</b><small>${sous}</small></span>${c.tracked ? `<span class="aj-st ${C.stockOf(data, c.id).qty > 0 ? 'ok' : 'alerte'}">en stock : ${pct(C.stockOf(data, c.id).qty)}</span>` : '<span></span>'}<span class="aj-p">${prixAffiche(c)} <small>HT</small></span></button>`;
             }).join('')}
             ${brut ? `<button type="button" class="aj-o aj-cr${selA === montres.length ? ' sel' : ''}" data-aj-cr>${lfIc('ajout', 15, 2.4)}<b>Créer l'article « ${h(brut)} »…</b></button>
@@ -11017,7 +11061,18 @@
     const delaiReglages = C.delaiJours(co.paymentTermsDays, 30);
     const delaiDit = c.paymentTermsDays !== '' && c.paymentTermsDays != null ? (Number(c.paymentTermsDays) > 0 ? `${pl(Number(c.paymentTermsDays), 'jour')} après la facture${c.paymentTermsEom ? ', fin de mois' : ''}` : 'à réception')
       : `${delaiReglages ? pl(delaiReglages, 'jour') : 'à réception'}<small>celui de tes réglages</small>`;
-    const liste = c.categorieTarif ? (data.priceLists || []).find(l => String(l.categorie || '').trim() === String(c.categorieTarif).trim()) : null;
+    // (1.317.0, la droguerie jouée) La liste qui fait ses prix aujourd'hui, par la règle du moteur (`listesPrixApplicables` :
+    // celle qui le nomme d'abord, puis celle de sa catégorie, quelle qu'en soit la casse, à la date du jour). La fiche du
+    // plombier rangé en « artisans » disait « aucune liste » à côté de la liste « Artisans » qui faisait ses prix, celle de
+    // l'hôtel « ceux du catalogue » à côté de la liste à son nom, et le nom d'une liste ne s'affichait jamais.
+    const tPrix = C.today();
+    const listeC = C.listesPrixApplicables(data, c.id, tPrix)[0] || null;
+    const prochaineC = listeC ? null : (data.priceLists || []).filter(l => l.depuis && l.depuis > tPrix && C.listesPrixApplicables(data, c.id, l.depuis).some(x => x.id === l.id))
+      .sort((a, b) => a.depuis.localeCompare(b.depuis))[0] || null;
+    const nomListe = l => `<a href="#/listeprix/${h(l.id)}">« ${h(l.nom || l.categorie || 'sans nom')} »</a>`;
+    const prixDit = listeC ? `${c.categorieTarif && !(listeC.clientIds || []).includes(c.id) ? `catégorie « ${h(c.categorieTarif)} »` : 'une liste à son nom'}<small>la liste ${nomListe(listeC)}${listeC.jusquau ? ` jusqu'au ${h(C.fmtDate(listeC.jusquau))}` : ''} remplace les prix du catalogue</small>`
+      : c.categorieTarif ? `catégorie « ${h(c.categorieTarif)} »<small>${prochaineC ? `la liste ${nomListe(prochaineC)} vaudra pour elle à partir du ${h(C.fmtDate(prochaineC.depuis))} ; d'ici là, les prix du catalogue` : 'aucune liste de prix en vigueur pour elle : les prix du catalogue'}</small>`
+      : prochaineC ? `ceux du catalogue<small>la liste ${nomListe(prochaineC)} vaudra pour lui à partir du ${h(C.fmtDate(prochaineC.depuis))}</small>` : 'ceux du catalogue';
     const droite = `<div class="cf-carte cf-bloc"><div class="cf-bloc-t"><b>Coordonnées</b>${peutEcrire ? '<button type="button" class="btn btn-sm" data-modifier>Modifier</button>' : ''}</div>
         <dl class="cf-dl"><dt>Contact</dt><dd>${c.contact ? h(c.contact) : '<span class="mu">—</span>'}</dd>
         <dt>Téléphone</dt><dd>${c.phone ? telLisible(c.phone) : '<span class="mu">—</span>'}</dd>
@@ -11028,7 +11083,7 @@
         <dl class="cf-dl"><dt>Retenue ${info('ed.withholding')}</dt><dd>${rsDit}</dd>
         <dt>Délai</dt><dd id="cf-delai">${delaiDit}</dd>
         <dt>Encours ${info('cl.encours')}</dt><dd id="cl-encours">${encours ? `${mo(Number(c.creditLimit))} autorisés<small${depasse ? ' class="rouge"' : ''}>${mo(encours.total)} pris${encours.livre > 0.0005 ? `, dont ${mo(encours.livre)} livrés à facturer` : ''}${depasse ? ` : dépassé de ${mo(C.round3(encours.total - Number(c.creditLimit)))}` : ''}</small>` : 'sans plafond'}</dd>
-        <dt>Prix</dt><dd>${c.categorieTarif ? `catégorie « ${h(c.categorieTarif)} »<small>${liste ? `la liste « ${h(liste.name || liste.categorie)} » remplace les prix du catalogue` : 'aucune liste de prix pour elle : les prix du catalogue'}</small>` : 'ceux du catalogue'}</dd>
+        <dt>Prix</dt><dd id="cf-prix">${prixDit}</dd>
         <dt>Documents</dt><dd>${c.lang === 'en' ? 'anglais' : 'français'} · ${h(symboleDevise(c.currency || cur))}</dd>
         <dt>Timbre</dt><dd>${c.stampExempt ? 'non<small>exonéré sur sa fiche (À VÉRIFIER avec ton comptable)</small>' : 'oui<small>le montant vient de tes réglages</small>'}</dd></dl></div>
       <div class="cf-carte cf-bloc"><div class="cf-bloc-t"><b>Notes internes</b><span class="mu">jamais sur un document</span></div>

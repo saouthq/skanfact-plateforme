@@ -513,7 +513,8 @@
     if (!s.jour) s.jour = C.today();
     const comptes = C.comptesDeCaisse(data);
     const articles = (data.catalog || []).slice().sort((a, b) => String(a.label || '').localeCompare(String(b.label || ''), 'fr'));
-    const ttcDe = it => C.computeTotals({ type: 'facture', applyStamp: false, lines: [C.ligneDePanier(it, company())] }, company()).totalTTC;
+    // (1.317.0) La tuile dit le prix du client choisi (sa liste de prix), comme la ligne qu'elle posera.
+    const ttcDe = it => C.computeTotals({ type: 'facture', applyStamp: false, lines: C.prixDuPanier(data, [C.ligneDePanier(it, company())], s.clientId, C.today()) }, company()).totalTTC;
     // (05/10/2026) La caisse tactile prend tout l'écran (`body.mode-caisse`, posé par le routeur) : une barre du haut — la
     // sortie, la caisse, son état, ses deux onglets, qui est au poste, le menu des gestes plus rares — puis l'écran du
     // moment. L'en-tête reste celui de la page : « Guide-moi » et les bandeaux s'y posent comme ailleurs.
@@ -703,6 +704,8 @@
         return m && !C.comptesDeCaisse(data).especes && !motifSession() && !C.motifEncaissement(data, company(), s.panier, { mode: 'carte', recu: '', remise: s.remise }) ? '' : m;
       };
       const drawTicket = () => {
+        // (1.317.0) Chaque ligne prend le prix d'une facture au même client : sa liste de prix, le palier de sa quantité.
+        C.prixDuPanier(data, s.panier, s.clientId, C.today());
         const t = C.totauxDuPanier(s.panier, company(), { recu: '', remise: s.remise });
         const motif = motifDuPanier();
         // Le panier est bon, la caisse ouverte : seul le compte manque (la carte, elle, bute sur la banque absente).
@@ -723,7 +726,7 @@
             const tl = t.lines[i] || { ttc: 0 };
             const unite = Number(l.qty) ? C.round3(tl.ttc / Number(l.qty)) : 0;
             return `<div class="ct-ligne" data-ligne="${i}">
-              <div class="ct-ligne-nom"><b><span class="ct-q">${pct(l.qty)} × </span>${h(l.label)}</b><small>${C.money(unite, cur)} l'unité</small></div>
+              <div class="ct-ligne-nom"><b><span class="ct-q">${pct(l.qty)} × </span>${h(l.label)}</b><small>${C.money(unite, cur)} l'unité${l.prixSource === 'liste' ? ` · prix « ${h(l.prixListe || 'du client')} »` : l.prixSource === 'palier' ? ' · prix par quantité' : ''}</small></div>
               <div class="ct-pas"><button type="button" data-moins="${i}" aria-label="Un ${h(l.label)} de moins">−</button><button type="button" class="ct-qte" data-qte="${i}" aria-label="Quantité de ${h(l.label)} : ${pct(l.qty)}, à toucher pour la taper">${pct(l.qty)}</button><button type="button" data-plus="${i}" aria-label="Un ${h(l.label)} de plus">+</button></div>
               <b class="ct-ligne-total">${C.money(tl.ttc, cur)}</b></div>`;
           }).join('') : `<div class="ct-vide">${ICONES.scan}<b>Le ticket est vide</b><span>Scanne un article, ou touche-le à gauche : il s'ajoute ici.</span></div>`}</div>
@@ -783,7 +786,7 @@
             const vus = tous.filter(c => !q || (c.v && C.correspondRecherche(c.text || c.label, q))).slice(0, 40);
             $('#cs-cl-liste', root).innerHTML = vus.length ? vus.map(c => `<button type="button" role="option" aria-selected="${c.v === (s.clientId || '')}" data-client="${h(c.v)}"><b>${h(c.label)}</b>${c.sub ? `<small>${h(c.sub)}</small>` : ''}</button>`).join('')
               : `<p class="small muted">Aucun client ne correspond à « ${h(q)} ».</p>`;
-            $$('[data-client]', root).forEach(b => { b.onclick = () => { s.clientId = b.dataset.client; close(); drawTicket(); }; });
+            $$('[data-client]', root).forEach(b => { b.onclick = () => { s.clientId = b.dataset.client; close(); drawTicket(); drawArticles(); }; });
           };
           $('#cs-cl-q', root).oninput = dessiner;
           dessiner();

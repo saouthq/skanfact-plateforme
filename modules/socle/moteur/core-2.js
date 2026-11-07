@@ -6651,6 +6651,20 @@
     return { itemId: item.id, label: item.label || '', unit: item.unit || '', qty: 1,
       unitPrice: Number(item.unitPrice) || 0, vatRate: tauxPourRegime(company, Number(item.vatRate) || 0) };
   }
+  // (1.317.0, la droguerie jouée) Le prix au comptoir est celui de la facture : la liste de prix du client choisi et le
+  // palier de la quantité (`prixArticlePour`). Le plombier payait au comptoir 89 DT le pot que sa liste met à 78, et
+  // 4,900 DT les douze boîtes de vis que le palier de 10 met à 4,200 pour tout le monde. Chaque ligne d'un article du
+  // catalogue reprend ce prix, et d'où il vient (`prixSource`, `prixListe` : pour l'écran, le ticket ne les garde pas) ;
+  // une ligne sans article (« Article divers ») garde le sien. Rend le panier, ses prix à jour.
+  function prixDuPanier(data, panier, clientId, jour) {
+    (panier || []).forEach(l => {
+      const it = l && l.itemId ? ((data && data.catalog) || []).find(x => x.id === l.itemId) : null;
+      if (!it) return;
+      const p = prixArticlePour(data, it, clientId || '', jour || today(), l.qty);
+      l.unitPrice = p.prix; l.prixSource = p.source === 'article' ? '' : p.source; l.prixListe = p.liste || '';
+    });
+    return panier;
+  }
   // Un montant TAPÉ au comptoir : « 50,5 », « 50.5 », « 1 000 » — la virgule est la décimale de
   // l'utilisateur (H-3, 10.12.0). Vide vaut null (rien de reçu n'est pas zéro reçu) ; illisible, NaN,
   // pour que le refus le dise au lieu de compter zéro.
@@ -7483,7 +7497,7 @@
 
   const api = {
     enLot, duLot,
-    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, estCession, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
+    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, estCession, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, prixDuPanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
     VAT_RATES, WITHHOLDING_RATES, PAYMENT_METHODS, PREFIX, TITLES, DEFAULT_DATA, DEFAULT_COMPANY, ACTIVITIES, STATUSES, STATUT_ENVOI, DISPLAY_STATUSES, STATUS_LABELS,
     REGIMES, regimeOf, regimeSuggere, tfpSuggere, assujettiTVA, mentionTVA, estLiberal, docLabel, ribAttendu,
     DOC_FILTRES, docFiltre,

@@ -4922,7 +4922,7 @@ prouver "une catégorie écrite autrement qui ne se reconnaît pas" modules/socl
   "  const normCategorie = s => String(s || '').trim().toLowerCase();" "  const normCategorie = s => String(s || '');" \
   "$LP1"
 prouver "le prix de la liste ignoré au profit du catalogue" modules/socle/moteur/core-1.js \
-  "      if (x) return { prix: Number(x.prix), source: 'liste', liste: l.nom || '' };" "" \
+  "      return { prix: Number(x.prix), source: 'liste', liste: l.nom || '' };" "" \
   "$LP2"
 prouver "un article choisi au prix du catalogue malgré la liste du client" modules/socle/ecrans/entreprise/app-1.js \
   "const pu = C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, 1).prix, doc, company())" "const pu = C.prixDuCatalogue(it.unitPrice, doc, company())" \
@@ -25884,6 +25884,58 @@ prouver 'la copie de la facture des bons garde la marque des bons' "$APP1" \
 prouver 'un transport livré avec le bon se dit sorti du stock' "$APP1" \
   "\${it && it.tracked ? \`\${h(l.fromBon)} · déjà sorti du stock\` : \`livré avec \${h(l.fromBon)}\`}" "\${h(l.fromBon)} · déjà sorti du stock" \
   "$T316"
+
+# (1.317.0) Les listes de prix jouées (une droguerie de l'Ariana, ses artisans, son hôtel, son comptoir, puis sa comptable) :
+# la caisse prend le prix d'une facture au même client (sa liste, le palier de la quantité) et le dit ; le choix d'un
+# article dit le prix que sa ligne prendra ; changer de client reprend les prix du catalogue posés ; la fiche du client dit
+# la liste qui fait ses prix (la règle du moteur) ; la facture d'un devis plus cher que la liste le dit, et « Reprendre
+# ses prix » les pose ; le client d'une liste ne paie jamais plus qu'un passant au-delà d'un palier.
+APP1=modules/socle/ecrans/entreprise/app-1.js
+APP2=modules/socle/ecrans/entreprise/app-2.js
+CORE1=modules/socle/moteur/core-1.js
+CORE2=modules/socle/moteur/core-2.js
+T317="la droguerie vend à ses artisans, à son hôtel et au comptoir, chacun à son prix, et le comptable lit les ventes"
+TP317a="le client d'une liste ne paie jamais plus qu'un passant : au-delà d'un palier plus bas que sa liste, c'est le palier"
+TP317b="le panier de la caisse prend le prix d'une facture au même client, et le reprend quand le client change"
+prouver 'le client d'\''une liste paie plus qu'\''un passant au-delà du palier' "$CORE1" \
+  "      if (palier !== (Number(item && item.unitPrice) || 0) && palier < Number(x.prix)) return { prix: palier, source: 'palier', liste: '' };" "" \
+  "$TP317a"
+prouver 'le panier de la caisse garde le prix du catalogue' "$CORE2" \
+  "l.unitPrice = p.prix; l.prixSource" "l.prixSource" \
+  "$TP317b"
+prouver 'la caisse ne reprend pas les prix du client' "$APP2" \
+  "        C.prixDuPanier(data, s.panier, s.clientId, C.today());" "" \
+  "$T317"
+prouver 'la tuile de la caisse dit le prix du catalogue' "$APP2" \
+  "lines: C.prixDuPanier(data, [C.ligneDePanier(it, company())], s.clientId, C.today()) }" "lines: [C.ligneDePanier(it, company())] }" \
+  "$T317"
+prouver 'la ligne du ticket ne dit pas d'\''où vient son prix' "$APP2" \
+  "l'unité\${l.prixSource === 'liste'" "l'unité\${false" \
+  "$T317"
+prouver 'choisir le client à la caisse ne redessine pas les tuiles' "$APP2" \
+  "close(); drawTicket(); drawArticles(); };" "close(); drawTicket(); };" \
+  "$T317"
+prouver 'le choix d'\''un article dit le prix du catalogue' "$APP1" \
+  "const prixAffiche = c => enDevise(prixDuChoix(c));" "const prixAffiche = c => enDevise(c.unitPrice);" \
+  "$T317"
+prouver 'le choix d'\''un article tait son palier' "$APP1" \
+  "'prestation', palierDuChoix(c), v ?" "'prestation', v ?" \
+  "$T317"
+prouver 'changer de client garde les prix de l'\''ancien' "$APP1" \
+  "          l.unitPrice = apres; delete l.puTtc; reprises++;" "" \
+  "$T317"
+prouver 'changer de client reprend les prix sans le dire' "$APP1" \
+  "        if (reprises) toast(" "        if (false) toast(" \
+  "$T317"
+prouver 'la fiche du client cherche sa liste sans la règle du moteur' "$APP1" \
+  "const listeC = C.listesPrixApplicables(data, c.id, tPrix)[0] || null;" "const listeC = (data.priceLists || []).find(l => String(l.categorie || '').trim() === String(c.categorieTarif || '').trim()) || null;" \
+  "$T317"
+prouver 'la facture d'\''un devis tait la liste moins chère' "$APP1" \
+  "          if (x) points.push([false, \`\${prixAReprendre.length > 1" "          if (false) points.push([false, \`\${prixAReprendre.length > 1" \
+  "$T317"
+prouver 'reprendre ses prix ne pose rien' "$APP1" \
+  "        prixAReprendre.forEach(({ l, pu }) => { l.unitPrice = pu; delete l.puTtc; });" "" \
+  "$T317"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

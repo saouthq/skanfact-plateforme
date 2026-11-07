@@ -1118,10 +1118,16 @@
       .sort((a, b) => (nomme(b) ? 1 : 0) - (nomme(a) ? 1 : 0) || String(b.depuis || '').localeCompare(String(a.depuis || '')));
   }
   // Le prix d'un article pour ce client, à cette date et cette quantité, en dinars, et d'où il vient.
+  // (1.317.0, la droguerie jouée) Le client d'une liste ne paie jamais plus cher qu'un passant : quand la quantité atteint
+  // un palier de l'article plus bas que le prix de sa liste (12 boîtes de vis à 4,200 pour tous, 4,600 sur la liste des
+  // artisans), c'est le palier (décidé par délégation le 07/11/2026).
   function prixArticlePour(data, item, clientId, dateIso, qty) {
     for (const l of listesPrixApplicables(data, clientId, dateIso)) {
       const x = (l.lignes || []).find(y => y.itemId === (item && item.id) && Number(y.prix) > 0);
-      if (x) return { prix: Number(x.prix), source: 'liste', liste: l.nom || '' };
+      if (!x) continue;
+      const palier = prixCataloguePourQuantite(item, qty);
+      if (palier !== (Number(item && item.unitPrice) || 0) && palier < Number(x.prix)) return { prix: palier, source: 'palier', liste: '' };
+      return { prix: Number(x.prix), source: 'liste', liste: l.nom || '' };
     }
     const p = prixCataloguePourQuantite(item, qty);
     return { prix: p, source: p !== (Number(item && item.unitPrice) || 0) ? 'palier' : 'article', liste: '' };
