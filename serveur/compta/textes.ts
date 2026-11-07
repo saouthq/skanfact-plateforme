@@ -36,6 +36,7 @@ declarerTextes({
   'compta.champ.compte': 'un numéro de compte (des chiffres)',
   'compta.champ.fin_avant_debut': 'la fin de la période ne peut pas précéder son début',
   'compta.libelle.facture': 'Facture {numero} — {client}',
+  'compta.libelle.periode': '{libelle} · période {mois}',
   'compta.libelle.avoir': 'Avoir {numero} — {client}',
   'compta.libelle.ventes': '{libelle} (HT {taux} %)',
   'compta.libelle.tva': 'TVA {taux} % — {numero}',

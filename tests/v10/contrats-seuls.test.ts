@@ -91,21 +91,22 @@ describe('les factures périodiques émises seules', () => {
     ])).statut).toBe(200);
 
     // Le 6 octobre, trois contrats dus : r1 (le 31 de chaque mois) rattrape juillet, août et septembre (le 30) ; r4 émet le
-    // sien ; r5 est refusé.
+    // sien ; r5 est refusé. (1.315.0) Une période rattrapée part datée du jour où elle part (le 6 octobre), jamais dans un mois
+    // passé ; son objet dit le mois qu'elle couvre, son identifiant sa période.
     expect(await emettreLesContrats(ctx, le('2026-10-06'))).toEqual({ contrats: 3, emises: 4, refusees: 1 });
     const pieces = (await admin.query(`select ref_v10, numero_texte, date_piece, echeance, objet, net_a_payer, timbre, statut from ventes.piece
       where entreprise = $1 order by numero_texte`, [ent])).rows;
     expect(pieces).toEqual([
-      { ref_v10: 'contrat-r1-2026-07-31', numero_texte: 'FAC-2026-001', date_piece: '2026-07-31', echeance: '2026-08-30', objet: 'Abonnement de la boutique — juillet 2026', net_a_payer: 106910n, timbre: 1000n, statut: 'emise' },
-      { ref_v10: 'contrat-r1-2026-08-31', numero_texte: 'FAC-2026-002', date_piece: '2026-08-31', echeance: '2026-09-30', objet: 'Abonnement de la boutique — août 2026', net_a_payer: 106910n, timbre: 1000n, statut: 'emise' },
-      { ref_v10: 'contrat-r1-2026-09-30', numero_texte: 'FAC-2026-003', date_piece: '2026-09-30', echeance: '2026-10-30', objet: 'Abonnement de la boutique — septembre 2026', net_a_payer: 106910n, timbre: 1000n, statut: 'emise' },
+      { ref_v10: 'contrat-r1-2026-07-31', numero_texte: 'FAC-2026-001', date_piece: '2026-10-06', echeance: '2026-11-05', objet: 'Abonnement de la boutique — juillet 2026', net_a_payer: 106910n, timbre: 1000n, statut: 'emise' },
+      { ref_v10: 'contrat-r1-2026-08-31', numero_texte: 'FAC-2026-002', date_piece: '2026-10-06', echeance: '2026-11-05', objet: 'Abonnement de la boutique — août 2026', net_a_payer: 106910n, timbre: 1000n, statut: 'emise' },
+      { ref_v10: 'contrat-r1-2026-09-30', numero_texte: 'FAC-2026-003', date_piece: '2026-10-06', echeance: '2026-11-05', objet: 'Abonnement de la boutique — septembre 2026', net_a_payer: 106910n, timbre: 1000n, statut: 'emise' },
       { ref_v10: 'contrat-r4-2026-10-06', numero_texte: 'FAC-2026-004', date_piece: '2026-10-06', echeance: '2026-11-05', objet: 'Abonnement de la boutique — octobre 2026', net_a_payer: 105910n, timbre: 0n, statut: 'emise' },
     ]);
     const apres = await lire();
     const objet = (collection: string, cle: string) => apres.find((o) => o.collection === collection && o.cle === cle)?.contenu;
     // La facture du dossier, comme l'écran l'aurait émise : son numéro, son contrat, ses lignes remplies.
     expect(objet('documents', 'contrat-r1-2026-08-31')).toMatchObject({ number: 'FAC-2026-002', status: 'envoyée', recurringId: 'r1', clientId: menuiserie.cle,
-      date: '2026-08-31', dueDate: '2026-09-30', subject: 'Abonnement de la boutique — août 2026', notes: 'Merci pour 2026', reference: 'ABO-7',
+      date: '2026-10-06', dueDate: '2026-11-05', periode: '2026-08-31', subject: 'Abonnement de la boutique — août 2026', notes: 'Merci pour 2026', reference: 'ABO-7',
       discountRate: 0, withholdingRate: 0, applyStamp: true, lang: 'fr', currency: 'DT', exchangeRate: '', payments: [],
       lines: [{ label: 'Hébergement août 2026', description: 'Période de août 2026', unitPrice: 89, vatRate: 19 }] });
     // Les contrats : r1 avance de trois mois (et revient au 31) ; r4 d'un trimestre ; r2 (ordinaire) et r3 (suspendu) ne
@@ -139,7 +140,9 @@ describe('les factures périodiques émises seules', () => {
       { collection: 'recurring', cle: 'r5', rang: r5.rang, revision: r5.revision, contenu: { ...r5.contenu, clientId: menuiserie.cle } },
     ])).statut).toBe(200);
     expect(await emettreLesContrats(ctx, le('2026-10-09'))).toEqual({ contrats: 1, emises: 1, refusees: 0 });
-    expect((await admin.query(`select echeance from ventes.piece where entreprise = $1 and ref_v10 = 'contrat-r5-2026-10-01'`, [ent])).rows).toEqual([{ echeance: '2026-10-16' }]);
+    // (1.315.0) Due le 1er, partie le 9 (son refus l'a retenue) : datée du jour où elle part, payable 15 jours plus tard ; son
+    // identifiant garde la période qu'elle couvre.
+    expect((await admin.query(`select date_piece::text, echeance::text from ventes.piece where entreprise = $1 and ref_v10 = 'contrat-r5-2026-10-01'`, [ent])).rows).toEqual([{ date_piece: '2026-10-09', echeance: '2026-10-24' }]);
     expect((await relire('r5')).contenu).not.toHaveProperty('refusServeur');
     // r5 est annuel : la suivante dans un an.
     expect((await relire('r5')).contenu).toMatchObject({ nextDate: '2027-10-01' });

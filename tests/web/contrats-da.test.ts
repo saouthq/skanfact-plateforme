@@ -53,14 +53,18 @@ describe('la Facturation récurrente dans la nouvelle DA', () => {
     // Trois contrats : un mensuel à 89,000 HT déjà échu (à générer), un trimestriel à 450,500 HT plus tard, un mensuel à
     // 120,000 HT suspendu. Par an : 89 × 12 + 450,5 × 4 = 1 068 + 1 802 = 2 870,000 ; par mois 239,166… → 239,167.
     // Le suspendu ne compte pas (sinon 359,167 par mois).
-    const contrat = (id: string, clientId: string, every: string, prix: number, nextDate: string, active = true) => ({ collection: 'recurring', cle: id, rang: 0, revision: null,
-      contenu: { id, clientId, every, day: 5, nextDate, active, subject: `Contrat ${id} — {mois}`,
+    // Le contrat mensuel en retard : le 1er du mois d'il y a deux mois (à Tunis), facturé le 1er : trois mois échus quel que soit
+    // le jour où le test tourne.
+    const [an, mo] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis' }).format(new Date()).split('-').map(Number) as [number, number];
+    const debut = new Date(Date.UTC(an, mo - 3, 1)).toISOString().slice(0, 10);
+    const contrat = (id: string, clientId: string, every: string, prix: number, nextDate: string, active = true, day = 5) => ({ collection: 'recurring', cle: id, rang: 0, revision: null,
+      contenu: { id, clientId, every, day, nextDate, active, subject: `Contrat ${id} — {mois}`,
         lines: [{ label: 'Service', description: '', qty: 1, unit: 'mois', unitPrice: { '~n': String(prix) }, vatRate: 19 }],
         discountRate: 0, withholdingRate: 0, notes: '', currency: 'DT', exchangeRate: '', createdAt: 1 } });
     const client = (id: string, name: string) => ({ collection: 'clients', cle: id, rang: 0, revision: null, contenu: { id, name } });
     const ecrit = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
       client('c1', 'Pharmacie Ben Youssef'), client('c2', 'Clinique Les Oliviers'), client('c3', 'Café du Port'),
-      contrat('mens', 'c1', 'month', 89, '2026-01-05'), contrat('trim', 'c2', 'quarter', 450.5, '2030-03-05'),
+      contrat('mens', 'c1', 'month', 89, debut, true, 1), contrat('trim', 'c2', 'quarter', 450.5, '2030-03-05'),
       contrat('susp', 'c3', 'month', 120, '2026-02-05', false)] });
     expect(ecrit.motif ?? 'écrit').toBe('écrit');
     expect((ecrit.revisions as unknown[] | undefined)?.length).toBe(6);
@@ -86,8 +90,10 @@ describe('la Facturation récurrente dans la nouvelle DA', () => {
     expect(chiffres).toEqual([
       'Contrats actifs 2 1 suspendu',
       'Rapportent par mois 239,167 DT 2 870,000 DT HT par an',
-      'À générer 1 brouillon à préparer — voir lequel',
-      'Prochaine facture 05/01/2026 Pharmacie Ben Youssef',
+      // (1.315.0) Le chiffre est ce que « Générer » prépare : un brouillon par mois échu (1er du mois d'il y a deux mois,
+      // du mois dernier, de ce mois-ci), jamais le nombre de contrats (il disait « 1 brouillon » pour trois).
+      'À générer 3 brouillons à préparer — voir le contrat',
+      `Prochaine facture ${debut.slice(8, 10)}/${debut.slice(5, 7)}/${debut.slice(0, 4)} Pharmacie Ben Youssef`,
     ]);
     expect(await p.locator('#c-resume b.ambre').count()).toBe(1);
     // La liste est dans sa carte, et compte les trois contrats.

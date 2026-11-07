@@ -13,6 +13,9 @@ import { ecrireFamille, libelle, type EcritureAEcrire, type LigneAEcrire } from 
 import { compteClient, journalDeCompte, lirePlan, type PlanDuDossier } from './plan.ts';
 // Un taux à six décimales (19 % = 190 000), dit comme la v10 l'écrit : « 19 », « 13,5 ».
 const tauxEnTexte = (taux: bigint) => versTexte(taux, 4).replace(/\.?0+$/, '');
+// (1.315.0) « d'août 2026 », « de mars 2026 » : le mois qu'une facture de contrat couvre, comme l'entreprise l'écrit (`deLibelle`).
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const deMois = (iso: string) => { const m = `${MOIS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`; return (/^[aeiouéèê]/i.test(m) ? 'd\'' : 'de ') + m; };
 
 // Les totaux scellés d'une pièce émise : ce que son écriture reprend.
 function totauxScelles(p: PieceLue) {
@@ -68,6 +71,10 @@ export async function ecrituresDeLaFamille(tx: Transaction, entreprise: string, 
   };
   const numeroF = f.numero_texte ?? '';
   const nomF = nomDuClient(f);
+  // (1.315.0) La facture d'un contrat préparée après coup (une période en retard, datée du jour où elle part) : son écriture
+  // dit le mois qu'elle couvre, celui dont le comptable a besoin pour rattacher le produit à son exercice.
+  const periode = String((await tx.query('select ventes.periode_de_contrat($1, $2)::text p', [entreprise, facture])).rows[0]?.p ?? '');
+  const autreMois = periode !== '' && periode.slice(0, 7) !== String(f.date_piece).slice(0, 7);
 
   const avoirs: PieceLue[] = [];
   for (const a of await db.selectFrom('ventes.piece').select('id').where('entreprise', '=', entreprise).where('corrige', '=', facture)
@@ -81,7 +88,8 @@ export async function ecrituresDeLaFamille(tx: Transaction, entreprise: string, 
   const fil = retenueAuFil(net, net + retenue, liees, regles);
 
   const ecritures: EcritureAEcrire[] = [];
-  const entreeF = libelle('compta.libelle.facture', { numero: numeroF, client: nomF });
+  const entreeF0 = libelle('compta.libelle.facture', { numero: numeroF, client: nomF });
+  const entreeF = autreMois ? libelle('compta.libelle.periode', { libelle: entreeF0, mois: deMois(periode) }) : entreeF0;
   ecritures.push({
     journal: 'VT', date: f.date_piece, origineType: 'vente', origine: f.id, piece: numeroF, tiers: f.tiers, libelle: entreeF,
     lignes: lignesDeVente(ecritureDeVente(totauxScelles(f), { type: 'facture', ...enDevise(f) }, TND, comptesVente).lignes, { entree: entreeF, numero: numeroF, regularisation: entreeF }),

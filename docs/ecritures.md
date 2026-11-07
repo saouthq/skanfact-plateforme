@@ -97,6 +97,11 @@ que le geste. Jamais une écriture validée (brique 35 : la contre-passation).
   brouillard ; une écriture validée ne bouge plus.
 - **D4.** Le libellé d'une écriture garde le nom du client tel que la pièce émise l'a figé (la copie
   scellée), pas celui du jour.
+- **D4 bis** (1.315.0, 07/11/2026). La facture d'un contrat préparée après coup (une période en retard, datée du jour
+  où elle part) dit le mois qu'elle couvre : « Facture FAC-2026-001 — Clinique Les Oliviers · période d'août 2026 ».
+  Le serveur le lit sur sa pièce du dossier v10 (`periode`, `ventes.periode_de_contrat`, base 0198), l'entreprise sur
+  la même pièce (`core-2.js`) : le même libellé des deux côtés, et rien de plus quand la facture est du mois qu'elle
+  couvre.
 - **D5.** Le lettrage n'est pas encore tenu (il se déduira des soldes, brique 33 ou 35) : la v10 le
   calcule, il n'entre pas dans les montants.
 

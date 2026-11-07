@@ -2420,7 +2420,9 @@
         // finissait créditeur d'un montant qu'on ne lui avait jamais facturé. C'est le lettrage
         // (reste ouvert ≠ solde du 411) qui l'a attrapé.
         const e = entrySet({ date: r.date, journal: 'VT', piece: r.number, tiers: r.client, tiersId: r.clientId || '', source: 'vente', docId: r.id, currency: cur, lettre: lettreDoc(r.id) });
-        const label = `${r.typeLabel} ${r.number}${r.client ? ' — ' + r.client : ''}`;
+        // (1.315.0) La facture d'un contrat préparée après coup dit le mois qu'elle couvre, comme le livre du serveur.
+        const dP = docsById[r.id], perP = dP && dP.recurringId && /^\d{4}-\d{2}-\d{2}$/.test(dP.periode || '') && dP.periode.slice(0, 7) !== String(dP.date || '').slice(0, 7) ? dP.periode : '';
+        const label = `${r.typeLabel} ${r.number}${r.client ? ' — ' + r.client : ''}${perP ? ' · période ' + deLibelle(monthLabel(perP)) : ''}`;
         // Le client est débité du BRUT — ce que la pièce vaut, retenue comprise (10.14.0). La retenue
         // ne naît pas ici : c'est le client qui l'opère en payant, et chaque encaissement le solde
         // de ce qu'il verse plus la part qu'il garde pour l'État (D 4358). À VÉRIFIER avec le
@@ -7499,7 +7501,7 @@
     salesCsvColumns, buyCsvColumns, payCsvColumns, supplierPayCsvColumns, cashCsvColumns, cashCsvRows,
     estRemboursementAchat, avoirRembourse, aRattacherAchat, nextNumber, isLocked, isIssued, computeTotals, creditsFor, invoiceBalance, estRemboursement, titreQuestion, gesteQuestion, dateDernierReglement, motifVerrou, delaisContradictoires, effectiveStatus,
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
-    PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, contratTermine, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
+    PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, periodesDues, contratTermine, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
     estTitre, sousTotauxDeSections,
     reminderLevel, REMINDER_LABELS, daysBetween, factureEnRetard, overdueInvoices, RELANCE_ATTENTE, aRelancer, relancesParClient, relanceGroupee, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,

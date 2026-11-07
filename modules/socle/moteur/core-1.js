@@ -2165,6 +2165,15 @@
     return (data.recurring || []).filter(r => r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t && !contratTermine(r));
   }
 
+  // (plateforme 1.315.0) Les factures qu'un contrat dû prépare d'un coup : une par période échue, douze au plus, jusqu'à sa
+  // fin (la règle de « Générer les brouillons »). « Générer 2 brouillons ? » en créait cinq : la question comptait les contrats.
+  function periodesDues(rec, todayIso) {
+    const t = todayIso || today();
+    let d = rec && rec.nextDate, n = 0;
+    while (d && d <= t && !(rec.endDate && d > rec.endDate) && n < 12) { n++; d = nextRecurrenceDate(d, rec.every, rec.day); }
+    return n;
+  }
+
   // (1.290.0) Un contrat peut avoir une fin (un entretien de douze mois, un bail) : passé sa dernière échéance, il ne
   // produit plus rien. Sans fin, il court toujours. La liste, la fiche, le tour du serveur et la génération lisent CETTE
   // règle : l'échéance suivante est après la fin.
@@ -2191,10 +2200,13 @@
   // d'un devis — E-02) ; un contrat posait `applyStamp: true` en dur, et chaque facture mensuelle
   // d'un client exonéré portait un timbre — le troisième jumeau, trouvé en écrivant la bulle du
   // formulaire de contrat qui promettait le contraire.
-  function buildRecurringInvoice(rec, dateIso, company, client) {
-    const vars = { mois: monthLabel(dateIso), annee: dateIso.slice(0, 4) };
+  // (plateforme 1.315.0) `periodeIso` : l'échéance que la facture couvre, quand elle se prépare plus tard (une période en
+  // retard) ; la facture se date du jour où on la fait (`dateIso`), jamais dans un mois passé, et son objet dit la période.
+  function buildRecurringInvoice(rec, dateIso, company, client, periodeIso) {
+    const per = periodeIso || dateIso;
+    const vars = { mois: monthLabel(per), annee: per.slice(0, 4) };
     return {
-      type: 'facture', number: '', status: 'brouillon', date: dateIso, dueDate: addDays(dateIso, delaiJours(company.paymentTermsDays, 30)),
+      type: 'facture', number: '', status: 'brouillon', date: dateIso, dueDate: addDays(dateIso, delaiJours(company.paymentTermsDays, 30)), periode: per,
       clientId: rec.clientId, subject: fillTemplate(rec.subject, vars), reference: rec.reference || '',
       lines: (rec.lines || []).map(l => ({ ...l, label: fillTemplate(l.label, vars), description: fillTemplate(l.description || '', vars) })),
       discountRate: rec.discountRate || 0, applyStamp: !(client && client.stampExempt), notes: fillTemplate(rec.notes || '', vars), payments: [],

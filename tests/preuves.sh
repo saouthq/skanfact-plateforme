@@ -25773,6 +25773,73 @@ prouver 'la sortie d'\''un bien garde l'\''ancienne date pour sa valeur nette' "
   "\$('#dsf', root).oninput = hint; \$('#dsf', root).onchange = hint; hint();" "\$('#dsf', root).oninput = hint; hint();" \
   "$T314"
 
+# (1.315.0) La Facturation récurrente jouée (une société de maintenance de Tunis et sa comptable) : « À générer » compte les
+# brouillons que le bouton prépare ; une période rattrapée part datée du jour où elle part, son objet et le livre (au Cabinet
+# comme chez l'entreprise, 0198) disent le mois qu'elle couvre ; le contrat se nomme par son objet ; le brouillon en devise
+# dit que son taux vient du contrat.
+APP1=modules/socle/ecrans/entreprise/app-1.js
+CORE1=modules/socle/moteur/core-1.js
+CORE2=modules/socle/moteur/core-2.js
+T315="la société de maintenance facture ses contrats : trois mois de retard rattrapés, un trimestre, des euros, une fin, une reprise, et le comptable lit les mêmes ventes"
+TCS315="le serveur émet les factures dues des contrats émis seuls, rattrape les périodes, n'émet rien deux fois, note un refus"
+prouver 'à générer compte les contrats, pas les brouillons' "$APP1" \
+  "chiffreR('À générer', String(nDus(due))," "chiffreR('À générer', String(due.length)," \
+  "$T315"
+prouver 'les périodes dues ne comptent qu'\''un mois par contrat' "$CORE1" \
+  "&& n < 12) { n++; d = nextRecurrenceDate(d, rec.every, rec.day); }" "&& n < 1) { n++; d = nextRecurrenceDate(d, rec.every, rec.day); }" \
+  "$T315"
+prouver 'le bandeau compte les contrats' "$APP1" \
+  "      const nb = nDus(due);" "      const nb = due.length;" \
+  "$T315"
+prouver 'la fenêtre de génération compte les contrats' "$APP1" \
+  "        const combien = nDus(due);" "        const combien = due.length;" \
+  "$T315"
+prouver 'un mois rattrapé part daté dans son mois' "$APP1" \
+  "const periode = rec.nextDate, date = periode < C.today() ? C.today() : periode;" "const periode = rec.nextDate, date = periode;" \
+  "$T315"
+prouver 'le serveur date un mois rattrapé dans son mois' serveur/v10/contrats.ts \
+  "const periode = rec.nextDate, date = periode < jour ? jour : periode;" "const periode = rec.nextDate, date = periode;" \
+  "$TCS315"
+prouver 'le serveur nomme un mois rattrapé du mois où il part' serveur/v10/contrats.ts \
+  "{ ...factureDuContrat(rec, date, societe, client, periode), id," "{ ...factureDuContrat(rec, date, societe, client), id," \
+  "$TCS315"
+prouver 'l'\''objet d'\''un mois rattrapé dit le mois où il part' "$CORE1" \
+  "    const per = periodeIso || dateIso;" "    const per = dateIso;" \
+  "$T315"
+prouver 'le livre du cabinet ne dit pas le mois couvert' serveur/compta/ventes.ts \
+  "const entreeF = autreMois ? libelle('compta.libelle.periode', { libelle: entreeF0, mois: deMois(periode) }) : entreeF0;" "const entreeF = entreeF0;" \
+  "$T315"
+prouver 'la base ne rend pas la période d'\''un contrat' base/migrations/0198_periode_des_contrats.sql \
+  "and coalesce(d.contenu->>'recurringId', '') <> ''" "and false" \
+  "$T315"
+prouver 'le livre de l'\''entreprise ne dit pas le mois couvert' "$CORE2" \
+  "\${perP ? ' · période ' + deLibelle(monthLabel(perP)) : ''}\`;" "\`;" \
+  "$T315"
+prouver 'la fiche du contrat prend le nom de sa prochaine facture' "$APP1" \
+  "    const nomC = objetDeContrat(r) || subj || 'Contrat';" "    const nomC = subj || 'Contrat';" \
+  "$T315"
+prouver 'un contrat suspendu annonce une prochaine facture' "$APP1" \
+  "r.subject !== subj && active && !termine ? \` · prochaine facture" "r.subject !== subj && !termine ? \` · prochaine facture" \
+  "$T315"
+prouver 'un contrat terminé annonce une prochaine facture' "$APP1" \
+  "r.subject !== subj && active && !termine ? \` · prochaine facture" "r.subject !== subj && active ? \` · prochaine facture" \
+  "$T315"
+prouver 'la liste montre le gabarit et la prochaine facture' "$APP1" \
+  "get: r => h(objetDeContrat(r) || r.subject || '') }," "get: r => h(C.fillTemplate(r.subject, { mois: C.monthLabel(r.nextDate) })) }," \
+  "$T315"
+prouver 'le nom du contrat garde le mot qui annonce le mois' "$APP1" \
+  "replace(/(?:\\s+(?:de|du|pour|en)\\s+|\\s*d['’])?\\{(?:mois|annee)\\}/gi, '')" "replace(/\\{(?:mois|annee)\\}/gi, '')" \
+  "$T315"
+prouver 'le brouillon en devise tait le taux du contrat' "$APP1" \
+  "if (rcT && Number(rcT.exchangeRate) > 0 && Number(rcT.exchangeRate) === Number(doc.exchangeRate)) points.push(" "if (false) points.push(" \
+  "$T315"
+prouver 'émettre la facture ne dit pas laquelle' "$APP1" \
+  "txt: \`Émettre la facture \${h(C.deLibelle(moisBr))}\`," "txt: 'Émettre la facture'," \
+  "$T315"
+prouver 'le bouton vert mène au brouillon le plus récent' "$APP1" \
+  "const enAttente = invoices.filter(d => d.type === 'facture' && d.status === 'brouillon').sort((x, y) => (x.periode || x.date || '').localeCompare(y.periode || y.date || ''));" "const enAttente = invoices.filter(d => d.type === 'facture' && d.status === 'brouillon');" \
+  "$T315"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

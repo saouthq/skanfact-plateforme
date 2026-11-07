@@ -31,15 +31,16 @@ export function ajouterMois(iso: string, n: number, jour: unknown): string {
 }
 export const echeanceSuivante = (iso: string, every: unknown, jour: unknown) => ajouterMois(iso, every === 'year' ? 12 : every === 'quarter' ? 3 : 1, jour);
 
-// La facture du contrat pour une date, comme la v10 la fabrique (`buildRecurringInvoice`, core.js).
-export function factureDuContrat(rec: Json, date: string, societe: Json, client: Json | null): Json {
-  const v = { mois: moisDe(date), annee: date.slice(0, 4) };
+// La facture du contrat pour une date, comme la v10 la fabrique (`buildRecurringInvoice`, core.js). (1.315.0) `periode` :
+// l'échéance qu'elle couvre quand elle part plus tard (une période rattrapée) ; elle se date du jour, son objet dit la période.
+export function factureDuContrat(rec: Json, date: string, societe: Json, client: Json | null, periode: string = date): Json {
+  const v = { mois: moisDe(periode), annee: periode.slice(0, 4) };
   const delai = societe.paymentTermsDays === '' || societe.paymentTermsDays == null ? 30
     : Number.isFinite(Number(societe.paymentTermsDays)) && Number(societe.paymentTermsDays) >= 0 ? Math.round(Number(societe.paymentTermsDays)) : 30;
   const echeance = new Date(`${date}T00:00:00Z`);
   echeance.setUTCDate(echeance.getUTCDate() + delai);
   return {
-    type: 'facture', number: '', status: 'brouillon', date, dueDate: echeance.toISOString().slice(0, 10),
+    type: 'facture', number: '', status: 'brouillon', date, dueDate: echeance.toISOString().slice(0, 10), periode,
     clientId: rec.clientId, subject: remplir(rec.subject, v), reference: rec.reference ?? '',
     lines: (Array.isArray(rec.lines) ? rec.lines as Json[] : []).map((l) => ({ ...l, label: remplir(l.label, v), description: remplir(l.description ?? '', v) })),
     calcul: 2, discountRate: rec.discountRate ?? 0, applyStamp: !(client && client.stampExempt), notes: remplir(rec.notes ?? '', v), payments: [],
@@ -68,18 +69,20 @@ export async function emettreUnContrat(tx: Transaction, entreprise: string, cle:
   // (1.290.0) Un contrat qui a une fin s'arrête après sa dernière échéance (la règle `contratTermine` du moteur).
   const fin = typeof rec.endDate === 'string' && rec.endDate ? rec.endDate : null;
   while (typeof rec.nextDate === 'string' && rec.nextDate <= jour && !(fin && rec.nextDate > fin) && periodes < 12) {
-    const date = rec.nextDate;
+    // (1.315.0) Une période rattrapée (le serveur arrêté) part datée du jour où elle part, jamais dans un mois passé (sa
+    // numérotation, sa TVA) ; son objet dit la période qu'elle couvre.
+    const periode = rec.nextDate, date = periode < jour ? jour : periode;
     const client = (await lire(tx, entreprise, 'clients', String(rec.clientId ?? '')))?.contenu ?? null;
-    // L'identifiant de la facture dit son contrat et sa date : deux tours ne la font jamais deux fois.
-    const id = `contrat-${cle}-${date}`;
+    // L'identifiant de la facture dit son contrat et sa période : deux tours ne la font jamais deux fois.
+    const id = `contrat-${cle}-${periode}`;
     if (!(await lire(tx, entreprise, 'documents', id))) {
-      const doc = { ...factureDuContrat(rec, date, societe, client), id, createdAt: Date.now() };
+      const doc = { ...factureDuContrat(rec, date, societe, client, periode), id, createdAt: Date.now() };
       await appliquer(tx, entreprise, utilisateur, [{ collection: 'documents', cle: id, rang: null, revision: null, contenu: doc }], { serveur: true });
       await emettreDepuisV10(tx, entreprise, utilisateur, { document: doc, client, revision: 1, rang: null, netAPayer: null });
       n++;
     }
-    rec.lastIssued = date;
-    rec.nextDate = echeanceSuivante(date, rec.every, rec.day);
+    rec.lastIssued = periode;
+    rec.nextDate = echeanceSuivante(periode, rec.every, rec.day);
     periodes++;
   }
   delete rec.refusServeur;

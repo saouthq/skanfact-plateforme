@@ -903,3 +903,33 @@ l'entreprise ne voit pas encore le plan que son cabinet a retenu quand il diffè
 d'inventaire (3) » compte les biens, le message compte les écritures (quatre : la balance a une dotation et une sortie).
 
 Suivant : les récurrentes (facturation récurrente).
+
+## La facturation récurrente
+
+### Fait en 1.315.0 (07/11/2026) : la facture du mois, même rattrapée, et le comptable qui sait quel mois elle couvre
+
+Joué par une société de maintenance informatique de Tunis (« Tunis Réseaux SARL ») : la maintenance mensuelle de la
+clinique, en retard de trois mois (450 DT, retenue 1,5 %) ; l'hébergement trimestriel d'une société de logistique ;
+le support à distance d'un atelier de Lyon en euros (120 € au taux de 3,35 noté au contrat) ; l'entretien d'une école,
+contrat fini fin septembre ; la caisse et le wifi d'un café, suspendus depuis septembre puis repris. Hédi génère les
+brouillons, émet celui d'août depuis la fiche du contrat ; Sonia, sa comptable, lit le journal des ventes.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| R1 | « À générer » disait 1 (les contrats), la phrase « 1 brouillon à préparer », la fenêtre « Générer 2 brouillons » : le bouton en prépare cinq (quatre mois de la clinique, un de l'atelier). | Un seul calcul (`periodesDues`) pour la tuile, le bandeau et la fenêtre : « 5 brouillons à préparer — voir les 2 contrats ». |
+| R2 | Les mois rattrapés partaient datés dans leur mois (le 01/08 pour la facture d'août, émise le 07/11) : une facture numérotée en novembre avant celles de septembre, et dans un mois de TVA peut-être déjà déclaré. | Une période rattrapée part datée du jour où elle part (échéance comptée de ce jour) ; son objet dit le mois qu'elle couvre, son identifiant sa période (`periode`) ; pareil au serveur pour les contrats émis seuls. |
+| R3 | Le comptable perdait ce mois : « Facture FAC-2026-001 — Clinique Les Oliviers » en novembre, rien de l'août qu'elle facture. | Le livre le dit, au Cabinet comme chez l'entreprise : « … · période d'août 2026 » (base 0198, `docs/ecritures.md` D4 bis), seulement quand le mois diffère. |
+| R4 | La fiche d'un contrat prenait le nom de sa prochaine facture (« — décembre 2026 »), même terminé en septembre ou suspendu ; la liste montrait le gabarit brut (« — {mois} ») et « trimestre de » sans mois. | Le contrat se nomme par son objet (« Hébergement des serveurs — trimestre ») ; sous le titre, la prochaine facture seulement s'il y en aura une. |
+| R5 | Les factures d'un contrat dans le désordre ; « Émettre la facture » ne disait pas laquelle. | Les brouillons d'abord, puis par numéro et période ; « Émettre la facture d'août 2026 », le plus ancien d'abord, « (et 2 autres) ». |
+| R6 | Le brouillon en euros reprend le taux noté au contrat, sans le dire. | « Avant d'émettre » : « Le taux est celui du contrat (1 EUR = 3,35 DT) : vérifie celui du jour » (sans bloquer). |
+
+Vérifié en jouant : cinq brouillons, tous datés du jour, août à novembre pour la clinique ; la facture d'août émise
+(FAC-2026-001, 528,467 DT net, échéance à 30 jours du jour) ; la fiche passe au brouillon de septembre ; le café repris
+repart en décembre (les mois de pause ne se facturent pas, « Générer maintenant » reste là) ; le journal du Cabinet et
+celui de l'entreprise portent le même libellé et les mêmes montants (536,500 DT au 411, 450,000 DT au 706).
+
+Limites connues : un contrat émis seul en devise part au serveur au taux du contrat, sans personne pour le relire ; la
+période d'un contrat trimestriel ou annuel se dit par son premier mois ; les produits facturés d'avance sur un autre
+exercice (un an d'hébergement facturé en octobre) restent au comptable (À VÉRIFIER : produits constatés d'avance).
+
+Suivant : proforma, bons et contrats.
