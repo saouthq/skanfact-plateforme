@@ -189,6 +189,10 @@ n'est jamais touchée.
 - **À une minute** : `sudo -u postgres bash /opt/skanfact/depot/exploitation/restaurer.sh --jusqua "2026-10-12 14:03"`
   (heure de Tunis) ; la base de cette minute reste à part (port 5544) pour en extraire une entreprise ;
   `restaurer.sh arreter` la jette. Son résultat s'écrit à part : un geste fait à la main ne cache pas l'exercice.
+- **Tout ce qui est archivé** : `restaurer.sh --jusqua dernier` (1.317.1), gardé à part comme une minute. Une minute que
+  les journaux archivés n'atteignent pas (après la dernière écriture, ou dans la minute qui n'est pas encore partie) ne se
+  restaure pas : PostgreSQL s'arrête, et le script le dit tout de suite avec l'heure de la dernière écriture archivée
+  (il attendait une heure, sur une base arrêtée : le rouge de 1.314.0).
 
 **C bis 4. La copie hors de la machine** (`exploitation/hors-machine.sh`, chaque minute) : ce qui est nouveau — les
 journaux, la copie de base, la sauvegarde de la nuit — part vers un **stockage objet** (S3, chez l'hébergeur de
@@ -218,7 +222,7 @@ cherche. **La clé du coffre** de l'ancien serveur revient avec (1.276.0, audit 
 les secrets des intégrations gardés dans la base ne se relisent plus. Si la clé a changé un jour, il y en a plusieurs :
 le script les laisse dans `/etc/skanfact/reprise/` et on recopie la plus récente à la main. Une machine qu'on installe
 après coup reçoit la clé dès l'installation : `SKANFACT_COFFRE_REPRIS=/etc/skanfact/reprise/coffre-….env` devant
-`installer.sh`. Puis `sudo systemctl restart skanfact`, `restaurer.sh --jusqua "<la dernière minute>"`, et la base restaurée à part remplace la base vive vide
+`installer.sh`. Puis `sudo systemctl restart skanfact`, `restaurer.sh --jusqua dernier`, et la base restaurée à part remplace la base vive vide
 (`pg_dump` de l'une, `pg_restore` dans l'autre, SkanFact arrêté). **À VÉRIFIER** : l'exercice complet sur une
 machine neuve, deux fois par an (`06` § 4.3).
 

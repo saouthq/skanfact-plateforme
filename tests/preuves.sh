@@ -9726,8 +9726,7 @@ prouver 'la base restaurée ouverte au réseau' exploitation/restaurer.sh \
   'listen_addresses = '"'"''"'"'' 'listen_addresses = '"'"'127.0.0.1'"'"'' \
   "$AR3"
 prouver 'une restauration à la main qui écrase l'"'"'état de l'"'"'exercice' exploitation/restaurer.sh \
-  '  RESULTAT=derniere-restauration-a-la-minute.json
-' '' \
+  '[ -z "$GARDER" ] || RESULTAT=derniere-restauration-a-la-minute.json' '' \
   "$AR3"
 prouver 'l'"'"'exercice laissé là, avec toutes les données' exploitation/restaurer.sh \
   '  jeter
@@ -25936,6 +25935,25 @@ prouver 'la facture d'\''un devis tait la liste moins chère' "$APP1" \
 prouver 'reprendre ses prix ne pose rien' "$APP1" \
   "        prixAReprendre.forEach(({ l, pu }) => { l.unitPrice = pu; delete l.puTtc; });" "" \
   "$T317"
+
+# (1.317.1) Le rouge de 1.314.0 : une restauration à une minute que les journaux archivés n'atteignent pas arrête
+# PostgreSQL, et l'attente durait l'heure entière sur une base arrêtée. Elle se voit, se dit (la dernière écriture
+# archivée), et « --jusqua dernier » restaure tout ce qui est archivé, gardé à part.
+RESTAURER=exploitation/restaurer.sh
+TR1="une minute que les journaux archivés n'atteignent pas se refuse tout de suite, et dit comment tout reprendre"
+TR2="« --jusqua dernier » : tout ce qui est archivé revient, et reste à part"
+prouver 'la restauration attend une base arrêtée' "$RESTAURER" \
+  '  "$PGBIN/pg_ctl" -D "$DONNEES" status >/dev/null 2>&1 || break' "" \
+  "$TR1"
+prouver 'une minute que les journaux n'\''atteignent pas se dit « échec à la ligne »' "$RESTAURER" \
+  "    && grep -q 'recovery ended before configured recovery target was reached'" "    && false && grep -q 'recovery ended before configured recovery target was reached'" \
+  "$TR1"
+prouver 'la minute refusée tait la dernière écriture archivée' "$RESTAURER" \
+  '(heure de Tunis)${ecrite:+ : leur dernière écriture est $ecrite}.' '(heure de Tunis).' \
+  "$TR1"
+prouver '« --jusqua dernier » se lit comme une date' "$RESTAURER" \
+  'if [ "${1:-}" = --jusqua ] && [ "${2:-}" = dernier ]; then' 'if false; then' \
+  "$TR2"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

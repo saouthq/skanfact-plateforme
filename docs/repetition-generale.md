@@ -27,7 +27,7 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 2.1 | — | Attendre la première nuit | Service › Sauvegardes : la sauvegarde réussie, **restaurée à part et comptée** (C2) |
 | 2.2 | S | Le stockage hors de la machine (C bis 5) | Service › Sauvegardes : les copies partent chaque minute, la dernière il y a moins de cinq minutes |
 | 2.3 | — | Le premier exercice du mois (C bis 3) | Réussi, avec ses lignes et ses migrations comptées, et sa durée |
-| 2.4 | S + C | **Le jour où le serveur est perdu** (C bis 6) : une seconde machine neuve, `rapatrier.sh`, `restaurer.sh --jusqua` | Tout revient à la minute dite ; les mêmes comptes que la machine d'origine. **Noter la durée** (de la machine neuve au service rouvert) : c'est notre temps de reprise réel (`06` § 4.3, à comparer à l'objectif) |
+| 2.4 | S + C | **Le jour où le serveur est perdu** (C bis 6) : une seconde machine neuve, `rapatrier.sh`, `restaurer.sh --jusqua dernier` | Tout revient à la minute dite ; les mêmes comptes que la machine d'origine. **Noter la durée** (de la machine neuve au service rouvert) : c'est notre temps de reprise réel (`06` § 4.3, à comparer à l'objectif) |
 | 2.5 | S + C | Remettre UNE entreprise à une minute (C bis 7) | Elle seule revient ; ses voisines ne bougent pas ; la chaîne d'empreintes se relit sans rupture |
 
 ## 3. La veille et les guets

@@ -491,11 +491,17 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     const frise = await p.locator('.cp-an').evaluate((e) => ({ h: e.getBoundingClientRect().height, defile: e.scrollWidth > e.clientWidth }));
     expect(frise.h).toBeLessThan(80);
     expect(frise.defile).toBe(true);
-    // Rechargée, sans un clic (un clic fait défiler la frise de lui-même) : elle s'ouvre sur le mois choisi, en retard ou à
+    // Rouverte, sans un clic (un clic fait défiler la frise de lui-même) : elle s'ouvre sur le mois choisi, en retard ou à
     // déposer, pas sur janvier.
-    await p.reload();
+    // (1.317.1) Rouverte par son adresse, pas rechargée : « Recharger » peut rendre à la frise la place où le clic de
+    // septembre l'avait laissée, et la preuve restait verte sur GitHub, le code du défilement retiré. Et la frise défile
+    // bel et bien quand on la regarde (sur une rangée qui ne déborde pas, tout mois est « visible »).
+    const adresse = p.url();
+    await p.goto('about:blank');
+    await p.goto(adresse);
     await p.locator('.cp-an').waitFor({ timeout: 25_000 });
     await expect.poll(() => p.locator('.cp-an').evaluate((e) => {
+      if (e.scrollWidth <= e.clientWidth + 4) return false;
       const m = e.querySelector('.cp-mo.on') || e.querySelector('.cp-mo.rouge') || e.querySelector('.cp-mo.ambre'); if (!m) return false;
       const a = e.getBoundingClientRect(), b = m.getBoundingClientRect();
       return b.left >= a.left - 1 && b.right <= a.right + 1;
