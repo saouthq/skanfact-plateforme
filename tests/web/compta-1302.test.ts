@@ -215,7 +215,7 @@ describe('la Comptabilité 1.302.0 : la DA des onglets, la pièce dans une péri
     // Daté du 15 septembre : la phrase sous le bouton le dit avant d'enregistrer.
     await dater(p, '15/09/2026');
     await expect.poll(async () => p.locator('#ac-cab-valide').isVisible(), { timeout: 10_000 }).toBe(true);
-    expect(net(await p.locator('#ac-cab-valide').innerText())).toBe('Cette pièce est datée du 15/09/2026, dans la période que ton cabinet a validée (jusqu\'au 30/09/2026) : elle lui arrivera comme une correction, à reprendre sur un mois ouvert. En l\'enregistrant, tu pourras le lui dire.');
+    expect(net(await p.locator('#ac-cab-valide').innerText())).toBe('Cette pièce est datée du 15/09/2026, dans la période que ton cabinet a validée (jusqu\'au 30/09/2026) : chez lui, elle s\'écrira au 01/10/2026, le premier jour encore ouvert. En l\'enregistrant, tu pourras le lui dire.');
     await photo(p, 'achat-dans-la-periode');
     // Redatée d'octobre, la phrase s'en va ; remise en septembre, elle revient. Le bouton reste là : rien ne se bloque.
     await dater(p, '05/10/2026');
@@ -230,7 +230,7 @@ describe('la Comptabilité 1.302.0 : la DA des onglets, la pièce dans une péri
     await expect.poll(async () => net(await p.locator('#msg-racine textarea').first().inputValue().catch(() => '')), { timeout: 15_000 }).not.toBe('');
     const texte = net(await p.locator('#msg-racine textarea').first().inputValue());
     noter('TEXTE AU COMPTABLE', texte);
-    expect(texte).toMatch(/^Bonjour, je viens d'enregistrer un achat daté du 15\/09\/2026 \(Emballages du Centre, n° EC-4402, 603,330 DT\) : il tombe dans la période que tu as validée jusqu'au 30\/09\/2026\. Peux-tu le reprendre sur un mois ouvert \?$/);
+    expect(texte).toMatch(/^Bonjour, je viens d'enregistrer un achat daté du 15\/09\/2026 \(Emballages du Centre, n° EC-4402, 603,330 DT\) : il tombe dans la période que tu as validée jusqu'au 30\/09\/2026, il s'écrit donc chez toi au 01\/10\/2026\. Peux-tu en tenir compte \?$/);
     await photo(p, 'achat-dit-au-comptable');
     // Rouverte sans rien changer, la pièce ne redit rien ; touchée, elle le redit.
     const achats = (await api('GET', `/entreprises/${ent}/dossier-v10`, mourad)).corps;

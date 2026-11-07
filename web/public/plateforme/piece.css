@@ -159,6 +159,9 @@
 /* (1.302.0) Une pièce datée dans la période que le cabinet a validée : la phrase, en ambre, sous le bouton. */
 .ed-phrase.ac-cab-valide { display: flex; gap: 6px; align-items: flex-start; color: var(--sb-ambre-texte); }
 .ed-phrase.ac-cab-valide svg { flex: none; margin-top: 2px; }
+/* (1.303.0) La même phrase dans une fenêtre (paiement, règlement, virement groupé, opération diverse), sous le formulaire. */
+.cab-valide { display: flex; gap: 6px; align-items: flex-start; margin: 12px 0 0; font-size: 13px; line-height: 1.45; color: var(--sb-ambre-texte); }
+.cab-valide svg { flex: none; margin-top: 2px; }
 .ed-etat { display: flex; align-items: flex-start; gap: 8px; color: var(--sb-doux-texte); font-weight: 600; }
 .ed-etat svg { flex: none; margin-top: 1px; }
 .ed-deux { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

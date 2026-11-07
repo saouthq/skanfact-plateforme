@@ -295,3 +295,24 @@ tenus par le serveur : le Cabinet tenait une banque et une caisse fausses de ces
 - Preuve : `tests/compta/mouvements.test.ts` (l'exemple de cinq ans et seize cas pièges, ligne à ligne contre la v10 ;
   rouge si le salaire sans bulletin va au 425), `tests/v10/caisse-session.test.ts` (l'écart du Z, en mouvement puis en
   écriture).
+
+## Les opérations diverses du client (1.303.0, 07/11/2026)
+
+Trouvé en jouant la Comptabilité d'un grossiste et de sa comptable : une opération diverse que le **client** saisit
+lui-même (un loyer sans facture, une charge avancée par le gérant, une régularisation ; « Saisir une opération
+diverse… » de l'onglet Écritures) était dans le livre de la v10 mais **nulle part** dans les livres tenus par le serveur. Le
+cabinet, qui lit ces livres, ne la voyait jamais, alors que l'onglet Écritures du client dit qu'il les lit en direct ; même
+l'assurance avancée par le gérant de l'exemple de cinq ans manquait chez lui.
+
+- Chaque opération est une **famille** (`serveur/compta/operations.ts`, origine `operation_diverse`, migration `0194`) :
+  elle s'écrit, se réécrit et s'efface seule ; validée puis changée, elle se contre-passe ; dans une période que le cabinet
+  a validée, elle s'écrit au premier jour encore ouvert (0018). « saisie » reste la saisie à la main du comptable.
+- Les mêmes lignes que la v10 (`journalEntries`, partie « od ») : les comptes, libellés et montants tels que le client les
+  a tapés, une ligne sans libellé prend celui de l'opération, une ligne entièrement vide est ignorée, le journal choisi
+  (OD par défaut). Le plan ne les change pas : leurs comptes sont ceux du client.
+- Le serveur ne fait pas confiance : une opération qui ne tombe pas juste, une ligne au débit ET au crédit, un compte qui
+  n'est pas un numéro, un libellé vide ou moins de deux lignes n'entrent pas (l'écran les refuse déjà, `odValide`).
+- Pas encore : les opérations saisies avant 1.303.0 n'arrivent chez le cabinet qu'à leur prochaine modification
+  (`reecrireLesOperations` les écrirait toutes ; aucune entreprise réelle n'en a encore).
+- Preuve : `tests/compta/operations.test.ts` (l'exemple de cinq ans et trois opérations justes, ligne à ligne contre la
+  v10 ; cinq fausses refusées ; corrigée, supprimée ; la période validée : au 1er octobre, la corrigée contre-passée).

@@ -188,9 +188,24 @@ describe('la révision et les questions au client, à la souris', () => {
     await p.getByRole('menuitem').filter({ hasText: 'Relancer le client' }).click();
     await expect.poll(toast).toBe('Cette question est partie aujourd\'hui : une relance se fait un autre jour, pour laisser au client le temps de répondre.');
     expect((await questions(client)).map((q) => q.envois.length)).toEqual([1]);
-    // « Envoyer maintenant » depuis la fenêtre : elle part tout de suite.
+    // « Envoyer maintenant » depuis la fenêtre : elle part tout de suite. Joué comme sur une machine lente (le rouge GitHub de
+    // 1.302.0, sous Node 24) : la comptable clique dans la question et sélectionne la phrase proposée avant que la page ait
+    // fini d'ouvrir sa fenêtre ; le curseur placé en retard au bout de la phrase ne doit pas défaire sa sélection (sa
+    // frappe s'ajoutait alors à la suite de la phrase).
+    await p.evaluate(() => {
+      const w = window as unknown as { setTimeout: typeof setTimeout; __setTimeout?: typeof setTimeout };
+      w.__setTimeout = w.setTimeout;
+      const lent = w.__setTimeout;
+      w.setTimeout = ((f: () => void, ms?: number, ...a: unknown[]) => lent(f, ms ? ms : 400, ...a)) as typeof setTimeout;
+    });
     await menu('RV:471', 'Poser une question au client', '#rv-hors');
-    await fenetre.locator('#qf-texte').fill('Ce virement est-il bien un acompte ?');
+    const champQ = fenetre.locator('#qf-texte');
+    await champQ.click();
+    await p.keyboard.press('Control+A');
+    await p.waitForTimeout(600);
+    await p.keyboard.type('Ce virement est-il bien un acompte ?');
+    await p.evaluate(() => { const w = window as unknown as { setTimeout: typeof setTimeout; __setTimeout?: typeof setTimeout }; if (w.__setTimeout) w.setTimeout = w.__setTimeout; });
+    expect(await champQ.inputValue()).toBe('Ce virement est-il bien un acompte ?');
     await fenetre.locator('[data-qf-attendu="confirmation"]').click();
     await fenetre.locator('#qf-envoyer').click();
     await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah/);

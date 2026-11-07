@@ -2373,6 +2373,32 @@
     }
     return valideCabinet.jusqua;
   };
+  // (1.303.0) La même règle dans chaque saisie datée (l'achat, la facture qu'on émet, le paiement, le règlement, l'opération
+  // diverse) : la première des dates (la nouvelle, puis l'ancienne d'une pièce qu'on modifie) qui tombe dans la période validée,
+  // ou ''. Chez le cabinet, ce qui y entre ou en sort s'écrit au premier jour encore ouvert (compta.ecrire_famille, 0018) :
+  // les phrases le disent tel quel.
+  const dateDansLaPeriodeValidee = (dates, quandLu) => {
+    const j = valideParLeCabinet(quandLu);
+    return j ? dates.filter(Boolean).find(d => d <= j) || '' : '';
+  };
+  const premierJourOuvert = () => (valideCabinet.jusqua ? C.addDays(valideCabinet.jusqua, 1) : '');
+  // La phrase dite AVANT le geste : `sujet` (« Cette facture »), `fem`, `neuve` (une pièce qu'on crée ou émet ; sinon c'est une
+  // correction), `geste` (« En l'émettant »).
+  const phrasePeriodeValidee = (d, nouvelle, { sujet, fem, neuve, geste }) => `${sujet} ${d === nouvelle ? 'est' : 'était'} daté${fem ? 'e' : ''} du ${C.fmtDate(d)}, dans la période que ton cabinet a validée (jusqu'au ${C.fmtDate(valideCabinet.jusqua)}) : chez lui, ${neuve ? `${fem ? 'elle' : 'il'} s'écrira` : 'la correction s\'écrira'} au ${C.fmtDate(premierJourOuvert())}, le premier jour encore ouvert. ${geste}, tu pourras le lui dire.`;
+  // Après le geste : le message habituel, et « Le dire à mon comptable » qui ouvre la conversation, le texte écrit. `quoi` nomme
+  // la pièce (« un paiement daté du 29/09/2026 (…) »).
+  const direAuComptableApres = (dit, { fait, quoi, fem }) => {
+    const j = valideCabinet.jusqua, ouvert = premierJourOuvert();
+    toastUndo(`${dit} — dans la période que ton cabinet a validée`, () => ecrireAuComptable(`Bonjour, je viens ${fait} ${quoi} : ${fem ? 'elle' : 'il'} tombe dans la période que tu as validée jusqu'au ${C.fmtDate(j)}, ${fem ? 'elle' : 'il'} s'écrit donc chez toi au ${C.fmtDate(ouvert)}. Peux-tu en tenir compte ?`), 'Le dire à mon comptable');
+  };
+  // Le paragraphe d'une fenêtre (paiement, règlement, opération diverse) : caché tant qu'il n'y a rien à dire, posé sous le
+  // formulaire (rien ne bouge sous le curseur, qui est sur la date).
+  const avertValideHtml = id => `<p class="cab-valide" id="${id}" role="status" hidden></p>`;
+  const majAvertValide = (el, d, nouvelle, opts) => {
+    if (!el) return;
+    el.hidden = !d;
+    el.innerHTML = d ? `${lfIc('aide', 15)}<span>${h(phrasePeriodeValidee(d, nouvelle, opts))}</span>` : '';
+  };
   // (1.191.0) La question du cabinet qu'on vient répondre (« Répondre » d'une pièce, de l'onglet du cabinet) : la
   // conversation s'ouvre sur elle.
   let questionDuMessage = null;
@@ -2390,6 +2416,9 @@
     const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
     messagerieVue = a;
     if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet && remplirDemandeAchat) remplirDemandeAchat();
+    // (1.303.0) Un cabinet relié : jusqu'où il a validé se lit tout de suite, pour qu'une saisie datée dans cette période le
+    // dise dès le premier geste (la fenêtre d'émission d'une facture ne relit pas ses avertissements).
+    if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet) valideParLeCabinet();
     // (plateforme) 1.102.0 — l'Accueil compte ce que le cabinet attend (« À faire ») : il se redessine quand ce compte
     // change, jamais sous une fenêtre ni pendant une saisie.
     const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}:${x.enRetard || 0}:${x.pourLe || ''}` : '');
@@ -8153,6 +8182,10 @@
           && (d.fromQuoteId === doc.fromQuoteId || (d.deposit && d.deposit.quoteId === doc.fromQuoteId)));
         if (autres.length) w.push(`Le devis ${doc.fromQuoteNumber || ''} a déjà donné ${autres.map(nomDePiece).join(', ')} : cette facture en reprend la TOTALITÉ, et le client serait facturé plus que le devis. Pour ne facturer que le reste, supprime ce brouillon et utilise « Facture de solde » sur le devis.`.replace('devis  a', 'devis a'));
       }
+      // (1.303.0) Une facture ou un avoir daté dans la période que le cabinet a validée : chez lui, la pièce s'écrit au premier
+      // jour encore ouvert. Dit avant d'émettre, sans rien bloquer ; l'émission offre « Le dire à mon comptable ».
+      const dv = isInv || isAv ? dateDansLaPeriodeValidee([doc.date]) : '';
+      if (dv) w.push(phrasePeriodeValidee(dv, doc.date, { sujet: isAv ? 'Cet avoir' : 'Cette facture', fem: !isAv, neuve: true, geste: 'En l\'émettant' }));
       const last = data.documents.filter(d => d.type === doc.type && d.id !== doc.id && d.number && d.status !== 'brouillon' && (d.date || '').slice(0, 4) === (doc.date || '').slice(0, 4)).sort(byNumberDesc)[0];
       if (last && last.date > doc.date) w.push(`La date (${C.fmtDate(doc.date)}) est antérieure à la dernière ${isInv ? 'facture' : 'pièce'} émise, ${last.number} du ${C.fmtDate(last.date)} : la numérotation ne serait plus chronologique.`);
       // Vendre ce qu'on n'a pas : la pièce reste émissible (une commande peut partir avant la livraison
@@ -8308,13 +8341,21 @@
       doc.issuedTs = Date.now();
       unlockedIds.delete(doc.id);
       persist();
-      toast(`${C.docLabel(doc.type, company())} ${doc.number} émis${isInv ? 'e' : ''}`);
+      const ditEmis = `${C.docLabel(doc.type, company())} ${doc.number} émis${isInv ? 'e' : ''}`;
+      // (1.303.0) Émise dans la période que le cabinet a validée : le message offre de le lui dire, la phrase prête.
+      const dvEmis = isInv || isAv ? dateDansLaPeriodeValidee([doc.date]) : '';
+      if (dvEmis) {
+        const cl = clientById(doc.clientId);
+        direAuComptableApres(ditEmis, { fait: 'd\'émettre', fem: isInv, quoi: `${isAv ? 'l\'avoir' : 'la facture'} ${doc.number} daté${isInv ? 'e' : ''} du ${C.fmtDate(dvEmis)} (${cl ? `${cl.name}, ` : ''}${C.money(C.computeTotals(doc, company()).netToPay, docCur(doc))})` });
+      } else toast(ditEmis);
       // Une facture tirée d'une vente de la console lui rend son numéro dès l'émission (8.7.0) ;
       // en cas d'échec, la page Licences réessaiera — jamais un message rouge ici.
       if (doc.venteConsoleId) annoncerFacturesConsole().catch(() => {});
       return true;
     }
     bindBack(backTo);
+    // (1.303.0) Lu d'avance : la fenêtre d'émission dit déjà la période que le cabinet a validée.
+    if ((isInv || isAv) && !isIssued()) valideParLeCabinet();
     if ($('#save')) $('#save').onclick = () => { if (persist()) { toast(isQ || isExtra ? 'Enregistré : ' + doc.number : 'Brouillon enregistré'); unlockedIds.delete(doc.id); if (isNew) remplacerPage('#/doc/' + doc.id); else render(true); } };
     if ($('#issue')) $('#issue').onclick = async () => {
       // `data-busy` sur le bouton : il se désactive VISIBLEMENT pendant le geste. Un bouton qui
@@ -9531,6 +9572,15 @@
     // compte, le mode en boutons, la référence ; la retenue gardée par le client dite avant ; le bouton dit ce qui suivra.
     const modeur = p0 ? p0.method : (C.PAYMENT_METHODS[0] || [''])[0];
     const charteP = inv.type === 'facture' || inv.type === 'avoir';
+    // (1.303.0) Un paiement daté dans la période que le cabinet a validée (le nouveau, ou celui qu'on change, à sa nouvelle date
+    // comme à l'ancienne) : la phrase sous le formulaire le dit avant d'enregistrer, le message après offre de le lui dire. Un
+    // paiement rouvert qu'on ne change pas (date, montant, mode, compte) ne dit rien.
+    const valideDuPaiement = (v, quandLu) => {
+      const nouvelle = (rend ? '' : echeanceEffet(v)) || v.date;
+      const change = !p0 || nouvelle !== p0.date || Math.abs((Number(v.amount) || 0) - Math.abs(Number(p0.amount) || 0)) > 0.0005 || v.method !== p0.method || (v.accountId || '') !== (p0.accountId || '');
+      return { nouvelle, d: change ? dateDansLaPeriodeValidee([nouvelle, p0 && p0.date], quandLu) : '' };
+    };
+    const sujetPaiement = { sujet: rend ? 'Ce remboursement' : 'Ce paiement', fem: false, neuve: !p0, geste: 'En l\'enregistrant' };
     const formeCharte = () => `<h2>${titre} · ${h(inv.number)}</h2>
       ${rend ? `<p class="small">${h(sous.replace(/^[^—]*— /, ''))} · l'argent sort de ton compte ; la facture redevient simplement réglée.</p>` : ''}
       <form id="pf2" class="pf-charte" data-devise="${h(cur)}">
@@ -9557,6 +9607,7 @@
         <label class="field span-2">${lbl('Note', 'ed.payNote')}<input type="text" name="note" value="${h(p0 ? p0.note || '' : '')}"></label>
         ${!rend && Number(inv.withholdingRate) > 0 ? '<p class="small span-2 annonce-stable" id="pf-rs" aria-live="polite"></p>' : ''}
       </form>`}
+      ${avertValideHtml('pf-valide')}
       ${/* 10.12.0 — la fiche société porte déjà la banque et le RIB ; le paiement disait « aucun compte » et
          n'offrait qu'un lien vers la Trésorerie, qui QUITTAIT la fenêtre et jetait la saisie. Le compte
          se crée par-dessus, prérempli avec ce que l'entreprise a déjà donné. */''}${!(data.accounts || []).length ? `<div class="inline small muted mt" id="pf-sans-compte">Aucun compte de trésorerie : ${rend ? 'ce remboursement' : 'ce paiement'} ne sera rattaché à aucun compte.
@@ -9565,6 +9616,10 @@
       (root, close) => {
         brancherTauxReglement(root, inv, !rend, rend ? 'Rendu' : 'Reçu');
         brancherEffet(root);
+        const majValideP = () => { const x = valideDuPaiement(formValues($('#pf2', root)), majValideP); majAvertValide($('#pf-valide', root), x.d, x.nouvelle, sujetPaiement); };
+        $('#pf2', root).addEventListener('input', majValideP);
+        $('#pf2', root).addEventListener('change', majValideP);
+        majValideP();
         if ($('.pf-charte', root)) {
           const f = $('#pf2', root), m = $('[name=amount]', root), ok = $('#ok', root);
           $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', f).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
@@ -9625,6 +9680,7 @@
         // Modifier la date d'un paiement le sort d'un mois peut-être déjà déclaré : l'ancienne date
         // compte autant que la nouvelle, comme pour un document.
         if (closedBlock(p0 ? [p0.date, ech || v.date] : ech || v.date, rend ? 'Ce remboursement' : 'Ce paiement')) return;
+        const dvP = valideDuPaiement(v).d;
         inv.payments = inv.payments || [];
         const cible = p0 ? inv.payments.find(x => x.id === p0.id) : null;
         const champs = { date: ech || v.date, amount: C.round3(rend ? -v.amount : v.amount), method: v.method, accountId: v.accountId || (p0 ? p0.accountId || '' : ''), reference: v.reference || '', note: v.note || '' };
@@ -9633,7 +9689,12 @@
         if (cible) { Object.assign(cible, champs); if (!ech) delete cible.effet; }
         else inv.payments.push({ id: C.uid(), ...champs });
         save(true); close();
-        const st = effStatus(inv); toast(rend ? (p0 ? 'Remboursement modifié' : `Remboursement enregistré : ${C.money(v.amount, cur)} rendus au client`) : p0 ? 'Paiement modifié' : st === 'payée' ? `${inv.number} payée intégralement` : 'Paiement enregistré');
+        const st = effStatus(inv);
+        const ditP = rend ? (p0 ? 'Remboursement modifié' : `Remboursement enregistré : ${C.money(v.amount, cur)} rendus au client`) : p0 ? 'Paiement modifié' : st === 'payée' ? `${inv.number} payée intégralement` : 'Paiement enregistré';
+        if (dvP) {
+          const clP = clientById(inv.clientId);
+          direAuComptableApres(ditP, { fait: p0 ? 'de modifier' : 'd\'enregistrer', fem: false, quoi: `${rend ? 'un remboursement' : 'un paiement'} daté du ${C.fmtDate(dvP)} (facture ${inv.number}${clP ? `, ${clP.name}` : ''}, ${C.money(v.amount, cur)})` });
+        } else toast(ditP);
         if (done) done();
       }; });
   }
@@ -15804,6 +15865,13 @@
     // (1.155.13, maquette achat « Enregistrer un règlement ») Le montant en grand avec « Tout le reste », la date et le
     // compte, le mode en boutons, la retenue dite avant, et le bouton qui dit ce que la pièce deviendra.
     const modeur = r0 ? r0.method : (C.PAYMENT_METHODS[0] || [''])[0];
+    // (1.303.0) Le règlement daté dans la période que le cabinet a validée : la même règle que le paiement d'une facture.
+    const valideDuReglement = (v, quandLu) => {
+      const nouvelle = (rend ? '' : echeanceEffet(v)) || v.date;
+      const change = !r0 || nouvelle !== r0.date || Math.abs((Number(v.amount) || 0) - Math.abs(Number(r0.amount) || 0)) > 0.0005 || v.method !== r0.method || (v.accountId || '') !== (r0.accountId || '');
+      return { nouvelle, d: change ? dateDansLaPeriodeValidee([nouvelle, r0 && r0.date], quandLu) : '' };
+    };
+    const sujetReglement = { sujet: rend ? 'Ce remboursement' : 'Ce règlement', fem: false, neuve: !r0, geste: 'En l\'enregistrant' };
     modal(`<h2>${rend ? (r0 ? 'Modifier le remboursement' : `Remboursement de ${h(p.number || 'cet achat')}`) : r0 ? 'Modifier le règlement' : `Enregistrer un règlement · ${h(p.number || 'cet achat')}`}</h2>
       <p class="small muted">${h(supplierName(p.supplierId))} · ${rend
         ? `${p.kind === 'avoir' ? `avoir de ${C.money(b.totals.netToPay, cur)}` : `payé ${C.money(b.paid, cur)} pour ${C.money(b.totals.netToPay, cur)}`} · à récupérer ${C.money(aRecuperer, cur)}`
@@ -15820,8 +15888,13 @@
         ${rend ? '' : `<label class="field">${lbl('Note', 'buy.payNote')}<input type="text" name="note" value="${h(r0 ? r0.note || '' : '')}"></label>`}
         ${avecRs || avecExo ? '<div class="pf-rs-boite annonce-stable" id="spf-rs" aria-live="polite"></div>' : ''}
       </form>
+      ${avertValideHtml('spf-valide')}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => { brancherTauxReglement(root, p, rend, rend ? 'Reçu' : 'Payé'); brancherEffet(root);
+      const majValideS = () => { const x = valideDuReglement(formValues($('#spf', root)), majValideS); majAvertValide($('#spf-valide', root), x.d, x.nouvelle, sujetReglement); };
+      $('#spf', root).addEventListener('input', majValideS);
+      $('#spf', root).addEventListener('change', majValideS);
+      majValideS();
       const fS = $('#spf', root), mS = $('[name=amount]', root), okS = $('#ok', root);
       const cible0 = C.round3(rend ? aRecuperer : reste);
       $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fS).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
@@ -15873,6 +15946,7 @@
         // Corriger la date d'un règlement le sort peut-être d'un mois déclaré : l'ancienne date
         // compte autant que la nouvelle (règle 6.0.0).
         if (closedBlock(r0 ? [r0.date, ech || v.date] : ech || v.date, 'Ce règlement')) return;
+        const dvS = valideDuReglement(v).d;
         const stored = purchaseById(p.id) || p;
         const signe = rend && p.kind !== 'avoir' ? -1 : 1;
         const champs = { date: ech || v.date, amount: C.round3(signe * Number(v.amount)), method: v.method, accountId: v.accountId || (r0 ? r0.accountId || '' : ''), reference: v.reference || '', note: v.note || '' };
@@ -15881,7 +15955,11 @@
         const cible = r0 ? (stored.payments || []).find(x => x.id === r0.id) : null;
         if (cible) { Object.assign(cible, champs); if (!ech) delete cible.effet; }
         else stored.payments = (stored.payments || []).concat([{ id: C.uid(), ...champs }]);
-        save(true); close(); toast(rend ? (r0 ? 'Remboursement modifié' : 'Remboursement enregistré') : r0 ? 'Règlement modifié' : 'Règlement enregistré'); if (done) done();
+        save(true); close();
+        const ditS = rend ? (r0 ? 'Remboursement modifié' : 'Remboursement enregistré') : r0 ? 'Règlement modifié' : 'Règlement enregistré';
+        if (dvS) direAuComptableApres(ditS, { fait: r0 ? 'de modifier' : 'd\'enregistrer', fem: false, quoi: `${rend ? 'un remboursement reçu' : 'un règlement'} daté du ${C.fmtDate(dvS)} (${supplierName(p.supplierId)}${p.number ? `, n° ${p.number}` : ''}, ${C.money(v.amount, cur)})` });
+        else toast(ditS);
+        if (done) done();
       }; });
   }
 
@@ -15914,6 +15992,7 @@
         ${sup && sup.rib ? `<p class="small muted">Vers son RIB : <span class="mono">${h(sup.rib)}</span></p>` : ''}</div>
         <div class="pf-rs-boite annonce-stable" id="rge-rs" aria-live="polite"></div>
       </form>
+      ${avertValideHtml('rge-valide')}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
     (root, close) => {
       const fS = $('#rge', root), mS = $('[name=amount]', root);
@@ -15929,6 +16008,8 @@
         $('#rge-rs', root).innerHTML = rs > 0.0005 ? `<div class="bandeau gris">${lfIc('aide', 16, 2)}<span class="txt"><b>Ce virement retient ${C.money(rs, cur)} pour l'État : tu les reverses avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + ' ' + d0.slice(0, 4))}</b><span>Chaque pièce garde sa retenue, calculée sur son règlement. Le taux et l'assiette : À VÉRIFIER avec ton comptable.</span></span></div>` : '';
         const v2 = C.round3(Number(v.amount) || 0);
         $('#ok', root).innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${v2 > 0 ? ` le règlement de ${C.money(v2, cur)}` : ''}`;
+        // (1.303.0) Le virement daté dans la période que le cabinet a validée : la même règle que le règlement d'une pièce.
+        majAvertValide($('#rge-valide', root), dateDansLaPeriodeValidee([v.date], annoncer), v.date, { sujet: 'Ce virement', fem: false, neuve: true, geste: 'En l\'enregistrant' });
       };
       fS.addEventListener('input', annoncer); fS.addEventListener('change', annoncer); annoncer();
       $('#ok', root).onclick = async () => {
@@ -15945,7 +16026,12 @@
           const stored = purchaseById(p.id) || p;
           stored.payments = (stored.payments || []).concat([{ id: C.uid(), date: v.date, amount: m, method: v.method, accountId: v.accountId || '', reference: v.reference || '', note }]);
         }
-        save(true); close(); toast(`Règlement de ${C.money(montant, cur)} enregistré sur ${pl(parts.length, 'pièce')}`); if (done) done();
+        const dvR = dateDansLaPeriodeValidee([v.date]);
+        save(true); close();
+        const ditR = `Règlement de ${C.money(montant, cur)} enregistré sur ${pl(parts.length, 'pièce')}`;
+        if (dvR) direAuComptableApres(ditR, { fait: 'd\'enregistrer', fem: false, quoi: `un virement daté du ${C.fmtDate(dvR)} (${nom}, ${parts.map(([p]) => p.number || C.referenceAchat(p, data)).join(', ')}, ${C.money(montant, cur)})` });
+        else toast(ditR);
+        if (done) done();
       };
     });
   }
@@ -16279,17 +16365,14 @@
     // le bouton, AVANT d'enregistrer (une pièce neuve, ou modifiée), et l'enregistrement offre « Le dire à mon comptable ». Rien
     // ne se bloque : la pièce est vraie, elle s'enregistre. L'ancienne date compte aussi : sortir une pièce de la période
     // validée la change chez le cabinet autant que l'y faire entrer.
-    const dateValidee = () => {
-      if (clos) return '';
-      const j = valideParLeCabinet(majValide);
-      return j ? [p.date, stored && stored.date].filter(Boolean).find(d => d <= j) || '' : '';
-    };
+    // (1.303.0) La règle commune (`dateDansLaPeriodeValidee`) : chez le cabinet, la pièce s'écrit au premier jour encore ouvert.
+    const dateValidee = () => (clos ? '' : dateDansLaPeriodeValidee([p.date, stored && stored.date], majValide));
     function majValide() {
       const el = $('#ac-cab-valide');
       if (!el) return;
       const d = isNew || dirty ? dateValidee() : '';
       el.hidden = !d;
-      el.innerHTML = d ? `${lfIc('aide', 15)}<span>Cette pièce ${d === p.date ? 'est' : 'était'} datée du ${h(C.fmtDate(d))}, dans la période que ton cabinet a validée (jusqu'au ${h(C.fmtDate(valideCabinet.jusqua))}) : elle lui arrivera comme une correction, à reprendre sur un mois ouvert. En l'enregistrant, tu pourras le lui dire.</span>` : '';
+      el.innerHTML = d ? `${lfIc('aide', 15)}<span>${h(phrasePeriodeValidee(d, p.date, { sujet: 'Cette pièce', fem: true, neuve: isNew, geste: 'En l\'enregistrant' }))}</span>` : '';
     }
     const avertValide = clos ? '' : '<p class="ed-phrase ac-cab-valide" id="ac-cab-valide" role="status" hidden></p>';
     const gesteAchat = () => {
@@ -18106,14 +18189,16 @@
       if (!await doublonOk()) return;
       // (1.302.0) La date dans la période que le cabinet a validée, lue AVANT l'enregistrement (la pièce enregistrée change
       // `stored`) : le message qui suit offre de le lui dire, la phrase prête.
-      const dv = dateValidee(), jv = valideCabinet.jusqua;
+      const dv = dateValidee();
       if (!persist()) return;
       const fiches = creerFichesProposees();
       const dit = fiches.length ? `Enregistré, avec ${fiches.length > 1 ? `les fiches de ${fiches.length} biens` : 'la fiche du bien'} : ${fiches.length > 1 ? 'ils s\'amortissent' : `il s'amortit sur ${pl(fiches[0].years, 'an')}`} dès le ${lfJm(fiches[0].date)}` : 'Enregistré';
       if (dv) {
         const t = C.purchaseTotals(p, company());
-        const quoi = `${p.kind === 'avoir' ? 'un avoir' : p.kind === 'depense' ? 'une dépense' : 'un achat'} daté du ${C.fmtDate(dv)}${p.supplierId ? ` (${supplierName(p.supplierId)}${p.number ? `, n° ${p.number}` : ''}, ${C.money(t.netToPay, p.currency || company().currency)})` : ''}`;
-        toastUndo(`${dit} — dans la période que ton cabinet a validée`, () => ecrireAuComptable(`Bonjour, je viens ${isNew ? 'd\'enregistrer' : 'de modifier'} ${quoi} : il tombe dans la période que tu as validée jusqu'au ${C.fmtDate(jv)}. Peux-tu le reprendre sur un mois ouvert ?`), 'Le dire à mon comptable');
+        // (1.303.0) « une dépense datée … : elle tombe » (1.302.0 écrivait « une dépense daté … : il tombe »).
+        const fem = p.kind === 'depense';
+        const quoi = `${p.kind === 'avoir' ? 'un avoir' : fem ? 'une dépense' : 'un achat'} daté${fem ? 'e' : ''} du ${C.fmtDate(dv)}${p.supplierId ? ` (${supplierName(p.supplierId)}${p.number ? `, n° ${p.number}` : ''}, ${C.money(t.netToPay, p.currency || company().currency)})` : ''}`;
+        direAuComptableApres(dit, { fait: isNew ? 'd\'enregistrer' : 'de modifier', quoi, fem });
       } else toast(dit);
       if (isNew && rangementDuMessage && rangementDuMessage.lu && bridge.messagerie) {
         const r = rangementDuMessage;

@@ -10,7 +10,7 @@ export type LigneAEcrire = { compte: string; libelle: string; debit: bigint; cre
 export type EcritureAEcrire = {
   journal: 'VT' | 'AC' | 'BQ' | 'CA' | 'OD' | 'PAIE'; date: string;
   origineType: 'vente' | 'encaissement' | 'achat' | 'imputation' | 'reglement_fournisseur' | 'paie' | 'salaires' | 'avance' | 'mouvement' | 'contre_passation'
-    | 'declaration_sociale' | 'saisie_salaire'; origine: string;
+    | 'declaration_sociale' | 'saisie_salaire' | 'operation_diverse'; origine: string;
   piece: string | null; tiers: string | null; libelle: string; lignes: LigneAEcrire[];
 };
 

@@ -548,3 +548,33 @@ les déclarations lues restent celles de la TVA mensuelle.
 
 Suivant : le même avertissement dans les autres saisies (facture de vente, règlement, opération diverse), puis le module
 suivant de la revue.
+
+### Fait en 1.303.0 (07/11/2026) : la période validée dite partout où l'on saisit, et l'opération diverse jusqu'au cabinet
+
+Rejoué avec le même grossiste de Sousse et sa comptable, septembre validé par le cabinet jusqu'au 30/09/2026 : fin octobre,
+on rattrape ce que septembre a oublié. Une facture restée en brouillon (Clinique Les Oliviers, 698,340 DT), émise à la
+souris ; le paiement d'une facture de septembre (Café des Arts, 491,875 DT) noté à sa vraie date, puis rouvert ; le
+règlement d'un achat (Emballages du Centre, EC-4410) ; deux autres achats du même fournisseur réglés en un seul virement ;
+l'assurance du local avancée par le gérant (845,300 DT, 616 contre 4421), saisie en opération diverse. Puis la comptable
+ouvre son livre-journal au Cabinet. Une entreprise sans cabinet a fait la même opération diverse.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| C14 | Une facture ou un avoir émis à une date de la période validée partait sans un mot (C13 ne valait que pour les achats). | La fenêtre d'émission le dit avec ses autres avertissements : « Cette facture est datée du 29/09/2026, dans la période que ton cabinet a validée (jusqu'au 30/09/2026) : chez lui, elle s'écrira au 01/10/2026, le premier jour encore ouvert. En l'émettant, tu pourras le lui dire. » Rien n'est bloqué. Émise, « Le dire à mon comptable » ouvre la conversation, le message écrit (le numéro, la date, le client, le montant). |
+| C15 | Le paiement d'une facture, le règlement d'un achat et le virement qui règle plusieurs achats, datés dans la période validée, s'enregistraient sans un mot (et leur remboursement aussi). | La même phrase sous le formulaire, pendant la saisie de la date ; « Le dire à mon comptable » après. Un paiement rouvert sans changer ni sa date, ni son montant, ni son mode, ni son compte ne dit rien (une référence ajoutée ne change rien chez le comptable) ; sa date touchée, la phrase revient et parle de la correction (« chez lui, la correction s'écrira au 01/10/2026 »). Le message envoyé arrive dans la conversation du cabinet. |
+| C16 | L'opération diverse aussi (un loyer sans facture, une charge avancée par le gérant). | La même phrase sous l'écriture, sous « Débit = crédit », et « Le dire à mon comptable » après ; rouverte sans changement, rien. |
+| C17 | **Le pont** : l'opération diverse que le client saisit ne quittait jamais son livre. Le serveur ne l'écrivait nulle part, et le cabinet, qui lit les livres du serveur, ne la voyait jamais, alors que l'onglet Écritures dit au client que son cabinet les lit en direct. | Chaque opération devient une famille d'écritures du serveur (0194, `serveur/compta/operations.ts`), comme un mouvement de trésorerie : les mêmes lignes que la v10 (comptes, libellés, montants au millime, journal, numéro de pièce), et seulement si elle tombe juste. Corrigée, elle se réécrit ; supprimée, elle quitte le brouillard. Dans une période validée, elle s'écrit au premier jour encore ouvert ; validée puis changée, elle se contre-passe à ce jour-là. Au Cabinet, elle se lit dans le livre-journal du client, au brouillard, en lecture seule (une pièce du client). |
+| C18 | La phrase de C13 disait « elle lui arrivera comme une correction, à reprendre sur un mois ouvert » : c'était inexact. Le serveur l'écrit lui-même au premier jour encore ouvert, la comptable n'a rien à reprendre à la main. | Toutes les phrases disent ce qui se passe vraiment : « chez lui, elle s'écrira au 01/10/2026, le premier jour encore ouvert », et le message « elle s'écrit donc chez toi au 01/10/2026. Peux-tu en tenir compte ? ». La phrase des Clôtures aussi. |
+
+Le rouge GitHub de 1.302.0, réparé dans le même envoi (`cabinet-revision`, sous Node 24 seulement) : au Cabinet, la fenêtre
+« Une question au client » plaçait le curseur au bout de la phrase proposée un tour de boucle après son ouverture. Sur une
+machine lente, ce tour arrivait après le premier geste de la comptable (cliquer, tout sélectionner) : la sélection se
+défaisait, et ce qu'elle tapait s'ajoutait à la suite de la phrase proposée, jusque chez le client. Le curseur ne se place
+plus quand on est déjà dans le champ ; le test joue maintenant ce geste sur une page ralentie, et sa preuve retire la garde.
+
+Limites connues : une opération diverse saisie avant 1.303.0 n'arrive chez le cabinet qu'à sa prochaine modification (la
+réécriture de toutes est prête, `reecrireLesOperations`, et n'est pas encore lancée sur les dossiers existants) ; les
+mouvements de la trésorerie, la caisse et la paie ne disent pas encore la période validée ; la date validée se relit au
+plus toutes les 30 secondes.
+
+Suivant : la même phrase dans les mouvements de la trésorerie et la paie, puis le module suivant de la revue.

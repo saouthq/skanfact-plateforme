@@ -29,7 +29,8 @@ mêmes données que son client.
   sans membre côté client, créée par le cabinet, `03` § 3.5).
 - **C2. Une seule comptabilité par entreprise.** Le « livre du dossier » que le Cabinet v10 tenait
   dans ses fichiers, ce sont **les livres du serveur** de l'entreprise : les écritures que le serveur
-  tient au fil des pièces du client, **plus** celles que le cabinet saisit (opérations diverses,
+  tient au fil des pièces du client (ses propres opérations diverses comprises, depuis 1.303.0), **plus** celles que le
+  cabinet saisit (opérations diverses,
   reprise, à-nouveaux, dotations, inventaire, régularisations). Le client et son cabinet lisent le
   même chiffre ; il n'y a plus rien à envoyer, ni à « relire ».
 - **C3. Le code des écrans, copié tel quel.** `src/cabinet/renderer` (et ce qu'il charge de

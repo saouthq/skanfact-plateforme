@@ -1690,7 +1690,7 @@ prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts
 # définition EN VIGUEUR (une preuve qui vise une définition remplacée reste verte : code mort).
 # La contrainte des origines est redéfinie par 0021 : ses preuves visent la définition EN VIGUEUR.
 # La liste des origines est redéfinie par 0037 (la reprise de la v10) : ces trois preuves visent la dernière.
-prouver "la base qui refuse l'origine d'une imputation" base/migrations/0188_paie_payee_dans_les_livres.sql \
+prouver "la base qui refuse l'origine d'une imputation" base/migrations/0194_operations_diverses_du_client.sql \
   "'achat', 'imputation', 'reglement_fournisseur', 'paie'" "'achat', 'reglement_fournisseur', 'paie'" \
   "$LAC"
 
@@ -1735,7 +1735,7 @@ prouver "la paie réécrite par qui ne la voit pas" $CPA \
 prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
   "    await reecrireLaPaie(tx, entreprise);" "" \
   "$PP"
-prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0188_paie_payee_dans_les_livres.sql \
+prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0194_operations_diverses_du_client.sql \
   "'reglement_fournisseur', 'paie', 'salaires', 'avance'," "'reglement_fournisseur', 'salaires', 'avance'," \
   "$PE"
 
@@ -1935,7 +1935,7 @@ S4="contre-passer et extourner une écriture saisie : le miroir validé, jamais 
 S5="lettrer une facture et son règlement : la somme fait zéro, sinon l'écart est dit ; un brouillard ne se lettre pas ; délettrer"
 S6="les mois du portefeuille disent ce que disent les livres : écritures, brouillards, chiffre d'affaires (deux chemins, un chiffre)"
 W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
-prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0188_paie_payee_dans_les_livres.sql \
+prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0194_operations_diverses_du_client.sql \
   "'contre_passation', 'saisie', 'extourne', 'reprise_v10'," "'contre_passation', 'extourne', 'reprise_v10'," \
   "$S1"
 prouver "une saisie déséquilibrée qui entre" $M21 \
@@ -23223,8 +23223,8 @@ prouver 'paie 10.1-3 h : un versement de saisie retiré qui reste dans les livre
 prouver 'paie 10.1-3 i : un plan changé qui oublie le mois des déclarations payées' serveur/compta/paie.ts \
   "    if (lisible(f)) mois.push(moisDe(f.date));" "" \
   "$LPP"
-prouver 'paie 10.1-3 j : la base qui refuse l'"'"'origine d'"'"'une déclaration payée' base/migrations/0188_paie_payee_dans_les_livres.sql \
-  "'reprise_v10', 'declaration_sociale', 'saisie_salaire'));" "'reprise_v10', 'saisie_salaire'));" \
+prouver 'paie 10.1-3 j : la base qui refuse l'"'"'origine d'"'"'une déclaration payée' base/migrations/0194_operations_diverses_du_client.sql \
+  "'reprise_v10', 'declaration_sociale', 'saisie_salaire'," "'reprise_v10', 'saisie_salaire'," \
   "$LPP"
 prouver 'paie 10.1-3 k : une déclaration payée illisible acceptée' serveur/v10/paie.ts \
   "    if (apres === 'illisible') throw new Refus('v10.declaration_illisible');" "" \
@@ -25142,12 +25142,92 @@ prouver 'la pièce rouverte sans changement redit l'\''avertissement' "$A1E" \
 prouver 'l'\''enregistrement n'\''offre pas de le dire au comptable' "$A1E" \
   'toastUndo(`${dit} — dans la période que ton cabinet a validée`' 'toastUndo(`${dit}`' \
   "$T302W"
-prouver 'le message au comptable ne demande pas de reprendre la pièce' "$A1E" \
-  "Peux-tu le reprendre sur un mois ouvert ?\`), 'Le dire à mon comptable');" "\`), 'Le dire à mon comptable');" \
+prouver 'le message au comptable ne lui demande pas d'\''en tenir compte' "$A1E" \
+  "Peux-tu en tenir compte ?\`), 'Le dire à mon comptable');" "\`), 'Le dire à mon comptable');" \
   "$T302W"
 prouver 'au téléphone, l'\''avertissement caché avec la phrase sous le bouton' "$PCSS" \
   '.ed-geste .ed-phrase.ac-cab-valide:not([hidden]) { display: flex; }' '/* rien */' \
   "$T302W"
+# (1.303.0) La période validée par le cabinet dite dans les autres saisies (la facture qu'on émet, le paiement, le règlement,
+# l'opération diverse), et l'opération diverse du client écrite dans les livres du serveur : le cabinet la voit enfin.
+T303W="fin octobre, le grossiste rattrape septembre : chaque saisie le dit, et la comptable lit tout au 1er octobre"
+T303S="chaque opération juste : le même journal, la même pièce, les mêmes comptes, libellés et montants que la v10 ; une fausse n'entre pas"
+OPS=serveur/compta/operations.ts
+prouver 'une saisie dans la période validée ne dit rien sous son formulaire' "$A1E" \
+  'const majAvertValide = (el, d, nouvelle, opts) => {' 'const majAvertValide = (el, d0, nouvelle, opts) => { const d = '\'''\'';' \
+  "$T303W"
+prouver 'la facture émise dans la période validée, sans un mot dans la fenêtre d'\''émission' "$A1E" \
+  'if (dv) w.push(phrasePeriodeValidee(dv, doc.date,' 'if (false) w.push(phrasePeriodeValidee(dv, doc.date,' \
+  "$T303W"
+prouver 'la facture émise n'\''offre pas de le dire au comptable' "$A1E" \
+  "const dvEmis = isInv || isAv ? dateDansLaPeriodeValidee([doc.date]) : '';" "const dvEmis = '';" \
+  "$T303W"
+prouver 'le paiement rouvert sans changement redit l'\''avertissement' "$A1E" \
+  'const change = !p0 || nouvelle !== p0.date' 'const change = true || nouvelle !== p0.date' \
+  "$T303W"
+prouver 'le paiement n'\''offre pas de le dire au comptable' "$A1E" \
+  'const dvP = valideDuPaiement(v).d;' 'const dvP = null;' \
+  "$T303W"
+prouver 'le règlement dans la période validée, sans un mot avant' "$A1E" \
+  'x.d, x.nouvelle, sujetReglement)' 'null, x.nouvelle, sujetReglement)' \
+  "$T303W"
+prouver 'le règlement n'\''offre pas de le dire au comptable' "$A1E" \
+  'const dvS = valideDuReglement(v).d;' 'const dvS = null;' \
+  "$T303W"
+prouver 'le virement qui règle plusieurs achats dans la période validée, sans un mot avant' "$A1E" \
+  'dateDansLaPeriodeValidee([v.date], annoncer), v.date,' 'null, v.date,' \
+  "$T303W"
+prouver 'le virement qui règle plusieurs achats n'\''offre pas de le dire au comptable' "$A1E" \
+  'const dvR = dateDansLaPeriodeValidee([v.date]);' 'const dvR = null;' \
+  "$T303W"
+prouver 'la correction annoncée comme une pièce neuve' "$A1E" \
+  'chez lui, ${neuve ? ' 'chez lui, ${true ? ' \
+  "$T303W"
+prouver 'le premier jour ouvert pris pour le dernier jour validé' "$A1E" \
+  'const premierJourOuvert = () => (valideCabinet.jusqua ? C.addDays(valideCabinet.jusqua, 1)' 'const premierJourOuvert = () => (valideCabinet.jusqua ? C.addDays(valideCabinet.jusqua, 0)' \
+  "$T303W"
+prouver 'la période validée lue seulement au premier geste, trop tard pour la fenêtre d'\''émission' "$A1E" \
+  'if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet) valideParLeCabinet();' '/* rien */' \
+  "$T303W"
+prouver 'l'\''opération diverse dans la période validée, sans un mot avant' "$A2E" \
+  'valideDeLOd(n, majValideOd), n.date,' 'null, n.date,' \
+  "$T303W"
+prouver 'l'\''opération diverse n'\''offre pas de le dire au comptable' "$A2E" \
+  'const dvOd = valideDeLOd(n);' 'const dvOd = null;' \
+  "$T303W"
+prouver 'l'\''opération diverse du client n'\''arrive jamais dans les livres du serveur' serveur/v10/dossier.ts \
+  'await suivreOperations(tx, entreprise, lus);' 'void suivreOperations;' \
+  "$T303S"
+prouver 'une opération qui ne tombe pas juste entre dans les livres' "$OPS" \
+  'if (lignes.length < 2 || debits !== credits) return [];' 'if (lignes.length < 2) return [];' \
+  "$T303S"
+prouver 'une ligne au débit et au crédit à la fois entre dans les livres' "$OPS" \
+  ' || (debit > 0n) === (credit > 0n)) return [];' ') return [];' \
+  "$T303S"
+prouver 'un compte écrit en lettres entre dans les livres' "$OPS" \
+  'if (!/^\d{1,12}$/.test(compte) || ' 'if (' \
+  "$T303S"
+prouver 'une ligne sans libellé perd celui de l'\''opération' "$OPS" \
+  'libelle: (texte(l.label) || intitule).slice(0, 500)' 'libelle: texte(l.label).slice(0, 500)' \
+  "$T303S"
+prouver 'une ligne entièrement vide refuse toute l'\''opération' "$OPS" \
+  'if (!compte && debit === 0n && credit === 0n) continue;' '/* rien */' \
+  "$T303S"
+prouver 'une opération sans libellé entre dans les livres' "$OPS" \
+  'if (!intitule.trim()) return [];' '/* rien */' \
+  "$T303S"
+prouver 'une opération sans journal écrite ailleurs qu'\''en OD' "$OPS" \
+  "includes(texte(o.journal)) ? (texte(o.journal) as Journal) : 'OD';" "includes(texte(o.journal)) ? (texte(o.journal) as Journal) : 'BQ';" \
+  "$T303S"
+prouver 'l'\''opération écrite sans son numéro de pièce' "$OPS" \
+  'piece: texte(o.piece) || null' 'piece: null' \
+  "$T303S"
+prouver 'la question au client : le curseur posé en retard défait la sélection de la comptable' modules/socle/ecrans/cabinet/app-1.js \
+  'setTimeout(() => { if (document.activeElement === txt) return; txt.focus();' 'setTimeout(() => { txt.focus();' \
+  "la révision se tient à la souris et se garde au serveur ; une question part au client à l'envoi, et sa réponse revient"
+prouver 'la base refuse l'\''origine des opérations diverses du client' base/migrations/0194_operations_diverses_du_client.sql \
+  "                          'operation_diverse'));" "                          'saisie_salaire'));" \
+  "$T303S"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

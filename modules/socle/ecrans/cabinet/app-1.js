@@ -10143,7 +10143,10 @@
         if (txt.value === derniere && propose()) { txt.value = propose(); derniere = txt.value; }
       };
       $$('[data-qf-attendu]', couche).forEach(x => { x.onclick = () => { choisir(x.dataset.qfAttendu); txt.focus(); }; });
-      setTimeout(() => { txt.focus(); txt.setSelectionRange(txt.value.length, txt.value.length); }, 0);
+      // Le curseur au bout de la phrase proposée, sauf si l'on écrit déjà dans le champ : ce tour de boucle arrive parfois
+      // après le premier geste (une machine lente, un clic rapide), et il défaisait la sélection qu'on venait de poser, la
+      // frappe s'ajoutant alors à la suite de la phrase proposée (rouge GitHub de 1.302.0, cabinet-revision).
+      setTimeout(() => { if (document.activeElement === txt) return; txt.focus(); txt.setSelectionRange(txt.value.length, txt.value.length); }, 0);
       const boutons = () => $$('#qf-garder, #qf-envoyer, #qf-enregistrer', couche);
       const faire = async envoyer => {
         const texte = txt.value.trim();

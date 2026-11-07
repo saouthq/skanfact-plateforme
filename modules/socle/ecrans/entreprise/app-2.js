@@ -5112,8 +5112,14 @@
           <tbody>${o.lignes.map(ligneHtml).join('')}</tbody>
           <tfoot><tr class="total-row"><td colspan="3"><button type="button" class="btn btn-ghost" id="od-add">+ Ajouter une ligne</button></td><td class="r nw" id="od-td">—</td><td class="r nw" id="od-tc">—</td><td></td></tr></tfoot></table></div>
         <div id="od-ecart" class="small mt"></div>
+        ${avertValideHtml('od-valide')}
         <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="od-ok">Enregistrer</button></div>`,
         (layer, close) => {
+          // (1.303.0) Une opération datée dans la période que le cabinet a validée (la neuve, ou celle qu'on change, à sa nouvelle
+          // date comme à l'ancienne) : dit sous l'écriture avant d'enregistrer. Rouverte sans rien changer, elle ne dit rien.
+          const empreinteOd = x => JSON.stringify([x.date, x.label, (x.lignes || []).map(l => [l.compte, l.label || '', Number(l.debit) || 0, Number(l.credit) || 0])]);
+          const valideDeLOd = (n, quandLu) => (!od || empreinteOd(n) !== empreinteOd(od) ? dateDansLaPeriodeValidee([n.date, od && od.date], quandLu) : '');
+          const majValideOd = () => { const n = lire(); majAvertValide($('#od-valide', layer), valideDeLOd(n, majValideOd), n.date, { sujet: 'Cette opération', fem: true, neuve: !od, geste: 'En l\'enregistrant' }); };
           const lire = () => {
             const v = formValues($('#odf', layer));
             const lignes = $$('#od-lignes tbody tr', layer).map(tr => ({
@@ -5128,7 +5134,10 @@
             const ecart = C.round3(v.debit - v.credit);
             $('#od-ecart', layer).innerHTML = ecart ? `<span class="due">Écart de ${C.money(Math.abs(ecart), company().currency)} : l'écriture ne tombe pas juste.</span>` : (v.debit ? '<span class="ok">Débit = crédit : l\'écriture tombe juste.</span>' : '');
             $$('#od-lignes tbody tr', layer).forEach(tr => { $('.od-lib', tr).textContent = C.accountLabel(data, $('.od-compte', tr).value.trim()); });
+            majValideOd();
           };
+          $('#odf', layer).addEventListener('input', majValideOd);
+          $('#odf', layer).addEventListener('change', majValideOd);
           const brancher = () => {
             $$('#od-lignes tbody tr', layer).forEach(tr => {
               $$('input', tr).forEach(inp => { inp.oninput = recalc; });
@@ -5147,10 +5156,14 @@
             if (!v.ok) { if (!n.label.trim()) return refus('#odf input[name=label]', v.erreurs[0]); return toast(v.erreurs[0], true); }
             if (!od && licenceBlock('Créer une opération diverse')) return;
             if (closedBlock([od && od.date, n.date], 'Cette opération diverse')) return;
+            const dvOd = valideDeLOd(n);
             if (!od) n.piece = C.odPiece(data, n.date);
             n.lignes = v.lignes;
             if (od) Object.assign(od, n); else data.ecrituresOD.push(n);
-            save(true); close(); toast(`${n.piece} enregistrée`); if (done) done(n);
+            save(true); close();
+            if (dvOd) direAuComptableApres(`${n.piece} enregistrée`, { fait: od ? 'de modifier' : 'd\'enregistrer', fem: true, quoi: `l'opération diverse ${n.piece} « ${n.label} » datée du ${C.fmtDate(dvOd)} (${C.money(v.debit, company().currency)})` });
+            else toast(`${n.piece} enregistrée`);
+            if (done) done(n);
           };
         });
     }
@@ -5444,7 +5457,7 @@
       const clotPossible = valideCab && valideCab > (closed || '') && months.some(m => m.to === valideCab);
       const aligner = clotPossible && !(next && next.to === valideCab) ? valideCab : '';
       const ligneCabinet = !valideCab ? '' : `<div class="cpt-cab-clot" id="clot-cabinet"><p>${lfIc('coche', 15, 2.4)}<span>Ton cabinet a validé tes livres jusqu'au <strong>${h(C.fmtDate(valideCab))}</strong> : ses écritures de cette période ne bougent plus chez lui. ${info('clot.cabinet2')}</span></p>
-          ${valideCab > (closed || '') ? `<p class="small">Chez toi, des pièces de cette période peuvent encore changer : un changement lui arriverait comme une correction, à reprendre sur un mois ouvert.${clotPossible ? ' Clôture-les aussi, pour qu\'elles restent comme il les a validées.' : ''}</p>
+          ${valideCab > (closed || '') ? `<p class="small">Chez toi, des pièces de cette période peuvent encore changer : chez lui, un changement s'écrirait comme une correction au ${h(C.fmtDate(C.addDays(valideCab, 1)))}, le premier jour encore ouvert.${clotPossible ? ' Clôture-les aussi, pour qu\'elles restent comme il les a validées.' : ''}</p>
           ${aligner ? `<div class="inline"><button class="btn btn-sm" id="clot-aligner">Clôturer jusqu'au ${h(C.fmtDate(aligner))}</button></div>` : ''}` : ''}</div>`;
       // Le texte prêt pour la conversation : ce qui vient d'être clôturé ou rouvert.
       const texteClotureAuCabinet = e => (e.action === 'reouverture'

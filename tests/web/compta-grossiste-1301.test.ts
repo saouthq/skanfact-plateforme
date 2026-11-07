@@ -201,7 +201,7 @@ describe('la Comptabilité 1.301.0 : le grossiste et sa comptable', () => {
 
     // ── 5. Les clôtures : le cabinet a validé septembre ; on clôture pareil, on le lui dit ; on rouvre, on le lui dit.
     await onglet('clotures');
-    await expect.poll(async () => lire('#clot-cabinet'), { timeout: 15_000 }).toMatch(/^Ton cabinet a validé tes livres jusqu'au 30\/09\/2026 : ses écritures de cette période ne bougent plus chez lui\. i Chez toi, des pièces de cette période peuvent encore changer : un changement lui arriverait comme une correction, à reprendre sur un mois ouvert\. Clôture-les aussi, pour qu'elles restent comme il les a validées\.$/);
+    await expect.poll(async () => lire('#clot-cabinet'), { timeout: 15_000 }).toMatch(/^Ton cabinet a validé tes livres jusqu'au 30\/09\/2026 : ses écritures de cette période ne bougent plus chez lui\. i Chez toi, des pièces de cette période peuvent encore changer : chez lui, un changement s'écrirait comme une correction au 01\/10\/2026, le premier jour encore ouvert\. Clôture-les aussi, pour qu'elles restent comme il les a validées\.$/);
     // Septembre est le prochain mois à clôturer : un seul bouton le fait (pas de second « Clôturer jusqu'au 30/09 »).
     expect(await p.locator('#clot-aligner').count()).toBe(0);
     await photo('clotures');
