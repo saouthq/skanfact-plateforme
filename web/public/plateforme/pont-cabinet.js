@@ -525,10 +525,7 @@
       revisions.set(e.id, e.revision);
       livre.ecritures.push({
         id: e.id, numero: e.chaine ?? null, date: e.date, journal: e.journal, piece: e.piece || '', libelle: e.libelle,
-        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null,
-        // (1.309.0) L'échéance de la facture d'où naît l'écriture (le serveur la lit, 0195) : la balance âgée la range
-        // selon elle. Vide pour le reste (rangé selon sa date).
-        echeance: typeof e.echeance === 'string' ? e.echeance : '',
+        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null, echeance: typeof e.echeance === 'string' ? e.echeance : '', // la balance âgée (0195, 0196)
         // (1.125.0) L'achat du client porte-t-il un justificatif ? oui, non, ou null (inconnu : pas un achat).
         justifClient: typeof e.justificatif === 'boolean' ? e.justificatif : null, ...(e.attente ? { attente: true, refus: e.refus } : {}),
         statut: e.statut === 'validee' ? (e.contrepassee ? 'contrepassee' : 'validee') : 'brouillard',

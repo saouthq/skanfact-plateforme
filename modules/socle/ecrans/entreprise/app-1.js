@@ -14393,17 +14393,20 @@
     modal(`<h2>${supplier ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
       <form id="sf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'sup.name')}<input type="text" name="name" value="${h(s.name)}" required></label>
-        ${field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', s.matricule || '')}
+        ${field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', s.matricule || '').replace(/<\/label>$/, '<small class="cf-aide" id="sf-mf-aide" aria-live="polite"></small></label>')}
         ${field(lbl('Téléphone', 'sup.phone'), 'phone', s.phone || '')}
         ${field(lbl('Ville', 'sup.city'), 'city', s.city || '', 'text', 'placeholder="Sfax"')}
         <label class="field span-2">${lbl('Adresse', 'sup.address')}<textarea name="address">${h(s.address || '')}</textarea></label>
         ${/* (plateforme) 1.132.0 — de même pour un fournisseur neuf (revue du mois d'un client, point 15). */''}
-        ${supplier ? '' : '<details class="span-2 plus-details" id="sf-plus"><summary>Plus de détails <span class="muted small">— contact, e-mail, délai, retenue, banque, RIB, notes</span></summary><div class="grid-2 mt">'}
+        ${supplier ? '' : '<details class="span-2 plus-details" id="sf-plus"><summary>Plus de détails <span class="muted small">— contact, e-mail, délai, retenue, devise, banque, RIB, notes</span></summary><div class="grid-2 mt">'}
         ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', s.contact || '', 'text', 'placeholder="M. Sami Gharbi, commercial"')}
         ${field(lbl('Email', 'sup.email'), 'email', s.email || '', 'email')}
         ${field(lbl('Délai de paiement accordé (jours)', 'sup.terms'), 'paymentTermsDays', s.paymentTermsDays == null ? '' : s.paymentTermsDays, 'number', 'min="0" class="num" placeholder="30"')}
         <label class="field">${lbl('Retenue à la source à opérer', 'sup.withholding')}${withholdingSelect('withholdingRate', s.withholdingRate, { vide: 'Aucune', sansZero: true })}</label>
         ${champsAttestationRS(s, 'fournisseur')}
+        ${/* (1.311.0) La devise de ses factures : un fournisseur à l'étranger se disait seulement par un import ; chaque achat
+              chez lui la reprend, et sa fiche dit ce qu'on lui doit dans sa devise (1.310.0). */''}
+        <label class="field">${lbl('Devise de ses factures', 'sup.currency')}<select name="currency"><option value="" ${!s.currency ? 'selected' : ''}>Par défaut (${h(company().currency)})</option>${C.CURRENCIES.map(x => `<option value="${x}" ${s.currency === x ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
         ${field(lbl('Banque', 'pay.bank'), 'bank', s.bank || '')}
         ${ribField('RIB du fournisseur', s.rib)}
         <label class="field span-2">${lbl('Notes internes', 'sup.notes')}<textarea name="notes">${h(s.notes || '')}</textarea></label>
@@ -14413,9 +14416,31 @@
         ${supplier ? '<button class="btn btn-danger" id="del-sup" style="margin-inline-end:auto">Supprimer ce fournisseur</button>' : ''}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
+        // (1.311.0) Le matricule se relit pendant qu'on l'écrit, comme celui d'un client (1.201.0, 1.309.0) : un fournisseur
+        // qui l'a déjà (« ouvrir sa fiche »), la même société sous un autre établissement, une forme fausse. Une seconde fiche
+        // pour le même fournisseur coupait son compte en deux : ce qu'on lui doit, ses retenues et ses attestations.
+        const MF_MAL_ECRIT = 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.';
+        const mfC = v => String(v || '').toUpperCase().replace(/[\s/.\-_]/g, '');
+        const dejaLa = v => (mfC(v) ? data.suppliers.find(x => x !== s && mfC(x.matricule) === mfC(v)) : null);
+        const racine = v => (mfC(v).match(/^\d{7}[A-Z]/) || [''])[0];
+        const memeSociete = v => (racine(v) ? data.suppliers.find(x => x !== s && racine(x.matricule) === racine(v)) : null);
+        const aideMf = () => {
+          const v = $('#sf input[name=matricule]', root).value, z = $('#sf-mf-aide', root), autre = dejaLa(v), voisin = autre ? null : memeSociete(v);
+          const mal = v.trim() && !C.matriculeBienForme(v) && !/^\d{8}$/.test(mfC(v));
+          z.className = 'cf-aide' + (autre ? ' ko' : '');
+          z.innerHTML = autre ? `Déjà la fiche de « ${h(autre.name)} » · <a href="#/fournisseur/${h(autre.id)}" id="sf-mf-ouvrir">ouvrir sa fiche</a>`
+            : voisin ? `Même société que « ${h(voisin.name)} » (${h(voisin.matricule)})${mal ? ', et il manque la fin du matricule' : ''} : un autre de ses établissements ? Sinon, <a href="#/fournisseur/${h(voisin.id)}" id="sf-mf-ouvrir">ouvrir sa fiche</a>.`
+              : mal ? MF_MAL_ECRIT : '';
+          const qui = autre || voisin;
+          if ($('#sf-mf-ouvrir', root)) $('#sf-mf-ouvrir', root).onclick = e => { e.preventDefault(); close(); navigate('#/fournisseur/' + qui.id); };
+        };
+        $('#sf input[name=matricule]', root).addEventListener('input', aideMf);
+        aideMf();
         $('#ok', root).onclick = () => {
           if (enLecture('suppliers')) return refus('#sf input[name=name]', refusLecture('suppliers'));
           const v = formValues($('#sf', root));
+          const autre = dejaLa(v.matricule);
+          if (autre) return refus('#sf input[name=matricule]', `« ${autre.name} » a déjà ce matricule : c'est sans doute le même fournisseur. Ouvre sa fiche plutôt que d'en créer une seconde.`);
           if (!v.name.trim()) return refus('#sf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque achat.');
           const exos = lireAttestationRS(s, v, root);
           if (!exos) return;
@@ -14432,12 +14457,31 @@
         if ($('#del-sup', root)) $('#del-sup', root).onclick = async () => {
           if (enLecture('suppliers')) { toast(refusLecture('suppliers', 'supprimé'), true); return; }
           const n = data.purchases.filter(p => p.supplierId === s.id).length;
-          if (n) return toast(`Impossible : ${pl(n, 'achat')} ${n > 1 ? 'sont liés' : 'est lié'} à ce fournisseur. Un fournisseur qui a une histoire ne se supprime pas.`, true);
+          if (n) return toast(`Impossible : ${pl(n, 'achat')} ${n > 1 ? 'sont liés' : 'est lié'} à ce fournisseur. Un fournisseur qui a une histoire ne se supprime pas : archive-le (menu ⋯ de sa fiche).`, true);
           if (!await confirmDialog(`Supprimer ${s.name} ?`)) return;
           forget('suppliers', s.id, s.name);
           data.suppliers = data.suppliers.filter(x => x.id !== s.id); save(true); close(); navigate('#/fournisseurs');
         };
       });
+  }
+
+  // (1.311.0) Archiver un fournisseur, comme un client (1.200.0) : le transporteur qu'on ne prend plus sort de la liste et
+  // des choix d'une pièce ; ses achats, ses règlements et ses attestations restent. Il ne pouvait ni s'archiver ni se
+  // supprimer (« un fournisseur qui a une histoire ne se supprime pas »), et encombrait chaque choix d'un achat.
+  // Les choix d'une pièce : les fournisseurs en service, et celui qu'elle porte déjà.
+  const fournisseursEnService = garder => data.suppliers.filter(x => !x.archived || x.id === garder).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  function archiverFournisseur(f, refaire) {
+    if (enLecture('suppliers')) { toast(refusLecture('suppliers', 'archivé'), true); return; }
+    // Archiver n'efface pas ce qu'on lui doit : la liste des achats et « À payer » le comptent toujours.
+    const co = company(), du = C.supplierSummary(data, co, f.id, C.today()).remaining;
+    const encore = du > 0.0005 ? ` Tu lui dois encore ${C.money(du, co.currency)} : ses pièces restent dans « À payer ».` : '';
+    f.archived = C.today(); save(true); if (refaire) refaire();
+    toastUndo(`${f.name} est archivé : il sort de la liste et des choix d'un achat ; ses pièces restent.${encore}`, () => { f.archived = ''; save(true); if (refaire) refaire(); }, 'Annuler');
+  }
+  function desarchiverFournisseur(f, refaire) {
+    if (enLecture('suppliers')) { toast(refusLecture('suppliers'), true); return; }
+    f.archived = ''; save(true); if (refaire) refaire();
+    toast(`${f.name} revient dans la liste et dans les choix d'un achat.`);
   }
 
   const supplierState = { q: '', f: '', sort: null, page: 1, cur: -1 };
@@ -14446,7 +14490,7 @@
   // ---------- la liste des fournisseurs (1.204.0, maquette achats-fournisseurs.html validée le 30/10/2026) ----------
   // Les mêmes pièces que la liste des clients : ce qu'on doit à chacun et ce qui est en retard, ce qui manque à sa fiche ;
   // au téléphone, une carte par fournisseur.
-  const LFO_FILTRES = [['', 'Tous'], ['dois', 'Tu leur dois'], ['retard', 'En retard'], ['completer', 'À compléter'], ['sans', 'Sans achat']];
+  const LFO_FILTRES = [['', 'Tous'], ['dois', 'Tu leur dois'], ['retard', 'En retard'], ['completer', 'À compléter'], ['sans', 'Sans achat'], ['archives', 'Archivés']];
   // Ce que la liste sait d'un fournisseur : son compte (`supplierSummary`, le net de son compte 401), ses pièces en retard
   // (la règle de la liste des achats), ce qui manque à sa fiche. UNE fonction : le tableau, son pied, les filtres et leurs
   // nombres, le téléphone la lisent tous.
@@ -14467,7 +14511,8 @@
       return { f, sum, ret, jours, semaine: semaine.get(f.id) || 0, manqueMf, manqueMail, manqueRib, aCompleter: manqueMf || manqueMail || manqueRib };
     });
   }
-  const lfoPasse = (r, f) => (!f ? true : f === 'dois' ? r.sum.remaining > 0.0005 : f === 'retard' ? r.sum.late > 0.0005 : f === 'completer' ? r.aCompleter : f === 'sans' ? r.sum.count === 0 : true);
+  // (1.311.0) Un fournisseur archivé ne se voit que dans « Archivés » ; il ne compte nulle part ailleurs (la règle des clients).
+  const lfoPasse = (r, f) => (f === 'archives' ? !!r.f.archived : r.f.archived ? false : !f ? true : f === 'dois' ? r.sum.remaining > 0.0005 : f === 'retard' ? r.sum.late > 0.0005 : f === 'completer' ? r.aCompleter : f === 'sans' ? r.sum.count === 0 : true);
   const lfoTrouve = (r, q) => !q || C.correspondRecherche([r.f.name, r.f.contact, r.f.matricule, r.f.email, r.f.phone, String(r.f.phone || '').replace(/\s/g, ''), r.f.city].join(' '), q);
   const lfoDelai = f => (f.paymentTermsDays === '' || f.paymentTermsDays == null ? 'délai non précisé' : Number(f.paymentTermsDays) === 0 ? 'paie à réception' : `paie à ${pl(Number(f.paymentTermsDays), 'jour')}`);
   // Régler ce qui est en retard chez un fournisseur : une pièce, sa fenêtre ; plusieurs, un seul virement (1.203.0).
@@ -14493,16 +14538,18 @@
       const filtre = !!(s.q || s.f);
       const nom = LFO_FILTRES.find(x => x[0] === s.f);
       const puces = [s.f ? ['f', nom ? nom[1] : s.f] : null, s.q ? ['q', `« ${s.q} »`] : null].filter(Boolean);
+      // « Archivés » n'apparaît que s'il y en a (ou qu'on y est) ; le compte du haut ne lit que ceux en service.
+      const enService = tout.filter(r => !r.f.archived);
       return `<div class="filtres" id="lf-filtres"><label class="cherche">${lfIc('recherche', 16)}<input id="q" type="search" value="${h(s.q)}" placeholder="${matchMedia('(max-width: 760px)').matches ? 'Nom, téléphone, matricule…' : 'Nom, contact, matricule, e-mail, téléphone, ville…'}" autocomplete="off" aria-label="Chercher un fournisseur"><kbd>/</kbd></label>
-        <div class="segment petit" role="group" aria-label="Montrer">${LFO_FILTRES.map(([k, n]) => `<button type="button" data-f="${k}" aria-pressed="${s.f === k}">${n}${k ? ` <span class="mu">${tout.filter(r => lfoPasse(r, k)).length}</span>` : ''}</button>`).join('')}</div>
+        <div class="segment petit" role="group" aria-label="Montrer">${LFO_FILTRES.filter(([k]) => k !== 'archives' || s.f === k || tout.some(r => r.f.archived)).map(([k, n]) => `<button type="button" data-f="${k}" aria-pressed="${s.f === k}">${n}${k ? ` <span class="mu">${tout.filter(r => lfoPasse(r, k)).length}</span>` : ''}</button>`).join('')}</div>
         ${info('lfo.colonnes').replace('class="i"', 'class="i i-b"').replace('>i</button>', `>${lfIc('aide', 16, 2)}</button>`)}
-        <span class="f-note" id="f-note">${filtre ? `<b>${l.length}</b> sur ${pl(tout.length, 'fournisseur')}` : `<b>${tout.length}</b> ${tout.length > 1 ? 'fournisseurs' : 'fournisseur'}`}</span></div>
+        <span class="f-note" id="f-note">${filtre ? `<b>${l.length}</b> sur ${pl(enService.length, 'fournisseur')}` : `<b>${enService.length}</b> ${enService.length > 1 ? 'fournisseurs' : 'fournisseur'}`}</span></div>
         ${puces.length ? `<div class="puces-f">${puces.map(([k, n]) => `<button type="button" class="pf" data-ote="${k}" aria-label="Retirer le filtre ${h(n)}">${h(n)}${lfIc('croix', 12, 2.4)}</button>`).join('')}<button type="button" class="btn-lien" id="reset-f">Tout effacer</button></div>` : ''}`;
     }
 
     function ligne(r) {
       const f = r.f;
-      const sous = [f.contact, f.city].filter(Boolean).map(h).join(' · ');
+      const sous = [f.contact, f.city, f.archived ? `archivé le ${C.fmtDate(f.archived)}` : ''].filter(Boolean).map(h).join(' · ');
       // La retenue sous le matricule, et l'exonération qui la suspend (10.15.0, H7) : « RS 1,5 % » d'un fournisseur exonéré
       // dirait l'inverse de ce que l'achat proposera.
       const exo = C.exonerationRS(f, C.today());
@@ -14609,7 +14656,9 @@
       ...groupe('Lui acheter', achete ? [{ icon: 'panier', label: 'Enregistrer un achat', hint: `Chez ${f.name}`, run: () => navigate('#/achat/new/' + id) },
         { icon: 'nouveau', label: 'Nouvelle commande', hint: 'Un bon de commande, à lui envoyer', run: () => navigate('#/commandef/new/' + id) }] : []),
       ...groupe('Son compte', r.ret.length && achete && navigator.onLine !== false ? [{ icon: 'argent', label: r.ret.length > 1 ? `Régler ses ${r.ret.length} pièces en retard` : `Régler ${r.ret[0].number || 'sa pièce en retard'}`, hint: `${C.money(r.sum.late, company().currency)} · ${pl(r.jours, 'jour')} de retard`, run: () => lfoRegler(r, () => render(true)) }] : []),
-      ...groupe('Sa fiche', ecrit ? [{ icon: 'modifier', label: 'Modifier le fournisseur', hint: 'Coordonnées, délai, retenue, RIB', run: () => supplierForm(f, refaire) }] : [])
+      ...groupe('Sa fiche', ecrit ? [{ icon: 'modifier', label: 'Modifier le fournisseur', hint: 'Coordonnées, délai, retenue, RIB', run: () => supplierForm(f, refaire) },
+        f.archived ? { icon: 'restaurer', label: 'Le remettre dans la liste', hint: 'Il revient dans les choix d\'un achat', run: () => desarchiverFournisseur(f, refaire) }
+          : { icon: 'dossier', label: 'Archiver', hint: 'Il sort de la liste ; ses pièces restent', run: () => archiverFournisseur(f, refaire) }] : [])
     ];
   }
 
@@ -14664,7 +14713,7 @@
     const efact = mine.filter(p => (p.attachments || []).some(a => /\.xml$/i.test(a.name || a.file || ''))).length;
     const memeDevise = l => l.every(p => (p.currency || cur) === cur);
 
-    const pill = !sum.count ? '<span class="badge">Nouveau</span>' : ret.length ? '<span class="badge b-late">En retard</span>'
+    const pill = s.archived ? '<span class="badge">Archivé</span>' : !sum.count ? '<span class="badge">Nouveau</span>' : ret.length ? '<span class="badge b-late">En retard</span>'
       : sum.remaining < -0.0005 ? '<span class="badge partielle">En ta faveur</span>' : sum.remaining > 0.0005 ? '<span class="badge b-due">Tu lui dois</span>' : '<span class="badge b-paid">À jour</span>';
     const depuis = sum.first ? `fournisseur depuis ${cfMois(sum.first)}` : 'aucun achat pour l\'instant';
     // (1.310.0) Un fournisseur à l'étranger facture dans sa devise : ce qu'on lui doit se dit d'abord en euros (la règle de la
@@ -14686,6 +14735,7 @@
     if (horsLigne) bandeaux.push('<div class="banner gris" id="ff-hors-ligne"><span><b>Pas de réseau : la fiche est celle que ce poste a gardée</b> — tu l\'appelles, tu lis ses pièces, tu écris tes notes : elles partiront avec le réseau. Un règlement attend le réseau, pour ne jamais payer deux fois.</span></div>');
     if (lecture) bandeaux.push('<div class="banner"><span><b>Ton abonnement est en lecture seule</b> — tu consultes sa fiche et ses pièces, tu enregistres ce que tu lui paies. Changer sa fiche attend le renouvellement.</span></div>');
     if (roleLit) bandeaux.push('<div class="banner info"><span><b>Lecture seule : ton rôle te laisse lire les fiches fournisseurs, pas les modifier</b> — un geste qui les changerait est refusé, en le disant. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.</span></div>');
+    if (s.archived) bandeaux.push(`<div class="banner gris" id="ff-archive"><span><b>Fournisseur archivé le ${C.fmtDate(s.archived)}</b> — il n'est plus dans la liste ni dans les choix d'un achat ; ses pièces restent${sum.remaining > 0.0005 ? `, et ce que tu lui dois reste dans « À payer »` : ''}.</span>${peutEcrire ? '<button type="button" class="btn" id="ff-desarchiver">Le remettre dans la liste</button>' : ''}</div>`);
     if (ret.length) bandeaux.push(`<div class="banner danger" id="ff-retard"><span><b>${mo(sum.late)} en retard depuis ${pl(jours, 'jour')}</b> — ${pl(ret.length, 'pièce')} : ${ret.map(p => `${h(p.number || C.referenceAchat(p, data))} (échue le ${lfJm(p.dueDate)})`).join(', ')}.${rsAGarder > 0.0005 ? ` En payant, tu garderas ${mo(rsAGarder)} de retenue pour l'État.` : ''}</span>${s.email && !horsLigne ? '<button type="button" class="btn" id="ff-prevenir">Le prévenir</button>' : ''}</div>`);
     if (avoirLibre) bandeaux.push(`<div class="banner" id="ff-avoir"><span><b>${C.money(-reste(avoirLibre), avoirLibre.currency || cur)} sont à toi : ${avoirLibre.kind === 'avoir' ? `l'avoir ${h(avoirLibre.number || '')} n'est déduit de rien` : `${h(avoirLibre.number || '')} est payée en trop`}</b> — déduis-le de sa prochaine facture ou demande-lui le remboursement ; jusque-là, son compte le compte en ta faveur.</span><button type="button" class="btn" data-achat="${h(avoirLibre.id)}">Ouvrir ${h(avoirLibre.number || 'la pièce')}</button></div>`);
     if (exo && exo.au && C.daysBetween(auj, exo.au) <= 60) bandeaux.push(`<div class="banner" id="ff-exo"><span><b>Son attestation d'exonération de retenue finit le ${C.fmtDate(exo.au)}, dans ${pl(C.daysBetween(auj, exo.au), 'jour')}</b> — ${exo.numero ? `n° ${h(exo.numero)}. ` : ''}Après cette date, la retenue${Number(s.withholdingRate) ? ` de ${pct(s.withholdingRate)} %` : ''} revient sur ses factures. Demande-lui la nouvelle attestation et note-la sur sa fiche.</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Noter la nouvelle</button>' : ''}</div>`);
@@ -14796,6 +14846,7 @@
     $$('#view [data-commande]').forEach(x => x.onclick = () => navigate('#/commandef/' + x.dataset.commande));
     $$('#view [data-attestation]').forEach(b => b.onclick = () => attestationRetenue(purchaseById(b.dataset.attestation)));
     $$('#view [data-modifier]').forEach(b => b.onclick = () => supplierForm(s, refaire));
+    if ($('#ff-desarchiver')) $('#ff-desarchiver').onclick = () => desarchiverFournisseur(s, refaire);
     if ($('#buy')) $('#buy').onclick = () => navigate('#/achat/new/' + s.id);
     ['#ff-commande', '#ff-commande-v'].forEach(sel => { if ($(sel)) $(sel).onclick = () => navigate('#/commandef/new/' + s.id); });
     if ($('#ff-demande')) $('#ff-demande').onclick = () => navigate('#/commandef/new/demande');
@@ -14831,8 +14882,11 @@
           const fi = await bridge.saveText(`achats-${s.name.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}-${auj}.csv`, C.toCsv(lignes, colonnes));
           if (fi) toast('Exporté : ' + fi.split(/[\\/]/).pop());
         } }]),
-        ...(peutEcrire ? [{ sep: true }, { icon: 'supprimer', label: 'Supprimer ce fournisseur', hint: mine.length ? `impossible : ${pl(mine.length, 'achat lié', 'achats liés')}` : 'Il n\'a aucun achat', danger: !mine.length, off: !!mine.length,
-          run: () => { if (!mine.length) supplierForm(s, refaire); } }] : [])
+        ...(peutEcrire ? [{ sep: true },
+          s.archived ? { icon: 'restaurer', label: 'Le remettre dans la liste', hint: 'Il revient dans la liste et dans les choix d\'un achat', run: () => desarchiverFournisseur(s, refaire) }
+            : { icon: 'dossier', label: 'Archiver', hint: 'Il sort de la liste et des choix ; ses pièces restent', run: () => archiverFournisseur(s, refaire) },
+          { icon: 'supprimer', label: 'Supprimer ce fournisseur', hint: mine.length ? `impossible : ${pl(mine.length, 'achat lié', 'achats liés')} ; archive-le plutôt` : 'Il n\'a aucun achat', danger: !mine.length, off: !!mine.length,
+            run: () => { if (!mine.length) supplierForm(s, refaire); } }] : [])
       ];
     }, () => s.name);
 
@@ -14916,7 +14970,8 @@
   const badgeCF = st => `<span class="badge ${h(CLASSE_CF[st] || '')}">${h(MOTS_CF[st] || st)}</span>`;
   const parDateCF = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.number || '').localeCompare(a.number || '', undefined, { numeric: true }) || (b.createdAt || 0) - (a.createdAt || 0);
   const etatCF = { onglet: 'commandes', commandes: { page: 1 }, receptions: { page: 1 } };
-  const fournisseursCF = () => data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({
+  // (1.311.0) Les fournisseurs en service, et celui que la commande porte déjà (`fournisseursEnService`).
+  const fournisseursCF = garder => fournisseursEnService(garder).map(x => ({
     v: x.id, label: x.name, sub: [x.contact, x.matricule ? 'MF ' + x.matricule : ''].filter(Boolean).join(' · '), text: `${x.name} ${x.contact || ''} ${x.matricule || ''}` }));
 
   routes.commandesf = (parts) => {
@@ -15155,7 +15210,7 @@
       <div class="panel"><h2>La ${quoi} ${info('cf.head')}</h2>
         <form id="cf-head" class="grid-3">
           <div class="field">${lbl('Fournisseur', 'cf.fournisseur')}
-            ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau fournisseur', ro: figee })}</div>
+            ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(o.supplierId), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau fournisseur', ro: figee })}</div>
           ${dateFieldHtml(lbl(`Date de la ${quoi}`, 'cf.date'), 'date', o.date)}
           ${dateFieldHtml(lbl('Livraison souhaitée le', 'cf.livraison'), 'dueDate', o.dueDate || '', { quick: true })}
           ${field(lbl('Référence (optionnel)', 'cf.reference'), 'reference', o.reference || '', 'text')}
@@ -15266,7 +15321,7 @@
       totaux();
     };
     dessinerLignes();
-    const cfFournisseur = bindCombo($('[data-combo=supplierId]'), { items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', onPick: v => { o.supplierId = v; touch(); },
+    const cfFournisseur = bindCombo($('[data-combo=supplierId]'), { items: fournisseursCF(o.supplierId), placeholder: '— Choisir un fournisseur —', onPick: v => { o.supplierId = v; touch(); },
       // (plateforme) 1.80.0 — la fiche naît nommée de ce qu'on a tapé, et la commande la prend.
       onAdd: saisi => supplierForm(null, sup => { cfFournisseur.setItems(fournisseursCF(), sup.id); o.supplierId = sup.id; touch(); }, { name: saisi }) });
     if ($('#cf-cat')) bindCombo($('.combo', $('#cf-cat')), {
@@ -15418,7 +15473,7 @@
       if (dirty && !enregistrer()) return;
       const src = commandeFById(o.id);
       const pris = new Set(C.demandesDuGroupe(data, src).map(x => x.supplierId));
-      const choix = data.suppliers.filter(x => !pris.has(x.id)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      const choix = fournisseursEnService().filter(x => !pris.has(x.id));
       if (!choix.length) return toast('Tous tes fournisseurs ont déjà cette demande. Ajoute un fournisseur (page « Fournisseurs ») pour la lui envoyer.', true);
       modal(`<h2>Demander aussi à…</h2>
         <p class="small muted">La même demande (les mêmes lignes, sans prix) part chez un autre fournisseur ; ses réponses se comparent sur chaque demande.</p>
@@ -15917,7 +15972,9 @@
       tvaRecuperable: C.assujettiTVA(company()),
       // La devise de la société, au taux de 1 (plateforme, brique 108) : le chargement la poserait de toute façon
       // (`migrateData`), et ce retouchage partait du poste suivant comme un changement de la personne.
-      currency: company().currency || 'TND', exchangeRate: 1,
+      // (1.311.0) Chez un fournisseur à l'étranger, la devise de ses factures (sa fiche), le taux à saisir.
+      ...(sup && sup.currency && C.normCurrency(sup.currency) !== C.normCurrency(company().currency || 'TND')
+        ? { currency: sup.currency, exchangeRate: '' } : { currency: company().currency || 'TND', exchangeRate: 1 }),
       payments: [], attachments: [], createdAt: Date.now()
     };
   }
@@ -16381,7 +16438,8 @@
     const phLie = stored && C.avoirRembourse(stored, C.purchaseBalance(stored, company(), data)) ? '— Aucune : il a été remboursé —' : '— À rattacher plus tard —';
     const cats = C.expenseCategories(data);
 
-    const supplierItems = () => data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({
+    // (1.311.0) Un fournisseur archivé sort des choix ; celui que la pièce porte déjà y reste.
+    const supplierItems = () => fournisseursEnService(p.supplierId).map(x => ({
       v: x.id, label: x.name, sub: [x.contact, x.matricule ? 'MF ' + x.matricule : ''].filter(Boolean).join(' · '),
       text: `${x.name} ${x.contact || ''} ${x.matricule || ''} ${x.email || ''}`
     }));
@@ -16449,7 +16507,8 @@
       const s = C.supplierSummary(data, company(), sup.id);
       const base = company().currency;
       const ville = String(sup.address || '').split(/\n/).map(x => x.trim()).filter(Boolean).pop() || '';
-      const qui = [sup.matricule ? `MF ${h(sup.matricule)}` : 'sans matricule', h(ville.replace(/^\d{4}\s+/, '')), h(sup.email || '')].filter(Boolean).join(' · ');
+      // (1.311.0) À l'étranger, l'absence de matricule tunisien n'est pas un manque.
+      const qui = [sup.matricule ? `MF ${h(sup.matricule)}` : sup.currency && C.normCurrency(sup.currency) !== C.normCurrency(company().currency) ? 'à l\'étranger' : 'sans matricule', h(ville.replace(/^\d{4}\s+/, '')), h(sup.email || '')].filter(Boolean).join(' · ');
       const autres = (data.purchases || []).filter(x => x.supplierId === sup.id && x.id !== p.id && !C.PURCHASE_LIES.includes(x.kind) && C.purchaseBalance(x, company(), data).remaining > 0.0005);
       const enRetard = autres.filter(x => x.dueDate && x.dueDate < C.today()).length;
       // (1.155.13, maquette « En retard ») La pièce elle-même en retard : ce qu'on lui doit en tout, et ce qui est échu.
@@ -17108,9 +17167,11 @@
         const pj = (p.attachments || []).length;
         // La même règle que la fenêtre d'enregistrement (`C.achatDoublon`) : la liste et la question disent la même chose.
         const dejaSaisi = C.achatDoublon(data, p);
+        const supEtranger = !!(supR && supR.currency && C.normCurrency(supR.currency) !== C.normCurrency(company().currency));
         const sansTva = p.lines.filter(l => String(l.label || '').trim() && !l.destination).length;
         const pts = [
-          [!!(supR && String(supR.matricule || '').trim()) || (!supR && p.kind === 'depense'), !supR ? (p.kind === 'depense' ? `Sans fournisseur : rangée sous « ${h(NOM_DIVERS)} »` : 'Le fournisseur est à choisir') : String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : 'Le fournisseur n\'a pas de matricule', supR && !String(supR.matricule || '').trim() ? '<button type="button" class="lien" data-avant="fiche">Sa fiche</button>' : ''],
+          // (1.311.0) Un fournisseur à l'étranger n'a pas de matricule tunisien : la liste ne le lui reproche plus (sa fiche, 1.310.0).
+          [!!(supR && String(supR.matricule || '').trim()) || (!supR && p.kind === 'depense') || supEtranger, !supR ? (p.kind === 'depense' ? `Sans fournisseur : rangée sous « ${h(NOM_DIVERS)} »` : 'Le fournisseur est à choisir') : String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : supEtranger ? 'Fournisseur à l\'étranger : pas de matricule tunisien' : 'Le fournisseur n\'a pas de matricule', supR && !String(supR.matricule || '').trim() && !supEtranger ? '<button type="button" class="lien" data-avant="fiche">Sa fiche</button>' : ''],
           [pj > 0, pj ? `Justificatif joint : ${h((p.attachments[0] || {}).name || 'fichier')}${pj > 1 ? ` (+${pj - 1})` : ''}` : 'Aucun justificatif : joins la photo ou le PDF de la pièce', !pj && bridge.piecesJointes !== false ? '<button type="button" class="lien" data-avant="joindre">Joindre</button>' : ''],
           [!dejaSaisi, dejaSaisi ? `${h(p.number)} est déjà saisie, du ${lfJm(dejaSaisi.date)}` : 'Ce numéro n\'est pas déjà saisi', dejaSaisi ? `<a class="lien" href="#/achat/${h(dejaSaisi.id)}">Voir</a>` : '', 'aide'],
           [!sansTva, 'Chaque ligne a sa TVA et sa destination', ''],
@@ -17322,6 +17383,14 @@
           }
           // Le taux PROPOSÉ (10.15.0, H7) : 0 quand une attestation couvre la date de la pièce.
           if (Number(sup.withholdingRate) || C.exonerationRS(sup, p.date)) { p.withholdingRate = C.tauxRetenueFournisseur(sup, p.date); $('select[name=withholdingRate]', head).value = String(p.withholdingRate); }
+          // (1.311.0) Un fournisseur à l'étranger : la pièce prend la devise de ses factures (sa fiche la dit), son taux reste
+          // à saisir. Une pièce déjà réglée, ou déjà dans une autre devise que la nôtre, ne change pas.
+          const devSel = $('select[name=currency]', head);
+          if (devSel && sup.currency && C.normCurrency(sup.currency) !== C.normCurrency(company().currency)
+            && C.normCurrency(p.currency || company().currency) === C.normCurrency(company().currency) && !(p.payments || []).length) {
+            devSel.value = sup.currency; const tx = $('[name=exchangeRate]', head); if (tx) tx.value = '';
+            head.onchange({ target: devSel });
+          }
         }
       }
       refresh();

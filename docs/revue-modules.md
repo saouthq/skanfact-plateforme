@@ -786,4 +786,33 @@ Limites connues : la retenue d'un avoir suit celle de sa facture (À VÉRIFIER a
 fournisseur à l'étranger (non-résident) n'est pas calculée à part (À VÉRIFIER) ; la fiche n'a pas de champ IBAN (il va
 dans les notes internes) ; le prélèvement n'est pas un mode de règlement (la STEG se note en virement).
 
-Suivant : les fournisseurs, puis l'accueil.
+## Les fournisseurs
+
+### Fait en 1.311.0 (07/11/2026) : un seul compte par fournisseur, sa devise, et ceux qu'on ne prend plus
+
+Joué par la même quincaillerie de Sousse. Mourad crée un « Céramique Sahel Gros » en tapant le matricule de Céramique du
+Sahel SARL, puis le dépôt de Sfax du même grossiste (un autre établissement). Ferramenta Milano, importé sans devise,
+devient un fournisseur en euros. Le transporteur Ben Salah, qu'on ne prend plus depuis l'été, s'archive ; Céramique, à
+qui on doit la faïence, s'archive par erreur, puis « Annuler ». Sonia ouvre la balance auxiliaire des fournisseurs.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| R1 | La fiche d'un fournisseur ne relisait pas son matricule : le même que Céramique s'enregistrait, et son compte se coupait en deux (ce qu'on lui doit, ses retenues, ses attestations). Le client le faisait depuis la 1.201. | La même règle que le client : « Déjà la fiche de « Céramique du Sahel SARL » · ouvrir sa fiche » pendant la frappe, et l'enregistrement refusé en le disant ; le dépôt de Sfax (« Même société que… : un autre de ses établissements ? ») et une forme fausse se disent sans bloquer. |
+| R2 | La devise d'un fournisseur ne se réglait nulle part (seulement par un import) : Milan restait « tunisien », sa fiche lui demandait un matricule fiscal et un RIB, chaque achat chez lui partait en dinars. | « Devise de ses factures » sur sa fiche ; un achat neuf chez lui, ou choisi pour une pièce en dinars encore sans règlement, prend l'euro, le taux à saisir. La fiche dit « tu lui dois 1 250,00 EUR, soit 4 225,000 DT ». |
+| R3 | Sur un achat chez Milan, « Avant d'enregistrer » disait « Le fournisseur n'a pas de matricule » et sa carte « sans matricule ». | « Fournisseur à l'étranger : pas de matricule tunisien », coché ; la carte dit « à l'étranger ». |
+| R4 | Un fournisseur ne pouvait ni s'archiver ni se supprimer s'il avait une pièce : le transporteur qu'on ne prend plus encombrait la liste et chaque choix d'un achat. | « Archiver » (menu ⋯ de la liste et de la fiche), comme un client : il sort de la liste, de ses compteurs et des choix d'un achat ou d'une commande (celui qu'une pièce porte déjà y reste) ; « Archivés » le montre ; sa fiche le dit, avec « Le remettre dans la liste ». « Supprimer » le propose (« archive-le plutôt »). |
+| R5 | Archiver un fournisseur qu'on paie encore ne devait pas faire oublier la dette. | Le toast le dit (« Tu lui dois encore 2 457,999 DT : ses pièces restent dans « À payer » »), la fiche aussi ; « Annuler » le remet. |
+
+Vérifié en jouant : le transporteur archivé garde sa pièce (elle s'ouvre, sa carte le nomme) ; au Cabinet, rien ne
+change : son compte reste dans la balance auxiliaire, Milan y est en dinars au taux de sa facture. L'archivage ne part
+pas chez la comptable : il ne range que la liste de l'entreprise.
+
+Limites connues : la retenue d'un fournisseur à l'étranger (non-résident) reste À VÉRIFIER avec un comptable ; la fiche
+n'a toujours pas de champ IBAN (il va dans les notes internes).
+
+Le rouge GitHub de 1.309.0, réparé ici : le contrôle des frontières refuse qu'un vieux fichier hors de `modules/`
+grandisse, et les trois lignes de l'échéance portaient le pont du Cabinet (`pont-cabinet.js`) à 2 800 lignes pour 2 797
+permises. L'échéance tient sur la ligne voisine : le fichier ne grandit plus, la preuve du pont tombe toujours. La brique
+locale ne jouait pas ce contrôle quand un écran change : elle le joue désormais, avec la barre et le rendu.
+
+Suivant : l'accueil.

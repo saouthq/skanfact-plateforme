@@ -126,7 +126,7 @@ describe('la liste des fournisseurs, à la souris, au clavier et au téléphone'
     await p.locator('#list-wrap tr[data-sid="s-moulins"] [data-rowmenu]').click();
     const menu = p.locator('.row-menu');
     await menu.waitFor();
-    expect(net(await menu.innerText())).toBe('Les Grands Moulins de Tunis Ouvrir la fiche Ses achats, ses règlements, ce que tu lui dois LUI ACHETER Enregistrer un achat Chez Les Grands Moulins de Tunis Nouvelle commande Un bon de commande, à lui envoyer SON COMPTE Régler FA-2026/0812 410,479 DT · 12 jours de retard SA FICHE Modifier le fournisseur Coordonnées, délai, retenue, RIB');
+    expect(net(await menu.innerText())).toBe('Les Grands Moulins de Tunis Ouvrir la fiche Ses achats, ses règlements, ce que tu lui dois LUI ACHETER Enregistrer un achat Chez Les Grands Moulins de Tunis Nouvelle commande Un bon de commande, à lui envoyer SON COMPTE Régler FA-2026/0812 410,479 DT · 12 jours de retard SA FICHE Modifier le fournisseur Coordonnées, délai, retenue, RIB Archiver Il sort de la liste ; ses pièces restent');
     await menu.getByText('Nouvelle commande', { exact: true }).click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/commandef/new/s-moulins');
     await p.evaluate(() => { location.hash = '#/fournisseurs'; });

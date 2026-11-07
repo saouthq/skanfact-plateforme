@@ -1917,7 +1917,7 @@
       <form id="orf">
         <section class="vc-g"><h4>Le fournisseur</h4>
         <div class="field obligatoire">${lbl('Fournisseur', 'ocr.supplier')}
-          ${combo({ name: 'supplierId', value: head.supplierId, items: data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({ v: x.id, label: x.name, sub: x.matricule || '', text: `${x.name} ${x.matricule || ''}` })), placeholder: '— À choisir —', search: 'Rechercher un fournisseur…', add: head.supplierName && !head.supplierId ? `+ Créer « ${h(head.supplierName)} »` : '+ Nouveau fournisseur' })}${luIci('supplier', 'matricule')}
+          ${combo({ name: 'supplierId', value: head.supplierId, items: fournisseursEnService(head.supplierId).map(x => ({ v: x.id, label: x.name, sub: x.matricule || '', text: `${x.name} ${x.matricule || ''}` })), placeholder: '— À choisir —', search: 'Rechercher un fournisseur…', add: head.supplierName && !head.supplierId ? `+ Créer « ${h(head.supplierName)} »` : '+ Nouveau fournisseur' })}${luIci('supplier', 'matricule')}
         </div></section>
         <section class="vc-g"><h4>La pièce</h4>
         <div class="vc-2">${ici(field(lbl('Numéro de la facture', 'buy.number'), 'number', head.number, 'text', ''), 'number')}
@@ -1940,9 +1940,9 @@
       <div class="vc-pied"><span class="small muted" id="vc-reste"></span><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${lfIc('coche', 15, 2.4)}Remplir la pièce</button></div>`,
       (root, close) => {
         const supCombo = bindCombo($('[data-combo=supplierId]', root), {
-          items: data.suppliers.map(x => ({ v: x.id, label: x.name, text: x.name })), placeholder: '— À choisir —',
+          items: fournisseursEnService(head.supplierId).map(x => ({ v: x.id, label: x.name, text: x.name })), placeholder: '— À choisir —',
           onAdd: saisi => supplierForm(null, sup => {
-            supCombo.setItems(data.suppliers.map(x => ({ v: x.id, label: x.name, text: x.name })));
+            supCombo.setItems(fournisseursEnService(sup.id).map(x => ({ v: x.id, label: x.name, text: x.name })));
             supCombo.setValue(sup.id);
           }, head.supplierName && !head.supplierId ? Object.assign({ name: saisi || head.supplierName, matricule: head.matricule || '' },
             // Une facture électronique porte aussi l'adresse et les contacts du fournisseur : la fiche naît complète.
@@ -2410,7 +2410,7 @@
   // (1.289.0) La facture de la cession d'un bien : la même recherche pour la fiche et le tableau des sorties (6.8.1).
   const factureDeCession = a => data.documents.find(d => d.assetId === a.id && d.type === 'facture') || null;
   // `supplierItems` vit dans l'éditeur d'achat : ici on refait la liste, sans la sortir de son contexte.
-  const supItems = () => data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+  const supItems = garder => fournisseursEnService(garder)
     .map(x => ({ v: x.id, label: x.name, sub: x.contact || '', text: `${x.name} ${x.contact || ''}` }));
 
   function assetForm(asset, done, preset) {
@@ -2431,7 +2431,7 @@
         ${field(lbl('Durée (années)', 'immo.years'), 'years', a.years || '', 'number', 'step="1" min="1" max="50" class="num"').replace('class="field"', 'class="field obligatoire"')}
         ${field(lbl(`Valeur résiduelle (${h(C.normCurrency(company().currency))})`, 'immo.residual'), 'residual', a.residual || 0, 'number', 'step="0.001" min="0" class="num"')}
         <div class="field">${lbl('Fournisseur', 'immo.supplier')}
-          ${combo({ name: 'supplierId', value: a.supplierId || '', items: supItems(), placeholder: '— Aucun —', search: 'Rechercher un fournisseur…' })}
+          ${combo({ name: 'supplierId', value: a.supplierId || '', items: supItems(a.supplierId), placeholder: '— Aucun —', search: 'Rechercher un fournisseur…' })}
         </div>
         <div class="span-2 annonce-stable" id="amort-hint"></div>
         <label class="field span-2">${lbl('Notes', 'immo.notes')}<input type="text" name="notes" value="${h(a.notes || '')}"></label>
@@ -2440,7 +2440,7 @@
         ${asset ? '<button class="btn btn-danger" id="del-imm" style="margin-inline-end:auto">Supprimer</button>' : ''}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
-        bindCombo($('[data-combo=supplierId]', root), { items: supItems(), placeholder: '— Aucun —' });
+        bindCombo($('[data-combo=supplierId]', root), { items: supItems(a.supplierId), placeholder: '— Aucun —' });
         // La famille propose sa durée usuelle, mais ne l'impose pas : si l'utilisateur a déjà touché
         // le champ, on ne l'écrase pas derrière son dos.
         let yearsTouched = !!asset;

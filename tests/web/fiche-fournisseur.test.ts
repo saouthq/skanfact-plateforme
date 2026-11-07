@@ -184,7 +184,7 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
     await p.locator('#view .ff-tete [data-rowmenu]').click();
     const menu = p.locator('.row-menu');
     await menu.waitFor();
-    expect(net(await menu.innerText())).toBe('Emballages du Sahel Modifier la fiche Coordonnées, délai, retenue, RIB LUI ÉCRIRE Par e-mail pas d\'e-mail sur sa fiche Par WhatsApp 74 862 004 CRÉER CHEZ LUI Enregistrer un achat Il reprend sa fiche Noter une dépense Un ticket, un petit achat Nouvelle commande Un bon de commande, à lui envoyer Demande de prix Le prix avant de commander SES DOCUMENTS Exporter ses pièces 3 lignes dans un tableur Supprimer ce fournisseur impossible : 3 achats liés');
+    expect(net(await menu.innerText())).toBe('Emballages du Sahel Modifier la fiche Coordonnées, délai, retenue, RIB LUI ÉCRIRE Par e-mail pas d\'e-mail sur sa fiche Par WhatsApp 74 862 004 CRÉER CHEZ LUI Enregistrer un achat Il reprend sa fiche Noter une dépense Un ticket, un petit achat Nouvelle commande Un bon de commande, à lui envoyer Demande de prix Le prix avant de commander SES DOCUMENTS Exporter ses pièces 3 lignes dans un tableur Archiver Il sort de la liste et des choix ; ses pièces restent Supprimer ce fournisseur impossible : 3 achats liés ; archive-le plutôt');
     await p.keyboard.press('Escape');
     await p.screenshot({ path: path.join(PHOTOS, 'fiche-fournisseur-3-retards.png') });
     await p.locator('#ff-regler').click();

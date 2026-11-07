@@ -46,7 +46,9 @@ choisis="$(
     if [[ "$f" =~ ^web/console/src/ ]]; then echo tests/web/console.test.ts; continue; fi
     # Un écran de l'application (web/public/v10, notre code depuis le 26/10/2026 ; ses morceaux rangés sous modules/
     # depuis le lot A1) : la barre et le rendu des pages.
-    if [[ "$f" =~ ^web/public/(v10|plateforme)/ || "$f" =~ ^modules/.*\.(js|css)$ ]]; then echo tests/web/barre.test.ts; echo tests/web/rendu.test.ts; continue; fi
+    # (1.311.0) Et le contrôle des frontières : un vieux fichier hors de modules/ qui grandit n'est tombé que sur GitHub
+    # (pont-cabinet.js, 1.309.0).
+    if [[ "$f" =~ ^web/public/(v10|plateforme)/ || "$f" =~ ^modules/.*\.(js|css)$ ]]; then echo tests/web/barre.test.ts; echo tests/web/rendu.test.ts; echo tests/commun/frontieres.test.ts; continue; fi
     # Les tests qui importent directement un fichier changé — sauf un fichier que plus de trois
     # fichiers de test importent (les routes, par exemple) : ceux-là, GitHub les rejoue.
     if [[ "$f" =~ ^(serveur|moteur|commun|textes|base)/.*\.ts$ ]]; then

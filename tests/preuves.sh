@@ -25577,6 +25577,64 @@ prouver 'le serveur ne donne pas l'\''échéance de l'\''achat à son écriture'
 prouver 'la base ne rend pas l'\''échéance des achats' base/migrations/0196_echeance_des_achats.sql \
   '  select p.id, p.echeance' '  select p.id, null::date' \
   "$T310"
+# (1.311.0) Les Fournisseurs joués (la quincaillerie de Sousse) : le matricule déjà connu refusé, le dépôt de Sfax dit sans
+# bloquer, la devise des factures de Milan sur sa fiche et sur ses achats, le transporteur archivé (hors de la liste et des
+# choix d'un achat, ses pièces gardées), l'archivage de celui qu'on paie encore dit, et rien de changé chez la comptable.
+T311="la quincaillerie de Sousse tient ses fournisseurs : le matricule déjà connu, le dépôt de Sfax, Milan en euros, le transporteur archivé"
+prouver 'un second fournisseur au même matricule s'\''enregistre' "$APP1" \
+  "if (autre) return refus('#sf input[name=matricule]'" "if (false) return refus('#sf input[name=matricule]'" \
+  "$T311"
+prouver 'la fiche d'\''un fournisseur ne relit pas son matricule pendant la frappe' "$APP1" \
+  "\$('#sf input[name=matricule]', root).addEventListener('input', aideMf);" 'void 0;' \
+  "$T311"
+prouver 'le matricule d'\''une même société ne dit rien chez les fournisseurs' "$APP1" \
+  'const memeSociete = v => (racine(v) ? data.suppliers.find(' 'const memeSociete = v => (false ? data.suppliers.find(' \
+  "$T311"
+prouver 'la fiche d'\''un fournisseur ne garde pas la devise de ses factures' "$APP1" \
+  '<select name="currency"><option value="" ${!s.currency' '<select name="devise"><option value="" ${!s.currency' \
+  "$T311"
+prouver 'un achat neuf chez un fournisseur à l'\''étranger part en dinars' "$APP1" \
+  "? { currency: sup.currency, exchangeRate: '' }" "? { currency: company().currency || 'TND', exchangeRate: 1 }" \
+  "$T311"
+prouver 'choisir un fournisseur à l'\''étranger laisse la pièce en dinars' "$APP1" \
+  '          if (devSel && sup.currency && C.normCurrency(sup.currency) !== C.normCurrency(company().currency)' '          if (false && devSel && sup.currency && C.normCurrency(sup.currency) !== C.normCurrency(company().currency)' \
+  "$T311"
+prouver 'la liste de l'\''achat reproche à un fournisseur à l'\''étranger son matricule tunisien' "$APP1" \
+  "String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : supEtranger ?" "String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : false ?" \
+  "$T311"
+prouver 'la carte de l'\''achat dit « sans matricule » d'\''un fournisseur à l'\''étranger' "$APP1" \
+  "? 'à l\\'étranger' : 'sans matricule'" "&& false ? 'à l\\'étranger' : 'sans matricule'" \
+  "$T311"
+prouver 'un fournisseur archivé reste dans la liste' "$APP1" \
+  "(f === 'archives' ? !!r.f.archived : r.f.archived ? false : !f ? true :" "(f === 'archives' ? !!r.f.archived : !f ? true :" \
+  "$T311"
+prouver 'le compte des fournisseurs compte les archivés' "$APP1" \
+  'const enService = tout.filter(r => !r.f.archived);' 'const enService = tout;' \
+  "$T311"
+prouver 'le filtre « Archivés » des fournisseurs ne paraît jamais' "$APP1" \
+  "LFO_FILTRES.filter(([k]) => k !== 'archives' || s.f === k || tout.some(r => r.f.archived))" "LFO_FILTRES.filter(([k]) => k !== 'archives')" \
+  "$T311"
+prouver 'le menu d'\''un fournisseur de la liste n'\''archive rien' "$APP1" \
+  'run: () => archiverFournisseur(f, refaire) }' 'run: () => undefined }' \
+  "$T311"
+prouver 'archiver un fournisseur qu'\''on paie encore ne le dit pas' "$APP1" \
+  'const encore = du > 0.0005 ?' 'const encore = false ?' \
+  "$T311"
+prouver 'un fournisseur archivé reste dans les choix d'\''un achat' "$APP1" \
+  'const supplierItems = () => fournisseursEnService(p.supplierId).map(x => ({' 'const supplierItems = () => data.suppliers.slice().map(x => ({' \
+  "$T311"
+prouver 'la fiche d'\''un fournisseur archivé ne le dit pas' "$APP1" \
+  'if (s.archived) bandeaux.push(' 'if (false) bandeaux.push(' \
+  "$T311"
+prouver 'la pastille d'\''un fournisseur archivé ne le dit pas' "$APP1" \
+  "const pill = s.archived ? '<span class=\"badge\">Archivé</span>' :" "const pill = false ? '<span class=\"badge\">Archivé</span>' :" \
+  "$T311"
+prouver 'le bouton « Le remettre dans la liste » de la fiche d'\''un fournisseur ne fait rien' "$APP1" \
+  "if (\$('#ff-desarchiver')) \$('#ff-desarchiver').onclick = () => desarchiverFournisseur(s, refaire);" 'void 0;' \
+  "$T311"
+prouver 'supprimer un fournisseur qui a des achats ne dit pas d'\''archiver' "$APP1" \
+  "pl(mine.length, 'achat lié', 'achats liés')} ; archive-le plutôt" "pl(mine.length, 'achat lié', 'achats liés')}" \
+  "$T311"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
