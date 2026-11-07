@@ -6,6 +6,8 @@
   const employeeById = id => data.employees.find(e => e.id === id);
   const payslipById = id => data.payslips.find(p => p.id === id);
   const MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // (1.305.0) « d'Amel », « d'octobre 2026 », « de Karim » : ce qu'on écrit au comptable s'élide comme on le dirait.
+  const deDit = x => window.SkanCompta.deMois(String(x || ''));
   // (1.257.0) Le minimum d'une équipe (« le fournil tient la nuit à deux ») : les jours d'un congé où, ce salarié parti,
   // il resterait moins de monde que le minimum réglé. Les autres absents se lisent sur leur pointage (congés saisis,
   // absences, maladies) ; une demande pas encore acceptée ne compte pas. Rien sans minimum réglé.
@@ -555,15 +557,23 @@
         <label class="field">${lbl('Mode', 'soc.mode')}<select name="method">${C.PAYMENT_METHODS.map(([v2, l]) => `<option value="${v2}">${l}</option>`).join('')}</select></label>
         <div class="field"><span class="fl">Montant</span><b class="num">${h(C.money(etat.aVerser, cur))}</b></div>
       </form>
+      ${avertValideHtml('vs-valide')}
       <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="vs-ok">Marquer versé</button></div>`, (root, fermer) => {
+      // (1.305.0) Versé à une date de la période que le cabinet a validée : la phrase pendant la saisie de la date.
+      const majValideVs = () => { const d = formValues($('#vs', root)).date; majAvertValide($('#vs-valide', root), d ? dateDansLaPeriodeValidee([d], majValideVs) : '', d, { sujet: 'Ce versement', fem: false, neuve: true, geste: 'En le marquant versé' }); };
+      $('#vs', root).addEventListener('input', majValideVs);
+      $('#vs', root).addEventListener('change', majValideVs);
+      majValideVs();
       $('#vs-ok', root).onclick = () => {
         const v = formValues($('#vs', root));
         if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v.date || ''))) return;
         if (closedBlock(v.date, 'Ce versement')) return;
         const e2 = employeeById(emp.id), s2 = e2 && (e2.saisies || []).find(z => z.id === saisie.id); if (!s2) return;
         const vt = { id: C.uid(), date: v.date, amount: etat.aVerser, accountId: v.accountId || '', method: v.method || 'virement' };
+        const dvVs = dateDansLaPeriodeValidee([v.date]);
         s2.versements = [...(s2.versements || []), vt];
         save(true); fermer(); if (done) done();
+        if (dvVs) { direAuComptableApres(`${C.money(etat.aVerser, cur)} versés à ${etat.creancier}`, { fait: 'd\'enregistrer', fem: false, quoi: `un versement de saisie sur salaire daté du ${C.fmtDate(dvVs)} (${C.money(etat.aVerser, cur)})` }); return; }
         toastUndo(`${C.money(etat.aVerser, cur)} versés à ${etat.creancier}`, () => { const e3 = employeeById(emp.id), s3 = e3 && (e3.saisies || []).find(z => z.id === saisie.id); if (s3) { s3.versements = (s3.versements || []).filter(z => z.id !== vt.id); save(true); if (done) done(); } });
       };
     });
@@ -853,6 +863,7 @@
       </fieldset>
       </div><aside class="bf-d"><div class="bf-resume" id="bf-resume" role="status" aria-live="polite"></div><div id="bf-calc"></div></aside></div>
       <p class="small warn-text" id="bf-refus" role="status" aria-live="polite" hidden></p>
+      ${avertValideHtml('bf-valide')}
       <div class="modal-actions">
         ${slip && !slip.paidDate ? '<button class="btn btn-danger" id="del-slip" style="margin-inline-end:auto">Supprimer</button>' : ''}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
@@ -889,7 +900,21 @@
         // NÉGATIF que rien ne refusait. Le bouton s'éteint par la même fonction que le Cabinet, et
         // le motif se lit au-dessus de lui, pendant la frappe (9.4.2, 9.4.5).
         const verdict = () => C.saisiePaieValide(input(), emp, s);
+        // (1.305.0) Le mois que le cabinet a validé : chez lui, la paie du mois s'écrit au premier jour encore ouvert (0018). La
+        // phrase pendant la saisie, comme une facture ou un achat. Rouvert sans rien changer de ce qui fait ses montants (le
+        // brut, les jours, les primes, les retenues), rien ; « Payé le » dans cette période se dit aussi (le salaire versé).
+        const empreinteB = () => { const i = input(); return JSON.stringify([C.round3(i.gross), i.workedDays, i.absentDays, i.bonuses.filter(x => C.round3(Number(x.amount) || 0)).map(x => [C.round3(Number(x.amount) || 0), x.taxable !== false]), i.deductions.map(x => C.round3(Number(x.amount) || 0)).filter(Boolean)]); };
+        const empreinteB0 = slip ? empreinteB() : null;
+        const valideDuBulletin = quandLu => {
+          const dB = !slip || empreinteB() !== empreinteB0 ? dateDansLaPeriodeValidee([C.payslipDate(p)], quandLu) : '';
+          if (dB) return { d: dB, sujet: 'Ce bulletin', neuve: !slip };
+          const paye = formValues($('#bf-pay', root)).paidDate;
+          const dP = paye ? dateDansLaPeriodeValidee([paye], quandLu) : '';
+          return dP ? { d: dP, sujet: 'Ce paiement', neuve: true } : null;
+        };
+        const majValideB = () => { const x = valideDuBulletin(majValideB); majAvertValide($('#bf-valide', root), x ? x.d : '', x ? x.d : '', { sujet: x ? x.sujet : '', fem: false, neuve: !!(x && x.neuve), geste: 'En l\'enregistrant' }); };
         const calc = () => {
+          majValideB();
           const v = verdict();
           const refus = $('#bf-refus', root);
           if (refus) { refus.hidden = v.ok; refus.textContent = v.ok ? '' : v.motif; }
@@ -934,6 +959,9 @@
           if (change) drawSmall('#bf-bon', bonuses, 'bon');
         };
         $('#bf', root).oninput = $('#bf', root).onchange = () => { suivreLesJours(); calc(); };
+        $('#bf-pay', root).addEventListener('input', majValideB);
+        $('#bf-pay', root).addEventListener('change', majValideB);
+        const nomDuMois = `${MONTHS_LONG[Number(p.month) - 1]} ${p.year}`;
         $('#ok', root).onclick = () => {
           const v = { ...formValues($('#bf', root)), ...formValues($('#bf-pay', root)) };
           const i = input();
@@ -941,20 +969,30 @@
           if (!juge.ok) return toast(juge.motif, true);
           if (closedBlock(C.payslipDate(p), 'Ce bulletin')) return;
           if (!slip && licenceBlock('Établir un nouveau bulletin', 'paie')) return;
+          // Lu AVANT de ranger : `p` est le bulletin rangé lui-même quand on le modifie.
+          const dvB = valideDuBulletin();
           Object.assign(p, v, i, { gross: i.gross, computed: C.computePayslip(emp, i, s), issuedAt: p.issuedAt || C.today() });
           // (plateforme) 1.227.0 — un bulletin changé après ton bon à payer se réapprouve : l'accord portait sur l'ancien.
           if (slip && p.bonAPayerLe) delete p.bonAPayerLe;
           // Un brut retouché à la main n'est plus « proratisé » : le bulletin ne doit pas le prétendre.
           if (p.prorata && C.round3(i.gross) !== C.round3(p.prorata.brut)) p.prorata = null;
           if (!slip) data.payslips.push(p);
-          save(true); close(); if (done) done(p);
+          save(true); close();
+          if (dvB) direAuComptableApres(dvB.sujet === 'Ce bulletin' ? (slip ? 'Bulletin modifié' : 'Bulletin enregistré') : 'Salaire marqué payé', { fait: slip && dvB.sujet === 'Ce bulletin' ? 'de modifier' : 'd\'enregistrer', fem: false,
+            quoi: dvB.sujet === 'Ce bulletin' ? `le bulletin ${deDit(emp.name)} ${deDit(nomDuMois)}, daté du ${C.fmtDate(dvB.d)} (net ${C.money(p.computed.net, cur)})` : `le paiement du salaire ${deDit(emp.name)} ${deDit(nomDuMois)}, daté du ${C.fmtDate(dvB.d)} (${C.money(p.computed.net, cur)})` });
+          if (done) done(p);
         };
         if ($('#del-slip', root)) $('#del-slip', root).onclick = async () => {
-          if (!await confirmDialog('Supprimer ce bulletin ? S\'il a déjà été remis au salarié, mieux vaut le corriger que le faire disparaître.')) return;
+          // (1.305.0) D'un mois que le cabinet a validé : la question le dit, le message après offre de le lui dire.
+          await periodeValideeLue();
+          const dvSup = dateDansLaPeriodeValidee([C.payslipDate(p)]);
+          if (!await confirmDialog(`Supprimer ce bulletin ? S'il a déjà été remis au salarié, mieux vaut le corriger que le faire disparaître.${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Il', fem: false })}` : ''}`)) return;
           if (closedBlock(C.payslipDate(p), 'Ce bulletin')) return;
           forget('payslips', p.id, `${emp.name} ${p.month}/${p.year}`);
           data.payslips = data.payslips.filter(x => x.id !== p.id);
-          save(true); close(); if (done) done(null);
+          save(true); close();
+          if (dvSup) direAuComptableApres('Bulletin supprimé', { fait: 'de supprimer', fem: false, annule: true, quoi: `le bulletin ${deDit(emp.name)} ${deDit(nomDuMois)}, daté du ${C.fmtDate(dvSup)}` });
+          if (done) done(null);
         };
       }, null, { classe: 'pa-bf' });
   }
@@ -1056,6 +1094,7 @@
         // dit avant le geste, et ce qu'il trouverait se corrige sur le bulletin suivant.
         return nv ? `<div class="bandeau ambre pa-bandeau" id="ps-pas-verifie" role="status">${lfIc('comptable', 18)}<span class="txt"><b>Ton cabinet n'a pas encore vérifié ${nv > 1 ? `${nv} de ces bulletins` : 'un de ces bulletins'}</b><span>Tu peux payer quand même. S'il trouve une erreur, elle se corrige sur le bulletin suivant.</span></span></div>` : ''; })()}
       <div id="ps-avert"></div>
+      ${avertValideHtml('ps-valide')}
       <p class="regle">${lfIc('aide', 13, 2)} SkanFact ne fait aucun virement : l'ordre de virement se remet à ta banque (ou se téléverse sur son site). « Marquer payés » sort l'argent de la trésorerie au jour choisi ; la Banque le reconnaîtra sur ton relevé. Ne saisis pas en plus un mouvement « Salaires » : il compterait deux fois.${especesL.length ? ` Payé en espèces, chacun signe son reçu : ta caisse se justifie par lui.` : ''}</p>
       <div class="modal-actions"><button type="button" class="btn" data-close style="margin-inline-end:auto">Annuler</button><button type="button" class="btn" id="ps-ordre">${lfIc('oeil', 15)} Ordre de virement</button>${especesL.length ? `<button type="button" class="btn" id="ps-recu">${lfIc('oeil', 15)} ${especesL.length > 1 ? 'Reçus des espèces' : `Reçu de ${h(prenom(especesL[0].name))}`}</button>` : ''}<button type="button" class="btn btn-primary" id="ps-payer"></button></div>`,
     (root, close) => {
@@ -1107,6 +1146,11 @@
         ordre.disabled = !!pourquoi; ordre.title = pourquoi;
         $('#ps-payer', root).disabled = !ch.length;
       };
+      // (1.305.0) Payés à une date de la période que le cabinet a validée : la phrase pendant la saisie de la date.
+      const majValidePs = () => { const d = formValues($('#ps', root)).date; majAvertValide($('#ps-valide', root), d ? dateDansLaPeriodeValidee([d], majValidePs) : '', d, { sujet: 'Ce paiement', fem: false, neuve: true, geste: 'En le marquant payé' }); };
+      $('#ps', root).addEventListener('input', majValidePs);
+      $('#ps', root).addEventListener('change', majValidePs);
+      majValidePs();
       $$('[data-ps-c]', root).forEach(c => { c.onchange = maj; });
       $('#ps-tous', root).onchange = e => { $$('[data-ps-c]', root).forEach(c => { c.checked = e.target.checked; }); maj(); };
       $('[name=accountId]', root).onchange = maj;
@@ -1146,8 +1190,13 @@
         const ids = choisies().map(l => l.id);
         if (!ids.length) return;
         const avant = ids.map(id => { const x = data.payslips.find(p => p.id === id); return { id, paidDate: x.paidDate || '', accountId: x.accountId || '' }; });
+        const dvPs = dateDansLaPeriodeValidee([v.date]);
         ids.forEach(id => { const x = data.payslips.find(p => p.id === id); x.paidDate = v.date; x.accountId = v.accountId || ''; });
         save(true); close(); if (done) done();
+        // (1.305.0) Dans la période validée : le message qui offre de le dire au comptable (le paiement se défait depuis le menu
+        // de chaque bulletin, « Annuler le paiement »).
+        if (dvPs) { direAuComptableApres(`${pl(ids.length, 'salaire')} ${window.SkanCompta.deMois(periode)} ${ids.length > 1 ? 'marqués payés' : 'marqué payé'}`, { fait: 'd\'enregistrer', fem: false,
+          quoi: `le paiement des salaires ${window.SkanCompta.deMois(periode)}, daté du ${C.fmtDate(dvPs)} (${pl(ids.length, 'salarié')}, ${C.money(C.round3(lignes.filter(l => ids.includes(l.id)).reduce((s2, l) => s2 + l.net, 0)), cur)})` }); return; }
         toastUndo(`${pl(ids.length, 'salaire')} ${window.SkanCompta.deMois(periode)} ${ids.length > 1 ? 'marqués payés' : 'marqué payé'} le ${C.fmtDate(v.date)}`, () => {
           avant.forEach(a => { const x = data.payslips.find(p => p.id === a.id); if (x) { x.paidDate = a.paidDate; x.accountId = a.accountId; } });
           save(true); if (done) done();
@@ -1443,6 +1492,7 @@
         })()}</select></label>
         <div class="span-2 annonce-stable" id="af2-hint"></div>
       </form>
+      ${avertValideHtml('af2-valide')}
       <p class="regle">${lfIc('aide', 13, 2)} La retenue se pose toute seule sur ses prochains bulletins, jusqu'à la dernière. Au-delà de 30 % de son net, la fenêtre le dit avant d'enregistrer (À VÉRIFIER : la limite légale). Versée par la banque ou la caisse, elle se rapproche ensuite comme un paiement.</p>
       <div class="modal-actions">
         ${advance ? '<button class="btn btn-danger" id="del-av" style="margin-inline-end:auto">Supprimer</button>' : ''}
@@ -1461,6 +1511,15 @@
               + (m > net * 0.3 ? ' C\'est beaucoup — une retenue trop lourde met le salarié en difficulté et se retourne contre toi. <em>À VÉRIFIER : la loi encadre la part du salaire qui peut être saisie.</em>' : '') + '</span>';
         };
         $('#af2', root).oninput = $('#af2', root).onchange = hint; hint();
+        // (1.305.0) Versée à une date de la période que le cabinet a validée : la phrase pendant la saisie. Rouverte sans rien
+        // changer de ce qui s'écrit chez lui (la date, le montant, le compte, le mode), rien : la retenue ne touche que les bulletins.
+        const empreinteAv = x => JSON.stringify([x.date, C.round3(Number(x.amount) || 0), x.accountId || '', x.method || 'virement']);
+        // Une case que la fenêtre ne montre pas (le compte, quand il n'y en a qu'un) garde la valeur de l'avance, comme à l'enregistrement.
+        const valideDeLAvance = (v, quandLu) => (!advance || empreinteAv({ ...advance, ...v }) !== empreinteAv(advance) ? dateDansLaPeriodeValidee([v.date, advance && advance.date], quandLu) : '');
+        const majValideAv = () => { const v = formValues($('#af2', root)); majAvertValide($('#af2-valide', root), valideDeLAvance(v, majValideAv), v.date, { sujet: v.kind === 'pret' ? 'Ce prêt' : 'Cette avance', fem: v.kind !== 'pret', neuve: !advance, geste: 'En l\'enregistrant' }); };
+        $('#af2', root).addEventListener('input', majValideAv);
+        $('#af2', root).addEventListener('change', majValideAv);
+        majValideAv();
         $$('#af2-sorte [data-sorte]', root).forEach(b => b.onclick = () => {
           $$('#af2-sorte [data-sorte]', root).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
           $('#af2 [name=kind]', root).value = b.dataset.sorte;
@@ -1482,19 +1541,29 @@
           if (sortie && v.date > sortie) return refus(champ('date'), `La sortie de ${employeeById(v.employeeId).name} est le ${C.fmtDate(sortie)} : aucun bulletin ne retiendrait une avance versée après.`);
           if (closedBlock([a.date, v.date], 'Cette avance')) return;
           if (!advance && faitBloque('Créer une avance sur salaire')) return;
+          // Lu AVANT de ranger : `a` est l'avance rangée elle-même quand on la modifie.
+          const dvAv = valideDeLAvance(v);
           Object.assign(a, v, { amount: Number(v.amount), monthly: Number(v.monthly) });
           if (!a.debut) delete a.debut;
           if (a.kind !== 'pret') delete a.kind;
           if (!advance) data.advances.push(a);
-          save(true); close(); if (done) done();
+          save(true); close();
+          if (dvAv) { const pret = a.kind === 'pret'; direAuComptableApres(`${pret ? 'Prêt' : 'Avance'} ${advance ? (pret ? 'modifié' : 'modifiée') : (pret ? 'enregistré' : 'enregistrée')}`, { fait: advance ? 'de modifier' : 'd\'enregistrer', fem: !pret,
+            quoi: `${pret ? 'un prêt' : 'une avance sur salaire'} versé${pret ? '' : 'e'} le ${C.fmtDate(dvAv)} à ${(employeeById(a.employeeId) || {}).name || 'un salarié'} (${C.money(a.amount, cur)})` }); }
+          if (done) done();
         };
         if ($('#del-av', root)) $('#del-av', root).onclick = async () => {
           const r = C.advancesOf(data, a.employeeId).find(x => x.id === a.id);
-          if (!await confirmDialog(`Supprimer cette avance ?${r && r.repaid ? ` ${C.money(r.repaid, cur)} ont déjà été retenus sur des bulletins : ces retenues resteront sur les bulletins concernés.` : ''}`)) return;
+          // (1.305.0) Versée dans la période que le cabinet a validée : la question le dit, le message après.
+          await periodeValideeLue();
+          const dvSup = dateDansLaPeriodeValidee([a.date]);
+          if (!await confirmDialog(`Supprimer cette avance ?${r && r.repaid ? ` ${C.money(r.repaid, cur)} ont déjà été retenus sur des bulletins : ces retenues resteront sur les bulletins concernés.` : ''}${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Elle', fem: true })}` : ''}`)) return;
           if (closedBlock(a.date, 'Cette avance')) return;
           forget('advances', a.id, C.money(a.amount, cur));
           data.advances = data.advances.filter(x => x.id !== a.id);
-          save(true); close(); if (done) done();
+          save(true); close();
+          if (dvSup) direAuComptableApres('Avance supprimée', { fait: 'de supprimer', fem: true, annule: true, quoi: `une avance sur salaire versée le ${C.fmtDate(dvSup)} à ${(employeeById(a.employeeId) || {}).name || 'un salarié'} (${C.money(a.amount, cur)})` });
+          if (done) done();
         };
       });
   }
@@ -1886,12 +1955,16 @@
     if (paye && f.reconciled) { toast('Le paiement de cette déclaration est pointé sur un relevé de banque : la mention ne se retire pas sans lui. Dépointe-le d’abord dans la trésorerie.', true); return; }
     if (paye && closedBlock(f.paidDate, 'Ce paiement')) return;
     const compte = paye ? ((data.accounts || []).find(a => a.id === f.accountId) || {}).name : '';
+    // (1.305.0) Payée dans la période que le cabinet a validée : chez lui, l'annulation du paiement s'écrit au premier jour ouvert.
+    if (paye) await periodeValideeLue();
+    const dvRet = paye ? dateDansLaPeriodeValidee([f.paidDate]) : '';
     const oui = paye
-      ? await confirmDialog(`Le paiement noté pour ${label} part avec la mention : ${C.money(Number(f.amount), company().currency)}, payés le ${C.fmtDate(f.paidDate)}${compte ? ` depuis ${compte}` : ''}${f.reference ? ` (réf. ${f.reference})` : ''}. Il sort de la trésorerie et des écritures, et la déclaration redevient à payer.`, 'Retirer la mention et le paiement', true, { titre: 'Retirer « déposée et payée » ?' })
+      ? await confirmDialog(`Le paiement noté pour ${label} part avec la mention : ${C.money(Number(f.amount), company().currency)}, payés le ${C.fmtDate(f.paidDate)}${compte ? ` depuis ${compte}` : ''}${f.reference ? ` (réf. ${f.reference})` : ''}. Il sort de la trésorerie et des écritures, et la déclaration redevient à payer.${dvRet ? ` ${phraseAnnulationValidee(dvRet, { sujet: 'Il', fem: false })}` : ''}`, 'Retirer la mention et le paiement', true, { titre: 'Retirer « déposée et payée » ?' })
       : await confirmDialog(`Retirer la mention « déposée » de ${label} ?`);
     if (!oui) return;
     data.socialFilings = data.socialFilings.filter(x => x.id !== id);
     save(true); apres();
+    if (dvRet) { direAuComptableApres('Mention et paiement retirés', { fait: 'de retirer', fem: false, annule: true, quoi: `un paiement daté du ${C.fmtDate(dvRet)} (${label}, ${C.money(Number(f.amount), company().currency)})` }); return; }
     toastUndo(paye ? `Mention et paiement retirés : ${label}` : `${enTete(label)} n'est plus marquée déposée`, () => {
       data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id).concat([f]);
       save(true); apres();
@@ -2312,6 +2385,7 @@
           <label class="field">${lbl('Depuis le compte', 'soc.compte')}<select name="accountId">${comptes.map(a => `<option value="${h(a.id)}" ${parDefaut && a.id === parDefaut.id ? 'selected' : ''}>${h(a.name)}</option>`).join('') || '<option value="">Compte principal</option>'}</select></label>
           <label class="field">${lbl('Mode', 'soc.mode')}<select name="method"><option value="virement">Virement</option><option value="cheque">Chèque</option><option value="especes">Espèces</option></select></label>
           <label class="field">${lbl('Référence', 'soc.ref')}<input name="reference" maxlength="80" placeholder="n° de quittance, de virement"></label></form>
+        ${avertValideHtml('pd-valide')}
         <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button>${dmD ? `<button type="button" class="btn" id="pd-csv">${lfIc('exporter', 15)} Tableur</button>` : ''}<button type="button" class="btn btn-primary" id="pd-ok">${lfIc('coche', 15, 2.4)} Noter déposée et payée</button></div>`, (root, fermer) => {
         if ($('#pd-csv', root)) $('#pd-csv', root).onclick = async () => {
           const cols = [{ key: 'libelle', label: 'Impôt ou taxe' }, { key: 'base', label: 'Base', type: 'money' },
@@ -2319,26 +2393,37 @@
           const f = await bridge.saveText(`declaration-mensuelle-salaires-${dmYm[1]}-${dmYm[2]}.csv`, C.toCsv(dmD.lignes.concat([{ libelle: 'À reverser au Trésor', base: '', taux: null, montant: dmD.total }]), cols));
           if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
         };
+        // (1.305.0) Payée à une date de la période que le cabinet a validée : la phrase pendant la saisie de la date.
+        const majValidePd = () => { const d = formValues($('#pd', root)).paidDate; majAvertValide($('#pd-valide', root), d ? dateDansLaPeriodeValidee([d], majValidePd) : '', d, { sujet: 'Ce paiement', fem: false, neuve: true, geste: 'En le notant' }); };
+        $('#pd', root).addEventListener('input', majValidePd);
+        $('#pd', root).addEventListener('change', majValidePd);
+        majValidePd();
         $('#pd-ok', root).onclick = () => {
           const v = formValues($('#pd', root));
           if (!v.paidDate) { toast('Dis quel jour elle a été payée.', true); return; }
           if (closedBlock(v.paidDate, 'Ce paiement')) return;
+          const dvPd = dateDansLaPeriodeValidee([v.paidDate]);
           if (!Array.isArray(data.socialFilings)) data.socialFilings = [];
           data.socialFilings = data.socialFilings.filter(x => x.id !== id);
           data.socialFilings.push({ id, filedAt: C.today(), label, paidDate: v.paidDate, amount: m.montant, parts: m.parts, accountId: v.accountId || '', method: v.method || 'virement', reference: String(v.reference || '').trim() });
           save(true); fermer(); draw();
+          if (dvPd) { direAuComptableApres('Déclaration notée payée', { fait: 'de noter', fem: false, quoi: `un paiement daté du ${C.fmtDate(dvPd)} (${label}, ${C.money(m.montant, cur)})` }); return; }
           toastUndo(`Noté : ${label} déposée et payée · ${C.money(m.montant, cur)} sortis de la trésorerie`, () => { data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id); save(true); draw(); });
         };
       });
     }
     // (plateforme) 1.228.0 — un virement de salaire rejeté par la banque, des jours après : le bulletin redevient à payer,
     // la raison et l'ancien paiement restent écrits. Pointé sur un relevé, il se dépointe d'abord.
-    function annulerPaiementSalaire(x) {
+    async function annulerPaiementSalaire(x) {
       const p = payslipById(x.id); if (!p || !p.paidDate) return;
       if (enLecture('payslips')) { toast(refusLecture('payslips'), true); return; }
       if (p.reconciled) { toast('Ce salaire est pointé sur un relevé de banque : dépointe-le d’abord dans la trésorerie.', true); return; }
       if (closedBlock(p.paidDate, 'Ce paiement')) return;
+      // (1.305.0) Payé dans la période que le cabinet a validée : chez lui, son annulation s'écrit au premier jour encore ouvert.
+      await periodeValideeLue();
+      const dvAp = dateDansLaPeriodeValidee([p.paidDate]);
       modal(`<h2>Annuler le paiement</h2><p class="small muted">Le salaire de ${h(x.employeeName)} (${h(C.money(x.c.net, cur))}, payé le ${h(C.fmtDate(p.paidDate))}) redevient à payer ; l'argent revient dans la trésorerie.</p>
+        ${dvAp ? `<p class="cab-valide" id="ap-valide" role="status">${lfIc('aide', 15)}<span>${h(phraseAnnulationValidee(dvAp, { sujet: 'Il', fem: false }))}</span></p>` : ''}
         <form id="ap"><label class="field obligatoire">${lbl('Pourquoi', 'pay.annulePaiement')}<select name="raison"><option>Virement rejeté par la banque</option><option>RIB erroné</option><option>Payé par erreur</option><option>Autre</option></select></label></form>
         <div class="modal-actions"><button type="button" class="btn" data-close>Garder le paiement</button><button type="button" class="btn btn-primary" id="ap-ok">Annuler le paiement</button></div>`, (root, fermer) => {
         $('#ap-ok', root).onclick = () => {
@@ -2347,6 +2432,7 @@
           q.paiementsAnnules = [...(Array.isArray(q.paiementsAnnules) ? q.paiementsAnnules : []), { paidDate: q.paidDate, accountId: q.accountId || '', le: C.today(), raison: String(formValues($('#ap', root)).raison || '') }];
           q.paidDate = ''; q.accountId = '';
           save(true); fermer(); draw();
+          if (dvAp) { direAuComptableApres(`Paiement ${deDit(x.employeeName)} annulé`, { fait: 'd\'annuler', fem: false, annule: true, quoi: `le paiement du salaire ${deDit(x.employeeName)} ${deDit(`${MONTHS_LONG[Number(q.month) - 1]} ${q.year}`)}, daté du ${C.fmtDate(dvAp)} (${C.money(x.c.net, cur)})` }); return; }
           toastUndo(`Paiement de ${x.employeeName} annulé : son salaire est de nouveau à payer`, () => { const r = payslipById(x.id); if (r) { Object.assign(r, avant); if (!avant.paiementsAnnules) delete r.paiementsAnnules; save(true); draw(); } });
         };
       });
@@ -2496,11 +2582,17 @@
             : [{ icon: 'modifier', label: 'Modifier le bulletin', hint: 'Primes, retenues, date et compte du paiement', run: () => payslipForm(x, emp, x.year, x.month, () => draw()) },
               // (1.248.1) Un bulletin pas encore payé se supprime d'ici (il fallait l'ouvrir pour trouver « Supprimer ») ; « Annuler » le rend.
               ...(x.valideLe || horsLigneP ? [] : [{ icon: 'annuler', label: 'Supprimer le bulletin…', hint: 'pas encore payé : « Établir » le refait ensuite', run: async () => {
-                if (!await confirmDialog(`Supprimer le bulletin de ${x.employeeName} pour ${MONTHS_LONG[Number(x.month) - 1]} ${x.year} ? Il n'est pas payé : il se rétablit ensuite d'un clic.`, 'Supprimer', true, { titre: 'Supprimer ce bulletin ?' })) return;
+                // (1.305.0) D'un mois que le cabinet a validé : la question le dit, le message après offre de le lui dire.
+                await periodeValideeLue();
+                const dvSupB = dateDansLaPeriodeValidee([C.payslipDate(x)]);
+                // Le bulletin rangé ne porte pas le nom : celui de la fiche (« de undefined » jusqu'à la 1.305.0).
+                const nomB = (emp && emp.name) || 'ce salarié';
+                if (!await confirmDialog(`Supprimer le bulletin ${deDit(nomB)} pour ${MONTHS_LONG[Number(x.month) - 1]} ${x.year} ? Il n'est pas payé : il se rétablit ensuite d'un clic.${dvSupB ? ` ${phraseAnnulationValidee(dvSupB, { sujet: 'Il', fem: false })}` : ''}`, 'Supprimer', true, { titre: 'Supprimer ce bulletin ?' })) return;
                 if (closedBlock(C.payslipDate(x), 'Ce bulletin')) return;
                 const garde = deepCopy(payslipById(x.id));
                 data.payslips = data.payslips.filter(z => z.id !== x.id); save(true); draw();
-                toastUndo(`Bulletin de ${x.employeeName} supprimé`, () => { if (garde && !payslipById(garde.id)) { data.payslips.push(garde); save(true); draw(); } });
+                if (dvSupB) direAuComptableApres(`Bulletin ${deDit(nomB)} supprimé`, { fait: 'de supprimer', fem: false, annule: true, quoi: `le bulletin ${deDit(nomB)} ${deDit(`${MONTHS_LONG[Number(x.month) - 1]} ${x.year}`)}, daté du ${C.fmtDate(dvSupB)}` });
+                else toastUndo(`Bulletin ${deDit(nomB)} supprimé`, () => { if (garde && !payslipById(garde.id)) { data.payslips.push(garde); save(true); draw(); } });
               } }])]),
           ...(x.paidDate ? [{ icon: 'annuler', label: 'Annuler le paiement…', hint: 'un virement rejeté par la banque : le salaire redevient à payer', run: () => annulerPaiementSalaire(C.payslipsOf(data, x.year, x.month).find(b => b.id === x.id) || x) }] : [])
         ];
@@ -2682,6 +2774,13 @@
       const stA = C.payrollSettings(data);
       const apercu = missing.map(e => { const c = C.computePayslip(e, { ...C.payslipInputFor(data, e, y, m), year: y, month: m }, stA); return { e, c }; });
       const cur = data.settings && data.settings.currency;
+      // (1.305.0) Un mois que le cabinet a validé (des bulletins oubliés, établis après coup) : la question le dit avant, sans
+      // rien bloquer ; chez lui, la paie du mois s'écrit au premier jour encore ouvert.
+      await periodeValideeLue();
+      const dvEtab = dateDansLaPeriodeValidee([C.payslipDate({ year: y, month: m })]);
+      const phraseEtab = !dvEtab ? '' : missing.length > 1
+        ? `Ces bulletins sont datés du ${C.fmtDate(dvEtab)}, dans la période que ton cabinet a validée (jusqu'au ${C.fmtDate(valideCabinet.jusqua)}) : chez lui, ils s'écriront au ${C.fmtDate(premierJourOuvert())}, le premier jour encore ouvert. En les établissant, tu pourras le lui dire.`
+        : phrasePeriodeValidee(dvEtab, dvEtab, { sujet: 'Ce bulletin', fem: false, neuve: true, geste: 'En l\'établissant' });
       const ok = await new Promise(resolve => {
         let fini = false;
         modal(`<h2>Établir ${missing.length > 1 ? `les ${missing.length} bulletins` : 'le bulletin'} ${/^[aeiouh]/i.test(MONTHS_LONG[m - 1]) ? 'd’' : 'de '}${h(MONTHS_LONG[m - 1])} ${h(s.year)}</h2>
@@ -2691,6 +2790,7 @@
           ${`${y}-${String(m).padStart(2, '0')}` === C.today().slice(0, 7) ? `<div class="warn-box mt" id="p-etab-encours"><b>${h(MONTHS_LONG[m - 1].charAt(0).toUpperCase() + MONTHS_LONG[m - 1].slice(1))} n'est pas fini.</b> Les jours qui restent, jusqu'au ${C.daysInMonth(y, m)}, sont comptés présents ; ce qui changera d'ici la fin du mois se régularise sur le bulletin du mois suivant (le bulletin le signalera, avec le bouton qui le met à jour).</div>` : ''}
           ${C.baremesNonRelus(y, m) ? `<div class="warn-box mt" id="p-etab-relus">${relusDit(C.baremesNonRelus(y, m), m)}</div>` : ''}
           <p class="small muted mt">Repris de chaque fiche : le brut (au prorata d'une entrée ou d'une sortie dans le mois), les primes, les absences non payées et les heures du pointage, les avances. Rien n'est payé : tu pourras encore modifier chaque bulletin.</p>
+          ${phraseEtab ? `<p class="cab-valide" id="p-etab-valide" role="status">${lfIc('aide', 15)}<span>${h(phraseEtab)}</span></p>` : ''}
           <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Établir</button></div>`,
           (root, close) => { $('#ok', root).onclick = () => { fini = true; close(); resolve(true); }; $('[data-close]', root).onclick = () => { fini = true; close(); resolve(false); }; },
           () => { if (!fini) resolve(false); });
@@ -2704,7 +2804,14 @@
           computed: C.computePayslip(e, input, st), paidDate: '', accountId: '', method: e.method || 'virement',
           reference: '', issuedAt: C.today() });
       });
-      save(true); toast(`${pl(missing.length, 'bulletin')} établi${sPl(missing.length)}`); draw();
+      save(true); draw();
+      if (dvEtab) {
+        // Le message dit la devise (l'aperçu de la fenêtre, en colonnes, la tait).
+        const net = C.round3(apercu.reduce((a, x) => a + (Number(x.c.net) || 0), 0)), dev = company().currency;
+        direAuComptableApres(`${pl(missing.length, 'bulletin')} établi${sPl(missing.length)}`, { fait: 'd\'établir', fem: false, plur: missing.length > 1,
+          quoi: missing.length > 1 ? `les ${missing.length} bulletins ${deDit(`${MONTHS_LONG[m - 1]} ${y}`)} (${missing.map(e => e.name).join(', ')}), datés du ${C.fmtDate(dvEtab)} (net ${C.money(net, dev)})`
+            : `le bulletin ${deDit(missing[0].name)} ${deDit(`${MONTHS_LONG[m - 1]} ${y}`)}, daté du ${C.fmtDate(dvEtab)} (net ${C.money(net, dev)})` });
+      } else toast(`${pl(missing.length, 'bulletin')} établi${sPl(missing.length)}`);
     }
     // Remettre les bulletins payés : chacun en PDF, à donner ou envoyer ; la remise se garde sur le bulletin (un fait, avec
     // son jour), et « Annuler » la défait. SkanFact n'envoie rien tout seul : il prépare les PDF.

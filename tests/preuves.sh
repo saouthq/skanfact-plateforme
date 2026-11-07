@@ -25266,8 +25266,79 @@ prouver 'l'\''annulation annoncée au dernier jour validé, pas au premier jour 
   "son annulation s'écrira au \${C.fmtDate(premierJourOuvert())}" "son annulation s'écrira au \${C.fmtDate(valideCabinet.jusqua)}" \
   "$T304W"
 prouver 'le message d'\''une suppression parle au présent d'\''une pièce qui n'\''est plus' "$A1E" \
-  "\${annule ? 'tombait' : 'tombe'}" "\${'tombe'}" \
+  "const tombe = annule ? (plur ? 'tombaient' : 'tombait') : plur ? 'tombent' : 'tombe';" "const tombe = plur ? 'tombent' : 'tombe';" \
   "$T304W"
+
+# (1.305.0) La période validée par le cabinet dite aussi dans la paie : les bulletins établis après coup, le bulletin corrigé,
+# les salaires payés, le paiement annulé, le bulletin supprimé, l'avance saisie ou supprimée.
+T305="début novembre, le bulletin de septembre d'une nouvelle n'avait jamais été établi : chaque geste de la paie le dit avant, et la comptable lit septembre réécrit au 1er octobre"
+PAIEE=modules/personnel/ecrans/entreprise/paie.js
+prouver 'les bulletins établis dans le mois validé, sans un mot avant' "$PAIEE" \
+  'const dvEtab = dateDansLaPeriodeValidee([C.payslipDate({ year: y, month: m })]);' "const dvEtab = '';" \
+  "$T305"
+prouver 'la question des bulletins établis parle d'\''un seul' "$PAIEE" \
+  "chez lui, ils s'écriront au" "chez lui, il s'écrira au" \
+  "$T305"
+prouver 'les bulletins établis n'\''offrent pas de le dire au comptable' "$PAIEE" \
+  'if (dvEtab) {' 'if (false) {' \
+  "$T305"
+prouver 'le message des bulletins établis parle d'\''un seul' "$PAIEE" \
+  'plur: missing.length > 1,' 'plur: false,' \
+  "$T305"
+prouver 'le message des bulletins établis tait la devise' "$PAIEE" \
+  ', dev = company().currency;' ', dev = cur;' \
+  "$T305"
+prouver 'le message de plusieurs bulletins dit « il »' "$A1E" \
+  "const lui = plur ? (fem ? 'elles' : 'ils') : fem ? 'elle' : 'il';" "const lui = fem ? 'elle' : 'il';" \
+  "$T305"
+prouver 'le message de plusieurs pièces accorde mal le verbe' "$A1E" \
+  "\${plur && !annule ? 's\\'écrivent' : 's\\'écrit'}" "\${'s\\'écrit'}" \
+  "$T305"
+prouver 'le bulletin rouvert sans changement redit l'\''avertissement' "$PAIEE" \
+  'const dB = !slip || empreinteB() !== empreinteB0 ?' 'const dB = true ?' \
+  "$T305"
+prouver 'une ligne de prime encore vide comptée comme un changement' "$PAIEE" \
+  'i.bonuses.filter(x => C.round3(Number(x.amount) || 0)).map(' 'i.bonuses.map(' \
+  "$T305"
+prouver 'le bulletin corrigé n'\''offre pas de le dire au comptable' "$PAIEE" \
+  'if (dvB) direAuComptableApres(' 'if (false) direAuComptableApres(' \
+  "$T305"
+prouver 'le message au comptable écrit « de Amel »' "$PAIEE" \
+  "const deDit = x => window.SkanCompta.deMois(String(x || ''));" "const deDit = x => 'de ' + x;" \
+  "$T305"
+prouver 'les salaires payés dans la période validée, sans un mot pendant la saisie' "$PAIEE" \
+  "majAvertValide(\$('#ps-valide', root), d ? dateDansLaPeriodeValidee([d], majValidePs) : ''," "majAvertValide(\$('#ps-valide', root), ''," \
+  "$T305"
+prouver 'les salaires payés n'\''offrent pas de le dire au comptable' "$PAIEE" \
+  'if (dvPs) { direAuComptableApres(' 'if (false) { direAuComptableApres(' \
+  "$T305"
+prouver 'l'\''annulation d'\''un salaire payé dans la période validée, sans un mot' "$PAIEE" \
+  'const dvAp = dateDansLaPeriodeValidee([p.paidDate]);' "const dvAp = '';" \
+  "$T305"
+prouver 'l'\''annulation d'\''un salaire payé n'\''offre pas de le dire au comptable' "$PAIEE" \
+  'if (dvAp) { direAuComptableApres(' 'if (false) { direAuComptableApres(' \
+  "$T305"
+prouver 'la suppression d'\''un bulletin de la période validée, sans un mot dans la question' "$PAIEE" \
+  'const dvSupB = dateDansLaPeriodeValidee([C.payslipDate(x)]);' "const dvSupB = '';" \
+  "$T305"
+prouver 'la suppression d'\''un bulletin n'\''offre pas de le dire au comptable' "$PAIEE" \
+  'if (dvSupB) direAuComptableApres(' 'if (false) direAuComptableApres(' \
+  "$T305"
+prouver 'la suppression d'\''un bulletin nomme « undefined »' "$PAIEE" \
+  "const nomB = (emp && emp.name) || 'ce salarié';" 'const nomB = x.employeeName;' \
+  "$T305"
+prouver 'la suppression d'\''une avance de la période validée, sans un mot dans la question' "$PAIEE" \
+  'const dvSup = dateDansLaPeriodeValidee([a.date]);' "const dvSup = '';" \
+  "$T305"
+prouver 'la suppression d'\''une avance n'\''offre pas de le dire au comptable' "$PAIEE" \
+  "if (dvSup) direAuComptableApres('Avance supprimée'" "if (false) direAuComptableApres('Avance supprimée'" \
+  "$T305"
+prouver 'l'\''avance rouverte sans changement redit l'\''avertissement quand il n'\''y a qu'\''un compte' "$PAIEE" \
+  'empreinteAv({ ...advance, ...v }) !== empreinteAv(advance)' 'empreinteAv(v) !== empreinteAv(advance)' \
+  "$T305"
+prouver 'l'\''avance datée dans la période validée, sans un mot pendant la saisie' "$PAIEE" \
+  "majAvertValide(\$('#af2-valide', root), valideDeLAvance(v, majValideAv)," "majAvertValide(\$('#af2-valide', root), ''," \
+  "$T305"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -2397,10 +2397,14 @@
   // contre-passe au premier jour encore ouvert (0018) ; on le dit « son annulation ». `sujet` : « Il », « Elle ».
   const phraseAnnulationValidee = (d, { sujet, fem }) => `${sujet} est daté${fem ? 'e' : ''} du ${C.fmtDate(d)}, dans la période que ton cabinet a validée (jusqu'au ${C.fmtDate(valideCabinet.jusqua)}) : chez lui, son annulation s'écrira au ${C.fmtDate(premierJourOuvert())}, le premier jour encore ouvert.`;
   // Après le geste : le message habituel, et « Le dire à mon comptable » qui ouvre la conversation, le texte écrit. `quoi` nomme
-  // la pièce (« un paiement daté du 29/09/2026 (…) ») ; `annule` : elle vient d'être supprimée.
-  const direAuComptableApres = (dit, { fait, quoi, fem, annule }) => {
+  // la pièce (« un paiement daté du 29/09/2026 (…) ») ; `annule` : elle vient d'être supprimée ; `plur` : plusieurs pièces
+  // d'un geste (1.305.0, les bulletins d'un mois).
+  const direAuComptableApres = (dit, { fait, quoi, fem, annule, plur }) => {
     const j = valideCabinet.jusqua, ouvert = premierJourOuvert();
-    toastUndo(`${dit} — dans la période que ton cabinet a validée`, () => ecrireAuComptable(`Bonjour, je viens ${fait} ${quoi} : ${fem ? 'elle' : 'il'} ${annule ? 'tombait' : 'tombe'} dans la période que tu as validée jusqu'au ${C.fmtDate(j)}, ${annule ? 'son annulation' : fem ? 'elle' : 'il'} s'écrit donc chez toi au ${C.fmtDate(ouvert)}. Peux-tu en tenir compte ?`), 'Le dire à mon comptable');
+    const lui = plur ? (fem ? 'elles' : 'ils') : fem ? 'elle' : 'il';
+    const tombe = annule ? (plur ? 'tombaient' : 'tombait') : plur ? 'tombent' : 'tombe';
+    const qui = annule ? (plur ? 'leur annulation' : 'son annulation') : lui;
+    toastUndo(`${dit} — dans la période que ton cabinet a validée`, () => ecrireAuComptable(`Bonjour, je viens ${fait} ${quoi} : ${lui} ${tombe} dans la période que tu as validée jusqu'au ${C.fmtDate(j)}, ${qui} ${plur && !annule ? 's\'écrivent' : 's\'écrit'} donc chez toi au ${C.fmtDate(ouvert)}. Peux-tu en tenir compte ?`), 'Le dire à mon comptable');
   };
   // Le paragraphe d'une fenêtre (paiement, règlement, opération diverse) : caché tant qu'il n'y a rien à dire, posé sous le
   // formulaire (rien ne bouge sous le curseur, qui est sur la date).

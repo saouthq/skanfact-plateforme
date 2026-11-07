@@ -599,3 +599,32 @@ mouvement créé depuis le relevé de la banque, lui, passe par la même fenêtr
 sa prochaine modification ; la date validée se relit au plus toutes les 30 secondes.
 
 Suivant : la même phrase dans la paie (1.305), puis le module suivant de la revue.
+
+### Fait en 1.305.0 (07/11/2026) : la période validée dite dans la paie
+
+Rejoué avec le même grossiste de Sousse, qui fait sa paie lui-même (son cabinet tient la comptabilité et les déclarations,
+pas la paie), septembre validé jusqu'au 30/09/2026 : début novembre, on découvre que les bulletins de septembre d'Amel
+(vendeuse) et de Sami (livreur), entrés le 01/09, n'ont jamais été établis. On les établit, on ajoute la prime de rendement
+d'Amel (85,500 DT), on paie les deux salaires au 30/09 ; puis Sami n'est jamais venu : son paiement s'annule (« payé par
+erreur ») et son bulletin se supprime. L'avance de Karim du 15/09, notée deux fois, se supprime ; une autre avance, ramenée
+au 25/09, le dit pendant la saisie. Puis la comptable ouvre son livre-journal. Une entreprise sans cabinet n'en dit rien.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| C22 | La paie était la dernière saisie datée qui ne disait pas la période validée : établir des bulletins oubliés, corriger un bulletin, payer les salaires, annuler un paiement, supprimer un bulletin, saisir ou supprimer une avance, tout s'enregistrait sans un mot, alors que chez le cabinet la paie du mois se réécrit au premier jour encore ouvert. | La même phrase, au même endroit que partout ailleurs : sous la fenêtre « Établir les 2 bulletins » (« Ces bulletins sont datés du 30/09/2026… chez lui, ils s'écriront au 01/10/2026… »), sous le bulletin pendant la saisie (« …la correction s'écrira au 01/10/2026 »), sous « Payer les salaires » quand la date tombe dans la période, dans « Annuler le paiement », dans les questions « Supprimer ce bulletin ? » et « Supprimer cette avance ? », sous l'avance pendant la saisie, et sous « Noter déposée et payée », « Retirer la mention » et le versement d'une saisie sur salaire. Rien n'est bloqué ; après, « Le dire à mon comptable » ouvre la conversation, le message écrit (« je viens d'établir les 2 bulletins de septembre 2026 (Amel Jaziri, Sami Ferchichi), datés du 30/09/2026 (net 1 590,612 DT) : ils tombent dans la période… »). Rouvert sans rien changer de ce qui fait ses montants, un bulletin ou une avance ne le redit pas ; une ligne de prime encore vide non plus. |
+| C23 | Supprimer un bulletin depuis la liste demandait « Supprimer le bulletin de undefined pour septembre 2026 ? » : la question lisait un nom que le bulletin rangé ne porte pas. | Elle nomme le salarié de sa fiche. |
+| C24 | Une avance rouverte sans rien changer se disait « changée » quand l'entreprise n'a qu'un compte (la fenêtre ne montre alors pas la case du compte). | Une case que la fenêtre ne montre pas garde la valeur de l'avance, comme à l'enregistrement. |
+| C25 | Le message au comptable écrivait « le bulletin de Amel » ; celui des bulletins établis taisait la devise. | « d'Amel », « d'octobre 2026 » ; « net 1 590,612 DT ». |
+
+Vérifié chez la comptable : la paie et les salaires de septembre qu'elle avait validés restent au 30/09 ; au 01/10, au
+brouillard, leur contre-passation et la paie réécrite (le brut des bulletins du mois, la prime comprise ; les salaires de
+Karim et d'Amel, sans Sami) ; les 600 DT d'avances validés restent au 15/09, leur contre-passation et les 300 DT qui restent
+arrivent au 01/10.
+
+Limites connues : au livre-journal du Cabinet, la contre-passation et la paie réécrite (même pièce, même jour) se lisent dans
+un seul bloc, sous l'étiquette « contre-passation » ; « Payé le » saisi dans le bulletin lui-même, la déclaration payée,
+la mention retirée et le versement d'une saisie sur salaire disent la phrase mais ne sont pas encore joués par un scénario ;
+la régularisation sur un mois suivant et la caisse ne la disent pas encore ; un mois qui a des bulletins manquants ne propose
+« Payer les salaires » qu'une fois établis (le patron qui ne veut pas payer quelqu'un supprime d'abord son bulletin).
+
+Suivant : le module suivant de la revue.
