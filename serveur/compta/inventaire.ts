@@ -22,7 +22,8 @@ const INVENTAIRE = z.object({
 
 // (1.319.0) L'état du stock que le client a envoyé (`etatsStock` de son dossier, 0200) → ce que son cabinet en lit : la date,
 // quand et par qui il est parti, et ses lignes. Un nombre non entier y est rangé en texte exact (`{ "~n": "61.667" }`,
-// pont.js) : il ressort tel quel. Rien d'autre de l'article (ni son prix de vente, ni son fournisseur) ne sort.
+// pont.js) : il ressort tel quel. Rien d'autre de l'article (ni son prix de vente, ni son fournisseur) ne sort ; ce qui est
+// reçu sans facture (1.320.0) dit le fournisseur de chaque réception, que le comptable connaît déjà par ses achats.
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const texteDe = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const nombreV10 = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? String(v)
@@ -32,7 +33,14 @@ function etatDuClient(e: Record<string, unknown>) {
     ref: texteDe(l.ref).slice(0, 60), libelle: texteDe(l.libelle).slice(0, 200), unite: texteDe(l.unite).slice(0, 20),
     quantite: nombreV10(l.quantite), cout: nombreV10(l.cout), valeur: nombreV10(l.valeur),
   }));
-  return { date: texteDe(e.date).slice(0, 10), envoyeLe: texteDe(e.envoyeLe).slice(0, 40), par: texteDe(e.par).slice(0, 120), total: nombreV10(e.total), lignes };
+  // (1.320.0) Ce qui était reçu sans facture à cette date : chaque réception, son fournisseur et sa valeur hors taxes.
+  const sf = estObjet(e.sansFacture) ? e.sansFacture : {};
+  const receptions = (Array.isArray(sf.receptions) ? sf.receptions : []).filter(estObjet).slice(0, 2000).map((r) => ({
+    numero: texteDe(r.numero).slice(0, 60), date: texteDe(r.date).slice(0, 10), fournisseur: texteDe(r.fournisseur).slice(0, 200),
+    commande: texteDe(r.commande).slice(0, 60), ht: nombreV10(r.ht),
+  }));
+  return { date: texteDe(e.date).slice(0, 10), envoyeLe: texteDe(e.envoyeLe).slice(0, 40), par: texteDe(e.par).slice(0, 120), total: nombreV10(e.total), lignes,
+    sansFacture: { total: nombreV10(sf.total), receptions } };
 }
 
 export function routesInventaire(ctx: Contexte): Route<never>[] {

@@ -1057,3 +1057,35 @@ bilan.*
 
 **À VÉRIFIER** avec un comptable : les comptes 37 / 603 pour un commerce, et l'inventaire au coût moyen pondéré.
 
+## Les commandes fournisseurs, jusqu'au bilan
+
+*1.320.0, 07/11/2026. Jouées par la droguerie de l'Ariana (« Droguerie El Amen ») à la clôture de 2025 : 30 pots de
+peinture commandés au Grossiste Sfax et reçus le 28 décembre, dont la facture n'arrive que le 8 janvier ; 12 brosses de la
+Quincaillerie du Nord reçues le 30, sans facture ; 10 pots reçus le 15 et facturés le 20. Puis sa comptable, au Cabinet.*
+
+**Ce qui n'allait pas**
+- Au 31 décembre, la marchandise reçue était dans le stock compté (la réception la fait entrer), mais sa charge n'était dans aucun
+  livre de l'année : la facture du fournisseur arrive en janvier. Le bénéfice de 2025 était trop haut de 1 949,850, et rien ne
+  le disait à la comptable, qui devait le chercher bon de réception par bon de réception. Ce qui reste à facturer
+  aujourd'hui (`receptionsAFacturer`) ne le dit pas non plus : une fois la facture de janvier saisie, la réception de
+  décembre n'y est plus, alors qu'au 31 décembre elle était reçue sans facture.
+
+**Ce qui change (1.320.0)**
+- `C.receptionsSansFactureAu(data, date)` : les réceptions validées ce jour-là ou avant, qu'aucune facture d'achat datée ce
+  jour-là ou avant ne couvre, chacune à sa valeur hors taxes au prix de la commande, ramenée en dinars ; une réception en
+  brouillon n'a rien reçu, une réception d'après la date n'y est pas. `C.etatDuStock` la porte (`sansFacture`).
+- La carte « L'état du stock pour ton comptable » dit, sous le résumé : « Reçu sans facture à cette date : 2 réceptions,
+  1 949,850 DT HT (BR-… de …). La marchandise est dans ton stock, sa facture n'est pas encore arrivée : ton comptable la passe
+  en facture non parvenue. Elle part avec l'état. » Envoyé, l'état porte ces réceptions ; si seul ce qui est reçu sans facture
+  a changé depuis (la facture des brosses arrive, datée du 31), la carte le dit tel quel, avec « Renvoyer ».
+- Au Cabinet, l'onglet Inventaire montre sous l'état envoyé « Reçu sans facture au 31/12/2025 » (chaque réception, son
+  fournisseur, sa valeur) et « Passer en factures non parvenues… » : la fenêtre montre l'écriture (607 au débit pour le total,
+  408 au crédit, un par fournisseur), puis la pose au brouillard, au jour de l'état (pièce FNP-2025) ; elle se relit, son
+  compte de charge se change, elle se valide, et « Extourner » la retourne au 1er janvier. Passée, la ligne le dit et le geste
+  s'en va : la repasser compterait la charge deux fois.
+- La preuve : `tests/moteur/commandes-1320.test.ts` (3 règles), `tests/web/commandes-1320.test.ts` (l'entreprise, le
+  téléphone, le Cabinet, l'écriture lue au serveur au millime), preuves `commandes 1.320 a-n`.
+
+**À VÉRIFIER** avec un comptable : 607 / 408 pour une marchandise reçue sans facture, et la TVA de ces factures (rien, ou un
+compte de TVA à régulariser).
+

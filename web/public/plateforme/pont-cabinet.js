@@ -646,7 +646,8 @@
   async function inventaireDe(ent, annee) {
     const r = await appel('GET', `/entreprises/${ent}/compta/inventaires/${Number(annee)}`);
     etatsStockClient.set(`${ent}:${Number(annee)}`, (r.duClient || []).map((/** @type {any} */ e) => ({ ...e, total: nombre(e.total),
-      lignes: (e.lignes || []).map((/** @type {any} */ l) => ({ ...l, quantite: nombre(l.quantite), cout: nombre(l.cout), valeur: nombre(l.valeur) })) })));
+      lignes: (e.lignes || []).map((/** @type {any} */ l) => ({ ...l, quantite: nombre(l.quantite), cout: nombre(l.cout), valeur: nombre(l.valeur) })),
+      sansFacture: { total: nombre((e.sansFacture || {}).total), receptions: ((e.sansFacture || {}).receptions || []).map((/** @type {any} */ r) => ({ ...r, ht: nombre(r.ht) })) } })));
     const x = r.inventaire;
     if (!x) return null;
     return {

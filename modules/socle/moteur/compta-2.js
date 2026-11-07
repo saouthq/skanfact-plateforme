@@ -125,7 +125,7 @@
     resultatCession, repriseSubvention, immoValide,
     ajouterImmobilisation, modifierImmobilisation, supprimerImmobilisation,
     etatImmobilisations, aReclamerImmobilisations, immobilisationsACreer, biensDuClient, bienDuClientPourLaLigne, ficheDuClient, ecrituresImmobilisations, noterEcritureImmo,
-    inventaireValide, lignesInventaireDepuisTexte, totalInventaire, poserInventaire, variationDeStock,
+    inventaireValide, lignesInventaireDepuisTexte, totalInventaire, poserInventaire, variationDeStock, ecritureFacturesNonParvenues,
     // La clôture d'exercice (9.8.0)
     GUIDES_INVENTAIRE, controlesCloture, soldesDepuisOuverture, soldesRepris,
     cloturerExercice, rouvrirExercice, noterDossierCloture, anouveauxDe, ecritureAnouveaux, extournesDe,

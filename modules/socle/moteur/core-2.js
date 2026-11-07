@@ -7564,7 +7564,7 @@
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
     moisDePaie, anneesDePaie, paieDuMois, paieATraiter, controlesDuMois, montantSocial, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
-    stockList, stockTotals, etatDuStock, stockJournal, inventoryDiff, stockAlerts, quantiteACommander, fournisseurDeLArticle, ventesDeLArticle, commandesEnCoursDeLArticle, stockImpact, sortieAuBon, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
+    stockList, stockTotals, etatDuStock, receptionsSansFactureAu, stockJournal, inventoryDiff, stockAlerts, quantiteACommander, fournisseurDeLArticle, ventesDeLArticle, commandesEnCoursDeLArticle, stockImpact, sortieAuBon, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,
     DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide, primesDuMois, saisieDeLaFiche, tauxAvant2026,

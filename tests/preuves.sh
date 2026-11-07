@@ -26085,7 +26085,7 @@ prouver 'stock 1.319 o : renvoyer l'\''état du stock le double au lieu de le re
   '      data.etatsStock = (data.etatsStock || []).filter(x => x.date !== e.date)' '      data.etatsStock = (data.etatsStock || [])' \
   "$SW1"
 prouver 'stock 1.319 p : la carte ne voit pas que le stock de la date a changé' modules/socle/ecrans/entreprise/app-2.js \
-  '      const pareil = deja && Math.abs((Number(deja.total) || 0) - e.total) < 0.0005 && (deja.lignes || []).length === e.lignes.length;' '      const pareil = !!deja;' \
+  '      const stockPareil = deja && Math.abs((Number(deja.total) || 0) - e.total) < 0.0005 && (deja.lignes || []).length === e.lignes.length;' '      const stockPareil = !!deja;' \
   "$SW1"
 prouver 'stock 1.319 q : la date proposée n'\''est pas le 31 décembre passé' modules/socle/ecrans/entreprise/app-2.js \
   '      return C.etatDuStock(data, finAn).lignes.length ? finAn : C.today();' '      return C.today();' \
@@ -26105,6 +26105,55 @@ prouver 'stock 1.319 u : le Cabinet ne dit pas que l'\''inventaire est celui du 
 prouver 'stock 1.319 v : le Cabinet relit l'\''inventaire sans la valeur dite de ses lignes' web/public/plateforme/pont-cabinet.js \
   '        const quantite = nombre(l.quantite), cout = nombre(l.cout), dite = l.valeur != null;' '        const quantite = nombre(l.quantite), cout = nombre(l.cout), dite = false;' \
   "$SW1"
+# (1.320.0) Les commandes fournisseurs jusqu'au bilan : ce qui est reçu sans facture à la date de l'état du stock part avec
+# lui, et le Cabinet le passe en factures non parvenues (607 / 408), au brouillard.
+FNP1="au 31/12 : la réception du 28 que la facture du 8 janvier ne couvre pas encore, et celle sans facture ; pas les autres"
+FNP2="l'état du stock au 31/12 compte la marchandise reçue, et porte ce qui est reçu sans facture"
+FNP3="au Cabinet : 607 au débit pour le total, un 408 par fournisseur, au jour de l'état ; rien reçu sans facture, rien à passer"
+FNPW="ce qui est reçu sans facture au 31/12 part avec l'état du stock, et se passe en facture non parvenue au Cabinet"
+prouver 'commandes 1.320 a : une facture de janvier couvre la réception de décembre au 31/12' modules/socle/moteur/core-1.js \
+  '      if (/^annul/.test(p.status || '\'''\'') || String(p.date || '\'''\'') > date) return;' '      if (/^annul/.test(p.status || '\'''\'')) return;' \
+  "$FNP1"
+prouver 'commandes 1.320 b : une réception en brouillon compte comme reçue sans facture' modules/socle/moteur/core-1.js \
+  '    const receptions = (data.receptions || []).filter(r => r.status === '\''validée'\'' && String(r.date || '\'''\'') <= date && !couvertes.has(r.id))' '    const receptions = (data.receptions || []).filter(r => r.status !== '\''annulée'\'' && String(r.date || '\'''\'') <= date && !couvertes.has(r.id))' \
+  "$FNP1"
+prouver 'commandes 1.320 c : une réception d'\''après la date compte au 31/12' modules/socle/moteur/core-1.js \
+  '    const receptions = (data.receptions || []).filter(r => r.status === '\''validée'\'' && String(r.date || '\'''\'') <= date && !couvertes.has(r.id))' '    const receptions = (data.receptions || []).filter(r => r.status === '\''validée'\'' && !couvertes.has(r.id))' \
+  "$FNP1"
+prouver 'commandes 1.320 d : l'\''état du stock ne porte pas ce qui est reçu sans facture' modules/socle/moteur/core-1.js \
+  '    return { date, lignes, total: round3(lignes.reduce((s, l) => s + l.valeur, 0)), sansFacture: receptionsSansFactureAu(data, date) };' '    return { date, lignes, total: round3(lignes.reduce((s, l) => s + l.valeur, 0)), sansFacture: { total: 0, receptions: [] } };' \
+  "$FNP2"
+prouver 'commandes 1.320 e : deux réceptions d'\''un fournisseur, deux lignes au 408' modules/socle/moteur/compta-1.js \
+  '      parFournisseur.set(f, round3((parFournisseur.get(f) || 0) + round3(num(r.ht))));' '      parFournisseur.set(f + (parFournisseur.size ? '\'' '\'' + parFournisseur.size : '\'''\''), round3(num(r.ht)));' \
+  "$FNP3"
+prouver 'commandes 1.320 f : un état d'\''une autre année se passe dans l'\''exercice' modules/socle/moteur/compta-1.js \
+  '    if (date.slice(0, 4) !== String(annee)) return { ok: false, motif: `L'\''état du ${jour} n'\''est pas de l'\''exercice ${annee}.` };' '' \
+  "$FNP3"
+prouver 'commandes 1.320 g : la carte tait ce qui est reçu sans facture' modules/socle/ecrans/entreprise/app-2.js \
+  '        ${sansFacture}
+        ${envoi}' '        ${envoi}' \
+  "$FNPW"
+prouver 'commandes 1.320 h : l'\''état part sans ce qui est reçu sans facture' modules/socle/ecrans/entreprise/app-2.js \
+  '          sansFacture: { total: e.sansFacture.total, receptions:' '          pasDeFacture: { total: e.sansFacture.total, receptions:' \
+  "$FNPW"
+prouver 'commandes 1.320 i : la carte croit l'\''état d'\''aujourd'\''hui quand seul le reçu sans facture a changé' modules/socle/ecrans/entreprise/app-2.js \
+  '      const pareil = stockPareil && Math.abs((Number(sfDeja.total) || 0) - sf.total) < 0.0005 && (sfDeja.receptions || []).length === sf.receptions.length;' '      const pareil = stockPareil;' \
+  "$FNPW"
+prouver 'commandes 1.320 j : la carte dit « le stock a changé » quand seul le reçu sans facture a changé' modules/socle/ecrans/entreprise/app-2.js \
+  '        : stockPareil ? `<p class="small warn-text" id="etat-deja">' '        : false ? `<p class="small warn-text" id="etat-deja">' \
+  "$FNPW"
+prouver 'commandes 1.320 k : le serveur ne rend pas au cabinet ce qui est reçu sans facture' serveur/compta/inventaire.ts \
+  '    sansFacture: { total: nombreV10(sf.total), receptions } };' '    sansFacture: { total: '\''0'\'', receptions: [] as typeof receptions } };' \
+  "$FNPW"
+prouver 'commandes 1.320 l : le pont du Cabinet vide ce qui est reçu sans facture' web/public/plateforme/pont-cabinet.js \
+  '      sansFacture: { total: nombre((e.sansFacture || {}).total), receptions:' '      sansFacture: { total: 0, receptions: [] }, _x: { total: nombre((e.sansFacture || {}).total), receptions:' \
+  "$FNPW"
+prouver 'commandes 1.320 m : les factures non parvenues se repassent une seconde fois' modules/socle/ecrans/cabinet/app-2.js \
+  '    return ((livre && livre.ecritures) || []).find(e => e.piece === `FNP-${annee}` && !e.contrepassee && e.statut !== '\''contrepassee'\'') || null;' '    return null;' \
+  "$FNPW"
+prouver 'commandes 1.320 n : deux boutons principaux dans l'\''inventaire du Cabinet' modules/socle/ecrans/cabinet/app-2.js \
+  '    : `<button class="btn btn-sm" id="iv-fnp">' '    : `<button class="btn btn-sm btn-primary" id="iv-fnp">' \
+  "$FNPW"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

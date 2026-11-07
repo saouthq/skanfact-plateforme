@@ -1511,31 +1511,41 @@
     function etatEnvoye(date) { return (data.etatsStock || []).find(x => x.date === date) || null; }
     function carteEtatPourLeComptable() {
       if (!s.etatDate) s.etatDate = dateEtatParDefaut();
-      const e = C.etatDuStock(data, s.etatDate), deja = etatEnvoye(s.etatDate), cur = company().currency;
-      const pareil = deja && Math.abs((Number(deja.total) || 0) - e.total) < 0.0005 && (deja.lignes || []).length === e.lignes.length;
+      const e = C.etatDuStock(data, s.etatDate), deja = etatEnvoye(s.etatDate), cur = company().currency, sf = e.sansFacture;
+      // (1.320.0) Ce qui est reçu sans facture à cette date part avec l'état : un état envoyé sans lui n'est plus celui d'aujourd'hui.
+      const sfDeja = (deja && deja.sansFacture) || { total: 0, receptions: [] };
+      const stockPareil = deja && Math.abs((Number(deja.total) || 0) - e.total) < 0.0005 && (deja.lignes || []).length === e.lignes.length;
+      const pareil = stockPareil && Math.abs((Number(sfDeja.total) || 0) - sf.total) < 0.0005 && (sfDeja.receptions || []).length === sf.receptions.length;
+      const rien = !e.lignes.length && !sf.receptions.length;
       const resume = e.lignes.length ? `${pl(e.lignes.length, 'article')} en stock, ${C.money(e.total, cur)} au coût moyen` : 'aucun article en stock à cette date';
+      const quelles = sf.receptions.slice(0, 3).map(r => `${r.numero || 'réception'}${r.fournisseur ? ` de ${r.fournisseur}` : ''}`).join(', ') + (sf.receptions.length > 3 ? '…' : '');
+      const sansFacture = !sf.receptions.length ? '' : `<p class="small" id="etat-sans-facture">Reçu sans facture à cette date : ${pl(sf.receptions.length, 'réception')}, <b class="nw">${C.money(sf.total, cur)}</b> HT (${h(quelles)}). La marchandise est dans ton stock, sa facture n'est pas encore arrivée : ton comptable la passe en facture non parvenue. Elle part avec l'état.</p>`;
       const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="etat-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} : c'est l'état d'aujourd'hui.</p>`
-        : `<p class="small warn-text" id="etat-deja">Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} avec ${C.money(Number(deja.total) || 0, cur)} : le stock de cette date a changé depuis. Renvoie-le pour que ton comptable ait le bon.</p>`;
+        : stockPareil ? `<p class="small warn-text" id="etat-deja">Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} avec ${C.money(Number(sfDeja.total) || 0, cur)} HT reçus sans facture : ce qui est reçu sans facture à cette date a changé depuis. Renvoie-le pour que ton comptable ait le bon.</p>`
+          : `<p class="small warn-text" id="etat-deja">Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} avec ${C.money(Number(deja.total) || 0, cur)} : le stock de cette date a changé depuis. Renvoie-le pour que ton comptable ait le bon.</p>`;
       return `<div class="cf-carte mb" id="etat-comptable"><h2>L'état du stock pour ton comptable ${info('stk.etatComptable')}</h2>
         <p class="small muted">À la clôture, ton comptable passe la valeur de ton stock dans ton bilan. Envoie-lui l'état à cette date : il le reprend tel quel, au coût moyen, sans rien recopier.</p>
         <div class="filters">
           <label class="small">${lbl('Au', 'stk.etatDate')} ${dateFieldHtml('', 'etatDate', s.etatDate, {})}</label>
           <span class="small" id="etat-resume">${resume}</span>
         </div>
+        ${sansFacture}
         ${envoi}
-        <div class="inline"><button class="btn btn-sm" id="etat-envoyer" ${e.lignes.length && !pareil ? '' : 'disabled'}
-          title="${e.lignes.length ? (pareil ? 'Ton comptable a déjà cet état.' : '') : 'Rien en stock à cette date : il n\'y a rien à envoyer.'}">${deja && !pareil ? 'Renvoyer' : 'Envoyer'} l'état du ${C.fmtDate(s.etatDate)}</button></div></div>`;
+        <div class="inline"><button class="btn btn-sm" id="etat-envoyer" ${!rien && !pareil ? '' : 'disabled'}
+          title="${!rien ? (pareil ? 'Ton comptable a déjà cet état.' : '') : 'Rien en stock à cette date : il n\'y a rien à envoyer.'}">${deja && !pareil ? 'Renvoyer' : 'Envoyer'} l'état du ${C.fmtDate(s.etatDate)}</button></div></div>`;
     }
     function envoyerEtatDuStock(date) {
       const e = C.etatDuStock(data, date);
-      if (!e.lignes.length) return null;
+      if (!e.lignes.length && !e.sansFacture.receptions.length) return null;
       data.etatsStock = (data.etatsStock || []).filter(x => x.date !== e.date)
         .concat([{ id: 'es-' + e.date, date: e.date, total: e.total, envoyeLe: new Date().toISOString(),
-          lignes: e.lignes.map(l => ({ itemId: l.itemId, ref: l.ref, libelle: l.libelle, unite: l.unite, quantite: l.quantite, cout: l.cout, valeur: l.valeur })) }]);
+          lignes: e.lignes.map(l => ({ itemId: l.itemId, ref: l.ref, libelle: l.libelle, unite: l.unite, quantite: l.quantite, cout: l.cout, valeur: l.valeur })),
+          sansFacture: { total: e.sansFacture.total, receptions: e.sansFacture.receptions.map(r => ({ numero: r.numero, date: r.date, fournisseur: r.fournisseur, commande: r.commande, ht: r.ht })) } }]);
       save(true);
       return e;
     }
-    const texteEtatDuStock = e => `l'état du stock au ${C.fmtDate(e.date)} est envoyé : ${pl(e.lignes.length, 'article')}, ${C.money(e.total, company().currency)} au coût moyen, à reprendre dans l'inventaire.`;
+    const avecSansFacture = e => (e.sansFacture.receptions.length ? `, et ${pl(e.sansFacture.receptions.length, 'réception')} sans facture (${C.money(e.sansFacture.total, company().currency)} HT)` : '');
+    const texteEtatDuStock = e => `l'état du stock au ${C.fmtDate(e.date)} est envoyé : ${pl(e.lignes.length, 'article')}, ${C.money(e.total, company().currency)} au coût moyen${avecSansFacture(e)}, à reprendre dans l'inventaire.`;
     function brancherEtatPourLeComptable() {
       const champ = $('#st-body input[name=etatDate]');
       if (champ) champ.onchange = () => { s.etatDate = champ.value || C.today(); drawInventory(); };
@@ -1545,7 +1555,7 @@
         const e = envoyerEtatDuStock(s.etatDate);
         if (!e) return;
         drawInventory();
-        toastUndo(`L'état du stock au ${C.fmtDate(e.date)} est chez ton comptable : ${pl(e.lignes.length, 'article')}, ${C.money(e.total, company().currency)}. Il le reprend dans son inventaire.`,
+        toastUndo(`L'état du stock au ${C.fmtDate(e.date)} est chez ton comptable : ${pl(e.lignes.length, 'article')}, ${C.money(e.total, company().currency)}${avecSansFacture(e)}. Il le reprend dans son inventaire.`,
           () => ecrireAuComptable(`Bonjour, ${texteEtatDuStock(e)}`), 'Le dire à mon comptable');
       };
     }

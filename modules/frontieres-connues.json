@@ -39,8 +39,8 @@
       "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5)"
     },
     "plateforme/pont-cabinet.js": {
-      "auPlus": 2803,
-      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5) ; relevé de 2 788 à 2 797 au lot 1.301.0 (07/11/2026) pour le 1.299.0 : une ligne du relevé répond de plusieurs écritures (la remise de chèques), ce qui change la traduction d'un rapprochement que le pont faisait déjà (dans ses fonctions, rien qu'un morceau de module puisse porter) ; relevé de 2 797 à 2 803 au 1.319.0 (07/11/2026) : l'état du stock envoyé par le client se lit avec l'inventaire de l'année et une ligne d'inventaire garde sa valeur dite, dans les fonctions de l'inventaire que le pont traduisait déjà (rien qu'un morceau de module puisse porter)"
+      "auPlus": 2804,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5) ; relevé de 2 788 à 2 797 au lot 1.301.0 (07/11/2026) pour le 1.299.0 : une ligne du relevé répond de plusieurs écritures (la remise de chèques), ce qui change la traduction d'un rapprochement que le pont faisait déjà (dans ses fonctions, rien qu'un morceau de module puisse porter) ; relevé de 2 797 à 2 803 au 1.319.0 (07/11/2026) : l'état du stock envoyé par le client se lit avec l'inventaire de l'année et une ligne d'inventaire garde sa valeur dite, dans les fonctions de l'inventaire que le pont traduisait déjà (rien qu'un morceau de module puisse porter) ; puis à 2 804 au 1.320.0 : ce qui est reçu sans facture, lu avec l'état"
     }
   },
   "ecarts": {

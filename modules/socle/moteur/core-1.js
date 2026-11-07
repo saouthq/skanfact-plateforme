@@ -4268,7 +4268,28 @@
       return { itemId: r.itemId, ref: String(item.code || '').trim().slice(0, 60), libelle: r.label, unite: r.unit,
         quantite, cout: round3(valeur / quantite), valeur };
     });
-    return { date, lignes, total: round3(lignes.reduce((s, l) => s + l.valeur, 0)) };
+    return { date, lignes, total: round3(lignes.reduce((s, l) => s + l.valeur, 0)), sansFacture: receptionsSansFactureAu(data, date) };
+  }
+
+  // (1.320.0) Ce qui est REÇU SANS FACTURE à une date : les réceptions validées ce jour-là ou avant, qu'aucune facture
+  // d'achat datée ce jour-là ou avant ne couvre — la facture du 8 janvier ne couvre pas, au 31 décembre, la marchandise
+  // reçue le 28. La marchandise est déjà dans le stock compté ; sans sa charge, le bénéfice de l'année est trop haut : le
+  // comptable la passe en facture non parvenue. Chaque réception à sa valeur hors taxes au prix de la commande (celle
+  // que dit la réception), ramenée en dinars.
+  function receptionsSansFactureAu(data, dateIso) {
+    const date = String(dateIso || today()).slice(0, 10);
+    const couvertes = new Set();
+    (data.purchases || []).forEach(p => {
+      if (/^annul/.test(p.status || '') || String(p.date || '') > date) return;
+      (Array.isArray(p.receptions) ? p.receptions : []).forEach(x => { if (x && x.id) couvertes.add(x.id); });
+    });
+    const nomDe = id => String(((data.suppliers || []).find(f => f.id === id) || {}).name || '').trim();
+    const receptions = (data.receptions || []).filter(r => r.status === 'validée' && String(r.date || '') <= date && !couvertes.has(r.id))
+      .map(r => ({ receptionId: r.id, numero: r.number || '', date: r.date, fournisseur: nomDe(r.supplierId), commande: r.orderNumber || '',
+        ht: round3(toBase(r, round3((r.lines || []).reduce((a, l) => a + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0)), data.company || {})) }))
+      .filter(x => x.ht > 0)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.numero).localeCompare(String(b.numero)));
+    return { receptions, total: round3(receptions.reduce((a, x) => a + x.ht, 0)) };
   }
 
   // Le journal des mouvements, tous articles confondus, avec le stock de l'article après chaque ligne.

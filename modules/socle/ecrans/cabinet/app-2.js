@@ -20,12 +20,25 @@
     // il se reprend comme inventaire d'un geste, au coût moyen et à la valeur de sa page Stock.
     const etat = (d.duClient || [])[0] || null;
     const commeLeClient = !!(inv && etat && inv.date === etat.date && Math.abs((Number(inv.total) || 0) - (Number(etat.total) || 0)) < 0.0005);
+    // (1.320.0) Ce que le client avait reçu sans facture à cette date : la marchandise est dans le stock compté, sa charge dans
+    // aucun livre. Elle se passe en factures non parvenues (607 / 408), au brouillard ; déjà passée, la ligne le dit.
+    const sf = (etat && etat.sansFacture) || { total: 0, receptions: [] };
+    const fnp = sf.receptions.length ? ecritureFnpDeLAnnee(s.livre, s.annee) : null;
+    const blocSansFacture = !sf.receptions.length ? '' : `<div class="mt" id="iv-sans-facture">
+        <p class="small"><b>Reçu sans facture</b> au ${esc(fmtJour(etat.date))} : ${esc(pl(sf.receptions.length, 'réception'))}, <b class="nw">${esc(money(sf.total))}</b> HT ${info('iv.sansFacture')}</p>
+        <div class="scroll-x"><table class="list compact"><thead><tr><th>Réception</th><th>Fournisseur</th><th class="r nw">Hors taxes</th></tr></thead>
+        <tbody>${sf.receptions.map(r => `<tr><td class="nw">${esc(r.numero || '—')} <span class="muted">· ${esc(fmtJour(r.date))}${r.commande ? ` · ${esc(r.commande)}` : ''}</span></td>
+          <td class="tronq" title="${esc(r.fournisseur)}">${esc(r.fournisseur || '—')}</td><td class="r nw">${esc(money(r.ht))}</td></tr>`).join('')}</tbody></table></div>
+        ${fnp ? `<p class="small ligne-ok" id="iv-fnp-ok"><span aria-hidden="true">✓</span> Passées en factures non parvenues (${esc(fnp.piece || fnp.numero || '')}, ${fnp.statut === 'validee' ? 'validée' : 'au brouillard'}) : au 1er janvier, « Extourner » sur l'écriture la retourne.</p>`
+    : `<button class="btn btn-sm" id="iv-fnp">Passer en factures non parvenues…</button>`}
+      </div>`;
     const panneauClient = !etat ? '' : `<div class="panel mt" id="iv-client"><h2>L'état du stock envoyé par ${esc(dossier.name || 'le client')} ${info('iv.client')}</h2>
         <p class="small">Au <b>${esc(fmtJour(etat.date))}</b> : ${esc(pl(etat.lignes.length, 'article'))}, <b class="nw">${esc(money(etat.total))}</b> au coût moyen de son SkanFact${
           etat.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(String(etat.envoyeLe).slice(0, 10)))}</span>` : ''}.</p>
         ${commeLeClient ? `<p class="small ligne-ok" id="iv-client-ok"><span aria-hidden="true">✓</span> L'inventaire de ${esc(s.annee)} est celui que le client a envoyé.</p>`
     : inv ? `<p class="small warn-text" id="iv-client-ecart">L'inventaire saisi (${esc(money(inv.total))} au ${esc(fmtJour(inv.date))}) n'est pas l'état envoyé par le client.</p>` : ''}
         ${commeLeClient ? '' : `<button class="btn btn-sm${inv ? '' : ' btn-primary'}" id="iv-reprendre-client">Le reprendre comme inventaire…</button>`}
+        ${blocSansFacture}
       </div>`;
     return `<div class="filters">
       ${info('iv.etat')}
@@ -75,6 +88,8 @@
     [$('#iv-saisir', el), $('#iv-saisir2', el)].forEach(b => { if (b) b.onclick = () => inventaireForm(root, dossier); });
     const rc = $('#iv-reprendre-client', el);
     if (rc) rc.onclick = () => inventaireForm(root, dossier, (s.inv.duClient || [])[0] || null);
+    const fb = $('#iv-fnp', el);
+    if (fb) fb.onclick = () => facturesNonParvenuesForm(root, dossier, (s.inv.duClient || [])[0] || null);
     const ec = $('#iv-ecrire', el);
     if (ec) ec.onclick = async () => {
       ec.disabled = true;
@@ -84,6 +99,42 @@
         await chargerInventaire(root, dossier);
       } catch (err) { toast(plainError(err), 'error'); ec.disabled = false; }
     };
+  }
+
+  // (1.320.0) L'écriture des factures non parvenues de l'année, si elle est passée et compte encore (ni contre-passée, ni
+  // supprimée) : sa pièce est FNP-<année>, celle que pose `facturesNonParvenuesForm`.
+  function ecritureFnpDeLAnnee(livre, annee) {
+    return ((livre && livre.ecritures) || []).find(e => e.piece === `FNP-${annee}` && !e.contrepassee && e.statut !== 'contrepassee') || null;
+  }
+  // Ce qui s'écrit, montré avant : la date, les comptes, les montants ; au brouillard, donc encore modifiable.
+  function facturesNonParvenuesForm(root, dossier, etat) {
+    const s = livresState;
+    const r = KC.ecritureFacturesNonParvenues(etat, s.annee);
+    if (!r.ok) return toast(r.motif, 'error');
+    const e = r.ecriture;
+    modal(`<h2>Les factures non parvenues de ${esc(s.annee)}</h2>
+      <p class="small muted">${esc(dossier.name || 'Le client')} a reçu cette marchandise sans sa facture : elle est dans son stock compté, sa
+      charge dans aucun livre. Elle devient une charge de ${esc(s.annee)}, au ${esc(fmtJour(e.date))}.</p>
+      <div class="scroll-x"><table class="list compact" id="fnp-lignes"><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead>
+      <tbody>${e.lignes.map(l => `<tr><td class="nw">${esc(l.compte)}</td><td>${esc(l.libelle)}</td><td class="r nw">${l.debit ? esc(money(l.debit)) : ''}</td>
+        <td class="r nw">${l.credit ? esc(money(l.credit)) : ''}</td></tr>`).join('')}</tbody></table></div>
+      <p class="small muted mt">Elle arrive au <b>brouillard</b> (pièce ${esc(e.piece)}) : relis-la, change le compte de charge s'il le faut, puis valide-la.
+      Au 1er janvier, « Extourner » sur l'écriture la retourne, et la vraie facture prend sa place. La TVA de ces factures n'y est pas.</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        <button class="btn btn-primary" id="ok">Passer au brouillard</button></div>`,
+    (rootModal, close) => {
+      $('#ok', rootModal).onclick = async () => {
+        const b = $('#ok', rootModal);
+        b.disabled = true;
+        try {
+          if (ecritureFnpDeLAnnee(s.livre, s.annee)) throw new Error(`Les factures non parvenues de ${s.annee} sont déjà passées (FNP-${s.annee}) : les repasser compterait la charge deux fois.`);
+          const res = await api.saisir(dossier.id, s.annee, e);
+          s.livre = res.livre; close();
+          toast(`Factures non parvenues passées au brouillard : ${money(r.total)} au 408.`);
+          await chargerInventaire(root, dossier);
+        } catch (err) { toast(plainError(err), 'error'); b.disabled = false; }
+      };
+    });
   }
 
   async function chargerInventaire(root, dossier) {

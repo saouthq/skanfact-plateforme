@@ -4453,6 +4453,34 @@
     };
   }
 
+  // (1.320.0) Les FACTURES NON PARVENUES d'un état du stock envoyé par le client : ce qu'il a reçu sans facture à la date
+  // de l'état est dans son stock compté, mais sa charge n'est dans aucun livre ; sans elle, le bénéfice de l'année est trop
+  // haut. Elle devient une charge de l'exercice : 607 au débit pour le total hors taxes, 408 au crédit, une ligne par
+  // fournisseur. Au jour de l'état, au brouillard : le comptable la relit (le compte de charge se change), la valide, puis
+  // l'extourne au 1er janvier, quand la vraie facture prend sa place. La TVA de ces factures n'y est pas (À VÉRIFIER avec
+  // un comptable : un compte de TVA à régulariser, ou rien).
+  const COMPTES_FNP = { charge: '607', fournisseurs: '408' };
+  function ecritureFacturesNonParvenues(etat, annee) {
+    const sf = (etat && etat.sansFacture) || {};
+    const recs = (Array.isArray(sf.receptions) ? sf.receptions : []).filter(r => round3(num(r.ht)) > 0);
+    if (!recs.length) return { ok: false, motif: 'Le client n\'a rien reçu sans facture à cette date : il n\'y a pas de facture non parvenue à passer.' };
+    const date = txt(etat.date);
+    const jour = date.split('-').reverse().join('/');
+    if (date.slice(0, 4) !== String(annee)) return { ok: false, motif: `L'état du ${jour} n'est pas de l'exercice ${annee}.` };
+    const parFournisseur = new Map();
+    recs.forEach(r => {
+      const f = txt(r.fournisseur) || 'Fournisseur';
+      parFournisseur.set(f, round3((parFournisseur.get(f) || 0) + round3(num(r.ht))));
+    });
+    const total = round3([...parFournisseur.values()].reduce((a, x) => a + x, 0));
+    const lignes = [{ compte: COMPTES_FNP.charge, libelle: `Reçu sans facture au ${jour}`, debit: total, credit: 0 }]
+      .concat([...parFournisseur].map(([f, m]) => ({ compte: COMPTES_FNP.fournisseurs, libelle: `Facture non parvenue — ${f}`, debit: 0, credit: m })));
+    return {
+      ok: true, total, receptions: recs.length,
+      ecriture: { journal: 'OD', date, piece: 'FNP-' + annee, libelle: `Factures non parvenues au ${jour}`, source: 'inventaire', lignes }
+    };
+  }
+
   // ---------- la clôture d'exercice (9.8.0) ----------
   //
   // Ce que cette section fait : les écritures d'inventaire guidées, les contrôles avant clôture,
