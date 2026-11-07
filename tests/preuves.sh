@@ -25340,6 +25340,53 @@ prouver 'l'\''avance datée dans la période validée, sans un mot pendant la sa
   "majAvertValide(\$('#af2-valide', root), valideDeLAvance(v, majValideAv)," "majAvertValide(\$('#af2-valide', root), ''," \
   "$T305"
 
+# (1.306.0) Les Devis joués (un menuisier de Sfax) : le devis changé après l'envoi le dit pendant la saisie, après
+# l'enregistrement, jusqu'à ce qu'il reparte ; la réponse du client notée de toutes les portes avec la même fenêtre et le
+# même menu ; la fenêtre d'envoi de la facture ; la carte du client ; les dates à la française ; ce qui ne se recopie pas.
+T306="l'artisan de Sfax : un devis changé après l'envoi le dit jusqu'à ce qu'il reparte, et la réponse du client se note pareil de toutes les portes"
+ENVOIS="la facture part avec son lien, par e-mail puis par WhatsApp ; le devis aussi ; le relevé part sans rien de joint"
+APP1=modules/socle/ecrans/entreprise/app-1.js
+prouver 'le devis changé après l'\''envoi ne garde pas de marque' "$APP1" \
+  '    if (changeApresEnvoi) clean.modifieApresEnvoi = C.today();' '    if (changeApresEnvoi) void 0;' \
+  "$T306"
+prouver 'le devis changé après l'\''envoi ne le dit jamais' "$APP1" \
+  '      p.hidden = !enCours && !apres;' '      p.hidden = true;' \
+  "$T306"
+prouver 'un prix changé ne compte pas pour ce que le client lit' "$APP1" \
+  "(d.lines || []).map(l => [l.kind || '', l.label || '', l.description || '', Number(l.qty) || 0, l.unit || '', C.round3(Number(l.unitPrice) || 0)," \
+  "(d.lines || []).map(l => [l.kind || '', l.label || '', l.description || '', Number(l.qty) || 0, l.unit || '', 0," \
+  "$T306"
+prouver 'le devis reparti par e-mail se dit encore changé' "$APP1" \
+  'delete stored.modifieApresEnvoi; // reparti par e-mail' '// reparti par e-mail' \
+  "$T306"
+prouver 'l'\''enregistrement d'\''un devis déjà parti ne dit rien du client' "$APP1" \
+  "toastUndo(\`Enregistré : \${doc.number} — personne ne l'a dit à \${nomClientPiece(doc) || 'ton client'}\`" "toastUndo(\`Enregistré : \${doc.number}\`" \
+  "$T306"
+prouver 'la phrase après l'\''enregistrement oublie l'\''envoi' "$APP1" \
+  "        : apres ? \`Modifié le \${lfJm(apres)}, après l'envoi du \${le} : personne ne l'a dit à \${qui}.\` : '';" "        : apres ? \`Modifié le \${lfJm(apres)}.\` : '';" \
+  "$T306"
+prouver 'la fiche d'\''un client garde son propre menu de devis' "$APP1" \
+  "      if (d.type === 'devis') return actionsDevis(d, refaire);" '      void 0;' \
+  "$T306"
+prouver 'le devis part par l'\''ancienne fenêtre d'\''envoi' "$APP1" \
+  "    const charteM = doc.type === 'facture' || doc.type === 'avoir' || doc.type === 'devis';" "    const charteM = doc.type === 'facture' || doc.type === 'avoir';" \
+  "$T306"
+prouver 'un devis en brouillon offre « Le lien seul »' "$APP1" \
+  "    const lienSeul = lien && !(doc.type === 'devis' && (doc.status || 'brouillon') === 'brouillon');" '    const lienSeul = lien;' \
+  "$ENVOIS"
+prouver 'un client à deux devis passe pour nouveau' "$APP1" \
+  "          : !s.docs.some(d => d.id !== doc.id) ? '<span class=\"ed-chip\">premier document pour ce client</span>'" "          : true ? '<span class=\"ed-chip\">premier document pour ce client</span>'" \
+  "$T306"
+prouver 'un devis s'\''accepte avant sa date' "$APP1" \
+  '            if (doc.date && le < doc.date) return refus(champ,' '            if (false) return refus(champ,' \
+  "$T306"
+prouver 'le devis dupliqué garde le refus de l'\''autre' "$APP1" \
+  '    delete copy.reponse; delete copy.modifieApresEnvoi;' '    void 0;' \
+  "$T306"
+prouver 'une pièce tirée d'\''un devis porte son acceptation' modules/socle/moteur/core-2.js \
+  "    'reponse', 'modifieApresEnvoi'," '' \
+  "$T306"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

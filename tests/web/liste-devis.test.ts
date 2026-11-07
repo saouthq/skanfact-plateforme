@@ -149,7 +149,10 @@ describe('la liste des devis, à la souris et au clavier', () => {
     expect(titres).toContain('la pièce');
     expect(titres).not.toContain('facturer');
     await menu.getByRole('menuitem', { name: /Prolonger sa validité/ }).click();
-    await p.locator('#modal-root #pr-le').fill(jour(15));
+    // (1.306.0) Le champ de date de la plateforme, à la française.
+    const valable = p.locator('#modal-root .datefield').filter({ has: p.locator('input[name="pr-le"]') }).locator('.d-txt');
+    await valable.fill(jour(15).split('-').reverse().join('/'));
+    await valable.press('Tab');
     await p.locator('#modal-root #pr-ok').click();
     await expect.poll(() => td('q3', 'st')).toBe('Envoyé');
     expect(await td('q3', 'ech')).toBe(`${jm(jour(15))} encore 15 jours`);

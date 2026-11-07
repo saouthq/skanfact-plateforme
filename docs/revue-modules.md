@@ -628,3 +628,32 @@ la régularisation sur un mois suivant et la caisse ne la disent pas encore ; un
 « Payer les salaires » qu'une fois établis (le patron qui ne veut pas payer quelqu'un supprime d'abord son bulletin).
 
 Suivant : le module suivant de la revue.
+
+## Les devis
+
+### Fait en 1.306.0 (07/11/2026) : le devis changé après l'envoi, la réponse notée de toutes les portes
+
+Joué comme un menuisier de Sfax (« Menuiserie El Amen ») et ses deux clients. Ines Ben Ammar a reçu le devis de son
+dressing par e-mail il y a douze jours ; elle demande une porte miroir : la pose passe de 350 à 420 DT, sur un devis déjà
+chez elle. Hatem l'enregistre, le renvoie, puis note depuis la fiche d'Ines qu'elle a dit oui au téléphone la veille.
+L'Hôtel Thyna a un devis expiré (ses portes, qu'il veut encore réfléchir : on prolonge) et un devis parti par WhatsApp
+(son comptoir, parti chez un concurrent : refusé, avec son pourquoi) ; il revient pour un autre comptoir : on duplique.
+
+| # | Trouvé | Fait |
+|---|---|---|
+| D1 | Un devis déjà parti chez le client se changeait sans un mot : même numéro, nouveaux prix, et rien ne disait que personne ne l'avait prévenu. Son lien montre la version du jour (l'espace lit le dossier), mais le message qu'il a reçu disait l'autre. | « Ce que le client a reçu » le dit pendant la saisie (« Déjà envoyé à Ines Ben Ammar le 26/10 : enregistré, personne ne lui aura dit ces changements. Renvoie-le ensuite, il garde son numéro. »), à l'enregistrement (« Enregistré : DEV-2026-021 — personne ne l'a dit à Ines Ben Ammar », avec « Le renvoyer »), puis jusqu'au prochain envoi (« Modifié le 07/11, après l'envoi du 26/10 : personne ne l'a dit à Ines Ben Ammar. » et « Le renvoyer par e-mail », par le canal du dernier envoi). Ne comptent que ce que le client lit (dates, objet, remise, notes, lignes : texte, quantité, prix, TVA, remise) ; retaper le même prix ne dit rien. Reparti par e-mail ou par WhatsApp, la marque s'efface. Rien n'est bloqué. |
+| D2 | Depuis la fiche d'un client (et d'un contrat, et de l'accueil), « Le client a accepté » passait par une fenêtre à elle, qui ne notait ni la date, ni le canal, ni le pourquoi d'un refus : la frise du devis disait « Accepté » sans dire quand, le motif se perdait, et « Prolonger sa validité » n'y existait pas. | Un devis a le même menu partout : celui de la liste des devis (la réponse du client, la facture qui suit, les envois, la pièce), avec la même fenêtre que le devis (quand, comment, pourquoi). |
+| D3 | Le devis partait par l'ancienne fenêtre d'envoi (une adresse à taper, une case du lien), hors de la DA de la facture. | La fenêtre de la facture : les adresses du client cochées, une autre adresse, la copie pour soi, WhatsApp ou le lien seul ; sans ce qui ne regarde que la facture (le fichier El Fatoora, la signature) ; « Le lien seul » n'est pas offert à un devis encore en brouillon (l'espace ne le montre jamais) ; une relance de devis s'y titre « Relancer le devis … ». |
+| D4 | La carte du client disait « premier document pour ce client » à l'Hôtel Thyna, qui avait déjà deux devis : elle ne regardait que les factures. | « Premier document » seulement s'il n'en a aucun autre ; une facture pour qui n'avait que des devis dit « première facture pour ce client ». |
+| D5 | « Accepté le » et « Prolonger » prenaient la date du navigateur, pas le champ de date à la française de la plateforme ; une acceptation se notait avant la date du devis. | Le champ JJ/MM/AAAA de partout ; une date avant celle du devis, ou dans le futur, se refuse en montrant le champ (« Le devis est daté du 26/10/2026 : il n'a pas pu être accepté avant. »). |
+| D6 | « Dupliquer » un devis refusé recopiait son refus et son pourquoi ; une commande tirée d'un devis accepté (« Transformer ») portait son acceptation. | Le nouveau devis naît sans réponse ni marque ; une pièce tirée d'un devis non plus. |
+
+Vérifié côté Cabinet et pont : un devis n'entre pas dans les livres, et la comptable le lit dit (« Un devis n'entre pas
+dans les livres : il n'a pas d'écriture à ouvrir. ») ; « Écrire au cabinet sur ce devis » porte son numéro, son client et
+son total du jour. Ce que voit le client par son lien reste « En attente de ta réponse » : il ne répond pas en ligne.
+
+Limites connues : SkanFact ne sait pas quelle version le client a lue (son lien montre toujours la dernière) ; la marque
+ne se pose que sur un devis encore en attente (envoyé ou expiré) ; la fenêtre WhatsApp reste l'ancienne (pour la facture
+aussi) ; un devis changé ne propose pas encore de garder sa version envoyée en pièce jointe.
+
+Suivant : les factures, puis les clients, les achats, les fournisseurs et l'accueil.

@@ -3452,6 +3452,9 @@
     // La mention d'exonération de retenue se fige à l'émission (10.15.0, H7) : une pièce tirée d'une
     // facture émise se juge à SA date, pas avec l'attestation de l'autre.
     'exonerationRS',
+    // (1.306.0) La réponse du client à un devis (quand, comment, pourquoi) et sa marque « modifié après l'envoi » sont les
+    // siennes : une commande tirée d'un devis accepté ne porte pas son acceptation.
+    'reponse', 'modifieApresEnvoi',
     // Les bons de livraison qu'une facture regroupe (brique 86) sont les siens : une pièce tirée d'elle
     // n'en couvre aucun.
     'bonsLivraison'];

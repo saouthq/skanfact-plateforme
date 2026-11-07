@@ -4568,37 +4568,10 @@
     const refaire = () => (redraw || render)();
     $$('tr.clickable[data-id]').forEach(tr => tr.onclick = e => { if (e.target.closest('button')) return; navigate('#/doc/' + tr.dataset.id); });
 
-    // Répondre à un devis (7.28.0 : avec une question, et la suite).
-    //
-    // Skander : « quand j'appuie sur un devis accepté ou refusé, ça ne me demande pas de confirmer
-    // mon choix, ça ne me redirige pas si j'accepte, et ça ne m'indique pas. »
-    //
-    // Les trois manques sont vrais, et ils vont ensemble : un clic qui change l'état d'une pièce
-    // commerciale sans rien demander, sans rien dire, et sans proposer ce qui vient APRÈS. Or ce
-    // qui vient après un devis accepté, c'est la facture — c'est même tout l'intérêt de l'avoir
-    // accepté. La question et la suite tiennent dans UNE fenêtre : deux boîtes à la file se
-    // cliquent sans être lues.
-    const repondreAccepte = async id => {
-      const d = docById(id); if (!d) return;
-      const quoi = `${d.number || 'Ce devis'} — ${nomClientPiece(d)} — ${C.money(C.computeTotals(d, company()).totalTTC, docCur(d))}`;
-      const suite = await choiceDialog('Le client a accepté ?', `${quoi}\n\nLe devis passera en « accepté ». Tu peux facturer tout de suite, ou plus tard : le bouton reste dans la liste.`,
-        'Accepter et facturer', 'Accepter seulement');
-      if (!suite) return;
-      const avant = d.status;
-      d.status = 'accepté'; save(true);
-      if (suite === 'a') return facturerDevis(d);     // facturerDevis enregistre, annonce et ouvre le brouillon
-      refaire();
-      const dit = `${d.number || 'Devis'} accepté — « Facturer ce devis » t'attend dans le menu de la ligne`;
-      toastUndo(dit, () => { const x = docById(id); if (x) { x.status = avant; save(true); refaire(); } });
-    };
-    const repondreRefuse = async id => {
-      const d = docById(id); if (!d) return;
-      const quoi = `${d.number || 'Ce devis'} — ${nomClientPiece(d)} — ${C.money(C.computeTotals(d, company()).totalTTC, docCur(d))}`;
-      if (!await confirmDialog(`${quoi}\n\nMarquer ce devis « refusé » ? Il sortira de tes relances et de ton taux de conversion. Tu pourras revenir dessus.`, 'Le client a refusé', false, { titre: 'Le client a refusé ce devis ?' })) return;
-      const avant = d.status;
-      d.status = 'refusé'; save(true); refaire();
-      toastUndo(`${d.number || 'Devis'} marqué refusé`, () => { const x = docById(id); if (x) { x.status = avant; save(true); refaire(); } });
-    };
+    // Répondre à un devis (7.28.0 : avec une question, et la suite ; 1.155.8 : quand, comment, pourquoi). (1.306.0) Une seule
+    // fenêtre pour toutes les portes : la fiche d'un client passait par une fenêtre à elle, qui ne notait ni la date, ni le
+    // canal, ni le pourquoi d'un refus — la frise du devis disait « Accepté » sans dire quand, et le motif se perdait. Le menu
+    // d'un devis est donc celui de la liste des devis (`actionsDevis`), ici aussi.
 
     // Les actions d'une ligne, dans l'ordre où on en a besoin : ouvrir, puis ce qu'on envoie, puis
     // ce qui change l'état de la pièce.
@@ -4610,6 +4583,9 @@
     // d'actions par racine (9.4.8), et deux tables sur la même racine se mangent.
     bindRowMenus(anchor ? $(anchor) : document, id => {
       const d = docById(id); if (!d) return [];
+      // (1.306.0) Un devis a le même menu partout (la fiche d'un client, d'un contrat, l'accueil) : celui de la liste des devis,
+      // avec la réponse notée (quand, comment, pourquoi), « Prolonger sa validité » et la facture qui suit.
+      if (d.type === 'devis') return actionsDevis(d, refaire);
       // (plateforme) Chaque ligne dit ce que fait son geste ici (lot facture, 05/10/2026) : la même règle que les fenêtres
       // d'envoi (`sendByEmail`, `sendByWhatsApp`) pour le lien de la pièce.
       const emiseIci = C.isLocked(d);
@@ -4622,30 +4598,6 @@
       const reste = d.type === 'facture' && d.status !== 'brouillon' ? balance(d).remaining : 0;
       if (d.type === 'facture' && d.status !== 'annulée' && reste > 0.0005)
         a.push({ sep: true }, { icon: 'argent', label: 'Enregistrer un paiement', hint: `Reste ${C.money(reste, docCur(d))}`, run: () => paymentForm(d, refaire) });
-      // Facturer depuis la LISTE : c'est le geste qui rapporte de l'argent, et il n'existait qu'au
-      // fond d'un menu gris, à l'intérieur du devis.
-      //
-      // Et on propose le geste SUIVANT, jamais le geste passé (règle 7.16.0) : sur un devis déjà
-      // facturé, ce qu'on veut c'est voir la facture. « Refacturer la totalité » existe — une
-      // commande annulée puis reprise, ça arrive — mais en rouge et derrière la question que
-      // `facturerDevis` pose désormais lui-même.
-      if (d.type === 'devis' && d.status === 'accepté') {
-        const { totales, acomptes, brouillons } = piecesDuDevis(d.id);
-        if (totales.length || acomptes.length || brouillons.length) {
-          const faite = totales[0] || acomptes[0] || brouillons[0];
-          const nature = faite.deposit ? 'l\'acompte' : faite.settles ? 'la facture de solde' : 'la facture';
-          a.push({ sep: true });
-          // Un acompte est émis et rien n'a encore facturé le reste : le geste suivant est le SOLDE.
-          if (acomptes.length && !totales.length)
-            a.push({ icon: 'facture', label: 'Facturer le solde', hint: `Le devis, ${pl(acomptes.length, 'acompte')} déduit${sPl(acomptes.length)}`, run: () => facturerSolde(d) });
-          a.push(
-            { icon: 'facture', label: faite.number ? `Voir ${nature} ${faite.number}` : `Voir ${nature} en brouillon`, hint: `Ce devis a déjà donné ${totales.concat(acomptes, brouillons).map(nomDePiece).join(', ')}`, run: () => navigate('#/doc/' + faite.id) },
-            { sep: true },
-            { icon: 'copier', label: 'Refacturer la totalité…', hint: 'Une facture de plus, pour le montant entier du devis', danger: true, run: () => facturerDevis(d) });
-        } else {
-          a.push({ sep: true }, { icon: 'facture', label: 'Facturer ce devis', hint: 'Crée le brouillon de facture correspondant', run: () => facturerDevis(d) });
-        }
-      }
       // La suite d'une proforma, d'un bon de commande ou de livraison (10.12.0) : le menu n'en
       // proposait AUCUNE — « Transformer ▾ » vivait dans l'éditeur, donc une proforma payée par le
       // client se facturait en ouvrant la pièce pour y chercher un menu. Chaque suite prévue par
@@ -4676,11 +4628,6 @@
       if (d.type === 'livraison' && C.BON_LIVRE.includes(d.status) && !C.factureDuBon(data, d)
         && C.bonsAFacturer(data).filter(b => b.clientId === d.clientId).length > 1)
         a.push({ icon: 'facture', label: 'Facturer avec d\'autres bons…', hint: 'Une seule facture pour plusieurs bons de ce client', run: () => facturerDesBons(d.clientId) });
-      // Le statut d'un devis se saisit à la main (celui d'une facture se déduit des paiements).
-      if (d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)))
-        a.push({ sep: true },
-          { icon: 'oui', label: 'Le client a accepté', hint: 'Et facturer dans la foulée, si tu veux', run: () => repondreAccepte(id) },
-          { icon: 'non', label: 'Le client a refusé', hint: 'Le devis ne compte plus parmi ceux qui attendent', run: () => repondreRefuse(id) });
       return a;
     }, id => {
       // (1.153.0, la charte) Le titre du menu : la pièce qu'on touche, son numéro et son client.
@@ -4714,6 +4661,8 @@
     const isQ = doc.type === 'devis';
     const numbered = isQ || C.EXTRA_TYPES.includes(doc.type);   // ces pièces portent un numéro dès l'enregistrement
     const copy = { ...deepCopy(doc), id: C.uid(), number: '', status: 'brouillon', date: C.today(), createdAt: Date.now(), issuedTs: undefined, regimeTva: undefined, exonerationRS: undefined, payments: [], emails: [], reminders: [], attachments: [], withholdingCertificate: false, ticket: undefined, caisse: undefined, fromQuoteId: undefined, fromQuoteNumber: undefined, fromDocId: undefined, fromDocType: undefined, fromDocNumber: undefined, deposit: undefined, settles: undefined, recurringId: undefined, bonsLivraison: undefined, assetId: undefined };
+    // (1.306.0) Le refus (ou l'acceptation) d'un devis et sa marque « modifié après l'envoi » restent au devis d'origine.
+    delete copy.reponse; delete copy.modifieApresEnvoi;
     if (copy.dueDate) copy.dueDate = C.addDays(copy.date, C.delaiJours(isQ ? company().quoteValidityDays : company().paymentTermsDays, 30));
     if (numbered) copy.number = C.nextNumber(data, doc.type, copy.date);
     data.documents.push(copy); save(true);
@@ -5244,6 +5193,16 @@
   // Le statut d'un devis dans la liste : celui du devis (brouillon, envoyé, expiré, refusé) ; un devis accepté se dit par
   // ce qu'il a donné — « à facturer » (rien encore), « en facturation » (un acompte émis, ou une facture en brouillon),
   // « facturé » (une facture émise pour son total, ou son solde).
+  // (1.306.0) Ce que le client lit d'un devis : ses dates, son objet, sa remise, ses notes et ses lignes (texte, quantité, prix,
+  // TVA, remise de la ligne). Un devis déjà parti chez lui, changé ensuite : son lien montre la version du jour (l'espace lit le
+  // dossier), mais le message qu'il a reçu disait l'autre, et personne ne le lui a dit. L'éditeur le dit pendant la saisie, et
+  // après, jusqu'à ce qu'on le renvoie.
+  const empreinteDevis = d => JSON.stringify([d.date || '', d.dueDate || '', d.subject || '', Number(d.discountRate) || 0, d.notes || '',
+    (d.lines || []).map(l => [l.kind || '', l.label || '', l.description || '', Number(l.qty) || 0, l.unit || '', C.round3(Number(l.unitPrice) || 0), Number(l.vatRate) || 0, Number(l.discount) || 0])]);
+  const envoisDuDevis = d => ((d && d.emails) || []).filter(x => !/^relance/.test(x.kind || ''));
+  const devisChezLeClient = d => !!d && d.type === 'devis' && envoisDuDevis(d).length > 0 && ['envoyé', 'expiré'].includes(effStatus(d));
+  // Le renvoyer par le canal du dernier envoi (WhatsApp ou e-mail).
+  const renvoyerDevis = d => { const e = envoisDuDevis(d), der = e[e.length - 1]; return der && der.canal === 'whatsapp' ? sendByWhatsApp(d) : sendByEmail(d); };
   function ldStatut(d) {
     const st = effStatus(d);
     if (st !== 'accepté') return st;
@@ -5520,17 +5479,17 @@
     const propose = C.addDays(C.today(), C.delaiJours(company().quoteValidityDays, 30));
     modal(`<h2>Prolonger ${h(d.number || 'ce devis')}</h2>
       <p class="small muted">${h(nomClientPiece(d) || '')}${d.dueDate ? ` · valable jusqu'au ${C.fmtDate(d.dueDate)}` : ''}. Le client garde le même devis, au même prix ; renvoie-le ensuite s'il doit le savoir.</p>
-      <label class="field">${lbl('Valable jusqu\'au')}<input type="date" id="pr-le" value="${propose}" min="${C.addDays(C.today(), 1)}"></label>
+      ${dateFieldHtml(lbl('Valable jusqu\'au'), 'pr-le', propose)}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="pr-ok">${lfIc('horloge', 15)} Prolonger</button></div>`, (root, close) => {
       $('#pr-ok', root).onclick = () => {
-        const le = $('#pr-le', root).value;
-        if (!le || le <= C.today()) { toast('La nouvelle date doit venir après aujourd\'hui.', true); $('#pr-le', root).focus(); return; }
+        const champ = $('[name=pr-le]', root), le = champ.value;
+        if (!le || le <= C.today()) return refus(champ, 'La nouvelle date doit venir après aujourd\'hui.');
         const x = docById(d.id); if (!x) return;
         const avant = x.dueDate;
         x.dueDate = le; save(true); close(); if (apres) apres();
         toastUndo(`${x.number} valable jusqu'au ${C.fmtDate(le)}`, () => { const y = docById(d.id); if (y) { y.dueDate = avant; save(true); if (apres) apres(); } });
       };
-      $('#pr-le', root).focus();
+      $('.d-txt', root).focus();
     });
   }
 
@@ -6373,7 +6332,21 @@
         doc.dueDate ? `Valable jusqu'au ${C.fmtDate(doc.dueDate)}` : '',
         manque.length ? `Sans ${manque.join(' ni ')} : ${manque.length > 1 ? 'ils viendront' : 'il viendra'} sur la facture` : '',
       ].filter(Boolean);
-      return `<div class="panel ed-recu"><h3>Ce que le client a reçu</h3><ul>${l.map(x => `<li>${lfIc('coche', 14, 2.4)}<span>${x}</span></li>`).join('')}</ul></div>`;
+      // (1.306.0) Changé après cet envoi : pendant la saisie, puis enregistré, jusqu'à ce qu'il reparte (`majRecuChange`).
+      return `<div class="panel ed-recu"><h3>Ce que le client a reçu</h3><ul>${l.map(x => `<li>${lfIc('coche', 14, 2.4)}<span>${x}</span></li>`).join('')}</ul>
+        <p class="cab-valide" id="ed-recu-change" role="status" hidden>${lfIc('aide', 15)}<span></span></p>
+        <button type="button" class="btn btn-sm" id="ed-renvoyer" hidden>${dernier.canal === 'whatsapp' ? 'Le renvoyer par WhatsApp' : 'Le renvoyer par e-mail'}</button></div>`;
+    };
+    // Le paragraphe suit la saisie : des changements pas encore enregistrés, ou une version enregistrée que le client n'a pas.
+    const majRecuChange = () => {
+      const p = $('#ed-recu-change'); if (!p || !stored) return;
+      const enCours = empreinteDevis(doc) !== empreinteDevis(stored), apres = stored.modifieApresEnvoi;
+      const qui = nomClientPiece(doc) || 'ton client', e = envoisDuDevis(stored), le = e.length ? lfJm(e[e.length - 1].date) : '';
+      p.hidden = !enCours && !apres;
+      // Son lien lit le devis du jour (l'espace du client) : ce qui manque, c'est qu'on le lui dise.
+      $('span', p).textContent = enCours ? `Déjà envoyé à ${qui} le ${le} : enregistré, personne ne lui aura dit ces changements. Renvoie-le ensuite, il garde son numéro.`
+        : apres ? `Modifié le ${lfJm(apres)}, après l'envoi du ${le} : personne ne l'a dit à ${qui}.` : '';
+      const b = $('#ed-renvoyer'); if (b) b.hidden = enCours || !apres;
     };
 
     // L'en-tête de la maquette : le client en carte (dessinée par `majFicheClient`), la date, l'échéance et l'objet sur une
@@ -6717,6 +6690,7 @@
       brouillonDTimer = setTimeout(() => { if (document.contains(head)) garderDocMaintenant(); }, 1500);
     }
     function touch() {
+      majRecuChange();
       if (!figee) { noterModif(); programmerGarde(); garderDocPlusTard(); const neuf = Date.now() - presenceEcrit > 60_000; presenceEcrit = Date.now(); if (neuf && presenceSuivi) void presenceSuivi.tic(); }
       if (dirty || figee) return;
       dirty = true;
@@ -7536,7 +7510,11 @@
         enRetard > 0.0005 ? `<span class="ed-chip rouge">${lfIc('horloge', 13, 2)}doit <b>${C.money(s.due, base)}</b> · dont ${C.money(enRetard, base)} en retard de ${pl(Math.max(...retards.map(x => x.daysLate)), 'jour')}${figee ? '' : ' · <button type="button" class="lien" id="cl-relancer">Relancer</button>'}</span>`
         : s.due > 0.0005 ? `<span class="ed-chip ambre">doit <b>${C.money(s.due, base)}</b>${s.aRendre > 0.0005 ? ` · ${C.money(s.aRendre, base)} à son crédit` : ''}</span>`
           : s.aRendre > 0.0005 ? `<span class="ed-chip ambre">ne doit rien · <b>${C.money(s.aRendre, base)}</b> à son crédit, à rendre ou à déduire</span>`
-          : s.invoiceCount ? '<span class="ed-chip">ne doit rien</span>' : '<span class="ed-chip">premier document pour ce client</span>',
+          : s.invoiceCount ? '<span class="ed-chip">ne doit rien</span>'
+          // (1.306.0) « Premier document » seulement s'il n'en a vraiment aucun autre : l'Hôtel Thyna, deux devis déjà, passait
+          // pour un client nouveau. Une facture pour qui n'avait que des devis le dit.
+          : !s.docs.some(d => d.id !== doc.id) ? '<span class="ed-chip">premier document pour ce client</span>'
+          : isInv ? '<span class="ed-chip">première facture pour ce client</span>' : '',
         isQ && s.quoteCount ? `<span class="ed-chip">${pl(s.quoteCount, 'devis', 'devis')}${s.conversion != null ? ` · ${s.conversion} % acceptés` : ''}</span>` : '',
         s.delay != null ? `<span class="ed-chip">paie en ${pl(s.delay, 'jour')} en moyenne</span>` : '',
         derniere ? `<span class="ed-chip">dernière : <b>${h(derniere.number)}</b> · ${lfJm(derniere.date)} · ${C.money(C.computeTotals(derniere, company()).netToPay, docCur(derniere))}${figee ? '' : ` · <button type="button" class="lien" id="cl-refaire" data-refaire="${h(derniere.id)}">la refaire</button>`}</span>` : '',
@@ -7892,6 +7870,7 @@
       touch(); refreshTotals(); schedulePreview();
     }
     function refreshTotals() {
+      majRecuChange();
       const t = C.computeTotals(doc, company());
       const lbl2 = $('#stamp-lbl'); if (lbl2) lbl2.textContent = libelleTimbre();
       if (charte) {
@@ -8278,11 +8257,15 @@
       if (isAv) { const inv = doc.creditOf ? docById(doc.creditOf) : null; doc.creditOfNumber = inv ? inv.number : ''; }
       const idx = data.documents.findIndex(d => d.id === doc.id);
       const clean = deepCopy(doc);
+      // (1.306.0) Déjà parti chez le client, et changé : personne ne le lui a dit, jusqu'au prochain envoi.
+      changeApresEnvoi = isQ && idx >= 0 && devisChezLeClient(data.documents[idx]) && empreinteDevis(data.documents[idx]) !== empreinteDevis(clean);
+      if (changeApresEnvoi) clean.modifieApresEnvoi = C.today();
       if (idx >= 0) data.documents[idx] = clean; else data.documents.push(clean);
       save(true);
       untouch();
       return true;
     }
+    let changeApresEnvoi = false;
     // Le garde-fou de double-clic (9.1.0, F-9.1.0-25). Trouvé en relisant le cahier des charges,
     // jamais par un test : entre le clic sur « Émettre » et le redessin, la fenêtre de confirmation
     // est asynchrone (`await confirmDialog`). Deux clics rapides sur le bouton — ou un clic pendant
@@ -8379,7 +8362,7 @@
     bindBack(backTo);
     // (1.303.0) Lu d'avance : la fenêtre d'émission dit déjà la période que le cabinet a validée.
     if ((isInv || isAv) && !isIssued()) valideParLeCabinet();
-    if ($('#save')) $('#save').onclick = () => { if (persist()) { toast(isQ || isExtra ? 'Enregistré : ' + doc.number : 'Brouillon enregistré'); unlockedIds.delete(doc.id); if (isNew) remplacerPage('#/doc/' + doc.id); else render(true); } };
+    if ($('#save')) $('#save').onclick = () => { if (persist()) { if (changeApresEnvoi) toastUndo(`Enregistré : ${doc.number} — personne ne l'a dit à ${nomClientPiece(doc) || 'ton client'}`, () => { const x = docById(doc.id); if (x) renvoyerDevis(x); }, 'Le renvoyer'); else toast(isQ || isExtra ? 'Enregistré : ' + doc.number : 'Brouillon enregistré'); unlockedIds.delete(doc.id); if (isNew) remplacerPage('#/doc/' + doc.id); else render(true); } };
     if ($('#issue')) $('#issue').onclick = async () => {
       // `data-busy` sur le bouton : il se désactive VISIBLEMENT pendant le geste. Un bouton qui
       // refuse en silence fait recliquer (règle 7.0.0) ; celui-ci dit qu'il travaille.
@@ -8467,6 +8450,9 @@
     // elle ne protégeait que ce bouton-ci, et le menu de la liste passait à côté.
     if ($('#convert')) $('#convert').onclick = () => facturerDevis(doc);
     // (1.156.0, 1.260.0) La réponse du client : les fenêtres vivent avec le devis (`repondreAuDevis`), la liste les ouvre aussi.
+    // (1.306.0) Le devis changé après l'envoi : le renvoyer par le canal du dernier envoi.
+    if ($('#ed-renvoyer')) $('#ed-renvoyer').onclick = () => { if (dirty && !persist()) return; const x = docById(doc.id); if (x) renvoyerDevis(x); };
+    majRecuChange();
     if ($('#accepter')) $('#accepter').onclick = () => { if (dirty && !persist()) return; repondreAuDevis(doc, 'accepté', () => render()); };
     if ($('#refuser')) $('#refuser').onclick = () => { if (dirty && !persist()) return; repondreAuDevis(doc, 'refusé', () => render()); };
     if ($('#ed-transformer')) $('#ed-transformer').onclick = e => {
@@ -9372,7 +9358,7 @@
         <dl class="ed-recap">
           <div><dt>Devis</dt><dd><b>${ligne}</b></dd></div>
           <div><dt>Total</dt><dd><b>${C.money(t.totalTTC, cur)} TTC</b>${facture}</dd></div>
-          <div><dt><label for="rep-le">Accepté le</label></dt><dd><input type="date" id="rep-le" value="${C.today()}" max="${C.today()}"${doc.date ? ` min="${h(doc.date)}"` : ''}></dd></div>
+          <div><dt>Accepté le</dt><dd>${dateInput('rep-le', C.today())}</dd></div>
           <div><dt>Comment</dt><dd class="ed-recap-choix" role="group" aria-label="Comment le client a répondu">${Object.entries(COMMENT_REPONSE_DEVIS).map(([k, l], i) => `<button type="button" class="btn btn-sm${i ? '' : ' on'}" data-comment="${k}" aria-pressed="${i ? 'false' : 'true'}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</dd></div>
         </dl>
         <p class="small muted">Le devis passe « accepté ». Tu peux facturer tout de suite, ou plus tard : le bouton t'attend sur le devis et dans la liste.</p>
@@ -9381,8 +9367,11 @@
           let comment = Object.keys(COMMENT_REPONSE_DEVIS)[0];
           $$('[data-comment]', root).forEach(b => b.onclick = () => { comment = b.dataset.comment; $$('[data-comment]', root).forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); });
           const fin = async factur => {
-            const le = $('#rep-le', root).value;
-            if (!le || le > C.today()) { toast('La date de l\'acceptation ne peut pas être dans le futur.', true); $('#rep-le', root).focus(); return; }
+            // (1.306.0) Le champ de date de la plateforme (JJ/MM/AAAA), pas celui du navigateur ; son refus montre le champ.
+            const champ = $('[name=rep-le]', root), le = champ.value;
+            if (!le) return refus(champ, 'Donne la date où le client a dit oui (JJ/MM/AAAA).');
+            if (le > C.today()) return refus(champ, 'La date de l\'acceptation ne peut pas être dans le futur.');
+            if (doc.date && le < doc.date) return refus(champ, `Le devis est daté du ${C.fmtDate(doc.date)} : il n'a pas pu être accepté avant.`);
             const st = docById(doc.id); if (!st) return;
             const avant = { status: st.status, reponse: st.reponse ? deepCopy(st.reponse) : undefined };
             close();
@@ -12238,18 +12227,23 @@
     // (1.155.0, maquette « Envoyer la facture ») Une seule fenêtre : l'e-mail, WhatsApp ou le lien seul ; les adresses du
     // client cochées, une autre adresse, la copie pour soi ; ce qui part avec (le PDF, le lien, le fichier El Fatoora) ; et,
     // avant le geste, ce qui manque encore (la signature).
-    const charteM = doc.type === 'facture' || doc.type === 'avoir';
+    // (1.306.0) Le devis aussi : il partait par l'ancienne fenêtre (une adresse à taper, une case du lien), hors de la DA de
+    // la facture. Ce qui ne regarde que la facture (le fichier El Fatoora, la signature) n'y paraît pas.
+    const charteM = doc.type === 'facture' || doc.type === 'avoir' || doc.type === 'devis';
+    const factureM = doc.type === 'facture' || doc.type === 'avoir';
     const relanceM = /^relance\d$/.test(kind);
     const adresses = [...new Set([client.email, ...(String(client.email2 || '').split(/[,;\s]+/))].map(x => String(x || '').trim()).filter(x => /@/.test(x)))];
     const moi = String((company() || {}).email || '').trim();
-    const etatTtn = charteM && bridge.etatsTtnDe ? ((await bridge.etatsTtnDe([doc.id]).catch(() => ({})))[doc.id] || null) : null;
-    const pasSignee = charteM && C.isLocked(doc) && !C.estDemo(data) && etatTtn && etatTtn.etat === 'a_signer';
+    const etatTtn = factureM && bridge.etatsTtnDe ? ((await bridge.etatsTtnDe([doc.id]).catch(() => ({})))[doc.id] || null) : null;
+    const pasSignee = factureM && C.isLocked(doc) && !C.estDemo(data) && etatTtn && etatTtn.etat === 'a_signer';
     // (1.155.0, maquette « Relancer ») La relance : le canal avec l'adresse, le modèle choisi parmi les trois niveaux, le
     // message prêt (qu'on peut retoucher), la case du PDF et du lien, et ce qui s'est passé jusqu'ici. Sans « À » ni objet.
     const envoisD = (doc.emails || []).filter(x => !/^relance/.test(x.kind || '')), relancesD = (doc.emails || []).filter(x => /^relance/.test(x.kind || ''));
     const histoRelance = () => `${envoisD.length ? `Envoyée le ${h(C.fmtDate(envoisD[0].date))}` : 'Pas encore envoyée'} · ${relancesD.length ? `${pl(relancesD.length, 'relance')} jusqu'ici, la dernière le ${h(C.fmtDate(relancesD[relancesD.length - 1].date))}` : 'aucune relance pour l\'instant'}.`;
-    const formeCharteM = () => `<h2>${relanceM ? `Relancer ${h(client.name)}` : `Envoyer ${h(doc.number || docLabel(doc))}`}</h2>
-      <div class="choix-t env-canal" role="tablist" aria-label="Comment l'envoyer"><button type="button" class="on" data-canal="email">${lfIc('message', 15)}E-mail${relanceM && adresses[0] ? ` · ${h(adresses[0])}` : ''}</button><button type="button" data-canal="wa">WhatsApp</button>${lien ? '<button type="button" data-canal="lien">Le lien seul</button>' : ''}</div>
+    // Le lien seul d'un devis en brouillon : l'espace ne montre jamais un devis en brouillon (le serveur le refuse).
+    const lienSeul = lien && !(doc.type === 'devis' && (doc.status || 'brouillon') === 'brouillon');
+    const formeCharteM = () => `<h2>${relanceM ? `Relancer ${h(client.name)}` : kind === 'relanceDevis' ? `Relancer le devis ${h(doc.number)}` : `Envoyer ${h(doc.number || docLabel(doc))}`}</h2>
+      <div class="choix-t env-canal" role="tablist" aria-label="Comment l'envoyer"><button type="button" class="on" data-canal="email">${lfIc('message', 15)}E-mail${relanceM && adresses[0] ? ` · ${h(adresses[0])}` : ''}</button><button type="button" data-canal="wa">WhatsApp</button>${lienSeul ? '<button type="button" data-canal="lien">Le lien seul</button>' : ''}</div>
       <form id="mf" class="env-charte">
         ${relanceM ? `<label class="field">${lbl('Modèle', 'mail.relanceModele')}<select id="env-modele">${Object.entries(C.REMINDER_LABELS).map(([n, l]) => `<option value="${n}"${'relance' + n === kind ? ' selected' : ''}>${h(l)}${n === '1' ? ' · courtois' : n === '3' ? ' · ferme' : ''}</option>`).join('')}</select></label>` : ''}
         <div class="field"${relanceM && adresses.length ? ' hidden' : ''}><span>À</span><div class="env-a">${adresses.map((a, i) => `<label class="env-c${i === 0 ? ' on' : ''}"><input type="checkbox" data-adresse="${h(a)}" ${i === 0 ? 'checked' : ''}><span><b>${h(i === 0 ? (client.contact || client.name) : 'Autre adresse de la fiche')}</b><small>${h(a)}</small></span></label>`).join('')}</div>
@@ -12329,6 +12323,8 @@
             if (!client.email) { client.email = v.to; }
             const stored = docById(doc.id) || doc;
             stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: v.to, subject: v.subject, kind });
+            // (1.306.0) Reparti : le client sait ce qui a changé.
+            delete stored.modifieApresEnvoi; // reparti par e-mail
             if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
             if (afterSend) afterSend(stored, kind, 'email');
             save(true); close();
@@ -12398,6 +12394,7 @@
             if (!String(client.phone || '').trim()) client.phone = v.tel.trim();
             const stored = docById(doc.id) || doc;
             stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: '+' + n.numero, kind, canal: 'whatsapp' });
+            delete stored.modifieApresEnvoi; // reparti par WhatsApp
             if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
             if (afterSend) afterSend(stored, kind, 'whatsapp');
             save(true); close();

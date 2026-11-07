@@ -195,9 +195,12 @@ describe('les envois, à la souris', () => {
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Devis/);
     await plusTard(nadia);
     const devis = await envoi(nadia, /^(Email$|Envoyer par email…$|Par e-mail|Envoyer le devis$)/);
-    expect(await devis.getByLabel(/Ajouter le lien de la pièce/).isChecked()).toBe(true);
+    // (1.306.0) La fenêtre de la facture : le lien en puce, à côté du PDF ; sans « Le lien seul » tant qu'il est en brouillon
+    // (l'espace ne montre jamais un devis en brouillon).
+    expect(net(await devis.locator('.env-pj').innerText())).toContain('lien de la pièce');
+    expect(await devis.locator('[data-canal="lien"]').count()).toBe(0);
     expect(await devis.locator('textarea[name=body]').inputValue()).toMatch(/^Bonjour,\n\nVoici notre devis DEV-2026-001/);
-    expect(net(await devis.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes. Modèles d\'email : Paramètres → Envois.');
+    expect(net(await devis.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Le lien de la pièce s\'ajoute avant la formule de politesse.');
     await nadia.screenshot({ path: path.join(PHOTOS, 'envois-4-devis.png') });
     await devis.getByRole('button', { name: 'Annuler', exact: true }).click();
     const waDevis = await envoi(nadia, /^(WhatsApp$|Envoyer par WhatsApp…$|Par WhatsApp)/);
