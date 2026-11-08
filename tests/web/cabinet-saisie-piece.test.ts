@@ -216,6 +216,11 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     };
     await expect.poll(async () => (await raison(farine)).r, { timeout: 10_000 }).toBe('verifiee');
     await expect.poll(() => p.locator('#sx-rang').innerText()).toMatch(/sur 5$/);
+    // (1.324.2) Après le geste, la Saisie se redessine pendant que les documents du dossier se relisent : la grille, posée
+    // visible à ce moment-là, se recache quand tout est relu (la preuve « saisie 20 » restait verte la nuit : on ne la
+    // regardait qu'après « Lire la pièce »).
+    await p.waitForLoadState('networkidle');
+    await expect.poll(() => p.locator('.sx-km').isHidden(), { timeout: 5_000 }).toBe(true);
 
     // S3 : le ticket lu. Fournisseur, date et total « lus » ; sans TVA (un ticket) ; payé par carte le 24/09.
     await puce(p, 'Total Ennasr').click();

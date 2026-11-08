@@ -245,7 +245,10 @@ describe('la banque, à la souris', () => {
     // dont le libellé est long : une écriture au libellé court tiendrait même dans un tableau qui déborde.
     await p.locator(`.bq-km [data-bq-ligne="${L1}"]`).click();
     await expect.poll(() => p.locator('table.bq-ec').first().innerText().catch(() => '')).toMatch(/facture FA-2026-0042/);
-    expect(await p.locator('table.bq-ec').evaluateAll((ts) => ts.map((t) => t.getAttribute('data-cartes') === 'oui'))).not.toContain(true);
+    // (1.324.2) Les cartes se posent à l'image qui suit un changement (telephone.js) : on lit après deux images, sinon on lit
+    // un tableau que personne n'a encore regardé (la preuve « banque 10 » restait verte la nuit).
+    expect(await p.evaluate(() => new Promise<boolean[]>((ok) => requestAnimationFrame(() => requestAnimationFrame(() =>
+      ok([...document.querySelectorAll('table.bq-ec')].map((t) => t.getAttribute('data-cartes') === 'oui'))))))).not.toContain(true);
     // Et il tient dans son cadre : la colonne Crédit n'en sort pas.
     expect(await p.locator('table.bq-ec').first().evaluate((t) => [t.scrollWidth <= t.clientWidth + 1, t.getBoundingClientRect().right <= (t.closest('.bq-livre') as HTMLElement).getBoundingClientRect().right])).toEqual([true, true]);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-banque-4-telephone.png'), fullPage: true });

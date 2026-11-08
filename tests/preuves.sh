@@ -13002,9 +13002,9 @@ prouver "la réponse de la TTN noyée dans une phrase" "serveur/console/nosfactu
   "m.cle === 'ttn.refusee' && typeof m.valeurs.accuses" \
   "m.cle === 'jamais' && typeof m.valeurs.accuses" \
   "$NF3"
-prouver "une facture corrigée par un avoir dite payée en partie" "serveur/console/nosfactures.ts" \
-  "const etat = statut === 'partielle' && solde.paye <= 0n ?" \
-  "const etat = false ?" \
+prouver "une facture corrigée par un avoir dont la console oublie l'avoir" "serveur/console/nosfactures.ts" \
+  "  const solde = soldeFacture(p.net, p.avoirs, p.reglements);" \
+  "  const solde = soldeFacture(p.net, [], p.reglements);" \
   "$NF4"
 prouver "une acceptée comptée « pas encore acceptée »" "serveur/console/nosfactures.ts" \
   "return e !== 'acceptee' && e !== 'refusee';" \

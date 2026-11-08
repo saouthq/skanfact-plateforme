@@ -68,13 +68,13 @@ export function etatTtn(p: PieceLue): EtatTtn {
 
 // Le paiement d'une facture, par la règle de toutes les factures ; un avoir n'en a pas : il corrige sa facture. « En
 // partie » se dit d'un règlement reçu : une facture qu'un avoir corrige, sans rien de reçu, reste à payer (ou en retard),
-// et dit l'avoir déduit — comme les paiements (C30).
+// et dit l'avoir déduit — comme les paiements (C30). (1.324.2) Cette règle vit dans le moteur depuis 1.308.0
+// (`statutFacture`) : la console la prend telle quelle, avec les avoirs dans le solde.
 export type EtatPaiement = StatutFacture | 'avoir';
 export function etatPaiement(p: PieceLue, aujourdhui: string): { etat: EtatPaiement; reste: bigint; credite: bigint } {
   if (p.type === 'avoir') return { etat: 'avoir', reste: 0n, credite: 0n };
   const solde = soldeFacture(p.net, p.avoirs, p.reglements);
-  const statut = statutFacture(p.net, solde, p.echeance ?? undefined, aujourdhui);
-  const etat = statut === 'partielle' && solde.paye <= 0n ? (p.echeance && p.echeance < aujourdhui ? 'en_retard' : 'a_payer') : statut;
+  const etat = statutFacture(p.net, solde, p.echeance ?? undefined, aujourdhui);
   return { etat, reste: solde.reste > 0n ? solde.reste : 0n, credite: solde.credite };
 }
 
