@@ -482,8 +482,13 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     await puce(p, 'Total Ennasr').evaluate((b: HTMLElement) => b.click());
     await expect.poll(() => p.locator('#sx-four').inputValue()).toBe('Total Ennasr');
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-    const [dv, fi] = await Promise.all([p.locator('.sx-dv').boundingBox(), p.locator('#sx-fiche').boundingBox()]);
-    expect((fi?.y ?? 0)).toBeGreaterThan((dv?.y ?? 0) + (dv?.height ?? 0) - 1);
+    // La pièce et sa fiche se mesurent d'un seul coup, la page posée : deux mesures séparées pouvaient lire la pièce après
+    // qu'elle a grandi (son image arrivée) et la fiche avant qu'elle soit descendue (rouge GitHub de 1.323.0).
+    await expect.poll(() => p.evaluate(() => {
+      const dv = document.querySelector('.sx-dv')?.getBoundingClientRect();
+      const fi = document.querySelector('#sx-fiche')?.getBoundingClientRect();
+      return !!dv && !!fi && dv.height > 0 && fi.top > dv.bottom - 1;
+    })).toBe(true);
     for (const b of await p.locator('#sx-fiche .sx-gestes .btn').all()) expect((await b.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
     await p.locator('#sx-fiche').scrollIntoViewIfNeeded();
     await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-tel.png') });

@@ -176,7 +176,8 @@ describe('les factures 1.308.0 : encaisser, relancer, corriger', () => {
     await p.locator('#ed-relancer').click();
     await fen().locator('#ok').waitFor({ timeout: 10_000 });
     expect(net(await fen().locator('h2').innerText())).toBe('Relancer Ines Ben Ammar');
-    expect(await fen().locator('textarea[name=body]').inputValue()).toMatch(/^Bonjour,\n\nSauf erreur de notre part, la facture FAC-2026-002 \(1\s940,403\sDT\) arrivée à échéance le 23\/10\/2026 reste en attente de règlement\./);
+    // L'échéance est celle de la pièce (il y a 15 jours, à Tunis), jamais une date écrite le jour où le test l'a été.
+    expect(await fen().locator('textarea[name=body]').inputValue()).toMatch(new RegExp(`^Bonjour,\\n\\nSauf erreur de notre part, la facture FAC-2026-002 \\(1\\s940,403\\sDT\\) arrivée à échéance le ${jourDe(-15).split('-').reverse().join('/')} reste en attente de règlement\\.`));
     await photo('b-relance');
     await fen().locator('#ok').click();
     await p.locator('#mf-envoye').click().catch(() => undefined);
@@ -245,7 +246,7 @@ describe('les factures 1.308.0 : encaisser, relancer, corriger', () => {
     // La retenue naît à chaque paiement (4358), l'avoir recrédite le client, les espèces vont en caisse.
     expect(lignes).toContain('4358 Hôtel Thyna Retenue à la source subie FAC-2026-001 30,452 DT');
     expect(lignes).toContain('4358 Hôtel Thyna Retenue à la source subie FAC-2026-001 58,825 DT');
-    expect(lignes.some((x) => x.startsWith('brouillard 07/11/2026 VT AVO-2026-001 411 Café El Medina Avoir AVO-2026-001') && x.includes('172,848 DT'))).toBe(true);
+    expect(lignes.some((x) => x.startsWith(`brouillard ${jourDe(0).split('-').reverse().join('/')} VT AVO-2026-001 411 Café El Medina Avoir AVO-2026-001`) && x.includes('172,848 DT'))).toBe(true);
     expect(lignes).toContain('411 Café El Medina Règlement FAC-2026-003 — Café El Medina 1 317,437 DT');
     await c.screenshot({ path: path.join(PHOTOS, 'factures-1308-d-cabinet.png'), fullPage: true });
     noter('erreurs', erreurs);
