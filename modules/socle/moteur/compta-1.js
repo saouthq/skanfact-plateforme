@@ -55,6 +55,8 @@
   // déjà déclaré (règle 6.0.0). « Aujourd'hui » s'écrit donc `jourDeLInstant(Date.now())`.
   function jourDeLInstant(t) {
     if (t === '' || t == null) return '';
+    // (1.323.1) Un jour de calendrier est déjà un jour : « 2026-11-08 » lu comme minuit UTC tomberait la veille à l'ouest.
+    if (typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
     const d = new Date(t);
     if (isNaN(d.getTime())) return '';
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

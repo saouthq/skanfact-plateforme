@@ -1198,3 +1198,19 @@ boulangerie Jaziri depuis sa fiche (« Facturer la cession ») et achète un fou
   l'export, le téléphone, le Cabinet et son journal), preuves `statistiques 1.323 a-x`.
 
 **À VÉRIFIER** avec un comptable : la TVA sur la revente d'un bien dont la TVA n'a pas été déduite à l'achat.
+
+## Le jour d'un geste, entre minuit et une heure (1.323.1)
+
+*08/11/2026. Le rouge GitHub de 1.322.0 : le test des relances a tourné à 23 h 30 en temps universel, déjà le 8 novembre
+à Tunis ; la carte disait « Envoyé le 07/11/2026 ».*
+
+- L'heure d'un geste (envoyer un état au comptable, proposer ou accepter une correction de bulletin, importer la pointeuse,
+  poser une question, importer un relevé, demander une date, déposer une déclaration, noter une relance, commander une
+  offre, supprimer un brouillon) est gardée en temps universel ; l'écran en coupait les dix premiers caractères. Entre
+  minuit et une heure à Tunis, c'était la veille — et « lue le 07/11 à 00 h 30 » mêlait le jour universel et l'heure locale.
+- Tous ces endroits, dans l'entreprise, la paie et le Cabinet, passent désormais par `jourDeLInstant` (la règle 5.2.3,
+  qui existait : les cartes « pour ton comptable » des 1.319 à 1.322 ne s'en servaient pas). Un jour de calendrier
+  (« 2026-11-08 ») y reste ce jour, à l'ouest comme à l'est.
+- La preuve : `tests/moteur/jour-local-1323.test.ts` (Tunis, São Paulo, Tokyo), `tests/web/jour-local-1323.test.ts`
+  (les deux navigateurs réglés sur 0 h 30 le 8 novembre à Tunis : l'entreprise et le Cabinet disent le 8), preuves
+  `jour local 1.323.1 a-d`.

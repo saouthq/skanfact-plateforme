@@ -26422,6 +26422,28 @@ prouver 'statistiques 1.323 w : au Cabinet, le mois des livres ne s'\''ouvre pas
 prouver 'statistiques 1.323 x : le serveur passe la revente aux ventes' serveur/compta/ventes.ts \
   'ventes: cession ? plan.plan.produitsCession : plan.plan.ventes,' 'ventes: plan.plan.ventes,' \
   "$STAW"
+# (1.323.1) Le jour d'un geste est celui de Tunis : un instant gardé en temps universel se lit avec `jourDeLInstant` (règle
+# 5.2.3), à l'écran comme au Cabinet ; un jour de calendrier reste ce jour. Le rouge GitHub de 1.322.0 (0 h 30 à Tunis).
+JLO1="0 h 30 le 8 novembre à Tunis est le 8, même si le temps universel dit encore le 7"
+JLO2="un jour de calendrier reste ce jour, à l'ouest comme à l'est ; un instant vide ou illisible ne dit rien"
+JLOW="à 0 h 30 le 8 novembre à Tunis, l'état envoyé se dit du 8, chez l'entreprise comme au Cabinet"
+prouver 'jour local 1.323.1 a : l'\''instant gardé se coupe en temps universel' modules/socle/moteur/compta-1.js \
+  '    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '\''0'\'')}-${String(d.getDate()).padStart(2, '\''0'\'')}`;
+  }
+  // 10.12.0 (U-28)' '    return d.toISOString().slice(0, 10);
+  }
+  // 10.12.0 (U-28)' \
+  "$JLO1"
+prouver 'jour local 1.323.1 b : un jour de calendrier se lit comme minuit en temps universel' modules/socle/moteur/compta-1.js \
+  '    if (typeof t === '\''string'\'' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+' '' \
+  "$JLO2"
+prouver 'jour local 1.323.1 c : la carte des impayés coupe l'\''instant de l'\''envoi' modules/socle/ecrans/entreprise/app-1.js \
+  'id="ei-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(C.jourDeLInstant(deja.envoyeLe))}' 'id="ei-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(String(deja.envoyeLe || '\'''\'').slice(0, 10))}' \
+  "$JLOW"
+prouver 'jour local 1.323.1 d : au Cabinet, l'\''état des impayés coupe l'\''instant de l'\''envoi' modules/socle/ecrans/cabinet/app-2.js \
+  'fmtJour(KC.jourDeLInstant(imp.envoyeLe))' 'fmtJour(String(imp.envoyeLe).slice(0, 10))' \
+  "$JLOW"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -2264,7 +2264,7 @@
       const mo = MONTHS_LONG[m - 1];
       if (corr) {
         const c = corr.correction, net0 = corr.c.net, lignes = Array.isArray(c.lignes) ? c.lignes : [];
-        return `<div class="bandeau rouge pa-bandeau pa-rouge" id="p-corr" role="status">${lfIc('comptable', 18)}<span class="txt"><b>${h(c.par || 'Ton comptable')} propose une correction${c.titre ? ` : ${h(c.titre)}` : ` du bulletin de ${h(corr.employeeName)}`}</b><span>${c.le ? `Le ${h(C.fmtDate(String(c.le).slice(0, 10)))}` : 'Proposée'}${c.motif ? ` : « ${h(c.motif)} »` : ''} Elle ne s'applique que si tu l'acceptes ; les autres bulletins ne bougent pas.</span></span><button type="button" class="btn" id="p-corr-non">Refuser, je m'en occupe</button></div>
+        return `<div class="bandeau rouge pa-bandeau pa-rouge" id="p-corr" role="status">${lfIc('comptable', 18)}<span class="txt"><b>${h(c.par || 'Ton comptable')} propose une correction${c.titre ? ` : ${h(c.titre)}` : ` du bulletin de ${h(corr.employeeName)}`}</b><span>${c.le ? `Le ${h(C.fmtDate(C.jourDeLInstant(c.le)))}` : 'Proposée'}${c.motif ? ` : « ${h(c.motif)} »` : ''} Elle ne s'applique que si tu l'acceptes ; les autres bulletins ne bougent pas.</span></span><button type="button" class="btn" id="p-corr-non">Refuser, je m'en occupe</button></div>
           <section class="pa-carte" id="p-corr-detail"><div class="pa-carte-t"><b>La correction proposée · bulletin de ${h(corr.employeeName)}</b><span class="mu">avant, après</span></div>
           <div class="scroll-x"><table class="list compact"><thead><tr><th>Ligne</th><th class="r">Ton bulletin</th><th class="r">Corrigé</th></tr></thead><tbody>
           ${lignes.map(l => `<tr><td>${h(l.libelle || '')}</td><td class="r nw">${h(l.avant == null ? '—' : typeof l.avant === 'number' ? C.money(l.avant, cur) : l.avant)}</td><td class="r nw"><b>${h(l.apres == null ? '—' : typeof l.apres === 'number' ? C.money(l.apres, cur) : l.apres)}</b></td></tr>`).join('')}
@@ -2284,7 +2284,7 @@
         return `<div class="bandeau rouge pa-bandeau pa-rouge" id="p-rev-b" role="status">${lfIc('alerte', 18)}<span class="txt"><b>Le salaire de ${h(rev.employeeName)} n'est pas arrivé : ${C.money(rev.c.net, cur)}</b><span>${h(der.raison || 'Paiement annulé')} le ${C.fmtDate(der.le)} (payé le ${C.fmtDate(der.paidDate)}). Son bulletin reste juste ; c'est le paiement qui est à refaire. Le retard se dit à ${h(String(rev.employeeName || '').split(' ')[0])} : c'est son salaire.</span></span>
           <button type="button" class="btn btn-sm" id="p-rev-rib">${lfIc('carte', 14)} ${e.iban ? 'Changer son RIB' : 'Saisir son RIB'}</button><button type="button" class="btn btn-sm btn-primary" id="p-rev-payer">Repayer ${h(String(rev.employeeName || '').split(' ')[0])} · ${C.money(rev.c.net, cur)}</button></div>`;
       }
-      if (acc) return `<div class="bandeau info pa-bandeau" id="p-corr-acc" role="status">${lfIc('coche', 18)}<span class="txt"><b>Correction acceptée : le bulletin de ${h(acc.employeeName)}</b><span>Proposée par ${h(acc.correction.par || 'ton comptable')}${acc.correction.le ? ` le ${h(C.fmtDate(String(acc.correction.le).slice(0, 10)))}` : ''}, acceptée par toi le ${h(C.fmtDate(String(acc.correction.reponduLe || C.today()).slice(0, 10)))} ; le bulletin le garde écrit.</span></span><button type="button" class="btn" id="p-corr-voir">Voir le bulletin</button></div>`;
+      if (acc) return `<div class="bandeau info pa-bandeau" id="p-corr-acc" role="status">${lfIc('coche', 18)}<span class="txt"><b>Correction acceptée : le bulletin de ${h(acc.employeeName)}</b><span>Proposée par ${h(acc.correction.par || 'ton comptable')}${acc.correction.le ? ` le ${h(C.fmtDate(C.jourDeLInstant(acc.correction.le)))}` : ''}, acceptée par toi le ${h(C.fmtDate(C.jourDeLInstant(acc.correction.reponduLe || C.today())))} ; le bulletin le garde écrit.</span></span><button type="button" class="btn" id="p-corr-voir">Voir le bulletin</button></div>`;
       return '';
     }
     function lierBandeauxDuMois(month, y, m) {
@@ -3131,7 +3131,7 @@
       const Q = st.equipes || [];
       const groupes = [...Q.map(q => ({ q, L: L.filter(e => e.equipeId === q.id) })), { q: null, L: L.filter(e => !Q.some(q => q.id === e.equipeId)) }].filter(g => g.L.length);
       const im = dernierImport();
-      const eqT = g => g.q ? `<b>${h(g.q.nom || 'Équipe')}</b><span class="mu">${g.q.debut && g.q.fin ? `${h(g.q.debut)} – ${h(g.q.fin)} · ` : ''}${g.q.pointe === 'pointeuse' ? `la pointeuse${im ? ` : badges lus le ${h(jjmm(im.le.slice(0, 10)))} à ${h(heureDe(im.le))}` : ' : aucun badge importé'}` : 'à la main'}</span>`
+      const eqT = g => g.q ? `<b>${h(g.q.nom || 'Équipe')}</b><span class="mu">${g.q.debut && g.q.fin ? `${h(g.q.debut)} – ${h(g.q.fin)} · ` : ''}${g.q.pointe === 'pointeuse' ? `la pointeuse${im ? ` : badges lus le ${h(jjmm(C.jourDeLInstant(im.le)))} à ${h(heureDe(im.le))}` : ' : aucun badge importé'}` : 'à la main'}</span>`
         : `<b>${Q.length ? 'Sans équipe' : 'Toute l\'entreprise'}</b><span class="mu">les horaires de l'entreprise · à la main</span>`;
       const deb = Math.max(1, Math.min(d - 5, n - 6));
       const nav = Array.from({ length: Math.min(7, n) }, (_, k) => deb + k).map(dd => {
@@ -3533,7 +3533,7 @@
     function ptValideHtml(y, m) {
       const ym = ymPt(y, m), V = versionsPt(ym); if (!V.length) return '';
       const v = V[V.length - 1], ouvert = !ptVerrouille(ym), mois = MONTHS_LONG[m - 1], cab = sansCabinetRelie() ? '' : 'Ton cabinet';
-      const quand = `le ${C.fmtDate(v.le.slice(0, 10)).slice(0, 5)} à ${new Date(v.le).toTimeString().slice(0, 5).replace(':', ' h ')}`;
+      const quand = `le ${C.fmtDate(C.jourDeLInstant(v.le)).slice(0, 5)} à ${new Date(v.le).toTimeString().slice(0, 5).replace(':', ' h ')}`;
       return ouvert
         ? `<div class="bandeau ambre pa-bandeau" id="pt-valide">${lfIc('ecriture', 18)}<span class="txt"><b>Correction en cours : la version ${V.length + 1} du pointage ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${h(mois)}</b><span>La version ${V.length} (validée ${quand}) reste gardée ; valide à nouveau quand c'est fait : SkanFact dira ce qui a changé.</span></span><button type="button" class="btn btn-sm" id="pt-voir-v">Voir la version ${V.length}</button></div>`
         : `<div class="bandeau info pa-bandeau" id="pt-valide">${lfIc('cadenas', 18)}<span class="txt"><b>Validé ${quand} : le pointage ${/^[aeiouyéè]/i.test(mois) ? 'd\'' : 'de '}${h(mois)} est verrouillé</b><span>Version ${V.length}${v.note ? `, ${h(v.note)}` : ''}.${cab ? ` ${h(cab)} le lit tel quel.` : ''} Une correction fait une version ${V.length + 1}, avec ce qui a changé.</span></span><span class="pa-bandeau-g"><button type="button" class="btn btn-sm" id="pt-voir-v">Voir la version validée</button><button type="button" class="btn btn-sm" id="pt-corriger">${lfIc('ecriture', 14)} Corriger : une nouvelle version</button></span></div>`;
@@ -3553,7 +3553,7 @@
       const V = versionsPt(ymPt(y, m)), v = V[V.length - 1]; if (!v) return;
       const maint = instantPt(y, m), d = diffPt(v.instant, maint), avant = V.length > 1 ? diffPt(V[V.length - 2].instant, v.instant) : [];
       modal(`<h2>Le pointage ${/^[aeiouyéè]/i.test(MONTHS_LONG[m - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[m - 1])} · version ${V.length}</h2>
-        <p class="sous-f">validée le ${h(C.fmtDate(v.le.slice(0, 10)))}${v.par ? ` par ${h(v.par)}` : ''} : ce que chaque bulletin en reprend</p>
+        <p class="sous-f">validée le ${h(C.fmtDate(C.jourDeLInstant(v.le)))}${v.par ? ` par ${h(v.par)}` : ''} : ce que chaque bulletin en reprend</p>
         <table class="mini lu"><thead><tr><th>Salarié</th><th class="r">Payés</th><th class="r">H. sup</th><th class="r">Sans solde</th><th class="r">Retards</th></tr></thead><tbody>
           ${Object.values(v.instant).map(x => `<tr><td>${h(x.nom)}</td><td class="r">${pct(x.payes)} j</td><td class="r">${x.hs.length ? x.hs.map(([k, h2]) => `${pct(h2)} h (+${pct(k)} %)`).join(', ') : '—'}</td><td class="r">${x.absences ? `${pct(x.absences)} j` : '—'}</td><td class="r">${x.retards || '—'}</td></tr>`).join('')}</tbody></table>
         ${avant.length ? `<p class="small"><b>Ce qui a changé depuis la version ${V.length - 1}</b> : ${avant.map(h).join(' ; ')}.</p>` : ''}
@@ -3638,7 +3638,7 @@
           $('#ib-t', root).innerHTML = `<tbody>
             <tr><td>Badges lus</td><td class="num">${lu.passages.length}${lu.illisibles ? ` <small class="warn-text">${pl(lu.illisibles, 'ligne illisible', 'lignes illisibles')}</small>` : ''}</td></tr>
             <tr><td>Rattachés à un salarié<small>par le n° de badge de sa fiche</small></td><td class="num">${r.rattaches}</td></tr>
-            <tr><td>Déjà importés${dernierImport() ? `<small>le ${h(C.fmtDate(dernierImport().le.slice(0, 10)))}</small>` : ''}, ignorés</td><td class="num">${r.deja}</td></tr>
+            <tr><td>Déjà importés${dernierImport() ? `<small>le ${h(C.fmtDate(C.jourDeLInstant(dernierImport().le)))}</small>` : ''}, ignorés</td><td class="num">${r.deja}</td></tr>
             ${r.inconnus.length ? `<tr><td>Badges qu'aucune fiche ne porte<small>pose leur n° sur la fiche du salarié, puis importe à nouveau</small></td><td class="num warn-text">${h(r.inconnus.join(', '))}</td></tr>` : ''}
             <tr><td>Anomalies</td><td class="num"><b>${an.length}</b> <small>${[sorties ? pl(sorties, 'sortie manquante', 'sorties manquantes') : '', sans ? pl(sans, 'jour sans badge', 'jours sans badge') : ''].filter(Boolean).join(' · ') || 'aucune'}</small></td></tr></tbody>`;
           const neuf = r.rattaches - r.deja;
@@ -3681,7 +3681,7 @@
     function ptPointeuseHtml(y, m) {
       const Q = aLaPointeuse(); if (!Q.length) return '';
       const im = dernierImport();
-      return `<div class="bandeau gris pa-bandeau pa-gris" id="pt-pointeuse">${lfIc('importer', 18)}<span class="txt"><b>${im ? `La pointeuse, lue le ${h(C.fmtDate(im.le.slice(0, 10)))} à ${h(new Date(im.le).toTimeString().slice(0, 5).replace(':', ' h '))} : ${pl(im.rattaches, 'badge')}` : `${h(Q.map(q => q.nom).join(', '))} : à la pointeuse`}</b><span>${im ? `Chaque badge va au salarié qui a ce n° de badge sur sa fiche ; les congés et absences saisis se posent d'eux-mêmes. Tu peux aussi pointer à la main, case par case.` : `Importe le fichier de la pointeuse : chaque badge va au salarié qui a ce n° sur sa fiche, et SkanFact dit ce qui manque.`}</span></span><button type="button" class="btn btn-sm" id="pt-import">${im ? 'Importer à nouveau…' : 'Importer la pointeuse…'}</button></div>
+      return `<div class="bandeau gris pa-bandeau pa-gris" id="pt-pointeuse">${lfIc('importer', 18)}<span class="txt"><b>${im ? `La pointeuse, lue le ${h(C.fmtDate(C.jourDeLInstant(im.le)))} à ${h(new Date(im.le).toTimeString().slice(0, 5).replace(':', ' h '))} : ${pl(im.rattaches, 'badge')}` : `${h(Q.map(q => q.nom).join(', '))} : à la pointeuse`}</b><span>${im ? `Chaque badge va au salarié qui a ce n° de badge sur sa fiche ; les congés et absences saisis se posent d'eux-mêmes. Tu peux aussi pointer à la main, case par case.` : `Importe le fichier de la pointeuse : chaque badge va au salarié qui a ce n° sur sa fiche, et SkanFact dit ce qui manque.`}</span></span><button type="button" class="btn btn-sm" id="pt-import">${im ? 'Importer à nouveau…' : 'Importer la pointeuse…'}</button></div>
 `;
     }
     function lierPointeuse(y, m, apres) {

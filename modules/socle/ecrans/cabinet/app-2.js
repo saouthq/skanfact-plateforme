@@ -34,7 +34,7 @@
       </div>`;
     const panneauClient = !etat ? '' : `<div class="panel mt" id="iv-client"><h2>L'état du stock envoyé par ${esc(dossier.name || 'le client')} ${info('iv.client')}</h2>
         <p class="small">Au <b>${esc(fmtJour(etat.date))}</b> : ${esc(pl(etat.lignes.length, 'article'))}, <b class="nw">${esc(money(etat.total))}</b> au coût moyen de son SkanFact${
-          etat.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(String(etat.envoyeLe).slice(0, 10)))}</span>` : ''}.</p>
+          etat.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(KC.jourDeLInstant(etat.envoyeLe)))}</span>` : ''}.</p>
         ${commeLeClient ? `<p class="small ligne-ok" id="iv-client-ok"><span aria-hidden="true">✓</span> L'inventaire de ${esc(s.annee)} est celui que le client a envoyé.</p>`
     : inv ? `<p class="small warn-text" id="iv-client-ecart">L'inventaire saisi (${esc(money(inv.total))} au ${esc(fmtJour(inv.date))}) n'est pas l'état envoyé par le client.</p>` : ''}
         ${commeLeClient ? '' : `<button class="btn btn-sm${inv ? '' : ' btn-primary'}" id="iv-reprendre-client">Le reprendre comme inventaire…</button>`}
@@ -47,7 +47,7 @@
     const aProvisionner = l => !!l.litige || (Number(l.retard) || 0) > 90;
     const panneauImpayes = !imp || !(imp.lignes || []).length ? '' : `<div class="panel mt" id="iv-impayes"><h2>Les impayés de ${esc(dossier.name || 'du client')} ${info('iv.impayes')}</h2>
         <p class="small">${esc(pl(imp.lignes.length, 'facture'))} en retard, <b class="nw">${esc(money(Number(imp.total) || 0))}</b> toutes taxes${
-          Number(imp.contestees) ? `, dont ${esc(pl(Number(imp.contestees), 'contestée'))} par son client` : ''}${imp.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(String(imp.envoyeLe).slice(0, 10)))}</span>` : ''}.</p>
+          Number(imp.contestees) ? `, dont ${esc(pl(Number(imp.contestees), 'contestée'))} par son client` : ''}${imp.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(KC.jourDeLInstant(imp.envoyeLe)))}</span>` : ''}.</p>
         <div class="scroll-x"><table class="list compact" id="iv-impayes-t"><thead><tr><th>Facture</th><th>Client</th><th class="r nw">Retard</th><th class="r nw">Reste TTC</th>
           <th class="r nw">Reste HT</th><th class="nw">Relances</th><th></th></tr></thead>
         <tbody>${imp.lignes.map(l => { const prov = ecritureProvisionDe(s.livre, l.numero); return `<tr data-impaye="${esc(l.numero)}"><td class="nw">${esc(l.numero)} <span class="muted small">· échue le ${esc(fmtJour(l.echeance))}</span></td>
@@ -64,7 +64,7 @@
     const provGar = gar ? ecritureProvisionGarantiesDe(s.livre, s.annee) : null;
     const panneauGaranties = !gar || !(gar.articles || []).length ? '' : `<div class="panel mt" id="iv-garanties"><h2>Les garanties en cours chez les clients de ${esc(dossier.name || 'ce dossier')} ${info('iv.garanties')}</h2>
         <p class="small">${esc(pl(Number(gar.nombre) || 0, 'appareil'))} sous garantie au ${esc(fmtJour(gar.date))}, vendus <b class="nw">${esc(money(Number(gar.ht) || 0))}</b> hors taxes${
-          Number((gar.annee || {}).nombre) ? ` · vendus avec une garantie dans l'année : ${esc(pl(Number(gar.annee.nombre), 'appareil'))}, ${esc(money(Number(gar.annee.ht) || 0))} HT` : ''}${gar.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(String(gar.envoyeLe).slice(0, 10)))}</span>` : ''}.</p>
+          Number((gar.annee || {}).nombre) ? ` · vendus avec une garantie dans l'année : ${esc(pl(Number(gar.annee.nombre), 'appareil'))}, ${esc(money(Number(gar.annee.ht) || 0))} HT` : ''}${gar.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(KC.jourDeLInstant(gar.envoyeLe)))}</span>` : ''}.</p>
         <div class="scroll-x"><table class="list compact" id="iv-garanties-t"><thead><tr><th>Article</th><th class="r nw">Appareils</th><th class="r nw">Vendus HT</th><th class="nw">Garantis jusqu'au</th></tr></thead>
         <tbody>${gar.articles.map(a => `<tr><td>${esc(a.libelle)}</td><td class="r nw">${esc(String(Number(a.nombre) || 0))}</td><td class="r nw">${esc(money(Number(a.ht) || 0))}</td><td class="nw">au plus tard le ${esc(fmtJour(a.fin))}</td></tr>`).join('')}</tbody></table></div>
         <div class="inline mt">${provGar ? `<span class="small ligne-ok" id="iv-gar-faite"><span aria-hidden="true">✓</span> Provision passée (${esc(provGar.piece)}) : la repasser compterait la charge deux fois.</span>`
@@ -463,7 +463,7 @@
       const q = qs.find(x => String(x.compte || '') === String(R.compte) && String(x.periode || '') === String(l.date).slice(0, 7)
         && KC.round3(Math.abs(Number(x.montant) || 0) - Math.abs(Number(l.montant) || 0)) === 0);
       if (q) return { l, g: 'att', q, titre: q.statut === 'repondue' ? `${contactBq(dossier) || 'Le client'} a répondu` : `Question ${aClientBq(dossier)}`,
-        pq: q.statut === 'repondue' ? 'à écrire d\'après sa réponse' : `posée le ${fmtJour(new Date(q.creeLe || 0).toISOString().slice(0, 10))}`, ton: 'q' };
+        pq: q.statut === 'repondue' ? 'à écrire d\'après sa réponse' : `posée le ${fmtJour(KC.jourDeLInstant(q.creeLe || 0))}`, ton: 'q' };
       const jug = KC.candidatsDeLigne(L, R.id, l.id, { jours });
       if ((jug.niveau === 'certain' || jug.niveau === 'probable') && jug.meilleur) {
         const c = jug.meilleur, e = ecritureDuLivre(L, c.ecritureId);
@@ -703,7 +703,7 @@
     if (x.g === 'att') {
       const q = x.q;
       return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
-        <div class="bq-q">${svgBq(BQ_IC.msg, 15)}<div><b>${esc(q.objet || `Question ${aClientBq(dossier)}`)}</b><small>${q.statut === 'repondue' && q.reponse ? `Réponse : « ${esc(String(q.reponse.texte || '').slice(0, 160))} »` : `posée le ${esc(fmtJour(new Date(q.creeLe || 0).toISOString().slice(0, 10)))}${(q.envois || []).length > 1 ? ` · relancée ${(q.envois || []).length - 1} fois` : ''}`}</small></div></div>
+        <div class="bq-q">${svgBq(BQ_IC.msg, 15)}<div><b>${esc(q.objet || `Question ${aClientBq(dossier)}`)}</b><small>${q.statut === 'repondue' && q.reponse ? `Réponse : « ${esc(String(q.reponse.texte || '').slice(0, 160))} »` : `posée le ${esc(fmtJour(KC.jourDeLInstant(q.creeLe || 0)))}${(q.envois || []).length > 1 ? ` · relancée ${(q.envois || []).length - 1} fois` : ''}`}</small></div></div>
         <p class="bq-rien">Tant qu'il n'a pas répondu, la ligne attend : elle ne bloque rien. ${q.statut === 'repondue' ? 'Sa réponse est là : écris la ligne d\'après elle.' : 'Tu peux aussi la mettre au compte d\'attente (471) le temps qu\'il réponde.'}</p>
         ${lect ? '' : `<div class="cp-gestes">${q.statut === 'repondue' ? '<button type="button" class="btn btn-primary" id="bq-principal">Écrire d\'après sa réponse <kbd class="bq-k">Entrée</kbd></button>' : '<button type="button" class="btn btn-primary" id="bq-principal">Ouvrir la conversation <kbd class="bq-k">Entrée</kbd></button>'}<button type="button" class="btn" id="bq-attente">Au compte d'attente</button></div>`}</aside>`;
     }
@@ -2070,7 +2070,7 @@
           // premier import, et le bouton s'éteint en disant pourquoi (9.4.5).
           const deja = KC.releveDejaImporte(s.livre, lu.empreinte);
           apercu.innerHTML = `${lu.motif ? `<div class="warn-box mb">${esc(lu.motif)}</div>` : ''}
-            ${deja ? `<div class="warn-box mb" id="rv-deja"><b>Ce fichier a déjà été importé</b> le ${esc(fmtJour(String(deja.importeLe || '').slice(0, 10)))} (${esc(fmtJour(deja.du))} → ${esc(fmtJour(deja.au))}).
+            ${deja ? `<div class="warn-box mb" id="rv-deja"><b>Ce fichier a déjà été importé</b> le ${esc(fmtJour(KC.jourDeLInstant(deja.importeLe)))} (${esc(fmtJour(deja.du))} → ${esc(fmtJour(deja.au))}).
               L'importer une seconde fois doublerait chacun de ses mouvements : les soldes n'ont pas besoin d'être saisis.</div>`
             : lignes.length && !(lu.entetes && lu.modele) ? `<div class="ok-box mb">${pl(lignes.length, 'ligne lue', 'lignes lues')} · mouvements ${esc(money(somme))}${
               lu.ignorees.length ? ` · ${pl(lu.ignorees.length, 'ligne ignorée', 'lignes ignorées')}` : ''}${
@@ -2876,7 +2876,7 @@
         ${client ? `<li class="info"><i>i</i><span><b>${esc(e.piece || 'L\'écriture')} suit l'achat de ${esc(qui)}</b><small>elle ne se change pas dans les livres : ${esc(qui)} corrige la date dans SkanFact, et l'écriture suit${declE ? ` (${esc(moisLong(mE))} étant déposé, SkanFact la régularise au mois de la pièce)` : ''}</small></span></li>`
           : `<li class="ok"><i>${CL_IC.ok}</i><span><b>${e.statut === 'validee' ? `${esc(e.piece || 'L\'écriture')} se contre-passe au ${esc(jjmm(cp))}, et s'écrit à nouveau au ${esc(jjmm(lu.date))}` : `${esc(e.piece || 'L\'écriture')} est au brouillard : sa date passe au ${esc(jjmm(lu.date))}`}</b><small>${e.statut === 'validee' ? 'une écriture validée ne se modifie pas : elle se contre-passe' : 'rien n\'est encore validé : elle se corrige'}</small></span></li>`}</ul>
       ${bloque ? `<p class="sx-refus" role="status">${esc(bloque)}</p>` : ''}
-      ${demDate ? `<p class="sx-attend" id="sx-date-demandee" role="status">${CL_IC.ok}<span><b>Demandée à ${esc(qui)} le ${esc(jjmm(String(demDate.demandeeLe).slice(0, 10)))}</b> : elle corrige la date dans SkanFact, l'écriture suit. ${esc(e.piece || 'L\'écriture')} reste au brouillard d'ici là.</span></p>` : ''}
+      ${demDate ? `<p class="sx-attend" id="sx-date-demandee" role="status">${CL_IC.ok}<span><b>Demandée à ${esc(qui)} le ${esc(jjmm(KC.jourDeLInstant(demDate.demandeeLe)))}</b> : elle corrige la date dans SkanFact, l'écriture suit. ${esc(e.piece || 'L\'écriture')} reste au brouillard d'ici là.</span></p>` : ''}
       <div class="sx-gestes">${enSaisie ? `<span class="fd-qui" id="sx-qui-verifie">${esc(rev)} ${client ? `la demande à ${esc(qui)}` : 'la déplace'}</span>` : `${client ? (dossier.manual ? '' : demDate ? `<button type="button" class="btn" id="sx-demander-date">Relancer ${esc(qui)}</button>` : `<button type="button" class="btn btn-primary" id="sx-demander-date">Demander à ${esc(qui)} de la dater du ${esc(jjmm(lu.date))} <kbd>↵</kbd></button>`)
         : `<button type="button" class="btn btn-primary" id="sx-deplacer"${bloque ? ' disabled' : ''}>Déplacer en ${esc(moisLong(mP))}${bloque ? '' : ' <kbd>↵</kbd>'}</button>`}<button type="button" class="btn" id="sx-verifiee" title="La date de l'écriture est la bonne : la pièce est vérifiée">Laisser en ${esc(moisLong(mE))}</button>`}</div>
       ${enSaisie || demDate ? '' : `<p class="sx-touches">${SX_IC.clavier}<span><kbd>↵</kbd> ${client ? `demande la date à ${esc(qui)} et ouvre la pièce suivante` : `déplace et ouvre la pièce suivante${esc(suivanteSx(x))}`} · <kbd>Alt</kbd>+<kbd>→</kbd> la passe${client || declE ? '' : ` · la déclaration ${esc(deMois(mE))} se recalcule seule`}</span></p>`}</div>`;
@@ -3878,7 +3878,7 @@
       const b = $('#sa-decl', el); if (!b) return;
       const m = String(p.date || '').slice(0, 7), dc = m ? lireLivreFd(s.livre).decl[m] : null;
       b.hidden = !(dc && dc.deposee);
-      if (dc && dc.deposee) b.innerHTML = `<span class="txt"><b>${esc(cap(moisLong(m)))} ${esc(m.slice(0, 4))} est déjà déclaré${dc.deposeeLe ? ` (déposée le ${esc(fmtJourCourt(String(dc.deposeeLe).slice(0, 10)).slice(0, 5))})` : ''}.</b><span>Cette écriture change ses livres après la déclaration : ils ne diront plus ce qui a été déposé. Une facture arrivée en retard garde sa date, et sa TVA se récupère sur une déclaration suivante (À VÉRIFIER : le délai et la façon de la reporter).</span></span>`;
+      if (dc && dc.deposee) b.innerHTML = `<span class="txt"><b>${esc(cap(moisLong(m)))} ${esc(m.slice(0, 4))} est déjà déclaré${dc.deposeeLe ? ` (déposée le ${esc(fmtJourCourt(KC.jourDeLInstant(dc.deposeeLe)).slice(0, 5))})` : ''}.</b><span>Cette écriture change ses livres après la déclaration : ils ne diront plus ce qui a été déposé. Une facture arrivée en retard garde sa date, et sa TVA se récupère sur une déclaration suivante (À VÉRIFIER : le délai et la façon de la reporter).</span></span>`;
     };
     majDecl();
     const dt = $('#sa-date', el);

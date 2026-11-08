@@ -5689,7 +5689,7 @@
             const t = (data.deleted || []).find(x => x.id === parts[0]);
             if (!t || !t.at) return 'Un brouillon supprimé, ou un lien qui ne mène plus nulle part.';
             const q = new Date(t.at);
-            return `${t.label ? `Le brouillon « ${h(t.label)} »` : 'Ce brouillon'} a été supprimé le ${lfJm(t.at.slice(0, 10))} à ${q.getHours()} h ${String(q.getMinutes()).padStart(2, '0')}.`;
+            return `${t.label ? `Le brouillon « ${h(t.label)} »` : 'Ce brouillon'} a été supprimé le ${lfJm(C.jourDeLInstant(t.at))} à ${q.getHours()} h ${String(q.getMinutes()).padStart(2, '0')}.`;
           })()} Une facture émise, elle, ne se supprime jamais : elle est dans la liste.</p><div class="rang"><button type="button" class="btn btn-primary" id="intr-retour">Revenir aux factures</button></div></div>`;
         $('#intr-retour').onclick = () => navigate('#/factures');
         return;
@@ -13268,8 +13268,8 @@
   function carteImpayesPourLeComptable() {
     const e = C.etatDesImpayes(data, company()), deja = etatImpayesEnvoye(), cur = company().currency;
     const pareil = !!deja && signatureImpayes(deja.lignes) === signatureImpayes(e.lignes);
-    const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="ei-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} : c'est l'état d'aujourd'hui.</p>`
-      : `<p class="small warn-text" id="ei-deja">Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} : depuis, un paiement, une relance ou un litige l'a changé. Renvoie-le pour que ton comptable ait le bon.</p>`;
+    const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="ei-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(C.jourDeLInstant(deja.envoyeLe))} : c'est l'état d'aujourd'hui.</p>`
+      : `<p class="small warn-text" id="ei-deja">Envoyé le ${C.fmtDate(C.jourDeLInstant(deja.envoyeLe))} : depuis, un paiement, une relance ou un litige l'a changé. Renvoie-le pour que ton comptable ait le bon.</p>`;
     return `<div class="cf-carte mb" id="ei-comptable"><h2>L'état des impayés pour ton comptable ${info('rel.etatComptable')}</h2>
       <p class="small" id="ei-resume">${pl(e.lignes.length, 'facture')} en retard, <b class="nw">${C.money(e.total, cur)}</b>${e.contestees ? `, dont ${pl(e.contestees, 'contestée')} par le client` : ''}. À la clôture, ton comptable juge s'il faut une provision pour ce qui risque de ne pas être payé : envoie-lui où tu en es (relances, litiges).</p>
       ${envoi}

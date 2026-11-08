@@ -4850,7 +4850,7 @@
     for (const id of eq.ids) { const c = collabDe(id); if (c && c !== eq.suit && c !== eq.val) eqL.push([c, `${prenomDe(c)} ${d.droits[id] === 'saisie' ? 'saisit' : 'travaille sur le dossier'}`, d.droits[id] === 'saisie' ? 'les pièces papier et les relevés' : '']); }
     const employeur = Object.values(employeursConnus()[d.id] || {}).some(Boolean);
     const hist = [
-      ...(d.relances || []).filter(r => r && r.at).map(r => [new Date(Number(r.at)).toISOString().slice(0, 10), `Relance ${({ email: 'par e-mail', tel: 'au téléphone', whatsapp: 'par WhatsApp' })[r.via] || 'notée'}${(r.months || []).length ? ` : ${(r.months || []).map(moisLong).join(', ')}` : ''}`, r.note || '']),
+      ...(d.relances || []).filter(r => r && r.at).map(r => [KC.jourDeLInstant(Number(r.at)), `Relance ${({ email: 'par e-mail', tel: 'au téléphone', whatsapp: 'par WhatsApp' })[r.via] || 'notée'}${(r.months || []).length ? ` : ${(r.months || []).map(moisLong).join(', ')}` : ''}`, r.note || '']),
       ...(L ? Object.entries(L.decl).filter(([, v]) => v.deposee).map(([m, v]) => [limiteDe(m) > aujourdhui ? aujourdhui : limiteDe(m), `${cap(moisLong(m))} déposé`, v.montant ? `${dtCd(v.montant)} DT` : '']) : []),
       ...(d.from ? [[`${d.from}-01`, 'Début de la mission', `${moisLong(d.from)} ${d.from.slice(0, 4)}`]] : []),
     ].sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);

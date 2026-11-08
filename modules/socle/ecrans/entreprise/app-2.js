@@ -1520,9 +1520,9 @@
       const resume = e.lignes.length ? `${pl(e.lignes.length, 'article')} en stock, ${C.money(e.total, cur)} au coût moyen` : 'aucun article en stock à cette date';
       const quelles = sf.receptions.slice(0, 3).map(r => `${r.numero || 'réception'}${r.fournisseur ? ` de ${r.fournisseur}` : ''}`).join(', ') + (sf.receptions.length > 3 ? '…' : '');
       const sansFacture = !sf.receptions.length ? '' : `<p class="small" id="etat-sans-facture">Reçu sans facture à cette date : ${pl(sf.receptions.length, 'réception')}, <b class="nw">${C.money(sf.total, cur)}</b> HT (${h(quelles)}). La marchandise est dans ton stock, sa facture n'est pas encore arrivée : ton comptable la passe en facture non parvenue. Elle part avec l'état.</p>`;
-      const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="etat-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} : c'est l'état d'aujourd'hui.</p>`
-        : stockPareil ? `<p class="small warn-text" id="etat-deja">Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} avec ${C.money(Number(sfDeja.total) || 0, cur)} HT reçus sans facture : ce qui est reçu sans facture à cette date a changé depuis. Renvoie-le pour que ton comptable ait le bon.</p>`
-          : `<p class="small warn-text" id="etat-deja">Envoyé le ${C.fmtDate(String(deja.envoyeLe || '').slice(0, 10))} avec ${C.money(Number(deja.total) || 0, cur)} : le stock de cette date a changé depuis. Renvoie-le pour que ton comptable ait le bon.</p>`;
+      const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="etat-deja"><span aria-hidden="true">✓</span> Envoyé le ${C.fmtDate(C.jourDeLInstant(deja.envoyeLe))} : c'est l'état d'aujourd'hui.</p>`
+        : stockPareil ? `<p class="small warn-text" id="etat-deja">Envoyé le ${C.fmtDate(C.jourDeLInstant(deja.envoyeLe))} avec ${C.money(Number(sfDeja.total) || 0, cur)} HT reçus sans facture : ce qui est reçu sans facture à cette date a changé depuis. Renvoie-le pour que ton comptable ait le bon.</p>`
+          : `<p class="small warn-text" id="etat-deja">Envoyé le ${C.fmtDate(C.jourDeLInstant(deja.envoyeLe))} avec ${C.money(Number(deja.total) || 0, cur)} : le stock de cette date a changé depuis. Renvoie-le pour que ton comptable ait le bon.</p>`;
       return `<div class="cf-carte mb" id="etat-comptable"><h2>L'état du stock pour ton comptable ${info('stk.etatComptable')}</h2>
         <p class="small muted">À la clôture, ton comptable passe la valeur de ton stock dans ton bilan. Envoie-lui l'état à cette date : il le reprend tel quel, au coût moyen, sans rien recopier.</p>
         <div class="filters">
@@ -2400,7 +2400,7 @@
     const resume = e.nombre ? `${pl(e.nombre, 'appareil')} sous garantie chez ${pl(e.clients, 'client')}, vendus <b class="nw">${C.money(e.ht, cur)}</b> HT ; la plus longue garantie court jusqu'au ${C.fmtDate(longue)}.`
       : 'Aucun appareil livré n\'est sous garantie à cette date : il n\'y a rien à envoyer.';
     const an = e.annee.nombre ? ` Vendus avec une garantie en ${e.date.slice(0, 4)} : ${pl(e.annee.nombre, 'appareil')}, ${C.money(e.annee.ht, cur)} HT.` : '';
-    const le = deja ? C.fmtDate(String(deja.envoyeLe || '').slice(0, 10)) : '';
+    const le = deja ? C.fmtDate(C.jourDeLInstant(deja.envoyeLe)) : '';
     const envoi = !deja ? '' : pareil ? `<p class="small ligne-ok" id="gc-deja"><span aria-hidden="true">✓</span> Envoyé le ${le} : c'est l'état d'aujourd'hui.</p>`
       : `<p class="small warn-text" id="gc-deja">Envoyé le ${le} : depuis, un appareil livré ou rendu, ou une garantie, l'a changé. Renvoie-le pour que ton comptable ait le bon.</p>`;
     return `<div class="cf-carte" id="gc-carte"><h2>Le parc sous garantie pour ton comptable ${info('gar.etatComptable')}</h2>
@@ -4048,7 +4048,7 @@
     const par = new Map((l || []).filter(x => x.achat).map(x => [x.achat, x]));
     for (const p of data.purchases || []) {
       const x = par.get(p.id);
-      const v = x ? { nom: x.titre, cabinet: x.cabinet, le: (x.jointeLe || x.deposeLe || '').slice(0, 10), piece: x } : undefined;
+      const v = x ? { nom: x.titre, cabinet: x.cabinet, le: C.jourDeLInstant(x.jointeLe || x.deposeLe || ''), piece: x } : undefined;
       if (!!p.justifCabinet !== !!v) change = true;
       Object.defineProperty(p, 'justifCabinet', { value: v, enumerable: false, configurable: true, writable: true });
     }
@@ -5709,7 +5709,7 @@
             ? `<table class="list compact"><thead><tr><th>Exercice</th><th>Reçu le</th><th>Origine</th><th class="r nw">Résultat</th><th>Verrou</th><th></th></tr></thead><tbody>
                 ${(data.clotures || []).slice().sort((a, b) => String(b.exercice).localeCompare(String(a.exercice))).map(c => `<tr>
                   <td class="nw">${h(c.exercice)}</td>
-                  <td class="nw">${C.fmtDate(String(c.recuLe || '').slice(0, 10))}</td>
+                  <td class="nw">${C.fmtDate(C.jourDeLInstant(c.recuLe))}</td>
                   <td>${c.origine === 'prouvee'
                     ? `<span class="badge b-paid">signée</span> <span class="small muted mono">${h(c.empreinte || '')}</span>`
                     : '<span class="badge b-late">origine non prouvée</span>'}</td>
@@ -8741,7 +8741,7 @@
       const offre = cmd.offre === 'independant' ? 'Indépendant' : 'Entreprise';
       el.innerHTML = `<div class="lic-achat">
           <p><strong>Ta commande attend son paiement</strong> ${info('lic.commande')}</p>
-          <p class="small">Offre ${h(offre)}${Number(cmd.montant) ? ' — ' + C.money(Number(cmd.montant), cmd.devise === 'TND' ? 'DT' : (cmd.devise || 'DT')) + ' TTC' : ''}, commandée le ${C.fmtDate(String(cmd.creeLe || '').slice(0, 10))}. Une fois payée, ta clé s'enregistre ici toute seule — elle part aussi par mail.</p>
+          <p class="small">Offre ${h(offre)}${Number(cmd.montant) ? ' — ' + C.money(Number(cmd.montant), cmd.devise === 'TND' ? 'DT' : (cmd.devise || 'DT')) + ' TTC' : ''}, commandée le ${C.fmtDate(C.jourDeLInstant(cmd.creeLe))}. Une fois payée, ta clé s'enregistre ici toute seule — elle part aussi par mail.</p>
           <div class="inline">
             <button type="button" class="btn btn-primary" id="achat-verifier">J'ai payé : récupérer ma clé</button>
             <button type="button" class="btn" id="achat-reprendre">Rouvrir la page de paiement</button>
