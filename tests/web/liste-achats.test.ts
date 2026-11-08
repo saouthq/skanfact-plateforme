@@ -262,7 +262,10 @@ describe('la liste des achats et dépenses, à la souris et au téléphone', () 
     await p.setViewportSize({ width: 1024, height: 768 });
     await p.evaluate(() => { location.hash = '#/achats'; });
     await p.locator('#list-wrap tr[data-id="p-trans"]').waitFor({ timeout: 20_000 });
-    expect(await p.locator('#list-wrap thead th').evaluateAll((ths) => ths.filter((t) => (t as HTMLElement).offsetParent).map((t) => (t as HTMLElement).innerText.replace(/[⇅↑↓]/g, '').trim()))).toEqual(['', 'Date', 'N° du fournisseur', 'Fournisseur et objet', 'Statut', 'Net à payer', 'Reste', '']);
+    // Les titres se lisent la page redessinée à la largeur de la tablette : lus d'un coup, juste après le passage du
+    // téléphone, ils pouvaient l'être encore dans la mise en page des cartes (aucun visible ; rouge GitHub de 1.323.2).
+    await expect.poll(() => p.locator('#list-wrap thead th').evaluateAll((ths) => ths.filter((t) => (t as HTMLElement).offsetParent).map((t) => (t as HTMLElement).innerText.replace(/[⇅↑↓]/g, '').trim())), { timeout: 10_000 })
+      .toEqual(['', 'Date', 'N° du fournisseur', 'Fournisseur et objet', 'Statut', 'Net à payer', 'Reste', '']);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
     await p.screenshot({ path: path.join(PHOTOS, 'liste-achats-3-tablette.png') });
 
