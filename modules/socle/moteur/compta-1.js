@@ -74,6 +74,19 @@
   // par une voyelle ; le jumeau de `de()` du Cabinet (Cabinet 1.0.0), pour un moteur qui ne le charge pas.
   const deMois = label => (/^[aeiouéèê]/i.test(String(label || '')) ? 'd\'' : 'de ') + String(label || '');
 
+  // (1.324.0) Ce qu'une pièce dit de l'écart entre deux sociétés d'un même groupe (serveur/groupe.ts, `entreSocietes`) :
+  // une facture de l'une absente des achats de l'autre, un achat noté chez l'une sans facture de ce numéro chez l'autre,
+  // ou la même pièce à deux montants. La même phrase dans la page Groupe de l'entreprise et dans l'onglet Inventaire du
+  // Cabinet : deux écrans qui montrent la même chose disent la même chose. `nom` donne le nom d'une société, `argent` un
+  // montant écrit.
+  function phraseEntreSocietes(p, nom, argent) {
+    const avoir = p.type === 'avoir';
+    const v = nom(p.vendeur), a = nom(p.acheteur), date = fmtJour(p.date);
+    if (p.manque === 'achats') return `${avoir ? 'L\'avoir' : 'La facture'} ${p.numero} du ${date} (${argent(p.chezVendeur)}) de ${v} n'est pas dans les achats de ${a}.`;
+    if (p.manque === 'ventes') return `${a} a noté ${avoir ? 'l\'avoir' : 'l\'achat'} « ${p.numero || 'sans numéro'} » du ${date} (${argent(p.chezAcheteur)}) venant de ${v}, qui n'a ${avoir ? 'émis aucun avoir' : 'émis aucune facture'} de ce numéro.`;
+    return `${avoir ? 'L\'avoir' : 'La facture'} ${p.numero} : ${argent(p.chezVendeur)} chez ${v}, ${argent(p.chezAcheteur)} dans les achats de ${a}.`;
+  }
+
   // La clé d'une pièce comptable. Trois champs, toujours les mêmes, partout : c'est ce qui fait
   // qu'une pièce est UNE pièce, et que ses lignes s'équilibrent entre elles.
   const cleDePiece = e => `${e.journal || ''}|${e.piece || ''}|${e.date || ''}`;

@@ -1214,3 +1214,49 @@ boulangerie Jaziri depuis sa fiche (« Facturer la cession ») et achète un fou
 - La preuve : `tests/moteur/jour-local-1323.test.ts` (Tunis, São Paulo, Tokyo), `tests/web/jour-local-1323.test.ts`
   (les deux navigateurs réglés sur 0 h 30 le 8 novembre à Tunis : l'entreprise et le Cabinet disent le 8), preuves
   `jour local 1.323.1 a-d`.
+
+## Le groupe, jusqu'au comptable (1.324.0)
+
+*08/11/2026. Joué par Hédi Ben Salah, à Sfax : sa Huilerie presse l'huile et la vend à sa Distribution, qui la revend aux
+épiceries ; son Transport livre la Huilerie. Sa comptable, au Cabinet, tient la Huilerie et la Distribution.*
+
+Ce qui n'allait pas, vu comme un chef d'entreprise qui tient trois sociétés, puis comme sa comptable :
+
+- La page « Le groupe » additionnait les livres des sociétés. L'huile vendue par la Huilerie à la Distribution, puis par la
+  Distribution aux épiceries, comptait deux fois : 12 471,875 DT de chiffre d'affaires pour 5 217,500 DT vendus au dehors.
+  Ce que la Distribution doit à la Huilerie était à la fois « à encaisser » et « à payer » du groupe.
+- Rien ne disait que les deux livres d'une même dette ne disaient pas le même montant : la Distribution avait oublié une
+  facture de la Huilerie et mal recopié le prix d'une autre (41,357 au lieu de 41,375) ; la comptable ne le découvrait qu'en
+  rapprochant les comptes à la main, à la clôture.
+- La page était dans l'ancienne présentation (un tableau seul).
+
+Ce qui est fait :
+
+- Au serveur (`serveur/groupe.ts`, `entreSocietes`) : une société sœur se reconnaît parmi les clients et les fournisseurs
+  d'une autre à son matricule (sept chiffres et lettre-clé, quelle que soit l'écriture : la Distribution avait noté la
+  Huilerie sous son établissement 001, sans barres), ou, sur une fiche sans matricule, à son nom exact (« TRANSPORT BEN
+  SALAH »). Pour chaque société, ce qu'elle vend à ses sœurs (70), ce qu'elles lui doivent (411) et ce qu'elle leur doit
+  (401), par les écritures rattachées à ces fiches. Le total retire ce qui reste entre elles : le groupe, sans compter deux
+  fois. Puis, pour chaque paire, ce que l'une doit à l'autre selon chacune, l'écart, et les pièces qui l'expliquent (une
+  facture absente des achats de l'autre, un achat sans facture de ce numéro chez le vendeur, la même pièce à deux montants),
+  appariées par le numéro de la facture ; le reste de l'écart se dit (un règlement noté d'un seul côté, une écriture sans
+  la fiche).
+- La page « Le groupe » dans la DA des listes : l'en-tête, quatre chiffres du groupe (vendu, ce que les clients doivent, ce
+  que le groupe doit, la trésorerie), les sociétés avec, sous chacune, « dont avec tes sociétés » ; le total des livres, ce
+  qui reste entre les sociétés, et le groupe. « Entre tes sociétés » : ce qu'elles se sont vendu, puis chaque dette lue des
+  deux côtés, l'écart et ses pièces, avec « Ouvrir » pour aller corriger. Sans rien entre elles, une seule ligne de total.
+  Au téléphone, « dont avec tes sociétés » se colle sous la carte de sa société.
+- Au Cabinet (`groupeDuDossier`, onglet Inventaire) : « Les sociétés du même groupe » que le dossier, parmi les dossiers
+  que la comptable tient (un dossier qu'elle ne tient pas n'y est pas) : les ventes de l'exercice entre elles (à retirer
+  d'un chiffre d'affaires consolidé), et chaque dette lue des deux côtés, au dernier jour de l'année (ou aujourd'hui), avec
+  la même phrase que l'entreprise (`KC.phraseEntreSocietes`, moteur partagé) et « Ouvrir » vers l'inventaire de l'autre
+  dossier. Le pont passe le groupe avec les impayés et les garanties ; il ne grandit pas.
+- Hédi a corrigé dans la Distribution (le prix, la facture oubliée) : la page et le Cabinet disent « Les deux livres disent
+  le même montant ». Le Transport, qui n'a pas facturé la livraison, reste à l'écart, et la page le dit.
+- La preuve : `tests/socle/groupe-1324.test.ts` (les chiffres au millime, l'établissement 001, le nom sans matricule, les
+  deux écarts, le Cabinet par l'inventaire, deux chemins : le groupe est la somme des ventes au dehors, lues pièce par
+  pièce), `tests/moteur/groupe-1324.test.ts` (la phrase), `tests/web/groupe-1324.test.ts` (la page, la correction, le Cabinet
+  et son « Ouvrir », le téléphone), preuves `groupe 1.324 a-r` ; quatre preuves anciennes repointées.
+
+**À VÉRIFIER** avec un comptable : des comptes de groupe dédiés plutôt que 411 / 401 ; la date du rapprochement au Cabinet
+(le dernier jour de l'exercice de chaque société, quand les exercices diffèrent).

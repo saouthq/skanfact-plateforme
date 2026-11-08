@@ -77,7 +77,11 @@ describe('le tableau de bord du groupe', () => {
     expect(sb?.chiffres).toMatchObject({ caMois: '99.999', aEncaisser: '118.999' });
     expect(sc?.chiffres).toBeNull();
     expect(JSON.stringify(sc?.motif)).toContain('ne te montre pas ses livres');
-    expect(r.corps.totaux).toEqual([{ devise: 'TND', chiffres: { caMois: '401.499', caExercice: '401.499', aEncaisser: '477.784', aPayer: '0.000', tresorerie: '0.000' } }]);
+    // (1.324.0) Aucune des deux n'est cliente ni fournisseur de l'autre : rien ne reste entre elles, le groupe est le total.
+    const total = { caMois: '401.499', caExercice: '401.499', aEncaisser: '477.784', aPayer: '0.000', tresorerie: '0.000' };
+    expect(r.corps.totaux).toEqual([{ devise: 'TND', chiffres: total, groupe: total,
+      entreSocietes: { caMois: '0.000', caExercice: '0.000', aEncaisser: '0.000', aPayer: '0.000', tresorerie: '0.000' } }]);
+    expect([r.corps.ventes, r.corps.paires]).toEqual([[], []]);
 
     // Deux chemins, un chiffre : la balance de chaque société dit le même chiffre d'affaires et le même dû client.
     for (const [ent, s] of [[a, sa], [b, sb]] as const) {

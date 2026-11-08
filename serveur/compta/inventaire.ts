@@ -7,6 +7,8 @@ import { z } from 'zod';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
 import type { Contexte } from '../connexion.ts';
+import { groupeDuDossier } from '../groupe.ts';
+import { aujourdhuiATunis } from '../reglements.ts';
 import { motif, t } from '../../textes/index.ts';
 import { ECRITURE, estJour, versLaBase } from './saisie.ts';
 import './textes.ts';
@@ -71,8 +73,8 @@ export function routesInventaire(ctx: Contexte): Route<never>[] {
 
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/compta/inventaires/:annee', geste: 'compta.livres.voir',
-    traiter: async ({ params }, tx) => {
-      if (!tx) throw new Error('transaction attendue');
+    traiter: async ({ params, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
       const annee = anneeDe(params.annee);
       if (annee === null) return champInvalide('annee', t('compta.champ.annee'));
       const x = (await tx.query(`select to_char(date_inventaire, 'YYYY-MM-DD') date, compte, lignes, total,
@@ -100,6 +102,9 @@ export function routesInventaire(ctx: Contexte): Route<never>[] {
             })),
           } : null,
           duClient: etats, impayes, garanties,
+          // (1.324.0) Les sociétés du même groupe que ce dossier, que le cabinet tient aussi : ce qu'elles se sont vendu sur
+          // l'exercice et ce qu'elles se doivent au dernier jour de l'année (ou aujourd'hui, l'année en cours), lu des deux côtés.
+          groupe: await groupeDuDossier(tx, qui, params.entreprise ?? '', [`${annee}-12-31`, aujourdhuiATunis(new Date())].sort()[0] ?? `${annee}-12-31`),
         },
       };
     },

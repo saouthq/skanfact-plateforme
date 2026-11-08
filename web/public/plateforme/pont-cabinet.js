@@ -648,7 +648,7 @@
     etatsStockClient.set(`${ent}:${Number(annee)}`, (r.duClient || []).map((/** @type {any} */ e) => ({ ...e, total: nombre(e.total),
       lignes: (e.lignes || []).map((/** @type {any} */ l) => ({ ...l, quantite: nombre(l.quantite), cout: nombre(l.cout), valeur: nombre(l.valeur) })),
       sansFacture: { total: nombre((e.sansFacture || {}).total), receptions: ((e.sansFacture || {}).receptions || []).map((/** @type {any} */ r) => ({ ...r, ht: nombre(r.ht) })) } })));
-    lusDuClient.set(`${ent}:${Number(annee)}`, { impayes: r.impayes || null, garanties: r.garanties || null }); // (1.321.0, 1.322.0) impayés, parc garanti
+    lusDuClient.set(`${ent}:${Number(annee)}`, { impayes: r.impayes || null, garanties: r.garanties || null, groupe: r.groupe || null }); // (1.321, 1.322, 1.324) impayés, parc garanti, groupe
     const x = r.inventaire;
     if (!x) return null;
     return {
@@ -2092,7 +2092,7 @@
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = await livreDe(o.dossierId, o.annee);
       return { inventaire: livre.inventaires[0] || null, variation: KC.variationDeStock(livre, o.annee),
-        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [], ...(lusDuClient.get(`${o.dossierId}:${Number(o.annee)}`) || { impayes: null, garanties: null }) };
+        duClient: etatsStockClient.get(`${o.dossierId}:${Number(o.annee)}`) || [], ...(lusDuClient.get(`${o.dossierId}:${Number(o.annee)}`) || { impayes: null, garanties: null, groupe: null }) };
     },
     saveInventaire: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;

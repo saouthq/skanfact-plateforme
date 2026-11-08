@@ -70,6 +70,23 @@
         <div class="inline mt">${provGar ? `<span class="small ligne-ok" id="iv-gar-faite"><span aria-hidden="true">✓</span> Provision passée (${esc(provGar.piece)}) : la repasser compterait la charge deux fois.</span>`
     : `<button class="btn btn-sm" id="iv-gar-provision">Provisionner les garanties…</button>`}</div>
       </div>`;
+    // (1.324.0) Les autres dossiers que le cabinet tient et qui sont du même groupe (l'un client ou fournisseur de l'autre) :
+    // ce qu'ils se sont vendu sur l'exercice, à retirer d'un ensemble consolidé, et ce que l'un doit à l'autre selon les livres
+    // de chacun, l'écart et les pièces qui l'expliquent : la même phrase que la page Groupe de l'entreprise.
+    const grp = d.groupe || null;
+    const nomGrp = id => id === dossier.id ? (dossier.name || 'ce dossier') : ((grp.societes || []).find(x => x.id === id) || {}).raisonSociale || '—';
+    const zero = v => Math.abs(Number(v) || 0) < 0.0005;
+    const lienSoeur = id => (id === dossier.id ? '' : `<a class="btn btn-sm" href="#/dossier/${esc(encodeURIComponent(id))}/comptabilite/inventaire/${esc(String(s.annee))}">Ouvrir ${esc(nomGrp(id))}</a>`);
+    const paireGrp = p => `<div class="iv-paire" data-paire="${esc(p.creancier)}:${esc(p.debiteur)}"><p class="small"><b>Ce que ${esc(p.debiteurNom)} doit à ${esc(p.creancierNom)}</b> : selon ${esc(p.creancierNom)}, <b class="nw">${esc(money(Number(p.selonCreancier)))}</b> ; selon ${esc(p.debiteurNom)}, <b class="nw">${esc(money(Number(p.selonDebiteur)))}</b>.</p>
+        ${zero(p.ecart) ? '<p class="small ligne-ok"><span aria-hidden="true">✓</span> Les deux livres disent le même montant.</p>'
+    : `<p class="small warn-text">Écart de <b class="nw">${esc(money(Math.abs(Number(p.ecart))))}</b>${p.pieces.length ? ' :' : '.'}</p>${p.pieces.length ? `<ul class="small iv-pieces">${p.pieces.map(x => `<li>${esc(KC.phraseEntreSocietes(x, nomGrp, v => money(Number(v))))}</li>`).join('')}</ul>` : ''}${
+      Number(p.autres) ? `<p class="small muted">… et ${esc(pl(Number(p.autres), 'autre pièce'))}.</p>` : ''}${zero(p.reste) ? '' : `<p class="small muted">Le reste de l'écart (${esc(money(Math.abs(Number(p.reste))))}) ne vient d'aucune pièce : un règlement noté d'un seul côté, ou une écriture passée sans la fiche du tiers.</p>`}
+        <div class="inline">${lienSoeur(p.creancier)}${lienSoeur(p.debiteur)}</div>`}</div>`;
+    const panneauGroupe = !grp || !((grp.ventes || []).length || (grp.paires || []).length) ? '' : `<div class="panel mt" id="iv-groupe"><h2>Les sociétés du même groupe que ${esc(dossier.name || 'ce dossier')} ${info('iv.groupe')}</h2>
+        <p class="small">Au ${esc(fmtJour(grp.jour))}, tu tiens aussi ${esc((grp.societes || []).map(x => x.raisonSociale).join(', '))}.</p>
+        ${(grp.ventes || []).length ? `<p class="small"><b>Ventes de l'exercice entre elles</b> (hors taxes, à retirer d'un chiffre d'affaires consolidé) : ${grp.ventes.map(v => `${esc(v.deNom)} → ${esc(v.versNom)} <b class="nw">${esc(money(Number(v.caExercice)))}</b>`).join(' · ')}.</p>` : ''}
+        ${(grp.paires || []).map(paireGrp).join('')}
+      </div>`;
     return `<div class="filters">
       ${info('iv.etat')}
       <span class="small muted">Exercice ${esc(s.annee)}</span>
@@ -80,6 +97,7 @@
     ${panneauClient}
     ${panneauImpayes}
     ${panneauGaranties}
+    ${panneauGroupe}
     ${!inv
     ? `<div class="empty">Aucun inventaire saisi pour ${esc(s.annee)}.
         <p class="small muted">Un inventaire, c'est ce qui reste au dernier jour, compté et valorisé.

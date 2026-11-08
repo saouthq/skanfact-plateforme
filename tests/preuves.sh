@@ -5456,7 +5456,7 @@ prouver "le dossier ouvert sans que la page l'ait (rien ne se supprime plus)" we
 GS="les sociétés de la personne, leurs chiffres tirés de leurs livres"
 GW="« Le groupe » montre les sociétés côte à côte"
 prouver "le chiffre d'affaires du groupe lu à l'envers (débit moins crédit)" serveur/groupe.ts \
-  "and e.date_ecriture >= \${mois}::date then l.credit - l.debit end" "and e.date_ecriture >= \${mois}::date then l.debit - l.credit end" \
+  "          select coalesce(sum(case when l.compte like '70%' and e.date_ecriture >= \${mois}::date then l.credit - l.debit end)" "          select coalesce(sum(case when l.compte like '70%' and e.date_ecriture >= \${mois}::date then l.debit - l.credit end)" \
   "$GS"
 prouver "les chiffres d'une société montrés à qui n'en voit pas les livres" serveur/groupe.ts \
   "        if (!d.ok) {" "        if (!d.ok && false) {" \
@@ -26218,7 +26218,7 @@ prouver 'relances 1.321 s : le pont du Cabinet ne garde pas l'\''état des impay
   '{ impayes: r.impayes || null, garanties:' '{ impayes: null, garanties:' \
   "$RELW"
 prouver 'relances 1.321 t : le pont du Cabinet ne rend pas l'\''état des impayés à l'\''écran' web/public/plateforme/pont-cabinet.js \
-  '...(lusDuClient.get(`${o.dossierId}:${Number(o.annee)}`) || { impayes: null, garanties: null }) };' '_l: lusDuClient.get(`${o.dossierId}:${Number(o.annee)}`) };' \
+  '...(lusDuClient.get(`${o.dossierId}:${Number(o.annee)}`) || { impayes: null, garanties: null, groupe: null }) };' '_l: lusDuClient.get(`${o.dossierId}:${Number(o.annee)}`) };' \
   "$RELW"
 prouver 'relances 1.321 u : l'\''inventaire du Cabinet tait les impayés du client' modules/socle/ecrans/cabinet/app-2.js \
   '    ${panneauImpayes}' '' \
@@ -26314,7 +26314,7 @@ prouver 'garanties 1.322 w : l'\''état du parc n'\''a pas de droits' serveur/v1
   'etatsStock: STOCK, etatsGaranties: STOCK,' 'etatsStock: STOCK,' \
   'chaque partie du dossier, chaque page du menu, chaque nom de geste et chaque schéma de la base a un seul propriétaire'
 prouver 'garanties 1.322 x : le pont du Cabinet ne garde pas le parc sous garantie' web/public/plateforme/pont-cabinet.js \
-  '{ impayes: r.impayes || null, garanties: r.garanties || null }' '{ impayes: r.impayes || null, garanties: null }' \
+  '{ impayes: r.impayes || null, garanties: r.garanties || null, groupe: r.groupe || null }' '{ impayes: r.impayes || null, garanties: null, groupe: r.groupe || null }' \
   "$GARW"
 prouver 'garanties 1.322 y : l'\''inventaire du Cabinet tait les garanties du client' modules/socle/ecrans/cabinet/app-2.js \
   '    ${panneauGaranties}' '' \
@@ -26444,6 +26444,70 @@ prouver 'jour local 1.323.1 c : la carte des impayés coupe l'\''instant de l'\'
 prouver 'jour local 1.323.1 d : au Cabinet, l'\''état des impayés coupe l'\''instant de l'\''envoi' modules/socle/ecrans/cabinet/app-2.js \
   'fmtJour(KC.jourDeLInstant(imp.envoyeLe))' 'fmtJour(String(imp.envoyeLe).slice(0, 10))' \
   "$JLOW"
+# 1.324.0 — le groupe jusqu'au comptable (serveur/groupe.ts, la page Groupe, l'onglet Inventaire du Cabinet)
+GRS="ce que les sociétés se vendent et se doivent se dit à part et sort du total ; les deux livres d'une dette se comparent, pièce par pièce"
+GRW="Hédi voit son groupe sans compter deux fois, corrige l'écart que la page lui montre ; Leïla lit la même chose au Cabinet"
+GRW0="« Le groupe » montre les sociétés côte à côte, leur total, et ouvre une société d'un clic ; au téléphone aussi"
+GRM1="la facture du vendeur absente des achats de l'acheteur, l'achat sans facture chez le vendeur, la même pièce à deux montants"
+GRM2="un avoir se dit avoir, et un achat noté sans numéro le dit"
+prouver 'groupe 1.324 a : le groupe additionne les livres sans retirer ce que les sociétés se doivent' serveur/groupe.ts \
+  'for (const k of Object.keys(groupe) as (keyof Brut)[]) groupe[k] = t.somme[k] - t.interne[k];' 'for (const k of Object.keys(groupe) as (keyof Brut)[]) groupe[k] = t.somme[k];' \
+  "$GRS"
+prouver 'groupe 1.324 b : un autre établissement de la société sœur n'\''est plus reconnu' serveur/groupe.ts \
+  'return /^[0-9]{7}[A-Z]/.test(c) ? c.slice(0, 8) : null; };' 'return /^[0-9]{7}[A-Z]/.test(c) ? c : null; };' \
+  "$GRS"
+prouver 'groupe 1.324 c : une fiche sans matricule ne se reconnaît plus à son nom' serveur/groupe.ts \
+  'const b = m ? parMatricule.get(m) : sansMatricule(f.identifiant) ? parNom.get(cleNom(f.raison_sociale)) : undefined;' 'const b = m ? parMatricule.get(m) : undefined;' \
+  "$GRS"
+prouver 'groupe 1.324 d : la facture absente des achats de l'\''autre n'\''explique rien de l'\''écart' serveur/groupe.ts \
+  'manque: '\''achats'\'', poids: sens * BigInt(p.montant) });' 'manque: '\''achats'\'', poids: 0n });' \
+  "$GRS"
+prouver 'groupe 1.324 e : la même pièce à deux montants passe inaperçue' serveur/groupe.ts \
+  'if (difference !== 0n) pieces.push(' 'if (difference === 1n) pieces.push(' \
+  "$GRS"
+prouver 'groupe 1.324 f : le créancier est toujours la première société lue, les montants deviennent négatifs' serveur/groupe.ts \
+  'const yDoit = selonX !== 0n ? selonX > 0n : selonY >= 0n;' 'const yDoit = true;' \
+  "$GRS"
+prouver 'groupe 1.324 g : la part de chaque société avec ses sœurs n'\''est plus dite' serveur/groupe.ts \
+  'if (ligne && entre.interne.has(s.id)) ligne.entreSocietes = enTexte(interne, s.decimales);' '' \
+  "$GRS"
+prouver 'groupe 1.324 h : au Cabinet, une société qui connaît le dossier sans qu'\''il la connaisse n'\''est pas vue' serveur/groupe.ts \
+  'noms.has(cleNom(s.raisonSociale)) || meConnaissent.has(s.id))) continue;' 'noms.has(cleNom(s.raisonSociale)))) continue;' \
+  "$GRS"
+prouver 'groupe 1.324 i : l'\''inventaire du Cabinet ne lit pas les sociétés du même groupe' serveur/compta/inventaire.ts \
+  '          groupe: await groupeDuDossier(tx, qui, params.entreprise ?? '\'''\'', ' '          groupe: null, sansGroupe: await groupeDuDossier(tx, qui, params.entreprise ?? '\'''\'', ' \
+  "$GRS"
+prouver 'groupe 1.324 j : les ventes entre sociétés ne sont plus listées' serveur/groupe.ts \
+  'ventes: entre.liens.filter((l) => l.brut.caExercice !== 0n).map(' 'ventes: entre.liens.filter((l) => l.brut.caExercice === 0n).map(' \
+  "$GRS"
+prouver 'groupe 1.324 k : « Vendu par le groupe » dit le total des livres' modules/socle/ecrans/entreprise/app-2.js \
+  'h(argent(t.groupe.caExercice, t.devise)),' 'h(argent(t.chiffres.caExercice, t.devise)),' \
+  "$GRW"
+prouver 'groupe 1.324 l : ce qu'\''une société a avec ses sœurs ne se lit plus sous sa ligne' modules/socle/ecrans/entreprise/app-2.js \
+  'const dont = s.entreSocietes && COLONNES.some(' 'const dont = false && s.entreSocietes && COLONNES.some(' \
+  "$GRW"
+prouver 'groupe 1.324 m : sans rien entre les sociétés, trois lignes de total pour un seul chiffre' modules/socle/ecrans/entreprise/app-2.js \
+  'if (!interne) return total('\''Total du groupe'\'', '\''chiffres'\'');' '' \
+  "$GRW0"
+prouver 'groupe 1.324 n : la phrase de l'\''écart confond le vendeur et l'\''acheteur' modules/socle/moteur/compta-1.js \
+  'const v = nom(p.vendeur), a = nom(p.acheteur), date = fmtJour(p.date);' 'const v = nom(p.acheteur), a = nom(p.vendeur), date = fmtJour(p.date);' \
+  "$GRM1"
+prouver 'groupe 1.324 o : un avoir se dit facture dans la phrase de l'\''écart' modules/socle/moteur/compta-1.js \
+  '    const avoir = p.type === '\''avoir'\'';
+    const v = nom(p.vendeur)' '    const avoir = false;
+    const v = nom(p.vendeur)' \
+  "$GRM2"
+prouver 'groupe 1.324 p : l'\''onglet Inventaire du Cabinet ne montre pas les sociétés du même groupe' modules/socle/ecrans/cabinet/app-2.js \
+  '    ${panneauGaranties}
+    ${panneauGroupe}' '    ${panneauGaranties}' \
+  "$GRW"
+prouver 'groupe 1.324 q : le pont du Cabinet perd les sociétés du même groupe' web/public/plateforme/pont-cabinet.js \
+  'garanties: r.garanties || null, groupe: r.groupe || null }' 'garanties: r.garanties || null, groupe: null }' \
+  "$GRW"
+prouver 'groupe 1.324 r : au téléphone, ce qu'\''une société a avec ses sœurs se détache de sa carte' web/public/plateforme/liste.css \
+  '.lf.gr table.list[data-cartes] > tbody > tr.gr-dont { margin-top: -11px;' '.lf.gr table.list[data-cartes] > tbody > tr.gr-dont { margin-top: 0;' \
+  "$GRW"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

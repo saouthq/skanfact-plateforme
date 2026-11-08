@@ -91,7 +91,7 @@
     };
   }
   return {
-    round3, fmtMontant, fmtJour, jourDeLInstant, fmtMois, deMois, cleDePiece, csvDangereux, nombreDepuisCsv, nombreStrict, dateDepuisCsv,
+    round3, fmtMontant, fmtJour, jourDeLInstant, fmtMois, deMois, phraseEntreSocietes, cleDePiece, csvDangereux, nombreDepuisCsv, nombreStrict, dateDepuisCsv,
     ecritureValide, entreesDepuisCsv,
     entriesBalance, entriesByAccount,
     balanceDepuisLignes, grandLivreDepuisLignes, balanceAuxiliaireDepuisLignes, collectifsDeTiers, COMPTES_TIERS,

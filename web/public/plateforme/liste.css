@@ -1034,3 +1034,27 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lf.mg.cpt .cf-onglet tr.cpt-rien { display: none !important; }
   .lf.mg.cpt .cf-onglet .cpt-tel-seul { display: block; }
 }
+/* (1.324.0) La page Groupe : le tableau des sociétés et « Entre tes sociétés » dans des cartes ; ce qu'une société a avec
+   ses sœurs, en retrait sous sa ligne ; le total des livres et ce qui reste entre les sociétés, plus discrets que le groupe. */
+.lf.gr .gr-carte { padding: 14px 16px 16px; display: grid; gap: 10px; }
+.lf.gr .gr-carte > h2 { margin: 0; font-size: 15px; display: flex; gap: 6px; align-items: center; }
+.lf.gr .gr-carte > p { margin: 0; }
+.lf.gr tr.gr-dont td { font-size: 12.5px; color: var(--sb-gris-2); border-top: 0; padding-top: 0; }
+.lf.gr tr:has(+ tr.gr-dont) > td { border-bottom: 0; }
+@media (min-width: 761px) { .lf.gr tr.gr-dont td:first-child { padding-left: 22px; } }
+/* Au téléphone, chaque ligne est une carte : ce que la société a avec ses sœurs se colle sous la sienne, plus discret. */
+@media (max-width: 760px) {
+  .lf.gr table.list[data-cartes] > tbody > tr:has(+ tr.gr-dont) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .lf.gr table.list[data-cartes] > tbody > tr.gr-dont { margin-top: -11px; border-top-style: dashed; border-top-left-radius: 0; border-top-right-radius: 0;
+    box-shadow: none; background: var(--bg); padding-top: 10px; }
+  .lf.gr table.list[data-cartes] > tbody > tr.gr-dont > td { font-size: 13px; }
+}
+.lf.gr tfoot tr.gr-livres td, .lf.gr tfoot tr.gr-moins td { color: var(--sb-gris); font-size: 13px; }
+.lf.gr .gr-ventes h3, .lf.gr .gr-paire h3 { margin: 0; font-size: 14px; }
+.lf.gr .gr-ventes { display: grid; gap: 6px; }
+.lf.gr .gr-ventes ul, .lf.gr .gr-pieces { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.lf.gr .gr-paire { border-top: 1px solid var(--sb-trait); padding-top: 10px; display: grid; gap: 6px; }
+.lf.gr .gr-paire > p { margin: 0; }
+.lf.gr .gr-deux { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13.5px; }
+.lf.gr .gr-deux b { margin-left: 4px; }
+.lf.gr .gr-paire .inline { display: flex; flex-wrap: wrap; gap: 6px 14px; }

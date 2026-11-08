@@ -4298,28 +4298,90 @@
     });
   };
   // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
+  // (1.324.0, revue des modules : « Le groupe ») Jouée par une huilerie de Sfax qui vend son huile à sa société sœur de
+  // distribution : additionner les livres comptait deux fois l'huile, et la dette de l'une envers l'autre à la fois « à
+  // encaisser » et « à payer ». La page dans la DA des listes : l'en-tête (chemin, phrase), quatre chiffres du groupe sans
+  // compter deux fois, les sociétés et ce que chacune a avec ses sœurs (puis le total des livres, ce qui reste entre elles,
+  // le groupe), et « Entre tes sociétés » : ce qu'elles se sont vendu, ce qu'elles se doivent selon chacune, l'écart et
+  // les pièces qui l'expliquent (la même phrase qu'au Cabinet, KC.phraseEntreSocietes).
   routes.groupe = async () => {
-    const tete = `<div class="page-head"><h1>Le groupe ${info('groupe.page')}</h1><div class="actions">${backButton('#/dashboard')}</div></div>`;
-    if (!bridge.groupe) { $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Le groupe se lit en ligne, au serveur.</p></div>`; return; }
-    $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Lecture des chiffres de tes sociétés…</p></div>`;
+    const tete = `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Le groupe</span></div>
+      <h1>Le groupe ${info('groupe.page')}</h1><p class="sous">Tes sociétés côte à côte, sans compter deux fois ce qu'elles se vendent entre elles</p></div></div>`;
+    const carte = corps => `${tete}<div class="lf mg gr"><div class="cf-carte gr-carte">${corps}</div></div>`;
+    if (!bridge.groupe) { $('#view').innerHTML = carte('<p class="small muted">Le groupe se lit en ligne, au serveur.</p>'); return; }
+    $('#view').innerHTML = carte('<p class="small muted">Lecture des chiffres de tes sociétés…</p>');
     let r;
     try { r = await bridge.groupe(); } catch (e) {
-      $('#view').innerHTML = `${tete}<div class="panel"><p>${h(plainError(e))}</p><button class="btn" id="gr-reessayer">Réessayer</button></div>`;
+      $('#view').innerHTML = carte(`<p>${h(plainError(e))}</p><button class="btn" id="gr-reessayer">Réessayer</button>`);
       $('#gr-reessayer').onclick = () => render(true);
       return;
     }
-    const argent = (v, devise) => C.money(Number(v), devise === 'TND' ? 'DT' : devise);
+    const KC = window.SkanCompta;
+    const unite = devise => (devise === 'TND' ? 'DT' : devise);
+    const argent = (v, devise) => C.money(Number(v), unite(devise));
+    const nul = v => Math.abs(Number(v) || 0) < 0.0005;
     const COLONNES = [['caMois', 'CA du mois (HT)'], ['caExercice', 'CA de l\'exercice (HT)'], ['aEncaisser', 'À encaisser'], ['aPayer', 'À payer'], ['tresorerie', 'Trésorerie']];
-    const ligne = s => s.chiffres
-      ? `<tr><td><button type="button" class="link-add" data-groupe-ouvrir="${h(s.id)}" title="Ouvrir ${h(s.raisonSociale)}">${h(s.raisonSociale)}</button></td>${COLONNES.map(([k]) => `<td class="r nw">${h(argent(s.chiffres[k], s.devise))}</td>`).join('')}</tr>`
-      : `<tr><td><button type="button" class="link-add" data-groupe-ouvrir="${h(s.id)}" title="Ouvrir ${h(s.raisonSociale)}">${h(s.raisonSociale)}</button></td><td colspan="${COLONNES.length}" class="small muted">${h(s.motif || '')}</td></tr>`;
-    const total = t => `<tr class="total-row"><td><strong>Total du groupe${r.totaux.length > 1 ? ` (${h(t.devise === 'TND' ? 'DT' : t.devise)})` : ''}</strong></td>${COLONNES.map(([k]) => `<td class="r nw"><strong>${h(argent(t.chiffres[k], t.devise))}</strong></td>`).join('')}</tr>`;
+    const nomDe = id => (r.societes.find(s => s.id === id) || {}).raisonSociale || '—';
+    const ouvrir = (id, texte) => `<button type="button" class="link-add" data-groupe-ouvrir="${h(id)}" title="Ouvrir ${h(nomDe(id))}">${h(texte)}</button>`;
+    const plusieurs = r.totaux.length > 1;
+    const lignes = r.societes.map(s => {
+      if (!s.chiffres) return `<tr data-societe="${h(s.id)}"><td>${ouvrir(s.id, s.raisonSociale)}</td><td colspan="${COLONNES.length}" class="small muted">${h(s.motif || '')}</td></tr>`;
+      const ligne = `<tr data-societe="${h(s.id)}"><td>${ouvrir(s.id, s.raisonSociale)}</td>${COLONNES.map(([k]) => `<td class="r nw">${h(argent(s.chiffres[k], s.devise))}</td>`).join('')}</tr>`;
+      // Ce que la société a avec ses sœurs, sous sa ligne : une partie de ses chiffres, pas une autre société.
+      const dont = s.entreSocietes && COLONNES.some(([k]) => !nul(s.entreSocietes[k]))
+        ? `<tr class="gr-dont" data-dont="${h(s.id)}"><td>dont avec tes sociétés</td>${COLONNES.map(([k]) => `<td class="r nw">${k === 'tresorerie' || nul(s.entreSocietes[k]) ? '—' : h(argent(s.entreSocietes[k], s.devise))}</td>`).join('')}</tr>` : '';
+      return ligne + dont;
+    }).join('');
+    const pied = r.totaux.map(t => {
+      const de = plusieurs ? ` (${h(unite(t.devise))})` : '';
+      const interne = COLONNES.some(([k]) => !nul(t.entreSocietes[k]));
+      const total = (libelle, cle) => `<tr class="total-row gr-total"><td><strong>${libelle}${de}</strong></td>${COLONNES.map(([k]) => `<td class="r nw"><strong>${h(argent(t[cle][k], t.devise))}</strong></td>`).join('')}</tr>`;
+      // Rien entre les sociétés : le total des livres est le groupe, une seule ligne le dit.
+      if (!interne) return total('Total du groupe', 'chiffres');
+      return `<tr class="gr-livres"><td>Total des livres${de}</td>${COLONNES.map(([k]) => `<td class="r nw">${h(argent(t.chiffres[k], t.devise))}</td>`).join('')}</tr>`
+        + `<tr class="gr-moins"><td>Moins ce qui reste entre tes sociétés</td>${COLONNES.map(([k]) => `<td class="r nw">${nul(t.entreSocietes[k]) ? '—' : `− ${h(argent(t.entreSocietes[k], t.devise))}`}</td>`).join('')}</tr>`
+        + total('Le groupe, sans compter deux fois', 'groupe');
+    }).join('');
+    // Les quatre chiffres du groupe, par devise (on n'additionne jamais deux devises).
+    const avecChiffres = r.societes.filter(s => s.chiffres).length;
+    const chiffre = (l, v, sous, aide) => `<div class="mg-chiffre"><span class="mu">${l}${aide ? ' ' + info(aide) : ''}</span><b>${v}</b><small>${sous}</small></div>`;
+    const resume = r.totaux.map(t => `<div class="cf-carte mg-resume gr-resume" data-devise="${h(t.devise)}">`
+      + chiffre(`Vendu par le groupe${plusieurs ? ` (${h(unite(t.devise))})` : ''}`, h(argent(t.groupe.caExercice, t.devise)),
+        nul(t.entreSocietes.caExercice) ? 'hors taxes, sur l\'exercice de chaque société' : `hors taxes, sur l'exercice, sans les ${h(argent(t.entreSocietes.caExercice, t.devise))} vendus entre tes sociétés`, 'groupe.entre')
+      + chiffre('Ce que les clients doivent', h(argent(t.groupe.aEncaisser, t.devise)),
+        nul(t.entreSocietes.aEncaisser) ? 'encore à encaisser' : `sans les ${h(argent(t.entreSocietes.aEncaisser, t.devise))} que tes sociétés se doivent`)
+      + chiffre('Ce que le groupe doit', h(argent(t.groupe.aPayer, t.devise)),
+        nul(t.entreSocietes.aPayer) ? 'encore à payer aux fournisseurs' : 'aux fournisseurs du dehors, sans ce que tes sociétés se doivent')
+      + chiffre('Trésorerie', h(argent(t.groupe.tresorerie, t.devise)), `la banque et la caisse de ${h(pl(avecChiffres, 'société'))}`)
+      + '</div>').join('');
+    // Entre tes sociétés : ce qu'elles se sont vendu, ce qu'elles se doivent selon chacune, l'écart et ses pièces.
+    const devises = new Map(r.societes.map(s => [s.id, s.devise]));
+    const ventes = (r.ventes || []).length ? `<div class="gr-ventes"><h3>Ce qu'elles se sont vendu sur l'exercice (HT)</h3><ul>${r.ventes.map(v =>
+      `<li data-vente="${h(v.de)}:${h(v.vers)}">${h(v.deNom)} → ${h(v.versNom)} : <b class="nw">${h(argent(v.caExercice, devises.get(v.de) || 'TND'))}</b></li>`).join('')}</ul></div>` : '';
+    const paire = p => {
+      const dev = p.devise, a = x => argent(x, dev);
+      const pieces = p.pieces.map(x => `<li>${h(KC.phraseEntreSocietes(x, nomDe, a))}</li>`).join('');
+      const etat = nul(p.ecart)
+        ? '<p class="small ligne-ok"><span aria-hidden="true">✓</span> Les deux livres disent le même montant.</p>'
+        : `<p class="small warn-text gr-ecart">Écart de <b class="nw">${h(a(Math.abs(Number(p.ecart))))}</b>${pieces ? ' :' : '.'}</p>${pieces ? `<ul class="small gr-pieces">${pieces}</ul>` : ''}${
+          Number(p.autres) ? `<p class="small muted">… et ${h(pl(Number(p.autres), 'autre pièce'))}.</p>` : ''}${nul(p.reste) ? '' : `<p class="small muted gr-reste">Le reste de l'écart (${h(a(Math.abs(Number(p.reste))))}) ne vient d'aucune pièce : un règlement noté d'un seul côté, ou une écriture passée sans la fiche de la société.</p>`}`;
+      return `<div class="gr-paire" data-paire="${h(p.creancier)}:${h(p.debiteur)}"><h3>Ce que ${h(p.debiteurNom)} doit à ${h(p.creancierNom)}</h3>
+        <div class="gr-deux"><span>Selon ${h(p.creancierNom)} <b class="nw">${h(a(p.selonCreancier))}</b></span><span>Selon ${h(p.debiteurNom)} <b class="nw">${h(a(p.selonDebiteur))}</b></span></div>
+        ${etat}${nul(p.ecart) ? '' : `<div class="inline">${ouvrir(p.creancier, `Ouvrir ${p.creancierNom}`)}${ouvrir(p.debiteur, `Ouvrir ${p.debiteurNom}`)}</div>`}</div>`;
+    };
+    const entre = (r.ventes || []).length || (r.paires || []).length
+      ? `${ventes}${(r.paires || []).map(paire).join('')}`
+      : '<p class="small">Aucune de tes sociétés n\'est cliente ou fournisseur d\'une autre : il n\'y a rien à retirer du total.</p>';
     $('#view').innerHTML = `${tete}
-      <div class="panel" id="groupe-tableau"><h2>Tes sociétés, au ${h(C.fmtDate(r.jour))}</h2>
-        <table class="list"><thead><tr><th>Société</th>${COLONNES.map(([, l]) => `<th class="r">${h(l)}</th>`).join('')}</tr></thead>
-          <tbody>${r.societes.map(ligne).join('')}</tbody>
-          <tfoot>${r.totaux.map(total).join('')}</tfoot></table>
-        <p class="small muted mt">Les chiffres viennent des livres de chaque société : le chiffre d'affaires hors taxes (comptes 70), ce que les clients doivent encore (411), ce qui reste à payer aux fournisseurs (401), la banque et la caisse (classe 5). Deux devises ne s'additionnent pas : chacune a son total.</p>
+      <div class="lf mg gr">
+        ${resume}
+        <div class="cf-carte gr-carte" id="groupe-tableau"><h2>Tes sociétés, au ${h(C.fmtDate(r.jour))}</h2>
+          <div class="scroll-x"><table class="list"><thead><tr><th>Société</th>${COLONNES.map(([, l]) => `<th class="r">${h(l)}</th>`).join('')}</tr></thead>
+            <tbody>${lignes}</tbody><tfoot>${pied}</tfoot></table></div>
+          <p class="small muted">Les chiffres viennent des livres de chaque société : le chiffre d'affaires hors taxes (comptes 70), ce que les clients doivent encore (411), ce qui reste à payer aux fournisseurs (401), la banque et la caisse (classe 5). Deux devises ne s'additionnent pas : chacune a son total.</p>
+        </div>
+        <div class="cf-carte gr-carte" id="gr-entre"><h2>Entre tes sociétés ${info('groupe.entre')}</h2>${entre}
+          <p class="small muted">Une société se reconnaît parmi les clients et les fournisseurs d'une autre à son matricule fiscal (ou, sans matricule sur la fiche, à son nom exact). Ton comptable lit la même chose dans le dossier de chacune.</p></div>
       </div>`;
     $$('[data-groupe-ouvrir]').forEach(b => b.onclick = async () => {
       if (!await leaveOk()) return;
