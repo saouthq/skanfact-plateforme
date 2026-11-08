@@ -927,7 +927,7 @@ prouver "un avoir imputé compté encore comme un crédit" $MA \
   "reste: rattache ? 0n : paye - t.netAPayer" "reste: paye - t.netAPayer" \
   "le reste d'un achat et son statut"
 prouver "les avoirs et acomptes oubliés dans le reste d'un achat" $MA \
-  "  return { paye, impute, reste: t.netAPayer - paye - impute };" "  return { paye, impute, reste: t.netAPayer - paye };" \
+  "  return { paye, impute, reste: t.netAPayer - paye - impute, avance:" "  return { paye, impute, reste: t.netAPayer - paye, avance:" \
   "le reste d'un achat et son statut"
 prouver "un avoir remboursé en partie dit remboursé" $MA \
   "solde.paye > 0n && solde.reste >= 0n ? 'rembourse'" "solde.paye > 0n ? 'rembourse'" \
@@ -1380,7 +1380,7 @@ prouver "la retenue d'un achat oubliée au fil de ses règlements" $EA \
   "    const fil = retenueAuFil(t.netAPayer, t.netAPayer + t.retenue, pl, regs);" "    const fil = retenueAuFil(t.netAPayer, t.netAPayer, pl, regs);" \
   "$ACX"
 prouver "un avoir rattaché qui ne diminue pas le reste de sa facture" $EA \
-  "regs.map((r) => r.montant), pl.map((x) => x.net));" "regs.map((r) => r.montant), []);" \
+  "regs.map((r) => r.montant), pl.map((x) => x.net)," "regs.map((r) => r.montant), []," \
   "$AR"
 prouver "la liste des achats qui annonce le net au lieu du reste" serveur/achats/routes.ts \
   "            reste: etats.get(l.id)?.reste ?? null," "            reste: versTexte(l.net_a_payer, l.decimales)," \
@@ -9172,7 +9172,7 @@ prouver "un fichier pas encore joint, lu de l'autre côté" $MG \
   "  and (depose_par = socle.moi() or exists (select 1 from messagerie.message m where m.fichier = fichier.id)));" "  and true);" \
   "$MSG2"
 prouver "un fichier reconnu à son nom plutôt qu'à ses octets" $MR \
-  "      const sorte = sorteDe(fichier);" "      const sorte = sorteDe(fichier) ?? 'png';" \
+  "      const sorte = sorteJointeDe(fichier);" "      const sorte = sorteJointeDe(fichier) ?? 'png';" \
   "$MSG2"
 prouver "la pièce demandée comptée deux fois dans la pastille" $MR \
   "          and not (m.demande is not null and m.demande_recue_le is null))" ")" \
@@ -21911,7 +21911,7 @@ prouver 'saisie 1 : la contre-valeur oublie le taux de change' modules/socle/ecr
   "    return Number.isFinite(c) && Number.isFinite(t) && c > 0 && t > 0 ? Math.round(c * t / 1000) : 0;" "    return Number.isFinite(c) && Number.isFinite(t) && c > 0 && t > 0 ? Math.round(c * 10) : 0;" \
   "$WSX1"
 prouver 'saisie 2 : un ticket compté avec sa TVA' modules/socle/ecrans/cabinet/app-2.js \
-  "      tva: h.n ? h.taux : ticket ? 'sans' : '', tvaAutre: '', tvaSrc: h.n ? 'hab' : ticket ? 'ticket' : ''," "      tva: h.n ? h.taux : '', tvaAutre: '', tvaSrc: h.n ? 'hab' : ''," \
+  "      tva: h.n && h.taux !== 'mixte' ? h.taux : ticket ? 'sans' : '', tvaAutre: '', tvaSrc: h.n && h.taux !== 'mixte' ? 'hab' : ticket ? 'ticket' : ''," "      tva: h.n && h.taux !== 'mixte' ? h.taux : '', tvaAutre: '', tvaSrc: h.n && h.taux !== 'mixte' ? 'hab' : ''," \
   "$WSX1"
 prouver 'saisie 3 : le paiement par carte du relevé ne se voit pas' modules/socle/ecrans/cabinet/app-2.js \
   "        if (mtSx(l.montant) !== -ttcM) continue;" "        continue;" \
@@ -22005,7 +22005,7 @@ prouver 'saisie 30 : « Au kilomètre » n'\''a pas le journal du mois' modules/
   "return barreSx(P, dossier) + (moisSx() && !(saisieState.piece && saisieState.piece.depuisClasseur) ? (grilleCacheeSx(P)" "return barreSx(P, dossier) + (false ? (grilleCacheeSx(P)" \
   "$WSX1"
 prouver 'saisie 31 : la ligne en cours ne propose pas la charge du fournisseur' modules/socle/ecrans/cabinet/app-2.js \
-  "    const f = { four, date, ttc: L.ttc, tva: h.n ? h.taux : '', tvaAutre: '', compte: h.n ? h.compte : ''" "    const f = { four, date, ttc: L.ttc, tva: '', tvaAutre: '', compte: ''" \
+  "    const f = { four, date, ttc: L.ttc, tva: h.n && h.taux !== 'mixte' ? h.taux : '', tvaAutre: '', compte: h.n ? h.compte : ''" "    const f = { four, date, ttc: L.ttc, tva: '', tvaAutre: '', compte: ''" \
   "$WSX1"
 prouver 'saisie 32 : un fournisseur sans pièce d'\''avant reçoit une charge inventée' modules/socle/ecrans/cabinet/app-2.js \
   "    const refus = !four ? 'Le fournisseur manque.' : !h.n ?" "    const refus = !four ? 'Le fournisseur manque.' : false ?" \
@@ -22059,7 +22059,7 @@ prouver 'saisie 47 : « Au kilomètre », la grille reste sous le journal du moi
   "const grilleCacheeSx = P => sxState.mode === 'km'" "const grilleCacheeSx = P => false && sxState.mode === 'km'" \
   "$WSX1"
 prouver 'saisie 48 : le journal du mois ne nomme pas la TVA déductible' modules/socle/ecrans/cabinet/app-2.js \
-  "estTva ? \`TVA déductible\${" "estTva ? \`TVA\${" \
+  ": \`TVA déductible\${tx !== 'sans'" ": \`TVA\${tx !== 'sans'" \
   "$WSX1"
 prouver 'saisie 50 : le mois vide étale la grille au lieu de sa carte (maquette « savide »)' modules/socle/ecrans/cabinet/app-2.js \
   "    const cache = face || grilleCacheeSx(P) || videSx;" "    const cache = face || grilleCacheeSx(P);" \
@@ -26508,6 +26508,76 @@ prouver 'groupe 1.324 r : au téléphone, ce qu'\''une société a avec ses sœu
   '.lf.gr table.list[data-cartes] > tbody > tr.gr-dont { margin-top: -11px;' '.lf.gr table.list[data-cartes] > tbody > tr.gr-dont { margin-top: 0;' \
   "$GRW"
 
+# 1.325.0 — la facture électronique reçue (le fichier El Fatoora du fournisseur), jusqu'au comptable
+EFS1="le client envoie le fichier de son grossiste ; le cabinet le lit sans l'IA, au millime, taux par taux"
+EFS2="l'avoir, la facture adressée à une autre société, le fichier incomplet, le XML qui n'est pas une facture ; le classeur"
+EFW1="Hédi reçoit les fichiers El Fatoora de ses fournisseurs : deux taux et une remise, l'avoir, le même fichier deux fois, une facture en euros"
+EFW2="Leïla, au Cabinet : les fichiers El Fatoora envoyés par la messagerie se lisent sans l'IA, au millime, et s'écrivent avec chaque taux du fichier"
+EFM="le reste d'un achat et son statut"
+prouver 'efacture 1.325 a : le cabinet envoie le fichier El Fatoora à l'\''IA (ou le refuse sans elle)' serveur/cabinet/classeur.ts \
+  '      if (sorteJointeDe(fichier) === '\''xml'\'') {' '      if (sorteJointeDe(fichier) === '\''xml'\'' && false) {' \
+  "$EFS1"
+prouver 'efacture 1.325 b : les taux du fichier dans le désordre (7 % avant 19 %)' serveur/cabinet/efacture.ts \
+  '    .sort((a, b) => Number(b.taux) - Number(a.taux));' '    ;' \
+  "$EFS1"
+prouver 'efacture 1.325 c : la remise d'\''une ligne du fichier se perd à la lecture' web/public/v10/teif.js \
+  '...(remise > 0 && puBrut != null ? { remise, puBrut } : {}) }))' '...({}) }))' \
+  "$EFS1"
+prouver 'efacture 1.325 d : la facture adressée à une autre société ne le dit pas' serveur/cabinet/efacture.ts \
+  'const ailleurs = r.remarques.some(' 'const ailleurs = false && r.remarques.some(' \
+  "$EFS2"
+prouver 'efacture 1.325 e : la messagerie refuse le fichier El Fatoora' serveur/messagerie/routes.ts \
+  '      const sorte = sorteJointeDe(fichier);' '      const sorte = sorteJointeDe(fichier) === '\''xml'\'' ? null : sorteJointeDe(fichier);' \
+  "$EFS1"
+prouver 'efacture 1.325 f : la Saisie écrit la facture électronique à un seul taux deviné' modules/socle/ecrans/cabinet/app-2.js \
+  '    if (f.tva === '\''fichier'\'' && f.teif && !f.devise) return ecritureFichierSx(f);' '' \
+  "$EFW2"
+prouver 'efacture 1.325 g : l'\''avoir du fichier s'\''écrit comme une facture' modules/socle/ecrans/cabinet/app-2.js \
+  'const sens = (m, l) => (f.avoir ?' 'const sens = (m, l) => (false ?' \
+  "$EFW2"
+prouver 'efacture 1.325 h : une écriture à deux taux propose « TVA 18,6 % »' modules/socle/ecrans/cabinet/app-2.js \
+  'if (lignesTvaSx(e).length > 1) return '\''mixte'\''; ' '' \
+  "$EFW2"
+prouver 'efacture 1.325 i : un total changé s'\''écrit, qui n'\''est plus celui du fichier' modules/socle/ecrans/cabinet/app-2.js \
+  '            : fichier && ttc !== fichier ? ['\''ttc'\'',' '            : false ? ['\''ttc'\'',' \
+  "$EFW2"
+prouver 'efacture 1.325 j : la Saisie ne montre pas la feuille du fichier (« ne se dessine pas »)' modules/socle/ecrans/cabinet/app-2.js \
+  '    if (zone && estXmlSx(x)) { lireEfactureCl(dossier, x); zone.innerHTML = feuilleEfactureCl(x); return; }
+' '' \
+  "$EFW2"
+prouver 'efacture 1.325 k : la fiche oublie les taux du fichier' modules/socle/ecrans/cabinet/app-2.js \
+  '      if ((D.tva || []).length) { f.tva = '\''fichier'\''; f.tvaSrc = '\''lu'\''; }' '' \
+  "$EFW2"
+prouver 'efacture 1.325 l : la fiche oublie le timbre du fichier' modules/socle/ecrans/cabinet/app-2.js \
+  '      if (tb > 0) { f.timbre = dtSx(tb); f.timbreSrc = '\''lu'\''; }' '' \
+  "$EFW2"
+prouver 'efacture 1.325 m : la messagerie du Cabinet dit « PDF » d'\''un fichier XML' web/public/plateforme/messagerie.js \
+  '=== '\''PDF'\'' ? '\''PDF'\'' : pdf ? '\''XML'\'' : '\''PHOTO'\''}</em>' '=== '\''PDF'\'' ? '\''PDF'\'' : pdf ? '\''PDF'\'' : '\''PHOTO'\''}</em>' \
+  "$EFW2"
+prouver 'efacture 1.325 n : au téléphone, le choix de la TVA est trop petit pour le pouce' web/public/plateforme/saisie.css \
+  '  .sx-in { min-height: 44px; font-size: 16px; }
+' '' \
+  "$EFW2"
+prouver 'efacture 1.325 o : l'\''avoir imputé se dit « Réglée » dans son en-tête' modules/socle/ecrans/entreprise/app-1.js \
+  '      if (p.kind === '\''avoir'\'') {
+        const st = C.purchaseStatus(' '      if (false) {
+        const st = C.purchaseStatus(' \
+  "$EFW1"
+prouver 'efacture 1.325 p : à l'\''écran, la facture que seul l'\''avoir diminue se dit « Partiel »' modules/socle/moteur/core-1.js \
+  '    if (b.paid > 0 || (b.liees || []).some(x => x.kind === '\''acompte'\'')) return '\''partiel'\'';' '    if (b.paid > 0 || (b.liees || []).length) return '\''partiel'\'';' \
+  "$EFW1"
+prouver 'efacture 1.325 q : au serveur, la facture que seul l'\''avoir diminue se dit « partiel »' moteur/achats.ts \
+  '  if (solde.paye > 0n || (solde.avance ?? 0n) > 0n) return '\''partiel'\'';' '  if (solde.paye > 0n || solde.impute > 0n) return '\''partiel'\'';' \
+  "$EFM"
+prouver 'efacture 1.325 r : « Joindre » ne joint pas le fichier El Fatoora à la facture papier' modules/socle/ecrans/entreprise/app-1.js \
+  '          s2.attachments = (s2.attachments || []).concat(piece);' '          s2.attachments = (s2.attachments || []);' \
+  "$EFW1"
+prouver 'efacture 1.325 s : la référence TTN du fichier joint ne rejoint pas les notes' modules/socle/ecrans/entreprise/app-1.js \
+  '          if (ref && !String(s2.notes || '\'''\'').includes(tete.refTtn)) s2.notes' '          if (false) s2.notes' \
+  "$EFW1"
+prouver 'efacture 1.325 t : la classeur garde la lecture du fichier comme une lecture de l'\''IA' serveur/cabinet/classeur.ts \
+  'values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '\''teif'\'', $11)' 'values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '\''ia'\'', null)' \
+  "$EFS1"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

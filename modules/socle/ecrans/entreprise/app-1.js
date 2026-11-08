@@ -16694,6 +16694,12 @@
       if (!solde) return '';
       // (1.155.12, maquette achat) Les statuts de la maquette : à récupérer (bleu), sans justificatif (ambre, une dépense),
       // réglée (vert), en retard de N jours (rouge), à payer avec son échéance (bleu).
+      // (1.325.0, joué : l'avoir d'une perceuse rendue) Un avoir ne se règle pas, il s'impute : son en-tête dit le mot de la
+      // liste des achats (« Imputé »), jamais « Réglée » quand la liste dit autre chose.
+      if (p.kind === 'avoir') {
+        const st = C.purchaseStatus(stored, company(), C.today(), data);
+        return st === 'imputé' ? '<span class="badge payée ed-pill">Imputé</span>' : st === 'remboursé' ? '<span class="badge payée ed-pill">Remboursé</span>' : '<span class="badge partielle ed-pill">À imputer</span>';
+      }
       if (solde.remaining < -0.0005) return '<span class="badge envoyée ed-pill">À récupérer</span>';
       if (p.kind === 'depense' && C.sansJustificatif(stored)) return '<span class="badge partielle ed-pill">Sans justificatif</span>';
       if (solde.remaining <= 0.0005) return '<span class="badge payée ed-pill">Réglée</span>';
@@ -18384,6 +18390,13 @@
         const ecartTTC = read.totalTTC == null ? 0 : C.round3(tt.totalTTC - read.totalTTC);
         const ecart = Math.abs(ecartHT) > 0.0005 || Math.abs(ecartTTC) > 0.0015;
         const jumeau = tete.number && sup ? C.achatDoublon(data, { id: '', supplierId: sup.id, number: tete.number, kind: tete.kind || 'facture' }) : null;
+        // (1.325.0) Le fichier d'une facture DÉJÀ saisie (la facture papier saisie à la main, puis le fichier signé qui arrive ;
+        // ou le même fichier renvoyé par le fournisseur) ne se saisit pas une seconde fois : ses montants se comparent à ceux
+        // de l'achat, et le geste qui suit est d'y joindre le fichier signé (ou d'ouvrir l'achat, s'il l'a déjà).
+        const ttcJumeau = jumeau ? C.purchaseTotals(jumeau, company()).totalTTC : null;
+        const memeMontant = !!jumeau && read.totalTTC != null && Math.abs(C.round3(ttcJumeau - read.totalTTC)) <= 0.0005;
+        const xmlDeja = jumeau ? (jumeau.attachments || []).find(a => /\.xml$/i.test(String(a.name || ''))) : null;
+        const auFin = C.decimalsFor(curF) === 2 ? 'au centime' : 'au millime';
         const horsListe = i => read.lines && read.lines[i] && read.lines[i].vatRate != null && !C.VAT_RATES.includes(Number(read.lines[i].vatRate));
         const doutes = [!sup, !cat, ailleurs, !read.signe, ecart, !tete.number, !!jumeau, etrangere, ...lignes.map((l, i) => horsListe(i))].filter(Boolean).length + autresRemarques.length;
         const titre = `${avoir ? 'Avoir électronique' : 'Facture électronique'}${tete.number ? ' ' + tete.number : ''}`;
@@ -18395,6 +18408,10 @@
         const nous = company().matricule || '';
         const four = read.fournisseur || {};
         const bandeaux = [
+          jumeau ? `<div class="bandeau ${memeMontant ? 'info' : 'ambre'}" id="tf-deja">${lfIc(memeMontant ? 'piece' : 'aide', 18, 2)}<span class="txt"><b>${h(jumeau.number || tete.number)} est déjà dans tes achats, du ${C.fmtDate(jumeau.date)}</b><span>${
+            read.totalTTC == null ? 'Ouvre-la pour comparer avec le fichier.'
+              : memeMontant ? `Mêmes montants que le fichier, ${auFin} : ${nb(ttcJumeau)} TTC. ${xmlDeja ? `Son fichier El Fatoora y est déjà joint (${h(xmlDeja.name)}) : rien à refaire.` : 'Joins-lui ce fichier signé plutôt que de la saisir deux fois.'}`
+                : `Elle y est à ${nb(ttcJumeau)} TTC ; le fichier dit ${nb(read.totalTTC)} TTC : écart de ${nb(Math.abs(C.round3(ttcJumeau - read.totalTTC)))}. Ouvre-la pour comparer ligne par ligne.`}</span></span></div>` : '',
           ailleurs ? `<div class="bandeau rouge">${lfIc('alerte', 18, 2)}<span class="txt"><b>Cette facture est adressée à « ${h(acheteur.nom || acheteur.identifiant)} » (${h(acheteur.identifiant)}), pas à ta société</b><span>Vérifie que c'est bien la tienne avant de la saisir : sa TVA ne se récupère que sur une facture à ton nom.</span></span></div>` : '',
           !read.signe ? `<div class="bandeau ambre">${lfIc('cadenas', 18, 2)}<span class="txt"><b>Ce fichier n'est pas signé : ce n'est pas encore la facture validée par la TTN</b><span>Tu peux la saisir ; garde aussi celle que la plateforme El Fatoora t'enverra, signée.</span></span></div>` : '',
           ecart ? `<div class="bandeau ambre">${lfIc('aide', 18, 2)}<span class="txt"><b>Le total recompté ne tombe pas sur celui du fichier</b><span>SkanFact ne choisit pas à ta place : compare la ligne marquée avec la facture du fournisseur.</span></span></div>` : ''
@@ -18406,7 +18423,7 @@
               : sup ? ligne(true, 'Fournisseur', `<b>${h(sup.name)}</b>`, read.matricule && String(sup.matricule || '').toUpperCase().replace(/[^0-9A-Z]/g, '') === String(read.matricule).toUpperCase().replace(/[^0-9A-Z]/g, '') ? `reconnu par son matricule ${h(read.matricule)}, lu dans le fichier` : 'reconnu par son nom')
               : ligne(false, 'Fournisseur', tete.supplierName ? `« ${h(tete.supplierName)} » n'est pas dans tes fournisseurs :` : 'aucun nom dans le fichier :', [read.matricule ? `matricule ${h(read.matricule)}` : '', four.adresse || four.telephone ? `${[four.adresse ? 'adresse' : '', four.telephone ? 'téléphone' : ''].filter(Boolean).join(' et ')} repris du fichier` : ''].filter(Boolean).join(', ') || 'à choisir ou à créer',
                 creerOuChoisir('tfSup', tete.supplierName))}
-            ${delai != null ? ligne(true, 'Délai de paiement', `${pl(delai, 'jour')}${ech ? ` · échéance ${C.fmtDate(ech)}` : ''}`, tete.dueDate ? 'lue dans le fichier' : 'de sa fiche') : ''}
+            ${delai != null && !avoir ? ligne(true, 'Délai de paiement', `${pl(delai, 'jour')}${ech ? ` · échéance ${C.fmtDate(ech)}` : ''}`, tete.dueDate ? 'lue dans le fichier' : 'de sa fiche') : ''}
           </div>
           <div class="ac-lec-g"><b class="gt">La pièce</b>
             ${tete.number ? ligne(!jumeau, 'Numéro', `<b>${h(tete.number)}</b>`, 'lu dans le fichier') : ligne(false, 'Numéro', 'aucun numéro dans le fichier :', 'il est obligatoire pour déduire la TVA', '<span class="ac-lec-saisie"><input type="text" id="tf-num" placeholder="Le numéro écrit sur la facture"></span>')}
@@ -18422,26 +18439,33 @@
           <div class="ac-lec-g"><b class="gt">Les lignes</b>
             ${lignes.map((l, i) => { const it = (data.catalog || []).find(c => c.tracked && String(c.label || '').trim().toLowerCase() === String(l.label || '').trim().toLowerCase());
               const hors = horsListe(i);
+              // (1.325.0) La remise de la ligne se dit : « 76,500 » seul ne se reconnaissait pas du tarif (85,000 moins 10 %).
+              const rl = read.lines && read.lines[i] && read.lines[i].remise > 0 && read.lines[i].puBrut != null ? read.lines[i] : null;
               return ligne(!hors && !ecart, h(l.label || 'Sans désignation'), `${pct(l.qty)} × ${nb(l.unitPrice)} = <b>${nb(C.round3(l.qty * l.unitPrice))}</b> · TVA ${pct(l.vatRate)} %`,
-                hors ? `taux ${h(String(read.lines[i].vatRate))} % lu : pas un taux proposé, mis à 19 %` : ecart ? `les lignes font ${nb(calculHT)} HT, le fichier annonce ${nb(prep.readHT)} HT` : it ? 'lue · en stock, comme ton article' : 'lue · en charge'); }).join('')}
+                hors ? `taux ${h(String(read.lines[i].vatRate))} % lu : pas un taux proposé, mis à 19 %` : ecart ? `les lignes font ${nb(calculHT)} HT, le fichier annonce ${nb(prep.readHT)} HT`
+                  : `${rl ? `remise de ${pct(rl.remise)} % sur ${nb(rl.puBrut)} · ` : ''}${it ? 'lue · en stock, comme ton article' : 'lue · en charge'}`); }).join('')}
           </div>
           <div class="ac-lec-g"><b class="gt">Le contrôle</b>
             ${read.totalTTC == null ? ligne(true, 'Total', `lignes : <b>${nb(tt.totalTTC)}</b> TTC`, 'aucun total dans le fichier pour comparer')
               : ecart ? ligne(false, 'Total', `recompté <b>${nb(tt.totalTTC)}</b>, le fichier dit <b>${nb(read.totalTTC)}</b> TTC`, `écart de ${nb(Math.abs(ecartTTC || ecartHT))} : corrige la ligne marquée`)
-              : ligne(true, 'Total', `recompté <b>${nb(tt.totalTTC)}</b> = total du fichier <b>${nb(read.totalTTC)}</b> TTC, au millime`, [`HT ${nb(tt.totalHT)}`, ...Object.keys(read.vatByRate || {}).map(r => `TVA ${pct(Number(r))} % ${nb(read.vatByRate[r].vat)}`), tete.fees ? `timbre ${nb(tete.fees)}` : ''].filter(Boolean).join(' · '))}
+              : ligne(true, 'Total', `recompté <b>${nb(tt.totalTTC)}</b> = total du fichier <b>${nb(read.totalTTC)}</b> TTC, ${auFin}`, [`HT ${nb(tt.totalHT)}`, ...Object.keys(read.vatByRate || {}).map(r => `TVA ${pct(Number(r))} % ${nb(read.vatByRate[r].vat)}`), tete.fees ? `timbre ${nb(tete.fees)}` : ''].filter(Boolean).join(' · '))}
             ${ligne(!!read.signe, 'Signature', read.signe ? `signature électronique présente${tete.refTtn ? ` · réf. TTN ${h(tete.refTtn)}` : ''}` : 'pas de signature électronique dans le fichier', read.signe ? (tete.refTtn ? 'la référence lue dans le fichier' : 'aucune référence TTN dans le fichier') : 'pas encore validée par la TTN')}
-            ${sup && tete.number ? ligne(!jumeau, 'Déjà saisie ?', jumeau ? `oui : ${h(tete.number)} est déjà saisie, du ${C.fmtDate(jumeau.date)}` : `non : aucune ${h(tete.number)} chez ${h(sup.name)}`, 'vérifié dans tes achats') : ''}
+            ${sup && tete.number ? ligne(!jumeau, 'Déjà saisie ?', jumeau ? `oui : ${h(tete.number)} est déjà saisie, du ${C.fmtDate(jumeau.date)}${ttcJumeau != null ? ` · ${nb(ttcJumeau)} TTC${memeMontant ? ', comme le fichier' : ''}` : ''}` : `non : aucune ${h(tete.number)} chez ${h(sup.name)}`, 'vérifié dans tes achats') : ''}
             ${autresRemarques.map(m => ligne(false, 'À noter', h(m), 'lu dans le fichier')).join('')}
           </div></div></div>
           <aside class="ed-droite">
-            <div class="panel ac-lec-geste"><button type="button" class="btn btn-primary btn-grand" id="tf-remplir">${lfIc('coche', 17, 2.4)}Remplir la pièce${doutes ? ` · ${doutes} à revoir` : ''}</button>
-              <p class="ed-phrase">${doutes ? 'Tu peux remplir tout de suite : ce qui reste à trancher se corrige sur la pièce. ' : ''}Rien n'est enregistré avant que tu cliques sur « Enregistrer l'achat ».</p></div>
+            <div class="panel ac-lec-geste">${jumeau ? `${memeMontant && !xmlDeja && file.path ? `<button type="button" class="btn btn-primary btn-grand" id="tf-joindre">${lfIc('depot', 17, 2.2)}Joindre à ${h(jumeau.number || tete.number)}</button>
+              <p class="ed-phrase">Le fichier signé devient son justificatif${tete.refTtn ? ', sa référence TTN va dans ses notes' : ''} ; rien d'autre ne change sur l'achat.</p>`
+              : `<button type="button" class="btn btn-primary btn-grand" id="tf-ouvrir">${lfIc('piece', 17, 2)}Ouvrir ${h(jumeau.number || tete.number)}</button>`}
+              <button type="button" class="btn btn-sm" id="tf-remplir">Saisir quand même une autre pièce</button>`
+              : `<button type="button" class="btn btn-primary btn-grand" id="tf-remplir">${lfIc('coche', 17, 2.4)}Remplir la pièce${doutes ? ` · ${doutes} à revoir` : ''}</button>
+              <p class="ed-phrase">${doutes ? 'Tu peux remplir tout de suite : ce qui reste à trancher se corrige sur la pièce. ' : ''}Rien n'est enregistré avant que tu cliques sur « Enregistrer l'achat ».</p>`}</div>
             <div class="panel ac-tf-fich"><div class="f-l"><span class="f-ic">XML</span><span><b>${h(file.name)}</b><small>${fileSize(file.size || 0)} · ${avoir ? 'avoir' : 'facture'} électronique</small></span></div>
               ${read.signe ? `<div class="sig ok">${lfIc('coche', 15, 2.4)}<span><b>Signature présente</b>${tete.refTtn ? `<small>réf. TTN ${h(tete.refTtn)}</small>` : ''}</span></div>` : `<div class="sig non">${lfIc('cadenas', 15, 2)}<span><b>Pas encore signée par la TTN</b><small>garde aussi la facture signée qu'El Fatoora t'enverra</small></span></div>`}</div>
             <div class="panel ed-avant"><h3>Où a été lu le fichier</h3><ul>
               <li class="ok">${lfIc('coche', 15, 2.4)}<span>Lu sur ton appareil, sans aucun service de lecture</span></li>
-              <li class="ok">${lfIc('coche', 15, 2.4)}<span>Chaque montant recompté au millime</span></li>
-              ${/* (27/10/2026, maquette achat) Sur la plateforme aussi, le XML se joint à l'achat (base 0178). */''}${file.path ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>Il se joint à l'achat quand tu remplis la pièce${bridge.lectureSurLeServeur ? ', gardé dix ans' : ''}</span></li>` : `<li>${lfIc('info', 15, 2)}<span>Garde le fichier XML : il ne se joint pas d'ici</span></li>`}
+              <li class="ok">${lfIc('coche', 15, 2.4)}<span>Chaque montant recompté ${auFin}</span></li>
+              ${/* (27/10/2026, maquette achat) Sur la plateforme aussi, le XML se joint à l'achat (base 0178). */''}${file.path ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>${jumeau ? `Il se joint à ${h(jumeau.number || tete.number)} d'un geste` : 'Il se joint à l\'achat quand tu remplis la pièce'}${bridge.lectureSurLeServeur ? ', gardé dix ans' : ''}</span></li>` : `<li>${lfIc('info', 15, 2)}<span>Garde le fichier XML : il ne se joint pas d'ici</span></li>`}
               ${tete.refTtn ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>Sa référence TTN se garde dans les notes de l'achat</span></li>` : ''}</ul></div>
             <div class="panel ac-lec-autres"><button type="button" class="btn btn-sm" id="tf-detail">Vérifier case par case</button>${$('#teif-lire') ? '<button type="button" class="btn btn-sm" id="tf-autre">Choisir un autre fichier</button>' : ''}</div>
           </aside></div>`;
@@ -18460,6 +18484,21 @@
           subject: tete.subject || '', category: cat || '', fees: Number(tete.fees) || 0, kind: tete.kind, achatLie: lie ? lie.id : '',
           ...(etrangere ? { currency: tete.currency } : {}), ...(tete.refTtn ? { notes: `Référence TTN : ${tete.refTtn}` } : {}) }, lines: lignes });
         $('#tf-remplir', z).onclick = () => { fermerLecture(); appliquerLecture({ ...valeurs(), reste: doutes }, file, 'facture électronique', { teif: true, signe: !!read.signe, reste: [] }); };
+        const ouvrirJumeau = () => { fermerLecture(); navigate(`#/achat/${jumeau.id}`); };
+        if ($('#tf-ouvrir', z)) $('#tf-ouvrir', z).onclick = ouvrirJumeau;
+        if ($('#tf-joindre', z)) $('#tf-joindre', z).onclick = async () => {
+          const b = $('#tf-joindre', z); b.disabled = true;
+          let piece;
+          try { piece = await bridge.attachPath(jumeau.id, file.path); } catch (e) { b.disabled = false; return toast(plainError(e), true); }
+          const s2 = purchaseById(jumeau.id);
+          if (!s2 || !piece) { b.disabled = false; return toast(`${jumeau.number || 'L\'achat'} n'est plus dans tes achats : saisis la pièce.`, true); }
+          s2.attachments = (s2.attachments || []).concat(piece);
+          const ref = tete.refTtn ? `Référence TTN : ${tete.refTtn}` : '';
+          if (ref && !String(s2.notes || '').includes(tete.refTtn)) s2.notes = [String(s2.notes || '').trim(), ref].filter(Boolean).join('\n');
+          save(true);
+          ouvrirJumeau();
+          toast(`Le fichier El Fatoora est joint à ${jumeau.number || 'l\'achat'}${memeMontant ? ` : mêmes montants, ${auFin}` : ''}.`);
+        };
         // (27/10/2026, revue des fenêtres) La vérification s'ouvre PAR-DESSUS la page : « Annuler » y revient, rien n'est perdu.
         $('#tf-detail', z).onclick = () => ocrReviewForm(read, file, values => { fermerLecture(); appliquerLecture(values, file, 'facture électronique', { teif: true, signe: !!read.signe, reste: [] }); }, { source: 'teif', remarques, categorie: cat });
         if ($('#tf-autre', z)) $('#tf-autre', z).onclick = () => { fermerLecture(); const b = $('#teif-lire'); if (b) b.click(); };

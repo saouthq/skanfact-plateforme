@@ -2467,11 +2467,18 @@
   const tvaSx = e => (e.lignes || []).filter(l => String(l.compte).startsWith(tvaCompteSx().slice(0, 4))).reduce((t, l) => t + mtSx(l.debit) - mtSx(l.credit), 0);
   const ttcSx = e => sommeSx(e, /^40/, 'credit');
   // Le taux d'une écriture d'achat, lu sur ses lignes (TVA / hors taxes, au dixième) : jamais un taux écrit dans le code.
-  const tauxDeSx = e => { const h = htSx(e), t = tvaSx(e); return h > 0 && t > 0 ? String(Math.round(t * 1000 / h) / 10) : 'sans'; };
+  // (1.325.0) Une écriture à plusieurs taux (une facture électronique, 19 % et 7 %) n'a pas UN taux : le rapport de ses
+  // totaux (18,6 %) n'en est aucun ; elle n'en propose pas.
+  const lignesTvaSx = e => (e.lignes || []).filter(l => String(l.compte).startsWith(tvaCompteSx().slice(0, 4)) && mtSx(l.debit) - mtSx(l.credit) !== 0);
+  const tauxDeSx = e => { if (lignesTvaSx(e).length > 1) return 'mixte'; const h = htSx(e), t = tvaSx(e); return h > 0 && t > 0 ? String(Math.round(t * 1000 / h) / 10) : 'sans'; };
   const journalAchatsSx = () => { const j = ((livresState.livre && livresState.livre.journaux) || []).find(x => /^(AC|HA)|achat/i.test(`${x.code} ${x.libelle || ''}`)); return j ? j.code : 'AC'; };
   const journalBanqueSx = () => { const j = ((livresState.livre && livresState.livre.journaux) || []).find(x => /^(BQ|BAN)|banque/i.test(`${x.code} ${x.libelle || ''}`)); return j ? j.code : 'BQ'; };
   const fichierSx = x => (x.p ? x.p.fichier : x.doc ? x.doc.fichier : null) || { nom: x.titre || 'pièce', type: '' };
   const contenuSx = (dossier, x) => x.p ? api.pieces.contenu(dossier.id, x.p.fichier.id) : api.classeur.contenu(dossier.id, x.doc.id);
+  // (1.325.0) La facture électronique reçue (le fichier El Fatoora) : lue sur le serveur dès qu'elle s'ouvre, sans l'IA
+  // (lireEfactureCl) ; sa fiche part de ce que le fichier dit, chaque taux de TVA et le timbre compris, au millime.
+  const estXmlSx = x => estEfactureCl(fichierSx(x));
+  const teifSx = x => (x.lu && x.lu.source === 'teif' && x.lu.detail) || null;
   const deQuiSx = (dossier, x) => {
     if (x.p) {
       const j = jourTunisCl(x.p.recueLe), auj = K.today();
@@ -2483,7 +2490,7 @@
   };
   // Les taux de TVA que ce dossier a déjà écrits sur ses achats : ce que la fiche propose (et « Autre taux… »).
   function tauxVusSx() {
-    const vus = new Set(ecrituresSx().filter(achatSx).map(tauxDeSx).filter(t => t !== 'sans'));
+    const vus = new Set(ecrituresSx().filter(achatSx).map(tauxDeSx).filter(t => t !== 'sans' && t !== 'mixte'));
     return [...vus].sort((a, b) => Number(a) - Number(b));
   }
   // Ce que ce fournisseur a d'habitude : combien de pièces, et la charge, le taux et le compte de SA DERNIÈRE (1.211.0 : un
@@ -2582,7 +2589,8 @@
   // La fiche d'une pièce à saisir : proposée une fois, puis telle que le comptable la corrige.
   function ficheSx(x) {
     let f = sxState.fiches.get(x.k);
-    if (f) return f;
+    // (1.325.0) Le fichier se lit après l'ouverture de la fiche : elle repart de lui, tant que rien n'y a été tapé.
+    if (f && !(teifSx(x) && !f.teif && !f.touchee)) return f;
     const lu = x.lu || null, tnd = !lu || !lu.devise || lu.devise === 'TND';
     const four = (lu && lu.fournisseur) || fournisseurDevineSx(x);
     const h = habitudesSx(four);
@@ -2593,12 +2601,21 @@
       four, fourSrc: lu && lu.fournisseur ? 'lu' : four ? 'nom' : '',
       date: (lu && lu.date) || dateArriveeSx(x), dateSrc: lu && lu.date ? 'lu' : 'arrivee',
       ttc: lu && lu.total && tnd ? dtSx(millimesSx(lu.total)) : '', ttcSrc: lu && lu.total && tnd ? 'lu' : '',
-      tva: h.n ? h.taux : ticket ? 'sans' : '', tvaAutre: '', tvaSrc: h.n ? 'hab' : ticket ? 'ticket' : '',
+      tva: h.n && h.taux !== 'mixte' ? h.taux : ticket ? 'sans' : '', tvaAutre: '', tvaSrc: h.n && h.taux !== 'mixte' ? 'hab' : ticket ? 'ticket' : '',
       compte: h.n ? h.compte : '', compteSrc: h.n ? 'hab' : '',
       c40: h.c40 || '401', journal: j, serie: ticket ? serieTicketSx(j) : '', numero: (lu && lu.numero) || '',
       paye: true, devise: tnd ? '' : String(lu.devise), montantDev: tnd ? '' : String(lu.total || '').replace('.', ','), taux: tnd ? '' : prefs.get(`sxTaux:${lu.devise}`, '') || '',
     };
     f.piece = numeroSuivantSx(j, f.serie);
+    // (1.325.0) Le fichier El Fatoora dit chaque taux de TVA (et sa base) et le timbre : la fiche les prend tels quels,
+    // « Celles du fichier » ; un avoir s'écrit à l'envers. Rien de deviné : le compte de la charge reste celui de ses habitudes.
+    const D = tnd ? teifSx(x) : null;
+    if (D) {
+      f.teif = D; f.teifTotal = lu.total; f.avoir = !!D.avoir;
+      if ((D.tva || []).length) { f.tva = 'fichier'; f.tvaSrc = 'lu'; }
+      const tb = millimesSx(D.timbre);
+      if (tb > 0) { f.timbre = dtSx(tb); f.timbreSrc = 'lu'; }
+    }
     sxState.fiches.set(x.k, f);
     return f;
   }
@@ -2611,7 +2628,31 @@
     return Number.isFinite(c) && Number.isFinite(t) && c > 0 && t > 0 ? Math.round(c * t / 1000) : 0;
   }
   // L'écriture que la fiche écrit (en millimes), et pourquoi elle ne s'écrit pas encore.
+  // (1.325.0) Les taux du fichier El Fatoora : une ligne de TVA par taux, chacune au millime du fichier ; la charge prend le
+  // reste du total (le hors taxes et le timbre). Le total changé n'est plus celui du fichier : la fiche le dit, sans écrire.
+  function ecritureFichierSx(f) {
+    const D = f.teif, ttc = millimesSx(f.ttc), timbre = millimesSx(f.timbre || '0') || 0, four = String(f.four || '').trim();
+    const tvas = (D.tva || []).map(t => ({ taux: String(t.taux), m: millimesSx(t.montant) })).filter(t => t.m > 0);
+    const tva = tvas.reduce((a, t) => a + t.m, 0), charge = ttc - tva, fichier = millimesSx(f.teifTotal || '') || 0;
+    const lib = `${f.avoir ? 'Avoir ' : ''}${four}${f.numero ? ` · ${f.numero}` : ''}`.slice(0, 120);
+    const refus = !four ? ['four', 'Le fournisseur manque : écris son nom.']
+      : !/^\d{4}-\d{2}-\d{2}$/.test(f.date || '') ? ['date', 'La date manque : celle de la pièce.']
+        : String(f.date).slice(0, 4) !== String(livresState.annee) ? ['date', `Le ${fmtJourCourt(f.date)} n'est pas dans l'exercice ${livresState.annee}.`]
+          : !(ttc > 0) ? ['ttc', 'Le total TTC manque : celui du fichier, en dinars.']
+            : fichier && ttc !== fichier ? ['ttc', `Le total n'est plus celui du fichier (${dtSx(fichier)}) : remets-le, ou choisis un taux.`]
+              : !(charge - timbre > 0) ? ['timbre', 'Le timbre et la TVA dépassent le total : remets ceux du fichier.']
+                : !/^\d{2,12}$/.test(String(f.compte || '').trim()) ? ['compte', 'Le compte de la charge manque : son numéro (6061, 6066…).']
+                  : null;
+    const sens = (m, l) => (f.avoir ? { ...l, debit: 0, credit: m } : { ...l, debit: m, credit: 0 });
+    const lignes = [
+      sens(charge, { compte: String(f.compte || '').trim(), libelle: lib }),
+      ...tvas.map(t => sens(t.m, { compte: tvaCompteSx(), libelle: `TVA ${t.taux.replace('.', ',')} % · ${four}`.slice(0, 120) })),
+      f.avoir ? { compte: f.c40 || '401', libelle: lib, debit: ttc, credit: 0, tiers: four } : { compte: f.c40 || '401', libelle: lib, debit: 0, credit: ttc, tiers: four },
+    ];
+    return { ttc, ht: charge - timbre, tva, taux: 'fichier', timbre, lib, lignes, refus };
+  }
   function ecritureSx(f) {
+    if (f.tva === 'fichier' && f.teif && !f.devise) return ecritureFichierSx(f);
     const ttc = f.devise ? contreValeurSx(f) : millimesSx(f.ttc);
     const taux = tauxEffectifSx(f);
     // (1.221.0, l'épreuve d'un mois) Le timbre de la facture (1,000 DT sur la farine de la Minoterie) n'a pas de TVA : il sort
@@ -2635,6 +2676,8 @@
       ...(tva ? [{ compte: tvaCompteSx(), libelle: `TVA ${String(taux).replace('.', ',')} % · ${String(f.four || '').trim()}`.slice(0, 120), debit: tva, credit: 0 }] : []),
       { compte: f.c40 || '401', libelle: lib, debit: 0, credit: ttc, tiers: String(f.four || '').trim() },
     ];
+    // (1.325.0) Un avoir (lu dans son fichier) s'écrit à l'envers : le fournisseur au débit, la charge et la TVA reprises.
+    if (f.avoir) return { ttc, ht, tva, taux, timbre, lib: `Avoir ${lib}`.slice(0, 120), lignes: lignes.map(l => ({ ...l, libelle: l.libelle === lib ? `Avoir ${lib}`.slice(0, 120) : l.libelle, debit: l.credit, credit: l.debit })), refus };
     return { ttc, ht, tva, taux, timbre, lib, lignes, refus };
   }
   const versLeLivreSx = lignes => lignes.map(l => ({ compte: l.compte, libelle: l.libelle, debit: l.debit / 1000, credit: l.credit / 1000, ...(l.tiers ? { tiers: l.tiers, tiersId: null, lettre: '' } : {}) }));
@@ -2649,6 +2692,10 @@
   // (1.211.0) Une pièce pas encore lue : « Lire la pièce » (avec l'accord du client), ou pourquoi elle se lit à l'œil.
   function lireSx(dossier, x) {
     if (x.lu || (!x.p && !x.doc)) return '';
+    if (estXmlSx(x)) {
+      const e = (clState.ef || new Map()).get(x.k);
+      return `<small class="sx-aide" id="sx-ef-etat">${e && e.etape === 'refus' ? esc(e.motif) : navigator.onLine === false ? 'Le fichier El Fatoora se lit avec le réseau, sur le serveur de SkanFact.' : 'Le fichier El Fatoora se lit sur le serveur de SkanFact, sans l\'IA…'}</small>`;
+    }
     const L = clState.lus.get(dossier.id) || {}, encours = clState.lit && clState.lit.k === x.k;
     if (L.ia) return `<button type="button" class="btn btn-sm cl-ia-btn${encours ? ' cl-ia-encours' : ''}" id="sx-lire"${encours || clState.lit || navigator.onLine === false ? ` disabled title="${encours || clState.lit ? 'La lecture est en cours' : 'Attend le retour du réseau'}"` : ''}>${CL_IC.ia}${encours ? 'Lecture en cours…' : 'Lire la pièce'}</button>`;
     return L.coupee ? `<small class="sx-aide">${esc(cap(prenomCl(dossier.contact) || 'le client'))} a coupé la lecture de ses pièces : celle-ci se lit à l'œil.</small>` : '';
@@ -2668,9 +2715,9 @@
   const courtSx = x => { const t = String((x.lu && x.lu.fournisseur) || (x.sx.e && nomTiersSx(x.sx.e)) || (sxState.fiches.get(x.k) || {}).four || fichierSx(x).nom.replace(/\.[a-z0-9]{2,4}$/i, '')); return t.length > 22 ? `${t.slice(0, 20)}…` : t; };
 
   function visionneuseSx(dossier, x, petit) {
-    const f = fichierSx(x), photo = !/pdf/.test(f.type || '') && !/\.pdf$/i.test(f.nom);
-    return `<div class="sx-dv${petit ? ' petit' : ''}"><div class="sx-dv-t"><span class="sx-f-ic">${photo ? CL_IC.photo : CL_IC.pdf}</span><span class="sx-dv-n"><b>${esc(f.nom)}</b><small>${esc(deQuiSx(dossier, x))}</small></span>
-        <span class="sx-dv-z">${petit ? '' : `<button type="button" class="btn btn-sm sx-fl" data-sx-z="-1" aria-label="Plus petit">${PC_IC.moins}</button><span id="sx-zoom">${Math.round(sxState.zoom * 100)} %</span><button type="button" class="btn btn-sm sx-fl" data-sx-z="1" aria-label="Plus grand">${PC_IC.plus}</button>${photo ? `<button type="button" class="btn btn-sm" id="sx-tourner">${PC_IC.tourne} Tourner</button>` : ''}`}<button type="button" class="btn btn-sm" id="sx-grand">${PC_IC.grand} En grand</button></span></div>
+    const f = fichierSx(x), xml = estXmlSx(x), photo = !xml && !/pdf/.test(f.type || '') && !/\.pdf$/i.test(f.nom);
+    return `<div class="sx-dv${petit ? ' petit' : ''}${xml ? ' ef' : ''}"><div class="sx-dv-t"><span class="sx-f-ic">${photo ? CL_IC.photo : CL_IC.pdf}</span><span class="sx-dv-n"><b>${esc(f.nom)}</b><small>${esc(`${xml ? 'facture électronique (El Fatoora) · ' : ''}${deQuiSx(dossier, x)}`)}</small></span>
+        <span class="sx-dv-z">${petit || xml ? '' : `<button type="button" class="btn btn-sm sx-fl" data-sx-z="-1" aria-label="Plus petit">${PC_IC.moins}</button><span id="sx-zoom">${Math.round(sxState.zoom * 100)} %</span><button type="button" class="btn btn-sm sx-fl" data-sx-z="1" aria-label="Plus grand">${PC_IC.plus}</button>${photo ? `<button type="button" class="btn btn-sm" id="sx-tourner">${PC_IC.tourne} Tourner</button>` : ''}`}<button type="button" class="btn btn-sm" id="sx-grand">${PC_IC.grand} En grand</button></span></div>
       <div class="sx-dv-f" id="sx-papier" data-k="${esc(x.k)}"><span class="mu">Ouverture de la pièce…</span></div></div>`;
   }
 
@@ -2680,31 +2727,35 @@
     const valide = peutValiderCl(dossier);
     const fem = un === 'facture';
     const habT = commeSx(h, h.tousTaux, un, plusieurs, fem), habC = commeSx(h, h.tousCompte, un, plusieurs, fem);
-    const banque = !f.devise && E.ttc > 0 ? ligneBanqueSx(E.ttc, f.date) : null;
+    const banque = !f.devise && !f.avoir && E.ttc > 0 ? ligneBanqueSx(E.ttc, f.date) : null;
+    const D = f.teif || null, luT = D ? 'lu dans le fichier' : '';
     const carte = banque && /CARTE|\bCB\b|TPE/i.test(banque.l.libelle || '');
     const taux = tauxVusSx();
     const plan = ((livresState.livre || {}).plan || []);
     const nomC = c => ((plan.find(y => y.compte === String(c)) || {}).libelle) || KC.libelleDuPlan(String(c || '')) || '';
     const ch = (lab, id, champ, src) => `<div class="sx-fi-r"><label class="sx-fi-l" for="${id}">${lab}</label>${champ}${src}</div>`;
-    const tvaSel = `<select id="sx-tva" class="sx-in"><option value=""${f.tva === '' ? ' selected' : ''}>À choisir</option><option value="sans"${f.tva === 'sans' ? ' selected' : ''}>Sans TVA récupérable</option>${taux.map(t => `<option value="${esc(t)}"${f.tva === t ? ' selected' : ''}>TVA ${esc(t.replace('.', ','))} %</option>`).join('')}<option value="autre"${f.tva === 'autre' ? ' selected' : ''}>Autre taux…</option></select>`;
+    // (1.325.0) « Celles du fichier » : chaque taux et son montant, tels que le fichier El Fatoora les dit.
+    const tauxF = D ? (D.tva || []).map(t => `${String(t.taux).replace('.', ',')} %`) : [];
+    const tvaF = D ? (D.tva || []).map(t => `${String(t.taux).replace('.', ',')} % : ${dtSx(millimesSx(t.montant))}`).join(' · ') : '';
+    const tvaSel = `<select id="sx-tva" class="sx-in">${tauxF.length ? `<option value="fichier"${f.tva === 'fichier' ? ' selected' : ''}>Celles du fichier : ${esc(tauxF.join(' et '))}</option>` : ''}<option value=""${f.tva === '' ? ' selected' : ''}>À choisir</option><option value="sans"${f.tva === 'sans' ? ' selected' : ''}>Sans TVA récupérable</option>${taux.map(t => `<option value="${esc(t)}"${f.tva === t ? ' selected' : ''}>TVA ${esc(t.replace('.', ','))} %</option>`).join('')}<option value="autre"${f.tva === 'autre' ? ' selected' : ''}>Autre taux…</option></select>`;
     const devise = f.devise ? `<div class="sx-taux"><div><small>En ${esc(f.devise)}</small><b id="sx-mdev-v">${esc(montantDevSx(f))}</b></div>
         <div><small>Taux du ${esc(jjmm(f.date))} (À VÉRIFIER)</small><label class="sx-taux-in">× <input id="sx-taux" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.taux)}" placeholder="3,3812" aria-label="Le taux de change, en dinars pour 1 ${esc(f.devise)}"></label></div>
         <div class="eg"><small>Au livre, en dinars</small><b id="sx-cv">${E.ttc ? `${esc(dtSx(E.ttc))} DT` : '—'}</b></div></div>
       <ul class="sx-ck"><li class="info"><i>i</i><span><b>Au paiement, l'écart de change s'écrit à part</b><small>si le virement se fait à un autre taux : une perte (656) ou un gain (756), À VÉRIFIER</small></span></li>
         <li class="info"><i>i</i><span><b>La TVA et les droits payés à la douane</b><small>arrivent avec la déclaration en douane du transitaire : une pièce à part, à demander</small></span>${dossier.manual ? '' : `<button type="button" class="cp-plus" id="sx-douane">Demander</button>`}</li></ul>` : '';
-    return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(f.devise ? `${f.four || fichierSx(x).nom} · facture en ${f.devise === 'EUR' ? 'euros' : f.devise}` : x.lu && x.lu.fournisseur ? `${x.lu.fournisseur}${x.lu.numero ? ` · ${un} ${x.lu.numero}` : ''}` : fichierSx(x).nom)}</b><small>${esc(x.lu ? `lue par SkanFact ${x.lu.luLe ? `le ${jjmm(jourTunisCl(x.lu.luLe))}` : ''} : chaque champ lu se vérifie sur la pièce` : 'pas encore lue : la fiche part de ses pièces d\'avant')}</small>${lireSx(dossier, x)}</div><span class="cl-st ambre">${esc(x.sx.mot)}</span></div>
+    return `<div class="sx-fi" id="sx-fiche"><div class="sx-fi-t"><div><b>${esc(f.devise ? `${f.four || fichierSx(x).nom} · facture en ${f.devise === 'EUR' ? 'euros' : f.devise}` : x.lu && x.lu.fournisseur ? `${x.lu.fournisseur}${x.lu.numero ? ` · ${f.avoir ? 'avoir' : un} ${x.lu.numero}` : ''}` : fichierSx(x).nom)}</b><small>${esc(D ? 'lue dans le fichier El Fatoora, sans l\'IA : chaque montant est celui du fichier, au millime' : x.lu ? `lue par SkanFact ${x.lu.luLe ? `le ${jjmm(jourTunisCl(x.lu.luLe))}` : ''} : chaque champ lu se vérifie sur la pièce` : 'pas encore lue : la fiche part de ses pièces d\'avant')}</small>${lireSx(dossier, x)}</div><span class="cl-st ambre">${esc(x.sx.mot)}</span></div>
       <div class="sx-fi-g">
-        ${ch('Fournisseur', 'sx-four', `<span class="sx-cpt sx-cpt-f"><input id="sx-four" class="sx-in" autocomplete="off" list="sx-fours" value="${esc(f.four)}" placeholder="Son nom"><small id="sx-c40" class="mono" title="Son compte : celui de ses écritures d'avant, ou 401">${esc(f.c40 || '401')}</small></span><datalist id="sx-fours">${[...new Set(ecrituresSx().filter(achatSx).map(nomTiersSx).filter(Boolean))].map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>`, f.fourSrc ? srcSx(f.fourSrc) : h.n ? srcSx('hab', `${h.n} ${h.n > 1 ? plusieurs : un} au livre`) : '<span class="sx-src ambre">nouveau fournisseur</span>')}
-        ${ch('Date', 'sx-date', `<input id="sx-date" class="sx-in" autocomplete="off" value="${esc(f.date ? fmtJourCourt(f.date) : '')}" placeholder="24/09/2026">`, srcSx(f.dateSrc, f.dateSrc === 'lu' ? 'lu' : ''))}
+        ${ch('Fournisseur', 'sx-four', `<span class="sx-cpt sx-cpt-f"><input id="sx-four" class="sx-in" autocomplete="off" list="sx-fours" value="${esc(f.four)}" placeholder="Son nom"><small id="sx-c40" class="mono" title="Son compte : celui de ses écritures d'avant, ou 401">${esc(f.c40 || '401')}</small></span><datalist id="sx-fours">${[...new Set(ecrituresSx().filter(achatSx).map(nomTiersSx).filter(Boolean))].map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>`, f.fourSrc ? srcSx(f.fourSrc, f.fourSrc === 'lu' ? luT : '') : h.n ? srcSx('hab', `${h.n} ${h.n > 1 ? plusieurs : un} au livre`) : '<span class="sx-src ambre">nouveau fournisseur</span>')}
+        ${ch('Date', 'sx-date', `<input id="sx-date" class="sx-in" autocomplete="off" value="${esc(f.date ? fmtJourCourt(f.date) : '')}" placeholder="24/09/2026">`, srcSx(f.dateSrc, f.dateSrc === 'lu' ? luT || 'lu' : ''))}
         ${f.devise ? ch('Montant', 'sx-mdev', `<input id="sx-mdev" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.montantDev)}">`, `<span class="sx-src">${esc(f.devise)}</span>`)
-          : ch('Total TTC', 'sx-ttc', `<input id="sx-ttc" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.ttc)}" placeholder="85,000">`, srcSx(f.ttcSrc, 'lu'))}
-        ${f.devise ? '' : ch('Timbre', 'sx-timbre', `<input id="sx-timbre" class="sx-in mono" inputmode="decimal" autocomplete="off" value="${esc(f.timbre || '')}" placeholder="0,000">`, '<span class="sx-src">sans TVA : hors de sa base</span>')}
-        ${f.devise ? '' : ch('TVA', 'sx-tva', `<span class="sx-tva">${tvaSel}${f.tva === 'autre' ? `<input id="sx-tva-autre" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.tvaAutre)}" placeholder="%" aria-label="Le taux de TVA, en %">` : ''}</span>`, f.tvaSrc === 'hab' && f.tva === h.taux ? srcSx('hab', habT) : f.tvaSrc === 'ticket' && f.tva === 'sans' ? '<span class="sx-src ambre">un ticket n\'est pas une facture : À VÉRIFIER</span>' : '<span class="sx-src"></span>')}
+          : ch('Total TTC', 'sx-ttc', `<input id="sx-ttc" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.ttc)}" placeholder="85,000">`, srcSx(f.ttcSrc, luT || 'lu'))}
+        ${f.devise ? '' : ch('Timbre', 'sx-timbre', `<input id="sx-timbre" class="sx-in mono" inputmode="decimal" autocomplete="off" value="${esc(f.timbre || '')}" placeholder="0,000">`, f.timbreSrc === 'lu' && D ? srcSx('lu', 'lu dans le fichier · sans TVA') : '<span class="sx-src">sans TVA : hors de sa base</span>')}
+        ${f.devise ? '' : ch('TVA', 'sx-tva', `<span class="sx-tva">${tvaSel}${f.tva === 'autre' ? `<input id="sx-tva-autre" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.tvaAutre)}" placeholder="%" aria-label="Le taux de TVA, en %">` : ''}</span>`, f.tva === 'fichier' && D ? srcSx('lu', tvaF) : f.tvaSrc === 'hab' && f.tva === h.taux ? srcSx('hab', habT) : f.tvaSrc === 'ticket' && f.tva === 'sans' ? '<span class="sx-src ambre">un ticket n\'est pas une facture : À VÉRIFIER</span>' : '<span class="sx-src"></span>')}
         ${ch('Compte', 'sx-compte', `<span class="sx-cpt"><input id="sx-compte" class="sx-in mono" autocomplete="off" value="${esc(f.compte)}" placeholder="Numéro"><small id="sx-compte-nom">${esc(nomC(f.compte))}</small></span>`, f.compteSrc === 'hab' && f.compte === h.compte ? srcSx('hab', habC) : f.devise ? '<span class="sx-src">ou une immobilisation ? À VÉRIFIER</span>' : '<span class="sx-src"></span>')}
         ${ch('Pièce', 'sx-piece', `<input id="sx-piece" class="sx-in mono" autocomplete="off" value="${esc(f.piece)}">`, f.piece && f.piece === numeroSuivantSx(f.journal, f.serie) ? srcSx('calc', `numéro suivant · ${f.serie ? 'série des tickets · ' : ''}journal ${f.journal}`) : `<span class="sx-src">journal ${esc(f.journal)}</span>`)}
       </div>
-      ${!f.devise && (f.tvaSrc === 'hab' || f.compteSrc === 'hab' || f.tvaSrc === 'ticket') ? `<p class="sx-aide" id="sx-suivent">${h.n ? `La TVA et le compte reprennent ${fem ? 'sa dernière' : 'son dernier'} ${esc(un)} : changés ici, ${fem ? 'les prochaines' : 'les prochains'} ${esc(plusieurs)} de ${esc(f.four || 'ce fournisseur')} les reprendront.` : `Enregistrés, la TVA et le compte se proposeront pareil pour ${fem ? 'les prochaines' : 'les prochains'} ${esc(plusieurs)} de ${esc(f.four || 'ce fournisseur')}.`}</p>` : ''}
-      ${devise}
+      ${!f.devise && (f.tvaSrc === 'hab' || f.compteSrc === 'hab' || f.tvaSrc === 'ticket') ? `<p class="sx-aide" id="sx-suivent">${h.n && D ? `Le compte reprend ${fem ? 'sa dernière' : 'son dernier'} ${esc(un)} (la TVA, elle, vient du fichier) : changé ici, ${fem ? 'les prochaines' : 'les prochains'} ${esc(plusieurs)} de ${esc(f.four || 'ce fournisseur')} le reprendront.` : h.n ? `La TVA et le compte reprennent ${fem ? 'sa dernière' : 'son dernier'} ${esc(un)} : changés ici, ${fem ? 'les prochaines' : 'les prochains'} ${esc(plusieurs)} de ${esc(f.four || 'ce fournisseur')} les reprendront.` : `Enregistrés, la TVA et le compte se proposeront pareil pour ${fem ? 'les prochaines' : 'les prochains'} ${esc(plusieurs)} de ${esc(f.four || 'ce fournisseur')}.`}</p>` : ''}
+      ${devise}${D ? controlesFichierSx(dossier, f) : ''}
       ${banque ? `<label class="sx-paye"><input type="checkbox" id="sx-paye"${f.paye ? ' checked' : ''}><span><b>Payée ${carte ? 'par carte ' : ''}le ${esc(jjmm(banque.l.date))}</b><small>« ${esc(banque.l.libelle)} ${esc(dtSx(-mtSx(banque.l.montant)))} » est sur le relevé ${esc(banque.R.banque || 'de banque')}, sans écriture : coché, son règlement s'écrit et se rapproche en même temps</small></span></label>` : ''}
       <div class="sx-ec"><div class="sx-ec-t"><b>L'écriture qui s'écrit</b><button type="button" class="cp-plus" id="sx-lignes">Ouvrir en lignes</button></div>
         <table class="sx-t"><tbody id="sx-ec-l">${lignesEcritureSx(f, banque)}</tbody></table></div>
@@ -2713,10 +2764,20 @@
         : `<button type="button" class="btn btn-primary" id="sx-ok">Enregistrer au brouillard <kbd>↵</kbd></button>`}<button type="button" class="btn" id="sx-autre">Autre chose…</button>${valide ? '' : `<span class="fd-qui" id="sx-qui-valide">${esc(cap(reviseurCl(dossier)))} valide le brouillard</span>`}</div>
       <p class="sx-touches">${SX_IC.clavier}<span><kbd>Tab</kbd> champ suivant · <kbd>↵</kbd> ${valide ? 'enregistre, valide' : 'enregistre au brouillard'} et ouvre la pièce suivante${esc(suivanteSx(x))} · <kbd>Alt</kbd>+<kbd>→</kbd> passe la pièce · <kbd>Alt</kbd>+<kbd>L</kbd> en lignes</span></p></div>`;
   }
+  // (1.325.0) Ce que le fichier El Fatoora dit de plus qu'une photo : à qui il est adressé, s'il est signé, s'il est un avoir.
+  function controlesFichierSx(dossier, f) {
+    const D = f.teif, L = [];
+    if (D.ailleurs) L.push(['ko', `Adressée à ${D.ailleurs.nom || 'une autre société'}${D.ailleurs.identifiant ? ` (${D.ailleurs.identifiant})` : ''}, pas à ${dossier.name}`, 'le fichier nomme un autre acheteur : à demander avant de la saisir']);
+    L.push(D.signe ? ['ok', `Fichier signé${D.refTtn ? ` · réf. TTN ${D.refTtn}` : ''}`, 'chaque montant vient du fichier, au millime : rien n\'a été lu par l\'IA']
+      : ['att', 'Le fichier n\'est pas signé', 'les montants viennent du fichier ; sa TVA se déduit-elle sans la signature ? À VÉRIFIER']);
+    if (D.avoir) L.push(['info', 'Un avoir : l\'écriture est à l\'envers', `${D.refFacture ? `il diminue la facture ${D.refFacture}` : 'il diminue une facture'} ; la charge et la TVA se reprennent`]);
+    const ic = { ok: CL_IC.ok, info: 'i', att: '!', ko: '!' };
+    return `<ul class="sx-ck" id="sx-ef-ck">${L.map(([t, titre, sous]) => `<li class="${t}"><i>${ic[t]}</i><span><b>${esc(titre)}</b><small>${esc(sous)}</small></span></li>`).join('')}</ul>`;
+  }
   function lignesEcritureSx(f, banque) {
     const E = ecritureSx(f), plan = ((livresState.livre || {}).plan || []);
     const nomC = (c, l) => l.tiers || ((plan.find(y => y.compte === String(c)) || {}).libelle) || KC.libelleDuPlan(String(c || '')) || '';
-    const paye = banque && f.paye && !f.devise;
+    const paye = banque && f.paye && !f.devise && !f.avoir;
     const r = E.lignes.map(l => `<tr><td class="mono">${esc(l.compte || '—')}</td><td>${esc(nomC(l.compte, l))}</td><td class="r">${l.debit ? esc(dtSx(l.debit)) : ''}</td><td class="r">${l.credit ? esc(dtSx(l.credit)) : ''}</td></tr>`).join('');
     const b = paye ? `<tr class="bq"><td class="mono">${esc(f.c40 || '401')}</td><td>Règlement du ${esc(jjmm(banque.l.date))} · rapproché</td><td class="r">${esc(dtSx(E.ttc))}</td><td></td></tr><tr class="bq"><td class="mono">${esc(banque.R.compte || '532')}</td><td>${esc(banque.R.banque || 'Banque')}</td><td></td><td class="r">${esc(dtSx(E.ttc))}</td></tr>` : '';
     return r + b;
@@ -2760,7 +2821,8 @@
     else L.push(['att', 'La charge n\'est pas celle d\'avant', `${h.tousCompte ? 'd\'habitude' : 'la dernière fois'} ${h.compte} ${nomC(h.compte)}, ici ${ch.compte || '—'}`, ch.compte || '']);
     const luT = lu && lu.total && (!lu.devise || lu.devise === 'TND') ? millimesSx(lu.total) : null;
     if (luT != null) L.push(luT === ttc ? ['ok', 'Le total lu = le total écrit', `${dtSx(ttc)} DT`, ''] : ['ko', 'Le total lu n\'est pas le total écrit', `la pièce dit ${dtSx(luT)}, l'écriture ${dtSx(ttc)} : à corriger avant de la marquer vérifiée`, '']);
-    L.push(tva ? [tauxVusSx().includes(tauxDeSx(e)) ? 'ok' : 'att', 'La TVA écrite', `${String(tauxDeSx(e)).replace('.', ',')} % de ${dtSx(ht)}${luT == null ? ' · à comparer à la pièce' : ''}`, dtSx(tva)] : ['info', 'Sans TVA', 'aucune TVA récupérable n\'est écrite', '']);
+    L.push(tva && tauxDeSx(e) === 'mixte' ? ['ok', 'La TVA écrite, à plusieurs taux', `${lignesTvaSx(e).map(l => l.libelle || l.compte).join(' · ')}${luT == null ? ' · à comparer à la pièce' : ''}`, dtSx(tva)]
+      : tva ? [tauxVusSx().includes(tauxDeSx(e)) ? 'ok' : 'att', 'La TVA écrite', `${String(tauxDeSx(e)).replace('.', ',')} % de ${dtSx(ht)}${luT == null ? ' · à comparer à la pièce' : ''}`, dtSx(tva)] : ['info', 'Sans TVA', 'aucune TVA récupérable n\'est écrite', '']);
     const num = (lu && lu.numero) || '';
     const memes = ecrituresSx().filter(y => y.id !== e.id && achatSx(y) && normSx(nomTiersSx(y)) === normSx(tiers) && ((num && `${y.libelle || ''} ${y.piece || ''}`.includes(num)) || (y.piece && y.piece === e.piece)));
     L.push(memes.length ? ['ko', `${num ? `Le numéro ${num}` : 'Ce numéro'} est saisi deux fois`, `aussi dans ${memes.map(y => y.piece || jjmm(y.date)).join(', ')}`, ''] : ['ok', `${num ? `Le numéro ${num}` : `${e.piece || 'Ce numéro'}`} n'est saisi qu'une fois`, `aucune autre pièce de ${tiers || 'ce fournisseur'} avec ce numéro`, '']);
@@ -2986,7 +3048,7 @@
     const four = String(L.four || '').trim(), h = habitudesSx(four);
     const jour = /^\d{1,2}$/.test(String(L.jour).trim()) ? String(L.jour).trim().padStart(2, '0') : '';
     const date = jour ? `${m}-${jour}` : '';
-    const f = { four, date, ttc: L.ttc, tva: h.n ? h.taux : '', tvaAutre: '', compte: h.n ? h.compte : '', c40: (h.n && h.c40) || '401', journal: j, piece: L.piece || numeroSuivantSx(j), numero: '', devise: '' };
+    const f = { four, date, ttc: L.ttc, tva: h.n && h.taux !== 'mixte' ? h.taux : '', tvaAutre: '', compte: h.n ? h.compte : '', c40: (h.n && h.c40) || '401', journal: j, piece: L.piece || numeroSuivantSx(j), numero: '', devise: '' };
     const E = ecritureSx(f);
     const dateOk = date && !Number.isNaN(Date.parse(`${date}T12:00:00Z`)) && new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) === date;
     const refus = !four ? 'Le fournisseur manque.' : !h.n ? `${four} n'a pas de pièce d'avant : rien ne se propose. « Ouvrir en lignes » la saisit dans la grille.` : !dateOk ? `Le jour manque : 1 à ${new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).getUTCDate()}.` : E.refus ? E.refus[1] : '';
@@ -3016,14 +3078,14 @@
       // La pièce sur sa ligne (le fournisseur au crédit), puis chaque charge et la TVA dessous, au débit : comme le journal.
       const dessous = (e.lignes || []).filter(l => l !== l40 && mtSx(l.debit) > 0).map(l => {
         const estTva = String(l.compte).startsWith(cTva);
-        return `<tr class="sx-jm-s"><td></td><td></td><td class="mono">${esc(l.compte || '')}</td><td>${esc(estTva ? `TVA déductible${tx !== 'sans' ? ` ${String(tx).replace('.', ',')} %` : ''}` : (nomC(l.compte) || l.libelle || ''))}</td><td class="r">${esc(dtSx(mtSx(l.debit)))}</td><td></td><td></td></tr>`;
+        return `<tr class="sx-jm-s"><td></td><td></td><td class="mono">${esc(l.compte || '')}</td><td>${esc(estTva ? (tx === 'mixte' ? l.libelle || 'TVA déductible' : `TVA déductible${tx !== 'sans' ? ` ${String(tx).replace('.', ',')} %` : ''}`) : (nomC(l.compte) || l.libelle || ''))}</td><td class="r">${esc(dtSx(mtSx(l.debit)))}</td><td></td><td></td></tr>`;
       }).join('');
       return `<tr class="sx-jm-e"><td>${esc(String(e.date).slice(8, 10))}</td><td class="mono">${esc(e.piece || '—')}</td><td class="mono">${esc(l40.compte || '')}</td><td>${esc(nomTiersSx(e) || e.libelle || '')}</td><td></td><td class="r">${esc(dtSx(mtSx(l40.credit) || ttcSx(e)))}</td><td>${just}</td></tr>${dessous}`;
     }).join('');
     const pr = propositionJmSx(m);
     const fours = [...new Set(ecrituresSx().filter(achatSx).map(nomTiersSx).filter(Boolean))];
     const prop = pr.h.n && pr.E.ttc > 0 ? `${esc(pr.f.compte)} ${esc(nomC(pr.f.compte))} ${esc(dtSx(pr.E.ht))}${pr.E.tva ? ` · TVA ${esc(String(pr.E.taux).replace('.', ','))} % ${esc(dtSx(pr.E.tva))}` : ' · sans TVA'} · ${esc(pr.f.c40)} ${esc(dtSx(pr.E.ttc))} <span class="sx-src hab">${SX_IC.rel} ${esc(commeSx(pr.h, pr.h.tousCompte && pr.h.tousTaux, 'pièce', 'pièces', true))}</span>`
-      : pr.h.n ? `<span class="mu">la charge ${esc(pr.h.compte)} ${esc(nomC(pr.h.compte))} et ${pr.h.taux === 'sans' ? 'sans TVA' : `la TVA à ${esc(String(pr.h.taux).replace('.', ','))} %`} se proposent : le TTC suffit</span>` : '';
+      : pr.h.n ? `<span class="mu">la charge ${esc(pr.h.compte)} ${esc(nomC(pr.h.compte))} et ${pr.h.taux === 'sans' ? 'sans TVA' : pr.h.taux === 'mixte' ? 'la TVA (à choisir : sa dernière pièce a plusieurs taux)' : `la TVA à ${esc(String(pr.h.taux).replace('.', ','))} %`} se proposent : le TTC suffit</span>` : '';
     const equi = deb === cre;
     return `<section class="sx-jm" id="sx-jm" aria-label="Le journal du mois">
       <div class="sx-jm-t"><label class="sx-jm-sel">${svgBq(BQ_IC.chev, 12)}<select id="sx-jm-journal" aria-label="Le journal"><option value="${esc(j)}">${esc(j)} · Achats</option></select></label><label class="sx-jm-sel">${svgBq(BQ_IC.chev, 12)}<select id="sx-jm-mois" aria-label="Le mois">${MOIS_CD.map((n, i) => { const v = `${livresState.annee}-${String(i + 1).padStart(2, '0')}`; return `<option value="${v}"${v === m ? ' selected' : ''}>${esc(cap(moisLong(v)))} ${esc(String(livresState.annee))}</option>`; }).join('')}</select></label><span class="mu sx-jm-aide">Le compte du fournisseur et le TTC suffisent : la charge et la TVA se proposent d'après ses pièces d'avant, la pièce se solde seule.</span></div>
@@ -3108,6 +3170,7 @@
 
   // ---------- la pièce dans la visionneuse ----------
   async function chargerPapierSx(dossier, x, zone) {
+    if (zone && estXmlSx(x)) { lireEfactureCl(dossier, x); zone.innerHTML = feuilleEfactureCl(x); return; }
     if (!zone || navigator.onLine === false) { if (zone) zone.innerHTML = '<span class="mu">Sans réseau, la pièce ne s\'ouvre pas : elle est gardée sur le serveur.</span>'; return; }
     const petit = !!zone.closest('.petit');
     const largeur = Math.round(Math.min(petit ? 230 : 430, Math.max(180, zone.clientWidth - 40)) * (petit ? 1 : sxState.zoom));
@@ -3122,6 +3185,7 @@
     } catch { if (zone.isConnected) zone.innerHTML = '<span class="mu">Ce fichier ne se dessine pas ici : « En grand » l\'ouvre tel qu\'il est arrivé.</span>'; }
   }
   async function enGrandSx(dossier, x) {
+    if (estXmlSx(x)) return feuilleEnGrandCl(x, dossier.name);
     if (x.p) { pieceState.rot = sxState.rot; return pieceEnGrand({ ...x.p, entreprise: dossier.id }); }
     const f = await contenuSx(dossier, x).catch(err => { toast(plainError(err), 'error'); return null; });
     if (!f) return;
@@ -3169,7 +3233,7 @@
     const deux = f.numero && ecrituresSx().find(y => achatSx(y) && normSx(nomTiersSx(y)) === normSx(f.four) && `${y.libelle || ''} ${y.piece || ''}`.includes(f.numero));
     if (deux && !await confirmDialog('Déjà au livre ?', `<p>${esc(deux.piece || 'Une écriture')} du ${esc(fmtJourCourt(deux.date))} porte déjà le numéro <b>${esc(f.numero)}</b> de ${esc(f.four)}. L'écrire encore compterait la facture deux fois.</p>`, 'L\'écrire quand même')) return;
     const ok = el && $$('#sx-ok, #sx-ok-valider', el); if (ok) ok.forEach(b => { b.disabled = true; });
-    const banque = !f.devise && f.paye ? ligneBanqueSx(E.ttc, f.date) : null;
+    const banque = !f.devise && !f.avoir && f.paye ? ligneBanqueSx(E.ttc, f.date) : null;
     try {
       const res = await api.saisir(dossier.id, s.annee, { date: f.date, journal: f.journal, piece: String(f.piece || '').trim(), libelle: E.lib, source: 'saisie', pieceJointe: null, lignes: versLeLivreSx(E.lignes) });
       s.livre = res.livre;
@@ -3317,13 +3381,13 @@
     // La fiche à saisir : chaque frappe change la fiche et l'écriture montrée, sans redessiner le champ sous le curseur.
     const f = (x.sx.k === 'saisir' || x.sx.k === 'devise') ? ficheSx(x) : null;
     const majEcriture = () => {
-      const t = $('#sx-ec-l', zone); if (t) t.innerHTML = lignesEcritureSx(f, !f.devise && f.paye ? ligneBanqueSx(ecritureSx(f).ttc, f.date) : null);
+      const t = $('#sx-ec-l', zone); if (t) t.innerHTML = lignesEcritureSx(f, !f.devise && !f.avoir && f.paye ? ligneBanqueSx(ecritureSx(f).ttc, f.date) : null);
       const cv = $('#sx-cv', zone); if (cv) { const v = contreValeurSx(f); cv.textContent = v ? `${dtSx(v)} DT` : '—'; }
       const md = $('#sx-mdev-v', zone); if (md) md.textContent = montantDevSx(f);
       const r = $('#sx-refus', zone); if (r) { const E = ecritureSx(f); r.hidden = !E.refus; r.textContent = E.refus ? E.refus[1] : ''; }
     };
     if (f) {
-      const champ = (id, k, lire) => { const c = $(id, zone); if (c) c.addEventListener('input', () => { f[k] = lire ? lire(c.value) : c.value; c.classList.remove('sx-ko'); c.removeAttribute('aria-invalid'); if (k === 'four' || k === 'ttc' || k === 'date') { f[`${k}Src`] = ''; } majEcriture(); }); };
+      const champ = (id, k, lire) => { const c = $(id, zone); if (c) c.addEventListener('input', () => { f[k] = lire ? lire(c.value) : c.value; c.classList.remove('sx-ko'); c.removeAttribute('aria-invalid'); if (k === 'four' || k === 'ttc' || k === 'date' || k === 'timbre') { f[`${k}Src`] = ''; } majEcriture(); }); };
       champ('#sx-four', 'four'); champ('#sx-ttc', 'ttc'); champ('#sx-timbre', 'timbre'); champ('#sx-mdev', 'montantDev'); champ('#sx-taux', 'taux'); champ('#sx-tva-autre', 'tvaAutre'); champ('#sx-piece', 'piece');
       const dt = $('#sx-date', zone);
       if (dt) dt.addEventListener('input', () => { const iso = K.dateTapee(dt.value.trim(), livresState.annee); f.date = iso || ''; f.dateSrc = ''; dt.classList.remove('sx-ko'); majEcriture(); });
@@ -3342,7 +3406,7 @@
           if (seul) { f.four = seul; four.value = seul; }
         }
       });
-      if (four) four.addEventListener('change', () => { const h = habitudesSx(f.four); if (h.n) { if (!f.compte) { f.compte = h.compte; f.compteSrc = 'hab'; } if (f.tva === '') { f.tva = h.taux; f.tvaSrc = 'hab'; } } f.c40 = (h.n && h.c40) || '401';
+      if (four) four.addEventListener('change', () => { const h = habitudesSx(f.four); if (h.n) { if (!f.compte) { f.compte = h.compte; f.compteSrc = 'hab'; } if (f.tva === '' && h.taux !== 'mixte') { f.tva = h.taux; f.tvaSrc = 'hab'; } } f.c40 = (h.n && h.c40) || '401';
         // (1.221.0) La date n'est que celle d'arrivée (« mets celle de la pièce ») : le curseur y va avant le total.
         const go = () => redessinerSx(dossier, true, f.dateSrc === 'arrivee' ? '#sx-date' : '#sx-ttc');
         const vise = zone.querySelector('button:hover');

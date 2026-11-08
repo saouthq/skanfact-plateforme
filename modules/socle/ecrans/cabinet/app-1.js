@@ -3380,7 +3380,7 @@
         : p.achat ? `<div class="pc-mot fait">${PC_IC.coche}<span><b>${esc(p.de)} l'a rangée dans ses achats</b> : ${esc(p.achat)}. Rien à saisir : vérifie et classe.</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`
         : `<div class="pc-mot">${PC_IC.bulle}<span>${p.demande ? `Répond à ta demande : <b>« ${esc(p.demande)} »</b>` : p.texte ? `<b>${esc(p.de)}</b> : « ${esc(p.texte)} »` : `<b>${esc(p.de)}</b> l'a envoyée sans un mot`} · ${esc(quandPc(p.recueLe, true))}</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`;
       const dl = dems.length ? `<div class="pc-dl"><span>Demandes en cours :</span>${dems.slice(0, 4).map(x => `<span class="pc-dl-i${x.recueLe ? '' : ' attendue'}">${x.recueLe ? PC_IC.coche : PC_IC.attente}${esc(x.texte)}${!x.recueLe && x.pour ? ` · ${esc(fmtJourCourt(x.pour).slice(0, 5))}` : ''}</span>`).join('')}${dems.some(x => !x.recueLe) ? `<a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Relancer</a>` : ''}</div>` : '';
-      const photo = !/pdf/.test(p.fichier.type);
+      const photo = /^image\//.test(p.fichier.type);
       const outils = `<div class="pc-outils"><button type="button" class="btn btn-sm btn-icone" data-pc-zoom="-1" aria-label="Plus petit"${st.zoom <= 0.5 ? ' disabled' : ''}>${PC_IC.moins}</button><span>${Math.round(st.zoom * 100)} %</span><button type="button" class="btn btn-sm btn-icone" data-pc-zoom="1" aria-label="Plus grand"${st.zoom >= 3 ? ' disabled' : ''}>${PC_IC.plus}</button>${photo ? `<button type="button" class="btn btn-sm btn-icone" id="pc-tourner" aria-label="Tourner">${PC_IC.tourne}</button>` : ''}<span class="pc-sep"></span><button type="button" class="btn btn-sm btn-icone" id="pc-grand" aria-label="En grand">${PC_IC.grand}</button><button type="button" class="btn btn-sm btn-icone" id="pc-enregistrer" aria-label="Enregistrer le fichier">${PC_IC.bas}</button></div>`;
       const papier = hors ? '<div class="pc-papier vide" id="pc-papier"><b>Le fichier s\'ouvre avec le réseau</b><span>Il est gardé sur le serveur, pas sur ce poste.</span></div>'
         : `<div class="pc-papier vide${!classees && p.genre === 'rangee' ? ' court' : ''}" id="pc-papier"><span>Ouverture de la pièce…</span></div>`;
@@ -3712,6 +3712,14 @@
     const st = pieceState;
     const zone = $('#pc-papier', view);
     if (!zone || navigator.onLine === false) return;
+    // (1.325.0) Le fichier El Fatoora se montre comme la facture qu'il est, lu sur le serveur (sans l'IA).
+    if (estEfactureCl(p.fichier)) {
+      const D = (S.dossiers || []).find(y => y.id === p.entreprise), x = { k: `p:${p.id}`, p, lu: luDePieceCl(p) };
+      if (D) lireEfactureCl(D, x);
+      zone.className = 'pc-papier ef-z';
+      zone.innerHTML = feuilleEfactureCl(x);
+      return;
+    }
     // 430 points à 100 %, comme la feuille de la maquette ; moins si la place manque (le téléphone).
     const largeur = Math.round(Math.min(430, Math.max(200, zone.clientWidth - 40)) * st.zoom);
     // (1.174.7) Un fichier ARRIVÉ qui ne se lit pas (abîmé pendant l'envoi, vide, protégé) : la maquette « Fichier abîmé »
@@ -3746,6 +3754,8 @@
     } catch { casser(); }
   }
   async function pieceEnGrand(p) {
+    // (1.325.0) La facture électronique en grand : sa feuille, lue dans le fichier (pas d'image à agrandir).
+    if (estEfactureCl(p.fichier)) return feuilleEnGrandCl({ k: `p:${p.id}`, p, lu: luDePieceCl(p) }, ((S.dossiers || []).find(x => x.id === p.entreprise) || {}).name || '');
     const f = await api.pieces.contenu(p.entreprise, p.fichier.id).catch(x => { toast(plainError(x), 'error'); return null; });
     if (!f) return;
     const calque = document.createElement('div');
@@ -5222,7 +5232,7 @@
         // Ni le libellé ni le nom du fichier ne se répètent quand ils disent la même chose que le titre (1.174.2).
         titre: tiers || z.fichier.nom, sous: [eJ.piece !== tiers && eJ.libelle !== tiers ? eJ.libelle : '', z.fichier.nom.replace(/\.[a-z0-9]{2,4}$/i, '') !== (tiers || '') ? z.fichier.nom : ''].filter(Boolean).join(' · '),
         em: `jointe à ${eJ.piece || 'son écriture'} le ${jjmm(jourTunisCl(z.classeeLe))} à ${heureCl(z.classeeLe)}, par ${quiCl(z.classeePar)}`, emOk: true,
-        montant: montantE(eJ), etat: ['ok', 'saisie', 'ordre'], geste: null, num: eJ.piece, numE: eJ.id, photo: !/pdf/.test(z.fichier.type) };
+        montant: montantE(eJ), etat: ['ok', 'saisie', 'ordre'], geste: null, num: eJ.piece, numE: eJ.id, photo: /^image\//.test(z.fichier.type) };
     };
     for (const e of ecritures) {
       if (!String(e.date).startsWith(annee)) continue;
@@ -5302,7 +5312,7 @@
       // la maquette (« Minoterie du Cap Bon · 1 846,200 ») ; le nom du fichier passe dessous.
       const tiersA = deLAchat ? (((deLAchat.lignes || []).find(l => l.tiers) || {}).tiers || String(p.achat || '').split(' · ')[1] || '') : '';
       items.push(avecLecture({ k: `p:${p.id}`, sorte: 'piece', p, classee, rub: g === 'releve' ? 'banque' : 'achats', mois: m, date: deLAchat ? deLAchat.date : p.recueLe, recue: !deLAchat, titre: tiersA || p.fichier.nom,
-        sous: [tiersA ? p.fichier.nom : '', p.texte ? `« ${String(p.texte).slice(0, 90)} »` : '', p.demande ? `répond à « ${p.demande} »` : ''].filter(Boolean).join(' · '), em, montant: deLAchat ? montantE(deLAchat) : null, etat, geste, num, numE, photo: !/pdf/.test(p.fichier.type),
+        sous: [tiersA ? p.fichier.nom : '', p.texte ? `« ${String(p.texte).slice(0, 90)} »` : '', p.demande ? `répond à « ${p.demande} »` : ''].filter(Boolean).join(' · '), em, montant: deLAchat ? montantE(deLAchat) : null, etat, geste, num, numE, photo: /^image\//.test(p.fichier.type),
         jumelle: p.double ? `${p.double.sorte === 'message' ? 'p' : 'd'}:${p.double.id}` : '' }));
     }
     // Les pièces déposées par le cabinet (« Déposer des pièces »).
@@ -5325,7 +5335,7 @@
       }
       items.push(avecLecture({ k: `d:${x.id}`, sorte: 'doc', doc: x, classee: !!x.raison, rub: etatBq ? 'cabinet' : /relev/i.test(`${x.titre} ${x.fichier.nom}`) ? 'banque' : 'achats', mois: x.periode, date: x.deposeLe, recue: !etatBq,
         titre: x.titre, sous: x.detail || '', em: `${x.double ? `la même que ${nomJumelle(x.double)} · ` : ''}déposée ${le === K.today() ? 'aujourd\'hui' : `le ${jjmm(le)}`} par ${prenomCl(x.deposeNom) || 'le cabinet'}${x.provenance ? ` (${x.provenance})` : ''}`,
-        montant: null, etat: etatBq && x.raison ? ['ok', /^provisoire/.test(String(x.detail || '')) ? 'provisoire' : 'définitif', 'ordre'] : fait || ['ambre', 'à saisir', 'traiter'], geste: fait ? null : { lib: 'Saisir', act: 'saisir' }, photo: !/pdf/.test(x.fichier.type),
+        montant: null, etat: etatBq && x.raison ? ['ok', /^provisoire/.test(String(x.detail || '')) ? 'provisoire' : 'définitif', 'ordre'] : fait || ['ambre', 'à saisir', 'traiter'], geste: fait ? null : { lib: 'Saisir', act: 'saisir' }, photo: /^image\//.test(x.fichier.type),
         jumelle: x.double ? `${x.double.sorte === 'message' ? 'p' : 'd'}:${x.double.id}` : '' }));
     }
     // (1.173.0) Une pièce à saisir qui répète une autre (le même fichier, ou la même lecture : fournisseur, numéro, total) :
@@ -5586,6 +5596,64 @@
     });
   }
 
+  // (1.325.0) La facture électronique reçue (le fichier El Fatoora, XML TEIF, que le fournisseur envoie à son client) : elle
+  // se lit sur le serveur, sans l'IA (rien ne sort, le fichier dit tout au millime), dès qu'elle s'ouvre au cabinet — aucun
+  // bouton, aucun accord. Elle se montre comme une facture (la feuille ci-dessous), jamais comme un fichier qui « ne
+  // s'ouvre pas ici ».
+  const estEfactureCl = f => !!f && (/xml/.test(String(f.type || '')) || /\.xml$/i.test(String(f.nom || '')));
+  const fichierDeCl = x => (x && (x.p ? x.p.fichier : x.doc ? x.doc.fichier : null)) || null;
+  function lireEfactureCl(d, x) {
+    if (!x || (x.lu && x.lu.detail) || !(x.p || x.doc) || !estEfactureCl(fichierDeCl(x)) || navigator.onLine === false || !api.classeur.lire) return;
+    const ef = clState.ef || (clState.ef = new Map());
+    if (ef.has(x.k)) return;
+    ef.set(x.k, { etape: 'cours' });
+    // « Pièces reçues » se redessine aussi (redessinerCl ne regarde que le classeur et la Saisie).
+    const pieces = () => { if (/^#\/pieces/.test(location.hash) && !$('#modal-root').children.length) drawPieces($('#view'), location.hash.split('/')[2]); };
+    api.classeur.lire(d.id, x.p ? 'message' : 'document', x.p ? x.p.id : x.doc.id, false)
+      .then(async () => {
+        ef.set(x.k, { etape: 'lu' }); await chargerLecturesCl(d, true); pieces();
+        // La Saisie ne redessine pas sous un champ où l'on est : la fiche lue remplace celle d'avant tant que rien n'y est tapé.
+        if (/\/comptabilite\/saisie/.test(location.hash) && !((sxState.fiches.get(x.k) || {}).touchee)) redessinerSx(d, true);
+      },
+        err => {
+          ef.set(x.k, { etape: 'refus', motif: plainError(err) }); redessinerCl(d); pieces();
+          if (/\/comptabilite\/saisie/.test(location.hash) && !((sxState.fiches.get(x.k) || {}).touchee)) redessinerSx(d, true);
+        });
+  }
+  // La lecture d'une pièce reçue (Pièces reçues, l'aperçu en grand) : celle que le classeur garde pour elle.
+  const luDePieceCl = p => ((clState.lus.get(p.entreprise) || {}).par || new Map()).get(`p:${p.id}`) || null;
+  // Un montant du fichier (« 1002.950 ») tel qu'il s'écrit (« 1 002,950 ») : du texte au millième, jamais recalculé.
+  const efDtCl = v => (v == null || v === '' ? '—' : dtCd(Number(v)));
+  function feuilleEfactureCl(x) {
+    const lu = x.lu, D = lu && lu.detail, e = (clState.ef || new Map()).get(x.k);
+    if (!D) {
+      return `<div class="ef-f ef-vide" data-ef="${e ? e.etape : 'attente'}"><span class="ef-t">Facture électronique · El Fatoora</span><b>${esc(fichierDeCl(x) ? fichierDeCl(x).nom : 'le fichier')}</b>
+        <span>${e && e.etape === 'refus' ? esc(e.motif) : navigator.onLine === false ? 'Elle se lit avec le réseau, sur le serveur de SkanFact.' : 'Lecture du fichier sur le serveur de SkanFact, sans l\'IA…'}</span></div>`;
+    }
+    const dev = D.devise === 'TND' ? 'DT' : D.devise;
+    const quoi = D.avoir ? 'Avoir' : 'Facture';
+    const lignes = (D.lignes || []).map(l => `<tr><td>${esc(l.libelle)}${l.remise ? `<small>remise ${esc(String(l.remise).replace('.', ','))} % sur ${esc(efDtCl(l.prixBrut))}</small>` : ''}</td><td class="r">${esc(String(l.quantite).replace('.', ','))}</td><td class="r">${esc(efDtCl(l.prix))}</td><td class="r">${esc(String(l.taux).replace('.', ','))} %</td><td class="r">${esc(efDtCl(l.ht))}</td></tr>`).join('');
+    const tva = (D.tva || []).map(t => `<div><span>TVA ${esc(String(t.taux).replace('.', ','))} % <small>sur ${esc(efDtCl(t.base))}</small></span><b>${esc(efDtCl(t.montant))}</b></div>`).join('');
+    return `<div class="ef-f" data-ef="lu"><span class="ef-t">${quoi} électronique · El Fatoora</span>
+      <div class="ef-h"><span><b>${esc(lu.fournisseur || 'Fournisseur non nommé')}</b>${D.matricule ? `<small>MF ${esc(D.matricule)}</small>` : ''}</span><span class="ef-n"><b>${quoi} ${esc(lu.numero || '')}</b><small>${lu.date ? `du ${esc(jjmmaaCl(lu.date))}` : ''}${D.echeance ? ` · échéance ${esc(jjmmaaCl(D.echeance))}` : ''}</small></span></div>
+      ${D.avoir && D.refFacture ? `<p class="ef-r">Il diminue la facture ${esc(D.refFacture)}.</p>` : ''}${D.objet ? `<p class="ef-r">${esc(D.objet)}</p>` : ''}
+      ${lignes ? `<table class="ef-l"><thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">P.U. HT</th><th class="r">TVA</th><th class="r">Total HT</th></tr></thead><tbody>${lignes}</tbody></table>` : ''}
+      <div class="ef-tot"><div><span>Total HT</span><b>${esc(efDtCl(D.ht))}</b></div>${tva}${Number(D.timbre) > 0 ? `<div><span>Timbre fiscal</span><b>${esc(efDtCl(D.timbre))}</b></div>` : ''}<div class="ef-ttc"><span>Total TTC</span><b>${esc(efDtCl(lu.total))} ${esc(dev)}</b></div></div>
+      <p class="ef-p">${CL_IC.ok}<span>Chaque montant est lu dans le fichier, au millime : rien n'est passé par l'IA.${D.signe ? ` Fichier signé${D.refTtn ? ` · réf. TTN ${esc(D.refTtn)}` : ''}.` : ' Le fichier n\'est pas signé.'}</span></p></div>`;
+  }
+  // « En grand » d'une facture électronique : la même feuille, sur le calque des pièces (Échap ferme).
+  function feuilleEnGrandCl(x, dossierNom) {
+    const nom = (fichierDeCl(x) || {}).nom || 'Facture électronique';
+    const calque = document.createElement('div');
+    calque.className = 'pc-grand'; calque.setAttribute('role', 'dialog'); calque.setAttribute('aria-label', nom);
+    calque.innerHTML = `<div class="pc-grand-t"><b>${esc(nom)}</b><span>${esc(dossierNom || '')}</span><span class="pc-sep"></span><button type="button" class="btn btn-sm" id="pcg-fermer">${PC_IC.fermer} Fermer</button></div><div class="pc-grand-d ef-grand" id="pcg-d">${feuilleEfactureCl(x)}</div>`;
+    document.body.append(calque);
+    const fermer = () => { calque.remove(); document.removeEventListener('keydown', echap, true); };
+    const echap = e => { if (e.key === 'Escape') { e.stopPropagation(); fermer(); } };
+    document.addEventListener('keydown', echap, true);
+    $('#pcg-fermer', calque).onclick = fermer; $('#pcg-fermer', calque).focus();
+  }
+
   // (1.173.0) Marquer en double EN NOMMANT la jumelle : la pièce probable d'abord, puis les autres du mois et de ses voisins.
   function fenDoubleCl(d, x, tous, fait) {
     const proche = y => Math.abs(Date.parse(`${y.mois}-15`) - Date.parse(`${x.mois}-15`));
@@ -5734,6 +5802,8 @@
       if ($('#gr-o', layer)) $('#gr-o', layer).onclick = () => { close(); actions.principal.run(); };
       layer.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' && i) $('#gr-p', layer).click(); if (e.key === 'ArrowRight' && i < liste.length - 1) $('#gr-s', layer).click(); });
       const zone = $('#gr-c', layer);
+      // (1.325.0) La facture électronique : sa feuille, lue dans le fichier ; « Télécharger » garde le XML tel quel.
+      if (estEfactureCl(fichierDeCl(x))) { zone.classList.add('ef-grand'); zone.innerHTML = feuilleEfactureCl(x); return; }
       if (!/pdf/.test(f.type)) { zone.innerHTML = `<img src="${f.adresse}" alt="${esc(f.nom)}">`; return; }
       const premiere = await api.pieces.apercuPdf(f.blob, 1400, 1);
       if (!premiere) { zone.innerHTML = '<p class="muted">Ce PDF ne se dessine pas ici : « Télécharger » le garde tel qu\'il est arrivé.</p>'; return; }
@@ -6100,7 +6170,7 @@
       return `<div class="row-menu cl-menu" role="menu">${[voir, ranger, sortir].filter(g => g.length).map(g => g.map(bouton).join('')).join('<hr>')}<p class="cl-menu-n">${CL_IC.info}<span><b>Pas de « Supprimer » :</b> ${x.doc ? 'ce qui est rangé' : 'ce qui est reçu'} se garde 10 ans (À VÉRIFIER).${estPiece ? ' « Pas une pièce comptable » ou « En double » la sortent du compte, et se défont.' : ' Un fichier faux se remplace.'}</span></p></div>`;
     };
     // Le même ⋯ sur la ligne ouverte d'un document du cabinet (un courrier, une pièce du permanent, un accusé).
-    const ligneDoc = x => ({ k: `ds:${x.id}`, sorte: 'doc', doc: x, classee: true, rub: x.rubrique, mois: x.periode && x.periode.length === 7 ? x.periode : mp, date: x.deposeLe, recue: true, titre: x.titre, etat: ['ok', 'rangée', 'ordre'], photo: !/pdf/.test(x.fichier.type) });
+    const ligneDoc = x => ({ k: `ds:${x.id}`, sorte: 'doc', doc: x, classee: true, rub: x.rubrique, mois: x.periode && x.periode.length === 7 ? x.periode : mp, date: x.deposeLe, recue: true, titre: x.titre, etat: ['ok', 'rangée', 'ordre'], photo: /^image\//.test(x.fichier.type) });
     const troisDoc = id => { const x = clState.sel === `ds:${id}` && docs.find(z => z.id === id), y = x && ligneDoc(x); return y ? `<span class="cl-mw"><button type="button" class="btn btn-sm btn-icone cl-trois" data-cl-trois="${esc(y.k)}" aria-label="Les gestes de ce document" title="Les gestes de ce document" aria-expanded="${clState.menu === y.k}">${CL_IC.trois}</button>${menuDe(y)}</span>` : ''; };
     const ligne = (x, avecGeste = false) => `<li class="cl-l${x.k === clState.sel ? ' ici' : ''}${x.etat[2] === 'traiter' ? ' a-faire' : ''}${x.sorte === 'trou' ? ' cl-trou' : ''}${x.attend ? ' cl-attend' : ''}" data-cl-k="${esc(x.k)}"${x.sorte === 'trou' ? '' : ' tabindex="0"'}>
         <span class="cl-l-i ${icone(x)}">${CL_IC[icone(x)] || ''}</span><span class="cl-l-t"><b>${esc(x.titre)}</b>${x.sous || x.em ? `<small>${esc(x.sous || '')}${x.sous && x.em ? ' · ' : ''}${x.em ? `<em${x.emOk ? ' class="ok"' : ''}>${esc(x.em)}</em>` : ''}</small>` : ''}</span>
@@ -6337,7 +6407,7 @@
     }
 
     // ---------- la pièce à droite ----------
-    const cachees = (clState.classees || []).filter(p => p.entreprise === d.id && p.raison === 'banque' && !items.some(y => y.k === `p:${p.id}`)).map(p => ({ k: `p:${p.id}`, sorte: 'piece', p, classee: true, rub: 'achats', mois: moisTunisCl(p.recueLe), date: p.recueLe, recue: true, titre: p.fichier.nom, etat: ['ok', p.raison === 'jointe' ? 'jointe' : 'rapprochée', 'ordre'], photo: !/pdf/.test(p.fichier.type) }));
+    const cachees = (clState.classees || []).filter(p => p.entreprise === d.id && p.raison === 'banque' && !items.some(y => y.k === `p:${p.id}`)).map(p => ({ k: `p:${p.id}`, sorte: 'piece', p, classee: true, rub: 'achats', mois: moisTunisCl(p.recueLe), date: p.recueLe, recue: true, titre: p.fichier.nom, etat: ['ok', p.raison === 'jointe' ? 'jointe' : 'rapprochée', 'ordre'], photo: /^image\//.test(p.fichier.type) }));
     const docsLigne = docs.filter(x => x.rubrique !== 'piece').map(ligneDoc);
     const tousItems = q ? [...anneesLues.flatMap(a => modeleCl(d, a, clState.livres.get(`${d.id}:${a}`))), ...docsLigne] : [...items, ...cachees, ...docsLigne];
     // En arrivant sur une liste (un mois, une rubrique, « à traiter »), la première pièce à traiter s'ouvre à droite, une
@@ -6444,6 +6514,8 @@
       if (!raison && !['rangee', 'releve'].includes(g) && !(x && x.rubrique !== 'piece') && sel.sorte !== 'releve') {
         // L'achat du même montant le dit déjà (la maquette : un seul bloc) : la lecture ne se répète pas au-dessus.
         if (sel.lu && cands[0] && memeMontant(cands[0], sel)) bloc = bloc.replace('<b>Un achat du même montant existe déjà</b>', `<b>${CL_IC.ia}Un achat du même montant existe déjà</b>`);
+        else if (sel.lu && sel.lu.source === 'teif') bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ok}Lue dans le fichier El Fatoora : ${esc(sel.lu.fournisseur || 'le fournisseur n\'est pas nommé')}</b><span>${esc([sel.lu.numero ? `${sel.lu.detail && sel.lu.detail.avoir ? 'avoir' : 'facture'} n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? `${sel.lu.total.replace('.', ',')} ${!sel.lu.devise || sel.lu.devise === 'TND' ? 'DT' : sel.lu.devise}` : ''].filter(Boolean).join(' · '))}. Chaque montant vient du fichier, au millime : rien n'est passé par l'IA.</span></div>${bloc}`;
+        else if (estEfactureCl(fic)) { /* le fichier se lit tout seul, sur le serveur : ni bouton, ni accord */ }
         else if (sel.lu) bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ia}Lue par SkanFact : ${esc(sel.lu.fournisseur || 'le fournisseur ne se lit pas')}</b><span>${esc([sel.lu.numero ? `facture n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? `${sel.lu.total.replace('.', ',')} ${!sel.lu.devise || sel.lu.devise === 'TND' ? 'DT' : sel.lu.devise}` : ''].filter(Boolean).join(' · ') || 'rien d\'autre ne se lit')}. À vérifier sur la pièce avant de la saisir.</span></div>${bloc}`;
         else if (L.ia) actions = `<button type="button" class="btn btn-sm cl-ia-btn${clState.lit && clState.lit.k === sel.k ? ' cl-ia-encours' : ''}" data-cl-ap="lire"${bloque || clState.lit ? ` disabled title="${esc(bloque || 'La lecture est en cours')}"` : ''}>${CL_IC.ia}${clState.lit && clState.lit.k === sel.k ? 'Lecture en cours…' : 'Lire la pièce'}</button>${actions}`;
         else if (L.coupee) apres += `<small class="cl-ap-n">${esc(cap(qui))} a coupé la lecture de ses pièces par l'IA dans ses réglages : celle-ci se lit à l'œil.</small>`;
@@ -6451,7 +6523,7 @@
       if (p && p.texte && !bloc.includes('cl-rel')) bloc = `<div class="cl-ap-b"><b>${p.demande ? `Répond à ta demande : « ${esc(p.demande)} »` : `${esc(prenomCl(p.de))} a écrit`}</b><span>« ${esc(p.texte)} »</span></div>${bloc}`;
       // L'historique prend la place du reste (la maquette) : la pièce, puis qui en a fait quoi.
       if (clState.hist) { apres = histoireCl(sel, d, livre, sel.lu ? sansJustif.find(y => memeMontant(y, sel)) : null); bloc = ''; actions = ''; }
-      ap = `<aside class="cl-ap" aria-label="La pièce">${tel ? '' : ''}<div class="cl-ap-t"><span class="cl-l-i ${sel.sorte === 'releve' ? 'banque' : sel.photo ? 'photo' : 'pdf'}">${CL_IC[sel.sorte === 'releve' ? 'banque' : sel.photo ? 'photo' : 'pdf']}</span><span><b>${esc(fic.nom)}</b><small>${/pdf/.test(fic.type) ? 'PDF' : 'photo'} · ${esc(tailleTxt(fic.taille))} · ${env}</small></span><button type="button" class="btn btn-sm btn-icone btn-ghost" id="cl-grand" aria-label="En grand"${hors ? ' disabled title="Le fichier s\'ouvre avec le réseau"' : ''}>${CL_IC.grand}</button></div>
+      ap = `<aside class="cl-ap" aria-label="La pièce">${tel ? '' : ''}<div class="cl-ap-t"><span class="cl-l-i ${sel.sorte === 'releve' ? 'banque' : sel.photo ? 'photo' : 'pdf'}">${CL_IC[sel.sorte === 'releve' ? 'banque' : sel.photo ? 'photo' : 'pdf']}</span><span><b>${esc(fic.nom)}</b><small>${/pdf/.test(fic.type) ? 'PDF' : estEfactureCl(fic) ? 'facture électronique (XML)' : 'photo'} · ${esc(tailleTxt(fic.taille))} · ${env}</small></span><button type="button" class="btn btn-sm btn-icone btn-ghost" id="cl-grand" aria-label="En grand"${hors ? ' disabled title="Le fichier s\'ouvre avec le réseau"' : ''}>${CL_IC.grand}</button></div>
         <p class="cl-pres" id="cl-pres" hidden></p>
         ${sel.sorte === 'releve' ? '' : dbl || `<div class="cl-ia-cadre${clState.lit && clState.lit.k === sel.k ? ` lit ${clState.lit.etape}` : ''}"><div class="cl-pap-z pc-papier vide${raison === 'illisible' ? ' cl-flou' : ''}" id="cl-papier"><span>${hors ? 'Le fichier s\'ouvre avec le réseau' : 'Ouverture de la pièce…'}</span></div>${clState.lit && clState.lit.k === sel.k ? sceneLectureCl(clState.lit) : ''}</div>`}
         ${bloc}${actions ? `<div class="cl-ap-a">${actions}</div>` : ''}${apres}</aside>`;
@@ -6685,7 +6757,8 @@
       const principal = y => { const c = !y.classee && y.sorte === 'piece' && genrePiece(y.p) !== 'releve' ? candidatsDe(y)[0] : null; return c && !bloque ? { principal: { lib: `Joindre à ${c.num || c.titre}`, run: () => joindre(y, c) } } : {}; };
       if (g) g.onclick = () => enGrandCl(d, fichiersRub.length ? fichiersRub : [sel], fichiersRub.length ? iG : 0, { ...principal(sel), pour: principal });
       const zone = $('#cl-papier', view);
-      if (zone && !hors) (async () => {
+      // (1.325.0) La facture électronique du classeur : lue dès qu'elle s'ouvre (sur le serveur, sans l'IA), montrée en feuille.
+      if (zone && estEfactureCl(fichierDeCl(sel))) { lireEfactureCl(d, sel); zone.classList.remove('vide'); zone.classList.add('ef-z'); zone.innerHTML = feuilleEfactureCl(sel); } else if (zone && !hors) (async () => {
         try {
           const f = await contenuCl(sel);
           let adresse = f.adresse;

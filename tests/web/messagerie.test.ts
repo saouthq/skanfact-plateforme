@@ -182,8 +182,8 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     const fenetre = a.p.getByRole('dialog', { name: 'Envoyer la pièce demandée' });
     await a.p.getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click();
     await fenetre.getByRole('button', { name: 'Envoyer à mon cabinet', exact: true }).click();
-    expect(await fenetre.locator('[data-ep-refus]').innerText()).toBe('Choisis d\'abord la photo ou le PDF de la pièce.');
-    let [choix] = await Promise.all([a.p.waitForEvent('filechooser'), fenetre.getByRole('button', { name: 'Choisir la photo ou le PDF…', exact: true }).click()]);
+    expect(await fenetre.locator('[data-ep-refus]').innerText()).toBe('Choisis d\'abord la photo, le PDF ou la facture électronique de la pièce.');
+    let [choix] = await Promise.all([a.p.waitForEvent('filechooser'), fenetre.getByRole('button', { name: 'Choisir la photo, le PDF ou la facture électronique…', exact: true }).click()]);
     await choix.setFiles(photo);
     await expect.poll(() => fenetre.locator('.msg-ep-choisi img').count()).toBe(1);
     // (1.116.0) L'aperçu se voit vraiment : la page interdisait les images faites sur place (blob:), l'image restait vide.
@@ -192,7 +192,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(await fenetre.count()).toBe(0);
     expect(((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).corps.messages ?? []).filter((m) => (m as unknown as { fichier: unknown }).fichier).length).toBe(0);
     await a.p.getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click();
-    [choix] = await Promise.all([a.p.waitForEvent('filechooser'), fenetre.getByRole('button', { name: 'Choisir la photo ou le PDF…', exact: true }).click()]);
+    [choix] = await Promise.all([a.p.waitForEvent('filechooser'), fenetre.getByRole('button', { name: 'Choisir la photo, le PDF ou la facture électronique…', exact: true }).click()]);
     await choix.setFiles(photo);
     expect(net(await fenetre.locator('.msg-ep-choisi').innerText())).toBe('facture-steg-aout.png Photo · 1 Ko Changer');
     await fenetre.locator('[data-ep-mot]').fill('La voici.');

@@ -108,8 +108,14 @@ describe('les règlements d\'un achat', () => {
   it('le reste d\'un achat et son statut', () => {
     const t = calculerAchat(achat([{ quantite: 1_000n, prixUnitaire: 1_000_000_000n, tauxTva: 0n }]), TND);
     const partiel = soldeAchat(t, 'facture', false, [300_000n], [200_000n]);
-    expect(partiel).toEqual({ paye: 300_000n, impute: 200_000n, reste: 500_000n });
+    expect(partiel).toEqual({ paye: 300_000n, impute: 200_000n, reste: 500_000n, avance: 0n });
     expect(statutAchat('facture', false, partiel, '2026-01-01', '2026-09-28')).toBe('partiel');
+    // (1.325.0) Un avoir diminue ce qui est dû, ce n'est pas un paiement : la facture qu'il réduit seul reste à payer, ou
+    // en retard ; un acompte versé, lui, est un paiement d'avance.
+    const avoirSeul = soldeAchat(t, 'facture', false, [], [91_035n]);
+    expect(statutAchat('facture', false, avoirSeul, '2026-12-08', '2026-11-08')).toBe('a_payer');
+    expect(statutAchat('facture', false, avoirSeul, '2026-11-01', '2026-11-08')).toBe('en_retard');
+    expect(statutAchat('facture', false, soldeAchat(t, 'facture', false, [], [250_000n], [250_000n]), '2026-12-08', '2026-11-08')).toBe('partiel');
     const rien = soldeAchat(t, 'facture', false, []);
     expect(statutAchat('facture', false, rien, '2026-09-27', '2026-09-28')).toBe('en_retard');
     expect(statutAchat('facture', false, rien, '2026-09-28', '2026-09-28')).toBe('a_payer');

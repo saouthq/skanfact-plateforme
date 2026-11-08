@@ -131,6 +131,8 @@ export interface BaseDeDonnees {
     devise: string | null;
     lu_par: string;
     lu_le: Generated<Date>;
+    source: Generated<string>;
+    detail: ColumnType<Json | null, string | null, string | null>;
   };
   'cabinet.note': {
     id: Generated<string>;

@@ -19,6 +19,7 @@ type Teif = {
   VERSION: string;
   controleTeif: (doc: Json, client: Json | null, societe: Json) => Controle;
   teifXml: (doc: Json, client: Json | null, societe: Json, opts?: { facture?: Json | null }) => Fichier;
+  lireTeif: (xml: string, societe?: Json) => { ok: false; motif: string } | { ok: true; remarques: string[]; lecture: Json };
 };
 
 const charges = new Map<string, unknown>();
@@ -77,4 +78,11 @@ export function ecartAvecLeServeur(xml: string, scelles: { ttc: string; tva: str
     if (fichier !== serveur) return { code, fichier: fichier ?? '—', serveur };
   }
   return null;
+}
+
+// (1.325.0) Un fichier El Fatoora REÇU (la facture d'un fournisseur), lu par le même code que l'écran de l'entreprise (une
+// lecture, deux côtés) : ce qu'il dit, case par case, et ce qui ne tombe pas juste. `matricule` : celui de la société à qui
+// la facture devrait être adressée.
+export function lireFichierTeif(xml: string, matricule: string | null) {
+  return T().lireTeif(xml, matricule ? { matricule } : undefined);
 }

@@ -12,8 +12,9 @@ import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, rendre, t } from '../../textes/index.ts';
 import { IARefuse, propositionDeLIA } from '../achats/lecture-ia.ts';
+import { type DetailEfacture, lireEfacture } from './efacture.ts';
 import { noterPresence } from '../v10/presence.ts';
-import { sorteDe } from '../achats/sorte.ts';
+import { sorteDe, sorteJointeDe } from '../achats/sorte.ts';
 import { refusDuDossierTenu } from '../abonnement/condition.ts';
 import './textes.ts';
 
@@ -24,7 +25,8 @@ const LIMITE_CORPS = 16 * 1_048_576;
 // Un export : 200 Mo au plus (le ZIP d'une année, ses photos et ses PDF).
 const LIMITE_EXPORT = 200 * 1_048_576;
 const MOIS = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
-const TYPE_DE = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' } as const;
+// (1.325.0) Et le fichier El Fatoora d'une facture reçue (XML TEIF, reconnu à son contenu : serveur/achats/sorte.ts).
+const TYPE_DE = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf', xml: 'application/xml' } as const;
 const JOUR = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/);
 const DOCUMENT = z.object({
   rubrique: z.enum(['permanent', 'courrier', 'accuse', 'piece']),
@@ -135,7 +137,7 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       if (['accuse', 'piece'].includes(corps.rubrique) && !/^\d{4}-\d{2}$/.test(corps.periode ?? '')) return { statut: 400, corps: { motif: motif('cabinet.classeur.periode'), champ: 'periode' } };
       const fichier = /^[A-Za-z0-9+/]+={0,2}$/.test(corps.contenu) ? Buffer.from(corps.contenu, 'base64') : Buffer.alloc(0);
       if (fichier.length > LIMITE_FICHIER) return { statut: 413, corps: { motif: motif('cabinet.classeur.trop_lourd', { nom: corps.nom }), bouton: null } };
-      const sorte = sorteDe(fichier);
+      const sorte = sorteJointeDe(fichier);
       if (!sorte) return { statut: 415, corps: { motif: motif('cabinet.classeur.format', { nom: corps.nom }), bouton: null } };
       // Le document qu'il remplace se vérifie AVANT d'écrire (03/11/2026) : un refus n'écrit rien. Sinon le nouveau restait
       // rangé derrière un 409 (vu en écrivant le test du point 12 : un « remplaçant » d'un bulletin que la saisie ne lit pas).
@@ -256,10 +258,12 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       if (!tx || !troisUuid(params, 'cabinet', 'dossier')) return introuvable;
       const cabinet = params.cabinet ?? '', entreprise = params.dossier ?? '';
       if (!(await auPortefeuille(tx, cabinet, entreprise))) return introuvable;
-      const l = (await tx.query(`select l.message, l.document, l.fournisseur, l.numero, to_char(l.date_piece, 'YYYY-MM-DD') date, l.total, l.devise, l.lu_le, u.nom lu_nom
+      const l = (await tx.query(`select l.message, l.document, l.fournisseur, l.numero, to_char(l.date_piece, 'YYYY-MM-DD') date, l.total, l.devise, l.lu_le, u.nom lu_nom,
+            l.source, l.detail
           from cabinet.lecture l left join socle.utilisateur u on u.id = l.lu_par
          where l.cabinet = $1 and l.entreprise = $2 order by l.lu_le desc limit 2000`, [cabinet, entreprise])).rows as
-        { message: string | null; document: string | null; fournisseur: string | null; numero: string | null; date: string | null; total: string | null; devise: string | null; lu_le: Date; lu_nom: string | null }[];
+        { message: string | null; document: string | null; fournisseur: string | null; numero: string | null; date: string | null; total: string | null; devise: string | null; lu_le: Date; lu_nom: string | null;
+          source: 'ia' | 'teif'; detail: DetailEfacture | null }[];
       // La lecture par l'IA se propose-t-elle ici : la clé du serveur, et le client ne l'a pas coupée (le même accord que
       // ses achats, company.lectureIA).
       const coupee = await lectureCoupee(tx, entreprise);
@@ -267,7 +271,8 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
         corps: {
           ia: !!ctx?.lecteurIA?.disponible && !coupee,
           coupee,
-          lectures: l.map((x) => ({ message: x.message, document: x.document, fournisseur: x.fournisseur, numero: x.numero, date: x.date, total: x.total, devise: x.devise, luLe: x.lu_le.toISOString(), luPar: x.lu_nom })),
+          lectures: l.map((x) => ({ message: x.message, document: x.document, fournisseur: x.fournisseur, numero: x.numero, date: x.date, total: x.total, devise: x.devise, luLe: x.lu_le.toISOString(), luPar: x.lu_nom,
+            source: x.source, detail: x.detail })),
         },
       };
     },
@@ -282,15 +287,30 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       if (!tx || !qui || !troisUuid(params, 'cabinet', 'dossier') || (!corps.message === !corps.document)) return introuvable;
       const cabinet = params.cabinet ?? '', entreprise = params.dossier ?? '';
       if (!(await auPortefeuille(tx, cabinet, entreprise))) return introuvable;
-      if (!ctx?.lecteurIA?.disponible) return { statut: 503, corps: { motif: motif('cabinet.classeur.lecture_indisponible'), bouton: null } };
-      if (await lectureCoupee(tx, entreprise)) return { statut: 409, corps: { motif: motif('cabinet.classeur.lecture_coupee'), bouton: null } };
-      if (corps.ia !== true) return { statut: 409, corps: { motif: motif('cabinet.classeur.lecture_accord'), bouton: null } };
       const f = corps.message
         ? (await tx.query(`select fi.nom, fi.contenu from messagerie.message m join messagerie.fichier fi on fi.id = m.fichier
             where m.id = $1 and m.cabinet = $2 and m.entreprise = $3`, [corps.message, cabinet, entreprise])).rows[0]
         : (await tx.query('select nom, contenu from cabinet.document where id = $1 and cabinet = $2 and entreprise = $3', [corps.document, cabinet, entreprise])).rows[0];
       if (!f) return introuvable;
       const fichier = f.contenu as Buffer, nom = String(f.nom);
+      const ent = (await tx.query('select matricule_fiscal from socle.entreprise where id = $1', [entreprise])).rows[0] as { matricule_fiscal: string | null } | undefined;
+      // (1.325.0) Le fichier El Fatoora se lit ici, sans l'IA (rien ne sort, le fichier dit tout au millime) : ni la clé
+      // de l'IA, ni l'accord pour ce fichier, ni le réglage du client qui coupe la lecture par l'IA ne le concernent.
+      if (sorteJointeDe(fichier) === 'xml') {
+        const r = lireEfacture(fichier, ent?.matricule_fiscal || null);
+        if (!r.ok) return { statut: 422, corps: { motif: motif('cabinet.classeur.efacture_illisible', { nom, raison: r.motif.replace(/\.$/, '') }), bouton: null } };
+        const lu = r.lu;
+        await tx.query(`insert into cabinet.lecture (cabinet, entreprise, message, document, fournisseur, numero, date_piece, total, devise, lu_par, source, detail)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'teif', $11)
+          on conflict (cabinet, ${corps.message ? 'message' : 'document'}) do update set fournisseur = excluded.fournisseur, numero = excluded.numero,
+            date_piece = excluded.date_piece, total = excluded.total, devise = excluded.devise, lu_par = excluded.lu_par, lu_le = now(),
+            source = excluded.source, detail = excluded.detail`,
+        [cabinet, entreprise, corps.message ?? null, corps.document ?? null, lu.fournisseur, lu.numero, lu.date, lu.total, lu.devise, qui.utilisateur, JSON.stringify(lu.detail)]);
+        return { corps: { fournisseur: lu.fournisseur, numero: lu.numero, date: lu.date, total: lu.total, devise: lu.devise, source: 'teif', detail: lu.detail } };
+      }
+      if (!ctx?.lecteurIA?.disponible) return { statut: 503, corps: { motif: motif('cabinet.classeur.lecture_indisponible'), bouton: null } };
+      if (await lectureCoupee(tx, entreprise)) return { statut: 409, corps: { motif: motif('cabinet.classeur.lecture_coupee'), bouton: null } };
+      if (corps.ia !== true) return { statut: 409, corps: { motif: motif('cabinet.classeur.lecture_accord'), bouton: null } };
       const sorte = sorteDe(fichier);
       if (!sorte) return { statut: 415, corps: { motif: motif('cabinet.classeur.format', { nom }), bouton: null } };
       let r;
@@ -299,7 +319,6 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
         return { statut: e instanceof IARefuse ? 422 : 503, corps: { motif: motif('cabinet.classeur.lecture_echec', { nom }), bouton: null } };
       }
       if (!r.estUneFacture) return { statut: 422, corps: { motif: motif('cabinet.classeur.lecture_pas_facture', { nom }), bouton: null } };
-      const ent = (await tx.query('select matricule_fiscal from socle.entreprise where id = $1', [entreprise])).rows[0] as { matricule_fiscal: string | null } | undefined;
       const p = propositionDeLIA(r, { notreMatricule: ent?.matricule_fiscal || null }).lecture;
       const total = p.totalTTC && /^\d{1,12}(\.\d{1,3})?$/.test(p.totalTTC) ? p.totalTTC : null;
       const devise = p.currency === 'EUR' || p.currency === 'USD' || p.currency === 'TND' ? p.currency : null;
@@ -307,7 +326,8 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       await tx.query(`insert into cabinet.lecture (cabinet, entreprise, message, document, fournisseur, numero, date_piece, total, devise, lu_par)
         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         on conflict (cabinet, ${corps.message ? 'message' : 'document'}) do update set fournisseur = excluded.fournisseur, numero = excluded.numero,
-          date_piece = excluded.date_piece, total = excluded.total, devise = excluded.devise, lu_par = excluded.lu_par, lu_le = now()`, valeurs);
+          date_piece = excluded.date_piece, total = excluded.total, devise = excluded.devise, lu_par = excluded.lu_par, lu_le = now(),
+          source = 'ia', detail = null`, valeurs);
       return { corps: { fournisseur: valeurs[4], numero: valeurs[5], date: p.date, total, devise } };
     },
   });

@@ -492,8 +492,10 @@
       // exactement le HT de la facture, remise comprise (un achat n'a pas de remise par ligne).
       const ht = m.r['I-171'];
       const pu = ht != null ? ht / qty : (m.r['I-183'] || 0) * (1 - remise / 100);
+      // (1.325.0) La remise et le prix avant elle se gardent, pour la dire : « 76,500 » seul ne se reconnaissait pas du tarif.
       return { label: texteDe(fil(imd, 'ItemDescription')) || texteDe(fil(imd, 'ItemCode')) || `Ligne ${k + 1}`,
-        qty, unit: q ? q.attrs.measurementUnit || '' : '', unitPrice: Math.round(pu * 1e6) / 1e6, vatRate: taux, ht };
+        qty, unit: q ? q.attrs.measurementUnit || '' : '', unitPrice: Math.round(pu * 1e6) / 1e6, vatRate: taux, ht,
+        remise, puBrut: m.r['I-183'] != null ? m.r['I-183'] : null };
     });
 
     const tot = montants(fil(corps, 'InvoiceMoa'));
@@ -546,7 +548,8 @@
         date: dates['I-31'] || '', dueDate: dates['I-32'] || '', subject: objet, currency: cur,
         fees: rd(timbre + autresTotal), totalHT, totalTTC, refFacture, refTtn, signe,
         fournisseur, acheteur, vatByRate: tva, autresTaxes: autres,
-        lines: lignes.map(({ label, qty, unit, unitPrice, vatRate }) => ({ label, qty, unit, unitPrice, vatRate }))
+        lines: lignes.map(({ label, qty, unit, unitPrice, vatRate, remise, puBrut }) => ({ label, qty, unit, unitPrice, vatRate,
+          ...(remise > 0 && puBrut != null ? { remise, puBrut } : {}) }))
       }
     };
   }

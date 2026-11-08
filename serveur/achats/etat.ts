@@ -41,7 +41,8 @@ export async function etatsDAchats(tx: Transaction, entreprise: string, ids: str
     const couvertes = siennes.map((l) => ({ l, im: imputationAchat({ netAPayer: l.net_a_payer, retenue: l.retenue }, l.nature as NatureAchat, reglementsDe(l.id)) }));
     const pl: PieceLiee[] = couvertes.map(({ l, im }) => ({ cle: l.id, date: l.nature === 'acompte' ? '' : l.date_piece, net: im.net, brut: im.brut }));
     const fil = retenueAuFil(t.netAPayer, t.netAPayer + t.retenue, pl, regs);
-    const solde = soldeAchat(t, nature, p.lie !== null, regs.map((r) => r.montant), pl.map((x) => x.net));
+    const solde = soldeAchat(t, nature, p.lie !== null, regs.map((r) => r.montant), pl.map((x) => x.net),
+      couvertes.filter(({ l }) => l.nature === 'acompte').map(({ im }) => im.net));
     const m = (v: bigint) => versTexte(v, p.decimales);
     etats.set(p.id, {
       reste: m(solde.reste), paye: m(solde.paye), impute: m(solde.impute),

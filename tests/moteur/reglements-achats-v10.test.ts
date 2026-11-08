@@ -30,7 +30,7 @@ const STATUTS: Record<string, StatutAchat> = {
   'payée': 'payee', partiel: 'partiel', retard: 'en_retard', 'à payer': 'a_payer', 'imputé': 'impute', 'remboursé': 'rembourse', 'à imputer': 'a_imputer',
 };
 const JOUR = '2026-09-28';
-type Vus = { achats: number; reglements: number; retenues: number; centimes: number; coursDuJour: number };
+type Vus = { achats: number; reglements: number; retenues: number; centimes: number; coursDuJour: number; avoirSeul: number };
 
 function comparer(data: Donnees, societe: Societe, vus: Vus): string[] {
   const faux: string[] = [];
@@ -57,11 +57,14 @@ function comparer(data: Donnees, societe: Societe, vus: Vus): string[] {
     if (!regs) return [];
     // Les pièces rattachées : ce qu'elles couvrent, dans la devise de cet achat.
     const liees: PieceLiee[] = [];
+    // (1.325.0) Ce que les acomptes couvrent : de l'argent déjà versé (le statut « partiel ») ; un avoir n'en est pas.
+    const avances: bigint[] = [];
     if (a.nature !== 'avoir' && a.nature !== 'acompte') {
       for (const x of data.purchases.filter((y) => y.achatLie === p.id)) {
         const ax = convertis.get(x.id) as Achat;
         const im = imputationAchat(calculerAchat(ax, TND), ax.nature, reglements(x, ax.devise.decimales) ?? []);
         liees.push({ cle: x.id, date: ax.nature === 'acompte' ? '' : (x.date ?? ''), net: dansLaDeviseDe(im.net, ax, a, TND), brut: dansLaDeviseDe(im.brut, ax, a, TND) });
+        if (ax.nature === 'acompte') avances.push(dansLaDeviseDe(im.net, ax, a, TND));
       }
     }
     const rs = retenueAuFil(t.netAPayer, t.netAPayer + t.retenue, liees, regs);
@@ -81,7 +84,7 @@ function comparer(data: Donnees, societe: Societe, vus: Vus): string[] {
       faux.push(`${p.id} part de ${cle} : v10 ${ancienne}, nouveau ${part}`);
     }
     // 2. Le reste et le statut.
-    const solde = soldeAchat(t, a.nature, !!p.achatLie, regs.map((r) => r.montant), liees.map((l) => l.net));
+    const solde = soldeAchat(t, a.nature, !!p.achatLie, regs.map((r) => r.montant), liees.map((l) => l.net), avances);
     const b10 = core.purchaseBalance(p, societe, data);
     const d = a.devise.decimales;
     if (entier(b10.paid, d) !== solde.paye || entier(b10.impute ?? 0, d) !== solde.impute || entier(b10.remaining, d) !== solde.reste) {
@@ -89,7 +92,13 @@ function comparer(data: Donnees, societe: Societe, vus: Vus): string[] {
     }
     const s10 = STATUTS[core.purchaseStatus(p, societe, JOUR, data)];
     const statut = statutAchat(a.nature, !!p.achatLie, solde, p.dueDate, JOUR);
-    if (s10 !== statut) faux.push(`${p.id} statut : v10 ${s10}, nouveau ${statut}`);
+    // (1.325.0, écart tranché) La v10 disait « partiel » une facture que seul un avoir réduit, sans rien de réglé ni
+    // d'acompte versé ; le nouveau la dit à payer, ou en retard : un avoir n'est pas un paiement (comme une facture de
+    // vente, 1.308.0).
+    const avoirSeul = s10 === 'partiel' && solde.paye === 0n && !avances.length;
+    if (avoirSeul) vus.avoirSeul++;
+    const attendu = avoirSeul ? (p.dueDate && p.dueDate < JOUR ? 'en_retard' : 'a_payer') : s10;
+    if (attendu !== statut) faux.push(`${p.id} statut : v10 ${s10}, nouveau ${statut}`);
     // 3. L'écriture de chaque règlement, dans l'ordre des dates (chacune commence par le fournisseur).
     const ecritures10: string[][] = [];
     for (const l of lignes10.filter((x) => x.docId === p.id)) {
@@ -117,7 +126,7 @@ function comparer(data: Donnees, societe: Societe, vus: Vus): string[] {
 describe('le banc des règlements fournisseurs, contre la v10', () => {
   it('chaque achat de l\'exemple de cinq ans : même retenue par règlement, même reste, même statut, mêmes écritures', () => {
     const donnees = demo.buildDemoData({ ...v10.DEFAULT_COMPANY }, JOUR) as unknown as Donnees & { company: Societe };
-    const vus: Vus = { achats: 0, reglements: 0, retenues: 0, centimes: 0, coursDuJour: 0 };
+    const vus: Vus = { achats: 0, reglements: 0, retenues: 0, centimes: 0, coursDuJour: 0, avoirSeul: 0 };
     expect(comparer(donnees, donnees.company, vus)).toEqual([]);
     expect(vus.reglements).toBeGreaterThan(100);
     expect(vus.retenues).toBeGreaterThan(5);
@@ -127,7 +136,7 @@ describe('le banc des règlements fournisseurs, contre la v10', () => {
     const societe = { ...v10.DEFAULT_COMPANY };
     const h = hasard(20261003);
     const faux: string[] = [];
-    const vus: Vus = { achats: 0, reglements: 0, retenues: 0, centimes: 0, coursDuJour: 0 };
+    const vus: Vus = { achats: 0, reglements: 0, retenues: 0, centimes: 0, coursDuJour: 0, avoirSeul: 0 };
     for (let i = 0; i < 3000 && faux.length < 5; i++) {
       const achats = factureDAchatAuHasard(h, i);
       const f = achats[0] as AchatDonne;
@@ -147,5 +156,6 @@ describe('le banc des règlements fournisseurs, contre la v10', () => {
     expect(vus.retenues).toBeGreaterThan(1800);
     expect(vus.coursDuJour).toBeGreaterThan(500);
     expect(vus.centimes).toBeGreaterThan(0);
+    expect(vus.avoirSeul).toBeGreaterThan(0);
   });
 });

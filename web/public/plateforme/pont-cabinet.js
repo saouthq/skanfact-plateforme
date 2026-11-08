@@ -1482,9 +1482,9 @@
           : appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(id)}/mois`, { mois }),
       // Les lectures déjà faites (le fournisseur, la date, le total d'une pièce), et si l'IA se propose ici.
       lectures: (/** @type {string} */ dossier) => appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/lectures`),
-      // Lire une pièce par l'IA : la personne a confirmé pour CE fichier (`ia: true`) ; le serveur vérifie l'accord du client.
-      lire: (/** @type {string} */ dossier, /** @type {'message' | 'document'} */ quoi, /** @type {string} */ id) =>
-        appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/lectures`, { [quoi]: id, ia: true }),
+      // Lire une pièce par l'IA (`ia`, confirmé pour CE fichier ; le serveur vérifie l'accord), ou son fichier El Fatoora sans elle (1.325.0).
+      lire: (/** @type {string} */ dossier, /** @type {'message' | 'document'} */ quoi, /** @type {string} */ id, ia = true) =>
+        appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/lectures`, { [quoi]: id, ia }),
       // L'export gardé sept jours sur le serveur : on l'y dépose, on en liste les liens, on en rouvre un.
       deposerExport: async (/** @type {string} */ dossier, /** @type {string} */ nom, /** @type {string} */ quoi, /** @type {Uint8Array} */ octets) => {
         let binaire = '';

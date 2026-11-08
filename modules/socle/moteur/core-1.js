@@ -2850,7 +2850,10 @@
     // dire « à imputer » faisait chercher une facture où le déduire, c'est-à-dire le compter deux fois.
     if (purchase.kind === 'avoir') return purchase.achatLie ? 'imputé' : (avoirRembourse(purchase, b) ? 'remboursé' : 'à imputer');
     if (b.remaining <= 0.0005) return 'payée';
-    if (b.paid > 0 || b.impute > 0) return 'partiel';
+    // (1.325.0) Comme une facture de vente (1.308.0) : un avoir diminue ce qui est dû, ce n'est pas un paiement. La facture
+    // que seul un avoir réduit reste « à payer » (ou en retard) ; « partiel » se dit d'un règlement, ou d'un acompte versé.
+    // La liste disait « Partiel » pendant que la pièce disait « À payer ».
+    if (b.paid > 0 || (b.liees || []).some(x => x.kind === 'acompte')) return 'partiel';
     if (purchase.dueDate && purchase.dueDate < (todayIso || today())) return 'retard';
     return 'à payer';
   }

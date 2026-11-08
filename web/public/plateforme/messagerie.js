@@ -125,7 +125,10 @@
       i.click();
     });
   }
-  const ACCEPTE = 'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
+  // (1.325.0) Aussi le fichier El Fatoora (XML TEIF) que le fournisseur envoie : le serveur le reconnaît à son contenu.
+  const ACCEPTE = 'image/jpeg,image/png,image/webp,application/pdf,application/xml,text/xml,.jpg,.jpeg,.png,.webp,.pdf,.xml';
+  /** Ce qu'est un fichier joint, en un mot : photo, PDF ou facture électronique. @param {string} type @param {string} [nom] */
+  const sorteJointe = (type, nom) => (String(type || '').startsWith('image/') ? 'Photo' : /xml/.test(String(type || '')) || /\.xml$/i.test(String(nom || '')) ? 'Facture électronique (XML)' : 'PDF');
   /** @param {File} f @returns {Promise<string>} */
   const enBase64 = (f) => new Promise((ok, ko) => {
     const r = new FileReader();
@@ -887,9 +890,9 @@
       const aSaisir = lot.filter((m) => !m.achat);
       const actif = lu.fil && lu.fil.actif;
       const vig = lot.map((m) => {
-        const pdf = m.fichier.type === 'application/pdf';
+        const pdf = !String(m.fichier.type || '').startsWith('image/');
         return `<div class="msg-vig" data-msg-id="${esc(m.id)}">
-          <button type="button" class="msg-vig-img${pdf ? ' pdf' : ''}" data-msg-fichier="${esc(m.fichier.id)}" ${!pdf && m.fichier.taille <= 3 * 1_048_576 ? `data-msg-vignette="${esc(m.fichier.id)}"` : ''} aria-label="Ouvrir ${esc(m.fichier.nom)}"><em>${pdf ? 'PDF' : 'PHOTO'}</em><i></i><i></i><i></i></button>
+          <button type="button" class="msg-vig-img${pdf ? ' pdf' : ''}" data-msg-fichier="${esc(m.fichier.id)}" ${!pdf && m.fichier.taille <= 3 * 1_048_576 ? `data-msg-vignette="${esc(m.fichier.id)}"` : ''} aria-label="Ouvrir ${esc(m.fichier.nom)}"><em>${sorteJointe(m.fichier.type, m.fichier.nom) === 'PDF' ? 'PDF' : pdf ? 'XML' : 'PHOTO'}</em><i></i><i></i><i></i></button>
           <span class="msg-vig-n"><b title="${esc(m.fichier.nom)}">${esc(m.fichier.nom)}</b><small>${esc(poids(m.fichier.taille))}${m.achat ? ' · rangée' : ''}</small></span>
           <span class="msg-vig-m"><button type="button" class="msg-vig-b" data-msg-vig-menu aria-expanded="false" aria-label="Les gestes de ${esc(m.fichier.nom)}">${dessin('points')}</button>
             <span class="msg-vig-pop" hidden><button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
@@ -965,8 +968,8 @@
           <span class="msg-etat">${recue ? (aDater ? 'Corrigée' : 'Reçue') : retard ? 'En retard' : aDater ? 'À corriger' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}${relances}</div>`;
       }
       if (m.fichier) {
-        corps += `<div class="msg-fichier">${dessin(m.fichier.type === 'application/pdf' ? 'piece' : 'image')}
-          <span class="msg-carte-txt"><b>${esc(m.fichier.nom)}</b><span class="msg-poids">${esc(m.fichier.type === 'application/pdf' ? 'PDF' : 'Photo')} · ${esc(poids(m.fichier.taille))}</span></span>
+        corps += `<div class="msg-fichier">${dessin(String(m.fichier.type || '').startsWith('image/') ? 'image' : 'piece')}
+          <span class="msg-carte-txt"><b>${esc(m.fichier.nom)}</b><span class="msg-poids">${esc(sorteJointe(m.fichier.type, m.fichier.nom))} · ${esc(poids(m.fichier.taille))}</span></span>
           <button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
           <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button>
           ${!entreprise && m.cote === 'entreprise' && m.achat && o.ouvrirPiece && /\s·\s/.test(m.achat.libelle) ? `<button type="button" class="msg-lien" data-msg-ouvrir="achat:${esc(m.achat.id)}" data-msg-libelle="${esc(m.achat.libelle)}">Voir l'écriture</button>`
@@ -1614,7 +1617,7 @@
       if (!z) return;
       /** @type {string[]} */ const x = [];
       if (piece) x.push(`<span class="msg-joint">${dessin('piece')}<span>${esc(GENRES[piece.genre] || 'Pièce')} · ${esc(piece.libelle)}</span><button type="button" aria-label="Ne plus parler de cette pièce" data-msg-sans-piece>${dessin('croix')}</button></span>`);
-      if (fichier) x.push(`<span class="msg-joint">${dessin(fichier.type === 'application/pdf' ? 'piece' : 'image')}<span>${esc(fichier.name)} · ${esc(poids(fichier.size))}</span><button type="button" aria-label="Retirer ce fichier" data-msg-sans-fichier>${dessin('croix')}</button></span>`);
+      if (fichier) x.push(`<span class="msg-joint">${dessin(String(fichier.type || '').startsWith('image/') ? 'image' : 'piece')}<span>${esc(fichier.name)} · ${esc(poids(fichier.size))}</span><button type="button" aria-label="Retirer ce fichier" data-msg-sans-fichier>${dessin('croix')}</button></span>`);
       z.innerHTML = x.join('');
       z.hidden = !x.length;
       // « Envoyer » suit ce qui est joint (gris sans rien à envoyer).
@@ -2004,11 +2007,11 @@
       document.addEventListener('keydown', echap);
       const dessinerFichier = () => {
         if (!choisi) {
-          zoneFichier.innerHTML = '<button type="button" class="btn msg-ep-choisir" data-ep-choisir>' + dessin('trombone') + 'Choisir la photo ou le PDF…</button>';
+          zoneFichier.innerHTML = '<button type="button" class="btn msg-ep-choisir" data-ep-choisir>' + dessin('trombone') + 'Choisir la photo, le PDF ou la facture électronique…</button>';
         } else {
           const image = String(choisi.type).startsWith('image/');
           zoneFichier.innerHTML = `<div class="msg-ep-choisi">${image && apercu ? `<img src="${apercu}" alt="">` : dessin(image ? 'image' : 'piece')}
-            <span class="msg-carte-txt"><b>${esc(choisi.name)}</b><span class="msg-poids">${image ? 'Photo' : 'PDF'} · ${esc(poids(choisi.size))}</span></span>
+            <span class="msg-carte-txt"><b>${esc(choisi.name)}</b><span class="msg-poids">${esc(sorteJointe(choisi.type, choisi.name))} · ${esc(poids(choisi.size))}</span></span>
             <button type="button" class="msg-lien" data-ep-choisir>Changer</button></div>`;
         }
         const b = /** @type {HTMLElement} */ (zoneFichier.querySelector('[data-ep-choisir]'));
@@ -2048,7 +2051,7 @@
       form.onsubmit = async (e) => {
         e.preventDefault();
         if (envoyer.disabled) return;
-        if (facon === 'fichier' && !choisi) { refus.textContent = 'Choisis d\'abord la photo ou le PDF de la pièce.'; return; }
+        if (facon === 'fichier' && !choisi) { refus.textContent = 'Choisis d\'abord la photo, le PDF ou la facture électronique de la pièce.'; return; }
         if (facon === 'dossier' && !dejaLa) { refus.textContent = 'Choisis la pièce de ton dossier qui répond à la demande.'; chercher.focus(); return; }
         envoyer.disabled = true;
         try {

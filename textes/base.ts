@@ -362,6 +362,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'seuls le propriétaire, un administrateur et la comptabilité interne écrivent au cabinet', cle: 'base.messagerie.role', fr: 'seuls le propriétaire, un administrateur et la comptabilité interne écrivent au cabinet' },
   { base: 'aucun cabinet ne tient ce dossier : la messagerie s\'ouvre avec le mandat', cle: 'base.messagerie.sans_mandat', fr: 'aucun cabinet ne tient ce dossier : la messagerie s\'ouvre quand tu confies ton dossier à un cabinet' },
   { base: 'seules une photo (JPEG, PNG, WebP) ou un PDF se joignent à un message', cle: 'base.messagerie.type', fr: 'seules une photo (JPEG, PNG, WebP) ou un PDF se joignent à un message' },
+  // (0203, 1.325.0) La facture électronique reçue (XML El Fatoora) se joint aussi.
+  { base: 'seules une photo (JPEG, PNG, WebP), un PDF ou une facture électronique (XML El Fatoora) se joignent à un message', cle: 'base.messagerie.type_efacture', fr: 'seules une photo (JPEG, PNG, WebP), un PDF ou une facture électronique (XML El Fatoora) se joignent à un message' },
   { base: 'un fichier joint pèse dix mégaoctets au plus', cle: 'base.messagerie.taille', fr: 'un fichier joint pèse dix mégaoctets au plus' },
   { base: 'seul le cabinet demande une pièce', cle: 'base.messagerie.demande_cabinet', fr: 'seul le cabinet demande une pièce' },
   { base: 'un message vide n\'apprend rien', cle: 'base.messagerie.vide', fr: 'un message vide n\'apprend rien : écris quelque chose, ou joins une photo ou un PDF' },

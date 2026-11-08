@@ -32,7 +32,7 @@ type Donnees = { company: Societe; suppliers: { id: string; name: string }[]; pu
 type Totaux10 = { totalHT: number; totalVAT: number; deductibleVAT: number; fees: number; totalTTC: number; withholding: number; netToPay: number; base: { totalHT: number; deductibleVAT: number; netToPay: number } };
 const core = exiger('../../banc/v10/core.js') as {
   purchaseTotals: (p: Achat10, c: Societe) => Totaux10;
-  purchaseBalance: (p: Achat10, c: Societe, d?: Donnees) => { remaining: number };
+  purchaseBalance: (p: Achat10, c: Societe, d?: Donnees) => { remaining: number; paid: number; liees?: { kind?: string }[] };
   purchaseStatus: (p: Achat10, c: Societe, jour: string, d?: Donnees) => string;
   retenueDesReglements: (p: Achat10, c: Societe, d?: Donnees) => { parts: Record<string, number> };
   DEFAULT_COMPANY: Societe;
@@ -111,7 +111,7 @@ describe('les achats du dossier v10, tenus par le serveur', () => {
     expect(envoi.statut, JSON.stringify(envoi.corps)).toBe(200);
     const jour = aujourdhuiATunis();
     const faux: string[] = [];
-    let reglements = 0, retenues = 0;
+    let reglements = 0, retenues = 0, avoirSeul = 0;
     for (const p of d.purchases) {
       const v = core.purchaseTotals(p, d.company);
       const dec = p.currency && p.currency !== 'DT' ? 2 : 3;
@@ -123,7 +123,16 @@ describe('les achats du dossier v10, tenus par le serveur', () => {
       const suivi = lu.suivi as { reste: string; statut: string; reglements: { id: string; retenue: string }[] };
       const texte = (x: number, dc: number) => (entier(x, dc) ?? 0n);
       if (texte(core.purchaseBalance(p, d.company, d).remaining, dec) !== entier(suivi.reste, dec)) faux.push(`${p.id} reste : écran ${core.purchaseBalance(p, d.company, d).remaining}, serveur ${suivi.reste}`);
-      if (STATUTS[core.purchaseStatus(p, d.company, jour, d)] !== suivi.statut) faux.push(`${p.id} statut : écran ${core.purchaseStatus(p, d.company, jour, d)}, serveur ${suivi.statut}`);
+      // (1.325.0) La plateforme se sépare ici de la v10, exprès (comme une facture de vente, 1.308.0) : un avoir diminue ce
+      // qui est dû, ce n'est pas un paiement. La facture que seul un avoir réduit, sans règlement ni acompte, n'est plus
+      // « partiel » : elle est à payer, ou en retard une fois son échéance passée. Tout le reste suit la v10.
+      const b10 = core.purchaseBalance(p, d.company, d);
+      let attendu = core.purchaseStatus(p, d.company, jour, d);
+      if (attendu === 'partiel' && !(b10.paid > 0) && !(b10.liees ?? []).some((x) => x.kind === 'acompte')) {
+        attendu = p.dueDate && p.dueDate < jour ? 'retard' : 'à payer';
+        avoirSeul++;
+      }
+      if (STATUTS[attendu] !== suivi.statut) faux.push(`${p.id} statut : attendu ${attendu} (v10 : ${core.purchaseStatus(p, d.company, jour, d)}), serveur ${suivi.statut}`);
       const enDinars = lu.enDinars as { netAPayer: string; totalHT: string; tvaDeductible: string };
       egal('net (dinars)', v.base.netToPay, entier(enDinars.netAPayer, 3), 3); egal('HT (dinars)', v.base.totalHT, entier(enDinars.totalHT, 3), 3);
       egal('TVA déductible (dinars)', v.base.deductibleVAT, entier(enDinars.tvaDeductible, 3), 3);
@@ -140,6 +149,8 @@ describe('les achats du dossier v10, tenus par le serveur', () => {
     // Le banc a mesuré quelque chose : tous les règlements, dont des retenues.
     expect(reglements).toBe(d.purchases.reduce((s, p) => s + (p.payments ?? []).length, 0));
     expect(retenues).toBeGreaterThan(5);
+    // La règle de 1.325.0 a bien été mise à l'épreuve : l'exemple a une facture que seul un avoir réduit.
+    expect(avoirSeul).toBeGreaterThan(0);
     // Chaque achat a laissé sa trace, une seule fois ; chaque fournisseur a sa fiche.
     expect((await e.trace()).filter((g) => g === 'achats.piece.enregistrer')).toHaveLength(d.purchases.length);
     expect((await admin.query(`select count(*)::int n from socle.tiers where entreprise = $1 and 'fournisseur' = any(roles)`, [e.ent])).rows[0].n).toBe(d.suppliers.length);

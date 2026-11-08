@@ -10,7 +10,7 @@ import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
-import { sorteDe } from '../achats/sorte.ts';
+import { sorteJointeDe } from '../achats/sorte.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
@@ -25,7 +25,8 @@ const PAGE = 50;
 // pour qu'un fichier un peu trop lourd reçoive sa phrase plutôt qu'un refus muet.
 const LIMITE_FICHIER = 10 * 1_048_576;
 const LIMITE_CORPS = 16 * 1_048_576;
-const TYPE_DE = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' } as const;
+// (1.325.0) Et le fichier El Fatoora d'une facture reçue (XML TEIF, reconnu à son contenu : serveur/achats/sorte.ts).
+const TYPE_DE = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf', xml: 'application/xml' } as const;
 
 const versCurseur = (quand: Date, id: string) => Buffer.from(JSON.stringify([quand.toISOString(), id])).toString('base64url');
 function depuisCurseur(texte: string): [string, string] | null {
@@ -364,7 +365,7 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       if (fichier.length > LIMITE_FICHIER) {
         return { statut: 413, corps: { motif: motif('messagerie.fichier.trop_lourd', { nom: corps.nom, taille: (fichier.length / 1_048_576).toFixed(1).replace('.', ','), limite: LIMITE_FICHIER / 1_048_576 }), bouton: null } };
       }
-      const sorte = sorteDe(fichier);
+      const sorte = sorteJointeDe(fichier);
       if (!sorte) return { statut: 415, corps: { motif: motif('messagerie.fichier.format', { nom: corps.nom }), bouton: null } };
       const type = TYPE_DE[sorte];
       const id = (await tx.query('select messagerie.deposer($1, $2, $3, $4, $5, $6) id', [params.entreprise ?? '', corps.cote, corps.nom, type, fichier,

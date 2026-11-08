@@ -10,7 +10,7 @@ declarerTextes({
   'messagerie.depose_par_defaut': 'le cabinet',
   'messagerie.champ.curseur': 'la suite d\'un fil, telle que le serveur l\'a donnée',
   'messagerie.fichier.trop_lourd': 'Le fichier « {nom} » pèse {taille} Mo : un fichier joint pèse {limite} Mo au plus',
-  'messagerie.fichier.format': 'Le fichier « {nom} » n\'est ni une photo (JPEG, PNG, WebP) ni un PDF : il ne se joint pas',
+  'messagerie.fichier.format': 'Le fichier « {nom} » n\'est ni une photo (JPEG, PNG, WebP), ni un PDF, ni une facture électronique (XML El Fatoora) : il ne se joint pas',
   // L'alerte par e-mail : ni le message, ni le nom de l'entreprise, ni celui du cabinet (décidé le 09/10/2026).
   'messagerie.alerte.objet': 'Un nouveau message t\'attend dans SkanFact',
   'messagerie.alerte.bouton': 'Lire le message dans SkanFact',

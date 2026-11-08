@@ -180,7 +180,7 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
     // Le fichier : reconnu à ses octets (un texte nommé .png ne passe pas), 10 Mo au plus.
     const faux = await appeler('POST', `/entreprises/${ent}/messages/fichiers`, client.jeton, { cote: 'entreprise', nom: 'facture.png', contenu: Buffer.from('ceci n\'est pas une image').toString('base64') });
     expect(faux.statut).toBe(415);
-    expect(faux.corps.motif).toBe('Le fichier « facture.png » n\'est ni une photo (JPEG, PNG, WebP) ni un PDF : il ne se joint pas.');
+    expect(faux.corps.motif).toBe('Le fichier « facture.png » n\'est ni une photo (JPEG, PNG, WebP), ni un PDF, ni une facture électronique (XML El Fatoora) : il ne se joint pas.');
     const lourd = await appeler('POST', `/entreprises/${ent}/messages/fichiers`, client.jeton, { cote: 'entreprise', nom: 'scan.pdf', contenu: Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(11 * 1_048_576)]).toString('base64') });
     expect(lourd.statut).toBe(413);
     expect(lourd.corps.motif).toBe('Le fichier « scan.pdf » pèse 11,0 Mo : un fichier joint pèse 10 Mo au plus.');

@@ -219,17 +219,18 @@ export function ecritureDImputationAcompte(ta: TotauxAchat, acompte: EnDevise, f
   return { journal: 'OD', lignes };
 }
 
-export type SoldeAchat = { paye: bigint; impute: bigint; reste: bigint };
+export type SoldeAchat = { paye: bigint; impute: bigint; reste: bigint; avance?: bigint };
 // Ce qui reste à payer sur un achat (`purchaseBalance`, 10.2.0), dans sa devise : le net, moins ce
 // qui a été versé, moins ce que ses pièces rattachées couvrent (`imputes` : `imputationAchat(...).net`
 // de chaque avoir et acompte, dans la devise de l'achat). Un avoir imputé est consommé par sa
 // facture (il ne doit plus rien) ; un avoir libre est un crédit détenu : son reste est négatif, et
-// il revient à zéro quand le fournisseur le rembourse.
-export function soldeAchat(t: Pick<TotauxAchat, 'netAPayer'>, nature: NatureAchat, rattache: boolean, reglements: bigint[], imputes: bigint[] = []): SoldeAchat {
+// il revient à zéro quand le fournisseur le rembourse. (1.325.0) `avances` : la part des `imputes` qui vient d'acomptes
+// (de l'argent déjà versé), pour le statut ; un avoir n'en est pas.
+export function soldeAchat(t: Pick<TotauxAchat, 'netAPayer'>, nature: NatureAchat, rattache: boolean, reglements: bigint[], imputes: bigint[] = [], avances: bigint[] = []): SoldeAchat {
   const paye = reglements.reduce((a, b) => a + b, 0n);
-  if (nature === 'avoir') return { paye, impute: 0n, reste: rattache ? 0n : paye - t.netAPayer };
+  if (nature === 'avoir') return { paye, impute: 0n, reste: rattache ? 0n : paye - t.netAPayer, avance: 0n };
   const impute = imputes.reduce((a, b) => a + b, 0n);
-  return { paye, impute, reste: t.netAPayer - paye - impute };
+  return { paye, impute, reste: t.netAPayer - paye - impute, avance: avances.reduce((a, b) => a + b, 0n) };
 }
 
 export type StatutAchat = 'payee' | 'partiel' | 'en_retard' | 'a_payer' | 'impute' | 'rembourse' | 'a_imputer';
@@ -237,7 +238,9 @@ export type StatutAchat = 'payee' | 'partiel' | 'en_retard' | 'a_payer' | 'imput
 export function statutAchat(nature: NatureAchat, rattache: boolean, solde: SoldeAchat, echeance: string | undefined, aujourdhui: string): StatutAchat {
   if (nature === 'avoir') return rattache ? 'impute' : solde.paye > 0n && solde.reste >= 0n ? 'rembourse' : 'a_imputer';
   if (solde.reste <= 0n) return 'payee';
-  if (solde.paye > 0n || solde.impute > 0n) return 'partiel';
+  // (1.325.0) Un avoir diminue ce qui est dû, ce n'est pas un paiement (comme une facture de vente, 1.308.0) : « partiel »
+  // se dit d'un règlement, ou d'un acompte versé.
+  if (solde.paye > 0n || (solde.avance ?? 0n) > 0n) return 'partiel';
   if (echeance && echeance < aujourdhui) return 'en_retard';
   return 'a_payer';
 }

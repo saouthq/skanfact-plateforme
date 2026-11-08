@@ -1260,3 +1260,63 @@ Ce qui est fait :
 
 **À VÉRIFIER** avec un comptable : des comptes de groupe dédiés plutôt que 411 / 401 ; la date du rapprochement au Cabinet
 (le dernier jour de l'exercice de chaque société, quand les exercices diffèrent).
+
+## La facture électronique reçue, jusqu'au comptable (1.325.0)
+
+*08/11/2026. Joué par Hédi Ben Salah (Quincaillerie Ben Salah, Sfax) : son grossiste lui envoie le fichier El Fatoora de sa
+facture (deux taux de TVA, une remise sur une ligne, le timbre), puis l'avoir d'une perceuse rendue ; le même fichier
+arrive deux fois ; une facture papier saisie à la main reçoit ensuite son fichier signé ; une facture en euros. Puis par
+Leïla Trabelsi, au Cabinet, qui tient le Café des Arts de Rim Gharbi : Rim lui envoie par la messagerie les fichiers de son
+grossiste, dont une facture adressée par erreur à une clinique et un fichier incomplet.*
+
+Ce qui n'allait pas :
+
+- La messagerie refusait le fichier El Fatoora (« ni une photo ni un PDF ») : le client devait l'imprimer ou le photographier,
+  et le comptable ressaisissait à l'œil ce que le fichier disait au millime.
+- Glissé deux fois, le même fichier créait deux achats ; la facture saisie d'après le papier ne pouvait pas recevoir son
+  fichier signé (il fallait la ressaisir) ; la remise d'une ligne se perdait (le prix net seul restait).
+- Un avoir rattaché disait « Réglée » dans son en-tête et « Imputé » dans la liste ; la facture que seul un avoir
+  diminuait se disait « Partiel », comme si l'avoir était un paiement.
+- Au Cabinet, le fichier ne s'ouvrait pas (« ce fichier ne se dessine pas ici ») et ne se lisait que par l'IA (le fichier
+  sortait de Tunisie pour dire ce qu'il dit déjà) ; la fiche de la Saisie ne connaissait qu'un taux : une facture à 19 % et
+  7 % ne s'écrivait pas d'un geste, et une écriture à deux taux faisait proposer « TVA 18,6 % » (le rapport de ses totaux,
+  qui n'est aucun taux). Au téléphone, le choix de la TVA était trop petit pour le pouce.
+
+Ce qui est fait :
+
+- Chez l'entreprise : le fichier déjà dans les achats le dit avant tout (« FA-2026-1187 est déjà dans tes achats ») et
+  propose « Ouvrir FA-2026-1187 » ; la facture saisie d'après le papier, aux mêmes montants au millime, propose « Joindre à
+  FA-2026-1203 » (le fichier rejoint ses justificatifs, sa référence TTN ses notes) ; « Saisir quand même une autre pièce »
+  reste possible. La remise de chaque ligne et son prix brut sont gardés. Un avoir dit « Imputé » (ou « À imputer »,
+  « Remboursé ») comme la liste ; un avoir n'est pas un paiement : sans règlement ni acompte, la facture reste « À payer »
+  (ou « En retard »), à l'écran comme au serveur (`purchaseStatus`, `statutAchat`).
+- La messagerie accepte le fichier El Fatoora, reconnu à son contenu (son en-tête et son élément TEIF, jamais à son nom ;
+  ni script, ni SVG) ; il se dit « Facture électronique (XML) » et sa vignette « XML ». Base `0203` : le type
+  `application/xml` pour les fichiers des messages et les documents du classeur ; `cabinet.lecture` garde d'où vient une
+  lecture (`source` : l'IA ou le fichier) et ce que le fichier dit de plus (`detail`).
+- Au serveur (`serveur/cabinet/efacture.ts`) : le fichier se lit sans l'IA, avec la lecture de l'écran de l'entreprise
+  (`teif.js`) : le fournisseur, le numéro, la date, le total, et chaque taux avec sa base, le timbre, les lignes et leurs
+  remises, la signature et la référence TTN, l'avoir et la facture qu'il diminue, à qui il est adressé. Les montants en
+  texte au millième. Ni la clé de l'IA, ni l'accord du client ne sont en jeu : rien ne sort. Un fichier incomplet se
+  refuse en disant pourquoi.
+- Au Cabinet : la pièce se lit dès qu'elle s'ouvre, dans la Saisie, le classeur, « Pièces reçues » et « En grand », et
+  se montre comme la facture qu'elle est (une feuille : lignes, TVA par taux, timbre, total TTC, « rien n'est passé par
+  l'IA »). La fiche part du fichier : le total, le timbre et « Celles du fichier : 19 % et 7 % » ; l'écriture a une ligne
+  de TVA par taux, au millime du fichier, la charge prend le reste ; un total changé n'est plus celui du fichier et ne
+  s'écrit pas (« remets-le, ou choisis un taux ») ; l'avoir s'écrit à l'envers. La fiche dit à qui le fichier est adressé
+  quand ce n'est pas le dossier, s'il n'est pas signé, et l'avoir. Une écriture à plusieurs taux n'en propose aucun. Au
+  téléphone, les cases de la fiche font 44 points.
+- Joué : 1 002,950 DT (845,000 HT, 154,850 de TVA à 19 % sur 815,000, 2,100 à 7 % sur 30,000, 1,000 de timbre) écrits
+  6071 846,000 / 4366 154,850 / 4366 2,100 / 401 1 002,950, validés ; l'avoir 91,035 à l'envers ; aucune lecture partie
+  chez l'IA.
+- À VÉRIFIER avec un comptable : la TVA d'une facture électronique non signée se déduit-elle ; les autres taxes du fichier
+  (FODEC) vont avec la charge (la charge prend tout ce qui n'est ni la TVA ni le timbre).
+- Reste à faire : le justificatif XML d'un achat du client, ouvert depuis son écriture au Cabinet, s'ouvre tel quel dans
+  un onglet (le fichier brut), pas encore en feuille.
+- La preuve : `tests/cabinet/efacture-1325.test.ts` (la lecture au millime, taux par taux, deux chemins : la somme des
+  bases et de la TVA redonne le total ; l'avoir, l'autre société, le fichier incomplet, le XML qui n'est pas une facture,
+  le classeur), `tests/web/efacture-recue-1325.test.ts` (Hédi : les quatre fichiers ; Leïla : la messagerie, la Saisie, les
+  deux écritures, l'autre société, le fichier incomplet, le téléphone), `tests/moteur/achats.test.ts` et
+  `reglements-achats-v10.test.ts` (l'avoir n'est pas un paiement), `tests/v10/achats.test.ts` (les 181 achats de l'exemple
+  de cinq ans : la plateforme se sépare de la v10 là, exprès, pour la facture que seul un avoir réduit, et nulle part
+  ailleurs), preuves `efacture 1.325 a-t` ; six preuves anciennes repointées.
