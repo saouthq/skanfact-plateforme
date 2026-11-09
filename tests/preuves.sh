@@ -23441,7 +23441,7 @@ prouver 'R0a h : un gros fichier qui ne passe plus par l'"'"'assemblage' modules
 # (1.302.0) Le rouge GitHub de 1.301.0 : ce test exigeait l'unique morceau d'un pont ; il dit maintenant la règle (le pont
 # d'abord, puis les morceaux des modules, chacun dans son dossier pont/).
 prouver 'R0a h2 : un morceau de module assemblé avant le pont qu'"'"'il ouvre' modules/assemblage.json \
-  '"plateforme/pont.js": ["web/public/plateforme/pont.js", "modules/declarations/pont/entreprise.js"],' '"plateforme/pont.js": ["modules/declarations/pont/entreprise.js", "web/public/plateforme/pont.js"],' \
+  '"plateforme/pont.js": ["web/public/plateforme/pont.js", "modules/declarations/pont/entreprise.js", "modules/ventes/pont/entreprise.js"],' '"plateforme/pont.js": ["modules/declarations/pont/entreprise.js", "web/public/plateforme/pont.js", "modules/ventes/pont/entreprise.js"],' \
   "$RA3"
 prouver 'R0a i : la construction qui n'"'"'écrit pas les fichiers assemblés' web/vite.config.ts \
   '      ecrireLesAssembles(sortie.dir);
@@ -26697,7 +26697,7 @@ prouver 'accords 1.328.0 e : le responsable accorde une demande remplacée' serv
   'if (a.remplacee) throw new Refus('\''ventes.accord_remplacee'\'');' 'if (false) throw new Refus('\''ventes.accord_remplacee'\'');' \
   "$ACCORD1328C"
 prouver 'accords 1.328.0 f : la demande d'\''une facture émise sans accord reste pour toujours sur l'\''accueil' serveur/v10/routes.ts \
-  'and (a.statut <> '\''en_attente'\'' or ${PIECE_EN_ATTENTE})' 'and (true or ${PIECE_EN_ATTENTE})' \
+  'and (a.statut <> '\''en_attente'\'' or (${PIECE_EN_ATTENTE}))' 'and (true or (${PIECE_EN_ATTENTE}))' \
   "$ACCORD1328C"
 prouver 'accords 1.328.0 g : on décide une demande dont la facture est émise' serveur/v10/routes.ts \
   'if (!a.en_attente) throw new Refus('\''ventes.accord_sans_objet'\'');' 'if (false) throw new Refus('\''ventes.accord_sans_objet'\'');' \
@@ -26723,6 +26723,39 @@ prouver 'accords 1.328.0 m : la réponse du responsable n'\''arrive qu'\''en rec
 prouver 'accords 1.328.0 n : « Avant d'\''émettre » marque encore l'\''encours accordé comme un manque' modules/socle/ecrans/entreprise/app-1.js \
   'if (enc) points.push([encOk, encOk ?' 'if (enc) points.push([false, false ?' \
   "$ACCORD1328A"
+# (1.329.0) « Je facturais déjà » jusqu'au serveur : la boulangerie continue son carnet (FAC-048), Karim n'a pas le réglage.
+NUM1329A='la boulangerie continue son carnet : annoncée FAC-048, émise FAC-048, puis FAC-049 ; la suite ne se change plus'
+NUM1329B='un commercial n'\''écrit pas la suite d'\''une facture (réglage fiscal) ; celle d'\''un devis, si'
+NUM1329C='une année où le serveur a déjà donné un numéro ne bouge jamais, même si le dossier dit autre chose'
+NUM1329W1='Karim ne voit pas le réglage mais à qui le demander ; Sarra continue son carnet : annoncée FAC-048, émise FAC-048, puis Karim FAC-049'
+NUM1329W2='une année déjà commencée au serveur : la fenêtre annonce le numéro qu'\''il donnera, pas la suite du dossier'
+prouver 'numérotation 1.329.0 a : la suite annoncée (« Je facturais déjà ») n'\''arrive jamais à la série du serveur' serveur/v10/dossier.ts \
+  '  if (!ticket && !retour) await reprendreAvantEmission(tx, entreprise, serie, type, String(doc.date ?? '\'''\''));' '  void reprendreAvantEmission;' \
+  "$NUM1329A"
+prouver 'numérotation 1.329.0 b : un commercial écrit la suite d'\''une facture, un réglage fiscal' serveur/v10/numerotation.ts \
+  'if (roles && !permet(roles, '\''socle.reglages_fiscaux.modifier'\'', true)) {' 'if (false && roles) {' \
+  "$NUM1329B"
+prouver 'numérotation 1.329.0 c : la suite d'\''une année déjà numérotée au serveur se change encore' serveur/v10/numerotation.ts \
+  'if (c && Number(c.dernier) !== Number(c.repris ?? 0)) {' 'if (false) {' \
+  "$NUM1329A"
+prouver 'numérotation 1.329.0 d : l'\''annonce du serveur ignore la suite du dossier' serveur/v10/numerotation.ts \
+  'const dernier = c ? Number(c.dernier) : await suiteAnnoncee(tx, entreprise, type, annee);' 'const dernier = c ? Number(c.dernier) : 0;' \
+  "$NUM1329A"
+prouver 'numérotation 1.329.0 e : l'\''annonce suit le dossier au lieu de la série déjà commencée' serveur/v10/numerotation.ts \
+  'const c = s ? await compteur(tx, entreprise, type, annee) : undefined;' 'const c = undefined;' \
+  "$NUM1329C"
+prouver 'numérotation 1.329.0 f : la suite annoncée réécrit une série déjà commencée (deux FAC-048)' base/migrations/0204_suite_annoncee.sql \
+  '  on conflict (serie, periode) do nothing;' '  on conflict (serie, periode) do update set dernier = excluded.dernier, repris = excluded.repris;' \
+  "$NUM1329A"
+prouver 'numérotation 1.329.0 g : la suite d'\''un devis (sans valeur légale) refusée à un commercial' serveur/v10/numerotation.ts \
+  'const CLE = /^(facture|avoir)-(\d{4})$/;' 'const CLE = /^(facture|avoir|devis)-(\d{4})$/;' \
+  "$NUM1329B"
+prouver 'numérotation 1.329.0 h : la fenêtre d'\''émission annonce la suite du dossier, pas le numéro du serveur' modules/socle/ecrans/entreprise/app-1.js \
+  'if (bridge.prochainNumero && (doc.type === '\''facture'\'' || doc.type === '\''avoir'\'')' 'if (false && (doc.type === '\''facture'\'' || doc.type === '\''avoir'\'')' \
+  "$NUM1329W2"
+prouver 'numérotation 1.329.0 i : le commercial reçoit le bouton d'\''un réglage que le serveur lui refuse' modules/socle/ecrans/entreprise/app-1.js \
+  '*/'\'''\''}${estResponsable()' '*/'\'''\''}${true' \
+  "$NUM1329W1"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

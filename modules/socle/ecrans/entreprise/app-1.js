@@ -1314,8 +1314,10 @@
           ${ligne('Client', `<strong>${h(cl ? cl.name : doc.passage ? nomClientPiece(doc) + ' · de passage' : '—')}</strong>`)}
           ${origine}
           ${inv ? ligne('Facture corrigée', `${h(inv.number || '—')} · ${C.money(bInv.totals.netToPay, cur)}`) : ''}
-          ${premiere ? `<div id="em-num-ligne"><span>Numéro</span><span><span class="mono" id="em-num">${h(numero)}</span> — ${isAv ? 'ton tout premier avoir' : 'ta toute première ' + laPiece().replace(/^la /, '')} ici
-            <button type="button" class="btn btn-sm" id="num-suite">${isAv ? 'J\'émettais déjà des avoirs' : 'Je facturais déjà'} : continuer ma numérotation…</button></span></div>` : ''}
+          ${premiere ? `<div id="em-num-ligne"><span>Numéro</span><span><span class="mono" id="em-num">${h(numero)}</span> — ${isAv ? 'ton tout premier avoir' : 'ta toute première ' + laPiece().replace(/^la /, '')} ici${/* (1.329.0) Continuer la numérotation est un réglage fiscal (le serveur le refuse aux autres) : le bouton pour qui
+                 le règle, la phrase qui dit à qui le demander pour les autres. */''}${estResponsable()
+              ? ` <button type="button" class="btn btn-sm" id="num-suite">${isAv ? 'J\'émettais déjà des avoirs' : 'Je facturais déjà'} : continuer ma numérotation…</button>`
+              : `. <span class="small muted" id="num-suite-qui">Si l'entreprise ${isAv ? 'émettait déjà des avoirs' : 'facturait déjà'} avant SkanFact, le propriétaire ou un administrateur continue sa numérotation avant cette première pièce.</span>`}</span></div>` : ''}
           ${ligne('Date', C.fmtDate(doc.date))}
           ${!isAv && doc.dueDate ? ligne('Échéance', doc.dueDate === doc.date ? 'À réception' : C.fmtDate(doc.dueDate)) : ''}
           ${ligne(isAv ? 'Montant de l\'avoir' : 'Net à payer', `<strong>${C.money(t.netToPay, cur)}</strong>`)}
@@ -1348,8 +1350,8 @@
           // (`peekNumber`) : le titre et la ligne ne peuvent pas annoncer un autre numéro que celui
           // que la pièce portera.
           const suite = $('#num-suite', root);
-          if (suite) suite.onclick = () => numerotationForm(doc.type, annee, () => {
-            const n = peekNumber(doc.type, doc.date);
+          if (suite) suite.onclick = () => numerotationForm(doc.type, annee, async () => {
+            const n = await numeroAEmettre(doc);
             $('#em-titre', root).textContent = `Émettre ${isAv ? 'l\'avoir' : laPiece()} ${n} ?`;
             $('#em-num-ligne', root).innerHTML = `<span>Numéro</span><span><span class="mono" id="em-num">${h(n)}</span> — à la suite de ta numérotation</span>`;
           });
@@ -1440,10 +1442,11 @@
           champ.classList.toggle('champ-doute', !r.ok);
           if (r.ok) { $('#nf-prochaine', root).textContent = r.etat.prochaine; $('#nf-ok', root).textContent = 'Continuer à ' + r.etat.prochaine; }
         };
-        $('#nf-ok', root).onclick = () => {
+        $('#nf-ok', root).onclick = async () => {
           const r = C.poserNumerotation(data, type, annee, champ.value);
           if (!r.ok) return refus(champ, r.motif);
-          save(true);
+          // (1.329.0) Le serveur la lit à l'émission : elle doit y être AVANT que le récapitulatif relise le numéro.
+          await save(true);
           close();
           toast(r.change ? `C'est noté : ta prochaine pièce portera le n° ${r.etat.prochaine}.` : 'La numérotation ne change pas.');
           if (done) done(r.etat);
@@ -2000,6 +2003,19 @@
   }
   // Numéro que recevrait le document à l'émission, sans consommer le compteur
   function peekNumber(type, date) { return C.nextNumber({ documents: data.documents, counters: { ...data.counters } }, type, date); }
+  // (1.329.0) Le numéro qu'une facture ou un avoir PRENDRA, lu au serveur qui le donnera (deux chemins, un chiffre) : le
+  // récapitulatif annonçait FAC-2026-048 d'après la suite du dossier (« Je facturais déjà ») pendant que le serveur donnait
+  // 001. Hors ligne, ou pour une pièce qui ne passe pas par la série du serveur, la règle de l'écran (`peekNumber`).
+  async function numeroAEmettre(doc) {
+    if (doc.number) return doc.number;
+    if (bridge.prochainNumero && (doc.type === 'facture' || doc.type === 'avoir') && !doc.ticket && !doc.retourCaisse) {
+      try {
+        const r = await bridge.prochainNumero(doc.type, doc.date || C.today());
+        if (r && typeof r.texte === 'string' && r.texte) return r.texte;
+      } catch (_) { /* hors ligne, ou en lecture : la règle de l'écran */ }
+    }
+    return peekNumber(doc.type, doc.date);
+  }
   // ---------- retenue à la source ----------
   // UNE seule porte pour les cinq écrans qui proposent un taux (document, fiche client, fiche
   // fournisseur, achat, contrat récurrent, Paramètres). Trois d'entre eux lisaient C.WITHHOLDING_RATES
@@ -8563,7 +8579,7 @@
         // pour lire ensuite qu'elle ne s'émet pas (« un refus se dit avant la question », 7.6.0).
         const att = accordAttendu(doc);
         if (att && !att.demande) { await demanderAccordPour(doc, phraseAccord(doc, att), persist); return; }
-        const n = doc.number || peekNumber(doc.type, doc.date);
+        const n = await numeroAEmettre(doc);
         const warn = issueWarnings();
         if (!await confirmerEmission(doc, n, warn, { avertir: issueWarnings })) return;
         if (await issue()) {
@@ -8606,7 +8622,7 @@
           if (isNew) remplacerPage('#/doc/' + doc.id); else render();
           return;
         }
-        const n = doc.number || peekNumber(doc.type, doc.date);
+        const n = await numeroAEmettre(doc);
         // Émettre en exportant passe par le MÊME récapitulatif que « Émettre » (10.14.0) : cette boîte-ci
         // émettait sans lui, donc sans les avertissements d'émission et sans l'offre de continuer une
         // numérotation commencée ailleurs. Une porte d'émission, pas deux.

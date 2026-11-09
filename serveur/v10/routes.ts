@@ -16,6 +16,7 @@ import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { refuserSiLectureSeule } from '../abonnement/condition.ts';
 import { avecSesTickets, EMPREINTE_REGLES, filtrer, mesRoles, permet, regleDe } from './droits.ts';
+import { prochainNumeroV10 } from './numerotation.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { verserExemple } from './exemple.ts';
 import { nombreEnTexte } from './lecture.ts';
@@ -132,6 +133,20 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     });
   }
 
+  // (1.329.0) Le numéro que la prochaine facture (ou le prochain avoir) PRENDRA, lu au serveur qui le donnera : la fenêtre
+  // d'émission l'annonce, « Je facturais déjà » compris (numerotation.ts). Il se lit, il ne se réserve pas.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/dossier-v10/prochain-numero', geste: 'ventes.pieces.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const type = query.type === 'facture' || query.type === 'avoir' ? query.type : null;
+      const date = String(query.date ?? '');
+      if (!type) return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'type', raison: t('v10.prochain_type') }), champ: 'type' } };
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'date', raison: 'AAAA-MM-JJ' }), champ: 'date' } };
+      return { corps: await prochainNumeroV10(tx, params.entreprise ?? '', type, date) };
+    },
+  });
+
   // ── Le ticket de caisse (brique 115 ; docs/caisse.md) ───────────────────────────────────────────
   // Encaisser : le serveur numérote le ticket dans SA série (TIC), le scelle comme une facture (montants en entiers,
   // maillon du journal), puis enregistre son paiement dans le même geste. Un ticket est payé en entier à
@@ -232,7 +247,7 @@ export function routesV10(ctx: Contexte): Route<never>[] {
 
   // (1.328.0) La pièce d'une demande attend-elle encore sa décision ? Une facture encore en brouillon, une commande pas encore
   // partie. Lu dans le dossier (`a` est la demande) : l'écran du responsable n'a pas toujours la pièce d'un autre poste.
-  const PIECE_EN_ATTENTE = `exists (select 1 from socle.dossier_v10 dp where dp.entreprise = a.entreprise and dp.cle = a.piece_v10
+  const PIECE_EN_ATTENTE = `select exists (select 1 from socle.dossier_v10 dp where dp.entreprise = a.entreprise and dp.cle = a.piece_v10
     and ((a.geste <> 'commande' and dp.collection = 'documents' and coalesce(dp.contenu->>'status', 'brouillon') = 'brouillon')
       or (a.geste = 'commande' and dp.collection = 'supplierOrders' and coalesce(dp.contenu->>'status', 'brouillon') in ('brouillon', 'demande'))))`;
   // ── L'accord d'un responsable au-delà de l'encours (brique 98 ; docs/accords.md) ──────────────────────
@@ -304,7 +319,7 @@ export function routesV10(ctx: Contexte): Route<never>[] {
             and b.piece_v10 = a.piece_v10 and b.geste = a.geste and b.demande_le > a.demande_le))
           -- Ni une demande dont la pièce n'attend plus rien (émise sans accord une fois revenue sous le plafond, supprimée,
           -- commande partie) : elle restait pour toujours sur l'accueil du responsable.
-          and (a.statut <> 'en_attente' or ${PIECE_EN_ATTENTE})
+          and (a.statut <> 'en_attente' or (${PIECE_EN_ATTENTE}))
         order by (a.statut = 'en_attente') desc, coalesce(a.decide_le, a.demande_le) desc limit 50`, [ent])).rows;
       return { corps: { peutDecider: await estResponsable(tx, ent), accords: lignes.map((l) => ({
         id: l.id, geste: l.geste, taux: l.taux === null ? null : Number(l.taux), seuil: l.seuil === null ? null : Number(l.seuil),
@@ -321,7 +336,7 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       if (!z.string().uuid().safeParse(params.accord).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       const a = (await tx.query(`select a.statut, (a.demande_par = socle.moi()) mienne,
           exists (select 1 from ventes.accord b where b.entreprise = a.entreprise and b.piece_v10 = a.piece_v10 and b.geste = a.geste
-            and b.demande_le > a.demande_le) remplacee, ${PIECE_EN_ATTENTE} en_attente
+            and b.demande_le > a.demande_le) remplacee, (${PIECE_EN_ATTENTE}) en_attente
         from ventes.accord a where a.id = $1 and a.entreprise = $2 for update of a`,
         [params.accord, params.entreprise])).rows[0] as { statut: string; mienne: boolean; remplacee: boolean; en_attente: boolean } | undefined;
       if (!a) return { statut: 404, corps: { motif: motif('commun.introuvable') } };

@@ -180,6 +180,9 @@ declarerTextes({
   'ttn.depot_refuse': 'la TTN a refusé la pièce au dépôt : « {message} »',
   'ttn.refusee': 'la TTN a refusé la pièce : {accuses}',
   'ttn.renvoi_impossible': 'seule une pièce refusée par la TTN se renvoie ; la pièce {numero} ne l\'est pas',
+  'v10.prochain_type': 'une facture ou un avoir',
+  'v10.numerotation_role': 'continuer la numérotation de {serie} (« Je facturais déjà ») est un réglage fiscal : le propriétaire ou un administrateur le pose, avant la première pièce de l\'année. Rien n\'a été enregistré',
+  'v10.numerotation_tenue': 'SkanFact a déjà donné {dernier} : la suite de cette année ne se change plus (une série de factures reste continue). Rien n\'a été enregistré',
   'v10.ecart_montant': 'le serveur ne trouve pas le même net à payer que l\'écran ({ecran} à l\'écran, {serveur} au serveur) : rien n\'a été émis. Vérifie le timbre et les taux, puis réessaie',
   // Les pièces jointes du dossier (lot Fonctions 3 ; docs/pieces-jointes.md).
   'pieces_jointes.trop_lourd': 'Le fichier « {nom} » pèse {taille} Mo : une pièce jointe pèse {limite} Mo au plus. Une photo moins lourde, ou un PDF compressé, passera',

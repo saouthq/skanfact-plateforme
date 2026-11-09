@@ -1472,3 +1472,34 @@ Ce qui est fait :
   Nadia ne peut pas accorder l'ancien montant ; l'ancienne demande et la demande sans objet refusées au serveur),
   `tests/web/accords.test.ts` suit le geste neuf (et reçoit l'accord sans recharger) ; preuves `accords 1.328.0 a-n`, trois
   preuves anciennes repointées.
+
+## « Je facturais déjà », jusqu'au serveur (1.329.0)
+
+Trouvé en jouant les accords (1.328.0), joué ensuite par Sarra sur une pâtisserie neuve et par Karim, commercial.
+
+Ce qui n'allait pas :
+
+- La suite qu'une entreprise annonce (« Je facturais déjà », 47, depuis la fenêtre d'émission ou Paramètres → Documents →
+  Numérotation) ne vivait que dans le dossier (`counters`). La fenêtre annonçait FAC-2026-048, le serveur donnait
+  FAC-2026-001 : deux factures « 001 » la même année, l'une dans le carnet, l'autre ici. Rien ne le disait.
+- Le bouton « Je facturais déjà » était proposé au commercial, alors que continuer une série est un réglage fiscal.
+- Le lanceur des tests à la souris (`lancer.sh --garder`) ne migrait pas la base gardée : l'émission y tombait sur une
+  fonction pas encore créée, une panne qu'aucun client n'aurait.
+
+Ce qui est fait :
+
+- À l'émission, la première facture (ou le premier avoir) d'une année encore VIERGE au serveur part de la suite annoncée
+  (base 0204, `ventes.reprendre_v10`, tracée « socle.serie.reprendre » avec `par: emission`) ; une année où un numéro a
+  été donné ne bouge jamais. Le ticket et le retour à la caisse ont leurs propres séries et ne sont pas concernés.
+- Écrire la suite d'une facture ou d'un avoir est refusé à qui n'a pas le geste des réglages fiscaux (propriétaire,
+  administrateur), et à tous pour une année déjà numérotée au serveur, avec la phrase qui dit pourquoi
+  (`serveur/v10/numerotation.ts`, `garderLaNumerotation`). La suite d'un devis (numéroté sur le poste) reste libre.
+- La fenêtre d'émission annonce le numéro que le serveur DONNERA (`GET …/dossier-v10/prochain-numero`, lu dans la série,
+  sinon dans la suite annoncée) ; hors ligne, la règle de l'écran. Un dossier où l'écran et le serveur divergeaient
+  (une suite posée avant 1.329.0, une année déjà commencée) annonce le numéro du serveur.
+- Le commercial lit, à la place du bouton, qu'il revient au propriétaire ou à un administrateur de continuer la
+  numérotation avant la première pièce.
+- `scripts/humain/base.ts --migrer`, appelé par `lancer.sh --garder` : la base gardée reçoit les migrations écrites depuis.
+- La preuve : `tests/v10/numerotation-1329.test.ts` (048 puis 049, commercial refusé, avoirs à part, année commencée),
+  `tests/web/numerotation-1329.test.ts` (Karim sans le bouton, Sarra annoncée et émise à 048, Karim à 049 ; l'annonce du
+  serveur sur un dossier divergent) ; preuves `numérotation 1.329.0 a-i`.

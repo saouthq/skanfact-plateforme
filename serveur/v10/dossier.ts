@@ -25,6 +25,7 @@ import { archiveVisible, mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivreIdentite } from './identite.ts';
 import { garderLaCloture, garderLesBulletins, suivrePaie } from './paie.ts';
+import { garderLaNumerotation, reprendreAvantEmission, SERIE_V10 } from './numerotation.ts';
 import { archiveSansIdentite, ribGarde } from '../paie/identite.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
 import { reecrireLaPaie } from '../compta/paie.ts';
@@ -289,6 +290,9 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
     await garderLaCloture(tx, entreprise, lus);
     // Un bulletin payé ou validé ne change plus ; la validation ne vient que du cabinet (1.274.0, audit G05).
     await garderLesBulletins(tx, entreprise, lus);
+    // (1.329.0) La suite annoncée d'une facture ou d'un avoir (« Je facturais déjà ») : un réglage fiscal, jamais sur une année
+    // où le serveur a déjà donné un numéro (numerotation.ts).
+    await garderLaNumerotation(tx, entreprise, roles, lus);
   }
   const resultat: { collection: string; cle: string; revision: number | null }[] = [];
   for (const c of changements) {
@@ -353,8 +357,7 @@ async function verifierAuteurs(tx: Transaction, entreprise: string, utilisateur:
 }
 
 // ── Émettre une facture ou un avoir du dossier ──────────────────────────────────────────────────
-// La série de la v10 de chaque pièce (« FAC-2026-001 », « AVO-2026-001 ») : core.js, PREFIXES.
-const SERIE_V10: Record<string, string> = { facture: 'FAC', avoir: 'AVO' };
+// La série de la v10 de chaque pièce (« FAC-2026-001 », « AVO-2026-001 ») : core.js, PREFIXES ; `SERIE_V10`, numerotation.ts.
 type LigneV10 = { label?: unknown; description?: unknown; qty?: unknown; unitPrice?: unknown; vatRate?: unknown; noDiscount?: unknown; discount?: unknown; kind?: unknown; fodec?: unknown; itemId?: unknown; nature?: unknown };
 
 // (1.318.0) Ce que vend une ligne (moteur/piece.ts, `nature`) : celle qu'elle porte déjà (l'avoir copié de sa facture, le
@@ -496,6 +499,10 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // Le retour à la caisse (brique 124) : la série des avoirs, que le caissier prend aussi pour ce geste-là.
   const serie = retour ? String((await tx.query('select caisse.serie_retour($1) id', [entreprise])).rows[0].id)
     : String((await tx.query('select ventes.serie_v10($1, $2, $3) id', [entreprise, type, prefixe])).rows[0].id);
+  // (1.329.0) La première pièce d'une année encore vierge part de la suite annoncée (« Je facturais déjà », numerotation.ts) :
+  // le serveur donnait FAC-2026-001 sous un récapitulatif qui annonçait FAC-2026-048. Le ticket et le retour à la caisse
+  // ont leurs propres séries, que personne ne « continue ».
+  if (!ticket && !retour) await reprendreAvantEmission(tx, entreprise, serie, type, String(doc.date ?? ''));
 
   // 4. L'émission : les contrôles, le numéro, les montants en entiers, le maillon.
   const r = await emettre(tx, utilisateur, entreprise, piece, serie);

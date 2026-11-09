@@ -20,6 +20,14 @@ const adresse = (base: string, compte?: { nom: string; mdp: string }) => {
   if (compte) { u.username = compte.nom; u.password = compte.mdp; }
   return u.toString();
 };
+// (1.329.0) `--migrer` : la base GARDÉE (lancer.sh --garder) reçoit les migrations écrites depuis, sans rien effacer. Sans
+// elle, le serveur relancé tournait sur la base d'hier : l'émission tombait sur une fonction pas encore créée (42883), une
+// panne qu'aucun client n'aurait, puisque la production migre à chaque déploiement.
+if (sortie === '--migrer') {
+  const faites = await migrer(adresse(BASE));
+  console.log(faites.length ? `Migrations appliquées à la base gardée : ${faites.join(', ')}` : 'La base gardée est à jour.');
+  process.exit(0);
+}
 const c = new pg.Client({ connectionString: admin });
 await c.connect();
 await c.query(`drop database if exists ${BASE} with (force)`);

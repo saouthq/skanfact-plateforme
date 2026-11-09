@@ -37,6 +37,9 @@ sleep 1
 if [ "$GARDER" != "--garder" ] || [ ! -f "$TRAVAIL/base.url" ]; then
   node "$RACINE/scripts/humain/base.ts" "$TRAVAIL/base.url"
   rm -rf "$TRAVAIL/profil"
+else
+  # La base gardée reçoit les migrations écrites depuis (1.329.0), comme la production à chaque déploiement.
+  node "$RACINE/scripts/humain/base.ts" --migrer
 fi
 (cd "$RACINE" && npx vite build --config web/vite.config.ts --outDir "$TRAVAIL/web" --emptyOutDir --logLevel error)
 
