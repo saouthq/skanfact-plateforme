@@ -199,7 +199,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await fenetre.getByRole('button', { name: 'Envoyer à mon cabinet', exact: true }).click();
     await expect.poll(async () => net(await attente.innerText()), { timeout: 15_000 }).toBe('En attente de toi Rien : aucune question ni pièce demandée n\'attend ta réponse.');
     expect(await fenetre.count()).toBe(0);
-    expect(net(await a.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée La facture STEG d'août · reçue Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue/);
+    expect(net(await a.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée La facture STEG d'août Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue/);
     expect(net(await a.p.locator('[data-msg-fil]').innerText())).toMatch(/En réponse à : La facture STEG d'août La voici\. facture-steg-aout\.png Photo · 1 Ko/);
     // La page, devenue assez courte pour tenir sans défiler, garde la place de sa barre : sinon tout son contenu glissait
     // de 15 px vers la droite, sous le curseur, à la dernière réponse (parcours du 21/10/2026).
@@ -262,7 +262,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Amine · \d\d:\d\d Réponse à la question « Paiement » sur DEV-2026-004 Oui, accepté le 7 octobre\./);
     // Amine a ouvert le fil : sa pièce demandée, qui ne compte pas comme un message non lu, est pourtant lue. (1.181.0)
     // Comme une messagerie, « Lue » se dit une fois, sous le dernier message du groupe (les deux demandes qui suivent).
-    expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée par \S+ La facture STEG d'août · reçue Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue Pièce demandée par \S+ Le contrat de location · reçue Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue Lue/);
+    expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée par \S+ La facture STEG d'août Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue Pièce demandée par \S+ Le contrat de location Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue Lue/);
     // (1.102.0) Ce qui attend le client se dit sans affirmer ce qu'on ne sait pas (« ce client a répondu à tes questions »
     // s'affichait aussi sur un fil où rien n'avait jamais été demandé).
     // (1.176.0, maquette « Messages ») Dans la boîte, « On attend de… » ne paraît que s'il y a quelque chose : ici, rien.
@@ -505,7 +505,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(await fenetre.locator('.msg-fp-ligne').getAttribute('aria-selected')).toBe('true');
     await fenetre.getByRole('button', { name: 'Envoyer à mon cabinet', exact: true }).click();
     await expect.poll(() => fenetre.count(), { timeout: 15_000 }).toBe(0);
-    await expect.poll(async () => net(await a.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Pièce demandée La facture STEG d'août · reçue Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue/);
+    await expect.poll(async () => net(await a.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Pièce demandée La facture STEG d'août Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue/);
     const lus = (await api('GET', `/entreprises/${amine.e}/messages?cote=cabinet`, sonia)).corps.messages ?? [];
     const envoi = lus.find((m) => (m as unknown as { repondA: string }).repondA === demande.corps.id) as unknown as { piece: unknown; fichier: unknown } | undefined;
     expect(envoi?.piece).toEqual({ genre: 'achat', id: 'p1', libelle: expect.stringMatching(/^F-8841 · STEG · 101,626\s+DT$/) });

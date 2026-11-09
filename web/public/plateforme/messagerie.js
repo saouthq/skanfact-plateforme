@@ -964,7 +964,9 @@
           ...(m.demande.relances && !recue ? [`<li class="fait"><b>Relancée</b><small>${esc(jjmm(m.demande.relanceLe))}</small></li>`] : []),
           recue ? `<li class="fait ok"><b>Reçue</b><small>${esc(jjmm(m.demande.recueLe))}</small></li>`
             : `<li class="${retard ? 'retard' : 'attend'}"><b>${retard ? 'En retard' : aDater ? 'À corriger' : entreprise ? 'À envoyer' : 'Attendue'}</b><small>${m.demande.pour ? `pour le ${esc(jjmm(m.demande.pour))}` : 'sans date'}</small></li>`].join('');
-        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>${aDater ? 'Date à corriger' : 'Pièce demandée'}${esc(parQui)}</b><span>${esc(m.demande.texte)}${recue ? ' · reçue' : ''}</span>${pour}</span>
+        // (1.335.0) « Reçue » se dit une fois dans sa frise (avec sa date) et une fois en état : le « · reçue » collé au nom de
+        // la pièce le disait une troisième fois sur la même carte.
+        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>${aDater ? 'Date à corriger' : 'Pièce demandée'}${esc(parQui)}</b><span>${esc(m.demande.texte)}</span>${pour}</span>
           <ol class="msg-frise-d" aria-label="Où en est la pièce">${frise}</ol>
           <span class="msg-etat">${recue ? (aDater ? 'Corrigée' : 'Reçue') : retard ? 'En retard' : aDater ? 'À corriger' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}${relances}</div>`;
       }

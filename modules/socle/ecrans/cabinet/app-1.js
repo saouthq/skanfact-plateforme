@@ -1663,9 +1663,19 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void relirePieces(); });
   }
   // La barre et les Priorités suivent ce qui vient d'être lu ; une fenêtre ouverte ne se redessine pas sous les doigts.
-  function redessinerPrioritesSiOuvertes() {
+  // (1.335.0) `piecesChangees` : les Relances et les Échéances lisent aussi les pièces reçues (un client qui en a envoyé
+  // attend qu'on les classe, pas une relance : 1.334.0). Arrivées après leur dessin (un réseau lent, une machine chargée),
+  // elles laissaient le client « à relancer », le vert sur lui. Elles se redessinent quand la liste des pièces change,
+  // jamais sous une fenêtre ni pendant qu'on tape.
+  function redessinerPrioritesSiOuvertes(piecesChangees = false) {
     drawNav();
-    if (/^#\/production/.test(location.hash) && !$('#modal-root').children.length && !$('#palette-root')) pageTableau($('#view'), prodState.erreur ? 'refus' : prodState.lignes ? '' : 'chargement');
+    const libre = !$('#modal-root').children.length && !$('#palette-root');
+    if (/^#\/production/.test(location.hash) && libre) pageTableau($('#view'), prodState.erreur ? 'refus' : prodState.lignes ? '' : 'chargement');
+    const frappe = document.activeElement && document.activeElement.closest && document.activeElement.closest('#view input, #view textarea, #view select');
+    if (piecesChangees && libre && !frappe) {
+      if (/^#\/relances(\/|$)/.test(location.hash)) drawRelances($('#view'));
+      else if (/^#\/echeances(\/|$)/.test(location.hash)) drawEcheances($('#view'));
+    }
   }
   // ---------- Messages (telles que la maquette « Messages » de Mon cabinet, 1.176.0) ----------
   // La boîte à trois colonnes (plateforme/messagerie.js) : la liste, la conversation, le dossier à côté. L'écran donne ce
@@ -2325,16 +2335,20 @@
   // Les pièces reçues (0175) : lues à l'ouverture, au retour sur la fenêtre et après chaque geste.
   let piecesLues = { aClasser: 0, pieces: [], plus: false };
   let piecesLuesA = null;
+  let piecesSignature = '';
   async function relirePieces() {
     if (!api.pieces) return;
     try {
       piecesLues = await api.pieces.lire(false);
+      const signature = (piecesLues.pieces || []).map(p => p.id).join(',');
+      const changees = signature !== piecesSignature;
+      piecesSignature = signature;
       piecesLuesA = new Date();
       comptesBarre.pieces = piecesLues.aClasser;
       comptesBarre.piecesParDossier = new Map();
       for (const p of piecesLues.pieces) comptesBarre.piecesParDossier.set(p.entreprise, (comptesBarre.piecesParDossier.get(p.entreprise) || 0) + 1);
       comptesBarre.piecesLues = true;
-      redessinerPrioritesSiOuvertes();
+      redessinerPrioritesSiOuvertes(changees);
       if (/^#\/pieces/.test(location.hash) && !$('#modal-root').children.length) drawPieces($('#view'), location.hash.split('/')[2]);
       // (rouge GitHub de 1.278.0) Le classeur et la Saisie lisent ces pièces : ouverts avant qu'elles arrivent (une machine
       // lente, un réseau lent), ils ne montraient jamais celles du client tant que rien d'autre ne les redessinait.
@@ -3365,6 +3379,10 @@
     const beaucoup = ordonnee.length > 15;
     const ouvert = (g, i) => st.ouverts.has(g) || (!st.replies.has(g) && (!beaucoup || i < 2 || ordonnee.some(p => p.id === st.sel && p.entreprise === g)));
     const visibles = groupes.flatMap((g, i) => ouvert(g, i) ? dansLeDossier(g) : []);
+    // (1.335.0) La pièce suivante parcourt TOUTES les pièces à classer, dossier après dossier, sauf ceux qu'on a repliés
+    // soi-même : un dossier replié d'office (plus de quinze pièces) s'ouvre quand on y arrive (`ouvert` suit la pièce
+    // choisie). La flèche s'arrêtait à la sixième pièce sur seize, « 6 sur 6 », et sautait les dossiers repliés du milieu.
+    const parcours = groupes.flatMap(g => st.replies.has(g) ? [] : dansLeDossier(g));
     const sel = visibles.find(p => p.id === st.sel) || visibles[0] || null;
     st.sel = sel ? sel.id : '';
     // Une autre pièce s'ouvre à sa taille, droite.
@@ -3396,29 +3414,34 @@
     const visionneuse = p => {
       const D = dossierDe(p.entreprise);
       const pr = presse.get(p.entreprise);
-      const i = visibles.indexOf(p) + 1;
+      const i = parcours.indexOf(p) + 1;
       const dems = classees ? [] : ((piecesLues.demandes || []).filter(x => x.entreprise === p.entreprise));
+      // (1.335.0) Une pièce qui répond à une demande garde le mot de son client (« Reprise à plat… ») : il disparaissait
+      // derrière « Répond à ta demande ». « Tes demandes » et non « en cours » : le serveur donne aussi celles reçues ces
+      // trois derniers jours, cochées.
       const mot = classees ? `<div class="pc-mot fait">${PC_IC.coche}<span><b>${esc(quoiPc(p))}</b> · par ${esc(qui(p.classeePar))}, ${esc(quandPc(p.classeeLe, true))}${p.note && !['double', 'saisie'].includes(p.raison) ? ` · « ${esc(p.note)} »` : ''}</span></div>`
         : p.depot ? `<div class="pc-mot">${CL_IC.deposer}<span><b>Déposée par ${esc(String(p.de || 'le cabinet').split(' ')[0])}</b>${p.provenance ? `, reçue par ${esc(p.provenance)}` : ''} · ${esc(quandPc(p.recueLe, true))}${D.manual ? '. Dossier tenu : personne d\'autre ne la voit.' : ''}</span></div>`
         : p.achat ? `<div class="pc-mot fait">${PC_IC.coche}<span><b>${esc(p.de)} l'a rangée dans ses achats</b> : ${esc(p.achat)}. Rien à saisir : vérifie et classe.</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`
-        : `<div class="pc-mot">${PC_IC.bulle}<span>${p.demande ? `Répond à ta demande : <b>« ${esc(p.demande)} »</b>` : p.texte ? `<b>${esc(p.de)}</b> : « ${esc(p.texte)} »` : `<b>${esc(p.de)}</b> l'a envoyée sans un mot`} · ${esc(quandPc(p.recueLe, true))}</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`;
-      const dl = dems.length ? `<div class="pc-dl"><span>Demandes en cours :</span>${dems.slice(0, 4).map(x => `<span class="pc-dl-i${x.recueLe ? '' : ' attendue'}">${x.recueLe ? PC_IC.coche : PC_IC.attente}${esc(x.texte)}${!x.recueLe && x.pour ? ` · ${esc(fmtJourCourt(x.pour).slice(0, 5))}` : ''}</span>`).join('')}${dems.some(x => !x.recueLe) ? `<a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Relancer</a>` : ''}</div>` : '';
+        : `<div class="pc-mot">${PC_IC.bulle}<span>${p.demande ? `Répond à ta demande : <b>« ${esc(p.demande)} »</b>${p.texte ? ` · <b>${esc(String(p.de || '').split(' ')[0])}</b> : « ${esc(p.texte)} »` : ''}` : p.texte ? `<b>${esc(p.de)}</b> : « ${esc(p.texte)} »` : `<b>${esc(p.de)}</b> l'a envoyée sans un mot`} · ${esc(quandPc(p.recueLe, true))}</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`;
+      const dl = dems.length ? `<div class="pc-dl"><span>Tes demandes :</span>${dems.slice(0, 4).map(x => `<span class="pc-dl-i${x.recueLe ? '' : ' attendue'}">${x.recueLe ? PC_IC.coche : PC_IC.attente}${esc(x.texte)}${!x.recueLe && x.pour ? ` · ${esc(fmtJourCourt(x.pour).slice(0, 5))}` : ''}</span>`).join('')}${dems.some(x => !x.recueLe) ? `<a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Relancer</a>` : ''}</div>` : '';
       const photo = /^image\//.test(p.fichier.type);
       const outils = `<div class="pc-outils"><button type="button" class="btn btn-sm btn-icone" data-pc-zoom="-1" aria-label="Plus petit"${st.zoom <= 0.5 ? ' disabled' : ''}>${PC_IC.moins}</button><span>${Math.round(st.zoom * 100)} %</span><button type="button" class="btn btn-sm btn-icone" data-pc-zoom="1" aria-label="Plus grand"${st.zoom >= 3 ? ' disabled' : ''}>${PC_IC.plus}</button>${photo ? `<button type="button" class="btn btn-sm btn-icone" id="pc-tourner" aria-label="Tourner">${PC_IC.tourne}</button>` : ''}<span class="pc-sep"></span><button type="button" class="btn btn-sm btn-icone" id="pc-grand" aria-label="En grand">${PC_IC.grand}</button><button type="button" class="btn btn-sm btn-icone" id="pc-enregistrer" aria-label="Enregistrer le fichier">${PC_IC.bas}</button></div>`;
       const papier = hors ? '<div class="pc-papier vide" id="pc-papier"><b>Le fichier s\'ouvre avec le réseau</b><span>Il est gardé sur le serveur, pas sur ce poste.</span></div>'
         : `<div class="pc-papier vide${!classees && p.genre === 'rangee' ? ' court' : ''}" id="pc-papier"><span>Ouverture de la pièce…</span></div>`;
       const nc = !classees && nonConfiee(p, D);
+      // (1.335.0) Il explique le geste vert (« Lui laisser la saisie ») : il se lit AVANT la pièce, avec les autres
+      // avertissements, et non sous le document, hors de l'écran, sous la barre des gestes.
       const avNc = nc ? `<div class="pc-avert ambre pc-nc">${EC_IC.alerte}<span><b>${esc(D.name)} saisit ses achats dans SkanFact</b> : leur saisie n'est pas confiée au cabinet. Si tu la saisis aussi, elle risque d'être saisie deux fois.</span></div>` : '';
       const avant = !classees && !nc && ['achat', 'ticket'].includes(p.genre) ? blocAvantPc(p) : null;
       const casse = !classees && !nc && !p.depot && st.casse === p.id;
       const geste = nc ? 'Lui laisser la saisie' : casse ? `Le redemander à ${String(p.de || 'le client').split(' ')[0]}` : PC_GESTE[p.genre];
       const gestes = classees ? `<div class="pc-gestes"><button type="button" class="btn" id="pc-declasser">Remettre à classer</button>${p.jointe ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'écriture</a>` : ''}</div>`
-        : `${avNc}<div class="pc-gestes">${hors ? '<span class="pc-attend">Saisir et classer attendent le retour du réseau.</span>' : ''}<button type="button" class="btn${avant && avant.meme && !casse ? '' : ' btn-primary'}" id="pc-geste"${hors ? ' disabled' : ''}>${geste}</button>${p.genre === 'rangee' && !nc ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'achat</a>` : ''}${nc ? `<button type="button" class="btn" id="pc-saisir-moi"${hors ? ' disabled' : ''}>La saisir moi-même</button>` : ''}
+        : `<div class="pc-gestes">${hors ? '<span class="pc-attend">Saisir et classer attendent le retour du réseau.</span>' : ''}<button type="button" class="btn${avant && avant.meme && !casse ? '' : ' btn-primary'}" id="pc-geste"${hors ? ' disabled' : ''}>${geste}</button>${p.genre === 'rangee' && !nc ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'achat</a>` : ''}${nc ? `<button type="button" class="btn" id="pc-saisir-moi"${hors ? ' disabled' : ''}>La saisir moi-même</button>` : ''}
           <span class="pc-menu-w"><button type="button" class="btn" id="pc-menu" aria-haspopup="menu" aria-expanded="${st.menu}"${hors ? ' disabled' : ''}>Classer sans saisir ${PC_IC.chev}</button>${st.menu ? menuClasserPc(p, avant) : ''}</span>
           <span class="pc-clavier"><kbd>↑</kbd><kbd>↓</kbd> pièce suivante · <kbd>Entrée</kbd> ${esc(geste.toLowerCase())}</span></div>`;
       return `<div class="pc-voir" id="pc-voir"><div class="pc-vt"><div class="pc-vt-g">${vignettePc(p)}<span><b>${esc(p.fichier.nom)}</b><small>${photo ? 'Photo' : 'PDF'} · ${esc(tailleTxt(p.fichier.taille))} · ${esc(D.name)}${pr ? ` · <span class="pc-tva">${esc(pr.long)}</span>` : ''}</small></span></div>
-        <div class="pc-nav"><button type="button" class="btn btn-sm btn-icone" data-pc-pas="-1" aria-label="Pièce précédente"${i <= 1 ? ' disabled' : ''}>${PC_IC.g}</button><span>${i} sur ${visibles.length}</span><button type="button" class="btn btn-sm btn-icone" data-pc-pas="1" aria-label="Pièce suivante"${i >= visibles.length ? ' disabled' : ''}>${PC_IC.d}</button></div></div>
-        ${mot}${dl}${!classees && p.genre === 'rangee' ? blocVerifPc(p, D) : ''}${avant ? avant.html : ''}${outils}${papier}${gestes}</div>`;
+        <div class="pc-nav"><button type="button" class="btn btn-sm btn-icone" data-pc-pas="-1" aria-label="Pièce précédente"${i <= 1 ? ' disabled' : ''}>${PC_IC.g}</button><span>${i} sur ${parcours.length}</span><button type="button" class="btn btn-sm btn-icone" data-pc-pas="1" aria-label="Pièce suivante"${i >= parcours.length ? ' disabled' : ''}>${PC_IC.d}</button></div></div>
+        ${mot}${dl}${avNc}${!classees && p.genre === 'rangee' ? blocVerifPc(p, D) : ''}${avant ? avant.html : ''}${outils}${papier}${gestes}</div>`;
     };
     const comptes = Object.fromEntries(FILTRES.map(f => [f[0], parDossier.filter(f[2]).length]));
     const fl = classees || !source.length ? '' : `<div class="pc-fl" role="group" aria-label="Quelles pièces">${FILTRES.filter(f => f[0] === 'tout' || comptes[f[0]] || st.filtre === f[0]).map(f => `<button type="button" data-pc-filtre="${f[0]}" aria-pressed="${st.filtre === f[0]}">${f[1]} <span>${comptes[f[0]]}</span></button>`).join('')}</div>`;
@@ -3530,7 +3553,7 @@
     if (retour) retour.onclick = () => { st.ouverte = false; redessiner(); };
     $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); render(); }; });
     if (!sel) return;
-    const pas = n => { const i = visibles.indexOf(sel) + n; if (visibles[i]) { st.sel = visibles[i].id; st.zoom = 1; st.rot = 0; st.menu = false; redessiner(); } };
+    const pas = n => { const i = parcours.indexOf(sel) + n; if (parcours[i]) { st.sel = parcours[i].id; st.zoom = 1; st.rot = 0; st.menu = false; redessiner(); } };
     st.pas = pas;
     $$('[data-pc-pas]', view).forEach(b => { b.onclick = () => pas(Number(b.dataset.pcPas)); });
     $$('[data-pc-zoom]', view).forEach(b => { b.onclick = () => { st.zoom = Math.min(3, Math.max(0.5, Math.round((st.zoom + Number(b.dataset.pcZoom) * 0.25) * 100) / 100)); redessiner(); }; });
@@ -3539,7 +3562,7 @@
     $('#pc-enregistrer', view).onclick = () => api.pieces.enregistrer(sel.entreprise, sel.fichier.id).catch(x => toast(plainError(x), 'error'));
     $('#pc-grand', view).onclick = () => pieceEnGrand(sel);
     // Après un geste : la boîte relue, la pièce suivante ouverte, « Annuler » pendant six secondes.
-    const suivante = () => { const i = visibles.indexOf(sel); return (visibles[i + 1] || visibles[i - 1] || {}).id || ''; };
+    const suivante = () => { const i = parcours.indexOf(sel); return (parcours[i + 1] || parcours[i - 1] || {}).id || ''; };
     const classer = async (raison, msg, note, sansAnnuler) => {
       const apres = suivante();
       try {

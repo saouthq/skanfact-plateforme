@@ -27106,6 +27106,42 @@ prouver 'paie 1.334.1 g : l'\''onglet d'\''un salarié porte la pastille de ce q
 prouver 'paie 1.334.1 h : l'\''onglet d'\''un fournisseur neuf porte « Nouveau »' modules/socle/ecrans/entreprise/app-1.js \
   ' && !n.classList.contains('\''badge'\'')' '' \
   "$PM1334"
+# 1.335.0 : les Pièces reçues du Cabinet (la pièce suivante parcourt tout, le mot du client gardé, « Tes demandes », l'avertissement avant la pièce) et la carte de la pièce reçue côté client.
+PC1335='(1.335.0) les pièces reçues, plus de quinze : « pièce suivante » parcourt tous les dossiers et ouvre ceux repliés d'\''office, la pièce d'\''après un classement aussi ; la pièce qui répond à une demande garde le mot du client ; « Tes demandes »'
+PC1335B='les pièces reçues, les autres états : en double (laquelle), déjà saisie (où), plusieurs d'\''un coup, un achat que le client saisit lui-même, la recherche vide, sans réseau'
+MSG1335='Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+RL1335='(1.335.0) les pièces reçues arrivées après la page : les Relances et les Échéances se redessinent, le vert et le groupe quittent le client qui en a envoyé'
+prouver 'pièces 1.335.0 a : le compte de la visionneuse ne compte que les dossiers ouverts' modules/socle/ecrans/cabinet/app-1.js \
+  '${i} sur ${parcours.length}</span>' '${i} sur ${visibles.length}</span>' \
+  "$PC1335"
+prouver 'pièces 1.335.0 b : la flèche s'\''arrête à la dernière pièce des dossiers ouverts' modules/socle/ecrans/cabinet/app-1.js \
+  'const pas = n => { const i = parcours.indexOf(sel) + n; if (parcours[i]) { st.sel = parcours[i].id;' 'const pas = n => { const i = visibles.indexOf(sel) + n; if (visibles[i]) { st.sel = visibles[i].id;' \
+  "$PC1335"
+prouver 'pièces 1.335.0 c : après un classement, la pièce d'\''avant au lieu de la suivante d'\''un dossier replié' modules/socle/ecrans/cabinet/app-1.js \
+  'const suivante = () => { const i = parcours.indexOf(sel); return (parcours[i + 1] || parcours[i - 1] || {}).id || '\'''\''; };' 'const suivante = () => { const i = visibles.indexOf(sel); return (visibles[i + 1] || visibles[i - 1] || {}).id || '\'''\''; };' \
+  "$PC1335"
+prouver 'pièces 1.335.0 d : le mot du client disparaît derrière « Répond à ta demande »' modules/socle/ecrans/cabinet/app-1.js \
+  '${p.texte ? ` · <b>${esc(String(p.de || '\'''\'').split('\'' '\'')[0])}</b> : « ${esc(p.texte)} »` : '\'''\''}' '' \
+  "$PC1335"
+prouver 'pièces 1.335.0 e : des demandes reçues sous « Demandes en cours »' modules/socle/ecrans/cabinet/app-1.js \
+  '<span>Tes demandes :</span>' '<span>Demandes en cours :</span>' \
+  "$PC1335"
+prouver 'pièces 1.335.0 f : l'\''avertissement du client qui saisit lui-même se pose sous la pièce, hors de l'\''écran' modules/socle/ecrans/cabinet/app-1.js \
+  '${mot}${dl}${avNc}${!classees|||: `<div class="pc-gestes">' '${mot}${dl}${!classees|||: `${avNc}<div class="pc-gestes">' \
+  "$PC1335B"
+prouver 'pièces 1.335.0 g : la carte d'\''une pièce reçue dit « reçue » trois fois' web/public/plateforme/messagerie.js \
+  '<span>${esc(m.demande.texte)}</span>${pour}</span>' '<span>${esc(m.demande.texte)}${recue ? '\'' · reçue'\'' : '\'''\''}</span>${pour}</span>' \
+  "$MSG1335"
+prouver 'pièces 1.335.0 i : les Relances ne se redessinent pas quand les pièces arrivent après elles' modules/socle/ecrans/cabinet/app-1.js \
+  'if (/^#\/relances(\/|$)/.test(location.hash)) drawRelances($('\''#view'\''));' 'if (false) drawRelances($('\''#view'\''));' \
+  "$RL1335"
+prouver 'pièces 1.335.0 j : les Échéances ne se redessinent pas quand les pièces arrivent après elles' modules/socle/ecrans/cabinet/app-1.js \
+  'else if (/^#\/echeances(\/|$)/.test(location.hash)) drawEcheances($('\''#view'\''));' 'else if (false) drawEcheances($('\''#view'\''));' \
+  "$RL1335"
+prouver 'pièces 1.335.0 k : la lecture des pièces ne dit jamais qu'\''elles ont changé' modules/socle/ecrans/cabinet/app-1.js \
+  'redessinerPrioritesSiOuvertes(changees);' 'redessinerPrioritesSiOuvertes();' \
+  "$RL1335"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -1797,3 +1797,35 @@ Ce qui est fait :
 
 À VÉRIFIER : la marge du poids n'est plus que de 16 Ko. Le prochain levier est le code de la paie lui-même (dans
 `app.js`), qui demande de charger `app.js` en morceaux.
+
+## Les Pièces reçues du Cabinet, et le pont (1.335.0)
+
+Joué à la souris : Leïla (le cabinet) devant dix-sept pièces de quatre clients, puis Sarra (la boulangerie) dans « Mon
+comptable », qui envoie les pièces que son comptable lui a demandées.
+
+Ce qui est fait :
+
+- **La pièce suivante parcourt toutes les pièces à classer.** Au-delà de quinze pièces, seuls les deux premiers dossiers
+  s'ouvrent d'office ; la visionneuse ne comptait que ceux-là, la flèche ↓ s'arrêtait à la
+  dernière pièce des dossiers ouverts, et après un classement on revenait à la pièce d'avant au lieu de passer au dossier
+  replié suivant. Elle compte maintenant toutes les pièces (« 1 sur 17 »), passe d'un dossier à l'autre, et ouvre le
+  dossier de la pièce où elle arrive. Un dossier qu'on a replié soi-même reste sauté : c'est un choix.
+- **Une pièce qui répond à une demande garde le mot du client.** « Répond à ta demande : « L'attestation CNSS… » » cachait
+  ce que Sarra avait écrit en l'envoyant ; les deux se lisent, l'un après l'autre.
+- **« Tes demandes »** au lieu de « Demandes en cours » : la ligne montre aussi les demandes reçues ces trois derniers
+  jours, cochées.
+- **L'avertissement du client qui saisit lui-même ses achats se lit avant la pièce**, avec les autres, et non sous le
+  document, sous la barre des gestes, hors de l'écran — c'est lui qui explique le vert « Lui laisser la saisie ».
+- **Côté client, la carte d'une pièce demandée ne dit plus « reçue » trois fois** (« … · reçue », « Reçue 09/11 »,
+  « Reçue ») : le titre redevient la demande.
+- **Le pont, dans l'autre sens** : des pièces arrivées APRÈS l'ouverture des Relances ou des Échéances (un réseau lent, une
+  machine chargée) laissaient le client « à relancer », le vert et le groupe sur lui (« Relancer 3 clients »). Les deux
+  pages se redessinent quand la liste des pièces change — jamais sous une fenêtre ouverte ni pendant qu'on tape. Trouvé
+  parce que le test de la 1.334.0 tombait sous une machine chargée : ce n'était pas le test, c'était l'écran.
+- La preuve : `tests/web/barre-cabinet.test.ts` (plus de quinze pièces, le mot du client, « Tes demandes », la place de
+  l'avertissement), `tests/web/relances-cabinet-1334.test.ts` (les pièces qui arrivent après les Relances et les
+  Échéances), `tests/web/messagerie.test.ts` (la carte côté client) ; preuves `pièces 1.335.0 a-g, i-k`.
+
+À VÉRIFIER : les Relances et les Échéances se redessinent quand une pièce ARRIVE ou PART de la liste ; une pièce dont
+seul l'état change (sans arriver ni partir) ne les redessine pas. Vu en jouant et laissé : une pièce classée qui en
+remplace une autre (la photo refaite de IMG_8790) ne le dit pas dans les pièces classées.

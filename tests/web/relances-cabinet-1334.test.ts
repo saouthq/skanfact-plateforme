@@ -228,6 +228,37 @@ describe('(1.334.0) les Relances et les Échéances du Cabinet, à la souris', (
     expect(erreurs).toEqual([]);
   }, 180_000);
 
+  it('(1.335.0) les pièces reçues arrivées après la page : les Relances et les Échéances se redessinent, le vert et le groupe quittent le client qui en a envoyé', async () => {
+    const { associe, cab } = await unCabinet();
+    const { p, erreurs } = await page(associe);
+    // Un réseau lent : la liste des pièces reçues arrive après le dessin de la page.
+    const retenir = async () => {
+      let lacher = () => {};
+      const retenue = new Promise<void>((ok) => { lacher = ok; });
+      await p.route(/\/cabinets\/[^/]+\/pieces$/, async (r) => { await retenue; await r.continue().catch(() => undefined); });
+      return () => { lacher(); };
+    };
+    let lacher = await retenir();
+    await aller(p, cab.id, '#/relances', '#page-rel h1');
+    const phrase = p.locator('#rl-phrase');
+    await expect.poll(() => phrase.innerText().catch(() => ''), { timeout: 20_000 }).toBe('4 clients à qui il manque un mois · 1 relancé aujourd\'hui');
+    expect(await p.locator('#group').innerText()).toBe('Relancer 3 clients');
+    lacher();
+    await expect.poll(() => phrase.innerText().catch(() => ''), { timeout: 20_000 }).toBe('4 clients à qui il manque un mois · 1 relancé aujourd\'hui · 1 a envoyé des pièces, à classer');
+    expect(await p.locator('#group').innerText()).toBe('Relancer 2 clients');
+    // Les Échéances : la ligne du café dit ses pièces à classer dès qu'elles arrivent.
+    await p.unroute(/\/cabinets\/[^/]+\/pieces$/);
+    lacher = await retenir();
+    await aller(p, cab.id, '#/echeances', '#page-ech .ec-i');
+    await p.locator('#page-ech .ec-i').filter({ hasText: 'Déclaration de septembre' }).click();
+    const cafe = p.locator('#page-ech .ec-det .ec-r').filter({ hasText: 'Café des Nattes' });
+    await expect.poll(() => cafe.innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/Café des Nattes/);
+    expect(await cafe.innerText()).not.toMatch(/à classer/);
+    lacher();
+    await expect.poll(() => cafe.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/1 pièce reçue, à classer/);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('« Les miens » : les Relances de Leïla ne parlent que du dossier qu\'elle tient ; celles de Rim, que du sien', async () => {
     const { associe, rim, cab, cafe } = await unCabinet();
     // Leïla, en « Les miens » : le café seul, qui a envoyé ses pièces ; la pastille compte la même chose.

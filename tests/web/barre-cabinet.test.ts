@@ -521,6 +521,10 @@ describe('la barre du Cabinet, à la souris', () => {
     // L'achat du café : le geste principal le lui laisse, saisir soi-même reste possible, l'avertissement se lit avant.
     await ligne('facture-lait.png').click();
     expect(await voir.locator('.pc-nc').innerText()).toMatch(/Café Dar Zitouna saisit ses achats dans SkanFact.+saisie deux fois/);
+    // (1.335.0) … et AVANT la pièce, à l'écran : posé sous le document, il restait hors de la fenêtre, sous la barre des gestes.
+    const haut = async (s: string) => (await voir.locator(s).boundingBox())?.y ?? Infinity;
+    expect(await haut('.pc-nc')).toBeLessThan(await haut('#pc-papier'));
+    expect(await haut('.pc-nc')).toBeLessThan(900);
     expect(await voir.locator('#pc-geste').innerText()).toBe('Lui laisser la saisie');
     expect(await voir.getByRole('button', { name: 'La saisir moi-même' }).count()).toBe(1);
     // Un achat de la boulangerie (saisie confiée) n'a pas cet avertissement.
@@ -584,6 +588,64 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
     void boulangerie;
   });
+
+  it('(1.335.0) les pièces reçues, plus de quinze : « pièce suivante » parcourt tous les dossiers et ouvre ceux repliés d\'office, la pièce d\'après un classement aussi ; la pièce qui répond à une demande garde le mot du client ; « Tes demandes »', async () => {
+    const { associe, cab, boulangerie, cafe } = await unCabinet();
+    const j = await personne('Walid Ferchichi');
+    const ent = String((await api('POST', '/entreprises', j, { raisonSociale: 'Menuiserie Ennour' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, j, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
+    const menuiserie = { j, ent };
+    // Anis demande une meilleure photo ; Sarra la renvoie, avec un mot.
+    const dem = await api('POST', `/entreprises/${boulangerie.ent}/messages`, associe, { cote: 'cabinet', texte: 'La photo ne se lit pas.', demande: 'Une meilleure photo de la facture STEG' });
+    expect(dem.statut).toBe(201);
+    const envoyer = async (c: { j: string; ent: string }, nom: string, texte: string, repondA: string | null = null) => {
+      const f = await api('POST', `/entreprises/${c.ent}/messages/fichiers`, c.j, { cote: 'entreprise', nom, contenu: PNG });
+      expect((await api('POST', `/entreprises/${c.ent}/messages`, c.j, { cote: 'entreprise', texte, fichier: f.corps.id, repondA })).statut).toBe(201);
+    };
+    await envoyer(boulangerie, 'steg-reprise.png', 'Reprise à plat, en pleine lumière.', String(dem.corps.id));
+    for (let i = 1; i <= 5; i++) await envoyer(boulangerie, `ticket-${i}.png`, '');
+    for (let i = 1; i <= 5; i++) await envoyer(cafe, `cafe-${i}.png`, '');
+    for (let i = 1; i <= 4; i++) await envoyer(menuiserie, `bois-${i}.png`, '');
+    const ctx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    const p = await ctx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id, '#/pieces');
+    const voir = p.locator('#pc-voir');
+    const rang = () => voir.locator('.pc-nav span').innerText();
+    const ouverts = () => p.locator('#page-pieces .pc-gh[aria-expanded="true"]').count();
+    // Dix-sept pièces de trois dossiers : les deux premiers ouverts, le troisième replié d'office.
+    await expect.poll(() => p.locator('#page-pieces .pc-gh').count()).toBe(3);
+    expect(await ouverts()).toBe(2);
+    await expect.poll(rang).toBe('1 sur 17');
+    // La flèche parcourt les dix-sept, et le dossier replié s'ouvre quand on y arrive (elle s'arrêtait à la dernière pièce
+    // des dossiers ouverts, « 13 sur 13 »).
+    for (let i = 2; i <= 17; i++) { await p.keyboard.press('ArrowDown'); await expect.poll(rang).toBe(`${i} sur 17`); }
+    expect(await ouverts()).toBe(3);
+    expect(await voir.locator('[data-pc-pas="1"]').isDisabled()).toBe(true);
+    // La pièce qui répond à la demande : la demande ET le mot de Sarra.
+    await p.locator('#page-pieces .pc-r[data-piece]').filter({ has: p.locator('.pc-rt b', { hasText: 'steg-reprise.png' }) }).click();
+    await expect.poll(() => voir.locator('.pc-mot').innerText().then((x) => x.replace(/\s+/g, ' ')))
+      .toMatch(/^Répond à ta demande : « Une meilleure photo de la facture STEG » · Sarra : « Reprise à plat, en pleine lumière\. » · /);
+    // « Tes demandes » : celle-ci est reçue, elle n'est plus « en cours ».
+    expect((await voir.locator('.pc-dl').innerText()).replace(/\s+/g, ' ')).toMatch(/^Tes demandes : Une meilleure photo de la facture STEG/);
+    // Après un classement, la pièce d'après est la suivante du parcours, même dans un dossier replié d'office.
+    await p.reload();
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await expect.poll(ouverts).toBe(2);
+    const n12 = await p.locator('#page-pieces .pc-g2:not(.pc-replies) .pc-r[data-piece]').count();
+    await p.locator('#page-pieces .pc-g2:not(.pc-replies) .pc-r[data-piece]').last().click();
+    await expect.poll(rang).toBe(`${n12} sur 17`);
+    await voir.getByRole('button', { name: /Classer sans saisir/ }).click();
+    await voir.getByRole('menuitem', { name: /Rien à saisir/ }).click();
+    await expect.poll(rang).toBe(`${n12} sur 16`);
+    expect(await ouverts()).toBe(3);
+    expect(erreurs).toEqual([]);
+    await ctx.close();
+  }, 180_000);
 
   it('(1.186.0) épingler une page du volet « Le cabinet » dans « Mon cabinet », la ranger, la retirer', async () => {
     const { associe, cab } = await unCabinet();
