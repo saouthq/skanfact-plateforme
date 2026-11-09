@@ -27176,6 +27176,21 @@ prouver 'messages 1.336.0 j : « d'\''Yasmine »' web/public/plateforme/messager
   '/^(?:[aeiouéèêàâîôûh]|y(?![aeiouéèêàâîôû]))/i' '/^[aeiouyéèêàâîôûh]/i' \
   "$WEB1336"
 
+# 1.337.0 : le pont des Messages, côté client (la photo saisie par le cabinet ne se range plus dans ses achats).
+SRV1337='(1.337.0) la photo que le cabinet a jointe à une écriture se dit « saisie par ton cabinet » au client, et rien d'\''autre de son rangement'
+prouver 'messages 1.337.0 a : le client ne sait pas que son cabinet a saisi la photo' serveur/messagerie/routes.ts \
+  '            ...(cote.data === '\''entreprise'\'' && m.classee_le && m.classee_raison === '\''jointe'\'' ? { saisieParCabinet: true } : {}),' '' \
+  "$SRV1337"
+prouver 'messages 1.337.0 b : tout le rangement du cabinet passe au client' serveur/messagerie/routes.ts \
+  'm.classee_le && m.classee_raison === '\''jointe'\'' ? { saisieParCabinet: true }' 'm.classee_le ? { saisieParCabinet: true }' \
+  "$SRV1337"
+prouver 'messages 1.337.0 c : la photo saisie par le cabinet se range encore dans les achats du client' web/public/plateforme/messagerie.js \
+  '!m.achat && !m.saisieParCabinet && !(m.piece && m.piece.genre !== '\''achat'\'');' '!m.achat && !(m.piece && m.piece.genre !== '\''achat'\'');' \
+  "$WEB1336"
+prouver 'messages 1.337.0 d : la photo ne dit pas qu'\''elle est saisie par le cabinet' web/public/plateforme/messagerie.js \
+  '      if (entreprise && m.saisieParCabinet) pied.push('\''saisie par ton cabinet'\'');' '' \
+  "$WEB1336"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

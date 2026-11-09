@@ -1869,3 +1869,24 @@ le défaut que la 1.335.0 corrige (poussée avec cette version).
 dit : « mets celle de la facture ») ; reste à jouer une pièce arrivée en janvier pour une facture de décembre (quel
 exercice s'ouvre). « Saisir les N pièces » (plusieurs photos d'un coup) ne compte plus les pièces classées, mais n'a pas
 son propre test.
+
+## Le pont des Messages, côté client : la photo saisie par le cabinet (1.337.0)
+
+Vu en relisant la 1.336.0 du côté de Sarra : sous IMG_8790-bis.jpg, que Leïla venait de saisir et de joindre à son
+écriture, « Mon comptable » proposait encore « Ranger dans mes achats… ». Rangée, la facture serait entrée dans les achats
+de la boulangerie — donc dans ses livres — à côté de l'écriture du cabinet : deux fois.
+
+Ce qui est fait :
+
+- Le serveur dit au fil du client un seul fait : la photo est jointe par son cabinet à une écriture. Le client le voit
+  déjà dans son classeur (« Ce que ton cabinet a rangé : IMG_8790-bis.jpg, jointe à ton achat FS-2026-0812 ») ; le reste
+  du rangement du cabinet (en double, rien à saisir, illisible…) ne lui parvient pas.
+- Sous la photo : « Lue · saisie par ton cabinet », et plus « Ranger dans mes achats… » (ni « Joindre à l'achat… »). Une
+  photo que personne n'a saisie se range comme avant.
+- Joué à la souris (Sarra, après la saisie de Leïla) ; la preuve : `tests/messagerie/messagerie.test.ts` (le fait pour
+  la photo jointe, rien pour le ticket classé en double), `tests/web/messages-cabinet-1336.test.ts` (côté Yasmine : la
+  facture saisie ne se range plus, le ticket oui) ; preuves `messages 1.337.0 a-d`.
+
+À VÉRIFIER : une page « Mon comptable » restée ouverte avant la saisie du cabinet propose encore « Ranger » jusqu'à sa
+prochaine lecture du fil ; le serveur ne refuse pas le rangement, qui suit l'enregistrement de l'achat. Une pièce classée « Déjà saisie » ou « En double » par le cabinet se
+range encore côté client.

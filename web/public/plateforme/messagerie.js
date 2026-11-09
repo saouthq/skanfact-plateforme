@@ -897,7 +897,7 @@
         const pdf = !String(m.fichier.type || '').startsWith('image/');
         return `<div class="msg-vig" data-msg-id="${esc(m.id)}">
           <button type="button" class="msg-vig-img${pdf ? ' pdf' : ''}" data-msg-fichier="${esc(m.fichier.id)}" ${!pdf && m.fichier.taille <= 3 * 1_048_576 ? `data-msg-vignette="${esc(m.fichier.id)}"` : ''} aria-label="Ouvrir ${esc(m.fichier.nom)}"><em>${sorteJointe(m.fichier.type, m.fichier.nom) === 'PDF' ? 'PDF' : pdf ? 'XML' : 'PHOTO'}</em><i></i><i></i><i></i></button>
-          <span class="msg-vig-n"><b title="${esc(m.fichier.nom)}">${esc(m.fichier.nom)}</b><small>${esc(poids(m.fichier.taille))}${m.achat ? ' · rangée' : m.classee ? ' · classée' : ''}</small></span>
+          <span class="msg-vig-n"><b title="${esc(m.fichier.nom)}">${esc(m.fichier.nom)}</b><small>${esc(poids(m.fichier.taille))}${m.achat ? ' · rangée' : m.classee ? ' · classée' : m.saisieParCabinet ? ' · saisie' : ''}</small></span>
           <span class="msg-vig-m"><button type="button" class="msg-vig-b" data-msg-vig-menu aria-expanded="false" aria-label="Les gestes de ${esc(m.fichier.nom)}">${dessin('points')}</button>
             <span class="msg-vig-pop" hidden><button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
               <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button>
@@ -991,11 +991,13 @@
       // (1.115.0) « Envoyé », puis « Lue » : rien ne disait qu'un message était parti avant que l'autre l'ait lu.
       if (moi && !g.suivi) pied.push(m.lu ? `${dessin('coche')}Lue` : 'Envoyé');
       if (m.achat) pied.push(`rangée dans ${entreprise ? 'tes' : 'ses'} achats (${esc(m.achat.libelle)})`);
+      // (1.337.0) Saisie par le cabinet (jointe à son écriture) : elle ne se range pas une seconde fois dans les achats.
+      if (entreprise && m.saisieParCabinet) pied.push('saisie par ton cabinet');
       // (1.94.0) Le « · » reste avec le genre (une ligne qui passe à la suivante ne commence plus par lui), et un fichier
       // envoyé avec une facture, un avoir ou un devis n'est pas un achat : il ne se propose pas d'y être rangé.
       // (1.123.0) La photo répond à une demande qui cite le numéro d'un achat déjà saisi : elle s'y joint d'un geste
       // (« Ranger dans mes achats » ouvrait un achat neuf : un doublon ; revue du mois d'un client, 23/10/2026).
-      const peutRanger = entreprise && actif && m.fichier && !m.achat && !(m.piece && m.piece.genre !== 'achat');
+      const peutRanger = entreprise && actif && m.fichier && !m.achat && !m.saisieParCabinet && !(m.piece && m.piece.genre !== 'achat');
       const demandeLiee = peutRanger && m.repondA ? demandes().get(m.repondA) : null;
       const cite = demandeLiee && o.achatCite && o.joindreAchat ? o.achatCite(demandeLiee.demande.texte) : null;
       const ranger = !peutRanger ? ''

@@ -277,6 +277,9 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
             // Le fil proposait encore « Saisir cette pièce » sur une pièce saisie : elle l'était deux fois. Le client ne
             // reçoit rien de plus : c'est le rangement du cabinet, pas le sien.
             ...(cote.data === 'cabinet' ? { classee: m.classee_le ? { raison: m.classee_raison, le: m.classee_le.toISOString() } : null } : {}),
+            // (1.337.0) Côté client, un seul fait : la photo que le cabinet a jointe à une écriture (il la voit déjà dans son
+            // classeur, « Ce que ton cabinet a rangé »). Sans lui, « Ranger dans mes achats » la saisissait une seconde fois.
+            ...(cote.data === 'entreprise' && m.classee_le && m.classee_raison === 'jointe' ? { saisieParCabinet: true } : {}),
           })),
           questions: questions.map((q) => ({
             id: q.id, objet: q.objet, texte: q.texte, piece: q.piece, montant: versTexte(BigInt(q.montant), 3), attendu: q.attendu,

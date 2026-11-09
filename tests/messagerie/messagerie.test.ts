@@ -671,4 +671,27 @@ describe('les pièces reçues du cabinet', () => {
     expect((await appeler('POST', `/entreprises/${ent}/messages/${id}/classee`, cab.associe.jeton, { classee: false })).statut).toBe(200);
     expect((await dansLeFil('cabinet', cab.associe))?.classee).toBeNull();
   });
+
+  it('(1.337.0) la photo que le cabinet a jointe à une écriture se dit « saisie par ton cabinet » au client, et rien d\'autre de son rangement', async () => {
+    const cab = await cabinet();
+    const { p: client, ent } = await cab.client('Boulangerie El Amal');
+    const photo = await envoyer(ent, client, 'facture-farine.png', { texte: 'La farine' });
+    const ticket = await envoyer(ent, client, 'ticket-agil.png', { texte: 'Le carburant' });
+    expect([photo.statut, ticket.statut]).toEqual([201, 201]);
+    const cote = async (id: string) => (((await appeler('GET', `/entreprises/${ent}/messages?cote=entreprise`, client.jeton)).corps.messages ?? [])
+      .find((m) => m.id === id) ?? null) as unknown as Record<string, unknown> | null;
+    expect(Object.keys((await cote(photo.corps.id)) ?? {})).not.toContain('saisieParCabinet');
+    // Le cabinet saisit la farine et y joint la photo ; le ticket, il le classe en double.
+    expect((await appeler('POST', `/entreprises/${ent}/compta/exercices`, cab.associe.jeton, { annee: new Date().getUTCFullYear(), ouverture: [] })).statut).toBe(201);
+    const ecr = await appeler('POST', `/entreprises/${ent}/compta/ecritures`, cab.associe.jeton, { date: new Date().toISOString().slice(0, 10), journal: 'AC', piece: 'FS-0812', libelle: 'Farine',
+      lignes: [{ compte: '6061', debit: '100' }, { compte: '401', tiers: 'Minoterie', credit: '100' }] });
+    expect(ecr.statut, JSON.stringify(ecr.corps)).toBe(201);
+    // La jointure, par la fonction de la base que la route du classeur appelle (0180).
+    await enTantQue(pool, cab.associe.utilisateur, (tx) => tx.query('select messagerie.joindre_piece($1, $2, $3)', [ent, photo.corps.id, ecr.corps.id]));
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${ticket.corps.id}/classee`, cab.associe.jeton, { classee: true, raison: 'double' })).statut).toBe(200);
+    // Le client lit que la farine est saisie (il la voit déjà dans son classeur) ; du ticket, rien.
+    expect((await cote(photo.corps.id))?.saisieParCabinet).toBe(true);
+    expect(Object.keys((await cote(ticket.corps.id)) ?? {}).filter((k) => /classee|saisie/i.test(k))).toEqual([]);
+    expect(Object.keys((await cote(photo.corps.id)) ?? {})).not.toContain('classee');
+  });
 });

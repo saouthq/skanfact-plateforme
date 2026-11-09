@@ -4,7 +4,8 @@
 //     (elle sort des pièces à classer). Avant, une grille vide : la pièce restait à classer, et se saisissait deux fois ;
 //   - une pièce classée ne se propose plus à la saisie : le fil dit ce qui en a été fait ;
 //   - le dossier à côté nomme TOUS les mois en retard ; le résumé dit « pièces à classer » (photos et PDF) ;
-//   - « de Yasmine », pas « d'Yasmine ».
+//   - « de Yasmine », pas « d'Yasmine » ;
+//   - (1.337.0) côté client, la photo saisie par le cabinet ne se range plus dans ses achats : elle y serait deux fois.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -119,5 +120,21 @@ describe('les Messages du Cabinet, et le pont (1.336.0)', () => {
     expect(await carte2.getByRole('button', { name: 'Saisir cette pièce', exact: true }).count()).toBe(0);
     expect(erreurs).toEqual([]);
     await cx.close();
+
+    // (1.337.0) Le pont, côté Yasmine : la facture que son cabinet a saisie ne se range plus dans ses achats (elle y
+    // serait deux fois) et le dit ; le ticket, que personne n'a saisi, se range toujours.
+    const cy = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    const c = await cy.newPage();
+    const erreursY: string[] = [];
+    c.on('pageerror', (e) => erreursY.push(e.message));
+    await c.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, yasmine);
+    await c.goto(`${serveur.adresse}/v10/?e=${ent}#/comptable`);
+    const ligneDe = (nom: string) => c.locator('[data-msg-fil] .msg-ligne').filter({ has: c.locator('.msg-fichier', { hasText: nom }) });
+    await ligneDe('facture-pneus.png').waitFor({ timeout: 25_000 });
+    await expect.poll(async () => net(await ligneDe('facture-pneus.png').locator('.msg-pied').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/saisie par ton cabinet$/);
+    expect(await ligneDe('facture-pneus.png').getByRole('button', { name: 'Ranger dans mes achats…', exact: true }).count()).toBe(0);
+    expect(await ligneDe('ticket-carburant.png').getByRole('button', { name: 'Ranger dans mes achats…', exact: true }).count()).toBe(1);
+    expect(erreursY).toEqual([]);
+    await cy.close();
   }, 180_000);
 });
