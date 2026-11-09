@@ -767,6 +767,27 @@
     }));
     return scriptsCharges.get(nom);
   }
+  // (1.334.1, L10 ; docs/leger.md) Le même contrat pour une feuille de style qu'une page attend avant de se dessiner :
+  // chargée une fois, « false » sans réseau (le prochain geste réessaie), gardée par le service des écrans au passage. Elle
+  // se pose juste après `apres` (une feuille de la page) : sa place dans la cascade reste celle qu'elle avait dans la page.
+  const feuillesPretes = new Set();
+  const feuillesEnCours = new Map();
+  const feuillePrete = chemin => feuillesPretes.has(chemin);
+  function chargerFeuille(chemin, apres) {
+    if (feuillePrete(chemin)) return Promise.resolve(true);
+    if (!feuillesEnCours.has(chemin)) feuillesEnCours.set(chemin, new Promise(ok => {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = new URL(chemin, document.baseURI).href;
+      l.onload = () => { feuillesPretes.add(chemin); feuillesEnCours.delete(chemin); ok(true); };
+      l.onerror = () => { feuillesEnCours.delete(chemin); l.remove(); ok(false); };
+      // La page servie porte ses feuilles avec leur empreinte (« ?v= ») : on compare le chemin.
+      const cheminDe = u => new URL(u, document.baseURI).pathname;
+      const voisine = apres ? [...document.querySelectorAll('link[rel="stylesheet"]')].find(x => cheminDe(x.href) === cheminDe(apres)) : null;
+      if (voisine) voisine.after(l); else document.head.appendChild(l);
+    }));
+    return feuillesEnCours.get(chemin);
+  }
   // Le texte de l'aide : déjà là quand guide.js est entier (le développement), sinon chargé.
   const textesPrets = () => !G.textesPrets || G.textesPrets();
   const chargerTextes = () => (textesPrets() ? Promise.resolve(true) : chargerScript('guide-textes.js').then(ok => ok && textesPrets()));
@@ -3535,7 +3556,10 @@
   function texteDeTitre(el) {
     const lire = n => n.nodeType === 3 ? n.data
       // (1.248.0) Sans ce qui est décoratif (aria-hidden : les initiales d'un avatar) : l'onglet disait « KRKarim Riahi ».
-      : (n.nodeType === 1 && n.tagName !== 'BUTTON' && !n.classList.contains('dirty-dot') && n.getAttribute('aria-hidden') !== 'true' && n.getClientRects().length ? Array.from(n.childNodes).map(lire).join('') : '');
+      // (1.334.1) Sans la pastille d'état posée à côté du nom (`.statut`, `.badge`) : un état n'est pas un nom, et l'onglet
+      // disait « Hédi Trabelsi Son n° CNSS manque », « Bois du Sahel Nouveau ».
+      : (n.nodeType === 1 && n.tagName !== 'BUTTON' && !n.classList.contains('dirty-dot') && !n.classList.contains('statut') && !n.classList.contains('badge')
+        && n.getAttribute('aria-hidden') !== 'true' && n.getClientRects().length ? Array.from(n.childNodes).map(lire).join('') : '');
     return Array.from(el.childNodes).map(lire).join('').replace(/\s+/g, ' ').trim();
   }
   // Titre de la fenêtre : on voit dans le Dock et dans « Fenêtre » ce qui est ouvert

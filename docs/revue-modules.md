@@ -1774,3 +1774,26 @@ Ce qui est fait :
 À VÉRIFIER : une pièce se reconnaît « déjà demandée » à son texte exact (sans majuscules ni espaces autour) ; « Relevés
 de septembre » et « Vos relevés bancaires de septembre » restent deux demandes. La fenêtre de relance ne prévient qu'après
 l'envoi : elle pourrait le dire avant.
+
+## La maquette de la paie à la demande, et l'onglet sans la pastille (1.334.1)
+
+Le rouge GitHub de la 1.333.0 et de la 1.334.0 : la première ouverture de SkanFact pesait 1 302 Ko pour un seuil de 1 300
+(`tests/web/leger.test.ts`). Une mesure qui dépasse change le plan, pas le seuil (`docs/leger.md`, L10).
+
+Ce qui est fait :
+
+- La feuille de la maquette de la paie (`plateforme/paie-maquette.css`, 148 Ko, toute sous `.pm`) ne part plus avec la
+  page. La Paie et la fiche d'un salarié l'attendent (« Un instant… », puis la page), une fois ; elle se pose juste après
+  `paie.css`, à sa place dans la cascade. Sans réseau et jamais chargée, la Paie le dit (« La paie n'est pas encore sur
+  ce poste, et le réseau manque : elle s'ouvre dès qu'il revient. ») et se dessine seule au retour du réseau. Mesuré :
+  1 284 Ko en 14,5 s (la marge est de 16 Ko).
+- Joué à la souris (Sarra, la boulangerie) : l'accueil ne charge pas la feuille ; « Paie » au menu l'amène et la page est
+  la même qu'avant ; la fenêtre « Une avance ou un prêt » garde sa croix et son pied ; la fiche de Hédi s'ouvre.
+- Vu en jouant : l'onglet du navigateur disait « Hédi Trabelsi Son n° CNSS et son RIB manquent — SkanFact » (la pastille
+  d'état posée dans le titre de la fiche), et « Bois du Sahel Nouveau » pour un fournisseur neuf. Il dit le nom.
+- La preuve : `tests/web/paie-maquette-1334.test.ts` (la première ouverture sans la feuille, la Paie sans réseau puis au
+  retour du réseau, la place dans la cascade, la croix d'une fenêtre, la fiche ouverte par son adresse, les deux onglets) ;
+  les 30 tests d'écran qui ouvrent la Paie passent ; preuves `paie 1.334.1 a-h`, et « P1b g » vise le code d'aujourd'hui.
+
+À VÉRIFIER : la marge du poids n'est plus que de 16 Ko. Le prochain levier est le code de la paie lui-même (dans
+`app.js`), qui demande de charger `app.js` en morceaux.

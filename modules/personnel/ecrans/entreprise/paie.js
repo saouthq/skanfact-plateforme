@@ -5526,8 +5526,16 @@
   // place dans la liste que le socle écrivait en dur), et les points qu'il remplit. Sa porte reste vide : aucun autre
   // module ne lit le Personnel à l'écran.
   // Ses deux pages (rangs 38 et 39 de `PAGE_LABELS`) ; la Paie donne ses onglets à la palette (au rang 1 de ses pages à onglets).
-  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: pagePaie, onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } });
-  Socle.poser('pages', 'personnel', { rang: 39, route: 'salarie', ouvrir: ficheDuSalarie });
+  // (1.334.1, L10 ; docs/leger.md) La maquette de la paie (`plateforme/paie-maquette.css`, toute sous `.pm`) ne part plus
+  // avec la première ouverture : les deux pages du Personnel l'attendent (« Un instant… », puis la page), une fois. Sans
+  // réseau et jamais chargée, la page le dit et se redessine seule au retour du réseau. Ses fenêtres ne s'ouvrent que
+  // depuis ces deux pages : la feuille est là quand elles s'ouvrent.
+  const MAQUETTE_PAIE = '../plateforme/paie-maquette.css';
+  const SANS_RESEAU_PAIE = 'La paie n\'est pas encore sur ce poste, et le réseau manque : elle s\'ouvre dès qu\'il revient.';
+  const avecMaquette = (titre, dessiner) => parts => attendreAvant(() => feuillePrete(MAQUETTE_PAIE),
+    () => chargerFeuille(MAQUETTE_PAIE, '../plateforme/paie.css'), titre, SANS_RESEAU_PAIE, dessiner)(parts);
+  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: avecMaquette('Paie', pagePaie), onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } });
+  Socle.poser('pages', 'personnel', { rang: 39, route: 'salarie', ouvrir: avecMaquette('Un salarié', ficheDuSalarie) });
   // Ses lignes de « À faire » (leurs rangs dans `TODO_ACTIONS`).
   // E-04 : la ligne mène au MOIS du premier bulletin impossible, pas à la liste du mois courant —
   // un bulletin qu'on doit chercher mois par mois ne se corrige pas.

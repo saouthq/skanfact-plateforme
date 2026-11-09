@@ -177,6 +177,26 @@ Mesuré fichier par fichier sur la connexion lente (`tests/lien-lent.ts` compte 
 - **Mesuré** : S1 **1 243 Ko en 13,9 s** (1 243 Ko avec la copie gardée ; 1 397 Ko avant) ; S2 inchangé (6 Ko, 1,8 s).
   La marge est de 57 Ko.
 
+## L10 : la maquette de la paie à la première page du Personnel (09/11/2026, 1.334.1)
+
+GitHub a mesuré S1 à **1 302 Ko** pour un seuil de 1 300 (rouge depuis la 1.333.0). Une mesure qui dépasse change le plan, pas le seuil. On prend le levier gardé
+depuis L9 pour la paie, mais pas en entier :
+
+- **`plateforme/paie-maquette.css`** (148 Ko, 18 Ko compressés) est toute sous `.pm` : la page de la Paie
+  (`<div class="pm">`) et ses fenêtres (`modal()` pose `.pm` sur `#/paie` et `#/salarie`). Elle ne part plus avec la
+  page. Les deux pages du Personnel l'attendent (`avecMaquette` dans `paie.js`, la même porte que l'Aide et les visites :
+  « Un instant… », puis la page). Elle se pose juste après `paie.css`, à sa place dans la cascade (`chargerFeuille`
+  compare les chemins, la page servie portant l'empreinte « ?v= »). Sans réseau et jamais chargée, la Paie le dit
+  (« La paie n'est pas encore sur ce poste… ») et se dessine seule au retour du réseau. Une fois chargée, le service des
+  écrans la garde pour le hors-ligne.
+- **`plateforme/paie.css` reste** : `.pa-seg` et quelques classes servent au Catalogue, aux Commandes, aux Marges, au
+  Stock et aux Autres pièces.
+- **Mesuré** : S1 **1 284 Ko en 14,5 s** (1 284 Ko avec la copie gardée ; 1 302 Ko avant) ; S2 inchangé (6 Ko, 1,6 s).
+  La marge est de 16 Ko : la prochaine page refaite se mesure avant d'être envoyée. Le temps suit les octets (environ
+  11 ms par Ko sur la connexion lente) : le seuil de 15 s tombe vers 1 330 Ko, celui des octets reste le premier atteint.
+- Mesure fichier par fichier (Brotli de la construction) : `app.js` 527 Ko, `core.js` 135, `compta.js` 75, `pont.js` 35,
+  `style.css` 22, `piece.css` 18, `barre.js` 15, `abonnement.js` 14.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à
@@ -189,8 +209,10 @@ Mesuré fichier par fichier sur la connexion lente (`tests/lien-lent.ts` compte 
   la mesure se fait en HTTP/1.1, le cas le plus lent.
 - **Brotli 11 à la construction** : environ 8 % de moins encore (mesuré avant L6 : 80 Ko de S1, pour 7 s de calcul) ;
   quand on préparera la mise en production.
-- **En réserve après L9** : la feuille de la messagerie (12 Ko) avec la messagerie, et celles de la paie (27 Ko) à la
-  première page du Personnel.
+- **En réserve après L10** : le code de la paie dans `app.js` (`modules/personnel/ecrans/entreprise/paie.js`, environ
+  5 500 lignes) à la première page du Personnel, le plus gros levier, qui demande de séparer `app.js` en morceaux chargés à
+  la demande ; la feuille de la messagerie (11 Ko), liée aussi à « Mon comptable » (`cpt-*`) ; à vérifier un par un
+  (leurs lecteurs) : `teif.js` (8 Ko), `tiers/qrcode.js` (10 Ko, lu par `compte.js` et `qr.js`), `caisse.css` (5 Ko).
 
 ## Ce que fait la brique 119 : relire le dossier par différence (S4, 01/10/2026)
 

@@ -23847,7 +23847,7 @@ prouver 'P1b f : la boîte du Personnel ouverte (son code redevient visible du s
   '  (function () {|||  })(); // la boîte du Personnel se ferme ici' '  {|||  } // la boîte du Personnel se ferme ici' \
   "$PB1"
 prouver 'P1b g : la page de la Paie posée avant que ses onglets soient définis' modules/personnel/ecrans/entreprise/paie.js \
-  "  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: pagePaie, onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } });|||  const PAIE_TABS = " "|||  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: pagePaie, onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } }); const PAIE_TABS = " \
+  "  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: avecMaquette('Paie', pagePaie), onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } });|||  const PAIE_TABS = " "|||  Socle.poser('pages', 'personnel', { rang: 38, route: 'paie', libelle: 'Paie', ouvrir: avecMaquette('Paie', pagePaie), onglets: { rang: 1, liste: PAIE_TABS, ouvrir: v => { paieState.tab = v; } } }); const PAIE_TABS = " \
   "$PB1"
 prouver 'P1b h : l'"'"'outil qui ne voit pas une constante qui nomme la fenêtre' outils/rangement/frontieres.ts \
   '.init ?? undefined)) alias.add(v);' '.init ?? undefined)) void v;' \
@@ -27080,6 +27080,32 @@ prouver 'relances 1.334.0 z : la conversation redemande en silence une pièce d�
   'if (deja.length && o.toast) o.toast(' 'if (false && deja.length && o.toast) o.toast(' \
   "$REL1334E"
 
+# 1.334.1 : la maquette de la paie à la première page du Personnel (L10, docs/leger.md ; le rouge GitHub du poids, S1 1 302 Ko), et l'onglet sans la pastille d'état.
+PM1334='la première ouverture n'\''emporte pas la maquette ; la Paie et la fiche d'\''un salarié l'\''attendent, le disent sans réseau, et se dessinent au retour ; l'\''onglet porte le nom, pas la pastille'
+prouver 'paie 1.334.1 a : la maquette de la paie repart avec la première ouverture' web/public/v10/index.html \
+  '  <link rel="stylesheet" href="../plateforme/paie.css">'$'\n''' '  <link rel="stylesheet" href="../plateforme/paie.css">'$'\n''  <link rel="stylesheet" href="../plateforme/paie-maquette.css">'$'\n''' \
+  "$PM1334"
+prouver 'paie 1.334.1 b : la Paie se dessine sans attendre sa maquette' modules/personnel/ecrans/entreprise/paie.js \
+  'ouvrir: avecMaquette('\''Paie'\'', pagePaie)' 'ouvrir: pagePaie' \
+  "$PM1334"
+prouver 'paie 1.334.1 c : la fiche d'\''un salarié s'\''ouvre sans la maquette de ses fenêtres' modules/personnel/ecrans/entreprise/paie.js \
+  'ouvrir: avecMaquette('\''Un salarié'\'', ficheDuSalarie)' 'ouvrir: ficheDuSalarie' \
+  "$PM1334"
+prouver 'paie 1.334.1 d : la maquette se pose en fin de page, hors de sa place dans la cascade' modules/socle/ecrans/entreprise/app-1.js \
+  'if (voisine) voisine.after(l); else document.head.appendChild(l);' 'document.head.appendChild(l);' \
+  "$PM1334"
+prouver 'paie 1.334.1 e : la maquette manquée sans réseau ne se redemande jamais' modules/socle/ecrans/entreprise/app-1.js \
+  'l.onerror = () => { feuillesEnCours.delete(chemin); l.remove(); ok(false); };' 'l.onerror = () => { l.remove(); ok(false); };' \
+  "$PM1334"
+prouver 'paie 1.334.1 f : la page servie avec ses empreintes ne trouve pas paie.css' modules/socle/ecrans/entreprise/app-1.js \
+  'find(x => cheminDe(x.href) === cheminDe(apres))' 'find(x => x.getAttribute('\''href'\'') === apres)' \
+  "$PM1334"
+prouver 'paie 1.334.1 g : l'\''onglet d'\''un salarié porte la pastille de ce qui lui manque' modules/socle/ecrans/entreprise/app-1.js \
+  '!n.classList.contains('\''statut'\'') && ' '' \
+  "$PM1334"
+prouver 'paie 1.334.1 h : l'\''onglet d'\''un fournisseur neuf porte « Nouveau »' modules/socle/ecrans/entreprise/app-1.js \
+  ' && !n.classList.contains('\''badge'\'')' '' \
+  "$PM1334"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
