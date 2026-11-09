@@ -506,6 +506,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   // Le support (0095, docs/support.md) : les demandes, et ce que la console en fait.
   { base: 'un message du support ne se modifie pas et ne s\'efface pas : on en écrit un autre', cle: 'base.support.message_intouchable', fr: 'un message du support ne se modifie pas et ne s\'efface pas : on en écrit un autre' },
   { base: 'le support se joint par une personne de l\'entreprise', cle: 'base.support.personne', fr: 'le support se joint par une personne de l\'entreprise' },
+  // Le support du Cabinet (0206, 1.332.0) : un membre actif du cabinet, jamais une clé de l'API.
+  { base: 'le support se joint par une personne du cabinet', cle: 'base.support.personne_cabinet', fr: 'le support se joint par une personne du cabinet' },
   { base: 'cette demande n\'existe pas, ou n\'est pas la tienne', cle: 'base.support.pas_la_tienne', fr: 'cette demande n\'existe pas, ou n\'est pas la tienne' },
   { base: 'le sujet d\'une demande : de trois à cent quarante caractères', cle: 'base.support.sujet_longueur', fr: 'le sujet d\'une demande : de trois à cent quarante caractères' },
   { base: 'le sujet d\'une demande s\'écrit sans balise', cle: 'base.support.sujet_balise', fr: 'le sujet d\'une demande s\'écrit sans balise' },

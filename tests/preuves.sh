@@ -11879,7 +11879,7 @@ prouver 'un double envoi qui ouvre une seconde demande' base/migrations/0095_sup
   '     and d.ouverte_le > p_maintenant - interval '"'"'5 minutes'"'"'' '     and false' \
   "$SUP1"
 prouver 'la version et la page perdues en route' serveur/support/routes.ts \
-  'corps.version || null, corps.page || null, maintenant()' 'null, null, maintenant()' \
+  'params.entreprise ?? '\'''\'', corps.sujet, corps.texte, corps.version || null, corps.page || null, maintenant()' 'params.entreprise ?? '\'''\'', corps.sujet, corps.texte, null, null, maintenant()' \
   "$SUP1"
 prouver 'une page qui porte un chemin acceptée' serveur/support/routes.ts \
   '      page: z.string().trim().max(40).regex(/^([a-z][a-z0-9_-]*)?$/).nullable().default(null),' '      page: z.string().trim().max(40).nullable().default(null),' \
@@ -11912,7 +11912,7 @@ end' \
 prouver 'une demande atteinte par une autre entreprise de la même personne' base/migrations/0095_support.sql \
   'where d.id = p_demande and d.demandeur = socle.moi() and d.entreprise = p_entreprise;' 'where d.id = p_demande and d.demandeur = socle.moi();' \
   "$SUP4"
-prouver 'la technique qui lit le support' 'serveur/console/gestes.ts|||base/migrations/0115_suivi.sql' \
+prouver 'la technique qui lit le support' 'serveur/console/gestes.ts|||base/migrations/0206_support_du_cabinet.sql' \
   '  { code: '"'"'console.support.voir'"'"', roles: [D, S], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
   return jsonb_build_object(
     '"'"'ouvertes'"'"'' '  { code: '"'"'console.support.voir'"'"', roles: [D, S, T], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
@@ -11935,14 +11935,14 @@ prouver 'écrire au support fermé en lecture seule' serveur/abonnement/conditio
 prouver 'l'"'"'alerte qui repart à chaque tour' base/migrations/0095_support.sql \
   '  update plateforme.demande_support set alerte_le = p_le where id = p_demande;' '  perform 1;' \
   "$SUP7"
-prouver 'l'"'"'alerte avant les cinq minutes' base/migrations/0095_support.sql \
+prouver 'l'"'"'alerte avant les cinq minutes' base/migrations/0206_support_du_cabinet.sql \
   '                  and m.ecrit_le <= p_maintenant - p_delai
 ' '' \
   "$SUP7"
-prouver 'l'"'"'alerte à une adresse que personne n'"'"'a vérifiée' base/migrations/0095_support.sql \
+prouver 'l'"'"'alerte à une adresse que personne n'"'"'a vérifiée' base/migrations/0206_support_du_cabinet.sql \
   '    join socle.utilisateur u on u.id = d.demandeur and u.adresse_verifiee_le is not null' '    join socle.utilisateur u on u.id = d.demandeur' \
   "$SUP8"
-prouver 'l'"'"'alerte chez qui a quitté l'"'"'entreprise' base/migrations/0095_support.sql \
+prouver 'l'"'"'alerte chez qui a quitté l'"'"'entreprise' base/migrations/0206_support_du_cabinet.sql \
   'and m.utilisateur = d.demandeur and m.actif
 ' 'and m.utilisateur = d.demandeur
 ' \
@@ -12121,8 +12121,7 @@ prouver 'une page lue qui porte un chemin' serveur/support/acces.ts \
   '(texte(l.page) && PAGE.test(l.page as string) && instant(l.le)' '(texte(l.page) && instant(l.le)' \
   "$SAC5"
 prouver 'la conversation sans l'"'"'accès au dossier' web/console/src/ecrans/Support.tsx \
-  '      <AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />
-' '' \
+  '<AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />' 'null' \
   "$SACW1"
 prouver 'une demande d'"'"'accès sans motif qui part' web/console/src/ecrans/AccesDossier.tsx \
   '    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.support.acces.motif_court'"'"')); setFaute((n) => n + 1); return; }
@@ -13209,11 +13208,11 @@ prouver 'un appareil oublié qui reste reconnu' 'base/migrations/0114_chiffres_j
   '  update socle.appareil set reconnu_jusqu_au = null where id = p_appareil;
 ' \
   "$CJ6"
-prouver 'les closes coupées à cinquante sans suite' 'base/migrations/0115_suivi.sql' \
+prouver 'les closes coupées à cinquante sans suite' 'base/migrations/0206_support_du_cabinet.sql' \
   'order by c.close_le desc, c.id desc offset greatest(coalesce(p_closes_debut, 0), 0) limit 50)),' \
   'order by c.close_le desc, c.id desc limit 50)),' \
   "$CJ7"
-prouver 'les closes comptées sur la page seule' 'base/migrations/0115_suivi.sql' \
+prouver 'les closes comptées sur la page seule' 'base/migrations/0206_support_du_cabinet.sql' \
   '    '"'"'nCloses'"'"', (select count(*) from plateforme.demande_support c where c.close_le is not null and (p_entreprise is null or c.entreprise = p_entreprise)),' \
   '    '"'"'nCloses'"'"', 50,' \
   "$CJ7"
@@ -14157,7 +14156,7 @@ prouver 'l'"'"'écran tait ce que l'"'"'e-mail d'"'"'une invitation est devenu' 
   '{dire(i.courriel ? `console.ecran.equipe.inv.courriel.${i.courriel}` : '"'"'console.ecran.equipe.inv.ligne'"'"')}' \
   '{dire('"'"'console.ecran.equipe.inv.ligne'"'"')}' \
   'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
-prouver 'une relance du client remet l'"'"'attente à zéro (la base)' 'base/migrations/0126_demandes_incidents.sql' \
+prouver 'une relance du client remet l'"'"'attente à zéro (la base)' 'base/migrations/0206_support_du_cabinet.sql' \
   '        and m.ecrit_le > coalesce((select max(e.ecrit_le) from plateforme.message_support e where e.demande = d.id and e.cote = '"'"'equipe'"'"'), '"'"'-infinity'"'"')),
     '"'"'attendClientApresTechniqueLe'"'"'' \
   '),
@@ -14268,7 +14267,7 @@ prouver 'l'"'"'écran dit une remise faite sans dire ce qui la prouve' 'web/cons
   'les sauvegardes (l'"'"'audit C10, C11) : un relevé de sept minutes ne dit plus l'"'"'archivage en marche ; la promesse d'"'"'une entreprise dit la remise qui la prouve'
 
 # 1.32.0 : une demande liée à son incident et à sa correction (0126 ; la liste des fonctions qui manquent, 19).
-prouver 'la demande tait son incident' 'base/migrations/0126_demandes_incidents.sql' \
+prouver 'la demande tait son incident' 'base/migrations/0206_support_du_cabinet.sql' \
   '    '"'"'incident'"'"', (select jsonb_build_object('"'"'id'"'"', i.id, '"'"'ref'"'"', plateforme.ref_incident(i.id), '"'"'titre'"'"', i.titre, '"'"'gravite'"'"', i.gravite, '"'"'closLe'"'"', i.clos_le)
                    from plateforme.service_incident i where i.id = d.incident),' \
   '    '"'"'incident'"'"', null,' \
@@ -26822,13 +26821,13 @@ AIDE1331G='un article dit son chemin, et son geste mène au panneau qu'\''il nom
 AIDE1331J='le journal des clôtures dit le jour du geste et la personne qui l'\''a fait'
 AIDE1331A='aucun article ne décrit l'\''application de bureau, ni ne nomme une version'
 AIDE1331C='l'\''Aide du Cabinet ne promet ni fichier à envoyer au client, ni poste à rejoindre'
-prouver 'aide 1.331.0 a : une question garde « comment », « le », « de » et ne trouve plus son article' modules/socle/ecrans/entreprise/app-2.js \
-  'const pleins = tous.filter(m => !AIDE_MOTS_VIDES.has(m));' 'const pleins = tous;' \
+prouver 'aide 1.331.0 a : une question garde « comment », « le », « de » et ne trouve plus son article' modules/socle/aide/recherche.js \
+  'const pleins = tous.filter((m) => !MOTS_VIDES.has(m));' 'const pleins = tous;' \
   "$AIDE1331Q"
-prouver 'aide 1.331.0 b : un pluriel ou un infinitif ne retrouve plus le mot de l'\''article' modules/socle/ecrans/entreprise/app-2.js \
+prouver 'aide 1.331.0 b : un pluriel ou un infinitif ne retrouve plus le mot de l'\''article' modules/socle/aide/recherche.js \
   'return r.length >= 4 ? r : m; };' 'return m; };' \
   "$AIDE1331Q"
-prouver 'aide 1.331.0 c : les articles qui ont tous les mots ne passent plus devant' modules/socle/ecrans/entreprise/app-2.js \
+prouver 'aide 1.331.0 c : les articles qui ont tous les mots ne passent plus devant' modules/socle/aide/recherche.js \
   'y.n - x.n || y.poids - x.poids || x.i - y.i' 'x.i - y.i' \
   "$AIDE1331Q"
 prouver 'aide 1.331.0 d : rien trouvé, la question ne part pas au support telle qu'\''elle a été tapée' modules/socle/ecrans/entreprise/app-2.js \
@@ -26867,6 +26866,73 @@ prouver 'aide 1.331.0 n : l'\''équipe du Cabinet se rejoint par la copie extern
 prouver 'aide 1.331.0 o : « Le dossier pour le client… » se montre en ligne, où il ne sait que refuser' web/public/plateforme/pont-cabinet.js \
   '#rec-banniere, #cl-fichier { display' '#rec-banniere { display' \
   "$AIDE1331C"
+# 1.332.0 — l'Aide et le support du Cabinet (tests/support/support-cabinet-1332.test.ts, tests/web/support-cabinet-1332.test.ts,
+# tests/v10/aide-recherche.test.ts) : le Cabinet écrit à l'équipe SkanFact, la recherche de l'Aide est une pour les deux.
+SUP1332A='la demande emporte sa version et le nom de sa page ; la console dit qu'\''elle vient d'\''un cabinet'
+SUP1332C='ni un collègue du cabinet, ni un autre cabinet de la même personne, ni quelqu'\''un hors du cabinet'
+SUP1332M='part une fois à la personne encore dans le cabinet, et plus quand elle l'\''a quitté'
+SUP1332W1='l'\''Aide a son en-tête, et une question tapée telle qu'\''on la pose trouve son article'
+SUP1332W2='rien trouvé : la question part au support telle quelle ; l'\''équipe répond, le Cabinet l'\''annonce, lue tout s'\''éteint'
+SUP1332W3='les Réglages disent le support en ligne ; une idée part avec ses deux questions et la page où l'\''on travaillait'
+SUP1332U='le mot entier se surligne, et rien du texte ne passe en HTML'
+prouver 'support 1.332.0 a : un collègue du cabinet lit les demandes de Leïla' base/migrations/0206_support_du_cabinet.sql \
+  '           where d.cabinet = p_cabinet and d.demandeur = socle.moi());' '           where d.cabinet = p_cabinet);' \
+  "$SUP1332C"
+prouver 'support 1.332.0 b : un collègue du cabinet répond dans la demande de Leïla' base/migrations/0206_support_du_cabinet.sql \
+  'where d.id = p_demande and d.demandeur = socle.moi() and d.cabinet = p_cabinet;' 'where d.id = p_demande and d.cabinet = p_cabinet;' \
+  "$SUP1332C"
+prouver 'support 1.332.0 c : une personne qui a quitté le cabinet lit encore ses demandes' base/migrations/0206_support_du_cabinet.sql \
+  'and o.type = '\''cabinet'\'' and m.utilisateur = socle.moi() and m.actif)' 'and o.type = '\''cabinet'\'' and m.utilisateur = socle.moi())' \
+  "$SUP1332C"
+prouver 'support 1.332.0 d : un double clic ouvre une seconde demande' base/migrations/0206_support_du_cabinet.sql \
+  '  if v_id is not null then return v_id; end if;' '' \
+  "$SUP1332A"
+prouver 'support 1.332.0 e : la console ne dit plus que la demande vient d'\''un cabinet' base/migrations/0206_support_du_cabinet.sql \
+  ''\''cabinet'\'', d.cabinet is not null),' ''\''cabinet'\'', false),' \
+  "$SUP1332A"
+prouver 'support 1.332.0 f : l'\''alerte part chez une personne qui a quitté le cabinet' base/migrations/0206_support_du_cabinet.sql \
+  'm.utilisateur = d.demandeur and m.actif' 'm.utilisateur = d.demandeur' \
+  "$SUP1332M"
+prouver 'support 1.332.0 g : rien trouvé, la question ne part pas au support telle qu'\''elle a été tapée' modules/socle/ecrans/cabinet/app-2.js \
+  'ecrireAuSupportCab('\''question'\'', { sujet: mots, texte: mots })' 'ecrireAuSupportCab('\''question'\'')' \
+  "$SUP1332W2"
+prouver 'support 1.332.0 h : l'\''en-tête de l'\''Aide perd son chemin depuis le Tableau de bord' modules/socle/ecrans/cabinet/app-2.js \
+  '<a href="#/production">Tableau de bord</a>${CHEVRON_AIDE}${a' '${a' \
+  "$SUP1332W1"
+prouver 'support 1.332.0 i : l'\''Aide du Cabinet exige de nouveau chaque mot tapé' modules/socle/ecrans/cabinet/app-2.js \
+  'return RA().filtre(G.ARTICLES, q, champsAide);' 'return G.ARTICLES.filter(a => q.trim().split(/\s+/).every(m => (a.t + a.s + a.d).toLowerCase().includes(m.toLowerCase())));' \
+  "$SUP1332W1"
+prouver 'support 1.332.0 j : une demande emporte l'\''Aide ou les Réglages au lieu de la page où l'\''on travaillait' modules/socle/ecrans/cabinet/app-1.js \
+  'if (!PAGES_DU_SUPPORT_CAB.includes(route)) routeDeTravail = route;' 'routeDeTravail = route;' \
+  "$SUP1332W3"
+prouver 'support 1.332.0 k : une idée prépare de nouveau un mail signé « ? · ? »' modules/socle/ecrans/cabinet/app-2.js \
+  'if (supportCab()) return ecrireAuSupportCab('\''idee'\'');' 'if (false && supportCab()) return ecrireAuSupportCab('\''idee'\'');' \
+  "$SUP1332W3"
+prouver 'support 1.332.0 l : la page des demandes du Cabinet part de l'\''Accueil de l'\''entreprise' modules/socle/ecrans/cabinet/app-2.js \
+  '      accueil: { href: '\''#/production'\'', nom: '\''Tableau de bord'\'' },' '' \
+  "$SUP1332W2"
+prouver 'support 1.332.0 m : les Réglages promettent de nouveau le rapport de bureau' modules/socle/ecrans/cabinet/app-2.js \
+  '<div class="modal-actions"><button class="btn" id="s-support">Écrire au support…</button>' '<div class="modal-actions"><button class="btn" id="s-support">Signaler un problème…</button>' \
+  "$SUP1332W3"
+prouver 'support 1.332.0 n : la console dit la page du Cabinet par le nom de sa route' web/console/src/ecrans/Support.tsx \
+  'if (d.ligne.entreprise.cabinet) return PAGES_CABINET.has(d.page)' 'if (false && d.ligne.entreprise.cabinet) return PAGES_CABINET.has(d.page)' \
+  "$SUP1332W3"
+prouver 'support 1.332.0 o : le surlignage laisse passer le HTML du texte' modules/socle/aide/recherche.js \
+  'out += esc(texte.slice(pos, d)) + '\''<mark>'\''' 'out += texte.slice(pos, d) + '\''<mark>'\''' \
+  "$SUP1332U"
+prouver 'support 1.332.0 p : le surlignage coupe le mot à sa racine' modules/socle/aide/recherche.js \
+  'const f = finDuMot(k + m.length); coupes.push([k, f]);' 'const f = k + m.length; coupes.push([k, f]);' \
+  "$SUP1332U"
+prouver 'support 1.332.0 q : la console propose l'\''Aide de l'\''entreprise à un cabinet' serveur/console/support.ts \
+  '  const a = lireAide(d.ligne.entreprise.cabinet);' '  const a = lireAide();' \
+  "$SUP1332A"
+prouver 'support 1.332.0 r : un article de l'\''Aide de l'\''entreprise part chez un cabinet' serveur/console/routes.ts \
+  'if (!articleConnu(corps.article, cabinet)) return' 'if (false && !articleConnu(corps.article, cabinet)) return' \
+  "$SUP1332A"
+prouver 'support 1.332.0 s : la console propose à un cabinet les articles du bureau qu'\''il ne voit pas' serveur/console/support.ts \
+  '    if (cabinet) bac.window = { cabinet: { articlesAbsents: articlesAbsentsDuCabinet() } };' '' \
+  "$SUP1332A"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

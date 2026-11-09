@@ -24,7 +24,8 @@ export const CANAUX_NOTES: readonly Canal[] = ['email', 'whatsapp', 'telephone']
 
 export type LigneDemande = {
   id: string; numero: number; sujet: string; canal: Canal; ouverteLe: string;
-  entreprise: { id: string; nom: string; essai: boolean };
+  // (1.332.0) `cabinet` : la demande vient d'un cabinet (0206) ; `id` et `nom` sont alors les siens.
+  entreprise: { id: string; nom: string; essai: boolean; cabinet: boolean };
   demandeur: { id: string; nom: string };
   noteePar: string | null; suiviePar: string | null;
   // Qui la suit (0115) : son identifiant, pour « la prendre » ou la confier ; sa priorité ; l'attente de la technique.
@@ -62,7 +63,7 @@ export function lireLigne(x: unknown): LigneDemande | null {
   const co = l.correction ? objet(l.correction) : null;
   return {
     id, numero: Number(l.numero) || 0, sujet, canal, ouverteLe,
-    entreprise: { id: String(e.id), nom: String(e.nom ?? ''), essai: e.essai === true },
+    entreprise: { id: String(e.id), nom: String(e.nom ?? ''), essai: e.essai === true, cabinet: e.cabinet === true },
     demandeur: { id: String(p.id), nom: String(p.nom ?? '') },
     noteePar: texte(l.noteePar), suiviePar: texte(l.suiviePar), suivieParId: texte(l.suivieParId),
     priorite: l.priorite === 'urgente' ? 'urgente' : 'normale',
@@ -180,30 +181,49 @@ export function compter(lignes: LigneDemande[], maintenant: Date): { ouvertes: n
 // ── Les articles de l'Aide (les « réponses types ») ──────────────────────────────────────────────────────────────────
 // Lus une fois dans le fichier que le navigateur du client reçoit : la console propose exactement l'Aide qu'il lit, et
 // l'article de la page où il était quand il a écrit (la même table que le bouton d'Aide de cette page).
+// (1.332.0) Un cabinet lit l'Aide du Cabinet (`v10/cabinet/cabguide.js`, CabGuide : `t` et `s` au lieu de `title` et
+// `sub`) : une réponse à un cabinet la cite, jamais celle de l'entreprise, qui serait chez lui un lien vers rien.
 export type Article = { id: string; titre: string; sous: string };
 type Aide = { articles: Article[]; parPage: Record<string, string> };
-let aide: Aide | null = null;
-function lireAide(): Aide {
-  if (aide) return aide;
+const aides: { entreprise?: Aide; cabinet?: Aide } = {};
+// La liste des articles que le Cabinet en ligne n'affiche pas, lue dans le pont qui la sert (`ARTICLES_ABSENTS`) : une seule
+// liste. Introuvable, la lecture échoue, et l'Aide du Cabinet se lit vide à la console (un test le voit).
+function articlesAbsentsDuCabinet(): string[] {
+  const m = /const ARTICLES_ABSENTS = \[([^\]]*)\]/.exec(lireEcran('plateforme/pont-cabinet.js'));
+  if (!m) throw new Error('ARTICLES_ABSENTS introuvable dans le pont du Cabinet');
+  return [...(m[1] ?? '').matchAll(/'([a-z][a-z0-9_-]*)'/g)].map((x) => x[1] ?? '');
+}
+function lireAide(cabinet = false): Aide {
+  const cle = cabinet ? 'cabinet' : 'entreprise';
+  const deja = aides[cle];
+  if (deja) return deja;
+  let lue: Aide;
   try {
     const bac: Record<string, unknown> = {};
     bac.self = bac;
+    // (1.332.0) Le Cabinet en ligne n'a pas les articles du bureau (les sauvegardes, changer d'ordinateur, la licence, les mises
+    // à jour) : cabguide.js retire ceux que le pont lui nomme. La console lit la même liste, celle du pont : sinon elle
+    // proposerait à un cabinet un article qu'il ne peut pas ouvrir, et la réponse le lui citerait.
+    if (cabinet) bac.window = { cabinet: { articlesAbsents: articlesAbsentsDuCabinet() } };
     vm.createContext(bac);
-    vm.runInContext(lireEcran('v10/guide.js'), bac, { filename: 'v10/guide.js', timeout: 2000 });
-    const g = (bac.SkanGuide ?? {}) as { ARTICLES?: unknown; PAR_PAGE?: unknown };
-    const articles = Array.isArray(g.ARTICLES) ? g.ARTICLES.flatMap((a): Article[] => {
+    const fichier = cabinet ? 'v10/cabinet/cabguide.js' : 'v10/guide.js';
+    vm.runInContext(lireEcran(fichier), bac, { filename: fichier, timeout: 2000 });
+    const g = (cabinet ? bac.CabGuide : bac.SkanGuide ?? {}) as { ARTICLES?: unknown; PAR_PAGE?: unknown } | undefined;
+    const articles = g && Array.isArray(g.ARTICLES) ? g.ARTICLES.flatMap((a): Article[] => {
       const o = objet(a);
-      return typeof o.id === 'string' && /^[a-z][a-z0-9_-]{0,39}$/.test(o.id) && typeof o.title === 'string'
-        ? [{ id: o.id, titre: o.title, sous: typeof o.sub === 'string' ? o.sub : '' }] : [];
+      const titre = o.title ?? o.t, sous = o.sub ?? o.s;
+      return typeof o.id === 'string' && /^[a-z][a-z0-9_-]{0,39}$/.test(o.id) && typeof titre === 'string'
+        ? [{ id: o.id, titre, sous: typeof sous === 'string' ? sous : '' }] : [];
     }) : [];
     const ids = new Set(articles.map((a) => a.id));
-    const parPage = Object.fromEntries(Object.entries(objet(g.PAR_PAGE)).filter((x): x is [string, string] => typeof x[1] === 'string' && ids.has(x[1])));
-    aide = { articles, parPage };
-  } catch { aide = { articles: [], parPage: {} }; }
-  return aide;
+    const parPage = Object.fromEntries(Object.entries(objet(g?.PAR_PAGE)).filter((x): x is [string, string] => typeof x[1] === 'string' && ids.has(x[1])));
+    lue = { articles, parPage };
+  } catch { lue = { articles: [], parPage: {} }; }
+  aides[cle] = lue;
+  return lue;
 }
-export const articlesDeLAide = () => lireAide().articles;
-export const articleConnu = (id: string) => lireAide().articles.some((a) => a.id === id);
+export const articlesDeLAide = (cabinet = false) => lireAide(cabinet).articles;
+export const articleConnu = (id: string, cabinet = false) => lireAide(cabinet).articles.some((a) => a.id === id);
 
 // Les réponses types proposées pour une demande, quatre au plus : l'article de la page où la personne était, puis ceux
 // dont le titre ou la phrase partagent des mots avec sa demande (sans les accents ni les petits mots). Les autres restent
@@ -225,6 +245,6 @@ export function suggestions(articles: Article[], parPage: Record<string, string>
   return choisis;
 }
 export const suggererPour = (d: Demande) => {
-  const a = lireAide();
+  const a = lireAide(d.ligne.entreprise.cabinet);
   return suggestions(a.articles, a.parPage, d.page, [d.ligne.sujet, ...d.messages.filter((m) => m.cote === 'client').map((m) => m.texte)].join(' '));
 };

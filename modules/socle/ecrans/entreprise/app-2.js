@@ -7604,89 +7604,20 @@
   // n'apparaît dans aucun titre.
   let aideQ = '';
   const sansBalises = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  // (1.331.0, revue de l'Aide) On tape une QUESTION, pas une liste de mots-clés : « comment valider le pointage » ne
-  // trouvait rien, parce que chaque mot devait se trouver dans l'article, « comment » et « le » compris. Les petits mots
-  // ne cherchent rien ; un mot se cherche par sa racine (« valider » trouve « validé », « congés » trouve « congé ») ;
-  // et un article qui n'a qu'une partie des mots se propose quand même, après ceux qui les ont tous.
-  const AIDE_MOTS_VIDES = new Set(('a ai as au aux avec c ca ce ces cet cette chez combien comment d dans de des dois doit du '
-    + 'elle en es est et etre faire fait faut il ils j je l la le les leur m ma me mes moi mon n ne nos notre on ou par pas '
-    + 'peut peux plus pour pourquoi puis puisque qu quand que quel quelle quels quelles qui quoi s sa se ses si son sont sur '
-    + 't ta te tes toi ton tu un une veux vos votre vous y').split(' '));
-  const aideRacine = m => { const r = m.replace(/(ements|ement|ations|ation|eurs|euses|euse|ent|ez|er|es|e|s|x)$/, ''); return r.length >= 4 ? r : m; };
-  const aideMots = q => {
-    const tous = C.plier(q || '').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-    const pleins = tous.filter(m => !AIDE_MOTS_VIDES.has(m));
-    return [...new Set((pleins.length ? pleins : tous).map(aideRacine))];
-  };
-  // Plier sans changer la LONGUEUR (10.12.0) : le surlignage et l'extrait retrouvent le mot par sa
-  // position dans le texte plié, puis découpent le texte d'origine aux mêmes positions. Une lettre
-  // dont le pliage changerait la longueur (un accent déjà décomposé) est gardée telle quelle.
-  const plierPareil = s => Array.from(String(s || ''), ch => { const f = C.plier(ch); return f.length === ch.length ? f : ch; }).join('');
-
-  // La recherche CLASSE ses résultats (7.27.0). Taper « tva » rendait dix-sept articles sur
-  // trente-deux, dans l'ordre où ils sont écrits dans guide.js : « Démarrer : tes premiers pas »
-  // arrivait premier, et « TVA, timbre fiscal et retenue à la source » quatrième. Une liste non
-  // classée de dix-sept titres ne vaut pas mieux que la liste des trente-deux qu'elle remplace.
-  // Le titre d'abord, le sous-titre ensuite, le corps en dernier.
-  function aideFiltre(arts, q) {
-    const mots = aideMots(q);
-    if (!mots.length) return arts;
-    const notes = [];
-    arts.forEach((a, i) => {
-      const titre = C.plier(a.title), sous = C.plier(a.sub);
-      const corps = C.plier(sansBalises(a.body || ''));
-      // (1.331.0) Combien de mots l'article porte d'abord (tous avant une partie), puis où : le titre vaut plus que le
-      // sous-titre, qui vaut plus que le corps. Un article qui n'en porte aucun ne se propose pas.
-      const trouves = mots.filter(m => titre.includes(m) || sous.includes(m) || corps.includes(m));
-      if (!trouves.length) return;
-      const poids = trouves.reduce((s, m) => s + (titre.includes(m) ? 4 : sous.includes(m) ? 2 : 1), 0);
-      notes.push({ a, n: trouves.length, poids, i });
-    });
-    return notes.sort((x, y) => y.n - x.n || y.poids - x.poids || x.i - y.i).map(x => x.a);
-  }
+  // (1.332.0) La recherche est celle des deux applications (`AideRecherche`, modules/socle/aide/recherche.js) : on tape
+  // une QUESTION (les petits mots ne cherchent rien, un mot se cherche par sa racine, un article qui n'a qu'une partie des
+  // mots se propose après ceux qui les ont tous ; 1.331.0). L'entreprise lui dit seulement où lire un article.
+  const R = window.AideRecherche;
+  const champsAide = a => ({ titre: a.title, sous: a.sub || '', corps: a.body || '' });
+  const aideMots = q => R.mots(q);
+  // La recherche CLASSE ses résultats (7.27.0) : le titre d'abord, le sous-titre ensuite, le corps en dernier.
+  const aideFiltre = (arts, q) => R.filtre(arts, q, champsAide);
   // Combien de mots cherchés un article porte : la liste dit ceux qui les ont tous, et ceux qui n'en ont qu'une partie.
-  const aideTousLesMots = (a, q) => {
-    const tout = C.plier(`${a.title} ${a.sub} ${sansBalises(a.body || '')}`);
-    return aideMots(q).every(m => tout.includes(m));
-  };
-
-  // Surligner le mot cherché, sans jamais laisser passer de HTML : on découpe, on échappe chaque
-  // morceau, et on recolle avec des <mark>. Échapper APRÈS aurait mangé les balises qu'on vient de
-  // poser ; échapper AVANT décalerait toutes les positions (« l'» devient « &#39; »).
-  function aideSurligne(texte, mots) {
-    if (!mots.length) return h(texte);
-    const bas = plierPareil(texte);
-    const coupes = [];
-    // (1.331.0) Un mot se cherche par sa racine (« valid ») : on surligne le mot ENTIER où elle se trouve, sinon l'extrait
-    // montrait des morceaux (« valid|ité »).
-    const finDuMot = f => { while (f < bas.length && /[\p{L}\p{N}]/u.test(bas[f])) f++; return f; };
-    mots.forEach(m => { let k = bas.indexOf(m); while (k >= 0) { const f = finDuMot(k + m.length); coupes.push([k, f]); k = bas.indexOf(m, f); } });
-    coupes.sort((x, y) => x[0] - y[0]);
-    let out = '', pos = 0;
-    coupes.forEach(([d, f]) => {
-      if (d < pos) return;                          // deux mots qui se chevauchent : on garde le premier
-      out += h(texte.slice(pos, d)) + '<mark>' + h(texte.slice(d, f)) + '</mark>';
-      pos = f;
-    });
-    return out + h(texte.slice(pos));
-  }
-
-  // L'extrait : le bout de phrase où le mot cherché se trouve vraiment. Sans lui, un résultat dont
-  // le mot n'est ni dans le titre ni dans le sous-titre ne dit pas pourquoi il est là.
-  function aideExtrait(a, q) {
-    const mots = aideMots(q);
-    // `sansBalises` remplace chaque balise par une espace : un titre collé à la phrase suivante
-    // donnerait « comptable . La TVA ». On recolle la ponctuation, sinon l'extrait a l'air cassé.
-    const texte = sansBalises(a.body || '').replace(/\s+([.,)])/g, '$1').trim();
-    const bas = plierPareil(texte);
-    let i = -1;
-    mots.forEach(m => { const k = bas.indexOf(m); if (k >= 0 && (i < 0 || k < i)) i = k; });
-    if (i < 0) return '';
-    let d = Math.max(0, i - 55);
-    const f = Math.min(texte.length, i + 125);
-    if (d > 0) { const e = texte.indexOf(' ', d); if (e > 0 && e < i) d = e + 1; }
-    return aideSurligne((d > 0 ? '… ' : '') + texte.slice(d, f).trim() + (f < texte.length ? ' …' : ''), mots);
-  }
+  const aideTousLesMots = (a, q) => R.tous(a, q, champsAide);
+  // Surligner sans jamais laisser passer de HTML : chaque morceau s'échappe, les <mark> se posent entre eux.
+  const aideSurligne = (texte, mots) => R.surligne(String(texte || ''), mots, h);
+  // L'extrait : le bout de phrase où le mot cherché se trouve vraiment, sinon le résultat ne dit pas pourquoi il est là.
+  const aideExtrait = (a, q) => R.extrait(a.body || '', q, h);
 
   // ---------- l'Aide (refonte 7.23.0, mise en page revue en 7.27.0) ----------
   //

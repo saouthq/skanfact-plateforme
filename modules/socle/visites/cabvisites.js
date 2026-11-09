@@ -457,7 +457,9 @@
   b('#s-rec', 'Enregistre la clé de secours : un fichier protégé par son propre mot de passe, à ranger ailleurs que sur cet ordinateur.');
   b('#s-pw', 'Change le mot de passe du cabinet : les sauvegardes et les livres sont rechiffrés.');
   b('#s-lock', 'Verrouille le Cabinet tout de suite : le mot de passe sera redemandé.');
-  b('#s-support', 'Prépare un mail avec le journal de l\'application, pour signaler un problème.');
+  // (1.332.0) En ligne, la demande part à l'équipe SkanFact, et la réponse revient dans le Cabinet.
+  b('#s-support', 'Écris à l\'équipe SkanFact : une question, ou quelque chose qui ne marche pas. Elle te répond ici, en général dans la journée.');
+  b('#s-demandes', 'Tes demandes au support, et les réponses de l\'équipe.');
   b('#s-idee', 'Propose une amélioration : ce que tu aimerais faire, et comment tu fais aujourd\'hui.');
   b('#r-demo-on', 'Charge les six dossiers de l\'exemple.');
   b('#r-demo-off', 'Efface les dossiers de l\'exemple.');
@@ -511,6 +513,10 @@
   // ---------- l'aide et le guide ----------
   b('#aide-q, #guide-q', 'Tape un mot ou une question : la recherche lit le contenu.', { nom: 'Chercher' });
   b('#aide-effacer', 'Efface la recherche.');
+  b('#aide-support', 'Écris à l\'équipe SkanFact : une question, ou quelque chose qui ne marche pas. Elle te répond ici, en général dans la journée.');
+  b('#aide-q-support', 'Envoie ta question au support telle que tu l\'as tapée : tu la relis, tu la complètes, puis elle part.');
+  b('#aide-demandes', 'Tes demandes au support, et les réponses de l\'équipe.');
+  b('#aide-idee', 'Propose une amélioration : ce qui te manque, et comment tu fais aujourd\'hui.');
   b('[data-visite]', 'Lance cette visite guidée.', { nom: 'Lancer la visite', cle: 'visite' });
   b('#g-prochain, #g-reprendre', 'Lance le prochain geste guidé, ou reprend la visite laissée en pause.', { nom: 'Prochaine visite', cle: 'prochain' });
   b('#g-aide', 'Ouvre l\'Aide, pour lire le détail d\'un sujet.');
@@ -1545,18 +1551,19 @@
       ]
     });
 
+    // (1.332.0) En ligne, on écrit à l'équipe SkanFact : la visite décrivait le mail du bureau, avec son journal.
     visite({
       id: 'depannage', theme: 'cabinet', type: 'faire', duree: '1 min', page: '#/reglages',
-      sansGeste: 'Signaler un problème compose un mail avec le journal : un geste qui sort du Cabinet.',
-      titre: 'Signaler un problème',
-      resume: 'Le journal de l\'application, joint à un mail prêt à envoyer.',
-      mots: ['probleme', 'bug', 'panne', 'signaler', 'aide', 'support', 'idee'],
+      sansGeste: 'Écrire au support envoie une vraie demande à l\'équipe SkanFact : un geste qui ne se joue pas pour voir.',
+      titre: 'Écrire au support',
+      resume: 'Une question à l\'équipe SkanFact, et sa réponse dans le Cabinet.',
+      mots: ['probleme', 'bug', 'panne', 'signaler', 'aide', 'support', 'idee', 'question', 'demande'],
       suite: ['mises-a-jour'],
       bravo: 'Tu sais où demander de l\'aide',
-      conclusion: 'Le mail part de ta messagerie, relu par toi. Rien d\'autre que le journal technique n\'y est joint — aucun chiffre de tes clients.',
+      conclusion: 'La réponse revient dans « Tes demandes au support », et un e-mail te prévient qu\'elle t\'attend. Ta demande emporte la version du Cabinet et le nom de la page où tu étais — aucun client, aucun dossier, aucun montant.',
       etapes: [
         { page: '#/reglages', avant: onglet('#set-tabs', 'app'), cible: '#pan-support', cote: 'dessus', titre: 'Aide et dépannage',
-          texte: '<b>« Signaler un problème… »</b> prépare un mail avec le journal de l\'application ; <b>« Proposer une amélioration… »</b> demande ce que tu aimerais faire, et comment tu fais aujourd\'hui.' }
+          texte: '<b>« Écrire au support… »</b> envoie ta question à l\'équipe SkanFact ; <b>« Proposer une amélioration… »</b> demande ce que tu aimerais faire, et comment tu fais aujourd\'hui ; <b>« Tes demandes au support »</b> rassemble ses réponses.' }
       ]
     });
 

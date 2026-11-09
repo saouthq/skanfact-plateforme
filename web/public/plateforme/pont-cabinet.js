@@ -97,6 +97,7 @@
     else if (poste) poste.garderLecture(cabinetId, chemin, lu).catch(() => { /* sans copie, le hors-ligne attendra la prochaine lecture */ });
     return lu;
   }
+  /** @type {any} */ (window).Socle?.declarer('pont', { appel }); // (1.332.0) le serveur des morceaux modules/<m>/pont/ (17 § 3.3)
   // (1.104.0) Les dossiers emportés (04 § 2 : par défaut, ses dossiers confiés, l'exercice en cours) : sur « mon
   // ordinateur », le livre de l'année de chacun se lit en arrière-plan, un dossier après l'autre, et se garde avec le reste.
   // Relu au plus toutes les six heures ; le réseau qui tombe en route l'arrête, l'ouverture suivante reprend.
@@ -1104,9 +1105,8 @@
   // Les étapes de « Tes premiers pas » sans objet : la découverte sur l'exemple, l'appairage, la clé
   // de secours, la copie sur un disque. « Tenir un premier livre » revient avec la saisie (38 bis).
   const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];
-  // Les visites guidées que « Me guider » ne propose pas (adaptation de `visites`) : celles dont le
-  // sujet a disparu avec les paquets (C4), et celles d'un geste pas encore en ligne, qui reviennent
-  // avec leur brique.
+  // Les visites guidées que « Me guider » ne propose pas (adaptation de `visites`) : celles dont le sujet a disparu avec les
+  // paquets (C4), et celles d'un geste pas encore en ligne, qui reviennent avec leur brique.
   const VISITES_SANS_OBJET = ['decouvrir', 'appairage', 'cle-secours', 'copie-externe', 'recevoir-paquet', 'lire-paquet',
     'boite-reception', 'sauvegardes', 'changer-ordinateur', 'mises-a-jour', 'licence', 'mot-de-passe', 'envoyer-cloture',
     'correspondance', 'page-dossier-paquets'];

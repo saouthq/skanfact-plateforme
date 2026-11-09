@@ -741,7 +741,7 @@ export interface BaseDeDonnees {
   'plateforme.demande_support': {
     id: Generated<string>;
     numero: Generated<number>;
-    entreprise: string;
+    entreprise: string | null;
     demandeur: string;
     canal: string;
     sujet: string;
@@ -762,6 +762,7 @@ export interface BaseDeDonnees {
     incident: string | null;
     correction: string | null;
     correction_le: Date | null;
+    cabinet: string | null;
   };
   'plateforme.doc_support': {
     id: Generated<string>;

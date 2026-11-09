@@ -56,9 +56,10 @@
   // Un article de l'Aide cité par l'équipe : son titre, lu dans l'Aide que la personne a sous les yeux (une seule source).
   /** @param {string} id */
   function article(id) {
-    const g = w.SkanGuide;
+    // (1.332.0) Le Cabinet a son Aide à lui (CabGuide : `t` et `s` au lieu de `title` et `sub`).
+    const g = w.SkanGuide || w.CabGuide;
     const a = g && Array.isArray(g.ARTICLES) ? g.ARTICLES.find((/** @type {any} */ x) => x && x.id === id) : null;
-    return a ? { id: String(a.id), titre: String(a.title || ''), sous: String(a.sub || '') } : null;
+    return a ? { id: String(a.id), titre: String(a.title || a.t || ''), sous: String(a.sub || a.s || '') } : null;
   }
   const LIVRE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5a2.5 2.5 0 0 0-2.5 2.5zM8 7h7M8 11h5"/></svg>';
 
@@ -110,6 +111,7 @@
    *   choisie?: string | null,
    *   toast?: (texte: string, erreur?: boolean) => void,
    *   ouvrirArticle?: (id: string) => void,
+   *   accueil?: { href: string, nom: string },
    * }} o
    */
   function page(el, o) {
@@ -124,8 +126,10 @@
 
     // (1.331.0, revue de l'Aide) L'en-tête des autres pages : le chemin (Accueil › Aide › Tes demandes), le titre et sa
     // phrase — la page n'avait que son titre, sans chemin pour revenir à l'Aide.
+    // (1.332.0) L'accueil de l'application qui l'ouvre : « Accueil » pour l'entreprise, le Tableau de bord du Cabinet.
+    const accueil = o.accueil || { href: '#/dashboard', nom: 'Accueil' };
     /** @param {string} [actions] */
-    const tete = (actions) => `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${CHEVRON}<a href="#/aide">Aide</a>${CHEVRON}<span>Tes demandes au support</span></div>
+    const tete = (actions) => `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="${esc(accueil.href)}">${esc(accueil.nom)}</a>${CHEVRON}<a href="#/aide">Aide</a>${CHEVRON}<span>Tes demandes au support</span></div>
           <h1>Tes demandes au support</h1><p class="sous">L'équipe SkanFact te répond ici, en général dans la journée</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`;
     function poserLaPage() {
       el.innerHTML = `<div class="sup-page">

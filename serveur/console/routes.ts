@@ -2347,7 +2347,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
             id: client.id, nom: client.raisonSociale, etat: client.etat, faits: client.faits,
             membres: client.membres, pieces: client.pieces, derniereActivite: client.derniereActivite, tenuePar: client.tenuePar,
           } : null,
-          articles: articlesDeLAide(), regles: { sansReponseHeures: SANS_REPONSE_HEURES, sansReponseHeuresUrgente: SANS_REPONSE_HEURES_URGENTE },
+          // (1.332.0) L'Aide du client de la demande ouverte : celle du Cabinet pour un cabinet.
+          articles: articlesDeLAide(!!s.demande?.ligne.entreprise.cabinet), regles: { sansReponseHeures: SANS_REPONSE_HEURES, sansReponseHeuresUrgente: SANS_REPONSE_HEURES_URGENTE },
           // À qui une demande se confie (0115) : la direction et le support.
           equipe: s.equipe,
           // La demande ouverte : ses notes privées (0133), et les réponses validées que le champ de réponse propose.
@@ -2382,12 +2383,18 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     methode: 'POST', chemin: '/console/support/demandes/:demande/repondre', geste: 'console.support.repondre',
     corps: z.object({
       texte: z.string().trim().min(3, 'console.support.reponse_courte').max(4000),
-      article: z.string().nullable().refine((a) => a === null || articleConnu(a), 'console.support.article_inconnu'),
+      // (1.332.0) Un article de l'une des deux Aides ; celle du client de la demande est vérifiée plus bas.
+      article: z.string().nullable().refine((a) => a === null || articleConnu(a) || articleConnu(a, true), 'console.support.article_inconnu'),
       // 0124 (l'audit C09) : l'identifiant de cette réponse, tiré par l'écran et gardé quand il la renvoie après une
       // coupure : la même commande ne fait qu'un message.
       commande: z.string().uuid().optional(),
     }),
     traiter: async ({ params, corps }, tx) => {
+      // (1.332.0) L'article cité est dans l'Aide que lit le client : un cabinet n'a pas celle de l'entreprise.
+      if (corps.article !== null) {
+        const cabinet = (await transaction(tx).query('select plateforme.console_demande_du_cabinet($1) c', [lireUuid(params.demande)])).rows[0]?.c === true;
+        if (!articleConnu(corps.article, cabinet)) return { statut: 400, corps: { motif: motif('console.support.article_inconnu'), champ: 'article' } };
+      }
       // La même commande déjà partie avec un autre texte (l'audit 1.42.0, A07) : 409, `champ: 'commande'` — l'écran tire
       // une commande neuve, relit la conversation et garde ce qui est écrit. La base le refuse aussi (0136).
       const deja = (await transaction(tx).query('select plateforme.reponse_de_la_commande($1, $2) r', [lireUuid(params.demande), corps.commande ?? null])).rows[0]?.r as { texte: string; article: string | null } | null;

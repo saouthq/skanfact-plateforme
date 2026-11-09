@@ -67,6 +67,29 @@ administrateur l'accorde dans son application, quelques heures, en lecture ; cha
   aussi : la lecture se note par demande ET par nombre de messages (vu le 13/10/2026 : notée une fois par demande, la
   pastille restait allumée sur une réponse ouverte à l'écran).
 
+## Dans le Cabinet (1.332.0 ; base 0206)
+
+- **Le même support qu'une entreprise.** Un membre actif du cabinet écrit depuis l'Aide (« Écrire au support »), depuis
+  une question que l'Aide ne trouve pas (« Poser ma question au support », la question déjà écrite), ou depuis Réglages
+  → L'application → Aide et dépannage (« Écrire au support… », « Proposer une amélioration… », « Tes demandes au
+  support »). La réponse revient dans le Cabinet, sur la même page que l'entreprise (`plateforme/support.js`), son
+  chemin partant du Tableau de bord ; la pastille de l'Aide et le bandeau l'annoncent ; l'e-mail d'alerte est le même.
+- **La demande appartient au cabinet ET à la personne** (`demande_support.cabinet`, exclusive de `entreprise`) : les
+  routes `/cabinets/:cabinet/support…` (les gestes personnels `compte.cabinets.voir` pour lire, `compte.cabinet.gerer`
+  pour écrire), et la base refait chaque contrôle (`support_cab_exiger` : un membre actif du cabinet de la route, jamais
+  une clé de l'API). Chacun ne lit que SES demandes : ni un collègue, ni un autre cabinet de la même personne.
+- **Ce qui part avec**, compté et décidé : le sujet, le texte, la version du Cabinet et le NOM de la page où l'on
+  travaillait (pas l'Aide ni les Réglages par où l'on passe pour écrire) ; jamais un client, un dossier, un montant.
+  Le pont du Cabinet les envoie par sa pièce `modules/socle/pont/cabinet.js` (`window.cabinet.supportEnLigne`).
+- **La console** dit qu'une demande vient d'un cabinet (la puce « cabinet », le nom du cabinet, le lien vers sa fiche),
+  nomme sa page avec les mots du Cabinet (« le tableau de bord du cabinet », « les échéances »…), et y répond comme à
+  une entreprise. **Ses réponses types sont l'Aide du Cabinet telle qu'il la voit en ligne** (`v10/cabinet/cabguide.js`,
+  sans les articles du bureau que le pont retire, `ARTICLES_ABSENTS`), pas celle de l'entreprise :
+  un article de l'entreprise cité à un cabinet serait un lien vers rien ; la route de réponse le refuse, et c'est la base
+  qui dit si la demande vient d'un cabinet (`console_demande_du_cabinet`) avant de juger l'article. Ce qu'elle ne fait
+  pas pour un cabinet : l'accès au dossier (un cabinet n'a pas de dossier à ouvrir au
+  support), la fiche client, et « noter une demande reçue ailleurs » au nom d'une personne du cabinet.
+
 ## Dans la console (C29)
 
 - **La page Support** (`#/support`, la direction et le support ; la technique n'y lit rien) : à gauche la liste (les

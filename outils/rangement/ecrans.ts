@@ -63,7 +63,7 @@ export const ROUTES_NON_OUVERTES: Record<string, string> = {
 };
 export function pagesCabinet(dossier: string): string[] {
   return ['#/dossiers', '#/production', '#/pieces', '#/echeances', '#/relances', '#/ecritures', '#/reglages', '#/messages', '#/aide',
-    '#/guide', `#/dossier/${dossier}`, `#/dossier/${dossier}/classeur`, `#/pieces/${dossier}`, `#/messages/${dossier}`,
+    '#/guide', '#/support', `#/dossier/${dossier}`, `#/dossier/${dossier}/classeur`, `#/pieces/${dossier}`, `#/messages/${dossier}`,
     `#/dossier/${dossier}/comptabilite/banque`, `#/dossier/${dossier}/comptabilite/saisie`, `#/dossier/${dossier}/comptabilite/paie`];
 }
 // Les routes du Cabinet que la comparaison n'ouvre pas, et pourquoi.

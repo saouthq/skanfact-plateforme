@@ -24,7 +24,8 @@ export type EtatDemande =
   | { etat: 'close'; le: string; cote: 'client' | 'equipe' };
 export type LigneDemande = {
   id: string; numero: number; sujet: string; canal: Canal; ouverteLe: string;
-  entreprise: { id: string; nom: string; essai: boolean }; demandeur: { id: string; nom: string };
+  // (1.332.0) `cabinet` : la demande vient d'un cabinet ; `id` et `nom` sont les siens (sa fiche : #/cabinets/…).
+  entreprise: { id: string; nom: string; essai: boolean; cabinet: boolean }; demandeur: { id: string; nom: string };
   noteePar: string | null; suiviePar: string | null; suivieParId: string | null; priorite: 'normale' | 'urgente';
   technique: { le: string; motif: string } | null; dernierClientLe: string | null; dernierEquipeLe: string | null;
   dernierCote: 'client' | 'equipe' | null; messages: number;
@@ -85,6 +86,14 @@ const PAGES = new Set(['dashboard', 'devis', 'factures', 'doc', 'relances', 'aut
   'fournisseurs', 'fournisseur', 'tresorerie', 'marges', 'affaire', 'paie', 'salarie', 'stock', 'article', 'caisse', 'garanties', 'immos', 'immo', 'stats',
   'compta', 'parametres', 'modules', 'licences', 'aide', 'support', 'comptable', 'commandesf', 'commandef', 'reception', 'listesprix', 'listeprix',
   'groupe', 'accords']);
+// (1.332.0) Celles du Cabinet, qui a ses propres pages : « production » est son tableau de bord, « dossier » un dossier.
+const PAGES_CABINET = new Set(['dossiers', 'dossier', 'production', 'pieces', 'ecritures', 'echeances', 'relances', 'reglages', 'messages',
+  'aide', 'guide', 'support']);
+const pageDite = (d: Demande) => {
+  if (!d.page) return null;
+  if (d.ligne.entreprise.cabinet) return PAGES_CABINET.has(d.page) ? dire(`console.ecran.support.page_cabinet.${d.page}`) : d.page;
+  return PAGES.has(d.page) ? dire(`console.ecran.support.page.${d.page}`) : d.page;
+};
 const prenomDe = (nom: string) => nom.trim().split(/\s+/)[0] ?? nom;
 
 // ── Une ligne de la liste ───────────────────────────────────────────────────────────────────────────────────────────
@@ -93,7 +102,7 @@ function Ticket({ l, choisie, choisir, aujourdhui }: { l: LigneDemande; choisie:
   return (
     <button type="button" className="c-sp-ticket" aria-pressed={choisie} onClick={choisir}>
       <span className="c-sp-ticket-haut"><b data-donnee>{l.entreprise.nom}</b>
-        <span className="c-sp-ticket-puces">{l.priorite === 'urgente' && !l.close ? <Puce ton="urgent">{dire('console.ecran.support.urgente')}</Puce> : null}
+        <span className="c-sp-ticket-puces">{l.entreprise.cabinet ? <Puce ton="hors">{dire('console.ecran.support.cabinet')}</Puce> : null}{l.priorite === 'urgente' && !l.close ? <Puce ton="urgent">{dire('console.ecran.support.urgente')}</Puce> : null}
           {l.correction?.enService && !l.close ? <Puce ton="actif">{maj(dire('console.ecran.support.l.corrigee_court'))}</Puce> : null}<Puce ton={e.ton}>{e.texte}</Puce></span>
       </span>
       <span className="c-sp-ticket-sujet" data-donnee>{l.sujet}</span>
@@ -558,7 +567,7 @@ function Fil({ d, articles, reponses, evolution, brouillons, aujourdhui, relire,
           <h2 id="sp-fil-titre"><span data-donnee>{'« '}{l.sujet}{' »'}</span></h2>
           <span className="c-sp-fil-sous">
             <span className="c-mono" data-donnee>{refDemande(l.numero)}</span>{' · '}
-            <a href={`#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.nom}</a>{' · '}
+            <a href={l.entreprise.cabinet ? `#/cabinets/${l.entreprise.id}` : `#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.nom}</a>{l.entreprise.cabinet ? <>{' · '}{dire('console.ecran.support.cabinet')}</> : null}{' · '}
             <span data-donnee>{d.personne.nom}</span>{d.personne.roles.length ? <>{', '}{d.personne.roles.map((r) => dire(`role.${r}`)).join(', ')}</> : null}{' · '}
             {dire(`console.ecran.support.canal.${l.canal}`)}{l.noteePar ? <>{', '}{dire('console.ecran.support.notee_par', { nom: prenomDe(l.noteePar) })}</> : null}
           </span>
@@ -580,7 +589,8 @@ function Fil({ d, articles, reponses, evolution, brouillons, aujourdhui, relire,
       <Liens d={d} enService={enService} evolution={evolution} />
       {/* Son dossier (Support S2) : sous l'en-tête, à portée de la conversation qui le motive — demander l'accès, le temps
           qui reste, l'ouvrir en lecture. */}
-      <AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />
+      {/* (1.332.0) Un cabinet n'a pas de dossier à ouvrir au support : la demande ne propose pas l'accès. */}
+      {l.entreprise.cabinet ? null : <AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />}
       <ol className="c-sp-messages" aria-label={titre('console.ecran.support.conversation')} ref={liste} onScroll={defiler} tabIndex={0}>
         {d.messages.map((m) => (
           <li key={m.id} className={`c-sp-msg c-sp-msg-${m.cote}`}>
@@ -621,7 +631,7 @@ function Fil({ d, articles, reponses, evolution, brouillons, aujourdhui, relire,
 // a écrit, et ce que le support ne voit pas. Une carte : deux cartes pleine largeur sous la conversation se lisaient
 // comme deux sujets de plus.
 function Cote({ d, client, notes, aujourdhui, relire }: { d: Demande; client: Client | null; notes: NotePrivee[]; aujourdhui: string; relire: () => void }) {
-  const page = d.page ? (PAGES.has(d.page) ? dire(`console.ecran.support.page.${d.page}`) : d.page) : null;
+  const page = pageDite(d);
   return (
     <aside className="c-sp-cote" aria-label={titre('console.ecran.support.contexte')}>
       <div className="c-carte c-sp-contexte">

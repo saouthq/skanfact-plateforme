@@ -11,7 +11,7 @@ const ilYa = (heures: number) => new Date(MAINTENANT.getTime() - heures * 3_600_
 let n = 0;
 const ligne = (l: Partial<LigneDemande>): LigneDemande => ({
   id: `d${++n}`, numero: n, sujet: `Demande ${n}`, canal: 'application', ouverteLe: ilYa(100),
-  entreprise: { id: 'e1', nom: 'Menuiserie', essai: false }, demandeur: { id: 'u1', nom: 'Nadia' },
+  entreprise: { id: 'e1', nom: 'Menuiserie', essai: false, cabinet: false }, demandeur: { id: 'u1', nom: 'Nadia' },
   noteePar: null, suiviePar: null, suivieParId: null, priorite: 'normale', technique: null,
   dernierClientLe: null, dernierEquipeLe: null, dernierCote: 'client', attendClientLe: null, attendClientApresTechniqueLe: null, messages: 1, close: null, incident: null, correction: null, ...l,
 });

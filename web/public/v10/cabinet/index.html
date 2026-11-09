@@ -57,7 +57,7 @@
           <button type="button" class="moi" id="b-moi" aria-haspopup="menu" aria-expanded="false"><span class="avatar" aria-hidden="true"></span><span class="moi-nom"><b></b><span></span></span></button>
           <a href="#/reglages" data-route="reglages" class="foot-link btn-icone" aria-label="Réglages" title="Réglages du cabinet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></a>
           <a href="#/guide" data-route="guide" class="foot-link btn-icone" aria-label="Me guider" title="Me guider : la visite guidée de la page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg></a>
-          <a href="#/aide" data-route="aide" class="foot-link btn-icone" aria-label="Aide" title="Aide"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.3-2.4 3.6M12 17.2h.01"/></svg></a>
+          <a href="#/aide" data-route="aide" class="foot-link btn-icone" aria-label="Aide" title="Aide"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.3-2.4 3.6M12 17.2h.01"/></svg><span class="nav-count pt-aide" id="nav-support" hidden></span></a>
         </div>
         <!-- « Se déconnecter » vit dans le menu de la personne ; ce bouton, caché, garde son geste (et ses tests). -->
         <button type="button" class="foot-link" id="se-deconnecter" hidden>Se déconnecter</button>
@@ -125,6 +125,8 @@
   <script src="../../plateforme/compte.js"></script>
   <link rel="stylesheet" href="../../plateforme/compte.css">
   <script src="../../plateforme/messagerie.js"></script>
+  <script src="../../plateforme/support.js"></script>
+  <link rel="stylesheet" href="../../plateforme/support.css">
   <script src="../../plateforme/apercu-pdf.js"></script>
   <script src="../../plateforme/zip.js"></script>
   <link rel="stylesheet" href="../../plateforme/pieces-recues.css">
@@ -152,6 +154,7 @@
        du Cabinet. -->
   <script src="../visite.js"></script>
   <script src="cabvisites.js"></script>
+  <script src="../aide-recherche.js"></script>
   <script src="cabguide.js"></script>
   <script src="app.js"></script>
 </body>

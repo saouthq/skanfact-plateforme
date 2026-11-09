@@ -2131,6 +2131,11 @@
     // (plateforme, lot messagerie) La conversation ouverte s'arrête quand on la quitte ; la pastille se lit une première fois.
     if (route !== 'messages' && messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
     if (!pastilleMessagesLue) { pastilleMessagesLue = true; void rafraichirPastilleMessages(); }
+    // (1.332.0) Le support de SkanFact : la page des demandes s'arrête quand on la quitte, ce qui attend se relit (la
+    // pastille de l'Aide, le bandeau), et une demande emporte le nom de la page où l'on TRAVAILLAIT.
+    if (route !== 'support' && supportCabOuvert) { supportCabOuvert.arreter(); supportCabOuvert = null; }
+    if (!PAGES_DU_SUPPORT_CAB.includes(route)) routeDeTravail = route;
+    suivreSupportCab();
     const view = $('#view');
     if (route === 'dossier') drawDossier(view, arg, hash.split('/')[2], hash.split('/')[3], hash.split('/')[4]);
     // (plateforme) 1.194.0 — les Priorités vivent dans le Tableau de bord : l'ancien lien y mène.
@@ -2143,6 +2148,7 @@
     else if (route === 'reglages') drawReglages(view);
     else if (route === 'messages') drawMessages(view, arg, hash.split('/')[2]);
     else if (route === 'aide') drawAide(view, arg);
+    else if (route === 'support') drawSupport(view, arg);
     else if (route === 'guide') drawGuide(view);
     else drawDossiers(view);
     if (ecranChange) marquerEntree(view);
@@ -2150,6 +2156,8 @@
     surveillerBandeauDemo();
     // « Ce ne sont pas tes dossiers » — sur CHAQUE page, en permanence, comme l'app entreprise (10.14.0).
     bandeauDemo();
+    // (1.332.0) Une réponse du support à lire : le bandeau passe au-dessus de tout (il appelle un geste).
+    poserSupportCab(view);
     // « Guide-moi » dans l'en-tête de chaque écran (10.14.1, S-03) ; une page asynchrone le reçoit par
     // l'observateur, quand elle pose son en-tête.
     bandeauOrdinateur(route);
@@ -3888,7 +3896,8 @@
   function surveillerBandeauDemo() {
     const view = $('#view');
     if (observeDemo || !view || !window.MutationObserver) return;
-    observeDemo = new MutationObserver(() => { if (!view.querySelector(':scope > #demo-banner')) bandeauDemo(); });
+    // (1.332.0) Et le bandeau du support : une page asynchrone qui réécrit la vue l'effaçait jusqu'à la relecture suivante.
+    observeDemo = new MutationObserver(() => { if (!view.querySelector(':scope > #demo-banner')) bandeauDemo(); poserSupportCab(view); });
     observeDemo.observe(view, { childList: true });
   }
 

@@ -278,8 +278,11 @@
     'r.mailObjet': { t: 'L\'objet', d: 'Préparé pour toi, et modifiable avant l\'envoi.' },
     'r.mailMessage': { t: 'Le message', d: 'Préparé à partir de ce que le dossier sait. Relis-le : c\'est toi qui l\'envoies, depuis ta messagerie.' },
     'r.note': { t: 'La note', d: 'Ce qui s\'est dit (« promet d\'envoyer avant vendredi »). Elle reste dans l\'historique des relances du dossier.' },
-    'b.ideeQuoi': { t: 'Ce que vous aimeriez faire', d: 'Le geste qui manque, avec vos mots. Rien d\'autre ne part : ni journal, ni dossier.' },
-    'b.ideeAuj': { t: 'Comment vous faites aujourd\'hui', d: 'La question qui sert le plus : elle dit le vrai problème, pas seulement la solution imaginée.' },
+    'b.ideeQuoi': { t: 'Ce que tu aimerais faire', d: 'Le geste qui manque, avec tes mots. Part avec elle : la version du Cabinet et le nom de la page où tu étais ; jamais un client, un dossier ni un montant.' },
+    'b.ideeAuj': { t: 'Comment tu fais aujourd\'hui', d: 'La question qui sert le plus : elle dit le vrai problème, pas seulement la solution imaginée.' },
+    // (1.332.0) Écrire au support, en ligne : la demande part à l'équipe SkanFact, la réponse revient dans le Cabinet.
+    'b.supSujet': { t: 'Le sujet', d: 'Quelques mots que l\'équipe SkanFact lit en premier : « La balance du mois ne tombe pas juste », « Comment lettrer un acompte ? ». Il nomme ta demande dans « Tes demandes au support ».' },
+    'b.supTexte': { t: 'Ce qui se passe', d: 'Ce que tu faisais, ce que tu attendais, ce qui s\'est passé à la place ; ou ta question, telle quelle. Rien de tes clients ne part avec : seulement la version du Cabinet et le nom de la page où tu étais.' },
     'bq.colonne': { t: 'Associer une colonne', d: 'Choisis, dans les en-têtes de TON fichier, celle qui porte cette information. Un montant signé suffit ; sinon Débit et Crédit séparés. L\'association est retenue au nom de la banque : le relevé suivant s\'importe sans rien associer.' },
     'bq.eBanque': { t: 'La ligne de banque', d: 'Le montant du relevé, sur le compte bancaire, du côté que son signe impose. Il ne se change pas ici : c\'est lui que le rapprochement tient.' },
     'bq.mots': { a: 'banque', t: 'Les mots retenus', d: 'Quand tu écris une ligne de relevé et que tu coches « Proposer ce compte aux lignes qui contiennent », le mot est retenu <b>pour tous tes clients</b> : la prochaine ligne qui le contient se verra proposer ce compte dans la fenêtre d\'écriture. Une proposition, jamais une écriture : rien ne part dans le livre sans ton clic. Un mot retenu par erreur (le mauvais compte, ou un mot trop courant comme « FACTURE ») se <b>retire</b> ici, d\'un clic, avec un « Annuler » pendant quelques secondes. Le retirer ne touche à aucune écriture déjà passée. Les mots bancaires trop courants (virement, facture, compte…) ne proposent jamais rien, même retenus.' },
@@ -648,7 +651,7 @@
         <li><b>La clé de secours</b> te protège de la <i>perte totale</i>. Elle contient la clé qui ouvre les paquets de tes clients. Sans elle et sans cet ordinateur, aucun paquet déjà reçu ne se rouvre — jamais. Range-la ailleurs.</li>
       </ul>
       <p class="small">Ton mot de passe, lui, ne se récupère pas. C'est voulu : c'est ce qui fait qu'un portable volé n'emporte pas soixante comptabilités. Note-le quelque part de sûr le jour où tu le choisis.</p>
-      <p class="small">Et un quatrième filet, invisible celui-là : si l'application se bloque, elle s'en aperçoit toute seule, note dans son journal technique <b>où</b> le programme s'était arrêté, puis redémarre et te le dit. Tu reviens sur l'écran du mot de passe : c'est normal, rien n'est perdu. Si cela se reproduit, envoie le rapport par <em>Aide → Signaler un problème</em> — c'est ce qui permet de corriger.</p>` },
+      <p class="small">Et un quatrième filet, invisible celui-là : si l'application se bloque, elle s'en aperçoit toute seule, note dans son journal technique <b>où</b> le programme s'était arrêté, puis redémarre et te le dit. Tu reviens sur l'écran du mot de passe : c'est normal, rien n'est perdu. Si cela se reproduit, dis-le au support (<em>Aide → Écrire au support</em>) — c'est ce qui permet de corriger.</p>` },
     {
       id: 'demenager', t: 'Changer d\'ordinateur',
       s: 'Reprendre ton cabinet ailleurs, avec la MÊME empreinte', couleur: 'th-acheter', geste: { label: 'Ouvrir la sécurité', hash: '#/reglages', panneau: 'pan-secu' },

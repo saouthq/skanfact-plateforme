@@ -1,7 +1,7 @@
-// Le support, côté entreprise (Support S1 ; docs/support.md ; 0095) : une personne écrit au support de SkanFact depuis
-// son application, relit SES demandes et les réponses de l'équipe, y répond, dit que c'est réglé. La base refait chaque
-// contrôle (une personne de l'entreprise, jamais une clé de l'API ; SES demandes seulement, dans l'entreprise de la
-// route) : ces routes ne font que lire et appeler ses fonctions.
+// Le support, côté entreprise (Support S1 ; docs/support.md ; 0095) et côté Cabinet (1.332.0 ; 0206) : une personne
+// écrit au support de SkanFact depuis son application, relit SES demandes et les réponses de l'équipe, y répond, dit que
+// c'est réglé. La base refait chaque contrôle (une personne de l'entreprise ou du cabinet, jamais une clé de l'API ; SES
+// demandes seulement, dans l'entreprise ou le cabinet de la route) : ces routes ne font que lire et appeler ses fonctions.
 //
 // Ce qui part au serveur avec une demande, compté et décidé : le sujet, le texte, la version de l'application et le NOM
 // de la page où la personne était (« factures »). Jamais un identifiant, ni une donnée de son dossier : le support ne
@@ -87,6 +87,66 @@ export function routesSupport(ctx: Contexte): Route<never>[] {
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       await tx.query('select plateforme.support_reglee($1, $2, $3)', [params.entreprise ?? '', lireUuid(params.demande), maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // ── Le support du Cabinet (1.332.0 ; 0206) ────────────────────────────────────────────────────────────────────────────
+  // Les mêmes six gestes, sous le cabinet de la route : un membre du cabinet écrit, relit SES demandes, y répond, dit que
+  // c'est réglé. La base refait chaque contrôle (plateforme.support_cab_exiger : un membre actif, jamais une clé de l'API) ;
+  // le geste de la porte est celui des autres routes du cabinet (lire, ou écrire).
+  const CORPS_DEMANDE = z.object({
+    sujet: z.string().trim().min(3, 'support.champ.sujet_court').max(140, 'support.champ.sujet_long').refine((v) => !/[<>]/.test(v), 'support.champ.sans_balise'),
+    texte: z.string().trim().min(3, 'support.champ.texte_court').max(4000),
+    version: z.string().trim().max(40).regex(/^[0-9A-Za-z.+-]*$/).nullable().default(null),
+    page: z.string().trim().max(40).regex(/^([a-z][a-z0-9_-]*)?$/).nullable().default(null),
+  }).strict();
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/support', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const demandes = (await tx.query('select plateforme.support_cab_mes_demandes($1) v', [lireUuid(params.cabinet)])).rows[0]?.v ?? [];
+      return { corps: { demandes } };
+    },
+  });
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/support/attente', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      return { corps: (await tx.query('select plateforme.support_cab_a_lire($1) v', [lireUuid(params.cabinet)])).rows[0]?.v ?? { demandes: 0, aLire: [] } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/support', geste: 'compte.cabinet.gerer', corps: CORPS_DEMANDE,
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const id = (await tx.query('select plateforme.support_cab_ecrire($1, $2, $3, $4, $5, $6) id',
+        [lireUuid(params.cabinet), corps.sujet, corps.texte, corps.version || null, corps.page || null, maintenant()])).rows[0].id as string;
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/support/:demande/messages', geste: 'compte.cabinet.gerer',
+    corps: z.object({ texte: z.string().trim().min(1, 'support.champ.message_vide').max(4000) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      await tx.query('select plateforme.support_cab_repondre($1, $2, $3, $4)', [lireUuid(params.cabinet), lireUuid(params.demande), corps.texte, maintenant()]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/support/:demande/lu', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      await tx.query('select plateforme.support_cab_lu($1, $2, $3)', [lireUuid(params.cabinet), lireUuid(params.demande), maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/support/:demande/reglee', geste: 'compte.cabinet.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      await tx.query('select plateforme.support_cab_reglee($1, $2, $3)', [lireUuid(params.cabinet), lireUuid(params.demande), maintenant()]);
       return { corps: { ok: true } };
     },
   });

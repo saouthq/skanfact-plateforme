@@ -1633,3 +1633,47 @@ Ce qui est fait :
 - La preuve : `tests/web/aide-1331.test.ts` (la question, rien trouvé et le support, le chemin et les gestes, le journal
   des clôtures), `tests/v10/aide-en-ligne.test.ts` (aucun article ne décrit le bureau ; l'Aide du Cabinet ne promet ni
   fichier ni poste) ; preuves `aide 1.331.0 a-o`.
+
+## L'Aide et le support du Cabinet (1.332.0)
+
+Jouée à la souris par Leïla, associée d'un cabinet : une question tapée comme on la pose dans l'Aide du Cabinet, une
+autre sans réponse, puis « Signaler un problème… » et « Proposer une amélioration… » dans les Réglages ; à la console,
+Karim (support) lit la demande et répond.
+
+Ce qui n'allait pas (trouvé en jouant la 1.331.0) :
+
+- « Signaler un problème… » montrait le rapport de l'application de bureau (« Système : · Electron », « Dossiers : 0 »,
+  une copie externe, « Ouvrir le journal technique ») et n'envoyait rien : un cabinet n'avait aucun moyen d'écrire à
+  l'équipe SkanFact. « Proposer une amélioration… » préparait un mail signé « SkanFact Cabinet ? · ? », en vouvoyant.
+- La recherche de l'Aide du Cabinet exigeait chaque mot tapé : « comment valider une écriture » ne trouvait rien, et la
+  palette (Ctrl K) cherchait encore autrement. Deux recherches sur le même genre de corpus, trois résultats différents.
+- L'Aide n'avait pas l'en-tête des autres pages, et son pied renvoyait à « Réglages → L'application → Aide et
+  dépannage » pour un rapport qui ne partait nulle part.
+
+Ce qui est fait :
+
+- Un vrai support pour le Cabinet, le même qu'une entreprise (docs/support.md, « Dans le Cabinet ») : la base 0206,
+  six routes `/cabinets/:cabinet/support…`, la pièce du pont `modules/socle/pont/cabinet.js`, la page « Tes demandes au
+  support » partagée, la pastille et le bandeau ; la console dit « cabinet » et nomme sa page avec les mots du Cabinet.
+- Trouvé à la souris, à la console : Karim se voyait proposer l'Aide de l'ENTREPRISE (« La TVA ») pour répondre à
+  Leïla, un article qu'elle ne peut pas ouvrir. La console lit l'Aide du Cabinet pour une demande de cabinet (sans les
+  quatre articles du bureau que le Cabinet en ligne n'affiche pas : les sauvegardes, changer d'ordinateur, la licence, les
+  mises à jour), et refuse à la réponse un article qui n'est pas dans l'Aide que le demandeur a sous les yeux.
+- Une seule recherche pour les deux applications (`modules/socle/aide/recherche.js`, `window.AideRecherche`) : les petits
+  mots ne cherchent rien, un mot se cherche par sa racine (« lettrer » trouve « lettrage »), les articles qui ont tous
+  les mots passent devant, et le mot entier se surligne. L'Aide de l'entreprise, celle du Cabinet et la palette du
+  Cabinet l'appellent ; aucune ne garde la sienne.
+- L'Aide du Cabinet a l'en-tête des autres pages (Tableau de bord › Aide › l'article), « Tes demandes au support » et
+  « Écrire au support » ; rien trouvé, la question part au support telle quelle, le curseur à sa fin ; une bande
+  « Une idée pour le Cabinet ? » au bas de l'accueil ; le pied dit d'écrire au support.
+- Les Réglages (Aide et dépannage) disent le support en ligne ; « Proposer une amélioration » part à l'équipe avec ses
+  deux questions, en tutoyant ; la visite « Écrire au support » et les bulles le disent aussi.
+- La preuve : `tests/support/support-cabinet-1332.test.ts` (par l'API : écrire, le double clic, chacun ses demandes, la
+  console qui répond, l'alerte, l'entreprise inchangée), `tests/web/support-cabinet-1332.test.ts` (à la souris : l'en-tête,
+  la question qui trouve son article, rien trouvé et le support, la réponse annoncée puis lue, les Réglages et l'idée, la
+  page dite par la console), `tests/v10/aide-recherche.test.ts` (la recherche partagée) ; preuves `support 1.332.0 a-s`,
+  et `aide 1.331.0 a-c` visent désormais le module partagé.
+- Pas fait, noté : « Ne rien perdre » (le bureau : copie externe, clé de secours) est retiré en ligne, mais rien ne le
+  remplace — aucun article du Cabinet ne dit ce qui garde ses livres (le serveur, la copie de chaque nuit, l'export),
+  quand l'entreprise l'a depuis la 1.331.0. À reprendre avec la revue des Réglages du Cabinet (1.333.0).
+

@@ -7372,12 +7372,20 @@
       ${panneauReg('pan-maj')}<div id="upd-panel"><p class="muted small">Chargement…</p></div></div>
 
       ${panneauReg('pan-support')}
-        <p class="small">Si quelque chose ne va pas, cette fenêtre rassemble ce qu'il faut pour le comprendre :
+        ${supportCab()
+          // (1.332.0) En ligne, la demande part à l'équipe SkanFact et sa réponse revient dans le Cabinet : le panneau le dit,
+          // au lieu de promettre un rapport de l'application de bureau qu'on ne pouvait envoyer nulle part.
+          ? `<p class="small">Une question, quelque chose qui ne marche pas comme prévu : écris à l'équipe SkanFact. Elle te répond ici, dans
+        « Tes demandes au support », en général dans la journée, et un e-mail te prévient que la réponse t'attend.</p>
+        <p class="small">Et s'il manque quelque chose, dis-le : ce sont les cabinets qui s'en servent qui décident de la suite.</p>
+        <div class="modal-actions"><button class="btn" id="s-support">Écrire au support…</button>
+        <button class="btn" id="s-idee">Proposer une amélioration…</button>
+        <button class="btn" id="s-demandes">Tes demandes au support</button></div>`
+          : `<p class="small">Si quelque chose ne va pas, cette fenêtre rassemble ce qu'il faut pour le comprendre :
         la version, le système, et le journal de l'application. Rien n'en part tout seul.</p>
-        <p class="small">Et s'il manque quelque chose, dites-le : SkanFact Cabinet est écrit par une seule personne,
-        et ce sont les cabinets qui s'en servent qui décident de la suite.</p>
+        <p class="small">Et s'il manque quelque chose, dis-le : ce sont les cabinets qui s'en servent qui décident de la suite.</p>
         <div class="modal-actions"><button class="btn" id="s-support">Signaler un problème…</button>
-        <button class="btn" id="s-idee">Proposer une amélioration…</button></div>
+        <button class="btn" id="s-idee">Proposer une amélioration…</button></div>`}
       </div>
 
       ${panneauReg('pan-exemple')}
@@ -7433,6 +7441,7 @@
     reglagesRefus = null;
     const sup = $('#s-support'); if (sup) sup.onclick = supportDialog;
     const idee = $('#s-idee'); if (idee) idee.onclick = ideeDialog;
+    const dem = $('#s-demandes'); if (dem) dem.onclick = () => { location.hash = '#/support'; };
     // Le thème s'applique AVANT d'être enregistré : on choisit une apparence en la voyant, pas en
     // cliquant « Enregistrer » puis en attendant. Si l'écriture échoue, on remet ce qui était là —
     // une apparence appliquée que le disque ne porte pas reviendrait au prochain démarrage.
@@ -7940,7 +7949,130 @@
     );
   }
 
+  // ---------- le support de SkanFact, en ligne (1.332.0) ----------
+  //
+  // Joué par Leïla, au Cabinet : « Signaler un problème… » montrait le rapport de l'application de bureau (« Electron »,
+  // « Dossiers : 0 », une copie externe) et n'envoyait rien ; « Proposer une amélioration » préparait un mail signé
+  // « SkanFact Cabinet ? · ? », en vouvoyant. Le Cabinet écrit maintenant à l'équipe SkanFact comme une entreprise : la
+  // demande part au serveur (serveur/support, base 0206), la réponse revient ICI, dans « Tes demandes au support » (la
+  // même page que l'entreprise : plateforme/support.js), et un e-mail sans contenu prévient la personne. Ce qui part avec
+  // une demande, compté et décidé : le sujet, le texte, la version et le NOM de la page où l'on travaillait — jamais un
+  // client, un dossier ni un montant.
+  const supportCab = () => (api && typeof api.supportEnLigne === 'object' && api.supportEnLigne) || null;
+  // La page d'où l'on écrit : celle où l'on travaillait, pas l'Aide ni les Réglages par où l'on passe pour écrire.
+  const PAGES_DU_SUPPORT_CAB = ['aide', 'reglages', 'support', 'guide'];
+  let routeDeTravail = '';
+  let supportCabOuvert = null;
+  let sansSupportCab = false;
+  // Le bandeau « L'équipe SkanFact a répondu… » : au-dessus de la page, reposé quand une page asynchrone la réécrit.
+  const poserSupportCab = view => { if (supportCab() && window.SkanSupport) window.SkanSupport.poser(view); };
+  async function relireSupportCab() {
+    const s = supportCab();
+    if (!s || !window.SkanSupport || sansSupportCab || document.visibilityState !== 'visible') return;
+    // Une personne qui n'est plus du cabinet n'a pas de support ici : on ne redemande plus.
+    try { window.SkanSupport.noter(await s.attente()); } catch (e) { if (e && e.statut === 403) { sansSupportCab = true; window.SkanSupport.noter(null); } }
+  }
+  let supportCabSuivi = false;
+  function suivreSupportCab() {
+    if (supportCabSuivi || !supportCab()) return;
+    supportCabSuivi = true;
+    void relireSupportCab();
+    setInterval(() => { void relireSupportCab(); }, 60 * 1000);
+    document.addEventListener('visibilitychange', () => { void relireSupportCab(); });
+  }
+  // `genre` : 'question', 'probleme' (les mêmes champs) ou 'idee' (ses deux questions). `pre` : le sujet et le texte déjà
+  // là (la question tapée dans l'Aide, qui n'a rien trouvé) ; posés au montage, ils ne comptent pas comme une saisie.
+  async function ecrireAuSupportCab(genre, pre) {
+    const s = supportCab();
+    if (!s) return;
+    const idee = genre === 'idee';
+    let v = null;
+    try { v = await api.updVersion(); } catch (_) { /* sans version, la demande part sans elle */ }
+    const version = v && v.version && v.version !== 'dev' && /^[0-9A-Za-z.+-]{1,40}$/.test(v.version) ? v.version : null;
+    const page = /^[a-z][a-z0-9_-]{0,39}$/.test(routeDeTravail) ? routeDeTravail : null;
+    const nomPage = page ? (NOMS_CAB[page] || ({ dossier: 'un dossier' })[page] || '') : '';
+    const joint = [version ? `la version de SkanFact Cabinet (v${esc(version)})` : 'la version de SkanFact Cabinet', nomPage ? `la page où tu étais (${esc(nomPage)})` : ''].filter(Boolean).join(' et ');
+    modal(`<h2>${idee ? 'Proposer une amélioration' : 'Écrire au support'}</h2>
+      <p class="small">${idee
+        ? 'Dis ce qui te manque — même si ça te paraît petit : c\'est souvent le geste répété pour chaque client qui fait gagner le plus. L\'équipe SkanFact lit chaque idée et te répond ici.'
+        : 'Une question, ou quelque chose qui ne marche pas comme prévu : l\'équipe SkanFact te répond ici, dans le Cabinet, en général dans la journée. Un e-mail te prévient que la réponse t\'attend.'}</p>
+      <form id="sup-form" novalidate>
+        ${idee ? `<label class="field obligatoire">${lbl('Ce que tu aimerais faire', 'b.ideeQuoi')}
+          <textarea id="sup-quoi" rows="3" maxlength="1800" placeholder="Ex. : relancer d'un seul geste tous les clients qui n'ont pas envoyé août."></textarea></label>
+        <label class="field">${lbl('Comment tu fais aujourd\'hui', 'b.ideeAuj')}
+          <textarea id="sup-auj" rows="3" maxlength="1800" placeholder="Ex. : j'ouvre chaque dossier et j'écris un mail à la main."></textarea></label>
+        <p class="small muted">Cette seconde question est celle qui sert le plus : elle dit le vrai problème, et pas seulement la solution imaginée.</p>`
+        : `<label class="field obligatoire">${lbl('Le sujet', 'b.supSujet')}
+          <input id="sup-sujet" maxlength="140" autocomplete="off" placeholder="Ex. : la balance du mois ne tombe pas juste" value="${esc(String((pre && pre.sujet) || '').slice(0, 140))}"></label>
+        <label class="field obligatoire">${lbl('Ce qui se passe', 'b.supTexte')}
+          <textarea id="sup-texte-demande" rows="5" maxlength="4000" placeholder="Ce que tu faisais, ce que tu attendais, ce qui s'est passé à la place. Une question ? Pose-la telle quelle.">${esc(String((pre && pre.texte) || '').slice(0, 4000))}</textarea></label>`}
+      </form>
+      <div class="notes-md mt"><strong>Joint automatiquement</strong>
+        <p class="small">${joint} : c'est ce qui aide l'équipe à voir ce que tu vois.</p>
+        <p class="small muted">Rien d'autre : ni client, ni dossier, ni montant de ton cabinet.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" data-close>Annuler</button>
+        <button class="btn btn-primary" id="sup-send">Envoyer au support</button></div>`,
+    (layer, close) => {
+      const bouton = $('#sup-send', layer);
+      // Une question venue de l'Aide : le curseur au bout du texte, pour la compléter sans chercher où cliquer.
+      const tx = $('#sup-texte-demande', layer);
+      if (pre && pre.texte && tx) requestAnimationFrame(() => { tx.focus(); tx.setSelectionRange(tx.value.length, tx.value.length); });
+      const envoyer = async () => {
+        if (bouton.disabled) return;
+        let sujet, texte;
+        if (idee) {
+          const quoi = $('#sup-quoi', layer).value.trim();
+          if (quoi.length < 3) return refus($('#sup-quoi', layer), 'Dis en une phrase ce que tu aimerais faire.');
+          const auj = $('#sup-auj', layer).value.trim();
+          // Le sujet de l'idée : sa première ligne, sans balise, tenue dans les 140 signes d'un sujet.
+          const ligne = quoi.split('\n')[0].replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+          sujet = `Une idée : ${ligne}`;
+          if (sujet.length > 140) sujet = sujet.slice(0, 139).trimEnd() + '…';
+          texte = `Ce que j'aimerais faire :\n${quoi}\n\nComment je fais aujourd'hui :\n${auj || '(non précisé)'}`;
+        } else {
+          sujet = $('#sup-sujet', layer).value.trim();
+          texte = $('#sup-texte-demande', layer).value.trim();
+          if (sujet.length < 3) return refus($('#sup-sujet', layer), 'Donne un sujet à ta demande, en quelques mots : c\'est lui que l\'équipe lit en premier.');
+          if (/[<>]/.test(sujet)) return refus($('#sup-sujet', layer), 'Le sujet s\'écrit sans les signes < et >.');
+          if (texte.length < 3) return refus($('#sup-texte-demande', layer), 'Dis ce qui se passe : ce que tu faisais, ce que tu attendais. C\'est ce qui permet de t\'aider.');
+        }
+        bouton.disabled = true;
+        try {
+          const r = await s.ecrire({ sujet, texte, version, page });
+          close();
+          toast('Envoyé : l\'équipe SkanFact te répond ici, dans « Tes demandes au support ».');
+          void relireSupportCab();
+          location.hash = '#/support/' + encodeURIComponent(r.id);
+        } catch (e) { toast(plainError(e), 'error'); bouton.disabled = false; }
+      };
+      bouton.onclick = envoyer;
+      $('#sup-form', layer).onsubmit = e => { e.preventDefault(); void envoyer(); };
+    });
+  }
+  // La page « Tes demandes au support » : la même que l'entreprise, son chemin partant du Tableau de bord du Cabinet.
+  function drawSupport(view, arg) {
+    if (supportCabOuvert) { supportCabOuvert.arreter(); supportCabOuvert = null; }
+    const s = supportCab();
+    if (!s || !window.SkanSupport) {
+      view.innerHTML = '<div class="page-head"><h1>Tes demandes au support</h1></div><div class="panel"><p class="small muted">Le support de SkanFact se joint en ligne, depuis le Cabinet.</p></div>';
+      return;
+    }
+    view.innerHTML = '<div id="sup-racine"></div>';
+    supportCabOuvert = window.SkanSupport.page($('#sup-racine'), {
+      appel: s.appel,
+      ecrire: () => ecrireAuSupportCab('question'),
+      choisie: arg ? decodeURIComponent(arg) : null,
+      toast: (t, erreur) => toast(t, erreur ? 'error' : undefined),
+      ouvrirArticle: id => { location.hash = '#/aide/' + id; },
+      accueil: { href: '#/production', nom: 'Tableau de bord' },
+    });
+  }
+
   async function supportDialog() {
+    // (1.332.0) En ligne, le problème part au support de SkanFact : le rapport de bureau ne servait à rien ici.
+    if (supportCab()) return ecrireAuSupportCab('probleme');
     let inf = {};
     try { inf = await api.support(); } catch {}
     // Un gel passé est la première chose à joindre à un rapport : c'est justement ce dont aucune
@@ -7981,31 +8113,33 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   // comment on s'en sort aujourd'hui. C'est la seconde qui apprend quelque chose — on propose
   // toujours une solution, et la solution imaginée est rarement la meilleure.
   async function ideeDialog() {
+    // (1.332.0) En ligne, l'idée part au support de SkanFact, avec ses deux questions ; la réponse revient ici.
+    if (supportCab()) return ecrireAuSupportCab('idee');
     let inf = {};
     try { inf = await api.support(); } catch {}
     const tech = `SkanFact Cabinet ${inf.version || '?'} · ${inf.platform || '?'}`;
     modal(
       `<h2>Proposer une amélioration</h2>
-       <p class="small">SkanFact Cabinet est écrit par une seule personne, et ce sont les cabinets qui s'en servent tous les jours qui décident de la suite. Dites ce qui vous manque — même si cela vous paraît petit.</p>
-       <label class="field">${lbl('Ce que vous aimeriez faire', 'b.ideeQuoi')}
+       <p class="small">SkanFact Cabinet est écrit par une seule personne, et ce sont les cabinets qui s'en servent tous les jours qui décident de la suite. Dis ce qui te manque — même si ça te paraît petit.</p>
+       <label class="field">${lbl('Ce que tu aimerais faire', 'b.ideeQuoi')}
          <textarea id="idee-quoi" rows="3" placeholder="Ex. : relancer d'un seul geste tous les clients qui n'ont pas envoyé août."></textarea></label>
-       <label class="field">${lbl('Comment vous faites aujourd\'hui', 'b.ideeAuj')}
+       <label class="field">${lbl('Comment tu fais aujourd\'hui', 'b.ideeAuj')}
          <textarea id="idee-auj" rows="3" placeholder="Ex. : j'ouvre chaque dossier et j'écris un mail à la main."></textarea></label>
        <p class="small muted">Cette seconde question est celle qui sert le plus : elle dit le vrai problème, et pas seulement la solution imaginée.</p>
-       <p class="small muted">Joint automatiquement : ${esc(tech)}. Rien d'autre — ni journal, ni nom de dossier, ni chiffre de vos clients.</p>
+       <p class="small muted">Joint automatiquement : ${esc(tech)}. Rien d'autre — ni journal, ni nom de dossier, ni chiffre de tes clients.</p>
        <div class="modal-actions"><button class="btn" data-close>Annuler</button>
        <button class="btn btn-primary" id="idee-send">Préparer le message</button></div>`,
       (layer, close) => {
         $('#idee-send', layer).onclick = async () => {
           const quoi = $('#idee-quoi', layer).value.trim();
-          if (!quoi) return refus('#idee-quoi', 'Dites en une phrase ce que vous aimeriez faire.');
+          if (!quoi) return refus('#idee-quoi', 'Dis en une phrase ce que tu aimerais faire.');
           const auj = $('#idee-auj', layer).value.trim();
           const body = 'Bonjour,\n\nUne idée pour SkanFact Cabinet.\n\n'
             + `Ce que j'aimerais faire :\n${quoi}\n\n`
             + `Comment je fais aujourd'hui :\n${auj || '(non précisé)'}\n\n`
             + `--- version ---\n${tech}\n`;
           await api.mail({ to: 'contact@skanfact.tn', subject: `Idée pour SkanFact Cabinet ${inf.version || ''}`, body });
-          close(); toast('Message préparé — relisez-le avant de l\'envoyer.');
+          close(); toast('Message préparé — relis-le avant de l\'envoyer.');
         };
       }
     );
@@ -8790,14 +8924,10 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     // dans le titre, le sous-titre ET le corps sans ses balises — « lettrage » n'est dans aucun
     // titre —, on classe (titre, puis sous-titre, puis corps : 7.27.0), et on en garde quatre :
     // la palette montre d'abord ce qu'on OUVRE, l'explication vient après.
-    const articlesPalette = (G.ARTICLES || []).map(a => ({
-      a, titre: K.sansAccents(a.t), sous: K.sansAccents(a.s),
-      corps: K.sansAccents(String(a.d || '').replace(/<[^>]+>/g, ' '))
-    }));
-    const aidesPour = qa => articlesPalette
-      .map(x => ({ x, rang: x.titre.includes(qa) ? 3 : x.sous.includes(qa) ? 2 : x.corps.includes(qa) ? 1 : 0 }))
-      .filter(r => r.rang).sort((p, q) => q.rang - p.rang).slice(0, 4)
-      .map(({ x }) => ({ kind: 'aide', main: x.a.t, sub: x.a.s, go: () => { aideQ = ''; location.hash = '#/aide/' + x.a.id; } }));
+    // (1.332.0) Par la recherche de l'Aide (aideTrouves) : deux recherches sur les mêmes articles finissaient par dire deux
+    // choses, et celle d'ici ne trouvait rien à une question tapée en français (« comment lettrer un acompte »).
+    const aidesPour = brut => (window.AideRecherche && window.AideRecherche.mots(brut).length ? aideTrouves(brut).slice(0, 4) : [])
+      .map(a => ({ kind: 'aide', main: a.t, sub: a.s, go: () => { aideQ = ''; location.hash = '#/aide/' + a.id; } }));
 
     function draw() {
       const brut = $('#pal-q', root).value.trim();
@@ -8824,7 +8954,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       // connaît pas l'application.
       const qa = K.sansAccents(brut);
       const acts = actions.filter(a => !qa || K.sansAccents(a.main).includes(qa) || (a.text || '').includes(qa));
-      items = ecrans.concat(rows, acts, qa ? aidesPour(qa) : []);
+      items = ecrans.concat(rows, acts, qa ? aidesPour(brut) : []);
       if (sel >= items.length) sel = Math.max(0, items.length - 1);
       $('#pal-res', root).innerHTML = items.length
         ? items.map((x, i) => `<div class="res ${i === sel ? 'sel' : ''}" data-i="${i}">
@@ -9028,22 +9158,16 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   // de la feuille PARTAGÉE (`.help-…`, `.th-…`) : c'est le même langage visuel que chez le client,
   // et surtout pas un second jeu de règles qui dériverait (règle 6.8.0 sur les collisions de noms).
   let aideQ = '';
-  const sansBalises = x => String(x || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const aideIcone = a => `<svg viewBox="0 0 24 24" aria-hidden="true">${a.icon || ''}</svg>`;
 
-  // Accents ignorés (10.12.0, U-08) : « declaration » tapé sans accent ne trouvait pas « La déclaration
-  // du mois » — la même règle que la recherche des clients, qui l'applique depuis la 6.8.1.
+  // (1.332.0) La recherche de l'Aide est celle de l'entreprise (modules/socle/aide/recherche.js) : on tape une QUESTION —
+  // les petits mots ne cherchent rien, un mot se cherche par sa racine (« lettrer » trouve « lettrage »), et un article qui
+  // n'a qu'une partie des mots se propose après ceux qui les ont tous. Celle d'ici exigeait chaque mot : « comment valider
+  // une écriture » ne trouvait rien. Les accents restent ignorés (10.12.0, U-08).
+  const champsAide = a => ({ titre: a.t, sous: a.s || '', corps: a.d || '' });
+  const RA = () => window.AideRecherche;
   function aideTrouves(q) {
-    const mots = K.sansAccents(q).trim().split(/\s+/).filter(Boolean);
-    if (!mots.length) return G.ARTICLES;
-    const notes = [];
-    G.ARTICLES.forEach((a, i) => {
-      const titre = K.sansAccents(`${a.t} ${a.s || ''}`);
-      const corps = K.sansAccents(sansBalises(a.d));
-      if (!mots.every(m => titre.includes(m) || corps.includes(m))) return;
-      notes.push({ a, rang: mots.every(m => titre.includes(m)) ? 0 : 1, i });
-    });
-    return notes.sort((x, y) => x.rang - y.rang || x.i - y.i).map(x => x.a);
+    return RA().filtre(G.ARTICLES, q, champsAide);
   }
 
   const aideCarte = a => `<button class="help-art grande ${esc(a.couleur || '')}" data-art="${esc(a.id)}">
@@ -9079,29 +9203,51 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     return `<button class="btn btn-primary" data-geste="${esc(g.hash)}"${g.panneau ? ` data-panneau="${esc(g.panneau)}"` : ''}>${esc(g.label)}</button>${pourquoi}`;
   }
 
+  const CHEVRON_AIDE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+  // (1.332.0) Une carte de résultat : le titre surligné, et l'extrait du corps où le mot se trouve (sinon le sous-titre).
+  const aideCarteTrouvee = (a, q) => {
+    const R = RA();
+    const mots = R.mots(q);
+    const ex = R.extrait(a.d || '', q, esc);
+    return `<button class="help-art grande ${esc(a.couleur || '')}" data-art="${esc(a.id)}">
+      <span class="ht"><span class="ha-ico">${aideIcone(a)}</span>${R.surligne(String(a.t || ''), mots, esc)}</span>
+      <span class="hs">${ex || R.surligne(String(a.s || ''), mots, esc)}</span></button>`;
+  };
+
   function drawAide(view, arg) {
     const a = G.ARTICLES.find(x => x.id === arg) || null;
     if (a) aideQ = '';
     const i = a ? G.ARTICLES.indexOf(a) : -1;
     const prec = i > 0 ? G.ARTICLES[i - 1] : null;
     const suiv = i >= 0 && i < G.ARTICLES.length - 1 ? G.ARTICLES[i + 1] : null;
+    const sup = !!supportCab();
+    // (1.332.0) L'en-tête des autres pages du Cabinet (le chemin Tableau de bord › Aide › l'article, le titre et sa phrase),
+    // et les gestes du support à droite : en ligne, on écrit à l'équipe SkanFact ; hors ligne, le rapport du poste.
+    // « Une question que cette aide ne tranche pas ? Réglages → … » faisait chercher un panneau pour un rapport qui ne
+    // partait nulle part.
     view.innerHTML = `
-      <div class="page-head"><h1>Comment ça marche</h1></div>
-      ${a ? '' : `<p class="lead">Ce que fait SkanFact Cabinet, ce qu'il ne fait pas, et ce qu'il faut avoir mis de côté pour ne rien perdre. Partout ailleurs dans l'application, les petits <span class="i-demo">i</span> expliquent le champ juste à côté.</p>`}
+      <div class="page-head lf-tete aide-tete"><div class="titre"><div class="chemin"><a href="#/production">Tableau de bord</a>${CHEVRON_AIDE}${a
+        ? `<a href="#/aide" data-home="1">Aide</a>${CHEVRON_AIDE}<span>${esc(a.t)}</span>` : '<span>Aide</span>'}</div>
+        <h1>Comment ça marche</h1><p class="sous">Ce que fait SkanFact Cabinet, et comment tenir tes dossiers sans rien perdre</p></div>
+        <div class="actions">${sup ? '<button class="btn" id="aide-demandes">Tes demandes au support</button>' : ''}<button class="btn" id="aide-support">${sup ? 'Écrire au support' : 'Signaler un problème'}</button></div></div>
+      ${a ? '' : `<p class="lead">Cherche un mot ou pose ta question, ou choisis un article. Partout ailleurs dans l'application, les petits <span class="i-demo">i</span> expliquent le champ juste à côté.</p>`}
       <div class="help-search">
         ${/* 10.12.0 (U-30) — la loupe vit AVEC le champ. Centrée sur le bloc entier, elle
               descendait sous la ligne du texte dès que le compte des résultats s'affichait. */''}
         <span class="hs-champ"><svg class="hs-loupe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4.2-4.2"/></svg>
-        <input type="search" id="aide-q" placeholder="Rechercher : un mot, une question… (« lettrage », « à valider »)" autocomplete="off" spellcheck="false" value="${esc(aideQ)}"></span>
+        <input type="search" id="aide-q" placeholder="Rechercher : un mot, une question… (« comment lettrer un acompte »)" autocomplete="off" spellcheck="false" value="${esc(aideQ)}"></span>
         <div class="help-count small muted" id="aide-n" hidden></div>
       </div>
       <div id="aide-res" hidden></div>
       <div id="aide-vue"></div>`;
 
+    // Le bas d'un article et de l'accueil : où aller quand l'aide ne tranche pas — le support, nommé par ce qu'il fait.
+    const pied = sup
+      ? 'Une question que cette aide ne tranche pas ? <b>Écris au support</b> (en haut de cette page) : l\'équipe SkanFact te répond ici, en général dans la journée, et ta demande n\'emporte aucune donnée de tes clients.'
+      : 'Une question que cette aide ne tranche pas ? <b>Signaler un problème</b> (en haut de cette page) : le rapport dit où l\'application s\'est arrêtée, et ne contient aucune donnée de tes clients.';
     const vue = $('#aide-vue');
     if (a) {
       vue.innerHTML = `
-        <div class="help-fil small"><button data-home="1">Aide</button><span class="sep">›</span><span>${esc(a.t)}</span></div>
         <div class="help-layout seul ${esc(a.couleur || '')}">
           <div class="help-col">
             <article class="panel help-body">
@@ -9109,7 +9255,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
               <p class="help-sub">${esc(a.s || '')}</p>
               ${a.d}
               ${a.geste ? `<div class="help-geste">${gesteAide(a.geste)}</div>` : ''}
-              <p class="small muted help-foot">Une question que cette aide ne tranche pas ? <b>Réglages → L'application → Aide et dépannage</b> : le rapport ne contient aucune donnée de tes clients.</p>
+              <p class="small muted help-foot">${pied}</p>
             </article>
             <div class="help-suite">
               ${prec ? `<button class="btn btn-ghost" data-art="${esc(prec.id)}">← ${esc(prec.t)}</button>` : '<span></span>'}
@@ -9119,12 +9265,13 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
         </div>`;
     } else {
       vue.innerHTML = `<div class="help-arts help-res">${G.ARTICLES.map(aideCarte).join('')}</div>
-        <p class="small muted mt">Une question que cette aide ne tranche pas ? <b>Réglages → L'application → Aide et dépannage</b> : le rapport dit où l'application s'est arrêtée, et ne contient aucune donnée de tes clients.</p>`;
+        <p class="small muted mt">${pied}</p>
+        ${sup ? '<div class="help-bas"><div><b>Une idée pour le Cabinet ?</b><span>Dis ce qui te manque, et comment tu fais aujourd\'hui : l\'équipe te répond ici.</span><button class="btn btn-sm" id="aide-idee">Proposer une amélioration</button></div></div>' : ''}`;
     }
 
     const brancher = () => {
       $$('[data-art]').forEach(b => b.onclick = () => { aideQ = ''; location.hash = '#/aide/' + b.dataset.art; });
-      $$('[data-home]').forEach(b => b.onclick = () => { aideQ = ''; location.hash = '#/aide'; });
+      $$('[data-home]').forEach(b => b.onclick = e => { e.preventDefault(); aideQ = ''; location.hash = '#/aide'; });
       // Un geste peut viser un PANNEAU des Réglages, pas seulement une page : depuis les onglets,
       // « Ouvrir les réglages » en haut d'un onglet de trois panneaux n'apprend rien.
       $$('[data-geste]').forEach(b => b.onclick = () => {
@@ -9134,6 +9281,9 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       $$('[data-ecran]').forEach(b => b.onclick = () => { location.hash = adresseCompta({ id: b.dataset.dossier }, b.dataset.ecran); });
     };
     brancher();
+    $('#aide-support').onclick = supportDialog;
+    if ($('#aide-demandes')) $('#aide-demandes').onclick = () => { location.hash = '#/support'; };
+    if ($('#aide-idee')) $('#aide-idee').onclick = ideeDialog;
 
     const q = $('#aide-q');
     const chercher = () => {
@@ -9144,21 +9294,30 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       $('#aide-vue').hidden = !!mots;
       if (!mots) { brancher(); return; }
       const trouves = aideTrouves(aideQ);
-      n.textContent = trouves.length
-        ? `${pl(trouves.length, 'article')} sur ${G.ARTICLES.length}, le plus proche en premier`
-        : `Aucun article sur ${G.ARTICLES.length}`;
-      // 10.12.0 (U-30) — la phrase suit ce qu'on a TAPÉ : « Essaie un seul mot » après un seul mot
-      // demandait l'impossible. Plusieurs mots : chacun doit être dans l'article, on le dit. Un seul :
-      // on le nomme. Et le refus a sa sortie (règle 7.0.0) — revenir aux articles d'un clic.
-      const nMots = mots.split(/\s+/).filter(Boolean).length;
+      // (1.332.0) Ce que la liste contient se dit (comme l'Aide de l'entreprise, 1.331.0) : les articles qui portent tous
+      // les mots, puis ceux qui n'en ont qu'une partie — sans quoi une réponse approchée se lirait comme LA réponse.
+      const complets = trouves.filter(x => RA().tous(x, aideQ, champsAide)).length;
+      const autres = trouves.length - complets;
+      const total = G.ARTICLES.length;
+      n.textContent = !trouves.length ? `Aucun article sur ${total}`
+        : !autres ? `${pl(trouves.length, 'article')} sur ${total}, le plus proche en premier`
+          : complets ? `${pl(complets, 'article')} avec tous tes mots, puis ${pl(autres, 'autre')} qui en ${autres > 1 ? 'ont' : 'a'} une partie`
+            : `Aucun article n'a tous tes mots : ${trouves.length > 1 ? `les ${trouves.length} plus proches, celui qui en a le plus en premier` : 'le plus proche'}`;
+      const grille = xs => `<div class="help-arts help-res">${xs.map(x => aideCarteTrouvee(x, aideQ)).join('')}</div>`;
+      // Quand l'Aide ne répond pas, la question part au support telle qu'elle a été tapée (1.331.0 côté entreprise) :
+      // c'était « Essaie-les un par un », et le comptable repartait sans réponse.
+      const versSupport = sup ? `<div class="help-support"><span>Pas la réponse que tu cherches ? L'équipe SkanFact répond ici, en général dans la journée.</span>
+          <button class="btn btn-sm" id="aide-q-support">Poser ma question au support</button></div>` : '';
       res.innerHTML = trouves.length
-        ? `<div class="help-arts help-res">${trouves.map(aideCarte).join('')}</div>`
-        : `<div class="empty"><p>${nMots > 1
-          ? 'Aucun article ne contient tous ces mots — chacun doit s\'y trouver. Essaie-les un par un.'
-          : `Aucun article ne parle de « ${esc(mots)} ». Essaie un mot voisin, ou parcours les articles.`}</p>
-          <div class="inline mt"><button type="button" class="btn btn-sm" id="aide-effacer">Revenir aux ${esc(pl(G.ARTICLES.length, 'article'))}</button></div></div>`;
+        ? (complets && autres
+          ? `${grille(trouves.slice(0, complets))}<p class="help-res-part small muted" id="aide-partie">Avec une partie de tes mots</p>${grille(trouves.slice(complets))}`
+          : grille(trouves)) + versSupport
+        : `<div class="empty"><p>Aucun article ne parle de « ${esc(mots)} ». ${sup ? 'Pose ta question au support : l\'équipe SkanFact te répond ici, en général dans la journée.' : 'Essaie un mot voisin, ou parcours les articles.'}</p>
+          <div class="inline mt">${sup ? '<button type="button" class="btn btn-primary" id="aide-q-support">Poser ma question au support</button>' : ''}<button type="button" class="btn${sup ? '' : ' btn-sm'}" id="aide-effacer">Revenir aux ${esc(pl(total, 'article'))}</button></div></div>`;
       const effacer = $('#aide-effacer');
       if (effacer) effacer.onclick = () => { q.value = ''; chercher(); q.focus(); };
+      const poser = $('#aide-q-support');
+      if (poser) poser.onclick = () => ecrireAuSupportCab('question', { sujet: mots, texte: mots });
       brancher();
     };
     q.oninput = chercher;

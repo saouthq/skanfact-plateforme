@@ -2,8 +2,9 @@
 // M1) ; la porte ne connaît que ces déclarations.
 //
 // Écrire au support et relire ses demandes : chaque personne de l'entreprise, quel que soit son rôle (même en lecture :
-// on peut avoir besoin d'aide sans rien écrire dans le dossier) ; jamais une clé de l'API, ni un cabinet par son mandat
-// (il a son propre support). Chacun ne lit que SES demandes : la base le tient (plateforme.support_exiger, 0095).
+// on peut avoir besoin d'aide sans rien écrire dans le dossier) ; jamais une clé de l'API, ni un cabinet par son mandat :
+// le cabinet écrit au support sous ses propres routes (/cabinets/:cabinet/support, 1.332.0), avec les gestes de ses autres
+// routes, et la base vérifie qu'il en est membre (plateforme.support_cab_exiger, 0206). Chacun ne lit que SES demandes : la base le tient (plateforme.support_exiger, 0095).
 
 import { declarerGestes, type Geste } from '../porte/gestes.ts';
 import './textes.ts';
