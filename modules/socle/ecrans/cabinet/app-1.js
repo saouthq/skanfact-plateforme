@@ -1675,6 +1675,7 @@
     if (piecesChangees && libre && !frappe) {
       if (/^#\/relances(\/|$)/.test(location.hash)) drawRelances($('#view'));
       else if (/^#\/echeances(\/|$)/.test(location.hash)) drawEcheances($('#view'));
+      else if (/^#\/dossiers(\/|$)/.test(location.hash) && $('#page-tb')) drawDossiersCd($('#view'));
     }
   }
   // ---------- Messages (telles que la maquette « Messages » de Mon cabinet, 1.176.0) ----------
@@ -4248,7 +4249,7 @@
     // Rien le mois dernier, mais des écritures ce mois-ci (un client qui commence) : son mois en cours, pas « sans pièces ».
     const mc = K.today().slice(0, 7), ecrC = ecrituresConnues(d.id, mc), brC = brouillardsConnus(d.id, mc);
     if (ecrC) return brC ? { cl: 'cours', mot: `${moisCourt(mc)} à réviser` } : { cl: 'pret', mot: `${moisCourt(mc)} en cours` };
-    return d.manual ? { cl: 'cours', mot: `${moisCourt(m)} à saisir` } : { cl: 'cours', mot: `${moisCourt(m)} sans pièces`, manque: true, manqueTxt: `${moisCourt(m)} sans pièces` };
+    return d.manual ? { cl: 'cours', mot: `${moisCourt(m)} à saisir` } : { cl: 'cours', mot: `${moisCourt(m)} sans pièces`, manque: true, manqueTxt: `${moisCourt(m)} sans pièces`, moisManque: m };
   }
   const MISSION_CD = { comptabilite: 'Livres', declarations: 'Décl.', saisie_achats: 'Achats', paie: 'Paie' };
   // La saisie des achats se lit sur la fiche (« Ce qui est confié ») : la liste dit la mission comme la maquette.
@@ -4317,17 +4318,32 @@
     const tel = matchMedia('(max-width: 760px)').matches;
     if (!st.vue) st.vue = dir ? 'tous' : 'mes';
     // Les mois en retard de chaque dossier : les déclarations mensuelles passées et pas déposées (K.echeances).
-    const retard = new Map();
+    const retard = new Map(), sansPieces = new Map();
     for (const e of K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })) {
       if (!e.passee || e.toutDepose || !/^tva-/.test(e.id)) continue;
       for (const nom of e.restants || []) retard.set(nom, [...(retard.get(nom) || []), e.mois[e.mois.length - 1]].sort());
+      // (1.340.0) Le mois en retard dont rien n'est arrivé (la règle des Échéances, `manquants`) : seul celui-là se réclame au
+      // client. Un mois en retard dont les écritures sont là attend le cabinet, pas le client — la relance partait vide.
+      for (const nom of e.manquants || []) if ((e.restants || []).includes(nom)) sansPieces.set(nom, [...(sansPieces.get(nom) || []), e.mois[e.mois.length - 1]].sort());
     }
     const aMoi = d => !!(d.droits && d.droits[S.moi]);
     // La pastille des messages : exactement quand le client compte dans celle du menu (« À traiter »), avec ses non-lus.
-    const lignesDe = d => { const m = etatsMessages.get(d.id) || {}; return { d, mo: moisDuDossier(d, retard), eq: equipeDe(d), nl: m.nonLus || 0, at: m.etat === 'a_traiter' }; };
+    // (1.340.0) Les pièces que le client a envoyées et qui attendent d'être classées (« Pièces reçues ») : la règle des Relances
+    // (1.335.0) — un client qui a envoyé n'est pas « à relancer ». La vue « Pièces manquantes » mettait Relancer sur des
+    // clients dont les pièces attendaient d'être classées, et « sept. sans pièces » sur un mois dont elles étaient arrivées.
+    const piecesPar = comptesBarre.piecesParDossier || new Map();
+    const lignesDe = d => {
+      const m = etatsMessages.get(d.id) || {}, pc = d.manual ? 0 : (piecesPar.get(d.id) || 0);
+      let mo = moisDuDossier(d, retard);
+      if (pc && mo.manque && mo.moisManque) mo = { cl: 'cours', mot: `${moisCourt(mo.moisManque)} à saisir` };
+      const sp = d.manual || !mo.tard ? [] : (sansPieces.get(d.name) || []);
+      if (mo.tard) mo = { ...mo, manqueTxt: sp.length ? `${sp.map(moisCourt).join(', ')} sans pièces` : `${(retard.get(d.name) || []).map(moisCourt).join(', ')} à déclarer : ses écritures sont là` };
+      // `reclame` : ce qui se demande au client (un mois sans pièces), jamais un mois qui n'attend que le cabinet.
+      return { d, mo, pc, sp, reclame: !d.manual && (!!mo.manque || sp.length > 0), eq: equipeDe(d), nl: m.nonLus || 0, at: m.etat === 'a_traiter' };
+    };
     const L = actifs.map(lignesDe);
     const VUES = [['tous', 'Tous'], ['mes', 'Mes dossiers'], ['manque', 'Pièces manquantes'], ['tenus', 'Tenus au cabinet'], ['archives', 'Archivés']];
-    const dansVue = (v, x) => v === 'tous' ? true : v === 'mes' ? aMoi(x.d) : v === 'manque' ? !x.d.manual && (x.mo.manque || x.mo.tard) : v === 'tenus' ? x.d.manual : false;
+    const dansVue = (v, x) => v === 'tous' ? true : v === 'mes' ? aMoi(x.d) : v === 'manque' ? x.reclame && !x.pc : v === 'tenus' ? x.d.manual : false;
     const compte = v => v === 'archives' ? archives.length : L.filter(x => dansVue(v, x)).length;
     const q = st.q.trim().toLowerCase();
     const cherche = x => `${x.d.name} ${x.d.matricule || ''} ${x.d.phone || ''} ${x.d.email || ''} ${x.d.contact || ''}`.toLowerCase().includes(q);
@@ -4396,7 +4412,7 @@
       const vite = `<span class="cd-vite">${d.manual ? `<button type="button" class="btn ico" data-cd-geste="ecrire" data-cd-d="${esc(d.id)}" title="Écrire à ${esc(d.contact || d.name)} (WhatsApp, e-mail)" aria-label="Écrire à ${esc(d.contact || d.name)} par WhatsApp ou e-mail">${CD_IC.msg}</button>` : `<a class="btn ico" href="#/messages/${encodeURIComponent(d.id)}" title="Écrire à ${esc(d.contact || d.name)}" aria-label="Écrire à ${esc(d.contact || d.name)}">${CD_IC.msg}</a>`}${dir ? `<span class="cd-cf-w"><button type="button" class="btn ico" data-cd-geste="confier" data-cd-d="${esc(d.id)}" title="Confier à…" aria-label="Confier ${esc(d.name)} à…" aria-haspopup="menu" aria-expanded="${st.confier === d.id}"${hors ? ' disabled' : ''}>${CD_IC.confier}</button>${st.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</span>`;
       return `<tr class="clickable${choisi ? ' choisie' : ''}${st.kb === d.id ? ' kb' : ''}" data-id="${esc(d.id)}"><td class="cx"><input type="checkbox" data-cd-choix="${esc(d.id)}"${choisi ? ' checked' : ''} aria-label="Choisir ${esc(d.name)}"></td>
         <td class="cl"><span class="cl-i">${marqueD(d)}<span><b>${esc(d.name)}</b><small>${esc([d.forme, d.ville].filter(Boolean).join(' · ') || d.matricule || (d.manual ? 'tenu au cabinet' : 'sur SkanFact'))}</small></span></span></td>
-        <td class="cd-mo-c"><span class="ms-mo ${x.mo.cl}"><i></i>${esc(x.mo.mot)}</span>${x.mo.aPreciser ? `<button type="button" class="btn-lien cd-debut" data-cd-debut="${esc(d.id)}"${hors ? ' disabled' : ''}>Préciser…</button>` : ''}${st.vue === 'manque' ? sousMoisCd(d, x) : ''}</td>
+        <td class="cd-mo-c"><span class="ms-mo ${x.mo.cl}"><i></i>${esc(x.mo.mot)}</span>${x.mo.aPreciser ? `<button type="button" class="btn-lien cd-debut" data-cd-debut="${esc(d.id)}"${hors ? ' disabled' : ''}>Préciser…</button>` : ''}${x.pc ? `<a class="cd-pc" href="#/pieces/${encodeURIComponent(d.id)}" title="Les ouvrir dans « Pièces reçues »">${esc(pl(x.pc, 'pièce reçue', 'pièces reçues'))}, à classer</a>` : ''}${st.vue === 'manque' ? sousMoisCd(d, x) : ''}</td>
         <td>${missionCd(d)}</td><td>${suivi}</td>
         <td class="cd-ct"><span class="cd-ct-i"><span><b>${esc(d.contact || '—')}</b><small>${esc(d.fonction || d.phone || d.email || '')}</small></span>${nl}</span></td>
         ${dir ? `<td class="r"><span class="num">${honCd(d) ? esc(dtCd(honCd(d))) : '—'}</span></td>` : ''}
@@ -4409,11 +4425,11 @@
       return `<button type="button" class="cd-carte" data-cd-carte="${esc(d.id)}">${marqueD(d)}<span class="cd-c-t"><span class="cd-c-h"><b>${esc(d.name)}</b>${x.nl ? `<span class="cd-nl-t">${x.nl}</span>` : ''}</span><span class="cd-c-m"><span class="ms-mo ${x.mo.cl}"><i></i>${esc(x.mo.mot)}</span>${d.manual ? '<span class="cd-li tenu">tenu</span>' : ''}</span><span class="cd-c-s">${esc(d.contact || '—')}${x.eq.suit ? ` · ${persCd(x.eq.suit, 18)} ${esc(prenomDe(x.eq.suit))}` : ''}${dir && honCd(d) ? ` · ${esc(money(honCd(d)))}` : ''}</span>${st.vue === 'manque' ? sousMoisCd(d, x) : ''}</span>${CD_IC.fleche}</button>`;
     };
     const teteTab = `<thead><tr><th class="cx"><input type="checkbox" id="cd-tout" aria-label="Tout choisir"${st.choix.size && st.choix.size === vis.length ? ' checked' : ''}></th><th>Client</th><th>Le mois ${info('cd.mois')}</th><th>Mission</th><th>Suivi</th><th>Contact</th>${dir ? '<th class="r">Honoraires</th>' : ''}<th>Lien ${info('cd.lien')}</th><th></th></tr></thead>`;
-    const pied = `<tfoot><tr><td></td><td class="m">${pl(l.length, 'dossier')}</td><td colspan="4"><span class="pied-t">${st.vue === 'manque' ? `${l.filter(x => x.mo.manque || x.mo.tard).length} sans tous leurs mois` : `${l.filter(x => x.d.manual).length} tenus au cabinet · ${l.filter(x => !x.d.manual).length} reliés`}</span></td>${dir ? `<td class="r m">${esc(dtCd(l.reduce((t, x) => t + honCd(x.d), 0)))}<small>DT par mois, HT</small></td>` : ''}<td colspan="2"></td></tr></tfoot>`;
+    const pied = `<tfoot><tr><td></td><td class="m">${pl(l.length, 'dossier')}</td><td colspan="4"><span class="pied-t">${st.vue === 'manque' ? `${l.filter(x => x.reclame).length} sans tous leurs mois` : `${l.filter(x => x.d.manual).length} tenus au cabinet · ${l.filter(x => !x.d.manual).length} reliés`}</span></td>${dir ? `<td class="r m">${esc(dtCd(l.reduce((t, x) => t + honCd(x.d), 0)))}<small>DT par mois, HT</small></td>` : ''}<td colspan="2"></td></tr></tfoot>`;
     const pager = pages > 1 ? `<div class="pager cd-pager"><span>${(st.page - 1) * PAR_PAGE + 1} à ${Math.min(l.length, st.page * PAR_PAGE)} sur ${l.length}</span><span class="cd-pg"><button type="button" class="btn btn-sm" data-cd-pg="-1"${st.page <= 1 ? ' disabled' : ''}>Précédent</button><button type="button" class="btn btn-sm" data-cd-pg="1"${st.page >= pages ? ' disabled' : ''}>Suivant</button></span>${dir ? `<span class="mu">Les honoraires de la sélection entière : ${esc(money(l.reduce((t, x) => t + honCd(x.d), 0)))} par mois</span>` : ''}</div>` : '';
     let corps;
     if (q && !l.length) corps = `<div class="panel lf-tab"><div class="vide-f">${CD_IC.loupe}<b>Aucun client ne correspond à « ${esc(st.q)} »</b><span>La recherche lit le nom, le matricule, le téléphone, l'e-mail et le contact de tous tes clients, archivés compris.</span><span class="pr-b"><button type="button" class="btn btn-sm" id="cd-effacer">Effacer la recherche</button>${dir ? `<button type="button" class="btn btn-sm" id="cd-ajouter-q">${CD_IC.plus} Ajouter un client…</button>` : ''}</span></div></div>`;
-    else if (!l.length) corps = `<div class="panel lf-tab"><div class="vide-f">${CD_IC.dossiers}<b>${st.vue === 'mes' ? 'Aucun dossier ne t\'est confié' : st.vue === 'manque' ? 'Tous tes clients ont envoyé leurs mois' : st.vue === 'tenus' ? 'Aucun dossier tenu au cabinet' : st.vue === 'archives' ? 'Aucun dossier archivé' : 'Aucun dossier'}</b><span>${st.vue === 'mes' ? (dir ? 'Confie-toi des dossiers depuis « Tous » : choisis-les, puis « Confier à… ».' : 'La direction te les confie : ils arriveront ici, avec leurs mois et leur conversation.') : st.vue === 'manque' ? 'Le mois dernier de chaque client relié a des écritures, ou sa déclaration est partie.' : st.vue === 'archives' ? 'Un dossier archivé quitte les listes ; il se lit et s\'exporte toujours.' : ''}</span></div></div>`;
+    else if (!l.length) corps = `<div class="panel lf-tab"><div class="vide-f">${CD_IC.dossiers}<b>${st.vue === 'mes' ? 'Aucun dossier ne t\'est confié' : st.vue === 'manque' ? 'Tous tes clients ont envoyé leurs mois' : st.vue === 'tenus' ? 'Aucun dossier tenu au cabinet' : st.vue === 'archives' ? 'Aucun dossier archivé' : 'Aucun dossier'}</b><span>${st.vue === 'mes' ? (dir ? 'Confie-toi des dossiers depuis « Tous » : choisis-les, puis « Confier à… ».' : 'La direction te les confie : ils arriveront ici, avec leurs mois et leur conversation.') : st.vue === 'manque' ? (envoyeTxt ? `${esc(envoyeTxt.replace(/^(\d+) autres clients/, '$1 clients'))} <a class="cd-pc" href="#/pieces">Les classer</a>` : 'Le mois dernier de chaque client relié a des écritures, ou sa déclaration est partie.') : st.vue === 'archives' ? 'Un dossier archivé quitte les listes ; il se lit et s\'exporte toujours.' : ''}</span></div></div>`;
     else if (st.vue === 'archives' && !q && !tel) {
       // (1.169.0) Les archivés : qui les suivait, et ce qui se fait encore (les lire, les exporter, les désarchiver).
       const la = x => `<tr class="clickable" data-id="${esc(x.d.id)}"><td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b>${esc(x.d.name)}</b><small>${x.d.manual ? 'tenu au cabinet' : 'relié'}${x.d.contact ? ` · ${esc(x.d.contact)}` : ''}</small></span></span></td>
@@ -4423,7 +4439,13 @@
     }
     else if (tel) corps = `<div class="cd-cartes">${vis.map(carte).join('')}</div>${pager}`;
     else corps = `<div class="panel lf-tab"><table class="lf-table cd-table">${teteTab}<tbody>${vis.map(ligne).join('')}</tbody>${pages > 1 ? '' : pied}</table>${pager}</div>`;
-    const tetev = st.vue === 'manque' && !q && l.length ? `<div class="cd-rt"><span class="cd-rt-ic">${CD_IC.rel}</span><span class="cd-rt-t"><b>${pl(l.length, 'client n\'a', 'clients n\'ont')} pas envoyé tous ${l.length > 1 ? 'leurs' : 'ses'} mois</b><span>${esc(l.slice(0, 3).map(x => x.d.name).join(', ').replace(/, ([^,]*)$/, ' et $1'))}${l.length > 3 ? '…' : ''} : une relance chacun, dans sa conversation (ses mois, ce qui manque, une date). La réponse arrive dans Messages.</span></span><button type="button" class="btn btn-primary" id="cd-relancer-tous"${hors ? ' disabled title="Revient avec le réseau"' : ''}>${CD_IC.rel} Relancer le premier…</button></div>`
+    // (1.340.0) Ceux qui ont envoyé : ni dans la vue, ni relancés ; la vue le dit, avec le chemin vers leurs pièces.
+    const envoye = L.filter(x => x.reclame && x.pc);
+    const envoyeTxt = envoye.length ? `${envoye.length > 1 ? `${envoye.length} autres clients ont` : `${envoye[0].d.name} a`} envoyé des pièces : elles attendent d'être classées.` : '';
+    // (1.340.0) « Relancer le premier » va au premier qui n'a pas été relancé aujourd'hui (la règle des Relances) ; quand tous
+    // l'ont été, le bouton se tait et la phrase le dit.
+    const aRelancerCd = l.filter(y => !y.d.manual && !relanceAujourdhui(y.d));
+    const tetev = st.vue === 'manque' && !q && l.length ? `<div class="cd-rt"><span class="cd-rt-ic">${CD_IC.rel}</span><span class="cd-rt-t"><b>${pl(l.length, 'client n\'a', 'clients n\'ont')} pas envoyé tous ${l.length > 1 ? 'leurs' : 'ses'} mois</b><span>${esc(l.length > 3 ? nomsTb(l) : l.map(x => x.d.name).join(', ').replace(/, ([^,]*)$/, ' et $1'))} : ${aRelancerCd.length ? 'une relance chacun, dans sa conversation (ses mois, ce qui manque, une date)' : l.length > 1 ? 'tous relancés aujourd\'hui, dans leur conversation' : 'relancé aujourd\'hui, dans sa conversation'}. La réponse arrive dans Messages.${envoyeTxt ? ` ${esc(envoyeTxt)} <a class="cd-pc" href="#/pieces">Les classer</a>` : ''}</span></span>${aRelancerCd.length ? `<button type="button" class="btn btn-primary" id="cd-relancer-tous"${hors ? ' disabled title="Revient avec le réseau"' : ''}>${CD_IC.rel} Relancer ${aRelancerCd.length < l.length ? 'le suivant' : 'le premier'}…</button>` : ''}</div>`
       : st.vue === 'tenus' && !q ? `<p class="cd-vt cd-vt-g">${CD_IC.dossiers}<span>${pl(l.length, 'dossier tenu', 'dossiers tenus')} au cabinet : tu y saisis tout. Invité sur SkanFact (depuis sa fiche), un client envoie ses pièces seul.</span></p>`
         : st.vue === 'archives' && !q ? `<p class="cd-vt cd-vt-g">${CD_IC.archive}<span>Un dossier archivé quitte les listes, le Tableau de bord et les Échéances ; il se lit et s'exporte toujours. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></p>` : '';
     const choisis = l.filter(x => st.choix.has(x.d.id));
@@ -4472,7 +4494,7 @@
     const relancer = id => { const D = tous.find(d => d.id === id); if (D) fenRelancer(D, itemsEcheances()); };
     $$('[data-cd-relancer]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); relancer(b.dataset.cdRelancer); }; });
     $$('[data-cd-debut]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); fenDebutMission(tous.find(d => d.id === b.dataset.cdDebut)); }; });
-    const rt = $('#cd-relancer-tous', view); if (rt) rt.onclick = () => { const x = l.find(y => !y.d.manual); if (x) relancer(x.d.id); };
+    const rt = $('#cd-relancer-tous', view); if (rt) rt.onclick = () => { const x = aRelancerCd[0]; if (x) relancer(x.d.id); };
     $$('[data-cd-geste]', view).forEach(b => {
       b.onclick = e => {
         e.stopPropagation();
@@ -4485,14 +4507,16 @@
         if (g === 'ouvrir') ouvrirD(id);
         if (g === 'ecrire') { if (D.manual) fenEcrire(D); else location.hash = `#/messages/${encodeURIComponent(id)}`; }
         if (g === 'relancer') relancer(id);
+        if (g === 'pieces') location.hash = '#/pieces/' + encodeURIComponent(id);
         if (g === 'noter') fenNoterRelance(D, [...(retard.get(D.name) || []), ...(moisDuDossier(D, retard).manque ? [moisPrecedent(K.today().slice(0, 7))] : [])]);
-        if (g === 'modifier' || g === 'archiver') dossierForm(D);
+        // (1.340.0) « Archiver le dossier… » ouvrait la fiche en haut, la case « Dossier archivé » douze champs plus bas.
+        if (g === 'modifier' || g === 'archiver') dossierForm(D, g === 'archiver' ? { focus: '#f-arch' } : undefined);
         if (g === 'inviter') location.hash = '#/dossier/' + encodeURIComponent(id) + '/fiche';
       };
     });
     $$('tr[data-id]', view).forEach(tr => {
       tr.onclick = e => {
-        if (e.target.closest('.lf-act, .cd-nl, .cx')) return;
+        if (e.target.closest('.lf-act, .cd-nl, .cx, .cd-pc')) return;
         ouvrirD(tr.dataset.id);
       };
     });
@@ -4519,9 +4543,9 @@
   });
   function menuLigneCd(x) {
     const d = x.d, dir = estAssocie();
-    const IC_G = { ouvrir: CD_IC.dossiers, ecrire: CD_IC.msg, relancer: CD_IC.rel, noter: CD_IC.telephone, confier: CD_IC.confier, modifier: CD_IC.modifier, inviter: CD_IC.inviter, archiver: CD_IC.archive };
+    const IC_G = { pieces: CD_IC.dossiers, ouvrir: CD_IC.dossiers, ecrire: CD_IC.msg, relancer: CD_IC.rel, noter: CD_IC.telephone, confier: CD_IC.confier, modifier: CD_IC.modifier, inviter: CD_IC.inviter, archiver: CD_IC.archive };
     const it = (g, l, h, cl = '') => `<button type="button" role="menuitem"${cl ? ` class="${cl}"` : ''} data-cd-geste="${g}" data-cd-d="${esc(d.id)}"><span class="rm-i">${IC_G[g] || ''}</span><span class="rm-t"><span class="rm-l">${l}</span>${h ? `<span class="rm-h">${h}</span>` : ''}</span></button>`;
-    return `<div class="row-menu cd-menu" role="menu">${it('ouvrir', 'Ouvrir le dossier', 'sa comptabilité, ses mois, ses pièces')}${it('ecrire', `Écrire à ${esc(d.contact || d.name)}${d.manual ? '…' : ''}`, d.manual ? 'WhatsApp ou e-mail : il n\'a pas de compte SkanFact' : 'dans votre conversation')}${!d.manual && (x.mo.manque || x.mo.tard) ? it('relancer', 'Relancer…', `${esc(x.mo.manqueTxt || x.mo.mot)} · ${esc(derniereRelanceCd(d))}`, 'attire') : ''}${it('noter', 'Noter une relance faite…', 'un appel, une visite, un message hors SkanFact')}<div class="sep"></div>${dir ? it('confier', 'Confier à…', x.eq.suit ? `suivi par ${esc(prenomDe(x.eq.suit))}${x.eq.val ? `, validé par ${esc(prenomDe(x.eq.val))}` : ''}` : 'personne ne le suit encore') : ''}${dir ? it('modifier', 'Modifier la fiche', 'nom, matricule, contact, honoraires') : ''}${dir && d.manual ? it('inviter', 'Inviter sur SkanFact…', 'depuis sa fiche : ses pièces arriveront seules') : ''}${dir ? `<div class="sep"></div>${it('archiver', d.archived ? 'Désarchiver le dossier…' : 'Archiver le dossier…', d.archived ? 'il revient dans les listes' : 'il reste lisible ; il quitte les listes')}` : '<p class="cd-menu-n">Confier, inviter et archiver : la direction.</p>'}</div>`;
+    return `<div class="row-menu cd-menu" role="menu">${it('ouvrir', 'Ouvrir le dossier', 'sa comptabilité, ses mois, ses pièces')}${it('ecrire', `Écrire à ${esc(d.contact || d.name)}${d.manual ? '…' : ''}`, d.manual ? 'WhatsApp ou e-mail : il n\'a pas de compte SkanFact' : 'dans votre conversation')}${x.pc ? it('pieces', `Classer ${x.pc > 1 ? `ses ${x.pc} pièces` : 'sa pièce'}`, 'dans « Pièces reçues »', 'attire') : ''}${x.reclame ? it('relancer', 'Relancer…', x.pc ? 'il a envoyé des pièces : classe-les d\'abord' : `${esc(x.mo.manqueTxt || x.mo.mot)} · ${esc(derniereRelanceCd(d))}`, x.pc ? '' : 'attire') : ''}${it('noter', 'Noter une relance faite…', 'un appel, une visite, un message hors SkanFact')}<div class="sep"></div>${dir ? it('confier', 'Confier à…', x.eq.suit ? `suivi par ${esc(prenomDe(x.eq.suit))}${x.eq.val ? `, validé par ${esc(prenomDe(x.eq.val))}` : ''}` : 'personne ne le suit encore') : ''}${dir ? it('modifier', 'Modifier la fiche', 'nom, matricule, contact, honoraires') : ''}${dir && d.manual ? it('inviter', 'Inviter sur SkanFact…', 'depuis sa fiche : ses pièces arriveront seules') : ''}${dir ? `<div class="sep"></div>${it('archiver', d.archived ? 'Désarchiver le dossier…' : 'Archiver le dossier…', d.archived ? 'il revient dans les listes' : 'il reste lisible ; il quitte les listes')}` : '<p class="cd-menu-n">Confier, inviter et archiver : la direction.</p>'}</div>`;
   }
   // « Confier à… » : chacun avec sa charge, pour choisir sans ouvrir le tableau de bord.
   function popConfier(ds) {
@@ -5061,7 +5085,7 @@
     $$('[data-fd-m]', view).forEach(b => {
       b.onclick = async () => {
         const g = b.dataset.fdM; ficheFd.menu = false; redessiner();
-        if (g === 'modifier' || g === 'archiver') dossierForm(d);
+        if (g === 'modifier' || g === 'archiver') dossierForm(d, g === 'archiver' ? { focus: '#f-arch' } : undefined);
         if (g === 'confier') { dosState.confier = d.id; redessiner(); }
         if (g === 'noter') fenNoterRelance(d, [...tard, ...(etatMoisFd(d, mp, L, tard, mc)[0] === 'manque' ? [mp] : [])]);
         if (g === 'appeler') { try { await api.tel({ number: d.phone }); } catch (x2) { toast(plainError(x2), 'error'); } }
@@ -5075,7 +5099,7 @@
         const g = b.dataset.cdGeste;
         if (g === 'confier') { dosState.confier = dosState.confier === d.id ? '' : d.id; redessiner(); return; }
         if (g === 'noter') fenNoterRelance(d, [...tard]);
-        if (g === 'archiver') dossierForm(d);
+        if (g === 'archiver') dossierForm(d, { focus: '#f-arch' });
       };
     });
     $$('[data-cd-a]', view).forEach(b => { b.onclick = () => confierA(b.dataset.cdA, [d]); });

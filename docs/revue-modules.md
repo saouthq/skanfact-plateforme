@@ -1960,3 +1960,32 @@ puis le classeur mois par mois, et une attestation envoyée par Sarra depuis « 
 
 À VÉRIFIER : le genre « document » se devine sur le nom du fichier (attestation, contrat, bail, statuts, assurance,
 registre, patente) ; une facture nommée « contrat-maintenance.pdf » se dira « à ranger » — d'où « La saisir quand même ».
+
+## Le portefeuille du Cabinet (« Tous les dossiers »), et le pont (1.340.0)
+
+Joué à la souris sur l'exemple, comme Leïla le 9 novembre : la liste, ses vues, le menu d'une ligne, « Ajouter un
+client… », l'archivage.
+
+- « Pièces manquantes » annonçait 10 clients et mettait « Relancer » sur chacun. Cinq avaient envoyé leurs pièces par
+  « Mon comptable » (elles attendaient dans « Pièces reçues ») ; trois étaient « en retard » parce que le CABINET n'avait
+  pas déposé : leurs écritures étaient là, et la relance partait vide (« Bonjour Sami, »). La vue ne réclame plus qu'un
+  mois dont rien n'est arrivé — la règle des Échéances (`manquants`) et celle des Relances (un client qui a envoyé n'est
+  pas « à relancer ») : 2 clients sur l'exemple, tous deux relancés le matin même.
+- Sous le mois, la ligne d'un client qui a envoyé dit « 4 pièces reçues, à classer », un lien vers ses pièces ; un mois
+  sans écriture dont les pièces sont arrivées se dit « à saisir », et non « sans pièces ». Son menu propose « Classer ses
+  pièces » ; « Relancer… » ne s'offre qu'à qui doit quelque chose.
+- La vue dit ceux qu'elle écarte (« Café Dar Zitouna a envoyé des pièces : elles attendent d'être classées. Les
+  classer »), et « Relancer le premier… » devient « Relancer le suivant… » : il saute le client relancé aujourd'hui.
+  Quand tous l'ont été, le bouton se tait.
+- « Ajouter un client… » créait « garage triki » à côté de « Garage Triki » sans un mot. Même nom (casse, accents et
+  ponctuation mis à part) ou même matricule : la question avant de créer — « Ouvrir son dossier », « Créer quand même »
+  (deux homonymes existent), ou revenir.
+- « Archiver le dossier… » ouvrait la fiche en haut, la case « Dossier archivé » douze champs plus bas : elle est
+  amenée à l'écran, le curseur dedans (la ligne, la fiche, son menu).
+- Le pont : la liste se redessine quand des pièces arrivent (comme les Relances et les Échéances), jamais sous une
+  fenêtre ni pendant qu'on tape. Rien ne change côté client.
+- La preuve : `tests/web/portefeuille-1340.test.ts` (un client relancé le matin, un qui envoie une photo, un dont les
+  écritures sont là, un qui n'a rien envoyé ; le doublon ; l'archivage) ; preuves `portefeuille 1.340.0 a-i`.
+
+À VÉRIFIER : « Pièces manquantes » écarte un client dès qu'une pièce attend d'être classée, même s'il ne les a pas toutes
+envoyées — la règle des Relances : on classe avant de relancer.

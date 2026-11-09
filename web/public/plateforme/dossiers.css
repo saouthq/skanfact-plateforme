@@ -65,6 +65,10 @@
 .cd-page .cd-table td.r small.ambre::before { content: '● '; font-size: 8px; vertical-align: 2px; }
 .cd-page .cd-mo-c { min-width: 150px; }
 .cd-page .cd-sm { display: block; font-size: 11.5px; color: var(--sb-gris-2); margin-top: 2px; white-space: normal; max-width: 230px; }
+/* (1.340.0) Les pièces reçues d'un client, à classer : un lien sous son mois, vers « Pièces reçues ». */
+.cd-page .cd-pc { display: block; font-size: 11.5px; font-weight: 600; color: var(--sb-sarcelle-texte); margin-top: 2px; text-decoration: none; }
+.cd-page .cd-pc:hover { text-decoration: underline; }
+.cd-page .cd-rt .cd-pc { display: inline; font-size: inherit; }
 .cd-page .cd-sm.doux { color: var(--sb-sarcelle-texte); font-weight: 600; display: inline-flex; gap: 4px; align-items: center; }
 .cd-page .cd-mi { display: flex; flex-wrap: nowrap; gap: 3px; }
 .cd-page .cd-mi span { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px; background: var(--sb-papier-2); border: 1px solid var(--sb-trait); color: var(--sb-gris); white-space: nowrap; }

@@ -5190,6 +5190,15 @@
           if (!matriculeFiscalLisible(f.matricule)) return refus($('#f-mat', layer), MATRICULE_FISCAL_FORME);
           const mois = K.moisTape($('#f-from', layer).value);
           if (!mois.ok) return refus($('#f-from', layer), mois.motif);
+          // (1.340.0) Un client déjà au portefeuille (même nom, accents et casse mis à part, ou même matricule) : la question
+          // AVANT de créer. Un second dossier sépare ses pièces, ses écritures et sa conversation en deux ; « garage triki »
+          // se créait à côté de « Garage Triki » sans un mot. Créer reste possible (deux homonymes existent).
+          const meme = dossierDejaLa(f);
+          if (meme) {
+            const r = await questionDoublon(meme);
+            if (r === 'ouvrir') { close(); location.hash = '#/dossier/' + encodeURIComponent(meme.id); return; }
+            if (r !== 'creer') return;
+          }
           try {
             const r = await api.newDossier(f);
             S = r.state; close(); render(); toast('Dossier créé.');
@@ -5205,6 +5214,28 @@
       null,
       { garde: () => change() }
     );
+  }
+
+  // (1.340.0) Le dossier du portefeuille qui porte déjà ce client : même nom (sans accents, sans casse, sans ponctuation) ou
+  // même matricule fiscal (ses chiffres et lettres).
+  const cleNomDossier = n => String(n || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const cleMatDossier = m => String(m || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+  function dossierDejaLa(f) {
+    const n = cleNomDossier(f.name), m = cleMatDossier(f.matricule);
+    return (S.dossiers || []).find(d => (n && cleNomDossier(d.name) === n) || (m && cleMatDossier(d.matricule) === m)) || null;
+  }
+  function questionDoublon(d) {
+    return new Promise(resolve => {
+      modal(`<h2>${esc(d.name)} est déjà dans ton portefeuille</h2>
+        <p>${d.archived ? 'Son dossier est archivé : le désarchiver le remet dans les listes, avec ses mois et ses écritures.' : `${d.manual ? 'Tenu au cabinet' : 'Relié à SkanFact'}${d.matricule ? `, matricule ${esc(d.matricule)}` : ''}.`} Un second dossier séparerait ses pièces, ses écritures et sa conversation en deux.</p>
+        <div class="modal-actions"><button type="button" class="btn" id="dq-non">Revenir</button><button type="button" class="btn" id="dq-creer">Créer quand même</button><button type="button" class="btn btn-primary" id="dq-ouvrir">Ouvrir son dossier</button></div>`,
+      (layer, close) => {
+        $('#dq-non', layer).onclick = () => { close(); resolve(null); };
+        $('#dq-creer', layer).onclick = () => { close(); resolve('creer'); };
+        $('#dq-ouvrir', layer).onclick = () => { close(); resolve('ouvrir'); };
+      },
+      () => resolve(null));
+    });
   }
 
   // 10.14.1 — la liste collée depuis un tableur (6.8.0 : « un par un dans un formulaire, personne ne
@@ -5286,7 +5317,7 @@
       (layer, close) => {
         change = suivreSaisie(layer);
         // Ouverte pour UNE case (le matricule CNSS que le fichier du trimestre réclame), elle y va.
-        if (opts && opts.focus) { const c = $(opts.focus, layer); if (c) { c.focus(); if (typeof c.select === 'function') c.select(); } }
+        if (opts && opts.focus) { const c = $(opts.focus, layer); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); if (c.type !== 'checkbox' && typeof c.select === 'function') c.select(); } }
         $('#no', layer).onclick = close;
         $('#del', layer).onclick = async () => {
           const ok = await confirmTyped('Retirer ce dossier du portefeuille ?',

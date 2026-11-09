@@ -27242,6 +27242,36 @@ prouver 'classeur 1.339.0 c : « La ranger… » n'\''est pas le geste principal
   'class="btn btn-sm btn-primary" data-cl-ap="ranger"' 'class="btn btn-sm" data-cl-ap="ranger"' \
   "$CL1339"
 
+# 1.340.0 : le portefeuille du Cabinet et le pont (ce qui se réclame, les pièces reçues, le relancé du jour, le doublon, l'archivage).
+PF1340='(1.340.0) « Pièces manquantes » ne réclame que ce qui manque ; « Relancer » saute le relancé du jour ; un doublon se demande ; l'\''archivage se montre'
+prouver 'portefeuille 1.340.0 a : « Pièces manquantes » réclame à qui a envoyé ses pièces' modules/socle/ecrans/cabinet/app-1.js \
+  'v === '\''manque'\'' ? x.reclame && !x.pc : v === '\''tenus'\''' 'v === '\''manque'\'' ? x.reclame : v === '\''tenus'\''' \
+  "$PF1340"
+prouver 'portefeuille 1.340.0 b : un mois en retard dont les écritures sont là se réclame au client' modules/socle/ecrans/cabinet/app-1.js \
+  'reclame: !d.manual && (!!mo.manque || sp.length > 0),' 'reclame: !d.manual && (!!mo.manque || !!mo.tard),' \
+  "$PF1340"
+prouver 'portefeuille 1.340.0 c : la ligne tait les pièces reçues' modules/socle/ecrans/cabinet/app-1.js \
+  '${x.pc ? `<a class="cd-pc" href="#/pieces/' '${false ? `<a class="cd-pc" href="#/pieces/' \
+  "$PF1340"
+prouver 'portefeuille 1.340.0 d : « Relancer le suivant » relance qui l'\''a été ce matin' modules/socle/ecrans/cabinet/app-1.js \
+  'const aRelancerCd = l.filter(y => !y.d.manual && !relanceAujourdhui(y.d));' 'const aRelancerCd = l.filter(y => !y.d.manual);' \
+  "$PF1340"
+prouver 'portefeuille 1.340.0 e : le menu ne propose pas de classer les pièces' modules/socle/ecrans/cabinet/app-1.js \
+  '${x.pc ? it('\''pieces'\'',' '${false ? it('\''pieces'\'',' \
+  "$PF1340"
+prouver 'portefeuille 1.340.0 f : le menu propose de relancer un client qui n'\''attend que le cabinet' modules/socle/ecrans/cabinet/app-1.js \
+  '${x.reclame ? it('\''relancer'\'',' '${!d.manual && (x.mo.manque || x.mo.tard) ? it('\''relancer'\'',' \
+  "$PF1340"
+prouver 'portefeuille 1.340.0 g : la vue tait ceux qui ont envoyé' modules/socle/ecrans/cabinet/app-1.js \
+  'La réponse arrive dans Messages.${envoyeTxt ?' 'La réponse arrive dans Messages.${false ?' \
+  "$PF1340"
+prouver 'portefeuille 1.340.0 h : un client déjà au portefeuille se crée sans question' modules/socle/ecrans/cabinet/app-2.js \
+  'const meme = dossierDejaLa(f);' 'const meme = null;' \
+  "$PF1340"
+prouver 'portefeuille 1.340.0 i : « Archiver le dossier… » ouvre la fiche en haut' modules/socle/ecrans/cabinet/app-1.js \
+  'dossierForm(D, g === '\''archiver'\'' ? { focus: '\''#f-arch'\'' } : undefined);' 'dossierForm(D);' \
+  "$PF1340"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
