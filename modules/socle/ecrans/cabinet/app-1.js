@@ -2701,15 +2701,32 @@
   const dueTb = (d, m) => K.dateLimiteDeclaration(S, m, 'tva', d);
   const joursEntre = (de, a) => Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(de + 'T00:00:00Z')) / 86400000);
   const jourSemaine = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long' });
+  // (1.338.0) Le mois d'une pièce que le client a envoyée, par la règle du classeur (1.239.1) : celui où le cabinet l'a
+  // rangée ; sinon le mois d'avant son arrivée, tant qu'il est de la mission et pas déposé (le client envoie en novembre les
+  // tickets d'octobre) ; sinon celui de son arrivée. `mois` : les cases du dossier, par mois.
+  const moisDePieceTb = (d, mois, iso, rangee) => {
+    if (rangee) return rangee;
+    const m = new Date(iso).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }).slice(0, 7), av = moisMoinsTb(m, 1), c = mois.get(av);
+    return (!d.from || String(d.from).slice(0, 7) <= av) && c && !['fini', 'hors'].includes(c.etape) ? av : m;
+  };
   // Une seule lecture par dossier pour tous les chiffres de la page : la grille, la campagne, les puces, la charge.
+  // (1.338.0) Un mois sans écriture dont les pièces sont arrivées (des photos à classer) n'est pas « sans pièces » : il est à
+  // saisir — la règle du classeur (1.239.1), qui ne valait pas ici. La grille disait « pièces manquantes » et la campagne
+  // « Sans pièces » d'un client dont les pièces attendaient dans « Pièces reçues ».
   function lignesTb() {
     const parId = new Map((prodState.lignes || []).map(l => [l.id, l]));
     const auj = K.today();
+    const recues = new Map();
+    for (const p of piecesLues.pieces || []) if (!p.classeeLe) recues.set(p.entreprise, [...(recues.get(p.entreprise) || []), p]);
     return mesDossiers().filter(d => !d.archived && parId.has(d.id)).map(d => {
       const l = parId.get(d.id), eq = equipeDe(d);
-      const mois = new Map(l.mois.map(c => [c.mois, c]));
-      const retard = l.mois.filter(c => !['fini', 'hors'].includes(c.etape) && dueTb(d, c.mois) < auj).map(c => c.mois);
-      const n = e => l.mois.filter(c => c.etape === e).length;
+      const brut = new Map(l.mois.map(c => [c.mois, c]));
+      const aClasser = new Map();
+      if (!d.manual) for (const p of recues.get(d.id) || []) { const m = moisDePieceTb(d, brut, p.recueLe, p.mois); aClasser.set(m, (aClasser.get(m) || 0) + 1); }
+      const cases = l.mois.map(c => (!aClasser.get(c.mois) ? c : { ...c, aClasser: aClasser.get(c.mois), ...(c.etape === 'recu' ? { etape: 'saisi' } : {}) }));
+      const mois = new Map(cases.map(c => [c.mois, c]));
+      const retard = cases.filter(c => !['fini', 'hors'].includes(c.etape) && dueTb(d, c.mois) < auj).map(c => c.mois);
+      const n = e => cases.filter(c => c.etape === e).length;
       return { d, l, eq, mois, retard, manque: n('recu'), aSaisir: n('saisi'), aReviser: n('revise'), aDeclarer: n('declare') };
     });
   }
@@ -2728,18 +2745,26 @@
     const fait = par[0][2].length, reste = mens.length - fait, auj = K.today();
     const pp = x => K.personnePhysique(S, x.d);
     const tous = mens.filter(x => !pp(x)), physiques = mens.filter(pp);
-    const due = tous.length ? dueTb(tous[0].d, moisC) : dueTb(mens[0].d, moisC);
+    // (1.338.0) La date limite des autres dossiers : la plus proche (un dossier trimestriel dépose plus tard). Elle se lisait sur
+    // le premier dossier venu.
+    const due = (tous.length ? tous : mens).map(x => dueTb(x.d, moisC)).sort()[0];
     const j = joursEntre(auj, due);
     const restent = tous.filter(x => x.mois.get(moisC).etape !== 'fini'), prets = restent.filter(x => x.mois.get(moisC).etape === 'declare').length;
-    const ppTard = physiques.filter(x => x.mois.get(moisC).etape !== 'fini' && dueTb(x.d, moisC) < auj);
+    // (1.338.0) Les personnes physiques déposent le 15, AVANT les autres : « 0 sur 12 · 10 pas encore prêtes » taisait les deux
+    // qui restaient, et la date la plus proche. Elles se nomment, en retard ou à venir.
+    const ppRestent = physiques.filter(x => x.mois.get(moisC).etape !== 'fini');
+    const ppTard = ppRestent.filter(x => dueTb(x.d, moisC) < auj), ppAvant = ppRestent.filter(x => dueTb(x.d, moisC) >= auj);
+    const duePP = ppAvant.length ? dueTb(ppAvant[0].d, moisC) : '', jPP = duePP ? joursEntre(auj, duePP) : 0;
     const cfg = K.deadlineSettings(S);
     const quand = !reste ? 'Toutes déposées'
-      : !restent.length ? `Date limite des personnes physiques passée le ${jourMois(dueTb(physiques[0].d, moisC))}`
+      : !restent.length ? (ppTard.length ? `Date limite des personnes physiques passée le ${jourMois(dueTb(ppTard[0].d, moisC))}`
+        : jPP === 0 ? 'Aujourd\'hui, la date limite des personnes physiques' : `Date limite des personnes physiques ${jourSemaine(duePP)} ${jourMois(duePP)} · dans ${pl(jPP, 'jour')}`)
         : j === 0 ? `Aujourd'hui, la date limite de ${pl(tous.length, 'dossier')}`
           : j > 0 ? `Date limite ${jourSemaine(due)} ${jourMois(due)} · dans ${pl(j, 'jour')}`
             : `Date limite passée le ${jourMois(due)} · ${pl(restent.length, 'dossier')} en retard`;
     const pret = restent.length ? `${prets ? `${pl(prets, 'prête', 'prêtes')} à déposer` : 'aucune prête à déposer'} · ${restent.length - prets ? `${restent.length - prets} ${j === 0 ? `ne ${restent.length - prets > 1 ? 'le seront' : 'le sera'} pas aujourd'hui` : `pas encore ${restent.length - prets > 1 ? 'prêtes' : 'prête'}`}` : 'toutes peuvent partir'}` : '';
-    const pp15 = ppTard.length ? `${pl(ppTard.length, 'dossier')} au ${jourMois(dueTb(ppTard[0].d, moisC))} déjà en retard` : '';
+    const pp15 = [ppTard.length ? `${pl(ppTard.length, 'dossier')} au ${jourMois(dueTb(ppTard[0].d, moisC))} déjà en retard` : '',
+      ppAvant.length && restent.length ? `${pl(ppAvant.length, 'personne physique', 'personnes physiques')} au ${jourMois(duePP)}, ${jPP === 0 ? 'aujourd\'hui' : `dans ${pl(jPP, 'jour')}`}` : ''].filter(Boolean).join(' · ');
     const etape = ([e, nom, l]) => `<button type="button" class="tb-et tb-et-${e}${l.length ? '' : ' vide'}${tbState.filtre === `et:${e}` ? ' tb-et-on' : ''}" data-tb-etape="${e}" title="${esc(l.map(x => x.d.name).join(', ') || 'aucun dossier')}">
         <span class="tb-et-t"><span class="prod-p prod-${e}">${SIGNE_TB[e][0]}</span>${nom}</span>
         <span class="tb-et-n">${l.length}</span>
@@ -2897,9 +2922,11 @@
     const etat = (SIGNE_TB[c.etape] || [])[1] || '';
     const ton = c.etape === 'fini' ? 'ok' : tard ? 'alerte' : 'attire';
     const et = (fait, titre, sous, ici, rouge) => `<li class="${ici ? 'ici' : ''}${rouge ? ' retard' : ''}"><span class="prod-p ${fait ? 'prod-fini' : ici ? `prod-${c.etape}` : 'prod-avenir'}">${fait ? '✓' : ici ? esc(SIGNE_TB[c.etape][0]) : ''}</span><span><b>${esc(titre)}</b><small>${sous}</small></span></li>`;
-    const recuF = c.recu === null || c.recu, saisiF = c.saisi > 0, revF = c.revise === true, decF = c.declare === true;
+    const recuF = c.recu === null || c.recu || !!c.aClasser, saisiF = c.saisi > 0, revF = c.revise === true, decF = c.declare === true;
+    // (1.338.0) Les pièces que le client a envoyées pour ce mois, à classer : elles sont reçues, et le geste est de les classer.
+    const pcs = c.aClasser ? `${pl(c.aClasser, 'pièce reçue', 'pièces reçues')}, à classer` : '';
     const etapes = [
-      et(recuF, 'Pièces reçues', c.recu === null ? 'tenu au cabinet : les pièces papier' : c.recu ? 'des écritures du client ce mois' : 'rien reçu ce mois', !recuF, false),
+      et(recuF, 'Pièces reçues', c.recu === null ? `tenu au cabinet : les pièces papier${pcs ? ` · ${pcs}` : ''}` : c.recu ? `des écritures du client ce mois${pcs ? ` · ${pcs}` : ''}` : pcs || 'rien reçu ce mois', !recuF, false),
       et(saisiF, 'Saisie', saisiF ? `${pl(c.saisi, 'écriture')}${c.qui ? ` · dernier geste : ${esc(c.qui)}` : ''}` : 'rien de saisi', recuF && !saisiF, false),
       et(revF, 'Révision', revF ? 'arrêtée' : c.brouillards ? `${pl(c.brouillards, 'écriture')} au brouillard · pas encore arrêtée` : 'pas encore arrêtée', saisiF && !revF && !decF, false),
       et(decF, 'Déclaration', decF ? 'déposée' : `due le ${esc(jjmmTb(due))}${tard ? ` · en retard de ${pl(Math.max(1, joursEntre(due, K.today())), 'jour')}` : ' (À VÉRIFIER)'}`, (revF || c.etape === 'declare') && !decF, tard && !decF),
@@ -2907,7 +2934,8 @@
     const r = revueDe(x, f.mois);
     const faits = r ? `<div class="tb-mc-f"><span>Banque rapprochée<b${r.banqueTard ? ' class="attire"' : ''}>${r.rv.rapproche ? `au ${esc(jjmmTb(r.rv.rapproche))}` : r.rv.releves ? 'aucun relevé' : 'aucun relevé importé'}</b></span><span>Compte d'attente<b${r.attente !== 0n ? ' class="attire"' : ''}>${r.attente === 0n ? 'soldé' : `${esc(enDinars(r.attente))} DT`}</b></span><span>Au brouillard<b${r.rv.brouillards ? ' class="attire"' : ''}>${r.rv.brouillards ? pl(r.rv.brouillards, 'écriture') : 'aucune'}</b></span></div>` : `<div class="tb-mc-f tb-mc-lect"><span>${revState.erreur ? 'La banque et le compte d\'attente ne se sont pas lus.' : 'Lecture de la banque et du compte d\'attente…'}</span></div>`;
     const an = f.mois.slice(0, 4);
-    const prim = c.brouillards && !revF ? ['saisie', `Voir les ${c.brouillards} au brouillard`] : c.etape === 'declare' ? ['declaration', 'Préparer la déclaration'] : ['journal', `Ouvrir ${moisLong(f.mois)}`];
+    const prim = c.aClasser && !saisiF ? ['pieces', `Classer ${c.aClasser > 1 ? `les ${c.aClasser} pièces` : 'la pièce'}`]
+      : c.brouillards && !revF ? ['saisie', `Voir les ${c.brouillards} au brouillard`] : c.etape === 'declare' ? ['declaration', 'Préparer la déclaration'] : ['journal', `Ouvrir ${moisLong(f.mois)}`];
     return `${telTb() ? '<div class="tb-mc-voile" id="tb-fiche-voile"></div>' : ''}<div class="tb-mc" id="tb-fiche" role="dialog" aria-label="${esc(`${d.name} · ${moisLong(f.mois)} ${an}`)}"><span class="tb-mc-p" aria-hidden="true"></span>
       <div class="tb-mc-t">${marqueD(d)}<span><b>${esc(d.name)} · ${esc(moisLong(f.mois))} ${esc(an)}</b><small>${x.eq.suit ? `<span>suivi par ${esc(prenomDe(x.eq.suit))}</span>` : ''}<span class="tb-cnt ${ton}">${esc(etat)}${tard ? ', en retard' : ''}</span></small></span><button type="button" class="tb-mc-x" id="tb-fiche-x" aria-label="Fermer">${icB('fermer', 14, 2.2)}</button></div>
       <ol class="tb-mc-et">${etapes}</ol>${faits}
@@ -2925,6 +2953,14 @@
     if (x.d.manual || !revState.donnees || !moisC) return null;
     const seuil = seuilTb(), auj = K.today(), debut = String(x.d.from || '').slice(0, 7);
     const parMois = new Map((revState.donnees.arrivees || []).filter(a => a.entreprise === x.d.id).map(a => [a.mois, jourArTb(a.mois, a.le)]));
+    // (1.338.0) Une photo envoyée par « Mon comptable », une pièce déposée pour le client, arrivent aussi : dans leur mois,
+    // par la règle de la grille. Le mois est complet à la DERNIÈRE pièce arrivée.
+    const brut = new Map(x.l.mois.map(c => [c.mois, c]));
+    for (const p of revState.donnees.pieces || []) {
+      if (p.entreprise !== x.d.id) continue;
+      const m = moisDePieceTb(x.d, brut, `${p.le}T12:00:00Z`, p.mois);
+      parMois.set(m, Math.max(parMois.get(m) || 0, jourArTb(m, p.le)));
+    }
     // Les six derniers mois finis, de la mission ; le dernier n'est dû qu'une fois le seuil passé.
     // (Un mois hors mission, ou d'avant la mission, n'attend rien.)
     const dus = Array.from({ length: 6 }, (_, i) => moisMoinsTb(moisC, i)).filter(m => (!debut || m >= debut) && x.mois.has(m) && x.mois.get(m).etape !== 'hors' && !(m === moisC && !parMois.has(m) && Number(auj.slice(8, 10)) <= seuil && auj.slice(0, 7) === moisApres(m)));
@@ -3048,6 +3084,7 @@
       const tard = x.retard.includes(m);
       // Le détail du mois au survol, lu (jamais coché) : « — » et non « non » tant que rien ne le dit (9.6.0).
       const detail = [c.recu === null ? 'tenu au cabinet' : c.recu ? 'écrit' : 'aucune écriture',
+        c.aClasser ? `${pl(c.aClasser, 'pièce reçue', 'pièces reçues')}, à classer` : '',
         c.saisi ? `${pl(c.saisi, 'écriture')} dont ${c.brouillards} au brouillard` : 'rien de saisi',
         `révisé : ${c.revise === null ? '—' : c.revise ? 'oui' : 'non'}`, `déclaré : ${c.declare === null ? '—' : c.declare ? 'oui' : 'non'}`,
         c.qui ? `dernier geste : ${c.qui}` : ''].filter(Boolean).join(' · ');
@@ -3230,7 +3267,7 @@
       const fermer = () => { tbState.fiche = null; pageTableau(view, etat); };
       $('#tb-fiche-x', view).onclick = fermer;
       const voile = $('#tb-fiche-voile', view); if (voile) voile.onclick = fermer;
-      $$('[data-tb-ouvrir]', fiche).forEach(b => { b.onclick = () => { const f = tbState.fiche; tbState.fiche = null; location.hash = `#/dossier/${encodeURIComponent(f.id)}/comptabilite/${b.dataset.tbOuvrir}/${f.mois.slice(0, 4)}`; }; });
+      $$('[data-tb-ouvrir]', fiche).forEach(b => { b.onclick = () => { const f = tbState.fiche; tbState.fiche = null; location.hash = b.dataset.tbOuvrir === 'pieces' ? `#/pieces/${encodeURIComponent(f.id)}` : `#/dossier/${encodeURIComponent(f.id)}/comptabilite/${b.dataset.tbOuvrir}/${f.mois.slice(0, 4)}`; }; });
       if (!revState.donnees && !revState.erreur) void lireRevueTb(view, etat);
     }
     const pb = $('#tb-per', view); if (pb) pb.onclick = () => { tbState.choixP = !tbState.choixP; pageTableau(view, etat); };
@@ -3262,7 +3299,7 @@
       const d = (S.dossiers || []).find(x => x.id === id.slice(3));
       if (!d) return [];
       const x = lignesTb().find(y => y.d.id === d.id);
-      const manque = x ? x.l.mois.filter(c => c.etape === 'recu').map(c => c.mois) : [];
+      const manque = x ? [...x.mois.values()].filter(c => c.etape === 'recu').map(c => c.mois) : [];
       const eq = equipeDe(d);
       const a = [{ titre: `${d.name}${eq.suit ? ` · suivi par ${prenomDe(eq.suit)}` : ''}` },
         { icon: 'ouvrir', label: 'Ouvrir sa comptabilité', hint: 'le livre, mois par mois', run: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite`; } },

@@ -413,6 +413,19 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
             select r.entreprise, to_char(r.au, 'YYYY-MM'), r.importe_le from compta.releve r
               where r.entreprise in (${portefeuille}) and r.au >= (date_trunc('month', now() at time zone 'Africa/Tunis') - interval '7 months')::date
           ) x group by 1, 2`, [params.cabinet]);
+      // (1.338.0) Les pièces que le client envoie sans écriture : une photo par « Mon comptable », ou une pièce que le cabinet
+      // a déposée pour lui (WhatsApp, e-mail, papier). Elles arrivent aussi : un client qui n'envoie que des photos se disait
+      // « aucune pièce depuis 5 mois » pendant que ses pièces attendaient dans « Pièces reçues ». Le mois, celui où le cabinet
+      // l'a rangée, sinon rien : l'écran le déduit par la règle du classeur. Une jumelle (« en double ») n'arrive pas deux fois.
+      const pieces = await tx.query(`select x.entreprise, x.mois, to_char(x.le at time zone 'Africa/Tunis', 'YYYY-MM-DD') le from (
+            select m.entreprise, m.mois_classeur mois, m.ecrit_le le from messagerie.message m
+              where m.cabinet = $1 and m.cote = 'entreprise' and m.fichier is not null and m.entreprise in (${portefeuille})
+                and m.classee_raison is distinct from 'double' and m.ecrit_le >= now() - interval '9 months'
+            union all
+            select d.entreprise, d.periode, d.depose_le from cabinet.document d
+              where d.cabinet = $1 and d.rubrique = 'piece' and d.remplace_par is null and d.entreprise in (${portefeuille})
+                and d.classee_raison is distinct from 'double' and d.depose_le >= now() - interval '9 months'
+          ) x`, [params.cabinet]);
       // Le crédit de TVA : celui que reporte la DERNIÈRE déclaration, et le premier mois de la suite de crédits qui y mène.
       const credits = new Map<string, { montant: string; depuis: string; periode: string }>();
       const parDossier = new Map<string, { periode: string; credit: number }[]>();
@@ -447,6 +460,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           })),
           exercices: exercices.rows as { entreprise: string; du: string; clos: string | null; inventaire: string | null; liasse: boolean; revisee: boolean }[],
           arrivees: arrivees.rows as { entreprise: string; mois: string; le: string }[],
+          pieces: pieces.rows as { entreprise: string; mois: string | null; le: string }[],
         },
       };
     },

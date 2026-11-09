@@ -1890,3 +1890,44 @@ Ce qui est fait :
 À VÉRIFIER : une page « Mon comptable » restée ouverte avant la saisie du cabinet propose encore « Ranger » jusqu'à sa
 prochaine lecture du fil ; le serveur ne refuse pas le rangement, qui suit l'enregistrement de l'achat. Une pièce classée « Déjà saisie » ou « En double » par le cabinet se
 range encore côté client.
+
+## Le Tableau de bord du Cabinet, et le pont (1.338.0)
+
+Joué à la souris (Leïla, le portefeuille de l'exemple, au 9 novembre) : la campagne d'octobre, la grille des dossiers, la
+fiche d'un mois, « Quand les pièces arrivent », la charge de chacun, les prochaines dates.
+
+Ce qui se contredisait :
+
+- Cinq clients avaient envoyé leurs pièces d'octobre par « Mon comptable » (Café Dar Zitouna, Pharmacie El Menzah,
+  Institut Yasmine, Studio Photo Lumière, Atelier Numérique Sfax). La campagne les disait « Sans pièces » (9), la grille
+  « pièces manquantes », et « Quand les pièces arrivent » « aucune pièce depuis 5 mois » pour Café — pendant que « À faire »
+  disait, dix centimètres plus haut, « 2 pièces reçues, à classer ». Le panneau des arrivées ne comptait que les ventes,
+  les achats et les relevés saisis dans SkanFact : un client qui n'envoie que des photos n'y arrivait jamais.
+- « 0 sur 12 · 10 pas encore prêtes » : les deux personnes physiques (Studio Photo, Institut Yasmine), dues le 15/11 —
+  avant les autres —, n'étaient dites nulle part dans la campagne ; seules « Les prochaines dates », en bas de page, les
+  nommaient.
+- La date limite de la campagne se lisait sur le premier dossier de la liste : un dossier trimestriel en tête, et la
+  campagne d'octobre aurait annoncé le 28 janvier.
+
+Ce qui est fait :
+
+- La règle du classeur (1.239.1) vaut au tableau de bord : un mois sans écriture dont les pièces sont arrivées est
+  « à saisir », pas « sans pièces ». Le mois d'une pièce : celui où le cabinet l'a rangée ; sinon le mois d'avant son
+  arrivée, tant qu'il est de la mission et pas déposé (le client envoie en novembre les tickets d'octobre) ; sinon celui de
+  son arrivée. La grille, la campagne, les puces (« Pièces manquantes 5 », « À saisir 7 »), la charge de chacun et le menu
+  ⋯ (plus de « Relancer » pour un mois dont les pièces sont là) lisent la même règle.
+- La fiche d'un mois dit « Pièces reçues · 2 pièces reçues, à classer », et son bouton vert « Classer les 2 pièces » ouvre
+  les pièces du client.
+- « Quand les pièces arrivent » compte aussi les photos envoyées par « Mon comptable » et les pièces que le cabinet dépose
+  pour un client (WhatsApp, e-mail, papier), dans leur mois, par la même règle ; une pièce « en double » n'arrive pas deux
+  fois. Sur l'exemple : 5 clients après le seuil ou rien du tout, au lieu de 10.
+- La campagne nomme les personnes physiques : « aucune prête à déposer · 10 pas encore prêtes · 2 personnes physiques au
+  15/11, dans 6 jours » (« déjà en retard » passé le 15) ; sa date limite est la plus proche des dossiers mensuels.
+- La preuve : `tests/web/tableau-de-bord-1338.test.ts` (une photo de Café, une pièce déposée pour la librairie, un garage,
+  un studio photo personne physique, un atelier trimestriel) ; preuves `tableau 1.338.0 a-l`.
+
+À VÉRIFIER : une pièce envoyée sans mois se range au mois d'avant son arrivée tant qu'il n'est pas déposé — la règle du
+classeur ; un ticket du jour envoyé le jour même se compte donc au mois d'avant, jusqu'à ce que le cabinet le range.
+« Quand les pièces arrivent » compte une pièce déposée par le cabinet au jour du dépôt, pas au jour où le client l'a
+envoyée sur WhatsApp. Les chiffres du jeu d'exemple (les achats de la boulangerie, tous saisis le jour de la création de
+l'exemple) font dire à la boulangerie « plus d'un mois après » : c'est l'exemple, pas la règle.

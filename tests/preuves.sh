@@ -27191,6 +27191,45 @@ prouver 'messages 1.337.0 d : la photo ne dit pas qu'\''elle est saisie par le c
   '      if (entreprise && m.saisieParCabinet) pied.push('\''saisie par ton cabinet'\'');' '' \
   "$WEB1336"
 
+# 1.338.0 : le Tableau de bord du Cabinet et le pont (les pièces envoyées dans la grille, la campagne, la fiche du mois et leurs arrivées ; les personnes physiques dues le 15).
+TB1338='(1.338.0) les pièces envoyées comptent dans la campagne, la grille, la fiche du mois et leurs arrivées ; la personne physique due le 15 se nomme'
+prouver 'tableau 1.338.0 a : les pièces reçues ne comptent pas dans la grille' modules/socle/ecrans/cabinet/app-1.js \
+  'if (!d.manual) for (const p of recues.get(d.id) || [])' 'if (false) for (const p of recues.get(d.id) || [])' \
+  "$TB1338"
+prouver 'tableau 1.338.0 b : un mois dont les pièces sont arrivées reste « sans pièces »' modules/socle/ecrans/cabinet/app-1.js \
+  '...(c.etape === '\''recu'\'' ? { etape: '\''saisi'\'' } : {})' '...({})' \
+  "$TB1338"
+prouver 'tableau 1.338.0 c : une pièce compte au mois de son arrivée, jamais au mois d'\''avant' modules/socle/ecrans/cabinet/app-1.js \
+  'return (!d.from || String(d.from).slice(0, 7) <= av) && c && !['\''fini'\'', '\''hors'\''].includes(c.etape) ? av : m;' 'return m;' \
+  "$TB1338"
+prouver 'tableau 1.338.0 d : la fiche du mois dit « rien reçu » des pièces à classer' modules/socle/ecrans/cabinet/app-1.js \
+  'const recuF = c.recu === null || c.recu || !!c.aClasser,' 'const recuF = c.recu === null || c.recu,' \
+  "$TB1338"
+prouver 'tableau 1.338.0 e : la fiche du mois ne propose pas de classer' modules/socle/ecrans/cabinet/app-1.js \
+  'const prim = c.aClasser && !saisiF ? ['\''pieces'\'', ' 'const prim = false ? ['\''pieces'\'', ' \
+  "$TB1338"
+prouver 'tableau 1.338.0 f : « Classer » ouvre la comptabilité au lieu des pièces' modules/socle/ecrans/cabinet/app-1.js \
+  'location.hash = b.dataset.tbOuvrir === '\''pieces'\'' ? ' 'location.hash = false ? ' \
+  "$TB1338"
+prouver 'tableau 1.338.0 g : le panneau des arrivées ignore les pièces envoyées' modules/socle/ecrans/cabinet/app-1.js \
+  '      parMois.set(m, Math.max(parMois.get(m) || 0, jourArTb(m, p.le)));' '      void m;' \
+  "$TB1338"
+prouver 'tableau 1.338.0 h : le serveur ne compte pas les photos de « Mon comptable »' serveur/cabinet/routes.ts \
+  'and m.cote = '\''entreprise'\'' and m.fichier is not null and m.entreprise in (${portefeuille})' 'and m.cote = '\''entreprise'\'' and m.fichier is null and m.entreprise in (${portefeuille})' \
+  "$TB1338"
+prouver 'tableau 1.338.0 i : le serveur ne compte pas les pièces déposées par le cabinet' serveur/cabinet/routes.ts \
+  'where d.cabinet = $1 and d.rubrique = '\''piece'\'' and d.remplace_par is null and d.entreprise in (${portefeuille})' 'where d.cabinet = $1 and d.rubrique = '\''rien'\'' and d.remplace_par is null and d.entreprise in (${portefeuille})' \
+  "$TB1338"
+prouver 'tableau 1.338.0 j : la campagne tait les personnes physiques dues le 15' modules/socle/ecrans/cabinet/app-1.js \
+  'ppAvant.length && restent.length ? ' 'false ? ' \
+  "$TB1338"
+prouver 'tableau 1.338.0 k : la date limite se lit sur le premier dossier venu' modules/socle/ecrans/cabinet/app-1.js \
+  'const due = (tous.length ? tous : mens).map(x => dueTb(x.d, moisC)).sort()[0];' 'const due = tous.length ? dueTb(tous[0].d, moisC) : dueTb(mens[0].d, moisC);' \
+  "$TB1338"
+prouver 'tableau 1.338.0 l : le menu propose de relancer un mois dont les pièces sont là' modules/socle/ecrans/cabinet/app-1.js \
+  'const manque = x ? [...x.mois.values()].filter(c => c.etape === '\''recu'\'').map(c => c.mois) : [];' 'const manque = x ? x.l.mois.filter(c => c.etape === '\''recu'\'').map(c => c.mois) : [];' \
+  "$TB1338"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
