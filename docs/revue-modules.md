@@ -1677,3 +1677,42 @@ Ce qui est fait :
   remplace — aucun article du Cabinet ne dit ce qui garde ses livres (le serveur, la copie de chaque nuit, l'export),
   quand l'entreprise l'a depuis la 1.331.0. À reprendre avec la revue des Réglages du Cabinet (1.333.0).
 
+## Les Réglages du Cabinet en ligne (1.333.0)
+
+Joués à la souris par Leïla, associée, et par Rim, en Saisie, onglet par onglet : Ton compte, Mon cabinet, Comptabilité,
+Données et sécurité, L'application.
+
+Ce qui n'allait pas :
+
+- **Données et sécurité** ne gardait qu'un bouton « Se déconnecter » : rien ne disait au cabinet que les livres de ses
+  dossiers sont copiés chaque nuit, ni comment les reprendre, ni à qui demander de défaire une erreur. (Noté à la 1.332.0.)
+- **La grille de saisie** acceptait la même touche pour deux gestes : F2 posé sur « Solder la pièce », alors que
+  « Recopier la ligne du dessus » l'avait déjà, s'enregistrait sans un mot — et dans la grille, un seul des deux se fait.
+- **Le pied de la barre** disait « Direction » pour celle que la liste de l'équipe dit « Supervision », et « Tenue des
+  dossiers » pour « Saisie et validation » : deux noms pour un rôle.
+- **Les jours de dépôt** (TVA, CNSS, relances) étaient un nombre nu : « 28 » — le 28 de quel mois ?
+- **« Comment un client arrive »** nommait au client un chemin qu'il ne voit pas (« Comptabilité › Cabinet (ou
+  Paramètres › Envois) ») : dans son menu, le geste s'appelle « Inviter mon comptable ».
+- **Rim**, en Saisie, pouvait taper un nouveau nom de cabinet et ne l'apprenait qu'à l'enregistrement : refusé.
+
+Ce qui est fait :
+
+- « Tes données » (docs/sauvegardes-ecran.md, « Dans le Cabinet ») : les mêmes faits que l'entreprise, lus par la base
+  0207 et la route `GET /cabinets/:cabinet/sauvegardes`, dits par un seul module pour les deux applications ; reprendre ses
+  livres (l'export du livre-journal) ; « Défaire une erreur : écrire au support… », prérempli, le curseur sur le dossier.
+  L'article de l'Aide « Tes livres » et sa bulle.
+- Une touche ne fait qu'un geste : la règle vit dans le moteur (`CabCore.toucheEnDouble`, sans distinguer la casse) ;
+  la frappe la refuse en nommant le geste qui l'a ; l'enregistrement la refuse (l'écran et le pont) ; une grille réglée
+  avant, avec une touche double, se signale au-dessus de « Enregistrer », et l'avertissement dit « Corrigé » sur place.
+- Le pied de la barre dit le nom de rôle de la liste de l'équipe (`libelleRole`, une seule table).
+- Les jours de dépôt se lisent « le [28] du mois suivant », « le [15] du mois qui suit le trimestre ».
+- Le chemin du client : « dans son menu, Inviter mon comptable (Comptabilité › Cabinet) », partout où le Cabinet le dit
+  (Réglages, Aide, bulles).
+- Le nom du cabinet ne se change que par un associé : pour les autres rôles le champ est fermé, et il le dit.
+- Et le rouge GitHub de la 1.331.0 : l'article des raccourcis range ses touches en trois tableaux ;
+  tests/web/recette-alpha.test.ts lisait le premier seul (en mode strict, trois éléments : refus).
+- La preuve : `tests/support/reglages-cabinet-1333.test.ts` (deux chemins, un état : le cabinet et l'entreprise lisent les
+  mêmes copies ; un collaborateur aussi ; ni une personne hors du cabinet, ni un groupe de sociétés ; la
+  règle des touches), `tests/web/reglages-cabinet-1333.test.ts` (à la souris : Tes données et la demande au support, la
+  touche refusée à la frappe, signalée puis refusée à l'enregistrement, corrigée ; les jours de dépôt ; Rim) ; preuves
+  `réglages 1.333.0 a-q`, et deux preuves anciennes des sauvegardes visent le module partagé.

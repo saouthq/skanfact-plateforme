@@ -18389,10 +18389,10 @@ prouver 'revenir à une minute qui n'\''est pas encore passée' serveur/sauvegar
 prouver 'revenir à une minute plus vieille que ce qu'\''on garde' serveur/sauvegardes.ts \
   $'quand.getTime() - visee.getTime() > GARDE.jours * 86_400_000' $'quand.getTime() - visee.getTime() > GARDE.jours * 2 * 86_400_000' \
   'demander de revenir à une minute : une demande au support avec la minute et le motif ; à venir ou trop vieille, refusée'
-prouver 'une copie de la nuit échouée dite réussie' web/public/plateforme/pont.js \
+prouver 'une copie de la nuit échouée dite réussie' modules/socle/sauvegardes/etat.js \
   $'else if (s.nuit.sauvegarde && s.nuit.sauvegarde.ok) lignes.push' $'else if (s.nuit.sauvegarde) lignes.push' \
   'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
-prouver 'une copie hors de la machine pas en place dite à jour' web/public/plateforme/pont.js \
+prouver 'une copie hors de la machine pas en place dite à jour' modules/socle/sauvegardes/etat.js \
   $'if (!s.horsMachine || !s.horsMachine.regle) lignes.push' $'if (!s.horsMachine) lignes.push' \
   'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
 prouver 'une demande de retour en arrière sans motif, sans la case montrée' web/public/plateforme/pont.js \
@@ -19920,7 +19920,7 @@ prouver 'mois 128 : le vert qui ne revient pas au code tapé' web/public/platefo
   "for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code.addEventListener(ev, () => suivre(false)); }" "for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); void code; }" \
   "le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée"
 prouver 'mois 128 : le cabinet qui nomme un chemin que le client ne prend pas' web/public/plateforme/pont-cabinet.js \
-  "dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois)," "dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>," \
+  "dans son menu, <strong>Inviter mon comptable</strong> (Comptabilité › Cabinet)," "dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>," \
   'le client confie son dossier par le code que le Cabinet affiche ; l'\''associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation'
 prouver 'mois 129 : une proposition à chaque page neuve de la même ouverture' modules/socle/ecrans/entreprise/app-2.js \
   "if (visiteProposeeIci && !reprise) return;" "if (false) return;" \
@@ -26932,6 +26932,66 @@ prouver 'support 1.332.0 r : un article de l'\''Aide de l'\''entreprise part che
 prouver 'support 1.332.0 s : la console propose à un cabinet les articles du bureau qu'\''il ne voit pas' serveur/console/support.ts \
   '    if (cabinet) bac.window = { cabinet: { articlesAbsents: articlesAbsentsDuCabinet() } };' '' \
   "$SUP1332A"
+
+# 1.333.0 : les Réglages du Cabinet en ligne (Tes données, une touche par geste, les jours de dépôt, le nom du cabinet).
+REG1333A='le cabinet lit les MÊMES faits que l'\''entreprise, sans remise à lui ; un collaborateur aussi ; un inconnu, non'
+REG1333C='les touches proposées ne se doublent pas ; un double se nomme, majuscules ou non ; les gestes ont tous un nom'
+REG1333W1='Tes données : la copie de la nuit échouée se dit échouée, et « Défaire une erreur » écrit au support'
+REG1333W2='une touche ne fait qu'\''un geste : refusée à la frappe, signalée si elle était déjà enregistrée, refusée à l'\''enregistrement'
+REG1333W3='les jours de dépôt disent leur unité ; Rim lit les copies mais ne renomme pas le cabinet'
+REG1333B='au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d'\''arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+REG1333V='le client confie son dossier par le code que le Cabinet affiche ; l'\''associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation'
+prouver 'réglages 1.333.0 a : quelqu'\''un hors du cabinet lit ses copies' base/migrations/0207_sauvegardes_du_cabinet.sql \
+  'and m.utilisateur = socle.moi() and m.actif)' 'and m.actif)' \
+  "$REG1333A"
+prouver 'réglages 1.333.0 b : un groupe de sociétés se lit comme un cabinet' base/migrations/0207_sauvegardes_du_cabinet.sql \
+  'where m.organisation = p_cabinet and o.type = '\''cabinet'\'' and' 'where m.organisation = p_cabinet and' \
+  "$REG1333A"
+prouver 'réglages 1.333.0 c : le cabinet lit une autre nuit que l'\''entreprise' base/migrations/0207_sauvegardes_du_cabinet.sql \
+  'from plateforme.service_nuit where sauvegarde is not null order by jour desc limit 1' 'from plateforme.service_nuit where sauvegarde is not null order by jour limit 1' \
+  "$REG1333A"
+prouver 'réglages 1.333.0 d : un identifiant qui n'\''en est pas un fait tomber le serveur' serveur/sauvegardes.ts \
+  '[lireUuid(params.cabinet), quand]' '[params.cabinet ?? '\'''\'', quand]' \
+  "$REG1333A"
+prouver 'réglages 1.333.0 e : « F2 » et « f2 » passent pour deux touches' web/public/v10/cabinet/cabcore.js \
+  'const t = String((touches || {})[k] || DEFAULT_SAISIE.touches[k] || '\'''\'').trim().toLowerCase();' 'const t = String((touches || {})[k] || DEFAULT_SAISIE.touches[k] || '\'''\'').trim();' \
+  "$REG1333C"
+prouver 'réglages 1.333.0 f : une touche en double ne se voit pas' web/public/v10/cabinet/cabcore.js \
+  '      if (vues[t]) return {' '      if (false && vues[t]) return {' \
+  "$REG1333C"
+prouver 'réglages 1.333.0 g : une touche déjà prise s'\''inscrit à la frappe' modules/socle/ecrans/cabinet/app-2.js \
+  'if (autre) { refus(inp,' 'if (false && autre) { refus(inp,' \
+  "$REG1333W2"
+prouver 'réglages 1.333.0 h : une grille à touche double s'\''enregistre' modules/socle/ecrans/cabinet/app-2.js \
+  'if (double) return refus(`[data-touche="${double.geste}"]`' 'if (false && double) return refus(`[data-touche="${double.geste}"]`' \
+  "$REG1333W2"
+prouver 'réglages 1.333.0 i : une touche double enregistrée avant ne se signale pas' modules/socle/ecrans/cabinet/app-2.js \
+  '${(() => { const d = K.toucheEnDouble(((S.settings || {}).saisie || {}).touches); return d' '${(() => { const d = null; return d' \
+  "$REG1333W2"
+prouver 'réglages 1.333.0 j : « deux gestes » reste écrit sous « ✓ enregistré »' modules/socle/ecrans/cabinet/app-2.js \
+  'if (dbl) { dbl.className = '\''ok-box mt'\'';' 'if (false && dbl) { dbl.className = '\''ok-box mt'\'';' \
+  "$REG1333W2"
+prouver 'réglages 1.333.0 k : la copie de la nuit échouée dite réussie au cabinet' modules/socle/sauvegardes/etat.js \
+  'else if (s.nuit.sauvegarde && s.nuit.sauvegarde.ok) lignes.push' 'else if (s.nuit.sauvegarde) lignes.push' \
+  "$REG1333W1"
+prouver 'réglages 1.333.0 l : « Données et sécurité » sans ce que la veille a vu des copies' modules/socle/pont/cabinet.js \
+  '  w.cabinet.dessinerSauvegardes = async (' '  w.cabinet.dessinerSauvegardesAbsent = async (' \
+  "$REG1333W1"
+prouver 'réglages 1.333.0 m : « Défaire une erreur » pose le curseur au bout du texte' modules/socle/ecrans/cabinet/app-2.js \
+  'typeof pre.curseur === '\''number'\'' ? Math.min(pre.curseur, tx.value.length) : tx.value.length' 'tx.value.length' \
+  "$REG1333W1"
+prouver 'réglages 1.333.0 n : Rim, en Saisie, renomme le cabinet' modules/socle/ecrans/cabinet/app-2.js \
+  'if (champNom && moi && moi.role !== '\''supervision'\'')' 'if (false && champNom && moi && moi.role !== '\''supervision'\'')' \
+  "$REG1333W3"
+prouver 'réglages 1.333.0 o : le jour de la CNSS sans son unité' modules/socle/ecrans/cabinet/app-2.js \
+  '<span class="suffixe-ap">du mois qui suit le trimestre</span>' '' \
+  "$REG1333W3"
+prouver 'réglages 1.333.0 p : le pied de la barre dit un autre nom de rôle que la liste de l'\''équipe' web/public/plateforme/pont-cabinet.js \
+  'roleTexte: membre ? [...new Set((membre.roles || []).map(libelleRole))].join('\'', '\'') : '\'''\''' 'roleTexte: membre ? (membre.roles || []).join('\'', '\'') : '\'''\''' \
+  "$REG1333B"
+prouver 'réglages 1.333.0 q : le cabinet nomme au client un chemin qu'\''il ne voit pas' web/public/plateforme/pont-cabinet.js \
+  'dans son menu, <strong>Inviter mon comptable</strong> (Comptabilité › Cabinet),' 'dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois),' \
+  "$REG1333V"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

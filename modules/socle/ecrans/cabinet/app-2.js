@@ -6442,6 +6442,11 @@
     const liste = (equipe.liste || []).filter(c => c.actif);
     const g = equipe.gestion || { ok: false };
     const moi = liste.find(c => c.id === equipe.moi) || null;
+    // (1.333.0) Le nom du cabinet ne se change que par un associé (le serveur le refuse aux autres) : le champ se ferme AVANT
+    // qu'on y tape — Rim (Saisie) tapait le nouveau nom et n'apprenait qu'à « Enregistrer » que ce n'était pas permis
+    // (la règle de l'entreprise depuis la 1.327.0). La phrase sous le champ le dit en permanence : rien ne pousse la page.
+    const champNom = $('#c-name');
+    if (champNom && moi && moi.role !== 'supervision') { champNom.disabled = true; champNom.title = 'Seul un associé du cabinet change son nom.'; }
     box.innerHTML = `
       ${moi ? `<div class="ok-box mb" id="eq-moi"><span class="eq-phrase">Tu es connecté sous le nom de <b>${esc(moi.nom)}</b> — ${esc(K.LIBELLE_ROLE[moi.role])}.
           Chacun entre avec son propre compte : chaque écriture validée porte le nom de qui l'a validée.</span></div>` : ''}
@@ -6678,7 +6683,12 @@
         // Un modificateur seul n'est pas un raccourci : on attend la touche qui l'accompagne.
         if (['Control', 'Alt', 'Shift', 'Meta'].includes(ev.key)) { ev.preventDefault(); return; }
         ev.preventDefault();
-        poser(toucheDe(ev));
+        // (1.333.0) Une touche ne fait qu'un geste : déjà prise par un autre, elle est refusée tout de suite, en nommant ce
+        // geste — enregistrée, la grille n'aurait fait que l'un des deux, sans un mot.
+        const t = toucheDe(ev);
+        const autre = $$('[data-touche]', view).find(x => x !== inp && String(x.dataset.code || '').toLowerCase() === t.toLowerCase());
+        if (autre) { refus(inp, `${nomTouche(t)} sert déjà à « ${K.GESTES_DE_SAISIE[autre.dataset.touche] || autre.dataset.touche} » : choisis une autre touche, ou change d'abord celle-là.`); return; }
+        poser(t);
       };
       inp.onfocus = () => { inp.placeholder = 'Appuie sur la touche…'; };
       inp.onblur = () => { inp.placeholder = 'Changer…'; };
@@ -6697,6 +6707,9 @@
       sr.onclick = async () => {
         const touches = {};
         $$('[data-touche]', view).forEach(i => { touches[i.dataset.touche] = String(i.dataset.code || '').trim() || K.DEFAULT_SAISIE.touches[i.dataset.touche]; });
+        // « Remettre d'origine » peut reposer une touche qu'un autre geste a prise entre-temps : le refus se dit ici aussi.
+        const double = K.toucheEnDouble(touches);
+        if (double) return refus(`[data-touche="${double.geste}"]`, `${nomTouche(double.touche)} sert à la fois à « ${K.GESTES_DE_SAISIE[double.deja]} » et à « ${K.GESTES_DE_SAISIE[double.geste]} » : une touche ne fait qu'un geste. Change l'une des deux.`);
         try {
           S = await api.saveCabinet({
             name: (S.cabinet || {}).name || '', email: (S.cabinet || {}).email || '', phone: (S.cabinet || {}).phone || '',
@@ -6713,6 +6726,10 @@
             }
           });
           flash($('#sr-saved', view));
+          // L'avertissement d'une touche en double se change sur place (sans pousser le bouton qu'on vient de cliquer) :
+          // resté tel quel, il disait « F2 sert à deux gestes » sous « ✓ enregistré ».
+          const dbl = $('#sr-touche-double', view);
+          if (dbl) { dbl.className = 'ok-box mt'; dbl.textContent = 'Corrigé : chaque touche ne fait plus qu\'un geste dans la grille.'; }
         } catch (e) { toast(plainError(e), 'error'); }
       };
     }
@@ -7161,6 +7178,7 @@
     'pan-regimes': { onglet: 'cabinet', titre: 'Les régimes et leurs échéances', mots: 'regime regimes forfaitaire reel tva mensuelle trimestrielle cnss echeance annuelle calendrier fiscal depot' },
     'pan-liasse': { onglet: 'compta', titre: 'Le modèle de liasse', mots: 'liasse nct fiscale bilan actif passif resultat rubrique rubriques etats financiers annuel depot modele' },
     'pan-questionnaire': { onglet: 'compta', titre: 'Révision : cycles et questionnaire', mots: 'revision cycle cycles feuille maitresse lead schedule questionnaire fin exercice question client trésorerie ventes achats immobilisations personnel fiscal capitaux' },
+    'pan-donnees': { onglet: 'donnees', titre: 'Tes données', mots: 'donnees sauvegarde sauvegardes copie nuit serveur tunisie restaurer revenir arriere erreur exporter reprendre livres' },
     'pan-inbox': { onglet: 'donnees', titre: 'Boîte de réception', mots: 'boite reception dossier surveille paquets arrives import mail' },
     'pan-backup': { onglet: 'donnees', titre: 'Sauvegardes', mots: 'sauvegarde restaurer copie externe usb icloud filet perdu' },
     'pan-secu': { onglet: 'donnees', titre: 'Sécurité', mots: 'securite mot de passe cle de secours verrouiller chiffrement empreinte' },
@@ -7219,13 +7237,18 @@
                 <span class="suffixe"><span class="suffixe-av">le</span><input type="number" id="c-day" min="1" max="28" value="${Number((S.settings || {}).relanceDay) || 10}"><span class="suffixe-ap">de chaque mois</span></span></label>
           <label class="field narrow">${lbl('Pièces attendues', 'cab.seuilPieces')}
                 <span class="suffixe"><span class="suffixe-av">le</span><input type="number" id="c-seuil" min="1" max="31" value="${seuilTb()}"><span class="suffixe-ap">du mois suivant</span></span></label>
-          <label class="field narrow">${lbl('TVA : jour de dépôt', 'ec.jours')}<input type="number" id="c-tvaday" min="1" max="31" value="${K.deadlineSettings(S).tvaDay}"></label>
-          <label class="field narrow">${lbl('TVA des personnes physiques : jour de dépôt', 'ec.jours')}<input type="number" id="c-tvadaypp" min="1" max="31" value="${K.deadlineSettings(S).tvaDayPP}"></label>
-          <label class="field narrow">${lbl('CNSS : jour de dépôt', 'ec.jours')}<input type="number" id="c-cnssday" min="1" max="31" value="${K.deadlineSettings(S).cnssDay}"></label>
+          ${/* (1.333.0) Un jour se dit avec son mois, comme le jour de relance juste au-dessus (9.4.8) : « 28 » seul ne dit
+                ni de quel mois ni de quoi. La TVA se dépose le mois qui suit la période, la CNSS celui qui suit le trimestre. */''}
+          <label class="field narrow">${lbl('TVA : jour de dépôt', 'ec.jours')}
+                <span class="suffixe"><span class="suffixe-av">le</span><input type="number" id="c-tvaday" min="1" max="31" value="${K.deadlineSettings(S).tvaDay}"><span class="suffixe-ap">du mois suivant</span></span></label>
+          <label class="field narrow">${lbl('TVA des personnes physiques : jour de dépôt', 'ec.jours')}
+                <span class="suffixe"><span class="suffixe-av">le</span><input type="number" id="c-tvadaypp" min="1" max="31" value="${K.deadlineSettings(S).tvaDayPP}"><span class="suffixe-ap">du mois suivant</span></span></label>
+          <label class="field narrow">${lbl('CNSS : jour de dépôt', 'ec.jours')}
+                <span class="suffixe"><span class="suffixe-av">le</span><input type="number" id="c-cnssday" min="1" max="31" value="${K.deadlineSettings(S).cnssDay}"><span class="suffixe-ap">du mois qui suit le trimestre</span></span></label>
         </div>
         <p class="muted small">Les jours de dépôt alimentent la page <a href="#/echeances">Échéances</a>.
         <strong>À VÉRIFIER</strong> : ils dépendent de la forme juridique, du régime et de la loi de finances.</p>
-        <p class="muted small mt">Ce nom apparaît en bas des relances que tu envoies, et tes clients le lisent quand ils te confient leur dossier.</p>
+        <p class="muted small mt">Ce nom apparaît en bas des relances que tu envoies, et tes clients le lisent quand ils te confient leur dossier. Seul un associé du cabinet le change.</p>
         <div class="modal-actions"><span class="saved" id="c-saved" hidden></span><button class="btn" id="c-save" data-enreg>Enregistrer mon cabinet</button></div>
       </div>
 
@@ -7296,6 +7319,9 @@
           ${champTouche('dupliquer', 'Dupliquer la pièce', 'sa.kDupliquer')}
           ${champTouche('valider', 'Enregistrer et valider', 'sa.kValider')}
         </div>
+        ${/* (1.333.0) Une touche donnée à deux gestes avant cette version se signale : la grille n'en fait qu'un. */''}
+        ${(() => { const d = K.toucheEnDouble(((S.settings || {}).saisie || {}).touches); return d
+          ? `<p class="warn-box mt" id="sr-touche-double"><strong>${esc(nomTouche(d.touche))} sert à deux gestes</strong> : « ${esc(K.GESTES_DE_SAISIE[d.deja])} » et « ${esc(K.GESTES_DE_SAISIE[d.geste])} ». Dans la grille, seul l'un des deux se fait. Change l'une des deux touches, puis enregistre.</p>` : ''; })()}
         <div class="modal-actions"><span class="saved" id="sr-saved" hidden></span><button class="btn" id="sr-save" data-enreg>Enregistrer la grille de saisie</button></div>
       </div>
 
@@ -7347,6 +7373,20 @@
            donc dans le document quel que soit l'onglet affiché — un onglet dessiné paresseusement
            les laisserait sur « Chargement… » pour toujours, sans une erreur dans aucune console. -->
       <section data-pane="donnees"${reglagesTab === 'donnees' ? '' : ' hidden'}>
+      ${/* (1.333.0) En ligne, l'onglet ne gardait que « Se déconnecter » : les filets du bureau (la copie sur une clé, la clé de
+            secours) n'ont plus d'objet, et rien ne disait où sont les livres ni comment les reprendre. Le panneau dit ce que
+            la veille du serveur a vu des copies (les mêmes phrases que l'entreprise), et comment reprendre ou défaire. */''}
+      ${api.dessinerSauvegardes ? `${panneauReg('pan-donnees', info('b.donnees'))}
+        <p class="small">Les livres de tes dossiers vivent sur le serveur de SkanFact, en Tunisie : tu les retrouves depuis n'importe quel
+        ordinateur en te connectant. Les copies se font toutes seules, sans réglage ; ce qui suit dit ce que la surveillance du serveur en a vu.</p>
+        <div id="sv-panel"><p class="muted small">Chargement…</p></div>
+        <h3 class="mt">Reprendre tes livres</h3>
+        <p class="small">Un dossier que tu tiens toi-même : ouvre-le, puis <strong>Consulter › Livre-journal</strong> et « Exporter le livre-journal »
+        (la balance et le grand livre s'exportent de même). Un client sur SkanFact garde ses livres chez lui aussi, et les exporte de son côté.</p>
+        <p class="small">Une erreur à défaire (un import, une suppression) ? Écris au support : l'équipe regarde avec toi ce qui peut revenir,
+        dossier par dossier, et te dit ce qui changerait avant de faire quoi que ce soit.</p>
+        <div class="modal-actions"><button class="btn" id="sv-support">Défaire une erreur : écrire au support…</button></div>
+      </div>` : ''}
       ${panneauReg('pan-inbox')}<p class="muted small">Chargement…</p></div>
       ${panneauReg('pan-backup')}<p class="muted small">Chargement…</p></div>
       ${panneauReg('pan-secu')}<p class="muted small">Chargement…</p></div>
@@ -7403,6 +7443,10 @@
       </div>`;
     drawUpdatePanel();
     drawBackupPanels();
+    if (api.dessinerSauvegardes && $('#sv-panel')) void api.dessinerSauvegardes($('#sv-panel'));
+    const svs = $('#sv-support');
+    if (svs) svs.onclick = () => ecrireAuSupportCab('question', { sujet: 'Défaire une erreur',
+      texte: 'Le dossier : \nCe qui s\'est passé : \nLe jour et l\'heure, juste avant l\'erreur : ', curseur: 'Le dossier : '.length });
     void api.dessinerCompte($('#compte-panel'), { modal, toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined) });
     void api.dessinerAppareils($('#appareils-panel'));
     // Les onglets, le sommaire et la recherche : la mécanique vient de src/renderer/reglages.js,
@@ -8018,7 +8062,11 @@
       const bouton = $('#sup-send', layer);
       // Une question venue de l'Aide : le curseur au bout du texte, pour la compléter sans chercher où cliquer.
       const tx = $('#sup-texte-demande', layer);
-      if (pre && pre.texte && tx) requestAnimationFrame(() => { tx.focus(); tx.setSelectionRange(tx.value.length, tx.value.length); });
+      if (pre && pre.texte && tx) requestAnimationFrame(() => {
+        // (1.333.0) Un texte à trous (« Le dossier : … ») met le curseur dans le premier trou ; une question, à sa fin.
+        const ici = typeof pre.curseur === 'number' ? Math.min(pre.curseur, tx.value.length) : tx.value.length;
+        tx.focus(); tx.setSelectionRange(ici, ici);
+      });
       const envoyer = async () => {
         if (bouton.disabled) return;
         let sujet, texte;

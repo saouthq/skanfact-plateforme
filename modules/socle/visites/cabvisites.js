@@ -460,6 +460,7 @@
   // (1.332.0) En ligne, la demande part à l'équipe SkanFact, et la réponse revient dans le Cabinet.
   b('#s-support', 'Écris à l\'équipe SkanFact : une question, ou quelque chose qui ne marche pas. Elle te répond ici, en général dans la journée.');
   b('#s-demandes', 'Tes demandes au support, et les réponses de l\'équipe.');
+  b('#sv-support', 'Une erreur à défaire : la demande part au support, qui regarde avec toi ce qui peut revenir. Rien ne change en écrivant.');
   b('#s-idee', 'Propose une amélioration : ce que tu aimerais faire, et comment tu fais aujourd\'hui.');
   b('#r-demo-on', 'Charge les six dossiers de l\'exemple.');
   b('#r-demo-off', 'Efface les dossiers de l\'exemple.');

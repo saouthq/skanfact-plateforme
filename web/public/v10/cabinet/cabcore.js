@@ -133,6 +133,23 @@
       valider: 'Control+Enter'
     }
   };
+  // (1.333.0) Ce que fait chaque touche, dit comme les Réglages le disent. Une touche ne fait qu'UN geste : donnée à deux,
+  // la grille n'en fait qu'un, et l'autre ne se fait plus jamais au clavier, sans un mot (vu à la souris : « Solder la
+  // pièce » posé sur F2, déjà « Recopier la ligne du dessus »). La première paire en double, ou null.
+  const GESTES_DE_SAISIE = {
+    ligneSuivante: 'Ligne suivante', solder: 'Solder la pièce', recopier: 'Recopier la ligne du dessus',
+    dupliquer: 'Dupliquer la pièce', valider: 'Enregistrer et valider'
+  };
+  function toucheEnDouble(touches) {
+    const vues = {};
+    for (const k of Object.keys(GESTES_DE_SAISIE)) {
+      const t = String((touches || {})[k] || DEFAULT_SAISIE.touches[k] || '').trim().toLowerCase();
+      if (!t) continue;
+      if (vues[t]) return { touche: String((touches || {})[k] || DEFAULT_SAISIE.touches[k]), deja: vues[t], geste: k };
+      vues[t] = k;
+    }
+    return null;
+  }
   // `theme` (9.4.3) : « light », « dark » ou « auto » (le réglage du système). L'app entreprise a le
   // sien depuis la 1.6.0 ; le Cabinet n'en avait AUCUN — pas une ligne — donc une fenêtre blanche
   // éblouissante à côté de tout le reste sur un poste réglé en sombre. Défaut `auto` : on suit le
@@ -2395,6 +2412,7 @@
     parNom,
     mailAppairage, mailtoUrl, LIMITE_MAILTO,
     FORMAT, MONTHS_FR, DEFAULT_STATE, DEFAULT_SETTINGS, DEFAULT_SAISIE, TVA_PERIODS, REGIMES, RELANCE_WAYS, SORTS,
+    GESTES_DE_SAISIE, toucheEnDouble,
     sansAccents, paletteCompta,
     guidesDuDossier, correspondanceDuDossier, dateTapee,
     GRACE_MOIS, DORMANT_MOIS, dossierFacturable, comptageDossiers, licenceDuPaquet,

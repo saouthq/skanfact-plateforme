@@ -13,6 +13,7 @@
     "plateforme/pont.js": ["web/public/plateforme/pont.js", "modules/declarations/pont/entreprise.js", "modules/ventes/pont/entreprise.js"],
     "plateforme/pont-cabinet.js": ["web/public/plateforme/pont-cabinet.js", "modules/socle/pont/cabinet.js"],
     "plateforme/registres.js": ["modules/socle/registres.js"],
+    "plateforme/sauvegardes.js": ["modules/socle/sauvegardes/etat.js"],
     "plateforme/paie.css": ["modules/personnel/styles/paie.css"],
     "plateforme/paie-maquette.css": ["modules/personnel/styles/paie-maquette.css"],
     "plateforme/paie-cabinet.css": ["modules/personnel/styles/paie-cabinet.css"]

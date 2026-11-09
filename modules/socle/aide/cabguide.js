@@ -20,7 +20,7 @@
     'cab.relanceDay': { t: 'Jour de relance', d: 'Le jour du mois où tu fais ta tournée de relances. À partir de cette date, l\'application met en tête de « À faire » les clients dont un mois passé n\'a encore aucune écriture. Le 10 est l\'usage : les clients ont eu le temps de finir le mois précédent. Entre 1 et 28.' },
     'cab.fingerprint': { t: 'Empreinte de ton cabinet', d: 'Cinq groupes de quatre caractères calculés à partir de ta clé publique. Elle identifie ton cabinet de façon unique. Quand un client importe ton fichier d\'appairage, son SkanFact lui montre cette empreinte : s\'il te la lit au téléphone et qu\'elle correspond, c\'est bien à toi qu\'il enverra ses paquets — et à personne d\'autre.' },
     'cab.signature': { t: 'Empreinte de ta signature', d: 'Tes fichiers de clôture et de questions partent <b>signés</b>. La première fois qu\'un client en reçoit un, son SkanFact retient cette signature ; ensuite il refuse un envoi signé par une autre clé, ou pas signé du tout. C\'est ce qui lui prouve que le fichier vient bien de toi — personne ne peut fabriquer ta signature sans la clé de ton cabinet. Elle suit ta clé : tous tes postes signent pareil, et elle ne change que si tu changes de clé.' },
-    'cab.pairing': { t: 'Le code de ton cabinet', d: 'Huit lettres ou chiffres, sans rien de secret. Un client sur SkanFact le tape dans <b>Paramètres → Envois → Ton cabinet comptable</b> et coche ce qu\'il te confie ; tu acceptes sur la page Dossiers. Ses livres sont alors les mêmes pour lui et pour toi, <b>à jour en direct</b> : il n\'a plus rien à t\'envoyer.' },
+    'cab.pairing': { t: 'Le code de ton cabinet', d: 'Huit lettres ou chiffres, sans rien de secret. Un client sur SkanFact le tape dans son menu, <b>Inviter mon comptable</b> (Comptabilité → Cabinet), et coche ce qu\'il te confie ; tu acceptes sur la page Dossiers. Ses livres sont alors les mêmes pour lui et pour toi, <b>à jour en direct</b> : il n\'a plus rien à t\'envoyer.' },
 
     // — un dossier —
     'd.name': { t: 'Nom du client', d: 'La raison sociale, comme sur son registre de commerce. C\'est celle de son entreprise dans SkanFact : elle fait foi, et ne se change pas depuis ta fiche.' },
@@ -119,6 +119,7 @@
     'r.group': { t: 'Relance groupée', d: 'Prépare un message par client en retard, l\'un après l\'autre, sans revenir à la liste entre chaque. Douze retardataires : douze messages, un seul geste. Rien ne part sans que tu cliques sur « Envoyer » dans ta messagerie.' },
 
     // — filets —
+    'b.donnees': { t: 'Tes données', a: 'donnees', d: 'Les livres de tes dossiers vivent sur le serveur de SkanFact, en Tunisie, copiés <b>chaque nuit</b>, sans réglage. Ce panneau dit ce que la surveillance du serveur a vu des copies — une copie qui a échoué se dit ici. Un dossier que tu tiens toi-même s\'exporte depuis son livre-journal ; une erreur à défaire se demande au support, qui regarde avec toi ce qui peut revenir.' },
     'b.daily': { t: 'Sauvegarde quotidienne', d: 'Chaque jour, avant la première modification, SkanFact met de côté le fichier tel qu\'il était. Tu peux donc revenir à « hier matin » après une fausse manœuvre. Trente jours sont conservés, plus les sauvegardes nommées (avant un import, avant une suppression).' },
     'b.external': { t: 'Copie vers un autre support', d: 'Un dossier sur une clé USB, un disque externe, iCloud Drive ou OneDrive. À chaque enregistrement, SkanFact y recopie ta base, tes sauvegardes <b>et tes paquets</b>. C\'est ce qui te sauve quand l\'ordinateur lui-même disparaît — vol, panne de disque, dégât des eaux.' },
     'b.recovery': { t: 'Clé de secours', d: 'Le fichier le plus important que tu produiras avec cette application. Il contient la clé qui <b>ouvre les paquets de tes clients</b>. Sans elle et sans ton ordinateur, aucun paquet déjà reçu ne pourra plus jamais être ouvert, et tes clients devront tous réimporter un nouvel appairage. Range-la ailleurs que sur cet ordinateur : clé USB dans un tiroir, coffre, chez ton associé.' },
@@ -347,7 +348,7 @@
       s: 'Ce qu\'il faut faire une fois, et ce qui revient chaque mois', couleur: 'th-commencer', geste: { label: 'Voir mes dossiers', hash: '#/' },
       icon: '<circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/>', d: `
       <ol class="small" style="line-height:1.9">
-        <li><b>Une fois :</b> donne à tes clients sur SkanFact le <b>code de ton cabinet</b> (Réglages → Mon cabinet). Chacun le tape dans son SkanFact (Paramètres → Envois → Ton cabinet comptable) et coche ce qu'il te confie ; tu acceptes sur la page Dossiers.</li>
+        <li><b>Une fois :</b> donne à tes clients sur SkanFact le <b>code de ton cabinet</b> (Réglages → Mon cabinet). Chacun le tape dans son SkanFact (dans son menu, « Inviter mon comptable ») et coche ce qu'il te confie ; tu acceptes sur la page Dossiers.</li>
         <li><b>Chaque mois :</b> il n'y a rien à recevoir. Ton client enregistre ses pièces dans SkanFact ; leurs écritures sont dans ses livres, que tu lis ici <b>à jour, en direct</b>. Tu valides ce qui est au brouillard, et tu saisis ce qui te revient.</li>
         <li><b>Le jour de relance</b> (le 10 par défaut) : la page Dossiers met en tête ceux dont un mois passé n'a <b>aucune écriture</b>. « Relancer » prépare le message, et la relance est notée dans sa fiche.</li>
       </ol>
@@ -652,6 +653,15 @@
       </ul>
       <p class="small">Ton mot de passe, lui, ne se récupère pas. C'est voulu : c'est ce qui fait qu'un portable volé n'emporte pas soixante comptabilités. Note-le quelque part de sûr le jour où tu le choisis.</p>
       <p class="small">Et un quatrième filet, invisible celui-là : si l'application se bloque, elle s'en aperçoit toute seule, note dans son journal technique <b>où</b> le programme s'était arrêté, puis redémarre et te le dit. Tu reviens sur l'écran du mot de passe : c'est normal, rien n'est perdu. Si cela se reproduit, dis-le au support (<em>Aide → Écrire au support</em>) — c'est ce qui permet de corriger.</p>` },
+    {
+      // (1.333.0) En ligne, « Ne rien perdre » (le bureau : la clé USB, la clé de secours) est retiré, et rien ne le remplaçait.
+      id: 'donnees', t: 'Tes livres : où ils sont, et comment les reprendre',
+      s: 'Les copies de chaque nuit, l\'export d\'un dossier, une erreur à défaire', couleur: 'th-piloter', geste: { label: 'Ouvrir Tes données', hash: '#/reglages', panneau: 'pan-donnees' },
+      icon: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 20v-6h8v6"/>', d: `
+      <p class="small">Les livres de tes dossiers vivent sur le serveur de SkanFact, en Tunisie. Tu les retrouves depuis n'importe quel ordinateur ou téléphone en te connectant, et toute ton équipe voit les mêmes, à jour : il n'y a plus de fichier à copier ni de clé à garder.</p>
+      <p class="small"><b>Les copies se font toutes seules, chaque nuit.</b> Réglages › Données et sécurité › <b>Tes données</b> dit ce que la surveillance du serveur en a vu : la dernière copie de la nuit, la copie hors de la machine, le dernier essai de restauration. Une copie qui a échoué s'y lit telle quelle.</p>
+      <p class="small"><b>Reprendre un dossier que tu tiens toi-même</b> : ouvre-le, puis Consulter › Livre-journal et « Exporter le livre-journal ». La balance et le grand livre s'exportent de la même façon. Un client sur SkanFact garde ses livres chez lui aussi, et les exporte de son côté.</p>
+      <p class="small"><b>Une erreur à défaire</b> (un import de trop, une suppression) : « Défaire une erreur : écrire au support… ». Rien ne change quand tu écris : l'équipe SkanFact regarde avec toi ce qui peut revenir, dossier par dossier, et te dit ce qui changerait avant de faire quoi que ce soit.</p>` },
     {
       id: 'demenager', t: 'Changer d\'ordinateur',
       s: 'Reprendre ton cabinet ailleurs, avec la MÊME empreinte', couleur: 'th-acheter', geste: { label: 'Ouvrir la sécurité', hash: '#/reglages', panneau: 'pan-secu' },

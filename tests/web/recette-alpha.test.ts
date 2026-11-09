@@ -288,11 +288,13 @@ describe('la recette alpha, à la souris', () => {
     expect(await p.locator('#view tbody tr').filter({ hasText: 'Vitrine' }).innerText().then(net)).not.toMatch(/facturé/i);
     // 3. L'Aide ne promet plus Ctrl+N ni Ctrl+1 à 9 (le navigateur les garde) ; elle garde Ctrl+S.
     await p.evaluate(() => { location.hash = '#/aide/raccourcis'; });
-    const aide = p.locator('#view table.keys');
-    await aide.waitFor({ timeout: 15_000 });
-    expect(await aide.innerText()).toMatch(/Enregistrer/);
-    expect(await aide.innerText()).not.toMatch(/Nouveau devis\s/);
-    expect(await aide.innerText()).not.toMatch(/Trésorerie/);
+    // (1.331.0) L'article range ses raccourcis en trois tableaux (l'application, la pièce, la liste) : la règle vaut pour tous.
+    const tableaux = p.locator('#view table.keys');
+    await tableaux.first().waitFor({ timeout: 15_000 });
+    const aide = (await tableaux.allInnerTexts()).join('\n');
+    expect(aide).toMatch(/Enregistrer/);
+    expect(aide).not.toMatch(/Nouveau devis\s/);
+    expect(aide).not.toMatch(/Trésorerie/);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

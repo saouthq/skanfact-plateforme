@@ -30,7 +30,7 @@ panneau **« Tes sauvegardes »**, pour le propriétaire et un administrateur :
 - **Les routes** (`serveur/sauvegardes.ts`) : `GET /entreprises/:e/sauvegardes` (geste `socle.sauvegardes.voir`),
   `POST /entreprises/:e/sauvegardes/revenir` (geste `socle.sauvegardes.demander`) : une minute passée et dans les 35 jours
   gardés, sinon un refus qui dit pourquoi ; la demande au support porte la minute et le motif (`page` : `sauvegardes`).
-- **L'écran** : `dessinerSauvegardes` (plateforme/pont.js) ; l'entrée du panneau et sa bulle « i » (web/v10/sauvegardes-ecran.txt).
+- **L'écran** : `dessinerSauvegardes` (plateforme/pont.js), qui dit l'état des copies par le module partagé avec le Cabinet (`plateforme/sauvegardes.js`, 1.333.0) ; l'entrée du panneau et sa bulle « i » (web/v10/sauvegardes-ecran.txt).
 - Les horaires et la garde viennent des mêmes constantes que la console (`serveur/console/sauvegardes.ts`, que des tests
   relient aux tâches d'entretien).
 
@@ -44,7 +44,30 @@ panneau **« Tes sauvegardes »**, pour le propriétaire et un administrateur :
 ## Ce qui n'est pas couvert
 
 - La personne ne choisit pas une nuit dans une liste : la minute suffit (l'équipe choisit la copie qui y mène).
-- Le Cabinet ne voit pas ce panneau (il ne voit pas l'entreprise en entier).
+- Le Cabinet ne voit pas ce panneau-là (il ne voit pas l'entreprise en entier) : il a le sien, « Tes données » (plus bas).
+
+## Dans le Cabinet (1.333.0)
+
+**Réglages › Données et sécurité › Tes données.** En ligne, cet onglet ne gardait qu'un bouton « Se déconnecter » : les
+panneaux de l'application de bureau (une copie sur une clé USB, une clé de secours) y sont sans objet, et rien ne les
+remplaçait. Un cabinet lit désormais les MÊMES faits que l'entreprise : ce sont les copies du serveur qui garde les livres
+de tous ses dossiers.
+
+- **La base** (migration 0207) : `plateforme.mes_sauvegardes_cabinet(cabinet, maintenant)`, la lecture de 0161 sur les
+  mêmes tables (la nuit, la dernière réussie, l'essai de restauration, le dernier relevé de la veille), pour un membre
+  actif du cabinet (un collaborateur aussi : savoir que ses écritures sont copiées n'est pas un droit d'associé), jamais
+  une clé de l'API. Pas de remise : un cabinet n'en a pas à lui (`remises` vaut toujours `[]`).
+- **La route** : `GET /cabinets/:cabinet/sauvegardes` (geste `compte.cabinets.voir`), la même mise en forme que celle de
+  l'entreprise (`etatDesCopies`, serveur/sauvegardes.ts) ; un identifiant qui n'en est pas un est introuvable.
+- **L'écran** : une seule façon de dire l'état des copies, pour les deux applications —
+  `modules/socle/sauvegardes/etat.js` (servi `plateforme/sauvegardes.js`, `window.SkanSauvegardes`) ; pont.js et
+  pont-cabinet.js l'appellent. Le panneau « Tes données » dit aussi comment reprendre ses livres (l'export du
+  livre-journal) et, pour une erreur à défaire, ouvre une demande au support préremplie (le dossier, ce qui s'est passé,
+  le jour et l'heure), le curseur là où l'on écrit le nom du dossier.
+- **L'Aide** : l'article « Tes livres : où ils sont, et comment les reprendre » et sa bulle ; la visite explique
+  « Défaire une erreur ».
+
+Revenir en arrière se demande au support : l'équipe fait d'abord l'essai, dossier par dossier.
 
 ## Tests
 
@@ -52,3 +75,4 @@ panneau **« Tes sauvegardes »**, pour le propriétaire et un administrateur :
 refusés ; la veille muette ; la demande et ses refus) et `tests/web/sauvegardes-ecran.test.ts` (le panneau à la souris,
 la fenêtre, le refus sans motif qui montre la case, la demande envoyée ; un commercial sans panneau). Preuves dans
 `tests/preuves.sh`.
+Côté Cabinet : `tests/support/reglages-cabinet-1333.test.ts` et `tests/web/reglages-cabinet-1333.test.ts`.

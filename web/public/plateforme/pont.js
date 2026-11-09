@@ -2136,28 +2136,11 @@
   async function dessinerSauvegardes(el, v10) {
     /** @type {any} */ let s;
     try { s = await appel('GET', '/sauvegardes'); } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
-    /** @param {string} jour */
-    const date = (jour) => String(jour).split('-').reverse().join('/');
-    /** @type {string[]} */ const lignes = [];
-    if (!s.veille) lignes.push('<li data-sv="veille">La surveillance du serveur n\'a encore rien relevé : rien ne dit encore l\'état des copies.</li>');
-    else if (!s.veille.recente) lignes.push(`<li data-sv="veille"><b>Ces informations datent du ${esc(quand(s.veille.minute))}</b> : la surveillance du serveur ne s'est pas manifestée depuis.</li>`);
-    if (!s.nuit) lignes.push('<li data-sv="nuit">Copie de la nuit : pas encore faite sur ce serveur.</li>');
-    else if (s.nuit.sauvegarde && s.nuit.sauvegarde.ok) lignes.push(`<li data-sv="nuit">Dernière copie de la nuit : le ${esc(quand(s.nuit.sauvegarde.le))}, réussie.</li>`);
-    else lignes.push(`<li data-sv="nuit"><b>La copie de la nuit du ${esc(date(s.nuit.jour))} a échoué.</b> ${s.reussie ? `La dernière réussie : le ${esc(quand(s.reussie.le))}.` : 'Aucune n\'a encore réussi sur ce serveur.'}</li>`);
-    if (s.archivage && !s.archivage.enMarche) lignes.push('<li data-sv="archivage"><b>L\'archivage à la minute ne tourne pas</b> : on revient seulement à une nuit, pas à une minute précise.</li>');
-    // Sans relevé de la veille, rien ne dit l'état de la copie hors de la machine : la ligne de la veille le dit déjà.
-    if (!s.veille) { /* rien à affirmer */ } else if (!s.horsMachine || !s.horsMachine.regle) lignes.push('<li data-sv="hors">Copie hors de la machine : pas encore en place sur ce serveur. Les copies restent sur la machine qui fait tourner SkanFact.</li>');
-    else if (s.horsMachine.attenteDepuis) lignes.push(`<li data-sv="hors">Copie hors de la machine : en attente depuis le ${esc(quand(s.horsMachine.attenteDepuis))}.</li>`);
-    else lignes.push('<li data-sv="hors">Copie hors de la machine : à jour.</li>');
-    if (!s.exercice) lignes.push('<li data-sv="essai">Essai de restauration : pas encore fait sur ce serveur.</li>');
-    else lignes.push(`<li data-sv="essai">Dernier essai de restauration : le ${esc(date(s.exercice.jour))}, ${s.exercice.ok ? 'réussi' : '<b>échoué</b>'}.</li>`);
-    const archive = !s.archivage || s.archivage.enMarche;
-    /** @param {string} hm */
-    const heure = (hm) => `${Number(hm.slice(0, 2))} h ${hm.slice(3, 5)}`;
-    const jourDuMois = s.calendrier.exercice.jourDuMois === 1 ? '1er' : String(s.calendrier.exercice.jourDuMois);
-    el.innerHTML = `<p class="small muted mb">Chaque nuit à ${esc(heure(s.calendrier.sauvegarde))} (heure de Tunis), SkanFact copie toutes les données ; il garde les ${esc(s.garde.nuits)} dernières nuits${archive ? `, et de quoi revenir à n'importe quelle minute des ${esc(s.garde.jours)} derniers jours` : ''}. Le ${esc(jourDuMois)} de chaque mois, une copie est remise en place à côté, pour vérifier qu'elle se relit.</p>
-      <ul class="small sv-etat" id="sv-etat">${lignes.join('')}</ul>
-      ${s.remises.length ? `<p class="small mt"><b>Retours en arrière faits</b></p><ul class="small" id="sv-remises">${s.remises.map((/** @type {any} */ r) => `<li>Le ${esc(quand(r.le))}${r.minute ? `, revenue au ${esc(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(r.minute) ? `${date(r.minute.slice(0, 10))} à ${r.minute.slice(11)}` : r.minute)}` : ''} : ${esc(r.motif || '')}</li>`).join('')}</ul>` : ''}
+    // (1.333.0) Ce que la veille a vu se dit par le module partagé avec le Cabinet (plateforme/sauvegardes.js) : les mêmes
+    // copies, les mêmes phrases.
+    /** @type {any} */ const SV = /** @type {any} */ (window).SkanSauvegardes;
+    el.innerHTML = `${SV.etat(s)}
+      ${s.remises.length ? `<p class="small mt"><b>Retours en arrière faits</b></p><ul class="small" id="sv-remises">${s.remises.map((/** @type {any} */ r) => `<li>Le ${esc(SV.quand(r.le))}${r.minute ? `, revenue au ${esc(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(r.minute) ? `${SV.date(r.minute.slice(0, 10))} à ${r.minute.slice(11)}` : r.minute)}` : ''} : ${esc(r.motif || '')}</li>`).join('')}</ul>` : ''}
       <div class="inline mt"><button type="button" class="btn" id="sv-revenir">Demander de revenir en arrière…</button></div>`;
     /** @type {HTMLButtonElement} */ (el.querySelector('#sv-revenir')).onclick = () => demanderDeRevenir(v10, s);
   }

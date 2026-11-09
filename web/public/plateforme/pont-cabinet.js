@@ -1137,6 +1137,8 @@
   const VERS_V10 = { supervision: 'supervision', revision: 'validation', saisie: 'saisie', paie: 'saisie' };
   /** @type {Record<string, string>} */
   const VERS_SERVEUR = { supervision: 'supervision', validation: 'revision', saisie: 'saisie' };
+  // (1.333.0) Le nom d'un rôle, partout celui de la liste de l'équipe (le pied de la barre disait « Direction »).
+  const libelleRole = (/** @type {unknown} */ r) => /** @type {any} */ (window).CabCore.LIBELLE_ROLE[VERS_V10[String(r)] || 'saisie'] || String(r);
   /** @param {string} utilisateur */
   const membreDe = (utilisateur) => (equipeLue.membres.find((m) => m.utilisateur === utilisateur) || {}).membre;
   // Le nom de qui travaille : la v10 signe les comptes, les notes et le questionnaire de ce nom.
@@ -1147,9 +1149,7 @@
   // Un geste sur l'équipe, dit en une phrase (brique 61) : qui a fait quoi, à qui.
   /** @param {any} x */
   function phraseDeLEquipe(x) {
-    /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
-    /** @param {unknown} r */
-    const role = (r) => K.LIBELLE_ROLE[/** @type {Record<string, string>} */ (VERS_V10)[String(r)] || 'saisie'] || String(r);
+    const role = libelleRole;
     const av = x.avant || {}, ap = x.apres || {};
     const membre = x.membre || 'une personne';
     switch (x.geste) {
@@ -1168,7 +1168,7 @@
     // (1.77.0) Ou il t'invite par e-mail, avant même que tu aies SkanFact : son lien te fait créer ton cabinet.
     // (1.128.0) Le chemin qu'il prend vraiment : « Comptabilité › Cabinet » (le premier pas « Inviter mon comptable » y
     // mène) ; Paramètres › Envois en est l'autre entrée (revue du mois d'un client, point 11).
-    const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois),
+    const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans son menu, <strong>Inviter mon comptable</strong> (Comptabilité › Cabinet),
       il tape le code de ton cabinet, ou il t'invite par e-mail. Tu acceptes ici, sur la page Dossiers ; ses livres sont alors ceux du serveur, à jour en direct.
       Un client qui n'est pas sur SkanFact : « Nouveau client… », et tu tiens ses livres toi-même.</p>
       <div class="mt"><div class="muted small">Le code de ton cabinet</div>
@@ -1516,12 +1516,10 @@
     // (1.152.0) La personne connectée, pour le pied de la barre : son nom, son adresse, son rôle au cabinet.
     profil: async () => {
       const m = await appel('GET', '/moi');
-      // La barre le demande dès son dessin : l'équipe n'est peut-être pas encore lue. Les noms de rôles sont ceux des
-      // maquettes de « Mon cabinet » (28/10/2026) : la direction, la tenue des dossiers, la saisie.
+      // La barre le demande dès son dessin (l'équipe n'est peut-être pas encore lue) ; un rôle se dit une fois (libelleRole).
       const membres = equipeLue.membres.length ? equipeLue.membres : ((await appel('GET', `/cabinets/${cabinetId}/equipe`)).membres || []);
       const membre = membres.find((/** @type {any} */ x) => x.utilisateur === m.id);
-      const NOMS = /** @type {Record<string, string>} */ ({ supervision: 'Direction', revision: 'Tenue des dossiers', saisie: 'Saisie', paie: 'Paie' });
-      return { nom: m.nom, email: m.email, roleTexte: membre ? (membre.roles || []).map((/** @type {string} */ r) => NOMS[r] || r).join(', ') : '' };
+      return { nom: m.nom, email: m.email, roleTexte: membre ? [...new Set((membre.roles || []).map(libelleRole))].join(', ') : '' };
     },
     // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).
     sansCleDeSecours: true,
@@ -1837,6 +1835,8 @@
         if (p.deadlines) s.deadlines = { ...(s.deadlines || {}), ...p.deadlines };
         if (Array.isArray(p.regimes)) s.regimes = p.regimes;
         if (p.saisie) s.saisie = { ...(s.saisie || {}), ...p.saisie, touches: { ...((s.saisie || {}).touches || {}), ...(p.saisie.touches || {}) } };
+        // (1.333.0) Une touche ne fait qu'un geste : la règle de l'écran (cabcore), avant d'écrire quoi que ce soit.
+        const double = p.saisie ? /** @type {any} */ (window).CabCore.toucheEnDouble((s.saisie || {}).touches) : null; if (double) throw new Error(`La touche ${double.touche} sert à deux gestes de la grille : une touche ne fait qu'un geste. Change l'une des deux.`);
         if (p.theme) s.theme = String(p.theme);
         if (p.formatCopie) s.formatCopie = String(p.formatCopie);
         if (Array.isArray(p.depots)) s.depots = p.depots;

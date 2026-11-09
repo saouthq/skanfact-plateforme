@@ -10,7 +10,9 @@ import type { Contexte } from './connexion.ts';
 import { motif, rendre, t } from '../textes/index.ts';
 import { VEILLE_RECENTE_MIN } from './console/alertes.ts';
 import { CALENDRIER, GARDE } from './console/sauvegardes.ts';
+import { Introuvable } from './erreurs.ts';
 
+const lireUuid = (x: string | undefined) => { if (!x || !z.string().uuid().safeParse(x).success) throw new Introuvable(); return x; };
 type Resultat = { le: string; ok: boolean } | null;
 const resultat = (x: unknown): Resultat => {
   const r = x as { le?: unknown; ok?: unknown } | null;
@@ -26,28 +28,43 @@ export function routesSauvegardes(ctx: Contexte): Route<never>[] {
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
   const maintenant = () => (ctx.maintenant ?? (() => new Date()))();
 
+  // Ce que la veille a vu des copies, dit à l'écran ; la même lecture pour l'entreprise et pour le cabinet (1.333.0).
+  const etatDesCopies = (lu: Record<string, unknown>, quand: Date) => {
+    const nuit = lu.nuit as { jour: string; sauvegarde: unknown; copieDeBase: unknown } | null;
+    const veille = lu.veille as { minute: string; archivage: { enMarche?: unknown } | null; horsMachine: { regle?: unknown; attenteDepuis?: unknown } | null } | null;
+    const hm = veille?.horsMachine ?? null;
+    return {
+      calendrier: { sauvegarde: heureATunis(CALENDRIER.sauvegarde), exercice: { jourDuMois: CALENDRIER.exercice.jourDuMois, heure: heureATunis(CALENDRIER.exercice.heure) } },
+      garde: GARDE,
+      nuit: nuit ? { jour: nuit.jour, sauvegarde: resultat(nuit.sauvegarde), copieDeBase: resultat(nuit.copieDeBase) } : null,
+      reussie: (lu.reussie as { jour: string; le: string } | null) ?? null,
+      exercice: (lu.exercice as { jour: string; le: string; ok: boolean } | null) ?? null,
+      archivage: veille?.archivage ? { enMarche: veille.archivage.enMarche === true } : null,
+      horsMachine: hm ? { regle: hm.regle === true, attenteDepuis: typeof hm.attenteDepuis === 'string' ? hm.attenteDepuis : null } : null,
+      veille: veille ? { minute: veille.minute, recente: quand.getTime() - Date.parse(veille.minute) <= VEILLE_RECENTE_MIN * 60_000 } : null,
+      remises: (lu.remises as unknown[]) ?? [],
+    };
+  };
+
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/sauvegardes', geste: 'socle.sauvegardes.voir',
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const quand = maintenant();
       const lu = (await tx.query('select plateforme.mes_sauvegardes($1, $2) l', [params.entreprise ?? '', quand])).rows[0].l as Record<string, unknown>;
-      const nuit = lu.nuit as { jour: string; sauvegarde: unknown; copieDeBase: unknown } | null;
-      const veille = lu.veille as { minute: string; archivage: { enMarche?: unknown } | null; horsMachine: { regle?: unknown; attenteDepuis?: unknown } | null } | null;
-      const hm = veille?.horsMachine ?? null;
-      return {
-        corps: {
-          calendrier: { sauvegarde: heureATunis(CALENDRIER.sauvegarde), exercice: { jourDuMois: CALENDRIER.exercice.jourDuMois, heure: heureATunis(CALENDRIER.exercice.heure) } },
-          garde: GARDE,
-          nuit: nuit ? { jour: nuit.jour, sauvegarde: resultat(nuit.sauvegarde), copieDeBase: resultat(nuit.copieDeBase) } : null,
-          reussie: (lu.reussie as { jour: string; le: string } | null) ?? null,
-          exercice: (lu.exercice as { jour: string; le: string; ok: boolean } | null) ?? null,
-          archivage: veille?.archivage ? { enMarche: veille.archivage.enMarche === true } : null,
-          horsMachine: hm ? { regle: hm.regle === true, attenteDepuis: typeof hm.attenteDepuis === 'string' ? hm.attenteDepuis : null } : null,
-          veille: veille ? { minute: veille.minute, recente: quand.getTime() - Date.parse(veille.minute) <= VEILLE_RECENTE_MIN * 60_000 } : null,
-          remises: (lu.remises as unknown[]) ?? [],
-        },
-      };
+      return { corps: etatDesCopies(lu, quand) };
+    },
+  });
+
+  // (1.333.0) Les mêmes faits, lus par un cabinet (0207) : un membre actif, jamais une clé de l'API. Un cabinet n'a pas de
+  // remise à lui : revenir en arrière se demande au support, qui regarde dossier par dossier.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/sauvegardes', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const quand = maintenant();
+      const lu = (await tx.query('select plateforme.mes_sauvegardes_cabinet($1, $2) l', [lireUuid(params.cabinet), quand])).rows[0].l as Record<string, unknown>;
+      return { corps: etatDesCopies(lu, quand) };
     },
   });
 

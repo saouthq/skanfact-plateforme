@@ -118,7 +118,9 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(await p.locator('#brand-cab').innerText()).toBe('Jlassi Conseil');
     expect(await p.locator('#barre .brand-mark').innerText()).toBe('JC');
     expect(await p.locator('#brand-cab-sous').innerText()).toBe('Cabinet · 3 dossiers');
-    await expect.poll(() => p.locator('#b-moi .moi-nom').innerText()).toBe('Anis Gharbi\nDirection');
+    // (1.333.0) Le rôle porte le nom que lui donne la liste de l'équipe (Réglages › L'équipe), jamais un second nom
+    // (« Direction » disait « Supervision », « Tenue des dossiers » disait « Saisie et validation »).
+    await expect.poll(() => p.locator('#b-moi .moi-nom').innerText()).toBe('Anis Gharbi\nSupervision');
     await p.locator('#brand-btn').click();
     const menu = p.locator('.sb-cabinet');
     expect(await menu.locator('.code-cab b').innerText()).toBe(cab.code);
