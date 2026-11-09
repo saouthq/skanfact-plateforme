@@ -650,4 +650,25 @@ describe('les pièces reçues du cabinet', () => {
       .toBe('Une pièce qu\'on remet à classer n\'a pas de raison : retire la raison ou la note.');
     expect((await appeler('POST', `/entreprises/${ent}/messages/${p2.corps.id}/classee`, cab.associe.jeton, { classee: true, raison: 'perdue' })).statut).toBe(400);
   });
+
+  it('(1.336.0) le fil dit au cabinet ce que « Pièces reçues » a fait d\'une pièce, et le client n\'en reçoit rien de plus', async () => {
+    const cab = await cabinet();
+    const { p: client, ent } = await cab.client('Garage Triki');
+    const envoi = await envoyer(ent, client, 'facture-pneus.png', { texte: 'Les pneus de la camionnette' });
+    expect(envoi.statut).toBe(201);
+    const id = envoi.corps.id;
+    const dansLeFil = async (cote: 'cabinet' | 'entreprise', p: Personne) =>
+      (((await appeler('GET', `/entreprises/${ent}/messages?cote=${cote}`, p.jeton)).corps.messages ?? []).find((m) => m.id === id) ?? null) as unknown as Record<string, unknown> | null;
+    // À classer : le cabinet lit « rien encore » (null), le client ne lit pas même la clé.
+    expect((await dansLeFil('cabinet', cab.associe))?.classee).toBeNull();
+    expect(Object.keys((await dansLeFil('entreprise', client)) ?? {})).not.toContain('classee');
+    // Classée en double : le fil du cabinet le dit (la raison, le jour) ; celui du client, toujours rien.
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${id}/classee`, cab.associe.jeton, { classee: true, raison: 'double' })).statut).toBe(200);
+    const classee = (await dansLeFil('cabinet', cab.associe))?.classee as { raison: string; le: string } | null;
+    expect([classee?.raison, typeof classee?.le]).toEqual(['double', 'string']);
+    expect(Object.keys((await dansLeFil('entreprise', client)) ?? {})).not.toContain('classee');
+    // Remise à classer : le fil le suit.
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${id}/classee`, cab.associe.jeton, { classee: false })).statut).toBe(200);
+    expect((await dansLeFil('cabinet', cab.associe))?.classee).toBeNull();
+  });
 });

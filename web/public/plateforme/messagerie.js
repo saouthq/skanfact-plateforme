@@ -75,9 +75,10 @@
   const jourCourt = (j) => `${nomDuJour(j).slice(0, 3)}. ${j.slice(8, 10)}/${j.slice(5, 7)}`;
   /** @param {number} n */
   const dansJours = (n) => jourCle(Date.parse(`${jourCle(Date.now())}T12:00:00Z`) + n * 86_400_000);
-  // « de septembre », « d'octobre ».
+  // « de septembre », « d'octobre », « d'Amine ». (1.336.0) Un Y suivi d'une voyelle se prononce comme une consonne :
+  // « de Yasmine », « de Youssef » (l'écran disait « la promesse d'Yasmine », « On attend d'Yasmine ») ; « d'Yves » reste.
   /** @param {string} mot */
-  const deMot = (mot) => (/^[aeiouyéèêàâîôûh]/i.test(mot) ? `d'${mot}` : `de ${mot}`);
+  const deMot = (mot) => (/^(?:[aeiouéèêàâîôûh]|y(?![aeiouéèêàâîôû]))/i.test(mot) ? `d'${mot}` : `de ${mot}`);
   const moisDavant = () => { const a = jourCle(Date.now()); const m = Number(a.slice(5, 7)) - 2; return MOIS[(m + 12) % 12] || ''; };
   // Une promesse du client dans son message (« je vous envoie tout vendredi, promis ») : le jour qu'il nomme (demain, un
   // jour de la semaine : le prochain), ou '' s'il promet sans jour. Pas de promesse : null.
@@ -431,6 +432,7 @@
    *   achatDuNumero?: (numero: string) => ({ id: string, date: string, libelle: string } | null),
    *   corrigerDateAchat?: (numero: string, date: string) => Promise<{ genre: string, id: string, libelle: string }>,
    *   saisirPiece?: (message: { id: string, ecritLe: string, fichier: { id: string, nom: string, type: string } }) => void,
+   *   libelleClassee?: (classee: { raison: string | null, le: string }) => string,
    *   pieceDuNumero?: (numero: string) => { genre: string, id: string } | null,
    *   repondre?: (question: string, texte: string) => Promise<void>,
    *   rangerAchat?: (message: { id: string, nom: string, type: string, contenu: string }) => void,
@@ -888,17 +890,18 @@
       const m0 = lot[0];
       const moi = m0.cote === o.cote;
       const neuf = lot.some((m) => nouveaux.has(m.id));
-      const aSaisir = lot.filter((m) => !m.achat);
+      // (1.336.0) Une pièce déjà classée dans « Pièces reçues » (saisie, jointe, en double) ne se propose plus à la saisie.
+      const aSaisir = lot.filter((m) => !m.achat && !m.classee);
       const actif = lu.fil && lu.fil.actif;
       const vig = lot.map((m) => {
         const pdf = !String(m.fichier.type || '').startsWith('image/');
         return `<div class="msg-vig" data-msg-id="${esc(m.id)}">
           <button type="button" class="msg-vig-img${pdf ? ' pdf' : ''}" data-msg-fichier="${esc(m.fichier.id)}" ${!pdf && m.fichier.taille <= 3 * 1_048_576 ? `data-msg-vignette="${esc(m.fichier.id)}"` : ''} aria-label="Ouvrir ${esc(m.fichier.nom)}"><em>${sorteJointe(m.fichier.type, m.fichier.nom) === 'PDF' ? 'PDF' : pdf ? 'XML' : 'PHOTO'}</em><i></i><i></i><i></i></button>
-          <span class="msg-vig-n"><b title="${esc(m.fichier.nom)}">${esc(m.fichier.nom)}</b><small>${esc(poids(m.fichier.taille))}${m.achat ? ' · rangée' : ''}</small></span>
+          <span class="msg-vig-n"><b title="${esc(m.fichier.nom)}">${esc(m.fichier.nom)}</b><small>${esc(poids(m.fichier.taille))}${m.achat ? ' · rangée' : m.classee ? ' · classée' : ''}</small></span>
           <span class="msg-vig-m"><button type="button" class="msg-vig-b" data-msg-vig-menu aria-expanded="false" aria-label="Les gestes de ${esc(m.fichier.nom)}">${dessin('points')}</button>
             <span class="msg-vig-pop" hidden><button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
               <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button>
-              ${!entreprise && !moi && !m.achat && o.saisirPiece && actif ? `<button type="button" class="msg-lien" data-msg-saisir="${esc(m.id)}">Saisir cette pièce</button>` : ''}</span></span></div>`;
+              ${!entreprise && !moi && !m.achat && !m.classee && o.saisirPiece && actif ? `<button type="button" class="msg-lien" data-msg-saisir="${esc(m.id)}">Saisir cette pièce</button>` : ''}</span></span></div>`;
       }).join('');
       // (1.182.0) « Saisir les N pièces » en lien sur la ligne de tête du lot (l'explication au survol) : en bouton, avec sa
       // ligne grise dessous, il prenait la place d'un message de plus (Skander, 30/10/2026).
@@ -976,6 +979,7 @@
           <button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
           <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button>
           ${!entreprise && m.cote === 'entreprise' && m.achat && o.ouvrirPiece && /\s·\s/.test(m.achat.libelle) ? `<button type="button" class="msg-lien" data-msg-ouvrir="achat:${esc(m.achat.id)}" data-msg-libelle="${esc(m.achat.libelle)}">Voir l'écriture</button>`
+            : !entreprise && m.cote === 'entreprise' && !m.achat && m.classee ? `<span class="msg-poids" data-msg-classee>${esc(o.libelleClassee ? o.libelleClassee(m.classee) : 'Classée')}</span>`
             : !entreprise && m.cote === 'entreprise' && !m.achat && o.saisirPiece && actif ? `<button type="button" class="msg-lien" data-msg-saisir="${esc(m.id)}">Saisir cette pièce</button>` : ''}</div>`;
       }
       if (m.repondA) {
@@ -2110,6 +2114,7 @@
    *   toast?: (texte: string, erreur?: boolean) => void,
    *   ouvrirPiece?: (entreprise: string, genre: string, id: string, libelle: string) => boolean,
    *   saisirPiece?: (entreprise: string, message: { id: string, ecritLe: string }) => void,
+   *   libelleClassee?: (classee: { raison: string | null, le: string }) => string,
    *   revision?: (entreprise: string) => void,
    *   surCompteurs?: (c: { aTraiter: number, attendClient: number, tout: number }, vus: any[], tous: any[]) => void,
    *   portee?: () => string, changerPortee?: (v: string) => void, dansPortee?: (entreprise: string) => boolean, info?: string,
@@ -2495,6 +2500,7 @@
         imputer: o.imputer ? (/** @type {any} */ q, /** @type {() => Promise<void>} */ apres) => { if (o.imputer) o.imputer(id, q, apres); } : undefined,
         ouvrirPiece: o.ouvrirPiece ? (/** @type {string} */ g, /** @type {string} */ p, /** @type {string} */ l) => (o.ouvrirPiece ? o.ouvrirPiece(id, g, p, l) : false) : undefined,
         saisirPiece: o.saisirPiece ? (/** @type {any} */ m) => { if (o.saisirPiece) o.saisirPiece(id, m); } : undefined,
+        libelleClassee: o.libelleClassee,
         // Ce que la conversation change (lu, traité, une réponse) se relit aussitôt dans la liste : elle se relit à chaque
         // lecture de la conversation (après un geste, et toutes les 30 secondes), une fois pour plusieurs appels rapprochés.
         surAttente: () => { clearTimeout(relecture); relecture = setTimeout(() => { void lire(); }, 250); },

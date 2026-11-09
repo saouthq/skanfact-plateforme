@@ -1829,3 +1829,43 @@ Ce qui est fait :
 À VÉRIFIER : les Relances et les Échéances se redessinent quand une pièce ARRIVE ou PART de la liste ; une pièce dont
 seul l'état change (sans arriver ni partir) ne les redessine pas. Vu en jouant et laissé : une pièce classée qui en
 remplace une autre (la photo refaite de IMG_8790) ne le dit pas dans les pièces classées.
+
+## Les Messages du Cabinet, et le pont (1.336.0)
+
+Joué à la souris : Leïla dans la boîte des Messages (la boulangerie, l'institut, le garage), Sarra de l'autre côté dans
+« Mon comptable », qui reçoit la réponse.
+
+Ce qui est fait :
+
+- **« Saisir cette pièce », sous une photo du fil, passe par la même porte que « Pièces reçues ».** Elle ouvrait une
+  grille vide, et le commentaire disait encore que le Cabinet ne joint pas de fichier à une écriture (il le fait depuis
+  la 1.174.5). La pièce restait donc « à classer » une fois saisie depuis la conversation, et se saisissait une seconde
+  fois depuis « Pièces reçues » — deux chemins, deux écritures. La saisie s'ouvre maintenant préparée (« Saisie de
+  « IMG_8790-bis.jpg » · la conversation : enregistrée, l'écriture la prend pour justificatif… », « Retour à la
+  conversation ») ; enregistrée, la pièce s'y joint et sort des pièces à classer, et l'écran revient à la conversation.
+- **Une pièce déjà classée ne se propose plus à la saisie.** Le fil ne savait pas ce que « Pièces reçues » en avait fait :
+  il proposait « Saisir cette pièce » sous une pièce saisie, en double ou jointe. Le serveur le dit au fil du cabinet (la
+  raison et le jour, rien de plus) et le fil l'écrit sous la pièce (« Jointe à son écriture », « En double »…). Le client
+  n'en reçoit rien : c'est le rangement du cabinet, pas le sien.
+- **La pièce montrée à côté de la grille est celle qu'on saisit.** Elle prenait la première pièce à traiter de l'année —
+  une autre facture — sous le titre « Saisie de » celle-ci ; et quand la grille s'ouvrait avant que les pièces soient
+  lues, aucune pièce ne venait jamais à côté. Les deux venaient aussi de « Pièces reçues ».
+- **Le dossier à côté nomme tous les mois en retard** : « Août et septembre en retard », et non « Septembre en retard »
+  au-dessus de deux mois échus, à côté de « 2 mois en retard » dans la liste.
+- **« 15 pièces à classer »** dans le résumé de la boîte, le mot de « Pièces reçues » : « 15 photos à saisir » comptait
+  aussi les PDF.
+- **« de Yasmine »**, pas « d'Yasmine » : un Y devant une voyelle se prononce comme une consonne (« la promesse de
+  Yasmine », « On attend de Yasmine ») ; « d'Yves » reste.
+- La preuve : `tests/web/messages-cabinet-1336.test.ts` (la saisie depuis le fil jusqu'à la pièce jointe, la pièce à
+  côté parmi deux, le fil qui dit « Jointe à son écriture », les mois en retard, « de Yasmine »),
+  `tests/messagerie/messagerie.test.ts` (le classement dit au cabinet, jamais au client) ; preuves
+  `messages 1.336.0 a-j`, et « « Saisir cette pièce » qui ne mène pas à la saisie » vise le code d'aujourd'hui.
+
+Et le rouge GitHub de la 1.334.1 : `tests/web/relances-cabinet-1334.test.ts` attendait « 1 a envoyé des pièces, à
+classer » sur une machine chargée — les pièces arrivaient après la page des Relances, qui ne se redessinait pas. C'est
+le défaut que la 1.335.0 corrige (poussée avec cette version).
+
+À VÉRIFIER : une pièce saisie depuis le fil prend la date de son arrivée, comme depuis « Pièces reçues » (la saisie le
+dit : « mets celle de la facture ») ; reste à jouer une pièce arrivée en janvier pour une facture de décembre (quel
+exercice s'ouvre). « Saisir les N pièces » (plusieurs photos d'un coup) ne compte plus les pièces classées, mais n'a pas
+son propre test.

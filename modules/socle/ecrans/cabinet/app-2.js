@@ -2319,6 +2319,13 @@
       if (saisieState.dossierId && saisieState.dossierId !== dossierId && pieceEnCours(saisieState.piece)) saisieState.enAttente[saisieState.dossierId] = saisieState.piece;
       saisieState.dossierId = dossierId;
       saisieState.piece = { ...pieceVide('', date), journalDe: nature, libelle: String(nom || '').replace(/\.(pdf|jpe?g|png|webp|heic)$/i, '').slice(0, 120), depuisClasseur: depuis };
+      // (1.336.0) La pièce montrée à côté de la grille est celle qu'on saisit (« La pièce de l'écriture en cours ») : elle
+      // prenait la première pièce à traiter de l'année, une autre facture, sous le titre « Saisie de … » de celle-ci.
+      if (depuis && (depuis.message || depuis.doc)) {
+        // Le choix vaut pour CE dossier : le premier dessin d'un autre dossier remet la Saisie à zéro (et l'oublierait).
+        if (sxState.dossier !== dossierId) { Object.assign(sxState, { dossier: dossierId, mode: '', dessin: '' }); sxState.fiches.clear(); sxState.saisir.clear(); }
+        Object.assign(sxState, { sel: depuis.message ? `p:${depuis.message}` : `d:${depuis.doc}`, zoom: 1, rot: 0 });
+      }
     }
     navigate(`#/dossier/${encodeURIComponent(dossierId)}/comptabilite/saisie`);
   }
@@ -3519,6 +3526,14 @@
     // Les pièces sont arrivées : la Saisie passe face à la première, si rien n'est commencé dans la grille.
     if (!sxState.mode && P.pret && P.liste.length && !pieceEnCours(saisieState.piece) && !(saisieState.piece && saisieState.piece.depuisClasseur)) sxState.mode = 'face';
     if (P.pret && avant !== sxState.mode) { drawLivres(document, dossier); return; }
+    // (1.336.0) Ouverte avant que les pièces soient lues (depuis la conversation ou « Pièces reçues »), la grille n'avait
+    // pas de place à côté, et la pièce n'y venait jamais. Sa place se pose à leur arrivée, sans redessiner la grille où
+    // l'on tape déjà.
+    const km = $('.sx-km');
+    if (km && sxState.mode === 'km' && P.pret && P.liste.length && !km.hidden && !grilleCacheeSx(P) && !videCacheSx(P) && !$('#sx-km-d')) {
+      km.classList.remove('seul');
+      km.insertAdjacentHTML('beforeend', '<div class="sx-km-d" id="sx-km-d"></div>');
+    }
     const html = zoneSx(dossier, P);
     const cle = `${sxState.mode}|${sxState.sel}|${html.length}|${html}`;
     if (!force && cle === sxState.dessin) return;
@@ -3601,7 +3616,7 @@
 
     // (1.174.2) Une saisie ouverte depuis le classeur dit de quelle pièce elle vient : enregistrée, la pièce s'y joint.
     const dc = p.depuisClasseur;
-    return `<div class="sx" id="sx-zone">${zoneHtml}</div><div class="sx-km${cote ? '' : ' seul'}"${cache ? ' hidden' : ''}><div class="sx-km-g">${dc ? `<div class="sa-depuis" role="note"><span><b>Saisie de « ${esc(dc.nom)} »</b> · ${esc(dc.ou)} : enregistrée, l'écriture la prend pour justificatif${dc.retour ? ', et elle sort des pièces à classer' : ', et le classeur la compte saisie'}.${dc.dateArrivee ? ' La date proposée est celle de son arrivée : mets celle de la facture.' : ''}</span><a class="btn btn-sm btn-ghost" href="${dc.retour ? esc(dc.retour) : `#/dossier/${encodeURIComponent(dossier.id)}/classeur`}">${dc.retour ? 'Retour aux pièces reçues' : 'Retour au classeur'}</a></div>` : ''}<div class="sa-tete" id="sa-tete">
+    return `<div class="sx" id="sx-zone">${zoneHtml}</div><div class="sx-km${cote ? '' : ' seul'}"${cache ? ' hidden' : ''}><div class="sx-km-g">${dc ? `<div class="sa-depuis" role="note"><span><b>Saisie de « ${esc(dc.nom)} »</b> · ${esc(dc.ou)} : enregistrée, l'écriture la prend pour justificatif${dc.retour ? ', et elle sort des pièces à classer' : ', et le classeur la compte saisie'}.${dc.dateArrivee ? ' La date proposée est celle de son arrivée : mets celle de la facture.' : ''}</span><a class="btn btn-sm btn-ghost" href="${dc.retour ? esc(dc.retour) : `#/dossier/${encodeURIComponent(dossier.id)}/classeur`}">${dc.retour ? esc(dc.retourTexte || 'Retour aux pièces reçues') : 'Retour au classeur'}</a></div>` : ''}<div class="sa-tete" id="sa-tete">
         <label class="field sa-j"><span class="fl">Journal ${info('sa.journal')}</span>
           <select id="sa-journal">${s.livre.journaux.map(j => `<option value="${esc(j.code)}" ${p.journal === j.code ? 'selected' : ''}>${esc(j.code)} — ${esc(j.libelle)}</option>`).join('')}</select></label>
         <label class="field sa-d"><span class="fl">Date ${info('sa.date')}</span>

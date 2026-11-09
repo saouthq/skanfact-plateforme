@@ -1908,7 +1908,8 @@
       return [
         { cle: 'retard', texte: pl(nRet, 'pièce en retard', 'pièces en retard'), ton: 'rouge', ids: retards, dessin: MSG_IC.retard },
         { cle: 'questions', texte: pl(nQ, 'question ouverte', 'questions ouvertes'), ton: 'ambre', ids: qs, dessin: MSG_IC.question },
-        { cle: 'photos', texte: pl(nPh, 'photo à saisir', 'photos à saisir'), ton: 'vert', ids: ph, dessin: MSG_IC.photo },
+        // (1.336.0) Des pièces à classer (photos ET PDF), le mot de « Pièces reçues » : « 15 photos à saisir » comptait aussi les PDF.
+        { cle: 'photos', texte: pl(nPh, 'pièce à classer', 'pièces à classer'), ton: 'vert', ids: ph, dessin: MSG_IC.photo },
       ];
     };
     // Le dossier à côté : le contact en tête, l'année en segments, où en est son mois, et ce qu'il faut savoir.
@@ -1925,8 +1926,11 @@
       const role = [d.contactRole || '', d.name].filter(Boolean).join(' · ');
       const suivi = eq.suit ? (eq.suit.id === S.moi ? 'suivi par toi' : `suivi par ${prenomDe(eq.suit)}`) : 'personne ne le suit encore';
       const mp = moisPrecedent(K.today().slice(0, 7));
+      // (1.336.0) Le titre nomme TOUS les mois en retard : « Septembre en retard » coiffait août et septembre, à côté de
+      // « 2 mois en retard » dans la liste et de la suggestion « Août et septembre en retard ».
+      const tardTitre = ms => { const n = ms.map(moisLong); return n.length > 3 ? pl(n.length, 'mois en retard', 'mois en retard') : `${cap(n.length > 1 ? `${n.slice(0, -1).join(', ')} et ${n[n.length - 1]}` : n[0])} en retard`; };
       const etatMois = tard.length
-        ? `<b>${esc(cap(moisLong(tard[tard.length - 1])))} en retard</b><small class="rouge">${esc(tard.map(m => `${moisLong(m)} : échu, pas encore déclaré`).join(' · '))} (À VÉRIFIER)</small>`
+        ? `<b>${esc(tardTitre(tard))}</b><small class="rouge">${esc(tard.map(m => `${moisLong(m)} : échu, pas encore déclaré`).join(' · '))} (À VÉRIFIER)</small>`
         : `<b>${esc(cap(mo.mot))}</b>${mo.cl === 'pret' ? `<small>tu le déposes avant le ${esc(jjmm(limiteDe(mp)))}</small>` : ''}`;
       const nP = (comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(d.id)) || 0;
       const savoir = [
@@ -1948,6 +1952,7 @@
       revision: gestes.revision,
       ouvrirPiece: gestes.ouvrirPiece,
       saisirPiece: gestes.saisirPiece,
+      libelleClassee: gestes.libelleClassee,
       ...(api.imputerQuestion ? { imputer: gestes.imputer } : {}),
       info: info('msg.portee'),
       portee: () => (dir && portee() === 'tous' ? 'tout' : 'mes'),
@@ -2055,15 +2060,21 @@
       location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/journal';
       return true;
     };
-    // (1.116.0) « Saisir cette pièce » : la photo s'ouvre dans un autre onglet (le fil l'ouvre), la saisie du client à
-    // l'année du message. Le justificatif ne s'y joint pas seul (le Cabinet en ligne ne joint pas encore de fichier à une
-    // écriture) : la photo reste dans le fil, à sa date.
-    const saisirPiece = (id, m) => {
-      changerDeDossierCompta(id);
-      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);
-      toast('La photo s\'ouvre dans un autre onglet : saisis la pièce ici, en face d\'elle. Elle reste dans votre fil.');
+    // (1.116.0) « Saisir cette pièce » : la photo s'ouvre dans un autre onglet (le fil l'ouvre). (1.336.0) La saisie passe
+    // par la même porte que « Pièces reçues » (`saisirPiece`) : préparée pour cette pièce, et la pièce se joint à l'écriture
+    // enregistrée (elle sort des pièces à classer). Avant, une grille vide : la pièce restait « à classer » une fois saisie
+    // depuis le fil, et se saisissait une seconde fois depuis « Pièces reçues ».
+    const saisirDepuisFil = (id, m) => {
+      prefs.set('dossierOuvert', id);
+      const nom = (m.fichier && m.fichier.nom) || 'la pièce';
+      saisirPiece(id, { nature: 'achats', date: new Date(m.ecritLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }), nom,
+        depuis: { nom, ou: 'la conversation', message: m.id, retour: '#/messages/' + encodeURIComponent(id), retourTexte: 'Retour à la conversation', dateArrivee: true } });
+      const dc = saisieState.dossierId === id && saisieState.piece && saisieState.piece.depuisClasseur;
+      if (dc && dc.message === m.id) toast('La photo s\'ouvre dans un autre onglet : saisis la pièce ici, en face d\'elle. Enregistrée, l\'écriture la prend pour justificatif.');
     };
-    if (!ent) { drawBoiteMsg(view, { revision, ouvrirPiece, saisirPiece, imputer: imputerMsg }); return; }
+    // (1.336.0) Ce que « Pièces reçues » a fait d'une pièce, dit sous elle dans le fil (et plus « Saisir cette pièce »).
+    const libelleClassee = c => PC_RAISON[c && c.raison] || 'Classée';
+    if (!ent) { drawBoiteMsg(view, { revision, ouvrirPiece, saisirPiece: saisirDepuisFil, libelleClassee, imputer: imputerMsg }); return; }
     const id = decodeURIComponent(ent);
     const d = (S.dossiers || []).find(x => x.id === id);
     if (messagePrepare && messagePrepare.id !== id) messagePrepare = null;
@@ -2084,7 +2095,8 @@
         dit: `Le message est prêt${(prep.demandes || []).length ? `, avec ${pl(prep.demandes.length, 'pièce demandée', 'pièces demandées')}` : ''} : relis-le, puis « Envoyer ».` } } : {}),
       revision: () => revision(id),
       ouvrirPiece: (genre, piece, libelle) => ouvrirPiece(id, genre, piece, libelle),
-      saisirPiece: m => saisirPiece(id, m),
+      saisirPiece: m => saisirDepuisFil(id, m),
+      libelleClassee,
       ...(api.imputerQuestion ? { imputer: (q, apres) => imputerMsg(id, q, apres) } : {}),
       surAttente: () => { void rafraichirPastilleMessages(); },
     });

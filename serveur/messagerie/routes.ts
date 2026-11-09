@@ -90,6 +90,7 @@ type LigneMessage = {
   demande: string | null; demande_recue_le: Date | null; demande_pour: string | null; en_retard: boolean; relances: number; relance_le: Date | null;
   fichier: string | null; fichier_nom: string | null; fichier_type: string | null;
   fichier_taille: number | null; achat_id: string | null; achat_libelle: string | null; repond_a: string | null; ecrit_le: Date;
+  classee_le: Date | null; classee_raison: string | null;
 };
 type LigneQuestion = {
   id: string; objet: string; texte: string; piece: string; montant: string; attendu: string; statut: string; envoyee_le: Date;
@@ -219,7 +220,7 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
           m.demande_recue_le, to_char(m.demande_pour, 'YYYY-MM-DD') demande_pour,
           coalesce(m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date, false) en_retard, m.relances, m.relance_le,
           m.fichier, fi.nom fichier_nom, fi.type fichier_type, fi.taille fichier_taille, m.achat_id, m.achat_libelle,
-          m.repond_a, m.ecrit_le
+          m.repond_a, m.ecrit_le, m.classee_le, m.classee_raison
         from messagerie.message m left join messagerie.fichier fi on fi.id = m.fichier
         where m.entreprise = $1 and m.cabinet = $2 and ($3::timestamptz is null or (m.ecrit_le, m.id) < ($3::timestamptz, $4::uuid))
         order by m.ecrit_le desc, m.id desc limit $5`, [entreprise, cabinet, avant?.[0] ?? null, avant?.[1] ?? null, PAGE + 1])).rows as LigneMessage[];
@@ -272,6 +273,10 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
             fichier: m.fichier ? { id: m.fichier, nom: m.fichier_nom, type: m.fichier_type, taille: m.fichier_taille } : null,
             achat: m.achat_id ? { id: m.achat_id, libelle: m.achat_libelle } : null,
             repondA: m.repond_a,
+            // (1.336.0) Côté cabinet seulement : la pièce déjà classée dans « Pièces reçues » (saisie, jointe, en double…).
+            // Le fil proposait encore « Saisir cette pièce » sur une pièce saisie : elle l'était deux fois. Le client ne
+            // reçoit rien de plus : c'est le rangement du cabinet, pas le sien.
+            ...(cote.data === 'cabinet' ? { classee: m.classee_le ? { raison: m.classee_raison, le: m.classee_le.toISOString() } : null } : {}),
           })),
           questions: questions.map((q) => ({
             id: q.id, objet: q.objet, texte: q.texte, piece: q.piece, montant: versTexte(BigInt(q.montant), 3), attendu: q.attendu,

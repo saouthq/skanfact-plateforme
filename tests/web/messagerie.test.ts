@@ -293,7 +293,8 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await pastille;
     await c.p.waitForTimeout(300);
     expect(await c.p.locator('#nav-messages').isVisible()).toBe(false);
-    // (1.116.0) « Saisir cette pièce » : la photo s'ouvre dans un onglet, la saisie du client à l'année du message.
+    // (1.116.0) « Saisir cette pièce » : la photo s'ouvre dans un onglet. (1.336.0) La saisie passe par la porte de
+    // « Pièces reçues » : préparée pour la pièce, qui se joindra à l'écriture enregistrée.
     await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages/${ent}`);
     const saisir = c.p.locator('[data-msg-fil] .msg-fichier').filter({ hasText: 'facture-steg-aout.png' }).getByRole('button', { name: 'Saisir cette pièce', exact: true }).first();
     await saisir.waitFor({ timeout: 20_000 });
@@ -302,7 +303,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(net(await c.p.locator('[data-msg-cote] [data-msg-attente]').innerText())).toBe('Ce qui attend le client Rien : aucune question ni pièce demandée n\'attend sa réponse.');
     const [photoSaisie] = await Promise.all([c.p.waitForEvent('popup'), saisir.click()]);
     await photoSaisie.close();
-    await expect.poll(() => c.p.url(), { timeout: 15_000 }).toMatch(new RegExp(`#/dossier/${ent}/comptabilite/saisie/\\d{4}$`));
+    await expect.poll(() => c.p.url(), { timeout: 15_000 }).toMatch(new RegExp(`#/dossier/${ent}/comptabilite/saisie$`));
     expect(await c.p.locator('#toast').textContent()).toMatch(/^La photo s'ouvre dans un autre onglet/);
     expect(c.erreurs).toEqual([]);
 

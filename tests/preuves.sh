@@ -19234,7 +19234,7 @@ prouver '« Saisir cette pièce » absent' $MJ \
   ": !entreprise && m.cote === 'entreprise' && !m.achat && o.saisirPiece && actif ?" ": false ?" \
   "$MSGW"
 prouver '« Saisir cette pièce » qui ne mène pas à la saisie' modules/socle/ecrans/cabinet/app-1.js \
-  "      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);" "" \
+  "      saisirPiece(id, { nature: 'achats', date: new Date(m.ecritLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }), nom," "      void (id, { nature: 'achats', date: new Date(m.ecritLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }), nom," \
   "$MSGW"
 prouver 'la demande groupée sans client' $MJ \
   "        if (!clients.length) { refus.textContent = 'Coche au moins un client.'; return; }" "" \
@@ -27141,6 +27141,40 @@ prouver 'pièces 1.335.0 j : les Échéances ne se redessinent pas quand les pi�
 prouver 'pièces 1.335.0 k : la lecture des pièces ne dit jamais qu'\''elles ont changé' modules/socle/ecrans/cabinet/app-1.js \
   'redessinerPrioritesSiOuvertes(changees);' 'redessinerPrioritesSiOuvertes();' \
   "$RL1335"
+
+# 1.336.0 : les Messages du Cabinet (« Saisir cette pièce » par la porte de « Pièces reçues », la pièce classée dite dans le fil, les mois en retard nommés, « de Yasmine »).
+SRV1336='(1.336.0) le fil dit au cabinet ce que « Pièces reçues » a fait d'\''une pièce, et le client n'\''en reçoit rien de plus'
+WEB1336='(1.336.0) « Saisir cette pièce » joint la pièce à son écriture, le fil dit ce qui est classé, les mois en retard nommés, « de Yasmine »'
+prouver 'messages 1.336.0 a : le fil ne dit pas au cabinet qu'\''une pièce est classée' serveur/messagerie/routes.ts \
+  '            ...(cote.data === '\''cabinet'\'' ? { classee: m.classee_le ? { raison: m.classee_raison, le: m.classee_le.toISOString() } : null } : {}),' '' \
+  "$SRV1336"
+prouver 'messages 1.336.0 b : le client reçoit le rangement du cabinet' serveur/messagerie/routes.ts \
+  '...(cote.data === '\''cabinet'\'' ? { classee:' '...(true ? { classee:' \
+  "$SRV1336"
+prouver 'messages 1.336.0 c : une pièce classée se propose encore à la saisie' web/public/plateforme/messagerie.js \
+  ': !entreprise && m.cote === '\''entreprise'\'' && !m.achat && m.classee ?' ': !entreprise && m.cote === '\''entreprise'\'' && !m.achat && false ?' \
+  "$WEB1336"
+prouver 'messages 1.336.0 d : la saisie depuis le fil ne joint pas la pièce' modules/socle/ecrans/cabinet/app-1.js \
+  'depuis: { nom, ou: '\''la conversation'\'', message: m.id, retour:' 'depuis: { nom, ou: '\''la conversation'\'', retour:' \
+  "$WEB1336"
+prouver 'messages 1.336.0 e : la pièce à côté de la grille est la première venue' modules/socle/ecrans/cabinet/app-2.js \
+  'Object.assign(sxState, { sel: depuis.message ? `p:${depuis.message}` : `d:${depuis.doc}`, zoom: 1, rot: 0 });' 'Object.assign(sxState, { zoom: 1, rot: 0 });' \
+  "$WEB1336"
+prouver 'messages 1.336.0 f : la place de la pièce ne se pose pas quand les pièces arrivent après la grille' modules/socle/ecrans/cabinet/app-2.js \
+  '      km.insertAdjacentHTML('\''beforeend'\'', '\''<div class="sx-km-d" id="sx-km-d"></div>'\'');' '' \
+  "$WEB1336"
+prouver 'messages 1.336.0 g : « Retour aux pièces reçues » pour une saisie venue de la conversation' modules/socle/ecrans/cabinet/app-2.js \
+  'esc(dc.retourTexte || '\''Retour aux pièces reçues'\'')' ''\''Retour aux pièces reçues'\''' \
+  "$WEB1336"
+prouver 'messages 1.336.0 h : le titre ne nomme que le dernier mois en retard' modules/socle/ecrans/cabinet/app-1.js \
+  '<b>${esc(tardTitre(tard))}</b>' '<b>${esc(cap(moisLong(tard[tard.length - 1])))} en retard</b>' \
+  "$WEB1336"
+prouver 'messages 1.336.0 i : « photos à saisir » pour des pièces à classer' modules/socle/ecrans/cabinet/app-1.js \
+  'texte: pl(nPh, '\''pièce à classer'\'', '\''pièces à classer'\'')' 'texte: pl(nPh, '\''photo à saisir'\'', '\''photos à saisir'\'')' \
+  "$WEB1336"
+prouver 'messages 1.336.0 j : « d'\''Yasmine »' web/public/plateforme/messagerie.js \
+  '/^(?:[aeiouéèêàâîôûh]|y(?![aeiouéèêàâîôû]))/i' '/^[aeiouyéèêàâîôûh]/i' \
+  "$WEB1336"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
