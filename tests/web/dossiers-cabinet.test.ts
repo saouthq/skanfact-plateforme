@@ -138,7 +138,8 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     await fen.getByRole('button', { name: 'Noter la relance' }).click();
     await expect.poll(() => p.locator('#toast').innerText()).toMatch(/Relance notée sur la fiche de Librairie Ennour/);
     await p.locator('[role=tab][data-cd-vue="manque"]').click();
-    await expect.poll(() => ligne('Librairie Ennour').innerText()).toMatch(/relancé le 29\/10, au téléphone/);
+    // (1.334.0) Notée le jour même (le navigateur vit au 29/10) : « aujourd'hui ».
+    await expect.poll(() => ligne('Librairie Ennour').innerText()).toMatch(/relancé aujourd'hui, au téléphone/);
     await p.locator('[role=tab][data-cd-vue="tous"]').click();
 
     // « Confier à… » deux dossiers : la direction d'abord, puis Rim prend leur suivi.

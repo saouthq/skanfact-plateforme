@@ -184,7 +184,8 @@ describe('les Échéances du Cabinet, à la souris', () => {
     await expect.poll(async () => ((await api('GET', `/entreprises/${librairie.ent}/messages?cote=entreprise`, librairie.j)).corps as { attente: { demandes: number } }).attente.demandes, { timeout: 15_000 }).toBeGreaterThan(0);
     expect(await p.evaluate(() => location.hash)).toMatch(/^#\/echeances/);
     if (!(await ligne.count())) await carte.click();
-    await expect.poll(() => ligne.innerText()).toMatch(/relancé le 29\/10/);
+    // (1.334.0) Relancée le jour même (le navigateur vit au 29/10) : « aujourd'hui », par où elle est partie.
+    await expect.poll(() => ligne.innerText()).toMatch(/relancé aujourd'hui, dans la conversation/);
     expect(((await fiche())?.contenu.relances as unknown[]).length).toBe(1);
     // Un fichier à joindre : « Écrire plutôt dans la conversation » l'ouvre, le message posé ; la relance se note quand il
     // part de la conversation (l'instrument ne passait que par la fenêtre : rien ne vérifiait la note faite de là-bas).
@@ -196,6 +197,9 @@ describe('les Échéances du Cabinet, à la souris', () => {
     // Le message se pose dans la zone d'écriture : « Envoyer » quitte son état vide.
     await expect.poll(() => envoyer.getAttribute('class'), { timeout: 15_000 }).not.toMatch(/\bvide\b/);
     await envoyer.click();
+    // (1.334.0) Ses relevés sont déjà demandés (la relance d'avant) et pas encore reçus : ils ne se redemandent pas, et
+    // l'écran le dit (elle avait deux demandes ouvertes pour la même pièce).
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/^« Vos relevés bancaires de septembre » est déjà demandée et pas encore reçue : elle n'est pas demandée deux fois\.$/);
     await expect.poll(async () => ((await fiche())?.contenu.relances as unknown[]).length, { timeout: 15_000 }).toBe(2);
     await p.evaluate(() => { location.hash = '#/echeances'; });
     await carte.waitFor({ timeout: 15_000 });

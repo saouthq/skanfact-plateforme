@@ -335,7 +335,10 @@ for (const d of DOSSIERS) {
   for (let i = 0; i < g.length; i++) {
     const e = g[i];
     if (!e || 'MSH'.includes(e)) continue;
-    const montant = `${300 + i * 17},${String(125 + i * 3).padStart(3, '0')}`;
+    // Un montant propre au dossier ET au mois (1.334.0) : calculé sur le seul mois, deux clients différents déclaraient le même
+    // chiffre au millime dans les Échéances, ce qu'aucun comptable ne croit.
+    const k = DOSSIERS.indexOf(d);
+    const montant = `${300 + i * 17 + k * 41},${String(125 + i * 3 + k * 7).padStart(3, '0')}`;
     // La boulangerie a déjà ses livres de janvier à juillet, validés (plus haut) : ses honoraires y sont, et la période est close.
     const dejaTenu = d.cle === 'be' && i < 7;
     const ecriture = dejaTenu ? '' : String((await api('POST', `/entreprises/${ent}/compta/ecritures`, leila, { date: `${mois(i)}-18`, journal: 'OD', piece: `OD-${i + 1}`,

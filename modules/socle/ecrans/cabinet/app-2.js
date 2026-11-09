@@ -5323,7 +5323,7 @@
 
   // ---------- relances ----------
   function drawRelances(view) {
-    const toutes = K.relanceRows(S);
+    const toutes = lignesRelances();
     // La sélection venue d'une échéance. On la compare sur le NOM, parce que c'est ce que
     // `ligneEcheance` retient — et on garde ce qui reste à relancer : un client qui a envoyé son
     // mois entre-temps n'a plus rien à faire ici, même si l'échéance le nommait tout à l'heure.
@@ -5355,12 +5355,29 @@
     // le « Écrire » de la ligne quand il n'y en a qu'un. Chaque ligne portait son « Écrire » en vert :
     // quatre boutons verts pour trois clients, et plus aucun ne disait par où commencer. Le bouton
     // de la ligne reste visible (c'est le geste pour lequel la page existe, 7.29.0) — sans couleur.
-    const vertLigne = rows.length === 1 ? 'btn btn-primary btn-sm' : 'btn btn-sm';
+    // (1.334.0) Deux écrans, une même question (« à qui manque-t-il des pièces ? ») : les Échéances disaient « 2 pièces
+    // reçues, à classer » du client que cette page proposait de relancer. Un client qui a envoyé des pièces les attend
+    // classées, pas une relance ; un client relancé aujourd'hui ne se relance pas deux fois dans la journée. Les deux
+    // restent dans la liste (la pastille la compte), mais ni le vert ni « Relancer tout le monde » ne les visent.
+    const dossierDe = id => (S.dossiers || []).find(x => x.id === id);
+    const piecesPar = new Map();
+    for (const pc of piecesLues.pieces || []) piecesPar.set(pc.entreprise, (piecesPar.get(pc.entreprise) || 0) + 1);
+    const aRelancer = r => !piecesPar.get(r.id) && !relanceAujourdhui(dossierDe(r.id));
+    const candidats = rows.filter(aRelancer);
+    const groupeVisible = coches.length > 0 || candidats.length > 1;
+    const verte = groupeVisible ? null : (candidats[0] || rows.find(r => piecesPar.get(r.id)) || null);
+    const vertLigne = r => (r === verte ? 'btn btn-primary btn-sm' : 'btn btn-sm');
+    const nAuj = rows.filter(r => relanceAujourdhui(dossierDe(r.id))).length, nPieces = rows.filter(r => piecesPar.get(r.id)).length;
+    const phraseRel = rows.length ? [`${pl(rows.length, 'client')} à qui il manque un mois`,
+      nAuj ? `${nAuj > 1 ? `${nAuj} relancés` : '1 relancé'} aujourd'hui` : '',
+      nPieces ? `${nPieces > 1 ? `${nPieces} ont` : '1 a'} envoyé des pièces, à classer` : ''].filter(Boolean).join(' · ') : '';
     // « Tous tes dossiers sont à jour » sur trois cents clients HORS SkanFact : aucun n'envoie de
     // paquet, donc aucun ne peut être « à jour » (10.14.0, saturation ; `hors` n'est pas `ok`, 6.8.0).
     // La phrase dit ce qu'on sait : combien envoient, et que les autres n'ont rien à t'envoyer.
     const phraseRienARelancer = () => {
-      const tous = K.dossierList(S);
+      // Les dossiers de la portée (1.334.0) : Rim ne lit pas « tes 10 clients » quand on lui en confie deux.
+      const vus = new Set(mesDossiers().map(d => d.id));
+      const tous = K.dossierList(S).filter(r => vus.has(r.id));
       const envoient = tous.filter(r => r.level !== 'hors').length;
       if (!envoient) return `<div class="info-box">Personne à relancer : aucun de tes ${esc(pl(tous.length, 'client'))} n'est sur SkanFact. Tu tiens leurs livres au cabinet, et rien ne leur est réclamé.</div>`;
       return `<div class="todo-ok">Personne à relancer : ${envoient === 1 ? 'ton client sur SkanFact est à jour' : `tes ${esc(pl(envoient, 'client'))} sur SkanFact sont à jour`}${envoient < tous.length ? ` — les ${esc(String(tous.length - envoient))} autres sont tenus au cabinet : rien ne leur est réclamé` : ''}.</div>`;
@@ -5372,10 +5389,11 @@
     view.innerHTML = `
       ${/* U-13 — l'explication de la page vit dans la bulle du titre (règle 9.4.9) : un paragraphe
             permanent s'intercalait entre deux bandeaux, avant le premier nom. */''}
-      <div class="page-head"><h1>Relances ${info('r.page')}</h1>
-        ${rows.length > 1 ? `<div class="actions"><button class="btn btn-primary" id="group">${
+      <div class="cab-page" id="page-rel">${ctxCabinet()}
+      <div class="page-head"><div><h1>Relances ${info('r.page')}</h1>${phraseRel ? `<p class="muted" id="rl-phrase">${esc(phraseRel)}</p>` : ''}</div>
+        ${groupeVisible ? `<div class="actions"><button class="btn btn-primary" id="group">${
   coches.length ? `Relancer ${pl(coches.length, 'client')} coché${coches.length > 1 ? 's' : ''}`
-    : filtre ? `Relancer ${pl(rows.length, 'client')}` : 'Relancer tout le monde'}</button>${info('r.group')}</div>` : ''}</div>
+    : candidats.length === rows.length && !filtre ? 'Relancer tout le monde' : `Relancer ${pl(candidats.length, 'client')}`}</button>${info('r.group')}</div>` : ''}</div>
       ${filtre ? `<div class="banner"><span><strong>${pl(rows.length, 'client')}</strong> sur ${toutes.length}${
   relState.depuis ? ` — ceux qu'il te manque pour « ${esc(relState.depuis)} »` : ''}.</span>
         <button class="btn btn-sm" id="rl-tout">Voir tout le monde</button></div>` : ''}
@@ -5401,15 +5419,17 @@
           <td class="muted nw">${esc(r.email || r.phone || '— à renseigner')}</td>
           <td>${r.missingCount
             ? esc(K.missingLabel(r.missingMonths))
-            : `<span class="muted">${pl(r.provisionalCount, 'mois', 'mois')} non clôturé${r.provisionalCount > 1 ? 's' : ''}</span>`}</td>
-          <td class="muted nw">${r.lastRelanceAt ? esc(fmtDay(r.lastRelanceAt)) + ` <span class="small">(${esc(ago(r.lastRelanceAt))}, ${esc(labelOf(K.RELANCE_WAYS, r.lastRelanceVia) || r.lastRelanceVia)})</span>` : 'jamais'}</td>
-          ${rowMenuCell(r.id, `<button class="${vertLigne}" data-rel="${esc(r.id)}">Écrire</button>`)}</tr>`).join('')}</tbody></table></div>${pagerRel}`
-        : phraseRienARelancer()}`;
+            : `<span class="muted">${pl(r.provisionalCount, 'mois', 'mois')} non clôturé${r.provisionalCount > 1 ? 's' : ''}</span>`}${piecesPar.get(r.id) ? `<br><small class="rl-pieces">${esc(pl(piecesPar.get(r.id), 'pièce reçue', 'pièces reçues'))}, à classer</small>` : ''}</td>
+          <td class="muted nw">${(() => { const rec = derniereRelance(dossierDe(r.id)); if (!rec) return 'jamais'; const c = canalRelance(rec); return `${esc(fmtDay(rec.at))} <span class="small">(${esc(ago(rec.at))}${c ? `, ${esc(c)}` : ''})</span>`; })()}</td>
+          ${rowMenuCell(r.id, piecesPar.get(r.id) ? `<button class="${vertLigne(r)}" data-rl-pieces="${esc(r.id)}">Ouvrir les pièces</button>` : `<button class="${vertLigne(r)}" data-rel="${esc(r.id)}">Écrire</button>`)}</tr>`).join('')}</tbody></table></div>${pagerRel}`
+        : phraseRienARelancer()}</div>`;
     const findRow = id => K.dossierList(S).find(x => x.id === id);
     // « Écrire » reste le seul bouton visible de la ligne : c'est le geste pour lequel cette page
     // existe, et l'enfouir dans un menu ajouterait un clic à ce qu'on vient y faire. Le reste — qui
     // n'a pas à occuper une place permanente — vit dans le menu.
     $$('[data-rel]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); const r = findRow(b.dataset.rel); if (r) writeRelance(r); }; });
+    $$('[data-rl-pieces]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); location.hash = `#/pieces/${encodeURIComponent(b.dataset.rlPieces)}`; }; });
+    $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); relState.coches.clear(); render(); }; });
     const appeler = async (r) => {
       try { await api.tel({ number: r.phone }); await recordRelance(r, 'tel'); render(); }
       catch (e) { toast(plainError(e), 'error'); }
@@ -5431,7 +5451,7 @@
     });
     // « Relancer tout le monde » porte sur ce que l'écran MONTRE : sous filtre, il ne peut pas
     // relancer soixante clients pendant que le bandeau en annonce onze (règle 7.16.0).
-    const g = $('#group'); if (g) g.onclick = () => groupRelance((coches.length ? coches : rows).slice());
+    const g = $('#group'); if (g) g.onclick = () => groupRelance((coches.length ? coches : candidats).slice());
     $$('[data-sel]', view).forEach(c => {
       c.onchange = () => {
         if (c.checked) relState.coches.add(c.dataset.sel); else relState.coches.delete(c.dataset.sel);
@@ -5707,8 +5727,11 @@
     const nPresse = toutes.filter(x => x.groupe === 'retard' || x.groupe === 'jour' || (x.groupe === 'bientot' && x.e.jours <= 7)).length;
 
     const ton = x => ({ retard: 'rouge', jour: 'rouge', bientot: x.afaire && x.e.jours <= 10 ? 'rouge' : 'gris', avenir: 'gris', depose: 'vert' }[x.groupe]);
+    // (1.334.0) Ce qui reste à faire n'est rouge que si l'échéance presse (le ton de sa carte) : la déclaration d'octobre, due
+    // dans dix-neuf jours, portait une barre toute rouge sous un titre gris.
+    const tonReste = x => (x.groupe === 'depose' ? 'vert' : ton(x) === 'rouge' ? 'rouge' : 'gris');
     const barre = (x, grand) => { const prets = grand ? x.lignes.filter(l => ['prete', 'preparee'].includes(l.st)).length : 0; const ret = x.afaire - prets;
-      return `<i class="ec-bar${grand ? ' grand' : ''}" aria-hidden="true">${x.fait ? `<b class="vert" style="--n:${x.fait}"></b>` : ''}${prets ? `<b class="sarcelle" style="--n:${prets}"></b>` : ''}${ret ? `<b class="${x.groupe === 'depose' ? 'vert' : 'rouge'}" style="--n:${ret}"></b>` : ''}</i>`; };
+      return `<i class="ec-bar${grand ? ' grand' : ''}" aria-hidden="true">${x.fait ? `<b class="vert" style="--n:${x.fait}"></b>` : ''}${prets ? `<b class="sarcelle" style="--n:${prets}"></b>` : ''}${ret ? `<b class="${tonReste(x)}" style="--n:${ret}"></b>` : ''}</i>`; };
     const item = x => {
       const tout = x.groupe === 'depose';
       const q = quandEch(x.e, tout);
@@ -5743,7 +5766,8 @@
       }[l.st];
     };
     const filtrees = x.lignes.filter(l => st.filtre === 'tout' || (st.filtre === 'faire' ? !EC_FAIT(l.st) : EC_FAIT(l.st)));
-    const premier = filtrees.findIndex(l => geste(l)[1] === true);
+    // Le vert va à l'étape suivante : pas à « Relancer » un client qu'on vient de relancer aujourd'hui (1.334.0).
+    const premier = filtrees.findIndex(l => geste(l)[1] === true && !(geste(l)[0] === 'relancer' && relanceAujourdhui(l.d)));
     const ligne = (l, i) => {
       const [ton2, lib] = l.st === 'deposee' && l.d.paieDecl === 'client' && x.t.sorte === 'mens' ? ['vert', 'Déposée'] : EC_ST[l.st];
       const [quoi, actif, texte] = geste(l);
@@ -5757,10 +5781,12 @@
         <span class="ec-rg">${btn}${lecture ? '' : `<span class="pc-menu-w"><button type="button" class="btn btn-sm btn-icone btn-ghost" data-ec-menu="${esc(l.d.id)}" aria-haspopup="menu" aria-expanded="${ouvert}" aria-label="Les autres gestes — ${esc(l.d.name)}">${EC_IC.trois}</button>${ouvert ? menuLigneEch(l, x) : ''}</span>`}</span></div>`;
     };
     const prets = x.lignes.filter(l => ['prete', 'preparee'].includes(l.st)).length, bloq = x.afaire - prets;
+    // (1.334.0) « 2 prêtes à déposer » comptait aussi celle qui reste à préparer : la légende dit chacune.
+    const nPrete = x.lignes.filter(l => l.st === 'prete').length, nPreparee = prets - nPrete;
     const resume = x.groupe === 'avenir' ? (e.id === 'employeur' ? `<div class="ec-ban gris">${EC_IC.attente}<span><b>L'année ${esc(x.t.moisNom)} n'est pas terminée : rien n'est réclamé avant sa fin.</b> La déclaration annuelle se fait d'après la paie de l'année, salarié par salarié, dans la Paie de chaque dossier (à déposer au plus tard le ${esc(jourMois(e.date))}, À VÉRIFIER).</span></div>`
       : `<div class="ec-ban gris">${EC_IC.attente}<span><b>${esc(K.monthLabel(e.mois[0]).replace(/^./, c => c.toUpperCase()))} n'est pas terminé : rien n'est réclamé avant sa fin.</b> Ce qui est déjà là, dossier par dossier.</span></div>`)
       : x.fait === x.lignes.length ? `<div class="ec-ban vert">${EC_IC.coche}<span><b>Tout est déposé pour ${esc(x.t.moisNom)}.</b></span></div>`
-        : `<div class="ec-som">${barre(x, true)}<span class="ec-som-l"><b>${x.fait} sur ${x.lignes.length}</b>${x.fait ? `<span><i class="ec-pt vert"></i>${pl(x.fait, 'déposée')}</span>` : ''}${prets ? `<span><i class="ec-pt sarcelle"></i>${prets} prête${prets > 1 ? 's' : ''} à déposer</span>` : ''}${bloq ? `<span><i class="ec-pt rouge"></i>${bloq} retenue${bloq > 1 ? 's' : ''} : ce qui manque est sur la ligne</span>` : ''}</span></div>`;
+        : `<div class="ec-som">${barre(x, true)}<span class="ec-som-l"><b>${x.fait} sur ${x.lignes.length}</b>${x.fait ? `<span><i class="ec-pt vert"></i>${pl(x.fait, 'déposée')}</span>` : ''}${nPreparee ? `<span><i class="ec-pt sarcelle"></i>${nPreparee} préparée${nPreparee > 1 ? 's' : ''}, à déposer</span>` : ''}${nPrete ? `<span><i class="ec-pt sarcelle"></i>${nPrete} à préparer</span>` : ''}${bloq ? `<span><i class="ec-pt ${tonReste(x)}"></i>${bloq} retenue${bloq > 1 ? 's' : ''} : ce qui manque est sur la ligne</span>` : ''}</span></div>`;
     const puces = `<div class="pc-fl ec-fl" role="group" aria-label="Montrer">${[['tout', 'Tout', x.lignes.length], ['faire', 'À faire', x.afaire], ['deposees', 'Déposées', x.fait]].map(([k, t, n]) => `<button type="button" data-ec-filtre="${k}" aria-pressed="${st.filtre === k}">${t}<span>${n}</span></button>`).join('')}</div>`;
     const filtres = x.lignes.length > 15 ? `<div class="ec-outils">${puces}<label class="pc-cherche"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="ec-q" placeholder="Chercher un dossier…" aria-label="Chercher un dossier" value="${esc(st.q)}"></label></div>`
       : x.lignes.length < 4 ? '' : puces;
@@ -5990,9 +6016,10 @@
     const lesMois = noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0] || 'du mois';
     const relie = !D.manual && !!api.messagerie;
     const signe = (S.cabinet || {}).name || 'votre cabinet';
-    const attendus = !mois.length ? [] : relie
-      ? [`Vos ventes et vos achats ${K.de(lesMois)}, enregistrés dans SkanFact`, `Vos relevés bancaires ${K.de(lesMois)}`]
-      : [`Les factures de ventes et d'achats ${K.de(lesMois)}`, `Les relevés bancaires ${K.de(lesMois)}`];
+    // (1.334.0) Un client sur SkanFact n'envoie pas ses ventes ni ses achats : il les enregistre, et le cabinet les lit dans
+    // ses livres (le message le lui dit). En faire une « pièce demandée » lui proposait d'en envoyer une photo ou un PDF.
+    // Seuls ses relevés bancaires sont une pièce ; les demandes datées ne vivent que dans la conversation.
+    const attendus = !mois.length || !relie ? [] : [`Vos relevés bancaires ${K.de(lesMois)}`];
     const bonjour = D.contact ? `Bonjour ${String(D.contact).split(' ')[0]}` : 'Bonjour';
     const texte = o.texte || (!mois.length
       ? `${bonjour}, `
@@ -6000,7 +6027,9 @@
         ? `${bonjour}, pour tenir votre comptabilité à jour, il me manque vos pièces ${K.de(lesMois)}${o.retard || ''}. Il vous suffit d'enregistrer vos ventes et vos achats dans SkanFact : je les vois dans vos livres dès qu'ils y sont, sans rien avoir à m'envoyer. Seuls vos relevés bancaires sont à joindre. Bien à vous, ${signe}`
         : `${bonjour}, pour tenir votre comptabilité à jour, il me manque vos pièces ${K.de(lesMois)}${o.retard || ''} : vos factures de ventes et d'achats, et vos relevés bancaires. Envoyez-les-moi en photo ou en PDF, en réponse à ce message. Bien à vous, ${signe}`);
     const sujet = mois.length ? `Il me manque vos pièces ${K.de(lesMois)}` : `Un mot de ${signe}`;
-    const pour = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+    // Dans deux jours, au calendrier du poste (jamais un instant converti par toISOString : à Tunis, entre minuit et une
+    // heure, il rendait la veille).
+    const pour = (() => { const j = new Date(K.today() + 'T00:00:00Z'); j.setUTCDate(j.getUTCDate() + 2); return j.toISOString().slice(0, 10); })();
     const tel = String(D.phone || '').replace(/[^\d+]/g, '');
     const tournee = typeof o.onDone === 'function';
     const CHEMINS = [
@@ -6013,7 +6042,7 @@
     // (plateforme) 1.193.0 — comme la demande d'une pièce (1.188.0) : la relance part d'ici, on reste sur l'écran ; « Écrire
     // plutôt dans la conversation » y mène, le message posé, pour y joindre un fichier ou le reprendre.
     const NOTES = {
-      fil: mois.length ? 'Le message part dans votre conversation ; chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.' : 'Le message part dans votre conversation.',
+      fil: attendus.length ? 'Le message part dans sa conversation ; chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.' : 'Le message part dans sa conversation.',
       whatsapp: 'WhatsApp s\'ouvre, le message tout prêt ; la relance se note sur sa fiche.',
       mail: 'Ta messagerie e-mail s\'ouvre, le message tout prêt ; la relance se note sur sa fiche.',
       copier: 'Le texte se copie : colle-le où tu veux ; la relance se note sur sa fiche.',
@@ -6031,7 +6060,9 @@
       // Chaque chemin se note sur la fiche du dossier (la même liste que « Noter une relance faite… ») : la ligne des
       // Échéances, la vue « Pièces manquantes » et la fiche disent la même dernière relance. Sans mois attendu, un simple
       // mot au client n'est pas une relance : rien ne se note.
-      const noter = async (via, note) => { if (!mois.length) return; try { S = await api.noteRelance(D.id, mois, via, note); } catch { /* le message est parti ; sa trace se refera */ } if (/^#\/echeances/.test(location.hash)) drawEcheances($('#view')); };
+      // (1.334.0) La page d'où l'on a relancé se redessine : les Relances et le Tableau de bord gardaient le client « à relancer »
+      // et le vert sur lui, la relance partie (seules les Échéances se redessinaient).
+      const noter = async (via, note) => { if (!mois.length) return; try { S = await api.noteRelance(D.id, mois, via, note); } catch { /* le message est parti ; sa trace se refera */ } if (/^#\/echeances/.test(location.hash)) drawEcheances($('#view')); else if (/^#\/(relances|production|dossiers)(\/|$)/.test(location.hash) && !tournee) render(); };
       const fini = () => { close(); if (tournee) o.onDone(); };
       $('#ec-appel', layer).onclick = () => { close(); fenNoterRelance(D, mois); };
       const montrer = (id, oui) => { const n = $(id, layer); if (n) n.hidden = !oui; };
@@ -6054,7 +6085,7 @@
         const RETOURS = [[/^#\/echeances/, 'Revenir aux Échéances'], [/^#\/relances/, 'Revenir aux Relances'], [/^#\/dossiers/, 'Revenir à Tous les dossiers'], [/^#\/dossier\//, 'Revenir au dossier'], [/^#\/production/, 'Revenir au Tableau de bord']];
         const r = RETOURS.find(([re]) => re.test(d));
         messagePrepare = { id: D.id, texte: t, demandes, pour: lePour, retour: r ? { texte: r[1], hash: d } : null,
-          apresEnvoi: () => { messagePrepare = null; void noter('autre', 'Relance envoyée dans votre conversation SkanFact'); } };
+          apresEnvoi: () => { messagePrepare = null; void noter('conversation', 'Relance envoyée dans la conversation SkanFact'); } };
         close();
         location.hash = `#/messages/${encodeURIComponent(D.id)}`;
       };
@@ -6084,10 +6115,12 @@
         if (!relie) return;
         $('#ok', layer).disabled = true;
         try {
-          await api.relancerDossier(D.id, t, demandes, lePour);
-          toast(mois.length ? `Relance partie à ${D.name}${demandes.length ? ` : ${pl(demandes.length, 'demande')} pour le ${jourMois(lePour || K.today())}` : ''}.`
-            : `Message envoyé à ${D.name}, dans votre conversation.`);
-          fini(); await noter('autre', 'Relance envoyée dans votre conversation SkanFact');
+          const r = await api.relancerDossier(D.id, t, demandes, lePour);
+          // (1.334.0) Une pièce déjà demandée et pas encore reçue ne se redemande pas (le serveur la garde seule) : le dire.
+          const deja = r && Array.isArray(r.deja) ? r.deja.length : 0, neuves = demandes.length - deja;
+          toast(mois.length ? `Relance partie à ${D.name}${neuves > 0 ? ` : ${pl(neuves, 'demande')} pour le ${jourMois(lePour || K.today())}` : ''}${deja ? `${neuves > 0 ? ',' : ' :'} ${deja > 1 ? `${deja} pièces déjà demandées` : '1 pièce déjà demandée'}, pas redemandée${deja > 1 ? 's' : ''}` : ''}.`
+            : `Message envoyé à ${D.name}, dans sa conversation.`);
+          fini(); await noter('conversation', 'Relance envoyée dans la conversation SkanFact');
         } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
       };
     });

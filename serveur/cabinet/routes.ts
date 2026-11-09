@@ -34,7 +34,7 @@ const texte = (max: number) => z.string().max(max);
 // Une relance notée (brique 38 bis, C15) : son instant (en millisecondes), son moyen, les mois qu'elle
 // réclamait, une note ; les cinquante dernières, comme la v10.
 const RELANCE = z.object({
-  at: z.number().int().min(0).max(8_640_000_000_000_000), via: z.enum(['email', 'tel', 'whatsapp', 'autre']),
+  at: z.number().int().min(0).max(8_640_000_000_000_000), via: z.enum(['email', 'tel', 'whatsapp', 'conversation', 'autre']),
   months: z.array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)).max(120), note: texte(500),
 }).strict();
 // Un abonnement du dossier (brique 51) : un guide qui revient tous les N mois, depuis une date, pour un

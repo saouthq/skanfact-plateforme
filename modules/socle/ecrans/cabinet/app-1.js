@@ -2106,7 +2106,7 @@
     updateBanner();
     // La pastille compte EXACTEMENT les lignes de la page Relances. Deux chiffres pour la même chose
     // faisaient douter de tout le reste.
-    const relCount = K.relanceRows(S).length;
+    const relCount = lignesRelances().length;
     const pill = $('#nav-relances');
     pill.hidden = !relCount;
     if (relCount) pill.textContent = relCount;
@@ -2239,6 +2239,12 @@
     if (!estAssocie() || portee() === 'tous') return tous;
     return tous.filter(d => d.droits && d.droits[S.moi]);
   }
+  // (1.334.0) Les lignes de la page Relances, que ses deux pastilles comptent : les dossiers de la portée (Les miens / Tous),
+  // comme les Échéances. Rim, en Saisie, voyait à relancer des clients qui ne lui sont pas confiés.
+  function lignesRelances() {
+    const vus = new Set(mesDossiers().map(d => d.id));
+    return K.relanceRows(S).filter(r => vus.has(r.id));
+  }
   // Le dossier ouvert : le dernier où l'on a travaillé, sinon celui qui attend le plus.
   function dossierOuvert() {
     const tous = dossiersActifs();
@@ -2269,7 +2275,16 @@
       for (const r of t.rows) {
         const d = (S.dossiers || []).find(x => x.id === r.id);
         if (!d) continue;
-        if (t.id === 'manquants') dest.push({ cle: `m-${d.id}`, dossier: d, quoi: `${pl(r.missingCount, 'mois', 'mois')} sans écriture`, sous: K.missingLabel(r.missingMonths), ton,
+        // (1.334.0) Ce que disent les Échéances et les Relances : un client qui a envoyé des pièces attend qu'on les classe,
+        // pas qu'on les lui redemande ; un client relancé aujourd'hui n'est plus urgent (on attend sa réponse). Une ligne
+        // par dossier : les pièces reçues ne se redisent pas plus bas.
+        const nPc = !d.manual ? ((comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(d.id)) || 0) : 0;
+        const relanceJour = !d.manual && !nPc && relanceAujourdhui(d);
+        if (t.id === 'manquants' && nPc) dest.push({ cle: `m-${d.id}`, dossier: d, quoi: `${pl(r.missingCount, 'mois', 'mois')} sans écriture`, sous: `${K.missingLabel(r.missingMonths)} · ${pl(nPc, 'pièce reçue', 'pièces reçues')}, à classer`, ton,
+          geste: 'Classer', faire: () => { location.hash = `#/pieces/${encodeURIComponent(d.id)}`; } });
+        else if (t.id === 'manquants' && relanceJour) avoir.push({ cle: `m-${d.id}`, dossier: d, quoi: `${pl(r.missingCount, 'mois', 'mois')} sans écriture`, sous: `${K.missingLabel(r.missingMonths)} · ${derniereRelanceCd(d)}`, ton: 'attire',
+          geste: 'Sa conversation', faire: () => { location.hash = `#/messages/${encodeURIComponent(d.id)}`; } });
+        else if (t.id === 'manquants') dest.push({ cle: `m-${d.id}`, dossier: d, quoi: `${pl(r.missingCount, 'mois', 'mois')} sans écriture`, sous: K.missingLabel(r.missingMonths), ton,
           // (plateforme) 1.188.0 — des mois sans écriture se réclament comme une relance, de la même fenêtre que les Dossiers et les Échéances.
           geste: d.manual ? 'Saisir' : 'Demander…', faire: () => { if (d.manual) location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`; else fenEcrire(d, { mois: r.missingMonths }); } });
         else if (t.id === 'provisoires') dest.push({ cle: `p-${d.id}`, dossier: d, quoi: `${pl(r.provisionalCount, 'mois', 'mois')} à réviser`, sous: 'des écritures encore au brouillard', ton,
@@ -2290,7 +2305,7 @@
       if (m && m.etat === 'a_traiter') avoir.push({ cle: `msg-${d.id}`, dossier: d, quoi: m.nonLus ? pl(m.nonLus, 'message du client', 'messages du client') : 'Le client t\'a répondu',
         sous: 'dans sa conversation', ton: 'attire', geste: 'Répondre', faire: () => { location.hash = `#/messages/${encodeURIComponent(d.id)}`; } });
       const n = comptesBarre.piecesParDossier.get(d.id) || 0;
-      if (n) avoir.push({ cle: `pr-${d.id}`, dossier: d, quoi: `${pl(n, 'pièce reçue', 'pièces reçues')} à classer`, sous: 'envoyées par le client', ton: 'attire',
+      if (n && !urgent.some(x => x.cle === `m-${d.id}`)) avoir.push({ cle: `pr-${d.id}`, dossier: d, quoi: `${pl(n, 'pièce reçue', 'pièces reçues')} à classer`, sous: 'envoyées par le client', ton: 'attire',
         geste: 'Classer', faire: () => { location.hash = `#/pieces/${encodeURIComponent(d.id)}`; } });
     }
     return { urgent, avoir };
@@ -2368,7 +2383,7 @@
     const role = monRole();
     const pri = prioritesDuJour();
     const retard = declarationsEnRetard();
-    const nRel = K.relanceRows(S).length;
+    const nRel = lignesRelances().length;
     const compte = (id, n, ton, titre) => `<span class="nav-count compte${ton ? ' ' + ton : ''}" id="${id}"${n ? '' : ' hidden'}${titre ? ` title="${esc(titre)}"` : ''}>${n || ''}</span>`;
     const epingles = epinglesCab();
     const dansMonCabinet = ORDRE_CAB.concat(epingles);
@@ -3794,7 +3809,7 @@
     const prenom = p.depot ? '' : String(p.de || '').split(' ')[0];
     const texte = `Bonjour${prenom ? ` ${prenom}` : ''}, la pièce « ${p.fichier.nom} » ${p.depot ? 'reçue' : 'envoyée'} ${quandPc(p.recueLe, true).replace(/^aujourd'hui, /, 'aujourd\'hui à ')} est difficile à lire. Peux-tu la reprendre en photo, bien à plat et avec toute la page, et me l'envoyer ici ? Merci.`;
     modal(`<h2>Redemander la pièce à ${esc(D.name)}</h2>
-      <p class="muted small">Le message part dans votre conversation, avec la demande « Une photo lisible de ${esc(p.fichier.nom)} ». La pièce se classe « Illisible ».</p>
+      <p class="muted small">Le message part dans sa conversation, avec la demande « Une photo lisible de ${esc(p.fichier.nom)} ». La pièce se classe « Illisible ».</p>
       <label class="field"><span>Le message</span><textarea class="pc-txt" id="pc-redem" maxlength="1000">${esc(texte)}</textarea></label>
       <div class="modal-actions"><button type="button" class="btn" id="pc-redem-non">Annuler</button><button type="button" class="btn btn-primary" id="ok">Envoyer la demande</button></div>`,
     (layer, close) => {
@@ -4172,12 +4187,30 @@
   const dtCd = v => money(v).replace(/\s*DT$/, '');
   // Ce qui manque à un client, dit en mois, et sa dernière relance (la vue « Pièces manquantes »).
   // La dernière relance d'un client (sa fiche les garde : par la messagerie, ou notées à la main), dite en date.
+  const derniereRelance = d => (d && d.relances || []).filter(y => y && y.at).sort((a, b) => Number(b.at) - Number(a.at))[0] || null;
+  // (1.334.0) Le jour d'une relance, dit comme on le dit : « aujourd'hui », « hier », sinon la date. La fenêtre de relance
+  // promettait « relancé aujourd'hui » et la ligne disait « relancé le 09/11 ». Le jour est celui du poste (un instant
+  // devient un jour local, jamais par toISOString).
+  function jourRelance(at) {
+    const j = new Date(Number(at));
+    const jour = `${j.getFullYear()}-${String(j.getMonth() + 1).padStart(2, '0')}-${String(j.getDate()).padStart(2, '0')}`;
+    const auj = K.today(), h = new Date(auj + 'T00:00:00Z');
+    h.setUTCDate(h.getUTCDate() - 1);
+    return jour === auj ? 'aujourd\'hui' : jour === h.toISOString().slice(0, 10) ? 'hier' : `le ${jour.slice(8, 10)}/${jour.slice(5, 7)}`;
+  }
+  const relanceAujourdhui = d => { const r = derniereRelance(d); return !!r && jourRelance(r.at) === 'aujourd\'hui'; };
+  // Par où elle est partie. Une relance envoyée dans la conversation avant la 1.334.0 se notait « autre » : sa note le dit.
+  function canalRelance(r) {
+    const via = r.via === 'autre' && /^Relance envoyée dans/.test(String(r.note || '')) ? 'conversation' : r.via;
+    return { tel: 'au téléphone', whatsapp: 'par WhatsApp', email: 'par e-mail', conversation: 'dans la conversation' }[via] || '';
+  }
+  // La colonne « Moyen » d'un historique : le même mot partout (la fiche, son journal, la page Relances).
+  const moyenRelance = r => { const c = canalRelance(r); return c ? c.charAt(0).toUpperCase() + c.slice(1) : 'Notée'; };
   function derniereRelanceCd(d) {
-    const r = (d.relances || []).filter(y => y && y.at).sort((a, b) => Number(b.at) - Number(a.at))[0];
+    const r = derniereRelance(d);
     if (!r) return 'jamais relancé';
-    const j = new Date(Number(r.at));
-    const via = { tel: ', au téléphone', whatsapp: ', par WhatsApp', autre: '' }[r.via] ?? '';
-    return `relancé le ${String(j.getDate()).padStart(2, '0')}/${String(j.getMonth() + 1).padStart(2, '0')}${via}`;
+    const via = canalRelance(r);
+    return `relancé ${jourRelance(r.at)}${via ? `, ${via}` : ''}`;
   }
   function sousMoisCd(d, x) {
     return `<small class="cd-sm">${esc(x.mo.manqueTxt || x.mo.mot)} · ${esc(derniereRelanceCd(d))}</small>`;
@@ -4853,7 +4886,7 @@
 
     // (1.216.0) Ce que montrait l'ancien « Suivi » : l'invitation du client tenu, les relances, qui travaille sur le dossier.
     const relancesT = (d.relances || []).filter(r => r && r.at).slice().reverse();
-    const viaT = r => labelOf(K.RELANCE_WAYS, r.via) || r.via || 'notée';
+    const viaT = moyenRelance;
     const suiviP = `${d.manual && api.dessinerRejoindre ? `<section class="panel fd-p fd-rj" id="d-rejoindre" aria-label="Inviter ${esc(prenom || 'le client')} sur SkanFact"><span class="muted small">Lecture de l'invitation…</span></section>` : ''}
       <section class="panel fd-p" id="fd-relances" aria-labelledby="fd-rl"><div class="fd-ph"><h2 id="fd-rl">Les relances ${info('r.history')}</h2><span class="fd-ph-n">${relancesT.length ? pl(relancesT.length, 'relance') : 'aucune'}</span></div>
         ${relancesT.length ? `<div class="scroll-x"><table class="fd-t"><thead><tr><th>Date</th><th>Moyen</th><th>Mois réclamés</th><th>Note</th></tr></thead><tbody>${relancesT.map(r => `<tr><td class="nw">${esc(fmtWhen(r.at))} <small>${esc(ago(r.at))}</small></td><td class="nw">${esc(viaT(r))}</td><td>${esc(K.monthListLabel(r.months || []) || '—')}</td><td class="mu">${esc(r.note || '')}</td></tr>`).join('')}</tbody></table></div>`
@@ -4869,7 +4902,7 @@
     for (const id of eq.ids) { const c = collabDe(id); if (c && c !== eq.suit && c !== eq.val) eqL.push([c, `${prenomDe(c)} ${d.droits[id] === 'saisie' ? 'saisit' : 'travaille sur le dossier'}`, d.droits[id] === 'saisie' ? 'les pièces papier et les relevés' : '']); }
     const employeur = Object.values(employeursConnus()[d.id] || {}).some(Boolean);
     const hist = [
-      ...(d.relances || []).filter(r => r && r.at).map(r => [KC.jourDeLInstant(Number(r.at)), `Relance ${({ email: 'par e-mail', tel: 'au téléphone', whatsapp: 'par WhatsApp' })[r.via] || 'notée'}${(r.months || []).length ? ` : ${(r.months || []).map(moisLong).join(', ')}` : ''}`, r.note || '']),
+      ...(d.relances || []).filter(r => r && r.at).map(r => [KC.jourDeLInstant(Number(r.at)), `Relance ${canalRelance(r) || 'notée'}${(r.months || []).length ? ` : ${(r.months || []).map(moisLong).join(', ')}` : ''}`, r.note || '']),
       ...(L ? Object.entries(L.decl).filter(([, v]) => v.deposee).map(([m, v]) => [limiteDe(m) > aujourdhui ? aujourdhui : limiteDe(m), `${cap(moisLong(m))} déposé`, v.montant ? `${dtCd(v.montant)} DT` : '']) : []),
       ...(d.from ? [[`${d.from}-01`, 'Début de la mission', `${moisLong(d.from)} ${d.from.slice(0, 4)}`]] : []),
     ].sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);
@@ -7074,7 +7107,7 @@
       ${relances.length ? `<table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Moyen</th><th>Mois réclamés</th><th>Note</th></tr></thead>
         <tbody>${relances.map(r => `<tr>
           <td class="nw">${esc(fmtWhen(r.at))} <span class="muted small">${esc(ago(r.at))}</span></td>
-          <td class="nw">${esc(labelOf(K.RELANCE_WAYS, r.via) || r.via)}</td>
+          <td class="nw">${esc(moyenRelance(r))}</td>
           <td>${esc(K.monthListLabel(r.months || []) || '—')}</td>
           <td class="muted">${esc(r.note || '')}</td></tr>`).join('')}</tbody></table>`
         : `<div class="empty mini">Aucune relance enregistrée pour ce client.<br>

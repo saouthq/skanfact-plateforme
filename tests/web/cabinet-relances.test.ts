@@ -158,7 +158,8 @@ describe('les relances et les mois à valider, à la souris', () => {
     // Le Suivi de la menuiserie : la relance dans son historique ; ses mois, chacun avec son geste.
     await aller(`#/dossier/${menuiserie.ent}/suivi`);
     const historique = p.locator('#view .panel').filter({ has: p.locator('h2', { hasText: 'Relances' }) });
-    await expect.poll(() => historique.innerText()).toContain('Email');
+    // (1.334.0) Le moyen se dit en mots, comme partout : « Par e-mail ».
+    await expect.poll(() => historique.innerText()).toContain('Par e-mail');
     expect(await historique.innerText()).toContain(manquants);
     expect(await p.locator('#d-etat').innerText()).toMatch(/2 mois écrits · 2 manquants · mis à jour le/);
     const caseDe = (m: string) => p.locator(`#view .mcell[data-m="${m}"], #view .mcell[data-relm="${m}"]`);

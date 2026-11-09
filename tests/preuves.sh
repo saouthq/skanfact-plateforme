@@ -2092,7 +2092,7 @@ prouver "la fiche qui refuse les relances" serveur/cabinet/routes.ts \
   "  relances: z.array(RELANCE).max(50)," "" \
   "$E3"
 prouver "une relance au moyen inventé" serveur/cabinet/routes.ts \
-  "via: z.enum(['email', 'tel', 'whatsapp', 'autre'])," "via: z.string()," \
+  "via: z.enum(['email', 'tel', 'whatsapp', 'conversation', 'autre'])," "via: z.string()," \
   "$E3"
 prouver "une relance aux mois mal écrits" serveur/cabinet/routes.ts \
   "months: z.array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)).max(120)," "months: z.array(z.string()).max(120)," \
@@ -19180,7 +19180,7 @@ prouver 'en retard avant sa date (la boîte)' $MR \
   "and m.demande_pour < (now() at time zone 'Africa/Tunis')::date group by m.entreprise" "group by m.entreprise" \
   "$T116A"
 prouver 'le mot répété sous chaque pièce demandée' $MR \
-  "          texte: i === 0 ? corps.texte : ''," "          texte: corps.texte," \
+  "const texte = i === 0 ? corps.texte : '';" "const texte = corps.texte;" \
   "$T116B"
 prouver 'une pièce et une liste de pièces à la fois' $MR \
   "      if (corps.demandes && corps.demande) return champInvalide('demande', t('messagerie.champ.demandes'));" "" \
@@ -20945,7 +20945,7 @@ prouver 'dossiers 3 : les honoraires de la colonne répètent « DT »' modules/
   "const dtCd = v => money(v).replace(/\\s*DT\$/, '');" "const dtCd = v => money(v);" \
   'au bureau : la liste, la proposition'
 prouver 'dossiers 4 : une relance notée au téléphone ne dit pas comment' modules/socle/ecrans/cabinet/app-1.js \
-  "const via = { tel: ', au téléphone', whatsapp: ', par WhatsApp', autre: '' }[r.via] ?? '';" "const via = '';" \
+  "return { tel: 'au téléphone', whatsapp: 'par WhatsApp', email: 'par e-mail', conversation: 'dans la conversation' }[via] || '';" "return '';" \
   'au bureau : la liste, la proposition'
 prouver 'dossiers 5 : la proposition d'\''un client attend un « Accepter » sans dire quoi' web/public/plateforme/pont-cabinet.js \
   ">Accepter le dossier</button>" ">Accepter</button>" \
@@ -21231,7 +21231,7 @@ prouver 'échéances 21 : un jour des personnes physiques aberrant reste tel que
   "['tvaDay', 'cnssDay', 'tvaDayPP'].forEach" "['tvaDay', 'cnssDay'].forEach" \
   'une forme qui n'\''est pas « personne physique » ne l'\''est pas ; un réglage aberrant retombe sur le 15'
 prouver 'échéances 22 : la relance envoyée dans la conversation ne se note pas sur la fiche' modules/socle/ecrans/cabinet/app-2.js \
-  "await noter('autre', 'Relance envoyée dans votre conversation SkanFact');" ';' \
+  "await noter('conversation', 'Relance envoyée dans la conversation SkanFact');" ';' \
   '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
 prouver 'échéances 23 : plus de geste « Ce dossier ne la dépose pas »' modules/socle/ecrans/cabinet/app-2.js \
   "['regime', 'Ce dossier ne la dépose pas'," "false && ['regime', 'Ce dossier ne la dépose pas'," \
@@ -21373,7 +21373,7 @@ prouver 'messages 34 : la relance envoyée de la conversation ne se note pas sur
   "if (apresEnvoiPrepare) { const f = apresEnvoiPrepare;" "if (false) { const f = apresEnvoiPrepare;" \
   '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche'
 prouver 'messages 35 : les pièces demandées parlent du client à la troisième personne' modules/socle/ecrans/cabinet/app-2.js \
-  "[\`Vos ventes et vos achats \${K.de(lesMois)}, enregistrés dans SkanFact\`" "[\`Ses ventes et ses achats \${K.de(lesMois)}, enregistrés dans SkanFact\`" \
+  "[\`Vos relevés bancaires \${K.de(lesMois)}\`]" "[\`Ses relevés bancaires \${K.de(lesMois)}\`]" \
   'au bureau : la déclaration en retard, relancer un client'
 prouver 'messages 36 : la conversation ouverte d'\''une relance ne ramène pas aux Échéances' modules/socle/ecrans/cabinet/app-2.js \
   "[/^#\/echeances/, 'Revenir aux Échéances']" "[/^#\/zz/, 'Revenir aux Échéances']" \
@@ -21481,7 +21481,7 @@ prouver 'ecrire 2 : la conversation ne nomme pas la vente' modules/socle/ecrans/
   "    pieceDuMessage = { genre: d.type === 'avoir' ? 'avoir'" "    void { genre: d.type === 'avoir' ? 'avoir'" \
   'le client voit les questions envoyées'
 prouver 'relance 1 : la relance ne part pas de sa fenêtre' modules/socle/ecrans/cabinet/app-2.js \
-  "          await api.relancerDossier(D.id, t, demandes, lePour);" "          void (D.id, t, demandes, lePour);" \
+  "const r = await api.relancerDossier(D.id, t, demandes, lePour);" "const r = void (D.id, t, demandes, lePour);" \
   'la relance notée sur la fiche'
 prouver 'relance 2 : « Écrire plutôt dans la conversation » ne mène nulle part' modules/socle/ecrans/cabinet/app-2.js \
   "const conv = \$('#ec-conv', layer);" "const conv = null;" \
@@ -26992,6 +26992,93 @@ prouver 'réglages 1.333.0 p : le pied de la barre dit un autre nom de rôle que
 prouver 'réglages 1.333.0 q : le cabinet nomme au client un chemin qu'\''il ne voit pas' web/public/plateforme/pont-cabinet.js \
   'dans son menu, <strong>Inviter mon comptable</strong> (Comptabilité › Cabinet),' 'dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois),' \
   "$REG1333V"
+
+# 1.334.0 : les Échéances et les Relances du Cabinet (une pièce déjà demandée ne se redemande pas, le vert et le groupe vers qui attend une relance).
+REL1334A='relancer deux fois : la demande ouverte reste la seule, le message part, la réponse dit laquelle ; reçue, elle se redemande'
+REL1334B='la fiche du dossier garde une relance partie dans la conversation ; un moyen inconnu reste refusé'
+REL1334W1='Relances : la phrase de la page, ni le vert ni le groupe vers un client qui a envoyé ses pièces ou relancé ce matin ; la relance repartie ne redemande pas la même pièce'
+REL1334W2='Échéances et Tableau de bord : la légende dit préparée et à préparer, le vert ne relance pas deux fois, une échéance lointaine n'\''est pas rouge'
+REL1334W3='« Les miens » : les Relances de Leïla ne parlent que du dossier qu'\''elle tient ; celles de Rim, que du sien'
+REL1334R='un mois vide se relance, un mois au brouillard se valide ; la relance part dans la messagerie et se note dans la fiche'
+REL1334E='(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
+prouver 'relances 1.334.0 a : relancer deux fois laisse deux demandes ouvertes pour la même pièce' serveur/messagerie/routes.ts \
+  'and demande_recue_le is null and lower(btrim(demande)) = lower(btrim($2)) limit 1' 'and false and demande_recue_le is null and lower(btrim(demande)) = lower(btrim($2)) limit 1' \
+  "$REL1334A"
+prouver 'relances 1.334.0 b : une pièce reçue ne se redemande plus' serveur/messagerie/routes.ts \
+  'and demande_recue_le is null and lower(btrim(demande))' 'and lower(btrim(demande))' \
+  "$REL1334A"
+prouver 'relances 1.334.0 c : la même pièce en majuscules passe pour une autre' serveur/messagerie/routes.ts \
+  'lower(btrim(demande)) = lower(btrim($2))' 'demande = $2' \
+  "$REL1334A"
+prouver 'relances 1.334.0 d : la demande d'\''un autre client empêche la sienne' serveur/messagerie/routes.ts \
+  'select 1 from messagerie.message where entreprise = $1 and cote = '\''cabinet'\''' 'select 1 from messagerie.message where cote = '\''cabinet'\''' \
+  "$REL1334A"
+prouver 'relances 1.334.0 e : la demande déjà ouverte se crée quand même' serveur/messagerie/routes.ts \
+  'demande: ouverte ? null : demande' 'demande: demande' \
+  "$REL1334A"
+prouver 'relances 1.334.0 f : une demande seule déjà ouverte écrit un message vide' serveur/messagerie/routes.ts \
+  'if (ouverte && !texte && ' 'if (false && ouverte && !texte && ' \
+  "$REL1334A"
+prouver 'relances 1.334.0 g : la réponse ne dit pas quelle pièce était déjà demandée' serveur/messagerie/routes.ts \
+  'if (ouverte && demande) deja.push(demande);' '' \
+  "$REL1334A"
+prouver 'relances 1.334.0 h : la fiche refuse une relance partie dans la conversation' serveur/cabinet/routes.ts \
+  'via: z.enum(['\''email'\'', '\''tel'\'', '\''whatsapp'\'', '\''conversation'\'', '\''autre'\''])' 'via: z.enum(['\''email'\'', '\''tel'\'', '\''whatsapp'\'', '\''autre'\''])' \
+  "$REL1334B"
+prouver 'relances 1.334.0 i : le pont note « autre » une relance partie dans la conversation' web/public/plateforme/pont-cabinet.js \
+  'const MOYENS = ['\''email'\'', '\''tel'\'', '\''whatsapp'\'', '\''conversation'\'', '\''autre'\''];' 'const MOYENS = ['\''email'\'', '\''tel'\'', '\''whatsapp'\'', '\''autre'\''];' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 j : une relance d'\''avant la 1.334.0 ne dit pas par où elle est partie' modules/socle/ecrans/cabinet/app-1.js \
+  'const via = r.via === '\''autre'\'' && /^Relance envoyée dans/.test(String(r.note || '\'''\'')) ? '\''conversation'\'' : r.via;' 'const via = r.via;' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 k : une relance de ce matin ne compte pas' modules/socle/ecrans/cabinet/app-1.js \
+  'return !!r && jourRelance(r.at) === '\''aujourd\'\''hui'\'';' 'return false;' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 l : en « Les miens », Leïla lit à relancer des clients qu'\''elle ne tient pas' modules/socle/ecrans/cabinet/app-1.js \
+  'return K.relanceRows(S).filter(r => vus.has(r.id));' 'return K.relanceRows(S);' \
+  "$REL1334W3"
+prouver 'relances 1.334.0 m : le Tableau de bord redemande ses pièces au client qui les a envoyées' modules/socle/ecrans/cabinet/app-1.js \
+  'if (t.id === '\''manquants'\'' && nPc) dest.push(' 'if (false && t.id === '\''manquants'\'' && nPc) dest.push(' \
+  "$REL1334W2"
+prouver 'relances 1.334.0 n : le Tableau de bord relance encore le client relancé ce matin' modules/socle/ecrans/cabinet/app-1.js \
+  'else if (t.id === '\''manquants'\'' && relanceJour) avoir.push(' 'else if (false && t.id === '\''manquants'\'' && relanceJour) avoir.push(' \
+  "$REL1334W2"
+prouver 'relances 1.334.0 o : une relance d'\''hier se dit à sa date' modules/socle/ecrans/cabinet/app-1.js \
+  'jour === h.toISOString().slice(0, 10) ? '\''hier'\'' :' 'false ? '\''hier'\'' :' \
+  "$REL1334W2"
+prouver 'relances 1.334.0 p : le moyen d'\''une relance s'\''écrit « Email »' modules/socle/ecrans/cabinet/app-1.js \
+  '<td class="nw">${esc(moyenRelance(r))}</td>' '<td class="nw">${esc(labelOf(K.RELANCE_WAYS, r.via) || r.via)}</td>' \
+  "$REL1334R"
+prouver 'relances 1.334.0 q : le groupe relance aussi le client qui a envoyé ses pièces et celui relancé ce matin' modules/socle/ecrans/cabinet/app-2.js \
+  'const aRelancer = r => !piecesPar.get(r.id) && !relanceAujourdhui(dossierDe(r.id));' 'const aRelancer = r => !!r;' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 r : le client qui a envoyé ses pièces se voit proposer « Écrire »' modules/socle/ecrans/cabinet/app-2.js \
+  'rowMenuCell(r.id, piecesPar.get(r.id) ?' 'rowMenuCell(r.id, false ?' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 s : la page Relances ne dit pas qui est relancé ce matin' modules/socle/ecrans/cabinet/app-2.js \
+  'nAuj ? `${nAuj > 1 ? `${nAuj} relancés` : '\''1 relancé'\''} aujourd'\''hui` : '\'''\''' ''\'''\''' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 t : la page d'\''où l'\''on relance ne se redessine pas' modules/socle/ecrans/cabinet/app-2.js \
+  ' else if (/^#\/(relances|production|dossiers)(\/|$)/.test(location.hash) && !tournee) render();' '' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 u : un client sur SkanFact se voit demander ses ventes et ses achats en pièce' modules/socle/ecrans/cabinet/app-2.js \
+  'const attendus = !mois.length || !relie ? [] : [`Vos relevés bancaires ${K.de(lesMois)}`];' 'const attendus = !mois.length || !relie ? [] : [`Vos ventes et vos achats ${K.de(lesMois)}, enregistrés dans SkanFact`, `Vos relevés bancaires ${K.de(lesMois)}`];' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 v : la relance ne dit pas la pièce déjà demandée' modules/socle/ecrans/cabinet/app-2.js \
+  'const deja = r && Array.isArray(r.deja) ? r.deja.length : 0, neuves' 'const deja = 0, neuves' \
+  "$REL1334W1"
+prouver 'relances 1.334.0 w : la légende compte la déclaration à préparer avec celles à déposer' modules/socle/ecrans/cabinet/app-2.js \
+  'const nPrete = x.lignes.filter(l => l.st === '\''prete'\'').length, nPreparee = prets - nPrete;' 'const nPrete = 0, nPreparee = prets;' \
+  "$REL1334W2"
+prouver 'relances 1.334.0 x : une échéance lointaine porte une barre rouge' modules/socle/ecrans/cabinet/app-2.js \
+  '<b class="${tonReste(x)}" style="--n:${ret}">' '<b class="${x.groupe === '\''depose'\'' ? '\''vert'\'' : '\''rouge'\''}" style="--n:${ret}">' \
+  "$REL1334W2"
+prouver 'relances 1.334.0 y : le vert relance le client relancé ce matin' modules/socle/ecrans/cabinet/app-2.js \
+  ' && !(geste(l)[0] === '\''relancer'\'' && relanceAujourdhui(l.d))' '' \
+  "$REL1334W2"
+prouver 'relances 1.334.0 z : la conversation redemande en silence une pièce déjà demandée' web/public/plateforme/messagerie.js \
+  'if (deja.length && o.toast) o.toast(' 'if (false && deja.length && o.toast) o.toast(' \
+  "$REL1334E"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -59,7 +59,9 @@ describe('les registres du socle, dans le navigateur', () => {
         points: { 'sorties-prevues': { module: 'tresorerie', remplis: ['personnel'] }, 'declarations-sociales': { module: 'declarations', remplis: ['personnel'] } },
         emplacements: { ...VIDES, 'a-faire': 6, palette: 8, creer: 1, pages: 2 },
       },
-      cabinet: { portes: [], points: {}, emplacements: VIDES },
+      // (1.332.0) Le pont du Cabinet pose la sienne aussi : le support et les copies du Cabinet (modules/socle/pont/cabinet.js)
+      // parlent au serveur par elle.
+      cabinet: { portes: ['pont'], points: {}, emplacements: VIDES },
     };
     for (const [qui, page, j] of [['entreprise', `/v10/?e=${ent}#/dashboard`, jeton], ['cabinet', `/v10/cabinet/?c=${cab}#/dossiers`, associe]] as const) {
       const cn = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });

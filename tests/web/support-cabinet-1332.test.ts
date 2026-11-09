@@ -145,6 +145,9 @@ describe('le support du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 3_000 }).toBe(0);
     await p.locator('#aide-q-support').click();
     await p.locator('#modal-root #sup-texte-demande').waitFor({ timeout: 5_000 });
+    // Le curseur se pose au bout de la question à l'image suivante : on tape quand il y est (rouge GitHub de la 1.332.0 : la
+    // frappe partie avant lui s'écrivait au début, « je xylophone tablettecherche… »).
+    await expect.poll(() => p.locator('#modal-root #sup-texte-demande').evaluate((x) => { const t = x as HTMLTextAreaElement; return document.activeElement === t && t.selectionStart === t.value.length && t.value.length > 0; }), { timeout: 5_000 }).toBe(true);
     await p.keyboard.type(' : je cherche où se règle la grille de saisie.');
     await p.locator('#modal-root').getByRole('button', { name: 'Envoyer au support', exact: true }).click();
     await expect.poll(() => p.url(), { timeout: 10_000 }).toMatch(/#\/support\/[0-9a-f-]{36}$/);

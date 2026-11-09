@@ -1852,8 +1852,11 @@
           const pour = demande && pourChamp.value ? pourChamp.value : null;
           // Le message d'abord (« Bonjour Sami, voici mes questions »), les questions ensuite : le fil les range dans cet ordre.
           if (t || fichier || d || piece) {
-            await o.appel('POST', '/messages', { cote: o.cote, texte: t, piece, fichier: depot ? depot.id : null,
+            const ecrit = await o.appel('POST', '/messages', { cote: o.cote, texte: t, piece, fichier: depot ? depot.id : null,
               ...(ds.length > 1 ? { demandes: ds, pour } : { demande: d || null, pour }) });
+            // (1.334.0) Une pièce déjà demandée et pas reçue ne se redemande pas : le serveur le dit, l'écran aussi.
+            const deja = ecrit && Array.isArray(ecrit.deja) ? ecrit.deja : [];
+            if (deja.length && o.toast) o.toast(deja.length > 1 ? `${deja.length} de ces pièces sont déjà demandées et pas encore reçues : elles ne sont pas demandées deux fois.` : `« ${deja[0]} » est déjà demandée et pas encore reçue : elle n'est pas demandée deux fois.`);
           }
           texte.value = ''; texte.style.height = ''; demandeTxt.value = ''; piece = null; fichier = null; demande = false;
           if (qs.length) {

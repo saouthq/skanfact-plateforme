@@ -345,13 +345,22 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       const liste = corps.demandes ?? [corps.demande];
       if (corps.demandes && corps.demande) return champInvalide('demande', t('messagerie.champ.demandes'));
       const ids: string[] = [];
+      // (1.334.0) Une pièce déjà demandée et pas encore reçue ne se redemande pas : relancer deux fois pour les relevés de
+      // septembre laissait au client deux demandes ouvertes pour la même pièce. Le message part quand même ; la demande
+      // déjà ouverte reste la seule, et la réponse le dit (`deja`). Le fil lu est celui de la personne qui écrit (RLS).
+      const deja: string[] = [];
       for (const [i, demande] of liste.entries()) {
+        const ouverte = demande && corps.cote === 'cabinet' ? (await tx.query(`select 1 from messagerie.message where entreprise = $1 and cote = 'cabinet'
+          and demande_recue_le is null and lower(btrim(demande)) = lower(btrim($2)) limit 1`, [params.entreprise ?? '', demande])).rowCount : 0;
+        if (ouverte && demande) deja.push(demande);
+        const texte = i === 0 ? corps.texte : '';
+        if (ouverte && !texte && !(i === 0 && (corps.fichier || corps.piece))) continue;
         ids.push((await tx.query('select messagerie.ecrire($1, $2, $3::jsonb) id', [params.entreprise ?? '', corps.cote, JSON.stringify({
-          texte: i === 0 ? corps.texte : '', piece: i === 0 ? corps.piece : null, demande, pour: corps.pour,
+          texte, piece: i === 0 ? corps.piece : null, demande: ouverte ? null : demande, pour: ouverte ? null : corps.pour,
           fichier: i === 0 ? corps.fichier : null, repondA: i === 0 ? corps.repondA : null,
         })])).rows[0].id as string);
       }
-      return { statut: 201, corps: { id: ids[0], ids } };
+      return { statut: 201, corps: { id: ids[0] ?? null, ids, deja } };
     },
   });
 

@@ -63,6 +63,9 @@ pièce, ni l'entreprise, ni le cabinet, un objet et un texte fixes (« Ton cabin
 une personne reçoit un seul e-mail par tour, quel que soit le nombre de demandes. Le cabinet voit sous la carte
 « Relancée 2 fois par e-mail, la dernière le … » ; le client ne voit que la date (la relance est un e-mail, pas un
 reproche dans le fil). Le serveur seul note une relance partie (`messagerie.relance_partie`).
+Depuis la 1.334.0, **une pièce déjà demandée et pas encore reçue ne se redemande pas** : une demande du cabinet au même
+texte (sans les majuscules ni les espaces autour) qu'une demande ouverte de ce fil ne se crée pas ; le mot part quand
+même, la demande ouverte garde sa date, et la réponse nomme la pièce (`deja`), que l'écran dit. Reçue, elle se redemande.
 
 **M4 ter. Plusieurs pièces, plusieurs clients** (1.116.0). « Demander une pièce » prend une liste (« + Une autre
 pièce », dix au plus) : un message par pièce, le mot sur la première, la même date, **toutes ou aucune** (une seule

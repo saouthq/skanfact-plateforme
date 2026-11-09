@@ -1716,3 +1716,61 @@ Ce qui est fait :
   règle des touches), `tests/web/reglages-cabinet-1333.test.ts` (à la souris : Tes données et la demande au support, la
   touche refusée à la frappe, signalée puis refusée à l'enregistrement, corrigée ; les jours de dépôt ; Rim) ; preuves
   `réglages 1.333.0 a-q`, et deux preuves anciennes des sauvegardes visent le module partagé.
+
+## Les Échéances et les Relances du Cabinet, et le pont (1.334.0)
+
+Jouées à la souris par Leïla, associée (les Échéances, les Relances, le Tableau de bord), et par Rim, en Saisie ; côté
+client, par Amel (la librairie) et Hédi (la menuiserie), qui lisent ce que la relance leur demande.
+
+Ce qui n'allait pas :
+
+- **Trois écrans, trois réponses** à la même question (« à qui manque-t-il des pièces ? ») : les Échéances disaient du café
+  « 2 pièces reçues, à classer » pendant que les Relances proposaient de lui écrire en vert et que le Tableau de bord
+  disait « Demander… » ; un client relancé le matin même restait l'étape suivante partout.
+- **Relancer deux fois** laissait au client deux demandes ouvertes pour la même pièce (« Vos relevés bancaires de
+  septembre », deux fois, chacune avec sa date).
+- **Un client sur SkanFact** se voyait demander « Vos ventes et vos achats de septembre, enregistrés dans SkanFact » comme
+  une pièce à joindre : la carte lui proposait d'en envoyer une photo, alors que le cabinet les lit dans ses livres.
+- **Une relance partie dans la conversation** se notait « autre » (la fiche refusait le moyen) : la page disait « Autre ».
+- **Après une relance** depuis la page Relances ou le Tableau de bord, la page ne se redessinait pas : le client restait
+  « à relancer », le vert sur lui (seules les Échéances se redessinaient).
+- **La légende** d'une déclaration disait « 2 prêtes à déposer » quand l'une restait à préparer ; **la barre** d'une
+  échéance lointaine (la TVA d'octobre, dans dix-neuf jours) était toute rouge sous une carte grise.
+- **En « Les miens »**, les Relances et leur pastille comptaient encore tous les dossiers du cabinet (Rim, en Saisie, ne
+  reçoit du serveur que ses dossiers : pour elle, rien ne débordait).
+- La date « pour le » d'une relance se calculait en instant (`toISOString`) : à Tunis, entre minuit et une heure, la veille.
+
+Ce qui est fait :
+
+- Un client qui a envoyé des pièces attend qu'on les classe ; un client relancé aujourd'hui attend sa réponse. Ni le vert,
+  ni « Relancer tout le monde » (qui devient « Relancer N clients » quand il en laisse), ni « À faire maintenant » ne les
+  visent : la ligne du café porte « Ouvrir les pièces » (Relances) et « Classer » (Tableau de bord), celle du client
+  relancé « Sa conversation », à voir. La page Relances le dit sous son titre : « 4 clients à qui il manque un mois · 1 relancé
+  aujourd'hui · 1 a envoyé des pièces, à classer ».
+- Une pièce déjà demandée et pas encore reçue ne se redemande pas (serveur, `POST /entreprises/:id/messages`) : même
+  texte, sans les majuscules ni les espaces autour ; le message part, la demande ouverte reste la seule, la réponse la
+  nomme (`deja`) et l'écran le dit (la relance : « 1 pièce déjà demandée, pas redemandée » ; la conversation : « « … » est
+  déjà demandée et pas encore reçue »). Reçue, la pièce se redemande.
+- Un client sur SkanFact ne se voit demander que ses relevés bancaires ; le message lui dit d'enregistrer ses ventes et
+  ses achats.
+- La fiche garde le moyen « conversation » (serveur et pont) ; une relance d'avant, notée « autre » avec la note
+  « Relance envoyée dans… », se lit « dans la conversation ». Partout, le moyen se dit en mots (« Par e-mail », « Au
+  téléphone ») et la date de la dernière relance en jours (« relancé aujourd'hui », « hier », « le 27/10 »).
+- La page d'où l'on relance se redessine (Relances, Tableau de bord, Dossiers), sauf pendant une tournée.
+- La légende dit « 1 préparée, à déposer » et « 1 à préparer » ; ce qui reste à faire n'est rouge que si l'échéance presse.
+- Les Relances et leurs deux pastilles ne comptent que les dossiers de la portée (« Les miens », « Tous ») ; la page porte
+  le fil « Mon cabinet · … » des autres pages.
+- L'exemple humain (`scripts/humain/exemple-cabinet.ts`) donne à chaque dossier ses propres montants, mois par mois.
+- La preuve : `tests/messagerie/relances-1334.test.ts` (la pièce déjà demandée, en majuscules et avec des espaces ; une
+  demande seule déjà ouverte n'écrit rien ; reçue, elle se redemande ; un autre client n'est pas confondu ; la fiche et le
+  moyen « conversation »), `tests/web/relances-cabinet-1334.test.ts` (à la souris : six clients, la phrase, le groupe, le
+  vert, la relance partie puis repartie sans redemander, la légende, la barre grise du 9 novembre, le Tableau de bord,
+  Leïla en « Les miens » et Rim) ; trois tests anciens lisent « relancé aujourd'hui », « Par e-mail » et la demande déjà
+  ouverte de la conversation ; preuves `relances 1.334.0 a-z`, et six preuves anciennes visent le code d'aujourd'hui.
+- Et les rouges GitHub de la 1.332.0 : le Cabinet pose la porte du pont depuis qu'il a ses morceaux de pont
+  (tests/web/registres.test.ts l'attendait vide) ; tests/web/support-cabinet-1332.test.ts tapait la suite de la question
+  avant que le curseur soit au bout (« je xylophone tablettecherche… ») : il attend le curseur.
+
+À VÉRIFIER : une pièce se reconnaît « déjà demandée » à son texte exact (sans majuscules ni espaces autour) ; « Relevés
+de septembre » et « Vos relevés bancaires de septembre » restent deux demandes. La fenêtre de relance ne prévient qu'après
+l'envoi : elle pourrait le dire avant.

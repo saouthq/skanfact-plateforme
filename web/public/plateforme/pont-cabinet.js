@@ -1092,7 +1092,7 @@
     a.remove();
   };
   // Les moyens d'une relance, ceux que le serveur garde (serveur/cabinet/routes.ts, RELANCE).
-  const MOYENS = ['email', 'tel', 'whatsapp', 'autre'];
+  const MOYENS = ['email', 'tel', 'whatsapp', 'conversation', 'autre'];
 
   // C4 (docs/cabinet.md) : ce qui n'a plus d'objet sans paquets ni fichier sur l'ordinateur. Les
   // panneaux des Réglages se cachent, leur pastille et leur résultat de recherche aussi ; la
