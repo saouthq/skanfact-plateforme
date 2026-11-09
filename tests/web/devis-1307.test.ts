@@ -150,7 +150,9 @@ describe('les devis 1.307.0 : du devis à la facture, tel que la maquette', () =
     await fen().locator('#ok').click();
     await p.locator('#mf-envoye').click();
     await expect.poll(pastille, { timeout: 10_000 }).toBe('Envoyé · attend la réponse');
-    expect(((await piece('q1')).emails as Obj[]).map((x) => x.kind)).toEqual(['devis', 'devisModifie']);
+    // L'écran dit « Envoyé » avant que l'enregistrement arrive au serveur : on attend la pièce enregistrée (rouge GitHub de la
+    // 1.338.0, une machine lente lisait encore l'ancienne).
+    await expect.poll(async () => (((await piece('q1')).emails as Obj[]) || []).map((x) => x.kind), { timeout: 10_000 }).toEqual(['devis', 'devisModifie']);
     expect((await piece('q1')).modifieApresEnvoi ?? null).toBe(null);
     expect(net(await p.locator('#ed-geste .btn-primary').first().innerText())).toMatch(/Le client a accepté…$/);
 

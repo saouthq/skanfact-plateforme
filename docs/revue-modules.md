@@ -1931,3 +1931,12 @@ classeur ; un ticket du jour envoyé le jour même se compte donc au mois d'avan
 « Quand les pièces arrivent » compte une pièce déposée par le cabinet au jour du dépôt, pas au jour où le client l'a
 envoyée sur WhatsApp. Les chiffres du jeu d'exemple (les achats de la boulangerie, tous saisis le jour de la création de
 l'exemple) font dire à la boulangerie « plus d'un mois après » : c'est l'exemple, pas la règle.
+
+## Deux rouges GitHub qui n'étaient pas des défauts de l'application (1.338.1)
+
+- 1.335.0 : `tests/web/cabinet-saisie.test.ts` (une écriture validée pas vue en 10 secondes). Rien dans la version ne touche
+  la saisie ; le test passe cinq fois ici, dont trois en même temps, et il est repassé sur GitHub avec la 1.338.0. Pas de
+  cause trouvée : À VÉRIFIER s'il revient.
+- 1.338.0 : `tests/web/devis-1307.test.ts` lisait la pièce enregistrée au serveur dès que l'écran disait « Envoyé », sans
+  attendre l'enregistrement. Prouvé en ralentissant d'une seconde et demie les envois au serveur : l'ancienne lecture tombe
+  exactement comme sur GitHub (« [devis] » au lieu de « [devis, devisModifie] »), la nouvelle, qui attend, passe.
