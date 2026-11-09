@@ -100,6 +100,7 @@
     poser(document.getElementById('view'));
   }
 
+  const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   /**
    * La page « Tes demandes au support ».
    * @param {HTMLElement} el
@@ -121,11 +122,15 @@
     /** @type {Map<string, string>} */ const brouillons = new Map();
     /** @type {Set<string>} */ const luesIci = new Set();
 
+    // (1.331.0, revue de l'Aide) L'en-tête des autres pages : le chemin (Accueil › Aide › Tes demandes), le titre et sa
+    // phrase — la page n'avait que son titre, sans chemin pour revenir à l'Aide.
+    /** @param {string} [actions] */
+    const tete = (actions) => `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${CHEVRON}<a href="#/aide">Aide</a>${CHEVRON}<span>Tes demandes au support</span></div>
+          <h1>Tes demandes au support</h1><p class="sous">L'équipe SkanFact te répond ici, en général dans la journée</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`;
     function poserLaPage() {
       el.innerHTML = `<div class="sup-page">
-        <div class="page-head"><h1>Tes demandes au support</h1>
-          <div class="actions"><button type="button" class="btn" data-sup-ecrire>Écrire au support…</button></div></div>
-        <p class="sup-intro">L'équipe SkanFact te répond ici, en général dans la journée. Tu ne vois que tes demandes : celles de tes collègues restent les leurs.</p>
+        ${tete('<button type="button" class="btn" data-sup-ecrire>Écrire au support…</button>')}
+        <p class="sup-intro">Tu ne vois que tes demandes : celles de tes collègues restent les leurs.</p>
         <div class="sup-corps">
           <div class="sup-liste" data-sup-liste aria-label="Tes demandes"></div>
           <section class="sup-fil" data-sup-fil aria-label="La conversation"></section>
@@ -135,7 +140,7 @@
     }
     function poserLeVide() {
       el.innerHTML = `<div class="sup-page">
-        <div class="page-head"><h1>Tes demandes au support</h1></div>
+        ${tete()}
         <div class="panel sup-vide">
           <b>Aucune demande pour l'instant.</b>
           <p>Une question qui te bloque, quelque chose qui ne marche pas comme prévu : écris à l'équipe SkanFact. Elle te répond ici, en général dans la journée, et un e-mail te prévient que la réponse t'attend.</p>
@@ -327,7 +332,7 @@
         void marquerLue();
       } catch (x) {
         if (demandes === null) {
-          el.innerHTML = `<div class="sup-page"><div class="page-head"><h1>Tes demandes au support</h1></div>
+          el.innerHTML = `<div class="sup-page">${tete()}
             <div class="panel sup-vide"><b>Tes demandes ne se sont pas ouvertes.</b><p>${esc(motif(x))}</p>
             <div><button type="button" class="btn" data-sup-relire>Réessayer</button></div></div></div>`;
           const b = el.querySelector('[data-sup-relire]');

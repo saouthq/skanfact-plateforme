@@ -26817,6 +26817,56 @@ prouver 'paie 1.330.0 p : valider le mois redessine la frise (elle disait encore
 prouver 'paie 1.330.0 q : la déclaration d’octobre, jamais « de octobre »' modules/personnel/moteur/core-paie.js \
   "(/^[aeiouéè]/i.test(MOIS_PAIE[m - 1]) ? 'd’' : 'de ')" "('de ')" \
   "$PAIE1330M"
+AIDE1331Q='une question trouve son article ; rien trouvé, elle part au support telle quelle'
+AIDE1331G='un article dit son chemin, et son geste mène au panneau qu'\''il nomme'
+AIDE1331J='le journal des clôtures dit le jour du geste et la personne qui l'\''a fait'
+AIDE1331A='aucun article ne décrit l'\''application de bureau, ni ne nomme une version'
+AIDE1331C='l'\''Aide du Cabinet ne promet ni fichier à envoyer au client, ni poste à rejoindre'
+prouver 'aide 1.331.0 a : une question garde « comment », « le », « de » et ne trouve plus son article' modules/socle/ecrans/entreprise/app-2.js \
+  'const pleins = tous.filter(m => !AIDE_MOTS_VIDES.has(m));' 'const pleins = tous;' \
+  "$AIDE1331Q"
+prouver 'aide 1.331.0 b : un pluriel ou un infinitif ne retrouve plus le mot de l'\''article' modules/socle/ecrans/entreprise/app-2.js \
+  'return r.length >= 4 ? r : m; };' 'return m; };' \
+  "$AIDE1331Q"
+prouver 'aide 1.331.0 c : les articles qui ont tous les mots ne passent plus devant' modules/socle/ecrans/entreprise/app-2.js \
+  'y.n - x.n || y.poids - x.poids || x.i - y.i' 'x.i - y.i' \
+  "$AIDE1331Q"
+prouver 'aide 1.331.0 d : rien trouvé, la question ne part pas au support telle qu'\''elle a été tapée' modules/socle/ecrans/entreprise/app-2.js \
+  'ecrireAuSupport('\''question'\'', { sujet: mots, texte: mots })' 'ecrireAuSupport('\''question'\'')' \
+  "$AIDE1331Q"
+prouver 'aide 1.331.0 e : le curseur ne va pas au bout de la question préremplie' modules/socle/ecrans/entreprise/app-2.js \
+  'if (pre && pre.texte && tx) requestAnimationFrame(' 'if (false && pre && pre.texte && tx) requestAnimationFrame(' \
+  "$AIDE1331Q"
+prouver 'aide 1.331.0 f : « Nouveautés » revient en ligne, où il n'\''ouvre que « Historique indisponible »' modules/socle/ecrans/entreprise/app-2.js \
+  'typeof bridge.changelog === '\''function'\'' && !bridge.sansNouveautesV10 ? '\''<div><b>Ce qui a changé' 'typeof bridge.changelog === '\''function'\'' ? '\''<div><b>Ce qui a changé' \
+  "$AIDE1331Q"
+prouver 'aide 1.331.0 g : « ← Accueil » redouble le chemin dans l'\''en-tête de l'\''Aide' modules/socle/ecrans/entreprise/app-2.js \
+  '${routeOf(retourAide) !== '\''dashboard'\'' ? backButton('\''#/dashboard'\'', '\''aide'\'') : '\'''\''}' '${backButton('\''#/dashboard'\'', '\''aide'\'')}' \
+  "$AIDE1331Q"
+prouver 'aide 1.331.0 h : le geste d'\''un article ouvre les Paramètres en haut, pas le panneau qu'\''il nomme' modules/socle/ecrans/entreprise/app-2.js \
+  'if (d.reglage) { const [onglet, pan]' 'if (false && d.reglage) { const [onglet, pan]' \
+  "$AIDE1331G"
+prouver 'aide 1.331.0 i : « Clôturer un mois » ouvre la Comptabilité sans l'\''onglet des clôtures' modules/socle/ecrans/entreprise/app-2.js \
+  'if (d.compta) { comptaState.tab = d.compta;' 'if (false && d.compta) { comptaState.tab = d.compta;' \
+  "$AIDE1331G"
+prouver 'aide 1.331.0 j : le paie ne parle plus du pointage, et la question ne la trouve plus' modules/socle/aide/guide.js \
+  '<b>Pointer</b> : le pointage du mois, les jours' '<b>Pointer</b> : les jours' \
+  "$AIDE1331Q"
+prouver 'aide 1.331.0 k : la clôture dit « cet ordinateur » au lieu de la personne' modules/socle/ecrans/entreprise/app-1.js \
+  'const quiFait = () => nomDuCompte || deviceLabel();' 'const quiFait = () => deviceLabel();' \
+  "$AIDE1331J"
+prouver 'aide 1.331.0 l : le journal des clôtures ne dit plus qui' modules/socle/ecrans/entreprise/app-2.js \
+  '<th>Le</th><th>Par</th>|||<td>${e.by ? h(e.by) : '\''<span class="muted">—</span>'\''}</td>' '<th>Le</th>|||' \
+  "$AIDE1331J"
+prouver 'aide 1.331.0 m : l'\''article de l'\''abonnement renvoie à la licence de l'\''application de bureau' modules/socle/aide/guide.js \
+  'Paramètres → Ton abonnement' 'Paramètres → L'\''application → Licence' \
+  "$AIDE1331A"
+prouver 'aide 1.331.0 n : l'\''équipe du Cabinet se rejoint par la copie externe' modules/socle/aide/cabguide.js \
+  'Inviter un collaborateur…</b>, avec son adresse' 'Ajouter un poste par la copie externe</b>, avec son adresse' \
+  "$AIDE1331C"
+prouver 'aide 1.331.0 o : « Le dossier pour le client… » se montre en ligne, où il ne sait que refuser' web/public/plateforme/pont-cabinet.js \
+  '#rec-banniere, #cl-fichier { display' '#rec-banniere { display' \
+  "$AIDE1331C"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -4220,7 +4220,9 @@
         : '<p id="journal-ecran">Aucune erreur notée depuis l\'ouverture de cet écran.</p>'}
       <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`);
   }
-  async function ecrireAuSupport(genre) {
+  // (1.331.0) `pre` : le sujet et le texte déjà là (la question tapée dans l'Aide, qui n'a rien trouvé). Posés au montage,
+  // ils ne comptent pas comme une saisie : refermer sans rien changer ne demande rien.
+  async function ecrireAuSupport(genre, pre) {
     const idee = genre === 'idee';
     let v = null;
     try { v = await bridge.updateVersion(); } catch (_) { /* sans version, la demande part sans elle */ }
@@ -4240,9 +4242,9 @@
           <textarea id="sup-auj" rows="3" maxlength="1800" placeholder="Ex. : je les ouvre un par un, ça me prend une demi-heure chaque lundi."></textarea></label>
         <p class="small muted">Cette seconde question est celle qui sert le plus : elle dit le vrai problème, et pas seulement la solution imaginée.</p>`
         : `<label class="field obligatoire">${lbl('Le sujet', 'support.sujet')}
-          <input id="sup-sujet" maxlength="140" autocomplete="off" placeholder="Ex. : l'émission d'une facture ne répond plus"></label>
+          <input id="sup-sujet" maxlength="140" autocomplete="off" placeholder="Ex. : l'émission d'une facture ne répond plus" value="${h(String((pre && pre.sujet) || '').slice(0, 140))}"></label>
         <label class="field obligatoire">${lbl('Ce qui se passe', 'support.texte')}
-          <textarea id="sup-texte-demande" rows="5" maxlength="4000" placeholder="Ce que tu faisais, ce que tu attendais, ce qui s'est passé à la place. Une question ? Pose-la telle quelle."></textarea></label>`}
+          <textarea id="sup-texte-demande" rows="5" maxlength="4000" placeholder="Ce que tu faisais, ce que tu attendais, ce qui s'est passé à la place. Une question ? Pose-la telle quelle.">${h(String((pre && pre.texte) || '').slice(0, 4000))}</textarea></label>`}
       </form>
       <div class="notes-md mt"><strong>Joint automatiquement</strong>
         <p class="small">${joint} : c'est ce qui aide l'équipe à voir ce que tu vois.</p>
@@ -4255,6 +4257,9 @@
         <button class="btn btn-primary" id="sup-send">Envoyer au support</button></div>`,
       (root, close) => {
         const bouton = $('#sup-send', root);
+        // (1.331.0) Une question venue de l'Aide : le curseur au bout du texte, pour la compléter sans chercher où cliquer.
+        const tx = $('#sup-texte-demande', root);
+        if (pre && pre.texte && tx) requestAnimationFrame(() => { tx.focus(); tx.setSelectionRange(tx.value.length, tx.value.length); });
         if ($('#sup-voir-journal', root)) $('#sup-voir-journal', root).onclick = e => { e.preventDefault(); voirJournal(journalEcran); };
         const envoyer = async () => {
           if (bouton.disabled) return;
@@ -5799,9 +5804,12 @@
 
         <div class="panel"><h2>Journal des clôtures ${info('clot.journal')}</h2>
           ${log.length
-            ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Action</th><th>Jusqu'au</th><th>Motif</th>${avecCab ? '<th></th>' : ''}</tr></thead><tbody>
+            ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Action</th><th>Jusqu'au</th><th>Le</th><th>Par</th><th>Motif</th>${avecCab ? '<th></th>' : ''}</tr></thead><tbody>
                 ${log.map((e, i) => `<tr><td><span class="badge ${e.action === 'reouverture' ? 'b-late' : 'b-paid'}">${h(C.CLOSURE_ACTIONS[e.action] || e.action)}</span></td>
                   <td class="nw">${e.until ? C.fmtDate(e.until) : '<span class="muted">tout rouvert</span>'}</td>
+                  ${/* (1.331.0) Le jour du geste et qui l'a fait : la ligne qu'on relit le jour où un chiffre a bougé. */''}
+                  <td class="nw">${e.at ? h(C.fmtDate(new Date(e.at).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))) : '<span class="muted">—</span>'}</td>
+                  <td>${e.by ? h(e.by) : '<span class="muted">—</span>'}</td>
                   <td class="small">${h(e.reason || '')}${e.previous ? `<div class="muted">auparavant : ${C.fmtDate(e.previous)}</div>` : ''}</td>
                   ${avecCab ? `<td class="r">${i === 0 ? '<button class="btn btn-sm" id="clot-dire">Le dire à mon comptable</button>' : ''}</td>` : ''}</tr>`).join('')}
               </tbody></table></div>`
@@ -5894,7 +5902,7 @@
           ? `\n\n${pl(blocking.length, 'point')} à régler d'abord : ${blocking.map(c => c.label).join(', ')}.`
           : '';
         if (!await confirmDialog(`Clôturer ${next.label} ?\n\nAprès ça, aucune pièce datée du ${C.fmtDate(next.from)} au ${C.fmtDate(next.to)} ne pourra plus être créée, modifiée ou supprimée. Tu pourras rouvrir si besoin, avec un motif.${warn}`, 'Clôturer', false)) return;
-        const r = C.closePeriod(data, next.to, { at: Date.now(), by: deviceLabel() });
+        const r = C.closePeriod(data, next.to, { at: Date.now(), by: quiFait() });
         if (r.error) return toast(r.error, true);
         save(true); draw(); updateNavCounts(); direAuCabinet(`${next.label} clôturé`, { action: 'cloture', until: next.to });
       };
@@ -5927,7 +5935,7 @@
             points();
             $('#ok', root).onclick = () => {
               const to = $('select[name=m]', root).value;
-              const r = C.closePeriod(data, to, { at: Date.now(), by: deviceLabel() });
+              const r = C.closePeriod(data, to, { at: Date.now(), by: quiFait() });
               close();
               if (r.error) return toast(r.error, true);
               save(true); draw(); updateNavCounts(); direAuCabinet('Clôturé jusqu\'au ' + C.fmtDate(to), { action: 'cloture', until: to });
@@ -5957,7 +5965,7 @@
           (root, close) => {
             $('#ok', root).onclick = () => {
               const v = formValues($('#rf', root));
-              const r = C.reopenPeriod(data, v.all ? '' : v.until, { at: Date.now(), by: deviceLabel(), reason: (v.reason || '').trim() });
+              const r = C.reopenPeriod(data, v.all ? '' : v.until, { at: Date.now(), by: quiFait(), reason: (v.reason || '').trim() });
               if (r.error) return toast(r.error, true);
               close(); save(true); draw(); updateNavCounts();
               direAuCabinet('Période rouverte', { action: 'reouverture', until: v.all ? '' : v.until, reason: (v.reason || '').trim() });
@@ -7596,7 +7604,20 @@
   // n'apparaît dans aucun titre.
   let aideQ = '';
   const sansBalises = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  const aideMots = q => C.plier(q || '').trim().split(/\s+/).filter(Boolean);
+  // (1.331.0, revue de l'Aide) On tape une QUESTION, pas une liste de mots-clés : « comment valider le pointage » ne
+  // trouvait rien, parce que chaque mot devait se trouver dans l'article, « comment » et « le » compris. Les petits mots
+  // ne cherchent rien ; un mot se cherche par sa racine (« valider » trouve « validé », « congés » trouve « congé ») ;
+  // et un article qui n'a qu'une partie des mots se propose quand même, après ceux qui les ont tous.
+  const AIDE_MOTS_VIDES = new Set(('a ai as au aux avec c ca ce ces cet cette chez combien comment d dans de des dois doit du '
+    + 'elle en es est et etre faire fait faut il ils j je l la le les leur m ma me mes moi mon n ne nos notre on ou par pas '
+    + 'peut peux plus pour pourquoi puis puisque qu quand que quel quelle quels quelles qui quoi s sa se ses si son sont sur '
+    + 't ta te tes toi ton tu un une veux vos votre vous y').split(' '));
+  const aideRacine = m => { const r = m.replace(/(ements|ement|ations|ation|eurs|euses|euse|ent|ez|er|es|e|s|x)$/, ''); return r.length >= 4 ? r : m; };
+  const aideMots = q => {
+    const tous = C.plier(q || '').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const pleins = tous.filter(m => !AIDE_MOTS_VIDES.has(m));
+    return [...new Set((pleins.length ? pleins : tous).map(aideRacine))];
+  };
   // Plier sans changer la LONGUEUR (10.12.0) : le surlignage et l'extrait retrouvent le mot par sa
   // position dans le texte plié, puis découpent le texte d'origine aux mêmes positions. Une lettre
   // dont le pliage changerait la longueur (un accent déjà décomposé) est gardée telle quelle.
@@ -7614,13 +7635,20 @@
     arts.forEach((a, i) => {
       const titre = C.plier(a.title), sous = C.plier(a.sub);
       const corps = C.plier(sansBalises(a.body || ''));
-      if (!mots.every(m => titre.includes(m) || sous.includes(m) || corps.includes(m))) return;
-      const rang = mots.every(m => titre.includes(m)) ? 0
-        : mots.every(m => `${titre} ${sous}`.includes(m)) ? 1 : 2;
-      notes.push({ a, rang, i });
+      // (1.331.0) Combien de mots l'article porte d'abord (tous avant une partie), puis où : le titre vaut plus que le
+      // sous-titre, qui vaut plus que le corps. Un article qui n'en porte aucun ne se propose pas.
+      const trouves = mots.filter(m => titre.includes(m) || sous.includes(m) || corps.includes(m));
+      if (!trouves.length) return;
+      const poids = trouves.reduce((s, m) => s + (titre.includes(m) ? 4 : sous.includes(m) ? 2 : 1), 0);
+      notes.push({ a, n: trouves.length, poids, i });
     });
-    return notes.sort((x, y) => x.rang - y.rang || x.i - y.i).map(x => x.a);
+    return notes.sort((x, y) => y.n - x.n || y.poids - x.poids || x.i - y.i).map(x => x.a);
   }
+  // Combien de mots cherchés un article porte : la liste dit ceux qui les ont tous, et ceux qui n'en ont qu'une partie.
+  const aideTousLesMots = (a, q) => {
+    const tout = C.plier(`${a.title} ${a.sub} ${sansBalises(a.body || '')}`);
+    return aideMots(q).every(m => tout.includes(m));
+  };
 
   // Surligner le mot cherché, sans jamais laisser passer de HTML : on découpe, on échappe chaque
   // morceau, et on recolle avec des <mark>. Échapper APRÈS aurait mangé les balises qu'on vient de
@@ -7629,7 +7657,10 @@
     if (!mots.length) return h(texte);
     const bas = plierPareil(texte);
     const coupes = [];
-    mots.forEach(m => { let k = bas.indexOf(m); while (k >= 0) { coupes.push([k, k + m.length]); k = bas.indexOf(m, k + m.length); } });
+    // (1.331.0) Un mot se cherche par sa racine (« valid ») : on surligne le mot ENTIER où elle se trouve, sinon l'extrait
+    // montrait des morceaux (« valid|ité »).
+    const finDuMot = f => { while (f < bas.length && /[\p{L}\p{N}]/u.test(bas[f])) f++; return f; };
+    mots.forEach(m => { let k = bas.indexOf(m); while (k >= 0) { const f = finDuMot(k + m.length); coupes.push([k, f]); k = bas.indexOf(m, f); } });
     coupes.sort((x, y) => x[0] - y[0]);
     let out = '', pos = 0;
     coupes.forEach(([d, f]) => {
@@ -7689,8 +7720,15 @@
       }).join('')}</div>
     </section>`;
 
+  // (1.331.0) Le bas de l'accueil : ce qui n'est pas une question (une idée, ce qui a changé), sorti de l'en-tête. « Ce qui
+  // a changé » ne se montre que si l'historique existe : en ligne (`sansNouveautesV10`), le bouton ouvrait « Historique
+  // indisponible ».
   const aideAccueil = () => `<div class="help-rail">${G.THEMES.map(aideChip).join('')}</div>
-    <div class="help-secs">${G.THEMES.map(aideSection).join('')}</div>`;
+    <div class="help-secs">${G.THEMES.map(aideSection).join('')}</div>
+    <div class="help-bas">
+      <div><b>Une idée pour SkanFact ?</b><span>Dis ce qui te manque, et comment tu fais aujourd'hui : l'équipe te répond ici.</span><button class="btn btn-sm" id="aide-idee">Proposer une amélioration</button></div>
+      ${typeof bridge.changelog === 'function' && !bridge.sansNouveautesV10 ? '<div><b>Ce qui a changé</b><span>Les nouveautés de la version que tu utilises, en clair.</span><button class="btn btn-sm" id="aide-changelog">Nouveautés de la version</button></div>' : ''}
+    </div>`;
 
   // Le sommaire d'un article long. Onze intertitres dans « Ta comptabilité mois par mois », sept
   // dans le glossaire et ses cinquante-neuf entrées : sans sommaire on fait défiler à l'aveugle, et
@@ -8354,13 +8392,22 @@
     const suivant = iCourant >= 0 && iCourant < voisins.length - 1 ? arts.find(x => x.id === voisins[iCourant + 1]) : null;
     const precedent = iCourant > 0 ? arts.find(x => x.id === voisins[iCourant - 1]) : null;
 
+    // (1.331.0, revue de l'Aide) L'en-tête des autres pages : le chemin (Accueil › Aide › le domaine › l'article), le titre et
+    // sa phrase. Six boutons s'y alignaient (« ← Accueil » quand le chemin y mène déjà, quatre gestes du support) : il garde
+    // ceux du support ; « Proposer une amélioration » et « Nouveautés » vivent au bas de l'accueil de l'Aide. Le retour ne
+    // reste que s'il mène ailleurs qu'à l'accueil (une page qui a ouvert son article).
+    const retourAide = backTarget('#/dashboard', 'aide');
+    const cheminAide = a
+      ? `<a href="#/aide" data-home="1">Aide</a>${ICONE_CHEVRON}${theme ? `<a href="#/aide" data-theme="${h(theme.id)}">${h(theme.label)}</a>${ICONE_CHEVRON}` : ''}<span>${h(a.title)}</span>`
+      : '<span>Aide</span>';
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Aide</h1>
-        <div class="actions">${backButton('#/dashboard', 'aide')}${bridge.support && routeOf(backTarget('#/dashboard', 'aide')) !== 'support' ? '<button class="btn" id="aide-demandes">Tes demandes au support</button>' : ''}<button class="btn" id="aide-support">${bridge.support ? 'Écrire au support' : 'Signaler un problème'}</button><button class="btn" id="aide-idee">Proposer une amélioration</button><button class="btn" id="aide-changelog">Nouveautés de la version</button></div></div>
+      <div class="page-head lf-tete aide-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}${cheminAide}</div>
+        <h1>Aide</h1><p class="sous">Comment marche SkanFact, et comment tenir ta gestion sans rien oublier</p></div>
+        <div class="actions">${routeOf(retourAide) !== 'dashboard' ? backButton('#/dashboard', 'aide') : ''}${bridge.support && routeOf(retourAide) !== 'support' ? '<button class="btn" id="aide-demandes">Tes demandes au support</button>' : ''}<button class="btn" id="aide-support">${bridge.support ? 'Écrire au support' : 'Signaler un problème'}</button></div></div>
       ${/* 10.12.0 — la phrase promettait « le ? en haut de chaque page » : aucune page n'en porte. Le
            bouton s'appelle « Guide-moi » depuis la 10.14.1 (poserGuideMoi) ; une phrase affichée que
            rien ne tient est un bug (7.3.0). */''}
-      ${a ? '' : `<p class="lead">Comment marche SkanFact, et comment tenir la gestion d'une petite entreprise sans rien oublier. Cherche un mot, ou choisis un domaine. Partout ailleurs dans l'application, les petits <span class="i-demo">i</span> expliquent le champ juste à côté, et «&nbsp;Guide-moi&nbsp;» en haut de chaque page liste tout ce qu'on peut y faire — sa visite, chaque geste pas à pas — et ouvre l'article de cette page.</p>
+      ${a ? '' : `<p class="lead">Cherche un mot ou pose ta question, ou choisis un domaine. Partout ailleurs dans l'application, les petits <span class="i-demo">i</span> expliquent le champ juste à côté, et «&nbsp;Guide-moi&nbsp;» en haut de chaque page liste tout ce qu'on peut y faire — sa visite, chaque geste pas à pas — et ouvre l'article de cette page.</p>
       <div class="guide-band aide-guide"><span class="gb-ico" aria-hidden="true">${ICONE_GUIDE}</span>
         <span class="gb-txt"><b>Tu préfères qu'on te montre ?</b> La visite guidée te fait faire chaque geste sur ton vrai écran, et explique chaque bouton de chaque page.</span>
         <button type="button" class="btn btn-sm" id="aide-guide">Me guider</button></div>`}
@@ -8378,17 +8425,9 @@
     const vue = $('#aide-vue');
     if (a) {
       const { corps, sommaire } = aideCorps(a);
-      // Le fil d'Ariane est un <div>, plus un <nav>. C'était un <nav> depuis la 7.23.0, et
-      // `nav { display: flex; flex-direction: column }` — la règle de la barre latérale, posée sur
-      // l'ÉLÉMENT — l'emportait sur `.help-fil`. Résultat : « Aide › Vendre et facturer › Le
-      // devis » s'empilait verticalement, centré au milieu de la page, en tête de CHAQUE article.
-      // Rien en console, rien dans les tests : ça ne se voit que sur une capture.
+      // (1.331.0) Le fil d'Ariane de l'article (« Aide › le domaine › l'article ») est passé dans le chemin de l'en-tête :
+      // les deux se suivaient, « Aide » écrit deux fois l'un sous l'autre.
       vue.innerHTML = `
-        <div class="help-fil small">
-          <button data-home="1">Aide</button><span class="sep">›</span>
-          ${theme ? `<button data-theme="${h(theme.id)}">${h(theme.label)}</button><span class="sep">›</span>` : ''}
-          <span>${h(a.title)}</span>
-        </div>
         <div class="help-layout${sommaire ? '' : ' seul'}${theme ? ' th-' + h(theme.id) : ''}">
           <div class="help-col">
             <article class="panel help-body">
@@ -8396,7 +8435,7 @@
               <h2 class="help-h">${h(a.title)}</h2>
               <p class="help-sub">${h(a.sub)}</p>
               ${corps}
-              ${geste ? `<div class="help-geste"><button class="btn btn-primary" data-geste="${h(geste.hash)}">${h(geste.label)}</button>
+              ${geste ? `<div class="help-geste"><button class="btn btn-primary" data-geste="${h(geste.hash)}"${geste.reglage ? ` data-reglage="${h(geste.reglage)}"` : ''}${geste.compta ? ` data-compta="${h(geste.compta)}"` : ''}>${h(geste.label)}</button>
                 <span class="small muted">On lit une explication pour faire quelque chose.</span></div>` : ''}
               <p class="small muted help-foot">Une question de fiscalité ou de comptabilité que cette aide ne tranche pas ? Elle est pour ton comptable : lui seul connaît ta situation et la réglementation en vigueur.</p>
             </article>
@@ -8416,9 +8455,16 @@
       // Un thème n'ouvre plus un panneau par-dessus la liste : il EMMÈNE à sa section. `vers`
       // redessine même quand le hash ne change pas (on peut déjà être sur `#/aide`), sans quoi le
       // clic serait avalé en silence — le piège de la 7.15.0.
-      $$('[data-theme]').forEach(b => b.onclick = vers('#/aide', () => { aideQ = ''; pageFocus = 'sec-' + b.dataset.theme; }));
-      $$('[data-home]').forEach(b => b.onclick = vers('#/aide', () => { aideQ = ''; pageFocus = ''; }));
-      $$('[data-geste]').forEach(b => b.onclick = () => navigate(b.dataset.geste));
+      // (1.331.0) Dans le chemin, ce sont des liens (`href` pour le clic du milieu) : le clic ordinaire passe par `vers`.
+      $$('[data-theme]').forEach(b => { const f = vers('#/aide', () => { aideQ = ''; pageFocus = 'sec-' + b.dataset.theme; }); b.onclick = e => { e.preventDefault(); f(); }; });
+      $$('[data-home]').forEach(b => { const f = vers('#/aide', () => { aideQ = ''; pageFocus = ''; }); b.onclick = e => { e.preventDefault(); f(); }; });
+      // (1.331.0) Le geste mène à l'endroit qu'il nomme : un panneau des Paramètres, ou un onglet de la Comptabilité.
+      $$('[data-geste]').forEach(b => b.onclick = () => {
+        const d = b.dataset;
+        if (d.reglage) { const [onglet, pan] = d.reglage.split(':'); allerParametres(onglet, pan); return; }
+        if (d.compta) { comptaState.tab = d.compta; vers('#/compta')(); return; }
+        navigate(d.geste);
+      });
       // Le sommaire, lui, ne redessine rien : la page est déjà là, on descend dedans.
       $$('[data-h]').forEach(b => b.onclick = () => {
         const el = document.getElementById(b.dataset.h);
@@ -8445,22 +8491,36 @@
       if (!mots) { brancher(); return; }
       const trouves = aideFiltre(arts, aideQ);
       const surligne = aideMots(aideQ);
-      n.textContent = trouves.length
-        ? `${pl(trouves.length, 'article')} sur ${arts.length}, le plus proche en premier`
-        : `Aucun article sur ${arts.length}`;
-      res.innerHTML = trouves.length
-        ? `<div class="help-arts help-res">${trouves.map(x => {
-          const t = G.themeOf(x.id);
-          const ex = aideExtrait(x, aideQ);
-          return `<button class="help-art${t ? ' th-' + h(t.id) : ''}" data-art="${h(x.id)}">
+      // (1.331.0) Ce que la liste contient se dit : les articles qui portent tous les mots, puis ceux qui n'en ont qu'une
+      // partie — sans quoi une réponse approchée se lirait comme LA réponse.
+      const complets = trouves.filter(x => aideTousLesMots(x, aideQ)).length;
+      const autres = trouves.length - complets;
+      n.textContent = !trouves.length ? `Aucun article sur ${arts.length}`
+        : !autres ? `${pl(trouves.length, 'article')} sur ${arts.length}, le plus proche en premier`
+          : complets ? `${pl(complets, 'article')} avec tous tes mots, puis ${pl(autres, 'autre')} qui en ${autres > 1 ? 'ont' : 'a'} une partie`
+            : `Aucun article n'a tous tes mots : ${trouves.length > 1 ? `les ${trouves.length} plus proches, celui qui en a le plus en premier` : 'le plus proche'}`;
+      // (1.331.0) Quand l'Aide ne répond pas, la question part au support telle qu'elle a été tapée : c'était « Essaie
+      // les mots un par un », et la personne repartait sans réponse.
+      const versSupport = `<div class="help-support"><span>Pas la réponse que tu cherches ? L'équipe SkanFact répond ici, en général dans la journée.</span>
+          <button class="btn btn-sm" id="aide-q-support">Poser ma question au support</button></div>`;
+      const carte = x => {
+        const t = G.themeOf(x.id);
+        const ex = aideExtrait(x, aideQ);
+        return `<button class="help-art${t ? ' th-' + h(t.id) : ''}" data-art="${h(x.id)}">
               ${t ? `<span class="hth">${h(t.label)}</span>` : ''}
               <span class="ht">${aideSurligne(x.title, surligne)}</span>
               <span class="hs">${ex || aideSurligne(x.sub, surligne)}</span></button>`;
-        }).join('')}</div>`
-        : `<div class="empty"><p>${mots.split(/\s+/).filter(Boolean).length > 1
-          ? 'Aucun article ne contient tous ces mots — chacun doit s\'y trouver. Essaie-les un par un'
-          : `Aucun article ne parle de « ${h(mots)} ». Essaie un mot voisin`} — ou ouvre le glossaire, qui définit les cinquante-neuf termes employés dans l'application.</p>
-            <button class="btn btn-primary" data-art="vocabulaire">Ouvrir « Le vocabulaire »</button></div>`;
+      };
+      // Ceux qui ont tous les mots, puis, sous leur titre, ceux qui n'en ont qu'une partie (`aideFiltre` les range déjà ainsi).
+      const grille = xs => `<div class="help-arts help-res">${xs.map(carte).join('')}</div>`;
+      res.innerHTML = trouves.length
+        ? (complets && autres
+          ? `${grille(trouves.slice(0, complets))}<p class="help-res-part small muted" id="aide-partie">Avec une partie de tes mots</p>${grille(trouves.slice(complets))}`
+          : grille(trouves)) + versSupport
+        : `<div class="empty"><p>Aucun article ne parle de « ${h(mots)} ». Pose ta question au support : l'équipe SkanFact te répond ici, en général dans la journée. Ou ouvre le glossaire, qui définit les mots employés dans l'application.</p>
+            <div class="inline"><button class="btn btn-primary" id="aide-q-support">Poser ma question au support</button><button class="btn" data-art="vocabulaire">Ouvrir « Le vocabulaire »</button></div></div>`;
+      const poser = $('#aide-q-support');
+      if (poser) poser.onclick = () => (bridge.support ? ecrireAuSupport('question', { sujet: mots, texte: mots }) : supportForm());
       brancher();
     };
     q.oninput = chercher;
@@ -8469,10 +8529,10 @@
     q.onkeydown = e => { if (e.key === 'Escape' && q.value) { e.stopPropagation(); q.value = ''; chercher(); } };
     if (aideQ) chercher();
     bindBack('#/dashboard', 'aide');
-    $('#aide-changelog').onclick = showChangelog;
+    if ($('#aide-changelog')) $('#aide-changelog').onclick = showChangelog;
     if ($('#aide-guide')) $('#aide-guide').onclick = () => navigate('#/guide');
     $('#aide-support').onclick = supportForm;
-    $('#aide-idee').onclick = ideeForm;
+    if ($('#aide-idee')) $('#aide-idee').onclick = ideeForm;
     if ($('#aide-demandes')) $('#aide-demandes').onclick = () => navigate('#/support');
   };
   routes.aide = attendreAvant(textesPrets, chargerTextes, 'Aide', SANS_RESEAU_AIDE, pageAide);

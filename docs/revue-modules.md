@@ -1570,3 +1570,66 @@ Ce qui est fait :
   (le Cabinet lit sans écrire ; la paie des dossiers compte le mois validé ; rouvert, plus rien ; la base ne lui ouvre
   rien d'autre de la racine), `tests/web/cabinet-paie-1330.test.ts` (« validé par », plus de « mois sans pointage »,
   les boutons nommés, « payé, remis »), `tests/moteur/paie-1330.test.ts` (« d'octobre ») ; preuves `paie 1.330.0 a-r` (sans g).
+
+## L'Aide, le guide et le support, des deux côtés (1.331.0)
+
+Jouée à la souris par Sarra (Boulangerie El Amal) : une question tapée comme on la pose (« comment valider le
+pointage »), une autre sans réponse, l'article de l'abonnement et son geste, celui de l'équipe, celui des clôtures, puis
+une clôture du mois et son journal ; au Cabinet, Leïla relit l'article de l'équipe et l'onglet Exercice.
+
+Ce qui n'allait pas :
+
+- La recherche ne trouvait pas une question posée en français : « comment valider le pointage » cherchait aussi
+  « comment » et « le », ne connaissait pas « valides » pour « valider », et rangeait les articles dans l'ordre du
+  fichier. L'article de la paie ne disait d'ailleurs plus « pointage ».
+- Rien trouvé : « Aucun article », et rien d'autre à faire. La question tapée était perdue.
+- L'en-tête de l'Aide : six boutons, sans le chemin des autres pages ; « ← Accueil » à côté d'un chemin qui y mène
+  déjà ; le fil de l'article redisait « Aide » sous l'en-tête.
+- « Nouveautés de la version » ouvrait « Historique indisponible » en ligne.
+- Une dizaine d'articles décrivaient l'application de bureau : une licence SKAN1 à coller, des données « sur ton
+  ordinateur » avec une copie externe, « Travailler à deux » par un dossier partagé, des numéros de version, « pas de
+  pointage », « pas de remise au comptoir », « pas de lots ni de dépôts » (tout cela existe en ligne), ⌘P.
+- Le geste d'un article ouvrait les Paramètres en haut de « Ton compte », pas le panneau qu'il nomme ; « Clôturer un
+  mois » ouvrait la Comptabilité sur son premier onglet.
+- Le journal des clôtures écrivait « cet ordinateur » et ne disait ni le jour du geste, ni qui l'avait fait.
+- La page « Tes demandes au support » n'avait pas le chemin des autres pages.
+- Au Cabinet : l'article de l'équipe parlait de postes et de copie externe ; « Le dossier pour le client… » (le
+  fichier .skanclose à envoyer) ne savait que refuser en ligne.
+
+Ce qui est fait :
+
+- La recherche retire les petits mots (« comment », « le », « de »…), compare les racines (« valider » trouve
+  « valides », « congés » trouve « congé »), range d'abord les articles qui ont tous les mots, puis ceux qui en ont une
+  partie (« Avec une partie de tes mots »), et le compte le dit. Le mot entier se surligne, jamais sa racine seule.
+- Rien trouvé : « Pose ta question au support : l'équipe SkanFact te répond ici, en général dans la journée », avec
+  « Poser ma question au support » ; la fenêtre s'ouvre avec la question déjà écrite et le curseur à sa fin, et se
+  referme sans question si l'on n'y a rien changé.
+- L'en-tête suit les autres pages : le chemin (Accueil › Aide › le thème › l'article), le titre, sa phrase ;
+  « Tes demandes au support » et « Écrire au support ». « Proposer une idée » passe dans une bande au bas de
+  l'accueil de l'Aide ; « Nouveautés » ne se montre que là où l'historique existe.
+- Les articles disent ce que fait l'application en ligne : « Ton abonnement » (Paramètres → Ton abonnement), « Tes
+  données » (le serveur, une sauvegarde chaque nuit, l'export de toutes les données), « Travailler à plusieurs »
+  (Paramètres → L'équipe → Inviter quelqu'un…, les huit rôles), « Faire découvrir SkanFact », la lecture d'une facture
+  d'achat, les congés et le pointage du mois, la remise au comptoir, les lots et les dépôts ; plus aucun numéro de
+  version.
+- Un geste d'article peut viser un panneau des Paramètres ou un onglet de la Comptabilité : l'abonnement ouvre
+  « Ton abonnement », l'équipe « L'équipe », la clôture l'onglet des clôtures.
+- Le journal des clôtures a les colonnes « Le » (le jour du geste, à Tunis) et « Par » (le nom du compte, sinon son
+  adresse) ; les trois gestes (clôturer, clôturer jusqu'à, rouvrir) l'écrivent.
+- « Tes demandes au support » a son chemin (Accueil › Aide › Tes demandes au support) et sa phrase.
+- Au Cabinet : l'article de l'équipe dit Réglages → Mon cabinet → L'équipe → Inviter un collaborateur…, les trois rôles
+  et les dossiers confiés ; « Le dossier pour le client… » ne se montre plus en ligne, et l'article de l'exercice dit
+  que le client lit la validation de son cabinet dans ses Clôtures (son sous-titre et la fin de la visite « Clôturer
+  l'exercice » aussi).
+- Le rouge GitHub de la 1.330.0, réparé ici : `tests/web/facture-charte.test.ts` décochait les cases de la fenêtre
+  d'émission avant qu'elle soit là (elle attend le numéro du serveur depuis la 1.329.0) ; « Signer par DigiGo » restait
+  coché, et sa fenêtre recouvrait la suite. Le test attend la fenêtre ; l'application n'avait rien de faux.
+- Trouvé en jouant, traité à part (1.332.0) : au Cabinet, « Signaler un problème… » montre un rapport de l'application
+  de bureau (« Système : · Electron », « Dossiers : 0 » sur douze, une copie externe, « Ouvrir le journal technique »)
+  et n'envoie rien ; « Proposer une amélioration… » dit « SkanFact Cabinet ? · ? ». Un cabinet n'a pas encore de
+  support : il faut lui en donner un, comme à l'entreprise.
+- Pas fait, noté : la phrase « Barèmes → » de la paie (l'écran de la paie, pas l'Aide) ; les Paramètres sans le chemin
+  des autres pages.
+- La preuve : `tests/web/aide-1331.test.ts` (la question, rien trouvé et le support, le chemin et les gestes, le journal
+  des clôtures), `tests/v10/aide-en-ligne.test.ts` (aucun article ne décrit le bureau ; l'Aide du Cabinet ne promet ni
+  fichier ni poste) ; preuves `aide 1.331.0 a-o`.

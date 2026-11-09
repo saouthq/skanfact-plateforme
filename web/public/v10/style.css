@@ -1863,6 +1863,15 @@ body.dark .th-piloter   { --th: #4dbcd6; --th-bg: #12303a; }
 /* Une section par thème, ses articles visibles : un plan montre le territoire, il ne le cache pas
    derrière un clic qui ne promet qu'un nombre. */
 .help-secs { display: grid; gap: 16px; }
+/* (1.331.0, revue de l'Aide) Le bas de l'accueil (une idée, les nouveautés : sortis de l'en-tête), et le renvoi au support
+   sous des résultats de recherche. Un `gap` décide des deux écarts au passage à la ligne (T-56). */
+.help-bas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; margin-block-start: 18px; }
+.help-bas > div { display: grid; gap: 4px; justify-items: start; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+.help-bas > div > span { font-size: 13px; color: var(--muted); }
+.help-bas > div > .btn { margin-block-start: 6px; }
+.help-res-part { margin: 14px 0 0; }
+#aide-res .empty .inline { justify-content: center; }
+.help-support { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-block-start: 14px; font-size: 13px; color: var(--muted); }
 .help-sec { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; scroll-margin-top: 10px; }
 .help-sec > header { display: flex; align-items: center; gap: 13px; padding: 15px 18px; background: var(--th-bg); }
 .help-sec .hs-ico { width: 38px; height: 38px; border-radius: 11px; background: var(--th); color: #fff; display: grid; place-items: center; flex-shrink: 0; }

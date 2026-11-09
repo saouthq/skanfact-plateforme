@@ -366,7 +366,7 @@
       <p class="small">Ce n'est pas une sévérité inutile : une comptabilité qu'on peut réécrire après coup ne prouve plus rien. C'est aussi pour ça que <b>valider un lot ne refuse jamais en bloc</b> — ce qui tombe juste est validé, ce qui ne tombe pas juste t'est nommé et reste en brouillard, sans trouer la numérotation.</p>
       <h3>Ce qui fait gagner du temps</h3>
       <p class="small">Un <b>guide</b> est un modèle de pièce (journal, comptes, d'où vient chaque montant). Une <b>écriture qui revient</b> est un guide plus une périodicité : le loyer de chaque mois. Les deux <b>proposent</b> — l'écriture qui revient se génère en brouillard, jamais validée sans que personne l'ait regardée. Les guides se règlent dans Réglages → Comptabilité, les écritures qui reviennent sur la fiche du client.</p>
-      <p class="small">Tu peux glisser un <b>justificatif</b> sur une écriture : le fichier est copié dans le dossier du client, jamais simplement pointé — celui qui est sur ton Bureau aura disparu bien avant l'écriture qu'il justifie.</p>
+      <p class="small">Tu peux glisser un <b>justificatif</b> sur une écriture : le fichier part avec l'écriture et se garde au serveur, dans le dossier du client — celui qui est sur ton Bureau peut disparaître, l'écriture garde son justificatif.</p>
       <h3>Remettre le dossier à un autre logiciel : le fichier FEC</h3>
       <p class="small">Dans le <b>Livre-journal</b> d'un client dont tu tiens le livre, <b>Fichier FEC…</b> écrit les écritures validées de l'exercice au format que Sage, EBP, Cegid et la plupart des outils de révision importent tels quels : dix-huit colonnes, une ligne par ligne d'écriture, dans l'ordre des numéros, avec la date de validation. Les brouillards ne partent pas, et SkanFact le dit avant d'enregistrer. La Tunisie ne l'impose pas (<b>À VÉRIFIER</b>) : il sert à reprendre un dossier ailleurs, ou à le remettre à un contrôleur qui le demande.</p>
       <h3>Corriger dans ton tableur, puis réimporter</h3>
@@ -451,8 +451,8 @@
         <li><b>Liasse</b> : le bilan et l'état de résultat en rubriques, le résultat fiscal, la déclaration
           d'employeur. <em>À VÉRIFIER : les rubriques suivent l'usage, et aucun taux d'impôt n'est écrit dans
           l'application.</em></li>
-        <li><b>Le dossier pour le client</b> : un <code>.skanclose</code> signé, avec ses à-nouveaux officiels et
-          ses états. C'est lui qui garantit que son bilan et le tien ne divergent jamais.</li>
+        <li><b>Le client le voit</b> : il tient les mêmes livres, en ligne ; sa page Clôtures dit jusqu'où tu as validé.
+          C'est ce qui garantit que son bilan et le tien ne divergent jamais.</li>
       </ol>
       <h3 class="eyebrow">Ce que SkanFact ne fera jamais</h3>
       <ul class="small" style="line-height:1.9">
@@ -595,7 +595,7 @@
       vide : il dit que rien n'a été compté.</p>` },
     {
       id: 'exercice', t: 'La clôture de l\'exercice',
-      s: 'Les contrôles, une clôture définitive, les à-nouveaux et le dossier pour le client', couleur: 'th-commencer',
+      s: 'Les contrôles, une clôture définitive, les à-nouveaux et ce que le client en lit', couleur: 'th-commencer',
       geste: { label: 'Ouvrir l\'Exercice', ecran: 'exercice' },
       icon: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>', d: `
       <p class="small">Les <b>contrôles</b> nomment ce qui reste — un brouillard, une déclaration non préparée, une
@@ -617,9 +617,9 @@
       <p class="small">L'écran porte aussi les <b>états financiers</b>, les soldes intermédiaires — chacun avec sa
       formule, pour que tu puisses le refaire — et les ratios, qui valent « — » quand ils n'ont pas de dénominateur.</p>
       <h3>Le dossier pour le client</h3>
-      <p class="small"><b>Le dossier pour le client…</b> écrit un fichier <code>.skanclose</code> signé, avec les
-      à-nouveaux officiels et les états. Ton client l'importe dans son SkanFact, son exercice se verrouille, et son
-      bilan et le tien ne peuvent plus diverger.</p>` },
+      <p class="small">Il n'y a rien à lui envoyer : ton client tient les mêmes livres, en ligne. Sa page <b>Comptabilité →
+      Clôtures</b> dit « Ton cabinet a validé tes livres jusqu'au … » et lui propose de clôturer chez lui jusqu'à la même
+      date ; ses pièces de la période ne bougent plus, et son bilan et le tien ne peuvent plus diverger.</p>` },
     {
       id: 'liasse', t: 'La liasse et l\'annuel',
       s: 'Le bilan et le résultat en rubriques, le résultat fiscal, la déclaration d\'employeur', couleur: 'th-vendre',
@@ -676,13 +676,18 @@
       <p class="small">La clé de licence porte l'<b>empreinte de ton cabinet</b> : une clé émise pour un autre cabinet, ou celle d'un de tes clients, est refusée en nommant les deux empreintes.</p>` },
     {
       id: 'equipe', t: 'Travailler à plusieurs',
-      s: 'Les collaborateurs, leurs droits, et deux postes qui se rejoignent', couleur: 'th-equipe', geste: { label: 'Ouvrir l\'équipe', hash: '#/reglages', panneau: 'pan-equipe' },
+      s: 'Les collaborateurs, leurs droits, et les dossiers confiés à chacun', couleur: 'th-equipe', geste: { label: 'Ouvrir l\'équipe', hash: '#/reglages', panneau: 'pan-equipe' },
       icon: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A5 5 0 0 1 21 19"/>', d: `
-      <p class="small">Tant que personne n'est déclaré, <b>rien n'est restreint</b> : un cabinet d'une personne n'a rien à régler. Le premier collaborateur que tu déclares devient l'identité de ce poste, et la piste d'audit porte son nom sur chaque écriture validée.</p>
-      <p class="small">Un <b>saisisseur</b> saisit en brouillard et ne valide pas ; le refus nomme qui peut. Aucune lecture n'est jamais fermée. Retirer un collaborateur ne l'efface pas : son nom reste sur ce qu'il a validé.</p>
-      <h3>Deux postes, un cabinet</h3>
-      <p class="small">Un second poste reprend le cabinet par sa <b>copie externe</b>. Si les deux ont travaillé sur le même livre, la fusion garde <b>toutes</b> les écritures validées des deux côtés et signale un numéro pris deux fois, sans jamais le réattribuer.</p>
-      <p class="small">Il n'y a pas de mot de passe par personne : celui du cabinet ouvre déjà toute la base. Les rôles apportent l'<b>attribution</b> (qui a validé) et les <b>droits</b> (qui peut valider), pas un secret de plus.</p>` },
+      <p class="small">Chaque collaborateur entre avec <b>son propre compte</b>. Un associé l'invite dans <b>Réglages → Mon cabinet →
+      L'équipe → Inviter un collaborateur…</b>, avec son adresse et son rôle : il reçoit un lien, l'ouvre et se connecte avec cette
+      adresse. La piste d'audit porte son nom sur chaque écriture qu'il valide.</p>
+      <p class="small">Trois rôles. <b>Saisie</b> : écrire au brouillard, importer, rapprocher, sans valider — le refus nomme
+      qui peut. <b>Saisie et validation</b> : en plus, la validation, le lettrage et les déclarations. <b>Supervision</b> :
+      tout, plus la clôture d'un exercice et l'équipe. Aucune lecture n'est jamais fermée. Seul un associé invite, change un
+      rôle ou retire quelqu'un ; retirer quelqu'un ne l'efface pas : son nom reste sur ce qu'il a validé.</p>
+      <h3>Les dossiers confiés</h3>
+      <p class="small">Un dossier se confie à une personne, avec son rôle sur ce dossier. Tout le cabinet travaille sur les
+      mêmes livres, en même temps, chacun depuis son poste : ce qu'un collaborateur valide, les autres le voient.</p>` },
     {
       id: 'limites', t: 'Ce que cette application ne fait pas',
       s: 'Ce qu\'elle ne fera pas — et pourquoi c\'est volontaire', couleur: 'th-equipe', geste: null,

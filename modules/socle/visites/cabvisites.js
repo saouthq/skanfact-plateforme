@@ -1401,7 +1401,7 @@
       si: () => !!ctx.dossier('livre'), manque: DOSSIER_MANQUE.livre,
       suite: ['page-compta-exercice', 'page-compta-liasse'],
       bravo: 'Tu connais la clôture',
-      conclusion: 'Une clôture est tracée : elle se rouvre, mais avec un motif — c\'est la seule trace qui explique pourquoi un chiffre a changé. Une fois close, « Le dossier pour le client… » écrit le fichier qui lui porte ses à-nouveaux.',
+      conclusion: 'Une clôture est tracée : elle se rouvre, mais avec un motif — c\'est la seule trace qui explique pourquoi un chiffre a changé. Une fois close, ton client le lit dans ses Clôtures : « Ton cabinet a validé tes livres jusqu\'au … ».',
       etapes: [
         { page: dans('livre', 'comptabilite/exercice'), cible: ['#cl-sec-controles', '#c-livres .panel'], cote: 'dessus', titre: 'Les contrôles',
           texte: 'Avant de clôturer, les contrôles : un brouillard non validé, une déclaration pas préparée, des dotations pas passées… Une ligne <b>« à voir »</b> porte son bouton, qui ouvre l\'écran où elle se règle. Ils <b>ne bloquent jamais</b> : un exercice clos avec des manques signalés vaut mieux qu\'un exercice jamais clos.' },

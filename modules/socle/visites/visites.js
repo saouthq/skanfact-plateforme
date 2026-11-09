@@ -673,8 +673,12 @@
   b('#aide-q', "Tape un mot ou une question : la recherche lit le contenu des articles, pas seulement les titres.", { nom: 'Recherche' });
   b('[data-art]', "Ouvre cet article.", { nom: 'Un article', cle: 'art' });
   b('[data-theme]', "Descend au domaine nommé.", { nom: 'Un domaine', cle: 'theme' });
-  b('#aide-support', "Prépare un mail pour signaler un problème.");
-  b('#aide-idee', "Propose une amélioration.");
+  // (1.331.0) En ligne, rien ne part par mail : la demande va à l'équipe SkanFact, qui répond dans l'application.
+  b('#aide-support', "Écris à l'équipe SkanFact : une question, ou quelque chose qui ne marche pas. Elle te répond ici, en général dans la journée.");
+  b('#aide-q-support', "Envoie ta question au support telle que tu l'as tapée : tu la relis, tu la complètes, puis elle part.");
+  b('#aide-demandes', "Tes demandes au support, et les réponses de l'équipe.");
+  b('[data-home]', "Revient à l'accueil de l'Aide.", { nom: 'Aide', cle: 'home' });
+  b('#aide-idee', "Propose une amélioration : ce qui te manque, et comment tu fais aujourd'hui.");
   b('#aide-changelog', "Ce qui a changé dans cette version.");
   b('#aide-guide', "Ouvre « Me guider » : au lieu de lire, on te montre où cliquer, sur ton vrai écran.");
   b('#guide-q', "Écris ce que tu veux faire : les visites qui correspondent restent.", { nom: 'Recherche' });

@@ -154,7 +154,9 @@ describe('la facture de la maquette, à la souris, au clavier et au téléphone'
 
     // 6. Émettre : le geste de la colonne de droite, puis la pièce émise.
     await p.locator('#ed-geste #issue').click();
-    // « Juste après l'émission » : ni signature ni envoi ici (chacun a son essai plus bas).
+    // « Juste après l'émission » : ni signature ni envoi ici (chacun a son essai plus bas). La fenêtre s'ouvre une fois le
+    // numéro lu au serveur (1.329.0) : on l'attend, sinon les cases ne sont pas encore là et restent cochées.
+    await p.locator('#modal-root #em-titre').waitFor();
     for (const g of [/Signer par DigiGo/, /L'envoyer par e-mail/]) { const c = p.locator('#modal-root').getByLabel(g); if (await c.count() && await c.isChecked()) await c.uncheck(); }
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#view h1').first().innerText(), { timeout: 15_000 }).toMatch(/^FAC-/);

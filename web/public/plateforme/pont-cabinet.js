@@ -1114,11 +1114,11 @@
   const VISITES_PAS_ENCORE = [
   ];
   // Les articles de l'Aide sans objet en ligne : les sauvegardes, changer d'ordinateur, la licence,
-  // les mises à jour (le serveur garde les livres ; rien à installer).
+  // les mises à jour (le serveur garde les livres ; rien à installer) ; ni #cl-fichier (1.331.0 : le client lit ses Clôtures).
   const ARTICLES_ABSENTS = ['filets', 'demenager', 'licence', 'maj'];
   const style = document.createElement('style');
   style.textContent = `${PANNEAUX_ABSENTS.flatMap((id) => [`#${id}`, `[data-somm="${id}"]`, `[data-go="${id}"]`]).join(', ')},
-    #pan-secu > :not(h2):not(.modal-actions), #pan-secu .modal-actions > :not(#s-lock), #rec-banniere { display: none !important; }`;
+    #pan-secu > :not(h2):not(.modal-actions), #pan-secu .modal-actions > :not(#s-lock), #rec-banniere, #cl-fichier { display: none !important; }`;
   document.head.appendChild(style);
 
   // ── Comment un client arrive : le code du cabinet, et les dossiers qu'on lui confie ────────

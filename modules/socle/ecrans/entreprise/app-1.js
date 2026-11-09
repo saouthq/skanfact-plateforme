@@ -554,6 +554,12 @@
   // Le nom du poste, tel que le stockage l'estampille à chaque écriture (3.2.0). Il sert à dire QUI
   // a clôturé ou rouvert une période : sur un dossier partagé, c'est la première question posée.
   function deviceLabel() { return (data && data.syncDeviceName) || 'cet ordinateur'; }
+  // (1.331.0, revue de l'Aide) Qui a fait un geste qui se trace (une clôture, une réouverture) : en ligne, la personne
+  // connectée ; sur la v10 de bureau, le poste. Le journal des clôtures notait « cet ordinateur » pour tout le monde, et ne
+  // le montrait même pas — l'Aide promettait « la personne qui l'a faite ».
+  let nomDuCompte = '';
+  if (bridge.profil) bridge.profil().then(pr => { nomDuCompte = String((pr && (pr.nom || pr.email)) || '').trim(); }, () => {});
+  const quiFait = () => nomDuCompte || deviceLabel();
   // Une erreur venue du processus principal arrive habillée : « Error invoking remote method 'x:y':
   // Error: … ». Ce préambule n'apprend rien à personne ; on ne garde que la phrase écrite pour
   // l'utilisateur.

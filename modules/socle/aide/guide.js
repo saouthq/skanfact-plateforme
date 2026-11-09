@@ -727,7 +727,7 @@
     {
       id: 'demarrer', title: 'Démarrer : tes premiers pas', sub: 'La porte du premier jour, puis chaque étape du panneau d\'accueil',
       body: `
-<p>SkanFact fonctionne entièrement sur ton ordinateur : tes documents, tes clients et tes chiffres n'en sortent pas, et personne d'autre ne les voit. Il ne se connecte à Internet que pour chercher ses mises à jour et vérifier ta licence — il envoie alors ta clé, le nom et le système de l'ordinateur, et sa version : jamais une donnée de ta gestion. En contrepartie, <b>c'est toi qui es responsable de tes sauvegardes</b> : on y revient plus bas.</p>
+<p>SkanFact est <b>en ligne</b> : tes documents, tes clients et tes chiffres vivent sur le serveur de SkanFact, en Tunisie, et tu les retrouves depuis n'importe quel ordinateur ou téléphone en te connectant. Les voient ton équipe — les personnes que tu invites —, ton comptable si tu lui confies ton dossier, et l'équipe SkanFact seulement si tu lui ouvres l'accès pour une demande. Les sauvegardes se font toutes seules, chaque nuit : tu n'as rien à faire pour ne rien perdre.</p>
 <p>Au tout premier démarrage, SkanFact t'ouvre une porte à deux battants : <b>découvrir avec un exemple</b> — une entreprise de cinq ans, toute remplie, dont il te fait faire le tour — ou <b>commencer avec ton entreprise</b>. Dans les deux cas, quelques questions la préparent : ton entreprise, ton métier et ce dont tu as besoin — après la découverte, si c'est le battant que tu as choisi. Le reste a ses valeurs d'usage (timbre fiscal de 1 dinar, trente jours de validité et de paiement, pas de retenue à la source) et se règle dans <b>Paramètres → Documents</b>.</p>
 <p>Ces questions <b>se rejouent</b>, préremplies avec tes réponses actuelles : le bouton « Revoir l'assistant de démarrage… » est en tête de <b>Paramètres → Mon entreprise</b>, et la recherche (<kbd>⌘</kbd> <kbd>K</kbd>) le trouve en tapant « assistant ». Les rejouer ne touche aucune de tes pièces.</p>
 <p>L'accueil affiche ensuite un panneau <b>« Tes premiers pas »</b> tant que l'essentiel n'est pas fait. Chaque ligne y porte son bouton et sa visite guidée (<b>« Me guider »</b>), et son état est <b>déduit de tes données</b> — rien à cocher soi-même. Trois étapes sont marquées <b>facultatif</b> : la découverte, ta facture à ton image et ton comptable. Elles attendent sans jamais passer devant les autres. Voici chaque étape, dans l'ordre du panneau, avec ce qu'il faut savoir.</p>
@@ -745,8 +745,8 @@
 <p>Tes prix sont dans un tableur ? <b>Catalogue → Importer…</b>, de la même façon : la désignation, le prix HT — ou TTC, converti en HT avec la TVA de sa ligne —, la TVA, l'unité, et même un stock de départ. Une prestation d'exemple que ta liste reprend prend tes prix ; celles que ta liste ignore peuvent partir du même geste, si aucune pièce ne s'en sert.</p>
 <h3>Faire ton premier devis</h3>
 <p>Un devis annonce un prix avant de travailler. Il prend son numéro dès le premier enregistrement, et reste modifiable. Voir <a href="#/aide/devis">Le devis : proposer un prix</a>.</p>
-<h3>Mettre tes données à l'abri</h3>
-<p>Elle vient <b>juste après ton premier devis</b> : c'est le moment où il existe enfin quelque chose à protéger. <b>Paramètres → Données et sécurité → Choisir un dossier</b>, puis un dossier dans iCloud Drive (Mac), OneDrive (Windows) ou sur une clé USB. À chaque enregistrement, tout y est recopié ; une copie qui échoue le dit en rouge, et l'étape reste à faire. Fais-le maintenant, pas « plus tard » : c'est la seule étape dont l'oubli coûte tout. Le même écran liste tes sauvegardes et sait <b>revenir en arrière</b>.</p>
+<h3>Tes données à l'abri</h3>
+<p>Rien à faire : elles sont sur le serveur de SkanFact, copiées chaque nuit, et l'étape se coche d'elle-même. Ce que tu peux faire en plus, quand tu veux : télécharger une copie complète de tes données, dans <b>Paramètres → Données et sécurité → Toutes les données de l'entreprise</b>. Voir <a href="#/aide/donnees">Tes données : où elles sont, et comment les reprendre</a>.</p>
 <h3>L'envoyer à ton client</h3>
 <p>Le bouton <b>Email</b> prépare le message avec le PDF joint, et fait passer le devis en « envoyé ». Si tu l'envoies autrement — WhatsApp, impression, main propre — l'application te demande après l'export si elle doit le marquer envoyé : réponds oui, sinon elle ne le relancera jamais et ne le comptera pas dans tes statistiques.</p>
 <p><b>Par WhatsApp</b> : « Plus ▾ → Envoyer par WhatsApp… » (ou le menu « Actions » d'une ligne de la liste) ouvre la conversation du client avec le message déjà écrit — le même texte que l'email, réglé une fois dans Paramètres → Envois. Un lien WhatsApp ne peut pas joindre de fichier : le PDF s'affiche dans son dossier, glisse-le dans la conversation. Le devis passe en « envoyé », et l'historique dit « par WhatsApp ». Une relance part de la même façon, depuis la page Relances.</p>
@@ -919,8 +919,8 @@
 <p>Le bouton <b>Envoyer au comptable</b> prépare l'email avec les journaux cochés en pièces jointes : ventes, achats, encaissements et règlements fournisseurs, un fichier par journal.</p>
 <h3>Journal des achats</h3>
 <p>Le symétrique, dans l'onglet <b>Achats</b> : tout ce que tu as acheté sur la période, avec la part de TVA récupérable. Le classement « où part ton argent » regroupe tes charges par catégorie, du plus gros au plus petit — c'est souvent une surprise.</p>
-<h3>Les neuf onglets</h3>
-<p><b>Ventes</b> et <b>Achats</b> : les journaux de la période, à exporter ou à envoyer. <b>TVA à payer</b> : la soustraction du mois. <b>Écritures</b> : les mêmes pièces traduites en comptabilité, prêtes pour le logiciel de ton comptable. <b>Grand livre</b> : les mêmes écritures rangées par compte, avec le solde qui avance. <b>Balance</b> : tous les comptes sur une page, et les tiers un par un. <b>Calendrier fiscal</b> : ce qu'il faut déposer et quand. <b>Clôtures</b> : fermer un mois pour qu'il ne bouge plus. <b>Cabinet</b> : à qui ton dossier est confié, et les questions de ton comptable.</p>
+<h3>Ses onglets</h3>
+<p><b>Ventes</b> et <b>Achats</b> : les journaux de la période, à exporter ou à envoyer. <b>TVA à payer</b> : la soustraction du mois. <b>Écritures</b> : les mêmes pièces traduites en comptabilité, prêtes pour le logiciel de ton comptable. <b>Grand livre</b> : les mêmes écritures rangées par compte, avec le solde qui avance. <b>Balance</b> : tous les comptes sur une page, et les tiers un par un. <b>États financiers</b> : le bilan et l'état de résultat. <b>Calendrier fiscal</b> : ce qu'il faut déposer et quand. <b>Clôtures</b> : fermer un mois pour qu'il ne bouge plus. <b>Cabinet</b> : à qui ton dossier est confié, et les questions de ton comptable.</p>
 
 <h3>Onglet TVA : la soustraction qui compte</h3>
 <p>L'onglet <b>TVA à payer</b> fait le calcul complet : la TVA que tu as <b>collectée</b> sur tes ventes, moins celle que tu as <b>payée</b> sur tes achats. Tu ne reverses que la différence.</p>
@@ -930,13 +930,13 @@
 <p>Un pense-bête des déclarations qui reviennent. Active celles qui te concernent, ajuste le jour limite, et les échéances proches remonteront dans « À faire » sur l'accueil. <em>À VÉRIFIER avec ton comptable :</em> les dates, la périodicité et les déclarations applicables dépendent de ta forme juridique, de ton régime fiscal et de la présence de salariés.</p>
 <h3>Onglet Écritures : le livre-journal que ton comptable importe</h3>
 <p>Les mêmes pièces, traduites en comptabilité à partie double — débit d'un côté, crédit de l'autre, à l'équilibre sur chaque pièce. Le fichier s'importe directement dans son logiciel : il n'a plus rien à retaper. <em>À VÉRIFIER : les numéros de compte proposés suivent l'usage tunisien, mais chaque cabinet a les siens — ils se modifient dans « Plan de comptes… ».</em> Voir <a href="#/aide/cabinet">Confier ta comptabilité à ton comptable</a>.</p>
-<p>Depuis la 8.9.0, c'est un vrai <b>livre-journal</b> : chaque pièce porte un numéro continu dans l'exercice (clôture les mois envoyés pour que leurs numéros ne bougent plus), et tout ce qui touche l'argent y est — les mouvements libres de la Trésorerie (frais bancaires, apports, impôts payés, avec leur contrepartie), le paiement des bulletins, les soldes de départ des comptes, et la <b>déclaration mensuelle</b> passée en écriture à la fin de chaque mois écoulé (la TVA collectée soldée contre la déductible, le net à payer au 4365 avec les timbres et les retenues opérées). Le <b>journal centralisateur</b> résume l'exercice mois par mois et journal par journal. Et ce qui n'a ni facture, ni achat, ni règlement se saisit en <b>opération diverse</b> : deux lignes au moins, autant au débit qu'au crédit, sinon rien ne s'enregistre. Le <b>lettrage</b>, dans l'onglet Balance, liste ce qui reste ouvert tiers par tiers.</p>
+<p>C'est un vrai <b>livre-journal</b> : chaque pièce porte un numéro continu dans l'exercice (clôture les mois envoyés pour que leurs numéros ne bougent plus), et tout ce qui touche l'argent y est — les mouvements libres de la Trésorerie (frais bancaires, apports, impôts payés, avec leur contrepartie), le paiement des bulletins, les soldes de départ des comptes, et la <b>déclaration mensuelle</b> passée en écriture à la fin de chaque mois écoulé (la TVA collectée soldée contre la déductible, le net à payer au 4365 avec les timbres et les retenues opérées). Le <b>journal centralisateur</b> résume l'exercice mois par mois et journal par journal. Et ce qui n'a ni facture, ni achat, ni règlement se saisit en <b>opération diverse</b> : deux lignes au moins, autant au débit qu'au crédit, sinon rien ne s'enregistre. Le <b>lettrage</b>, dans l'onglet Balance, liste ce qui reste ouvert tiers par tiers.</p>
 <p><b>Le fichier FEC.</b> Si ton comptable tient ses dossiers dans Sage, EBP, Cegid ou un autre logiciel, « Fichier FEC… » lui donne tes écritures dans le format que ces logiciels importent tels quels : une ligne par ligne d'écriture, dans l'ordre des numéros, avec le compte auxiliaire de chaque client et fournisseur. Il porte la période choisie en haut à droite — un exercice entier en général. La Tunisie ne l'impose pas (À VÉRIFIER avec ton comptable) : il sert à ce que personne ne retape rien.</p>
 <h3>Onglets Grand livre et Balance : ce que ton comptable regarde en premier</h3>
-<p>Depuis la 8.8.0, les écritures se lisent aussi <b>par compte</b>. Le <b>grand livre</b> — le « mouvement de compte » — montre, pour un compte donné, chaque ligne qui l'a touché et le solde qui avance ; en tête, le solde d'ouverture reprend tout ce qui précède la période (les charges et les produits repartent de zéro au 1er janvier, et ce qu'ils portaient avant est reporté au compte de résultat). La <b>balance</b> met tous les comptes sur une page : ouverture, mouvements, soldes, et des totaux qui doivent tomber juste — c'est le contrôle qu'un cabinet fait avant tout autre. Ses deux autres vues, <b>auxiliaire clients</b> et <b>auxiliaire fournisseurs</b>, disent qui doit quoi, tiers par tiers.</p>
+<p>Les écritures se lisent aussi <b>par compte</b>. Le <b>grand livre</b> — le « mouvement de compte » — montre, pour un compte donné, chaque ligne qui l'a touché et le solde qui avance ; en tête, le solde d'ouverture reprend tout ce qui précède la période (les charges et les produits repartent de zéro au 1er janvier, et ce qu'ils portaient avant est reporté au compte de résultat). La <b>balance</b> met tous les comptes sur une page : ouverture, mouvements, soldes, et des totaux qui doivent tomber juste — c'est le contrôle qu'un cabinet fait avant tout autre. Ses deux autres vues, <b>auxiliaire clients</b> et <b>auxiliaire fournisseurs</b>, disent qui doit quoi, tiers par tiers.</p>
 <p>Dans « Plan de comptes… », la case <b>un sous-compte par client et par fournisseur</b> donne à chaque tiers son numéro (411001, 401001…), comme les cabinets les tiennent ; le code est figé sur la fiche et ne change plus. Le plan comptable tunisien complet y est consultable, pour nommer un compte — il n'impose rien. Ton comptable lit la même balance, à jour, dans son application. <em>À VÉRIFIER avec ton comptable.</em></p>
 <h3>Onglet États financiers : le bilan et l'état de résultat</h3>
-<p>Depuis la 9.0.0, l'exercice se lit en entier. Au 1er janvier, une pièce d'<b>à-nouveaux</b> rouvre chaque compte de bilan avec son solde de la veille et porte le passé au compte de résultat des exercices antérieurs. Au 31 décembre, la <b>dotation aux amortissements</b> de chaque bien s'écrit (681 / 28), et une cession sort le bien de l'actif. La paie porte la TFP et le FOPROLOS. Et l'onglet <b>États financiers</b> déduit de la balance un <b>bilan</b> (actif = passif) et un <b>état de résultat</b> (produits − charges) : une présentation d'ensemble, pas la liasse fiscale, que ton comptable établit à partir de ces chiffres. Dans la Trésorerie, l'<b>état de rapprochement</b> présente ton relevé face à SkanFact comme il le joint au dossier.</p>
+<p>L'exercice se lit en entier. Au 1er janvier, une pièce d'<b>à-nouveaux</b> rouvre chaque compte de bilan avec son solde de la veille et porte le passé au compte de résultat des exercices antérieurs. Au 31 décembre, la <b>dotation aux amortissements</b> de chaque bien s'écrit (681 / 28), et une cession sort le bien de l'actif. La paie porte la TFP et le FOPROLOS. Et l'onglet <b>États financiers</b> déduit de la balance un <b>bilan</b> (actif = passif) et un <b>état de résultat</b> (produits − charges) : une présentation d'ensemble, pas la liasse fiscale, que ton comptable établit à partir de ces chiffres. Dans la Trésorerie, l'<b>état de rapprochement</b> présente ton relevé face à SkanFact comme il le joint au dossier.</p>
 <h3>Onglet Clôtures : fermer un mois</h3>
 <p>Clôturer un mois le fige : plus aucune écriture ne peut le changer sans que tu le décides et que tu dises pourquoi. C'est ce qui garantit qu'un chiffre déjà déclaré ne bouge plus dans ton dos. Voir <a href="#/aide/cloture">Clôturer un mois</a>.</p>
 <h3>Onglet Cabinet : ton comptable</h3>
@@ -1062,6 +1062,7 @@
       id: 'caisse', title: 'Vendre au comptoir', sub: 'Scanner, encaisser, imprimer le ticket, et compter le tiroir le soir',
       body: `
 <p>Deux onglets : <b>Vendre</b> et <b>Tickets et bilan du jour</b>. La page apparaît quand le module <b>Caisse</b> est coché (Paramètres → L'application → Ce que l'application t'affiche) ; elle l'est d'office pour le commerce, la restauration et la beauté.</p>
+<p>La caisse s'<b>ouvre</b> avant la première vente du jour, par la personne qui la tient, avec le <b>fond de caisse</b> (les espèces déjà dans le tiroir), et se <b>ferme</b> le soir : on compte le tiroir sans voir ce qu'il devrait contenir, et SkanFact fige le <b>Z</b> — les ventes de la session, l'attendu, l'écart. Une caissière qui passe la main à une autre le fait en changeant de caissier, sans fermer la caisse.</p>
 <h3>Avant la première vente</h3>
 <ul>
   <li><b>Créer la caisse</b> : le compte où arrivent les espèces, avec ton fond de caisse. La page le propose tant qu'il n'existe pas — sans lui, les espèces iraient sur ton compte bancaire.</li>
@@ -1069,16 +1070,16 @@
   <li><b>L'imprimante à tickets</b> : SkanFact imprime par la fenêtre d'impression de ton ordinateur. La largeur du papier (80 ou 58 mm) se règle dans Paramètres → Documents → Caisse et tickets.</li>
 </ul>
 <h3>Une vente</h3>
-<p>Scanne l'article : il entre dans le ticket, et le curseur revient pour le suivant. Sans douchette, tape son nom ou clique sa case. Choisis le mode — espèces, carte, chèque —, tape au besoin le billet reçu pour lire la monnaie à rendre, puis <b>Encaisser</b> (ou <kbd>⌘</kbd> + <kbd>↵</kbd>). Le ticket prend son numéro (TIC-2026-001…), s'enregistre payé, et « Imprimer le ticket » l'imprime.</p>
+<p>Scanne l'article : il entre dans le ticket, et le curseur revient pour le suivant. Sans douchette, tape son nom ou clique sa case. Une <b>remise</b> sur le ticket se pose avant d'encaisser, en pourcentage ; au-delà du plafond réglé pour la caisse, elle demande le code d'un responsable présent. Choisis le mode — espèces, carte, chèque —, tape au besoin le billet reçu pour lire la monnaie à rendre, puis <b>Encaisser</b> (ou <kbd>⌘</kbd> + <kbd>↵</kbd>). Le ticket prend son numéro (TIC-2026-001…), s'enregistre payé, et « Imprimer le ticket » l'imprime.</p>
 <h3>Ce qu'un ticket fait tout seul</h3>
 <p>Un ticket est une vente comme une facture : il entre dans le chiffre d'affaires, dans la TVA collectée du mois, dans les écritures et le paquet de ton comptable. Il sort les articles suivis du stock, au coût moyen. Les espèces arrivent dans la caisse, la carte et le chèque à la banque. Il ne se range pas avec les factures — cent tickets par jour noieraient la liste — et il a <b>sa propre numérotation</b> : il ne prend jamais un numéro de facture.</p>
 <p>Un ticket n'est pas une facture. Un client qui en veut une à son nom : fais-lui une facture depuis la page Factures. Le timbre fiscal n'est pas porté par défaut sur les tickets ; <em>À VÉRIFIER avec ton comptable</em> : les mentions obligatoires d'un ticket et le droit de timbre.</p>
 <h3>Rendre un article</h3>
-<p>Onglet <b>Tickets et bilan du jour</b> → clique le ticket → <b>Rendre un article…</b>. Tu choisis quoi (jamais plus que ce qui a été vendu), comment tu rends l'argent, et le montant se lit avant de valider. SkanFact établit un <b>avoir</b> sur le ticket, remet l'article en stock, et fait sortir l'argent du compte du mode choisi.</p>
-<h3>Le soir : le bilan</h3>
-<p>Le bilan du jour dit ce que la caisse a vendu, et comment on t'a payé. La carte <b>Espèces</b> est ce que le tiroir doit contenir en plus du fond de caisse : compte-le, un écart se voit tout de suite. « Imprimer le bilan du jour » le sort sur le même rouleau.</p>
+<p>Onglet <b>Tickets et bilan du jour</b> → clique le ticket → <b>Rendre un article…</b>, avec le code d'un responsable présent. Tu choisis quoi (jamais plus que ce qui a été vendu), comment tu rends l'argent, et le montant se lit avant de valider. SkanFact établit un <b>avoir</b> sur le ticket, remet l'article en stock, et fait sortir l'argent du compte du mode choisi.</p>
+<h3>Le soir : fermer la caisse et faire le Z</h3>
+<p><b>Fermer la caisse et faire le Z</b> : tu comptes le tiroir et tu tapes ce que tu as compté, sans voir ce qu'il devrait contenir — c'est ce qui rend le comptage honnête. SkanFact calcule l'attendu (le fond, plus les espèces encaissées, moins l'argent rendu) et l'écart, puis fige le Z : il ne bouge plus et s'imprime sur le même rouleau. Le bilan du jour, dans l'onglet <b>Tickets et bilan du jour</b>, dit ce que la caisse a vendu et comment on t'a payé.</p>
 <h3>Ce que la caisse ne fait pas</h3>
-<p>Pas de paiement en plusieurs modes sur un même ticket (fais deux tickets), pas de remise au comptoir, pas de tiroir-caisse commandé par l'imprimante. Et un ticket ne s'envoie pas à la TTN : la facture électronique concerne les factures.</p>`
+<p>Pas de paiement en plusieurs modes sur un même ticket (fais deux tickets), pas de vente « sur le compte » d'un client. Et un ticket ne s'envoie pas à la TTN : la facture électronique concerne les factures.</p>`
     },
     {
       id: 'stock', title: 'Tenir son stock sans y passer ses soirées', sub: 'Suivi automatique, coût moyen, inventaire',
@@ -1120,22 +1121,23 @@
   <li>dans <b>Marges → Seuil de rentabilité</b>, rangé dans les charges variables — pas de vente, pas de coût.</li>
 </ul>
 <h3>Ce que cette page ne fait pas</h3>
-<p>Pas de numéros de série, pas de lots ni de dates de péremption, pas de dépôts multiples, pas de réservation sur commande. Pas de FIFO ni de LIFO non plus : un seul coût moyen. Ce sont des besoins d'entreprises plus grandes ; si l'un d'eux devient nécessaire, il se rajoutera.</p>`
+<p>Pas de FIFO ni de LIFO : un seul coût moyen. Le reste existe, à part : les <b>numéros de série</b> (l'onglet du même nom, voir <a href="#/aide/series">Savoir qui a quoi</a>), les <b>lots</b> avec leur date de péremption (la case « Suivre par lot » de la fiche d'un article), et <b>plusieurs dépôts</b> avec leurs transferts (« Dépôts… » sur cette page : tant qu'il n'y en a qu'un, rien ne change à l'écran).</p>`
     },
     {
       id: 'paie', title: 'Payer quelqu\'un', sub: 'Bulletins, cotisations, et ce que ça coûte vraiment',
       body: `
-<p>Sept onglets : <b>Bulletins</b>, <b>Salariés</b>, <b>Congés et absences</b>, <b>Avances</b>, <b>Déclarations</b>, <b>Registre</b>, <b>Barèmes</b>.</p>
+<p>Trois vues : <b>Aujourd'hui</b> (qui est là, les congés et les demandes, ce qu'il ne faut pas oublier), <b>Le mois</b> — quatre étapes qu'on suit dans l'ordre : <b>Pointer</b>, <b>Les bulletins</b>, <b>Payer</b>, <b>Déclarer</b> — et <b>L'équipe</b> (les fiches, les avances et prêts, le registre du personnel). Les taux et les horaires se règlent dans <b>Réglages</b>, en haut à droite de la page.</p>
 <p>Embaucher, c'est le moment où la gestion cesse d'être un confort. Un bulletin faux se voit, se conteste, et se paie. Cette page calcule les bulletins — mais elle ne remplace pas ton comptable, et la première chose à faire est de lui montrer les trois premiers.</p>
 <h3>Aucun taux n'est écrit en dur</h3>
-<p>C'est le point le plus important. Tout ce qui sert au calcul — CNSS, impôt, contribution de solidarité, frais professionnels, déductions familiales, tranches du barème — se lit dans l'onglet <b>Barèmes</b>, et rien ne se calcule ailleurs.</p>
+<p>C'est le point le plus important. Tout ce qui sert au calcul — CNSS, impôt, contribution de solidarité, frais professionnels, déductions familiales, tranches du barème — se lit dans les <b>Réglages de la paie</b>, et rien ne se calcule ailleurs.</p>
 <p>Les valeurs livrées sont celles couramment appliquées en Tunisie au moment où cette version a été écrite. <b>Elles changent à chaque loi de finances.</b> Quand un taux bouge, tu le corriges ici, et les nouveaux bulletins en tiennent compte. Les bulletins déjà établis, eux, gardent leur propre calcul : un barème modifié ne réécrit jamais un bulletin déjà remis à un salarié.</p>
 <h3>Le chemin d'un mois</h3>
+<p>Une fois, la <b>fiche</b> de chaque salarié (L'équipe) : identité, n° CNSS, contrat, brut mensuel, situation familiale, RIB. Puis chaque mois, la frise de <b>Le mois</b> te mène d'une étape à l'autre :</p>
 <ol>
-  <li>Tu crées la <b>fiche</b> de chaque salarié : identité, matricule CNSS, contrat, brut mensuel, situation familiale.</li>
-  <li>Chaque mois, un bouton établit <b>tous les bulletins manquants</b> d'un coup, au brut de chaque fiche.</li>
-  <li>Tu ouvres ceux qui ont une particularité : une prime, une retenue, des jours d'absence.</li>
-  <li>Tu exportes le <b>PDF</b>, tu le remets, et tu marques le bulletin <b>payé</b> le jour du virement.</li>
+  <li><b>Pointer</b> : le pointage du mois, les jours de chacun — présent, absent, en congé, les heures en plus. Ce qui reste à régler se dit (une journée sans réponse, une demande de congé), puis tu <b>valides le mois</b> : les bulletins reprennent ses absences et ses heures.</li>
+  <li><b>Les bulletins</b> : un bouton établit tous ceux qui manquent, d'un coup ; tu ouvres ceux qui ont une particularité (une prime, une retenue).</li>
+  <li><b>Payer</b> : l'ordre de virement à remettre à ta banque, ou les reçus pour qui est payé en espèces, puis « Marquer payés » au jour du paiement. Le PDF de chaque bulletin se remet au salarié.</li>
+  <li><b>Déclarer</b> : la CNSS du trimestre et la déclaration d'employeur, préparées ici.</li>
 </ol>
 <p>Un salarié actif sans bulletin remonte dans « À faire » : c'est un oubli, pas un choix.</p>
 <h3>Comment le net se calcule</h3>
@@ -1155,16 +1157,16 @@
 <h3>Ce que cette page ne fait pas</h3>
 <p>SkanFact ne dépose rien : la CNSS du trimestre et la déclaration d'employeur se préparent ici, mais c'est toi (ou ton comptable) qui les déposes. Et il ne <b>devine</b> aucune exonération : un CIVP, un contrat Karama ou un saisonnier peuvent être dispensés d'une partie des charges ou de l'impôt, selon le dispositif et l'année.</p>
 <h3>Les contrats aux règles particulières</h3>
-<p>Dans l'onglet <b>Barèmes</b>, le panneau « Les contrats aux règles particulières » porte une ligne par type de contrat. Une case <b>vide</b> applique le taux général ; <b>0</b> exonère ; la case « Sans IRPP » supprime la retenue d'impôt. Chaque bulletin d'un salarié sous ce contrat suit sa ligne, et le bulletin garde une copie du régime appliqué : changer la ligne plus tard ne réécrit pas un bulletin remis. <em>À VÉRIFIER avec ton comptable avant le premier bulletin : la table est livrée vide, exprès.</em></p>
+<p>Dans les <b>Réglages de la paie</b>, le panneau « Les contrats aux règles particulières » porte une ligne par type de contrat. Une case <b>vide</b> applique le taux général ; <b>0</b> exonère ; la case « Sans IRPP » supprime la retenue d'impôt. Chaque bulletin d'un salarié sous ce contrat suit sa ligne, et le bulletin garde une copie du régime appliqué : changer la ligne plus tard ne réécrit pas un bulletin remis. <em>À VÉRIFIER avec ton comptable avant le premier bulletin : la table est livrée vide, exprès.</em></p>
 <p>Et surtout : <b>elle ne remplace pas un comptable.</b> Les bulletins portent une mention imprimée qui le rappelle. Fais-les valider avant de les remettre, et refais le contrôle chaque fois qu'une loi de finances passe.</p>`
     },
     {
       id: 'conges', title: 'Congés, absences et papiers du personnel', sub: 'Compteurs, avances, attestations',
       body: `
-<p>La paie de la 5.0.0 savait calculer un bulletin. Restait la question de tous les jours : d'où viennent les jours d'absence, et d'où vient la retenue d'une avance ? La réponse est la même que partout ailleurs dans SkanFact : tu le saisis une fois, au moment où ça arrive, et le bulletin du mois le reprend tout seul.</p>
+<p>D'où viennent les jours d'absence d'un bulletin, et la retenue d'une avance ? La réponse est la même que partout ailleurs dans SkanFact : tu le notes une fois, au moment où ça arrive, et le bulletin du mois le reprend tout seul. Les congés et les absences vivent dans <b>Paie → Aujourd'hui → Congés et absences</b> ; les avances dans <b>Paie → L'équipe → Avances et prêts</b>.</p>
 <h3>Les congés</h3>
-<p>Le droit annuel se règle dans <b>Paie → Barèmes</b> (18 jours ouvrables par défaut) et s'acquiert <b>au prorata des mois travaillés</b> : quelqu'un arrivé en juillet n'a pas droit à une année entière.</p>
-<p>Tu enregistres chaque absence avec sa nature :</p>
+<p>Le droit annuel se règle dans les <b>Réglages de la paie</b> (18 jours ouvrables par défaut) et s'acquiert <b>au prorata des mois travaillés</b> : quelqu'un arrivé en juillet n'a pas droit à une année entière.</p>
+<p>Un salarié te demande un congé ? <b>Note la demande</b> : elle attend ta réponse sans se perdre, rien ne compte avant, et l'accepter pose le congé sur le pointage. Tu enregistres chaque absence avec sa nature :</p>
 <ul>
   <li><b>Congé payé</b> — entame le compteur, ne réduit pas le salaire.</li>
   <li><b>Arrêt maladie</b>, <b>maternité</b>, <b>autorisation</b> — ne réduisent ni le salaire ni le compteur.</li>
@@ -1188,7 +1190,7 @@
 <h3>Le registre du personnel</h3>
 <p>La liste que l'inspection du travail peut demander : qui a travaillé chez toi, à quel poste, sous quel contrat, entre quelles dates. Les salariés partis y figurent aussi — c'est le but. Exportable en CSV. <em>À VÉRIFIER : la forme exacte du registre relève du code du travail.</em></p>
 <h3>Ce que ça ne fait pas</h3>
-<p>Pas de demande de congé à valider, pas de planning d'équipe, pas de pointage. Pas de calcul d'indemnité de licenciement non plus : ce calcul dépend de l'ancienneté, du motif et de la convention, et se fait avec un comptable ou un juriste, pas dans un tableau.</p>`
+<p>Un salarié ne fait pas sa demande lui-même : c'est toi qui la notes. Pas de calcul d'indemnité de licenciement non plus : ce calcul dépend de l'ancienneté, du motif et de la convention, et se fait avec un comptable ou un juriste, pas dans un tableau.</p>`
     },
     {
       id: 'cabinet', title: 'Confier ta comptabilité à ton comptable', sub: 'Il tient tes livres ici même, à jour',
@@ -1237,10 +1239,10 @@
 </ul>
 
 <h3>Le journal des clôtures</h3>
-<p>Chaque clôture et chaque réouverture y figure, avec sa date, l'ordinateur qui l'a faite et le motif. C'est la ligne qu'on relit le jour où un chiffre a bougé après un envoi. Rien ne s'en efface.</p>
+<p>Chaque clôture et chaque réouverture y figure, avec le jour, la personne qui l'a faite et le motif. C'est la ligne qu'on relit le jour où un chiffre a bougé après un envoi. Rien ne s'en efface.</p>
 
 <h3>Si vous êtes deux sur le même dossier</h3>
-<p>La clôture est une donnée comme une autre : elle voyage avec le dossier partagé. Si ton associé clôture mars sur son poste, ton poste le verra à la prochaine synchronisation et refusera lui aussi les pièces de mars. Mettez-vous d'accord sur qui clôture — comme pour l'émission des factures.</p>`
+<p>Une clôture vaut pour toute l'entreprise, tout de suite : si ton associé clôture mars, ton écran refuse lui aussi les pièces de mars. Mettez-vous d'accord sur qui clôture — comme pour l'émission des factures.</p>`
     },
     {
       id: 'declarations', title: 'Les déclarations sociales', sub: 'CNSS trimestrielle, déclaration d\'employeur',
@@ -1273,34 +1275,22 @@
 <p>Ces chiffres sont l'arithmétique exacte de tes bulletins, pas une déclaration officielle. La forme du formulaire, les dates, les modalités de dépôt et les éventuelles exonérations (contrats CIVP, Karama, saisonniers — réglées dans Barèmes) relèvent de ton comptable. <em>Fais-lui vérifier les premières déclarations, comme les premiers bulletins.</em></p>`
     },
     {
-      id: 'lecture', title: 'Photographier une facture au lieu de la saisir', sub: 'Ce que ça envoie, ce que ça coûte, ce que ça ne fait pas',
+      id: 'lecture', title: 'Lire une facture d\'achat au lieu de la saisir', sub: 'La facture électronique, la photo lue par l\'IA, et ce qui part',
       body: `
-<p><b>Depuis la 8.7.0, cette fonction est en pause.</b> Elle n'a de sens qu'avec une application sur téléphone pour prendre la photo, et celle-ci n'existe pas encore : le réglage n'apparaît plus dans les Paramètres, et aucune image ne part de ton ordinateur. Joindre une photo ou un PDF comme justificatif d'un achat reste possible, hors ligne, depuis le bouton « Joindre un justificatif… » de l'écran d'achat. Le reste de cet article décrit ce que la fonction fera le jour où elle reviendra.</p>
-<p>Saisir une facture fournisseur prend deux minutes. En saisir trente en fin de mois prend une soirée. SkanFact peut lire la photo à ta place et te proposer la saisie toute faite — mais cette fonction est la <b>seule</b> de l'application qui envoie une de tes pièces sur Internet, alors elle mérite trois minutes de lecture avant de l'activer.</p>
-<h3>Par défaut, elle est éteinte</h3>
-<p>Tant qu'aucune clé n'est enregistrée, <b>aucune pièce ne quitte ton ordinateur</b>. Le bouton « Depuis une photo… » de l'écran d'achat fonctionne quand même : il joint la photo à l'achat comme justificatif, et tu saisis à la main. C'est le fonctionnement normal, hors ligne, et il n'expire jamais.</p>
-<h3>Ce qui part, si tu l'actives</h3>
-<ul>
-  <li><b>L'image de la facture</b>, et rien d'autre. Pas tes clients, pas tes chiffres, pas ta comptabilité, pas ton fichier de données.</li>
-  <li><b>Au moment où tu cliques</b>, pas avant, pas en arrière-plan. SkanFact te demande confirmation à chaque facture, en te disant le nom du fichier et sa taille.</li>
-</ul>
+<p>Saisir une facture fournisseur prend deux minutes ; en saisir trente en fin de mois prend une soirée. Dans un achat neuf, SkanFact te demande d'abord <b>comment arrive cette pièce</b>, le plus rapide en premier. Tu peux aussi glisser le fichier sur la page.</p>
+<h3>La facture électronique : le plus sûr</h3>
+<p>Le fichier XML d'El Fatoora : <b>Lire une e-facture</b> le lit sans l'IA — rien ne part hors de Tunisie —, et tout se remplit au millime : le fournisseur, le numéro, les dates, chaque ligne, la TVA et le timbre. Voir <a href="#/aide/achats">Tes achats et tes dépenses</a>.</p>
+<h3>La photo ou le PDF, lus par l'IA</h3>
+<p><b>Lire avec l'IA</b> lit une photo ou un PDF de facture avec l'IA de Claude (Anthropic). <b>Elle se demande à chaque pièce</b> : l'image part hors de Tunisie, seulement si tu dis oui, et rien d'autre ne part — ni tes clients, ni tes chiffres. Réponds « Non : la joindre et saisir à la main », et la pièce est jointe sans rien envoyer à l'IA.</p>
 <p>Note quand même que la facture d'un fournisseur porte son nom, son matricule et des montants : si un achat est confidentiel, saisis-le à la main.</p>
-<h3>Ce que ça coûte</h3>
-<p>Il faut une <b>clé d'API</b>, que tu crées toi-même sur <code>console.anthropic.com</code> et que tu recharges comme un compte prépayé. Chaque facture lue coûte quelques centimes. La clé est stockée sur cet ordinateur, dans un fichier séparé de tes données — elle n'entre jamais dans une sauvegarde ni dans un dossier partagé.</p>
-<p><b>Paramètres → Données et sécurité → Lecture de factures d'achat</b> pour l'activer, la changer, ou l'effacer d'un clic.</p>
-<h3>L'application ne remplit jamais toute seule</h3>
-<p>C'est la règle qui ne bougera pas. Ce qui a été lu s'affiche dans une fenêtre de vérification :</p>
-<ul>
-  <li>Le <b>fournisseur</b> est reconnu par son matricule fiscal, à défaut par son nom. S'il est inconnu, SkanFact te le dit et te propose de créer la fiche — il ne la crée jamais tout seul, sinon ta liste se remplirait de doublons.</li>
-  <li>Le <b>total des lignes</b> est comparé au total imprimé sur la pièce. S'il y a un écart, il est affiché en rouge : c'est presque toujours une ligne mal lue.</li>
-  <li>Un <b>numéro de facture manquant</b> est signalé : sans lui, la TVA n'est pas déductible.</li>
-  <li>Les lignes arrivent toutes en destination <b>« charge »</b>. Si c'est de la marchandise ou du matériel, c'est à toi de le dire : une erreur de lecture sur une quantité fausserait tout ton stock.</li>
-</ul>
-<p>Tu valides, l'écran d'achat s'ouvre pré-rempli, et tu peux encore tout changer avant d'enregistrer. La photo est jointe comme justificatif dans tous les cas.</p>
-<h3>Quand ça ne marche pas</h3>
-<p>Pas d'internet, clé épuisée, photo floue : SkanFact te le dit en clair et te propose de joindre la photo et de saisir à la main. Rien n'est jamais perdu, et l'achat n'est jamais enregistré à moitié.</p>
+<h3>Tu vérifies avant que la pièce se remplisse</h3>
+<p>Ce que l'IA a compris s'affiche <b>case par case</b> : tu corriges ce qui est mal lu, tu valides, et l'écran d'achat se remplit. Tu peux encore tout changer avant d'enregistrer, et la photo reste jointe comme justificatif. L'application ne remplit jamais une pièce sans que tu l'aies relue.</p>
+<h3>Couper la lecture par l'IA</h3>
+<p><b>Paramètres → Données et sécurité → Lecture des factures d'achat — ce qui part, et où</b> la coupe : elle ne se propose plus, et les pièces se joignent et se saisissent à la main.</p>
+<h3>Confier la saisie à ton comptable</h3>
+<p>Si un cabinet tient ton dossier, <b>Confier au cabinet</b> lui envoie la photo dans votre conversation : c'est lui qui la saisit.</p>
 <h3>Conseils de photo</h3>
-<p>À plat, bien éclairé, la facture entière dans le cadre, sans ombre portée. Un PDF est encore mieux qu'une photo quand le fournisseur en envoie un. Au-delà de 10 Mo, le service refuse l'image : règle ton téléphone sur une qualité moyenne, c'est largement suffisant pour du texte.</p>`
+<p>À plat, bien éclairé, la facture entière dans le cadre, sans ombre portée. Un PDF est encore mieux qu'une photo quand le fournisseur en envoie un.</p>`
     },
     {
       id: 'series', title: 'Savoir qui a quoi : numéros de série et garanties', sub: 'Parc client, fin de garantie, occasion de vente',
@@ -1419,7 +1409,7 @@
 <h3>Le justificatif</h3>
 <p>Chaque achat accepte une pièce jointe. Photographie ou scanne la facture du fournisseur et joins-la. Sans justificatif, en cas de contrôle, ni la charge ni la TVA ne sont admises : la dépense existe dans tes comptes mais pas aux yeux du fisc.</p>
 <h3>La facture électronique d'un fournisseur</h3>
-<p>Avec El Fatoora, tes fournisseurs t'envoient leur facture en fichier <b>.xml</b> (au format TEIF). Dans un achat neuf, clique « Lire une e-facture… » et choisis ce fichier : SkanFact lit le fournisseur (reconnu par son matricule), le numéro, les dates, chaque ligne, la TVA et le timbre, <b>sur ton ordinateur, sans rien envoyer</b>, et recompte chaque montant. Tu relis ce qui a été lu, puis l'achat se remplit et le fichier est joint comme justificatif. Un fournisseur inconnu se crée d'un clic, avec l'adresse que porte sa facture ; un avoir se rattache à la facture qu'il corrige quand elle est déjà dans tes achats.</p>
+<p>Avec El Fatoora, tes fournisseurs t'envoient leur facture en fichier <b>.xml</b> (au format TEIF). Dans un achat neuf, clique « Lire une e-facture… » et choisis ce fichier : SkanFact lit le fournisseur (reconnu par son matricule), le numéro, les dates, chaque ligne, la TVA et le timbre, <b>sans l'IA</b> — rien ne part hors de Tunisie —, et recompte chaque montant. Tu relis ce qui a été lu, puis l'achat se remplit et le fichier est joint comme justificatif. Un fournisseur inconnu se crée d'un clic, avec l'adresse que porte sa facture ; un avoir se rattache à la facture qu'il corrige quand elle est déjà dans tes achats.</p>
 <p>La <b>destination</b> de chaque ligne (charge, stock, immobilisation) et la catégorie restent à choisir : une facture ne dit pas ce que tu fais de ce que tu as acheté. <em>Qu'un fichier non signé ne vaut pas la facture validée par la TTN, et ce qu'il faut garder en cas de contrôle : À VÉRIFIER avec ton comptable.</em></p>
 <h3>Le panneau « À payer »</h3>
 <p>En haut de la page Achats : ce que tu dois, à qui, pour quand. C'est l'exact pendant de la page Relances, mais côté sortant. Les retards sont en tête et en orange.</p>
@@ -1432,57 +1422,36 @@
 </ul>`
     },
     {
-      id: 'licence', title: 'La licence', sub: 'Ce qu\'elle bloque, et surtout ce qu\'elle ne bloque pas',
+      id: 'licence', title: 'Ton abonnement', sub: 'L\'essai, les deux offres, et ce qui se passe à l\'échéance',
       body: `
-<p>SkanFact est un logiciel payant. Sa licence a été écrite en partant d'une question simple : <b>qu'est-ce qui serait insupportable à la place de l'utilisateur ?</b> Les réponses ont donné trois règles.</p>
-
-<h3>1. Aucune connexion</h3>
-<p>Ta clé est vérifiée <b>sur ton ordinateur</b>, avec une signature électronique. Elle n'est présentée qu'aux services de SkanFact — les mises à jour, et la vérification qu'elle n'a pas été révoquée —, il n'y a aucun compte à créer, et SkanFact fonctionne dans un chantier sans réseau comme dans un bureau. Si le fournisseur de SkanFact disparaissait demain, ton application continuerait de fonctionner jusqu'à la fin de ta licence.</p>
-
-<h3>2. Jamais tes données en otage</h3>
-<p>Une licence expirée <b>ne ferme rien de ce que tu as déjà</b>. Tu peux toujours :</p>
-<ul>
-<li>ouvrir, lire et imprimer tous tes documents ;</li>
-<li>exporter tes données, tes journaux, tes PDF ;</li>
-<li>fabriquer et envoyer le paquet mensuel à ton comptable ;</li>
-<li>faire tes sauvegardes.</li>
-</ul>
-<p>Seule la <b>création de nouvelles pièces</b> attend le renouvellement. C'est une limite commerciale, pas un chantage : tes factures sont à toi, dans un fichier lisible, sur ton disque.</p>
-
-<h3>3. Un essai complet</h3>
-<p>Les 30 premiers jours sont complets, sans rien à saisir. L'application te prévient une semaine avant la fin, dans la barre de gauche.</p>
-
-<h3>Deux offres</h3>
-<p>La clé porte l'offre choisie à l'achat. <b>Indépendant</b> couvre ce qu'il faut pour facturer seul : devis, factures, avoirs, relances, contrats récurrents, TVA et timbre, clôture, dossier mensuel du comptable. <b>Entreprise</b> ajoute Achats et fournisseurs, Stock, Immobilisations, Trésorerie et marges, Paie, et le dossier partagé à deux.</p>
-<p>En Indépendant, ces modules ne disparaissent pas : ils portent un cadenas dans le menu, tout ce qui y existe reste <b>lisible, imprimable et exportable</b>, et seule la création de nouvelles pièces y attend l'offre Entreprise. Pendant l'essai, tout est ouvert — c'est la seule façon de savoir de quelle offre tu as besoin.</p>
-<p>La clé est aussi attachée à ton <b>matricule fiscal</b> : émise pour ton entreprise, elle ne s'active pas sur le dossier d'une autre.</p>
-
-<h3>Demander ou renouveler</h3>
-<p><b>Paramètres → L'application → Licence → Demander une licence</b> prépare le message avec tout ce qu'il faut : ta raison sociale, ton matricule, et — si ton comptable t'a remis son fichier d'appairage — l'empreinte de son cabinet. <b>Un client envoyé par un cabinet qui utilise SkanFact Cabinet a droit à une remise.</b> Tu reçois une clé qui commence par <code>SKAN1.</code>, tu la colles, c'est fini.</p>
-<p>Si la clé est refusée, c'est presque toujours qu'elle a été copiée incomplètement : reprends-la depuis le <code>S</code> de <code>SKAN1.</code> jusqu'au tout dernier caractère, sans espace ni retour à la ligne oublié.</p>
-
-<h3>Changer d'ordinateur</h3>
-<p>La même clé fonctionne sur ton nouvel ordinateur : colle-la, et c'est tout. Elle est liée à ton entreprise, pas à une machine.</p>`
+<p>SkanFact se paie par un abonnement, <b>par entreprise</b> — jamais par utilisateur : toute ton équipe y travaille pour le même prix. Tout se règle dans <b>Paramètres → Ton abonnement</b>, que voient le propriétaire et un administrateur ; les autres rôles voient l'état de l'abonnement, et qui le règle.</p>
+<h3>L'essai</h3>
+<p>Une entreprise neuve a <b>trente jours d'essai</b>, tout ouvert, sans carte bancaire. La pastille en bas de la barre de gauche dit combien de jours il reste ; elle passe à l'orange la dernière semaine.</p>
+<h3>Les deux offres</h3>
+<p><b>Essentiel</b> et <b>Complet</b>, chacune à l'année ou au mois. Complet comprend en plus la <b>paie</b> et la <b>comptabilité complète</b>, et davantage de caisses et d'établissements. La TVA, les déclarations, les clôtures et ce que lit ton comptable sont dans les deux : une obligation légale ne se vend pas en option. Les prix du jour et ce que chaque offre comprend sont dans l'onglet : c'est lui qui fait foi. Une entreprise venue par son cabinet comptable a une remise sur ses premières factures ; l'onglet dit laquelle, et jusqu'à quand.</p>
+<p>Avec Essentiel, ce que tu as déjà dans la paie ou la comptabilité complète ne disparaît pas : tout s'y lit, s'imprime, s'exporte et se corrige ; seul ce qui est nouveau attend l'offre Complet.</p>
+<h3>S'abonner</h3>
+<p>Dans l'onglet, <b>Choisir mon offre</b>, puis l'offre et sa périodicité : SkanFact prépare ta facture, qui arrive dans « Tes factures » du même onglet, et un e-mail te prévient. Tu la règles en ligne quand c'est proposé, ou par virement ou par chèque — les coordonnées sont sur la facture. La période payée part de la fin de ton essai : aucun jour ne se perd.</p>
+<h3>À l'échéance</h3>
+<p>Un rappel part par e-mail avant l'échéance. Après elle, l'entreprise a quelques jours de grâce où tout marche encore ; l'onglet dit combien, et le jour où elle passera en <b>lecture seule</b>.</p>
+<h3>La lecture seule : jamais tes données en otage</h3>
+<p>Ce qui se ferme, c'est la <b>création de pièces nouvelles</b> : émettre une facture, ouvrir la caisse, un nouveau devis, un nouvel achat, un nouveau bulletin. Le reste reste ouvert : lire, imprimer, exporter, corriger une pièce existante, noter un paiement sur une facture émise, ce que la loi demande pour ce qui existe déjà (la clôture, les déclarations), parler à ton comptable — et payer, pour tout rouvrir.</p>
+<h3>Renouveler, ou arrêter</h3>
+<p>Quinze jours avant la fin d'une période payée, <b>Renouveler maintenant</b> reprend la même offre. <b>Ne pas renouveler</b>, en bas de l'onglet, laisse l'abonnement aller au bout de la période payée, puis l'entreprise passe en lecture seule ; tu peux le reprendre d'un clic jusque-là. Pour changer d'offre en cours de période, écris à <b>contact@skanfact.tn</b>.</p>`
     },
     {
-      id: 'donnees', title: 'Tes données : sauvegarder et protéger', sub: 'Le sujet le plus ennuyeux et le plus important',
+      id: 'donnees', title: 'Tes données : où elles sont, et comment les reprendre', sub: 'Les sauvegardes de chaque nuit, la copie complète, tes appareils',
       body: `
-<p>Tes données vivent dans un fichier unique sur ton ordinateur. Son chemin exact est affiché dans <b>Paramètres → Données et sécurité</b>.</p>
-<p class="small muted">Les Paramètres ont cinq onglets : <b>Mon entreprise</b> (ce qui s'imprime en haut de tes documents, ton régime fiscal, ton RIB), <b>Documents</b> (délais, taxes, logo et couleurs, textes imprimés), <b>Envois</b> (messagerie, comptable, modèles de messages, appairage du cabinet), <b>Données et sécurité</b> (cette page : dossiers, sauvegardes, mot de passe) et <b>L'application</b> (thème, modules affichés, mises à jour, licence, dépannage).</p>
-<p class="small muted">Tu ne sais pas dans quel onglet un réglage a été rangé ? <b>Ne cherche pas : tape son nom</b> dans le champ de recherche, en haut à droite de la page des Paramètres. Il répond sur les soixante réglages, onglet par onglet, et t'emmène directement dessus.</p>
-<h3>Les trois filets de sécurité</h3>
-<ul>
-  <li><b>La sauvegarde quotidienne</b> : chaque jour, l'état de tes données au premier enregistrement est copié dans un dossier <b>backups</b>. Trente jours sont conservés. Une fausse manipulation aujourd'hui se répare en revenant à hier.</li>
-  <li><b>La copie externe</b> : le dossier que tu as choisi (iCloud Drive, OneDrive, clé USB, disque réseau) reçoit une copie à chaque enregistrement. C'est ce qui te sauve si l'ordinateur est perdu, volé ou noyé.</li>
-  <li><b>L'export</b> : un fichier unique que tu peux ranger où tu veux. Fais-en un avant chaque grande manipulation.</li>
-</ul>
-<h3>Restaurer</h3>
-<p>Chaque sauvegarde a son bouton <b>Restaurer…</b>, dans le panneau Sauvegardes de cette page. La fenêtre dit d'abord ce qu'elle contient et ce que tu as aujourd'hui, et l'état actuel est mis de côté juste avant : même une restauration ratée se rattrape. <b>Importer</b> sert à autre chose : ouvrir un fichier venu d'ailleurs, un export ou une sauvegarde copiée sur une clé.</p>
-<h3>Changer d'ordinateur</h3>
-<p>La copie externe est faite pour ce jour-là. Sur le nouvel ordinateur, installe SkanFact, puis <b>Paramètres → Données et sécurité → Importer…</b> et choisis <code>skanfact-data.json</code> dans le dossier de ta copie externe : le sous-dossier <code>SkanFact</code>, ou <code>SkanFact — nom de l'entreprise</code> pour une deuxième entreprise. Tes pièces jointes reviennent avec lui. Choisis ensuite de nouveau ce dossier comme copie externe, pour que le filet reprenne.</p>
-<h3>Le mot de passe</h3>
-<p><b>Paramètres → Données et sécurité → Mot de passe</b> chiffre le fichier et toutes ses sauvegardes. Il sera demandé à chaque ouverture. Utile si ton ordinateur voyage.</p>
-<p>Un avertissement sérieux : <b>il n'existe aucune récupération</b>. Ni moi, ni personne ne peut relire tes données sans ce mot de passe. Note-le dans un gestionnaire de mots de passe ou sur un papier rangé ailleurs que dans le sac de l'ordinateur.</p>`
+<p>Tes données vivent sur le <b>serveur de SkanFact</b>, en Tunisie — pas sur ton ordinateur. Fermer l'onglet, changer d'ordinateur ou perdre ton téléphone ne les emporte pas : tu te reconnectes, elles sont là.</p>
+<p class="small muted">Tu ne sais pas dans quel onglet des Paramètres un réglage a été rangé ? <b>Ne cherche pas : tape son nom</b> dans le champ de recherche, en haut de la page des Paramètres. Il t'emmène directement dessus.</p>
+<h3>Les sauvegardes de chaque nuit</h3>
+<p>SkanFact copie toutes les données <b>chaque nuit</b>, garde les dernières nuits, et de quoi revenir à n'importe quelle <b>minute</b> des derniers jours. <b>Paramètres → Données et sécurité → Tes sauvegardes</b> dit ce que la surveillance du serveur a vu : la dernière copie de la nuit, la copie hors de la machine, le dernier essai de restauration. Une copie qui a échoué s'y dit aussi.</p>
+<h3>Revenir en arrière</h3>
+<p><b>Demander de revenir en arrière…</b>, dans le même panneau, efface tout ce qui a été fait après la minute choisie : ça ne se fait pas d'un clic. Ta demande part au support ; l'équipe SkanFact fait d'abord un essai, qui ne change rien et nomme les pièces numérotées qui disparaîtraient, puis te le dit. Seuls le propriétaire et un administrateur la demandent.</p>
+<h3>Une copie complète, chez toi</h3>
+<p><b>Toutes les données de l'entreprise → Télécharger toutes les données</b> (même onglet) enregistre une copie de tout ce que l'entreprise contient, dans un format ouvert : un fichier que tu ranges où tu veux, lisible sans SkanFact. Le propriétaire et un administrateur la demandent quand ils veulent, y compris en lecture seule : jamais de données en otage.</p>
+<h3>Ton compte et tes appareils</h3>
+<p><b>Paramètres → Ton compte</b> : ton adresse, ton mot de passe, et la double authentification. Un mot de passe oublié se refait depuis la page de connexion. <b>Tes appareils</b>, dans le même onglet, liste les ordinateurs et téléphones où ton compte est ouvert : un appareil perdu ou volé s'y retire.</p>`
     },
     {
       id: 'gestion', title: 'Bien gérer sa première entreprise', sub: 'Les réflexes qui évitent les mauvaises surprises',
@@ -1507,75 +1476,39 @@
 <p>SkanFact prépare, organise et exporte. Il ne remplace pas un professionnel qui connaît ta situation et la réglementation en vigueur. Les mentions « À VÉRIFIER » de cette aide sont là pour ça.</p>`
     },
     {
-      id: 'deux', title: 'Travailler à deux sur la même entreprise', sub: 'Dossier partagé : ce qui marche, et ce qui ne se répare pas',
+      id: 'deux', title: 'Travailler à plusieurs', sub: 'Ton équipe, ses rôles, et plusieurs entreprises',
       body: `
-<p>Deux cas différents, souvent confondus. Regarde lequel est le tien.</p>
-<h3>Cas 1 — une personne, deux entreprises</h3>
-<p>Quelqu'un gère deux sociétés sur le même ordinateur. Chacune a ses clients, sa numérotation, sa TVA : elles ne doivent <b>jamais</b> se mélanger.</p>
-<p>C'est le rôle des <b>dossiers</b> (Paramètres → Données et sécurité). Tu crées un dossier par entreprise et tu passes de l'un à l'autre en un clic. Rien de commun entre eux, pas même les paramètres.</p>
-<h3>Cas 2 — deux personnes, une entreprise</h3>
-<p>Deux ordinateurs travaillent sur la même société. Là, il faut un <b>dossier partagé</b> : un dossier posé dans iCloud Drive, OneDrive, un disque réseau ou une clé USB, que les deux postes ouvrent.</p>
-<h3>Comment on s'y prend, dans l'ordre</h3>
-<p><b>Tu as déjà saisi ton entreprise ?</b> Alors tu la partages telle quelle — il n'y a rien à ressaisir et rien à recréer.</p>
-<ol>
-  <li><b>Sur ton ordinateur</b>, ouvre l'entreprise à partager, puis Paramètres → Données et sécurité → <b>Partager ce dossier à deux…</b> (c'est aussi dans le menu en haut de la barre de gauche, sous le nom de l'entreprise). Choisis l'emplacement que vous voyez tous les deux. SkanFact y <b>copie</b> tout : la copie d'origine reste sur ton disque, au cas où.</li>
-  <li><b>Sur le second ordinateur</b>, installe SkanFact, puis <b>Rejoindre un dossier déjà partagé…</b> et désigne le dossier que le premier vient d'y poser (son nom commence par « SkanFact- »). Rien n'est créé : il ouvre celui-là. Pas d'assistant de première utilisation, pas de nom d'entreprise à retaper.</li>
-  <li>Attendez que la synchronisation soit finie (iCloud et OneDrive affichent une petite icône pendant l'envoi) avant d'ouvrir de l'autre côté.</li>
-</ol>
-<p>Si le dossier est protégé par un mot de passe, il sera demandé au second poste : c'est le même que chez toi, et il n'est écrit nulle part — il faut se le dire de vive voix.</p>
-<h3>Ce qui se passe quand vous modifiez en même temps</h3>
-<p>C'est la vraie question, et voici la réponse exacte.</p>
-<p>SkanFact numérote chaque enregistrement. Avant d'écrire, il relit le fichier partagé. Si le numéro a changé, c'est que l'autre poste a enregistré entre-temps : <b>il refuse d'écraser</b>. Il prend sa version, la compare à la tienne, et fusionne :</p>
+<p>SkanFact est en ligne : toute ton équipe travaille sur la même entreprise, chacun depuis son ordinateur ou son téléphone, en même temps. Il n'y a ni fichier à partager ni synchronisation à attendre : ce que l'un enregistre, l'autre le voit.</p>
+<h3>Inviter quelqu'un</h3>
+<p><b>Paramètres → L'équipe → Inviter quelqu'un…</b> : son adresse e-mail et son rôle. Il reçoit un lien — par e-mail, et la fenêtre te le donne aussi —, qui vaut jusqu'à la date qu'elle dit, une seule fois, pour l'adresse que tu as tapée. Il se connecte avec cette adresse, ou crée son compte avec elle, et rejoint l'entreprise. Le nombre de personnes n'est pas limité, et ne change pas le prix.</p>
+<h3>Les rôles</h3>
+<p>Un rôle dit ce que la personne peut faire ; on peut en donner plusieurs à la même personne.</p>
 <ul>
-  <li><b>Vous avez travaillé sur des pièces différentes</b> — le cas normal. Les deux travaux sont réunis, personne ne perd rien, tu vois passer un message discret.</li>
-  <li><b>Vous avez modifié la même pièce</b> — rare. SkanFact garde la version du fichier enregistré en dernier, te dit laquelle, et <b>conserve l'autre</b> au lieu de la jeter. Rien n'est détruit sans trace.</li>
-  <li><b>Une pièce supprimée d'un côté</b> — elle ne ressuscite pas. La suppression est mémorisée exprès pour ça.</li>
-  <li><b>La numérotation</b> — les compteurs ne redescendent jamais : SkanFact garde toujours le plus haut des deux.</li>
+  <li><b>Propriétaire</b> — tout, dont l'abonnement, le comptable et la propriété.</li>
+  <li><b>Administrateur</b> — tout, sauf l'abonnement, le choix du comptable et la propriété ; il gère aussi l'équipe.</li>
+  <li><b>Commercial</b> — vendre : devis, factures, clients, relances.</li>
+  <li><b>Caissier</b> — la caisse.</li>
+  <li><b>Magasinier</b> — le stock : réceptions, livraisons, transferts, inventaires.</li>
+  <li><b>Comptabilité interne</b> — achats, banque, déclarations, écritures ; pas la paie.</li>
+  <li><b>Paie</b> — salariés, bulletins, déclarations sociales.</li>
+  <li><b>Lecture</b> — tout voir, rien changer (un associé, un banquier), sauf le détail de la paie.</li>
 </ul>
-<h3>Le seul cas qui ne se répare pas tout seul</h3>
-<p>Si vous êtes <b>tous les deux hors ligne</b> et que vous <b>émettez chacun une facture</b>, vous sortirez tous les deux le numéro suivant. Aucun logiciel au monde ne peut deviner lequel garder : deux factures portent le même numéro, et ce n'est pas légal.</p>
-<p>SkanFact vous alerte en gros à la fusion, en nommant les pièces concernées. La correction est celle de toute facture émise par erreur : un <b>avoir</b> sur l'une, puis on la réémet avec un nouveau numéro.</p>
-<p>Pour que ça n'arrive jamais, une seule règle à tenir entre vous : <b>une seule personne émet les factures</b>. L'autre prépare des devis et des brouillons autant qu'il veut — un brouillon n'a pas de numéro, il ne peut donc pas entrer en conflit.</p>
-<h3>La bonne façon de travailler à deux</h3>
-<ul>
-  <li><b>Ouvrez à tour de rôle</b> quand c'est possible. Fermez SkanFact quand vous avez fini : le fichier part se synchroniser tout de suite.</li>
-  <li><b>Attendez la synchronisation</b> avant d'ouvrir de l'autre côté. iCloud et OneDrive mettent parfois une minute ; l'icône du dossier le montre.</li>
-  <li><b>Une seule personne émet</b> les factures et les avoirs.</li>
-  <li><b>Donnez un nom clair à chaque poste</b> (Paramètres → Données et sécurité → Ce poste) : les messages diront « les modifications du PC du bureau ont été reprises » plutôt qu'un nom technique.</li>
-  <li><b>Ne mettez pas le dossier partagé sur une clé USB</b> que vous débranchez à chaud. Un service de synchronisation fait le travail bien mieux.</li>
-</ul>
-<h3>Ce que SkanFact ne fait pas</h3>
-<p>Ce n'est pas un logiciel en ligne. Il n'y a pas de serveur, pas de compte, pas de synchronisation en temps réel : les deux postes ne se voient pas, ils se passent un fichier. C'est volontaire — tes données restent chez toi, et l'application marche sans internet.</p>
-<p>La conséquence : vous ne verrez pas le travail de l'autre <b>pendant</b> qu'il le fait, seulement une fois qu'il a enregistré et que la synchronisation est passée. Si vous avez besoin de travailler vraiment en même temps, à plusieurs, toute la journée, il faudra un vrai logiciel en ligne — et ce n'est pas ce que SkanFact cherche à être.</p>
-<h3>Et les sauvegardes ?</h3>
-<p>Chaque dossier garde les siennes, trente jours, dans son propre emplacement. Sur un dossier partagé, les sauvegardes du jour sont celles du poste qui a enregistré. Garde en plus une <b>copie externe</b> sur un autre support : un dossier synchronisé qui se corrompt, ça existe.</p>`
+<p>Un rôle qui ne peut pas faire un geste le lit sans pouvoir le changer, et l'écran le dit avant qu'il tape quoi que ce soit.</p>
+<h3>Deux personnes sur la même pièce</h3>
+<p>Quand quelqu'un d'autre a la même pièce ouverte, une pastille le dit en haut de la pièce, et dit s'il y écrit. Mettez-vous d'accord avant de modifier la même facture à deux.</p>
+<h3>Plusieurs entreprises</h3>
+<p>Le menu en haut de la barre de gauche, sous le nom de l'entreprise, passe de l'une à l'autre et porte <b>Ajouter une entreprise</b>. Chacune a ses clients, sa numérotation, sa TVA, son équipe et son abonnement : rien ne se mélange.</p>`
     },
     {
-      id: 'partager', title: 'Installer SkanFact pour quelqu\'un d\'autre', sub: 'Chaque entreprise, son ordinateur, ses données',
+      id: 'partager', title: 'Faire découvrir SkanFact à quelqu\'un', sub: 'Une autre entreprise, son compte, ses données',
       body: `
-<p>SkanFact n'est pas réservé à une entreprise en particulier. Au premier démarrage, il demande la raison sociale, le matricule fiscal, l'activité et les règles de facturation, puis il se comporte comme le logiciel de <b>cette</b> entreprise-là.</p>
-<h3>Comment ça marche</h3>
+<p>SkanFact n'est réservé à aucune entreprise : chacune a son compte, ses données et son abonnement. Pour qu'un proche l'essaie pour <b>sa</b> entreprise, il crée son compte sur la page de connexion de SkanFact (« Créer mon compte ») : trente jours d'essai, tout ouvert, sans carte bancaire. Il ne voit rien de la tienne, et toi rien de la sienne.</p>
+<p>S'il travaille au contraire <b>avec toi</b>, dans ton entreprise, invite-le dans ton équipe : voir <a href="#/aide/deux">Travailler à plusieurs</a>.</p>
+<h3>Ce qu'il faut lui dire</h3>
 <ul>
-  <li><b>Un ordinateur, une entreprise.</b> Les données vivent dans un fichier local ; deux personnes sur deux machines ne se voient pas et ne se gênent pas.</li>
-  <li><b>Aucune donnée partagée.</b> Les pièces ne passent par aucun serveur : ce que fait l'un reste chez l'un.</li>
-  <li><b>Numérotation indépendante.</b> Chaque installation a ses propres séries DEV, FAC et AVO, qui repartent à 001 chaque janvier.</li>
-</ul>
-<h3>Pour installer chez un proche</h3>
-<ol>
-  <li>Télécharge le fichier d'installation depuis la page des versions (menu <b>Aide → Toutes les versions</b>) : le <code>.dmg</code> pour un Mac, le <code>.exe</code> pour Windows.</li>
-  <li>Sur Mac, ouvre le <code>.dmg</code> et glisse SkanFact dans Applications. À la première ouverture, macOS demande confirmation parce que l'application n'est pas signée par Apple : clic droit sur l'icône puis <b>Ouvrir</b>.</li>
-  <li>Au premier lancement, SkanFact propose de <b>découvrir l'exemple</b> ou de <b>commencer tout de suite</b> ; quelques questions préparent ensuite l'entreprise : raison sociale, matricule, métier, ce dont elle a besoin. Le RIB et la copie de sécurité viennent après, dans « Tes premiers pas » sur l'accueil — chaque étape avec sa visite guidée.</li>
-  <li>Les mises à jour arrivent toutes seules, sans rien à configurer : SkanFact cherche toutes les quatre heures, télécharge en arrière-plan et te propose de redémarrer quand la nouvelle version est prête. <span class="small muted">(Il fallait autrefois coller un jeton d'accès : ce n'est plus le cas depuis que le dépôt est public.)</span></li>
-</ol>
-<h3>Les versions bêta</h3>
-<p>Il existe <b>deux canaux</b> de mise à jour. Le canal <b>normal</b> est celui de tout le monde : il ne propose que les versions terminées. Le canal <b>bêta</b>, l'interrupteur « Versions d'essai » dans Paramètres → L'application → Mises à jour, ajoute les versions d'essai — leur numéro finit par <code>-beta</code>, et la ligne dit laquelle est en cours — qui servent à vérifier une nouveauté avant de la livrer aux autres.</p>
-<p>Une bêta peut contenir des défauts : c'est exactement ce à quoi elle sert. Elle s'installe par-dessus SkanFact et travaille sur les mêmes données, donc une sauvegarde <code>avant-beta</code> est prise au moment où tu l'actives, et le mot <b>bêta</b> reste affiché en haut à gauche tant que tu tournes dessus. Sur l'ordinateur qui tient la vraie comptabilité — le tien, celui de ta famille — laisse l'interrupteur désactivé.</p>
-<h3>Ce qu'il faut leur dire</h3>
-<p>Trois choses suffisent pour bien démarrer :</p>
-<ul>
-  <li>Mettre en place la <b>copie externe</b> tout de suite (iCloud Drive, OneDrive ou clé USB).</li>
   <li>Une facture, une fois émise, ne se modifie plus : on corrige par un <b>avoir</b>.</li>
-  <li>Les petits <b>i</b> à côté des champs expliquent tout, et cette rubrique Aide répond au reste.</li>
+  <li>Les petits <b>i</b> à côté des champs expliquent le champ, « Guide-moi » en haut de chaque page montre où cliquer, et cette Aide répond au reste.</li>
+  <li>Une question qui bloque : <b>Aide → Écrire au support</b>. L'équipe SkanFact répond dans l'application, en général dans la journée.</li>
 </ul>
 <p class="small muted">Chaque activité a ses taux de TVA et ses obligations. Ce que dit cette aide vaut pour le cas général : c'est le comptable de chacun qui tranche pour son entreprise.</p>`
     },
@@ -1594,7 +1527,7 @@
 <h3>Avant d'écrire</h3>
 <ul>
 <li><b>Note ce que tu faisais exactement</b> : la page, le bouton, ce que tu attendais.</li>
-<li>La version est en bas de la barre de gauche ; ta demande l'emporte d'elle-même.</li>
+<li>Ta demande emporte d'elle-même la version de SkanFact et le nom de la page où tu étais.</li>
 <li>Si une page ne répond plus, recharge-la : ce qui a été enregistré est sur le serveur de SkanFact, pas dans la page.</li>
 </ul>
 
@@ -1706,7 +1639,7 @@ rencontres. Si un mot affiché dans l'application manque ici, c'est un défaut :
   <dt>Solde d'ouverture</dt><dd>Ce qu'un compte portait la veille du premier jour de la période. Les comptes de bilan le gardent d'une année sur l'autre ; les charges et les produits repartent de zéro au 1er janvier.</dd>
   <dt>Compte auxiliaire</dt><dd>Un sous-compte par tiers : 411001 pour un client, 401001 pour un fournisseur. La balance auxiliaire les liste un par un, avec ce que chacun doit ou est dû.</dd>
   <dt>Clôturer une période</dt><dd>Déclarer qu'un mois ne bougera plus, parce que tu l'as transmis. L'application refuse ensuite toute écriture à ces dates, sauf réouverture motivée.</dd>
-  <dt>Paquet mensuel</dt><dd>Le fichier unique que tu envoies à ton comptable : tous les PDF du mois, les journaux, et une empreinte de chaque pièce pour qu'il puisse vérifier que rien n'a bougé en route.</dd>
+  <dt>Dossier confié</dt><dd>Ce que ton cabinet tient quand tu lui confies ta comptabilité (Comptabilité → Cabinet) : il lit tes écritures à jour dans son application, et tu n'as rien à lui envoyer.</dd>
   <dt>Provisoire / définitif</dt><dd>Un paquet est <b>définitif</b> quand le mois était clôturé au moment de l'envoi : les chiffres ne bougeront plus. <b>Provisoire</b>, ils peuvent encore changer — ce n'est pas un défaut, c'est une information pour ton comptable.</dd>
   <dt>Empreinte</dt><dd>Une suite de caractères calculée à partir d'un fichier. Deux fichiers identiques donnent la même ; un octet change, elle change entièrement. C'est ce qui prouve qu'une pièce reçue est bien celle qui a été envoyée.</dd>
 </dl>`
@@ -1720,13 +1653,27 @@ rencontres. Si un mot affiché dans l'application manque ici, c'est un défaut :
   <tr><th>Rechercher partout</th><td><kbd>⌘</kbd> <kbd>K</kbd></td></tr>
   <tr><th>Revenir à l'écran précédent</th><td><kbd>⌘</kbd> <kbd>[</kbd></td></tr>
   <tr><th>Enregistrer</th><td><kbd>⌘</kbd> <kbd>S</kbd></td></tr>
-  <tr><th>Exporter en PDF (sur un devis ou une facture)</th><td><kbd>⌘</kbd> <kbd>P</kbd></td></tr>
-  <tr><th>Voir le document en grand</th><td><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>A</kbd></td></tr>
   <tr><th>Réglages</th><td><kbd>⌘</kbd> <kbd>,</kbd></td></tr>
   <tr><th>Nouveau devis, nouvelle facture, un écran</th><td><kbd>⌘</kbd> <kbd>K</kbd>, puis son nom</td></tr>
   <tr><th>Valider une fenêtre</th><td><kbd>Entrée</kbd></td></tr>
   <tr><th>Fermer une fenêtre</th><td><kbd>Échap</kbd></td></tr>
 </table>
+<h3>Dans un devis ou une facture</h3>
+<table class="keys">
+  <tr><th>Voir le document en grand</th><td><kbd>⌘</kbd> <kbd>P</kbd>, ou <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>A</kbd></td></tr>
+  <tr><th>Émettre la facture</th><td><kbd>⌘</kbd> <kbd>Entrée</kbd></td></tr>
+  <tr><th>Ajouter une ligne depuis le catalogue</th><td><kbd>⌘</kbd> <kbd>L</kbd></td></tr>
+  <tr><th>Dupliquer la ligne où tu es</th><td><kbd>⌘</kbd> <kbd>D</kbd></td></tr>
+  <tr><th>Monter ou descendre la ligne</th><td><kbd>Alt</kbd> <kbd>↑</kbd> ou <kbd>↓</kbd></td></tr>
+  <tr><th>Annuler, rétablir (hors d'une case où tu écris)</th><td><kbd>⌘</kbd> <kbd>Z</kbd>, <kbd>⌘</kbd> <kbd>Y</kbd></td></tr>
+</table>
+<h3>Dans une liste (factures, devis, clients, achats, fournisseurs)</h3>
+<table class="keys">
+  <tr><th>Chercher dans la liste</th><td><kbd>/</kbd></td></tr>
+  <tr><th>Passer d'une ligne à l'autre</th><td><kbd>↑</kbd> <kbd>↓</kbd></td></tr>
+  <tr><th>Ouvrir la ligne choisie</th><td><kbd>Entrée</kbd></td></tr>
+</table>
+<p class="small muted">À la caisse, <kbd>⌘</kbd> <kbd>Entrée</kbd> encaisse le ticket, la douchette dans l'autre main.</p>
 <p class="small muted">Tu n'as rien à retenir : le champ <b>Rechercher…</b> en haut de la barre de gauche fait la même chose que <kbd>⌘</kbd> <kbd>K</kbd>.</p>`
     }
   ];
@@ -1789,20 +1736,23 @@ rencontres. Si un mot affiché dans l'application manque ici, c'est un défaut :
     caisse: { label: 'Ouvrir la caisse', hash: '#/caisse' },
     series: { label: 'Voir les garanties', hash: '#/garanties' },
     immobilisations: { label: 'Voir mes immobilisations', hash: '#/immos' },
-    lecture: { label: 'Saisir un achat', hash: '#/achats' },
+    lecture: { label: 'Saisir un achat', hash: '#/achat/new' },
     fiscal: { label: 'Ouvrir la comptabilité', hash: '#/compta' },
     compta: { label: 'Ouvrir la comptabilité', hash: '#/compta' },
-    cloture: { label: 'Aller aux clôtures', hash: '#/compta' },
+    cloture: { label: 'Aller aux clôtures', hash: '#/compta', compta: 'clotures' },
     declarations: { label: 'Ouvrir la paie', hash: '#/paie' },
-    cabinet: { label: 'Préparer le paquet du mois', hash: '#/compta' },
+    // (1.331.0) Il n'y a plus de paquet en ligne : le comptable lit le dossier qu'on lui confie (onglet Cabinet).
+    cabinet: { label: 'Ouvrir l\'onglet Cabinet', hash: '#/compta', compta: 'cabinet' },
     paie: { label: 'Ouvrir la paie', hash: '#/paie' },
     conges: { label: 'Ouvrir la paie', hash: '#/paie' },
     marges: { label: 'Voir mes marges', hash: '#/marges' },
     statistiques: { label: 'Voir mes statistiques', hash: '#/stats' },
-    donnees: { label: 'Données et sécurité', hash: '#/parametres' },
-    deux: { label: 'Ouvrir les Paramètres', hash: '#/parametres' },
-    partager: { label: 'Ouvrir les Paramètres', hash: '#/parametres' },
-    licence: { label: 'Voir ma licence', hash: '#/parametres' }
+    // (1.331.0) Un geste peut viser un panneau des Paramètres (`reglage` : l'onglet, puis le panneau) ou un onglet de la
+    // Comptabilité (`compta`) : « Ouvrir les Paramètres » déposait en haut de « Ton compte ».
+    donnees: { label: 'Voir tes sauvegardes', hash: '#/parametres', reglage: 'donnees:p-mes-sauvegardes' },
+    deux: { label: 'Inviter quelqu\'un', hash: '#/parametres', reglage: 'equipe:p-equipe' },
+    partager: { label: 'Voir ton équipe', hash: '#/parametres', reglage: 'equipe:p-equipe' },
+    licence: { label: 'Voir ton abonnement', hash: '#/parametres', reglage: 'abonnement:p-licence' }
     // `vocabulaire`, `raccourcis` et `support` n'ont volontairement pas de geste : on ne renvoie
     // nulle part depuis un glossaire, et « Signaler un problème » a déjà son propre bouton.
   };
