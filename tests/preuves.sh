@@ -27272,6 +27272,21 @@ prouver 'portefeuille 1.340.0 i : « Archiver le dossier… » ouvre la fiche en
   'dossierForm(D, g === '\''archiver'\'' ? { focus: '\''#f-arch'\'' } : undefined);' 'dossierForm(D);' \
   "$PF1340"
 
+# 1.341.0 : l'export des écritures du Cabinet (le dernier mois fini ; les clients sans écriture, par ce qui les attend).
+EX1341='(1.341.0) l'\''export s'\''ouvre sur le dernier mois fini ; les clients sans écriture se disent par ce qui les attend'
+prouver 'écritures 1.341.0 a : la page s'\''ouvre sur le mois en cours' modules/socle/ecrans/cabinet/app-2.js \
+  'const dernier = (finis.length ? finis : mois)[(finis.length ? finis : mois).length - 1];' 'const dernier = mois[mois.length - 1];' \
+  "$EX1341"
+prouver 'écritures 1.341.0 b : un client tenu au cabinet se relance' modules/socle/ecrans/cabinet/app-2.js \
+  'const tenusP = sansP.filter(d => d.manual), recusP = sansP.filter(d => !d.manual && nPc(d)), aRel = sansP.filter(d => !d.manual && !nPc(d));' 'const tenusP = [], recusP = sansP.filter(d => !d.manual && nPc(d)), aRel = sansP.filter(d => !nPc(d));' \
+  "$EX1341"
+prouver 'écritures 1.341.0 c : un client qui a envoyé ses pièces se relance' modules/socle/ecrans/cabinet/app-2.js \
+  'recusP = sansP.filter(d => !d.manual && nPc(d)), aRel = sansP.filter(d => !d.manual && !nPc(d));' 'recusP = [], aRel = sansP.filter(d => !d.manual);' \
+  "$EX1341"
+prouver 'écritures 1.341.0 d : le mois en cours se relance' modules/socle/ecrans/cabinet/app-2.js \
+  'const finEnCours = ecrState.to >= enCours;' 'const finEnCours = false;' \
+  "$EX1341"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

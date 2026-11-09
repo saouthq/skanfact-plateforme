@@ -6323,12 +6323,30 @@
       $('#e-dossiers').onclick = () => { location.hash = '#/dossiers'; };
       return;
     }
-    if (!ecrState.from || !mois.includes(ecrState.from)) ecrState.from = mois[mois.length - 1];
+    // (1.341.0) Le dernier mois FINI qui a des écritures : la page s'ouvrait sur le mois en cours (U-12), et « Le dernier
+    // mois » y ramenait — un export pour le logiciel du cabinet porte un mois terminé.
+    const enCours = K.today().slice(0, 7);
+    const finis = mois.filter(m => m < enCours);
+    const dernier = (finis.length ? finis : mois)[(finis.length ? finis : mois).length - 1];
+    if (!ecrState.from || !mois.includes(ecrState.from)) ecrState.from = dernier;
     if (!ecrState.to || ecrState.to < ecrState.from) ecrState.to = ecrState.from;
     const plan = K.ecrituresPlan(S, { from: ecrState.from, to: ecrState.to, ids: ecrState.ids });
     // L'accord suit le compte (10.12.0, vu au test humain) : « 1 paquet n'est pas définitif … Leur mois …
     // Ils sont quand même exportés » se lisait sur l'exemple, qui en a UN.
     const provPlus = plan.provisoires.length > 1;
+    // (1.341.0) Les clients sans écriture sur la période, dits par ce qui les attend : tenu au cabinet (c'est à toi de
+    // saisir), des pièces reçues (à classer), sinon à relancer — et rien à relancer sur un mois qui n'est pas fini. « 11
+    // clients n'ont aucune écriture… Les relancer » mélangeait les trois, et visait le mois en cours.
+    const sansP = (S.dossiers || []).filter(d => !d.archived && !d.demo && plan.sansPaquet.includes(d.name));
+    const finEnCours = ecrState.to >= enCours;
+    const nPc = d => (comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(d.id)) || 0;
+    const tenusP = sansP.filter(d => d.manual), recusP = sansP.filter(d => !d.manual && nPc(d)), aRel = sansP.filter(d => !d.manual && !nPc(d));
+    const nomsP = ds => ds.length > 3 ? `${ds.slice(0, 2).map(d => esc(d.name)).join(', ')} et ${pl(ds.length - 2, 'autre')}` : ds.map(d => esc(d.name)).join(', ').replace(/, ([^,]*)$/, ' et $1');
+    const sansLi = [
+      tenusP.length ? `<li>Tenu${tenusP.length > 1 ? 's' : ''} au cabinet, à saisir par toi : ${nomsP(tenusP)}</li>` : '',
+      recusP.length ? `<li>Des pièces reçues, à classer : ${nomsP(recusP)} · <a href="#/pieces">Les classer</a></li>` : '',
+      aRel.length ? `<li>${finEnCours ? 'Le mois n\'est pas fini' : 'Rien reçu'} : ${nomsP(aRel)}${finEnCours ? '' : ' · <a href="#/relances">Les relancer</a>'}</li>` : '',
+    ].join('');
     const opts = m => mois.map(x => `<option value="${esc(x)}" ${m === x ? 'selected' : ''}>${esc(K.monthLabel(x))}</option>`).join('');
 
     view.innerHTML = `
@@ -6343,12 +6361,12 @@
         <div class="filters">
           <label class="inline small">Du <select id="e-from">${opts(ecrState.from)}</select></label>
           <label class="inline small">au <select id="e-to">${opts(ecrState.to)}</select></label>
-          <button class="btn btn-ghost btn-sm" id="e-last">Le dernier mois</button>
+          <button class="btn btn-ghost btn-sm" id="e-last" title="${esc(cap(K.monthLabel(dernier)))}">Le dernier mois fini</button>
           <button class="btn btn-ghost btn-sm" id="e-year">Toute l'année ${esc(ecrState.to.slice(0, 4))}</button>
         </div>
         <div class="stats mt">
           <div class="stat"><div class="lbl">Mois de livres</div><div class="val">${plan.packs.length}</div>
-            <div class="sub">${plan.mois.length ? pl(plan.mois.length, 'mois', 'mois') : 'aucun'}</div></div>
+            <div class="sub">${plan.mois.length ? `sur ${pl(plan.mois.length, 'mois', 'mois')}` : 'aucun'}</div></div>
           <div class="stat"><div class="lbl">Clients</div><div class="val">${new Set(plan.packs.map(p => p.id)).size}</div>
             <div class="sub">${plan.sansPaquet.length ? `${plan.sansPaquet.length} sans écriture` : 'tous ont des écritures'}</div></div>
           <div class="stat"><div class="lbl">À valider</div><div class="val ${plan.provisoires.length ? 'due' : 'ok'}">${plan.provisoires.length}</div>
@@ -6359,8 +6377,7 @@
         ${plan.provisoires.length ? `<div class="warn-box mt">${info('e.provisoire')} <strong>${pl(plan.provisoires.length, 'mois')} ${provPlus ? 'sont' : 'est'} à valider</strong> :
           ${esc(plan.provisoires.slice(0, 6).join(' · '))}${plan.provisoires.length > 6 ? ' …' : ''}.
           Des écritures y sont encore au brouillard : les chiffres peuvent encore changer. ${provPlus ? 'Ils sont quand même exportés' : 'Il est quand même exporté'}.</div>` : ''}
-        ${plan.sansPaquet.length ? `<p class="small mt">${info('e.manquants')} <span class="err-inline">${pl(plan.sansPaquet.length, 'client')} n'${plan.sansPaquet.length > 1 ? 'ont' : 'a'} aucune écriture sur cette période</span> :
-          ${esc(plan.sansPaquet.slice(0, 8).join(', '))}${plan.sansPaquet.length > 8 ? '…' : ''}. <a href="#/relances">Les relancer</a></p>` : ''}
+        ${sansP.length ? `<p class="small mt">${info('e.manquants')} <span class="${aRel.length && !finEnCours ? 'err-inline' : ''}">${pl(sansP.length, 'client')} n'${sansP.length > 1 ? 'ont' : 'a'} aucune écriture sur cette période</span> :</p><ul class="small" style="margin:4px 0 0;padding-inline-start:22px">${sansLi}</ul>` : ''}
 
         <div class="modal-actions">
           <button class="btn btn-primary" id="e-go" ${plan.packs.length ? '' : 'disabled'}>Exporter les écritures…</button>
@@ -6377,7 +6394,7 @@
 
     $('#e-from').onchange = e => { ecrState.from = e.target.value; if (ecrState.to < ecrState.from) ecrState.to = ecrState.from; render(); };
     $('#e-to').onchange = e => { ecrState.to = e.target.value; if (ecrState.to < ecrState.from) ecrState.from = ecrState.to; render(); };
-    $('#e-last').onclick = () => { ecrState.from = ecrState.to = mois[mois.length - 1]; render(); };
+    $('#e-last').onclick = () => { ecrState.from = ecrState.to = dernier; render(); };
     $('#e-year').onclick = () => {
       const an = ecrState.to.slice(0, 4);
       const dedans = mois.filter(m => m.slice(0, 4) === an);

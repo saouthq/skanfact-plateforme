@@ -1989,3 +1989,19 @@ client… », l'archivage.
 
 À VÉRIFIER : « Pièces manquantes » écarte un client dès qu'une pièce attend d'être classée, même s'il ne les a pas toutes
 envoyées — la règle des Relances : on classe avant de relancer.
+
+## L'export des écritures du Cabinet, et le pont (1.341.0)
+
+Joué à la souris, comme Leïla qui sort les écritures du mois pour son logiciel : la période, ce qui manque, le fichier.
+
+- La page s'ouvrait sur novembre — le mois en cours, pas fini —, et « Le dernier mois » y ramenait. Elle s'ouvre sur le
+  dernier mois FINI qui a des écritures (octobre), et le bouton s'appelle « Le dernier mois fini » (U-12).
+- « 11 clients n'ont aucune écriture sur cette période … Les relancer » mélangeait trois cas. La liste les sépare : tenu
+  au cabinet (« à saisir par toi »), des pièces reçues par « Mon comptable » (« à classer », avec le lien), rien reçu
+  (« Les relancer »). Sur le mois en cours, rien ne se relance : « Le mois n'est pas fini ». La même règle que le
+  portefeuille (1.340.0).
+- « Mois de livres : 1 · 1 mois » se lit « 1 sur 1 mois » : le nombre de livres mensuels, et sur combien de mois.
+- Le fichier, ouvert : les sept lignes de la paie d'octobre de la boulangerie, débit et crédit égaux (2 228,695), le
+  client, le matricule et le mois devant chaque ligne.
+- La preuve : `tests/web/ecritures-1341.test.ts` (un garage qui a des écritures le mois fini et ce mois-ci, un café qui
+  envoie une photo, une librairie qui n'envoie rien, une menuiserie tenue au cabinet) ; preuves `écritures 1.341.0 a-d`.
