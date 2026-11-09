@@ -1007,6 +1007,9 @@ body:has([role="dialog"]) #c-toast.c-montre { translate: 0 0; }
 .c-sv-tuile-valeur b.c-mono { font-family: var(--c-chiffres); font-size: 26px; font-weight: 500; letter-spacing: 0; }
 .c-sv-tuile-valeur span { font-size: 13px; color: var(--c-nuit-gris); }
 .c-sv-tuile-mot b { font-family: var(--c-titre); font-size: 22px; font-weight: 600; line-height: 1.25; color: var(--c-nuit-gris); }
+/* (1.325.1) Le nom d'une migration est UN mot (« facture_electronique_au_cabinet ») : au téléphone, il sortait de la tuile et de
+   l'écran. Il se coupe où il faut plutôt que de pousser la page de deux points. */
+.c-sv-tuile .c-tuile-sous { overflow-wrap: anywhere; }
 .c-sv-hero .c-puce-actif { background: rgba(127, 224, 211, .14); color: var(--c-menthe); }
 .c-sv-hero .c-puce-en_retard { background: rgba(245, 197, 138, .15); color: #f5c58a; }
 .c-sv-hero .c-puce-urgent { background: rgba(255, 140, 128, .16); color: #ffa79e; }

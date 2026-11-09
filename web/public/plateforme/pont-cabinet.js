@@ -1548,11 +1548,12 @@
     ceMois: async (/** @type {string} */ id, /** @type {string} */ du, /** @type {string} */ au) => {
       try { return await appel('GET', `/entreprises/${id}/compta/resume?du=${encodeURIComponent(du)}&au=${encodeURIComponent(au)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
     },
-    // (1.135.0) Les justificatifs que le client a joints à la pièce d'une écriture (son achat ou sa vente) : la liste, et un
-    // fichier ouvert dans un onglet (revue du mois d'un client, point 13 ; 0174). L'onglet s'ouvre avant l'appel : après,
-    // le navigateur le bloquerait.
+    // (1.135.0) Les justificatifs que le client a joints à la pièce d'une écriture (son achat ou sa vente) : la liste, un fichier
+    // ouvert dans un onglet (point 13 ; 0174 ; l'onglet s'ouvre avant l'appel, après le navigateur le bloquerait) et, depuis
+    // la 1.325.1, la lecture d'un fichier El Fatoora (en-tête, lignes, TVA taux par taux), que l'écran montre en feuille.
     justificatifsEcriture: async (/** @type {string} */ id, /** @type {string} */ ecriture) =>
       /** @type {{ fichier: string, nom: string, type: string, taille: number }[]} */ ((await appel('GET', `/entreprises/${id}/compta/ecritures/${encodeURIComponent(ecriture)}/justificatifs`)).justificatifs || []),
+    lireJustificatif: (/** @type {string} */ id, /** @type {string} */ ecriture, /** @type {string} */ fichier) => appel('GET', `/entreprises/${id}/compta/ecritures/${encodeURIComponent(ecriture)}/justificatifs/${encodeURIComponent(fichier)}/efacture`),
     ouvrirJustificatif: async (/** @type {string} */ id, /** @type {string} */ ecriture, /** @type {string} */ fichier) => {
       const onglet = window.open('', '_blank');
       try {

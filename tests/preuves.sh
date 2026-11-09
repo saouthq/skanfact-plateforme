@@ -26578,6 +26578,41 @@ prouver 'efacture 1.325 s : la référence TTN du fichier joint ne rejoint pas l
 prouver 'efacture 1.325 t : la classeur garde la lecture du fichier comme une lecture de l'\''IA' serveur/cabinet/classeur.ts \
   'values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '\''teif'\'', $11)' 'values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '\''ia'\'', null)' \
   "$EFS1"
+
+# 1.325.1 — le fichier El Fatoora joint à l'achat du client, ouvert au Cabinet depuis son écriture ; et le rouge de 1.325.0
+EFS3="(1.325.1) le fichier El Fatoora joint à l'achat du client se lit depuis son écriture, comme au classeur ; un PDF, un fichier incomplet se refusent en se nommant"
+EFW3="(1.325.1) Leïla ouvre, depuis son écriture, le fichier El Fatoora que Rim a joint à son achat : la facture en feuille, le XML à un clic"
+EFT="(1.325.1) la majuscule du début : pas devant un nombre, pas dans un nom cité entre guillemets — un fichier se nomme tel qu'il est"
+EFV="au téléphone : rien ne déborde, l'historique se lit sans défilement de côté"
+prouver 'efacture 1.325.1 a : le justificatif lu depuis l'\''écriture ignore le matricule du client (une autre société)' serveur/compta/routes.ts \
+  '      const r = lireEfacture(f.contenu, ent?.matricule_fiscal || null);' '      const r = lireEfacture(f.contenu, null);' \
+  "$EFS3"
+prouver 'efacture 1.325.1 b : un fichier qui ne se lit pas répond 200 vide au lieu de se refuser' serveur/compta/routes.ts \
+  '      if (!r.ok) return { statut: 422, corps: { motif: motif('\''compta.justificatif.efacture_illisible'\''' '      if (!r.ok) return { corps: { motif: motif('\''compta.justificatif.efacture_illisible'\''' \
+  "$EFS3"
+prouver 'efacture 1.325.1 c : un identifiant qui n'\''en est pas un fait tomber la route (au lieu de « introuvable »)' serveur/compta/routes.ts \
+  '      if (!uuid.safeParse(params.ecriture).success || !uuid.safeParse(params.fichier).success) return introuvable;
+      const f = (await tx.query('\''select nom, contenu from' '      const f = (await tx.query('\''select nom, contenu from' \
+  "$EFS3"
+prouver 'efacture 1.325.1 d : un nom de fichier cité prend une majuscule (« Facture-papier.pdf »)' textes/textes.ts \
+  ' || texte.slice(0, i).includes('\''«'\'') ? texte' ' ? texte' \
+  "$EFT"
+prouver 'efacture 1.325.1 e : au Cabinet, le justificatif El Fatoora s'\''ouvre en onglet de XML brut' modules/socle/ecrans/cabinet/app-1.js \
+  '    const ouvrir = f => (estEfactureCl(f) && api.lireJustificatif ? feuilleJustifCl(dossier, e, f)' '    const ouvrir = f => (false ? feuilleJustifCl(dossier, e, f)' \
+  "$EFW3"
+prouver 'efacture 1.325.1 f : la feuille du justificatif n'\''offre plus le fichier XML lui-même' modules/socle/ecrans/cabinet/app-1.js \
+  '    if (brut) $('\''#pcg-brut'\'', calque).onclick = brut;' '' \
+  "$EFW3"
+prouver 'efacture 1.325.1 g : la feuille reste sur « Lecture… » (la lecture ne la remplit pas)' modules/socle/ecrans/cabinet/app-1.js \
+  '    if (zone) zone.innerHTML = feuilleEfactureCl(x);
+  }' '  }' \
+  "$EFW3"
+prouver 'efacture 1.325.1 i : au classeur, « Son justificatif » El Fatoora s'\''ouvre en onglet de XML brut' modules/socle/ecrans/cabinet/app-1.js \
+  'if (f) (estEfactureCl(f) && api.lireJustificatif ? feuilleJustifCl(d, sel.e, f)' 'if (f) (false ? feuilleJustifCl(d, sel.e, f)' \
+  "$EFW3"
+prouver 'efacture 1.325.1 h : au téléphone, le nom d'\''une migration sort de la tuile et de l'\''écran (console)' web/console/src/console.css \
+  '.c-sv-tuile .c-tuile-sous { overflow-wrap: anywhere; }' '' \
+  "$EFV"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

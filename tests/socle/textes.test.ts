@@ -7,7 +7,7 @@ import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { clesDuCatalogue, declarerTextes, factice, MESSAGES_DE_LA_BASE, motif, rendre, t, texteConnu, texteFrancais } from '../../textes/index.ts';
+import { clesDuCatalogue, declarerTextes, factice, majuscule, MESSAGES_DE_LA_BASE, motif, rendre, t, texteConnu, texteFrancais } from '../../textes/index.ts';
 import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
@@ -141,6 +141,13 @@ describe('le catalogue des textes', () => {
     const refus = (geste: string) => rendre(motif('porte.role_refuse', { roles: 'Lecture', geste: t(`geste.${geste}`) }), 'fr');
     expect(refus('socle.equipe.gerer')).toBe('Ton rôle (Lecture) ne permet pas d\'inviter, retirer un membre ou changer un rôle.');
     expect(refus('socle.accueil.voir')).toBe('Ton rôle (Lecture) ne permet pas de voir l\'accueil.');
+  });
+
+  it('(1.325.1) la majuscule du début : pas devant un nombre, pas dans un nom cité entre guillemets — un fichier se nomme tel qu\'il est', () => {
+    expect(majuscule('ne se lit pas')).toBe('Ne se lit pas');
+    expect(majuscule('13 sauvegardes faites')).toBe('13 sauvegardes faites');
+    expect(majuscule('« facture-papier.pdf » ne se lit pas comme une facture électronique')).toBe('« facture-papier.pdf » ne se lit pas comme une facture électronique');
+    expect(majuscule('le fichier « facture.pdf »')).toBe('Le fichier « facture.pdf »');
   });
 
   it('la langue factice est 40 % plus longue, change chaque mot, et garde les valeurs', () => {

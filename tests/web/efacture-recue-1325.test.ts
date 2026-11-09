@@ -388,4 +388,97 @@ describe('la facture électronique reçue 1.325.0 : le fichier El Fatoora du fou
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);
+
+  it('(1.325.1) Leïla ouvre, depuis son écriture, le fichier El Fatoora que Rim a joint à son achat : la facture en feuille, le XML à un clic', async () => {
+    const leila = await personne('leila'), rim = await personne('rim');
+    const cab = (await api('POST', '/cabinets', leila, { nom: 'Cabinet Trabelsi' })).corps as { id: string; code: string };
+    const MC = matricule(), MW = matricule();
+    const r = await api('POST', '/entreprises', rim, { raisonSociale: 'Café des Arts', matriculeFiscal: MC });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    const ent = String(r.corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, rim, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, leila)).statut).toBe(200);
+    const auj = jourDe(0), annee = auj.slice(0, 4), dateFa = `${auj.slice(0, 8)}01`;
+    // Le dossier commence ce mois-ci : le classeur s'ouvre sur lui.
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, leila, { contenu: { contact: 'Rim', from: auj.slice(0, 7) }, revision: null })).statut).toBeLessThan(300);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, rim);
+    const fa = teifDe({ numero: 'FA-2026-1187', date: dateFa, echeance: jourDe(30), fournisseur: { mf: MW, nom: 'GROSSISTE EL WAFA SARL' }, acheteur: { mf: MC, nom: 'Café des Arts' }, timbre: 1, lignes: [
+      { code: 'PER-850', nom: 'Perceuse à percussion 850 W', qte: 10, pu: 85, taux: 19, remise: 10 },
+      { code: 'RAL-10', nom: 'Rallonge 10 m', qte: 4, pu: 12.5, taux: 19 },
+      { code: 'LIV-BR', nom: 'Guide du bricolage (livre)', qte: 2, pu: 15, taux: 7 },
+    ] });
+    // Rim joint le fichier El Fatoora à son achat (comme « Joindre », à l'écran de l'achat).
+    const j = await api('POST', `/entreprises/${ent}/pieces-jointes`, rim, { nom: 'TEIF_FA-2026-1187.xml', contenu: Buffer.from(fa.xml, 'utf8').toString('base64') });
+    expect(j.statut, JSON.stringify(j.corps)).toBe(201);
+    const ok = await api('POST', `/entreprises/${ent}/dossier-v10`, rim, { changements: [
+      { collection: 'suppliers', cle: 'wafa', rang: 0, revision: null, contenu: { id: 'wafa', name: 'Grossiste El Wafa', matricule: compact(MW) } },
+      { collection: 'purchases', cle: 'fa', rang: 0, revision: null, contenu: enc({ id: 'fa', kind: 'facture', number: 'FA-2026-1187', date: dateFa, dueDate: jourDe(30),
+        supplierId: 'wafa', category: 'Achats de marchandises', currency: 'DT', exchangeRate: '', fees: 1, withholdingRate: 0, tvaRecuperable: true, payments: [],
+        attachments: [{ name: j.corps.name, file: j.corps.file, size: j.corps.size, date: j.corps.date }],
+        lines: [
+          { label: 'Perceuse à percussion 850 W', qty: 10, unit: '', unitPrice: 76.5, vatRate: 19, destination: 'charge', deductible: true },
+          { label: 'Rallonge 10 m', qty: 4, unit: '', unitPrice: 12.5, vatRate: 19, destination: 'charge', deductible: true },
+          { label: 'Guide du bricolage (livre)', qty: 2, unit: '', unitPrice: 15, vatRate: 7, destination: 'charge', deductible: true },
+        ] }) },
+    ] });
+    expect(ok.statut, JSON.stringify(ok.corps)).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/compta/exercices`, leila, { annee: Number(annee), ouverture: [] })).statut).toBeLessThan(300);
+
+    const erreurs: string[] = [];
+    const cx = await contexte(leila);
+    await cx.addInitScript(sansVisite);
+    const p = await cx.newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    const onglets: string[] = [];
+    cx.on('page', (o) => { onglets.push(o.url()); });
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/comptabilite/journal/${annee}`);
+    const brouillard = p.locator('label').filter({ hasText: /Compter \d+ écritures? en brouillard/ }).locator('input');
+    await brouillard.waitFor({ timeout: 25_000 });
+    await plusTard(p);
+    if (!(await brouillard.isChecked())) await brouillard.click();
+    const ligne = p.locator('#c-livres tbody tr').filter({ hasText: 'FA-2026-1187' }).first();
+    await ligne.waitFor({ timeout: 15_000 });
+    await ligne.getByRole('button', { name: /^Actions/ }).click();
+    await p.getByText('Ouvrir le justificatif du client', { exact: true }).click();
+    // La feuille, au lieu d'un onglet de XML brut : lue sur le serveur, sans l'IA, au millime, chaque taux.
+    const feuille = p.locator('.pc-grand .ef-f');
+    await expect.poll(() => feuille.getAttribute('data-ef'), { timeout: 15_000 }).toBe('lu');
+    const f = net(await feuille.innerText());
+    noter(`Cabinet justificatif en feuille : ${f}`);
+    for (const t of ['GROSSISTE EL WAFA SARL', 'Facture FA-2026-1187', 'remise 10 % sur 85,000', 'TVA 19 % sur 815,000', '154,850', 'TVA 7 % sur 30,000', '2,100', 'Timbre fiscal', 'rien n\'est passé par l\'IA']) expect(f).toContain(t);
+    expect(f).toMatch(/Total TTC 1 002,950 DT/);
+    expect(onglets).toEqual([]);
+    expect(await p.locator('.pc-grand-t b').innerText()).toBe('TEIF_FA-2026-1187.xml');
+    await p.screenshot({ path: path.join(PHOTOS, 'efr-1325-l-cabinet-justificatif.png'), fullPage: true });
+    expect(await p.evaluate(problemes, [false, 1440] as [boolean, number])).toEqual([]);
+    // Le fichier lui-même reste à un clic : il s'ouvre dans un onglet.
+    const [onglet] = await Promise.all([cx.waitForEvent('page', { timeout: 15_000 }), p.getByRole('button', { name: 'Le fichier XML', exact: true }).click()]);
+    await expect.poll(() => onglet.url(), { timeout: 15_000 }).toMatch(/^blob:/);
+    await onglet.close();
+    // Échap referme la feuille ; le journal est là, inchangé.
+    await p.bringToFront();
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('.pc-grand').count()).toBe(0);
+    expect(await ligne.isVisible()).toBe(true);
+    // Le même fichier, depuis le classeur (« Son justificatif », sur l'achat du mois) : la même feuille.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/classeur`);
+    // Le classeur s'ouvre sur le mois d'avant ; l'achat est du mois en cours.
+    await p.locator('.cl-a-m').filter({ hasText: /en cours/ }).first().click({ timeout: 25_000 });
+    const achat = p.locator('li[data-cl-k]').filter({ hasText: 'FA-2026-1187' }).first();
+    await achat.waitFor({ timeout: 25_000 }).catch(async (x) => {
+      noter(`Classeur : ${net(await p.locator('#view').innerText())}`); await p.screenshot({ path: path.join(PHOTOS, 'efr-1325-x-classeur.png'), fullPage: true }); throw x;
+    });
+    await plusTard(p);
+    await achat.click();
+    await p.locator('[data-cl-just="0"]').click({ timeout: 20_000 });
+    await expect.poll(() => feuille.getAttribute('data-ef'), { timeout: 15_000 }).toBe('lu');
+    expect(net(await feuille.innerText())).toMatch(/Total TTC 1 002,950 DT/);
+    await p.screenshot({ path: path.join(PHOTOS, 'efr-1325-m-cabinet-classeur-justificatif.png'), fullPage: true });
+    await p.getByRole('button', { name: 'Fermer', exact: true }).click();
+    await expect.poll(() => p.locator('.pc-grand').count()).toBe(0);
+    expect(onglets.length).toBe(1);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
 });

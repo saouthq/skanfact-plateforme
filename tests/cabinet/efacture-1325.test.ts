@@ -189,4 +189,58 @@ describe('la facture électronique reçue, au cabinet', () => {
     const ld = await lire(d, { document: String(doc.corps.id) });
     expect([ld.statut, ld.corps.total, ld.corps.source]).toEqual([200, '911.350', 'teif']);
   });
+
+  it('(1.325.1) le fichier El Fatoora joint à l\'achat du client se lit depuis son écriture, comme au classeur ; un PDF, un fichier incomplet se refusent en se nommant', async () => {
+    const d = await unDossier();
+    const MQ = matricule();
+    await admin.query('update socle.entreprise set matricule_fiscal = $1 where id = $2', [MQ, d.ent]);
+    const fa = teifDe({ numero: 'FA-2026-1187', date: '2026-11-01', echeance: '2026-12-08', fournisseur: wafa, acheteur: { mf: MQ, nom: 'Quincaillerie Ben Salah' }, timbre: 1, lignes });
+    const vide = `<?xml version="1.0" encoding="UTF-8"?><TEIF version="1.8.8"><InvoiceHeader><MessageSenderIdentifier type="I-01">${compact(wafa.mf)}</MessageSenderIdentifier></InvoiceHeader></TEIF>`;
+    const joindre = async (nom: string, type: string, octets: Buffer) => String((await admin.query(
+      `insert into socle.piece_jointe (entreprise, nom, type, taille, contenu, empreinte, depose_par) values ($1, $2, $3, $4, $5, repeat('a', 64), $6) returning id`,
+      [d.ent, nom, type, octets.length, octets, d.client.utilisateur])).rows[0].id);
+    const xml = Buffer.from(fa.xml, 'utf8'), pdf = Buffer.from('%PDF-1.4 facture papier');
+    const jx = await joindre('TEIF_FA-2026-1187.xml', 'application/xml', xml);
+    const jp = await joindre('facture-papier.pdf', 'application/pdf', pdf);
+    const jv = await joindre('TEIF_incomplet.xml', 'application/xml', Buffer.from(vide, 'utf8'));
+    // Le grossiste s'est trompé de client : la facture d'une clinique, jointe quand même.
+    const autre = teifDe({ numero: 'FA-2026-1190', date: '2026-11-03', fournisseur: wafa, acheteur: { mf: '7654321B/A/M/000', nom: 'Clinique El Amen' }, lignes: lignes.slice(1, 2) });
+    const ja = await joindre('TEIF_FA-2026-1190.xml', 'application/xml', Buffer.from(autre.xml, 'utf8'));
+    const r = await d.envoyer('purchases', 'a1', { ...achat, attachments: [
+      { name: 'TEIF_FA-2026-1187.xml', file: jx, size: xml.length, date: '2026-11-01' },
+      { name: 'facture-papier.pdf', file: jp, size: pdf.length, date: '2026-11-01' },
+      { name: 'TEIF_incomplet.xml', file: jv, size: vide.length, date: '2026-11-01' },
+      { name: 'TEIF_FA-2026-1190.xml', file: ja, size: autre.xml.length, date: '2026-11-03' },
+    ] });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    // L'achat renvoyé réécrit son écriture au brouillard : on la relit.
+    const ecriture = String((await admin.query(`select id from compta.ecriture where entreprise = $1 and journal = 'AC'`, [d.ent])).rows[0].id);
+    const base = `/entreprises/${d.ent}/compta/ecritures/${ecriture}/justificatifs`;
+    expect(((await appeler('GET', base, d.associe.jeton)).corps.justificatifs as { nom: string }[]).map((f) => f.nom).sort())
+      .toEqual(['TEIF_FA-2026-1187.xml', 'TEIF_FA-2026-1190.xml', 'TEIF_incomplet.xml', 'facture-papier.pdf']);
+    // Deux chemins, une lecture : depuis l'écriture, la même que celle du classeur pour le même fichier (sans sa source).
+    const lu = await appeler('GET', `${base}/${jx}/efacture`, d.associe.jeton);
+    expect(lu.statut, JSON.stringify(lu.corps)).toBe(200);
+    const m = await envoyerAuCabinet(d, 'TEIF_FA-2026-1187.xml', fa.xml);
+    const auClasseur = await lire(d, { message: m });
+    expect(auClasseur.statut).toBe(200);
+    expect({ ...lu.corps, source: 'teif' }).toEqual(auClasseur.corps);
+    expect([lu.corps.numero, lu.corps.total, (lu.corps.detail as { ailleurs: unknown }).ailleurs]).toEqual(['FA-2026-1187', '1002.950', null]);
+    // Le client le lit aussi (ses livres), le même fichier.
+    expect((await appeler('GET', `${base}/${jx}/efacture`, d.client.jeton)).corps).toEqual(lu.corps);
+    // La facture d'une autre société : la lecture le dit (le matricule du client est lu, comme au classeur).
+    expect((await appeler('GET', `${base}/${ja}/efacture`, d.associe.jeton)).corps.detail).toEqual(expect.objectContaining({ ailleurs: { nom: 'Clinique El Amen', identifiant: '7654321B/A/M/000' } }));
+    // Un PDF, un fichier El Fatoora incomplet : refusés en se nommant.
+    const lp = await appeler('GET', `${base}/${jp}/efacture`, d.associe.jeton);
+    expect(lp.statut).toBe(422);
+    expect(String(lp.corps.motif)).toMatch(/^« facture-papier\.pdf » ne se lit pas comme une facture électronique : ./);
+    const lv = await appeler('GET', `${base}/${jv}/efacture`, d.associe.jeton);
+    expect([lv.statut, lv.corps.motif]).toEqual([422,
+      '« TEIF_incomplet.xml » ne se lit pas comme une facture électronique : Cette facture électronique n\'a pas de corps (InvoiceBody) : le fichier est incomplet.']);
+    // Un fichier d'ailleurs, une écriture inconnue, un autre cabinet : rien ne se lit.
+    expect((await appeler('GET', `${base}/00000000-0000-4000-8000-000000000000/efacture`, d.associe.jeton)).statut).toBe(404);
+    expect((await appeler('GET', `${base}/pas-un-id/efacture`, d.associe.jeton)).statut).toBe(404);
+    expect((await appeler('GET', `/entreprises/${d.ent}/compta/ecritures/00000000-0000-4000-8000-000000000000/justificatifs/${jx}/efacture`, d.associe.jeton)).statut).toBe(404);
+    expect((await appeler('GET', `${base}/${jx}/efacture`, d.autre.jeton)).statut).not.toBe(200);
+  });
 });

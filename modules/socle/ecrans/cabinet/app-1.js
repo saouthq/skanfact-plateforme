@@ -5641,17 +5641,30 @@
       <div class="ef-tot"><div><span>Total HT</span><b>${esc(efDtCl(D.ht))}</b></div>${tva}${Number(D.timbre) > 0 ? `<div><span>Timbre fiscal</span><b>${esc(efDtCl(D.timbre))}</b></div>` : ''}<div class="ef-ttc"><span>Total TTC</span><b>${esc(efDtCl(lu.total))} ${esc(dev)}</b></div></div>
       <p class="ef-p">${CL_IC.ok}<span>Chaque montant est lu dans le fichier, au millime : rien n'est passé par l'IA.${D.signe ? ` Fichier signé${D.refTtn ? ` · réf. TTN ${esc(D.refTtn)}` : ''}.` : ' Le fichier n\'est pas signé.'}</span></p></div>`;
   }
-  // « En grand » d'une facture électronique : la même feuille, sur le calque des pièces (Échap ferme).
-  function feuilleEnGrandCl(x, dossierNom) {
+  // « En grand » d'une facture électronique : la même feuille, sur le calque des pièces (Échap ferme). (1.325.1) Ouverte
+  // depuis le justificatif d'une écriture, elle garde le fichier XML lui-même à un clic (`brut`).
+  function feuilleEnGrandCl(x, dossierNom, brut) {
     const nom = (fichierDeCl(x) || {}).nom || 'Facture électronique';
     const calque = document.createElement('div');
     calque.className = 'pc-grand'; calque.setAttribute('role', 'dialog'); calque.setAttribute('aria-label', nom);
-    calque.innerHTML = `<div class="pc-grand-t"><b>${esc(nom)}</b><span>${esc(dossierNom || '')}</span><span class="pc-sep"></span><button type="button" class="btn btn-sm" id="pcg-fermer">${PC_IC.fermer} Fermer</button></div><div class="pc-grand-d ef-grand" id="pcg-d">${feuilleEfactureCl(x)}</div>`;
+    calque.innerHTML = `<div class="pc-grand-t"><b>${esc(nom)}</b><span>${esc(dossierNom || '')}</span><span class="pc-sep"></span>${brut ? '<button type="button" class="btn btn-sm" id="pcg-brut">Le fichier XML</button>' : ''}<button type="button" class="btn btn-sm" id="pcg-fermer">${PC_IC.fermer} Fermer</button></div><div class="pc-grand-d ef-grand" id="pcg-d">${feuilleEfactureCl(x)}</div>`;
     document.body.append(calque);
     const fermer = () => { calque.remove(); document.removeEventListener('keydown', echap, true); };
     const echap = e => { if (e.key === 'Escape') { e.stopPropagation(); fermer(); } };
     document.addEventListener('keydown', echap, true);
     $('#pcg-fermer', calque).onclick = fermer; $('#pcg-fermer', calque).focus();
+    if (brut) $('#pcg-brut', calque).onclick = brut;
+  }
+  // (1.325.1) Le justificatif d'une écriture qui est une facture El Fatoora (l'achat du client, joint avec son fichier) : la
+  // feuille s'ouvre tout de suite (« Lecture… »), puis se remplit de la lecture du serveur ; un refus se dit dans la feuille.
+  async function feuilleJustifCl(dossier, e, f) {
+    const x = { k: `j:${e.id}:${f.fichier}`, lu: null, doc: { fichier: { nom: f.nom, type: f.type } } };
+    const ef = clState.ef || (clState.ef = new Map());
+    ef.set(x.k, { etape: 'cours' });
+    feuilleEnGrandCl(x, dossier.name, () => { api.ouvrirJustificatif(dossier.id, e.id, f.fichier).catch(err => toast(plainError(err), 'error')); });
+    try { x.lu = await api.lireJustificatif(dossier.id, e.id, f.fichier); ef.set(x.k, { etape: 'lu' }); } catch (err) { ef.set(x.k, { etape: 'refus', motif: plainError(err) }); }
+    const zone = document.getElementById('pcg-d');
+    if (zone) zone.innerHTML = feuilleEfactureCl(x);
   }
 
   // (1.173.0) Marquer en double EN NOMMANT la jumelle : la pièce probable d'abord, puis les autres du mois et de ses voisins.
@@ -6748,7 +6761,7 @@
       const fermerMenu = e => { if (!e.target.closest('.cl-mw')) { document.removeEventListener('click', fermerMenu, true); if (clState.menu) { clState.menu = ''; redessinerCl(d); } } };
       document.addEventListener('click', fermerMenu, true);
     }
-    $$('[data-cl-just]', view).forEach(b => { b.onclick = () => { const l = clState.just.get(sel.e.id) || []; const f = l[Number(b.dataset.clJust)]; if (f) api.ouvrirJustificatif(d.id, sel.e.id, f.fichier).catch(x => toast(plainError(x), 'error')); }; });
+    $$('[data-cl-just]', view).forEach(b => { b.onclick = () => { const l = clState.just.get(sel.e.id) || []; const f = l[Number(b.dataset.clJust)]; if (f) (estEfactureCl(f) && api.lireJustificatif ? feuilleJustifCl(d, sel.e, f) : api.ouvrirJustificatif(d.id, sel.e.id, f.fichier)).catch(x => toast(plainError(x), 'error')); }; });
     if (sel && (sel.p || sel.doc)) {
       suivrePresenceCl(d, sel.k);
       const fichiersRub = tousItems.filter(y => (y.p || (y.doc && y.sorte !== 'trou')) && y.rub === sel.rub && y.mois === sel.mois);
@@ -8433,7 +8446,7 @@
     let l;
     try { l = await api.justificatifsEcriture(dossier.id, e.id); } catch (x) { toast(plainError(x), 'error'); return; }
     if (!l.length) { toast(`Le justificatif n'est plus joint à l'achat de ${dossier.name} : il a pu le retirer.`, 'error'); return; }
-    const ouvrir = f => api.ouvrirJustificatif(dossier.id, e.id, f.fichier).catch(x => toast(plainError(x), 'error'));
+    const ouvrir = f => (estEfactureCl(f) && api.lireJustificatif ? feuilleJustifCl(dossier, e, f) : api.ouvrirJustificatif(dossier.id, e.id, f.fichier)).catch(x => toast(plainError(x), 'error'));
     if (l.length === 1) { await ouvrir(l[0]); return; }
     modal(`<h2>Les justificatifs du client</h2>
       <p class="small">${esc(dossier.name)} a joint ${l.length} fichiers à l'achat ${esc(e.piece || e.libelle || '')}.</p>
@@ -8441,7 +8454,8 @@
       <div class="modal-actions"><button class="btn" id="jc-fermer">Fermer</button></div>`,
     (layer, close) => {
       $('#jc-fermer', layer).onclick = () => close();
-      $$('[data-jc]', layer).forEach(b => { b.onclick = () => { void ouvrir(l[Number(b.dataset.jc)]); }; });
+      // La feuille d'une facture El Fatoora passe au-dessus de tout : la fenêtre se ferme d'abord (un PDF, lui, s'ouvre à côté).
+      $$('[data-jc]', layer).forEach(b => { b.onclick = () => { const f = l[Number(b.dataset.jc)]; if (estEfactureCl(f)) close(); void ouvrir(f); }; });
     });
   }
   // Les gestes d'ouverture d'une pièce : un par justificatif du client (trois au plus, le paquet

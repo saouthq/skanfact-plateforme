@@ -75,10 +75,12 @@ function enPhrase(texte: string): string {
 }
 
 // La majuscule du début : sur la première lettre, sauf si un chiffre la précède — une phrase qui commence par un nombre
-// n'en prend pas (« 13 sauvegardes faites », « 95 % des requêtes » ; jamais « 13 Sauvegardes »).
+// n'en prend pas (« 13 sauvegardes faites », « 95 % des requêtes » ; jamais « 13 Sauvegardes »). (1.325.1) Ni une phrase
+// qui commence par un nom cité entre guillemets : « facture-papier.pdf » ne se lit pas… — un nom de fichier se montre
+// tel qu'il est, jamais « Facture-papier.pdf » (vu sur le refus d'un justificatif lu au Cabinet).
 export function majuscule(texte: string): string {
   const i = texte.search(/[\p{L}\p{N}]/u);
-  return i < 0 || !/\p{L}/u.test(texte.charAt(i)) ? texte : texte.slice(0, i) + texte.charAt(i).toUpperCase() + texte.slice(i + 1);
+  return i < 0 || !/\p{L}/u.test(texte.charAt(i)) || texte.slice(0, i).includes('«') ? texte : texte.slice(0, i) + texte.charAt(i).toUpperCase() + texte.slice(i + 1);
 }
 
 // La langue factice : chaque lettre accentuée, et 40 % de longueur en plus (l'anglais et les noms

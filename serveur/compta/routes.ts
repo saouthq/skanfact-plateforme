@@ -11,6 +11,7 @@ import { versTexte } from '../../moteur/argent.ts';
 import { NUMERO_DE_COMPTE } from '../../moteur/comptes.ts';
 import type { Route } from '../app.ts';
 import { requetes, type Transaction } from '../base.ts';
+import { lireEfacture } from '../cabinet/porte.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import { routesAnnuel } from './annuel.ts';
@@ -174,6 +175,24 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
         { nom: string; type: string; contenu: Buffer } | undefined;
       if (!f) return introuvable;
       return { corps: { nom: f.nom, type: f.type, taille: f.contenu.length, contenu: f.contenu.toString('base64') } };
+    },
+  });
+  // (1.325.1) Le même justificatif, quand c'est la facture électronique du fournisseur (XML El Fatoora) : il se LIT comme le
+  // classeur du cabinet le lit (en-tête, lignes, TVA taux par taux, au millime, sans l'IA), au lieu de s'ouvrir en XML brut.
+  // Un fichier qui ne se lit pas est refusé en le nommant ; le fichier lui-même reste à un clic (la route au-dessus).
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture/justificatifs/:fichier/efacture', geste: 'compta.livres.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!uuid.safeParse(params.ecriture).success || !uuid.safeParse(params.fichier).success) return introuvable;
+      const f = (await tx.query('select nom, contenu from compta.justificatif_ecriture($1, $2, $3)', [params.entreprise ?? '', params.ecriture, params.fichier])).rows[0] as
+        { nom: string; contenu: Buffer } | undefined;
+      if (!f) return introuvable;
+      const ent = (await tx.query('select matricule_fiscal from socle.entreprise where id = $1', [params.entreprise ?? ''])).rows[0] as
+        { matricule_fiscal: string | null } | undefined;
+      const r = lireEfacture(f.contenu, ent?.matricule_fiscal || null);
+      if (!r.ok) return { statut: 422, corps: { motif: motif('compta.justificatif.efacture_illisible', { nom: f.nom, raison: r.motif.replace(/\.$/, '') }) } };
+      return { corps: r.lu };
     },
   });
 

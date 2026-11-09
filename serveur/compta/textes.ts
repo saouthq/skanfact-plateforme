@@ -28,6 +28,7 @@ declarerTextes({
   'compta.champ.ids': 'la liste des écritures (de 1 à 500)',
   'compta.champ.revision': 'la révision du brouillard que tu as vue',
   'compta.champ.lettre': 'une à cinq lettres, de A à Z',
+  'compta.justificatif.efacture_illisible': '« {nom} » ne se lit pas comme une facture électronique : {raison}',
   'compta.champ.jusqua': 'le dernier jour de la période à valider (AAAA-MM-JJ)',
   // (1.187.0) Envoyer les questions : celles d'une année, ou celles qu'on nomme ; l'une ou l'autre.
   'compta.champ.annee_ou_questions': 'l\'année, ou les questions qui partent : l\'une ou l\'autre',

@@ -1311,12 +1311,21 @@ Ce qui est fait :
   chez l'IA.
 - À VÉRIFIER avec un comptable : la TVA d'une facture électronique non signée se déduit-elle ; les autres taxes du fichier
   (FODEC) vont avec la charge (la charge prend tout ce qui n'est ni la TVA ni le timbre).
-- Reste à faire : le justificatif XML d'un achat du client, ouvert depuis son écriture au Cabinet, s'ouvre tel quel dans
-  un onglet (le fichier brut), pas encore en feuille.
+- (1.325.1) Le justificatif El Fatoora d'un achat du client, ouvert au Cabinet depuis son écriture (le menu de la ligne du
+  livre-journal, ou « Son justificatif » au classeur), se montre en feuille, lue sur le serveur comme au classeur (le
+  matricule du dossier compris : une facture adressée à une autre société le dit) ; « Le fichier XML » garde le fichier
+  lui-même à un clic. Un PDF ou un fichier incomplet se refusent en se nommant (« « TEIF_incomplet.xml » ne se lit pas comme
+  une facture électronique : … »). Au passage : une phrase qui commence par un nom cité entre guillemets ne lui met plus
+  de majuscule (« facture-papier.pdf », jamais « Facture-papier.pdf ») ; et le rouge GitHub de 1.325.0 : au téléphone, le
+  nom de la dernière migration (« facture_electronique_au_cabinet », un seul mot) sortait de l'écran Versions de la
+  console — il se coupe dans sa tuile.
 - La preuve : `tests/cabinet/efacture-1325.test.ts` (la lecture au millime, taux par taux, deux chemins : la somme des
   bases et de la TVA redonne le total ; l'avoir, l'autre société, le fichier incomplet, le XML qui n'est pas une facture,
   le classeur), `tests/web/efacture-recue-1325.test.ts` (Hédi : les quatre fichiers ; Leïla : la messagerie, la Saisie, les
   deux écritures, l'autre société, le fichier incomplet, le téléphone), `tests/moteur/achats.test.ts` et
   `reglements-achats-v10.test.ts` (l'avoir n'est pas un paiement), `tests/v10/achats.test.ts` (les 181 achats de l'exemple
   de cinq ans : la plateforme se sépare de la v10 là, exprès, pour la facture que seul un avoir réduit, et nulle part
-  ailleurs), preuves `efacture 1.325 a-t` ; six preuves anciennes repointées.
+  ailleurs), preuves `efacture 1.325 a-t` ; six preuves anciennes repointées. (1.325.1) La même lecture, depuis l'écriture
+  (`tests/cabinet/efacture-1325.test.ts` : deux chemins, une lecture — la route et le classeur rendent la même pour le même
+  fichier ; `tests/web/efacture-recue-1325.test.ts` : Leïla ouvre la feuille depuis le livre-journal, puis le XML),
+  `tests/socle/textes.test.ts` (la majuscule), preuves `efacture 1.325.1 a-h`.
