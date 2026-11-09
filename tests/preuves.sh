@@ -27230,6 +27230,18 @@ prouver 'tableau 1.338.0 l : le menu propose de relancer un mois dont les pièce
   'const manque = x ? [...x.mois.values()].filter(c => c.etape === '\''recu'\'').map(c => c.mois) : [];' 'const manque = x ? x.l.mois.filter(c => c.etape === '\''recu'\'').map(c => c.mois) : [];' \
   "$TB1338"
 
+# 1.339.0 : la fiche du dossier (un dépôt daté de son jour) et le classeur (une attestation à ranger, pas un achat).
+CL1339='la fiche date un dépôt du jour du dépôt ; le classeur range une attestation au lieu de la proposer comme un achat'
+prouver 'classeur 1.339.0 a : l'\''historique date un dépôt de la date limite' modules/socle/ecrans/cabinet/app-1.js \
+  'map(([m, v]) => [/^\d{4}-\d{2}-\d{2}/.test(String(v.deposeeLe)) ? String(v.deposeeLe).slice(0, 10) : limiteDe(m)' 'map(([m, v]) => [false ? String(v.deposeeLe).slice(0, 10) : limiteDe(m)' \
+  "$CL1339"
+prouver 'classeur 1.339.0 b : le panneau propose une attestation comme une dépense nouvelle' modules/socle/ecrans/cabinet/app-1.js \
+  '} else if (g === '\''doc'\'' && p && !raison) {' '} else if (false) {' \
+  "$CL1339"
+prouver 'classeur 1.339.0 c : « La ranger… » n'\''est pas le geste principal' modules/socle/ecrans/cabinet/app-1.js \
+  'class="btn btn-sm btn-primary" data-cl-ap="ranger"' 'class="btn btn-sm" data-cl-ap="ranger"' \
+  "$CL1339"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

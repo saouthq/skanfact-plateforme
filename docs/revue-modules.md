@@ -1940,3 +1940,23 @@ l'exemple) font dire à la boulangerie « plus d'un mois après » : c'est l'exe
 - 1.338.0 : `tests/web/devis-1307.test.ts` lisait la pièce enregistrée au serveur dès que l'écran disait « Envoyé », sans
   attendre l'enregistrement. Prouvé en ralentissant d'une seconde et demie les envois au serveur : l'ancienne lecture tombe
   exactement comme sur GitHub (« [devis] » au lieu de « [devis, devisModifie] »), la nouvelle, qui attend, passe.
+
+## La fiche du dossier et le classeur du Cabinet, et le pont (1.339.0)
+
+Joués à la souris sur l'exemple, comme Leïla qui ouvre la boulangerie : la fiche (identité, mission, historique, relances),
+puis le classeur mois par mois, et une attestation envoyée par Sarra depuis « Mon comptable ».
+
+- L'historique de la fiche datait une déclaration déposée de sa date limite : « Juillet déposé » le 28/08 quand le dépôt
+  avait été pointé le 26/08. Il prend le jour du dépôt ; la date limite n'est plus qu'un repli quand le jour n'est pas connu.
+- Une attestation, un contrat, une assurance envoyés par le client : la ligne du classeur disait « à ranger » (geste
+  « Ranger »), et le panneau de droite disait « À saisir : c'est une dépense nouvelle » avec « La saisir dans Écritures ».
+  Le panneau dit maintenant « À ranger : ce n'est pas un achat », son geste principal est « La ranger… » (il ouvre les
+  pièces du client, où elle se range au dossier permanent ou se classe sans saisie) ; « La saisir quand même » reste à côté,
+  si le nom trompe.
+- Le pont, côté client : rien ne change dans « Mon comptable » — le client envoie, le cabinet range ; le client voit la
+  pièce rangée comme avant.
+- La preuve : `tests/web/classeur-1339.test.ts` (septembre déposé le 25/10 pour une limite au 28/10, une attestation CNSS
+  envoyée par la boulangerie) ; preuves `classeur 1.339.0 a-c`.
+
+À VÉRIFIER : le genre « document » se devine sur le nom du fichier (attestation, contrat, bail, statuts, assurance,
+registre, patente) ; une facture nommée « contrat-maintenance.pdf » se dira « à ranger » — d'où « La saisir quand même ».

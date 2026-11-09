@@ -4973,9 +4973,11 @@
     if (eq.val) eqL.push([eq.val, `${prenomDe(eq.val)} valide`, 'les déclarations, avant le dépôt']);
     for (const id of eq.ids) { const c = collabDe(id); if (c && c !== eq.suit && c !== eq.val) eqL.push([c, `${prenomDe(c)} ${d.droits[id] === 'saisie' ? 'saisit' : 'travaille sur le dossier'}`, d.droits[id] === 'saisie' ? 'les pièces papier et les relevés' : '']); }
     const employeur = Object.values(employeursConnus()[d.id] || {}).some(Boolean);
+    // (1.339.0) Une déclaration déposée se date du jour de son DÉPÔT (« Juillet déposé » le 26/08) ; la date limite (le 28/08)
+    // n'est qu'un repli quand le jour n'est pas connu.
     const hist = [
       ...(d.relances || []).filter(r => r && r.at).map(r => [KC.jourDeLInstant(Number(r.at)), `Relance ${canalRelance(r) || 'notée'}${(r.months || []).length ? ` : ${(r.months || []).map(moisLong).join(', ')}` : ''}`, r.note || '']),
-      ...(L ? Object.entries(L.decl).filter(([, v]) => v.deposee).map(([m, v]) => [limiteDe(m) > aujourdhui ? aujourdhui : limiteDe(m), `${cap(moisLong(m))} déposé`, v.montant ? `${dtCd(v.montant)} DT` : '']) : []),
+      ...(L ? Object.entries(L.decl).filter(([, v]) => v.deposee).map(([m, v]) => [/^\d{4}-\d{2}-\d{2}/.test(String(v.deposeeLe)) ? String(v.deposeeLe).slice(0, 10) : limiteDe(m) > aujourdhui ? aujourdhui : limiteDe(m), `${cap(moisLong(m))} déposé`, v.montant ? `${dtCd(v.montant)} DT` : '']) : []),
       ...(d.from ? [[`${d.from}-01`, 'Début de la mission', `${moisLong(d.from)} ${d.from.slice(0, 4)}`]] : []),
     ].sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);
     const cote = `<aside class="fd-cote" aria-label="La fiche">
@@ -6618,6 +6620,12 @@
       } else if (g === 'releve') {
         bloc = `<div class="cl-ap-b ambre"><b>Le relevé n'est pas encore dans ses livres</b><span>Il s'importe dans Banque : chaque mouvement y trouve son écriture.</span></div>`;
         actions = enSaisie ? parReviseur('rapprocher') : `<a class="btn btn-sm btn-primary" href="#/dossier/${encodeURIComponent(d.id)}/comptabilite/banque">L'importer dans Banque</a>`;
+      } else if (g === 'doc' && p && !raison) {
+        // (1.339.0) Une attestation, un contrat, une assurance : la ligne dit « à ranger » (geste « Ranger »), et ce panneau
+        // disait « À saisir : c'est une dépense nouvelle » avec « La saisir dans Écritures ». Le même geste que la ligne ;
+        // la saisir reste possible, à côté.
+        bloc = `<div class="cl-ap-b ambre"><b>À ranger : ce n'est pas un achat</b><span>Son nom le dit (une attestation, un contrat, une assurance…) : elle se range au dossier permanent, ou se classe sans saisie, dans «\u00a0Pièces reçues\u00a0».${p.demande ? ` Elle répond à ta demande «\u00a0${esc(p.demande)}\u00a0».` : ''}</span></div>`;
+        actions = `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="ranger"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>La ranger…</button><button type="button" class="btn btn-sm btn-ghost" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>La saisir quand même</button>`;
       } else if (cands.length) {
         // (1.174.6) Seul un achat qu'un indice relie à la pièce se propose, et la page dit lequel.
         const c = cands[0], ind = indiceDe(c, sel);
