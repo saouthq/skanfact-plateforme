@@ -1376,3 +1376,53 @@ Ce qui est fait :
   « Inviter », le refus qui montre, le rangé sans puce ; le même fil à 390 côté client et côté cabinet, l'instrument de
   rendu sans aucun problème), `tests/web/mois-client.test.ts`, `messagerie.test.ts`, `messages-cabinet.test.ts` rejoués ;
   preuves `mon comptable 1.326.0 a-g`.
+
+## Les Paramètres de l'entreprise, et ce qui se dit au cabinet (1.327.0)
+
+*09/11/2026. Joué par Sarra (Boulangerie El Amal), que Jlassi Conseil tient : sa fiche remplie à la main (un matricule
+incomplet, une adresse e-mail sans « @ », un RIB de dix chiffres, puis le bon), la numérotation reprise d'un carnet (FAC-047),
+une caissière invitée, toutes les données téléchargées, la recherche des réglages, le thème sombre, une sortie sans
+enregistrer ; puis un changement de régime fiscal par erreur et son retour. Au Cabinet, Leïla lit la fiche du client et
+ses propres réglages. À la souris, au clavier, et mesuré par l'instrument de rendu à 1440 et à 390.*
+
+Ce qui n'allait pas :
+
+- Un matricule incomplet (« 1472411D ») se refusait à « Enregistrer » par un message de trois secondes ; la case
+  redevenait normale, avec la valeur fausse, et plus rien ne disait pourquoi.
+- Une adresse e-mail sans « @ » s'enregistrait sans un mot — elle s'imprime en haut de chaque devis et facture.
+- En bas de page, « Enregistrer » faisait disparaître sa barre : la page raccourcissait et tout descendait de 73 points
+  sous la souris.
+- Dans Envois, la phrase sous « Email du comptable » disait « Relie-le plutôt dans Ton cabinet comptable » à une
+  entreprise dont le cabinet est relié juste en dessous.
+- **Le pont** : Sarra passait au forfait (sans TVA) ; Jlassi Conseil, qui fait ses déclarations, n'en savait rien — sa
+  fiche gardait « TVA mensuelle », et aucun écran ne proposait de le lui dire.
+- Au téléphone, la recherche des réglages s'arrêtait aux trois quarts de sa rangée, sa phrase coupée (« timbre, lo ») :
+  la règle des champs d'une barre d'actions (quatre sélecteurs) battait celle du téléphone.
+- Un rôle qui ne règle pas l'entreprise (un commercial) tapait dans les vingt cases de la fiche, et n'apprenait qu'à
+  « Enregistrer » que rien n'était permis : tout ce qu'il venait de taper, perdu.
+
+Ce qui est fait :
+
+- Le matricule et l'e-mail de la fiche se vérifient pendant la frappe, comme le RIB : la remarque vit dans la ligne du
+  libellé (« forme : 1234567A/A/M/000 », « pas une adresse e-mail ») et reste tant que la valeur est fausse. Seul le
+  matricule se refuse à l'enregistrement (il décide de la licence et de ce que le serveur porte) ; l'e-mail prévient.
+- Enregistrée, la barre se tait sans rendre sa place : rien ne bouge sous la souris.
+- La phrase d'Envois dit ce qui est vrai, et suit ce qu'on apprend du cabinet.
+- Un régime changé alors qu'un cabinet tient le dossier le dit AVANT d'enregistrer (« Ton cabinet fait tes
+  déclarations : ce régime change ce qu'il dépose pour toi ») ; l'enregistrement propose « Le dire à mon comptable », qui
+  ouvre la conversation avec le message prêt, relu avant d'envoyer (« j'ai changé mon régime fiscal… : « Forfaitaire — non
+  assujetti à la TVA » (avant : « Réel — assujetti à la TVA ») »). Joué : le message arrive dans « Ce qui attend » de la
+  fiche du cabinet. On prévient, on ne bloque pas : changer de régime reste à l'entreprise.
+- Au téléphone, la recherche prend sa rangée (par son identifiant).
+- Un rôle sans le droit de régler l'entreprise lit ses réglages sans pouvoir les changer : les cases sont fermées, et
+  chaque onglet qui les porte le dit (« Tu lis ces réglages sans pouvoir les changer… ») ; son compte reste à lui. Le
+  serveur refuse de toute façon.
+- Écarté, avec sa raison : l'initiale de l'avatar (« S » dans l'équipe, « SM » dans la barre) — deux tailles de pastille,
+  laissé ; la case « accord d'un responsable » dont la bulle se pose au bout de la cellule — elle reste lisible ; les
+  onglets sur trois rangées au téléphone — ils restent tous atteignables d'un doigt, l'instrument ne trouve rien.
+- À VÉRIFIER : la fiche du cabinet tient sa propre périodicité de TVA ; le régime de l'entreprise n'y remonte pas encore
+  tout seul (le message le dit au comptable, qui corrige sa fiche).
+- La preuve : `tests/web/parametres-1327.test.ts` (Sarra : le matricule et l'e-mail pendant la frappe, l'enregistrement en
+  bas de page qui ne bouge pas, la phrase d'Envois, la remarque puis la proposition du régime, le message prêt dans la
+  conversation ; le téléphone mesuré), `tests/web/droits-dossier.test.ts` retourné vers la règle (les cases fermées
+  avant le geste) ; preuves `parametres 1.327.0 a-i`, deux preuves anciennes repointées.

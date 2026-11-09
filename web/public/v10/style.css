@@ -1707,6 +1707,8 @@ button.i + button.i { margin-inline-start: 6px; }
   margin-top: 18px; box-shadow: 0 -6px 24px rgba(20,40,60,.10);
 }
 .save-bar span { margin-inline-end: auto; font-size: 13px; font-weight: 600; color: var(--warning); }
+/* (1.327.0) Enregistrée, la barre se tait sans rendre sa place : la page ne raccourcit pas sous le curseur. */
+.save-bar.save-bar-repos { visibility: hidden; }
 
 /* ---------- zone sensible ---------- */
 .danger-zone { border-color: #f0d5d2; }

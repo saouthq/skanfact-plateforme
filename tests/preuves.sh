@@ -5197,8 +5197,12 @@ prouver "la liste de ce qui peut repartir, vide" serveur/v10/droits.ts \
 prouver "le prix d'un article accepté à l'écran puis perdu" modules/socle/ecrans/entreprise/app-1.js \
   "          if (!peutEcrireDossier('catalog')) return refus(" "          if (false) return refus(" \
   "$DDW"
+# (1.327.0) Repointée : le refus ne se dit plus à « Enregistrer » (tout ce qui venait d'être tapé, perdu) mais avant, les
+# cases de l'entreprise fermées à un rôle qui ne la règle pas.
 prouver "les paramètres acceptés à l'écran puis perdus" modules/socle/ecrans/entreprise/app-2.js \
-  "      if (!peutEcrireDossier('company')) { toast(" "      if (false) { toast(" \
+  "    if (!peutEcrireDossier('company')) {
+      \$\$('#pf input, #pf select, #pf textarea')" "    if (false) {
+      \$\$('#pf input, #pf select, #pf textarea')" \
   "$DDW"
 
 # ── Brique 100 : les écrans de l'accord d'un responsable (docs/accords.md) ──
@@ -17695,8 +17699,8 @@ prouver 'l'"'"'adresse du comptable sous le même mot que le cabinet' modules/so
   'titre: '"'"'Envoyer tes écritures par e-mail'"'"'' \
   'titre: '"'"'Ton comptable'"'"'' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
-prouver 'l'"'"'adresse du comptable qui ne renvoie pas au cabinet' modules/socle/ecrans/entreprise/app-2.js \
-  ' Ton comptable a SkanFact Cabinet ? Relie-le plutôt dans « Ton cabinet comptable », plus bas : il voit tes pièces au fil de l'"'"'eau, sans e-mail.' \
+prouver 'l'"'"'adresse du comptable qui ne renvoie pas au cabinet' modules/socle/ecrans/entreprise/app-1.js \
+  ' Ton comptable a SkanFact Cabinet ? Relie-le plutôt dans « Ton cabinet comptable », plus bas' \
   '' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
 prouver 'deux prix voisins écrits l'"'"'un avec ses millimes, l'"'"'autre sans' 'web/public/plateforme/abonnement.js' \
@@ -19039,7 +19043,7 @@ prouver 'l'\''entrée construite sans le plancher' 'web/vite.config.ts' \
   '  build: { outDir: '\''../dist/web'\'', emptyOutDir: true },' \
   'la construction vise le plancher déclaré'
 prouver 'la recherche des Paramètres qui sort d'\''un téléphone de 320' 'web/public/plateforme/telephone.css' \
-  '  .set-search, .set-search input[type=search] { min-width: 0; flex: 1 1 100%; width: 100%; max-width: none; }' \
+  '  .set-search, .set-search #set-q { min-width: 0; flex: 1 1 100%; width: 100%; max-width: none; }' \
   '' \
   'au plus étroit (320 points, au doigt)'
 
@@ -26638,6 +26642,36 @@ prouver 'mon comptable 1.326.0 g : les gestes de la zone d'\''écriture redevien
                 <button type="submit" class="btn btn-primary msg-envoyer vide"' '<span class="msg-gestes-g">|||                </span>
                 <button type="submit" class="btn btn-primary msg-envoyer vide"' \
   "$MC"
+# (1.327.0) Les Paramètres joués comme la boulangerie : la fiche, l'enregistrement en bas de page, le régime et son cabinet.
+PA="Sarra règle sa fiche : le matricule et l'e-mail se disent pendant la frappe, rien ne saute, et son régime se dit à son cabinet"
+prouver 'parametres 1.327.0 a : le refus d'\''un matricule incomplet ne vit que trois secondes' modules/socle/ecrans/entreprise/app-2.js \
+  'placeholder="1234567X/A/M/000" data-verif="matricule"' 'placeholder="1234567X/A/M/000"' \
+  "$PA"
+prouver 'parametres 1.327.0 b : une adresse e-mail sans « @ » s'\''enregistre sans un mot' modules/socle/ecrans/entreprise/app-2.js \
+  "c.email, 'email', 'data-verif=\"email\"')" "c.email, 'email')" \
+  "$PA"
+prouver 'parametres 1.327.0 c : enregistrer en bas de page fait descendre la page sous la souris' modules/socle/ecrans/entreprise/app-2.js \
+  "setDirty = false; \$('#save-bar').classList.add('save-bar-repos');" "setDirty = false; \$('#save-bar').hidden = true;" \
+  "$PA"
+prouver 'parametres 1.327.0 d : « relie-le plutôt » à une entreprise dont le cabinet tient déjà le dossier' modules/socle/ecrans/entreprise/app-1.js \
+  'const phraseEmailComptable = () => (messagerieVue && messagerieVue.cabinet' 'const phraseEmailComptable = () => (false' \
+  "$PA"
+prouver 'parametres 1.327.0 e : un changement de régime ne dit rien du cabinet avant d'\''enregistrer' modules/socle/ecrans/entreprise/app-2.js \
+  "    if (!peutEcrireAuCabinet() || C.regimeOf(co).id === C.regimeOf(data.company).id) return '';" "    return '';" \
+  "$PA"
+prouver 'parametres 1.327.0 f : le régime changé ne propose pas de le dire au comptable' modules/socle/ecrans/entreprise/app-2.js \
+  'if (regimeApres.id !== regimeAvant.id && peutEcrireAuCabinet()) {' 'if (false) {' \
+  "$PA"
+prouver 'parametres 1.327.0 g : la remarque du cabinet reste après l'\''enregistrement' modules/socle/ecrans/entreprise/app-2.js \
+  "      if (\$('#regime-note')) \$('#regime-note').innerHTML = noteRegime(data.company);
+" '' \
+  "$PA"
+prouver 'parametres 1.327.0 h : « Paramètres enregistrés » efface la proposition de le dire au comptable' modules/socle/ecrans/entreprise/app-2.js \
+  "if (applySettings() === true) toast('Paramètres enregistrés');" "if (applySettings()) toast('Paramètres enregistrés');" \
+  "$PA"
+prouver 'parametres 1.327.0 i : au téléphone, la recherche des réglages s'\''arrête aux trois quarts de sa rangée' web/public/plateforme/telephone.css \
+  '.set-search, .set-search #set-q {' '.set-search, .set-search input[type=search] {' \
+  "$PA"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

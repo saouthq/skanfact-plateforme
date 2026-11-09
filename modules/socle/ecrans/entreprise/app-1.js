@@ -1126,6 +1126,7 @@
     bindDateFields(layer);
     bindWithholdingFields(layer);
     bindRibFields(layer);
+    bindVerifFields(layer);
     // « * obligatoire » se pose TOUT SEUL dès qu'un champ de la fenêtre porte la classe. Une légende
     // recopiée fenêtre par fenêtre se périme à la première qui gagne un champ obligatoire ; déduite,
     // elle ne peut pas manquer. (Même principe que `wipeData` déduit de `DEFAULT_DATA`, 7.0.0.)
@@ -1486,6 +1487,36 @@
         note.title = r.ok ? '' : r.raison;
         input.classList.toggle('champ-doute', !r.ok);
         input.title = r.ok ? '' : r.raison;
+      };
+      input.addEventListener('input', maj);
+      maj();
+    });
+  }
+
+  // (1.327.0) Le matricule fiscal et l'adresse e-mail de la fiche société, vérifiés pendant la frappe comme le RIB : le
+  // refus d'un matricule mal formé ne vivait que trois secondes (le message passait, la case redevenait normale avec la
+  // valeur fausse), et une adresse sans « @ » s'enregistrait sans un mot — elle s'imprime en haut de chaque devis et
+  // facture. La remarque vit dans la ligne du libellé (H-E1) ; on prévient, et seul le matricule se refuse à
+  // l'enregistrement (il décide de la licence et de ce que le serveur porte).
+  const lblVerif = (text, key) => `<span class="fl">${text} ${info(key)}<span class="rib-note" aria-live="polite"></span></span>`;
+  const VERIFS = {
+    matricule: v => !v || C.matriculeBienForme(v) ? null
+      : { court: 'forme : 1234567A/A/M/000', raison: `« ${v} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre (jamais I, O ni U), puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.` },
+    email: v => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null
+      : { court: 'pas une adresse e-mail', raison: `« ${v} » n'a pas la forme d'une adresse e-mail (nom@domaine.tn) : elle s'imprime en haut de chaque devis et facture, et c'est là que tes clients te répondent.` },
+  };
+  function bindVerifFields(root) {
+    $$('input[data-verif]', root || document).forEach(input => {
+      const note = input.closest('.field') && $('.rib-note', input.closest('.field'));
+      const verif = VERIFS[input.dataset.verif];
+      if (!note || !verif || input.dataset.verifBound) return;
+      input.dataset.verifBound = '1';
+      const maj = () => {
+        const r = verif(String(input.value || '').trim());
+        note.textContent = r ? r.court : '';
+        note.title = r ? r.raison : '';
+        input.classList.toggle('champ-doute', !!r);
+        input.title = r ? r.raison : '';
       };
       input.addEventListener('input', maj);
       maj();
@@ -2432,9 +2463,17 @@
   // (1.270.0) Sauf si le serveur dit que ce cabinet est parti (`cabinetQuitte`) : ses anciens bulletins ne le font pas revenir.
   const sansCabinetRelie = () => !!(messagerieVue && !messagerieVue.cabinet)
     && (!!messagerieVue.cabinetQuitte || !((data && data.payslips) || []).some(p => p.pourAccordLe || p.correction));
+  // (1.327.0) Paramètres → Envois : la phrase sous « Email du comptable » disait « Relie-le plutôt dans Ton cabinet
+  // comptable » à une entreprise dont le cabinet tient déjà le dossier, relié juste en dessous (vu en jouant les
+  // Paramètres comme la boulangerie). Elle dit ce qui est vrai, et suit ce qu'on apprend du cabinet.
+  const phraseEmailComptable = () => (messagerieVue && messagerieVue.cabinet
+    ? 'Ton cabinet tient déjà ton dossier sur SkanFact Cabinet (« Ton cabinet comptable », plus bas) : il voit tes pièces au fil de l\'eau, sans e-mail. Ce champ ne sert qu\'à « Envoyer au comptable » tes journaux à quelqu\'un d\'autre.'
+    : 'Utilisé par « Envoyer au comptable » sur la page Comptabilité. Ton comptable a SkanFact Cabinet ? Relie-le plutôt dans « Ton cabinet comptable », plus bas : il voit tes pièces au fil de l\'eau, sans e-mail.');
   function majMessagerie(a) {
     const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
     messagerieVue = a;
+    const noteMail = $('#email-comptable-note');
+    if (noteMail) noteMail.textContent = phraseEmailComptable();
     if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet && remplirDemandeAchat) remplirDemandeAchat();
     // (1.303.0) Un cabinet relié : jusqu'où il a validé se lit tout de suite, pour qu'une saisie datée dans cette période le
     // dise dès le premier geste (la fenêtre d'émission d'une facture ne relit pas ses avertissements).
@@ -3406,6 +3445,7 @@
     bindDateFields(view);            // champs date posés par la page qui vient d'être dessinée
     bindWithholdingFields(view);     // « Autre taux… » des retenues à la source, même principe
     bindRibFields(view);             // la clé d'un RIB, vérifiée pendant la frappe (10.12.0)
+    bindVerifFields(view);           // le matricule et l'e-mail de la fiche société (1.327.0)
     // (plateforme) 1.134.0 — en lecture seule, un « + Nouveau… » en tête de liste n'est plus le vert de la page : l'étape
     // suivante est l'abonnement (le bandeau et l'état vide y mènent), pas une création que la fenêtre refuse.
     if (aboBloque(true)) $$('.page-head .btn-primary', view).forEach(b => { if (/^\+/.test(b.textContent.trim())) b.classList.remove('btn-primary'); });
@@ -3414,7 +3454,7 @@
     // qu'on venait de quitter — un champ date ou un taux libre y restait inerte, sans une erreur
     // nulle part. On rebranche quand elle a fini ; les deux fonctions sont idempotentes.
     if (dessine && typeof dessine.then === 'function') {
-      dessine.then(() => { bindDateFields(view); bindWithholdingFields(view); bindRibFields(view); }, () => {});
+      dessine.then(() => { bindDateFields(view); bindWithholdingFields(view); bindRibFields(view); bindVerifFields(view); }, () => {});
     }
     view.scrollTop = scroll;
     currentHash = location.hash;

@@ -6586,6 +6586,13 @@
         + (C.defaultVat(c) === 0 ? '<p class="small mt"><strong>Tes nouvelles lignes naissent à 0\u00a0% de TVA.</strong> C\'est juste si tu vends surtout sans TVA ; sinon, choisis ton taux dans « TVA des nouvelles lignes » — un taux resté à 0\u00a0% d\'un ancien régime ferait des factures sans la TVA que tu dois collecter.</p>' : '')
       : `<p class="small mt"><strong>Tu n'es pas assujetti à la TVA.</strong> Tes documents ne portent donc ni colonne TVA ni total de TVA : la mention « ${h(C.mentionTVA(c))} » s'imprime à la place. Le taux des nouvelles lignes est forcé à 0 % — c'est pour ça qu'il est grisé. La TVA que tu paies à tes fournisseurs ne se récupère pas : elle entre dans le coût de tes achats.</p>`;
   }
+  // (1.327.0) Le pont : un cabinet tient le dossier et fait les déclarations, et l'entreprise change de régime fiscal.
+  // Rien ne le lui disait — sa fiche gardait « TVA mensuelle » pour une boulangerie passée au forfait (vu en jouant les
+  // Paramètres). Le régime choisi le dit AVANT d'enregistrer (9.4.2) ; l'enregistrement propose de le lui écrire.
+  function noteRegimeCabinet(co) {
+    if (!peutEcrireAuCabinet() || C.regimeOf(co).id === C.regimeOf(data.company).id) return '';
+    return '<p class="small mt"><strong>Ton cabinet fait tes déclarations :</strong> ce régime change ce qu\'il dépose pour toi. Décide-le avec lui — à l\'enregistrement, SkanFact te propose de le lui écrire.</p>';
+  }
   routes.parametres = async () => {
     const c = company();
     const path = await bridge.dataPath();
@@ -6611,7 +6618,7 @@
           <div id="set-manque-zone">${bandeauManques(manques)}</div>
           <div class="grid-2">
           ${field(lbl('Raison sociale', 'co.name'), 'name', c.name)}
-          ${field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', c.matricule, 'text', 'placeholder="1234567X/A/M/000"')}
+          ${field(lblVerif('Matricule fiscal', 'co.matricule'), 'matricule', c.matricule, 'text', 'placeholder="1234567X/A/M/000" data-verif="matricule"')}
           ${field(lbl('Registre de commerce (RC)', 'co.rc'), 'rc', c.rc || '', 'text', 'placeholder="facultatif, ex. B123456789"')}
           ${field(lbl('Matricule CNSS employeur', 'pay.cnssEmployerId'), 'cnss', c.cnss || '', 'text', 'placeholder="s\'il y a des salariés"')}
           ${field(lbl('Code d\'exploitation CNSS', 'pay.cnssCode'), 'cnssCode', c.cnssCode || '', 'text', 'placeholder="0000" inputmode="numeric"')}
@@ -6619,7 +6626,7 @@
           ${field(lbl('Gérant (qui signe)', 'co.managerName'), 'managerName', c.managerName || '', 'text', 'placeholder="Prénom et nom"')}
           <label class="field span-2">${lbl('Adresse', 'co.address')}<textarea name="address">${h(c.address)}</textarea></label>
           ${field(lbl('Téléphone', 'co.phone'), 'phone', c.phone)}
-          ${field(lbl('Email', 'co.email'), 'email', c.email, 'email')}
+          ${field(lblVerif('Email', 'co.email'), 'email', c.email, 'email', 'data-verif="email"')}
           ${field(lbl('Site web', 'co.website'), 'website', c.website || '')}
           <label class="field span-2">${lbl('Slogan (sous le nom, sur les documents)', 'co.tagline')}<input type="text" name="tagline" value="${h(c.tagline || '')}" placeholder="Ce que fait ton entreprise, en quelques mots"></label>
         </div></div>
@@ -6735,7 +6742,7 @@
         ${panneau('p-envoi')}<p class="small muted" id="mail-fixe">Le message s'ouvre dans la messagerie de ton appareil, sans pièce jointe : un navigateur ne sait pas en joindre. Pour une facture ou un avoir émis, SkanFact met dans le message le lien de la pièce : ton client y voit la pièce telle que tu l'imprimes, et ce qu'il en doit ; il la règle en ligne si tu as branché le paiement en ligne (onglet Documents). Il n'y a rien à régler ici.</p></div>
         ${panneau('p-comptable')}<div class="grid-2">
           ${field(lbl('Email du comptable', 'compta.comptable'), 'accountantEmail', c.accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
-        </div><p class="small muted mt">Utilisé par « Envoyer au comptable » sur la page Comptabilité. Ton comptable a SkanFact Cabinet ? Relie-le plutôt dans « Ton cabinet comptable », plus bas : il voit tes pièces au fil de l'eau, sans e-mail.</p></div>
+        </div><p class="small muted mt" id="email-comptable-note">${h(phraseEmailComptable())}</p></div>
         ${panneau('p-modeles', info('mail.templates'))}
           <p class="small muted mt">Variables utilisables : {numero} {client} {objet} {montant} {echeance} {jours} {societe} {reference}. Les documents en anglais utilisent les modèles en anglais.</p>
           <!-- Les deux jeux sont REPLIÉS : trente-deux champs de texte à eux seuls, c'est-à-dire
@@ -6969,7 +6976,7 @@
 
     // --- barre « Enregistrer » : elle n'apparaît que s'il y a quelque chose à enregistrer
     let setDirty = false;
-    const markSet = () => { if (setDirty) return; setDirty = true; $('#save-bar').hidden = false; };
+    const markSet = () => { if (setDirty) return; setDirty = true; const sb = $('#save-bar'); sb.classList.remove('save-bar-repos'); sb.hidden = false; };
     $('#pf').addEventListener('input', markSet);
     $('#pf').addEventListener('change', markSet);
     // Le timbre se règle dans la devise de l'entreprise : son unité suit la liste pendant qu'on la
@@ -7023,6 +7030,7 @@
       if (!C.assujettiTVA({ ...data.company, ...v })) delete v.defaultVatRate;
       const et = {}, eten = {};
       Object.keys(v).forEach(k => { const m = k.match(/^(et|eten)_(\w+)_(subject|body)$/); if (m) { const bag = m[1] === 'et' ? et : eten; bag[m[2]] = bag[m[2]] || {}; bag[m[2]][m[3]] = v[k]; delete v[k]; } });
+      const regimeAvant = C.regimeOf(data.company);
       Object.assign(data.company, v, { emailTemplates: et, emailTemplatesEn: eten, exonerationsRS: exosCo });
       // Un champ `type=number` vidé rend la CHAÎNE VIDE, pas zéro. Trois réglages étaient bornés
       // ici et trois autres du même bloc ne l'étaient pas : vider le timbre fiscal le mettait
@@ -7053,9 +7061,20 @@
       accorderNomDossier();     // le dossier porte le nom de la société, pas « Mon entreprise »
       // La licence est attachée au matricule fiscal : une fiche société modifiée se revérifie.
       rafraichirLicence().then(() => { drawLicencePanel(); redessinerBarre(); });
-      setDirty = false; $('#save-bar').hidden = true;
+      // (1.327.0) Enregistré, la barre se tait mais garde sa place : retirée, elle raccourcissait la page, et en bas de
+      // page tout descendait de 73 points sous la souris au moment du clic (rien qui pousse sous le curseur).
+      setDirty = false; $('#save-bar').classList.add('save-bar-repos');
       if ($('#set-manque-zone')) $('#set-manque-zone').innerHTML = bandeauManques(C.companyGaps(company()));
       dessinerAchatsHorsRegime();
+      const regimeApres = C.regimeOf(data.company);
+      // Enregistré, le régime n'est plus un changement à décider : la remarque du cabinet s'en va.
+      if ($('#regime-note')) $('#regime-note').innerHTML = noteRegime(data.company);
+      if (regimeApres.id !== regimeAvant.id && peutEcrireAuCabinet()) {
+        toastUndo(`Régime enregistré : ${regimeApres.label}. Ton cabinet fait tes déclarations.`,
+          () => ecrireAuComptable(`Bonjour, j'ai changé mon régime fiscal dans SkanFact le ${C.fmtDate(C.today())} : « ${regimeApres.label} » (avant : « ${regimeAvant.label} »). Mes prochaines factures suivent ce régime. Est-ce juste pour mes déclarations ?`),
+          'Le dire à mon comptable');
+        return 'dit';   // le message passager est posé : « Paramètres enregistrés » ne le remplace pas
+      }
       return true;
     };
     // Le régime choisi se lit tout de suite, AVANT d'enregistrer (9.4.2) : la phrase qui dit ce qu'il
@@ -7063,7 +7082,7 @@
     const selRegime = $('#pf select[name=taxRegime]');
     if (selRegime) selRegime.addEventListener('change', () => {
       const co = { ...data.company, taxRegime: selRegime.value };
-      if ($('#regime-note')) $('#regime-note').innerHTML = noteRegime(co);
+      if ($('#regime-note')) $('#regime-note').innerHTML = noteRegime(co) + noteRegimeCabinet(co);
       const tv = $('#pf select[name=defaultVatRate]');
       // Au réel, le taux retrouve celui des réglages ; sinon, 0 % et grisé — la même règle que `defaultVat`.
       if (tv) { tv.disabled = !C.assujettiTVA(co); tv.value = String(C.defaultVat(co)); }
@@ -7072,14 +7091,22 @@
     // Le taux choisi change ce que dit la note (des lignes à 0 %) et ce que le catalogue peut recevoir.
     const selTaux = $('#pf select[name=defaultVatRate]');
     if (selTaux) selTaux.addEventListener('change', () => {
-      if ($('#regime-note')) $('#regime-note').innerHTML = noteRegime(regimeChoisi());
+      if ($('#regime-note')) $('#regime-note').innerHTML = noteRegime(regimeChoisi()) + noteRegimeCabinet(regimeChoisi());
       dessinerCatalogueSansTva(); dessinerSourcesSansTva();
     });
     dessinerCatalogueSansTva(); dessinerSourcesSansTva();
     dessinerAchatsHorsRegime();
     if (selRegime) selRegime.addEventListener('change', dessinerAchatsHorsRegime);
+    // (1.327.0) Les droits (grille A.6) : un rôle qui ne règle pas l'entreprise (un commercial, une caissière) tapait dans
+    // les cases de la fiche, puis lisait à « Enregistrer » que rien n'était permis — tout ce qu'il venait de taper perdu.
+    // Le refus se dit AVANT le geste (9.4.2) : les réglages de l'entreprise se lisent, sans se changer, et chaque onglet
+    // qui les porte dit pourquoi. Son compte, lui, reste à lui. Le serveur refuse de toute façon (`applySettings`).
+    if (!peutEcrireDossier('company')) {
+      $$('#pf input, #pf select, #pf textarea').forEach(el => { el.disabled = true; });
+      $$('#pf section[data-pane]').forEach(sec => sec.insertAdjacentHTML('afterbegin', '<div class="set-manque mb" data-lecture><b>Tu lis ces réglages sans pouvoir les changer :</b> ton rôle ne règle pas l\'entreprise. Ils se règlent par le propriétaire ou un administrateur.</div>'));
+    }
     setGuard({ dirty: () => setDirty, what: 'les paramètres', save: applySettings, discard: applyTheme });
-    $('#save').onclick = () => { if (applySettings()) toast('Paramètres enregistrés'); };
+    $('#save').onclick = () => { if (applySettings() === true) toast('Paramètres enregistrés'); };
     // « Annuler », collé à « Enregistrer », jetait sans un mot tout ce qui venait d'être tapé —
     // y compris dix minutes de modèles d'email. Le mot dit maintenant ce qu'il fait, et il demande.
     $('#cancel-set').onclick = async () => {

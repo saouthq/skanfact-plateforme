@@ -126,10 +126,18 @@ describe('les droits dans le dossier, à la souris', () => {
     await p.evaluate(() => { location.hash = '#/parametres'; });
     await expect.poll(() => p.locator('#pf input[name=name]').count(), { timeout: 10_000 }).toBe(1);
     await plusTard(p);
-    await p.locator('#pf input[name=name]').fill('Autre nom');
-
-    await p.locator('#save-bar #save').click();
-    await expect.poll(toast, { timeout: 10_000 }).toBe('Ton rôle ne permet pas de modifier les paramètres de l\'entreprise : ils se règlent par le propriétaire ou un administrateur. Rien n\'a été enregistré.');
+    // (1.327.0) Le refus se dit AVANT le geste : les cases de l'entreprise se lisent sans se changer, l'onglet dit pourquoi,
+    // et la barre « Enregistrer » ne paraît jamais. Son compte, lui, reste à lui.
+    const nomAvant = await p.locator('#pf input[name=name]').inputValue();
+    expect(await p.locator('#pf input[name=name]').isDisabled()).toBe(true);
+    expect(await p.locator('#pf select[name=taxRegime]').isDisabled()).toBe(true);
+    expect(net(await p.locator('section[data-pane="societe"] [data-lecture]').innerText()))
+      .toBe('Tu lis ces réglages sans pouvoir les changer : ton rôle ne règle pas l\'entreprise. Ils se règlent par le propriétaire ou un administrateur.');
+    expect(await p.locator('section[data-pane="compte"] [data-lecture]').count()).toBe(0);
+    await p.locator('#pf input[name=name]').click({ force: true });
+    await p.keyboard.type('Autre nom');
+    expect(await p.locator('#pf input[name=name]').inputValue()).toBe(nomAvant);
+    expect(await p.locator('#save-bar').isHidden()).toBe(true);
     const lu = (await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[];
     expect(lu.find((o) => o.cle === 'ciment')?.contenu.unitPrice).toBe(21);
     expect(erreurs).toEqual([]);
