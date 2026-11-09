@@ -79,6 +79,8 @@ declarerTextes({
   'ventes.accord_inutile': 'cette facture reste dans l\'encours autorisé de son client : elle s\'émet sans accord',
   'ventes.accord_deja_decide': 'cette demande a déjà été décidée : rien n\'a changé',
   'ventes.accord_le_sien': 'on ne décide pas sa propre demande : un autre responsable accorde ou refuse',
+  'ventes.accord_sans_objet': 'cette demande n\'a plus d\'objet : sa pièce n\'attend plus d\'accord (émise, supprimée, ou partie). Rien n\'a été décidé',
+  'ventes.accord_remplacee': 'cette demande a été remplacée par une plus récente, faite sur la même pièce depuis qu\'elle a changé : décide la dernière. Rien n\'a été décidé',
   'v10.partie.documents': 'les devis, factures et bons',
   'v10.partie.recurring': 'les contrats récurrents',
   'v10.partie.templates': 'les modèles de documents',

@@ -893,8 +893,11 @@
     const relancesNotees = () => (data().documents || []).reduce((n, d) => n + ((d && d.reminders) || []).length, 0);
     const reglements = () => (data().purchases || []).reduce((n, x) => n + ((x && x.payments) || []).length, 0);
     const bulletins = () => (data().payslips || []).length;
-    // Les Paramètres sont enregistrés quand leur barre « Modifications non enregistrées » a disparu.
-    const parametresEnregistres = () => { const b = $('#save-bar'); return !(b && !b.hidden); };
+    // Les Paramètres sont enregistrés quand leur barre « Modifications non enregistrées » a disparu — cachée, ou AU REPOS :
+    // depuis la 1.327.0, enregistrée, elle garde sa place sans rien dire (`save-bar-repos`, invisible) pour que le bas de la
+    // page ne descende pas sous la souris. Lue sur le seul `hidden`, la fiche n'était jamais « enregistrée » : la visite ne
+    // finissait plus sur « Ta fiche est à jour », et son étape « Enregistrer » visait un bouton invisible.
+    const parametresEnregistres = () => { const b = $('#save-bar'); return !b || b.hidden || b.classList.contains('save-bar-repos'); };
     // (plateforme, lot débutant) Un matricule de quatre chiffres ou un RIB à la clé fausse finissaient sur « Ta fiche est à jour ».
     const ficheComplete = () => {
       const c = data().company || {}, K = window.SkanCore;

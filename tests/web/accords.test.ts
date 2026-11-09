@@ -140,9 +140,12 @@ describe('l\'accord d\'un responsable, à la souris', () => {
       await k.locator('#modal-root #ok').click();
       return avertissement;
     };
-    expect(await emettre()).toContain('Au-delà, une facture demande l\'accord du propriétaire ou d\'un administrateur : en l\'émettant, tu pourras le lui demander.');
-    // Le serveur refuse, avec ses chiffres ; l'écran propose de demander l'accord.
+    // (1.328.0) L'accord se sait AVANT d'émettre : le bouton vert le demande, en UNE question, avec les chiffres que le
+    // serveur dirait. Plus de « Émettre la facture FAC-… ? » confirmé pour lire ensuite qu'elle ne s'émet pas.
+    expect(net(await k.locator('#issue').innerText())).toBe('Demander l\'accord');
+    await k.locator('#issue').click();
     await expect.poll(() => k.locator('#modal-root #accord-question').count(), { timeout: 10_000 }).toBe(1);
+    expect(await k.locator('#modal-root #ok').count()).toBe(0);
     expect(net(await k.locator('#modal-root').innerText())).toContain('Chantier Ennasr dépasserait son encours autorisé de 156,680 DT (799,680 DT déjà dus, 357,000 DT pour cette facture, 1 000,000 DT autorisés)');
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-2-demander.png') });
     await k.locator('#modal-root #a').click();
@@ -165,11 +168,12 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await expect.poll(() => toast(n), { timeout: 10_000 }).toBe('Refusé : la facture reste en brouillon.');
     await expect.poll(() => bandeau(n), { timeout: 10_000 }).toMatch(/^Refusé par Nadia le .* : « Qu'il règle d'abord le bon de livraison »\./);
 
-    // 4. Karim le lit sur sa facture, et redemande (le serveur refuse encore : le refus compte).
+    // 4. Karim le lit sur sa facture, et redemande (un refus ne couvre rien : le bouton vert redemande).
     await k.reload();
     await expect.poll(() => bandeau(k), { timeout: 20_000 }).toMatch(/^Refusé par Nadia le .* : « Qu'il règle d'abord le bon de livraison »\. La facture reste en brouillon/);
     await plusTard(k);
-    await emettre();
+    expect(net(await k.locator('#issue').innerText())).toBe('Demander l\'accord');
+    await k.locator('#issue').click();
     await expect.poll(() => k.locator('#modal-root #accord-question').count(), { timeout: 10_000 }).toBe(1);
     await k.locator('#modal-root #a').click();
     await expect.poll(() => bandeau(k), { timeout: 10_000 }).toMatch(/^Accord demandé le /);
@@ -199,13 +203,21 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     expect(net(await n.locator('#view tbody tr').first().innerText())).toMatch(/Accordée par Nadia le /);
     await n.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-5-liste.png') });
 
+    // (1.328.0) La page de Karim, restée ouverte sur la facture, reçoit l'accord sans qu'il recharge : elle relit les demandes
+    // toutes les trente secondes tant que la sienne attend.
+    await expect.poll(() => k.locator('#issue').innerText().then(net).catch(() => ''), { timeout: 45_000, interval: 1_000 }).toBe('Émettre la facture');
+    // « Avant d'émettre » coche l'encours accordé, avec le nom de qui l'a accordé.
+    expect(net(await k.locator('#view').innerText())).toContain('au-delà, accordé par Nadia');
+
     // 6. Karim : son accueil le dit ; il ouvre la facture et l'émet. La pièce porte les deux noms.
     await aller(k, '#/dashboard');
     await expect.poll(async () => net(await k.locator('#accords-accueil').innerText()), { timeout: 10_000 })
       .toMatch(/^Nadia a accordé ta facture pour Chantier Ennasr : tu peux l'émettre\./);
     await k.locator('#accords-ouvrir').click();
     await expect.poll(() => bandeau(k), { timeout: 10_000 }).toMatch(/^Accordé par Nadia le .*, pour 357,000 DT : la facture peut être émise\./);
-    expect(await emettre()).toContain('Nadia l\'a accordé : tu peux l\'émettre.');
+    // (1.328.0) Accordé pour ce montant : ce n'est plus un avertissement du récapitulatif (le bandeau de la page dit qui l'a
+    // accordé).
+    expect(await emettre()).not.toContain('dépasserait');
     await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-002/);
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-6-emise.png') });
     const emise = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[]).find((o) => o.cle === pieceId)?.contenu;
@@ -265,9 +277,12 @@ describe('l\'accord d\'un responsable, à la souris', () => {
       await k.locator('#modal-root #ok').click();
       return avertissement;
     };
-    expect(await emettre()).toContain('La remise de 15 % dépasse les 10 % permis sans accord : en l\'émettant, tu pourras demander l\'accord du propriétaire ou d\'un administrateur.');
+    // (1.328.0) La remise au-delà se sait avant : « Demander l'accord », une question, sans confirmer d'abord une émission.
+    expect(net(await k.locator('#issue').innerText())).toBe('Demander l\'accord');
+    await k.locator('#issue').click();
     await expect.poll(() => k.locator('#modal-root #accord-question').count(), { timeout: 10_000 }).toBe(1);
-    expect(net(await k.locator('#modal-root').innerText())).toContain('Café El Walima : la remise de 15 % dépasse les 10 % permis sans accord');
+    expect(await k.locator('#modal-root #ok').count()).toBe(0);
+    expect(net(await k.locator('#modal-root').innerText())).toContain('La remise de 15 %, au-delà des 10 % permis sans accord : il faut l\'accord du propriétaire ou d\'un administrateur.');
     await k.locator('#modal-root #a').click();
     await expect.poll(() => bandeau(k), { timeout: 10_000 }).toMatch(/^Accord demandé le .* \(une remise de 15 % \(10 % permis sans accord\)\) : en attente/);
     const pieceId = decodeURIComponent(k.url().split('#/doc/')[1] ?? '');
@@ -286,7 +301,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.reload();
     await expect.poll(() => bandeau(k), { timeout: 20_000 }).toMatch(/^Remise accordée par Nadia/);
     await plusTard(k);
-    expect(await emettre()).toContain('Nadia a accordé cette remise de 15 % : tu peux l\'émettre.');
+    expect(await emettre()).not.toContain('permis sans accord');
     await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-002/);
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-8-remise-emise.png') });
     const emise = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[]).find((o) => o.cle === pieceId)?.contenu;
@@ -318,9 +333,11 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.locator('[data-etq=timbre]').click(); await k.locator('[data-tb="0"]').click(); // (1.155.0) l'étiquette du timbre
     await k.locator('#save').click();
     await expect.poll(() => toast(k), { timeout: 10_000 }).toBe('Brouillon enregistré');
+    // (1.328.0) Un prix baissé sous le catalogue : la ligne en cause est nommée dans la question, avant tout.
+    expect(net(await k.locator('#issue').innerText())).toBe('Demander l\'accord');
     await k.locator('#issue').click();
-    await expect.poll(() => k.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
-    expect(net(await k.locator('#modal-root').innerText())).toContain('« Ciment gris 50 kg » est vendu 20 % sous son prix, au-delà des 10 % permis sans accord : en l\'émettant, tu pourras demander l\'accord du propriétaire ou d\'un administrateur.');
+    await expect.poll(() => k.locator('#modal-root #accord-question').count(), { timeout: 10_000 }).toBe(1);
+    expect(net(await k.locator('#modal-root').innerText())).toContain('« Ciment gris 50 kg » est vendu 20 % sous son prix, au-delà des 10 % permis sans accord : il faut l\'accord du propriétaire ou d\'un administrateur.');
     expect(erreurs).toEqual([]);
     await cn.close(); await ck.close();
   }, 180_000);

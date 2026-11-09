@@ -4869,7 +4869,7 @@ prouver "une pièce sous le plafond annoncée comme un dépassement" modules/soc
   "    return apres > plafond + 0.0005 ? {" "    return true ? {" \
   "$EN2"
 prouver "émettre au-delà de l'encours sans le dire" modules/socle/ecrans/entreprise/app-1.js \
-  "      if (enc) w.push(" "      if (false) w.push(" \
+  "      if (enc && !encAccorde) w.push(" "      if (false) w.push(" \
   "$ENW"
 prouver "l'encours autorisé absent de la fiche du client" modules/socle/ecrans/entreprise/app-1.js \
   "<input type=\"number\" name=\"creditLimit\"" "<input type=\"number\" name=\"creditLimitAbsent\"" \
@@ -5226,7 +5226,9 @@ prouver "la facture qui ne montre pas ses gestes au responsable" modules/socle/e
   "    if (a.statut === 'en_attente' && accordsVus.peutDecider && !a.mienne) {" "    if (false) {" \
   "$ACW"
 prouver "l'accueil du responsable muet sur ce qui l'attend" modules/socle/ecrans/entreprise/app-1.js \
-  "l.accords.filter(a => a.statut === 'en_attente' && !a.mienne) : [];" "l.accords.filter(a => a.statut === 'en_attente' && a.mienne) : [];" \
+  "l.accords.filter(a => a.statut === 'en_attente' && !a.mienne
+      &&" "l.accords.filter(a => a.statut === 'en_attente' && a.mienne
+      &&" \
   "$ACW"
 prouver "la page des demandes sans ses gestes" modules/socle/ecrans/entreprise/app-2.js \
   "            ? (l.peutDecider && !a.mienne ? \`<span class=\"inline\">" "            ? (false ? \`<span class=\"inline\">" \
@@ -20813,7 +20815,7 @@ prouver 'émise 2 : un lien donné et jamais ouvert qui ne dit rien' web/public/
 prouver 'émise 3 : l'"'"'historique sans l'"'"'heure' modules/socle/ecrans/entreprise/app-1.js \
   '${e.ts && Number.isFinite(new Date(e.ts).getTime()) ? ` · ${new Date(e.ts).getHours()}' '${false ? ` · ${new Date(e.ts).getHours()}' "$T_EMISE"
 prouver 'émise 4 : l'"'"'encours dépassé sans dire qui décide' modules/socle/ecrans/entreprise/app-1.js \
-  "'ou émets quand même : c\\'est toi qui décides.'" "'ou émets quand même.'" "$T_EMISE"
+  "'Fais-la régler avant, ou émets quand même : c\\'est toi qui décides.'" "'Fais-la régler avant, ou émets quand même.'" "$T_EMISE"
 prouver 'émise 5 : le stock qui manque sans son dépôt' modules/socle/ecrans/entreprise/app-1.js \
   "dans le dépôt \${dn.replace(/^d[ée]p[ôo]t\\s+/i, '')}" 'dans ${dn}' "$T_EMISE"
 prouver 'émise 6 : la facture émise qui tait son affaire' modules/socle/ecrans/entreprise/app-1.js \
@@ -26672,6 +26674,55 @@ prouver 'parametres 1.327.0 h : « Paramètres enregistrés » efface la proposi
 prouver 'parametres 1.327.0 i : au téléphone, la recherche des réglages s'\''arrête aux trois quarts de sa rangée' web/public/plateforme/telephone.css \
   '.set-search, .set-search #set-q {' '.set-search, .set-search input[type=search] {' \
   "$PA"
+prouver 'parametres 1.327.0 j : la visite « Compléter ma fiche » croit la fiche jamais enregistrée (la barre au repos)' modules/socle/visites/visites.js \
+  "return !b || b.hidden || b.classList.contains('save-bar-repos');" 'return !(b && !b.hidden);' \
+  "$KD1"
+# (1.328.0) Les accords joués à deux (la propriétaire, un commercial) : la demande suit la pièce.
+ACCORD1328A='Karim demande, Nadia refuse puis accorde, Karim émet'
+ACCORD1328B='Nadia règle la remise permise ; Karim remise au-delà, demande, Nadia accorde depuis la facture, Karim émet'
+ACCORD1328C='Karim fait grossir sa facture après sa demande : l'\''écran le dit, il redemande en une question ; Nadia ne peut pas accorder l'\''ancien montant ; la facture redescendue s'\''émet sans accord'
+prouver 'accords 1.328.0 a : « Émettre la facture ? » confirmé avant de lire que l'\''accord manque' modules/socle/ecrans/entreprise/app-1.js \
+  'if (att && !att.demande) { await demanderAccordPour(doc, phraseAccord(doc, att), persist); return; }' 'if (false && att && !att.demande) { await demanderAccordPour(doc, phraseAccord(doc, att), persist); return; }' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 b : une demande de 357 DT couvre encore la facture de 595 DT' modules/socle/ecrans/entreprise/app-1.js \
+  'return { demande: p && couvre(p) ? p : null, perimee: p && !couvre(p) ? p : null };' 'return { demande: p, perimee: null };' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 c : le bouton ne suit pas la frappe (il faut recharger pour lire « Redemander »)' modules/socle/ecrans/entreprise/app-1.js \
+  '      if (g.dataset.accord === etat) return;' '      if (g.dataset.accord === etat || true) return;' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 d : la demande remplacée reste affichée à côté de la nouvelle' serveur/v10/routes.ts \
+  'and not (a.statut = '\''en_attente'\'' and exists' 'and not (false and exists' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 e : le responsable accorde une demande remplacée' serveur/v10/routes.ts \
+  'if (a.remplacee) throw new Refus('\''ventes.accord_remplacee'\'');' 'if (false) throw new Refus('\''ventes.accord_remplacee'\'');' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 f : la demande d'\''une facture émise sans accord reste pour toujours sur l'\''accueil' serveur/v10/routes.ts \
+  'and (a.statut <> '\''en_attente'\'' or ${PIECE_EN_ATTENTE})' 'and (true or ${PIECE_EN_ATTENTE})' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 g : on décide une demande dont la facture est émise' serveur/v10/routes.ts \
+  'if (!a.en_attente) throw new Refus('\''ventes.accord_sans_objet'\'');' 'if (false) throw new Refus('\''ventes.accord_sans_objet'\'');' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 h : la facture redescendue sous le plafond dit encore « en attente »' modules/socle/ecrans/entreprise/app-1.js \
+  'if (doc && a.statut === '\''en_attente'\'' && !besoinAccord(doc, a.geste || '\''encours'\'')) {' 'if (false) {' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 i : le responsable peut accorder l'\''ancien montant d'\''une facture qui a grossi' modules/socle/ecrans/entreprise/app-1.js \
+  'const perime = !inutile && !!(vu && vu.perimee && vu.perimee.id === a.id);' 'const perime = false;' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 j : l'\''accueil réclame une décision sur une facture revenue sous le plafond' modules/socle/ecrans/entreprise/app-1.js \
+  '&& !(a.geste !== '\''commande'\'' && docById(a.piece) && !besoinAccord(docById(a.piece), a.geste || '\''encours'\''))) : [];' ') : [];' \
+  "$ACCORD1328C"
+prouver 'accords 1.328.0 k : un encours accordé reste un avertissement du récapitulatif' modules/socle/ecrans/entreprise/app-1.js \
+  'if (enc && !encAccorde) w.push(' 'if (enc) w.push(' \
+  "$ACCORD1328A"
+prouver 'accords 1.328.0 l : une remise accordée reste un avertissement du récapitulatif' modules/socle/ecrans/entreprise/app-1.js \
+  'if (!(ar && ar.statut === '\''accorde'\'' && Number(ar.taux) >= Math.round(tauxRemise * 100))) w.push(' 'if (true) w.push(' \
+  "$ACCORD1328B"
+prouver 'accords 1.328.0 m : la réponse du responsable n'\''arrive qu'\''en rechargeant la page' modules/socle/ecrans/entreprise/app-1.js \
+  '      if (avait === '\''demande'\'') {' '      if (false) {' \
+  "$ACCORD1328A"
+prouver 'accords 1.328.0 n : « Avant d'\''émettre » marque encore l'\''encours accordé comme un manque' modules/socle/ecrans/entreprise/app-1.js \
+  'if (enc) points.push([encOk, encOk ?' 'if (enc) points.push([false, false ?' \
+  "$ACCORD1328A"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -143,6 +143,30 @@ avant le seuil ; le refus et ses chiffres ; la demande sans doublon ; refusée p
 taux ; sous le seuil ; le propriétaire), `tests/web/accord-commande.test.ts` (Nadia règle, Ines demande, Nadia accorde
 depuis son accueil et la commande, Ines envoie ; quatre écrans regardés). 13 preuves.
 
+## La demande suit la pièce (1.328.0)
+
+Joué à deux (une boulangerie : la propriétaire, un commercial), le module laissait trois chemins mentir :
+
+- **L'accord se sait AVANT d'émettre.** L'écran calcule ce que le serveur refusera (`accordAttendu`, la remise d'abord
+  puis l'encours, la règle d'`accords.ts`) : le bouton vert dit « Demander l'accord », et le clic le demande en une
+  question, avec les chiffres. Avant, « Émettre la facture FAC-… ? » se confirmait, puis le serveur refusait, puis une
+  seconde question proposait la demande (un refus se dit avant la question).
+- **Une demande couvre son montant, pas la pièce.** La facture qui grossit après la demande est « accord à
+  redemander » (bouton, pastille, bandeau, et pendant la frappe, sans perdre le curseur) ; celle qui redescend sous le
+  plafond s'émet, et le bandeau dit « Plus d'accord à attendre ». Avant, « Accord demandé » restait affiché sur l'ancien
+  montant, et une facture redescendue restait bloquée.
+- **Le responsable ne décide que ce qui couvre.** La fenêtre de la demande dit le montant d'aujourd'hui quand la
+  facture a changé, et propose de l'ouvrir au lieu d'accorder l'ancien montant ; une pièce faite sur un autre poste
+  depuis l'ouverture se relit (« Recharger pour la lire »). Le serveur ne montre que la dernière demande d'une pièce
+  (une plus récente la remplace) et seulement tant que la pièce attend (brouillon, commande pas partie) ; décider une
+  demande remplacée, ou sans objet, se refuse (`ventes.accord_remplacee`, `ventes.accord_sans_objet`).
+- La page d'une facture qui attend relit les demandes toutes les trente secondes et au retour sur l'onglet : la réponse
+  du responsable arrive sans recharger. Un accord donné n'est plus un avertissement du récapitulatif d'émission.
+- Une facture qui attend son accord s'exporte en PDF de brouillon, sans proposer « Émettre et exporter ».
+
+Tests : `tests/web/accords-1328.test.ts` (la facture grossit, se redemande, redescend et s'émet ; l'ancienne demande
+refusée au serveur), et `tests/web/accords.test.ts` suit le nouveau geste. Preuves « accords 1.328.0 ».
+
 ## Reste connu (les briques suivantes)
 
 - **Le retour** (D11) : un avoir ne s'émet aujourd'hui que par le propriétaire ou l'administrateur (`ventes.avoir.emettre`,
@@ -150,6 +174,7 @@ depuis son accueil et la commande, Ines envoie ; quatre écrans regardés). 13 p
   caisse et le « code d'un responsable » (étape 4).
 
 - **Brique 99, les droits geste par geste dans le dossier** : faite (`docs/droits-dossier.md`).
-- Les autres postes ne se mettent pas à jour tout seuls : une demande faite ailleurs se voit en rouvrant la page
-  (ou « Recharger »). La notification à distance viendra avec les avis (étape suivante).
+- Les autres postes ne se mettent pas à jour tout seuls, sauf la page d'une facture qui attend son accord (relue
+  toutes les trente secondes depuis la 1.328.0) : une demande faite ailleurs se voit en rouvrant la page (ou
+  « Recharger »). La notification à distance viendra avec les avis (étape suivante).
 - Le « code d'un responsable » sur le même poste (la caisse, étape 4) et la notification à distance.

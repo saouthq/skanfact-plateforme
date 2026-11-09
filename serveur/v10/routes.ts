@@ -230,6 +230,11 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // (1.328.0) La pièce d'une demande attend-elle encore sa décision ? Une facture encore en brouillon, une commande pas encore
+  // partie. Lu dans le dossier (`a` est la demande) : l'écran du responsable n'a pas toujours la pièce d'un autre poste.
+  const PIECE_EN_ATTENTE = `exists (select 1 from socle.dossier_v10 dp where dp.entreprise = a.entreprise and dp.cle = a.piece_v10
+    and ((a.geste <> 'commande' and dp.collection = 'documents' and coalesce(dp.contenu->>'status', 'brouillon') = 'brouillon')
+      or (a.geste = 'commande' and dp.collection = 'supplierOrders' and coalesce(dp.contenu->>'status', 'brouillon') in ('brouillon', 'demande'))))`;
   // ── L'accord d'un responsable au-delà de l'encours (brique 98 ; docs/accords.md) ──────────────────────
   // Demander : le serveur recalcule le dépassement (jamais celui de l'écran) et garde la demande, en attente.
   ajouter({
@@ -292,7 +297,15 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       const lignes = (await tx.query(`select a.id, a.geste, a.taux, a.seuil, a.piece_v10, a.client_v10, a.montant, a.encours, a.plafond, a.statut, a.motif, a.demande_le, a.decide_le,
           d.nom demandeur, x.nom decideur, (a.demande_par = socle.moi()) mienne
         from ventes.accord a join socle.utilisateur d on d.id = a.demande_par left join socle.utilisateur x on x.id = a.decide_par
-        where a.entreprise = $1 order by (a.statut = 'en_attente') desc, coalesce(a.decide_le, a.demande_le) desc limit 50`, [ent])).rows;
+        where a.entreprise = $1
+          -- (1.328.0) Une demande qui attend, remplacée par une plus récente sur la même pièce et le même geste (la facture a
+          -- grossi, on a redemandé), ne se montre plus : le responsable ne décide que la dernière.
+          and not (a.statut = 'en_attente' and exists (select 1 from ventes.accord b where b.entreprise = a.entreprise
+            and b.piece_v10 = a.piece_v10 and b.geste = a.geste and b.demande_le > a.demande_le))
+          -- Ni une demande dont la pièce n'attend plus rien (émise sans accord une fois revenue sous le plafond, supprimée,
+          -- commande partie) : elle restait pour toujours sur l'accueil du responsable.
+          and (a.statut <> 'en_attente' or ${PIECE_EN_ATTENTE})
+        order by (a.statut = 'en_attente') desc, coalesce(a.decide_le, a.demande_le) desc limit 50`, [ent])).rows;
       return { corps: { peutDecider: await estResponsable(tx, ent), accords: lignes.map((l) => ({
         id: l.id, geste: l.geste, taux: l.taux === null ? null : Number(l.taux), seuil: l.seuil === null ? null : Number(l.seuil),
         piece: l.piece_v10, client: l.client_v10, montant: Number(l.montant), encours: Number(l.encours), plafond: l.plafond === null ? null : Number(l.plafond),
@@ -306,11 +319,18 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       if (!z.string().uuid().safeParse(params.accord).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
-      const a = (await tx.query(`select statut, (demande_par = socle.moi()) mienne from ventes.accord where id = $1 and entreprise = $2 for update`,
-        [params.accord, params.entreprise])).rows[0] as { statut: string; mienne: boolean } | undefined;
+      const a = (await tx.query(`select a.statut, (a.demande_par = socle.moi()) mienne,
+          exists (select 1 from ventes.accord b where b.entreprise = a.entreprise and b.piece_v10 = a.piece_v10 and b.geste = a.geste
+            and b.demande_le > a.demande_le) remplacee, ${PIECE_EN_ATTENTE} en_attente
+        from ventes.accord a where a.id = $1 and a.entreprise = $2 for update of a`,
+        [params.accord, params.entreprise])).rows[0] as { statut: string; mienne: boolean; remplacee: boolean; en_attente: boolean } | undefined;
       if (!a) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       if (a.statut !== 'en_attente') throw new Refus('ventes.accord_deja_decide');
       if (a.mienne) throw new Refus('ventes.accord_le_sien');
+      // (1.328.0) Une demande remplacée par une plus récente (la pièce a changé, on a redemandé) ne se décide plus :
+      // l'accorder couvrirait l'ancien montant d'une pièce qui n'existe plus telle quelle.
+      if (a.remplacee) throw new Refus('ventes.accord_remplacee');
+      if (!a.en_attente) throw new Refus('ventes.accord_sans_objet');
       await tx.query(`update ventes.accord set statut = $2, decide_par = socle.moi(), decide_le = now(), motif = $3 where id = $1`,
         [params.accord, corps.decision === 'accorder' ? 'accorde' : 'refuse', corps.motif || null]);
       return { corps: { statut: corps.decision === 'accorder' ? 'accorde' : 'refuse' } };

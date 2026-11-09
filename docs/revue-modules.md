@@ -1426,3 +1426,49 @@ Ce qui est fait :
   bas de page qui ne bouge pas, la phrase d'Envois, la remarque puis la proposition du régime, le message prêt dans la
   conversation ; le téléphone mesuré), `tests/web/droits-dossier.test.ts` retourné vers la règle (les cases fermées
   avant le geste) ; preuves `parametres 1.327.0 a-i`, deux preuves anciennes repointées.
+
+## Les accords d'un responsable, joués à deux (1.328.0)
+
+Joué à la souris par la boulangerie : Sarra (propriétaire) règle « au-delà de l'encours d'un client : l'accord d'un
+responsable » ; Karim (commercial) facture 12 plateaux de viennoiseries à l'Hôtel Le Belvédère (500 DT autorisés).
+
+Ce qui n'allait pas :
+
+- Le bouton vert disait « Émettre la facture » sur une facture qui ne pouvait pas s'émettre : un clic confirmait
+  « Émettre la facture FAC-2026-048 ? Émettre quand même », puis le serveur refusait, puis une seconde question proposait
+  de demander l'accord. Deux questions, et la première annonçait un geste impossible.
+- Karim passait à 20 plateaux APRÈS sa demande (643,600 → 1 072,000 DT) : l'écran disait toujours « Accord demandé
+  (643,600 DT) », sans rien proposer. Le serveur, lui, n'aurait couvert que l'ancien montant.
+- Chez Sarra, la demande annonçait 643,600 DT, sa fenêtre disait « Karim émet la facture telle quelle », et proposait
+  « Accorder » : elle aurait accordé un montant qui ne couvrait plus la facture. La facture, faite sur un autre poste
+  depuis l'ouverture de sa page, ne pouvait pas s'ouvrir depuis la fenêtre.
+- Une facture redescendue sous le plafond (8 plateaux) restait derrière « Accord demandé », bouton éteint ; émise un
+  jour, sa demande restait pour toujours sur l'accueil du responsable. Une demande refaite laissait l'ancienne en attente
+  à côté (« 2 demandes d'accord attendent »).
+- La page de Karim ne voyait l'accord qu'en rechargeant ; accordé, le récapitulatif disait encore « Émettre quand même »
+  avec l'encours en avertissement, et « Avant d'émettre » le marquait comme un manque.
+
+Ce qui est fait :
+
+- `accordAttendu` (app-1) calcule ce que le serveur refusera (la remise d'abord, puis l'encours, la règle d'`accords.ts`) :
+  le bouton dit « Demander l'accord », et le clic le demande en UNE question, avec les chiffres. La pastille, le bandeau,
+  la fenêtre du responsable et l'accueil lisent cette seule fonction.
+- Une demande couvre son montant : la facture qui grossit après devient « Redemander l'accord » (bouton, pastille,
+  bandeau qui dit le montant d'aujourd'hui), pendant la frappe et sans perdre le curseur ; celle qui redescend redevient
+  « Émettre », et le bandeau dit « Plus d'accord à attendre ».
+- Chez le responsable : une demande périmée se lit avec le montant d'aujourd'hui, sans « Accorder » (« Émettre moi-même »
+  sur la facture, « Ouvrir la facture » dans la fenêtre) ; une pièce d'un autre poste se relit (« Recharger pour la
+  lire »). Le serveur ne montre que la dernière demande d'une pièce et seulement tant qu'elle attend ; décider une demande
+  remplacée ou sans objet se refuse, avec sa phrase.
+- La page d'une facture qui attend relit les demandes toutes les trente secondes et au retour sur l'onglet (jamais sous
+  la frappe) ; un accord donné n'est plus un avertissement d'émission, et « Avant d'émettre » coche l'encours accordé.
+- Une facture qui attend son accord s'exporte en PDF de brouillon, sans proposer « Émettre et exporter ».
+- Le bandeau orange de l'encours ne redit plus « ou demande l'accord » quand une demande existe.
+- Trouvé en jouant, traité à part (1.329.0) : le récapitulatif annonçait FAC-2026-048 (la suite que l'entreprise a posée,
+  « Je facturais déjà », 47) et le serveur a donné FAC-2026-001 — la suite n'atteint jamais la série du serveur.
+- Noté, pas changé : les bandeaux de l'éditeur (encours, stock) apparaissent pendant la frappe et poussent le formulaire
+  (88 points) ; c'est le dessin de tous les bandeaux de la pièce, à reprendre d'un bloc.
+- La preuve : `tests/web/accords-1328.test.ts` (Karim demande en une question, fait grossir, redemande, redescend et émet ;
+  Nadia ne peut pas accorder l'ancien montant ; l'ancienne demande et la demande sans objet refusées au serveur),
+  `tests/web/accords.test.ts` suit le geste neuf (et reçoit l'accord sans recharger) ; preuves `accords 1.328.0 a-n`, trois
+  preuves anciennes repointées.
