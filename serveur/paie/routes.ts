@@ -42,6 +42,12 @@ const pct = (v: unknown) => versTexte(BigInt(Number(v) || 0), 4);   // un taux e
 // les écrire : il ne les écrit que dans un dossier qu'il tient (0150). (1.71.0) De même pour les avances sur salaire, qu'un
 // bulletin nouveau retient (0151).
 const COLLECTIONS_PAIE = ['employees', 'payslips', 'timesheets', 'leaves', 'advances'] as const;
+// (1.330.0) Ce que le Cabinet LIT sans jamais l'écrire : les versions validées du pointage, et les mois rouverts. Sans elles,
+// un mois que le client a validé (chacun présent, rien à noter) se disait « 1 sur 2 salariés pointés » et « Un mois sans
+// pointage » au Cabinet (joué : la boulangerie a validé octobre, le Cabinet ne le savait pas). Le POST n'écrit que
+// `COLLECTIONS_PAIE` : une version validée reste celle du client.
+const LUS_DU_POINTAGE = ['pointageVersions'];
+const RACINE_LUE = ['payrollSettings', 'pointageOuverts'];
 // Ce que le client décide chez lui : un congé, une avance. Son cabinet ne l'écrit que dans un dossier qu'il tient.
 const DECIDE_CHEZ_LE_CLIENT: Record<string, 'paie.conges_chez_le_client' | 'paie.avances_chez_le_client'> = {
   leaves: 'paie.conges_chez_le_client', advances: 'paie.avances_chez_le_client',
@@ -206,8 +212,8 @@ export function routesPaie(ctx: Contexte): Route<never>[] {
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const objets = (await tx.query(`select collection, cle, rang, revision, contenu from socle.dossier_v10
-          where entreprise = $1 and (collection = any($2::text[]) or (collection = '_racine' and cle = 'payrollSettings'))
-          order by collection collate "C", rang, cle collate "C"`, [params.entreprise ?? '', COLLECTIONS_PAIE])).rows;
+          where entreprise = $1 and (collection = any($2::text[]) or (collection = '_racine' and cle = any($3::text[])))
+          order by collection collate "C", rang, cle collate "C"`, [params.entreprise ?? '', [...COLLECTIONS_PAIE, ...LUS_DU_POINTAGE], RACINE_LUE])).rows;
       // (1.235.0) Qui fait la paie (`paieMode`, `paieModeDes`, `paieModeAvant`), et rien d'autre de la fiche (0186) : le
       // Cabinet attend l'accord du client, ou ne fait que vérifier, selon ce choix écrit.
       const mode = (await tx.query(`select socle.mode_de_paie($1) m`, [params.entreprise ?? ''])).rows[0] as { m: unknown } | undefined;

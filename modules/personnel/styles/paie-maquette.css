@@ -1520,18 +1520,34 @@ body.dark .pm .papier { color: #1d2327; }
 .pm .pa-auj-vide { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; color: var(--gris); font-size: 13px; border-top: 1px solid var(--trait); }
 .pm .pa-auj-vide svg { color: var(--sarcelle-texte); flex: none; margin-top: 1px; }
 .pm #p-payer-c .pa-pied { margin: 0; padding: 12px 16px; border-top: 1px solid var(--trait); display: flex; gap: 6px; align-items: flex-start; }
-.pm .pa-chemin { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
-.pm .pa-etape { border: 1px solid var(--trait); border-radius: 12px; padding: 12px; text-align: left; background: var(--papier); display: grid; gap: 4px; align-content: start; position: relative; cursor: pointer; font: inherit; color: inherit; min-width: 0; }
-.pm .pa-etape:hover { border-color: color-mix(in srgb, var(--sarcelle) 45%, var(--trait)); }
-.pm .pa-etape:focus-visible { outline: 2px solid var(--sarcelle); outline-offset: 2px; }
-.pm .pa-etape .n { width: 24px; height: 24px; border-radius: 99px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--papier-2); color: var(--gris); border: 1px solid var(--trait-fort); box-sizing: border-box; }
+/* (1.330.0) Les quatre étapes du mois en FRISE, comme celle du Cabinet (Skander, 09/11 : « je n'aime pas les 4 cards, ce n'est
+   pas intuitif ni ergonomique et ça porte à confusion, on ne comprend pas la page »). Quatre cartes de même poids, dont
+   deux allumées à la fois (l'étape en cours, et celle qu'on regarde), ne disaient ni qu'elles se suivent, ni que cliquer
+   change le bas de la page. Un trait relie les étapes et se remplit avec ce qui est fait ; le rond dit l'état (coche :
+   fait ; cerclé : en cours) ; UN seul repère, souligné comme un onglet, dit l'étape affichée dessous. */
+.pm .pa-chemin { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0 0 14px; border-bottom: 1px solid var(--trait); }
+.pm .pa-etape { border: 0; border-radius: 0; padding: 2px 14px 12px 0; text-align: left; background: none; display: grid; gap: 3px; align-content: start; position: relative; cursor: pointer; font: inherit; color: inherit; min-width: 0; box-shadow: inset 0 -3px 0 transparent; }
+.pm .pa-etape::before { content: ''; position: absolute; left: 26px; right: 2px; top: 13px; height: 2px; border-radius: 2px; background: var(--trait-fort); }
+.pm .pa-etape:last-child::before { display: none; }
+.pm .pa-etape.fait::before { background: var(--sarcelle); }
+.pm .pa-etape:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.pm .pa-etape:focus-visible { outline: 2px solid var(--sarcelle); outline-offset: 2px; border-radius: 6px; }
+.pm .pa-etape .n { position: relative; z-index: 1; width: 26px; height: 26px; border-radius: 99px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--papier); color: var(--gris); border: 2px solid var(--trait-fort); box-sizing: border-box; margin-bottom: 3px; }
 .pm .pa-etape b { font-size: 14px; }
 .pm .pa-etape .d { font-size: 12.5px; color: var(--gris); }
 .pm .pa-etape.fait .n { background: var(--sarcelle); color: #fff; border-color: var(--sarcelle); }
-.pm .pa-etape.cours { border-color: var(--sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sarcelle) 15%, transparent); }
-.pm .pa-etape.cours .n { color: var(--sarcelle-texte); border-color: var(--sarcelle); }
-.pm .pa-etape.ouverte { background: var(--papier-2); }
-.pm .pa-etape .pm-nb { position: absolute; top: 10px; right: 10px; margin: 0; }
+.pm .pa-etape.cours .n { color: var(--sarcelle-texte); border-color: var(--sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sarcelle) 18%, transparent); }
+.pm .pa-etape.cours .d { color: var(--encre); }
+.pm .pa-etape.ouverte { box-shadow: inset 0 -3px 0 var(--sarcelle); }
+.pm .pa-etape.ouverte b { color: var(--sarcelle-texte); }
+.pm .pa-etape .pm-nb { position: absolute; top: 2px; left: 30px; margin: 0; z-index: 2; }
+/* Quand l'étape affichée n'est pas celle du moment, une ligne le dit et y mène : plus de doute sur « où j'en suis ». */
+.pm .pa-ou { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: -6px 0 14px; font-size: 13px; color: var(--gris); }
+.pm .pa-ou b { color: var(--encre); }
+/* La phrase prend la place qui reste à côté de sa coche (au téléphone, la coche restait seule sur sa ligne) ; le bouton passe
+   dessous quand la ligne est pleine. */
+.pm .pa-ou > span { flex: 1 1 16em; min-width: 0; }
+.pm .pa-ou > svg { flex: none; }
 .pm .pa-sous-l { display: flex; gap: 6px; flex-wrap: wrap; margin: -4px 0 14px; }
 .pm .pa-sous-l button { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--trait); background: var(--papier); border-radius: 99px; padding: 5px 12px; font: inherit; font-size: 13px; color: var(--gris); cursor: pointer; }
 .pm .pa-sous-l button:hover { color: var(--encre); }
@@ -1541,7 +1557,9 @@ body.dark .pm .papier { color: #1d2327; }
   .pm .pa-gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
-  .pm .pa-chemin { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pm .pa-etape { padding-right: 6px; }
+  .pm .pa-etape .d { display: none; }
+  .pm .pa-etape.ouverte .d, .pm .pa-etape.cours .d { display: block; }
   .pm .apy-l.pa-payer-l li { grid-template-columns: 30px minmax(0, 1fr); }
   .pm .apy-l.pa-payer-l .pa-payer-g { grid-column: 1 / -1; justify-content: flex-start; }
 }

@@ -158,6 +158,8 @@
   // (plateforme) 1.222.0 — l'état d'un mois de paie, pour sa frise et ses trois chiffres (docs/paie.md, « La paie appliquée »).
   // Chaque étape se DÉDUIT des faits (bulletins établis, payés, remis ; CNSS du trimestre déposée) : rien n'est écrit d'avance.
   const MOIS_PAIE = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // (1.330.0) « la déclaration d'octobre », jamais « de octobre » (avril, août aussi).
+  const deMoisPaie = m => (/^[aeiouéè]/i.test(MOIS_PAIE[m - 1]) ? 'd’' : 'de ') + MOIS_PAIE[m - 1];
   function paieDuMois(data, year, month, opts) {
     const y = Number(year), m = Number(month), cur = (data.company || {}).currency || 'TND';
     const L = payslipsOf(data, y, m), manque = missingPayslips(data, y, m), n = L.length + manque.length;
@@ -188,7 +190,7 @@
           : bap && aApprouver ? `${n} établi${n > 1 ? 's' : ''} · ${aApprouver > 1 ? `${aApprouver} à approuver` : '1 à approuver'}` : `${n} établi${n > 1 ? 's' : ''}${bap ? ' · approuvés' : ''}` },
       { titre: 'Payer', fait: tousPayes, dit: !L.length ? 'après les bulletins' : tousPayes ? (jours.length === 1 ? `payés le ${fmtDate(jours[0])}` : 'tous payés') : `${L.length - payes.length} à payer · ${money(round3(L.filter(x => !x.paidDate).reduce((a, x) => a + x.c.net, 0)), cur)}` },
       { titre: 'Remettre', fait: tousRemis, dit: !L.length ? 'un bulletin à chaque salarié' : tousRemis ? 'chacun a son bulletin' : `${L.length - remis.length} à remettre` },
-      { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée` : `la retenue avec la déclaration de ${MOIS_PAIE[m - 1]} · la CNSS au trimestre` }
+      { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée` : `la retenue avec la déclaration ${deMoisPaie(m)} · la CNSS au trimestre` }
     ];
     // Une seule étape « ici » : la première qui n'est pas faite.
     let ici = false;
@@ -197,7 +199,7 @@
       etapes, net, cout, brut, impots, cnss, etat: round3(impots + cnss), avant, moisAvant: ma,
       netDit: especes ? `${money(round3(net - especes), cur)} par virement, ${money(especes, cur)} en espèces` : 'par virement',
       coutDit: `brut ${money(brut, cur)} + charges ${money(round3(cout - brut), cur)}${coutAvant ? ` · ${Math.abs(round3(cout - coutAvant)) < 0.0005 ? `comme ${MOIS_PAIE[ma - 1]}` : `${money(Math.abs(round3(cout - coutAvant)), cur)} de ${cout > coutAvant ? 'plus' : 'moins'} qu’en ${MOIS_PAIE[ma - 1]}`}` : ''}`,
-      etatDit: `${money(impots, cur)} avec la déclaration de ${MOIS_PAIE[m - 1]} · ${money(cnss, cur)} de CNSS au trimestre`
+      etatDit: `${money(impots, cur)} avec la déclaration ${deMoisPaie(m)} · ${money(cnss, cur)} de CNSS au trimestre`
     };
   }
   // Ce qui attend un geste sur les fiches des salariés en poste : un RIB qui manque à un virement, un n° CNSS, un CDD qui finit

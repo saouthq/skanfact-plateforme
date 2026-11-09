@@ -146,6 +146,11 @@ describe('payer les salaires du mois, à la souris', () => {
     expect((await fenetre.locator('#ps-payer').boundingBox())?.y).toBe(yAvant);
     await fenetre.locator('[data-ps-rib="s2"]').click();
     await expect.poll(() => p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('iban');
+    // (1.330.0) La case amenée par « Renseigner le RIB… » se voit : au-dessus du pied de la fenêtre, pas dessous.
+    expect(await fenetre.locator('[name=iban]').evaluate((x) => {
+      const pied = x.closest('.modal')?.querySelector(':scope > .modal-actions:last-child');
+      return pied ? x.getBoundingClientRect().bottom <= pied.getBoundingClientRect().top + 1 : true;
+    })).toBe(true);
     await fenetre.locator('[name=iban]').fill('10045000001234567882');
     await expect.poll(() => fenetre.locator('.rib-note').first().innerText()).toBe('clé incorrecte');
     await fenetre.locator('[name=iban]').fill(RIB_DEUX);

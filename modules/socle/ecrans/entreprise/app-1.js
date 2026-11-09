@@ -8331,19 +8331,10 @@
       // « Émettre quand même » sur une facture dont l'accord était donné. Le bandeau de la page dit qui l'a accordé.
       const accEnc = enc && isInv ? accordDe(doc.id, 'encours') : null;
       const encAccorde = !!(accEnc && accEnc.statut === 'accorde' && Number(accEnc.montant) >= Math.round(enc.piece * Math.pow(10, C.decimalsFor(co.currency))));
-      if (enc && !encAccorde) w.push(`${(clientById(doc.clientId) || {}).name || 'Ce client'} dépasserait son encours autorisé de ${C.money(enc.depasse, co.currency)} : il doit déjà ${C.money(enc.encours, co.currency)} (factures non réglées et bons livrés à facturer), cette pièce en ajoute ${C.money(enc.piece, co.currency)}, pour ${C.money(enc.plafond, co.currency)} autorisés. ${isInv && co.encoursAccord && accordsEnLigne() && !estResponsable()
-        ? 'Au-delà, une facture demande l\'accord du propriétaire ou d\'un administrateur.'
-        : 'Fais-le régler avant, ou émets quand même.'}`);
-      // La remise au-delà de celle permise sans accord (brique 103) : dite AVANT, à qui devra demander l'accord.
-      const seuilRemise = Number(co.remiseAccordAuDela) || 0;
-      // La remise effective (brique 104) : un prix de ligne baissé sous celui du client compte aussi.
-      const effective = C.remiseEffective(data, doc, co);
-      const tauxRemise = effective.taux;
-      if (isInv && accordsEnLigne() && !estResponsable() && seuilRemise > 0 && tauxRemise > seuilRemise) {
-        const ar = accordDe(doc.id, 'remise');
-        // (1.328.0) Accordée pour ce taux : plus un avertissement (le bandeau de la page le dit).
-        if (!(ar && ar.statut === 'accorde' && Number(ar.taux) >= Math.round(tauxRemise * 100))) w.push(`${effective.ligne ? `« ${effective.ligne} » est vendu ${pct(tauxRemise)} % sous son prix, au-delà des` : `La remise de ${pct(tauxRemise)} % dépasse les`} ${pct(seuilRemise)} % permis sans accord : il faut l'accord du propriétaire ou d'un administrateur.`);
-      }
+      if (enc && !encAccorde) w.push(`${(clientById(doc.clientId) || {}).name || 'Ce client'} dépasserait son encours autorisé de ${C.money(enc.depasse, co.currency)} : il doit déjà ${C.money(enc.encours, co.currency)} (factures non réglées et bons livrés à facturer), cette pièce en ajoute ${C.money(enc.piece, co.currency)}, pour ${C.money(enc.plafond, co.currency)} autorisés. Fais-le régler avant, ou émets quand même.`);
+      // (1.330.0) L'accord d'un responsable (l'encours au-delà, la remise au-delà ; briques 100, 103, 104) ne se dit plus
+      // ici : depuis la 1.328.0, `accordAttendu` le sait avant, le bouton vert le demande et `phraseAccord` en dit les
+      // chiffres. Les deux phrases d'ici n'étaient plus lues par personne (trois preuves restaient vertes sur GitHub).
       // (plateforme) Ce qui manque se NOMME, et « Compléter ma fiche… », sous les avertissements, le règle sans quitter
       // la pièce (lot facture, 05/10/2026). La même règle que la fiche (`companyGaps`) et que le serveur (identite.ts).
       if (!(co.name || '').trim()) w.push('Ta raison sociale manque : c\'est le nom qui s\'imprime en haut de la pièce.');
@@ -14707,7 +14698,11 @@
   // le « 2 » de « 28 » par le « 8 » — 8 planches comptées au lieu de 28, et un écart de −22 prêt à
   // être enregistré en mouvements (10.12.0). Un focus rendu par le code n'est pas une entrée.
   let nombreJusteEntre = null, entreeVoulue = false;
-  const estNombre = el => el && el.tagName === 'INPUT' && el.type === 'number' && !el.readOnly && !el.disabled;
+  // (1.330.0) Et les montants écrits en français (`data-montant`, `.num` : des cases de TEXTE depuis la 1.155.0) : la règle ne
+  // visait que `type=number`, et le brut d'un salarié, prérempli à 0,000, devenait 12 500 DT pour « 1250 » tapé après un clic
+  // (joué à la souris, la boulangerie). Le Cabinet la portait depuis la 10.14.1 ; c'est son jumeau.
+  const estNombre = el => !!el && el.tagName === 'INPUT' && !el.readOnly && !el.disabled
+    && (el.type === 'number' || (el.type === 'text' && (el.classList.contains('num') || el.hasAttribute('data-montant'))));
   document.addEventListener('pointerdown', () => { entreeVoulue = true; }, true);
   document.addEventListener('keydown', e => { entreeVoulue = e.key === 'Tab'; }, true);
   document.addEventListener('focusin', e => {

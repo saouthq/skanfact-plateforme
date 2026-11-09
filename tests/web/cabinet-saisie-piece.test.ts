@@ -494,7 +494,8 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
       const fi = document.querySelector('#sx-fiche')?.getBoundingClientRect();
       return !!dv && !!fi && dv.height > 0 && fi.top > dv.bottom - 1;
     })).toBe(true);
-    for (const b of await p.locator('#sx-fiche .sx-gestes .btn').all()) expect((await b.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    // Au pixel près : le téléphone de GitHub mesurait 43,9998 pour une case posée à 44 (rouge de 1.328.0).
+    for (const b of await p.locator('#sx-fiche .sx-gestes .btn').all()) expect(Math.round((await b.boundingBox())?.height ?? 0)).toBeGreaterThanOrEqual(44);
     await p.locator('#sx-fiche').scrollIntoViewIfNeeded();
     await p.screenshot({ path: path.join(PHOTOS, 'saisie-piece-tel.png') });
     // (1.214.0) Les douze mois tiennent sur une rangée qui défile, ouverte sur septembre (ils prenaient trois rangées).

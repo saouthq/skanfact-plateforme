@@ -1503,3 +1503,70 @@ Ce qui est fait :
 - La preuve : `tests/v10/numerotation-1329.test.ts` (048 puis 049, commercial refusé, avoirs à part, année commencée),
   `tests/web/numerotation-1329.test.ts` (Karim sans le bouton, Sarra annoncée et émise à 048, Karim à 049 ; l'annonce du
   serveur sur un dossier divergent) ; preuves `numérotation 1.329.0 a-i`.
+
+## La paie de la boulangerie, et ce qu'en lit le cabinet (1.330.0)
+
+Jouée à la souris par Sarra (propriétaire) : Hédi, boulanger en CDI (1 250 DT brut, chef de famille, deux enfants), Amira,
+vendeuse en CDD à temps partiel (600 DT), deux jours de maladie, le mois d'octobre pointé et validé, les deux bulletins
+établis, payés par virement puis remis ; puis lue au Cabinet par Leïla (Jlassi Conseil). Les montants tombent juste des
+deux côtés (net 1 555,175, charges 378,695, coût 2 228,695 : deux chemins, un chiffre).
+
+Ce qui n'allait pas :
+
+- Skander : « je n'aime pas les 4 cards, ce n'est pas intuitif ni ergonomique et ça porte à confusion, on ne comprend pas
+  la page ». Quatre cartes de même poids, dont deux allumées à la fois (l'étape en cours, et celle qu'on regarde), ne
+  disaient ni qu'elles se suivent, ni que cliquer change le bas de la page.
+- Le brut prérempli à 0,000, un clic à gauche du chiffre aligné à droite, « 1250 » tapé : 12 500 DT. La règle qui
+  sélectionne un nombre prérempli (10.12.0) ne visait que les cases `type=number` ; les montants sont des cases de
+  texte en français depuis la 1.155.0. Le Cabinet la portait déjà ; l'entreprise, non.
+- L'étape « Pointer » se disait « facultatif » au-dessus de « Les bulletins attendent : 1 chose à régler dans le
+  pointage » (27 journées pas validées) ; validé, le mois laissait encore « Pointer » en cours et « facultatif ».
+- « Une absence sur plusieurs jours » ouverte depuis octobre proposait le 09/11.
+- « Renseigner le RIB… » posait le curseur dans une case cachée sous le pied de la fenêtre.
+- Le RIB gardait ses espaces : sa fin se lisait « ··· 0 52 » sur les bulletins, « 9052 » sur l'équipe.
+- Le navigateur proposait le CIN de Hédi dans la fiche d'Amira (son historique de la case).
+- Au Cabinet : « 1 sur 2 salariés pointés » et « Un mois sans pointage » alors que Sarra avait validé octobre (pointer
+  à la main, c'est noter ce qui change : Hédi, présent à ses horaires, n'avait pas de grille, et le Cabinet ne lisait
+  que les grilles) ; deux paires « Le demander à Sarra / Le renseigner… » sans dire à qui ; « préparé » sur deux
+  bulletins payés et remis.
+
+Ce qui est fait :
+
+- « Le mois » en frise, comme celle du Cabinet : un trait relie les quatre étapes et se remplit avec ce qui est fait ; le
+  rond dit l'état (coche : fait ; cerclé : en cours) ; un seul repère, souligné comme un onglet, dit l'étape affichée
+  dessous. Quand l'étape affichée n'est pas celle du moment, une ligne le dit et y mène (« Tu regardes Pointer, fait.
+  L'étape du moment : Bulletins — 0 sur 2 établis. Aller à « Bulletins » »). Au téléphone, seule l'étape affichée et
+  l'étape en cours gardent leur phrase.
+- « Pointer » dit ce qui retient (« 1 chose à régler avant les bulletins ») ou « le mois est validé », et un mois validé
+  est une étape faite, même avant les bulletins.
+- Valider le mois (ou une journée, ou le rouvrir) redessine la frise et l'en-tête sur-le-champ : sous un mois tout juste
+  validé, « Pointer » disait encore « 1 chose à régler » jusqu'au clic suivant (trouvé par le test qui joue le geste).
+- « la déclaration d'octobre » (et d'avril, d'août), plus « de octobre ».
+- Un montant prérempli (`.num`, `data-montant`) se sélectionne quand on y entre, au clic comme à Tab.
+- Une absence notée depuis un mois passé (ou à venir) propose son 1er ; depuis le mois en cours, aujourd'hui.
+- Une fenêtre dont le pied reste collé en bas réserve sa hauteur quand elle amène une case à l'écran. Le défaut vu à la
+  souris (« Renseigner le RIB… ») ne se reproduit dans aucun test — Chrome centre la case qui reçoit le curseur — : la
+  marge reste, sans preuve, et deux tests vérifient que la case se voit, dont le vrai geste de la fenêtre de paiement.
+- Au téléphone, le bandeau du mois validé et ses deux gestes (« Voir la version validée », « Corriger : une nouvelle
+  version ») passent sous la phrase : la page débordait de 28 px de côté. La coche de « Tu regardes » reste à côté de sa
+  phrase.
+- Le RIB s'enregistre sans espaces ; sa fin se lit sans espaces partout. CIN, matricule et identité CNSS ne se
+  remplissent plus de mémoire.
+- Le Cabinet lit les versions validées du pointage et les mois rouverts, sans pouvoir les écrire (base 0205, route de la
+  paie du dossier, pont) : un salarié de la version validée compte pointé, la frise dit « validé par Sarra le 09/11 »,
+  le tableau de la paie des dossiers compte le mois validé ; un mois rouvert ne l'est plus. Plusieurs salariés sans
+  n° CNSS : chaque bouton nomme le sien. Un bulletin payé (et remis) par le client le dit.
+- Écarté : le PDF du second bulletin enregistré sous « download » ; c'est le navigateur de la machine de test, lancé
+  sans langue UTF-8, qui ne sait pas écrire « é » dans un nom de fichier.
+- À VÉRIFIER avec le comptable : la maladie est payée par l'employeur (les jours restent payés sur le bulletin) pendant
+  que la fenêtre d'absence dit « la CNAM indemnise » : selon la convention, l'un des deux est à revoir.
+- Le rouge GitHub de la 1.328.0, réparé ici : quatre preuves des accords restaient vertes, parce que le récapitulatif
+  d'émission ne parlait plus d'accord à personne (depuis la 1.328.0, le bouton vert le demande avant). Les deux phrases
+  mortes sont retirées ; les preuves visent la règle là où elle vit (`accordAttendu`), et le refus du serveur — le seul
+  chemin de secours encore vivant, quand l'écran ne savait pas — a son test (la règle activée pendant que Karim a sa
+  facture ouverte). Et un bouton mesuré 43,9998 px au téléphone de GitHub se juge au pixel près.
+- La preuve : `tests/web/paie-1330.test.ts` (la frise et ses états, la ligne « Tu regardes », l'absence du mois regardé,
+  le brut tapé après un clic, la case du RIB au-dessus du pied, le RIB sans espaces), `tests/cabinet/paie-1330.test.ts`
+  (le Cabinet lit sans écrire ; la paie des dossiers compte le mois validé ; rouvert, plus rien ; la base ne lui ouvre
+  rien d'autre de la racine), `tests/web/cabinet-paie-1330.test.ts` (« validé par », plus de « mois sans pointage »,
+  les boutons nommés, « payé, remis »), `tests/moteur/paie-1330.test.ts` (« d'octobre ») ; preuves `paie 1.330.0 a-r` (sans g).

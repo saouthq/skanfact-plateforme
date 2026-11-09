@@ -278,11 +278,15 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
              -- lot : le tri se fait dans la requête, sur le rôle que le portefeuille donne pour chaque dossier.
              and f.role in ('paie', 'supervision')),
         d as (select v.entreprise, v.collection, v.contenu from socle.dossier_v10 v
-           where v.entreprise in (select entreprise from p) and v.collection in ('employees', 'payslips', 'timesheets'))
+           where v.entreprise in (select entreprise from p) and (v.collection in ('employees', 'payslips', 'timesheets', 'pointageVersions')
+             or (v.collection = '_racine' and v.cle = 'pointageOuverts')))
         select p.entreprise, p.raison_sociale, p.tenu, socle.mode_de_paie(p.entreprise) mode,
           count(*) filter (where d.collection = 'employees' and coalesce(d.contenu->>'active', 'true') <> 'false'
             and coalesce(d.contenu->>'hireDate', '') <= $3 and coalesce(nullif(d.contenu->>'endDate', ''), $2) >= $2) salaries,
           count(*) filter (where d.collection = 'timesheets' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5) pointes,
+          -- (1.330.0) Le mois validé par le client (0205) : chacun y est pointé, même présent à ses horaires, sans grille.
+          coalesce(bool_or(d.collection = 'pointageVersions' and d.contenu->>'ym' = $6), false)
+            and not coalesce(bool_or(d.collection = '_racine' and d.contenu ? $6), false) valide,
           count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5) bulletins,
           count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'pourAccordLe', '') <> '') envoyes,
           count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'bonAPayerLe', '') <> '') approuves,
@@ -292,14 +296,14 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           count(*) filter (where d.collection = 'payslips' and d.contenu->>'year' = $4 and d.contenu->>'month' = $5 and coalesce(d.contenu->>'paidDate', '') <> '') payes
         from p left join d on d.entreprise = p.entreprise
         group by p.entreprise, p.raison_sociale, p.tenu
-        order by p.raison_sociale collate "C", p.entreprise`, [params.cabinet, premier, dernier, String(an), String(mo)]);
+        order by p.raison_sociale collate "C", p.entreprise`, [params.cabinet, premier, dernier, String(an), String(mo), mois]);
       return {
         corps: {
           mois,
-          dossiers: (r.rows as { entreprise: string; raison_sociale: string; tenu: boolean; mode: unknown; salaries: string; pointes: string; bulletins: string;
+          dossiers: (r.rows as { entreprise: string; raison_sociale: string; tenu: boolean; mode: unknown; salaries: string; pointes: string; valide: boolean; bulletins: string;
             envoyes: string; approuves: string; verifies: string; valides: string; remis: string; payes: string }[]).map((x) => ({
             entreprise: x.entreprise, nom: x.raison_sociale, tenu: x.tenu, mode: x.mode ?? null,
-            salaries: Number(x.salaries), pointes: Number(x.pointes), bulletins: Number(x.bulletins), envoyes: Number(x.envoyes),
+            salaries: Number(x.salaries), pointes: x.valide ? Math.max(Number(x.pointes), Number(x.salaries)) : Number(x.pointes), bulletins: Number(x.bulletins), envoyes: Number(x.envoyes),
             approuves: Number(x.approuves), verifies: Number(x.verifies), valides: Number(x.valides), remis: Number(x.remis), payes: Number(x.payes),
           })),
         },

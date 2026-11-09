@@ -5216,12 +5216,11 @@ prouver "le responsable que l'écran ne reconnaît pas" web/public/plateforme/po
 prouver "le réglage de l'accord perdu à l'enregistrement" modules/socle/ecrans/entreprise/app-2.js \
   "      data.company.encoursAccord = data.company.encoursAccord === true;" "      data.company.encoursAccord = false;" \
   "$ACW"
-prouver "l'avertissement qui dit « émets quand même » à qui ne le peut pas" modules/socle/ecrans/entreprise/app-1.js \
-  "\${isInv && co.encoursAccord && accordsEnLigne() && !estResponsable()" "\${false && co.encoursAccord && accordsEnLigne() && !estResponsable()" \
-  "$ACW"
+# (1.330.0) « l'avertissement qui dit « émets quand même » à qui ne le peut pas » est retirée avec son code : depuis la
+# 1.328.0, qui devra demander l'accord ne voit plus le récapitulatif (le bouton vert le demande, `accordAttendu`).
 prouver "le refus de l'émission qui ne propose pas l'accord" modules/socle/ecrans/entreprise/app-1.js \
   "if (e && e.bouton === 'ventes.accord.demander' && bridge.demanderAccord) demanderAccordPour(" "if (false) demanderAccordPour(" \
-  "$ACW"
+  "la règle activée pendant que Karim a sa facture ouverte : le serveur refuse, et le refus propose de demander l'accord"
 prouver "la facture qui ne montre pas ses gestes au responsable" modules/socle/ecrans/entreprise/app-1.js \
   "    if (a.statut === 'en_attente' && accordsVus.peutDecider && !a.mienne) {" "    if (false) {" \
   "$ACW"
@@ -5305,7 +5304,7 @@ prouver "le taux d'une demande réécrit en base" base/migrations/0054_accord_re
   "  if (new.taux, new.seuil) is distinct from (old.taux, old.seuil) then" "  if false then" \
   "$AR1"
 prouver "la remise au-delà qui ne se dit pas avant" modules/socle/ecrans/entreprise/app-1.js \
-  "      if (isInv && accordsEnLigne() && !estResponsable() && seuilRemise > 0 && tauxRemise > seuilRemise) {" "      if (false) {" \
+  "    if (seuil > 0) {" "    if (false) {" \
   "$ARW"
 prouver "le seuil de remise qui ne se règle pas à l'écran" modules/socle/ecrans/entreprise/app-2.js \
   "          \${accordsEnLigne() ? field(lbl('Remise permise sans accord (%)'" "          \${false ? field(lbl('Remise permise sans accord (%)'" \
@@ -5342,7 +5341,7 @@ prouver "le refus qui ne nomme pas la ligne baissée" serveur/v10/accords.ts \
   "  throw new Refus(r.ligne ? 'ventes.remise_ligne_accord' : 'ventes.remise_accord', {" "  throw new Refus('ventes.remise_accord', {" \
   "$AR1"
 prouver "l'écran qui ne voit que la remise globale" modules/socle/ecrans/entreprise/app-1.js \
-  "      const tauxRemise = effective.taux;" "      const tauxRemise = Number(doc.discountRate) || 0;" \
+  "      const e = C.remiseEffective(data, doc, co), taux = Math.round(e.taux * 100);" "      const e = { taux: Number(doc.discountRate) || 0, ligne: '' }, taux = Math.round(e.taux * 100);" \
   "$ARW"
 
 # ── Brique 105 : le téléphone pour de vrai (web/v10/telephone.txt) ──
@@ -16827,8 +16826,8 @@ prouver 'les réglages de paie du client que le cabinet peut réécrire' 'base/m
   'create policy reglages_de_paie_au_cabinet on socle.dossier_v10 using (' \
   'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
 prouver 'la route de la paie qui tait les réglages du client' 'serveur/paie/routes.ts' \
-  ' or (collection = '"'"'_racine'"'"' and cle = '"'"'payrollSettings'"'"'))' \
-  ')' \
+  'const RACINE_LUE = ['"'"'payrollSettings'"'"', '"'"'pointageOuverts'"'"'];' \
+  'const RACINE_LUE = ['"'"'pointageOuverts'"'"'];' \
   'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
 prouver 'les réglages du client jamais posés dans le livre' 'web/public/plateforme/pont-cabinet.js' \
   'livre.reglagesPaie = reglagesDuClient(ent);' \
@@ -26715,7 +26714,7 @@ prouver 'accords 1.328.0 k : un encours accordé reste un avertissement du réca
   'if (enc && !encAccorde) w.push(' 'if (enc) w.push(' \
   "$ACCORD1328A"
 prouver 'accords 1.328.0 l : une remise accordée reste un avertissement du récapitulatif' modules/socle/ecrans/entreprise/app-1.js \
-  'if (!(ar && ar.statut === '\''accorde'\'' && Number(ar.taux) >= Math.round(tauxRemise * 100))) w.push(' 'if (true) w.push(' \
+  'if (e.taux > seuil && !(a && a.statut === '\''accorde'\'' && Number(a.taux) >= taux)) {' 'if (e.taux > seuil) {' \
   "$ACCORD1328B"
 prouver 'accords 1.328.0 m : la réponse du responsable n'\''arrive qu'\''en rechargeant la page' modules/socle/ecrans/entreprise/app-1.js \
   '      if (avait === '\''demande'\'') {' '      if (false) {' \
@@ -26756,6 +26755,68 @@ prouver 'numérotation 1.329.0 h : la fenêtre d'\''émission annonce la suite d
 prouver 'numérotation 1.329.0 i : le commercial reçoit le bouton d'\''un réglage que le serveur lui refuse' modules/socle/ecrans/entreprise/app-1.js \
   '*/'\'''\''}${estResponsable()' '*/'\'''\''}${true' \
   "$NUM1329W1"
+# (1.330.0) La paie de la boulangerie, jouée à la souris, et lue au Cabinet (docs/revue-modules.md, 1.330.0).
+PAIE1330W='la frise du mois, le brut tapé après un clic, l'\''absence du mois regardé, la case du RIB visible et enregistrée sans espaces'
+PAIE1330C='lu sans être écrit : la version validée compte chacun pointé, la paie de mes dossiers le dit ; rouvert, plus rien'
+PAIE1330E='octobre validé, payé et remis par le client : le Cabinet dit « validé par », nomme chaque salarié sans n° CNSS, et « payé, remis »'
+prouver 'paie 1.330.0 a : le brut prérempli se complète au clic (« 1250 » devenu 12 500)' modules/socle/ecrans/entreprise/app-1.js \
+  '&& (el.type === '\''number'\'' || (el.type === '\''text'\'' && (el.classList.contains('\''num'\'') || el.hasAttribute('\''data-montant'\''))));' '&& el.type === '\''number'\'';' \
+  "$PAIE1330W"
+prouver 'paie 1.330.0 b : « Pointer » se dit facultatif quand ses journées retiennent les bulletins' modules/personnel/ecrans/entreprise/paie.js \
+  ': nRetient && !pt0.fait ? { ...pt0, dit:' ': false && !pt0.fait ? { ...pt0, dit:' \
+  "$PAIE1330W"
+prouver 'paie 1.330.0 c : le mois validé laisse « Pointer » en cours' modules/personnel/ecrans/entreprise/paie.js \
+  'const pt = ptEnvoye(y, m) && !pt0.fait ?' 'const pt = false && !pt0.fait ?' \
+  "$PAIE1330W"
+prouver 'paie 1.330.0 d : regarder une autre étape que celle du moment ne le dit pas' modules/personnel/ecrans/entreprise/paie.js \
+  'return ici && vue && ici.id !== vue.id ?' 'return false ?' \
+  "$PAIE1330W"
+prouver 'paie 1.330.0 e : les étapes redeviennent des cartes encadrées' modules/personnel/styles/paie-maquette.css \
+  '.pm .pa-etape { border: 0;' '.pm .pa-etape { border: 1px solid var(--trait);' \
+  "$PAIE1330W"
+prouver 'paie 1.330.0 f : l'\''absence ouverte depuis un mois passé propose aujourd'\''hui' modules/personnel/ecrans/entreprise/paie.js \
+  'return auj.slice(0, 7) === ym ? auj : `${ym}-01`;' 'return auj;' \
+  "$PAIE1330W"
+# (1.330.0) « g : la case amenée à l'écran reste sous le pied » ne se prouve pas : Chrome centre la case qui reçoit le
+# curseur, et le défaut vu à la souris ne se reproduit dans aucun test (le vrai geste compris, paie-virement). La marge
+# réservée reste ; les deux tests vérifient que la case se voit.
+prouver 'paie 1.330.0 h : le RIB s'\''enregistre avec ses espaces' modules/personnel/ecrans/entreprise/paie.js \
+  '{ iban: String(v.iban || '\'''\'').replace(/\s+/g, '\'''\''), grossSalary:' '{ grossSalary:' \
+  "$PAIE1330W"
+prouver 'paie 1.330.0 i : le serveur ne donne pas au Cabinet les versions validées du pointage' serveur/paie/routes.ts \
+  '[...COLLECTIONS_PAIE, ...LUS_DU_POINTAGE]' '[...COLLECTIONS_PAIE]' \
+  "$PAIE1330C"
+prouver 'paie 1.330.0 j : la base ne laisse pas le Cabinet lire le pointage validé' base/migrations/0205_pointage_valide_au_cabinet.sql \
+  'collection = '\''pointageVersions'\'' and entreprise in' 'collection = '\''pointageVersionsX'\'' and entreprise in' \
+  "$PAIE1330C"
+prouver 'paie 1.330.0 k : la paie de mes dossiers ne compte pas le mois validé' serveur/cabinet/routes.ts \
+  'pointes: x.valide ? Math.max(Number(x.pointes), Number(x.salaries)) : Number(x.pointes),' 'pointes: Number(x.pointes),' \
+  "$PAIE1330C"
+prouver 'paie 1.330.0 l : un mois rouvert par le client reste compté validé' serveur/cabinet/routes.ts \
+  'and not coalesce(bool_or(d.collection = '\''_racine'\'' and d.contenu ? $6), false) valide,' 'valide,' \
+  "$PAIE1330C"
+prouver 'paie 1.330.0 m : le Cabinet ne compte pas les salariés de la version validée' modules/personnel/ecrans/cabinet/paie.js \
+  '|| pointeDansLaVersion(L, ym, x.id)).length;' ').length;' \
+  "$PAIE1330E"
+prouver 'paie 1.330.0 n : deux paires « Le demander / Le renseigner » sans dire à qui' modules/personnel/ecrans/cabinet/paie.js \
+  'const qui = P.sansCnss.length > 1 ?' 'const qui = false ?' \
+  "$PAIE1330E"
+prouver 'paie 1.330.0 o : un bulletin payé et remis se dit « préparé » au Cabinet' modules/personnel/ecrans/cabinet/paie.js \
+  ': b.payeLe ? `<span class="badge b-paid">${b.remisLe ? '\''payé, remis'\'' : '\''payé'\''}</span>`' ': false ? '\'''\''' \
+  "$PAIE1330E"
+PAIE1330M='« d’octobre », « d’avril », « d’août », mais « de mars »'
+prouver 'paie 1.330.0 r : au téléphone, le bandeau du mois validé pousse la page de côté' modules/personnel/styles/paie.css \
+  '@media (max-width: 760px) { .pa-bandeau .pa-bandeau-g { flex: 1 1 100%; flex-wrap: wrap; margin-left: 0; } }' '@media (max-width: 760px) { }' \
+  "$PAIE1330W"
+prouver 'paie 1.330.0 p : valider le mois redessine la frise (elle disait encore « 1 chose à régler »)' modules/personnel/ecrans/entreprise/paie.js \
+  '        if (c) { c.focus(); if (focus.hs) c.select(); }
+      }
+      majTeteDuMois();' '        if (c) { c.focus(); if (focus.hs) c.select(); }
+      }' \
+  "$PAIE1330W"
+prouver 'paie 1.330.0 q : la déclaration d’octobre, jamais « de octobre »' modules/personnel/moteur/core-paie.js \
+  "(/^[aeiouéè]/i.test(MOIS_PAIE[m - 1]) ? 'd’' : 'de ')" "('de ')" \
+  "$PAIE1330M"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

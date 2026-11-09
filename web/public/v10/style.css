@@ -769,6 +769,10 @@ table.lignes-doc th { padding-bottom: 4px; }
 .modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 /* (plateforme) 1.79.0 — une fenêtre qui défile garde ses boutons à l'écran (le pied est le dernier bloc de la fenêtre). */
 .modal > .modal-actions:last-child { position: sticky; bottom: -26px; margin-bottom: -26px; padding: 12px 0 26px; background: var(--panel); z-index: 3; }
+/* (1.330.0) Le pied collé en bas couvre le bas de la fenêtre : un champ amené à l'écran (ouvert sur sa case, Tab, une erreur
+   montrée) s'arrêtait dessous — « Renseigner le RIB… » posait le curseur dans une case cachée par « Enregistrer ». La
+   fenêtre réserve la hauteur de son pied quand elle fait défiler un champ jusqu'à l'œil. */
+.modal:has(> .modal-actions:last-child) { scroll-padding-block-end: 88px; }
 /* (plateforme) 1.80.0 — « FAC-2026-004 » ne se coupe pas en deux quand la ligne porte « Relancer » et « Actions ». */
 #r-wrap table.list td:first-child a { white-space: nowrap; }
 /* (plateforme) 1.80.0 — dans une fenêtre basse (« Partir d'une pièce existante »), la liste ouverte était coupée par la

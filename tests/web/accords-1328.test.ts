@@ -212,4 +212,53 @@ describe('l\'accord qui suit la pièce (1.328.0)', () => {
     expect(erreurs).toEqual([]);
     await cn.close(); await ck.close();
   }, 180_000);
+
+  // (1.330.0) Le seul chemin où le serveur refuse encore ce que l'écran n'a pas vu venir : Nadia active la règle pendant que
+  // Karim a sa facture ouverte. Son écran ne le sait pas (« Émettre la facture ») ; le serveur refuse, et le refus propose
+  // de demander l'accord, en une question, sans rien émettre.
+  it('la règle activée pendant que Karim a sa facture ouverte : le serveur refuse, et le refus propose de demander l\'accord', async () => {
+    const { jeton, ent, karim } = await magasin();
+    const erreurs: string[] = [];
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, karim);
+    const k = await cx.newPage();
+    k.on('pageerror', (e) => erreurs.push(e.message));
+    const objets = async () => (await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[];
+    await k.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture`);
+    await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Nouvelle facture|^Facture/);
+    await plusTard(k);
+    await k.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await k.locator('#ed-pq-q').isVisible()) {
+      await k.locator('#ed-pq-q').fill('Ennasr');
+      await k.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
+    if (!(await k.locator('[data-k=label]').count()) && await k.locator('#ed-ajout').count()) await k.locator('#ed-ajout').press('Enter');
+    await k.locator('[data-k=label]').first().fill('Ciment gris 50 kg');
+    await k.locator('[data-k=qty]').first().fill('12');
+    await k.locator('[data-k=unitPrice]').first().fill('25');
+    await k.locator('[data-etq=timbre]').click(); await k.locator('[data-tb="0"]').click();
+    await k.locator('#save').click();
+    await expect.poll(() => toast(k), { timeout: 10_000 }).toBe('Brouillon enregistré');
+    await expect.poll(async () => net(await k.locator('#issue').innerText()), { timeout: 10_000 }).toBe('Émettre la facture');
+    // Nadia active l'accord au-delà de l'encours, ailleurs.
+    const fiche = (await objets()).find((o) => o.collection === '_racine' && o.cle === 'company');
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: '_racine', cle: 'company', rang: null,
+      revision: fiche ? fiche.revision : null, contenu: { ...(fiche ? fiche.contenu : {}), encoursAccord: true } }] })).statut).toBe(200);
+    // Karim émet : le récapitulatif, puis le refus du serveur, qui propose la demande.
+    expect(net(await k.locator('#issue').innerText())).toBe('Émettre la facture');
+    await k.locator('#issue').click();
+    await expect.poll(() => k.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
+    await k.locator('#modal-root #ok').click();
+    await expect.poll(() => k.locator('#modal-root #accord-question').count(), { timeout: 15_000 }).toBe(1);
+    expect(await k.locator('#modal-root #ok').count()).toBe(0);
+    expect(net(await k.locator('#modal-root').innerText())).toContain('encours');
+    await k.locator('#modal-root #a').click();
+    await expect.poll(() => toast(k), { timeout: 10_000 }).toMatch(/^Accord demandé à .+ : la facture reste en brouillon, tu l'émettras dès qu'il sera donné\.$/);
+    const demandes = (await api('GET', `/entreprises/${ent}/accords`, jeton)).corps.accords as { statut: string; geste: string }[];
+    expect(demandes.filter((a) => a.statut === 'en_attente').map((a) => a.geste)).toEqual(['encours']);
+    // Rien n'a été émis : la facture reste un brouillon sans numéro.
+    await expect(titre(k)).resolves.not.toMatch(/^FAC-/);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });

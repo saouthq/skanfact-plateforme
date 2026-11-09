@@ -195,7 +195,10 @@
       payes: bulletins.filter(b => b.payeLe).length, remis: tous(b => b.remisLe) };
     // 1.236.0 — le pointage du mois : combien de salariés en poste ont une grille enregistrée (celle du client, ou du cabinet).
     const donnees = donneesDuPointage(dossier, L);
-    P.pointe = actifs.filter(x => KC.pointageEnregistre(donnees, x.id, Number(annee), m)).length;
+    // (1.330.0) Un mois validé par le client compte chacun de sa version figée : pointer à la main, c'est noter ce qui change,
+    // et un salarié présent à ses horaires n'a pas de grille (joué : octobre validé par la boulangerie, « 1 sur 2 pointés »).
+    P.ptValide = pointageValideDuMois(L, ym);
+    P.pointe = actifs.filter(x => KC.pointageEnregistre(donnees, x.id, Number(annee), m) || pointeDansLaVersion(L, ym, x.id)).length;
     // 1.237.0 — l'échéance d'une avance que le bulletin du mois ne retient pas (la maquette : « l'avance n'est pas retenue »).
     P.oublis = bulletins.flatMap(b => KC.echeancesDuMois(donnees, b.salarieId, Number(annee), m)
       .filter(d => !(b.retenues || []).some(r => r.advanceId === d.advanceId)).map(d => ({ b, d })));
@@ -287,7 +290,7 @@
     const ecart = (a, b0) => (avants.length ? `${a - b0 >= 0 ? '+' : '−'} ${money(Math.abs(KC.round3(a - b0)))} sur ${KC.moisPaie(moisAvant)}` : '');
     // La frise : cinq étapes, la date de chacune, celle où l'on est.
     const E = [
-      ['Pointage', P.pointe ? `${P.pointe === P.actifs ? 'les' : `${P.pointe} sur`} ${pl(P.actifs, 'salarié')} pointé${P.actifs > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`, true],
+      ['Pointage', P.ptValide && P.pointe === P.actifs ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : P.pointe ? `${P.pointe === P.actifs ? 'les' : `${P.pointe} sur`} ${pl(P.actifs, 'salarié')} pointé${P.actifs > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`, true],
       ['Bulletins', !P.n ? `${P.manquants || P.actifs} à faire` : P.mode === 'seule' ? `faits par ${P.client}${P.enAttente.length ? ` · ${pl(P.enAttente.length, 'correction proposée', 'corrections proposées')}` : P.verifies ? ' · vérifiés' : ''}`
         : P.valides ? `${P.n} validés le ${jourCourt(P.valideLe)}` : P.approuves && P.accordRequis ? `approuvés par ${P.client} le ${jourCourt(P.approuveLe)}`
           : P.envoyes && P.accordRequis ? `envoyés à ${P.client} le ${jourCourt(P.envoyeLe)}` : `${P.n} préparés${P.manquants ? `, ${P.manquants} à faire` : ''}`, P.n > 0 && !P.manquants && (P.valides || P.mode === 'seule' || P.mode === 'sans')],
@@ -315,6 +318,9 @@
       paieDepuisLaValidation(dossier, L, m, bulletins, o), paieVirementsRevenus(dossier, L, bulletins, P, o)].join('');
     // Les bulletins, rangés par ce qui change (la maquette), le bulletin choisi ouvert à côté.
     const etiquette = b => b.valideLe ? '<span class="badge b-paid">validé</span>' : b.correction && !b.correction.reponse ? '<span class="badge b-due">correction proposée</span>'
+      // (1.330.0) Payé (et remis) par le client : le bulletin le dit, au lieu de « préparé » (joué au Cabinet : deux bulletins
+      // payés et remis par la boulangerie se lisaient encore « préparé »).
+      : b.payeLe ? `<span class="badge b-paid">${b.remisLe ? 'payé, remis' : 'payé'}</span>`
       : b.bonAPayerLe ? '<span class="badge b-paid">approuvé</span>' : b.pourAccordLe ? '<span class="badge b-part">chez le client</span>'
         : b.verifieLe ? '<span class="badge b-paid">vérifié</span>' : P.mode === 'seule' ? '<span class="badge">à vérifier</span>' : '<span class="badge">préparé</span>';
     const lig = b => {
@@ -423,12 +429,21 @@
   };
   // (plateforme) 1.238.0 — l'en-tête du pointage (la maquette, paiepointage) : qui l'a fait, combien de salariés diffèrent
   // d'un mois complet (une absence non payée, des heures sup), et l'étape suivante d'ici : établir les bulletins.
+  // (1.330.0) La dernière version validée d'un mois par le client (lue, jamais écrite : 0205), sauf s'il l'a rouverte ; et
+  // si un salarié y figure.
+  function pointageValideDuMois(L, ym) {
+    const v = L.pointagesValides || {};
+    if ((v.rouverts || []).includes(ym)) return null;
+    return (v.versions || []).filter(x => x && x.ym === ym).sort((a, b) => String(a.le).localeCompare(String(b.le))).pop() || null;
+  }
+  const pointeDansLaVersion = (L, ym, id) => { const v = pointageValideDuMois(L, ym); return !!(v && v.instant && v.instant[id]); };
   function paiePointageResume(dossier, L, annee, m, P) {
     const { lignes } = lignesDuPointage(dossier, L, annee, m);
     if (!lignes.length) return '';
     const diff = lignes.filter(({ p }) => Number(p.absences) > 0 || Object.values(p.hs || {}).some(h => Number(h) > 0));
-    const pointes = lignes.filter(({ p }) => (p.jours || []).some(j => j.source === 'pointe')).length;
-    const qui = P.mode === 'cabinet' ? 'saisi au cabinet' : pointes ? `par ${P.client}${P.mode === 'tenue' ? ' ou le cabinet' : ''}` : `pas encore reçu de ${P.client}`;
+    const ym = `${annee}-${String(m).padStart(2, '0')}`;
+    const pointes = lignes.filter(({ e, p }) => (p.jours || []).some(j => j.source === 'pointe') || pointeDansLaVersion(L, ym, e.id)).length;
+    const qui = P.mode === 'cabinet' ? 'saisi au cabinet' : P.ptValide ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : pointes ? `par ${P.client}${P.mode === 'tenue' ? ' ou le cabinet' : ''}` : `pas encore reçu de ${P.client}`;
     const preparer = P.geste && P.geste.id === 'pa-bulletin' ? `<button type="button" class="btn btn-primary btn-sm" id="pa-pt-preparer">${esc(P.geste.t)}</button>` : '';
     return `<div class="ctrl-geste mt" id="pt-resume"><span class="small"><b>${esc(pl(pointes, 'salarié pointé', 'salariés pointés'))}</b> sur ${esc(String(lignes.length))} · ${esc(qui)} · ${diff.length ? `<b>${esc(pl(diff.length, 'différence', 'différences'))}</b> avec un mois complet : ${esc(diff.map(({ e, p }) => `${e.name} (${[Number(p.absences) > 0 ? `${joursFr(p.absences)} j non payé${Number(p.absences) > 1 ? 's' : ''}` : '', Object.values(p.hs || {}).some(h => Number(h) > 0) ? 'heures sup' : ''].filter(Boolean).join(', ')})`).join(' · '))}` : 'aucune différence avec un mois complet'}</span>${preparer}</div>`;
   }
@@ -644,7 +659,10 @@
     const relie = !dossier.manual && !!api.messagerie;
     o.aFaire.filter(c => c.id !== 'cnss-manquant').forEach(c => ko(c.quoi, c.detail));
     if (P.sansCnss.length) ko(`${pl(P.sansCnss.length, 'salarié')} sans n° CNSS`, `${P.sansCnss.map(x => x.nom).join(', ')} : le bulletin se fait ; la déclaration du trimestre l'attendra.`,
-      P.sansCnss.map(x => `${relie && P.mode !== 'cabinet' ? `<button type="button" class="btn btn-sm" data-pa-demander-cnss="${esc(x.id)}">Le demander à ${esc(P.client)}</button>` : ''}<button type="button" class="btn btn-sm" data-sal-cnss="${esc(x.id)}">Le renseigner…</button>`).join(''));
+      // (1.330.0) Deux salariés sans numéro : deux paires « Le demander / Le renseigner » identiques, sans dire laquelle est
+      // à qui (joué au Cabinet, la boulangerie). Au-delà d'un, chaque bouton nomme son salarié.
+      P.sansCnss.map(x => { const qui = P.sansCnss.length > 1 ? ` (${String(x.nom || '').split(' ')[0]})` : '';
+        return `${relie && P.mode !== 'cabinet' ? `<button type="button" class="btn btn-sm" data-pa-demander-cnss="${esc(x.id)}">Le demander à ${esc(P.client)}${esc(qui)}</button>` : ''}<button type="button" class="btn btn-sm" data-sal-cnss="${esc(x.id)}">Le renseigner${esc(qui)}…</button>`; }).join(''));
     if (!bulletins.length) return paieControlesHtml(C, P);
     const neg = bulletins.filter(b => !(Number((b.calcul || {}).net) > 0));
     if (neg.length) ko('Un net négatif ou nul', neg.map(b => nom(b.salarieId)).join(', ')); else ok('Aucun net négatif ni nul', '');

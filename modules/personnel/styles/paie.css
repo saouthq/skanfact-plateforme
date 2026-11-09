@@ -557,6 +557,9 @@ tr.pa-pied td .mu { margin-left: 10px; font-weight: 400; font-size: 13px; color:
 /* La bande garde sa place sur les horaires, sans y servir. */
 #p-mois.pa-mois-inerte { opacity: .38; filter: grayscale(1); }
 .pa-bandeau .pa-bandeau-g { display: inline-flex; gap: 6px; margin-left: auto; flex: none; }
+/* (1.330.0) Au téléphone, les gestes d'un bandeau passent sous sa phrase et à la ligne : « Voir la version validée » et
+   « Corriger : une nouvelle version » côte à côte poussaient la page de 28 px de côté. */
+@media (max-width: 760px) { .pa-bandeau .pa-bandeau-g { flex: 1 1 100%; flex-wrap: wrap; margin-left: 0; } }
 /* Au téléphone : « Réglages » est déjà dans le menu ⋯ (une rangée de gagnée avant le contenu) ; l'année épinglée de la bande
    porte une ombre, le mois qui glisse dessous ne se lit plus en morceaux. */
 @media (max-width: 720px) {

@@ -847,10 +847,10 @@
     // 1.67.0 — les réglages de paie du client qui tient sa paie dans SkanFact : l'écran calcule ses bulletins avec eux.
     livre.reglagesPaie = reglagesDuClient(ent);
     livre.modePaie = modesPaie.get(ent) || null;
-    // 1.69.0 — son pointage et ses congés, dans la forme de l'entreprise : la grille du mois, et le bulletin nouveau qui la
-    // suit. Les congés d'un client sur SkanFact se lisent sans s'écrire (migration 0149) ; ceux d'un dossier tenu, le
-    // Cabinet les tient (1.70.0, migration 0150).
+    // 1.69.0 — son pointage et ses congés (ceux d'un client sur SkanFact se lisent sans s'écrire, 0149 ; d'un dossier tenu,
+    // le Cabinet les tient, 0150) ; 1.330.0 — ses mois validés et rouverts (0205), lus seulement : chacun présent n'a pas de grille.
     livre.pointages = objets.filter((/** @type {any} */ o) => o.collection === 'timesheets').map((/** @type {any} */ o) => o.contenu);
+    livre.pointagesValides = { versions: objets.filter((/** @type {any} */ o) => o.collection === 'pointageVersions').map((/** @type {any} */ o) => o.contenu), rouverts: ((objets.find((/** @type {any} */ o) => o.collection === '_racine' && o.cle === 'pointageOuverts') || {}).contenu) || [] };
     livre.conges = congesDe(objets);
     // 1.71.0 — ses avances, et ce qui les rembourse : le panneau des avances, et l'échéance d'un bulletin nouveau.
     Object.assign(livre, avancesDe(objets));
