@@ -385,7 +385,8 @@ const envoyer = async (cle: string, fichiers: string[], texte: string, repond: R
 };
 // Ce que le cabinet a demandé à la boulangerie : le relevé arrive en réponse, l'attestation est encore attendue.
 const demandes = await api('POST', `/entreprises/${entreprise.be}/messages`, leila, { cote: 'cabinet', texte: 'Bonjour Sarra, pour boucler septembre il me manque :',
-  demandes: ['Le relevé BIAT de septembre', 'L\'attestation CNSS du 3e trimestre'], pour: '2026-10-31' }) as { ids: string[] };
+  demandes: ['Le relevé BIAT de septembre', 'L\'attestation CNSS du 3e trimestre'], // (1.326.0) Une date relative : une date écrite en dur passe, et la plateforme refuse une pièce demandée « pour » hier.
+  pour: new Date(Date.now() + 21 * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Africa/Tunis' }) }) as { ids: string[] };
 const recues = await envoyer('be', ['facture-levure-0910.pdf', 'IMG_8790.jpg', 'Assurance-local-2026-attestation.pdf', 'IMG_8841.jpg', 'facture-electricite-septembre.jpg', 'Releve_BIAT_09-2026.pdf', 'ticket-carburant-24-09.jpg', 'facture-farine-0903.pdf'],
   'Bonjour, voici les pièces de septembre. La facture d\'août de la STEG, je la cherche encore.', { 'Releve_BIAT_09-2026.pdf': demandes.ids[0] ?? '' });
 // (1.172.0) Ce que le cabinet en a déjà fait, comme la maquette du classeur : la levure saisie par Anis, la photo floue
@@ -506,5 +507,7 @@ fs.writeFileSync(`${TRAVAIL}/comptes-cabinet.txt`, [
   'leila.jlassi@exemple.tn  direction (associée)', 'anis.gharbi@exemple.tn  tenue des dossiers', 'rim.toumi@exemple.tn  saisie',
   ...DOSSIERS.filter((x) => x.email).map((x) => `${x.email}  ${x.gerant}, ${x.nom}`), '',
 ].map(alias).join('\n'));
-fs.writeFileSync(`${TRAVAIL}/cabinet.json`, JSON.stringify({ cabinet, adresse, jetons: { leila, anis: jetons['anis.gharbi@exemple.tn'], rim: jetons['rim.toumi@exemple.tn'] }, entreprise }, null, 1), { mode: 0o600 });
+fs.writeFileSync(`${TRAVAIL}/cabinet.json`, JSON.stringify({ cabinet, adresse, jetons: { leila, anis: jetons['anis.gharbi@exemple.tn'], rim: jetons['rim.toumi@exemple.tn'] }, entreprise,
+  // (1.326.0) Les sessions des gérants aussi : « Mon comptable » se joue côté client, sans retaper ni montrer un mot de passe.
+  gerants: gerant }, null, 1), { mode: 0o600 });
 console.log(fs.readFileSync(`${TRAVAIL}/comptes-cabinet.txt`, 'utf8'));

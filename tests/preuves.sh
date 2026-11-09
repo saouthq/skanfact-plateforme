@@ -26613,6 +26613,31 @@ prouver 'efacture 1.325.1 i : au classeur, « Son justificatif » El Fatoora s'\
 prouver 'efacture 1.325.1 h : au téléphone, le nom d'\''une migration sort de la tuile et de l'\''écran (console)' web/console/src/console.css \
   '.c-sv-tuile .c-tuile-sous { overflow-wrap: anywhere; }' '' \
   "$EFV"
+# (1.326.0) « Mon comptable » joué comme la boulangerie, à l'ordinateur puis au doigt, et le fil du cabinet au téléphone.
+MC="Sarra lit le dernier mois rempli, envoie la pièce demandée, et le fil se travaille au doigt des deux côtés"
+prouver 'mon comptable 1.326.0 a : la carte du mois montre novembre vide au lieu du dernier mois rempli' modules/socle/ecrans/entreprise/app-2.js \
+  'const mois = remplis.includes(courant) || !remplis.length ? courant : remplis[remplis.length - 1];' 'const mois = courant;' \
+  "$MC"
+prouver 'mon comptable 1.326.0 b : la carte du mois reprend la classe des pastilles de mois (centrée, grise, avec son point)' web/public/plateforme/messagerie.js \
+  'msg-encart msg-ce-mois' 'msg-encart msg-mois' \
+  "$MC"
+prouver 'mon comptable 1.326.0 c : « Inviter mon comptable » reste à côté de « Mon comptable » quand un cabinet tient le dossier' modules/socle/ecrans/entreprise/app-1.js \
+  'if (inviter) { inviter.hidden = avecMessagerie(a); ajusterNav(); }' '' \
+  "$MC"
+prouver 'mon comptable 1.326.0 d : le refus « choisis d'\''abord la pièce » ne montre pas le bouton qui la choisit' web/public/plateforme/messagerie.js \
+  "if (c) { c.classList.add('msg-manque'); c.focus(); }" '' \
+  "$MC"
+prouver 'mon comptable 1.326.0 e : « Ce que ton cabinet a rangé » garde ses puces et colle la date au titre' web/public/plateforme/messagerie.css \
+  '.msg-range-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; width: 100%; }' '' \
+  "$MC"
+prouver 'mon comptable 1.326.0 f : au doigt, le menu d'\''une vignette fait 20 points' web/public/plateforme/messagerie.css \
+  '  .msg-page .msg-vig-b { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; }' '' \
+  "$MC"
+prouver 'mon comptable 1.326.0 g : les gestes de la zone d'\''écriture redeviennent un texte, lu comme une phrase écrasée au téléphone' web/public/plateforme/messagerie.js \
+  '<div class="msg-gestes-g">|||                </div>
+                <button type="submit" class="btn btn-primary msg-envoyer vide"' '<span class="msg-gestes-g">|||                </span>
+                <button type="submit" class="btn btn-primary msg-envoyer vide"' \
+  "$MC"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

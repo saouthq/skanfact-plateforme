@@ -1329,3 +1329,50 @@ Ce qui est fait :
   (`tests/cabinet/efacture-1325.test.ts` : deux chemins, une lecture — la route et le classeur rendent la même pour le même
   fichier ; `tests/web/efacture-recue-1325.test.ts` : Leïla ouvre la feuille depuis le livre-journal, puis le XML),
   `tests/socle/textes.test.ts` (la majuscule), preuves `efacture 1.325.1 a-h`.
+
+## Mon comptable, côté client (1.326.0)
+
+*09/11/2026. Joué par Sarra (Boulangerie El Amal), que Jlassi Conseil tient depuis le matin : son cabinet lui demande
+l'attestation CNSS du 3e trimestre, elle répond par une photo et un PDF, ouvre ce que le cabinet a rangé dans son
+dossier, puis refait tout au téléphone. Puis Leïla, au Cabinet, ouvre le même fil au doigt. À la souris, au clavier, et
+mesuré par l'instrument de rendu à 1440 et à 390.*
+
+Ce qui n'allait pas :
+
+- La carte « Ce mois-ci · novembre » disait « aucune vente ni aucun achat » le 9 du mois, alors qu'octobre était saisi et
+  qu'une écriture y attendait au brouillard : elle ne parlait pas du mois que le cabinet travaille.
+- Cette carte portait la classe des pastilles de mois de la liste des clients : centrée, grisée, en gras, avec un point de
+  couleur perdu au-dessus du titre.
+- « Inviter mon comptable » restait dans le menu à côté de « Mon comptable » alors qu'un cabinet tient le dossier, puis
+  disparaissait au dessin suivant : tout le menu remontait de 31 points sous la souris.
+- « Envoyer la pièce demandée » sans fichier écrivait son refus, sans montrer le bouton qui choisit la pièce.
+- « Ce que ton cabinet a rangé » n'avait aucune règle de style (une classe posée par le code, inconnue de la feuille) :
+  des puces par défaut, la nature et la date collées au titre, repliées n'importe où au téléphone.
+- Au téléphone, la messagerie n'avait jamais été mesurée : le menu d'une vignette faisait 20 points, « Ouvrir »,
+  « Enregistrer », « Joindre », « Une pièce », « Envoyer », « Répondre », « Voir le mandat » et « Chercher » de 25 à 42, des
+  deux côtés (Mon comptable, et les Messages du cabinet) ; et la rangée des gestes, un texte, se lisait comme une phrase
+  écrasée.
+
+Ce qui est fait :
+
+- La carte montre le mois en cours s'il a des pièces, sinon le DERNIER MOIS REMPLI (« Ton dernier mois rempli · octobre
+  2026 »), arrêté à son vrai dernier jour (U-12 : un écran de travail s'ouvre sur le dernier mois qui a des données). Elle
+  a sa propre classe (`msg-ce-mois`), alignée sur les autres cartes.
+- « Inviter mon comptable » suit ce qu'on apprend du dossier : caché dès qu'un cabinet le tient, sans attendre le dessin
+  suivant, et le menu se réajuste.
+- Le refus marque et met le curseur sur « Choisir la pièce » (`msg-manque`, la règle du refus qui montre).
+- « Ce que ton cabinet a rangé » : le titre, puis sa nature et sa date dessous, sans puce.
+- Au téléphone, chaque cible du fil fait 44 points des deux côtés ; le menu d'une vignette grandit dans ses marges, la
+  vignette ne bouge pas. La rangée des gestes est un bloc (`div`), plus un texte.
+- Pour le test à la main : l'exemple du Cabinet pose la date de la pièce demandée par rapport au jour (une date écrite en
+  dur passait, et la plateforme refuse une pièce demandée « pour » hier) et garde la session des gérants (« Mon comptable »
+  se joue côté client sans retaper ni montrer un mot de passe).
+- Écarté, avec sa raison : le fichier choisi qui fait descendre « Envoyer à mon cabinet » de 20 points (le déplacement a
+  lieu pendant que la fenêtre de choix du système est ouverte, jamais sous un clic en cours) ; proposer « Ranger dans mes
+  achats » d'après le texte de la demande (on ne devine pas la nature d'un fichier d'après une phrase) ; l'aide « Entrée
+  envoie » coupée sur deux lignes au téléphone (elle ne s'affiche qu'à la souris : au doigt, `pointer: coarse` la retire —
+  c'est la capture sans écran tactile qui la montrait).
+- La preuve : `tests/web/mon-comptable-1326.test.ts` (Sarra : la carte du dernier mois au mot près, le menu sans
+  « Inviter », le refus qui montre, le rangé sans puce ; le même fil à 390 côté client et côté cabinet, l'instrument de
+  rendu sans aucun problème), `tests/web/mois-client.test.ts`, `messagerie.test.ts`, `messages-cabinet.test.ts` rejoués ;
+  preuves `mon comptable 1.326.0 a-g`.

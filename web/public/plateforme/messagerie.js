@@ -582,14 +582,15 @@
                 ${avecNotes ? `<div class="msg-onglets" role="tablist" aria-label="À qui tu écris">
                     <button type="button" role="tab" aria-selected="true" data-msg-onglet="message" aria-label="${o.contactPrenom ? `Message à ${esc(o.contactPrenom)}` : 'Message au client'}" title="${o.contactPrenom ? `Message à ${esc(o.contactPrenom)}` : 'Message au client'}">Message</button>
                     <button type="button" role="tab" aria-selected="false" data-msg-onglet="note" aria-label="Note pour l'équipe" title="Note pour l'équipe : ${o.contactPrenom ? esc(o.contactPrenom) : 'le client'} ne la lit pas">${dessin('cadenas')}Note</button></div>` : ''}
-                <span class="msg-gestes-g">
-                  ${/* (1.115.0) Au téléphone, un mot court : les trois gestes et « Envoyer » tiennent sur une ligne, sous le champ. */''}
+                <div class="msg-gestes-g">
+                  ${/* (1.115.0) Au téléphone, un mot court : les trois gestes et « Envoyer » tiennent sur une ligne, sous le champ.
+                     (1.326.0) Un bloc, pas un texte : l'instrument lisait les mots longs cachés comme une phrase écrasée. */''}
                   <button type="button" class="btn msg-g" data-msg-joindre aria-label="Joindre une photo ou un PDF" title="Joindre une photo ou un PDF">${dessin('trombone')}<span class="msg-long">Joindre une photo ou un PDF</span><span class="msg-court" aria-hidden="true">Joindre</span></button>
                   ${entreprise && o.pieces ? `<button type="button" class="btn msg-g" data-msg-piece aria-label="Parler d'une pièce">${dessin('piece')}<span class="msg-long">Parler d'une pièce</span><span class="msg-court" aria-hidden="true">Une pièce</span></button>` : ''}
                   ${entreprise ? '' : `<button type="button" class="btn msg-g" data-msg-demander aria-pressed="false" aria-label="Demander une pièce" title="Demander une pièce">${dessin('piece')}<span class="msg-long">Demander une pièce</span><span class="msg-court" aria-hidden="true">Demander</span></button>`}
                   ${/* (1.117.0) Les modèles du cabinet : la phrase écrite cent fois, prise d'un geste (point 9). */''}
                   ${!entreprise && o.modeles ? `<button type="button" class="btn msg-g" data-msg-modeles aria-label="Modèles de messages" title="Modèles de messages">${dessin('modele')}<span class="msg-long">Modèles</span><span class="msg-court" aria-hidden="true">Modèles</span></button>` : ''}
-                </span>
+                </div>
                 <button type="submit" class="btn btn-primary msg-envoyer vide" data-msg-envoyer>${dessin('envoi')}<span data-msg-envoyer-mot>Envoyer</span></button>
               </div>
               </div>
@@ -1284,11 +1285,13 @@
         brancherCote(z);
         return;
       }
+      // (1.326.0) La carte porte sa propre classe : elle portait `msg-mois`, celle des pastilles de mois de la liste des
+      // clients — elle en prenait l'alignement au centre, le gris, le gras et le point de couleur, perdu au-dessus du titre.
       // (1.124.0) « Ce mois-ci » : les pièces du mois et ce que le cabinet en a fait, sous ce qui attend (revue du mois d'un
       // client, point 4 : après la validation d'octobre, rien ne le disait à la cliente). La phrase du cabinet garde sa place
       // pendant qu'elle se relit (la dernière lue, ou « … ») : rien ne bouge sous le curseur.
       const mois = entreprise && f && f.actif && !cabinetRelu && o.ceMois ? o.ceMois() : null;
-      const carteMois = mois ? `<div class="msg-encart msg-mois" data-msg-mois><b>${esc(mois.titre)}</b>
+      const carteMois = mois ? `<div class="msg-encart msg-ce-mois" data-msg-mois><b>${esc(mois.titre)}</b>
           ${mois.lignes.map((x) => `<span>${esc(x)}</span>`).join('')}
           ${mois.cabinet ? `<span data-msg-mois-cabinet>${esc(texteCabinetDuMois || 'Ce que ton cabinet en a fait : …')}</span>` : ''}
           ${mois.action ? `<button type="button" class="msg-lien" data-msg-mois-aller>${esc(mois.action.libelle)}</button>` : ''}</div>` : '';
@@ -1322,7 +1325,7 @@
           const vus = l.slice(0, 6);
           z.innerHTML = `<b>Ce que ton cabinet a rangé</b><span>${l.length > 1 ? `${l.length} pièces` : 'Une pièce'} dans ton dossier, par ${esc(l[0].cabinet)}.</span>
             <ul class="msg-range-l">${vus.map((x, i) => `<li><button type="button" class="msg-lien" data-msg-range-i="${i}">${esc(x.titre)}</button><small>${esc(x.sorte === 'message'
-              ? `jointe à ton achat ${x.achat ? '' : ''}${x.ecriture || ''} le ${jour(x.jointeLe || x.deposeLe)}`
+              ? `jointe à ton achat ${x.ecriture || ''} le ${jour(x.jointeLe || x.deposeLe)}`
               : `${x.rubrique === 'permanent' ? 'dossier permanent' : x.rubrique === 'courrier' ? 'un courrier' : x.rubrique === 'accuse' ? 'accusé de dépôt' : 'une pièce'}${x.ecriture ? `, jointe à ${x.ecriture}` : ''} · le ${jour(x.deposeLe)}`)}</small></li>`).join('')}</ul>
             ${l.length > vus.length ? `<small>et ${l.length - vus.length} autre${l.length - vus.length > 1 ? 's' : ''}, dans le classeur de ton cabinet.</small>` : ''}`;
           z.hidden = false;
@@ -2051,7 +2054,14 @@
       form.onsubmit = async (e) => {
         e.preventDefault();
         if (envoyer.disabled) return;
-        if (facon === 'fichier' && !choisi) { refus.textContent = 'Choisis d\'abord la photo, le PDF ou la facture électronique de la pièce.'; return; }
+        // (1.326.0) Le refus MONTRE ce qui manque (refus() de la v10) : le bouton qui choisit le fichier prend le curseur et se
+        // marque ; la phrase seule laissait chercher quoi faire.
+        if (facon === 'fichier' && !choisi) {
+          refus.textContent = 'Choisis d\'abord la photo, le PDF ou la facture électronique de la pièce.';
+          const c = /** @type {HTMLElement | null} */ (zoneFichier.querySelector('[data-ep-choisir]'));
+          if (c) { c.classList.add('msg-manque'); c.focus(); }
+          return;
+        }
         if (facon === 'dossier' && !dejaLa) { refus.textContent = 'Choisis la pièce de ton dossier qui répond à la demande.'; chercher.focus(); return; }
         envoyer.disabled = true;
         try {

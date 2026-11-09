@@ -2455,6 +2455,11 @@
       if (/^#\/(compta|paie|relances|garanties)/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
       const lien = $('#foot-comptable');
       if (lien) lien.hidden = !avecMessagerie(a);
+      // (1.326.0) « Inviter mon comptable » se pose quand le menu se dessine AVANT qu'on sache qu'un cabinet tient le
+      // dossier : il restait à côté de « Mon comptable » jusqu'au dessin suivant, puis disparaissait — le menu remontait
+      // de 31 points sous la souris (vu en jouant « Mon comptable » comme la boulangerie). Il suit ce qu'on apprend.
+      const inviter = $('#b-inviter-comptable');
+      if (inviter) { inviter.hidden = avecMessagerie(a); ajusterNav(); }
     }
     updateNavCounts();
   }

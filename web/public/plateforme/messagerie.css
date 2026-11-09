@@ -167,6 +167,13 @@
 .msg-encart.attend { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 30%, transparent); }
 .msg-encart.attend > span, .msg-encart.ok > span { color: var(--text); }
 .msg-encart.ok { background: var(--primary-soft); border-color: var(--primary-soft-2); }
+/* (1.326.0) « Ce que ton cabinet a rangé » : sa liste n'avait aucune règle (une classe posée par le code, inconnue de la
+   feuille) — des puces par défaut, la nature et la date collées au titre, repliées n'importe où au téléphone. Le titre, puis
+   sa nature et sa date dessous. */
+.msg-range-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; width: 100%; }
+.msg-range-l li { display: flex; flex-direction: column; align-items: flex-start; }
+.msg-range-l .msg-lien { padding-block: 2px; }
+.msg-range-l small { color: var(--muted); font-size: 12.5px; }
 .msg-alerte { flex-direction: row; gap: 12px; cursor: pointer; }
 .msg-alerte input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--primary); }
 .msg-alerte > span { display: flex; flex-direction: column; gap: 4px; }
@@ -206,6 +213,7 @@
 .msg-ep-facon > span { display: flex; flex-direction: column; gap: 2px; }
 .msg-ep-facon > span > span { font-size: 13px; color: var(--muted); }
 .msg-ep-choisir { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.msg-ep-choisir.msg-manque { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
 .msg-ep-choisi { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
 .msg-ep-choisi img { flex: none; width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: var(--ink-soft); }
 .msg-ep-choisi .msg-carte-txt { flex-direction: column; }
@@ -1016,3 +1024,17 @@
 .msg-q-joindre { display: inline-flex; align-items: center; gap: 5px; }
 .msg-q-joindre svg { flex: none; }
 .msg-q-joindre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+
+/* (1.326.0) Au doigt, chaque cible du fil fait 44 points (l'instrument de rendu, 12 § 4) : la messagerie n'avait jamais été
+   mesurée au téléphone, et « Ouvrir », « Enregistrer », le menu d'une vignette, « Joindre » ou « Envoyer » faisaient de 20 à
+   34 points, des deux côtés (Mon comptable, et les Messages du cabinet). Le menu d'une vignette grandit dans ses marges : la
+   vignette ne bouge pas. En fin de feuille, pour passer devant les règles de la zone d'écriture du cabinet. */
+@media (max-width: 760px) {
+  .msg-page .msg-lien { display: inline-flex; align-items: center; min-height: 44px; }
+  .msg-page .msg-vig-b { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; }
+  .msg-page .msg-chercher { min-width: 44px; min-height: 44px; justify-content: center; }
+  .msg-page .msg-retour { min-height: 44px; }
+  .msg-page .msg-gestes .btn.msg-g, .msg-boite-ecrire .msg-gestes-g .btn.msg-g { min-width: 44px; min-height: 44px; }
+  .msg-page .msg-gestes .msg-envoyer, .msg-boite-ecrire .msg-envoyer { min-width: 44px; min-height: 44px; }
+  .msg-page .msg-onglets button, .msg-boite-ecrire .msg-onglets button { height: 44px; }
+}

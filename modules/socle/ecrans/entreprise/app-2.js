@@ -4139,11 +4139,18 @@
       // (1.124.0) « Ce mois-ci » : les ventes et les achats du mois (les mêmes règles que l'accueil et le contrôle de
       // clôture : facture ou avoir émis, achat sans pièce jointe), et ce que le cabinet en a fait dans les livres, relu à
       // chaque visite de la page (revue du mois d'un client, 23/10/2026, point 4).
+      // (1.326.0) Le mois en cours encore vide (le 9 novembre, rien n'est saisi), la carte montre le DERNIER MOIS REMPLI :
+      // c'est celui que le cabinet travaille (U-12, « un écran de travail s'ouvre sur le dernier mois qui a des données ») ;
+      // « Ce mois-ci · novembre : aucune vente ni aucun achat » ne disait rien de septembre, saisi et à demi validé.
       ceMois: () => {
-        const mois = C.today().slice(0, 7);
-        const du = mois + '-01', au = C.today();
+        const courant = C.today().slice(0, 7);
         const pl = (n, un, plur) => `${n} ${n > 1 ? plur || un + 's' : un}`;
-        const ventes = data.documents.filter(d => (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée' && (d.date || '').startsWith(mois)).length;
+        const emise = d => (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée';
+        const remplis = [...data.documents.filter(emise).map(d => (d.date || '').slice(0, 7)), ...(data.purchases || []).map(p => (p.date || '').slice(0, 7))]
+          .filter(m => /^\d{4}-\d{2}$/.test(m) && m <= courant).sort();
+        const mois = remplis.includes(courant) || !remplis.length ? courant : remplis[remplis.length - 1];
+        const du = mois + '-01', au = mois === courant ? C.today() : C.packPeriod(mois.slice(0, 4), mois.slice(5, 7)).to;
+        const ventes = data.documents.filter(d => emise(d) && (d.date || '').startsWith(mois)).length;
         const achats = (data.purchases || []).filter(p => (p.date || '').startsWith(mois));
         const sansPiece = achats.filter(p => C.sansJustificatif(p)).length;
         const pieces = !ventes && !achats.length ? 'Aucune vente ni aucun achat enregistré ce mois-ci.'
@@ -4161,7 +4168,7 @@
         });
         const nom = new Date(du + 'T00:00:00Z').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
         return {
-          titre: `Ce mois-ci · ${nom}`, lignes: [pieces], cabinet,
+          titre: mois === courant ? `Ce mois-ci · ${nom}` : `Ton dernier mois rempli · ${nom}`, lignes: [pieces], cabinet,
           action: sansPiece ? { libelle: sansPiece > 1 ? 'Voir les achats sans justificatif' : 'Voir l\'achat sans justificatif', faire: () => CHECK_ACTIONS.justificatifs.run({ du, au }) } : null,
         };
       },
