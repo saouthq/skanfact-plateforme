@@ -251,6 +251,16 @@ describe('les versions du service, à la souris', () => {
   it('au téléphone : rien ne déborde, l\'historique se lit sans défilement de côté', async () => {
     const p = await ouvrir(390);
     expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    // (1.347.0) Une tuile qui déborde sans élargir la page ne se voit pas à la mesure de la page : le nom d'une migration
+    // (un seul « mot ») sortait de sa tuile, coupé par le cadre. Chaque tuile et sa ligne d'explication se mesurent.
+    // Le nom de la dernière migration dépend du jour (un nom court ne prouve rien) : la tuile reçoit le plus long d'un mot.
+    const tuiles = await p.locator('.c-sv-tuile').evaluateAll((xs) => xs.map((x) => {
+      const sous = [...x.querySelectorAll('.c-tuile-sous')];
+      if (sous[0]) sous[0].textContent = 'Migration 0999_creer_la_table_des_declarations_mensuelles_de_tva_du_cabinet_pilote_du_31_12';
+      return [x, ...sous].map((y) => y.scrollWidth - y.clientWidth);
+    }));
+    expect(tuiles.length).toBeGreaterThan(0);
+    expect(tuiles.flat().filter((d) => d > 0)).toEqual([]);
     // L'historique et l'effet de chaque version : deux tableaux qui se lisent en blocs, sans défilement de côté.
     for (const t of await p.locator('.c-ve-table').all()) {
       expect(await t.evaluate((x) => x.scrollWidth - (x.parentElement?.clientWidth ?? 0))).toBeLessThanOrEqual(0);

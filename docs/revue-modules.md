@@ -2161,3 +2161,35 @@ la demande dans « Mon comptable ».
   (Amira)… », et plus aucun vert après la remise alors que l'écriture de paie au brouillard reste l'étape suivante),
   retournés vers la règle ; la ligne du Café dans la liste des clients se lit en attendant le paiement (une lecture
   sans attente, qui tombait en CI).
+
+## Consulter : les livres d'un dossier au Cabinet (1.347.0)
+
+Joué à la souris sur la Boulangerie El Amal : Leïla parcourt le livre-journal, le grand livre, la balance, le lettrage
+des clients PUIS des fournisseurs, et cherche une pièce comme on s'en souvient (un fournisseur, un montant arrondi).
+
+- **Le grand livre dit un solde dans le SENS du compte** : « Solde créditeur 526,980 DT » sur le 401, jamais « Solde
+  −526,980 DT » ; chaque ligne et le pied d'un compte déplié portent leur montant suivi de D ou C. Un comptable lit un
+  solde fournisseur comme créditeur ; le signe moins se lisait comme une anomalie.
+- **421 et 425 ne portent plus le même nom** : deux « Personnel — rémunérations dues » dans un même grand livre. Le plan
+  propose 421 « Personnel — avances et acomptes » et 425 « Personnel — rémunérations dues » (À VÉRIFIER) ; un compte
+  nommé à l'import se renomme à la lecture, un compte nommé par le cabinet jamais. Le jeu d'exemple passe les salaires au
+  425. La production reconnaît une écriture de paie sur l'un ou l'autre.
+- **Un sous-compte qui n'a pas de nom à lui le dit** : 6066 s'affichait comme 606 ; il se lit « … (détail du 606) »
+  quand le 606 est aussi au livre. Un sous-compte nommé (541, 7071) n'est pas touché.
+- **Le lettrage nomme ses comptes et ne propose le 411 qu'une fois** (« 411 — Clients », puis « 401 — Fournisseurs
+  d'exploitation »…).
+- **Le lettrage d'un fournisseur se lit dans le sens du compte** : « Ce qui reste à payer, par ancienneté », « Reste à
+  payer 12 600,083 DT », le verdict « … 17 272,484 DT créditeur ». Tout s'affichait en négatif. Côté clients : « Reste
+  dû ». Un montant qui reste négatif après coup (une avance au fournisseur) garde son signe : c'est l'exception.
+- **La recherche trouve un montant tapé sans ses millimes** : « 1846 » trouve 1 846,199 ; « 1 846,199 » copié de
+  l'écran reste une recherche exacte, et l'invite le dit.
+- Vu, laissé : les lignes 7071 du livre-journal sans tiers (une donnée du paquet, pas de l'écran) ; « D 0,000 DT » en
+  tête d'un compte qui n'a mouvementé qu'un côté (la colonne garde sa place).
+- La preuve : `tests/web/consulter-1347.test.ts` ; preuves `consulter 1.347.0 a-g`.
+- La passe complète des preuves (sur la 1.344.0) laissait deux preuves vertes : « une clé de l'appareil par lecture »
+  tombe ici (une course, rejouée deux fois en CI), et « efacture 1.325.1 h » ne pouvait plus tomber — le nom de la
+  dernière migration est devenu court, et le test ne mesurait que la page. `console-versions` pose le nom le plus long
+  dans la tuile et mesure chaque tuile.
+- `achats-1310` lit la balance âgée des fournisseurs dans le sens du compte (« Ce qui reste à payer », 2 495,430 DT à
+  payer, l'avoir de casse −337,960 DT), et attend que la fiche se redessine après le règlement au lieu de la lire à
+  l'instant (elle était lue pendant son fondu).

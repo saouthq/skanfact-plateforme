@@ -8709,18 +8709,34 @@
   // plan comptable de référence, puis sur le tiers : mieux vaut un repère que rien.
   // UN seul résolveur : recopié à chaque écran, il divergerait (7.29.0) — c'est très exactement ce
   // qui vient d'arriver à ces quatre points d'appel.
+  // (1.347.0) Un sous-compte que le plan ne nomme pas prenait le nom de son parent : 606 et 6066 « Achats non stockés »,
+  // deux lignes de balance au même intitulé. Quand le parent est aussi au livre, le nom emprunté le dit (« détail du
+  // 606 ») ; un nom posé par le cabinet ou
+  // par le tiers (411001 « Hôtel Dar Jerba ») reste tel quel.
+  const PREFIXES_DU_PLAN = new Set((KC.PLAN_COMPTABLE || []).map(x => x[0]));
   function nomDeCompte() {
     const plan = (livresState.livre && livresState.livre.plan) || [];
     const par = new Map(plan.map(c => [c.compte, c.libelle || '']));
-    return (c, t) => par.get(c) || KC.libelleDuPlan(c) || t || '';
+    return (c, t) => {
+      const n = par.get(c) || KC.libelleDuPlan(c) || t || '';
+      if (!n || PREFIXES_DU_PLAN.has(String(c)) || n !== KC.libelleDuPlan(c)) return n;
+      // Seulement quand le parent est AUSSI dans ce livre : 541 « Caisse » seul n'a pas de jumeau à distinguer.
+      const parent = [...PREFIXES_DU_PLAN].filter(p => String(c).startsWith(p)).sort((a, b) => b.length - a.length)[0];
+      return parent && par.has(parent) ? `${n} (détail du ${parent})` : n;
+    };
   }
 
+  // (1.347.0) Un solde dit son SENS en mots (6.3.0, portée au grand livre) : « Solde −17 272,484 DT » sur le 401 demandait de
+  // savoir qu'un solde négatif est créditeur. La tête du compte le dit ; la colonne du solde progressif porte D ou C.
+  const soldeTete = v => (Math.abs(Number(v) || 0) < 0.0005 ? 'Soldé' : `Solde ${v < 0 ? 'créditeur' : 'débiteur'} ${money(Math.abs(v))}`);
+  const soldeDC = v => (Math.abs(Number(v) || 0) < 0.0005 ? montant(0) : `${montant(Math.abs(v))}\u00a0${v < 0 ? 'C' : 'D'}`);
   function vueGrandLivre(lignes) {
     const s = livresState;
     const ouverture = (s.periode || {}).ouverture || null;
     const gl = KC.grandLivreDepuisLignes(lignes, s.compte, ouverture, nomDeCompte());
     const comptes = [...new Set(lignes.map(l => l.account))].sort();
-    return `${barreLivres(`<select id="lv-compte" aria-label="Le compte à afficher"><option value="">Tous les comptes</option>${comptes.map(c => `<option value="${esc(c)}" ${s.compte === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`, 'Exporter le grand livre')}
+    const nomC = nomDeCompte();
+    return `${barreLivres(`<select id="lv-compte" aria-label="Le compte à afficher"><option value="">Tous les comptes</option>${comptes.map(c => `<option value="${esc(c)}" ${s.compte === c ? 'selected' : ''}>${esc(c)}${nomC(c) ? ` — ${esc(nomC(c))}` : ''}</option>`).join('')}</select>`, 'Exporter le grand livre')}
       <div class="muted small mb">${phraseOuverture()}</div>
       ${pagerBar(gl.comptes.length, s, 'compte')}
       ${/* Un comptable OUVRE un compte ; il ne lit pas les vingt d'affilée. La page en faisait
@@ -8734,16 +8750,16 @@
         <summary class="gl-tete"><span class="gl-nom">${esc(c.account)}${c.label ? ' — ' + esc(c.label) : ''}</span>
           <span class="gl-chiffres"><span class="muted gl-mv">${pl(c.lignes.length, 'mouvement')}${c.ouverture ? ` · ouverture ${esc(money(c.ouverture))}` : ''}</span>
             <span class="gl-m">D ${esc(money(c.debit))}</span><span class="gl-m">C ${esc(money(c.credit))}</span>
-            <strong class="gl-m gl-solde">Solde ${esc(money(c.solde))}</strong></span></summary>
+            <strong class="gl-m gl-solde">${esc(soldeTete(c.solde))}</strong></span></summary>
         <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Pièce</th><th>Libellé</th>
           <th class="r nw">Débit</th><th class="r nw">Crédit</th><th class="r nw">Solde</th></tr></thead>
         <tbody>${lignesAffichees(c).map(e => `<tr class="${e.statut === 'contrepassee' ? 'cp-ligne' : e.contrepasseDe || e.extourneDe ? 'cp-miroir' : ''}"><td class="nw">${esc(fmtJour(e.date))}</td><td><span class="nw">${esc(e.piece)}</span>${marqueJustif(e, e.ecritureId && s.livre ? (ecritureDuLivre(s.livre, e.ecritureId) || {}).pieceJointe : '')}${miroirBadge(e)}</td>
           <td class="tronq lg" title="${esc(e.label)}">${esc(e.label)}</td>
           <td class="r nw">${e.debit ? esc(money(e.debit)) : ''}</td><td class="r nw">${e.credit ? esc(money(e.credit)) : ''}</td>
-          <td class="r nw">${esc(money(e.solde))}</td></tr>`).join('')}</tbody>
+          <td class="r nw">${esc(soldeDC(e.solde))}</td></tr>`).join('')}</tbody>
         <tfoot><tr><td colspan="3"><strong>${pl(c.lignes.length, 'mouvement')}</strong></td>
           <td class="r nw"><strong>${esc(money(c.debit))}</strong></td><td class="r nw"><strong>${esc(money(c.credit))}</strong></td>
-          <td class="r nw"><strong>${esc(money(c.solde))}</strong></td></tr></tfoot></table></div>${suiteDuCompte(c)}</details>`).join('')}`;
+          <td class="r nw"><strong>${esc(soldeDC(c.solde))}</strong></td></tr></tfoot></table></div>${suiteDuCompte(c)}</details>`).join('')}`;
   }
 
   // Saturation (10.14.0) — un compte déplié affichait TOUTES ses lignes : le 411 d'un livre de
@@ -8850,13 +8866,21 @@
     const prefixe = s.compte || '411';
     const l = KC.lettrageDepuisLignes(lignes, prefixe, K.today());
     const comptes = [...new Set(lignes.map(x => x.account).filter(a => /^4/.test(a)))].sort();
+    // (1.347.0) Les montants se disent dans le SENS DU COMPTE : ce qu'on doit à la Minoterie est
+    // « 12 600,083 DT à payer », pas « −12 600,083 DT ». Un fournisseur est créditeur par nature ; un
+    // autre compte de tiers suit le sens de son solde. Un montant qui reste négatif après coup est
+    // l'exception (une avance au fournisseur), et c'est elle qu'on veut voir signée.
+    const sens = /^40/.test(prefixe) ? -1 : /^41/.test(prefixe) ? 1 : (l.soldeCompte < 0 ? -1 : 1);
+    const m = v => money(sens * (Number(v) || 0));
+    const motReste = sens < 0 ? 'Reste à payer' : 'Reste dû';
+    const motSens = sens < 0 ? ' créditeur' : '';
     // **Le contrôle « reste ouvert = solde du compte » ne vaut que sur un livre COMPLET.** Ici on
     // lit des paquets mois par mois, sans à-nouveau : un règlement reçu en mars pour une facture de
     // février n'a pas sa facture en face, et l'écart est NORMAL. Le crier en rouge apprendrait au
     // comptable à ignorer le rouge — c'est exactement ce que ce projet s'interdit. On explique.
     const verdict = l.concorde
-      ? `<div class="ok-box mb" id="lv-verdict">Ce qui reste ouvert est bien le solde du compte : ${esc(money(l.resteOuvert))}.</div>`
-      : `<div class="info-box mb" id="lv-verdict">Reste ouvert ${esc(money(l.resteOuvert))}, solde du compte ${esc(money(l.soldeCompte))} — écart de ${esc(money(Math.abs(l.ecart)))}.
+      ? `<div class="ok-box mb" id="lv-verdict">Ce qui reste ouvert est bien le solde du compte : ${esc(m(l.resteOuvert))}${motSens}.</div>`
+      : `<div class="info-box mb" id="lv-verdict">Reste ouvert ${esc(m(l.resteOuvert))}, solde du compte ${esc(m(l.soldeCompte))}${motSens} — écart de ${esc(money(Math.abs(l.ecart)))}.
          <div class="small">C'est <strong>attendu</strong> sur un livre lu mois par mois : un règlement reçu ce mois-ci pour une facture d'un mois précédent n'a pas sa facture en face. Le contrôle ne vaut que sur un livre complet, avec ses à-nouveaux.</div></div>`;
     // La balance âgée et le lettrage automatique (9.5.0). Ils lisent les MÊMES lignes non lettrées
     // que la liste ci-dessous — jamais une seconde liste, qui se désynchroniserait au premier
@@ -8866,18 +8890,21 @@
     agee.tiers = agee.tiers.filter(t => t.total);
     // Les tiers OUVERTS sont la réponse ; les soldés tiennent sur une ligne dépliable (T-14).
     const ouverts = l.rows.filter(r => r.ouverts.length), soldes = l.rows.filter(r => !r.ouverts.length);
-    return `${barreLivres(`<select id="lv-compte" aria-label="Le compte à lettrer"><option value="">Clients (411)</option>${comptes.map(c => `<option value="${esc(c)}" ${s.compte === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+    // (1.347.0) Chaque compte porte son nom, et le 411 n'y paraît qu'une fois (« Clients (411) », puis « 411 » nu, juste
+    // dessous) : un numéro seul ne dit pas lequel est celui des fournisseurs.
+    const nomC = nomDeCompte();
+    return `${barreLivres(`<select id="lv-compte" aria-label="Le compte à lettrer"><option value="">411 — ${esc(nomC('411') || 'Clients')}</option>${comptes.filter(c => c !== '411').map(c => `<option value="${esc(c)}" ${s.compte === c ? 'selected' : ''}>${esc(c)}${nomC(c) ? ` — ${esc(nomC(c))}` : ''}</option>`).join('')}</select>
       ${s.livre ? `<button class="btn btn-sm" id="lv-auto">Lettrer automatiquement</button>${info('bq.lettrageAuto')}` : ''}`, 'Exporter le lettrage')}
       ${verdict}
-      ${agee.total ? `<div class="panel mt"><h2>Ce qui reste dû, par ancienneté ${info('bq.agee')}</h2>
+      ${agee.total ? `<div class="panel mt"><h2>${sens < 0 ? 'Ce qui reste à payer' : 'Ce qui reste dû'}, par ancienneté ${info('bq.agee')}</h2>
         <div class="scroll-x"><table class="list compact"><thead><tr><th>Tiers</th>
           ${agee.tranches.map(t => `<th class="r nw">${esc(t.label)}</th>`).join('')}<th class="r nw">Total</th></tr></thead>
         <tbody>${agee.tiers.slice(0, 12).map(t => `<tr><td class="tronq" title="${esc(t.tiers)}">${esc(t.tiers)}</td>
-          ${t.parTranche.map(x => `<td class="r nw">${x.montant ? esc(money(x.montant)) : ''}</td>`).join('')}
-          <td class="r nw"><strong>${esc(money(t.total))}</strong></td></tr>`).join('')}</tbody>
+          ${t.parTranche.map(x => `<td class="r nw">${x.montant ? esc(m(x.montant)) : ''}</td>`).join('')}
+          <td class="r nw"><strong>${esc(m(t.total))}</strong></td></tr>`).join('')}</tbody>
         <tfoot><tr><td>${esc(pl(agee.tiers.length, 'tiers', 'tiers'))}</td>
-          ${agee.tranches.map(t => `<td class="r nw">${t.montant ? esc(money(t.montant)) : ''}</td>`).join('')}
-          <td class="r nw"><strong>${esc(money(agee.total))}</strong></td></tr></tfoot></table></div>
+          ${agee.tranches.map(t => `<td class="r nw">${t.montant ? esc(m(t.montant)) : ''}</td>`).join('')}
+          <td class="r nw"><strong>${esc(m(agee.total))}</strong></td></tr></tfoot></table></div>
         ${agee.tiers.length > 12 ? `<div class="small muted mt">Les douze plus gros ; le pied porte les ${agee.tiers.length}.</div>` : ''}</div>` : ''}
       ${l.lettragesFaux.length ? `<div class="warn-box mb">${l.lettragesFaux.map(f =>
         `<div>Lettrage « ${esc(f.lettre) }» de ${esc(f.tiers)} : les pièces ne se soldent pas entre elles (écart ${esc(money(Math.abs(f.ecart)))}).</div>`).join('')}</div>` : ''}
@@ -8893,14 +8920,14 @@
       ${(page => page.map(r => `<details class="panel mt gl-compte lt-tiers"${page.length <= 3 ? ' open' : ''}>
         <summary class="gl-tete"><span class="gl-nom">${esc(r.tiers)} <span class="muted small">${esc(r.account)}</span></span>
           <span class="gl-chiffres"><span class="muted gl-mv">${pl(r.ouverts.length, 'pièce ouverte', 'pièces ouvertes')}</span>
-            <strong class="gl-m gl-solde">Reste ${esc(money(r.reste))}</strong></span></summary>
+            <strong class="gl-m gl-solde">${motReste} ${esc(m(r.reste))}</strong></span></summary>
         <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Pièce</th><th class="nw">Date</th>
           <th class="r nw">Débit</th><th class="r nw">Crédit</th><th class="r nw">Reste</th><th></th></tr></thead>
         <tbody>${r.ouverts.map(o => `<tr>
           <td class="nw">${esc(o.piece)}${o.retard ? ' <span class="badge b-late">en retard</span>' : ''}</td>
           <td class="nw">${esc(fmtJour(o.date))}</td>
           <td class="r nw">${o.debit ? esc(money(o.debit)) : ''}</td><td class="r nw">${o.credit ? esc(money(o.credit)) : ''}</td>
-          <td class="r nw">${esc(money(o.reste))}</td>${rowMenuCell(o.ecritureId ? 'E:' + o.ecritureId : o.piece + '|' + (o.mois || ''))}</tr>`).join('')}</tbody></table></div></details>`).join(''))(paginate(ouverts, s))}
+          <td class="r nw">${esc(m(o.reste))}</td>${rowMenuCell(o.ecritureId ? 'E:' + o.ecritureId : o.piece + '|' + (o.mois || ''))}</tr>`).join('')}</tbody></table></div></details>`).join(''))(paginate(ouverts, s))}
       ${soldes.length ? `<details class="mt" id="lv-soldes"><summary>${pl(soldes.length, 'tiers entièrement lettré', 'tiers entièrement lettrés')} — ${pl(soldes.reduce((a, r) => a + r.lettrees, 0), 'pièce soldée', 'pièces soldées')}</summary>
         <ul class="small">${soldes.map(r => `<li>${esc(r.tiers)} <span class="muted">${esc(r.account)} · ${pl(r.lettrees, 'pièce soldée', 'pièces soldées')}</span></li>`).join('')}</ul></details>` : ''}
       ${!ouverts.length && !soldes.length ? '<div class="empty mini">Aucune pièce sur ce compte pour cette période.</div>' : ''}`;

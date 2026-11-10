@@ -941,8 +941,10 @@
     ['404', 'Fournisseurs d\'immobilisations'], ['408', 'Fournisseurs — factures non parvenues'], ['409', 'Fournisseurs débiteurs (avances)'],
     ['41', 'Clients et comptes rattachés'], ['411', 'Clients'], ['413', 'Clients — effets à recevoir'], ['416', 'Clients douteux'],
     ['418', 'Clients — produits à recevoir'], ['419', 'Clients créditeurs (avances reçues)'],
-    ['42', 'Personnel et comptes rattachés'], ['421', 'Personnel — rémunérations dues'], ['425', 'Personnel — rémunérations dues'],
-    ['4251', 'Personnel — avances et acomptes'], ['427', 'Personnel — oppositions'], ['428', 'Personnel — charges à payer'],
+    // (1.347.0) 421 et 425 portaient le même nom : deux comptes « rémunérations dues » dans un grand livre. Dans le plan
+    // tunisien, 421 est celui des avances et acomptes, 425 celui des rémunérations dues (À VÉRIFIER).
+    ['42', 'Personnel et comptes rattachés'], ['421', 'Personnel — avances et acomptes'], ['425', 'Personnel — rémunérations dues'],
+    ['4251', 'Personnel — acomptes sur rémunérations'], ['427', 'Personnel — oppositions'], ['428', 'Personnel — charges à payer'],
     ['43', 'État et collectivités publiques'], ['431', 'État — impôt sur les bénéfices'], ['432', 'État — impôts et taxes retenus à la source'],
     ['4321', 'Retenues à la source sur salaires (IRPP)'], ['433', 'État — autres impôts et taxes'], ['4331', 'Taxe sur les établissements (TCL)'],
     ['4335', 'TFP et FOPROLOS'], ['434', 'État — acomptes provisionnels'], ['435', 'État — retenues à la source'],
@@ -2090,6 +2092,11 @@
     // correspond » sur une pièce qui porte exactement ce montant. Une seule porte, celle des montants.
     const nb = nombreStrict(terme.replace(/\s*(dt|tnd)\.?$/i, ''));
     const montant = nb != null && Number.isFinite(nb) ? round3(Math.abs(nb)) : null;
+    // (1.347.0) Un montant tapé SANS décimales se cherche par sa partie entière : « 1846 » trouve
+    // 1 846,199. Un comptable retient « à peu près 1846 », pas les millimes ; ce qu'il copie de
+    // l'écran (« 1 846,199 ») reste une recherche exacte.
+    const entier = montant != null && !/[.,]\d/.test(terme);
+    const vaut = v => { const x = round3(v); return x === montant || (entier && x > 0 && Math.trunc(x) === montant); };
     return (livre.ecritures || [])
       .filter(e => !o.journal || e.journal === o.journal)
       .filter(e => !o.statut || e.statut === o.statut)
@@ -2101,7 +2108,7 @@
           (e.lignes || []).map(l => `${l.compte} ${l.libelle}`).join(' ')
         ].join(' '));
         if (mots.every(m => foin.includes(m))) return true;
-        return montant != null && (e.lignes || []).some(l => round3(l.debit) === montant || round3(l.credit) === montant);
+        return montant != null && (e.lignes || []).some(l => vaut(l.debit) || vaut(l.credit));
       })
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (Number(b.creeLe) || 0) - (Number(a.creeLe) || 0)))

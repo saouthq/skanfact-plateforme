@@ -738,7 +738,7 @@
     const lignes = [e].concat((x.autres || []).map(f => f.e).filter(Boolean)).flatMap(y => y.lignes || []);
     const sur = c => lignes.some(z => String(z.compte || '').startsWith(c));
     const mois = String(e.date || '').slice(0, 7);
-    if (e.journal === 'PAIE' || sur('421')) return /^\d{4}-\d{2}$/.test(mois) ? `la paie ${deMois(mois)}` : 'la paie';
+    if (e.journal === 'PAIE' || sur('421') || sur('425')) return /^\d{4}-\d{2}$/.test(mois) ? `la paie ${deMois(mois)}` : 'la paie';
     if (sur('54')) return 'versement de la caisse';
     const tiers = lignes.filter(z => /^4[01]1/.test(String(z.compte || '')));
     if (tiers.length) {
@@ -4662,7 +4662,7 @@
           <option value="contrepassee" ${rechState.statut === 'contrepassee' ? 'selected' : ''}>Contre-passées</option></select>
       </div>
       ${!rechState.q.trim() && !rechState.journal && !rechState.statut
-        ? `<div class="empty"><p>Tape ce que tu cherches.</p><p class="muted small">${pl(total, 'écriture')} dans le livre de ${esc(s.annee)}. Un montant se cherche aussi : « 1191 » ou « 1191,000 ».</p></div>`
+        ? `<div class="empty"><p>Tape ce que tu cherches.</p><p class="muted small">${pl(total, 'écriture')} dans le livre de ${esc(s.annee)}. Un montant se cherche aussi : « 1191 » trouve 1 191,450, « 1191,000 » ce montant exact.</p></div>`
         : !trouvees.length
           ? `<div class="empty"><p>Rien ne correspond.</p><p class="muted small">La recherche porte sur toute l'année, pas seulement sur la période affichée en haut.</p></div>`
           // « 1 écriture trouvée sur 49 écritures » répétait le mot des deux côtés du « sur » :

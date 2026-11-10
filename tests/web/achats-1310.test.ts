@@ -159,7 +159,8 @@ describe('les achats 1.310.0 : ce qu\'on doit, ce qu\'on garde, ce que lit la co
     // E. Après le virement : plus rien en retard ; l'attestation des deux règlements est à lui remettre ; l'avoir de casse
     // dit d'où il peut se déduire.
     await aller('#/fournisseur/s1');
-    expect(await tete()).toContain('tu lui dois 2 125,108 DT');
+    // (1.347.0) La fiche se redessine une fois le règlement relu : on attend, comme une personne, au lieu de lire à l'instant.
+    await expect.poll(() => tete(), { timeout: 15_000 }).toContain('tu lui dois 2 125,108 DT');
     expect(await p.locator('#ff-retard').count()).toBe(0);
     expect(await txt('#ff-rs-compte')).toBe('En le payant, tu garderas aussi 32,362 DT de retenue à la source pour l\'État : son compte chez ton comptable porte 2 157,470 DT.');
     expect(await txt('#ff-attest')).toMatch(/^1 attestation de retenue à lui remettre — CS-26-1104 · 116,650 DT retenus\./);
@@ -222,10 +223,11 @@ describe('les achats 1.310.0 : ce qu\'on doit, ce qu\'on garde, ce que lit la co
     await c.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/lettrage/${an}`);
     await c.locator('#lv-compte').waitFor({ timeout: 15_000 });
     await c.locator('#lv-compte').selectOption('401');
-    const agee = c.locator('h2', { hasText: /^Ce qui reste dû, par ancienneté/ }).locator('xpath=..');
+    // (1.347.0) Le compte fournisseurs se lit dans son sens : ce qu'on doit est positif, l'avoir de casse vient en moins.
+    const agee = c.locator('h2', { hasText: /^Ce qui reste à payer, par ancienneté/ }).locator('xpath=..');
     await agee.waitFor({ timeout: 15_000 });
     const rangee = async (tiers: string) => (await agee.locator('tbody tr').filter({ hasText: tiers }).first().evaluate((tr) => [...tr.children].map((td) => (td.textContent || '').replace(/\s+/g, ' ').trim())));
-    expect(await rangee('Céramique du Sahel SARL')).toEqual(['Céramique du Sahel SARL', '−2 495,430 DT', '337,960 DT', '', '', '', '−2 157,470 DT']);
+    expect(await rangee('Céramique du Sahel SARL')).toEqual(['Céramique du Sahel SARL', '2 495,430 DT', '−337,960 DT', '', '', '', '2 157,470 DT']);
     await c.screenshot({ path: path.join(PHOTOS, 'achats-1310-g-agee.png') });
     expect(erreurs).toEqual([]);
   }, 300_000);

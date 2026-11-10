@@ -267,8 +267,8 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
     const tva = (x: number) => Math.round(x * 7 / 107);
     await ecrire(`${mois(i)}-15`, 'VT', `VT-${m}15`, 'Hôtel Dar Jerba · pains et viennoiseries', [{ compte: '411', tiers: 'Hôtel Dar Jerba', debit: dt(hotel) }, { compte: '7071', credit: dt(hotel - tva(hotel)) }, { compte: '4367', credit: dt(tva(hotel)) }]);
     await ecrire(`${mois(i)}-28`, 'VT', `VT-${m}28`, 'Caisse du mois · ventes au comptoir', [{ compte: '541', debit: dt(caisse) }, { compte: '7071', credit: dt(caisse - tva(caisse)) }, { compte: '4367', credit: dt(tva(caisse)) }]);
-    await ecrire(`${mois(i)}-${fin(i)}`, 'PAIE', `PAIE-${m}`, 'Salaires du mois · 4 salariés', [{ compte: '640', debit: dt(salaires) }, { compte: '421', credit: dt(salaires) }]);
-    await ecrire(`${mois(i)}-${fin(i)}`, 'BQ', `BQ-${m}30`, 'VIR salaires', [{ compte: '421', debit: dt(salaires) }, { compte: '532', credit: dt(salaires) }]);
+    await ecrire(`${mois(i)}-${fin(i)}`, 'PAIE', `PAIE-${m}`, 'Salaires du mois · 4 salariés', [{ compte: '640', debit: dt(salaires) }, { compte: '425', credit: dt(salaires) }]);
+    await ecrire(`${mois(i)}-${fin(i)}`, 'BQ', `BQ-${m}30`, 'VIR salaires', [{ compte: '425', debit: dt(salaires) }, { compte: '532', credit: dt(salaires) }]);
     await ecrire(`${mois(i)}-22`, 'BQ', `BQ-${m}22`, 'Versement espèces', [{ compte: '532', debit: dt(caisse - 1_000_000) }, { compte: '541', credit: dt(caisse - 1_000_000) }]);
   }
   // (1.208.0) Trois factures de juillet que la remise de chèques du 22/09 paie ensemble (maquette B12) : validées avec

@@ -27475,6 +27475,29 @@ prouver 'inventaire 1.346.0 j : un inventaire déjà écrit refusé seulement au
 prouver 'inventaire 1.346.0 k : l'\''état demandé n'\''est pas le geste vert du client' modules/socle/ecrans/entreprise/app-2.js \
   '${demandeEtatStock && demandeEtatStock.date === s.etatDate && !avenir && !rien && !pareil ? '\'' btn-primary'\'' : '\'''\''}' '${'\'''\''}' \
   "$IV1346"
+CO1347='(1.347.0) le grand livre dans le sens du compte, des noms qui se distinguent, le lettrage fournisseurs et la recherche par montant'
+prouver 'consulter 1.347.0 a : le grand livre dit un solde signé (« Solde −526,980 »)' modules/socle/ecrans/cabinet/app-1.js \
+  '`Solde ${v < 0 ? '\''créditeur'\'' : '\''débiteur'\''} ${money(Math.abs(v))}`' '`Solde ${money(v)}`' \
+  "$CO1347"
+prouver 'consulter 1.347.0 b : 421 et 425 portent le même nom' modules/socle/moteur/compta-1.js \
+  '['\''421'\'', '\''Personnel — avances et acomptes'\'']' '['\''421'\'', '\''Personnel — rémunérations dues'\'']' \
+  "$CO1347"
+prouver 'consulter 1.347.0 c : le sous-compte qui reprend le nom de son parent ne le dit pas' modules/socle/ecrans/cabinet/app-1.js \
+  'return parent && par.has(parent) ? `${n} (détail du ${parent})` : n;' 'return n;' \
+  "$CO1347"
+prouver 'consulter 1.347.0 d : le lettrage fournisseurs reste en négatif' modules/socle/ecrans/cabinet/app-1.js \
+  'const sens = /^40/.test(prefixe) ? -1 :' 'const sens = 1 || /^40/.test(prefixe) ? -1 :' \
+  "$CO1347"
+prouver 'consulter 1.347.0 e : « Reste » sans dire qui doit quoi' modules/socle/ecrans/cabinet/app-1.js \
+  'const motReste = sens < 0 ? '\''Reste à payer'\'' : '\''Reste dû'\'';' 'const motReste = '\''Reste'\'';' \
+  "$CO1347"
+prouver 'consulter 1.347.0 f : le 411 proposé deux fois dans la liste du lettrage' modules/socle/ecrans/cabinet/app-1.js \
+  'comptes.filter(c => c !== '\''411'\'').map(' 'comptes.map(' \
+  "$CO1347"
+prouver 'consulter 1.347.0 g : « 406 » ne trouve pas 406,980' modules/socle/moteur/compta-1.js \
+  'const entier = montant != null && !/[.,]\d/.test(terme);' 'const entier = false;' \
+  "$CO1347"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
