@@ -269,7 +269,7 @@
   const REGLAGES_V10 = ['formatCopie', 'relanceDay', 'seuilPieces', 'deadlines', 'saisie', 'theme', 'depots', 'regimes'];
   // La fiche de chaque dossier au cabinet (0020) : son contenu et sa révision.
   /** @type {Map<string, { contenu: Record<string, unknown>, revision: number | null }>} */
-  const fiches = new Map();
+  const fiches = new Map(); /** @type {Promise<void>} */ let fileJournal = Promise.resolve();
   // Les champs de la fiche : ceux que le serveur garde (serveur/cabinet/routes.ts, FICHE).
   // (1.72.0) Et l'adresse et le gérant du client, que ses documents impriment.
   const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode', 'adresse', 'gerant', 'forme', 'ville', 'fonction', 'activite', 'paieDecl'];
@@ -1923,13 +1923,13 @@
       if (!dossiers.has(id)) throw new Error('Ce dossier n\'est pas suivi par ton cabinet.');
       await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), sansVerifier: Array.isArray(liste) ? liste : [] }, f ? f.revision : null);
     },
-    // Le journal que la grille de saisie reprend pour ce dossier : sa fiche.
-    dernierJournal: async (/** @type {string} */ id, /** @type {string} */ journal) => {
-      const j = String(journal || '').toUpperCase().slice(0, 5);
-      const f = fiches.get(id);
+    // Le journal que la grille de saisie reprend pour ce dossier : sa fiche. (1.350.0) Deux choix de suite (les flèches du
+    // clavier sur la liste) s'écrivent l'un APRÈS l'autre : le second partait sur la révision d'avant, refusé, perdu.
+    dernierJournal: (/** @type {string} */ id, /** @type {string} */ journal) => (fileJournal = fileJournal.catch(() => {}).then(async () => {
+      const j = String(journal || '').toUpperCase().slice(0, 5), f = fiches.get(id);
       if (!dossiers.has(id) || String((f && f.contenu.dernierJournal) || '') === j) return;
       await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), dernierJournal: j }, f ? f.revision : null);
-    },
+    })),
 
     // ── La déclaration du mois (brique 41) : calculée par la v10 sur le livre du serveur ; préparée,
     // pointée et écrite au serveur, qui refait ses contrôles (0024) ──

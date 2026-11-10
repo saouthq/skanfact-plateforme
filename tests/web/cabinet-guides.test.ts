@@ -128,7 +128,14 @@ describe('les guides d\'écritures, à la souris', () => {
     const fiche = async () => ((await api('GET', `/cabinets/${cabinet}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { dernierJournal?: string } }[]).find((f) => f.entreprise === garage)?.contenu;
     await expect.poll(async () => (await fiche())?.dernierJournal, { timeout: 15_000 }).toBe('AC');
     // Un second choix, sans recharger : il s'écrit sur la fiche que le premier a laissée.
-    await p.locator('#sa-journal').selectOption('BQ');
+    // (1.350.0, rouge GitHub de la 1.348.0, une machine sur quatre) Des choix qui se suivent sans attendre — les flèches
+    // du clavier sur la liste — s'écrivent l'un après l'autre : le dernier partait sur la révision d'avant, était
+    // refusé, et la fiche gardait un choix périmé. Trois de suite ici : sans la file, c'est le premier qui reste.
+    // Dans le même instant, pour que le test ne dépende pas de la vitesse de la machine (ici, chaque choix avait le temps
+    // de s'écrire avant le suivant, et le défaut remis ne faisait rien tomber).
+    await p.locator('#sa-journal').evaluate((s) => {
+      for (const v of ['VT', 'OD', 'BQ']) { (s as HTMLSelectElement).value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
     await expect.poll(async () => (await fiche())?.dernierJournal, { timeout: 15_000 }).toBe('BQ');
     await aller(`#/dossier/${garage}/comptabilite/saisie/2026`);
     // (rouge GitHub de 1.277.0, une machine sur quatre, jamais ici : « AC ») La page rouverte a le temps de lire sa fiche ;

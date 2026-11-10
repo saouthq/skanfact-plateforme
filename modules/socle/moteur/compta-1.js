@@ -3353,7 +3353,31 @@
     // corrigeait déjà côté entreprise en 3.1.0. Ce qu'il portait « la veille » du 1er janvier, c'est
     // son à-nouveau : il compte ici, même daté du jour même.
     const avant = mouvementCompte(livre, cDed, livre.exercice.du, au, e => !(e.date < du || ouverture(e)));
-    const reporte = Math.max(0, round3(avant.debit - avant.credit));
+    // 1.350.0 — Lire le crédit sur le 4366 suppose que chaque mois précédent a passé son écriture de déclaration : c'est
+    // elle qui retire du 4366 la TVA déductible déjà imputée. Sans elle, le compte garde toute la TVA déductible depuis
+    // janvier, et la case annonçait un « crédit du mois précédent » que l'entreprise n'a jamais eu — un chiffre que le
+    // comptable recopie sur le portail (2 505,389 DT sur la boulangerie de l'exemple, dont chaque mois était à payer).
+    // Le signe qui ne trompe pas : la TVA collectée n'est pas soldée à l'ouverture du mois. Alors le report se refait
+    // par l'enchaînement des déclarations (la règle de `vatChain`, 3.1.0), mois par mois, et la case le DIT.
+    const collAvant = mouvementCompte(livre, cColl, livre.exercice.du, au, e => !(e.date < du));
+    const nonSolde = Math.abs(round3(collAvant.credit - collAvant.debit)) > 0.0005;
+    const enchainement = () => {
+      const an = mouvementCompte(livre, cDed, livre.exercice.du, au, e => !ouverture(e));
+      let r = Math.max(0, round3(an.debit - an.credit));
+      let y = Number(txt(livre.exercice.du).slice(0, 4)), m = Number(txt(livre.exercice.du).slice(5, 7));
+      for (let k = 0; k < 24 && `${y}-${String(m).padStart(2, '0')}` < p; k++) {
+        const pm = `${y}-${String(m).padStart(2, '0')}`;
+        const fin = pm + '-' + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0');
+        const c1 = mouvementCompte(livre, cColl, pm + '-01', fin, horsMois), d1 = mouvementCompte(livre, cDed, pm + '-01', fin, horsMois);
+        r = Math.max(0, round3(-(round3(c1.credit - c1.debit) - round3(d1.debit - d1.credit) - r)));
+        if (++m > 12) { m = 1; y++; }
+      }
+      return r;
+    };
+    const reporte = nonSolde ? enchainement() : Math.max(0, round3(avant.debit - avant.credit));
+    const noteReport = nonSolde
+      ? `Les mois précédents n'ont pas tous leur écriture de déclaration : le compte ${cColl} n'est pas soldé au ${du.slice(8, 10)}/${du.slice(5, 7)}/${du.slice(0, 4)}, et le ${cDed} garde la TVA déductible déjà imputée. Ce crédit est refait mois par mois, d'une déclaration à l'autre ; passer leurs écritures le fera lire sur le compte.`
+      : '';
     const net = round3(collectee - deductible - reporte);
     const timbre = retenuDuMois(livre, compteDuRole(livre, 'timbre'), du, au, horsMois);
     const rsOp = retenuDuMois(livre, compteDuRole(livre, 'rsOperee'), du, au, horsMois);
@@ -3373,7 +3397,7 @@
     const cases = {
       tvaCollectee: caseDe(collectee, mColl.ecritures),
       tvaDeductible: caseDe(deductible, mDed.ecritures),
-      creditReporte: caseDe(reporte, []),
+      creditReporte: { ...caseDe(reporte, []), ...(noteReport ? { note: noteReport } : {}) },
       netAPayer: caseDe(Math.max(0, net), []),
       creditAReporter: caseDe(Math.max(0, -net), []),
       timbre: caseDe(timbre.v, timbre.e),
@@ -3549,7 +3573,7 @@
         note: decl.parTaux ? '' : 'Répartie par taux (7 %, 13 %, 19 %) sur le portail : ce dossier n\'a qu\'un compte de TVA collectée.' }),
       ligne({ cle: 'tvaII', ref: 'II', libelle: 'TVA déductible sur les achats', montant: m('tvaDeductible'), source: 'tvaDeductible',
         note: 'Répartie sur le portail entre immeubles, équipements et autres achats, locaux ou importés : ce livre ne porte pas cette catégorie.' }),
-      ligne({ cle: 'tvaReport', libelle: 'Crédit du mois précédent', montant: m('creditReporte'), source: 'creditReporte' }),
+      ligne({ cle: 'tvaReport', libelle: 'Crédit du mois précédent', montant: m('creditReporte'), source: 'creditReporte', note: (c.creditReporte || {}).note || '' }),
       m('creditAReporter') > 0
         ? ligne({ cle: 'tvaSolde', libelle: 'Solde : crédit à reporter', montant: m('creditAReporter'), source: 'creditAReporter' })
         : ligne({ cle: 'tvaSolde', libelle: 'Solde : TVA à payer', montant: m('netAPayer'), source: 'netAPayer' })

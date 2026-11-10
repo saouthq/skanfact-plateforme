@@ -155,6 +155,9 @@ describe('la déclaration du mois, à la souris', () => {
     // (1.221.0) L'écriture du mois se valide d'ici, au même bouton, sans aller la chercher au brouillard.
     await expect.poll(() => p.locator('#dc-ecriture').innerText()).toBe('Valider l\'écriture du mois');
     expect(await p.locator('#dc-ecriture').isEnabled()).toBe(true);
+    // (1.350.0) Le vert suit le travail : l'écriture au brouillard se valide avant de marquer déposée.
+    expect(await p.locator('#dc-ecriture').getAttribute('class')).toMatch(/btn-primary/);
+    expect(await p.locator('#dc-deposee').getAttribute('class')).not.toMatch(/btn-primary/);
     await p.locator('#dc-ecriture').click();
     await expect.poll(toast).toBe('DECL-2026-03 validée : elle solde la TVA du mois. Il reste à la déposer sur le portail.');
     expect((await ecritures(cafe, associe)).find((e) => e.piece === 'DECL-2026-03')?.statut).toBe('validee');

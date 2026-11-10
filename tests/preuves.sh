@@ -3187,7 +3187,7 @@ prouver "le taux d'un guide perdu en partant" $PC \
   "montant: decimal(l.montant, 3), taux: decimal(l.taux, 6)," "montant: decimal(l.montant, 3), taux: ''," \
   "$WG1"
 prouver "le journal retenu qui ne part pas" $PC \
-  "    dernierJournal: async (" "    dernierJournalAbsent: async (" \
+  "    dernierJournal: (/** @type {string} */ id" "    dernierJournalAbsent: (/** @type {string} */ id" \
   "$WG1"
 prouver "le journal retenu oublié par la fiche" $PC \
   "    if (f.dernierJournal != null) contenu.dernierJournal = String(f.dernierJournal).toUpperCase().slice(0, 5);" "" \
@@ -27546,6 +27546,53 @@ prouver 'clôture 1.349.0 c : un exercice qui court se laisse clôturer' modules
 prouver 'clôture 1.349.0 d : « Le dossier pour le client » offert en ligne, où il n'\''écrit rien' modules/socle/ecrans/cabinet/app-1.js \
   '${'\''ecrireCloture'\'' in api ? '\''<button class="btn btn-sm" id="cl-fichier">' '${true ? '\''<button class="btn btn-sm" id="cl-fichier">' \
   "$CL1349"
+DM1350A='sans les écritures de déclaration des mois précédents, le crédit se refait mois par mois, et la case le dit'
+DM1350C='sur un compte tenu, c'\''est le compte qui parle : une régularisation du crédit se lit'
+DE1350A='(1.350.0) le mois à déposer d'\''abord, la frise et la liste d'\''accord, le crédit refait mois par mois, le vert sur la validation, l'\''écran qui reste sur son mois'
+DE1350B='(1.350.0) marquer déposé le mois proposé ne fait pas sauter l'\''écran au suivant : il reste à le marquer payé'
+prouver 'déclaration 1.350.0 a : le crédit lu sur un 4366 que personne n'\''a soldé' modules/socle/moteur/compta-1.js \
+  'const reporte = nonSolde ? enchainement() : Math.max(' 'const reporte = nonSolde && false ? enchainement() : Math.max(' \
+  "$DM1350A"
+prouver 'déclaration 1.350.0 b : la case refaite ne dit pas pourquoi' modules/socle/moteur/compta-1.js \
+  'creditReporte: { ...caseDe(reporte, []), ...(noteReport ? { note: noteReport } : {}) },' 'creditReporte: { ...caseDe(reporte, []) },' \
+  "$DM1350A"
+prouver 'déclaration 1.350.0 c : la note ne monte pas au formulaire du mois' modules/socle/moteur/compta-1.js \
+  'source: '\''creditReporte'\'', note: (c.creditReporte || {}).note || '\'''\'' }),' 'source: '\''creditReporte'\'' }),' \
+  "$DM1350A"
+prouver 'déclaration 1.350.0 d : le crédit toujours refait, même quand le compte est tenu' modules/socle/moteur/compta-1.js \
+  'const nonSolde = Math.abs(round3(collAvant.credit - collAvant.debit)) > 0.0005;' 'const nonSolde = true;' \
+  "$DM1350C"
+prouver 'déclaration 1.350.0 e : le crédit refait oublie ce que le mois d'\''avant laissait' modules/socle/moteur/compta-1.js \
+  'r = Math.max(0, round3(-(round3(c1.credit - c1.debit) - round3(d1.debit - d1.credit) - r)));' 'r = 0;' \
+  "$DM1350A"
+prouver 'déclaration 1.350.0 f : l'\''écran s'\''ouvre sur le dernier mois saisi, pas sur le plus ancien à déposer' modules/socle/ecrans/cabinet/app-1.js \
+  '    return attend[0] || propose;
+' '    return propose;
+' \
+  "$DE1350A"
+prouver 'déclaration 1.350.0 g : la frise ne cercle pas le mois déclaré' modules/socle/ecrans/cabinet/app-1.js \
+  'const deLaDecl = s.onglet === '\''declaration'\'' ? (moisDeLaDeclaration()) : '\'''\'';' 'const deLaDecl = '\'''\'';' \
+  "$DE1350A"
+prouver 'déclaration 1.350.0 h : un mois de la frise n'\''ouvre pas sa déclaration' modules/socle/ecrans/cabinet/app-1.js \
+  '        if (s.onglet === '\''declaration'\'') { declState.mois = m; declState.ouverte = '\'''\''; }
+' '' \
+  "$DE1350A"
+prouver 'déclaration 1.350.0 i : le mois de la liste ne déplace pas la période' modules/socle/ecrans/cabinet/app-1.js \
+  'declState.mois = v; declState.ouverte = '\'''\''; s.mode = '\''mois'\''; s.mois = v; s.decl = null; render(); };' 'declState.mois = v; declState.ouverte = '\'''\''; s.decl = null; render(); };' \
+  "$DE1350A"
+prouver 'déclaration 1.350.0 j : le vert saute la validation de l'\''écriture du mois' modules/socle/ecrans/cabinet/app-1.js \
+  '((!ecrite && !rien) || aCompleter || auBrouillard) ? '\''ecriture'\''' '((!ecrite && !rien) || aCompleter) ? '\''ecriture'\''' \
+  "$DE1350A"
+prouver 'déclaration 1.350.0 k : marquer déposé fait sauter l'\''écran au mois suivant' modules/socle/ecrans/cabinet/app-1.js \
+  '    if (s.decl.erreur) return;
+    declState.mois = veut;
+' '    if (s.decl.erreur) return;
+' \
+  "$DE1350B"
+GU1350='créer un guide, s'\''en servir dans la saisie, retenir le journal, modifier puis supprimer le guide'
+prouver 'déclaration 1.350.0 l : des choix de journal qui se suivent, le dernier refusé et perdu' web/public/plateforme/pont-cabinet.js \
+  '(fileJournal = fileJournal.catch(() => {}).then(async () => {' '(Promise.resolve().then(async () => {' \
+  "$GU1350"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

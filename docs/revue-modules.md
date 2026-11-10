@@ -2245,3 +2245,39 @@ clôture, états financiers, soldes intermédiaires, à-nouveaux), la clôture e
   avant la clôture du précédent).
 - La preuve : `tests/web/cloture-1349.test.ts`, `tests/web/cabinet-cloture.test.ts` (le brouillard dit sous le bouton
   éteint) ; preuves `clôture 1.349.0 a-d`, et l'ancienne preuve du brouillard ré-ancrée sur la règle.
+
+## La Déclaration d'un dossier au Cabinet (1.350.0)
+
+Joué à la souris sur la Boulangerie El Amal : la déclaration d'un mois déposé (juillet), puis août de bout en bout —
+valider le brouillard, préparer, écrire l'écriture du mois, la valider, marquer déposée, marquer payée.
+
+- **Un crédit de TVA que l'entreprise n'a jamais eu** : septembre annonçait « Crédit du mois précédent 2 505,389 DT »
+  alors que chaque mois de janvier à juillet était à payer. Le crédit se lit sur le 4366 (la règle depuis toujours),
+  ce qui suppose que chaque mois précédent a passé son écriture de déclaration — c'est elle qui retire du compte la TVA
+  déductible déjà imputée. Quand la TVA collectée (4367) n'est pas soldée à l'ouverture du mois, le crédit se refait
+  maintenant d'une déclaration à l'autre, mois par mois, et la case le dit ; quand le compte est tenu, il fait foi (un
+  crédit remboursé ne se reporte plus). C'est un chiffre que le comptable recopie sur le portail. À VÉRIFIER avec le
+  comptable : la règle du report quand un mois d'avant n'a pas été déclaré du tout.
+- **Le jeu d'exemple passe ses écritures de déclaration**, comme un cabinet le fait chaque mois : les sept mois tenus de
+  la boulangerie avant la validation de sa période, et chaque mois déposé des autres dossiers.
+- **Deux mois sur la même page** : cliquer « juil. » dans la frise passait la période à juillet et laissait la
+  déclaration de septembre à l'écran. Un mois de la frise ouvre sa déclaration ; le mois choisi dans la liste déplace
+  la frise et la période ; et la frise cercle le mois déclaré dès l'ouverture (comme le mois du relevé sur la Banque).
+- **L'écran s'ouvrait sur le dernier mois saisi** (septembre) pendant qu'août, en retard, attendait : quand des mois
+  sont déjà déposés, il s'ouvre sur le plus ancien mois fini qui a des écritures après le dernier dépôt.
+- **Le vert sautait une étape** : l'écriture du mois créée au brouillard, le message disait « relis-la, puis Valider
+  l'écriture du mois » et le bouton vert était « Marquer déposée ». Le vert est sur la validation.
+- **L'écran reste sur son mois** : après « Marquer déposée », le mois proposé change ; l'écran, lui, garde le mois qu'on
+  travaille, où « Marquer payée » attend (défaut né de la règle d'ouverture ci-dessus, vu à la souris dans la minute).
+- Vérifié à la main sur août : 1 195,168 collectés (hôtel 157,336 + caisse 1 037,832), 430,155 déductibles (quatre
+  achats du client), 765,013 à payer ; les douze dossiers de l'exemple gardent « Les déclarations et le livre
+  d'aujourd'hui : rien à signaler ».
+- Vu, laissé : l'état « saisi » reste affiché après « Préparée » (la préparation n'est pas un état du mois, c'est la
+  rangée d'étapes qui la dit).
+- La preuve : `tests/moteur/declaration-report-1350.test.ts`, `tests/web/declaration-1350.test.ts`,
+  `tests/web/cabinet-declaration.test.ts` ; preuves `déclaration 1.350.0 a-k`.
+- **Le rouge GitHub de la 1.348.0** (`cabinet-guides`, une machine sur quatre) était un vrai défaut de la Saisie : deux
+  choix de journal qui se suivent sans attendre — les flèches du clavier sur la liste — partaient tous sur la même
+  révision de la fiche ; le second était refusé en silence, et le dossier retenait un journal périmé. Ils s'écrivent
+  maintenant l'un après l'autre (une file dans le pont). Le test pose trois choix dans le même instant : il ne dépend
+  plus de la vitesse de la machine. Preuve `déclaration 1.350.0 l`.

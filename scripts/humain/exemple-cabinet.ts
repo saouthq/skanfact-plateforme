@@ -278,6 +278,13 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
     const t = Math.round(ttc * 7 / 107);
     await ecrire(jour, 'VT', piece, `${tiers} · pains et viennoiseries`, [{ compte: '411', tiers, debit: dt(ttc) }, { compte: '7071', credit: dt(ttc - t) }, { compte: '4367', credit: dt(t) }]);
   }
+  // (1.350.0) Chaque mois tenu a sa déclaration préparée ET son écriture passée, avant que la période ne soit validée :
+  // c'est ce que fait un cabinet chaque mois, et c'est ce qui laisse au 4366 le seul crédit reporté.
+  for (let i = 0; i < 7; i++) {
+    const c = await casesDuLivre(be, mois(i), true);
+    await api('PUT', `/entreprises/${be}/compta/declarations/${mois(i)}`, leila, { cases: { tvaCollectee: c.tvaCollectee, aDecaisser: c.aDecaisser } });
+    await ecrireDeclaration(be, mois(i), c);
+  }
   // Les mois de janvier à juillet sont tenus et validés ; août et septembre attendent au brouillard.
   await api('POST', `/entreprises/${be}/compta/valider`, leila, { jusqua: '2026-07-31' });
   // Les relevés BIAT : juillet rapproché, août aussi sauf un chèque sans pièce, septembre à rapprocher.
@@ -327,16 +334,20 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
 }
 // (1.349.0) Les cases d'une déclaration lues sur le livre (écritures validées du mois), pour qu'une déclaration déposée de
 // l'exemple porte les chiffres de son propre livre.
-async function casesDuLivre(ent: string, periode: string): Promise<{ tvaCollectee: string; aDecaisser: string }> {
-  const lues = (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, leila)).ecritures as { date: string; statut?: string; lignes: { compte: string; debit?: unknown; credit?: unknown }[] }[];
+type Cases = { tvaCollectee: string; aDecaisser: string; coll: number; ded: number; report: number; timbre: number; rs: number };
+async function casesDuLivre(ent: string, periode: string, brouillards = false): Promise<Cases> {
+  const lues = (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, leila)).ecritures as { date: string; piece?: string; statut?: string; lignes: { compte: string; debit?: unknown; credit?: unknown }[] }[];
   const n = (x: unknown) => Math.round((Number(String(x ?? '0').replace(/[\s\u00a0\u202f]/g, '').replace(',', '.')) || 0) * 1000);
   // Le crédit reporté se LIT sur le 4366 au début du mois (9.6.0), comme le moteur le lit : c'est la même lecture des deux
   // côtés qui fait qu'une déclaration déposée correspond à son livre.
   let coll = 0, ded = 0, timbre = 0, rs = 0, report = 0;
   for (const e of lues) {
-    if (e.statut === 'brouillard') continue;
+    if (e.statut === 'brouillard' && !brouillards) continue;
     const avant = String(e.date) < `${periode}-01`;
     if (!avant && !String(e.date).startsWith(periode)) continue;
+    // L'écriture de déclaration du mois solde ce qu'on lit : elle ne compte pas dans son propre mois (le moteur l'écarte de
+    // même) ; celles des mois d'avant comptent, c'est elles qui laissent au 4366 le seul crédit reporté.
+    if (!avant && String(e.piece ?? '').startsWith('DECL-')) continue;
     for (const l of e.lignes) {
       const c = String(l.compte), dc = n(l.debit) - n(l.credit);
       if (avant) { if (c.startsWith('4366')) report += dc; continue; }
@@ -345,7 +356,33 @@ async function casesDuLivre(ent: string, periode: string): Promise<{ tvaCollecte
   }
   const net = coll - ded - Math.max(0, report);
   const enDt = (x: number) => `${x < 0 ? '-' : ''}${Math.trunc(Math.abs(x) / 1000)},${String(Math.abs(x) % 1000).padStart(3, '0')}`;
-  return { tvaCollectee: enDt(coll), aDecaisser: enDt(Math.max(0, net) + timbre + rs) };
+  return { tvaCollectee: enDt(coll), aDecaisser: enDt(Math.max(0, net) + timbre + rs), coll, ded, report: Math.max(0, report), timbre, rs };
+}
+
+// (1.350.0) L'écriture de déclaration d'un mois déposé, telle que l'écran la passe (« Écrire l'écriture du mois » :
+// `ecritureDeclaration` du moteur) : la TVA collectée soldée, la déductible imputée jusqu'à la collectée, le reste à
+// décaisser au 4365. Sans elle, le 4366 gardait toute la TVA déjà utilisée de janvier à juillet, et septembre annonçait un
+// « crédit du mois précédent » de 2 505 DT que la boulangerie n'a jamais eu. Un cabinet passe cette écriture chaque mois.
+// (Le nom des mois vit DANS la fonction : elle sert plus haut, avant qu'une constante du module soit posée.)
+async function ecrireDeclaration(ent: string, periode: string, c: Pick<Cases, 'coll' | 'ded' | 'report' | 'timbre' | 'rs'>) {
+  const MOIS_NOM = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const enDt = (x: number) => `${Math.trunc(x / 1000)},${String(x % 1000).padStart(3, '0')}`;
+  const utilisee = Math.min(c.ded + c.report, c.coll);
+  const aPayer = Math.max(0, c.coll - c.ded - c.report) + c.timbre + c.rs;
+  const lignes = [
+    ...(c.coll ? [{ compte: '4367', libelle: 'TVA collectée du mois', debit: enDt(c.coll) }] : []),
+    ...(utilisee ? [{ compte: '4366', libelle: 'TVA déductible imputée', credit: enDt(utilisee) }] : []),
+    ...(c.timbre ? [{ compte: '4368', libelle: 'Timbre fiscal du mois', debit: enDt(c.timbre) }] : []),
+    ...(c.rs ? [{ compte: '4352', libelle: 'Retenues opérées du mois', debit: enDt(c.rs) }] : []),
+    ...(aPayer ? [{ compte: '4365', libelle: 'À décaisser', credit: enDt(aPayer) }] : []),
+  ];
+  if (!lignes.length) return;
+  const [a, m] = periode.split('-').map(Number);
+  const nom = MOIS_NOM[(m ?? 1) - 1] ?? '';
+  const id = String((await api('POST', `/entreprises/${ent}/compta/declarations/${periode}/ecriture`, leila, { ecriture: {
+    journal: 'OD', date: new Date(Date.UTC(a ?? 2026, m ?? 1, 0)).toISOString().slice(0, 10), piece: `DECL-${periode}`,
+    libelle: `Déclaration ${/^[aeiouyéèh]/.test(nom) ? 'd\'' : 'de '}${nom} ${a}`, lignes } })).id);
+  await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, leila, { ids: [id] });
 }
 
 for (const d of DOSSIERS) {
@@ -390,6 +427,9 @@ for (const d of DOSSIERS) {
     // P : la déclaration est préparée, pas encore déposée.
     await api('PUT', `/entreprises/${ent}/compta/declarations/${mois(i)}`, leila, { cases: casesBe ? { tvaCollectee: casesBe.tvaCollectee, aDecaisser: casesBe.aDecaisser } : { tvaCollectee: montant, aDecaisser: montant } });
     if (e === 'P') continue;
+    const mt = Math.round(Number(montant.replace(',', '.')) * 1000);
+    // La boulangerie a passé les siennes avant la validation de sa période (plus haut).
+    if (!dejaTenu) await ecrireDeclaration(ent, mois(i), { coll: mt, ded: 0, report: 0, timbre: 0, rs: 0 });
     await api('POST', `/entreprises/${ent}/compta/declarations/${mois(i)}/pointer`, leila, { quoi: 'deposee', le: `${mois(i + 1)}-26` });
     // Payée aussi, sauf la dernière du studio photo (déposée, pas encore payée).
     if (!(d.cle === 'sp' && i === g.length - 1)) await api('POST', `/entreprises/${ent}/compta/declarations/${mois(i)}/pointer`, leila, { quoi: 'payee', le: `${mois(i + 1)}-27` });

@@ -8146,11 +8146,14 @@
     if (!s.livre) return '';
     const an = String(s.annee);
     const duReleve = s.mode === 'exercice' ? moisDuReleveCompta() : '';
+    // (1.350.0) Sur la Déclaration, la frise cercle le mois DÉCLARÉ à l'écran, comme elle cercle le mois du relevé sur la
+    // Banque : l'écran s'ouvrait sur août pendant que la frise disait « Toute l'année ».
+    const deLaDecl = s.onglet === 'declaration' ? (moisDeLaDeclaration()) : '';
     const cases = moisDeLaFrise(dossier).map(({ m, nom, ton, dit }) => {
-      const on = s.mode === 'mois' ? s.mois === m : duReleve === m;
+      const on = deLaDecl ? deLaDecl === m : s.mode === 'mois' ? s.mois === m : duReleve === m;
       return `<button type="button" class="cp-mo ${ton}${on ? ' on' : ''}" data-cp-mois="${m}" aria-pressed="${on}" title="${esc(`${moisLong(m)} ${an} : ${dit}`)}"><b>${esc(nom)}</b><small>${esc(dit)}</small></button>`;
     }).join('');
-    const tout = s.mode === 'exercice' && !duReleve;
+    const tout = !deLaDecl && s.mode === 'exercice' && !duReleve;
     return `<div class="cp-an" role="group" aria-label="L'année ${esc(an)}"><span class="cp-an-t">${esc(an)} ${info('fd.mois')}</span>${cases}<button type="button" class="cp-ex${tout ? ' on' : ''}" data-cp-mois="" aria-pressed="${tout}">Toute l'année</button></div>`;
   }
   const ongletDispo = o => !!ONGLETS_COMPTA[o] && (!!livresState.livre || ONGLETS_SANS_LIVRE.includes(o));
@@ -8495,6 +8498,9 @@
       else {
         s.mode = 'mois'; s.mois = m;
         if (s.onglet === 'banque') { const r = (s.livre.releves || []).find(x => String(x.du || '').slice(0, 7) === m || String(x.au || '').slice(0, 7) === m); if (r) banqueState.releve = r.id; }
+        // 1.350.0 — sur la Déclaration, un mois de la frise ouvre la déclaration de CE mois : la frise passait à juillet
+        // et l'écran gardait la déclaration de septembre, deux mois affichés pour une seule page.
+        if (s.onglet === 'declaration') { declState.mois = m; declState.ouverte = ''; }
       }
       s.page = 1;
       render();
@@ -9081,7 +9087,9 @@
     // septembre pendant que la TVA d'août, à déposer avant le 28, attendait).
     const enCours = d.periode >= K.today().slice(0, 7);
     const precedent = K.addMonth(d.periode, -1);
-    const suivante = enCours && !posee ? 'mois' : !posee || (perime && !deposee) ? 'preparer' : ((!ecrite && !rien) || aCompleter) ? 'ecriture' : !deposee ? 'deposee' : !payee ? 'payee' : '';
+    // 1.350.0 — une écriture du mois encore au brouillard : l'étape suivante est de la VALIDER (le message qui suit sa
+    // création le dit), pas de marquer déposée — le vert sautait une étape.
+    const suivante = enCours && !posee ? 'mois' : !posee || (perime && !deposee) ? 'preparer' : ((!ecrite && !rien) || aCompleter || auBrouillard) ? 'ecriture' : !deposee ? 'deposee' : !payee ? 'payee' : '';
     const motifPerime = perime && !deposee ? `Les chiffres ont changé depuis la préparation (${KC.phraseEcartDeclaration(ecart)}) : recalcule-la avant de la déposer.` : '';
     const cls = pas => 'btn btn-sm' + (pas === suivante ? ' btn-primary' : '');
     const fait = ok => ok ? '<span class="dc-coche" aria-hidden="true">✓</span>' : '';
@@ -9176,7 +9184,24 @@
   // 10.14.1 — une déclaration porte sur un mois TERMINÉ : `K.moisADeclarer` préfère le dernier mois
   // fini qui a des écritures. Le 26 septembre, l'écran s'ouvrait sur septembre, « Préparer » en vert,
   // pendant qu'août — la TVA à déposer avant le 28 — attendait (vu en guidant un débutant).
-  const moisDeclarationPropose = livre => moisPropose(livre, K.moisADeclarer);
+  // 1.350.0 — quand des mois sont déjà déposés, on reprend la file là où elle s'est arrêtée : le PLUS ANCIEN mois fini
+  // qui a des écritures après le dernier dépôt. Juillet déposé, août et septembre saisis : l'écran s'ouvrait sur
+  // septembre pendant qu'août, en retard, attendait — et y revenait à chaque retour sur la page. Sans aucun dépôt dans
+  // l'exercice, la règle d'avant (on ne sait pas où la mission commence).
+  const moisDeclarationPropose = livre => {
+    const propose = moisPropose(livre, K.moisADeclarer);
+    const an = propose.slice(0, 4) + '-', fini = K.today().slice(0, 7);
+    const fait = x => !!(x && typeof x === 'object' ? x.le : x);
+    const dernier = ((livre && livre.declarations) || []).filter(d => /^\d{4}-\d{2}$/.test(String(d.periode || '')) && d.periode.startsWith(an) && fait(d.deposee)).map(d => d.periode).sort().pop();
+    if (!dernier) return propose;
+    const attend = [...new Set(((livre && livre.ecritures) || []).filter(e => e.journal !== 'AN').map(e => String(e.date || '').slice(0, 7)))].filter(m => m.startsWith(an) && m > dernier && m < fini).sort();
+    return attend[0] || propose;
+  };
+  // Le mois de la déclaration à l'écran : celui qu'on a choisi, s'il est dans l'exercice regardé ; sinon le proposé. Une
+  // fois affiché il RESTE (`brancherDeclaration` le retient) : marquer août déposé change le mois PROPOSÉ, pas celui
+  // qu'on travaille — l'écran sautait à septembre avant qu'on ait pu marquer août payé.
+  const moisDeLaDeclaration = () => (declState.mois && declState.mois.startsWith(String(livresState.annee) + '-')
+    ? declState.mois : moisDeclarationPropose(livresState.livre));
 
   // 10.14.0 — Ce qu'un écran de comptabilité LIT au processus principal se relit dès que le LIVRE a
   // bougé (la parade de T-24, que la clôture, la liasse et la révision portaient seules). La
@@ -9199,13 +9224,17 @@
     const s = livresState;
     // Une déclaration se LIT au processus principal. Tant qu'elle n'est pas arrivée, l'écran le dit
     // — et c'est ici qu'on la demande, sinon l'onglet resterait sur « Lecture… » pour toujours.
-    const veut = declState.mois || moisDeclarationPropose(s.livre);
+    const veut = moisDeLaDeclaration();
     const rev = revDuLivre(s.livre);
     if (!s.decl || s.decl.periode !== veut || s.declRev !== rev) { s.declRev = rev; chargerDeclaration(root, dossier); return; }
     if (s.decl.erreur) return;
+    declState.mois = veut;
     const m = $('#dc-mois', el);
-    if (m) m.onchange = () => { declState.mois = m.value; declState.ouverte = ''; s.decl = null; chargerDeclaration(root, dossier); };
-    $$('[data-dc-mois]', el).forEach(b => { b.onclick = () => { declState.mois = b.dataset.dcMois; declState.ouverte = ''; s.decl = null; chargerDeclaration(root, dossier); }; });
+    // 1.350.0 — le mois de la déclaration et celui de la frise sont le même mois : choisir l'un pose l'autre.
+    // La barre « Période » vit au-dessus de l'écran des livres : c'est la page qui se redessine, et elle relit la déclaration.
+    const choisirMois = v => { declState.mois = v; declState.ouverte = ''; s.mode = 'mois'; s.mois = v; s.decl = null; render(); };
+    if (m) m.onchange = () => choisirMois(m.value);
+    $$('[data-dc-mois]', el).forEach(b => { b.onclick = () => choisirMois(b.dataset.dcMois); });
     $$('[data-cases]', el).forEach(b => { b.onclick = () => {
       declState.ouverte = declState.ouverte === b.dataset.cases ? '' : b.dataset.cases;
       if (declState.ouverte) pageFocus = 'dc-pieces';
@@ -9344,8 +9373,8 @@
     // (plateforme) 1.79.0 — la déclaration et l'en-tête du livre (« 9 écritures en brouillard ») lus au même moment.
     try { const r = await api.livre(dossier.id, s.annee); if (r && r.livre) s.livre = r.livre; } catch (_) { /* le livre déjà lu */ }
     try {
-      s.decl = await api.declaration({ dossierId: dossier.id, annee: s.annee, periode: declState.mois || moisDeclarationPropose(s.livre) });
-    } catch (e) { s.decl = { erreur: plainError(e), periode: declState.mois || moisDeclarationPropose(s.livre) }; }
+      s.decl = await api.declaration({ dossierId: dossier.id, annee: s.annee, periode: moisDeLaDeclaration() });
+    } catch (e) { s.decl = { erreur: plainError(e), periode: moisDeLaDeclaration() }; }
     s.declRev = revDuLivre(s.livre);
     drawLivres(root, dossier);
   }
