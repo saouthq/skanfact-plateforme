@@ -141,6 +141,9 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
             origine: { type: e.origine_type, id: e.origine }, tiers: e.tiers, tiersNom: e.tiers ? noms.get(e.tiers) ?? null : null,
             // La révision d'un brouillard saisi : on la renvoie pour le modifier (01 R15).
             revision: e.revision, valideeLe: e.validee_le,
+            // (1.342.0) Qui l'a saisie : un identifiant d'utilisateur, rien d'autre. Le Cabinet y lit lequel de SES collaborateurs a
+            // saisi un brouillard (la colonne « Par » disait « le cabinet » pour tous) ; un identifiant qu'il ne connaît pas ne lui dit rien.
+            saisiePar: e.saisie_par,
             contrepassee: corrigee(e.id, 'contre_passation'), extournee: corrigee(e.id, 'extourne'),
             lignes: lignes.filter((l) => l.ecriture === e.id).map((l) => ({
               id: l.id, compte: l.compte, libelle: l.libelle, debit: m(l.debit), credit: m(l.credit), tauxTva: l.taux_tva === null ? null : versTexte(l.taux_tva, 4),

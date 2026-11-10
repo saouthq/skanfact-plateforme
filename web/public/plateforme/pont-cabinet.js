@@ -530,7 +530,7 @@
         // (1.125.0) L'achat du client porte-t-il un justificatif ? oui, non, ou null (inconnu : pas un achat).
         justifClient: typeof e.justificatif === 'boolean' ? e.justificatif : null, ...(e.attente ? { attente: true, refus: e.refus } : {}),
         statut: e.statut === 'validee' ? (e.contrepassee ? 'contrepassee' : 'validee') : 'brouillard',
-        auteur: '', creeLe: 0, valideeLe: e.valideeLe ? Date.parse(e.valideeLe) : null,
+        auteur: e.saisiePar || '', creeLe: 0, valideeLe: e.valideeLe ? Date.parse(e.valideeLe) : null,
         contrepasseDe: e.origine.type === 'contre_passation' ? e.origine.id : null,
         extourneDe: e.origine.type === 'extourne' ? e.origine.id : null, extourne: false, extourneeLe: null,
         lignes: e.lignes.map((/** @type {any} */ l) => ({

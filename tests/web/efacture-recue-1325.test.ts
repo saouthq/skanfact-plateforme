@@ -347,7 +347,8 @@ describe('la facture électronique reçue 1.325.0 : le fichier El Fatoora du fou
     expect(net(await p.locator('#sx-ef-ck').innerText())).toContain('Un avoir : l\'écriture est à l\'envers');
     expect(await p.locator('#sx-compte').inputValue()).toBe('6071');
     // Une facture à deux taux n'en a pas UN : aucun « 18,6 % » ne se propose (le rapport de ses totaux n'est aucun taux).
-    expect(await p.locator('#sx-tva option').allInnerTexts()).toEqual(['Celles du fichier : 19 %', 'À choisir', 'Sans TVA récupérable', 'Autre taux…']);
+    // (1.342.0) Les taux que SkanFact propose (7, 13, 19 %) sont toujours dans la liste, le chiffre en tête.
+    expect(await p.locator('#sx-tva option').allInnerTexts()).toEqual(['Celles du fichier : 19 %', 'À choisir', 'Sans TVA récupérable', '7 % de TVA', '13 % de TVA', '19 % de TVA', 'Autre taux…']);
     expect(net(await p.locator('#sx-suivent').innerText())).toBe('Le compte reprend sa dernière facture (la TVA, elle, vient du fichier) : changé ici, les prochaines factures de GROSSISTE EL WAFA SARL le reprendront.');
     await expect.poll(() => cellules(p, '#sx-ec-l tr').then((l) => l.map((c) => [c[0], sans(c[2] ?? ''), sans(c[3] ?? '')]))).toEqual([
       ['6071', '', '76,500'], ['4366', '', '14,535'], ['401', '91,035', ''],

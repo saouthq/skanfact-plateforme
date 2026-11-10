@@ -2479,6 +2479,9 @@
   const lignesTvaSx = e => (e.lignes || []).filter(l => String(l.compte).startsWith(tvaCompteSx().slice(0, 4)) && mtSx(l.debit) - mtSx(l.credit) !== 0);
   const tauxDeSx = e => { if (lignesTvaSx(e).length > 1) return 'mixte'; const h = htSx(e), t = tvaSx(e); return h > 0 && t > 0 ? String(Math.round(t * 1000 / h) / 10) : 'sans'; };
   const journalAchatsSx = () => { const j = ((livresState.livre && livresState.livre.journaux) || []).find(x => /^(AC|HA)|achat/i.test(`${x.code} ${x.libelle || ''}`)); return j ? j.code : 'AC'; };
+  // (1.342.0) Un ticket payé en espèces : sa caisse (le premier compte 54 du plan du dossier, sinon 54) et son journal.
+  const compteCaisseSx = () => { const c = ((livresState.livre && livresState.livre.plan) || []).find(x => /^54/.test(String(x.compte))); return c ? String(c.compte) : '54'; };
+  const journalCaisseSx = () => { const j = ((livresState.livre && livresState.livre.journaux) || []).find(x => /^(CA|CAI)|caisse/i.test(`${x.code} ${x.libelle || ''}`)); return j ? j.code : journalBanqueSx(); };
   const journalBanqueSx = () => { const j = ((livresState.livre && livresState.livre.journaux) || []).find(x => /^(BQ|BAN)|banque/i.test(`${x.code} ${x.libelle || ''}`)); return j ? j.code : 'BQ'; };
   const fichierSx = x => (x.p ? x.p.fichier : x.doc ? x.doc.fichier : null) || { nom: x.titre || 'pièce', type: '' };
   const contenuSx = (dossier, x) => x.p ? api.pieces.contenu(dossier.id, x.p.fichier.id) : api.classeur.contenu(dossier.id, x.doc.id);
@@ -2496,8 +2499,15 @@
     return x.doc ? `déposée par ${prenomCl(x.doc.deposeNom) || 'le cabinet'} le ${jjmm(jourTunisCl(x.doc.deposeLe))}` : '';
   };
   // Les taux de TVA que ce dossier a déjà écrits sur ses achats : ce que la fiche propose (et « Autre taux… »).
+  // (1.342.0) La liste ne proposait que les taux déjà vus dans CE livre : sur un dossier qui n'a encore aucun achat taxé
+  // (un dossier tenu au cabinet, une première année), 19 % passait par « Autre taux… ». Les taux que SkanFact propose
+  // aussi au client (7, 13, 19 %) sont toujours là ; un taux vu ailleurs s'y ajoute, et « Autre taux… » reste ouvert.
+  const TAUX_PROPOSES_SX = ['7', '13', '19'];
+  // (1.342.0) Le collaborateur qui a saisi une écriture (le serveur le dit) : la colonne « Par » du brouillard disait « le cabinet »
+  // pour tous, alors que c'est ce que regarde celui qui valide. Un identifiant hors de l'équipe (le client, un ancien) : rien.
+  const collabNomSx = id => { const c = id && ((S && S.collaborateurs) || []).find(y => y.id === id); return c && c.nom ? c.nom : ''; };
   function tauxVusSx() {
-    const vus = new Set(ecrituresSx().filter(achatSx).map(tauxDeSx).filter(t => t !== 'sans' && t !== 'mixte'));
+    const vus = new Set([...TAUX_PROPOSES_SX, ...ecrituresSx().filter(achatSx).map(tauxDeSx).filter(t => t !== 'sans' && t !== 'mixte')]);
     return [...vus].sort((a, b) => Number(a) - Number(b));
   }
   // Ce que ce fournisseur a d'habitude : combien de pièces, et la charge, le taux et le compte de SA DERNIÈRE (1.211.0 : un
@@ -2744,7 +2754,7 @@
     // (1.325.0) « Celles du fichier » : chaque taux et son montant, tels que le fichier El Fatoora les dit.
     const tauxF = D ? (D.tva || []).map(t => `${String(t.taux).replace('.', ',')} %`) : [];
     const tvaF = D ? (D.tva || []).map(t => `${String(t.taux).replace('.', ',')} % : ${dtSx(millimesSx(t.montant))}`).join(' · ') : '';
-    const tvaSel = `<select id="sx-tva" class="sx-in">${tauxF.length ? `<option value="fichier"${f.tva === 'fichier' ? ' selected' : ''}>Celles du fichier : ${esc(tauxF.join(' et '))}</option>` : ''}<option value=""${f.tva === '' ? ' selected' : ''}>À choisir</option><option value="sans"${f.tva === 'sans' ? ' selected' : ''}>Sans TVA récupérable</option>${taux.map(t => `<option value="${esc(t)}"${f.tva === t ? ' selected' : ''}>TVA ${esc(t.replace('.', ','))} %</option>`).join('')}<option value="autre"${f.tva === 'autre' ? ' selected' : ''}>Autre taux…</option></select>`;
+    const tvaSel = `<select id="sx-tva" class="sx-in">${tauxF.length ? `<option value="fichier"${f.tva === 'fichier' ? ' selected' : ''}>Celles du fichier : ${esc(tauxF.join(' et '))}</option>` : ''}<option value=""${f.tva === '' ? ' selected' : ''}>À choisir</option><option value="sans"${f.tva === 'sans' ? ' selected' : ''}>Sans TVA récupérable</option>${taux.map(t => `<option value="${esc(t)}"${f.tva === t ? ' selected' : ''}>${esc(t.replace('.', ','))} % de TVA</option>`).join('')}<option value="autre"${f.tva === 'autre' ? ' selected' : ''}>Autre taux…</option></select>`;
     const devise = f.devise ? `<div class="sx-taux"><div><small>En ${esc(f.devise)}</small><b id="sx-mdev-v">${esc(montantDevSx(f))}</b></div>
         <div><small>Taux du ${esc(jjmm(f.date))} (À VÉRIFIER)</small><label class="sx-taux-in">× <input id="sx-taux" class="sx-in" inputmode="decimal" autocomplete="off" value="${esc(f.taux)}" placeholder="3,3812" aria-label="Le taux de change, en dinars pour 1 ${esc(f.devise)}"></label></div>
         <div class="eg"><small>Au livre, en dinars</small><b id="sx-cv">${E.ttc ? `${esc(dtSx(E.ttc))} DT` : '—'}</b></div></div>
@@ -2764,6 +2774,7 @@
       ${!f.devise && (f.tvaSrc === 'hab' || f.compteSrc === 'hab' || f.tvaSrc === 'ticket') ? `<p class="sx-aide" id="sx-suivent">${h.n && D ? `Le compte reprend ${fem ? 'sa dernière' : 'son dernier'} ${esc(un)} (la TVA, elle, vient du fichier) : changé ici, ${fem ? 'les prochaines' : 'les prochains'} ${esc(plusieurs)} de ${esc(f.four || 'ce fournisseur')} le reprendront.` : h.n ? `La TVA et le compte reprennent ${fem ? 'sa dernière' : 'son dernier'} ${esc(un)} : changés ici, ${fem ? 'les prochaines' : 'les prochains'} ${esc(plusieurs)} de ${esc(f.four || 'ce fournisseur')} les reprendront.` : `Enregistrés, la TVA et le compte se proposeront pareil pour ${fem ? 'les prochaines' : 'les prochains'} ${esc(plusieurs)} de ${esc(f.four || 'ce fournisseur')}.`}</p>` : ''}
       ${devise}${D ? controlesFichierSx(dossier, f) : ''}
       ${banque ? `<label class="sx-paye"><input type="checkbox" id="sx-paye"${f.paye ? ' checked' : ''}><span><b>Payée ${carte ? 'par carte ' : ''}le ${esc(jjmm(banque.l.date))}</b><small>« ${esc(banque.l.libelle)} ${esc(dtSx(-mtSx(banque.l.montant)))} » est sur le relevé ${esc(banque.R.banque || 'de banque')}, sans écriture : coché, son règlement s'écrit et se rapproche en même temps</small></span></label>` : ''}
+      ${!banque && !f.devise && !f.avoir ? `<label class="sx-paye"><input type="checkbox" id="sx-especes"${f.especes ? ' checked' : ''}><span><b>Payée en espèces, le jour de la pièce</b><small>aucun relevé ne la montre : cochée, son règlement s'écrit en caisse (${esc(compteCaisseSx())}) le même jour, et ${esc(f.four || 'le fournisseur')} ne reste pas dû</small></span></label>` : ''}
       <div class="sx-ec"><div class="sx-ec-t"><b>L'écriture qui s'écrit</b><button type="button" class="cp-plus" id="sx-lignes">Ouvrir en lignes</button></div>
         <table class="sx-t"><tbody id="sx-ec-l">${lignesEcritureSx(f, banque)}</tbody></table></div>
       <p class="sx-refus${sxState.tente.has(x.k) ? '' : ' reste'}" id="sx-refus" role="status"${E.refus ? '' : ' hidden'}>${E.refus ? esc(E.refus[1]) : ''}</p>
@@ -2786,8 +2797,10 @@
     const nomC = (c, l) => l.tiers || ((plan.find(y => y.compte === String(c)) || {}).libelle) || KC.libelleDuPlan(String(c || '')) || '';
     const paye = banque && f.paye && !f.devise && !f.avoir;
     const r = E.lignes.map(l => `<tr><td class="mono">${esc(l.compte || '—')}</td><td>${esc(nomC(l.compte, l))}</td><td class="r">${l.debit ? esc(dtSx(l.debit)) : ''}</td><td class="r">${l.credit ? esc(dtSx(l.credit)) : ''}</td></tr>`).join('');
+    // (1.342.0) Payée en espèces : le règlement en caisse se montre sous l'achat, comme celui du relevé.
+    const ca = !paye && f.especes && !f.devise && !f.avoir && E.ttc > 0 ? `<tr class="bq"><td class="mono">${esc(f.c40 || '401')}</td><td>Règlement en espèces${f.date ? ` du ${esc(jjmm(f.date))}` : ''}</td><td class="r">${esc(dtSx(E.ttc))}</td><td></td></tr><tr class="bq"><td class="mono">${esc(compteCaisseSx())}</td><td>Caisse</td><td></td><td class="r">${esc(dtSx(E.ttc))}</td></tr>` : '';
     const b = paye ? `<tr class="bq"><td class="mono">${esc(f.c40 || '401')}</td><td>Règlement du ${esc(jjmm(banque.l.date))} · rapproché</td><td class="r">${esc(dtSx(E.ttc))}</td><td></td></tr><tr class="bq"><td class="mono">${esc(banque.R.compte || '532')}</td><td>${esc(banque.R.banque || 'Banque')}</td><td></td><td class="r">${esc(dtSx(E.ttc))}</td></tr>` : '';
-    return r + b;
+    return r + b + ca;
   }
 
   function ficheDejaSx(dossier, x) {
@@ -3221,6 +3234,28 @@
     clState.docs.delete(dossier.id); clState.livres.delete(`${dossier.id}:${livresState.annee}`); clState.just.clear();
     await Promise.all([relirePieces(), chargerClasseesCl(dossier, true), quoi.docs ? chargerDocsCl(dossier, true) : null]).catch(() => {});
     drawLivres(root, dossier);
+    // (1.342.0) La pièce suivante s'ouvrait hors de l'écran : le geste se fait au bas de la fiche, et la page restait
+    // descendue sur le brouillard. Elle revient en tête de la pièce qui s'ouvre, quand celle-ci n'est plus visible.
+    // Après le dessin ET la mise au point qui le suit (un champ qui prend le curseur ne fait défiler que jusqu'à lui).
+    const amener = () => {
+      const rang = $('#sx-rang');
+      // La barre « Pièce 1 sur 2 » : le panneau qui la contient porte aussi les onglets, et viser lui ramenait trop haut.
+      const tete = rang && (rang.closest('.sx-barre') || rang);
+      const sousBarre = ($('.c-nav') || { getBoundingClientRect: () => ({ bottom: 0 }) }).getBoundingClientRect().bottom;
+      // La zone de travail seule défile : scrollIntoView ferait aussi glisser la page entière, barre latérale comprise.
+      const v = $('#view');
+      if (tete && v && tete.getBoundingClientRect().top < sousBarre) v.scrollTop += tete.getBoundingClientRect().top - sousBarre - 8;
+    };
+    // Une seconde fois quand la page s'est posée : ce qui se replie au-dessus (le bandeau du mois) la remontait de quelques pixels.
+    setTimeout(amener, 350);
+    requestAnimationFrame(() => setTimeout(() => {
+      amener();
+      // (1.342.0) « ↵ enregistre, valide et ouvre la pièce suivante » : le curseur restait sur la page, et la frappe
+      // suivante partait nulle part. Il va au premier champ de la pièce qui s'ouvre, sans refaire défiler.
+      const a = document.activeElement;
+      const premier = $('#sx-fiche #sx-four');
+      if (premier && (!a || a === document.body || !a.isConnected)) premier.focus({ preventScroll: true });
+    }, 0));
   }
   const classerSx = (dossier, x, raison) => x.p ? api.pieces.classer(dossier.id, x.p.id, true, raison) : api.classeur.classer(dossier.id, x.doc.id, true, raison);
   const declasserSx = (dossier, x) => x.p ? api.pieces.classer(dossier.id, x.p.id, false) : api.classeur.classer(dossier.id, x.doc.id, false);
@@ -3259,6 +3294,15 @@
           s.livre = x2.livre;
           dit += `, son règlement du ${jjmm(banque.l.date)} rapproché`;
         } catch (err) { dit += ` ; le règlement n'a pas pu s'écrire (${plainError(err)})`; }
+      } else if (f.especes && !f.devise && !f.avoir && E.ttc > 0) {
+        // (1.342.0) Payée en espèces : le règlement s'écrit en caisse, le même jour (le fournisseur ne reste pas dû).
+        try {
+          const r2 = await api.saisir(dossier.id, s.annee, { date: f.date, journal: journalCaisseSx(), piece: '', libelle: `Règlement ${f.four} · espèces`.slice(0, 120), source: 'saisie', pieceJointe: null,
+            lignes: versLeLivreSx([{ compte: f.c40 || '401', libelle: `Règlement ${f.four}`, debit: E.ttc, credit: 0, tiers: f.four }, { compte: compteCaisseSx(), libelle: 'Caisse', debit: 0, credit: E.ttc }]) });
+          s.livre = r2.livre;
+          aValider.push(r2.id);
+          dit += ', son règlement en espèces écrit';
+        } catch (err) { dit += ` ; le règlement en espèces n'a pas pu s'écrire (${plainError(err)})`; }
       }
       // (1.211.0) « Enregistrer et valider » : la tenue et la direction valident du même geste (l'achat et son règlement) ; un
       // refus du serveur laisse l'écriture au brouillard et le dit, avec sa raison.
@@ -3397,7 +3441,8 @@
       const champ = (id, k, lire) => { const c = $(id, zone); if (c) c.addEventListener('input', () => { f[k] = lire ? lire(c.value) : c.value; c.classList.remove('sx-ko'); c.removeAttribute('aria-invalid'); if (k === 'four' || k === 'ttc' || k === 'date' || k === 'timbre') { f[`${k}Src`] = ''; } majEcriture(); }); };
       champ('#sx-four', 'four'); champ('#sx-ttc', 'ttc'); champ('#sx-timbre', 'timbre'); champ('#sx-mdev', 'montantDev'); champ('#sx-taux', 'taux'); champ('#sx-tva-autre', 'tvaAutre'); champ('#sx-piece', 'piece');
       const dt = $('#sx-date', zone);
-      if (dt) dt.addEventListener('input', () => { const iso = K.dateTapee(dt.value.trim(), livresState.annee); f.date = iso || ''; f.dateSrc = ''; dt.classList.remove('sx-ko'); majEcriture(); });
+      // (1.342.0) La date tapée n'est plus celle d'arrivée : l'avertissement « mets celle de la pièce » se tait, il restait là.
+      if (dt) dt.addEventListener('input', () => { const iso = K.dateTapee(dt.value.trim(), livresState.annee); f.date = iso || ''; f.dateSrc = ''; dt.classList.remove('sx-ko'); const src = dt.closest('.sx-fi-r') && dt.closest('.sx-fi-r').querySelector('.sx-src'); if (src) { src.className = 'sx-src'; src.textContent = ''; } majEcriture(); });
       // Un fournisseur choisi : ses habitudes remplissent ce qui est encore vide (jamais ce qu'on a tapé).
       const four = $('#sx-four', zone);
       // (1.215.0) Quitter le champ pour cliquer un bouton de la fiche (« Lire la pièce ») redessinait la fiche entre l'appui
@@ -3418,13 +3463,31 @@
         const go = () => redessinerSx(dossier, true, f.dateSrc === 'arrivee' ? '#sx-date' : '#sx-ttc');
         const vise = zone.querySelector('button:hover');
         if (vise) { let fait = false; const une = () => { if (!fait) { fait = true; go(); } }; vise.addEventListener('click', () => setTimeout(une, 0), { once: true }); setTimeout(une, 800); } else go(); });
-      const tv = $('#sx-tva', zone); if (tv) tv.onchange = () => { f.tva = tv.value; f.tvaSrc = ''; redessinerSx(dossier, true, f.tva === 'autre' ? '#sx-tva-autre' : '#sx-compte'); };
+      // (1.342.0) Choisir la TVA au clavier, c'est taper ses premières lettres : la première suffisait à la choisir, la fiche
+      // se redessinait et le reste du mot partait ailleurs (« Sans » donnait le compte « ans », puis « Autre taux… »). Pendant
+      // le choix, seule l'écriture suit ; la fiche se redessine quand on quitte la liste, le curseur là où il est allé (et
+      // jamais sous un bouton qu'on presse, 1.215.0). « Autre taux… » ouvre son champ tout de suite, comme avant.
+      const tv = $('#sx-tva', zone);
+      if (tv) {
+        let aRedessiner = false;
+        tv.onchange = () => { f.tva = tv.value; f.tvaSrc = ''; if (f.tva === 'autre') { redessinerSx(dossier, true, '#sx-tva-autre'); return; } aRedessiner = true; majEcriture(); };
+        tv.addEventListener('blur', () => {
+          if (!aRedessiner) return;
+          aRedessiner = false;
+          setTimeout(() => {
+            if (zone.querySelector('button:hover')) return;
+            const ici = document.activeElement && zone.contains(document.activeElement) && document.activeElement.id ? `#${document.activeElement.id}` : '';
+            redessinerSx(dossier, true, ici);
+          }, 0);
+        });
+      }
       const cp = $('#sx-compte', zone);
       if (cp) {
         cp.addEventListener('input', () => { f.compte = cp.value.trim(); f.compteSrc = ''; const n = $('#sx-compte-nom', zone); if (n) n.textContent = (((livresState.livre || {}).plan || []).find(y => y.compte === f.compte) || {}).libelle || KC.libelleDuPlan(f.compte) || ''; majEcriture(); });
         suggererCompte(cp, () => ((livresState.livre || {}).plan || []), c => { f.compte = c.compte; f.compteSrc = ''; const n = $('#sx-compte-nom', zone); if (n) n.textContent = c.libelle || ''; majEcriture(); }, () => f.four);
       }
       const py = $('#sx-paye', zone); if (py) py.onchange = () => { f.paye = py.checked; majEcriture(); };
+      const es = $('#sx-especes', zone); if (es) es.onchange = () => { f.especes = es.checked; majEcriture(); };
       on('#sx-ok', () => enregistrerSx(root, dossier, x, false));
       on('#sx-ok-valider', () => enregistrerSx(root, dossier, x, true));
       on('#sx-lignes', () => enLignesSx(root, dossier, x));
@@ -3544,7 +3607,9 @@
     const grille = $('.sx-km'); if (grille) grille.hidden = !!(P.pret && P.liste.length && sxState.mode === 'face') || grilleCacheeSx(P);
     const cote = $('#sx-km-d'); if (cote) cote.innerHTML = cotePieceSx(dossier, P);
     brancherSx(document.getElementById('c-livres') || document, document, dossier);
-    if (focus) { const c = $(focus, zone); if (c) c.focus(); }
+    // (1.342.0) Le curseur amené sur un champ déjà rempli (la date d'arrivée « à remplacer par celle de la pièce ») le
+    // SÉLECTIONNE : la frappe remplace (9.4.5). Il se posait au début, et « 24/09/2026 » donnait « 24/09/202631/10/2026 ».
+    if (focus) { const c = $(focus, zone); if (c) { c.focus(); if (c.tagName === 'INPUT' && c.value && typeof c.select === 'function' && !/checkbox|radio/.test(c.type)) c.select(); } }
   }
 
   function vueSaisie(dossier) {
@@ -3672,7 +3737,7 @@
             pièce ; un débutant les trouve à l'endroit du geste. */''}
       <details class="sa-touches" id="sa-touches"${prefs.get('saTouches', true) === false ? '' : ' open'}><summary>Les touches de la grille</summary>${aideTouches()}</details>
       </div>${cote ? `<div class="sx-km-d" id="sx-km-d">${cotePieceSx(dossier, P)}</div>` : ''}</div>
-      <div class="sx-bl-z"${videSx && !brMois.length ? ' hidden' : ''}><div class="sx-bl-t"><h2 id="sa-brouillard">Le brouillard${mBl ? ` ${esc(deMois(mBl))}` : ''} ${info('sa.brouillard')}</h2><span class="mu" id="sx-bl-n">${brVus.length ? `${esc(pl(brVus.length, 'écriture'))}${mBl && brouillards.length > brVus.length ? ` · ${brouillards.length - brVus.length} d'autres mois` : ''} · elles n'entrent dans aucun chiffre tant qu'elles ne sont pas validées` : mBl && brouillards.length ? `rien n'y attend ${esc(deMois(mBl))} · ${esc(pl(brouillards.length, 'écriture'))} d'autres mois` : 'rien n\'y attend'}</span>
+      <div class="sx-bl-z"${videSx && !brMois.length ? ' hidden' : ''}><div class="sx-bl-t"><h2 id="sa-brouillard">Le brouillard${mBl ? ` ${esc(deMois(mBl))}` : ''} ${info('sa.brouillard')}</h2><span class="mu" id="sx-bl-n">${brVus.length ? `${esc(pl(brVus.length, 'écriture'))}${mBl && brouillards.length > brVus.length ? ` · ${brouillards.length - brVus.length} d'autres mois` : ''} · ${brVus.length > 1 ? 'elles n\'entrent dans aucun chiffre tant qu\'elles ne sont pas validées' : 'elle n\'entre dans aucun chiffre tant qu\'elle n\'est pas validée'}` : mBl && brouillards.length ? `rien n'y attend ${esc(deMois(mBl))} · ${esc(pl(brouillards.length, 'écriture'))} d'autres mois` : 'rien n\'y attend'}</span>
         ${mSx && brouillards.length > brMois.length ? `<button type="button" class="cp-plus" id="sx-bl-tout">${sxState.blTout ? `Seulement ${esc(moisLong(mSx))}` : `Tout le brouillard (${brouillards.length})`}</button>` : ''}
         <span class="sx-bl-g"><button type="button" class="btn btn-sm" id="sx-abos" aria-expanded="${sxState.abosOuverts ? 'true' : 'false'}">Écritures qui reviennent <small class="sx-nb">${abosActifs}</small></button>${guides.length ? `<button type="button" class="btn btn-sm" id="sx-guides">Guides <small class="sx-nb">${guides.length}</small></button>` : ''}${r.validerParLot && aValiderMois.length ? (peutValiderCl(dossier) ? `<button type="button" class="btn btn-sm" data-lot-mois="${esc(mSx)}">Valider ${aValiderMois.length > 1 ? `les ${aValiderMois.length}` : 'celle'} ${esc(deMois(mSx))}</button>` : `<span class="fd-qui" id="sx-qui-lot">${esc(cap(reviseurCl(dossier)))} ${aValiderMois.length > 1 ? 'les valide' : 'la valide'}</span>`) : ''}</span></div>
       ${/* Les lots proposés sont ceux qui EXISTENT dans le brouillard (T-29) : « Valider tout le
@@ -3695,7 +3760,7 @@
               /* (1.215.0, la maquette) Plus de colonne « État » qui dit « équilibrée » sur chaque ligne : seul ce qui ne va pas se dit, sous le libellé. */
               e.attente ? (e.refus ? `<small class="err-inline sa-refusee" title="${esc(e.refus)}">refusée : ${esc(e.refus)}</small>` : ' <span class="badge sa-attente">attend le réseau</span>')
               : t.equilibre ? '' : `<small class="err-inline sx-bl-ecart">écart ${esc(montant(t.ecart))}</small>`}</td>
-            <td class="c">${(q => `<span class="sx-par" title="${esc(q)}">${esc(q === 'le cabinet' ? initialesDe((S.cabinet && S.cabinet.name) || 'Cabinet') : q === 'reprise' ? 'AN' : initialesDe(q))}<span class="sr">${esc(q)}</span></span>`)(e.source === 'skanfact' ? (prenomCl(dossier.contact) || 'le client') : e.source === 'an' ? 'reprise' : 'le cabinet')}</td>
+            <td class="c">${(q => `<span class="sx-par" title="${esc(q)}">${esc(q === 'le cabinet' ? initialesDe((S.cabinet && S.cabinet.name) || 'Cabinet') : q === 'reprise' ? 'AN' : initialesDe(q))}<span class="sr">${esc(q)}</span></span>`)(e.source === 'skanfact' ? (prenomCl(dossier.contact) || 'le client') : e.source === 'an' ? 'reprise' : collabNomSx(e.auteur) || 'le cabinet')}</td>
             <td class="r nw">${esc(montant(t.debit))}</td>
             <td class="actions row-actions">${RowMenu.bouton('B:' + e.id, '⋯', 'sx-bl-plus').replace('<button ', `<button aria-label="Plus de gestes pour ${esc(e.piece || 'cette écriture')}" `)}</td></tr>`;
         }).join('')}</tbody></table></div>${pagerBrouillard}</div>`

@@ -21951,7 +21951,7 @@ prouver 'saisie 12 : « Enregistrer et valider » laisse au brouillard' modules/
   "      if (valider) {" "      if (false) {" \
   "$WSX1"
 prouver 'saisie 13 : la saisie valide sans en avoir le droit' modules/socle/ecrans/cabinet/app-1.js \
-  "  const peutValiderCl = d => { const r = d && d.droits && S && d.droits[S.moi]; return r ? ['revision', 'supervision'].includes(r) : monRole() !== 'saisie'; };" "  const peutValiderCl = () => true;" \
+  "  const peutValiderCl = d => { const r = d && d.droits && S && d.droits[S.moi]; return r ? r === 'supervision' || VALIDE_CL.has(r) : monRole() !== 'saisie'; };" "  const peutValiderCl = () => true;" \
   "$WSX3"
 prouver 'saisie 14 : la photo illisible sort de la bande' modules/socle/ecrans/cabinet/app-2.js \
   "&& (x.etat[1] !== 'illisible' || x.p) &&" "&& x.etat[1] !== 'illisible' &&" \
@@ -22001,7 +22001,7 @@ prouver 'saisie 28 : le mois vide tait ce qui arrive seul au livre' modules/socl
   " Ses ventes et sa caisse arrivent seules au livre." "" \
   "$WSX1"
 prouver 'saisie 29 : le brouillard ne dit pas qui a saisi' modules/socle/ecrans/cabinet/app-2.js \
-  "e.source === 'an' ? 'reprise' : 'le cabinet')" "e.source === 'an' ? 'reprise' : '')" \
+  "e.source === 'an' ? 'reprise' : collabNomSx(e.auteur) || 'le cabinet')" "e.source === 'an' ? 'reprise' : '')" \
   "$WSX1"
 
 # (1.213.0) Lot S9 « Au kilomètre, le journal du mois » (tests/web/cabinet-saisie-piece.test.ts).
@@ -27285,6 +27285,55 @@ prouver 'écritures 1.341.0 c : un client qui a envoyé ses pièces se relance' 
   "$EX1341"
 prouver 'écritures 1.341.0 d : le mois en cours se relance' modules/socle/ecrans/cabinet/app-2.js \
   'const finEnCours = ecrState.to >= enCours;' 'const finEnCours = false;' \
+  "$EX1341"
+
+# 1.342.0 : la Saisie d'un dossier au Cabinet (le droit de valider, les taux proposés, ↵ et la pièce suivante, les espèces, « Par »).
+SA1342='(1.342.0) Anis révise le dossier : il valide ; « 19 » choisit 19 % ; ↵ ouvre la pièce suivante, le curseur dedans ; les espèces vont en caisse ; « Par » le nomme'
+prouver 'saisie 1.342.0 a : le droit « validation » du pont ne valide pas' modules/socle/ecrans/cabinet/app-1.js \
+  'return r ? r === '\''supervision'\'' || VALIDE_CL.has(r) : monRole() !== '\''saisie'\''; };' 'return r ? ['\''revision'\'', '\''supervision'\''].includes(r) : monRole() !== '\''saisie'\''; };' \
+  "$SA1342"
+prouver 'saisie 1.342.0 b : seuls les taux déjà vus se proposent' modules/socle/ecrans/cabinet/app-2.js \
+  'const vus = new Set([...TAUX_PROPOSES_SX, ...ecrituresSx()' 'const vus = new Set([...ecrituresSx()' \
+  "$SA1342"
+prouver 'saisie 1.342.0 c : le libellé commence par « TVA »' modules/socle/ecrans/cabinet/app-2.js \
+  '${esc(t.replace('\''.'\'', '\'','\''))} % de TVA</option>' 'TVA ${esc(t.replace('\''.'\'', '\'','\''))} %</option>' \
+  "$SA1342"
+prouver 'saisie 1.342.0 d : la TVA redessine la fiche à chaque touche' modules/socle/ecrans/cabinet/app-2.js \
+  'aRedessiner = true; majEcriture(); };' 'redessinerSx(dossier, true, '\''#sx-tva'\''); };' \
+  "$SA1342"
+prouver 'saisie 1.342.0 e : le curseur reste sur la page après ↵' modules/socle/ecrans/cabinet/app-2.js \
+  'if (premier && (!a || a === document.body || !a.isConnected)) premier.focus({ preventScroll: true });' 'void premier; void a;' \
+  "$SA1342"
+prouver 'saisie 1.342.0 f : la pièce suivante reste hors de l'\''écran' modules/socle/ecrans/cabinet/app-2.js \
+  'if (tete && v && tete.getBoundingClientRect().top < sousBarre) v.scrollTop +=' 'if (false && tete && v) v.scrollTop +=' \
+  "$SA1342"
+prouver 'saisie 1.342.0 g : la date proposée ne se remplace pas d'\''une frappe' modules/socle/ecrans/cabinet/app-2.js \
+  'if (c.tagName === '\''INPUT'\'' && c.value && typeof c.select === '\''function'\'' && !/checkbox|radio/.test(c.type)) c.select();' 'void 0;' \
+  "$SA1342"
+prouver 'saisie 1.342.0 h : la note « date d'\''arrivée » reste' modules/socle/ecrans/cabinet/app-2.js \
+  'if (src) { src.className = '\''sx-src'\''; src.textContent = '\'''\''; }' 'void src;' \
+  "$SA1342"
+prouver 'saisie 1.342.0 i : les espèces n'\''écrivent pas leur règlement' modules/socle/ecrans/cabinet/app-2.js \
+  '} else if (f.especes && !f.devise && !f.avoir && E.ttc > 0) {' '} else if (false) {' \
+  "$SA1342"
+prouver 'saisie 1.342.0 j : le serveur tait qui a saisi' serveur/compta/routes.ts \
+  'saisiePar: e.saisie_par,' 'saisiePar: null,' \
+  "$SA1342"
+prouver 'saisie 1.342.0 k : le pont jette l'\''auteur' web/public/plateforme/pont-cabinet.js \
+  'auteur: e.saisiePar || '\'''\'', creeLe: 0, valideeLe:' 'auteur: '\'''\'', creeLe: 0, valideeLe:' \
+  "$SA1342"
+prouver 'saisie 1.342.0 l : « Par » dit « le cabinet » pour tous' modules/socle/ecrans/cabinet/app-2.js \
+  'collabNomSx(e.auteur) || '\''le cabinet'\'')}</td>' ''\''le cabinet'\'')}</td>' \
+  "$SA1342"
+prouver 'saisie 1.342.0 m : « 1 écriture · elles n'\''entrent »' modules/socle/ecrans/cabinet/app-2.js \
+  ''\''elle n\'\''entre dans aucun chiffre tant qu\'\''elle n\'\''est pas validée'\''' ''\''elles n\'\''entrent dans aucun chiffre tant qu\'\''elles ne sont pas validées'\''' \
+  "$SA1342"
+prouver 'saisie 1.342.0 n : un « … » court se coupe dans le message' modules/socle/ecrans/cabinet/app-1.js \
+  'function guillemetsDunBloc(h) { return String(h).replace(/« [^«»<]{1,40} »/g, m => `<span class="nw">${m}</span>`); }' 'function guillemetsDunBloc(h) { return String(h); }' \
+  "$SA1342"
+
+prouver 'saisie 1.342.0 o : l'\''export ne se redessine pas quand les pièces arrivent' modules/socle/ecrans/cabinet/app-1.js \
+  'else if (/^#\/ecritures(\/|$)/.test(location.hash)) drawEcritures($('\''#view'\''));' 'void 0;' \
   "$EX1341"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été

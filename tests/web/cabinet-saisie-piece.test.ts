@@ -315,7 +315,8 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     // (S8) Le brouillard de septembre : ce mois seul, qui l'a saisie, et la fenêtre de validation qui liste et vérifie avant.
     await expect.poll(() => p.locator('#sa-brouillard').innerText().then(net)).toMatch(/^Le brouillard de septembre/);
     expect(await p.locator('.sx-bl-t + * th, table.list th').filter({ hasText: /^Par$/ }).count()).toBeGreaterThan(0);
-    expect(net(await p.locator('tr.br-ligne').filter({ hasText: 'Matfer' }).innerText())).toMatch(/le cabinet/);
+    // (1.342.0) « Par » nomme le collaborateur qui a saisi (le serveur rend saisiePar), plus « le cabinet » pour tous.
+    expect(await p.locator('tr.br-ligne').filter({ hasText: 'Matfer' }).locator('.sx-par').getAttribute('title')).toBe('Leïla Jlassi');
     await p.locator('.sx-bl-t [data-lot-mois]').click();
     const lot = p.locator('#modal-root .modal').last();
     await expect.poll(() => lot.locator('#lot-liste tr').count()).toBeGreaterThan(0);

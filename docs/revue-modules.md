@@ -2005,3 +2005,32 @@ Joué à la souris, comme Leïla qui sort les écritures du mois pour son logici
   client, le matricule et le mois devant chaque ligne.
 - La preuve : `tests/web/ecritures-1341.test.ts` (un garage qui a des écritures le mois fini et ce mois-ci, un café qui
   envoie une photo, une librairie qui n'envoie rien, une menuiserie tenue au cabinet) ; preuves `écritures 1.341.0 a-d`.
+
+## La Saisie d'un dossier au Cabinet, et le pont (1.342.0)
+
+Joué au clavier et à la souris, comme Leïla puis Anis qui saisissent les pièces d'un client, une à une, face à la pièce.
+
+- Anis révise SARL Mansour Distribution : la fiche ne lui proposait qu'« Enregistrer au brouillard », et « La direction
+  valide le brouillard ». Le serveur nomme ce droit « revision », le pont le rend « validation » ; l'écran ne
+  reconnaissait que le premier mot. Les deux valent : il valide, et le serveur l'y autorisait déjà.
+- Sur un dossier qui n'a encore aucun achat taxé, la liste de TVA ne proposait que « Sans TVA » et « Autre taux… » : 19 %
+  passait par une saisie libre. Les taux que SkanFact propose aussi au client (7, 13, 19 %) y sont toujours, le chiffre
+  en tête (« 19 % de TVA ») : taper « 19 » le choisit. « Autre taux… » reste ouvert (la liste propose, elle n'enferme pas).
+- Taper « Sans » dans la TVA s'arrêtait à « S » : la fiche se redessinait à chaque touche. Pendant le choix, seule
+  l'écriture suit ; la fiche se redessine quand on quitte la liste.
+- « ↵ enregistre, valide et ouvre la pièce suivante » : la pièce suivante s'ouvrait hors de l'écran (la page restait sur
+  le brouillard), et le curseur restait sur la page — la frappe suivante partait dans un raccourci (« N » ouvrait
+  « Nouveau dossier client »). La barre « Pièce 1 sur 2 » revient sous les onglets, le curseur dans le fournisseur.
+- La date proposée (celle de l'arrivée) ne se remplaçait pas : « 31/10/2026 » devenait « 31/10/202602/10/2026 ». Le champ
+  rendu avec sa valeur la sélectionne ; et sa note « date d'arrivée : mets celle de la pièce » s'efface quand on tape.
+- Un ticket payé en espèces n'avait aucun geste : le fournisseur restait dû pour toujours. « Payée en espèces, le jour de
+  la pièce » écrit son règlement en caisse (54), le même jour.
+- La colonne « Par » du brouillard disait « le cabinet » pour tout le monde. Le serveur rend `saisiePar` (un identifiant
+  d'utilisateur, rien d'autre) ; l'écran nomme le collaborateur qui a saisi.
+- « 1 écriture · elles n'entrent dans aucun chiffre… » : le singulier. Et un « … » court du message passager ne se
+  coupe plus après son guillemet (« Déclarer et clôturer »), sans changer un caractère du texte.
+- Le rouge GitHub de la 1.341.0 : l'export des écritures se dessinait avant l'arrivée des pièces reçues (une machine
+  lente), rangeait le café dans « Rien reçu » et ne se redessinait jamais. Il se redessine quand elles arrivent, comme
+  les Relances et le portefeuille ; `ecritures-1341` ralentit désormais leur lecture de deux secondes et demie.
+- La preuve : `tests/web/saisie-1342.test.ts` (Anis, au clavier, sur un café qui envoie deux pièces) ; preuves
+  `saisie 1.342.0 a-o`.

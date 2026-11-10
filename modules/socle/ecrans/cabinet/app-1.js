@@ -126,10 +126,13 @@
     annuler: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
   };
   let toastTimer = null;
+  // (1.342.0) « Déclarer et clôturer » se coupait après son guillemet ouvrant, le nom passant seul à la ligne suivante. Un
+  // passage court entre guillemets reste d'un bloc ; le texte, lui, ne change pas d'un caractère (ce qu'on lit et ce qu'on copie).
+  function guillemetsDunBloc(h) { return String(h).replace(/« [^«»<]{1,40} »/g, m => `<span class="nw">${m}</span>`); }
   function toast(msg, kind) {
     const t = $('#toast');
     const duree = Math.min(8000, Math.max(6000, String(msg).length * 60));
-    t.innerHTML = `${kind === 'error' ? TOAST_IC.ko : TOAST_IC.ok}<span class="toast-txt">${esc(msg)}</span><span class="temps" style="--toast-duree:${duree}ms"></span>`;
+    t.innerHTML = `${kind === 'error' ? TOAST_IC.ko : TOAST_IC.ok}<span class="toast-txt">${guillemetsDunBloc(esc(msg))}</span><span class="temps" style="--toast-duree:${duree}ms"></span>`;
     t.className = 'show' + (kind === 'error' ? ' error' : '');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.className = ''; }, duree);
@@ -146,7 +149,7 @@
     const t = $('#toast');
     t.textContent = '';
     const txt = document.createElement('span');
-    txt.textContent = msg;
+    txt.innerHTML = guillemetsDunBloc(esc(msg));
     txt.className = 'toast-txt';
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'toast-undo'; b.innerHTML = `${TOAST_IC.annuler} Annuler`;
@@ -1676,6 +1679,9 @@
       if (/^#\/relances(\/|$)/.test(location.hash)) drawRelances($('#view'));
       else if (/^#\/echeances(\/|$)/.test(location.hash)) drawEcheances($('#view'));
       else if (/^#\/dossiers(\/|$)/.test(location.hash) && $('#page-tb')) drawDossiersCd($('#view'));
+      // (1.342.0, rouge GitHub de la 1.341.0) L'export des écritures dit « des pièces reçues, à classer » : ouvert avant
+      // qu'elles arrivent (une machine lente), il rangeait le client dans « Rien reçu » et ne se redessinait jamais.
+      else if (/^#\/ecritures(\/|$)/.test(location.hash)) drawEcritures($('#view'));
     }
   }
   // ---------- Messages (telles que la maquette « Messages » de Mon cabinet, 1.176.0) ----------
@@ -2246,14 +2252,18 @@
   const monRole = () => (((S && S.collaborateurs) || []).find(c => c.id === S.moi) || {}).role || 'supervision';
   const estAssocie = () => monRole() === 'supervision';
   // (1.211.0) Qui révise un dossier pour un collaborateur en saisie : celui qui le révise, sinon sa direction (son prénom).
+  const VALIDE_CL = new Set(['revision', 'validation']);
   function reviseurCl(d) {
     const dr = (d && d.droits) || {}, cs = (S && S.collaborateurs) || [];
-    const id = Object.keys(dr).find(i => i !== S.moi && dr[i] === 'revision') || Object.keys(dr).find(i => i !== S.moi && dr[i] === 'supervision') || (cs.find(c => c.id !== S.moi && c.role === 'supervision') || {}).id;
+    const id = Object.keys(dr).find(i => i !== S.moi && VALIDE_CL.has(dr[i])) || Object.keys(dr).find(i => i !== S.moi && dr[i] === 'supervision') || (cs.find(c => c.id !== S.moi && c.role === 'supervision') || {}).id;
     const c = cs.find(y => y.id === id); return c && c.nom ? c.nom.split(' ')[0] : 'la direction';
   }
   // (1.211.0) Valider les livres d'un dossier : la tenue et la direction, jamais la saisie (le serveur le garde aussi :
   // compta.ecritures.valider). Le droit sur le dossier prime sur le rôle au cabinet.
-  const peutValiderCl = d => { const r = d && d.droits && S && d.droits[S.moi]; return r ? ['revision', 'supervision'].includes(r) : monRole() !== 'saisie'; };
+  // (1.342.0) Le pont nomme « validation » le droit que le serveur appelle « revision » (VERS_V10) : l'écran ne cherchait
+  // que « revision », et qui révisait un dossier n'y voyait qu'« Enregistrer au brouillard », pendant que le serveur
+  // l'aurait laissé valider. Les deux noms valent.
+  const peutValiderCl = d => { const r = d && d.droits && S && d.droits[S.moi]; return r ? r === 'supervision' || VALIDE_CL.has(r) : monRole() !== 'saisie'; };
   // « Les miens » ou « Tous » (l'associé seul choisit ; les autres voient les dossiers qu'on leur confie).
   const portee = () => (estAssocie() ? prefs.get('portee', 'tous') : 'miens');
   const dossiersActifs = () => ((S && S.dossiers) || []).filter(d => !d.archived);

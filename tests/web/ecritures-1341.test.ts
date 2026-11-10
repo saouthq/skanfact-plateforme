@@ -85,6 +85,9 @@ describe('l\'export des écritures du Cabinet (1.341.0)', () => {
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
+    // (1.342.0, le rouge GitHub de la 1.341.0) Les pièces reçues arrivent APRÈS le premier dessin, comme sur une machine lente :
+    // la page doit se redessiner quand elles arrivent, sinon le café reste dans « Rien reçu ».
+    await p.route(/\/v1\/cabinets\/[^/?]+\/pieces$/, async (r) => { await new Promise((res) => setTimeout(res, 2500)); await r.continue(); });
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/ecritures`);
     await p.locator('#e-from').waitFor({ timeout: 20_000 });
     await plusTard(p);
