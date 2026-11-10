@@ -494,7 +494,7 @@
   // Le seuil de la retenue à la source, en dinars (1.155.0 ; lu au chargement, voir `loadData`).
   let seuilRetenue = 0;
   // Le taux de la FODEC, en % (1.155.0 ; règle `fodec.taux`, en millionièmes, lue au chargement comme le seuil).
-  let tauxFodec = 0;
+  let tauxFodec = 0, signaturePrete = /** @type {boolean | null} */ (null);   // (1.353.0) DigiGo branché ET un signataire désigné ; null : pas encore su
   let attenteN = 0;
   // Ce que la personne a fait : les pièces et les fiches (les réglages du dossier ne se comptent pas).
   /** @param {{ collection: string }[]} changements */
@@ -1325,7 +1325,7 @@
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     seuilRetenue: () => seuilRetenue,
-    tauxFodec: () => tauxFodec,
+    tauxFodec: () => tauxFodec, signaturePrete: () => signaturePrete,
     loadData: async () => {
       // Le code QR de la TTN sur la pièce imprimée (brique 83) : le moteur est là, on le branche.
       const qr = /** @type {any} */ (window).SkanQr;
@@ -1347,7 +1347,7 @@
       // la FODEC vaut zéro (le serveur fait de même) : jamais un taux inventé.
       void appel('GET', `/regles/fodec.taux?date=${new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })}`).then((r) => {
         tauxFodec = r && r.valeur != null && /^\d+$/.test(String(r.valeur)) ? Number(r.valeur) / 10000 : 0;
-      }).catch(() => { /* hors ligne : on garde le taux déjà connu */ });
+      }).catch(() => { /* hors ligne : on garde le taux déjà connu */ }); void appel('GET', '/efacture/signataire').then((lu) => { signaturePrete = !!(lu && lu.branche && lu.signataire); }).catch(() => undefined);
       const remisesLues = lireRemises();
       const attente = await poste.lireAttente(ent).catch(() => null);
       await lireFileTickets();
@@ -2577,7 +2577,7 @@
   async function dessinerSignataire(el) {
     /** @type {any} */ let lu;
     try { lu = await appel('GET', '/efacture/signataire'); } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
-    const s = lu.signataire;
+    const s = lu.signataire; signaturePrete = !!(lu.branche && s);
     el.innerHTML = `<h4 class="small mt">Qui signe les pièces (DigiGo)</h4>
       <p id="sg-etat">${s ? `Le signataire est <strong>${esc(s.identifiant)}</strong>, désigné le ${esc(quand(s.poseLe))}${s.posePar ? ` par ${esc(s.posePar)}` : ''}.`
         : 'Personne n\'est désigné : les pièces ne peuvent pas encore être signées.'}</p>

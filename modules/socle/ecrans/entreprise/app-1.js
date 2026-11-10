@@ -1329,7 +1329,10 @@
     const ccl = cl || null;
     const isInvE = doc.type === 'facture';
     const apresPossibles = isInvE || isAv ? [
-      bridge.signerPiece && !C.estDemo(data) ? ['signer', 'Signer par DigiGo', 'puis elle part à El Fatoora', true] : null,
+      // (1.353.0) « Si la signature est branchée » : la fenêtre ne le vérifiait pas. Sur un serveur où DigiGo n'est pas
+      // branché, ou tant que personne n'est désigné pour signer, la case cochée d'avance ouvrait une fenêtre qui répondait
+      // « rien n'a été signé ». On ne propose pas un geste qui sera refusé ; il reste dans le menu de la pièce.
+      bridge.signerPiece && !C.estDemo(data) && !(bridge.signaturePrete && bridge.signaturePrete() === false) ? ['signer', 'Signer par DigiGo', 'puis elle part à El Fatoora', true] : null,
       ccl && ccl.email ? ['envoyer', 'L\'envoyer par e-mail', h(ccl.email), true] : null,
       isInvE ? ['payer', 'Ouvrir l\'enregistrement d\'un paiement', 's\'il a déjà payé', false] : null,
     ].filter(Boolean) : [];
@@ -2021,11 +2024,12 @@
   // (1.162.0, maquette liste) Un montant de la liste dans la devise de l'entreprise s'écrit sans unité (la colonne la
   // dit) ; une pièce en devise garde son symbole, en petit (« 950,00 € »).
   function lfMontant(n, c) { const base = company().currency; const v = C.money(n, '', C.decimalsFor(c)).trim(); return C.normCurrency(c) === C.normCurrency(base) ? v : `${v} <small class="dv">${h(symboleDevise(c))}</small>`; }
-  function accountLabel(id) {
+  function accountLabel(id, method) {
     const cptes = data.accounts || [];
     const a = cptes.find(x => x.id === id);
     if (a) return a.name || 'Compte';
-    const d = cptes.find(x => x.isDefault) || cptes[0];
+    // (1.353.0) Le compte que la Trésorerie retient (`C.compteSansNom`) : un virement sans compte n'est pas « Caisse (par défaut) ».
+    const d = C.compteSansNom(cptes, method);
     return d ? (d.name || 'Compte') + ' (par défaut)' : '—';
   }
   // Numéro que recevrait le document à l'émission, sans consommer le compteur
@@ -8254,7 +8258,7 @@
               : `<div><div class="k-label">${charte ? 'Reste' : 'Reste à payer'}</div><div class="v ${b.remaining > 0.0005 ? 'due' : 'ok'}">${mo(Math.max(0, b.remaining))}</div></div>`}
         </div>
         ${rows.length ? `<table class="list compact${charte ? ' ed-paie-t' : ''}"><thead><tr><th>Date</th><th>Mode</th>${plusieursComptes ? '<th>Compte</th>' : ''}<th>Référence</th><th class="r">Montant</th><th></th></tr></thead><tbody>
-          ${rows.map(p => `<tr><td>${C.fmtDate(p.date)}</td><td>${h(methodLabel(p.method))}</td>${plusieursComptes ? `<td>${h(accountLabel(p.accountId))}</td>` : ''}<td>${h(p.reference || '')}${p.note ? `<div class="small muted">${h(p.note)}</div>` : ''}</td><td class="r">${mo(p.amount)}${reglementEnDinars(s, p)}${C.estRemboursement(p) ? '<div class="small muted">rendu au client</div>' : ''}${rsParts[p.id] ? `<div class="small muted">${rsParts[p.id] > 0 ? `+ ${C.money(rsParts[p.id], cur)} retenus par le client` : `retenue défaite : ${C.money(-rsParts[p.id], cur)}`}</div>` : ''}</td>${menuP(p.id)}</tr>`).join('')}
+          ${rows.map(p => `<tr><td>${C.fmtDate(p.date)}</td><td>${h(methodLabel(p.method))}</td>${plusieursComptes ? `<td>${h(accountLabel(p.accountId, p.method))}</td>` : ''}<td>${h(p.reference || '')}${p.note ? `<div class="small muted">${h(p.note)}</div>` : ''}</td><td class="r">${mo(p.amount)}${reglementEnDinars(s, p)}${C.estRemboursement(p) ? '<div class="small muted">rendu au client</div>' : ''}${rsParts[p.id] ? `<div class="small muted">${rsParts[p.id] > 0 ? `+ ${C.money(rsParts[p.id], cur)} retenus par le client` : `retenue défaite : ${C.money(-rsParts[p.id], cur)}`}</div>` : ''}</td>${menuP(p.id)}</tr>`).join('')}
         </tbody></table>` : `<p class="small muted">Aucun paiement enregistré.</p>`}
         <div class="inline mt">
           ${s.status !== 'annulée' && b.remaining > 0.0005
@@ -8623,10 +8627,22 @@
             // (1.157.0) Une fenêtre déjà ouverte entre-temps (« Enregistrer un paiement », cliqué tout de suite) : on ne lui en
             // pose pas une autre dessus, la signature reste dans la frise.
             if ($('#modal-root').children.length) return;
-            const ouvrirGeste = sel => { const b = $(sel); if (b) { b.click(); return true; } return false; };
-            if (apres.signer && ouvrirGeste('#ed-frise [data-frise="signer"]')) return;
-            if (apres.envoyer && ouvrirGeste('#email')) return;
-            if (apres.payer) ouvrirGeste('#pay');
+            // (1.353.0) Joué : « Signer » et « Ouvrir l'enregistrement d'un paiement » cochés ensemble, seule la signature
+            // s'ouvrait et le paiement était oublié sans un mot. Ce qui est coché s'ouvre l'un APRÈS l'autre : le geste
+            // suivant attend que la fenêtre du précédent soit refermée, tant qu'on est resté sur la pièce.
+            const file = [apres.signer && '#ed-frise [data-frise="signer"]', apres.envoyer && '#email', apres.payer && '#pay'].filter(Boolean);
+            const ici = location.hash;
+            let tours = 0;
+            const suivant = () => {
+              if (location.hash !== ici) return;
+              if ($('#modal-root').children.length) { if (++tours < 2400) setTimeout(suivant, 250); return; }
+              const sel = file.shift();
+              if (!sel) return;
+              const b = $(sel);
+              if (b) b.click();
+              setTimeout(suivant, 250);
+            };
+            suivant();
           }, 400);
         }
       } finally {
@@ -9961,7 +9977,7 @@
       ${avertValideHtml('pf-valide')}
       ${/* 10.12.0 — la fiche société porte déjà la banque et le RIB ; le paiement disait « aucun compte » et
          n'offrait qu'un lien vers la Trésorerie, qui QUITTAIT la fenêtre et jetait la saisie. Le compte
-         se crée par-dessus, prérempli avec ce que l'entreprise a déjà donné. */''}${!(data.accounts || []).length ? `<div class="inline small muted mt" id="pf-sans-compte">Aucun compte de trésorerie : ${rend ? 'ce remboursement' : 'ce paiement'} ne sera rattaché à aucun compte.
+         se crée par-dessus, prérempli avec ce que l'entreprise a déjà donné. */''}${/* (1.353.0) Une caisse pour seul compte : un virement n'y tombe plus (`compteSansNom`), et la fenêtre le dit. */''}${!(data.accounts || []).some(x => x.kind !== 'caisse') ? `<div class="inline small muted mt" id="pf-sans-compte">${(data.accounts || []).length ? `Pas encore de compte bancaire : un virement, un chèque ou une carte ne sera rattaché à aucun compte (ta caisse ne reçoit que les espèces).` : `Aucun compte de trésorerie : ${rend ? 'ce remboursement' : 'ce paiement'} ne sera rattaché à aucun compte.`}
         <button type="button" class="btn btn-sm" id="pf-compte">${libelleCompteDepuisFiche('Créer le compte', 'Créer un compte')}…</button></div>` : ''}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${rend ? 'Enregistrer le remboursement' : 'Enregistrer'}</button></div>`,
       (root, close) => {
@@ -18840,7 +18856,7 @@
               + (b.remaining < -0.0005 ? tuile('À récupérer', -b.remaining, 'pg-attire') : tuile('Reste dû', Math.max(0, b.remaining), b.remaining > 0.0005 ? (s2.dueDate && s2.dueDate < C.today() ? 'pg-alerte' : 'pg-attire') : ''))}
         </div>
         ${rows.length ? `<table class="list compact ac-paie-t"><thead><tr><th>Date</th><th>Mode</th><th>Compte</th><th>Référence</th><th class="r">Montant</th><th></th></tr></thead><tbody>
-          ${rows.map(x => `<tr><td>${C.fmtDate(x.date)}</td><td>${h(methodLabel(x.method))}</td><td>${h(accountLabel(x.accountId))}</td><td>${C.estRemboursementAchat(s2, x) ? '<span class="badge">remboursement reçu</span> ' : ''}${h(x.reference || '') || (C.estRemboursementAchat(s2, x) ? '' : '—')}${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}</td><td class="r"><b>${C.money(Math.abs(Number(x.amount) || 0), null, C.decimalsFor(cur))}</b>${reglementEnDinars(s2, x)}${partRs(x) ? `<div class="small muted">${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : `retenue défaite : ${C.money(-partRs(x), cur)}`}</div>` : ''}</td>${menuR(x.id)}</tr>`).join('')}
+          ${rows.map(x => `<tr><td>${C.fmtDate(x.date)}</td><td>${h(methodLabel(x.method))}</td><td>${h(accountLabel(x.accountId, x.method))}</td><td>${C.estRemboursementAchat(s2, x) ? '<span class="badge">remboursement reçu</span> ' : ''}${h(x.reference || '') || (C.estRemboursementAchat(s2, x) ? '' : '—')}${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}</td><td class="r"><b>${C.money(Math.abs(Number(x.amount) || 0), null, C.decimalsFor(cur))}</b>${reglementEnDinars(s2, x)}${partRs(x) ? `<div class="small muted">${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : `retenue défaite : ${C.money(-partRs(x), cur)}`}</div>` : ''}</td>${menuR(x.id)}</tr>`).join('')}
         </tbody></table>` : `<p class="note-v ac-rien">${lfIc('horloge', 14, 2)}<span>${av ? (b.remaining < -0.0005 ? `Tant qu'il n'est ni déduit d'une facture, ni remboursé, ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit.` : s2.achatLie ? 'Il est déduit de la facture rattachée : plus rien à récupérer.' : 'Plus rien à récupérer.')
           : `Rien de réglé.${t.withholding ? ` La retenue (${C.money(rsOp2.due, cur)}) s'opérera quand tu paieras : tu remettras alors l'attestation au fournisseur. ${info('buy.certificate')}` : ''}`}</span></p>`}
         ${rows.length && av && b.remaining < -0.0005 ? `<p class="note-v">${lfIc('horloge', 14, 2)}<span>Le reste (${C.money(-b.remaining, cur)}) n'est ni déduit d'une facture, ni remboursé : ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit encore.</span></p>` : ''}

@@ -3454,6 +3454,9 @@
       const nonPointe = C.round3(pos.accounts.reduce((x, a) => x + (a.pending || 0), 0));
       $('#t-body').innerHTML = `
         <div class="tr-cartes" id="tr-comptes">${pos.accounts.map(carte).join('')}</div>
+        ${/* (1.353.0) L'argent reçu ou payé sans compte (un virement noté avant d'avoir un compte bancaire) : compté, nommé, avec le geste. */''}${pos.sansCompte && pos.sansCompte.nombre ? `<div class="bandeau info mb" id="tr-sans-compte"><div class="txt"><b>${C.money(pos.sansCompte.montant, cur)} sans compte</b>
+          <span class="small">${pl(pos.sansCompte.nombre, 'règlement')} par virement, chèque ou carte ${pos.sansCompte.nombre > 1 ? 'n\'ont' : 'n\'a'} pas de compte bancaire où se ranger : ${pos.sansCompte.nombre > 1 ? 'ils sont comptés' : 'il est compté'} dans « Disponible », et ${pos.sansCompte.nombre > 1 ? 'iront' : 'ira'} dans ton compte dès qu'il existe.</span></div>
+          <button type="button" class="btn btn-sm" id="tr-creer-banque">Créer le compte bancaire…</button></div>` : ''}
         <div class="tr-dispo"><span><b>Disponible</b> <small class="muted">${pl(pos.accounts.length, 'compte')}${Math.abs(nonPointe) > 0.0005 ? ` · dont ${h(moneySigne(nonPointe, cur))} pas encore pointés ${info('tre.pending')}` : ''}</small></span><b class="${pos.total < 0 ? 'rouge' : ''}">${C.money(pos.total, cur)}</b></div>
         ${surveiller.length ? `<div class="tr-surv"><h3>À surveiller</h3><ul>${surveiller.join('')}</ul></div>` : `<p class="tr-calme">${lfIc('coche', 16, 2.4)} Rien d'échu ni chez tes clients ni chez tes fournisseurs.</p>`}
         ${eff.effets.length ? `<section class="tr-sec tr-effets"><h3 class="tr-h">Effets en portefeuille ${info('tre.effets')}</h3>
@@ -3465,6 +3468,7 @@
               <td class="r nw m ${x.sens === 'recevoir' ? 'ok-text' : ''}">${moneySigne(x.sens === 'recevoir' ? x.montant : -x.montant, cur)}</td></tr>`).join('')}
           </tbody></table></div>${pagerBar(effPage.pg, { noun: 'effet' })}</div></section>` : ''}`;
       $$('#tr-comptes [data-acc]').forEach(c => c.onclick = e => { if (e.target.closest('button, a')) return; s.account = c.dataset.acc; s.tab = 'mouvements'; s.moves.page = 1; render(true); });
+      if ($('#tr-creer-banque')) $('#tr-creer-banque').onclick = () => accountForm(null, () => render(), modeleCompte());
       bindRowMenus($('#tr-comptes'), id => {
         const a = data.accounts.find(x => x.id === id); if (!a) return [];
         return [

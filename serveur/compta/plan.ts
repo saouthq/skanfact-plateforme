@@ -74,10 +74,18 @@ export const compteFournisseur = (p: PlanDuDossier, tiers: string | null) => {
 // Le journal et le compte d'un règlement (`journalDeCompte`, core.js) : le compte de trésorerie
 // choisi, sinon celui par défaut, sinon le premier ; sans aucun, les espèces vont à la caisse.
 const ESPECES = ['espèces', 'especes', 'Espèces'];
-export const compteDeTresorerie = (p: PlanDuDossier, compte: string | null) =>
-  (compte ? p.tresorerie.find((a) => a.id === compte) : undefined) ?? p.tresorerie.find((a) => a.parDefaut) ?? p.tresorerie[0];
+// (1.353.0) Sans compte nommé, un règlement qui n'est pas en espèces ne tombe jamais dans une caisse par défaut
+// (`compteSansNom`, core.js) : il va au premier compte qui n'est pas une caisse, et sans un tel compte il reste sans
+// compte (le mode décide : la banque). Sans mode connu, rien ne change.
+export const compteDeTresorerie = (p: PlanDuDossier, compte: string | null, mode = '') => {
+  const nomme = compte ? p.tresorerie.find((a) => a.id === compte) : undefined;
+  if (nomme) return nomme;
+  const defaut = p.tresorerie.find((a) => a.parDefaut) ?? p.tresorerie[0];
+  if (!defaut || !defaut.caisse || !mode || ESPECES.includes(mode)) return defaut;
+  return p.tresorerie.find((a) => !a.caisse);
+};
 export function journalDeCompte(p: PlanDuDossier, compte: string | null, mode: string): { journal: 'BQ' | 'CA'; compte: string } {
-  const t = compteDeTresorerie(p, compte);
+  const t = compteDeTresorerie(p, compte, mode);
   const caisse = t ? t.caisse : ESPECES.includes(mode);
   return caisse ? { journal: 'CA', compte: p.plan.caisse } : { journal: 'BQ', compte: p.plan.banque };
 }

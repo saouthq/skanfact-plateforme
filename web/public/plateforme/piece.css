@@ -55,6 +55,9 @@
 .ed-entete { padding: 18px 20px; }
 .ed-form { display: grid; gap: 14px; }
 .ed-client { display: grid; gap: 10px; }
+/* (1.353.0) Le champ « Fournisseur » et la carte qui le remplace ont la même hauteur : choisir le fournisseur ne fait
+   plus descendre de 22 px le numéro, les dates et les lignes sous le curseur. */
+.buy-editor .ed-choix-client { min-height: 74px; align-content: start; }
 .ed-cl-tete { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ed-cl-tete .av { width: 44px; height: 44px; border-radius: 12px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; }
 .ed-cl-nom { display: grid; gap: 2px; min-width: 0; flex: 1; }

@@ -239,8 +239,11 @@
         const mail = $('#as-mail'), puce = $('#as-mail-compte');
         // « Utiliser l'adresse de ton compte » : proposée tant que la case est vide.
         const proposer = () => {
-          puce.hidden = !courriel || !!mail.value.trim();
-          puce.textContent = courriel ? `Utiliser ${courriel}` : '';
+          // (1.353.0) Joué : cliquer la puce la retirait, tout le bas de l'écran remontait d'une ligne et « Continuer »
+          // glissait sous le curseur. Elle garde sa place : invisible quand elle n'a rien à proposer, jamais retirée.
+          puce.hidden = false;
+          puce.style.visibility = !courriel || mail.value.trim() ? 'hidden' : 'visible';
+          puce.textContent = courriel ? `Utiliser ${courriel}` : '\u00a0';
         };
         proposer();
         if (!courriel) o.courriel().then((x) => { courriel = String(x || '').trim(); if ($('#as-mail-compte')) proposer(); }).catch(() => undefined);

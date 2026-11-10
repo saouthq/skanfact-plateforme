@@ -2373,3 +2373,38 @@ sur 165 », précédente, suivante) ; allumer une carte de filtre repart de la p
 
 - La preuve : `tests/web/pagination-1352-1.test.ts`, `tests/web/console.test.ts` (« la fiche d'un grand cabinet ») ;
   preuves `pagination 1.352.1 a-i`.
+
+## Bout en bout : le premier mois d'une épicerie neuve (1.353.0)
+
+Joué à la souris, d'un compte neuf : « Épicerie fine du Lac » se crée, ajoute un client et un fournisseur, saisit un
+achat de 40 bouteilles (entrées en stock, l'article créé depuis la ligne), émet sa première facture (358,000 DT), note
+200 DT reçus par virement, crée sa caisse et vend deux bouteilles au comptoir. Les chiffres du mois ont été refaits à la
+main et comparés à l'écran et aux écritures du serveur : ventes 350,000 HT, TVA collectée 66,500, déductible 136,800,
+stock 26 × 18,000 = 468,000. Ce que le parcours a trouvé :
+
+- **Un virement tombait dans le tiroir.** Le paiement de 200 DT, noté avant d'avoir un compte de trésorerie, n'avait pas
+  de compte ; la caisse créée ensuite, seul compte donc compte par défaut, le recevait : l'ouverture de la caisse
+  proposait 250 DT de fond pour 50, et le serveur repassait l'encaissement au journal de caisse (compte 54). Règle
+  nouvelle, la même des deux côtés (`compteSansNom`, core.js ; `compteDeTresorerie`, plan.ts) : sans compte nommé, un
+  règlement qui n'est pas en espèces ne va jamais dans une caisse par défaut ; il va au premier compte qui n'est pas une
+  caisse, et sans un tel compte il reste sans compte (à la banque dans les écritures). Des espèces, un compte choisi à la
+  main, ou un règlement sans mode connu : rien ne change.
+- **L'argent sans compte n'était compté nulle part.** La Trésorerie annonçait « Disponible 109,500 DT » et un solde
+  sous zéro de 200 DT trop bas. `cashPosition` le compte (`sansCompte`) et la page le nomme, avec le bouton « Créer le
+  compte bancaire… » ; la fenêtre de paiement dit la même chose quand la caisse est le seul compte.
+- **L'émission cochait d'avance « Signer par DigiGo »** sur un serveur où la signature n'est pas branchée : la fenêtre
+  suivante répondait « rien n'a été signé ». La case n'est proposée que si la signature est prête (branchée, et un
+  signataire désigné) ; le geste reste dans la frise et le menu de la pièce.
+- **Deux gestes cochés, un seul ouvert.** « Signer » et « Ouvrir l'enregistrement d'un paiement » cochés ensemble : le
+  paiement était oublié. Ce qui est coché s'ouvre l'un après l'autre, tant qu'on reste sur la pièce.
+- **Ce qui bougeait sous le curseur** : la puce « Utiliser mon adresse » de l'assistant (elle garde sa place), et la
+  carte du fournisseur qui remplace son champ dans l'achat (même hauteur).
+
+Laissé tel quel, noté : le fond de caisse n'a pas d'écriture au compte 54 (déjà « À DÉCIDER » dans docs/caisse.md) ; le
+bouton « Créer l'article… » d'une ligne en stock passe par une liste d'une seule entrée ; le total de l'achat gagne une
+ligne (« toute déductible ») au premier montant et fait descendre « Enregistrer » de 32 px ; le téléphone tapé sans
+espaces s'imprime sans groupes ; la barre latérale dit encore « Inviter mon comptable » quand une demande est en attente.
+Le parcours côté Cabinet (accepter le dossier, comparer la TVA et les livres) reste à rejouer : le poste de test a
+redémarré au milieu.
+
+Tests : `tests/moteur/caisse-virement-1353.test.ts`, `tests/web/bout-en-bout-1353.test.ts` ; huit preuves.

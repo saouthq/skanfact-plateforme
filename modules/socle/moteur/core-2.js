@@ -588,33 +588,44 @@
 
   // Tous les mouvements réels d'une période, quelle que soit leur origine. Un mouvement porte
   // toujours un compte : sans compte affecté, il est rattaché au compte par défaut.
+  // (1.353.0) Le compte d'une ligne qui n'en nomme pas : le compte par défaut, SAUF quand ce compte est une caisse et que
+  // le règlement n'est pas en espèces. Joué : une épicerie neuve note un virement de 200 DT avant d'avoir un compte, puis
+  // crée sa caisse (son seul compte, donc celui par défaut) : le virement tombait dans le tiroir, qui annonçait 250 DT
+  // pour 50. Un virement, un chèque ou une carte ne sont jamais dans un tiroir : ils vont au premier compte qui n'est pas
+  // une caisse, et sans un tel compte ils restent sans compte (à la banque dans les écritures, le mode décide). Sans mode
+  // connu, rien ne change. La MÊME règle sert la Trésorerie, les écritures et le serveur (`compteDeTresorerie`, plan.ts).
+  const modeEspeces = m => m === 'espèces' || m === 'especes' || m === 'Espèces';
+  function compteSansNom(comptes, method) {
+    const defaut = comptes.find(a => a.isDefault) || comptes[0];
+    if (!defaut || defaut.kind !== 'caisse' || !method || modeEspeces(method)) return defaut;
+    return comptes.find(a => a.kind !== 'caisse');
+  }
   function cashMovements(data, company, period, accountId) {
     const out = [];
-    const defaultAccount = (data.accounts || []).find(a => a.isDefault) || (data.accounts || [])[0];
-    const fallback = defaultAccount ? defaultAccount.id : '';
+    const tousComptes = data.accounts || [];
     // Le compte d'une ligne : celui qu'elle nomme s'il existe encore, sinon le compte par défaut
     // (10.14.0). Supprimer un compte promet « ses mouvements basculeront sur le compte par défaut » ;
     // la Trésorerie gardait pourtant l'identifiant disparu, et ces lignes ne tombaient plus dans
     // aucun compte — pendant que les écritures (`journalDeCompte`) les passaient bien au compte par
     // défaut : la banque de la page et celle du grand livre ne disaient plus la même chose.
     const existants = new Set((data.accounts || []).map(a => a.id));
-    const compteDe = id => (id && existants.has(id)) ? id : fallback;
-    const keep = id => !accountId || compteDe(id) === accountId;
+    const compteDe = (id, method) => (id && existants.has(id)) ? id : ((compteSansNom(tousComptes, method) || {}).id || '');
+    const keep = (id, method) => !accountId || compteDe(id, method) === accountId;
     const clientName = id => ((data.clients || []).find(c => c.id === id) || {}).name || '—';
     const supplierName = id => ((data.suppliers || []).find(s => s.id === id) || {}).name || '—';
 
     (data.documents || []).filter(d => d.type === 'facture').forEach(d => (d.payments || []).forEach(p => {
-      if (!inPeriod(p.date, period && period.from, period && period.to) || !keep(p.accountId)) return;
+      if (!inPeriod(p.date, period && period.from, period && period.to) || !keep(p.accountId, p.method)) return;
       const rend = estRemboursement(p);
       out.push({
-        id: p.id, kind: rend ? 'decaissement' : 'encaissement', date: p.date, accountId: compteDe(p.accountId),
+        id: p.id, kind: rend ? 'decaissement' : 'encaissement', date: p.date, accountId: compteDe(p.accountId, p.method),
         label: `${rend ? 'Remboursement' : 'Encaissement'} ${d.number || ''}`.trim(), party: clientName(d.clientId),
         amount: montantRegle(d, p, company), method: p.method || '',
         reference: p.reference || '', docId: d.id, reconciled: !!p.reconciled, source: 'vente'
       });
     }));
     (data.purchases || []).forEach(pu => (pu.payments || []).forEach(p => {
-      if (!inPeriod(p.date, period && period.from, period && period.to) || !keep(p.accountId)) return;
+      if (!inPeriod(p.date, period && period.from, period && period.to) || !keep(p.accountId, p.method)) return;
       // Un règlement porté par un AVOIR est un remboursement : l'argent ENTRE (10.2.0) — le journal
       // (`supplierPayments`) le savait, la Trésorerie non : elle le sortait du compte, et la banque
       // de la page et celle du grand livre différaient de deux fois le remboursement (10.14.0). Un
@@ -622,7 +633,7 @@
       const montant = -round3((pu.kind === 'avoir' ? -1 : 1) * montantRegle(pu, p, company));
       const rendu = montant > 0;
       out.push({
-        id: p.id, kind: rendu ? 'encaissement' : 'decaissement', date: p.date, accountId: compteDe(p.accountId),
+        id: p.id, kind: rendu ? 'encaissement' : 'decaissement', date: p.date, accountId: compteDe(p.accountId, p.method),
         label: `${rendu ? 'Remboursement' : 'Règlement'} ${pu.number || 'd\'un achat sans numéro'}`, party: supplierName(pu.supplierId),
         // Ce qui sort du compte sort en DINARS (10.1.0), comme l'encaissement client dix lignes
         // plus haut : régler 500 € vide le compte de 1 700 DT, pas de 500. Sans ça, la trésorerie
@@ -636,12 +647,12 @@
     // C'est pour ça qu'il ne faut PAS saisir en plus un mouvement libre « Salaires » pour le même mois —
     // `todoList` le signale si les deux existent.
     (data.payslips || []).forEach(sl => {
-      if (!sl.paidDate || !inPeriod(sl.paidDate, period && period.from, period && period.to) || !keep(sl.accountId)) return;
+      if (!sl.paidDate || !inPeriod(sl.paidDate, period && period.from, period && period.to) || !keep(sl.accountId, sl.method)) return;
       const emp = (data.employees || []).find(e => e.id === sl.employeeId) || {};
       const net = ((sl.computed || {}).net) || 0;
       if (!net) return;
       out.push({
-        id: 'pay-' + sl.id, kind: 'sortie', date: sl.paidDate, accountId: compteDe(sl.accountId),
+        id: 'pay-' + sl.id, kind: 'sortie', date: sl.paidDate, accountId: compteDe(sl.accountId, sl.method),
         label: `Salaire ${monthLabel(payslipDate(sl))}`, party: emp.name || 'Salarié',
         amount: -round3(net), method: sl.method || 'virement', reference: sl.reference || '',
         payslipId: sl.id, reconciled: !!sl.reconciled, source: 'paie'
@@ -653,10 +664,10 @@
     // les retenues qui la remboursent. Le remboursement, lui, est déjà dans le net versé plus bas.
     (data.advances || []).forEach(a => {
       const montant = round3(Number(a.amount) || 0);
-      if (!montant || !inPeriod(a.date, period && period.from, period && period.to) || !keep(a.accountId)) return;
+      if (!montant || !inPeriod(a.date, period && period.from, period && period.to) || !keep(a.accountId, a.method)) return;
       const emp = (data.employees || []).find(e => e.id === a.employeeId) || {};
       out.push({
-        id: 'av-' + a.id, kind: 'sortie', date: a.date, accountId: compteDe(a.accountId),
+        id: 'av-' + a.id, kind: 'sortie', date: a.date, accountId: compteDe(a.accountId, a.method),
         label: 'Avance sur salaire', party: emp.name || 'Salarié',
         amount: -montant, method: a.method || 'virement', reference: a.reference || '',
         advanceId: a.id, reconciled: !!a.reconciled, source: 'avance'
@@ -667,9 +678,9 @@
     // retenue, et le grand livre gardait ces dettes pour toujours. Le montant est celui de la déclaration, figé au paiement.
     (data.socialFilings || []).forEach(f => {
       const montant = round3(Number(f.amount) || 0);
-      if (!f.paidDate || !montant || !inPeriod(f.paidDate, period && period.from, period && period.to) || !keep(f.accountId)) return;
+      if (!f.paidDate || !montant || !inPeriod(f.paidDate, period && period.from, period && period.to) || !keep(f.accountId, f.method)) return;
       out.push({
-        id: 'soc-' + f.id, kind: 'sortie', date: f.paidDate, accountId: compteDe(f.accountId),
+        id: 'soc-' + f.id, kind: 'sortie', date: f.paidDate, accountId: compteDe(f.accountId, f.method),
         label: f.label || 'Déclaration sociale', party: /^cnss-/.test(f.id) ? 'CNSS' : 'Recette des finances',
         amount: -montant, method: f.method || 'virement', reference: f.reference || '',
         socialId: f.id, reconciled: !!f.reconciled, source: 'social'
@@ -679,9 +690,9 @@
     // versement. La retenue elle-même ne sort rien (elle diminue le net versé au salarié).
     (data.employees || []).forEach(emp => (Array.isArray(emp.saisies) ? emp.saisies : []).forEach(x => (x.versements || []).forEach(v => {
       const montant = round3(Number(v.amount) || 0);
-      if (!montant || !v.date || !inPeriod(v.date, period && period.from, period && period.to) || !keep(v.accountId)) return;
+      if (!montant || !v.date || !inPeriod(v.date, period && period.from, period && period.to) || !keep(v.accountId, v.method)) return;
       out.push({
-        id: `sai-${x.id}-${v.id}`, kind: 'sortie', date: v.date, accountId: compteDe(v.accountId),
+        id: `sai-${x.id}-${v.id}`, kind: 'sortie', date: v.date, accountId: compteDe(v.accountId, v.method),
         label: `Saisie sur salaire — ${emp.name || ''}`.trim(), party: String(x.creancier || '').trim() || 'Créancier',
         amount: -montant, method: v.method || 'virement', reference: v.reference || x.reference || '',
         saisieId: x.id, employeeId: emp.id, reconciled: !!v.reconciled, source: 'saisie'
@@ -700,7 +711,7 @@
       const cotes = virementCotes(data, m);
       if (cotes && cotes.neutre) return;      // d'un compte à lui-même : rien ne bouge
       const vers = cotes ? cotes.vers : '';
-      const depart = cotes ? cotes.depart : compteDe(m.accountId);
+      const depart = cotes ? cotes.depart : compteDe(m.accountId, m.method);
       if (depart && keep(depart)) out.push({
         id: m.id, kind: moveSign(m.kind) > 0 ? 'entree' : 'sortie', date: m.date, accountId: depart,
         label: m.label || (vers ? `Virement vers ${nomCompte(vers)}` : label), party: label, amount: round3(moveSign(m.kind) * montant),
@@ -739,7 +750,12 @@
       const pending = round3(all.filter(m => !m.reconciled).reduce((s, m) => s + m.amount, 0));
       return { ...a, ...b, pending, reconciled: round3(b.balance - pending) };
     });
-    return { accounts, total: round3(accounts.reduce((s, a) => s + a.balance, 0)) };
+    // (1.353.0) Les règlements qui n'ont AUCUN compte (un virement noté avant d'avoir un compte bancaire, `compteSansNom`) :
+    // cet argent existe, il n'était compté nulle part. « Disponible » l'annonçait en moins, et la prévision avec lui (un
+    // « solde sous zéro » de 200 DT trop bas sur une épicerie qui venait de les recevoir). Il se compte, et se nomme.
+    const orphelins = cashMovements(data, company, { from: '', to: t }, null).filter(m => !m.accountId);
+    const sansCompte = { montant: round3(orphelins.reduce((s, m) => s + m.amount, 0)), nombre: orphelins.length };
+    return { accounts, sansCompte, total: round3(accounts.reduce((s, a) => s + a.balance, 0) + sansCompte.montant) };
   }
 
   // (1.266.0) Le délai réel d'un client : de combien de jours, en moyenne, il paie après l'échéance — mesuré sur ses six
@@ -2401,7 +2417,8 @@
   // Sans aucun compte de trésorerie, le mode de paiement décide.
   function journalDeCompte(data, acc, accountId, method) {
     const comptes = (data && data.accounts) || [];
-    const compte = (accountId && comptes.find(a => a.id === accountId)) || comptes.find(a => a.isDefault) || comptes[0];
+    // (1.353.0) Sans compte nommé : `compteSansNom` — un virement ne tombe jamais dans une caisse par défaut.
+    const compte = (accountId && comptes.find(a => a.id === accountId)) || compteSansNom(comptes, method);
     const caisse = compte ? compte.kind === 'caisse' : cashAccountFor(method, acc) === acc.caisse;
     return caisse ? { journal: 'CA', compte: acc.caisse } : { journal: 'BQ', compte: acc.banque };
   }
@@ -7658,7 +7675,7 @@
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, declarationsDuCabinet, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
-    ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,
+    ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, compteSansNom, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,
     lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, avancementAffaire, etatDesChantiers, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,

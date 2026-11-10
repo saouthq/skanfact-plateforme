@@ -20595,7 +20595,7 @@ prouver 'écarts 7 : le prénom de l'"'"'auteur jamais lu du serveur' web/public
 ' '' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
 prouver 'écarts 8 : le règlement sans son compte' modules/socle/ecrans/entreprise/app-1.js \
-  '<td>${h(accountLabel(x.accountId))}</td>' '' \
+  '<td>${h(accountLabel(x.accountId, x.method))}</td>' '' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
 prouver 'écarts 9 : le règlement sans ce qu'"'"'il a retenu' modules/socle/ecrans/entreprise/app-1.js \
   '${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : ' '${partRs(x) > 0 ? '"'"''"'"' : ' \
@@ -22187,7 +22187,7 @@ prouver 'paie 1.227 e : refuser la correction perd la raison' modules/personnel/
 WR1M="sortent de la trésorerie et soldent leurs dettes, au millime, comme la banque du grand livre"
 WR1W="la retenue du mois déposée et payée ; un virement de salaire rejeté redevient à payer"
 prouver 'paie 1.228 a : la CNSS payée ne sort pas de la trésorerie' modules/socle/moteur/core-2.js \
-  "      if (!f.paidDate || !montant || !inPeriod(f.paidDate, period && period.from, period && period.to) || !keep(f.accountId)) return;" "      if (true) return;" \
+  "      if (!f.paidDate || !montant || !inPeriod(f.paidDate, period && period.from, period && period.to) || !keep(f.accountId, f.method)) return;" "      if (true) return;" \
   "$WR1M"
 prouver 'paie 1.228 b : la CNSS payée ne solde pas sa dette' modules/socle/moteur/core-2.js \
   "          if (cnss) e.debit(acc.cnss, label, montant);" "          if (cnss) e.debit(acc.irpp, label, montant);" \
@@ -22222,7 +22222,7 @@ prouver 'paie 1.230 b : une saisie retient au-delà de son total' modules/person
   "amount: round3(Math.min(x.monthly || x.reste, x.reste)), saisieId: x.id" "amount: round3(x.monthly || x.reste), saisieId: x.id" \
   "$WR3S"
 prouver 'paie 1.230 c : le versement au créancier ne sort pas de la trésorerie' modules/socle/moteur/core-2.js \
-  "      if (!montant || !v.date || !inPeriod(v.date, period && period.from, period && period.to) || !keep(v.accountId)) return;" "      if (true) return;" \
+  "      if (!montant || !v.date || !inPeriod(v.date, period && period.from, period && period.to) || !keep(v.accountId, v.method)) return;" "      if (true) return;" \
   "$WR3V"
 prouver 'paie 1.230 d : le versement au créancier n entre pas au grand livre' modules/socle/moteur/core-2.js \
   "          const label = \`Saisie sur salaire \${emp.name || ''}\`.trim();" "          const label = \`Saisie sur salaire \${emp.name || ''}\`.trim(); if (label) return;" \
@@ -27686,6 +27686,40 @@ prouver 'pagination 1.352.1 h : les dossiers d'\''un cabinet d'\''un seul tenant
 prouver 'pagination 1.352.1 i : filtrer les dossiers d'\''un cabinet garde la page d'\''avant' web/console/src/ecrans/Cabinet.tsx \
   'const pagesDossiers = useFeuillets(place), pagesEquipe = useFeuillets();' 'const pagesDossiers = useFeuillets(), pagesEquipe = useFeuillets();' \
   "$PG13521K"
+
+# 1.353.0 : bout en bout, la première facture d'une épicerie neuve. La signature qui sera refusée, les gestes cochés, le virement sans compte.
+BB1353W='l'\''émission ne propose pas une signature qui sera refusée, ouvre l'\''un après l'\''autre ce qui est coché, et un virement sans compte ne tombe pas dans la caisse'
+BB1353M1='une caisse pour seul compte : le virement reste sans compte, à la banque dans les écritures et sur le serveur'
+BB1353M3='dès qu'\''un compte bancaire existe, le virement sans compte y va, même si la caisse est restée le compte par défaut'
+prouver 'bout en bout 1.353.0 a : « Signer par DigiGo » proposé sans signature prête' modules/socle/ecrans/entreprise/app-1.js \
+  ' && !(bridge.signaturePrete && bridge.signaturePrete() === false) ? ['\''signer'\''' ' ? ['\''signer'\''' \
+  "$BB1353W"
+prouver 'bout en bout 1.353.0 b : seul le premier geste coché s'\''ouvre' modules/socle/ecrans/entreprise/app-1.js \
+  '              if (b) b.click();
+              setTimeout(suivant, 250);' '              if (b) b.click();' \
+  "$BB1353W"
+prouver 'bout en bout 1.353.0 c : la Trésorerie tait l'\''argent sans compte' modules/socle/ecrans/entreprise/app-2.js \
+  'pos.sansCompte && pos.sansCompte.nombre ? `<div class="bandeau info mb" id="tr-sans-compte">' 'false && pos.sansCompte.nombre ? `<div class="bandeau info mb" id="tr-sans-compte">' \
+  "$BB1353W"
+prouver 'bout en bout 1.353.0 d : « Disponible » oublie l'\''argent sans compte' modules/socle/moteur/core-2.js \
+  'accounts.reduce((s, a) => s + a.balance, 0) + sansCompte.montant)' 'accounts.reduce((s, a) => s + a.balance, 0))' \
+  "$BB1353W"
+prouver 'bout en bout 1.353.0 e : le serveur passe le virement à la caisse' serveur/compta/plan.ts \
+  'if (!defaut || !defaut.caisse || !mode || ESPECES.includes(mode)) return defaut;' 'if (defaut) return defaut;' \
+  "$BB1353W"
+prouver 'bout en bout 1.353.0 f : le virement tombe dans le tiroir (Trésorerie et écritures)' modules/socle/moteur/core-2.js \
+  'if (!defaut || defaut.kind !== '\''caisse'\'' || !method || modeEspeces(method)) return defaut;' 'if (defaut) return defaut;' \
+  "$BB1353M1"
+prouver 'bout en bout 1.353.0 g : le virement sans compte ignore le compte bancaire' modules/socle/moteur/core-2.js \
+  '    return comptes.find(a => a.kind !== '\''caisse'\'');
+  }
+  function cashMovements' '    return undefined;
+  }
+  function cashMovements' \
+  "$BB1353M3"
+prouver 'bout en bout 1.353.0 h : les écritures gardent l'\''ancienne règle' modules/socle/moteur/core-2.js \
+  '|| compteSansNom(comptes, method);' '|| comptes.find(a => a.isDefault) || comptes[0];' \
+  "$BB1353M1"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
