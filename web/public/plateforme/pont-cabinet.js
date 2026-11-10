@@ -466,11 +466,11 @@
   // Les exercices OUVERTS sur le serveur (brique 39) : leur année, leurs bornes, leur balance
   // d'ouverture. Gardés par dossier, pour l'écran qui demande sans attendre si un exercice est ouvert.
   /** @type {Map<string, { annee: number, du: string, au: string, ouverture: string | null, closLe: string | null, closPar: string | null, reouvertures: any[] }[]>} */
-  const exercicesConnus = new Map();
+  const exercicesConnus = new Map(), /** @type {Map<string, string>} */ valideJusquaConnu = new Map();
   /** @param {string} ent */
   async function exercicesDe(ent) {
     const r = await appel('GET', `/entreprises/${ent}/compta/exercices`);
-    exercicesConnus.set(ent, r.exercices || []);
+    exercicesConnus.set(ent, r.exercices || []); valideJusquaConnu.set(ent, String(r.valideJusqua || '')); // (1.345.0) le dernier jour validé du dossier
     return exercicesConnus.get(ent) || [];
   }
   /** @param {string} ent @param {string|number} annee */
@@ -556,7 +556,7 @@
     const [ecritures, releves, declarations, biens, inventaire, revisionsLues, questions] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee),
       declarationsDe(ent, annee), immobilisationsDe(ent), inventaireDe(ent, annee), revisionsDe(ent, annee), questionsDe(ent, annee)]);
     const livre = versLeLivre(ent, Number(annee), ecritures);
-    const ex = exerciceDe(ent, annee);
+    const ex = exerciceDe(ent, annee); livre.exercice.valideJusqua = valideJusquaConnu.get(ent) || ''; // la grille le dit avant le geste (1.345.0)
     if (ex) {
       livre.exercice.du = ex.du; livre.exercice.au = ex.au;
       // La clôture (brique 45) : qui, quand, et chaque réouverture avec son motif.

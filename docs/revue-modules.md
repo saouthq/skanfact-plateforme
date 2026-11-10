@@ -2103,3 +2103,31 @@ demande du n° CNSS de son côté, et le cabinet qui le reporte sur la fiche.
   salariée sans n° CNSS) et `tests/messagerie/messagerie.test.ts` (la réponse écrite) ; preuves `paie 1.344.0 a-h`.
   `cabinet-pas-avant-son-jour` et `cabinet-paie-parcours` retournés vers la règle (l'écriture se valide en place ; un
   trimestre en cours ne propose pas son accusé ; le vert passe à l'écriture une fois les bulletins remis).
+
+## Les Immobilisations d'un dossier au Cabinet, et le pont (1.345.0)
+
+Joué à la souris : Leïla qui tient le registre de la Boulangerie (un four saisi à la main, puis son achat arrivé au
+livre ; une cession ; une camionnette que Sarra a saisie dans son SkanFact), puis la Saisie d'une facture de février.
+
+- **Un achat déjà au registre se RATTACHE à sa fiche.** Une fiche saisie à la main, puis l'achat de même montant au
+  223 : l'écran proposait en vert « Créer la fiche du bien… », un clic et le four s'amortissait deux fois. Une seule
+  fiche libre de même valeur (`ficheARattacher`) propose « Rattacher à « Four à sole électrique »… » ; la fenêtre dit
+  le compte que la fiche prend (celui que l'achat a débité, pour que la sortie crédite le même), ou qu'elle garde le
+  sien si ses écritures sont passées, et offre « Non, un autre bien… ». Deux candidates : c'est au comptable de choisir.
+- **La dotation d'un bien sorti se date du jour de sa sortie** (`ecrituresImmobilisations`), comme dans l'app
+  entreprise : datée du 31/12 après une sortie au 30/09, elle laissait le 28 débiteur d'octobre à décembre.
+- **Une sortie annonce sa plus ou moins-value avant d'enregistrer**, par `resultatCession` (celle du plan), à la
+  place de « première dotation, dernière, VNC finale » qui ne dit rien d'un bien qu'on sort.
+- **La famille propose son compte** (`compteDeFamille` : 2283, 213, 2282, 2284, 223, 224, 228, 222 — À VÉRIFIER)
+  comme sa durée, tant qu'on n'y a pas touché ; la fiche reprise du client garde sa famille (le pont la transmettait,
+  `ficheDuClient` la perdait).
+- « Voir le plan d'amortissement » amène le plan à l'écran ; un seul vert sur l'état vide ; une invite neutre.
+- **La Saisie dit la période validée avant le geste.** Une pièce du 20/02 dans une période validée jusqu'au 31/07
+  n'était refusée qu'au clic (« Enregistrement impossible », Fermer seul) sous un encadré qui promettait le contraire.
+  Le serveur rend `valideJusqua` avec les exercices, le pont le pose sur le livre, `verdictSaisie` éteint les deux
+  boutons en disant « Date-la du 01/08/2026 ou après » ; l'encadré « déjà déclaré » se tait dans cette période.
+- Le pont, joué : la camionnette saisie par Sarra paraît au Cabinet avec son plan (5 250 DT), « Reprendre sa fiche »
+  donne « même plan » ; sortie ici, l'écart se dit (« sorti le 31/10/2026 ici, toujours à l'actif chez le client »).
+- Tombé : le plan en direct de « Ajouter un bien » existait déjà ; le contrôle « tableau ↔ 28 » existe à la clôture.
+- La preuve : `tests/web/immobilisations-1345.test.ts` ; preuves `immos 1.345.0 a-l` ; la preuve « la ligne au
+  compte 22 ignore la fiche que le client a déjà » réancrée.

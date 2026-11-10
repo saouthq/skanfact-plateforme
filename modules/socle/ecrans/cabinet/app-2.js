@@ -2419,9 +2419,20 @@
     }));
     return out;
   };
+  // (1.345.0) La période validée du dossier se dit AVANT le geste, par la MÊME fonction qui éteint les boutons : le serveur
+  // refusait au clic (« la période est validée jusqu'au 31/07/2026 ») une pièce du 20/02 que l'écran laissait taper sous un
+  // simple avertissement orange, et la fenêtre « Enregistrement impossible » n'offrait que « Fermer ».
+  const motifPeriodeValidee = date => {
+    const vj = String((((livresState.livre || {}).exercice) || {}).valideJusqua || '');
+    if (!vj || !date || String(date) > vj) return '';
+    const d = new Date(vj + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1);
+    return `La période est validée jusqu'au ${fmtJour(vj)} : une écriture ne s'y écrit plus. Date-la du ${fmtJour(d.toISOString().slice(0, 10))} ou après.`;
+  };
   const verdictSaisie = (p, plan, opts) => {
     const illisibles = montantsIllisibles(p);
     if (illisibles.length) return { ok: false, motif: illisibles[0], motifs: illisibles };
+    const valide = motifPeriodeValidee(p.date);
+    if (valide) return { ok: false, motif: valide, motifs: [valide] };
     return KC.ecritureValide(ecritureSaisie(p), plan, opts);
   };
 
@@ -4084,7 +4095,9 @@
     // « Mois déjà déclaré ») ; la règle de report est À VÉRIFIER avec un comptable.
     const majDecl = () => {
       const b = $('#sa-decl', el); if (!b) return;
-      const m = String(p.date || '').slice(0, 7), dc = m ? lireLivreFd(s.livre).decl[m] : null;
+      // (1.345.0) Dans la période validée, l'écriture ne s'y écrit plus du tout : le refus le dit sous la grille, et cet
+      // encadré (« une facture arrivée en retard garde sa date ») promettait le contraire juste au-dessus.
+      const m = String(p.date || '').slice(0, 7), dc = m && !motifPeriodeValidee(p.date) ? lireLivreFd(s.livre).decl[m] : null;
       b.hidden = !(dc && dc.deposee);
       if (dc && dc.deposee) b.innerHTML = `<span class="txt"><b>${esc(cap(moisLong(m)))} ${esc(m.slice(0, 4))} est déjà déclaré${dc.deposeeLe ? ` (déposée le ${esc(fmtJourCourt(KC.jourDeLInstant(dc.deposeeLe)).slice(0, 5))})` : ''}.</b><span>Cette écriture change ses livres après la déclaration : ils ne diront plus ce qui a été déposé. Une facture arrivée en retard garde sa date, et sa TVA se récupère sur une déclaration suivante (À VÉRIFIER : le délai et la façon de la reporter).</span></span>`;
     };

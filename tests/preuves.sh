@@ -25745,7 +25745,7 @@ prouver 'la fiche née de la ligne d'\''achat ne retrouve pas le bien du client'
   "|| (txt(b.achat) && fiches.find(f => achatDe(f) === txt(b.achat)" "|| (false && fiches.find(f => achatDe(f) === txt(b.achat)" \
   "$T314"
 prouver 'la ligne au compte 22 ignore la fiche que le client a déjà' "$CAB1" \
-  "<td class=\"row-actions\">\${KC.bienDuClientPourLaLigne(s.livre, l, d.biens)" "<td class=\"row-actions\">\${false" \
+  "    : KC.bienDuClientPourLaLigne(s.livre, l, d.biens)" "    : false" \
   "$T314"
 prouver 'reprendre la fiche du client ouvre un formulaire vide' "$CAB1" \
   "if (x) immoForm(root, dossier, { ...x.fiche, reprise: false," "if (x) immoForm(root, dossier, { reprise: false," \
@@ -27398,6 +27398,48 @@ prouver 'paie 1.344.0 g : un « la voilà » sans fichier ferme la demande' base
 prouver 'paie 1.344.0 h : la réponse écrite absente des demandes du cabinet' serveur/messagerie/routes.ts \
   'recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour, reponse: d.reponse || null })),' 'recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour, reponse: null })),' \
   "$MSG2"
+
+# 1.345.0 : les Immobilisations d'un dossier au Cabinet (l'achat rattaché à sa fiche, la sortie annoncée et datée, le plan amené, la famille et son compte, la période validée dite avant).
+IM1345='(1.345.0) l'\''achat se rattache, la sortie s'\''annonce et se date, le plan vient à l'\''écran, la période validée se dit avant'
+prouver 'immos 1.345.0 a : la dotation d'\''un bien sorti datée du 31/12, après sa sortie' modules/socle/moteur/compta-1.js \
+  'date: ced && ced <= au ? ced : au, piece: '\''DOT-'\''' 'date: au, piece: '\''DOT-'\''' \
+  "$IM1345"
+prouver 'immos 1.345.0 b : « Créer la fiche du bien… » sous un bien déjà au registre' modules/socle/ecrans/cabinet/app-1.js \
+  '<td class="row-actions">${KC.ficheARattacher(s.livre, l) &&' '<td class="row-actions">${false &&' \
+  "$IM1345"
+prouver 'immos 1.345.0 c : la fiche rattachée garde le 22, la sortie crédite un autre compte que l'\''achat' modules/socle/ecrans/cabinet/app-1.js \
+  '...(changeCompte ? { compte: l.compte } : {}),' '...{},' \
+  "$IM1345"
+prouver 'immos 1.345.0 d : deux « Ajouter un bien… » verts sur l'\''état vide' modules/socle/ecrans/cabinet/app-1.js \
+  '<button class="${e.rows.length ? cls('\''neuf'\'') : '\''btn btn-sm'\''}" id="im-neuf">' '<button class="${cls('\''neuf'\'')}" id="im-neuf">' \
+  "$IM1345"
+prouver 'immos 1.345.0 e : « Voir le plan » ouvre le plan hors de l'\''écran' modules/socle/ecrans/cabinet/app-1.js \
+  'if (immoState.ouverte) pageFocus = '\''im-plan'\''; ' '' \
+  "$IM1345"
+prouver 'immos 1.345.0 f : la plus ou moins-value ne se lit qu'\''après l'\''enregistrement' modules/socle/ecrans/cabinet/app-1.js \
+  'const ced = p.cession ? KC.resultatCession(p) : null;' 'const ced = null;' \
+  "$IM1345"
+prouver 'immos 1.345.0 g : la famille laisse le compte au 22' modules/socle/ecrans/cabinet/app-1.js \
+  'if (o && o.dataset.compte && !compteTouche && cc) cc.value = o.dataset.compte;' '' \
+  "$IM1345"
+prouver 'immos 1.345.0 h : la famille écrase un compte tapé à la main' modules/socle/ecrans/cabinet/app-1.js \
+  'if (cc) cc.oninput = () => { compteTouche = true; majTouche(); };' '' \
+  "$IM1345"
+prouver 'immos 1.345.0 i : la période validée refusée seulement au clic' modules/socle/ecrans/cabinet/app-2.js \
+  'if (valide) return { ok: false, motif: valide, motifs: [valide] };' '' \
+  "$IM1345"
+prouver 'immos 1.345.0 j : le pont ne pose pas la période validée' web/public/plateforme/pont-cabinet.js \
+  'livre.exercice.valideJusqua = valideJusquaConnu.get(ent) || '\'''\'';' 'livre.exercice.valideJusqua = '\'''\'';' \
+  "$IM1345"
+prouver 'immos 1.345.0 k : le serveur tait la période validée' serveur/compta/exercice.ts \
+  'valideJusqua: (cloture?.jusqua as string | undefined) ?? null,' 'valideJusqua: null,' \
+  "$IM1345"
+prouver 'immos 1.345.0 l : la famille du bien du client perdue en reprenant sa fiche' modules/socle/moteur/compta-1.js \
+  'famille: txt(b.famille), ' '' \
+  "$IM1345"
+prouver 'immos 1.345.0 m : la fiche reprise d'\''une ligne d'\''achat prend le compte de sa famille, pas celui de l'\''achat' modules/socle/ecrans/cabinet/app-1.js \
+  '{ ...KC.ficheDuClient(duClient), compte: l.compte, origine:' '{ ...KC.ficheDuClient(duClient), origine:' \
+  "$T314"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

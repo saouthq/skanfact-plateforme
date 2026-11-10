@@ -32,8 +32,12 @@ export function routesExercice(ctx: Contexte): Route<never>[] {
               'par', (select u.nom from socle.utilisateur u where u.id = r.rouvert_par)) order by r.rouvert_le)
             from compta.reouverture r where r.entreprise = x.entreprise and r.annee = x.annee), '[]') reouvertures
         from compta.exercice x where x.entreprise = $1 order by x.annee`, [params.entreprise ?? ''])).rows;
+      // (1.345.0) La période validée (compta.cloture) : la base refuse d'y écrire (0021), et l'écran le dit AVANT le geste.
+      // La grille du cabinet ne l'apprenait qu'au clic : « Enregistrement impossible » sur une pièce bien tapée.
+      const cloture = (await tx.query(`select to_char(jusqua, 'YYYY-MM-DD') jusqua from compta.cloture where entreprise = $1`, [params.entreprise ?? ''])).rows[0];
       return {
         corps: {
+          valideJusqua: (cloture?.jusqua as string | undefined) ?? null,
           exercices: lus.map((x) => ({
             annee: Number(x.annee), du: x.du, au: x.au, ouverture: x.ouverture ?? null,
             closLe: x.clos_le ? (x.clos_le as Date).toISOString() : null, closPar: x.clos_par ?? null, reouvertures: x.reouvertures,

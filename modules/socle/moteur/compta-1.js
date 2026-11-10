@@ -4226,7 +4226,9 @@
   // se reconnaît dans le registre du cabinet par sa fiche reprise (`origine` « client » + l'identifiant du bien), par
   // l'achat dont il est né (la ligne au compte 22 de cet achat, de même montant), sinon par son nom, sa valeur et sa date.
   const ficheDuClient = b => ({
-    libelle: txt(b.libelle), valeur: num(b.valeur), residuelle: num(b.residuelle), duree: num(b.duree), methode: 'lineaire',
+    // (1.345.0) Sa famille aussi : reprise sans elle, la fiche du cabinet repartait au compte 22 (« — »), loin du 224 d'une
+    // camionnette. Elle ne sert qu'à proposer la famille et son compte ; elle ne s'enregistre pas.
+    libelle: txt(b.libelle), famille: txt(b.famille), valeur: num(b.valeur), residuelle: num(b.residuelle), duree: num(b.duree), methode: 'lineaire',
     tauxDegressif: null, bascule: false, dateMiseEnService: txt(b.date), dateAcquisition: txt(b.date),
     cession: b.sortie && txt(b.sortie.date) ? { date: txt(b.sortie.date), prix: num(b.sortie.prix), motif: num(b.sortie.prix) ? 'cession' : 'rebut' } : null
   });
@@ -4265,6 +4267,15 @@
         actif: fiche.dateMiseEnService <= `${y}-12-31` && !(fiche.cession && Number(fiche.cession.date.slice(0, 4)) < y) };
     }).filter(r => r.actif).sort((a, b) => a.fiche.dateMiseEnService.localeCompare(b.fiche.dateMiseEnService));
   }
+  // (1.345.0) La fiche du REGISTRE qu'une ligne à créer désigne sans doute : une fiche saisie à la main (aucune ligne du
+  // livre ne la porte encore), de même valeur, et une seule — deux candidates, c'est au comptable de choisir dans la
+  // fenêtre, jamais à nous. Sans elle, « Créer la fiche du bien… » restait vert sous un bien déjà au registre : un clic,
+  // et le four s'amortissait deux fois.
+  function ficheARattacher(livre, ligne) {
+    const libres = (livre.immobilisations || []).filter(f => !f.reporteDe && !(f.origine && txt(f.origine.docId))
+      && Math.abs(num(f.valeur) - num(ligne && ligne.montant)) < 0.0005);
+    return libres.length === 1 ? libres[0] : null;
+  }
   // La ligne du livre (à créer) dont le client a déjà la fiche : la même pièce d'achat, le même montant.
   function bienDuClientPourLaLigne(livre, ligne, biens) {
     const e = (livre.ecritures || []).find(x => x.id === ligne.ecritureId);
@@ -4285,9 +4296,13 @@
       const f = (livre.immobilisations || []).find(x => x.id === r.id);
       if (!f) return;
       if (r.dotation && !r.ecrite) {
+        // (1.345.0) La dotation d'un bien SORTI dans l'exercice se date du jour de sa sortie, comme dans l'app
+        // entreprise (« au 31 décembre, ou au jour de la sortie ») : datée du 31/12, après une sortie du 30/09, elle
+        // laissait le 28 débiteur d'octobre à décembre — la sortie reprenait un amortissement pas encore écrit.
+        const ced = r.cession && txt(r.cession.date);
         out.push({
           immoId: f.id, genre: 'dotation',
-          journal: 'OD', date: au, piece: 'DOT-' + y + '-' + f.id.slice(-4),
+          journal: 'OD', date: ced && ced <= au ? ced : au, piece: 'DOT-' + y + '-' + f.id.slice(-4),
           libelle: `Dotation ${y} — ${f.libelle}`, source: 'inventaire',
           lignes: [
             { compte: txt(f.compteDotation) || compteImmo(livre, 'dotations'), libelle: `Dotation ${y}`, debit: r.dotation, credit: 0 },
@@ -6440,6 +6455,15 @@
   ];
   const assetClassLabel = k => (DEFAULT_ASSET_CLASSES.find(c => c[0] === k) || [, 'Autre immobilisation'])[1];
   const assetClassYears = k => (DEFAULT_ASSET_CLASSES.find(c => c[0] === k) || [, , 5])[2];
+  // (1.345.0) Le compte du plan de référence d'une famille de biens. Il se PROPOSE au Cabinet tant que le compte n'a pas
+  // été touché (comme la durée) : « Matériel de transport » restait au 22, et la sortie d'un bien acheté au 224
+  // créditait un autre compte que celui que l'achat avait débité. Une famille inconnue ne propose rien (« ») —
+  // jamais un compte deviné. À VÉRIFIER : chaque cabinet a son plan, et le compte reste modifiable.
+  const COMPTE_DE_FAMILLE = {
+    informatique: '2283', logiciel: '213', bureau: '2282', mobilier: '2284', outillage: '223',
+    transport: '224', agencement: '228', construction: '222', autre: '228'
+  };
+  const compteDeFamille = k => COMPTE_DE_FAMILLE[k] || '';
 
   // Nombre de jours entre deux dates en base 360 (mois de 30 jours), comme le veut le prorata temporis.
   function days360(fromIso, toIso) {

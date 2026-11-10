@@ -10627,7 +10627,9 @@
     return `<div class="filters">
       ${info('im.etat')}
       <span class="small muted">Exercice ${esc(s.annee)}</span>
-      <button class="${cls('neuf')}" id="im-neuf">Ajouter un bien…</button>
+      ${/* (1.345.0) Sur un exercice vide, le vert est celui de l'état vide (U-11) : deux « Ajouter un bien… » verts
+            pour le même geste, l'un au-dessus de l'autre, se lisaient comme deux choses à faire. */''}
+      <button class="${e.rows.length ? cls('neuf') : 'btn btn-sm'}" id="im-neuf">Ajouter un bien…</button>
       <button class="${cls('ecrire')}" id="im-ecrire" ${e.aEcrire ? '' : 'disabled'}
         title="${esc(pourquoiEcrire)}">Passer les écritures d'inventaire${
   e.aEcrire ? ` (${e.aEcrire})` : ''}</button>
@@ -10644,7 +10646,9 @@
       <tbody>${d.aCreer.slice(0, 12).map((l, k) => `<tr>
         <td class="nw">${esc(fmtJour(l.date))}</td><td class="tronq" title="${esc(l.libelle)}">${esc(l.libelle)}</td>
         <td class="nw">${esc(l.compte)}</td><td class="r nw">${esc(money(l.montant))}</td>
-        <td class="row-actions">${KC.bienDuClientPourLaLigne(s.livre, l, d.biens)
+        <td class="row-actions">${KC.ficheARattacher(s.livre, l) && !KC.bienDuClientPourLaLigne(s.livre, l, d.biens)
+    ? `<button class="btn btn-sm${k === 0 ? ' btn-primary' : ''}" data-rattacher="${esc(l.docId)}" title="Une fiche du registre, saisie à la main, a ce montant : c'est sans doute elle">Rattacher à « ${esc(KC.ficheARattacher(s.livre, l).libelle)} »…</button>`
+    : KC.bienDuClientPourLaLigne(s.livre, l, d.biens)
     ? `<button class="btn btn-sm${k === 0 ? ' btn-primary' : ''}" data-creer="${esc(l.docId)}" title="${esc(dossier.name || 'Le client')} a déjà la fiche de ce bien dans son SkanFact : sa durée et sa mise en service se reprennent">Reprendre la fiche du client…</button>`
     : `<button class="btn btn-sm${k === 0 ? ' btn-primary' : ''}" data-creer="${esc(l.docId)}">Créer la fiche du bien…</button>`}</td>
       </tr>`).join('')}</tbody></table></div>${d.aCreer.length > 12
@@ -10666,7 +10670,7 @@
         <button class="btn btn-sm btn-ghost mt" data-aligner="${esc(b.id)}">Reprendre son plan…</button>`}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
     <div class="panel mt"><h2>Les biens de l'exercice ${info('im.tableau')}</h2>
       ${!e.rows.length
-    ? `<div class="empty mini">Aucun bien sur cet exercice. <button class="btn btn-sm" id="im-neuf2">Ajouter un bien…</button></div>`
+    ? `<div class="empty mini">Aucun bien sur cet exercice. <button class="${cls('neuf')}" id="im-neuf2">Ajouter un bien…</button></div>`
     : `<div class="scroll-x"><table class="list compact"><thead><tr>
         ${/* U-20 — les réserves (taux dégressif, bascule, subvention, dérogatoire) vivent dans la
               bulle de la MÉTHODE, là où la décision se lit et se prend : un panneau permanent de quatre
@@ -10736,11 +10740,45 @@
     if (!s.immo || s.immoRev !== rev) { s.immoRev = rev; chargerImmobilisations(root, dossier); return; }
     if (s.immo.erreur) return;
     [$('#im-neuf', el), $('#im-neuf2', el)].forEach(b => { if (b) b.onclick = () => immoForm(root, dossier, null); });
+    // (1.345.0) Rattacher une ligne du livre à la fiche saisie à la main : la fiche prend la ligne pour origine (elle ne se
+    // propose plus « à créer ») et le compte que l'achat a débité, pour que sa sortie crédite le même. Une question à
+    // trois issues : c'est lui, un autre bien (on crée sa fiche), ou on renonce.
+    $$('[data-rattacher]', el).forEach(b => {
+      b.onclick = () => {
+        const l = (s.immo.aCreer || []).find(x => x.docId === b.dataset.rattacher);
+        const f = l && KC.ficheARattacher(s.livre, l);
+        if (!f) return;
+        const ecrite = (f.plan || []).some(p => p && p.ecritureId);
+        const changeCompte = !ecrite && String(f.compte || '') !== String(l.compte || '');
+        modal(`<h2>Rattacher cet achat à « ${esc(f.libelle)} » ?</h2>
+          <p>La ligne du ${esc(fmtJour(l.date))} au compte ${esc(l.compte)} (${esc(money(l.montant))}) a la valeur de
+          « ${esc(f.libelle)} », saisi à la main dans ton registre. Si c'est le même bien, il ne s'amortit qu'une fois.</p>
+          ${changeCompte ? `<p class="small muted">Sa fiche prend le compte ${esc(l.compte)} de l'achat (elle portait ${esc(f.compte)}) : sa sortie créditera le compte que l'achat a débité.</p>` : ''}
+          ${ecrite && String(f.compte || '') !== String(l.compte || '') ? `<p class="small ambre">Ses écritures sont déjà passées au compte ${esc(f.compte)} : sa fiche le garde. Corrige l'achat ou ces écritures si l'un des deux est faux.</p>` : ''}
+          <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+            <button class="btn" id="im-autre">Non, un autre bien…</button>
+            <button class="btn btn-primary" id="ok">Oui, c'est lui</button></div>`,
+        (layer, close) => {
+          $('#im-autre', layer).onclick = () => { close(); immoForm(root, dossier, { libelle: l.libelle, compte: l.compte, valeur: l.montant,
+            dateAcquisition: l.date, dateMiseEnService: l.date, origine: { source: 'paquet', docId: l.docId, mois: String(l.date).slice(0, 7) } }); };
+          $('#ok', layer).onclick = async () => {
+            const ok = $('#ok', layer); ok.disabled = true;
+            try {
+              const r = await api.saveImmobilisation({ dossierId: dossier.id, annee: s.annee,
+                fiche: { ...f, ...(changeCompte ? { compte: l.compte } : {}), origine: { source: 'paquet', docId: l.docId, mois: String(l.date).slice(0, 7) } } });
+              s.livre = r.livre; close(); toast(`Achat rattaché à « ${f.libelle} ».`);
+              await chargerImmobilisations(root, dossier);
+            } catch (err) { toast(plainError(err), 'error'); ok.disabled = false; }
+          };
+        });
+      };
+    });
     $$('[data-creer]', el).forEach(b => {
       b.onclick = () => {
         const l = (s.immo.aCreer || []).find(x => x.docId === b.dataset.creer);
         const duClient = l && KC.bienDuClientPourLaLigne(s.livre, l, s.immo.biens);
-        if (duClient) { immoForm(root, dossier, { ...KC.ficheDuClient(duClient), origine: { source: 'paquet', docId: l.docId, mois: String(l.date).slice(0, 7) } }); return; }
+        // (1.345.0) Le compte est celui que l'achat a débité, jamais celui de sa famille : sa sortie doit créditer le même.
+        if (duClient) { immoForm(root, dossier, { ...KC.ficheDuClient(duClient), compte: l.compte, origine: { source: 'paquet', docId: l.docId, mois: String(l.date).slice(0, 7) } }); return; }
         // 10.10.0 (C-10) — une ligne datée du PREMIER JOUR de l'exercice est un à-nouveau : elle
         // porte un bien (ou tout un parc) DÉJÀ amorti. La date proposée n'est donc pas sa date de
         // mise en service, et le formulaire le dit avant qu'on l'enregistre.
@@ -10773,7 +10811,9 @@
       if (!f) return [];
       return [
         { icon: 'loupe', label: 'Voir le plan d\'amortissement', hint: 'Année par année, et l\'écriture de chacune',
-          run: () => { immoState.ouverte = immoState.ouverte === id ? '' : id; drawLivres(root, dossier); } },
+          // (1.345.0) Le panneau s'ouvre SOUS le tableau, hors de l'écran : sans l'y amener, le geste paraissait ne rien
+          // faire (7.18.0, un raccourci vise un panneau).
+          run: () => { immoState.ouverte = immoState.ouverte === id ? '' : id; if (immoState.ouverte) pageFocus = 'im-plan'; drawLivres(root, dossier); } },
         { icon: 'modifier', label: 'Modifier la fiche', hint: 'Valeur, durée, méthode, cession', run: () => immoForm(root, dossier, f) },
         { sep: true },
         { icon: 'supprimer', label: 'Supprimer ce bien', hint: 'Refusé si une dotation est déjà passée en écriture', danger: true,
@@ -10839,10 +10879,10 @@
     modal(`<h2>${neuf ? 'Ajouter un bien' : 'Modifier ' + esc(f.libelle)}</h2>
       <form id="im" class="grid-2">
         <label class="field obligatoire span-2">${lbl('Désignation', 'im.designation')}
-          <input name="libelle" value="${esc(f.libelle || '')}" placeholder="Serveur Dell R450"></label>
+          <input name="libelle" value="${esc(f.libelle || '')}" placeholder="Le bien, tel que tu l'appelles"></label>
         <label class="field">${lbl('Famille', 'im.famille')}
           <select name="famille"><option value="">—</option>${familles.map(c =>
-    `<option value="${esc(c[0])}" data-duree="${c[2]}">${esc(c[1])} (${c[2]} ans)</option>`).join('')}</select></label>
+    `<option value="${esc(c[0])}" data-duree="${c[2]}" data-compte="${esc(KC.compteDeFamille(c[0]))}" ${f.famille === c[0] ? 'selected' : ''}>${esc(c[1])} (${c[2]} ans)</option>`).join('')}</select></label>
         <label class="field obligatoire">${lbl('Durée (années)', 'im.duree')}
           <input name="duree" class="num" inputmode="numeric" value="${esc(String(f.duree || ''))}"></label>
         <label class="field obligatoire">${lbl('Date de mise en service', 'im.miseEnService')}
@@ -10868,7 +10908,7 @@
               sous le tableau, où personne ne la relisait au moment de choisir. */''}
         <p class="small muted champ-note span-2" id="im-degr-n">${esc(KC.IMMO_A_VERIFIER.tauxDegressif)} ${esc(KC.IMMO_A_VERIFIER.bascule)}</p>
         <label class="field obligatoire">${lbl('Compte du bien', 'im.compte')}
-          <input name="compte" value="${esc(f.compte || '22')}" list="im-c1"><datalist id="im-c1">${dl('2').map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+          <input name="compte" value="${esc(f.compte || KC.compteDeFamille(f.famille) || '22')}" list="im-c1"><datalist id="im-c1">${dl('2').map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
         <label class="field">${lbl('Compte d\'amortissement', 'im.compteAmort')}
           <input name="compteAmort" value="${esc(f.compteAmort || '28')}" list="im-c1"></label>
         <label class="field">${lbl('Compte de dotation', 'im.compteDotation')}
@@ -10942,12 +10982,22 @@
         // Le cumul déjà pratiqué au premier jour de l'exercice : c'est ce qu'on vérifie quand on
         // reprend un bien, et la fiche l'annonce avant qu'on l'enregistre (C-10).
         const avant = KC.cumulDuBien(p, `${Number(s.annee) - 1}-12-31`);
-        apercu.innerHTML = `<div class="ok-box mt">${esc(pl(plan.length, 'exercice'))} —
+        // (1.345.0) La sortie annonce sa plus ou moins-value AVANT d'enregistrer, par la même fonction que le plan affichera
+        // ensuite : elle ne se lisait qu'une fois la fiche fermée.
+        const ced = p.cession ? KC.resultatCession(p) : null;
+        // Une sortie remplace la ligne du plan : « première dotation, dernière, VNC finale » ne dit rien d'un bien qu'on sort,
+        // et poussait sa plus ou moins-value hors de la fenêtre.
+        const derniere = plan.length ? plan[plan.length - 1] : null;
+        apercu.innerHTML = `<div class="ok-box mt">${ced && derniere
+    ? `Dotation ${esc(derniere.annee)} jusqu'au jour de la sortie : ${esc(money(derniere.dotation))}.`
+    : `${esc(pl(plan.length, 'exercice'))} —
           première dotation ${esc(money(plan.length ? plan[0].dotation : 0))},
-          dernière ${esc(money(plan.length ? plan[plan.length - 1].dotation : 0))},
-          VNC finale ${esc(money(plan.length ? plan[plan.length - 1].vnc : 0))}.
+          dernière ${esc(money(derniere ? derniere.dotation : 0))},
+          VNC finale ${esc(money(derniere ? derniere.vnc : 0))}.`}
           <br><b>Déjà amorti au 01/01/${esc(s.annee)} : ${esc(money(avant))}</b>${f.reprise && deja28 && Math.abs(KC.round3(avant - deja28)) >= 0.001
-    ? ` <span class="err-inline">— le compte 28 en reprend ${esc(money(deja28))}</span>` : ''}.</div>`;
+    ? ` <span class="err-inline">— le compte 28 en reprend ${esc(money(deja28))}</span>` : ''}.${ced
+    ? `<br>${esc(ced.motif === 'rebut' ? 'Mise au rebut' : 'Sortie')} le ${esc(fmtJour(ced.date))} : valeur comptable ${esc(money(ced.vnc))}, prix ${esc(money(ced.prix))},
+      <b>${esc(ced.resultat >= 0 ? 'plus-value' : 'moins-value')} de ${esc(money(Math.abs(ced.resultat)))}</b>.` : ''}</div>`;
       };
       const majTouche = () => { touche = true; maj(); };
       $$('input,select', rootModal).forEach(x => { x.oninput = majTouche; x.onchange = majTouche; });
@@ -10955,10 +11005,15 @@
       // revient plus (même motif que `regimeTouche`, 7.25.0).
       let dureeTouchee = !!f.duree;
       const dd = $('[name=duree]', rootModal); if (dd) dd.oninput = () => { dureeTouchee = true; majTouche(); };
+      // (1.345.0) Le compte suit la famille de la même façon : proposé tant qu'on n'y a pas touché. Une fiche venue d'un
+      // achat porte le compte de l'achat : il est déjà décidé.
+      let compteTouche = !!f.compte;
+      const cc = $('[name=compte]', rootModal); if (cc) cc.oninput = () => { compteTouche = true; majTouche(); };
       const fam = $('[name=famille]', rootModal);
       if (fam) fam.onchange = () => {
         const o = fam.selectedOptions[0];
         if (o && o.dataset.duree && !dureeTouchee) dd.value = o.dataset.duree;
+        if (o && o.dataset.compte && !compteTouche && cc) cc.value = o.dataset.compte;
         majTouche();
       };
       maj();

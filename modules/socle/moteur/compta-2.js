@@ -124,7 +124,7 @@
     bienVersActif, planDegressif, planDuBien, cumulDuBien, vncDuBien,
     resultatCession, repriseSubvention, immoValide,
     ajouterImmobilisation, modifierImmobilisation, supprimerImmobilisation,
-    etatImmobilisations, aReclamerImmobilisations, immobilisationsACreer, biensDuClient, bienDuClientPourLaLigne, ficheDuClient, ecrituresImmobilisations, noterEcritureImmo,
+    etatImmobilisations, aReclamerImmobilisations, immobilisationsACreer, biensDuClient, bienDuClientPourLaLigne, ficheARattacher, ficheDuClient, ecrituresImmobilisations, noterEcritureImmo,
     inventaireValide, lignesInventaireDepuisTexte, totalInventaire, poserInventaire, variationDeStock, ecritureFacturesNonParvenues, ecritureProvisionCreance, ecritureProvisionGaranties,
     // La clôture d'exercice (9.8.0)
     GUIDES_INVENTAIRE, controlesCloture, soldesDepuisOuverture, soldesRepris,
@@ -181,7 +181,7 @@
     fichierCnss, fichierCnssDuLivre, lireMatriculeCnss, identiteCnss, motifIdentiteCnss, FORMAT_CNSS,
     // La pièce équilibrée et l'amortissement (9.6.1)
     ajouterJoursIso, entrySet,
-    DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360,
+    DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, compteDeFamille, days360,
     assetSchedule, assetCumulated, assetYear, assetNBV, disposalResult, cappedCumulated
   };
 });
