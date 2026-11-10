@@ -2930,7 +2930,7 @@ prouver "la porte qui laisse le collaborateur clôturer" serveur/compta/gestes.t
 ];" \
   "$CE3"
 prouver "l'écran qui ouvre la question de clôture sur un brouillard" modules/socle/ecrans/cabinet/app-1.js \
-  "      if (enBrouillard) return toast(enBrouillard.detail, 'error');" "" \
+  ".find(c => c.id === 'brouillard' && !c.ok) || {}).detail || '');" ".find(c => c.id === 'aucun' && !c.ok) || {}).detail || '');" \
   "$WC1"
 prouver "l'exercice clos que l'écran ne voit pas" $PC \
   "      livre.exercice.clos = !!ex.closLe;" "      livre.exercice.clos = false;" \
@@ -27533,6 +27533,19 @@ prouver 'révision 1.348.0 k : la question sur un compte dit un solde signé' mo
   '${b.solde ? `solde ${soldeCarte(Number(b.solde))} · ` : '\'''\''}' '${b.solde ? `solde ${esc(money(Number(b.solde)))} · ` : '\'''\''}' \
   "$RV1348"
 
+CL1349='(1.349.0) un exercice qui court ne se clôture pas, et le bouton éteint dit pourquoi avant le clic ; pas de fichier pour le client en ligne'
+prouver 'clôture 1.349.0 a : la raison du bouton éteint n'\''est pas écrite' modules/socle/ecrans/cabinet/app-1.js \
+  '${!ex.clos && motifPasDeCloture(ex.annee, d.controles) ? `<p' '${false && motifPasDeCloture(ex.annee, d.controles) ? `<p' \
+  "$CL1349"
+prouver 'clôture 1.349.0 b : le bouton reste allumé, le refus ne se lit qu'\''au clic' modules/socle/ecrans/cabinet/app-1.js \
+  '${motif ? '\'' disabled aria-describedby="cl-cloturer-motif"'\'' : '\'''\''}' '${motif ? '\'''\'' : '\'''\''}' \
+  "$CL1349"
+prouver 'clôture 1.349.0 c : un exercice qui court se laisse clôturer' modules/socle/ecrans/cabinet/app-1.js \
+  '(annee, controles) => (!exerciceTermine(annee)' '(annee, controles) => (false' \
+  "$CL1349"
+prouver 'clôture 1.349.0 d : « Le dossier pour le client » offert en ligne, où il n'\''écrit rien' modules/socle/ecrans/cabinet/app-1.js \
+  '${'\''ecrireCloture'\'' in api ? '\''<button class="btn btn-sm" id="cl-fichier">' '${true ? '\''<button class="btn btn-sm" id="cl-fichier">' \
+  "$CL1349"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

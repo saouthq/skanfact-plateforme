@@ -325,6 +325,29 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
     if (poses.length) await api('POST', `/entreprises/${be}/compta/releves/${r.id}/rapprochements`, leila, { poses });
   }
 }
+// (1.349.0) Les cases d'une déclaration lues sur le livre (écritures validées du mois), pour qu'une déclaration déposée de
+// l'exemple porte les chiffres de son propre livre.
+async function casesDuLivre(ent: string, periode: string): Promise<{ tvaCollectee: string; aDecaisser: string }> {
+  const lues = (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, leila)).ecritures as { date: string; statut?: string; lignes: { compte: string; debit?: unknown; credit?: unknown }[] }[];
+  const n = (x: unknown) => Math.round((Number(String(x ?? '0').replace(/[\s\u00a0\u202f]/g, '').replace(',', '.')) || 0) * 1000);
+  // Le crédit reporté se LIT sur le 4366 au début du mois (9.6.0), comme le moteur le lit : c'est la même lecture des deux
+  // côtés qui fait qu'une déclaration déposée correspond à son livre.
+  let coll = 0, ded = 0, timbre = 0, rs = 0, report = 0;
+  for (const e of lues) {
+    if (e.statut === 'brouillard') continue;
+    const avant = String(e.date) < `${periode}-01`;
+    if (!avant && !String(e.date).startsWith(periode)) continue;
+    for (const l of e.lignes) {
+      const c = String(l.compte), dc = n(l.debit) - n(l.credit);
+      if (avant) { if (c.startsWith('4366')) report += dc; continue; }
+      if (c.startsWith('4367')) coll -= dc; else if (c.startsWith('4366')) ded += dc; else if (c.startsWith('4368')) timbre -= dc; else if (c.startsWith('4352')) rs -= dc;
+    }
+  }
+  const net = coll - ded - Math.max(0, report);
+  const enDt = (x: number) => `${x < 0 ? '-' : ''}${Math.trunc(Math.abs(x) / 1000)},${String(Math.abs(x) % 1000).padStart(3, '0')}`;
+  return { tvaCollectee: enDt(coll), aDecaisser: enDt(Math.max(0, net) + timbre + rs) };
+}
+
 for (const d of DOSSIERS) {
   const ent = entreprise[d.cle] ?? '';
   const g = LIVRES[d.cle] ?? '';
@@ -338,9 +361,16 @@ for (const d of DOSSIERS) {
     // Un montant propre au dossier ET au mois (1.334.0) : calculé sur le seul mois, deux clients différents déclaraient le même
     // chiffre au millime dans les Échéances, ce qu'aucun comptable ne croit.
     const k = DOSSIERS.indexOf(d);
-    const montant = `${300 + i * 17 + k * 41},${String(125 + i * 3 + k * 7).padStart(3, '0')}`;
     // La boulangerie a déjà ses livres de janvier à juillet, validés (plus haut) : ses honoraires y sont, et la période est close.
     const dejaTenu = d.cle === 'be' && i < 7;
+    // (1.349.0) Sa déclaration DÉPOSÉE porte la TVA de son propre livre (les ventes saisies plus haut, sans achat ces
+    // mois-là : à décaisser = collectée). Un montant inventé faisait dire à l'onglet Exercice « 7 déclarations déposées ne
+    // correspondent plus au livre » sur le dossier vitrine — un faux signal au premier regard d'un comptable.
+    // Les cases se lisent sur les écritures validées du mois, par les comptes du moteur (COMPTES_FISCAUX) : collectée 4367,
+    // déductible 4366 (les achats du client y sont), timbre 4368, retenues opérées 4352, et le crédit reporté d'un mois
+    // à l'autre.
+    const casesBe = dejaTenu ? await casesDuLivre(ent, mois(i)) : null;
+    const montant = casesBe ? casesBe.tvaCollectee : `${300 + i * 17 + k * 41},${String(125 + i * 3 + k * 7).padStart(3, '0')}`;
     const ecriture = dejaTenu ? '' : String((await api('POST', `/entreprises/${ent}/compta/ecritures`, leila, { date: `${mois(i)}-18`, journal: 'OD', piece: `OD-${i + 1}`,
       libelle: 'Honoraires du mois', lignes: [{ compte: '6226', debit: montant }, { compte: '4286', credit: montant }] })).id);
     if (e === 'R') continue;
@@ -348,8 +378,17 @@ for (const d of DOSSIERS) {
     await api('PUT', `/cabinets/${cabinet}/revisions/${ent}/${mois(i)}`, leila, {
       contenu: { faite: true, faiteLe: Date.parse(`${mois(i + 1)}-20T09:00:00Z`), faitePar: d.suit, comptes: [], notes: [], questionnaire: [] }, revision: null });
     if (e === 'D') continue;
+    // (1.349.0) La TVA déclarée vit dans le livre : la vente du mois qui la porte (19 %), validée. Sans elle, chaque
+    // déclaration déposée de l'exemple « ne correspondait plus au livre » (TVA collectée : 341,132 DT → 0,000 DT).
+    if (!dejaTenu) {
+      const tvaM = Math.round(Number(montant.replace(',', '.')) * 1000), htM = Math.round(tvaM * 100 / 19);
+      const enDt = (x: number) => `${Math.trunc(x / 1000)},${String(x % 1000).padStart(3, '0')}`;
+      const vente = String((await api('POST', `/entreprises/${ent}/compta/ecritures`, leila, { date: `${mois(i)}-10`, journal: 'VT', piece: `VT-${i + 1}`,
+        libelle: 'Ventes du mois', lignes: [{ compte: '411', tiers: 'Clients divers', debit: enDt(htM + tvaM) }, { compte: '706', credit: enDt(htM) }, { compte: '4367', credit: montant }] })).id);
+      await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, leila, { ids: [vente] });
+    }
     // P : la déclaration est préparée, pas encore déposée.
-    await api('PUT', `/entreprises/${ent}/compta/declarations/${mois(i)}`, leila, { cases: { tvaCollectee: montant, aDecaisser: montant } });
+    await api('PUT', `/entreprises/${ent}/compta/declarations/${mois(i)}`, leila, { cases: casesBe ? { tvaCollectee: casesBe.tvaCollectee, aDecaisser: casesBe.aDecaisser } : { tvaCollectee: montant, aDecaisser: montant } });
     if (e === 'P') continue;
     await api('POST', `/entreprises/${ent}/compta/declarations/${mois(i)}/pointer`, leila, { quoi: 'deposee', le: `${mois(i + 1)}-26` });
     // Payée aussi, sauf la dernière du studio photo (déposée, pas encore payée).

@@ -1413,7 +1413,11 @@
       etapes: [
         { page: dans('livre', 'comptabilite/exercice'), cible: ['#cl-sec-controles', '#c-livres .panel'], cote: 'dessus', titre: 'Les contrôles',
           texte: 'Avant de clôturer, les contrôles : un brouillard non validé, une déclaration pas préparée, des dotations pas passées… Une ligne <b>« à voir »</b> porte son bouton, qui ouvre l\'écran où elle se règle. Ils <b>ne bloquent jamais</b> : un exercice clos avec des manques signalés vaut mieux qu\'un exercice jamais clos.' },
-        { page: dans('livre', 'comptabilite/exercice'), cible: '#cl-cloturer', cote: 'dessous', faire: 'clic', fait: fenetreCloture,
+        // 1.349.0 : un exercice qui court (ou un brouillard) éteint le bouton, et sa raison s'écrit dessous — la visite
+        // la lit au lieu de faire cliquer un bouton qui ne répond pas.
+        { page: dans('livre', 'comptabilite/exercice'), cible: '#cl-cloturer-motif', cote: 'dessous', si: () => !!corr('#cl-cloturer-motif'),
+          titre: 'Pas encore', texte: 'Le bouton est éteint tant que l\'exercice court encore ou qu\'une pièce reste au brouillard : la phrase dit laquelle des deux, et à partir de quand tu pourras clôturer.' },
+        { page: dans('livre', 'comptabilite/exercice'), cible: '#cl-cloturer', cote: 'dessous', faire: 'clic', fait: fenetreCloture, si: () => !(corr('#cl-cloturer') || {}).disabled,
           titre: 'Clôturer', texte: 'La clôture ne part pas au premier clic : une question récapitule d\'abord ce qui va se passer.',
           action: 'Clique sur <b>« Clôturer l\'exercice… »</b>.', essai: { clic: true } },
         { page: dans('livre', 'comptabilite/exercice'), cible: '#modal-root .modal', cote: 'droite', si: fenetreCloture, titre: 'Relis la question',

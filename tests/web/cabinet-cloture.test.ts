@@ -79,8 +79,10 @@ describe('la clôture de l\'exercice, à la souris', () => {
     // ── Une écriture au brouillard : refusé avant la question, et dit pourquoi ───────────────────
     await p.locator('#cl-cloturer').waitFor({ timeout: 20_000 });
     expect(await p.locator('#cl-fusion').count()).toBe(0);
-    await p.locator('#cl-cloturer').click();
-    await expect.poll(toast).toMatch(/^1\spièce encore en brouillard/);
+    // Le bouton éteint dit pourquoi, AVANT le clic (1.349.0) : on ne clique plus pour lire un refus.
+    expect(await p.locator('#cl-cloturer').isDisabled()).toBe(true);
+    expect(await p.locator('#cl-cloturer-motif').innerText()).toMatch(/^1\spièce encore en brouillard/);
+    await p.locator('#cl-cloturer').click({ force: true }).catch(() => {});
     expect(await p.locator('#modal-root .modal').count()).toBe(0);
     expect((await exercice(2025))?.closLe).toBeNull();
 

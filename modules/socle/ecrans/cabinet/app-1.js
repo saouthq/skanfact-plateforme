@@ -9404,6 +9404,11 @@
     amortissements: ['immobilisations', 'Ouvrir les biens'], equilibre: ['balance', 'Ouvrir la balance']
   };
 
+  // (1.349.0) Ce qui empêche de clôturer, dit par UNE fonction : la vue éteint le bouton et l'écrit dessous, le geste
+  // refuse avec la même phrase (9.4.5). Avant, le bouton paraissait actif et refusait d'un message passager.
+  const motifPasDeCloture = (annee, controles) => (!exerciceTermine(annee)
+    ? `L'exercice ${annee} n'est pas fini : il se clôture à partir du 01/01/${Number(annee) + 1}.`
+    : ((controles || []).find(c => c.id === 'brouillard' && !c.ok) || {}).detail || '');
   function vueCloture(dossier) {
     const s = livresState;
     const d = s.cloture;
@@ -9446,9 +9451,11 @@
             dans une infobulle ne se comprend qu'en survolant. Le badge « clos » le dit, et le geste
             qui reste est celui qu'on peut faire — rouvrir. */''}
       ${ex.clos ? '<button class="btn btn-sm" id="cl-rouvrir">Rouvrir (motif exigé)…</button>'
-    : `<button class="btn btn-sm${exerciceTermine(ex.annee) ? ' btn-primary' : ''}" id="cl-cloturer">Clôturer l'exercice…</button>`}
+    : (motif => `<button class="btn btn-sm${motif ? '' : ' btn-primary'}" id="cl-cloturer"${motif ? ' disabled aria-describedby="cl-cloturer-motif"' : ''}>Clôturer l'exercice…</button>`)(motifPasDeCloture(ex.annee, d.controles))}
       <button class="btn btn-sm${suivantPrincipal(su, ex.clos) ? ' btn-primary' : ''}" id="cl-suivant" data-etat="${esc(su.etat)}"${su.etat === 'refus' ? ' disabled aria-describedby="cl-suivant-motif"' : ''}>${esc(libelleSuivant(su))}</button>
-      <button class="btn btn-sm" id="cl-fichier">Le dossier pour le client…</button>
+      ${/* (1.349.0) Le fichier de clôture n'existe pas encore en ligne : la fenêtre demandait un mot de passe, puis
+            répondait « rien n'a été fait ». Un geste qui n'existe pas ne se propose pas. */''}
+      ${'ecrireCloture' in api ? '<button class="btn btn-sm" id="cl-fichier">Le dossier pour le client…</button>' : ''}
       ${/* Réunir deux postes (9.9.0). Ici, et pas dans la Saisie : c'est un geste d'exercice, rare,
             et qui touche le livre entier. Quand les deux postes voient le même fichier, il ne sert
             à rien — l'application s'en aperçoit toute seule à l'enregistrement, fusionne et le
@@ -9458,6 +9465,7 @@
     ${/* Un bouton éteint dit POURQUOI sous ses yeux, jamais dans une infobulle (9.4.5) — et par la
           fonction même qui refuserait le geste. En gris : « rien à reporter » est l'état d'un
           exercice vide, pas une alarme (8.0.1). */''}
+    ${!ex.clos && motifPasDeCloture(ex.annee, d.controles) ? `<p class="small muted mb" id="cl-cloturer-motif">${esc(motifPasDeCloture(ex.annee, d.controles))}</p>` : ''}
     ${su.etat === 'refus' ? `<p class="small muted mb" id="cl-suivant-motif">${esc(String(su.annee))} ne peut pas s'ouvrir : ${esc(minusculeInitiale(su.motif || ''))}</p>` : ''}
     ${/* Des à-nouveaux VALIDÉS qui ne reprennent plus cet exercice : l'écart se vérifie ici au lieu de
           se deviner, et il se pose en À-NOUVEAUX COMPLÉMENTAIRES par le bouton juste au-dessus. Le
@@ -9644,10 +9652,8 @@
       // bloquent pas, 6.0.0), mais la question le DIT avant le geste : tout ce qui reste à passer
       // jusqu'au 31 décembre sera refusé. Trouvé à la souris : le bouton était vert en septembre.
       // La plateforme (brique 45) : clôturer valide la période jusqu'au dernier jour — elle doit être
-      // finie, et sans brouillard (la clôture ne valide rien en silence). Les deux se disent avant la question.
-      if (!exerciceTermine(s.annee)) return toast(`L'exercice ${s.annee} n'est pas fini : il se clôture à partir du 01/01/${Number(s.annee) + 1}.`, 'error');
-      const enBrouillard = (s.cloture.controles || []).find(c => c.id === 'brouillard' && !c.ok);
-      if (enBrouillard) return toast(enBrouillard.detail, 'error');
+      // finie, et sans brouillard (la clôture ne valide rien en silence). Les deux se disent avant la question —
+      // et depuis la 1.349.0 avant le clic : le bouton est éteint, sa raison écrite dessous (motifPasDeCloture).
       const enCours = '';
       const ok = await confirmDialog(`Clôturer l'exercice ${s.annee} ?`,
         enCours + `<p>La période sera validée jusqu'au 31/12/${esc(String(s.annee))} : plus aucune écriture de cet exercice ne bouge. La rouvrir reste possible, mais elle exigera un motif — c'est la seule trace qui expliquera pourquoi un chiffre a changé après coup.</p>`

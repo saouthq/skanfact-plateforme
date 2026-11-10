@@ -2221,3 +2221,27 @@ de revue, prépare l'arrêt de la révision, puis écrit le questionnaire de son
 - Vu, laissé : la colonne « Identifiant » des cycles dans les Réglages (technique, mais modifiable par le cabinet).
 - La visite « Réviser » fait signer par le bouton de la ligne, et le bouton a son explication.
 - La preuve : `tests/web/revision-1348.test.ts` ; preuves `révision 1.348.0 a-k`.
+
+## L'exercice et la clôture d'un dossier au Cabinet (1.349.0)
+
+Joué à la souris sur la Boulangerie El Amal et les autres dossiers de l'exemple : l'onglet Exercice (contrôles avant
+clôture, états financiers, soldes intermédiaires, à-nouveaux), la clôture et le dossier remis au client.
+
+- **Le jeu d'exemple ne se contredit plus** : sur chacun de ses douze dossiers, le contrôle « Les déclarations et le
+  livre d'aujourd'hui » annonçait que les déclarations déposées ne correspondaient plus au livre (« TVA collectée :
+  341,132 DT → 0,000 DT ») — des montants inventés, qu'aucune vente du livre ne portait. Chaque mois déclaré porte
+  désormais la vente qui fait sa TVA ; la boulangerie, dont le livre est tenu au cabinet, déclare ce que ses écritures
+  disent (collectée, déductible des achats du client, crédit reporté). Un faux signal au premier regard d'un comptable
+  sur la vitrine.
+- **« Clôturer l'exercice… » ne s'offrait que pour refuser** : sur un exercice qui court encore (2026 en novembre), le
+  bouton paraissait actif ; le clic répondait par un message de deux secondes. Il est désormais éteint, et sa raison
+  s'écrit dessous, avant le clic : « L'exercice 2026 n'est pas fini : il se clôture à partir du 01/01/2027. » — ou le
+  nombre de pièces encore au brouillard. Une seule fonction (`motifPasDeCloture`) dit les deux, pour le bouton et sa
+  phrase ; le bouton éteint perd sa couleur (un vert ne se promet pas sur un geste impossible).
+- **« Le dossier pour le client… » n'est plus offert en ligne** : le fichier de clôture s'écrit sur le disque d'un poste,
+  ce que la version en ligne ne fait pas. Le bouton n'est posé que si le pont sait l'écrire (`ecrireCloture`).
+- Vu, laissé : les états financiers et les soldes intermédiaires de la boulangerie tombent juste (valeur ajoutée, EBE
+  recalculés à la main) ; « Ouvrir 2027 (à-nouveaux)… » reste offert, ce qui est voulu (on prépare l'exercice suivant
+  avant la clôture du précédent).
+- La preuve : `tests/web/cloture-1349.test.ts`, `tests/web/cabinet-cloture.test.ts` (le brouillard dit sous le bouton
+  éteint) ; preuves `clôture 1.349.0 a-d`, et l'ancienne preuve du brouillard ré-ancrée sur la règle.
