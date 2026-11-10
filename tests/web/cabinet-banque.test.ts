@@ -165,7 +165,8 @@ describe('la banque, à la souris', () => {
     await fenetre.locator('[name=retenir]').check();
     await fenetre.locator('[name=motif]').fill('STEG');
     await fenetre.getByRole('button', { name: 'Créer le brouillard' }).click();
-    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 10_000 }).toBe('Brouillard créé et rapproché.');
+    // (1.343.0) Plus de message en bas de l'écran : c'était la dernière ligne, et la carte du mois rapproché le dit.
+    await expect.poll(async () => (await releves(cafe, associe))[0]?.lignes[1]?.rapprochement?.niveau ?? '', { timeout: 10_000 }).toBe('certain');
     const lu = (await releves(cafe, associe))[0];
     const steg = lu?.lignes[1]?.rapprochement;
     expect(steg).toMatchObject({ rang: 1, niveau: 'certain', auto: false });
@@ -233,7 +234,9 @@ describe('la banque, à la souris', () => {
     await p.setViewportSize({ width: 390, height: 860 });
     await p.locator('#bq-revoir').click();
     await expect.poll(() => p.locator('table.bq-t').isVisible()).toBe(false);
-    await p.locator('.bq-km [data-bq-voir]').click();
+    // (1.343.0) Revoir un mois tout rapproché, c'est voir ses lignes : elles sont dépliées d'office, sans « Les voir ».
+    expect(await p.locator('.bq-km [data-bq-voir]').count()).toBe(0);
+    await p.locator('.bq-km [data-bq-ligne]').first().waitFor();
     // Rien ne déborde : le mois rapproché (sa phrase, son bouton) tient dans la carte, la carte dans l'écran.
     await expect.poll(() => p.locator('.bq-fini').innerText()).toMatch(/est rapproché/);
     expect(await p.evaluate(() => {

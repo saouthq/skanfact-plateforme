@@ -175,7 +175,9 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     await h.p.bringToFront(); await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
     await h.p.locator(`tr[data-id="${ent}"]`).waitFor({ timeout: 20_000 });
     // (1.169.0, la liste de la maquette) Le mois de la ligne dit « à réviser », son point à l'orange (pas « sans pièces »).
-    await expect.poll(async () => net(await h.p.locator(`tr[data-id="${ent}"] .cd-mo-c`).innerText()), { timeout: 15_000 }).toMatch(/à réviser$/);
+    // (1.338.0) La photo jointe par le client reste à classer chez le cabinet (la barre et « Pièces reçues » la comptent) :
+    // la ligne le dit aussi, après « à réviser ».
+    await expect.poll(async () => net(await h.p.locator(`tr[data-id="${ent}"] .cd-mo-c`).innerText()), { timeout: 15_000 }).toMatch(/à réviser 1 pièce reçue, à classer$/);
     expect(await h.p.locator(`tr[data-id="${ent}"] .ms-mo`).evaluate((d) => d.classList.contains('cours'))).toBe(true);
     await plusTard(h.p);
     await h.p.screenshot({ path: path.join(PHOTOS, 'mois-client-dossiers.png') });

@@ -467,6 +467,9 @@
     // Le montrer dans le dossier », le réflexe « Entrée = oui » répondait « Annuler ».
     layer.addEventListener('keydown', e => {
       if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+      // (1.343.0) Une Entrée qu'un champ a déjà prise (une liste de comptes qui CHOISIT) n'enregistre pas la fenêtre du même
+      // coup : « carbu » puis Entrée choisissait 606 et créait le brouillard, avant qu'on ait relu le mot retenu.
+      if (e.defaultPrevented) return;
       if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
       // (plateforme) 1.70.0 — le bouton PRINCIPAL d'abord, le rouge seulement s'il est le seul geste (une confirmation) : posé à
       // gauche, « Supprimer » passait avant « Enregistrer », et Entrée dans un champ supprimait (vu au test humain, la fenêtre

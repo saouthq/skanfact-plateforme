@@ -193,7 +193,8 @@ describe('le pont de la trésorerie 1.299.0 : la remise de chèques, de l\'entre
 
     // ── 3. Revoir octobre : la remise se lit avec ses trois écritures, se défait, et « Annuler » la repose entière.
     await c.locator('#bq-revoir').click();
-    await c.locator('#bq-voir-faites').click();
+    // (1.343.0) Tout est rapproché : les rapprochées sont dépliées d'office, « Les voir » n'a plus rien à ouvrir.
+    expect(await c.locator('#bq-voir-faites').count()).toBe(0);
     // La ligne nomme ce que la remise encaisse : les trois chèques, pas le premier seul.
     expect(net(await ligne('REMISE CHEQUES').innerText())).toMatch(/avec FAC-2026-001 et 2 autres écritures \(une remise\)\s*encaissement de c1, c2, c3\s*depuis SkanFact/);
     await choisir('REMISE CHEQUES');

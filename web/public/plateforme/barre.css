@@ -383,7 +383,8 @@ body.mode-caisse .sb-rail, body.mode-caisse .sb-onglets { display: none !importa
   .sb-puce.hors-tel { border-style: dashed; border-color: var(--sb-trait-fort); }
   .sb-puce.hors-tel svg { color: var(--sb-ambre); }
   .sb-puce.maj-tel { background: var(--sb-doux); border-color: transparent; color: var(--sb-doux-texte); }
-  body.avec-barre #view { padding-bottom: 104px; }
+  /* Les onglets du bas occupent ces 104 points : une barre collée au bas s'arrête au-dessus d'eux (--main-bas à 0). */
+  body.avec-barre #view { padding-bottom: 104px; --main-bas: 0px; }
   /* La conversation avec le comptable tient dans l'écran (messagerie.css, 1.115.0) : entre le haut, qui porte aussi les
      pastilles (62 points sans elles), et les onglets du bas (84 points), « Envoyer » reste sous le pouce. */
   body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }

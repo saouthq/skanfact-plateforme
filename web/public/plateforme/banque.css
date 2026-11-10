@@ -19,6 +19,9 @@
 .bq-ecran .cp-plus { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; }
 .bq-ecran .cp-plus:hover { text-decoration: underline; }
 .bq-ecran .cp-gestes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* (1.343.0) Les gestes du livre restent au bas de l'écran quand le panneau est plus haut que lui (un règlement à retenue, trois
+   pièces lettrées) : « Entrée » fait le geste en vert, et il ne se fait jamais hors de la vue. */
+.bq-livre > .cp-gestes { position: sticky; bottom: calc(-1 * var(--main-bas, 0px)); z-index: 1; background: var(--sb-papier); padding-block: 8px 12px; box-shadow: 0 -10px 12px -10px rgba(0, 0, 0, .18); }
 .bq-ecran kbd, .bq-aide kbd { font: 600 10.5px/1 inherit; padding: 3px 6px; border-radius: 5px; border: 1px solid var(--sb-trait-fort); border-bottom-width: 2px; background: var(--sb-papier); color: var(--sb-gris); }
 .bq-ecran .bq-k { padding: 2px 5px; border: 1px solid currentColor; border-bottom-width: 1px; background: none; color: inherit; opacity: .75; }
 
@@ -40,7 +43,8 @@
 .bq-fc.prop { background: color-mix(in srgb, #3f6fd8 8%, var(--sb-papier)); } .bq-fc.prop i { background: #3f6fd8; }
 .bq-fc.dec { background: var(--sb-ambre-doux); } .bq-fc.dec i { background: var(--sb-ambre-texte); }
 .bq-fc.att { background: var(--sb-survol); } .bq-fc.att i { background: var(--sb-gris-2); }
-.bq-fc:hover { border-color: var(--sb-trait-fort); }
+/* (1.343.0) Le survol ne repeint pas la pastille choisie : juste après le clic, le curseur est dessus, et le filtre paraissait éteint. */
+.bq-fc:not([aria-pressed="true"]):hover { border-color: var(--sb-trait-fort); }
 .bq-fc.ko { margin-left: auto; background: var(--sb-rouge-doux); border-color: color-mix(in srgb, var(--sb-rouge-texte) 35%, transparent); color: var(--sb-rouge-texte); }
 .bq-fc.ko b { color: var(--sb-rouge-texte); } .bq-fc.ko svg { flex: none; }
 .bq-j { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 2px; height: 3px; border-radius: 99px; overflow: hidden; opacity: .85; }
@@ -199,7 +203,7 @@
 }
 @media (max-width: 760px) {
   /* Le tableau du bureau cède la place aux cartes (plus précis que `table.list` du téléphone, qui le montrait). */
-  .bq-ecran table.bq-t, .bq-ecran .bq-aide, .bq-ecran .bq-k { display: none; }
+  .bq-ecran table.bq-t, .bq-ecran .bq-aide, .bq-ecran .bq-k, .bq-ecran .bq-toast.repos { display: none; }
   /* Le mois rapproché : le texte sur toute la largeur, le bouton dessous (il poussait l'écran plus large que le téléphone). */
   .bq-fini { flex-wrap: wrap; }
   .bq-fini > div { flex-basis: calc(100% - 48px); }
@@ -240,6 +244,10 @@
 .bq-toast svg { color: #6fd3c5; flex: none; }
 .bq-toast span { flex: 1; min-width: 0; }
 .bq-toast .cp-plus { color: #6fd3c5; }
+/* (1.343.0) La même place au repos : la même hauteur, le message ne pousse plus le tableau. */
+.bq-toast { min-height: 50px; box-sizing: border-box; }
+.bq-toast.repos { background: transparent; color: var(--sb-gris); border: 1px dashed var(--sb-trait); font-size: 12.5px; }
+.bq-toast.repos .bq-aide { margin: 0; }
 /* Sans animation : la carte se redessine à chaque frappe de la recherche, une entrée animée y clignoterait. */
 
 /* Le relevé rapproché en entier : la carte au milieu, comme la maquette (« Septembre est rapproché à la BIAT »). */

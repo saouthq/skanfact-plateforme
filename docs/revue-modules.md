@@ -2034,3 +2034,37 @@ Joué au clavier et à la souris, comme Leïla puis Anis qui saisissent les piè
   les Relances et le portefeuille ; `ecritures-1341` ralentit désormais leur lecture de deux secondes et demie.
 - La preuve : `tests/web/saisie-1342.test.ts` (Anis, au clavier, sur un café qui envoie deux pièces) ; preuves
   `saisie 1.342.0 a-o`.
+
+## La Banque d'un dossier au Cabinet, et le pont (1.343.0)
+
+Jouée à la souris et au clavier sur la Boulangerie El Amal : un relevé BIAT de septembre, une question posée à Sarra sur
+un chèque, sa réponse, puis les quatre proposées, les deux lignes à règle et le plein de carburant, jusqu'à l'état de
+rapprochement en PDF.
+
+- L'annonce d'un geste (« Rapprocher », « Écrire et rapprocher ») naissait au-dessus de la liste et poussait le bouton
+  qu'on allait viser. La bande a sa place réservée : au repos elle rappelle les touches (↑ ↓, Espace, Entrée, /, ⋯), et
+  l'annonce la prend à la même hauteur — la liste ne bouge plus d'un pixel.
+- Une ligne au panneau haut (une remise de chèques) mettait « Rapprocher » sous le bas de l'écran : Entrée agissait hors de
+  la vue. La rangée des gestes du livre en face colle au bas de la page.
+- Filtrer sur « En attente de Sarra » laissait le panneau de droite sur un virement que le filtre cachait — et Entrée l'aurait
+  rapproché. La ligne choisie est toujours une ligne montrée. Une pastille à zéro est éteinte ; un filtre que le geste a
+  vidé se lève, au lieu de « Aucune ligne dans cet état ». La pastille choisie le reste sous le curseur (le survol la
+  repeignait comme éteinte).
+- Le pont : Sarra répond « C'est le chèque au fournisseur de farine, la Minoterie ». Le panneau disait encore « Tant qu'il
+  n'a pas répondu » sous sa réponse ; il dit « Sa réponse est là ». La fenêtre cherchait le nom ENTIER du fournisseur
+  (« Minoterie du Cap Bon ») et s'ouvrait sur « 101 Capital social » : elle reconnaît maintenant le nom entier, le numéro
+  d'une pièce du livre, ou un mot du nom qu'aucun autre tiers ne porte (« Sahel » nomme deux fournisseurs : personne).
+  Le compte 401 et le nom du fournisseur sont proposés, et partent sur la ligne pour le lettrage.
+- Entrée dans la liste des comptes choisissait 606 ET enregistrait la fenêtre, avant qu'on ait relu le mot retenu. Une
+  Entrée qu'un champ a déjà prise ne valide plus la fenêtre — la règle de l'app entreprise, portée au Cabinet.
+- « Écrire d'après sa réponse » finissait sur un message en bas de l'écran, le panneau sur la ligne terminée ; il
+  s'annonce dans la carte et choisit la ligne suivante, comme « Rapprocher ».
+- « Revoir septembre » montrait le panneau d'une ligne repliée : quand tout est rapproché, les lignes se déplient.
+- L'état de rapprochement en PDF sortait avec l'ombre de la carte d'écran, collé au bord droit de l'A4 : la feuille se pose
+  à plat. Un numéro de facture (« FA-0901 ») ne se coupe plus à son trait d'union, et le guillemet fermant ne part plus
+  seul à la ligne.
+- La preuve : `tests/web/banque-1343.test.ts` (un client qui répond par le pont, un relevé de quatre lignes, trois
+  fournisseurs dont deux « du Sahel ») ; preuves `banque 1.343.0 a-j`.
+- Le rouge GitHub de la 1.342.0 : deux tests décrivaient l'état d'avant mes versions — `cabinet-ecritures` attendait le
+  client sans écriture nommé seul (la 1.341.0 dit « Tenu au cabinet, à saisir par toi »), `mois-client` un mois « à
+  réviser » sans la photo du client, qui reste à classer chez le cabinet (1.338.0). Retournés vers la règle.

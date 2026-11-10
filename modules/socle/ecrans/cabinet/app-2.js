@@ -576,15 +576,26 @@
     const restent = lus.filter(x => x.g !== 'ok');
     // La ligne choisie : celle qu'on a choisie, sinon la première qui demande quelque chose, dans l'ordre des groupes.
     const ordre = GROUPES_BQ.flatMap(([g]) => lus.filter(x => x.g === g));
-    if (!lus.some(x => x.l.id === banqueState.sel)) banqueState.sel = (ordre[0] || lus[0] || { l: {} }).l.id || '';
-    const sel = lus.find(x => x.l.id === banqueState.sel);
+    // (1.343.0) Un filtre que le dernier geste a vidé se lève : après avoir écrit la seule ligne « en attente », la liste
+    // disait « Aucune ligne dans cet état » au lieu de montrer ce qui reste à faire.
+    if (banqueState.filtre && !lus.some(x => banqueState.filtre === 'reste' ? x.g !== 'ok' : x.g === banqueState.filtre)) banqueState.filtre = '';
     const f = banqueState.filtre;
     const voit = g => !f || f === g || (f === 'reste' && g !== 'ok');
+    // (1.343.0) La ligne choisie est une ligne qu'on VOIT : filtrer sur « En attente » laissait le panneau de droite (et
+    // Entrée) sur une ligne cachée par le filtre — on rapprochait une ligne qu'on ne voyait plus. Une ligne cachée cède sa
+    // place à la première ligne montrée ; sans ligne montrée, on garde la sienne.
+    // Quand plus rien ne reste à faire (« Revoir septembre »), revoir, c'est voir les lignes rapprochées : elles se déplient.
+    const faitesOuvertes = banqueState.voirFaites || f === 'ok' || !restent.length;
+    const montree = x => voit(x.g) && (x.g !== 'ok' || faitesOuvertes);
+    const cur = lus.find(x => x.l.id === banqueState.sel);
+    if (!cur || !montree(cur)) banqueState.sel = (ordre.find(montree) || cur || ordre[0] || lus[0] || { l: {} }).l.id || '';
+    const sel = lus.find(x => x.l.id === banqueState.sel);
     const lect = lectureSeuleLivre();
     const EC = ecartBanque(R);
     const regles = (Array.isArray(S.libelles) ? S.libelles : []).filter(x => x && x.motif && x.compte).length;
     const coches = [...banqueState.coches].filter(id => lus.some(x => x.l.id === id && x.g === 'prop'));
-    const pastille = (c, k, t) => `<button type="button" class="bq-fc ${c}" data-bq-filtre="${c === 'tout' ? '' : c}" aria-pressed="${(c === 'tout' ? '' : c) === f}"><i></i><b>${k}</b> ${t}</button>`;
+    // (1.343.0) Une pastille à zéro ne filtre rien : éteinte, elle ne mène plus à une liste vide.
+    const pastille = (c, k, t) => `<button type="button" class="bq-fc ${c}" data-bq-filtre="${c === 'tout' ? '' : c}" aria-pressed="${(c === 'tout' ? '' : c) === f}"${c !== 'tout' && !k ? ' disabled' : ''}><i></i><b>${k}</b> ${t}</button>`;
     const ligneTab = x => {
       const l = x.l, on = l.id === banqueState.sel;
       return `<tr class="bq-l${on ? ' on' : ''}" data-bq-ligne="${esc(l.id)}" data-groupe="${x.g}">
@@ -610,14 +621,14 @@
       return `<tr class="bq-g"><td colspan="5"><b>${esc(titreGroupeBq(dossier, g, titre))}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</td></tr>${rs.map(ligneTab).join('')}`;
     }).join('');
     const faites = lus.filter(x => x.g === 'ok');
-    const ouvertes = banqueState.voirFaites || f === 'ok';
+    const ouvertes = faitesOuvertes;
     const faitesTab = faites.length && voit('ok') ? `<tr class="bq-g bq-fait"><td colspan="5"><i class="bq-pt sur"></i><b>Rapprochées</b> <span class="mu">${faites.length}${resumeOrigines(faites)}</span>
-      <button type="button" class="cp-plus bq-voir" id="bq-voir-faites" aria-expanded="${ouvertes}">${ouvertes ? 'Replier' : 'Les voir'} ${svgBq(BQ_IC.chev, 13)}</button></td></tr>${ouvertes ? faites.map(ligneTab).join('')
+      ${restent.length ? `<button type="button" class="cp-plus bq-voir" id="bq-voir-faites" aria-expanded="${ouvertes}">${ouvertes ? 'Replier' : 'Les voir'} ${svgBq(BQ_IC.chev, 13)}</button>` : ''}</td></tr>${ouvertes ? faites.map(ligneTab).join('')
         + (lect ? '' : `<tr class="bq-plus"><td colspan="5"><button type="button" class="cp-plus" data-bq-defaire-tous>Défaire tous les rapprochements ${esc(moisDuReleve(R).includes('→') ? 'du relevé' : 'du mois')}</button></td></tr>`) : ''}` : '';
     const cartes = GROUPES_BQ.map(([g, titre]) => {
       const rs = lus.filter(x => x.g === g);
       return rs.length && voit(g) ? `<div class="bq-gm"><b>${esc(titreGroupeBq(dossier, g, titre))}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</div>${rs.map(carteTel).join('')}` : '';
-    }).join('') + (faites.length && voit('ok') ? `<div class="bq-gm"><b>Rapprochées</b> <span class="mu">${faites.length}</span><button type="button" class="cp-plus bq-voir" data-bq-voir>${banqueState.voirFaites || f === 'ok' ? 'Replier' : 'Les voir'}</button></div>${banqueState.voirFaites || f === 'ok' ? faites.map(carteTel).join('') : ''}` : '');
+    }).join('') + (faites.length && voit('ok') ? `<div class="bq-gm"><b>Rapprochées</b> <span class="mu">${faites.length}</span>${restent.length ? `<button type="button" class="cp-plus bq-voir" data-bq-voir>${faitesOuvertes ? 'Replier' : 'Les voir'}</button>` : ''}</div>${faitesOuvertes ? faites.map(carteTel).join('') : ''}` : '');
     const toutFait = !restent.length && banqueState.revoir !== R.id;
     if (toutFait) {
       const mois = moisDuReleve(R).replace(/^./, c => c.toUpperCase());
@@ -643,13 +654,15 @@
         <span class="bq-j" aria-hidden="true">${[['ok', n('ok')], ['prop', n('prop')], ['dec', n('dec')], ['att', n('att')]].map(([c, k]) => `<i class="${c}" style="flex:${k}"></i>`).join('')}</span></div>
       ${!restent.length ? `<div class="bq-fini"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><div><b>${esc(moisDuReleve(R).replace(/^./, c => c.toUpperCase()))} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
           <p>${pl(R.lignes.length, 'mouvement')} sur ${R.lignes.length} ont leur écriture.</p></div><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button></div>` : ''}
-      ${banqueState.annonce && banqueState.annonce.sel === banqueState.sel ? `<div class="bq-toast" role="status" id="bq-annonce">${svgBq(BQ_IC.ok, 15)}<span>${(m => { const i = m.indexOf(' : '); return i > 0 ? `<b>${esc(m.slice(0, i))}</b> : ${esc(m.slice(i + 3))}` : esc(m); })(banqueState.annonce.msg)}</span>${banqueState.annonce.defaire && !lect ? '<button type="button" class="cp-plus" id="bq-annuler">Annuler</button>' : ''}</div>` : ''}
+      ${banqueState.annonce && banqueState.annonce.sel === banqueState.sel ? `<div class="bq-toast" role="status" id="bq-annonce">${svgBq(BQ_IC.ok, 15)}<span>${(m => { const i = m.indexOf(' : '); return i > 0 ? `<b>${esc(m.slice(0, i))}</b> : ${esc(m.slice(i + 3))}` : esc(m); })(banqueState.annonce.msg)}</span>${banqueState.annonce.defaire && !lect ? '<button type="button" class="cp-plus" id="bq-annuler">Annuler</button>' : ''}</div>`
+        // (1.343.0) Né au-dessus du tableau après le premier « Rapprocher », le message poussait tout de 46 px : le bouton suivant
+        // descendait sous la souris. Sa place existe dès qu'une ligne reste à traiter ; au repos, elle porte le rappel des touches (qui vivait sous le tableau).
+        : restent.length && !lect ? `<div class="bq-toast repos" id="bq-annonce-place"><p class="bq-aide"><kbd>↑</kbd> <kbd>↓</kbd> une ligne <span>·</span> <kbd>Espace</kbd> cocher <span>·</span> <kbd>Entrée</kbd> valider <span>·</span> <kbd>/</kbd> chercher <span>·</span> <kbd>⋯</kbd> les autres gestes</p></div>` : ''}
       <div class="bq2">
         <div class="bq-liste">
           <table class="list compact bq-t" data-sans-cartes><thead><tr><th></th><th>Date</th><th>La banque</th><th class="r">Montant</th><th></th></tr></thead><tbody>${groupesTab}${faitesTab}</tbody></table>
           <div class="bq-km">${cartes}</div>
           ${!groupesTab && !faitesTab ? '<div class="empty mini">Aucune ligne dans cet état.</div>' : ''}
-          <p class="bq-aide"><kbd>↑</kbd> <kbd>↓</kbd> une ligne <span>·</span> <kbd>Espace</kbd> cocher <span>·</span> <kbd>Entrée</kbd> valider <span>·</span> <kbd>/</kbd> chercher <span>·</span> <kbd>⋯</kbd> les autres gestes</p>
         </div>
         ${sel ? livreEnFace(dossier, R, sel, lect) : ''}
       </div>
@@ -721,8 +734,8 @@
     if (x.g === 'att') {
       const q = x.q;
       return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
-        <div class="bq-q">${svgBq(BQ_IC.msg, 15)}<div><b>${esc(q.objet || `Question ${aClientBq(dossier)}`)}</b><small>${q.statut === 'repondue' && q.reponse ? `Réponse : « ${esc(String(q.reponse.texte || '').slice(0, 160))} »` : `posée le ${esc(fmtJour(KC.jourDeLInstant(q.creeLe || 0)))}${(q.envois || []).length > 1 ? ` · relancée ${(q.envois || []).length - 1} fois` : ''}`}</small></div></div>
-        <p class="bq-rien">Tant qu'il n'a pas répondu, la ligne attend : elle ne bloque rien. ${q.statut === 'repondue' ? 'Sa réponse est là : écris la ligne d\'après elle.' : 'Tu peux aussi la mettre au compte d\'attente (471) le temps qu\'il réponde.'}</p>
+        <div class="bq-q">${svgBq(BQ_IC.msg, 15)}<div><b>${esc(q.objet || `Question ${aClientBq(dossier)}`)}</b><small>${q.statut === 'repondue' && q.reponse ? `Réponse : «\u00a0${esc((t => t.length > 160 ? t.slice(0, 159).trimEnd() + '…' : t)(String(q.reponse.texte || '').trim())).replace(/(\w)-(?=\d)/g, '$1\u2011')}\u00a0»` : `posée le ${esc(fmtJour(KC.jourDeLInstant(q.creeLe || 0)))}${(q.envois || []).length > 1 ? ` · relancée ${(q.envois || []).length - 1} fois` : ''}`}</small></div></div>
+        <p class="bq-rien">${q.statut === 'repondue' ? 'Sa réponse est là : écris la ligne d\'après elle, ou mets-la au compte d\'attente (471) si elle ne suffit pas.' : 'Tant qu\'il n\'a pas répondu, la ligne attend : elle ne bloque rien. Tu peux aussi la mettre au compte d\'attente (471) le temps qu\'il réponde.'}</p>
         ${lect ? '' : `<div class="cp-gestes">${q.statut === 'repondue' ? '<button type="button" class="btn btn-primary" id="bq-principal">Écrire d\'après sa réponse <kbd class="bq-k">Entrée</kbd></button>' : '<button type="button" class="btn btn-primary" id="bq-principal">Ouvrir la conversation <kbd class="bq-k">Entrée</kbd></button>'}<button type="button" class="btn" id="bq-attente">Au compte d'attente</button></div>`}</aside>`;
     }
     // Ce qui peut répondre : les écritures du même montant à ± n jours d'abord (le jugement du moteur), puis ce que la
@@ -1073,7 +1086,6 @@
     const sel = parId.get(banqueState.sel);
     const redessiner = () => drawLivres(root, dossier);
     const sur = (sel2, fn) => { const x = $(sel2, el); if (x) x.onclick = fn; };
-
     const choixReleve = $('#bq-releve', el);
     if (choixReleve) choixReleve.onchange = () => {
       banqueState.releve = choixReleve.value;
@@ -1615,7 +1627,10 @@
   const nomEtatBq = R => `etat-rapprochement-${R.compte}-${R.au}.pdf`;
   const pageEtatBq = (R, corps) => {
     const css = [...document.styleSheets].map(f => { try { return [...f.cssRules].filter(r => /\.bqe/.test(r.cssText)).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
-    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(titreEtatBq(R))}</title><style>body{margin:24px;font:13px Helvetica,Arial,sans-serif}${css}</style></head><body>${corps}</body></html>`;
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(titreEtatBq(R))}</title><style>body{margin:24px;font:13px Helvetica,Arial,sans-serif}${css}
+      /* (1.343.0) Sur la feuille, la feuille de l'écran se pose à plat : ni ombre, ni coins, ni largeur d'écran (le PDF
+         sortait avec l'ombre de la carte, collée au bord droit de l'A4), et la règle des petits écrans ne s'y applique pas. */
+      .bqe{box-shadow:none;border-radius:0;max-width:none;width:auto;padding:0}</style></head><body>${corps}</body></html>`;
   };
   function vueEtatBq(dossier, R, EC, lect) {
     const k = EC.banqueAll.filter(x => !x.ecritLe).length;
@@ -1757,6 +1772,34 @@
   // enregistrée : la banque ne fait pas foi contre la pièce. Quand aucune règle ne reconnaît le
   // libellé, la contrepartie reste VIDE — verser d'office au 471 rangerait le doute dans un compte
   // que personne ne solde, et la question disparaîtrait sans avoir été posée.
+  // (1.343.0) Le tiers qu'une réponse NOMME. Le client écrit comme il parle : « la Minoterie », pas « Minoterie du Cap Bon »
+  // — chercher le nom entier ne trouvait rien, et la fenêtre s'ouvrait sur « 101 Capital social ». Dans l'ordre : le nom
+  // entier ; le numéro d'une pièce du livre (« FA-0914 ») qui porte un tiers ; un mot du nom qu'aucun autre tiers ne porte
+  // (« Sahel » nomme deux fournisseurs : il ne nomme personne). Deux réponses possibles, c'est aucune : on ne devine pas.
+  const MOTS_VIDES_BQ = new Set(['societe', 'suarl', 'entreprise', 'etablissements', 'etablissement', 'groupe', 'tunisie', 'compagnie', 'bureau', 'cabinet', 'agence', 'services', 'service', 'commerce', 'general', 'generale', 'facture', 'cheque']);
+  function tiersNommeBq(texte, ecritures) {
+    const vus = new Map(), pieces = new Map();
+    for (const e of ecritures) for (const l of (e.lignes || [])) {
+      if (!l.tiers || !/^4[01]/.test(String(l.compte))) continue;
+      if (!vus.has(l.tiers)) vus.set(l.tiers, String(l.compte));
+      for (const ref of `${e.piece || ''} ${e.libelle || ''} ${l.libelle || ''}`.match(/[A-Za-z]{1,5}-?\d{3,}/g) || []) {
+        const k = normSx(ref); if (!pieces.has(k)) pieces.set(k, new Set()); pieces.get(k).add(l.tiers);
+      }
+    }
+    const seul = noms => (noms.length === 1 ? { nom: noms[0], compte: vus.get(noms[0]) } : null);
+    const rep = normSx(texte);
+    const entier = [...vus.keys()].filter(t => normSx(t).length >= 4 && rep.includes(normSx(t)));
+    if (entier.length) return seul(entier);
+    const parPiece = new Set();
+    for (const ref of String(texte).match(/[A-Za-z]{1,5}-?\d{3,}/g) || []) for (const t of pieces.get(normSx(ref)) || []) parPiece.add(t);
+    if (parPiece.size) return seul([...parPiece]);
+    const motsDe = t => sansAccentsCl(t).split(/[^a-z0-9]+/).filter(m => m.length >= 5 && !MOTS_VIDES_BQ.has(m));
+    const porteurs = new Map();
+    for (const t of vus.keys()) for (const m of new Set(motsDe(t))) porteurs.set(m, (porteurs.get(m) || 0) + 1);
+    const motsRep = new Set(sansAccentsCl(texte).split(/[^a-z0-9]+/));
+    return seul([...vus.keys()].filter(t => motsDe(t).some(m => porteurs.get(m) === 1 && motsRep.has(m))));
+  }
+
   function ecrireDepuisBanque(root, dossier, R, ligne) {
     const s = livresState;
     const table = Array.isArray(S.libelles) ? S.libelles : [];
@@ -1769,15 +1812,12 @@
     const repTexte = qR ? String(qR.reponse.texte || '') : '';
     let tiersR = null;
     if (repTexte && !brouillon.regle) {
-      const vus = new Map();
-      for (const e of (s.livre.ecritures || [])) for (const l of (e.lignes || [])) if (l.tiers && /^4[01]/.test(String(l.compte)) && !vus.has(l.tiers)) vus.set(l.tiers, String(l.compte));
-      const rep = normSx(repTexte);
-      const nomme = [...vus.keys()].filter(t => normSx(t).length >= 4 && rep.includes(normSx(t)));
-      if (nomme.length === 1) { tiersR = { nom: nomme[0], compte: vus.get(nomme[0]) }; contre = { ...contre, compte: tiersR.compte, tiers: tiersR.nom }; }
+      const t = tiersNommeBq(repTexte, s.livre.ecritures || []);
+      if (t) { tiersR = t; contre = { ...contre, compte: tiersR.compte, tiers: tiersR.nom }; }
     }
     modal(`<h2>Écrire ${esc(fmtJour(ligne.date))} · ${esc(money(ligne.montant))}</h2>
       <p class="small muted">${esc(ligne.libelle)}</p>
-      ${repTexte ? `<div class="ok-box mb" id="bf-reponse"><b>${esc(contactBq(dossier) || 'Le client')} a répondu :</b> « ${esc(repTexte.slice(0, 300))} »${tiersR ? `<br>Le compte de ${esc(tiersR.nom)} (${esc(tiersR.compte)}) est proposé.` : ''}</div>`
+      ${repTexte ? `<div class="ok-box mb" id="bf-reponse"><b>${esc(contactBq(dossier) || 'Le client')} a répondu :</b> «\u00a0${esc(repTexte.trim().slice(0, 300)).replace(/(\w)-(?=\d)/g, '$1\u2011')}\u00a0»${tiersR ? `<br>Le compte de ${esc(tiersR.nom)} (${esc(tiersR.compte)}) est proposé.` : ''}</div>`
       : brouillon.regle
         ? `<div class="ok-box mb">Le libellé contient « ${esc(brouillon.regle)} » : le compte ${esc(contre.compte)} est proposé.</div>`
         : `<div class="info-box mb">Aucune règle ne reconnaît ce libellé. Choisis le compte : il sera retenu, et le prochain relevé le proposera tout seul.</div>`}
@@ -1826,6 +1866,7 @@
           };
           delete ec.aChoisir; delete ec.regle;
           try {
+            const suivante = suivanteBq(dossier, R, ligne.id);
             const r = await api.saisir(dossier.id, s.annee, ec);
             s.livre = r.livre;
             // Le mot RETENU se voit et se corrige dans la fenêtre (10.14.1) : le moteur propose le plus
@@ -1846,7 +1887,12 @@
               const x = await api.rapprocher({ dossierId: dossier.id, annee: s.annee, releveId: R.id, ligneId: ligne.id, choix: { ecritureId: r.id, ligne: 0, niveau: 'certain', date: K.today() } });
               s.livre = x.livre;
             }
-            close(); toast('Brouillard créé et rapproché.'); drawLivres(root, dossier);
+            // (1.343.0) Comme « Rapprocher » : la ligne suivante est choisie, et ce qui s'est fait s'annonce DANS la carte, là
+            // où l'on travaille — un message en bas de l'écran laissait le panneau sur la ligne qu'on venait de finir.
+            close();
+            banqueState.sel = suivante; banqueState.cherche = ''; delete banqueState.choix[ligne.id]; banqueState.coches.delete(ligne.id);
+            banqueState.annonce = { sel: suivante, msg: `${ligne.libelle ? `« ${String(ligne.libelle).slice(0, 40)} » : ` : ''}brouillard créé au compte ${compte} et rapproché${suivante && suivante !== ligne.id ? ' ; la ligne suivante est choisie.' : '.'}`, defaire: null };
+            drawLivres(root, dossier);
           } catch (e) { toast(plainError(e), 'error'); }
         };
       });

@@ -20151,7 +20151,7 @@ prouver 'barre 14 : la feuille « Créer » posée hors de l'"'"'écran' web/pub
   '.sb-feuille { position: fixed; left: 0; right: 0; bottom: 0;' '.sb-feuille { position: fixed; left: 0; right: 0; bottom: -300px;' \
   'au téléphone : les onglets du bas'
 prouver 'barre 15 : les onglets cachent le bas de la page' web/public/plateforme/barre.css \
-  '  body.avec-barre #view { padding-bottom: 104px; }
+  '  body.avec-barre #view { padding-bottom: 104px; --main-bas: 0px; }
 ' '' \
   'au téléphone : les onglets du bas'
 prouver 'barre 16 : « Inviter mon comptable » hors de « Au quotidien »' modules/socle/ecrans/entreprise/app-1.js \
@@ -21780,7 +21780,7 @@ prouver 'banque 8 : l'"'"'état dit les soldes inégaux' modules/socle/ecrans/ca
   '    const egaux = KC.round3(banqueRect - livreRect) === 0;' '    const egaux = false;' \
   "$WB1"
 prouver 'banque 9 : au téléphone, le tableau du bureau reste' web/public/plateforme/banque.css \
-  '  .bq-ecran table.bq-t, .bq-ecran .bq-aide, .bq-ecran .bq-k { display: none; }' '  .bq-ecran .bq-aide, .bq-ecran .bq-k { display: none; }' \
+  '  .bq-ecran table.bq-t, .bq-ecran .bq-aide, .bq-ecran .bq-k, .bq-ecran .bq-toast.repos { display: none; }' '  .bq-ecran .bq-aide, .bq-ecran .bq-k, .bq-ecran .bq-toast.repos { display: none; }' \
   "$WB1"
 prouver 'banque 10 : au téléphone, le livre en face se tasse en cartes' web/public/plateforme/telephone.js \
   'document.querySelectorAll('"'"'table.list:not([data-sans-cartes])'"'"')' 'document.querySelectorAll('"'"'table.list'"'"')' \
@@ -27335,6 +27335,41 @@ prouver 'saisie 1.342.0 n : un « … » court se coupe dans le message' modules
 prouver 'saisie 1.342.0 o : l'\''export ne se redessine pas quand les pièces arrivent' modules/socle/ecrans/cabinet/app-1.js \
   'else if (/^#\/ecritures(\/|$)/.test(location.hash)) drawEcritures($('\''#view'\''));' 'void 0;' \
   "$EX1341"
+
+# 1.343.0 : la Banque d'un dossier au Cabinet (la bande réservée, les pastilles et le filtre, la réponse qui nomme son fournisseur, Entrée qui choisit, l'annonce dans la carte, « Revoir »).
+BQ1343='(1.343.0) la bande réservée, les pastilles et le filtre, la réponse du client qui nomme son fournisseur, Entrée qui choisit sans enregistrer, le geste annoncé dans la carte'
+prouver 'banque 1.343.0 a : filtrer laisse le panneau sur une ligne cachée' modules/socle/ecrans/cabinet/app-2.js \
+  'if (!cur || !montree(cur)) banqueState.sel =' 'if (!cur) banqueState.sel =' \
+  "$BQ1343"
+prouver 'banque 1.343.0 b : le survol repeint la pastille choisie' web/public/plateforme/banque.css \
+  '.bq-fc:not([aria-pressed="true"]):hover { border-color: var(--sb-trait-fort); }' '.bq-fc:hover { border-color: var(--sb-trait-fort); }' \
+  "$BQ1343"
+prouver 'banque 1.343.0 c : « la Minoterie » ne nomme personne' modules/socle/ecrans/cabinet/app-2.js \
+  'return seul([...vus.keys()].filter(t => motsDe(t).some(m => porteurs.get(m) === 1 && motsRep.has(m))));' 'void porteurs; void motsRep; return null;' \
+  "$BQ1343"
+prouver 'banque 1.343.0 d : Entrée dans la liste enregistre la fenêtre' modules/socle/ecrans/cabinet/app-1.js \
+  '      if (e.defaultPrevented) return;
+' '
+' \
+  "$BQ1343"
+prouver 'banque 1.343.0 e : l'\''écriture s'\''annonce en bas de l'\''écran' modules/socle/ecrans/cabinet/app-2.js \
+  'banqueState.annonce = { sel: suivante, msg: `${ligne.libelle ? `« ${String(ligne.libelle).slice(0, 40)} » : ` : '\'''\''}brouillard créé' 'toast('\''Brouillard créé et rapproché.'\''); void { sel: suivante, msg: `${ligne.libelle ? `« ${String(ligne.libelle).slice(0, 40)} » : ` : '\'''\''}brouillard créé' \
+  "$BQ1343"
+prouver 'banque 1.343.0 f : un filtre vidé reste posé sur une liste vide' modules/socle/ecrans/cabinet/app-2.js \
+  'if (banqueState.filtre && !lus.some(x => banqueState.filtre === '\''reste'\'' ? x.g !== '\''ok'\'' : x.g === banqueState.filtre)) banqueState.filtre = '\'''\'';' 'void 0;' \
+  "$BQ1343"
+prouver 'banque 1.343.0 g : une pastille à zéro reste cliquable' modules/socle/ecrans/cabinet/app-2.js \
+  '${c !== '\''tout'\'' && !k ? '\'' disabled'\'' : '\'''\''}><i></i>' '><i></i>' \
+  "$BQ1343"
+prouver 'banque 1.343.0 h : l'\''annonce n'\''a pas la hauteur de la bande' web/public/plateforme/banque.css \
+  '.bq-toast { min-height: 50px; box-sizing: border-box; }' '.bq-toast { min-height: 44px; box-sizing: border-box; }' \
+  "$BQ1343"
+prouver 'banque 1.343.0 i : « Revoir » garde les rapprochées repliées' modules/socle/ecrans/cabinet/app-2.js \
+  'const faitesOuvertes = banqueState.voirFaites || f === '\''ok'\'' || !restent.length;' 'const faitesOuvertes = banqueState.voirFaites || f === '\''ok'\'';' \
+  "$BQ1343"
+prouver 'banque 1.343.0 j : « tant qu'\''il n'\''a pas répondu » sur une réponse' modules/socle/ecrans/cabinet/app-2.js \
+  '<p class="bq-rien">${q.statut === '\''repondue'\'' ? '\''Sa réponse est là' '<p class="bq-rien">Tant qu'\''il n'\''a pas répondu, la ligne attend. ${q.statut === '\''repondue'\'' ? '\''Sa réponse est là' \
+  "$BQ1343"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

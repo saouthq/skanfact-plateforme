@@ -77,7 +77,8 @@ describe('la page Écritures, à la souris', () => {
     await p.locator('#e-to').selectOption('2026-03');
     const vue = () => p.locator('#view').innerText();
     await expect.poll(vue).toMatch(/1\smois est à valider[\s\S]*Garage du Port[\s\S]*Des écritures y sont encore au brouillard/);
-    expect(await vue()).toMatch(/1\sclient n'a aucune écriture sur cette période\s:\s+Librairie Sans Rien/);
+    // (1.341.0) Le client sans écriture est dit par ce qui l'attend : tenu au cabinet, c'est à toi de saisir.
+    expect(await vue()).toMatch(/1\sclient n'a aucune écriture sur cette période\s:\s+Tenu au cabinet, à saisir par toi\s:\s+Librairie Sans Rien/);
     expect(await p.locator('.stat', { hasText: 'Mois de livres' }).locator('.val').innerText()).toBe('2');
     expect(await vue()).not.toMatch(/paquet/i);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-ecritures-1-page.png') });
