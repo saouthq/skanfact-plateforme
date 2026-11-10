@@ -5567,7 +5567,8 @@
     const tel = String(d.phone || '').replace(/\D/g, ''), mail = String(d.email || '').trim();
     let pour = dates[0], par = 'conv';
     // (1.344.0, 0208) Ce qui s'écrit (un n° CNSS) revient écrit : la réponse arrive dans la conversation, pas dans Pièces reçues.
-    const aideBase = o.ecrit
+    // (1.346.0) Et ce qui arrive ailleurs qu'en photo (l'état du stock, dans l'Inventaire) se dit par l'appelant.
+    const aideBase = o.aide ? o.aide : o.ecrit
       ? `La demande arrive dans votre conversation. ${prenom || 'Le client'} peut y répondre par écrit (« Répondre… ») ou par une photo : la réponse se lit dans la conversation, et ici, en face du salarié.`
       : o.hors
       ? `La demande arrive dans votre conversation. Quand ${prenom || 'le client'} répond, sa photo arrive dans Pièces reçues, avec la pièce demandée.`

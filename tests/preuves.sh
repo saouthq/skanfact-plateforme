@@ -26098,7 +26098,7 @@ prouver 'stock 1.319 r : reprendre l'\''état du client n'\''est pas le bouton p
   '        ${commeLeClient ? '\'''\'' : `<button class="btn btn-sm${inv ? '\'''\'' : '\'' btn-primary'\''}" id="iv-reprendre-client">' '        ${commeLeClient ? '\'''\'' : `<button class="btn btn-sm" id="iv-reprendre-client">' \
   "$SW1"
 prouver 'stock 1.319 s : deux boutons principaux dans l'\''inventaire vide' modules/socle/ecrans/cabinet/app-2.js \
-  '        <button class="btn${etat ? '\'''\'' : '\'' btn-primary'\''}" id="iv-saisir2">Saisir l'\''inventaire…</button>' '        <button class="btn btn-primary" id="iv-saisir2">Saisir l'\''inventaire…</button>' \
+  '        <button class="btn${etat || relie ? '\'''\'' : '\'' btn-primary'\''}" id="iv-saisir2">Saisir l'\''inventaire…</button>' '        <button class="btn btn-primary" id="iv-saisir2">Saisir l'\''inventaire…</button>' \
   "$SW1"
 prouver 'stock 1.319 t : la saisie reprise perd la valeur des lignes' modules/socle/ecrans/cabinet/app-2.js \
   '.concat(l.valeurDite ? [montantChamp(l.valeur) || '\''0'\''] : [])' '.concat([])' \
@@ -27441,6 +27441,40 @@ prouver 'immos 1.345.0 m : la fiche reprise d'\''une ligne d'\''achat prend le c
   '{ ...KC.ficheDuClient(duClient), compte: l.compte, origine:' '{ ...KC.ficheDuClient(duClient), origine:' \
   "$T314"
 
+IV1346='(1.346.0) l'\''état du stock se demande au client, sa demande mène à la page Stock et l'\''envoi y répond ; la variation se dit avant'
+prouver 'inventaire 1.346.0 a : le Cabinet ne propose pas de demander l'\''état du stock' modules/socle/ecrans/cabinet/app-2.js \
+  'const panneauDemander = etat || !relie ? '\'''\'' :' 'const panneauDemander = true ? '\'''\'' :' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 b : la demande partie, le panneau propose encore de redemander' modules/socle/ecrans/cabinet/app-2.js \
+  '        ${demande ? `<p class="small ligne-ok" id="iv-demande">' '        ${false && demande ? `<p class="small ligne-ok" id="iv-demande">' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 c : la demande d'\''un exercice en cours pour demain, avant la fin de l'\''année' modules/socle/ecrans/cabinet/app-2.js \
+  'pour: fini ? undefined : apres,' 'pour: undefined,' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 d : l'\''aide de la demande dit « sa photo arrive dans Pièces reçues »' modules/socle/ecrans/cabinet/app-1.js \
+  'const aideBase = o.aide ? o.aide : o.ecrit' 'const aideBase = o.ecrit' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 e : la carte du client ne mène pas à sa page Stock' web/public/plateforme/messagerie.js \
+  'entreprise && o.etatDuStock && ETAT_DU_STOCK.test(' 'false && o.etatDuStock && ETAT_DU_STOCK.test(' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 f : sans article suivi, la carte mène quand même à une page Stock vide' modules/socle/ecrans/entreprise/app-2.js \
+  'etatDuStock: !C.trackedItems(data).length ? undefined :' 'etatDuStock: false ? undefined :' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 g : un état du 31/12 envoyé avant le 31/12' modules/socle/ecrans/entreprise/app-2.js \
+  'const avenir = s.etatDate > C.today();' 'const avenir = false;' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 h : l'\''envoi de l'\''état ne répond pas à la demande' modules/socle/ecrans/entreprise/app-2.js \
+  'dm.repondre(`Bonjour, ${texteEtatDuStock(e)}`).then(' 'Promise.reject(new Error('\''non'\'')).then(' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 i : la variation n'\''est pas annoncée avant d'\''enregistrer' modules/socle/ecrans/cabinet/app-2.js \
+  '${esc(phraseVariation(inv))}' '' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 j : un inventaire déjà écrit refusé seulement au clic' modules/socle/ecrans/cabinet/app-2.js \
+  'const refusAvant = bloque && !bloque.ok ? bloque.motif : '\'''\'';' 'const refusAvant = '\'''\'';' \
+  "$IV1346"
+prouver 'inventaire 1.346.0 k : l'\''état demandé n'\''est pas le geste vert du client' modules/socle/ecrans/entreprise/app-2.js \
+  '${demandeEtatStock && demandeEtatStock.date === s.etatDate && !avenir && !rien && !pareil ? '\'' btn-primary'\'' : '\'''\''}' '${'\'''\''}' \
+  "$IV1346"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

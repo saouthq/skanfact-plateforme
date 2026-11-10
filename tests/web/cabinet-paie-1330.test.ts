@@ -93,7 +93,7 @@ describe('le pointage validé par le client, lu au Cabinet (1.330.0)', () => {
     expect(controles).toContain('Pointage repris sur chaque bulletin');
     expect(controles).not.toContain('Un mois sans pointage');
     // Deux salariés sans n° CNSS : chaque bouton nomme le sien.
-    expect((await p.locator('#pa-controles [data-sal-cnss]').allInnerTexts()).map(espace).sort()).toEqual(['Le renseigner (Amira)…', 'Le renseigner (Hédi)…']);
+    expect((await p.locator('#pa-controles [data-sal-cnss]').allInnerTexts()).map(espace).sort()).toEqual(['Renseigner Amira…', 'Renseigner Hédi…']);
     // Chaque bulletin payé et remis par le client le dit.
     expect((await p.locator('tr[data-bul] .badge').allInnerTexts()).map(espace)).toEqual(['payé, remis', 'payé, remis']);
     expect(erreurs).toEqual([]);

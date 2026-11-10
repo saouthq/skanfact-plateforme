@@ -32,6 +32,16 @@
         ${fnp ? `<p class="small ligne-ok" id="iv-fnp-ok"><span aria-hidden="true">✓</span> Passées en factures non parvenues (${esc(fnp.piece || fnp.numero || '')}, ${fnp.statut === 'validee' ? 'validée' : 'au brouillard'}) : au 1er janvier, « Extourner » sur l'écriture la retourne.</p>`
     : `<button class="btn btn-sm" id="iv-fnp">Passer en factures non parvenues…</button>`}
       </div>`;
+    // (1.346.0) Un client sur SkanFact tient son stock dans SkanFact : tant que son état n'est pas arrivé, on le lui DEMANDE
+    // (le geste existe chez lui, Stock → Inventaire → « L'état du stock pour ton comptable »), au lieu de recompter à sa place.
+    const relie = !dossier.manual && !!api.messagerie;
+    // Déjà demandé (une demande ouverte de cet état, dans la conversation) : on le dit, au lieu de proposer de redemander.
+    const demande = !etat && relie ? ((piecesLues.demandes || []).find(x => x.entreprise === dossier.id && !x.recueLe && /état (?:de (?:ton|son|mon) |du )stock/i.test(String(x.texte || ''))) || null) : null;
+    const panneauDemander = etat || !relie ? '' : `<div class="panel mt" id="iv-demander"><h2>L'état du stock de ${esc(dossier.name || 'ce client')} ${info('iv.demander')}</h2>
+        <p class="small">${esc(dossier.name || 'Ce client')} tient son stock dans SkanFact : il t'envoie son état au ${esc(fmtJour(s.livre.exercice.au || `${s.annee}-12-31`))} en un geste, au coût moyen de sa page Stock. Il arrive ici, et se reprend comme inventaire sans rien recopier.</p>
+        ${demande ? `<p class="small ligne-ok" id="iv-demande"><span aria-hidden="true">✓</span> Demandé le ${esc(fmtJour(KC.jourDeLInstant(demande.demandeeLe)))}${demande.pour ? `, pour le ${esc(fmtJour(demande.pour))}` : ''} : il arrive ici dès qu'il est envoyé.</p>`
+    : `<div class="inline"><button class="btn btn-sm${inv ? '' : ' btn-primary'}" id="iv-demander-b">Lui demander son état du stock…</button></div>`}
+      </div>`;
     const panneauClient = !etat ? '' : `<div class="panel mt" id="iv-client"><h2>L'état du stock envoyé par ${esc(dossier.name || 'le client')} ${info('iv.client')}</h2>
         <p class="small">Au <b>${esc(fmtJour(etat.date))}</b> : ${esc(pl(etat.lignes.length, 'article'))}, <b class="nw">${esc(money(etat.total))}</b> au coût moyen de son SkanFact${
           etat.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(KC.jourDeLInstant(etat.envoyeLe)))}</span>` : ''}.</p>
@@ -94,7 +104,7 @@
       <button class="${cls('ecrire')}" id="iv-ecrire" ${ecrivable ? '' : 'disabled'}
         title="${esc(pourquoi)}">Écrire la variation de stock</button>` : ''}
     </div>
-    ${panneauClient}
+    ${panneauClient}${panneauDemander}
     ${panneauImpayes}
     ${panneauGaranties}
     ${panneauGroupe}
@@ -102,7 +112,7 @@
     ? `<div class="empty">Aucun inventaire saisi pour ${esc(s.annee)}.
         <p class="small muted">Un inventaire, c'est ce qui reste au dernier jour, compté et valorisé.
         La différence avec ce que portent les comptes devient une écriture <span class="nw">(${esc(KC.COMPTES_IMMO.variationStocks)} / ${esc(KC.COMPTES_IMMO.stocks)})</span>.</p>
-        <button class="btn${etat ? '' : ' btn-primary'}" id="iv-saisir2">Saisir l'inventaire…</button>
+        <button class="btn${etat || relie ? '' : ' btn-primary'}" id="iv-saisir2">Saisir l'inventaire…</button>
         <div class="small mt">${lienArticle('immobilisations')}</div></div>`
     : `<div class="panel mt" id="iv-variation"><h2>La variation ${info('iv.variation')}</h2>
         ${v.ok
@@ -136,6 +146,8 @@
     if (!s.inv || s.invRev !== rev) { s.invRev = rev; chargerInventaire(root, dossier); return; }
     if (s.inv.erreur) return;
     [$('#iv-saisir', el), $('#iv-saisir2', el)].forEach(b => { if (b) b.onclick = () => inventaireForm(root, dossier); });
+    const dm = $('#iv-demander-b', el);
+    if (dm) dm.onclick = () => demanderEtatStock(root, dossier);
     const rc = $('#iv-reprendre-client', el);
     if (rc) rc.onclick = () => inventaireForm(root, dossier, (s.inv.duClient || [])[0] || null);
     $$('[data-provision]', el).forEach(b => {
@@ -290,6 +302,20 @@
     drawLivres(root, dossier);
   }
 
+  // (1.346.0) La demande part dans la conversation du client, avec le chemin du geste chez lui. Avant la fin de l'exercice, elle
+  // est pour le premier jour ouvré après le 1er janvier (férié) : un état envoyé avant la fin compterait un stock qui bouge encore.
+  function demanderEtatStock(root, dossier) {
+    const s = livresState;
+    const au = s.livre.exercice.au || `${s.annee}-12-31`;
+    const prenom = prenomCl(dossier.contact);
+    const fini = au < K.today();
+    const apres = (() => { const x = new Date(`${au}T12:00:00Z`); x.setUTCDate(x.getUTCDate() + 2); while ([0, 6].includes(x.getUTCDay())) x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); })();
+    fenDemanderCl(dossier, { titre: `Inventaire ${s.annee} · ton état du stock au ${fmtJour(au)}`, piece: `ton état du stock au ${fmtJour(au)}`,
+      texte: `Bonjour${prenom ? ` ${prenom}` : ''}, pour ton bilan ${s.annee}, peux-tu m'envoyer l'état de ton stock au ${fmtJour(au)}${fini ? '' : ', une fois l\'année finie'}\u00a0? Dans SkanFact : Stock, onglet Inventaire, «\u00a0L'état du stock pour ton comptable\u00a0», puis «\u00a0Envoyer\u00a0» : il m'arrive tout seul, je n'ai rien à recopier. Si tu ne suis pas ton stock dans SkanFact, envoie-moi ta liste comptée (une photo suffit). Merci.` },
+    { hors: true, pour: fini ? undefined : apres, apres: async () => { await relirePieces(); await chargerInventaire(root, dossier); },
+      aide: `La demande arrive dans votre conversation. Quand ${prenom || 'le client'} envoie son état depuis sa page Stock, il arrive ici, dans l'Inventaire de ${s.annee}, prêt à reprendre. Sans stock suivi dans SkanFact, sa liste ou sa photo arrive dans Pièces reçues.` });
+  }
+
   function inventaireForm(root, dossier, depuisLeClient) {
     const s = livresState;
     const dejaLa = (s.inv && s.inv.inventaire) || null;
@@ -302,7 +328,14 @@
     // Ce qu'on rouvre se relit en français (H-3) : « 7.5 » dans une liste de coûts, c'est sept
     // mille cinq cents pour qui lit « 7.500 ». Le moteur relit les deux formes.
     const depart = source ? source.lignes.map(colonnes).join('\n') : '';
+    // (1.346.0) Un inventaire dont la variation est déjà écrite ne se refait pas : le refus du moteur se lit AVANT de saisir
+    // (il tombait au clic sur « Enregistrer », la saisie faite), avec le geste qui débloque.
+    const bloque = dejaLa && dejaLa.ecritureId
+      ? KC.poserInventaire({ ...s.livre, inventaires: [...(s.livre.inventaires || [])], audit: [] }, { date: dejaLa.date, compte: dejaLa.compte, lignes: dejaLa.lignes }, '', 0)
+      : null;
+    const refusAvant = bloque && !bloque.ok ? bloque.motif : '';
     modal(`<h2>L'inventaire de ${esc(s.annee)}</h2>
+      ${refusAvant ? `<div class="warn-box" id="iv-bloque">${esc(refusAvant)}</div>` : ''}
       <p class="small muted">Une ligne par référence : <b>référence, désignation, quantité, coût unitaire</b> (et, si tu l'as, sa
       <b>valeur</b>), séparées par une tabulation ou un point-virgule. Colle-les depuis ton tableur.</p>
       ${depuisLeClient ? `<p class="small ligne-ok" id="iv-repris"><span aria-hidden="true">✓</span> Repris de l'état envoyé par ${esc(dossier.name || 'le client')} au ${esc(fmtJour(depuisLeClient.date))} : la dernière colonne est la valeur au coût moyen de son SkanFact.</p>` : ''}
@@ -313,7 +346,7 @@
           <input name="compte" value="${esc((dejaLa && dejaLa.compte) || KC.COMPTES_IMMO.stocks)}"></label>
       </form>
       <label class="field mt">${lbl('Les lignes comptées', 'iv.coller')}
-        <textarea id="iv-lignes" rows="10" placeholder="REF-01&#9;Câble HDMI 2 m&#9;24&#9;7,500">${esc(depart)}</textarea></label>
+        <textarea id="iv-lignes" rows="10" placeholder="Référence&#9;Désignation&#9;Quantité&#9;Coût unitaire">${esc(depart)}</textarea></label>
       ${/* 10.14.1 — le total ou le refus paraît à la première frappe : sans hauteur réservée,
             « Enregistrer l'inventaire » descendait de 54 px sous le curseur. */''}
       <div id="iv-apercu" class="small muted annonce-stable encadre"></div>
@@ -321,6 +354,25 @@
         <button class="btn btn-primary" id="ok">Enregistrer l'inventaire</button></div>`,
     (rootModal, close) => {
       const apercu = $('#iv-apercu', rootModal);
+      // (1.346.0) La variation que l'onglet écrira, dite AVANT d'enregistrer, par le moteur qui l'écrira : le stock que les
+      // comptes portent à la date (lu une fois par date et par compte), contre le total compté.
+      const initiaux = new Map();
+      const initialAu = (date, compte) => {
+        const k = date + '|' + compte;
+        if (!initiaux.has(k)) {
+          const v = KC.variationDeStock({ ...s.livre, inventaires: [{ date, compte, lignes: [], total: 0, ecritureId: (dejaLa && dejaLa.ecritureId) || '' }] }, s.annee);
+          initiaux.set(k, v.ok ? v.initial : null);
+        }
+        return initiaux.get(k);
+      };
+      const phraseVariation = inv => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(inv.date)) return '';
+        const ini = initialAu(inv.date, inv.compte || KC.COMPTES_IMMO.stocks);
+        if (ini == null) return '';
+        const ec = KC.totalInventaire(inv) - ini;
+        return Math.abs(ec) < 0.0005 ? ` Les comptes portent déjà ${money(ini)} au ${inv.compte || KC.COMPTES_IMMO.stocks} : aucune variation à écrire.`
+          : ` Les comptes portent ${money(ini)} au ${inv.compte || KC.COMPTES_IMMO.stocks} : variation de ${ec > 0 ? '+' : '−'}${money(Math.abs(ec))}, à écrire ensuite depuis l'onglet.`;
+      };
       // Les lignes sont lues par le MOTEUR (`lignesInventaireDepuisTexte`) : c'est lui qui refuse
       // une quantité illisible (C-16), et l'écran dit ce qu'il refuse — jamais un zéro en silence.
       // La date se tape comme partout ailleurs, « 31/12/2026 », et se range en ISO.
@@ -340,11 +392,11 @@
         // orange sur une fenêtre qu'on vient d'ouvrir, c'était reprocher ce qu'on n'a pas encore eu
         // le temps de faire. Le bouton éteint dit déjà pourquoi, au survol et sous le doigt.
         apercu.innerHTML = v.ok
-          ? `<div class="ok-box mt">${esc(pl(inv.lignes.length, 'ligne'))} — total ${esc(money(KC.totalInventaire(inv)))}.</div>`
+          ? `<div class="ok-box mt">${esc(pl(inv.lignes.length, 'ligne'))} — total ${esc(money(KC.totalInventaire(inv)))}.${esc(phraseVariation(inv))}</div>`
           : !touche ? ''
             : `<div class="warn-box mt">${v.motifs.slice(0, 5).map(m => `<div>${esc(m)}</div>`).join('')}${v.motifs.length > 5 ? `<div>… et ${v.motifs.length - 5} de plus.</div>` : ''}</div>`;
         const b = $('#ok', rootModal);
-        b.disabled = !v.ok; b.title = v.ok ? '' : v.motifs[0];
+        b.disabled = !v.ok || !!refusAvant; b.title = refusAvant || (v.ok ? '' : v.motifs[0]);
       };
       let touche = !!source;
       $$('input,textarea', rootModal).forEach(x => { x.oninput = () => { touche = true; maj(); }; });

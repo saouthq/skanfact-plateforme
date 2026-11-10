@@ -167,7 +167,7 @@ describe('le stock 1.319.0 : la droguerie envoie l\'état de son stock, sa compt
     expect((await fenetre.locator('#iv-lignes').inputValue()).replace(/[\u202f\u00a0]/g, ' '))
       .toBe('\tMastic de la maison\t20\t1,800\t36,000\nPNT-10\tPeinture murale blanche 10 L\t35\t61,666\t2 158,325');
     expect(await fenetre.locator('[name=date]').inputValue()).toBe('31/12/2025');
-    await expect.poll(async () => net(await fenetre.locator('#iv-apercu').innerText())).toBe('2 lignes — total 2 194,325 DT.');
+    await expect.poll(async () => net(await fenetre.locator('#iv-apercu').innerText())).toBe('2 lignes — total 2 194,325 DT. Les comptes portent 0,000 DT au 37 : variation de +2 194,325 DT, à écrire ensuite depuis l\'onglet.');
     await fenetre.locator('#ok').click();
     await expect.poll(() => toast(c)).toBe('Inventaire enregistré.');
     const lu = (await api('GET', `/entreprises/${ent}/compta/inventaires/2025`, ines)).corps.inventaire as Obj;

@@ -135,10 +135,10 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     expect(await p.locator('#pa-frise li').nth(3).getAttribute('class')).toContain('fait');
     // Les montants n'ont pas bougé : seule la marque « payé le » s'est écrite.
     expect((await bulletins()).map((b) => [b.employeeId ?? b.salarieId, b.paidDate]).sort()).toEqual([['s1', '2025-10-31'], ['s2', '2025-10-31']]);
-    // Remettre reste possible après : le dernier geste du mois.
+    // Remettre reste possible après. (1.344.0) L'écriture de paie, au brouillard, reste l'étape suivante : elle se valide sur place.
     await p.locator('#pa-remettre').click();
     await expect.poll(async () => (await bulletins()).filter((b) => b.remisLe === jour).length).toBe(2);
-    await expect.poll(principal).toEqual([]);
+    await expect.poll(principal).toEqual(['pa-valider Valider l\'écriture de paie']);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-hors-3-payes.png'), fullPage: true });
     // ── La CNSS du trimestre : les deux salariés, leurs assiettes exactes ─────────────────────────────────────────
     await p.locator('.pa-so [data-pa-vue="cnss"]').click();

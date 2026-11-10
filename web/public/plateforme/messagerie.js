@@ -15,6 +15,8 @@
   const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const TZ = 'Africa/Tunis';
   // La messagerie arrive dans la minute (décidé le 09/10/2026) : une relecture toutes les 30 secondes, page visible.
+  // (1.346.0) Une demande d'état du stock (« ton état du stock au 31/12/2026 ») : le Cabinet la compose ainsi.
+  const ETAT_DU_STOCK = /état (?:de (?:ton|son|mon) |du )stock/i;
   const RELIRE_MS = 30_000;
   // (1.179.0, maquette « Messages », lot 4) Les dernières lectures de la page (la boîte d'un cabinet, chaque conversation
   // ouverte) : hors ligne, elles se relisent telles qu'elles étaient, le temps de la page. En mémoire seulement : sur
@@ -431,6 +433,7 @@
    *   ouvrirPiece?: (genre: string, id: string, libelle: string) => boolean,
    *   achatDuNumero?: (numero: string) => ({ id: string, date: string, libelle: string } | null),
    *   corrigerDateAchat?: (numero: string, date: string) => Promise<{ genre: string, id: string, libelle: string }>,
+   *   etatDuStock?: (demande: { id: string, texte: string }, repondre: (texte: string) => Promise<void>) => void,
    *   saisirPiece?: (message: { id: string, ecritLe: string, fichier: { id: string, nom: string, type: string } }) => void,
    *   libelleClassee?: (classee: { raison: string | null, le: string }) => string,
    *   pieceDuNumero?: (numero: string) => { genre: string, id: string } | null,
@@ -957,6 +960,8 @@
         const aDater = entreprise && o.corrigerDateAchat ? numeroADater(m) : '';
         const geste = recue || !actif ? ''
           : aDater ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-corriger-date="${esc(m.id)}">Corriger la date…</button>`
+          // (1.346.0) L'état du stock que le cabinet demande ne se photographie pas : il s'envoie de la page Stock, et cet envoi répond.
+          : entreprise && o.etatDuStock && ETAT_DU_STOCK.test(String(m.demande.texte || '')) ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-etat-stock="${esc(m.id)}">Envoyer mon état du stock…</button>`
           : entreprise ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-envoyer-piece="${esc(m.id)}">${/\bn°|numéro|matricule/i.test(String(m.demande.texte || '')) ? 'Répondre…' : 'Envoyer la pièce…'}</button>`
             : `<button type="button" class="btn btn-sm" data-msg-recue="${esc(m.id)}">Reçue autrement</button>`;
         const pour = m.demande.pour && !recue ? `<span class="msg-pour">pour le ${esc(dateCourte(m.demande.pour))}</span>` : '';
@@ -1524,6 +1529,10 @@
       surClic(fil, '[data-msg-corriger-date]', async (b) => {
         const m = demandes().get(String(b.dataset.msgCorrigerDate));
         if (m) corrigerDate(m);
+      });
+      surClic(fil, '[data-msg-etat-stock]', async (b) => {
+        const m = demandes().get(String(b.dataset.msgEtatStock));
+        if (m && o.etatDuStock) o.etatDuStock({ id: m.id, texte: String(m.demande.texte || '') }, async (texte) => { await o.appel('POST', '/messages', { cote: o.cote, texte, repondA: m.id, ecrite: true }); });
       });
       surClic(fil, '[data-msg-envoyer-piece]', async (b) => {
         const m = demandes().get(String(b.dataset.msgEnvoyerPiece));

@@ -18,6 +18,7 @@
   // ---------- Stock (4.0.0) ----------
   const stockState = { tab: 'etat', q: '', only: '', counts: {}, countDate: C.today(), year: C.today().slice(0, 4), moves: { page: 1 }, etat: { page: 1 }, inv: { page: 1 }, alertes: { page: 1 },
     ser: { q: '', status: '', page: 1 } };
+  let demandeEtatStock = null;
   const STOCK_TABS = [['etat', 'État du stock'], ['mouvements', 'Mouvements'], ['series', 'Numéros de série'], ['inventaire', 'Inventaire'], ['alertes', 'Alertes']];
 
   function adjustForm(itemId, done) {
@@ -1508,6 +1509,7 @@
       const finAn = `${Number(C.today().slice(0, 4)) - 1}-12-31`;
       return C.etatDuStock(data, finAn).lignes.length ? finAn : C.today();
     }
+    // (1.346.0) La demande du cabinet qui a ouvert cette carte : l'envoi de l'état à sa date y répond (elle passe « reçue »).
     function etatEnvoye(date) { return (data.etatsStock || []).find(x => x.date === date) || null; }
     function carteEtatPourLeComptable() {
       if (!s.etatDate) s.etatDate = dateEtatParDefaut();
@@ -1517,6 +1519,9 @@
       const stockPareil = deja && Math.abs((Number(deja.total) || 0) - e.total) < 0.0005 && (deja.lignes || []).length === e.lignes.length;
       const pareil = stockPareil && Math.abs((Number(sfDeja.total) || 0) - sf.total) < 0.0005 && (sfDeja.receptions || []).length === sf.receptions.length;
       const rien = !e.lignes.length && !sf.receptions.length;
+      // (1.346.0) Une date qui n'est pas encore passée : le stock de ce jour-là peut encore bouger, l'envoyer maintenant donnerait
+      // à ton comptable un état faux. On l'attend.
+      const avenir = s.etatDate > C.today();
       const resume = e.lignes.length ? `${pl(e.lignes.length, 'article')} en stock, ${C.money(e.total, cur)} au coût moyen` : 'aucun article en stock à cette date';
       const quelles = sf.receptions.slice(0, 3).map(r => `${r.numero || 'réception'}${r.fournisseur ? ` de ${r.fournisseur}` : ''}`).join(', ') + (sf.receptions.length > 3 ? '…' : '');
       const sansFacture = !sf.receptions.length ? '' : `<p class="small" id="etat-sans-facture">Reçu sans facture à cette date : ${pl(sf.receptions.length, 'réception')}, <b class="nw">${C.money(sf.total, cur)}</b> HT (${h(quelles)}). La marchandise est dans ton stock, sa facture n'est pas encore arrivée : ton comptable la passe en facture non parvenue. Elle part avec l'état.</p>`;
@@ -1531,8 +1536,10 @@
         </div>
         ${sansFacture}
         ${envoi}
-        <div class="inline"><button class="btn btn-sm" id="etat-envoyer" ${!rien && !pareil ? '' : 'disabled'}
-          title="${!rien ? (pareil ? 'Ton comptable a déjà cet état.' : '') : 'Rien en stock à cette date : il n\'y a rien à envoyer.'}">${deja && !pareil ? 'Renvoyer' : 'Envoyer'} l'état du ${C.fmtDate(s.etatDate)}</button></div></div>`;
+        ${demandeEtatStock ? `<p class="small" id="etat-demande">${demandeEtatStock.date && demandeEtatStock.date !== s.etatDate ? `Ton comptable te demande l'état du ${C.fmtDate(demandeEtatStock.date)}.` : 'Ton comptable te demande cet état : l\'envoyer répond à sa demande.'}</p>` : ''}
+        ${avenir ? `<p class="small warn-text" id="etat-avenir">Le ${C.fmtDate(s.etatDate)} n'est pas encore passé : ton stock peut encore bouger d'ici là. Envoie l'état de cette date à partir du lendemain.</p>` : ''}
+        <div class="inline"><button class="btn btn-sm${demandeEtatStock && demandeEtatStock.date === s.etatDate && !avenir && !rien && !pareil ? ' btn-primary' : ''}" id="etat-envoyer" ${!rien && !pareil && !avenir ? '' : 'disabled'}
+          title="${avenir ? 'Cette date n\'est pas encore passée.' : !rien ? (pareil ? 'Ton comptable a déjà cet état.' : '') : 'Rien en stock à cette date : il n\'y a rien à envoyer.'}">${deja && !pareil ? 'Renvoyer' : 'Envoyer'} l'état du ${C.fmtDate(s.etatDate)}</button></div></div>`;
     }
     function envoyerEtatDuStock(date) {
       const e = C.etatDuStock(data, date);
@@ -1555,6 +1562,14 @@
         const e = envoyerEtatDuStock(s.etatDate);
         if (!e) return;
         drawInventory();
+        const dm = demandeEtatStock && (!demandeEtatStock.date || demandeEtatStock.date === e.date) ? demandeEtatStock : null;
+        if (dm) {
+          demandeEtatStock = null;
+          dm.repondre(`Bonjour, ${texteEtatDuStock(e)}`).then(
+            () => toast(`L'état du stock au ${C.fmtDate(e.date)} est chez ton comptable : ${pl(e.lignes.length, 'article')}, ${C.money(e.total, company().currency)}${avecSansFacture(e)}. Sa demande est marquée reçue.`),
+            err => toast(`L'état du stock est envoyé ; la réponse à sa demande n'est pas partie : ${plainError(err)}`, 'error'));
+          return;
+        }
         toastUndo(`L'état du stock au ${C.fmtDate(e.date)} est chez ton comptable : ${pl(e.lignes.length, 'article')}, ${C.money(e.total, company().currency)}${avecSansFacture(e)}. Il le reprend dans son inventaire.`,
           () => ecrireAuComptable(`Bonjour, ${texteEtatDuStock(e)}`), 'Le dire à mon comptable');
       };
@@ -4094,6 +4109,16 @@
       achatDuNumero: numero => {
         const p = data.purchases.find(x => x.number === numero);
         return p ? { id: p.id, date: p.date, libelle: achat(p) } : null;
+      },
+      // (1.346.0) Le cabinet demande l'état du stock à une date : la carte qui l'envoie s'ouvre à cette date, et l'envoi répond.
+      // Sans article suivi, il n'y a pas d'état à envoyer d'ici : la demande se répond comme une pièce (sa liste comptée, une photo).
+      etatDuStock: !C.trackedItems(data).length ? undefined : (d, repondre) => {
+        const j = /(\d{2})\/(\d{2})\/(\d{4})/.exec(d.texte);
+        demandeEtatStock = { id: d.id, date: j ? `${j[3]}-${j[2]}-${j[1]}` : '', repondre };
+        stockState.tab = 'inventaire';
+        if (demandeEtatStock.date) stockState.etatDate = demandeEtatStock.date;
+        pageFocus = 'etat-comptable';
+        navigate('#/stock');
       },
       corrigerDateAchat: async (numero, date) => {
         const p = data.purchases.find(x => x.number === numero);

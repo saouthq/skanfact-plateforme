@@ -201,7 +201,7 @@ describe('les clients 1.309.0 : leurs fiches et leurs comptes', () => {
     await expect.poll(() => toast(p)).toMatch(/^FAC-\d{4}-004 payée intégralement/);
     await aller('#/clients');
     await p.locator('#list-wrap tbody tr').first().waitFor();
-    expect(await ligneDe('Café Boujaafar')).toContain('19,200 en sa faveur');
+    await expect.poll(() => ligneDe('Café Boujaafar')).toContain('19,200 en sa faveur');
     await aller('#/client/c3');
     expect(await tete()).toContain('19,200 DT en sa faveur');
     expect(net(await p.locator('#cf-trop').innerText())).toMatch(/^19,200 DT payés en trop sur FAC-\d{4}-004 — /);

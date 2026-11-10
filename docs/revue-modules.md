@@ -2131,3 +2131,33 @@ livre ; une cession ; une camionnette que Sarra a saisie dans son SkanFact), pui
 - Tombé : le plan en direct de « Ajouter un bien » existait déjà ; le contrôle « tableau ↔ 28 » existe à la clôture.
 - La preuve : `tests/web/immobilisations-1345.test.ts` ; preuves `immos 1.345.0 a-l` ; la preuve « la ligne au
   compte 22 ignore la fiche que le client a déjà » réancrée.
+
+## L'Inventaire d'un dossier au Cabinet, et le pont (1.346.0)
+
+Joué à la souris des deux côtés : Leïla qui prépare l'inventaire de la Boulangerie, et Sarra (la cliente) qui reçoit
+la demande dans « Mon comptable ».
+
+- **L'état du stock se DEMANDE au client relié** au lieu de se recompter. Le pont existait (1.319.0 : le client envoie
+  son état, le Cabinet le reprend d'un geste), mais rien ne le réclamait : sans état reçu, l'écran n'offrait que
+  « Saisir l'inventaire… ». Le panneau « L'état du stock de … » propose « Lui demander son état du stock… » (le vert
+  quand rien n'est saisi) ; la demande dit le chemin chez lui (Stock, onglet Inventaire, « L'état du stock pour ton
+  comptable »), et ce qu'il fait s'il ne suit pas son stock dans SkanFact (sa liste, une photo). Avant la fin de
+  l'exercice, elle est pour le premier jour ouvré après le 1er janvier (férié) ; l'aide dit où arrive l'état, pas
+  « sa photo arrive dans Pièces reçues ». Demandé, le panneau le dit (« Demandé le …, pour le … »).
+- **Côté client, la carte de la demande mène au geste** : « Envoyer mon état du stock… » ouvre sa page Stock, onglet
+  Inventaire, à la date demandée — rien à photographier. **L'envoi à cette date RÉPOND à la demande** (elle passe
+  « reçue », comme une réponse écrite, 0208). Une date pas encore passée ne s'envoie pas : le stock peut encore bouger.
+  Sans article suivi, la carte reste « Envoyer la pièce… » : la page Stock serait vide (vu à la souris sur la
+  Boulangerie, qui ne suivait aucun article).
+- **La fenêtre annonce la variation avant d'enregistrer**, par le moteur qui l'écrira (`variationDeStock`) : « Les
+  comptes portent 0,000 DT au 37 : variation de +910,000 DT ».
+- **Un inventaire dont la variation est déjà écrite dit son refus à l'ouverture** (`poserInventaire`, le même motif,
+  avec le geste qui débloque), pas au clic sur « Enregistrer » une fois la saisie faite.
+- Une invite neutre (« Référence, Désignation, Quantité, Coût unitaire »).
+- Tombé : « 1148,000 DT sans séparateur » — l'espace fine est là (U+202F), seulement étroite à 11 px.
+- La preuve : `tests/web/inventaire-1346.test.ts` ; preuves `inventaire 1.346.0 a-k` ; `stock-1319` attend l'annonce,
+  et sa preuve « s » est réancrée.
+- Le rouge GitHub de la 1.344.0, réglé au passage : deux tests de paie décrivaient l'état d'avant (« Le renseigner
+  (Amira)… », et plus aucun vert après la remise alors que l'écriture de paie au brouillard reste l'étape suivante),
+  retournés vers la règle ; la ligne du Café dans la liste des clients se lit en attendant le paiement (une lecture
+  sans attente, qui tombait en CI).

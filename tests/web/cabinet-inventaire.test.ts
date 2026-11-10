@@ -91,10 +91,10 @@ describe('l\'inventaire de stock, à la souris', () => {
       { compte: '37', debit: '53.282', credit: '0.000' }, { compte: '603', debit: '0.000', credit: '53.282' }] });
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-inventaire-2-variation.png') });
 
-    // ── Dessous, l'inventaire ne se refait pas : le refus le dit ───────────────────────────────────
+    // ── Dessous, l'inventaire ne se refait pas : le refus le dit À L'OUVERTURE (1.346.0), le bouton éteint ──────────
     await ouvrir('#iv-saisir', '#iv-lignes');
-    await fenetre.locator('#ok').click();
-    await expect.poll(toast).toMatch(/^L'inventaire de 2025 est déjà passé en écriture \(la variation de stock\) : elle est encore au brouillard/);
+    expect((await fenetre.locator('#iv-bloque').innerText()).replace(/\s+/g, ' ')).toMatch(/^L'inventaire de 2025 est déjà passé en écriture \(la variation de stock\) : elle est encore au brouillard/);
+    expect(await fenetre.locator('#ok').isDisabled()).toBe(true);
     expect((await inventaire(cafe, associe))?.ecriture).toBe(lie);
     expect(erreurs).toEqual([]);
   }, 180_000);
