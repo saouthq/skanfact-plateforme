@@ -2281,3 +2281,18 @@ valider le brouillard, préparer, écrire l'écriture du mois, la valider, marqu
   révision de la fiche ; le second était refusé en silence, et le dossier retenait un journal périmé. Ils s'écrivent
   maintenant l'un après l'autre (une file dans le pont). Le test pose trois choix dans le même instant : il ne dépend
   plus de la vitesse de la machine. Preuve `déclaration 1.350.0 l`.
+
+## La Liasse d'un dossier au Cabinet (1.351.0)
+
+Jouée à la souris sur la Boulangerie El Amal : bilan, état de résultat, résultat fiscal (un taux saisi, une
+réintégration ajoutée), déclaration annuelle d'employeur.
+
+- **Les retenues sur fournisseurs lues sur un compte que rien n'écrit** : la déclaration annuelle d'employeur lisait
+  le 4322 ; tout le logiciel écrit une retenue opérée au 4352 (la déclaration du mois, la Banque). La case répondait
+  « Aucun mouvement sur 4322 » à un dossier qui avait retenu toute l'année. Elle lit le compte du rôle, comme l'IRPP.
+  Le test du moteur posait sa retenue au 4322 : il décrivait le défaut, il suit la règle.
+- « Enregistrer le taux » flottait neuf pixels au-dessus de sa case : il est aligné sur elle.
+- Vérifié à la main : bilan équilibré (106 120,100 des deux côtés), résultat 79 242,741 ; impôt à 15 % = 11 886,411 ;
+  avec 500 réintégrés, résultat fiscal 79 742,741 et impôt 11 961,411.
+- La preuve : `tests/web/liasse-1351.test.ts`, `tests/moteur/paie-declaration-employeur.test.ts` ; preuves
+  `liasse 1.351.0 a-b`.

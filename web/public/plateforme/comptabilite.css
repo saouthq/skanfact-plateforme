@@ -44,6 +44,10 @@
 .cp-modele #c-tabs .tab-n { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 99px; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
 
 /* La frise des douze mois. */
+/* (1.351.0) Un bouton posé à côté d'un champ ÉTIQUETÉ s'aligne sur le champ, pas sur le milieu du bloc étiquette + champ :
+   « Enregistrer le taux » flottait neuf pixels au-dessus de sa case (la Liasse). */
+.inline.au-champ { align-items: flex-end; }
+.inline.au-champ > .btn { margin-block-end: 4px; }
 .cp-an { display: grid; grid-template-columns: auto repeat(12, minmax(0, 1fr)) auto; gap: 6px; align-items: stretch; margin: 0 0 14px; }
 .cp-an-t { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; color: var(--sb-encre); padding-right: 4px; }
 .cp-mo { border: 1px solid var(--sb-trait); background: var(--sb-papier); border-radius: 10px; padding: 7px 6px 6px; display: grid; gap: 1px; text-align: left; font: inherit; cursor: pointer; min-width: 0; }

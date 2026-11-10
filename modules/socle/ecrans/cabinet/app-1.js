@@ -9882,7 +9882,7 @@
       personne n'a confirmée ici, et un chiffre inventé sur une déclaration coûte plus cher qu'une case vide.</p>
       ${liasseClose
     ? `<p class="small mt" id="li-close"><b>L'exercice ${esc(String(s.annee))} est clos</b> : sa liasse ne change plus. Pour changer un retraitement ou le taux, rouvre-le dans l'onglet <b>Exercice</b> (avec un motif).</p>`
-    : `<div class="inline mt">
+    : `<div class="inline mt au-champ">
         <label class="field narrow"><span>Taux d'impôt (%) ${info('li.taux')}</span>
           <input type="text" id="li-taux" value="${esc(taux(L.tauxImpot))}" placeholder="vide = aucun"></label>
         <button class="btn btn-sm" id="li-taux-ok">Enregistrer le taux</button>

@@ -27593,6 +27593,13 @@ GU1350='créer un guide, s'\''en servir dans la saisie, retenir le journal, modi
 prouver 'déclaration 1.350.0 l : des choix de journal qui se suivent, le dernier refusé et perdu' web/public/plateforme/pont-cabinet.js \
   '(fileJournal = fileJournal.catch(() => {}).then(async () => {' '(Promise.resolve().then(async () => {' \
   "$GU1350"
+LI1351='(1.351.0) les retenues sur fournisseurs lues au 4352, l'\''impôt au taux saisi et après une réintégration, le bouton du taux aligné sur sa case'
+prouver 'liasse 1.351.0 a : les retenues sur fournisseurs lues sur un compte que rien n'\''écrit' modules/socle/moteur/compta-1.js \
+  'montant: credit(txt(o.compteRs) || compteDuRole(livre, '\''rsOperee'\''))' 'montant: credit(txt(o.compteRs) || '\''4322'\'')' \
+  "$LI1351"
+prouver 'liasse 1.351.0 b : le bouton du taux flotte au-dessus de sa case' web/public/plateforme/comptabilite.css \
+  '.inline.au-champ { align-items: flex-end; }' '.inline.au-champ { align-items: center; }' \
+  "$LI1351"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

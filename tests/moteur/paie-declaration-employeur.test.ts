@@ -11,7 +11,7 @@ import { ecranDeLaPlateforme } from './v10.ts';
 type Objet = Record<string, unknown>;
 type Ligne = { employeeId: string; name: string; cin: string; months: number; gross: number; cnss_: number; irpp: number; css: number; net: number; taxable: number };
 type Salaires = { year: number; employees: number; rows: Ligne[]; gross: number; cnss: number; irpp: number; css: number; net: number };
-type Case = { id: string; montant: number | null; raison?: string };
+type Case = { id: string; montant: number | null; raison?: string; comptes?: string[] };
 type Ecart = { id: string; livre: number; bulletins: number; ecart: number; cause: string };
 const compta = ecranDeLaPlateforme('compta.js') as {
   salairesDeLAnnee: (d: Objet, annee: number) => Salaires;
@@ -52,8 +52,10 @@ function livre(variante: { sansMarsReecrit?: boolean; chargeALaMain?: boolean } 
     moisDePaie('2026-03-31', -3000, -300, { contrepasseDe: 'mars' }),
     ...(variante.sansMarsReecrit ? [] : [moisDePaie('2026-03-31', 3646.928, 404.885)]),
     ecriture('2026-03-15', 'BQ', [['4321', 404.885, 0], ['532', 0, 404.885]]),
-    ecriture('2026-02-20', 'BQ', [['401', 1000, 0], ['4322', 0, 15], ['532', 0, 985]]),
-    ecriture('2026-03-15', 'BQ', [['4322', 15, 0], ['532', 0, 15]]),
+    // (1.351.0) Au 4352, le compte où le logiciel écrit une retenue opérée (la déclaration du mois, la Banque) : le test
+    // la posait au 4322, que rien n'écrit, et la case de la liasse y lisait « aucun mouvement » pour toujours.
+    ecriture('2026-02-20', 'BQ', [['401', 1000, 0], ['4352', 0, 15], ['532', 0, 985]]),
+    ecriture('2026-03-15', 'BQ', [['4352', 15, 0], ['532', 0, 15]]),
     moisDePaie('2026-04-30', 3646.928, 404.885, { statut: 'brouillard' }),
     ...(variante.chargeALaMain ? [ecriture('2026-03-31', 'OD', [['641', 123.456, 0], ['532', 0, 123.456]])] : []),
   ];
@@ -89,9 +91,11 @@ describe('la déclaration annuelle d\'employeur, dans le moteur commun', () => {
     const cases = Object.fromEntries(compta.employeurAnnuel(livre(), {}).cases.map((c) => [c.id, c.montant]));
     // Le brut des trois mois (mars, passé faux, contre-passé puis réécrit) ; les retenues des trois mois ; la retenue sur le
     // fournisseur, versée au Trésor en mars. Le solde du 4321 aurait dit 482,662 (les à-nouveaux et mars, moins rien de
-    // versé en mars), celui du 4322 rien.
+    // versé en mars), celui du 4352 rien.
     expect(cases).toEqual({ salaires: 8595.106, charges: null, irpp: 901.693, rsFournisseurs: 15 });
     expect('raisonNominatif' in compta.employeurAnnuel(livre(), {})).toBe(false);
+    // Le compte nommé à côté de la case est celui du rôle — et celui que la déclaration du mois solde.
+    expect(compta.employeurAnnuel(livre(), {}).cases.find((c) => c.id === 'rsFournisseurs')?.comptes).toEqual(['4352']);
   });
 
   it('les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d\'ordinaire', () => {

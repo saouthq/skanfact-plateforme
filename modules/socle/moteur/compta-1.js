@@ -5730,8 +5730,11 @@
       { id: 'salaires', label: 'Salaires et traitements versés', montant: round3(masse('64') - charges),
         comptes: [`64 hors ${comptesCharges.join(', ')}`] },
       { id: 'charges', label: 'Charges sociales patronales', montant: charges, comptes: comptesCharges },
-      { id: 'irpp', label: 'Retenues à la source sur salaires', montant: credit(txt(o.compteIrpp) || '4321'), comptes: [txt(o.compteIrpp) || '4321'] },
-      { id: 'rsFournisseurs', label: 'Retenues à la source sur fournisseurs', montant: credit(txt(o.compteRs) || '4322'), comptes: [txt(o.compteRs) || '4322'] }
+      // 1.351.0 — les retenues se lisent là où le logiciel les ÉCRIT : le compte du RÔLE (4352 pour une retenue opérée sur un
+      // fournisseur, celui de la déclaration du mois et de la Banque). La case lisait un « 4322 » que rien n'écrit : elle
+      // répondait « aucun mouvement » à un dossier qui avait retenu toute l'année (un rôle désigne le compte, 10.12.0).
+      { id: 'irpp', label: 'Retenues à la source sur salaires', montant: credit(txt(o.compteIrpp) || compteDuRole(livre, 'irpp')), comptes: [txt(o.compteIrpp) || compteDuRole(livre, 'irpp')] },
+      { id: 'rsFournisseurs', label: 'Retenues à la source sur fournisseurs', montant: credit(txt(o.compteRs) || compteDuRole(livre, 'rsOperee')), comptes: [txt(o.compteRs) || compteDuRole(livre, 'rsOperee')] }
     ].map(c => c.montant ? c : { ...c, montant: null, raison: `Aucun mouvement sur ${c.comptes.join(', ')} dans cet exercice.` });
     return { exercice: livre.exercice.annee, cases };
   }
