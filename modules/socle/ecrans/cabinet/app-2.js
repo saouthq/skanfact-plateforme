@@ -720,7 +720,7 @@
       const suivant = /^\d{4}-\d{2}/.test(String(R.au || '')) ? moisLong(moisSuivant(String(R.au).slice(0, 7))) : '';
       return `<div class="bq-ecran"><div class="bq-h"><div><b>Relevé ${esc(R.banque || 'de banque')} · ${esc(moisDuReleve(R))}</b><span class="mu">${pl(R.lignes.length, 'mouvement')}${importeBq(R) ? ` · ${esc(importeBq(R))}` : ''}</span></div></div>
         <div class="bq-fini2" role="status"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><b>${esc(mois)} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
-          <p>${R.lignes.length - att} mouvements sur ${R.lignes.length} ont leur écriture.${att ? ` ${att > 1 ? `${att} attendent` : '1 attend'} la réponse ${esc(deClientBq(dossier))}, au compte d'attente (471) : rien ne bloque, cela se réglera de sa réponse.` : ''}</p>
+          <p>${pl(R.lignes.length - att, 'mouvement')} sur ${R.lignes.length} ${R.lignes.length - att > 1 ? 'ont leur écriture' : 'a son écriture'}.${att ? ` ${att > 1 ? `${att} attendent` : '1 attend'} la réponse ${esc(deClientBq(dossier))}, au compte d'attente (471) : rien ne bloque, cela se réglera de sa réponse.` : ''}</p>
           <div class="cp-gestes"><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button>${lect ? '' : `<button type="button" class="btn" id="bq-import">Importer le relevé${suivant ? ` ${/^[aeiou]/i.test(suivant) ? 'd\'' : 'de '}${esc(suivant)}` : ''}…</button>`}<button type="button" class="btn btn-ghost" id="bq-revoir">Revoir ${esc(moisCourt)}</button></div>
           <span class="mu">Le Tableau de bord le dit : « banque à jour au ${esc(fmtJour(R.au).slice(0, 5))} ».</span></div>
         ${piedBanque(R, EC)}</div>`;
@@ -736,7 +736,7 @@
         ${EC.nonExplique ? `<button type="button" class="bq-fc ko" id="bq-vers-ecart" title="Voir en bas : les pistes">${svgBq(BQ_IC.alerte, 14)} <b>${esc(montant(Math.abs(EC.nonExplique)))}</b> d'écart non expliqué</button>` : ''}
         <span class="bq-j" aria-hidden="true">${[['ok', n('ok')], ['prop', n('prop')], ['dec', n('dec')], ['att', n('att')]].map(([c, k]) => `<i class="${c}" style="flex:${k}"></i>`).join('')}</span></div>
       ${!restent.length ? `<div class="bq-fini"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><div><b>${esc(moisDuReleve(R).replace(/^./, c => c.toUpperCase()))} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
-          <p>${pl(R.lignes.length, 'mouvement')} sur ${R.lignes.length} ont leur écriture.</p></div><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button></div>` : ''}
+          <p>${pl(R.lignes.length, 'mouvement')} sur ${R.lignes.length} ${R.lignes.length > 1 ? 'ont leur écriture' : 'a son écriture'}.</p></div><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button></div>` : ''}
       ${banqueState.annonce && banqueState.annonce.sel === banqueState.sel ? `<div class="bq-toast" role="status" id="bq-annonce">${svgBq(BQ_IC.ok, 15)}<span>${(m => { const i = m.indexOf(' : '); return i > 0 ? `<b>${esc(m.slice(0, i))}</b> : ${esc(m.slice(i + 3))}` : esc(m); })(banqueState.annonce.msg)}</span>${banqueState.annonce.defaire && !lect ? '<button type="button" class="cp-plus" id="bq-annuler">Annuler</button>' : ''}</div>`
         // (1.343.0) Né au-dessus du tableau après le premier « Rapprocher », le message poussait tout de 46 px : le bouton suivant
         // descendait sous la souris. Sa place existe dès qu'une ligne reste à traiter ; au repos, elle porte le rappel des touches (qui vivait sous le tableau).
@@ -1533,6 +1533,8 @@
     const lignes = lignesDuDossierBq();
     const prises = prisesParRegleBq(table, lignes);
     const n = banqueState.nouvelle;
+    // (1.352.1) Les règles se feuillettent : elles s'accumulent d'un dossier à l'autre, pour tout le cabinet.
+    const pgR = banqueState.pgR || (banqueState.pgR = { page: 1, size: 25 });
     const ligneT = (x, i) => {
       const ps = prises.get(cleRegleBq(x)) || [];
       const der = ps.map(y => y.l.date).sort().pop();
@@ -1548,7 +1550,7 @@
         <button type="button" class="btn btn-sm btn-ghost" id="bqr-retour">Retour au relevé</button>${lect || n ? '' : '<button type="button" class="btn btn-sm btn-primary" id="bqr-nouvelle">Nouvelle règle</button>'}</div>
       ${form}
       ${table.length ? `<div class="scroll-x"><table class="list compact bqr-t" data-cartes="oui"><thead><tr><th>Quand le libellé contient</th><th>Sens</th><th>Compte</th><th>TVA</th><th class="r">A servi</th><th></th></tr></thead>
-        <tbody>${table.map(ligneT).join('')}</tbody></table></div>`
+        <tbody>${(pagerBar(table.length, pgR, 'règle'), paginate(table.map((x, i) => ({ x, i })), pgR)).map(o => ligneT(o.x, o.i)).join('')}</tbody></table></div>${pagerBar(table.length, pgR, 'règle')}`
         : '<div class="empty mini">Aucune règle encore : « Nouvelle règle », ou en écrivant une ligne du relevé (« Proposer ce compte aux lignes qui contiennent… »).</div>'}
       <p class="bqr-pied">Une règle propose ; elle n'écrit jamais sans toi. Ses lignes arrivent « À traiter » avec la règle dite, et tu valides. Quand deux règles prennent la même ligne, la plus précise passe d'abord (le mot le plus long, puis le sens, puis le montant) et la page le dit avant d'enregistrer. « A servi » compte les lignes des relevés de ce dossier qu'elle prend.</p>
       <h3 class="bq-st2">Les taux de retenue à la source</h3>
@@ -1601,6 +1603,7 @@
     const redessiner = () => drawLivres(root, dossier);
     const sur = (q, fn) => { const b = $(q, el); if (b) b.onclick = fn; };
     sur('#bqr-retour', () => { banqueState.regles = ''; banqueState.nouvelle = null; redessiner(); });
+    bindPager(el, redessiner, banqueState.pgR || (banqueState.pgR = { page: 1, size: 25 }));
     // (1.215.0, la maquette) « Modifier » au bout de chaque règle ; le reste dans son ⋯.
     $$('[data-bqr-modifier]').forEach(bt => { bt.onclick = () => { const i = Number(bt.dataset.bqrModifier), x = reglesBq()[i]; if (!x) return;
       banqueState.nouvelle = { index: i, motif: x.motif, sens: x.sens || '', auPlus: x.auPlusMillimes ? montant(x.auPlusMillimes / 1000) : '', compte: x.compte, tvaTaux: x.tva ? String(x.tva.taux).replace('.', ',') : '', tvaCompte: x.tva ? x.tva.compte : '' };
@@ -1835,7 +1838,7 @@
       ${memeMontant.length ? `<div class="scroll-x"><table class="list compact"><tbody>${memeMontant.map(ligneHtml).join('')}</tbody></table></div>`
         : '<div class="empty mini">Aucune écriture du compte ' + esc(R.compte) + ' ne porte ce montant.</div>'}
       ${autres.length ? `<h3 class="sub-h">Les autres écritures du compte · ${pl(autres.length, 'écriture')}</h3>
-        <div class="scroll-x" style="max-height:230px"><table class="list compact"><tbody>${autres.slice(0, 60).map(ligneHtml).join('')}</tbody></table></div>` : ''}
+        <div id="ce-autres"></div>` : ''}
       ${/* La fenêtre finit par le geste SUIVANT (7.27.0) : quand rien dans le livre ne porte le
             montant, ce qu'il reste à faire, c'est l'écrire — et ce bouton-là est alors le principal. */''}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button>
@@ -1845,13 +1848,29 @@
         // vivait derrière un défilement de côté — on voyait « R », pas le geste (vu au test humain).
         $('.modal', rootModal).classList.add('cab-moyen');
         $('#ce-ecrire', rootModal).onclick = () => { close(); ecrireDepuisBanque(root, dossier, R, ligne); };
-        $$('[data-pick]', rootModal).forEach(b => { b.onclick = async () => {
+        const brancherChoix = hote => $$('[data-pick]', hote).forEach(b => { b.onclick = async () => {
           const [ecritureId, i] = b.dataset.pick.split('|');
           try {
             const x = await api.rapprocher({ dossierId: dossier.id, annee: s.annee, releveId: R.id, ligneId: ligne.id, choix: { ecritureId, ligne: Number(i), niveau: 'certain', date: K.today() } });
             s.livre = x.livre; close(); drawLivres(root, dossier);
           } catch (e) { toast(plainError(e), 'error'); }
         }; });
+        // (1.352.1) « Les autres écritures du compte » s'arrêtaient à 60 sans le dire, sous un titre qui en annonçait 800 :
+        // celle qu'on cherchait pouvait ne jamais paraître. Elles se feuillettent, vingt-cinq à la fois.
+        const PAR = 25; let page = 1;
+        const dessinerAutres = () => {
+          const hote = $('#ce-autres', rootModal);
+          if (!hote) return;
+          const pages = Math.max(1, Math.ceil(autres.length / PAR));
+          page = Math.min(pages, Math.max(1, page));
+          const debut = (page - 1) * PAR;
+          hote.innerHTML = `<div class="scroll-x" style="max-height:230px"><table class="list compact"><tbody>${autres.slice(debut, debut + PAR).map(ligneHtml).join('')}</tbody></table></div>${
+            pages > 1 ? `<div class="pager cl-pager"><button type="button" class="btn btn-sm" data-ce-pg="${page - 1}"${page <= 1 ? ' disabled' : ''}>← Précédent</button><span class="muted small">${debut + 1}–${Math.min(autres.length, debut + PAR)} sur ${autres.length}</span><button type="button" class="btn btn-sm" data-ce-pg="${page + 1}"${page >= pages ? ' disabled' : ''}>Suivant →</button></div>` : ''}`;
+          brancherChoix(hote);
+          $$('[data-ce-pg]', hote).forEach(b => { b.onclick = () => { page = Number(b.dataset.cePg); dessinerAutres(); }; });
+        };
+        brancherChoix(rootModal);
+        dessinerAutres();
       });
   }
 

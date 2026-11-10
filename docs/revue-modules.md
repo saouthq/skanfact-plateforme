@@ -2342,3 +2342,34 @@ Deux preuves que la machine de GitHub n'avait pas su prouver sur la 1.350.0, ren
 
 - La preuve : `tests/web/pagination-1352.test.ts` (Cabinet), `tests/web/pagination-entreprise-1352.test.ts` ; preuves
   `pagination 1.352.0 a-q`.
+
+## La pagination, suite (1.352.1)
+
+La première mesure n'avait pas rempli tous les écrans. Reprise sur un cabinet de 163 dossiers, onglet par onglet, puis
+les fenêtres et les pages de réglage qui portent une liste.
+
+- **Le tableau de bord, onglets « Révision » et « Bilans »** : les 163 dossiers s'affichaient d'un seul tenant (dix
+  écrans). Vingt-cinq par page ; la ligne « Le cabinet » garde le total de tout le portefeuille ; changer d'onglet, de
+  filtre ou de recherche repart de la première page.
+- **La Banque, « Choisir une autre pièce en face »** : « Les autres écritures du compte · 800 écritures » n'en montrait
+  que soixante, sans le dire — celle qu'on cherchait pouvait ne jamais paraître. Elles se feuillettent, et une écriture
+  de la deuxième page se choisit.
+- **Les règles de la banque** : elles s'accumulent pour tout le cabinet. Vingt-cinq par page ; « Modifier » ouvre bien
+  la règle de la ligne, pas celle du même rang sur la première page.
+- Vu au passage : « 1 mouvements sur 1 ont leur écriture » sur un relevé d'un seul mouvement. La phrase s'accorde.
+
+Regardés et laissés, avec la raison : les Z de caisse (déjà lus vingt par vingt, « Plus de Z… ») ; les demandes
+d'accord (les cinquante plus récentes, et l'écran le dit) ; les ventes de la console à facturer (une file d'attente,
+pas une liste) ; « Rattacher des pièces » d'une affaire (une liste à cocher avec sa recherche, où « tout cocher » porte
+sur ce qui est affiché) ; « Pas encore passées en banque » (une boîte à hauteur fixe, avec son total) ; le plan
+d'amortissement d'un bien (une ligne par année).
+
+**La console d'exploitation**, mesurée sur la même base, écran par écran et onglet par onglet. Ses grandes listes
+(clients, abonnements, paiements, journal, support) se feuillettent déjà côté serveur, et les écrans du service sont
+bornés par leur fenêtre de temps (quatorze ou trente jours). Une liste arrivait entière : **la fiche d'un cabinet**,
+ses dossiers (165 lignes) et ses collaborateurs. Elle se feuillette avec le pied des autres listes (« lignes 1 à 25
+sur 165 », précédente, suivante) ; allumer une carte de filtre repart de la première page. Le mécanisme
+(`useFeuillets`, `feuilleter` dans `web/console/src/ui.tsx`) sert à toute liste de la console lue en entier.
+
+- La preuve : `tests/web/pagination-1352-1.test.ts`, `tests/web/console.test.ts` (« la fiche d'un grand cabinet ») ;
+  preuves `pagination 1.352.1 a-i`.

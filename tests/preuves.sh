@@ -27655,6 +27655,38 @@ prouver 'pagination 1.352.0 q : chercher une affaire reste sur sa page' modules/
   '$('\''#mg-q'\'').oninput = e => { s.pq = e.target.value; pa.page = 1;' '$('\''#mg-q'\'').oninput = e => { s.pq = e.target.value;' \
   "$PG1352E"
 
+# 1.352.1 : la pagination, suite. Le tableau de bord (« Révision », « Bilans »), « Choisir une autre pièce en face », les règles de la banque.
+PG13521='trente dossiers, trente écritures de banque, trente règles : le tableau de bord, « Choisir une autre pièce en face » et les règles se feuillettent'
+prouver 'pagination 1.352.1 a : « Révision » d'\''un seul tenant' modules/socle/ecrans/cabinet/app-1.js \
+  '<tbody>${(pagerBar(fl.length, tbState.pg, '\''dossier'\''), paginate(fl, tbState.pg)).map(ligne).join('\'''\'')}</tbody><tfoot>' '<tbody>${fl.map(ligne).join('\'''\'')}</tbody><tfoot>' \
+  "$PG13521"
+prouver 'pagination 1.352.1 b : « Bilans » d'\''un seul tenant' modules/socle/ecrans/cabinet/app-1.js \
+  '<tbody>${(pagerBar(fl.length, tbState.pg, '\''dossier'\''), paginate(fl, tbState.pg)).map(ligne).join('\'''\'')}</tbody></table>' '<tbody>${fl.map(ligne).join('\'''\'')}</tbody></table>' \
+  "$PG13521"
+prouver 'pagination 1.352.1 c : changer d'\''onglet garde la page de l'\''autre' modules/socle/ecrans/cabinet/app-1.js \
+  'tbState.vue = b.dataset.tbVue; tbState.pg.page = 1; tbState.fiche = null;' 'tbState.vue = b.dataset.tbVue; tbState.fiche = null;' \
+  "$PG13521"
+prouver 'pagination 1.352.1 d : les autres écritures du compte coupées sans le dire' modules/socle/ecrans/cabinet/app-2.js \
+  'autres.slice(debut, debut + PAR).map(ligneHtml)' 'autres.slice(0, PAR).map(ligneHtml)' \
+  "$PG13521"
+prouver 'pagination 1.352.1 e : les règles de la banque d'\''un seul tenant' modules/socle/ecrans/cabinet/app-2.js \
+  'paginate(table.map((x, i) => ({ x, i })), pgR)).map(o => ligneT(o.x, o.i))' 'table.map((x, i) => ({ x, i }))).map(o => ligneT(o.x, o.i))' \
+  "$PG13521"
+prouver 'pagination 1.352.1 f : le rang d'\''une règle devient celui de la page' modules/socle/ecrans/cabinet/app-2.js \
+  'pgR)).map(o => ligneT(o.x, o.i))' 'pgR)).map((o, i) => ligneT(o.x, i))' \
+  "$PG13521"
+prouver 'pagination 1.352.1 g : « 1 mouvements sur 1 ont leur écriture »' modules/socle/ecrans/cabinet/app-2.js \
+  '<p>${pl(R.lignes.length - att, '\''mouvement'\'')} sur ${R.lignes.length} ${R.lignes.length - att > 1 ? '\''ont leur écriture'\'' : '\''a son écriture'\''}.' '<p>${R.lignes.length - att} mouvements sur ${R.lignes.length} ont leur écriture.' \
+  "$PG13521"
+
+PG13521K='la fiche d'\''un grand cabinet : ses dossiers se feuillettent, vingt-cinq par page, et un filtre repart de la première'
+prouver 'pagination 1.352.1 h : les dossiers d'\''un cabinet d'\''un seul tenant, dans la console' web/console/src/ecrans/Cabinet.tsx \
+  '{fd.vus.map((d) => {' '{montres.map((d) => {' \
+  "$PG13521K"
+prouver 'pagination 1.352.1 i : filtrer les dossiers d'\''un cabinet garde la page d'\''avant' web/console/src/ecrans/Cabinet.tsx \
+  'const pagesDossiers = useFeuillets(place), pagesEquipe = useFeuillets();' 'const pagesDossiers = useFeuillets(), pagesEquipe = useFeuillets();' \
+  "$PG13521K"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

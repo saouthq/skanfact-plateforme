@@ -9,7 +9,7 @@ import { abonnementEnMots, expliquer, puceDe, type Etat, type Faits } from '../a
 import { montant } from '../argent.ts';
 import { useLecture } from '../contexte.ts';
 import { jourCourt, jourDe, quand } from '../temps.ts';
-import { Alerte, Avatar, Bouton, Icone, Lien, maj, Puce, Vide } from '../ui.tsx';
+import { Alerte, Avatar, Bouton, feuilleter, Icone, Lien, maj, Puce, useFeuillets, Vide } from '../ui.tsx';
 import { PLACES, type Place } from './Cabinets.tsx';
 
 type Mandat = { statut: 'propose' | 'actif'; debut: string } | null;
@@ -56,6 +56,8 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
   const [place, setPlace] = useState<Place | null>(placeAdresse);
   // Un lien de l'aperçu change l'adresse sans recréer l'écran : le filtre la suit.
   useEffect(() => { setPlace(placeAdresse); }, [placeAdresse]);
+  // (1.353.0) Les dossiers et les collaborateurs se feuillettent : un cabinet de 160 dossiers faisait dix écrans.
+  const pagesDossiers = useFeuillets(place), pagesEquipe = useFeuillets();
   const onglet: OngletCabinet = ONGLETS_CABINET.includes(ongletDemande as OngletCabinet) ? ongletDemande as OngletCabinet : 'apercu';
   if (l.etat === 'lecture') return <><Fil /><p className="c-attente">{titre('console.ecran.lecture')}</p></>;
   if (l.etat === 'panne') {
@@ -73,6 +75,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
   const c = l.donnees;
   const a = c.abonnement ?? null;
   const montres = place ? c.dossiers.filter((d) => d.place === place) : c.dossiers;
+  const fd = feuilleter(montres, pagesDossiers), fe = feuilleter(c.collaborateurs, pagesEquipe);
   const associes = c.collaborateurs.filter((x) => x.roles.includes('supervision'));
   // « Écrire » : à son premier associé (ou, à défaut, à qui y travaille).
   const premier = associes[0] ?? c.collaborateurs[0] ?? null;
@@ -206,7 +209,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
                 </tr>
               </thead>
               <tbody>
-                {montres.map((d) => {
+                {fd.vus.map((d) => {
                   const e = d.entreprise;
                   const puce = puceDe(e.etat);
                   // Pour ce qui est hors abonnement, les mots et l'explication disent la même chose : une seule fois.
@@ -241,6 +244,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
             </table>
           </div>
         )}
+        {fd.pied}
       </section>
 
         </>
@@ -266,7 +270,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
                 </tr>
               </thead>
               <tbody>
-                {c.collaborateurs.map((x) => (
+                {fe.vus.map((x) => (
                   <tr key={x.email}>
                     <td>
                       <div className="c-cellule-nom">
@@ -286,6 +290,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
             </table>
           </div>
         )}
+        {fe.pied}
       </section>
       ) : null}
     </>

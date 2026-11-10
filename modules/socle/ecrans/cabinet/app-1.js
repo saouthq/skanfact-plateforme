@@ -2696,7 +2696,9 @@
   // maquette ». Une page : ce qui est à faire maintenant (les Priorités, le plus pressé d'abord), puis où en est le travail
   // (la campagne du mois, la grille de production, la charge de chacun, les prochaines dates). Tout est LU (les livres,
   // les déclarations pointées) : rien ne se coche ici. Le filtre d'une personne vaut pour toute la page.
-  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false, choixP: false, vue: 'production', fiche: null, arTout: false };
+  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false, choixP: false, vue: 'production', fiche: null, arTout: false,
+    // 1.352.1 — « Révision » et « Bilans » se feuillettent : 163 dossiers d'un seul tenant faisaient dix écrans.
+    pg: { page: 1, size: 25 } };
   // (1.196.0) Ce que la révision lit dans chaque livre (serveur, /revue) : lu à la demande (onglets Révision et Bilans, fiche
   // d'un mois), relu en revenant sur la page.
   let revState = { donnees: null, annee: 0, erreur: '', lecture: false };
@@ -2902,7 +2904,7 @@
     const sCre = fl.reduce((t, o) => t + bigTb(o.r.rv.credit && o.r.rv.credit.montant), 0n), nCre = fl.filter(o => o.r.rv.credit).length;
     const sBro = fl.reduce((t, o) => t + o.r.rv.brouillards, 0);
     const pied = `<tr class="tb-pied-l"><td><b>Le cabinet</b><small>${pl(fl.length, 'dossier')}</small></td><td></td><td><b>${ajourB} à jour</b><small>sur ${avecRel.length} avec des relevés</small></td><td class="r"><b>${esc(enDinars(sAtt))}</b><small>${nAtt ? pl(nAtt, 'compte à solder', 'comptes à solder') : 'tout est soldé'}</small></td><td class="r">${nCre ? `<b>${esc(enDinars(sCre))}</b><small>${pl(nCre, 'dossier en crédit', 'dossiers en crédit')}</small>` : '<span class="muted">aucun crédit</span>'}</td><td class="r">${sBro ? `<b>${sBro}</b><small>${sBro > 1 ? 'écritures' : 'écriture'}</small>` : '<span class="muted">aucune</span>'}</td><td></td></tr>`;
-    const corps = !fl.length && tbState.q ? videQTb() : `<div class="lf-tab"><table class="lf-table tb-t tb-rev" id="tb-revision"><thead><tr><th>Dossier</th><th>Dernière écriture</th><th>Banque rapprochée</th><th class="r">Compte d'attente</th><th class="r">Crédit de TVA</th><th class="r">Au brouillard</th><th class="cx"></th></tr></thead><tbody>${fl.map(ligne).join('')}</tbody><tfoot>${pied}</tfoot></table></div>`;
+    const corps = !fl.length && tbState.q ? videQTb() : `<div class="lf-tab"><table class="lf-table tb-t tb-rev" id="tb-revision"><thead><tr><th>Dossier</th><th>Dernière écriture</th><th>Banque rapprochée</th><th class="r">Compte d'attente</th><th class="r">Crédit de TVA</th><th class="r">Au brouillard</th><th class="cx"></th></tr></thead><tbody>${(pagerBar(fl.length, tbState.pg, 'dossier'), paginate(fl, tbState.pg)).map(ligne).join('')}</tbody><tfoot>${pied}</tfoot></table>${pagerBar(fl.length, tbState.pg, 'dossier')}</div>`;
     return cadreRevueTb(L, P, vues, `ce que la révision lit dans chaque livre, au ${jjmmTb(auj)}`, corps,
       'Tout est lu dans les livres : le dernier relevé de banque entièrement rapproché, le solde du compte d\'attente (471), le crédit de TVA que reporte la dernière déclaration, les écritures au brouillard. Rien ne se coche à la main.');
   }
@@ -2922,7 +2924,7 @@
       return `<tr class="clickable${b.retard ? ' tb-revoir' : ''}" data-tb-id="${esc(x.d.id)}" data-tb-an="${an}">${celDossierTb(x)}<td class="c">${ok(ex.inventaire, ex.inventaire ? `inventaire saisi au ${fmtJourCourt(ex.inventaire)}` : '')}</td><td class="c">${ok(ex.revisee, 'révision de l\'année arrêtée')}</td><td class="c">${ok(ex.liasse, 'liasse préparée')}</td><td class="c">${ok(ex.clos, 'exercice clos')}</td><td>${ou}</td>${menuTb(x)}</tr>`;
     };
     const aucun = !fl.some(o => o.b.ex);
-    const corps = !fl.length && tbState.q ? videQTb() : aucun && !tbState.q ? `<div class="tb-vide" id="tb-bil-vide"><b>Aucun livre ${an} dans le portefeuille</b><span>Les bilans ${an} se suivent ici, étape par étape, dès qu'un dossier a son livre ${an} : repris d'un FEC, ou saisi au cabinet. Les dossiers suivis cette année ont leur bilan l'an prochain.</span></div>` : `<div class="lf-tab"><table class="lf-table tb-t tb-bil" id="tb-bilans"><thead><tr><th>Dossier</th><th class="c">Inventaire</th><th class="c">Revue des comptes</th><th class="c">Liasse</th><th class="c">Clôture</th><th>Où en est ${an}</th><th class="cx"></th></tr></thead><tbody>${fl.map(ligne).join('')}</tbody></table></div>`;
+    const corps = !fl.length && tbState.q ? videQTb() : aucun && !tbState.q ? `<div class="tb-vide" id="tb-bil-vide"><b>Aucun livre ${an} dans le portefeuille</b><span>Les bilans ${an} se suivent ici, étape par étape, dès qu'un dossier a son livre ${an} : repris d'un FEC, ou saisi au cabinet. Les dossiers suivis cette année ont leur bilan l'an prochain.</span></div>` : `<div class="lf-tab"><table class="lf-table tb-t tb-bil" id="tb-bilans"><thead><tr><th>Dossier</th><th class="c">Inventaire</th><th class="c">Revue des comptes</th><th class="c">Liasse</th><th class="c">Clôture</th><th>Où en est ${an}</th><th class="cx"></th></tr></thead><tbody>${(pagerBar(fl.length, tbState.pg, 'dossier'), paginate(fl, tbState.pg)).map(ligne).join('')}</tbody></table>${pagerBar(fl.length, tbState.pg, 'dossier')}</div>`;
     return cadreRevueTb(L, P, vues, `l'exercice ${an}, étape par étape`, corps,
       `Chaque étape est lue : l'inventaire saisi, la révision de l'année arrêtée, la liasse préparée (retraitements et taux posés), l'exercice clos. « Date passée » compte depuis l'échéance annuelle que tu as réglée pour le régime du dossier (Le cabinet › Réglages), À VÉRIFIER avec un comptable.`);
   }
@@ -3253,15 +3255,15 @@
       b.onclick = () => { const [g, i] = b.dataset.priorite.split(':'); const x = (g === 'u' ? pri.urgent : pri.avoir)[Number(i)]; if (x) x.faire(); };
     });
     const av = $('#tb-avoir', view); if (av) av.onclick = () => { tbState.avoir = !tbState.avoir; pageTableau(view, etat); };
-    $$('[data-tb-qui]', view).forEach(b => { b.onclick = () => { tbState.qui = tbState.qui === b.dataset.tbQui ? '' : b.dataset.tbQui; tbState.tout = false; pageTableau(view, etat); }; });
-    $$('[data-tb-etape]', view).forEach(b => { b.onclick = () => { tbState.filtre = tbState.filtre === `et:${b.dataset.tbEtape}` ? 'tous' : `et:${b.dataset.tbEtape}`; tbState.tout = false; pageTableau(view, etat); const g = $('#tb-dossiers', view); if (g) g.scrollIntoView({ block: 'start', behavior: 'smooth' }); }; });
-    $$('[data-tb-filtre]', view).forEach(b => { b.onclick = () => { tbState.filtre = b.dataset.tbFiltre; tbState.tout = false; pageTableau(view, etat); }; });
+    $$('[data-tb-qui]', view).forEach(b => { b.onclick = () => { tbState.qui = tbState.qui === b.dataset.tbQui ? '' : b.dataset.tbQui; tbState.tout = false; tbState.pg.page = 1; pageTableau(view, etat); }; });
+    $$('[data-tb-etape]', view).forEach(b => { b.onclick = () => { tbState.filtre = tbState.filtre === `et:${b.dataset.tbEtape}` ? 'tous' : `et:${b.dataset.tbEtape}`; tbState.tout = false; tbState.pg.page = 1; pageTableau(view, etat); const g = $('#tb-dossiers', view); if (g) g.scrollIntoView({ block: 'start', behavior: 'smooth' }); }; });
+    $$('[data-tb-filtre]', view).forEach(b => { b.onclick = () => { tbState.filtre = b.dataset.tbFiltre; tbState.tout = false; tbState.pg.page = 1; pageTableau(view, etat); }; });
     $$('[data-tb-periode]', view).forEach(b => { b.onclick = () => { const v = b.dataset.tbPeriode; tbState.periode = v === 'annee' ? 'annee' : Number(v); tbState.choixP = false; pageTableau(view, etat); }; });
     const q = $('#tb-q', view);
-    if (q) q.oninput = () => { const pos = q.selectionStart; tbState.q = q.value; tbState.tout = false; pageTableau(view, etat); const n = $('#tb-q', view); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+    if (q) q.oninput = () => { const pos = q.selectionStart; tbState.q = q.value; tbState.tout = false; tbState.pg.page = 1; pageTableau(view, etat); const n = $('#tb-q', view); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
     const qe = $('#tb-q-effacer', view); if (qe) qe.onclick = () => { tbState.q = ''; pageTableau(view, etat); };
     // (1.196.0) Les onglets ; Révision et Bilans lisent les livres à la demande.
-    $$('[data-tb-vue]', view).forEach(b => { b.onclick = () => { tbState.vue = b.dataset.tbVue; tbState.fiche = null; tbState.choixP = false; pageTableau(view, etat); if (tbState.vue !== 'production') void lireRevueTb(view, etat); }; });
+    $$('[data-tb-vue]', view).forEach(b => { b.onclick = () => { tbState.vue = b.dataset.tbVue; tbState.pg.page = 1; tbState.fiche = null; tbState.choixP = false; pageTableau(view, etat); if (tbState.vue !== 'production') void lireRevueTb(view, etat); }; });
     const rr = $('#tb-rev-relire', view); if (rr) rr.onclick = () => { revState = { donnees: null, annee: 0, erreur: '', lecture: false }; pageTableau(view, etat); void lireRevueTb(view, etat); };
     // (1.197.0) La lecture des livres se fait dès l'arrivée : « Quand les pièces arrivent » en a besoin aussi.
     if (!revState.donnees && !revState.erreur && $('#tb-dossiers', view)) void lireRevueTb(view, etat);
@@ -3291,6 +3293,7 @@
     const tt = $('#tb-tout', view); if (tt) tt.onclick = () => { tbState.tout = true; pageTableau(view, etat); };
     const rl = $('#tb-relire', view); if (rl) rl.onclick = () => { prodState.lignes = null; prodState.erreur = ''; drawTableau(view); };
     const vd = $('#tb-vers-dossiers', view); if (vd) vd.onclick = () => { if (tbState.qui) { tbState.qui = ''; pageTableau(view, etat); } else location.hash = '#/dossiers'; };
+    bindPager(view, () => pageTableau(view, etat), tbState.pg);
     $$('#tb-grille tbody tr[data-tb-id], #tb-revision tbody tr[data-tb-id], #tb-bilans tbody tr[data-tb-id]', view).forEach(tr => { tr.onclick = e => {
       if (e.target.closest('.row-actions, [data-rowmenu]')) return;
       // Une case de la grille ouvre la fiche de son mois ; le reste de la ligne, la comptabilité (l'exercice, dans Bilans).

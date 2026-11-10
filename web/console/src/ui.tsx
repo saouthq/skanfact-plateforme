@@ -2,7 +2,7 @@
 // passager. Dessinés pour la console seulement (console.css) : l'application garde les siens.
 import { createContext, Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ToucheReact, type MouseEvent as SourisReact, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { phrase, titre } from './langue.ts';
+import { dire, phrase, titre } from './langue.ts';
 
 // ── Les dessins (24 × 24, un trait) ─────────────────────────────────────────────────────────────────────────────────
 const DESSINS = {
@@ -468,6 +468,31 @@ export function Toast() {
     return () => clearTimeout(t);
   }, [m]);
   return <div id="c-toast" role={m?.erreur ? 'alert' : 'status'} className={m ? `c-montre${m.erreur ? ' c-erreur' : ''}` : ''}>{m?.texte ?? ''}</div>;
+}
+
+// ── Une liste lue en entier, montrée une page à la fois (1.353.0) ───────────────────────────────────────────────
+// Les grandes listes de la console se lisent page par page au serveur. Celles qui arrivent entières (les dossiers d'un
+// cabinet : cent soixante lignes d'un seul tenant) se feuillettent ici, avec le même pied : « lignes a à b sur n »,
+// précédente, suivante. `cle` est ce qui filtre la liste : en changer revient à la première page.
+export type Feuillets = { debut: number; aller: (debut: number) => void };
+export function useFeuillets(cle: unknown = null): Feuillets {
+  const [etat, setEtat] = useState<{ cle: unknown; debut: number }>({ cle, debut: 0 });
+  return { debut: Object.is(etat.cle, cle) ? etat.debut : 0, aller: (debut) => setEtat({ cle, debut }) };
+}
+export function feuilleter<T>(liste: readonly T[], pages: Feuillets, parPage = 25): { vus: readonly T[]; pied: ReactNode } {
+  const dernier = Math.max(0, Math.ceil(liste.length / parPage) - 1) * parPage;
+  const debut = Math.min(pages.debut, dernier);
+  const vus = liste.slice(debut, debut + parPage);
+  const pied = liste.length > parPage ? (
+    <nav className="c-liste-pied" aria-label={titre('console.ecran.clients.pages')}>
+      <span>{dire('console.ecran.clients.page', { debut: debut + 1, fin: debut + vus.length, total: liste.length })}</span>
+      <span className="c-liste-pied-boutons">
+        <Bouton petit desactive={debut === 0} onClick={() => pages.aller(Math.max(0, debut - parPage))}>{titre('console.ecran.clients.precedente')}</Bouton>
+        <Bouton petit desactive={debut >= dernier} onClick={() => pages.aller(debut + parPage)}>{titre('console.ecran.clients.suivante')}</Bouton>
+      </span>
+    </nav>
+  ) : null;
+  return { vus, pied };
 }
 
 // ── Ce qui se dit à la place d'une liste : vide, en lecture, ou en panne ────────────────────────────────────────────

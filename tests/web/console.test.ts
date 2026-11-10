@@ -841,6 +841,29 @@ describe('la console de l\'équipe, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 400_000);
 
+  // (1.352.1) La fiche d'un cabinet lit tous ses dossiers d'un coup : cent soixante lignes faisaient dix écrans. Ils se
+  // feuillettent, avec le pied des autres listes ; filtrer revient à la première page.
+  it('la fiche d\'un grand cabinet : ses dossiers se feuillettent, vingt-cinq par page, et un filtre repart de la première', async () => {
+    const { associe, cab: grand } = await cabinetSeul('Grand Cabinet de la Console');
+    for (let k = 0; k < 30; k++) exiger(await api('POST', `/cabinets/${String(grand.id)}/dossiers`, associe, { raisonSociale: `Dossier tenu n° ${String(k + 1).padStart(2, '0')}` }), 201);
+    const p = await ouvrir(await jetonConsole(support), `#/cabinets/${String(grand.id)}?onglet=dossiers`);
+    const dossiers = p.locator('section[aria-labelledby="cab-dossiers"] tbody tr');
+    const pied = p.locator('section[aria-labelledby="cab-dossiers"] .c-liste-pied');
+    await expect.poll(() => dossiers.count(), { timeout: 15_000 }).toBe(25);
+    expect(net(await p.locator('#cab-dossiers .c-compte-titre').innerText())).toBe('30');
+    expect(net(await pied.locator('span').first().innerText())).toBe('lignes 1 à 25 sur 30');
+    expect(await pied.getByRole('button', { name: 'Précédente', exact: true }).isDisabled()).toBe(true);
+    await cliquer(pied.getByRole('button', { name: 'Suivante', exact: true }));
+    await expect.poll(() => dossiers.count()).toBe(5);
+    expect(net(await pied.locator('span').first().innerText())).toBe('lignes 26 à 30 sur 30');
+    expect(await pied.getByRole('button', { name: 'Suivante', exact: true }).isDisabled()).toBe(true);
+    // Une carte allumée filtre la liste : on repart de sa première page, pas de la deuxième d'une autre liste.
+    await cliquer(p.locator('.c-vues .c-vue').filter({ hasText: /dossiers tenus/i }).first());
+    await expect.poll(() => dossiers.count()).toBe(25);
+    expect(net(await pied.locator('span').first().innerText())).toBe('lignes 1 à 25 sur 30');
+    await fermer(p);
+  }, 90_000);
+
   it('le service des écrans de l\'application ne garde jamais la console', async () => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     const p = await cx.newPage();
