@@ -142,7 +142,7 @@
     // (plateforme) 1.73.0 — les salaires de l'année par salarié, et leurs écarts avec le livre.
     salairesDeLAnnee, COLONNES_SALAIRES_ANNEE, ecartsEmployeur,
     // La révision et les questions (9.10.0)
-    CYCLES_REVISION, QUESTION_STATUTS, QUESTION_ATTENDUS, QUESTION_RELANCE,
+    CYCLES_REVISION, cyclesEcrits, cyclesEnVigueur, QUESTION_STATUTS, QUESTION_ATTENDUS, QUESTION_RELANCE,
     cycleDuCompte, libelleCycle, nomDuCompte,
     revisionVide, revisionDe, assurerRevision, feuilleMaitresse, dossierDeRevision,
     signerCompte, ajouterNoteRevue, leverNoteRevue,

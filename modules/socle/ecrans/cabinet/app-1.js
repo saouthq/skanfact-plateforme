@@ -8730,6 +8730,8 @@
   // savoir qu'un solde négatif est créditeur. La tête du compte le dit ; la colonne du solde progressif porte D ou C.
   const soldeTete = v => (Math.abs(Number(v) || 0) < 0.0005 ? 'Soldé' : `Solde ${v < 0 ? 'créditeur' : 'débiteur'} ${money(Math.abs(v))}`);
   const soldeDC = v => (Math.abs(Number(v) || 0) < 0.0005 ? montant(0) : `${montant(Math.abs(v))}\u00a0${v < 0 ? 'C' : 'D'}`);
+  // (1.348.0) Une carte de cycle dit son solde en mots : « 97 121,435 DT créditeur », jamais « −97 121,435 DT ».
+  const soldeCarte = v => (Math.abs(Number(v) || 0) < 0.0005 ? esc(money(0)) : `${esc(money(Math.abs(v)))} ${v < 0 ? 'créditeur' : 'débiteur'}`);
   function vueGrandLivre(lignes) {
     const s = livresState;
     const ouverture = (s.periode || {}).ouverture || null;
@@ -10031,16 +10033,16 @@
     const ligneCompte = c => `<tr class="${c.revu ? '' : 'row-warn'}">
       <td class="nw">${esc(c.compte)}</td>
       <td class="tronq" title="${esc(c.libelle)}">${esc(c.libelle)}</td>
-      <td class="r nw">${money0(c.ouverture)}</td>
-      <td class="r nw">${money0(c.debit)}</td>
-      <td class="r nw">${money0(c.credit)}</td>
-      <td class="r nw"><b>${money0(c.solde)}</b></td>
-      <td class="r nw">${money0(c.variation)}</td>
+      <td class="r nw">${esc(soldeDC(c.ouverture))}</td>
+      <td class="r nw">${esc(montant(c.debit))}</td>
+      <td class="r nw">${esc(montant(c.credit))}</td>
+      <td class="r nw"><b>${esc(soldeDC(c.solde))}</b></td>
+      <td class="r nw">${esc(montant(c.variation))}</td>
       ${/* (plateforme) 1.97.0 — la même largeur signée ou pas : le nom et la date ne s'écrivent plus dans la cellule. */''}
       <td class="nw small rv-revu"${c.revu ? ` title="${esc(['Revu', c.revuPar ? 'par ' + c.revuPar : '', c.revuLe ? 'le ' + fmtJour(KC.jourDeLInstant(c.revuLe)) : ''].filter(Boolean).join(' '))}"` : ''}>${c.revu
     ? '<span class="badge b-paid">revu</span>'
     : '<span class="muted">à revoir</span>'}</td>
-      ${rowMenuCell('RV:' + c.compte)}</tr>`;
+      ${rowMenuCell('RV:' + c.compte, c.revu ? '' : `<button type="button" class="btn btn-sm" data-signer="${esc(c.compte)}" title="Je l'ai revu : il est juste.">Signer</button>`)}</tr>`;
     // 10.12.0 (U-11) — un seul vert, et c'est l'ÉTAPE SUIVANTE. À 0 compte signé sur 19, le vert
     // de l'écran était « Arrêter la révision… » : le geste de la FIN, proposé au début. Tant que des
     // comptes attendent leur signature, le vert ouvre le PROCHAIN cycle qui en a ; dans un cycle
@@ -10106,23 +10108,23 @@
       <button type="button" class="btn-lien rv-lien" id="rv-conversation">ou ${nPretes > 1 ? 'les relire' : 'la relire'} dans la conversation</button>` : ''}
     </div>
     ${aFaire.length ? `<div class="warn-box mb">${aFaire.map(c => `<div>${esc(c.texte)}</div>`).join('')}
-      <div class="small">Ils ne bloquent pas : une révision arrêtée avec des manques signalés vaut mieux qu'une révision jamais arrêtée.</div></div>` : ''}
+      <div class="small">Ces points ne bloquent pas : une révision arrêtée avec des manques signalés vaut mieux qu'une révision jamais arrêtée.</div></div>` : ''}
     ${etatsNormaux.length ? `<p class="small muted mb" id="rv-etats">${etatsNormaux.map(c => esc(c.texte)).join(' · ')}</p>` : ''}
 
     <div class="panel"><h2>Les feuilles maîtresses ${info('rv.feuilles')}</h2>
       <div class="rv-avance"><p class="lead">${esc(d.revus)} compte${d.revus > 1 ? 's' : ''} signé${d.revus > 1 ? 's' : ''} sur ${esc(d.total)}${d.reste ? ` — ${esc(pl(d.reste, 'reste à revoir', 'restent à revoir'))}` : ''}.</p>
       ${suivante === 'cycle' ? `<button class="btn btn-sm btn-primary" id="rv-suivant" data-cycle="${esc(prochain.cycle)}">Revoir ${esc(prochain.label)} (${esc(pl(prochain.total - prochain.revus, 'compte', 'comptes'))})</button>`
     : suivante === 'hors' ? `<button class="btn btn-sm btn-primary" id="rv-voir-hors">Revoir les comptes hors cycle (${esc(horsARevoir)})</button>`
-      : suivante === 'signer' ? `<span class="small muted" id="rv-signer">Signe les comptes « à revoir » de ce cycle : menu « Actions » de la ligne.</span>` : ''}</div>
+      : suivante === 'signer' ? `<span class="small muted" id="rv-signer">Signe chaque compte revu : « Signer » sur sa ligne.</span>` : ''}</div>
       <div class="stats rangee cy-cartes">${d.feuilles.map(f => `<button type="button" class="stat cy-carte${cycle === f.cycle ? ' cy-on' : ''}" data-cycle="${esc(f.cycle)}" aria-pressed="${cycle === f.cycle}">
         <span class="eyebrow">${esc(f.label)}</span>
         <span class="val">${esc(f.revus)} / ${esc(f.total)}</span>
-        <span class="small muted">${f.total ? money0(f.totaux.solde) : 'aucun compte'}</span></button>`).join('')}</div>
+        <span class="small muted">${f.total ? soldeCarte(f.totaux.solde) : 'aucun compte'}</span></button>`).join('')}</div>
       ${feuille
     ? (feuille.rows.length
       ? `<div class="scroll-x mt"><table class="list compact"><thead><tr><th>Compte</th><th>Intitulé</th><th class="r">Ouverture</th><th class="r">Débit</th><th class="r">Crédit</th><th class="r">Solde</th><th class="r">Variation</th><th>Revu</th><th></th></tr></thead>
           <tbody>${feuille.rows.map(ligneCompte).join('')}</tbody>
-          <tfoot><tr><th colspan="2">${esc(feuille.label)}</th><th class="r nw">${money0(feuille.totaux.ouverture)}</th><th class="r nw">${money0(feuille.totaux.debit)}</th><th class="r nw">${money0(feuille.totaux.credit)}</th><th class="r nw">${money0(feuille.totaux.solde)}</th><th class="r nw">${money0(feuille.totaux.variation)}</th><th colspan="2"></th></tr></tfoot></table></div>`
+          <tfoot><tr><th colspan="2">${esc(feuille.label)}</th><th class="r nw">${esc(soldeDC(feuille.totaux.ouverture))}</th><th class="r nw">${esc(montant(feuille.totaux.debit))}</th><th class="r nw">${esc(montant(feuille.totaux.credit))}</th><th class="r nw">${esc(soldeDC(feuille.totaux.solde))}</th><th class="r nw">${esc(montant(feuille.totaux.variation))}</th><th colspan="2"></th></tr></tfoot></table></div>`
       : `<div class="empty mini mt">Aucun compte de ce cycle n'est mouvementé sur la période.</div>`)
     : `<div class="empty mini mt">Choisis un cycle ci-dessus pour ouvrir sa feuille maîtresse.</div>`}
       ${d.hors.length ? `<details class="mt" id="rv-hors" ${s.revHors ? 'open' : ''}><summary>${esc(pl(d.hors.length, 'compte hors cycle', 'comptes hors cycle'))} ${info('rv.hors')}</summary>
@@ -10146,7 +10148,7 @@
     ? `<table class="list compact"><tbody>${d.questionnaire.map(ligneQuestionnaire).join('')}</tbody></table>`
     : r.modeles.length
       ? `<div class="empty mini">Le questionnaire de ton cabinet n'est pas encore posé sur cette période.</div>
-         <div class="inline mt"><button class="btn btn-sm" id="rv-poser">Poser les ${esc(pl(r.modeles.length, 'question'))} de ton cabinet</button></div>`
+         <div class="inline mt"><button class="btn btn-sm" id="rv-poser">${r.modeles.length > 1 ? `Poser les ${esc(pl(r.modeles.length, 'question'))}` : 'Poser la question'} de ton cabinet</button></div>`
       : `<div class="empty mini">Ton cabinet n'a pas encore écrit son questionnaire de fin d'exercice.
          Il s'écrit une fois, pour tous tes dossiers.</div>
          <div class="inline mt"><button class="btn btn-sm" id="rv-modeles">Écrire le questionnaire…</button></div>`}
@@ -10171,7 +10173,7 @@
   }
 
   const libelleAttendu = id => (KC.QUESTION_ATTENDUS.find(x => x.id === id) || {}).label || 'Une explication';
-  const libelleDuCycle = (r, id) => ((r.cycles || KC.CYCLES_REVISION).find(c => c.id === id) || {}).label || id;
+  const libelleDuCycle = (r, id) => (KC.cyclesEnVigueur(r.cycles).find(c => c.id === id) || {}).label || id;
 
   function brancherRevision(el, root, dossier) {
     const s = livresState;
@@ -10201,6 +10203,14 @@
         s.livre = r.livre; relire();
       } catch (e) { toast(plainError(e), 'error'); }
     };
+    const signer = async (id, revu) => {
+      try {
+        const r = await api.signerCompte({ dossierId: dossier.id, annee: s.annee, periode: s.revision.dossier.periode, compte: id, revu });
+        s.livre = r.livre; toast(r.revu ? `Compte ${id} signé.` : `Signature retirée sur ${id}.`); relire();
+      } catch (e) { toast(plainError(e), 'error'); }
+    };
+    // (1.348.0) Signer est le geste de la feuille maîtresse : un bouton sur la ligne, pas un menu puis un choix.
+    $$('[data-signer]', el).forEach(b => { b.onclick = () => { b.disabled = true; signer(b.dataset.signer, true); }; });
     bindRowMenus(el, cle => {
       const [quoi, id] = String(cle).split(/:(.*)/);
       if (quoi === 'RV') {
@@ -10209,12 +10219,7 @@
         return [
           { icon: c.revu ? 'non' : 'oui', label: c.revu ? 'Retirer ma signature' : 'Signer ce compte', cle: c.revu ? 'retirer-signature' : 'signer-compte',
             hint: c.revu ? `${['Revu', c.revuPar ? 'par ' + c.revuPar : '', c.revuLe ? 'le ' + fmtJour(KC.jourDeLInstant(c.revuLe)) : ''].filter(Boolean).join(' ')} ; le compte redeviendra « à revoir ».` : 'Je l\'ai revu : il est juste.',
-            run: async () => {
-              try {
-                const r = await api.signerCompte({ dossierId: dossier.id, annee: s.annee, periode: s.revision.dossier.periode, compte: id, revu: !c.revu });
-                s.livre = r.livre; toast(r.revu ? `Compte ${id} signé.` : `Signature retirée sur ${id}.`); relire();
-              } catch (e) { toast(plainError(e), 'error'); }
-            } },
+            run: () => signer(id, !c.revu) },
           { icon: 'modifier', label: 'Écrire une note de revue', hint: 'Ce qu\'il reste à vérifier sur ce compte.',
             run: () => noteForm(root, dossier, { compte: id, cycle: c.cycle }) },
           { icon: 'email', label: 'Poser une question au client', hint: 'Elle s\'affichera chez lui, en face de la pièce.',
@@ -10311,7 +10316,11 @@
     if (arr) arr.onclick = async () => {
       const faite = !s.revision.dossier.faite;
       if (faite) {
-        const c = s.revision.controles || [];
+        // (1.348.0) Une période qui court encore se dit AVANT d'arrêter sa révision : la question taisait que l'exercice
+        // 2026 n'était pas fini, et des pièces y arriveront encore.
+        const perFin = /^\d{4}-\d{2}$/.test(String(s.revision.dossier.periode)) ? (per0 => new Date(Date.UTC(Number(per0.slice(0, 4)), Number(per0.slice(5, 7)), 0)).toISOString().slice(0, 10))(String(s.revision.dossier.periode)) : `${s.revision.dossier.periode}-12-31`;
+        const enCours = K.today() < perFin ? [{ texte: `${/^\d{4}-\d{2}$/.test(String(s.revision.dossier.periode)) ? 'Le mois' : `L'exercice ${s.revision.dossier.periode}`} n'est pas terminé : il court jusqu'au ${fmtJour(perFin)}, et des pièces y arriveront encore.` }] : [];
+        const c = enCours.concat(s.revision.controles || []);
         // U-28 — une période se NOMME : « Arrêter la révision de 2026-08 ? » était le format du
         // fichier, écrit dans une question posée à un comptable.
         const per = String(s.revision.dossier.periode);
@@ -10393,7 +10402,7 @@
     const sujet = b.titre
       ? `<div class="qf-sujet"><span class="qf-sujet-ic">${icB(b.icone || 'ecritures', 15, 2)}</span><span><b>${esc(b.titre)}</b><small>${esc(b.sous || perLib)}</small></span></div>`
       : b.compte
-      ? `<div class="qf-sujet"><span class="qf-sujet-ic">${icB('ecritures', 15, 2)}</span><span><b>Compte ${esc(b.compte)}${b.libelle ? ` · ${esc(b.libelle)}` : ''}</b><small>${b.solde ? `solde ${esc(money(Number(b.solde)))} · ` : ''}${esc(perLib)}</small></span></div>`
+      ? `<div class="qf-sujet"><span class="qf-sujet-ic">${icB('ecritures', 15, 2)}</span><span><b>Compte ${esc(b.compte)}${b.libelle ? ` · ${esc(b.libelle)}` : ''}</b><small>${b.solde ? `solde ${soldeCarte(Number(b.solde))} · ` : ''}${esc(perLib)}</small></span></div>`
       : '';
     const champsLibres = !q && !b.compte && !b.titre
       ? `<details class="qf-plus"><summary>Sur quel compte, quelle pièce ? <span class="muted">(facultatif)</span></summary><div class="grid-2">

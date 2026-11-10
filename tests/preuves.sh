@@ -27498,6 +27498,41 @@ prouver 'consulter 1.347.0 g : « 406 » ne trouve pas 406,980' modules/socle/mo
   'const entier = montant != null && !/[.,]\d/.test(terme);' 'const entier = false;' \
   "$CO1347"
 
+RV1348='(1.348.0) chaque compte dans son cycle, la table d'\''avant suivie, le sens du compte, « Signer » d'\''un clic, l'\''exercice qui court dit avant d'\''arrêter, le curseur dans la question neuve'
+prouver 'révision 1.348.0 a : 43 au personnel ET au fiscal, la retenue à la source révisée avec les salaires' modules/socle/moteur/compta-1.js \
+  '{ id: '\''personnel'\'', label: '\''Personnel'\'', prefixes: ['\''42'\'', '\''4321'\'', '\''45'\'', '\''64'\''] }' '{ id: '\''personnel'\'', label: '\''Personnel'\'', prefixes: ['\''42'\'', '\''43'\'', '\''4321'\'', '\''45'\'', '\''64'\''] }' \
+  "$RV1348"
+prouver 'révision 1.348.0 b : la CNSS (4531) hors cycle' modules/socle/moteur/compta-1.js \
+  'prefixes: ['\''42'\'', '\''4321'\'', '\''45'\'', '\''64'\'']' 'prefixes: ['\''42'\'', '\''4321'\'', '\''64'\'']' \
+  "$RV1348"
+prouver 'révision 1.348.0 c : les associés et les charges financières hors des capitaux' modules/socle/moteur/compta-1.js \
+  '{ id: '\''capitaux'\'', label: '\''Capitaux et emprunts'\'', prefixes: ['\''1'\'', '\''44'\'', '\''65'\''] }' '{ id: '\''capitaux'\'', label: '\''Capitaux et emprunts'\'', prefixes: ['\''1'\''] }' \
+  "$RV1348"
+prouver 'révision 1.348.0 d : la table enregistrée telle que proposée reste celle d'\''avant' modules/socle/moteur/compta-1.js \
+  'return CYCLES_PROPOSES_AVANT.some(t => formeCycles(t) === f) ? [] : cycles;' 'return cycles;' \
+  "$RV1348"
+prouver 'révision 1.348.0 e : la carte d'\''un cycle dit un solde signé' modules/socle/ecrans/cabinet/app-1.js \
+  '<span class="small muted">${f.total ? soldeCarte(f.totaux.solde) : '\''aucun compte'\''}</span>' '<span class="small muted">${f.total ? money0(f.totaux.solde) : '\''aucun compte'\''}</span>' \
+  "$RV1348"
+prouver 'révision 1.348.0 f : la feuille maîtresse dit un solde signé' modules/socle/ecrans/cabinet/app-1.js \
+  '<td class="r nw"><b>${esc(soldeDC(c.solde))}</b></td>' '<td class="r nw"><b>${money0(c.solde)}</b></td>' \
+  "$RV1348"
+prouver 'révision 1.348.0 g : signer passe par le menu de la ligne' modules/socle/ecrans/cabinet/app-1.js \
+  'c.revu ? '\'''\'' : `<button type="button" class="btn btn-sm" data-signer=' 'true ? '\'''\'' : `<button type="button" class="btn btn-sm" data-signer=' \
+  "$RV1348"
+prouver 'révision 1.348.0 h : arrêter la révision d'\''un exercice qui court ne le dit pas' modules/socle/ecrans/cabinet/app-1.js \
+  'const c = enCours.concat(s.revision.controles || []);' 'const c = (s.revision.controles || []);' \
+  "$RV1348"
+prouver 'révision 1.348.0 i : « Poser les 1 question de ton cabinet »' modules/socle/ecrans/cabinet/app-1.js \
+  '${r.modeles.length > 1 ? `Poser les' '${true ? `Poser les' \
+  "$RV1348"
+prouver 'révision 1.348.0 j : la question neuve ne reçoit pas le curseur' modules/socle/ecrans/cabinet/app-2.js \
+  ' dessinerQuestionnaire(view); curseurDans('\''#sr-quest input[data-q]'\''); };' ' dessinerQuestionnaire(view); };' \
+  "$RV1348"
+prouver 'révision 1.348.0 k : la question sur un compte dit un solde signé' modules/socle/ecrans/cabinet/app-1.js \
+  '${b.solde ? `solde ${soldeCarte(Number(b.solde))} · ` : '\'''\''}' '${b.solde ? `solde ${esc(money(Number(b.solde)))} · ` : '\'''\''}' \
+  "$RV1348"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

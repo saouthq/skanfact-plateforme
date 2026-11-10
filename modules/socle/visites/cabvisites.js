@@ -361,6 +361,7 @@
 
   // ---------- la révision, l'exercice, la liasse ----------
   b('#rv-poser', 'Pose les questions de ton questionnaire de fin d\'exercice à ce client.');
+  b('[data-signer]', 'Signe ce compte : tu l\'as revu, il est juste. Le compteur du cycle avance ; la signature se retire du menu « Actions » de la ligne.', { nom: 'Signer' });
   b('#rv-arreter', 'Arrête la révision de la période (ou la rouvre) : les contrôles nomment ce qui manque, sans bloquer.');
   b('#rv-envoyer', 'Écrit le fichier des questions à envoyer au client : elles s\'affichent chez lui en face de la pièce.');
   b('#rv-question', 'Pose une question au client sur une pièce.');
@@ -2066,12 +2067,10 @@
           si: () => !feuilleOuverte(), fait: feuilleOuverte,
           titre: 'Ouvrir un cycle', texte: 'Trésorerie, ventes, achats, fiscal… Chaque carte compte les comptes signés du cycle (0 / 3 : aucun sur trois). Le bouton vert ouvre le premier cycle qui reste à revoir.',
           action: 'Clique sur le bouton vert, ou sur la carte d\'un cycle.', essai: { clic: true } },
-        { page: dans('livre', 'comptabilite/revision'), cible: '#c-livres [data-rowmenu^="RV:"]', cote: 'dessous', faire: 'clic', si: feuilleOuverte,
-          titre: 'Un compte à revoir', texte: 'La feuille maîtresse montre chaque compte du cycle : son ouverture, ses mouvements, son solde et sa variation. Relis-le, puis ouvre son menu.',
-          action: 'Ouvre le menu <b>Actions</b> d\'un compte.', essai: { clic: true } },
-        { page: dans('livre', 'comptabilite/revision'), cible: '[data-act="signer-compte"]', cote: 'droite', faire: 'clic', facultatif: true,
-          titre: 'Signer le compte', texte: 'Signer, c\'est dire <i>je l\'ai revu, il est juste</i> : le compteur du cycle avance, et la signature se retire du même menu. Ce menu écrit aussi une note ou pose une question au client <b>sur ce compte</b>.',
-          action: 'Clique sur <b>« Signer ce compte »</b>.', essai: { clic: true } },
+        // (1.348.0) « Signer » est un bouton de la ligne : la visite ne fait plus passer par le menu pour le geste de la page.
+        { page: dans('livre', 'comptabilite/revision'), cible: '#c-livres [data-signer]', cote: 'dessous', faire: 'clic', si: feuilleOuverte, facultatif: true,
+          titre: 'Signer un compte', texte: 'La feuille maîtresse montre chaque compte du cycle : son ouverture, ses mouvements, son solde (D ou C) et sa variation. Relis-le, puis signe-le : c\'est dire <i>je l\'ai revu, il est juste</i>, et le compteur du cycle avance. Son menu <b>Actions</b> retire la signature, écrit une note ou pose une question au client <b>sur ce compte</b>.',
+          action: 'Clique sur <b>« Signer »</b> au bout d\'une ligne.', essai: { clic: true } },
         { page: dans('livre', 'comptabilite/revision'), cible: '#rv-note', cote: 'dessous', faire: 'clic', facultatif: true,
           titre: 'Une note de revue', texte: 'Ce qu\'il reste à vérifier : elle reste dans le dossier de révision et ne part <b>jamais</b> chez le client.',
           action: 'Clique sur <b>« Note de revue… »</b>.', essai: { clic: true } },

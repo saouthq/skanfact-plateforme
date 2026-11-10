@@ -2193,3 +2193,31 @@ des clients PUIS des fournisseurs, et cherche une pièce comme on s'en souvient 
 - `achats-1310` lit la balance âgée des fournisseurs dans le sens du compte (« Ce qui reste à payer », 2 495,430 DT à
   payer, l'avoir de casse −337,960 DT), et attend que la fiche se redessine après le règlement au lieu de la lire à
   l'instant (elle était lue pendant son fondu).
+
+## La Révision d'un dossier au Cabinet, et le pont (1.348.0)
+
+Joué à la souris sur la Boulangerie El Amal : Leïla ouvre les feuilles maîtresses, signe la trésorerie, écrit une note
+de revue, prépare l'arrêt de la révision, puis écrit le questionnaire de son cabinet dans les Réglages.
+
+- **Chaque compte tombe dans son cycle.** La table proposée mettait « 43 » au personnel ET au fiscal (à longueur égale,
+  le premier gagnait : la retenue à la source sur les fournisseurs, 4352, se révisait avec les salaires), laissait la
+  CNSS (4531) « hors cycle », et rangeait les charges financières (65) aux achats. Désormais (À VÉRIFIER) : 43 au fiscal,
+  45 et 4321 au personnel, 44 et 65 aux capitaux et emprunts, 63 aux achats.
+- **Une table enregistrée telle que SkanFact l'avait proposée suit la proposition du jour.** Enregistrer le
+  questionnaire enregistre aussi la table affichée : un cabinet qui n'a jamais touché à ses cycles en gardait une copie
+  que la correction n'aurait pas atteinte. Une table changée, même d'un préfixe, reste celle du cabinet
+  (`cyclesEcrits`, `cyclesEnVigueur`).
+- **Les cartes et la feuille disent leur solde dans le sens du compte** : « 97 121,435 DT créditeur », « 68 107,900 D »,
+  comme le grand livre de la 1.347.0 — plus de « −97 121,435 DT ».
+- **Une question posée sur un compte dit son solde en mots** (« solde 6,980 DT créditeur », plus « solde −55,500 DT »).
+- **« Signer » est un bouton de la ligne** : un clic au lieu de « Actions » puis « Signer ce compte » ; le menu garde
+  la note, la question et le retrait de la signature.
+- **Arrêter la révision d'un exercice qui court le dit avant** (« L'exercice 2026 n'est pas terminé : il court jusqu'au
+  31/12/2026… ») ; « Ces points ne bloquent pas » au lieu d'un « Ils » sans antécédent ; « Poser la question de ton
+  cabinet » au lieu de « Poser les 1 question ».
+- **La question neuve reçoit le curseur** (et la ligne neuve d'un cycle aussi). Vu à la souris : la frappe partait sur
+  la page, « N » ouvrait le menu « Créer », un « é » choisissait « Écriture », et la question finissait dans la pièce
+  d'une écriture de la Saisie.
+- Vu, laissé : la colonne « Identifiant » des cycles dans les Réglages (technique, mais modifiable par le cabinet).
+- La visite « Réviser » fait signer par le bouton de la ligne, et le bouton a son explication.
+- La preuve : `tests/web/revision-1348.test.ts` ; preuves `révision 1.348.0 a-k`.

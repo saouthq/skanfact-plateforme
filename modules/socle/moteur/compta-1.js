@@ -5730,15 +5730,37 @@
   //     dossier de travail imposé par un logiciel ne sert à personne. La valeur par défaut d'une
   //     règle qu'on ne connaît pas est celle qui ne fait rien (9.1.1).
 
+  // (1.348.0) Rangés selon le plan que l'application propose (À VÉRIFIER) : 43 est l'État (fiscal), 45 les organismes
+  // sociaux (personnel : la CNSS 4531 était « hors cycle »), 4321 l'impôt retenu sur les salaires (personnel), 44 les
+  // associés et 65 les charges financières (capitaux et emprunts). La table d'avant mettait 43 dans le personnel ET le
+  // fiscal : à longueur égale le premier gagnait, et la retenue à la source sur les fournisseurs (4352) se révisait
+  // avec les salaires.
   const CYCLES_REVISION = [
     { id: 'tresorerie', label: 'Trésorerie', prefixes: ['5'] },
     { id: 'ventes', label: 'Ventes et clients', prefixes: ['41', '70', '73'] },
-    { id: 'achats', label: 'Achats et fournisseurs', prefixes: ['40', '60', '61', '62', '65'] },
+    { id: 'achats', label: 'Achats et fournisseurs', prefixes: ['40', '60', '61', '62', '63'] },
     { id: 'immobilisations', label: 'Immobilisations', prefixes: ['2', '68', '78'] },
-    { id: 'personnel', label: 'Personnel', prefixes: ['42', '43', '64'] },
-    { id: 'fiscal', label: 'Fiscal', prefixes: ['436', '43', '44', '66', '67', '69'] },
-    { id: 'capitaux', label: 'Capitaux et emprunts', prefixes: ['1'] }
+    { id: 'personnel', label: 'Personnel', prefixes: ['42', '4321', '45', '64'] },
+    { id: 'fiscal', label: 'Fiscal', prefixes: ['43', '66', '67', '69'] },
+    { id: 'capitaux', label: 'Capitaux et emprunts', prefixes: ['1', '44', '65'] }
   ];
+  // Les tables que SkanFact a PROPOSÉES par le passé. Enregistrer le questionnaire enregistre aussi la table affichée :
+  // un cabinet qui n'a jamais touché à ses cycles en garde donc une copie, que la correction d'ici n'atteindrait pas.
+  // Une table identique à une table proposée se lit comme « non écrite » : elle suit la proposition du jour. Une
+  // table que le cabinet a changée, même d'un préfixe, reste la sienne.
+  const CYCLES_PROPOSES_AVANT = [[
+    ['tresorerie', 'Trésorerie', ['5']], ['ventes', 'Ventes et clients', ['41', '70', '73']],
+    ['achats', 'Achats et fournisseurs', ['40', '60', '61', '62', '65']], ['immobilisations', 'Immobilisations', ['2', '68', '78']],
+    ['personnel', 'Personnel', ['42', '43', '64']], ['fiscal', 'Fiscal', ['436', '43', '44', '66', '67', '69']],
+    ['capitaux', 'Capitaux et emprunts', ['1']]
+  ], CYCLES_REVISION.map(c => [c.id, c.label, c.prefixes])];
+  const formeCycles = t => JSON.stringify((t || []).map(c => Array.isArray(c) ? c : [txt(c.id), txt(c.label), (c.prefixes || []).map(p => txt(p))]));
+  function cyclesEcrits(cycles) {
+    if (!Array.isArray(cycles) || !cycles.length) return [];
+    const f = formeCycles(cycles);
+    return CYCLES_PROPOSES_AVANT.some(t => formeCycles(t) === f) ? [] : cycles;
+  }
+  const cyclesEnVigueur = cycles => { const t = cyclesEcrits(cycles); return t.length ? t : CYCLES_REVISION; };
 
   // Le cycle d'un compte : le préfixe le plus LONG gagne, jamais l'ordre du tableau (même règle
   // que `libelleDuPlan`, que `compteCorrespondant` et que `compteDuLibelle`). Sans ça, le résultat
@@ -5748,7 +5770,7 @@
     const n = txt(compte);
     if (!n) return '';
     let best = null;
-    (Array.isArray(cycles) && cycles.length ? cycles : CYCLES_REVISION).forEach(c => {
+    cyclesEnVigueur(cycles).forEach(c => {
       (c.prefixes || []).forEach(p => {
         if (n.startsWith(p) && (!best || p.length > best.p.length)) best = { p, id: c.id };
       });
@@ -5757,7 +5779,7 @@
   }
 
   const libelleCycle = (id, cycles) => {
-    const c = (Array.isArray(cycles) && cycles.length ? cycles : CYCLES_REVISION).find(x => x.id === id);
+    const c = cyclesEnVigueur(cycles).find(x => x.id === id);
     return c ? c.label : '';
   };
 
@@ -5826,7 +5848,7 @@
   function dossierDeRevision(livre, opts) {
     const o = opts || {};
     const periode = txt(o.periode) || String(livre.exercice.annee);
-    const cycles = Array.isArray(o.cycles) && o.cycles.length ? o.cycles : CYCLES_REVISION;
+    const cycles = cyclesEnVigueur(o.cycles);
     const bornes = /^\d{4}-\d{2}$/.test(periode)
       ? { du: `${periode}-01`, au: finDuMois(periode) }
       : { du: livre.exercice.du, au: livre.exercice.au };

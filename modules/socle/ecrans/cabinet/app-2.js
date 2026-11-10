@@ -7056,7 +7056,10 @@
     // 9.10.0 — les cycles de révision et le questionnaire de fin d'exercice. Les deux se saisissent
     // et s'enregistrent ENSEMBLE : ce sont les deux moitiés d'une même chose, la méthode du cabinet.
     const ca = $('#sr-cycles-add', view);
-    if (ca) ca.onclick = () => { cyclesBrouillon = lireCycles(view).concat([{ id: '', label: '', prefixes: [] }]); dessinerCycles(view); };
+    // (1.348.0) Ce qu'on ajoute reçoit le curseur : la frappe partait sur la page (« N » ouvrait « Créer », un « é »
+    // choisissait « Écriture », et la question finissait dans la pièce d'une écriture).
+    const curseurDans = sel => { const x = $$(sel, view).pop(); if (x) { x.focus(); x.scrollIntoView({ block: 'nearest' }); } };
+    if (ca) ca.onclick = () => { cyclesBrouillon = lireCycles(view).concat([{ id: '', label: '', prefixes: [] }]); dessinerCycles(view); const tr = $$('#sr-cycles tr[data-cy]', view).pop(); const ch = tr ? $$('input', tr) : []; if (ch[1] || ch[0]) (ch[1] || ch[0]).focus(); };
     const cr = $('#sr-cycles-reset', view);
     if (cr) cr.onclick = async () => {
       if (!await confirmDialog('Reprendre les sept cycles proposés ?',
@@ -7065,7 +7068,7 @@
       dessinerCycles(view);
     };
     const qa = $('#sr-quest-add', view);
-    if (qa) qa.onclick = () => { questBrouillon = lireQuestionnaire(view).concat(['']); dessinerQuestionnaire(view); };
+    if (qa) qa.onclick = () => { questBrouillon = lireQuestionnaire(view).concat(['']); dessinerQuestionnaire(view); curseurDans('#sr-quest input[data-q]'); };
     const qs = $('#sr-quest-save', view);
     if (qs) qs.onclick = async () => {
       // Une table de cycles À MOITIÉ remplie est pire que pas de table : le compte tombe alors dans
@@ -7193,7 +7196,8 @@
   function dessinerCycles(view) {
     const box = $('#sr-cycles', view);
     if (!box) return;
-    const table = cyclesBrouillon || (S.cycles || []);
+    // (1.348.0) Une table enregistrée telle que SkanFact l'avait proposée se montre comme la proposition du jour.
+    const table = cyclesBrouillon || KC.cyclesEcrits(S.cycles || []);
     const propose = !table.length;
     const rows = propose ? KC.CYCLES_REVISION : table;
     box.innerHTML = `${propose ? '<div class="sa-vide">Les sept cycles proposés servent tant que tu n\'en écris pas d\'autres.</div>' : ''}
