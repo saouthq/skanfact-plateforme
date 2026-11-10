@@ -176,8 +176,10 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
 
     // ── 1.236.0 (C4) — « Les bulletins sont faits » : les remettre, les salaires, les déclarer ; l'écriture compte par compte ─
     expect(espace(await p.locator('#pa-faits h3').innerText())).toMatch(/^Les bulletins d.\S+ sont faits$/);
-    expect(await p.locator('#pa-faits li').count()).toBe(3);
+    // 1.344.0 — l'écriture de paie a son étape entre les salaires et la déclaration (elle se valide d'ici, sans la grille).
+    expect(await p.locator('#pa-faits li').count()).toBe(4);
     expect(espace(await p.locator('#pa-faits li').nth(1).innerText())).toContain('0 sur 5 payés · par Sarra');
+    expect(espace(await p.locator('#pa-faits li').nth(2).innerText())).toMatch(/^3 L'écriture de paie (au brouillard|validée)/);
     expect(await p.locator('#pa-rappel').count()).toBe(1);
     // 1.238.0 — le rappel dit le jour où les salaires sont dus (s'il n'est pas passé), et le message dit combien sont payés.
     expect(espace(await p.locator('#pa-rappel').innerText())).toMatch(/^Lui rappeler(, pour le \d\d\/\d\d)?$/);
@@ -192,7 +194,11 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(espace(await p.locator('#pa-remettre').innerText())).toBe('Marquer les 5 bulletins remis aux salariés');
     await p.locator('#pa-remettre').click();
     await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.remisLe === jour).length).toBe(5);
-    await expect.poll(() => p.locator('#view .btn-primary').count()).toBe(0);
+    // Remis : le vert passe à l'étape suivante du cabinet, valider l'écriture de paie au brouillard (1.344.0), s'il en reste une.
+    await expect.poll(async () => {
+      const verts = (await p.locator('#view .btn-primary').evaluateAll((els) => els.map((e) => e.id))).join(',');
+      return verts === (await p.locator('#pa-valider').count() ? 'pa-valider' : '');
+    }).toBe(true);
     expect(await p.locator('#pa-faits li.fait').count()).toBe(1);
     // 1.245.0 — « Les envoyer » : les 5 bulletins validés, en PDF, dans les documents de Sarra (elle les lit de son côté).
     expect(espace(await p.locator('#pa-envoyer-pdf').innerText())).toBe('Les envoyer à Sarra');
@@ -276,17 +282,35 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.locator('.pa-so [data-pa-vue="cnss"]').click();
     expect(espace(await p.locator('#pa-cnss-livre').innerText())).toMatch(/^Le compte 4531 du livre \(écritures validées du trimestre\) : .* · la déclaration : .*/);
     // 1.243.0 — l'accusé de dépôt du trimestre : rangé au classeur depuis la Paie, puis « l'accusé est dans le classeur ».
-    await expect.poll(() => p.locator('#pa-cnss-accuse-ranger').count(), { timeout: 15_000 }).toBe(1);
-    await p.locator('#pa-cnss-accuse-ranger').click();
-    await p.locator('#dp-f').setInputFiles({ name: 'accuse-cnss.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n') });
-    expect(await p.locator('#dp-titre').inputValue()).toMatch(/^L'accusé CNSS du (1er|\de) trimestre \d{4}$/);
-    await p.locator('.modal #ok').click();
-    await expect.poll(() => p.locator('#pa-cnss-accuse').innerText().then(espace).catch(() => ''), { timeout: 15_000 }).toMatch(/^Déposée · l'accusé est dans le classeur \(rangé le \d\d\/\d\d\/\d{4}\)\. Ouvrir l'accusé$/);
-    // « Ouvrir l'accusé » l'ouvre en grand, ici, sans quitter la Paie.
-    await p.locator('#pa-cnss-accuse-voir').click();
-    await expect.poll(() => p.locator('.cl-gr-t').innerText().then(espace).catch(() => ''), { timeout: 15_000 }).toMatch(/^accuse-cnss\.pdf/);
-    await p.keyboard.press('Escape');
-    await expect.poll(() => p.locator('.cl-gr-t').count()).toBe(0);
+    // 1.344.0 — un trimestre EN COURS ne se dépose pas : « Déposée ? Range son accusé » ne s'y propose plus, la phrase du
+    // fichier dit qu'on le déclare une fois terminé. L'accusé se range sur le dernier trimestre TERMINÉ qui a ses bulletins
+    // (celui du mois d'avant), quand il est de ce même exercice.
+    const tDe = (mo: number) => Math.ceil(mo / 3);
+    const finDe = (an: number, t: number) => new Date(Date.UTC(an, t * 3, 0)).toISOString().slice(0, 10);
+    const ajd = new Date().toISOString().slice(0, 10);
+    const moA = A.mo === 1 ? 12 : A.mo - 1, anA = A.mo === 1 ? A.an - 1 : A.an;
+    let trimFini: number | null = finDe(A.an, tDe(A.mo)) < ajd ? tDe(A.mo) : null;
+    if (trimFini === null) {
+      await expect.poll(() => p.locator('#pa-en-cours').innerText().then(espace).catch(() => ''), { timeout: 15_000 }).toMatch(/se termine le \d\d\/\d\d\/\d{4} : on le déclare une fois terminé/);
+      expect(await p.locator('#pa-cnss-accuse').count()).toBe(0);
+      if (anA === A.an && tDe(moA) !== tDe(A.mo) && finDe(anA, tDe(moA)) < ajd) {
+        trimFini = tDe(moA);
+        await p.locator('#pa-trim').selectOption(String(trimFini));
+      }
+    }
+    if (trimFini !== null) {
+      await expect.poll(() => p.locator('#pa-cnss-accuse-ranger').count(), { timeout: 15_000 }).toBe(1);
+      await p.locator('#pa-cnss-accuse-ranger').click();
+      await p.locator('#dp-f').setInputFiles({ name: 'accuse-cnss.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n') });
+      expect(await p.locator('#dp-titre').inputValue()).toMatch(/^L'accusé CNSS du (1er|\de) trimestre \d{4}$/);
+      await p.locator('.modal #ok').click();
+      await expect.poll(() => p.locator('#pa-cnss-accuse').innerText().then(espace).catch(() => ''), { timeout: 15_000 }).toMatch(/^Déposée · l'accusé est dans le classeur \(rangé le \d\d\/\d\d\/\d{4}\)\. Ouvrir l'accusé$/);
+      // « Ouvrir l'accusé » l'ouvre en grand, ici, sans quitter la Paie.
+      await p.locator('#pa-cnss-accuse-voir').click();
+      await expect.poll(() => p.locator('.cl-gr-t').innerText().then(espace).catch(() => ''), { timeout: 15_000 }).toMatch(/^accuse-cnss\.pdf/);
+      await p.keyboard.press('Escape');
+      await expect.poll(() => p.locator('.cl-gr-t').count()).toBe(0);
+    }
     // 1.244.0 — la paie de tous mes dossiers (depuis L'année) : une ligne par dossier, ses bulletins et où ils en sont.
     await p.locator('.pa-so [data-pa-vue="annee"]').click();
     await p.locator('#pa-vers-tous [data-pa-vue="tous"]').click();
@@ -390,7 +414,12 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     // ── Marquer vérifiés : `verifieLe` sur les cinq ────────────────────────────────────────────────────
     await p.locator('#pa-verifier-tout').click();
     await expect.poll(async () => (await A.bulletins()).filter((x) => x.contenu.verifieLe).length).toBe(5);
-    await expect.poll(() => p.locator('#view .btn-primary').count()).toBe(0);
+    // Vérifiés : le seul vert qui reste est l'étape suivante du cabinet, valider l'écriture de paie au brouillard
+    // (1.344.0 : elle se valide d'ici) ; validée, plus rien n'est vert.
+    await expect.poll(async () => {
+      const verts = (await p.locator('#view .btn-primary').evaluateAll((els) => els.map((e) => e.id))).join(',');
+      return verts === (await p.locator('#pa-valider').count() ? 'pa-valider' : '');
+    }).toBe(true);
 
     // ── D1 : la demande de congé de Karim, pas acceptée, ne se dit pas « payée » ─────────────────────────
     await p.locator('.pa-so [data-pa-vue="conges"]').click();

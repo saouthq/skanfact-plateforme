@@ -5559,14 +5559,17 @@
     const dates = o.pour && o.pour > aujourdhui && o.pour !== d1 ? [o.pour, d1, ''] : [d1, d2, ''];
     const li = item.ligne;
     const objet = item.cible ? `la facture de ${item.cible.num || item.cible.titre} (${item.cible.titre}, ${dtCd(item.cible.montant)} DT)` : li ? `la pièce du ${/^CHQ/i.test(li.libelle || '') ? 'chèque' : 'paiement'} du ${jjmm(li.date)}` : item.piece ? String(item.piece) : String(item.titre || '').replace(/^[^·]*·\s*/, '');
-    const phraseDe = x => `Bonjour${prenom ? ` ${prenom}` : ''}, il me manque ${x} pour ton dossier. Peux-tu me l'envoyer ici ? Une photo suffit.`;
+    const phraseDe = x => `Bonjour${prenom ? ` ${prenom}` : ''}, il me manque ${x} pour ton dossier. Peux-tu me l'envoyer ici\u00a0? Une photo suffit.`;
     const texte = li
       ? `Bonjour${prenom ? ` ${prenom}` : ''}, sur le relevé ${item.rel.banque ? `${item.rel.banque} ` : ''}${deMois(item.mois)}, ${/^CHQ/i.test(li.libelle || '') ? `un chèque n° ${String(li.libelle).replace(/^CHQ\s*/i, '').trim() || li.reference}` : `« ${li.libelle} »`} de ${dtCd(Math.abs(Number(li.montant)))} DT a été débité le ${jjmm(li.date)}. À qui l'as-tu donné, et as-tu sa facture ? Une photo suffit.`
-      : item.cible ? `Bonjour${prenom ? ` ${prenom}` : ''}, l'achat ${item.cible.num || ''} (${item.cible.titre}, ${dtCd(item.cible.montant)} DT) est saisi sans sa facture. Peux-tu m'en envoyer une photo ici ? Merci.`
+      : item.cible ? `Bonjour${prenom ? ` ${prenom}` : ''}, l'achat ${item.cible.num || ''} (${item.cible.titre}, ${dtCd(item.cible.montant)} DT) est saisi sans sa facture. Peux-tu m'en envoyer une photo ici\u00a0? Merci.`
         : item.texte ? String(item.texte) : libre ? '' : phraseDe(objet);
     const tel = String(d.phone || '').replace(/\D/g, ''), mail = String(d.email || '').trim();
     let pour = dates[0], par = 'conv';
-    const aideBase = o.hors
+    // (1.344.0, 0208) Ce qui s'écrit (un n° CNSS) revient écrit : la réponse arrive dans la conversation, pas dans Pièces reçues.
+    const aideBase = o.ecrit
+      ? `La demande arrive dans votre conversation. ${prenom || 'Le client'} peut y répondre par écrit (« Répondre… ») ou par une photo : la réponse se lit dans la conversation, et ici, en face du salarié.`
+      : o.hors
       ? `La demande arrive dans votre conversation. Quand ${prenom || 'le client'} répond, sa photo arrive dans Pièces reçues, avec la pièce demandée.`
       : `La demande se range dans ${moisLong(item.mois || aujourdhui.slice(0, 7))}, à la place du trou. Quand ${prenom || 'le client'} répond, sa photo arrive dans Pièces reçues, et se range ici.`;
     // (1.188.0) Ce que fait la date, dit avant le geste : passée sans réponse, un rappel part par e-mail (1.116.0).

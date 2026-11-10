@@ -219,7 +219,7 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(p.url()).not.toContain('#/messages/');
     await demande.locator('#dm-piece').fill('le relevé bancaire d\'octobre');
     // Nommée, la pièce compose le message (tant qu'on ne l'a pas réécrit).
-    expect(await demande.locator('#dm-texte').inputValue()).toMatch(/il me manque le relevé bancaire d'octobre pour ton dossier\. Peux-tu me l'envoyer ici \? Une photo suffit\.$/);
+    expect(await demande.locator('#dm-texte').inputValue()).toMatch(/il me manque le relevé bancaire d'octobre pour ton dossier\. Peux-tu me l'envoyer ici\s\? Une photo suffit\.$/);
     await demande.getByRole('button', { name: 'Écrire plutôt dans la conversation' }).click();
     await expect.poll(() => p.url(), { timeout: 20_000 }).toContain(`#/messages/${cafe.ent}/demande`);
     await expect.poll(() => p.locator('[data-msg-demande-txt]').first().inputValue(), { timeout: 15_000 }).toBe('le relevé bancaire d\'octobre');

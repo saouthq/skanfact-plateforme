@@ -347,6 +347,8 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
         .nullable().default(null),
       fichier: uuid.nullable().default(null),
       repondA: uuid.nullable().default(null),
+      // (1.344.0, 0208) La réponse ÉCRITE à une pièce demandée (« Je l'écris » : un n° CNSS, une date) : choisie exprès.
+      ecrite: z.boolean().default(false),
     }).strict(),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
@@ -365,7 +367,7 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
         if (ouverte && !texte && !(i === 0 && (corps.fichier || corps.piece))) continue;
         ids.push((await tx.query('select messagerie.ecrire($1, $2, $3::jsonb) id', [params.entreprise ?? '', corps.cote, JSON.stringify({
           texte, piece: i === 0 ? corps.piece : null, demande: ouverte ? null : demande, pour: ouverte ? null : corps.pour,
-          fichier: i === 0 ? corps.fichier : null, repondA: i === 0 ? corps.repondA : null,
+          fichier: i === 0 ? corps.fichier : null, repondA: i === 0 ? corps.repondA : null, ecrite: i === 0 && corps.ecrite,
         })])).rows[0].id as string);
       }
       return { statut: 201, corps: { id: ids[0] ?? null, ids, deja } };
@@ -525,18 +527,22 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
         where m.cabinet = $1 and m.cote = 'entreprise' and m.fichier is not null and m.classee_le is null`, [params.cabinet])).rows[0].n);
       // (1.167.0) Les demandes du cabinet encore ouvertes, et celles reçues ces trois derniers jours : la page les montre
       // au-dessus de la pièce ouverte (« Demandes en cours »). La même règle du fil : un dossier qu'on ne lit pas n'y est pas.
-      const demandes = aClasser ? (await tx.query(`select m.id, m.entreprise, m.demande, m.demande_recue_le, m.demande_pour, m.ecrit_le
+      // (1.344.0, 0208) Une demande réglée PAR ÉCRIT porte sa réponse : la Paie la montre en face du salarié (« Sarra a
+      // répondu : 12345678-90 ») — sans elle, l'écran redemandait un numéro que le client venait de donner.
+      const demandes = aClasser ? (await tx.query(`select m.id, m.entreprise, m.demande, m.demande_recue_le, m.demande_pour, m.ecrit_le,
+          (select r.texte from messagerie.message r where r.repond_a = m.id and r.fichier is null and r.piece_genre is null
+            order by r.ecrit_le desc limit 1) reponse
         from messagerie.message m
        where m.cabinet = $1 and m.cote = 'cabinet' and m.demande is not null
          and (m.demande_recue_le is null or m.demande_recue_le > now() - interval '3 days')
        order by m.ecrit_le desc, m.id desc limit 200`, [params.cabinet])).rows as
-        { id: string; entreprise: string; demande: string; demande_recue_le: Date | null; demande_pour: string | null; ecrit_le: Date }[] : [];
+        { id: string; entreprise: string; demande: string; demande_recue_le: Date | null; demande_pour: string | null; ecrit_le: Date; reponse: string | null }[] : [];
       return {
         corps: {
           aClasser: compte,
           plus: lignes.length + deposees.length > max,
           demandes: demandes.map((d) => ({ id: d.id, entreprise: d.entreprise, texte: d.demande, demandeeLe: d.ecrit_le.toISOString(),
-            recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour })),
+            recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour, reponse: d.reponse || null })),
           pieces: [...lignes.map((l) => ({
             id: l.id, entreprise: l.entreprise, de: l.auteur_nom, texte: l.texte, recueLe: l.ecrit_le.toISOString(),
             fichier: { id: l.fichier, nom: l.fichier_nom, type: l.fichier_type, taille: Number(l.fichier_taille) },

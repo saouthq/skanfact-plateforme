@@ -1,6 +1,6 @@
 {
   "_": "Le cliquet du contrôle des frontières (docs/cadrage/17-rangement.md § 4.2 ; outils/rangement/frontieres.ts). « ecarts » : les écarts d'aujourd'hui, comptés ; un écart neuf fait tomber le contrôle, un écart disparu mais encore listé aussi ; la liste ne peut que baisser (`npm run frontieres -- --ecrire`). « lignes » : les lignes de chaque gros fichier hors de modules/, au plus (F12). « empreinte » : les écrans servis à la dernière écriture (un déplacement à l'identique, et lui seul, peut inscrire les écarts qu'il révèle).",
-  "empreinte": "8b37be47c161af9403ebe24064de45710b0a3900fe456898b7787ba5b243ebe1",
+  "empreinte": "223e80bc7d42774234cf577e4f59469efabe091f291382b3d2265c9679fa3afb",
   "lignes": {
     "v10/app.js": {
       "auPlus": 0,
@@ -35,7 +35,7 @@
       "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
     },
     "plateforme/pont.js": {
-      "auPlus": 3144,
+      "auPlus": 3127,
       "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5)"
     },
     "plateforme/pont-cabinet.js": {
@@ -279,6 +279,6 @@
     "F4 v10/core.js socle→personnel tauxAvant2026": 1,
     "F4 v10/core.js socle→personnel workingDays": 1,
     "F7 v10/cabinet/app.js personnel→socle S": 2,
-    "F7 v10/cabinet/app.js personnel→socle pageFocus": 2
+    "F7 v10/cabinet/app.js personnel→socle pageFocus": 1
   }
 }

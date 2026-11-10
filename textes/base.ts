@@ -377,7 +377,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une date « pour le » va avec une pièce demandée', cle: 'base.messagerie.pour_sans_demande', fr: 'une date « pour le » va avec une pièce demandée : nomme la pièce, ou retire la date' },
   { base: 'une pièce se demande pour aujourd\'hui ou plus tard', cle: 'base.messagerie.pour_passee', fr: 'une pièce se demande pour aujourd\'hui ou plus tard : choisis une autre date' },
   { base: 'seul le serveur note une relance partie', cle: 'base.messagerie.relance_serveur', fr: 'seul le serveur note une relance partie' },
-  { base: 'on répond à une pièce demandée en l\'envoyant', cle: 'base.messagerie.reponse_demande', fr: 'on répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier' },
+  { base: 'on répond à une pièce demandée en l\'envoyant', cle: 'base.messagerie.reponse_demande', fr: 'on répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, choisis la pièce de ton dossier, ou choisis « Je l\'écris » et écris ce qu\'elle demande' },
   { base: 'cette pièce demandée n\'attend plus rien', cle: 'base.messagerie.demande_close', fr: 'cette pièce demandée n\'attend plus rien' },
   { base: 'un achat se nomme par son identifiant et son libellé', cle: 'base.messagerie.achat', fr: 'un achat se nomme par son identifiant et son libellé' },
   { base: 'ce message n\'a pas de fichier à ranger', cle: 'base.messagerie.rien_a_ranger', fr: 'ce message n\'a pas de fichier à ranger' },

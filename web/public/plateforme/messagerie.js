@@ -957,7 +957,7 @@
         const aDater = entreprise && o.corrigerDateAchat ? numeroADater(m) : '';
         const geste = recue || !actif ? ''
           : aDater ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-corriger-date="${esc(m.id)}">Corriger la date…</button>`
-          : entreprise ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-envoyer-piece="${esc(m.id)}">Envoyer la pièce…</button>`
+          : entreprise ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-envoyer-piece="${esc(m.id)}">${/\bn°|numéro|matricule/i.test(String(m.demande.texte || '')) ? 'Répondre…' : 'Envoyer la pièce…'}</button>`
             : `<button type="button" class="btn btn-sm" data-msg-recue="${esc(m.id)}">Reçue autrement</button>`;
         const pour = m.demande.pour && !recue ? `<span class="msg-pour">pour le ${esc(dateCourte(m.demande.pour))}</span>` : '';
         const relances = !entreprise && m.demande.relances && !recue
@@ -969,7 +969,7 @@
             : `<li class="${retard ? 'retard' : 'attend'}"><b>${retard ? 'En retard' : aDater ? 'À corriger' : entreprise ? 'À envoyer' : 'Attendue'}</b><small>${m.demande.pour ? `pour le ${esc(jjmm(m.demande.pour))}` : 'sans date'}</small></li>`].join('');
         // (1.335.0) « Reçue » se dit une fois dans sa frise (avec sa date) et une fois en état : le « · reçue » collé au nom de
         // la pièce le disait une troisième fois sur la même carte.
-        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>${aDater ? 'Date à corriger' : 'Pièce demandée'}${esc(parQui)}</b><span>${esc(m.demande.texte)}</span>${pour}</span>
+        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>${aDater ? 'Date à corriger' : 'Pièce demandée'}${esc(parQui)}</b><span>${esc((t => t.charAt(0).toUpperCase() + t.slice(1))(String(m.demande.texte || '')))}</span>${pour}</span>
           <ol class="msg-frise-d" aria-label="Où en est la pièce">${frise}</ol>
           <span class="msg-etat">${recue ? (aDater ? 'Corrigée' : 'Reçue') : retard ? 'En retard' : aDater ? 'À corriger' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}${relances}</div>`;
       }
@@ -1986,14 +1986,18 @@
       /** @type {File | null} */ let choisi = null;
       /** @type {{ genre: string, id: string, libelle: string } | null} */ let dejaLa = null;
       /** @type {string | null} */ let apercu = null;
-      let facon = 'fichier';
+      // (1.344.0, 0208) Ce qui se demande peut être un numéro (le n° CNSS d'un salarié) : il s'ÉCRIT, il ne se photographie
+      // pas. « Je l'écris » est proposé à chaque demande, et choisi d'avance quand elle nomme un numéro.
+      const unNumero = /\bn°|numéro|matricule/i.test(String(m.demande.texte || ''));
+      let facon = unNumero ? 'ecrit' : 'fichier';
       const fond = document.createElement('div');
       fond.className = 'msg-fenetre-fond';
       fond.innerHTML = `<form class="msg-fenetre" role="dialog" aria-modal="true" aria-labelledby="msg-ep-titre" novalidate>
-        <h2 id="msg-ep-titre">Envoyer la pièce demandée</h2>
+        <h2 id="msg-ep-titre">${unNumero ? 'Répondre à ton cabinet' : 'Envoyer la pièce demandée'}</h2>
         <p class="small muted">Ton cabinet attend : <b>${esc(m.demande.texte)}</b>.</p>
         <div class="msg-ep-facons" role="radiogroup" aria-label="Comment l'envoyer">
-          <label class="msg-ep-facon"><input type="radio" name="facon" value="fichier" checked><span><b>Une photo ou un PDF</b><span>Prends-la en photo, ou choisis le fichier.</span></span></label>
+          <label class="msg-ep-facon"><input type="radio" name="facon" value="fichier"${facon === 'fichier' ? ' checked' : ''}><span><b>Une photo ou un PDF</b><span>Prends-la en photo, ou choisis le fichier.</span></span></label>
+          <label class="msg-ep-facon"><input type="radio" name="facon" value="ecrit"${facon === 'ecrit' ? ' checked' : ''}><span><b>Je l'écris</b><span>Un numéro, une date, un nom : écris-le, il part comme réponse.</span></span></label>
           ${toutes.length ? `<label class="msg-ep-facon"><input type="radio" name="facon" value="dossier"><span><b>Elle est déjà dans SkanFact</b><span>Une facture, un avoir ou un achat de ton dossier.</span></span></label>` : ''}
         </div>
         <div data-ep-fichier></div>
@@ -2001,7 +2005,7 @@
           <input type="search" class="msg-fp-chercher" placeholder="Chercher un numéro, un client, un fournisseur…" aria-label="Chercher une pièce">
           <div class="msg-fp-liste" role="listbox" aria-label="Tes pièces"></div>
         </div>
-        <label class="msg-ep-mot"><span>Un mot pour ton cabinet <span class="muted">(facultatif)</span></span>
+        <label class="msg-ep-mot"><span data-ep-mot-t>Un mot pour ton cabinet <span class="muted">(facultatif)</span></span>
           <textarea rows="2" maxlength="4000" data-ep-mot></textarea></label>
         ${/* Le refus se lit à côté des boutons : posé au-dessus, il les faisait descendre sous le curseur. */''}
         <div class="msg-fp-gestes msg-ep-gestes"><p class="msg-refus" role="alert" data-ep-refus></p>
@@ -2055,10 +2059,18 @@
       fond.querySelectorAll('input[name=facon]').forEach((n) => {
         /** @type {HTMLInputElement} */ (n).onchange = () => {
           facon = /** @type {HTMLInputElement} */ (n).value;
-          zoneFichier.hidden = facon !== 'fichier'; zoneDossier.hidden = facon !== 'dossier'; refus.textContent = '';
-          if (facon === 'dossier') chercher.focus();
+          appliquerFacon();
+          if (facon === 'dossier') chercher.focus(); else if (facon === 'ecrit') mot.focus();
         };
       });
+      // Le champ du mot devient la réponse elle-même quand on l'écrit : son titre le dit, et il n'est plus facultatif.
+      const titreMot = /** @type {HTMLElement} */ (fond.querySelector('[data-ep-mot-t]'));
+      function appliquerFacon() {
+        zoneFichier.hidden = facon !== 'fichier'; zoneDossier.hidden = facon !== 'dossier'; refus.textContent = '';
+        titreMot.innerHTML = facon === 'ecrit' ? 'Ta réponse' : 'Un mot pour ton cabinet <span class="muted">(facultatif)</span>';
+        mot.placeholder = facon === 'ecrit' ? 'par exemple : 12345678-90' : '';
+        mot.classList.remove('msg-manque');
+      }
       chercher.oninput = montrerListe;
       /** @type {HTMLElement} */ (fond.querySelector('[data-fermer]')).onclick = fermer;
       fond.onclick = (e) => { if (e.target === fond) fermer(); };
@@ -2074,16 +2086,19 @@
           return;
         }
         if (facon === 'dossier' && !dejaLa) { refus.textContent = 'Choisis la pièce de ton dossier qui répond à la demande.'; chercher.focus(); return; }
+        if (facon === 'ecrit' && !mot.value.trim()) { refus.textContent = 'Écris ce que ton cabinet demande : c\'est ta réponse.'; mot.classList.add('msg-manque'); mot.focus(); return; }
         envoyer.disabled = true;
         try {
           const texte = mot.value.trim();
-          if (facon === 'fichier' && choisi) {
+          if (facon === 'ecrit') {
+            await o.appel('POST', '/messages', { cote: o.cote, texte, repondA: m.id, ecrite: true });
+          } else if (facon === 'fichier' && choisi) {
             const depot = await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: choisi.name, contenu: await enBase64(choisi) });
             await o.appel('POST', '/messages', { cote: o.cote, texte, fichier: depot.id, repondA: m.id });
           } else {
             await o.appel('POST', '/messages', { cote: o.cote, texte, piece: dejaLa, repondA: m.id });
           }
-          const nom = facon === 'fichier' && choisi ? `« ${choisi.name} »` : 'La pièce';
+          const nom = facon === 'fichier' && choisi ? `« ${choisi.name} »` : facon === 'ecrit' ? 'Ta réponse' : 'La pièce';
           fermer();
           if (o.toast) o.toast(`${nom} est envoyée à ton cabinet.`);
           await relire();
@@ -2091,8 +2106,9 @@
       };
       dessinerFichier();
       montrerListe();
+      appliquerFacon();
       const premierBouton = /** @type {HTMLElement | null} */ (zoneFichier.querySelector('[data-ep-choisir]'));
-      if (premierBouton) premierBouton.focus();
+      if (facon === 'ecrit') mot.focus(); else if (premierBouton) premierBouton.focus();
     }
 
     void lire();

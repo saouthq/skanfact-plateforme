@@ -213,7 +213,7 @@
 .msg-ep-facon > span { display: flex; flex-direction: column; gap: 2px; }
 .msg-ep-facon > span > span { font-size: 13px; color: var(--muted); }
 .msg-ep-choisir { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
-.msg-ep-choisir.msg-manque { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
+.msg-ep-choisir.msg-manque, .msg-ep-mot textarea.msg-manque { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
 .msg-ep-choisi { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
 .msg-ep-choisi img { flex: none; width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: var(--ink-soft); }
 .msg-ep-choisi .msg-carte-txt { flex-direction: column; }

@@ -160,3 +160,6 @@
 .cp-pa-bandeau.rouge { border-color: color-mix(in srgb, var(--sb-rouge-texte) 35%, var(--sb-trait)); background: var(--sb-rouge-doux); }
 .cp-pa-revenu { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
 #pa-revenus small { display: block; }
+
+/* 1.344.0 — le numéro repris de la réponse du client, dit sous sa case. */
+.sf-propose { display: block; margin-block-start: 4px; font-size: 12px; }

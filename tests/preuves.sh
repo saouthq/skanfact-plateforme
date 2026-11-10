@@ -9162,15 +9162,15 @@ prouver "le fil lu d'un membre du cabinet à qui le dossier n'est pas confié" $
 prouver "« Toi » sous le message d'un collègue" $MR \
   "            moi: m.de_moi," "            moi: m.cote === cote.data," \
   "$MSG1"
-prouver "le client qui demande une pièce" base/migrations/0168_messagerie_relances.sql \
+prouver "le client qui demande une pièce" base/migrations/0208_reponse_ecrite.sql \
   "  if v_demande is not null and p_cote <> 'cabinet' then perform socle.refus('seul le cabinet demande une pièce'); end if;" "" \
   "$MSG2"
-prouver "la pièce demandée envoyée, jamais reçue" base/migrations/0168_messagerie_relances.sql \
+prouver "la pièce demandée envoyée, jamais reçue" base/migrations/0208_reponse_ecrite.sql \
   "    update messagerie.message set demande_recue_le = clock_timestamp(), demande_recue_par = socle.moi()
      where id = v_repond and entreprise = p_entreprise and cabinet = v_cabinet and demande is not null and demande_recue_le is null;
     if not found then perform socle.refus('cette pièce demandée n''attend plus rien'); end if;" "" \
   "$MSG2"
-prouver "un fichier joint à deux messages" base/migrations/0168_messagerie_relances.sql \
+prouver "un fichier joint à deux messages" base/migrations/0208_reponse_ecrite.sql \
   "    if exists (select 1 from messagerie.message m where m.fichier = v_fichier) then perform socle.refus('ce fichier est déjà joint à un message'); end if;" "" \
   "$MSG2"
 prouver "un fichier pas encore joint, lu de l'autre côté" $MG \
@@ -18642,9 +18642,9 @@ prouver 'un lot qui envoie au serveur la pièce de demain' modules/socle/ecrans/
   'mois: filtre.mois, ids: cibles.map(e => e.id) });' \
   'mois: filtre.mois });' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
-prouver '« La valider dans la saisie » qui ouvre le haut de la grille' modules/personnel/ecrans/cabinet/paie.js \
-  'if (pv) pv.onclick = () => { pageFocus = '\''sa-brouillard'\''; allerSousOnglet(root, dossier, '\''saisie'\''); };' \
-  'if (pv) pv.onclick = () => { allerSousOnglet(root, dossier, '\''saisie'\''); };' \
+prouver '« Valider l'\''écriture de paie » qui repart dans la grille au lieu de valider en place (1.344.0)' modules/personnel/ecrans/cabinet/paie.js \
+  'if (e) await validerEcriture(root, dossier, e);' \
+  'if (e) allerSousOnglet(root, dossier, '\''saisie'\'');' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 
 prouver 'la boîte du Cabinet qui affirme que le client a répondu à des questions jamais posées' 'web/public/plateforme/messagerie.js' \
@@ -19106,8 +19106,8 @@ MW115="(1.115.0) la boîte de deux clients : le clavier, le client traité qui r
 prouver 'une pièce du dossier envoyée seule, refusée par la base' $MR115 \
   'or demande is not null or piece_genre is not null);' 'or demande is not null);' \
   "$MSG2"
-prouver 'la pièce demandée qui ne se répond qu'\''avec un fichier' base/migrations/0168_messagerie_relances.sql \
-  "or (v_fichier is null and v_genre is null) then perform socle.refus('on répond à une pièce demandée en l''envoyant')" "or v_fichier is null then perform socle.refus('on répond à une pièce demandée en l''envoyant')" \
+prouver 'la pièce demandée qui ne se répond qu'\''avec un fichier' base/migrations/0208_reponse_ecrite.sql \
+  "    if p_cote <> 'entreprise' or (v_fichier is null and v_genre is null" "    if p_cote <> 'entreprise' or (v_fichier is null" \
   "$MSG2"
 prouver 'la question signée « Ton cabinet » avant le premier message' $MR115 \
   '       or (messagerie.cote_entreprise(p_entreprise) and exists (select 1 from socle.mandat d where d.entreprise = p_entreprise and d.cabinet = p_cabinet)))' '       or false)' \
@@ -19159,12 +19159,12 @@ MR116=base/migrations/0168_messagerie_relances.sql
 T116A="la date « pour le » : aujourd'hui ou plus tard, avec une pièce demandée ; passée sans réponse, la demande est en retard des deux côtés et dans la boîte"
 T116B="plusieurs pièces d'un coup : un message chacune, le mot sur la première, la même date ; toutes ou aucune"
 T116C="la relance : à sa date si rien n'est venu, puis chaque semaine, trois au plus ; rien de la demande dans l'e-mail ; une demande reçue, sans date ou décochée ne se relance pas"
-prouver 'une pièce demandée pour hier' $MR116 \
+prouver 'une pièce demandée pour hier' base/migrations/0208_reponse_ecrite.sql \
   "  if v_pour < (clock_timestamp() at time zone 'Africa/Tunis')::date then
     perform socle.refus('une pièce se demande pour aujourd''hui ou plus tard');
   end if;" "" \
   "$T116A"
-prouver 'une date « pour le » sans pièce demandée' $MR116 \
+prouver 'une date « pour le » sans pièce demandée' base/migrations/0208_reponse_ecrite.sql \
   "  if v_pour is not null and v_demande is null then perform socle.refus('une date « pour le » va avec une pièce demandée'); end if;" "" \
   "$T116A"
 prouver 'un 30 février pris pour une date' $MR \
@@ -26798,7 +26798,7 @@ prouver 'paie 1.330.0 m : le Cabinet ne compte pas les salariés de la version v
   '|| pointeDansLaVersion(L, ym, x.id)).length;' ').length;' \
   "$PAIE1330E"
 prouver 'paie 1.330.0 n : deux paires « Le demander / Le renseigner » sans dire à qui' modules/personnel/ecrans/cabinet/paie.js \
-  'const qui = P.sansCnss.length > 1 ?' 'const qui = false ?' \
+  'const qui = x => (P.sansCnss.length > 1 ?' 'const qui = x => (false ?' \
   "$PAIE1330E"
 prouver 'paie 1.330.0 o : un bulletin payé et remis se dit « préparé » au Cabinet' modules/personnel/ecrans/cabinet/paie.js \
   ': b.payeLe ? `<span class="badge b-paid">${b.remisLe ? '\''payé, remis'\'' : '\''payé'\''}</span>`' ': false ? '\'''\''' \
@@ -27130,7 +27130,7 @@ prouver 'pièces 1.335.0 f : l'\''avertissement du client qui saisit lui-même s
   '${mot}${dl}${avNc}${!classees|||: `<div class="pc-gestes">' '${mot}${dl}${!classees|||: `${avNc}<div class="pc-gestes">' \
   "$PC1335B"
 prouver 'pièces 1.335.0 g : la carte d'\''une pièce reçue dit « reçue » trois fois' web/public/plateforme/messagerie.js \
-  '<span>${esc(m.demande.texte)}</span>${pour}</span>' '<span>${esc(m.demande.texte)}${recue ? '\'' · reçue'\'' : '\'''\''}</span>${pour}</span>' \
+  '<span>${esc((t => t.charAt(0).toUpperCase() + t.slice(1))(String(m.demande.texte || '\'''\'')))}</span>${pour}</span>' '<span>${esc((t => t.charAt(0).toUpperCase() + t.slice(1))(String(m.demande.texte || '\'''\'')))}${recue ? '\'' · reçue'\'' : '\'''\''}</span>${pour}</span>' \
   "$MSG1335"
 prouver 'pièces 1.335.0 i : les Relances ne se redessinent pas quand les pièces arrivent après elles' modules/socle/ecrans/cabinet/app-1.js \
   'if (/^#\/relances(\/|$)/.test(location.hash)) drawRelances($('\''#view'\''));' 'if (false) drawRelances($('\''#view'\''));' \
@@ -27370,6 +27370,34 @@ prouver 'banque 1.343.0 i : « Revoir » garde les rapprochées repliées' modul
 prouver 'banque 1.343.0 j : « tant qu'\''il n'\''a pas répondu » sur une réponse' modules/socle/ecrans/cabinet/app-2.js \
   '<p class="bq-rien">${q.statut === '\''repondue'\'' ? '\''Sa réponse est là' '<p class="bq-rien">Tant qu'\''il n'\''a pas répondu, la ligne attend. ${q.statut === '\''repondue'\'' ? '\''Sa réponse est là' \
   "$BQ1343"
+
+# 1.344.0 : la Paie d'un dossier au Cabinet (l'écriture validée d'ici, la paie passée au journal comptée dans l'année, le fichier CNSS une ligne par salarié, le trimestre en cours, la réponse écrite du client).
+PA1344='(1.344.0) l'\''écriture validée depuis la Paie, la paie passée au journal comptée dans l'\''année, le fichier CNSS une ligne par salarié'
+PA1344T='tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
+prouver 'paie 1.344.0 a : la paie passée au journal ne compte pas dans le 640' modules/personnel/ecrans/cabinet/paie.js \
+  'const egaux = Math.abs(livre - KC.round3(brutV + H.ailleurs)) < 0.0005;' 'const egaux = Math.abs(livre - brutV) < 0.0005;' \
+  "$PA1344"
+prouver 'paie 1.344.0 b : un 640 dans un mois qui a ses bulletins passe pour une paie au journal' modules/personnel/ecrans/cabinet/paie.js \
+  ": m.aDesBulletins ? 'ecart' : e.source === 'skanfact'" ": e.source === 'skanfact'" \
+  "$PA1344"
+prouver 'paie 1.344.0 c : « la fiche de Amira »' modules/personnel/ecrans/cabinet/paie.js \
+  "  const deNom = nom => (/^[aeiouyhâàéèêîôû]/i.test(String(nom || '')) ? 'd\\'' : 'de ') + nom;" "  const deNom = nom => 'de ' + nom;" \
+  "$PA1344"
+prouver 'paie 1.344.0 d : deux lignes et deux boutons pour la même fiche' modules/personnel/ecrans/cabinet/paie.js \
+  'f.avertissements.filter(a => !(dejaVus && dejaVus.has(a.salarieId))).forEach(a => {' 'f.avertissements.forEach(a => {' \
+  "$PA1344"
+prouver 'paie 1.344.0 e : « Ranger l'\''accusé » sur un trimestre en cours' modules/personnel/ecrans/cabinet/paie.js \
+  '${trimEnCours ? '\'''\'' : paieAccuseCnss(dossier, s.annee, t)}' '${paieAccuseCnss(dossier, s.annee, t)}' \
+  "$PA1344T"
+prouver 'paie 1.344.0 f : deux verts, « remettre » et « valider l'\''écriture »' modules/personnel/ecrans/cabinet/paie.js \
+  '<button type="button" class="btn btn-sm${vertLibre ? '\'' btn-primary'\'' : '\'''\''}" id="pa-valider">' '<button type="button" class="btn btn-sm btn-primary" id="pa-valider">' \
+  "$PA1344T"
+prouver 'paie 1.344.0 g : un « la voilà » sans fichier ferme la demande' base/migrations/0208_reponse_ecrite.sql \
+  "and not (coalesce((p_message->>'ecrite')::boolean, false) and length(v_texte) > 0)) then" "and not (length(v_texte) > 0)) then" \
+  "$MSG2"
+prouver 'paie 1.344.0 h : la réponse écrite absente des demandes du cabinet' serveur/messagerie/routes.ts \
+  'recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour, reponse: d.reponse || null })),' 'recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour, reponse: null })),' \
+  "$MSG2"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

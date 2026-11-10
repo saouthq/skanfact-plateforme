@@ -2068,3 +2068,38 @@ rapprochement en PDF.
 - Le rouge GitHub de la 1.342.0 : deux tests décrivaient l'état d'avant mes versions — `cabinet-ecritures` attendait le
   client sans écriture nommé seul (la 1.341.0 dit « Tenu au cabinet, à saisir par toi »), `mois-client` un mois « à
   réviser » sans la photo du client, qui reste à classer chez le cabinet (1.338.0). Retournés vers la règle.
+
+## La Paie d'un dossier au Cabinet, et le pont (1.344.0)
+
+Jouée à la souris et au clavier sur la Boulangerie El Amal : la paie d'octobre (deux salariés sans n° CNSS), les deux
+bulletins validés, l'écriture de paie, la déclaration du mois, la CNSS du trimestre, l'année — puis Sarra qui répond à la
+demande du n° CNSS de son côté, et le cabinet qui le reporte sur la fiche.
+
+- Le contrôle « 2 salariés sans n° CNSS » portait quatre boutons (« Le demander » et « Le renseigner » par salarié), et
+  rien ne disait que la demande était déjà partie. Une seule demande pour tous les numéros qui manquent ; celle qui est
+  partie se dit (« Demandé à Sarra le 10/11 »), et la réponse aussi (« Sarra a répondu le 10/11 : « 12345678-90 » »).
+- « La valider dans la saisie » menait au brouillard d'une grille de trente-trois pièces, où il fallait retrouver la
+  sienne. L'écriture de paie a son étape dans « Les bulletins sont faits », entre les salaires et la déclaration, et se
+  valide en place, par la même question que la grille. Un seul vert : remettre les bulletins d'abord, puis l'écriture.
+- « 2 entrées » sous le coût du mois se lisait comme deux écritures : « 2 embauches ce mois ». « Salaires payés · payés »
+  disait deux fois la même chose.
+- L'année disait 1 850 DT de salaires sur un exercice qui en porte 31 854 au 640 : la paie de janvier à juillet avait été
+  passée au journal, avant que le cabinet ne fasse les bulletins ici, et le contrôle l'accusait d'être « une écriture
+  passée hors de la paie ». Un mois SANS bulletin ici dont le 640 bouge a sa paie ailleurs (au journal, ou faite par le
+  client dans SkanFact) : le tableau le dit (« au journal », « au brouillard »), le contrôle l'ajoute (« égaux au
+  millime »), la masse salariale dit le total de l'exercice. Un 640 qui bouge dans un mois QUI A ses bulletins reste un
+  écart, et le dit.
+- La CNSS du trimestre : un trimestre en cours proposait « Déposée ? Range son accusé » dix lignes au-dessus de « on le
+  déclare une fois terminé » ; il ne le propose plus. Le fichier disait « Ouvrir la fiche de Amira », puis une seconde
+  ligne et un second bouton pour la même fiche : une ligne par salarié (son refus, puis « Aussi : son identité CNSS
+  reprend le nom de sa fiche »), « la fiche d'Amira », et la demande déjà faite au client.
+- Le pont : une demande ne se réglait qu'avec une photo ou une pièce du dossier — Sarra devait photographier un numéro
+  qu'elle pouvait écrire, ou l'écrire dans un message pendant que la demande restait « à envoyer » et se relançait. La
+  fenêtre de réponse propose « Je l'écris » (choisi d'avance quand la demande nomme un numéro), la base l'accepte
+  (migration 0208 : une réponse écrite, choisie exprès et non vide ; un « la voilà » sans fichier reste refusé), et la
+  réponse revient au cabinet avec la demande. « Renseigner Hédi… » ouvre sa fiche le numéro proposé dans sa case, avec sa
+  provenance : il reste à le vérifier et à enregistrer.
+- La preuve : `tests/web/paie-1344.test.ts` (un dossier tenu au cabinet, la paie de janvier passée au journal, une
+  salariée sans n° CNSS) et `tests/messagerie/messagerie.test.ts` (la réponse écrite) ; preuves `paie 1.344.0 a-h`.
+  `cabinet-pas-avant-son-jour` et `cabinet-paie-parcours` retournés vers la règle (l'écriture se valide en place ; un
+  trimestre en cours ne propose pas son accusé ; le vert passe à l'écriture une fois les bulletins remis).

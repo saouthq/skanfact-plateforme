@@ -129,7 +129,9 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     expect(await p.locator('.sa-lot').count()).toBe(0);
     expect(await p.locator('#sa-attend').count()).toBe(1);
 
-    // 5. Le 02/11/2026 : « La valider dans la saisie » revient à la Paie, et mène AU brouillard.
+    // 5. Le 02/11/2026 : l'écriture de paie se valide DEPUIS la Paie (1.344.0). « La valider dans la saisie » menait au
+    //    brouillard d'une grille de trente-trois pièces, où il fallait la retrouver : elle se valide en place, par la même
+    //    question que la grille, et la Paie passe à l'étape suivante.
     await cx.clock.setFixedTime(new Date('2026-11-02T10:00:00+01:00'));
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/paie/2026`);
     await p.reload();
@@ -138,15 +140,10 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Valider', exact: true }).click();
     await p.locator('#pa-valider').waitFor({ timeout: 15_000 });
     await p.locator('#pa-valider').click();
-    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/saisie\//);
-    // Mené AU brouillard : il s'éclaire une seconde et demie (« c'est ici »). Sur une page courte, le brouillard se voit
-    // aussi sans le geste : seul cet éclair distingue « mené au brouillard » de « le haut de la grille » (1.107.0).
-    await expect.poll(() => p.locator('#sa-brouillard.flash').count(), { timeout: 5_000, interval: 50 }).toBe(1);
-    // Amené à l'écran (le haut du brouillard visible), pas forcément en haut : sur une page courte, la fin du défilement
-    // l'arrête plus bas (sur GitHub, d'autres polices : « moins d'une demi-fenêtre » tombait sans défaut).
-    await expect.poll(() => p.evaluate(() => { const r = document.querySelector('#sa-brouillard')?.getBoundingClientRect(); return !!r && r.top >= 0 && r.top < innerHeight - 80; }), { timeout: 10_000 }).toBe(true);
-    expect(await lots.allInnerTexts()).toEqual(['Valider la seule pièce de PAIE']);
-    expect(await p.locator('#sa-attend').count()).toBe(0);
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Valider', exact: true }).click();
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Validée sous le n° \d+$/);
+    expect(await p.evaluate(() => location.hash)).toMatch(/comptabilite\/paie/);
+    await expect.poll(() => p.locator('#pa-valider').count(), { timeout: 15_000 }).toBe(0);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

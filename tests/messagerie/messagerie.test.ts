@@ -173,9 +173,22 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
     expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ nonLus: 0, demandes: 1, aLire: true });
     // Le client ne demande pas de pièce ; il ne répond à une demande qu'en envoyant la pièce.
     expect((await ecrire(ent, client, 'entreprise', { demande: 'Ton RIB' })).corps.motif).toBe('Seul le cabinet demande une pièce.');
-    expect((await ecrire(ent, client, 'entreprise', { texte: 'La voilà', repondA: d.corps.id })).corps.motif).toBe('On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier.');
+    const REFUS_REPONSE = 'On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, choisis la pièce de ton dossier, ou choisis « Je l\'écris » et écris ce qu\'elle demande.';
+    expect((await ecrire(ent, client, 'entreprise', { texte: 'La voilà', repondA: d.corps.id })).corps.motif).toBe(REFUS_REPONSE);
     // Le cabinet ne répond pas à sa propre demande, même avec une pièce.
-    expect((await ecrire(ent, cab.associe, 'cabinet', { piece: { genre: 'achat', id: 'a9', libelle: 'STEG' }, repondA: d.corps.id })).corps.motif).toBe('On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier.');
+    expect((await ecrire(ent, cab.associe, 'cabinet', { piece: { genre: 'achat', id: 'a9', libelle: 'STEG' }, repondA: d.corps.id })).corps.motif).toBe(REFUS_REPONSE);
+    // (1.344.0, 0208) Ce qui s'écrit (un n° CNSS) se répond PAR ÉCRIT, choisi exprès (`ecrite`) : vide, refusé ; « La voilà »
+    // sans ce choix reste refusé au-dessus (la demande se fermerait sur rien). La réponse se lit au cabinet, sur la demande.
+    const num = await ecrire(ent, cab.associe, 'cabinet', { texte: 'Il me manque le n° CNSS de Hédi.', demande: 'le n° CNSS de Hédi Trabelsi' });
+    expect(num.statut, JSON.stringify(num.corps)).toBe(201);
+    expect((await ecrire(ent, client, 'entreprise', { texte: '  ', repondA: num.corps.id, ecrite: true })).statut).not.toBe(201);
+    expect((await ecrire(ent, cab.associe, 'cabinet', { texte: '12345678-90', repondA: num.corps.id, ecrite: true })).corps.motif).toBe(REFUS_REPONSE);
+    const rep = await ecrire(ent, client, 'entreprise', { texte: '12345678-90', repondA: num.corps.id, ecrite: true });
+    expect(rep.statut, JSON.stringify(rep.corps)).toBe(201);
+    const dems = ((await appeler('GET', `/cabinets/${cab.id}/pieces`, cab.associe.jeton)).corps as unknown as { demandes: { id: string; recueLe: string | null; reponse: string | null }[] }).demandes;
+    expect(dems.find((x) => x.id === num.corps.id)).toMatchObject({ reponse: '12345678-90' });
+    expect(dems.find((x) => x.id === num.corps.id)?.recueLe).toBeTruthy();
+    expect(dems.find((x) => x.id === d.corps.id)?.reponse ?? null).toBeNull();
 
     // Le fichier : reconnu à ses octets (un texte nommé .png ne passe pas), 10 Mo au plus.
     const faux = await appeler('POST', `/entreprises/${ent}/messages/fichiers`, client.jeton, { cote: 'entreprise', nom: 'facture.png', contenu: Buffer.from('ceci n\'est pas une image').toString('base64') });
