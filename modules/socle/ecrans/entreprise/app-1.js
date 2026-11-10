@@ -4138,6 +4138,18 @@
     });
   }
 
+  // 1.352.0 — les listes posées DANS une fiche (les paiements d'un client, les règlements d'un fournisseur, ses commandes,
+  // son matériel…) se feuillettent aussi (demande de Skander : « la pagination dans toutes les listes ») : quatre-vingt-quinze
+  // paiements d'un seul tenant faisaient six écrans. Une page par liste et par fiche — ouvrir une autre fiche repart de la
+  // première ; `pied()` rend la barre dans SA zone, pour que deux listes d'un même onglet ne se tournent pas ensemble.
+  const pagesFiche = { id: '', p: {} };
+  function feuilletFiche(id, cle, liste) {
+    if (pagesFiche.id !== id) { pagesFiche.id = id; pagesFiche.p = {}; }
+    const st = pagesFiche.p[cle] || (pagesFiche.p[cle] = { page: 1 });
+    const v = paginate(liste, st);
+    return { rows: v.rows, pied: (nom, pluriel) => { const b = pagerBar(v.pg, { noun: nom, pluriel }); return b ? `<div class="pg-fiche" data-pgf="${h(cle)}">${b}</div>` : ''; } };
+  }
+  const brancherFeuillets = (racine, redraw) => $$('[data-pgf]', racine).forEach(z => { if (pagesFiche.p[z.dataset.pgf]) bindPager(z, pagesFiche.p[z.dataset.pgf], redraw); });
   // Découpe la liste selon la page courante de `state` et renvoie { rows, pg } pour l'affichage.
   function paginate(list, state) {
     const pg = C.pageInfo(list.length, state.page || 1, rowsPerPage());
@@ -10827,6 +10839,7 @@
   // ---------- fiche client ----------
   // ---------- les listes de prix (plateforme, brique 93 ; 01 § 5) ----------
   const listesPrix = () => (data.priceLists = data.priceLists || []);
+  const etatLp = { page: 1 };
   const aQuiListe = l => l.categorie ? `la catégorie « ${l.categorie} »` : `${(l.clientIds || []).length > 1 ? (l.clientIds || []).length + ' clients' : ((clientById((l.clientIds || [])[0]) || {}).name || 'aucun client')}`;
   routes.listesprix = () => {
     const ls = listesPrix().slice().sort((a, b) => String(b.depuis || '').localeCompare(String(a.depuis || '')) || String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
@@ -10860,10 +10873,12 @@
       <div class="lf mg ca lpx">${resume}<div class="cf-carte"><div class="cf-onglet">
       ${!ls.length ? etatVide('Des prix à part pour certains clients', ['Un revendeur paie moins qu\'un particulier, un grand chantier a son prix négocié : une liste de prix vaut pour une catégorie de clients ou pour des clients choisis, à partir d\'une date. Sur leurs devis et leurs factures, ses prix remplacent ceux du catalogue.'], [])
         : `<div class="scroll-x"><table class="list" id="lp-list"><thead><tr><th>Nom</th><th>S'applique à</th><th>Du</th><th>Au</th><th class="r">Articles</th><th>État</th></tr></thead><tbody>
-          ${ls.map(l => `<tr><td><a href="#/listeprix/${h(l.id)}"><b>${h(l.nom || '(sans nom)')}</b></a></td><td>${h(aQuiListe(l))}</td>
+          ${paginate(ls, etatLp).rows.map(l => `<tr><td><a href="#/listeprix/${h(l.id)}"><b>${h(l.nom || '(sans nom)')}</b></a></td><td>${h(aQuiListe(l))}</td>
             <td class="nw">${l.depuis ? h(C.fmtDate(l.depuis)) : '—'}</td><td class="nw">${l.jusquau ? h(C.fmtDate(l.jusquau)) : '—'}</td><td class="r num">${(l.lignes || []).length}</td><td>${ETATS_LP[etatListe(l)]}</td></tr>`).join('')}
-        </tbody></table></div>`}
+        </tbody></table>${pagerBar(paginate(ls, etatLp).pg, { noun: 'liste' })}</div>`}
       </div></div></div>`;
+    // 1.352.0 — la liste des listes de prix se feuillette comme les autres (une par saison et par catégorie, elles s'accumulent).
+    bindPager($('#view'), etatLp, () => render(true), '#lp-list');
     $('#lp-new').onclick = () => navigate('#/listeprix/new');
   };
 
@@ -10917,6 +10932,7 @@
           </div>
           <div class="panel"><h2>Les prix ${info('lp.prix')}</h2>
             <div class="scroll-x"><table class="lines-edit"><thead><tr><th>Article</th><th class="r">Prix du catalogue</th><th class="r">Prix de la liste HT (${h(cur)})</th><th class="r lp-ecart">Écart</th><th></th></tr></thead><tbody id="lp-lignes"></tbody></table></div>
+            <div id="lp-pg"></div>
             <div class="lp-outils"><button class="btn btn-sm" id="lp-add">+ Article</button>
               <span class="lp-remise"><label for="lp-pct">Tout le catalogue à</label><input type="number" id="lp-pct" class="num" min="0" max="99" step="0.5" placeholder="10"><span>% de remise</span><button class="btn btn-sm" id="lp-pct-ok">Remplir</button><button class="btn btn-sm btn-ghost" id="lp-pct-annuler" hidden>Annuler le remplissage</button></span></div>
           </div>
@@ -11009,8 +11025,15 @@
       $('#lp-dup') && ($('#lp-dup').onclick = () => { listeAPreparer = Object.assign(deepCopy(stored), { id: C.uid(), nom: `${stored.nom || 'Liste'} (copie)` }); navigate('#/listeprix/new'); });
     };
     const touch = () => { if (!dirty) { dirty = true; $('#dirty-dot').hidden = false; } majVue(); };
+    // 1.352.0 — les prix d'une liste se feuillettent (demande de Skander : « la pagination dans toutes les listes ») : « Tout
+    // le catalogue à −10 % » posait trois cents lignes, chacune avec le catalogue entier dans sa liste déroulante — quinze
+    // écrans, et une page lente. Le rang `i` reste celui de la ligne dans TOUTE la liste : c'est lui que les gestes lisent.
+    const pgL = { page: 1 };
     const dessiner = () => {
-      $('#lp-lignes').innerHTML = l.lignes.map((x, i) => {
+      const vueL = paginate(l.lignes.map((x, i) => ({ x, i })), pgL);
+      $('#lp-pg').innerHTML = pagerBar(vueL.pg, { noun: 'article' });
+      bindPager($('#lp-pg'), pgL, dessiner);
+      $('#lp-lignes').innerHTML = vueL.rows.map(({ x, i }) => {
         const it = articles.find(a => a.id === x.itemId);
         const e = ecart(x.prix, it), cout = Number(it && it.unitCost) || 0, perte = cout > 0 && Number(x.prix) > 0 && Number(x.prix) < cout;
         return `<tr>
@@ -11026,7 +11049,7 @@
     dessiner();
     majVue();
     if (preparee) touch();
-    $('#lp-add').onclick = () => { l.lignes.push({ itemId: '', prix: '' }); touch(); dessiner(); };
+    $('#lp-add').onclick = () => { l.lignes.push({ itemId: '', prix: '' }); pgL.page = 1e9; touch(); dessiner(); };
     // (1.292.0) « Tout le catalogue à −x % » : chaque article qui a un prix prend ce prix moins la remise (au millime) ;
     // le remplissage se défait d'un geste tant que la liste n'est pas enregistrée.
     let avantRemplissage = null;
@@ -11067,7 +11090,7 @@
       for (let i = 0; i < l.lignes.length; i++) {
         const x = l.lignes[i];
         if (!x.itemId || !(Number(x.prix) > 0)) continue;
-        if (vus.has(x.itemId)) { const a = articles.find(y => y.id === x.itemId); return refus(`#lp-lignes select[data-i="${i}"]`, `« ${(a && a.label) || 'Cet article'} » est deux fois dans la liste : garde une seule ligne par article.`), false; }
+        if (vus.has(x.itemId)) { const a = articles.find(y => y.id === x.itemId); pgL.page = Math.floor(i / (rowsPerPage() || 1e9)) + 1; dessiner(); return refus(`#lp-lignes select[data-i="${i}"]`, `« ${(a && a.label) || 'Cet article'} » est deux fois dans la liste : garde une seule ligne par article.`), false; }
         vus.set(x.itemId, i);
       }
       l.lignes = l.lignes.filter(x => x.itemId && Number(x.prix) > 0).map(x => ({ itemId: x.itemId, prix: C.round3(Number(x.prix)) }));
@@ -11178,13 +11201,14 @@
 
     const nbOnglet = { pieces: docs.length, paiements: paiements.length, relances: late.length, affaires: affaires.length + contrats.length, materiel: parc.length };
     const vide = (t, p, gestes) => `<div class="cf-vide"><b>${t}</b><span>${p}</span>${gestes || ''}</div>`;
+    let fpPaiements, fpRetards, fpRelances, fpAffaires, fpContrats, fpMateriel;
     function ongletPaiements() {
       if (!paiements.length) return vide('Aucun paiement reçu', 'Un paiement s\'enregistre sur la facture qu\'il règle ; il vient ici aussitôt, avec son moyen.');
       const total = C.round3(paiements.reduce((t, x) => t + C.toBase(x.d, Number(x.p.amount) || 0, co), 0));
       return `<div class="cf-o-t"><span class="mu">${pl(paiements.length, 'paiement')} · ${mo(total)} reçus${sum.rsASubir > 0.0005 ? ` · il gardera encore ${mo(sum.rsASubir)} de retenue à la source en payant, pour l'État` : ''}</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Reçu le</th><th>Sur</th><th>Moyen</th><th class="r">Montant</th></tr></thead><tbody>
-        ${paiements.map(({ p, d }) => `<tr class="clic" data-doc="${h(d.id)}"><td class="nw">${C.fmtDate(p.date)}</td><td><b>${h(d.number)}</b>${d.subject ? `<small>${h(d.subject)}</small>` : ''}</td><td>${h(methodLabel(p.method))}${p.reference ? `<small>${h(p.reference)}</small>` : ''}</td><td class="r">${C.money(Number(p.amount) || 0, d.currency || cur)}${C.estRemboursement && C.estRemboursement(p) ? '<small>rendu au client</small>' : ''}</td></tr>`).join('')}
-        </tbody></table></div>
+        ${(fpPaiements = feuilletFiche(c.id, 'paiements', paiements)).rows.map(({ p, d }) => `<tr class="clic" data-doc="${h(d.id)}"><td class="nw">${C.fmtDate(p.date)}</td><td><b>${h(d.number)}</b>${d.subject ? `<small>${h(d.subject)}</small>` : ''}</td><td>${h(methodLabel(p.method))}${p.reference ? `<small>${h(p.reference)}</small>` : ''}</td><td class="r">${C.money(Number(p.amount) || 0, d.currency || cur)}${C.estRemboursement && C.estRemboursement(p) ? '<small>rendu au client</small>' : ''}</td></tr>`).join('')}
+        </tbody></table></div>${fpPaiements.pied('paiement')}
         <p class="cf-pied">${lfIc('aide', 13)} Un paiement s'enregistre sur la facture qu'il règle.</p>`;
     }
     function ongletRelances() {
@@ -11192,26 +11216,26 @@
       if (!late.length && !hist.length) return vide('Rien à relancer', `${sum.net > 0.0005 ? 'Ses factures ouvertes ne sont pas encore échues.' : 'Il ne te doit rien.'} Une facture échue et pas payée vient ici, et dans la page Relances.`);
       return `<div class="cf-o-t"><span class="mu">Une relance part facture par facture, quand tu le décides : « Rappel », puis « Relance », puis « Dernière relance » selon son retard. Par e-mail ou WhatsApp, avec le lien de la facture ; un appel se note.</span><button type="button" class="btn btn-sm" id="cf-vers-relances">Ouvrir dans Relances</button></div>
         ${late.length ? `<div class="scroll-x"><table class="cf-mini"><thead><tr><th>Facture</th><th>Échéance</th><th>Retard</th><th class="r">Reste</th><th>Dernière relance</th><th></th></tr></thead><tbody>
-        ${late.map(x => `<tr><td><b>${h(x.doc.number)}</b>${x.doc.subject ? `<small>${h(x.doc.subject)}</small>` : ''}</td><td class="nw">${C.fmtDate(x.doc.dueDate)}</td><td class="nw">${pl(x.daysLate, 'jour')}<small>${NIVEAU[x.level] || ''}</small></td><td class="r">${C.money(x.remaining, x.doc.currency || cur)}</td>
+        ${(fpRetards = feuilletFiche(c.id, 'retards', late)).rows.map(x => `<tr><td><b>${h(x.doc.number)}</b>${x.doc.subject ? `<small>${h(x.doc.subject)}</small>` : ''}</td><td class="nw">${C.fmtDate(x.doc.dueDate)}</td><td class="nw">${pl(x.daysLate, 'jour')}<small>${NIVEAU[x.level] || ''}</small></td><td class="r">${C.money(x.remaining, x.doc.currency || cur)}</td>
           <td>${x.lastReminder ? `${C.fmtDate(x.lastReminder.date)}<small>${x.lastReminder.channel === 'tel' ? 'appel' : 'e-mail'}, niveau ${x.lastReminder.level} · ${pl(x.reminders.length, 'relance')} en tout</small>` : '<span class="mu">jamais</span>'}</td>
           <td class="r">${peutVendre && !horsLigne ? `<button type="button" class="btn btn-sm" data-relancer="${h(x.doc.id)}">Relancer</button>` : ''}</td></tr>`).join('')}
-        </tbody></table></div>` : ''}
+        </tbody></table></div>${fpRetards.pied('facture')}` : ''}
         ${hist.length ? `<b class="cf-sous-t">Ce qui a été fait</b><div class="scroll-x"><table class="cf-mini"><thead><tr><th>Le</th><th>Facture</th><th>Comment</th><th>Ce qu'il a dit</th></tr></thead><tbody>
-        ${hist.map(({ d, r }) => `<tr><td class="nw">${C.fmtDate(r.date)}</td><td><b>${h(d.number)}</b></td><td>${r.channel === 'tel' ? 'Appel' : 'E-mail'}<small>niveau ${r.level} · ${NIVEAU[r.level] || ''}</small></td><td>${r.note ? h(r.note) : '<span class="mu">—</span>'}</td></tr>`).join('')}
-        </tbody></table></div>` : ''}`;
+        ${(fpRelances = feuilletFiche(c.id, 'relances', hist)).rows.map(({ d, r }) => `<tr><td class="nw">${C.fmtDate(r.date)}</td><td><b>${h(d.number)}</b></td><td>${r.channel === 'tel' ? 'Appel' : 'E-mail'}<small>niveau ${r.level} · ${NIVEAU[r.level] || ''}</small></td><td>${r.note ? h(r.note) : '<span class="mu">—</span>'}</td></tr>`).join('')}
+        </tbody></table></div>${fpRelances.pied('relance')}` : ''}`;
     }
     function ongletAffaires() {
       const gestes = peutEcrire ? '<span class="pr-b"><button type="button" class="btn" id="cf-affaire">Nouvelle affaire</button><button type="button" class="btn" id="cf-contrat">Nouveau contrat</button></span>' : '';
       if (!affaires.length && !contrats.length) return vide('Ni affaire ni contrat', 'Une affaire regroupe les ventes et les achats d\'un même chantier, pour voir ce qu\'il rapporte. Un contrat récurrent prépare sa facture à chaque période.', gestes);
       return `${affaires.length ? `<div class="cf-o-t"><b>Affaires</b><span class="mu">ventes moins achats rangés dedans ; « en caisse » : l'argent reçu moins l'argent payé</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Affaire</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Acheté HT</th><th class="r">Marge</th><th class="r">En caisse</th></tr></thead><tbody>
-        ${affaires.map(x => `<tr class="clic" data-pid="${h(x.id)}"><td><b>${h(x.name)}</b></td><td><span class="badge ${x.status === 'en cours' ? 'b-due' : x.status === 'terminée' ? 'b-paid' : ''}">${h(x.status)}</span></td><td class="r">${mo(x.revenue)}</td><td class="r">${mo(x.cost)}</td><td class="r"><b class="${x.margin < 0 ? 'rouge' : ''}">${mo(x.margin)}</b>${margeSansAchat(x) ? '<small>aucun achat rattaché</small>' : ''}</td><td class="r">${mo(x.cash)}</td></tr>`).join('')}
-        </tbody></table></div>` : ''}
+        ${(fpAffaires = feuilletFiche(c.id, 'affaires', affaires)).rows.map(x => `<tr class="clic" data-pid="${h(x.id)}"><td><b>${h(x.name)}</b></td><td><span class="badge ${x.status === 'en cours' ? 'b-due' : x.status === 'terminée' ? 'b-paid' : ''}">${h(x.status)}</span></td><td class="r">${mo(x.revenue)}</td><td class="r">${mo(x.cost)}</td><td class="r"><b class="${x.margin < 0 ? 'rouge' : ''}">${mo(x.margin)}</b>${margeSansAchat(x) ? '<small>aucun achat rattaché</small>' : ''}</td><td class="r">${mo(x.cash)}</td></tr>`).join('')}
+        </tbody></table></div>${fpAffaires.pied('affaire')}` : ''}
         ${contrats.length ? `<div class="cf-o-t"><b>Contrats récurrents</b><span class="mu">chacun prépare un brouillon à sa date : tu le relis, puis tu l'émets</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Objet</th><th>Période</th><th>Prochaine facture</th><th class="r">HT / facture</th><th>État</th></tr></thead><tbody>
-        ${contrats.map(r => { const ht = C.computeTotals({ type: 'facture', lines: r.lines, discountRate: r.discountRate, currency: r.currency, exchangeRate: r.exchangeRate }, co).netHT;
+        ${(fpContrats = feuilletFiche(c.id, 'contrats', contrats)).rows.map(r => { const ht = C.computeTotals({ type: 'facture', lines: r.lines, discountRate: r.discountRate, currency: r.currency, exchangeRate: r.exchangeRate }, co).netHT;
           return `<tr class="clic" data-rid="${h(r.id)}"><td><b>${h(objetDeContrat(r) || 'Contrat')}</b></td><td>${h((C.PERIODS.find(x => x[0] === r.every) || [])[1] || '')}</td><td class="nw">${r.active === false ? '<span class="mu">suspendu</span>' : C.fmtDate(r.nextDate)}</td><td class="r">${C.money(ht, r.currency || cur)}</td><td><span class="badge ${r.active !== false ? 'b-due' : ''}">${r.active !== false ? 'actif' : 'suspendu'}</span></td></tr>`; }).join('')}
-        </tbody></table></div>` : ''}
+        </tbody></table></div>${fpContrats.pied('contrat')}` : ''}
         ${gestes}`;
     }
     function ongletMateriel() {
@@ -11222,10 +11246,10 @@
       const aProp = C.garantiesAProposer(data, 60, undefined, ixG).filter(x => x.clientId === c.id);
       return `${aProp.length ? `<p class="cf-pied ambre">${lfIc('aide', 13)} ${pl(aProp.length, 'garantie')} ${aProp.length > 1 ? 'se terminent' : 'se termine'} dans moins de deux mois, sans proposition : le moment de proposer un contrat de maintenance. ${enLecture('documents') ? '' : `<button type="button" class="btn btn-sm" id="cl-proposer">Proposer un contrat${aProp.length > 1 ? ` (${aProp.length})` : ''}</button>`}</p>` : ''}
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Article</th><th>Numéro de série</th><th>Livré le</th><th>Garantie</th><th>Pièce</th></tr></thead><tbody>
-        ${parc.map(x => `<tr${x.outDocId && docById(x.outDocId) ? ` class="clic" data-doc="${h(x.outDocId)}"` : ''}><td><b>${h(x.itemLabel)}</b></td><td class="nw">${h(x.serial)}</td><td class="nw">${C.fmtDate(x.outDate)}</td>
+        ${(fpMateriel = feuilletFiche(c.id, 'materiel', parc)).rows.map(x => `<tr${x.outDocId && docById(x.outDocId) ? ` class="clic" data-doc="${h(x.outDocId)}"` : ''}><td><b>${h(x.itemLabel)}</b></td><td class="nw">${h(x.serial)}</td><td class="nw">${C.fmtDate(x.outDate)}</td>
           <td class="nw">${!x.warrantyEndDate ? '<span class="mu">aucune</span>' : x.expired ? `<span class="mu">expirée le ${C.fmtDate(x.warrantyEndDate)}</span>` : `<span class="${x.warrantyEndingSoon && !ixG.has(x.id) ? 'trop' : ''}">jusqu'au ${C.fmtDate(x.warrantyEndDate)}</span>`}${ixG.has(x.id) ? `<small>maintenance proposée : ${h(ixG.get(x.id).number || 'brouillon')} (${h(ixG.get(x.id).status)})</small>` : ''}</td>
           <td class="nw">${x.outDocId && docById(x.outDocId) ? h(docById(x.outDocId).number || 'voir') : '<span class="mu">—</span>'}</td></tr>`).join('')}
-        </tbody></table></div>`;
+        </tbody></table></div>${fpMateriel.pied('article')}`;
     }
 
     const rsTaux = c.withholdingRate === '' || c.withholdingRate == null ? Number(co.defaultWithholdingRate) || 0 : Number(c.withholdingRate) || 0;
@@ -11291,6 +11315,7 @@
       drawDocs();
     }
     $$('#view [data-onglet]').forEach(b => b.onclick = () => { st.onglet = b.dataset.onglet; refaire(); });
+    brancherFeuillets($('#view'), refaire);
     $$('#view [data-doc]').forEach(x => x.onclick = () => navigate('#/doc/' + x.dataset.doc));
     if ($('#cl-proposer')) $('#cl-proposer').onclick = () => {
       const aProp = C.garantiesAProposer(data, 60).filter(x => x.clientId === c.id);
@@ -15229,14 +15254,15 @@
     const nbOnglet = { pieces: mine.length, reglements: reglements.length, commandes: commandes.length, retenues: aRemettre.length };
     const vide = (t, p, gestes) => `<div class="cf-vide"><b>${t}</b><span>${p}</span>${gestes || ''}</div>`;
     const rsDe = ({ r, p }) => C.retenueDesReglements(p, co, data).parts[r.id] || 0;
+    let fpReglements, fpCommandes, fpRetenues;
     function ongletReglements() {
       if (!reglements.length) return vide('Aucun règlement encore', 'Un règlement s\'enregistre sur la pièce qu\'il paie ; il vient ici aussitôt, avec son moyen et la retenue gardée.');
       const total = C.round3(reglements.reduce((t, x) => t + C.toBase(x.p, Number(x.r.amount) || 0, co), 0));
       const rs = C.round3(reglements.reduce((t, x) => t + C.toBase(x.p, rsDe(x), co), 0));
       return `<div class="cf-o-t"><span class="mu">${pl(reglements.length, 'règlement')} · ${mo(total)} versés${rs > 0.0005 ? ` · ${mo(rs)} gardés pour l'État (retenue à la source)` : ''}</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Payé le</th><th>Sur</th><th>Moyen</th><th class="r">Versé</th><th class="r">Retenue gardée</th></tr></thead><tbody>
-        ${reglements.map(x => `<tr class="clic" data-achat="${h(x.p.id)}"><td class="nw">${C.fmtDate(x.r.date)}</td><td><b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>${contenuAchat(x.p) || x.p.subject ? `<small>${h(contenuAchat(x.p) || x.p.subject)}</small>` : ''}</td><td>${h(methodLabel(x.r.method))}${x.r.reference ? `<small>${h(x.r.reference)}</small>` : ''}</td><td class="r">${C.money(Number(x.r.amount) || 0, x.p.currency || cur)}</td><td class="r">${rsDe(x) > 0.0005 ? C.money(rsDe(x), x.p.currency || cur) : '<span class="mu">—</span>'}</td></tr>`).join('')}
-        </tbody></table></div>
+        ${(fpReglements = feuilletFiche(s.id, 'reglements', reglements)).rows.map(x => `<tr class="clic" data-achat="${h(x.p.id)}"><td class="nw">${C.fmtDate(x.r.date)}</td><td><b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>${contenuAchat(x.p) || x.p.subject ? `<small>${h(contenuAchat(x.p) || x.p.subject)}</small>` : ''}</td><td>${h(methodLabel(x.r.method))}${x.r.reference ? `<small>${h(x.r.reference)}</small>` : ''}</td><td class="r">${C.money(Number(x.r.amount) || 0, x.p.currency || cur)}</td><td class="r">${rsDe(x) > 0.0005 ? C.money(rsDe(x), x.p.currency || cur) : '<span class="mu">—</span>'}</td></tr>`).join('')}
+        </tbody></table></div>${fpReglements.pied('règlement')}
         <p class="cf-pied">${lfIc('aide', 13)} Un règlement s'enregistre sur la pièce qu'il paie. Un virement qui en paie plusieurs se règle d'un coup : choisis-les dans la liste des achats, puis « Régler ensemble ».</p>`;
     }
     function ongletCommandes() {
@@ -15244,8 +15270,8 @@
       if (!commandes.length) return vide('Aucune commande à ce fournisseur', 'Un bon de commande part en PDF ; chaque livraison se reçoit, et ce qui manque reste à recevoir, ligne par ligne. Sa facture se saisit ensuite depuis la réception.', gestes);
       return `<div class="cf-o-t"><span class="mu">Ce que tu lui as commandé et où en est chaque commande · ni une commande ni une réception ne sont des pièces comptables</span><button type="button" class="btn btn-sm" id="ff-vers-commandes">Ouvrir dans Commandes</button></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Commande</th><th>Date</th><th>Livraison souhaitée</th><th>Statut</th><th class="r">HT</th></tr></thead><tbody>
-        ${commandes.map(o => `<tr class="clic" data-commande="${h(o.id)}"><td><b>${h(o.number || '(brouillon)')}</b>${o.reference ? `<small>${h(o.reference)}</small>` : ''}</td><td class="nw">${C.fmtDate(o.date)}</td><td class="nw">${o.dueDate ? C.fmtDate(o.dueDate) : '<span class="mu">—</span>'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, o))}</td><td class="r">${C.money(C.computeTotals(o, co).netHT, o.currency || cur)}</td></tr>`).join('')}
-        </tbody></table></div>${gestes}`;
+        ${(fpCommandes = feuilletFiche(s.id, 'commandes', commandes)).rows.map(o => `<tr class="clic" data-commande="${h(o.id)}"><td><b>${h(o.number || '(brouillon)')}</b>${o.reference ? `<small>${h(o.reference)}</small>` : ''}</td><td class="nw">${C.fmtDate(o.date)}</td><td class="nw">${o.dueDate ? C.fmtDate(o.dueDate) : '<span class="mu">—</span>'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, o))}</td><td class="r">${C.money(C.computeTotals(o, co).netHT, o.currency || cur)}</td></tr>`).join('')}
+        </tbody></table></div>${fpCommandes.pied('commande')}${gestes}`;
     }
     function ongletRetenues() {
       const l = mine.filter(p => Number(p.withholdingRate) > 0).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
@@ -15253,11 +15279,11 @@
       if (!l.length) return `${exoDit}${vide('Aucune retenue sur ses pièces', `${exo ? 'Il est exonéré : sa fiche porte l\'attestation.' : 'Une retenue s\'opère au règlement, au taux de sa fiche.'} Le taux et le seuil : À VÉRIFIER avec ton comptable.`)}`;
       return `${exoDit}<div class="cf-o-t"><span class="mu">La retenue s'opère au règlement${Number(s.withholdingRate) ? `, au taux de sa fiche (${pct(s.withholdingRate)} %)` : ''} : tu la gardes, tu la verses à l'État avec ta déclaration du mois, et tu lui remets l'attestation qui la prouve.</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Pièce</th><th>Réglée le</th><th class="r">Base (TTC sans timbre)</th><th class="r">Retenue</th><th>Attestation</th></tr></thead><tbody>
-        ${l.map(p => { const t = C.purchaseTotals(p, co), rs = C.retenueDesReglements(p, co, data), der = (p.payments || []).map(x => x.date).filter(Boolean).sort().pop(), dv = p.currency || cur;
+        ${(fpRetenues = feuilletFiche(s.id, 'retenues', l)).rows.map(p => { const t = C.purchaseTotals(p, co), rs = C.retenueDesReglements(p, co, data), der = (p.payments || []).map(x => x.date).filter(Boolean).sort().pop(), dv = p.currency || cur;
           return `<tr><td><b>${h(p.number || C.referenceAchat(p, data))}</b>${contenuAchat(p) || p.subject ? `<small>${h(contenuAchat(p) || p.subject)}</small>` : ''}</td><td class="nw">${der ? C.fmtDate(der) : '<span class="mu">pas encore payée</span>'}</td><td class="r">${C.money(C.round3(t.totalTTC - (Number(p.fees) || 0)), dv)}</td>
             <td class="r">${rs.operee > 0.0005 ? C.money(rs.operee, dv) : `<span class="mu">${C.money(rs.due, dv)} à venir</span>`}${rs.operee > 0.0005 && rs.operee < rs.due - 0.0005 ? `<small>sur ${C.money(rs.due, dv)}</small>` : ''}</td>
             <td>${!(rs.operee > 0.0005) ? '<span class="mu">au règlement</span>' : p.withholdingCertificate ? '<span class="ok-text">remise</span>' : peutAcheter ? `<button type="button" class="btn btn-sm" data-attestation="${h(p.id)}">Imprimer l'attestation</button>` : '<span class="ambre">à remettre</span>'}</td></tr>`; }).join('')}
-        </tbody></table></div>
+        </tbody></table></div>${fpRetenues.pied('pièce')}
         <p class="cf-pied">${lfIc('aide', 13)} Le taux vient de sa fiche et de tes réglages : À VÉRIFIER avec ton comptable.</p>`;
     }
     // Le fil de la relation : ses dernières pièces, tes règlements, tes commandes, du plus récent au plus ancien.
@@ -15323,6 +15349,7 @@
       draw();
     }
     $$('#view [data-onglet]').forEach(b => b.onclick = () => { st.onglet = b.dataset.onglet; refaire(); });
+    brancherFeuillets($('#view'), refaire);
     $$('#view [data-achat]').forEach(x => x.onclick = () => navigate('#/achat/' + x.dataset.achat));
     $$('#view [data-commande]').forEach(x => x.onclick = () => navigate('#/commandef/' + x.dataset.commande));
     $$('#view [data-attestation]').forEach(b => b.onclick = () => attestationRetenue(purchaseById(b.dataset.attestation)));
@@ -19412,6 +19439,10 @@
       const parQ = toutes.filter(p => !pq || C.correspondRecherche([p.name, clientName(p.clientId), p.notes].join(' '), pq));
       const nbSt = st => parQ.filter(p => !st || p.status === st).length;
       const list = parQ.filter(p => !s.pst || p.status === s.pst);
+      // 1.352.0 — la liste des affaires se feuillette comme les autres (demande de Skander : « la pagination dans toutes
+      // les listes ») : quatre-vingts chantiers faisaient cinq écrans. Le pied garde le total de TOUTE la sélection (2.2.0).
+      const pa = s.pa || (s.pa = { page: 1 });
+      const vueA = paginate(list, pa);
       // Une liste vide dit à quoi elle sert et donne le geste qui la remplit (7.0.0, 10.12.0) : la
       // boîte expliquait l'affaire en prose, sans un bouton, sous un « + Nouvelle affaire » vert.
       // Seul `#mg-body` se redessine : l'en-tête suit l'état vide dans `draw()`, jamais au dessin de
@@ -19423,7 +19454,7 @@
       $('#mg-body').innerHTML = toutes.length && !list.length ? `${filtresAff}<div class="mg-vide">${lfIc('recherche', 24, 1.6)}<b>Aucune affaire ne correspond</b><span>${pq ? `Rien pour « ${h(pq)} »` : 'Aucune affaire à ce statut'}.</span><button class="btn" id="mg-tout">Tout revoir</button></div>` : list.length ? `
         ${filtresAff}
         <div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>Affaire</th><th>Client</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">En caisse</th><th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
-            ${list.map(p => `<tr class="clickable" data-pid="${h(p.id)}">
+            ${vueA.rows.map(p => `<tr class="clickable" data-pid="${h(p.id)}">
               <td class="cn"><b>${h(p.name)}</b>${pastilleAffaire(p)}</td>
               <td class="cl">${p.clientId ? `<span class="cl-i">${pastilleClient(p.clientId)}<span><b>${h(clientName(p.clientId))}</b></span></span>` : '<span class="mu">—</span>'}</td>
               <td class="st"><span class="badge ${p.status === 'en cours' ? 'envoyé' : p.status === 'terminée' ? 'payée' : 'brouillon'}">${h(p.status)}</span></td>
@@ -19439,14 +19470,15 @@
               <td class="actions row-actions lf-act"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(p.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(p.name)}">${lfIc('plus', 16)}</button></td></tr>`).join('')}
           </tbody>
           <tfoot><tr><td colspan="3"><span class="pied-t"><b>Total</b><span>${pl(list.length, 'affaire')} · « En caisse » : encaissé moins payé ; une affaire peut être rentable et n'avoir encore rien rapporté</span></span></td>
-            <td class="r m">${lfMontant(tot('revenue'), cur)}</td><td class="r m">${lfMontant(tot('cost'), cur)}</td><td class="r m">${lfMontant(tot('margin'), cur)}</td><td class="r m">${lfMontant(tot('cash'), cur)} <small class="dv">${h(symboleDevise(cur))}</small></td><td></td></tr></tfoot></table></div>` : etatVide('Ce que te rapporte chaque chantier',
+            <td class="r m">${lfMontant(tot('revenue'), cur)}</td><td class="r m">${lfMontant(tot('cost'), cur)}</td><td class="r m">${lfMontant(tot('margin'), cur)}</td><td class="r m">${lfMontant(tot('cash'), cur)} <small class="dv">${h(symboleDevise(cur))}</small></td><td></td></tr></tfoot></table>${pagerBar(vueA.pg, { noun: 'affaire', grandTotal: toutes.length })}</div>` : etatVide('Ce que te rapporte chaque chantier',
         ['Une affaire regroupe les devis, les factures et les achats d\'un même chantier : c\'est le seul endroit où la marge est <b>exacte</b>, parce qu\'elle compare des factures réelles à des achats réels.',
          'Crée-la au début du chantier, puis choisis-la dans le champ « Affaire » de chaque devis, facture ou achat qui la concerne.'],
         [['proj-first', '+ Créer ma première affaire', true]]);
       $$('#mg-body tr[data-pid]').forEach(tr => tr.onclick = e => { if (!e.target.closest('button, input, a')) navigate('#/affaire/' + tr.dataset.pid); });
-      if ($('#mg-q')) $('#mg-q').oninput = e => { s.pq = e.target.value; const pos = e.target.selectionStart; drawProjects(); const q = $('#mg-q'); q.focus(); q.setSelectionRange(pos, pos); };
-      $$('#mg-body [data-pst]').forEach(b => b.onclick = () => { s.pst = b.dataset.pst; drawProjects(); });
-      if ($('#mg-tout')) $('#mg-tout').onclick = () => { s.pq = ''; s.pst = ''; drawProjects(); };
+      if ($('#mg-q')) $('#mg-q').oninput = e => { s.pq = e.target.value; pa.page = 1; const pos = e.target.selectionStart; drawProjects(); const q = $('#mg-q'); q.focus(); q.setSelectionRange(pos, pos); };
+      $$('#mg-body [data-pst]').forEach(b => b.onclick = () => { s.pst = b.dataset.pst; pa.page = 1; drawProjects(); });
+      if ($('#mg-tout')) $('#mg-tout').onclick = () => { s.pq = ''; s.pst = ''; pa.page = 1; drawProjects(); };
+      bindPager($('#mg-body'), pa, () => drawProjects(), '#mg-body');
       bindRowMenus($('#mg-body'), id => actionsAffaire(projectById(id), () => render(true)), id => { const p = projectById(id); return p ? [p.name, clientName(p.clientId)].filter(Boolean).join(' · ') : ''; });
       // La première affaire mène à sa fiche : c'est là qu'on lui rattache un devis ou un achat.
       if ($('#proj-first')) $('#proj-first').onclick = () => projectForm(null, p => navigate('#/affaire/' + p.id));
@@ -19502,10 +19534,12 @@
     function drawContracts() {
       const rows = data.recurring.map(r => ({ r, p: C.recurringProfitability(data, company(), r.id) }))
         .filter(x => x.p.count > 0).sort((a, b) => b.p.margin - a.p.margin);
+      const pc = s.pc || (s.pc = { page: 1 });
+      const vueC = paginate(rows, pc);
       $('#mg-body').innerHTML = rows.length ? `
         <div class="mg-intro"><span>Un contrat qui rapporte peu par mois mais tourne depuis deux ans vaut souvent mieux qu'une grosse affaire ponctuelle : il est prévisible, et il ne demande pas de vendre à nouveau. ${info('mg.contracts')}</span></div>
         <div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr><th>Contrat</th><th>Client</th><th class="r">Factures</th><th class="r">Facturé HT</th><th class="r">Coût</th><th class="r">Marge</th><th class="r">Par mois</th></tr></thead><tbody>
-            ${rows.map(({ r, p }) => `<tr class="clickable" data-rid="${h(r.id)}">
+            ${vueC.rows.map(({ r, p }) => `<tr class="clickable" data-rid="${h(r.id)}">
               <td class="cn"><b>${h(objetDeContrat(r) || 'Contrat')}</b><small>depuis le ${C.fmtDate(p.first)}</small></td>
               <td class="cl"><span class="cl-i">${pastilleClient(r.clientId)}<span><b>${h(clientName(r.clientId))}</b></span></span></td><td class="r" data-l="Factures">${p.count}</td>
               <td class="r" data-l="Facturé HT">${lfMontant(p.revenue, cur)}</td><td class="r" data-l="Coût">${lfMontant(p.cost, cur)}</td>
@@ -19514,9 +19548,10 @@
           </tbody>
           <tfoot><tr><td colspan="3"><span class="pied-t"><b>Total</b><span>${pl(rows.length, 'contrat')} · ${rows.reduce((x, { p }) => x + p.count, 0)} factures émises</span></span></td>
             <td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.revenue, 0)), cur)}</td><td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.cost, 0)), cur)}</td>
-            <td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.margin, 0)), cur)}</td><td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.perMonth, 0)), cur)} <small class="dv">${h(symboleDevise(cur))}</small></td></tr></tfoot></table></div>`
+            <td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.margin, 0)), cur)}</td><td class="r m">${lfMontant(C.round3(rows.reduce((x, { p }) => x + p.perMonth, 0)), cur)} <small class="dv">${h(symboleDevise(cur))}</small></td></tr></tfoot></table>${pagerBar(vueC.pg, { noun: 'contrat' })}</div>`
         : `<div class="mg-vide">${lfIc('horloge', 24, 1.6)}<b>Pas encore de rentabilité à lire</b><span>${videContrats()}</span><button class="btn" id="mg-vers-contrats">Voir la facturation récurrente</button></div>`;
       $$('#mg-body tr[data-rid]').forEach(tr => tr.onclick = () => navigate('#/contrat/' + tr.dataset.rid));
+      bindPager($('#mg-body'), pc, () => drawContracts(), '#mg-body');
       if ($('#mg-vers-contrats')) $('#mg-vers-contrats').onclick = () => navigate('#/contrats');
     }
 
@@ -20029,6 +20064,7 @@
     if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
   }
 
+  const affairePages = {};
   routes.affaire = (parts) => {
     const p = projectById(parts[0]);
     if (!p) return navigate('#/marges');
@@ -20148,9 +20184,13 @@
       toastUndo(`${nom} détaché${x.type === 'facture' || x.kind === 'facture' ? 'e' : ''} de « ${p.name} »`, () => { if (avantP) x.projectId = avantP; if (x.lines) x.lines = JSON.parse(avantL); save(true); render(true); });
     };
     // Un tableau des listes (lf-table) : la ligne s'ouvre, son menu ⋯ ouvre ou détache.
-    const tableau = (rows, cols, ouvrir, nomDe, pied) => `<div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr>${cols.map(c => `<th class="${c.r ? 'r' : ''}">${h(c.label)}</th>`).join('')}<th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
-        ${rows.map(x => `<tr class="clickable" data-pc="${h(x.id)}">${cols.map(c => `<td class="${c.r ? 'r' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(x)}</td>`).join('')}<td class="actions row-actions lf-act"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(x.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(nomDe(x))}">${lfIc('plus', 16)}</button></td></tr>`).join('')}
-      </tbody>${pied ? `<tfoot><tr><td colspan="${cols.length - 1}"><span class="pied-t"><b>Total</b><span>${pied.dit}</span></span></td><td class="r m">${pied.montant}</td><td></td></tr></tfoot>` : ''}</table></div>`;
+    // 1.352.0 — les trois listes de la fiche se feuillettent (demande de Skander : « la pagination dans toutes les
+    // listes ») : trois cents pièces de vente faisaient seize écrans. `vue` est ce que rend `paginate` ; le pied, lui,
+    // garde le total de TOUTES les pièces (2.2.0). La page vit par affaire : en ouvrir une autre repart de la première.
+    const pgAff = affairePages.id === p.id ? affairePages : Object.assign(affairePages, { id: p.id, v: { page: 1 }, a: { page: 1 }, h: { page: 1 } });
+    const tableau = (rows, cols, ouvrir, nomDe, pied, vue, nom) => `<div class="lf-tab scroll-x"><table class="list lf-table mg-table" data-sans-cartes><thead><tr>${cols.map(c => `<th class="${c.r ? 'r' : ''}">${h(c.label)}</th>`).join('')}<th class="row-actions-h"><span class="vh">Actions</span></th></tr></thead><tbody>
+        ${(vue ? vue.rows : rows).map(x => `<tr class="clickable" data-pc="${h(x.id)}">${cols.map(c => `<td class="${c.r ? 'r' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(x)}</td>`).join('')}<td class="actions row-actions lf-act"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(x.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(nomDe(x))}">${lfIc('plus', 16)}</button></td></tr>`).join('')}
+      </tbody>${pied ? `<tfoot><tr><td colspan="${cols.length - 1}"><span class="pied-t"><b>Total</b><span>${pied.dit}</span></span></td><td class="r m">${pied.montant}</td><td></td></tr></tfoot>` : ''}</table>${vue ? pagerBar(vue.pg, { noun: nom }) : ''}</div>`;
     const brancher = (hote, liste, ouvrir, nomDe) => {
       $$(`${hote} tr[data-pc]`).forEach(tr => tr.onclick = e => { if (!e.target.closest('button, input, a')) ouvrir(tr.dataset.pc); });
       bindRowMenus($(hote), id => { const x = liste.find(y => y.id === id); if (!x) return [];
@@ -20171,14 +20211,18 @@
       { label: 'Statut', cls: 'st', get: d => `<span class="badge ${h(effStatus(d))}">${h(effStatus(d))}</span>` },
       { label: 'Montant HT', r: true, get: d => lfMontant(htVente(d), company().currency) }];
     const facturees = sales.filter(d => (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée');
+    const dessinerVentes = () => {
     $('#p-sales').innerHTML = sales.length
-      ? `${tableau(sales, colsV, id => navigate('#/doc/' + id), nomVente, { dit: `${pl(sales.length, 'pièce')} · seules les factures et avoirs émis comptent dans la marge`, montant: `${lfMontant(C.round3(facturees.reduce((a, d) => a + htVente(d), 0)), cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+      ? `${tableau(sales, colsV, id => navigate('#/doc/' + id), nomVente, { dit: `${pl(sales.length, 'pièce')} · seules les factures et avoirs émis comptent dans la marge`, montant: `${lfMontant(C.round3(facturees.reduce((a, d) => a + htVente(d), 0)), cur)} <small class="dv">${h(symboleDevise(cur))}</small>` }, paginate(sales, pgAff.v), 'pièce')}
         ${ecrit ? `<div class="inline">${geste('p-att-v', ventesLibres ? 'Rattacher d\'autres ventes…' : 'Revoir les ventes rattachées…')}</div>` : ''}`
       : `<div class="mg-vide">${lfIc('piece', 24, 1.6)}<b>Aucune vente rattachée</b><span>${ventesLibres
         ? `${p.clientId ? `${h(clientName(p.clientId))} a` : 'Tes clients ont'} déjà ${pl(ventesLibres, 'pièce')} de vente : coche ce qui appartient à ce chantier.`
         : 'Crée le devis de ce chantier avec « Devis » : il y naîtra rattaché.'}</span>${ecrit && ventesLibres ? geste('p-att-v', 'Rattacher des ventes existantes…', suivante === 'rattacher-ventes') : ''}</div>`;
     brancher('#p-sales', sales, id => navigate('#/doc/' + id), nomVente);
     if ($('#p-att-v')) $('#p-att-v').onclick = () => rattacherPieces(p, 'ventes', () => render(true));
+    bindPager($('#p-sales'), pgAff.v, dessinerVentes, '#p-sales');
+    };
+    dessinerVentes();
     // Les achats : date, numéro, fournisseur et ce qui a été acheté, statut, coût HT.
     const nomAchat = b => b.number ? `Achat ${b.number}` : 'Cet achat';
     // (1.263.0) Ce que l'achat coûte À L'AFFAIRE : ses lignes du chantier, sans le stock ni le matériel immobilisé.
@@ -20191,12 +20235,16 @@
       ...(m.enStock || m.immo ? [{ label: 'Au stock ou immobilisé', r: true, get: b => { const x = C.coutAchatPourAffaire(b, company(), data, p.id); const v = C.round3(x.enStock + x.immo);
         return v ? `${lfMontant(v, cur)}<small>${x.immo ? 'immobilisé : s\'amortit' : 'compte en sortant'}</small>` : '<span class="mu">—</span>'; } }] : []),
       { label: 'Coûte au chantier', r: true, get: b => lfMontant(coutHT(b), cur) }];
+    const dessinerAchats = () => {
     $('#p-buys').innerHTML = buys.length
-      ? `${tableau(buys, colsA, id => navigate('#/achat/' + id), nomAchat, { dit: `${pl(buys.length, 'achat')} · HT, TVA récupérable retirée`, montant: `${lfMontant(m.achats, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+      ? `${tableau(buys, colsA, id => navigate('#/achat/' + id), nomAchat, { dit: `${pl(buys.length, 'achat')} · HT, TVA récupérable retirée`, montant: `${lfMontant(m.achats, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` }, paginate(buys, pgAff.a), 'achat')}
         ${ecrit ? `<div class="inline">${geste('p-att-a', achatsLibres ? 'Rattacher d\'autres achats…' : 'Revoir les achats rattachés…')}</div>` : ''}`
       : `<div class="mg-vide">${lfIc('achats', 24, 1.6)}<b>Aucun achat rattaché</b><span>Ce sont eux qui rendent la marge exacte. ${achatsLibres ? 'Coche ceux de ce chantier parmi ceux déjà saisis, ou saisis-en un.' : 'Saisis-les avec « Achat » : ils y naîtront rattachés.'}</span>${ecrit && achatsLibres ? geste('p-att-a', 'Rattacher des achats déjà saisis…', suivante === 'achat') : ''}</div>`;
     brancher('#p-buys', buys, id => navigate('#/achat/' + id), nomAchat);
     if ($('#p-att-a')) $('#p-att-a').onclick = () => rattacherPieces(p, 'achats', () => render(true));
+    bindPager($('#p-buys'), pgAff.a, dessinerAchats, '#p-buys');
+    };
+    dessinerAchats();
     // (1.263.0) Les heures passées sur le chantier : qui, quel jour, combien, et ce qu'elles coûtent.
     const colsH = [
       { label: 'Date', cls: 'nw', get: x => C.fmtDate(x.date) },
@@ -20205,8 +20253,9 @@
       { label: 'Coût de l\'heure', r: true, get: x => x.inconnu ? '<span class="ambre">inconnu</span>' : `${lfMontant(x.taux, cur)}${x.estime ? '<small class="ambre">estimé</small>' : ''}` },
       { label: 'Coût', r: true, get: x => lfMontant(x.cout, cur) }];
     const nomH = x => `${x.employeeName}, ${C.fmtDate(x.date)}`;
+    const dessinerHeures = () => {
     $('#p-time').innerHTML = m.heures.length
-      ? `${tableau(m.heures, colsH, id => heuresForm(p, (data.projectTime || []).find(x => x.id === id), () => render(true)), nomH, { dit: `${pct(m.hours)} h · coût employeur de l'heure`, montant: `${lfMontant(m.mainOeuvre, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` })}
+      ? `${tableau(m.heures, colsH, id => heuresForm(p, (data.projectTime || []).find(x => x.id === id), () => render(true)), nomH, { dit: `${pct(m.hours)} h · coût employeur de l'heure`, montant: `${lfMontant(m.mainOeuvre, cur)} <small class="dv">${h(symboleDevise(cur))}</small>` }, paginate(m.heures, pgAff.h), 'ligne')}
         ${ecrit ? `<div class="inline">${geste('p-time-sem', 'Noter une semaine')}${geste('p-time-new', 'Noter des heures')}</div>` : ''}`
       : `<div class="mg-vide">${lfIc('horloge', 24, 1.6)}<b>Aucune heure notée</b><span>${(data.employees || []).length ? 'Le temps de tes salariés sur ce chantier : c\'est souvent le plus gros coût, et sans lui la marge est trop belle.' : 'Ajoute d\'abord tes salariés dans la Paie : leur coût de l\'heure vient de leur bulletin.'}</span>${ecrit && (data.employees || []).length ? `<span class="mg-vide-g">${geste('p-time-sem', 'Noter une semaine')}${geste('p-time-new', 'Noter une journée')}</span>` : ''}</div>`;
     $$('#p-time tr[data-pc]').forEach(tr => tr.onclick = e => { if (!e.target.closest('button, input, a')) heuresForm(p, (data.projectTime || []).find(x => x.id === tr.dataset.pc), () => render(true)); });
@@ -20218,6 +20267,9 @@
         } }] : [])]; }, id => { const x = m.heures.find(y => y.id === id); return x ? nomH(x) : ''; });
     if ($('#p-time-new')) $('#p-time-new').onclick = () => heuresForm(p, null, () => render(true));
     if ($('#p-time-sem')) $('#p-time-sem').onclick = () => heuresSemaine(p, () => render(true));
+    bindPager($('#p-time'), pgAff.h, dessinerHeures, '#p-time');
+    };
+    dessinerHeures();
     bindRowMenus($('.mg-fiche-t'), () => actionsAffaire(p, () => render(true)), () => p.name);
   };
 

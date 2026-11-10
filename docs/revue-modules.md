@@ -2296,3 +2296,49 @@ réintégration ajoutée), déclaration annuelle d'employeur.
   avec 500 réintégrés, résultat fiscal 79 742,741 et impôt 11 961,411.
 - La preuve : `tests/web/liasse-1351.test.ts`, `tests/moteur/paie-declaration-employeur.test.ts` ; preuves
   `liasse 1.351.0 a-b`.
+
+## La pagination dans toutes les listes (1.352.0)
+
+Demande de Skander : « n'oublie pas la pagination dans toutes les listes ». Mesuré, pas relu : un dossier plein au
+Cabinet (890 écritures, un relevé de 400 mouvements, 120 biens, un inventaire de 300 lignes) et une entreprise pleine
+(300 clients, 1 800 pièces, 700 achats, 80 affaires, 90 listes de prix), puis chaque écran et chaque onglet visités, et
+toute liste de plus de soixante lignes sans pied de page relevée.
+
+**Au Cabinet**, sept listes s'affichaient d'un seul tenant :
+
+- **la Banque** : 400 mouvements, vingt écrans. Cinquante par page ; les groupes gardent leur compte entier ; les
+  flèches ↑ ↓ passent d'une page à l'autre, et la page tournée choisit sa première ligne ;
+- **les Immobilisations** (120 biens) et **l'Inventaire** (300 lignes) : le pied garde le total de TOUTE la liste ;
+- **les à-nouveaux** de l'exercice suivant (779 lignes), la section reste ouverte quand la page tourne ;
+- **les pièces d'une case** de la déclaration ;
+- **la Recherche** coupait aux 200 premières (« précise ta recherche ») : elle rend tout ce qui correspond, et se
+  feuillette ; changer de filtre repart de la première page ;
+- **le Classeur** : « Ce qui manque » (266 lignes), « À traiter, dans l'ordre », une rubrique dépliée, et les pièces d'un
+  exercice — qui coupaient à quarante sans le dire. Une page par liste ; elle suit la pièce choisie.
+
+Vu à l'écran au passage : sous **chaque** tableau du Cabinet, « 25 par page » s'étirait sur toute la largeur, seul sur
+sa rangée (1 193 px). Il prend la largeur de son texte.
+
+**Dans l'app entreprise**, sept autres :
+
+- **Marges** : les affaires (80) et la rentabilité des contrats ; chercher repart de la première page ;
+- **la fiche d'une affaire** : ses ventes, ses achats, ses heures (seize écrans pour 300 pièces) ;
+- **les fiches client et fournisseur** : paiements, factures en retard, relances faites, affaires, contrats, matériel ;
+  règlements, commandes, retenues — un seul mécanisme (`feuilletFiche`), une page par liste et par fiche ;
+- **les listes de prix**, et **les prix d'une liste** : le rang d'une ligne reste celui de toute la liste (retirer la
+  vingt-sixième retire la vingt-sixième), « + Article » amène à la dernière page, un refus montre sa ligne ;
+- **les Immobilisations** : le tableau, les lignes à immobiliser, les sorties.
+
+Laissés tels quels, et pourquoi : le grand livre du Cabinet (chaque compte est replié, et montre 300 lignes puis
+« Montrer 300 lignes de plus ») ; le sélecteur de clients d'une liste de prix (une boîte de choix à hauteur fixe, avec
+sa recherche) ; les grilles de saisie d'une pièce.
+
+Deux preuves que la machine de GitHub n'avait pas su prouver sur la 1.350.0, rendues indépendantes de la machine :
+
+- le journal retenu : trois choix partis ensemble arrivent au serveur dans un ordre que la machine décide. Le test
+  compte les écritures de la fiche **refusées** (aucune avec la file, deux sans) ;
+- le refus du pont avant de refaire un inventaire : depuis la 1.346.0 le bouton est éteint, le test n'atteignait plus
+  le pont. Il l'appelle, et vérifie qu'aucune écriture ne part vers le serveur (qui répond la même phrase).
+
+- La preuve : `tests/web/pagination-1352.test.ts` (Cabinet), `tests/web/pagination-entreprise-1352.test.ts` ; preuves
+  `pagination 1.352.0 a-q`.

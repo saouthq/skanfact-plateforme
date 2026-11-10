@@ -95,6 +95,16 @@ describe('l\'inventaire de stock, à la souris', () => {
     await ouvrir('#iv-saisir', '#iv-lignes');
     expect((await fenetre.locator('#iv-bloque').innerText()).replace(/\s+/g, ' ')).toMatch(/^L'inventaire de 2025 est déjà passé en écriture \(la variation de stock\) : elle est encore au brouillard/);
     expect(await fenetre.locator('#ok').isDisabled()).toBe(true);
+    // (1.352.0, rouge GitHub de la 1.350.0) Le bouton éteint ne laisse plus atteindre le pont : son propre refus — celui
+    // de la v10, mot pour mot, avant tout appel au serveur — se demande donc au pont lui-même, sinon rien ne le tient.
+    // Le serveur répond la même phrase : ce qui prouve le refus du PONT, c'est qu'aucune écriture ne part vers lui.
+    const envois: string[] = [];
+    p.on('request', (r) => { if (r.method() === 'PUT' && r.url().includes('/compta/inventaires/')) envois.push(r.url()); });
+    const refusDuPont = await p.evaluate(async (o) => {
+      try { await (window as unknown as { cabinet: { saveInventaire: (x: unknown) => Promise<unknown> } }).cabinet.saveInventaire(o); return 'enregistré'; } catch (e) { return String((e as Error).message); }
+    }, { dossierId: cafe, annee: 2025, inventaire: { date: '2025-12-31', compte: '37', lignes: [{ ref: 'A1', libelle: 'Café en grains', quantite: 1, cout: 10 }] } });
+    expect(refusDuPont).toMatch(/^L'inventaire de 2025 est déjà passé en écriture \(la variation de stock\)/);
+    expect(envois).toEqual([]);
     expect((await inventaire(cafe, associe))?.ecriture).toBe(lie);
     expect(erreurs).toEqual([]);
   }, 180_000);

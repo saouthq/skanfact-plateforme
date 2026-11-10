@@ -33,3 +33,8 @@
 #sa-reprendre .txt span { color: var(--sb-gris); font-size: 13px; line-height: 1.45; }
 #sa-reprendre .rep-g { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-self: center; }
 #sa-reprendre .rep-ok { font-weight: 600; }
+
+/* 1.352.0 — le « n par page » d'un pied de liste prend la largeur de son texte. La règle générale des champs
+   (`select { width: 100% }`) l'étirait d'un bord à l'autre, sur sa propre rangée, sous chaque tableau du Cabinet :
+   1 193 px pour dire « 25 par page » — vu à l'écran le jour où toutes les listes ont reçu leur pied. */
+.pager select { width: auto; flex: 0 0 auto; padding-block: 5px; font-size: 12px; }

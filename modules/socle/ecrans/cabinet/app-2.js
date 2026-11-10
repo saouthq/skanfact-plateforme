@@ -132,12 +132,12 @@
       <div class="panel mt"><h2>Ce qui a été compté au ${esc(fmtJour(inv.date))} ${info('iv.lignes')}</h2>
         <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Réf.</th><th>Désignation</th>
           <th class="r nw">Quantité</th><th class="r nw">Coût unitaire</th><th class="r nw">Valeur</th></tr></thead>
-        <tbody>${inv.lignes.map(l => `<tr><td class="nw">${esc(l.ref)}</td>
+        <tbody>${(pagerBar(inv.lignes.length, s, 'ligne'), paginate(inv.lignes, s)).map(l => `<tr><td class="nw">${esc(l.ref)}</td>
           <td class="tronq" title="${esc(l.libelle)}">${esc(l.libelle)}</td>
           <td class="r nw">${esc(String(l.quantite).replace('.', ','))}</td><td class="r nw">${esc(money(l.cout))}</td>
           <td class="r nw">${esc(money(l.valeur))}</td></tr>`).join('')}</tbody>
         <tfoot><tr><th colspan="4">${esc(pl(inv.lignes.length, 'ligne comptée', 'lignes comptées'))}</th>
-          <th class="r nw">${esc(money(inv.total))}</th></tr></tfoot></table></div></div>`}`;
+          <th class="r nw">${esc(money(inv.total))}</th></tr></tfoot></table></div>${pagerBar(inv.lignes.length, s, 'ligne')}</div>`}`;
   }
 
   function brancherInventaire(el, root, dossier) {
@@ -145,6 +145,7 @@
     const rev = revDuLivre(s.livre);
     if (!s.inv || s.invRev !== rev) { s.invRev = rev; chargerInventaire(root, dossier); return; }
     if (s.inv.erreur) return;
+    bindPager(el, () => drawLivres(root, dossier), s);
     [$('#iv-saisir', el), $('#iv-saisir2', el)].forEach(b => { if (b) b.onclick = () => inventaireForm(root, dossier); });
     const dm = $('#iv-demander-b', el);
     if (dm) dm.onclick = () => demanderEtatStock(root, dossier);
@@ -639,9 +640,34 @@
     // Quand plus rien ne reste à faire (« Revoir septembre »), revoir, c'est voir les lignes rapprochées : elles se déplient.
     const faitesOuvertes = banqueState.voirFaites || f === 'ok' || !restent.length;
     const montree = x => voit(x.g) && (x.g !== 'ok' || faitesOuvertes);
+    // (1.352.0) La liste se PAGINE : un relevé de quatre cents lignes faisait 20 000 px d'un seul tenant (mesuré sur données
+    // pleines). La suite montrée, dans l'ordre de l'écran : les groupes, puis les rapprochées quand elles sont dépliées.
+    // Changer de page pose la ligne choisie sur la première de la page (le panneau d'en face ne montre jamais une ligne
+    // qu'on ne voit pas) ; choisir une ligne — au clavier comme à la souris — amène sa page.
+    const pgBq = banqueState.pg || (banqueState.pg = { page: 1, size: 50 });
+    const suite = [...ordre, ...lus.filter(x => x.g === 'ok')].filter(montree);
+    if (banqueState.selDePage) {
+      banqueState.selDePage = false;
+      pgBq.page = Math.min(Math.max(1, pgBq.page), Math.max(1, Math.ceil(suite.length / pgBq.size)));
+      const x0 = suite[(pgBq.page - 1) * pgBq.size];
+      if (x0) banqueState.sel = x0.l.id;
+      banqueState.pgSel = banqueState.sel;
+    }
     const cur = lus.find(x => x.l.id === banqueState.sel);
     if (!cur || !montree(cur)) banqueState.sel = (ordre.find(montree) || cur || ordre[0] || lus[0] || { l: {} }).l.id || '';
     const sel = lus.find(x => x.l.id === banqueState.sel);
+    // Un filtre posé ou levé, les rapprochées dépliées : la suite a changé, la page de la ligne choisie se relit.
+    const cleSuite = `${f}|${faitesOuvertes}`;
+    if (banqueState.pgCle !== cleSuite) { banqueState.pgCle = cleSuite; banqueState.pgSel = null; }
+    if (banqueState.pgSel !== banqueState.sel) {
+      const i = suite.findIndex(x => x.l.id === banqueState.sel);
+      if (i >= 0) pgBq.page = Math.floor(i / pgBq.size) + 1;
+      banqueState.pgSel = banqueState.sel;
+    }
+    const pagerBq = pagerBar(suite.length, pgBq, 'mouvement');
+    const dePage = new Set(paginate(suite, pgBq).map(x => x.l.id));
+    const derniere = pgBq.page >= Math.max(1, Math.ceil(suite.length / pgBq.size));
+    banqueState.suite = suite.map(x => x.l.id);
     const lect = lectureSeuleLivre();
     const EC = ecartBanque(R);
     const regles = (Array.isArray(S.libelles) ? S.libelles : []).filter(x => x && x.motif && x.compte).length;
@@ -670,17 +696,22 @@
     const groupesTab = GROUPES_BQ.map(([g, titre]) => {
       const rs = lus.filter(x => x.g === g);
       if (!rs.length || !voit(g)) return '';
-      return `<tr class="bq-g"><td colspan="5"><b>${esc(titreGroupeBq(dossier, g, titre))}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</td></tr>${rs.map(ligneTab).join('')}`;
+      // Le titre d'un groupe ne paraît que sur les pages qui portent de ses lignes ; son compte reste celui du groupe ENTIER.
+      const ici = rs.filter(x => dePage.has(x.l.id));
+      if (!ici.length) return '';
+      return `<tr class="bq-g"><td colspan="5"><b>${esc(titreGroupeBq(dossier, g, titre))}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</td></tr>${ici.map(ligneTab).join('')}`;
     }).join('');
     const faites = lus.filter(x => x.g === 'ok');
     const ouvertes = faitesOuvertes;
-    const faitesTab = faites.length && voit('ok') ? `<tr class="bq-g bq-fait"><td colspan="5"><i class="bq-pt sur"></i><b>Rapprochées</b> <span class="mu">${faites.length}${resumeOrigines(faites)}</span>
-      ${restent.length ? `<button type="button" class="cp-plus bq-voir" id="bq-voir-faites" aria-expanded="${ouvertes}">${ouvertes ? 'Replier' : 'Les voir'} ${svgBq(BQ_IC.chev, 13)}</button>` : ''}</td></tr>${ouvertes ? faites.map(ligneTab).join('')
-        + (lect ? '' : `<tr class="bq-plus"><td colspan="5"><button type="button" class="cp-plus" data-bq-defaire-tous>Défaire tous les rapprochements ${esc(moisDuReleve(R).includes('→') ? 'du relevé' : 'du mois')}</button></td></tr>`) : ''}` : '';
+    const faitesIci = faites.filter(x => dePage.has(x.l.id));
+    const faitesTab = faites.length && voit('ok') && (ouvertes ? faitesIci.length : derniere) ? `<tr class="bq-g bq-fait"><td colspan="5"><i class="bq-pt sur"></i><b>Rapprochées</b> <span class="mu">${faites.length}${resumeOrigines(faites)}</span>
+      ${restent.length ? `<button type="button" class="cp-plus bq-voir" id="bq-voir-faites" aria-expanded="${ouvertes}">${ouvertes ? 'Replier' : 'Les voir'} ${svgBq(BQ_IC.chev, 13)}</button>` : ''}</td></tr>${ouvertes ? faitesIci.map(ligneTab).join('')
+        + (lect || !derniere ? '' : `<tr class="bq-plus"><td colspan="5"><button type="button" class="cp-plus" data-bq-defaire-tous>Défaire tous les rapprochements ${esc(moisDuReleve(R).includes('→') ? 'du relevé' : 'du mois')}</button></td></tr>`) : ''}` : '';
     const cartes = GROUPES_BQ.map(([g, titre]) => {
       const rs = lus.filter(x => x.g === g);
-      return rs.length && voit(g) ? `<div class="bq-gm"><b>${esc(titreGroupeBq(dossier, g, titre))}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</div>${rs.map(carteTel).join('')}` : '';
-    }).join('') + (faites.length && voit('ok') ? `<div class="bq-gm"><b>Rapprochées</b> <span class="mu">${faites.length}</span>${restent.length ? `<button type="button" class="cp-plus bq-voir" data-bq-voir>${faitesOuvertes ? 'Replier' : 'Les voir'}</button>` : ''}</div>${faitesOuvertes ? faites.map(carteTel).join('') : ''}` : '');
+      const ici = rs.filter(x => dePage.has(x.l.id));
+      return ici.length && voit(g) ? `<div class="bq-gm"><b>${esc(titreGroupeBq(dossier, g, titre))}</b> <span class="mu">${rs.length}</span>${g === 'prop' ? valider : ''}</div>${ici.map(carteTel).join('')}` : '';
+    }).join('') + (faites.length && voit('ok') ? `<div class="bq-gm"><b>Rapprochées</b> <span class="mu">${faites.length}</span>${restent.length ? `<button type="button" class="cp-plus bq-voir" data-bq-voir>${faitesOuvertes ? 'Replier' : 'Les voir'}</button>` : ''}</div>${faitesOuvertes ? faitesIci.map(carteTel).join('') : ''}` : '');
     const toutFait = !restent.length && banqueState.revoir !== R.id;
     if (toutFait) {
       const mois = moisDuReleve(R).replace(/^./, c => c.toUpperCase());
@@ -715,6 +746,7 @@
           <table class="list compact bq-t" data-sans-cartes><thead><tr><th></th><th>Date</th><th>La banque</th><th class="r">Montant</th><th></th></tr></thead><tbody>${groupesTab}${faitesTab}</tbody></table>
           <div class="bq-km">${cartes}</div>
           ${!groupesTab && !faitesTab ? '<div class="empty mini">Aucune ligne dans cet état.</div>' : ''}
+          ${pagerBq}
         </div>
         ${sel ? livreEnFace(dossier, R, sel, lect) : ''}
       </div>
@@ -1137,6 +1169,8 @@
     const parId = new Map(lus.map(x => [x.l.id, x]));
     const sel = parId.get(banqueState.sel);
     const redessiner = () => drawLivres(root, dossier);
+    // (1.352.0) La pagination du relevé : changer de page pose la ligne choisie sur la première de la page.
+    bindPager(el, () => { banqueState.selDePage = true; redessiner(); }, banqueState.pg || (banqueState.pg = { page: 1, size: 50 }));
     const sur = (sel2, fn) => { const x = $(sel2, el); if (x) x.onclick = fn; };
     const choixReleve = $('#bq-releve', el);
     if (choixReleve) choixReleve.onchange = () => {
@@ -1328,7 +1362,8 @@
       if (ev.key === '/' && !dansChamp) { ev.preventDefault(); const c = $('#bq-cherche', el); if (c) c.focus(); return; }
       if (dansChamp || ev.altKey || ev.ctrlKey || ev.metaKey) return;
       if (t && t.closest && t.closest('.row-menu, [role=menu]')) return;
-      const visibles = $$('.bq-t [data-bq-ligne]', el).map(x => x.dataset.bqLigne);
+      // (1.352.0) La suite ENTIÈRE, pas la seule page : ↓ sur la dernière ligne d'une page passe à la suivante.
+      const visibles = (banqueState.suite && banqueState.suite.length) ? banqueState.suite : $$('.bq-t [data-bq-ligne]', el).map(x => x.dataset.bqLigne);
       if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
         if (!visibles.length) return;
         ev.preventDefault();
@@ -4650,8 +4685,11 @@
     const s = livresState;
     if (!s.livre) return '<div class="empty">La recherche a besoin d\'un livre.</div>';
     const trouvees = rechState.q.trim() || rechState.journal || rechState.statut
-      ? KC.chercherEcritures(s.livre, rechState.q, { journal: rechState.journal, statut: rechState.statut, max: 200 })
+      // 1.352.0 — la recherche rend TOUT ce qui correspond, et se feuillette : « limité aux 200 premières, précise ta
+      // recherche » cachait la 201e — celle qu'on cherchait, un jour sur deux, quand on cherche un journal entier.
+      ? KC.chercherEcritures(s.livre, rechState.q, { journal: rechState.journal, statut: rechState.statut, max: 1e9 })
       : [];
+    const pied = pagerBar(trouvees.length, s, 'écriture');
     const total = (s.livre.ecritures || []).length;
     return `<div class="filters mb">
         <input type="search" id="re-q" placeholder="Pièce, tiers, libellé, compte, numéro, montant…" value="${esc(rechState.q)}" style="min-width:280px">
@@ -4667,11 +4705,11 @@
           ? `<div class="empty"><p>Rien ne correspond.</p><p class="muted small">La recherche porte sur toute l'année, pas seulement sur la période affichée en haut.</p></div>`
           // « 1 écriture trouvée sur 49 écritures » répétait le mot des deux côtés du « sur » :
           // un bandeau « n sur N » se lit d'un coup d'oeil, c'est sa raison d'être (T-54).
-          : `<div class="muted small mb">${pl(trouvees.length, 'écriture trouvée', 'écritures trouvées')} sur ${total}${trouvees.length >= 200 ? ' — affichage limité aux 200 premières, précise ta recherche' : ''}.</div>
+          : `<div class="muted small mb">${pl(trouvees.length, 'écriture trouvée', 'écritures trouvées')} sur ${total}.</div>
         <div class="scroll-x"><table class="list compact"><thead><tr>
           <th class="r nw">N°</th><th class="nw">Date</th><th>Journal</th><th class="nw">Pièce</th><th>Libellé</th>
           <th class="r nw">Total</th><th class="nw">État</th><th></th></tr></thead>
-        <tbody>${trouvees.map(e => {
+        <tbody>${paginate(trouvees, s).map(e => {
           const t = KC.soldeDeLignes(e.lignes);
           return `<tr data-re="${esc(e.id)}" class="${e.statut === 'brouillard' ? 'br-ligne' : e.statut === 'contrepassee' ? 'cp-ligne' : ''}">
             <td class="r nw">${e.numero == null ? '—' : e.numero}</td><td class="nw">${esc(fmtJour(e.date))}</td>
@@ -4680,7 +4718,7 @@
             <td class="r nw">${esc(montant(t.debit))}</td>
             <td class="nw">${e.statut === 'brouillard' ? '<i>brouillard</i>' : e.statut === 'contrepassee' ? 'contre-passée' : 'validée'}</td>
             ${RowMenu.cellule('R:' + e.id, '')}</tr>`;
-        }).join('')}</tbody></table></div>`}`;
+        }).join('')}</tbody></table></div>${pied}`}`;
   }
 
   // Un champ de recherche redessiné à la frappe perd le curseur, et on n'y tape qu'une lettre
@@ -4702,10 +4740,11 @@
     if (q) {
       // On redessine à la frappe, mais le champ de recherche est REMIS et le curseur replacé au
       // bout : sans ça on ne peut taper qu'une lettre (défaut 7.17.0).
-      q.oninput = () => { rechState.q = q.value; sansPerdreLaFrappe(q, () => drawLivres(root, dossier)); };
+      q.oninput = () => { rechState.q = q.value; s.page = 1; sansPerdreLaFrappe(q, () => drawLivres(root, dossier)); };
     }
-    const j = $('#re-journal', el); if (j) j.onchange = () => { rechState.journal = j.value; drawLivres(root, dossier); };
-    const st = $('#re-statut', el); if (st) st.onchange = () => { rechState.statut = st.value; drawLivres(root, dossier); };
+    const j = $('#re-journal', el); if (j) j.onchange = () => { rechState.journal = j.value; s.page = 1; drawLivres(root, dossier); };
+    const st = $('#re-statut', el); if (st) st.onchange = () => { rechState.statut = st.value; s.page = 1; drawLivres(root, dossier); };
+    bindPager(el, () => drawLivres(root, dossier), s);
     bindRowMenus(el, cle => {
       if (!String(cle).startsWith('R:') || !s.livre) return [];
       const e = ecritureDuLivre(s.livre, String(cle).slice(2));

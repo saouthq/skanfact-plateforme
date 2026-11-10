@@ -27600,6 +27600,61 @@ prouver 'liasse 1.351.0 a : les retenues sur fournisseurs lues sur un compte que
 prouver 'liasse 1.351.0 b : le bouton du taux flotte au-dessus de sa case' web/public/plateforme/comptabilite.css \
   '.inline.au-champ { align-items: flex-end; }' '.inline.au-champ { align-items: center; }' \
   "$LI1351"
+# 1.352.0 : la pagination dans toutes les listes (demande de Skander). Sept listes du Cabinet et sept de l'app entreprise s'affichaient d'un seul tenant.
+PG1352C='un dossier plein : la recherche, les pièces d'\''une case, les à-nouveaux, les biens, l'\''inventaire, la banque et le classeur se feuillettent, totaux entiers'
+PG1352E='une menuiserie pleine : les affaires, la fiche d'\''une affaire, les règlements d'\''un fournisseur, les listes de prix et leurs prix, les biens se feuillettent'
+prouver 'pagination 1.352.0 a : la recherche coupe aux 200 premières' modules/socle/ecrans/cabinet/app-2.js \
+  'statut: rechState.statut, max: 1e9 })' 'statut: rechState.statut, max: 200 })' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 b : les pièces d'\''une case d'\''un seul tenant' modules/socle/ecrans/cabinet/app-1.js \
+  'paginate(c.ecritures || [], livresState)).map(id =>' '(c.ecritures || [])).map(id =>' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 c : les à-nouveaux d'\''un seul tenant' modules/socle/ecrans/cabinet/app-1.js \
+  'paginate(d.anouveaux.lignes, s)).map(l =>' 'd.anouveaux.lignes).map(l =>' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 d : les biens du Cabinet d'\''un seul tenant' modules/socle/ecrans/cabinet/app-1.js \
+  'paginate(e.rows, s)).map(r =>' 'e.rows).map(r =>' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 e : l'\''inventaire d'\''un seul tenant' modules/socle/ecrans/cabinet/app-2.js \
+  'paginate(inv.lignes, s)).map(l =>' 'inv.lignes).map(l =>' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 f : la banque d'\''un seul tenant' modules/socle/ecrans/cabinet/app-2.js \
+  'const dePage = new Set(paginate(suite, pgBq).map(x => x.l.id));' 'const dePage = new Set(suite.map(x => x.l.id));' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 g : les flèches de la banque s'\''arrêtent au bord de la page' modules/socle/ecrans/cabinet/app-2.js \
+  'const visibles = (banqueState.suite && banqueState.suite.length) ? banqueState.suite : $$('\''.bq-t [data-bq-ligne]'\'', el)' 'const visibles = $$('\''.bq-t [data-bq-ligne]'\'', el)' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 h : le « n par page » étiré sur toute la largeur' web/public/plateforme/cabinet.css \
+  '.pager select { width: auto; flex: 0 0 auto;' '.pager select { width: 100%; flex: 0 0 100%;' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 i : ce qui manque au classeur d'\''un seul tenant' modules/socle/ecrans/cabinet/app-1.js \
+  'feuilles('\''trous'\'', pm.trous).v.map(t => ligne(t)).join('\'''\'')' 'pm.trous.map(t => ligne(t)).join('\'''\'')' \
+  "$PG1352C"
+prouver 'pagination 1.352.0 j : les affaires d'\''un seul tenant' modules/socle/ecrans/entreprise/app-1.js \
+  '${vueA.rows.map(p => `<tr class="clickable" data-pid=' '${list.map(p => `<tr class="clickable" data-pid=' \
+  "$PG1352E"
+prouver 'pagination 1.352.0 k : la fiche d'\''une affaire d'\''un seul tenant' modules/socle/ecrans/entreprise/app-1.js \
+  '${(vue ? vue.rows : rows).map(x => `<tr class="clickable" data-pc=' '${rows.map(x => `<tr class="clickable" data-pc=' \
+  "$PG1352E"
+prouver 'pagination 1.352.0 l : les listes d'\''une fiche d'\''un seul tenant' modules/socle/ecrans/entreprise/app-1.js \
+  'return { rows: v.rows, pied: (nom, pluriel) =>' 'return { rows: liste, pied: (nom, pluriel) =>' \
+  "$PG1352E"
+prouver 'pagination 1.352.0 m : les listes de prix d'\''un seul tenant' modules/socle/ecrans/entreprise/app-1.js \
+  '${paginate(ls, etatLp).rows.map(l => `<tr><td><a href="#/listeprix/' '${ls.map(l => `<tr><td><a href="#/listeprix/' \
+  "$PG1352E"
+prouver 'pagination 1.352.0 n : le rang d'\''un prix devient celui de la page' modules/socle/ecrans/entreprise/app-1.js \
+  '$('\''#lp-lignes'\'').innerHTML = vueL.rows.map(({ x, i }) => {' '$('\''#lp-lignes'\'').innerHTML = vueL.rows.map(({ x }, i) => {' \
+  "$PG1352E"
+prouver 'pagination 1.352.0 o : « + Article » reste sur sa page' modules/socle/ecrans/entreprise/app-1.js \
+  'l.lignes.push({ itemId: '\'''\'', prix: '\'''\'' }); pgL.page = 1e9; touch(); dessiner(); };' 'l.lignes.push({ itemId: '\'''\'', prix: '\'''\'' }); touch(); dessiner(); };' \
+  "$PG1352E"
+prouver 'pagination 1.352.0 p : le tableau des amortissements d'\''un seul tenant' modules/socle/ecrans/entreprise/app-2.js \
+  '${paginate(t.rows, pgI.t).rows.map(a => `<tr class="clickable" data-aid=' '${t.rows.map(a => `<tr class="clickable" data-aid=' \
+  "$PG1352E"
+prouver 'pagination 1.352.0 q : chercher une affaire reste sur sa page' modules/socle/ecrans/entreprise/app-1.js \
+  '$('\''#mg-q'\'').oninput = e => { s.pq = e.target.value; pa.page = 1;' '$('\''#mg-q'\'').oninput = e => { s.pq = e.target.value;' \
+  "$PG1352E"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

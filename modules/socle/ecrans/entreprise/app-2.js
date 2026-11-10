@@ -2824,6 +2824,9 @@
       };
     }
 
+    // 1.352.0 — les trois tableaux se feuillettent (demande de Skander : « la pagination dans toutes les listes ») : cent
+    // cinquante biens faisaient six écrans. La ligne de totaux reste celle de TOUS les biens de l'exercice (2.2.0).
+    const pgI = s.pgI || (s.pgI = { t: { page: 1 }, w: { page: 1 }, d: { page: 1 } });
     function drawTable() {
       const y = Number(s.year);
       const t = C.assetTotals(data, y);
@@ -2854,7 +2857,7 @@
           ${t.rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
             <th>Bien</th><th>Famille</th><th class="r">Mise en service</th><th class="r">Durée</th>
             <th class="r">Valeur HT</th><th class="r">Cumul au 01/01</th><th class="r">Dotation ${s.year} ${info('immo.annuity')}</th><th class="r">Cumul au 31/12</th><th class="r">VNC ${info('immo.nbv')}</th></tr></thead><tbody>
-            ${t.rows.map(a => `<tr class="clickable" data-aid="${h(a.id)}">
+            ${paginate(t.rows, pgI.t).rows.map(a => `<tr class="clickable" data-aid="${h(a.id)}">
               <td><strong>${h(a.label)}</strong>${a.out ? `<div class="small warn-text">sorti le ${C.fmtDate(a.disposalResult.date)}</div>` : ''}</td>
               <td>${h(C.assetClassLabel(a.category))}</td>
               <td class="r nw">${C.fmtDate(a.date)}</td>
@@ -2871,13 +2874,14 @@
               <td class="r"><strong>${C.money(t.annuity, cur)}</strong></td>
               <td class="r"><strong>${C.money(t.cumulActif, cur)}</strong></td>
               <td class="r"><strong>${C.money(t.nbv, cur)}</strong></td></tr>
-          </tbody></table></div>
+          </tbody></table></div>${pagerBar(paginate(t.rows, pgI.t).pg, { noun: 'bien' })}
           ${t.rows.some(r => r.out) ? `<p class="small muted mt">${t.rows.filter(r => r.out).length > 1 ? 'Les biens sortis' : 'Le bien sorti'} en ${s.year} ${t.rows.filter(r => r.out).length > 1 ? 'comptent' : 'compte'} dans la dotation de l'année, jusqu'au jour de la sortie ; au 31/12, ${t.rows.filter(r => r.out).length > 1 ? 'ils ne sont' : 'il n\'est'} plus à l'actif : ${t.rows.filter(r => r.out).length > 1 ? 'ni leur valeur ni leur cumul n\'entrent' : 'ni sa valeur ni son cumul n\'entrent'} dans le total.</p>` : ''}
           <p class="small muted mt">Amortissement linéaire, au prorata du nombre de jours d'utilisation la première année (base 360). La dotation de l'exercice est une <b>charge</b> : elle est déjà comptée dans le résultat simplifié et dans le seuil de rentabilité. <em>À VÉRIFIER avec ton comptable : les durées retenues et la règle de prorata.</em></p>`
             : '<div class="empty">Aucune immobilisation pour cet exercice. Un bien qui reste dans l\'entreprise — ordinateur, véhicule, mobilier — se saisit ici, ou se crée depuis l\'onglet « À immobiliser » à partir d\'une ligne d\'achat.</div>'}
         </div>`;
       $$('#im-body tr[data-aid]').forEach(tr => tr.onclick = () => navigate('#/immo/' + tr.dataset.aid));
       brancherHorsTableau(hors);
+      bindPager($('#im-body'), pgI.t, () => drawTable(), '#im-body');
     }
 
     function drawWaiting() {
@@ -2890,11 +2894,11 @@
                  retirée partout ailleurs. La ligne garde UN bouton, celui pour lequel la page
                  existe ; la pièce d'origine s'ouvre en cliquant la ligne, comme dans toute liste.
                  Le vert est l'étape suivante : la ligne la plus récente, et elle seule. */''}
-            ${waiting.map((w, i) => `<tr class="clickable" data-open="${h(w.purchaseId)}" title="Ouvrir la facture d'achat (elle s'ouvre en modification)"><td class="nw">${C.fmtDate(w.date)}</td>
+            ${paginate(waiting, pgI.w).rows.map((w, i) => `<tr class="clickable" data-open="${h(w.purchaseId)}" title="Ouvrir la facture d'achat (elle s'ouvre en modification)"><td class="nw">${C.fmtDate(w.date)}</td>
               <td>${h(supplierName(w.supplierId))}${w.number ? `<div class="small muted">${h(w.number)}</div>` : ''}</td>
               <td>${h(w.label)}</td><td class="r nw">${C.money(w.amount, cur)}</td>
-              <td class="r"><button class="btn btn-sm${i === 0 ? ' btn-primary' : ''}" data-mk="${i}" title="Nom, famille, durée d'amortissement, date de mise en service">Créer la fiche du bien…</button></td></tr>`).join('')}
-          </tbody></table></div>`
+              <td class="r"><button class="btn btn-sm${waiting.indexOf(w) === 0 ? ' btn-primary' : ''}" data-mk="${waiting.indexOf(w)}" title="Nom, famille, durée d'amortissement, date de mise en service">Créer la fiche du bien…</button></td></tr>`).join('')}
+          </tbody></table></div>${pagerBar(paginate(waiting, pgI.w).pg, { noun: 'ligne' })}`
             : (data.purchases || []).length
               ? '<div class="empty">Rien en attente. Toutes les lignes d\'achat marquées « immobilisation » ont leur fiche.</div>'
               : etatVide('Rien à immobiliser pour l\'instant',
@@ -2913,6 +2917,7 @@
         assetForm(null, () => { if (!C.assetsToCreate(data).length) s.tab = 'tableau'; render(); }, { label: w.label, amount: w.amount, date: w.date, supplierId: w.supplierId, purchaseId: w.purchaseId, lineIndex: w.lineIndex });
       });
       $$('#im-body [data-open]').forEach(b => b.onclick = () => navigate('#/achat/' + b.dataset.open));
+      bindPager($('#im-body'), pgI.w, () => drawWaiting(), '#im-body');
     }
 
     function drawDisposals() {
@@ -2925,12 +2930,12 @@
       $('#im-body').innerHTML = `
         <div class="panel"><h2>Sorties de ${s.year} ${info('immo.disposal')}</h2>
           ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Date</th><th>Bien</th><th>Motif</th><th class="r">Valeur HT</th><th class="r">VNC à la sortie</th><th class="r">Prix obtenu</th><th class="r">Résultat</th><th>Facture</th></tr></thead><tbody>
-            ${rows.map(({ a, d }) => `<tr class="clickable" data-aid="${h(a.id)}">
+            ${paginate(rows, pgI.d).rows.map(({ a, d }) => `<tr class="clickable" data-aid="${h(a.id)}">
               <td class="nw">${C.fmtDate(d.date)}</td><td><strong>${h(a.label)}</strong></td><td>${h(d.reason) || '<span class="muted">—</span>'}</td>
               <td class="r nw">${C.money(a.amount, cur)}</td><td class="r nw">${C.money(d.nbv, cur)}</td><td class="r nw">${d.price > 0 ? C.money(d.price, cur) : '<span class="muted">sans prix</span>'}</td>
               <td class="r nw ${d.result < 0 ? 'warn-text' : 'ok-text'}"><strong>${C.money(d.result, cur)}</strong></td>
               <td class="nw">${(() => { if (!(d.price > 0)) return '<span class="muted">—</span>'; const f = factureDeCession(a); return f ? (f.status === 'brouillon' ? '<span class="muted">brouillon</span>' : `<a href="#/doc/${h(f.id)}">${h(f.number)}</a>`) : '<span class="warn-text">à facturer</span>'; })()}</td></tr>`).join('')}
-          </tbody></table></div>
+          </tbody></table></div>${pagerBar(paginate(rows, pgI.d).pg, { noun: 'sortie' })}
           ${/* 10.12.0 — « Plus-values : 0,000 DT » en VERT quand il n'y en a aucune : un zéro dans la
                couleur d'une bonne nouvelle. Un total nul se dit « aucune », en gris. */''}
           <p class="small mt">Plus-values : ${gain ? `<b class="ok-text">${C.money(gain, cur)}</b>` : '<span class="muted">aucune</span>'} · Moins-values : ${loss ? `<b class="warn-text">${C.money(loss, cur)}</b>` : '<span class="muted">aucune</span>'}.
@@ -2938,6 +2943,7 @@
             : '<div class="empty">Aucune sortie sur cet exercice. Un bien vendu, mis au rebut ou volé se sort depuis sa fiche.</div>'}
         </div>`;
       $$('#im-body tr[data-aid]').forEach(tr => tr.onclick = e => { if (!e.target.closest('a')) navigate('#/immo/' + tr.dataset.aid); });
+      bindPager($('#im-body'), pgI.d, () => drawDisposals(), '#im-body');
     }
 
     const draw = dansUnLot(() => {
@@ -2959,7 +2965,7 @@
       $$('#im-tabs button').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-selected', String(x === b)); });
       draw();
     });
-    $('#im-year').onchange = e => { s.year = e.target.value; draw(); };
+    $('#im-year').onchange = e => { s.year = e.target.value; Object.values(pgI).forEach(x => { x.page = 1; }); draw(); };
     $('#new-imm').onclick = () => assetForm(null, () => render());
     $('#im-csv').onclick = async () => {
       const t = C.assetTotals(data, Number(s.year));

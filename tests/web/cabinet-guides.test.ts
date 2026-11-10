@@ -133,10 +133,20 @@ describe('les guides d\'écritures, à la souris', () => {
     // refusé, et la fiche gardait un choix périmé. Trois de suite ici : sans la file, c'est le premier qui reste.
     // Dans le même instant, pour que le test ne dépende pas de la vitesse de la machine (ici, chaque choix avait le temps
     // de s'écrire avant le suivant, et le défaut remis ne faisait rien tomber).
+    // (1.352.0, rouge GitHub de la 1.350.0) « Le dernier reste » ne suffit pas à le voir : partis ensemble sur la même
+    // révision, les trois choix arrivent au serveur dans un ordre que la machine décide — quand le dernier arrive le
+    // premier, c'est lui qui passe, et le défaut ne se voit pas. Ce qui ne dépend d'aucune machine, c'est le REFUS : sans
+    // la file, deux des trois écritures de la fiche sont refusées. On les compte.
+    const refusFiche: number[] = [];
+    const surReponse = (r: import('playwright-core').Response) => { if (r.request().method() === 'PUT' && r.url().includes('/fiches/') && r.status() >= 400) refusFiche.push(r.status()); };
+    p.on('response', surReponse);
     await p.locator('#sa-journal').evaluate((s) => {
       for (const v of ['VT', 'OD', 'BQ']) { (s as HTMLSelectElement).value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }
     });
     await expect.poll(async () => (await fiche())?.dernierJournal, { timeout: 15_000 }).toBe('BQ');
+    await p.waitForLoadState('networkidle');
+    p.off('response', surReponse);
+    expect(refusFiche).toEqual([]);
     await aller(`#/dossier/${garage}/comptabilite/saisie/2026`);
     // (rouge GitHub de 1.277.0, une machine sur quatre, jamais ici : « AC ») La page rouverte a le temps de lire sa fiche ;
     // si elle ne le fait pas, le test dit ce que la page montre et ce que le serveur garde.

@@ -6350,14 +6350,31 @@
         ${aFichier(x) && x.k === clState.sel && !avecGeste ? `<span class="cl-mw"><button type="button" class="btn btn-sm btn-icone cl-trois" data-cl-trois="${esc(x.k)}" aria-label="Les gestes de cette pièce" title="Les gestes de cette pièce" aria-expanded="${clState.menu === x.k}">${CL_IC.trois}</button>${menuDe(x)}</span>` : ''}</li>`;
     const triAFaire = l => [...l].sort((a, b) => (a.etat[2] === 'traiter' ? 0 : a.etat[2] === 'manque' ? 1 : 2) - (b.etat[2] === 'traiter' ? 0 : b.etat[2] === 'manque' ? 1 : 2) || String(b.date || '').localeCompare(String(a.date || '')));
     const nomRub = r => (CL_RUBS.find(([k]) => k === r) || ['', 'ce mois'])[1].toLowerCase();
+    // 1.352.0 — une liste du classeur se FEUILLETTE (demande de Skander : « la pagination dans toutes les listes »).
+    // Deux cent soixante-six manques d'un seul tenant faisaient trente écrans, et « Exercice 2025 » coupait à quarante
+    // sans le dire. La page vit par liste (l'année, le mois, la rubrique, le filtre et la recherche font la clé : changer
+    // de mois repart de la première) ; elle SUIT la pièce choisie quand le choix vient d'ailleurs (le clavier, un lien),
+    // et un clic sur « Suivant » ne touche pas au choix — la pièce ouverte à droite reste ouverte.
+    const pgs = clState.pgs || (clState.pgs = {});
+    const feuilles = (cle, l, par = 25) => {
+      const k = [clState.annee, clState.mois, clState.rub, clState.filtre, clState.vue, clState.q, cle].join('|');
+      const pages = Math.max(1, Math.ceil(l.length / par));
+      const ici = clState.sel && clState.sel !== clState.pgSel ? l.findIndex(x => x.k === clState.sel) : -1;
+      if (ici >= 0) pgs[k] = Math.floor(ici / par) + 1;
+      const p = Math.min(pages, Math.max(1, pgs[k] || 1));
+      const debut = (p - 1) * par;
+      const nav = pages > 1 ? `<div class="pager cl-pager"><button type="button" class="btn btn-sm" data-cl-pg="${esc(k)}" data-pas="${p - 1}"${p <= 1 ? ' disabled' : ''}>← Précédent</button><span class="muted small">${debut + 1}–${Math.min(l.length, p * par)} sur ${l.length}</span><button type="button" class="btn btn-sm" data-cl-pg="${esc(k)}" data-pas="${p + 1}"${p >= pages ? ' disabled' : ''}>Suivant →</button></div>` : '';
+      return { v: l.slice(debut, p * par), nav, debut };
+    };
     const liste = (l, max = 8, r = clState.rub) => {
-      const v = clState.plus ? l : l.slice(0, max);
-      const reste = l.slice(v.length);
+      const f = clState.plus ? feuilles('l:' + r, l, 50) : null;
+      const v = f ? f.v : l.slice(0, max);
+      const reste = f ? [] : l.slice(v.length);
       const enOrdre = reste.every(x => x.etat[2] === 'ordre');
       const plusTxt = !reste.length ? '' : reste.length === 1 ? `1 autre pièce, ${enOrdre ? (r === 'achats' ? 'saisie et justifiée' : 'en ordre') : 'à lire'}`
         : `${reste.length} autres ${nomRub(r)}, ${enOrdre ? (r === 'achats' ? 'saisis et justifiés' : 'en ordre') : 'à lire'}`;
-      if (clState.vg === 'vignettes') return `<div class="cl-vg">${v.map(x => `<a href="#" class="cl-vg-t ${x.etat[0]}${x.k === clState.sel ? ' ici' : ''}" data-cl-k="${esc(x.k)}"><span class="cl-vg-p ${x.photo ? 'photo' : 'pdf'}${x.etat[1] === 'illisible' ? ' flou' : ''}"><em>${esc(String(x.titre).replace(/\.[a-z]+$/i, ''))}</em><i></i><i></i><i></i><b>${x.montant ? esc(dtCd(x.montant)) : ''}</b></span><span class="cl-vg-n"><b>${esc(x.titre)}</b><small>${x.date ? esc(x.recue ? `reçue le ${jjmm(jourTunisCl(x.date))}` : jjmm(x.date)) : ''}</small></span><span class="cl-st ${x.etat[0]}">${esc(x.etat[1])}</span></a>`).join('')}${reste.length ? `<a href="#" class="cl-vg-t cl-vg-plus" data-cl-plus="1"><b>+ ${reste.length}</b><small>${esc(plusTxt.replace(/^\d+ /, ''))}</small></a>` : ''}</div>`;
-      return `<ul class="cl-ls">${v.map(x => ligne(x)).join('')}</ul>${reste.length ? `<a href="#" class="cl-plus" data-cl-plus="1">${esc(plusTxt)} ${CL_IC.plus}</a>` : ''}`;
+      if (clState.vg === 'vignettes') return `<div class="cl-vg">${v.map(x => `<a href="#" class="cl-vg-t ${x.etat[0]}${x.k === clState.sel ? ' ici' : ''}" data-cl-k="${esc(x.k)}"><span class="cl-vg-p ${x.photo ? 'photo' : 'pdf'}${x.etat[1] === 'illisible' ? ' flou' : ''}"><em>${esc(String(x.titre).replace(/\.[a-z]+$/i, ''))}</em><i></i><i></i><i></i><b>${x.montant ? esc(dtCd(x.montant)) : ''}</b></span><span class="cl-vg-n"><b>${esc(x.titre)}</b><small>${x.date ? esc(x.recue ? `reçue le ${jjmm(jourTunisCl(x.date))}` : jjmm(x.date)) : ''}</small></span><span class="cl-st ${x.etat[0]}">${esc(x.etat[1])}</span></a>`).join('')}${reste.length ? `<a href="#" class="cl-vg-t cl-vg-plus" data-cl-plus="1"><b>+ ${reste.length}</b><small>${esc(plusTxt.replace(/^\d+ /, ''))}</small></a>` : ''}</div>${f ? f.nav : ''}`;
+      return `<ul class="cl-ls">${v.map(x => ligne(x)).join('')}</ul>${reste.length ? `<a href="#" class="cl-plus" data-cl-plus="1">${esc(plusTxt)} ${CL_IC.plus}</a>` : ''}${f ? f.nav : ''}`;
     };
     // Les achats sans justificatif auxquels une pièce peut se joindre : ceux de son mois et du précédent d'abord.
     const sansJustif = items.filter(x => x.sorte === 'ecr' && x.etat[1] === 'sans justificatif');
@@ -6407,7 +6424,7 @@
           ${d.manual || enSaisie ? '' : `<button type="button" class="btn btn-sm" id="cl-q-demander"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Demander à ${esc(qui)} ${/^\d/.test(clState.q.trim()) ? 'cette pièce' : `une facture ${esc(clState.q.trim())}`}</button>`}</div>`;
       } else {
         milieu = `<div class="cl-res"><div class="cl-res-t"><b>« ${esc(clState.q.trim())} » dans tout le dossier</b><span>${pl(n, 'pièce')}, sur ${[...groupes.map(([a]) => a), ...(perm.length ? ['le dossier permanent'] : [])].join(' et ')} · les pièces, les relevés, les écritures et le dossier permanent</span></div></div>
-          ${groupes.map(([a, its]) => `<section class="cl-sec"><h3>Exercice ${a}<span>${its.length}</span></h3><ul class="cl-ls">${triAFaire(its).slice(0, 40).map(x => ligne(x)).join('')}</ul></section>`).join('')}
+          ${groupes.map(([a, its]) => `<section class="cl-sec"><h3>Exercice ${a}<span>${its.length}</span></h3>${(f => `<ul class="cl-ls">${f.v.map(x => ligne(x)).join('')}</ul>${f.nav}`)(feuilles('ex:' + a, triAFaire(its), 40))}</section>`).join('')}
           ${perm.length ? `<section class="cl-sec"><h3>Le dossier permanent<span>${perm.length}</span></h3><ul class="cl-ls">${perm.map(x => `<li class="cl-l" data-cl-k="ds:${esc(x.id)}" tabindex="0"><span class="cl-l-i contrat">${CL_IC.contrat}</span><span class="cl-l-t"><b>${esc(x.titre)}</b><small>${esc(x.detail || x.fichier.nom)}</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ok">${CL_IC.ok}rangée</span></span>${troisDoc(x.id)}</li>`).join('')}</ul></section>` : ''}
           ${releves.length ? `<p class="cl-note"><a href="#/dossier/${encodeURIComponent(d.id)}/comptabilite/banque">Voir aussi ${pl(releves.length, `relevé ${releves[0].banque || ''}`.trim(), `relevés ${releves[0].banque || ''}`.trim())} où « ${esc(clState.q.trim())} » apparaît</a></p>` : ''}`;
       }
@@ -6496,7 +6513,7 @@
       const nb2 = l.filter(t => !t.attend).length;
       const premier = l.find(t => t.geste && !t.attend);
       milieu = `${resume(`Ce qui manque à ${annee}`, `${l.length ? pl(l.length, 'pièce') : 'rien ne manque : chaque mois a ses pièces'}${nb2 ? ` · ${nb2} à demander` : ''}${l.length > nb2 ? ` · ${l.length - nb2} en attente du client` : ''}`, '')}
-        <section class="cl-sec"><h3>Manquantes<span>${l.length}</span><small>les trous du classeur, du plus ancien au plus récent</small></h3>${l.length ? `<ul class="cl-ls">${l.map(t => ligne({ ...t, premier: t === premier })).join('')}</ul>` : `<div class="cl-rub-vide ok"><span>${CL_IC.ok}</span><p>Aucun trou dans le classeur de ${annee} : chaque mois de la mission a ses pièces, et le dossier permanent n'a rien d'échu.</p></div>`}</section>
+        <section class="cl-sec"><h3>Manquantes<span>${l.length}</span><small>les trous du classeur, du plus ancien au plus récent</small></h3>${l.length ? (f => `<ul class="cl-ls">${f.v.map(t => ligne({ ...t, premier: t === premier })).join('')}</ul>${f.nav}`)(feuilles('manq', l)) : `<div class="cl-rub-vide ok"><span>${CL_IC.ok}</span><p>Aucun trou dans le classeur de ${annee} : chaque mois de la mission a ses pièces, et le dossier permanent n'a rien d'échu.</p></div>`}</section>
         ${items.some(x => x.etat[1] === 'illisible') ? `<p class="cl-note">${items.filter(x => x.etat[1] === 'illisible').map(x => `La photo illisible (${esc(String(x.titre).replace(/\.[a-z]+$/i, ''))})`).slice(0, 1).join('')} n'est pas un trou : elle est arrivée, et attend une meilleure photo, dans ${esc(moisLong(items.find(x => x.etat[1] === 'illisible').mois))}.</p>` : ''}`;
     } else if (pm.etat[0] === 'manque' && !d.manual && clState.filtre === 'rub' && !clState.ouvrir) {
       // Des mois où rien n'est arrivé, à la suite : un seul bloc, et la relance.
@@ -6519,7 +6536,7 @@
       milieu = `${resume(`${cap(moisLong(pm.m))} ${annee}`, `${pl(arrive.length, 'pièce')}${saisies ? ` · <b class="ok">${saisies} saisie${saisies > 1 ? 's' : ''} au cabinet</b>` : ''}${aSaisir.length ? ` · <b class="ambre">${pl(aSaisir.length, 'pièce à saisir', 'pièces à saisir')}</b>` : ''}`, `<i class="ok" style="--n:${saisies}"></i><i class="ambre" style="--n:${aSaisir.length}"></i>`)}
         <section class="cl-sec"><h3>Ce qui est arrivé<span>${arrive.length}</span><small>les papiers de ${esc(qui)}, scannés ou photographiés, rangés au cabinet</small></h3>${arrive.length ? liste(arrive, 12) : `<p class="cl-note">Rien n'est encore rangé dans ${esc(moisLong(pm.m))}.</p>`}
           ${premiere ? `<div class="cl-sec-a"><button type="button" class="btn btn-primary btn-sm" data-cl-geste="${esc(premiere.k)}"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Saisir ${aSaisir.length > 1 ? `les ${aSaisir.length} pièces` : 'la pièce'}</button><span class="tb-rel-res">elles s'ouvrent dans Écritures, à côté de la saisie</span></div>` : ''}</section>
-        <section class="cl-sec"><h3>Ce qui manque<span>${pm.trous.length || (pm.cl === 'cours' ? 1 : 0)}</span><small>ce qu'on attend de ${esc(qui)}</small></h3><ul class="cl-ls">${pm.trous.length ? pm.trous.map(t => ligne(t)).join('') : pm.cl === 'cours' ? `<li class="cl-l cl-trou cl-attend"><span class="cl-l-i manque">${CL_IC.manque}</span><span class="cl-l-t"><b>Les relevés ${deMois(pm.m)}</b><small>le mois n'est pas fini : ${esc(qui)} les apporte après le ${jjmm(`${moisSuivant(pm.m)}-01`)}, rien à faire avant</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ambre">en attente</span></span></li>` : '<li class="cl-l"><span class="cl-l-t"><small>Rien ne manque ce mois-ci.</small></span></li>'}</ul></section>`;
+        <section class="cl-sec"><h3>Ce qui manque<span>${pm.trous.length || (pm.cl === 'cours' ? 1 : 0)}</span><small>ce qu'on attend de ${esc(qui)}</small></h3><ul class="cl-ls">${pm.trous.length ? feuilles('trous', pm.trous).v.map(t => ligne(t)).join('') : pm.cl === 'cours' ? `<li class="cl-l cl-trou cl-attend"><span class="cl-l-i manque">${CL_IC.manque}</span><span class="cl-l-t"><b>Les relevés ${deMois(pm.m)}</b><small>le mois n'est pas fini : ${esc(qui)} les apporte après le ${jjmm(`${moisSuivant(pm.m)}-01`)}, rien à faire avant</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ambre">en attente</span></span></li>` : '<li class="cl-l"><span class="cl-l-t"><small>Rien ne manque ce mois-ci.</small></span></li>'}</ul>${feuilles('trous', pm.trous).nav}</section>`;
     } else if (pm.complet && clState.filtre === 'rub' && !clState.ouvrir) {
       const dc = Lfd.decl[pm.m];
       const rel = ((livre && livre.releves) || []).find(r => String(r.au).slice(0, 7) === pm.m);
@@ -6552,9 +6569,9 @@
         const poids = x => x.geste ? ({ saisir: 0, joindre: 0, verifiee: 1, deplacer: 1, rapprocher: 2, ranger: 3, relancer: 4 })[x.geste.act] ?? 3 : 5;
         const l = pm.lp.filter(x => x.etat[2] === 'traiter').sort((a, b) => poids(a) - poids(b));
         premierVu = l[0] || null;
-        sec = `<section class="cl-sec"><h3>À traiter, dans l'ordre<span>${l.length}</span><small>d'abord ce qui change la déclaration du jour ; chacune avec son geste</small></h3>${l.length ? `<ol class="cl-ls cl-ord">${l.map(x => ligne(x, true)).join('')}</ol>` : '<p class="cl-note">Rien à traiter ce mois-ci.</p>'}</section>
+        sec = `<section class="cl-sec"><h3>À traiter, dans l'ordre<span>${l.length}</span><small>d'abord ce qui change la déclaration du jour ; chacune avec son geste</small></h3>${l.length ? (f => `<ol class="cl-ls cl-ord" style="counter-reset: o ${f.debut}">${f.v.map(x => ligne(x, true)).join('')}</ol>${f.nav}`)(feuilles('ordre', l)) : '<p class="cl-note">Rien à traiter ce mois-ci.</p>'}</section>
           ${l.length ? `<p class="cl-note">Chaque geste fait sort une ligne de la liste. Quand elle est vide, ${esc(moisLong(pm.m))} se déclare d'après ses livres${pm.manque ? ` ; ${pm.manque > 1 ? `les ${pm.manque} pièces qui manquent encore ne bloquent` : 'la pièce qui manque encore ne bloque'} pas la déclaration` : ''}.</p>` : ''}`;
-      } else if (clState.rub === 'manque') sec = `<section class="cl-sec"><h3>Ce qui manque<span>${pm.trous.length}</span><small>ce que ${esc(moisLong(pm.m))} attend encore pour être complet</small></h3>${pm.trous.length ? `<ul class="cl-ls">${pm.trous.map((t, n) => ligne({ ...t, premier: n === 0 })).join('')}</ul>` : '<p class="cl-note">Rien ne manque ce mois-ci.</p>'}</section>`;
+      } else if (clState.rub === 'manque') sec = `<section class="cl-sec"><h3>Ce qui manque<span>${pm.trous.length}</span><small>ce que ${esc(moisLong(pm.m))} attend encore pour être complet</small></h3>${pm.trous.length ? (f => `<ul class="cl-ls">${f.v.map((t, n) => ligne({ ...t, premier: f.debut + n === 0 })).join('')}</ul>${f.nav}`)(feuilles('trous', pm.trous)) : '<p class="cl-note">Rien ne manque ce mois-ci.</p>'}</section>`;
       else if (clState.rub === 'declaration') { clState.vue = 'decls'; clState.decl = Lfd.decl[pm.m] ? pm.m : ''; drawClasseur(view, d); return; } else {
         const l = clState.rub === 'retenues' ? pm.lp.filter(x => x.rs) : pm.lp.filter(x => x.rub === clState.rub);
         const nom = (CL_RUBS.find(([r]) => r === clState.rub) || ['', ''])[1];
@@ -6784,6 +6801,8 @@
     $$('[data-cl-decl]', view).forEach(a => { a.onclick = () => { clState.decl = a.dataset.clDecl; re(); }; a.onkeydown = e => { if (e.key === 'Enter') a.click(); }; });
     $$('[data-cl-an]', view).forEach(a => { a.onclick = e => { e.preventDefault(); Object.assign(clState, { annee: a.dataset.clAn, mois: '', rub: '', vue: 'annee', filtre: 'rub', ouvrir: false, decl: '', sel: '', plus: false, menu: '', q: '' }); re(); }; });
     $$('[data-cl-plus]', view).forEach(a => { a.onclick = e => { e.preventDefault(); clState.plus = true; re(); }; });
+    $$('[data-cl-pg]', view).forEach(b => { b.onclick = () => { (clState.pgs || (clState.pgs = {}))[b.dataset.clPg] = Number(b.dataset.pas); re(); }; });
+    clState.pgSel = clState.sel;
     $$('[data-cl-sugg]', view).forEach(b => { b.onclick = () => { clState.q = b.dataset.clSugg; re(); }; });
     const ordre = $('#cl-ordre', view);
     if (ordre) ordre.onclick = () => { const l = pm.lp.filter(x => x.etat[2] === 'traiter'); Object.assign(clState, { filtre: 'traiter', sel: l[0] ? l[0].k : '', menu: '' }); re(); };
@@ -9166,11 +9185,11 @@
 
   const panneauPieces = (c, titre) => `<div class="panel mt" id="dc-pieces"><h2>${esc(titre)} — les pièces</h2>
     <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Journal</th><th class="nw">Pièce</th><th>Libellé</th></tr></thead>
-    <tbody>${(c.ecritures || []).map(id => {
+    <tbody>${(pagerBar((c.ecritures || []).length, livresState, 'pièce'), paginate(c.ecritures || [], livresState)).map(id => {
       const e = ecritureDuLivre(livresState.livre, id);
       return e ? `<tr><td class="nw">${esc(fmtJour(e.date))}</td><td class="nw">${esc(e.journal)}</td>
         <td class="nw">${esc(e.piece)}</td><td class="tronq lg" title="${esc(e.libelle)}">${esc(e.libelle)}</td></tr>` : '';
-    }).join('')}</tbody></table></div></div>`;
+    }).join('')}</tbody></table></div>${pagerBar((c.ecritures || []).length, livresState, 'pièce')}</div>`;
 
   // Le mois proposé : le DERNIER qui porte des écritures, pas janvier. Un comptable ouvre cet
   // écran pour le mois qu'il vient de saisir ; le faire commencer au premier mois de l'exercice
@@ -9229,6 +9248,7 @@
     if (!s.decl || s.decl.periode !== veut || s.declRev !== rev) { s.declRev = rev; chargerDeclaration(root, dossier); return; }
     if (s.decl.erreur) return;
     declState.mois = veut;
+    bindPager(el, () => { pageFocus = 'dc-pieces'; drawLivres(root, dossier); }, s);
     const m = $('#dc-mois', el);
     // 1.350.0 — le mois de la déclaration et celui de la frise sont le même mois : choisir l'un pose l'autre.
     // La barre « Période » vit au-dessus de l'écran des livres : c'est la page qui se redessine, et elle relit la déclaration.
@@ -9237,6 +9257,7 @@
     $$('[data-dc-mois]', el).forEach(b => { b.onclick = () => choisirMois(b.dataset.dcMois); });
     $$('[data-cases]', el).forEach(b => { b.onclick = () => {
       declState.ouverte = declState.ouverte === b.dataset.cases ? '' : b.dataset.cases;
+      s.page = 1;
       if (declState.ouverte) pageFocus = 'dc-pieces';
       drawLivres(root, dossier);
     }; });
@@ -9601,11 +9622,12 @@
         <th class="r nw">Débit</th><th class="r nw">Crédit</th></tr></thead>
       <tbody>${/* 10.12.0 (U-15) — la colonne « Intitulé » lisait le libellé de la LIGNE, vide sur tous
             les comptes sauf le 13 : c'est le tableau qu'on relit avant de reporter un bilan, et il ne
-            disait pas ce qu'était le 4531. Le nom du compte, par le résolveur unique (9.8.7). */''}${d.anouveaux.lignes.map(l => `<tr><td class="nw">${esc(l.compte)}</td>
+            disait pas ce qu'était le 4531. Le nom du compte, par le résolveur unique (9.8.7). */''}${(pagerBar(d.anouveaux.lignes.length, s, 'ligne'), paginate(d.anouveaux.lignes, s)).map(l => `<tr><td class="nw">${esc(l.compte)}</td>
         <td class="tronq" title="${esc(nomAN(l.compte, l.libelle))}">${esc(nomAN(l.compte, l.libelle))}</td>
         <td class="r nw">${l.debit ? money0(l.debit) : ''}</td><td class="r nw">${l.credit ? money0(l.credit) : ''}</td></tr>`).join('')}</tbody>
       <tfoot><tr><th colspan="2">${esc(pl(d.anouveaux.lignes.length, 'ligne'))}</th>
         <th class="r nw">${money0(d.anouveaux.debit)}</th><th class="r nw">${money0(d.anouveaux.credit)}</th></tr></tfoot></table></div>
+      ${pagerBar(d.anouveaux.lignes.length, s, 'ligne')}
       ${d.extournes.length ? `<p class="small muted mt">${pl(d.extournes.length, 'écriture s\'extourne', 'écritures s\'extournent')}
         au 1er janvier : elles partiront avec les à-nouveaux. L'originale, elle, reste dans son exercice avec son numéro.</p>` : ''}`)}`;
   }
@@ -9647,6 +9669,7 @@
     const rev = `${(s.livre.audit || []).length}:${(s.livre.ecritures || []).length}`;
     if (!s.cloture || s.clotureRev !== rev) { s.clotureRev = rev; chargerCloture(root, dossier); return; }
     if (s.cloture.erreur) return;
+    bindPager(el, () => drawLivres(root, dossier), s);
     // U-19 — une section repliée ou dépliée le RESTE au prochain dessin ; le sommaire ouvre la
     // section qu'il nomme et l'amène à l'écran (un sommaire qui mène à un titre replié ne mène nulle part).
     const plis = s.clPlis || (s.clPlis = {});
@@ -10754,7 +10777,9 @@
         <th>Bien</th><th>Mise en service</th><th class="nw">Méthode ${info('im.verifier')}</th>
         <th class="r nw">Valeur</th><th class="r">Cumul au 01/01</th><th class="r">Dotation ${esc(s.annee)}</th>
         <th class="r nw">Cumul</th><th class="r nw">VNC</th><th></th></tr></thead>
-      <tbody>${e.rows.map(r => `<tr>
+      ${/* (1.352.0) Les biens se paginent (120 biens : 6 000 px d'un tenant) ; le pied garde les totaux de TOUS les biens.
+            `pagerBar` d'abord, pour son effet : il ramène la page dans ses bornes. */''}
+      <tbody>${(pagerBar(e.rows.length, s, 'bien'), paginate(e.rows, s)).map(r => `<tr>
         ${/* 10.14.0 (vu à la souris) — le NOM se coupe, jamais ses marques : écrites à la suite dans
               une cellule tronquée, « repris de 2025 » tombait derrière les points de suspension, et la
               découverte éclairait un « … » en disant « ce bien vient de l'exercice précédent ». */''}
@@ -10774,7 +10799,7 @@
       <tfoot><tr><th colspan="3">${esc(pl(e.rows.length, 'bien'))}</th>
         <th class="r nw">${esc(money(e.valeur))}</th><th class="r nw">${esc(money(e.ouverture))}</th>
         <th class="r nw">${esc(money(e.dotation))}</th><th class="r nw">${esc(money(e.cumul))}</th>
-        <th class="r nw">${esc(money(e.vnc))}</th><th></th></tr></tfoot></table></div>`}
+        <th class="r nw">${esc(money(e.vnc))}</th><th></th></tr></tfoot></table></div>${pagerBar(e.rows.length, s, 'bien')}`}
     </div>
     ${immoState.ouverte ? panneauPlan(d, immoState.ouverte, y) : ''}`;
   }
@@ -10811,6 +10836,7 @@
     const rev = revDuLivre(s.livre);
     if (!s.immo || s.immoRev !== rev) { s.immoRev = rev; chargerImmobilisations(root, dossier); return; }
     if (s.immo.erreur) return;
+    bindPager(el, () => drawLivres(root, dossier), s);
     [$('#im-neuf', el), $('#im-neuf2', el)].forEach(b => { if (b) b.onclick = () => immoForm(root, dossier, null); });
     // (1.345.0) Rattacher une ligne du livre à la fiche saisie à la main : la fiche prend la ligne pour origine (elle ne se
     // propose plus « à créer ») et le compte que l'achat a débité, pour que sa sortie crédite le même. Une question à
