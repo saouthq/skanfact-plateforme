@@ -62,9 +62,12 @@ describe('les Messages du Cabinet, à la souris', () => {
     };
     const hela = await client('Librairie Ennour', 'Hela Ben Salah');
     const karim = await client('Menuiserie Ben Ali', 'Karim Ben Ali');
-    // Hela écrit au cabinet ; le cabinet demande une pièce à Karim (pour le 10 novembre).
+    // Hela écrit au cabinet ; le cabinet demande une pièce à Karim, pour dans dix jours. (1.353.1) La date était écrite en dur
+    // (« 2026-11-10 ») : le 11 novembre le serveur refusait une échéance passée, et le test tombait sans qu'une ligne ait bougé.
+    const pour = new Date(Date.now() + 10 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+    const pourFr = `${pour.slice(8, 10)}/${pour.slice(5, 7)}/${pour.slice(0, 4)}`;
     expect((await api('POST', `/entreprises/${hela.ent}/messages`, hela.j, { cote: 'entreprise', texte: 'Bonjour, la facture STEG de septembre, je la retrouve pas. C\'est grave ?' })).statut).toBe(201);
-    expect((await api('POST', `/entreprises/${karim.ent}/messages`, associe, { cote: 'cabinet', texte: '', demande: 'Le relevé BIAT de septembre', pour: '2026-11-10' })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${karim.ent}/messages`, associe, { cote: 'cabinet', texte: '', demande: 'Le relevé BIAT de septembre', pour })).statut).toBe(201);
 
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.clock.setFixedTime(LE_29);
@@ -137,7 +140,7 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(await ligne('Menuiserie Ben Ali').count()).toBe(0);
     await p.getByRole('tab', { name: /^Tout/ }).click();
     await ligne('Menuiserie Ben Ali').click();
-    await expect.poll(async () => net(await cote.locator('[data-msg-attente]').innerText().catch(() => ''))).toBe('ON ATTEND DE KARIM 1 Le relevé BIAT de septembre pièce demandée · pour le 10/11/2026');
+    await expect.poll(async () => net(await cote.locator('[data-msg-attente]').innerText().catch(() => ''))).toBe(`ON ATTEND DE KARIM 1 Le relevé BIAT de septembre pièce demandée · pour le ${pourFr}`);
     expect(net(await p.locator('.msg-tete-etat').innerText())).toBe('Attend le client');
     // ── Le résumé du cabinet (Tout le cabinet) : rien en retard, aucune question ouverte, aucune photo : il se tait ─
     expect(await p.locator('[data-resume]').isHidden()).toBe(true);

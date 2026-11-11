@@ -619,10 +619,12 @@ describe('les pièces reçues du cabinet', () => {
     ]);
     // (1.167.0) Les demandes du cabinet : celle reçue aujourd'hui y est encore, avec sa réception ; une demande ouverte
     // d'un autre dossier aussi, sans réception. Le collaborateur ne voit que celles du dossier qu'on lui confie.
-    await ecrire(ent2, cab.associe, 'cabinet', { texte: '', demande: 'Le relevé de septembre', pour: '2026-11-15' });
+    // (1.353.1) Une date dans dix jours, jamais écrite en dur : passée, le serveur la refuse et le test tombe avec le calendrier.
+    const pourPlusTard = new Date(Date.now() + 10 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+    await ecrire(ent2, cab.associe, 'cabinet', { texte: '', demande: 'Le relevé de septembre', pour: pourPlusTard });
     const dem = (await boite(cab.id, cab.associe)).demandes;
     expect(dem.map((x) => [x.entreprise, x.texte, typeof x.recueLe, x.pour])).toEqual([
-      [ent2, 'Le relevé de septembre', 'object', '2026-11-15'], [ent, 'La facture STEG d\'octobre', 'string', null]]);
+      [ent2, 'Le relevé de septembre', 'object', pourPlusTard], [ent, 'La facture STEG d\'octobre', 'string', null]]);
     // Le collaborateur ne voit que le dossier qu'on lui confie : la boîte et son compte.
     const sienne = await boite(cab.id, collaborateur);
     expect([sienne.aClasser, sienne.pieces.map((x) => x.entreprise), sienne.demandes.map((x) => x.entreprise)]).toEqual([1, [ent], [ent]]);

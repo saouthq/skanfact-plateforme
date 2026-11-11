@@ -2408,3 +2408,10 @@ Le parcours côté Cabinet (accepter le dossier, comparer la TVA et les livres) 
 redémarré au milieu.
 
 Tests : `tests/moteur/caisse-virement-1353.test.ts`, `tests/web/bout-en-bout-1353.test.ts` ; huit preuves.
+
+### 1.353.1 : deux tests qui tombaient avec le calendrier
+
+GitHub a refusé la 1.352.1 et la 1.353.0 sur le même test (`tests/web/messages-cabinet.test.ts`) : il demandait une pièce
+« pour le 2026-11-10 », écrit en dur. Passé minuit le 11 novembre (heure de Tunis), le serveur refuse une échéance déjà
+passée, et le test tombait sans qu'une ligne du produit ait bougé. La date se calcule (dans dix jours) ; le même défaut
+attendait le 16 novembre dans `tests/messagerie/messagerie.test.ts`. Aucun code du produit ne change.
