@@ -125,7 +125,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     // Les contrôles : ce qui demande un geste d'abord, chacun nommé.
     const ko = (await p.locator('#p-ctrl li.ko b').allInnerTexts()).map(espace);
     // (1.248.0) Le jeu d'essai donne le même RIB et le même n° CNSS à tous : les deux contrôles des doublons le disent.
-    expect(ko).toEqual(['Pas deux salariés sur le même RIB', 'Une avance pas retenue', 'L\'entrée de Salma au prorata', 'N° CNSS de chaque salarié', 'Pas deux salariés sur le même n° CNSS']);
+    expect(ko).toEqual(['Pas deux salariés sur le même RIB', 'Une avance pas retenue', 'L\'entrée de Salma au prorata', 'N° CNSS de l\'employeur', 'N° CNSS de chaque salarié', 'Pas deux salariés sur le même n° CNSS']);
     expect(espace(await p.locator('#p-ctrl li.ko').nth(1).innerText())).toContain('Hamza Mejri, Mourad Trabelsi');
     // (1.253.0) « À traiter » (1.267.0 : « À ne pas oublier », sur « Aujourd'hui ») : quatre fiches sur le même n° CNSS et le même RIB tiennent sur deux lignes, pas six ; la
     // pastille de « Salariés » compte les fiches à reprendre, pas les choses : la première fiche du dossier (Hamza, rangé par
@@ -140,9 +140,10 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     await p.locator('#p-tabs [data-tab="bulletins"]').click();
     await p.locator('#p-sous [data-sous="bulletins"]').click();
     await p.locator('#p-ctrl-tout').click();
-    expect(await p.locator('#p-ctrl li').count()).toBe(11);
+    // (1.355.2) Un contrôle de plus, le n° CNSS de l'employeur (le jeu d'essai n'en a pas) : douze, six à reprendre.
+    expect(await p.locator('#p-ctrl li').count()).toBe(12);
     // Tout voir garde l'ordre : ceux qui demandent un geste d'abord.
-    expect(await p.locator('#p-ctrl li').evaluateAll((l) => l.map((x) => x.className))).toEqual(['ko', 'ko', 'ko', 'ko', 'ko', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok']);
+    expect(await p.locator('#p-ctrl li').evaluateAll((l) => l.map((x) => x.className))).toEqual(['ko', 'ko', 'ko', 'ko', 'ko', 'ko', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok']);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-bon-a-payer.png'), fullPage: true });
     // Approuver : le serveur garde la date sur chaque bulletin ; « Payer » revient.
     await p.locator('#p-bap').click();

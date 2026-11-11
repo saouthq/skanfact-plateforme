@@ -2524,3 +2524,13 @@ l'entreprise :
 
 Tests : `tests/web/paie-1355.test.ts` (septième étape), `tests/moteur/paie-recette-1248-1.test.ts` (deux tests),
 `tests/web/paie-mois.test.ts` (le bandeau et sa fenêtre) ; six preuves.
+
+### 1.355.3 : les parcours qui décrivaient la paie d'avant
+
+GitHub, rouge sur les 1.355.1 et 1.355.2, et ce sont les tests qui avaient raison de tomber :
+- `paie-bon-a-payer` comptait onze contrôles ; le n° CNSS de l'employeur en fait douze, dont six à reprendre (son jeu
+  d'essai n'a pas ce numéro) ;
+- `cabinet-hors-ligne` ouvrait la Paie d'un dossier dont le mandat ne comprend pas la paie, et attendait « Aucun salarié
+  déclaré » : depuis la 1.355.0, l'écran dit « La paie n'est pas confiée au cabinet », avec et sans réseau ;
+- la preuve « paie 1.251 e » ne tombait plus : la page qui saute au mois suivant a deux gardes depuis la 1.355.0 (le mois
+  qu'on regarde, et le mois de paie qui ne quitte plus des bulletins pas payés). Elle retire maintenant les deux.

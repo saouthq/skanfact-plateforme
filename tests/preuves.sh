@@ -22525,8 +22525,11 @@ prouver "paie 1.251 c : les mois d'avant SkanFact se disent « à faire »" modu
 prouver "paie 1.251 d : la grille du pointage ne dit pas quel jour on est" modules/personnel/ecrans/entreprise/paie.js \
   "const estAuj = j => \`\${y}-\${String(m).padStart(2, '0')}-\${String(j.jour).padStart(2, '0')}\` === C.today();" "const estAuj = () => false;" \
   "$WP251R"
-prouver "paie 1.251 e : la page saute au mois suivant une fois les bulletins établis" modules/personnel/ecrans/entreprise/paie.js \
-  ": entree; s.year = String(mp.year);" ": C.moisDePaie(data); s.year = String(mp.year);" \
+# (1.355.2) Le défaut d'origine a deux gardes depuis la 1.355.0 : la page reste sur le mois qu'on regarde (`entree`), et le
+# mois de paie ne quitte plus un mois aux bulletins pas payés. Retirer la seule première ne montre plus rien : on retire les deux.
+prouver "paie 1.251 e : la page saute au mois suivant une fois les bulletins établis" "modules/personnel/ecrans/entreprise/paie.js|||modules/personnel/moteur/core-paie.js" \
+  ": entree; s.year = String(mp.year);|||    if (payslipsOf(data, a.year, a.month).some(x => !x.paidDate)) return a;
+" ": C.moisDePaie(data); s.year = String(mp.year);|||" \
   "$WP250J"
 prouver "paie 1.251 f : un tableau garde son cadre collé à celui de sa carte" modules/personnel/styles/paie.css \
   ".pa-carte table.list { border: 0; border-radius: 0; box-shadow: none; background: transparent; }" ".pa-carte table.list { }" \
