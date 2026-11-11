@@ -182,7 +182,13 @@
       || ((data.pointageVersions || []).some(v => v.ym === ymP) && !(data.pointageOuverts || []).includes(ymP));
     const finMois = addDays(`${y}-${String(m).padStart(2, '0')}-01`, daysInMonth(y, m) - 1), enCours = today() <= finMois;
     const q = Math.ceil(m / 3), cnssDeposee = (data.socialFilings || []).some(f => f.id === `cnss-${y}-T${q}`);
-    const dmFaite = (data.socialFilings || []).find(f => f.id === `dm-${ymP}`);
+    const dmFaite = (data.socialFilings || []).find(f => f.id === `dm-${ymP}`), depot = opts && opts.depot;
+    // La retenue du mois (déposée, payée, ou déposée par le cabinet et à verser), et la CNSS du trimestre : attendue tant que
+    // le trimestre court, due ensuite avec sa date limite (celle du calendrier, `dateLimiteSociale`).
+    const qn = `${q}${q === 1 ? 'er' : 'e'}`, trimFini = today() > addDays(`${y}-${String(q * 3).padStart(2, '0')}-01`, daysInMonth(y, q * 3) - 1);
+    const retenueDit = dmFaite ? `la retenue ${dmFaite.paidDate ? `payée le ${fmtDate(dmFaite.paidDate)}` : `déposée le ${fmtDate(dmFaite.filedAt)}`}`
+      : depot && depot.le ? `la retenue déposée le ${fmtDate(depot.le)} par ton cabinet, à verser` : `la retenue avec la déclaration ${deMoisPaie(m)}`;
+    const cnssDit = cnssDeposee ? `CNSS du ${qn} trimestre déposée` : trimFini ? `la CNSS du ${qn} trimestre avant le ${fmtDate(dateLimiteSociale(data, 'cnss', y, q))}` : 'la CNSS au trimestre';
     const tousPayes = L.length > 0 && !manque.length && payes.length === L.length, tousRemis = tousPayes && remis.length === L.length;
     const jours = [...new Set(payes.map(x => x.paidDate))];
     const bap = !!(opts && opts.bap), aApprouver = L.filter(x => !x.paidDate && !x.bonAPayerLe).length;
@@ -200,8 +206,10 @@
       { titre: 'Remettre', fait: tousRemis, dit: !L.length ? 'un bulletin à chaque salarié' : tousRemis ? 'chacun a son bulletin' : `${L.length - remis.length} à remettre` },
       // (1.355.6) La déclaration du mois déposée ou payée se dit sur l'étape : elle répétait « la retenue avec la déclaration
       // d'octobre » sous une déclaration payée la veille. La CNSS, elle, attend toujours la fin du trimestre.
-      { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée`
-        : dmFaite ? `la retenue ${dmFaite.paidDate ? `payée le ${fmtDate(dmFaite.paidDate)}` : `déposée le ${fmtDate(dmFaite.filedAt)}`} · la CNSS au trimestre` : `la retenue avec la déclaration ${deMoisPaie(m)} · la CNSS au trimestre` }
+      // (1.355.7) L'étape est FAITE quand ce qui se déclare à ce jour l'est : la retenue du mois (rien à déclarer quand le
+      // mois ne retient rien), et la CNSS une fois son trimestre fini. Octobre déclaré et payé restait « en cours » jusqu'à
+      // la CNSS de janvier, sous une pastille « déclarée » ; et la retenue ne comptait pas (la CNSS déposée suffisait).
+      { titre: 'Déclarer', fait: tousRemis && (!!dmFaite || impots < 0.0005) && (cnssDeposee || !trimFini), dit: `${retenueDit} · ${cnssDit}` }
     ];
     // Une seule étape « ici » : la première qui n'est pas faite.
     let ici = false;

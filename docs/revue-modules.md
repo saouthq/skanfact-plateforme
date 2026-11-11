@@ -2602,3 +2602,24 @@ d'octobre (93,496 DT), Sarra la paie, le Cabinet voit le paiement.
   à une autre date, retiré, et le Cabinet qui voit le paiement), `messagerie` (`paieConfiee`), `paie` (les libellés du
   livre), `paie-1330` (l'étape « Déclarer »), `cabinet-paie-parcours` (le mois du lien). Douze preuves ; trois anciennes
   suivent leur nouvelle ancre (« paie 1.234 b », « paie 1.270 h », « 1 mois à valider »).
+
+### 1.355.7 : un mois déclaré se coche, et la pastille dit ce que le cabinet a déposé
+
+Joué à la souris, la suite : octobre payé, remis, sa retenue déposée par le cabinet puis payée par Sarra.
+- L'étape « Déclarer » d'octobre restait « en cours » jusqu'à la CNSS de janvier, sous une pastille « déclarée », et la
+  retenue du mois ne comptait pas (la CNSS déposée suffisait). L'étape est maintenant faite quand ce qui se déclare à ce
+  jour l'est : la retenue du mois (un mois qui ne retient rien n'a rien à noter), et la CNSS une fois son trimestre fini.
+  Fini et non déposé, l'étape dit « la CNSS du 4e trimestre avant le 15/01/2027 » (la date du calendrier).
+- Le cabinet a déposé, Sarra n'a pas encore payé : la pastille du mois disait « à déclarer » au-dessus de la ligne
+  « déposée par ton cabinet ». Elle dit « à verser » (« en retard » après la date), et l'étape « la retenue déposée le … par
+  ton cabinet, à verser ».
+- Les livres du cabinet se relisent toutes les trente secondes ; la relecture garde ce qu'on savait (plus de « à
+  déclarer » le temps de la réponse) et ne redessine la page que si un dépôt a changé. Une seule fonction de redessin
+  pour la frise, la pastille et les déclarations.
+- Une fenêtre plus haute que l'écran s'ouvrait défilée jusqu'à son premier champ, titre et croix coupés (« Ta
+  déclaration d'octobre » ouverte sur « Payée le ») : elle s'ouvre sur son haut, le curseur dans le champ — dans les deux
+  applications.
+- Tests : `paie-1330` (le trimestre qui court, le trimestre fini, la CNSS seule, le dépôt du cabinet, un mois sans
+  retenue ; les années 2099 et 2020 rendent ces cas indépendants du jour du test), `paie-pont-1355-6` (la pastille « à
+  verser », l'étape, puis « déclarée » et faite ; la fenêtre sur un écran bas). Neuf preuves ; « paie 1.355.6 h » suit sa
+  ligne.

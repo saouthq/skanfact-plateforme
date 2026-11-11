@@ -86,7 +86,7 @@ describe('la paie confiée au cabinet, et sa déclaration du mois, des deux côt
     const ecran = ecranDeLaPlateforme('compta.js') as { computePayslip: (e: unknown, i: unknown, s: unknown) => Record<string, unknown>; baremesPaie: (r: unknown) => unknown };
     const hedi = { id: 's1', name: 'Hédi Mansouri', grossSalary: 1000, hireDate: `${ym}-01`, contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'especes', iban: '', cnss: '', primes: [] };
     const saisie = { gross: 1000, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
-    const bul = { id: 'b-s1', employeeId: 's1', year: y, month: m, ...saisie, computed: ecran.computePayslip(hedi, saisie, ecran.baremesPaie({})), paidDate: aujourdhui, accountId: '', method: 'especes', reference: '', issuedAt: aujourdhui };
+    const bul = { id: 'b-s1', employeeId: 's1', year: y, month: m, ...saisie, computed: ecran.computePayslip(hedi, saisie, ecran.baremesPaie({})), paidDate: aujourdhui, remisLe: aujourdhui, accountId: '', method: 'especes', reference: '', issuedAt: aujourdhui };
     const client = async (changements: { collection: string; cle: string; contenu: unknown }[]) => (await api('POST', `/entreprises/${ent}/dossier-v10`, patron,
       { changements: changements.map((c) => ({ ...c, rang: null, revision: null, contenu: encoder(c.contenu) })) })).statut;
     expect(await client([{ collection: 'employees', cle: 's1', contenu: hedi }])).toBe(200);
@@ -118,8 +118,24 @@ describe('la paie confiée au cabinet, et sa déclaration du mois, des deux côt
     const ligne = p.locator('#dc-verses li').first();
     await expect.poll(async () => espace(await ligne.innerText()), { timeout: 15_000 }).toContain(`déposée le ${fr(deposeLe)} par ton cabinet · il te reste à la verser`);
     expect(espace(await ligne.locator('button').innerText())).toBe('Marquer payée…');
+    // (1.355.7) La pastille du mois et l'étape « Déclarer » le disent aussi : « à verser » (« en retard » après le 28), jamais
+    // « à déclarer » ; l'étape attend le paiement.
+    const pastille = p.locator(`#p-mois [data-p-mois="${m}"] small`), etapeD = p.locator('#p-sous .pa-etape[data-sous="declarations"]');
+    expect(espace(await pastille.innerText())).toMatch(/^(à verser|en retard)$/);
+    expect(espace(await etapeD.innerText())).toContain(`la retenue déposée le ${fr(deposeLe)} par ton cabinet, à verser`);
+    expect(await etapeD.getAttribute('data-etat')).not.toBe('fait');
+    // (1.355.7) Sur un écran bas, la fenêtre déborde : elle s'ouvre quand même sur son haut (titre, croix, tableau), le curseur
+    // dans « Payée le ». Elle s'ouvrait défilée jusqu'au champ, titre coupé.
+    await p.setViewportSize({ width: 1280, height: 620 });
     await ligne.locator('button').click();
     await p.locator('#pd-ok').waitFor({ timeout: 10_000 });
+    const fenetre = await p.evaluate(() => {
+      const els = [...document.querySelectorAll('#modal-root *')] as HTMLElement[];
+      return { deborde: els.some((e) => e.scrollHeight > e.clientHeight + 40 && getComputedStyle(e).overflowY !== 'visible'),
+        defile: Math.max(0, ...els.map((e) => e.scrollTop)), dansLaDate: !!(document.activeElement && document.activeElement.closest('#pd')) };
+    });
+    expect(fenetre).toEqual({ deborde: true, defile: 0, dansLaDate: true });
+    await p.setViewportSize({ width: 1440, height: 900 });
     expect(espace(await p.locator('.modal').last().innerText())).toMatch(new RegExp(`Ton cabinet l.a déposée le ${fr(deposeLe).replace(/\//g, '\\/')} : il te reste à la payer`));
     expect(espace(await p.locator('#pd-ok').innerText())).toBe('Noter payée');
     await p.locator('#pd .datefield .d-txt').first().fill(fr(payeLe));
@@ -129,7 +145,11 @@ describe('la paie confiée au cabinet, et sa déclaration du mois, des deux côt
     expect(espace(await ligne.innerText())).toContain(`payée le ${fr(payeLe)}`);
     expect(espace(await ligne.locator('button').innerText())).toBe('Retirer le paiement…');
     // La frise dit ce qui est fait ; la mention garde le dépôt du cabinet.
-    expect(espace(await p.locator('#p-sous .pa-etape[data-sous="declarations"]').innerText())).toContain(`la retenue payée le ${fr(payeLe)}`);
+    expect(espace(await etapeD.innerText())).toContain(`la retenue payée le ${fr(payeLe)}`);
+    // Payée, remise, déclarée : le mois est fait tant que son trimestre court ; fini, il attend la CNSS, avec sa date.
+    expect(espace(await pastille.innerText())).toBe('déclarée');
+    if (m % 3) expect(await etapeD.getAttribute('data-etat')).toBe('fait');
+    else expect(espace(await etapeD.innerText())).toMatch(/la CNSS du \d(er|e) trimestre avant le/);
     const lus = (await api('GET', `/entreprises/${ent}/dossier-v10`, patron)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[];
     const mention = lus.find((o) => o.collection === 'socialFilings' && o.cle === `dm-${ym}`);
     expect(mention && mention.contenu.parCabinet).toBe(true);

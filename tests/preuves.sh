@@ -27900,7 +27900,7 @@ prouver 'paie 1.355.6 g : payée après le dépôt du cabinet, la mention oublie
   'filedAt: dep ? dep.le : C.today(), ...(dep ? { parCabinet: true } : {}),' 'filedAt: C.today(),' \
   "$PS13556X"
 prouver 'paie 1.355.6 h : l'\''étape « Déclarer » redit « la retenue avec la déclaration » après le paiement' 'modules/personnel/moteur/core-paie.js' \
-  ': dmFaite ? `la retenue ' ': false ? `la retenue ' \
+  'const retenueDit = dmFaite ? `la retenue ' 'const retenueDit = false ? `la retenue ' \
   "$PS13556F"
 prouver 'paie 1.355.6 i : « Déclaration DM-2026-09 payée », l'\''identifiant de l'\''écran dans le livre du Cabinet' 'serveur/compta/paie.ts' \
   'const entree = dm ? libelle(' 'const entree = false ? libelle(' \
@@ -27915,6 +27915,36 @@ prouver 'paie du Cabinet 1.355.6 l : « Marquer payée » note aujourd'\''hui, p
   'le: (quoi === '\''payee'\'' && (paiementClientDe(s.livre, s.decl.periode) || {}).date) || K.today()' 'le: K.today()' \
   "$PS13556X"
 
+PS13557A='le trimestre court encore : la retenue du mois déclarée suffit, sans elle l’étape attend'
+PS13557B='le trimestre fini : la CNSS se dépose avec sa date, et la CNSS déposée seule ne fait pas la retenue du mois'
+PS13557C='déposée par le cabinet, pas encore versée : l’étape le dit et attend ; un mois qui ne retient rien n’a rien à déclarer'
+prouver 'paie 1.355.7 a : l'\''étape « Déclarer » d'\''un mois déclaré attend la CNSS de janvier' 'modules/personnel/moteur/core-paie.js' \
+  'fait: tousRemis && (!!dmFaite || impots < 0.0005) && (cnssDeposee || !trimFini),' 'fait: tousRemis && cnssDeposee,' \
+  "$PS13557A"
+prouver 'paie 1.355.7 b : la retenue du mois ne compte pas pour l'\''étape « Déclarer »' 'modules/personnel/moteur/core-paie.js' \
+  '&& (!!dmFaite || impots < 0.0005) && (cnssDeposee' '&& true && (cnssDeposee' \
+  "$PS13557A"
+prouver 'paie 1.355.7 c : la CNSS d'\''un trimestre fini n'\''est pas attendue' 'modules/personnel/moteur/core-paie.js' \
+  '(cnssDeposee || !trimFini)' '(cnssDeposee || true)' \
+  "$PS13557B"
+prouver 'paie 1.355.7 d : un mois qui ne retient rien attend une déclaration qu'\''on ne peut pas noter' 'modules/personnel/moteur/core-paie.js' \
+  '(!!dmFaite || impots < 0.0005)' '(!!dmFaite)' \
+  "$PS13557C"
+prouver 'paie 1.355.7 e : la CNSS due ne dit pas sa date limite' 'modules/personnel/moteur/core-paie.js' \
+  ': trimFini ? `la CNSS du ${qn} trimestre avant le ${fmtDate(dateLimiteSociale(data, '\''cnss'\'', y, q))}` : '\''la CNSS au trimestre'\'';' ': '\''la CNSS au trimestre'\'';' \
+  "$PS13557B"
+prouver 'paie 1.355.7 f : l'\''étape ne dit pas le dépôt du cabinet' 'modules/personnel/moteur/core-paie.js' \
+  ': depot && depot.le ? `la retenue déposée le' ': false ? `la retenue déposée le' \
+  "$PS13557C"
+prouver 'paie 1.355.7 g : la frise ne reçoit pas le dépôt du cabinet' 'modules/personnel/ecrans/entreprise/paie.js' \
+  ', depot: depotDeLaDeclaration(`dm-${y}-${String(m).padStart(2, '\''0'\'')}`, relireDepotPaie) }).etapes;' ' }).etapes;' \
+  "$PS13556X"
+prouver 'paie 1.355.7 h : la pastille du mois dit « à déclarer » sous un dépôt du cabinet' 'modules/personnel/ecrans/entreprise/paie.js' \
+  ': depotDeLaDeclaration(`dm-${ym}`, relireDepotPaie) ? ['\''ambre'\'', '\''à verser'\''] :' ': false ? ['\''ambre'\'', '\''à verser'\''] :' \
+  "$PS13556X"
+prouver 'paie 1.355.7 i : une fenêtre plus haute que l'\''écran s'\''ouvre défilée jusqu'\''à son premier champ' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '{ try { cible.focus({ preventScroll: true }); } catch (_) { cible.focus(); } }' 'cible.focus();' \
+  "$PS13556X"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

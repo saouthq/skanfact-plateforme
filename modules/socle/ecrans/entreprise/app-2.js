@@ -4765,21 +4765,28 @@
   // (la part paie y est, avec la TVA) ne se pointe pas « déposée » une seconde fois chez l'entreprise — elle disait « Tu la
   // déposes » sous une déclaration déposée la veille par le cabinet. Lu au plus toutes les 30 secondes ; `quandLu` redessine
   // l'écran qui demande (le socle ne nomme pas l'écran d'un module). Rien de lu : `null`, et l'écran garde sa phrase d'avant.
+  // (1.355.7) La relecture garde ce qu'on savait (`garde`) : la frise et la pastille du mois lisent le dépôt sur toutes les vues
+  // de la Paie, et une relecture qui vidait les livres faisait passer « à verser » à « à déclarer » le temps de la réponse. La
+  // page ne se redessine que si un dépôt a changé (sinon chaque relecture redessinait sous le curseur).
+  const signatureDepots = l => l && !l.illisible && (!l.enCours || l.garde)
+    ? JSON.stringify((l.declarations || []).filter(x => x && x.type === 'mensuelle').map(x => [String(x.periode), (x.deposee && x.deposee.le) || ''])) : '';
   function depotDuCabinet(periode, quandLu) {
     if (!(messagerieVue && messagerieVue.cabinet) || !bridge.livresDuCabinet) return null;
     const annee = Number(String(periode).slice(0, 4));
     const l = livresCabinetLus;
     const frais = l && l.annee === annee && (l.enCours || Date.now() - l.lu < 30000);
     if (!frais) {
-      livresCabinetLus = { annee, declarations: [], valideJusqua: '', lu: Date.now(), enCours: true };
+      const avant = l && l.annee === annee && !l.enCours && !l.illisible ? l : null, sigAvant = signatureDepots(avant);
+      livresCabinetLus = avant ? { ...avant, lu: Date.now(), enCours: true, garde: true } : { annee, declarations: [], valideJusqua: '', lu: Date.now(), enCours: true };
       void bridge.livresDuCabinet(annee).then(r => {
         livresCabinetLus = r ? { ...r, lu: Date.now() } : { annee, declarations: [], valideJusqua: '', lu: Date.now(), illisible: true };
-        if (quandLu) quandLu();
+        if (quandLu && signatureDepots(livresCabinetLus) !== sigAvant) quandLu();
       });
-      return null;
+      if (!avant) return null;
     }
-    if (l.enCours || l.illisible) return null;
-    const d = (l.declarations || []).find(x => x && x.type === 'mensuelle' && String(x.periode) === String(periode));
+    const lu = livresCabinetLus;
+    if ((lu.enCours && !lu.garde) || lu.illisible) return null;
+    const d = (lu.declarations || []).find(x => x && x.type === 'mensuelle' && String(x.periode) === String(periode));
     return d && d.deposee && d.deposee.le ? { le: String(d.deposee.le).slice(0, 10), reference: d.deposee.reference || '' } : null;
   }
   // « d'octobre », « d'août », « de septembre » : l'élision devant une voyelle.

@@ -513,7 +513,9 @@
     // Un appelant qui a déjà posé le curseur DANS la fenêtre garde sa décision (10.12.0) :
     // « Renseigner le n° de Yassine Gharbi… » ouvrait sa fiche avec le curseur dans le NOM — le
     // champ qu'on vient de nommer était le seul qu'il fallait aller chercher.
-    if (cible && !layer.contains(document.activeElement)) cible.focus();
+    // (1.355.7) Sans défiler, comme l'app entreprise : une fenêtre plus haute que l'écran s'ouvre sur son haut (titre, croix,
+    // ce qu'elle annonce), le curseur quand même dans son premier champ.
+    if (cible && !layer.contains(document.activeElement)) { try { cible.focus({ preventScroll: true }); } catch (_) { cible.focus(); } }
     return close;
   }
 

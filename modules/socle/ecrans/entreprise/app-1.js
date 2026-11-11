@@ -1194,7 +1194,10 @@
     // (plateforme) 1.70.0 — le bouton principal d'abord (voir Entrée, plus haut).
     const principal = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
     const cible = saisie || (principal && !principal.disabled ? principal : null);
-    if (cible && !layer.contains(document.activeElement)) cible.focus();
+    // (1.355.7) Sans défiler : une fenêtre plus haute que l'écran s'ouvrait sur son premier champ, titre et croix coupés en
+    // haut (« Ta déclaration d'octobre » s'ouvrait sur « Payée le », sous le tableau qu'on vient relire). Elle s'ouvre sur son
+    // haut ; le curseur est quand même dans le champ.
+    if (cible && !layer.contains(document.activeElement)) { try { cible.focus({ preventScroll: true }); } catch (_) { cible.focus(); } }
     return close;
   }
 

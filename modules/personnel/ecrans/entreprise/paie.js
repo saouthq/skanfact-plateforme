@@ -2068,7 +2068,8 @@
     // bulletin), déclarer. Chacune se lit des étapes du moteur (`C.paieDuMois`), les mêmes faits que l'ancienne frise ; une seule
     // est « en cours », la première qui n'est pas faite. Fonctions déclarées : l'en-tête les lit avant le corps de la route.
     function etapesDuMois(y, m) {
-      const [pt0, bu, pa, re, de] = C.paieDuMois(data, y, m, { bap: bapDuMois(y, m) }).etapes;
+      // (1.355.7) La retenue que le cabinet a déposée et qu'il reste à verser se dit sur l'étape « Déclarer ».
+      const [pt0, bu, pa, re, de] = C.paieDuMois(data, y, m, { bap: bapDuMois(y, m), depot: depotDeLaDeclaration(`dm-${y}-${String(m).padStart(2, '0')}`, relireDepotPaie) }).etapes;
       // (1.330.0) Le pointage validé (verrouillé) est une étape FAITE, même avant les bulletins ; et l'étape ne se dit pas
       // « facultatif » quand ses journées non validées retiennent les bulletins (joué à la souris : « facultatif » au-dessus de
       // « Les bulletins attendent : 1 chose à régler dans le pointage », puis encore « facultatif » une fois le mois validé).
@@ -2225,7 +2226,9 @@
       if (!(data.socialFilings || []).some(f => f.id === `dm-${ym}`)) {
         const dE = C.declarationMensuelleSalaires(data, y, m);
         if (!dE.salaries) return ['ok', 'payée'];
-        return dE.dueDate < C.today() ? ['rouge', 'en retard'] : ['ambre', 'à déclarer'];
+        // (1.355.7) Le cabinet l'a déposée : il reste à la verser. La pastille disait « à déclarer » au-dessus de la ligne
+        // « déposée le … par ton cabinet ».
+        return dE.dueDate < C.today() ? ['rouge', 'en retard'] : depotDeLaDeclaration(`dm-${ym}`, relireDepotPaie) ? ['ambre', 'à verser'] : ['ambre', 'à déclarer'];
       }
       return ['ok', 'déclarée'];
     };
@@ -2414,6 +2417,11 @@
     function depotDeLaDeclaration(id, quandLu) {
       const x = /^dm-(\d{4})-(\d{2})$/.exec(id || '');
       return x && paieMode() !== 'sans' ? depotDuCabinet(`${x[1]}-${x[2]}`, quandLu) : null;
+    }
+    // (1.355.7) Les livres du cabinet lus, la Paie se redessine — jamais par-dessus une fenêtre ouverte ni sous un champ en cours
+    // de frappe (la frise, la pastille du mois et les déclarations lisent le même dépôt).
+    function relireDepotPaie() {
+      if (routeOf(location.hash) === 'paie' && !document.querySelector('#modal-root .modal-bg') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) draw();
     }
     // (plateforme) 1.228.0 — déposée ET payée : le montant de la déclaration (jamais retapé), le jour, le compte, le mode.
     function payerDeclarationFenetre(id, label) {
@@ -4737,8 +4745,8 @@
       };
       const modeD = paieMode();
       // (1.355.6) La déclaration que le cabinet a déposée se lit dans ses livres : quand ils arrivent, l'onglet se redessine —
-      // jamais sous une fenêtre ni pendant une saisie.
-      const relireDepot = () => { if (routeOf(location.hash) === 'paie' && !document.querySelector('#modal-root .modal-bg') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) draw(); };
+      // jamais sous une fenêtre ni pendant une saisie (1.355.7 : la même fonction que la frise et la pastille du mois).
+      const relireDepot = relireDepotPaie;
       // (plateforme) 1.227.0 — « Ce que tu verses, et quand » (la maquette) : le trimestre CNSS passé, la déclaration du mois
       // écoulé, le trimestre en cours, la déclaration annuelle. Les montants viennent des mêmes fonctions que les panneaux
       // en dessous (deux écrans, un chiffre) ; les dates sont celles des réglages, À VÉRIFIER.
