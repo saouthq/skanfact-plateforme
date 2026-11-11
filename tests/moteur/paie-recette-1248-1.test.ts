@@ -65,6 +65,16 @@ describe('la paie après la recette du 02/11/2026, suite', () => {
     expect(core.moisDePaie(d, '2026-11-11')).toEqual({ year: 2026, month: 11 });
   });
 
+  it('(1.355.4) un seul salaire payé : « payé le », jamais « payés le » ; deux : « payés le »', () => {
+    const payer = (d: ReturnType<typeof donnees>) => core.paieDuMois(d, 2026, 10).etapes.find((e) => e.titre === 'Payer')?.dit;
+    const un = donnees([sal('a')]);
+    etablir(un, 2026, 10, '2026-11-11');
+    expect(payer(un)).toBe('payé le 11/11/2026');
+    const deux = donnees([sal('a'), sal('b')]);
+    etablir(deux, 2026, 10, '2026-11-11');
+    expect(payer(deux)).toBe('payés le 11/11/2026');
+  });
+
   it('(1.355.0) un pointage validé est un mois pointé, pas « sauté » ; rouvert, il ne l\'est plus', () => {
     const d = donnees([sal('a')]) as ReturnType<typeof donnees> & { pointageVersions?: unknown[]; pointageOuverts?: string[] };
     etablir(d, 2026, 10, '');

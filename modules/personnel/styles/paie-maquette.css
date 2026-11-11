@@ -949,6 +949,9 @@ body.dark .pm .papier, body.dark .pm .doc-g { color: #222; }
 .pm .apy-n { display: grid; min-width: 0; }
 .pm .apy-n b, .pm .apy-n small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pm .apy-n small { color: var(--gris-2); font-size: 12px; }
+/* (1.355.4) Le titre d'une ligne de « À ne pas oublier » dit le geste (« RIB à demander », « N° CNSS employeur manquant ») :
+   coupé, on ne lisait plus que « RIB à deman… ». Il passe à la ligne ; l'explication dessous garde sa ligne et son infobulle. */
+.pm #p-traiter .apy-n b { white-space: normal; overflow: visible; text-overflow: clip; }
 .pm .apy-e { font-size: 12.5px; color: var(--gris); }
 .pm .apy-e.rouge { color: var(--rouge-texte); font-weight: 600; }
 .pm .apy-e.ambre { color: var(--ambre-texte); font-weight: 600; }

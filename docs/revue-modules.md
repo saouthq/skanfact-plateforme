@@ -2534,3 +2534,26 @@ GitHub, rouge sur les 1.355.1 et 1.355.2, et ce sont les tests qui avaient raiso
   déclaré » : depuis la 1.355.0, l'écran dit « La paie n'est pas confiée au cabinet », avec et sans réseau ;
 - la preuve « paie 1.251 e » ne tombait plus : la page qui saute au mois suivant a deux gardes depuis la 1.355.0 (le mois
   qu'on regarde, et le mois de paie qui ne quitte plus des bulletins pas payés). Elle retire maintenant les deux.
+
+### 1.355.4 : la paie du Cabinet s'ouvre sur le mois qui attend son bulletin
+
+Joué au Cabinet sur la boulangerie, paie confiée : Hédi, embauché le 1er octobre par l'entreprise, sans bulletin. Lu le
+11 novembre, la Paie du dossier s'ouvrait sur novembre (« le dernier mois qui a des bulletins, sinon le mois courant »),
+et octobre attendait derrière une page vide. L'app entreprise s'ouvre depuis la 1.355.0 sur le mois à traiter
+(`moisDePaie`) ; le Cabinet ne l'avait pas reçu — le jumeau manquant.
+- `KC.moisPaieEnRetard(livre, annee, aujourdhui)` (moteur de la paie, posé dans les ajouts du module) rend le mois
+  TERMINÉ de l'exercice regardé (le précédent, ou décembre d'un exercice fini) quand ses contrôles nomment un salarié
+  sans bulletin, sinon 0 ; l'écran ne revient à sa règle d'avant que dans ce cas. Le mois en cours n'est jamais réclamé,
+  ni un mois d'avant l'embauche, ni un salarié retiré.
+- Le pont : le salarié écrit par l'entreprise est celui que le Cabinet attend ; son bulletin établi au Cabinet donne le
+  net et le coût que l'équipe de l'entreprise affiche (839,704 et 1 204,700 DT pour un brut de 1 000).
+- Le bulletin validé au Cabinet, puis payé par Sarra : un seul bulletin parlait au pluriel partout — « 1 validés »,
+  « 1 préparés », « Les bulletins d'octobre sont validés : ils ne bougent plus », « Validés, ils… » dans la question,
+  « Marquer le bulletin remis aux salariés », « Les bulletins sont établis » chez le client, « Marquer payés » et
+  « payés le » pour un salaire. Chaque phrase s'accorde sur le nombre de bulletins ; le geste de remise nomme le salarié.
+- « À ne pas oublier » coupait le titre de chaque ligne (« Hédi Mansouri : RIB à deman… », « N° CNSS employeur
+  manqu… ») : c'est lui qui dit le geste. Il passe à la ligne ; l'explication dessous garde sa ligne et son infobulle.
+- Tests : `tests/moteur/paie-cabinet-1355-4.test.ts` (quatre cas), la Paie ouverte au Cabinet sur le mois terminé dans
+  `cabinet-paie-1330` (le mois lu sur l'horloge du test : en janvier, décembre de l'exercice d'avant), puis le même
+  salarié au bulletin payé — la frise dit « 1 préparé » et « le seul » ; « payé le » / « payés le » dans
+  `paie-recette-1248-1` ; « Marquer payé · » et aucun titre coupé dans `paie-1355`. Six preuves.

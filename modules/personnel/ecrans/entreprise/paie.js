@@ -1115,7 +1115,7 @@
         $('#ps-total', root).textContent = totalCh;
         const vir = ch.filter(l => l.mode === 'virement'), aut = ch.filter(l => l.mode !== 'virement'), som = L => C.money(C.round3(L.reduce((s, l) => s + l.net, 0)), '');
         $('#ps-detail', root).textContent = [vir.length ? `${pl(vir.length, 'virement')} ${som(vir)}` : '', aut.length ? `${aut.length > 1 ? 'autres' : modeDe(aut[0].mode).toLowerCase()} ${som(aut)}` : ''].filter(Boolean).join(' · ');
-        $('#ps-payer', root).innerHTML = `${lfIc('coche', 15, 2.4)} ${ch.length ? `Marquer payés · ${h(totalCh)}` : 'Marquer payés'}`;
+        $('#ps-payer', root).innerHTML = `${lfIc('coche', 15, 2.4)} ${ch.length ? `Marquer payé${ch.length > 1 ? 's' : ''} · ${h(totalCh)}` : 'Marquer payés'}`;
         const compte = compteChoisi();
         // Tous ceux que l'ordre ne peut pas porter, cochés ou non (la phrase reste vraie) : cocher ou décocher une ligne ne
         // change rien à la hauteur de la fenêtre, et ne pousse pas ses boutons sous le curseur (vu à la souris).
@@ -2705,11 +2705,11 @@
         const mo = C.payslipsOf(data, p.y, p.m), n = C.missingPayslips(data, p.y, p.m).length, nom = MONTHS_LONG[p.m - 1];
         const dE = C.declarationMensuelleSalaires(data, p.y, p.m), deposee = (data.socialFilings || []).some(f => f.id === `dm-${p.y}-${String(p.m).padStart(2, '0')}`);
         const quoi = { correction: 'une correction proposée par ton cabinet attend ta réponse, avant le paiement',
-          approuver: 'ton cabinet a préparé les bulletins : ils attendent ton accord (ton « bon à payer »), puis tu paies',
+          approuver: `ton cabinet a préparé ${mo.length > 1 ? 'les bulletins : ils attendent' : 'le bulletin : il attend'} ton accord (ton « bon à payer »), puis tu paies`,
           etablir: `${pl(n, 'bulletin')} à établir, puis à payer`,
           regler: `${pl(bloquantsDe(p.y, p.m).length, 'chose')} à régler dans le pointage (${bloquantsDe(p.y, p.m).length > 1 ? 'elles changent' : 'elle change'} un montant), puis ${modeDuMois(p.y, p.m) === 'tenue' ? 'tu l\'envoies à ton cabinet, qui prépare les bulletins' : `${pl(n, 'bulletin')} à établir`}`,
           envoyer: 'son pointage attend d\'être validé : c\'est l\'envoyer à ton cabinet, qui prépare les bulletins',
-          payer: `les bulletins sont établis ; ${pl(mo.filter(x => !x.paidDate).length, 'salaire')} ${mo.filter(x => !x.paidDate).length > 1 ? 'ne sont' : 'n\'est'} pas encore payé${mo.filter(x => !x.paidDate).length > 1 ? 's' : ''}`,
+          payer: `${mo.length > 1 ? 'les bulletins sont établis' : 'le bulletin est établi'} ; ${pl(mo.filter(x => !x.paidDate).length, 'salaire')} ${mo.filter(x => !x.paidDate).length > 1 ? 'ne sont' : 'n\'est'} pas encore payé${mo.filter(x => !x.paidDate).length > 1 ? 's' : ''}`,
           remettre: `les salaires sont payés ; ${pl(mo.filter(x => x.paidDate && !x.remisLe).length, 'bulletin')} à remettre` }[p.sorte];
         const decl = deposee || !dE.salaries ? '' : modeDuMois(p.y, p.m) === 'tenue' ? ` Sa déclaration, c'est ton cabinet qui la dépose, avant le ${C.fmtDate(dE.dueDate)}.` : ` Sa déclaration est à déposer avant le ${C.fmtDate(dE.dueDate)}.`;
         // (1.355.1) « Octobre n'est pas fini », lu le 11 novembre, disait que le mois n'était pas terminé : c'est sa PAIE.
@@ -2756,7 +2756,7 @@
       const ban = bandeauxDuMois(mo, y, m, bap), rev = /id="p-rev-b"/.test(ban) ? ban : '';
       const prenoms = L => L.map(x => String(x.employeeName || '').split(' ')[0]).join(', ').replace(/, ([^,]*)$/, ' et $1');
       const ligne = (id, ic, titre, dit, gestes) => `<li id="${id}"><span class="apy-ic">${lfIc(ic, 18)}</span><span class="apy-n"><b>${titre}</b><small>${dit}</small></span><span class="pa-payer-g">${gestes}</span></li>`;
-      $('#p-body').innerHTML = `${rev}<section class="apy carte" id="p-payer-c"><div class="apy-t"><b>Payer les salaires ${h(de)}</b><span class="mu">${payes.length === mo.length ? (jours.length === 1 ? `payés le ${C.fmtDate(jours[0])}` : 'tous payés') : `${C.money(somme(mo.filter(x => !x.paidDate)), cur)} à payer`}</span></div>
+      $('#p-body').innerHTML = `${rev}<section class="apy carte" id="p-payer-c"><div class="apy-t"><b>Payer les salaires ${h(de)}</b><span class="mu">${payes.length === mo.length ? (jours.length === 1 ? `payé${mo.length > 1 ? 's' : ''} le ${C.fmtDate(jours[0])}` : 'tous payés') : `${C.money(somme(mo.filter(x => !x.paidDate)), cur)} à payer`}</span></div>
         <ul class="apy-l pa-payer-l">
           ${vir.length ? ligne('p-payer-vir', 'envoi', `Par virement · ${pl(vir.length, 'salarié')} · ${C.money(somme(vir), cur)}`, `un seul ordre de virement pour ta banque, avec le RIB de chacun${sansRib.length ? ` · <b class="warn-text">le RIB de ${h(prenoms(sansRib))} manque</b>` : ''}`,
             `${sansRib.length ? `<button type="button" class="btn btn-sm" data-rib="${h(sansRib[0].employeeId)}">Compléter le RIB</button>` : ''}<button type="button" class="btn btn-sm" id="p-ordre">${lfIc('pages', 14)} L'ordre de virement</button>`) : ''}

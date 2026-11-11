@@ -195,7 +195,7 @@
       { titre: 'Bulletins', fait: n > 0 && !manque.length && !corrige && (!bap || !aApprouver), dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établis`
         : corrige ? `${n} établi${n > 1 ? 's' : ''} : ${corrige} correction${corrige > 1 ? 's' : ''} proposée${corrige > 1 ? 's' : ''}`
           : bap && aApprouver ? `${n} établi${n > 1 ? 's' : ''} · ${aApprouver > 1 ? `${aApprouver} à approuver` : '1 à approuver'}` : `${n} établi${n > 1 ? 's' : ''}${bap ? ' · approuvés' : ''}` },
-      { titre: 'Payer', fait: tousPayes, dit: !L.length ? 'après les bulletins' : tousPayes ? (jours.length === 1 ? `payés le ${fmtDate(jours[0])}` : 'tous payés') : `${L.length - payes.length} à payer · ${money(round3(L.filter(x => !x.paidDate).reduce((a, x) => a + x.c.net, 0)), cur)}` },
+      { titre: 'Payer', fait: tousPayes, dit: !L.length ? 'après les bulletins' : tousPayes ? (jours.length === 1 ? `payé${L.length > 1 ? 's' : ''} le ${fmtDate(jours[0])}` : 'tous payés') : `${L.length - payes.length} à payer · ${money(round3(L.filter(x => !x.paidDate).reduce((a, x) => a + x.c.net, 0)), cur)}` },
       { titre: 'Remettre', fait: tousRemis, dit: !L.length ? 'un bulletin à chaque salarié' : tousRemis ? 'chacun a son bulletin' : `${L.length - remis.length} à remettre` },
       { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée` : `la retenue avec la déclaration ${deMoisPaie(m)} · la CNSS au trimestre` }
     ];

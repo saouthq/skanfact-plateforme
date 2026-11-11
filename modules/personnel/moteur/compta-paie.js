@@ -1520,6 +1520,19 @@
     });
   }
 
+  // (plateforme) 1.355.4 — le mois TERMINÉ (le précédent, dans l'exercice regardé) dont un salarié en poste attend encore son
+  // bulletin : c'est là que la Paie du Cabinet s'ouvre, comme celle de l'entreprise (`moisDePaie`). Elle s'ouvrait sur le
+  // mois en cours (« le dernier mois qui a des bulletins, sinon le mois courant ») : un salarié embauché le 1er octobre,
+  // lu le 11 novembre, laissait octobre sans bulletin derrière une page de novembre. 0 quand rien n'attend.
+  function moisPaieEnRetard(livre, annee, aujourdhui) {
+    const a = Number(annee), y = Number(String(aujourdhui || '').slice(0, 4)), m = Number(String(aujourdhui || '').slice(5, 7));
+    const p = y === a ? m - 1 : y > a ? 12 : 0;
+    if (!(p >= 1 && p <= 12)) return 0;
+    return controlesPaie(livre || {}, a, p).some(c => c.id === 'bulletins-manquants') ? p : 0;
+  }
+  // Le socle ne nomme pas une fonction d'un module : elle se pose dans ses ajouts (1.276.1).
+  Object.assign(ajoutsDesModules, { moisPaieEnRetard });
+
   // Ce qui manque avant de déclarer ou de passer l'écriture. On NOMME, on ne bloque jamais
   // (règle 6.0.0) : un mois déclaré avec deux manques signalés vaut mieux qu'un mois jamais déclaré.
   function controlesPaie(livre, annee, mois) {

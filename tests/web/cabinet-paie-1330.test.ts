@@ -98,4 +98,52 @@ describe('le pointage validé par le client, lu au Cabinet (1.330.0)', () => {
     expect((await p.locator('tr[data-bul] .badge').allInnerTexts()).map(espace)).toEqual(['payé, remis', 'payé, remis']);
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  // (1.355.4) Joué au Cabinet sur la boulangerie : Hédi, embauché le 1er octobre, sans bulletin ; lu le 11 novembre, la Paie
+  // s'ouvrait sur novembre, le mois en cours, et octobre attendait derrière. Elle s'ouvre sur le mois terminé qui l'attend.
+  it('un salarié embauché le mois dernier, sans bulletin : la Paie du Cabinet s\'ouvre sur ce mois-là (1.355.4)', async () => {
+    const associe = await personne('associe');
+    const cab = (await api('POST', '/cabinets', associe, { nom: 'Jlassi Conseil' })).corps;
+    const cabinet = String(cab.id);
+    const patron = await personne('client');
+    const boulangerie = String((await api('POST', '/entreprises', patron, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${boulangerie}/mandat`, patron, { codeCabinet: cab.code, perimetre: ['comptabilite', 'declarations', 'paie'] })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cabinet}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
+    // Le mois terminé, lu sur l'horloge du test : en janvier, c'est décembre de l'exercice d'avant.
+    const maintenant = new Date();
+    const precedent = new Date(Date.UTC(maintenant.getFullYear(), maintenant.getMonth() - 1, 1));
+    const annee = precedent.getUTCFullYear(), mois = precedent.getUTCMonth() + 1;
+    expect((await api('POST', `/entreprises/${boulangerie}/compta/exercices`, associe, { annee, ouverture: [] })).statut).toBe(201);
+    const hedi = { id: 's1', name: 'Hédi Mansouri', grossSalary: 1000, hireDate: `${annee}-${String(mois).padStart(2, '0')}-01`, contract: 'cdi',
+      headOfFamily: false, children: 0, active: true, method: 'especes', iban: '', cnss: '', primes: [] };
+    expect((await api('POST', `/entreprises/${boulangerie}/dossier-v10`, patron,
+      { changements: [{ collection: 'employees', cle: 's1', rang: null, revision: null, contenu: encoder(hedi) }] })).statut).toBe(200);
+
+    const erreurs: string[] = [];
+    const p = await page(associe, erreurs);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${boulangerie}/comptabilite/paie/${annee}`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+    // Le mois choisi d'office est celui qui attend son bulletin, et ses contrôles le nomment.
+    await expect.poll(() => p.locator('#pa-mois').inputValue(), { timeout: 15_000 }).toBe(String(mois));
+    const espace = (x: string) => x.replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim();
+    expect(espace(await p.locator('#pa-controles').innerText())).toContain('Hédi Mansouri');
+
+    // Son bulletin établi et payé par le client : un seul bulletin se dit au singulier, dans la frise comme dans les étapes.
+    const ecran = ecranDeLaPlateforme('compta.js') as { computePayslip: (e: unknown, i: unknown, s: unknown) => Record<string, unknown>; baremesPaie: (r: unknown) => unknown };
+    const saisie = { gross: 1000, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
+    const paye = `${annee}-${String(mois).padStart(2, '0')}-28`;
+    expect((await api('POST', `/entreprises/${boulangerie}/dossier-v10`, patron, { changements: [{ collection: 'payslips', cle: 'b-s1', rang: null, revision: null,
+      contenu: encoder({ id: 'b-s1', employeeId: 's1', year: annee, month: mois, ...saisie, computed: ecran.computePayslip(hedi, saisie, ecran.baremesPaie({})),
+        paidDate: paye, accountId: '', method: 'especes', reference: '', issuedAt: paye }) }] })).statut).toBe(200);
+    await p.reload();
+    await p.locator('#pa-frise').waitFor({ timeout: 15_000 });
+    const frise = (await p.locator('#pa-frise li').allInnerTexts()).map(espace);
+    expect(frise[1]).toBe('2 Bulletins 1 préparé');
+    expect(frise[3]).toBe('✓ Salaires payés le seul');
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

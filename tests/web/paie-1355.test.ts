@@ -141,10 +141,14 @@ describe('le premier salarié, du vide au bulletin à payer (1.355.0)', () => {
     // (au singulier : il n'y en a qu'un), le bulletin vu par-dessus la remise dit « à renseigner », et ce lien mène à la case
     // de la fiche en refermant TOUTE la pile de fenêtres.
     await p.locator('#p-payer').click();
+    // (1.355.4) Un seul salaire coché : « Marquer payé », jamais « Marquer payés ».
+    await expect.poll(() => p.locator('.modal #ps-payer').innerText().then(net), { timeout: 10_000 }).toMatch(/^Marquer payé · /);
     await p.locator('.modal #ps-payer').click();
     await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 10_000 }).toBe(0);
     await p.locator('#p-tabs [data-tab="pointage"]').click();
     await expect.poll(() => p.locator('#p-traiter').innerText().then(net), { timeout: 10_000 }).toContain('N° CNSS employeur manquant');
+    // (1.355.4) Le titre d'une ligne dit le geste : il passe à la ligne, il n'est jamais coupé (« N° CNSS employeur manqu… »).
+    expect(await p.locator('#p-traiter .apy-n b').evaluateAll((L) => L.filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent))).toEqual([]);
     await expect.poll(() => p.locator('#pj-avant-go').innerText().then(net), { timeout: 10_000 }).toMatch(/^Remettre le bulletin d/);
     await p.locator('#pj-avant-go').click();
     await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().then(net), { timeout: 10_000 }).toMatch(/^Remettre le bulletin d/);

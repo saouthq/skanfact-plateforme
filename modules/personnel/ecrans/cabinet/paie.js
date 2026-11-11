@@ -23,7 +23,9 @@
     if (paieHorsMandat(dossier, L)) return paieNonConfiee(dossier);
     // U-12 — le dernier mois qui a des bulletins, sinon le mois courant : jamais décembre en
     // septembre, un mois futur qui avait l'air d'un dossier vide.
-    if (!s.paieMois) s.paieMois = K.moisDeTravail((L.bulletins || []).filter(b => Number(b.annee) === Number(s.annee)).map(b => b.mois), s.annee, K.today());
+    // (1.355.4) Mais d'abord le mois terminé dont un salarié attend encore son bulletin (la règle de l'entreprise).
+    if (!s.paieMois) s.paieMois = KC.moisPaieEnRetard(L, s.annee, K.today())
+      || K.moisDeTravail((L.bulletins || []).filter(b => Number(b.annee) === Number(s.annee)).map(b => b.mois), s.annee, K.today());
     const m = s.paieMois;
     const bulletins = KC.bulletinsDuMois(L, s.annee, m);
     const masse = KC.masseSalariale(bulletins);
@@ -206,7 +208,9 @@
     const P = { ym, mode, ecrit, accordRequis, client, n, manquants, actifs: actifs.length, enAttente,
       reponses: bulletins.filter(b => b.correction && b.correction.reponse),
       envoyes: tous(b => b.pourAccordLe), approuves: tous(b => b.bonAPayerLe), verifies: tous(b => b.verifieLe), valides: tous(b => b.valideLe),
-      payes: bulletins.filter(b => b.payeLe).length, remis: tous(b => b.remisLe) };
+      payes: bulletins.filter(b => b.payeLe).length, remis: tous(b => b.remisLe),
+      // (1.355.4) Un seul bulletin : les phrases le nomment au singulier, et le geste dit à qui il est remis.
+      seul: n === 1 ? (((L.salaries || []).find(x => x.id === bulletins[0].salarieId) || {}).nom || 'son salarié') : '' };
     // 1.236.0 — le pointage du mois : combien de salariés en poste ont une grille enregistrée (celle du client, ou du cabinet).
     const donnees = donneesDuPointage(dossier, L);
     // (1.330.0) Un mois validé par le client compte chacun de sa version figée : pointer à la main, c'est noter ce qui change,
@@ -227,7 +231,7 @@
           : P.oublis.length ? { id: 'pa-proposer-oubli', t: `Proposer la correction à ${client}` }
           : !P.verifies ? { id: 'pa-verifier-tout', t: `Marquer ${n > 1 ? `les ${n} bulletins vérifiés` : 'le bulletin vérifié'}` } : null)
           : manquants ? { id: 'pa-bulletin', t: `Établir les bulletins : ${manquants} à faire…` }
-            : P.valides ? (!P.remis ? { id: 'pa-remettre', t: `Marquer ${n > 1 ? `les ${n} bulletins remis` : 'le bulletin remis'} aux salariés` } : null)
+            : P.valides ? (!P.remis ? { id: 'pa-remettre', t: `Marquer ${n > 1 ? `les ${n} bulletins remis aux salariés` : `le bulletin remis à ${P.seul}`}` } : null)
               : accordRequis && !P.envoyes ? { id: 'pa-envoyer', t: `Envoyer à ${client} pour accord` }
                 : accordRequis && !P.approuves ? { attente: `En attente de l'accord de ${client}` }
                   : n ? { id: 'pa-valider-bul', t: `Valider ${n > 1 ? `les ${n} bulletins` : 'le bulletin'}` } : null;
@@ -306,8 +310,8 @@
     const E = [
       ['Pointage', P.ptValide && P.pointe === P.actifs ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : P.pointe ? `${P.pointe === P.actifs ? 'les' : `${P.pointe} sur`} ${pl(P.actifs, 'salarié')} pointé${P.actifs > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`, true],
       ['Bulletins', !P.n ? `${P.manquants || P.actifs} à faire` : P.mode === 'seule' ? `faits par ${P.client}${P.enAttente.length ? ` · ${pl(P.enAttente.length, 'correction proposée', 'corrections proposées')}` : P.verifies ? ' · vérifiés' : ''}`
-        : P.valides ? `${P.n} validés le ${jourCourt(P.valideLe)}` : P.approuves && P.accordRequis ? `approuvés par ${P.client} le ${jourCourt(P.approuveLe)}`
-          : P.envoyes && P.accordRequis ? `envoyés à ${P.client} le ${jourCourt(P.envoyeLe)}` : `${P.n} préparés${P.manquants ? `, ${P.manquants} à faire` : ''}`, P.n > 0 && !P.manquants && (P.valides || P.mode === 'seule' || P.mode === 'sans')],
+        : P.valides ? `${pl(P.n, 'validé', 'validés')} le ${jourCourt(P.valideLe)}` : P.approuves && P.accordRequis ? `approuvés par ${P.client} le ${jourCourt(P.approuveLe)}`
+          : P.envoyes && P.accordRequis ? `envoyés à ${P.client} le ${jourCourt(P.envoyeLe)}` : `${pl(P.n, 'préparé', 'préparés')}${P.manquants ? `, ${P.manquants} à faire` : ''}`, P.n > 0 && !P.manquants && (P.valides || P.mode === 'seule' || P.mode === 'sans')],
       ['Écriture de paie', o.auBrouillard ? `au brouillard${o.paieAttendSonJour ? ` · se valide le ${jourCourt(o.paieAttendSonJour)}` : ''}` : bulletins.some(b => o.etatDe(b) === 'ecrite') ? 'validée' : `datée du dernier jour du mois`, bulletins.length > 0 && bulletins.every(b => o.etatDe(b) === 'ecrite')],
       // (1.247.0) Un virement revenu : le salaire n'est pas payé, quoi que dise le bulletin.
       ((rev) => ['Salaires payés', rev ? `${rev > 1 ? `${rev} virements revenus` : '1 virement revenu'}` : P.payes && P.payes === P.n ? (P.n > 1 ? `les ${P.n}` : 'le seul') : P.payes ? `${P.payes} sur ${P.n}` : `par ${P.client}`, P.n > 0 && P.payes === P.n && !rev])(KC.virementsRevenus(L.releves || [], bulletins, o.nomDe).length),
@@ -328,7 +332,7 @@
       corrRep.map(b => `<div class="cp-pa-bandeau ${b.correction.reponse === 'acceptee' ? 'vert' : 'gris'}" data-pa-rep="${esc(b.id)}">La correction du bulletin de <b>${esc(o.nomDe(b.salarieId))}</b> a été ${b.correction.reponse === 'acceptee' ? 'acceptée' : 'refusée'} par ${esc(P.client)}${b.correction.reponduLe ? ` le ${esc(jourCourt(b.correction.reponduLe))}` : ''}${b.correction.raison ? ` : « ${esc(b.correction.raison)} »` : ''}.</div>`).join(''),
       P.accordRequis && P.envoyes && !P.approuves && !P.valides ? `<div class="cp-pa-bandeau" id="pa-attend-accord">Les bulletins sont chez ${esc(P.client)} depuis le ${esc(jourCourt(P.envoyeLe))} : son bon à payer arrive dans SkanFact. Changer un bulletin d'ici le lui redemande.</div>` : '',
       P.accordRequis && P.approuves && !P.valides ? `<div class="cp-pa-bandeau vert" id="pa-accord">${esc(P.client)} a approuvé ${P.n > 1 ? `les ${P.n} bulletins` : 'le bulletin'} le ${esc(jourCourt(P.approuveLe))} (son bon à payer, dans SkanFact). Validés, ils ne changent plus.</div>` : '',
-      P.valides ? `<div class="cp-pa-bandeau vert" id="pa-valides">Les bulletins ${esc(KC.deMois(KC.moisPaie(m)))} sont validés : ils ne bougent plus. Une correction passera par une régularisation sur un mois suivant.</div>` : '',
+      P.valides ? `<div class="cp-pa-bandeau vert" id="pa-valides">${P.n > 1 ? 'Les bulletins' : 'Le bulletin'} ${esc(KC.deMois(KC.moisPaie(m)))} ${P.n > 1 ? 'sont validés : ils ne bougent' : 'est validé : il ne bouge'} plus. Une correction passera par une régularisation sur un mois suivant.</div>` : '',
       paieDepuisLaValidation(dossier, L, m, bulletins, o), paieVirementsRevenus(dossier, L, bulletins, P, o)].join('');
     // Les bulletins, rangés par ce qui change (la maquette), le bulletin choisi ouvert à côté.
     const etiquette = b => b.valideLe ? '<span class="badge b-paid">validé</span>' : b.correction && !b.correction.reponse ? '<span class="badge b-due">correction proposée</span>'
@@ -520,13 +524,13 @@
     const peutEnvoyer = relie && P.valides && !!(api.classeur && api.classeur.deposerPdf);
     const env = peutEnvoyer ? paiePdfsState.par[`${dossier.id}:${annee}-${String(m).padStart(2, '0')}`] : null;
     const dejaEnv = env && env.n ? `${env.n === P.n ? (P.n > 1 ? `les ${P.n}` : 'le bulletin') : `${env.n} sur ${P.n}`} dans les documents de ${P.client} (le ${fmtJour(env.le)})` : '';
-    const envoyer = peutEnvoyer ? `<button type="button" class="btn btn-sm" id="pa-envoyer-pdf">${env && env.n ? 'Les renvoyer' : `Les envoyer à ${esc(P.client)}`}</button>` : '';
-    const L1 = P.mode === 'seule' ? '' : etape(1, P.remis, 'Les remettre aux salariés', [P.remis ? 'remis' : 'chaque bulletin s\'imprime depuis le menu de sa ligne', dejaEnv].filter(Boolean).join(' · '), envoyer);
+    const envoyer = peutEnvoyer ? `<button type="button" class="btn btn-sm" id="pa-envoyer-pdf">${P.n > 1 ? 'Les ' : 'L\''}${env && env.n ? 'renvoyer' : `envoyer à ${esc(P.client)}`}</button>` : '';
+    const L1 = P.mode === 'seule' ? '' : etape(1, P.remis, P.n > 1 ? 'Les remettre aux salariés' : `Le remettre à ${P.seul}`, [P.remis ? 'remis' : `${P.n > 1 ? 'chaque' : 'le'} bulletin s'imprime depuis le menu de sa ligne`, dejaEnv].filter(Boolean).join(' · '), envoyer);
     const revenus = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe).length;
     // (1.270.0 ; Skander, 04/11/2026 : « les entreprises hors SkanFact, il y en aura beaucoup ») Un client qui n'est pas sur
     // SkanFact ne marque rien payé : c'est le cabinet qui le note, quand le client le lui dit (sinon l'étape restait ouverte).
     const horsSk = !!dossier.manual;
-    const L2 = etape(P.mode === 'seule' ? 1 : 2, P.payes === P.n && !revenus, 'Les salaires', `${P.payes === P.n ? (horsSk ? 'payés, notés au cabinet' : `payés par ${P.client}`) : `${P.payes} sur ${P.n} payés · ${horsSk ? `à noter quand ${P.client} te le dit` : `par ${P.client}`}`}${revenus ? ` · ${revenus > 1 ? `${revenus} virements revenus` : '1 virement revenu'}` : ''}`,
+    const L2 = etape(P.mode === 'seule' ? 1 : 2, P.payes === P.n && !revenus, 'Les salaires', `${P.payes === P.n ? (horsSk ? 'payés, notés au cabinet' : `payés par ${P.client}`) : `${P.payes} sur ${P.n} payé${P.n > 1 ? 's' : ''} · ${horsSk ? `à noter quand ${P.client} te le dit` : `par ${P.client}`}`}${revenus ? ` · ${revenus > 1 ? `${revenus} virements revenus` : '1 virement revenu'}` : ''}`,
       P.payes < P.n && relie ? (pourLe => `<button type="button" class="btn btn-sm" id="pa-rappel" data-pour="${esc(pourLe)}">Lui rappeler${pourLe ? `, pour le ${esc(jourCourt(pourLe))}` : ''}</button>`)(finDuMoisPaie(annee, m) > aujourdhuiPaie() ? finDuMoisPaie(annee, m) : '')
         : P.payes < P.n && horsSk && P.valides ? `<button type="button" class="btn btn-sm" id="pa-noter-payes">Noter ${P.n - P.payes > 1 ? `les ${P.n - P.payes} salaires payés` : 'le salaire payé'}</button>` : '');
     const ms = KC.masseSalariale(bulletins);
@@ -540,7 +544,7 @@
     o.paieAttendSonJour ? '' : `<button type="button" class="btn btn-sm${vertLibre ? ' btn-primary' : ''}" id="pa-valider">Valider l'écriture de paie</button>`)
       : bulletins.length && bulletins.every(b => o.etatDe(b) === 'ecrite') ? etape(nE, true, 'L\'écriture de paie', 'validée', '') : '';
     const L3 = etape(nE + (LE ? 1 : 0), false, 'Les déclarer', `avec la déclaration ${KC.deMois(mo)} : retenues sur salaires (IRPP et CSS) ${money(KC.round3(ms.irpp + ms.css))}, TFP ${money(ms.tfp)}, FOPROLOS ${money(ms.foprolos)} · la CNSS au trimestre`, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>');
-    return `<section class="panel cp-pa-faits" id="pa-faits"><h3>Les bulletins ${esc(KC.deMois(mo))} sont faits</h3><ol>${L1}${L2}${LE}${L3}</ol></section>`;
+    return `<section class="panel cp-pa-faits" id="pa-faits"><h3>${P.n > 1 ? 'Les bulletins' : 'Le bulletin'} ${esc(KC.deMois(mo))} ${P.n > 1 ? 'sont faits' : 'est fait'}</h3><ol>${L1}${L2}${LE}${L3}</ol></section>`;
   }
   // L'écriture de paie du mois, compte par compte (la maquette) : celle que le serveur tient au fil des bulletins.
   function paieEcriture(L, m, bulletins, P) {
@@ -1217,7 +1221,7 @@
     if (val) val.onclick = async () => {
       const P = P0(), B = duMois();
       if (!await confirmDialog(`Valider ${B.length > 1 ? `les ${B.length} bulletins` : 'le bulletin'} ${KC.deMois(KC.moisPaie(s.paieMois))} ?`,
-        `Validés, ils ne bougent plus, ni ici ni chez ${P.client} : une correction passera par une régularisation sur un mois suivant. L'écriture de paie du mois, elle, se valide à part : la Paie te la propose ensuite.`, 'Valider')) return;
+        `${B.length > 1 ? 'Validés, ils ne bougent' : 'Validé, il ne bouge'} plus, ni ici ni chez ${P.client} : une correction passera par une régularisation sur un mois suivant. L'écriture de paie du mois, elle, se valide à part : la Paie te la propose ensuite.`, 'Valider')) return;
       // (1.242.0, la maquette « paieapres ») Le toast dit ce qui est fait et offre « Annuler » : la validation du jour
       // s'efface (le pont n'accepte que celle-là, d'un bulletin ni remis ni payé) ; après le toast, ils ne changent plus.
       const jour = aujourdhui(), ids = B.map(b => b.id);
@@ -1326,7 +1330,7 @@
     const van = $('#pa-vers-annuelle', el);
     if (van) van.onclick = () => { pageFocus = 'li-employeur'; allerSousOnglet(root, dossier, 'liasse'); };
     const rem = $('#pa-remettre', el);
-    if (rem) rem.onclick = () => { const B = duMois().filter(b => !b.remisLe); marquer(rem, B.map(b => b.id), { remisLe: aujourdhui() }, `${B.length > 1 ? `${B.length} bulletins remis` : 'Bulletin remis'} aux salariés.`); };
+    if (rem) rem.onclick = () => { const B = duMois().filter(b => !b.remisLe); marquer(rem, B.map(b => b.id), { remisLe: aujourdhui() }, `${B.length > 1 ? `${B.length} bulletins remis aux salariés` : `Bulletin remis à ${((s.livre.salaries || []).find(x => B[0] && x.id === B[0].salarieId) || {}).nom || 'son salarié'}`}.`); };
     const noter = $('#pa-noter-payes', el);
     // (1.271.0 ; Skander, 04/11/2026 : « donne la liberté à l'utilisateur ») Le jour du paiement se choisit : le client a payé
     // le 28, le cabinet l'apprend le 3. Aujourd'hui par défaut.

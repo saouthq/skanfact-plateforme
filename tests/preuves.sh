@@ -27824,6 +27824,30 @@ prouver 'bulletin 1.355.2 f : « Remettre les bulletins » pour un seul' modules
   'aRem > 1 ? `Remettre les ${aRem} bulletins ${de}` : `Remettre le bulletin ${de}`' '`Remettre les bulletins ${de}`' \
   "$PS1355W"
 
+# 1.355.4 : la paie du Cabinet s'ouvre sur le mois terminé dont un salarié attend encore son bulletin.
+PS13554M='un salarié embauché le 1er octobre, sans bulletin, lu le 11 novembre : octobre'
+PS13554W='un salarié embauché le mois dernier, sans bulletin : la Paie du Cabinet s'\''ouvre sur ce mois-là (1.355.4)'
+prouver 'paie du Cabinet 1.355.4 a : le moteur ne voit aucun mois en retard' modules/personnel/moteur/compta-paie.js \
+  'return controlesPaie(livre || {}, a, p).some(c => c.id === '\''bulletins-manquants'\'') ? p : 0;' 'return 0;' \
+  "$PS13554M"
+prouver 'paie du Cabinet 1.355.4 b : l'\''écran s'\''ouvre sur le mois en cours' modules/personnel/ecrans/cabinet/paie.js \
+  'if (!s.paieMois) s.paieMois = KC.moisPaieEnRetard(L, s.annee, K.today())
+      || K.moisDeTravail(' 'if (!s.paieMois) s.paieMois = K.moisDeTravail(' \
+  "$PS13554W"
+PS13554P='(1.355.4) un seul salaire payé : « payé le », jamais « payés le » ; deux : « payés le »'
+prouver 'paie du Cabinet 1.355.4 c : la frise dit « 1 préparés »' modules/personnel/ecrans/cabinet/paie.js \
+  '`${pl(P.n, '\''préparé'\'', '\''préparés'\'')}${P.manquants' '`${P.n} préparés${P.manquants' \
+  "$PS13554W"
+prouver 'paie 1.355.4 d : « payés le » d'\''un seul salaire' modules/personnel/moteur/core-paie.js \
+  '`payé${L.length > 1 ? '\''s'\'' : '\'''\''} le ${fmtDate(jours[0])}`' '`payés le ${fmtDate(jours[0])}`' \
+  "$PS13554P"
+prouver 'paie 1.355.4 e : « Marquer payés » pour un seul salaire' modules/personnel/ecrans/entreprise/paie.js \
+  '`Marquer payé${ch.length > 1 ? '\''s'\'' : '\'''\''} · ${h(totalCh)}`' '`Marquer payés · ${h(totalCh)}`' \
+  "$PS1355W"
+prouver 'paie 1.355.4 f : le titre d'\''une ligne de « À ne pas oublier » coupé' modules/personnel/styles/paie-maquette.css \
+  '.pm #p-traiter .apy-n b { white-space: normal; overflow: visible; text-overflow: clip; }' '' \
+  "$PS1355W"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
