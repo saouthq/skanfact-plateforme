@@ -678,6 +678,8 @@
         <label class="field"><span class="fl">RIB / IBAN ${info('pay.iban')}<span class="rib-note" aria-live="polite"></span></span><input type="text" name="iban" value="${h(e.iban || '')}" autocomplete="off" spellcheck="false"></label>
         ${/* (plateforme) 1.229.0 — ce que la fiche affichait sans pouvoir l'écrire (l'e-mail des bulletins), et ce que le
              registre, le contrat et la déclaration annuelle demandent (À VÉRIFIER : la liste exacte). */''}
+        ${/* (1.355.0) Le net s'annonce sous le brut qu'on tape : posé après les Notes, il était hors de la fenêtre pendant la frappe. */''}
+        <div class="span-2 annonce-stable" id="ef-hint"></div>
         <div class="span-2 pa-ef-sec">Pour le joindre</div>
         ${field(lbl('E-mail', 'pay.email'), 'email', e.email || '', 'email', 'placeholder="prenom@exemple.tn" autocomplete="off"')}
         ${field(lbl('Téléphone', 'pay.phone'), 'phone', e.phone || '', 'tel', 'placeholder="20 123 456"')}
@@ -692,7 +694,6 @@
         ${field(lbl('N° de badge', 'pay.badge'), 'badge', e.badge || '', 'text', 'placeholder="sur la pointeuse" autocomplete="off"')}
         <label class="field" id="ef-des-l" hidden>${lbl('Le nouveau salaire vaut à partir de', 'pay.salaireDes')}<input type="month" name="salaireDes" value="${h((() => { const mp = C.moisDePaie(data); return `${mp.year}-${String(mp.month).padStart(2, '0')}`; })())}"></label>
         <label class="field span-2">${lbl('Notes', 'pay.empNotes')}<input type="text" name="notes" value="${h(e.notes || '')}"></label>
-        <div class="span-2 annonce-stable" id="ef-hint"></div>
       </form>
       ${/* (plateforme) 1.59.0 — les primes de chaque mois : posées une fois, reprises par chaque bulletin. */''}
       <div class="panel" id="ef-primes-p"><h2>Primes de chaque mois (${h(C.normCurrency(company().currency))}) ${info('pay.primesFiche')}</h2><div id="ef-primes"></div>
@@ -860,7 +861,7 @@
       <section class="bf-s"><div class="bf-s-t"><b>Retenues</b> ${info('pay.deduction')}<button type="button" class="btn btn-sm btn-ghost" id="add-ded">${lfIc('croix', 13, 2.4)} Retenue</button></div><div id="bf-ded"></div></section>
       <fieldset class="bf-s"><legend>Le paiement</legend><div class="bf-3" id="bf-pay">
         ${dateFieldHtml(lbl('Payé le', 'pay.paid'), 'paidDate', p.paidDate || '', { clearable: true })}
-        <label class="field">${lbl('Compte', 'pay.account')}<select name="accountId"><option value="">${data.accounts.length ? '— le compte par défaut —' : 'Compte principal'}</option>${data.accounts.map(a => `<option value="${a.id}" ${p.accountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Compte', 'pay.account')}<select name="accountId"><option value="">${data.accounts.length ? '— le compte par défaut —' : 'Aucun compte créé : la banque'}</option>${data.accounts.map(a => `<option value="${a.id}" ${p.accountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
         <label class="field">${lbl('Mode', 'pay.slipMethod')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${p.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
       </fieldset>
       </div><aside class="bf-d"><div class="bf-resume" id="bf-resume" role="status" aria-live="polite"></div><div id="bf-calc"></div></aside></div>
@@ -1081,7 +1082,7 @@
     modal(`<h2>Payer les salaires ${h(window.SkanCompta.deMois(periode))} ${info('pay.payerMois')}</h2>
       <form id="ps" class="grid-2">
         ${dateFieldHtml(lbl('Payés le', 'pay.paid'), 'date', g.date || C.today(), {})}
-        <label class="field">${lbl('Depuis le compte', 'pay.account')}<select name="accountId">${comptes.length ? '' : '<option value="">Compte principal</option>'}${comptes.map(a => `<option value="${h(a.id)}" ${compteVu === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Depuis le compte', 'pay.account')}<select name="accountId">${comptes.length ? '' : '<option value="">Aucun compte créé : la banque</option>'}${comptes.map(a => `<option value="${h(a.id)}" ${compteVu === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
       </form>
       ${/* (plateforme) 1.234.0 — la fenêtre comme sa maquette : « Comment » (le mode, le RIB masqué et contrôlé), le détail
            des virements et des espèces au pied, le montant sur le bouton. */''}
@@ -2039,7 +2040,7 @@
       // « facultatif » quand ses journées non validées retiennent les bulletins (joué à la souris : « facultatif » au-dessus de
       // « Les bulletins attendent : 1 chose à régler dans le pointage », puis encore « facultatif » une fois le mois validé).
       const nRetient = ptEnvoye(y, m) ? 0 : bloquantsDe(y, m).length;
-      const pt = ptEnvoye(y, m) && !pt0.fait ? { ...pt0, fait: true, dit: 'le mois est validé' }
+      const pt = ptEnvoye(y, m) ? { ...pt0, fait: true, dit: 'le mois est validé' }
         : nRetient && !pt0.fait ? { ...pt0, dit: `${pl(nRetient, 'chose')} à régler avant les bulletins` } : pt0;
       const paye = { titre: 'Payer', fait: pa.fait && re.fait, dit: !pa.fait || re.fait ? pa.dit : `${pa.dit} · ${re.dit}` };
       let ici = false;
@@ -4120,8 +4121,10 @@
       const puces = (e, p) => {
         const L = [], brut = C.brutDuMois(e, y, m) || Number(e.grossSalary) || 0, un = C.round3(brut / (Number(p.total) || 26));
         const de = c => p.jours.filter(j => !j.repos && j.code === c).map(j => j.jour);
-        if (e.hireDate && e.hireDate.startsWith(ym)) L.push(['', `entrée le ${jjmm(e.hireDate)}`, `${pct(p.payes)} jours payés sur ${pct(p.total)}`, 'au prorata']);
-        if (e.endDate && e.endDate.startsWith(ym)) L.push(['', `départ le ${jjmm(e.endDate)}`, `${pct(p.payes)} jours payés sur ${pct(p.total)}`, 'au prorata']);
+        // (1.355.0) Entré le 1er (ou parti le dernier jour), le mois est payé en entier : « au prorata » disait le contraire.
+        const entier = Number(p.payes) >= Number(p.total);
+        if (e.hireDate && e.hireDate.startsWith(ym)) L.push(['', `entrée le ${jjmm(e.hireDate)}`, `${pct(p.payes)} jours payés sur ${pct(p.total)}`, entier ? 'mois entier' : 'au prorata']);
+        if (e.endDate && e.endDate.startsWith(ym)) L.push(['', `départ le ${jjmm(e.endDate)}`, `${pct(p.payes)} jours payés sur ${pct(p.total)}`, entier ? 'mois entier' : 'au prorata']);
         an.filter(a => a.employeeId === e.id).forEach(a => L.push(['alerte', a.sorte === 'sortie' ? 'sortie oubliée' : 'jours sans badge', a.sorte === 'sortie' ? `le ${String(a.jour).padStart(2, '0')}/${String(m).padStart(2, '0')}` : datesDites(a.jours, m), 'à régler']));
         const A = de('A'), D = de('D'), Co = de('C'), Ma = de('M');
         if (A.length) L.push(['', `absent ${pl(A.length, 'jour')}`, datesDites(A, m), `− ${C.money(C.round3(un * A.length), cur)}`]);
@@ -5208,7 +5211,8 @@
       // (plateforme) 1.234.0 — la pastille des déclarations (la maquette) : celles dont l'échéance est passée ou proche, pas encore déposées.
       // (1.256.0) Les sous-vues comme la maquette : une rangée d'onglets soulignés (l'icône, le nom ; ce qu'il montre au survol).
       const vueP = PAIE_VUE_DE[s.tab] || s.tab;
-      $('#p-sous').innerHTML = (friseVue = vueP === 'bulletins' && data.employees.length ? etapesHtml() : '') || (PAIE_SOUS[vueP] ? `<div class="onglets-f pa-sous pm-sous" role="tablist" aria-label="${h((PAIE_VUES.find(v => v[0] === (PAIE_VUE_DE[s.tab] || s.tab)) || [])[1] || '')}">${PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab].map(([id, l, ic, d]) => `<button type="button" role="tab" data-sous="${id}" aria-selected="${s.tab === id}" title="${h(d || '')}">${ic ? lfIc(ic, 15) : ''}<b>${l}</b>${id === 'pointage' && !ptVerrouille(ymPt(s.ptY, s.ptM)) ? (n => n ? ` <span class="pm-nb" title="${pl(n, 'chose')} à régler">${n}</span>` : '')(aReglerMois(Number(s.ptY), Number(s.ptM)).length) : ''}</button>`).join('')}</div>` : '');
+      // (1.355.0) Sans salarié, ni « La journée » ni « Congés et absences » : deux onglets sous l'état vide s'allumaient sur rien.
+      $('#p-sous').innerHTML = (friseVue = vueP === 'bulletins' && data.employees.length ? etapesHtml() : '') || (PAIE_SOUS[vueP] && data.employees.length ? `<div class="onglets-f pa-sous pm-sous" role="tablist" aria-label="${h((PAIE_VUES.find(v => v[0] === (PAIE_VUE_DE[s.tab] || s.tab)) || [])[1] || '')}">${PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab].map(([id, l, ic, d]) => `<button type="button" role="tab" data-sous="${id}" aria-selected="${s.tab === id}" title="${h(d || '')}">${ic ? lfIc(ic, 15) : ''}<b>${l}</b>${id === 'pointage' && !ptVerrouille(ymPt(s.ptY, s.ptM)) ? (n => n ? ` <span class="pm-nb" title="${pl(n, 'chose')} à régler">${n}</span>` : '')(aReglerMois(Number(s.ptY), Number(s.ptM)).length) : ''}</button>`).join('')}</div>` : '');
       $$('#p-sous [data-sous]').forEach(b2 => b2.onclick = async () => { if (b2.dataset.sous === s.tab || !await leaveOk()) return; clearGuard(); s.tab = b2.dataset.sous; draw(); });
       // (1.330.0) « Aller à « Bulletins » » : son propre attribut, pour qu'une étape de la frise reste UN élément.
       $$('#p-sous [data-aller-sous]').forEach(b2 => b2.onclick = async () => { if (!await leaveOk()) return; clearGuard(); s.tab = b2.dataset.allerSous; draw(); });

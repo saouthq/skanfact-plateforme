@@ -6,9 +6,21 @@
   //
   // Tout se calcule sur `s.livre`, déjà en mémoire : le moteur est celui de l'app entreprise
   // (`compta.js`), donc le bulletin du client et celui du cabinet ne peuvent pas diverger.
+  // (1.355.0) La paie que le client fait lui-même (le mandat ne la comprend pas) : l'onglet disait « Aucun salarié déclaré :
+  // c'est par là qu'une paie commence » avec « Déclarer un salarié… » en vert — le suivre comptait la paie deux fois, puisque
+  // l'écriture du client arrive déjà au journal de paie (joué : la librairie paie Sami, PAIE-2026-10 arrive au brouillard).
+  const paieHorsMandat = (dossier, L) => !!dossier && !dossier.manual && Array.isArray(dossier.perimetre) && !dossier.perimetre.includes('paie')
+    && !(L.salaries || []).length && !(L.bulletins || []).length;
+  function paieNonConfiee(dossier) {
+    const nom = dossier.name || 'Ce client';
+    return `<div class="panel" id="pa-hors-mandat"><h2>La paie n'est pas confiée au cabinet</h2>
+      <p>${esc(nom)} fait sa paie elle-même dans SkanFact : le mandat ne comprend pas la paie. Son écriture de chaque mois arrive au journal de paie (PAIE), au brouillard, comme ses ventes : elle se lit et se valide dans Saisie. Déclarer ici ses salariés et leurs bulletins compterait la paie deux fois.</p>
+      <p class="mt"><button type="button" class="btn btn-primary" id="pa-hors-saisie">Voir ses écritures dans Saisie</button></p></div>`;
+  }
   function vuePaie(dossier) {
     const s = livresState;
     const L = s.livre;
+    if (paieHorsMandat(dossier, L)) return paieNonConfiee(dossier);
     // U-12 — le dernier mois qui a des bulletins, sinon le mois courant : jamais décembre en
     // septembre, un mois futur qui avait l'air d'un dossier vide.
     if (!s.paieMois) s.paieMois = K.moisDeTravail((L.bulletins || []).filter(b => Number(b.annee) === Number(s.annee)).map(b => b.mois), s.annee, K.today());
@@ -1157,6 +1169,8 @@
   function brancherPaie(el, root, dossier) {
     const s = livresState;
     const redraw = () => drawLivres(root, dossier);
+    const versSaisie = $('#pa-hors-saisie', el);
+    if (versSaisie) versSaisie.onclick = () => navigate(`#/dossier/${encodeURIComponent(dossier.id)}/comptabilite/saisie/${s.annee}`);
     const mois = $('#pa-mois', el);
     if (mois) mois.onchange = () => { s.paieMois = Number(mois.value) || 1; s.paieBul = null; redraw(); };
     // (plateforme) 1.235.0 — les cinq vues, le bulletin ouvert à côté, et les gestes du parcours (docs/revue-paie-cabinet.md).

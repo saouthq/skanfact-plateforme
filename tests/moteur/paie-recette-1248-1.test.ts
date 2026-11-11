@@ -11,6 +11,7 @@ type ATraiter = { salarie: string; vue: string; focus: string; titre: string; di
 type Core = {
   paieATraiter: (d: unknown, t: string) => ATraiter[];
   moisDePaie: (d: unknown, t: string) => { year: number; month: number };
+  paieDuMois: (d: unknown, y: number, m: number) => { etapes: { titre: string; fait: boolean; dit: string }[] };
   payslipInputFor: (d: unknown, e: unknown, y: number, m: number) => Record<string, unknown>;
   computePayslip: (e: unknown, i: unknown, s: unknown) => { net: number; gross: number };
   payrollSettings: (d: unknown) => unknown;
@@ -52,6 +53,25 @@ describe('la paie après la recette du 02/11/2026, suite', () => {
     expect(core.moisDePaie(d, '2026-11-05')).toEqual({ year: 2026, month: 11 });
     d.payslips.filter((p) => p.month === 11).forEach((p) => { p.paidDate = '2026-11-30'; });
     expect(core.moisDePaie(d, '2026-11-30')).toEqual({ year: 2026, month: 10 });
+  });
+
+  it('(1.355.0) octobre établi et pas encore payé : la page s\'ouvre sur octobre, même si novembre n\'a pas encore son bulletin', () => {
+    const d = donnees([sal('a')]);
+    etablir(d, 2026, 10, '');
+    expect(core.moisDePaie(d, '2026-11-11')).toEqual({ year: 2026, month: 10 });
+    // Payé, octobre ne retient plus la page : le bulletin qui manque est celui de novembre.
+    d.payslips.forEach((p) => { p.paidDate = '2026-11-05'; });
+    expect(core.moisDePaie(d, '2026-11-11')).toEqual({ year: 2026, month: 11 });
+  });
+
+  it('(1.355.0) un pointage validé est un mois pointé, pas « sauté » ; rouvert, il ne l\'est plus', () => {
+    const d = donnees([sal('a')]) as ReturnType<typeof donnees> & { pointageVersions?: unknown[]; pointageOuverts?: string[] };
+    etablir(d, 2026, 10, '');
+    expect(core.paieDuMois(d, 2026, 10).etapes[0]?.dit).toBe('sauté : chacun payé au mois complet');
+    d.pointageVersions = [{ ym: '2026-10', version: 1 }];
+    expect(core.paieDuMois(d, 2026, 10).etapes[0]?.dit).toBe('le mois est pointé');
+    d.pointageOuverts = ['2026-10'];
+    expect(core.paieDuMois(d, 2026, 10).etapes[0]?.dit).toBe('sauté : chacun payé au mois complet');
   });
 
   it('l\'avenant d\'un passage en CDI le dit, à compter du lendemain de l\'ancienne fin ; un mois plus tard, il redevient général', () => {

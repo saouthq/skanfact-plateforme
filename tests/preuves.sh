@@ -26765,7 +26765,7 @@ prouver 'paie 1.330.0 b : « Pointer » se dit facultatif quand ses journées re
   ': nRetient && !pt0.fait ? { ...pt0, dit:' ': false && !pt0.fait ? { ...pt0, dit:' \
   "$PAIE1330W"
 prouver 'paie 1.330.0 c : le mois validé laisse « Pointer » en cours' modules/personnel/ecrans/entreprise/paie.js \
-  'const pt = ptEnvoye(y, m) && !pt0.fait ?' 'const pt = false && !pt0.fait ?' \
+  'const pt = ptEnvoye(y, m) ? { ...pt0, fait: true' 'const pt = false ? { ...pt0, fait: true' \
   "$PAIE1330W"
 prouver 'paie 1.330.0 d : regarder une autre étape que celle du moment ne le dit pas' modules/personnel/ecrans/entreprise/paie.js \
   'return ici && vue && ici.id !== vue.id ?' 'return false ?' \
@@ -27739,6 +27739,45 @@ prouver 'finitions 1.354.0 d : « Créer l'\''article… » ouvre une liste d'\'
 prouver 'finitions 1.354.0 e : le téléphone tapé d'\''un bloc s'\''enregistre d'\''un bloc' web/public/plateforme/assistant.js \
   'const telGroupe = (s) => (/^\d{8}$/.test(s) ? `${s.slice(0, 2)} ${s.slice(2, 5)} ${s.slice(5)}` : s);' 'const telGroupe = (s) => s;' \
   "$AS1354"
+
+# 1.355.0 : bout en bout, le premier salarié. La Paie vide, le net sous le brut, le mois entier, le pointage validé, le mois à payer.
+PS1355W='la Paie vide sans onglets, le net sous le brut, « mois entier », le mois validé reste validé, la page sur le mois à payer'
+PS1355M1='(1.355.0) un pointage validé est un mois pointé, pas « sauté » ; rouvert, il ne l'\''est plus'
+PS1355M2='(1.355.0) octobre établi et pas encore payé : la page s'\''ouvre sur octobre, même si novembre n'\''a pas encore son bulletin'
+prouver 'premier salarié 1.355.0 a : deux onglets sous la Paie vide' modules/personnel/ecrans/entreprise/paie.js \
+  'PAIE_SOUS[vueP] && data.employees.length ? `<div class="onglets-f pa-sous pm-sous"' 'PAIE_SOUS[vueP] ? `<div class="onglets-f pa-sous pm-sous"' \
+  "$PS1355W"
+prouver 'premier salarié 1.355.0 b : le net s'\''annonce loin du brut' modules/personnel/ecrans/entreprise/paie.js \
+  '        <div class="span-2 annonce-stable" id="ef-hint"></div>
+' '        <div class="span-2" style="height:400px"></div><div class="span-2 annonce-stable" id="ef-hint"></div>
+' \
+  "$PS1355W"
+prouver 'premier salarié 1.355.0 c : entré le 1er, « au prorata »' modules/personnel/ecrans/entreprise/paie.js \
+  'const entier = Number(p.payes) >= Number(p.total);' 'const entier = false;' \
+  "$PS1355W"
+prouver 'premier salarié 1.355.0 d : le moteur ignore le pointage validé' modules/personnel/moteur/core-paie.js \
+  '
+      || ((data.pointageVersions || []).some(v => v.ym === ymP) && !(data.pointageOuverts || []).includes(ymP));' ';' \
+  "$PS1355M1"
+prouver 'premier salarié 1.355.0 e : l'\''écran dit « pointé » d'\''un mois validé' modules/personnel/ecrans/entreprise/paie.js \
+  'const pt = ptEnvoye(y, m) ? { ...pt0, fait: true, dit: '\''le mois est validé'\'' }' 'const pt = ptEnvoye(y, m) && !pt0.fait ? { ...pt0, fait: true, dit: '\''le mois est validé'\'' }' \
+  "$PS1355W"
+prouver 'premier salarié 1.355.0 f : la Paie s'\''ouvre sur le mois en cours vide' modules/personnel/moteur/core-paie.js \
+  '    if (payslipsOf(data, a.year, a.month).some(x => !x.paidDate)) return a;
+' '' \
+  "$PS1355M2"
+PS1355C='le même mois vu du cabinet : la TVA de la déclaration et la balance disent ce que l'\''entreprise a saisi, le virement à la banque'
+prouver 'premier salarié 1.355.0 g : le Cabinet propose de refaire une paie que le client fait' modules/personnel/ecrans/cabinet/paie.js \
+  '    if (paieHorsMandat(dossier, L)) return paieNonConfiee(dossier);
+' '' \
+  "$PS1355C"
+prouver 'premier salarié 1.355.0 h : « Voir ses écritures dans Saisie » ne mène nulle part' modules/personnel/ecrans/cabinet/paie.js \
+  '    if (versSaisie) versSaisie.onclick = () => navigate(`#/dossier/${encodeURIComponent(dossier.id)}/comptabilite/saisie/${s.annee}`);
+' '' \
+  "$PS1355C"
+prouver 'premier salarié 1.355.0 i : « Compte principal » sans aucun compte' modules/personnel/ecrans/entreprise/paie.js \
+  '${comptes.length ? '\'''\'' : '\''<option value="">Aucun compte créé : la banque</option>'\''}' '${comptes.length ? '\'''\'' : '\''<option value="">Compte principal</option>'\''}' \
+  "$PS1355W"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

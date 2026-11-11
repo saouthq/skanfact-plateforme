@@ -146,6 +146,9 @@
     const ym = iso => ({ year: Number(iso.slice(0, 4)), month: Number(iso.slice(5, 7)) });
     const a = ym(avant), c = ym(courant);
     if (missingPayslips(data, a.year, a.month).length) return a;
+    // (1.355.0) Le mois d'avant établi et pas encore payé : c'est lui qui attend, même si le bulletin du mois en cours manque
+    // (il ne se prépare qu'en fin de mois). La page s'ouvrait sur novembre, vide, pendant qu'octobre attendait d'être payé.
+    if (payslipsOf(data, a.year, a.month).some(x => !x.paidDate)) return a;
     if (missingPayslips(data, c.year, c.month).length || payslipsOf(data, c.year, c.month).length) {
       if (!payslipsOf(data, a.year, a.month).length || missingPayslips(data, c.year, c.month).length) return c;
       // (1.248.1) Le mois d'avant tout payé, le mois en cours déjà établi : c'est lui qui attend (recette du 02/11 : la page
@@ -172,7 +175,11 @@
     const ma = m === 1 ? 12 : m - 1, ya = m === 1 ? y - 1 : y;
     const avant = {}; payslipsOf(data, ya, ma).forEach(x => { avant[x.employeeId] = x.c.net; });
     const coutAvant = round3(payslipsOf(data, ya, ma).reduce((a, x) => a + x.c.employerCost, 0));
-    const pointe = (data.timesheets || []).some(t => Number(t.year) === y && Number(t.month) === m);
+    // (1.355.0) Le pointage validé (une version du mois, non rouverte) est un mois pointé : l'étape disait « sauté : chacun
+    // payé au mois complet » d'un mois qu'on venait de valider, dès que son bulletin existait.
+    const ymP = `${y}-${String(m).padStart(2, '0')}`;
+    const pointe = (data.timesheets || []).some(t => Number(t.year) === y && Number(t.month) === m)
+      || ((data.pointageVersions || []).some(v => v.ym === ymP) && !(data.pointageOuverts || []).includes(ymP));
     const finMois = addDays(`${y}-${String(m).padStart(2, '0')}-01`, daysInMonth(y, m) - 1), enCours = today() <= finMois;
     const q = Math.ceil(m / 3), cnssDeposee = (data.socialFilings || []).some(f => f.id === `cnss-${y}-T${q}`);
     const tousPayes = L.length > 0 && !manque.length && payes.length === L.length, tousRemis = tousPayes && remis.length === L.length;

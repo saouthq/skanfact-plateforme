@@ -2455,3 +2455,35 @@ temps, remet la clé, et exige que les six se relisent : le défaut tombe à cha
 
 Tests : `tests/web/bout-en-bout-1353.test.ts` (troisième parcours), `tests/web/assistant.test.ts`,
 `tests/web/cabinet-hors-ligne.test.ts` ; cinq preuves de plus, deux anciennes remises sur leur nouvelle ancre.
+
+## Bout en bout : le premier salarié (1.355.0)
+
+Joué à la souris : la Librairie Ennour (mandat sans la paie) embauche Sami Gharbi, vendeur, au 1er octobre, 1 200 DT
+brut ; valide le pointage d'octobre, établit le bulletin, le paie ; puis le Cabinet ouvre le dossier. Les chiffres,
+refaits à la main : CNSS salariale 110,160 (9,18 %), patronale 198,840 (16,57 %), accident 16,800, soit 325,800 au
+trimestre ; TFP et FOPROLOS 30,000 ; coût 1 445,640 ; net 980,932, le même sur la fiche, la fenêtre « Établir » et le
+bulletin. Au Cabinet, l'écriture de paie (PAIE-2026-10, 1 445,640) et le paiement (980,932 à la banque) arrivent au
+brouillard : deux chemins, un chiffre. Ce que le parcours a trouvé :
+
+- **La Paie vide avait deux onglets qui s'allumaient sur rien** (« La journée », « Congés et absences », sous l'état
+  vide). Sans salarié, ils ne sont plus posés.
+- **Le net s'annonçait loin du brut** : après les Notes, hors de la fenêtre pendant la frappe. Il vit sous la rangée du
+  salaire.
+- **Entré le 1er, « au prorata »** : 26 jours payés sur 26 se disaient au prorata. Un mois payé en entier dit « mois
+  entier ».
+- **Le pointage validé devenait « sauté »** dès le bulletin établi : « sauté : chacun payé au mois complet », d'un mois
+  qu'on venait de valider. Le moteur (`paieDuMois`) compte maintenant la version validée du mois, comme l'ancien
+  pointage ; l'écran dit « le mois est validé » avant comme après le bulletin.
+- **Rouverte, la Paie s'ouvrait sur novembre, vide**, pendant qu'octobre attendait d'être payé. `moisDePaie` : le mois
+  d'avant établi et pas encore payé passe avant le bulletin du mois en cours qui manque (il ne se prépare qu'en fin de
+  mois).
+- **« Compte principal »** dans « Depuis le compte » alors qu'aucun compte n'existe (l'encadré juste dessous le disait).
+  L'option dit « Aucun compte créé : la banque », ce que les écritures font (règle de la 1.353.0).
+- **Au Cabinet, l'onglet Paie d'un client qui fait sa paie lui-même** disait « Aucun salarié déclaré : c'est par là
+  qu'une paie commence », avec « Déclarer un salarié… » en vert. Le suivre comptait la paie deux fois : l'écriture du
+  client arrive déjà au journal de paie. Quand le mandat ne comprend pas la paie (et que le livre n'en porte aucune),
+  l'onglet le dit, et son bouton mène à Saisie.
+
+Tests : `tests/web/paie-1355.test.ts` (le parcours côté entreprise), `tests/moteur/paie-recette-1248-1.test.ts` (le mois
+pointé, le mois à payer), `tests/web/bout-en-bout-1353.test.ts` (l'onglet Paie du Cabinet) ; neuf preuves, une ancienne
+remise sur sa nouvelle ancre.

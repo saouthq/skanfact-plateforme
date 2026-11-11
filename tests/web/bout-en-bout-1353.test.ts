@@ -239,6 +239,13 @@ describe('bout en bout 1.353.0 : la première facture d\'une épicerie neuve, so
     expect(bal).toContain('411 Clients 358,000 DT 200,000 DT 158,000 DT');
     expect(bal).toContain('4366 TVA déductible 136,800 DT 0,000 DT 136,800 DT');
     expect(bal).toContain('4367 TVA collectée 0,000 DT 57,000 DT 57,000 DT');
+    // (1.355.0) Le mandat ne comprend pas la paie : l'onglet Paie le dit, mène à Saisie, et ne propose pas de la refaire.
+    await aller('paie');
+    await p.locator('#pa-hors-mandat').waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#pa-hors-mandat').innerText())).toContain('fait sa paie elle-même dans SkanFact : le mandat ne comprend pas la paie');
+    expect(await p.getByRole('button', { name: /Déclarer un salarié/ }).count()).toBe(0);
+    await p.locator('#pa-hors-saisie').click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).toContain('/comptabilite/saisie/');
     expect(erreurs).toEqual([]);
   }, 240_000);
   it('1.354.0 : le menu dit « en attente », le premier montant ne pousse pas « Enregistrer », « Créer l\'article… » ouvre la fiche', async () => {
