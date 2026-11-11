@@ -107,12 +107,13 @@ describe('les registres du socle, dans le navigateur', () => {
         await expect.poll(async () => (sansSalarie = await chercher('Payer les salaires')), { timeout: 15_000 }).toMatch(/\S/);
         expect(sansSalarie).not.toContain('Payer les salaires du mois');
         await p.keyboard.press('Escape');
-        // Les points qu'il remplit : les sorties prévues de la Trésorerie, les déclarations sociales du calendrier.
+        // Les points qu'il remplit : les sorties prévues de la Trésorerie, les déclarations sociales du calendrier — et
+        // (1.355.9) la part paie de la déclaration mensuelle, que l'onglet TVA lit et ouvre.
         const points = await p.evaluate(() => {
           const S = (window as unknown as { Socle: { lire: (x: string) => { sorte?: string; id?: string }[] } }).Socle;
           return { sorties: S.lire('sorties-prevues').map((s) => s.sorte), sociales: S.lire('declarations-sociales').map((d) => d.id) };
         });
-        expect(points).toEqual({ sorties: ['salaire', 'salaire-prevu', 'avance'], sociales: ['cnss', 'employeur'] });
+        expect(points).toEqual({ sorties: ['salaire', 'salaire-prevu', 'avance'], sociales: ['cnss', 'employeur', 'mensuelle'] });
       }
       expect(erreurs, page).toEqual([]);
       await cn.close();

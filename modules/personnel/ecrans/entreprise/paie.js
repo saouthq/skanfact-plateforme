@@ -5664,9 +5664,23 @@
   // Le point « déclarations sociales » du calendrier fiscal : la CNSS et la déclaration d'employeur se préparent sur
   // l'onglet Déclarations de la paie, et leur mention « déposée » se retire par la même question (16 § 10.1-6).
   const versDeclarations = () => { paieState.tab = 'declarations'; navigate('#/paie'); };
+  // (1.355.9) La déclaration MENSUELLE porte la TVA et la part paie : l'onglet TVA de la Comptabilité dit ce que la paie y
+  // ajoute (`partDuMois`, null sans bulletin ce mois-là) et ouvre CE mois dans les déclarations de la paie (`ouvrirMois`) —
+  // il ouvrait la Paie sur « Aujourd'hui ». C'est le module qui lit ses bulletins : le socle ne les nomme pas.
+  const partDuMois = ym => {
+    const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5, 7));
+    if (!C.payslipsOf(data, y, m).length) return null;
+    const dE = C.declarationMensuelleSalaires(data, y, m), f = (data.socialFilings || []).find(x => x.id === `dm-${ym}`);
+    return { montant: f && f.paidDate ? Number(f.amount) || 0 : dE.total, payeeLe: f && f.paidDate ? f.paidDate : '', limite: dE.dueDate };
+  };
+  const ouvrirMois = ym => vers('#/paie', () => {
+    paieState.tab = 'declarations'; paieState.year = ym.slice(0, 4); paieState.month = String(Number(ym.slice(5, 7)));
+    paieState.moisTouche = true; paieState.quarter = '';
+  })();
   Socle.remplir('declarations-sociales', 'personnel', () => [
     { id: 'cnss', preparer: versDeclarations, retirer: retirerDeclarationSociale },
-    { id: 'employeur', preparer: versDeclarations, retirer: retirerDeclarationSociale }
+    { id: 'employeur', preparer: versDeclarations, retirer: retirerDeclarationSociale },
+    { id: 'mensuelle', partDuMois, ouvrirMois }
   ]);
   })(); // la boîte du Personnel se ferme ici
 

@@ -2633,3 +2633,17 @@ valeur était écrite en dur).
   classeur. La frise et « Les déclarer » s'en servent : « déposée le 11/11, payée le 11/11 · CNSS au trimestre », cochées
   tant que le trimestre court ; fini, la CNSS se dit « à déposer » jusqu'à son accusé.
 - Test : `cabinet-paie-parcours` dépose la déclaration du mois et lit les deux étapes. Trois preuves.
+
+### 1.355.9 : la TVA du mois dit que la même déclaration porte la part paie
+
+Vu à la souris dans la Comptabilité de la boulangerie, onglet TVA, octobre : « Déposée par ton cabinet » sous un crédit
+de TVA, et rien ne rappelait les 93,496 DT de retenues et taxes sur les salaires que la même déclaration faisait verser.
+- Une ligne le dit maintenant sous la déclaration du mois : la part paie, son montant, et « payée le … » ou « à verser
+  avant le … » (« la date limite était le … » une fois passée). Un mois sans bulletin n'en dit rien.
+- « Voir la part paie » ouvre la Paie sur CE mois, dans ses déclarations (« La déclaration d'octobre, sa part paie »).
+  Le premier jet ouvrait la Paie sur « Aujourd'hui ».
+- C'est le module de la paie qui lit ses bulletins et ouvre son mois : il remplit le point « déclarations sociales » du
+  socle avec `partDuMois` et `ouvrirMois`. Le socle n'écrit ni ne lit rien de la paie (frontières tenues).
+- Test : `paie-pont-1355-6` lit la ligne « à verser » avant le paiement, son absence sur le mois d'avant, « payée le »
+  après, puis suit le lien (la page rechargée à chaque fois, pour que l'onglet ouvert plus tôt ne fasse pas paraître le
+  lien juste). Quatre preuves.

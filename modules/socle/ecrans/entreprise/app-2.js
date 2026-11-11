@@ -5166,6 +5166,16 @@
             <div class="inline"><button class="btn btn-sm btn-primary" id="vat-ecart-dire">Le dire à mon comptable</button></div></div>` : ''}`
         : messagerieVue.declarationsConfiees
           ? `<p class="small cpt-cab${parCabinet.retard ? ' warn-text' : ''}" id="vat-cabinet"><span>${parCabinet.retard ? `Ton cabinet ne l'a pas encore déposée : la date limite était le ${h(C.fmtDate(parCabinet.limite))}.` : `Ton cabinet ne l'a pas encore déposée : il a jusqu'au ${h(C.fmtDate(parCabinet.limite))}.`}</span> <button type="button" class="btn-lien" id="vat-cabinet-ecrire">Lui écrire</button></p>` : '';
+      // (1.355.9) La même déclaration porte la part paie du mois (retenues et taxes sur les salaires) : octobre disait « Déposée
+      // par ton cabinet » sous un crédit de TVA, et rien ne rappelait les 93,496 DT que la déclaration faisait verser. Le
+      // montant et son paiement vivent dans la Paie : c'est elle qui les dit (`partDuMois`, par le point « déclarations
+      // sociales ») et qui ouvre CE mois (`ouvrirMois`) — le socle ne lit pas les bulletins.
+      const ymTva = `${year}-${String(upTo).padStart(2, '0')}`;
+      const pointMensuel = Socle.lire('declarations-sociales').find(d => d.partDuMois && d.ouvrirMois);
+      const pp = pointMensuel ? pointMensuel.partDuMois(ymTva) : null;
+      const partPaie = pp
+        ? `<p class="small" id="vat-paie"><span>La même déclaration porte la part paie ${h(deMois(moisNom))} (retenues et taxes sur les salaires) : ${h(C.money(pp.montant, cur))}, ${pp.payeeLe
+          ? `payée le ${h(C.fmtDate(pp.payeeLe))}.` : pp.limite < C.today() ? `à verser — la date limite était le ${h(C.fmtDate(pp.limite))}.` : `à verser avant le ${h(C.fmtDate(pp.limite))}.`}</span> <button type="button" class="btn-lien" id="vat-paie-voir">Voir la part paie</button></p>` : '';
       const deposeesParMois = new Map(lignesCabinet.filter(x => x.deposee).map(x => [x.periode, x]));
       // (1.302.0) Les mois sans rien (ni vente, ni achat, ni crédit, ni déclaration déposée) : au téléphone, ils ne font plus
       // leur carte (douze cartes, dont huit de zéros, faisaient une page de 4 500 px), et la phrase les nomme.
@@ -5198,6 +5208,7 @@
           </div>
           <p class="small muted mt">Timbres fiscaux encaissés sur la période : ${C.money(cur1.stamps, cur)} · retenues subies : ${C.money(cur1.withheldBySale, cur)} · retenues que tu as opérées : ${C.money(cur1.withheldOnBuys, cur)}. Ces trois lignes se déclarent séparément de la TVA. <em>À VÉRIFIER avec ton comptable.</em></p>` : ''}
           ${blocCabinet}
+          ${partPaie}
           ${cur1 && (cur1.collected || cur1.deductible) ? `<div class="inline mt">
             <button class="btn btn-sm" id="vat-ventes">Voir les ventes ${h(deMois(MONTHS[upTo - 1]))}</button>
             <button class="btn btn-sm" id="vat-achats">Voir les achats ${h(deMois(MONTHS[upTo - 1]))}</button>
@@ -5240,6 +5251,7 @@
       const versOnglet = (tab, mois) => { comptaState.month = mois; comptaState.tab = tab; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab)); };
       $$('#c-body tr[data-vm]').forEach(tr => tr.onclick = () => { comptaState.month = tr.dataset.vm; if ($('#c-month')) $('#c-month').value = tr.dataset.vm; draw(); });
       if ($('#vat-ventes')) $('#vat-ventes').onclick = () => versOnglet('ventes', String(upTo).padStart(2, '0'));
+      if ($('#vat-paie-voir')) $('#vat-paie-voir').onclick = () => pointMensuel.ouvrirMois(ymTva);
       if ($('#vat-achats')) $('#vat-achats').onclick = () => versOnglet('achats', String(upTo).padStart(2, '0'));
       if ($('#vat-ecart-dire')) $('#vat-ecart-dire').onclick = () => ecrireAuComptable(`Bonjour, ma TVA ${deMois(moisNom)} : ${parCabinet.ecarts.map(e => `tu as déclaré une TVA ${e.nom} de ${C.money(e.declare, cur)}, mes pièces disent aujourd'hui ${C.money(e.maintenant, cur)} (${signe(e.ecart)})`).join(' ; ')}. Une pièce est sans doute arrivée après le dépôt : peux-tu la reprendre sur la prochaine déclaration ?`);
       if ($('#vat-cabinet-ecrire')) $('#vat-cabinet-ecrire').onclick = () => ecrireAuComptable(`Bonjour, où en est ma déclaration de TVA ${deMois(moisNom)} ? ${parCabinet.retard ? `La date limite était le ${C.fmtDate(parCabinet.limite)}.` : `Elle est à déposer d'ici le ${C.fmtDate(parCabinet.limite)}.`}`);
@@ -6385,7 +6397,7 @@
         comptaState.tab = 'tva'; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'tva'));
       },
       // (17 § 3.3, lot P1b) La CNSS et la déclaration d'employeur : le Personnel dit où elles se préparent.
-      ...Object.fromEntries(Socle.lire('declarations-sociales').map(d => [d.id, d.preparer]))
+      ...Object.fromEntries(Socle.lire('declarations-sociales').filter(d => d.preparer).map(d => [d.id, d.preparer]))
     };
     function drawFiscal() {
       const rules = C.fiscalDeadlines(data);

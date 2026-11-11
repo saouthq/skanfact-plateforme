@@ -27954,6 +27954,18 @@ prouver 'paie du Cabinet 1.355.8 b : « Les déclarer » reste à faire sous une
 prouver 'paie du Cabinet 1.355.8 c : l'\''étape ne dit pas quand la déclaration a été déposée' 'modules/personnel/ecrans/cabinet/paie.js' \
   'const retenue = dep ? `déposée le' 'const retenue = false ? `déposée le' \
   "$PS13556W"
+prouver 'paie 1.355.9 a : la TVA d'\''un mois sans bulletin parle quand même de la part paie' 'modules/personnel/ecrans/entreprise/paie.js' \
+  'if (!C.payslipsOf(data, y, m).length) return null;' 'if (false) return null;' \
+  "$PS13556X"
+prouver 'paie 1.355.9 b : la TVA ne dit pas que la part paie est payée, ni quand' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '${pp.payeeLe' '${false && pp.payeeLe' \
+  "$PS13556X"
+prouver 'paie 1.355.9 c : « Voir la part paie » ouvre la Paie sur « Aujourd'\''hui »' 'modules/socle/ecrans/entreprise/app-2.js' \
+  'onclick = () => pointMensuel.ouvrirMois(ymTva);' 'onclick = () => navigate('\''#/paie'\'');' \
+  "$PS13556X"
+prouver 'paie 1.355.9 d : « Voir la part paie » ouvre un autre mois que celui de la TVA' 'modules/personnel/ecrans/entreprise/paie.js' \
+  'paieState.month = String(Number(ym.slice(5, 7)));' 'paieState.month = '\''1'\'';' \
+  "$PS13556X"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

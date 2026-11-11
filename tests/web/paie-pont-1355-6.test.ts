@@ -98,6 +98,26 @@ describe('la paie confiée au cabinet, et sa déclaration du mois, des deux côt
     // 1. La Paie de Sarra : « tenue par ton cabinet », jamais « Tu déclares toi-même ».
     const erreurs: string[] = [];
     const p = await page(patron, erreurs);
+    // (1.355.9) La TVA du mois écoulé dit que la même déclaration porte la part paie, à verser ; le mois d'avant, sans
+    // bulletin, n'en dit rien.
+    // Rechargée à chaque fois : la Paie repart sur « Aujourd'hui », et c'est le lien qui doit mener au mois (une navigation
+    // par l'adresse seule garderait l'onglet ouvert plus tôt, et le lien paraîtrait juste sans l'être).
+    const tvaDu = async (mois: number) => {
+      await p.goto(`${serveur.adresse}/v10/?e=${ent}#/compta`);
+      await p.reload();
+      await p.locator('#c-tabs [data-tab="tva"]').click();
+      await p.evaluate(([an, mo]) => {
+        for (const [sel, v] of [['#c-year', an], ['#c-month', mo]] as const) {
+          const el = document.querySelector(sel) as HTMLSelectElement | null;
+          if (el && el.value !== v) { el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); }
+        }
+      }, [String(y), String(mois).padStart(2, '0')] as const);
+      await expect.poll(async () => p.evaluate(() => (document.querySelector('#c-month') as HTMLSelectElement | null)?.value ?? ''), { timeout: 10_000 }).toBe(String(mois).padStart(2, '0'));
+    };
+    await tvaDu(m);
+    await expect.poll(async () => espace(await p.locator('#vat-paie').innerText()), { timeout: 15_000 })
+      .toMatch(new RegExp(`^La même déclaration porte la part paie (d'|de )${MOIS[m - 1]} ${y} \\(retenues et taxes sur les salaires\\) : [\\d ,]+ DT, à verser (avant le|— la date limite était le) \\d{2}/\\d{2}/\\d{4}\\. Voir la part paie$`));
+    if (m > 1) { await tvaDu(m - 1); expect(await p.locator('#vat-paie').count()).toBe(0); }
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/paie`);
     await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
     await plusTard(p);
@@ -150,6 +170,16 @@ describe('la paie confiée au cabinet, et sa déclaration du mois, des deux côt
     expect(espace(await pastille.innerText())).toBe('déclarée');
     if (m % 3) expect(await etapeD.getAttribute('data-etat')).toBe('fait');
     else expect(espace(await etapeD.innerText())).toMatch(/la CNSS du \d(er|e) trimestre avant le/);
+    // (1.355.9) Payée, la TVA le dit avec la date de Sarra, et « Voir la part paie » ouvre CE mois dans les déclarations de
+    // la paie (elle ouvrait la Paie sur « Aujourd'hui »).
+    await tvaDu(m);
+    await expect.poll(async () => espace(await p.locator('#vat-paie').innerText()), { timeout: 15_000 }).toContain(`, payée le ${fr(payeLe)}.`);
+    await p.locator('#vat-paie-voir').click();
+    await p.locator('#dm-panneau').waitFor({ timeout: 15_000 });
+    expect(p.url()).toMatch(/#\/paie$/);
+    expect(espace(await p.locator('#dm-panneau .pa-carte-t').innerText())).toMatch(new RegExp(`^La déclaration (d'|de )${MOIS[m - 1]}, sa part paie`));
+    expect(espace(await p.locator('#dm-paye').innerText())).toContain(`payée le ${fr(payeLe)}`);
+    expect(await p.locator(`#p-mois [data-p-mois="${m}"]`).getAttribute('aria-pressed')).toBe('true');
     const lus = (await api('GET', `/entreprises/${ent}/dossier-v10`, patron)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[];
     const mention = lus.find((o) => o.collection === 'socialFilings' && o.cle === `dm-${ym}`);
     expect(mention && mention.contenu.parCabinet).toBe(true);
