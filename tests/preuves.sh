@@ -27999,6 +27999,10 @@ prouver 'caisse 1.356.0 i : un article existant sans nature se montre « marchan
 prouver 'caisse 1.356.0 j : « Suivi en stock » décoché remet une prestation, même au comptoir' 'modules/socle/ecrans/entreprise/app-1.js' \
   'tracked: caseStock.checked, fodec: caseFodec ? caseFodec.checked : it.fodec }) || natureParDefaut;' 'tracked: caseStock.checked, fodec: caseFodec ? caseFodec.checked : it.fodec }) || '\''services'\'';' \
   "$PS13560W"
+PS13561='(1.342.0) Anis révise le dossier : il valide ; « 19 » choisit 19 % ; ↵ ouvre la pièce suivante, le curseur dedans ; les espèces vont en caisse ; « Par » le nomme'
+prouver 'cabinet 1.356.1 : les noms cachés du brouillard allongent le document (une bande vide sous l'\''application)' 'web/public/plateforme/saisie.css' \
+  '.sx-bl .sx-par { position: relative; display' '.sx-bl .sx-par { display' \
+  "$PS13561"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

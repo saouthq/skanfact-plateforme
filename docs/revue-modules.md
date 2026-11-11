@@ -2681,3 +2681,16 @@ Cabinet disent les mêmes chiffres. Quatre défauts trouvés en route :
   resolving 'azure.archive.ubuntu.com' », trente minutes, trois essais d'apt), sans qu'un seul test tourne — c'est ainsi
   que le second parcours ci-dessus n'avait jamais été vu tomber. `.github/miroir-ubuntu.sh` passe apt aux miroirs
   officiels quand celui d'Azure ne se résout pas ; il tourne avant le navigateur dans les trois tâches qui l'installent.
+
+### 1.356.1 : la bande vide sous le Cabinet
+
+Vu à la souris au Cabinet, dans la saisie de la boulangerie : « Voir le brouillard » amenait le brouillard de novembre, et
+une bande vide de 213 points se posait sous l'application, la barre latérale coupée avec elle. Ce n'était pas l'écran qui
+défilait, c'était le DOCUMENT : les noms cachés aux yeux de la colonne « Par » (un par ligne, `.sr`, en position absolue)
+n'avaient aucun parent positionné et se rangeaient contre la page entière, qu'ils allongeaient d'autant.
+- Le nom caché se range dans sa pastille (`.sx-par` en position relative).
+- L'instrument de rendu (`problemes`, partagé par treize parcours) gagne une sonde : quand l'écran défile dans son cadre
+  (`#view`), le document ne dépasse jamais la fenêtre — et elle nomme le premier coupable. Les autres écrans des deux
+  applications ont été mesurés sur les données de l'essai humain : seule la saisie du Cabinet dépassait.
+- Test : `saisie-1342` appelle la sonde au bas d'un long brouillard (752 points de trop avant la correction, « dépasse :
+  <span.sr> « Leïla Jlassi » »). Une preuve, posée sur le défaut réel.

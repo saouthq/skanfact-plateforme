@@ -15,6 +15,7 @@ import pg from 'pg';
 import { chromium, type Browser } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { problemes } from '../instrument-rendu.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
@@ -140,6 +141,10 @@ describe('la Saisie d\'un dossier au Cabinet, au clavier (1.342.0)', () => {
 
     // Le tout en bas de la page, puis ↵ : la pièce suivante s'ouvre à l'écran, le curseur dans son fournisseur.
     await p.evaluate(() => { const v = document.querySelector('#view'); if (v) v.scrollTop = v.scrollHeight; });
+    // (1.356.1) L'écran défile dans son cadre : le document, lui, ne dépasse jamais la fenêtre. Les noms cachés aux yeux de
+    // la colonne « Par » (un par ligne du brouillard) l'allongeaient, et « Voir le brouillard » faisait défiler la fenêtre
+    // entière : une bande vide sous l'application.
+    expect((await p.evaluate(problemes, [false, 1440] as [boolean, number])).filter((x) => x.startsWith('le document dépasse'))).toEqual([]);
     await p.locator('#sx-compte').focus();
     // La barre « Pièce 1 sur 2 » est bien sortie de l'écran, au-dessus : sinon ce qui suit ne prouverait rien.
     expect(await p.evaluate(() => (document.querySelector('#sx-rang')?.getBoundingClientRect().top ?? 0) < (document.querySelector('.c-nav')?.getBoundingClientRect().bottom ?? 0))).toBe(true);

@@ -67,5 +67,15 @@ export async function problemes([cibles, W]: [boolean, number]): Promise<string[
     // dépasse DANS un cadre qui défile, lui-même dans l'écran, ne sort pas de l'écran.
     if (r.right > W + 1 && cs.position !== 'fixed' && !el.closest('.preview, .doc-page, .combo-pop') && !dansUnCadre(el)) pb.push(`sort de l'écran : <${el.tagName.toLowerCase()}> ${(el.textContent ?? '').slice(0, 40)}`);
   }
+  // (1.356.1) Quand l'écran défile dans son propre cadre (`#view`), le DOCUMENT ne dépasse jamais la fenêtre. Un élément en
+  // position absolue sans parent positionné (un texte caché aux yeux, `.sr`) se range contre la page entière et l'allonge :
+  // « Voir le brouillard » faisait alors défiler la fenêtre, et une bande vide de 213 points se posait sous l'application
+  // (le Cabinet, la saisie d'un long brouillard). On dit le premier coupable.
+  const cadre = document.querySelector<HTMLElement>('#view');
+  const depasse = document.documentElement.scrollHeight - innerHeight;
+  if (cadre && ['auto', 'scroll'].includes(getComputedStyle(cadre).overflowY) && depasse > 1) {
+    const coupable = [...document.querySelectorAll<HTMLElement>('body *')].find((e) => getComputedStyle(e).position === 'absolute' && e.getBoundingClientRect().bottom + scrollY > innerHeight + 1);
+    pb.push(`le document dépasse la fenêtre de ${Math.round(depasse)} points alors que l'écran défile dans son cadre${coupable ? ` ; dépasse : <${coupable.tagName.toLowerCase()}${coupable.className ? `.${String(coupable.className).split(' ').join('.')}` : ''}> « ${(coupable.textContent ?? '').trim().slice(0, 30)} »` : ''}`);
+  }
   return pb;
 }

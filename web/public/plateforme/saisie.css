@@ -279,7 +279,10 @@
 
 /* (1.215.0) Le brouillard comme la maquette : « Par » en pastille d'initiales, la pièce en chasse fixe, les gestes groupés à
    droite du titre. */
-.sx-bl .sx-par { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; font-size: 9.5px; font-weight: 700; letter-spacing: .02em; color: #5b4fc7; background: color-mix(in srgb, #5b4fc7 14%, var(--sb-papier)); border: 1px solid color-mix(in srgb, #5b4fc7 30%, transparent); }
+.sx-bl .sx-par { position: relative; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; font-size: 9.5px; font-weight: 700; letter-spacing: .02em; color: #5b4fc7; background: color-mix(in srgb, #5b4fc7 14%, var(--sb-papier)); border: 1px solid color-mix(in srgb, #5b4fc7 30%, transparent); }
+/* (1.356.1) Le nom caché aux yeux se range dans sa pastille (`position: relative` ci-dessus) : rangé contre la page entière,
+   chaque ligne du brouillard allongeait le DOCUMENT, et « Voir le brouillard » faisait défiler la fenêtre — une bande vide
+   sous l'application. */
 .sx-bl .sx-par .sr, .sx-bl .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .sx-bl td.c, .sx-bl th.c { text-align: center; }
 /* Le brouillard est un tableau de la comptabilité (`.cp-t` de la maquette), pas une liste de la v10 : `table.list.compact`
