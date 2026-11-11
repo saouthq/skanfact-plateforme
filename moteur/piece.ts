@@ -50,8 +50,8 @@ export type Piece = {
   // et l'avoir de son retour) se calcule TTC d'abord. Sinon 2 × 1,200 DT faisaient 2,399 DT (le HT gardé au millime).
   prixTtc?: boolean;
   // (1.155.0) Le seuil de la retenue à la source, en MILLIMES, lu à la date de la pièce (règle `retenue.seuil`) : une
-  // pièce dont le TTC hors timbre, en dinars, reste sous ce seuil ne porte pas de retenue (elle naîtra au paiement si
-  // le client en règle plusieurs pour ce montant). Absent ou nul : pas de seuil, la règle qui ne fait rien.
+  // pièce dont le TTC hors timbre, en dinars, reste sous ce seuil ne porte pas de retenue (réglée avec d'autres d'un seul
+  // paiement, elle peut s'appliquer : À VÉRIFIER, rien ne la calcule). Absent ou nul : pas de seuil, la règle qui ne fait rien.
   seuilRetenue?: bigint;
   // (1.155.0) Le taux de la FODEC, à six décimales (1 % = 10 000), lu à la date de la pièce (règle `fodec.taux`). Absent
   // ou nul : aucune FODEC, la règle qui ne fait rien. Une pièce « prix TTC » (le comptoir) n'en porte jamais.

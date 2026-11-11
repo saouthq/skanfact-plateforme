@@ -24286,9 +24286,12 @@ prouver 'un appareil retiré qui garde sa base hors ligne après l'"'"'entrée' 
   }' '  }' \
   'le bureau retire le portable perdu ; le portable, à sa reconnexion, efface ce qu'"'"'il gardait, et l'"'"'entrée le dit'
 
+# (1.356.5, rouge GitHub de 1.356.2) Le bandeau redessiné relit aussi la demande (1.356.2) : deux chemins, et la preuve qui
+# n'en retirait qu'un restait verte. Elle retire les deux (un garde-fou double se prouve en retirant les deux gardes).
 prouver 'le cabinet appris après le dessin de l'"'"'achat : le bandeau reste sans sa demande' modules/socle/ecrans/entreprise/app-1.js \
   '    if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet && remplirDemandeAchat) remplirDemandeAchat();
-' '' \
+|||      if (remplirDemandeAchat && avecCabinet()) remplirDemandeAchat();
+' '|||' \
   'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
 
 prouver 'les lectures du classeur arrivées sous une fenêtre, jamais dessinées' modules/socle/ecrans/cabinet/app-1.js \
@@ -28101,7 +28104,7 @@ prouver 'hotel 1.356.4 e : un libellé de champ en boîte flex, sa bulle seule s
   '.fl.fl-lbl { display: block; }' '.fl.fl-lbl { }' \
   "$PS13564"
 prouver 'hotel 1.356.4 f : la recherche d'\''article dit « 0 article »' 'modules/socle/ecrans/entreprise/app-1.js' \
-  '(montres.length ? pl(montres.length, '\''article'\'') : '\''Aucun article de ce nom'\'')' 'pl(montres.length, '\''article'\'')' \
+  '(montres.length ? pl(montres.length, mc.un) : `${mc.un === '\''prestation'\'' ? '\''Aucune'\'' : '\''Aucun'\''} ${mc.un} de ce nom`)' 'pl(montres.length, mc.un)' \
   "$PS13564"
 prouver 'hotel 1.356.4 g : « prix de Hôtel Les Palmiers SA » en tête de la recherche' 'modules/socle/ecrans/entreprise/app-1.js' \
   '`<small>prix pour ${h(cl.name)}</small>`' '`<small>prix de ${h(cl.name)}</small>`' \
@@ -28125,6 +28128,54 @@ prouver 'hotel 1.356.4 m : la fiche complétée depuis l'\''émission, « Avant 
   '              if (opts.ficheChangee) opts.ficheChangee();
 ' '' \
   "$PS13564"
+# (1.356.5) Bout en bout 8 : le devis de l'hôtel, son acompte et son solde.
+PS13565='le devis respecte le seuil, l'\''acompte s'\''annonce comme il naîtra, et le message dit le montant de la facture'
+prouver 'acompte 1.356.5 a : le devis annonce une retenue sous le seuil' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    if (bridge.seuilRetenue) { const sr = Number(bridge.seuilRetenue()) || 0; if (sr > 0) inv.seuilRetenue = sr; }
+' '' \
+  "$PS13565"
+prouver 'acompte 1.356.5 b : la fenêtre d'\''acompte ajoute le timbre une seconde fois au TTC' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '\u00a0TTC${Number(t.stamp) > 0 ? `, dont\u00a0timbre\u00a0' '\u00a0TTC${Number(t.stamp) > 0 ? ` +\u00a0timbre\u00a0' \
+  "$PS13565"
+prouver 'acompte 1.356.5 c : « la retenue se fera au paiement », un geste qui n'\''existe pas' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '(${C.money(retenueEnMoins, cur)} ; réglées d\'\''un seul paiement, la retenue peut s\'\''appliquer : À VÉRIFIER avec ton comptable)' '(${C.money(retenueEnMoins, cur)} — la retenue se fera au paiement)' \
+  "$PS13565"
+prouver 'acompte 1.356.5 d : l'\''acompte facturé, le devis annonce encore la facture entière' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '          const solde = pdq.acomptes.length > 0;
+' '          const solde = false;
+' \
+  "$PS13565"
+prouver 'acompte 1.356.5 e : le devis facturé en entier annonce encore une facture' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '          if (pdq.totales.length) return '\'''\'';
+' '' \
+  "$PS13565"
+prouver 'acompte 1.356.5 f : « marqué envoyé » sur un devis ni envoyé ni marqué' 'modules/socle/ecrans/entreprise/app-1.js' \
+  ': st === '\''envoyé'\'' ? '\''marqué envoyé'\'' : '\''aucun envoi noté'\'' },' ': '\''marqué envoyé'\'' },' \
+  "$PS13565"
+prouver 'acompte 1.356.5 g : la fenêtre de solde ajoute le timbre une seconde fois au TTC' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    const detail = detailAPayer(ts, cur);
+' '    const detail = `${C.money(ts.totalTTC, cur)} TTC + timbre ${C.money(ts.stamp, cur)}`;
+' \
+  "$PS13565"
+prouver 'acompte 1.356.5 h : « Avant d'\''émettre » promet la retenue au paiement' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'TTC : pas de retenue sur la facture. Réglée avec d\'\''autres d\'\''un seul paiement de ce montant ou plus, la retenue peut s\'\''appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`' 'TTC : pas de retenue sur la facture ; elle se fera au paiement si le client en règle plusieurs pour ce montant ou plus`' \
+  "$PS13565"
+prouver 'acompte 1.356.5 j : « Facturé : » tait l'\''acompte du devis' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'piecesFactureesDuDevis(issuedDeposits, dejaFacture, '\''en brouillon'\'')' 'dejaFacture.map(f => h(f.number || '\''brouillon'\'')).join('\'', '\'')' \
+  "$PS13565"
+prouver 'acompte 1.356.5 k : la frise du devis tait l'\''acompte' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'piecesFactureesDuDevis(issuedDeposits, factures, '\''en brouillon'\'')' 'factures.map(f => h(f.number || '\''en brouillon'\'')).join('\'', '\'')' \
+  "$PS13565"
+prouver 'acompte 1.356.5 l : un devis facturé en entier propose encore un acompte' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'const autresChemins = `${dejaFacture.length ? '\'''\'' : ligneMenu(' 'const autresChemins = `${ligneMenu(' \
+  "$PS13565"
+prouver 'acompte 1.356.5 m : le numéro d'\''une facture du devis se coupe sur son tiret' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '(f.number ? numerosInsecables(h(f.number)) : h(sansNumero))' 'h(f.number || sansNumero)' \
+  "$PS13565"
+prouver 'hotel 1.356.5 i : « Créer l'\''article » chez qui vend des prestations' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '<b>Créer ${h(mc.le)} « ${h(brut)} »…</b>' '<b>Créer l'\''article « ${h(brut)} »…</b>' \
+  "$PS13564"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

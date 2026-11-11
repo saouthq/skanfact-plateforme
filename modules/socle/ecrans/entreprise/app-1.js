@@ -5995,7 +5995,9 @@
     // À L'INTÉRIEUR du bouton faisait un bouton dans un bouton, que le navigateur ferme d'office —
     // elle tombait seule sur la ligne suivante du menu.
     const ligneMenu = (bouton, cle) => `<div class="ml-ligne">${bouton}${info(cle)}</div>`;
-    const autresChemins = `${ligneMenu('<button id="deposit">Facture d\'acompte…</button>', 'ed.deposit')}
+    // (1.356.5) Un devis facturé en entier (une facture totale, ou le solde de ses acomptes) n'a plus d'acompte à demander :
+    // le menu le proposait encore à côté de « Voir FAC-… ». « Refacturer la totalité… » reste, la porte assumée.
+    const autresChemins = `${dejaFacture.length ? '' : ligneMenu('<button id="deposit">Facture d\'acompte…</button>', 'ed.deposit')}
         ${soldable ? ligneMenu(`<button id="settle">Facture de solde (${issuedDeposits.length} acompte${issuedDeposits.length > 1 ? 's' : ''} déduit${issuedDeposits.length > 1 ? 's' : ''})</button>`, 'ed.settle') : ''}
         ${dejaFacture.length || issuedDeposits.length || brouillonsAcompte.length ? `<button id="convert" class="danger">Refacturer la totalité…</button>` : ''}`;
     // UN seul bouton principal, et c'est l'étape suivante (10.12.0, la règle U-11 du Cabinet portée
@@ -6383,7 +6385,8 @@
       if (devisFacturable) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="convert">${lfIc('carte', 17)}Facturer ce devis</button> ${info('ed.convert')}
         <p class="ed-phrase">Accepté. La facture arrive en brouillon, avec les lignes du devis ; tu l'émets quand tu veux.</p>${sauver}
         <div class="ed-deux"><button class="btn" id="deposit">Facture d'acompte…</button>${convertibles.length ? '<button class="btn" id="ed-transformer" aria-haspopup="menu" aria-expanded="false">Transformer ▾</button>' : grand}</div></div>`;
-      const phrase = dejaFacture.length ? `Facturé : ${dejaFacture.map(f => h(f.number || 'brouillon')).join(', ')}.`
+      // (1.356.5) « Facturé : FAC-2026-003 » taisait l'acompte FAC-2026-002 : un devis facturé en deux fois nomme les deux.
+      const phrase = dejaFacture.length ? `Facturé : ${piecesFactureesDuDevis(issuedDeposits, dejaFacture, 'en brouillon')}.`
         : soldable ? 'Un acompte est facturé : le solde reste à facturer.'
         : brouillonsAcompte.length ? 'Un acompte attend en brouillon : émets-le.'
         : st === 'refusé' ? 'Le client a refusé ce devis.'
@@ -6407,14 +6410,16 @@
       const rep = stored.reponse && stored.reponse.statut === st ? stored.reponse : null;
       return friseHtml([
         { t: 'Créé', fait: true, d: lfJm(doc.date) },
-        { t: 'Envoyé', fait: true, d: premier ? `${lfJm(premier.date)} · ${premier.canal === 'whatsapp' ? 'WhatsApp' : 'e-mail'}` : 'marqué envoyé' },
+        // (1.356.5) « marqué envoyé » sur un devis accepté sans avoir été ni envoyé ni marqué (une réponse au téléphone,
+        // l'acompte facturé) : on ne dit que ce qui est noté.
+        { t: 'Envoyé', fait: true, d: premier ? `${lfJm(premier.date)} · ${premier.canal === 'whatsapp' ? 'WhatsApp' : 'e-mail'}` : st === 'envoyé' ? 'marqué envoyé' : 'aucun envoi noté' },
         // (1.157.2, maquette « Devis ») Vu : le lien du devis ouvert par le client, lu sur le serveur (« vu le …, N fois »).
         ...(bridge.vuesPiece ? [{ t: 'Vu', k: 'vu', fait: false, d: 'pas encore ouvert par le lien' }] : []),
         { t: st === 'refusé' ? 'Refusé' : repondu ? 'Accepté' : 'Réponse', fait: repondu && st !== 'refusé', alerte: st === 'refusé',
           d: rep ? `${lfJm(rep.le)}${rep.comment && COMMENT_REPONSE[rep.comment] ? ` · ${COMMENT_REPONSE[rep.comment]}` : ''}${st === 'refusé' && rep.motif ? ` · ${h(rep.motif)}` : ''}`
             : st === 'refusé' ? 'le client a dit non' : repondu ? 'le client a dit oui' : st === 'expiré' ? 'validité passée' : `en attente${jours != null && jours >= 0 ? ` · valable ${pl(jours, 'jour')}` : ''}`,
           g: attend ? '<button type="button" class="btn btn-sm" data-frise="accepter">Accepté</button><button type="button" class="btn btn-sm" data-frise="refuser">Refusé</button>' : '' },
-        { t: 'Facturé', fait: factures.length > 0, d: factures.length ? factures.map(f => h(f.number || 'en brouillon')).join(', ') : issuedDeposits.length ? `acompte ${issuedDeposits.map(f => h(f.number)).join(', ')}` : st === 'accepté' ? 'à faire' : st === 'refusé' ? 'rien à facturer' : 'quand il aura dit oui',
+        { t: 'Facturé', fait: factures.length > 0, d: factures.length ? piecesFactureesDuDevis(issuedDeposits, factures, 'en brouillon') : issuedDeposits.length ? `acompte ${issuedDeposits.map(f => h(f.number)).join(', ')}` : st === 'accepté' ? 'à faire' : st === 'refusé' ? 'rien à facturer' : 'quand il aura dit oui',
           g: st === 'accepté' && devisFacturable ? '<button type="button" class="btn btn-sm" data-frise="convert">Facturer</button>' : '' },
       ]);
     };
@@ -7999,7 +8004,7 @@
         }
         // (maquette « sur 2 pages ») Le nombre de pages, compté par la mise en page de l'aperçu (la même que le PDF).
         if (pagesApercu > 1) points.push([true, `${pagesApercu} pages : chaque page reprend l'en-tête des colonnes`, '']);
-        if (t.sousLeSeuil) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur la facture ; elle se fera au paiement si le client en règle plusieurs pour ce montant ou plus`, '']);
+        if (t.sousLeSeuil) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur la facture. Réglée avec d\'autres d\'un seul paiement de ce montant ou plus, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`, '']);
       }
       if (isQ) {
         const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), co);
@@ -8196,9 +8201,18 @@
         </table>
         ${isQ ? `<div class="ed-net"><span class="k">Total du devis TTC</span><span class="v"><b>${nu(t.totalTTC)}</b> <small>${h(cur)}</small></span><span class="s">${doc.dueDate ? `valable jusqu'au ${C.fmtDate(doc.dueDate)}` : 'sans date de validité'}</span></div>${(() => {
           // Ce que le client paiera quand le devis deviendra une facture : le timbre et la retenue de sa fiche s'y ajoutent.
-          const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
-          if (!tf.stamp && !tf.withholding) return '';
-          return `<div class="ed-si-facture"><span class="k">Si le devis devient une facture</span><table>
+          // (1.356.5) Un acompte facturé, la facture qui vient est le SOLDE : l'encadré annonçait encore la facture entière
+          // (« 1 273,348 ») sous « Facture de solde ». Il annonce le solde, par le constructeur de « Facture de solde ». Le
+          // devis facturé en entier n'a plus de facture à venir : rien à annoncer.
+          const pdq = doc.id ? piecesDuDevis(doc.id) : { totales: [], acomptes: [] };
+          if (pdq.totales.length) return '';
+          const solde = pdq.acomptes.length > 0;
+          const tf = C.computeTotals(solde ? invoiceFromQuote(doc, C.settlementLines(doc, pdq.acomptes), doc.discountRate) : invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
+          // Ce que les acomptes ôtent au devis, en TTC : la ligne qui fait tomber le compte juste (devis − acomptes + timbre − retenue).
+          const deduit = solde ? C.round3(t.totalTTC - (tf.totalTTC - (Number(tf.stamp) || 0))) : 0;
+          if (!tf.stamp && !tf.withholding && !deduit) return '';
+          return `<div class="ed-si-facture"><span class="k">${solde ? 'La facture de solde' : 'Si le devis devient une facture'}</span><table>
+            ${deduit ? `<tr><td>${pdq.acomptes.length > 1 ? 'Acomptes déduits' : `Acompte ${h(pdq.acomptes[0].number || '')} déduit`}</td><td>− ${nu(deduit)}</td></tr>` : ''}
             ${tf.stamp ? `<tr><td>Timbre fiscal</td><td>+ ${nu(tf.stamp)}</td></tr>` : ''}
             ${tf.withholding ? `<tr><td>Retenue ${pct(tf.withholdingRate)} % du client</td><td>− ${nu(tf.withholding)}</td></tr>` : ''}
             <tr class="trait"><td>Le client paiera</td><td>${nu(tf.netToPay)}</td></tr></table></div>`;
@@ -8825,11 +8839,20 @@
           const acompte = invoiceFromQuote(doc, q.lignes, 0);
           const solde = invoiceFromQuote(doc, C.settlementLines(doc, [acompte]), doc.discountRate);
           const ta = C.computeTotals(acompte, company()), ts = C.computeTotals(solde, company());
-          const detail = t => [`${C.money(t.totalTTC, cur)} TTC`, Number(t.stamp) > 0 ? `+ timbre ${C.money(t.stamp, cur)}` : '', Number(t.withholding) > 0 ? `− retenue ${C.money(t.withholding, cur)}` : ''].filter(Boolean).join(' ');
+          const detail = t => detailAPayer(t, cur);
           const deDeux = C.round3(ta.netToPay + ts.netToPay - toutEnUne.netToPay);
+          // L'écart se dit par ce qui le fait : un second timbre, et — quand chaque facture tombe sous le seuil que le devis
+          // entier dépasse — la retenue qu'aucune des deux ne porte (réglées d'un seul paiement, elle peut s'appliquer : À VÉRIFIER,
+          // et SkanFact ne la calcule pas sur un paiement groupé — l'avant-émission le dit pareil).
+          const timbreEnPlus = C.round3((Number(ta.stamp) || 0) + (Number(ts.stamp) || 0) - (Number(toutEnUne.stamp) || 0));
+          const retenueEnMoins = C.round3((Number(toutEnUne.withholding) || 0) - (Number(ta.withholding) || 0) - (Number(ts.withholding) || 0));
+          const sousSeuil = [ta, ts].filter(t => !(Number(t.withholding) > 0)).length;
+          const note = retenueEnMoins > 0.0005
+            ? `Deux factures${timbreEnPlus > 0.0005 ? ', deux timbres,' : ''} et ${sousSeuil > 1 ? 'aucune retenue sur elles : chacune est sous le seuil' : 'pas de retenue sur l\'une : elle est sous le seuil'} (${C.money(retenueEnMoins, cur)} ; réglées d\'un seul paiement, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable). Ensemble, elles font ${C.money(C.round3(ta.netToPay + ts.netToPay), cur)} à payer, ${C.money(Math.abs(deDeux), cur)} de ${deDeux > 0 ? 'plus' : 'moins'} qu'une seule facture.`
+            : `Deux factures, donc deux timbres : le client paiera ${C.money(C.round3(ta.netToPay + ts.netToPay), cur)} en tout, ${C.money(Math.abs(deDeux), cur)} de ${deDeux > 0 ? 'plus' : 'moins'} qu'en une seule facture.`;
           el.innerHTML = `<div class="ac-2"><div><span>L'acompte · ${pct(q.pct)} %</span><b id="dp-acompte">${h(C.money(ta.netToPay, cur))}</b><small>à payer · ${h(detail(ta))}</small></div>
             <div><span>Le solde, plus tard</span><b id="dp-solde">${h(C.money(ts.netToPay, cur))}</b><small>à payer · ${h(detail(ts))}</small></div></div>
-            ${Math.abs(deDeux) > 0.0005 ? `<p class="note-v">${lfIc('aide', 13, 2)}<span>Deux factures, donc deux timbres : le client paiera ${h(C.money(C.round3(ta.netToPay + ts.netToPay), cur))} en tout, ${h(C.money(Math.abs(deDeux), cur))} de ${deDeux > 0 ? 'plus' : 'moins'} qu'en une seule facture.</span></p>` : ''}`;
+            ${Math.abs(deDeux) > 0.0005 ? `<p class="note-v">${lfIc('aide', 13, 2)}<span>${h(note)}</span></p>` : ''}`;
         };
         const f = $('#df', root);
         const majMode = mode => {
@@ -9421,14 +9444,17 @@
           const cl = clientById(doc.clientId);
           const ventes = dernieresVentes();
           // (1.356.4) « 0 article · prix de Hôtel Les Palmiers SA » : rien ne correspond se DIT, et « pour » n'a pas d'élision à deviner.
-          const html = `<div class="aj-tete"><span>${brut ? (montres.length ? pl(montres.length, 'article') : 'Aucun article de ce nom') : 'Tape un nom, une référence ou un code-barres'}</span>${cl ? `<small>prix pour ${h(cl.name)}</small>` : ''}</div>
+          // (1.356.5) Le mot du métier (`motsCatalogue`), comme la fenêtre qui crée : « Créer l'article « Audit » » ouvrait
+          // « Nouvelle prestation » chez un informaticien.
+          const mc = motsCatalogue();
+          const html = `<div class="aj-tete"><span>${brut ? (montres.length ? pl(montres.length, mc.un) : `${mc.un === 'prestation' ? 'Aucune' : 'Aucun'} ${mc.un} de ce nom`) : 'Tape un nom, une référence ou un code-barres'}</span>${cl ? `<small>prix pour ${h(cl.name)}</small>` : ''}</div>
             ${montres.map((c, i) => {
               const pr = C.prixArticlePour(data, c, doc.clientId, doc.date, 1);
               const v = ventes.get(c.id);
               const sous = [c.code ? h(c.code) : '', c.unit ? h(c.unit) : '', pr.source === 'liste' ? `prix du client${pr.liste ? ` (${h(pr.liste)})` : ''}` : pr.source === 'palier' ? 'prix au palier' : c.tracked ? '' : 'prestation', palierDuChoix(c), v ? `la dernière fois : ${C.money(v.pu, null, C.decimalsFor(v.cur))}` : ''].filter(Boolean).join(' · ');
               return `<button type="button" class="aj-o${i === selA ? ' sel' : ''}" data-aj="${i}"><span class="aj-n"><b>${h(c.label)}</b><small>${sous}</small></span>${c.tracked ? `<span class="aj-st ${C.stockOf(data, c.id).qty > 0 ? 'ok' : 'alerte'}">en stock : ${pct(C.stockOf(data, c.id).qty)}</span>` : '<span></span>'}<span class="aj-p">${prixAffiche(c)} <small>HT</small></span></button>`;
             }).join('')}
-            ${brut ? `<button type="button" class="aj-o aj-cr${selA === montres.length ? ' sel' : ''}" data-aj-cr>${lfIc('ajout', 15, 2.4)}<b>Créer l'article « ${h(brut)} »…</b></button>
+            ${brut ? `<button type="button" class="aj-o aj-cr${selA === montres.length ? ' sel' : ''}" data-aj-cr>${lfIc('ajout', 15, 2.4)}<b>Créer ${h(mc.le)} « ${h(brut)} »…</b></button>
             <button type="button" class="aj-libre" data-aj-libre>ou garder une ligne libre</button>` : ''}
             <div class="aj-pied"><kbd>↑</kbd><kbd>↓</kbd> choisir · <kbd>↵</kbd> ajouter · la quantité suit</div>`;
           if (!popA || !popA.pop.isConnected) popA = ouvrirBulle($('#ed-ajout-z'), html, null, { classe: 'aj-pop', role: 'listbox', largeur: 'ancre', min: 560, recouvre: false, label: 'Ajouter un article' });
@@ -9673,6 +9699,14 @@
     return p.totales.some(emise) ? ' <span class="small muted nw">facturé</span>'
       : p.acomptes.some(emise) ? ' <span class="small muted nw">acompte facturé</span>' : '';
   }
+  // Les factures d'un devis, nommées : « acompte FAC-…, solde FAC-… » quand il a été facturé en plusieurs fois, le seul numéro
+  // sinon. Échappé ici (le résultat va tel quel dans le gabarit) ; un numéro ne se coupe pas sur son tiret (« solde FAC- » en
+  // fin de ligne, « 2026-003 » sur la suivante).
+  function piecesFactureesDuDevis(acomptes, factures, sansNumero) {
+    const n = f => (f.number ? numerosInsecables(h(f.number)) : h(sansNumero));
+    if (!acomptes.length) return factures.map(n).join(', ');
+    return [...acomptes.map(f => `acompte ${n(f)}`), ...factures.map(f => `${f.settles ? 'solde ' : ''}${n(f)}`)].join(', ');
+  }
   function piecesDuDevis(quoteId) {
     const totales = C.facturesDuDevis(data, quoteId).filter(d => !d.deposit);
     // Les acomptes rangés par devis une fois par lot (10.14.0) : la page « Me guider » cherchait le
@@ -9834,7 +9868,7 @@
     const deduit = r => C.round3(tas.reduce((x, t) => x + base(t, r), 0));
     const mt = x => h(C.money(x, cur));
     const ligne = (titre, d, a, so, cls) => `<div class="cmp${cls ? ` ${cls}` : ''}"><span>${titre}</span><span>${mt(d)}</span><span class="neg">${a ? `− ${mt(a)}` : '—'}</span><span><b>${mt(so)}</b></span></div>`;
-    const detail = [`TTC ${C.money(ts.totalTTC, cur)}`, Number(ts.stamp) > 0 ? `+ timbre ${C.money(ts.stamp, cur)}` : '', Number(ts.withholding) > 0 ? `− retenue ${C.money(ts.withholding, cur)}` : ''].filter(Boolean).join(' ');
+    const detail = detailAPayer(ts, cur);
     const somme = f => C.round3(taux.reduce((x, r) => x + f(r), 0));
     modal(`<h2>Facture de solde · ${h(q.number)}</h2>
       <div class="cmp t"><span>Taux de TVA</span><span>Devis HT</span><span>Acompte${acomptes.length > 1 ? 's' : ''}</span><span>Solde HT</span></div>
@@ -9856,6 +9890,11 @@
     });
   }
 
+  // (1.356.5) Ce qu'une facture tirée d'un devis fera à payer, en une phrase, pour les fenêtres d'acompte et de solde (elles
+  // l'écrivaient chacune à sa façon). Le TTC est celui que la facture imprimera, timbre compris (« Timbre fiscal 1,000 ·
+  // Total TTC 386,560 ») : « TTC 386,560 + timbre 1,000 » l'ajoutait une seconde fois. Un montant ne se sépare pas de son
+  // mot (1.356.2) : « + timbre » finissait une ligne, « 1,000 DT » commençait la suivante.
+  const detailAPayer = (t, cur) => `${C.money(t.totalTTC, cur)}\u00a0TTC${Number(t.stamp) > 0 ? `, dont\u00a0timbre\u00a0${C.money(t.stamp, cur)}` : ''}${Number(t.withholding) > 0 ? ` −\u00a0retenue\u00a0${C.money(t.withholding, cur)}` : ''}`;
   function invoiceFromQuote(quote, lines, discountRate) {
     const inv = newDocument('facture');
     // `projectId` fait partie de ce qui se recopie (7.16.0). Il manquait : les TROIS chemins qui
@@ -9871,6 +9910,10 @@
     // l'annonce du solde, rapport QA E-02).
     const cl = clientById(quote.clientId);
     if (cl) inv.applyStamp = !cl.stampExempt;
+    // (1.356.5) Le seuil de la retenue (`retenue.seuil`, lu au serveur) se pose ICI aussi, comme l'éditeur le pose sur un
+    // brouillon de facture : sans lui, « Si le devis devient une facture » retenait 1 % d'un devis sous le seuil, et
+    // l'acompte s'annonçait « 382,704 DT » pour une facture qui en fera 386,560. L'annonce et la pièce, un constructeur (E-02).
+    if (bridge.seuilRetenue) { const sr = Number(bridge.seuilRetenue()) || 0; if (sr > 0) inv.seuilRetenue = sr; }
     return inv;
   }
   // (1.307.0) Facturer un devis encore en attente, c'est que le client a dit oui : le jour où l'on facture se note comme sa

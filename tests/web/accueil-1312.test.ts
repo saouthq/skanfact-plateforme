@@ -205,7 +205,8 @@ describe('l\'accueil 1.312.0 : les chiffres du jour, ceux de chaque page', () =>
     expect(await vue()).toContain('2 factures à relancer — 1 800,916 DT à récupérer');
     await aller('#/clients');
     await p.locator('#list-wrap tbody tr').first().waitFor();
-    expect(net(await p.locator('#list-wrap tfoot').innerText())).toContain('7 129,107 dont 1 800,916 en retard');
+    // (1.356.5, rouge GitHub de 1.356.4) Le total « Te doit » dit sa devise, comme « Facturé HT » à côté de lui.
+    expect(net(await p.locator('#list-wrap tfoot').innerText())).toContain('7 129,107 DT dont 1 800,916 en retard');
 
     // C. « Tu dois » : les trois achats qui restent à payer, et l'avoir de Céramique qui n'est encore déduit de rien.
     await aller('#/dashboard', '[data-stat]');

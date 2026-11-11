@@ -164,7 +164,8 @@ describe('les devis 1.307.0 : du devis à la facture, tel que la maquette', () =
     await p.locator('#deposit').click();
     await expect.poll(() => fen().locator('h2').innerText(), { timeout: 10_000 }).toBe('Facture d\'acompte · DEV-2026-021');
     expect(await fen().locator('[data-ac="pct"]').getAttribute('aria-pressed')).toBe('true');
-    expect(net(await fen().locator('.ac-2 > div').first().innerText())).toMatch(/^L'acompte · 30 % [\d\s]+,\d{3} DT à payer · [\d\s]+,\d{3} DT TTC \+ timbre 1,000 DT$/);
+    // (1.356.5) Le TTC est celui de la facture, timbre compris : « TTC + timbre » ajoutait le timbre une seconde fois.
+    expect(net(await fen().locator('.ac-2 > div').first().innerText())).toMatch(/^L'acompte · 30 % [\d\s]+,\d{3} DT à payer · [\d\s]+,\d{3} DT TTC, dont timbre 1,000 DT$/);
     expect(net(await fen().locator('.note-v').innerText())).toMatch(/^Deux factures, donc deux timbres : le client paiera [\d\s]+,\d{3} DT en tout, 1,000 DT de plus qu'en une seule facture\.$/);
     await fen().locator('[data-acp="40"]').click();
     await expect.poll(() => fen().locator('[name=percent]').inputValue()).toBe('40');

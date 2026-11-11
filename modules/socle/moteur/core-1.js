@@ -1662,7 +1662,7 @@
     // La retenue à la source ne se pratique que sur ce qui est réellement payé : facture, avoir, proforma.
     const withholdingRate = ['facture', 'avoir', 'proforma'].includes(doc.type) ? (Number(doc.withholdingRate) || 0) : 0;
     // (1.155.0) Sous le seuil (en dinars, lu au serveur : la règle `retenue.seuil`), une pièce
-    // ne porte pas de retenue : elle naîtra au paiement si le client en règle plusieurs pour ce montant. Comparé en
+    // ne porte pas de retenue (réglée avec d'autres d'un seul paiement, elle peut s'appliquer : À VÉRIFIER, rien ne la calcule). Comparé en
     // dinars, au millime, comme le serveur. Sans seuil connu, rien ne change.
     // Le seuil est gardé SUR la pièce (`seuilRetenue`, posé par l'écran au brouillon, scellé à l'émission) : une loi qui
     // le change ne réécrit pas une facture déjà faite. Une pièce d'avant n'en a pas : celui de l'entreprise, sinon aucun.

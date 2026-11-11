@@ -2797,3 +2797,38 @@ comptable, À VÉRIFIER.) Ce qui a été corrigé en chemin :
   ligne, la recherche vide, « Ta fiche », « Compléter » et le retour, une livraison offerte qui avertit à l'émission et
   « Compléter ma fiche… » sur la case de l'adresse, les libellés de la fiche du client, la liste) ; `prix-1317` retourné
   vers « le prix convenu avec ». Treize preuves.
+
+### 1.356.5 : le devis de l'hôtel, son acompte et son solde, jusqu'au Cabinet
+
+Bout en bout 8 : la boulangerie fait à l'Hôtel Les Palmiers SA (retenue 1 %) le devis des petits-déjeuners d'un séminaire,
+900 croissants à 1,200 (1 080 HT, 1 285,200 TTC hors timbre : au-dessus du seuil de la retenue). L'hôtel verse 30 %
+d'acompte, puis le solde. Les deux factures sont chacune sous le seuil (1 000 DT TTC, règle `retenue.seuil`, À VÉRIFIER) :
+aucune ne porte de retenue. Les deux chemins disent les mêmes chiffres : l'acompte 411 386,560 = 706 324,000 + 4367
+61,560 + 4368 1,000 ; le solde 411 900,640 = 706 756,000 + 4367 143,640 + 4368 1,000 — 1 080 HT au 706, le devis entier,
+et deux timbres ; chaque règlement solde son 411. Ce qui a été corrigé en chemin :
+- « Si le devis devient une facture » annonçait une retenue sur un devis sous le seuil (− 8,568 DT sur 856,800) : la
+  facture que le devis donnera porte le seuil du jour, comme celle que l'éditeur pose.
+- La fenêtre de l'acompte annonçait 382,704 DT pour une facture de 386,560 (la retenue d'un devis entier, appliquée à une
+  part sous le seuil), et « TTC + timbre » ajoutait le timbre une seconde fois au TTC qui le contient : « 386,560 DT TTC,
+  dont timbre 1,000 DT », le TTC que la facture dira. L'écart avec une seule facture se dit par ce qui le fait (deux
+  timbres, la retenue qu'aucune ne porte). La fenêtre de solde dit pareil.
+- « la retenue se fera au paiement si le client en règle plusieurs pour ce montant » (fenêtre d'acompte, « Avant
+  d'émettre ») promettait un geste qui n'existe pas : rien ne calcule une retenue sur un paiement groupé. L'écran dit
+  que réglées d'un seul paiement, la retenue peut s'appliquer — À VÉRIFIER avec le comptable. (Saisir la retenue d'un
+  paiement groupé reste à faire : c'est une règle de droit et une écriture au 4358, pas une phrase.)
+- L'acompte facturé, l'encadré du devis annonçait encore la facture entière (1 273,348) : il annonce LA FACTURE DE SOLDE
+  (l'acompte déduit en TTC hors timbre, le timbre du solde, ce que le client paiera : 900,640), par le constructeur de
+  « Facture de solde » ; le devis facturé en entier n'annonce plus rien.
+- La frise d'un devis accepté sans avoir été envoyé (l'acompte facturé) disait « marqué envoyé » : « aucun envoi noté ».
+- Le devis facturé en deux fois disait « Facturé : FAC-2026-003 » (le seul solde), et son menu proposait encore « Facture
+  d'acompte… » : il nomme ses deux factures (« acompte FAC-2026-002, solde FAC-2026-003 »), sous le bouton comme dans la
+  frise, sans couper un numéro sur son tiret ; le menu ne garde que « Refacturer la totalité… », la porte assumée.
+- La recherche d'article suit les mots du métier (1.356.3) : une entreprise de services lit « Aucune prestation de ce
+  nom » et « Créer la prestation « … »… », jamais « article ».
+- Le test « cabinet appris après le dessin de l'achat » (rouge GitHub de 1.356.2) retenait la réponse du cabinet trois
+  secondes : sur une machine lente la pièce se dessinait après, et le cas n'était plus joué. La réponse attend que la
+  pièce soit dessinée sans la demande ; et la preuve retire les deux chemins qui la remplissent (1.356.2 en a ajouté un).
+- Test : `acompte-1356` (le seuil posé comme règle de l'entreprise du test, que l'écran et le serveur lisent tous deux —
+  servi au seul navigateur, l'émission tombait : 386,560 à l'écran, 382,704 au serveur ; l'acompte émis, l'encadré du
+  solde, la frise, la fenêtre de solde, le solde créé, puis le devis qui nomme ses deux factures). Treize preuves, plus la
+  preuve reprise.

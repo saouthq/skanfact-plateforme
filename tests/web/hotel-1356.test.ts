@@ -2,7 +2,7 @@
 // de la boulangerie à l'hôtel, avec sa retenue à la source à 1 %, et ce qu'elle a appris en chemin :
 //   - la pastille « Retenue » suit les lignes : « 1 % · sous le seuil » sur une pièce vide, « 1 % · du client » une fois
 //     la ligne posée (avant : elle gardait « sous le seuil » jusqu'au redessin suivant) ;
-//   - la recherche d'article dit « Aucun article de ce nom » (pas « 0 article ») et « prix pour l'Hôtel… » ; le nom d'un
+//   - la recherche d'article dit « Aucune prestation de ce nom » (pas « 0 article ») et « prix pour l'Hôtel… » ; le nom d'un
 //     tiers s'élide (« Actions d'Hôtel… »), et un client qui règle le jour même ne « paie pas en 0 jour » ;
 //   - l'adresse de la société manque à « Ta fiche » (avant : « matricule, RIB, adresse » en vert, sans adresse) ;
 //   - « Compléter » mène aux Paramètres, et un bouton retour ramène à la facture, qu'il nomme avec son client ;
@@ -110,7 +110,9 @@ describe('bout en bout 1.356.4 : la facture de l\'hôtel, ses mots et ses retour
     await p.locator('#ed-ajout').click();
     await p.keyboard.type('zzz');
     const tete = p.locator('.aj-pop .aj-tete');
-    await expect.poll(async () => net(await tete.innerText().catch(() => ''))).toBe('Aucun article de ce nom prix pour Hôtel Les Palmiers SA');
+    // (1.356.5) Le mot suit le métier, comme la fenêtre qui crée : une société sans activité vend des prestations.
+    await expect.poll(async () => net(await tete.innerText().catch(() => ''))).toBe('Aucune prestation de ce nom prix pour Hôtel Les Palmiers SA');
+    expect(net(await p.locator('.aj-pop [data-aj-cr]').innerText())).toBe('Créer la prestation « zzz »…');
     // 3. L'article choisi, six paniers : 1 260 HT, 1 499,400 TTC hors timbre — au-dessus du seuil. La pastille le suit tout de suite.
     await p.locator('#ed-ajout').fill('');
     await p.keyboard.type('Panier');
