@@ -17,6 +17,16 @@
       <p>${esc(nom)} fait sa paie elle-même dans SkanFact : le mandat ne comprend pas la paie. Son écriture de chaque mois arrive au journal de paie (PAIE), au brouillard, comme ses ventes : elle se lit et se valide dans Saisie. Déclarer ici ses salariés et leurs bulletins compterait la paie deux fois.</p>
       <p class="mt"><button type="button" class="btn btn-primary" id="pa-hors-saisie">Voir ses écritures dans Saisie</button></p></div>`;
   }
+  // (1.356.2, rouge GitHub de la 1.356.0) Le trimestre de la CNSS, quand on n'en a pas choisi : celui du mois regardé s'il porte
+  // des bulletins, sinon le dernier, avant lui, qui en porte. La Paie s'ouvre sur le mois qui ATTEND son bulletin (1.355.4) :
+  // en décembre, la CNSS disait « Aucun bulletin sur ce trimestre » au-dessus d'un 1er trimestre plein, à déclarer. UNE
+  // fonction pour l'écran, le fichier et l'état imprimé : trois calculs montreraient un trimestre et en fabriqueraient un autre.
+  function trimestreCnss(L, s) {
+    if (s.paieTrimestre) return Number(s.paieTrimestre);
+    const du = Math.ceil(Number(s.paieMois) / 3) || 1;
+    for (let t = du; t >= 1; t--) if (KC.cnssDuTrimestre(L, s.annee, t).lignes.length) return t;
+    return du;
+  }
   function vuePaie(dossier) {
     const s = livresState;
     const L = s.livre;
@@ -44,7 +54,7 @@
     // (son numéro suit l'ordre des jours). L'écran le dit avant le geste, sans bouton qui mène au refus.
     const ecrPaie = auBrouillard ? ecritureDuLivre(L, (bulletins.find(b => etatDe(b) === 'brouillard') || {}).ecritureId) : null;
     const paieAttendSonJour = ecrPaie && String(ecrPaie.date || '') > K.today() ? String(ecrPaie.date) : '';
-    const t = s.paieTrimestre || Math.ceil(m / 3);
+    const t = trimestreCnss(L, s);
     const cnss = KC.cnssDuTrimestre(L, s.annee, t);
     // 10.14.1 (DECL D2) — le fichier de télédéclaration du trimestre, par la MÊME fonction que le
     // processus principal qui l'écrira : ses refus se lisent AVANT le geste (9.4.2), chacun avec la
@@ -1473,14 +1483,14 @@
       () => `Journal_de_paie_${s.annee}-${String(s.paieMois).padStart(2, '0')}`);
     const et = $('#pa-etat', el);
     if (et) et.onclick = () => {
-      const trimestre = Number(s.paieTrimestre || Math.ceil(s.paieMois / 3));
+      const trimestre = trimestreCnss(s.livre, s);
       imprimerDocumentPaie(dossier, (C, d, so) => C.etatRecapitulatifCnssHtml(d, so, Number(s.annee), trimestre), () => `Etat_recapitulatif_CNSS_${s.annee}-T${trimestre}`);
     };
     const fc = $('#pa-fichier', el);
     if (fc) fc.onclick = async () => {
       fc.disabled = true;
       try {
-        const t = s.paieTrimestre || Math.ceil(s.paieMois / 3);
+        const t = trimestreCnss(s.livre, s);
         const r = await api.fichierCnss({ dossierId: dossier.id, annee: s.annee, trimestre: t });
         if (!r) return;                                    // le choix du dossier a été annulé
         if (!r.ok) { redraw(); return toast((r.refus[0] || {}).motif || 'Le fichier n\'a pas pu être fabriqué.', 'error'); }

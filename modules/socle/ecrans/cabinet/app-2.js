@@ -2699,7 +2699,10 @@
   // Le numéro qui suit le dernier du journal (« FA-0919 » → « FA-0920 »), jamais un numéro déjà pris.
   function numeroSuivantSx(journal, serie) {
     const pris = new Set(ecrituresSx().map(e => String(e.piece || '')));
-    const der = ecrituresSx().filter(e => e.journal === journal && /\d+$/.test(String(e.piece || '')) && (!serie || String(e.piece).toUpperCase().startsWith(serie)))
+    // (1.356.2, joué : le four de la boulangerie) La suite se lit sur les pièces que le CABINET a numérotées : une écriture
+    // venue de SkanFact porte le numéro de la facture du fournisseur (« EBA-2611 », Equipements Ben Ali), et la ligne
+    // suivante proposait « EBA-2612 » — le numéro d'une facture que ce fournisseur n'a jamais faite, sur la pièce d'un autre.
+    const der = ecrituresSx().filter(e => e.journal === journal && e.source !== 'skanfact' && e.source !== 'an' && /\d+$/.test(String(e.piece || '')) && (!serie || String(e.piece).toUpperCase().startsWith(serie)))
       .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.piece).localeCompare(String(b.piece))).pop();
     if (!der) return '';
     const m = /^(.*?)(\d+)$/.exec(String(der.piece));
@@ -3275,7 +3278,7 @@
       <div class="scroll-x"><table class="sx-t sx-jm-l"><thead><tr><th>Jour</th><th>Pièce</th><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th><th></th></tr></thead>
         <tbody>${lignes || `<tr><td colspan="7" class="mu">Aucun achat ${esc(deMois(m))} au journal ${esc(j)} pour l'instant.</td></tr>`}
         <tr class="sx-jm-n"><td><input id="sx-jm-jour" class="sx-in" inputmode="numeric" maxlength="2" autocomplete="off" value="${esc(L.jour)}" placeholder="jj" aria-label="Le jour"></td>
-          <td><input id="sx-jm-piece" class="sx-in mono" autocomplete="off" value="${esc(L.piece || numeroSuivantSx(j))}" aria-label="La pièce"></td>
+          <td><input id="sx-jm-piece" class="sx-in mono" autocomplete="off" value="${esc(L.piece || numeroSuivantSx(j))}" placeholder="n° pièce" aria-label="La pièce"></td>
           <td class="mono" id="sx-jm-c40">${esc(pr.f.c40)}</td>
           <td><input id="sx-jm-four" class="sx-in" list="sx-jm-fours" autocomplete="off" value="${esc(L.four)}" placeholder="Le fournisseur" aria-label="Le fournisseur"><datalist id="sx-jm-fours">${fours.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist></td>
           <td></td><td><input id="sx-jm-ttc" class="sx-in mono r" inputmode="decimal" autocomplete="off" value="${esc(L.ttc)}" placeholder="TTC" aria-label="Le total TTC"></td>

@@ -16744,8 +16744,8 @@ prouver 'les documents du Cabinet sans les bulletins du dossier' 'web/public/pla
   '        payslips: [],' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 prouver 'l'"'"'état récapitulatif du Cabinet sur un autre trimestre' modules/personnel/ecrans/cabinet/paie.js \
-  'Number(s.paieTrimestre || Math.ceil(s.paieMois / 3))' \
-  '1' \
+  'const trimestre = trimestreCnss(s.livre, s);' \
+  'const trimestre = 1;' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 
 # 1.66.0 : les taux de la paie propres à un dossier du Cabinet (docs/paie.md, « Les taux propres d'un dossier au Cabinet »).
@@ -28003,6 +28003,59 @@ PS13561='(1.342.0) Anis révise le dossier : il valide ; « 19 » choisit 19 % ;
 prouver 'cabinet 1.356.1 : les noms cachés du brouillard allongent le document (une bande vide sous l'\''application)' 'web/public/plateforme/saisie.css' \
   '.sx-bl .sx-par { position: relative; display' '.sx-bl .sx-par { display' \
   "$PS13561"
+PS13562='la frise garde « Au cabinet », le règlement partiel se dit, la fiche du bien ne bouge pas, et le Cabinet ne s'\''invente rien'
+prouver 'four 1.356.2 a : la frise de l'\''achat ne se redessine pas quand le cabinet s'\''apprend après la page' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet && redessinerFriseAchat) redessinerFriseAchat();
+' '' \
+  "$PS13562"
+prouver 'four 1.356.2 b : l'\''en-tête d'\''un achat payé à moitié dit « À payer »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '${partiel ? '\''Réglée en partie'\'' : '\''À payer'\''}' '${'\''À payer'\''}' \
+  "$PS13562"
+prouver 'four 1.356.2 c : l'\''étape du règlement d'\''un achat payé à moitié dit « Réglée »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'av ? quatrieme : { t: enPartie ? '\''Réglée en partie'\'' : '\''Réglée'\'',' 'av ? quatrieme : { t: '\''Réglée'\'',' \
+  "$PS13562"
+prouver 'four 1.356.2 d : l'\''étape ne dit pas combien sur combien' 'modules/socle/ecrans/entreprise/app-1.js' \
+  ': enPartie ? (solde.paid > 0.0005 ?' ': false && enPartie ? (solde.paid > 0.0005 ?' \
+  "$PS13562"
+prouver 'four 1.356.2 e : l'\''étape payée en partie n'\''a pas sa couleur' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'x.ko ? '\''alerte'\'' : x.partiel ? '\''partiel'\'' : x.afaire' 'x.ko ? '\''alerte'\'' : x.afaire' \
+  "$PS13562"
+prouver 'four 1.356.2 f : le prix unitaire d'\''un four coupé dans sa case' 'web/public/v10/style.css' \
+  'table.lines-edit input[data-k=unitPrice] { min-width: calc(10ch + 14px); }' 'table.lines-edit input[data-k=unitPrice] { }' \
+  "$PS13562"
+prouver 'four 1.356.2 g : la phrase de la fiche du bien pousse « Garder ces réglages »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'class="small muted annonce-stable" id="fb-phrase"' 'class="small muted" id="fb-phrase"' \
+  "$PS13562"
+prouver 'four 1.356.2 h : une durée vide se dit « proposée pour la famille »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '${f.touchee || !f.years ? '\'''\'' : '\''· proposée pour la famille'\''}' '${f.touchee ? '\'''\'' : '\''· proposée pour la famille'\''}' \
+  "$PS13562"
+prouver 'four 1.356.2 i : la durée de la famille, gardée telle quelle, se dit « choisie par toi »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'f.touchee && !(f.category && Number(f.years) === Number(C.assetClassYears(f.category)))' 'f.touchee' \
+  "$PS13562"
+prouver 'four 1.356.2 j : au kilomètre, la pièce suivante s'\''invente d'\''après le numéro du fournisseur' 'modules/socle/ecrans/cabinet/app-2.js' \
+  'e.journal === journal && e.source !== '\''skanfact'\'' && e.source !== '\''an'\'' && /' 'e.journal === journal && /' \
+  "$PS13562"
+prouver 'four 1.356.2 k : une liste d'\''une fenêtre passe sous sa flèche' 'web/public/plateforme/charte.css' \
+  '#modal-root .modal select:not([multiple]):not([size]):not([data-natif]) { padding-inline-end: 30px; }' '#modal-root .modal select:not([multiple]):not([size]):not([data-natif]) { }' \
+  "$PS13562"
+prouver 'four 1.356.2 l : la fiche rouverte au Cabinet perd la famille du bien du client' 'modules/socle/ecrans/cabinet/app-1.js' \
+  'run: () => immoForm(root, dossier, { ...f, famille: f.famille || familleDuClient(f.id) }) },' 'run: () => immoForm(root, dossier, f) },' \
+  "$PS13562"
+PS13562E='la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+PS13562P='(1.344.0) l'\''écriture validée depuis la Paie, la paie passée au journal comptée dans l'\''année, le fichier CNSS une ligne par salarié'
+prouver 'four 1.356.2 m : le montant d'\''un règlement se sépare de son mot' 'modules/socle/ecrans/entreprise/app-1.js' \
+  ' · reste\u00a0${C.money(reste, cur)}`}</p>' ' · reste ${C.money(reste, cur)}`}</p>' \
+  "$PS13562"
+prouver 'four 1.356.2 n : le bandeau redessiné perd « ton cabinet te l'\''a demandé »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      if (remplirDemandeAchat && avecCabinet()) remplirDemandeAchat();
+    };
+' '    };
+' \
+  "$PS13562E"
+prouver 'paie 1.356.2 : la CNSS d'\''un mois qui attend son bulletin dit « rien à déclarer » au-dessus d'\''un trimestre plein' 'modules/personnel/ecrans/cabinet/paie.js' \
+  '    for (let t = du; t >= 1; t--) if (KC.cnssDuTrimestre(L, s.annee, t).lignes.length) return t;
+' '' \
+  "$PS13562P"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

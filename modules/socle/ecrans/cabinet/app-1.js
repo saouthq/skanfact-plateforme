@@ -10912,6 +10912,7 @@
     // les comptes restent ceux du cabinet ; rien ne s'enregistre sans « Ajouter ». Son plan, sur une fiche déjà reprise, de même
     // (le nom que le comptable a donné au bien reste le sien : c'est le plan qu'on reprend).
     const duClientDe = id => (s.immo.duClient || []).find(x => x.id === id);
+    const familleDuClient = id => { const x = (s.immo.duClient || []).find(y => y.tenue === id); return (x && x.fiche && x.fiche.famille) || ''; };
     $$('[data-reprendre]', el).forEach(b => {
       b.onclick = () => {
         const x = duClientDe(b.dataset.reprendre);
@@ -10922,7 +10923,7 @@
       b.onclick = () => {
         const x = duClientDe(b.dataset.aligner);
         const f = x && (s.immo.fiches || []).find(y => y.id === x.tenue);
-        if (f) immoForm(root, dossier, { ...f, valeur: x.fiche.valeur, residuelle: x.fiche.residuelle, duree: x.fiche.duree,
+        if (f) immoForm(root, dossier, { ...f, famille: f.famille || x.fiche.famille, valeur: x.fiche.valeur, residuelle: x.fiche.residuelle, duree: x.fiche.duree,
           methode: 'lineaire', dateMiseEnService: x.fiche.dateMiseEnService, dateAcquisition: x.fiche.dateAcquisition, cession: x.fiche.cession });
       };
     });
@@ -10935,7 +10936,9 @@
           // (1.345.0) Le panneau s'ouvre SOUS le tableau, hors de l'écran : sans l'y amener, le geste paraissait ne rien
           // faire (7.18.0, un raccourci vise un panneau).
           run: () => { immoState.ouverte = immoState.ouverte === id ? '' : id; if (immoState.ouverte) pageFocus = 'im-plan'; drawLivres(root, dossier); } },
-        { icon: 'modifier', label: 'Modifier la fiche', hint: 'Valeur, durée, méthode, cession', run: () => immoForm(root, dossier, f) },
+        // (1.356.2, joué : le four repris de la fiche du client) La famille ne s'enregistre pas (1.345.0) : la fiche rouverte
+        // disait « — » sous un bien repris avec sa famille, comme si elle s'était perdue. Celle du bien du client se relit.
+        { icon: 'modifier', label: 'Modifier la fiche', hint: 'Valeur, durée, méthode, cession', run: () => immoForm(root, dossier, { ...f, famille: f.famille || familleDuClient(f.id) }) },
         { sep: true },
         { icon: 'supprimer', label: 'Supprimer ce bien', hint: 'Refusé si une dotation est déjà passée en écriture', danger: true,
           run: async () => {

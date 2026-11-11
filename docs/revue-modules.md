@@ -2694,3 +2694,47 @@ n'avaient aucun parent positionné et se rangeaient contre la page entière, qu'
   applications ont été mesurés sur les données de l'essai humain : seule la saisie du Cabinet dépassait.
 - Test : `saisie-1342` appelle la sonde au bas d'un long brouillard (752 points de trop avant la correction, « dépasse :
   <span.sr> « Leïla Jlassi » »). Une preuve, posée sur le défaut réel.
+
+### 1.356.2 : bout en bout 6, le four de la boulangerie jusqu'au Cabinet
+
+Sarra achète un four à sole (18 000 HT, 21 420 TTC, en immobilisation chez Equipements Ben Ali), en paie la moitié par
+chèque, puis Leïla le reçoit au Cabinet. L'achat, le règlement, la fiche du bien (3 600 par an, 500 la première année, au
+prorata de cinquante jours) et le Cabinet disent les mêmes chiffres : 22 / 4366 / 401 au livre, 401 / 532 à la banque,
+« même plan » au registre. Neuf défauts trouvés en route :
+- Le prix unitaire d'un four (« 18000.000 ») était coupé dans sa case : elle se réserve dix chiffres.
+- La fenêtre « La fiche du bien » : sa phrase passait de deux à trois lignes au choix de la famille, et « Garder ces
+  réglages » descendait de 13 points sous le curseur (place réservée) ; une durée VIDE se disait « proposée pour la
+  famille » ; la durée de la famille gardée telle quelle se disait ensuite « choisie par toi ».
+- La frise de l'achat montrait l'étape « Au cabinet » juste après l'enregistrement, et plus après un rechargement : le
+  cabinet s'apprend APRÈS la page (une réponse du serveur), et la frise était dessinée une fois. Elle se redessine quand
+  on l'apprend.
+- Payé à moitié, l'achat disait « À payer » en tête et « Réglée · échéance 11/12 » dans sa frise, sous « Réglé 10 710 ·
+  reste dû 10 710 ». L'en-tête dit « Réglée en partie » (le mot de la liste, `purchaseStatus`), et l'étape « Réglée en
+  partie · 10 710,000 sur 21 420,000 DT », en ambre (le jumeau de la frise d'une vente).
+- Au Cabinet, au kilomètre comme face à la pièce, le « numéro suivant » du journal se lisait sur TOUTES ses pièces, celles
+  venues de SkanFact comprises : après EBA-2611 (le numéro de la facture du fournisseur), la ligne suivante proposait
+  « EBA-2612 », une facture que personne n'a faite, sur la pièce d'un autre fournisseur. La suite ne se lit plus que sur
+  les pièces que le cabinet a numérotées ; sans elles, la case reste vide (« n° pièce »).
+- Une liste d'une fenêtre (« Outillage et matériel technique (5 ans) ») passait sous sa flèche : le dessin commun des
+  champs de fenêtre écrasait la place que la liste réserve au chevron (les deux applications).
+- La fiche reprise du client, rouverte au Cabinet (« Modifier la fiche »), disait « — » en famille, comme si elle s'était
+  perdue : la famille ne s'enregistre pas (1.345.0), celle du bien du client se relit.
+- Test : `four-1356` (le cabinet appris deux secondes après la page, l'achat payé à moitié, la case du prix, la fenêtre de
+  la fiche mesurée au pixel, puis le Cabinet : la pièce face à la pièce et au kilomètre, la liste de la fenêtre, la fiche
+  rouverte, la fenêtre du règlement). Quinze preuves.
+- La seconde moitié du four : la fenêtre du règlement coupait « · reste » de son montant, sur deux lignes. Un montant ne
+  se sépare plus de son mot (espaces insécables) ; la ligne se coupe aux « · ».
+- En corrigeant la frise, un défaut plus ancien : le bandeau d'un achat redessiné (après un règlement, ou le cabinet appris
+  après la page) perdait « Hatem, de ton cabinet, te l'a demandé le … », écrit une seule fois dans l'ancien bandeau. Il se
+  relit dans le fil à chaque dessin (le parcours `achat-ecarts` l'a vu tomber, dans le lot de vérification).
+- GitHub, enfin vert sur l'installation du navigateur (1.356.0), a montré deux parcours que la 1.355.4 et la 1.356.0 avaient
+  fait tomber sans qu'aucun ne tourne :
+  - `paie-1344` : la Paie du Cabinet s'ouvre depuis la 1.355.4 sur le mois qui attend son bulletin (décembre), et son onglet
+    CNSS prenait le trimestre de ce mois : « Aucun bulletin sur ce trimestre : il n'y a rien à déclarer », au-dessus d'un
+    1er trimestre plein, à déclarer. Sans choix, la CNSS s'ouvre sur le trimestre du mois s'il porte des bulletins, sinon
+    sur le dernier avant lui qui en porte — UNE fonction (`trimestreCnss`) pour l'écran, le fichier de télédéclaration et
+    l'état imprimé, qui avaient chacun leur calcul ; une ancienne preuve réécrite sur elle.
+  - un parcours tombait, `statistiques-1323`, qui comptait « 1 mois »
+  au Cabinet. Depuis la 1.356.0, le fond de caisse du 1er janvier (50 DT) y arrive : janvier porte cette écriture
+  d'ouverture, sans chiffre d'affaires, et le pied dit « 2 mois 905,049 DT ». Retourné vers la règle (un mois au livre est
+  un mois qui porte une écriture) ; en janvier, les deux tombent dans le même mois.

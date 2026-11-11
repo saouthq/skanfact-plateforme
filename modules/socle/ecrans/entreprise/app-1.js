@@ -2439,6 +2439,8 @@
   // (1.276.1) Le bandeau « ton cabinet te l'a demandé » de l'achat ouvert (posé par son dessin), à remplir quand le cabinet
   // est appris après lui.
   let remplirDemandeAchat = null;
+  // (1.356.2) La frise de l'achat ouvert (son étape « Au cabinet »), redessinée quand le cabinet est appris après la page.
+  let redessinerFriseAchat = null;
   let rangementDuMessage = null;
   // (1.155.13) La pièce dont on veut parler à son cabinet (« Écrire au cabinet sur cette pièce », depuis un achat).
   let pieceDuMessage = null;
@@ -2530,6 +2532,7 @@
     const noteMail = $('#email-comptable-note');
     if (noteMail) noteMail.textContent = phraseEmailComptable();
     if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet && remplirDemandeAchat) remplirDemandeAchat();
+    if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet && redessinerFriseAchat) redessinerFriseAchat();
     // (1.303.0) Un cabinet relié : jusqu'où il a validé se lit tout de suite, pour qu'une saisie datée dans cette période le
     // dise dès le premier geste (la fenêtre d'émission d'une facture ne relit pas ses avertissements).
     if (!(vueAvant && vueAvant.cabinet) && a && a.cabinet) valideParLeCabinet();
@@ -16657,10 +16660,12 @@
       return { nouvelle, d: change ? dateDansLaPeriodeValidee([nouvelle, r0 && r0.date], quandLu) : '' };
     };
     const sujetReglement = { sujet: rend ? 'Ce remboursement' : 'Ce règlement', fem: false, neuve: !r0, geste: 'En l\'enregistrant' };
+    // (1.356.2, joué : la seconde moitié du four) Un montant ne se sépare pas de son mot : « · reste » finissait une ligne et
+    // « 10 710,000 DT » commençait la suivante. La ligne se coupe aux « · », jamais entre le mot et son montant.
     modal(`<h2>${rend ? (r0 ? 'Modifier le remboursement' : `Remboursement de ${h(p.number || 'cet achat')}`) : r0 ? 'Modifier le règlement' : `Enregistrer un règlement · ${h(p.number || 'cet achat')}`}</h2>
       <p class="small muted">${h(supplierName(p.supplierId))} · ${rend
         ? `${p.kind === 'avoir' ? `avoir de ${C.money(b.totals.netToPay, cur)}` : `payé ${C.money(b.paid, cur)} pour ${C.money(b.totals.netToPay, cur)}`} · à récupérer ${C.money(aRecuperer, cur)}`
-        : `net à payer ${C.money(b.totals.netToPay, cur)} · déjà réglé ${C.money(b.paid, cur)}${b.impute ? ` · ${b.liees.length > 1 ? 'avoirs et acomptes imputés' : (b.liees[0].kind === 'acompte' ? 'acompte imputé' : 'avoir imputé')} ${C.money(b.impute, cur)}` : ''} · reste ${C.money(reste, cur)}`}</p>
+        : `net à payer\u00a0${C.money(b.totals.netToPay, cur)} · déjà réglé\u00a0${C.money(b.paid, cur)}${b.impute ? ` · ${b.liees.length > 1 ? 'avoirs et acomptes imputés' : (b.liees[0].kind === 'acompte' ? 'acompte imputé' : 'avoir imputé')}\u00a0${C.money(b.impute, cur)}` : ''} · reste\u00a0${C.money(reste, cur)}`}</p>
       <form id="spf" class="pf-charte" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field obligatoire">${lbl(rend ? 'Montant reçu' : 'Montant payé', 'buy.payAmount')}<span class="pf-m"><input type="number" name="amount" value="${h(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste))}" step="0.001" min="0" class="num" inputmode="decimal"><span>${h(cur)}</span></span></label>
           ${r0 ? '' : '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>'}</div>
@@ -17043,7 +17048,10 @@
       if (solde.remaining <= 0.0005) return '<span class="badge payée ed-pill">Réglée</span>';
       const retard = p.dueDate && p.dueDate < C.today();
       const jours = retard ? Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000) : 0;
-      return `<span class="badge ${retard ? 'retard' : 'envoyée'} ed-pill">${retard ? `En retard de ${pl(jours, 'jour')}` : `À payer${p.dueDate ? ` · échéance ${lfJm(p.dueDate)}` : ''}`}</span>`;
+      // (1.356.2, joué : la moitié du four payée par chèque) Un règlement partiel se dit comme la liste le dit (« partiel ») :
+      // l'en-tête écrivait « À payer » au-dessus de « Réglé 10 710 · reste dû 10 710 ». Le retard, lui, reste le fait qui prime.
+      const partiel = !retard && C.purchaseStatus(stored, company(), C.today(), data) === 'partiel';
+      return `<span class="badge ${retard ? 'retard' : partiel ? 'partielle' : 'envoyée'} ed-pill">${retard ? `En retard de ${pl(jours, 'jour')}` : `${partiel ? 'Réglée en partie' : 'À payer'}${p.dueDate ? ` · échéance ${lfJm(p.dueDate)}` : ''}`}</span>`;
     };
     // (1.155.12, maquette achat) Rangée, la pièce s'appelle par son numéro ; sans numéro, une dépense par sa date.
     const titreAchat = isNew ? `<span id="b-titre">${h(motsDePiece(p.kind).titre)}</span>` : String(p.number || '').trim() ? h(p.number) : `${p.kind === 'depense' ? 'Dépense' : natureLabel(p.kind)} du ${lfJm(p.date)}`;
@@ -17238,11 +17246,17 @@
     };
     // (1.155.12, maquette achat) D'où vient la pièce (le fichier joint le dit), quand elle a été saisie, son justificatif, son
     // règlement, et ce qu'en a fait le cabinet (son écriture, lue à part ; sans cabinet, l'étape ne se montre pas).
-    const avecCabinet = !!(messagerieVue && messagerieVue.cabinet);
+    // (1.356.2) Lu à chaque dessin de la frise, jamais une fois : après un rechargement, le cabinet s'apprend APRÈS la page
+    // (une réponse du serveur), et l'étape « Au cabinet » vue juste après l'enregistrement disparaissait (vu en jouant le four).
+    const avecCabinet = () => !!(messagerieVue && messagerieVue.cabinet);
     const friseAchat = () => {
       const pjs = stored.attachments || [], pj = pjs.length;
       const regle = solde && solde.remaining <= 0.0005;
       const enRetard = !regle && p.dueDate && p.dueDate < C.today();
+      // (1.356.2) Payée en partie : l'étape le dit, avec combien et sur combien (le jumeau de la frise d'une vente, « Payée en
+      // partie · 10 710,000 sur 21 420,000 DT ») ; elle disait « échéance 11/12 » comme si rien n'était parti.
+      // La règle de la liste (`purchaseStatus`, « partiel ») : un règlement, ou un acompte versé imputé.
+      const enPartie = !regle && !!solde && C.purchaseStatus(stored, company(), C.today(), data) === 'partiel';
       const premier = pjs[0] || null;
       const venue = !premier ? '' : /\.xml$/i.test(premier.name || premier.file) ? 'par El Fatoora' : /\.pdf$/i.test(premier.name || premier.file) ? 'PDF' : 'photo';
       const saisieLe = stored.createdAt ? new Date(stored.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' }) : '';
@@ -17262,11 +17276,11 @@
         { t: av ? 'Reçu' : p.kind === 'depense' ? 'Faite' : 'Reçue', fait: true, d: [lfJm(p.date), p.kind === 'depense' && String(p.subject || '').trim() ? h(p.subject) : venue].filter(Boolean).join(' · ') },
         { t: av ? 'Saisi' : 'Saisie', fait: true, d: [saisieLe || (av ? 'enregistré' : 'enregistrée'), par ? `par ${h(par)}` : ''].filter(Boolean).join(' · ') },
         { t: 'Justificatif', fait: pj > 0 || !!stored.justifCabinet, ko: !pj && !stored.justifCabinet, d: pj ? quelJustif : stored.justifCabinet ? `joint par ${stored.justifCabinet.cabinet}` : 'manque', g: pj || stored.justifCabinet || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
-        av ? quatrieme : { t: 'Réglée', fait: !!regle, ko: !!enRetard, afaire: !regle && !enRetard, d: regle ? (dernierReglement ? `${lfJm(dernierReglement.date)} · ${methodLabel(dernierReglement.method).toLowerCase()}` : 'plus rien n\'est dû') : enRetard ? `échue le ${lfJm(p.dueDate)}` : p.dueDate ? `échéance ${lfJm(p.dueDate)}` : `reste ${C.money(solde ? solde.remaining : 0, cur)}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
-        ...(avecCabinet ? [{ t: 'Au cabinet', fait: false, d: `<span id="ed-fr-cabinet">${av ? 'quand il le verra' : !pj ? (p.kind === 'depense' ? 'attend le ticket' : 'attend le justificatif') : 'quand il la validera'}</span>`, id: 'ed-fr-cab' }] : []),
+        av ? quatrieme : { t: enPartie ? 'Réglée en partie' : 'Réglée', fait: !!regle, ko: !!enRetard, partiel: enPartie && !enRetard, afaire: !regle && !enRetard && !enPartie, d: regle ? (dernierReglement ? `${lfJm(dernierReglement.date)} · ${methodLabel(dernierReglement.method).toLowerCase()}` : 'plus rien n\'est dû') : enRetard ? `échue le ${lfJm(p.dueDate)}${enPartie ? ` · reste ${C.money(solde.remaining, cur)}` : ''}` : enPartie ? (solde.paid > 0.0005 ? `${C.money(solde.paid, null, C.decimalsFor(cur))} sur ${C.money(C.round3(solde.remaining + solde.paid), cur)}` : `reste ${C.money(solde.remaining, cur)}`) : p.dueDate ? `échéance ${lfJm(p.dueDate)}` : `reste ${C.money(solde ? solde.remaining : 0, cur)}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
+        ...(avecCabinet() ? [{ t: 'Au cabinet', fait: false, d: `<span id="ed-fr-cabinet">${av ? 'quand il le verra' : !pj ? (p.kind === 'depense' ? 'attend le ticket' : 'attend le justificatif') : 'quand il la validera'}</span>`, id: 'ed-fr-cab' }] : []),
       ]);
     };
-    const friseHtml = etapes => `<div class="panel ed-frise${etapes.length === 3 ? ' trois' : etapes.length === 4 ? ' quatre' : ''}" id="ed-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : x.ko ? 'alerte' : x.afaire ? 'afaire' : ''}"${x.id ? ` id="${x.id}"` : ''}>
+    const friseHtml = etapes => `<div class="panel ed-frise${etapes.length === 3 ? ' trois' : etapes.length === 4 ? ' quatre' : ''}" id="ed-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : x.ko ? 'alerte' : x.partiel ? 'partiel' : x.afaire ? 'afaire' : ''}"${x.id ? ` id="${x.id}"` : ''}>
           <span class="rond" aria-hidden="true">${x.fait ? lfIc('coche', 13, 3) : x.ko ? '!' : i + 1}</span>
           <span class="ed-fr-txt"><b>${x.t}</b><span>${x.d}</span></span>${x.g ? `<span class="ed-fr-geste">${x.g}</span>` : ''}
           <span class="vh">${x.fait ? ' : fait' : ' : pas encore'}</span></li>`).join('')}</ol></div>`;
@@ -17613,7 +17627,7 @@
         <div class="ac-fi-grille">
           <div><span class="k">Bien</span><span class="v">${h(l.label)}</span></div>
           <div><span class="k">Famille</span><span class="v">${f.category ? h(C.assetClassLabel(f.category)) : '<em>à choisir</em>'}</span>${f.raison && !f.touchee ? `<small>· ${h(f.raison)}</small>` : ''}</div>
-          <div><span class="k">Durée</span><span class="v">${f.years ? pl(Number(f.years), 'an') : '—'}</span>${f.years ? `<small>· ${f.touchee ? 'choisie par toi' : 'proposée pour la famille'}</small>` : ''}</div>
+          <div><span class="k">Durée</span><span class="v">${f.years ? pl(Number(f.years), 'an') : '—'}</span>${f.years ? `<small>· ${f.touchee && !(f.category && Number(f.years) === Number(C.assetClassYears(f.category))) ? 'choisie par toi' : 'proposée pour la famille'}</small>` : ''}</div>
           <div><span class="k">Mise en service</span><span class="v">${f.date ? C.fmtDate(f.date) : '—'}</span><small>· ${f.date === p.date ? `la date de ${p.kind === 'depense' ? 'la dépense' : 'la facture'}` : 'choisie par toi'}</small></div>
           <div><span class="k">Amortissement</span><span class="v">${an ? `${C.money(an, cur0)} par an` : '—'}</span>${rows.length ? `<small>· au prorata en ${rows[0].year}</small>` : ''}</div>
         </div>
@@ -17628,11 +17642,13 @@
       modal(`<h2>La fiche du bien · ${h(l.label)}</h2>
         <form id="fbf" class="grid-2 ac-fbf">
           <label class="field obligatoire">${lbl('Famille', 'immo.class')}<select name="category"><option value="" ${f.category ? '' : 'selected'}>— Choisis la famille —</option>${C.DEFAULT_ASSET_CLASSES.map(([v, lab]) => `<option value="${v}" ${f.category === v ? 'selected' : ''}>${lab}</option>`).join('')}</select></label>
-          <label class="field obligatoire">${lbl('Durée', 'immo.years')}<span class="ac-fb-duree"><input type="number" name="years" value="${h(f.years || '')}" step="1" min="1" max="50" class="num"><span class="unite">ans</span><small id="fb-prop">${f.touchee ? '' : '· proposée pour la famille'}</small></span></label>
+          <label class="field obligatoire">${lbl('Durée', 'immo.years')}<span class="ac-fb-duree"><input type="number" name="years" value="${h(f.years || '')}" step="1" min="1" max="50" class="num"><span class="unite">ans</span><small id="fb-prop">${f.touchee || !f.years ? '' : '· proposée pour la famille'}</small></span></label>
           ${dateFieldHtml(lbl('Mise en service', 'immo.date'), 'date', f.date || p.date, { obligatoire: true })}
           <label class="field">${lbl('Valeur')}<input type="text" value="${h(C.money(montant, cur0))} HT" readonly tabindex="-1"></label>
         </form>
-        <p class="small muted" id="fb-phrase"></p>
+        ${/* (1.356.2) La phrase passe de deux à trois lignes quand la famille est choisie : sa place est réservée, sinon
+           « Garder ces réglages » descendait de 13 points sous le curseur. */''}
+        <p class="small muted annonce-stable" id="fb-phrase"></p>
         <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${lfIc('coche', 16, 2.4)}Garder ces réglages</button></div>`,
       (root, close) => {
         let anneesTouchees = f.touchee;
@@ -18095,7 +18111,7 @@
         t.textContent = `${prenom ? `${prenom}, de ton cabinet,` : 'Ton cabinet'} te l'a demandé le ${lfJm(new Date(d.ecritLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))} dans votre fil. ${t.textContent}`;
       }, () => { band.dataset.demande = ''; });
     };
-    if (avecCabinet) remplirDemandeAchat();
+    if (avecCabinet()) remplirDemandeAchat();
     // Le choix fait, le formulaire paraît et la question s'en va.
     const sortirDuChoix = () => { attendChoix = false; const a = $('#ac-arrivee'); if (a) a.remove(); const z = $('#view .ac-attend'); if (z) z.remove(); const e = $('#view .buy-editor'); if (e) e.classList.remove('attend-choix'); const j = $('#attach-top'); if (j) j.hidden = false; const m = $('#view .ed-tete .more'); if (m) m.hidden = false; const u = $('#ac-annuler'); if (u) u.hidden = false; };
     if ($('#ac-main')) $('#ac-main').onclick = () => { sortirDuChoix(); const b = $('[data-combo=supplierId] .combo-btn', head); if (b) b.focus(); };
@@ -18165,7 +18181,13 @@
       if ($('#ed-geste')) regreffer($('#ed-geste'), gesteAchat());
       $$('#ed-frise [data-frise], #ac-band-justif [data-frise]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); });
       if ($('#ac-geste-joindre')) $('#ac-geste-joindre').onclick = () => { const b = $('#attach-top'); if (b) b.click(); };
+      // (1.356.2) Le bandeau redessiné est neuf : « Hatem, de ton cabinet, te l'a demandé… » se relit dans le fil (un règlement,
+      // ou le cabinet appris après la page, effaçaient la phrase — elle n'était écrite qu'une fois, dans l'ancien bandeau).
+      if (remplirDemandeAchat && avecCabinet()) remplirDemandeAchat();
     };
+    // (1.356.2) Seulement sur CETTE page : une autre pièce ouverte entre-temps a sa propre frise (et son propre rappel).
+    const pageDeLAchat = $('#view .buy-editor');
+    redessinerFriseAchat = () => { if (pageDeLAchat && document.contains(pageDeLAchat)) majEtatJustif(); };
 
     // --- joindre un justificatif (photo, PDF, scan) — AVANT toute saisie (8.5.1)
     // Une pièce jointe n'a besoin que d'un identifiant, et une pièce neuve en a déjà un. Le fichier

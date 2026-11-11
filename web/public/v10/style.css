@@ -1784,6 +1784,9 @@ tr.row-ok td { background: rgba(28, 143, 90, .05); }
 table.lines-edit input[type=number]::-webkit-inner-spin-button,
 table.lines-edit input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 table.lines-edit input.num { padding-inline-start: 6px; padding-inline-end: 6px; }
+/* (1.356.2) Un prix unitaire à cinq chiffres (« 18000.000 », le four d'une boulangerie) se lit en entier : dans un tableau
+   serré, la colonne se rétrécissait jusqu'à couper le dernier chiffre. Dix chiffres, la place des bords. */
+table.lines-edit input[data-k=unitPrice] { min-width: calc(10ch + 14px); }
 table.mini input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 td.line-tools { white-space: nowrap; text-align: end; padding-top: 9px; }
 td.line-tools .btn { padding: 4px 6px; min-width: 24px; justify-content: center; color: var(--muted); }

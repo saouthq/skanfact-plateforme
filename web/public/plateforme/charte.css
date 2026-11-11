@@ -174,6 +174,9 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
   font: inherit; font-size: 14px; font-weight: 500; color: var(--sb-encre); box-shadow: none;
 }
 #modal-root .modal textarea { min-height: 72px; line-height: 1.5; }
+/* (1.356.2, joué : la fiche du four au Cabinet) Le `padding` ci-dessus (1,1,0) écrasait la place du chevron que style.css
+   réserve à une liste (`padding-inline-end: 30px`) : « Outillage et matériel technique (5 ans) » passait SOUS la flèche. */
+#modal-root .modal select:not([multiple]):not([size]):not([data-natif]) { padding-inline-end: 30px; }
 #modal-root .modal :is(input, select, textarea):hover:not(:disabled) { border-color: var(--sb-gris-2); }
 #modal-root .modal :is(input, select, textarea):focus { border-color: var(--sb-sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 15%, transparent); outline: none; }
 #modal-root .modal .field { gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--sb-gris); }

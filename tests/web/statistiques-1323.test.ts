@@ -198,7 +198,12 @@ describe('les statistiques 1.323.0 : le chiffre d\'affaires de la boulangerie, l
     await c.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/paquets`);
     const paquets = c.locator('section[data-onglet="paquets"]');
     await expect.poll(async () => net(await paquets.locator('tbody tr').first().innerText().catch(() => '')), { timeout: 30_000 }).toMatch(/ provisoire 905,049 DT /);
-    expect(net(await paquets.locator('tfoot').innerText())).toBe('1 mois 905,049 DT');
+    // (1.356.2, rouge GitHub de la 1.356.0) Le fond de caisse du 1er janvier (50 DT) arrive au Cabinet depuis la 1.356.0 : janvier
+    // porte cette écriture d'ouverture, sans chiffre d'affaires. Deux mois au livre ; le chiffre d'affaires ne bouge pas.
+    // (En janvier, les deux tombent dans le même mois.)
+    const janvierAPart = auj.slice(5, 7) !== '01';
+    if (janvierAPart) expect(net(await paquets.locator('tbody tr').nth(1).innerText())).toMatch(new RegExp(`^janvier ${an} provisoire 0,000 DT `));
+    expect(net(await paquets.locator('tfoot').innerText())).toBe(`${janvierAPart ? 2 : 1} mois 905,049 DT`);
     // Le mois vient des livres du client : il s'ouvre sur ses écritures (il se disait « exemple »). La revente y est au 775.
     expect(net(await paquets.locator('tbody tr .row-actions').first().innerText())).toBe('Voir les écritures');
     await photo(c, 'd-cabinet');
