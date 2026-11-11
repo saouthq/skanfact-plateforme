@@ -2623,3 +2623,13 @@ Joué à la souris, la suite : octobre payé, remis, sa retenue déposée par le
   retenue ; les années 2099 et 2020 rendent ces cas indépendants du jour du test), `paie-pont-1355-6` (la pastille « à
   verser », l'étape, puis « déclarée » et faite ; la fenêtre sur un écran bas). Neuf preuves ; « paie 1.355.6 h » suit sa
   ligne.
+
+### 1.355.8 : au Cabinet, le mois de paie déclaré se coche aussi
+
+Le jumeau de la 1.355.7, vu à la souris dans la Paie de la boulangerie au Cabinet : la rangée des mois disait « oct.
+déposé », et la frise gardait « Déclarés — IRPP et CSS avec octobre » à faire, comme la ligne « Les déclarer » (la
+valeur était écrite en dur).
+- `paieDeclares` lit la déclaration du mois dans le livre (déposée, payée) et, le trimestre fini, l'accusé CNSS rangé au
+  classeur. La frise et « Les déclarer » s'en servent : « déposée le 11/11, payée le 11/11 · CNSS au trimestre », cochées
+  tant que le trimestre court ; fini, la CNSS se dit « à déposer » jusqu'à son accusé.
+- Test : `cabinet-paie-parcours` dépose la déclaration du mois et lit les deux étapes. Trois preuves.

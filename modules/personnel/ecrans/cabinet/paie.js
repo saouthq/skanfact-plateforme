@@ -299,6 +299,26 @@
     if (!avant) R.push('nouveau ce mois');
     return R;
   }
+  // (1.355.8) Le jumeau de l'app entreprise (1.355.7) : le mois est déclaré quand sa déclaration (celle du livre, où la part
+  // paie se reporte avec la TVA) est déposée, et la CNSS une fois son trimestre fini, son accusé rangé au classeur. La frise
+  // et « Les déclarer » le disaient à faire pour toujours, sous une rangée de mois qui affichait « oct. déposé ».
+  function paieDeclares(dossier, L, annee, m, bulletins) {
+    const ym = `${annee}-${String(m).padStart(2, '0')}`, q = Math.ceil(m / 3), qn = q === 1 ? '1er' : `${q}e`;
+    const d = (L.declarations || []).find(x => x && String(x.periode) === ym && (x.type || 'mensuelle') === 'mensuelle');
+    const le = v => (v && typeof v === 'object' ? String(v.le || '') : '');
+    const dep = le(d && d.deposee), pay = le(d && d.payee);
+    // Le trimestre est fini quand le mois du jour le dépasse ; son accusé se lit au classeur (lu une fois, puis la page suit).
+    const trimFini = K.today().slice(0, 7) > `${annee}-${String(q * 3).padStart(2, '0')}`;
+    let accuse = null;
+    if (trimFini) {
+      const e = clState.docs.get(dossier.id);
+      if (!e || (!e.lu && !e.lecture)) void chargerDocsCl(dossier).then(() => { if ($('#pa-frise')) drawLivres($('#view'), dossier); });
+      accuse = e && e.lu ? accuseCnssDe(dossier, annee, q) : null;
+    }
+    const cnss = !trimFini ? 'CNSS au trimestre' : accuse ? `CNSS du ${qn} trimestre déposée` : `CNSS du ${qn} trimestre à déposer`;
+    const retenue = dep ? `déposée le ${jourCourt(dep)}${pay ? `, payée le ${jourCourt(pay)}` : ''}` : `IRPP et CSS avec ${KC.moisPaie(m)}`;
+    return { fait: bulletins.length > 0 && !!dep && (!trimFini || !!accuse), dit: `${retenue} · ${cnss}` };
+  }
   function paieLeMois(dossier, L, annee, m, bulletins, P, o) {
     const s = livresState;
     const moisAvant = m === 1 ? 12 : m - 1;
@@ -315,7 +335,7 @@
       ['Écriture de paie', o.auBrouillard ? `au brouillard${o.paieAttendSonJour ? ` · se valide le ${jourCourt(o.paieAttendSonJour)}` : ''}` : bulletins.some(b => o.etatDe(b) === 'ecrite') ? 'validée' : `datée du dernier jour du mois`, bulletins.length > 0 && bulletins.every(b => o.etatDe(b) === 'ecrite')],
       // (1.247.0) Un virement revenu : le salaire n'est pas payé, quoi que dise le bulletin.
       ((rev) => ['Salaires payés', rev ? `${rev > 1 ? `${rev} virements revenus` : '1 virement revenu'}` : P.payes && P.payes === P.n ? (P.n > 1 ? `les ${P.n}` : 'le seul') : P.payes ? `${P.payes} sur ${P.n}` : `par ${P.client}`, P.n > 0 && P.payes === P.n && !rev])(KC.virementsRevenus(L.releves || [], bulletins, o.nomDe).length),
-      ['Déclarés', `IRPP et CSS avec ${KC.moisPaie(m)} · CNSS au trimestre`, false]];
+      ((D) => ['Déclarés', D.dit, D.fait])(paieDeclares(dossier, L, annee, m, bulletins))];
     const ici = Math.max(0, E.findIndex(e => !e[2]));
     const frise = `<ol class="cp-pa-frise" id="pa-frise">${E.map(([t, d, fait], i) => `<li class="${fait ? 'fait' : i === ici ? 'ici' : ''}"${i === 0 ? ' data-pa-vue="pointage" role="button" tabindex="0"' : ''}><span class="n">${fait ? '✓' : i + 1}</span><span><b>${esc(t)}</b><small>${esc(d)}</small></span></li>`).join('')}</ol>`;
     const g = P.geste;
@@ -543,7 +563,9 @@
       : 'au brouillard : elle n\'entre dans les livres — et dans la déclaration du mois — qu\'une fois validée',
     o.paieAttendSonJour ? '' : `<button type="button" class="btn btn-sm${vertLibre ? ' btn-primary' : ''}" id="pa-valider">Valider l'écriture de paie</button>`)
       : bulletins.length && bulletins.every(b => o.etatDe(b) === 'ecrite') ? etape(nE, true, 'L\'écriture de paie', 'validée', '') : '';
-    const L3 = etape(nE + (LE ? 1 : 0), false, 'Les déclarer', `avec la déclaration ${KC.deMois(mo)} : retenues sur salaires (IRPP et CSS) ${money(KC.round3(ms.irpp + ms.css))}, TFP ${money(ms.tfp)}, FOPROLOS ${money(ms.foprolos)} · la CNSS au trimestre`, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>');
+    // (1.355.8) Déclarés (la déclaration du mois déposée, la CNSS d'un trimestre fini déposée), l'étape se coche et le dit.
+    const D = paieDeclares(dossier, L, annee, m, bulletins);
+    const L3 = D.fait ? etape(nE + (LE ? 1 : 0), true, 'Les déclarer', D.dit, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>') : etape(nE + (LE ? 1 : 0), false, 'Les déclarer', `avec la déclaration ${KC.deMois(mo)} : retenues sur salaires (IRPP et CSS) ${money(KC.round3(ms.irpp + ms.css))}, TFP ${money(ms.tfp)}, FOPROLOS ${money(ms.foprolos)} · la CNSS au trimestre`, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>');
     return `<section class="panel cp-pa-faits" id="pa-faits"><h3>${P.n > 1 ? 'Les bulletins' : 'Le bulletin'} ${esc(KC.deMois(mo))} ${P.n > 1 ? 'sont faits' : 'est fait'}</h3><ol>${L1}${L2}${LE}${L3}</ol></section>`;
   }
   // L'écriture de paie du mois, compte par compte (la maquette) : celle que le serveur tient au fil des bulletins.

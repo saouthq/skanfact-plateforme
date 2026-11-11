@@ -359,6 +359,28 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.keyboard.press('Escape');
     await p.locator('#pa-saisir-pt').click();
     await p.locator('#pt-panneau').waitFor({ timeout: 10_000 });
+    // (1.355.8) La déclaration du mois déposée au cabinet : « Déclarés » se coche sur la frise, et « Les déclarer » aussi, tant
+    // que le trimestre court (fini, la CNSS du trimestre reste à dire). Elles restaient à faire sous « déposé ».
+    const derniere = () => p.locator('#pa-frise li').last(), aDeclarer = () => p.locator('#pa-faits li').last();
+    const auMois = async () => {
+      await p.goto('about:blank'); await p.goto(ici);
+      await p.locator('#pa-mois').waitFor({ timeout: 20_000 });
+      await p.locator('#pa-mois').selectOption(String(A.mo));
+      await p.locator('#pa-faits').waitFor({ timeout: 20_000 });
+    };
+    await auMois();
+    expect(await derniere().getAttribute('class')).not.toBe('fait');
+    expect((await api('PUT', `/entreprises/${A.ent}/compta/declarations/${moisCl}`, A.ja, { cases: { aDecaisser: '100,000' } })).statut).toBeLessThan(300);
+    expect((await api('POST', `/entreprises/${A.ent}/compta/declarations/${moisCl}/pointer`, A.ja, { quoi: 'deposee', le: jour })).statut).toBeLessThan(300);
+    await auMois();
+    const jj = `${jour.slice(8, 10)}/${jour.slice(5, 7)}`, trimestreFini = jour.slice(0, 7) > `${A.an}-${String(Math.ceil(A.mo / 3) * 3).padStart(2, '0')}`;
+    await expect.poll(async () => espace(await derniere().innerText()), { timeout: 20_000 }).toContain(`déposée le ${jj}`);
+    expect(espace(await aDeclarer().innerText())).toContain(`Les déclarer déposée le ${jj}`);
+    if (trimestreFini) expect(espace(await derniere().innerText())).toMatch(/CNSS du \d(er|e) trimestre (à déposer|déposée)/);
+    else {
+      expect(await derniere().getAttribute('class')).toBe('fait');
+      expect(await aDeclarer().getAttribute('class')).toBe('fait');
+    }
     expect(erreurs).toEqual([]);
     await p.close();
   }, 240_000);

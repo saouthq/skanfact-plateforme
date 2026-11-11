@@ -27945,6 +27945,15 @@ prouver 'paie 1.355.7 h : la pastille du mois dit « à déclarer » sous un dé
 prouver 'paie 1.355.7 i : une fenêtre plus haute que l'\''écran s'\''ouvre défilée jusqu'\''à son premier champ' 'modules/socle/ecrans/entreprise/app-1.js' \
   '{ try { cible.focus({ preventScroll: true }); } catch (_) { cible.focus(); } }' 'cible.focus();' \
   "$PS13556X"
+prouver 'paie du Cabinet 1.355.8 a : « Déclarés » reste à faire sous une déclaration du mois déposée' 'modules/personnel/ecrans/cabinet/paie.js' \
+  '((D) => ['\''Déclarés'\'', D.dit, D.fait])(paieDeclares(dossier, L, annee, m, bulletins))]' '['\''Déclarés'\'', `IRPP et CSS avec ${KC.moisPaie(m)} · CNSS au trimestre`, false]]' \
+  "$PS13556W"
+prouver 'paie du Cabinet 1.355.8 b : « Les déclarer » reste à faire sous une déclaration du mois déposée' 'modules/personnel/ecrans/cabinet/paie.js' \
+  'const L3 = D.fait ? etape(' 'const L3 = false ? etape(' \
+  "$PS13556W"
+prouver 'paie du Cabinet 1.355.8 c : l'\''étape ne dit pas quand la déclaration a été déposée' 'modules/personnel/ecrans/cabinet/paie.js' \
+  'const retenue = dep ? `déposée le' 'const retenue = false ? `déposée le' \
+  "$PS13556W"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
