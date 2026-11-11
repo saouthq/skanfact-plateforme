@@ -2415,3 +2415,11 @@ GitHub a refusé la 1.352.1 et la 1.353.0 sur le même test (`tests/web/messages
 « pour le 2026-11-10 », écrit en dur. Passé minuit le 11 novembre (heure de Tunis), le serveur refuse une échéance déjà
 passée, et le test tombait sans qu'une ligne du produit ait bougé. La date se calcule (dans dix jours) ; le même défaut
 attendait le 16 novembre dans `tests/messagerie/messagerie.test.ts`. Aucun code du produit ne change.
+
+### 1.353.2 : le même mois, vu du Cabinet
+
+Le côté Cabinet du parcours, rejoué dans le navigateur et tenu par le test : le dossier confié, ses trois écritures du
+mois arrivent au brouillard (achats, banque, ventes), le comptable valide le lot du mois en un geste. La déclaration du
+Cabinet dit les chiffres de l'entreprise : 57,000 DT de TVA due, 136,800 déductible, un crédit de 79,800, un timbre. Sa
+balance porte le virement à la banque (532 : 200,000) et rien à la caisse ; le client doit encore 158,000. Deux chemins,
+un chiffre : aucun écart. Aucun code du produit ne change (`tests/web/bout-en-bout-1353.test.ts`, second parcours).

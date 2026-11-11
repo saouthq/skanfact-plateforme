@@ -161,4 +161,84 @@ describe('bout en bout 1.353.0 : la première facture d\'une épicerie neuve, so
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);
+  it('le même mois vu du cabinet : la TVA de la déclaration et la balance disent ce que l\'entreprise a saisi, le virement à la banque', async () => {
+    const leila = await personne('leila');
+    const cab = await api('POST', '/cabinets', leila, { nom: 'Jlassi Conseil' });
+    const cabinet = String(cab.corps.id);
+    const sonia = await personne('sonia');
+    const ent = String((await api('POST', '/entreprises-essai', sonia)).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, sonia, { codeCabinet: String(cab.corps.code), perimetre: ['comptabilite', 'declarations'] })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cabinet}/mandats/${mandat}/accepter`, leila)).statut).toBe(200);
+    const objets = async () => (await api('GET', `/entreprises/${ent}/dossier-v10`, sonia)).corps.objets as Obj[];
+    const fiche = (await objets()).find((o) => o.collection === '_racine' && o.cle === 'company');
+    const societe = { ...(fiche ? fiche.contenu : {}), setupDone: true, managerName: 'Sonia Ben Youssef', name: 'Épicerie fine du Lac', city: 'Tunis' };
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sonia, { changements: [{ collection: '_racine', cle: 'company', rang: null, revision: fiche ? fiche.revision : null, contenu: societe }] })).statut).toBe(200);
+    const client = { id: 'c1', name: 'Restaurant Dar Zitouna', matricule: '0987654C/A/M/000', city: 'Tunis' };
+    const f1 = { id: 'f1', type: 'facture', number: '', date: jourDe(0), dueDate: jourDe(30), clientId: 'c1', subject: 'Huile d\'olive', status: 'brouillon',
+      lines: [{ label: 'Huile d\'olive extra vierge 75 cl', description: '', qty: 12, unit: '', unitPrice: 25, vatRate: 19, discount: 0 }],
+      discountRate: 0, applyStamp: true, stampFee: 1, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], notes: '' };
+    const achat = { id: 'a1', kind: 'facture', number: 'FA-2611', date: jourDe(0), dueDate: jourDe(30), supplierId: 's1', category: '', currency: 'DT', exchangeRate: '', fees: 0, withholdingRate: 0,
+      createdAt: Date.now(), attachments: [], payments: [], lines: [{ label: 'Huile d\'olive extra vierge 75 cl', qty: 40, unitPrice: 18, vatRate: 19, destination: 'stock', deductible: true }] };
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sonia, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: enc(client) },
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: enc({ id: 's1', name: 'Domaine Ben Ammar', matricule: '1122334D/A/M/000' }) },
+      { collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: enc(f1) },
+      { collection: 'purchases', cle: 'a1', rang: 0, revision: null, contenu: enc(achat) },
+    ] })).statut).toBe(200);
+    // 358,000 DT : 12 × 25,000 = 300,000 HT, TVA 57,000, timbre 1,000 (refait à la main).
+    const e = await api('POST', `/entreprises/${ent}/dossier-v10/emettre`, sonia, { document: enc(f1), client: enc(client), revision: 1, rang: 0, netAPayer: '358.000' });
+    expect(e.statut, JSON.stringify(e.corps)).toBe(200);
+    // Le virement de 200 DT, sans compte ; puis la caisse, seul compte.
+    const emise = (await objets()).find((o) => o.collection === 'documents' && o.cle === 'f1') as Obj;
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sonia, { changements: [
+      { collection: 'documents', cle: 'f1', rang: 0, revision: emise.revision, contenu: enc({ ...emise.contenu, payments: [{ id: 'p1', date: jourDe(0), amount: 200, method: 'virement', accountId: '', reference: '', note: '' }] }) },
+      { collection: 'accounts', cle: 'cs', rang: 0, revision: null, contenu: enc({ id: 'cs', name: 'Caisse', kind: 'caisse', bank: '', rib: '', opening: 50, openingDate: jourDe(0), isDefault: true, statementBalance: '', notes: '' }) },
+    ] })).statut).toBe(200);
+
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(String(x)));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, leila);
+    const aller = async (onglet: string) => {
+      await p.goto('about:blank');
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/${onglet}/${jourDe(0).slice(0, 4)}`);
+      await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(1200);
+      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    };
+    await aller('declaration');
+    await p.locator('#dc-preparer').waitFor({ timeout: 15_000 });
+    noter('declaration', net(await p.locator('#view').innerText()).slice(0, 2500));
+    await p.screenshot({ path: path.join(PHOTOS, 'bout-en-bout-1353-2-cabinet-declaration.png'), fullPage: true });
+    await aller('saisie');
+    if (await p.locator('#sa-lot-plus').count()) await p.locator('#sa-lot-plus summary').click();
+    // Le virement est au journal de banque, pas à la caisse : le lot du mois se valide en un geste.
+    expect(await p.locator('.sa-lot button').evaluateAll((l) => l.map((b) => (b.textContent ?? '').trim()))).toEqual(
+      ['Valider la seule pièce d\'AC', 'Valider la seule pièce de BQ', 'Valider la seule pièce de VT', `Valider les 3 pièces de ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Africa/Tunis' })}`]);
+    await p.locator('.sa-lot [data-lot-mois]').click();
+    await p.locator('#modal-root .modal .btn-primary').last().click();
+    await expect.poll(async () => Number((await admin.query(`select count(*) n from compta.ecriture where entreprise = $1 and statut = 'validee'`, [ent])).rows[0].n), { timeout: 15_000 }).toBe(3);
+    noter('après validation', net(await p.locator('#toast').innerText().catch(() => '')), net(await p.locator('#modal-root').innerText().catch(() => '')).slice(0, 300));
+    await aller('declaration');
+    await p.locator('#dc-preparer').waitFor({ timeout: 15_000 });
+    // Les chiffres refaits à la main, et ceux que l'entreprise lit chez elle : 57,000 de TVA sur 300,000 ; 136,800 sur
+    // 720,000 d'achat ; 57,000 − 136,800 = un crédit de 79,800 ; un timbre.
+    const lignes = await p.locator('#view tr').evaluateAll((l) => l.map((r) => (r as HTMLElement).innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+    noter('declaration2', lignes);
+    const ligne = (debut: string) => lignes.find((x) => x.startsWith(debut)) ?? '';
+    expect(ligne('I TVA due sur le chiffre d\'affaires')).toContain(' 57,000 DT');
+    expect(ligne('II TVA déductible sur les achats')).toContain(' 136,800 DT');
+    expect(ligne('Solde : crédit à reporter')).toContain(' 79,800 DT');
+    expect(ligne('Droit de timbre sur les factures')).toContain(' 1,000 DT');
+    await aller('balance');
+    const bal = await p.locator('#view table tbody tr').evaluateAll((l) => l.map((r) => (r as HTMLElement).innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
+    noter('balance', bal);
+    // La balance du cabinet : les 200 DT du virement à la banque (532), rien à la caisse (54) ; le client doit encore 158.
+    expect(bal).toContain('532 Banques 200,000 DT 0,000 DT 200,000 DT');
+    expect(bal.filter((x) => x.startsWith('54'))).toEqual([]);
+    expect(bal).toContain('411 Clients 358,000 DT 200,000 DT 158,000 DT');
+    expect(bal).toContain('4366 TVA déductible 136,800 DT 0,000 DT 136,800 DT');
+    expect(bal).toContain('4367 TVA collectée 0,000 DT 57,000 DT 57,000 DT');
+    expect(erreurs).toEqual([]);
+  }, 240_000);
 });
