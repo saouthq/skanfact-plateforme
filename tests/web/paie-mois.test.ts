@@ -113,7 +113,8 @@ describe('la paie : le mois, tel que sa maquette', () => {
     expect(await p.locator('#p-tabs [data-tab="pointage"]').getAttribute('aria-selected')).toBe('true');
     expect(await p.locator('#p-tabs [role=tab]').allInnerTexts()).toEqual([expect.stringMatching(/^Aujourd'hui/), expect.stringMatching(/^Le mois/), expect.stringMatching(/^L'équipe/), expect.stringMatching(/Réglages/)]);
     await expect.poll(() => p.locator('#pj-avant').count()).toBe(1);
-    expect(await texte('#pj-avant b')).toBe(`${nomMois.charAt(0).toUpperCase()}${nomMois.slice(1)} n'est pas fini`);
+    // (1.355.1) Le bandeau parle de la PAIE du mois : « Octobre n'est pas fini », lu le 11 novembre, disait le contraire du calendrier.
+    expect(await texte('#pj-avant b')).toBe(`La paie ${/^[aeiouyéè]/i.test(nomMois) ? `d'${nomMois}` : `de ${nomMois}`} n'est pas finie`);
     expect(await texte('#pj-avant-go')).toBe(`Payer les salaires ${deMois}`);
     expect(await p.locator('#p-page .btn-primary:visible').count()).toBe(1);
     expect(await p.locator('#p-mois').isHidden()).toBe(true);

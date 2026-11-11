@@ -136,6 +136,24 @@ describe('le premier salarié, du vide au bulletin à payer (1.355.0)', () => {
     const choix = await p.locator('.modal [name=accountId] option').allInnerTexts();
     expect(choix.map(net)).toEqual(['Aucun compte créé : la banque']);
     await p.locator('.modal [data-close]').first().click();
+
+    // 6. (1.355.1) Une absence sans solde : le bouton dit ce qu'il pose, la fenêtre garde sa hauteur quand la nature change,
+    // et le brut retenu se lit avant de poser : 1 200 ÷ 26 × 2 = 92,308 (calculé à la main).
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await p.locator('#pj-absence').click();
+    const ok = p.locator('.modal #ok');
+    const nature = async (k: string) => { await p.locator('.modal [name=kind]').selectOption(k); return (await ok.boundingBox())?.y ?? -1; };
+    const yConge = await nature('conges');
+    expect(net(await ok.innerText())).toBe('Poser le congé');
+    const ySansSolde = await nature('sans-solde');
+    expect(net(await ok.innerText())).toBe('Poser l\'absence');
+    expect(Math.abs(ySansSolde - yConge)).toBeLessThan(12);
+    const date = async (n: string, v: string) => p.locator(`.modal [name=${n}]`).evaluate((x, w) => { (x as HTMLInputElement).value = w; x.dispatchEvent(new Event('change', { bubbles: true })); }, v);
+    const lundi = (() => { const d = new Date(`${aujourdhui.slice(0, 7)}-01T00:00:00Z`); while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+    const mardi = new Date(Date.parse(`${lundi}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    await date('from', lundi);
+    await date('to', mardi);
+    await expect.poll(() => p.locator('.modal #lf-solde').innerText().then(net), { timeout: 10_000 }).toContain('2 jours non payés − 92,308 DT');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);

@@ -22255,7 +22255,7 @@ prouver 'paie 1.231 d : l arrêt maladie oublie son certificat' modules/personne
   "l.statut !== 'refuse' && !l.certificatLe && l.to" "l.statut !== 'refuse' && l.to" \
   "$WR5A"
 prouver 'paie 1.231 e : les papiers de l arrêt restent sur un congé' modules/personnel/ecrans/entreprise/paie.js \
-  "\$('#lf-maladie', root).hidden = formValues(\$('#lf', root)).kind !== 'maladie'; hint();" "hint();" \
+  "\$('#lf-maladie', root).hidden = k !== 'maladie';" "\$('#lf-maladie', root).hidden = false;" \
   "$WRW3"
 prouver 'paie 1.232 a : un bulletin en correction s approuve' modules/socle/moteur/core-2.js \
   "modeP(p) === 'tenue' && !(p.correction && !p.correction.reponse)" "modeP(p) === 'tenue'" \
@@ -27778,6 +27778,22 @@ prouver 'premier salarié 1.355.0 h : « Voir ses écritures dans Saisie » ne m
 prouver 'premier salarié 1.355.0 i : « Compte principal » sans aucun compte' modules/personnel/ecrans/entreprise/paie.js \
   '${comptes.length ? '\'''\'' : '\''<option value="">Aucun compte créé : la banque</option>'\''}' '${comptes.length ? '\'''\'' : '\''<option value="">Compte principal</option>'\''}' \
   "$PS1355W"
+
+# 1.355.1 : l'absence d'un salarié — le bouton nommé, la fenêtre qui garde sa hauteur, le brut retenu dit avant ; la paie du mois pas finie.
+PS13551M='Aujourd'\''hui et son bouton vert, les quatre étapes, « À ne pas oublier », trois chiffres, les bulletins qui changent d'\''abord, remettre puis annuler'
+prouver 'absence 1.355.1 a : le bouton dit « Poser le congé » d'\''une absence' modules/personnel/ecrans/entreprise/paie.js \
+  '          if (!leave) $('\''#ok'\'', root).innerHTML = `${lfIc('\''coche'\'', 15, 2.4)} ${libellePoser(k)}`;
+' '' \
+  "$PS1355W"
+prouver 'absence 1.355.1 b : la fenêtre rapetisse quand la nature change' modules/personnel/ecrans/entreprise/paie.js \
+  ' : days ? effetAbsence(employeeById(v.employeeId), days, paid, v, bal) : '\'''\'')' ' : '\'''\'')' \
+  "$PS1355W"
+prouver 'absence 1.355.1 c : le brut retenu ne se dit pas' modules/personnel/ecrans/entreprise/paie.js \
+  '[`${j(jours)} non payé${sPl(jours)}`, `− ${C.money(retenu, cur)}`]' '[`${j(jours)} non payé${sPl(jours)}`, '\''au prorata'\'']' \
+  "$PS1355W"
+prouver 'absence 1.355.1 d : « Octobre n'\''est pas fini » le 11 novembre' modules/personnel/ecrans/entreprise/paie.js \
+  '<b>${h(`La paie ${/^[aeiouyéè]/i.test(nom) ? `d'\''${nom}` : `de ${nom}`} n'\''est pas finie`)}</b>' '<b>${h(capi(nom))} n'\''est pas fini</b>' \
+  "$PS13551M"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

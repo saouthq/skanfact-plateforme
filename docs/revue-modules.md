@@ -2487,3 +2487,18 @@ brouillard : deux chemins, un chiffre. Ce que le parcours a trouvé :
 Tests : `tests/web/paie-1355.test.ts` (le parcours côté entreprise), `tests/moteur/paie-recette-1248-1.test.ts` (le mois
 pointé, le mois à payer), `tests/web/bout-en-bout-1353.test.ts` (l'onglet Paie du Cabinet) ; neuf preuves, une ancienne
 remise sur sa nouvelle ancre.
+
+### 1.355.1 : l'absence d'un salarié
+
+La suite du même salarié, à la souris : Sami prend deux jours sans solde en novembre.
+- **Le bouton disait « Poser le congé »** pour une absence sans solde ou un arrêt maladie. Il dit ce qu'il pose : « Poser
+  le congé », « Poser l'arrêt maladie », « Poser l'absence ».
+- **La fenêtre rapetissait de 82 px** en changeant la nature (le tableau du solde, propre au congé, disparaissait) : le
+  bouton remontait sous la souris. Chaque nature a maintenant son petit tableau de même hauteur.
+- **« Le brut sera réduit au prorata »** sans dire de combien. Le tableau le dit avant de poser : 1 200,000 − 92,308 =
+  1 107,692 DT (1 200 ÷ 26 × 2, calculé à la main), le même brut que le moteur du bulletin de novembre.
+- **« Octobre n'est pas fini »**, lu le 11 novembre, disait le contraire du calendrier : c'est la PAIE d'octobre qui
+  n'est pas finie (un bulletin à remettre, la déclaration à déposer). Le bandeau le dit ainsi.
+
+Tests : `tests/web/paie-1355.test.ts` (sixième étape), `tests/web/paie-mois.test.ts` (le bandeau) ; quatre preuves, une
+ancienne remise sur sa nouvelle ancre.

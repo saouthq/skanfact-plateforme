@@ -1364,6 +1364,24 @@
       + (apres < 0 ? `<span class="warn-text">Il prendrait ${j(-apres)} de plus qu'il n'en a acquis : ce n'est pas interdit, mais il faut le savoir.</span>` : '');
   }
 
+  // (1.355.1) Ce que l'absence fait, en un tableau de la MÊME hauteur que le solde d'un congé : changer la nature ne fait plus
+  // rapetisser la fenêtre (le bouton remontait de 82 px sous la souris), et une absence non payée dit combien elle retient.
+  function effetAbsence(emp, jours, paid, v, bal) {
+    const j = n => `${pct(n)} jour${sPl(n)}`;
+    const t = (a, b, c) => `</span><table class="mini lu lf-solde" id="lf-solde" aria-label="Ce que l'absence change"><tbody>
+        <tr><td>${a[0]}</td><td class="r">${a[1]}</td></tr><tr><td>${b[0]}</td><td class="r">${b[1]}</td></tr>
+        <tr><td><b>${c[0]}</b></td><td class="r"><b>${c[1]}</b></td></tr></tbody></table><span class="small">`;
+    if (!paid && emp) {
+      const y = Number((v.from || C.today()).slice(0, 4)), m = Number((v.from || C.today()).slice(5, 7)), cur = company().currency;
+      const brut = C.brutDuMois(emp, y, m) || Number(emp.grossSalary) || 0;
+      const retenu = C.round3(brut / (Number(C.payrollSettings(data).workedDays) || 26) * jours);
+      return t(['Son brut du mois', C.money(brut, cur)], [`${j(jours)} non payé${sPl(jours)}`, `− ${C.money(retenu, cur)}`], ['Son brut après', C.money(C.round3(brut - retenu), cur)]);
+    }
+    if (bal) return t(['Son solde de congés', j(bal.remaining)], ['Cette absence', 'n\'y touche pas'], ['Son solde après', j(bal.remaining)]);
+    return '';
+  }
+  const libellePoser = k => (k === 'conges' ? 'Poser le congé' : k === 'maladie' ? 'Poser l\'arrêt maladie' : 'Poser l\'absence');
+
   function leaveForm(leave, employeeId, done, jour) {
     if (!leave && faitBloque('Créer une absence')) return;
     const emps = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
@@ -1397,7 +1415,7 @@
       </form>
       <div class="modal-actions">
         ${leave ? '<button class="btn btn-danger" id="del-lv" style="margin-inline-end:auto">Supprimer</button>' : ''}
-        <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${leave ? 'Enregistrer' : `${lfIc('coche', 15, 2.4)} Poser le congé`}</button></div>`,
+        <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${leave ? 'Enregistrer' : `${lfIc('coche', 15, 2.4)} ${libellePoser(l.kind)}`}</button></div>`,
       (root, close) => {
         bindCombo($('[data-combo=employeeId]', root), { items: emps.map(e => ({ v: e.id, label: e.name, text: e.name })), placeholder: '— Choisir —' });
         const hint = () => {
@@ -1407,12 +1425,17 @@
           const bal = v.employeeId ? C.leaveBalance(data, v.employeeId, Number((v.from || C.today()).slice(0, 4))) : null;
           $('#lf-hint', root).innerHTML = `<span class="small ${days ? 'muted' : 'warn-text'}">`
             + (days ? `<b>${pct(days)} jour${sPl(days)} ouvrable${sPl(days)}</b>, dimanches exclus. ` : 'Aucun jour ouvrable dans cette période — vérifie les dates. ')
-            + (paid ? 'Payée : le salaire du mois n\'est pas réduit.' : 'Non payée : le brut sera réduit au prorata sur le bulletin du mois.')
-            + (bal && v.kind === 'conges' ? soldeApresConge(bal.remaining, days, leave, v) : '')
+            + (paid ? 'Payée : le salaire du mois n\'est pas réduit.' : 'Non payée : retenue sur le brut du mois.')
+            + (bal && v.kind === 'conges' ? soldeApresConge(bal.remaining, days, leave, v) : days ? effetAbsence(employeeById(v.employeeId), days, paid, v, bal) : '')
             + '</span>'
             + (() => { const r = v.employeeId ? manqueEquipe(v.employeeId, v.from, v.to) : null; return r ? `<span class="small warn-text lf-min" role="status">${lfIc('alerte', 13, 2)} ${h(manqueDit(r))} Tu peux le poser quand même.</span>` : ''; })();
         };
-        $('#lf', root).oninput = $('#lf', root).onchange = () => { $('#lf-maladie', root).hidden = formValues($('#lf', root)).kind !== 'maladie'; hint(); }; hint();
+        $('#lf', root).oninput = $('#lf', root).onchange = () => {
+          const k = formValues($('#lf', root)).kind;
+          $('#lf-maladie', root).hidden = k !== 'maladie';
+          if (!leave) $('#ok', root).innerHTML = `${lfIc('coche', 15, 2.4)} ${libellePoser(k)}`;
+          hint();
+        }; hint();
         const pjL = deepCopy(l.attachments || []);
         const dessinerPj = () => {
           $('#lf-pj', root).innerHTML = `${pjL.map(a => `<span class="lf-pj-f">${lfIc('piece', 14)}<b>${h(a.name || a.file)}</b><button type="button" class="btn btn-ghost btn-sm" data-lf-voir="${h(a.file)}">Ouvrir</button><button type="button" class="btn btn-ghost btn-sm" data-lf-x="${h(a.file)}" aria-label="Retirer ${h(a.name || a.file)}">✕</button></span>`).join('')}
@@ -2671,7 +2694,8 @@
           payer: `les bulletins sont établis ; ${pl(mo.filter(x => !x.paidDate).length, 'salaire')} ${mo.filter(x => !x.paidDate).length > 1 ? 'ne sont' : 'n\'est'} pas encore payé${mo.filter(x => !x.paidDate).length > 1 ? 's' : ''}`,
           remettre: `les salaires sont payés ; ${pl(mo.filter(x => x.paidDate && !x.remisLe).length, 'bulletin')} à remettre` }[p.sorte];
         const decl = deposee || !dE.salaries ? '' : modeDuMois(p.y, p.m) === 'tenue' ? ` Sa déclaration, c'est ton cabinet qui la dépose, avant le ${C.fmtDate(dE.dueDate)}.` : ` Sa déclaration est à déposer avant le ${C.fmtDate(dE.dueDate)}.`;
-        tete = `<div class="bandeau ambre pa-bandeau pa-ambre" id="pj-avant" role="status">${lfIc('alerte', 18)}<span class="txt"><b>${h(capi(nom))} n'est pas fini</b><span>${h(capi(quoi))}.${h(decl)}</span></span><button type="button" class="btn btn-primary" id="pj-avant-go">${lfIc(p.ic, 15, 2.2)} ${h(p.dit)}</button></div>`;
+        // (1.355.1) « Octobre n'est pas fini », lu le 11 novembre, disait que le mois n'était pas terminé : c'est sa PAIE.
+        tete = `<div class="bandeau ambre pa-bandeau pa-ambre" id="pj-avant" role="status">${lfIc('alerte', 18)}<span class="txt"><b>${h(`La paie ${/^[aeiouyéè]/i.test(nom) ? `d'${nom}` : `de ${nom}`} n'est pas finie`)}</b><span>${h(capi(quoi))}.${h(decl)}</span></span><button type="button" class="btn btn-primary" id="pj-avant-go">${lfIc(p.ic, 15, 2.2)} ${h(p.dit)}</button></div>`;
       }
       const ecrit = !enLecture('employees');
       const gestes = ecrit ? [['pj-absence', 'echeance', 'Une absence prévue', 'congé, sur un ou plusieurs jours'], ['pj-avance', 'argent', 'Une avance', 'retenue sur la prochaine paie'],
