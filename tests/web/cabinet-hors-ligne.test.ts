@@ -114,6 +114,21 @@ describe('le Cabinet sans réseau, à la souris', () => {
     expect((await lePoste(p, cabinet))?.lisible).toBe(false);
     expect(await p.evaluate(() => localStorage.getItem('skanfact.hors_ligne'))).toBe(`c:${cabinet}`);
     expect(await p.locator('#poste-bandeau:visible').count()).toBe(0);
+    // (1.354.0) Une seule clé de l'appareil, même pour six lectures gardées en même temps : sans la clé rangée, chacune
+    // en fabriquerait une, la dernière écrite gagnerait, et les cinq autres copies ne se reliraient plus sans réseau. Le
+    // hasard de l'ouverture ne suffit pas à le montrer : on retire la clé rangée le temps des six, puis on la remet.
+    expect(await p.evaluate(async (c) => {
+      const db = await new Promise<IDBDatabase>((ok, ko) => { const r = indexedDB.open('skanfact-poste'); r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); });
+      const cles = (mode: IDBTransactionMode) => db.transaction('cles', mode).objectStore('cles');
+      const rangee = await new Promise<unknown>((ok) => { const r = cles('readonly').get('appareil'); r.onsuccess = () => ok(r.result); });
+      await new Promise((ok) => { const r = cles('readwrite').delete('appareil'); r.onsuccess = () => ok(null); });
+      const poste = (window as unknown as { SkanPoste: { garderLecture: (c: string, ch: string, x: unknown) => Promise<void>; relireLecture: (c: string, ch: string) => Promise<unknown> } }).SkanPoste;
+      await Promise.all([0, 1, 2, 3, 4, 5].map((i) => poste.garderLecture(c, `/essai-cle/${i}`, { i })));
+      await new Promise((ok) => { const r = cles('readwrite').put(rangee, 'appareil'); r.onsuccess = () => ok(null); });
+      db.close();
+      const relues = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => poste.relireLecture(c, `/essai-cle/${i}`).then(() => true, () => false)));
+      return relues.filter(Boolean).length;
+    }, cabinet)).toBe(6);
 
     // (1.131.0) L'onglet Paie d'un dossier dont le mandat ne confie pas la paie : ouvert une fois avec le réseau, il
     // s'ouvre de même sans lui, sans « pas encore lu » (depuis la 1.124.0, rien n'y demande la paie au serveur).

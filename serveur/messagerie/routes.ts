@@ -318,7 +318,12 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       if (!fil.cabinet) {
         const cabinetQuitte = (await tx.query(`select exists (select 1 from socle.mandat where entreprise = $1
             and (statut = 'termine' or (statut = 'actif' and fin is not null and fin < current_date))) q`, [entreprise])).rows[0].q === true;
-        return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens, achatsConfies: false, declarationsConfiees: false, cabinetQuitte } };
+        // (1.354.0) Un dossier proposé à un cabinet qui n'a pas encore accepté : son nom, pour que le menu dise « en attente »
+        // au lieu d'« Inviter mon comptable » (joué de bout en bout : la proposition partie, le menu invitait encore).
+        // Le nom du cabinet par `cabinet_du_mandat` : l'entreprise ne lit pas l'organisation d'un cabinet (ses droits).
+        const propose = ((await tx.query(`select c.nom from socle.mandat m cross join lateral socle.cabinet_du_mandat(m.id) c
+            where m.entreprise = $1 and m.statut = 'propose' limit 1`, [entreprise])).rows[0] as { nom: string } | undefined)?.nom ?? null;
+        return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens, achatsConfies: false, declarationsConfiees: false, cabinetQuitte, propose } };
       }
       // (1.126.0) Le mandat confie-t-il la saisie des achats ? La page Achats propose alors d'abord la photo au cabinet
       // (revue du mois d'un client, point 6).

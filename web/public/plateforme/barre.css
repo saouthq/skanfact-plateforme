@@ -131,6 +131,8 @@ body.avec-barre #barre.sidebar { height: calc(100dvh - var(--poste-bandeau-h, 0p
 #barre .lien .compte:not([hidden]) + .chev { margin-left: 0; }
 #barre .lien.inviter { color: var(--sb-sarcelle-texte); }
 #barre .lien.inviter > .ic { color: var(--sb-sarcelle); }
+/* (1.354.0) En attente d'un cabinet : plus une invitation à faire, un état qu'on lit. */
+#barre .lien.inviter.attente, #barre .lien.inviter.attente > .ic { color: var(--sb-gris); }
 #barre .lien .point { display: none; }
 /* Le compte de ce qui attend : un chiffre seul, ambre pour ce qui attire, rouge pour un retard, gris pour une info. */
 #barre .compte { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; font-size: 11.5px; font-weight: 600; display: grid; place-items: center; font-variant-numeric: tabular-nums; margin-left: auto; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); line-height: 1; }

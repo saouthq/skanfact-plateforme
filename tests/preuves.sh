@@ -8913,7 +8913,7 @@ prouver "« Continuer » sans métier" $ASJS \
   "          if (!a.activity) {" "          if (false) {" \
   "$AS1"
 prouver "le téléphone enregistré sans son indicatif" $ASJS \
-  '/^(\+|00)/.test(s) ? s : `${INDICATIF} ${s}`;' '/^(\+|00)/.test(s) ? s : s;' \
+  '/^(\+|00)/.test(s) ? s : `${INDICATIF} ${telGroupe(s)}`;' '/^(\+|00)/.test(s) ? s : telGroupe(s);' \
   "$AS1"
 prouver "le pied de l'aperçu qui n'est pas lu sur la facture" $ASJS \
   "const pied = lignesDe(d.querySelector('.footer .f-left'));" "const pied = [];" \
@@ -24032,7 +24032,7 @@ prouver 'paie 1.270 g : le cabinet parti, la paie reste « tenue » par ses anci
   '    && (!!messagerieVue.cabinetQuitte || !((data' '    && (false || !((data' \
   'le cabinet parti : la paie tenue redevient la tienne, malgré les anciens bulletins du cabinet'
 prouver 'paie 1.270 h : le serveur ne dit pas que le cabinet est parti' serveur/messagerie/routes.ts \
-  'anciens, achatsConfies: false, declarationsConfiees: false, cabinetQuitte } };' 'anciens, achatsConfies: false, declarationsConfiees: false } };' \
+  'anciens, achatsConfies: false, declarationsConfiees: false, cabinetQuitte, propose } };' 'anciens, achatsConfies: false, declarationsConfiees: false, propose } };' \
   'le cabinet ne lit plus ; l'\''entreprise relit l'\''ancien fil sans y écrire ; un nouveau cabinet ne le lit pas'
 # (1.271.0) Les décisions du 04/11 au soir (Skander : « décide pour moi et donne la liberté à l'utilisateur ») : le pointage
 # ouvert au client d'un cabinet qui tient la paie, le « Pourquoi ? » facultatif d'une absence, le jour du « payé le » au Cabinet.
@@ -27720,6 +27720,25 @@ prouver 'bout en bout 1.353.0 g : le virement sans compte ignore le compte banca
 prouver 'bout en bout 1.353.0 h : les écritures gardent l'\''ancienne règle' modules/socle/moteur/core-2.js \
   '|| compteSansNom(comptes, method);' '|| comptes.find(a => a.isDefault) || comptes[0];' \
   "$BB1353M1"
+
+# 1.354.0 : les finitions du bout en bout. Le comptable proposé, le total qui pousse, l'article à créer, le téléphone ; et la clé de l'appareil prouvée sans le hasard.
+BB1354='1.354.0 : le menu dit « en attente », le premier montant ne pousse pas « Enregistrer », « Créer l'\''article… » ouvre la fiche'
+AS1354='revoir l'\''assistant : ses réponses y sont, rien ne s'\''écrit avant la fin, et « Fermer sans rien changer » ne change rien'
+prouver 'finitions 1.354.0 a : le serveur ne dit pas à qui le dossier est proposé' serveur/messagerie/routes.ts \
+  'cabinetQuitte, propose } };' 'cabinetQuitte, propose: null } };' \
+  "$BB1354"
+prouver 'finitions 1.354.0 b : le menu invite encore pendant que la proposition attend' modules/socle/ecrans/entreprise/app-1.js \
+  'const nom = a && !a.cabinet && a.propose ? String(a.propose) : '\'''\'';' 'const nom = '\'''\'';' \
+  "$BB1354"
+prouver 'finitions 1.354.0 c : la ligne « toute déductible » naît et pousse « Enregistrer l'\''achat »' modules/socle/ecrans/entreprise/app-1.js \
+  ''\''<tr class="ac-sous ac-reserve" aria-hidden="true"><td>\u00a0</td><td></td></tr>'\''' ''\'''\''' \
+  "$BB1354"
+prouver 'finitions 1.354.0 d : « Créer l'\''article… » ouvre une liste d'\''une seule entrée' modules/socle/ecrans/entreprise/app-1.js \
+  ''\'' data-creer="1">Créer l\'\''article…'\''' ''\''>Créer l\'\''article…'\''' \
+  "$BB1354"
+prouver 'finitions 1.354.0 e : le téléphone tapé d'\''un bloc s'\''enregistre d'\''un bloc' web/public/plateforme/assistant.js \
+  'const telGroupe = (s) => (/^\d{8}$/.test(s) ? `${s.slice(0, 2)} ${s.slice(2, 5)} ${s.slice(5)}` : s);' 'const telGroupe = (s) => s;' \
+  "$AS1354"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

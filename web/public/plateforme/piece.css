@@ -57,7 +57,7 @@
 .ed-client { display: grid; gap: 10px; }
 /* (1.353.0) Le champ « Fournisseur » et la carte qui le remplace ont la même hauteur : choisir le fournisseur ne fait
    plus descendre de 22 px le numéro, les dates et les lignes sous le curseur. */
-.buy-editor .ed-choix-client { min-height: 74px; align-content: start; }
+.buy-editor .ed-choix-client { min-height: 82px; align-content: start; }
 .ed-cl-tete { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ed-cl-tete .av { width: 44px; height: 44px; border-radius: 12px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; }
 .ed-cl-nom { display: grid; gap: 2px; min-width: 0; flex: 1; }
@@ -1675,3 +1675,6 @@
   .lp-fiche .lines-edit td[data-lib]::before { content: attr(data-lib); display: block; font-size: 11px; color: var(--sb-gris-2); }
   .lp-fiche .lp-remise { width: 100%; }
 }
+
+/* (1.354.0) Une ligne des totaux réservée : elle tient sa place, sans rien montrer. */
+.ac-reserve { visibility: hidden; }

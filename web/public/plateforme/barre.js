@@ -697,7 +697,7 @@
       + familles
       + `<div class="plus-section"><span class="plus-titre">Mon compte</span><div class="liste-tel">`
       + (fc ? `<a href="#/comptable">${ligne(`<span class="ic">${ic('comptable', 19)}</span><span class="lib">Mon comptable</span>`, compteDuLien(fc))}</a>` : '')
-      + (inviter ? `<button type="button" data-plus="inviter">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">Inviter mon comptable</span>`, null)}</button>` : '')
+      + (inviter ? `<button type="button" data-plus="inviter">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">${esc((inviter.querySelector('.lib-inv') || inviter).textContent || 'Inviter mon comptable')}</span>`, null)}</button>` : '')
       + (i.responsable ? `<button type="button" data-plus="abonnement">${ligne(`<span class="ic">${ic('carte', 19)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}</span><span class="d">${esc(abo && abo.show ? abo.texte : 'À jour')}</span>`, null)}</button>`
         + `<button type="button" data-plus="equipe">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">Mon équipe</span>`, null)}</button>` : '')
       + (role() === 'caissier' && typeof w.__caissePoste === 'function' && w.__caissePoste() ? `<button type="button" data-plus="caissier">${ligne(`<span class="ic">${ic('changer', 19)}</span><span class="lib">Changer de caissier</span><span class="d">code à 4 chiffres</span>`, null)}</button>` : '')

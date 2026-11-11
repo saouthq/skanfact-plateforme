@@ -312,7 +312,8 @@ describe('l\'assistant de démarrage, à la souris', () => {
     // Revu jusqu'au bout : le régime réglé à la main reste (le métier n'en propose pas d'autre), le téléphone changé
     // s'enregistre, le menu choisi aussi ; le catalogue reste le sien.
     await ouvrirLeRejeu();
-    await assistant(p).locator('#as-tel').fill('71 222 333');
+    // (1.354.0) Huit chiffres tapés d'un bloc s'enregistrent groupés comme on les dicte.
+    await assistant(p).locator('#as-tel').fill('71222333');
     await suite(p).click();
     await ecran(p, 'Que fais-tu ?');
     await suite(p).click();

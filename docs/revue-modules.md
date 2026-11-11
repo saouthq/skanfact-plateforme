@@ -2423,3 +2423,35 @@ mois arrivent au brouillard (achats, banque, ventes), le comptable valide le lot
 Cabinet dit les chiffres de l'entreprise : 57,000 DT de TVA due, 136,800 déductible, un crédit de 79,800, un timbre. Sa
 balance porte le virement à la banque (532 : 200,000) et rien à la caisse ; le client doit encore 158,000. Deux chemins,
 un chiffre : aucun écart. Aucun code du produit ne change (`tests/web/bout-en-bout-1353.test.ts`, second parcours).
+
+## Les finitions du bout en bout (1.354.0)
+
+Les quatre points laissés de côté par la 1.353.0, rejoués à la souris puis tenus par un troisième parcours du test :
+
+- **« Inviter mon comptable » pendant que la demande attend.** La barre latérale invitait encore alors que le dossier
+  était déjà proposé à un cabinet : on invitait une seconde fois. Le serveur dit maintenant à qui le dossier est proposé
+  (`propose` dans la réponse de `/messages/attente`, lu par `socle.cabinet_du_mandat` : l'entreprise ne lit pas la table
+  des organisations), et le lien devient « Comptable : en attente », en gris, avec « Jlassi Conseil n'a pas encore
+  accepté ton dossier » au survol. Le libellé se relit à chaque réponse, pas seulement quand un cabinet apparaît. Une
+  entreprise qui a déjà des messages garde « Mon comptable » : c'est voulu, ses messages restent lisibles.
+- **Le premier montant poussait « Enregistrer l'achat ».** La ligne « toute déductible » naissait sous le total et
+  descendait le bouton de 32 px au moment où on le visait. Sa place est réservée dès l'ouverture (une ligne vide de même
+  hauteur), et le sous-total net aussi : le bouton ne bouge plus que d'un pixel.
+- **« Créer l'article… » passait par une liste d'une seule entrée.** Quand aucun article du catalogue ne ressemble à la
+  ligne, le bouton ouvre directement « Nouvel article », la désignation déjà tapée et « Suivi en stock » coché ;
+  enregistré, la ligne s'y rattache et l'avertissement disparaît. S'il y a des articles proches, il reste « Choisir
+  l'article… ».
+- **Le téléphone tapé d'un bloc** (« 71222333 ») s'enregistre « +216 71 222 333 », comme on le lit ; ce qui est tapé
+  avec ses espaces ou avec un indicatif reste tel quel.
+
+Et la carte du fournisseur, dans l'achat, a la hauteur exacte de la ligne qui l'entoure (82 px) ; les invites des champs
+« Numéro de la facture » et « Référence de l'acompte » disent ce qu'on y met (« Celui de sa facture », « Reçu, virement… »).
+
+**La preuve qui dépendait du hasard.** GitHub a refusé « Toutes les preuves » sur une seule : « une clé de l'appareil
+par lecture gardée en même temps » restait verte. Le défaut (chaque lecture gardée fabrique sa propre clé de chiffrement,
+la dernière écrite gagne) ne se voit que si plusieurs lectures partent avant que la première clé soit rangée : c'est
+le hasard de l'ouverture du Cabinet qui décidait. Le test retire maintenant la clé rangée, garde six lectures en même
+temps, remet la clé, et exige que les six se relisent : le défaut tombe à chaque fois. Aucun code du produit ne change.
+
+Tests : `tests/web/bout-en-bout-1353.test.ts` (troisième parcours), `tests/web/assistant.test.ts`,
+`tests/web/cabinet-hors-ligne.test.ts` ; cinq preuves de plus, deux anciennes remises sur leur nouvelle ancre.

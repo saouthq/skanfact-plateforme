@@ -1791,6 +1791,9 @@
     // L'avertissement « ne correspond à aucun article » ramène ICI et ouvre la liste : on choisit,
     // on ne retape pas.
     input._ouvrirSuggestions = () => { input.focus(); sel = 0; demandee = true; draw(); };
+    // (1.354.0) Joué : « Créer l'article… » ouvrait une liste dont la seule entrée était « + Créer … au catalogue » — un
+    // clic de plus pour le geste que le bouton annonçait. Rien à choisir : la fiche s'ouvre tout de suite, préremplie.
+    input._creerArticle = () => { if (o.onCreate) { close(); o.onCreate(input.value.trim()); } else input._ouvrirSuggestions(); };
   }
 
   // (1.155.0, maquette de la facture) Une bulle posée sous son bouton : les étiquettes de la pièce, l'échéance, « Modèle »,
@@ -2547,6 +2550,9 @@
       const inviter = $('#b-inviter-comptable');
       if (inviter) { inviter.hidden = avecMessagerie(a); ajusterNav(); }
     }
+    // (1.354.0) La proposition partie ou retirée ne change pas « un cabinet tient-il le dossier ? » : le libellé se relit à
+    // chaque réponse, pas seulement quand un cabinet apparaît.
+    libelleInviter($('#b-inviter-comptable'), a);
     updateNavCounts();
   }
 
@@ -2929,8 +2935,9 @@
     if (comptable && role !== 'caissier') {
       q.appendChild(comptable);
       if (comptable.hidden && role === 'proprietaire') {
-        q.insertAdjacentHTML('beforeend', `<a href="#/compta" class="lien inviter" id="b-inviter-comptable" data-tip="Inviter mon comptable"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5M19 8v6M16 11h6"/></svg></span>Inviter mon comptable<span class="point"></span></a>`);
+        q.insertAdjacentHTML('beforeend', `<a href="#/compta" class="lien inviter" id="b-inviter-comptable" data-tip="Inviter mon comptable"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5M19 8v6M16 11h6"/></svg></span><span class="lib-inv">Inviter mon comptable</span><span class="point"></span></a>`);
         $('#b-inviter-comptable').onclick = (e) => { e.preventDefault(); allerInviterComptable(); };
+        libelleInviter($('#b-inviter-comptable'), messagerieVue);
       }
     }
     if (modules) { const r = $('#nav-reste', nav); if (r && role === 'proprietaire') r.appendChild(modules); else $('.sidebar-foot').appendChild(modules); modules.hidden = !(r && role === 'proprietaire'); }
@@ -2950,6 +2957,17 @@
   window.__allerAbonnement = () => allerAbonnement();
   // (27/10/2026, maquette « Mon comptable ») Inviter son comptable, c'est la page « Mon comptable » dessinée pour cela, quand
   // la messagerie est là ; sinon l'onglet Cabinet de la Comptabilité. Le curseur se pose sur son adresse.
+  // (1.354.0) Joué de bout en bout : la proposition partie, le menu disait encore « Inviter mon comptable », et le clic
+  // ramenait à une page qui répondait « ton dossier attend que ton comptable l'accepte ». Le libellé dit l'état : en
+  // attente, chez qui. Même lien, même page — c'est elle qui permet de retirer la proposition.
+  function libelleInviter(el, a) {
+    const t = el && el.querySelector('.lib-inv');
+    if (!t) return;
+    const nom = a && !a.cabinet && a.propose ? String(a.propose) : '';
+    t.textContent = nom ? 'Comptable : en attente' : 'Inviter mon comptable';
+    el.dataset.tip = nom ? `${nom} n'a pas encore accepté ton dossier` : 'Inviter mon comptable';
+    el.classList.toggle('attente', !!nom);
+  }
   function allerInviterComptable() { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate(bridge.dessinerSansCabinet && bridge.messagerie ? '#/comptable' : '#/compta'); }
   window.__inviterComptable = () => allerInviterComptable();
   window.__naviguer = (hash) => navigate(hash);
@@ -16924,12 +16942,12 @@
     // du fournisseur », et promettait de « récupérer la TVA » — un avoir en RETIRE. Ce que la pièce
     // est se dit dans ses libellés — le titre compris — ; ils suivent la nature quand on la change.
     const motsDeNature = kind => kind === 'avoir'
-      ? { titre: 'Nouvel avoir fournisseur', numero: 'Numéro de l\'avoir', invite: 'Celui écrit sur l\'avoir du fournisseur', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : l\'avoir retire cette TVA de celle que tu récupères.' }
+      ? { titre: 'Nouvel avoir fournisseur', numero: 'Numéro de l\'avoir', invite: 'Celui de l\'avoir', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : l\'avoir retire cette TVA de celle que tu récupères.' }
       : kind === 'acompte'
-        ? { titre: 'Nouvel acompte versé', numero: 'Référence de l\'acompte', invite: 'Facture d\'acompte, reçu, virement…', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA de l\'acompte.' }
+        ? { titre: 'Nouvel acompte versé', numero: 'Référence de l\'acompte', invite: 'Reçu, virement…', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA de l\'acompte.' }
         : kind === 'depense'
           ? { titre: 'Nouvelle dépense', numero: 'Référence du ticket', invite: 'facultatif', lignes: 'Tape ce que tu as payé dans « Montant payé (TTC) » et choisis son taux de TVA : SkanFact en déduit le hors taxes.' }
-          : { titre: 'Nouvelle facture d\'achat', numero: 'Numéro de la facture', invite: 'Celui écrit sur la facture du fournisseur', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA.' };
+          : { titre: 'Nouvelle facture d\'achat', numero: 'Numéro de la facture', invite: 'Celui de sa facture', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA.' };
     // Au forfait ou exonéré, la TVA d'un achat ne se récupère pas (10.14.0) : la phrase qui promettait
     // de la récupérer se lisait au-dessus d'une case « Déduct. » éteinte.
     // Une pièce saisie sous un autre régime garde sa règle (7.1.x) — et le DIT, avec le geste qui la
@@ -17677,12 +17695,12 @@
         <tr><td>Total HT</td><td>${mt(t.totalHT)}</td></tr>
         <tr><td>TVA</td><td>${mt(t.totalVAT)}</td></tr>
         ${!recup && t.totalVAT ? `<tr class="ac-sous"><td>dont déductible</td><td>${mt(0)}</td></tr>`
-          : t.deductibleVAT !== t.totalVAT ? `<tr class="ac-sous"><td>dont déductible</td><td>${mt(t.deductibleVAT)}</td></tr>` : t.totalVAT > 0.0005 ? `<tr class="ac-sous ok"><td>toute déductible</td><td>${lfIc('coche', 13, 2.6)}</td></tr>` : ''}
+          : t.deductibleVAT !== t.totalVAT ? `<tr class="ac-sous"><td>dont déductible</td><td>${mt(t.deductibleVAT)}</td></tr>` : t.totalVAT > 0.0005 ? `<tr class="ac-sous ok"><td>toute déductible</td><td>${lfIc('coche', 13, 2.6)}</td></tr>` : '<tr class="ac-sous ac-reserve" aria-hidden="true"><td>\u00a0</td><td></td></tr>'}
         ${t.fees ? `<tr><td>Timbre et frais</td><td>${mt(t.fees)}</td></tr>` : ''}
         <tr class="ac-sep"><td>Total TTC</td><td>${mt(t.totalTTC)}</td></tr>
         ${t.withholding ? `<tr class="ac-neg"><td>Retenue opérée ${pct(t.withholdingRate)} %</td><td>−${mt(t.withholding)}</td></tr>` : noteRs && noteRs.ton === 'ok' ? `<tr class="ac-sous" id="b-exo" title="${h(noteRs.texte)}"><td>Retenue · fournisseur exonéré</td><td>aucune</td></tr>` : ''}
         ${noteRs && noteRs.ton !== 'ok' ? `<tr><td colspan="2" class="small ${noteRs.ton === 'warn' ? 'warn-text' : 'muted'}" id="b-exo"><div class="note-totaux">${h(noteRs.texte)}</div></td></tr>` : ''}
-        <tr class="grand ac-grand"><td colspan="2"><div class="ed-net"><span class="k">${p.kind === 'avoir' ? 'Montant de l\'avoir' : p.kind === 'acompte' ? 'Montant de l\'acompte' : p.kind === 'depense' ? 'Payé' : 'Net à payer au fournisseur'}</span><span class="v"><b>${C.money(t.netToPay, null, C.decimalsFor(cur))}</b> <small>${h(cur)}</small></span>${sousNet ? `<span class="s" id="b-sous-net">${sousNet}</span>` : ''}</div></td></tr>
+        <tr class="grand ac-grand"><td colspan="2"><div class="ed-net"><span class="k">${p.kind === 'avoir' ? 'Montant de l\'avoir' : p.kind === 'acompte' ? 'Montant de l\'acompte' : p.kind === 'depense' ? 'Payé' : 'Net à payer au fournisseur'}</span><span class="v"><b>${C.money(t.netToPay, null, C.decimalsFor(cur))}</b> <small>${h(cur)}</small></span>${/* (1.354.0) Joué : au premier montant, « toute déductible » et « TVA récupérable » naissaient et poussaient « Enregistrer l'achat » de 32 px sous le curseur. Les deux lignes ont leur place dès la pièce vide. */''}<span class="s" id="b-sous-net">${sousNet || '\u00a0'}</span></div></td></tr>
       </table>`;
       const coutDest = $('#b-dest');
       if (coutDest) {
@@ -17761,7 +17779,7 @@
         // « Créer l'article… » quand rien du catalogue ne lui ressemble : la liste n'offrira alors que la
         // création, et « Choisir » promettait un choix qui n'existe pas (10.12.0, une menuiserie).
         // La MÊME fonction décide du libellé et de ce que la liste montre.
-        if (orphelines.length) morceaux.push(`<span class="small warn-text">${pl(orphelines.length, 'ligne')} en destination « stock » ${orphelines.length > 1 ? 'ne correspondent' : 'ne correspond'} à aucun article suivi du catalogue : ${orphelines.map(({ l, i }) => `« ${h(l.label || 'sans désignation')} » <button type="button" class="btn btn-sm" data-orph="${i}">${propositionsCatalogue(data.catalog, l.label || '', true, true).shown.length ? 'Choisir l\'article…' : 'Créer l\'article…'}</button>`).join(', ')}. ${orphelines.length > 1 ? 'Elles n\'entreront' : 'Elle n\'entrera'} dans aucun stock. ${info('stk.orphan')}</span>`);
+        if (orphelines.length) morceaux.push(`<span class="small warn-text">${pl(orphelines.length, 'ligne')} en destination « stock » ${orphelines.length > 1 ? 'ne correspondent' : 'ne correspond'} à aucun article suivi du catalogue : ${orphelines.map(({ l, i }) => `« ${h(l.label || 'sans désignation')} » <button type="button" class="btn btn-sm" data-orph="${i}"${propositionsCatalogue(data.catalog, l.label || '', true, true).shown.length ? '>Choisir l\'article…' : ' data-creer="1">Créer l\'article…'}</button>`).join(', ')}. ${orphelines.length > 1 ? 'Elles n\'entreront' : 'Elle n\'entrera'} dans aucun stock. ${info('stk.orphan')}</span>`);
         // Quand l'offre ferme le module Immobilisations, l'avertissement change de sens : on ne
         // reproche pas ce qu'on n'a pas offert (7.20.0), et « ce montant n'est déduit nulle part »
         // serait faux — la ligne part au cabinet dans les écritures, au compte 22, et c'est lui qui
@@ -17802,7 +17820,7 @@
           const inp = $(`tr[data-i="${b.dataset.orph}"] input[data-k=label]`, body);
           if (!inp || !inp._ouvrirSuggestions) return;
           inp.scrollIntoView({ block: 'center' });
-          inp._ouvrirSuggestions();
+          if (b.dataset.creer && inp._creerArticle) inp._creerArticle(); else inp._ouvrirSuggestions();
         });
       }
     }

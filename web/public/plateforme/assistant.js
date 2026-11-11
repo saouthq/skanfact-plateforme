@@ -159,8 +159,12 @@
       // ── Le téléphone : « +216 » se montre devant la case, et s'enregistre avec le numéro ─────────────────────────
       /** @param {unknown} v */
       const telPourLaCase = (v) => { const s = String(v || '').trim(); return s.startsWith(INDICATIF) ? s.slice(INDICATIF.length).trim() : s; };
-      /** Un numéro qui porte déjà son indicatif (« +33… », « 0033… ») reste tel quel. @param {string} v */
-      const telEnregistre = (v) => { const s = String(v || '').trim(); return !s ? '' : /^(\+|00)/.test(s) ? s : `${INDICATIF} ${s}`; };
+      // (1.354.0) Huit chiffres collés (« 71962315 ») s'impriment comme on les dicte, « 71 962 315 » : sur une facture, un numéro
+      // d'un bloc se relit mal. Ce qui porte déjà des espaces, ou un autre nombre de chiffres, reste tel que tapé.
+      /** @param {string} s */
+      const telGroupe = (s) => (/^\d{8}$/.test(s) ? `${s.slice(0, 2)} ${s.slice(2, 5)} ${s.slice(5)}` : s);
+      /** Un numéro qui porte déjà son indicatif (« +33… », « 0033… ») reste tel quel. @param {unknown} v */
+      const telEnregistre = (v) => { const s = String(v || '').trim(); return !s ? '' : /^(\+|00)/.test(s) ? s : `${INDICATIF} ${telGroupe(s)}`; };
 
       // ── Le haut de la page : la marque, le fil, la sortie ───────────────────────────────────────────────────────
       /** @param {{ fil: number }} e */

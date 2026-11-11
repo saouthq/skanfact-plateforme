@@ -241,4 +241,62 @@ describe('bout en bout 1.353.0 : la première facture d\'une épicerie neuve, so
     expect(bal).toContain('4367 TVA collectée 0,000 DT 57,000 DT 57,000 DT');
     expect(erreurs).toEqual([]);
   }, 240_000);
+  it('1.354.0 : le menu dit « en attente », le premier montant ne pousse pas « Enregistrer », « Créer l\'article… » ouvre la fiche', async () => {
+    const leila = await personne('leila');
+    const cab = await api('POST', '/cabinets', leila, { nom: 'Jlassi Conseil' });
+    const sonia = await personne('sonia');
+    const ent = String((await api('POST', '/entreprises-essai', sonia)).corps.id);
+    const objets = async () => (await api('GET', `/entreprises/${ent}/dossier-v10`, sonia)).corps.objets as Obj[];
+    const fiche = (await objets()).find((o) => o.collection === '_racine' && o.cle === 'company');
+    const societe = { ...(fiche ? fiche.contenu : {}), setupDone: true, managerName: 'Sonia Ben Youssef', name: 'Épicerie fine du Lac', city: 'Tunis' };
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sonia, { changements: [{ collection: '_racine', cle: 'company', rang: null, revision: fiche ? fiche.revision : null, contenu: societe },
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: enc({ id: 's1', name: 'Domaine Ben Ammar', matricule: '1122334D/A/M/000' }) }] })).statut).toBe(200);
+    const cx = await contexte(sonia);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(String(e)));
+
+    // 1. Avant la proposition, le menu invite ; dossier proposé (pas encore accepté), il dit l'état, chez qui.
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/`);
+    await p.locator('#b-inviter-comptable').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    expect(net(await p.locator('#b-inviter-comptable').innerText())).toBe('Inviter mon comptable');
+    expect((await api('POST', `/entreprises/${ent}/mandat`, sonia, { codeCabinet: String(cab.corps.code), perimetre: ['comptabilite'] })).statut).toBeLessThan(300);
+    expect((await api('GET', `/entreprises/${ent}/messages/attente`, sonia)).corps.propose).toBe('Jlassi Conseil');
+    await p.reload();
+    await plusTard(p);
+    await expect.poll(async () => net(await p.locator('#b-inviter-comptable').innerText().catch(() => '')), { timeout: 40_000 }).toBe('Comptable : en attente');
+    expect(await p.locator('#b-inviter-comptable').getAttribute('data-tip')).toBe('Jlassi Conseil n\'a pas encore accepté ton dossier');
+
+    // 2. L'achat : « Enregistrer l'achat » ne bouge pas quand le premier montant apparaît.
+    await p.evaluate(() => { location.hash = '#/achat/new'; });
+    await p.locator('#ac-main').click({ timeout: 20_000 });
+    await p.locator('[data-combo=supplierId] .combo-btn').click();
+    await p.locator('.combo-pop .combo-it').filter({ hasText: 'Domaine Ben Ammar' }).first().click();
+    if (!(await p.locator('#b-lines input[data-k=label]').count())) await p.locator('#add-line').click();
+    const yEnregistrer = async () => Math.round((await p.locator('#save').boundingBox())?.y ?? -1);
+    const avant = await yEnregistrer();
+    await p.locator('#b-lines input[data-k=label]').first().fill('Huile d\'olive extra vierge 75 cl');
+    await p.locator('#b-lines input[data-k=qty]').first().fill('40');
+    await p.locator('#b-lines input[data-k=unitPrice]').first().fill('18');
+    await expect.poll(async () => net(await p.locator('#b-totals').innerText())).toContain('toute déductible');
+    expect(net(await p.locator('#b-totals').innerText())).toContain('TVA récupérable : 136,800');
+    expect(await yEnregistrer()).toBe(avant);
+
+    // 3. En stock, sans article au catalogue : « Créer l'article… » ouvre la fiche, préremplie, sans liste d'une entrée.
+    await p.locator('#b-lines select[data-k=destination]').first().selectOption('stock').catch(async () => {
+      await p.locator('#b-lines [data-k=destination]').first().click();
+      await p.getByRole('option', { name: 'Stock', exact: true }).click();
+    });
+    const creer = p.locator('[data-orph][data-creer]');
+    await creer.waitFor({ timeout: 10_000 });
+    expect(net(await creer.innerText())).toBe('Créer l\'article…');
+    await creer.click();
+    await p.locator('#modal-root .modal').last().waitFor();
+    expect(net(await p.locator('#modal-root .modal h2').last().innerText())).toBe('Nouvel article');
+    expect(await p.locator('#modal-root .modal [name=label]').last().inputValue()).toBe('Huile d\'olive extra vierge 75 cl');
+    expect(await p.locator('.sugg-pop:not([hidden])').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
 });
