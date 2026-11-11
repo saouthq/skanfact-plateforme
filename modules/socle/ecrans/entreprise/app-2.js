@@ -611,7 +611,7 @@
         $('#cs-body').innerHTML = etatVide('Ce que tu vends au comptoir', [
           'La caisse vend les articles de ton <b>Catalogue</b> : chacun avec son prix et, pour la douchette, son <b>code-barres</b>.',
           'Crée ton premier article — il arrive tout de suite dans la caisse.'], [['cs-new-art', '+ Nouvel article', true]]);
-        $('#cs-new-art').onclick = () => catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article' });
+        $('#cs-new-art').onclick = () => catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article', comptoir: true });
         ecranClient('repos');
         return;
       }
@@ -675,7 +675,9 @@
         $$('#cs-articles [data-art]').forEach(b => { b.onclick = () => { ajouter(articles.find(a => a.id === b.dataset.art)); if (window.matchMedia('(pointer: fine)').matches) scan(); }; });
         if ($('#cs-creer-art')) $('#cs-creer-art').onclick = () => {
           const code = C.normCode(q) && /\d{4,}/.test(q) ? q : '';
-          catalogForm(articleNeuf(code ? { code } : { label: q }), it => { if (it) { s.q = ''; ajouter(it); vers('#/caisse')(); } });
+          // (1.356.0) Une CRÉATION : la fiche s'ouvrait « Modifier la prestation », avec « Supprimer », et l'article
+          // enregistré n'entrait pas au catalogue (le croissant vendu, jamais rangé, à recréer le lendemain).
+          catalogForm(articleNeuf(code ? { code } : { label: q }), it => { if (it) { s.q = ''; ajouter(it); vers('#/caisse')(); } }, { creation: true, titre: 'Nouvel article', comptoir: true });
         };
       };
       const ajouter = it => {

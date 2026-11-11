@@ -19,6 +19,7 @@ const C = ecranDeLaPlateforme('core.js') as {
   computeTotals: (doc: Fiche, company: Fiche) => { vatByRate: Record<string, { base: number; vat: number; marchandises?: number; produits?: number }> };
   journalEntries: (data: Fiche, company: Fiche, periode: object, options: object) => LigneJournal[];
   natureDeLArticle: (item: Fiche | null) => string;
+  natureProposee: (company: Fiche, auComptoir: boolean) => string;
   ligneDePanier: (item: Fiche, company: Fiche) => Fiche;
   DEFAULT_ACCOUNTS: Record<string, string>;
 };
@@ -98,6 +99,21 @@ describe('le compte de chaque vente (1.318.0)', () => {
     // Le panier de la caisse porte la nature de l'article dès qu'il y entre ; une prestation n'en porte pas.
     expect(C.ligneDePanier({ id: 'p', label: 'Peinture', unitPrice: 89, vatRate: 19, tracked: true }, SOCIETE).nature).toBe('marchandises');
     expect('nature' in C.ligneDePanier({ id: 's', label: 'Pose', unitPrice: 25, vatRate: 19 }, SOCIETE)).toBe(false);
+  });
+
+  it('la nature proposée à une fiche neuve (1.356.0) : le métier d\'abord, puis le comptoir ; une prestation sinon', () => {
+    // La boulangerie crée « Croissant » depuis la recherche de sa caisse : sans métier dit, ce qu'on vend au comptoir se
+    // revend (707) ; une fiche créée au catalogue reste une prestation (706), comme avant. Le métier tranche partout.
+    const cas: [Fiche, boolean, string][] = [
+      [{}, true, 'marchandises'],                          // au comptoir, sans métier
+      [{}, false, 'services'],                             // au catalogue, sans métier : l'ancien défaut, inchangé
+      [{ activity: 'commerce' }, false, 'marchandises'],   // un commerce revend, même au catalogue
+      [{ activity: 'restauration' }, true, 'produits'],    // ce qu'un restaurant vend, il le fabrique
+      [{ activity: 'artisanat' }, false, 'produits'],
+      [{ activity: 'informatique' }, false, 'services'],   // un métier de service reste une prestation
+      [{ activity: 'informatique' }, true, 'marchandises'],// sauf au comptoir, où l'on vend ce qu'on a sur l'étagère
+    ];
+    expect(cas.map(([c, comptoir]) => C.natureProposee(c, comptoir))).toEqual(cas.map(([, , n]) => n));
   });
 
   it('les comptes par défaut : 707 et 701 dans le plan du serveur comme dans celui de l\'entreprise', () => {

@@ -86,7 +86,9 @@ describe('les mouvements de trésorerie, tenus par le serveur, contre la v10', (
     await exemple();
     const donneesV10 = { ...donnees, accounts: [...donnees.accounts, caisse], movements: tousLesMouvements };
     const v = core.journalEntries(donneesV10, donnees.company, {}, { sections: ['tresorerie'] });
-    const t = await tenues();
+    // (1.356.0) Le solde de départ d'un compte est une famille à part, au compte d'attente là où la v10 écrit l'à-nouveau :
+    // il a son test plus bas.
+    const t = (await tenues()).filter((l) => l.piece !== 'OUVERTURE');
     const attendu = v.map((l) => cleDe({ date: l.date, journal: l.journal, piece: l.piece, compte: l.account, libelle: l.label ?? '', debit: entier(l.debit, 3) ?? -1n, credit: entier(l.credit, 3) ?? -1n })).sort();
     const tenu = t.map((l) => cleDe({ date: l.date, journal: l.journal, piece: l.piece ?? '', compte: l.compte, libelle: l.ligne, debit: BigInt(l.debit), credit: BigInt(l.credit) })).sort();
     expect(tenu).toEqual(attendu);
@@ -115,5 +117,42 @@ describe('les mouvements de trésorerie, tenus par le serveur, contre la v10', (
     expect((await tenues()).filter((l) => l.date === frais.date && l.compte === '627').map((l) => l.debit)).toEqual(['8500']);
     await enTantQue(pool, proprio, async (tx) => appliquer(tx, ent, proprio, [{ collection: 'movements', cle: frais.id, rang: 0, revision: await rev(frais.id), contenu: null }]));
     expect((await tenues()).filter((l) => l.date === frais.date && l.compte === '627')).toEqual([]);
+  }, 240_000);
+});
+
+// (1.356.0) Le solde de départ d'un compte de trésorerie arrive au Cabinet : la caisse de la boulangerie, ouverte le 11/11 avec
+// 50 DT de fond, valait 51,900 DT chez Sarra et 1,900 DT dans le livre du cabinet. Au brouillard, contre le compte d'attente
+// (ce que ce solde représente se décide au cabinet) ; jamais pour un compte ouvert avant le premier jour du livre (il est dans
+// les soldes d'ouverture repris) ; un découvert change de colonne.
+describe('le solde de départ d\'un compte de trésorerie, au brouillard du Cabinet', () => {
+  const PS = 'le solde de départ arrive au brouillard contre 471, sauf avant le premier jour du livre ; un découvert change de colonne';
+  it(PS, async () => {
+    await exemple();
+    const ouvertures = async () => (await tenues()).filter((l) => l.piece === 'OUVERTURE').map((l) => `${l.date} ${l.journal} ${l.compte} ${l.debit}/${l.credit} ${l.statut}`).sort();
+    const rev = async (cle: string) => Number((await admin.query(`select revision from socle.dossier_v10 where entreprise = $1 and collection = 'accounts' and cle = $2`, [ent, cle])).rows[0].revision);
+    // Sans livre au cabinet : les deux comptes de l'exemple (ouverts le 01/09/2021) arrivent, au compte d'attente.
+    const biat = donnees.accounts.find((a) => a.kind !== 'caisse') as { id: string; name: string }, especes = donnees.accounts.find((a) => a.kind === 'caisse') as { id: string; name: string };
+    expect(await ouvertures()).toEqual(['2021-09-01 BQ 471 0/6000000 brouillard', '2021-09-01 BQ 532 6000000/0 brouillard', '2021-09-01 CA 471 0/300000 brouillard', '2021-09-01 CA 54 300000/0 brouillard']);
+    expect((await tenues()).find((l) => l.piece === 'OUVERTURE' && l.compte === '54')?.ligne).toBe(`Solde de départ — ${especes.name} (à affecter : apport, retrait de la banque ou solde déjà repris)`);
+    // Le livre du cabinet commence le 01/01/2026 : un compte ouvert avant est dans ses soldes d'ouverture, il quitte le brouillard.
+    await admin.query(`insert into compta.exercice (entreprise, annee, du, au) values ($1, 2026, '2026-01-01', '2026-12-31')`, [ent]);
+    const b = donnees.accounts.find((a) => a.id === biat.id) as Record<string, unknown>;
+    await enTantQue(pool, proprio, async (tx) => appliquer(tx, ent, proprio, [{ collection: 'accounts', cle: biat.id, rang: 0, revision: await rev(biat.id), contenu: encoder({ ...b, name: 'BIAT — courant' }) }]));
+    expect(await ouvertures()).toEqual(['2021-09-01 CA 471 0/300000 brouillard', '2021-09-01 CA 54 300000/0 brouillard']);
+    // Une caisse ouverte en cours d'année, avec son fond : elle arrive ; à découvert, les colonnes s'inversent ; supprimée, elle part.
+    const marche = { id: 'caisse-marche', name: 'Caisse du marché', kind: 'caisse', opening: 50, openingDate: '2026-11-11' };
+    await enTantQue(pool, proprio, (tx) => appliquer(tx, ent, proprio, nouveaux('accounts', [marche])));
+    expect((await ouvertures()).filter((l) => l.startsWith('2026-11-11'))).toEqual(['2026-11-11 CA 471 0/50000 brouillard', '2026-11-11 CA 54 50000/0 brouillard']);
+    await enTantQue(pool, proprio, async (tx) => appliquer(tx, ent, proprio, [{ collection: 'accounts', cle: marche.id, rang: 0, revision: await rev(marche.id), contenu: encoder({ ...marche, opening: -20 }) }]));
+    expect((await ouvertures()).filter((l) => l.startsWith('2026-11-11'))).toEqual(['2026-11-11 CA 471 20000/0 brouillard', '2026-11-11 CA 54 0/20000 brouillard']);
+    await enTantQue(pool, proprio, async (tx) => appliquer(tx, ent, proprio, [{ collection: 'accounts', cle: marche.id, rang: 0, revision: await rev(marche.id), contenu: null }]));
+    expect((await ouvertures()).filter((l) => l.startsWith('2026-11-11'))).toEqual([]);
+    // Un compte ouvert dans la période close n'arrive pas non plus : ni à son jour, ni repoussé au premier jour ouvert (où
+    // vont les pièces d'une période close) — son solde est dans ce que le cabinet a déjà arrêté.
+    await admin.query(`insert into compta.cloture (entreprise, jusqua) values ($1, '2026-11-30')`, [ent]);
+    const avantSalon = await ouvertures();
+    const salon = { id: 'caisse-salon', name: 'Caisse du salon', kind: 'caisse', opening: 80, openingDate: '2026-11-20' };
+    await enTantQue(pool, proprio, (tx) => appliquer(tx, ent, proprio, nouveaux('accounts', [salon])));
+    expect(await ouvertures()).toEqual(avantSalon);
   }, 240_000);
 });

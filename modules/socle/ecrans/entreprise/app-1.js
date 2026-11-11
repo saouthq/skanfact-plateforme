@@ -11707,6 +11707,9 @@
     opts = opts || {};
     const neuf = !item || !!opts.creation;
     const it = item || articleNeuf();
+    // (1.356.0) La nature d'une fiche NEUVE se propose (le métier, puis le comptoir : `natureProposee`) ; une fiche existante
+    // sans nature montre ce qu'elle est — une prestation, vendue au 706 — tant qu'on ne l'a pas choisie.
+    const natureParDefaut = neuf ? C.natureProposee(company(), !!opts.comptoir) : 'services';
     const already = neuf ? null : C.stockOf(data, it.id);   // stock déjà constitué : on ne rejoue pas le départ
     // `suivre` (10.12.0) : la fiche d'un article EXISTANT s'ouvre cases cochées, depuis « choisir une
     // prestation à suivre ». Rien n'est écrit sur l'article tant qu'on n'a pas enregistré.
@@ -11734,7 +11737,7 @@
         <div class="field">${lbl('Unité', 'ed.unit')}<select name="unit" id="cat-unit">${unitOptions(it.unit || '', C.usedUnits(data))}</select></div>
         ${/* (1.318.0, le catalogue joué) Ce que l'article vend : le compte de sa vente (707, 706, 701), proposé d'après le suivi
            du stock et la FODEC tant qu'on ne l'a pas choisi. La droguerie revendait sa peinture au 706 des prestations. */''}
-        <div class="field span-2">${lbl('Ce que tu vends', 'cat.nature')}<select name="nature" id="cat-nature">${natureChoix(it.nature || C.natureDeLArticle({ ...it, tracked: suit.tracked }) || 'services')}</select></div>
+        <div class="field span-2">${lbl('Ce que tu vends', 'cat.nature')}<select name="nature" id="cat-nature">${natureChoix(it.nature || C.natureDeLArticle({ ...it, tracked: suit.tracked }) || natureParDefaut)}</select></div>
         <label class="check span-2"><input type="checkbox" name="tracked" ${suit.tracked ? 'checked' : ''}> Suivi en stock ${info('stk.tracked')}</label>
         ${company().fodec === true ? `<label class="check span-2"><input type="checkbox" name="fodec" ${it.fodec === true ? 'checked' : ''}> Produit fabriqué : ses lignes portent la FODEC ${info('cat.fodec')}</label>` : ''}
         <!-- Cette case vivait À L'INTÉRIEUR du bloc masqué par « Suivi en stock » : quelqu'un qui
@@ -11862,14 +11865,17 @@
         // le prix tapé en dernier tient (le prix de l'étiquette ne bouge pas parce qu'on corrige la TVA).
         const champHt = $('input[name=unitPrice]', root), champTtc = $('#cat-ttc', root), champTva = $('select[name=vatRate]', root);
         let tapeTtc = false;
+        // (1.356.0) Un prix recalculé s'écrit avec les décimales de la devise, comme celui qu'on tape : « 0.2 » à côté de
+        // « 0.200 » (la TVA passée à 0 %), « 0.84 » pour un croissant à 1 DT TTC.
+        const enChamp = n => Number(n).toFixed(C.decimalsFor(company().currency));
         const majTtc = () => {
           const ht = Number(champHt.value) || 0;
-          champTtc.value = ht > 0 ? String(C.computeTotals({ type: 'facture', applyStamp: false, lines: [C.ligneDePanier({ unitPrice: ht, vatRate: Number(champTva.value) || 0 }, company())] }, company()).totalTTC) : '';
+          champTtc.value = ht > 0 ? enChamp(C.computeTotals({ type: 'facture', applyStamp: false, lines: [C.ligneDePanier({ unitPrice: ht, vatRate: Number(champTva.value) || 0 }, company())] }, company()).totalTTC) : '';
         };
         const majHt = dire => {
           const r = C.calculPrix({ mode: 'ttc', valeur: champTtc.value, tva: C.ligneDePanier({ vatRate: Number(champTva.value) || 0 }, company()).vatRate, decimales: C.decimalsFor(company().currency) });
           if (!r.ok) return;
-          champHt.value = String(r.ht);
+          champHt.value = enChamp(r.ht);
           hint();
           if (dire && !r.exact) toast(`Aucun prix HT ne donne exactement ${C.money(Number(champTtc.value), company().currency)} TTC à ${pct(r.tva)} % : le plus proche donne ${C.money(r.ttc, company().currency)}.`);
         };
@@ -11909,7 +11915,7 @@
         const proposerNature = () => {
           if (natureChoisie) return;
           const caseFodec = $('input[name=fodec]', root);
-          choixNature.value = C.natureDeLArticle({ ...it, nature: '', tracked: caseStock.checked, fodec: caseFodec ? caseFodec.checked : it.fodec }) || 'services';
+          choixNature.value = C.natureDeLArticle({ ...it, nature: '', tracked: caseStock.checked, fodec: caseFodec ? caseFodec.checked : it.fodec }) || natureParDefaut;
         };
         if ($('input[name=fodec]', root)) $('input[name=fodec]', root).addEventListener('change', proposerNature);
         caseStock.onchange = e => {

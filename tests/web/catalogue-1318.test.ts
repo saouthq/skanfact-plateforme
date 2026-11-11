@@ -113,12 +113,13 @@ describe('le catalogue 1.318.0 : la droguerie, ce qu\'elle revend, ce qu\'elle f
     await expect.poll(texteChoisi).toBe('Une marchandise que je revends telle quelle · compte 707');
     await modale.locator('[data-close]').first().click();
     await modale.waitFor({ state: 'detached' });
-    // B. Le mastic qu'elle fabrique : « Suivi en stock » coché propose la marchandise ; elle choisit « je le fabrique », et la
-    // case qu'elle décoche ensuite ne touche plus son choix.
+    // B. Le mastic qu'elle fabrique : une droguerie (un commerce) revend ce qu'elle vend, la fiche neuve propose la marchandise
+    // (1.356.0 : le métier d'abord) ; « Suivi en stock » coché la garde ; elle choisit « je le fabrique », et la case qu'elle
+    // décoche ensuite ne touche plus son choix.
     await p.locator('#new').click();
     await modale.locator('input[name=label]').fill('Mastic de la maison');
     await modale.locator('input[name=unitPrice]').fill('3.45');
-    await expect.poll(() => nature().inputValue()).toBe('services');
+    await expect.poll(() => nature().inputValue()).toBe('marchandises');
     await modale.locator('input[name=tracked]').check();
     await expect.poll(() => nature().inputValue()).toBe('marchandises');
     await nature().selectOption('produits');

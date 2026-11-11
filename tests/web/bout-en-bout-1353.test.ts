@@ -214,10 +214,10 @@ describe('bout en bout 1.353.0 : la première facture d\'une épicerie neuve, so
     if (await p.locator('#sa-lot-plus').count()) await p.locator('#sa-lot-plus summary').click();
     // Le virement est au journal de banque, pas à la caisse : le lot du mois se valide en un geste.
     expect(await p.locator('.sa-lot button').evaluateAll((l) => l.map((b) => (b.textContent ?? '').trim()))).toEqual(
-      ['Valider la seule pièce d\'AC', 'Valider la seule pièce de BQ', 'Valider la seule pièce de VT', `Valider les 3 pièces de ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Africa/Tunis' })}`]);
+      ['Valider la seule pièce d\'AC', 'Valider la seule pièce de BQ', 'Valider la seule pièce de CA', 'Valider la seule pièce de VT', `Valider les 4 pièces de ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Africa/Tunis' })}`]);
     await p.locator('.sa-lot [data-lot-mois]').click();
     await p.locator('#modal-root .modal .btn-primary').last().click();
-    await expect.poll(async () => Number((await admin.query(`select count(*) n from compta.ecriture where entreprise = $1 and statut = 'validee'`, [ent])).rows[0].n), { timeout: 15_000 }).toBe(3);
+    await expect.poll(async () => Number((await admin.query(`select count(*) n from compta.ecriture where entreprise = $1 and statut = 'validee'`, [ent])).rows[0].n), { timeout: 15_000 }).toBe(4);
     noter('après validation', net(await p.locator('#toast').innerText().catch(() => '')), net(await p.locator('#modal-root').innerText().catch(() => '')).slice(0, 300));
     await aller('declaration');
     await p.locator('#dc-preparer').waitFor({ timeout: 15_000 });
@@ -233,9 +233,12 @@ describe('bout en bout 1.353.0 : la première facture d\'une épicerie neuve, so
     await aller('balance');
     const bal = await p.locator('#view table tbody tr').evaluateAll((l) => l.map((r) => (r as HTMLElement).innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
     noter('balance', bal);
-    // La balance du cabinet : les 200 DT du virement à la banque (532), rien à la caisse (54) ; le client doit encore 158.
+    // La balance du cabinet : les 200 DT du virement à la banque (532), rien de lui à la caisse (54) ; le client doit encore 158.
+    // (1.356.0) La caisse porte son fond de départ (50 DT, saisi par l'entreprise), contre le compte d'attente : ce qu'il
+    // représente se décide au cabinet.
     expect(bal).toContain('532 Banques 200,000 DT 0,000 DT 200,000 DT');
-    expect(bal.filter((x) => x.startsWith('54'))).toEqual([]);
+    expect(bal.filter((x) => x.startsWith('54'))).toEqual(['54 Caisse 50,000 DT 0,000 DT 50,000 DT']);
+    expect(bal.filter((x) => x.startsWith('471'))).toEqual(['471 Compte d\'attente 0,000 DT 50,000 DT 50,000 DT']);
     expect(bal).toContain('411 Clients 358,000 DT 200,000 DT 158,000 DT');
     expect(bal).toContain('4366 TVA déductible 136,800 DT 0,000 DT 136,800 DT');
     expect(bal).toContain('4367 TVA collectée 0,000 DT 57,000 DT 57,000 DT');

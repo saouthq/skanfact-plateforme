@@ -1934,6 +1934,16 @@
   function natureDeLigneVendue(l) { return l && (l.nature === 'marchandises' || l.nature === 'produits') ? l.nature : ''; }
   // La nature qu'un article donne à sa ligne, la règle du serveur (natureDeLaLigne) : celle de sa fiche, sinon fabriqué (FODEC)
   // → produits, suivi en stock ou kit → marchandises, sinon une prestation (''). À VÉRIFIER avec un comptable.
+  // (1.356.0) La nature PROPOSÉE à un article neuf qui n'en dit rien : le métier de l'entreprise la sait (le commerce revend,
+  // l'artisan et le restaurant fabriquent), et ce qu'on crée depuis la caisse se vend au comptoir — une marchandise, pas un
+  // service. La boulangerie créait sa baguette « Une prestation · compte 706 » sous le titre « Nouvel article ». Le reste :
+  // une prestation, comme avant. Une nature choisie ne passe jamais par ici.
+  function natureProposee(company, auComptoir) {
+    const a = String((company && company.activity) || '').trim();
+    if (a === 'commerce') return 'marchandises';
+    if (a === 'artisanat' || a === 'restauration') return 'produits';
+    return auComptoir ? 'marchandises' : 'services';
+  }
   function natureDeLArticle(item) {
     if (!item) return '';
     if (item.nature === 'marchandises' || item.nature === 'produits') return item.nature;

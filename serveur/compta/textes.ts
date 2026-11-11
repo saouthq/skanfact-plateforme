@@ -84,4 +84,5 @@ declarerTextes({
   'compta.libelle.mouvement.un_autre_compte': 'un autre compte',
   'compta.libelle.mouvement.virement_vers': 'Virement vers {compte}',
   'compta.libelle.mouvement.virement_sans_depart': 'Virement vers {compte} (compte de départ supprimé)',
+  'compta.libelle.mouvement.solde_depart': 'Solde de départ — {compte} (à affecter : apport, retrait de la banque ou solde déjà repris)',
 });

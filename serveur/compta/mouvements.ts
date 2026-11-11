@@ -86,6 +86,39 @@ export function ecrituresDuMouvement(famille: string, m: unknown, p: PlanDuDossi
   return n.sens > 0 ? ecriture(j.journal, entree, j.compte, contrepartie) : ecriture(j.journal, entree, contrepartie, j.compte);
 }
 
+// (1.356.0) Le solde de départ d'un compte de trésorerie (`opening` au `openingDate` ; la v10 l'écrit en à-nouveau contre le
+// report à nouveau, section « ouverture » de `journalEntries`). Le Cabinet ne le recevait pas : la caisse de la
+// boulangerie, ouverte le 11/11 avec un fond de 50 DT, valait 51,900 DT chez Sarra et 1,900 DT dans le livre du cabinet.
+// Il arrive au brouillard contre le compte d'attente (471) : ce que ce solde représente (un apport, un retrait de la
+// banque, le solde d'ouverture déjà repris) se décide au cabinet, jamais ici. Un solde négatif (un découvert) change
+// de colonne, il ne garde pas son signe.
+// Un compte ouvert AVANT le premier jour du livre tenu au cabinet (ou ce jour-là), ou dans la période close, n'arrive pas :
+// son solde est dans les soldes d'ouverture repris ; le proposer ferait compter deux fois la banque d'un client de 2021.
+export const familleDOuverture = (entreprise: string, cle: string) => identifiant(entreprise, 'ouverture-tresorerie', cle);
+export type Borne = { debutDuLivre: string | null; closJusqua: string | null };
+export async function lireBorne(tx: Transaction, entreprise: string): Promise<Borne> {
+  const ex = await tx.query<{ du: string | null }>('select min(du)::text du from compta.exercice where entreprise = $1', [entreprise]);
+  const cl = await tx.query<{ jusqua: string }>('select jusqua::text jusqua from compta.cloture where entreprise = $1', [entreprise]);
+  return { debutDuLivre: ex.rows[0]?.du ?? null, closJusqua: cl.rows[0]?.jusqua ?? null };
+}
+export function ecrituresDOuverture(famille: string, cle: string, a: unknown, p: PlanDuDossier, borne: Borne): EcritureAEcrire[] {
+  if (!estObjet(a) || !estJour(a.openingDate)) return [];
+  const jour = a.openingDate as string;
+  if ((borne.debutDuLivre && jour <= borne.debutDuLivre) || (borne.closJusqua && jour <= borne.closJusqua)) return [];
+  const montantSigne = exact(a.opening ?? 0, 3);
+  if (montantSigne === null || montantSigne === 0n) return [];
+  const montant = montantSigne < 0n ? -montantSigne : montantSigne;
+  const j = journalDeCompte(p, cle, '');
+  const entree = libelle('compta.libelle.mouvement.solde_depart', { compte: texte(a.name) || libelle('compta.libelle.mouvement.un_autre_compte', {}) });
+  const [debit, credit] = montantSigne > 0n ? [j.compte, p.plan.attente] : [p.plan.attente, j.compte];
+  return [{ journal: j.journal, date: jour, origineType: 'mouvement', origine: famille, piece: 'OUVERTURE', tiers: null, libelle: entree,
+    lignes: [{ compte: debit, libelle: entree, debit: montant, credit: 0n, tauxTva: null }, { compte: credit, libelle: entree, debit: 0n, credit: montant, tauxTva: null }] }];
+}
+async function ecrireLOuverture(tx: Transaction, entreprise: string, cle: string, contenu: unknown, p: PlanDuDossier, borne: Borne) {
+  const famille = familleDOuverture(entreprise, cle);
+  await ecrireFamille(tx, entreprise, famille, contenu === null ? [] : ecrituresDOuverture(famille, cle, contenu, p, borne));
+}
+
 async function ecrireLeMouvement(tx: Transaction, entreprise: string, cle: string, contenu: unknown, p: PlanDuDossier, ctx: Contexte) {
   const famille = familleDuMouvement(entreprise, cle);
   await ecrireFamille(tx, entreprise, famille, contenu === null ? [] : ecrituresDuMouvement(famille, contenu, p, ctx));
@@ -96,6 +129,9 @@ export async function reecrireLesMouvements(tx: Transaction, entreprise: string)
   const p = await lirePlan(tx, entreprise), ctx = await lireContexte(tx, entreprise);
   const tous = await requetes(tx).selectFrom('socle.dossier_v10').select(['cle', 'contenu']).where('entreprise', '=', entreprise).where('collection', '=', 'movements').execute();
   for (const o of tous) await ecrireLeMouvement(tx, entreprise, o.cle, o.contenu, p, ctx);
+  const comptes = await requetes(tx).selectFrom('socle.dossier_v10').select(['cle', 'contenu']).where('entreprise', '=', entreprise).where('collection', '=', 'accounts').execute();
+  const borne = await lireBorne(tx, entreprise);
+  for (const o of comptes) await ecrireLOuverture(tx, entreprise, o.cle, o.contenu, p, borne);
   return tous.length;
 }
 
@@ -104,8 +140,11 @@ export async function reecrireLesMouvements(tx: Transaction, entreprise: string)
 export async function suivreMouvements(tx: Transaction, entreprise: string, changements: ChangementLu[]): Promise<void> {
   const touches = changements.filter((c) => c.collection === 'movements' && aVraimentChange(c));
   const bulletins = changements.some((c) => c.collection === 'payslips' && aVraimentChange(c));
-  if (!touches.length && !bulletins) return;
+  // (1.356.0) Un compte de trésorerie touché : son solde de départ suit (ajouté, changé, retiré, ou le compte supprimé).
+  const comptes = changements.filter((c) => c.collection === 'accounts' && aVraimentChange(c));
+  if (!touches.length && !bulletins && !comptes.length) return;
   const p = await lirePlan(tx, entreprise), ctx = await lireContexte(tx, entreprise);
+  if (comptes.length) { const borne = await lireBorne(tx, entreprise); for (const c of comptes) await ecrireLOuverture(tx, entreprise, c.cle, c.apres, p, borne); }
   for (const c of touches) await ecrireLeMouvement(tx, entreprise, c.cle, c.apres, p, ctx);
   if (bulletins) {
     const deja = new Set(touches.map((c) => c.cle));

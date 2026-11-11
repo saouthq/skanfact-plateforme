@@ -138,4 +138,73 @@ describe('le premier article de la caisse', () => {
     expect(erreurs).toEqual([]);
     await cn.close();
   }, 120_000);
+
+  // (1.356.0) « + Créer cet article », depuis une recherche qui ne trouve rien (vu à la souris le 11/11/2026, la boulangerie
+  // de Sarra) : la fiche s'ouvrait « Modifier la prestation », avec « Supprimer » ; le croissant enregistré entrait dans le
+  // ticket mais jamais au catalogue (à recréer le lendemain) ; la nature proposée était « Une prestation · compte 706 » ; et
+  // le HT recalculé s'écrivait « 0.2 » à côté de « 0.200 ».
+  const PS13560 = '« + Créer cet article » : une création, rangée au catalogue, une marchandise au comptoir, le HT à trois décimales';
+  it(PS13560, async () => {
+    const email = `hichem-creer-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Hichem', motDePasse: 'Un-bon-mot-de-passe' });
+    const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    const r = await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Caisse du comptoir', type: 'navigateur' } });
+    const jeton = String((await api('POST', '/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Quincaillerie El Amen' })).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    // Une baguette déjà au catalogue (la boulangerie n'est pas neuve) : la caisse montre sa recherche. Vide, elle ne montre que
+    // « + Nouvel article » (ni recherche ni filtres au-dessus du vide).
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'catalog', cle: 'baguette', rang: 0, revision: null,
+      contenu: { id: 'baguette', label: 'Baguette', unitPrice: 1, vatRate: 0, unit: '' } }] })).statut).toBe(200);
+    // La caisse ouverte sur ce poste (la caisse tactile : fermée, elle ne montre pas ses articles, elle s'ouvre d'abord).
+    expect((await api('POST', `/entreprises/${ent}/caisse/ouvrir`, jeton, { fond: '0' })).statut).toBe(200);
+
+    const cn = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'en-US' });
+    await cn.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cn.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
+    const recherche = p.locator('#cs-scan');
+    await recherche.waitFor({ timeout: 20_000 });
+    for (const b of await p.getByRole('button', { name: 'Plus tard', exact: true }).all()) await b.click().catch(() => undefined);
+    await recherche.fill('Croissant');
+    await p.locator('#cs-creer-art').click();
+    const fiche = p.locator('#modal-root');
+    await expect.poll(() => fiche.locator('h2').first().innerText().then(net)).toBe('Nouvel article');
+    expect(await fiche.locator('#del-cat').count()).toBe(0);
+    expect(await fiche.locator('[name=label]').inputValue()).toBe('Croissant');
+    // Au comptoir, sans métier dit : une marchandise (707), jamais une prestation.
+    expect(await fiche.locator('select[name=nature]').inputValue()).toBe('marchandises');
+    // 1 DT TTC, puis la TVA à 0 % : le HT s'écrit « 1.000 », pas « 1 ».
+    await fiche.locator('#cat-ttc').click();
+    await p.keyboard.type('1');
+    await expect.poll(() => fiche.locator('[name=unitPrice]').inputValue()).toBe('0.840');
+    await fiche.locator('select[name=vatRate]').selectOption('0');
+    await expect.poll(() => fiche.locator('[name=unitPrice]').inputValue()).toBe('1.000');
+    // « Suivi en stock » coché puis décoché : la proposition du comptoir revient, pas une prestation.
+    await fiche.locator('input[name=tracked]').check();
+    await fiche.locator('input[name=tracked]').uncheck();
+    expect(await fiche.locator('select[name=nature]').inputValue()).toBe('marchandises');
+    await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    // Il entre dans le ticket ET au catalogue : sa tuile est là, et le dossier le porte.
+    await expect.poll(() => p.locator('#cs-articles .cs-art', { hasText: 'Croissant' }).count(), { timeout: 10_000 }).toBe(1);
+    const lireArticle = async () => (((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
+      .find((o) => o.collection === 'catalog' && o.contenu.label === 'Croissant')?.contenu ?? null);
+    await expect.poll(async () => (await lireArticle())?.nature ?? null, { timeout: 10_000 }).toBe('marchandises');
+    // La même boulangerie, depuis son Catalogue : une fiche neuve y reste une prestation (706), sans métier dit ; « Suivi en
+    // stock » propose la marchandise, et décoché, la prestation revient.
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/catalogue`);
+    await p.locator('#new').click();
+    const autre = p.locator('#modal-root .modal').last();
+    await autre.locator('input[name=label]').fill('Gâteau sur commande');
+    expect(await autre.locator('select[name=nature]').inputValue()).toBe('services');
+    await autre.locator('input[name=tracked]').check();
+    await expect.poll(() => autre.locator('select[name=nature]').inputValue()).toBe('marchandises');
+    await autre.locator('input[name=tracked]').uncheck();
+    await expect.poll(() => autre.locator('select[name=nature]').inputValue()).toBe('services');
+    expect(erreurs).toEqual([]);
+    await cn.close();
+  }, 120_000);
 });

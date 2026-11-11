@@ -89,6 +89,10 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
 
     // 1. La Paie : au brouillard, datée du 31/10/2026, elle se valide à partir de ce jour-là ; aucun bouton n'y mène avant.
+    // (1.356.0) Le 21/10, la Paie s'ouvre sur septembre, le mois terminé dont le salarié attend son bulletin (1.355.4) : on
+    // choisit octobre, comme le comptable.
+    await expect.poll(() => p.locator('#pa-mois').inputValue(), { timeout: 15_000 }).toBe('9');
+    await p.locator('#pa-mois').selectOption('10');
     const auBrouillard = p.locator('#pa-brouillard');
     await expect.poll(() => auBrouillard.innerText().then((t) => t.replace(/\s+/g, ' ')).catch(() => ''), { timeout: 15_000 }).toMatch(/au brouillard, datée du 31\/10\/2026 : elle se valide à partir de ce jour-là/);
     expect(await p.locator('#pa-valider').count()).toBe(0);

@@ -35,6 +35,10 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      # (1.356.0) Le miroir d'Ubuntu d'abord (.github/miroir-ubuntu.sh) : sans lui, une panne de nom du miroir d'Azure
+      # faisait tomber la vérification entière sur l'installation du navigateur.
+      - name: Le miroir d'Ubuntu
+        run: bash .github/miroir-ubuntu.sh
       - name: Le navigateur des tests des écrans
         run: bash .github/reessayer.sh npx playwright-core install --with-deps chromium
       # La coque de bureau (brique 137, tests/bureau/coque.test.ts) : le programme Electron, et un écran virtuel (Xvfb)
@@ -88,6 +92,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # (1.356.0) Le miroir d'Ubuntu d'abord (.github/miroir-ubuntu.sh) : sans lui, une panne de nom du miroir d'Azure
+      # faisait tomber la vérification entière sur l'installation du navigateur.
+      - name: Le miroir d'Ubuntu
+        run: bash .github/miroir-ubuntu.sh
       - name: Le navigateur des tests des écrans
         run: bash .github/reessayer.sh npx playwright-core install --with-deps chromium
       - name: Electron (la coque de bureau)

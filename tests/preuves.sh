@@ -7370,7 +7370,7 @@ prouver "le point de contact qui laisse passer les nouveautés de la v10" web/pu
 # Le premier article créé depuis une caisse vide (vu sur le vrai serveur le 05/10/2026 : « Nouvelle prestation »).
 CPA="« + Nouvel article » ouvre « Nouvel article » ; tapé « 12,500 » HT, il arrive dans la caisse à 14,875 DT"
 prouver "la caisse qui ouvre une « Nouvelle prestation »" modules/socle/ecrans/entreprise/app-2.js \
-  "catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article' });" "catalogForm(null, () => vers('#/caisse')());" \
+  "catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article', comptoir: true });" "catalogForm(null, () => vers('#/caisse')(), { comptoir: true });" \
   "$CPA"
 prouver "le prix d'un article tapé avec la virgule, avalé" web/public/v10/index.html \
   '  <script src="../plateforme/virgule.js"></script>' "" \
@@ -7409,7 +7409,7 @@ prouver "les dates du Cabinet laissées à la langue du navigateur" web/public/v
 # « prestation ».
 TTC="le prix TTC de l'étiquette donne le HT ; la TVA changée ne bouge pas l'étiquette ; la caisse affiche 5,000 DT"
 prouver "le TTC tapé recopié comme HT" modules/socle/ecrans/entreprise/app-1.js \
-  "          champHt.value = String(r.ht);" "          champHt.value = String(r.ttc);" \
+  "          champHt.value = enChamp(r.ht);" "          champHt.value = enChamp(r.ttc);" \
   "$TTC"
 prouver "le prix de l'étiquette qui bouge quand la TVA change" modules/socle/ecrans/entreprise/app-1.js \
   "champTva.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });" "champTva.addEventListener('change', () => { majTtc(); });" \
@@ -7418,7 +7418,7 @@ prouver "un prix TTC inatteignable arrondi sans un mot" modules/socle/ecrans/ent
   "if (dire && !r.exact) toast(" "if (false) toast(" \
   "$TTC"
 prouver "le TTC qui ne suit pas le HT tapé" modules/socle/ecrans/entreprise/app-1.js \
-  "champTtc.value = ht > 0 ? String(" "champTtc.value = ht < 0 ? String(" \
+  "champTtc.value = ht > 0 ? enChamp(" "champTtc.value = ht < 0 ? enChamp(" \
   "$TTC"
 prouver "le prix TTC enregistré sur l'article, en plus de son HT et de sa TVA" modules/socle/ecrans/entreprise/app-1.js \
   '<input type="number" id="cat-ttc"' '<input type="number" name="prixTtc" id="cat-ttc"' \
@@ -26014,11 +26014,11 @@ prouver 'catalogue 1.318 n : le panier de la caisse ne porte pas la nature de l'
   '      unitPrice: Number(item.unitPrice) || 0, vatRate: tauxPourRegime(company, Number(item.vatRate) || 0), ...(nature ? { nature } : {}) };' '      unitPrice: Number(item.unitPrice) || 0, vatRate: tauxPourRegime(company, Number(item.vatRate) || 0) };' \
   "$CM3"
 prouver 'catalogue 1.318 o : la fiche ne propose pas la marchandise pour un article suivi en stock' modules/socle/ecrans/entreprise/app-1.js \
-  "natureChoix(it.nature || C.natureDeLArticle({ ...it, tracked: suit.tracked }) || 'services')" "natureChoix(it.nature || 'services')" \
+  "natureChoix(it.nature || C.natureDeLArticle({ ...it, tracked: suit.tracked }) || natureParDefaut)" "natureChoix(it.nature || natureParDefaut)" \
   "$CW1"
 prouver 'catalogue 1.318 p : cocher « Suivi en stock » ne propose rien' modules/socle/ecrans/entreprise/app-1.js \
   '          proposerNature();' '' \
-  "$CW1"
+  '« + Créer cet article » : une création, rangée au catalogue, une marchandise au comptoir, le HT à trois décimales'
 prouver 'catalogue 1.318 q : le choix de la nature se perd quand on recoche le stock' modules/socle/ecrans/entreprise/app-1.js \
   '          if (natureChoisie) return;' '' \
   "$CW1"
@@ -27966,6 +27966,39 @@ prouver 'paie 1.355.9 c : « Voir la part paie » ouvre la Paie sur « Aujourd'\
 prouver 'paie 1.355.9 d : « Voir la part paie » ouvre un autre mois que celui de la TVA' 'modules/personnel/ecrans/entreprise/paie.js' \
   'paieState.month = String(Number(ym.slice(5, 7)));' 'paieState.month = '\''1'\'';' \
   "$PS13556X"
+PS13560M='la nature proposée à une fiche neuve (1.356.0) : le métier d'\''abord, puis le comptoir ; une prestation sinon'
+PS13560W='« + Créer cet article » : une création, rangée au catalogue, une marchandise au comptoir, le HT à trois décimales'
+PS13560O='le solde de départ arrive au brouillard contre 471, sauf avant le premier jour du livre ; un découvert change de colonne'
+prouver 'caisse 1.356.0 a : une fiche neuve proposée « prestation » même au comptoir' 'modules/socle/moteur/core-1.js' \
+  'return auComptoir ? '\''marchandises'\'' : '\''services'\'';' 'return '\''services'\'';' \
+  "$PS13560M"
+prouver 'caisse 1.356.0 b : « + Créer cet article » ouvre « Modifier la prestation » avec « Supprimer »' 'modules/socle/ecrans/entreprise/app-2.js' \
+  'creation: true, titre: '\''Nouvel article'\'', comptoir: true' 'titre: '\''Nouvel article'\'', comptoir: true' \
+  "$PS13560W"
+prouver 'caisse 1.356.0 c : l'\''article créé depuis la caisse naît prestation (706)' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '{ creation: true, titre: '\''Nouvel article'\'', comptoir: true }' '{ creation: true, titre: '\''Nouvel article'\'' }' \
+  "$PS13560W"
+prouver 'caisse 1.356.0 d : le HT calculé depuis le TTC s'\''écrit 0.8403361344537815' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'const enChamp = n => Number(n).toFixed(C.decimalsFor(company().currency));' 'const enChamp = n => String(Number(n));' \
+  "$PS13560W"
+prouver 'caisse 1.356.0 e : le compte d'\''avant le livre du cabinet arrive au brouillard (compté deux fois)' 'serveur/compta/mouvements.ts' \
+  'if ((borne.debutDuLivre && jour <= borne.debutDuLivre) || (borne.closJusqua' 'if ((false) || (borne.closJusqua' \
+  "$PS13560O"
+prouver 'caisse 1.356.0 f : un compte ouvert dans la période close arrive dans un mois déclaré' 'serveur/compta/mouvements.ts' \
+  '|| (borne.closJusqua && jour <= borne.closJusqua)) return [];' ') return [];' \
+  "$PS13560O"
+prouver 'caisse 1.356.0 g : un découvert de départ garde son signe au débit de la banque' 'serveur/compta/mouvements.ts' \
+  'montantSigne > 0n ? [j.compte, p.plan.attente] : [p.plan.attente, j.compte]' '[j.compte, p.plan.attente]' \
+  "$PS13560O"
+prouver 'caisse 1.356.0 h : un compte renommé, ouvert ou supprimé ne réécrit pas son solde de départ' 'serveur/compta/mouvements.ts' \
+  'c.collection === '\''accounts'\'' && aVraimentChange(c)' 'c.collection === '\''comptes'\'' && aVraimentChange(c)' \
+  "$PS13560O"
+prouver 'caisse 1.356.0 i : un article existant sans nature se montre « marchandise » alors qu'\''il se vend au 706' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'const natureParDefaut = neuf ? C.natureProposee(company(), !!opts.comptoir) : '\''services'\'';' 'const natureParDefaut = C.natureProposee(company(), !!opts.comptoir);' \
+  "$CW1"
+prouver 'caisse 1.356.0 j : « Suivi en stock » décoché remet une prestation, même au comptoir' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'tracked: caseStock.checked, fodec: caseFodec ? caseFodec.checked : it.fodec }) || natureParDefaut;' 'tracked: caseStock.checked, fodec: caseFodec ? caseFodec.checked : it.fodec }) || '\''services'\'';' \
+  "$PS13560W"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

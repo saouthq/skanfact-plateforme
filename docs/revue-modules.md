@@ -2647,3 +2647,37 @@ de TVA, et rien ne rappelait les 93,496 DT de retenues et taxes sur les salaires
 - Test : `paie-pont-1355-6` lit la ligne « à verser » avant le paiement, son absence sur le mois d'avant, « payée le »
   après, puis suit le lien (la page rechargée à chaque fois, pour que l'onglet ouvert plus tôt ne fasse pas paraître le
   lien juste). Quatre preuves.
+
+### 1.356.0 : bout en bout 5, la caisse de la boulangerie jusqu'au Cabinet
+
+Une journée de caisse jouée à la souris dans la boulangerie de Sarra (caisse ouverte, quatre tickets dont un à la carte,
+un écart au Z), puis lue au Cabinet. Le Z, les comptes 701 / 4367 / 54 / 532 / 658 de l'entreprise et le brouillard du
+Cabinet disent les mêmes chiffres. Quatre défauts trouvés en route :
+- « + Créer cet article », depuis une recherche qui ne trouve rien, ouvrait « Modifier la prestation » avec « Supprimer »,
+  et le croissant enregistré entrait dans le ticket sans jamais entrer au catalogue : à recréer le lendemain. La fenêtre
+  s'ouvre maintenant en création (« Nouvel article », sans « Supprimer ») et l'article est rangé au catalogue.
+- Au comptoir, la nature proposée était « Une prestation · compte 706 ». Elle se décide par `natureProposee` : le métier
+  d'abord (commerce : une marchandise, 707 ; artisanat et restauration : un produit fabriqué, 701), sinon une
+  marchandise au comptoir, une prestation au catalogue (l'ancien défaut, inchangé). Elle reste modifiable. Elle ne vaut
+  que pour une fiche NEUVE : une fiche existante sans nature montre ce qu'elle est (une prestation, vendue au 706) — le
+  premier jet montrait « marchandise » sur la brosse de la droguerie, qui se vendait encore au 706. Et « Suivi en stock »
+  décoché rend la proposition, plus une prestation d'office.
+- Le HT recalculé depuis le TTC s'écrivait « 0.8403361344537815 », puis « 1 » au lieu de « 1.000 » : il s'écrit aux
+  décimales de la devise (trois pour le dinar), dans les deux sens.
+- Le solde de départ d'un compte de trésorerie (la banque, la caisse) n'arrivait jamais au Cabinet : le brouillard
+  commençait à zéro pendant que l'entreprise montrait son fond de caisse. Il arrive maintenant au brouillard, au journal
+  du compte, contre le 471 (ce qu'il représente — un apport, un retrait de la banque, un solde déjà repris — se décide au
+  cabinet), sous la pièce « OUVERTURE ». Jamais pour un compte ouvert avant le premier jour du livre tenu au cabinet (il est
+  dans ses soldes d'ouverture repris : le compter encore ferait la banque deux fois), ni dans la période close ; un
+  découvert change de colonne ; renommer, modifier ou supprimer le compte réécrit ou retire la pièce.
+- Tests : `catalogue-1318` (la nature proposée sur sept cas), `caisse-premier-article` (la création au comptoir, tapée au
+  clavier, lue dans le dossier), `compta/mouvements` (le solde de départ : l'exemple, la borne du livre, la période close,
+  le découvert, la suppression). Dix preuves, et cinq anciennes réécrites sur le code qui a bougé.
+- Deux parcours retournés vers la règle : `bout-en-bout-1353` (la caisse de l'épicerie porte son fond de 50 DT au
+  brouillard du Cabinet : une pièce de CA de plus dans le lot, 50 au 54 et au 471 dans la balance) et
+  `cabinet-pas-avant-son-jour` (le 21/10, la Paie s'ouvre sur septembre, le mois terminé qui attend son bulletin — la règle
+  de la 1.355.4, que ce parcours décrivait d'avant : il choisit octobre, comme le comptable).
+- GitHub : depuis la 1.355.4, chaque vérification tombait sur l'installation du navigateur des tests (« Temporary failure
+  resolving 'azure.archive.ubuntu.com' », trente minutes, trois essais d'apt), sans qu'un seul test tourne — c'est ainsi
+  que le second parcours ci-dessus n'avait jamais été vu tomber. `.github/miroir-ubuntu.sh` passe apt aux miroirs
+  officiels quand celui d'Azure ne se résout pas ; il tourne avant le navigateur dans les trois tâches qui l'installent.
