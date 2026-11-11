@@ -2888,8 +2888,12 @@
     const km = sxState.mode === 'km';
     const m = moisSx();
     const conf = L.filter(x => x.sx.k === 'confiance');
+    // (1.356.3) Au kilomètre ne se saisissent que les pièces « à saisir » (et en devises) : les autres (à vérifier,
+    // illisible, en double, déjà saisie) se traitent face à la pièce. « 4 pièces à traiter » au-dessus d'une grille qui
+    // n'en prend qu'une faisait chercher les trois autres ; le compte dit lesquelles se saisissent ici.
+    const iciKm = L.filter(x => x.sx.k === 'saisir' || x.sx.k === 'devise').length, ailleursKm = L.length - iciKm;
     const nav = km
-      ? `<span class="sx-n"><b>${m ? `Achats ${esc(deMois(m))}` : `Achats de ${esc(livresState.annee)}`}</b><span class="mu">journal ${esc(journalAchatsSx())} · ${esc(pl(L.length, 'pièce à traiter', 'pièces à traiter'))}</span></span>`
+      ? `<span class="sx-n"><b>${m ? `Achats ${esc(deMois(m))}` : `Achats de ${esc(livresState.annee)}`}</b><span class="mu" id="sx-km-compte">journal ${esc(journalAchatsSx())} · ${esc(pl(L.length, 'pièce à traiter', 'pièces à traiter'))}${ailleursKm ? ` · ${iciKm ? `${esc(pl(iciKm, 'se saisit', 'se saisissent'))} ici, ${ailleursKm} face à la pièce` : `${L.length > 1 ? 'elles se traitent' : 'elle se traite'} face à la pièce`}` : ''}</span></span>`
       : `<span class="sx-n"><button type="button" class="btn btn-sm sx-fl" id="sx-prec" aria-label="Pièce d'avant"${i ? '' : ' disabled'}>${PC_IC.g}</button><b id="sx-rang">Pièce ${i + 1} sur ${L.length}</b><button type="button" class="btn btn-sm sx-fl" id="sx-suiv" aria-label="Pièce suivante"${i < L.length - 1 ? '' : ' disabled'}>${PC_IC.d}</button></span>
         <ol class="sx-p" aria-label="Les pièces à traiter">${L.map(x => `<li><button type="button" class="${x.k === L[i].k ? 'on ' : ''}${x.sx.ton}" data-sx-k="${esc(x.k)}" aria-pressed="${x.k === L[i].k}" title="${esc(`${x.titre} · ${x.sx.mot}`)}"><i aria-hidden="true">${x.photo ? CL_IC.photo : CL_IC.pdf}</i>${esc(courtSx(x))}</button></li>`).join('')}</ol>`;
     return `<div class="sx-barre">${nav}<span class="sx-esp"></span>${conf.length > 1 && !km && monRole() !== 'saisie' ? `<button type="button" class="btn btn-sm" id="sx-conf-tout">Marquer vérifiées les ${conf.length} de confiance</button>` : ''}
@@ -3537,6 +3541,15 @@
     $$('[data-sx-k]', el).forEach(b => { b.onclick = () => { sxState.sel = b.dataset.sxK; sxState.zoom = 1; sxState.rot = 0; redessinerSx(dossier, true); }; });
     $$('[data-sx-mode]', el).forEach(b => { b.onclick = () => {
       sxState.mode = b.dataset.sxMode;
+      // (1.356.3) Au kilomètre ne se saisit qu'une pièce « à saisir » (ou en devises) : arrivé depuis une pièce « à
+      // vérifier », la pièce à côté de la grille disait « elle se traite Face à la pièce » au-dessus d'une ligne vide. Le
+      // kilomètre s'ouvre sur la première qui s'y saisit ; les flèches mènent toujours aux autres.
+      if (sxState.mode === 'km' && !pieceEnCours(saisieState.piece)) {
+        const L = (sxState.dernier || { liste: [] }).liste || [];
+        const ici = z => z.sx && (z.sx.k === 'saisir' || z.sx.k === 'devise');
+        const cur = L.find(z => z.k === sxState.sel);
+        if (!(cur && ici(cur))) { const y = L.find(ici); if (y) sxState.sel = y.k; }
+      }
       // (1.215.0, la maquette) « Au kilomètre » est le journal D'UN mois : sur « Toute l'année », il s'ouvre sur le mois de la
       // pièce en cours (celle de la bande). Rien ne change du reste de la Saisie tant qu'on n'a pas fait ce geste.
       if (sxState.mode === 'km' && !moisSx() && !pieceEnCours(saisieState.piece)) {
@@ -3909,9 +3922,11 @@
       ${/* Les lots proposés sont ceux qui EXISTENT dans le brouillard (T-29) : « Valider tout le
             journal VT » quand le seul brouillard est en BQ ouvrait une fenêtre pour dire qu'il n'y
             avait rien à faire — un bouton vif qui ne peut rien valider de ce qui est affiché. Le
-            compte est connu avant le clic, donc il est écrit dessus. */''}
+            compte est connu avant le clic, donc il est écrit dessus. (1.356.3) Le résumé replié
+            comptait ses BOUTONS entre parenthèses : « (8) » sous « 13 écritures » se lisait comme un
+            nombre d'écritures ; il dit « 8 choix ». */''}
       ${brouillards.length ? `${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ? (lots => mSx || lotsBl.length > 3
-          ? `<details class="sa-lot-plus" id="sa-lot-plus"><summary>${mSx ? 'Valider un autre lot' : 'Valider par lot'} (${(lots.match(/<button/g) || []).length})</summary><div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div></details>`
+          ? `<details class="sa-lot-plus" id="sa-lot-plus"><summary>${mSx ? 'Valider un autre lot' : 'Valider par lot'} <span class="mu">· ${pl((lots.match(/<button/g) || []).length, 'choix', 'choix')}, par journal ou par mois</span></summary><div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div></details>`
           : `<div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>`)(lotsBl.map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')) : ''}
         ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
     : a.length ? `<p class="muted small" id="sa-attend">${a.length} pièces sont datées après aujourd'hui : chacune se valide à partir de sa date.</p>` : '')(brouillards.filter(e => String(e.date || '') > K.today()))}

@@ -28056,6 +28056,32 @@ prouver 'paie 1.356.2 : la CNSS d'\''un mois qui attend son bulletin dit « rien
   '    for (let t = du; t >= 1; t--) if (KC.cnssDuTrimestre(L, s.annee, t).lignes.length) return t;
 ' '' \
   "$PS13562P"
+# 1.356.3 : les trois restes du four.
+prouver 'four 1.356.3 a : au kilomètre, « 2 pièces à traiter » au-dessus d'\''une grille qui n'\''en prend qu'\''une' 'modules/socle/ecrans/cabinet/app-2.js' \
+  "    const iciKm = L.filter(x => x.sx.k === 'saisir' || x.sx.k === 'devise').length, ailleursKm = L.length - iciKm;" \
+  '    const iciKm = L.length, ailleursKm = 0;' \
+  "$PS13562"
+prouver 'four 1.356.3 b : le kilomètre s'\''ouvre sur une pièce illisible qu'\''il ne saisit pas' 'modules/socle/ecrans/cabinet/app-2.js' \
+  '        if (!(cur && ici(cur))) { const y = L.find(ici); if (y) sxState.sel = y.k; }' \
+  '        if (false && !(cur && ici(cur))) { const y = L.find(ici); if (y) sxState.sel = y.k; }' \
+  "$PS13562"
+prouver 'four 1.356.3 c : « Valider un autre lot (3) » compte des boutons, lus comme des écritures' 'modules/socle/ecrans/cabinet/app-2.js' \
+  '<span class="mu">· ${pl((lots.match(/<button/g) || []).length, '\''choix'\'', '\''choix'\'')}, par journal ou par mois</span></summary>' \
+  '(${(lots.match(/<button/g) || []).length})</summary>' \
+  "$PS13562"
+prouver 'four 1.356.3 d : un réfrigérateur sans famille proposée' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '|chambre froide|réfrigérat|frigo|' '|chambre froide|frigo|' \
+  "$PS13562"
+prouver 'four 1.356.3 e : « Réfrigérateur de comptoir » rangé au mobilier, par le second mot' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        .sort((x, y) => x.i - y.i)[0];
+      return vu ?' '        [0];
+      return vu ?' \
+  "$PS13562"
+prouver 'four 1.356.3 f : la raison cite la racine « réfrigérat » au lieu du mot' 'modules/socle/ecrans/entreprise/app-1.js' \
+  "mot: m[0] + (nom.slice(m.index + m[0].length).match(/^[\\p{L}\\p{N}-]*/u) || [''])[0], cat }" \
+  'mot: m[0], cat }' \
+  "$PS13562"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

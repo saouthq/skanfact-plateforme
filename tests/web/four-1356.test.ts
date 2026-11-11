@@ -129,13 +129,14 @@ describe('bout en bout 1.356.2 : le four de la boulangerie, payé à moitié, ju
     await p.evaluate(() => { location.hash = '#/achat/new'; });
     await p.locator('#ac-main').click({ timeout: 20_000 });
     if (!(await p.locator('#b-lines input[data-k=label]').count())) await p.locator('#add-line').click();
-    await p.locator('#b-lines input[data-k=label]').first().fill('Pétrin spirale 80 L');
+    // (1.356.3) « Pétrin » propose désormais sa famille : la désignation sans mot connu est un bac à levain.
+    await p.locator('#b-lines input[data-k=label]').first().fill('Bac à levain inox 200 L');
     await p.locator('#b-lines input[data-k=unitPrice]').first().fill('9500');
     await p.locator('#b-lines select[data-k=destination]').first().selectOption('immobilisation');
     await p.locator('[data-fiche-mod="0"]').click({ timeout: 15_000 });
     const fen = p.locator('#modal-root .modal').last();
     await fen.locator('select[name=category]').waitFor();
-    // Aucun mot ne dit la famille d'un pétrin : pas de durée, et rien n'annonce une durée « proposée pour la famille ».
+    // Aucun mot ne dit la famille d'un bac à levain : pas de durée, et rien n'annonce une durée « proposée pour la famille ».
     expect(await fen.locator('select[name=category]').inputValue()).toBe('');
     expect(await fen.locator('input[name=years]').inputValue()).toBe('');
     expect(await fen.locator('#fb-prop').innerText()).toBe('');
@@ -150,6 +151,14 @@ describe('bout en bout 1.356.2 : le four de la boulangerie, payé à moitié, ju
     const resume = net(await p.locator('.ac-fi-grille').first().innerText());
     expect(resume).toContain('5 ans · proposée pour la famille');
     expect(resume).not.toContain('choisie par toi');
+    // (1.356.3) Le matériel du métier propose sa famille, par le mot qui vient le PREMIER (« Réfrigérateur de comptoir » est
+    // un réfrigérateur, pas un comptoir), et la raison cite le mot entier de la désignation, pas la racine de la table.
+    await p.locator('#add-line').click();
+    await p.locator('#b-lines input[data-k=label]').nth(1).fill('Réfrigérateur de comptoir');
+    await p.locator('#b-lines input[data-k=unitPrice]').nth(1).fill('4500');
+    await p.locator('#b-lines select[data-k=destination]').nth(1).selectOption('immobilisation');
+    await expect.poll(async () => net(await p.locator('.ac-fi-grille').nth(1).innerText().catch(() => '')), { timeout: 10_000 })
+      .toContain('Outillage et matériel technique · proposée : le mot « réfrigérateur »');
     // On ne garde pas ce second achat.
     await p.evaluate(() => { location.hash = '#/achats'; });
     await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click({ timeout: 10_000 }).catch(() => undefined);
@@ -165,11 +174,23 @@ describe('bout en bout 1.356.2 : le four de la boulangerie, payé à moitié, ju
     const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     const fichier = await api('POST', `/entreprises/${ent}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'facture-gaz.png', contenu: PNG });
     expect((await api('POST', `/entreprises/${ent}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: fichier.corps.id })).statut).toBe(201);
+    // (1.356.3) Une seconde pièce, illisible (le cabinet l'a redemandée) : elle se traite face à la pièce, pas au kilomètre.
+    const floue = await api('POST', `/entreprises/${ent}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'photo-floue.png', contenu: PNG });
+    const msgFloue = await api('POST', `/entreprises/${ent}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: floue.corps.id });
+    expect(msgFloue.statut).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/messages/${msgFloue.corps.id}/classee`, leila, { classee: true, raison: 'illisible' })).statut).toBeLessThan(300);
     await c.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/saisie/${Y}`);
     await c.locator('#sx-piece').waitFor({ timeout: 30_000 });
     expect(await c.locator('#sx-piece').inputValue()).toBe('');
+    // On s'arrête d'abord, face à la pièce, sur la photo illisible : le kilomètre s'ouvre quand même sur celle qu'il saisit.
+    await c.locator('[data-sx-k]').filter({ hasText: 'photo-floue' }).click({ timeout: 15_000 });
     await c.locator('[data-sx-mode="km"]').click();
     await c.locator('#sx-jm-piece').waitFor({ timeout: 20_000 });
+    // Le compte dit lesquelles se saisissent ici (avant : « 2 pièces à traiter » au-dessus d'une grille qui n'en prend qu'une),
+    // et le résumé des lots compte des CHOIX, pas des écritures.
+    await expect.poll(async () => net(await c.locator('#sx-km-compte').innerText())).toBe('journal AC · 2 pièces à traiter · 1 se saisit ici, 1 face à la pièce');
+    expect(net(await c.locator('#sx-km-d').innerText())).toContain('facture-gaz');
+    expect(net(await c.locator('#sa-lot-plus summary').innerText({ timeout: 10_000 }))).toMatch(/^Valider un autre lot · \d+ choix, par journal ou par mois$/);
     expect(await c.locator('#sx-jm-piece').inputValue()).toBe('');
     expect(await c.locator('#sx-jm-piece').getAttribute('placeholder')).toBe('n° pièce');
     await c.screenshot({ path: path.join(PHOTOS, 'four-1356-2-kilometre.png') });

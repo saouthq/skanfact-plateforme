@@ -2738,3 +2738,25 @@ prorata de cinquante jours) et le Cabinet disent les mêmes chiffres : 22 / 4366
   au Cabinet. Depuis la 1.356.0, le fond de caisse du 1er janvier (50 DT) y arrive : janvier porte cette écriture
   d'ouverture, sans chiffre d'affaires, et le pied dit « 2 mois 905,049 DT ». Retourné vers la règle (un mois au livre est
   un mois qui porte une écriture) ; en janvier, les deux tombent dans le même mois.
+
+### 1.356.3 : les trois restes du four
+
+Trois choses vues en jouant le four (1.356.2), laissées de côté pour ne pas mélanger les lots.
+
+- Au Cabinet, au kilomètre : « Achats de novembre · 4 pièces à traiter » au-dessus d'une grille qui n'en saisit qu'une. Le
+  kilomètre ne prend que les pièces « à saisir » (et en devises) ; une pièce à vérifier, illisible, en double ou déjà
+  saisie se traite face à la pièce. Le compte le dit : « 4 pièces à traiter · 1 se saisit ici, 3 face à la pièce ». Et
+  la pièce à côté de la grille s'ouvrait sur celle qu'on regardait face à la pièce — « à vérifier : elle se traite
+  Face à la pièce », au-dessus d'une ligne vide. Le kilomètre s'ouvre sur la première pièce qu'il saisit ; les
+  flèches mènent toujours aux autres.
+- « Valider un autre lot (8) », sous « 13 écritures » : le chiffre comptait les BOUTONS du lot (par journal, par mois),
+  et se lisait comme un nombre d'écritures. Il dit « 8 choix, par journal ou par mois ».
+- Côté entreprise, la fiche d'un bien proposait sa famille d'après les mots d'un atelier (perceuse, compresseur) et
+  rien pour le matériel d'un métier : « Four à sole », « Pétrin spirale », « Réfrigérateur » restaient « à choisir ».
+  La table gagne le matériel des métiers de bouche et de santé (four, pétrin, laminoir, chambre froide, réfrigérateur,
+  trancheuse, autoclave…), le fourgon et l'utilitaire, la caisse enregistreuse. Le mot qui vient le PREMIER dans la
+  désignation décide (« Réfrigérateur de comptoir » est un réfrigérateur, pas un comptoir), et la raison cite le mot
+  entier de la désignation (« réfrigérateur », jamais la racine « réfrigérat » de la table). Une proposition, jamais
+  une décision : la famille et la durée restent à VÉRIFIER avec le comptable.
+- Test : `four-1356` s'enrichit (une photo illisible à côté de la facture du gaz, le compte du kilomètre, la pièce à côté,
+  le résumé des lots, le réfrigérateur) ; son bien « sans mot connu » devient un bac à levain. Six preuves.

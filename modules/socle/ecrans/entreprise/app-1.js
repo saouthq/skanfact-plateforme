@@ -17122,15 +17122,23 @@
     const fichesProposees = new Map();
     const MOTS_FAMILLE = [[/ordinateur|portable|laptop|\bpc\b|imprimante|écran|serveur|onduleur|tablette|scanner/i, 'informatique'], [/logiciel|licence/i, 'logiciel'],
       [/photocopieur|téléphone|standard|calculatrice|destructeur/i, 'bureau'], [/bureau|chaise|fauteuil|armoire|table|étagère|meuble|comptoir/i, 'mobilier'],
-      [/voiture|véhicule|camion|camionnette|moto|scooter|remorque/i, 'transport'], [/climatiseur|climatisation|agencement|cloison|vitrine|installation/i, 'agencement'],
-      [/perceuse|machine|compresseur|outil|groupe électrogène|soudure|scie/i, 'outillage']];
+      [/voiture|véhicule|camion|camionnette|fourgon|utilitaire|moto|scooter|remorque/i, 'transport'], [/climatiseur|climatisation|agencement|cloison|vitrine|installation/i, 'agencement'],
+      [/perceuse|machine|compresseur|outil|groupe électrogène|soudure|scie/i, 'outillage'],
+      // (1.356.3) Le matériel d'un métier, pas seulement celui d'un atelier : « Four à sole 4 étages » ou « Pétrin
+      // spirale » ne proposaient aucune famille à la boulangerie. Une proposition, jamais une décision (À VÉRIFIER).
+      [/\bfours?\b|pétrin|laminoir|batteur|façonneuse|diviseuse|chambre froide|réfrigérat|frigo|congélat|cuisinière|friteuse|hotte|lave-vaisselle|trancheuse|balance|étuve|autoclave|groupe froid/i, 'outillage'],
+      [/caisse enregistreuse|terminal de paiement|\btpe\b/i, 'bureau']];
     const familleProposee = l => {
       const nom = String((l && l.label) || '').trim().toLowerCase();
       if (!nom) return null;
       const meme = (data.assets || []).slice().reverse().find(a => String(a.label || '').trim().toLowerCase() === nom && a.category);
       if (meme) return { category: meme.category, raison: 'comme le même bien, déjà dans tes biens' };
-      for (const [re, cat] of MOTS_FAMILLE) { const m = nom.match(re); if (m) return { category: cat, raison: `proposée : le mot « ${m[0]} »` }; }
-      return null;
+      // (1.356.3) Le mot qui vient le PREMIER dans la désignation nomme le bien : « Réfrigérateur de comptoir » est un
+      // réfrigérateur, pas un comptoir ; à égalité, l'ordre de la table.
+      // Le mot cité est celui de la désignation, entier : « réfrigérateur », jamais la racine « réfrigérat » de la table.
+      const vu = MOTS_FAMILLE.map(([re, cat]) => { const m = nom.match(re); return m ? { i: m.index, mot: m[0] + (nom.slice(m.index + m[0].length).match(/^[\p{L}\p{N}-]*/u) || [''])[0], cat } : null; }).filter(Boolean)
+        .sort((x, y) => x.i - y.i)[0];
+      return vu ? { category: vu.cat, raison: `proposée : le mot « ${vu.mot} »` } : null;
     };
     const lignesAFicher = () => isNew && !immoFerme && !C.PURCHASE_LIES.includes(p.kind)
       ? p.lines.map((l, i) => ({ l, i })).filter(({ l }) => l.destination === 'immobilisation' && String(l.label || '').trim() && C.round3((Number(l.qty) || 0) * (Number(l.unitPrice) || 0)) > 0) : [];
