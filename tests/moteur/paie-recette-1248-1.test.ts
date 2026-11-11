@@ -10,6 +10,7 @@ import { lireEcran } from '../../commun/assemblage.ts';
 type ATraiter = { salarie: string; vue: string; focus: string; titre: string; dit: string; geste: string };
 type Core = {
   paieATraiter: (d: unknown, t: string) => ATraiter[];
+  controlesDuMois: (d: unknown, y: number, m: number) => { id: string; ok: boolean; dit: string }[];
   moisDePaie: (d: unknown, t: string) => { year: number; month: number };
   paieDuMois: (d: unknown, y: number, m: number) => { etapes: { titre: string; fait: boolean; dit: string }[] };
   payslipInputFor: (d: unknown, e: unknown, y: number, m: number) => Record<string, unknown>;
@@ -72,6 +73,29 @@ describe('la paie après la recette du 02/11/2026, suite', () => {
     expect(core.paieDuMois(d, 2026, 10).etapes[0]?.dit).toBe('le mois est pointé');
     d.pointageOuverts = ['2026-10'];
     expect(core.paieDuMois(d, 2026, 10).etapes[0]?.dit).toBe('sauté : chacun payé au mois complet');
+  });
+
+  it('(1.355.2) une entreprise qui emploie sans son n° CNSS employeur : « À ne pas oublier » le réclame, avec le geste vers sa fiche', () => {
+    const d = donnees([sal('a', { iban: RIB, cnss: '12345678-12' })]) as ReturnType<typeof donnees> & { company: Record<string, unknown> };
+    const soc = () => core.paieATraiter(d, '2026-11-02').filter((x) => (x as unknown as { societe?: string }).societe);
+    expect(soc().map((x) => [(x as unknown as { societe: string }).societe, x.vue, x.titre, x.geste])).toEqual([['cnss', 'societe', 'N° CNSS employeur manquant', 'Renseigner']]);
+    expect(soc()[0]?.dit).toBe('sur la fiche de l\'entreprise : chaque bulletin et la déclaration du trimestre le portent');
+    d.company.cnss = '  ';
+    expect(soc()).toHaveLength(1);
+    d.company.cnss = '123456-78';
+    expect(soc()).toHaveLength(0);
+    d.company.cnss = '';
+    (d.employees[0] as Record<string, unknown>).endDate = '2026-10-31';
+    expect(soc()).toHaveLength(0);
+  });
+
+  it('(1.355.2) les contrôles du mois disent le n° CNSS de l\'employeur, comme ils disent celui de chaque salarié', () => {
+    const d = donnees([sal('a', { iban: RIB, cnss: '12345678-12' })]) as ReturnType<typeof donnees> & { company: Record<string, unknown> };
+    etablir(d, 2026, 10, '');
+    const ctl = () => core.controlesDuMois(d, 2026, 10).find((c) => c.id === 'cnss-employeur');
+    expect(ctl()).toMatchObject({ ok: false, dit: 'à renseigner sur la fiche de l\'entreprise : chaque bulletin et la déclaration du trimestre le portent' });
+    d.company.cnss = '123456-78';
+    expect(ctl()).toMatchObject({ ok: true, dit: '' });
   });
 
   it('l\'avenant d\'un passage en CDI le dit, à compter du lendemain de l\'ancienne fin ; un mois plus tard, il redevient général', () => {

@@ -137,6 +137,29 @@ describe('le premier salarié, du vide au bulletin à payer (1.355.0)', () => {
     expect(choix.map(net)).toEqual(['Aucun compte créé : la banque']);
     await p.locator('.modal [data-close]').first().click();
 
+    // 7. (1.355.2) Sans n° CNSS employeur : « À ne pas oublier » le réclame. Payé, le bulletin se remet d'un clic sur le bandeau
+    // (au singulier : il n'y en a qu'un), le bulletin vu par-dessus la remise dit « à renseigner », et ce lien mène à la case
+    // de la fiche en refermant TOUTE la pile de fenêtres.
+    await p.locator('#p-payer').click();
+    await p.locator('.modal #ps-payer').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 10_000 }).toBe(0);
+    await p.locator('#p-tabs [data-tab="pointage"]').click();
+    await expect.poll(() => p.locator('#p-traiter').innerText().then(net), { timeout: 10_000 }).toContain('N° CNSS employeur manquant');
+    await expect.poll(() => p.locator('#pj-avant-go').innerText().then(net), { timeout: 10_000 }).toMatch(/^Remettre le bulletin d/);
+    await p.locator('#pj-avant-go').click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().then(net), { timeout: 10_000 }).toMatch(/^Remettre le bulletin d/);
+    await p.locator('#modal-root .modal [data-rm-voir]').first().click();
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 10_000 }).toBe(2);
+    const tete = net(await p.locator('#modal-root .modal').last().locator('.bul-t').innerText());
+    expect(tete).toContain('matricule fiscal à renseigner · CNSS employeur à renseigner');
+    expect(tete).not.toContain('celui de ta fiche');
+    await p.locator('#modal-root .modal').last().locator('[data-bg-fiche="cnss"]').click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).toBe('#/parametres');
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name || ''), { timeout: 10_000 }).toBe('cnss');
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
+    await p.evaluate(() => { location.hash = '#/paie'; });
+    await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
+
     // 6. (1.355.1) Une absence sans solde : le bouton dit ce qu'il pose, la fenêtre garde sa hauteur quand la nature change,
     // et le brut retenu se lit avant de poser : 1 200 ÷ 26 × 2 = 92,308 (calculé à la main).
     await p.locator('#p-tabs [data-tab="pointage"]').click();

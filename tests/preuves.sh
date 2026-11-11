@@ -27795,6 +27795,32 @@ prouver 'absence 1.355.1 d : « Octobre n'\''est pas fini » le 11 novembre' mod
   '<b>${h(`La paie ${/^[aeiouyéè]/i.test(nom) ? `d'\''${nom}` : `de ${nom}`} n'\''est pas finie`)}</b>' '<b>${h(capi(nom))} n'\''est pas fini</b>' \
   "$PS13551M"
 
+# 1.355.2 : le bulletin remis — le n° CNSS employeur réclamé, « à renseigner » au lieu de « celui de ta fiche », la pile refermée, le bandeau qui fait son geste.
+PS13552T='(1.355.2) une entreprise qui emploie sans son n° CNSS employeur : « À ne pas oublier » le réclame, avec le geste vers sa fiche'
+PS13552C='(1.355.2) les contrôles du mois disent le n° CNSS de l'\''employeur, comme ils disent celui de chaque salarié'
+prouver 'bulletin 1.355.2 a : rien ne réclame le n° CNSS employeur' modules/personnel/moteur/core-paie.js \
+  'if (!String(co.cnss || '\'''\'').trim() && (data.employees' 'if (false && (data.employees' \
+  "$PS13552T"
+prouver 'bulletin 1.355.2 b : les contrôles taisent le n° CNSS employeur' modules/personnel/moteur/core-paie.js \
+  '    add('\''cnss-employeur'\'', !!cnssE,' '    if (false) add('\''cnss-employeur'\'', !!cnssE,' \
+  "$PS13552C"
+prouver 'bulletin 1.355.2 c : « matricule fiscal : celui de ta fiche » sur une fiche qui n'\''en a pas' modules/personnel/ecrans/entreprise/paie.js \
+  ''\''matricule fiscal <a href="#" class="ambre" data-bg-fiche="matricule">à renseigner</a>'\''' ''\''matricule fiscal : celui de ta fiche'\''' \
+  "$PS1355W"
+prouver 'bulletin 1.355.2 d : la fenêtre de la remise reste posée sur les Paramètres' modules/personnel/ecrans/entreprise/paie.js \
+  '        [...document.querySelectorAll('\''#modal-root .modal-bg'\'')].reverse().forEach(l => { const x = l.querySelector('\''[data-close]'\''); if (x) x.click(); });
+' '' \
+  "$PS1355W"
+prouver 'bulletin 1.355.2 e : le bandeau dépose sur le mois sans faire son geste' modules/personnel/ecrans/entreprise/paie.js \
+  '      if (b && !b.disabled) b.click();
+    }
+    // (1.267.0) « Aujourd'\''hui »' '    }
+    // (1.267.0) « Aujourd'\''hui »' \
+  "$PS1355W"
+prouver 'bulletin 1.355.2 f : « Remettre les bulletins » pour un seul' modules/personnel/ecrans/entreprise/paie.js \
+  'aRem > 1 ? `Remettre les ${aRem} bulletins ${de}` : `Remettre le bulletin ${de}`' '`Remettre les bulletins ${de}`' \
+  "$PS1355W"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

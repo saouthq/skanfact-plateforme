@@ -275,6 +275,9 @@
       : vieux.length ? `encore d'avant 2026 : ${vieux.map(v => v.libelle).join(', ')}` : 'CNSS, accident du travail, TFP, FOPROLOS des réglages');
     const cdd = L.filter(x => x.employee.contract === 'cdd' && x.employee.endDate && x.employee.endDate >= debut && x.employee.endDate <= addDays(fin, 62));
     add('contrats', true, 'Contrats en cours', cdd.length ? cdd.map(x => `le CDD de ${x.employeeName.split(/\s+/)[0]} finit le ${fmtDate(x.employee.endDate)}`).join(' · ') : 'aucun contrat ne finit dans les deux mois');
+    // (1.355.2) Le n° CNSS de l'employeur : sans lui, chaque bulletin l'imprime vide et la déclaration du trimestre ne part pas.
+    const cnssE = String((data.company || {}).cnss || '').trim();
+    add('cnss-employeur', !!cnssE, 'N° CNSS de l\'employeur', cnssE ? '' : 'à renseigner sur la fiche de l\'entreprise : chaque bulletin et la déclaration du trimestre le portent');
     const sansCnss = L.filter(x => !String(x.employee.cnss || '').trim());
     add('cnss', !sansCnss.length, 'N° CNSS de chaque salarié', sansCnss.length ? `${noms(sansCnss.map(x => x.employeeName))} : à demander, avant la déclaration du trimestre` : '');
     // (1.248.0) Un même n° CNSS sur deux salariés : la déclaration du trimestre mettrait leurs salaires sur une seule personne.
@@ -323,6 +326,14 @@
         .forEach(l => L.push({ ...base, vue: 'conges', focus: '', conge: l.id, titre: `${e.name} : le certificat de son arrêt du ${fmtDate(l.from)}`, dit: 'à garder, et à transmettre à la CNSS (À VÉRIFIER : le délai)', geste: 'Noter' }));
       Compta.saisiesOf(data, e).filter(x => x.aVerser > 0).forEach(x => L.push({ ...base, focus: '', saisie: x.id, titre: `${e.name} : ${money(x.aVerser, data.company && data.company.currency)} à verser à ${x.creancier || 'son créancier'}`, dit: 'retenus sur ses bulletins pour une saisie sur salaire', geste: 'Verser' }));
     });
+    // (plateforme) 1.355.2 — la fiche de l'ENTREPRISE, dès qu'elle emploie : sans son n° CNSS employeur, la déclaration du
+    // trimestre ne peut pas partir et chaque bulletin l'imprime vide. Le bout en bout l'a montré : un bulletin remis disait
+    // « matricule fiscal : celui de ta fiche » sur une fiche qui n'en avait pas, et rien ne réclamait le numéro.
+    const co = data.company || {};
+    if (!String(co.cnss || '').trim() && (data.employees || []).some(e => e.active !== false && !(e.endDate && e.endDate < t))) {
+      L.push({ societe: 'cnss', vue: 'societe', focus: '', initiales: initialesDe(co.name), couleur: couleurDe(co.name), titre: 'N° CNSS employeur manquant',
+        dit: 'sur la fiche de l\'entreprise : chaque bulletin et la déclaration du trimestre le portent', geste: 'Renseigner' });
+    }
     return L;
   }
 

@@ -1266,6 +1266,10 @@ body.dark .pm .papier { color: #1d2327; }
 .pm #pt-panneau .pa-carte-t #pt-valider { margin-left: 8px; }
 /* (1.257.0) Remettre les bulletins (O03). */
 .pm .rm-t td { padding: 10px 8px; vertical-align: top; }
+.pm .rm-t th { padding-inline: 8px; }
+/* (1.355.2) La case de la ligne prenait la largeur d’un champ (42 px) et se centrait : elle tombait 15 px à droite de celle de
+   l’en-tête. Les deux cases ont leur taille de case. */
+.pm .rm-t td input[type="checkbox"] { inline-size: auto; }
 .pm .rm-t td small { display: block; color: var(--gris-2); font-size: 11.5px; margin-top: 1px; }
 /* (1.258.0) Le rappel d'une augmentation (O05) */
 .pm .rp-intro { margin: 0 0 12px; }

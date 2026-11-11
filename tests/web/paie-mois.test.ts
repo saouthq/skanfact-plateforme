@@ -124,7 +124,8 @@ describe('la paie : le mois, tel que sa maquette', () => {
     // compte ces choses-là ─────────────────────────────────────────────────────────────────────────────────────────────
     expect(await p.locator('#p-auj .pa-auj-d #p-traiter').count()).toBe(1);
     const traiter = await p.locator('#p-traiter li b').allInnerTexts();
-    expect(traiter).toEqual(['Karim Sans Rib : RIB à demander', 'Nadia Sans Cnss : n° CNSS à demander', expect.stringMatching(/^Le CDD de Hamza En Cdd finit le \d{2}\/\d{2}\/\d{4}$/)]);
+    expect(traiter).toEqual(['Karim Sans Rib : RIB à demander', 'Nadia Sans Cnss : n° CNSS à demander', expect.stringMatching(/^Le CDD de Hamza En Cdd finit le \d{2}\/\d{2}\/\d{4}$/),
+      'N° CNSS employeur manquant']); // (1.355.2) la fiche de l'entreprise n'a pas son n° : il se réclame aussi ; « L'équipe » ne le compte pas
     expect(await p.locator('#p-tabs [data-af="salaries"]').innerText()).toBe('3');
     expect(await p.locator('#p-tabs [data-af="salaries"]').isHidden()).toBe(false);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-aujourdhui.png'), fullPage: true });
@@ -136,6 +137,10 @@ describe('la paie : le mois, tel que sa maquette', () => {
     // ── Le bouton vert mène au mois et à son étape : « Le mois » › Payer ; le vert est en haut, le corps n'en porte aucun ──
     await p.locator('#pj-avant-go').click();
     await expect.poll(() => p.locator('#p-payer').count()).toBe(1);
+    // (1.355.2) Le bouton dit le geste, il le fait : la fenêtre du paiement s'ouvre sur le mois ; on la referme pour lire la page.
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().catch(() => '')).toMatch(/^Payer les salaires/);
+    await p.locator('#modal-root .modal').last().locator('[data-close]').first().click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     expect(await p.locator('#p-tabs [data-tab="bulletins"]').getAttribute('aria-selected')).toBe('true');
     // (1.251.0) La bande des douze mois dit l'état de chacun : le mois écoulé a ses bulletins, aucun payé : « à payer ».
     // Le mois d'avant la paie dans SkanFact se tait (« — ») : la paie était tenue ailleurs, rien n'y est « à faire ».
@@ -198,7 +203,7 @@ describe('la paie : le mois, tel que sa maquette', () => {
     await p.reload();
     await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
     await expect.poll(() => p.locator('#pj-avant-go').count(), { timeout: 15_000 }).toBe(1);
-    expect(await texte('#pj-avant-go')).toBe(`Remettre les bulletins ${deMois}`);
+    expect(await texte('#pj-avant-go')).toBe(`Remettre les 4 bulletins ${deMois}`);
     await p.locator('#pj-avant-go').click();
     await expect.poll(() => p.locator('#p-remettre').count(), { timeout: 15_000 }).toBe(1);
     // Tous payés : le mois n'est plus « à payer » dans la bande (il attend sa déclaration).
@@ -206,7 +211,7 @@ describe('la paie : le mois, tel que sa maquette', () => {
     expect(await texte('#p-remettre')).toBe('Remettre les 4 bulletins');
     expect(await etapes()).toEqual([['fait', 'Pointer'], ['fait', 'Bulletins'], ['ici', 'Payer'], ['', 'Déclarer']]);
     expect(await texte('#p-sous .pa-etape:nth-child(3)')).toContain('4 à remettre');
-    await p.locator('#p-remettre').click();
+    // (1.355.2) La fenêtre de la remise est déjà ouverte par le bouton du bandeau.
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').innerText()).toMatch(/^Remettre les 4 bulletins d/);
     await fenetre.locator('#rm-ok').click();

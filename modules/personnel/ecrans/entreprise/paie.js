@@ -1285,10 +1285,10 @@
     if (!v.paidDate && !v.valideLe) gestes.push(`<button type="button" class="btn" id="bg-mod">${lfIc('modifier', 15)} Modifier ses lignes…</button>`);
     if (v.paidDate) gestes.push(`<button type="button" class="btn" id="bg-reg" title="Un bulletin payé ne change plus : ce qui manquait se met sur un mois suivant">Régulariser…</button>`);
     modal(`<h2>${h(emp.name || v.employeeName || '')} · bulletin ${/^[aeiouyéè]/i.test(mo) ? 'd\'' : 'de '}${h(mo)} ${y} ${statut}</h2>
-      <div class="bul-t"><div><b>${h(co.name || '')}</b><span>${co.matricule ? `MF ${h(co.matricule)}` : 'matricule fiscal : celui de ta fiche'}${co.cnss ? ` · CNSS employeur ${h(co.cnss)}` : ''}</span><span>accident du travail : ${pc((c.rates || {}).accidentRate)} % (le taux de ton dossier)</span></div>
+      <div class="bul-t"><div><b>${h(co.name || '')}</b><span>${co.matricule ? `MF ${h(co.matricule)}` : 'matricule fiscal <a href="#" class="ambre" data-bg-fiche="matricule">à renseigner</a>'} · CNSS employeur ${co.cnss ? h(co.cnss) : '<a href="#" class="ambre" data-bg-fiche="cnss">à renseigner</a>'}</span><span>accident du travail : ${pc((c.rates || {}).accidentRate)} % (le taux de ton dossier)</span></div>
         <div><b>${h(emp.name || '')}</b><span>${h(emp.position || 'poste à saisir')}${emp.categorie ? ` · ${h(emp.categorie)}` : ''}</span><span>${emp.cin ? `CIN ${h(emp.cin)}` : 'CIN à saisir'} · n° CNSS ${emp.cnss ? h(emp.cnss) : '<b class="ambre">à demander</b>'}</span><span>${h(String(C.contractLabel(emp.contract || 'cdi')).split(' —')[0])}${emp.hireDate ? ` · depuis ${C.fmtDate(emp.hireDate)}` : ''} · ${h(sit)}</span></div>
         <div><span>Période</span><b>du 01/${String(m).padStart(2, '0')} au ${C.fmtDate(fin)} · ${pct(Number(v.workedDays) || Number(c.workedDays) || 0)} jours payés sur ${total}</b></div><div><span>${v.paidDate ? 'Payé le' : 'Paiement'}</span><b>${v.paidDate ? `${C.fmtDate(v.paidDate)} · ` : 'pas encore payé · '}${mode}</b></div></div>
-      <div class="bul-2"><table class="mini lu"><thead><tr><th>Ce qu'il gagne</th><th class="r"></th></tr></thead><tbody>${l('Salaire de base', f(base), Number(c.absenceCut) ? `${f(C.round3(base + Number(c.absenceCut)))} moins ${pct(Number(c.absentDays) || 0)} jour(s) sans solde` : '')}${(c.bonuses || []).map(b => l(h(b.label || 'Prime'), f(b.amount), b.taxable === false ? 'non imposable' : '')).join('')}</tbody><tfoot><tr><td>Brut</td><td class="r">${f(c.gross)}</td></tr></tfoot></table>
+      <div class="bul-2"><table class="mini lu"><thead><tr><th>Ce qu'il gagne</th><th class="r"></th></tr></thead><tbody>${l('Salaire de base', f(base), Number(c.absenceCut) ? `${f(C.round3(base + Number(c.absenceCut)))} moins ${nbJours(Number(c.absentDays) || 0)} sans solde` : '')}${(c.bonuses || []).map(b => l(h(b.label || 'Prime'), f(b.amount), b.taxable === false ? 'non imposable' : '')).join('')}</tbody><tfoot><tr><td>Brut</td><td class="r">${f(c.gross)}</td></tr></tfoot></table>
         <table class="mini lu"><thead><tr><th>Ce qui est retenu</th><th class="r"></th></tr></thead><tbody>${l('CNSS, sa part', `− ${f(c.cnssEmployee)}`, `${pc((c.rates || {}).cnssEmployee)} % du brut (À VÉRIFIER)`)}${l('<i>Salaire imposable</i>', `<i>${f(c.afterCnss)}</i>`, 'brut moins CNSS ; frais professionnels et déductions de famille appliqués par le barème')}${l('Impôt sur le revenu (IRPP)', `− ${f(c.irpp)}`, `barème de l'année · ${h(sit)}`)}${Number(c.css) ? l('Contribution sociale de solidarité', `− ${f(c.css)}`, `${pc((c.rates || {}).solidarity)} %`) : c.cssFinie ? l('Contribution sociale de solidarité', f(0), `non retenue : sa règle s'arrête le ${C.fmtDate(c.cssFinie)}`) : ''}${(c.deductions || []).map(d => l(h(d.label || 'Retenue'), `− ${f(d.amount)}`)).join('')}</tbody><tfoot><tr><td>Net à verser</td><td class="r">${montantU(Number(c.net) || 0, cur)}</td></tr></tfoot></table></div>
       <div class="bul-2"><table class="mini lu"><thead><tr><th>Ce que paie l'entreprise</th><th class="r"></th></tr></thead><tbody>${l('CNSS, sa part', f(c.cnssEmployer), `${pc((c.rates || {}).cnssEmployer)} % du brut (À VÉRIFIER)`)}${l('Accident du travail', f(c.accident), `${pc((c.rates || {}).accidentRate)} %`)}${l('TFP · FOPROLOS', f(C.round3((Number(c.tfp) || 0) + (Number(c.foprolos) || 0))), `${pc((c.rates || {}).tfpRate)} % · ${pc((c.rates || {}).foprolosRate)} %`)}</tbody><tfoot><tr><td>Coût total</td><td class="r">${montantU(Number(c.employerCost) || 0, cur)}</td></tr></tfoot></table>
         <table class="mini lu"><thead><tr><th>Depuis janvier</th><th class="r"></th></tr></thead><tbody>${l('Brut', f(ytd.gross), pl(ytd.n, 'mois', 'mois'))}${l('CNSS et impôt retenus', f(ytd.ret))}${l('Net versé', f(ytd.net))}${cg ? l('Congés', `${pct(cg.remaining)} j restants`, `${pct(cg.acquired)} acquis, ${pct(cg.taken)} pris`) : ''}</tbody></table></div>
@@ -1297,8 +1297,18 @@
       $('#bg-doc', root).onclick = () => documentBulletin(slip, done);
       if ($('#bg-mod', root)) $('#bg-mod', root).onclick = () => { fermer(); payslipForm(payslipById(slip.id) || slip, emp, slip.year, slip.month, done); };
       if ($('#bg-reg', root)) $('#bg-reg', root).onclick = () => { fermer(); regularisationFenetre(payslipById(slip.id) || slip, done); };
+      // Le bulletin s'ouvre aussi par-dessus « Remettre le bulletin » : partir vers la fiche referme TOUTE la pile (sinon la
+      // fenêtre du dessous restait posée sur les Paramètres) ; une fenêtre qui pose sa question garde la main.
+      $$('[data-bg-fiche]', root).forEach(a => a.onclick = ev => {
+        ev.preventDefault(); fermer();
+        [...document.querySelectorAll('#modal-root .modal-bg')].reverse().forEach(l => { const x = l.querySelector('[data-close]'); if (x) x.click(); });
+        if (document.querySelector('#modal-root .modal')) return;
+        allerParametres('societe', 'p-identite:' + a.dataset.bgFiche);
+      });
     }, null, { classe: 'pa-bul' });
   }
+  // (1.355.2) Un nombre de jours peut être décimal (un demi-jour) : « 1,5 jour », « 2 jours » — jamais « jour(s) ».
+  function nbJours(n) { return `${String(n).replace('.', ',')} jour${Math.abs(n) >= 2 ? 's' : ''}`; }
   function correctionEnAttenteB(x) { return !!(x && x.correction && !x.correction.reponse && !x.paidDate); }
   // L'A4 du bulletin (« Le document ») : l'aperçu fidèle, puis le PDF.
   function documentBulletin(slip, done) {
@@ -2126,7 +2136,10 @@
         return { etape: 'bulletins', sorte: 'etablir', ic: 'pages', dit: `Établir les bulletins ${de}` };
       }
       if (mo.some(x => !x.paidDate)) return { etape: 'payer', sorte: 'payer', ic: 'carte', dit: `Payer les salaires ${de}` };
-      if (mo.some(x => x.paidDate && !x.remisLe)) return { etape: 'payer', sorte: 'remettre', ic: 'envoi', dit: `Remettre les bulletins ${de}` };
+      // (1.355.2) Un seul bulletin à remettre se dit au singulier : le bandeau disait « les bulletins » au-dessus de
+      // « 1 bulletin à remettre », et le bouton de la page « Remettre le bulletin ».
+      const aRem = mo.filter(x => x.paidDate && !x.remisLe).length;
+      if (aRem) return { etape: 'payer', sorte: 'remettre', ic: 'envoi', dit: aRem > 1 ? `Remettre les ${aRem} bulletins ${de}` : `Remettre le bulletin ${de}` };
       return null;
     }
     // Le bouton vert d'« Aujourd'hui », selon le jour (la maquette, « principal ») : d'abord le mois d'avant s'il n'est pas fini
@@ -2502,7 +2515,7 @@
       const controles = ctl.length && !sansCab ? `<div class="apy carte" id="p-ctrl"><div class="apy-t"><b>Ce que SkanFact a contrôlé</b><span class="mu">${pl(ctl.length, 'contrôle')} · ${pl(ctl.length - ctlKo.length, 'juste', 'justes')}${ctlKo.length ? ` · ${ctlKo.length} à savoir` : ''}</span></div>
         <ul class="apy-l">${ctlVus.map(c => {
           // (1.248.1) Un manque que « À traiter » porte déjà (son bouton « Compléter ») ne se répète pas ici, nom par nom.
-          const dejaLa = !c.ok && ((c.id === 'cnss' && traiter.some(x => x.focus === 'cnss')) || (c.id === 'rib' && traiter.some(x => x.focus === 'iban')));
+          const dejaLa = !c.ok && ((c.id === 'cnss' && traiter.some(x => x.focus === 'cnss')) || (c.id === 'rib' && traiter.some(x => x.focus === 'iban')) || (c.id === 'cnss-employeur' && traiter.some(x => x.societe === 'cnss')));
           const dit = dejaLa ? 'à compléter : chaque fiche est dans « À ne pas oublier », sur Aujourd\'hui, avec son bouton' : c.dit;
           return `<li class="${c.ok ? 'ok' : 'ko'}"><span class="apy-ok" style="justify-self:center;color:var(--${c.ok ? 'sarcelle-texte' : 'ambre-texte'})">${lfIc(c.ok ? 'coche' : 'aide', 16, 2.2)}</span><span class="apy-n"><b>${h(c.titre)}</b>${dit ? `<small title="${h(dit)}">${h(dit)}</small>` : ''}</span><span></span><span></span><span></span></li>`;
         }).join('')}</ul>
@@ -2663,6 +2676,7 @@
       $$('#p-body [data-traiter]').forEach(b => b.onclick = () => {
         const x = traiter[Number(b.dataset.traiter)]; if (!x) return;
         const e = employeeById(x.salarie);
+        if (x.societe) return allerParametres('societe', 'p-identite:' + x.societe);
         if (x.demande) { s.tab = 'conges'; marquerVue(); return draw(); }
         if (x.essai && e) return finEssaiFenetre(e, apres);
         if (x.conge) return leaveForm((data.leaves || []).find(l => l.id === x.conge), null, apres);
@@ -2676,6 +2690,10 @@
     function allerAuMois(p) {
       s.year = String(p.y); s.month = String(p.m); s.quarter = String(Math.ceil(p.m / 3)); s.moisTouche = true;
       s.tab = p.etape; marquerVue(); draw();
+      // (1.355.2) Le bouton dit le geste (« Remettre le bulletin d'octobre », « Payer les salaires… ») : il le FAIT, au lieu
+      // de déposer sur le mois où il fallait recliquer un bouton du même nom.
+      const b = $({ payer: '#p-payer', etablir: '#p-gen', remettre: '#p-remettre' }[p.sorte] || '#rien');
+      if (b && !b.disabled) b.click();
     }
     // (1.267.0) « Aujourd'hui » (la maquette paie-v2, « ongletJour ») : à gauche la journée (qui est là, ce qui change, la
     // valider) et les gestes de tous les jours ; à droite les demandes et ce qu'il ne faut pas oublier. Un mois passé qui n'est
@@ -2743,7 +2761,7 @@
           ${vir.length ? ligne('p-payer-vir', 'envoi', `Par virement · ${pl(vir.length, 'salarié')} · ${C.money(somme(vir), cur)}`, `un seul ordre de virement pour ta banque, avec le RIB de chacun${sansRib.length ? ` · <b class="warn-text">le RIB de ${h(prenoms(sansRib))} manque</b>` : ''}`,
             `${sansRib.length ? `<button type="button" class="btn btn-sm" data-rib="${h(sansRib[0].employeeId)}">Compléter le RIB</button>` : ''}<button type="button" class="btn btn-sm" id="p-ordre">${lfIc('pages', 14)} L'ordre de virement</button>`) : ''}
           ${esp.length ? ligne('p-payer-esp', 'argent', `En espèces · ${pl(esp.length, 'salarié')} · ${C.money(somme(esp), cur)}`, `contre un reçu que ${h(prenoms(esp))} signe${esp.length > 1 ? 'nt' : ''} : il se prépare avec le paiement`, '') : ''}
-          ${ligne('p-payer-rem', 'pages', aRemettre.length ? `Remettre ${aRemettre.length > 1 ? `les ${aRemettre.length} bulletins` : 'le bulletin'}` : payes.length === mo.length ? 'Chacun a son bulletin' : 'Remettre les bulletins', aRemettre.length ? 'chacun en PDF, à donner en main propre ou à envoyer toi-même' : payes.length === mo.length ? 'remis, avec la date' : 'une fois payés : chacun reçoit le sien, en PDF', '')}
+          ${ligne('p-payer-rem', 'pages', aRemettre.length ? `Remettre ${aRemettre.length > 1 ? `les ${aRemettre.length} bulletins` : 'le bulletin'}` : payes.length === mo.length ? (mo.length > 1 ? 'Chacun a son bulletin' : 'Le bulletin est remis') : mo.length > 1 ? 'Remettre les bulletins' : 'Remettre le bulletin', aRemettre.length ? (aRemettre.length > 1 ? 'chacun en PDF, à donner en main propre ou à envoyer toi-même' : 'en PDF, à donner en main propre ou à envoyer toi-même') : payes.length === mo.length ? 'remis, avec la date' : mo.length > 1 ? 'une fois payés : chacun reçoit le sien, en PDF' : 'une fois payé : en PDF, à lui remettre', '')}
         </ul>
         <p class="pa-pied small muted">${lfIc('aide', 13)} Une fois l'argent parti, dis-le avec le bouton vert : la trésorerie et la comptabilité le voient, et le bulletin est marqué payé ; il ne se modifie plus (une erreur se corrige sur le bulletin suivant).${modeDuMois(y, m) === 'tenue' ? ' C\'est toi qui paies : ton cabinet n\'a pas ce geste.' : ''} Le journal de paie est dans le menu ⋯.</p></section>`;
       lierBandeauxDuMois(mo, y, m);
@@ -5420,7 +5438,7 @@
         })()
       : og === 'depart' ? (e.endDate ? (() => {
           const L = C.lignesDuSolde(data, e.id, e.endDate);
-          return `<div class="pa-kv" id="fs-dep-kv"><span>${parti ? 'Parti le' : 'Fin prévue le'}</span><b>${C.fmtDate(e.endDate)}</b>${e.sortieMotif ? `<span>Motif</span><b>${h(motifSortie(e.sortieMotif))}</b>` : ''}${e.hireDate ? `<span>Ancienneté</span><b>${h(ancienneteDe(e, e.endDate))}</b>` : ''}<span>Congés pas pris</span><b>${pct(C.indemniteConges(data, e.id, e.endDate).solde)} jour(s)</b>${ouvertes.length ? `<span>Avance qui reste</span><b>${C.money(C.round3(ouvertes.reduce((a2, x) => a2 + x.remaining, 0)), cur)}</b>` : ''}</div>
+          return `<div class="pa-kv" id="fs-dep-kv"><span>${parti ? 'Parti le' : 'Fin prévue le'}</span><b>${C.fmtDate(e.endDate)}</b>${e.sortieMotif ? `<span>Motif</span><b>${h(motifSortie(e.sortieMotif))}</b>` : ''}${e.hireDate ? `<span>Ancienneté</span><b>${h(ancienneteDe(e, e.endDate))}</b>` : ''}<span>Congés pas pris</span><b>${nbJours(C.indemniteConges(data, e.id, e.endDate).solde)}</b>${ouvertes.length ? `<span>Avance qui reste</span><b>${C.money(C.round3(ouvertes.reduce((a2, x) => a2 + x.remaining, 0)), cur)}</b>` : ''}</div>
             ${ouvertes.length ? `<p class="small pa-note" id="fs-dep-avance">Le solde ne retient pas l'avance : ses bulletins la remboursent, et ce qu'ils ne peuvent pas retenir se règle avec lui. <em>À VÉRIFIER avec ton comptable : ce qui peut se retenir au départ.</em></p>` : ''}
             <table class="list compact pa-liste"><thead><tr><th>Son solde de tout compte, proposé</th><th class="r"></th></tr></thead><tbody>${L.map(l => `<tr><td>${h(l.label)}</td><td class="r nw">${l.amount || l.cle ? C.money(l.amount, cur) : '<span class="muted">à compléter dans le solde</span>'}</td></tr>`).join('')}</tbody></table>
             <div class="pa-pied-o">${/* (1.257.0) Une sortie notée par erreur, ou une démission reprise : tant que son dernier bulletin n'est pas payé, elle se retire. */''}${e.sortieMotif && e.contract !== 'cdd' && !slips.some(x => x.paidDate && `${x.year}-${String(x.month).padStart(2, '0')}` >= e.endDate.slice(0, 7)) ? `<button type="button" class="btn btn-sm" data-fs="reste" id="fs-reste">${lfIc('retour', 14)} Il reste finalement</button>` : ''}<button type="button" class="btn btn-sm" data-fs="sortie" id="fs-sortie-mod">${lfIc('modifier', 14)} ${e.sortieMotif ? 'Modifier sa sortie…' : 'Le motif de sa sortie…'}</button><button type="button" class="btn btn-sm" data-fs="doc" data-kind="solde">${lfIc('oeil', 14)} Le solde de tout compte</button><button type="button" class="btn btn-sm" data-fs="doc" data-kind="certificat">${lfIc('oeil', 14)} Le certificat de travail</button></div>

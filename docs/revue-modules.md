@@ -2502,3 +2502,25 @@ La suite du même salarié, à la souris : Sami prend deux jours sans solde en n
 
 Tests : `tests/web/paie-1355.test.ts` (sixième étape), `tests/web/paie-mois.test.ts` (le bandeau) ; quatre preuves, une
 ancienne remise sur sa nouvelle ancre.
+
+### 1.355.2 : le bulletin remis
+
+Octobre est payé ; il reste à remettre le bulletin de Sami. Joué à la souris, du bandeau d'« Aujourd'hui » à la fiche de
+l'entreprise :
+- **Le bulletin disait « matricule fiscal : celui de ta fiche »** sur une fiche qui n'en avait pas, et taisait le n° CNSS
+  employeur. Chacun dit maintenant « à renseigner », et ce lien mène à sa case dans la fiche de l'entreprise.
+- **Rien ne réclamait le n° CNSS employeur**, que chaque bulletin et la déclaration du trimestre portent. Dès que
+  l'entreprise emploie, « À ne pas oublier » le dit (« N° CNSS employeur manquant », bouton « Renseigner ») et les
+  contrôles du mois aussi. Le Cabinet le réclamait déjà sur ses dossiers ; celui d'un client qui fait sa paie lui-même
+  n'a rien à en dire.
+- **Le lien laissait une fenêtre sur les Paramètres** : le bulletin s'ouvre par-dessus « Remettre le bulletin », et seule
+  la fenêtre du dessus se fermait. Partir vers la fiche referme toute la pile (une fenêtre qui pose sa question garde
+  la main).
+- **« Remettre les bulletins d'octobre »** au-dessus de « 1 bulletin à remettre » : le bandeau, la ligne et la fenêtre
+  comptent leurs bulletins. Et le bouton du bandeau FAIT son geste (la fenêtre de la remise ou du paiement s'ouvre) au
+  lieu de déposer sur le mois où il fallait recliquer un bouton du même nom.
+- **« jour(s) sans solde »** et « jour(s) » des congés pas pris : « 1,5 jour », « 2 jours ». La case d'une ligne de la
+  remise tombait 15 px à droite de celle de l'en-tête (elle prenait la largeur d'un champ).
+
+Tests : `tests/web/paie-1355.test.ts` (septième étape), `tests/moteur/paie-recette-1248-1.test.ts` (deux tests),
+`tests/web/paie-mois.test.ts` (le bandeau et sa fenêtre) ; six preuves.
