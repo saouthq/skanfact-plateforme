@@ -2557,3 +2557,19 @@ et octobre attendait derrière une page vide. L'app entreprise s'ouvre depuis la
   `cabinet-paie-1330` (le mois lu sur l'horloge du test : en janvier, décembre de l'exercice d'avant), puis le même
   salarié au bulletin payé — la frise dit « 1 préparé » et « le seul » ; « payé le » / « payés le » dans
   `paie-recette-1248-1` ; « Marquer payé · » et aucun titre coupé dans `paie-1355`. Six preuves.
+
+### 1.355.5 : le mois de paie payé
+
+Octobre payé et remis par Sarra, sans que ses journées aient été validées une à une (« sauté : chacun payé au mois
+complet ») :
+- l'étape « Pointer », cochée, portait une pastille orange « 1 chose à régler » ; la carte disait « tout ce qui bloque le
+  mois » et le cadenas « Régler la dernière chose ». Les bulletins du mois établis, plus rien ne bloque : ce qui reste se
+  RELIT. La pastille garde son chiffre (un compteur dit le chiffre de sa liste, 1.259.0) mais passe en gris, et la carte,
+  la ligne du mois, le cadenas et son refus disent « à relire » ; les journées restent là, validables. Le parcours de la
+  1.259.0 jouait justement un mois payé : il est relu vers la règle (« Relis d'abord la chose de « À relire » ») ;
+- « Les salaires sont payés ; 1 bulletin à remettre » pour un seul salaire, « 0 sur 1 établis », « approuvés » : au
+  singulier quand il n'y en a qu'un.
+- Tests : un mois payé sans pointage validé dans `paie-1355` (pastille grise « 1 chose à relire », « À relire », « Relire
+  la dernière chose, puis valider le mois », « Le salaire est payé »), « 0 sur 1 établi » dans `paie-recette-1248-1`.
+  Six preuves (celle de la pastille retire ses deux poses : le dessin de la frise et sa mise à jour) ; la preuve « paie
+  1.259 f » suit sa ligne.

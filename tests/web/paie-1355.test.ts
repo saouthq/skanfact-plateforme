@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { poserMouchard, retirerMouchard } from '../cliquer.ts';
+import { ecranDeLaPlateforme } from '../moteur/v10.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -50,6 +51,9 @@ describe('le premier salarié, du vide au bulletin à payer (1.355.0)', () => {
   };
   const aujourdhui = new Date().toISOString().slice(0, 10);
 
+  // Ce que le point de contact envoie : un nombre non entier en texte exact (web/public/plateforme/pont.js).
+  const encoder = (v: unknown): unknown => (typeof v === 'number' && !Number.isInteger(v) ? { '~n': String(v) }
+    : Array.isArray(v) ? v.map(encoder) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, encoder(x)])) : v);
   // La boulangerie : Sarra, propriétaire (avec son code), et Karim, commercial.
   const boulangerie = async () => {
         const email = `sarra-paie-1355-${Date.now()}@exemple.tn`;
@@ -181,6 +185,52 @@ describe('le premier salarié, du vide au bulletin à payer (1.355.0)', () => {
     await date('from', lundi);
     await date('to', mardi);
     await expect.poll(() => p.locator('.modal #lf-solde').innerText().then(net), { timeout: 10_000 }).toContain('2 jours non payés − 92,308 DT');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
+
+  // (1.355.5) Un mois payé sans que ses journées soient validées : ce qu'elles gardent ne bloque plus rien. L'étape « Pointer »
+  // cochée portait une pastille orange « 1 chose à régler », la carte disait « tout ce qui bloque le mois » et le cadenas
+  // « Régler la dernière chose » : on le RELIT, en gris. Et le bandeau d'un seul salaire payé le dit au singulier.
+  it('un mois payé sans pointage validé : « À relire », en gris, et « le salaire est payé » au singulier (1.355.5)', async () => {
+    const { jeton, ent } = await boulangerie();
+    const [aa, mm] = aujourdhui.slice(0, 7).split('-').map(Number) as [number, number];
+    const y = mm === 1 ? aa - 1 : aa, m = mm === 1 ? 12 : mm - 1, ym = `${y}-${String(m).padStart(2, '0')}`;
+    const objets = (await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[];
+    const fiche = objets.find((o) => o.collection === '_racine' && o.cle === 'company');
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: '_racine', cle: 'company', rang: null,
+      revision: fiche ? fiche.revision : null, contenu: { ...(fiche ? fiche.contenu : {}), setupDone: true, managerName: 'Amel Nouri', address: 'Avenue Habib Bourguiba\n1000 Tunis' } }] })).statut).toBe(200);
+    const erreurs: string[] = [];
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, jeton);
+    const p = await cx.newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/paie`);
+    await p.locator('#new-emp').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+
+    const ecran = ecranDeLaPlateforme('compta.js') as { computePayslip: (e: unknown, i: unknown, s: unknown) => Record<string, unknown>; baremesPaie: (r: unknown) => unknown };
+    const sami = { id: 's1', name: 'Sami Gharbi', grossSalary: 1200, hireDate: `${ym}-01`, contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'especes', iban: '', cnss: '', primes: [] };
+    const saisie = { gross: 1200, workedDays: 26, absentDays: 0, bonuses: [], deductions: [] };
+    const bul = { id: 'b-s1', employeeId: 's1', year: y, month: m, ...saisie, computed: ecran.computePayslip(sami, saisie, ecran.baremesPaie({})), paidDate: aujourdhui, accountId: '', method: 'especes', reference: '', issuedAt: aujourdhui };
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'employees', cle: 's1', rang: null, revision: null, contenu: encoder(sami) },
+      { collection: 'payslips', cle: 'b-s1', rang: null, revision: null, contenu: encoder(bul) }] })).statut).toBe(200);
+    await p.reload();
+    await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    // Payé, pas remis : le bandeau du jour parle d'un salaire.
+    await expect.poll(() => p.locator('#pj-avant').innerText().then(net), { timeout: 10_000 }).toContain('Le salaire est payé ; 1 bulletin à remettre');
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    await p.locator(`#p-mois [data-p-mois="${m}"]`).click();
+    const etape = p.locator('#p-sous .pa-etape[data-sous="pointage"]');
+    await expect.poll(() => etape.getAttribute('data-etat'), { timeout: 10_000 }).toBe('fait');
+    await etape.click();
+    // La pastille de l'étape cochée compte ce qu'il reste à relire, en gris ; la carte et le cadenas disent le même mot.
+    await expect.poll(() => etape.locator('.pm-nb').getAttribute('title'), { timeout: 10_000 }).toBe('1 chose à relire');
+    expect(await etape.locator('.pm-nb').evaluate((x) => x.classList.contains('gris'))).toBe(true);
+    expect(net(await p.locator('#pt-aregler .pa-carte-t').innerText())).toMatch(/^À relire 1 chose · les bulletins d.\S+ sont établis : plus rien ne bloque le mois/);
+    expect(net(await p.locator('#pt-valider').innerText())).toBe('Relire la dernière chose, puis valider le mois');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);

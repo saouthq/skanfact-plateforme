@@ -1548,6 +1548,8 @@ body.dark .pm .papier { color: #1d2327; }
 .pm .pa-etape.ouverte { box-shadow: inset 0 -3px 0 var(--sarcelle); }
 .pm .pa-etape.ouverte b { color: var(--sarcelle-texte); }
 .pm .pa-etape .pm-nb { position: absolute; top: 2px; left: 30px; margin: 0; z-index: 2; }
+/* (1.355.5) « à relire » (les bulletins du mois établis) : un compte, pas une alerte — l'orange est gardé pour ce qui attend un geste. */
+.pm .pm-nb.gris { background: var(--survol); color: var(--gris-2); }
 /* Quand l'étape affichée n'est pas celle du moment, une ligne le dit et y mène : plus de doute sur « où j'en suis ». */
 .pm .pa-ou { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: -6px 0 14px; font-size: 13px; color: var(--gris); }
 .pm .pa-ou b { color: var(--encre); }

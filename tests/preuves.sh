@@ -22741,7 +22741,7 @@ prouver 'paie 1.259 e : « À régler » oublie les journées pas validées' mod
   'const J = joursNonValides(y, m);' 'const J = [];' \
   'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
 prouver 'paie 1.259 f : le mois se valide avec des choses à régler' modules/personnel/ecrans/entreprise/paie.js \
-  '        if (aR.length) { toast(' '        if (false) { toast(' \
+  '        if (aR.length) { const rel = bulletinsEtablis(y, m); toast(' '        if (false) { const rel = bulletinsEtablis(y, m); toast(' \
   'le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
 prouver 'paie 1.259 g : l'\''onglet « Le mois » ne dit pas combien de choses sont à régler' modules/personnel/ecrans/entreprise/paie.js \
   'const n = ptVerrouille(ymPt(s.ptY, s.ptM)) ? 0 : aReglerMois(Number(s.ptY), Number(s.ptM)).length;' 'const n = 0;' \
@@ -27847,6 +27847,29 @@ prouver 'paie 1.355.4 e : « Marquer payés » pour un seul salaire' modules/per
 prouver 'paie 1.355.4 f : le titre d'\''une ligne de « À ne pas oublier » coupé' modules/personnel/styles/paie-maquette.css \
   '.pm #p-traiter .apy-n b { white-space: normal; overflow: visible; text-overflow: clip; }' '' \
   "$PS1355W"
+
+# 1.355.5 : le mois de paie payé — ce que le pointage garde encore se relit, et un seul salaire parle au singulier.
+PS13555W='un mois payé sans pointage validé : « À relire », en gris, et « le salaire est payé » au singulier (1.355.5)'
+PS13555M='(1.355.5) un seul salarié sans bulletin : « 0 sur 1 établi » ; deux : « 0 sur 2 établis »'
+prouver 'paie 1.355.5 a : « les salaires sont payés » pour un seul' modules/personnel/ecrans/entreprise/paie.js \
+  'remettre: `${mo.length > 1 ? '\''les salaires sont payés'\'' : '\''le salaire est payé'\''} ; ${pl(' 'remettre: `les salaires sont payés ; ${pl(' \
+  "$PS13555W"
+prouver 'paie 1.355.5 b : la pastille de l'\''étape cochée reste « à régler »' modules/personnel/ecrans/entreprise/paie.js \
+  'const motRegler = (y, m) => (bulletinsEtablis(y, m) ? '\''à relire'\'' : '\''à régler'\'');' 'const motRegler = () => '\''à régler'\'';' \
+  "$PS13555W"
+prouver 'paie 1.355.5 c : la pastille d'\''un mois établi reste orange' 'modules/personnel/ecrans/entreprise/paie.js|||modules/personnel/ecrans/entreprise/paie.js' \
+  'nb[e.id] ? `<span class="pm-nb${nb[e.id][2] ? '\'' gris'\'' : '\'''\''}"|||      x.classList.toggle('\''gris'\'', bulletinsEtablis(Number(s.ptY), Number(s.ptM)));' 'nb[e.id] ? `<span class="pm-nb"|||' \
+  "$PS13555W"
+prouver 'paie 1.355.5 d : le cadenas dit encore « Régler »' modules/personnel/ecrans/entreprise/paie.js \
+  '${rel ? '\''Relire'\'' : '\''Régler'\''} ${n > 1' 'Régler ${n > 1' \
+  "$PS13555W"
+PS13555R='le mois : « À régler » tient tout ce qui bloque, l'\''onglet dit le même chiffre ; le mois se valide une fois la liste vide'
+prouver 'paie 1.355.5 f : le refus du cadenas dit encore « À régler »' modules/personnel/ecrans/entreprise/paie.js \
+  'toast(`${rel ? '\''Relis'\'' : '\''Règle'\''} d'\''abord ${aR.length > 1' 'toast(`Règle d'\''abord ${aR.length > 1' \
+  "$PS13555R"
+prouver 'paie 1.355.5 e : « 0 sur 1 établis »' modules/personnel/moteur/core-paie.js \
+  'manque.length ? `${L.length} sur ${n} établi${n > 1 ? '\''s'\'' : '\'''\''}`' 'manque.length ? `${L.length} sur ${n} établis`' \
+  "$PS13555M"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

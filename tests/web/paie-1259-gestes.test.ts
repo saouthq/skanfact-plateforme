@@ -160,16 +160,17 @@ describe('la paie 1.259.0 : la journée, le mois en relecture, une seule règle 
     // Le mois du jour attend sa dernière journée (sauf le dernier jour du mois, où la journée du jour reste à valider).
     const auj = new Date(), dernier = new Date(Date.UTC(auj.getUTCFullYear(), auj.getUTCMonth() + 1, 0)).getUTCDate();
     if (auj.getUTCDate() < dernier) expect(espace(await p.locator('#pt-valider').innerText())).toBe(`Valider le mois le ${dernier}, après sa dernière journée`);
-    // Le mois dernier : toutes ses journées pointées à la main attendent ; UNE chose à régler, et l'onglet dit 1.
+    // Le mois dernier : toutes ses journées pointées à la main attendent ; UNE chose, et l'onglet dit 1. Ses bulletins sont payés :
+    // depuis la 1.355.5, ce qui reste ne bloque plus le mois, il se RELIT (la carte, le cadenas et le refus disent « à relire »).
     await auMoisDernier(p, x);
     const n = new Date(Date.UTC(x.anA, x.moA, 0)).getUTCDate();
     await expect.poll(async () => p.locator('#pt-aregler li').count()).toBe(1);
     expect(espace(await p.locator('#pt-aregler li b').first().innerText())).toMatch(new RegExp(`^${n} journées pas encore validées`));
     expect(espace(await p.locator('[data-sous="pointage"] .pm-nb').innerText())).toBe('1');
     const bouton = p.locator('#pt-valider');
-    expect(espace(await bouton.innerText())).toBe('Régler la dernière chose, puis valider le mois');
+    expect(espace(await bouton.innerText())).toBe('Relire la dernière chose, puis valider le mois');
     await bouton.click({ force: true });
-    await expect.poll(() => toast(p)).toMatch(/^Règle d'abord la chose de « À régler »/);
+    await expect.poll(() => toast(p)).toMatch(/^Relis d'abord la chose de « À relire »/);
     const versions = async () => (await objets(x)).filter((o) => o.collection === 'pointageVersions').map((o) => o.contenu.ym);
     expect(await versions()).toEqual([]);
     // « Les relire et les valider… » : les n journées d'un geste ; la liste se vide, l'onglet aussi, le bouton devient le principal.

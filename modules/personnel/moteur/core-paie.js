@@ -192,9 +192,9 @@
       { titre: 'Pointer', fait: L.length > 0 && !enCours, dit: enCours ? `en cours, jusqu'au ${fmtDate(finMois)}` : pointe ? 'le mois est pointé' : L.length ? 'sauté : chacun payé au mois complet' : 'facultatif : absences et heures sup' },
       // (plateforme) 1.227.0 — le bon à payer et la correction proposée se lisent sur l'étape des bulletins (la maquette) :
       // établis ne suffit plus quand le cabinet tient la paie, il faut aussi ton accord ; une correction en attente se dit.
-      { titre: 'Bulletins', fait: n > 0 && !manque.length && !corrige && (!bap || !aApprouver), dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établis`
+      { titre: 'Bulletins', fait: n > 0 && !manque.length && !corrige && (!bap || !aApprouver), dit: !n ? 'aucun salarié en poste' : manque.length ? `${L.length} sur ${n} établi${n > 1 ? 's' : ''}`
         : corrige ? `${n} établi${n > 1 ? 's' : ''} : ${corrige} correction${corrige > 1 ? 's' : ''} proposée${corrige > 1 ? 's' : ''}`
-          : bap && aApprouver ? `${n} établi${n > 1 ? 's' : ''} · ${aApprouver > 1 ? `${aApprouver} à approuver` : '1 à approuver'}` : `${n} établi${n > 1 ? 's' : ''}${bap ? ' · approuvés' : ''}` },
+          : bap && aApprouver ? `${n} établi${n > 1 ? 's' : ''} · ${aApprouver > 1 ? `${aApprouver} à approuver` : '1 à approuver'}` : `${n} établi${n > 1 ? 's' : ''}${bap ? ` · approuvé${n > 1 ? 's' : ''}` : ''}` },
       { titre: 'Payer', fait: tousPayes, dit: !L.length ? 'après les bulletins' : tousPayes ? (jours.length === 1 ? `payé${L.length > 1 ? 's' : ''} le ${fmtDate(jours[0])}` : 'tous payés') : `${L.length - payes.length} à payer · ${money(round3(L.filter(x => !x.paidDate).reduce((a, x) => a + x.c.net, 0)), cur)}` },
       { titre: 'Remettre', fait: tousRemis, dit: !L.length ? 'un bulletin à chaque salarié' : tousRemis ? 'chacun a son bulletin' : `${L.length - remis.length} à remettre` },
       { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée` : `la retenue avec la déclaration ${deMoisPaie(m)} · la CNSS au trimestre` }

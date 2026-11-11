@@ -2710,7 +2710,7 @@
           regler: `${pl(bloquantsDe(p.y, p.m).length, 'chose')} à régler dans le pointage (${bloquantsDe(p.y, p.m).length > 1 ? 'elles changent' : 'elle change'} un montant), puis ${modeDuMois(p.y, p.m) === 'tenue' ? 'tu l\'envoies à ton cabinet, qui prépare les bulletins' : `${pl(n, 'bulletin')} à établir`}`,
           envoyer: 'son pointage attend d\'être validé : c\'est l\'envoyer à ton cabinet, qui prépare les bulletins',
           payer: `${mo.length > 1 ? 'les bulletins sont établis' : 'le bulletin est établi'} ; ${pl(mo.filter(x => !x.paidDate).length, 'salaire')} ${mo.filter(x => !x.paidDate).length > 1 ? 'ne sont' : 'n\'est'} pas encore payé${mo.filter(x => !x.paidDate).length > 1 ? 's' : ''}`,
-          remettre: `les salaires sont payés ; ${pl(mo.filter(x => x.paidDate && !x.remisLe).length, 'bulletin')} à remettre` }[p.sorte];
+          remettre: `${mo.length > 1 ? 'les salaires sont payés' : 'le salaire est payé'} ; ${pl(mo.filter(x => x.paidDate && !x.remisLe).length, 'bulletin')} à remettre` }[p.sorte];
         const decl = deposee || !dE.salaries ? '' : modeDuMois(p.y, p.m) === 'tenue' ? ` Sa déclaration, c'est ton cabinet qui la dépose, avant le ${C.fmtDate(dE.dueDate)}.` : ` Sa déclaration est à déposer avant le ${C.fmtDate(dE.dueDate)}.`;
         // (1.355.1) « Octobre n'est pas fini », lu le 11 novembre, disait que le mois n'était pas terminé : c'est sa PAIE.
         tete = `<div class="bandeau ambre pa-bandeau pa-ambre" id="pj-avant" role="status">${lfIc('alerte', 18)}<span class="txt"><b>${h(`La paie ${/^[aeiouyéè]/i.test(nom) ? `d'${nom}` : `de ${nom}`} n'est pas finie`)}</b><span>${h(capi(quoi))}.${h(decl)}</span></span><button type="button" class="btn btn-primary" id="pj-avant-go">${lfIc(p.ic, 15, 2.2)} ${h(p.dit)}</button></div>`;
@@ -2970,6 +2970,10 @@
     const ymPt = (y, m) => `${y}-${String(m).padStart(2, '0')}`;
     const versionsPt = ym => (data.pointageVersions || []).filter(v => v.ym === ym);
     const ptVerrouille = ym => versionsPt(ym).length > 0 && !(data.pointageOuverts || []).includes(ym);
+    // (1.355.5) Les bulletins du mois établis : ce que le pointage garde encore ne bloque plus rien. Il se RELIT (gris, « à relire »),
+    // il ne se « règle » plus — une pastille orange « à régler » sur l'étape « Pointer » cochée disait le contraire de sa coche.
+    const bulletinsEtablis = (y, m) => C.payslipsOf(data, y, m).length > 0 && !C.missingPayslips(data, y, m).length;
+    const motRegler = (y, m) => (bulletinsEtablis(y, m) ? 'à relire' : 'à régler');
     // (1.258.0) LA JOURNÉE VALIDÉE (demande de Skander, 02/11 : « valider un pointage du jour ») : le soir, d'un geste, la
     // journée se valide ; elle ne se change plus sans être rouverte (« Rouvrir la journée », avec la date de la réouverture).
     // On règle un oubli le jour même, tant qu'on s'en souvient. Le mois se valide toujours à part (c'est lui que les
@@ -3433,7 +3437,8 @@
       let x = b.querySelector('.pm-nb');
       if (!n) { if (x) x.remove(); return; }
       if (!x) { x = document.createElement('span'); x.className = 'pm-nb'; b.appendChild(x); }
-      x.textContent = String(n); x.title = `${pl(n, 'chose')} à régler`;
+      x.textContent = String(n); x.title = `${pl(n, 'chose')} ${motRegler(Number(s.ptY), Number(s.ptM))}`;
+      x.classList.toggle('gris', bulletinsEtablis(Number(s.ptY), Number(s.ptM)));
     }
     function lierARegler(y, m, apres) {
       $$('#p-body [data-pt-ouvrir-j]').forEach(b => b.onclick = () => { s.ptJourIso = b.dataset.ptOuvrirJ; allerVue('pt-jour'); });
@@ -3580,7 +3585,9 @@
       const mois = MONTHS_LONG[m - 1], v = versionsPt(ymPt(y, m)).length, fin = isoDe(y, m, C.daysInMonth(y, m));
       if (fin > C.today()) return `<button type="button" class="btn btn-sm" id="pt-valider" aria-disabled="true" data-pas-fini="1" title="Ses journées jusqu'au ${jjmm(fin)} restent à vivre">${lfIc('cadenas', 14)} Valider le mois le ${Number(fin.slice(8, 10))}, après sa dernière journée</button>`;
       const n = aReglerMois(y, m).length;
-      if (n) return `<button type="button" class="btn btn-sm" id="pt-valider" aria-disabled="true" title="Règle d'abord ${n > 1 ? `les ${n} choses` : 'la chose'} de « À régler »">${lfIc('cadenas', 14)} Régler ${n > 1 ? `les ${n} choses` : 'la dernière chose'}, puis valider le mois</button>`;
+      // (1.355.5) Le bouton dit le mot de sa carte : « À relire » quand les bulletins du mois sont établis.
+      const rel = bulletinsEtablis(y, m);
+      if (n) return `<button type="button" class="btn btn-sm" id="pt-valider" aria-disabled="true" title="${rel ? 'Relis' : 'Règle'} d'abord ${n > 1 ? `les ${n} choses` : 'la chose'} de « ${rel ? 'À relire' : 'À régler'} »">${lfIc('cadenas', 14)} ${rel ? 'Relire' : 'Régler'} ${n > 1 ? `les ${n} choses` : 'la dernière chose'}, puis valider le mois</button>`;
       const env = modeDuMois(y, m) === 'tenue' ? ' et l\'envoyer au cabinet' : '';
       return `<button type="button" class="btn btn-sm btn-primary" id="pt-valider">${lfIc(env ? 'envoi' : 'coche', 14, 2.4)} ${v ? `Valider la version ${v + 1}${env}` : `Valider le pointage ${h(deMois(mois))}${env}`}</button>`;
     }
@@ -3626,7 +3633,7 @@
         const fin = isoDe(y, m, C.daysInMonth(y, m));
         if ($('#pt-valider').dataset.pasFini) { toast(`Le mois n'est pas fini : ses journées jusqu'au ${jjmm(fin)} restent à vivre. Il se valide après la dernière.`, true); return; }
         const aR = aReglerMois(y, m);
-        if (aR.length) { toast(`Règle d'abord ${aR.length > 1 ? `les ${aR.length} choses` : 'la chose'} de « À régler » : chacune a son bouton.`, true); const c = $('#pt-aregler'); if (c) { c.scrollIntoView({ block: 'center' }); const b = c.querySelector('button'); if (b) b.focus(); } return; }
+        if (aR.length) { const rel = bulletinsEtablis(y, m); toast(`${rel ? 'Relis' : 'Règle'} d'abord ${aR.length > 1 ? `les ${aR.length} choses` : 'la chose'} de « ${rel ? 'À relire' : 'À régler'} » : chacune a son bouton.`, true); const c = $('#pt-aregler'); if (c) { c.scrollIntoView({ block: 'center' }); const b = c.querySelector('button'); if (b) b.focus(); } return; }
         if (enLecture('timesheets')) { toast(refusLecture('timesheets'), true); return; }
         const V = versionsPt(ym), inst = instantPt(y, m);
         if (V.length && !diffPt(V[V.length - 1].instant, inst).length) { toast('Rien n\'a changé depuis la version validée : elle reste telle quelle.', true); return; }
@@ -4147,12 +4154,12 @@
       const part = main.length ? Math.round(valides / main.length * 100) : Math.round(ecoules / n * 100);
       return `<section class="ptj-prog" id="pt-prog"><div class="ptj-prog-t"><b>${h(capi(mois))} ${y}</b><span class="mu">du 1er au ${n}${feries.length ? ` · ${h(feries.map(f => `le ${Number(f.date.slice(8, 10))} férié`).join(', '))}` : ''} · ${pl(ouvrables, 'jour ouvrable', 'jours ouvrables')}</span></div>
         <div class="ptj-barre-p" role="progressbar" aria-label="Journées du mois" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${part}"><i style="width:${part}%"></i></div>
-        <span class="mu ptj-prog-d">${main.length ? `${valides ? pl(valides, 'journée validée', 'journées validées') : 'aucune journée validée'} sur ${main.length}` : 'à la pointeuse : les journées arrivent par les badges'}${avenir ? ` · ${avenir} à venir` : ''} · ${ptVerrouille(ym) ? 'validé' : nR ? `${pl(nR, 'chose')} à régler` : 'rien à régler'}</span>
+        <span class="mu ptj-prog-d">${main.length ? `${valides ? pl(valides, 'journée validée', 'journées validées') : 'aucune journée validée'} sur ${main.length}` : 'à la pointeuse : les journées arrivent par les badges'}${avenir ? ` · ${avenir} à venir` : ''} · ${ptVerrouille(ym) ? 'validé' : nR ? `${pl(nR, 'chose')} ${motRegler(y, m)}` : 'rien à régler'}</span>
         <span class="ptj-gestes"><button type="button" class="btn btn-sm" id="pt-periode" ${ptVerrouille(ym) ? 'disabled' : ''}>${lfIc('echeance', 14)} Une absence sur plusieurs jours</button>${ptVerrouille(ym) ? '' : ptValiderBoutonHtml(y, m)}</span></section>`;
     }
     function ptAReglerHtml(y, m) {
       const aR = aReglerMois(y, m), fin = isoDe(y, m, C.daysInMonth(y, m)), fini = fin <= C.today(), mois = MONTHS_LONG[m - 1];
-      return aR.length ? `<section class="pa-carte" id="pt-aregler"><div class="pa-carte-t"><b>À régler</b><span class="mu">${pl(aR.length, 'chose')} · tout ce qui bloque le mois, au même endroit · chacune avec son bouton</span></div><ul class="apy-l pt-an">${aR.map(x => x.html).join('')}</ul></section>`
+      return aR.length ? `<section class="pa-carte" id="pt-aregler"><div class="pa-carte-t"><b>${bulletinsEtablis(y, m) ? 'À relire' : 'À régler'}</b><span class="mu">${pl(aR.length, 'chose')} · ${bulletinsEtablis(y, m) ? `les bulletins ${h(deMois(mois))} sont établis : plus rien ne bloque le mois` : 'tout ce qui bloque le mois, au même endroit'} · chacune avec son bouton</span></div><ul class="apy-l pt-an">${aR.map(x => x.html).join('')}</ul></section>`
         : `<div class="bandeau ok pa-bandeau" id="pt-aregler-ok">${lfIc('coche', 18, 2.4)}<span class="txt"><b>${fini ? `Rien à régler : le pointage ${h(deMois(mois))} est prêt` : 'Rien à régler pour l\'instant'}</b><span>${fini ? 'Valider le mois fige ce que ses bulletins reprendront ; une correction fera une nouvelle version.' : `Les journées jusqu'au ${h(jjmm(fin))} restent à vivre, chaque soir ; le mois se valide après sa dernière journée.`}</span></span></div>`;
     }
     // Ce qui change en un mois, salarié par salarié : seulement les écarts (le reste est présent, à ses horaires), et ce
@@ -5179,9 +5186,9 @@
       // Le compte de « À régler » se dit même sur une étape faite : un compteur dit le chiffre de sa liste (1.259.0).
       const ET = etapesDuMois(y, m), nbReg = ptVerrouille(ymPt(y, m)) ? 0 : aReglerMois(y, m).length;
       const dues = C.socialDue(data, C.today()).filter(x => x.late || x.dueDate <= C.addDays(C.today(), 31)).length;
-      const nb = { pointage: nbReg ? [nbReg, `${pl(nbReg, 'chose')} à régler`] : null, declarations: dues ? [dues, `${pl(dues, 'déclaration')} à déposer bientôt`] : null };
+      const nb = { pointage: nbReg ? [nbReg, `${pl(nbReg, 'chose')} ${motRegler(y, m)}`, bulletinsEtablis(y, m)] : null, declarations: dues ? [dues, `${pl(dues, 'déclaration')} à déposer bientôt`] : null };
       return `<div class="pa-chemin" role="tablist" aria-label="${h(capi(MONTHS_LONG[m - 1]))} ${y} en quatre étapes">${ET.map((e, i) =>
-        `<button type="button" role="tab" class="pa-etape${e.etat === 'fait' ? ' fait' : e.etat === 'ici' ? ' cours' : ''}${ouverte === e.id ? ' ouverte' : ''}" data-sous="${e.id}" data-etat="${e.etat}" aria-selected="${ouverte === e.id}"><span class="n">${e.etat === 'fait' ? lfIc('coche', 13, 3) : i + 1}</span><b>${h(e.titre)}</b>${e.qui ? `<small class="pa-qui">${h(e.qui)}</small>` : ''}<span class="d">${h(e.dit)}</span>${nb[e.id] ? `<span class="pm-nb" title="${h(nb[e.id][1])}">${nb[e.id][0]}</span>` : ''}</button>`).join('')}</div>
+        `<button type="button" role="tab" class="pa-etape${e.etat === 'fait' ? ' fait' : e.etat === 'ici' ? ' cours' : ''}${ouverte === e.id ? ' ouverte' : ''}" data-sous="${e.id}" data-etat="${e.etat}" aria-selected="${ouverte === e.id}"><span class="n">${e.etat === 'fait' ? lfIc('coche', 13, 3) : i + 1}</span><b>${h(e.titre)}</b>${e.qui ? `<small class="pa-qui">${h(e.qui)}</small>` : ''}<span class="d">${h(e.dit)}</span>${nb[e.id] ? `<span class="pm-nb${nb[e.id][2] ? ' gris' : ''}" title="${h(nb[e.id][1])}">${nb[e.id][0]}</span>` : ''}</button>`).join('')}</div>
         ${(() => { const ici = ET.find(e => e.etat === 'ici'), vue = ET.find(e => e.id === ouverte);
           // (1.330.0) L'étape affichée n'est pas celle du moment (une étape faite qu'on relit, une à venir) : la ligne le dit et
           // y mène — un seul repère dans la frise, et plus de doute sur « où j'en suis ».

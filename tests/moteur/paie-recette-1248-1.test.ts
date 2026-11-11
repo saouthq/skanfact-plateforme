@@ -75,6 +75,12 @@ describe('la paie après la recette du 02/11/2026, suite', () => {
     expect(payer(deux)).toBe('payés le 11/11/2026');
   });
 
+  it('(1.355.5) un seul salarié sans bulletin : « 0 sur 1 établi » ; deux : « 0 sur 2 établis »', () => {
+    const bulletins = (d: ReturnType<typeof donnees>) => core.paieDuMois(d, 2026, 10).etapes.find((e) => e.titre === 'Bulletins')?.dit;
+    expect(bulletins(donnees([sal('a')]))).toBe('0 sur 1 établi');
+    expect(bulletins(donnees([sal('a'), sal('b')]))).toBe('0 sur 2 établis');
+  });
+
   it('(1.355.0) un pointage validé est un mois pointé, pas « sauté » ; rouvert, il ne l\'est plus', () => {
     const d = donnees([sal('a')]) as ReturnType<typeof donnees> & { pointageVersions?: unknown[]; pointageOuverts?: string[] };
     etablir(d, 2026, 10, '');
