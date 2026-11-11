@@ -2573,3 +2573,32 @@ complet ») :
   la dernière chose, puis valider le mois », « Le salaire est payé »), « 0 sur 1 établi » dans `paie-recette-1248-1`.
   Six preuves (celle de la pastille retire ses deux poses : le dessin de la frise et sa mise à jour) ; la preuve « paie
   1.259 f » suit sa ligne.
+
+### 1.355.6 : la paie confiée, et la déclaration du mois des deux côtés
+
+Joué à la souris, la boulangerie de Sarra dont la paie est confiée au cabinet de Leïla : le cabinet dépose la déclaration
+d'octobre (93,496 DT), Sarra la paie, le Cabinet voit le paiement.
+- La Paie de l'entreprise ne suivait pas la mission : sans choix écrit dans la fiche, elle disait « Tu déclares toi-même »
+  à une entreprise dont le mandat comprend la paie. Le serveur dit maintenant `paieConfiee` (le périmètre de la mission),
+  et la Paie s'en sert quand aucun choix n'est écrit ; un choix écrit gagne toujours, le bon à payer reste explicite.
+- Le trimestre précédent demandait « la paie était tenue ailleurs ? » alors que personne n'était encore embauché : la
+  ligne ne paraît que si un salarié était présent ce trimestre-là.
+- La déclaration que le cabinet a déposée se lit dans la Paie (`depotDuCabinet`, une porte du socle qui lit les livres
+  du cabinet, une fois toutes les trente secondes) : la ligne dit « déposée le … par ton cabinet · il te reste à la
+  verser », le bouton « Marquer payée… », la fenêtre « Ton cabinet l'a déposée le … » et « Noter payée ». La mention garde
+  la date du dépôt du cabinet et `parCabinet` ; la retirer ne retire que le paiement (« Retirer le paiement… »), le dépôt
+  reste celui du cabinet. Avant, Sarra « déposait » une seconde fois ce que son cabinet avait déposé, à la date du jour.
+- L'étape « Déclarer » de la frise dit « la retenue déposée le … / payée le … · la CNSS au trimestre » une fois la
+  déclaration du mois faite ; celle d'un autre mois ne compte pas.
+- Le paiement arrive au brouillard de la banque du Cabinet sous « Retenues et taxes sur salaires 10/2026 payées » (et
+  « CNSS du 3e trimestre 2026 payée ») — plus « Déclaration DM-2026-10 payée », l'identifiant de l'écran.
+- Au Cabinet, l'étape de la déclaration dit « Sarra a payé la part paie le … » avec son montant et l'état de son
+  écriture (au brouillard ou validée), et « Marquer payée » prend la date du client au lieu d'aujourd'hui. L'en-tête du
+  dossier se relit après chaque geste de la déclaration, mois déposés compris (« 1 mois à valider » restait après coup).
+- Le lien « Déclarer » de la paie du Cabinet garde le mois de la paie.
+- Phrases : « ce que le bulletin y ajoute » / « les 3 bulletins y ajoutent », « Le bulletin d'octobre… » au singulier ;
+  la mention s'appelle « les retenues et taxes sur les salaires d'octobre 2026 ».
+- Tests : `paie-pont-1355-6` (les deux applications sur une même base : la mission suivie, le dépôt du cabinet lu, payé
+  à une autre date, retiré, et le Cabinet qui voit le paiement), `messagerie` (`paieConfiee`), `paie` (les libellés du
+  livre), `paie-1330` (l'étape « Déclarer »), `cabinet-paie-parcours` (le mois du lien). Douze preuves ; trois anciennes
+  suivent leur nouvelle ancre (« paie 1.234 b », « paie 1.270 h », « 1 mois à valider »).

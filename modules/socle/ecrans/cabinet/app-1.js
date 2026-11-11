@@ -7127,21 +7127,8 @@
     // dessous ; à droite l'exercice, « + Une écriture » et le menu ⋯ (la fiche, le suivi, les paquets, la relance). La fiche
     // et ses onglets restent ceux du Suivi et des Paquets.
     const enCompta = onglet === 'comptabilite';
-    // La ligne d'état de la maquette : ce qui est en retard (rouge), le mois qui se dépose (ambre), ce qui reste au
-    // brouillard, qui tient le dossier. « N mois à valider » se met à jour seul (`majAValider`).
-    const etatCompta = (() => {
-      if (!enCompta) return '';
-      const auj = K.today(), mc = auj.slice(0, 7), mp = moisPrecedent(mc);
-      const tard = retardsConnus().get(dossier.name) || [];
-      const eqC = equipeDe(dossier);
-      const parts = [];
-      if (tard.length) parts.push(`<span class="rouge">${esc(tard.map(moisLong).join(', '))} en retard</span>`);
-      if (!tard.includes(mp) && (!dossier.from || dossier.from <= mp) && etatMoisFd(dossier, mp, null, tard, mc)[0] !== 'fait') {
-        parts.push(`<span class="ambre">${esc(moisLong(mp))} à déposer${limiteDe(mp) === auj ? ' aujourd\'hui' : limiteDe(mp) > auj ? ` d'ici le ${esc(fmtJour(limiteDe(mp)).slice(0, 5))}` : ''}</span>`);
-      }
-      if (eqC.suit) parts.push(`tenu par ${esc(eqC.suit.id === S.moi ? 'toi' : prenomDe(eqC.suit))}`);
-      return parts.map(x => ` · ${x}`).join('') + `<span id="d-avalider"${row.provisionalCount ? '' : ' hidden'}> · <span class="warn-text">${row.provisionalCount ? `${row.provisionalCount} mois à valider` : ''}</span></span>`;
-    })();
+    // La ligne d'état de la maquette (`etatComptaHtml`) : elle se redessine seule après un geste (`majAValider`).
+    const etatCompta = enCompta ? etatComptaHtml(dossier, row) : '';
     const teteCompta = !enCompta ? '' : `<div class="ctx-cab cp-ctx"><span class="ctx-ic">${icB('production', 16, 2)}</span><span><b>Dossier ouvert</b> · ${esc(dossier.name)} · <span id="cp-fil">${esc(filCompta(livresState.onglet))}</span></span></div>
       <div class="page-head cp-tete"><div class="fd-id">${marqueD(dossier, 'fd-mq')}<div><h1><span id="cp-titre">${esc(ONGLETS_COMPTA[livresState.onglet] || 'La comptabilité')}</span> ${info('lv.compta')}</h1>
         <p class="fd-sous"><b>${esc(dossier.name)}</b>${dossier.archived ? ' <span class="badge">archivé</span>' : ''}${dossier.manual ? ' <span class="cd-li tenu">tenu au cabinet</span>' : ''}<span class="d-etat" id="d-etat">${etatCompta}</span></p></div></div>
@@ -8250,19 +8237,42 @@
     return null;
   }
 
+  // La ligne d'état de la maquette : ce qui est en retard (rouge), le mois qui se dépose (ambre), ce qui reste au
+  // brouillard, qui tient le dossier. (1.355.6) Une fonction, que le dessin de la page ET `majAValider` appellent : « octobre
+  // à déposer d'ici le 28/11 » restait au-dessus d'une déclaration qu'on venait de marquer déposée, jusqu'au rechargement.
+  function etatComptaHtml(dossier, row) {
+    const auj = K.today(), mc = auj.slice(0, 7), mp = moisPrecedent(mc);
+    const tard = retardsConnus().get(dossier.name) || [];
+    const eqC = equipeDe(dossier);
+    const parts = [];
+    if (tard.length) parts.push(`<span class="rouge">${esc(tard.map(moisLong).join(', '))} en retard</span>`);
+    if (!tard.includes(mp) && (!dossier.from || dossier.from <= mp) && etatMoisFd(dossier, mp, null, tard, mc)[0] !== 'fait') {
+      parts.push(`<span class="ambre">${esc(moisLong(mp))} à déposer${limiteDe(mp) === auj ? ' aujourd\'hui' : limiteDe(mp) > auj ? ` d'ici le ${esc(fmtJour(limiteDe(mp)).slice(0, 5))}` : ''}</span>`);
+    }
+    if (eqC.suit) parts.push(`tenu par ${esc(eqC.suit.id === S.moi ? 'toi' : prenomDe(eqC.suit))}`);
+    return parts.map(x => ` · ${x}`).join('') + `<span id="d-avalider"${row.provisionalCount ? '' : ' hidden'}> · <span class="warn-text">${row.provisionalCount ? `${row.provisionalCount} mois à valider` : ''}</span></span>`;
+  }
+
+  // (1.355.6) Le paiement de la part paie d'un mois fait par le client (sa Paie, « Marquer payée ») : l'écriture que le pont pose
+  // au brouillard de la banque sous la pièce `DM-AAAA-MM`. Une contre-passée ne compte plus.
+  function paiementClientDe(livre, periode) {
+    return ((livre && livre.ecritures) || []).find(e => String(e.piece || '') === `DM-${periode}` && e.statut !== 'contrepassee') || null;
+  }
+
   // L'en-tête d'un dossier suit ses écritures (1.82.0) : « 1 mois à valider » y restait après
   // avoir tout validé, jusqu'au rechargement de la page. On relit l'état, et la phrase se montre,
   // change ou se cache.
   async function majAValider(dossier) {
     try { await refresh(); } catch { return; }
+    // (1.355.6) Les mois déposés et les retards se lisent dans le résumé des index (`declaresConnus`) : relu après le geste,
+    // sinon « octobre à déposer » survivait à « Marquer déposée ». Une lecture ratée garde ce qu'on savait.
+    try { await chargerQuestionsAttente(false); } catch { /* ce qu'on savait reste */ }
     const d = (S.dossiers || []).find(x => x.id === dossier.id);
-    const n = d ? K.dossierRow(d).provisionalCount : 0;
-    const el = document.getElementById('d-avalider');
-    if (!el) return;
-    el.hidden = !n;
-    const t = el.querySelector('.warn-text');
-    if (t) t.textContent = n ? pl(n, 'mois à valider', 'mois à valider') : '';
+    const el = document.getElementById('d-etat');
+    if (!el || !d) return;
+    el.innerHTML = etatComptaHtml(d, K.dossierRow(d));
   }
+
 
   // (1.221.0, l'épreuve d'un mois) Le cabinet garde son onglet ouvert pendant que le client répond (une date corrigée, une
   // photo reprise, la réponse à un chèque) : en ARRIVANT sur la Saisie ou la Banque (on y vient d'une autre page, ou d'un
@@ -9091,6 +9101,10 @@
     const complementAuBrouillard = auBrouillard && d.ecritureAuBrouillard !== d.ecritureExistante;
     const echecs = (d.controles || []).filter(c => !c.ok);
     const deposee = !!(posee && posee.deposee && posee.deposee.le), payee = !!(posee && posee.payee && posee.payee.le);
+    // (1.355.6) La part paie payée par le CLIENT (« Marquer payée » dans sa Paie) arrive au brouillard de la banque sous la pièce
+    // `DM-AAAA-MM` : l'étape le dit, et « Marquer payée » prend sa date — le Cabinet proposait de pointer payée, en vert, une
+    // déclaration dont le paiement l'attendait déjà dans sa saisie.
+    const payeeClient = !payee ? paiementClientDe(s.livre, d.periode) : null;
     // 10.12.0 (U-11) — UN seul bouton principal, et c'est l'ÉTAPE SUIVANTE. « Préparer la
     // déclaration » vivait deux fois (en haut, neutre ; en bas, en vert), et une fois préparée, plus
     // rien ne disait ce qui venait après. Les quatre gestes du mois se lisent maintenant dans leur
@@ -9164,6 +9178,7 @@
           title="${!posee ? 'Prépare la déclaration d\'abord.' : !(posee.deposee && posee.deposee.le) && !(posee.payee && posee.payee.le) ? 'On ne paie pas ce qu\'on n\'a pas déposé.' : ''}">${
           payee ? fait(true) + 'Payée le ' + esc(fmtJour(posee.payee.le)) + ' — annuler' : 'Marquer payée'}</button>
       </div>
+      ${payeeClient ? `<p class="small mt" id="dc-client-paye">${esc(prenomCl(dossier.contact) || 'Le client')} a payé la part paie le ${esc(fmtJour(payeeClient.date))} : ${esc(money(KC.round3((payeeClient.lignes || []).reduce((t, l) => t + (Number(l.debit) || 0), 0))))} — ${payeeClient.statut === 'brouillard' ? 'son paiement attend au brouillard de la banque' : 'son paiement est validé'}. « Marquer payée » le note à cette date.</p>` : ''}
       <p class="small muted mt">Ces chiffres se <b>recopient</b> sur le portail : SkanFact ne dépose rien et ne se connecte à aucune
       administration — « déposée » et « payée » sont des pense-bêtes, jamais un accusé de réception. L'écriture du mois
       (${esc(d.comptes.collectee)} / ${esc(d.comptes.deductible)} → ${esc(d.comptes.aPayer)}) arrive en <b>brouillard</b>, au dernier jour
@@ -9242,6 +9257,9 @@
       <div class="mt"><button class="btn" data-relire-ecran="${esc(cle)}">Réessayer</button></div></div>`;
   }
 
+  // (1.355.6) La porte pour ouvrir la déclaration d'UN mois : un module (la paie) la demande ici, il n'écrit pas `declState`.
+  function allerALaDeclarationDe(root, dossier, mois) { declState.mois = mois; declState.ouverte = ''; allerSousOnglet(root, dossier, 'declaration'); }
+
   function brancherDeclaration(el, root, dossier) {
     const s = livresState;
     // Une déclaration se LIT au processus principal. Tant qu'elle n'est pas arrivée, l'écran le dit
@@ -9286,7 +9304,7 @@
       prep.disabled = true;
       try {
         const r = await api.poserDeclaration({ dossierId: dossier.id, annee: s.annee, periode: s.decl.periode });
-        s.livre = r.livre; s.cloture = null; toast('Déclaration préparée.'); await chargerDeclaration(root, dossier);
+        s.livre = r.livre; s.cloture = null; toast('Déclaration préparée.'); await chargerDeclaration(root, dossier); void majAValider(dossier);
       } catch (e) { toast(plainError(e), 'error'); prep.disabled = false; }
     };
     const ec = $('#dc-ecriture', el);
@@ -9301,7 +9319,7 @@
         try {
           s.livre = (await api.valider(dossier.id, s.annee, e.id)).livre;
           toast(`${e.piece || 'L\'écriture du mois'} validée : elle solde la TVA du mois. Il reste à la déposer sur le portail.`);
-          await chargerDeclaration(root, dossier);
+          await chargerDeclaration(root, dossier); void majAValider(dossier);
         } catch (x) { toast(plainError(x), 'error'); ec.disabled = false; }
         return;
       }
@@ -9309,7 +9327,7 @@
         const r = await api.ecrireDeclaration({ dossierId: dossier.id, annee: s.annee, periode: s.decl.periode });
         s.livre = r.livre;
         toast(r.complement ? 'Complément créé en brouillard : relis-le, puis « Valider le complément ».' : 'Écriture créée en brouillard : relis-la, puis « Valider l\'écriture du mois ».');
-        await chargerDeclaration(root, dossier);
+        await chargerDeclaration(root, dossier); void majAValider(dossier);
       } catch (e) { toast(plainError(e), 'error'); ec.disabled = false; }
     };
     // Les deux pense-bêtes. Ce qui se pointe par erreur se dé-pointe (7.12.0) — et ici le bouton
@@ -9335,13 +9353,13 @@
         try {
           const r = await api.pointerDeclaration({
             dossierId: dossier.id, annee: s.annee, periode: s.decl.periode, quoi,
-            valeur: actif ? null : { le: K.today() }
+            valeur: actif ? null : { le: (quoi === 'payee' && (paiementClientDe(s.livre, s.decl.periode) || {}).date) || K.today() }
           });
           s.livre = r.livre; s.cloture = null;
           toast(actif
             ? (r.aussiPayee ? 'Dépôt et paiement annulés : on ne paie pas ce qu\'on n\'a pas déposé.' : 'Pointage annulé.')
             : (quoi === 'deposee' ? 'Notée déposée — c\'est un pense-bête, pas un accusé de réception.' : 'Notée payée.'));
-          await chargerDeclaration(root, dossier);
+          await chargerDeclaration(root, dossier); void majAValider(dossier);
         } catch (e) { toast(plainError(e), 'error'); }
       };
     });

@@ -2513,6 +2513,8 @@
   // (1.270.0) Sauf si le serveur dit que ce cabinet est parti (`cabinetQuitte`) : ses anciens bulletins ne le font pas revenir.
   const sansCabinetRelie = () => !!(messagerieVue && !messagerieVue.cabinet)
     && (!!messagerieVue.cabinetQuitte || !((data && data.payslips) || []).some(p => p.pourAccordLe || p.correction));
+  // (1.355.6) La mission du cabinet relié confie-t-elle la paie ? Sans choix écrit, la paie suit la mission (le Cabinet le fait).
+  const paieConfieeAuCabinet = () => !!(messagerieVue && messagerieVue.cabinet && messagerieVue.paieConfiee);
   // (1.327.0) Paramètres → Envois : la phrase sous « Email du comptable » disait « Relie-le plutôt dans Ton cabinet
   // comptable » à une entreprise dont le cabinet tient déjà le dossier, relié juste en dessous (vu en jouant les
   // Paramètres comme la boulangerie). Elle dit ce qui est vrai, et suit ce qu'on apprend du cabinet.

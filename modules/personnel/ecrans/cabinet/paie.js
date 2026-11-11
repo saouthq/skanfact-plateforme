@@ -1367,7 +1367,10 @@
     const spt = $('#pa-saisir-pt', el);
     if (spt) spt.onclick = () => { s.paieVue = 'pointage'; redraw(); };
     const dcl = $('#pa-declarer', el);
-    if (dcl) dcl.onclick = () => allerSousOnglet(root, dossier, 'declaration');
+    // (1.355.6) « Les déclarer : avec la déclaration d'octobre » ouvre la déclaration d'OCTOBRE. Sans mois posé, elle retombait sur
+    // le mois qu'elle propose (août, en retard) : le jumeau de « vers la paie » (Déclaration → Paie), qui pose le sien. Par la
+    // porte du socle : un module n'écrit pas dans ses variables (F7).
+    if (dcl) dcl.onclick = () => allerALaDeclarationDe(root, dossier, `${s.annee}-${String(s.paieMois).padStart(2, '0')}`);
     // (plateforme) 1.245.0 — ce que le classeur du client a déjà (lu une fois par mois affiché), puis « Les envoyer ».
     const envPdf = $('#pa-envoyer-pdf', el);
     const clePdf = `${dossier.id}:${s.annee}-${String(s.paieMois).padStart(2, '0')}`;

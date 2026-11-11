@@ -4761,6 +4761,27 @@
 
   // (1.301.0) Les livres du cabinet lus au serveur (`bridge.livresDuCabinet`) : ses déclarations de l'année, sa période validée.
   let livresCabinetLus = null;
+  // (1.355.6) La Paie lit les MÊMES livres du cabinet que la Comptabilité : la déclaration d'un mois que le cabinet a déposée
+  // (la part paie y est, avec la TVA) ne se pointe pas « déposée » une seconde fois chez l'entreprise — elle disait « Tu la
+  // déposes » sous une déclaration déposée la veille par le cabinet. Lu au plus toutes les 30 secondes ; `quandLu` redessine
+  // l'écran qui demande (le socle ne nomme pas l'écran d'un module). Rien de lu : `null`, et l'écran garde sa phrase d'avant.
+  function depotDuCabinet(periode, quandLu) {
+    if (!(messagerieVue && messagerieVue.cabinet) || !bridge.livresDuCabinet) return null;
+    const annee = Number(String(periode).slice(0, 4));
+    const l = livresCabinetLus;
+    const frais = l && l.annee === annee && (l.enCours || Date.now() - l.lu < 30000);
+    if (!frais) {
+      livresCabinetLus = { annee, declarations: [], valideJusqua: '', lu: Date.now(), enCours: true };
+      void bridge.livresDuCabinet(annee).then(r => {
+        livresCabinetLus = r ? { ...r, lu: Date.now() } : { annee, declarations: [], valideJusqua: '', lu: Date.now(), illisible: true };
+        if (quandLu) quandLu();
+      });
+      return null;
+    }
+    if (l.enCours || l.illisible) return null;
+    const d = (l.declarations || []).find(x => x && x.type === 'mensuelle' && String(x.periode) === String(periode));
+    return d && d.deposee && d.deposee.le ? { le: String(d.deposee.le).slice(0, 10), reference: d.deposee.reference || '' } : null;
+  }
   // « d'octobre », « d'août », « de septembre » : l'élision devant une voyelle.
   const deMois = m => (/^[aeiouyéèêâh]/i.test(String(m)) ? `d'${m}` : `de ${m}`);
   routes.compta = () => {

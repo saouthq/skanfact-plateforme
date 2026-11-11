@@ -65,6 +65,9 @@ declarerTextes({
   'compta.libelle.salaires_verses': 'Salaires versés — {periode}',
   'compta.libelle.avances': 'Avances sur salaire — {periode}',
   'compta.libelle.declaration_payee': 'Déclaration {piece} payée',
+  // (1.355.6) Le libellé d'une déclaration payée la NOMME (« DM-2026-10 » est un identifiant, pas un mot du comptable).
+  'compta.libelle.declaration_mois_payee': 'Retenues et taxes sur salaires {periode} payées',
+  'compta.libelle.declaration_cnss_payee': 'CNSS du {trimestre} trimestre {annee} payée',
   'compta.libelle.saisies_versees': 'Saisie sur salaire versée — {periode}',
   // Les mouvements libres de la trésorerie (1.79.0) : les natures de la v10 (`MOVE_KINDS`, core.js), mot pour mot.
   'compta.libelle.mouvement.salaire': 'Salaires et charges',

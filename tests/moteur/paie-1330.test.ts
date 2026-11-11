@@ -25,3 +25,15 @@ describe('(1.330.0) la déclaration du mois, élidée devant une voyelle', () =>
     expect(declarer(3)).toContain('déclaration de mars');
   });
 });
+
+describe('(1.355.6) la déclaration du mois faite se dit sur l’étape « Déclarer »', () => {
+  it('déposée, puis payée : l’étape le dit ; celle d’un autre mois ne compte pas', () => {
+    const d = { company: { currency: 'TND', name: 'Boulangerie' }, settings: {}, employees: [{ id: 'e1', name: 'Hédi Trabelsi', grossSalary: 1250, hireDate: '2023-03-01',
+      contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'especes', iban: '', cnss: '', position: 'Boulanger' }],
+    payslips: [], timesheets: [], leaves: [], advances: [] };
+    const declarer = (socialFilings: unknown[]) => String(core.paieDuMois({ ...d, socialFilings }, 2026, 10).etapes.find((e) => e.titre === 'Déclarer')?.dit);
+    expect(declarer([{ id: 'dm-2026-10', filedAt: '2026-11-11', label: 'les retenues' }])).toBe('la retenue déposée le 11/11/2026 · la CNSS au trimestre');
+    expect(declarer([{ id: 'dm-2026-10', filedAt: '2026-11-11', paidDate: '2026-11-12', amount: 93.496 }])).toBe('la retenue payée le 12/11/2026 · la CNSS au trimestre');
+    expect(declarer([{ id: 'dm-2026-09', filedAt: '2026-10-20', paidDate: '2026-10-20', amount: 80 }])).toBe('la retenue avec la déclaration d’octobre · la CNSS au trimestre');
+  });
+});

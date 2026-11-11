@@ -182,6 +182,7 @@
       || ((data.pointageVersions || []).some(v => v.ym === ymP) && !(data.pointageOuverts || []).includes(ymP));
     const finMois = addDays(`${y}-${String(m).padStart(2, '0')}-01`, daysInMonth(y, m) - 1), enCours = today() <= finMois;
     const q = Math.ceil(m / 3), cnssDeposee = (data.socialFilings || []).some(f => f.id === `cnss-${y}-T${q}`);
+    const dmFaite = (data.socialFilings || []).find(f => f.id === `dm-${ymP}`);
     const tousPayes = L.length > 0 && !manque.length && payes.length === L.length, tousRemis = tousPayes && remis.length === L.length;
     const jours = [...new Set(payes.map(x => x.paidDate))];
     const bap = !!(opts && opts.bap), aApprouver = L.filter(x => !x.paidDate && !x.bonAPayerLe).length;
@@ -197,7 +198,10 @@
           : bap && aApprouver ? `${n} établi${n > 1 ? 's' : ''} · ${aApprouver > 1 ? `${aApprouver} à approuver` : '1 à approuver'}` : `${n} établi${n > 1 ? 's' : ''}${bap ? ` · approuvé${n > 1 ? 's' : ''}` : ''}` },
       { titre: 'Payer', fait: tousPayes, dit: !L.length ? 'après les bulletins' : tousPayes ? (jours.length === 1 ? `payé${L.length > 1 ? 's' : ''} le ${fmtDate(jours[0])}` : 'tous payés') : `${L.length - payes.length} à payer · ${money(round3(L.filter(x => !x.paidDate).reduce((a, x) => a + x.c.net, 0)), cur)}` },
       { titre: 'Remettre', fait: tousRemis, dit: !L.length ? 'un bulletin à chaque salarié' : tousRemis ? 'chacun a son bulletin' : `${L.length - remis.length} à remettre` },
-      { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée` : `la retenue avec la déclaration ${deMoisPaie(m)} · la CNSS au trimestre` }
+      // (1.355.6) La déclaration du mois déposée ou payée se dit sur l'étape : elle répétait « la retenue avec la déclaration
+      // d'octobre » sous une déclaration payée la veille. La CNSS, elle, attend toujours la fin du trimestre.
+      { titre: 'Déclarer', fait: tousRemis && cnssDeposee, dit: cnssDeposee ? `CNSS du ${q}${q === 1 ? 'er' : 'e'} trimestre déposée`
+        : dmFaite ? `la retenue ${dmFaite.paidDate ? `payée le ${fmtDate(dmFaite.paidDate)}` : `déposée le ${fmtDate(dmFaite.filedAt)}`} · la CNSS au trimestre` : `la retenue avec la déclaration ${deMoisPaie(m)} · la CNSS au trimestre` }
     ];
     // Une seule étape « ici » : la première qui n'est pas faite.
     let ici = false;

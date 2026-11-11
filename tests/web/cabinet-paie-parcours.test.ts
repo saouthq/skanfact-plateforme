@@ -189,6 +189,19 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     expect(await p.locator('#pa-declarer').count()).toBe(1);
+    // (1.355.6) « Ouvrir les déclarations » mène à la déclaration de CE mois. Un autre mois choisi avant dans la Déclaration
+    // (ou celui qu'elle propose) restait à l'écran : « avec la déclaration d'octobre » ouvrait août.
+    const ceMois = `${A.an}-${String(A.mo).padStart(2, '0')}`, laPaie = p.url();
+    await p.goto(`${laPaie.split('#')[0]}#/dossier/${A.ent}/comptabilite/declaration/${A.an}`);
+    await p.locator('#dc-mois').waitFor({ timeout: 20_000 });
+    const autre = (await p.locator('#dc-mois option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value))).find((v) => v !== ceMois) ?? '';
+    await p.locator('#dc-mois').selectOption(autre);
+    await expect.poll(() => p.locator('#dc-mois').inputValue(), { timeout: 15_000 }).toBe(autre);
+    await p.goto(laPaie);
+    await p.locator('#pa-declarer').click({ timeout: 20_000 });
+    await expect.poll(() => p.locator('#dc-mois').inputValue(), { timeout: 20_000 }).toBe(ceMois);
+    await p.goto(laPaie);
+    await p.locator('#pa-faits').waitFor({ timeout: 20_000 });
     expect(espace(await p.locator('#pa-ecriture summary').innerText())).toMatch(/^L'écriture de paie, compte par compte/);
     expect(espace(await p.locator('#pa-ecriture tr.dc-total').innerText())).toContain('équilibrée');
     expect(espace(await p.locator('#pa-remettre').innerText())).toBe('Marquer les 5 bulletins remis aux salariés');

@@ -18057,8 +18057,8 @@ prouver 'la balance auxiliaire du Cabinet qui range tous les clients sous « (sa
   "tiers: l.tiers || ''," \
   'une facture émise chez le client : le livre-journal et la balance auxiliaire disent son nom'
 prouver 'l'"'"'en-tête qui dit « 1 mois à valider » après avoir tout validé' modules/socle/ecrans/cabinet/app-1.js \
-  'el.hidden = !n;' \
-  'el.hidden = false;' \
+  'el.innerHTML = etatComptaHtml(d, K.dossierRow(d));' \
+  '' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 prouver 'le client soldé compté dans « Ce qui reste dû »' modules/socle/ecrans/cabinet/app-1.js \
   'agee.tiers = agee.tiers.filter(t => t.total);' \
@@ -22279,7 +22279,7 @@ prouver 'paie 1.234 a : « Marquer payé » offert avant le bon à payer' module
   "...(!x.paidDate && !(bapDuMois(Number(x.year), Number(x.month)) && !x.bonAPayerLe) && !horsLigneP ?" "...(!x.paidDate && !horsLigneP ?" \
   "$WI1"
 prouver 'paie 1.234 b : « Ce que tu verses » sans son geste' modules/personnel/ecrans/entreprise/paie.js \
-  "const geste = (id, lab) => \`<button" "const geste = (id, lab) => '' && \`<button" \
+  "const geste = (id, lab, payer) => \`<button" "const geste = (id, lab, payer) => '' && \`<button" \
   "$WI2"
 prouver 'paie 1.234 c : les avances en cours absentes des avances et prêts' modules/personnel/ecrans/entreprise/paie.js \
   "\$('#p-body').innerHTML = \`\${avancesEnCours()}" "\$('#p-body').innerHTML = \`" \
@@ -24035,7 +24035,7 @@ prouver 'paie 1.270 g : le cabinet parti, la paie reste « tenue » par ses anci
   '    && (!!messagerieVue.cabinetQuitte || !((data' '    && (false || !((data' \
   'le cabinet parti : la paie tenue redevient la tienne, malgré les anciens bulletins du cabinet'
 prouver 'paie 1.270 h : le serveur ne dit pas que le cabinet est parti' serveur/messagerie/routes.ts \
-  'anciens, achatsConfies: false, declarationsConfiees: false, cabinetQuitte, propose } };' 'anciens, achatsConfies: false, declarationsConfiees: false, propose } };' \
+  'anciens, achatsConfies: false, declarationsConfiees: false, paieConfiee: false, cabinetQuitte, propose } };' 'anciens, achatsConfies: false, declarationsConfiees: false, paieConfiee: false, propose } };' \
   'le cabinet ne lit plus ; l'\''entreprise relit l'\''ancien fil sans y écrire ; un nouveau cabinet ne le lit pas'
 # (1.271.0) Les décisions du 04/11 au soir (Skander : « décide pour moi et donne la liberté à l'utilisateur ») : le pointage
 # ouvert au client d'un cabinet qui tient la paie, le « Pourquoi ? » facultatif d'une absence, le jour du « payé le » au Cabinet.
@@ -27870,6 +27870,50 @@ prouver 'paie 1.355.5 f : le refus du cadenas dit encore « À régler »' modul
 prouver 'paie 1.355.5 e : « 0 sur 1 établis »' modules/personnel/moteur/core-paie.js \
   'manque.length ? `${L.length} sur ${n} établi${n > 1 ? '\''s'\'' : '\'''\''}`' 'manque.length ? `${L.length} sur ${n} établis`' \
   "$PS13555M"
+
+# 1.355.6 : la paie du Cabinet ouvre la déclaration de SON mois.
+PS13556W='tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
+prouver 'paie du Cabinet 1.355.6 a : « Ouvrir les déclarations » garde le mois d'\''avant' modules/personnel/ecrans/cabinet/paie.js \
+  'if (dcl) dcl.onclick = () => allerALaDeclarationDe(root, dossier, `${s.annee}-${String(s.paieMois).padStart(2, '\''0'\'')}`);' 'if (dcl) dcl.onclick = () => allerSousOnglet(root, dossier, '\''declaration'\'');' \
+  "$PS13556W"
+
+PS13556X='l'\''entreprise suit la mission, la déclaration déposée par le cabinet se paie sans se redéposer, et le Cabinet voit le paiement'
+PS13556M='ils s'\''écrivent ; chacun voit ce qui l'\''attend, « lu » se dit à l'\''autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier'
+PS13556F='déposée, puis payée : l’étape le dit ; celle d’un autre mois ne compte pas'
+PS13556C='les déclarations sociales payées et les saisies versées entrent dans les livres comme l'\''écran de la plateforme les écrit'
+prouver 'paie 1.355.6 b : la mission qui confie la paie ne se lit pas au serveur' 'serveur/messagerie/routes.ts' \
+  'const paieConfiee = !!m && (m.perimetre ?? []).includes('\''paie'\'');' 'const paieConfiee = false;' \
+  "$PS13556M"
+prouver 'paie 1.355.6 c : sans choix écrit, la paie de l'\''entreprise ne suit pas la mission (les deux gardes)' 'modules/personnel/ecrans/entreprise/paie.js|||modules/personnel/ecrans/entreprise/paie.js' \
+  '|| (paieConfieeAuCabinet() ? '\''tenue'\'' : '\'''\'')|||(paieConfieeAuCabinet() || (co.cabinet && co.cabinet.publicKey) ? '\''tenue'\'' : '\''sans'\'')' '|| '\'''\''|||((co.cabinet && co.cabinet.publicKey) ? '\''tenue'\'' : '\''sans'\'')' \
+  "$PS13556X"
+prouver 'paie 1.355.6 d : « la paie était tenue ailleurs ? » sur un trimestre où personne n'\''était embauché' 'modules/personnel/ecrans/entreprise/paie.js' \
+  '(!presentsDu(py, pq) ? [] :' '(false ? [] :' \
+  "$PS13556X"
+prouver 'paie 1.355.6 e : « ce que les 1 bulletin y ajoute »' 'modules/personnel/ecrans/entreprise/paie.js' \
+  ''\''le bulletin y ajoute'\''' '`les ${dm.salaries} bulletin y ajoute`' \
+  "$PS13556X"
+prouver 'paie 1.355.6 f : la Paie ne lit pas la déclaration que le cabinet a déposée' 'modules/personnel/ecrans/entreprise/paie.js' \
+  'return x && paieMode() !== '\''sans'\'' ? depotDuCabinet(`${x[1]}-${x[2]}`, quandLu) : null;' 'return null;' \
+  "$PS13556X"
+prouver 'paie 1.355.6 g : payée après le dépôt du cabinet, la mention oublie qui a déposé et quand' 'modules/personnel/ecrans/entreprise/paie.js' \
+  'filedAt: dep ? dep.le : C.today(), ...(dep ? { parCabinet: true } : {}),' 'filedAt: C.today(),' \
+  "$PS13556X"
+prouver 'paie 1.355.6 h : l'\''étape « Déclarer » redit « la retenue avec la déclaration » après le paiement' 'modules/personnel/moteur/core-paie.js' \
+  ': dmFaite ? `la retenue ' ': false ? `la retenue ' \
+  "$PS13556F"
+prouver 'paie 1.355.6 i : « Déclaration DM-2026-09 payée », l'\''identifiant de l'\''écran dans le livre du Cabinet' 'serveur/compta/paie.ts' \
+  'const entree = dm ? libelle(' 'const entree = false ? libelle(' \
+  "$PS13556C"
+prouver 'paie du Cabinet 1.355.6 j : l'\''en-tête relit l'\''état sans relire les mois déposés' 'modules/socle/ecrans/cabinet/app-1.js' \
+  'try { await chargerQuestionsAttente(false); } catch { /* ce qu'\''on savait reste */ }' '' \
+  "$PS13556X"
+prouver 'paie du Cabinet 1.355.6 k : le paiement de la part paie fait par le client n'\''est pas dit' 'modules/socle/ecrans/cabinet/app-1.js' \
+  'const payeeClient = !payee ? paiementClientDe(s.livre, d.periode) : null;' 'const payeeClient = null;' \
+  "$PS13556X"
+prouver 'paie du Cabinet 1.355.6 l : « Marquer payée » note aujourd'\''hui, pas le jour où le client a payé' 'modules/socle/ecrans/cabinet/app-1.js' \
+  'le: (quoi === '\''payee'\'' && (paiementClientDe(s.livre, s.decl.periode) || {}).date) || K.today()' 'le: K.today()' \
+  "$PS13556X"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

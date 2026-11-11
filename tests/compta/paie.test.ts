@@ -196,6 +196,10 @@ describe('les écritures de la paie, en totaux du mois, contre la v10', () => {
     expect(await parEcriture('declaration_sociale')).toEqual([
       'BQ 2026-10-14 CNSS-2026-T3 4531 1234567 0', 'BQ 2026-10-14 CNSS-2026-T3 532 0 1234567',
       'CA 2026-10-27 DM-2026-09 4335 45123 0', 'CA 2026-10-27 DM-2026-09 4321 300555 0', 'CA 2026-10-27 DM-2026-09 54 0 345678']);
+    // (1.355.6) Le libellé NOMME la déclaration payée (« Déclaration DM-2026-09 payée » arrivait au Cabinet) : jamais
+    // l'identifiant de l'écran.
+    expect([...new Set((await livres()).filter((l) => l.origine_type === 'declaration_sociale').map((l) => l.libelle))])
+      .toEqual(['CNSS du 3e trimestre 2026 payée', 'Retenues et taxes sur salaires 09/2026 payées']);
     expect(await parEcriture('saisie_salaire')).toEqual(['BQ 2026-10-05 SAISIE-2026-10-05 425 200300 0', 'BQ 2026-10-05 SAISIE-2026-10-05 532 0 200300']);
     // Aucun nom : ni le salarié ni le créancier, nulle part ; aucun tiers.
     const tout = await livres();

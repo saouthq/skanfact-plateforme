@@ -152,7 +152,11 @@ export async function ecrituresDuMois(tx: Transaction, entreprise: string, m: Mo
     if (!lisible(f) || f.date < du || f.date > au) continue;
     const j = journalDeCompte(plan, f.compte, f.mode);
     const pieceF = (f.id || o.cle).toUpperCase();
-    const entree = libelle('compta.libelle.declaration_payee', { piece: pieceF });
+    // (1.355.6) « Déclaration DM-2026-10 payée » arrivait au Cabinet : l'identifiant de l'écran, pas un mot du comptable.
+    const dm = /^dm-(\d{4})-(\d{2})$/.exec(f.id || o.cle), cn = /^cnss-(\d{4})-T([1-4])$/.exec(f.id || o.cle);
+    const entree = dm ? libelle('compta.libelle.declaration_mois_payee', { periode: `${String(dm[2])}/${String(dm[1])}` })
+      : cn ? libelle('compta.libelle.declaration_cnss_payee', { trimestre: cn[2] === '1' ? '1er' : `${cn[2]}e`, annee: String(cn[1]) })
+        : libelle('compta.libelle.declaration_payee', { piece: pieceF });
     const lignes = f.cnss ? [{ compte: P.cnss, debit: f.montant, credit: 0n }]
       : [{ compte: P.tfpFoprolos, debit: f.tfp, credit: 0n }, { compte: P.irpp, debit: f.montant - f.tfp, credit: 0n }].filter((l) => l.debit !== 0n);
     lignes.push({ compte: j.compte, debit: 0n, credit: f.montant });

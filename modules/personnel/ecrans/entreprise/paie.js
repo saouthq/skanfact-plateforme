@@ -1995,13 +1995,13 @@
     if (paye) await periodeValideeLue();
     const dvRet = paye ? dateDansLaPeriodeValidee([f.paidDate]) : '';
     const oui = paye
-      ? await confirmDialog(`Le paiement noté pour ${label} part avec la mention : ${C.money(Number(f.amount), company().currency)}, payés le ${C.fmtDate(f.paidDate)}${compte ? ` depuis ${compte}` : ''}${f.reference ? ` (réf. ${f.reference})` : ''}. Il sort de la trésorerie et des écritures, et la déclaration redevient à payer.${dvRet ? ` ${phraseAnnulationValidee(dvRet, { sujet: 'Il', fem: false })}` : ''}`, 'Retirer la mention et le paiement', true, { titre: 'Retirer « déposée et payée » ?' })
+      ? await confirmDialog(`Le paiement noté pour ${label} part avec la mention : ${C.money(Number(f.amount), company().currency)}, payés le ${C.fmtDate(f.paidDate)}${compte ? ` depuis ${compte}` : ''}${f.reference ? ` (réf. ${f.reference})` : ''}. Il sort de la trésorerie et des écritures, et la déclaration redevient à payer.${dvRet ? ` ${phraseAnnulationValidee(dvRet, { sujet: 'Il', fem: false })}` : ''}${f.parCabinet ? ' Le dépôt, lui, reste celui de ton cabinet : seul le paiement s\'en va.' : ''}`, f.parCabinet ? 'Retirer le paiement' : 'Retirer la mention et le paiement', true, { titre: f.parCabinet ? 'Retirer « payée » ?' : 'Retirer « déposée et payée » ?' })
       : await confirmDialog(`Retirer la mention « déposée » de ${label} ?`);
     if (!oui) return;
     data.socialFilings = data.socialFilings.filter(x => x.id !== id);
     save(true); apres();
     if (dvRet) { direAuComptableApres('Mention et paiement retirés', { fait: 'de retirer', fem: false, annule: true, quoi: `un paiement daté du ${C.fmtDate(dvRet)} (${label}, ${C.money(Number(f.amount), company().currency)})` }); return; }
-    toastUndo(paye ? `Mention et paiement retirés : ${label}` : `${enTete(label)} n'est plus marquée déposée`, () => {
+    toastUndo(paye ? `${f.parCabinet ? 'Paiement retiré' : 'Mention et paiement retirés'} : ${label}` : `${enTete(label)} n'est plus marquée déposée`, () => {
       data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id).concat([f]);
       save(true); apres();
     });
@@ -2250,13 +2250,15 @@
       ['sans', 'Je la fais seul, sans cabinet', 'SkanFact contrôle tes bulletins ; tu déclares toi-même (déclaration du mois, fichier CNSS)']];
     // (plateforme) 1.227.0 — le mode qui vaut pour UN mois : le choix compte à partir de `paieModeDes`, avant c'est l'ancien.
     // Le bon à payer n'existe que si l'entreprise a dit que son cabinet tient la paie (un choix écrit, jamais déduit).
-    const modeDuMois = (y, m) => { if (sansCabinetRelie()) return 'sans'; const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || ''); };
+    // (1.355.6) Sans choix écrit, une mission qui confie la paie la fait « tenue » par le cabinet (le Cabinet le dit déjà) ; le bon
+    // à payer, lui, reste exigé seulement quand il est choisi (`bapExige`, comme `accordRequis` au Cabinet).
+    const modeDuMois = (y, m) => { if (sansCabinetRelie()) return 'sans'; const co = company(), ym = `${y}-${String(m).padStart(2, '0')}`; return (co.paieModeDes && ym < co.paieModeDes ? (co.paieModeAvant || '') : (co.paieMode || '')) || (paieConfieeAuCabinet() ? 'tenue' : ''); };
     const bapDuMois = (y, m) => bapExige(y, m);
     // (plateforme) 1.235.0 — le bon à payer attend l'envoi du cabinet (docs/revue-paie-cabinet.md, P1) : un bulletin qu'il
     // prépare encore (sans `pourAccordLe`) ne s'approuve pas ; ceux qu'il a envoyés, oui. Un bulletin validé au cabinet est figé.
     const aApprouverDe = (mo, y, m) => (bapDuMois(y, m) ? mo.filter(x => !x.paidDate && !x.bonAPayerLe && x.pourAccordLe) : []);
     const enPreparationDe = (mo, y, m) => (bapDuMois(y, m) ? mo.filter(x => !x.paidDate && !x.bonAPayerLe && !x.pourAccordLe) : []);
-    const paieMode = () => { if (sansCabinetRelie()) return 'sans'; const co = company(); return co.paieMode && PAIE_MODES.some(x => x[0] === co.paieMode) ? co.paieMode : (co.cabinet && co.cabinet.publicKey ? 'tenue' : 'sans'); };
+    const paieMode = () => { if (sansCabinetRelie()) return 'sans'; const co = company(); return co.paieMode && PAIE_MODES.some(x => x[0] === co.paieMode) ? co.paieMode : (paieConfieeAuCabinet() || (co.cabinet && co.cabinet.publicKey) ? 'tenue' : 'sans'); };
     function quiFaitLaPaie() {
       const avant = paieMode();
       const des = C.addMonths(C.today().slice(0, 7) + '-01', 1, 1).slice(0, 7);
@@ -2406,6 +2408,13 @@
         };
       });
     }
+    // (1.355.6) La déclaration du mois que le cabinet a DÉPOSÉE (lue dans ses livres, comme la Comptabilité) : quand il tient
+    // la paie, l'entreprise ne la marque plus « déposée » — elle la paie. `null` sans cabinet, hors déclaration mensuelle,
+    // ou tant que les livres ne sont pas lus (l'écran garde alors « déposée et payée », qui reste juste).
+    function depotDeLaDeclaration(id, quandLu) {
+      const x = /^dm-(\d{4})-(\d{2})$/.exec(id || '');
+      return x && paieMode() !== 'sans' ? depotDuCabinet(`${x[1]}-${x[2]}`, quandLu) : null;
+    }
     // (plateforme) 1.228.0 — déposée ET payée : le montant de la déclaration (jamais retapé), le jour, le compte, le mode.
     function payerDeclarationFenetre(id, label) {
       const m = C.montantSocial(data, id);
@@ -2418,12 +2427,13 @@
       // bulletins, la base de chacun), et son tableur ; le geste reste « Noter déposée et payée ».
       const dmYm = /^dm-(\d{4})-(\d{2})$/.exec(id), dmD = dmYm ? C.declarationMensuelleSalaires(data, Number(dmYm[1]), Number(dmYm[2])) : null;
       const pct = n => `${String(n).replace('.', ',')} %`;
+      const dep = depotDeLaDeclaration(id), tenue = paieMode() !== 'sans';
       const sousLigne = r => r.bareme ? `base ${C.money(r.base, cur)}` : r.taux != null ? `${pct(r.taux)} de ${C.money(r.base, cur)}` : '';
       modal(`<h2>${dmD ? `Ta déclaration ${/^[aeiouyéè]/i.test(MONTHS_LONG[Number(dmYm[2]) - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[Number(dmYm[2]) - 1])}, la part paie` : 'Déposée et payée'}</h2><p class="small muted">${h(label.charAt(0).toUpperCase() + label.slice(1))} · à payer avant le ${h(C.fmtDate(m.echeance))} (À VÉRIFIER : l'échéance de ton dossier)</p>
         ${dmD ? `<table class="mini lu pd-t" id="pd-t"><thead><tr><th>À reporter</th><th class="r">Montant</th></tr></thead><tbody>
           ${dmD.lignes.filter(r => Number(r.montant) > 0).map(r => `<tr><td>${h(r.libelle)}${sousLigne(r) ? `<small>${h(sousLigne(r))}</small>` : ''}</td><td class="r">${h(C.money(r.montant, cur))}</td></tr>`).join('')}
           </tbody><tfoot><tr><td><b>À verser avant le ${h(C.fmtDate(m.echeance))}</b></td><td class="r"><b id="pd-montant">${h(C.money(m.montant, cur))}</b></td></tr></tfoot></table>
-          <p class="regle">${lfIc('aide', 14)} Ces montants vont sur la même déclaration que ta TVA du mois. Tu la déposes et tu la paies sur le site des impôts (À VÉRIFIER : la marche à suivre), puis tu la marques ici, avec sa date et sa référence : la Banque reconnaîtra le paiement.</p>`
+          <p class="regle">${lfIc('aide', 14)} Ces montants vont sur la même déclaration que ta TVA du mois. ${dep ? `Ton cabinet l'a déposée le ${h(C.fmtDate(dep.le))}${dep.reference ? ` (réf. ${h(dep.reference)})` : ''} : il te reste à la payer sur le site des impôts (À VÉRIFIER : la marche à suivre), puis à la marquer payée ici` : tenue ? 'Ton cabinet la dépose avec ta TVA ; tu la paies sur le site des impôts (À VÉRIFIER : la marche à suivre), puis tu la marques ici' : 'Tu la déposes et tu la paies sur le site des impôts (À VÉRIFIER : la marche à suivre), puis tu la marques ici'}, avec sa date et sa référence : la Banque reconnaîtra le paiement.</p>`
           : `<div class="pa-kv"><span>Montant</span><b id="pd-montant">${h(C.money(m.montant, cur))}</b></div>`}
         <p class="small muted">Le montant de la déclaration, calculé sur les bulletins : il ne se retape pas. Une pénalité de retard se note à part, en mouvement de trésorerie.</p>
         <form id="pd">${dateFieldHtml(lbl('Payée le', 'soc.payeLe'), 'paidDate', C.today(), { obligatoire: true })}
@@ -2431,7 +2441,7 @@
           <label class="field">${lbl('Mode', 'soc.mode')}<select name="method"><option value="virement">Virement</option><option value="cheque">Chèque</option><option value="especes">Espèces</option></select></label>
           <label class="field">${lbl('Référence', 'soc.ref')}<input name="reference" maxlength="80" placeholder="n° de quittance, de virement"></label></form>
         ${avertValideHtml('pd-valide')}
-        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button>${dmD ? `<button type="button" class="btn" id="pd-csv">${lfIc('exporter', 15)} Tableur</button>` : ''}<button type="button" class="btn btn-primary" id="pd-ok">${lfIc('coche', 15, 2.4)} Noter déposée et payée</button></div>`, (root, fermer) => {
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button>${dmD ? `<button type="button" class="btn" id="pd-csv">${lfIc('exporter', 15)} Tableur</button>` : ''}<button type="button" class="btn btn-primary" id="pd-ok">${lfIc('coche', 15, 2.4)} ${dep ? 'Noter payée' : 'Noter déposée et payée'}</button></div>`, (root, fermer) => {
         if ($('#pd-csv', root)) $('#pd-csv', root).onclick = async () => {
           const cols = [{ key: 'libelle', label: 'Impôt ou taxe' }, { key: 'base', label: 'Base', type: 'money' },
             { key: 'taux', label: 'Taux (%)', get: r => r.bareme ? 'barème' : r.taux == null ? '' : String(r.taux).replace('.', ',') }, { key: 'montant', label: 'Montant', type: 'money' }];
@@ -2450,10 +2460,10 @@
           const dvPd = dateDansLaPeriodeValidee([v.paidDate]);
           if (!Array.isArray(data.socialFilings)) data.socialFilings = [];
           data.socialFilings = data.socialFilings.filter(x => x.id !== id);
-          data.socialFilings.push({ id, filedAt: C.today(), label, paidDate: v.paidDate, amount: m.montant, parts: m.parts, accountId: v.accountId || '', method: v.method || 'virement', reference: String(v.reference || '').trim() });
+          data.socialFilings.push({ id, filedAt: dep ? dep.le : C.today(), ...(dep ? { parCabinet: true } : {}), label, paidDate: v.paidDate, amount: m.montant, parts: m.parts, accountId: v.accountId || '', method: v.method || 'virement', reference: String(v.reference || '').trim() });
           save(true); fermer(); draw();
           if (dvPd) { direAuComptableApres('Déclaration notée payée', { fait: 'de noter', fem: false, quoi: `un paiement daté du ${C.fmtDate(dvPd)} (${label}, ${C.money(m.montant, cur)})` }); return; }
-          toastUndo(`Noté : ${label} déposée et payée · ${C.money(m.montant, cur)} sortis de la trésorerie`, () => { data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id); save(true); draw(); });
+          toastUndo(`Noté : ${label} ${dep ? 'payée' : 'déposée et payée'} · ${C.money(m.montant, cur)} sortis de la trésorerie`, () => { data.socialFilings = (data.socialFilings || []).filter(x => x.id !== id); save(true); draw(); });
         };
       });
     }
@@ -4726,6 +4736,9 @@
         });
       };
       const modeD = paieMode();
+      // (1.355.6) La déclaration que le cabinet a déposée se lit dans ses livres : quand ils arrivent, l'onglet se redessine —
+      // jamais sous une fenêtre ni pendant une saisie.
+      const relireDepot = () => { if (routeOf(location.hash) === 'paie' && !document.querySelector('#modal-root .modal-bg') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) draw(); };
       // (plateforme) 1.227.0 — « Ce que tu verses, et quand » (la maquette) : le trimestre CNSS passé, la déclaration du mois
       // écoulé, le trimestre en cours, la déclaration annuelle. Les montants viennent des mêmes fonctions que les panneaux
       // en dessous (deux écrans, un chiffre) ; les dates sont celles des réglages, À VÉRIFIER.
@@ -4736,19 +4749,24 @@
         const fP = filed(`cnss-${py}-T${pq}`), fE = filed(`dm-${ye}-${String(me).padStart(2, '0')}`);
         const dit = f => f.paidDate ? `payée le ${C.fmtDate(f.paidDate)}` : `déposée le ${C.fmtDate(f.date || f.filedAt || '')}`.replace(/ le $/, '');
         const idP = `cnss-${py}-T${pq}`, idE = `dm-${ye}-${String(me).padStart(2, '0')}`;
+        const depE = !fE ? depotDeLaDeclaration(idE, relireDepot) : null;
         // (1.248.1) Une ligne notée payée garde sa référence et son geste de retour : le « Annuler » du message s'efface en
         // six secondes, et une date ou un compte faux ne se corrigeait plus que trois panneaux plus bas (recette du 02/11).
         const refDe = (f, d0) => f && f.reference ? `réf. ${f.reference}` : d0;
-        const retirer = (id, lab) => `<button type="button" class="btn btn-sm btn-ghost" data-file-v="${h(id)}" data-lab="${h(lab)}">Retirer la mention…</button>`;
+        const retirer = (id, lab) => `<button type="button" class="btn btn-sm btn-ghost" data-file-v="${h(id)}" data-lab="${h(lab)}">${(filed(id) || {}).parCabinet ? 'Retirer le paiement…' : 'Retirer la mention…'}</button>`;
         // (plateforme) 1.234.0 — plus de panneau « À déposer » (la maquette) : le geste vit sur la ligne de ce qu'on verse.
         // Ce qui reste dû d'avant (un trimestre oublié, l'année passée) s'ajoute en tête, avec le même geste.
-        const geste = (id, lab) => `<button type="button" class="btn btn-sm" data-file="${h(id)}" data-lab="${h(lab)}"${raisonDe(id) ? ` disabled title="${h(raisonDe(id))}"` : ''}>${/^employeur-/.test(id) ? 'Marquer déposée' : 'Marquer déposée et payée…'}</button>`;
+        const geste = (id, lab, payer) => `<button type="button" class="btn btn-sm" data-file="${h(id)}" data-lab="${h(lab)}"${raisonDe(id) ? ` disabled title="${h(raisonDe(id))}"` : ''}>${/^employeur-/.test(id) ? 'Marquer déposée' : payer ? 'Marquer payée…' : 'Marquer déposée et payée…'}</button>`;
         const avant = due.filter(x => x.id !== idP && x.id !== idE).map(x => ['echeance', x.label, x.kind === 'employeur' ? 'un salarié par ligne, ses salaires et ses retenues' : 'pas encore notée déposée', `avant le ${C.fmtDate(x.dueDate)}`, x.amount || null, !!x.late, geste(x.id, x.label)]);
+        // (1.355.6) Personne n'était encore embauché (ou tous étaient partis) sur ce trimestre : il n'y a rien à verser, et
+        // « la paie était tenue ailleurs ? » serait une fausse question — la boulangerie qui embauche Hédi le 1er octobre lisait
+        // la CNSS du 3e trimestre sous ce doute. Le Cabinet dit déjà « il n'y a rien à déclarer » ; la ligne disparaît.
+        const presentsDu = (y, q) => { const d = `${y}-${String(q * 3 - 2).padStart(2, '0')}-01`, f = `${y}-${String(q * 3).padStart(2, '0')}-31`; return (data.employees || []).some(e => (!e.hireDate || e.hireDate <= f) && (!e.endDate || e.endDate >= d)); };
         const L = avant.concat([
           // (1.248.0) Un trimestre sans aucun bulletin dans SkanFact n'est pas « 0,000 DT en retard » : la paie était tenue
           // ailleurs (ou pas encore saisie) ; on le dit, sans montant ni retard (recette du 02/11).
-          ...(!fP && !cP.slips ? [['echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, 'aucun bulletin dans SkanFact pour ce trimestre : la paie était tenue ailleurs ?', `avant le ${C.fmtDate(cP.dueDate)}`, null, false, '']] : [[fP ? 'coche' : 'echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, refDe(fP, `${pl(cP.employees, 'salarié')} · ${pl(cP.slips, 'bulletin')}`), fP ? dit(fP) : `avant le ${C.fmtDate(cP.dueDate)}`, cP.total, !fP && cP.dueDate < auj, fP ? retirer(idP, `la déclaration CNSS du ${C.quarterLabel(pq)} ${py}`) : due.some(x => x.id === idP) ? geste(idP, `la déclaration CNSS du ${C.quarterLabel(pq)} ${py}`) : '']]),
-          [fE ? 'coche' : 'echeance', `Déclaration ${/^[aeiouyéè]/i.test(MONTHS_LONG[me - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[me - 1]} : retenues et taxes sur les salaires`, refDe(fE, modeD === 'sans' ? 'tu la déposes avec la TVA du mois' : 'ton cabinet la prépare · tu verses le montant'), fE ? dit(fE) : `avant le ${C.fmtDate(dE.dueDate)}`, dE.total, !fE && dE.dueDate < auj, fE ? retirer(idE, `les retenues et taxes sur les salaires de ${MONTHS_LONG[me - 1]} ${ye}`) : dE.salaries ? geste(idE, `les retenues et taxes sur les salaires de ${MONTHS_LONG[me - 1]} ${ye}`).replace(/ data-file=/, ' data-file-v=') : ''],
+          ...(!fP && !cP.slips ? (!presentsDu(py, pq) ? [] : [['echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, 'aucun bulletin dans SkanFact pour ce trimestre : la paie était tenue ailleurs ?', `avant le ${C.fmtDate(cP.dueDate)}`, null, false, '']]) : [[fP ? 'coche' : 'echeance', `CNSS du ${C.quarterLabel(pq)} ${py}`, refDe(fP, `${pl(cP.employees, 'salarié')} · ${pl(cP.slips, 'bulletin')}`), fP ? dit(fP) : `avant le ${C.fmtDate(cP.dueDate)}`, cP.total, !fP && cP.dueDate < auj, fP ? retirer(idP, `la déclaration CNSS du ${C.quarterLabel(pq)} ${py}`) : due.some(x => x.id === idP) ? geste(idP, `la déclaration CNSS du ${C.quarterLabel(pq)} ${py}`) : '']]),
+          [fE ? 'coche' : 'echeance', `Déclaration ${/^[aeiouyéè]/i.test(MONTHS_LONG[me - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[me - 1]} : retenues et taxes sur les salaires`, refDe(fE, modeD === 'sans' ? 'tu la déposes avec la TVA du mois' : fE && fE.parCabinet ? `déposée le ${C.fmtDate(fE.filedAt)} par ton cabinet` : depE ? `déposée le ${C.fmtDate(depE.le)} par ton cabinet · il te reste à la verser` : 'ton cabinet la prépare · tu verses le montant'), fE ? dit(fE) : `avant le ${C.fmtDate(dE.dueDate)}`, dE.total, !fE && dE.dueDate < auj, fE ? retirer(idE, `les retenues et taxes sur les salaires ${/^[aeiouyéè]/i.test(MONTHS_LONG[me - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[me - 1]} ${ye}`) : dE.salaries ? geste(idE, `les retenues et taxes sur les salaires ${/^[aeiouyéè]/i.test(MONTHS_LONG[me - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[me - 1]} ${ye}`, !!depE).replace(/ data-file=/, ' data-file-v=') : ''],
           // (1.251.0) Le mois en cours, comme le trimestre en cours : ce que ses bulletins déjà établis ajouteront.
           ['echeance', `Déclaration ${/^[aeiouyéè]/i.test(MONTHS_LONG[tm - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[tm - 1]} : retenues et taxes sur les salaires`, `en cours : ${pl(dC.salaries, 'bulletin')} jusqu'ici`, `avant le ${C.fmtDate(dC.dueDate)}`, dC.salaries ? dC.total : null, false, ''],
           ['echeance', `CNSS du ${C.quarterLabel(cq)} ${ty}`, `en cours : ${pl(cC.slips, 'bulletin')} jusqu'ici`, `avant le ${C.fmtDate(cC.dueDate)}`, cC.total, false, ''],
@@ -4760,7 +4778,7 @@
       $('#p-body').innerHTML = `${modeD === 'sans' ? `<div class="bandeau info pa-bandeau" id="dc-qui">${lfIc('pages', 18)}<span class="txt"><b>Tu déclares toi-même : SkanFact prépare, tu déposes</b><span>Les montants, la déclaration du mois et l'état CNSS du trimestre se préparent ici. Tu les déposes sur les sites officiels et tu marques chaque dépôt : SkanFact ne se connecte à aucune administration. Les dates : À VÉRIFIER.</span></span><button type="button" class="btn btn-sm" id="dc-mode">Qui fait ma paie</button></div>`
         : `<div class="bandeau info pa-bandeau" id="dc-qui">${lfIc('comptable', 18)}<span class="txt"><b>Tes déclarations de paie sont faites par ton cabinet</b><span>Ici, tu vois ce que tu dois verser et quand ; le cabinet les dépose. SkanFact ne dépose rien et ne se connecte à aucune administration.</span></span><button type="button" class="btn btn-sm" id="dc-mode">Qui fait ma paie</button></div>`}
         ${verses}
-        <section class="pa-carte" id="dm-panneau"><div class="pa-carte-t"><b>La déclaration ${/^[aeiouyéè]/i.test(MONTHS_LONG[dmMois - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[dmMois - 1])}, sa part paie ${info('soc.mensuelle')}</b><span class="mu">${dmRepli ? `${h(MONTHS_LONG[dmChoisi - 1])} n'a pas encore de bulletin : voici celle à faire maintenant · ` : ''}${dm.salaries ? `ce que les ${pl(dm.salaries, 'bulletin')} y ajoute${dm.salaries > 1 ? 'nt' : ''} · ` : ''}taux et barème des réglages de ta paie, À VÉRIFIER</span>
+        <section class="pa-carte" id="dm-panneau"><div class="pa-carte-t"><b>La déclaration ${/^[aeiouyéè]/i.test(MONTHS_LONG[dmMois - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[dmMois - 1])}, sa part paie ${info('soc.mensuelle')}</b><span class="mu">${dmRepli ? `${h(MONTHS_LONG[dmChoisi - 1])} n'a pas encore de bulletin : voici celle à faire maintenant · ` : ''}${dm.salaries ? `ce que ${dm.salaries > 1 ? `les ${dm.salaries} bulletins y ajoutent` : 'le bulletin y ajoute'} · ` : ''}taux et barème des réglages de ta paie, À VÉRIFIER</span>
             <div class="filters pa-dm-f">
             <span class="small muted">Échéance usuelle : ${C.fmtDate(dm.dueDate)}, avec la TVA du mois</span></div></div>
           ${dm.salaries ? `<div class="scroll-x"><table class="list compact pa-liste" id="dm-table"><thead><tr>
@@ -4769,11 +4787,11 @@
               <td class="r nw">${l.bareme ? '<span class="muted">barème</span>' : l.taux === null ? '<span class="muted" title="Le taux n\'est pas le même sur tous les bulletins du mois">—</span>' : pct(l.taux) + ' %'}</td>
               <td class="r nw"><b>${C.money(l.montant, '')}</b></td></tr>`).join('')}</tbody>
             <tfoot><tr class="total-row"><td colspan="3"><b>À verser au Trésor</b> <span class="small muted">&nbsp; avant le ${h(C.fmtDate(dm.dueDate).slice(0, 5))}</span></td><td class="r nw" id="dm-total"><b>${montantU(dm.total, cur)}</b></td></tr></tfoot></table></div>
-          <p class="small muted pa-note-c">Les ${pl(dm.salaries, 'bulletin')} de ${h(MONTHS_LONG[dmMois - 1])} ${y}, à reporter sur la déclaration mensuelle d'employeur et de TVA. SkanFact ne dépose rien. À VÉRIFIER avec ton comptable : la base que le formulaire demande, et le mois où se déclare une paie versée le mois suivant.</p>
+          <p class="small muted pa-note-c">${/* (1.355.6) « Les 1 bulletin de octobre » : un seul bulletin parle au singulier, et octobre s'élide. */''}${dm.salaries > 1 ? `Les ${dm.salaries} bulletins` : 'Le bulletin'} ${/^[aeiouyéè]/i.test(MONTHS_LONG[dmMois - 1]) ? 'd\'' : 'de '}${h(MONTHS_LONG[dmMois - 1])} ${y}, à reporter sur la déclaration mensuelle d'employeur et de TVA. SkanFact ne dépose rien. À VÉRIFIER avec ton comptable : la base que le formulaire demande, et le mois où se déclare une paie versée le mois suivant.</p>
           <div class="inline pa-dm-g"><button type="button" class="btn btn-sm" id="dm-csv">Exporter en CSV</button>${(() => {
-            const fm = filed(`dm-${y}-${String(dmMois).padStart(2, '0')}`);
-            return fm ? `<span class="small muted" id="dm-paye">${fm.paidDate ? `déposée et payée le ${h(C.fmtDate(fm.paidDate))} · ${h(C.money(Number(fm.amount) || 0, cur))}` : 'déposée'}</span><button type="button" class="btn btn-sm" id="dm-file">Retirer la mention</button>`
-              : `<button type="button" class="btn btn-sm" id="dm-file"${enCoursDm ? ` disabled title="${h(enCoursDm)}"` : ''}>${lfIc('coche', 15, 2.4)} Marquer déposée et payée…</button>${enCoursDm ? `<span class="small muted" id="dm-encours">${h(enCoursDm)}</span>` : ''}`;
+            const fm = filed(`dm-${y}-${String(dmMois).padStart(2, '0')}`), depM = !fm ? depotDeLaDeclaration(`dm-${y}-${String(dmMois).padStart(2, '0')}`, relireDepot) : null;
+            return fm ? `<span class="small muted" id="dm-paye">${fm.paidDate ? `${fm.parCabinet ? `déposée le ${h(C.fmtDate(fm.filedAt))} par ton cabinet · payée le` : 'déposée et payée le'} ${h(C.fmtDate(fm.paidDate))} · ${h(C.money(Number(fm.amount) || 0, cur))}` : 'déposée'}</span><button type="button" class="btn btn-sm" id="dm-file">${fm.parCabinet ? 'Retirer le paiement' : 'Retirer la mention'}</button>`
+              : `${depM ? `<span class="small muted" id="dm-depot">déposée le ${h(C.fmtDate(depM.le))} par ton cabinet</span>` : ''}<button type="button" class="btn btn-sm" id="dm-file"${enCoursDm ? ` disabled title="${h(enCoursDm)}"` : ''}>${lfIc('coche', 15, 2.4)} ${depM ? 'Marquer payée…' : 'Marquer déposée et payée…'}</button>${enCoursDm ? `<span class="small muted" id="dm-encours">${h(enCoursDm)}</span>` : ''}`;
           })()}</div>`
             : `<div class="empty" id="dm-vide">Aucun bulletin en ${h(MONTHS_LONG[dmMois - 1])} ${y} : la paie n'ajoute rien à la déclaration de ce mois-là.</div>`}
         </section>
@@ -4868,7 +4886,7 @@
       $('#d-quarter').onchange = e2 => { s.quarter = e2.target.value; draw(); };
       // (plateforme) 1.61.0 — la déclaration mensuelle garde son mois ; elle s'exporte ; l'état CNSS s'imprime.
 
-      if ($('#dm-file')) $('#dm-file').onclick = () => mark(`dm-${y}-${String(dmMois).padStart(2, '0')}`, `les retenues et taxes sur les salaires de ${MONTHS_LONG[dmMois - 1]} ${y}`);
+      if ($('#dm-file')) $('#dm-file').onclick = () => mark(`dm-${y}-${String(dmMois).padStart(2, '0')}`, `les retenues et taxes sur les salaires ${/^[aeiouyéè]/i.test(MONTHS_LONG[dmMois - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[dmMois - 1]} ${y}`);
       if ($('#dm-csv')) $('#dm-csv').onclick = async () => {
         const cols = [{ key: 'libelle', label: 'Impôt ou taxe' }, { key: 'base', label: 'Base', type: 'money' },
           { key: 'taux', label: 'Taux (%)', get: r => r.bareme ? 'barème' : r.taux == null ? '' : String(r.taux).replace('.', ',') },

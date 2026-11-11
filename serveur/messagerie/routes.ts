@@ -323,7 +323,7 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
         // Le nom du cabinet par `cabinet_du_mandat` : l'entreprise ne lit pas l'organisation d'un cabinet (ses droits).
         const propose = ((await tx.query(`select c.nom from socle.mandat m cross join lateral socle.cabinet_du_mandat(m.id) c
             where m.entreprise = $1 and m.statut = 'propose' limit 1`, [entreprise])).rows[0] as { nom: string } | undefined)?.nom ?? null;
-        return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens, achatsConfies: false, declarationsConfiees: false, cabinetQuitte, propose } };
+        return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens, achatsConfies: false, declarationsConfiees: false, paieConfiee: false, cabinetQuitte, propose } };
       }
       // (1.126.0) Le mandat confie-t-il la saisie des achats ? La page Achats propose alors d'abord la photo au cabinet
       // (revue du mois d'un client, point 6).
@@ -332,7 +332,11 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       // (1.301.0) Les déclarations confiées : la Comptabilité de l'entreprise lit alors celles de son cabinet (déposée le…, en
       // retard) au lieu de les lui faire pointer à la main.
       const declarationsConfiees = !!m && (m.perimetre ?? []).includes('declarations');
-      return { corps: { cabinet: fil.cabinet, ...(await attente(tx, entreprise, fil.cabinet, 'entreprise')), anciens, achatsConfies, declarationsConfiees } };
+      // (1.355.6) La paie confiée : sans choix écrit dans « Qui fait ma paie », l'entreprise suit sa mission, comme le Cabinet
+      // (« tenue au cabinet »). Elle disait « Je la fais seul, sans cabinet » et « Tu déclares toi-même » d'une paie que son
+      // cabinet établissait et déclarait.
+      const paieConfiee = !!m && (m.perimetre ?? []).includes('paie');
+      return { corps: { cabinet: fil.cabinet, ...(await attente(tx, entreprise, fil.cabinet, 'entreprise')), anciens, achatsConfies, declarationsConfiees, paieConfiee } };
     },
   });
 
