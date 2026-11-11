@@ -182,8 +182,13 @@ async function calculer(tx: Transaction, p: PieceLue, lignes: LignePieceLue[]): 
   const timbre = applique ? await regle(tx, p.entreprise, 'timbre.facture', p.date_piece) : null;
   if (timbre) piece.timbre = BigInt(timbre.valeur as string | number);
   // (1.155.0) Le seuil de la retenue, à la date de la pièce ; inconnu, il n'y a pas de seuil (la règle qui ne fait rien).
+  // (1.356.6) Un avoir suit la retenue de la facture qu'il corrige : si elle en porte une, le seuil ne s'applique pas à lui
+  // (un avoir partiel « sous le seuil » ne reprenait rien de la retenue de sa facture). Elle n'en porte pas : le seuil, comme
+  // pour elle — un avoir plus petit que sa facture reste dessous.
   if (piece.tauxRetenue) {
-    const seuil = await regle(tx, p.entreprise, 'retenue.seuil', p.date_piece);
+    const corrigee = p.type === 'avoir' && p.corrige ? await lirePieceBrute(tx, p.entreprise, p.corrige) : null;
+    const suitSaFacture = !!(corrigee && corrigee.totaux && (corrigee.totaux.retenue ?? 0n) > 0n);
+    const seuil = suitSaFacture ? null : await regle(tx, p.entreprise, 'retenue.seuil', p.date_piece);
     if (seuil) piece.seuilRetenue = BigInt(seuil.valeur as string | number);
   }
   // (1.155.0) Le taux de la FODEC, à la date de la pièce, quand une ligne la porte ; inconnu, la FODEC vaut zéro (la règle

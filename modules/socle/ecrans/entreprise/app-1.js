@@ -6097,7 +6097,16 @@
     };
     if (charte && !figee) window.ononline = window.onoffline = () => { if (document.getElementById('ed-geste')) { refreshTotals(); majEnreg(); } };
     // Le seuil de la retenue (règle `retenue.seuil` du serveur, 1 000 DT TTC, À VÉRIFIER) suit le brouillon ; l'émission le gèle.
-    if (!figee && (isInv || isAv) && bridge.seuilRetenue) { const sr = Number(bridge.seuilRetenue()) || 0; if (sr > 0) doc.seuilRetenue = sr; }
+    // (1.356.6) Un avoir suit la retenue de la facture qu'il corrige : le seuil se juge sur la FACTURE, pas sur l'avoir. Un
+    // avoir partiel de 725,900 sur une facture de 1 499,400 qui portait sa retenue tombait « sous le seuil » et ne reprenait
+    // rien (l'annulation totale, elle, la reprenait) : le client gardait 14,994 DT de retenue sur une base diminuée de moitié.
+    // Une facture sous le seuil n'en portait pas : son avoir, plus petit qu'elle, ne peut pas en porter non plus.
+    if (!figee && (isInv || isAv) && bridge.seuilRetenue) {
+      const sr = Number(bridge.seuilRetenue()) || 0;
+      const corrigee = isAv && doc.creditOf ? docById(doc.creditOf) : null;
+      if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
+      else if (sr > 0) doc.seuilRetenue = sr;
+    }
     // (1.155.0, maquette « FODEC ») Une entreprise qui fabrique (Réglages : « Je fabrique ce que je vends ») coche la FODEC
     // ligne par ligne ; le taux est la règle `fodec.taux` du serveur (1 %, À VÉRIFIER), posé sur le brouillon et gelé à
     // l'émission. Une pièce prix TTC (le comptoir) n'en porte pas.
@@ -8004,7 +8013,9 @@
         }
         // (maquette « sur 2 pages ») Le nombre de pages, compté par la mise en page de l'aperçu (la même que le PDF).
         if (pagesApercu > 1) points.push([true, `${pagesApercu} pages : chaque page reprend l'en-tête des colonnes`, '']);
-        if (t.sousLeSeuil) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur la facture. Réglée avec d\'autres d\'un seul paiement de ce montant ou plus, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`, '']);
+        // (1.356.6) Un avoir n'est pas réglé par le client : la phrase du paiement groupé ne le concerne pas.
+        if (t.sousLeSeuil && isAv) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur l\'avoir${doc.creditOf ? ', comme sur sa facture' : ''}`, '']);
+        else if (t.sousLeSeuil) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur la facture. Réglée avec d\'autres d\'un seul paiement de ce montant ou plus, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`, '']);
       }
       if (isQ) {
         const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), co);
@@ -11320,8 +11331,12 @@
     let fpPaiements, fpRetards, fpRelances, fpAffaires, fpContrats, fpMateriel;
     function ongletPaiements() {
       if (!paiements.length) return vide('Aucun paiement reçu', 'Un paiement s\'enregistre sur la facture qu\'il règle ; il vient ici aussitôt, avec son moyen.');
-      const total = C.round3(paiements.reduce((t, x) => t + C.toBase(x.d, Number(x.p.amount) || 0, co), 0));
-      return `<div class="cf-o-t"><span class="mu">${pl(paiements.length, 'paiement')} · ${mo(total)} reçus${sum.rsASubir > 0.0005 ? ` · il gardera encore ${mo(sum.rsASubir)} de retenue à la source en payant, pour l'État` : ''}</span></div>
+      // (1.356.6) Un remboursement n'est pas un paiement reçu : « 5 paiements · 2 619,453 DT reçus » mêlait quatre
+      // encaissements (2 772,606) et l'argent rendu (153,153). Chacun se dit, et se compte, à part.
+      const enBase = x => C.toBase(x.d, Number(x.p.amount) || 0, co);
+      const recus = paiements.filter(x => enBase(x) > 0), rendus = paiements.filter(x => enBase(x) < 0);
+      const total = C.round3(recus.reduce((t, x) => t + enBase(x), 0)), rendu = C.round3(-rendus.reduce((t, x) => t + enBase(x), 0));
+      return `<div class="cf-o-t"><span class="mu">${recus.length ? `${pl(recus.length, 'paiement')} · ${mo(total)} reçus` : 'Rien de reçu'}${rendus.length ? ` · ${pl(rendus.length, 'remboursement')} · ${mo(rendu)} rendus` : ''}${sum.rsASubir > 0.0005 ? ` · il gardera encore ${mo(sum.rsASubir)} de retenue à la source en payant, pour l'État` : ''}</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Reçu le</th><th>Sur</th><th>Moyen</th><th class="r">Montant</th></tr></thead><tbody>
         ${(fpPaiements = feuilletFiche(c.id, 'paiements', paiements)).rows.map(({ p, d }) => `<tr class="clic" data-doc="${h(d.id)}"><td class="nw">${C.fmtDate(p.date)}</td><td><b>${h(d.number)}</b>${d.subject ? `<small>${h(d.subject)}</small>` : ''}</td><td>${h(methodLabel(p.method))}${p.reference ? `<small>${h(p.reference)}</small>` : ''}</td><td class="r">${C.money(Number(p.amount) || 0, d.currency || cur)}${C.estRemboursement && C.estRemboursement(p) ? '<small>rendu au client</small>' : ''}</td></tr>`).join('')}
         </tbody></table></div>${fpPaiements.pied('paiement')}

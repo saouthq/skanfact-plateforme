@@ -28176,6 +28176,22 @@ prouver 'hotel 1.356.5 i : « Créer l'\''article » chez qui vend des prestatio
   '<b>Créer ${h(mc.le)} « ${h(brut)} »…</b>' '<b>Créer l'\''article « ${h(brut)} »…</b>' \
   "$PS13564"
 
+# (1.356.6) Bout en bout 9 : l'avoir partiel sur une facture qui porte sa retenue.
+PS13566='l'\''avoir suit la retenue de sa facture, à l'\''écran et au serveur'
+prouver 'avoir 1.356.6 a : l'\''avoir partiel tombe sous le seuil à l'\''écran, sans sa part de retenue' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
+      else if (sr > 0) doc.seuilRetenue = sr;' '      if (sr > 0) doc.seuilRetenue = sr;' \
+  "$PS13566"
+prouver 'avoir 1.356.6 b : le serveur juge le seuil sur l'\''avoir, pas sur sa facture' 'serveur/ventes/pieces.ts' \
+  '    const suitSaFacture = !!(corrigee && corrigee.totaux && (corrigee.totaux.retenue ?? 0n) > 0n);' '    const suitSaFacture = false;' \
+  "$PS13566"
+prouver 'avoir 1.356.6 c : l'\''avoir sous le seuil promet un paiement groupé' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        if (t.sousLeSeuil && isAv) points.push(' '        if (false) points.push(' \
+  "$PS13566"
+prouver 'avoir 1.356.6 d : la fiche du client compte le remboursement dans ce qu'\''il a versé' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      const recus = paiements.filter(x => enBase(x) > 0), rendus = paiements.filter(x => enBase(x) < 0);' '      const recus = paiements, rendus = [];' \
+  "$PS13566"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

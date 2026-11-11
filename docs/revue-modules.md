@@ -2832,3 +2832,27 @@ et deux timbres ; chaque règlement solde son 411. Ce qui a été corrigé en ch
   servi au seul navigateur, l'émission tombait : 386,560 à l'écran, 382,704 au serveur ; l'acompte émis, l'encadré du
   solde, la frise, la fenêtre de solde, le solde créé, puis le devis qui nomme ses deux factures). Treize preuves, plus la
   preuve reprise.
+
+### 1.356.6 : l'avoir partiel sur une facture qui porte sa retenue
+
+Bout en bout 9 : 200 des 1 200 croissants de la facture FAC-2026-001 de l'Hôtel Les Palmiers SA (1 499,400 TTC hors timbre,
+au-dessus du seuil : 14,994 DT de retenue, déjà réglée) n'ont pas été livrés. Un avoir partiel de 130 HT, 154,700 TTC.
+- L'avoir tombait « sous le seuil » (154,700 < 1 000) et ne reprenait rien de la retenue de sa facture, alors que
+  l'annulation totale la reprenait : le client gardait 14,994 DT retenus sur une base diminuée. Le seuil se juge sur la
+  FACTURE : si elle porte une retenue, son avoir reprend sa part (1 % de 154,700 : 1,547) ; si elle n'en porte pas, son
+  avoir, plus petit qu'elle, n'en porte pas non plus. À l'écran (le brouillon de l'avoir) et au serveur (le calcul de la
+  pièce), sinon l'émission tombe sur deux nets différents.
+- Le récapitulatif d'émission annonce 153,153 DT à rendre : la facture payée, l'avoir laisse ce trop-perçu, qui se
+  rembourse d'un geste (« Rembourser 153,153 DT au client… »).
+- Les deux chemins : au Cabinet, l'avoir crédite le 411 de 154,700 (706 130,000, 4367 24,700) ; le remboursement le
+  débite de 153,153 (532) ; la retenue de la facture se recalcule sur la base diminuée, 13,447 au 4358 (1 % de 1 344,700) —
+  posée le même jour que les règlements, l'avoir passe avant eux et leurs parts sont recalculées ; un autre jour, l'écart
+  se régularise à SA date (`retenueAuFil`). Le 411 de l'hôtel revient à zéro. (Que le client corrige sa déclaration de
+  retenue, ou que l'écart reste à régulariser auprès de l'État : À VÉRIFIER avec le comptable.)
+- « Avant d'émettre » d'un avoir sous le seuil disait « pas de retenue sur la facture » et promettait un paiement
+  groupé : un avoir ne se règle pas. Il dit « pas de retenue sur l'avoir, comme sur sa facture ».
+- L'onglet Paiements de la fiche du client comptait le remboursement comme un versement : « 2 paiements · 1 332,253 DT
+  reçus » (1 485,406 − 153,153). Il sépare ce qui est reçu de ce qui est rendu : « 1 paiement · 1 485,406 DT reçus ·
+  1 remboursement · 153,153 DT rendus » — un net se lit comme ce que le client a versé, et ce n'est pas ce qu'il a versé.
+- Test : `avoir-1356` (la grande facture émise avec sa retenue, l'avoir partiel qui reprend 1,547 et que le serveur émet,
+  le remboursement, la fiche du client, la petite facture sous le seuil et son avoir). Quatre preuves.
