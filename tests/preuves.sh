@@ -28082,6 +28082,49 @@ prouver 'four 1.356.3 f : la raison cite la racine « réfrigérat » au lieu du
   'mot: m[0], cat }' \
   "$PS13562"
 
+PS13564='la pastille suit les lignes, les noms s'\''élident, l'\''adresse manque, et le retour ramène à la facture'
+PS1317='la droguerie vend à ses artisans, à son hôtel et au comptoir, chacun à son prix, et le comptable lit les ventes'
+prouver 'hotel 1.356.4 a : la pastille « Retenue » reste « sous le seuil » une fois la ligne posée' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      if (majEtiquettesApres) majEtiquettesApres();
+' '' \
+  "$PS13564"
+prouver 'hotel 1.356.4 b : « Ta fiche » en vert sur une société sans adresse' 'modules/socle/moteur/core-2.js' \
+  'if (!String(c.address || '\'''\'').trim()) out.push('\''l\'\''adresse'\'');' '' \
+  "$PS13564"
+prouver 'hotel 1.356.4 c : les Paramètres ouverts depuis une pièce n'\''y ramènent pas' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '${depuisPiece ? backButton('\''#/dashboard'\'') : '\'''\''}' '' \
+  "$PS13564"
+prouver 'hotel 1.356.4 d : le retour vers un brouillon ne dit pas son client' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'if (entier && !d.number && d.clientId && clientById(d.clientId)) return `${l} — ${clientName(d.clientId)}`; ' '' \
+  "$PS13564"
+prouver 'hotel 1.356.4 e : un libellé de champ en boîte flex, sa bulle seule sur sa ligne' 'web/public/v10/style.css' \
+  '.fl.fl-lbl { display: block; }' '.fl.fl-lbl { }' \
+  "$PS13564"
+prouver 'hotel 1.356.4 f : la recherche d'\''article dit « 0 article »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '(montres.length ? pl(montres.length, '\''article'\'') : '\''Aucun article de ce nom'\'')' 'pl(montres.length, '\''article'\'')' \
+  "$PS13564"
+prouver 'hotel 1.356.4 g : « prix de Hôtel Les Palmiers SA » en tête de la recherche' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '`<small>prix pour ${h(cl.name)}</small>`' '`<small>prix de ${h(cl.name)}</small>`' \
+  "$PS13564"
+prouver 'hotel 1.356.4 h : « Actions de Hôtel… » sans élision' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'aria-label="Actions ${h(deNom(c.name))}">' 'aria-label="Actions de ${h(c.name)}">' \
+  "$PS13564"
+prouver 'hotel 1.356.4 i : « paie en 0 jour en moyenne »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '${Math.round(s.delay) < 1 ? '\''paie le jour même, en moyenne'\'' : `paie en ${pl(s.delay, '\''jour'\'')} en moyenne`}' 'paie en ${pl(s.delay, '\''jour'\'')} en moyenne' \
+  "$PS13564"
+prouver 'hotel 1.356.4 j : le total « Te doit » des clients sans sa devise' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '<div>${m(somme(r => r.sum.net))} <small class="dv">${h(symboleDevise(base))}</small></div>' '<div>${m(somme(r => r.sum.net))}</div>' \
+  "$PS13564"
+prouver 'hotel 1.356.4 k : « le prix de Hôtel Les Jasmins » quand le client change' 'modules/socle/ecrans/entreprise/app-1.js' \
+  ''\''prend'\''} le prix convenu avec ${clientName(doc.clientId)} ;' ''\''prend'\''} le prix de ${clientName(doc.clientId)} ;' \
+  "$PS1317"
+prouver 'hotel 1.356.4 l : « Compléter ma fiche… » s'\''ouvre sans la case de l'\''adresse qui manque' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'const manqueAdresse = !String(co.address || '\'''\'').trim();' 'const manqueAdresse = false;' \
+  "$PS13564"
+prouver 'hotel 1.356.4 m : la fiche complétée depuis l'\''émission, « Avant d'\''émettre » dit encore qu'\''elle manque' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '              if (opts.ficheChangee) opts.ficheChangee();
+' '' \
+  "$PS13564"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -103,8 +103,8 @@ describe('la liste des clients, à la souris, au clavier et au téléphone', () 
     expect((await cellules('c-pins'))[2]).toBe('74 610 288 pas d\'e-mail');
     expect((await cellules('c-pins'))[5]).toBe('674,770 dont 674,770 en retard');
     expect(await cellules('c-olivier')).toEqual(['HO Huilerie Les Oliviers Nizar Triki', 'à renseigner El Fatoora le demandera', '74 298 650 technique@huilerie.tn', 'aucun', '—', '—', '—']);
-    // Le pied additionne toute la sélection.
-    expect(net(await p.locator('#list-wrap tfoot').innerText())).toBe('Total de la sélection 4 clients 4 1 984,619 DT 2 361,696 dont 1 686,926 en retard');
+    // Le pied additionne toute la sélection, et chaque total de montants dit sa devise (1.356.4 : « Te doit » ne la disait pas).
+    expect(net(await p.locator('#list-wrap tfoot').innerText())).toBe('Total de la sélection 4 clients 4 1 984,619 DT 2 361,696 DT dont 1 686,926 en retard');
     await p.screenshot({ path: path.join(PHOTOS, 'liste-clients-1.png') });
 
     // 2. Les filtres comptent comme la liste, se lisent en puces, et « Tout effacer » revient.

@@ -2244,7 +2244,7 @@
       });
     });
     modal(`<h2>Numéros de série de ${h(doc.number || 'ce document')}</h2>
-      <p class="small muted">Coche les unités effectivement livrées. Leur garantie démarre à la date du document (${C.fmtDate(doc.date)}), et elles apparaîtront dans le parc de ${h(clientName(doc.clientId) || 'ce client')}.</p>
+      <p class="small muted">Coche les unités effectivement livrées. Leur garantie démarre à la date du document (${C.fmtDate(doc.date)}), et elles apparaîtront dans le parc ${h(clientName(doc.clientId) ? deNom(clientName(doc.clientId)) : 'de ce client')}.</p>
       <div id="sa-body"></div>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Attribuer</button></div>`,
       (root, close) => {
@@ -6687,8 +6687,11 @@
     // (plateforme, lot débutant) Il restait affiché après « Enregistrer » une fiche complète, jusqu'au rechargement.
     const bandeauManques = m => m.length ? `<div class="set-manque mb"><b>Il manque ${pl(m.length, 'information')} :</b> ${h(m.join(', '))}.
             <div class="small mt">Ces informations s'impriment sur chaque document. Tant qu'elles manquent, SkanFact prévient avant chaque émission.</div></div>` : '';
+    // (1.356.4) Arrivé par « Compléter » d'une pièce (sa fiche société incomplète), on y revient d'un clic : la facture
+    // de l'hôtel attendait derrière, et rien sur la page ne menait à elle. Venu du menu, pas de retour : c'est une page de tête.
+    const depuisPiece = ['doc', 'achat'].includes(routeOf(navStack[navStack.length - 1] || ''));
     $('#view').innerHTML = `<div class="page-head"><h1>Paramètres</h1>
-        <div class="actions set-search">
+        <div class="actions set-search">${depuisPiece ? backButton('#/dashboard') : ''}
           <input type="search" id="set-q" placeholder="Chercher un réglage : timbre, logo…" autocomplete="off" spellcheck="false">
         </div></div>
       <div id="set-res" class="set-res" hidden></div>

@@ -44,7 +44,8 @@ describe('la forme d\'un matricule fiscal, à l\'écran et au serveur', () => {
   });
 
   it('la fiche société nomme un matricule mal formé comme un matricule absent, et laisse en paix un matricule juste', () => {
-    const fiche = (matricule: string) => C.companyGaps({ name: 'Pâtisserie Les Délices de Sfax', matricule, activity: 'boulangerie', rib: '' })
+    // (1.356.4) L'adresse compte dans la fiche : celle-ci en a une, le test ne regarde que le matricule.
+    const fiche = (matricule: string) => C.companyGaps({ name: 'Pâtisserie Les Délices de Sfax', address: 'Route de Tunis, Sfax', matricule, activity: 'boulangerie', rib: '' })
       .filter((g) => !/RIB/.test(g));
     expect(fiche('')).toEqual(['le matricule fiscal']);
     expect(fiche('1234567A')).toEqual(['un matricule fiscal valide (sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement : 1234567A/A/M/000)']);

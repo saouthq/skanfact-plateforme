@@ -307,7 +307,9 @@
     // (plateforme) 1.75.0 — la touche Tab ne s'y arrête pas, comme dans l'entreprise : elle va d'un champ au suivant.
     return `<button type="button" class="i" tabindex="-1" data-info="${esc(key)}" aria-label="Explication : ${esc(G.INFO[key].t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
   }
-  const lbl = (text, key) => key ? `<span class="fl">${text} ${info(key)}</span>` : text;
+  // (1.356.4) `fl-lbl` : le libellé d'un champ coule comme une phrase (plus une boîte flex), pour que `collerBulles` emmène
+  // la bulle avec le DERNIER mot quand il passe à la ligne (« Retenue à la source appliquée par ce (i) / client »).
+  const lbl = (text, key) => key ? `<span class="fl fl-lbl">${text} ${info(key)}</span>` : text;
 
   // 10.12.0 — une bulle « i » qui termine une phrase passait SEULE sur la ligne suivante dès que la
   // phrase remplissait sa ligne : « … pour un dossier. » puis, dessous, un « i » orphelin qu'on

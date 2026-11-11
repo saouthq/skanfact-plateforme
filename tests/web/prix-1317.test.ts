@@ -181,7 +181,7 @@ describe('les listes de prix 1.317.0 : la droguerie, ses artisans, son hôtel et
     expect(await lignes()).toEqual([['Peinture murale blanche 10 L', '3', '89.000'], ['Pinceau plat 50 mm', '1', '6']]);
     await pourQui('Jasmins');
     // D. Les pots prennent le prix de la liste de l'hôtel ; le pinceau dont on a tapé le prix le garde.
-    await expect.poll(() => toast(p)).toBe('1 ligne prend le prix de Hôtel Les Jasmins ; un prix que tu as tapé ne change pas.');
+    await expect.poll(() => toast(p)).toBe('1 ligne prend le prix convenu avec Hôtel Les Jasmins ; un prix que tu as tapé ne change pas.');
     expect(await lignes()).toEqual([['Peinture murale blanche 10 L', '3', '74.000'], ['Pinceau plat 50 mm', '1', '6.000']]);
     await photo('d-change');
     // E. Le devis d'avant la liste de l'hôtel, facturé : la facture reprend les prix du devis.
@@ -195,7 +195,7 @@ describe('les listes de prix 1.317.0 : la droguerie, ses artisans, son hôtel et
     expect(net(await p.locator('#ed-avant').innerText())).toContain('2 lignes plus chères que sa liste « Hôtel Les Jasmins — saison » : « Peinture murale blanche 10 L » 89,000 DT au lieu de 74,000 DT Reprendre ses prix');
     await photo('e-facture-devis');
     await p.locator('#ed-avant [data-avant=prix]').click();
-    await expect.poll(() => toast(p)).toBe('2 lignes au prix de Hôtel Les Jasmins.');
+    await expect.poll(() => toast(p)).toBe('2 lignes au prix convenu avec Hôtel Les Jasmins.');
     expect(await lignes()).toEqual([['Peinture murale blanche 10 L', '12', '74.000'], ['Silicone sanitaire blanc', '10', '11.000']]);
     expect(net(await p.locator('#ed-avant').innerText())).not.toContain('plus chère');
     // F. Le comptoir : Chedly passe prendre deux pots et 12 boîtes de vis ; puis un passant prend un pot.

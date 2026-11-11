@@ -1663,6 +1663,11 @@ button.i + button.i { margin-inline-start: 6px; }
 .colle-bulle + button.i { margin-inline-start: 6px; }
 /* libellé + bulle sur une seule ligne dans un champ (.field est une colonne flex) */
 .fl { display: flex; align-items: center; gap: 4px; }
+/* (1.356.4) Le libellé d'un champ (`lbl()`, les deux applications) coule comme une phrase. Boîte flex, son texte devenait
+   UN élément qui passait à la ligne tout seul, et la bulle restait à côté de la première ligne : « Retenue à la source
+   appliquée par ce (i) » puis « client » dessous, à 1440 px dans la fiche d'un client. En flux, `collerBulles` emmène la
+   bulle avec le dernier mot (il saute les conteneurs flex et grille : c'est ce qui la laissait faire). */
+.fl.fl-lbl { display: block; }
 /* Un lien qui dépend de la valeur du champ vit dans la LIGNE DU LIBELLÉ (10.12.0) : il apparaît et
    disparaît sans rien déplacer. Posé sous le champ, « Fiche du client » poussait tout le
    formulaire de 45 px au choix du client, et le clic suivant tombait dans le vide. Souligné et

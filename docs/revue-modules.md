@@ -2760,3 +2760,40 @@ Trois choses vues en jouant le four (1.356.2), laissées de côté pour ne pas m
   une décision : la famille et la durée restent à VÉRIFIER avec le comptable.
 - Test : `four-1356` s'enrichit (une photo illisible à côté de la facture du gaz, le compte du kilomètre, la pièce à côté,
   le résumé des lots, le réfrigérateur) ; son bien « sans mot connu » devient un bac à levain. Six preuves.
+
+### 1.356.4 : la facture de l'hôtel, jusqu'au Cabinet
+
+Bout en bout 7 : la boulangerie facture l'Hôtel Les Palmiers SA (six paniers, 1 260 HT, 239,400 de TVA, timbre),
+avec sa retenue à la source à 1 %. L'hôtel règle en deux fois (700 par virement, 785,406 par chèque), garde 14,994 DT
+de retenue et remet son attestation. Les deux chemins disent les mêmes chiffres : au livre de la boulangerie et au
+Cabinet, la vente 411 / 706 / 4367 / 4368, puis chaque règlement crédite le 411 de ce qu'il verse PLUS sa part de
+retenue (707,066 puis 793,334 : 1 500,400 en tout), et le 4358 porte 7,066 + 7,928 = 14,994. Le lettrage du Cabinet
+solde l'hôtel. (Le chèque passe au 532 comme un virement : un 5113 « chèques à encaisser » est une question au
+comptable, À VÉRIFIER.) Ce qui a été corrigé en chemin :
+- La pastille « Retenue » de la facture restait « 1 % · sous le seuil » une fois la ligne posée (1 499,400 TTC hors
+  timbre, au-dessus du seuil de 1 000) : les étiquettes n'étaient dessinées qu'au changement de client. Elles suivent
+  chaque nouveau total, et ne se redessinent que si elles ont changé (une étiquette ouverte reste ouverte).
+- L'adresse manquante : le panneau « Avant d'émettre » disait « il manque l'adresse » (il l'ajoutait de son côté),
+  et le bandeau des Paramètres, ouvert juste après par « Compléter », ne la comptait pas — deux listes pour une fiche.
+  Elle vit dans `companyGaps`, que les deux lisent ; et « Compléter ma fiche… » (fenêtre d'émission), qui lit la même
+  liste, gagne sa case « Adresse » — sinon il s'ouvrait sur une fenêtre sans aucune case. Et la facture derrière la
+  fenêtre relit la fiche une fois complétée : « Avant d'émettre » disait encore « il manque l'adresse », et l'aperçu
+  imprimait l'en-tête d'avant. Le serveur n'en fait pas une condition d'émission : on prévient, on ne bloque pas.
+- « Compléter » menait aux Paramètres, et rien n'y ramenait à la facture : les Paramètres ouverts depuis une pièce
+  portent un bouton retour ; sa bulle nomme le brouillon par son client (« Facture (brouillon) — Hôtel Les Palmiers
+  SA »), un brouillon n'ayant pas de numéro.
+- Le libellé d'un champ et sa bulle « i » (« Retenue à la source appliquée par ce client (i) ») : la bulle passait seule
+  sur la ligne suivante, ou coupait le dernier mot — un libellé était une boîte flex, où la règle « la bulle part avec
+  son dernier mot » ne s'applique pas. Il coule maintenant comme une phrase (`fl-lbl`, les deux applications), et le
+  libellé dit « Sa retenue à la source ».
+- La recherche d'article disait « 0 article · prix de Hôtel Les Palmiers SA » : elle dit « Aucun article de ce nom » et
+  « prix pour … ». Le nom d'un tiers s'élide devant une voyelle ou un h (`deNom` : « Actions d'Hôtel… », « La fiche
+  d'Amel… », « les pièces d'Hôtel… ») ; les deux phrases du prix d'un client disent « le prix convenu avec … » — un
+  test gravait « le prix de Hôtel Les Jasmins » depuis la 1.317.0.
+- « paie en 0 jour en moyenne » pour un client qui règle à l'émission : « paie le jour même, en moyenne ».
+- La liste des clients : le total « Te doit » n'avait pas sa devise, quand « Facturé HT » à côté l'avait (`liste-clients`
+  gravait le pied sans elle : retourné vers la règle).
+- Test : `hotel-1356` (une facture déjà réglée le jour même, puis le brouillon de l'hôtel : la pastille avant et après la
+  ligne, la recherche vide, « Ta fiche », « Compléter » et le retour, une livraison offerte qui avertit à l'émission et
+  « Compléter ma fiche… » sur la case de l'adresse, les libellés de la fiche du client, la liste) ; `prix-1317` retourné
+  vers « le prix convenu avec ». Treize preuves.

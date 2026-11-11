@@ -5341,6 +5341,10 @@
     // seule présence faisait écrire « tes documents sont en règle » sur un RIB de dix chiffres —
     // la faute du matricule inventé de la 7.6.0, un champ plus loin.
     else if (ribAttendu(c) && !verifRib(c.rib).ok) out.push(`un RIB valide (${verifRib(c.rib).court})`);
+    // (1.356.4) L'adresse s'imprime en tête de chaque pièce. L'éditeur de facture l'ajoutait seul à cette liste : il disait
+    // « il manque le matricule fiscal, le RIB et l'adresse » pendant que les Paramètres, ouverts par son « Compléter »,
+    // disaient « Il manque 2 informations » — deux écrans, deux fiches. Elle vit ici, pour tous.
+    if (!String(c.address || '').trim()) out.push('l\'adresse');
     return out;
   }
 

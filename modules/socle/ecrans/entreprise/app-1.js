@@ -803,7 +803,9 @@
     return `<button type="button" class="i" tabindex="-1" data-info="${h(key)}" aria-label="Explication : ${h(x.t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
   }
   // Un libellé de champ suivi de sa bulle. Le <span> garde les deux sur la même ligne dans un label en colonne.
-  const lbl = (text, key) => key ? `<span class="fl">${text} ${info(key)}</span>` : text;
+  // (1.356.4) `fl-lbl` : le libellé d'un champ coule comme une phrase (plus une boîte flex), pour que `collerBulles` emmène
+  // la bulle avec le DERNIER mot quand il passe à la ligne (« Retenue à la source appliquée par ce (i) / client »).
+  const lbl = (text, key) => key ? `<span class="fl fl-lbl">${text} ${info(key)}</span>` : text;
 
   // 10.12.0 — une bulle « i » qui termine une phrase passait SEULE sur la ligne suivante dès que la
   // phrase remplissait sa ligne : « … pour un dossier. » puis, dessous, un « i » orphelin qu'on
@@ -1375,6 +1377,9 @@
               $('#em-avert', root).innerHTML = avertir(l);
               $('#ok', root).textContent = libelleOk(l);
               brancherFiche();
+              // (1.356.4) La pièce derrière la fenêtre relit la fiche : « Avant d'émettre » disait encore « il manque
+              // l'adresse » une fois la fenêtre fermée, et l'aperçu imprimait l'en-tête d'avant.
+              if (opts.ficheChangee) opts.ficheChangee();
             });
           };
           brancherFiche();
@@ -1403,12 +1408,16 @@
     const manqueNom = !(co.name || '').trim();
     const manqueMf = !(co.matricule || '').trim() || !C.matriculeBienForme(co.matricule);
     const manqueRib = pourFacture && C.ribAttendu(co) && (!(co.rib || '').trim() || !C.verifRib(co.rib).ok);
+    // (1.356.4) L'adresse compte dans ce qui manque (`companyGaps`) : « Compléter ma fiche… » s'ouvrait alors sur une
+    // fenêtre sans aucune case. Elle a la sienne ; on peut la laisser vide (on prévient, on ne bloque pas).
+    const manqueAdresse = !String(co.address || '').trim();
     modal(`<h2>Compléter ta fiche société</h2>
       <p class="small muted">Ce qui s'imprime en haut de chaque pièce${manqueRib ? ', et dans son bloc « Règlement » : c\'est là que ton client lit où virer' : ''}. Le reste de ta fiche se règle dans Paramètres → Mon entreprise.</p>
       <form id="cf" class="grid-2">
         ${manqueNom ? field(lbl('Raison sociale', 'co.name'), 'name', co.name || '', 'text', 'autocomplete="organization"') : ''}
         ${manqueMf ? field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', co.matricule || '', 'text', 'placeholder="1234567A/A/M/000" autocomplete="off" spellcheck="false"') : ''}
         ${manqueRib ? `${field(lbl('Banque', 'pay.bank'), 'bank', co.bank || '')}${ribField('RIB', co.rib)}` : ''}
+        ${manqueAdresse ? `<label class="field span-2">${lbl('Adresse', 'co.address')}<textarea name="address" placeholder="Rue et numéro&#10;Code postal et ville"></textarea></label>` : ''}
       </form>
       <div class="warn-box mb" id="cf-refus" role="alert" hidden></div>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
@@ -1428,10 +1437,11 @@
           const v = formValues($('#cf', root));
           if (manqueNom && !String(v.name || '').trim()) return refuser('name', 'Écris ta raison sociale : c\'est le nom qui s\'imprime en haut de chaque pièce.');
           if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser('matricule', `« ${String(v.matricule || '').trim()} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre (jamais I, O ni U), puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
-          const avant = { name: co.name, matricule: co.matricule, bank: co.bank, rib: co.rib };
+          const avant = { name: co.name, matricule: co.matricule, bank: co.bank, rib: co.rib, address: co.address };
           if (manqueNom) co.name = String(v.name).trim();
           if (manqueMf) co.matricule = C.matriculeLisible(v.matricule);
           if (manqueRib) { co.bank = String(v.bank || '').trim(); co.rib = String(v.rib || '').trim(); }
+          if (manqueAdresse && String(v.address || '').trim()) co.address = String(v.address).trim();
           const b = $('#ok', root);
           b.disabled = true;
           try {
@@ -2251,12 +2261,17 @@
   // à 1440 px « ← Factures » tenait sur la barre de la facture quand « ← Hôtel Dar El Marsa SARL » la
   // faisait passer sur deux rangées — tout le formulaire descendait de 43 px, et le clic visé sur
   // « Émettre » tombait sur « Enregistrer le brouillon » (10.12.0, une menuiserie).
+  // (1.356.4) « La fiche de Hôtel Les Palmiers » : le nom d'un tiers s'élide comme un mot — devant une voyelle ou un h
+  // (« d'Hôtel », « d'Amel », « d'Hamza ») ; jamais un nom vide, qui garde « de ».
+  const deNom = n => (/^[aeiouyàâäéèêëîïôöùûüh]/i.test(String(n || '').trim()) ? `d'${n}` : `de ${n}`);
   const nomCourt = s => { const t = String(s || '').trim(); return t.length > 18 ? t.slice(0, 17).trimEnd() + '…' : t; };
   // Une pièce se nomme par son type et son numéro tant que ça tient (« Devis DEV-2026-001 ») ; au-delà,
   // par son seul NUMÉRO, dont le préfixe dit déjà le type : « ← Facture proforma PRO-2026-001 »
   // (29 caractères) faisait passer « Plus ▾ » sur une troisième rangée dans la facture tirée d'une
   // proforma (10.12.0). La bulle du bouton garde le nom entier.
-  const docCourt = (d, entier) => { const l = docLabel(d); return entier || l.length <= 20 || !d.number ? l : d.number; };
+  // (1.356.4) Un BROUILLON n'a pas de numéro : la bulle disait « Revenir à Facture (brouillon) » sans dire laquelle —
+  // le nom entier porte le client ; le bouton garde son mot court.
+  const docCourt = (d, entier) => { const l = docLabel(d); if (entier && !d.number && d.clientId && clientById(d.clientId)) return `${l} — ${clientName(d.clientId)}`; return entier || l.length <= 20 || !d.number ? l : d.number; };
   // L'objet d'un contrat, hors de toute facture : « Entretien des portes — {mois} » sans son mois
   // se lisait « Entretien des portes — », un tiret qui pend (10.12.0). Une seule fonction pour la
   // fiche du client, les marges, le titre de page et le compte rendu d'une suppression.
@@ -6063,6 +6078,10 @@
     // (1.291.0) Les autres pièces (proforma, bons, contrat à signer) prennent la même page que le devis : elles se
     // comportent comme lui (modifiables, numérotées à l'enregistrement, statut choisi à la main), avec leurs gestes.
     const charte = isInv || isAv || isQ || isExtra;
+    // (1.356.4) Les étiquettes de la pièce suivent aussi ses LIGNES : « Retenue 1 % · sous le seuil » restait affiché sur une
+    // facture passée au-dessus du seuil en tapant ses quantités, pendant que les totaux, juste à droite, appliquaient la
+    // retenue. Posé une fois les étiquettes dessinées (charte), appelé à chaque nouveau total.
+    let majEtiquettesApres = null;
     if (charte && !figee && !isQ && !isExtra) echecDansLaPage = e => {
       const z = $('#ed-bandeaux'); if (!z || !document.contains(z)) { echecDansLaPage = null; return false; }
       if (e && (e.statut === 403 || e.conflict)) return false;
@@ -7601,7 +7620,9 @@
           if (avant === null || apres === null || apres === '' || Number(avant) !== Number(l.unitPrice) || Number(apres) === Number(l.unitPrice)) return;
           l.unitPrice = apres; delete l.puTtc; reprises++;
         });
-        if (reprises) toast(`${pl(reprises, 'ligne')} ${reprises > 1 ? 'prennent' : 'prend'} le prix de ${clientName(doc.clientId)} ; un prix que tu as tapé ne change pas.`);
+        // (1.356.4) « le prix de Hôtel… » : le nom d'un client ne s'élide pas sans qu'on sache s'il commence par une voyelle ou
+        // un h muet — « convenu avec » dit la même chose (sa liste de prix) sans élision à deviner.
+        if (reprises) toast(`${pl(reprises, 'ligne')} ${reprises > 1 ? 'prennent' : 'prend'} le prix convenu avec ${clientName(doc.clientId)} ; un prix que tu as tapé ne change pas.`);
         // La case du timbre suit le nouveau client (9.1.1). Sans cette ligne, `doc.applyStamp`
         // serait juste et l'écran faux — et le prochain `formValues(head)` relirait la case restée
         // en arrière et écraserait la donnée. Un champ qu'on change dans les données et pas dans le
@@ -7715,7 +7736,8 @@
           : !s.docs.some(d => d.id !== doc.id) ? '<span class="ed-chip">premier document pour ce client</span>'
           : isInv ? '<span class="ed-chip">première facture pour ce client</span>' : '',
         isQ && s.quoteCount ? `<span class="ed-chip">${pl(s.quoteCount, 'devis', 'devis')}${s.conversion != null ? ` · ${s.conversion} % acceptés` : ''}</span>` : '',
-        s.delay != null ? `<span class="ed-chip">paie en ${pl(s.delay, 'jour')} en moyenne</span>` : '',
+        // (1.356.4) « paie en 0 jour en moyenne » : un client qui règle à l'émission paie le jour même.
+        s.delay != null ? `<span class="ed-chip">${Math.round(s.delay) < 1 ? 'paie le jour même, en moyenne' : `paie en ${pl(s.delay, 'jour')} en moyenne`}</span>` : '',
         derniere ? `<span class="ed-chip">dernière : <b>${h(derniere.number)}</b> · ${lfJm(derniere.date)} · ${C.money(C.computeTotals(derniere, company()).netToPay, docCur(derniere))}${figee ? '' : ` · <button type="button" class="lien" id="cl-refaire" data-refaire="${h(derniere.id)}">la refaire</button>`}</span>` : '',
       ].filter(Boolean).join('');
       return `<div class="ed-cl-tete">${pastilleClient(c.id)}<div class="ed-cl-nom"><b>${h(c.name)}</b><span>${qui}</span></div>
@@ -7913,11 +7935,12 @@
     pleinEcranCourant = apercuPleinEcran;
     // (1.155.0, charte) Ce qui se vérifie avant d'émettre : la fiche de l'entreprise, le matricule du client, la TVA des
     // lignes. Les mêmes règles que la fenêtre d'émission (`issueWarnings`), dites avant le geste, pas à sa place.
+    const ficheRelue = () => { dessinerAvant(); schedulePreview(); };
     function dessinerAvant() {
       const el = $('#ed-avant'); if (!el) return;
       const co = company();
       const cl = clientById(doc.clientId);
-      const manque = C.companyGaps(co).concat(String(co.address || '').trim() ? [] : ['l\'adresse']);
+      const manque = C.companyGaps(co);
       const tvaFausse = (!C.assujettiTVA(co) && C.computeTotals(doc, co).totalVAT > 0.0005) || C.factureSansTvaSuspecte(doc, co);
       let prixAReprendre = [];
       const points = [
@@ -7991,7 +8014,7 @@
         const n = prixAReprendre.length;
         prixAReprendre.forEach(({ l, pu }) => { l.unitPrice = pu; delete l.puTtc; });
         touch(); drawLines(); refreshTotals();
-        toast(`${pl(n, 'ligne')} au prix de ${clientName(doc.clientId)}.`);
+        toast(`${pl(n, 'ligne')} au prix convenu avec ${clientName(doc.clientId)}.`);
       };
     }
     // (1.155.0, maquette de la facture, « les états d'un brouillon ») Ce que la pièce a de particulier, dit en haut et
@@ -8136,6 +8159,7 @@
     }
     function refreshTotals() {
       majRecuChange();
+      if (majEtiquettesApres) majEtiquettesApres();
       const t = C.computeTotals(doc, company());
       const lbl2 = $('#stamp-lbl'); if (lbl2) lbl2.textContent = libelleTimbre();
       if (charte) {
@@ -8644,7 +8668,7 @@
         if (att && !att.demande) { await demanderAccordPour(doc, phraseAccord(doc, att), persist); return; }
         const n = await numeroAEmettre(doc);
         const warn = issueWarnings();
-        if (!await confirmerEmission(doc, n, warn, { avertir: issueWarnings })) return;
+        if (!await confirmerEmission(doc, n, warn, { avertir: issueWarnings, ficheChangee: ficheRelue })) return;
         if (await issue()) {
           if (isNew) remplacerPage('#/doc/' + doc.id); else render();
           // (maquette « fenêtre d'émission ») Ce qui a été coché « juste après l'émission » s'ouvre aussitôt, dans l'ordre.
@@ -8701,7 +8725,7 @@
         // Émettre en exportant passe par le MÊME récapitulatif que « Émettre » (10.14.0) : cette boîte-ci
         // émettait sans lui, donc sans les avertissements d'émission et sans l'offre de continuer une
         // numérotation commencée ailleurs. Une porte d'émission, pas deux.
-        const c = await confirmerEmission(doc, n, issueWarnings(), { exporter: true, avertir: issueWarnings });
+        const c = await confirmerEmission(doc, n, issueWarnings(), { exporter: true, avertir: issueWarnings, ficheChangee: ficheRelue });
         if (!c) return;
         if (c === 'emettre') { if (!(await issue())) return; }
         else if (!persist()) return;   // sans ce refus, on exportait un document qui n'a pas été écrit
@@ -9155,6 +9179,7 @@
       const nomDevise = c => ({ DT: 'Dinar', TND: 'Dinar', EUR: 'Euro', USD: 'Dollar', GBP: 'Livre sterling' })[C.normCurrency(c)] || C.libelleDevise(c);
       const symb = c => ({ EUR: '€', USD: '$', GBP: '£' })[C.normCurrency(c)] || c;
       const etq = (k, libelle, valeur, cls, opts) => `<button type="button" class="etq${cls ? ' ' + cls : ''}" data-etq="${k}" data-pop aria-haspopup="dialog" aria-expanded="false"${figee || (opts && opts.off) ? ' disabled' : ''}${opts && opts.titre ? ` title="${h(opts.titre)}"` : ''}>${valeur === null ? `${lfIc('ajout', 13, 2.4)}${h(libelle)}` : `${h(libelle)} <b>${h(valeur)}</b>`}</button>`;
+      let renduEtq = null;
       function majEtiquettes() {
         const z = $('#ed-puces', head); if (!z) return;
         const t = C.computeTotals(doc, company());
@@ -9164,7 +9189,7 @@
         const depots = C.depotsDe(data);
         const pr = doc.projectId ? projectById(doc.projectId) : null;
         const tauxDevise = cur !== base ? (Number(doc.exchangeRate) > 0 ? `${nomDevise(cur)} · 1 ${symb(cur)} = ${C.money(doc.exchangeRate, null, 3)} ${base}` : `${nomDevise(cur)} · taux à indiquer`) : nomDevise(cur);
-        z.innerHTML = [
+        const html = [
           etq('lang', 'Langue', doc.lang === 'en' ? 'Anglais' : 'Français', doc.lang === 'en' ? 'chg' : ''),
           etq('devise', 'Devise', tauxDevise, cur !== base ? (Number(doc.exchangeRate) > 0 ? 'chg' : 'ko') : ''),
           isQ || isExtra ? etq('statut', 'Statut', optionStatut(doc.status, doc.type), '') : '',
@@ -9177,6 +9202,10 @@
           etq('affaire', 'Affaire', pr ? pr.name : null, pr ? 'chg' : 'vide'),
           etq('ref', isQ ? 'Référence du client' : 'Référence', doc.reference ? doc.reference : null, doc.reference ? '' : 'vide'),
         ].filter(Boolean).join('');
+        // Appelée à chaque nouveau total (1.356.4) : on ne redessine que ce qui a changé, une étiquette ouverte reste ouverte.
+        if (html === renduEtq && z.childElementCount) return;
+        renduEtq = html;
+        z.innerHTML = html;
         $$('[data-etq]', z).forEach(b => b.onclick = () => ouvrirEtiquette(b));
       }
       const choix = (attr, v, libelle, sous, on) => `<button type="button" class="pop-o${on ? ' on' : ''}" ${attr}="${h(v)}"><span>${libelle}${sous ? `<small>${sous}</small>` : ''}</span>${on ? lfIc('coche', 15, 2.6) : ''}</button>`;
@@ -9289,7 +9318,7 @@
       if ($('#ed-ech', head)) $('#ed-ech', head).onclick = e => {
         const b = e.currentTarget;
         const cl = clientById(doc.clientId);
-        ouvrirBulle(b, `<div class="pop-t">${isQ ? 'Validité' : 'Échéance'}</div>${cl && cl.paymentTermsDays != null && cl.paymentTermsDays !== '' ? `<p class="pop-s">La fiche de ${h(cl.name)} dit « à ${pl(cl.paymentTermsDays, 'jour')}${cl.paymentTermsEom ? ' fin de mois' : ''} » ; ${isQ ? 'le devis' : 'la facture'} le reprend.</p>` : ''}
+        ouvrirBulle(b, `<div class="pop-t">${isQ ? 'Validité' : 'Échéance'}</div>${cl && cl.paymentTermsDays != null && cl.paymentTermsDays !== '' ? `<p class="pop-s">La fiche ${h(deNom(cl.name))} dit « à ${pl(cl.paymentTermsDays, 'jour')}${cl.paymentTermsEom ? ' fin de mois' : ''} » ; ${isQ ? 'le devis' : 'la facture'} le reprend.</p>` : ''}
             ${DELAIS.map(x => choix('data-dl', x[0], x[1], C.fmtDate(dateDuDelai(x)), dateDuDelai(x) === doc.dueDate)).join('')}
             <label class="pop-champ"><span>Une date précise…</span><input type="date" id="pop-date" value="${h(doc.dueDate || '')}" min="${h(doc.date || '')}"></label>
             ${cl ? '<label class="pop-case"><input type="checkbox" id="pop-garder-dl"> Garder ce délai pour ce client</label>' : ''}
@@ -9391,7 +9420,8 @@
           selA = Math.max(0, Math.min(selA, montres.length + (brut ? 1 : 0)));
           const cl = clientById(doc.clientId);
           const ventes = dernieresVentes();
-          const html = `<div class="aj-tete"><span>${brut ? `${pl(montres.length, 'article')}` : 'Tape un nom, une référence ou un code-barres'}</span>${cl ? `<small>prix de ${h(cl.name)}</small>` : ''}</div>
+          // (1.356.4) « 0 article · prix de Hôtel Les Palmiers SA » : rien ne correspond se DIT, et « pour » n'a pas d'élision à deviner.
+          const html = `<div class="aj-tete"><span>${brut ? (montres.length ? pl(montres.length, 'article') : 'Aucun article de ce nom') : 'Tape un nom, une référence ou un code-barres'}</span>${cl ? `<small>prix pour ${h(cl.name)}</small>` : ''}</div>
             ${montres.map((c, i) => {
               const pr = C.prixArticlePour(data, c, doc.clientId, doc.date, 1);
               const v = ventes.get(c.id);
@@ -9552,6 +9582,7 @@
         return false;
       };
       majEtiquettes(); majEcheance();
+      majEtiquettesApres = majEtiquettes;
       lierAffaireLue = () => { const b = $('#lp-aff-b'); if (b) b.onclick = () => ouvrirEtiquette(b); };
       lierAffaireLue();
       const orig = head.onchange;
@@ -10266,7 +10297,7 @@
               téléphone et de son adresse ; le reste attend derrière « Plus de détails » (revue du mois d'un client, point 15). */''}
         ${client ? '' : '<details class="span-2 plus-details" id="cf-plus"><summary>Plus de détails <span class="muted small">— contact, retenue, délai, timbre, encours, e-mail, langue, devise, code, notes</span></summary><div class="grid-2 mt">'}
         ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', c.contact || '', 'text', 'placeholder="Mme Leïla Mansour, directrice"')}
-        <label class="field">${lbl('Retenue à la source appliquée par ce client', 'ed.withholding')}${withholdingSelect('withholdingRate', c.withholdingRate, { vide: `Par défaut (${pct(company().defaultWithholdingRate || 0)} %)` })}</label>
+        <label class="field">${lbl('Sa retenue à la source', 'ed.withholding')}${withholdingSelect('withholdingRate', c.withholdingRate, { vide: `Par défaut (${pct(company().defaultWithholdingRate || 0)} %)` })}</label>
         ${field(lbl('Délai de paiement (jours)', 'cl.delai'), 'paymentTermsDays', c.paymentTermsDays == null ? '' : c.paymentTermsDays, 'number', `min="0" step="1" class="num" placeholder="Celui des réglages (${C.delaiJours(company().paymentTermsDays, 30)})"`)}
         <label class="check"><input type="checkbox" name="stampExempt" ${c.stampExempt ? 'checked' : ''}> Exonéré de timbre fiscal ${info('client.stampExempt')}</label>
         <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="number" name="creditLimit" value="${h(c.creditLimit || '')}" step="0.001" min="0" class="num" placeholder="Sans plafond"${!estResponsable() ? ' disabled title="L\'encours autorisé se règle par le propriétaire ou un administrateur."' : ''}></label>
@@ -10732,7 +10763,7 @@
         <td class="r m nw">${r.sum.ht ? m(r.sum.ht) : '<span class="mu">—</span>'}</td>
         <td class="r m nw">${doit}</td>
         <td class="der">${der}</td>
-        <td class="actions row-actions lf-act">${relancer}<button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(c.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(c.name)}">${lfIc('plus', 16)}</button></td></tr>`;
+        <td class="actions row-actions lf-act">${relancer}<button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(c.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions ${h(deNom(c.name))}">${lfIc('plus', 16)}</button></td></tr>`;
     }
 
     function tableau(l, toutes) {
@@ -10746,7 +10777,7 @@
       const cartes = `<div class="lc-cartes">${paged.rows.map(r => `<button type="button" class="lc-carte" data-cid="${h(r.c.id)}"><span class="lc-c-h">${pastilleClient(r.c.id, r.c.name)}<span class="lc-c-n"><b>${h(r.c.name)}</b><small>${[r.c.contact, r.c.city].filter(Boolean).map(h).join(' · ')}</small></span></span>
         <span class="lc-c-b"><small>${r.retard > 0.0005 ? `<span class="rouge">${m(r.retard)} en retard · ${pl(r.jours, 'jour')}</span>` : r.sum.net > 0.0005 ? 'rien en retard' : r.sum.count ? 'à jour' : 'aucun document'}${r.aCompleter ? ' · <span class="manque">à compléter</span>' : ''}</small><small>${r.sum.net > 0.0005 ? `doit <b>${m(r.sum.net)} ${h(symboleDevise(base))}</b>` : r.sum.net < -0.0005 ? `<span class="trop">${m(-r.sum.net)} en sa faveur</span>` : ''}</small></span></button>`).join('')}</div>`;
       return `${cartes}<div class="panel lf-tab scroll-x"><table class="list sortable lf-table lc-table"><thead>${head}</thead><tbody>${paged.rows.map(ligne).join('')}</tbody>
-        <tfoot><tr><td colspan="2"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'client')}${sorted.some(r => r.c.currency && r.c.currency !== base) ? ' · devises converties au taux de chaque pièce' : ''}</span></span></td><td class="ct"></td><td class="r m">${somme(r => r.sum.count)}</td><td class="r m nw">${m(somme(r => r.sum.ht))} <small class="dv">${h(symboleDevise(base))}</small></td><td class="r m nw"><div>${m(somme(r => r.sum.net))}</div>${ret > 0.0005 ? `<div class="rouge pied-s">dont ${m(ret)} en retard</div>` : ''}</td><td class="der"></td><td></td></tr></tfoot></table>
+        <tfoot><tr><td colspan="2"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'client')}${sorted.some(r => r.c.currency && r.c.currency !== base) ? ' · devises converties au taux de chaque pièce' : ''}</span></span></td><td class="ct"></td><td class="r m">${somme(r => r.sum.count)}</td><td class="r m nw">${m(somme(r => r.sum.ht))} <small class="dv">${h(symboleDevise(base))}</small></td><td class="r m nw"><div>${m(somme(r => r.sum.net))} <small class="dv">${h(symboleDevise(base))}</small></div>${ret > 0.0005 ? `<div class="rouge pied-s">dont ${m(ret)} en retard</div>` : ''}</td><td class="der"></td><td></td></tr></tfoot></table>
         ${pagerBar(paged.pg, { noun: 'client', grandTotal: toutes.length })}</div>`;
     }
 
@@ -19769,7 +19800,7 @@
     const ailleurs = x => (x.projectId && x.projectId !== p.id ? projectById(x.projectId) : null);
     const texte = x => (ventes ? `${x.number || ''} ${C.docLabel(x.type, company())} ${clientName(x.clientId)} ${x.subject || ''}` : `${x.number || ''} ${supplierName(x.supplierId)} ${contenuAchat(x)}`);
     modal(`<h2>${ventes ? 'Rattacher des ventes' : 'Rattacher des achats'} à « ${h(p.name)} »</h2>
-      <p class="small muted">Coche ce qui appartient à ce chantier${ventes && p.clientId ? ` — les pièces de ${h(clientName(p.clientId))}` : ''}. Décocher une pièce la détache de l'affaire sans la supprimer ni la modifier : l'affaire ne s'imprime pas et ne change aucun montant, c'est pourquoi une pièce émise peut la recevoir.</p>
+      <p class="small muted">Coche ce qui appartient à ce chantier${ventes && p.clientId ? ` — les pièces ${h(deNom(clientName(p.clientId)))}` : ''}. Décocher une pièce la détache de l'affaire sans la supprimer ni la modifier : l'affaire ne s'imprime pas et ne change aucun montant, c'est pourquoi une pièce émise peut la recevoir.</p>
       ${pieces.length ? `<div class="filters"><input type="text" id="rp-q" placeholder="Rechercher : numéro, ${ventes ? (p.clientId ? '' : 'client, ') : 'fournisseur, '}objet…" autocomplete="off"><span class="f-note" id="rp-compte"></span></div>
       <div class="scroll-x"><table class="list compact"><thead><tr><th><input type="checkbox" id="rp-tout" aria-label="Cocher toutes les pièces affichées"></th>${cols.map(c => `<th class="${c.r ? 'r' : ''}">${h(c.label)}</th>`).join('')}</tr></thead><tbody>
         ${pieces.map(x => { const ai = ailleurs(x); return `<tr data-rp="${h(x.id)}"${suit(x) ? ` data-suit="${h(suit(x))}"` : ''}>
