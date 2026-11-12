@@ -2643,7 +2643,8 @@
   // (1.325.0) Une écriture à plusieurs taux (une facture électronique, 19 % et 7 %) n'a pas UN taux : le rapport de ses
   // totaux (18,6 %) n'en est aucun ; elle n'en propose pas.
   const lignesTvaSx = e => (e.lignes || []).filter(l => String(l.compte).startsWith(tvaCompteSx().slice(0, 4)) && mtSx(l.debit) - mtSx(l.credit) !== 0);
-  const tauxDeSx = e => { if (lignesTvaSx(e).length > 1) return 'mixte'; const h = htSx(e), t = tvaSx(e); return h > 0 && t > 0 ? String(Math.round(t * 1000 / h) / 10) : 'sans'; };
+  // (1.357.2) Un avoir reprend sa charge et sa TVA au crédit : son taux se lit dans l'autre sens.
+  const tauxDeSx = e => { if (lignesTvaSx(e).length > 1) return 'mixte'; const h = htSx(e) || sommeSx(e, /^[26]/, 'credit'), t = Math.abs(tvaSx(e)); return h > 0 && t > 0 ? String(Math.round(t * 1000 / h) / 10) : 'sans'; };
   const journalAchatsSx = () => { const j = ((livresState.livre && livresState.livre.journaux) || []).find(x => /^(AC|HA)|achat/i.test(`${x.code} ${x.libelle || ''}`)); return j ? j.code : 'AC'; };
   // (1.342.0) Un ticket payé en espèces : sa caisse (le premier compte 54 du plan du dossier, sinon 54) et son journal.
   const compteCaisseSx = () => { const c = ((livresState.livre && livresState.livre.plan) || []).find(x => /^54/.test(String(x.compte))); return c ? String(c.compte) : '54'; };
@@ -2682,7 +2683,9 @@
   function habitudesSx(nom, sauf) {
     const n = normSx(nom);
     if (!n) return { n: 0 };
-    const es = ecrituresSx().filter(e => achatSx(e) && e.id !== sauf && normSx(nomTiersSx(e)) === n)
+    // (1.357.2) Les habitudes se lisent sur ses FACTURES : un avoir (le fournisseur au débit) n'a pas de charge au débit, et
+    // venu en dernier il ne proposait plus rien.
+    const es = ecrituresSx().filter(e => achatSx(e) && e.id !== sauf && normSx(nomTiersSx(e)) === n && mtSx((ligne40Sx(e) || {}).credit) > 0)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.piece || '').localeCompare(String(b.piece || '')));
     if (!es.length) return { n: 0 };
     const charge = e => ((e.lignes || []).find(l => /^[26]/.test(String(l.compte)) && mtSx(l.debit) > 0) || {}).compte || '';
@@ -3269,11 +3272,15 @@
       const l40 = ligne40Sx(e) || {}, tx = tauxDeSx(e);
       const just = sansJ.has(e.id) ? `<span class="sx-jm-sj" role="img" title="Sans justificatif : sa pièce l'attend « Face à la pièce »" aria-label="Sans justificatif">${EC_IC.alerte}</span>` : avecJ.has(e.id) || e.justifClient === true ? `<span class="sx-jm-j" role="img" title="Justificatif joint" aria-label="Justificatif joint">${svgBq(BQ_IC.doc, 15)}</span>` : '';
       // La pièce sur sa ligne (le fournisseur au crédit), puis chaque charge et la TVA dessous, au débit : comme le journal.
-      const dessous = (e.lignes || []).filter(l => l !== l40 && mtSx(l.debit) > 0).map(l => {
+      // (1.357.2, bout en bout joué à la souris) Un avoir fournisseur va dans l'autre sens : le fournisseur au débit, ce que
+      // l'avoir reprend au crédit. Il s'affichait « 0,000 » au crédit, sans ses lignes (seuls les débits passaient dessous).
+      const avoir = !(mtSx(l40.credit) > 0) && mtSx(l40.debit) > 0;
+      const colonnes = l => mtSx(l.debit) > 0 ? `<td class="r">${esc(dtSx(mtSx(l.debit)))}</td><td></td>` : `<td></td><td class="r">${esc(dtSx(mtSx(l.credit)))}</td>`;
+      const dessous = (e.lignes || []).filter(l => l !== l40 && (mtSx(l.debit) > 0 || mtSx(l.credit) > 0)).map(l => {
         const estTva = String(l.compte).startsWith(cTva);
-        return `<tr class="sx-jm-s"><td></td><td></td><td class="mono">${esc(l.compte || '')}</td><td>${esc(estTva ? (tx === 'mixte' ? l.libelle || 'TVA déductible' : `TVA déductible${tx !== 'sans' ? ` ${String(tx).replace('.', ',')} %` : ''}`) : (nomC(l.compte) || l.libelle || ''))}</td><td class="r">${esc(dtSx(mtSx(l.debit)))}</td><td></td><td></td></tr>`;
+        return `<tr class="sx-jm-s"><td></td><td></td><td class="mono">${esc(l.compte || '')}</td><td>${esc(estTva ? (tx === 'mixte' ? l.libelle || 'TVA déductible' : `TVA déductible${tx !== 'sans' ? ` ${String(tx).replace('.', ',')} %` : ''}`) : (nomC(l.compte) || l.libelle || ''))}</td>${colonnes(l)}<td></td></tr>`;
       }).join('');
-      return `<tr class="sx-jm-e"><td>${esc(String(e.date).slice(8, 10))}</td><td class="mono">${esc(e.piece || '—')}</td><td class="mono">${esc(l40.compte || '')}</td><td>${esc(nomTiersSx(e) || e.libelle || '')}</td><td></td><td class="r">${esc(dtSx(mtSx(l40.credit) || ttcSx(e)))}</td><td>${just}</td></tr>${dessous}`;
+      return `<tr class="sx-jm-e"><td>${esc(String(e.date).slice(8, 10))}</td><td class="mono">${esc(e.piece || '—')}</td><td class="mono">${esc(l40.compte || '')}</td><td>${esc(nomTiersSx(e) || e.libelle || '')}${avoir ? ' <span class="mu">· avoir</span>' : ''}</td>${avoir ? colonnes(l40) : `<td></td><td class="r">${esc(dtSx(mtSx(l40.credit) || ttcSx(e)))}</td>`}<td>${just}</td></tr>${dessous}`;
     }).join('');
     const pr = propositionJmSx(m);
     const fours = [...new Set(ecrituresSx().filter(achatSx).map(nomTiersSx).filter(Boolean))];

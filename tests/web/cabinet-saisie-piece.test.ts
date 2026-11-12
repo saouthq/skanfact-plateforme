@@ -462,6 +462,31 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 180_000);
 
+  it('(1.357.2) un avoir fournisseur au kilomètre : le fournisseur au débit, ce qu\'il reprend au crédit ; les habitudes restent celles des factures', async () => {
+    const { associe, cab, ent } = await laBoulangerie();
+    // Deux sacs abîmés repris par la Minoterie : 100,000 HT et 19,000 de TVA, le fournisseur au débit.
+    const r = await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, { date: '2026-09-20', journal: 'AC', piece: 'AV-0920', libelle: 'Avoir Minoterie du Cap Bon',
+      lignes: [{ compte: '401', tiers: 'Minoterie du Cap Bon', debit: '119,000' }, { compte: '606', credit: '100,000' }, { compte: '4366', credit: '19,000' }] });
+    expect(r.statut).toBe(201);
+    const { p, erreurs } = await ouvrir(associe, cab.id, ent);
+    await p.locator('[data-sx-mode="km"]').click();
+    await p.locator('#sx-jm').waitFor();
+    // Il s'affichait « 0,000 » au crédit, sans aucune ligne dessous (seuls les débits y passaient).
+    const av = p.locator('tr.sx-jm-e', { hasText: 'AV-0920' });
+    expect((await av.locator('td').allInnerTexts()).slice(0, 6).map(net)).toEqual(['20', 'AV-0920', '401', 'Minoterie du Cap Bon · avoir', '119,000', '']);
+    const dessous = (i: number) => av.locator(`xpath=following-sibling::tr[${i}]`).locator('td').allInnerTexts().then((t) => t.map(net));
+    expect((await dessous(1)).filter((_, k) => [2, 4, 5].includes(k))).toEqual(['606', '', '100,000']);
+    expect((await dessous(2)).slice(2, 6)).toEqual(['4366', 'TVA déductible 19 %', '', '19,000']);
+    expect(net(await p.locator('#sx-jm-bilan').innerText())).toMatch(/débit = crédit$/);
+    // Venu après la farine de septembre, l'avoir ne prend pas la place de sa dernière facture : la Minoterie propose
+    // toujours sa charge et sa TVA (un avoir n'a pas de charge au débit : la proposition était vide).
+    await p.locator('#sx-jm-jour').fill('25');
+    await p.locator('#sx-jm-four').fill('Minoterie du Cap Bon');
+    await p.locator('#sx-jm-ttc').fill('119,000');
+    await expect.poll(() => p.locator('#sx-jm-prop').innerText().then(net)).toMatch(/^6\d* .* 100,000 · TVA 19 % 19,000 · 401 119,000/);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie', async () => {
     const { rim, cab, ent } = await laBoulangerie(true);
     const { p, erreurs } = await ouvrir(rim, cab.id, ent);

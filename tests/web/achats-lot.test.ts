@@ -161,6 +161,19 @@ describe('le lot achats, à l\'écran', () => {
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
     // Une commande qui a reçu ne se remet ni en brouillon ni en demande de prix.
     expect(await p.locator('#cf-head select[name=status] option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value))).toEqual(['envoyée', 'soldée', 'annulée']);
+    // (1.357.2) La case se lit comme ses réceptions : « Reçue en partie », pas « Envoyée » sous un titre « reçue en partie ».
+    const motsStatut = () => p.locator('#cf-head select[name=status] option').allInnerTexts();
+    expect(await motsStatut()).toEqual(['Reçue en partie', 'Soldée', 'Annulée']);
+    // Soldée à la main, la commande dit ce qui est reçu et pourquoi le reste n'est plus proposé (« Tout est reçu » se disait
+    // d'une commande soldée à moitié) ; l'option qui la rouvre garde le mot de l'état rendu. Rouverte, elle reprend.
+    await p.locator('#cf-head select[name=status]').selectOption('soldée');
+    await p.locator('#save').click();
+    await expect.poll(async () => net(await p.locator('#ed-geste').innerText()), { timeout: 10_000 }).toMatch(/Reçu : .+, le reste n'est plus attendu\. La facture se pré-remplit depuis les réceptions\./);
+    expect(net(await p.locator('#view .ed-h1').innerText())).toContain('soldée');
+    expect(await motsStatut()).toEqual(['Reçue en partie', 'Soldée', 'Annulée']);
+    await p.locator('#cf-head select[name=status]').selectOption('envoyée');
+    await p.locator('#save').click();
+    await expect.poll(async () => net(await p.locator('#view .ed-h1').innerText()), { timeout: 10_000 }).toContain('reçue en partie');
 
     // 3. Le reste : la farine, suivie en stock ; le message compte la ligne entrée.
     await p.locator('#cf-recevoir').click();

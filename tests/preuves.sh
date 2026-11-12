@@ -24447,11 +24447,8 @@ prouver 'commandes 1.285 d : la commande reçue n'"'"'a plus « Recevoir » pour
 prouver "la frise d'une réception sans son geste « Valider »" modules/socle/ecrans/entreprise/app-1.js \
   "g: !ro ? '<button type=\"button\" class=\"btn btn-sm\" data-frise=\"rec-valider\">Valider</button>' : '' }," "g: '' }," \
   "$CFW"
-prouver "une modification de la réception qui laisse « Valider » principal" modules/socle/ecrans/entreprise/app-1.js \
-  "dirty = true; \$('#dirty-dot').hidden = false; enregistrerDevientPrincipal(); };
-    // Ce qui arrive en plus" "dirty = true; \$('#dirty-dot').hidden = false; };
-    // Ce qui arrive en plus" \
-  "$CFW"
+# (1.357.2) « Une modification de la réception qui laisse « Valider » principal » est retournée : « Valider la réception »
+# enregistre aussi (H-E19, comme « Émettre ») et reste vert ; la preuve de la règle est « commande fournisseur 1.357.2 c ».
 prouver "l'étape « En stock » d'une réception validée qui reste à faire" modules/socle/ecrans/entreprise/app-1.js \
   "{ t: annulee ? 'Annulée' : 'En stock', fait: valide," "{ t: annulee ? 'Annulée' : 'En stock', fait: false," \
   "$CFW"
@@ -28340,6 +28337,43 @@ prouver 'barre d'\''ajout 1.357.1 c : rien ne correspond, « Créer … » reste
   '          if (!selBouge) selA = montres.length ? 0 : idxLibre();
 ' '' \
   "$PS13564"
+
+prouver 'commande fournisseur 1.357.2 a : une commande reçue et facturée se dit « reçue » dans le titre et la liste' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    return r.has(o.id) ? st : '\''facturée'\'';' '    return st;' \
+  "$CFW"
+prouver 'commande fournisseur 1.357.2 b : la case Statut d'\''une commande reçue dit « Envoyée »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    const motStatutCF = s => recue && s === '\''envoyée'\'' ? etatSiOuverte : s;' '    const motStatutCF = s => s;' \
+  "$CFW"
+prouver 'commande fournisseur 1.357.2 c : une quantité corrigée fait passer « Enregistrer le brouillon » en vert devant « Valider la réception »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      if ($('\''#rec-valider'\'')) { const sv = $('\''#save'\''); if (sv) sv.hidden = false; } else enregistrerDevientPrincipal();' '      enregistrerDevientPrincipal();' \
+  "$CFW"
+prouver 'commande fournisseur 1.357.2 d : le résumé d'\''une facture tirée d'\''une commande ne nomme pas la commande' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        ${cmdsLiees.length ? ligne(cmdsLiees.length > 1 ? '\''Commandes'\'' : '\''Commande'\'',' '        ${false ? ligne(cmdsLiees.length > 1 ? '\''Commandes'\'' : '\''Commande'\'',' \
+  "$CFW"
+prouver 'commande fournisseur 1.357.2 e : Entrée sur « + Créer … » d'\''une désignation ne fait rien' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'if (sel < shown.length) pick(shown[sel]); else if (creerVu && o.onCreate) { close(); o.onCreate(query); } }' 'if (sel < shown.length) pick(shown[sel]); }' \
+  "$CFW"
+prouver 'commande fournisseur 1.357.2 f : la désignation d'\''une ligne de commande ne cherche pas dans le catalogue' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    if (!figee) $$('\''#cf-lines input[data-k=label]'\'').forEach(el => suggererCatalogue(el,' '    if (false) $$('\''#cf-lines input[data-k=label]'\'').forEach(el => suggererCatalogue(el,' \
+  "$CFW"
+prouver 'commande fournisseur 1.357.2 g : une commande soldée à moitié dit « Tout est reçu »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        phrase = suivi.recue ? '\''Tout est reçu : la facture se pré-remplit depuis les réceptions.'\'' : `Reçu : ${avanceeCF}${pourquoi}. La facture se pré-remplit depuis les réceptions.`;' '        phrase = '\''Tout est reçu : la facture se pré-remplit depuis les réceptions.'\'';' \
+  "$ACW1"
+prouver 'commande fournisseur 1.357.2 h : rouverte après un solde, l'\''option se lit « Envoyée » sous un titre « reçue en partie »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    const etatSiOuverte = suivi && suivi.recue ? (aFacturer.length ? '\''reçue'\'' : '\''facturée'\'') : '\''partielle'\'';' '    const etatSiOuverte = '\''envoyée'\'';' \
+  "$ACW1"
+prouver 'avoir au kilomètre 1.357.2 i : un avoir fournisseur s'\''affiche « 0,000 » au crédit' 'modules/socle/ecrans/cabinet/app-2.js' \
+  '      const avoir = !(mtSx(l40.credit) > 0) && mtSx(l40.debit) > 0;' '      const avoir = false;' \
+  '(1.357.2) un avoir fournisseur au kilomètre : le fournisseur au débit, ce qu'\''il reprend au crédit ; les habitudes restent celles des factures'
+prouver 'avoir au kilomètre 1.357.2 j : ce qu'\''un avoir reprend au crédit ne s'\''affiche pas sous lui' 'modules/socle/ecrans/cabinet/app-2.js' \
+  '      const dessous = (e.lignes || []).filter(l => l !== l40 && (mtSx(l.debit) > 0 || mtSx(l.credit) > 0)).map(l => {' '      const dessous = (e.lignes || []).filter(l => l !== l40 && mtSx(l.debit) > 0).map(l => {' \
+  '(1.357.2) un avoir fournisseur au kilomètre : le fournisseur au débit, ce qu'\''il reprend au crédit ; les habitudes restent celles des factures'
+prouver 'avoir au kilomètre 1.357.2 k : la TVA d'\''un avoir perd son taux' 'modules/socle/ecrans/cabinet/app-2.js' \
+  'const h = htSx(e) || sommeSx(e, /^[26]/, '\''credit'\''), t = Math.abs(tvaSx(e));' 'const h = htSx(e), t = tvaSx(e);' \
+  '(1.357.2) un avoir fournisseur au kilomètre : le fournisseur au débit, ce qu'\''il reprend au crédit ; les habitudes restent celles des factures'
+prouver 'avoir au kilomètre 1.357.2 l : un avoir venu en dernier vide les habitudes du fournisseur' 'modules/socle/ecrans/cabinet/app-2.js' \
+  ' && normSx(nomTiersSx(e)) === n && mtSx((ligne40Sx(e) || {}).credit) > 0)' ' && normSx(nomTiersSx(e)) === n)' \
+  '(1.357.2) un avoir fournisseur au kilomètre : le fournisseur au débit, ce qu'\''il reprend au crédit ; les habitudes restent celles des factures'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

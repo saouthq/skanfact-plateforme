@@ -1838,18 +1838,21 @@
     const pop = document.createElement('div');
     pop.className = 'sugg-pop'; pop.hidden = true;
     host.appendChild(pop);
-    let sel = 0, shown = [], query = '', demandee = false;
+    let sel = 0, shown = [], query = '', demandee = false, creerVu = false;
     const close = () => { pop.hidden = true; if (closeOverlay === close) closeOverlay = null; };
     const draw = dansUnLot(() => {
       const p = propositionsCatalogue(o.items(), input.value, !!o.onCreate, demandee);
       shown = p.shown; query = p.query;
       const creer = p.creer;
+      creerVu = creer;
       if (!shown.length && !creer) { close(); return; }
-      sel = Math.max(0, Math.min(sel, shown.length - 1));
+      // (1.357.2) « + Créer … » est un choix comme les autres, après les articles : la flèche y descend, Entrée le fait. Il
+      // ne se choisissait qu'à la souris, et Entrée dessus ne faisait rien (« Farine » d'une commande, la liste demandée).
+      sel = Math.max(0, Math.min(sel, shown.length - (creer ? 0 : 1)));
       pop.innerHTML = shown.map((c, i) => `<div class="sugg-it${i === sel ? ' sel' : ''}" data-i="${i}" role="option" aria-selected="${i === sel}">
           <span class="ci-main">${h(c.label)}${c.tracked ? '<span class="ci-sub">suivi en stock</span>' : c.description ? `<span class="ci-sub">${h(c.description)}</span>` : ''}</span>
           ${o.right ? `<span class="ci-right">${h(o.right(c))}</span>` : ''}</div>`).join('')
-        + (creer ? `<button type="button" class="sugg-add">+ Créer « ${h(query)} » au catalogue</button>` : '');
+        + (creer ? `<button type="button" class="sugg-add${sel === shown.length ? ' sel' : ''}">+ Créer « ${h(query)} » au catalogue</button>` : '');
       // `mousedown` + preventDefault, comme les combos : le champ garde le focus, et le choix part
       // AVANT que le garde-fou global ne referme quoi que ce soit.
       $$('.sugg-it', pop).forEach(d => d.onmousedown = e => { e.preventDefault(); pick(shown[Number(d.dataset.i)]); });
@@ -1860,11 +1863,11 @@
     const pick = c => { if (!c) return; close(); o.onPick(c); };
     input.addEventListener('input', () => { sel = 0; demandee = false; draw(); });
     input.addEventListener('keydown', e => {
-      if (e.key === 'ArrowDown') { e.preventDefault(); if (pop.hidden) { sel = 0; demandee = true; } else sel = Math.min(sel + 1, shown.length - 1); draw(); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); if (pop.hidden) { sel = 0; demandee = true; } else sel = Math.min(sel + 1, shown.length - (creerVu ? 0 : 1)); draw(); }
       else if (pop.hidden) return;
       else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); draw(); }
       // stopPropagation : dans une fenêtre modale, Entrée validerait aussi le bouton principal.
-      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (shown.length) pick(shown[sel]); }
+      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (sel < shown.length) pick(shown[sel]); else if (creerVu && o.onCreate) { close(); o.onCreate(query); } }
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
       else if (e.key === 'Tab') close();
     });
@@ -15531,7 +15534,7 @@
       if (!commandes.length) return vide('Aucune commande à ce fournisseur', 'Un bon de commande part en PDF ; chaque livraison se reçoit, et ce qui manque reste à recevoir, ligne par ligne. Sa facture se saisit ensuite depuis la réception.', gestes);
       return `<div class="cf-o-t"><span class="mu">Ce que tu lui as commandé et où en est chaque commande · ni une commande ni une réception ne sont des pièces comptables</span><button type="button" class="btn btn-sm" id="ff-vers-commandes">Ouvrir dans Commandes</button></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Commande</th><th>Date</th><th>Livraison souhaitée</th><th>Statut</th><th class="r">HT</th></tr></thead><tbody>
-        ${(fpCommandes = feuilletFiche(s.id, 'commandes', commandes)).rows.map(o => `<tr class="clic" data-commande="${h(o.id)}"><td><b>${h(o.number || '(brouillon)')}</b>${o.reference ? `<small>${h(o.reference)}</small>` : ''}</td><td class="nw">${C.fmtDate(o.date)}</td><td class="nw">${o.dueDate ? C.fmtDate(o.dueDate) : '<span class="mu">—</span>'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, o))}</td><td class="r">${C.money(C.computeTotals(o, co).netHT, o.currency || cur)}</td></tr>`).join('')}
+        ${(fpCommandes = feuilletFiche(s.id, 'commandes', commandes)).rows.map(o => `<tr class="clic" data-commande="${h(o.id)}"><td><b>${h(o.number || '(brouillon)')}</b>${o.reference ? `<small>${h(o.reference)}</small>` : ''}</td><td class="nw">${C.fmtDate(o.date)}</td><td class="nw">${o.dueDate ? C.fmtDate(o.dueDate) : '<span class="mu">—</span>'}</td><td>${badgeCF(etatAfficheCF(o))}</td><td class="r">${C.money(C.computeTotals(o, co).netHT, o.currency || cur)}</td></tr>`).join('')}
         </tbody></table></div>${fpCommandes.pied('commande')}${gestes}`;
     }
     // Ce qui a diminué l'assiette d'une pièce, nommé : « avoir PK-AV-2611-02 déduit ».
@@ -15742,9 +15745,19 @@
   const receptionsF = () => (data.receptions = data.receptions || []);
   const commandeFById = id => commandesF().find(o => o.id === id);
   const receptionById = id => receptionsF().find(r => r.id === id);
-  const MOTS_CF = { demande: 'demande de prix', brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'reçue en partie', reçue: 'reçue', soldée: 'soldée', annulée: 'annulée', validée: 'validée' };
-  const CLASSE_CF = { demande: 'brouillon', brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'partielle', reçue: 'payée', soldée: 'émis', annulée: 'annulée', validée: 'payée' };
+  const MOTS_CF = { demande: 'demande de prix', brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'reçue en partie', reçue: 'reçue', facturée: 'reçue et facturée', soldée: 'soldée', annulée: 'annulée', validée: 'validée' };
+  const CLASSE_CF = { demande: 'brouillon', brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'partielle', reçue: 'payée', facturée: 'payée', soldée: 'émis', annulée: 'annulée', validée: 'payée' };
   const badgeCF = st => `<span class="badge ${h(CLASSE_CF[st] || '')}">${h(MOTS_CF[st] || st)}</span>`;
+  // (1.357.2, bout en bout joué à la souris) Une commande reçue en entier dont chaque réception est facturée se dit
+  // « reçue et facturée » : le titre disait « reçue » au-dessus d'une frise cochée jusqu'à « Facturée », et la case
+  // Statut disait « Envoyée ». Le statut du moteur ne change pas (les listes « en cours » le lisent) : c'est le MOT
+  // affiché qui dit la dernière étape faite. `restantes` : les commandes qui ont une réception à facturer, lues une fois.
+  const etatAfficheCF = (o, restantes) => {
+    const st = C.statutCommandeFournisseur(data, o);
+    if (st !== 'reçue') return st;
+    const r = restantes || new Set(C.receptionsAFacturer(data).map(x => x.orderId));
+    return r.has(o.id) ? st : 'facturée';
+  };
   const parDateCF = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.number || '').localeCompare(a.number || '', undefined, { numeric: true }) || (b.createdAt || 0) - (a.createdAt || 0);
   const etatCF = { onglet: 'commandes', commandes: { page: 1 }, receptions: { page: 1 } };
   // (1.311.0) Les fournisseurs en service, et celui que la commande porte déjà (`fournisseursEnService`).
@@ -15758,6 +15771,7 @@
     // Ce que « À faire » annonce, marqué dans la liste qu'il ouvre (brique 90) : les mêmes fonctions.
     const enRetard = new Set(C.commandesFournisseurEnRetard(data).map(x => x.id));
     const aFacturerR = new Set(C.receptionsAFacturer(data).map(x => x.id));
+    const aFacturerC = new Set(C.receptionsAFacturer(data).map(x => x.orderId));
     const vide = !cmds.length && !recs.length;
     // (1.279.0) L'en-tête du modèle (chemin, titre, phrase) et quatre chiffres au-dessus des onglets, comme le Stock et le
     // Catalogue : ce qui est en cours (et ce qu'il engage, en dinars), ce qui est en retard, ce qui est reçu sans être
@@ -15803,7 +15817,7 @@
             : '<th>Numéro</th><th>Fournisseur</th><th>Commande</th><th>Date</th><th>Statut</th><th class="r">Lignes</th>'}</tr></thead><tbody>
           ${rows.map(x => onglet === 'commandes'
             ? `<tr><td class="nw"><a href="#/commandef/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
-                <td class="nw">${h(C.fmtDate(x.date))}</td><td class="nw">${x.dueDate ? h(C.fmtDate(x.dueDate)) : '—'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, x))}${enRetard.has(x.id) ? ' <span class="warn-text small nw">en retard</span>' : ''}</td>
+                <td class="nw">${h(C.fmtDate(x.date))}</td><td class="nw">${x.dueDate ? h(C.fmtDate(x.dueDate)) : '—'}</td><td>${badgeCF(etatAfficheCF(x, aFacturerC))}${enRetard.has(x.id) ? ' <span class="warn-text small nw">en retard</span>' : ''}</td>
                 <td class="r num nw">${h(C.money(C.computeTotals(x, company()).netHT, x.currency || company().currency))}</td></tr>`
             : `<tr><td class="nw"><a href="#/reception/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
                 <td class="nw">${x.orderId ? `<a href="#/commandef/${h(x.orderId)}">${h(x.orderNumber || '—')}</a>` : '—'}</td><td class="nw">${h(C.fmtDate(x.date))}</td><td>${badgeCF(x.status)}${aFacturerR.has(x.id) ? ' <span class="small muted nw">à facturer</span>' : ''}</td>
@@ -15865,6 +15879,7 @@
     o.type = 'commandeFournisseur';
     const suivi = stored ? C.suiviCommandeFournisseur(data, stored) : null;
     const statut = stored ? C.statutCommandeFournisseur(data, stored) : 'brouillon';
+    const etatAffiche = stored ? etatAfficheCF(stored) : 'brouillon';
     const close = stored ? (stored.status === 'soldée' || /^annul/.test(stored.status || '')) : false;
     // Une demande de prix (brique 89) ne reçoit rien : elle se compare, puis se commande.
     const demande = !!(stored && stored.status === 'demande');
@@ -15883,6 +15898,12 @@
     // Les factures du fournisseur qui couvrent ses réceptions (brique 88 : avec leurs écarts).
     const factures = suivi ? (data.purchases || []).filter(x => (x.receptions || []).some(y => suivi.receptions.some(r => r.id === y.id))) : [];
     const recue = !!(suivi && suivi.receptions.some(r => r.status === 'validée'));
+    // (1.357.2) La case Statut ne contredit pas le titre : une commande qui a reçu garde son statut choisi (« envoyée »,
+    // c'est lui qu'elle enregistre), mais l'option se lit comme ce que disent ses réceptions — « Reçue et facturée ».
+    // Seuls « Soldée » et « Annulée » restent des choix à la main ; sur une commande soldée, l'option qui la rouvre se lit
+    // comme l'état qu'elle lui rendrait (« Reçue en partie »), pas « Envoyée ».
+    const etatSiOuverte = suivi && suivi.recue ? (aFacturer.length ? 'reçue' : 'facturée') : 'partielle';
+    const motStatutCF = s => recue && s === 'envoyée' ? etatSiOuverte : s;
     // Une commande qui a une réception, même en préparation, ne change plus ses lignes : ses réceptions s'y
     // rattachent ligne par ligne, par leur rang (retirer une ligne les décalerait toutes).
     const figee = !!(suivi && suivi.receptions.length);
@@ -15904,7 +15925,7 @@
     const avanceeCF = unitesCF.size <= 1
       ? `${pct(qRecu)} sur ${pct(qCmd)}${[...unitesCF][0] ? ' ' + h([...unitesCF][0]) : ''}`
       : `${lignesFinies} sur ${lignesSuivies.length} lignes en entier`;
-    const sousCF = stored ? [h(supplierName(o.supplierId)), badgeCF(statut), o.dueDate ? `livraison souhaitée le ${h(C.fmtDate(o.dueDate))}${enRetardCF ? ' <span class="warn-text">— en retard</span>' : ''}` : '']
+    const sousCF = stored ? [h(supplierName(o.supplierId)), badgeCF(etatAffiche), o.dueDate ? `livraison souhaitée le ${h(C.fmtDate(o.dueDate))}${enRetardCF ? ' <span class="warn-text">— en retard</span>' : ''}` : '']
       : [o.status === 'demande' ? 'les prix se saisissent quand le fournisseur répond' : 'elle prend son numéro quand tu l\'enregistres'];
     const friseCF = () => {
       if (!stored || demande) return '';
@@ -15961,7 +15982,10 @@
         phrase = `${qRecu ? `Reçu : ${avanceeCF}` : 'Rien n\'est encore arrivé'}${o.dueDate ? ` · livraison souhaitée le ${lfJm(o.dueDate)}` : ''}. Ce qui arrive entre en stock à la réception.`;
       } else if (aFacturer.length) {
         prim = `<button class="btn btn-primary btn-grand" id="cf-facturer">${lfIc('carte', 17)}Saisir la facture du fournisseur</button>`;
-        phrase = 'Tout est reçu : la facture se pré-remplit depuis les réceptions.';
+        // (1.357.2, joué à la souris) « Tout est reçu » se disait d'une commande soldée à 12 sacs sur 20 : la phrase dit ce
+        // qui est reçu, et pourquoi le reste n'est plus proposé.
+        const pourquoi = stored.status === 'soldée' ? ', le reste n\'est plus attendu' : /^annul/.test(stored.status || '') ? ', la commande est annulée' : ', le reste est dans une réception en préparation';
+        phrase = suivi.recue ? 'Tout est reçu : la facture se pré-remplit depuis les réceptions.' : `Reçu : ${avanceeCF}${pourquoi}. La facture se pré-remplit depuis les réceptions.`;
       }
       if (prim || !stored || (demande && phrase)) return `<div class="panel ed-geste" id="ed-geste">${net}${stored ? prim : sauver}${phrase ? `<p class="ed-phrase">${phrase}</p>` : ''}${stored ? sauver : ''}${sec.length ? `<div class="ed-deux">${sec.join('')}</div>` : ''}</div>`;
       const etat = close ? (stored.status === 'soldée' ? 'Soldée : le reste n\'est plus attendu.' : 'Annulée.') : factures.length ? 'Reçue et facturée : plus rien n\'attend.' : 'Rien n\'attend.';
@@ -15971,7 +15995,7 @@
       <div class="page-head ed-tete">
         ${retourListe('#/commandesf', 'commandes fournisseurs')}<div class="ed-titre">
           <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/commandesf" class="ed-retour">Commandes fournisseurs</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(stored ? (o.number || '(brouillon)') : titreCF)}</span></div>
-          <div class="ed-h1"><h1>${h(titreCF)}</h1>${stored ? badgeCF(statut) : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
+          <div class="ed-h1"><h1>${h(titreCF)}</h1>${stored ? badgeCF(etatAffiche) : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
           <div class="small muted" id="cf-sous">${sousCF.filter((x, k) => x && !(stored && k === 1)).join(' · ')}</div>
         </div>
         <div class="actions">
@@ -15991,14 +16015,14 @@
           ${dateFieldHtml(lbl(`Date de la ${quoi}`, 'cf.date'), 'date', o.date)}
           ${dateFieldHtml(lbl('Livraison souhaitée le', 'cf.livraison'), 'dueDate', o.dueDate || '', { quick: true })}
           ${field(lbl('Référence (optionnel)', 'cf.reference'), 'reference', o.reference || '', 'text')}
-          <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s)).map(s => `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(MOTS_CF[s].charAt(0).toUpperCase() + MOTS_CF[s].slice(1))}</option>`).join('')}</select></label>
+          <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s)).map(s => { const mot = MOTS_CF[motStatutCF(s)]; return `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(mot.charAt(0).toUpperCase() + mot.slice(1))}</option>`; }).join('')}</select></label>
           <label class="field">${lbl('Devise', '')}<select name="currency" ${ro}>${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select></label>
           <label class="field obligatoire" id="cf-rate" ${cur === company().currency ? 'hidden' : ''}>${lbl(`1 <span id="cf-rate-dev">${h(cur)}</span> = ? ${h(company().currency)}`, '')}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(o.exchangeRate || ''))}" class="num" ${ro}></label>
         </form>
       </div>
       <div class="panel"><h2>Lignes ${info('cf.lignes')}</h2>
         ${figee ? `<p class="small muted mb" id="cf-figee">${recue ? 'Cette commande a déjà reçu de la marchandise : ses lignes ne changent plus (ses réceptions s\'y rattachent ligne par ligne).'
-          : 'Cette commande a une réception en préparation : ses lignes ne changent plus tant qu\'elle existe (elle s\'y rattache ligne par ligne). Pour les modifier, supprime d\'abord cette réception.'}</p>` : `<div class="catalog-pick"><div id="cf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher un article…' })}</div>
+          : 'Cette commande a une réception en préparation : ses lignes ne changent plus tant qu\'elle existe (elle s\'y rattache ligne par ligne). Pour les modifier, supprime d\'abord cette réception.'}</p>` : `<div class="catalog-pick"><div id="cf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher un article…', add: '+ Nouvel article' })}</div>
           <button class="btn btn-sm" id="cf-add">+ Ligne</button></div>`}
         <div class="lignes-cadre"><table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:70px">Qté</th><th style="width:96px">Unité</th><th class="r" style="width:104px">${quoi === 'demande' ? 'Prix répondu HT' : 'P.U. HT'}</th><th style="width:68px">TVA</th><th class="r" style="width:108px">Total HT</th><th style="width:36px"></th></tr></thead>
           <tbody id="cf-lines"></tbody></table></div>
@@ -16068,6 +16092,24 @@
     // (plateforme, lot achats) Les unités déjà employées (catalogue, pièces de vente, commandes fournisseurs) restent
     // proposées ; « Autre… » n'en est pas une.
     const unitesCommande = () => C.usedUnits(data, commandesF().concat([o]).flatMap(c => (c.lines || []).map(l => l.unit))).filter(u => u !== UNIT_OTHER);
+    // (1.357.2) Une ligne d'article : son coût d'achat, sa TVA d'achat, et le lien qui fera entrer la marchandise en stock à la
+    // réception. Le catalogue, la désignation et l'article créé sur place passent par elle.
+    const ligneArticle = (it, qty) => ({ label: it.label, description: '', qty: Number(qty) || 1, unit: it.unit || '', unitPrice: Number(it.unitCost) || 0, vatRate: C.tauxAchatArticle(it, company()), itemId: it.id });
+    const poserArticleCF = (i, it) => {
+      if (!o.lines[i]) return;
+      o.lines[i] = ligneArticle(it, o.lines[i].qty);
+      touch(); dessinerLignes();
+      const q = $(`#cf-lines input[data-k=qty][data-i="${i}"]`); if (q) { q.focus(); q.select(); }
+    };
+    // (1.357.2) Créer l'article d'une commande sur place : il naît suivi en stock (une commande fournisseur fait entrer de la
+    // marchandise), et la ligne le prend. « Farine » tapée répondait « Aucun résultat », sans rien proposer.
+    const creerArticleCF = (q, i) => catalogForm(articleNeuf({ label: q, tracked: true }), it => {
+      if (!it) return;
+      if (i != null && o.lines[i]) { poserArticleCF(i, it); return; }
+      const vierge = o.lines.length === 1 && !o.lines[0].label && !Number(o.lines[0].unitPrice);
+      if (vierge) o.lines[0] = ligneArticle(it); else o.lines.push(ligneArticle(it));
+      touch(); dessinerLignes();
+    }, { creation: true, titre: 'Nouvel article' });
     const dessinerLignes = () => {
       $('#cf-lines').innerHTML = o.lines.map((l, i) => `<tr>
         <td><input type="text" data-k="label" data-i="${i}" value="${h(l.label || '')}" placeholder="Désignation" ${ro}></td>
@@ -16085,6 +16127,14 @@
         };
       });
       $$('#cf-lines [data-del]').forEach(b => { b.onclick = () => { o.lines.splice(Number(b.dataset.del), 1); touch(); dessinerLignes(); }; });
+      // (1.357.2) La désignation cherche dans le catalogue pendant la frappe, comme sur une facture d'achat (9.2.1) : choisir
+      // l'article le rattache (la réception le fera entrer en stock), et un nom inconnu propose de le créer.
+      if (!figee) $$('#cf-lines input[data-k=label]').forEach(el => suggererCatalogue(el, {
+        items: () => data.catalog,
+        right: c => `${C.money(Number(c.unitCost) || 0, company().currency)} HT`,
+        onPick: c => poserArticleCF(Number(el.dataset.i), c),
+        onCreate: q => creerArticleCF(q, Number(el.dataset.i)),
+      }));
       // (plateforme, lot achats du 05/10/2026) « Autre… » ouvre la saisie libre, comme sur une facture : rien ne s'ouvrait, et
       // la ligne gardait « __autre__ », imprimé tel quel sur le bon de commande (« 40 __autre__ »). L'unité tapée rejoint
       // la liste des autres lignes.
@@ -16108,10 +16158,11 @@
       onPick: id => {
         const it = data.catalog.find(c => c.id === id); if (!it) return;
         const vierge = o.lines.length === 1 && !o.lines[0].label && !Number(o.lines[0].unitPrice);
-        const ligne = { label: it.label, description: '', qty: 1, unit: it.unit || '', unitPrice: Number(it.unitCost) || 0, vatRate: C.tauxAchatArticle(it, company()), itemId: it.id };
+        const ligne = ligneArticle(it);
         if (vierge) o.lines[0] = ligne; else o.lines.push(ligne);
         touch(); dessinerLignes();
-      }
+      },
+      onAdd: saisi => creerArticleCF(saisi, null),
     });
     if ($('#cf-add')) $('#cf-add').onclick = () => { o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); touch(); dessinerLignes(); };
     const tete = $('#cf-head');
@@ -16382,7 +16433,13 @@
         </aside>
       </div>`;
     let dirty = false;
-    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; enregistrerDevientPrincipal(); };
+    // (1.357.2, bout en bout joué à la souris) « Valider la réception » enregistre aussi (H-E19 : un bouton qui enregistre
+    // reste vert) : une quantité corrigée faisait passer « Enregistrer le brouillon » en vert à sa place, et l'étape
+    // suivante devenait un brouillon de plus. Le brouillon se montre, en secondaire.
+    const touch = () => {
+      if (dirty) return; dirty = true; $('#dirty-dot').hidden = false;
+      if ($('#rec-valider')) { const sv = $('#save'); if (sv) sv.hidden = false; } else enregistrerDevientPrincipal();
+    };
     // Ce qui arrive en plus de la commande se dit AVANT de valider (un avertissement se lit avant le geste).
     const avis = () => {
       const trop = autres ? r.lines.map(l => {
@@ -17560,6 +17617,11 @@
       const L = lie && p.achatLie ? purchaseById(p.achatLie) : null;
       const retard = retardRange() ? Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000) : 0;
       const pr = p.projectId ? projectById(p.projectId) : null;
+      // (1.357.2, bout en bout joué à la souris) Une facture tirée d'une commande nomme sa commande : le résumé ne disait
+      // pas d'où venait la pièce, et revenir à la commande demandait de passer par une réception.
+      const cmdsLiees = [...new Map((Array.isArray(p.receptions) ? p.receptions : [])
+        .map(x => receptionsF().find(r => r.id === x.id)).filter(r => r && r.orderId)
+        .map(r => [r.orderId, (commandeFById(r.orderId) || {}).number || r.orderNumber || ''])).entries()];
       const details = [t.withholding || Number(t.fees) ? `TTC ${nu(t.totalTTC)}` : '', t.withholding ? `retenue ${nu(t.withholding)}` : '',
         Number(t.fees) ? `timbre et frais ${nu(t.fees)}` : '',
         cur !== company().currency && Number(p.exchangeRate) ? `1 ${h(symb(cur))} = ${h(frChiffre(p.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean);
@@ -17568,6 +17630,7 @@
         ${L ? ligne('Facture concernée', `<a href="#/achat/${h(L.id)}">${h(String(L.number || '').trim() || C.referenceAchat(L, data))}</a>`) : lie ? ligne('Facture concernée', `<span class="muted">${h(phLie.replace(/^— | —$/g, ''))}</span>`) : ''}
         ${ligne('Date', `${C.fmtDate(p.date)}${p.dueDate && !lie ? ` · échéance le ${C.fmtDate(p.dueDate)}${retard ? ` <span class="lp-retard">en retard de ${pl(retard, 'jour')}</span>` : ''}` : ''}`)}
         ${isDep ? ligne('Payée', h(payeeLue())) : ''}
+        ${cmdsLiees.length ? ligne(cmdsLiees.length > 1 ? 'Commandes' : 'Commande', `${cmdsLiees.map(([id, n]) => `<a href="#/commandef/${h(id)}">${h(n || 'sans numéro')}</a>`).join(', ')} · ${pl(p.receptions.length, 'réception')}`) : ''}
         ${String(p.subject || '').trim() ? ligne('Objet', h(p.subject)) : ''}
         ${p.category ? ligne('Catégorie', h(p.category)) : ''}
         ${ligne(lie || isDep ? 'Montant' : 'Net à payer', `<b class="lp-montant">${argentLu(t.netToPay, cur)}</b>${details.map(x => ' · ' + x).join('')}`)}

@@ -3011,3 +3011,45 @@ deux Croissant, chacun avec ses prix et ses ventes.
 - Test : `hotel-1356` (sans correspondance, la ligne libre surlignée ; la flèche sur « Créer … » ; Entrée ouvre la fiche
   « zzz » ; « Panier de viennoiseries » tapé ne propose pas de le créer). Trois preuves. `reprendre` et `exemple`, qui
   tapent une désignation libre et Entrée, passent tels quels.
+
+### 1.357.2 : la commande fournisseur dit un seul état, et la facture qui en vient nomme sa commande
+
+Bout en bout 11, joué à la souris par la boulangerie : 10 sacs de farine commandés à la Minoterie du Cap Bon (l'article créé
+depuis la commande), reçus en deux fois (6 puis 4), la facture MCB-8812 tirée des deux réceptions, réglée par chèque ; puis
+20 sacs commandés par téléphone, 12 reçus, le reste soldé, et la facture MCB-8840.
+- Une commande reçue en entier et facturée disait trois choses : « reçue » dans son titre (et dans la liste), « Envoyée »
+  dans sa case Statut, et une frise cochée jusqu'à « Facturée ». Le titre et les listes disent « reçue et facturée » ; la
+  case Statut garde le statut choisi qu'elle enregistre, mais son option se lit comme ce que disent les réceptions (« Reçue
+  en partie », « Reçue et facturée »). Seuls « Soldée » et « Annulée » restent des choix à la main ; sur une commande
+  soldée, l'option qui la rouvre se lit comme l'état qu'elle lui rendrait, pas « Envoyée ». Le statut du moteur ne change
+  pas : les listes « en cours » et les relances le lisent toujours.
+- Une commande soldée à 12 sacs sur 20 disait « Tout est reçu : la facture se pré-remplit… ». Elle dit ce qui est reçu et
+  pourquoi le reste n'est plus proposé (« le reste n'est plus attendu », « la commande est annulée », « le reste est dans une
+  réception en préparation »).
+- Une quantité corrigée dans une réception faisait passer « Enregistrer le brouillon » en vert, devant « Valider la
+  réception » : l'étape suivante devenait un brouillon de plus. « Valider » enregistre aussi (H-E19) et reste vert ; le
+  brouillon paraît en secondaire.
+- Le résumé d'une facture d'achat tirée d'une commande ne disait pas d'où elle venait : il porte « Commande BCF-2026-002 ·
+  1 réception », la commande en lien.
+- La désignation d'une ligne de commande ne cherchait rien dans le catalogue (seul le menu « Ajouter depuis le catalogue »
+  le faisait) : elle propose les articles comme la facture d'achat, au coût d'achat ; un article absent se crée depuis la
+  ligne, suivi en stock, et se pose sur elle. Le menu du catalogue propose aussi « + Nouvel article ».
+- Dans toutes les listes de désignation (`suggererCatalogue` : pièces, achats, commandes), « + Créer … au catalogue » ne
+  se choisissait qu'à la souris, et Entrée dessus ne faisait rien : la flèche y descend, il se surligne, Entrée ouvre la
+  fiche.
+- Le rouge GitHub de la 1.357.0 : `plateforme/pont.js` avait grandi de 6 lignes (le contrôle des frontières le tient à
+  3 127 tant que le pont n'est pas découpé). Les lignes de `reglesLues` sont resserrées, sans relever la limite.
+- Au Cabinet (deux chemins, un chiffre) : MCB-8812 s'écrit 401 au crédit 500,800 = 607 420,000 + timbre 1,000 (608) +
+  TVA 79,800 ; MCB-8840, 599,760 = 504,000 + 95,760 — les montants de l'application. Mais la vue « Au kilomètre » ne savait
+  pas montrer un avoir fournisseur : l'avoir de la peinture (476 DT, bout en bout 10) s'y lisait « 0,000 » au crédit, sans
+  aucune ligne dessous (seuls les débits y passaient). Il se lit désormais le fournisseur au débit, sa charge et sa TVA au
+  crédit, « · avoir » à côté du nom, et sa TVA garde son taux. Même famille : les habitudes d'un fournisseur (ce que la
+  ligne au kilomètre propose) se lisaient sur sa dernière pièce ; un avoir venu en dernier n'a pas de charge au débit, et la
+  proposition restait vide. Elles se lisent sur ses factures.
+- À VÉRIFIER avec le cabinet pilote (bêta, moteur comptable) : un achat en stock s'écrit toujours au 607 (marchandises) ;
+  la farine d'une boulangerie est une matière première (601). Le choix ne se fait nulle part aujourd'hui.
+- Tests : `commandes-fournisseurs` (« Sable 0/4 » créé au clavier depuis la désignation ; « Valider » reste vert ; le résumé
+  nomme la commande ; la liste, le titre et la case disent « reçue et facturée »), `achats-lot` (la case « Reçue en
+  partie », la commande soldée et sa phrase, rouverte), `cabinet-saisie-piece` (un avoir de la Minoterie au kilomètre, et la
+  proposition qui reste celle de sa facture). Douze preuves. La preuve de la 1.287.0 « une modification de la réception qui
+  laisse « Valider » principal » est retournée : c'est désormais la règle (H-E19).

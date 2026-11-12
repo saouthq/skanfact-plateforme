@@ -103,6 +103,18 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await choisir(p, '#cf-cat', 'Fer');
     await p.locator('#cf-add').click();
     const ligne = (i: number, k: string) => p.locator(`#cf-lines [data-k=${k}][data-i="${i}"]`);
+    // (1.357.2) La désignation d'une ligne cherche dans le catalogue, comme la facture d'achat ; un article qui n'y est pas
+    // se crée au clavier : la flèche descend sur « + Créer … », Entrée ouvre sa fiche, suivie en stock (on commande pour
+    // stocker). Il ne se choisissait qu'à la souris, et la désignation d'une commande ne cherchait rien.
+    await ligne(2, 'label').pressSequentially('Sable 0/4');
+    await ligne(2, 'label').press('ArrowDown');
+    await expect.poll(() => p.locator('#cf-lines .sugg-pop:not([hidden]) .sugg-add.sel').count(), { timeout: 5_000 }).toBe(1);
+    await ligne(2, 'label').press('Enter');
+    const ficheSable = p.locator('.modal').filter({ has: p.locator('input[name=tracked]') }).last();
+    await expect.poll(() => ficheSable.locator('input[name=label]').inputValue(), { timeout: 5_000 }).toBe('Sable 0/4');
+    expect(await ficheSable.locator('input[name=tracked]').isChecked()).toBe(true);
+    await ficheSable.getByRole('button', { name: 'Annuler', exact: true }).click();
+    await expect.poll(() => p.locator('.modal').count(), { timeout: 5_000 }).toBe(0);
     await ligne(0, 'qty').fill('100');
     await ligne(1, 'qty').fill('2,5');
     await ligne(2, 'label').fill('Transport');
@@ -147,8 +159,10 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     expect(await etapesFaites()).toBe(2);
     await recu(0).fill('60');
     await recu(1).fill('1,25');
-    // Une quantité saisie : « Enregistrer le brouillon » paraît et devient le geste principal.
-    expect(await principaux()).toEqual(['Enregistrer le brouillon']);
+    // Une quantité saisie : « Enregistrer le brouillon » paraît, en secondaire — « Valider la réception » enregistre aussi
+    // et reste l'étape suivante (1.357.2 ; H-E19 : un bouton qui enregistre reste vert).
+    expect(await principaux()).toEqual(['Valider la réception']);
+    expect([await p.locator('#save').isVisible(), (await p.locator('#save').innerText()).trim()]).toEqual([true, 'Enregistrer le brouillon']);
     expect(net(await p.locator('#rec-resume').innerText())).toMatch(/^Lignes reçues 3 sur 3/);
     // Le résumé suit la saisie : une ligne remise à 0 n'est pas reçue.
     await recu(2).fill('0');
@@ -225,6 +239,9 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.locator('#save').click();
     const auServeur = async () => (await admin.query(`select numero_fournisseur, total_ht from achats.piece where entreprise = $1 and nature = 'facture'`, [ent])).rows;
     await expect.poll(auServeur, { timeout: 15_000 }).toEqual([{ numero_fournisseur: 'F-8841', total_ht: 7316250n }]);
+    // (1.357.2) Le résumé de la facture nomme sa commande, et y mène.
+    await expect.poll(async () => net(await p.locator('#lecture-piece').innerText()), { timeout: 10_000 }).toContain(`Commande ${numero} · 2 réceptions`);
+    expect(await p.locator('#lecture-piece a', { hasText: numero }).getAttribute('href')).toMatch(/^#\/commandef\//);
 
     // 6. Le stock n'est entré qu'une fois (100 sacs, par les réceptions) ; la commande est reçue et facturée.
     const fiche = await stockDe(p, 'ciment');
@@ -243,7 +260,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     expect(await p.locator('#b-receptions').count()).toBe(0);
     expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK (I )?200 SACS/i);
     await p.evaluate(() => { location.hash = '#/commandesf'; });
-    await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 10_000 }).toMatch(/BCF-\d{4}-001 Ciments de Bizerte .* reçue 7 311,250 DT/);
+    await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 10_000 }).toMatch(/BCF-\d{4}-001 Ciments de Bizerte .* reçue et facturée 7 311,250 DT/);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-5-liste.png') });
     expect(erreurs).toEqual([]);
     await cn.close();
@@ -257,6 +274,11 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await expect.poll(() => titre(t), { timeout: 20_000 }).toMatch(/^Commande BCF-/);
     await plusTard(t);
     expect(await t.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // (1.357.2) Le titre, la case Statut et la frise disent la même chose : reçue et facturée (le titre disait « reçue »,
+    // la case « Envoyée », sous une frise cochée jusqu'à « Facturée »). Seuls « Soldée » et « Annulée » restent à choisir.
+    expect(net(await t.locator('#view .ed-h1').innerText())).toContain('reçue et facturée');
+    expect(await t.locator('select[name=status] option').allInnerTexts()).toEqual(['Reçue et facturée', 'Soldée', 'Annulée']);
+    expect(await t.locator('select[name=status]').inputValue()).toBe('envoyée');
     // La commande nomme la facture de ses réceptions, et son écart.
     expect(net(await t.locator('#cf-factures').innerText())).toBe('Facture : F-8841 (un écart avec les réceptions)');
     await t.locator('#receptions-panel').scrollIntoViewIfNeeded();
