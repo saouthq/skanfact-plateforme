@@ -24408,7 +24408,7 @@ prouver 'stock 1.284 e : « Commander… » ouvre encore une facture d'"'"'achat
   'ouvrirBonArticle(b.dataset.commander);' 'navigate(`#/achat/new/-/facture/-/article/${b.dataset.commander}`);' \
   'commander au dernier fournisseur et jusqu'"'"'au stock à atteindre, un bon par fournisseur ; la fiche dit d'"'"'où il vient et combien il se vend'
 prouver 'stock 1.284 f : le résumé de l'"'"'inventaire lu après ses mouvements' modules/socle/ecrans/entreprise/app-2.js \
-  'valeur: value };' 'valeur: etatInventaire().value };' \
+  'ecarts: gaps.length, valeur: value,' 'ecarts: gaps.length, valeur: etatInventaire().value,' \
   'commander au dernier fournisseur et jusqu'"'"'au stock à atteindre, un bon par fournisseur ; la fiche dit d'"'"'où il vient et combien il se vend'
 prouver 'classeur 1.284 c : le mois choisi avant les pièces reçues ne se rechoisit plus' modules/socle/ecrans/cabinet/app-1.js \
   'if (!clState.mois || !trouve(clState.mois) || moisRevu) {' 'if (!clState.mois || !trouve(clState.mois)) {' \
@@ -26098,7 +26098,7 @@ prouver 'stock 1.319 q : la date proposée n'\''est pas le 31 décembre passé' 
   '      return C.etatDuStock(data, finAn).lignes.length ? finAn : C.today();' '      return C.today();' \
   "$SW1"
 prouver 'stock 1.319 r : reprendre l'\''état du client n'\''est pas le bouton principal' modules/socle/ecrans/cabinet/app-2.js \
-  '        ${commeLeClient ? '\'''\'' : `<button class="btn btn-sm${inv ? '\'''\'' : '\'' btn-primary'\''}" id="iv-reprendre-client">' '        ${commeLeClient ? '\'''\'' : `<button class="btn btn-sm" id="iv-reprendre-client">' \
+  '<div class="inline">${commeLeClient ? '\'''\'' : `<button class="btn btn-sm${inv || etatAvant ? '\'''\'' : '\'' btn-primary'\''}" id="iv-reprendre-client">' '<div class="inline">${commeLeClient ? '\'''\'' : `<button class="btn btn-sm" id="iv-reprendre-client">' \
   "$SW1"
 prouver 'stock 1.319 s : deux boutons principaux dans l'\''inventaire vide' modules/socle/ecrans/cabinet/app-2.js \
   '        <button class="btn${etat || relie ? '\'''\'' : '\'' btn-primary'\''}" id="iv-saisir2">Saisir l'\''inventaire…</button>' '        <button class="btn btn-primary" id="iv-saisir2">Saisir l'\''inventaire…</button>' \
@@ -28443,6 +28443,28 @@ prouver 'relevé 1.357.4 g : les mouvements en attente ne sont pas dans l'\''ord
 prouver 'relevé 1.357.4 h : l'\''écart ne demande plus d'\''aide' 'modules/socle/ecrans/entreprise/app-2.js' \
   '${detail}\nPeux-tu m'\''aider à le trouver ?`' '${detail}`' \
   "$RLV"
+INV="(1.357.5) la farine comptée en fin de mois : la question dit combien, le message nomme l'écart, et l'état de mi-mois n'est pas l'inventaire de l'année"
+prouver 'inventaire 1.357.5 a : la question de l'\''inventaire a le bouton rouge d'\''une suppression' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '          false, { titre: `Enregistrer l'\''inventaire du ${C.fmtDate(s.countDate)} ?` })) return;' '          true, { titre: `Enregistrer l'\''inventaire du ${C.fmtDate(s.countDate)} ?` })) return;' \
+  "$INV"
+prouver 'inventaire 1.357.5 b : la question ne dit ni quel article ni combien' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '`${lignesInv.join('\''\n'\'')}${resteInv}\n\nLe stock' '`${resteInv}Le stock' \
+  "$INV"
+prouver 'inventaire 1.357.5 c : la question ne dit pas que ce qui manque compte dans le coût du mois' 'modules/socle/ecrans/entreprise/app-2.js' \
+  'gaps.some(r => r.gap < 0) ? '\''ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'\''a coûté le mois'\'' : '\'''\''' ''\'''\''' \
+  "$INV"
+prouver 'inventaire 1.357.5 d : le message au comptable ne nomme pas les écarts' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '${lignes}${lignes ? '\''\n'\'' : '\'' '\''}Les mouvements' ' Les mouvements' \
+  "$INV"
+prouver 'inventaire 1.357.5 e : l'\''état de mi-mois passe pour l'\''inventaire de l'\''année' 'modules/socle/ecrans/cabinet/app-2.js' \
+  'const etatAvant = !!(etat && etat.date < finEx);' 'const etatAvant = false;' \
+  "$INV"
+prouver 'inventaire 1.357.5 f : l'\''état de mi-mois se reprend en vert comme inventaire de l'\''année' 'modules/socle/ecrans/cabinet/app-2.js' \
+  '${inv || etatAvant ? '\'''\'' : '\'' btn-primary'\''}" id="iv-reprendre-client"' '${inv ? '\'''\'' : '\'' btn-primary'\''}" id="iv-reprendre-client"' \
+  "$INV"
+prouver 'inventaire 1.357.5 g : la demande de l'\''état au 31/12 ne se voit pas une fois faite' 'modules/socle/ecrans/cabinet/app-2.js' \
+  'const demande = (!etat || etatAvant) && relie ?' 'const demande = !etat && relie ?' \
+  "$INV"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -1588,7 +1588,7 @@
           <div class="inline">${peutEcrireAuCabinet() ? '<button class="btn btn-primary btn-sm" id="inv-prevenir">Prévenir mon comptable</button>' : ''}<button class="btn btn-sm btn-ghost" id="inv-fait-ok">Fermer</button></div></div>` : ''}
         ${peutEcrireAuCabinet() ? carteEtatPourLeComptable() : ''}
         <div class="panel"><h2>Inventaire physique ${info('stk.inventory')}</h2>
-          <p class="small muted mb">Une fois par an au minimum, on compte ce qu'il y a vraiment en rayon et on le compare à ce que dit l'application. Un écart n'est pas une faute : c'est de la casse non déclarée, une sortie oubliée ou une erreur de saisie. L'important est de le voir.</p>
+          <p class="small muted mb">Une fois par an au minimum, on compte ce qu'il y a vraiment en rayon et on le compare à ce que dit l'application. Un écart n'est pas une faute : c'est de la casse non déclarée, une sortie oubliée, une erreur de saisie — ou la matière utilisée sans être notée, quand on compte chaque mois ce qui reste. L'important est de le voir.</p>
           <div class="filters">
             <label class="small">${lbl('Date du comptage', 'stk.countDate')} ${dateFieldHtml('', 'countDate', s.countDate, {})}</label>
             <span class="small muted" id="inv-compte"></span>
@@ -1621,7 +1621,11 @@
         const effet = x.valeur ? `soit ${C.money(Math.abs(x.valeur), company().currency)} ${x.valeur < 0 ? 'en moins' : 'en plus'} au coût moyen` : 'sans changement de la valeur du stock';
         // (1.319.0) L'état du stock compté part avec le message : le comptable le reprend comme inventaire.
         const e = envoyerEtatDuStock(x.date);
-        ecrireAuComptable(`Bonjour, j'ai fait l'inventaire du stock au ${C.fmtDate(x.date)} : ${pl(x.comptes, 'article compté', 'articles comptés')}, ${pl(x.ecarts, 'écart')}, ${effet}. Les mouvements d'inventaire sont enregistrés dans SkanFact${e ? `, et ${texteEtatDuStock(e)}` : '.'}`);
+        // (1.357.5, bout en bout joué à la souris) Le message NOMME les écarts, un par ligne (dix au plus) : « 1 écart » ne
+        // disait ni quel article ni combien, et le comptable n'a pas l'écran de l'inventaire pour le lire.
+        const lignes = (x.lignes || []).slice(0, 10).map(r => `\n- ${r.label} : ${pct(r.book)} → ${pct(r.counted)}${r.unit ? ` ${r.unit}` : ''} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)}`).join('')
+          + ((x.lignes || []).length > 10 ? `\n… et ${pl(x.lignes.length - 10, 'autre écart', 'autres écarts')}.` : '');
+        ecrireAuComptable(`Bonjour, j'ai fait l'inventaire du stock au ${C.fmtDate(x.date)} : ${pl(x.comptes, 'article compté', 'articles comptés')}, ${pl(x.ecarts, 'écart')}, ${effet}.${lignes}${lignes ? '\n' : ' '}Les mouvements d'inventaire sont enregistrés dans SkanFact${e ? `, et ${texteEtatDuStock(e)}` : '.'}`);
       };
       bindPager($('#st-body'), s.inv, () => drawInventory(), '#st-body');
       $('#inv-apply').onclick = async () => {
@@ -1629,12 +1633,22 @@
         const { gaps, counted, value } = etatInventaire();
         if (!gaps.length) return;
         if (licenceBlock('Créer les mouvements de cet inventaire', 'stock')) return;
-        if (!await confirmDialog(`Enregistrer ${pl(gaps.length, 'mouvement')} d'inventaire au ${C.fmtDate(s.countDate)} ? Le stock théorique sera aligné sur ce que tu as compté. Cette opération est tracée dans les mouvements et se corrige comme n'importe quel ajustement.`, 'Enregistrer')) return;
+        // (1.357.5, bout en bout joué à la souris : la farine comptée en fin de mois) La question dit CE QUI change et COMBIEN,
+        // article par article (le dernier écran avant le geste récapitule), et ce que ça fait : ce qui manque a été utilisé
+        // ou perdu, et sa valeur compte dans le coût du mois. Son bouton n'est pas rouge : le geste se corrige, il ne détruit rien.
+        const lignesInv = gaps.slice(0, 6).map(r => `${r.label} : ${pct(r.book)} → ${pct(r.counted)}${r.unit ? ` ${r.unit}` : ''} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)} au coût moyen`);
+        const resteInv = gaps.length > 6 ? `\n… et ${pl(gaps.length - 6, 'autre article', 'autres articles')}.` : '';
+        const effetInv = [gaps.some(r => r.gap < 0) ? 'ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'a coûté le mois' : '',
+          gaps.some(r => r.gap > 0) ? 'ce qui est en plus revient dans le stock' : ''].filter(Boolean).join(' ; ');
+        if (!await confirmDialog(`${lignesInv.join('\n')}${resteInv}\n\nLe stock de l'application devient ce que tu as compté ; ${effetInv}. Un mouvement d'inventaire se corrige comme n'importe quel ajustement.`, 'Enregistrer',
+          false, { titre: `Enregistrer l'inventaire du ${C.fmtDate(s.countDate)} ?` })) return;
         if (closedBlock(s.countDate, 'Cet inventaire')) return;
         gaps.forEach(r => data.stockAdjustments.push({ id: C.uid(), createdAt: Date.now(), date: s.countDate, itemId: r.itemId, qty: r.gap,
           unitCost: '', source: 'inventaire', reference: '', note: `Inventaire du ${C.fmtDate(s.countDate)}` }));
         // (1.284.0, revue du Stock S6) Le résumé reste à l'écran : c'est lui que « Prévenir mon comptable » envoie.
-        s.dernierInventaire = { date: s.countDate, comptes: counted.length, ecarts: gaps.length, valeur: value };
+        s.dernierInventaire = { date: s.countDate, comptes: counted.length, ecarts: gaps.length, valeur: value,
+          // (1.357.5) Les écarts eux-mêmes : le message au comptable les nomme (il n'a pas cet écran).
+          lignes: gaps.map(r => ({ label: r.label, unit: r.unit, book: r.book, counted: r.counted, gap: r.gap, value: r.value })) };
         s.counts = {}; save(true); toast(`${pl(gaps.length, 'écart')} enregistré${sPl(gaps.length)}`); draw();
       };
     }

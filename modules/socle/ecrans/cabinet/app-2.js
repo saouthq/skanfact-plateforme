@@ -20,6 +20,12 @@
     // il se reprend comme inventaire d'un geste, au coût moyen et à la valeur de sa page Stock.
     const etat = (d.duClient || [])[0] || null;
     const commeLeClient = !!(inv && etat && inv.date === etat.date && Math.abs((Number(inv.total) || 0) - (Number(etat.total) || 0)) < 0.0005);
+    // (1.357.5, bout en bout joué à la souris : la boulangerie compte sa farine chaque mois) Un état daté AVANT la fin de
+    // l'exercice n'est pas le stock du bilan : le reprendre « comme inventaire de 2026 » en vert écrivait la variation 37/603
+    // sur le stock de mi-novembre. L'écran le dit, le vert part, et la demande de l'état de fin d'exercice reste à portée.
+    const finEx = s.livre.exercice.au || `${s.annee}-12-31`;
+    const etatAvant = !!(etat && etat.date < finEx);
+    const exerciceFini = finEx < K.today();
     // (1.320.0) Ce que le client avait reçu sans facture à cette date : la marchandise est dans le stock compté, sa charge dans
     // aucun livre. Elle se passe en factures non parvenues (607 / 408), au brouillard ; déjà passée, la ligne le dit.
     const sf = (etat && etat.sansFacture) || { total: 0, receptions: [] };
@@ -36,7 +42,7 @@
     // (le geste existe chez lui, Stock → Inventaire → « L'état du stock pour ton comptable »), au lieu de recompter à sa place.
     const relie = !dossier.manual && !!api.messagerie;
     // Déjà demandé (une demande ouverte de cet état, dans la conversation) : on le dit, au lieu de proposer de redemander.
-    const demande = !etat && relie ? ((piecesLues.demandes || []).find(x => x.entreprise === dossier.id && !x.recueLe && /état (?:de (?:ton|son|mon) |du )stock/i.test(String(x.texte || ''))) || null) : null;
+    const demande = (!etat || etatAvant) && relie ? ((piecesLues.demandes || []).find(x => x.entreprise === dossier.id && !x.recueLe && /état (?:de (?:ton|son|mon) |du )stock/i.test(String(x.texte || ''))) || null) : null;
     const panneauDemander = etat || !relie ? '' : `<div class="panel mt" id="iv-demander"><h2>L'état du stock de ${esc(dossier.name || 'ce client')} ${info('iv.demander')}</h2>
         <p class="small">${esc(dossier.name || 'Ce client')} tient son stock dans SkanFact : il t'envoie son état au ${esc(fmtJour(s.livre.exercice.au || `${s.annee}-12-31`))} en un geste, au coût moyen de sa page Stock. Il arrive ici, et se reprend comme inventaire sans rien recopier.</p>
         ${demande ? `<p class="small ligne-ok" id="iv-demande"><span aria-hidden="true">✓</span> Demandé le ${esc(fmtJour(KC.jourDeLInstant(demande.demandeeLe)))}${demande.pour ? `, pour le ${esc(fmtJour(demande.pour))}` : ''} : il arrive ici dès qu'il est envoyé.</p>`
@@ -47,7 +53,9 @@
           etat.envoyeLe ? ` <span class="muted">· envoyé le ${esc(fmtJour(KC.jourDeLInstant(etat.envoyeLe)))}</span>` : ''}.</p>
         ${commeLeClient ? `<p class="small ligne-ok" id="iv-client-ok"><span aria-hidden="true">✓</span> L'inventaire de ${esc(s.annee)} est celui que le client a envoyé.</p>`
     : inv ? `<p class="small warn-text" id="iv-client-ecart">L'inventaire saisi (${esc(money(inv.total))} au ${esc(fmtJour(inv.date))}) n'est pas l'état envoyé par le client.</p>` : ''}
-        ${commeLeClient ? '' : `<button class="btn btn-sm${inv ? '' : ' btn-primary'}" id="iv-reprendre-client">Le reprendre comme inventaire…</button>`}
+        ${etatAvant && !commeLeClient ? `<p class="small" id="iv-client-avant">C'est l'état du ${esc(fmtJour(etat.date))}, pas celui de la fin de l'exercice (${esc(fmtJour(finEx))}) : le stock bougera d'ici là. L'inventaire de ${esc(s.annee)} se prend sur l'état au ${esc(fmtJour(finEx))}${relie ? (demande ? ` — demandé le ${esc(fmtJour(KC.jourDeLInstant(demande.demandeeLe)))}.` : exerciceFini ? ' : demande-le-lui.' : `, qu'il t'enverra une fois l'année finie.`) : '.'}</p>` : ''}
+        <div class="inline">${commeLeClient ? '' : `<button class="btn btn-sm${inv || etatAvant ? '' : ' btn-primary'}" id="iv-reprendre-client">Le reprendre comme inventaire…</button>`}${
+          etatAvant && !commeLeClient && relie && !demande ? `<button class="btn btn-sm${!inv && exerciceFini ? ' btn-primary' : ''}" id="iv-demander-b">Lui demander son état au ${esc(fmtJour(finEx))}…</button>` : ''}</div>
         ${blocSansFacture}
       </div>`;
     // (1.321.0) L'état des impayés que le client a envoyé : ce qu'il sait de ses clients (relances, litiges), que les livres ne

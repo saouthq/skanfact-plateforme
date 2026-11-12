@@ -3110,3 +3110,29 @@ puis trouvé (le solde de départ), l'état envoyé au comptable ; puis le Cabin
   suit, ouvert au clavier, le message sans écart et ses deux mouvements en attente, le même texte au Cabinet, l'écriture
   d'ouverture à 48 000 puis à 48 250), `pont-remise-1299` (le message d'un relevé tout pointé finit sur « Solde dans
   SkanFact : 3 477,482 DT. »). Huit preuves.
+
+### 1.357.5 : l'inventaire de fin de mois d'une boulangerie, la farine comptée
+
+Bout en bout 14, joué à la souris par la boulangerie : la farine (22 sacs à 42 DT, achetés en novembre) n'est pas notée à
+chaque fournée ; on compte ce qui reste — 15, puis 12, puis 10 sacs — et on prévient le comptable ; puis le Cabinet.
+- La question avant d'enregistrer disait « Enregistrer 1 mouvement d'inventaire au 12/11/2026 ? Le stock théorique sera
+  aligné… », sans dire quel article ni combien, avec le bouton rouge d'une suppression. Elle s'intitule « Enregistrer
+  l'inventaire du 12/11/2026 ? », dit article par article ce qui change (« Farine : 15 → 12 (−3), − 126,000 DT au coût
+  moyen ») et ce que ça fait (ce qui manque compte comme utilisé ou perdu : sa valeur entre dans le coût du mois ; ce qui est
+  en plus revient au stock), et son bouton est vert : un mouvement d'inventaire se corrige, il ne détruit rien. Le texte de
+  la page nomme aussi la matière utilisée sans être notée, à côté de la casse et de l'oubli.
+- « Prévenir mon comptable » écrivait « 1 écart, soit 126,000 DT en moins » : lequel ? Le message nomme chaque écart, un par
+  ligne (dix au plus) — « Farine : 12 → 10 (−2), − 84,000 DT » —, comme l'état du relevé (1.357.4) : le comptable n'a pas
+  l'écran de l'inventaire.
+- Au Cabinet (deux chemins, un chiffre) : l'état envoyé arrive avec le même chiffre (1 article, 420,000 DT = 10 × 42). Mais
+  il était proposé EN VERT comme « l'inventaire de 2026 », alors qu'il est daté du 12/11 : le reprendre écrivait la
+  variation 37/603 sur le stock de mi-novembre. Un état daté avant la fin de l'exercice le dit (« pas celui de la fin de
+  l'exercice (31/12/2026) : le stock bougera d'ici là »), le reprendre reste possible sans être vert (une situation
+  intermédiaire), et « Lui demander son état au 31/12/2026… » est à côté — vert une fois l'exercice fini ; demandé, la ligne
+  le dit.
+- Vérifié : ranger la farine au 607 (marchandises) plutôt qu'au 601 (matières premières) ne change aucun total — l'état de
+  résultat et la liasse lisent le compte 60 entier (« Achats consommés »), et les SIG ne calculent pas de marge
+  commerciale. Le classement reste À VÉRIFIER avec le cabinet pilote (noté en 1.357.2).
+- Tests : `inventaire-1357` (neuf : la question chiffrée sur deux articles, un manque et un surplus, et son bouton vert
+  ; le résumé ; le message qui nomme les deux écarts et l'état envoyé, 702,000 = 15 × 42 + 6 × 12 ; au Cabinet, l'état
+  de mi-mois qui le dit, le reprendre sans vert, la demande au 31/12 puis « demandé le »). Sept preuves.
