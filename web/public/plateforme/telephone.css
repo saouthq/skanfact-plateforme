@@ -216,7 +216,7 @@
   /* (1.289.0) Les puces d'une facture d'achat (devise, timbre et frais) et la destination de ses lignes : 32 à 38 px,
      trop petites pour un doigt. L'instrument ne les voyait pas (il n'ouvrait qu'un achat neuf, sans lignes). */
   .puce-champ { min-height: 44px; }
-  #view .puce-champ select, #view .puce-champ input[type=number] { min-width: 44px; height: 42px; flex-shrink: 0; }
+  #view .puce-champ select, #view .puce-champ input[type=number], #view .puce-champ input[data-montant] { min-width: 44px; height: 42px; flex-shrink: 0; }
   #b-lines select[data-k="destination"] { min-height: 44px; }
 
   /* Les lignes d'un achat et celles d'une photo relue : la désignation sur toute la largeur, les chiffres en dessous,

@@ -233,14 +233,14 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
       expect(await taux.inputValue()).toBe('');
       expect(net(await fen.locator('#ocr-warn').innerText())).toContain('en EUR : le taux de change, ci-dessus, avant d\'enregistrer');
       await taux.fill('3.412');
-      await expect.poll(() => fen.locator('#ocr-warn').innerText().then(net)).toContain('1 € = 3.412 DT');
+      await expect.poll(() => fen.locator('#ocr-warn').innerText().then(net)).toContain('1 € = 3,412 DT');
       await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-11-euros-case-par-case.png') });
       await fen.locator('#ok').click();
       await p.locator('#ac-lu-ia').waitFor({ timeout: 15_000 }).catch(async (e) => { await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-euros-echec.png') }); throw e; });
       // Ce que la fenêtre laissait « en ambre sur la pièce » s'y lit : le destinataire, seul resté à revoir.
       expect(net(await p.locator('#ac-lu-ia').innerText())).toMatch(/^Lue par l'IA : 1 case à vérifier La lecture n'est pas sûre du destinataire de la facture\./);
       // La pièce remplie est en euros, au taux saisi : rien ne se convertit à 1 € = 1 DT.
-      await expect.poll(() => p.evaluate(() => [(document.querySelector('[name=currency]') as HTMLSelectElement | null)?.value, (document.querySelector('[name=exchangeRate]') as HTMLInputElement | null)?.value])).toEqual(['EUR', '3.412']);
+      await expect.poll(() => p.evaluate(() => [(document.querySelector('[name=currency]') as HTMLSelectElement | null)?.value, (document.querySelector('[name=exchangeRate]') as HTMLInputElement | null)?.value])).toEqual(['EUR', '3,412']);
       expect(net(await p.locator('#b-totals').innerText())).not.toContain('le taux de change manque');
       await fermer();
       // « Remplir la pièce » sans passer par le détail : la devise passe, le taux reste vide, et la pièce le dit.

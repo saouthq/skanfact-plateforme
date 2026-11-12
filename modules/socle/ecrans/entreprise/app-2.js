@@ -1598,7 +1598,7 @@
             ${invPage.rows.map(r => `<tr data-ligne="${h(r.itemId)}">
               <td><strong>${h(r.label)}</strong>${r.unit ? ` <span class="muted">(${h(r.unit)})</span>` : ''}</td>
               <td class="r nw">${pct(r.book)}</td>
-              <td class="r"><input type="number" step="0.01" class="num inv-in" data-iid="${h(r.itemId)}" value="${r.counted == null ? '' : r.counted}" placeholder="—" style="width:90px" aria-label="Compté : ${h(r.label)}"></td>
+              <td class="r"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num inv-in" data-iid="${h(r.itemId)}" value="${r.counted == null ? '' : h(frChiffre(r.counted))}" placeholder="—" style="width:90px" aria-label="Compté : ${h(r.label)}"></td>
               <td class="r nw" data-ecart></td><td class="r nw" data-valeur></td></tr>`).join('')}
           </tbody></table></div>${pagerBar(invPage.pg, { noun: 'article' })}
           <div class="inline mt">
@@ -1613,7 +1613,7 @@
       const hid = $('#st-body input[name=countDate]');
       if (hid) hid.onchange = () => { s.countDate = hid.value || C.today(); drawInventory(); };
       majInventaire();
-      $$('#st-body .inv-in').forEach(el => el.oninput = () => { s.counts[el.dataset.iid] = el.value; majInventaire(); });
+      $$('#st-body .inv-in').forEach(el => el.oninput = () => { s.counts[el.dataset.iid] = chiffreLisible(el) ? lireMontant(el.value) : ''; majInventaire(); });
       $('#inv-clear').onclick = () => { s.counts = {}; drawInventory(); };
       if ($('#inv-fait-ok')) $('#inv-fait-ok').onclick = () => { s.dernierInventaire = null; drawInventory(); };
       if ($('#inv-prevenir')) $('#inv-prevenir').onclick = () => {
@@ -1961,7 +1961,7 @@
         <form id="tr-form" class="grid-2" onsubmit="return false">
           <label class="field">De<select name="de">${opts(deps[0].id)}</select></label>
           <label class="field">Vers<select name="vers">${opts(deps[1].id)}</select></label>
-          <label class="field">Quantité${item.unit ? ` (${h(item.unit)})` : ''}<input type="number" name="qty" step="any" min="0" class="num"></label>
+          <label class="field">Quantité${item.unit ? ` (${h(item.unit)})` : ''}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="qty" class="num"></label>
           ${dateFieldHtml('Date', 'date', C.today())}
           <label class="field span-2">Note (optionnel)<input type="text" name="note" placeholder="Réassort du magasin"></label>
         </form>
@@ -2048,7 +2048,7 @@
         <div class="field">${lbl('Catégorie de charge', 'buy.category')}
           ${combo({ name: 'category', value: head.category, items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', search: 'Rechercher une catégorie…' })}
         </div></div>
-        ${enDevise ? `<label class="field vc-devise">${lbl('Devise', 'buy.currency')}<span class="vc-taux">${h(symboleDevise(cur))} · 1 ${h(symboleDevise(cur))} = <input type="number" name="exchangeRate" class="num" step="0.0001" min="0" placeholder="taux" aria-label="Taux de change : 1 ${h(cur)} en ${h(base)}"> ${h(base)}</span><span class="small muted lu-ici">lue sur la pièce · le taux du jour de la pièce, À VÉRIFIER avec ton cabinet</span></label>` : ''}
+        ${enDevise ? `<label class="field vc-devise">${lbl('Devise', 'buy.currency')}<span class="vc-taux">${h(symboleDevise(cur))} · 1 ${h(symboleDevise(cur))} = <input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" class="num" placeholder="taux" aria-label="Taux de change : 1 ${h(cur)} en ${h(base)}"> ${h(base)}</span><span class="small muted lu-ici">lue sur la pièce · le taux du jour de la pièce, À VÉRIFIER avec ton cabinet</span></label>` : ''}
         <div class="vc-2">${ici(field(lbl(`Timbre et frais (${h(symboleDevise(cur))})`, 'buy.fees'), 'fees', head.fees, 'number', `step="${millieme ? '0.001' : '0.01'}" min="0" class="num"`), 'fees')}
         ${ici(`<label class="field">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(head.subject)}"></label>`, 'subject')}</div></section>
       </form>
@@ -2080,14 +2080,14 @@
         const drawLines = () => {
           $('#orf-lines', root).innerHTML = lines.map((l, i) => `<tr data-i="${i}">
             <td><input type="text" data-k="label" value="${h(l.label)}"></td>
-            <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td>
-            <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="${millieme ? '0.001' : '0.01'}"></td>
+            <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-k="qty" value="${h(frChiffre(l.qty))}"></td>
+            <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-k="unitPrice" value="${h(frChiffre(l.unitPrice))}"></td>
             <td><select data-k="vatRate">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
             <td class="total">${argentLu(C.round3(l.qty * l.unitPrice), cur)}</td>
             <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}" title="Supprimer">✕</button></td></tr>`).join('');
           $$('[data-k]', $('#orf-lines', root)).forEach(el => el.oninput = el.onchange = () => {
             const i = Number(el.closest('tr').dataset.i);
-            lines[i][el.dataset.k] = el.type === 'number' || el.dataset.k === 'vatRate' ? Number(el.value) : el.value;
+            lines[i][el.dataset.k] = el.type === 'number' || el.dataset.montant !== undefined ? lireChiffre(el) : el.dataset.k === 'vatRate' ? Number(el.value) : el.value;
             drawLines();
           });
           $$('[data-rm]', $('#orf-lines', root)).forEach(b => b.onclick = () => { lines.splice(Number(b.dataset.rm), 1); if (!lines.length) lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }); drawLines(); });
@@ -2095,12 +2095,12 @@
           $('#orf-sum', root).innerHTML = `Total des lignes : <b>${argentLu(computed(), cur)}</b> HT`
             + (prep.readHT != null ? ` · total lu sur la pièce : ${argentLu(prep.readHT, cur)}` : '') + luIci('totalHT');
           const taux = $('[name=exchangeRate]', root);
-          if (taux && taux.closest('.vc-taux')) taux.closest('.vc-taux').classList.toggle('ok', Number(taux.value) > 0);
+          if (taux && taux.closest('.vc-taux')) taux.closest('.vc-taux').classList.toggle('ok', lireChiffre(taux) > 0);
           const ctl = [
             ['Le fournisseur', !!$('input[name=supplierId]', root).value, $('input[name=supplierId]', root).value ? 'choisi' : 'aucun reconnu : choisis-le, ou crée-le depuis la liste'],
             ['Le total', g == null || Math.abs(g) <= 0.005, g == null ? `lignes : ${argentLu(computed(), cur)} HT, aucun total lu pour comparer` : Math.abs(g) <= 0.005 ? `recalculé ${argentLu(computed(), cur)} = total lu ${argentLu(prep.readHT, cur)} HT, au ${millieme ? 'millime' : 'centime'}` : `les lignes font ${argentLu(computed(), cur)}, la pièce dit ${argentLu(prep.readHT, cur)} : un écart de ${argentLu(g, cur)}`],
             ...(!read.number ? [['Le numéro', !!($('[name=number]', root).value || '').trim(), 'obligatoire pour déduire la TVA : saisis-le']] : []),
-            ...(enDevise ? [['La devise', !!(taux && Number(taux.value) > 0), taux && Number(taux.value) > 0 ? `1 ${symboleDevise(cur)} = ${taux.value} ${base}` : `en ${cur} : le taux de change, ci-dessus, avant d'enregistrer`]] : []),
+            ...(enDevise ? [['La devise', !!(taux && lireChiffre(taux) > 0), taux && lireChiffre(taux) > 0 ? `1 ${symboleDevise(cur)} = ${frChiffre(lireChiffre(taux))} ${base}` : `en ${cur} : le taux de change, ci-dessus, avant d'enregistrer`]] : []),
             ...(head.kind === 'avoir' && head.refFacture && !autre ? [['La facture corrigée', false, `${head.refFacture} n'est pas dans tes achats : l'avoir sera enregistré sans y être rattaché`]] : []),
             // Ce que le serveur a remarqué en lisant (le destinataire, la devise, le total) : redit ici, une ligne chacun.
             // (Le total lu et la devise ont déjà leur ligne, refaite à chaque frappe.)
@@ -3771,7 +3771,7 @@
             <div class="fort"><span>Devrait figurer sur ton relevé</span><b>${C.money(r.pointed, cur)}</b><small>si tout est pointé jusqu'à sa date</small></div>
           </div>
           <div class="tr-stmt">
-            <label class="field">${lbl(`Solde réel de ton relevé (${h(C.normCurrency(company().currency))})`, 'tre.stmt')}<input type="number" id="stmt" step="0.001" value="${r.statement == null ? '' : r.statement}" class="num" placeholder="Recopie-le ici"></label>
+            <label class="field">${lbl(`Solde réel de ton relevé (${h(C.normCurrency(company().currency))})`, 'tre.stmt')}<input type="text" inputmode="decimal" data-montant autocomplete="off" data-signe id="stmt" value="${r.statement == null ? '' : h(frChiffre(r.statement))}" class="num montant" placeholder="Recopie-le ici"></label>
             <span id="stmt-verdict">${verdictReleve(r.gap)}</span>
           </div>
         </section>
@@ -3830,12 +3830,12 @@
       // répondait qu'en quittant la case — « Saisis le solde… » restait affiché sous un solde saisi.
       // Seul le verdict se met à jour ; l'état de rapprochement suit à la sortie de la case.
       $('#stmt').oninput = e => {
-        const v = e.target.value;
-        $('#stmt-verdict').innerHTML = verdictReleve(v === '' ? null : C.round3(r.pointed - Number(v)));
+        const v = e.target.value.trim();
+        $('#stmt-verdict').innerHTML = verdictReleve(v === '' || !chiffreLisible(e.target) ? null : C.round3(r.pointed - lireMontant(v)));
       };
       $('#stmt').onchange = e => {
         const acc = data.accounts.find(a => a.id === accId);
-        acc.statementBalance = e.target.value === '' ? '' : Number(e.target.value);
+        acc.statementBalance = e.target.value.trim() === '' || !chiffreLisible(e.target) ? '' : lireMontant(e.target.value);
         save(true); draw();
       };
       // Pointer un mouvement : le drapeau vit sur le paiement d'origine, pas sur une copie.
@@ -5450,8 +5450,8 @@
         <td style="width:120px"><input type="text" class="od-compte mono" list="od-comptes" value="${h(l.compte || '')}" placeholder="616" inputmode="numeric"></td>
         <td class="small muted od-lib">${h(C.accountLabel(data, l.compte || ''))}</td>
         <td><input type="text" class="od-label" value="${h(l.label || '')}" placeholder="Libellé de la ligne (facultatif)"></td>
-        <td style="width:110px"><input type="number" class="od-debit num" step="0.001" min="0" value="${l.debit ? l.debit : ''}"></td>
-        <td style="width:110px"><input type="number" class="od-credit num" step="0.001" min="0" value="${l.credit ? l.credit : ''}"></td>
+        <td style="width:110px"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="od-debit num montant" value="${l.debit ? h(frChiffre(l.debit)) : ''}"></td>
+        <td style="width:110px"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="od-credit num montant" value="${l.credit ? h(frChiffre(l.credit)) : ''}"></td>
         <td><button type="button" class="btn btn-ghost od-del" title="Retirer la ligne" aria-label="Retirer la ligne">✕</button></td></tr>`;
       modal(`<h2>${od ? 'Modifier l\'opération diverse' : 'Opération diverse'} ${info('ecr.od')}</h2>
         <p class="small muted">Ce qui n'a ni facture, ni achat, ni règlement : un loyer sans facture, une charge avancée par le gérant, une régularisation. Autant au débit qu'au crédit, sinon rien ne s'enregistre. <em>À VÉRIFIER avec ton comptable</em> pour le choix des comptes.</p>
@@ -5477,7 +5477,7 @@
             const v = formValues($('#odf', layer));
             const lignes = $$('#od-lignes tbody tr', layer).map(tr => ({
               compte: $('.od-compte', tr).value.trim(), label: $('.od-label', tr).value.trim(),
-              debit: Number($('.od-debit', tr).value) || 0, credit: Number($('.od-credit', tr).value) || 0
+              debit: lireChiffre($('.od-debit', tr)), credit: lireChiffre($('.od-credit', tr))
             }));
             return { ...o, date: v.date, label: v.label, piece: od ? String(v.piece || '').trim() || o.piece : o.piece, lignes };
           };
@@ -9545,7 +9545,7 @@
           <label class="field obligatoire">${lbl('Dossiers hors SkanFact couverts', 'lic.quota')}<input type="number" name="dossiersHors" class="num" min="1" max="5000" step="1" value="${h(l.dossiersHors)}" placeholder="en plus des 3 gratuits"></label>
         </div>
         <div class="field span-2">${lbl('Prestation du catalogue', 'lic.prestation')}${combo({ name: 'itemId', value: l.itemId, items, placeholder: '— Facultatif : la ligne de la facture —', search: 'Rechercher une prestation…', add: '+ Nouvelle prestation' })}</div>
-        <label class="field obligatoire">${lbl(`Prix HT (${h(cur)})`, 'lic.prix')}<input type="number" name="prix" class="num" step="0.001" min="0" value="${h(l.prix)}"></label>
+        <label class="field obligatoire">${lbl(`Prix HT (${h(cur)})`, 'lic.prix')}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="prix" class="num montant" value="${h(frChiffre(l.prix))}"></label>
         <label class="field">${lbl('TVA', 'lic.tva')}<select name="tva">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.tva) === r ? 'selected' : ''}>${r} %</option>`).join('')}</select></label>
         <label class="check span-2" id="lf-parrain-row" ${l.type === 'cabinet' ? 'hidden' : ''}><input type="checkbox" name="parrain" ${l.parrain ? 'checked' : ''}> ${lbl('Client parrainé par un cabinet comptable', 'lic.parrain')}</label>
         <div class="grid-2 span-2" id="lf-parrain" ${l.parrain && l.type !== 'cabinet' ? '' : 'hidden'}>
@@ -9578,11 +9578,11 @@
               v: c.id, label: c.label, sub: c.description || '', right: C.money(c.unitPrice, cur) + ' HT', text: `${c.label} ${c.description || ''}`
             }));
             ic.setItems(maj); ic.setValue(it.id);
-            $('input[name=prix]', root).value = it.unitPrice; $('select[name=tva]', root).value = String(it.vatRate);
+            $('input[name=prix]', root).value = frChiffre(it.unitPrice); $('select[name=tva]', root).value = String(it.vatRate);
           }, { creation: true }),
           onPick: id => {
             const it = data.catalog.find(c => c.id === id); if (!it) return;
-            $('input[name=prix]', root).value = it.unitPrice; $('select[name=tva]', root).value = String(it.vatRate);
+            $('input[name=prix]', root).value = frChiffre(it.unitPrice); $('select[name=tva]', root).value = String(it.vatRate);
           } });
 
         // « Vérifier » dit ce qu'il peut prouver, et seulement ça. La forme est vérifiable hors ligne ;
@@ -9808,7 +9808,7 @@
     const cur = company().currency;
     const actuel = Math.max(0, Math.round(Number(lic.dossiersHors) || 0));
     const majPrix = () => {
-      const pr = C.prorataOffre(lic, Number($('#cq-prix').value) || 0, Number(lic.prix) || 0);
+      const pr = C.prorataOffre(lic, lireChiffre($('#cq-prix')), Number(lic.prix) || 0);
       const el = $('#cq-calc'); if (!el) return;
       el.innerHTML = pr.jours == null
         ? `Licence <strong>à vie</strong> : pas de prorata possible, la différence se facture en entier — <strong>${h(C.money(pr.montant, cur))} HT</strong>.`
@@ -9818,7 +9818,7 @@
       <p class="small">${h(lic.nom)} couvre <strong>${pl(actuel, 'dossier')}</strong> hors SkanFact${lic.exp ? ` jusqu'au <strong>${C.fmtDate(lic.exp)}</strong>` : ' sans limite de durée'}, en plus des trois gratuits. La date de fin ne change pas : seule la différence de prix est facturée.</p>
       <form id="cqf" class="grid-2">
         <label class="field obligatoire">${lbl('Nouveau quota', 'lic.chgquota')}<input type="number" id="cq-quota" name="dossiersHors" class="num" min="1" max="5000" step="1" value="${actuel}"></label>
-        <label class="field obligatoire">${lbl(`Prix plein du nouveau quota (${h(cur)} HT)`, 'lic.prixPlein')}<input type="number" id="cq-prix" name="prix" class="num" step="0.001" min="0" placeholder="pour un an"></label>
+        <label class="field obligatoire">${lbl(`Prix plein du nouveau quota (${h(cur)} HT)`, 'lic.prixPlein')}<input type="text" inputmode="decimal" data-montant autocomplete="off" id="cq-prix" name="prix" class="num montant" placeholder="pour un an"></label>
       </form>
       <div class="notes-md mt"><p class="small" id="cq-calc">Indique le prix plein du nouveau quota pour voir la différence.</p>
       <p class="small muted">Prix payé pour le quota actuel : ${h(C.money(Number(lic.prix) || 0, cur))} HT.</p></div>
@@ -9875,7 +9875,7 @@
     if (!offres.length) return toast('Il n\'existe pas d\'autre offre.', true);
     const cur = company().currency;
     const majPrix = () => {
-      const pr = C.prorataOffre(lic, Number($('#co-prix').value) || 0, Number(lic.prix) || 0);
+      const pr = C.prorataOffre(lic, lireChiffre($('#co-prix')), Number(lic.prix) || 0);
       const el = $('#co-calc'); if (!el) return;
       el.innerHTML = pr.jours == null
         ? `Licence <strong>à vie</strong> : pas de prorata possible, la différence se facture en entier — <strong>${h(C.money(pr.montant, cur))} HT</strong>.`
@@ -9885,7 +9885,7 @@
       <p class="small">${h(lic.nom)} est en <strong>${h(offreLabelDe(lic.offre))}</strong>${lic.exp ? ` jusqu'au <strong>${C.fmtDate(lic.exp)}</strong>` : ' sans limite de durée'}. La date de fin ne change pas : seule la différence de prix est facturée.</p>
       <form id="cof" class="grid-2">
         <label class="field">${lbl('Nouvelle offre', 'lic.chgoffre')}<select name="offre">${offres.map(o => `<option value="${h(o)}">${h(editeur.offres[o].label)}</option>`).join('')}</select></label>
-        <label class="field obligatoire">${lbl(`Prix plein de la nouvelle offre (${h(cur)} HT)`, 'lic.prixPlein')}<input type="number" id="co-prix" name="prix" class="num" step="0.001" min="0" placeholder="690"></label>
+        <label class="field obligatoire">${lbl(`Prix plein de la nouvelle offre (${h(cur)} HT)`, 'lic.prixPlein')}<input type="text" inputmode="decimal" data-montant autocomplete="off" id="co-prix" name="prix" class="num montant" placeholder="690"></label>
       </form>
       <div class="notes-md mt"><p class="small" id="co-calc">Indique le prix plein de la nouvelle offre pour voir la différence.</p>
       <p class="small muted">Prix payé pour l'offre actuelle : ${h(C.money(Number(lic.prix) || 0, cur))} HT.</p></div>

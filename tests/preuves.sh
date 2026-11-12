@@ -4670,10 +4670,10 @@ prouver "une commande qui n'allume pas son entrée du menu" modules/socle/ecrans
 " "" \
   "$CFW"
 prouver "les quantités de la commande arrondies comme un montant" modules/socle/ecrans/entreprise/app-1.js \
-  "data-k=\"qty\" data-i=\"\${i}\" value=\"\${h(l.qty)}\" step=\"any\"" "data-k=\"qty\" data-i=\"\${i}\" value=\"\${h(l.qty)}\" step=\"0.001\"" \
+  'class="num" data-k="qty" data-i="${i}" value="${h(frChiffre(l.qty))}"' 'class="num montant" data-k="qty" data-i="${i}" value="${h(frChiffre(l.qty))}"' \
   "$CFW"
 prouver "les quantités reçues arrondies comme un montant" modules/socle/ecrans/entreprise/app-1.js \
-  "data-rq=\"\${i}\" value=\"\${h(l.qty)}\" step=\"any\"" "data-rq=\"\${i}\" value=\"\${h(l.qty)}\" step=\"0.001\"" \
+  'class="num" data-rq="${i}" value="${h(frChiffre(l.qty))}"' 'class="num montant" data-rq="${i}" value="${h(frChiffre(l.qty))}"' \
   "$CFW"
 prouver "une commande enregistrée sans numéro" modules/socle/ecrans/entreprise/app-1.js \
   "      if (!o.number) o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
@@ -4872,7 +4872,7 @@ prouver "émettre au-delà de l'encours sans le dire" modules/socle/ecrans/entre
   "      if (enc && !encAccorde) w.push(" "      if (false) w.push(" \
   "$ENW"
 prouver "l'encours autorisé absent de la fiche du client" modules/socle/ecrans/entreprise/app-1.js \
-  "<input type=\"number\" name=\"creditLimit\"" "<input type=\"number\" name=\"creditLimitAbsent\"" \
+  'name="creditLimit" value="${h(frChiffre(c.creditLimit' 'name="creditLimitAbsent" value="${h(frChiffre(c.creditLimit' \
   "$ENW"
 prouver 'la page du client qui tait son encours' modules/socle/ecrans/entreprise/app-1.js \
   'const encours = Number(c.creditLimit) > 0 ? C.encoursClient(data, c.id, co) : null;' 'const encours = null;' \
@@ -5044,7 +5044,7 @@ prouver "le catalogue qui tait les kits possibles" modules/socle/ecrans/entrepri
   "        if (C.estKit(c)) {" "        if (false) {" \
   "$KTW"
 prouver "le coût de revient d'un kit laissé à zéro" modules/socle/ecrans/entreprise/app-1.js \
-  "            coutAuto = String(C.coutDuKit(data, lu)); champCout.value = coutAuto;" "            coutAuto = '';" \
+  "            coutAuto = frMontant(C.coutDuKit(data, lu)); champCout.value = coutAuto;" "            coutAuto = '';" \
   "$KTW"
 
 # ── Brique 97 : les lots (docs/lots.md) ──
@@ -7421,7 +7421,7 @@ prouver "le TTC qui ne suit pas le HT tapé" modules/socle/ecrans/entreprise/app
   "champTtc.value = ht > 0 ? enChamp(" "champTtc.value = ht < 0 ? enChamp(" \
   "$TTC"
 prouver "le prix TTC enregistré sur l'article, en plus de son HT et de sa TVA" modules/socle/ecrans/entreprise/app-1.js \
-  '<input type="number" id="cat-ttc"' '<input type="number" name="prixTtc" id="cat-ttc"' \
+  'data-montant autocomplete="off" id="cat-ttc"' 'data-montant autocomplete="off" name="prixTtc" id="cat-ttc"' \
   "$TTC"
 prouver "la marge d'une « prestation » chez qui vend des marchandises" modules/socle/ecrans/entreprise/app-1.js \
   "la marge ne pourra pas se calculer." "la marge de cette prestation ne sera pas calculable." \
@@ -9439,7 +9439,7 @@ prouver "le catalogue d'une quincaillerie qui parle de prestations" modules/socl
   "const METIERS_ARTICLES = ['commerce', 'restauration', 'artisanat'];" "const METIERS_ARTICLES = [];" \
   "$KN1"
 prouver "le coût du stock de départ laissé à 0 à côté d'un coût de revient" modules/socle/ecrans/entreprise/app-1.js \
-  "const suivre = () => { if (!departTouche && Number(champRevient.value) > 0) champDepart.value = champRevient.value; };" "const suivre = () => {};" \
+  "const suivre = () => { if (!departTouche && lireMontant(champRevient.value) > 0) champDepart.value = champRevient.value; };" "const suivre = () => {};" \
   "$KN1"
 prouver "le coût du départ tapé à la main, écrasé par le coût de revient" modules/socle/ecrans/entreprise/app-1.js \
   "champDepart.addEventListener('input', () => { departTouche = true; });" "champDepart.addEventListener('input', () => {});" \
@@ -25420,7 +25420,7 @@ prouver 'les boutons de la réponse débordent de leur carte' "$APP1" \
   '<button class="btn" id="accepter">Il a accepté…</button><button class="btn" id="refuser">Il a refusé</button>' '<button class="btn" id="accepter">Le client a accepté…</button><button class="btn" id="refuser">Le client a refusé</button>' \
   "$T307"
 prouver 'les pourcentages courants de l'\''acompte ne font rien' "$APP1" \
-  "\$\$('[data-acp]', root).forEach(b => b.onclick = () => { \$('[name=percent]', f).value = b.dataset.acp; f.oninput(); });" 'void 0;' \
+  "\$\$('[data-acp]', root).forEach(b => b.onclick = () => { \$('[name=percent]', f).value = frChiffre(b.dataset.acp); f.oninput(); });" 'void 0;' \
   "$T307"
 prouver 'le second timbre d'\''un acompte ne se dit pas avant' "$APP1" \
   '${Math.abs(deDeux) > 0.0005 ?' '${false ?' \
@@ -27982,7 +27982,7 @@ prouver 'caisse 1.356.0 c : l'\''article créé depuis la caisse naît prestatio
   '{ creation: true, titre: '\''Nouvel article'\'', comptoir: true }' '{ creation: true, titre: '\''Nouvel article'\'' }' \
   "$PS13560W"
 prouver 'caisse 1.356.0 d : le HT calculé depuis le TTC s'\''écrit 0.8403361344537815' 'modules/socle/ecrans/entreprise/app-1.js' \
-  'const enChamp = n => Number(n).toFixed(C.decimalsFor(company().currency));' 'const enChamp = n => String(Number(n));' \
+  'const enChamp = n => frMontant(n);' 'const enChamp = n => frChiffre(n);' \
   "$PS13560W"
 prouver 'caisse 1.356.0 e : le compte d'\''avant le livre du cabinet arrive au brouillard (compté deux fois)' 'serveur/compta/mouvements.ts' \
   'if ((borne.debutDuLivre && jour <= borne.debutDuLivre) || (borne.closJusqua' 'if ((false) || (borne.closJusqua' \
@@ -28261,6 +28261,35 @@ prouver 'avoir fournisseur 1.356.8 p : un chevron seul sous « À faire » sur o
 prouver 'avoir fournisseur 1.356.8 q : la tuile de la retenue tait ce que l'\''avoir en a fait' 'modules/socle/ecrans/entreprise/app-1.js' \
   '        if (!(rsOp2.due < w - 0.0005)) return tuile('\''Retenue'\'', w);' '        return tuile('\''Retenue'\'', w);' \
   "$PS13568"
+
+PS13569A='l'\''achat, le catalogue et les cases de la paie s'\''écrivent et se relisent en français sur un navigateur en anglais'
+PS13569B='aucune case à virgule ne reste numérique dans les écrans de l'\''entreprise et de la paie, hors la grille de la pièce'
+prouver 'montants en français 1.356.9 a : la case de nombre de field() garde le format du navigateur' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    if (type === '\''number'\'' && /\bstep="(?!1")[^"]*"/.test(attrs)) {' '    if (false && type === '\''number'\'' && /\bstep="(?!1")[^"]*"/.test(attrs)) {' \
+  "$PS13569A"
+prouver 'montants en français 1.356.9 b : le prix d'\''une ligne d'\''achat redevient une case numérique' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '<input type="text" inputmode="decimal" data-montant class="num montant${estMarque(i, '\''unitPrice'\'') ? '\'' lu-douteux'\'' : '\'''\''}" data-k="unitPrice" value="${h(frMontant(l.unitPrice, p.currency))}" autocomplete="off">' '<input type="number" class="num${estMarque(i, '\''unitPrice'\'') ? '\'' lu-douteux'\'' : '\'''\''}" data-k="unitPrice" value="${l.unitPrice}" step="0.001">' \
+  "$PS13569A"
+prouver 'montants en français 1.356.9 c : des milliers groupés à la française ne se lisent plus' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    const g = t.match(/^(-?)(\d{1,3}([.,])\d{3}(?:\3\d{3})*)(?:([.,])(\d*))?$/);' '    const g = null;' \
+  "$PS13569A"
+prouver 'montants en français 1.356.9 d : la case quittée garde le format tapé' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    if (s && s !== x.value && nombreFr(s) === n) x.value = s;
+  }, true);' '    if (false && s && s !== x.value && nombreFr(s) === n) x.value = s;
+  }, true);' \
+  "$PS13569A"
+prouver 'montants en français 1.356.9 e : le timbre et les frais d'\''un achat redeviennent une case numérique' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '<input type="text" inputmode="decimal" data-montant name="fees" value="${Number(p.fees) ? h(frMontant(p.fees, p.currency)) : '\'''\''}" placeholder="aucun" class="num montant" autocomplete="off"' '<input type="number" name="fees" value="${Number(p.fees) ? h(p.fees) : '\'''\''}" placeholder="aucun" step="0.001" min="0" class="num"' \
+  "$PS13569A"
+prouver 'montants en français 1.356.9 f : le prix TTC du catalogue se relit avec Number' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'valeur: champTtc.value.trim() === '\'''\'' ? '\'''\'' : lireMontant(champTtc.value), tva:' 'valeur: champTtc.value, tva:' \
+  "$PS13569A"
+prouver 'montants en français 1.356.9 g : la ligne d'\''achat se relit avec Number' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'p.lines[i][el.dataset.k] = el.type === '\''checkbox'\'' ? el.checked : el.type === '\''number'\'' || el.dataset.montant !== undefined ? lireChiffre(el) : el.value;' 'p.lines[i][el.dataset.k] = el.type === '\''checkbox'\'' ? el.checked : el.type === '\''number'\'' || el.dataset.montant !== undefined ? Number(el.value) : el.value;' \
+  "$PS13569A"
+prouver 'montants en français 1.356.9 h : une case de la paie redevient numérique' 'modules/personnel/ecrans/entreprise/paie.js' \
+  '<input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-b="rate" value="${h(frChiffre(b.rate))}"' '<input type="number" class="num" data-b="rate" value="${b.rate}" step="0.5" min="0" max="100"' \
+  "$PS13569B"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

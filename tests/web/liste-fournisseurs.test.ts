@@ -137,7 +137,7 @@ describe('la liste des fournisseurs, à la souris, au clavier et au téléphone'
     const ens = p.locator('#modal-root .modal');
     await ens.waitFor();
     expect(net(await ens.locator('h2').innerText())).toBe('Régler 2 pièces de Emballages du Sahel en un seul virement');
-    expect(await ens.locator('[name=amount]').inputValue()).toBe('137.445');
+    expect(await ens.locator('[name=amount]').inputValue()).toBe('137,445');
     await ens.locator('#ok').click();
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     await expect.poll(async () => (await cellules('s-sahel'))[4]).toBe('—');

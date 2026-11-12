@@ -94,7 +94,7 @@ describe('les kits, à la souris', () => {
     await p.locator('[data-kit="1"] [data-kit-qte]').dispatchEvent('change');
     await expect.poll(indice).toBe('Les composants coûtent aujourd\'hui 73,500 DT ; il y a de quoi en faire 13.');
     // Le coût de revient du kit est celui de ses composants : la marge se lit tout de suite.
-    expect(await p.locator('#kf input[name=unitCost]').inputValue()).toBe('73.5');
+    expect(await p.locator('#kf input[name=unitCost]').inputValue()).toBe('73,500');
     expect(net(await p.locator('#marge-hint').innerText())).toBe('Marge : 21,500 DT par unité, soit 22,6 %');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'kits-1-fiche.png') });
     // Le même article deux fois se refuse ; un kit suivi lui-même en stock aussi.

@@ -97,21 +97,23 @@ describe('le premier article de la caisse', () => {
     // La phrase de marge ne parle pas de « prestation » à qui vend des marchandises.
     expect(net(await fiche.locator('#marge-hint').innerText())).toBe('Sans coût de revient, la marge ne pourra pas se calculer.');
     const ht = fiche.locator('[name=unitPrice]'), ttc = fiche.locator('#cat-ttc'), tva = fiche.locator('select[name=vatRate]');
+    // (1.356.9) Les cases de montant s'écrivent en français (« 4,998 ») : on les relit comme l'application.
+    const lu = (v: string) => Number(v.replace(/[\s\u00a0]/g, '').replace(',', '.'));
     // 5,000 TTC à 19 % : 4,202 HT (4,202 + 0,798 = 5,000).
     await ttc.click();
     await p.keyboard.type('5');
-    await expect.poll(() => ht.inputValue()).toBe('4.202');
+    await expect.poll(() => ht.inputValue()).toBe('4,202');
     // La TVA change : l'étiquette tapée tient, le HT suit.
     await tva.selectOption('7');
-    await expect.poll(() => ht.inputValue()).toBe('4.673');
-    expect(Number(await ttc.inputValue())).toBe(5);
+    await expect.poll(() => ht.inputValue()).toBe('4,673');
+    expect(lu(await ttc.inputValue())).toBe(5);
     await tva.selectOption('19');
-    await expect.poll(() => ht.inputValue()).toBe('4.202');
+    await expect.poll(() => ht.inputValue()).toBe('4,202');
     // Le HT tapé : le TTC le suit, au millime de la caisse (4,200 HT : 4,998 TTC).
     await ht.click();
     await p.keyboard.press('Control+A');
     await p.keyboard.type('4,2');
-    await expect.poll(async () => Number(await ttc.inputValue())).toBe(4.998);
+    await expect.poll(async () => lu(await ttc.inputValue())).toBe(4.998);
     // Un prix TTC qu'aucun HT n'atteint à 19 % (5,001) : le plus proche, et la fiche le dit.
     await ttc.click();
     await p.keyboard.press('Control+A');
@@ -119,12 +121,12 @@ describe('le premier article de la caisse', () => {
     await ttc.press('Tab');
     await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 5_000 })
       .toBe('Aucun prix HT ne donne exactement 5,001 DT TTC à 19 % : le plus proche donne 5,002 DT.');
-    expect(await ht.inputValue()).toBe('4.203');
+    expect(await ht.inputValue()).toBe('4,203');
     // Le prix de l'étiquette, enfin : 5,000.
     await ttc.click();
     await p.keyboard.press('Control+A');
     await p.keyboard.type('5');
-    await expect.poll(() => ht.inputValue()).toBe('4.202');
+    await expect.poll(() => ht.inputValue()).toBe('4,202');
     await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).click();
     const tuile = p.locator('#cs-articles .cs-art', { hasText: 'Piles AA (lot de 4)' });
     await expect.poll(() => tuile.locator('.cs-art-prix').innerText().then(net), { timeout: 10_000 }).toBe('5,000 DT');
@@ -180,9 +182,9 @@ describe('le premier article de la caisse', () => {
     // 1 DT TTC, puis la TVA à 0 % : le HT s'écrit « 1.000 », pas « 1 ».
     await fiche.locator('#cat-ttc').click();
     await p.keyboard.type('1');
-    await expect.poll(() => fiche.locator('[name=unitPrice]').inputValue()).toBe('0.840');
+    await expect.poll(() => fiche.locator('[name=unitPrice]').inputValue()).toBe('0,840');
     await fiche.locator('select[name=vatRate]').selectOption('0');
-    await expect.poll(() => fiche.locator('[name=unitPrice]').inputValue()).toBe('1.000');
+    await expect.poll(() => fiche.locator('[name=unitPrice]').inputValue()).toBe('1,000');
     // « Suivi en stock » coché puis décoché : la proposition du comptoir revient, pas une prestation.
     await fiche.locator('input[name=tracked]').check();
     await fiche.locator('input[name=tracked]').uncheck();

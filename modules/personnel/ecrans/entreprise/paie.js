@@ -716,14 +716,14 @@
           $('#ef-primes', root).innerHTML = primes.length ? `<table class="lines-edit"><tbody>
             ${primes.map((x, i) => `<tr data-i="${i}">
               <td><input type="text" data-p="label" value="${h(x.label || '')}" placeholder="Prime de présence" aria-label="Prime ${i + 1} : libellé"></td>
-              <td style="width:110px"><input type="number" class="num" data-p="amount" value="${x.amount || ''}" step="0.001" min="0" placeholder="0,000" aria-label="Prime ${i + 1} : montant du mois (${h(C.normCurrency(company().currency))})"></td>
+              <td style="width:110px"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-p="amount" value="${h(frChiffre(x.amount || ''))}" placeholder="0,000" aria-label="Prime ${i + 1} : montant du mois (${h(C.normCurrency(company().currency))})"></td>
               <td style="width:110px"><label class="check small"><input type="checkbox" data-p="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>
               <td style="width:130px"><label class="check small" title="Au prorata des jours payés du mois : 19,5 jours sur 26 en donnent les 19,5 vingt-sixièmes"><input type="checkbox" data-p="parJour" ${x.parJour ? 'checked' : ''}> au jour</label></td>
               <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-px="${i}" aria-label="Retirer la prime ${i + 1}">✕</button></td></tr>`).join('')}
           </tbody></table>` : '<p class="small muted">Aucune prime chaque mois. Une prime de présence, de transport : pose-la ici une fois, chaque bulletin la reprendra.</p>';
           $$('[data-p]', $('#ef-primes', root)).forEach(el => el.oninput = el.onchange = () => {
             const i = Number(el.closest('tr').dataset.i);
-            primes[i][el.dataset.p] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value);
+            primes[i][el.dataset.p] = el.type === 'checkbox' ? el.checked : (el.type === 'number' || el.dataset.montant !== undefined ? (el.value.trim() === '' ? '' : lireChiffre(el)) : el.value);
             hint();
           });
           $$('[data-px]', $('#ef-primes', root)).forEach(b => b.onclick = () => { primes.splice(Number(b.dataset.px), 1); dessinerPrimes(); hint(); });
@@ -3170,7 +3170,7 @@
       if (c === 'P' && !x.j.repos && (x.hsj || ouvre === 'hs')) {
         const majs = C.majorationsHs(st), maj = x.hsj ? x.hsj.majoration : majs[0], hh = x.hsj ? x.hsj.heures : 0;
         const mt = hm > 0 && hh && maj != null ? C.round3(brut * hh * (100 + maj) / 100 / hm) : 0;
-        L.push(`<label class="ptj-in"><input type="number" class="num ptj-num" data-ptj-hs="${id}" min="0" max="16" step="0.25" value="${hh || ''}" placeholder="2" aria-label="Heures sup de ${h(e.name)}"${dis}> heures sup</label><span class="ptj-ef attire">${mt ? `+ ${C.money(mt, cur)} sur son brut` : hm > 0 ? 'combien d\'heures ? elles s\'ajoutent à son brut' : 'le prix d\'une heure attend « Les horaires »'}</span>${maj != null ? `<span class="mu">à +${pct(maj)} % (À VÉRIFIER selon ton secteur)</span>` : ''}`);
+        L.push(`<label class="ptj-in"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num ptj-num" data-ptj-hs="${id}" value="${hh ? h(frChiffre(hh)) : ''}" placeholder="2" aria-label="Heures sup de ${h(e.name)}"${dis}> heures sup</label><span class="ptj-ef attire">${mt ? `+ ${C.money(mt, cur)} sur son brut` : hm > 0 ? 'combien d\'heures ? elles s\'ajoutent à son brut' : 'le prix d\'une heure attend « Les horaires »'}</span>${maj != null ? `<span class="mu">à +${pct(maj)} % (À VÉRIFIER selon ton secteur)</span>` : ''}`);
       }
       if (c === 'P' && !x.j.repos && x.b && x.b.auDela && !x.hsj) L.push(`<span class="mu">${h(hDit(x.b.auDela))} au-delà de son horaire, sur ses badges : pas compté</span>`);
       return L.join('');
@@ -3283,7 +3283,7 @@
         if (ev.key === 'Enter') { ev.preventDefault(); i.blur(); }
         else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); s.ptjOuvre = null; s.ptjFocus = id; redessin(); }
       };
-      const nombre = v => Number(String(v).replace(',', '.')) || 0;
+      const nombre = v => lireMontant(v);
       $$('#ptj [data-ptj-min]').forEach(i => {
         i.onkeydown = toucheCase(i, i.dataset.ptjMin);
         i.onchange = () => {
@@ -4091,7 +4091,9 @@
       const st = C.payrollSettings(data), off = Array.isArray(st.offDays) ? st.offDays : [0];
       const ligne = (t, v, d) => `<tr><td><b>${t}</b></td><td>${v}</td><td class="small muted">${d}</td></tr>`;
       const val = k => (Number(st[k]) > 0 ? String(st[k]) : '');
-      const champ = (k, t, aide, unite, attrs) => `<label class="field pt-h-f">${lbl(t)}<span class="pt-h-u"><input type="number" class="num" name="${k}" data-t="${h(t)}" value="${h(val(k))}" ${attrs} placeholder="—"><span>${unite}</span></span><small class="muted">${aide}</small></label>`;
+      // (1.356.9) Un nombre à virgule (un pas qui n'est pas « 1 ») s'écrit en français : une case de texte, que `formValues` relit.
+      const chiffre = attrs => !/\bstep="1"/.test(attrs);
+      const champ = (k, t, aide, unite, attrs) => `<label class="field pt-h-f">${lbl(t)}<span class="pt-h-u"><input ${chiffre(attrs) ? 'type="text" inputmode="decimal" data-montant autocomplete="off"' : 'type="number"'} class="num" name="${k}" data-t="${h(t)}" value="${h(chiffre(attrs) ? frChiffre(val(k)) : val(k))}" ${chiffre(attrs) ? attrs.replace(/\s*\b(?:step|min|max)="[^"]*"/g, '') : attrs} placeholder="—"><span>${unite}</span></span><small class="muted">${aide}</small></label>`;
       $('#p-body').innerHTML = `<section class="pa-carte" id="pt-hor-r"><div class="pa-carte-t"><b>Les horaires de l'entreprise</b><span class="mu">ils font le pointage par défaut, les jours payés et le prix d'une heure sup</span><button type="button" class="btn btn-sm" id="pt-h-q">${lfIc('reglages', 14)} Régler en 4 questions…</button></div>
           <form id="pt-h" class="pt-h">
             <fieldset class="pt-h-jours"><legend>Les jours de travail <span class="muted small">(les autres sont des jours de repos)</span></legend>
@@ -4249,7 +4251,7 @@
                  pas quel jour on est »). */''}${lignes[0].p.jours.map(j => estAuj(j) ? `<th class="pt-j pt-auj-j${j.repos ? ' pt-repos' : ''}${jourValide(`${ymPt(y, m)}-${String(j.jour).padStart(2, '0')}`) ? ' pt-jv' : ''}" aria-current="date" title="Aujourd'hui${jourValide(`${ymPt(y, m)}-${String(j.jour).padStart(2, '0')}`) ? ', journée validée' : ''}"><span>auj.</span><b>${j.jour}</b></th>` : `<th class="pt-j${j.repos ? ' pt-repos' : ''}${jourValide(`${ymPt(y, m)}-${String(j.jour).padStart(2, '0')}`) ? ' pt-jv' : ''}"${jourValide(`${ymPt(y, m)}-${String(j.jour).padStart(2, '0')}`) ? ' title="Journée validée"' : ''}><span>${INITIALES[j.wd]}</span>${j.jour}</th>`).join('')}
             <th class="r pt-tot" title="Le mois complet des barèmes, moins les jours hors contrat et les absences non payées : les jours du bulletin">Payés</th><th class="r nw">Non payés</th></tr></thead><tbody>
             ${lignes.map(({ e, p }) => `<tr data-pe="${h(e.id)}"><td class="nw pt-nom"><span class="pa-av" style="--c:${h(C.couleurDe(e.name || ''))}" data-ini="${h(C.initialesDe(e.name || ''))}" aria-hidden="true"></span><strong>${h(e.name)}</strong></td>
-              ${majorations.map(x => `<td class="r"><input type="number" class="num pt-hs" data-hs="${x}" value="${p.hs[String(x)] || ''}" min="0" step="0.5" placeholder="0" ${ptVerrouille(ymPt(y, m)) ? 'readonly title="Le pointage est validé : « Corriger : une nouvelle version » le rouvre"' : ''} aria-label="${h(e.name)} : heures supplémentaires à +${pct(x)} %"></td>`).join('')}
+              ${majorations.map(x => `<td class="r"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num pt-hs" data-hs="${x}" value="${p.hs[String(x)] ? h(frChiffre(p.hs[String(x)])) : ''}" placeholder="0" ${ptVerrouille(ymPt(y, m)) ? 'readonly title="Le pointage est validé : « Corriger : une nouvelle version » le rouvre"' : ''} aria-label="${h(e.name)} : heures supplémentaires à +${pct(x)} %"></td>`).join('')}
               ${p.jours.map(j => `<td class="pt-td${j.repos ? ' pt-rep' : ''}${estAuj(j) ? ' pt-auj-td' : ''}"><button type="button" class="pt-c pt-${j.code === '-' ? 'hors' : j.code}${j.source === 'pointe' ? ' pt-main' : ''}${j.retard ? ' pt-retard' : ''}" data-pt="${j.jour}"${j.repos ? ' data-repos="1"' : ''} ${j.code === '-' ? 'disabled' : ''} title="${h(libellePt(j))}" aria-label="${h(e.name)}, ${j.jour} ${h(mois)} : ${h(libellePt(j))}">${affiche(j.code)}</button></td>`).join('')}
               <td class="r nw pt-tot"><strong data-pt-payes>${pct(p.payes)}</strong> j</td><td class="r nw" data-pt-abs>${p.absences ? pct(p.absences) : '<span class="muted">—</span>'}</td>
             </tr>`).join('')}</tbody></table></div>`
@@ -4325,8 +4327,8 @@
       $$('#pt-grille .pt-hs').forEach(i => i.onchange = () => {
         const e = employeeById(i.closest('tr').dataset.pe);
         if (!e || !peutPointer()) { drawPointage(); return; }
-        if (i.value !== '' && !(Number(i.value) >= 0)) return refus(i, 'Un nombre d\'heures se tape en chiffres : 6, ou 7,5.');
-        C.poserHeuresSup(data, e, y, m, Number(i.dataset.hs), i.value);
+        if (i.value.trim() !== '' && !(nombreFr(i.value) >= 0)) return refus(i, 'Un nombre d\'heures se tape en chiffres : 6, ou 7,5.');
+        C.poserHeuresSup(data, e, y, m, Number(i.dataset.hs), i.value.trim() === '' ? '' : lireMontant(i.value));
         save();
         // La grille se redessine APRÈS que Tab a posé le curseur, et le lui rend : sinon la case suivante disparaissait
         // sous les doigts, et ce qu'on tapait ensuite n'allait nulle part (vu à l'écran).
@@ -5032,7 +5034,7 @@
               <tbody>${C.CONTRACT_TYPES.filter(([k]) => k !== 'cdi').map(([k, lab]) => {
                 const r = C.regimeDuContrat(st, k);
                 const nom = lab.split(' —')[0];
-                return `<tr><td class="nw" title="${h(lab)}">${h(nom)}</td>${C.REGIME_TAUX.map(([t, tl]) => `<td class="r"><input type="number" class="num" data-rc="${k}" data-k="${t}" value="${r[t] != null ? r[t] : ''}" placeholder="${h(pct(st[t]))}" step="0.01" min="0" max="100" style="width:78px" aria-label="${h(nom)} : ${h(tl)} (%)"></td>`).join('')}
+                return `<tr><td class="nw" title="${h(lab)}">${h(nom)}</td>${C.REGIME_TAUX.map(([t, tl]) => `<td class="r"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-rc="${k}" data-k="${t}" value="${r[t] != null ? h(frChiffre(r[t])) : ''}" placeholder="${h(pct(st[t]))}" style="width:78px" aria-label="${h(nom)} : ${h(tl)} (%)"></td>`).join('')}
                   <td><input type="checkbox" data-rc-irpp="${k}" ${r.sansIrpp ? 'checked' : ''} aria-label="${h(nom)} : exonéré d'IRPP"></td></tr>`;
               }).join('')}</tbody></table></div>
           </div>
@@ -5109,7 +5111,7 @@
       const drawRows = () => {
         $('#rf-br').innerHTML = brackets.map((b, i) => `<tr data-i="${i}"><td class="nw r" data-de="${i}"></td>
             <td class="r">${b.upTo == null ? '<span class="muted">au-delà</span>' : `<input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-b="upTo" value="${C.money(b.upTo, null, 3)}" style="width:130px" aria-label="Tranche ${i + 1} : jusqu'à">`}</td>
-            <td class="r"><input type="number" class="num" data-b="rate" value="${b.rate}" step="0.5" min="0" max="100" style="width:90px" aria-label="Tranche ${i + 1} : taux"> %</td>
+            <td class="r"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-b="rate" value="${h(frChiffre(b.rate))}" style="width:90px" aria-label="Tranche ${i + 1} : taux"> %</td>
             <td class="r">${brackets.length > 1 ? `<button type="button" class="btn btn-ghost btn-sm" data-brm="${i}" title="Retirer cette tranche" aria-label="Retirer la tranche ${i + 1}">✕</button>` : ''}</td></tr>`).join('');
         $$('[data-brm]', $('#rf-br')).forEach(b => b.onclick = () => { brackets.splice(Number(b.dataset.brm), 1); marquer(); drawRows(); });
         majDe(); drawDemo();
@@ -5136,7 +5138,7 @@
         out.anciennete = anciennete.map(t => ({ ans: Number(t.ans) || 0, taux: Number(t.taux) || 0 })).filter(t => t.ans > 0 && t.taux > 0).sort((a, b) => a.ans - b.ans);
         // Les régimes des contrats (H4) : une case vide n'est pas un zéro — elle laisse le taux général.
         const rc = {};
-        $$('#rf-rc [data-rc]').forEach(i => { if (i.value.trim() !== '' && !i.validity.badInput) (rc[i.dataset.rc] = rc[i.dataset.rc] || {})[i.dataset.k] = Number(i.value); });
+        $$('#rf-rc [data-rc]').forEach(i => { if (chiffreLisible(i)) (rc[i.dataset.rc] = rc[i.dataset.rc] || {})[i.dataset.k] = lireChiffre(i); });
         $$('#rf-rc [data-rc-irpp]').forEach(i => { if (i.checked) (rc[i.dataset.rcIrpp] = rc[i.dataset.rcIrpp] || {}).sansIrpp = true; });
         out.regimesContrat = C.normaliserRegimes(rc);
         return out;

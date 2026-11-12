@@ -2921,3 +2921,37 @@ facture « à récupérer » de 468,860) ; ce sont les écrans qui disaient autr
   « Annuler ») restait verte. Sans la garde, « Rétablir » pose une entrée vide dans la pile ; Ctrl Z refait dans les 0,7 s
   la retirait (le regroupement des frappes), et le test enchaînait trop vite pour le voir. Il attend désormais une seconde,
   comme quelqu'un qui relit avant de redéfaire : sans la garde, Ctrl Z défait ce rien et le numéro ne bouge pas.
+
+
+### 1.356.9 : les cases chiffrées s'écrivent en français, même sur un navigateur en anglais
+
+Vu sur la facture du peintre (PK-2611-07, capture de Skander) : « P.U. HT 2400.000 », « Timbre et frais 1.000 DT ». Une case
+numérique (`type=number`) montre sa valeur à la façon du NAVIGATEUR, pas de l'application : réglé en anglais, il écrit
+« 2400.000 » pour 2 400 DT et « 2.500 » pour 2,5 DT — qu'un lecteur tunisien lit deux mille cinq cents. La règle H-1 du
+Cabinet (« 250.000 » lu deux cent cinquante mille), ici dans l'app entreprise. La saisie, elle, était juste (« 2,5 » tapé
+donnait 2,5) : c'est la lecture qui trompait.
+- Les montants, les taux, les quantités et les pourcentages sont des cases de TEXTE (`data-montant`, la règle des paiements
+  depuis la 1.155.0) : écrites en français par `frChiffre` (« 2 400,000 », « 2,5 »), relues par `lireChiffre`. On complète,
+  on n'arrondit jamais. Un montant (`.montant`) montre les décimales de sa devise, celle de la pièce qui le porte (« 2,500 »
+  en dinars, « 2,50 » en euros) ; une pièce qui change de devise les réécrit.
+- En quittant une case, son nombre s'écrit en français : « 2400.5 » tapé à l'anglaise devient « 2 400,500 », « 1200,5 »
+  devient « 1 200,5 ». Des milliers groupés se lisent (« 1.200,500 », « 1,200.50 », « 1.200.500 ») ; ce qui ne se lit pas
+  (« 12,,5 ») reste illisible et se marque, au lieu de valoir zéro en silence.
+- Partout : la facture d'achat (lignes, timbre et frais, montant payé d'une dépense, taux), le devis et la facture (taux de
+  change, remise de toute la pièce, la feuille d'une ligne au téléphone), l'acompte, l'encours d'un client, le catalogue (prix,
+  coût, prix TTC, kits, listes de prix), les modèles, les contrats, le bon de commande et sa réception, le stock (mouvements,
+  inventaire, transferts, consommation), la caisse, la trésorerie (solde d'un relevé, qui peut être négatif), les OD, les
+  biens, les réglages, les licences, et la paie (primes, heures sup, horaires, barèmes, taux par régime) ; au Cabinet, les
+  heures sup et les jours sans solde de la paie d'un client. `field(…, 'number', …)` le fait tout seul pour un pas décimal ;
+  les cases de nombres entiers (jours, années, numéros) ne changent pas.
+- La seule exception est nommée : la grille des lignes d'une facture et d'un devis garde ses cases numériques, avec la vue
+  en français posée par-dessus quand on n'y est pas (1.155.3).
+- Test : `montants-fr-1356-9`, sur un navigateur en anglais (en-US) — sinon il mesurerait l'égalité de deux défauts. Huit
+  preuves ; huit anciennes recalées sur le code neuf (les quantités d'une commande et d'une réception, l'encours, le coût
+  d'un kit, le prix TTC, le coût du stock de départ, les pourcentages de l'acompte, le HT calculé depuis la caisse).
+- Douze tests attendaient l'ancien affichage (« 3.398 », « 2.5 », « 137.445 »…) : retournés vers l'écriture française
+  (`commandes-fournisseurs`, `achat-ecarts`, `cabinet-paie-pointage`, `caisse-premier-article`, `debutant`, `debutant-2`,
+  `demandes-prix`, `kits`, `lecture-ia`, `liste-fournisseurs`, `listeprix-fiche`). Une case encore sous le curseur garde ce
+  qu'on y a tapé (« 11.9 ») : elle ne s'écrit en français qu'en la quittant.
+- Le rouge GitHub de la 1.356.8 : `liste-fournisseurs` attendait « 137.445 » dans la case de « Régler ensemble », que la
+  1.356.8 écrit justement en français (« 137,445 ») ; le test décrivait l'ancien défaut.

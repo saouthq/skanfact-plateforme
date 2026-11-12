@@ -104,7 +104,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.locator('#cf-add').click();
     const ligne = (i: number, k: string) => p.locator(`#cf-lines [data-k=${k}][data-i="${i}"]`);
     await ligne(0, 'qty').fill('100');
-    await ligne(1, 'qty').fill('2.5');
+    await ligne(1, 'qty').fill('2,5');
     await ligne(2, 'label').fill('Transport');
     await ligne(2, 'unitPrice').fill('60');
     await p.locator('#cf-head select[name=status]').selectOption('envoyée');
@@ -113,9 +113,9 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.locator('#save').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-\d{4}-001/);
     const numero = (await titre(p)).replace(/^Commande /, '').replace(/ .*$/, '');
-    // Le menu allume « Commandes fournisseurs » ; les quantités restent des quantités (pas « 100.000 »).
+    // Le menu allume « Commandes fournisseurs » ; les quantités restent des quantités (pas « 100,000 »), écrites en français (1.356.9).
     expect(await p.locator('nav a.active').getAttribute('data-route')).toBe('commandesf');
-    expect([await ligne(0, 'qty').inputValue(), await ligne(1, 'qty').inputValue()]).toEqual(['100', '2.5']);
+    expect([await ligne(0, 'qty').inputValue(), await ligne(1, 'qty').inputValue()]).toEqual(['100', '2,5']);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-1-commande.png') });
 
     // 2. Elle s'imprime pour le fournisseur.
@@ -130,7 +130,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.locator('#cf-recevoir').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception \(brouillon\)/);
     const recu = (i: number) => p.locator(`[data-rq="${i}"]`);
-    expect([await recu(0).inputValue(), await recu(1).inputValue(), await recu(2).inputValue()]).toEqual(['100', '2.5', '1']);
+    expect([await recu(0).inputValue(), await recu(1).inputValue(), await recu(2).inputValue()]).toEqual(['100', '2,5', '1']);
     // Tant qu'une réception est en préparation, les lignes de la commande ne changent plus (elle s'y rattache
     // par leur rang) ; le message dit comment les débloquer, et rien ne se propose une seconde fois.
     await p.goBack();
@@ -146,7 +146,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     expect(await principaux()).toEqual(['Valider la réception']);
     expect(await etapesFaites()).toBe(2);
     await recu(0).fill('60');
-    await recu(1).fill('1.25');
+    await recu(1).fill('1,25');
     // Une quantité saisie : « Enregistrer le brouillon » paraît et devient le geste principal.
     expect(await principaux()).toEqual(['Enregistrer le brouillon']);
     expect(net(await p.locator('#rec-resume').innerText())).toMatch(/^Lignes reçues 3 sur 3/);
@@ -182,7 +182,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
     await p.locator('#cf-recevoir').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception \(brouillon\)/);
-    expect([await recu(0).inputValue(), await recu(1).inputValue()]).toEqual(['40', '1.25']);
+    expect([await recu(0).inputValue(), await recu(1).inputValue()]).toEqual(['40', '1,25']);
     expect(await p.locator('[data-rq]').count()).toBe(2);
     await p.locator('#rec-valider').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception BR-\d{4}-002/);
@@ -196,7 +196,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     expect(net(await p.locator('#b-receptions').innerText())).toMatch(/^Saisie depuis les réceptions BR-\d{4}-001, BR-\d{4}-002 : sa marchandise suivie est déjà entrée en stock par elles/);
     const lignesAchat = await p.locator('#b-lines tr').evaluateAll((trs) => trs.map((tr) => [
       (tr.querySelector('[data-k=label]') as HTMLInputElement | null)?.value ?? '', (tr.querySelector('[data-k=qty]') as HTMLInputElement | null)?.value ?? '']).filter((x) => x[0]));
-    expect(lignesAchat).toEqual([['Ciment gris 50 kg', '100'], ['Fer à béton 12 mm', '2.5'], ['Transport', '1']]);
+    expect(lignesAchat).toEqual([['Ciment gris 50 kg', '100'], ['Fer à béton 12 mm', '2,5'], ['Transport', '1']]);
     // Chaque ligne reçue le dit (« reçue par une réception ») ; sa copie n'a été reçue par aucune réception.
     expect(await p.locator('#b-lines [data-recue]').allInnerTexts()).toEqual(['reçue par une réception', 'reçue par une réception', 'reçue par une réception']);
     // (1.155.12, maquette achat) Les gestes d'une ligne sont sous son « ⋯ ».

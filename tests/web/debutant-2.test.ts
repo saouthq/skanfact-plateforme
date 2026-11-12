@@ -134,11 +134,13 @@ describe('le lot débutant (2), à la souris', () => {
     await fenetre.locator('input[name=tracked]').check();
     // Le coût de revient tapé : le coût du départ le suit.
     await fenetre.locator('input[name=unitCost]').fill('9');
-    await expect.poll(async () => Number(await fenetre.locator('input[name=initialCost]').inputValue())).toBe(9);
+    // (1.356.9) Les cases de montant s'écrivent en français (« 9,000 ») : on les relit comme l'application.
+    const lu = (v: string) => Number(v.replace(/[\s\u00a0]/g, '').replace(',', '.'));
+    await expect.poll(async () => lu(await fenetre.locator('input[name=initialCost]').inputValue())).toBe(9);
     // Le coût du départ tapé à la main : il ne suit plus.
     await fenetre.locator('input[name=initialCost]').fill('7');
     await fenetre.locator('input[name=unitCost]').fill('10');
-    expect(Number(await fenetre.locator('input[name=initialCost]').inputValue())).toBe(7);
+    expect(lu(await fenetre.locator('input[name=initialCost]').inputValue())).toBe(7);
     await fenetre.locator('input[name=initialQty]').fill('5');
     await p.screenshot({ path: path.join(PHOTOS, 'debutant-2-catalogue.png') });
     await fenetre.locator('.modal-actions .btn-primary').click();
@@ -186,7 +188,7 @@ describe('le lot débutant (2), à la souris', () => {
     await p.keyboard.type('11.9', { delay: 120 });
     await p.evaluate(() => { const w = window as unknown as { __st?: typeof setTimeout; setTimeout: unknown }; if (w.__st) w.setTimeout = w.__st; });
     expect(await p.locator('#modal-root .modal #cat-ttc').inputValue()).toBe('11.9');
-    await expect.poll(() => p.locator('#modal-root .modal input[name=unitPrice]').inputValue()).toMatch(/^10(\.0+)?$/);
+    await expect.poll(() => p.locator('#modal-root .modal input[name=unitPrice]').inputValue()).toMatch(/^10(,0+)?$/);
     await suivant('Ce que ça te coûte');
     await p.locator('#modal-root .modal input[name=unitCost]').fill('6');
     await suivant('Sa TVA et son unité');

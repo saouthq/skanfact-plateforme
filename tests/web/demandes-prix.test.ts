@@ -112,7 +112,7 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Demande de prix BCF-\d{4}-002/);
     expect(net(await p.locator('#view .ed-h1').innerText())).toContain('demande de prix');
     expect(net(await p.locator('#cf-sous').innerText())).toBe('Béton du Nord');
-    expect(await p.locator('#cf-lines [data-k=unitPrice][data-i="0"]').inputValue()).toMatch(/^0(\.000)?$/);
+    expect(await p.locator('#cf-lines [data-k=unitPrice][data-i="0"]').inputValue()).toMatch(/^0(,000)?$/);
     expect(net(await p.locator('#cf-comparer').innerText())).toMatch(/Ciment gris 50 kg 100 sac 17,250 DT sans réponse Total HT 1 725,000 DT incomplète/);
 
     // 4. Commander sans son prix : refusé, et le refus dit quoi saisir.

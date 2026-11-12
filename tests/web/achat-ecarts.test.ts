@@ -132,7 +132,7 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     await p.evaluate(() => { location.hash = '#/achat/e1'; });
     await expect.poll(() => p.locator('#ac-puce-dev select[name=currency]').inputValue().catch(() => ''), { timeout: 20_000 }).toBe('EUR');
     expect(net(await p.locator('#ac-puce-dev .ac-taux').innerText())).toBe('· 1 € = DT i');
-    expect(await p.locator('#ac-puce-dev input[name=exchangeRate]').inputValue()).toBe('3.398');
+    expect(await p.locator('#ac-puce-dev input[name=exchangeRate]').inputValue()).toBe('3,398');
     expect(await p.locator('#ac-puce-dev').getAttribute('class')).toContain(' on');
 
     // 3. L'avoir à se faire rembourser : « Remboursement », quatre tuiles, et plus le conseil d'un avoir neuf.

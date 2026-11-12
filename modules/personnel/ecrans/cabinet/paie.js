@@ -1067,7 +1067,7 @@
         ${lignes[0].p.jours.map(j => `<th class="pt-j${j.repos ? ' pt-repos' : ''}">${j.jour}<span>${INITIALES_JOURS[j.wd]}</span></th>`).join('')}</tr></thead><tbody>
         ${lignes.map(({ e, p }) => `<tr data-pe="${esc(e.id)}"><td class="nw"><strong>${esc(e.name)}</strong></td>
           <td class="r nw"><strong data-pt-payes>${esc(joursFr(p.payes))}</strong></td><td class="r nw" data-pt-abs>${p.absences ? esc(joursFr(p.absences)) : '<span class="muted">—</span>'}</td>
-          ${majorations.map(x => `<td class="r"><input type="number" class="num pt-hs" data-hs="${x}" value="${p.hs[String(x)] || ''}" min="0" step="0.5" placeholder="0" ${clos ? 'disabled' : ''} aria-label="${esc(e.name)} : heures supplémentaires à +${esc(pct(x))} %"></td>`).join('')}
+          ${majorations.map(x => `<td class="r"><input type="text" inputmode="decimal" autocomplete="off" class="num pt-hs" data-hs="${x}" value="${p.hs[String(x)] ? joursFr(p.hs[String(x)]) : ''}" placeholder="0" ${clos ? 'disabled' : ''} aria-label="${esc(e.name)} : heures supplémentaires à +${esc(pct(x))} %"></td>`).join('')}
           ${p.jours.map(j => { const tm = KC.pointageEnregistre(data, e.id, Number(annee), Number(m)), pq = (tm && tm.motifs && tm.motifs[String(j.jour)]) || '', dit = `${libelleDuJour(j)}${pq ? ` · pourquoi : ${pq}` : ''}`;
     // (1.271.0) Le « Pourquoi ? » que le client a noté sur une absence se lit au survol de sa case, et un point le signale.
     return `<td class="pt-td"><button type="button" class="pt-c pt-${j.code === '-' ? 'hors' : j.code}${j.source === 'pointe' ? ' pt-main' : ''}${pq ? ' pt-note' : ''}" data-pt="${j.jour}"${j.repos ? ' data-repos="1"' : ''}${pq ? ` data-motif="${esc(pq)}"` : ''} ${j.code === '-' || clos ? 'disabled' : ''} title="${esc(dit)}" aria-label="${esc(e.name)}, ${j.jour} ${esc(KC.moisPaie(m))} : ${esc(dit)}">${affichePointage(j.code)}</button></td>`; }).join('')}
@@ -1155,8 +1155,9 @@
       i.onchange = () => {
         const e = employe(i.closest('tr').dataset.pe);
         if (!e) return;
-        if (i.value !== '' && !(Number(i.value) >= 0)) return refus(i, 'Un nombre d\'heures se tape en chiffres : 6, ou 7,5.');
-        KC.poserHeuresSup(data, e, y, m, Number(i.dataset.hs), i.value);
+        // (1.356.9) Une case de texte en français (« 7,5 ») : une case numérique écrivait « 7.5 » sur un navigateur anglais.
+        if (i.value.trim() !== '' && !(KC.nombreStrict(i.value) >= 0)) return refus(i, 'Un nombre d\'heures se tape en chiffres : 6, ou 7,5.');
+        KC.poserHeuresSup(data, e, y, m, Number(i.dataset.hs), i.value.trim() === '' ? '' : lireMontant(i.value));
         enregistrer(e.id);
         // La grille se redessine APRÈS que Tab a posé le curseur, et le lui rend (vu dans l'entreprise, 1.60.0).
         setTimeout(() => redessiner(ouEstLeCurseurDuPointage(el)), 0);
@@ -2492,7 +2493,7 @@
         <label class="field obligatoire">${lbl('Ce qui manque', 'pa.cNature')}<select name="nature">${NATURES.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select></label>
         <label class="field" id="pc-lib-l">${lbl('Libellé sur le bulletin', 'pa.cLibelle')}<input name="libelle" type="text" maxlength="80" value="${esc((pre && pre.libelle) || NATURES[0][2])}"></label>
         <label class="field obligatoire" id="pc-mt-l">${lbl('Montant (DT)', 'pa.cMontant')}<input name="montant" type="text" inputmode="decimal" class="num montant" placeholder="0,000" value="${esc(pre && pre.montant ? montantChamp(pre.montant) : '')}"></label>
-        <label class="field obligatoire" id="pc-j-l" hidden>${lbl('Jours sans solde en tout', 'pa.cJours')}<input name="jours" type="number" min="0" step="0.5" class="num" value="${esc(String(b.joursAbsence || 0))}"></label>
+        <label class="field obligatoire" id="pc-j-l" hidden>${lbl('Jours sans solde en tout', 'pa.cJours')}<input name="jours" type="text" inputmode="decimal" autocomplete="off" class="num" value="${esc(joursFr(b.joursAbsence || 0))}"></label>
         <label class="field span2 obligatoire">${lbl(`Pourquoi (${client} le lit)`, 'pa.cMotif')}<textarea name="motif" rows="2" maxlength="500" placeholder="Par exemple : l'échéance d'octobre de son avance n'est pas retenue.">${esc((pre && pre.motif) || '')}</textarea></label>
       </form>
       <div id="pc-apercu" class="ok-box mt"></div>
@@ -2510,7 +2511,7 @@
         // 1.237.0 — une retenue d'avance garde son avance (`advanceId`) : acceptée, elle la rembourse chez le client.
         if (nature === 'retenue') retenues.push({ label: libelle, amount: montantLu, ...(pre && pre.advanceId ? { advanceId: pre.advanceId } : {}) });
         else if (nature === 'prime') primes.push({ label: libelle, amount: montantLu, taxable: true });
-        else joursAbsence = Math.max(0, Number(v.jours) || 0);
+        else joursAbsence = Math.max(0, lireMontant(v.jours));
         const c = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat },
           { year: b.annee, month: b.mois, gross: b.brut, workedDays: b.joursTravailles, absentDays: joursAbsence, bonuses: primes, deductions: retenues, prorata: b.prorata }, KC.baremesPaie(baremes));
         const motif = String(v.motif || '').trim();
@@ -2590,7 +2591,7 @@
         <label class="field">${lbl('Mois', 'pa.bMois')}<select name="mois">${KC.MOIS_PAIE.map((lab, i) => `<option value="${i + 1}" ${i + 1 === Number(e.mois) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select></label>
         <label class="field obligatoire">${lbl('Brut du mois (DT)', 'pa.bBrut')}<input name="brut" type="text" inputmode="decimal" class="num montant" placeholder="0,000" value="${esc(montantChamp(brutDefaut))}"></label>
         <label class="field">${lbl('Jours ouvrables du mois', 'pa.bOuvrables')}<input name="joursTravailles" type="number" min="1" step="1" class="num" value="${esc(String(e.joursTravailles || 26))}"></label>
-        <label class="field">${lbl('Jours d\'absence non payés', 'pa.bAbsence')}<input name="joursAbsence" type="number" min="0" step="0.5" class="num" value="${esc(String(e.joursAbsence || 0))}"></label>
+        <label class="field">${lbl('Jours d\'absence non payés', 'pa.bAbsence')}<input name="joursAbsence" type="text" inputmode="decimal" autocomplete="off" class="num" value="${esc(joursFr(e.joursAbsence || 0))}"></label>
       </form>
       ${/* (plateforme) 1.63.0 — toutes les primes et toutes les retenues du bulletin, l'une sous l'autre (la disposition
            de l'entreprise) : le formulaire n'en montrait qu'une de chaque, et l'enregistrement effaçait les autres. */''}
@@ -2650,7 +2651,7 @@
       // couvre pas (l'entrée, la sortie), moins l'absence non payée.
       const suivreLesJours = () => {
         const ouvrables = Number($('[name=joursTravailles]', f).value) || 26;
-        const absence = Number($('[name=joursAbsence]', f).value) || 0;
+        const absence = lireMontant($('[name=joursAbsence]', f).value);
         const hors = prorata ? Math.max(0, Number(prorata.sur) - Number(prorata.jours)) : 0;
         const j = Math.max(0, Math.min(ouvrables, KC.round3(ouvrables - hors - absence)));
         let change = false;
@@ -2670,7 +2671,7 @@
           id: b ? b.id : '', salarieId: sal.id, annee: s.annee, mois: Number($('[name=mois]', f).value) || 1,
           brut,
           joursTravailles: Number($('[name=joursTravailles]', f).value) || 26,
-          joursAbsence: Number($('[name=joursAbsence]', f).value) || 0,
+          joursAbsence: lireMontant($('[name=joursAbsence]', f).value),
           primes: primes.filter(remplie).map(p => ({ ...p, label: String(p.label || '').trim() || 'Prime' })),
           retenues: retenues.filter(remplie).map(r => ({ ...r, label: String(r.label || '').trim() || 'Retenue' })),
           // Un brut retouché à la main n'est plus proratisé (la règle de l'entreprise, et celle du moteur).
@@ -2745,7 +2746,7 @@
         if (!i) return;
         prorata = i.prorata;
         if (!brutTouche) $('[name=brut]', f).value = montantChamp(i.gross);
-        if (!absenceTouchee) { $('[name=joursTravailles]', f).value = String(i.workedDays); $('[name=joursAbsence]', f).value = String(i.absentDays); }
+        if (!absenceTouchee) { $('[name=joursTravailles]', f).value = String(i.workedDays); $('[name=joursAbsence]', f).value = joursFr(i.absentDays); }
         // (plateforme) 1.71.0 — les échéances des avances du salarié et du mois choisis, tant qu'on n'a pas touché aux retenues.
         if (!retenuesTouchees) {
           retenues.splice(0, retenues.length, ...(i.deductions || []).map(d => ({ ...d })));

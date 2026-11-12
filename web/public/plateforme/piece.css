@@ -77,8 +77,8 @@
 .ed-puces { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .puce-champ { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 11px; border: 1px solid var(--sb-trait-fort); border-radius: 9px; font-size: 13px; color: var(--sb-gris); background: var(--sb-papier); cursor: pointer; }
 .puce-champ > span:first-child, .puce-champ .rate-lbl { white-space: nowrap; }
-.puce-champ select, .puce-champ input[type=number] { border: 0; background: transparent; padding: 0; margin: 0; width: auto; min-height: 0; height: 30px; font: inherit; font-weight: 600; color: var(--sb-encre); box-shadow: none; appearance: none; -webkit-appearance: none; background-image: none; cursor: pointer; }
-.puce-champ input[type=number] { width: 72px; cursor: text; border-bottom: 1px dashed var(--sb-trait-fort); }
+.puce-champ select, .puce-champ input[type=number], .puce-champ input[data-montant] { border: 0; background: transparent; padding: 0; margin: 0; width: auto; min-height: 0; height: 30px; font: inherit; font-weight: 600; color: var(--sb-encre); box-shadow: none; appearance: none; -webkit-appearance: none; background-image: none; cursor: pointer; }
+.puce-champ input[type=number], .puce-champ input[data-montant] { width: 72px; cursor: text; border-bottom: 1px dashed var(--sb-trait-fort); }
 .puce-champ select:focus, .puce-champ input:focus { outline: none; }
 .puce-champ:focus-within { border-color: var(--sb-sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 16%, transparent); }
 .puce-champ.on { background: var(--sb-doux); border-color: color-mix(in srgb, var(--sb-sarcelle) 45%, transparent); color: var(--sb-doux-texte); }
@@ -1087,8 +1087,8 @@
 .buy-editor .ed-puces { gap: 8px; }
 .buy-editor .ed-puces .puce-champ, .buy-editor .ed-puces .puce-plus { min-height: 30px; height: 30px; padding: 0 10px; border-radius: 99px; font-size: 12.5px; border-color: var(--sb-trait); }
 .buy-editor .ed-puces .puce-champ:hover { border-color: var(--sb-trait-fort); color: var(--sb-encre); }
-.buy-editor .ed-puces .puce-champ select, .buy-editor .ed-puces .puce-champ input[type=number] { field-sizing: content; height: 28px; font-size: 12.5px; background: none !important; padding: 0; min-width: 0; }
-.buy-editor .ed-puces .puce-champ input[type=number] { width: auto; min-width: 3ch; border-bottom: 0; -moz-appearance: textfield; }
+.buy-editor .ed-puces .puce-champ select, .buy-editor .ed-puces .puce-champ input[type=number], .buy-editor .ed-puces .puce-champ input[data-montant] { field-sizing: content; height: 28px; font-size: 12.5px; background: none !important; padding: 0; min-width: 0; }
+.buy-editor .ed-puces .puce-champ input[type=number], .buy-editor .ed-puces .puce-champ input[data-montant] { width: auto; min-width: 3ch; border-bottom: 0; -moz-appearance: textfield; }
 .buy-editor .ed-puces .puce-champ input[type=number]::-webkit-inner-spin-button, .buy-editor .ed-puces .puce-champ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .buy-editor .ed-puces .puce-champ .unite { font-weight: 600; color: var(--sb-encre); }
 .buy-editor .ed-puces .puce-champ.on .unite { color: var(--sb-doux-texte); }

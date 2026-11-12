@@ -178,7 +178,7 @@ describe('le lot débutant (1), à la souris', () => {
     await p.locator('input[data-k=label]').first().fill('Facture STEG électricité septembre');
     await p.locator('#b-ttc').fill('85.4');
     // 85,400 payés à 19 % : 71,765 hors taxes, 13,635 de TVA — le total retombe sur ce qui a été payé.
-    await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('71.765');
+    await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('71,765');
     expect(net(await p.locator('#b-totals').innerText())).toContain('Payé 85,400 DT');
     expect(net(await p.locator('#b-ttc-note').innerText())).toBe('SkanFact en déduit le hors taxes (71,765) et la TVA à 19 % (13,635), au millime : tape ce qui est écrit sur le ticket.');
     // (27/10/2026, maquette achat « Dépense ») Sans fournisseur, la carte « Dépenses diverses » ; un ticket se paie sur le moment.
@@ -187,7 +187,7 @@ describe('le lot débutant (1), à la souris', () => {
     expect(await p.locator('[name=dueDate]').locator('xpath=ancestor::div[contains(@class,"field")][1]').isHidden()).toBe(true);
     // Le taux change : le hors taxes se recalcule, le total reste ce qui a été payé.
     await p.locator('select[data-k=vatRate]').first().selectOption('7');
-    await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('79.813');
+    await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('79,813');
     expect(net(await p.locator('#b-totals').innerText())).toContain('Payé 85,400 DT');
     await p.screenshot({ path: path.join(PHOTOS, 'debutant-4-depense.png') });
     // Un hors taxes tapé à la main reprend la main : le montant payé s'efface.
@@ -195,7 +195,7 @@ describe('le lot débutant (1), à la souris', () => {
     expect(await p.locator('#b-ttc').inputValue()).toBe('');
     // Enregistrée « à la caisse, le jour même » : elle est réglée, pour ce que dit le ticket, à sa date, en espèces.
     await p.locator('#b-ttc').fill('85.4');
-    await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('79.813');
+    await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('79,813');
     await p.locator('#save').click();
     await expect.poll(() => p.locator('#ac-dep-paye-lu').count(), { timeout: 10_000 }).toBe(1);
     expect(net(await p.locator('#ac-dep-paye-lu').innerText())).toMatch(/^le \d\d\/\d\d · à la caisse$/);

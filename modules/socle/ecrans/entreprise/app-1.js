@@ -979,11 +979,27 @@
     // Un champ dit sa devise à côté de lui (9.4.8) : quand la pièce en change, le libellé suit.
     $$('[data-unite-devise]', c).forEach(u => { u.textContent = cur; });
     $$(SEL_MONTANT, c).forEach(el => { if (el !== document.activeElement) { const n = Number(el.value); if (el.value !== '' && isFinite(n)) el.value = String(n); completerMontant(el); } });
+    // (1.356.9) Et les montants écrits en français (cases de texte) : « 2,500 » en dinars devient « 2,50 » en euros.
+    $$('input[data-montant].montant', c).forEach(el => {
+      if (el === document.activeElement) return;
+      const n = nombreFr(el.value);
+      if (Number.isFinite(n)) el.value = frChiffre(n, decimalesDuChamp(el));
+    });
   }
   function completerMontants(racine) {
     if (!racine || racine.nodeType !== 1) return;
     [...(racine.matches(SEL_MONTANT) ? [racine] : []), ...racine.querySelectorAll(SEL_MONTANT)]
       .forEach(el => { if (el !== document.activeElement) completerMontant(el); });
+    // (1.356.9) Un montant écrit en français (`data-montant` et `.montant`) montre lui aussi les décimales de sa devise, celle
+    // du conteneur qui le porte : les cases s'écrivent « 2,5 », c'est ici qu'elles deviennent « 2,500 » (ou « 2,50 » en euros).
+    const SEL_FR = 'input[data-montant].montant';
+    [...(racine.matches(SEL_FR) ? [racine] : []), ...racine.querySelectorAll(SEL_FR)].forEach(el => {
+      if (el === document.activeElement) return;
+      const { n, dec } = lectureFr(el.value);
+      if (!Number.isFinite(n)) return;
+      const s = frChiffre(n, Math.max(dec, decimalesDuChamp(el)));
+      if (s !== el.value && nombreFr(s) === n) el.value = s;
+    });
   }
   if (window.MutationObserver) {
     new MutationObserver(recs => recs.forEach(r => r.addedNodes.forEach(completerMontants)))
@@ -1571,8 +1587,18 @@
 
   function field(label, name, value, type, extra) {
     type = type || 'text';
-    const attrs = extra || '';
+    let attrs = extra || '';
     if (type === 'textarea') return `<label class="field">${label}<textarea name="${name}" ${attrs}>${h(value)}</textarea></label>`;
+    // (1.356.9) Une case de nombre à virgule (un pas qui n'est pas « 1 ») s'écrit en français, quelle que soit la langue
+    // du navigateur (voir `frChiffre`) : une case de texte `data-montant`, que `formValues` relit en nombre. Un pas de
+    // 0,001 dit un montant (`.montant` : les décimales de sa devise) ; sans minimum, la case accepte le signe moins (un
+    // solde de départ à découvert, une correction de stock). Les cases de nombres entiers (jours, années) ne changent pas.
+    if (type === 'number' && /\bstep="(?!1")[^"]*"/.test(attrs)) {
+      const argent = /\bstep="0\.001"/.test(attrs), signe = !/\bmin="/.test(attrs);
+      attrs = attrs.replace(/\s*\b(?:step|min|max)="[^"]*"/g, '');
+      if (argent) attrs = /\bclass="/.test(attrs) ? attrs.replace(/\bclass="([^"]*)"/, (m0, c) => `class="${/\bmontant\b/.test(c) ? c : c + ' montant'}"`) : `${attrs} class="num montant"`;
+      return `<label class="field">${label}<input type="text" inputmode="decimal" data-montant${signe ? ' data-signe' : ''} autocomplete="off" name="${name}" value="${h(frChiffre(value))}" ${attrs.trim()}></label>`;
+    }
     return `<label class="field">${label}<input type="${type}" name="${name}" value="${h(value)}" ${attrs}></label>`;
   }
 
@@ -1581,15 +1607,56 @@
   // (1.155.0) Sans réseau, ce poste garde-t-il ce qu'on écrit ? (plateforme/poste.js : jamais sur l'ordinateur d'un autre, ni
   // dans un navigateur qui peut tout vider.) Ce que la pièce dit hors ligne suit la même réponse que la puce de la barre.
   const posteGarde = () => { try { const sp = window.SkanPoste; return !(sp && typeof sp.garde === 'function') || !!sp.garde(); } catch (_) { return true; } };
-  const lireMontant = s => Number(String(s == null ? '' : s).replace(/[\s\u202f\u00a0]/g, '').replace(',', '.')) || 0;
+  // (1.356.9) Un seul séparateur est la décimale, comme avant (« 2.5 », « 2,5 »). Des milliers groupés se lisent aussi
+  // (« 1.200,500 », « 1,200.50 », « 1.200.500 ») : par groupes de trois chiffres, la décimale étant l'AUTRE séparateur.
+  // Tout le reste (« 12,,5 », « 1.2.3 ») rend NaN : c'est ce qui permet de dire « illisible » au lieu de zéro (7.19.0).
+  // `lectureFr` rend aussi le nombre de décimales tapées (celles qui suivent la décimale, jamais un groupe de milliers).
+  const lectureFr = s => {
+    const t = String(s == null ? '' : s).replace(/[\s\u202f\u00a0]/g, '');
+    const m = t.match(/^(-?)(\d*)(?:([.,])(\d*))?$/);
+    if (m) return m[2] || m[4] ? { n: Number(`${m[1]}${m[2] || '0'}.${m[4] || '0'}`), dec: (m[4] || '').length } : { n: NaN, dec: 0 };
+    const g = t.match(/^(-?)(\d{1,3}([.,])\d{3}(?:\3\d{3})*)(?:([.,])(\d*))?$/);
+    return g && g[4] !== g[3] ? { n: Number(`${g[1]}${g[2].replace(/[.,]/g, '')}.${g[5] || '0'}`), dec: (g[5] || '').length } : { n: NaN, dec: 0 };
+  };
+  const nombreFr = s => lectureFr(s).n;
+  const lireMontant = s => nombreFr(s) || 0;
+  // (1.356.9) Un nombre à virgule s'écrit en français dans sa case, quelle que soit la langue du navigateur. Une case
+  // `type=number` montre la valeur à la façon du NAVIGATEUR : réglé en anglais, il écrivait « 2.500 » pour 2,5 DT — qu'un
+  // lecteur tunisien lit deux mille cinq cents (la règle H-1 du Cabinet, ici dans l'app entreprise). Les montants, les taux,
+  // les quantités et les pourcentages sont donc des cases de TEXTE (`data-montant`, la règle des paiements depuis la
+  // 1.155.0), écrites par `frChiffre` et relues par `lireChiffre`. On complète, on n'arrondit jamais : au plus neuf
+  // décimales, c'est-à-dire tout ce qu'une valeur saisie porte. `min` : les décimales à toujours montrer (celles de la
+  // devise pour un montant).
+  const frChiffre = (n, min = 0) => (n === '' || n == null || !Number.isFinite(Number(n)) ? ''
+    : Number(n).toLocaleString('fr-FR', { minimumFractionDigits: min, maximumFractionDigits: Math.max(min, 9) }).replace(/[\s\u202f]/g, '\u00a0'));
+  const frMontant = (n, cur) => frChiffre(n, C.decimalsFor(C.normCurrency(cur || company().currency)));
+  // Lire une case chiffrée, qu'elle soit de texte (`data-montant`) ou encore numérique : la même porte pour toutes.
+  const lireChiffre = el => (el && el.dataset && el.dataset.montant !== undefined ? lireMontant(el.value) : Number(el && el.value) || 0);
+  // Une case chiffrée lisible : ni vide, ni du texte qui ne se lit pas (« 2,5,3 »).
+  const chiffreLisible = el => !!el && (el.dataset.montant !== undefined ? Number.isFinite(nombreFr(el.value))
+    : el.value.trim() !== '' && !(el.validity && el.validity.badInput) && Number.isFinite(Number(el.value)));
   // (1.155.0) Un montant tapé dans une case de texte (« 1 200,500 ») ne prend que des chiffres, l'espace, la virgule et le
-  // point : un signe moins ou une lettre ne s'y écrit pas, comme dans l'ancienne case numérique.
+  // point : un signe moins ou une lettre ne s'y écrit pas, comme dans l'ancienne case numérique — sauf dans une case qui
+  // dit qu'elle peut être négative (`data-signe` : le solde d'un relevé de banque à découvert).
   document.addEventListener('input', e => {
     const x = e.target;
     if (!(x instanceof HTMLInputElement) || !x.hasAttribute('data-montant')) return;
-    const propre = x.value.replace(/[^\d\s\u202f\u00a0,.]/g, '');
+    const propre = x.value.replace(x.hasAttribute('data-signe') ? /[^\d\s\u202f\u00a0,.-]/g : /[^\d\s\u202f\u00a0,.]/g, '');
     if (propre !== x.value) x.value = propre;
   });
+  // (1.356.9) En quittant une case chiffrée, son nombre s'écrit en français : « 2.5 » devient « 2,5 », « 1200,5 » devient
+  // « 1 200,5 ». Un montant (`.montant`) montre les décimales de sa devise (« 2,5 » devient « 2,500 »). On garde au moins
+  // les décimales tapées (« 2 814,160 » ne perd pas son zéro) et on ne change jamais le nombre : aucun événement ne part,
+  // et ce que le formulaire relit ne bouge pas.
+  document.addEventListener('focusout', e => {
+    const x = e.target;
+    if (!(x instanceof HTMLInputElement) || !x.hasAttribute('data-montant') || x.readOnly) return;
+    const { n, dec } = lectureFr(x.value);
+    if (!Number.isFinite(n)) return;
+    const min = Math.max(dec, x.classList.contains('montant') ? decimalesDuChamp(x) : 0);
+    const s = frChiffre(n, min);
+    if (s && s !== x.value && nombreFr(s) === n) x.value = s;
+  }, true);
   function formValues(form) {
     const o = {};
     $$('input, select, textarea', form).forEach(el => {
@@ -6599,7 +6666,7 @@
               <div class="ed-champs-caches" hidden>
                 <select name="lang" ${ro}><option value="fr" ${doc.lang !== 'en' ? 'selected' : ''}>Français</option><option value="en" ${doc.lang === 'en' ? 'selected' : ''}>English</option></select>
                 <select name="currency" ${roDevise}>${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select>
-                <span id="rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="rate-lbl">1 ${h(cur)} = ? ${h(company().currency)}</span><input type="number" name="exchangeRate" value="${h(doc.exchangeRate || '')}" step="0.0001" min="0" class="num" ${roDevise}></span>
+                <span id="rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="rate-lbl">1 ${h(cur)} = ? ${h(company().currency)}</span><input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(doc.exchangeRate || ''))}" class="num" ${roDevise}></span>
                 ${isQ || isExtra ? `<select name="status" ${ro}>${C.STATUSES[doc.type].map(st => `<option value="${h(st)}" ${st === doc.status ? 'selected' : ''}>${h(optionStatut(st, doc.type))}</option>`).join('')}</select>` : ''}
                 ${!isQ && (!isExtra || isProforma) ? `${withholdingSelect('withholdingRate', doc.withholdingRate, null, ro)}<input type="checkbox" name="applyStamp" ${doc.applyStamp === true || (isInv && doc.applyStamp !== false) ? 'checked' : ''} ${ro}><span id="stamp-lbl">${libelleTimbre()}</span><span id="rs-du-client"></span>` : ''}
                 ${isDelivery ? `<input type="checkbox" name="hidePrices" ${doc.hidePrices !== false ? 'checked' : ''}>` : ''}
@@ -6624,7 +6691,7 @@
             <div class="lignes-cadre"><table class="lines-edit lignes-doc"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité ${info('ed.unit')}</th><th class="r">P.U. HT</th><th>TVA ${info('ed.vat')}</th><th class="r">Total HT</th><th></th></tr></thead>
               <tbody id="lines"></tbody></table></div>
             ${charte ? (figee ? '' : `<div class="ed-pied-lignes"><p class="small muted">Tab : case suivante · Entrée sur la dernière ligne : une ligne de plus · ⋯ au bout d'une ligne : la monter, la descendre, la dupliquer, la retirer.</p>
-              <label class="ed-remise"><span>Remise sur toute la pièce ${info('ed.discount')}</span><span class="ed-remise-ch"><input type="number" id="ed-remise" value="${h(doc.discountRate || 0)}" min="0" max="100" step="0.5" class="num" aria-label="Remise sur toute la pièce, en %"><span>%</span></span></label></div>`) : '<div class="totals-box" id="totals"></div>'}
+              <label class="ed-remise"><span>Remise sur toute la pièce ${info('ed.discount')}</span><span class="ed-remise-ch"><input type="text" inputmode="decimal" data-montant autocomplete="off" id="ed-remise" value="${h(frChiffre(doc.discountRate || 0))}" class="num" aria-label="Remise sur toute la pièce, en %"><span>%</span></span></label></div>`) : '<div class="totals-box" id="totals"></div>'}
           </div>`;
     // (1.155.0, maquette de la facture) Les lignes : une seule barre d'ajout (le catalogue, une désignation libre ou un
     // code-barres ; Ctrl L), la bascule des prix tapés HT ou TTC, « Modèle », « Texte prêt » et « Calculer les prix… » ;
@@ -6641,7 +6708,7 @@
               <tbody id="lines"></tbody></table>
               <div class="ed-vide" id="ed-vide" hidden>${lfIc(aboBloque(isNew) ? 'cadenas' : 'etiquette', 24)}${aboBloque(isNew) ? '<b>La saisie reprend dès le renouvellement</b><span>Rien n\'est perdu : tes clients, tes articles et tes pièces sont là, en lecture.</span>' : '<b>Ajoute ta première ligne</b><span>Un article du catalogue (prix du client, à la bonne quantité), ou une désignation libre.</span>'}</div></div>
             ${figee ? '' : `<div class="ed-pied-lignes"><p class="small muted"><kbd>Tab</kbd> case suivante · <kbd>↵</kbd> en fin de ligne : nouvelle ligne · la douchette tape dans la barre d'ajout · glisser pour ranger</p>
-              <label class="ed-remise"><span>Remise sur toute la pièce ${info('ed.discount')}</span><span class="ed-remise-ch"><input type="number" id="ed-remise" value="${h(doc.discountRate || 0)}" min="0" max="100" step="0.5" class="num" aria-label="Remise sur toute la pièce, en %"><span>%</span></span></label></div>`}
+              <label class="ed-remise"><span>Remise sur toute la pièce ${info('ed.discount')}</span><span class="ed-remise-ch"><input type="text" inputmode="decimal" data-montant autocomplete="off" id="ed-remise" value="${h(frChiffre(doc.discountRate || 0))}" class="num" aria-label="Remise sur toute la pièce, en %"><span>%</span></span></label></div>`}
           </div>`;
     const apercuHtml = `<div class="preview${charte ? ' panel ed-apercu' : ''}">
           <div class="pv-head"><span class="k-label">${charte ? 'Aperçu · tel que le client le recevra' : 'Aperçu'} ${info('ed.preview')}</span><span class="pv-pages" id="pv-pages"></span>
@@ -6742,7 +6809,7 @@
                    Statut et Remise d'une colonne, sous le curseur. Ce qui apparaît selon une valeur ne
                    pousse rien (H-E1) : il vit en fin de formulaire — sur un devis, pile sous la devise.
                    Le libellé tient sur une ligne, sinon sa case descend sous ses voisines. */''}
-              <label class="field obligatoire" id="rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="fl"><span class="rate-lbl">1 ${h(cur)} = ? ${h(company().currency)}</span> ${info('ed.rate')}</span><input type="number" name="exchangeRate" value="${h(doc.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="ex. 3,4" ${roDevise}></label>`}
+              <label class="field obligatoire" id="rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="fl"><span class="rate-lbl">1 ${h(cur)} = ? ${h(company().currency)}</span> ${info('ed.rate')}</span><input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(doc.exchangeRate || ''))}" class="num" placeholder="ex. 3,4" ${roDevise}></label>`}
             </form>
           </div>
           ${charte && isAv && !figee ? `<div class="bandeau info" id="ed-avoir-sur" hidden></div>
@@ -7279,19 +7346,19 @@
         const autre = brouillon.discount && !remises.includes(brouillon.discount);
         voile.innerHTML = `<div class="t-feuille" role="dialog" aria-modal="true" aria-label="Modifier la ligne"><span class="poignee"></span>
           <div class="tf-t"><b>${h(l.label || 'Ligne')}</b>${st !== null ? `<small>en stock : ${pct(st)}</small>` : ''}</div>
-          <div class="tf-ch"><span>Quantité</span><span class="pas"><button type="button" data-pas="-1" aria-label="Un de moins">−</button><input type="number" inputmode="decimal" data-tf="qty" value="${h(brouillon.qty)}" aria-label="Quantité"><button type="button" data-pas="1" aria-label="Un de plus">+</button></span></div>
+          <div class="tf-ch"><span>Quantité</span><span class="pas"><button type="button" data-pas="-1" aria-label="Un de moins">−</button><input type="text" inputmode="decimal" data-montant autocomplete="off" data-tf="qty" value="${h(frChiffre(brouillon.qty))}" aria-label="Quantité"><button type="button" data-pas="1" aria-label="Un de plus">+</button></span></div>
           <div class="tf-ch"><span>Prix ${sansTva ? '' : 'HT '}· par ${h(l.unit || 'unité')}</span><input type="text" inputmode="decimal" data-tf="unitPrice" value="${h(C.money(brouillon.unitPrice, null, dec))}" aria-label="Prix"></div>
           <div class="tf-ch col"><span>Remise</span><div class="choix-t">${remises.map(r => `<button type="button" data-rem="${r}" class="${!autre && brouillon.discount === r ? 'on' : ''}">${r ? r + ' %' : 'Aucune'}</button>`).join('')}<button type="button" data-rem="autre" class="${autre ? 'on' : ''}">${autre ? pct(brouillon.discount) + ' %' : 'Autre…'}</button></div></div>
           ${sansTva ? '' : `<div class="tf-ch col"><span>TVA</span><div class="choix-t">${C.VAT_RATES.map(r => `<button type="button" data-tva="${r}" class="${brouillon.vatRate === r ? 'on' : ''}">${r} %</button>`).join('')}</div></div>`}
           <div class="tf-tot"><span>Total de la ligne</span><b>${C.money(tt.ht || 0, null, dec)}${sansTva ? '' : ' HT'}</b>${brouillon.discount ? `<small>avant remise ${C.money(C.round3(brouillon.qty * brouillon.unitPrice), null, dec)}</small>` : ''}</div>
           <div class="tf-pied"><button type="button" class="btn danger" data-tf-suppr>${lfIc('annuler', 15)}Supprimer</button><button type="button" class="btn btn-primary" data-tf-ok>Valider</button></div></div>`;
         $$('[data-pas]', voile).forEach(b => b.onclick = () => { brouillon.qty = Math.max(0, C.round3(brouillon.qty + Number(b.dataset.pas))); dessiner(); });
-        $$('[data-tf]', voile).forEach(x => x.onchange = () => { brouillon[x.dataset.tf] = Number(String(x.value).replace(/[\s\u202f\u00a0]/g, '').replace(',', '.')) || 0; dessiner(); });
+        $$('[data-tf]', voile).forEach(x => x.onchange = () => { brouillon[x.dataset.tf] = lireMontant(x.value); dessiner(); });
         $$('[data-rem]', voile).forEach(b => b.onclick = () => {
           if (b.dataset.rem === 'autre') {
             // La remise libre se tape à la place du bouton.
-            const champ = document.createElement('input'); champ.type = 'number'; champ.inputMode = 'decimal'; champ.min = '0'; champ.max = '100'; champ.className = 'tf-autre'; champ.setAttribute('aria-label', 'Remise en %'); champ.value = String(brouillon.discount || '');
-            b.replaceWith(champ); champ.focus(); champ.onchange = () => { brouillon.discount = Math.min(100, Math.max(0, Number(champ.value) || 0)); dessiner(); };
+            const champ = document.createElement('input'); champ.type = 'text'; champ.inputMode = 'decimal'; champ.dataset.montant = ''; champ.className = 'tf-autre'; champ.setAttribute('aria-label', 'Remise en %'); champ.value = frChiffre(brouillon.discount || '');
+            b.replaceWith(champ); champ.focus(); champ.onchange = () => { brouillon.discount = Math.min(100, Math.max(0, lireMontant(champ.value))); dessiner(); };
             return;
           }
           brouillon.discount = Number(b.dataset.rem); dessiner();
@@ -7442,9 +7509,9 @@
             ${openDesc.has(i)
               ? `<textarea data-k="description" placeholder="Description : ce que comprend la prestation" ${ro}>${h(l.description || '')}</textarea>`
               : (figee ? '' : `<button type="button" class="link-add" tabindex="-1" data-desc="${i}">+ description</button>`)}${lotChoix(l, i)}${charte && !figee ? `<div class="ligne-reperes" data-reperes="${i}">${reperesLigne(l, ventes, i)}</div>` : ''}</td>
-        <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01" ${ro}></td>
+        <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-k="qty" value="${h(frChiffre(l.qty))}" ${ro}></td>
         <td><select data-k="unit" ${ro}>${unitOptions(l.unit, extraUnits)}</select></td>
-        <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001" ${ro}></td>
+        <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-k="unitPrice" value="${h(frMontant(l.unitPrice, cur))}" ${ro}></td>
         <td><select data-k="vatRate" ${ro || (!C.assujettiTVA(company()) && !Number(l.vatRate) ? `disabled title="${h(`Ton régime (${C.regimeOf(company()).court.toLowerCase()}) ne facture pas de TVA.`)}"` : '')}>${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
         <td class="total" data-total="${i}"></td>
         <td class="line-tools">${figee ? '' : charte ? `<button type="button" class="row-menu-btn btn ico" data-rowmenu="${i}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes de la ligne ${i + 1}">${lfIc('plus', 16)}</button>` : `
@@ -7456,16 +7523,16 @@
         if (el.dataset.k === 'unit') return;   // traité juste après : « Autre… » ouvre une saisie libre
         el.oninput = () => {
           const i = Number(el.closest('tr').dataset.i);
-          if (el.type === 'number') {
+          if (el.type === 'number' || el.dataset.montant !== undefined) {
             // `Number('')` vaut 0 : effacer une quantité pour la retaper faisait passer la ligne à
             // zéro, donc le total du document, donc l'aperçu — sans un mot. On ne retient rien tant
             // que le champ n'est pas lisible ; le marquage dit que la valeur affichée n'est pas celle
-            // qui est retenue. (`badInput` : « 12,,5 » ou « e » dans un champ numérique.)
-            const vide = el.value.trim() === '' || el.validity.badInput;
+            // qui est retenue. (« 12,,5 » ne se lit pas : `chiffreLisible`.)
+            const vide = !chiffreLisible(el);
             el.classList.toggle('champ-faute', vide);
             if (vide) return;
             const ancienneQte = doc.lines[i].qty;
-            doc.lines[i][el.dataset.k] = Number(el.value);
+            doc.lines[i][el.dataset.k] = lireChiffre(el);
             // Le prix par quantité (brique 92) : un prix tapé est une décision ; sinon, la quantité choisit le palier.
             if (el.dataset.k === 'unitPrice') doc.lines[i].prixManuel = true;
             if (el.dataset.k === 'qty' && doc.lines[i].itemId && !doc.lines[i].prixManuel) {
@@ -7477,7 +7544,7 @@
               if (pu !== null && pu !== '' && Number(pu) !== Number(doc.lines[i].unitPrice) && Number(auto(ancienneQte)) === Number(doc.lines[i].unitPrice)) {
                 doc.lines[i].unitPrice = pu;
                 const champ = el.closest('tr').querySelector('input[data-k=unitPrice]');
-                if (champ) champ.value = pu;
+                if (champ) champ.value = frMontant(pu, cur);
               }
             }
           } else {
@@ -7660,7 +7727,7 @@
         // Le taux suit la devise dans le champ aussi : laissé à l'écran, le prochain formValues le
         // réécrirait dans la pièce.
         const champTaux = $('input[name=exchangeRate]', head);
-        if (champTaux) champTaux.value = doc.exchangeRate || '';
+        if (champTaux) champTaux.value = frChiffre(doc.exchangeRate || '');
         cur = docCur(doc); poserDevise(head, cur); setRateLabel(); direDevise();
         // les affaires proposées suivent le client : celles d'un autre client n'ont rien à faire ici.
         // Et celle qui était choisie PART avec l'ancien client (10.12.0) : absente de la liste, elle
@@ -7715,7 +7782,7 @@
         const sel = $('select[name=currency]', head), taux = $('input[name=exchangeRate]', head);
         if (inv) {
           doc.currency = docCur(inv); doc.exchangeRate = inv.exchangeRate || '';
-          sel.value = doc.currency; taux.value = doc.exchangeRate;
+          sel.value = doc.currency; taux.value = frChiffre(doc.exchangeRate);
           sel.disabled = taux.disabled = true;
           if (cur !== doc.currency) {
             cur = doc.currency; setRateLabel(); drawLines();
@@ -8250,7 +8317,7 @@
           rs.textContent = duClient ? '· du client' : '';
           const puce = rs.closest('.puce-champ'); if (puce) puce.classList.toggle('on', Number(doc.withholdingRate) > 0);
         }
-        const er = $('#ed-remise'); if (er && document.activeElement !== er) er.value = doc.discountRate || 0;
+        const er = $('#ed-remise'); if (er && document.activeElement !== er) er.value = frChiffre(doc.discountRate || 0);
         // La marge de chaque ligne au coût connu, sous sa désignation.
         $$('[data-marge]').forEach(m => {
           const i = Number(m.dataset.marge), l = doc.lines[i], tl = t.lines[i];
@@ -8827,9 +8894,9 @@
         <form id="df" class="ac-f" data-devise="${h(cur)}">
           <input type="hidden" name="mode" value="pct">
           <div class="choix-t" role="group" aria-label="Exprimé en"><button type="button" data-ac="pct" class="on" aria-pressed="true">En pourcentage</button><button type="button" data-ac="dt" aria-pressed="false">En ${deviseDit} TTC</button></div>
-          <div class="ac-g" id="dp-pct"><label class="field">${lbl('Pourcentage du devis', 'ed.depositPct')}<span class="in-u"><input type="number" name="percent" value="30" min="0.1" max="99.9" step="0.5" class="num grand"><small>%</small></span></label>
+          <div class="ac-g" id="dp-pct"><label class="field">${lbl('Pourcentage du devis', 'ed.depositPct')}<span class="in-u"><input type="text" inputmode="decimal" data-montant autocomplete="off" name="percent" value="30" class="num grand"><small>%</small></span></label>
             <div class="choix-t ac-vite" role="group" aria-label="Pourcentages courants">${[30, 40, 50].map(x => `<button type="button" data-acp="${x}" class="${x === 30 ? 'on' : ''}">${x} %</button>`).join('')}</div></div>
-          <div class="ac-g" id="dp-dt" hidden><label class="field">${lbl(`Montant TTC (${h(cur)})`, 'ed.depositAmount')}<span class="in-u"><input type="number" name="montant" value="${C.arrondiDevise(cur)(ttcDevis * 0.3)}" min="0" step="0.001" class="num grand"><small>${h(cur)}</small></span></label></div>
+          <div class="ac-g" id="dp-dt" hidden><label class="field">${lbl(`Montant TTC (${h(cur)})`, 'ed.depositAmount')}<span class="in-u"><input type="text" inputmode="decimal" data-montant autocomplete="off" name="montant" value="${h(frMontant(C.arrondiDevise(cur)(ttcDevis * 0.3), cur))}" class="num montant grand"><small>${h(cur)}</small></span></label></div>
           <div id="dp-apercu" aria-live="polite"></div>
         </form>
         <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Créer le brouillon</button></div>`,
@@ -8887,9 +8954,9 @@
           apercu();
         };
         $$('[data-ac]', root).forEach(b => b.onclick = () => majMode(b.dataset.ac));
-        $$('[data-acp]', root).forEach(b => b.onclick = () => { $('[name=percent]', f).value = b.dataset.acp; f.oninput(); });
+        $$('[data-acp]', root).forEach(b => b.onclick = () => { $('[name=percent]', f).value = frChiffre(b.dataset.acp); f.oninput(); });
         f.oninput = f.onchange = () => {
-          const p = Number($('[name=percent]', f).value);
+          const p = lireMontant($('[name=percent]', f).value);
           $$('[data-acp]', root).forEach(b => b.classList.toggle('on', Number(b.dataset.acp) === p));
           apercu();
         };
@@ -9210,7 +9277,7 @@
       const er = $('#ed-remise');
       if (er) er.oninput = () => {
         const champ = $('input[name=discountRate]', head);
-        champ.value = er.value.trim() === '' || er.validity.badInput ? 0 : er.value;
+        champ.value = String(chiffreLisible(er) ? lireMontant(er.value) : 0);
         head.oninput({ target: champ });
       };
       if ($('#ed-grand')) $('#ed-grand').onclick = () => apercuPleinEcran();
@@ -9265,7 +9332,7 @@
           (pop, fermer) => $$('[data-v]', pop).forEach(x => x.onclick = () => { mettre('lang', x.dataset.v); fermer(); }), { label: 'Langue de la pièce' });
         if (k === 'devise') return ouvrirBulle(b, `<div class="pop-t">Devise ${isQ ? 'du devis' : isAv ? 'de l\'avoir' : 'de la facture'}</div>
             <div class="pop-seg">${C.CURRENCIES.map(c => `<button type="button" data-cur="${h(c)}" class="${c === cur ? 'on' : ''}" ${roDevise ? 'disabled' : ''}>${h(nomDevise(c))}</button>`).join('')}</div>
-            <div class="pop-taux" ${cur === base ? 'hidden' : ''}><label>Taux · 1 ${h(symb(cur))} en ${h(base)}<input type="number" step="0.0001" min="0" class="num" id="pop-taux" value="${h(doc.exchangeRate || '')}" placeholder="ex. 3,412" ${roDevise ? 'disabled' : ''}></label>
+            <div class="pop-taux" ${cur === base ? 'hidden' : ''}><label>Taux · 1 ${h(symb(cur))} en ${h(base)}<input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" id="pop-taux" value="${h(frChiffre(doc.exchangeRate || ''))}" placeholder="ex. 3,412" ${roDevise ? 'disabled' : ''}></label>
               <small>cours du ${lfJm(doc.date || C.today())} · la source du cours se choisit dans les réglages</small></div>
             ${isInv && cur !== base ? `<label class="pop-case"><input type="checkbox" id="pop-export" ${doc.export ? 'checked' : ''}> Vente à l'exportation : sans TVA, sans droit de timbre</label>` : ''}
             <p class="pop-n">${cur === base ? 'Une facture en devise se compte en dinars au taux que tu indiques.' : 'La comptabilité compte cette pièce en dinars à ce taux. Au paiement, l\'écart avec le taux du jour devient un gain ou une perte de change. Sans taux, rien ne s\'émet.'}</p>`,
@@ -10370,7 +10437,7 @@
         <label class="field">${lbl('Sa retenue à la source', 'ed.withholding')}${withholdingSelect('withholdingRate', c.withholdingRate, { vide: `Par défaut (${pct(company().defaultWithholdingRate || 0)} %)` })}</label>
         ${field(lbl('Délai de paiement (jours)', 'cl.delai'), 'paymentTermsDays', c.paymentTermsDays == null ? '' : c.paymentTermsDays, 'number', `min="0" step="1" class="num" placeholder="Celui des réglages (${C.delaiJours(company().paymentTermsDays, 30)})"`)}
         <label class="check"><input type="checkbox" name="stampExempt" ${c.stampExempt ? 'checked' : ''}> Exonéré de timbre fiscal ${info('client.stampExempt')}</label>
-        <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="number" name="creditLimit" value="${h(c.creditLimit || '')}" step="0.001" min="0" class="num" placeholder="Sans plafond"${!estResponsable() ? ' disabled title="L\'encours autorisé se règle par le propriétaire ou un administrateur."' : ''}></label>
+        <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="creditLimit" value="${h(frChiffre(c.creditLimit || ''))}" class="num montant" placeholder="Sans plafond"${!estResponsable() ? ' disabled title="L\'encours autorisé se règle par le propriétaire ou un administrateur."' : ''}></label>
         <label class="field">${lbl('Catégorie de prix', 'cl.categorie')}<input type="text" name="categorieTarif" value="${h(c.categorieTarif || '')}" list="cl-categories" placeholder="Revendeur, Chantier…"><datalist id="cl-categories">${Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...(data.priceLists || []).map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr')).map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
         ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
         ${field(lbl('Code client', 'cl.code'), 'code', c.code || '', 'text', 'placeholder="CL-0012" autocomplete="off"')}
@@ -11077,7 +11144,7 @@
             <div class="scroll-x"><table class="lines-edit"><thead><tr><th>Article</th><th class="r">Prix du catalogue</th><th class="r">Prix de la liste HT (${h(cur)})</th><th class="r lp-ecart">Écart</th><th></th></tr></thead><tbody id="lp-lignes"></tbody></table></div>
             <div id="lp-pg"></div>
             <div class="lp-outils"><button class="btn btn-sm" id="lp-add">+ Article</button>
-              <span class="lp-remise"><label for="lp-pct">Tout le catalogue à</label><input type="number" id="lp-pct" class="num" min="0" max="99" step="0.5" placeholder="10"><span>% de remise</span><button class="btn btn-sm" id="lp-pct-ok">Remplir</button><button class="btn btn-sm btn-ghost" id="lp-pct-annuler" hidden>Annuler le remplissage</button></span></div>
+              <span class="lp-remise"><label for="lp-pct">Tout le catalogue à</label><input type="text" inputmode="decimal" data-montant autocomplete="off" id="lp-pct" class="num" placeholder="10"><span>% de remise</span><button class="btn btn-sm" id="lp-pct-ok">Remplir</button><button class="btn btn-sm btn-ghost" id="lp-pct-annuler" hidden>Annuler le remplissage</button></span></div>
           </div>
           ${stored ? '<p class="small"><button type="button" class="btn-lien danger-text" id="lp-del">Supprimer la liste</button> <span class="muted">· les pièces déjà faites gardent leurs prix</span></p>' : ''}
         </div>
@@ -11182,11 +11249,13 @@
         return `<tr>
         <td><select data-lk="itemId" data-i="${i}"><option value="">— Choisir un article —</option>${articles.map(a => `<option value="${h(a.id)}" ${a.id === x.itemId ? 'selected' : ''}>${h(a.label)}</option>`).join('')}</select></td>
         <td class="r num nw" data-lib="Catalogue">${it ? h(C.money(Number(it.unitPrice) || 0, cur)) : '—'}</td>
-        <td data-lib="Prix de la liste"><input type="number" class="num" data-lk="prix" data-i="${i}" value="${h(x.prix)}" step="0.001" min="0" aria-label="Prix de la liste HT"></td>
+        <td data-lib="Prix de la liste"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-lk="prix" data-i="${i}" value="${h(frChiffre(x.prix))}" aria-label="Prix de la liste HT"></td>
         <td class="r lp-ecart" data-lib="Écart" data-ecart="${i}">${e === null ? '—' : fmtPct(e)}${perte ? `<div class="small danger-text" data-perte="${i}">sous son coût (${h(C.money(cout, cur))})</div>` : ''}</td>
         <td><button type="button" class="btn btn-ghost btn-sm" data-lrm="${i}" aria-label="Retirer la ligne ${i + 1}">✕</button></td></tr>`;
       }).join('');
-      $$('#lp-lignes [data-lk]').forEach(el => { el[el.tagName === 'SELECT' ? 'onchange' : 'onchange'] = () => { l.lignes[Number(el.dataset.i)][el.dataset.lk] = el.value; touch(); dessiner(); }; if (el.tagName !== 'SELECT') el.oninput = () => { l.lignes[Number(el.dataset.i)].prix = el.value; touch(); }; });
+      // (1.356.9) Le prix d'une liste s'écrit en français : il se relit en nombre (« 12,500 », « 1 200,5 »).
+      const valeurLk = el => (el.tagName === 'SELECT' ? el.value : el.value.trim() === '' ? '' : lireMontant(el.value));
+      $$('#lp-lignes [data-lk]').forEach(el => { el.onchange = () => { l.lignes[Number(el.dataset.i)][el.dataset.lk] = valeurLk(el); touch(); dessiner(); }; if (el.tagName !== 'SELECT') el.oninput = () => { l.lignes[Number(el.dataset.i)].prix = valeurLk(el); touch(); }; });
       $$('#lp-lignes [data-lrm]').forEach(b => { b.onclick = () => { l.lignes.splice(Number(b.dataset.lrm), 1); if (!l.lignes.length) l.lignes.push({ itemId: '', prix: '' }); touch(); dessiner(); }; });
     };
     dessiner();
@@ -11197,7 +11266,7 @@
     // le remplissage se défait d'un geste tant que la liste n'est pas enregistrée.
     let avantRemplissage = null;
     $('#lp-pct-ok').onclick = () => {
-      const pct = Number(String($('#lp-pct').value).replace(',', '.'));
+      const pct = nombreFr($('#lp-pct').value);
       if (!(pct > 0 && pct < 100)) return refus('#lp-pct', 'Indique une remise entre 0 et 100 % (par exemple 10) : chaque article du catalogue prendra son prix moins cette remise.');
       const avecPrix = articles.filter(a => Number(a.unitPrice) > 0);
       if (!avecPrix.length) return refus('#lp-pct', 'Aucun article du catalogue n\'a de prix : ajoute les prix au catalogue, ou saisis ceux de la liste un par un.');
@@ -11835,7 +11904,7 @@
         ${field(lbl(`Prix unitaire HT (${h(company().currency || 'DT')})`, 'cat.price'), 'unitPrice', it.unitPrice, 'number', 'step="0.001" min="0" class="num"')}
         ${/* (plateforme) Le prix TTC, celui de l'étiquette : tapé, il donne le HT qui y retombe exactement ; le HT tapé, il
            se calcule ici. Sans nom : il ne s'enregistre pas sur l'article, que son HT et sa TVA disent déjà. */''}
-        <label class="field">${lbl(`Prix TTC (${h(company().currency || 'DT')})`, 'cat.priceTtc')}<input type="number" id="cat-ttc" step="0.001" min="0" class="num" value=""></label>
+        <label class="field">${lbl(`Prix TTC (${h(company().currency || 'DT')})`, 'cat.priceTtc')}<input type="text" inputmode="decimal" data-montant autocomplete="off" id="cat-ttc" class="num montant" value=""></label>
         <label class="field">${lbl(`Prix par quantité (${h(company().currency || 'DT')})`, 'cat.paliers')}<input type="text" name="paliers" id="cat-paliers" value="${h(C.paliersEnTexte(it.paliers))}" placeholder="10 : 20,500 ; 100 : 19"></label>
         ${field(lbl(`Coût de revient HT (${h(company().currency || 'DT')})`, 'cat.cost'), 'unitCost', it.unitCost || 0, 'number', 'step="0.001" min="0" class="num"')}
         ${/* Le calculateur vit À CÔTÉ de la phrase de marge (H6) : c'est là qu'on lit qu'un prix ne va
@@ -11914,7 +11983,7 @@
         const drawKit = () => {
           $('#kit-rows', root).innerHTML = composants.map((k, i) => `<div class="inline kit-row" data-kit="${i}">
             <select data-kit-art aria-label="Composant ${i + 1}"><option value="">— Choisir un article suivi —</option>${suivis.map(c => `<option value="${h(c.id)}" ${c.id === k.itemId ? 'selected' : ''}>${h(c.label)}</option>`).join('')}</select>
-            <input type="number" class="num" data-kit-qte step="any" min="0" value="${h(String(k.qty ?? 1))}" aria-label="Quantité par kit, composant ${i + 1}" style="width:96px">
+            <input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-kit-qte value="${h(frChiffre(k.qty ?? 1))}" aria-label="Quantité par kit, composant ${i + 1}" style="width:96px">
             <button type="button" class="btn btn-sm btn-ghost" data-kit-rm aria-label="Retirer le composant ${i + 1}">✕</button></div>`).join('');
           $('#kit-add', root).disabled = !suivis.length;
           const lu = { ...it, tracked: false, composants: composants.filter(k => k.itemId && Number(k.qty) > 0) };
@@ -11922,14 +11991,14 @@
             : !composants.length ? 'Un pack, un coffret, un lot : le vendre sortira ses composants du stock.'
               : C.estKit(lu) ? `Les composants coûtent aujourd'hui ${C.money(C.coutDuKit(data, lu), company().currency)} ; il y a de quoi en faire ${pct(C.kitsPossibles(data, lu))}.` : '';
           const champCout = $('input[name=unitCost]', root);
-          if (C.estKit(lu) && (!(Number(champCout.value) > 0) || champCout.value === coutAuto)) {
-            coutAuto = String(C.coutDuKit(data, lu)); champCout.value = coutAuto;
+          if (C.estKit(lu) && (!(lireMontant(champCout.value) > 0) || champCout.value === coutAuto)) {
+            coutAuto = frMontant(C.coutDuKit(data, lu)); champCout.value = coutAuto;
             $('#kf', root).dispatchEvent(new Event('input', { bubbles: true }));
           }
           $$('[data-kit]', root).forEach(r => {
             const i = Number(r.dataset.kit);
             $('[data-kit-art]', r).onchange = e => { composants[i].itemId = e.target.value; drawKit(); };
-            $('[data-kit-qte]', r).onchange = e => { composants[i].qty = e.target.value; drawKit(); };
+            $('[data-kit-qte]', r).onchange = e => { composants[i].qty = e.target.value.trim() === '' ? '' : lireMontant(e.target.value); drawKit(); };
             $('[data-kit-rm]', r).onclick = () => { composants.splice(i, 1); drawKit(); };
           });
         };
@@ -11963,7 +12032,7 @@
         const champDepart = $('input[name=initialCost]', root), champRevient = $('input[name=unitCost]', root);
         if (champDepart && champRevient && !champDepart.disabled) {
           let departTouche = Number(it.initialCost) > 0;
-          const suivre = () => { if (!departTouche && Number(champRevient.value) > 0) champDepart.value = champRevient.value; };
+          const suivre = () => { if (!departTouche && lireMontant(champRevient.value) > 0) champDepart.value = champRevient.value; };
           champDepart.addEventListener('input', () => { departTouche = true; });
           $('#kf', root).addEventListener('input', e => { if (e.target !== champDepart) suivre(); });
           suivre();
@@ -11975,17 +12044,17 @@
         let tapeTtc = false;
         // (1.356.0) Un prix recalculé s'écrit avec les décimales de la devise, comme celui qu'on tape : « 0.2 » à côté de
         // « 0.200 » (la TVA passée à 0 %), « 0.84 » pour un croissant à 1 DT TTC.
-        const enChamp = n => Number(n).toFixed(C.decimalsFor(company().currency));
+        const enChamp = n => frMontant(n);
         const majTtc = () => {
-          const ht = Number(champHt.value) || 0;
+          const ht = lireMontant(champHt.value);
           champTtc.value = ht > 0 ? enChamp(C.computeTotals({ type: 'facture', applyStamp: false, lines: [C.ligneDePanier({ unitPrice: ht, vatRate: Number(champTva.value) || 0 }, company())] }, company()).totalTTC) : '';
         };
         const majHt = dire => {
-          const r = C.calculPrix({ mode: 'ttc', valeur: champTtc.value, tva: C.ligneDePanier({ vatRate: Number(champTva.value) || 0 }, company()).vatRate, decimales: C.decimalsFor(company().currency) });
+          const r = C.calculPrix({ mode: 'ttc', valeur: champTtc.value.trim() === '' ? '' : lireMontant(champTtc.value), tva: C.ligneDePanier({ vatRate: Number(champTva.value) || 0 }, company()).vatRate, decimales: C.decimalsFor(company().currency) });
           if (!r.ok) return;
           champHt.value = enChamp(r.ht);
           hint();
-          if (dire && !r.exact) toast(`Aucun prix HT ne donne exactement ${C.money(Number(champTtc.value), company().currency)} TTC à ${pct(r.tva)} % : le plus proche donne ${C.money(r.ttc, company().currency)}.`);
+          if (dire && !r.exact) toast(`Aucun prix HT ne donne exactement ${C.money(lireMontant(champTtc.value), company().currency)} TTC à ${pct(r.tva)} % : le plus proche donne ${C.money(r.ttc, company().currency)}.`);
         };
         majTtc();
         champTtc.addEventListener('input', () => { tapeTtc = true; majHt(false); });
@@ -12003,8 +12072,8 @@
           const v = formValues($('#kf', root));
           const figee = !C.assujettiTVA(company());
           prixCalculForm({ cout: Number(v.unitCost) || '', tva: Number(v.vatRate) || 0, tvaFigee: figee, sujet: v.label.trim() }, ({ r }) => {
-            $('input[name=unitPrice]', root).value = r.ht;
-            $('input[name=unitCost]', root).value = r.coutComplet;
+            $('input[name=unitPrice]', root).value = frMontant(r.ht);
+            $('input[name=unitCost]', root).value = frMontant(r.coutComplet);
             if (!figee) {
               $('select[name=vatRate]', root).value = String(r.tva);
               $('select[name=vatRate]', root).dispatchEvent(new Event('change', { bubbles: true }));
@@ -12471,8 +12540,8 @@
         const drawLines = () => {
           $('#tf-lines', root).innerHTML = t.lines.length ? t.lines.map((l, i) => `<tr data-i="${i}">
             <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation"></td>
-            <td><input type="number" class="num" data-k="qty" value="${l.qty != null ? l.qty : 1}" step="0.01"></td>
-            <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice || 0}" step="0.001"></td>
+            <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-k="qty" value="${h(frChiffre(l.qty != null ? l.qty : 1))}"></td>
+            <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-k="unitPrice" value="${h(frChiffre(l.unitPrice || 0))}"></td>
             <td><select data-k="vatRate">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
             <td class="total">${C.money(C.round3((Number(l.qty) || 0) * (Number(l.unitPrice) || 0)), cur)}</td>
             <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-x="${i}" title="Supprimer">✕</button></td></tr>`).join('')
@@ -12482,7 +12551,7 @@
           // « 250 » devenait « 2 ». Les lignes ne se redessinent qu'à l'ajout ou au retrait.
           $$('[data-k]', $('#tf-lines', root)).forEach(el => el.oninput = el.onchange = () => {
             const tr = el.closest('tr'), i = Number(tr.dataset.i);
-            t.lines[i][el.dataset.k] = el.type === 'number' || el.dataset.k === 'vatRate' ? Number(el.value) : el.value;
+            t.lines[i][el.dataset.k] = el.type === 'number' || el.dataset.montant !== undefined ? lireChiffre(el) : el.dataset.k === 'vatRate' ? Number(el.value) : el.value;
             const l = t.lines[i], cell = $('td.total', tr);
             if (cell) cell.textContent = C.money(C.round3((Number(l.qty) || 0) * (Number(l.unitPrice) || 0)), cur);
             majSomme();
@@ -13134,7 +13203,7 @@
         <label class="field">${lbl('Retenue à la source', 'ed.withholding')}${withholdingSelect('withholdingRate', r.withholdingRate)}</label>
         ${field(lbl('Remise (%)', 'ed.discount'), 'discountRate', r.discountRate || 0, 'number', 'min="0" max="100" step="0.5" class="num"')}
         <label class="field">${lbl('Devise des factures', 'contrat.devise')}<select name="currency">${C.CURRENCIES.map(x => `<option value="${x}" ${x === cur ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
-        <label class="field obligatoire" id="rf-rate" ${enDevise() ? '' : 'hidden'}><span class="fl"><span id="rf-rate-lbl">1 ${h(cur)} = ? ${h(co0.currency)}</span> ${info('contrat.taux')}</span><input type="number" name="exchangeRate" value="${h(r.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="ex. 3,4"></label>
+        <label class="field obligatoire" id="rf-rate" ${enDevise() ? '' : 'hidden'}><span class="fl"><span id="rf-rate-lbl">1 ${h(cur)} = ? ${h(co0.currency)}</span> ${info('contrat.taux')}</span><input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(r.exchangeRate || ''))}" class="num" placeholder="ex. 3,4"></label>
         <label class="field span-3">${lbl('Notes sur la facture', 'ed.notes')}<textarea name="notes" rows="2">${h(r.notes || '')}</textarea></label>
         <label class="check span-3"><input type="checkbox" name="active" ${r.active !== false ? 'checked' : ''}> <span>Contrat actif (les factures sont proposées à la date prévue) ${info('contrat.actif')}</span></label>
         ${bridge.droitsDossier ? `<label class="check span-3"><input type="checkbox" name="emettreSeul" ${r.emettreSeul ? 'checked' : ''} ${bridge.droitsDossier().responsable ? '' : 'disabled'}> <span>Émise seule : SkanFact émet chaque facture à sa date, avec son numéro, sans brouillon à relire${bridge.droitsDossier().responsable ? '' : ' (choix du propriétaire ou d\'un administrateur)'} ${info('contrat.seul')}</span></label>` : ''}
@@ -13193,10 +13262,10 @@
           const extraUnits = C.usedUnits(data, r.lines.map(l => l.unit));
           body.innerHTML = r.lines.map((l, i) => l.kind === 'titre' ? `<tr data-i="${i}" class="rl-titre"><td colspan="5"><input type="text" data-k="label" value="${h(l.label)}" placeholder="Titre de la section" aria-label="Titre de la section"></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}" aria-label="Retirer le titre">✕</button></td></tr>` : `<tr data-i="${i}"><td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation">
               ${openRl.has(i) ? `<textarea data-k="description" rows="2" placeholder="Description reprise sur chaque facture">${h(l.description || '')}</textarea>` : `<button type="button" class="link-add" tabindex="-1" data-rdesc="${i}">+ description</button>`}</td>
-            <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td><td><select data-k="unit">${unitOptions(l.unit, extraUnits)}</select></td><td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td><td><select data-k="vatRate">${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}">✕</button></td></tr>`).join('');
+            <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-k="qty" value="${h(frChiffre(l.qty))}"></td><td><select data-k="unit">${unitOptions(l.unit, extraUnits)}</select></td><td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-k="unitPrice" value="${h(frChiffre(l.unitPrice))}"></td><td><select data-k="vatRate">${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}">✕</button></td></tr>`).join('');
           $$('[data-k]', body).forEach(el => {
             if (el.dataset.k === 'unit') return;
-            el.oninput = () => { const i = Number(el.closest('tr').dataset.i); r.lines[i][el.dataset.k] = el.type === 'number' ? Number(el.value) : el.value; tot(); };
+            el.oninput = () => { const i = Number(el.closest('tr').dataset.i); r.lines[i][el.dataset.k] = el.type === 'number' || el.dataset.montant !== undefined ? lireChiffre(el) : el.value; tot(); };
           });
           $$('select[data-k=unit]', body).forEach(sel => {
             const i = Number(sel.closest('tr').dataset.i);
@@ -13215,7 +13284,7 @@
         // Sans ligne chiffrée, le total n'était que le timbre : « 0,000 DT HT · 1,000 DT TTC par
         // facture » sur un contrat vide. On dit ce qui manque au lieu d'annoncer un dinar.
         const tot = () => {
-          const t2 = C.computeTotals({ type: 'facture', lines: r.lines, discountRate: Number($('input[name=discountRate]', root).value) || 0, currency: cur, exchangeRate: Number(txTaux.value) || '' }, co0);
+          const t2 = C.computeTotals({ type: 'facture', lines: r.lines, discountRate: lireChiffre($('input[name=discountRate]', root)), currency: cur, exchangeRate: lireChiffre(txTaux) || '' }, co0);
           // Sans taux, le TTC n'est pas encore connu : le timbre est en dinars, et le convertir à 1
           // pour 1 afficherait un total faux le temps de la frappe.
           const sansTaux = enDevise() && !(Number(txTaux.value) > 0);
@@ -15893,7 +15962,7 @@
           ${field(lbl('Référence (optionnel)', 'cf.reference'), 'reference', o.reference || '', 'text')}
           <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s)).map(s => `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(MOTS_CF[s].charAt(0).toUpperCase() + MOTS_CF[s].slice(1))}</option>`).join('')}</select></label>
           <label class="field">${lbl('Devise', '')}<select name="currency" ${ro}>${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select></label>
-          <label class="field obligatoire" id="cf-rate" ${cur === company().currency ? 'hidden' : ''}>${lbl(`1 <span id="cf-rate-dev">${h(cur)}</span> = ? ${h(company().currency)}`, '')}<input type="number" name="exchangeRate" value="${h(o.exchangeRate || '')}" step="0.0001" min="0" class="num" ${ro}></label>
+          <label class="field obligatoire" id="cf-rate" ${cur === company().currency ? 'hidden' : ''}>${lbl(`1 <span id="cf-rate-dev">${h(cur)}</span> = ? ${h(company().currency)}`, '')}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(o.exchangeRate || ''))}" class="num" ${ro}></label>
         </form>
       </div>
       <div class="panel"><h2>Lignes ${info('cf.lignes')}</h2>
@@ -15971,16 +16040,16 @@
     const dessinerLignes = () => {
       $('#cf-lines').innerHTML = o.lines.map((l, i) => `<tr>
         <td><input type="text" data-k="label" data-i="${i}" value="${h(l.label || '')}" placeholder="Désignation" ${ro}></td>
-        <td><input type="number" class="num" data-k="qty" data-i="${i}" value="${h(l.qty)}" step="any" min="0" ${ro}></td>
+        <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-k="qty" data-i="${i}" value="${h(frChiffre(l.qty))}" ${ro}></td>
         <td><select data-k="unit" data-i="${i}" ${ro}>${unitOptions(l.unit, unitesCommande())}</select></td>
-        <td><input type="number" class="num" data-k="unitPrice" data-i="${i}" value="${h(l.unitPrice)}" step="0.001" min="0" ${ro}></td>
+        <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-k="unitPrice" data-i="${i}" value="${h(frChiffre(l.unitPrice))}" ${ro}></td>
         <td><select data-k="vatRate" data-i="${i}" ${ro}>${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v} %</option>`).join('')}</select></td>
         <td class="r num nw" data-ht></td>
         <td>${figee ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-del="${i}" aria-label="Retirer la ligne ${i + 1}">✕</button>`}</td></tr>`).join('');
       $$('#cf-lines [data-k]').forEach(el => {
         el[el.tagName === 'SELECT' ? 'onchange' : 'oninput'] = () => {
           const l = o.lines[Number(el.dataset.i)];
-          l[el.dataset.k] = ['qty', 'unitPrice', 'vatRate'].includes(el.dataset.k) ? (Number(el.value) || 0) : el.value;
+          l[el.dataset.k] = el.dataset.montant !== undefined ? lireChiffre(el) : ['qty', 'unitPrice', 'vatRate'].includes(el.dataset.k) ? (Number(el.value) || 0) : el.value;
           touch(); totaux();
         };
       });
@@ -16020,7 +16089,7 @@
       touch();
       if (e.target.name === 'currency') { cur = e.target.value; $('#cf-rate').hidden = cur === company().currency; $('#cf-rate-dev').textContent = cur; o.currency = cur; totaux(); }
       if (e.target.name === 'status') { o.status = e.target.value; totaux(); }
-      if (e.target.name === 'exchangeRate') { o.exchangeRate = Number(e.target.value) || ''; totaux(); }
+      if (e.target.name === 'exchangeRate') { o.exchangeRate = lireChiffre(e.target) || ''; totaux(); }
     });
     $('#cf-notes').oninput = touch;
     const lire = () => {
@@ -16270,7 +16339,7 @@
         <div class="scroll-x mt"><table class="list compact rec-lines"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Déjà reçu</th><th class="r">Reçu ici</th><th>Unité</th></tr></thead>
           <tbody>${r.lines.map((l, i) => { const x = autres && Number.isInteger(l.ligneCommande) ? autres.lignes[l.ligneCommande] : null; return `<tr>
             <td>${h(l.label || '—')}</td><td class="r num">${x ? pct(x.commandee) : '—'}</td><td class="r num">${x ? pct(x.recue) : '—'}</td>
-            <td class="r"><input type="number" class="num" data-rq="${i}" value="${h(l.qty)}" step="any" min="0" style="max-width:110px" ${ro} aria-label="Quantité reçue : ${h(l.label || 'ligne ' + (i + 1))}"></td>
+            <td class="r"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-rq="${i}" value="${h(frChiffre(l.qty))}" style="max-width:110px" ${ro} aria-label="Quantité reçue : ${h(l.label || 'ligne ' + (i + 1))}"></td>
             <td>${h(l.unit || '')}</td></tr>`; }).join('')}</tbody></table></div>
         <div id="rec-avis" class="mt"></div>
         <label class="field mt">Notes<textarea id="rec-notes" placeholder="État de la marchandise, numéro du bon de livraison du fournisseur…" ${ro}>${h(r.notes || '')}</textarea></label>
@@ -16292,7 +16361,7 @@
       }).filter(Boolean) : [];
       $('#rec-avis').innerHTML = trop.length ? `<div class="warn-box">${trop.map(h).join('<br>')}. Vérifie avant de valider : ce qui est reçu en plus entre quand même en stock.</div>` : '';
     };
-    $$('[data-rq]').forEach(el => { el.oninput = () => { r.lines[Number(el.dataset.rq)].qty = Number(el.value) || 0; touch(); avis(); $('#rec-totaux').innerHTML = resumeR(); }; });
+    $$('[data-rq]').forEach(el => { el.oninput = () => { r.lines[Number(el.dataset.rq)].qty = lireChiffre(el); touch(); avis(); $('#rec-totaux').innerHTML = resumeR(); }; });
     $('#rec-notes').oninput = e => { r.notes = e.target.value; touch(); };
     $('#rec-head').addEventListener('change', touch);
     avis();
@@ -17496,9 +17565,9 @@
               </div>
               <div class="ed-puces" role="group" aria-label="Options de la pièce">
                 <label class="puce-champ" hidden><span>Nature</span><select name="kind">${C.PURCHASE_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-                <div class="puce-champ${cur === company().currency ? '' : ' on'}" id="ac-puce-dev" role="group" aria-label="Devise de la pièce"><label class="ac-dev-l"><span>Devise</span><select name="currency" title="La devise de la pièce, telle que le fournisseur l'a écrite">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(({ DT: 'Dinar', TND: 'Dinar', EUR: 'Euro', USD: 'Dollar', GBP: 'Livre sterling' })[C.normCurrency(c)] || C.libelleDevise(c))}</option>`).join('')}</select></label><span class="ac-taux" id="b-rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="b-rate-lbl">· 1 ${h(symb(cur))} =</span><input type="number" name="exchangeRate" value="${h(p.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="?" aria-label="Taux de change : combien de ${h(company().currency)} pour 1 ${h(cur)}"><span class="unite">${h(company().currency)}</span>${info('buy.rate')}</span></div>
+                <div class="puce-champ${cur === company().currency ? '' : ' on'}" id="ac-puce-dev" role="group" aria-label="Devise de la pièce"><label class="ac-dev-l"><span>Devise</span><select name="currency" title="La devise de la pièce, telle que le fournisseur l'a écrite">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(({ DT: 'Dinar', TND: 'Dinar', EUR: 'Euro', USD: 'Dollar', GBP: 'Livre sterling' })[C.normCurrency(c)] || C.libelleDevise(c))}</option>`).join('')}</select></label><span class="ac-taux" id="b-rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="b-rate-lbl">· 1 ${h(symb(cur))} =</span><input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(p.exchangeRate || ''))}" class="num" placeholder="?" aria-label="Taux de change : combien de ${h(company().currency)} pour 1 ${h(cur)}"><span class="unite">${h(company().currency)}</span>${info('buy.rate')}</span></div>
                 <label class="puce-champ${Number(p.withholdingRate) ? ' on' : ''}" id="ac-puce-rs"><span>Retenue opérée</span>${withholdingSelect('withholdingRate', p.withholdingRate)}<span class="suffixe" id="ac-rs-fiche"></span></label>
-                <label class="puce-champ"><span>Timbre et frais</span><input type="number" name="fees" value="${Number(p.fees) ? h(p.fees) : ''}" placeholder="aucun" step="0.001" min="0" class="num" aria-label="Timbre et frais"><span class="unite" data-unite-devise>${h(cur)}</span></label>
+                <label class="puce-champ"><span>Timbre et frais</span><input type="text" inputmode="decimal" data-montant name="fees" value="${Number(p.fees) ? h(frMontant(p.fees, p.currency)) : ''}" placeholder="aucun" class="num montant" autocomplete="off" aria-label="Timbre et frais"><span class="unite" data-unite-devise>${h(cur)}</span></label>
                 ${C.depotsDe(data).length > 1 ? `<label class="puce-champ"><span>Dépôt</span><select name="depotId" ${clos ? 'disabled' : ''}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (p.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
                 ${clos ? '' : `<button type="button" class="puce-plus" data-montrer="ac-affaire"${p.projectId ? ' hidden' : ''}>${lfIc('croix', 13, 2.4)}Affaire</button>`}
 
@@ -17514,7 +17583,7 @@
             ${clos || !isNew ? '' : `<div class="catalog-pick"><div id="b-cat" class="ac-ajout">${lfIc('loupe', 16)}${combo({ items: [], placeholder: 'Ajouter un article du catalogue, au coût d\'achat', search: 'Rechercher dans le catalogue…' })}<kbd>Ctrl L</kbd></div>
               <button class="btn btn-sm" id="add-line">+ Ligne libre</button>
               <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
-            ${isDep && !clos && isNew ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<span class="ac-ttc-m"><input type="number" id="b-ttc" class="num" step="0.001" min="0" placeholder="ce que dit le ticket"><span class="unite">${h(cur)}</span></span></label>
+            ${isDep && !clos && isNew ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<span class="ac-ttc-m"><input type="text" inputmode="decimal" data-montant id="b-ttc" class="num montant" placeholder="ce que dit le ticket" autocomplete="off"><span class="unite">${h(cur)}</span></span></label>
               <span class="small muted" id="b-ttc-note">SkanFact en déduit le hors taxes et la TVA, au millime : tape ce qui est écrit sur le ticket.</span></div>` : ''}
             <table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:62px">Qté</th><th class="r" style="width:92px">P.U. HT</th><th style="width:76px">TVA</th>
               <th style="width:150px">Destination ${info('buy.destination')}</th><th class="nw" style="width:96px">Déduct. ${info('buy.deductible')}</th><th class="r" style="width:118px">Total HT</th><th></th></tr></thead>
@@ -17637,8 +17706,8 @@
     function drawLines() {
       body.innerHTML = p.lines.map((l, i) => `<tr data-i="${i}">
         <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation">${lotSaisie(l)}<div class="ligne-reperes"><span class="ok" data-stk="${i}"></span></div></td>
-        <td><input type="number" class="num${estMarque(i, 'qty') ? ' lu-douteux' : ''}" data-k="qty" value="${l.qty}" step="0.01"></td>
-        <td><input type="number" class="num${estMarque(i, 'unitPrice') ? ' lu-douteux' : ''}" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td>
+        <td><input type="text" inputmode="decimal" data-montant class="num${estMarque(i, 'qty') ? ' lu-douteux' : ''}" data-k="qty" value="${h(frChiffre(l.qty))}" autocomplete="off"></td>
+        <td><input type="text" inputmode="decimal" data-montant class="num montant${estMarque(i, 'unitPrice') ? ' lu-douteux' : ''}" data-k="unitPrice" value="${h(frMontant(l.unitPrice, p.currency))}" autocomplete="off"></td>
         <td><select data-k="vatRate"${estMarque(i, 'vatRate') ? ' class="lu-douteux"' : ''}>${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
         <td>${p.kind === 'acompte' ? '<span class="ac-avance" title="Un acompte versé est une avance au fournisseur (compte 409, À VÉRIFIER) : ni une charge, ni du stock, ni un bien">Avance</span>' : ''}<select data-k="destination"${p.kind === 'acompte' ? ' hidden' : ''}>${C.LINE_DESTINATIONS.map(([v, lab, d]) => `<option value="${v}" ${(l.destination || 'charge') === v ? 'selected' : ''} title="${h(d)}">${lab}</option>`).join('')}</select>${l.recue ? `<div class="small muted nw" data-recue title="${h('Sa marchandise est entrée en stock par la réception : cette ligne ne l\'y fait pas entrer une seconde fois.')}">reçue par une réception</div>` : ''}</td>
         <td class="c">${C.tvaRecuperable(p, company())
@@ -17652,7 +17721,7 @@
         const ev = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'onchange' : 'oninput';
         el[ev] = () => {
           const i = Number(el.closest('tr').dataset.i);
-          p.lines[i][el.dataset.k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
+          p.lines[i][el.dataset.k] = el.type === 'checkbox' ? el.checked : el.type === 'number' || el.dataset.montant !== undefined ? lireChiffre(el) : el.value;
           if (el.classList.contains('lu-douteux')) { el.classList.remove('lu-douteux'); oterMarque(i, el.dataset.k); }
           touch(); refresh();
         };
@@ -17693,9 +17762,9 @@
     // le moteur des achats (la TVA arrondie au millime), tombe sur le montant payé ; à défaut, le plus proche, et la note le dit.
     const appliquerTtc = () => {
       const champ = $('#b-ttc'), note = $('#b-ttc-note');
-      if (!champ || champ.value === '') return;
+      if (!champ || champ.value.trim() === '') return;
       if (p.lines.length !== 1) { note.textContent = 'Plusieurs lignes : saisis le hors taxes de chacune.'; return; }
-      const voulu = C.round3(Number(champ.value) || 0), l = p.lines[0], frais = Number(p.fees) || 0, taux = Number(l.vatRate) || 0;
+      const voulu = C.round3(lireMontant(champ.value)), l = p.lines[0], frais = Number(p.fees) || 0, taux = Number(l.vatRate) || 0;
       const total = ht => C.purchaseTotals({ ...p, lines: [{ ...l, qty: 1, unitPrice: ht }] }, company()).totalTTC;
       const base = C.round3((voulu - frais) / (1 + taux / 100));
       let ht = base;
@@ -20288,7 +20357,7 @@
     modal(`<h2>Sortir du stock pour « ${h(p.name)} »</h2>
       <p class="small muted">La marchandise achetée pour ce chantier et encore au stock. Ce que tu sors compte dans la marge, au coût moyen du stock. Corrige une quantité si une partie n'a pas servi.</p>
       <form id="spf"><div class="lf-tab scroll-x"><table class="lf-table" data-sans-cartes><thead><tr><th>Article</th><th class="r">Coût moyen</th><th class="r">Quantité sortie</th></tr></thead><tbody>
-        ${lignes.map((x, i) => `<tr><td><b>${h(x.c.label)}</b></td><td class="r">${lfMontant(C.stockOf(data, x.c.id).cmp, cur)}</td><td class="r"><input type="number" class="num" name="q${i}" value="${x.q}" min="0" step="0.01" aria-label="Quantité de ${h(x.c.label)}"></td></tr>`).join('')}
+        ${lignes.map((x, i) => `<tr><td><b>${h(x.c.label)}</b></td><td class="r">${lfMontant(C.stockOf(data, x.c.id).cmp, cur)}</td><td class="r"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" name="q${i}" value="${h(frChiffre(x.q))}" aria-label="Quantité de ${h(x.c.label)}"></td></tr>`).join('')}
       </tbody></table></div>
       ${dateFieldHtml(lbl('Date de la sortie', 'stk.adjustDate'), 'date', C.today(), { obligatoire: true })}</form>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Sortir du stock</button></div>`,

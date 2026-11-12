@@ -161,7 +161,7 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
     expect(await fenetre.locator('#bf-mois-note').isHidden()).toBe(true);
     await fenetre.locator('[name=salarieId]').selectOption({ label: 'Salarié Numéro Un' });
     await expect.poll(() => fenetre.locator('[name=brut]').inputValue()).toBe('712,250');
-    expect(await fenetre.locator('[name=joursAbsence]').inputValue()).toBe('3.5');
+    expect(await fenetre.locator('[name=joursAbsence]').inputValue()).toBe('3,5');
     expect(await libelles()).toEqual(['Prime de présence', 'Heures supplémentaires : 6 h à +25 %']);
     expect(await montants()).toEqual(['20,125', '44,516']);
     expect((await fenetre.locator('#bf-mois-note').innerText()).replace(/\s/g, ' ')).toMatch(/Brut proratisé : entrée le 14\/10\/2026, 15 jours sur 26 \(1\s234,567\sDT pour un mois plein\)\. Le mois est pointé/);

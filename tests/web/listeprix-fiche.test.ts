@@ -106,7 +106,7 @@ describe('la fiche d\'une liste de prix', () => {
     await p.locator('#lp-pct').fill('12');
     await p.locator('#lp-pct-ok').click();
     const prix = () => p.locator('#lp-lignes input[data-lk=prix]').evaluateAll((xs) => xs.map((x) => (x as HTMLInputElement).value));
-    expect(await prix()).toEqual(['18.480', '2182.400', '51.480']);
+    expect(await prix()).toEqual(['18,480', '2\u00a0182,400', '51,480']);
     expect(net(await p.locator('#lp-lignes [data-perte]').innerText())).toBe('sous son coût (2 210,000 DT)');
     expect(await p.locator('#lp-lignes [data-perte]').count()).toBe(1);
     expect(net(await p.locator('#lp-r-ecart').innerText())).toBe('−12 %');
@@ -114,7 +114,7 @@ describe('la fiche d\'une liste de prix', () => {
     expect(net(await p.locator('#lp-masque-b').innerText())).toContain(`la liste « Promo hiver » passe avant celle-ci sur certains articles à partir du ${fr(jour(25))}.`);
     // Défaire le remplissage rend les deux prix d'avant.
     await p.locator('#lp-pct-annuler').click();
-    expect(await prix()).toEqual(['19.500', '2390.000']);
+    expect(await prix()).toEqual(['19,500', '2\u00a0390,000']);
     await p.locator('#lp-pct-ok').click();
     await vert().click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).toMatch(/^#\/listeprix\/(?!new)/);
