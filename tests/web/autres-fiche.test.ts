@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
@@ -18,13 +19,15 @@ describe('les autres pièces au squelette des pièces', () => {
   let navigateur: Browser;
   let serveur: Awaited<ReturnType<typeof demarrer>>;
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-autres-fiche-'));
+  const admin = new pg.Client({ connectionString: inject('pgAdmin') });
   beforeAll(async () => {
+    await admin.connect();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
-  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
+  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
@@ -147,6 +150,105 @@ describe('les autres pièces au squelette des pièces', () => {
     expect(net(await fenetre.innerText())).toContain('Résidence Les Jasmins');
     expect(net(await fenetre.innerText())).toContain('5 250,000 DT HT');
     await p.screenshot({ path: path.join(PHOTOS, 'autres-fiche-2-contrat-signe.png') });
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
+
+  // (1.357.3, bout en bout joué à la souris) La tournée d'une boulangerie : le bon s'imprime, le client signe d'un geste à
+  // côté ; quand le client a d'autres bons à facturer, le vert les facture ensemble (« Facturer ce bon seul » à côté) ; la
+  // fenêtre dit ce que le client paiera, sans colonne vide ; et un bon dont la facture est émise se dit « facturé » partout.
+  it('(1.357.3) les bons d\'une tournée : signés d\'un geste, facturés ensemble, et chacun se dit « facturé »', async () => {
+    const email = `autres-fiche-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Hédi Ben Salah', motDePasse: 'Un-bon-mot-de-passe' });
+    const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).adresseApplication))?.[1] ?? '';
+    const r = await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Chrome sur Linux', type: 'navigateur' } });
+    const jeton = String((await api('POST', '/connexion/code', undefined, { defi: r.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).jeton);
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Ascenseurs Ben Salah' })).id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    const auj = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis' }).format(new Date());
+    const jour = (k: number) => new Date(Date.parse(auj) + k * 86_400_000).toISOString().slice(0, 10);
+    const L = (label: string, qty: number, prix: string) => ({ label, qty, unit: 'pièce', unitPrice: { '~n': prix }, vatRate: 19 });
+    const piece = (id: string, type: string, number: string, status: string, extra: Record<string, unknown> = {}) => ({ collection: 'documents', cle: id, rang: 0, revision: null,
+      contenu: { id, type, number, status, date: jour(-6), clientId: 'c1', subject: '', payments: [], emails: [], currency: 'DT', createdAt: Date.now(), withholdingRate: 0, lines: [L('Cabine inox', 2, '4875.250')], ...extra } });
+    const P = (label: string, qty: number, prix: string, tva: number) => ({ label, qty, unit: '', unitPrice: { '~n': prix }, vatRate: tva });
+    const ecrit = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel Les Palmiers SA', city: 'Hammamet' } },
+      { collection: 'clients', cle: 'c2', rang: 0, revision: null, contenu: { id: 'c2', name: 'Café du Port', city: 'Sousse' } },
+      piece('b0', 'livraison', 'BL-2026-001', 'brouillon', { lines: [] }),
+      piece('b1', 'livraison', 'BL-2026-002', 'brouillon', { lines: [P('Baguette', 120, '0.200', 0), P('Croissant', 40, '1.200', 19)] }),
+      piece('b2', 'livraison', 'BL-2026-003', 'signé', { lines: [P('Baguette', 100, '0.200', 0), P('Croissant', 30, '1.200', 19)] }),
+      piece('b3', 'livraison', 'BL-2026-004', 'signé', { clientId: 'c2', lines: [P('Baguette', 50, '0.200', 0)] }),
+      piece('b4', 'livraison', 'BL-2026-005', 'signé', { lines: [P('Baguette', 10, '0.200', 0)] }),
+      piece('f4', 'facture', '', 'brouillon', { fromDocId: 'b4', fromDocType: 'livraison', fromDocNumber: 'BL-2026-005', applyStamp: true, lines: [P('Baguette', 10, '0.200', 0)] })] });
+    expect(ecrit.motif ?? 'écrit').toBe('écrit');
+    // La facture du bon BL-2026-005 s'émet par le serveur (c'est lui qui numérote) : 10 baguettes à 0,200 (0 %) + 1 de timbre.
+    // Le timbre fiscal est une règle datée du serveur : posée pour CETTE entreprise d'essai, jamais pour toute la base.
+    const proprio = String((await admin.query('select utilisateur from socle.membre where entreprise = $1 limit 1', [ent])).rows[0].utilisateur);
+    await admin.query(`insert into socle.regle_entreprise (entreprise, code, valeur, debut, motif, cree_par) values ($1, 'timbre.facture', '1000', '2000-01-01', 'Timbre de l''essai', $2)`, [ent, proprio]);
+    const f4 = piece('f4', 'facture', '', 'brouillon', { fromDocId: 'b4', fromDocType: 'livraison', fromDocNumber: 'BL-2026-005', applyStamp: true, lines: [P('Baguette', 10, '0.200', 0)] }).contenu;
+    const emise = await api('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: f4, client: { id: 'c1', name: 'Hôtel Les Palmiers SA', city: 'Hammamet' }, revision: 1, rang: 0, netAPayer: '3.000' });
+    expect(emise.motif ?? 'émise', JSON.stringify(emise)).toBe('émise');
+
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => {
+      if (!location.protocol.startsWith('http')) return;
+      sessionStorage.setItem('skanfact.jeton', j);
+      localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false }));
+    }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    const ouvrir = async (hash: string) => {
+      await p.goto(`${serveur.adresse}/v10/?e=${ent}${hash}`);
+      await p.locator('#ed-geste').waitFor({ timeout: 20_000 });
+      await plusTard(p);
+    };
+    const vert = () => p.locator('#ed-geste .btn-primary');
+    const frise = async () => p.locator('#ed-frise li').evaluateAll((lis) => lis.map((li) => `${li.querySelector('b')?.textContent}:${li.className.trim().replace(/\s+/g, '+') || '-'}`));
+
+    // Un bon vide : la carte dit « Total TTC » et que rien n'est dû sur le bon, comme dès sa première ligne.
+    await ouvrir('#/doc/b0');
+    expect(net(await p.locator('#totals .ed-net .k').innerText())).toBe('Total TTC');
+    expect(net(await p.locator('#totals .ed-net .s').innerText())).toBe('rien n\'est dû sur le bon de livraison : seule la facture se paie');
+
+    // Le bon en brouillon s'imprime pour être signé ; « Le client a signé » est à côté, et le note.
+    await ouvrir('#/doc/b1');
+    expect(await vert().getAttribute('data-clic')).toBe('pdf');
+    expect(net(await p.locator('#ed-geste .ed-deux [data-statut="signé"]').innerText())).toBe('Le client a signé');
+    await p.locator('#ed-geste .ed-deux [data-statut="signé"]').click();
+    await expect.poll(async () => frise(), { timeout: 10_000 }).toEqual(['Préparé:fait', 'Signé:fait', 'Facturé:-']);
+    // Le client a un autre bon signé sans facture : le vert les facture ensemble ; ce bon seul reste à côté. Le bon d'un autre
+    // client et celui déjà facturé n'en sont pas.
+    expect(net(await vert().innerText())).toBe('Facturer les 2 bons de ce client');
+    expect(await vert().getAttribute('data-grouper')).not.toBeNull();
+    const phrase = net(await p.locator('#ed-geste .ed-phrase').innerText());
+    expect(phrase).toBe('Ce client a aussi BL-2026-003 à facturer : une seule facture pour tous, en brouillon ; tu décoches ceux qui attendent.');
+    expect(net(await p.locator('#ed-geste .ed-deux [data-conv="facture"]').innerText())).toBe('Facturer ce bon seul');
+    await vert().click();
+    const fenetre = p.locator('#modal-root');
+    await fenetre.locator('#fb-ok').waitFor({ timeout: 10_000 });
+    expect(await fenetre.locator('[data-fb]').count()).toBe(2);
+    expect(await fenetre.locator('#fb-bons th').evaluateAll((ths) => ths.map((t) => (t.textContent || '').trim()))).toEqual(['', 'Bon', 'Date', 'Montant HT']);
+    // 220 baguettes à 0,200 (0 %) et 70 croissants à 1,200 (19 %) : 44 + 84 = 128 HT, 15,960 de TVA, 1 de timbre.
+    expect(net(await fenetre.locator('#fb-total').innerText())).toBe('La facture : 128,000 DT HT, 144,960 DT à payer, timbre compris.');
+    expect(net(await fenetre.locator('#fb-ok').innerText())).toBe('Facturer 2 bons');
+    await p.screenshot({ path: path.join(PHOTOS, 'autres-fiche-3-tournee.png') });
+    await fenetre.locator('#fb-ok').click();
+    await expect.poll(async () => net(await p.locator('#view h1').first().innerText().catch(() => '')), { timeout: 10_000 }).toBe('Facture de 2 bons');
+
+    // La liste des bons : celui dont la facture est émise dit « facturé » ; ceux dont la facture attend en brouillon, et celui
+    // de l'autre client, restent « signé ».
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/autres/livraison`);
+    await p.locator('table.list tbody tr').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    const badges = await p.locator('table.list tbody tr').evaluateAll((trs) => Object.fromEntries(trs.map((tr) => [(tr.querySelector('td')?.textContent || '').trim(), (tr.querySelector('.badge')?.textContent || '').trim()])));
+    expect(badges).toEqual({ 'BL-2026-001': 'brouillon', 'BL-2026-002': 'signé', 'BL-2026-003': 'signé', 'BL-2026-004': 'signé', 'BL-2026-005': 'facturé' });
+    // Le bon facturé : la pastille dit « Facturé », la puce Statut « Signé · facturé » ; la VALEUR reste « signé ».
+    await ouvrir('#/doc/b4');
+    expect(net(await p.locator('.ed-pill').first().innerText())).toBe('Facturé');
+    expect(net(await p.locator('#f-head [data-etq=statut]').innerText())).toBe('Statut Signé · facturé');
+    expect(await p.locator('select[name=status]').first().evaluate((s) => [(s as HTMLSelectElement).value, (s as HTMLSelectElement).selectedOptions[0]?.textContent])).toEqual(['signé', 'Signé · facturé']);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);

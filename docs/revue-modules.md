@@ -3053,3 +3053,35 @@ depuis la commande), reçus en deux fois (6 puis 4), la facture MCB-8812 tirée 
   partie », la commande soldée et sa phrase, rouverte), `cabinet-saisie-piece` (un avoir de la Minoterie au kilomètre, et la
   proposition qui reste celle de sa facture). Douze preuves. La preuve de la 1.287.0 « une modification de la réception qui
   laisse « Valider » principal » est retournée : c'est désormais la règle (H-E19).
+
+### 1.357.3 : la tournée d'une boulangerie, du bon signé à la facture du mois
+
+Bout en bout 12, joué à la souris par la boulangerie : deux bons de livraison pour l'Hôtel Les Palmiers (120 baguettes et
+40 croissants, puis 100 et 30), imprimés, signés, facturés ensemble en FAC-2026-004 (128 DT HT, 15,960 de TVA à 19 % sur
+84, 1 de timbre : 144,960), réglée par virement ; puis le Cabinet.
+- Un bon imprimé attendait sa signature sans geste pour la noter : la phrase renvoyait à la case Statut. « Le client a
+  signé » est à côté de « Imprimer le bon à faire signer », et le note.
+- Un bon sans ligne disait « Net à payer » et « le montant en lettres est écrit sur le bon », puis, dès sa première ligne,
+  « Total TTC » et « rien n'est dû sur le bon » : la carte dit la même chose avant et après.
+- Le client avait un second bon signé à facturer, et le vert d'un bon disait « Facturer » : ce bon seul. Deux factures pour
+  une tournée, ou la facture groupée cherchée dans « Autres pièces ». Quand le client a d'autres bons remis ou signés sans
+  facture, le vert dit « Facturer les 2 bons de ce client », la phrase les nomme, et « Facturer ce bon seul » reste à côté
+  (U-11 : l'étape suivante se calcule). Un bon d'un autre client, ou déjà facturé, n'en est pas.
+- La fenêtre « Facturer des bons de livraison » montrait une colonne « Objet » vide sur chaque bon et ne disait que le HT :
+  la colonne ne paraît que si un bon a un objet, et la phrase dit ce que le client paiera (« 128,000 DT HT, 144,960 DT à
+  payer, timbre compris »).
+- La facture émise promettait « Chaque bon sera marqué « facturé » », et la liste des bons disait encore « signé ». Un bon
+  dont la facture est émise se dit « facturé » dans les listes (le badge), en tête du bon (la pastille) et dans la puce et la
+  case Statut (« Signé · facturé »). Le statut du moteur ne change pas (le filtre et `bonsAFacturer` le lisent) : c'est le
+  MOT qui suit la facture, comme la commande fournisseur « reçue et facturée » (1.357.2). Un bon dont la facture attend en
+  brouillon reste « signé ».
+- Au Cabinet (deux chemins, un chiffre) : FAC-2026-004 s'écrit 411 au débit 144,960 = 701 44,000 (le pain à 0 %) + 706
+  84,000 (les croissants à 19 %) + TVA 15,960 + timbre 1,000 ; le virement solde le 411. Les montants de l'application.
+- À VÉRIFIER : le croissant s'écrit au 706 (prestations) parce que sa fiche le dit « prestation » ; la boulangerie de
+  l'exemple de test n'a pas de métier réglé, donc un article créé à la volée ne s'y propose pas « produit fabriqué » (701).
+  Dans une vraie entreprise, le métier choisi à l'assistant le propose (1.356.0). Le pain à 0 % (exonéré) — À VÉRIFIER avec
+  le cabinet pilote.
+- Tests : `autres-fiche` (« les bons d'une tournée » : le bon vide, la signature notée d'un geste, le vert qui groupe les
+  deux bons du client et pas celui d'un autre client ni le bon déjà facturé, la fenêtre sans colonne vide et son montant à
+  payer, la facture de deux bons, la liste et le bon facturé qui le disent), `livraisons` (la fenêtre dit aussi ce que le
+  client paiera : 9 267,381, le chiffre que l'émission rend ensuite). Treize preuves.

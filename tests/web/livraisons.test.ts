@@ -164,7 +164,8 @@ describe('une commande livrée en deux fois, et ses bons facturés en une factur
     await expect.poll(() => fenetre.locator('h2').first().innerText()).toMatch(/^Facturer des bons de livraison/);
     await expect.poll(async () => net(await fenetre.locator('#fb-ok').innerText())).toBe('Facturer 2 bons');
     // Le montant de LA facture, et pourquoi il a un millime de moins que la somme des bons (4 108,438 + 3 678,438).
-    expect(net(await fenetre.locator('#fb-total').innerText())).toBe('La facture : 7 786,875 DT HT. 0,001 DT de moins que la somme des bons : une ligne de commande livrée en plusieurs fois s\'y facture en une seule ligne, arrondie une fois.');
+    // (1.357.3) Et ce que le client paiera : 7 786,875 + 19 % (1 479,506) + 1 de timbre = 9 267,381.
+    expect(net(await fenetre.locator('#fb-total').innerText())).toBe('La facture : 7 786,875 DT HT, 9 267,381 DT à payer, timbre compris. 0,001 DT de moins que la somme des bons : une ligne de commande livrée en plusieurs fois s\'y facture en une seule ligne, arrondie une fois.');
     await p.screenshot({ path: path.join(PHOTOS, 'livraisons-2-facturer-les-bons.png') });
     await fenetre.locator('#fb-ok').click();
     await expect.poll(async () => net(await p.locator('#view h1').first().innerText()), { timeout: 10_000 }).toMatch(/^Facture/);

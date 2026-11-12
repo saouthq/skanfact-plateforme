@@ -4569,7 +4569,7 @@ prouver "« Facturer des bons… » absent de la liste des bons" modules/socle/e
   "\${aFacturer.length ? '<button class=\"btn btn-primary\" id=\"facturer-bons\">Facturer des bons…</button>' : ''}" "" \
   "$LCW"
 prouver "la fenêtre qui annonce la somme des bons pour le montant de la facture" modules/socle/ecrans/entreprise/app-1.js \
-  "        const total = inv ? C.computeTotals(inv, company()).netHT : 0;" "        const total = inv ? bons.reduce((s, b) => s + C.computeTotals(b, company()).netHT, 0) : 0;" \
+  "        const total = tInv ? tInv.netHT : 0;" "        const total = tInv ? bons.reduce((s, b) => s + C.computeTotals(b, company()).netHT, 0) : 0;" \
   "$LCW"
 prouver "la liste des commandes qui filtre sur le statut enregistré" modules/socle/ecrans/entreprise/app-1.js \
   "        .filter(d => !s.st || effStatus(d) === s.st)" "        .filter(d => !s.st || d.status === s.st)" \
@@ -28374,6 +28374,50 @@ prouver 'avoir au kilomètre 1.357.2 k : la TVA d'\''un avoir perd son taux' 'mo
 prouver 'avoir au kilomètre 1.357.2 l : un avoir venu en dernier vide les habitudes du fournisseur' 'modules/socle/ecrans/cabinet/app-2.js' \
   ' && normSx(nomTiersSx(e)) === n && mtSx((ligne40Sx(e) || {}).credit) > 0)' ' && normSx(nomTiersSx(e)) === n)' \
   '(1.357.2) un avoir fournisseur au kilomètre : le fournisseur au débit, ce qu'\''il reprend au crédit ; les habitudes restent celles des factures'
+
+# 1.357.3 : la tournée d'une boulangerie (le bon signé d'un geste, les bons d'un client facturés ensemble, le bon facturé qui le dit).
+BLT="(1.357.3) les bons d'une tournée : signés d'un geste, facturés ensemble, et chacun se dit « facturé »"
+prouver 'tournée 1.357.3 a : le bon imprimé ne propose pas de noter la signature' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '${sauver}
+        <div class="ed-deux"><button class="btn" data-statut="signé">Le client a signé</button></div></div>`;' '${sauver}</div>`;' \
+  "$BLT"
+prouver 'tournée 1.357.3 b : un bon vide dit « Net à payer »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'isAv ? '\''Montant de l\'\''avoir'\'' : isExtra && !isProforma ? '\''Total TTC'\'' : '\''Net à payer'\''' 'isAv ? '\''Montant de l\'\''avoir'\'' : '\''Net à payer'\''' \
+  "$BLT"
+prouver 'tournée 1.357.3 c : un bon vide dit que le montant en lettres est écrit sur le bon' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '? `rien n'\''est dû sur ${h(leAutre)} : seule la facture se paie`' '? `le montant en lettres est écrit sur ${h(leAutre)}`' \
+  "$BLT"
+prouver 'tournée 1.357.3 d : le vert d'\''un bon ne facture que lui, quand le client en a d'\''autres' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        if (autresBons.length) {' '        if (false && autresBons.length) {' \
+  "$BLT"
+prouver 'tournée 1.357.3 e : le vert groupe aussi le bon d'\''un autre client' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '(b.clientId || '\'''\'') === (stored.clientId || '\'''\'') && b.id !== stored.id' 'b.id !== stored.id' \
+  "$BLT"
+prouver 'tournée 1.357.3 f : « Facturer les bons de ce client » ne fait rien' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    $$('\''#ed-geste [data-grouper]'\'').forEach(b => b.onclick = () => { if (dirty && !persist()) return; facturerDesBons((docById(doc.id) || doc).clientId); });
+' '' \
+  "$BLT"
+prouver 'tournée 1.357.3 g : la fenêtre des bons garde une colonne Objet vide' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'const avecObjet = bons.some(b => (b.subject || '\'''\'').trim());' 'const avecObjet = true;' \
+  "$BLT"
+prouver 'tournée 1.357.3 h : la fenêtre des bons ne dit que le HT' 'modules/socle/ecrans/entreprise/app-1.js' \
+  ', ${C.money(tInv.netToPay, devises[0])} à payer${tInv.stamp > 0 ? '\'', timbre compris'\'' : '\'''\''}.`' '.`' \
+  "$BLT"
+prouver 'tournée 1.357.3 i : un bon facturé se dit encore « signé » dans la liste' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'return f && f.number && !['\''brouillon'\'', '\''annulée'\''].includes(effStatus(f)) ? '\''facturé'\'' : st;' 'return st;' \
+  "$BLT"
+prouver 'tournée 1.357.3 j : un bon dont la facture attend en brouillon se dit « facturé »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'f && f.number && !['\''brouillon'\'', '\''annulée'\''].includes(effStatus(f)) ? '\''facturé'\''' 'f ? '\''facturé'\''' \
+  "$BLT"
+prouver 'tournée 1.357.3 k : la pastille d'\''un bon facturé dit « Signé »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'const st = stored && doc.type === '\''livraison'\'' ? etatAffichePiece(stored) : (stored && stored.status) || doc.status || '\''brouillon'\'';' 'const st = (stored && stored.status) || doc.status || '\''brouillon'\'';' \
+  "$BLT"
+prouver 'tournée 1.357.3 l : la puce Statut d'\''un bon facturé dit « Signé »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'etq('\''statut'\'', '\''Statut'\'', optionStatutPiece(doc.status), '\'''\'')' 'etq('\''statut'\'', '\''Statut'\'', optionStatut(doc.status, doc.type), '\'''\'')' \
+  "$BLT"
+prouver 'tournée 1.357.3 m : la case Statut d'\''un bon facturé dit « Signé »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '${isDelivery && stored && st === doc.status && etatAffichePiece(stored) === '\''facturé'\'' ? '\'' · facturé'\'' : '\'''\''}' '' \
+  "$BLT"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

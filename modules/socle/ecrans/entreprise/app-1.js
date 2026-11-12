@@ -674,18 +674,22 @@
         // livrée en plusieurs fois s'y facture en une ligne, arrondie une fois — un millime peut séparer
         // ce total de la somme des bons, et la fenêtre dit pourquoi.
         const inv = bons.length && devises.length < 2 ? C.factureDeBons(bons, company(), C.today(), clientById(client)) : null;
-        const total = inv ? C.computeTotals(inv, company()).netHT : 0;
+        const tInv = inv ? C.computeTotals(inv, company()) : null;
+        const total = tInv ? tInv.netHT : 0;
         const somme = bons.reduce((s, b) => s + C.computeTotals(b, company()).netHT, 0);
         const ecart = Math.round((total - somme) * 1000) / 1000;
-        $('#fb-total', layer).textContent = !inv ? '' : `La facture : ${C.money(total, devises[0])} HT.`
+        // (1.357.3) Le montant que le client paiera, à côté du HT : c'est celui qu'on lui annonce au téléphone.
+        $('#fb-total', layer).textContent = !inv ? '' : `La facture : ${C.money(total, devises[0])} HT, ${C.money(tInv.netToPay, devises[0])} à payer${tInv.stamp > 0 ? ', timbre compris' : ''}.`
           + (Math.abs(ecart) >= 0.0005 ? ` ${C.money(Math.abs(ecart), devises[0])} de ${ecart > 0 ? 'plus' : 'moins'} que la somme des bons : une ligne de commande livrée en plusieurs fois s'y facture en une seule ligne, arrondie une fois.` : '');
       };
       const dessiner = () => {
         const bons = tous.filter(b => (b.clientId || '') === client)
           .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.number || '').localeCompare(b.number || '', undefined, { numeric: true }));
-        $('#fb-bons', layer).innerHTML = `<div class="scroll-x"><table class="list compact"><thead><tr><th></th><th>Bon</th><th>Date</th><th>Objet</th><th class="r">Montant HT</th></tr></thead><tbody>
+        // (1.357.3) Une colonne « Objet » vide sur chaque bon coûte de la largeur et ne dit rien : elle ne paraît que si un bon en a un.
+        const avecObjet = bons.some(b => (b.subject || '').trim());
+        $('#fb-bons', layer).innerHTML = `<div class="scroll-x"><table class="list compact"><thead><tr><th></th><th>Bon</th><th>Date</th>${avecObjet ? '<th>Objet</th>' : ''}<th class="r">Montant HT</th></tr></thead><tbody>
           ${bons.map(b => `<tr><td><label class="check"><input type="checkbox" data-fb="${h(b.id)}" ${coches.has(b.id) ? 'checked' : ''} aria-label="Facturer ${h(b.number || 'ce bon')}"></label></td>
-            <td class="nw">${h(b.number || '')}</td><td class="nw">${h(C.fmtDate(b.date))}</td><td>${h(b.subject || '')}</td>
+            <td class="nw">${h(b.number || '')}</td><td class="nw">${h(C.fmtDate(b.date))}</td>${avecObjet ? `<td>${h(b.subject || '')}</td>` : ''}
             <td class="r num nw">${h(C.money(C.computeTotals(b, company()).netHT, docCur(b)))}</td></tr>`).join('')}
         </tbody></table></div>`;
         $$('[data-fb]', layer).forEach(c => { c.onchange = () => { if (c.checked) coches.add(c.dataset.fb); else coches.delete(c.dataset.fb); maj(); }; });
@@ -2097,7 +2101,17 @@
   // Statut d'un achat : « à payer » contient une espace, qui ferait deux classes CSS au lieu d'une.
   const BUY_BADGE = { 'à payer': 'b-due', partiel: 'b-part', retard: 'b-late', 'payée': 'b-paid', 'remboursé': 'b-paid' };
   function buyBadge(status) { return `<span class="badge ${BUY_BADGE[status] || ''}">${h(status)}</span>`; }
-  function statusBadge(doc) { return badge(effStatus(doc), doc && doc.type); }
+  // (1.357.3, bout en bout joué à la souris) Un bon de livraison dont la facture est ÉMISE se dit « facturé » : la
+  // bannière de la facture le promettait (« Chaque bon sera marqué « facturé » »), et la liste des bons disait encore
+  // « signé ». Le statut du moteur ne change pas (le filtre « Signé » et `bonsAFacturer` le lisent) : c'est le MOT
+  // affiché qui suit la facture, comme la commande fournisseur « reçue et facturée » (1.357.2).
+  function etatAffichePiece(doc) {
+    const st = effStatus(doc);
+    if (!doc || doc.type !== 'livraison' || !C.BON_LIVRE.includes(st)) return st;
+    const f = C.factureDuBon(data, doc);
+    return f && f.number && !['brouillon', 'annulée'].includes(effStatus(f)) ? 'facturé' : st;
+  }
+  function statusBadge(doc) { return badge(etatAffichePiece(doc), doc && doc.type); }
   function methodLabel(m) { const x = C.PAYMENT_METHODS.find(p => p[0] === m); return x ? x[1] : (m || ''); }
   // Le compte d'un paiement qui n'en porte pas : c'est celui sur lequel `cashMovements` le fait
   // tomber (le compte par défaut). On l'écrit ainsi plutôt que de laisser la case vide — une case
@@ -6043,8 +6057,11 @@
       : doc.deposit ? 'Facture d\'acompte' : doc.settles ? 'Facture de solde'
       : Array.isArray(doc.bonsLivraison) && doc.bonsLivraison.length > 1 ? `Facture de ${doc.bonsLivraison.length} bons` : '';
     const title = titreHistoire ? titreHistoire : (isInv || isAv) && doc.number && !isNew ? doc.number : isNew || ((isInv || isAv) && !doc.number) ? (isQ ? 'Nouveau devis' : isInv ? (C.estLiberal(company()) ? 'Nouvelle note d\'honoraires' : 'Nouvelle facture') : isAv ? 'Nouvel avoir' : NEW_TITLES[doc.type]) : docLabel(doc);
+    // (1.357.3) La case Statut d'un bon facturé dit « Signé · facturé » : la pastille dit « Facturé », la case disait
+    // « Signé » à côté. La VALEUR ne change pas (on ne choisit pas « facturé » : la facture le dit).
+    const optionStatutPiece = st => `${optionStatut(st, doc.type)}${isDelivery && stored && st === doc.status && etatAffichePiece(stored) === 'facturé' ? ' · facturé' : ''}`;
     const statusCell = isQ || isExtra
-      ? `<label class="field">${lbl('Statut', isQ ? 'ed.statusQuote' : 'ed.statusExtra')}<select name="status">${C.STATUSES[doc.type].map(st => `<option value="${h(st)}" ${st === doc.status ? 'selected' : ''}>${h(optionStatut(st, doc.type))}</option>`).join('')}</select></label>`
+      ? `<label class="field">${lbl('Statut', isQ ? 'ed.statusQuote' : 'ed.statusExtra')}<select name="status">${C.STATUSES[doc.type].map(st => `<option value="${h(st)}" ${st === doc.status ? 'selected' : ''}>${h(optionStatutPiece(st))}</option>`).join('')}</select></label>`
       : `<div class="field">${lbl('Statut', isInv ? 'ed.statusInvoice' : '')}<div class="status-cell">${isNew || doc.status === 'brouillon' ? `${badge('brouillon')}<span class="small muted">numéro attribué à l'émission</span> ${info('ed.draftNumber')}` : (isInv ? statusBadge(stored) : badge(doc.status, doc.type))}</div></div>`;
 
     // Facturer un devis, c'est le geste qui rapporte de l'argent — et c'était la seule porte de
@@ -6244,7 +6261,7 @@
       // (1.291.0) Une autre pièce prend son numéro à l'enregistrement ; ensuite la pastille dit son statut.
       if (isExtra) {
         if (!doc.number) return `<span class="badge brouillon ed-pill">Brouillon · numéro à l'enregistrement</span>`;
-        const st = (stored && stored.status) || doc.status || 'brouillon';
+        const st = stored && doc.type === 'livraison' ? etatAffichePiece(stored) : (stored && stored.status) || doc.status || 'brouillon';
         return `<span class="badge ${h(st)} ed-pill">${h(C.statusLabel(st, doc.type).replace(/^./, c => c.toUpperCase()))}</span>`;
       }
       return !stored || doc.status === 'brouillon'
@@ -6541,12 +6558,26 @@
       if (envoiSuivant) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="email">${lfIc('envoi', 17)}Envoyer ${h(leAutre)}</button>
         <p class="ed-phrase">Par e-mail, avec le PDF : ${fem ? 'elle passe « envoyée »' : 'il passe « envoyé »'}.${isContract ? ' Le client le signe et te le renvoie ; tu le passes « signé » (Statut).' : ''}</p>${sauver}
         ${convertibles.length ? `<div class="ed-deux">${convertibles.map(x => `<button class="btn" data-conv="${h(x)}">${h(libConv(x))}</button>`).join('')}</div>` : ''}</div>`;
+      // (1.357.3, bout en bout joué à la souris) Le livreur revient avec le bon signé : le geste qui le note est là, à côté de
+      // l'impression. La phrase renvoyait à la case Statut, et rien ne changeait après l'impression.
       if (suiteExtra === 'pdf') return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" data-clic="pdf">${lfIc('envoi', 17)}Imprimer le bon à faire signer</button>
-        <p class="ed-phrase">Le client signe le bon à la livraison. Passe-le ensuite « émis » ou « signé » (Statut) : il se facturera.</p>${sauver}</div>`;
+        <p class="ed-phrase">Le client signe le bon à la livraison ; « Le client a signé » le note, et il se facture.</p>${sauver}
+        <div class="ed-deux"><button class="btn" data-statut="signé">Le client a signé</button></div></div>`;
       if (suiteExtra === 'transform' && convertibles.length) {
         // Un bon remis (émis) se facture ; sa signature, si le client l'a donnée, se note à côté.
         const signer = isDelivery && doc.status === 'émis' ? '<button class="btn" data-statut="signé">Le client a signé</button>' : '';
         const [premier, ...autres] = resteALivrer ? ['livraison', ...convertibles.filter(x => x !== 'livraison')] : isDelivery ? ['facture'] : convertibles;
+        // (1.357.3, bout en bout joué à la souris) Le client a d'AUTRES bons remis ou signés sans facture : la
+        // facture du mois les reprend tous, c'est l'étape suivante (U-11). « Facturer » ne prenait que ce bon-ci, et le
+        // second restait à facturer à part — deux factures pour une tournée. Facturer ce bon seul reste à côté.
+        const autresBons = isDelivery && premier === 'facture' && stored
+          ? C.bonsAFacturer(data).filter(b => (b.clientId || '') === (stored.clientId || '') && b.id !== stored.id) : [];
+        if (autresBons.length) {
+          const noms = autresBons.slice(0, 3).map(b => b.number || 'un bon').join(', ') + (autresBons.length > 3 ? '…' : '');
+          return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" data-grouper>${lfIc('carte', 17)}Facturer les ${autresBons.length + 1} bons de ce client</button>
+          <p class="ed-phrase">Ce client a aussi ${h(noms)} à facturer : une seule facture pour tous, en brouillon ; tu décoches ceux qui attendent.</p>${sauver}
+          <div class="ed-deux"><button class="btn" data-conv="facture">Facturer ce bon seul</button>${signer}</div></div>`;
+        }
         const phraseT = premier === 'facture' ? `La facture arrive en brouillon, avec les lignes ${fem ? 'de la proforma' : 'du ' + nomAutre} ; tu l'émets quand tu veux.`
           : premier === 'livraison' ? (resteALivrer ? `${pl(suiviCde.bons.length, 'bon')} déjà fait${sPl(suiviCde.bons.length)} : le nouveau bon reprend ce qui reste à livrer.` : 'Le bon de livraison arrive en brouillon, avec les mêmes lignes.')
           : `${h(C.TITLES[premier] || '')} : en brouillon, avec les mêmes lignes.`;
@@ -6677,7 +6708,7 @@
                 <select name="lang" ${ro}><option value="fr" ${doc.lang !== 'en' ? 'selected' : ''}>Français</option><option value="en" ${doc.lang === 'en' ? 'selected' : ''}>English</option></select>
                 <select name="currency" ${roDevise}>${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select>
                 <span id="rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="rate-lbl">1 ${h(cur)} = ? ${h(company().currency)}</span><input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(doc.exchangeRate || ''))}" class="num" ${roDevise}></span>
-                ${isQ || isExtra ? `<select name="status" ${ro}>${C.STATUSES[doc.type].map(st => `<option value="${h(st)}" ${st === doc.status ? 'selected' : ''}>${h(optionStatut(st, doc.type))}</option>`).join('')}</select>` : ''}
+                ${isQ || isExtra ? `<select name="status" ${ro}>${C.STATUSES[doc.type].map(st => `<option value="${h(st)}" ${st === doc.status ? 'selected' : ''}>${h(optionStatutPiece(st))}</option>`).join('')}</select>` : ''}
                 ${!isQ && (!isExtra || isProforma) ? `${withholdingSelect('withholdingRate', doc.withholdingRate, null, ro)}<input type="checkbox" name="applyStamp" ${doc.applyStamp === true || (isInv && doc.applyStamp !== false) ? 'checked' : ''} ${ro}><span id="stamp-lbl">${libelleTimbre()}</span><span id="rs-du-client"></span>` : ''}
                 ${isDelivery ? `<input type="checkbox" name="hidePrices" ${doc.hidePrices !== false ? 'checked' : ''}>` : ''}
                 ${avecDepot ? `<select name="depotId" ${ro}>${depots.map(d => `<option value="${h(d.id)}" ${d.id === (doc.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select>` : ''}
@@ -8290,7 +8321,10 @@
         const sansLigne = !doc.lines.some(l => !C.estTitre(l) && (String(l.label || '').trim() || Number(l.unitPrice)));
         if (sansLigne && !isQ) {
           $('#totals').innerHTML = `<table class="ed-tot"><tr><td>Total HT</td><td>${nu(0)}</td></tr><tr class="trait"><td>Total TTC</td><td>${nu(0)}</td></tr></table>
-            <div class="ed-net"><span class="k">${isAv ? 'Montant de l\'avoir' : 'Net à payer'}</span><span class="v"><b>${nu(0)}</b> <small>${h(({ EUR: '€', USD: '$', GBP: '£' })[C.normCurrency(cur)] || cur)}</small></span><span class="s">le montant en lettres est écrit sur ${isAv ? 'l\'avoir' : isExtra ? h(leAutre) : laPiece()}</span></div>`;
+            <div class="ed-net"><span class="k">${isAv ? 'Montant de l\'avoir' : isExtra && !isProforma ? 'Total TTC' : 'Net à payer'}</span><span class="v"><b>${nu(0)}</b> <small>${h(({ EUR: '€', USD: '$', GBP: '£' })[C.normCurrency(cur)] || cur)}</small></span><span class="s">${isExtra && !isProforma
+              // (1.357.3, joué à la souris) Un bon vide disait « Net à payer » et « le montant en lettres est écrit sur le bon », puis,
+              // dès sa première ligne, « Total TTC » et « rien n'est dû sur le bon » : la carte dit la même chose avant et après.
+              ? `rien n'est dû sur ${h(leAutre)} : seule la facture se paie` : `le montant en lettres est écrit sur ${isAv ? 'l\'avoir' : isExtra ? h(leAutre) : laPiece()}`}</span></div>`;
         } else $('#totals').innerHTML = `<table class="ed-tot">
           <tr><td>Total HT</td><td>${nu(t.totalHT)}</td></tr>
           ${t.discount ? `<tr><td>Remise ${pct(t.discountRate)} %</td><td>−${nu(t.discount)}</td></tr><tr><td>Net HT</td><td>${nu(t.netHT)}</td></tr>` : ''}
@@ -9021,6 +9055,8 @@
     // (1.291.0) Un geste de la colonne qui reprend un bouton de l'en-tête (imprimer le bon) : il le clique.
     $$('#ed-geste [data-clic]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.clic); if (x) x.click(); });
     $$('#ed-geste [data-va]').forEach(b => b.onclick = () => navigate(b.dataset.va));
+    // (1.357.3) Les bons du client en une facture : on part de ce qui est enregistré, comme « Facturer ».
+    $$('#ed-geste [data-grouper]').forEach(b => b.onclick = () => { if (dirty && !persist()) return; facturerDesBons((docById(doc.id) || doc).clientId); });
     if ($('#ct-recurrent')) $('#ct-recurrent').onclick = () => {
       const src = docById(doc.id) || doc;
       recurrenceForm({ ...recurrenceFromInvoice(src), fromContratId: src.id, subject: `${src.subject || 'Contrat ' + (src.number || '')} — {mois}`.trim() }, r => { if (r) navigate('#/contrat/' + r.id); });
@@ -9316,7 +9352,7 @@
         const html = [
           etq('lang', 'Langue', doc.lang === 'en' ? 'Anglais' : 'Français', doc.lang === 'en' ? 'chg' : ''),
           etq('devise', 'Devise', tauxDevise, cur !== base ? (Number(doc.exchangeRate) > 0 ? 'chg' : 'ko') : ''),
-          isQ || isExtra ? etq('statut', 'Statut', optionStatut(doc.status, doc.type), '') : '',
+          isQ || isExtra ? etq('statut', 'Statut', optionStatutPiece(doc.status), '') : '',
           isDelivery ? etq('prix', 'Prix', doc.hidePrices !== false ? 'masqués sur le bon' : 'imprimés', '') : '',
           !isQ && (!isExtra || isProforma) ? etq('rs', 'Retenue', t.sousLeSeuil && rs ? `${pct(rs)} % · sous le seuil` : rs ? `${pct(rs)} %${duClient ? ' · du client' : ''}${liberal ? ' · honoraires' : ''}` : 'aucune', rs ? 'chg' : '') : '',
           !isQ && (!isExtra || isProforma) ? (doc.export ? etq('timbre', 'Timbre', 'exonéré · export', '', { off: true, titre: 'Les factures d\'export ne paient pas le timbre.' })
