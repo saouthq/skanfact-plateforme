@@ -2856,3 +2856,25 @@ au-dessus du seuil : 14,994 DT de retenue, déjà réglée) n'ont pas été livr
   1 remboursement · 153,153 DT rendus » — un net se lit comme ce que le client a versé, et ce n'est pas ce qu'il a versé.
 - Test : `avoir-1356` (la grande facture émise avec sa retenue, l'avoir partiel qui reprend 1,547 et que le serveur émet,
   le remboursement, la fiche du client, la petite facture sous le seuil et son avoir). Quatre preuves.
+
+### 1.356.7 : « Annuler » qui ramène la pièce à ce qui est enregistré ne laisse rien à enregistrer
+
+Bout en bout 10 : la boulangerie fait repeindre sa boutique et son laboratoire. Un nouveau fournisseur, Peinture Ksibi, avec
+sa retenue à opérer de 1,5 % (À VÉRIFIER : le taux d'une prestation de travaux), reprise sur la pièce « de sa fiche » ;
+facture PK-2611-07 de 2 400 HT, 456 de TVA, 1 de timbre : 2 857 TTC, 42,840 retenus (1,5 % de 2 856, hors timbre),
+2 814,160 à payer. Les montants tombent juste ; « 2,5 » tapé dans la quantité donne 2,5 (6 000 HT).
+- En corrigeant le numéro puis en cliquant ↶, la pièce revenait exactement à ce qui est enregistré (le bouton ↶ s'éteint)
+  et l'en-tête disait encore « Modifications non enregistrées », « Enregistrer les modifications » en vert, et quitter
+  posait la question. Deux causes sur l'achat : la page redessinée par « Annuler » était toujours « sale », et sa
+  dernière ligne remarquait modifiée toute pièce reprise. L'achat retient son état d'ouverture ; les justificatifs et
+  les règlements, qui ont leurs propres gestes, n'y comptent pas.
+- L'éditeur de facture et de devis a son propre « Annuler » : même défaut, même règle. Ce qui est enregistré est retenu à
+  l'ouverture et à chaque enregistrement (y compris l'enregistrement automatique d'une facture en brouillon, qui ne
+  redessine pas la page) ; ramené là, l'en-tête redevient celui de l'ouverture (`enregistrerRendLaMain` rend le vert à
+  l'étape suivante). « Rétablir » la remarque modifiée.
+- Test : `annuler-1356` (le devis, la facture en brouillon enregistrée toute seule, la facture d'achat du peintre ; et
+  quitter sans question). `achat-ecarts` retourné : il exigeait la marque sur une pièce revenue à ce qui est enregistré.
+  Cinq preuves.
+- Au passage, le rouge GitHub de la 1.356.5 : `pagination-1352-1` ouvrait le menu ⋯ de la banque dès que l'en-tête de la
+  fiche paraissait ; « Les règles de la banque » n'y entre qu'une fois le relevé dessiné, et sous Node 22 le menu s'ouvrait
+  avant. Le test attend les lignes du relevé.

@@ -2143,9 +2143,19 @@
     const s = $('#save'); if (!s) return;
     // (1.156.0) Le devis de la maquette garde « Enregistrer » caché tant que rien n'est à enregistrer (son geste est
     // ailleurs : envoyer, la réponse du client, facturer) ; une modification le montre, en vert.
-    $$('#view .page-head .actions .btn-primary, #ed-geste .btn-primary').forEach(b => { if (b !== s) b.classList.remove('btn-primary'); });
+    const verts = $$('#view .page-head .actions .btn-primary, #ed-geste .btn-primary').filter(b => b !== s);
+    // (1.356.7) Ce qu'était l'en-tête avant, pour le lui rendre quand « Annuler » ramène la pièce à ce qui est enregistré.
+    if (!s._avant) s._avant = { cache: s.hidden, vert: s.classList.contains('btn-primary'), verts };
+    verts.forEach(b => b.classList.remove('btn-primary'));
     s.hidden = false;
     s.classList.add('btn-primary');
+  }
+  // (1.356.7) La pièce revient à ce qui est enregistré : « Enregistrer » rend la main à l'étape suivante, comme à l'ouverture.
+  function enregistrerRendLaMain() {
+    const s = $('#save'); if (!s || !s._avant) return;
+    const a = s._avant; s._avant = null;
+    s.hidden = a.cache; s.classList.toggle('btn-primary', a.vert);
+    a.verts.forEach(b => { if (document.contains(b)) b.classList.add('btn-primary'); });
   }
 
   // ---------- garde-fou « modifications non enregistrées » ----------
@@ -6836,6 +6846,9 @@
     // (moins de 0,7 s) font une seule modification ; une nouvelle modification efface ce qu'on pouvait rétablir.
     const pileAnnuler = [], pileRetablir = [];
     let dernierInstantane = JSON.stringify(doc), instantaneTimer = null;
+    // (1.356.7) Ce qui est enregistré (ou, pour une pièce neuve, ce qu'elle était à l'ouverture) : « Annuler » qui y ramène
+    // la pièce lui retire « Modifications non enregistrées » — il n'y a plus rien à enregistrer.
+    let etatEnregistre = dernierInstantane;
     let majAnnulerRef = () => {};
     function noterModif() {
       if (!instantaneTimer) { pileAnnuler.push(dernierInstantane); if (pileAnnuler.length > 60) pileAnnuler.shift(); pileRetablir.length = 0; majAnnulerRef(); }
@@ -6915,7 +6928,7 @@
       if (!$('#issue')) enregistrerDevientPrincipal();
       reportDirty();
     }
-    function untouch() { dirty = false; const el = $('#dirty-dot'); if (el) el.hidden = true; reportDirty(); }
+    function untouch() { dirty = false; etatEnregistre = JSON.stringify(doc); const el = $('#dirty-dot'); if (el) el.hidden = true; reportDirty(); }
     if (!figee) setGuard({
       dirty: () => dirty,
       what: isQ ? 'ce devis' : isInv ? laPiece().replace(/^la /, 'cette ') : isAv ? 'cet avoir' : 'ce ' + (C.TITLES[doc.type] || 'document').toLowerCase(),
@@ -9585,7 +9598,10 @@
         $('#notes').value = doc.notes || '';
         openDesc.clear(); doc.lines.forEach((l, i) => { if (l.description) openDesc.add(i); });
         poserDevise(head, cur); majFicheClient(); drawLines(); majEtiquettes(); majEcheance();
-        if (!dirty) { dirty = true; const d = $('#dirty-dot'); if (d) d.hidden = false; reportDirty(); }
+        if (json === etatEnregistre) {
+          // Revenue à ce qui est enregistré : plus rien à enregistrer, l'en-tête redevient celui de l'ouverture.
+          if (dirty) { untouch(); enregistrerRendLaMain(); const ok = $('#ed-enreg'); if (ok) ok.hidden = isNew && !gardeLe; majEnreg(); }
+        } else if (!dirty) { dirty = true; const d = $('#dirty-dot'); if (d) d.hidden = false; const ok = $('#ed-enreg'); if (ok) ok.hidden = true; if (!$('#issue')) enregistrerDevientPrincipal(); reportDirty(); }
         programmerGarde();
       }
       function annulerModif() {
@@ -17508,7 +17524,9 @@
       reportDirty();
     }
     const oublierBrouillon = () => { if (brouillonA) { clearTimeout(brouillonTimer); brouillonA.effacer(); } };
-    if (!parAnnuler || !annulAchat || annulAchat.id !== p.id) annulAchat = { id: p.id, pile: [], retablir: [] };
+    // (1.356.7) `ouverture` : la pièce telle qu'elle s'est ouverte (enregistrée, ou neuve) — « Annuler » qui y ramène ne laisse
+    // rien à enregistrer.
+    if (!parAnnuler || !annulAchat || annulAchat.id !== p.id) annulAchat = { id: p.id, pile: [], retablir: [], ouverture: JSON.stringify(p) };
     // La pièce de la page affichée : « Rétablir », dans le toast, vient de la page d'avant (elle s'est redessinée).
     annulAchat.piece = () => p;
     let dernierEtat = JSON.stringify(p), etatTimer = null;
@@ -18140,7 +18158,10 @@
       const o = JSON.parse(json), ici = annulAchat.piece();
       o.attachments = deepCopy(ici.attachments || []);
       if (!isNew) o.payments = deepCopy((purchaseById(ici.id) || ici).payments || []);
-      achatReprise = { hash: location.hash, p: o, isNew, payeeDep, parAnnuler: true, sale: true, ...(luParIA ? { lecture: luParIA } : {}) };
+      // Les justificatifs et les règlements ont leurs propres gestes : la pièce est « comme à l'ouverture » sans eux.
+      const sansGestes = x => { const y = typeof x === 'string' ? JSON.parse(x) : deepCopy(x); delete y.attachments; delete y.payments; return JSON.stringify(y); };
+      const sale = sansGestes(o) !== sansGestes(annulAchat.ouverture);
+      achatReprise = { hash: location.hash, p: o, isNew, payeeDep, parAnnuler: true, sale, ...(luParIA ? { lecture: luParIA } : {}) };
       render(true);
     };
     const annulerAchat = () => {
@@ -18166,7 +18187,7 @@
       if (mod && !clos && !champTape(e.target) && (k === 'z' || k === 'y')) { e.preventDefault(); if (k === 'y' || e.shiftKey) retablirAchat(); else annulerAchat(); return true; }
       return toucheCat ? toucheCat(e) : false;
     };
-    // Redessinée par « Annuler », la pièce garde ses modifications à enregistrer.
+    // Redessinée par « Annuler », la pièce garde ses modifications à enregistrer — sauf revenue à son ouverture (1.356.7).
     if (repriseSale) { dirty = false; const d0 = dernierEtat; touchSansNoter(); dernierEtat = d0; }
     // (27/10/2026, maquette achat « brouillon gardé à chaque frappe ») Un achat commencé sur cet appareil et jamais
     // enregistré (l'onglet s'est fermé) : la pièce neuve propose de le reprendre, ou de le jeter.
@@ -19280,8 +19301,9 @@
     // L'en-tête d'une pièce close s'éteint entier : les listes et les dates le sont déjà par leur `ro`,
     // les cases de texte et de nombre, les notes et les listes natives le sont ici.
     if (clos) $$('#b-head input:not([type=hidden]), #b-head select, #b-head textarea, #b-notes').forEach(el => { el.disabled = true; });
-    // Une page redessinée avec la pièce en cours (lecture d'une photo) est, par construction, modifiée.
-    if (repris) touch();
+    // Une page redessinée avec la pièce en cours (lecture d'une photo) est, par construction, modifiée — sauf quand « Annuler »
+    // l'a ramenée à son ouverture : il n'y a plus rien à enregistrer (1.356.7).
+    if (repris && !(parAnnuler && !repriseSale)) touch();
   };
 
   // ---------- Autres documents : proforma, bon de commande, bon de livraison, contrat ----------

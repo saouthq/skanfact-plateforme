@@ -28191,6 +28191,22 @@ prouver 'avoir 1.356.6 c : l'\''avoir sous le seuil promet un paiement groupé' 
 prouver 'avoir 1.356.6 d : la fiche du client compte le remboursement dans ce qu'\''il a versé' 'modules/socle/ecrans/entreprise/app-1.js' \
   '      const recus = paiements.filter(x => enBase(x) > 0), rendus = paiements.filter(x => enBase(x) < 0);' '      const recus = paiements, rendus = [];' \
   "$PS13566"
+PS13567='annuler jusqu'\''à ce qui est enregistré : plus rien à enregistrer ; rétablir : de nouveau'
+prouver 'annuler 1.356.7 a : l'\''achat ramené à son ouverture reste « à enregistrer » (la reprise toujours sale)' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      const sale = sansGestes(o) !== sansGestes(annulAchat.ouverture);' '      const sale = true;' \
+  "$PS13567"
+prouver 'annuler 1.356.7 b : la page de l'\''achat repris par « Annuler » se remarque modifiée' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    if (repris && !(parAnnuler && !repriseSale)) touch();' '    if (repris) touch();' \
+  "$PS13567"
+prouver 'annuler 1.356.7 c : le devis ramené à ce qui est enregistré garde sa marque' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        if (json === etatEnregistre) {' '        if (false) {' \
+  "$PS13567"
+prouver 'annuler 1.356.7 d : « Enregistrer » reste vert sur le devis revenu à son ouverture' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '          if (dirty) { untouch(); enregistrerRendLaMain(); const ok' '          if (dirty) { untouch(); const ok' \
+  "$PS13567"
+prouver 'annuler 1.356.7 e : ce qui est enregistré ne suit pas le dernier enregistrement' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    function untouch() { dirty = false; etatEnregistre = JSON.stringify(doc); const el' '    function untouch() { dirty = false; const el' \
+  "$PS13567"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

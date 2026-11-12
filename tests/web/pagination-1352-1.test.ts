@@ -128,7 +128,10 @@ describe('la pagination, suite : le tableau de bord, la fenêtre de rapprochemen
       return (e.libelles ?? []).length;
     });
     expect(posees).toBe(30);
-    await ouvrir(`dossier/${ent}/comptabilite/banque/2026`, `[data-rowmenu="F:${ent}"]`);
+    // Les gestes du relevé (dont « Les règles de la banque ») n'entrent dans le menu ⋯ qu'une fois le relevé dessiné : on
+    // attend l'en-tête du relevé, pas celui de la fiche, qui paraît avant (sous Node 22 le menu s'ouvrait trop tôt, sans eux).
+    // Sa seule ligne est rapprochée depuis le geste d'au-dessus : l'écran dit « rapproché », sans tableau, l'en-tête reste.
+    await ouvrir(`dossier/${ent}/comptabilite/banque/2026`, '.bq-ecran .bq-h:has-text("Relevé ")');
     await p.locator(`[data-rowmenu="F:${ent}"]`).first().click();
     await p.getByRole('menuitem').filter({ hasText: 'Les règles de la banque' }).click();
     await p.locator('.bqr-t tbody tr').first().waitFor();

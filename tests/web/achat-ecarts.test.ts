@@ -193,7 +193,8 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
         lines: [{ label: 'Farine T55, sacs de 50 kg', qty: 10, unitPrice: n('48.5'), vatRate: 19, destination: 'charge' }] } },
     ] })).statut).toBe(200);
 
-    // 1. ↶ : le numéro changé revient ; « Rétablir » le refait ; la pièce reste à enregistrer.
+    // 1. ↶ : le numéro changé revient ; « Rétablir » le refait. Revenue à ce qui est enregistré, la pièce n'a plus rien à
+    //    enregistrer (1.356.7 : la marque restait, et quitter posait la question) ; refaite, elle l'a de nouveau.
     await p.reload(); await plusTard(p);
     await p.evaluate(() => { location.hash = '#/achat/a1'; });
     const numero = p.locator('#b-head input[name=number]');
@@ -211,6 +212,10 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     await p.locator('#view h1').click();
     await p.keyboard.press('Control+z');
     await expect.poll(() => p.locator('#b-head input[name=number]').inputValue()).toBe('GMS-26-4471');
+    await expect.poll(() => p.locator('#dirty-dot').isVisible()).toBe(false);
+    await p.locator('#view h1').click();
+    await p.keyboard.press('Control+Shift+z');
+    await expect.poll(() => p.locator('#b-head input[name=number]').inputValue()).toBe('GMS-26-4472');
     expect(await p.locator('#dirty-dot').isVisible()).toBe(true);
 
     // 2. Un achat neuf, commencé puis l'onglet fermé : gardé sur cet appareil, il se reprend.
