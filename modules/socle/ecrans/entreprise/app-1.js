@@ -9532,13 +9532,23 @@
         const f = $(`tr[data-i="${i}"] ${texte ? 'input[data-k=qty]' : 'input[data-k=label]'}`, linesBody); if (f) { f.focus(); if (f.select) f.select(); }
       }
       if (ajout) {
-        let popA = null, selA = 0, montres = [];
+        // (1.357.1) `creerA` : « Créer l'article « … » » ne se propose pas quand un article porte déjà ce nom (Croissant tapé,
+        // la prestation Croissant au-dessus : créer en ferait un double) — la règle de `propositionsCatalogue`, celle des lignes.
+        // Le choix surligné est celui qu'Entrée fera : les articles trouvés, puis « Créer … », puis « ou garder une ligne
+        // libre ». Rien ne correspond : Entrée garde une ligne libre, et c'est elle qui se surligne (avant : « Créer … »
+        // surligné, et Entrée ajoutait la ligne libre) ; « Créer … » se choisit à la flèche. `selBouge` : la flèche a choisi.
+        let popA = null, selA = 0, montres = [], creerA = false, selBouge = false;
+        const idxLibre = () => montres.length + (creerA ? 1 : 0);
+        const dernierA = idxLibre;
+        const creerDepuisBarre = t => { ajout.value = ''; fermerA(); catalogForm(articleNeuf({ label: t }), it => { if (it) ajouterArticle(it); }, { creation: true, titre: motsCatalogue().nouveau }); };
         const fermerA = () => { if (popA) popA.fermer(); popA = null; };
         const dessinerA = () => {
           const brut = ajout.value.trim();
           const p = propositionsCatalogue(data.catalog, brut, true, true);
           montres = brut ? p.shown : [];
-          selA = Math.max(0, Math.min(selA, montres.length + (brut ? 1 : 0)));
+          creerA = !!brut && p.creer;
+          if (!selBouge) selA = montres.length ? 0 : idxLibre();
+          selA = Math.max(0, Math.min(selA, dernierA()));
           const cl = clientById(doc.clientId);
           const ventes = dernieresVentes();
           // (1.356.4) « 0 article · prix de Hôtel Les Palmiers SA » : rien ne correspond se DIT, et « pour » n'a pas d'élision à deviner.
@@ -9552,29 +9562,31 @@
               const sous = [c.code ? h(c.code) : '', c.unit ? h(c.unit) : '', pr.source === 'liste' ? `prix du client${pr.liste ? ` (${h(pr.liste)})` : ''}` : pr.source === 'palier' ? 'prix au palier' : c.tracked ? '' : 'prestation', palierDuChoix(c), v ? `la dernière fois : ${C.money(v.pu, null, C.decimalsFor(v.cur))}` : ''].filter(Boolean).join(' · ');
               return `<button type="button" class="aj-o${i === selA ? ' sel' : ''}" data-aj="${i}"><span class="aj-n"><b>${h(c.label)}</b><small>${sous}</small></span>${c.tracked ? `<span class="aj-st ${C.stockOf(data, c.id).qty > 0 ? 'ok' : 'alerte'}">en stock : ${pct(C.stockOf(data, c.id).qty)}</span>` : '<span></span>'}<span class="aj-p">${prixAffiche(c)} <small>HT</small></span></button>`;
             }).join('')}
-            ${brut ? `<button type="button" class="aj-o aj-cr${selA === montres.length ? ' sel' : ''}" data-aj-cr>${lfIc('ajout', 15, 2.4)}<b>Créer ${h(mc.le)} « ${h(brut)} »…</b></button>
-            <button type="button" class="aj-libre" data-aj-libre>ou garder une ligne libre</button>` : ''}
+            ${brut ? `${creerA ? `<button type="button" class="aj-o aj-cr${selA === montres.length ? ' sel' : ''}" data-aj-cr>${lfIc('ajout', 15, 2.4)}<b>Créer ${h(mc.le)} « ${h(brut)} »…</b></button>` : ''}
+            <button type="button" class="aj-libre${selA === idxLibre() ? ' sel' : ''}" data-aj-libre>ou garder une ligne libre</button>` : ''}
             <div class="aj-pied"><kbd>↑</kbd><kbd>↓</kbd> choisir · <kbd>↵</kbd> ajouter · la quantité suit</div>`;
           if (!popA || !popA.pop.isConnected) popA = ouvrirBulle($('#ed-ajout-z'), html, null, { classe: 'aj-pop', role: 'listbox', largeur: 'ancre', min: 560, recouvre: false, label: 'Ajouter un article' });
           else { popA.pop.innerHTML = html; popA.placer(); }
           if (!popA) return;
           $$('[data-aj]', popA.pop).forEach(x => x.onmousedown = e => { e.preventDefault(); const c = montres[Number(x.dataset.aj)]; ajout.value = ''; fermerA(); ajouterArticle(c); });
-          const cr = $('[data-aj-cr]', popA.pop); if (cr) cr.onmousedown = e => { e.preventDefault(); const t = brut; ajout.value = ''; fermerA(); catalogForm(articleNeuf({ label: t }), it => { if (it) ajouterArticle(it); }, { creation: true, titre: motsCatalogue().nouveau }); };
+          const cr = $('[data-aj-cr]', popA.pop); if (cr) cr.onmousedown = e => { e.preventDefault(); creerDepuisBarre(brut); };
           const lb = $('[data-aj-libre]', popA.pop); if (lb) lb.onmousedown = e => { e.preventDefault(); const t = brut; ajout.value = ''; fermerA(); ajouterLibre(t); };
           ajout.setAttribute('aria-expanded', 'true');
         };
-        ajout.oninput = () => { selA = 0; dessinerA(); };
+        ajout.oninput = () => { selA = 0; selBouge = false; dessinerA(); };
         ajout.onfocus = () => { if (ajout.value.trim()) dessinerA(); };
         ajout.onkeydown = e => {
           const brut = ajout.value.trim();
-          if (e.key === 'ArrowDown') { e.preventDefault(); selA = Math.min(selA + 1, montres.length); dessinerA(); }
-          else if (e.key === 'ArrowUp') { e.preventDefault(); selA = Math.max(selA - 1, 0); dessinerA(); }
+          if (e.key === 'ArrowDown') { e.preventDefault(); selBouge = true; selA = Math.max(0, Math.min(selA + 1, dernierA())); dessinerA(); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); selBouge = true; selA = Math.max(selA - 1, 0); dessinerA(); }
           else if (e.key === 'Enter') {
             e.preventDefault(); e.stopPropagation();
             if (!brut) { ajouterLibre(''); return; }
             // La douchette : un code-barres exact ajoute son article tout de suite (Entrée, comme elle le tape).
             const parCode = data.catalog.find(c => c.code && String(c.code).replace(/\s+/g, '').toUpperCase() === brut.replace(/\s+/g, '').toUpperCase());
             const c = parCode || montres[selA];
+            // (1.357.1) Entrée sur « Créer … » (choisi à la flèche) crée l'article, comme le clic : elle ajoutait une ligne libre.
+            if (!parCode && creerA && selA === montres.length) { creerDepuisBarre(brut); return; }
             ajout.value = ''; fermerA();
             if (c && (parCode || selA < montres.length)) ajouterArticle(c); else ajouterLibre(brut);
           } else if (e.key === 'Escape') { ajout.value = ''; fermerA(); }   // la bulle a déjà pris le premier Échap : le second vide la barre

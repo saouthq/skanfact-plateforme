@@ -113,6 +113,24 @@ describe('bout en bout 1.356.4 : la facture de l\'hôtel, ses mots et ses retour
     // (1.356.5) Le mot suit le métier, comme la fenêtre qui crée : une société sans activité vend des prestations.
     await expect.poll(async () => net(await tete.innerText().catch(() => ''))).toBe('Aucune prestation de ce nom prix pour Hôtel Les Palmiers SA');
     expect(net(await p.locator('.aj-pop [data-aj-cr]').innerText())).toBe('Créer la prestation « zzz »…');
+    // (1.357.1) Rien ne correspond : le choix surligné est celui qu'Entrée fera, la ligne libre (avant : « Créer … » surligné, et
+    // Entrée ajoutait la ligne libre). La flèche monte sur « Créer … », et Entrée ouvre la fiche de la prestation, son nom repris.
+    expect(await p.locator('.aj-pop .aj-libre.sel').count()).toBe(1);
+    expect(await p.locator('.aj-pop [data-aj-cr].sel').count()).toBe(0);
+    await p.keyboard.press('ArrowUp');
+    await expect.poll(() => p.locator('.aj-pop [data-aj-cr].sel').count()).toBe(1);
+    await p.keyboard.press('Enter');
+    const ficheArticle = p.locator('#modal-root .modal').last();
+    await ficheArticle.locator('input[name=label]').waitFor({ timeout: 10_000 });
+    expect(await ficheArticle.locator('input[name=label]').inputValue()).toBe('zzz');
+    expect(await p.locator('#lines tr[data-i]').count()).toBe(0);
+    await ficheArticle.getByRole('button', { name: 'Annuler', exact: true }).click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    // (1.357.1) Un nom déjà au catalogue ne se propose pas à la création : ce serait un double.
+    await p.locator('#ed-ajout').click();
+    await p.keyboard.type('Panier de viennoiseries');
+    await expect.poll(async () => net(await tete.innerText().catch(() => ''))).toBe('1 prestation prix pour Hôtel Les Palmiers SA');
+    expect(await p.locator('.aj-pop [data-aj-cr]').count()).toBe(0);
     // 3. L'article choisi, six paniers : 1 260 HT, 1 499,400 TTC hors timbre — au-dessus du seuil. La pastille le suit tout de suite.
     await p.locator('#ed-ajout').fill('');
     await p.keyboard.type('Panier');

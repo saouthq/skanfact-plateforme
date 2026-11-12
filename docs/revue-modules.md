@@ -2994,3 +2994,20 @@ saisie, douze cases à relire pour savoir ce qu'elle dit.
     devis dessiné avant leur réponse annonçait « Retenue 1 % du client − 8,568 » sous le seuil, et ne se refaisait jamais.
     Le pont dit quand les deux règles sont lues (`reglesLues`) ; la pièce encore à l'écran les reprend et refait ses
     totaux, sans passer pour modifiée. Le test retarde désormais la règle de 2,5 s, comme une machine lente.
+
+### 1.357.1 : la barre d'ajout d'une pièce ne propose plus de créer un double, et surligne ce qu'Entrée fera
+
+Vu en rejouant le devis de l'hôtel à la souris (après la 1.357.0) : « Croissant » tapé dans la barre d'ajout d'un devis montrait
+la prestation Croissant, et juste dessous « Créer la prestation « Croissant »… ». Un clic de travers, et le catalogue avait
+deux Croissant, chacun avec ses prix et ses ventes.
+- La barre d'ajout suit la règle des lignes (`propositionsCatalogue`) : quand un article porte déjà le nom tapé (accents et
+  majuscules confondus), « Créer … » ne se propose pas ; « ou garder une ligne libre » reste.
+- Le choix surligné est celui qu'Entrée fera. Rien ne correspond : Entrée garde une ligne libre — c'est le geste rapide d'une
+  désignation libre, que la visite guidée et la reprise d'une pièce utilisent —, et c'est désormais elle qui se surligne
+  (avant : « Créer … » surligné, pendant qu'Entrée ajoutait la ligne libre). « Créer … » se choisit à la flèche, et Entrée y
+  ouvre la fiche de l'article, son nom repris, comme le clic (avant : une ligne libre du même nom, l'article jamais créé).
+- Vu en vérifiant, pas un défaut : sur un poste qui ne garde rien, recharger un devis neuf demande d'abord (« Reload
+  site? »), et le quitter pose « Quitter sans enregistrer ? » avec sa raison.
+- Test : `hotel-1356` (sans correspondance, la ligne libre surlignée ; la flèche sur « Créer … » ; Entrée ouvre la fiche
+  « zzz » ; « Panier de viennoiseries » tapé ne propose pas de le créer). Trois preuves. `reprendre` et `exemple`, qui
+  tapent une désignation libre et Entrée, passent tels quels.

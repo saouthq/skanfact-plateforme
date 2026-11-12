@@ -28329,6 +28329,18 @@ prouver 'résumé de l'\''achat 1.357.0 k : le devis ne refait pas son annonce q
   '      if (apres !== avant) { if (!instantaneTimer) dernierInstantane = apres; if (!dirty) etatEnregistre = apres; }' '      if (apres === avant) return; if (!instantaneTimer) dernierInstantane = apres; if (!dirty) etatEnregistre = apres;' \
   "$PS13565"
 
+prouver 'barre d'\''ajout 1.357.1 a : « Créer la prestation » se propose sous une prestation du même nom' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '          creerA = !!brut && p.creer;' '          creerA = !!brut;' \
+  "$PS13564"
+prouver 'barre d'\''ajout 1.357.1 b : Entrée sur « Créer … » ajoute une ligne libre au lieu de créer l'\''article' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '            if (!parCode && creerA && selA === montres.length) { creerDepuisBarre(brut); return; }
+' '' \
+  "$PS13564"
+prouver 'barre d'\''ajout 1.357.1 c : rien ne correspond, « Créer … » reste surligné quand Entrée garde une ligne libre' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '          if (!selBouge) selA = montres.length ? 0 : idxLibre();
+' '' \
+  "$PS13564"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
