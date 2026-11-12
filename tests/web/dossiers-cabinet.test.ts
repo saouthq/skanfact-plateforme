@@ -96,7 +96,9 @@ describe('les Dossiers du Cabinet, à la souris', () => {
 
     // (1.183.0) Au bout de la ligne, écrire et confier : posés, transparents, révélés au survol (rien ne bouge sous le curseur).
     const vite = ligne('Menuiserie Ben Ali').locator('.cd-vite');
-    expect(await vite.evaluate((e) => getComputedStyle(e).opacity)).toBe('0');
+    // (1.357.6) La liste se redessine quand ses données finissent d'arriver : lue une seule fois, la ligne pouvait être détachée
+    // entre sa résolution et la lecture (« » au lieu de « 0 », rouge sur Node 22 à la 81fe8cb). On attend la ligne stable.
+    await expect.poll(() => vite.evaluate((e) => (e.isConnected ? getComputedStyle(e).opacity : 'détachée'))).toBe('0');
     await ligne('Menuiserie Ben Ali').hover();
     await expect.poll(() => vite.evaluate((e) => getComputedStyle(e).opacity)).toBe('1');
     expect(await vite.getByRole('link', { name: 'Écrire à Hédi' }).getAttribute('href')).toMatch(/^#\/messages\//);

@@ -16,7 +16,7 @@ import { correspond, empreinte } from '../mot-de-passe.ts';
 import { tracer } from '../trace.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { PREMIERE } from './chaine.ts';
-import { compteDuTiroir, sortiesDeLaSession } from './sortie.ts';
+import { autresFluxDeLaSession, compteDuTiroir, sortiesDeLaSession } from './sortie.ts';
 import { routeRetour } from './retour.ts';
 import { appliquer } from '../v10/dossier.ts';
 import { enNombreV10 } from '../v10/lecture.ts';
@@ -67,6 +67,9 @@ async function calculerZ(tx: Transaction, session: string, fond: bigint) {
   const especes = (parMode.especes ?? 0n) - (rendu.especes ?? 0n);
   // (16 § 10.1, urgence 5) Les salaires et les avances payés du tiroir pendant la session : la paie les a déjà sortis.
   const sorties = await sortiesDeLaSession(tx, session);
+  // (1.357.6, 0209) Le reste : les espèces versées à la banque, une dépense payée « à la caisse », une facture réglée en
+  // espèces au comptoir, le fond complété par la banque — notés pendant la session, ailleurs que sur un ticket.
+  const autres = await autresFluxDeLaSession(tx, session);
   // Les retours de la session, nommés (vu sur le serveur d'essai le 05/10/2026 : le Z ne citait pas l'avoir du retour) :
   // chaque avoir, le ticket qu'il reprend et l'argent rendu (le net de l'avoir, vérifié au retour) ; le net des ventes
   // en déduit leur total, et leur TVA.
@@ -76,7 +79,8 @@ async function calculerZ(tx: Transaction, session: string, fond: bigint) {
   const retoursTtc = avoirs.reduce((s, a) => s + BigInt(a.montant), 0n);
   const retoursTva = avoirs.reduce((s, a) => s + BigInt(a.tva), 0n);
   return { nombre: tot.nombre, premier: tot.premier, dernier: tot.dernier, total: BigInt(tot.total), tva: BigInt(tot.tva), parMode, rendu,
-    retours: rendus.reduce((n, m) => n + m.nombre, 0), sorties, attendu: fond + especes - sorties,
+    retours: rendus.reduce((n, m) => n + m.nombre, 0), sorties, autresSorties: autres.sorties, autresEntrees: autres.entrees,
+    attendu: fond + especes - sorties - autres.sorties + autres.entrees,
     avoirs: avoirs.map((a) => ({ numero: a.numero, ticket: a.ticket, montant: BigInt(a.montant) })), retoursTtc,
     net: BigInt(tot.total) - retoursTtc, tvaNette: BigInt(tot.tva) - retoursTva };
 }
@@ -231,6 +235,7 @@ export function routesCaisse(): Route<never>[] {
         rendu: Object.fromEntries(Object.entries(z0.rendu).map(([k, v]) => [k, texte(v)])), retours: z0.retours,
         avoirs: z0.avoirs.map((a) => ({ numero: a.numero, ticket: a.ticket, montant: texte(a.montant) })),
         retoursTtc: texte(z0.retoursTtc), net: texte(z0.net), tvaNette: texte(z0.tvaNette), sorties: texte(z0.sorties),
+        ...(z0.autresSorties ? { autresSorties: texte(z0.autresSorties) } : {}), ...(z0.autresEntrees ? { autresEntrees: texte(z0.autresEntrees) } : {}),
         fond: texte(fond), attendu: texte(z0.attendu), compte: texte(compte), ecart: texte(compte - z0.attendu),
         ...(comptage.length ? { comptage: comptage.map((c) => ({ valeur: texte(c.valeur), nombre: c.nombre, total: texte(c.total) })) } : {}),
         ouverteLe: s.ouverte_le, ouvertePar: s.qui, appareil: s.appareil_nom, fermeeLe, fermePar };

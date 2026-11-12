@@ -10120,6 +10120,23 @@
     return `<label class="field">${lbl('Compte', 'treso.compteDuPaiement')}<select name="accountId">${cptes
       .map(a => `<option value="${h(a.id)}" ${a.id === sel ? 'selected' : ''}>${h(a.name || 'Compte')}</option>`).join('')}</select></label>`;
   }
+  // (1.357.6, bout en bout 15) Le compte SUIT le mode tant qu'on ne l'a pas choisi à la main : des espèces vont dans la caisse,
+  // une carte, un chèque ou un virement à la banque (`C.compteDuMode`, la règle de la caisse du comptoir). Vu à la souris :
+  // « Espèces » cliqué, le compte restait la BIAT — le règlement d'un fournisseur payé au tiroir sortait de la banque, et
+  // ni la caisse ni le relevé ne tombaient plus juste. Un paiement qu'on rouvre garde le compte rangé (`garde`).
+  function compteSuitLeMode(form, garde) {
+    const sel = $('[name=accountId]', form);
+    if (!sel) return () => {};
+    let touche = !!garde;
+    sel.addEventListener('change', () => { touche = true; });
+    return mode => {
+      if (touche) return;
+      const id = C.compteDuMode(data, mode);
+      // « — le compte par défaut — » (le bulletin, l'avance) dit déjà la banque : on ne le remplace pas par son nom.
+      if (sel.value === '' && id === C.comptesDeCaisse(data).banque) return;
+      if (id && [...sel.options].some(o => o.value === id) && sel.value !== id) { sel.value = id; form.dispatchEvent(new Event('change', { bubbles: true })); }
+    };
+  }
 
   // `pay` : le paiement à modifier. Un paiement ne se modifiait pas — la seule action de sa ligne
   // était « ✕ » — donc une erreur de compte, de date ou de mode obligeait à supprimer et resaisir.
@@ -10251,9 +10268,11 @@
         $('#pf2', root).addEventListener('input', majValideP);
         $('#pf2', root).addEventListener('change', majValideP);
         majValideP();
+        if (!$('.pf-charte', root) && $('select[name=method]', root)) { const suivreS = compteSuitLeMode($('#pf2', root), p0); $('select[name=method]', root).addEventListener('change', e => suivreS(e.target.value)); }
         if ($('.pf-charte', root)) {
           const f = $('#pf2', root), m = $('[name=amount]', root), ok = $('#ok', root);
-          $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', f).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
+          const suivreP = compteSuitLeMode(f, p0);
+          $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', f).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); suivreP(b.dataset.mode); });
           $$('[data-vite]', root).forEach(b => b.onclick = () => {
             $$('[data-vite]', root).forEach(x => x.classList.toggle('on', x === b));
             if (b.dataset.vite === 'tout') m.value = C.money(reste, null, C.decimalsFor(cur)); else { m.value = ''; m.focus(); }
@@ -17003,7 +17022,8 @@
       majValideS();
       const fS = $('#spf', root), mS = $('[name=amount]', root), okS = $('#ok', root);
       const cible0 = C.round3(rend ? aRecuperer : reste);
-      $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fS).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
+      const suivreS = compteSuitLeMode(fS, r0);
+      $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fS).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); suivreS(b.dataset.mode); });
       $$('[data-vite]', root).forEach(b => b.onclick = () => {
         $$('[data-vite]', root).forEach(x => x.classList.toggle('on', x === b));
         if (b.dataset.vite === 'tout') mS.value = C.money(cible0, null, C.decimalsFor(cur)); else { mS.value = ''; mS.focus(); }
@@ -17103,7 +17123,8 @@
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
     (root, close) => {
       const fS = $('#rge', root), mS = $('[name=amount]', root);
-      $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fS).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
+      const suivreG = compteSuitLeMode(fS, false);
+      $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fS).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); suivreG(b.dataset.mode); });
       const annoncer = () => {
         const v = formValues(fS), parts = repartir(Number(v.amount) || 0), d0 = v.date || C.today();
         parts.forEach(([p, m]) => { const td = $(`#rge-l tr[data-id="${p.id}"] [data-part]`, root); if (td) td.innerHTML = m > 0.0005 ? `<b>${C.money(m, cur)}</b>${m < reste(p) - 0.0005 ? '<div class="small muted">en partie</div>' : ''}` : '<span class="muted">—</span>'; });
@@ -17410,6 +17431,10 @@
       const r = ((stored && stored.payments) || []).slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || ''))).pop();
       return r ? `le ${lfJm(r.date)} · ${r.method === 'especes' ? 'à la caisse' : methodLabel(r.method).toLowerCase()}` : 'pas encore : à régler';
     };
+    // (1.357.6, bout en bout 15) Le total d'une dépense ne dit « Payé » que si elle l'est : son règlement supprimé, la carte
+    // affichait encore « Payé 6,000 DT » au-dessus de l'étape « reste 6,000 DT ». Rangée, on lit ce qui reste ; neuve, le choix « Payée ».
+    const motNetAchat = () => p.kind === 'avoir' ? 'Montant de l\'avoir' : p.kind === 'acompte' ? 'Montant de l\'acompte'
+      : p.kind === 'depense' ? ((stored ? C.purchaseBalance(stored, company(), data).remaining <= 0.0005 : !!payeeDep) ? 'Payé' : 'À payer') : null;
     // (27/10/2026, maquette achat « Dépense ») Une dépense sans fournisseur se range sous « Dépenses diverses » : la carte le
     // dit d'avance, au lieu d'une liste vide à choisir.
     const diversCarte = () => `<div class="ed-cl-tete"><span class="av ac-divers" aria-hidden="true">—</span><div class="ed-cl-nom"><b>${h(NOM_DIVERS)}</b><span>sans fournisseur : un ticket, un reçu</span></div>
@@ -17524,7 +17549,7 @@
     const avertValide = clos ? '' : '<p class="ed-phrase ac-cab-valide" id="ac-cab-valide" role="status" hidden></p>';
     const gesteAchat = () => {
       const t = C.purchaseTotals(p, company());
-      const net = `<div class="ed-net-tel"><span>${p.kind === 'avoir' ? 'Montant de l\'avoir' : 'Net à payer'}</span><b id="ed-net-tel">${C.money(t.netToPay, cur)}</b></div>`;
+      const net = `<div class="ed-net-tel"><span>${motNetAchat() || 'Net à payer'}</span><b id="ed-net-tel">${C.money(t.netToPay, cur)}</b></div>`;
       const sauver = clos ? '' : isNew
         ? `<button class="btn${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand" id="save">${libelleSauver()}</button>`
         : '<button class="btn" id="save" hidden>Enregistrer les modifications</button>';
@@ -18139,7 +18164,7 @@
         <tr class="ac-sep"><td>Total TTC</td><td>${mt(t.totalTTC)}</td></tr>
         ${t.withholding ? `<tr class="ac-neg"><td>Retenue opérée ${pct(t.withholdingRate)} %</td><td>−${mt(t.withholding)}</td></tr>` : noteRs && noteRs.ton === 'ok' ? `<tr class="ac-sous" id="b-exo" title="${h(noteRs.texte)}"><td>Retenue · fournisseur exonéré</td><td>aucune</td></tr>` : ''}
         ${noteRs && noteRs.ton !== 'ok' ? `<tr><td colspan="2" class="small ${noteRs.ton === 'warn' ? 'warn-text' : 'muted'}" id="b-exo"><div class="note-totaux">${h(noteRs.texte)}</div></td></tr>` : ''}
-        <tr class="grand ac-grand"><td colspan="2"><div class="ed-net"><span class="k">${p.kind === 'avoir' ? 'Montant de l\'avoir' : p.kind === 'acompte' ? 'Montant de l\'acompte' : p.kind === 'depense' ? 'Payé' : 'Net à payer au fournisseur'}</span><span class="v"><b>${C.money(t.netToPay, null, C.decimalsFor(cur))}</b> <small>${h(cur)}</small></span>${/* (1.354.0) Joué : au premier montant, « toute déductible » et « TVA récupérable » naissaient et poussaient « Enregistrer l'achat » de 32 px sous le curseur. Les deux lignes ont leur place dès la pièce vide. */''}<span class="s" id="b-sous-net">${sousNet || '\u00a0'}</span></div></td></tr>
+        <tr class="grand ac-grand"><td colspan="2"><div class="ed-net"><span class="k">${motNetAchat() || 'Net à payer au fournisseur'}</span><span class="v"><b>${C.money(t.netToPay, null, C.decimalsFor(cur))}</b> <small>${h(cur)}</small></span>${/* (1.354.0) Joué : au premier montant, « toute déductible » et « TVA récupérable » naissaient et poussaient « Enregistrer l'achat » de 32 px sous le curseur. Les deux lignes ont leur place dès la pièce vide. */''}<span class="s" id="b-sous-net">${sousNet || '\u00a0'}</span></div></td></tr>
       </table>`;
       const coutDest = $('#b-dest');
       if (coutDest) {
@@ -18291,7 +18316,7 @@
       const paye = $('#ac-dep-paye-f', head); if (paye) paye.hidden = p.kind !== 'depense';
       noteEcheance();
     };
-    if ($('#ac-dep-paye', head)) $('#ac-dep-paye', head).onchange = e => { e.stopPropagation(); payeeDep = e.target.value; touch(); };
+    if ($('#ac-dep-paye', head)) $('#ac-dep-paye', head).onchange = e => { e.stopPropagation(); payeeDep = e.target.value; touch(); $$('#view .ed-net .k, #view .ed-net-tel span').forEach(k => { k.textContent = motNetAchat(); }); };
     // (1.155.13) Comme la maquette : « Facture concernée » prend la place de l'échéance ; un avoir ou un acompte n'en a pas.
     if (isNew && C.PURCHASE_LIES.includes(p.kind) && p.dueDate) { p.dueDate = ''; dueAuto = ''; poserDateField(head, 'dueDate', ''); }
     montrerEcheance();
@@ -18331,7 +18356,7 @@
         if ($('#b-titre')) { $('#b-titre').textContent = mots.titre; setWindowTitle('achat', []); }
         if ($('#b-chemin')) $('#b-chemin').textContent = mots.titre;
         const sv = $('#save'); if (sv && isNew) sv.innerHTML = libelleSauver();
-        const nl = $('#view .ed-net-tel span'); if (nl) nl.textContent = p.kind === 'avoir' ? 'Montant de l\'avoir' : p.kind === 'acompte' ? 'Montant de l\'acompte' : p.kind === 'depense' ? 'Payé' : 'Net à payer';
+        const nl = $('#view .ed-net-tel span'); if (nl) nl.textContent = motNetAchat() || 'Net à payer';
         const lf = $('#b-lie-field', head);
         const lie = C.PURCHASE_LIES.includes(p.kind);
         if (lf) lf.hidden = !lie;
@@ -19354,7 +19379,9 @@
             if (closedBlock(x.date, 'Ce règlement')) return;
             // Ce que l'achat redevient vraiment, avoirs et acomptes compris (jumeau du paiement client).
             const apres = C.round3(b.remaining + (Number(x.amount) || 0));
-            const suite = apres > 0.0005 ? `${s2.number || 'L\'achat'} redeviendra dû de ${C.money(apres, cur)}.` : `${s2.number || 'L\'achat'} restera réglé.`;
+            // (1.357.6) Une dépense sans numéro est une dépense, pas « l'achat » ; et elle s'accorde au féminin.
+            const sujetR = String(s2.number || '').trim() || (s2.kind === 'depense' ? 'La dépense' : 'L\'achat'), femR = s2.kind === 'depense';
+            const suite = apres > 0.0005 ? `${sujetR} redeviendra ${femR ? 'due' : 'dû'} de ${C.money(apres, cur)}.` : `${sujetR} restera ${femR ? 'réglée' : 'réglé'}.`;
             // (1.304.0) Daté dans la période que le cabinet a validée : la question le dit, le message après offre de le lui dire.
             await periodeValideeLue();
             const dvSup = dateDansLaPeriodeValidee([x.date]);
@@ -19474,10 +19501,11 @@
       const clean = deepCopy(p);
       // (27/10/2026, maquette achat « Dépense ») Une dépense neuve « payée à la caisse » ou « par carte » s'enregistre réglée, à
       // sa date et au millime, dans sa devise (au taux de la pièce) : le règlement se voit, se corrige et se supprime ensuite
-      // dans « Règlements » comme tout autre.
+      // dans « Règlements » comme tout autre. (1.357.6, bout en bout 15) « à la caisse » sort de la CAISSE : sans compte rangé,
+      // le règlement tombait sur le compte par défaut — la BIAT — et le tiroir comme le relevé comptaient faux (`C.compteDuMode`).
       const duJour = idx < 0 && p.kind === 'depense' && payeeDep ? C.purchaseTotals(clean, company()).netToPay : 0;
       if (duJour > 0.0005) {
-        const r = { id: C.uid(), date: clean.date, amount: duJour, method: payeeDep, accountId: '', reference: String(clean.number || '').trim(), note: 'payée le jour même' };
+        const r = { id: C.uid(), date: clean.date, amount: duJour, method: payeeDep, accountId: C.compteDuMode(data, payeeDep) || '', reference: String(clean.number || '').trim(), note: 'payée le jour même' };
         if ((clean.currency || company().currency) !== company().currency) r.exchangeRate = Number(clean.exchangeRate) || 0;
         clean.payments = (clean.payments || []).concat([r]);
       }
@@ -19581,7 +19609,7 @@
       if (!isNew) {
         const raison = clos ? 'mois clôturé : impossible' : (s2.payments || []).length ? 'elle porte un règlement : retire-le d\'abord' : data.purchases.some(x => x.achatLie === p.id) ? 'un avoir y est rattaché : détache-le d\'abord' : '';
         a.push({ sep: true });
-        a.push({ icon: 'supprimer', label: 'Supprimer', hint: raison || 'elle et son justificatif', danger: !raison, off: !!raison, run: () => { const b = $('#del'); if (b) b.click(); } });
+        a.push({ icon: 'supprimer', label: 'Supprimer', hint: raison || ((s2.attachments || []).length ? (s2.attachments.length > 1 ? 'elle et ses justificatifs' : 'elle et son justificatif') : 'la pièce entière'), danger: !raison, off: !!raison, run: () => { const b = $('#del'); if (b) b.click(); } });
       }
       RowMenu.ouvrir(bouton, a, { titre: isNew ? motsDePiece(p.kind).titre : String(p.number || '').trim() || `${natureLabel(p.kind)} du ${lfJm(p.date)}`, classe: 'gestes-menu', label: 'Tous les gestes de la pièce' });
     };

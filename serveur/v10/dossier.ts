@@ -31,6 +31,7 @@ import { reecrireLesAchats } from '../compta/achats.ts';
 import { reecrireLaPaie } from '../compta/paie.ts';
 import { planChange } from '../compta/suivre.ts';
 import { reecrireLesMouvements, suivreMouvements } from '../compta/mouvements.ts';
+import { suivreLeTiroir } from '../caisse/porte.ts';
 import { suivreOperations } from '../compta/porte.ts';
 import { ecrireFamilleDeVente, reecrireLesVentes } from '../compta/ventes.ts';
 import { canonique, deviseV10 as devise, enNombreV10, estObjet, lirePaiements, nombreEnTexte, type Json } from './lecture.ts';
@@ -325,6 +326,8 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   await suivrePaie(tx, entreprise, utilisateur, lus);
   // Les mouvements libres de la trésorerie (1.79.0) : après la paie, dont les mois disent le compte d'un salaire réglé.
   await suivreMouvements(tx, entreprise, lus);
+  // (1.357.6, 0209) Ce qui entre et sort du tiroir hors des tickets, la caisse ouverte : son Z le compte (serveur/caisse/sortie.ts).
+  await suivreLeTiroir(tx, entreprise, lus);
   // (1.303.0) Les opérations diverses que le client saisit lui-même : ses comptes à lui, le plan ne les change pas (0194).
   await suivreOperations(tx, entreprise, lus);
   // La raison sociale et le matricule de la fiche société sont ceux de l'entreprise (lot facture, 0071).

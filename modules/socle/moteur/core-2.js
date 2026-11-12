@@ -1726,7 +1726,9 @@
     add('justificatifs', 'warn', `${plFr(noProof.length, 'achat')} sans justificatif`,
       'Sans la pièce jointe, ton comptable ne peut pas récupérer la TVA de ces achats.', noProof.length, { du: from, au: to });
 
-    const unticked = cashMovements(data, company).filter(m => inRange(m.date) && !m.reconciled);
+    // (1.357.6) Une CAISSE se compte, elle ne se pointe pas contre un relevé (`seCompte`) : ses mouvements n'attendent rien.
+    const caisses = new Set((data.accounts || []).filter(seCompte).map(a => a.id));
+    const unticked = cashMovements(data, company).filter(m => inRange(m.date) && !m.reconciled && !caisses.has(m.accountId));
     add('pointage', 'warn', `${plFr(unticked.length, 'mouvement')} non pointé${sAccord(unticked.length)}`,
       'Pointer les mouvements contre le relevé bancaire, c\'est ce qui prouve que la trésorerie est juste.', unticked.length);
 
@@ -6778,6 +6780,10 @@
   // compte de caisse, un paiement en espèces tomberait sur le compte par défaut — la banque — et le
   // solde de la Trésorerie ne retomberait jamais sur l'argent du tiroir. La page le dit, et propose
   // de créer la caisse avant la première vente.
+  // (1.357.6, bout en bout 15) Un compte de caisse se COMPTE : le tiroir dit ce qu'il contient, il n'y a pas de relevé
+  // à pointer ni de mouvement « en cours de traitement ». La Trésorerie le disait « relevé jamais pointé, 4 mouvements à
+  // pointer » et le contrôle de clôture réclamait chaque ticket encaissé en espèces.
+  function seCompte(a) { return !!(a && a.kind === 'caisse'); }
   function comptesDeCaisse(data) {
     const acc = ((data || {}).accounts || []).filter(a => !a.archived);
     const caisse = acc.find(a => a.kind === 'caisse');
@@ -7076,6 +7082,8 @@
       <hr>
       <table>
         ${Number(z.sorties) ? ligne('Payé du tiroir pour la paie', `− ${m(z.sorties)}`) : ''}
+        ${Number(z.autresSorties) ? ligne('Sorti du tiroir ailleurs (versements, achats, mouvements)', `− ${m(z.autresSorties)}`) : ''}
+        ${Number(z.autresEntrees) ? ligne('Entré dans le tiroir ailleurs (factures, apports)', `+ ${m(z.autresEntrees)}`) : ''}
         ${ligne('Fond de caisse', m(z.fond))}
         ${ligne('Le tiroir devait contenir', m(z.attendu), 'tot')}
         ${ligne('Espèces comptées', m(z.compte))}
@@ -7648,7 +7656,7 @@
 
   const api = {
     enLot, duLot,
-    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, estCession, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, prixDuPanier, totauxDuPanier, natureDeLArticle, natureProposee, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
+    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, estRetourDeTicket, estCession, serieDe, titreDePiece, normCode, articleParCode, seCompte, comptesDeCaisse, compteDuMode, ligneDePanier, prixDuPanier, totauxDuPanier, natureDeLArticle, natureProposee, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
     VAT_RATES, WITHHOLDING_RATES, PAYMENT_METHODS, PREFIX, TITLES, DEFAULT_DATA, DEFAULT_COMPANY, ACTIVITIES, STATUSES, STATUT_ENVOI, DISPLAY_STATUSES, STATUS_LABELS,
     REGIMES, regimeOf, regimeSuggere, tfpSuggere, assujettiTVA, mentionTVA, estLiberal, docLabel, ribAttendu,
     DOC_FILTRES, docFiltre,

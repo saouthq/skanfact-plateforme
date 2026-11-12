@@ -1403,7 +1403,7 @@ prouver "la base qui laisse un règlement changer d'achat" $M13 \
     raise exception 'un règlement ne change pas de pièce'" \
   "$AB"
 prouver "l'écran qui laisse supprimer une facture sous son avoir" modules/socle/ecrans/entreprise/app-1.js \
-  "        a.push({ icon: 'supprimer', label: 'Supprimer', hint: raison || 'elle et son justificatif', danger: !raison, off: !!raison," "        a.push({ icon: 'supprimer', label: 'Supprimer', hint: raison || 'elle et son justificatif', danger: true, off: false," \
+  "'la pièce entière'), danger: !raison, off: !!raison," "'la pièce entière'), danger: true, off: false," \
   "$AP"
 prouver "un règlement fournisseur trop précis découvert seulement à l'enregistrement" modules/socle/ecrans/entreprise/app-1.js \
   "        const v = formValues(\$('#spf', root));
@@ -5584,7 +5584,7 @@ prouver "un ticket hors de sa session" serveur/caisse/routes.ts \
   "from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = \$1\`, [session])).rows[0] as" "from caisse.ticket t join ventes.piece p on p.id = t.piece where t.entreprise = (select entreprise from caisse.session where id = \$1)\`, [session])).rows[0] as" \
   "$CS"
 prouver "un tiroir attendu sans son fond" serveur/caisse/routes.ts \
-  "attendu: fond + especes - sorties," "attendu: especes - sorties," \
+  "attendu: fond + especes - sorties - autres.sorties" "attendu: especes - sorties - autres.sorties" \
   "$CS"
 prouver "un Z qui compte les tickets des autres sessions" serveur/caisse/routes.ts \
   "    from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = \$1\`, [session])).rows[0] as" "    from caisse.ticket t join ventes.piece p on p.id = t.piece where \$1::uuid is not null\`, [session])).rows[0] as" \
@@ -23331,7 +23331,7 @@ SOR1='un salaire et une avance payés du tiroir, caisse ouverte : le Z les retir
 SOR2='caisse fermée, le paiement passe et rien n'\''est noté ; le Z figé ne change pas, la session suivante ne le compte pas'
 SORW='(16 § 10.1, urgence 5) l'\''avance donnée du tiroir, caisse ouverte : le Z la dit, tombe juste, et la caisse de la Trésorerie est le tiroir compté'
 prouver 'urgence 5 a : le Z ne retire pas ce que la paie a pris au tiroir' serveur/caisse/routes.ts \
-  'attendu: fond + especes - sorties,' 'attendu: fond + especes,' \
+  'attendu: fond + especes - sorties - autres.sorties' 'attendu: fond + especes - autres.sorties' \
   "$SOR1"
 prouver 'urgence 5 b : le salaire payé du tiroir sans sa sortie' serveur/v10/paie.ts \
   'montant: b?.paye_le ? b.net : 0n,' 'montant: 0n,' \
@@ -23352,10 +23352,16 @@ prouver 'urgence 5 g : le Z qui ne dit pas ce que la paie a pris au tiroir' serv
   ' sorties: texte(z0.sorties),' '' \
   "$SOR1"
 prouver 'urgence 5 h : le paiement refusé parce que la caisse est fermée' serveur/caisse/sortie.ts \
-  '  if (!s) return;' "  if (!s) throw new Error('caisse fermée');" \
+  "  if (!s) return;
+  await tx.query('delete from caisse.sortie where session = \$1 and origine = \$2'" "  if (!s) throw new Error('caisse fermée');
+  await tx.query('delete from caisse.sortie where session = \$1 and origine = \$2'" \
   "$SOR2"
 prouver 'urgence 5 i : une sortie notée dans une session déjà fermée' serveur/caisse/sortie.ts \
-  'where entreprise = $1 and fermee_le is null order by ouverte_le limit 1 for update' 'where entreprise = $1 order by ouverte_le desc limit 1 for update' \
+  'where entreprise = $1 and fermee_le is null order by ouverte_le limit 1 for update`, [ent])).rows[0] as { id: string; jour: string } | undefined;
+  if (!s) return;
+  await tx.query('\''delete from caisse.sortie where session = $1 and origine = $2'\''' 'where entreprise = $1 order by ouverte_le desc limit 1 for update`, [ent])).rows[0] as { id: string; jour: string } | undefined;
+  if (!s) return;
+  await tx.query('\''delete from caisse.sortie where session = $1 and origine = $2'\''' \
   "$SOR2"
 prouver 'urgence 5 j : le Z à l'\''écran sans ce que la paie a pris au tiroir' modules/socle/ecrans/entreprise/app-2.js \
   "\${Number(z.sorties) ? ligne('Payé du tiroir pour la paie (salaires, avances)'" "\${false ? ligne('Payé du tiroir pour la paie (salaires, avances)'" \
@@ -28420,7 +28426,11 @@ prouver 'tournée 1.357.3 m : la case Statut d'\''un bon facturé dit « Signé 
   "$BLT"
 RLV="la boulangerie corrige son solde de départ sous le chiffre, envoie l'état, et le Cabinet a le même solde"
 prouver 'relevé 1.357.4 a : pas de « corriger » sous le solde de départ' 'modules/socle/ecrans/entreprise/app-2.js' \
-  ' · <button type="button" class="btn-lien" id="t-depart">corriger</button></small>' '</small>' \
+  ' · <button type="button" class="btn-lien" id="t-depart">corriger</button></small></div>
+            <span class="tr-op" aria-hidden="true">+</span>
+            <div><span>Mouvements pointés' '</small></div>
+            <span class="tr-op" aria-hidden="true">+</span>
+            <div><span>Mouvements pointés' \
   "$RLV"
 prouver 'relevé 1.357.4 b : la correction ne redessine que le rapprochement (le disponible reste l'\''ancien)' 'modules/socle/ecrans/entreprise/app-2.js' \
   'accountForm(data.accounts.find(a => a.id === accId), () => render(true), null, { focus: '\''opening'\'' });' 'accountForm(data.accounts.find(a => a.id === accId), () => draw(), null, { focus: '\''opening'\'' });' \
@@ -28466,6 +28476,54 @@ prouver 'inventaire 1.357.5 g : la demande de l'\''état au 31/12 ne se voit pas
   'const demande = (!etat || etatAvant) && relie ?' 'const demande = !etat && relie ?' \
   "$INV"
 
+prouver 'tiroir 1.357.6 a : le dossier ne suit plus le tiroir' serveur/v10/dossier.ts \
+  'await suivreLeTiroir(tx, entreprise, lus);' '' \
+  'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
+prouver 'tiroir 1.357.6 b : le Z ignore ce qui est sorti ou entré ailleurs' serveur/caisse/routes.ts \
+  'attendu: fond + especes - sorties - autres.sorties + autres.entrees' 'attendu: fond + especes - sorties' \
+  'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
+prouver 'tiroir 1.357.6 c : la monnaie apportée de la banque n'"'"'entre pas dans le tiroir' serveur/caisse/sortie.ts \
+  '      if (vers === tiroir && depart !== tiroir) return [{ nature: '"'"'mouvement'"'"', cle: '"'"'vers'"'"', montant: -m, jour: texte(o.date) || null }];
+' '' \
+  'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
+prouver 'tiroir 1.357.6 d : un avoir remboursé en espèces sort du tiroir' serveur/caisse/sortie.ts \
+  'const sens = o.kind === '"'"'avoir'"'"' ? -1n : 1n;' 'const sens = 1n;' \
+  'caisse fermée, rien n'"'"'est noté ; un avoir remboursé en espèces entre, un remboursement au client sort'
+prouver 'tiroir 1.357.6 e : les espèces d'"'"'un ticket comptent deux fois' serveur/caisse/sortie.ts \
+  'if (o.type !== '"'"'facture'"'"' || o.ticket) return [];' 'if (o.type !== '"'"'facture'"'"') return [];' \
+  'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
+prouver 'tiroir 1.357.6 f : une pièce changée garde ce qu'"'"'elle avait noté' serveur/caisse/sortie.ts \
+  '    await tx.query('"'"'delete from caisse.sortie where session = $1 and left(origine, length($2)) = $2'"'"', [s.id, prefixe]);
+' '' \
+  'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
+prouver 'tiroir 1.357.6 g : le fond de l'"'"'ouverture compte comme une entrée' serveur/caisse/sortie.ts \
+  'if (o.ouverture === true || texte(o.reference)' 'if (texte(o.reference)' \
+  'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
+prouver 'tiroir 1.357.6 h : un mouvement d'"'"'avant la session compte' serveur/caisse/sortie.ts \
+  'if (f.montant === 0n || !f.jour || f.jour < s.jour || f.jour > auj) continue;' 'if (f.montant === 0n || !f.jour || f.jour > auj) continue;' \
+  'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
+prouver 'tiroir 1.357.6 i : la caisse se rapproche comme une banque' modules/socle/ecrans/entreprise/app-2.js \
+  '{ const accC = data.accounts.find(a => a.id === accId); if (C.seCompte(accC)) return drawComptage(accC); }' '' \
+  'la caisse se compte, l'"'"'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
+prouver 'tiroir 1.357.6 j : la carte de la caisse ne propose pas de la compter' modules/socle/ecrans/entreprise/app-2.js \
+  '${C.seCompte(a) ? piedDeCaisse(a) :' '${false ? piedDeCaisse(a) :' \
+  'la caisse se compte, l'"'"'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
+prouver 'tiroir 1.357.6 k : l'"'"'écart du comptage part sans son compte' modules/socle/ecrans/entreprise/app-2.js \
+  'compte: manque ? '"'"'658'"'"' : '"'"'758'"'"'' 'compte: '"'"''"'"'' \
+  'la caisse se compte, l'"'"'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
+prouver 'tiroir 1.357.6 l : le règlement en espèces reste à la banque' modules/socle/ecrans/entreprise/app-1.js \
+  'const suivreS = compteSuitLeMode(fS, r0);' 'const suivreS = () => {};' \
+  'la caisse se compte, l'"'"'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
+prouver 'tiroir 1.357.6 m : le compte choisi à la main suit quand même le mode' modules/socle/ecrans/entreprise/app-1.js \
+  '  sel.addEventListener('"'"'change'"'"', () => { touche = true; });
+' '' \
+  'la caisse se compte, l'"'"'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
+prouver 'tiroir 1.357.6 n : la dépense dit « Payé » sans règlement' modules/socle/ecrans/entreprise/app-1.js \
+  '(stored ? C.purchaseBalance(stored, company(), data).remaining <= 0.0005 : !!payeeDep) ? '"'"'Payé'"'"' : '"'"'À payer'"'"'' ''"'"'Payé'"'"'' \
+  'la caisse se compte, l'"'"'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
+prouver 'tiroir 1.357.6 o : la question appelle la dépense « l'"'"'achat »' modules/socle/ecrans/entreprise/app-1.js \
+  '(s2.kind === '"'"'depense'"'"' ? '"'"'La dépense'"'"' : '"'"'L\'"'"'achat'"'"')' ''"'"'L\'"'"'achat'"'"'' \
+  'la caisse se compte, l'"'"'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -496,6 +496,8 @@
         ${Object.entries(z.parMode).map(([k, v]) => ligne(h(MODES_Z[k] || k), h(argentCaisse(v)))).join('')}
         ${Object.entries(z.rendu || {}).map(([k, v]) => ligne(`Rendu (${h((MODES_Z[k] || k).toLowerCase())})`, `− ${h(argentCaisse(v))}`)).join('')}
         ${Number(z.sorties) ? ligne('Payé du tiroir pour la paie (salaires, avances)', `− ${h(argentCaisse(z.sorties))}`) : ''}
+        ${/* (1.357.6, 0209) Ce que la Trésorerie, les achats et les factures ont fait entrer ou sortir du tiroir pendant la journée. */''}${Number(z.autresSorties) ? ligne('Sorti du tiroir ailleurs (versements à la banque, achats, mouvements)', `− ${h(argentCaisse(z.autresSorties))}`) : ''}
+        ${Number(z.autresEntrees) ? ligne('Entré dans le tiroir ailleurs (factures payées en espèces, apports)', `+ ${h(argentCaisse(z.autresEntrees))}`) : ''}
         ${ligne('Fond de caisse', h(argentCaisse(z.fond)))}${ligne('<b>Le tiroir devait contenir</b>', `<b>${h(argentCaisse(z.attendu))}</b>`)}
         ${ligne('Espèces comptées', h(argentCaisse(z.compte)))}
         ${(z.comptage || []).map(x => ligne(`<span class="small muted">${x.nombre} × ${Number(x.valeur) >= 1 ? `${Number(x.valeur)} DT` : `${Math.round(Number(x.valeur) * 1000)} millimes`}</span>`, `<span class="small muted">${h(argentCaisse(x.total))}</span>`)).join('')}
@@ -1113,7 +1115,8 @@
       const noterEcartDuFond = d => {
         const o = $('#cs-fond-origine') ? $('#cs-fond-origine').value : (d > 0 ? 'apport' : 'manque');
         const vers = o.startsWith('compte:') ? o.slice(7) : '';
-        const m = { id: C.uid(), date: C.today(), amount: Math.abs(d), method: 'especes', reference: 'Ouverture de la caisse', label: '' };
+        // (1.357.6) `ouverture` : le fond déjà compté à l'ouverture, que le Z ne recompte pas (serveur/caisse/sortie.ts).
+        const m = { id: C.uid(), date: C.today(), amount: Math.abs(d), method: 'especes', reference: 'Ouverture de la caisse', label: '', ouverture: true };
         if (vers) Object.assign(m, d > 0 ? { kind: 'virement', accountId: vers, versAccountId: idCaisse, label: 'Fond de caisse retiré de la banque' } : { kind: 'virement', accountId: idCaisse, versAccountId: vers, label: 'Espèces du tiroir versées à la banque' });
         else if (d > 0) Object.assign(m, { kind: 'apport', accountId: idCaisse, label: 'Fond de caisse apporté par le gérant' });
         else if (o === 'retrait') Object.assign(m, { kind: 'retrait', accountId: idCaisse, label: 'Espèces du tiroir prises par le gérant' });
@@ -1252,6 +1255,10 @@
         b.disabled = true; refus('');
         try {
           const r = await bridge.fermerCaisse(compte, comptage);
+          // (1.357.6) Le Z est un COMPTAGE du tiroir : la caisse de la Trésorerie le retient (« Comptée le … »), sinon elle se
+          // disait « pas encore comptée » le soir même d'un Z tombé juste.
+          const idT = C.comptesDeCaisse(data).especes, accT = idT && data.accounts.find(a => a.id === idT);
+          if (accT && r && r.z && r.z.compte != null && isFinite(Number(r.z.compte))) { accT.statementBalance = C.round3(Number(r.z.compte)); accT.statementDate = C.today(); save(true); }
           s.comptage = null; s.ecran = 'vente';
           montrerZ(r.z);
         } catch (e) { b.disabled = false; refus(plainError(e)); }
@@ -3203,14 +3210,16 @@
           .filter(([v]) => v !== 'virement' || data.accounts.length > 1 || m.kind === 'virement')
           .map(([v, l, s]) => `<option value="${v}" ${m.kind === v ? 'selected' : ''}>${v === 'virement' ? '⇄' : s > 0 ? '↑' : '↓'} ${l}</option>`).join('')}</select></label>
         ${obligatoire(field(lbl(`Montant (${h(C.normCurrency(company().currency))})`, 'tre.moveAmount'), 'amount', Math.abs(m.amount) || 0, 'number', 'step="0.001" min="0" class="num"'))}
-        <label class="field">${lbl('Compte', 'tre.moveAccount')}<select name="accountId">${data.accounts.map(a => `<option value="${a.id}" ${m.accountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
+        <label class="field">${lbl('<span class="mf-compte-t">Compte</span>', 'tre.moveAccount')}<select name="accountId">${data.accounts.map(a => `<option value="${a.id}" ${m.accountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
         <label class="field span-2">${lbl('Libellé', 'tre.moveLabel')}<input type="text" name="label" value="${h(m.label || '')}" placeholder="Salaires de septembre"></label>
         ${field(lbl('Référence', 'tre.moveRef'), 'reference', m.reference || '', 'text', 'placeholder="N° de chèque, référence du virement…"')}
         <label class="field">${lbl('Mode', 'tre.moveMethod')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${m.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        ${/* (1.357.6, bout en bout joué à la souris : les espèces versées à la banque) « Vers le compte » prend la place de
+           « Se répète » (un virement ne se répète pas ici) : il vivait sous un trou d'une rangée, en bas de la fenêtre. */''}
+        <label class="field" id="mf-vers" ${m.kind === 'virement' ? '' : 'hidden'}>${lbl('Vers le compte', 'tre.moveVers')}<select name="versAccountId"><option value="">— Choisir le compte qui reçoit —</option>${data.accounts.map(a => `<option value="${a.id}" ${m.versAccountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
         <label class="field mf-rep">${lbl('Se répète', 'tre.repete')}<select name="repete">${[['', 'Non, une seule fois'], ['mois', 'Chaque mois'], ['trimestre', 'Chaque trimestre'], ['annee', 'Chaque année']].map(([v, l]) => `<option value="${v}" ${(m.repete || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <div class="mf-rep mf-jusqu">${dateFieldHtml(lbl('Jusqu\'au (facultatif)', 'tre.repeteJusqu'), 'repeteJusqu', m.repeteJusqu || '', {})}</div>
         <label class="field span-2" id="mf-cp" ${m.kind === 'virement' ? 'hidden' : ''}>${lbl('Contrepartie comptable', 'tre.compte')}<select name="compte">${C.COMPTES_CONTREPARTIE.map(([v, l]) => `<option value="${v}" ${String(m.compte || '') === v ? 'selected' : ''}>${v ? v + ' — ' : ''}${l}</option>`).join('')}${m.compte && !C.COMPTES_CONTREPARTIE.some(([v]) => v === String(m.compte)) ? `<option value="${h(m.compte)}" selected>${h(m.compte)} — ${h(C.accountLabel(data, m.compte))}</option>` : ''}</select></label>
-        <label class="field span-2" id="mf-vers" ${m.kind === 'virement' ? '' : 'hidden'}>${lbl('Vers le compte', 'tre.moveVers')}<select name="versAccountId"><option value="">— Choisir le compte qui reçoit —</option>${data.accounts.map(a => `<option value="${a.id}" ${m.versAccountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
       </form>
       ${avertValideHtml('mf-valide')}
       <div class="mv-pj"><div class="field">${lbl('Justificatifs', 'tre.moveJustif')}</div><div id="mv-pj"></div></div>
@@ -3218,18 +3227,20 @@
         ${mv ? '<button class="btn btn-danger" id="del-mv" style="margin-inline-end:auto">Supprimer</button>' : ''}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
-        // La contrepartie comptable et le compte qui reçoit vivent à la MÊME place : un virement n'a
-        // pas de contrepartie à choisir, c'est le compte d'arrivée (règle H-E1 : ce qui apparaît
-        // selon une valeur ne pousse rien).
+        // Un virement n'a pas de contrepartie à choisir, c'est le compte d'arrivée : « Vers le compte » prend la place de
+        // « Se répète », dans la même rangée (règle H-E1 : ce qui apparaît selon une valeur ne pousse rien au-dessus de lui ;
+        // la contrepartie, dernière rangée, se retire sans rien déplacer d'autre que le bas de la fenêtre).
         const kindSel = $('[name=kind]', root), versSel = $('[name=versAccountId]', root);
         // Pour un virement, le compte choisi est celui d'où l'argent PART, et le libellé laissé vide
         // s'écrira « Virement vers … » : l'invite le montre avant qu'on l'enregistre.
-        const texteCompte = $('[name=accountId]', root).closest('label').querySelector('.fl').firstChild;
+        // (1.357.6) La partie qui change vit dans son propre élément : la règle qui colle la bulle « i » à son dernier mot
+        // (`collerBulles`) déplace le texte de l'étiquette, et réécrire son premier nœud de texte donnait « Depuis le compte Compte ».
+        const texteCompte = $('.mf-compte-t', root);
         const libelle = $('[name=label]', root);
         const accorder = () => {
           const vir = kindSel.value === 'virement';
           $('#mf-cp', root).hidden = vir; $('#mf-vers', root).hidden = !vir;
-          texteCompte.data = vir ? 'Depuis le compte ' : 'Compte ';
+          texteCompte.textContent = vir ? 'Depuis le compte' : 'Compte';
           // Le compte d'où l'argent part ne se propose pas comme compte d'arrivée : l'enregistrement le
           // refuserait (10.14.1 — on ne propose pas un choix qui sera refusé).
           const depuis = $('[name=accountId]', root).value;
@@ -3239,9 +3250,22 @@
           libelle.placeholder = vir ? (cible ? `Virement vers ${cible.name}` : 'Virement vers le compte choisi') : 'Salaires de septembre';
           // (1.266.0) Un virement entre tes comptes ne se répète pas ici ; « jusqu'au » n'a de sens que pour ce qui revient.
           // Les deux gardent leur place (visibilité seule) : rien ne bouge sous le curseur.
-          $$('.mf-rep', root).forEach(x => { x.style.visibility = vir ? 'hidden' : ''; });
+          // (1.357.6) « Se répète » cède sa place à « Vers le compte » (même rangée) ; « jusqu'au » garde la sienne.
+          $('.mf-rep.field', root).hidden = vir;
           $('.mf-jusqu', root).style.visibility = vir || !$('[name=repete]', root).value ? 'hidden' : '';
         };
+        // (1.357.6) Le mode suit le compte d'où part l'argent tant qu'on ne l'a pas choisi : une caisse paie en espèces (un
+        // versement au guichet est un versement d'espèces), une banque par virement. Il proposait « Virement » partout.
+        const modeSel = $('[name=method]', root);
+        let modeTouche = !!mv || !!(preset && preset.method);
+        modeSel.addEventListener('change', () => { modeTouche = true; });
+        const modeDuCompte = () => {
+          if (modeTouche) return;
+          const a = data.accounts.find(x => x.id === $('[name=accountId]', root).value);
+          modeSel.value = a && a.kind === 'caisse' ? 'especes' : 'virement';
+        };
+        $('[name=accountId]', root).addEventListener('change', modeDuCompte);
+        modeDuCompte();
         $('[name=repete]', root).addEventListener('change', accorder);
         kindSel.addEventListener('change', accorder);
         versSel.addEventListener('change', accorder);
@@ -3358,7 +3382,8 @@
     const sousSeuil = seuilT ? `sous ton seuil (${C.money(seuilT, cur)})` : 'sous zéro';
     const retards30 = C.round3(f30.late.clients.reduce((x, e) => x + e.amount, 0));
     const nbRetards30 = f30.late.clients.length;
-    const recos = data.accounts.map(a => ({ a, r: C.reconciliation(data, company(), a.id, t0) }));
+    // (1.357.6) Une caisse se compte, elle ne se pointe pas (`C.seCompte`) : ses mouvements ne sont jamais « à pointer ».
+    const recos = data.accounts.filter(a => !C.seCompte(a)).map(a => ({ a, r: C.reconciliation(data, company(), a.id, t0) }));
     const aPointer = recos.reduce((n, x) => n + x.r.moves.filter(m => !m.reconciled).length, 0);
     const nbMouvAn = C.cashMovements(data, company(), { from: `${s.year}-01-01`, to: `${s.year}-12-31` }, null).length;
     const compteTr = { mouvements: nbMouvAn, rapprochement: aPointer };
@@ -3453,6 +3478,13 @@
         const pts = vals.map((v, k) => `${((k + dx) * W / 30).toFixed(1)},${(mx === mn ? H / 2 : H - 3 - (H - 6) * (v - mn) / sp).toFixed(1)}`).join(' ');
         return `<svg class="tr-spark${vals[vals.length - 1] < vals[0] ? ' baisse' : ''}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts}"/></svg>`;
       };
+      // (1.357.6, bout en bout 15) Le pied d'une caisse : le dernier comptage du tiroir, et le geste qui le refait. Un relevé
+      // « jamais pointé » et « 4 mouvements à pointer » n'avaient pas de sens pour un tiroir : il n'y a rien « en cours de
+      // traitement à la banque », il y a ce que le tiroir contient.
+      const piedDeCaisse = a => {
+        const compte = a.statementBalance !== '' && a.statementBalance != null && isFinite(Number(a.statementBalance)) && a.statementDate;
+        return `<span>${compte ? `Comptée le ${C.fmtDate(a.statementDate)} : ${C.money(Number(a.statementBalance), cur)}` : 'Pas encore comptée'}</span><button type="button" class="btn-lien tr-c-compter" data-compter="${h(a.id)}">Compter le tiroir</button>`;
+      };
       const carte = a => {
         const r = recoDe(a.id), moves = r ? r.moves : [];
         const nAP = moves.filter(m => !m.reconciled).length;
@@ -3462,13 +3494,13 @@
             <span class="tr-c-nom"><b title="${h(a.name)}">${h(a.name)}</b><small class="tr-c-sous">${h([a.bank, kindDe(a)].filter(Boolean).join(' · '))}${a.isDefault ? ' · <span class="tr-c-def">par défaut</span>' : ''}</small></span>
             ${RowMenu.bouton(a.id, 'Actions', 'tr-c-menu')}</div>
           <div class="tr-c-solde"><b class="${a.balance < 0 ? 'rouge' : ''}">${C.money(a.balance, cur)}</b>${sparkCompte(a)}</div>
-          <div class="tr-c-pied"><span>${dernier ? `Relevé pointé jusqu'au ${C.fmtDate(dernier)}` : moves.length ? 'Relevé jamais pointé' : 'Aucun mouvement'}</span>${nAP ? `<span class="tr-c-ap">${pl(nAP, 'mouvement')} à pointer</span>` : moves.length ? `<span class="tr-c-ok">${lfIc('coche', 13, 2.6)} tout pointé</span>` : ''}</div>
+          <div class="tr-c-pied">${C.seCompte(a) ? piedDeCaisse(a) : `<span>${dernier ? `Relevé pointé jusqu'au ${C.fmtDate(dernier)}` : moves.length ? 'Relevé jamais pointé' : 'Aucun mouvement'}</span>${nAP ? `<span class="tr-c-ap">${pl(nAP, 'mouvement')} à pointer</span>` : moves.length ? `<span class="tr-c-ok">${lfIc('coche', 13, 2.6)} tout pointé</span>` : ''}`}</div>
         </article>`;
       };
       const eff = C.portefeuilleEffets(data, company(), t0);
       const effPage = paginate(eff.effets, s.effets);
       const jours = d => Math.round((Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) - Date.UTC(+t0.slice(0, 4), +t0.slice(5, 7) - 1, +t0.slice(8, 10))) / 864e5);
-      const nonPointe = C.round3(pos.accounts.reduce((x, a) => x + (a.pending || 0), 0));
+      const nonPointe = C.round3(pos.accounts.filter(a => !C.seCompte(a)).reduce((x, a) => x + (a.pending || 0), 0));
       $('#t-body').innerHTML = `
         <div class="tr-cartes" id="tr-comptes">${pos.accounts.map(carte).join('')}</div>
         ${/* (1.353.0) L'argent reçu ou payé sans compte (un virement noté avant d'avoir un compte bancaire) : compté, nommé, avec le geste. */''}${pos.sansCompte && pos.sansCompte.nombre ? `<div class="bandeau info mb" id="tr-sans-compte"><div class="txt"><b>${C.money(pos.sansCompte.montant, cur)} sans compte</b>
@@ -3484,15 +3516,22 @@
               <td>${h(x.tiers)}</td><td class="nw">${h(x.piece || '—')}</td>
               <td class="r nw m ${x.sens === 'recevoir' ? 'ok-text' : ''}">${moneySigne(x.sens === 'recevoir' ? x.montant : -x.montant, cur)}</td></tr>`).join('')}
           </tbody></table></div>${pagerBar(effPage.pg, { noun: 'effet' })}</div></section>` : ''}`;
+      $$('#tr-comptes [data-compter]').forEach(b => b.onclick = () => { s.account = b.dataset.compter; s.tab = 'rapprochement'; render(true); });
       $$('#tr-comptes [data-acc]').forEach(c => c.onclick = e => { if (e.target.closest('button, a')) return; s.account = c.dataset.acc; s.tab = 'mouvements'; s.moves.page = 1; render(true); });
       if ($('#tr-creer-banque')) $('#tr-creer-banque').onclick = () => accountForm(null, () => render(), modeleCompte());
+      // La banque où l'on verse les espèces d'une caisse : le compte bancaire par défaut, sinon le premier compte bancaire.
+      const banqueDeVersement = c => { const b = data.accounts.filter(x => x.id !== c.id && x.kind !== 'caisse'); return b.find(x => x.isDefault) || b[0] || null; };
       bindRowMenus($('#tr-comptes'), id => {
         const a = data.accounts.find(x => x.id === id); if (!a) return [];
         return [
           { icon: 'modifier', label: 'Modifier le compte', run: () => accountForm(a, () => render(true)) },
           { icon: 'loupe', label: 'Voir ses mouvements', run: () => { s.account = a.id; s.tab = 'mouvements'; s.moves.page = 1; render(true); } },
-          { icon: 'oui', label: 'Le rapprocher de son relevé', run: () => { s.account = a.id; s.tab = 'rapprochement'; render(true); } },
+          { icon: 'oui', label: C.seCompte(a) ? 'Compter le tiroir' : 'Le rapprocher de son relevé', run: () => { s.account = a.id; s.tab = 'rapprochement'; render(true); } },
           { sep: true },
+          // (1.357.6) Le geste quotidien d'une caisse : verser ses espèces à la banque. Il fallait le trouver dans « Noter un
+          // mouvement », choisir la nature, le compte qui reçoit et le mode.
+          ...(a.kind === 'caisse' && banqueDeVersement(a) ? [{ icon: 'nouveau', label: 'Verser des espèces à la banque…',
+            run: () => movementForm(null, () => render(true), { kind: 'virement', accountId: a.id, versAccountId: banqueDeVersement(a).id, method: 'especes' }) }] : []),
           { icon: 'nouveau', label: 'Noter un mouvement sur ce compte', run: () => movementForm(null, () => render(true), { accountId: a.id }) }];
       }, id => ((data.accounts.find(x => x.id === id)) || {}).name || '');
       if ($('#tr-eff')) {
@@ -3757,8 +3796,73 @@
       : Math.abs(gap) < 0.0005 ? '<span class="ok-text"><strong>Ça tombe juste.</strong> Ton relevé et SkanFact disent la même chose.</span>'
       : `<span class="warn-text"><strong>Écart de ${C.money(Math.abs(gap), cur)}.</strong> ${gap > 0 ? 'SkanFact compte plus que ta banque' : 'ta banque compte plus que SkanFact'} : il manque une pièce quelque part.</span>`;
 
+    // (1.357.6) La liste des comptes : une banque dit ce qui reste à pointer, une caisse est un tiroir qui se compte.
+    const optionsComptes = (accId, nIci) => data.accounts.map(a => {
+      const fin = C.seCompte(a) ? ' · tiroir à compter' : (() => { const n = a.id === accId && nIci != null ? nIci : C.reconciliation(data, company(), a.id, C.today()).moves.filter(m => !m.reconciled).length; return n ? ` · ${n} à pointer` : ' · tout pointé'; })();
+      return `<option value="${a.id}" ${accId === a.id ? 'selected' : ''}>${h(a.name)}${fin}</option>`;
+    }).join('');
+    // (1.357.6, bout en bout 15) Une CAISSE se compte : ce que le tiroir contient face à ce que SkanFact garde pour elle. Elle
+    // n'a pas de relevé, et rien n'y est « en cours de traitement à la banque » : la page lui demandait de recopier « le solde
+    // réel de ton relevé » et de cocher des tickets. UNE phrase pour le premier dessin et pour la frappe (`verdictTiroir`).
+    const verdictTiroir = ecart => ecart == null ? '<span class="small muted">Compte les billets et les pièces, et tape le total : SkanFact dit tout de suite s\'il manque quelque chose.</span>'
+      : Math.abs(ecart) < 0.0005 ? '<span class="ok-text"><strong>Ça tombe juste.</strong> Le tiroir et SkanFact disent la même chose.</span>'
+      : `<span class="warn-text"><strong>${ecart < 0 ? `Il manque ${C.money(-ecart, cur)} dans le tiroir.` : `Il y a ${C.money(ecart, cur)} de trop dans le tiroir.`}</strong> Un paiement noté ailleurs ? Sinon, note l'écart.</span>`;
+    function drawComptage(acc) {
+      const accId = acc.id;
+      const b = C.accountBalance(data, company(), accId, C.today());
+      const compte = acc.statementBalance !== '' && acc.statementBalance != null && isFinite(Number(acc.statementBalance)) ? C.round3(Number(acc.statementBalance)) : null;
+      const duJour = compte != null && acc.statementDate === C.today();
+      const ecart = duJour ? C.round3(compte - b.balance) : null;
+      $('#t-body').innerHTML = `
+        <div class="tr-barre">
+          <label class="sel"><select id="t-acc2" aria-label="Compte à rapprocher ou à compter">${optionsComptes(accId)}</select></label>
+        </div>
+        <section class="tr-sec"><h3 class="tr-h">Ton tiroir face à SkanFact ${info('tre.tiroir')}</h3>
+          <div class="tr-reco" id="t-reco">
+            <div><span>Au départ</span><b>${C.money(b.opening, cur)}</b><small>au ${C.fmtDate(acc.openingDate || '')} · <button type="button" class="btn-lien" id="t-depart">corriger</button></small></div>
+            <span class="tr-op" aria-hidden="true">+</span>
+            <div><span>Entrées et sorties</span><b>${moneySigne(b.movements, cur)}</b><small>${pl(b.count, 'mouvement')}</small></div>
+            <span class="tr-op" aria-hidden="true">=</span>
+            <div class="fort"><span>Devrait être dans le tiroir</span><b>${C.money(b.balance, cur)}</b><small>aujourd'hui, tout compris</small></div>
+          </div>
+          <div class="tr-stmt">
+            <label class="field">${lbl(`Ce que tu as compté (${h(C.normCurrency(company().currency))})`, 'tre.compte')}<input type="text" inputmode="decimal" data-montant autocomplete="off" id="t-compte" value="${duJour ? h(frChiffre(compte)) : ''}" class="num montant" placeholder="Total compté"></label>
+            <span id="t-compte-verdict">${verdictTiroir(ecart)}</span>
+          </div>
+          <div class="inline mt" id="tiroir-ecart"${ecart != null && Math.abs(ecart) >= 0.0005 ? '' : ' hidden'}><button class="btn" id="t-noter-ecart">Noter l'écart dans la caisse</button></div>
+          <p class="small muted mt">${compte != null && !duJour && acc.statementDate ? `Dernier comptage le ${C.fmtDate(acc.statementDate)} : ${h(C.money(compte, cur))}. ` : ''}${C.comptesDeCaisse(data).especes === accId && bridge.caisse ? 'La caisse du comptoir se compte aussi à chaque fermeture : le Z dit l\'écart et le note tout seul.' : 'Les espèces versées à la banque se notent par « Verser des espèces à la banque… », dans le menu de la caisse.'}</p>
+        </section>`;
+      $('#t-acc2').onchange = e => { s.account = e.target.value; s.pending.page = 1; s.pointes.page = 1; draw(); };
+      $('#t-depart').onclick = () => accountForm(acc, () => render(true), null, { focus: 'opening' });
+      const ecartTape = el => { const v = el.value.trim(); return v === '' || !chiffreLisible(el) ? null : C.round3(lireMontant(v) - b.balance); };
+      $('#t-compte').oninput = e => { const x = ecartTape(e.target); $('#t-compte-verdict').innerHTML = verdictTiroir(x); $('#tiroir-ecart').hidden = x == null || Math.abs(x) < 0.0005; };
+      $('#t-compte').onchange = e => {
+        const v = e.target.value.trim() === '' || !chiffreLisible(e.target) ? '' : lireMontant(e.target.value);
+        acc.statementBalance = v; if (v === '') delete acc.statementDate; else acc.statementDate = C.today();
+        // Enregistré SANS redessiner : quitter la case pour cliquer « Noter l'écart » la redessinait, et le clic tombait dans
+        // le vide (vu à la souris). Le verdict suit déjà la frappe ; la carte de la caisse suit au prochain dessin.
+        save(true);
+      };
+      // L'écart noté est un mouvement du jour, de la caisse : un manque contre le 658, un excédent contre le 758 — le même que
+      // celui du Z (serveur/caisse/routes.ts), À VÉRIFIER avec un comptable. Il se répare : « Annuler » le retire.
+      $('#t-noter-ecart').onclick = () => {
+        const x = ecartTape($('#t-compte'));
+        if (x == null || Math.abs(x) < 0.0005) return;
+        if (closedBlock(C.today(), 'Cet écart')) return;
+        const manque = x < 0;
+        const m = { id: C.uid(), date: C.today(), kind: manque ? 'autre-sortie' : 'autre-entree', amount: Math.abs(x), accountId: accId, compte: manque ? '658' : '758', method: 'especes', reference: 'Comptage', label: manque ? 'Écart de caisse au comptage : manque dans le tiroir' : 'Écart de caisse au comptage : excédent dans le tiroir' };
+        data.movements = data.movements || [];
+        data.movements.push(m);
+        acc.statementBalance = lireMontant($('#t-compte').value); acc.statementDate = C.today();
+        save(true); render(true);
+        toastUndo(`${manque ? 'Manque' : 'Excédent'} de ${C.money(Math.abs(x), cur)} noté dans la caisse`, () => { data.movements = data.movements.filter(y => y.id !== m.id); save(true); render(true); });
+      };
+    }
+
     function drawReco() {
       const accId = s.account || (data.accounts.find(a => a.isDefault) || data.accounts[0]).id;
+      // (1.357.6) Une caisse se compte : son écran est celui du tiroir.
+      { const accC = data.accounts.find(a => a.id === accId); if (C.seCompte(accC)) return drawComptage(accC); }
       const r = C.reconciliation(data, company(), accId, C.today());
       const pending = r.moves.filter(m => !m.reconciled).slice().reverse();
       // Ce qui est déjà pointé se relit et se dépointe. Avant la 7.17.0, cocher faisait disparaître
@@ -3773,7 +3877,7 @@
               <td class="r nw ${m.amount > 0 ? 'ok-text' : ''}">${moneySigne(m.amount, cur)}</td></tr>`;
       $('#t-body').innerHTML = `
         <div class="tr-barre">
-          <label class="sel"><select id="t-acc2" aria-label="Compte bancaire à rapprocher">${data.accounts.map(a => { const n = a.id === accId ? pending.length : C.reconciliation(data, company(), a.id, C.today()).moves.filter(m => !m.reconciled).length; return `<option value="${a.id}" ${accId === a.id ? 'selected' : ''}>${h(a.name)}${n ? ` · ${n} à pointer` : ' · tout pointé'}</option>`; }).join('')}</select></label>
+          <label class="sel"><select id="t-acc2" aria-label="Compte à rapprocher ou à compter">${optionsComptes(accId, pending.length)}</select></label>
           ${info('tre.reco')}
           <button type="button" class="btn btn-sm tr-import" id="t-import">${lfIc('depot', 15)} Importer le relevé</button>
         </div>

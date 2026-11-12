@@ -3136,3 +3136,35 @@ chaque fournée ; on compte ce qui reste — 15, puis 12, puis 10 sacs — et on
 - Tests : `inventaire-1357` (neuf : la question chiffrée sur deux articles, un manque et un surplus, et son bouton vert
   ; le résumé ; le message qui nomme les deux écarts et l'état envoyé, 702,000 = 15 × 42 + 6 × 12 ; au Cabinet, l'état
   de mi-mois qui le dit, le reprendre sans vert, la demande au 31/12 puis « demandé le »). Sept preuves.
+
+### 1.357.6 : les espèces du comptoir versées à la BIAT, et le tiroir qui se compte
+
+Bout en bout 15, joué à la souris par la boulangerie : la caisse ouverte avec un fond, des ventes au comptoir, 50 DT
+versés à la BIAT, une dépense payée « à la caisse », puis le Z ; puis le Cabinet.
+- Le Z ne connaissait que les tickets et la paie : il annonçait le soir **50 DT de manque** pour les 50 DT versés le
+  matin, et le livre les sortait une seconde fois contre le 658. Tout ce qui entre ou sort du tiroir hors des tickets, la
+  caisse ouverte, se note maintenant dans la session (migration 0209) — mouvements de la Trésorerie, règlements
+  fournisseurs, factures encaissées au comptoir, dans les deux sens — et le Z les nomme : « Sorti du tiroir ailleurs »,
+  « Entré dans le tiroir ailleurs ». Vérifié : le Z du versement tombe juste, écart 0.
+- Un règlement en espèces partait de la **BIAT** : sans compte nommé, les livres et la Trésorerie prennent le compte par
+  défaut. Le compte suit maintenant le mode tant que personne ne l'a choisi à la main — espèces → la caisse, carte ou
+  virement → la banque — dans le règlement d'un client, d'un fournisseur, le règlement groupé, le bulletin et l'avance ;
+  une dépense « payée à la caisse le jour même » part de la caisse.
+- « Verser des espèces à la banque… » dans le menu de la caisse : un virement prérempli de la caisse vers la banque.
+- Une **caisse se compte**, elle ne se rapproche pas : elle n'a pas de relevé. L'onglet Rapprochement la propose comme un
+  tiroir (« Caisse du comptoir · tiroir à compter ») : ce que SkanFact garde pour elle, le total compté, le verdict pendant
+  la frappe (« Il manque 0,500 DT dans le tiroir »), et « Noter l'écart dans la caisse » (658 / 758, À VÉRIFIER) ; la
+  carte du compte dit « Comptée le … » et propose « Compter le tiroir ». Les mouvements de caisse ne comptent plus dans
+  « non pointé » ni dans les contrôles de clôture.
+- La carte d'une dépense disait **« Payé 6,000 DT »** après la suppression de son règlement, au-dessus de l'étape
+  « reste 6,000 DT » : elle dit « À payer » tant que la dépense ne l'est pas (et suit le choix « Payée » d'une dépense
+  neuve) ; la question de suppression la nomme (« La dépense redeviendra due de 2,500 DT »), et le menu d'une pièce dit
+  ce que « Supprimer » emporte (« elle et son justificatif »).
+- Au Cabinet (deux chemins, un chiffre) : le versement arrive en 532 / 54 (50,000 DT), l'écart du comptage en 658 / 54, et
+  le 54 finit à 3,000 DT, comme la caisse de la Trésorerie.
+- Rouge GitHub de 81fe8cb (Node 22) : `dossiers-cabinet` lisait une seule fois l'opacité d'un bouton pendant que la liste
+  se redessinait à l'arrivée de ses données (une ligne détachée rend « ») ; le test attend la ligne stable.
+- Tests : `caisse-flux-tiroir` (serveur, neuf : le versement, la monnaie, la levure, la facture de l'hôtel, la pièce
+  changée ou supprimée, l'ouverture, l'ancien Z et la veille hors du compte ; l'avoir remboursé et le trop-perçu rendu ;
+  les contraintes de 0209) ; `tiroir-1357` (écran, neuf : le comptage, l'écart noté et parti au Cabinet, le compte qui suit
+  le mode, la dépense « À payer »). Quinze preuves.

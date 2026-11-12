@@ -219,6 +219,28 @@ pendant la session, et les autres sorties du compte de caisse pendant une sessio
 versement en banque, un achat, une déclaration ou une saisie payés en espèces). Tests : `tests/v10/caisse-sortie-paie.test.ts`,
 `tests/web/caisse-z.test.ts` (« urgence 5 ») ; preuves `urgence 5 a` à `k`.
 
+**Tout ce qui passe par le tiroir** (12/11/2026, 1.357.6 ; bout en bout 15 ; migration 0209). Le « Restent faux » d'au-dessus
+est réglé pour ce qui se note pendant la session : un mouvement de la Trésorerie (les espèces versées à la BIAT, la monnaie
+apportée de la banque), un règlement fournisseur payé du tiroir (ou un avoir qu'il rembourse en espèces), une facture qu'un
+client règle au comptoir (ou un trop-perçu qu'on lui rend). Le dossier les suit (`suivreLeTiroir`, par la porte
+`serveur/caisse/porte.ts`) : chaque flux du compte du tiroir, la caisse ouverte, un jour de la session, se note dans
+`caisse.sortie` — une **sortie en positif**, une **entrée en négatif** (natures `mouvement`, `achat`, `vente`) ; une pièce
+changée remplace ce qu'elle avait noté, supprimée elle ne laisse rien. Le compte d'un règlement se lit comme les livres le
+lisent (`compteDeTresorerie`, par la porte de la Compta) : un règlement en espèces **sans compte nommé** va au compte par
+défaut (la banque) dans les livres et la Trésorerie, donc pas au tiroir — c'est pourquoi l'écran nomme désormais la caisse
+quand le mode est « Espèces » (`compteSuitLeMode`, `compteDuMode`). Restent hors du compte : les tickets (le Z les compte
+déjà), l'ajustement du fond noté à l'ouverture, l'écart d'un Z. Le Z retire ou ajoute ces flux à l'attendu et les nomme à
+part : « Sorti du tiroir ailleurs (versements à la banque, achats, mouvements) » et « Entré dans le tiroir ailleurs
+(factures payées en espèces, apports) ». À la fermeture, le compte du Z est retenu sur le compte du tiroir (« Comptée le … »).
+Hors session, le tiroir **se compte** à la Trésorerie (onglet Rapprochement, ou « Compter le tiroir » sur la carte de la
+caisse) : ce que SkanFact garde pour la caisse, le total tapé, le verdict pendant la frappe, et « Noter l'écart dans la
+caisse » (un manque contre le **658**, un excédent contre le **758**, le même que le Z). **À VÉRIFIER** avec un comptable :
+dans le système comptable tunisien le compte 658 est rangé parmi les charges financières (65), et le 758 parmi les produits
+financiers ; un cabinet peut préférer les charges et produits ordinaires (classe 63/73). **À DÉCIDER** : prévenir quand un
+paiement en espèces dépasse ce que le tiroir contient (la caisse passerait sous zéro). **Restent faux** : un flux noté
+après le Z pour de l'argent pris pendant la session (comme pour la paie). Tests : `tests/v10/caisse-flux-tiroir.test.ts`,
+`tests/web/tiroir-1357.test.ts` ; preuves `tiroir 1.357.6 a` à `o`.
+
 Tests : `tests/v10/caisse-retour.test.ts` (les codes, le caissier sans responsable, le code faux, plus que vendu, un
 autre prix, un autre montant, un autre appareil, AVO-…-001 aux deux noms, AVO-…-002, plus rien à rendre, l'attente, le
 responsable qui ne l'est plus, le Z, ce que voit le caissier) ; `tests/web/caisse-retour.test.ts` (Nadia pose son code

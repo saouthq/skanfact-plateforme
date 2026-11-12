@@ -4,3 +4,6 @@
 // mouvements, la paie) restent comptés dans la liste des écarts connus, jusqu'à ce qu'ils passent par ici.
 
 export { suivreOperations } from './operations.ts';
+// (1.357.6) Le compte de trésorerie d'un règlement, tel que les livres le choisissent : la Caisse s'en sert pour savoir ce
+// qui passe par son tiroir (`suivreLeTiroir`) — deux chemins, un compte.
+export { compteDeTresorerie, lirePlan, type PlanDuDossier } from './plan.ts';

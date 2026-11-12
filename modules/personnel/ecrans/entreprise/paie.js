@@ -871,6 +871,10 @@
         ${slip && !slip.paidDate ? '<button class="btn btn-danger" id="del-slip" style="margin-inline-end:auto">Supprimer</button>' : ''}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
+        // (1.357.6) Un salaire payé en espèces sort de la caisse : le compte suit le mode tant qu'on ne l'a pas choisi
+        // (`compteSuitLeMode`) ; un bulletin neuf d'un salarié payé en espèces part donc de la caisse. Un bulletin rangé garde
+        // le compte qu'il porte.
+        { const fB = $('#bf', root), mB = fB && $('[name=method]', fB); if (mB) { const suivreB = compteSuitLeMode(fB, !!slip && !!p.accountId); mB.addEventListener('change', () => suivreB(mB.value)); if (!slip) suivreB(mB.value); } }
         const input = () => {
           const v = formValues($('#bf', root));
           return { year: p.year, month: p.month, gross: Number(v.gross) || 0, workedDays: Number(v.workedDays) || 26,
@@ -1535,6 +1539,8 @@
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${lfIc('coche', 15, 2.4)} <span id="af2-ok">${a.kind === 'pret' ? 'Enregistrer le prêt' : 'Enregistrer l\'avance'}</span></button></div>`,
       (root, close) => {
         bindCombo($('[data-combo=employeeId]', root), { items: emps.map(e => ({ v: e.id, label: e.name, text: e.name })), placeholder: '— Choisir —' });
+        // (1.357.6) Une avance donnée en espèces sort de la caisse (`compteSuitLeMode`, la règle des règlements).
+        { const fA = $('#af2', root), mA = $('[name=method]', fA), suivreA = compteSuitLeMode(fA, !!advance && !!a.accountId); mA.addEventListener('change', () => suivreA(mA.value)); }
         const hint = () => {
           const v = formValues($('#af2', root));
           const amt = Number(v.amount) || 0, m = Number(v.monthly) || 0;
