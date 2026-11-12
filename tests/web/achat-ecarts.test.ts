@@ -208,6 +208,10 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     expect(net(await p.locator('#toast .toast-txt').innerText())).toBe('Annulé : la pièce revient comme avant la dernière modification');
     await p.locator('#toast').getByRole('button', { name: 'Rétablir', exact: true }).click();
     await expect.poll(() => p.locator('#b-head input[name=number]').inputValue()).toBe('GMS-26-4472');
+    // On relit avant de redéfaire, comme un humain : plus d'une seconde. La page redessinée par « Rétablir » ne doit rien
+    // avoir mis dans la pile (un « change » qui ne change rien n'est pas une modification) ; sinon Ctrl Z défait ce rien,
+    // et le numéro ne bouge pas. Trop vite, le regroupement des frappes (0,7 s) masquait l'entrée vide.
+    await p.waitForTimeout(1200);
     // Ctrl Z, hors d'une case : même geste.
     await p.locator('#view h1').click();
     await p.keyboard.press('Control+z');

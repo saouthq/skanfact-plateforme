@@ -1878,7 +1878,7 @@
   function cashCsvRows(data, moves) {
     const accName = id => ((data.accounts || []).find(a => a.id === id) || {}).name || '';
     const nature = m => m.source === 'vente' ? (m.amount < 0 ? 'Remboursement client' : 'Encaissement client')
-      : m.source === 'achat' ? 'Règlement fournisseur'
+      : m.source === 'achat' ? (m.amount > 0 ? 'Remboursement fournisseur' : 'Règlement fournisseur')
         : m.source === 'paie' ? 'Salaire'
           : m.party || 'Mouvement';
     return (moves || []).map(m => ({
@@ -2654,7 +2654,10 @@
       supplierPayments(data, company, period).forEach(r => {
         const j = journalDeCompte(data, acc, r.accountId, r.method);
         const e = entrySet({ date: r.date, journal: j.journal, piece: refAchat(achatsById[r.purchaseId]) || r.number || '', tiers: r.supplier, tiersId: r.supplierId || '', source: 'règlement', docId: r.purchaseId, currency: cur, lettre: lettreAchat(achatsById[r.purchaseId]) });
-        const label = `Règlement fournisseur ${r.number || ''}${r.supplier ? ' — ' + r.supplier : ''}`;
+        // (1.356.8) L'argent qui REVIENT d'un fournisseur (un avoir remboursé, une facture payée en trop) n'est pas un règlement :
+        // le Cabinet lisait « Règlement fournisseur » sur un virement reçu, pendant que le moteur du serveur écrit « Remboursement »
+        // (`compta.libelle.remboursement_fournisseur`). Le même mot des deux côtés.
+        const label = `${r.amount < 0 ? 'Remboursement' : 'Règlement fournisseur'} ${r.number || ''}${r.supplier ? ' — ' + r.supplier : ''}`;
         // Le fournisseur est soldé de ce qu'on lui verse ET de la retenue qu'on garde pour l'État :
         // c'est ici, au paiement, que la retenue à la source naît (10.14.0).
         e.debit(cptFourn(r.supplierId), label, round3(r.amountTiers + (r.rs || 0)), { role: 'fournisseurs' });
@@ -5127,10 +5130,12 @@
     }
     // Attestations de retenue que TU dois remettre à tes fournisseurs prestataires
     const wOut = withholdingsToIssue(data, company);
+    // (1.356.8) Une attestation remise que la retenue a démentie depuis (un avoir) est de nouveau à remettre : la ligne le dit.
+    const wCorr = wOut.filter(x => x.corrigee).length;
     if (wOut.length) out.push({
       id: 'attestations-fournisseurs', level: 'warn',
-      label: `${wOut.length} attestation${wOut.length > 1 ? 's' : ''} de retenue à remettre`,
-      detail: `${fmt(round3(wOut.reduce((s, x) => s + x.amount, 0)))} retenus à tes fournisseurs. Sans attestation de ta part, ils ne peuvent pas la déduire.`,
+      label: `${wOut.length} attestation${wOut.length > 1 ? 's' : ''} de retenue à remettre${wCorr ? ` (dont ${wCorr} corrigée${wCorr > 1 ? 's' : ''})` : ''}`,
+      detail: `${fmt(round3(wOut.reduce((s, x) => s + x.amount, 0)))} retenus à tes fournisseurs. Sans attestation de ta part, ils ne peuvent pas la déduire.${wCorr ? (wCorr > 1 ? ` Des avoirs ont changé la retenue de pièces dont l'attestation est déjà remise : celles que tes fournisseurs ont en main ne disent plus ce que tu as reversé.` : ` Un avoir a changé la retenue d'une pièce dont l'attestation est déjà remise : celle que ton fournisseur a en main ne dit plus ce que tu as reversé.`) : ''}`,
       count: wOut.length, route: '#/achats', docs: []
     });
     // Les attestations d'exonération de retenue qui finissent (10.15.0, H7) : la tienne — sans elle,
@@ -7706,7 +7711,7 @@
     serialList, availableSerials, clientFleet, warrantiesEnding, serialGap, serialGaps,
     propositionsDeGarantie, garantiesAProposer, garantiesParClient, ligneDeMaintenance, etatDesGaranties,
     mergeData, trackDeletion, MERGE_LISTS, LIST_LABELS, LIST_PLURIELS, compteListe, piecesLiees,
-    purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatEnRetard, achatDoublon, facturesDuDevis, payablesList, detteFournisseurs, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
+    purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatEnRetard, achatDoublon, facturesDuDevis, payablesList, detteFournisseurs, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationCorrigee, assietteRetenueAchat, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
     remiseEffective,
     periodBounds, issuedIn, ventesDuMetier, cessionsSur, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress, ventesParCanal, encaisseSur, achatsRepartis, motifsDeRefus,
     amountToWords, intToWords, intToWordsEn, documentHtml, fitToPage, paginate, pageCount,

@@ -24747,8 +24747,8 @@ prouver 'le montant d'"'"'un paiement qui laisse passer le signe moins' 'modules
   'if (false) x.value = propre;' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
 prouver 'le montant d'"'"'un paiement qui propose les valeurs déjà tapées' 'modules/socle/ecrans/entreprise/app-1.js' \
-  'class="num" autocomplete="off">' \
-  'class="num">' \
+  '(rend ? aRendre : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off">' \
+  '(rend ? aRendre : reste), null, C.decimalsFor(cur)))}" class="num">' \
   'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
 
 # (1.297.0) La caisse poussée deux fois sous le bandeau du poste (par le corps de la barre commune, puis par elle-même) :
@@ -28207,6 +28207,60 @@ prouver 'annuler 1.356.7 d : « Enregistrer » reste vert sur le devis revenu à
 prouver 'annuler 1.356.7 e : ce qui est enregistré ne suit pas le dernier enregistrement' 'modules/socle/ecrans/entreprise/app-1.js' \
   '    function untouch() { dirty = false; etatEnregistre = JSON.stringify(doc); const el' '    function untouch() { dirty = false; const el' \
   "$PS13567"
+
+PS13568='l'\''attestation corrigée, l'\''avoir sur une facture déjà payée, le remboursement, les montants en français'
+prouver 'avoir fournisseur 1.356.8 a : l'\''attestation garde le brut d'\''avant l'\''avoir' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    const brut = C.assietteRetenueAchat(pur, co, data), brutPiece' '    const brut = C.round3(t.totalTTC - (Number(pur.fees) || 0)), brutPiece' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 b : une attestation remise que l'\''avoir a démentie n'\''est plus réclamée' 'modules/socle/moteur/core-1.js' \
+  '      .map(x => ({ ...x, remise: attestationCorrigee(x.p, x.op) }))' '      .map(x => ({ ...x, remise: null }))' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 c : la remise de l'\''attestation ne retient pas son montant' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'if (oui) s2.withholdingCertificateAmount = C.round3(rsOp2.operee); else delete s2.withholdingCertificateAmount;' 'if (!oui) delete s2.withholdingCertificateAmount;' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 d : l'\''avoir d'\''une facture déjà payée dit « plus rien à récupérer »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      return r < -0.0005 ? { L: L0, montant' '      return false ? { L: L0, montant' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 e : le fournisseur qui te doit de l'\''argent « ne lui dois rien »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  ': s.remaining < -0.0005 ? `<span class="ed-chip ambre" id="ac-sup-faveur">' ': false ? `<span class="ed-chip ambre" id="ac-sup-faveur">' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 f : la fenêtre de règlement fournisseur écrit « 468.86 »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '<input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off">' '<input type="number" name="amount" value="${h(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste))}" step="0.001" min="0" class="num" inputmode="decimal">' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 g : « Régler ensemble » écrit « 351.645 »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '<input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(total, null, C.decimalsFor(cur)))}" class="num" autocomplete="off">' '<input type="number" name="amount" value="${h(total)}" step="0.001" min="0" class="num" inputmode="decimal">' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 h : « 400,5 » tapé ne se lit pas' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        const v = C.round3(lireMontant(mS.value)), apres' '        const v = C.round3(Number(mS.value) || 0), apres' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 i : la carte dit la retenue d'\''avant l'\''avoir' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        const due = !isNew && stored ? C.retenueDesReglements(p, company(), data).due : t.withholding;' '        const due = t.withholding;' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 j : l'\''avoir déduit a sa ligne « à venir » dans les retenues du fournisseur' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '!(C.PURCHASE_LIES.includes(p.kind) && p.achatLie)' 'true' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 k : l'\''argent qui revient s'\''écrit « Règlement fournisseur »' 'modules/socle/moteur/core-2.js' \
+  '        const label = `${r.amount < 0 ? '\''Remboursement'\'' : '\''Règlement fournisseur'\''} ${r.number' '        const label = `Règlement fournisseur ${r.number' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 l : le bandeau dit « te doit » après le remboursement' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      return (L.payments || []).some(x => C.estRemboursementAchat(L, x)) ? '\''La facture était déjà réglée : le fournisseur t\'\''a remboursé le trop-payé.'\'' : '\''Avec lui, la facture est réglée.'\'';' '      return '\''La facture est déjà réglée : le fournisseur te doit ce montant.'\'';' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 m : sur une facture payée en trop, le remboursement « solde l'\''avoir »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        if (p.kind === '\''avoir'\'') return `${doit}. Le remboursement solde' '        if (true) return `${doit}. Le remboursement solde' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 n : le bouton du remboursement d'\''une facture dit « l'\''avoir sera soldé »' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'rend ? (p.kind === '\''avoir'\'' ? '\'' · l\'\''avoir sera soldé'\'' : '\'' · plus rien à récupérer'\'')' 'rend ? '\'' · l\'\''avoir sera soldé'\''' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 o : « Voir la liste » mène à des achats sans attestation' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      if (sups.length === 1) return vers(' '      if (false) return vers(' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 p : un chevron seul sous « À faire » sur ordinateur' 'web/public/plateforme/piece.css' \
+  '#view #todo-more.tm-tel-seul { display: none; }
+@media' '@media' \
+  "$PS13568"
+prouver 'avoir fournisseur 1.356.8 q : la tuile de la retenue tait ce que l'\''avoir en a fait' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '        if (!(rsOp2.due < w - 0.0005)) return tuile('\''Retenue'\'', w);' '        return tuile('\''Retenue'\'', w);' \
+  "$PS13568"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

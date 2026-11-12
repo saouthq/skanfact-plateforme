@@ -2878,3 +2878,46 @@ facture PK-2611-07 de 2 400 HT, 456 de TVA, 1 de timbre : 2 857 TTC, 42,840 rete
 - Au passage, le rouge GitHub de la 1.356.5 : `pagination-1352-1` ouvrait le menu ⋯ de la banque dès que l'en-tête de la
   fiche paraissait ; « Les règles de la banque » n'y entre qu'une fois le relevé dessiné, et sous Node 22 le menu s'ouvrait
   avant. Le test attend les lignes du relevé.
+
+### 1.356.8 : la retenue opérée après un avoir fournisseur, et l'avoir d'une facture déjà payée
+
+Bout en bout 10, la suite : la facture du peintre (PK-2611-07) payée en entier, 2 814,160 virés et 42,840 retenus,
+l'attestation remise ; puis le peintre envoie un avoir de 400 HT (PK-AV-2611-02, 476 TTC, 7,140 de retenue, 468,860 net),
+rattaché à la facture déjà payée. Le moteur comptait juste depuis la 1.356.6 (retenue 35,700, soit 1,5 % de 2 380 ; la
+facture « à récupérer » de 468,860) ; ce sont les écrans qui disaient autre chose.
+- L'attestation imprimait un brut de 2 856,000 à côté d'une retenue de 35,700 : le fournisseur ne refaisait pas le calcul.
+  Le brut est l'assiette de la retenue (`C.assietteRetenueAchat`, TTC hors timbre moins les avoirs et acomptes rattachés),
+  et la ligne dit d'où il vient (« 2 856,000 DT moins l'avoir PK-AV-2611-02 »). L'onglet « Retenues » du fournisseur
+  montre la même base, et l'avoir rattaché n'y a plus sa propre ligne « pas encore payée · 5,355 DT à venir ».
+- Une attestation déjà remise ne disait plus ce qui a été reversé, et rien ne le signalait. Cocher « remise » retient
+  désormais son montant (`withholdingCertificateAmount`) ; un avoir qui change ensuite la retenue la rend « corrigée, à
+  remettre » (`C.attestationCorrigee`) : sur la pièce, une ligne ambre avec « l'imprimer » et « corrigée remise » ; dans
+  « À faire », « 1 attestation de retenue à remettre (dont 1 corrigée) » ; sur la fiche du fournisseur, « Imprimer la
+  corrigée ». Une remise d'avant cette version n'a pas de montant : on ne sait pas ce qu'elle disait, elle n'est jamais
+  réclamée. « Voir la liste » de cette ligne menait à la comptabilité des achats, qui ne montre aucune attestation : un seul
+  fournisseur concerné, elle ouvre l'onglet « Retenues » de sa fiche.
+- La carte des totaux disait « tu reverses 42,840 DT » : elle dit « 35,700 DT · 7,140 DT de moins avec PK-AV-2611-02 ». La
+  tuile « Retenue » garde 42,840 (elle s'additionne avec le net à payer) et dit dessous « 35,700 DT après PK-AV-2611-02 ».
+- La page de l'avoir disait « Réglée : plus rien n'est dû » et « plus rien à récupérer » pendant que le fournisseur doit
+  468,860 DT. Elle le dit (bouton vert « Enregistrer le remboursement », qui s'enregistre sur la facture ; frise
+  « Remboursé · 468,860 DT attendus sur PK-2611-07 » ; la section « Remboursement ») ; une fois remboursé : « Déduit de
+  PK-2611-07 : plus rien à récupérer », et le bandeau « le fournisseur t'a remboursé le trop-payé » (il disait encore « te
+  doit ce montant »). Sur la facture, la phrase du remboursement parlait de « solder l'avoir » ; elle dit d'où vient le trop
+  (l'avoir déduit d'une facture déjà payée). Le bouton de la fenêtre disait « l'avoir sera soldé » sur une facture : « plus
+  rien à récupérer ».
+- La pastille du fournisseur disait « ne lui dois rien » : elle dit « 468,860 DT en ta faveur ».
+- Les deux fenêtres de règlement fournisseur (une pièce, « Régler ensemble ») écrivaient « 2814.16 » dans une case
+  numérique : elles écrivent et relisent en français (« 2 814,160 », « 400,5 »), comme le paiement d'une facture.
+- L'écriture du remboursement s'intitulait « Règlement fournisseur PK-2611-07 » dans le moteur de l'application ; le moteur
+  du serveur, que lit le Cabinet, écrit « Remboursement PK-2611-07 — Peinture Ksibi ». Le même mot des deux côtés (et
+  « Remboursement fournisseur » dans le journal de trésorerie).
+- Deux chemins, un chiffre, après le remboursement (468,860 reçus par virement) : 401 soldé, banque −2 345,300, 4352
+  35,700, 4366 380,000, 606 2 000,000, des deux côtés.
+- Au passage, sur l'accueil : « Voir les 1 autres » sous « À faire » (« Voir l'autre »), et sur ordinateur un chevron seul
+  sous la liste quand toutes les lignes y tiennent (la règle des boutons d'un panneau l'emportait sur celle qui le cache).
+- Test : `avoir-fournisseur-1356`. `fiche-fournisseur` retourné : il attendait « 410.479 » dans la case du règlement. Dix-sept
+  preuves ; le motif d'une ancienne preuve (le montant d'un paiement), que les deux cases neuves répétaient, rendu unique.
+- Le rouge GitHub de la 1.356.7 : la preuve « écarts 17 » (un « change » qui ne change rien n'entre pas dans la pile de
+  « Annuler ») restait verte. Sans la garde, « Rétablir » pose une entrée vide dans la pile ; Ctrl Z refait dans les 0,7 s
+  la retirait (le regroupement des frappes), et le test enchaînait trop vite pour le voir. Il attend désormais une seconde,
+  comme quelqu'un qui relit avant de redéfaire : sans la garde, Ctrl Z défait ce rien et le numéro ne bouge pas.

@@ -157,7 +157,8 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
     await p.locator('#ff-regler').click();
     const fen = p.locator('#modal-root .modal');
     await fen.waitFor();
-    expect(await fen.locator('[name=amount]').inputValue()).toBe('410.479');
+    // Le montant s'écrit en français, comme celui d'un paiement de facture (1.356.8) : il écrivait « 410.479 ».
+    expect(await fen.locator('[name=amount]').inputValue()).toBe('410,479');
     await fen.locator('#ok').click();
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     await expect.poll(() => p.locator('#ff-retard').count()).toBe(0);

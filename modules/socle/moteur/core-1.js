@@ -3026,15 +3026,35 @@
   // Retenues à la source que tu as opérées et dont le fournisseur attend l'attestation. Une retenue
   // s'opère au RÈGLEMENT (10.14.0) : une facture pas encore payée n'a rien retenu, et l'attestation
   // porte ce que les règlements ont retenu — pas la retenue entière d'une facture payée à moitié.
+  // (1.356.8) Une attestation DÉJÀ remise dont la retenue a changé depuis — un avoir posé après le
+  // règlement la ramène de 42,840 à 35,700 DT — est de nouveau à remettre : celle que le fournisseur a
+  // en main ne dit plus ce que tu as reversé. La remise retient son montant
+  // (`withholdingCertificateAmount`, dans la devise de la pièce) ; une remise d'avant cette version
+  // n'en a pas, et on ne sait pas ce qu'elle disait : elle n'est jamais réclamée (ne pas savoir
+  // n'est pas « non »). `corrigee` et `remise` le disent à l'écran.
+  function attestationCorrigee(p, operee) {
+    const m = p && p.withholdingCertificate ? p.withholdingCertificateAmount : null;
+    if (m == null || m === '' || !Number.isFinite(Number(m))) return null;
+    return Math.abs(round3(Number(m)) - round3(operee)) > 0.0005 ? round3(Number(m)) : null;
+  }
   function withholdingsToIssue(data, company) {
     const name = id => ((data.suppliers || []).find(s => s.id === id) || {}).name || '—';
     return (data.purchases || [])
-      .filter(p => !p.withholdingCertificate && (p.payments || []).length && Number(p.withholdingRate) > 0)
+      .filter(p => (p.payments || []).length && Number(p.withholdingRate) > 0)
       .map(p => ({ p, t: purchaseTotals(p, company), op: retenueDesReglements(p, company, data).operee }))
-      .filter(x => x.op > 0.0005)
+      .map(x => ({ ...x, remise: attestationCorrigee(x.p, x.op) }))
+      .filter(x => x.op > 0.0005 && (!x.p.withholdingCertificate || x.remise != null))
       .map(x => ({ id: x.p.id, supplier: name(x.p.supplierId), number: x.p.number || '', date: x.p.date,
-        amount: round3((x.p.kind === 'avoir' ? -1 : 1) * toBase(x.p, x.op, company)), rate: x.t.withholdingRate }))
+        amount: round3((x.p.kind === 'avoir' ? -1 : 1) * toBase(x.p, x.op, company)), rate: x.t.withholdingRate,
+        corrigee: x.remise != null, remise: x.remise != null ? round3((x.p.kind === 'avoir' ? -1 : 1) * toBase(x.p, x.remise, company)) : null }))
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  }
+  // (1.356.8) L'assiette de la retenue d'une pièce : TTC sans timbre, MOINS ce que les avoirs et acomptes
+  // rattachés en retirent (`brutDu`). L'attestation disait 2 856,000 DT de brut à côté d'une retenue de
+  // 35,700 DT — calculée, elle, sur 2 380,000 : le fournisseur ne pouvait pas refaire le calcul.
+  function assietteRetenueAchat(purchase, company, data) {
+    const p = purchase || {};
+    return round3(retenueDesReglements(p, company, data).brutDu - (Number(p.fees) || 0));
   }
 
   // ---------- attestations d'exonération de retenue à la source (10.15.0, H7) ----------

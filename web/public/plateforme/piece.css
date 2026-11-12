@@ -1432,7 +1432,11 @@
 
 /* (1.157.0) « À faire » au téléphone, comme la maquette : trois lignes sans bouton, une flèche, la ligne se touche. */
 #view .todo-more .tm-t, #view .todo-more.tm-tel-seul { display: none; }
+/* (1.356.8) La règle des boutons d'un panneau (display: inline-flex) l'emportait : sur ordinateur, un chevron seul restait sous
+   « À faire » quand toutes les lignes y tiennent. L'identifiant tranche, dans les deux sens. */
+#view #todo-more.tm-tel-seul { display: none; }
 @media (max-width: 700px) {
+  #view #todo-more.tm-tel-seul { display: inline-flex; }
   #view .a-phrase { display: none; }
   #view .panel.todo.a-faire { padding: 6px 16px 8px; }
   #view .panel.todo.a-faire > .a-bloc-t, #view .panel.todo.a-faire li.af-gt, #view .panel.todo.a-faire li.a-t-ordi { display: none; }
@@ -1585,6 +1589,10 @@
 .buy-editor .ac-paie-t td.r b { font-variant-numeric: tabular-nums; }
 .buy-editor .ac-attest { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 12px; font-size: 13px; }
 .buy-editor .ac-attest .lien { padding: 0; border: 0; background: none; color: var(--sb-sarcelle-texte); text-decoration: underline; cursor: pointer; font: inherit; }
+/* (1.356.8) L'attestation remise que la retenue a démentie depuis : à refaire, en ambre comme une réception qui attend. */
+.buy-editor .note-v.ac-attest-corrigee { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.buy-editor .note-v.ac-attest-corrigee svg { color: var(--sb-ambre-texte); }
+.buy-editor .ac-attest-corrigee .lien { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
 @media (max-width: 760px) { .buy-editor .pay-grid.quatre { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* (27/10/2026, maquette achat « Fichier El Fatoora ») Le XML joint, montré comme la feuille qu'il décrit. */
 .buy-editor .ac-pj-vue.xml { display: block; padding: 0; line-height: 1.4; cursor: pointer; }

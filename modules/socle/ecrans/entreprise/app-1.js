@@ -14179,7 +14179,13 @@
     fiscal: { label: 'Voir le calendrier', run: vers('#/compta', () => { comptaState.tab = 'calendrier'; }) },
     'fournisseurs-retard': { label: 'Voir les achats', run: vers('#/achats', () => filtreAchats('retard')) },
     'fournisseurs-echeances': { label: 'Voir les achats', run: vers('#/achats', () => filtreAchats('à payer')) },
-    'attestations-fournisseurs': { label: 'Voir la liste', run: vers('#/compta', () => { comptaState.tab = 'achats'; }) },
+    // (1.356.8) La comptabilité des achats ne montre aucune attestation à remettre : un seul fournisseur concerné, et la ligne ouvre
+    // l'onglet « Retenues » de SA fiche, où chacune s'imprime (la corrigée comprise) ; plusieurs, et l'on reste sur leurs règlements.
+    'attestations-fournisseurs': { label: 'Voir la liste', run: Object.assign(() => {
+      const sups = [...new Set(C.withholdingsToIssue(data, company()).map(x => (purchaseById(x.id) || {}).supplierId).filter(Boolean))];
+      if (sups.length === 1) return vers('#/fournisseur/' + sups[0], () => { Object.assign(ficheFournState, { id: sups[0], onglet: 'retenues' }); })();
+      return vers('#/compta', () => { comptaState.tab = 'achats'; })();
+    }, { vers: '#/fournisseurs' }) },
     // Les attestations d'exonération de retenue (10.15.0, H7) : la tienne se renouvelle là où elle se
     // saisit (le panneau fiscal), celle d'un fournisseur sur SA fiche — la première qui finit.
     'exoneration-entreprise': { label: 'Saisir la nouvelle', run: () => allerParametres('societe', 'p-regime:exoNumero') },
@@ -14280,6 +14286,8 @@
       detail: `${quand}Réponds-lui dans « Mon comptable », avec le fichier qu'il attend.` }, ...items];
     return items;
   }
+  // (1.356.8) « Voir les 1 autres » sous « À faire » quand une seule ligne restait cachée : le compte et sa phrase vont ensemble.
+  const voirAutres = n => (n === 1 ? 'Voir l\'autre' : `Voir les ${n} autres`);
   function todoPanel() {
     const items = chosesAFaire();
     // Rien à faire et rien du tout ne sont pas la même chose. « Aucun retard, aucun contrat en
@@ -14322,7 +14330,7 @@
       <div class="a-bloc-t"><h2><button type="button" class="collapse-h" id="todo-toggle" aria-expanded="${open}" aria-controls="todo-list" title="${open ? 'Replier' : 'Déplier'} la liste">À faire</button> ${info('todo')}</h2><span class="small muted">${pl(items.length, 'chose')}, la plus urgente d'abord</span></div>
       <p class="todo-sum small muted" ${open ? 'hidden' : ''}>${h(summary)}</p>
       <ul id="todo-list" ${open ? '' : 'hidden'}>${groupes}</ul>
-      ${items.length > TODO_TEL && !todoTout ? `<button class="btn btn-ghost todo-more${items.length > TODO_VISIBLE ? '' : ' tm-tel-seul'}" id="todo-more" ${open ? '' : 'hidden'}>Voir les ${items.length > TODO_VISIBLE ? `<span class="tm-o">${items.length - TODO_VISIBLE}</span>` : ''}<span class="tm-t">${items.length - TODO_TEL}</span> autres ${lfIc('bas', 14, 2.2)}</button>` : ''}
+      ${items.length > TODO_TEL && !todoTout ? `<button class="btn btn-ghost todo-more${items.length > TODO_VISIBLE ? '' : ' tm-tel-seul'}" id="todo-more" ${open ? '' : 'hidden'}>${items.length > TODO_VISIBLE ? `<span class="tm-o">${voirAutres(items.length - TODO_VISIBLE)}</span>` : ''}<span class="tm-t">${voirAutres(items.length - TODO_TEL)}</span> ${lfIc('bas', 14, 2.2)}</button>` : ''}
       </div>`;
   }
   // Déplié pour la session en cours seulement : demain, la liste repart courte. Ce n'est pas un
@@ -15398,7 +15406,7 @@
     if (ret.length) bandeaux.push(`<div class="banner danger" id="ff-retard"><span><b>${mo(sum.late)} en retard depuis ${pl(jours, 'jour')}</b> — ${pl(ret.length, 'pièce')} : ${ret.map(p => `${h(p.number || C.referenceAchat(p, data))} (échue le ${lfJm(p.dueDate)})`).join(', ')}.${rsAGarder > 0.0005 ? ` En payant, tu garderas ${mo(rsAGarder)} de retenue pour l'État.` : ''}</span>${s.email && !horsLigne ? '<button type="button" class="btn" id="ff-prevenir">Le prévenir</button>' : ''}</div>`);
     if (avoirLibre) bandeaux.push(`<div class="banner" id="ff-avoir"><span><b>${C.money(-reste(avoirLibre), avoirLibre.currency || cur)} sont à toi : ${avoirLibre.kind === 'avoir' ? `l'avoir ${h(avoirLibre.number || '')} n'est déduit de rien` : `${h(avoirLibre.number || '')} est payée en trop`}</b> — déduis-le de sa prochaine facture ou demande-lui le remboursement ; jusque-là, son compte le compte en ta faveur.</span><button type="button" class="btn" data-achat="${h(avoirLibre.id)}">Ouvrir ${h(avoirLibre.number || 'la pièce')}</button></div>`);
     if (exo && exo.au && C.daysBetween(auj, exo.au) <= 60) bandeaux.push(`<div class="banner" id="ff-exo"><span><b>Son attestation d'exonération de retenue finit le ${C.fmtDate(exo.au)}, dans ${pl(C.daysBetween(auj, exo.au), 'jour')}</b> — ${exo.numero ? `n° ${h(exo.numero)}. ` : ''}Après cette date, la retenue${Number(s.withholdingRate) ? ` de ${pct(s.withholdingRate)} %` : ''} revient sur ses factures. Demande-lui la nouvelle attestation et note-la sur sa fiche.</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Noter la nouvelle</button>' : ''}</div>`);
-    if (aRemettre.length) bandeaux.push(`<div class="banner info" id="ff-attest"><span><b>${pl(aRemettre.length, 'attestation')} de retenue à lui remettre</b> — ${aRemettre.map(x => `${h(x.number || '')} · ${mo(x.amount)} retenus`).join(' ; ')}. Il en a besoin pour déduire cette retenue de ses impôts.</span><button type="button" class="btn" data-onglet="retenues">Les préparer</button></div>`);
+    if (aRemettre.length) bandeaux.push(`<div class="banner info" id="ff-attest"><span><b>${pl(aRemettre.length, 'attestation')} de retenue à lui remettre</b> — ${aRemettre.map(x => `${h(x.number || '')} · ${mo(x.amount)} retenus${x.corrigee ? ` (corrigée : celle remise portait ${mo(x.remise)})` : ''}`).join(' ; ')}. Il en a besoin pour déduire cette retenue de ses impôts.</span><button type="button" class="btn" data-onglet="retenues">Les préparer</button></div>`);
     // (1.310.0) Un fournisseur à l'étranger n'a pas de matricule fiscal tunisien, et se paie sur un IBAN, pas sur un RIB à 20
     // chiffres : les deux bandeaux lui demandaient ce qu'il n'a pas (sa retenue éventuelle, À VÉRIFIER avec le comptable).
     if (!s.matricule && !etranger) bandeaux.push(`<div class="banner" id="ff-mf"><span><b>Son matricule fiscal manque</b> — il s'écrit sur l'attestation de retenue et sur ta déclaration des retenues : demande-le avant de le payer.</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Compléter la fiche</button>' : ''}</div>`);
@@ -15426,16 +15434,20 @@
         ${(fpCommandes = feuilletFiche(s.id, 'commandes', commandes)).rows.map(o => `<tr class="clic" data-commande="${h(o.id)}"><td><b>${h(o.number || '(brouillon)')}</b>${o.reference ? `<small>${h(o.reference)}</small>` : ''}</td><td class="nw">${C.fmtDate(o.date)}</td><td class="nw">${o.dueDate ? C.fmtDate(o.dueDate) : '<span class="mu">—</span>'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, o))}</td><td class="r">${C.money(C.computeTotals(o, co).netHT, o.currency || cur)}</td></tr>`).join('')}
         </tbody></table></div>${fpCommandes.pied('commande')}${gestes}`;
     }
+    // Ce qui a diminué l'assiette d'une pièce, nommé : « avoir PK-AV-2611-02 déduit ».
+    const deduitesDe = p => { const l = mine.filter(x => x.achatLie === p.id); return l.length ? `${l.map(x => `${x.kind === 'acompte' ? 'acompte' : 'avoir'} ${x.number || ''}`.trim()).join(', ')} ${l.length > 1 ? 'déduits' : 'déduit'}` : ''; };
     function ongletRetenues() {
-      const l = mine.filter(p => Number(p.withholdingRate) > 0).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+      // (1.356.8) Un avoir ou un acompte RATTACHÉ ne porte pas sa propre retenue : il diminue celle de sa facture (`due`), qui est
+      // la ligne à lire. Il s'affichait « pas encore payé · 5,355 DT à venir » — une retenue que personne n'opérera jamais.
+      const l = mine.filter(p => Number(p.withholdingRate) > 0 && !(C.PURCHASE_LIES.includes(p.kind) && p.achatLie)).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
       const exoDit = attSup ? `<div class="cf-o-t"><b>Exonération</b><span class="mu">attestation${attSup.numero ? ` n° ${h(attSup.numero)}` : ''}, valable ${attSup.du ? `du ${C.fmtDate(attSup.du)} ` : ''}au ${C.fmtDate(attSup.au)} : aucune retenue sur ses pièces de cette période</span></div>` : '';
       if (!l.length) return `${exoDit}${vide('Aucune retenue sur ses pièces', `${exo ? 'Il est exonéré : sa fiche porte l\'attestation.' : 'Une retenue s\'opère au règlement, au taux de sa fiche.'} Le taux et le seuil : À VÉRIFIER avec ton comptable.`)}`;
       return `${exoDit}<div class="cf-o-t"><span class="mu">La retenue s'opère au règlement${Number(s.withholdingRate) ? `, au taux de sa fiche (${pct(s.withholdingRate)} %)` : ''} : tu la gardes, tu la verses à l'État avec ta déclaration du mois, et tu lui remets l'attestation qui la prouve.</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Pièce</th><th>Réglée le</th><th class="r">Base (TTC sans timbre)</th><th class="r">Retenue</th><th>Attestation</th></tr></thead><tbody>
         ${(fpRetenues = feuilletFiche(s.id, 'retenues', l)).rows.map(p => { const t = C.purchaseTotals(p, co), rs = C.retenueDesReglements(p, co, data), der = (p.payments || []).map(x => x.date).filter(Boolean).sort().pop(), dv = p.currency || cur;
-          return `<tr><td><b>${h(p.number || C.referenceAchat(p, data))}</b>${contenuAchat(p) || p.subject ? `<small>${h(contenuAchat(p) || p.subject)}</small>` : ''}</td><td class="nw">${der ? C.fmtDate(der) : '<span class="mu">pas encore payée</span>'}</td><td class="r">${C.money(C.round3(t.totalTTC - (Number(p.fees) || 0)), dv)}</td>
+          return `<tr><td><b>${h(p.number || C.referenceAchat(p, data))}</b>${contenuAchat(p) || p.subject ? `<small>${h(contenuAchat(p) || p.subject)}</small>` : ''}</td><td class="nw">${der ? C.fmtDate(der) : '<span class="mu">pas encore payée</span>'}</td><td class="r">${C.money(C.assietteRetenueAchat(p, co, data), dv)}${C.assietteRetenueAchat(p, co, data) < C.round3(t.totalTTC - (Number(p.fees) || 0)) - 0.0005 ? `<small>${h(deduitesDe(p))}</small>` : ''}</td>
             <td class="r">${rs.operee > 0.0005 ? C.money(rs.operee, dv) : `<span class="mu">${C.money(rs.due, dv)} à venir</span>`}${rs.operee > 0.0005 && rs.operee < rs.due - 0.0005 ? `<small>sur ${C.money(rs.due, dv)}</small>` : ''}</td>
-            <td>${!(rs.operee > 0.0005) ? '<span class="mu">au règlement</span>' : p.withholdingCertificate ? '<span class="ok-text">remise</span>' : peutAcheter ? `<button type="button" class="btn btn-sm" data-attestation="${h(p.id)}">Imprimer l'attestation</button>` : '<span class="ambre">à remettre</span>'}</td></tr>`; }).join('')}
+            <td>${!(rs.operee > 0.0005) ? '<span class="mu">au règlement</span>' : p.withholdingCertificate && C.attestationCorrigee(p, rs.operee) != null ? (peutAcheter ? `<button type="button" class="btn btn-sm" data-attestation="${h(p.id)}">Imprimer la corrigée</button>` : '<span class="ambre">corrigée à remettre</span>') : p.withholdingCertificate ? '<span class="ok-text">remise</span>' : peutAcheter ? `<button type="button" class="btn btn-sm" data-attestation="${h(p.id)}">Imprimer l'attestation</button>` : '<span class="ambre">à remettre</span>'}</td></tr>`; }).join('')}
         </tbody></table></div>${fpRetenues.pied('pièce')}
         <p class="cf-pied">${lfIc('aide', 13)} Le taux vient de sa fiche et de tes réglages : À VÉRIFIER avec ton comptable.</p>`;
     }
@@ -16684,10 +16696,16 @@
     if (!pur) return;
     const co = company(), sup = supplierById(pur.supplierId) || {}, cur = pur.currency || co.currency;
     const t = C.purchaseTotals(pur, co), rs = C.retenueDesReglements(pur, co, data);
-    const brut = C.round3(t.totalTTC - (Number(pur.fees) || 0));
+    // (1.356.8) L'assiette est celle que la retenue a eue : TTC hors timbre, moins les avoirs et acomptes rattachés. L'attestation
+    // disait 2 856,000 DT de brut à côté d'une retenue de 35,700 DT calculée sur 2 380,000 : le fournisseur ne refaisait pas le calcul.
+    const brut = C.assietteRetenueAchat(pur, co, data), brutPiece = C.round3(t.totalTTC - (Number(pur.fees) || 0));
+    const lieesA = (data.purchases || []).filter(x => x.achatLie === pur.id);
+    const moinsLiees = brut < brutPiece - 0.0005 && lieesA.length ? ` (${C.money(brutPiece, cur)} moins ${lieesA.map(x => `${x.kind === 'acompte' ? 'l\'acompte' : 'l\'avoir'} ${x.number || ''}`.trim()).join(' et ')})` : '';
+    // À l'écran, un numéro de pièce ne se coupe pas à son tiret (« PK- » d'un côté, « AV-2611-02 » de l'autre).
+    const moinsLieesHtml = moinsLiees ? ` (${C.money(brutPiece, cur)} moins ${lieesA.map(x => `${x.kind === 'acompte' ? 'l\'acompte' : 'l\'avoir'}${x.number ? ` <span class="nw">${h(x.number)}</span>` : ''}`).join(' et ')})` : '';
     const reglements = (pur.payments || []).filter(x => !C.estRemboursementAchat(pur, x)).map(x => C.fmtDate(x.date)).join(', ');
     const lignes = [['Bénéficiaire', `<b>${h(sup.name || 'Fournisseur')}</b>${sup.matricule ? ` · MF ${h(sup.matricule)}` : ''}`], ['Pièce', `${h(pur.number || C.referenceAchat(pur, data))} du ${C.fmtDate(pur.date)}`],
-      ['Montant brut', `${C.money(brut, cur)} TTC hors timbre`], ['Retenue', `<b>${C.money(rs.operee, cur)}</b> · ${pct(t.withholdingRate)} %`], ['Réglée le', h(reglements || '—')]];
+      ['Montant brut', `${C.money(brut, cur)} TTC hors timbre${moinsLieesHtml}`], ['Retenue', `<b>${C.money(rs.operee, cur)}</b> · ${pct(t.withholdingRate)} %`], ['Réglée le', h(reglements || '—')]];
     modal(`<h2>Attestation de retenue à la source</h2>
       <dl class="ac-recap">${lignes.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
       <p class="small muted">Elle se remet au fournisseur au règlement ; la retenue se déclare et se reverse le mois suivant. Le modèle officiel de l'attestation : À VÉRIFIER.</p>
@@ -16703,7 +16721,7 @@
           <div class="p"><div><small>Payeur</small><b>${h(co.name || '')}</b>${co.matricule ? `MF ${h(co.matricule)}` : ''}<br>${h(co.address || '').replace(/\n/g, '<br>')}</div>
           <div><small>Bénéficiaire</small><b>${h(sup.name || '')}</b>${sup.matricule ? `MF ${h(sup.matricule)}` : ''}<br>${h(sup.address || '').replace(/\n/g, '<br>')}</div></div>
           <table><tr><td>Pièce</td><td>${h(pur.number || C.referenceAchat(pur, data))} du ${C.fmtDate(pur.date)}</td></tr>
-          <tr><td>Montant brut (TTC hors timbre)</td><td>${C.money(brut, cur)}</td></tr><tr><td>Taux de la retenue</td><td>${pct(t.withholdingRate)} %</td></tr>
+          <tr><td>Montant brut (TTC hors timbre)${moinsLiees ? `<br><small>${h(moinsLiees.slice(2, -1))}</small>` : ''}</td><td>${C.money(brut, cur)}</td></tr><tr><td>Taux de la retenue</td><td>${pct(t.withholdingRate)} %</td></tr>
           <tr><td>Retenue opérée</td><td>${C.money(rs.operee, cur)}</td></tr><tr><td>Réglée le</td><td>${h(reglements || '—')}</td></tr></table>
           <p class="n">Le modèle officiel de cette attestation, ses mentions et sa numérotation sont À VÉRIFIER avec ton comptable.</p></body></html>`;
         try {
@@ -16772,7 +16790,7 @@
         ? `${p.kind === 'avoir' ? `avoir de ${C.money(b.totals.netToPay, cur)}` : `payé ${C.money(b.paid, cur)} pour ${C.money(b.totals.netToPay, cur)}`} · à récupérer ${C.money(aRecuperer, cur)}`
         : `net à payer\u00a0${C.money(b.totals.netToPay, cur)} · déjà réglé\u00a0${C.money(b.paid, cur)}${b.impute ? ` · ${b.liees.length > 1 ? 'avoirs et acomptes imputés' : (b.liees[0].kind === 'acompte' ? 'acompte imputé' : 'avoir imputé')}\u00a0${C.money(b.impute, cur)}` : ''} · reste\u00a0${C.money(reste, cur)}`}</p>
       <form id="spf" class="pf-charte" data-devise="${h(cur)}">
-        <div class="pf-montant"><label class="field obligatoire">${lbl(rend ? 'Montant reçu' : 'Montant payé', 'buy.payAmount')}<span class="pf-m"><input type="number" name="amount" value="${h(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste))}" step="0.001" min="0" class="num" inputmode="decimal"><span>${h(cur)}</span></span></label>
+        <div class="pf-montant"><label class="field obligatoire">${lbl(rend ? 'Montant reçu' : 'Montant payé', 'buy.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label>
           ${r0 ? '' : '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>'}</div>
         <div class="pf-deux">${dateFieldHtml(lbl(rend ? 'Date du remboursement' : 'Date', 'buy.payDate'), 'date', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || '' : '')}</div>
         ${champTauxReglement(p, r0, 'buy.payRate')}
@@ -16795,12 +16813,13 @@
       $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fS).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); });
       $$('[data-vite]', root).forEach(b => b.onclick = () => {
         $$('[data-vite]', root).forEach(x => x.classList.toggle('on', x === b));
-        if (b.dataset.vite === 'tout') mS.value = cible0; else { mS.value = ''; mS.focus(); }
+        if (b.dataset.vite === 'tout') mS.value = C.money(cible0, null, C.decimalsFor(cur)); else { mS.value = ''; mS.focus(); }
         mS.dispatchEvent(new Event('input', { bubbles: true }));
       });
       const libelleOk = () => {
-        const v = C.round3(Number(mS.value) || 0), apres = C.round3(cible0 - v);
-        okS.innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${v > 0 ? apres > 0.0005 ? ` · reste ${C.money(apres, cur)}` : apres < -0.0005 ? ' · plus que le reste' : rend ? ' · l\'avoir sera soldé' : ' · la pièce sera réglée' : ''}`;
+        // (1.356.8) La case s'écrit en français (« 2 814,160 ») : elle se relit par `lireMontant`, comme celle d'un paiement.
+        const v = C.round3(lireMontant(mS.value)), apres = C.round3(cible0 - v);
+        okS.innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${v > 0 ? apres > 0.0005 ? ` · reste ${C.money(apres, cur)}` : apres < -0.0005 ? ' · plus que le reste' : rend ? (p.kind === 'avoir' ? ' · l\'avoir sera soldé' : ' · plus rien à récupérer') : ' · la pièce sera réglée' : ''}`;
         $$('[data-vite]', root).forEach(x => x.classList.toggle('on', x.dataset.vite === (Math.abs(v - cible0) < 0.0005 ? 'tout' : 'partie')));
       };
       mS.addEventListener('input', libelleOk); libelleOk();
@@ -16879,7 +16898,7 @@
         ${l.map(p => `<tr data-id="${h(p.id)}"><td><b>${h(p.number || C.referenceAchat(p, data))}</b>${contenuAchat(p) || p.subject ? `<div class="small muted">${h(contenuAchat(p) || p.subject)}</div>` : ''}</td><td class="nw">${echeance(p)}</td><td class="r nw">${C.money(reste(p), cur)}</td><td class="r nw" data-part></td></tr>`).join('')}
       </tbody></table>
       <form id="rge" class="pf-charte mt" data-devise="${h(cur)}">
-        <div class="pf-montant"><label class="field obligatoire">${lbl('Montant versé', 'buy.payAmount')}<span class="pf-m"><input type="number" name="amount" value="${h(total)}" step="0.001" min="0" class="num" inputmode="decimal"><span>${h(cur)}</span></span></label></div>
+        <div class="pf-montant"><label class="field obligatoire">${lbl('Montant versé', 'buy.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(total, null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label></div>
         <div class="pf-deux">${dateFieldHtml(lbl('Date', 'buy.payDate'), 'date', C.today(), { obligatoire: true })}${accountFieldHtml('')}</div>
         <div class="choix-t pf-modes" role="group" aria-label="Mode de règlement">${C.PAYMENT_METHODS.map(([v, lb]) => `<button type="button" data-mode="${h(v)}" class="${v === modeur ? 'on' : ''}">${h(lb)}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
@@ -17133,6 +17152,15 @@
     // les totaux, LE geste suivant et ce qui se vérifie avant d'enregistrer ; une pièce rangée dit où elle en est (la frise).
     // Les champs gardent leur nom et leur formulaire (`#b-head`), les gestes leur identifiant.
     const solde = stored ? C.purchaseBalance(stored, company(), data) : null;
+    // (1.356.8, bout en bout 10) Un avoir déduit d'une facture DÉJÀ payée ne vaut plus rien tout seul (son reste est zéro) : c'est
+    // la facture qui est payée en trop, et le fournisseur te doit la différence. La page de l'avoir disait « Réglée : plus rien
+    // n'est dû » et « plus rien à récupérer » — le contraire du vrai ; le remboursement s'enregistre sur la facture.
+    const lieTrop = (() => {
+      if (!stored || p.kind !== 'avoir' || !p.achatLie || !solde || solde.remaining < -0.0005) return null;
+      const L0 = purchaseById(p.achatLie); if (!L0) return null;
+      const r = C.purchaseBalance(L0, company(), data).remaining;
+      return r < -0.0005 ? { L: L0, montant: C.round3(-r), cur: L0.currency || company().currency } : null;
+    })();
     const pillAchat = () => {
       // (1.160.0, maquette « Lue par l'IA · à vérifier ») Une pièce neuve remplie par l'IA le dit, en ambre tant qu'une case
       // reste à comparer avec la photo.
@@ -17208,7 +17236,10 @@
       const joursRetard = ceRetard ? Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000) : 0;
       const autresEnRetard = sumSup && sumSup.late > C.toBase(p, solde.remaining, company()) + 0.0005;
       const puces = [
-        ceRetard ? `<span class="ed-chip rouge" id="ac-sup-doit">tu lui dois ${C.money(sumSup.remaining, base)} · dont ${autresEnRetard ? `${C.money(sumSup.late, base)} en retard, celle-ci de ${pl(joursRetard, 'jour')}` : `${C.money(solde.remaining, cur)} en retard de ${pl(joursRetard, 'jour')}`}</span>` : autres.length ? `<span class="ed-chip${enRetard ? ' rouge' : ''}">${pl(autres.length, 'autre facture', 'autres factures')} à payer · ${enRetard ? `${enRetard} en retard` : 'rien en retard'}</span>` : solde && solde.remaining > 0.0005 ? '<span class="ed-chip">rien d\'autre à lui payer</span>' : '<span class="ed-chip ok">ne lui dois rien</span>',
+        ceRetard ? `<span class="ed-chip rouge" id="ac-sup-doit">tu lui dois ${C.money(sumSup.remaining, base)} · dont ${autresEnRetard ? `${C.money(sumSup.late, base)} en retard, celle-ci de ${pl(joursRetard, 'jour')}` : `${C.money(solde.remaining, cur)} en retard de ${pl(joursRetard, 'jour')}`}</span>` : autres.length ? `<span class="ed-chip${enRetard ? ' rouge' : ''}">${pl(autres.length, 'autre facture', 'autres factures')} à payer · ${enRetard ? `${enRetard} en retard` : 'rien en retard'}</span>` : solde && solde.remaining > 0.0005 ? '<span class="ed-chip">rien d\'autre à lui payer</span>'
+          // (1.356.8) Un fournisseur qui te doit de l'argent (un avoir sur une facture déjà payée) : « ne lui dois rien » était vrai
+          // et taisait l'essentiel. Le net de son compte (`C.supplierSummary`, comme sa fiche et la liste des fournisseurs).
+          : s.remaining < -0.0005 ? `<span class="ed-chip ambre" id="ac-sup-faveur">${C.money(-s.remaining, base)} en ta faveur</span>` : '<span class="ed-chip ok">ne lui dois rien</span>',
         sup.paymentTermsDays !== '' && sup.paymentTermsDays != null ? `<span class="ed-chip">${Number(sup.paymentTermsDays) > 0 ? `paie à ${pl(Number(sup.paymentTermsDays), 'jour')}` : 'paie à réception'}</span>` : '',
         exo ? `<span class="ed-chip ok" id="ac-sup-exo">exonéré de retenue jusqu'au ${C.fmtDate(exo.au)}${exo.numero ? ` (attestation n° ${h(exo.numero)})` : ''}</span>` : '',
         efacture ? '<span class="ed-chip">factures électroniques : oui (El Fatoora)</span>' : '',
@@ -17303,12 +17334,24 @@
       const aRetenir = solde && solde.remaining > 0.0005 && !isNew ? C.retenueAOperer(p, company(), data) : 0;
       if (solde && solde.remaining > 0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="pay">${lfIc('carte', 17)}Enregistrer un règlement</button>
         <p class="ed-phrase" id="ac-phrase-regler">Tu paies ${C.money(solde.remaining, cur)}${aRetenir > 0.0005 ? ` et tu retiens ${C.money(aRetenir, cur)}` : ''}${p.dueDate ? ` · échéance le ${lfJm(p.dueDate)}` : ''}. Un règlement partiel se note aussi.</p>${sauver}${avertValide}</div>`;
+      // (1.356.8) Sur une FACTURE payée en trop, « le remboursement solde l'avoir » parlait d'une autre pièce : la phrase dit d'où vient
+      // le trop (un avoir déduit après ton règlement, ou un règlement plus grand que la facture) et ce que le remboursement solde.
+      const phraseRecu = () => {
+        const doit = `Le fournisseur te doit ${C.money(-solde.remaining, cur)}`;
+        if (p.kind === 'avoir') return `${doit}. Le remboursement solde l'avoir : il n'est plus « à récupérer ».`;
+        const avs = (data.purchases || []).filter(x => x.achatLie === p.id && x.kind === 'avoir');
+        return `${doit} : ${avs.length ? `${avs.map(x => `<span class="nw">${h(x.number || 'l\'avoir')}</span>`).join(' et ')} ${avs.length > 1 ? 'se sont déduits' : 's\'est déduit'} d'une facture déjà payée` : 'tu as payé plus que la facture'}. Le remboursement solde la facture.`;
+      };
       if (solde && solde.remaining < -0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="recu">${lfIc('carte', 17)}Enregistrer le remboursement</button>
-        <p class="ed-phrase">Le fournisseur te doit ${C.money(-solde.remaining, cur)}. Le remboursement solde l'avoir : il n'est plus « à récupérer ».</p>${sauver}${avertValide}</div>`;
+        <p class="ed-phrase" id="ac-phrase-recu">${phraseRecu()}</p>${sauver}${avertValide}</div>`;
+      if (lieTrop) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="recu-lie">${lfIc('carte', 17)}Enregistrer le remboursement</button>
+        <p class="ed-phrase" id="ac-phrase-lie">Le fournisseur te doit ${C.money(lieTrop.montant, lieTrop.cur)} sur <span class="nw">${h(lieTrop.L.number || 'la facture')}</span>, déjà réglée. Le remboursement s'enregistre sur la facture.</p>${sauver}${avertValide}</div>`;
       // (1.155.13, maquette « Sans justificatif ») Une pièce réglée sans justificatif : le geste qui reste est de le joindre.
       if (stored && C.sansJustificatif(stored) && bridge.piecesJointes !== false && !C.PURCHASE_LIES.includes(p.kind)) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="ac-geste-joindre">${lfIc('photo', 17)}${p.kind === 'depense' ? 'Joindre le ticket' : 'Joindre le justificatif'}</button>
         <p class="ed-phrase">${p.kind === 'depense' ? 'Le ticket se photographie depuis le téléphone ; il se joint ici, et ton cabinet le verra.' : 'La photo ou le PDF de la pièce se joint ici, et ton cabinet le verra.'}</p>${sauver}${avertValide}</div>`;
-      return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>Réglée : plus rien n'est dû.</span></p>${sauver}${avertValide}</div>`;
+      // (1.356.8) « Réglée » ne se dit pas d'un avoir : déduit de sa facture, il n'y a plus rien à récupérer.
+      const Lfin = p.kind === 'avoir' && p.achatLie ? purchaseById(p.achatLie) : null;
+      return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${Lfin ? `Déduit de <span class="nw">${h(Lfin.number || 'sa facture')}</span> : plus rien à récupérer.` : 'Réglée : plus rien n\'est dû.'}</span></p>${sauver}${avertValide}</div>`;
     };
     const avecFriseAchat = !isNew && !!stored && p.kind !== 'acompte';
     // (1.155.13) Le bandeau d'une pièce rangée, celui de la maquette pour son état : saisie sous l'ancien régime de TVA,
@@ -17377,7 +17420,9 @@
       // (1.155.13, maquette « Avoir à se faire rembourser ») Un avoir a sa frise : reçu, saisi, justificatif, puis déduit
       // d'une facture ou remboursé.
       const av = p.kind === 'avoir', L = av && p.achatLie ? purchaseById(p.achatLie) : null;
-      const quatrieme = !av ? null : solde && solde.remaining < -0.0005
+      const quatrieme = !av ? null : lieTrop
+        ? { t: 'Remboursé', afaire: true, d: `${C.money(lieTrop.montant, lieTrop.cur)} attendus sur <span class="nw">${h(lieTrop.L.number || 'la facture')}</span>`, g: '<button type="button" class="btn btn-sm" data-frise="recu-lie">Rembourser</button>' }
+        : solde && solde.remaining < -0.0005
         ? { t: 'Remboursé', afaire: true, d: 'attendu', g: '<button type="button" class="btn btn-sm" data-frise="recu">Rembourser</button>' }
         : dernierReglement ? { t: 'Remboursé', fait: true, d: `${lfJm(dernierReglement.date)} · ${methodLabel(dernierReglement.method).toLowerCase()}` }
           : { t: 'Déduit', fait: true, d: L ? `de ${h(L.number || 'sa facture')}` : 'plus rien à récupérer' };
@@ -17703,6 +17748,13 @@
 
     // (1.155.13) Le bandeau de la maquette pour un avoir ou un acompte : ce qu'il fait à la TVA, au stock et à ce qu'on doit,
     // et le chemin vers la facture qu'il touche. Il suit la facture choisie et les lignes.
+    // (1.356.8) Ce que l'avoir fait à sa facture, selon ce qu'elle est devenue : « le fournisseur te doit ce montant » restait affiché
+    // une fois le trop-payé remboursé, et se disait aussi d'une facture que l'avoir venait juste de solder.
+    const phraseAvoirSurFacture = (L, reste) => {
+      if (reste < -0.0005) return `La facture était déjà réglée : le fournisseur te doit ${C.money(-reste, L.currency || company().currency)}.`;
+      if (reste > 0.0005) return 'Il vient en moins de ce que tu lui dois sur cette facture.';
+      return (L.payments || []).some(x => C.estRemboursementAchat(L, x)) ? 'La facture était déjà réglée : le fournisseur t\'a remboursé le trop-payé.' : 'Avec lui, la facture est réglée.';
+    };
     function majBandeauLie() {
       const el = $('#ac-lie-bandeau'); if (!el) return;
       if (!C.PURCHASE_LIES.includes(p.kind) || attendChoix) { el.hidden = true; el.innerHTML = ''; return; }
@@ -17715,7 +17767,7 @@
         const reprend = (L.lines || []).some(x => p.lines.some(l => String(l.label || '').trim() && l.label === x.label));
         const reste = C.purchaseBalance(L, company(), data).remaining;
         titre = `Avoir sur ${L.number || 'la facture du ' + lfJm(L.date)}${sup ? ' · ' + sup.name : ''}`;
-        txt = `${reprend ? 'Il reprend les lignes de la facture, leur TVA et leur destination. ' : ''}${t.deductibleVAT > 0.0005 ? `Il retire ${C.money(t.deductibleVAT, cur)} de TVA de celle que tu récupères${stock ? ', et ce qu\'il reprend ressort du stock' : ''}. ` : ''}${reste <= 0.0005 ? 'La facture est déjà réglée : le fournisseur te doit ce montant.' : 'Il vient en moins de ce que tu lui dois sur cette facture.'}`;
+        txt = `${reprend ? 'Il reprend les lignes de la facture, leur TVA et leur destination. ' : ''}${t.deductibleVAT > 0.0005 ? `Il retire ${C.money(t.deductibleVAT, cur)} de TVA de celle que tu récupères${stock ? ', et ce qu\'il reprend ressort du stock' : ''}. ` : ''}${phraseAvoirSurFacture(L, reste)}`;
         geste = '<button type="button" class="btn btn-sm" id="ac-voir-lie">Voir la facture</button>';
       } else if (p.kind === 'avoir') {
         // (27/10/2026, maquette achat) Le conseil ne sert qu'à la saisie : rangé, l'avoir a son bandeau (ce qu'on te doit).
@@ -17826,12 +17878,19 @@
       // la retenue en rouge, et sous le net UNE phrase qui dit ce que le montant devient.
       const mt = x => C.money(x, null, C.decimalsFor(cur));
       const lie = p.achatLie ? purchaseById(p.achatLie) : null;
+      // (1.356.8) Ce que tu reverses est la retenue que la pièce PORTE, avoirs et acomptes rattachés déduits (`due`) : la phrase
+      // disait 42,840 DT sous une facture dont l'avoir avait ramené la retenue à 35,700.
+      const phraseReverse = () => {
+        const due = !isNew && stored ? C.retenueDesReglements(p, company(), data).due : t.withholding;
+        const lieesR = due < t.withholding - 0.0005 ? (data.purchases || []).filter(x => x.achatLie === p.id) : [];
+        return `tu reverses ${C.money(due, cur)} de retenue au fisc${lieesR.length ? ` · ${C.money(C.round3(t.withholding - due), cur)} de moins avec ${lieesR.map(x => h(x.number || (x.kind === 'acompte' ? 'l\'acompte' : 'l\'avoir'))).join(' et ')}` : ''}`;
+      };
       const recup = C.tvaRecuperable(p, company());
       const sousNet = cur !== company().currency ? (C.missingRate(p, company()) ? '<span class="warn-text">le taux de change manque : saisis-le dans les étiquettes</span>' : `soit ${C.money(t.base.netToPay, company().currency)} en comptabilité · 1 ${h(cur)} = ${pct(t.rate)} ${h(company().currency)}`)
         : p.kind === 'avoir' ? (lie ? `il vient en moins de ${h(lie.number || 'la facture rattachée')}` : avoirRendu ? 'le fournisseur te l\'a remboursé : plus rien à déduire' : 'à rattacher à une facture, ou à te faire rembourser')
         : p.kind === 'acompte' ? (lie ? `une avance : elle se solde sur ${h(lie.number || 'sa facture')}` : 'une avance : elle se soldera sur sa facture')
         : !recup && t.totalVAT ? 'sa TVA est dans son coût : rien à récupérer'
-        : t.withholding ? `tu reverses ${C.money(t.withholding, cur)} de retenue au fisc`
+        : t.withholding ? phraseReverse()
         : t.deductibleVAT > 0.0005 ? (p.kind === 'depense' && !(p.attachments || []).length ? `TVA récupérable une fois le ticket joint : ${C.money(t.deductibleVAT, cur)}` : `TVA récupérable : ${C.money(t.deductibleVAT, cur)}`) : '';
       $('#b-totals').innerHTML = `<table>
         <tr><td>Total HT</td><td>${mt(t.totalHT)}</td></tr>
@@ -19005,6 +19064,7 @@
       const rows = (s2.payments || []).slice().sort((a, x) => (a.date || '').localeCompare(x.date || ''));
       const t = b.totals;
       const rsOp2 = C.retenueDesReglements(s2, company(), data);
+      const rsCorr = C.attestationCorrigee(s2, rsOp2.operee);
       // La part de retenue de chaque règlement, sur sa ligne — le jumeau de la facture de vente.
       const partRs = x => { const i = (s2.payments || []).indexOf(x); const v = rsOp2.parts[x.id || '#' + i] || 0; return Math.abs(v) > 0.0005 ? v : 0; };
       // (27/10/2026, maquette achat « Règlements » et « Avoir à se faire rembourser ») Le titre porte son geste (régler, ou
@@ -19015,23 +19075,35 @@
       const sup2 = supplierById(s2.supplierId);
       const deduit = av && s2.achatLie ? C.round3(t.netToPay - b.paid) : 0;
       const tuile = (k, v, ton) => `<div${ton ? ` class="${ton}"` : ''}><div class="k-label">${k}</div><div class="v">${C.money(v, null, C.decimalsFor(cur))}</div></div>`;
+      // (1.356.8) La retenue de la pièce reste celle de sa facture (la tuile s'additionne avec « Net à payer ») ; quand un avoir
+      // ou un acompte rattaché la diminue, la ligne dessous dit ce qu'elle est devenue — celle que tu reverses et que l'attestation porte.
+      const tuileRetenue = () => {
+        const w = t.withholding || 0;
+        if (!(rsOp2.due < w - 0.0005)) return tuile('Retenue', w);
+        const lieesT = (data.purchases || []).filter(x => x.achatLie === s2.id);
+        return `<div><div class="k-label">Retenue</div><div class="v">${C.money(w, null, C.decimalsFor(cur))}</div><div class="small muted">${C.money(rsOp2.due, cur)} après ${lieesT.map(x => h(x.number || (x.kind === 'acompte' ? 'l\'acompte' : 'l\'avoir'))).join(' et ') || 'les pièces rattachées'}</div></div>`;
+      };
       const geste = b.remaining > 0.0005 ? `<button class="btn btn-sm" id="pay2">${lfIc('ajout', 13, 2.4)}Enregistrer un règlement</button>`
-        : b.remaining < -0.0005 ? `<button class="btn btn-sm" id="recu2">${lfIc('ajout', 13, 2.4)}Enregistrer le remboursement reçu</button>` : '';
+        : b.remaining < -0.0005 ? `<button class="btn btn-sm" id="recu2">${lfIc('ajout', 13, 2.4)}Enregistrer le remboursement reçu</button>`
+        : lieTrop ? `<button class="btn btn-sm" id="recu2-lie">${lfIc('ajout', 13, 2.4)}Enregistrer le remboursement reçu</button>` : '';
       const menuR = id => `<td class="actions row-actions"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes du règlement">${lfIc('plus', 16)}</button></td>`;
       el.innerHTML = `<div class="ac-bloc-t"><h2>${av ? 'Remboursement' : 'Règlements'} ${info('buy.payments')}</h2>${geste}</div>
         <div class="pay-grid quatre">
           ${av ? tuile('Montant de l\'avoir', t.netToPay) + tuile('Déduit d\'une facture', deduit) + tuile('Remboursé', b.paid) + tuile('À récupérer', Math.max(0, -b.remaining), b.remaining < -0.0005 ? 'pg-attire' : '')
-            : tuile('Net à payer', t.netToPay) + tuile('Retenue', t.withholding || 0) + `<div><div class="k-label">Réglé</div><div class="v">${C.money(b.paid, null, C.decimalsFor(cur))}</div>${b.impute ? `<div class="small muted">+ ${C.money(b.impute, cur)} ${b.liees.length > 1 ? 'imputés' : 'imputé'} (${b.liees.map(x => h(x.number || (x.kind === 'acompte' ? 'acompte' : 'avoir'))).join(', ')})</div>` : ''}</div>`
+            : tuile('Net à payer', t.netToPay) + tuileRetenue() + `<div><div class="k-label">Réglé</div><div class="v">${C.money(b.paid, null, C.decimalsFor(cur))}</div>${b.impute ? `<div class="small muted">+ ${C.money(b.impute, cur)} ${b.liees.length > 1 ? 'imputés' : 'imputé'} (${b.liees.map(x => h(x.number || (x.kind === 'acompte' ? 'acompte' : 'avoir'))).join(', ')})</div>` : ''}</div>`
               + (b.remaining < -0.0005 ? tuile('À récupérer', -b.remaining, 'pg-attire') : tuile('Reste dû', Math.max(0, b.remaining), b.remaining > 0.0005 ? (s2.dueDate && s2.dueDate < C.today() ? 'pg-alerte' : 'pg-attire') : ''))}
         </div>
         ${rows.length ? `<table class="list compact ac-paie-t"><thead><tr><th>Date</th><th>Mode</th><th>Compte</th><th>Référence</th><th class="r">Montant</th><th></th></tr></thead><tbody>
           ${rows.map(x => `<tr><td>${C.fmtDate(x.date)}</td><td>${h(methodLabel(x.method))}</td><td>${h(accountLabel(x.accountId, x.method))}</td><td>${C.estRemboursementAchat(s2, x) ? '<span class="badge">remboursement reçu</span> ' : ''}${h(x.reference || '') || (C.estRemboursementAchat(s2, x) ? '' : '—')}${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}</td><td class="r"><b>${C.money(Math.abs(Number(x.amount) || 0), null, C.decimalsFor(cur))}</b>${reglementEnDinars(s2, x)}${partRs(x) ? `<div class="small muted">${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : `retenue défaite : ${C.money(-partRs(x), cur)}`}</div>` : ''}</td>${menuR(x.id)}</tr>`).join('')}
-        </tbody></table>` : `<p class="note-v ac-rien">${lfIc('horloge', 14, 2)}<span>${av ? (b.remaining < -0.0005 ? `Tant qu'il n'est ni déduit d'une facture, ni remboursé, ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit.` : s2.achatLie ? 'Il est déduit de la facture rattachée : plus rien à récupérer.' : 'Plus rien à récupérer.')
+        </tbody></table>` : `<p class="note-v ac-rien">${lfIc('horloge', 14, 2)}<span>${av ? (b.remaining < -0.0005 ? `Tant qu'il n'est ni déduit d'une facture, ni remboursé, ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit.` : lieTrop ? `Il est déduit de ${h(lieTrop.L.number || 'la facture rattachée')}, que tu avais déjà réglée : sur cette facture, ${h(sup2 ? sup2.name : 'le fournisseur')} te doit ${C.money(lieTrop.montant, lieTrop.cur)}. Le remboursement s'enregistre sur la facture.` : s2.achatLie ? 'Il est déduit de la facture rattachée : plus rien à récupérer.' : 'Plus rien à récupérer.')
           : `Rien de réglé.${t.withholding ? ` La retenue (${C.money(rsOp2.due, cur)}) s'opérera quand tu paieras : tu remettras alors l'attestation au fournisseur. ${info('buy.certificate')}` : ''}`}</span></p>`}
         ${rows.length && av && b.remaining < -0.0005 ? `<p class="note-v">${lfIc('horloge', 14, 2)}<span>Le reste (${C.money(-b.remaining, cur)}) n'est ni déduit d'une facture, ni remboursé : ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit encore.</span></p>` : ''}
         ${/* La retenue s'opère au règlement (10.14.0) : l'attestation porte ce que les règlements ont
              retenu, et ne se remet pas pour une pièce encore impayée. */''}${t.withholding && (rsOp2.operee > 0.0005 || s2.withholdingCertificate)
-          ? `<label class="check ac-attest"><input type="checkbox" id="rs-cert2" ${s2.withholdingCertificate ? 'checked' : ''}> Attestation de retenue remise au fournisseur (${C.money(rsOp2.operee, cur)} retenus${rsOp2.operee < rsOp2.due - 0.0005 ? ` sur ${C.money(rsOp2.due, cur)}` : ''}) · <button type="button" class="lien" id="rs-imprimer">l'imprimer</button> ${info('buy.certificate')}</label>` : ''}`;
+          ? `<label class="check ac-attest"><input type="checkbox" id="rs-cert2" ${s2.withholdingCertificate ? 'checked' : ''}> Attestation de retenue remise au fournisseur (${C.money(rsOp2.operee, cur)} retenus${rsOp2.operee < rsOp2.due - 0.0005 ? ` sur ${C.money(rsOp2.due, cur)}` : ''}) · <button type="button" class="lien" id="rs-imprimer">l'imprimer</button> ${info('buy.certificate')}</label>`
+            // (1.356.8) La remise retient son montant : un avoir posé ensuite qui change la retenue rend l'attestation fausse chez le
+            // fournisseur. La ligne le dit, et la corrigée se remet comme la première (C.attestationCorrigee, la règle de « À faire »).
+            + (rsCorr != null ? `<p class="note-v ac-attest-corrigee" id="rs-corrigee">${lfIc('alerte', 14, 2)}<span>L'attestation remise portait ${C.money(rsCorr, cur)} ; la retenue est maintenant de ${C.money(rsOp2.operee, cur)}. Remets à ${h(sup2 ? sup2.name : 'ton fournisseur')} l'attestation corrigée · <button type="button" class="lien" id="rs-imprimer-c">l'imprimer</button> · <button type="button" class="lien" id="rs-remise-c">corrigée remise</button></span></p>` : '') : ''}`;
       // Un « ✕ » muet supprimait le règlement : le geste le plus destructif de la ligne était le seul
       // sans nom (7.29.0). Un menu, avec la modification que la ligne n'avait pas (10.12.0).
       bindRowMenus(el, id => {
@@ -19056,8 +19128,13 @@
       });
       if ($('#pay2')) $('#pay2').onclick = () => supplierPaymentForm(s2, () => render());
       if ($('#recu2')) $('#recu2').onclick = () => supplierPaymentForm(s2, () => render(), null, true);
-      if ($('#rs-cert2')) $('#rs-cert2').onchange = e => { s2.withholdingCertificate = e.target.checked; save(true); };
+      if ($('#recu2-lie')) $('#recu2-lie').onclick = () => supplierPaymentForm(purchaseById(lieTrop.L.id), () => render(), null, true);
+      // (1.356.8) Cocher retient ce que l'attestation remise portait : c'est ce qui permet de dire, après un avoir, qu'elle est à refaire.
+      const remettre = oui => { s2.withholdingCertificate = oui; if (oui) s2.withholdingCertificateAmount = C.round3(rsOp2.operee); else delete s2.withholdingCertificateAmount; save(true); };
+      if ($('#rs-cert2')) $('#rs-cert2').onchange = e => { remettre(e.target.checked); if (rsCorr != null) drawPayments(); };
       if ($('#rs-imprimer')) $('#rs-imprimer').onclick = e => { e.preventDefault(); attestationRetenue(s2); };
+      if ($('#rs-imprimer-c')) $('#rs-imprimer-c').onclick = e => { e.preventDefault(); attestationRetenue(s2); };
+      if ($('#rs-remise-c')) $('#rs-remise-c').onclick = e => { e.preventDefault(); remettre(true); drawPayments(); toast('Attestation corrigée notée remise'); };
     }
 
     // --- pièces jointes (même mécanisme que sur un document de vente)
@@ -19203,6 +19280,8 @@
     };
     if ($('#pay')) $('#pay').onclick = () => supplierPaymentForm(purchaseById(p.id), () => render());
     if ($('#recu')) $('#recu').onclick = () => supplierPaymentForm(purchaseById(p.id), () => render(), null, true);
+    // (1.356.8) L'avoir déduit d'une facture déjà payée : le remboursement va sur la facture, qu'on peut aussi ouvrir.
+    if ($('#recu-lie')) $('#recu-lie').onclick = () => supplierPaymentForm(purchaseById(lieTrop.L.id), () => render(), null, true);
     if ($('#ac-geste-joindre')) $('#ac-geste-joindre').onclick = () => { const b = $('#attach-top'); if (b) b.click(); };
     // (1.173.0) La pièce que le cabinet a jointe dans son classeur, en grand.
     if ($('#ac-voir-cabinet')) $('#ac-voir-cabinet').onclick = async () => {
