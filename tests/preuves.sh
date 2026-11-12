@@ -28179,8 +28179,8 @@ prouver 'hotel 1.356.5 i : « Créer l'\''article » chez qui vend des prestatio
 # (1.356.6) Bout en bout 9 : l'avoir partiel sur une facture qui porte sa retenue.
 PS13566='l'\''avoir suit la retenue de sa facture, à l'\''écran et au serveur'
 prouver 'avoir 1.356.6 a : l'\''avoir partiel tombe sous le seuil à l'\''écran, sans sa part de retenue' 'modules/socle/ecrans/entreprise/app-1.js' \
-  '      if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
-      else if (sr > 0) doc.seuilRetenue = sr;' '      if (sr > 0) doc.seuilRetenue = sr;' \
+  '        if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
+        else if (sr > 0) doc.seuilRetenue = sr;' '        if (sr > 0) doc.seuilRetenue = sr;' \
   "$PS13566"
 prouver 'avoir 1.356.6 b : le serveur juge le seuil sur l'\''avoir, pas sur sa facture' 'serveur/ventes/pieces.ts' \
   '    const suitSaFacture = !!(corrigee && corrigee.totaux && (corrigee.totaux.retenue ?? 0n) > 0n);' '    const suitSaFacture = false;' \
@@ -28290,6 +28290,44 @@ prouver 'montants en français 1.356.9 g : la ligne d'\''achat se relit avec Num
 prouver 'montants en français 1.356.9 h : une case de la paie redevient numérique' 'modules/personnel/ecrans/entreprise/paie.js' \
   '<input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-b="rate" value="${h(frChiffre(b.rate))}"' '<input type="number" class="num" data-b="rate" value="${b.rate}" step="0.5" min="0" max="100"' \
   "$PS13569B"
+
+PS1357A='Sarra relit une facture d'\''achat enregistrée, la modifie, et revient au résumé ; au téléphone aussi'
+prouver 'résumé de l'\''achat 1.357.0 a : la facture d'\''achat enregistrée reste le formulaire' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    const lecture = !isNew && !!stored && !enModif;' '    const lecture = false;' \
+  "$PS1357A"
+prouver 'résumé de l'\''achat 1.357.0 b : le résumé de la pièce ne se pose pas' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '${supplierCarte()}</div>${lecture ? resumeAchat() : '\'''\''}' '${supplierCarte()}</div>' \
+  "$PS1357A"
+prouver 'résumé de l'\''achat 1.357.0 c : les cases du formulaire restent à l'\''écran sous le résumé' 'web/public/plateforme/piece.css' \
+  '.buy-editor.lecture #b-head > :not(#ac-sup):not(.lecture-piece), .buy-editor.lecture .ac-objet-notes { display: none; }' '.buy-editor.lecture .ac-objet-notes { display: none; }' \
+  "$PS1357A"
+prouver 'résumé de l'\''achat 1.357.0 d : les lignes du résumé restent modifiables' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      if (clos || lecture) $$('\''input, select'\'', body).forEach(el => { el.disabled = true; });' '      if (clos) $$('\''input, select'\'', body).forEach(el => { el.disabled = true; });' \
+  "$PS1357A"
+prouver 'résumé de l'\''achat 1.357.0 e : « Modifier la pièce » ne rouvre pas le formulaire' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'remplacerPage('\''#/achat/'\'' + p.id + '\''/modifier'\'')' 'remplacerPage('\''#/achat/'\'' + p.id)' \
+  "$PS1357A"
+prouver 'résumé de l'\''achat 1.357.0 f : la modification enregistrée reste dans le formulaire' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      if (isNew || enModif) remplacerPage('\''#/achat/'\'' + p.id); else render(true);' '      if (isNew) remplacerPage('\''#/achat/'\'' + p.id); else render(true);' \
+  "$PS1357A"
+prouver 'résumé de l'\''achat 1.357.0 g : « Voir le résumé » jette la modification sans demander' 'modules/socle/ecrans/entreprise/app-1.js' \
+  'if ($('\''#ac-resume'\'')) $('\''#ac-resume'\'').onclick = () => remplacerPage('\''#/achat/'\'' + p.id);' 'if ($('\''#ac-resume'\'')) $('\''#ac-resume'\'').onclick = () => { clearGuard(); remplacerPage('\''#/achat/'\'' + p.id); };' \
+  "$PS1357A"
+prouver 'résumé de l'\''achat 1.357.0 h : les lignes du résumé gardent leur menu' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '<td class="line-tools">${clos || lecture ? '\'''\'' :' '<td class="line-tools">${clos ? '\'''\'' :' \
+  "$PS1357A"
+prouver 'résumé de l'\''achat 1.357.0 i : au Cabinet, le message de la variation de stock paraît avant le rechargement de l'\''inventaire' 'modules/socle/ecrans/cabinet/app-2.js' \
+  '        s.livre = r.livre;
+        await chargerInventaire(root, dossier);
+        toast('\''Variation de stock passée en brouillard.'\'');' '        s.livre = r.livre; toast('\''Variation de stock passée en brouillard.'\'');
+        await chargerInventaire(root, dossier);' \
+  "$IV1346"
+prouver 'résumé de l'\''achat 1.357.0 j : la pièce dessinée avant le seuil de la retenue ne le reprend jamais' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '    if (!figee && bridge.reglesLues) bridge.reglesLues().then(() => {' '    if (false && bridge.reglesLues) bridge.reglesLues().then(() => {' \
+  "$PS13565"
+prouver 'résumé de l'\''achat 1.357.0 k : le devis ne refait pas son annonce quand le seuil arrive' 'modules/socle/ecrans/entreprise/app-1.js' \
+  '      if (apres !== avant) { if (!instantaneTimer) dernierInstantane = apres; if (!dirty) etatEnregistre = apres; }' '      if (apres === avant) return; if (!instantaneTimer) dernierInstantane = apres; if (!dirty) etatEnregistre = apres;' \
+  "$PS13565"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

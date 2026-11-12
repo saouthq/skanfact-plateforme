@@ -161,7 +161,7 @@ describe('1.356.7 : « Annuler » qui ramène la pièce à ce qui est enregistr�
     expect(await enregistre()).toBe(true);
 
     // 3. La facture d'achat du peintre : le numéro changé, puis ↶ — « ✓ enregistrée », et le vert revient au règlement.
-    await p.evaluate(() => { location.hash = '#/achat/a-1'; });
+    await p.evaluate(() => { location.hash = '#/achat/a-1/modifier'; });
     const numero = p.locator('#b-head input[name=number]');
     await numero.waitFor({ timeout: 20_000 });
     expect(await marque()).toBe(false);

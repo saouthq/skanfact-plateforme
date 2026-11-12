@@ -157,7 +157,7 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     const avertissement = async () => net(await p.locator('#modal-root .warn-box').innerText().catch(() => ''));
 
     // 1. L'achat entre à Sfax.
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/p1`);
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/p1/modifier`);
     await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/F-8841/);
     await plusTard(p);
     await p.locator('#b-head select[name=depotId]').selectOption({ label: 'Magasin de Sfax' });

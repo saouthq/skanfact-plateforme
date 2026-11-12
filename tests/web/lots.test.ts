@@ -80,7 +80,7 @@ describe('les lots, à la souris', () => {
     const avertissement = async () => net(await p.locator('#modal-root .warn-box').innerText().catch(() => ''));
 
     // 1. L'achat : le lot et sa péremption se saisissent sous la désignation.
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/p1`);
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/p1/modifier`);
     await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/F-77/);
     await plusTard(p);
     await p.locator('#b-lines input[data-k=lot]').fill('L-0910');

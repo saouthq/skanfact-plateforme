@@ -96,6 +96,9 @@ describe('bout en bout 1.356.5 : le devis de l\'hôtel, son acompte et son solde
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (x) => erreurs.push(x.message));
+    // (1.357.0) Le seuil arrive APRÈS le dessin du devis, comme sur une machine lente (rouge GitHub de la 1.356.9, Node 24) :
+    // la pièce doit le reprendre quand il arrive, et non garder la retenue annoncée sans lui.
+    await p.route((u) => u.pathname.endsWith('/regles/retenue.seuil'), async (r) => { await new Promise((ok) => setTimeout(ok, 2_500)); await r.continue(); });
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/d-sem`);
     await p.locator('.ed-si-facture').waitFor({ timeout: 20_000 });
     await plusTard(p);

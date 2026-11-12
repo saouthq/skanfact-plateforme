@@ -2955,3 +2955,42 @@ donnait 2,5) : c'est la lecture qui trompait.
   qu'on y a tapé (« 11.9 ») : elle ne s'écrit en français qu'en la quittant.
 - Le rouge GitHub de la 1.356.8 : `liste-fournisseurs` attendait « 137.445 » dans la case de « Régler ensemble », que la
   1.356.8 écrit justement en français (« 137,445 ») ; le test décrivait l'ancien défaut.
+
+### 1.357.0 : la facture d'achat enregistrée se lit en résumé
+
+Demandé par Skander, deux captures à l'appui (la facture du peintre PK-2611-07, la facture de vente de Lemon Beach au
+téléphone) : « pourquoi la facture reste comme ça quand elle est enregistrée, et pas comme facture, avec le nouvel écran et
+le résumé ? ». Une facture de vente émise se lit depuis la 1.133.0 ; la facture d'achat enregistrée restait le formulaire de
+saisie, douze cases à relire pour savoir ce qu'elle dit.
+- Une pièce d'achat enregistrée (facture, dépense, avoir, acompte) s'ouvre en résumé, comme la facture émise : la carte du
+  fournisseur, puis la date et l'échéance (et le retard), la facture concernée d'un avoir ou d'un acompte, comment une dépense
+  a été payée, l'objet, la catégorie, le montant (TTC, retenue, timbre et frais, taux d'une devise), l'affaire et les notes ;
+  ses lignes se lisent comme du texte ; à droite, le geste suivant (régler, joindre le justificatif, se faire rembourser).
+  Ce qui manque ne prend pas de ligne.
+- Elle n'est pas verrouillée pour autant : rien n'est émis, c'est la pièce du fournisseur. « Modifier la pièce » rouvre le
+  formulaire à sa propre adresse (`#/achat/<id>/modifier`, le chemin le dit : « … › PK-2611-07 › Modifier ») ;
+  l'enregistrement y ramène au résumé, et « Voir le résumé » demande avant de jeter une modification. Passer de l'un à l'autre
+  remplace la page : le retour mène à la liste, jamais d'un état à l'autre de la même pièce.
+- Un mois clôturé ne se modifie pas : sa pièce reste en résumé, sans « Modifier la pièce ».
+- Une pièce neuve enregistrée arrive sur son résumé.
+- Ce qui renvoyait à une case du formulaire le dit : l'avoir qui n'est déduit d'aucune facture conseille « Modifie la pièce et
+  choisis-la dans « Facture concernée » » ; le régime de TVA d'aujourd'hui s'applique depuis le résumé d'un geste, et la pièce
+  s'enregistre.
+- Au téléphone : le résumé, puis le règlement dans la barre du bas ; « Modifier la pièce » en tête, rien ne déborde.
+- Vu en jouant la dépense : « DT » de « Montant payé (TTC) » tombait sous la case depuis qu'elle est une case de texte
+  (1.356.9) ; la devise reste à côté.
+- Test : `achat-resume-1357` (le résumé, la modification enregistrée, la modification abandonnée, le téléphone, une pièce neuve).
+  Huit preuves. Les tests qui modifiaient une pièce enregistrée passent par « Modifier la pièce » ou son adresse
+  (`achat-ecarts`, `achats-1310`, `annuler-1356`, `compta-1302`, `depots`, `lots`, `telephone-commercant`,
+  `montants-fr-1356-9`) ; ceux qui ne faisaient que la lire la lisent désormais en résumé.
+- Les rouges GitHub de la 1.356.9 :
+  - deux tests attendaient encore l'affichage d'avant la 1.356.9 (`four-1356` : « 18000 » ; `stock-revue` : un prix relu
+    avec `Number`) : retournés vers l'écriture française ;
+  - `inventaire-1346` (Node 24) : au Cabinet, « Variation de stock passée en brouillard » s'affichait AVANT que l'onglet
+    Inventaire soit rechargé ; un clic rapide sur « Saisir l'inventaire… » ouvrait une fenêtre construite sur l'inventaire
+    d'avant, qui ignorait la variation écrite (la fenêtre aurait laissé refaire l'inventaire). Le message vient après le
+    rechargement ;
+  - `acompte-1356` (Node 24) : le seuil de la retenue et le taux de la FODEC se lisent au serveur sans être attendus ; un
+    devis dessiné avant leur réponse annonçait « Retenue 1 % du client − 8,568 » sous le seuil, et ne se refaisait jamais.
+    Le pont dit quand les deux règles sont lues (`reglesLues`) ; la pièce encore à l'écran les reprend et refait ses
+    totaux, sans passer pour modifiée. Le test retarde désormais la règle de 2,5 s, comme une machine lente.

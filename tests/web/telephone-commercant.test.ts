@@ -360,7 +360,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
 
   it('les lignes d\'un achat et d\'une photo relue au téléphone : la désignation, puis prix, TVA et total dans l\'écran', async () => {
     const c = await commercante({ pieces: true });
-    const { cx, p, erreurs } = await ouvrir(c, '#/achat/p1', TELEPHONE);
+    // (1.357.0) Une pièce enregistrée s'ouvre en résumé : ses lignes se saisissent dans « Modifier la pièce ».
+    const { cx, p, erreurs } = await ouvrir(c, '#/achat/p1/modifier', TELEPHONE);
     await p.locator('#b-lines tr').first().waitFor();
     const dansLecran = async (sel: string) => { const r = await rect(p, sel); return r.left >= 0 && r.right <= 390.5 && r.width > 40; };
     for (const sel of ['#b-lines tr:first-child [data-k=label]', '#b-lines tr:first-child [data-k=unitPrice]', '#b-lines tr:first-child [data-k=vatRate]', '#b-lines tr:first-child [data-total]', '#b-lines tr:first-child [data-k=destination]']) expect(await dansLecran(sel), sel).toBe(true);

@@ -165,8 +165,10 @@ describe('les achats 1.310.0 : ce qu\'on doit, ce qu\'on garde, ce que lit la co
     expect(await txt('#ff-rs-compte')).toBe('En le payant, tu garderas aussi 32,362 DT de retenue à la source pour l\'État : son compte chez ton comptable porte 2 157,470 DT.');
     expect(await txt('#ff-attest')).toMatch(/^1 attestation de retenue à lui remettre — CS-26-1104 · 116,650 DT retenus\./);
     await aller('#/achat/a3');
-    expect(await txt('#ac-band-rembourse')).toBe('Céramique du Sahel SARL te doit 332,891 DT Il n\'est déduit d\'aucune facture : CS-26-1187 est à payer. Choisis-la dans « Facture concernée » pour l\'en déduire, ou enregistre le remboursement quand il te rend l\'argent.');
+    expect(await txt('#ac-band-rembourse')).toBe('Céramique du Sahel SARL te doit 332,891 DT Il n\'est déduit d\'aucune facture : CS-26-1187 est à payer. Modifie la pièce et choisis-la dans « Facture concernée » pour l\'en déduire, ou enregistre le remboursement quand il te rend l\'argent.');
     await photo('c-avoir');
+    // (1.357.0) L'avoir enregistré se lit en résumé : « Facture concernée » est dans son formulaire.
+    await p.locator('#ac-modifier').click();
     await p.locator('[data-combo=achatLie] .combo-btn').click();
     await p.locator('[data-combo=achatLie] [role=option]').filter({ hasText: 'CS-26-1187' }).first().click();
     expect(await vue()).toContain('Avoir sur CS-26-1187 · Céramique du Sahel SARL Il retire 53,960 DT de TVA de celle que tu récupères.');
@@ -181,7 +183,7 @@ describe('les achats 1.310.0 : ce qu\'on doit, ce qu\'on garde, ce que lit la co
     expect(net(await p.locator('#list-wrap tbody tr[data-id]').filter({ hasText: 'CS-26-1187' }).innerText())).toMatch(/2 457,999.* 2 125,108 Régler$/);
 
     // F. Le même numéro tapé sur une autre facture : la question vient avant d'enregistrer.
-    await aller('#/achat/a2');
+    await aller('#/achat/a2/modifier');
     await p.locator('input[name=number]').fill('CS-26-1104');
     await p.locator('#save').click();
     await fen().waitFor({ timeout: 10_000 });

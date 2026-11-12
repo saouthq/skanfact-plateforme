@@ -166,8 +166,11 @@
       ec.disabled = true;
       try {
         const r = await api.ecrireVariationStock({ dossierId: dossier.id, annee: s.annee });
-        s.livre = r.livre; toast('Variation de stock passée en brouillard.');
+        // (1.357.0) Le message vient APRÈS le rechargement : avant, un clic rapide sur « Saisir l'inventaire… » ouvrait une
+        // fenêtre construite sur l'inventaire d'avant, qui ignorait la variation qu'on venait d'écrire.
+        s.livre = r.livre;
         await chargerInventaire(root, dossier);
+        toast('Variation de stock passée en brouillard.');
       } catch (err) { toast(plainError(err), 'error'); ec.disabled = false; }
     };
   }

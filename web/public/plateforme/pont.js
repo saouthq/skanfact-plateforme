@@ -493,6 +493,7 @@
   let attenteGardee = false;
   // Le seuil de la retenue à la source, en dinars (1.155.0 ; lu au chargement, voir `loadData`).
   let seuilRetenue = 0;
+  let reglesLues = Promise.resolve();   // (1.357.0) se résout quand le seuil et le taux de la FODEC du jour sont lus
   // Le taux de la FODEC, en % (1.155.0 ; règle `fodec.taux`, en millionièmes, lue au chargement comme le seuil).
   let tauxFodec = 0, signaturePrete = /** @type {boolean | null} */ (null);   // (1.353.0) DigiGo branché ET un signataire désigné ; null : pas encore su
   let attenteN = 0;
@@ -1325,6 +1326,7 @@
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     seuilRetenue: () => seuilRetenue,
+    reglesLues: () => reglesLues,
     tauxFodec: () => tauxFodec, signaturePrete: () => signaturePrete,
     loadData: async () => {
       // Le code QR de la TTN sur la pièce imprimée (brique 83) : le moteur est là, on le branche.
@@ -1340,14 +1342,18 @@
       // (1.155.0) Le seuil de la retenue à la source, lu à la règle du jour (`retenue.seuil`, en millimes) : l'écran le
       // pose sur chaque brouillon de facture (core.js, computeTotals), comme le serveur le lit à la date de la pièce.
       // Sans réponse (hors ligne, règle inconnue) : pas de seuil, la règle qui ne fait rien.
-      void appel('GET', `/regles/retenue.seuil?date=${new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })}`).then((r) => {
+      // (1.357.0) Les deux lectures ne sont pas attendues (l'ouverture ne les paie pas), mais leur fin se DIT : une pièce
+      // dessinée avant leur réponse les reprend (`reglesLues`, l'éditeur de pièce), sinon un devis sous le seuil annonçait
+      // une retenue qui ne s'appliquera pas.
+      const lireSeuil = appel('GET', `/regles/retenue.seuil?date=${new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })}`).then((r) => {
         seuilRetenue = r && r.valeur != null && /^\d+$/.test(String(r.valeur)) ? Number(r.valeur) / 1000 : 0;
       }).catch(() => { /* hors ligne : on garde le seuil déjà connu */ });
       // (1.155.0) Le taux de la FODEC, de la même façon : l'écran le pose sur un brouillon dont une ligne la porte. Inconnu,
       // la FODEC vaut zéro (le serveur fait de même) : jamais un taux inventé.
-      void appel('GET', `/regles/fodec.taux?date=${new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })}`).then((r) => {
+      const lireFodec = appel('GET', `/regles/fodec.taux?date=${new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })}`).then((r) => {
         tauxFodec = r && r.valeur != null && /^\d+$/.test(String(r.valeur)) ? Number(r.valeur) / 10000 : 0;
-      }).catch(() => { /* hors ligne : on garde le taux déjà connu */ }); void appel('GET', '/efacture/signataire').then((lu) => { signaturePrete = !!(lu && lu.branche && lu.signataire); }).catch(() => undefined);
+      }).catch(() => { /* hors ligne : on garde le taux déjà connu */ });
+      reglesLues = Promise.all([lireSeuil, lireFodec]).then(() => undefined); void appel('GET', '/efacture/signataire').then((lu) => { signaturePrete = !!(lu && lu.branche && lu.signataire); }).catch(() => undefined);
       const remisesLues = lireRemises();
       const attente = await poste.lireAttente(ent).catch(() => null);
       await lireFileTickets();

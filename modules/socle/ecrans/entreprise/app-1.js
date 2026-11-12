@@ -6178,17 +6178,24 @@
     // avoir partiel de 725,900 sur une facture de 1 499,400 qui portait sa retenue tombait « sous le seuil » et ne reprenait
     // rien (l'annulation totale, elle, la reprenait) : le client gardait 14,994 DT de retenue sur une base diminuée de moitié.
     // Une facture sous le seuil n'en portait pas : son avoir, plus petit qu'elle, ne peut pas en porter non plus.
-    if (!figee && (isInv || isAv) && bridge.seuilRetenue) {
-      const sr = Number(bridge.seuilRetenue()) || 0;
-      const corrigee = isAv && doc.creditOf ? docById(doc.creditOf) : null;
-      if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
-      else if (sr > 0) doc.seuilRetenue = sr;
-    }
+    // (1.357.0) Les deux règles se lisent au serveur au chargement des données, sans être attendues : la pièce ouverte
+    // AVANT leur réponse se dessinait sans seuil, et le devis de l'hôtel (857,800 TTC, sous les 1 000 DT) annonçait
+    // « Retenue 1 % du client − 8,568 » pour une facture qui n'en portera pas (rouge GitHub de la 1.356.9, sur une machine
+    // lente). Une fonction, appelée au dessin ET quand les règles arrivent (plus bas, `bridge.reglesLues`).
     // (1.155.0, maquette « FODEC ») Une entreprise qui fabrique (Réglages : « Je fabrique ce que je vends ») coche la FODEC
     // ligne par ligne ; le taux est la règle `fodec.taux` du serveur (1 %, À VÉRIFIER), posé sur le brouillon et gelé à
     // l'émission. Une pièce prix TTC (le comptoir) n'en porte pas.
     const fabrique = (isInv || isAv) && !doc.prixTtc && (company().fodec === true || doc.lines.some(l => l.fodec === true));
-    if (!figee && fabrique && bridge.tauxFodec) { const tf = Number(bridge.tauxFodec()) || 0; if (tf > 0) doc.fodecRate = tf; else delete doc.fodecRate; }
+    function appliquerRegles() {
+      if (!figee && (isInv || isAv) && bridge.seuilRetenue) {
+        const sr = Number(bridge.seuilRetenue()) || 0;
+        const corrigee = isAv && doc.creditOf ? docById(doc.creditOf) : null;
+        if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
+        else if (sr > 0) doc.seuilRetenue = sr;
+      }
+      if (!figee && fabrique && bridge.tauxFodec) { const tf = Number(bridge.tauxFodec()) || 0; if (tf > 0) doc.fodecRate = tf; else delete doc.fodecRate; }
+    }
+    appliquerRegles();
     let ttnConnu = null;   // l'état El Fatoora de la pièce, lu au serveur après le dessin (la frise, les gestes)
     const MOTS_DEVIS = { brouillon: doc.number ? 'Brouillon · pas encore envoyé' : 'Brouillon · pas encore enregistré', 'envoyé': 'Envoyé · attend la réponse', 'accepté': 'Accepté · à facturer', 'refusé': 'Refusé', 'expiré': 'Expiré' };
     let pagesApercu = 1; // le nombre de pages de l'aperçu, tel que la mise en page l'a compté
@@ -9763,6 +9770,18 @@
     drawPayments();
     drawHistory();
     drawAttachments();
+    // (1.357.0) Les règles du jour (seuil de la retenue, taux de la FODEC) arrivent après le dessin : la pièce les reprend
+    // et ses totaux se refont — seulement si c'est encore CETTE page (`head` toujours dans le document). Une pièce non
+    // modifiée ne passe pas pour modifiée : ce que la règle change n'est pas une saisie.
+    if (!figee && bridge.reglesLues) bridge.reglesLues().then(() => {
+      if (!document.contains(head)) return;
+      const avant = JSON.stringify(doc);
+      appliquerRegles();
+      const apres = JSON.stringify(doc);
+      if (apres !== avant) { if (!instantaneTimer) dernierInstantane = apres; if (!dirty) etatEnregistre = apres; }
+      // Un devis ne porte pas le seuil : « Si le devis devient une facture » le lit en construisant la facture à venir.
+      refreshTotals(); schedulePreview();
+    }, () => {});
     // (plateforme) 1.94.0 — un document neuf : le curseur là où l'on commence (le client, ou la première ligne).
     if (isNew && (!document.activeElement || document.activeElement === document.body) && !$('#modal-root .modal')) {
       // Au doigt, une case de texte ouvrirait le clavier sur la moitié de l'écran : seulement le bouton du client.
@@ -17202,6 +17221,13 @@
     // version ; celui d'achat s'ouvrait modifiable, et « Enregistrer » répondait par la fenêtre de
     // clôture : la saisie était perdue. Le jumeau manquant (7.3.0), dans la même application.
     const clos = !!stored && !!stored.date && C.isClosedDate(data, stored.date);
+    // (1.357.0, demandé par Skander : « pourquoi la facture d'achat reste comme ça quand elle est enregistrée, et pas comme la
+    // facture, avec le résumé ? ») Une pièce d'achat ENREGISTRÉE se lit, comme une facture émise : la carte du fournisseur, un
+    // résumé (dates, montants, règlement, affaire), ses lignes éteintes, et le geste suivant à droite. Elle n'est pas
+    // verrouillée pour autant (rien n'est émis : c'est la pièce du fournisseur) : « Modifier la pièce » rouvre le formulaire
+    // (`#/achat/<id>/modifier`), et l'enregistrement y ramène au résumé. Un mois clôturé ne se modifie pas : il reste en résumé.
+    const enModif = !isNew && !!stored && !clos && parts[1] === 'modifier';
+    const lecture = !isNew && !!stored && !enModif;
     // Un avoir que le fournisseur a remboursé n'est plus « à rattacher plus tard » (10.14.0).
     const phLie = stored && C.avoirRembourse(stored, C.purchaseBalance(stored, company(), data)) ? '— Aucune : il a été remboursé —' : '— À rattacher plus tard —';
     const cats = C.expenseCategories(data);
@@ -17452,7 +17478,7 @@
           && C.normCurrency(x.currency || company().currency) === C.normCurrency(p.currency || company().currency) && C.purchaseBalance(x, company(), data).remaining > 0.0005);
         return band('info', 'carte', `${nomSup} te doit ${C.money(-solde.remaining, cur)}${L ? ` : ${L.number || 'la facture'} était déjà réglée` : ''}`, L ? 'L\'avoir ne trouve plus rien à déduire. Quand le fournisseur te rembourse, enregistre-le ici ; tant qu\'il ne l\'a pas fait, l\'avoir reste « à récupérer » dans tes achats.'
           // (1.310.0) Libre, alors que ce fournisseur a des factures à payer : « ne trouve plus rien à déduire » était faux.
-          : aDeduire.length ? `Il n'est déduit d'aucune facture : ${aDeduire.length > 1 ? `${pl(aDeduire.length, 'facture')} de ${h(nomSup)} sont à payer` : `${h(aDeduire[0].number || C.referenceAchat(aDeduire[0], data))} est à payer`}. Choisis-${aDeduire.length > 1 ? 'en une' : 'la'} dans « Facture concernée » pour l'en déduire, ou enregistre le remboursement quand il te rend l'argent.`
+          : aDeduire.length ? `Il n'est déduit d'aucune facture : ${aDeduire.length > 1 ? `${pl(aDeduire.length, 'facture')} de ${h(nomSup)} sont à payer` : `${h(aDeduire[0].number || C.referenceAchat(aDeduire[0], data))} est à payer`}. ${lecture ? 'Modifie la pièce et choisis' : 'Choisis'}-${aDeduire.length > 1 ? 'en une' : 'la'} dans « Facture concernée » pour l'en déduire, ou enregistre le remboursement quand il te rend l'argent.`
             : 'Aucune de ses factures n\'est à payer : il n\'y a rien d\'où le déduire. Quand le fournisseur te rembourse, enregistre-le ici ; tant qu\'il ne l\'a pas fait, l\'avoir reste « à récupérer » dans tes achats.', '', 'ac-band-rembourse');
       }
       if (retardRange()) {
@@ -17512,15 +17538,41 @@
           <span class="ed-fr-txt"><b>${x.t}</b><span>${x.d}</span></span>${x.g ? `<span class="ed-fr-geste">${x.g}</span>` : ''}
           <span class="vh">${x.fait ? ' : fait' : ' : pas encore'}</span></li>`).join('')}</ol></div>`;
 
+    // (1.357.0) Le résumé d'une pièce enregistrée : ce que dit son formulaire, en lignes à lire, comme la facture émise (le
+    // fournisseur a sa carte au-dessus ; les lignes de la pièce suivent, éteintes). Ce qui manque ne prend pas de ligne.
+    const resumeAchat = () => {
+      const t = C.purchaseTotals(p, company());
+      const nu = v => C.money(v, null, C.decimalsFor(cur));
+      const ligne = (k, v) => `<div class="lp-ligne"><dt>${k}</dt><dd>${v}</dd></div>`;
+      const lie = C.PURCHASE_LIES.includes(p.kind);
+      const L = lie && p.achatLie ? purchaseById(p.achatLie) : null;
+      const retard = retardRange() ? Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000) : 0;
+      const pr = p.projectId ? projectById(p.projectId) : null;
+      const details = [t.withholding || Number(t.fees) ? `TTC ${nu(t.totalTTC)}` : '', t.withholding ? `retenue ${nu(t.withholding)}` : '',
+        Number(t.fees) ? `timbre et frais ${nu(t.fees)}` : '',
+        cur !== company().currency && Number(p.exchangeRate) ? `1 ${h(symb(cur))} = ${h(frChiffre(p.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean);
+      return `<dl class="lecture-piece" id="lecture-piece">
+        ${supplierById(p.supplierId) ? '' : ligne('Fournisseur', '<span class="muted">aucun</span>')}
+        ${L ? ligne('Facture concernée', `<a href="#/achat/${h(L.id)}">${h(String(L.number || '').trim() || C.referenceAchat(L, data))}</a>`) : lie ? ligne('Facture concernée', `<span class="muted">${h(phLie.replace(/^— | —$/g, ''))}</span>`) : ''}
+        ${ligne('Date', `${C.fmtDate(p.date)}${p.dueDate && !lie ? ` · échéance le ${C.fmtDate(p.dueDate)}${retard ? ` <span class="lp-retard">en retard de ${pl(retard, 'jour')}</span>` : ''}` : ''}`)}
+        ${isDep ? ligne('Payée', h(payeeLue())) : ''}
+        ${String(p.subject || '').trim() ? ligne('Objet', h(p.subject)) : ''}
+        ${p.category ? ligne('Catégorie', h(p.category)) : ''}
+        ${ligne(lie || isDep ? 'Montant' : 'Net à payer', `<b class="lp-montant">${argentLu(t.netToPay, cur)}</b>${details.map(x => ' · ' + x).join('')}`)}
+        ${pr ? ligne('Affaire', `<a href="#/affaire/${h(pr.id)}">${h(pr.name)}</a>`) : ''}
+        ${String(p.notes || '').trim() ? ligne('Notes internes', h(p.notes).replace(/\n/g, '<br>')) : ''}
+      </dl>`;
+    };
     $('#view').innerHTML = `
       <div class="page-head ed-tete">
         ${retourListe('#/achats', 'achats')}<div class="ed-titre">
-          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a><span class="sep" aria-hidden="true">›</span><span aria-current="page"${isNew ? ' id="b-chemin"' : ''}>${isNew ? h(motsDePiece(p.kind).titre) : titreAchat}</span></div>
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a><span class="sep" aria-hidden="true">›</span>${enModif ? `<a href="#/achat/${h(p.id)}">${titreAchat}</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">Modifier</span>` : `<span aria-current="page"${isNew ? ' id="b-chemin"' : ''}>${isNew ? h(motsDePiece(p.kind).titre) : titreAchat}</span>`}</div>
           <div class="ed-h1"><h1>${titreAchat}</h1>${pillAchat()}<span class="ed-enreg" id="ed-enreg"${isNew || clos ? ' hidden' : ''}>${lfIc('coche', 14, 2.6)}enregistrée</span>${brouillonPossible ? `<span class="ed-enreg ac-garde" id="ac-garde"${repris ? '' : ' hidden'} title="Gardé sur cet appareil : si l'onglet se ferme, la pièce se reprend. Elle ne compte qu'une fois enregistrée.">${lfIc('nuage', 14, 2)}brouillon gardé à chaque frappe</span>` : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
           ${isNew || String(stored.number || '').trim() ? '' : `<div class="small muted"><span title="${h('Sa référence dans les écritures et chez ton comptable')}">réf. ${h(C.referenceAchat(stored, data))}</span></div>`}
         </div>
         <div class="actions">
-          ${clos ? '' : `<button type="button" class="btn ico" id="ac-annuler" title="Annuler la dernière modification (Ctrl Z)" aria-label="Annuler la dernière modification"${attendChoix ? ' hidden' : ''} disabled>${lfIc('defaire', 17)}</button>`}
+          ${lecture && !clos ? `<button class="btn" id="ac-modifier" title="Rouvrir le formulaire de la pièce">${lfIc('modifier', 16)}Modifier la pièce</button>` : enModif ? `<button class="btn" id="ac-resume" title="Revenir au résumé de la pièce">${lfIc('pages', 16)}Voir le résumé</button>` : ''}
+          ${clos || lecture ? '' : `<button type="button" class="btn ico" id="ac-annuler" title="Annuler la dernière modification (Ctrl Z)" aria-label="Annuler la dernière modification"${attendChoix ? ' hidden' : ''} disabled>${lfIc('defaire', 17)}</button>`}
           ${bridge.piecesJointes === false ? '' : `<button class="btn" id="attach-top" title="Joindre la photo ou le PDF de la pièce"${attendChoix ? ' hidden' : ''}>${lfIc('oeil', 16)}Justificatif</button>`}
           <div class="more"${attendChoix ? ' hidden' : ''}><button class="btn ico" id="more-btn" aria-label="Tous les gestes de la pièce" title="Tous les gestes de la pièce">${lfIc('plus', 18)}</button><div class="more-list" id="more-list" hidden>
             ${isNew ? '' : `<button id="dup">Dupliquer</button>
@@ -17538,7 +17590,7 @@
         </span></div>`}
       ${bandeauAbonnement(isNew, true, p.kind === 'depense' ? 'une dépense neuve' : p.kind === 'avoir' ? 'un avoir neuf' : p.kind === 'acompte' ? 'un acompte neuf' : 'un achat neuf', 'Tes achats déjà saisis restent ouverts : les lire, les régler, y joindre un justificatif, parler à ton comptable.')}
       ${bandeauQuestions(p.number)}
-      <div class="buy-editor editor charte${attendChoix ? ' attend-choix' : ''}" data-devise="${h(cur)}">
+      <div class="buy-editor editor charte${attendChoix ? ' attend-choix' : ''}${lecture ? ' lecture' : ''}" data-devise="${h(cur)}">
         <div class="ed-gauche">
           ${choixArrivee}
           ${luParIA ? (luParIA.teif ? bandeauLuTeif(luParIA) : bandeauLuParIA(luParIA)) : ''}
@@ -17547,7 +17599,7 @@
           <div class="bandeau info" id="ac-lie-bandeau" hidden></div>
           <div class="panel ed-entete">
             <form id="b-head" class="ed-form">
-              <div class="ed-client" id="ac-sup" ${supplierById(p.supplierId) ? '' : 'hidden'}>${supplierCarte()}</div>
+              <div class="ed-client" id="ac-sup" ${supplierById(p.supplierId) ? '' : 'hidden'}>${supplierCarte()}</div>${lecture ? resumeAchat() : ''}
               <div class="field ed-choix-client" id="ac-choix-sup" ${supplierById(p.supplierId) ? 'hidden' : ''}>${lbl('Fournisseur', 'buy.supplier')}
                 ${combo({ name: 'supplierId', value: p.supplierId, items: supplierItems(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', add: clos ? null : '+ Nouveau fournisseur', ro: clos })}
               </div>
@@ -17705,7 +17757,7 @@
     };
     function drawLines() {
       body.innerHTML = p.lines.map((l, i) => `<tr data-i="${i}">
-        <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation">${lotSaisie(l)}<div class="ligne-reperes"><span class="ok" data-stk="${i}"></span></div></td>
+        <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation">${lecture ? `<span class="ligne-lue">${h(l.label || '—')}</span>` : ''}${lotSaisie(l)}<div class="ligne-reperes"><span class="ok" data-stk="${i}"></span></div></td>
         <td><input type="text" inputmode="decimal" data-montant class="num${estMarque(i, 'qty') ? ' lu-douteux' : ''}" data-k="qty" value="${h(frChiffre(l.qty))}" autocomplete="off"></td>
         <td><input type="text" inputmode="decimal" data-montant class="num montant${estMarque(i, 'unitPrice') ? ' lu-douteux' : ''}" data-k="unitPrice" value="${h(frMontant(l.unitPrice, p.currency))}" autocomplete="off"></td>
         <td><select data-k="vatRate"${estMarque(i, 'vatRate') ? ' class="lu-douteux"' : ''}>${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
@@ -17714,9 +17766,9 @@
           ? `<input type="checkbox" data-k="deductible" ${l.deductible !== false ? 'checked' : ''}>`
           : `<input type="checkbox" disabled title="${h(`Ton régime (${C.regimeOf(company()).court.toLowerCase()}) ne récupère pas la TVA : elle fait partie du coût.`)}">`}</td>
         <td class="total" data-total="${i}"></td>
-        <td class="line-tools">${clos ? '' : `<button type="button" class="row-menu-btn btn ico" data-rowmenu="${i}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes de la ligne ${i + 1}">${lfIc('plus', 16)}</button>`}</td></tr>`).join('');
+        <td class="line-tools">${clos || lecture ? '' : `<button type="button" class="row-menu-btn btn ico" data-rowmenu="${i}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes de la ligne ${i + 1}">${lfIc('plus', 16)}</button>`}</td></tr>`).join('');
       // Une pièce d'un mois clôturé se lit : chaque case de ses lignes est éteinte.
-      if (clos) $$('input, select', body).forEach(el => { el.disabled = true; });
+      if (clos || lecture) $$('input, select', body).forEach(el => { el.disabled = true; });
       $$('[data-k]', body).forEach(el => {
         const ev = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'onchange' : 'oninput';
         el[ev] = () => {
@@ -17729,7 +17781,7 @@
       // La désignation propose le catalogue pendant la frappe (9.2.1) : voir `suggererCatalogue`.
       // L'article créé depuis la liste part en « suivi en stock » si la ligne est déjà en destination
       // stock — c'est pour ça qu'on la créait.
-      if (!clos) $$('input[data-k=label]', body).forEach(el => suggererCatalogue(el, {
+      if (!clos && !lecture) $$('input[data-k=label]', body).forEach(el => suggererCatalogue(el, {
         items: () => data.catalog,
         right: c => coutAffiche(c) + ' HT',
         onPick: c => poserArticle(Number(el.closest('tr').dataset.i), c),
@@ -17743,7 +17795,7 @@
       // Une ligne copiée n'a été reçue par aucune réception (brique 87) : sa marchandise entre en stock.
       // (1.155.12, maquette achat) Les gestes d'une ligne sous son « ⋯ ». Supprimer la dernière ligne y remet une ligne vide :
       // un bouton qui ne répond pas fait recommencer, puis douter — et on finit par tout retaper.
-      if (!clos) bindRowMenus(body, id => {
+      if (!clos && !lecture) bindRowMenus(body, id => {
         const i = Number(id); if (!p.lines[i]) return [];
         return [
           { icon: 'copier', label: 'Dupliquer la ligne', run: () => { p.lines.splice(i + 1, 0, C.copieLigneAchat(p.lines[i])); touch(); drawLines(); } },
@@ -17782,6 +17834,12 @@
     // Appliquer le régime du jour à une pièce saisie sous un autre : la phrase reste à sa place (elle
     // dit ce qui vient de changer) — une ligne qui disparaît sous le clic ferait remonter la page.
     if ($('#b-regle-ok')) $('#b-regle-ok').onclick = () => {
+      // (1.357.0) Depuis le résumé, rien n'est ouvert à modifier : le geste applique la règle et enregistre la pièce.
+      if (lecture) {
+        p.tvaRecuperable = C.assujettiTVA(company());
+        if (persist()) { toast(C.tvaRecuperable(p, company()) ? 'Le régime du jour s\'applique : sa TVA se récupère' : 'Le régime du jour s\'applique : sa TVA entre dans son coût'); render(true); }
+        return;
+      }
       $('#b-regle').style.minHeight = $('#b-regle').offsetHeight + 'px';
       p.tvaRecuperable = C.assujettiTVA(company());
       touch(); drawLines();
@@ -19345,7 +19403,7 @@
         bridge.messagerie.rangerAchat(r.message, p.id, libelle)
           .then(() => toast(`Enregistré, et rangé : ton cabinet le lit dans le fil (${libelle})`), e => toast(plainError(e), true));
       }
-      if (isNew) remplacerPage('#/achat/' + p.id); else render(true);
+      if (isNew || enModif) remplacerPage('#/achat/' + p.id); else render(true);
     };
     if ($('#pay')) $('#pay').onclick = () => supplierPaymentForm(purchaseById(p.id), () => render());
     if ($('#recu')) $('#recu').onclick = () => supplierPaymentForm(purchaseById(p.id), () => render(), null, true);
@@ -19418,6 +19476,10 @@
     };
     if ($('#more-btn')) $('#more-btn').onclick = e => { e.stopPropagation(); ouvrirGestesAchat(e.currentTarget); };
     if ($('#dup')) $('#dup').onclick = () => { untouch(); duplicatePurchase(purchaseById(p.id)); };
+    // (1.357.0) Le résumé et le formulaire sont la même pièce à deux adresses : passer de l'un à l'autre REMPLACE la page (le
+    // retour mène à la liste, jamais d'un état à l'autre), et le garde-fou demande avant de jeter une modification.
+    if ($('#ac-modifier')) $('#ac-modifier').onclick = () => remplacerPage('#/achat/' + p.id + '/modifier');
+    if ($('#ac-resume')) $('#ac-resume').onclick = () => remplacerPage('#/achat/' + p.id);
 
     if ($('#del')) $('#del').onclick = async () => {
       if (enLecture('purchases')) { toast(refusLecture('purchases', 'supprimé'), true); return; }

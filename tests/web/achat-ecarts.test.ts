@@ -102,7 +102,7 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
 
     // 1. La carte du fournisseur exonéré, et la retenue qui le dit.
     await p.reload(); await plusTard(p);
-    await p.evaluate(() => { location.hash = '#/achat/a0'; });
+    await p.evaluate(() => { location.hash = '#/achat/a0/modifier'; });
     await p.locator('#ac-sup .ed-cl-puces').waitFor({ timeout: 20_000 });
     await expect.poll(async () => net(await p.locator('#ac-sup .ed-cl-puces').innerText())).toBe(`ne lui dois rien paie à réception exonéré de retenue jusqu'au 31/12/${auj.slice(0, 4)} (attestation n° 2026-0318) factures électroniques : oui (El Fatoora)`);
     expect(net(await p.locator('#ac-puce-rs').innerText())).toMatch(/Retenue opérée .*· exonéré$/);
@@ -129,7 +129,7 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'achat-ecarts-1-reglements.png'), fullPage: true });
 
     // La devise et son taux dans une seule puce (« Devise Euro · 1 € = 3,398 DT »).
-    await p.evaluate(() => { location.hash = '#/achat/e1'; });
+    await p.evaluate(() => { location.hash = '#/achat/e1/modifier'; });
     await expect.poll(() => p.locator('#ac-puce-dev select[name=currency]').inputValue().catch(() => ''), { timeout: 20_000 }).toBe('EUR');
     expect(net(await p.locator('#ac-puce-dev .ac-taux').innerText())).toBe('· 1 € = DT i');
     expect(await p.locator('#ac-puce-dev input[name=exchangeRate]').inputValue()).toBe('3,398');
@@ -166,7 +166,7 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
 
     // 5. Un achat en devise sans taux de change est refusé, et le refus le dit (03/11/2026 : il levait « charte is not
     // defined », un nom de la page des factures, et rien ne s'affichait).
-    await p.evaluate(() => { location.hash = '#/achat/e1'; });
+    await p.evaluate(() => { location.hash = '#/achat/e1/modifier'; });
     await expect.poll(() => p.locator('#ac-puce-dev select[name=currency]').inputValue().catch(() => ''), { timeout: 20_000 }).toBe('EUR');
     await p.locator('#ac-puce-dev input[name=exchangeRate]').fill('');
     await p.locator('#save').click();
@@ -196,7 +196,7 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     // 1. ↶ : le numéro changé revient ; « Rétablir » le refait. Revenue à ce qui est enregistré, la pièce n'a plus rien à
     //    enregistrer (1.356.7 : la marque restait, et quitter posait la question) ; refaite, elle l'a de nouveau.
     await p.reload(); await plusTard(p);
-    await p.evaluate(() => { location.hash = '#/achat/a1'; });
+    await p.evaluate(() => { location.hash = '#/achat/a1/modifier'; });
     const numero = p.locator('#b-head input[name=number]');
     await numero.waitFor({ timeout: 20_000 });
     expect(await p.locator('#ac-annuler').isDisabled()).toBe(true);

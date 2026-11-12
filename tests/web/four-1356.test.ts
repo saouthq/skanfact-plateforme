@@ -111,7 +111,7 @@ describe('bout en bout 1.356.2 : le four de la boulangerie, payé à moitié, ju
     expect(net(await regle.locator('.ed-fr-txt > span').innerText())).toBe('10 710,000 sur 21 420,000 DT');
     // 3. Le prix d'un four se lit en entier dans sa case.
     const pu = p.locator('#b-lines input[data-k=unitPrice]').first();
-    expect(await pu.inputValue()).toMatch(/^18000/);
+    expect(await pu.inputValue()).toBe('18\u00a0000,000');
     expect(await pu.evaluate((x) => x.scrollWidth - x.clientWidth)).toBeLessThanOrEqual(0);
     await p.screenshot({ path: path.join(PHOTOS, 'four-1356-1-achat.png') });
     // 3 bis. La fenêtre de la seconde moitié : un montant ne se sépare pas de son mot (« · reste » finissait une ligne).

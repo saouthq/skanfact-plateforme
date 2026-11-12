@@ -178,8 +178,15 @@ describe('l\'inventaire d\'un dossier au Cabinet, et le pont (1.346.0)', () => {
     await fen.locator('#ok').click();
     await expect.poll(() => toast(c)).toBe('Inventaire enregistré.');
     await expect.poll(() => c.locator('#iv-ecrire').isEnabled(), { timeout: 15_000 }).toBe(true);
+    // (1.357.0) La relecture de l'inventaire après l'écriture est LENTE, comme sur une machine chargée (rouge GitHub de la
+    // 1.356.9, Node 24) : le message ne doit paraître qu'une fois l'onglet rechargé, sinon le clic qui suit ouvre une fenêtre
+    // construite sur l'inventaire d'avant, qui ignore la variation écrite.
+    await c.route((u) => /\/compta\/inventaires\/\d{4}$/.test(u.pathname), async (r) => {
+      if (r.request().method() === 'GET') await new Promise((ok) => setTimeout(ok, 2_500));
+      await r.continue();
+    });
     await c.locator('#iv-ecrire').click();
-    await expect.poll(() => toast(c)).toBe('Variation de stock passée en brouillard.');
+    await expect.poll(() => toast(c), { timeout: 15_000 }).toBe('Variation de stock passée en brouillard.');
 
     // F. La variation est écrite : refaire l'inventaire est refusé À L'OUVERTURE, avec le geste qui débloque (le moteur le dit).
     await expect.poll(() => c.locator('#iv-saisir').isVisible(), { timeout: 15_000 }).toBe(true);

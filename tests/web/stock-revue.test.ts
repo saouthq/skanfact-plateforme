@@ -110,7 +110,7 @@ describe('la revue du Stock', () => {
     expect(net(await p.locator('[data-combo=supplierId]').innerText())).toContain('Ciments du Nord');
     expect(await p.locator('#cf-lines input[data-k=label]').evaluateAll((x) => x.map((i) => (i as HTMLInputElement).value))).toEqual(['Ciment gris 50 kg']);
     expect(await p.locator('#cf-lines input[data-k=qty]').inputValue()).toBe('32');
-    expect(Number(await p.locator('#cf-lines input[data-k=unitPrice]').inputValue())).toBe(17.5);
+    expect(await p.locator('#cf-lines input[data-k=unitPrice]').inputValue()).toBe('17,500');
     expect(await surLeServeur('supplierOrders')).toEqual([]);
 
     // La fiche du ciment : chemin, quatre chiffres, d'où il vient, combien il se vend ; l'étape suivante est de commander.

@@ -85,7 +85,8 @@ describe('1.356.9 : les cases chiffrées s\'écrivent en français, même sur un
     expect(await p.evaluate(() => navigator.language)).toBe('en-US');
 
     // 1. La facture d'achat : le prix d'une ligne, sa quantité et le timbre s'écrivent comme sur la pièce.
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/a-1`);
+    // (1.357.0) Une pièce enregistrée s'ouvre en résumé : son formulaire est à « Modifier la pièce ».
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/a-1/modifier`);
     const pu = p.locator('#b-lines input[data-k=unitPrice]').first(), qte = p.locator('#b-lines input[data-k=qty]').first();
     await pu.waitFor({ timeout: 20_000 });
     await plusTard(p);

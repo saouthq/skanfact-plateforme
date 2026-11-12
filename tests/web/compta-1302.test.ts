@@ -240,6 +240,8 @@ describe('la Comptabilité 1.302.0 : la DA des onglets, la pièce dans une péri
     await p.locator('#ed-geste').waitFor({ timeout: 15_000 });
     await p.waitForTimeout(600);
     expect(await p.locator('#ac-cab-valide').isVisible()).toBe(false);
+    // (1.357.0) Enregistrée, elle se lit en résumé : on la touche par « Modifier la pièce ».
+    await p.locator('#ac-modifier').click();
     await p.locator('#view input[name=number]').fill('EC-4402 bis');
     await expect.poll(async () => p.locator('#ac-cab-valide').isVisible(), { timeout: 5_000 }).toBe(true);
 

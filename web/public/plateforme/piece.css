@@ -200,6 +200,16 @@
 .editor.charte.lecture #f-head { border-top: 1px dashed var(--sb-trait); }
 .editor.charte.lecture #f-head > :not(.ed-options), .editor.charte.lecture .ed-options > :not(#ed-affaire) { display: none; }
 .editor.charte.lecture #f-head > #ed-options { display: grid; padding-top: 12px; }
+/* (1.357.0) La pièce d'achat enregistrée se lit aussi : la carte du fournisseur, son résumé, ses lignes éteintes. « Modifier la
+   pièce » rouvre le formulaire. */
+.buy-editor.lecture #b-head > :not(#ac-sup):not(.lecture-piece), .buy-editor.lecture .ac-objet-notes { display: none; }
+.buy-editor.lecture #b-head > .lecture-piece { border-top: 1px dashed var(--sb-trait); margin-top: 12px; padding-top: 8px; }
+.buy-editor.lecture #b-head > #ac-sup[hidden] + .lecture-piece { border-top: 0; margin-top: 0; padding-top: 0; }
+/* « Montant payé (TTC) » d'une dépense : la devise à côté de la case, jamais dessous (vu en jouant la 1.357.0). */
+.buy-editor .ac-ttc-m { display: flex; align-items: center; gap: 6px; }
+.buy-editor .ac-ttc-m > input { flex: 1; min-width: 0; }
+/* Ses lignes se lisent comme du texte : une case éteinte perd son cadre et son fond (la vente pose une vue par-dessus, 1.155.3). */
+.buy-editor.lecture #b-lines td > input:not([type=checkbox]):disabled, .buy-editor.lecture #b-lines td > select:disabled { background: transparent; border-color: transparent; box-shadow: none; color: var(--sb-encre); -webkit-text-fill-color: var(--sb-encre); opacity: 1; appearance: none; }
 .editor.charte td:has(> .ligne-lue) > input[data-k=label] { display: none; }
 .editor.charte td > .ligne-lue { display: block; padding: 6px 4px; font-weight: 600; font-size: 14.5px; color: var(--sb-encre); overflow-wrap: anywhere; }
 .editor.charte #pay-panel .pay-grid { gap: 10px; }
