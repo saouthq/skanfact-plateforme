@@ -3085,3 +3085,28 @@ Bout en bout 12, joué à la souris par la boulangerie : deux bons de livraison 
   deux bons du client et pas celui d'un autre client ni le bon déjà facturé, la fenêtre sans colonne vide et son montant à
   payer, la facture de deux bons, la liste et le bon facturé qui le disent), `livraisons` (la fenêtre dit aussi ce que le
   client paiera : 9 267,381, le chiffre que l'émission rend ensuite). Treize preuves.
+
+### 1.357.4 : le relevé BIAT de novembre, du solde de départ corrigé à l'état envoyé au comptable
+
+Bout en bout 13, joué à la souris par la boulangerie : le compte BIAT créé sans solde de départ (0 au 11/11, la banque
+disait 48 250), treize mouvements pointés un à un sur le relevé, le solde du relevé saisi (25 403,573), l'écart cherché
+puis trouvé (le solde de départ), l'état envoyé au comptable ; puis le Cabinet.
+- Le solde de départ se LIT dans « Ton relevé face à SkanFact », et l'écart de 48 250 venait de lui. Pour le corriger, il
+  fallait repartir dans « Où j'en suis › Actions › Modifier le compte ». « corriger » est sous le chiffre ; la fiche du
+  compte s'ouvre le curseur dans la case et la valeur sélectionnée (la première frappe la remplace, 9.4.5) — au clavier
+  aussi : au clic, la règle générale des montants sélectionnait déjà (le clic est une entrée de la personne), mais Entrée
+  sur « corriger » laissait le curseur derrière « 0,000 » et « 48250 » s'y ajoutait. Et la page
+  ENTIÈRE se redessine : mon premier jet ne redessinait que le rapprochement, et le disponible du haut, la prévision et le
+  bandeau « sous zéro » gardaient l'ancien solde (vu à la souris : « Disponible − 22 393 » en rouge à côté d'un écart nul).
+- « Envoyer l'état au comptable » écrivait « L'état de rapprochement est dans SkanFact (Trésorerie, Rapprochement) » : un
+  écran que le comptable n'a pas (sa Banque travaille sur les relevés qu'il importe). Le message PORTE l'état : les
+  mouvements pas encore passés à la banque, un par ligne et par date (dix au plus, puis « … et N autres »), puis le solde
+  de SkanFact et son calcul — « 48 250,000 DT (= 48 800,000 DT + 300,000 DT − 850,000 DT) », l'écart en plus quand il en
+  reste un. Le comptable le refait de tête. Ses lignes arrivent telles quelles dans les Messages du Cabinet.
+- Au Cabinet (deux chemins, un chiffre) : le solde de départ arrive au brouillard (1.356.0), 532 au débit contre le compte
+  d'attente 471, au montant CORRIGÉ — 48 250,000, la correction a remplacé l'écriture d'avant. C'est le comptable qui décide
+  ce que l'attente représente (apport, retrait de caisse, solde déjà repris).
+- Tests : `tresorerie-1357` (neuf : le message avec l'écart, « corriger » qui sélectionne la valeur, le disponible qui
+  suit, ouvert au clavier, le message sans écart et ses deux mouvements en attente, le même texte au Cabinet, l'écriture
+  d'ouverture à 48 000 puis à 48 250), `pont-remise-1299` (le message d'un relevé tout pointé finit sur « Solde dans
+  SkanFact : 3 477,482 DT. »). Huit preuves.

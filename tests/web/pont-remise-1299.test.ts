@@ -120,7 +120,7 @@ describe('le pont de la trésorerie 1.299.0 : la remise de chèques, de l\'entre
     await e.getByRole('button', { name: 'Envoyer', exact: true }).click();
     // Le message arrive dans la conversation du cabinet.
     await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, leila)).corps.messages as Obj[] ?? []).map((m) => net(String(m.texte))).find((t) => t.includes('rapproché le compte')),
-      { timeout: 15_000 }).toMatch(/solde du relevé 3 477,482 DT, aucun écart\. L'état de rapprochement est dans SkanFact/);
+      { timeout: 15_000 }).toMatch(/solde du relevé 3 477,482 DT, aucun écart\. Solde dans SkanFact : 3 477,482 DT\.$/);
 
     // ── Ce que le pont a écrit au livre du cabinet : trois encaissements au 532, et les frais au 627.
     type Ligne = { compte: string; debit: string; credit: string };

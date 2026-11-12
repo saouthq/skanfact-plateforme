@@ -28418,6 +28418,31 @@ prouver 'tournée 1.357.3 l : la puce Statut d'\''un bon facturé dit « Signé 
 prouver 'tournée 1.357.3 m : la case Statut d'\''un bon facturé dit « Signé »' 'modules/socle/ecrans/entreprise/app-1.js' \
   '${isDelivery && stored && st === doc.status && etatAffichePiece(stored) === '\''facturé'\'' ? '\'' · facturé'\'' : '\'''\''}' '' \
   "$BLT"
+RLV="la boulangerie corrige son solde de départ sous le chiffre, envoie l'état, et le Cabinet a le même solde"
+prouver 'relevé 1.357.4 a : pas de « corriger » sous le solde de départ' 'modules/socle/ecrans/entreprise/app-2.js' \
+  ' · <button type="button" class="btn-lien" id="t-depart">corriger</button></small>' '</small>' \
+  "$RLV"
+prouver 'relevé 1.357.4 b : la correction ne redessine que le rapprochement (le disponible reste l'\''ancien)' 'modules/socle/ecrans/entreprise/app-2.js' \
+  'accountForm(data.accounts.find(a => a.id === accId), () => render(true), null, { focus: '\''opening'\'' });' 'accountForm(data.accounts.find(a => a.id === accId), () => draw(), null, { focus: '\''opening'\'' });' \
+  "$RLV"
+prouver 'relevé 1.357.4 c : la case visée prend le curseur sans que sa valeur soit sélectionnée' 'modules/socle/ecrans/entreprise/app-2.js' \
+  'if (c) { c.focus(); try { c.select(); } catch (_) { /* une case sans sélection */ } } }' 'if (c) c.focus(); }' \
+  "$RLV"
+prouver 'relevé 1.357.4 d : le message renvoie à un écran que le comptable n'\''a pas' 'modules/socle/ecrans/entreprise/app-2.js' \
+  'aucun écart.${detail}`' 'aucun écart.${detail} L'\''état de rapprochement est dans SkanFact (Trésorerie, Rapprochement).`' \
+  "$RLV"
+prouver 'relevé 1.357.4 e : les mouvements pas encore passés ne sont pas listés' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '${enCours.slice(0, 10).map(ligneEnCours).join('\''\n'\'')}' '' \
+  "$RLV"
+prouver 'relevé 1.357.4 f : le calcul du solde oublie l'\''écart' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '${Math.abs(et.ecart) < 0.0005 ? '\'''\'' : ` + écart ${moneySigne(et.ecart, cur)}`}' '' \
+  "$RLV"
+prouver 'relevé 1.357.4 g : les mouvements en attente ne sont pas dans l'\''ordre des dates' 'modules/socle/ecrans/entreprise/app-2.js' \
+  'const enCours = et.entrees.concat(et.sorties).sort((a, b) => (a.date || '\'''\'').localeCompare(b.date || '\'''\''));' 'const enCours = et.entrees.concat(et.sorties);' \
+  "$RLV"
+prouver 'relevé 1.357.4 h : l'\''écart ne demande plus d'\''aide' 'modules/socle/ecrans/entreprise/app-2.js' \
+  '${detail}\nPeux-tu m'\''aider à le trouver ?`' '${detail}`' \
+  "$RLV"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

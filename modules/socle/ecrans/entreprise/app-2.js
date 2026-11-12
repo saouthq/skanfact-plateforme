@@ -3122,7 +3122,8 @@
       (root, close) => {
         if (depuisFiche) { const o = $('[name=opening]', root); o.focus(); o.select(); }
         // (plateforme) 1.74.0 — ouverte pour UNE case (le RIB que l'ordre de virement réclame), elle y met le curseur.
-        if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, root); if (c) c.focus(); }
+        // La valeur de la case visée se sélectionne : la première frappe la remplace (9.4.5), comme depuis la fiche société.
+        if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, root); if (c) { c.focus(); try { c.select(); } catch (_) { /* une case sans sélection */ } } }
         $('#ok', root).onclick = () => {
           const v = formValues($('#af', root));
           if (!v.name.trim()) return refus($('[name=name]', root), 'Donne un nom à ce compte.');
@@ -3764,7 +3765,7 @@
         </div>
         <section class="tr-sec"><h3 class="tr-h">Ton relevé face à SkanFact ${info('tre.gap')}</h3>
           <div class="tr-reco" id="t-reco">
-            <div><span>Solde de départ</span><b>${C.money(r.opening, cur)}</b><small>au ${C.fmtDate(r.openingDate || (data.accounts.find(a => a.id === accId) || {}).openingDate || '')}</small></div>
+            <div><span>Solde de départ</span><b>${C.money(r.opening, cur)}</b><small>au ${C.fmtDate(r.openingDate || (data.accounts.find(a => a.id === accId) || {}).openingDate || '')} · <button type="button" class="btn-lien" id="t-depart">corriger</button></small></div>
             <span class="tr-op" aria-hidden="true">+</span>
             <div><span>Mouvements pointés</span><b>${moneySigne(C.round3(r.pointed - r.opening), cur)}</b><small>${pl(pointes.length, 'mouvement')}</small></div>
             <span class="tr-op" aria-hidden="true">=</span>
@@ -3804,6 +3805,10 @@
         </section>` : ''}`;
       if ($('#t-vus')) $('#t-vus').onclick = () => { s.showPointed = !s.showPointed; draw(); };
       $('#t-acc2').onchange = e => { s.account = e.target.value; s.pending.page = 1; s.pointes.page = 1; draw(); };
+      // (1.357.4, bout en bout joué à la souris) Le solde de départ se lit ici, face au relevé : c'est ici qu'on le corrige
+      // quand le relevé dit autre chose. Il fallait repartir dans « Où j'en suis › Actions › Modifier le compte ».
+      // La page ENTIÈRE se redessine : le disponible, la prévision et le bandeau « sous zéro » en dépendent aussi.
+      $('#t-depart').onclick = () => accountForm(data.accounts.find(a => a.id === accId), () => render(true), null, { focus: 'opening' });
       if ($('#t-pend')) bindPager($('#t-pend'), s.pending, () => draw(), '#t-pend');
       if ($('#t-vus-l')) bindPager($('#t-vus-l'), s.pointes, () => draw(), '#t-vus-l');
       // (1.298.0, revue de la Trésorerie) Le rapprochement fini est ce que le comptable joint au dossier ; un écart qu'on ne
@@ -3811,11 +3816,19 @@
       if ($('#t-etat-compta')) $('#t-etat-compta').onclick = () => {
         const et = C.etatRapprochement(data, company(), accId, C.today());
         const acc = data.accounts.find(a => a.id === accId) || {};
-        const enCours = et.entrees.length + et.sorties.length;
-        const suite = enCours ? ` ${pl(enCours, 'mouvement enregistré', 'mouvements enregistrés')} ne ${enCours > 1 ? 'sont' : 'est'} pas encore ${enCours > 1 ? 'passés' : 'passé'} à la banque.` : '';
+        // (1.357.4, bout en bout joué à la souris) Le message PORTE l'état : il disait « L'état de rapprochement est dans
+        // SkanFact (Trésorerie, Rapprochement) », un écran que le comptable n'a pas — sa Banque travaille sur les relevés
+        // importés. Les mouvements pas encore passés à la banque, un par ligne (dix au plus), puis le solde de SkanFact et
+        // son calcul : le comptable le refait de tête.
+        const enCours = et.entrees.concat(et.sorties).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        const ligneEnCours = m => `- ${C.fmtDate(m.date)} · ${[m.label, m.party, m.reference].filter(Boolean).join(' · ')} : ${moneySigne(m.amount, cur)}`;
+        const detail = enCours.length
+          ? `\n${enCours.length > 1 ? 'Pas encore passés à la banque' : 'Pas encore passé à la banque'} :\n${enCours.slice(0, 10).map(ligneEnCours).join('\n')}${enCours.length > 10 ? `\n… et ${pl(enCours.length - 10, 'autre mouvement', 'autres mouvements')}.` : ''}`
+            + `\nSolde dans SkanFact : ${C.money(et.balance, cur)} (= ${C.money(et.statement, cur)}${et.totalEntrees ? ` + ${C.money(et.totalEntrees, cur)}` : ''}${et.totalSorties ? ` − ${C.money(et.totalSorties, cur)}` : ''}${Math.abs(et.ecart) < 0.0005 ? '' : ` + écart ${moneySigne(et.ecart, cur)}`}).`
+          : `\nSolde dans SkanFact : ${C.money(et.balance, cur)}.`;
         ecrireAuComptable(Math.abs(et.ecart) < 0.0005
-          ? `Bonjour, j'ai rapproché le compte « ${acc.name} » de son relevé au ${C.fmtDate(C.today())} : solde du relevé ${C.money(et.statement, cur)}, aucun écart.${suite} L'état de rapprochement est dans SkanFact (Trésorerie, Rapprochement).`
-          : `Bonjour, je rapproche le compte « ${acc.name} » de son relevé au ${C.fmtDate(C.today())} et il reste un écart de ${C.money(Math.abs(et.ecart), cur)} (${et.ecart > 0 ? 'SkanFact compte plus que la banque' : 'la banque compte plus que SkanFact'}).${suite} Peux-tu m'aider à le trouver ? L'état est dans SkanFact (Trésorerie, Rapprochement).`);
+          ? `Bonjour, j'ai rapproché le compte « ${acc.name} » de son relevé au ${C.fmtDate(C.today())} : solde du relevé ${C.money(et.statement, cur)}, aucun écart.${detail}`
+          : `Bonjour, je rapproche le compte « ${acc.name} » de son relevé au ${C.fmtDate(C.today())} et il reste un écart de ${C.money(Math.abs(et.ecart), cur)} (${et.ecart > 0 ? 'SkanFact compte plus que la banque' : 'la banque compte plus que SkanFact'}).${detail}\nPeux-tu m'aider à le trouver ?`);
       };
       if ($('#t-etat-csv')) $('#t-etat-csv').onclick = async () => {
         const et = C.etatRapprochement(data, company(), accId, C.today());
