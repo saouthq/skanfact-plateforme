@@ -3289,3 +3289,29 @@ pointer de mémoire.
   choisi (la messagerie).
 - À VÉRIFIER avec le comptable : la date limite de paiement (celle du dépôt, réglable dans le calendrier fiscal) et la façon de
   payer (recette des finances, télépaiement).
+
+### 1.358.0 : un achat payé de la poche du gérant (bout en bout 18)
+
+Joué à la souris dans l'environnement de test : la gérante de la pâtisserie achète des cartouches d'encre (59,500 DT TTC)
+avec sa carte PERSONNELLE. La dépense proposait « à la caisse », « par carte » et « pas encore » : « par carte » sortait les
+59,500 DT de la BIAT, qui ne les avait jamais payés, et l'entreprise ne disait nulle part qu'elle les devait à sa gérante. Le
+relevé ne tombait plus juste, et le compte courant de la gérante (4421) ne gardait aucune trace de ce qu'elle avait avancé.
+- **« de ta poche : l'entreprise te le doit »**, quatrième choix de « Payée » sur une dépense neuve. La dépense s'enregistre
+  réglée (« le 13/11 · de ta poche »), mais rien ne sort de la caisse ni de la banque.
+- **Le règlement d'une facture d'achat** propose « De ta poche » parmi les comptes — même quand l'entreprise n'a qu'une
+  banque, puisqu'il y a alors deux réponses à « d'où vient l'argent ? ». Le mode reste choisi (la carte, les espèces) ; le
+  tableau des règlements dit « Carte · De ta poche ».
+- **Le moteur** : un compte réservé (`POCHE`, `@poche`), qui n'est pas un compte de trésorerie. `cashMovements` l'ignore
+  (la Trésorerie, le rapprochement, la prévision ne le voient pas) ; `journalDeCompte` l'écrit en opérations diverses
+  contre le compte courant d'associé : D 401 / C 4421, « Règlement fournisseur … (avancé par le gérant) ». La règle du
+  solde de départ (1.357.7) ne s'y applique pas : la poche n'a pas de solde de départ.
+- **Ce que l'entreprise doit** : la Trésorerie, sous « À surveiller », dit « 160,650 DT avancés de ta poche — 2 achats
+  payés avec ton argent : l'entreprise te les doit » (`avancesDuGerant`), et « Te rembourser… » ouvre le mouvement
+  prérempli de la nature neuve **« Remboursement de mes avances »** (D 4421 / C la banque). La ligne disparaît quand tout
+  est rendu ; un remboursement partiel se dit (« 59,500 DT déjà rendus, l'entreprise te doit le reste »). Rembourser une
+  note de frais n'est pas un « Retrait ou dividende » : la nature a son nom.
+- **Le pont** : le serveur suit la même règle (`POCHE` dans `plan.ts`, la nature `avances` dans `mouvements.ts`, le
+  libellé `reglement_fournisseur_poche`) ; au brouillard du Cabinet, l'avance arrive au journal OD, le remboursement au
+  journal de banque, aux mêmes comptes et montants que dans l'application (deux chemins, un chiffre).
+- À VÉRIFIER avec le comptable : un gérant qui n'est pas associé (salarié, gérant non associé d'une SARL) ne se range pas
+  au 4421 ; le comptable choisira un autre compte de tiers. La bulle le dit.

@@ -527,10 +527,18 @@
   // les comptes, le solde de départ, et les mouvements libres (salaires, impôts, apports, retraits).
 
   const ACCOUNT_KINDS = [['banque', 'Compte bancaire'], ['caisse', 'Caisse espèces'], ['autre', 'Autre']];
+  // (1.358.0, bout en bout 18) « De ma poche » : le règlement d'un achat payé avec l'argent PERSONNEL du gérant (sa carte,
+  // ses espèces). Ce n'est pas un compte de trésorerie : rien ne sort ni de la banque ni de la caisse. Le fournisseur est
+  // réglé, et l'entreprise doit la somme au gérant — au compte courant d'associé (4421), jusqu'à ce qu'elle le rembourse
+  // (la nature « Remboursement de mes avances »). Joué : la gérante d'une pâtisserie paie ses cartouches d'encre avec sa
+  // carte ; le seul choix proche, « par carte », sortait les 59,500 DT de la BIAT, qui ne les avait jamais payés.
+  // À VÉRIFIER avec le comptable : un gérant qui n'est pas associé se range à un autre compte (il le dira).
+  const POCHE = '@poche';
+  const estPoche = p => !!(p && p.accountId === POCHE);
   // Nature d'un mouvement saisi à la main — ce qui ne vient ni d'une facture ni d'un achat.
   const MOVE_KINDS = [
     ['salaire', 'Salaires et charges', -1], ['impot', 'Impôts et taxes', -1], ['banque', 'Frais bancaires', -1],
-    ['retrait', 'Retrait ou dividende', -1], ['emprunt', 'Échéance d\'emprunt', -1], ['autre-sortie', 'Autre sortie', -1],
+    ['retrait', 'Retrait ou dividende', -1], ['avances', 'Remboursement de mes avances', -1], ['emprunt', 'Échéance d\'emprunt', -1], ['autre-sortie', 'Autre sortie', -1],
     ['apport', 'Apport ou subvention', 1], ['pret', 'Déblocage de prêt', 1], ['autre-entree', 'Autre entrée', 1],
     ['virement', 'Virement entre mes comptes', -1]
   ];
@@ -616,6 +624,7 @@
   // la fenêtre qui le saisit et la liste qui le montre le DISENT par cette même règle. Le compte se résout comme partout :
   // celui qui est nommé, sinon `compteSansNom`. Rien (null) quand le flux tombe à son départ ou après.
   function compteAvantDepart(data, accountId, method, date) {
+    if (accountId === POCHE) return null;   // (1.358.0) la poche du gérant n'a pas de solde de départ
     const comptes = (data && data.accounts) || [];
     const compte = (accountId && comptes.find(a => a.id === accountId)) || compteSansNom(comptes, method);
     return date && compte && compte.openingDate && String(date) < String(compte.openingDate) ? compte : null;
@@ -645,6 +654,8 @@
       });
     }));
     (data.purchases || []).forEach(pu => (pu.payments || []).forEach(p => {
+      // (1.358.0) Payé de la poche du gérant : rien ne sort d'un compte de l'entreprise (`POCHE`).
+      if (estPoche(p)) return;
       if (!inPeriod(p.date, period && period.from, period && period.to) || !keep(p.accountId, p.method)) return;
       // Un règlement porté par un AVOIR est un remboursement : l'argent ENTRE (10.2.0) — le journal
       // (`supplierPayments`) le savait, la Trésorerie non : elle le sortait du compte, et la banque
@@ -1513,6 +1524,21 @@
   // (1.357.9, bout en bout 17) Le versement au Trésor de la TVA d'un mois, tel que l'entreprise l'a noté : les mouvements de
   // trésorerie qui portent ce mois (`tvaPeriode`, posé par « Noter le paiement… » de la Comptabilité). Plusieurs versements
   // s'additionnent (un reste payé plus tard) ; la date est celle du dernier. Rien noté : montant 0, aucun mouvement.
+  // (1.358.0, bout en bout 18) Ce que le gérant a avancé de sa poche (`POCHE`), en dinars, et ce que l'entreprise lui a déjà
+  // rendu (les mouvements « Remboursement de mes avances »). `reste` est ce qu'elle lui doit encore ; il ne descend jamais sous
+  // zéro (un remboursement plus grand que les avances est un retrait, dit ailleurs).
+  function avancesDuGerant(data, company) {
+    const avances = [];
+    (data.purchases || []).forEach(pu => (pu.payments || []).forEach(p => {
+      if (!estPoche(p)) return;
+      avances.push({ purchaseId: pu.id, paymentId: p.id, date: p.date || '', number: pu.number || '', supplierId: pu.supplierId || '',
+        amount: round3((pu.kind === 'avoir' ? -1 : 1) * montantRegle(pu, p, company)) });
+    }));
+    const avance = round3(avances.reduce((t, x) => t + x.amount, 0));
+    const remboursements = (data.movements || []).filter(m => m && m.kind === 'avances');
+    const rembourse = round3(remboursements.reduce((t, m) => t + Math.abs(Number(m.amount) || 0), 0));
+    return { avance, rembourse, reste: round3(Math.max(0, avance - rembourse)), avances, remboursements };
+  }
   function paiementTvaDe(data, periode) {
     const mvts = (data.movements || []).filter(m => m && m.tvaPeriode === periode && Number(m.amount) > 0)
       .slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
@@ -2365,7 +2391,7 @@
   // réglée en « impôt » va au 4365, pas au 434). Ce que personne ne sait ranger va au compte
   // d'attente : c'est le comptable qui ventile, et c'est écrit.
   const MOVE_ACCOUNTS = {
-    salaire: 'personnel', impot: 'impots', banque: 'fraisBancaires', retrait: 'associes', emprunt: 'emprunts',
+    salaire: 'personnel', impot: 'impots', banque: 'fraisBancaires', retrait: 'associes', avances: 'associes', emprunt: 'emprunts',
     'autre-sortie': 'attente', apport: 'associes', pret: 'emprunts', 'autre-entree': 'attente', virement: 'attente'
   };
   // Le RÔLE du compte d'un mouvement, sans contrepartie choisie (10.14.0). Un mouvement « Salaires »
@@ -2464,6 +2490,8 @@
   // défaut — le même argent ne peut pas être à la banque sur une page et en caisse sur l'autre.
   // Sans aucun compte de trésorerie, le mode de paiement décide.
   function journalDeCompte(data, acc, accountId, method, date) {
+    // (1.358.0) Payé de la poche du gérant : une opération diverse contre son compte courant (`POCHE`).
+    if (accountId === POCHE) return { journal: 'OD', compte: acc.associes, poche: true };
     const comptes = (data && data.accounts) || [];
     // (1.353.0) Sans compte nommé : `compteSansNom` — un virement ne tombe jamais dans une caisse par défaut.
     const compte = (accountId && comptes.find(a => a.id === accountId)) || compteSansNom(comptes, method);
@@ -2711,7 +2739,8 @@
         // (1.356.8) L'argent qui REVIENT d'un fournisseur (un avoir remboursé, une facture payée en trop) n'est pas un règlement :
         // le Cabinet lisait « Règlement fournisseur » sur un virement reçu, pendant que le moteur du serveur écrit « Remboursement »
         // (`compta.libelle.remboursement_fournisseur`). Le même mot des deux côtés.
-        const label = `${r.amount < 0 ? 'Remboursement' : 'Règlement fournisseur'} ${r.number || ''}${r.supplier ? ' — ' + r.supplier : ''}`;
+        // (1.358.0) Le même mot que le serveur (`compta.libelle.reglement_fournisseur_poche`) : le comptable lit qui a avancé.
+        const label = `${r.amount < 0 ? 'Remboursement' : 'Règlement fournisseur'} ${r.number || ''}${r.supplier ? ' — ' + r.supplier : ''}${j.poche ? ' (avancé par le gérant)' : ''}`;
         // Le fournisseur est soldé de ce qu'on lui verse ET de la retenue qu'on garde pour l'État :
         // c'est ici, au paiement, que la retenue à la source naît (10.14.0).
         e.debit(cptFourn(r.supplierId), label, round3(r.amountTiers + (r.rs || 0)), { role: 'fournisseurs' });
@@ -7752,7 +7781,7 @@
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
-    vatReturn, vatChain, declarationsDuCabinet, paiementTvaDe, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
+    vatReturn, vatChain, declarationsDuCabinet, paiementTvaDe, POCHE, estPoche, avancesDuGerant, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, interetsDeLEcheance, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, compteSansNom, compteAvantDepart, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,
     lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, avancementAffaire, etatDesChantiers, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,

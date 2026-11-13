@@ -21,7 +21,7 @@ import './textes.ts';
 // Les natures de la v10 (`MOVE_KINDS` et `MOVE_ACCOUNTS`, core.js) : le sens, et le rôle du compte de contrepartie.
 const NATURES: Record<string, { sens: 1 | -1; role: keyof Plan }> = {
   salaire: { sens: -1, role: 'personnel' }, impot: { sens: -1, role: 'impots' }, banque: { sens: -1, role: 'fraisBancaires' },
-  retrait: { sens: -1, role: 'associes' }, emprunt: { sens: -1, role: 'emprunts' }, 'autre-sortie': { sens: -1, role: 'attente' },
+  retrait: { sens: -1, role: 'associes' }, avances: { sens: -1, role: 'associes' }, emprunt: { sens: -1, role: 'emprunts' }, 'autre-sortie': { sens: -1, role: 'attente' },
   apport: { sens: 1, role: 'associes' }, pret: { sens: 1, role: 'emprunts' }, 'autre-entree': { sens: 1, role: 'attente' },
   virement: { sens: -1, role: 'attente' },
 };

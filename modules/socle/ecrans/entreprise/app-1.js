@@ -2114,7 +2114,14 @@
     return f && f.number && !['brouillon', 'annulée'].includes(effStatus(f)) ? 'facturé' : st;
   }
   function statusBadge(doc) { return badge(etatAffichePiece(doc), doc && doc.type); }
-  function methodLabel(m) { const x = C.PAYMENT_METHODS.find(p => p[0] === m); return x ? x[1] : (m || ''); }
+  // (1.358.0) « poche » n'est pas un mode de la liste : c'est un achat payé avec l'argent personnel du gérant (`C.POCHE`).
+  function methodLabel(m) { if (m === 'poche') return 'De ta poche'; const x = C.PAYMENT_METHODS.find(p => p[0] === m); return x ? x[1] : (m || ''); }
+  // Le mode d'un RÈGLEMENT d'achat : payé de la poche du gérant, on le dit d'abord (le mode seul, « Carte », faisait croire à
+  // la carte de l'entreprise), avec la carte ou les espèces quand on les connaît.
+  function modeReglement(r) {
+    if (!C.estPoche(r)) return methodLabel(r && r.method);
+    return r.method && r.method !== 'poche' && C.PAYMENT_METHODS.some(x => x[0] === r.method) ? `De ta poche · ${methodLabel(r.method).toLowerCase()}` : 'De ta poche';
+  }
   // Le compte d'un paiement qui n'en porte pas : c'est celui sur lequel `cashMovements` le fait
   // tomber (le compte par défaut). On l'écrit ainsi plutôt que de laisser la case vide — une case
   // vide laisserait croire que l'argent n'est nulle part.
@@ -2127,6 +2134,7 @@
   // dit) ; une pièce en devise garde son symbole, en petit (« 950,00 € »).
   function lfMontant(n, c) { const base = company().currency; const v = C.money(n, '', C.decimalsFor(c)).trim(); return C.normCurrency(c) === C.normCurrency(base) ? v : `${v} <small class="dv">${h(symboleDevise(c))}</small>`; }
   function accountLabel(id, method) {
+    if (id === C.POCHE) return 'De ta poche';
     const cptes = data.accounts || [];
     const a = cptes.find(x => x.id === id);
     if (a) return a.name || 'Compte';
@@ -10150,13 +10158,18 @@
   // n'existait pas. Sans compte, ou avec un seul, le champ ne sert à rien : on ne le montre pas.
   // (1.162.0, maquette « Enregistrer un paiement ») Le compte par défaut est celui qui est choisi d'avance : la liste ne
   // le redit pas (« (par défaut) » coupait le nom du compte dans sa case).
-  function accountFieldHtml(valeur) {
+  // (1.358.0, bout en bout 18) `opts.poche` : le règlement d'un ACHAT peut venir de la poche du gérant (`C.POCHE`) — le
+  // champ se montre alors même avec un seul compte, puisqu'il y a deux réponses à « d'où vient l'argent ? ».
+  function accountFieldHtml(valeur, opts) {
     const cptes = data.accounts || [];
-    if (cptes.length < 2) return '';
-    const defaut = (cptes.find(a => a.isDefault) || cptes[0]).id;
+    const poche = !!(opts && opts.poche);
+    if (cptes.length < 2 && !poche) return '';
+    const defaut = (cptes.find(a => a.isDefault) || cptes[0] || {}).id || '';
     const sel = valeur || defaut;
-    return `<label class="field">${lbl('Compte', 'treso.compteDuPaiement')}<select name="accountId">${cptes
-      .map(a => `<option value="${h(a.id)}" ${a.id === sel ? 'selected' : ''}>${h(a.name || 'Compte')}</option>`).join('')}</select></label>`;
+    const lesComptes = cptes.length ? cptes.map(a => `<option value="${h(a.id)}" ${a.id === sel ? 'selected' : ''}>${h(a.name || 'Compte')}</option>`).join('')
+      : '<option value="">La banque ou la caisse</option>';
+    return `<label class="field">${lbl('Compte', 'treso.compteDuPaiement')}<select name="accountId">${lesComptes}${poche
+      ? `<option value="${h(C.POCHE)}" ${sel === C.POCHE ? 'selected' : ''}>De ta poche : l'entreprise te le doit</option>` : ''}</select></label>`;
   }
   // (1.357.6, bout en bout 15) Le compte SUIT le mode tant qu'on ne l'a pas choisi à la main : des espèces vont dans la caisse,
   // une carte, un chèque ou un virement à la banque (`C.compteDuMode`, la règle de la caisse du comptoir). Vu à la souris :
@@ -15621,7 +15634,7 @@
       const rs = C.round3(reglements.reduce((t, x) => t + C.toBase(x.p, rsDe(x), co), 0));
       return `<div class="cf-o-t"><span class="mu">${pl(reglements.length, 'règlement')} · ${mo(total)} versés${rs > 0.0005 ? ` · ${mo(rs)} gardés pour l'État (retenue à la source)` : ''}</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Payé le</th><th>Sur</th><th>Moyen</th><th class="r">Versé</th><th class="r">Retenue gardée</th></tr></thead><tbody>
-        ${(fpReglements = feuilletFiche(s.id, 'reglements', reglements)).rows.map(x => `<tr class="clic" data-achat="${h(x.p.id)}"><td class="nw">${C.fmtDate(x.r.date)}</td><td><b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>${contenuAchat(x.p) || x.p.subject ? `<small>${h(contenuAchat(x.p) || x.p.subject)}</small>` : ''}</td><td>${h(methodLabel(x.r.method))}${x.r.reference ? `<small>${h(x.r.reference)}</small>` : ''}</td><td class="r">${C.money(Number(x.r.amount) || 0, x.p.currency || cur)}</td><td class="r">${rsDe(x) > 0.0005 ? C.money(rsDe(x), x.p.currency || cur) : '<span class="mu">—</span>'}</td></tr>`).join('')}
+        ${(fpReglements = feuilletFiche(s.id, 'reglements', reglements)).rows.map(x => `<tr class="clic" data-achat="${h(x.p.id)}"><td class="nw">${C.fmtDate(x.r.date)}</td><td><b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>${contenuAchat(x.p) || x.p.subject ? `<small>${h(contenuAchat(x.p) || x.p.subject)}</small>` : ''}</td><td>${h(modeReglement(x.r))}${x.r.reference ? `<small>${h(x.r.reference)}</small>` : ''}</td><td class="r">${C.money(Number(x.r.amount) || 0, x.p.currency || cur)}</td><td class="r">${rsDe(x) > 0.0005 ? C.money(rsDe(x), x.p.currency || cur) : '<span class="mu">—</span>'}</td></tr>`).join('')}
         </tbody></table></div>${fpReglements.pied('règlement')}
         <p class="cf-pied">${lfIc('aide', 13)} Un règlement s'enregistre sur la pièce qu'il paie. Un virement qui en paie plusieurs se règle d'un coup : choisis-les dans la liste des achats, puis « Régler ensemble ».</p>`;
     }
@@ -15653,7 +15666,7 @@
     // Le fil de la relation : ses dernières pièces, tes règlements, tes commandes, du plus récent au plus ancien.
     // Chaque événement porte son icône et son ton : un avoir en rouge, un règlement en vert.
     const fil = [...mine.map(p => [p.date, `${p.kind === 'avoir' ? 'Avoir' : p.kind === 'depense' ? 'Dépense' : p.kind === 'acompte' ? 'Acompte' : 'Facture'} <b>${h(p.number || C.referenceAchat(p, data))}</b> reçue`, `${h(contenuAchat(p))}${contenuAchat(p) ? ' · ' : ''}${p.kind === 'avoir' ? '− ' : ''}${C.money(Math.abs(C.purchaseTotals(p, co).netToPay), p.currency || cur)}`, p.kind === 'avoir' ? 'annuler' : 'piece', p.kind === 'avoir' ? 'r' : '']),
-      ...reglements.map(x => [x.r.date, `Réglé <b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>`, `${C.money(Number(x.r.amount) || 0, x.p.currency || cur)} par ${h(methodLabel(x.r.method).toLowerCase())}${rsDe(x) > 0.0005 ? ` · ${C.money(rsDe(x), x.p.currency || cur)} gardés pour l'État` : ''}`, 'carte', 'ok']),
+      ...reglements.map(x => [x.r.date, `Réglé <b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>`, `${C.money(Number(x.r.amount) || 0, x.p.currency || cur)} ${C.estPoche(x.r) ? h(modeReglement(x.r).toLowerCase()) : `par ${h(methodLabel(x.r.method).toLowerCase())}`}${rsDe(x) > 0.0005 ? ` · ${C.money(rsDe(x), x.p.currency || cur)} gardés pour l'État` : ''}`, 'carte', 'ok']),
       ...commandes.filter(o => o.number).map(o => [o.date, `${o.status === 'demande' ? 'Demande de prix' : 'Commande'} <b>${h(o.number)}</b>${o.status === 'brouillon' ? '' : ' envoyée'}`, h(o.reference || ''), 'pages', ''])]
       .filter(x => x[0]).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);
     const filHtml = fil.length ? `<div class="cf-carte cf-bloc ff-fil"><div class="cf-bloc-t"><b>Le fil</b><span class="mu">du plus récent au plus ancien</span></div>
@@ -16994,7 +17007,7 @@
     if (pur.createdAt) ev.push([jour(pur.createdAt), 'Saisie', `${natureAchat(pur.kind)} enregistrée`]);
     (Array.isArray(pur.receptions) ? pur.receptions : []).forEach(r => ev.push([r.date || pur.date, 'Réception', `rattachée : ${h(r.number || 'sans numéro')}`]));
     (pur.attachments || []).forEach(a => ev.push([a.date || pur.date, 'Justificatif', `${h(a.name || a.file)} joint`]));
-    (pur.payments || []).forEach(x => ev.push([x.date, C.estRemboursementAchat(pur, x) ? 'Remboursement' : 'Règlement', `${C.money(Math.abs(Number(x.amount) || 0), cur)} · ${h(methodLabel(x.method))}${x.reference ? ` · ${h(x.reference)}` : ''}`]));
+    (pur.payments || []).forEach(x => ev.push([x.date, C.estRemboursementAchat(pur, x) ? 'Remboursement' : 'Règlement', `${C.money(Math.abs(Number(x.amount) || 0), cur)} · ${h(modeReglement(x))}${x.reference ? ` · ${h(x.reference)}` : ''}`]));
     data.purchases.filter(x => x.achatLie === pur.id).forEach(x => ev.push([x.date, x.kind === 'avoir' ? 'Avoir' : 'Acompte', `${h(x.number || 'sans numéro')} · ${C.money(C.purchaseTotals(x, company()).netToPay, x.currency || cur)}`]));
     ev.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
     modal(`<h2>Historique · ${h(pur.number || C.referenceAchat(pur, data))}</h2>
@@ -17045,7 +17058,7 @@
       <form id="spf" class="pf-charte" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field obligatoire">${lbl(rend ? 'Montant reçu' : 'Montant payé', 'buy.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label>
           ${r0 ? '' : '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>'}</div>
-        <div class="pf-deux">${dateFieldHtml(lbl(rend ? 'Date du remboursement' : 'Date', 'buy.payDate'), 'date', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || '' : '')}</div>
+        <div class="pf-deux">${dateFieldHtml(lbl(rend ? 'Date du remboursement' : 'Date', 'buy.payDate'), 'date', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || '' : '', { poche: !rend })}</div>
         ${champTauxReglement(p, r0, 'buy.payRate')}
         <div class="choix-t pf-modes" role="group" aria-label="Mode de règlement">${C.PAYMENT_METHODS.map(([v, l]) => `<button type="button" data-mode="${h(v)}" class="${v === modeur ? 'on' : ''}">${h(l)}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
@@ -17474,7 +17487,7 @@
     let payeeDep = payeeInit;
     const payeeLue = () => {
       const r = ((stored && stored.payments) || []).slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || ''))).pop();
-      return r ? `le ${lfJm(r.date)} · ${r.method === 'especes' ? 'à la caisse' : methodLabel(r.method).toLowerCase()}` : 'pas encore : à régler';
+      return r ? `le ${lfJm(r.date)} · ${C.estPoche(r) ? 'de ta poche' : r.method === 'especes' ? 'à la caisse' : methodLabel(r.method).toLowerCase()}` : 'pas encore : à régler';
     };
     // (1.357.6, bout en bout 15) Le total d'une dépense ne dit « Payé » que si elle l'est : son règlement supprimé, la carte
     // affichait encore « Payé 6,000 DT » au-dessus de l'étape « reste 6,000 DT ». Rangée, on lit ce qui reste ; neuve, le choix « Payée ».
@@ -17704,7 +17717,7 @@
         { t: av ? 'Reçu' : p.kind === 'depense' ? 'Faite' : 'Reçue', fait: true, d: [lfJm(p.date), p.kind === 'depense' && String(p.subject || '').trim() ? h(p.subject) : venue].filter(Boolean).join(' · ') },
         { t: av ? 'Saisi' : 'Saisie', fait: true, d: [saisieLe || (av ? 'enregistré' : 'enregistrée'), par ? `par ${h(par)}` : ''].filter(Boolean).join(' · ') },
         { t: 'Justificatif', fait: pj > 0 || !!stored.justifCabinet, ko: !pj && !stored.justifCabinet, d: pj ? quelJustif : stored.justifCabinet ? `joint par ${stored.justifCabinet.cabinet}` : 'manque', g: pj || stored.justifCabinet || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
-        av ? quatrieme : { t: enPartie ? 'Réglée en partie' : 'Réglée', fait: !!regle, ko: !!enRetard, partiel: enPartie && !enRetard, afaire: !regle && !enRetard && !enPartie, d: regle ? (dernierReglement ? `${lfJm(dernierReglement.date)} · ${methodLabel(dernierReglement.method).toLowerCase()}` : 'plus rien n\'est dû') : enRetard ? `échue le ${lfJm(p.dueDate)}${enPartie ? ` · reste ${C.money(solde.remaining, cur)}` : ''}` : enPartie ? (solde.paid > 0.0005 ? `${C.money(solde.paid, null, C.decimalsFor(cur))} sur ${C.money(C.round3(solde.remaining + solde.paid), cur)}` : `reste ${C.money(solde.remaining, cur)}`) : p.dueDate ? `échéance ${lfJm(p.dueDate)}` : `reste ${C.money(solde ? solde.remaining : 0, cur)}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
+        av ? quatrieme : { t: enPartie ? 'Réglée en partie' : 'Réglée', fait: !!regle, ko: !!enRetard, partiel: enPartie && !enRetard, afaire: !regle && !enRetard && !enPartie, d: regle ? (dernierReglement ? `${lfJm(dernierReglement.date)} · ${modeReglement(dernierReglement).toLowerCase()}` : 'plus rien n\'est dû') : enRetard ? `échue le ${lfJm(p.dueDate)}${enPartie ? ` · reste ${C.money(solde.remaining, cur)}` : ''}` : enPartie ? (solde.paid > 0.0005 ? `${C.money(solde.paid, null, C.decimalsFor(cur))} sur ${C.money(C.round3(solde.remaining + solde.paid), cur)}` : `reste ${C.money(solde.remaining, cur)}`) : p.dueDate ? `échéance ${lfJm(p.dueDate)}` : `reste ${C.money(solde ? solde.remaining : 0, cur)}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
         ...(avecCabinet() ? [{ t: 'Au cabinet', fait: false, d: `<span id="ed-fr-cabinet">${av ? 'quand il le verra' : !pj ? (p.kind === 'depense' ? 'attend le ticket' : 'attend le justificatif') : 'quand il la validera'}</span>`, id: 'ed-fr-cab' }] : []),
       ]);
     };
@@ -17797,7 +17810,7 @@
                 ${field(lbl(`<span id="b-num-lbl">${h(motsDePiece(p.kind).numero)}</span>`, 'buy.number'), 'number', p.number || '', 'text', `placeholder="${h(motsDePiece(p.kind).invite)}"`)}
                 ${dateFieldHtml(lbl('Date de la pièce', 'buy.date'), 'date', p.date, { ro: clos })}
                 <div class="field ac-ech">${lbl('Échéance', 'buy.due')}${dateInput('dueDate', p.dueDate || '', { quick: true, ro: clos })}<small class="ac-ech-note" id="ac-ech-note" aria-live="polite"></small></div>
-                <div class="field" id="ac-dep-paye-f"${isDep ? '' : ' hidden'}>${lbl('Payée', 'buy.depPaye')}${stored ? `<span class="ac-dep-paye-lu" id="ac-dep-paye-lu">${h(payeeLue())}</span>` : `<select id="ac-dep-paye"${clos ? ' disabled' : ''}>${[['especes', 'à la caisse, le jour même'], ['carte', 'par carte, le jour même'], ['', 'pas encore : à régler plus tard']].map(([v, l]) => `<option value="${v}"${v === payeeDep ? ' selected' : ''}>${l}</option>`).join('')}</select>`}</div>
+                <div class="field" id="ac-dep-paye-f"${isDep ? '' : ' hidden'}>${lbl('Payée', 'buy.depPaye')}${stored ? `<span class="ac-dep-paye-lu" id="ac-dep-paye-lu">${h(payeeLue())}</span>` : `<select id="ac-dep-paye"${clos ? ' disabled' : ''}>${[['especes', 'à la caisse, le jour même'], ['carte', 'par carte, le jour même'], ['poche', 'de ta poche : l\'entreprise te le doit'], ['', 'pas encore : à régler plus tard']].map(([v, l]) => `<option value="${v}"${v === payeeDep ? ' selected' : ''}>${l}</option>`).join('')}</select>`}</div>
                 <div class="field" id="b-lie-field" ${C.PURCHASE_LIES.includes(p.kind) ? '' : 'hidden'}>${lbl('Facture concernée', 'buy.lie')}
                 ${combo({ name: 'achatLie', value: p.achatLie || '', items: lieItems(p.supplierId), placeholder: phLie, search: 'Rechercher : n°, objet…', ro: clos })}
                 </div>
@@ -19643,7 +19656,8 @@
       // le règlement tombait sur le compte par défaut — la BIAT — et le tiroir comme le relevé comptaient faux (`C.compteDuMode`).
       const duJour = idx < 0 && p.kind === 'depense' && payeeDep ? C.purchaseTotals(clean, company()).netToPay : 0;
       if (duJour > 0.0005) {
-        const r = { id: C.uid(), date: clean.date, amount: duJour, method: payeeDep, accountId: C.compteDuMode(data, payeeDep) || '', reference: String(clean.number || '').trim(), note: 'payée le jour même' };
+        // (1.358.0) « de ta poche » : ni la caisse ni la banque — l'entreprise le doit au gérant (`C.POCHE`).
+        const r = { id: C.uid(), date: clean.date, amount: duJour, method: payeeDep, accountId: payeeDep === 'poche' ? C.POCHE : (C.compteDuMode(data, payeeDep) || ''), reference: String(clean.number || '').trim(), note: payeeDep === 'poche' ? 'payée de ta poche' : 'payée le jour même' };
         if ((clean.currency || company().currency) !== company().currency) r.exchangeRate = Number(clean.exchangeRate) || 0;
         clean.payments = (clean.payments || []).concat([r]);
       }

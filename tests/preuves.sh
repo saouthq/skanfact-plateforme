@@ -28649,6 +28649,50 @@ prouver 'L11 1.357.9 b : la feuille de la caisse repart avec la page' web/public
   '  <link rel="stylesheet" href="../plateforme/caisse.css">
   <link rel="stylesheet" href="../plateforme/ecrans.css">' \
   'la première ouverture n'"'"'emporte pas la feuille de la caisse ; la Caisse l'"'"'attend, le dit sans réseau en gardant ses barres, et s'"'"'ouvre au retour'
+prouver 'poche 1.358.0 a : le règlement de la poche sort de la banque dans la trésorerie' modules/socle/moteur/core-2.js \
+  $'      if (estPoche(p)) return;\n' \
+  $'' \
+  'le moteur : la poche ne touche aucun compte de trésorerie, s'"'"'écrit au 4421, et se rembourse'
+prouver 'poche 1.358.0 b : la poche s'"'"'écrit à la banque' modules/socle/moteur/core-2.js \
+  $'    if (accountId === POCHE) return { journal: \'OD\', compte: acc.associes, poche: true };\n' \
+  $'' \
+  'le moteur : la poche ne touche aucun compte de trésorerie, s'"'"'écrit au 4421, et se rembourse'
+prouver 'poche 1.358.0 c : la poche tombe sous la règle du solde de départ' modules/socle/moteur/core-2.js \
+  $'    if (accountId === POCHE) return null;   // (1.358.0) la poche du gérant n\'a pas de solde de départ\n' \
+  $'' \
+  'le moteur : la poche ne touche aucun compte de trésorerie, s'"'"'écrit au 4421, et se rembourse'
+prouver 'poche 1.358.0 d : ce qui a été rendu ne se retranche pas' modules/socle/moteur/core-2.js \
+  $'reste: round3(Math.max(0, avance - rembourse))' \
+  $'reste: round3(avance)' \
+  'le moteur : la poche ne touche aucun compte de trésorerie, s'"'"'écrit au 4421, et se rembourse'
+prouver 'poche 1.358.0 e : le serveur écrit la poche à la banque' serveur/compta/plan.ts \
+  $'  if (compte === POCHE) return { journal: \'OD\', compte: p.plan.associes };\n' \
+  $'' \
+  'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver 'poche 1.358.0 f : le Cabinet ne lit pas qui a avancé' serveur/compta/achats.ts \
+  $'        : r.compte === POCHE ? \'compta.libelle.reglement_fournisseur_poche\' : \'compta.libelle.reglement_fournisseur\';' \
+  $'        : \'compta.libelle.reglement_fournisseur\';' \
+  'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver 'poche 1.358.0 g : la dépense ne propose pas la poche' modules/socle/ecrans/entreprise/app-1.js \
+  $'[\'poche\', \'de ta poche : l\\\'entreprise te le doit\'], ' \
+  $'' \
+  'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver 'poche 1.358.0 h : la dépense « de ta poche » sort de la banque' modules/socle/ecrans/entreprise/app-1.js \
+  $'accountId: payeeDep === \'poche\' ? C.POCHE : (C.compteDuMode(data, payeeDep) || \'\')' \
+  $'accountId: C.compteDuMode(data, payeeDep) || \'\'' \
+  'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver 'poche 1.358.0 i : le règlement d'"'"'une facture ne propose pas la poche' modules/socle/ecrans/entreprise/app-1.js \
+  $'{ poche: !rend }' \
+  $'{ poche: false }' \
+  'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver 'poche 1.358.0 j : la trésorerie tait ce que l'"'"'entreprise doit au gérant' modules/socle/ecrans/entreprise/app-2.js \
+  $'        avancesG.reste > 0.0005 ? `<li class="tr-s tr-s-rep" id="tr-s-avances-l">' \
+  $'        false && avancesG.reste > 0.0005 ? `<li class="tr-s tr-s-rep" id="tr-s-avances-l">' \
+  'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver 'poche 1.358.0 k : le remboursement des avances va au compte d'"'"'attente au Cabinet' serveur/compta/mouvements.ts \
+  $' avances: { sens: -1, role: \'associes\' },' \
+  $'' \
+  'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

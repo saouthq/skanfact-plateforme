@@ -90,7 +90,11 @@ export const compteDeTresorerie = (p: PlanDuDossier, compte: string | null, mode
 // 02/11 dans un solde de départ du 11/11 : le 532 à 66 250 pour 48 250 au relevé. Son côté trésorerie va à la contrepartie du
 // solde de départ (le compte d'attente, comme `ecrituresDOuverture`), en opération diverse : la banque ne bouge pas, et ce que
 // le solde de départ portait sans explication diminue d'autant. Le jour d'un flux est facultatif : sans lui, rien ne change.
+// (1.358.0, bout en bout 18) « De ma poche » (`POCHE`, core.js) : un règlement d'achat payé avec l'argent personnel du gérant.
+// Rien ne sort de la banque ni de la caisse : une opération diverse contre son compte courant d'associé.
+export const POCHE = '@poche';
 export function journalDeCompte(p: PlanDuDossier, compte: string | null, mode: string, jour = ''): { journal: 'BQ' | 'CA' | 'OD'; compte: string } {
+  if (compte === POCHE) return { journal: 'OD', compte: p.plan.associes };
   const t = compteDeTresorerie(p, compte, mode);
   if (jour && t?.depart && jour < t.depart) return { journal: 'OD', compte: p.plan.attente };
   const caisse = t ? t.caisse : ESPECES.includes(mode);

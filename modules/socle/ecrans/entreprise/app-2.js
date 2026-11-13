@@ -3516,6 +3516,9 @@
       const totSalaires = C.round3(-dusSalaires.reduce((x, e) => x + e.amount, 0));
       const totDus = C.round3(dusClients.reduce((x, e) => x + e.amount, 0)), totDois = C.round3(-dusFourn.reduce((x, e) => x + e.amount, 0));
       const fisc = (C.upcomingFiscal ? C.upcomingFiscal(data, t0, 45) : []).slice(0, 1)[0];
+      // (1.358.0, bout en bout 18) Ce que le gérant a avancé de sa poche (`C.POCHE`) : l'entreprise le lui doit, et rien ne le
+      // disait — la banque n'a pas bougé, donc aucune ligne de la trésorerie ne le portait.
+      const avancesG = C.avancesDuGerant(data, company());
       const fiscEst = fisc ? C.cashForecast(data, company(), 45, t0).events.find(e => e.kind === 'fiscal' && (e.id === fisc.filingId || (fisc.socialId && e.id === fisc.socialId))) : null;
       const surveiller = [
         dusClients.length ? `<li class="tr-s"><span>${lfIc('cloche', 16)}</span><span class="txt"><b>${h(C.money(totDus, cur))} déjà échus chez tes clients</b><small>${pl(dusClients.length, 'facture')} en retard : la prévision les attend aujourd'hui</small></span><button type="button" class="btn btn-sm" id="tr-s-rel">Relancer</button></li>` : '',
@@ -3523,6 +3526,9 @@
         // (1.298.0) Une dépense qui revient, passée sans être notée : la prévision la compte aujourd'hui ; un geste la note.
         ...dusRepetes.slice(0, 3).map((e, i) => `<li class="tr-s tr-s-rep"><span>${lfIc('echeance', 16)}</span><span class="txt"><b>${h(e.label)} du ${C.fmtDate(e.occurrence)} : ${h(C.money(-e.amount, cur))}, pas encore noté</b><small>la prévision le compte comme à payer aujourd'hui ; payé, note-le, et il en sort</small></span><button type="button" class="btn btn-sm" data-noter-rep="${i}">Noter comme payé</button></li>`),
         dusRepetes.length > 3 ? `<li class="tr-s"><span>${lfIc('echeance', 16)}</span><span class="txt"><b>${pl(dusRepetes.length - 3, 'autre dépense', 'autres dépenses')} qui revien${dusRepetes.length - 3 > 1 ? 'nent' : 't'}, pas encore notée${sPl(dusRepetes.length - 3)}</b><small>dans « Ce qui arrive », marquées « déjà échue »</small></span><button type="button" class="btn btn-sm" id="tr-s-rep">Voir ce qui arrive</button></li>` : '',
+        avancesG.reste > 0.0005 ? `<li class="tr-s tr-s-rep" id="tr-s-avances-l"><span>${lfIc('personne', 16)}</span><span class="txt"><b>${h(C.money(avancesG.reste, cur))} avancés de ta poche</b><small>${avancesG.avances.length > 1 ? `${avancesG.avances.length} achats payés` : 'un achat payé'} avec ton argent${avancesG.rembourse > 0.0005
+          ? `, ${h(C.money(avancesG.avance, cur))} : ${h(C.money(avancesG.rembourse, cur))} déjà rendus, l'entreprise te doit le reste`
+          : ` : l'entreprise te le${avancesG.avances.length > 1 ? 's' : ''} doit`}</small></span><button type="button" class="btn btn-sm" id="tr-s-avances">Te rembourser…</button></li>` : '',
         dusSalaires.length && !paieCachee() ? `<li class="tr-s"><span>${lfIc('alerte', 16)}</span><span class="txt"><b>${h(C.money(totSalaires, cur))} de salaires pas encore payés</b><small>${pl(dusSalaires.length, 'bulletin')} du mois passé</small></span><button type="button" class="btn btn-sm" id="tr-s-paie">Voir la paie</button></li>` : '',
         fisc ? `<li class="tr-s"><span>${lfIc('echeance', 16)}</span><span class="txt"><b>${h(fisc.label)} le ${C.fmtDate(fisc.date)}</b><small>${fiscEst ? `estimée à ${h(C.money(-fiscEst.amount, cur))} sur ce qui est saisi à ce jour : elle est dans la prévision` : 'son montant n\'est pas dans la prévision : SkanFact connaît la date, pas la somme'}</small></span><button type="button" class="btn btn-sm" id="tr-s-fisc">Voir le calendrier</button></li>` : ''].filter(Boolean);
       const recoDe = id => (recos.find(x => x.a.id === id) || {}).r;
@@ -3607,6 +3613,12 @@
       if ($('#tr-s-rel')) $('#tr-s-rel').onclick = () => navigate('#/relances');
       if ($('#tr-s-ach')) $('#tr-s-ach').onclick = () => navigate('#/achats');
       if ($('#tr-s-rep')) $('#tr-s-rep').onclick = () => { s.tab = 'prevision'; render(true); };
+      // (1.358.0) Te rembourser : un mouvement « Remboursement de mes avances », prérempli du reste dû ; il part de la banque
+      // (modifiable) contre ton compte courant d'associé, et la ligne disparaît quand tout est rendu.
+      if ($('#tr-s-avances')) $('#tr-s-avances').onclick = () => movementForm(null, m => {
+        toast(`Remboursement noté : ${C.money(m.amount, cur)} rendus le ${C.fmtDate(m.date)}.`);
+        render(true);
+      }, { kind: 'avances', amount: avancesG.reste, label: 'Remboursement de mes avances', method: 'virement' });
       if ($('#tr-s-paie')) $('#tr-s-paie').onclick = () => navigate('#/paie');
       $$('#t-body [data-noter-rep]').forEach(b => b.onclick = () => noterRepete(dusRepetes[Number(b.dataset.noterRep)]));
       if ($('#tr-s-fisc')) $('#tr-s-fisc').onclick = vers('#/compta', () => { comptaState.tab = 'calendrier'; });

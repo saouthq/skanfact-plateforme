@@ -14,7 +14,7 @@ import type { LigneEcriture } from '../../moteur/ecritures.ts';
 import { retenueAuFil, type PieceLiee, type Reglement, type RetenueAuFil } from '../../moteur/reglements.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { ecrireFamille, libelle, type EcritureAEcrire, type LigneAEcrire } from './ecrire.ts';
-import { compteFournisseur, journalDeCompte, lirePlan, type PlanDuDossier } from './plan.ts';
+import { compteFournisseur, journalDeCompte, lirePlan, POCHE, type PlanDuDossier } from './plan.ts';
 
 type Membre = {
   id: string; nature: NatureAchat; fournisseur: string | null; numero: string | null; date: string; nom: string;
@@ -146,7 +146,9 @@ export async function ecrituresDeLaFamilleDAchat(tx: Transaction, entreprise: st
     for (const r of [...m.reglements].sort((x, y) => x.rang - y.rang)) {
       const j = journalDeCompte(plan, r.compte, r.mode, r.date);
       // Un règlement porté par un avoir est un remboursement : l'argent entre.
-      const cle = m.nature === 'avoir' || r.montant < 0n ? 'compta.libelle.remboursement_fournisseur' : 'compta.libelle.reglement_fournisseur';
+      // (1.358.0) Payé de la poche du gérant : le même mot que la v10 (`journalEntries`), le comptable lit qui a avancé.
+      const cle = m.nature === 'avoir' || r.montant < 0n ? 'compta.libelle.remboursement_fournisseur'
+        : r.compte === POCHE ? 'compta.libelle.reglement_fournisseur_poche' : 'compta.libelle.reglement_fournisseur';
       const entree = libelle(cle, { numero, fournisseur: m.nom });
       const e = ecritureDeReglementFournisseur({ devise: m.achat.devise, cours: m.achat.cours, nature: m.nature },
         { cle: r.id, date: r.date, montant: r.montant, cours: r.cours ?? undefined }, fil.parts.get(r.id) ?? 0n, TND,
