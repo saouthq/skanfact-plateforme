@@ -280,7 +280,7 @@ describe('les livres tenus par le serveur', () => {
       suite = r.corps.suite as string | null;
     } while (suite);
     expect(vues.map((x) => `${x.journal} ${x.date}`)).toEqual(['VT 2026-10-01', 'CA 2026-10-05', 'VT 2026-10-10']);
-    expect(vues[0]?.lignes[0]).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '411', libelle: 'Facture FAC-2026-001 — Menuiserie du Lac (exemple)', debit: '1073.190', credit: '0.000', tauxTva: null, tiers: null, lettre: null });
+    expect(vues[0]?.lignes[0]).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '411', libelle: 'Facture FAC-2026-001 — Menuiserie du Lac (exemple)', debit: '1073.190', credit: '0.000', tauxTva: null, tiers: null, tiersId: null, lettre: null });
     // (1.82.0) Chaque écriture née d'une pièce dit le NOM de son tiers : sans lui, la balance auxiliaire du Cabinet
     // rangeait le client sous « (sans tiers) ».
     expect(vues.map((x) => x.tiersNom)).toEqual(['Menuiserie du Lac (exemple)', 'Menuiserie du Lac (exemple)', 'Menuiserie du Lac (exemple)']);

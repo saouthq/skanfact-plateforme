@@ -35,12 +35,12 @@
       "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
     },
     "plateforme/pont.js": {
-      "auPlus": 3127,
-      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5)"
+      "auPlus": 3142,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5) ; relevé de 3 127 à 3 142 au 1.358.2 (13/11/2026) pour le 1.358.1 : l'enregistrement en arrière-plan survit à la page qu'on ferme ou qu'on recharge (keepalive, borné à 60 Ko en route) ; c'est la fonction d'envoi elle-même, elle ne se sort pas du pont"
     },
     "plateforme/pont-cabinet.js": {
-      "auPlus": 2806,
-      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5) ; relevé de 2 788 à 2 797 au lot 1.301.0 (07/11/2026) pour le 1.299.0 : une ligne du relevé répond de plusieurs écritures (la remise de chèques), ce qui change la traduction d'un rapprochement que le pont faisait déjà (dans ses fonctions, rien qu'un morceau de module puisse porter) ; relevé de 2 797 à 2 803 au 1.319.0 (07/11/2026) : l'état du stock envoyé par le client se lit avec l'inventaire de l'année et une ligne d'inventaire garde sa valeur dite, dans les fonctions de l'inventaire que le pont traduisait déjà (rien qu'un morceau de module puisse porter) ; puis à 2 804 au 1.320.0 : ce qui est reçu sans facture, lu avec l'état ; puis à 2 805 au 1.321.0 : l'état des impayés du client, lu avec l'inventaire ; puis à 2 806 au 1.325.1 : la lecture du fichier El Fatoora joint à l'achat d'une écriture, à côté du fichier lui-même"
+      "auPlus": 2809,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5) ; relevé de 2 788 à 2 797 au lot 1.301.0 (07/11/2026) pour le 1.299.0 : une ligne du relevé répond de plusieurs écritures (la remise de chèques), ce qui change la traduction d'un rapprochement que le pont faisait déjà (dans ses fonctions, rien qu'un morceau de module puisse porter) ; relevé de 2 797 à 2 803 au 1.319.0 (07/11/2026) : l'état du stock envoyé par le client se lit avec l'inventaire de l'année et une ligne d'inventaire garde sa valeur dite, dans les fonctions de l'inventaire que le pont traduisait déjà (rien qu'un morceau de module puisse porter) ; puis à 2 804 au 1.320.0 : ce qui est reçu sans facture, lu avec l'état ; puis à 2 805 au 1.321.0 : l'état des impayés du client, lu avec l'inventaire ; puis à 2 806 au 1.325.1 : la lecture du fichier El Fatoora joint à l'achat d'une écriture, à côté du fichier lui-même ; puis à 2 809 au 1.358.2 (13/11/2026) : l'identifiant du tiers voyage avec chaque ligne, dans les deux sens (0210) ; la règle du nom que porte un seul tiers vit dans compta.js (tiersParNomUnique)"
     }
   },
   "ecarts": {

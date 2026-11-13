@@ -28745,6 +28745,58 @@ prouver $'achat en euros 1.358.1 m : l\'enregistrement en arrière-plan ne deman
   $'        r = await appel(\'POST\', \'/dossier-v10\', { changements: lot }, true);' \
   $'        r = await appel(\'POST\', \'/dossier-v10\', { changements: lot });' \
   'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'tiers de janvier 1.358.2 a : une ligne garde l\'identifiant d\'un tiers d\'une AUTRE entreprise' base/migrations/0210_tiers_des_lignes.sql \
+  $'(l->>\'tiersId\')::uuid and t.entreprise = p_entreprise) end);' \
+  $'(l->>\'tiersId\')::uuid) end);' \
+  'le tiers d'"'"'une ligne se garde par son identifiant, celui de l'"'"'entreprise seulement ; la contre-passation le recopie'
+prouver $'tiers de janvier 1.358.2 b : la contre-passation perd le tiers de la ligne' base/migrations/0210_tiers_des_lignes.sql \
+  $'y.taux_tva, y.tiers_libelle, y.tiers from compta.ligne y' \
+  $'y.taux_tva, y.tiers_libelle, null from compta.ligne y' \
+  'le tiers d'"'"'une ligne se garde par son identifiant, celui de l'"'"'entreprise seulement ; la contre-passation le recopie'
+prouver $'tiers de janvier 1.358.2 c : le serveur jette l\'identifiant du tiers d\'une ligne' serveur/compta/saisie.ts \
+  $'tiers: l.tiers ?? \'\', ...(l.tiersId ? { tiersId: l.tiersId } : {}), ...montants' \
+  $'tiers: l.tiers ?? \'\', ...montants' \
+  'le tiers d'"'"'une ligne se garde par son identifiant, celui de l'"'"'entreprise seulement ; la contre-passation le recopie'
+prouver $'tiers de janvier 1.358.2 d : la lecture des livres ne rend pas l\'identifiant du tiers' serveur/compta/routes.ts \
+  $'tiers: l.tiers_libelle, tiersId: l.tiers, lettre:' \
+  $'tiers: l.tiers_libelle, lettre:' \
+  'le tiers d'"'"'une ligne se garde par son identifiant, celui de l'"'"'entreprise seulement ; la contre-passation le recopie'
+prouver $'tiers de janvier 1.358.2 e : le pont n\'envoie pas l\'identifiant du tiers (les à-nouveaux du client partent à son nom seul)' web/public/plateforme/pont-cabinet.js \
+  $'...(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(String(l.tiersId || \'\')) ? { tiersId: String(l.tiersId) } : {}), debit:' \
+  $'debit:' \
+  'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
+prouver $'tiers de janvier 1.358.2 f : une ligne au nom seul reste un tiers à part au lettrage' web/public/plateforme/pont-cabinet.js \
+  $'tiersId: l.tiersId || e.tiers || (l.tiers ? parSonNom(l.tiers) : null),' \
+  $'tiersId: l.tiersId || e.tiers || null,' \
+  'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
+prouver $'tiers de janvier 1.358.2 m : deux tiers du même nom, et la ligne au nom seul est donnée au premier' modules/socle/moteur/compta-1.js \
+  $'return ids && ids.size === 1 ? [...ids][0] : null; };' \
+  $'return ids ? [...ids][0] : null; };' \
+  'un nom que porte un seul tiers le désigne ; deux homonymes, et le nom reste seul'
+prouver $'tiers de janvier 1.358.2 g : « rien n\'attend au brouillard » au-dessus d\'AN-2026' modules/socle/ecrans/cabinet/app-2.js \
+  $'      const br = auBrouillardSx(m);\n' \
+  $'      const br = ecrituresSx().filter(e => e.statut === \'brouillard\' && (!m || String(e.date).slice(0, 7) === m)).length;\n' \
+  'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
+prouver $'tiers de janvier 1.358.2 h : la grille de 2026 propose encore le 31/12/2025' modules/socle/ecrans/cabinet/app-2.js \
+  $'      saisieState.piece.date = dateProposee(s.annee);\n' \
+  $'' \
+  'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
+prouver $'tiers de janvier 1.358.2 i : « dernière : FAC-2025-001 · 18/12 », lu en janvier' modules/socle/ecrans/entreprise/app-1.js \
+  $'· ${lfJmA(derniere.date)} ·' \
+  $'· ${lfJm(derniere.date)} ·' \
+  'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
+prouver $'tiers de janvier 1.358.2 j : « Sous le seuil : pas de retenue sur l\'avoir » pour un client sans retenue' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (t.sousLeSeuil && Number(t.withholdingRate) > 0 && isAv) points.push(' \
+  $'if (t.sousLeSeuil && isAv) points.push(' \
+  'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
+prouver $'tiers de janvier 1.358.2 k : « Supprimer Avoir (brouillon) ? »' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (!await confirmDialog(`Supprimer ${nomP} ?${doc.number' \
+  $'if (!await confirmDialog(`Supprimer ${docLabel(doc)} ?${doc.number' \
+  'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
+prouver $'tiers de janvier 1.358.2 l : « Quitter sans enregistrer ? » juste après avoir supprimé la pièce' modules/socle/ecrans/entreprise/app-1.js \
+  $'    if ($(\'#del\')) $(\'#del\').onclick = () => supprimerPiece(doc, () => {\n      if (brouillonD) { clearTimeout(brouillonDTimer); brouillonD.effacer(); etatGardeLocal = \'\'; }\n      untouch(); navigate(backTo);\n    });\n' \
+  $'    if ($(\'#del\')) $(\'#del\').onclick = () => supprimerPiece(doc, () => navigate(backTo));\n' \
+  'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

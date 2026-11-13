@@ -3349,3 +3349,46 @@ de change de 21 DT au 655, les mêmes écritures des deux côtés du pont) ; tro
   interception posée sur la PAGE ; posée sur le CONTEXTE, si. Le test des enregistrements concurrents, qui ralentit exprès
   le premier envoi, passe par le contexte (sans quoi son ralenti ne s'appliquait plus, sans un mot). Le test de la 1.310
   attend désormais que les écritures en route soient arrivées avant de recharger.
+
+### 1.358.2 : une facture de décembre réglée en janvier (bout en bout 20)
+
+Joué à la souris dans l'environnement de test : un traiteur facture le buffet du réveillon à l'Hôtel Mouradi Gammarth le
+18 décembre 2025 (3 571 DT). Le cabinet ouvre 2026, l'hôtel règle 2 000 DT le 10 janvier, et un avoir de 595 DT suit pour
+des couverts non servis. Côté client, les chiffres tombaient juste : la TVA de janvier en crédit de 95 DT, les
+à-nouveaux, 976 DT encore dus. Quatre défauts :
+- **Au Cabinet, le même client comptait comme DEUX tiers au lettrage de 2026.** La ligne d'à-nouveaux ne gardait que le
+  NOM du client, et son règlement de janvier son identifiant. Le lettrage les rangeait à part : la facture « due » d'un
+  côté, le règlement « en trop » de l'autre. Une ligne d'écriture a maintenant une case pour son tiers
+  (`compta.ligne.tiers`, migration 0210). La saisie et la contre-passation la gardent, un identifiant d'une autre
+  entreprise est ignoré, et le pont l'envoie. Une ligne écrite avant (son nom seul) se range sous le seul tiers du livre
+  qui porte ce nom. Quand deux tiers ont le même nom, elle garde son nom seul : on ne devine pas.
+- **La grille de 2026 proposait la date du « 31/12/2025 ».** Une pièce vide reprend la date de la précédente (la saisie
+  au kilomètre), mais pas d'un exercice à l'autre : elle propose une date de l'exercice affiché. Une pièce déjà commencée
+  garde ce qu'on a tapé.
+- **« Rien n'attend au brouillard » s'affichait au-dessus d'AN-2026.** Le compte des écritures au brouillard oubliait
+  les à-nouveaux, que « Voir le brouillard » montre juste en dessous. Il compte maintenant tout le brouillard.
+- **Côté entreprise**, la puce « dernière : FAC-2025-001 · 18/12 » se lisait en janvier comme le 18 décembre à venir.
+  Une date d'une autre année s'écrit maintenant en entier (18/12/2025), dans la puce comme dans « dernière vente à ce
+  client ». Et « Avant d'émettre » disait « Sous 1 000 DT : pas de retenue sur l'avoir, comme sur sa facture » pour un
+  client SANS retenue, ce qui donnait une fausse raison. La phrase du seuil n'apparaît plus que si le client a une retenue.
+- **En jetant le brouillon de l'avoir** (refait à la souris pour vérifier) : la question disait « Supprimer Avoir
+  (brouillon) ? », avec une majuscule au milieu de la phrase et sans dire de quoi c'était le brouillon. Elle dit
+  maintenant « Supprimer ce brouillon d'avoir ? », ou « Supprimer la pièce DEV-2026-004 ? » pour une pièce numérotée.
+  Sur un poste qui ne garde rien (« mon ordinateur » non coché), une seconde question suivait : « Quitter sans
+  enregistrer ? … cet avoir commencé est perdu », à propos d'une pièce qu'on venait de supprimer. La suppression libère
+  maintenant l'éditeur, et la copie gardée sur l'appareil part avec la pièce. Pour un mois clôturé, le refus s'affiche
+  désormais AVANT la question : avant, il arrivait une fois la suppression confirmée.
+- À VÉRIFIER avec le comptable : au Cabinet, le numéro affiché d'une écriture continue d'un exercice à l'autre. C'est son
+  rang dans la chaîne du dossier, une décision prise dans docs/cabinet.md ; si un cabinet veut repartir à 1 chaque
+  1er janvier, il le dira. Autre point : à partir de quelle date la balance âgée de 2026 compte-t-elle l'âge d'une facture
+  reprise en à-nouveaux, celle de la facture ou le 1er janvier ?
+- Tests : `tests/compta/saisie.test.ts` (le tiers d'une ligne au serveur : gardé, refusé d'une autre entreprise, recopié
+  par la contre-passation) et `tests/web/tiers-janvier-1358-2.test.ts` (tout le parcours, dans les deux applications) ;
+  `tests/moteur/tiers-nom-unique-1358-2.test.ts` (deux homonymes : le nom reste seul) ; treize preuves « tiers de
+  janvier 1.358.2 ».
+- **Rouge GitHub de 0114d02 (1.358.1), réparé.** La règle F12 (un gros fichier ne grandit pas hors de `modules/`) refusait
+  `plateforme/pont.js` : 3 142 lignes pour 3 127. L'envoi qui survit au rechargement (`keepalive`) est la fonction d'envoi
+  elle-même : son plafond est relevé, avec la raison écrite dans `modules/frontieres-connues.json`. Le même contrôle aurait
+  refusé ce lot-ci (`pont-cabinet.js`, 2 819 pour 2 806) : la règle « un nom que porte un seul tiers le désigne » vit
+  maintenant dans le moteur partagé (`tiersParNomUnique`, compta.js), le pont ne fait que l'appeler, et il ne reste que
+  trois lignes à relever (l'identifiant du tiers qui voyage avec chaque ligne).

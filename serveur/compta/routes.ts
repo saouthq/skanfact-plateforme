@@ -147,7 +147,7 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
             contrepassee: corrigee(e.id, 'contre_passation'), extournee: corrigee(e.id, 'extourne'),
             lignes: lignes.filter((l) => l.ecriture === e.id).map((l) => ({
               id: l.id, compte: l.compte, libelle: l.libelle, debit: m(l.debit), credit: m(l.credit), tauxTva: l.taux_tva === null ? null : versTexte(l.taux_tva, 4),
-              tiers: l.tiers_libelle, lettre: lettres.get(l.id) ?? null,
+              tiers: l.tiers_libelle, tiersId: l.tiers, lettre: lettres.get(l.id) ?? null,
             })),
           })),
           suite: ecritures.length === n && dernier ? versCurseur(dernier.date_ecriture, dernier.id) : null,

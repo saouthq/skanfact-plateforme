@@ -79,7 +79,7 @@ async function dossier() {
   return { client, ent, associe, cabinet, mandat, collaborateur, assistant };
 }
 
-type Ligne = { compte: string; libelle: string; debit: string; credit: string; tiers: string | null; lettre: string | null };
+type Ligne = { compte: string; libelle: string; debit: string; credit: string; tiers: string | null; tiersId: string | null; lettre: string | null };
 type EcritureLue = { id: string; journal: string; date: string; piece: string | null; libelle: string; statut: string; numero: string | null; chaine: number | null;
   origine: { type: string; id: string }; revision: number; lignes: Ligne[] };
 async function livres(ent: string, p: Personne): Promise<EcritureLue[]> {
@@ -117,8 +117,8 @@ describe('la saisie dans les livres du serveur', () => {
     let lue = (await livres(d.ent, d.client)).find((e) => e.id === id);
     expect(lue).toMatchObject({ statut: 'brouillard', numero: null, origine: { type: 'saisie', id }, revision: 1, libelle: 'Loyer d\'août' });
     expect(lue?.lignes).toEqual([
-      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '6132', libelle: 'Loyer d\'août', debit: '850.500', credit: '0.000', tauxTva: null, tiers: null, lettre: null },
-      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '401', libelle: 'Agence du Lac', debit: '0.000', credit: '850.500', tauxTva: null, tiers: 'Agence du Lac', lettre: null },
+      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '6132', libelle: 'Loyer d\'août', debit: '850.500', credit: '0.000', tauxTva: null, tiers: null, tiersId: null, lettre: null },
+      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '401', libelle: 'Agence du Lac', debit: '0.000', credit: '850.500', tauxTva: null, tiers: 'Agence du Lac', tiersId: null, lettre: null },
     ]);
     // Les contrôles de la v10, chacun avec sa phrase et le numéro de sa ligne.
     const refus = async (corps: unknown) => (await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.assistant.jeton, corps)).corps.motif;
@@ -302,6 +302,33 @@ describe('la saisie dans les livres du serveur', () => {
     expect(bal.find((c) => c.compte === '6132')?.solde).toBe('1.000');
     expect(bal.find((c) => c.compte === '6226')?.solde).toBe('300.000');
     expect((await appeler('GET', `/entreprises/${d.ent}/compta/cloture`, d.associe.jeton)).corps.controle).toEqual({ ok: true, numero: null, motif: null });
+  });
+
+  // (1.358.2, bout en bout 20) Le tiers d'une ligne se garde aussi par son IDENTIFIANT : sans lui, le Cabinet rangeait
+  // une ligne saisie sous le nom du client à côté de ses factures, rangées sous son identifiant — le même client, deux
+  // tiers au lettrage. Un identifiant d'une AUTRE entreprise ne s'y attache pas, et la contre-passation le recopie.
+  it('le tiers d\'une ligne se garde par son identifiant, celui de l\'entreprise seulement ; la contre-passation le recopie', async () => {
+    const d = await dossier();
+    const autre = await personne('voisin');
+    const entAutre = String((await appeler('POST', '/entreprises', autre.jeton, { raisonSociale: 'Agence voisine' })).corps.id);
+    const tiers = async (ent: string, nom: string) => String((await admin.query('insert into socle.tiers (entreprise, raison_sociale) values ($1, $2) returning id', [ent, nom])).rows[0].id);
+    const agence = await tiers(d.ent, 'Agence du Lac');
+    const ailleurs = await tiers(entAutre, 'Agence du Lac');
+    const id = await saisir(d.ent, d.assistant, {
+      date: '2026-08-20', journal: 'OD', piece: 'OD-7', libelle: 'Loyer',
+      lignes: [{ compte: '6132', debit: '100', tiersId: ailleurs }, { compte: '401', credit: '100', tiers: 'Agence du Lac', tiersId: agence }],
+    });
+    const tiersDe = (e?: EcritureLue) => e?.lignes.map((l) => [l.compte, l.tiers, l.tiersId]);
+    expect(tiersDe((await livres(d.ent, d.client)).find((e) => e.id === id))).toEqual([['6132', null, null], ['401', 'Agence du Lac', agence]]);
+    // Un identifiant qui n'en est pas un est refusé à la porte, pas rangé.
+    const faux = await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.assistant.jeton, {
+      date: '2026-08-20', journal: 'OD', libelle: 'Loyer', lignes: [{ compte: '6132', debit: '1' }, { compte: '401', credit: '1', tiersId: 'agence-du-lac' }],
+    });
+    expect(faux.statut).toBe(400);
+    await valider(d.ent, d.collaborateur, [id]);
+    const cp = await appeler('POST', `/entreprises/${d.ent}/compta/ecritures/${id}/contrepasser`, d.collaborateur.jeton, {});
+    expect(cp.statut, JSON.stringify(cp.corps)).toBe(201);
+    expect(tiersDe((await livres(d.ent, d.client)).find((e) => e.id === cp.corps.id))).toEqual([['6132', null, null], ['401', 'Agence du Lac', agence]]);
   });
 
   it('lettrer une facture et son règlement : la somme fait zéro, sinon l\'écart est dit ; un brouillard ne se lettre pas ; délettrer', async () => {

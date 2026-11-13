@@ -28,6 +28,10 @@ export const LIGNE = z.object({
   compte: z.string().max(20),
   libelle: z.string().max(500).optional(),
   tiers: z.string().max(200).optional(),
+  // (1.358.2) L'identifiant du tiers de la ligne (un client, un fournisseur) : les à-nouveaux reprennent chaque client sur sa
+  // propre ligne, et sans lui l'année suivante le lettrait sous deux tiers (son nom, son identifiant). La base ne le garde
+  // que s'il est un tiers de l'entreprise (0210).
+  tiersId: z.string().uuid().optional(),
   debit: z.string().max(20).optional(),
   credit: z.string().max(20).optional(),
 }).strict();
@@ -54,7 +58,7 @@ export function lignesVersLaBase(entree: z.infer<typeof LIGNE>[], champ = 'ligne
       if (v < 0n) return champInvalide(`${champ}.${i}.${cote}`, t('compta.champ.montant'));
       montants[cote] = v.toString();
     }
-    lignes.push({ compte: l.compte.trim(), libelle: l.libelle ?? '', tiers: l.tiers ?? '', ...montants });
+    lignes.push({ compte: l.compte.trim(), libelle: l.libelle ?? '', tiers: l.tiers ?? '', ...(l.tiersId ? { tiersId: l.tiersId } : {}), ...montants });
   }
   return { lignes };
 }

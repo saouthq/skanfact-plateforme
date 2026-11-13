@@ -371,6 +371,7 @@ export interface BaseDeDonnees {
     credit: Generated<bigint>;
     taux_tva: bigint | null;
     tiers_libelle: string | null;
+    tiers: string | null;
   };
   'compta.ligne_lettree': {
     ligne: string;

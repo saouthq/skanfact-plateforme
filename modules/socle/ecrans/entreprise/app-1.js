@@ -4940,8 +4940,13 @@
     const quoi = liees.length
       ? `\n\n${pl(liees.length, 'pièce en est issue', 'pièces en sont issues')} : ${liees.map(x => `${x.number} (${x.quoi})`).join(', ')}. ${liees.length > 1 ? 'Elles resteront' : 'Elle restera'}, mais ${liees.length > 1 ? 'leur lien' : 'son lien'} vers cette pièce sera rompu.`
       : '';
-    if (!await confirmDialog(`Supprimer ${docLabel(doc)} ?${doc.number ? ' Le numéro ne sera pas réutilisé.' : ''}${quoi}`, 'Supprimer', true)) return;
+    // (1.358.2) Un refus se dit AVANT la question : le mois clôturé refusait une fois la suppression confirmée. Et la question
+    // nomme la pièce en français — « Supprimer Avoir (brouillon) ? » mettait une majuscule au milieu de la phrase, sans dire
+    // de quoi c'était le brouillon : « Supprimer ce brouillon d'avoir ? », « Supprimer la pièce DEV-2026-004 ? ».
     if (closedBlock(doc.date, 'Ce document')) return;
+    const titreP = C.titreDePiece(doc, company());
+    const nomP = doc.number ? `la pièce ${doc.number}` : `ce brouillon ${deNom(titreP.charAt(0).toLowerCase() + titreP.slice(1))}`;
+    if (!await confirmDialog(`Supprimer ${nomP} ?${doc.number ? ' Le numéro ne sera pas réutilisé.' : ''}${quoi}`, 'Supprimer', true)) return;
     forget('documents', doc.id, docLabel(doc));
     data.documents = data.documents.filter(d => d.id !== doc.id); save(true); apres();
   }
@@ -5053,6 +5058,9 @@
   const LF_FILTRES = { '': 'Tous les statuts', brouillon: 'Brouillon', 'envoyée': 'Émise', partielle: 'Payée en partie', retard: 'En retard', 'payée': 'Payée', 'annulée': 'Annulée', 'émis': 'Toutes les pièces émises', 'à encaisser': 'À encaisser' };
   const LF_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
   const lfJm = iso => iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '';
+  // (1.358.2) Une date sans en-tête de mois ni d'année autour d'elle (l'éditeur) : jour et mois quand elle est de cette année,
+  // la date entière sinon. « dernière : FAC-2025-001 · 18/12 », lu en janvier, renvoyait au 18/12 qui vient.
+  const lfJmA = iso => !iso ? '' : String(iso).slice(0, 4) === C.today().slice(0, 4) ? lfJm(iso) : C.fmtDate(iso);
   // Un montant tapé (« 596 », « 1 213,527 ») cherche aussi dans le net et le reste : le client qui appelle donne un chiffre.
   const lfChiffres = x => String(x).replace(/[\s  .−-]/g, '');
   // Le statut d'une pièce de la liste : celui que la facture déduit (jamais saisi) ; un avoir dit le sien.
@@ -7190,7 +7198,7 @@
       const r = [];
       const k = l.itemId || String(l.label || '').trim().toLowerCase();
       const v = k && ventes ? ventes.get(k) : null;
-      if (v) r.push(`dernière vente à ce client : ${C.money(v.pu, v.cur)} le ${lfJm(v.date)}`);
+      if (v) r.push(`dernière vente à ce client : ${C.money(v.pu, v.cur)} le ${lfJmA(v.date)}`);
       const it = C.itemOfLine(l, data);
       if (it && it.tracked) { const st = C.stockOf(data, it.id).qty; r.push(`<span class="${st > 0 ? 'ok' : 'alerte'}">en stock : ${pct(st)}</span>`); }
       return `${r.join(' · ')}<span class="ligne-marge" data-marge="${i}"></span>`;
@@ -7215,7 +7223,7 @@
       const r = [];
       const k = l.itemId || String(l.label || '').trim().toLowerCase();
       const v = k && ventes ? ventes.get(k) : null;
-      if (v) r.push(`<span>dernière vente à ce client : ${C.money(v.pu, null, C.decimalsFor(v.cur))} le ${lfJm(v.date)}</span>`);
+      if (v) r.push(`<span>dernière vente à ce client : ${C.money(v.pu, null, C.decimalsFor(v.cur))} le ${lfJmA(v.date)}</span>`);
       const it = C.itemOfLine(l, data);
       if (l.fromBon) r.push(`<span>${it && it.tracked ? `${h(l.fromBon)} · déjà sorti du stock` : `livré avec ${h(l.fromBon)}`}</span>`);
       if (it && it.tracked && !l.fromBon && !isAv) {
@@ -7912,7 +7920,7 @@
         isQ && s.quoteCount ? `<span class="ed-chip">${pl(s.quoteCount, 'devis', 'devis')}${s.conversion != null ? ` · ${s.conversion} % acceptés` : ''}</span>` : '',
         // (1.356.4) « paie en 0 jour en moyenne » : un client qui règle à l'émission paie le jour même.
         s.delay != null ? `<span class="ed-chip">${Math.round(s.delay) < 1 ? 'paie le jour même, en moyenne' : `paie en ${pl(s.delay, 'jour')} en moyenne`}</span>` : '',
-        derniere ? `<span class="ed-chip">dernière : <b>${h(derniere.number)}</b> · ${lfJm(derniere.date)} · ${C.money(C.computeTotals(derniere, company()).netToPay, docCur(derniere))}${figee ? '' : ` · <button type="button" class="lien" id="cl-refaire" data-refaire="${h(derniere.id)}">la refaire</button>`}</span>` : '',
+        derniere ? `<span class="ed-chip">dernière : <b>${h(derniere.number)}</b> · ${lfJmA(derniere.date)} · ${C.money(C.computeTotals(derniere, company()).netToPay, docCur(derniere))}${figee ? '' : ` · <button type="button" class="lien" id="cl-refaire" data-refaire="${h(derniere.id)}">la refaire</button>`}</span>` : '',
       ].filter(Boolean).join('');
       return `<div class="ed-cl-tete">${pastilleClient(c.id)}<div class="ed-cl-nom"><b>${h(c.name)}</b><span>${qui}</span></div>
         <div class="ed-cl-gestes">${figee ? '' : '<button type="button" class="btn btn-sm" id="cl-changer">Changer</button>'}<button type="button" class="btn btn-sm" id="cl-edit" title="Corriger l'adresse, le matricule, l'email de ce client">Fiche</button></div></div>
@@ -8174,8 +8182,10 @@
         // (maquette « sur 2 pages ») Le nombre de pages, compté par la mise en page de l'aperçu (la même que le PDF).
         if (pagesApercu > 1) points.push([true, `${pagesApercu} pages : chaque page reprend l'en-tête des colonnes`, '']);
         // (1.356.6) Un avoir n'est pas réglé par le client : la phrase du paiement groupé ne le concerne pas.
-        if (t.sousLeSeuil && isAv) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur l\'avoir${doc.creditOf ? ', comme sur sa facture' : ''}`, '']);
-        else if (t.sousLeSeuil) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur la facture. Réglée avec d\'autres d\'un seul paiement de ce montant ou plus, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`, '']);
+        // (1.358.2) Sous le seuil ne dit quelque chose que si le client a une retenue : sans elle (« Retenue aucune »), la phrase
+        // donnait une fausse raison — un avoir de 595 DT sur une facture de 3 571 DT se disait « comme sur sa facture ».
+        if (t.sousLeSeuil && Number(t.withholdingRate) > 0 && isAv) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur l\'avoir${doc.creditOf ? ', comme sur sa facture' : ''}`, '']);
+        else if (t.sousLeSeuil && Number(t.withholdingRate) > 0 && !isAv) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur la facture. Réglée avec d\'autres d\'un seul paiement de ce montant ou plus, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`, '']);
       }
       if (isQ) {
         const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), co);
@@ -8939,7 +8949,13 @@
       }
       if (isNew) remplacerPage('#/doc/' + doc.id); else render();
     };
-    if ($('#del')) $('#del').onclick = () => supprimerPiece(doc, () => navigate(backTo));
+    // (1.358.2) Supprimée depuis son éditeur, la pièce ne laisse rien à garder : sur un poste qui ne garde rien, « Quitter sans
+    // enregistrer ? … cet avoir commencé est perdu » tombait juste après « Supprimer », sur une pièce qu'on venait de jeter.
+    // Sa copie sur l'appareil part avec elle (sinon « Nouvel avoir » la proposerait encore).
+    if ($('#del')) $('#del').onclick = () => supprimerPiece(doc, () => {
+      if (brouillonD) { clearTimeout(brouillonDTimer); brouillonD.effacer(); etatGardeLocal = ''; }
+      untouch(); navigate(backTo);
+    });
     if ($('#unlock')) $('#unlock').onclick = async () => {
       if (!await confirmDialog(`Modifier ${doc.number} après émission ? Ce n'est pas conforme : une facture émise se corrige par un avoir. À réserver à une erreur repérée avant l'envoi au client.`, 'Modifier quand même')) return;
       unlockedIds.add(doc.id); render();

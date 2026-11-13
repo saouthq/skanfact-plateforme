@@ -513,6 +513,8 @@
     /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
     const livre = KC.livreVide(ent, annee);
     const parId = new Map(ecritures.map((e) => [e.id, e]));
+    // (1.358.2) Le tiers connu par son seul nom : un nom que porte un seul tiers de ce livre le désigne (compta.js).
+    const parSonNom = KC.tiersParNomUnique(ecritures.flatMap((e) => [[e.tiersNom, e.tiers], ...(e.lignes || []).map((/** @type {any} */ l) => [l.tiers || e.tiersNom, l.tiersId || e.tiers])]));
     /** @param {any} e @returns {string} */
     const source = (e) => {
       if (e.journal === 'AN') return 'an';
@@ -535,7 +537,7 @@
         extourneDe: e.origine.type === 'extourne' ? e.origine.id : null, extourne: false, extourneeLe: null,
         lignes: e.lignes.map((/** @type {any} */ l) => ({
           // Le tiers d'une ligne : le sien (saisie), sinon celui de son écriture, comme la v10 (1.82.0).
-          ligneId: l.id, compte: l.compte, tiersId: e.tiers, tiers: l.tiers || e.tiersNom || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
+          ligneId: l.id, compte: l.compte, tiersId: l.tiersId || e.tiers || (l.tiers ? parSonNom(l.tiers) : null), tiers: l.tiers || e.tiersNom || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
         })),
       });
       for (const l of e.lignes) {
@@ -950,7 +952,8 @@
     return {
       date: String(ec.date || ''), journal: String(ec.journal || ''), piece: String(ec.piece || ''), libelle: String(ec.libelle || ''),
       lignes: (ec.lignes || []).filter((/** @type {any} */ l) => l && (String(l.compte || '').trim() || Number(l.debit) || Number(l.credit)))
-        .map((/** @type {any} */ l) => ({ compte: String(l.compte || '').trim(), libelle: String(l.libelle || ''), tiers: String(l.tiers || ''), debit: montant(l.debit), credit: montant(l.credit) })),
+        .map((/** @type {any} */ l) => ({ compte: String(l.compte || '').trim(), libelle: String(l.libelle || ''), tiers: String(l.tiers || ''), // (1.358.2) et son identifiant (0210)
+          ...(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(String(l.tiersId || '')) ? { tiersId: String(l.tiersId) } : {}), debit: montant(l.debit), credit: montant(l.credit) })),
     };
   }
 

@@ -627,6 +627,19 @@
     if (p.length) return p;
     return COMPTES_TIERS[role] ? [COMPTES_TIERS[role]] : [];
   }
+  // (1.358.2) Un tiers connu par son seul NOM (une ligne écrite avant que la ligne ait sa case, 0210) : les à-nouveaux d'un
+  // client (son nom) et son règlement de janvier (son identifiant) se lettraient sous deux tiers. Un nom que porte UN seul
+  // tiers désigne ce tiers ; deux tiers du même nom, et la ligne garde son nom seul (un rapprochement faux ferme la question,
+  // 9.5.0). Reçoit des paires [nom, identifiant] ; rend la fonction qui, d'un nom, donne l'identifiant ou null.
+  function tiersParNomUnique(paires) {
+    const idsDuNom = new Map();
+    for (const [nom, id] of paires || []) {
+      const n = txt(nom); if (!n || !id) continue;
+      if (!idsDuNom.has(n)) idsDuNom.set(n, new Set());
+      idsDuNom.get(n).add(String(id));
+    }
+    return nom => { const ids = idsDuNom.get(txt(nom)); return ids && ids.size === 1 ? [...ids][0] : null; };
+  }
   function balanceAuxiliaireDepuisLignes(entries, collectifs, opts) {
     const o = opts || {};
     const C = (Array.isArray(collectifs) ? collectifs : [collectifs]).map(txt).filter(Boolean);

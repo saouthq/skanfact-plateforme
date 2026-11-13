@@ -94,7 +94,7 @@
     round3, fmtMontant, fmtJour, jourDeLInstant, fmtMois, deMois, phraseEntreSocietes, cleDePiece, csvDangereux, nombreDepuisCsv, nombreStrict, dateDepuisCsv,
     ecritureValide, entreesDepuisCsv,
     entriesBalance, entriesByAccount,
-    balanceDepuisLignes, grandLivreDepuisLignes, balanceAuxiliaireDepuisLignes, collectifsDeTiers, COMPTES_TIERS,
+    balanceDepuisLignes, grandLivreDepuisLignes, balanceAuxiliaireDepuisLignes, collectifsDeTiers, COMPTES_TIERS, tiersParNomUnique,
     journalDepuisLignes, centralisateurDepuisLignes,
     lettrageDepuisLignes,
     // Le livre (9.2.0)

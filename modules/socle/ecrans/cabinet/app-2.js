@@ -2639,6 +2639,10 @@
   const normSx = t => sansAccentsCl(t).replace(/[^a-z0-9]/g, '');
   const moisSx = () => (livresState.mode === 'mois' && livresState.mois ? livresState.mois : '');
   const ecrituresSx = () => ((livresState.livre && livresState.livre.ecritures) || []).filter(e => e.statut !== 'contrepassee' && e.journal !== 'AN');
+  // (1.358.2, bout en bout 20) Ce qui attend au brouillard se compte sur le brouillard ENTIER, à-nouveaux compris : c'est
+  // la liste que « Voir le brouillard » ouvre. En janvier, « rien n'attend au brouillard » s'affichait au-dessus d'AN-2026,
+  // que cette liste montrait juste en dessous — les à-nouveaux sont hors des aides de la saisie, pas hors du brouillard.
+  const auBrouillardSx = m => ((livresState.livre && livresState.livre.ecritures) || []).filter(e => e.statut === 'brouillard' && (!m || String(e.date).slice(0, 7) === m)).length;
   const achatSx = e => rubDeJournal(e.journal) === 'achats' || /^(AC|HA)/i.test(String(e.journal || ''));
   const ligne40Sx = e => (e.lignes || []).find(l => /^40/.test(String(l.compte)) && mtSx(l.credit) > 0) || (e.lignes || []).find(l => /^40/.test(String(l.compte))) || null;
   const nomTiersSx = e => { const l = ligne40Sx(e); return (l && l.tiers) || ''; };
@@ -3194,7 +3198,7 @@
     const m = moisSx();
     if (!P.liste.length) {
       const qui = prenomCl(dossier.contact);
-      const br = ecrituresSx().filter(e => e.statut === 'brouillard' && (!m || String(e.date).slice(0, 7) === m)).length;
+      const br = auBrouillardSx(m);
       // (1.221.0, l'épreuve d'un mois) Le mois FINI n'est pas un mois vide : ses pièces sont traitées et rien n'attend au
       // brouillard. Il le dit, et le geste suivant est la déclaration (« Demander les pièces de septembre » à Sarra, qui
       // venait de tout envoyer, se lisait comme un reproche).
@@ -3213,7 +3217,7 @@
       // la remplit (demander les pièces), et la grille derrière « Une écriture à la main ».
       if (videCacheSx(P)) {
         const av = moisAvantSx(m), faites = (P.items || []).filter(y => (y.p || y.doc) && y.mois === av && y.etat[2] === 'ordre' && y.etat[1] !== 'en double').length;
-        const brAv = ecrituresSx().filter(e => e.statut === 'brouillard' && String(e.date).slice(0, 7) === av).length;
+        const brAv = auBrouillardSx(av);
         const b2 = n => `<span class="apx-b" style="width:${n}%"></span>`;
         return `<div class="bq-ecran sx-vide-p"><div class="apx"><div class="apx-f" aria-hidden="true"><div class="apx-pills">${'<span class="apx-b"></span>'.repeat(6)}</div>
           <div class="apx-2"><div class="apx-r apx-cad">${b2(30)}${[82, 64, 90, 58, 76, 70].map(b2).join('')}</div><div class="apx-r apx-cad">${[1, 2, 3, 4, 5].map(() => '<span class="apx-b" style="height:28px"></span>').join('')}</div></div></div>
@@ -3225,7 +3229,7 @@
       }
       return `<div class="sx-vide" id="sx-vide"><span class="sx-vide-ic">${CL_IC.ok}</span><span class="txt"><b>${m ? `${esc(cap(moisLong(m)))} : aucune pièce à saisir pour l'instant` : `Aucune pièce à saisir en ${esc(livresState.annee)} pour l'instant`}</b>
         <span>${dossier.manual ? 'Ce dossier est tenu au cabinet : ses pièces se déposent dans son classeur, puis s\'ouvrent ici, face à leur fiche.' : `Quand ${esc(qui || 'le client')} envoie une facture ou un ticket, la pièce arrive ici, en grand, face à sa fiche déjà remplie.`}${br ? ` ${esc(pl(br, 'écriture attend', 'écritures attendent'))} au brouillard.` : ''}</span>
-        ${m ? (() => { const av = moisAvantSx(m), faites = (P.items || []).filter(y => (y.p || y.doc) && y.mois === av && y.etat[2] === 'ordre' && y.etat[1] !== 'en double').length, brAv = ecrituresSx().filter(e => e.statut === 'brouillard' && String(e.date).slice(0, 7) === av).length;
+        ${m ? (() => { const av = moisAvantSx(m), faites = (P.items || []).filter(y => (y.p || y.doc) && y.mois === av && y.etat[2] === 'ordre' && y.etat[1] !== 'en double').length, brAv = auBrouillardSx(av);
           return `<small class="sx-vide-av" id="sx-vide-av">${faites || brAv ? `${esc(cap(moisLong(av)))} : ${esc(pl(faites, 'pièce traitée', 'pièces traitées'))}${brAv ? ` · ${esc(pl(brAv, 'écriture attend', 'écritures attendent'))} au brouillard` : ''}. ` : ''}${dossier.manual ? '' : 'Ses ventes et sa caisse, saisies dans SkanFact, arrivent seules au livre.'}</small>`; })() : ''}</span>
         ${dossier.manual || !m ? '' : `<button type="button" class="btn btn-sm" id="sx-demander-mois">Demander les pièces ${esc(deMois(m))}${qui ? ` à ${esc(qui)}` : ''}</button>`}</div>`;
     }
@@ -3837,6 +3841,12 @@
       // l'invite grise « 04/03/2026 » se lit comme une valeur — on cherchait ce qui n'allait pas.
       // Elle reste modifiable, et les pièces suivantes reprennent celle de la précédente.
       saisieState.piece = pieceVide(j, dateProposee(s.annee));
+    }
+    // (1.358.2, bout en bout 20) Une pièce VIERGE reprend la date de la précédente (la saisie au kilomètre) — mais pas
+    // d'un exercice à l'autre : passée à 2026 après une pièce de décembre, la grille proposait « 31/12/2025 », une date
+    // que le livre de 2026 refuse. Elle se repropose dans l'exercice regardé ; une pièce COMMENCÉE garde ce qu'on a tapé.
+    if (!pieceEnCours(saisieState.piece) && saisieState.piece.date && String(saisieState.piece.date).slice(0, 4) !== String(s.annee)) {
+      saisieState.piece.date = dateProposee(s.annee);
     }
     const p = saisieState.piece;
     if (p.journalDe) {
