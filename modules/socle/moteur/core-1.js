@@ -1743,9 +1743,25 @@
   // payer remonte à zéro, la trésorerie voit une sortie, et l'écriture change de colonne toute
   // seule (D client / C banque, règle 6.3.0). Seuls les lecteurs de DATES doivent le connaître :
   // rendre de l'argent n'est pas « le jour où le client a fini de payer ».
-  function estRemboursement(p) { return (Number(p && p.amount) || 0) < 0; }
+  // (1.359.0, bout en bout 21) Un chèque ou un effet REVENU IMPAYÉ n'est pas un remboursement : l'argent n'est jamais arrivé.
+  // Supprimer le paiement effaçait la trace du chèque (la relance n'avait plus rien à dire) et désaccordait le relevé de la
+  // banque, qui montre la remise ET son rejet. Le rejet est un règlement NÉGATIF qui désigne le paiement qu'il annule
+  // (`rejetDe`) : le signe fait le reste (la facture redevient due, la banque voit la sortie, D client / C banque), le
+  // paiement reste dans l'historique, et chaque ligne se pointe sur sa ligne du relevé.
+  function estRejet(p) { return !!(p && p.rejetDe); }
+  // Le nom du rejet, dans les mots de la banque (le serveur nomme son écriture de la même façon).
+  function libelleImpaye(method) { return method === 'cheque' ? 'Chèque impayé' : method === 'traite' ? 'Effet impayé' : 'Impayé'; }
+  function estRemboursement(p) { return (Number(p && p.amount) || 0) < 0 && !estRejet(p); }
+  // Les paiements que la banque a vraiment gardés : ni un rejet, ni un paiement rejeté.
+  function paiementsTenus(inv) {
+    const ps = (inv && inv.payments) || [];
+    const rejetes = new Set(ps.filter(estRejet).map(p => String(p.rejetDe)));
+    return ps.filter(p => !estRejet(p) && !rejetes.has(String(p.id)));
+  }
+  // Le rejet d'un paiement, s'il y en a un.
+  function rejetDuPaiement(inv, p) { return ((inv && inv.payments) || []).find(x => estRejet(x) && String(x.rejetDe) === String(p && p.id)) || null; }
   function dateDernierReglement(inv) {
-    const dates = ((inv && inv.payments) || []).filter(p => !estRemboursement(p)).map(p => p.date).filter(Boolean).sort();
+    const dates = paiementsTenus(inv).filter(p => !estRemboursement(p)).map(p => p.date).filter(Boolean).sort();
     return dates.length ? dates[dates.length - 1] : '';
   }
 

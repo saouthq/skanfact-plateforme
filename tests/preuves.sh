@@ -1928,6 +1928,8 @@ prouver "la balance du Cabinet qui n'est pas celle du serveur" $PC \
 
 # ── Brique 38 : la saisie du cabinet dans les livres du serveur (docs/cabinet.md) ──
 M21=base/migrations/0021_compta_saisie.sql
+# (1.358.2) poser_saisie et poser_miroir sont redéfinies par la 0210 (le tiers d'une ligne) : leurs preuves visent la définition en vigueur.
+M210=base/migrations/0210_tiers_des_lignes.sql
 S1="saisir au brouillard avec les contrôles de la v10, modifier sans écraser un autre poste, supprimer ; une écriture née d'une pièce ne se change pas"
 S2="qui saisit : la comptabilité de l'entreprise et tout le cabinet ; ni la lecture, ni un cabinet sans la comptabilité, ni dans la base"
 S3="valider une écriture ou un lot : le numéro de son journal et le maillon de la chaîne ; une écriture datée de demain est nommée sans trouer la numérotation ; l'assistant et le client ne valident pas"
@@ -1938,18 +1940,18 @@ W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le 
 prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0194_operations_diverses_du_client.sql \
   "'contre_passation', 'saisie', 'extourne', 'reprise_v10'," "'contre_passation', 'extourne', 'reprise_v10'," \
   "$S1"
-prouver "une saisie déséquilibrée qui entre" $M21 \
+prouver "une saisie déséquilibrée qui entre" $M210 \
   "  if td <> tc then" "  if false then" \
   "$S1"
-prouver "une saisie dans la période close" $M21 \
+prouver "une saisie dans la période close" $M210 \
   "  if c is not null and v_date <= c then
     perform socle.refus(format('la période est validée jusqu''au %s : une écriture ne s''y écrit plus'" "  if false then
     perform socle.refus(format('la période est validée jusqu''au %s : une écriture ne s''y écrit plus'" \
   "$S1"
-prouver "un compte qui n'est pas un numéro" $M21 \
+prouver "un compte qui n'est pas un numéro" $M210 \
   "    if coalesce(l->>'compte', '') !~ '^[0-9]{1,12}\$' then perform socle.refus(format('ligne %s : le compte doit être un numéro', i)); end if;" "" \
   "$S1"
-prouver "une écriture sans libellé" $M21 \
+prouver "une écriture sans libellé" $M210 \
   "  if v_libelle is null then perform socle.refus('le libellé manque : écris-le sur la pièce ou sur une ligne'); end if;" "" \
   "$S1"
 prouver "un brouillard écrasé par un poste qui ne l'a pas relu" $M21 \
@@ -2001,7 +2003,7 @@ prouver "une écriture contre-passée deux fois" $M21 \
     perform socle.refus('cette écriture a déjà été contre-passée');" "  if false then
     perform socle.refus('cette écriture a déjà été contre-passée');" \
   "$S4"
-prouver "un miroir aux lignes non inversées" $M21 \
+prouver "un miroir aux lignes non inversées" $M210 \
   "y.libelle, y.credit, y.debit, y.taux_tva" "y.libelle, y.debit, y.credit, y.taux_tva" \
   "$S4"
 prouver "une extourne dans la période close" $M21 \
@@ -28191,7 +28193,7 @@ prouver 'avoir 1.356.6 b : le serveur juge le seuil sur l'\''avoir, pas sur sa f
   '    const suitSaFacture = !!(corrigee && corrigee.totaux && (corrigee.totaux.retenue ?? 0n) > 0n);' '    const suitSaFacture = false;' \
   "$PS13566"
 prouver 'avoir 1.356.6 c : l'\''avoir sous le seuil promet un paiement groupé' 'modules/socle/ecrans/entreprise/app-1.js' \
-  '        if (t.sousLeSeuil && isAv) points.push(' '        if (false) points.push(' \
+  '        if (t.sousLeSeuil && Number(t.withholdingRate) > 0 && isAv) points.push(' '        if (false) points.push(' \
   "$PS13566"
 prouver 'avoir 1.356.6 d : la fiche du client compte le remboursement dans ce qu'\''il a versé' 'modules/socle/ecrans/entreprise/app-1.js' \
   '      const recus = paiements.filter(x => enBase(x) > 0), rendus = paiements.filter(x => enBase(x) < 0);' '      const recus = paiements, rendus = [];' \
@@ -28797,6 +28799,46 @@ prouver $'tiers de janvier 1.358.2 l : « Quitter sans enregistrer ? » juste ap
   $'    if ($(\'#del\')) $(\'#del\').onclick = () => supprimerPiece(doc, () => {\n      if (brouillonD) { clearTimeout(brouillonDTimer); brouillonD.effacer(); etatGardeLocal = \'\'; }\n      untouch(); navigate(backTo);\n    });\n' \
   $'    if ($(\'#del\')) $(\'#del\').onclick = () => supprimerPiece(doc, () => navigate(backTo));\n' \
   'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
+prouver $'chèque impayé 1.359.0 a : un rejet compté comme un remboursement (son jour devient « le dernier règlement »)' modules/socle/moteur/core-1.js \
+  $'return (Number(p && p.amount) || 0) < 0 && !estRejet(p); }' \
+  $'return (Number(p && p.amount) || 0) < 0; }' \
+  'la facture redevient due ; le paiement rejeté et son rejet ne sont ni « tenus » ni un dernier règlement'
+prouver $'chèque impayé 1.359.0 b : le paiement rejeté compte encore comme tenu' modules/socle/moteur/core-1.js \
+  $'return ps.filter(p => !estRejet(p) && !rejetes.has(String(p.id)));' \
+  $'return ps.filter(p => !estRejet(p));' \
+  'la facture redevient due ; le paiement rejeté et son rejet ne sont ni « tenus » ni un dernier règlement'
+prouver $'chèque impayé 1.359.0 c : la Trésorerie appelle le rejet « Remboursement »' modules/socle/moteur/core-2.js \
+  $'label: `${estRejet(p) ? libelleImpaye(p.method) : rend ? \'Remboursement\' : \'Encaissement\'}' \
+  $'label: `${rend ? \'Remboursement\' : \'Encaissement\'}' \
+  'la Trésorerie l'"'"'appelle par son nom, et un remboursement garde le sien'
+prouver $'chèque impayé 1.359.0 d : la relance ne dit pas que le chèque est revenu impayé' modules/socle/moteur/core-2.js \
+  $'body: relance ? avecImpaye(corps, doc, cur, en) : corps };' \
+  $'body: corps };' \
+  'la relance le dit après la salutation, sans toucher au reste du modèle ; en anglais aussi'
+prouver $'chèque impayé 1.359.0 e : un rejet qui ne reprend pas le montant du paiement est accepté' serveur/v10/lecture.ts \
+  $'if (!vise || vise.montant <= 0n || r.montant !== -vise.montant || rejetes.has(r.rejetDe)) throw' \
+  $'if (!vise) throw' \
+  'le chèque de l'"'"'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
+prouver $'chèque impayé 1.359.0 f : le serveur ne garde pas le paiement que le rejet annule' serveur/reglements.ts \
+  $'note: r.note, rejet_de: r.rejetDe ?? null,' \
+  $'note: r.note,' \
+  'le chèque de l'"'"'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
+prouver $'chèque impayé 1.359.0 g : l\'écriture du comptable s\'appelle « Remboursement »' serveur/compta/ventes.ts \
+  $'const cle = r.rejet_de ? (' \
+  $'const cle = false ? (' \
+  'le chèque de l'"'"'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
+prouver $'chèque impayé 1.359.0 h : le menu d\'un chèque reçu n\'offre pas « revenu impayé »' modules/socle/ecrans/entreprise/app-1.js \
+  $'...(rejetable ? [{ icon: \'non\',' \
+  $'...(false ? [{ icon: \'non\',' \
+  'le chèque de l'"'"'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
+prouver $'chèque impayé 1.359.0 i : supprimer le chèque laisse son rejet orphelin' modules/socle/ecrans/entreprise/app-1.js \
+  $'s.payments = s.payments.filter(x => x.id !== p.id && x.rejetDe !== p.id); save(true); render();' \
+  $'s.payments = s.payments.filter(x => x.id !== p.id); save(true); render();' \
+  'le chèque de l'"'"'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
+prouver $'chèque impayé 1.359.0 j : « Le dernière relance est prêt »' modules/socle/ecrans/entreprise/app-1.js \
+  $'${pretG(echueG.level)} à partir' \
+  $'Le ${echueG.label || \'relance\'} est prêt à partir' \
+  'le chèque de l'"'"'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

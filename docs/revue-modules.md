@@ -3392,3 +3392,45 @@ des couverts non servis. Côté client, les chiffres tombaient juste : la TVA de
   refusé ce lot-ci (`pont-cabinet.js`, 2 819 pour 2 806) : la règle « un nom que porte un seul tiers le désigne » vit
   maintenant dans le moteur partagé (`tiersParNomUnique`, compta.js), le pont ne fait que l'appeler, et il ne reste que
   trois lignes à relever (l'identifiant du tiers qui voyage avec chaque ligne).
+
+### 1.359.0 : un chèque client revenu impayé (bout en bout 21)
+
+Joué à la souris dans l'environnement de test : l'Hôtel Mouradi Gammarth règle la facture FAC-2025-001 du traiteur par
+chèque (CHQ 4521873 ATB, le solde de 976 DT, remis début novembre). Le 6 novembre, la banque le rend impayé et prend
+15 DT de frais. Avant cette version, SkanFact n'avait aucun geste pour ça. Il fallait supprimer le paiement, ce qui
+effaçait toute trace du chèque, ou saisir un « remboursement » négatif : la facture redevenait due, mais la Trésorerie,
+l'écriture du comptable et la relance parlaient d'un remboursement fait au client, ce qui est le contraire de ce qui
+s'est passé.
+- **« Le chèque est revenu impayé… »** dans le menu d'un paiement par chèque ou par effet. La fenêtre demande le jour où
+  la banque l'a rendu et ses frais, et annonce avant d'enregistrer ce que la facture redeviendra due. Le paiement
+  d'origine reste dans l'historique, marqué « revenu impayé le 06/11/2026 ». En face, une ligne « Chèque impayé »
+  (« Effet impayé » pour une traite) reprend son montant, et la facture redevient due de ce montant. Le rejet est un
+  paiement négatif qui désigne le paiement qu'il annule (`rejetDe`), et le serveur le garde (`rejet_de`, migration
+  0211).
+- **Le serveur refuse un rejet qui ne tient pas** : un rejet qui ne désigne aucun paiement reçu de la facture, qui n'en
+  reprend pas le montant exact, ou un second rejet du même paiement. Rien n'est alors enregistré, et le refus le dit.
+- **Les frais pris par la banque** partent en Trésorerie (« Frais de rejet CHQ 4521873 ATB ») et, chez le comptable, au
+  compte de frais bancaires (627).
+- **Chez le comptable**, l'écriture s'appelle « Chèque impayé FAC-2025-001 — Hôtel Mouradi Gammarth », datée du jour du
+  rejet, et remet la somme au débit du client (411). Le lettrage du Cabinet dit 976 DT dus, comme la facture côté
+  client : deux chemins, un chiffre.
+- **La relance le dit au client d'abord** : « Votre chèque CHQ 4521873 ATB du 02/11/2026 (976,000 DT) nous est revenu
+  impayé le 06/11/2026. » Cette phrase s'ajoute après la salutation, et le reste du modèle (que la personne a pu écrire
+  elle-même) ne change pas. En anglais aussi. L'encart à côté de la facture le dit avant de proposer la relance.
+- **Le chèque était bon finalement** (une erreur de la banque) : « Retirer ce rejet » remet le paiement comme reçu,
+  après une question qui dit ce que la facture redeviendra. Supprimer le chèque lui-même emporte son rejet, et la
+  question le dit (« Son rejet du 06/11/2026 part avec lui »).
+- **Vu au passage** : l'encart d'une facture en retard disait « Le dernière relance est prêt à partir ». Il dit
+  maintenant « Le rappel est prêt », « La relance est prête » ou « La dernière relance est prête ».
+- **Rouge GitHub de 2737bda (1.358.2), réparé.** Le contrôle éclair des preuves en signalait six à reprendre. Cinq
+  preuves visaient encore l'ancienne définition de la saisie au Cabinet, alors que la 0210 l'avait redéfinie (le tiers
+  d'une ligne) : elles visent maintenant la 0210. La sixième (« avoir 1.356.6 c ») cherchait une ligne que la 1.358.2
+  avait modifiée. Les six sont de nouveau prouvées.
+- À VÉRIFIER avec le comptable : les frais de rejet se refacturent-ils au client (et avec quelle TVA) ? SkanFact ne les
+  ajoute pas à la facture. Pour une facture avec retenue à la source, faut-il défaire aussi la retenue d'un paiement
+  rejeté ? Pour une facture en devise, le rejet reprend le taux du paiement d'origine : est-ce le bon taux, ou celui du
+  jour du rejet ?
+- Tests : `tests/moteur/cheque-impaye-1359.test.ts` (la facture redevient due, la Trésorerie, la relance en français et
+  en anglais) et `tests/web/cheque-impaye-1359.test.ts` (tout le parcours : deux rejets faux refusés au serveur, la
+  fenêtre, la facture, la relance, l'écriture et les frais au Cabinet, le rejet retiré, puis le chèque supprimé avec son
+  rejet) ; dix preuves « chèque impayé 1.359.0 ».

@@ -72,7 +72,7 @@ export type RefusPaiement = 'v10.reglement' | 'v10.achat_reglement';
 export function lirePaiements(paiements: unknown, numero: string, decimales: number, devise: string, refus: RefusPaiement = 'v10.reglement'): ReglementSaisi[] {
   const liste = Array.isArray(paiements) ? paiements : [];
   const vus = new Set<string>();
-  return liste.map((p, rang) => {
+  const lus = liste.map((p, rang) => {
     if (!estObjet(p) || typeof p.id !== 'string' || p.id === '' || p.id.length > 200) throw new Refus(`${refus}_sans_identifiant`, { valeurs: { numero } });
     if (vus.has(p.id)) throw new Refus(`${refus}_double`, { valeurs: { numero } });
     vus.add(p.id);
@@ -89,6 +89,17 @@ export function lirePaiements(paiements: unknown, numero: string, decimales: num
     return {
       ref: p.id, rang, date: p.date, montant, cours,
       mode: texteOuNul(p.method, 40) ?? 'inconnu', compte: texteOuNul(p.accountId, 200), reference: texteOuNul(p.reference, 200), note: texteOuNul(p.note, 1000),
+      rejetDe: texteOuNul(p.rejetDe, 200),
     };
   });
+  // (1.359.0) Le rejet d'un chèque ou d'un effet (0211) désigne un paiement REÇU de la même pièce, en reprend le montant
+  // exact, et il n'y en a qu'un par paiement : sinon la pièce dirait dû ce que la banque a gardé, ou l'inverse.
+  const rejetes = new Set<string>();
+  for (const r of lus) {
+    if (!r.rejetDe) continue;
+    const vise = lus.find((x) => x.ref === r.rejetDe && !x.rejetDe);
+    if (!vise || vise.montant <= 0n || r.montant !== -vise.montant || rejetes.has(r.rejetDe)) throw new Refus(`${refus}_rejet`, { valeurs: { numero } });
+    rejetes.add(r.rejetDe);
+  }
+  return lus;
 }

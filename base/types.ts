@@ -70,6 +70,7 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
+    rejet_de: string | null;
   };
   'cabinet.document': {
     id: Generated<string>;
@@ -1987,6 +1988,7 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
+    rejet_de: string | null;
   };
   'ventes.signataire': {
     entreprise: string;

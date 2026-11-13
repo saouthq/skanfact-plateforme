@@ -645,10 +645,10 @@
 
     (data.documents || []).filter(d => d.type === 'facture').forEach(d => (d.payments || []).forEach(p => {
       if (!inPeriod(p.date, period && period.from, period && period.to) || !keep(p.accountId, p.method)) return;
-      const rend = estRemboursement(p);
+      const rend = Number(p.amount) < 0;
       out.push({
         id: p.id, kind: rend ? 'decaissement' : 'encaissement', date: p.date, accountId: compteDe(p.accountId, p.method),
-        label: `${rend ? 'Remboursement' : 'Encaissement'} ${d.number || ''}`.trim(), party: clientName(d.clientId),
+        label: `${estRejet(p) ? libelleImpaye(p.method) : rend ? 'Remboursement' : 'Encaissement'} ${d.number || ''}`.trim(), party: clientName(d.clientId),
         amount: montantRegle(d, p, company), method: p.method || '',
         reference: p.reference || '', docId: d.id, reconciled: !!p.reconciled, source: 'vente'
       });
@@ -797,7 +797,7 @@
     const soldees = [];
     (data.documents || []).filter(d => d.type === 'facture' && d.clientId === clientId && d.status !== 'brouillon' && d.status !== 'annulée').forEach(d => {
       if (invoiceBalance(d, data, company).remaining > 0.0005) return;
-      const ps = (d.payments || []).filter(p => !estRemboursement(p) && p.date && p.date <= t).map(p => p.date).sort();
+      const ps = paiementsTenus(d).filter(p => !estRemboursement(p) && p.date && p.date <= t).map(p => p.date).sort();
       if (!ps.length) return;
       soldees.push({ le: ps[ps.length - 1], retard: Math.max(0, daysBetween(d.dueDate || d.date, ps[ps.length - 1])) });
     });
@@ -5746,7 +5746,7 @@
     }));
     (doc.payments || []).forEach(p => {
       const m = PAYMENT_METHODS.find(x => x[0] === p.method);
-      ev.push({ date: p.date, kind: 'paiement', label: estRemboursement(p) ? `Remboursement au client de ${money(-p.amount, doc.currency || company.currency)}` : `Paiement de ${money(p.amount, doc.currency || company.currency)}`, detail: [m ? m[1] : p.method, p.reference].filter(Boolean).join(' · ') });
+      ev.push({ date: p.date, kind: 'paiement', label: estRejet(p) ? `${libelleImpaye(p.method)} : ${money(-p.amount, doc.currency || company.currency)} redeviennent dus` : estRemboursement(p) ? `Remboursement au client de ${money(-p.amount, doc.currency || company.currency)}` : `Paiement de ${money(p.amount, doc.currency || company.currency)}`, detail: [m ? m[1] : p.method, p.reference].filter(Boolean).join(' · ') });
     });
     if (doc.remindAfter) ev.push({ date: doc.remindAfter, kind: 'report', label: 'Ne pas relancer avant cette date' });
     if (doc.type === 'facture') creditsFor(data, doc.id).forEach(a => ev.push({ date: a.date, kind: 'avoir', label: `Avoir ${a.number}`, detail: a.creditReason || '', id: a.id }));
@@ -5851,7 +5851,23 @@
       ...(extra || {})
     };
     const modele = sansObjetVide(vars);
-    return { to: (client || {}).email || '', subject: fillTemplate(modele(tpl.subject), vars), body: fillTemplate(modele(tpl.body), vars) };
+    const corps = fillTemplate(modele(tpl.body), vars);
+    return { to: (client || {}).email || '', subject: fillTemplate(modele(tpl.subject), vars), body: relance ? avecImpaye(corps, doc, cur, en) : corps };
+  }
+  // (1.359.0, bout en bout 21) Une relance après un chèque ou un effet revenu impayé le dit d'abord : c'est le fait que le
+  // client doit lire (il croit peut-être avoir payé). La phrase s'ajoute en paragraphe après la salutation : le modèle, que
+  // la personne a pu écrire elle-même, ne se réécrit pas. Le dernier rejet seulement, avec le paiement qu'il annule.
+  function avecImpaye(corps, doc, cur, en) {
+    const rj = (doc.payments || []).filter(estRejet).sort((a, b) => String(a.date).localeCompare(String(b.date))).pop();
+    if (!rj) return corps;
+    const p = (doc.payments || []).find(x => x.id === rj.rejetDe) || {};
+    const lang = en ? 'en' : 'fr';
+    const ref = p.reference ? ` ${p.reference}` : '';
+    const phrase = en
+      ? `Your ${rj.method === 'traite' ? 'bill of exchange' : rj.method === 'cheque' ? 'cheque' : 'payment'}${ref} of ${fmtDate(p.date)} (${money(-rj.amount, cur, undefined, lang)}) was returned unpaid on ${fmtDate(rj.date)}.`
+      : `Votre ${rj.method === 'traite' ? 'effet' : rj.method === 'cheque' ? 'chèque' : 'paiement'}${ref} du ${fmtDate(p.date)} (${money(-rj.amount, cur, undefined, lang)}) nous est revenu impayé le ${fmtDate(rj.date)}.`;
+    const i = String(corps).indexOf('\n\n');
+    return i < 0 ? `${phrase}\n\n${corps}` : `${corps.slice(0, i)}\n\n${phrase}${corps.slice(i)}`;
   }
 
   // L'objet d'une pièce est FACULTATIF, et le modèle l'écrivait quand même : « notre devis DEV-2026-001
@@ -7771,7 +7787,7 @@
     debutExercice, soldesOuverture, balanceGenerale, grandLivre, grandLivreRows, balanceAuxiliaire,
     balanceCsvColumns, balanceAuxCsvColumns, grandLivreCsvColumns,
     salesCsvColumns, buyCsvColumns, payCsvColumns, supplierPayCsvColumns, cashCsvColumns, cashCsvRows,
-    estRemboursementAchat, avoirRembourse, aRattacherAchat, nextNumber, isLocked, isIssued, computeTotals, creditsFor, invoiceBalance, estRemboursement, titreQuestion, gesteQuestion, dateDernierReglement, motifVerrou, delaisContradictoires, effectiveStatus,
+    estRemboursementAchat, avoirRembourse, aRattacherAchat, nextNumber, isLocked, isIssued, computeTotals, creditsFor, invoiceBalance, estRemboursement, estRejet, paiementsTenus, rejetDuPaiement, libelleImpaye, titreQuestion, gesteQuestion, dateDernierReglement, motifVerrou, delaisContradictoires, effectiveStatus,
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, periodesDues, contratTermine, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
     estTitre, sousTotauxDeSections,

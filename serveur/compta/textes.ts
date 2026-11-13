@@ -47,6 +47,10 @@ declarerTextes({
   'compta.libelle.regularisation': 'Régularisation de la retenue {facture} (avoir {numero})',
   'compta.libelle.reglement': 'Règlement {numero} — {client}',
   'compta.libelle.remboursement': 'Remboursement {numero} — {client}',
+  // (1.359.0) Un chèque ou un effet revenu impayé n'est pas un remboursement : l'argent n'est jamais arrivé (0211).
+  'compta.libelle.cheque_impaye': 'Chèque impayé {numero} — {client}',
+  'compta.libelle.effet_impaye': 'Effet impayé {numero} — {client}',
+  'compta.libelle.impaye': 'Impayé {numero} — {client}',
   'compta.libelle.retenue_subie': 'Retenue à la source subie {numero}',
   'compta.libelle.gain_change': 'Gain de change — {libelle}',
   'compta.libelle.perte_change': 'Perte de change — {libelle}',

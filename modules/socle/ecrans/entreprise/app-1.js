@@ -6483,15 +6483,21 @@
         const echueG = C.overdueInvoices(data, company()).find(x => x.doc.id === doc.id);
         const quandG = echueG ? `en retard de ${pl(echueG.daysLate, 'jour')}` : doc.dueDate ? `échéance le ${lfJm(doc.dueDate)}` : '';
         const ouEnEst = `${recuG}${payeG > 0.0005 || avoirsG > 0.0005 ? `, reste ${argentLu(bal.remaining, cur)}` : ''}${quandG ? ` · ${quandG}` : ''}.`;
+        // (1.359.0) Un chèque revenu impayé est la première chose qu'on veut se rappeler avant de relancer (bout en bout 21).
+        const rjG = (doc.payments || []).filter(C.estRejet).sort((a, x) => String(a.date).localeCompare(String(x.date))).pop();
+        const pRjG = rjG && (doc.payments || []).find(x => x.id === rjG.rejetDe);
+        const impayeG = rjG ? ` ${rjG.method === 'traite' ? 'L\'effet' : rjG.method === 'cheque' ? 'Le chèque' : 'Le paiement'}${pRjG && pRjG.reference ? ` ${h(pRjG.reference)}` : ''} de ${argentLu(-rjG.amount, cur)} est revenu impayé le ${lfJm(rjG.date)}.` : '';
+        // « Le dernière relance est prêt » : le libellé est féminin, sauf le rappel.
+        const pretG = lvl => ({ 1: 'Le rappel est prêt', 2: 'La relance est prête', 3: 'La dernière relance est prête' })[lvl] || 'La relance est prête';
         if (echueG && !echueG.snoozed && !echueG.attente && !echueG.litige) {
           return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="ed-relancer">${lfIc('cloche', 17)}Relancer ${h(nomClientPiece(doc) || 'le client')}…</button>
-          <p class="ed-phrase">${ouEnEst} Le ${C.REMINDER_LABELS[echueG.level].toLowerCase()} est prêt à partir ; un paiement arrivé se note à côté.</p>
+          <p class="ed-phrase">${ouEnEst}${impayeG} ${pretG(echueG.level)} à partir ; un paiement arrivé se note à côté.</p>
           <div class="ed-deux"><button class="btn" id="pay">${lfIc('carte', 15)}Enregistrer un paiement</button></div>
           <p class="ed-phrase ed-tous">Tous les gestes de la facture : ⋯ en haut à droite.</p>${tous}</div>`;
         }
         const attendG = echueG && echueG.attente && echueG.lastReminder ? ` Relancée le ${lfJm(echueG.lastReminder.date)} : on attend sa réponse jusqu'au ${lfJm(echueG.remontre)}.` : '';
         return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="pay">${lfIc('carte', 17)}Enregistrer un paiement</button>
-          <p class="ed-phrase">${roleBarre() === 'commercial' ? 'Tu es commercial : le propriétaire signe et corrige. Toi, tu envoies la facture et tu suis son paiement.' : `${ouEnEst}${attendG} Un paiement partiel se note aussi.`}</p>
+          <p class="ed-phrase">${roleBarre() === 'commercial' ? 'Tu es commercial : le propriétaire signe et corrige. Toi, tu envoies la facture et tu suis son paiement.' : `${ouEnEst}${impayeG}${attendG} Un paiement partiel se note aussi.`}</p>
           <p class="ed-phrase ed-tous">Tous les gestes de la facture : ⋯ en haut à droite.</p>${tous}</div>`;
       }
       const etat = !bal ? (isAv ? `Avoir émis${doc.creditOfNumber ? ` sur ${h(doc.creditOfNumber)}` : ''} : il diminue ce que le client doit.` : '')
@@ -8479,6 +8485,8 @@
       const s = docById(doc.id); const b = balance(s); const t = b.totals;
       const rows = (s.payments || []).slice().sort((a, x) => (a.date || '').localeCompare(x.date || ''));
       const rendu = C.round3(rows.filter(p => C.estRemboursement(p)).reduce((t, p) => t - (Number(p.amount) || 0), 0));
+      // (1.359.0) Un chèque revenu impayé : l'argent n'est jamais arrivé, la carte « Reçu » le dit.
+      const rejete = C.round3(rows.filter(p => C.estRejet(p)).reduce((t, p) => t - (Number(p.amount) || 0), 0));
       const plusieursComptes = (data.accounts || []).length > 1;
       // La retenue que le client garde en payant naît à CHAQUE encaissement (10.14.0) : la ligne dit
       // la part de ce règlement-là, la case d'attestation dit ce qui a déjà été retenu.
@@ -8494,7 +8502,7 @@
           <div><div class="k-label">Avoirs ${info('ed.credit')}</div><div class="v">${mo(b.credited)}</div>${b.credits.length ? `<div class="small">${b.credits.map(a => `<a href="#/doc/${a.id}">${h(a.number)}</a>`).join(', ')}</div>` : ''}</div>
           ${/* « Payé 1,000 DT » sur une facture réglée 405,600 puis remboursée de 404,600 (vu au test
                humain, 10.14.0) : le net se lisait comme ce que le client avait versé. La carte dit
-               ce qui est REÇU, et ce qui a été rendu dessous. */''}<div><div class="k-label">${charte ? 'Reçu' : 'Payé'}</div><div class="v">${mo(C.round3(b.paid + rendu))}</div>${rendu ? `<div class="small muted">dont ${C.money(rendu, cur)} rendus au client</div>` : ''}</div>
+               ce qui est REÇU, et ce qui a été rendu dessous. */''}<div><div class="k-label">${charte ? 'Reçu' : 'Payé'}</div><div class="v">${mo(C.round3(b.paid + rendu))}</div>${rendu ? `<div class="small muted">dont ${C.money(rendu, cur)} rendus au client</div>` : ''}${rejete ? `<div class="small muted">sans ${C.money(rejete, cur)} revenus impayés</div>` : ''}</div>
           ${b.remaining < -0.0005
             // Un trop-perçu n'est pas « 0,000 DT » en vert (10.12.0) : c'est de l'argent qui appartient
             // au CLIENT — un avoir émis après le paiement, ou un paiement plus fort que la facture. La
@@ -8506,7 +8514,7 @@
               : `<div><div class="k-label">${charte ? 'Reste' : 'Reste à payer'}</div><div class="v ${b.remaining > 0.0005 ? 'due' : 'ok'}">${mo(Math.max(0, b.remaining))}</div></div>`}
         </div>
         ${rows.length ? `<table class="list compact${charte ? ' ed-paie-t' : ''}"><thead><tr><th>Date</th><th>Mode</th>${plusieursComptes ? '<th>Compte</th>' : ''}<th>Référence</th><th class="r">Montant</th><th></th></tr></thead><tbody>
-          ${rows.map(p => `<tr><td>${C.fmtDate(p.date)}</td><td>${h(methodLabel(p.method))}</td>${plusieursComptes ? `<td>${h(accountLabel(p.accountId, p.method))}</td>` : ''}<td>${h(p.reference || '')}${p.note ? `<div class="small muted">${h(p.note)}</div>` : ''}</td><td class="r">${mo(p.amount)}${reglementEnDinars(s, p)}${C.estRemboursement(p) ? '<div class="small muted">rendu au client</div>' : ''}${rsParts[p.id] ? `<div class="small muted">${rsParts[p.id] > 0 ? `+ ${C.money(rsParts[p.id], cur)} retenus par le client` : `retenue défaite : ${C.money(-rsParts[p.id], cur)}`}</div>` : ''}</td>${menuP(p.id)}</tr>`).join('')}
+          ${rows.map(p => { const rj = C.rejetDuPaiement(s, p); return `<tr><td>${C.fmtDate(p.date)}</td><td>${h(C.estRejet(p) ? C.libelleImpaye(p.method) : methodLabel(p.method))}</td>${plusieursComptes ? `<td>${h(accountLabel(p.accountId, p.method))}</td>` : ''}<td>${h(p.reference || '')}${p.note ? `<div class="small muted">${h(p.note)}</div>` : ''}${rj ? `<div class="small warn-text">revenu impayé le ${C.fmtDate(rj.date)}</div>` : ''}</td><td class="r">${mo(p.amount)}${reglementEnDinars(s, p)}${C.estRemboursement(p) ? '<div class="small muted">rendu au client</div>' : ''}${C.estRejet(p) ? '<div class="small muted">redevient dû</div>' : ''}${rsParts[p.id] ? `<div class="small muted">${rsParts[p.id] > 0 ? `+ ${C.money(rsParts[p.id], cur)} retenus par le client` : `retenue défaite : ${C.money(-rsParts[p.id], cur)}`}</div>` : ''}</td>${menuP(p.id)}</tr>`; }).join('')}
         </tbody></table>` : `<p class="small muted">Aucun paiement enregistré.</p>`}
         <div class="inline mt">
           ${s.status !== 'annulée' && b.remaining > 0.0005
@@ -8529,7 +8537,23 @@
       // sans dire lequel (10.12.0, la règle 7.29.0 : une ligne, un menu, des phrases).
       bindRowMenus(el, id => {
         const p = (s.payments || []).find(x => x.id === id); if (!p) return [];
+        // (1.359.0) Un chèque ou un effet REVENU IMPAYÉ a son geste (bout en bout 21) : « Supprimer » effaçait sa trace. Le rejet
+        // se modifie (sa date) ou se retire (le chèque était bon) ; le paiement rejeté ne se rejette pas deux fois.
+        const origineRj = C.estRejet(p) ? (s.payments || []).find(x => x.id === p.rejetDe) : null;
+        if (origineRj) return [
+          { icon: 'modifier', label: 'Modifier ce rejet', hint: 'Le jour où la banque a rendu le paiement', run: () => rejetForm(s, origineRj, () => render()) },
+          { sep: true },
+          { icon: 'supprimer', label: 'Retirer ce rejet', hint: 'Le paiement comptera de nouveau comme reçu', danger: true, run: async () => {
+            if (closedBlock(p.date, 'Ce rejet')) return;
+            const apresR = C.round3(b.remaining + (Number(p.amount) || 0));
+            if (!await confirmDialog(`Retirer le rejet du ${C.fmtDate(p.date)} ? Le paiement du ${C.fmtDate(origineRj.date)} (${C.money(origineRj.amount, cur)}) comptera de nouveau comme reçu ; ${apresR > 0.0005 ? `${s.number} restera due de ${C.money(apresR, cur)}` : `${s.number} redeviendra réglée`}.`, 'Retirer le rejet', true)) return;
+            s.payments = s.payments.filter(x => x.id !== p.id); save(true); render();
+          } },
+        ];
+        const rjDe = C.rejetDuPaiement(s, p);
+        const rejetable = !rjDe && Number(p.amount) > 0 && (p.method === 'cheque' || p.method === 'traite');
         return [
+          ...(rejetable ? [{ icon: 'non', label: p.method === 'traite' ? 'L\'effet est revenu impayé…' : 'Le chèque est revenu impayé…', hint: 'La facture redevient due ; ce paiement reste dans l\'historique', run: () => rejetForm(s, p, () => render()) }] : []),
           { icon: 'modifier', label: C.estRemboursement(p) ? 'Modifier ce remboursement' : 'Modifier ce paiement', hint: (s.currency || company().currency) === company().currency ? 'Date, montant, mode, compte' : 'Date, montant, taux du jour, mode, compte', run: () => paymentForm(s, () => render(), p) },
           { sep: true },
           { icon: 'supprimer', label: C.estRemboursement(p) ? 'Supprimer ce remboursement' : 'Supprimer ce paiement', hint: C.estRemboursement(p) ? 'Le trop-perçu redeviendra à rendre' : 'Il ne comptera plus dans ce que le client a réglé', danger: true, run: async () => {
@@ -8538,15 +8562,17 @@
             // Ce que la facture redevient VRAIMENT : « due de ce montant » était faux dès qu'un avoir
             // couvre une partie de la facture — vu au test humain, un paiement de 507,940 dont le
             // retrait ne laissait qu'1,000 DT à payer (10.12.0).
-            const apres = C.round3(b.remaining + (Number(p.amount) || 0));
-            const suite = apres > 0.0005 ? `${s.number} redeviendra due de ${C.money(apres, cur)}.` : apres < -0.0005 ? `${C.money(-apres, cur)} redeviendront à rendre au client.` : `${s.number} restera réglée.`;
+            // Un paiement revenu impayé part avec son rejet : la facture reste due de ce qu'elle doit.
+            const apres = C.round3(b.remaining + (rjDe ? 0 : Number(p.amount) || 0));
+            const suite = (rjDe ? `Son rejet du ${C.fmtDate(rjDe.date)} part avec lui. ` : '') + (apres > 0.0005 ? `${s.number} redeviendra due de ${C.money(apres, cur)}.` : apres < -0.0005 ? `${C.money(-apres, cur)} redeviendront à rendre au client.` : `${s.number} restera réglée.`);
             const rend = C.estRemboursement(p);
             // (1.304.0) Daté dans la période que le cabinet a validée, il s'annule chez lui au premier jour encore ouvert : la
             // question le dit, le message après offre de le lui dire.
             await periodeValideeLue();
             const dvSup = dateDansLaPeriodeValidee([p.date]);
             if (!await confirmDialog(`Supprimer ${rend ? 'le remboursement' : 'le paiement'} de ${C.money(Math.abs(p.amount), cur)} du ${C.fmtDate(p.date)}${p.reference ? ` (${p.reference})` : ''} ? ${suite}${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Il', fem: false })}` : ''}`, rend ? 'Supprimer le remboursement' : 'Supprimer le paiement')) return;
-            s.payments = s.payments.filter(x => x.id !== p.id); save(true); render();
+            // (1.359.0) Son rejet part avec lui : un rejet ne désigne que le paiement qu'il annule.
+            s.payments = s.payments.filter(x => x.id !== p.id && x.rejetDe !== p.id); save(true); render();
             if (dvSup) {
               const clS = clientById(s.clientId);
               direAuComptableApres(rend ? 'Remboursement supprimé' : 'Paiement supprimé', { fait: 'de supprimer', fem: false, annule: true, quoi: `${rend ? 'un remboursement' : 'un paiement'} daté du ${C.fmtDate(dvSup)} (facture ${s.number}${clS ? `, ${clS.name}` : ''}, ${C.money(Math.abs(p.amount), cur)})` });
@@ -10419,6 +10445,9 @@
         if (ech) champs.effet = { recuLe: v.date };
         if (cible) { Object.assign(cible, champs); if (!ech) delete cible.effet; }
         else inv.payments.push({ id: C.uid(), ...champs });
+        // (1.359.0) Le rejet d'un paiement qu'on corrige le suit : il en reprend le montant exact (le serveur l'exige, 0211).
+        const rjP = cible && C.rejetDuPaiement(inv, cible);
+        if (rjP) Object.assign(rjP, { amount: C.round3(-cible.amount), method: cible.method, accountId: cible.accountId || '', ...(cible.exchangeRate ? { exchangeRate: cible.exchangeRate } : {}) });
         save(true); close();
         const st = effStatus(inv);
         const ditP = rend ? (p0 ? 'Remboursement modifié' : `Remboursement enregistré : ${C.money(v.amount, cur)} rendus au client`) : p0 ? 'Paiement modifié' : st === 'payée' ? `${inv.number} payée intégralement` : 'Paiement enregistré';
@@ -10428,6 +10457,51 @@
         } else toast(ditP);
         if (done) done();
       }; });
+  }
+
+  // (1.359.0, bout en bout 21) Le chèque ou l'effet revenu impayé. Seul « Supprimer ce paiement » s'offrait : la trace du
+  // chèque disparaissait (la relance n'avait plus rien à dire), et le relevé de la banque, qui montre la remise ET son rejet,
+  // ne s'accordait plus avec ce qui était saisi. Le rejet est une ligne en face du paiement, datée du jour où la banque l'a
+  // rendu (`C.estRejet`) : la facture redevient due, le paiement reste dans l'historique, chaque ligne se pointe sur la
+  // sienne. Les frais que la banque prend au passage s'enregistrent en frais bancaires, sur le même compte.
+  function rejetForm(inv, pay, done) {
+    const cur = docCur(inv);
+    const r0 = C.rejetDuPaiement(inv, pay);
+    const quoi = pay.method === 'traite' ? 'L\'effet' : pay.method === 'cheque' ? 'Le chèque' : 'Le paiement';
+    const reste = C.round3(balance(inv).remaining + (r0 ? 0 : Number(pay.amount) || 0));
+    const compteDuPaiement = () => pay.accountId || (C.cashMovements(data, company()).find(x => x.id === pay.id) || {}).accountId || '';
+    modal(`<h2>${r0 ? `Modifier le rejet · ${h(inv.number)}` : `${h(quoi)} est revenu impayé · ${h(inv.number)}`}</h2>
+      <p class="small">${h(methodLabel(pay.method))}${pay.reference ? ` ${h(pay.reference)}` : ''} du ${C.fmtDate(pay.date)} · ${C.money(pay.amount, cur)}</p>
+      <form id="rj" class="grid-2">
+        ${dateFieldHtml(lbl('Rendu par la banque le', 'ed.rejetDate'), 'date', r0 ? r0.date : C.today(), { obligatoire: true })}
+        ${r0 ? '<span></span>' : field(lbl(`Frais pris par la banque (${h(company().currency || 'DT')})`, 'ed.rejetFrais'), 'frais', '', 'number', 'step="0.001" min="0" placeholder="vide s\'il n\'y en a pas"')}
+      </form>
+      <p class="small annonce-stable">${r0 ? `Le rejet garde le montant du paiement (${C.money(pay.amount, cur)}) : seule sa date change.`
+        : `${h(inv.number)} redeviendra due de ${C.money(reste, cur)}. Le paiement du ${C.fmtDate(pay.date)} reste dans l'historique, marqué « revenu impayé » ; le rejet vient en face (${C.money(-pay.amount, cur)}), comme sur le relevé de ta banque.`}</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${r0 ? 'Enregistrer' : 'Enregistrer le rejet'}</button></div>`,
+      (root, close) => {
+        $('#ok', root).onclick = () => {
+          const v = formValues($('#rj', root));
+          if (enLecture('documents')) return refus($('[name=date]', root), refusLecture('documents'));
+          if (!v.date) return refus($('[name=date]', root), 'Écris le jour où ta banque a rendu le paiement : il est sur ton relevé.');
+          if (v.date < pay.date) return refus($('[name=date]', root), `La banque ne rend pas un paiement avant de l'avoir reçu : le ${C.fmtDate(pay.date)} au plus tôt.`);
+          const frais = r0 ? 0 : Number(v.frais) || 0;
+          if (frais < 0) return refus($('[name=frais]', root), 'Écris les frais en chiffres, par exemple 15,000 ; laisse vide s\'il n\'y en a pas.');
+          if (closedBlock(r0 ? [r0.date, v.date] : v.date, 'Ce rejet')) return;
+          if (r0) r0.date = v.date;
+          else {
+            inv.payments.push({ id: C.uid(), date: v.date, amount: C.round3(-(Number(pay.amount) || 0)), method: pay.method, accountId: pay.accountId || '',
+              reference: `Rejet${pay.reference ? ` ${pay.reference}` : ''}`, note: '', rejetDe: pay.id, ...(pay.exchangeRate ? { exchangeRate: pay.exchangeRate } : {}) });
+            if (frais > 0.0005) {
+              data.movements = data.movements || [];
+              data.movements.push({ id: C.uid(), date: v.date, kind: 'banque', amount: C.round3(frais), accountId: compteDuPaiement(), label: `Frais de rejet ${pay.reference || inv.number}`.trim(), reference: '', method: 'autre' });
+            }
+          }
+          save(true); close();
+          toast(r0 ? 'Rejet modifié' : `${C.libelleImpaye(pay.method)} : ${inv.number} redevient due de ${C.money(reste, cur)}${frais > 0.0005 ? `, et ${C.money(frais, company().currency)} de frais bancaires sont notés` : ''}`);
+          if (done) done();
+        };
+      });
   }
 
   async function exportPdf(doc) {

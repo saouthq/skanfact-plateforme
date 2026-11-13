@@ -115,7 +115,9 @@ export async function ecrituresDeLaFamille(tx: Transaction, entreprise: string, 
   const parDate = [...reglements].sort((x, y) => (x.date_reglement < y.date_reglement ? -1 : x.date_reglement > y.date_reglement ? 1 : x.rang - y.rang));
   for (const r of parDate) {
     const j = journalDeCompte(plan, r.compte, r.mode, r.date_reglement);
-    const entree = libelle(r.montant < 0n ? 'compta.libelle.remboursement' : 'compta.libelle.reglement', { numero: numeroF, client: nomF });
+    const cle = r.rejet_de ? (r.mode === 'cheque' ? 'compta.libelle.cheque_impaye' : r.mode === 'traite' ? 'compta.libelle.effet_impaye' : 'compta.libelle.impaye')
+      : r.montant < 0n ? 'compta.libelle.remboursement' : 'compta.libelle.reglement';
+    const entree = libelle(cle, { numero: numeroF, client: nomF });
     const e = ecritureDEncaissement(enDevise(f), { cle: r.id, date: r.date_reglement, montant: r.montant, cours: r.cours ?? undefined }, fil.parts.get(r.id) ?? 0n, TND,
       { clients: client, tresorerie: j.compte, retenueSubie: plan.plan.rsSubie, gainsChange: plan.plan.gainsChange, pertesChange: plan.plan.pertesChange });
     ecritures.push({
