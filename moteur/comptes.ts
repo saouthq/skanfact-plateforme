@@ -53,6 +53,10 @@ export const PLAN_PAR_DEFAUT = {
   repriseSubventions: '739',
   pertesChange: '655',
   gainsChange: '755',
+  // (1.361.0) La traite reçue d'un client (ou remise à un fournisseur) avant son échéance : la créance quitte le 411 (la
+  // dette, le 401) le jour de la traite, et la banque solde le 413 (le 403) à l'échéance. À VÉRIFIER avec le comptable.
+  effetsARecevoir: '413',
+  effetsAPayer: '403',
 } as const;
 
 export type RoleCompte = keyof typeof PLAN_PAR_DEFAUT;

@@ -79,7 +79,10 @@ export function statutFacture(netAPayer: bigint, solde: SoldeFacture, echeance: 
   return 'a_payer';
 }
 
-export type ComptesEncaissement = { clients: string; tresorerie: string; retenueSubie: string; gainsChange: string; pertesChange: string };
+// `effets` (1.361.0) : un règlement par traite reçue avant son échéance. Le jour de la traite, la créance est déjà passée
+// du client aux effets à recevoir (`ecritureDEffetRecu`) : l'encaissement, à l'échéance, solde alors ce compte-là, et le
+// client ne garde que la retenue de ce règlement (elle naît au règlement, 10.14.0).
+export type ComptesEncaissement = { clients: string; tresorerie: string; retenueSubie: string; gainsChange: string; pertesChange: string; effets?: string };
 export type EcritureReglement = { lignes: LigneEcriture[] };
 
 // L'écriture d'un encaissement, dans la devise de la comptabilité :
@@ -104,7 +107,10 @@ export function ecritureDEncaissement(
     lignes.push({ compte, nature, debit: auDebit ? m : 0n, credit: auDebit ? 0n : m });
   };
   poser(comptes.tresorerie, 'tresorerie', recu, 'debit');
-  poser(comptes.clients, 'client', solde + retenue, 'credit');
+  if (comptes.effets) {
+    poser(comptes.effets, 'client', solde, 'credit');
+    poser(comptes.clients, 'client', retenue, 'credit');
+  } else poser(comptes.clients, 'client', solde + retenue, 'credit');
   poser(comptes.retenueSubie, 'retenue', retenue, 'debit');
   const ecart = recu - solde;
   if (ecart > 0n) poser(comptes.gainsChange, 'change', ecart, 'credit');
@@ -113,4 +119,17 @@ export function ecritureDEncaissement(
   const credit = lignes.reduce((a, l) => a + l.credit, 0n);
   if (debit !== credit) throw new Error(`écriture déséquilibrée : débit ${debit}, crédit ${credit}`);
   return { lignes };
+}
+
+// (1.361.0) La traite reçue avant son échéance, le jour où on la reçoit : la créance change de forme, elle ne se paie pas.
+//   D effets à recevoir   le montant de la traite, au cours de la facture (le 411 se solde au cours auquel il a été débité)
+//   C clients             le même montant
+// La banque ne bouge qu'à l'échéance (`ecritureDEncaissement` avec `effets`), et la retenue naît au règlement.
+export function ecritureDEffetRecu(piece: EnDevise, reglement: Reglement, base: Devise, comptes: { clients: string; effets: string }): EcritureReglement {
+  const montant = versLaBase(reglement.montant, piece.devise, piece.cours, base);
+  if (montant <= 0n) return { lignes: [] };
+  return { lignes: [
+    { compte: comptes.effets, nature: 'client', debit: montant, credit: 0n },
+    { compte: comptes.clients, nature: 'client', debit: 0n, credit: montant },
+  ] };
 }

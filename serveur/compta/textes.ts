@@ -51,6 +51,9 @@ declarerTextes({
   'compta.libelle.cheque_impaye': 'Chèque impayé {numero} — {client}',
   'compta.libelle.effet_impaye': 'Effet impayé {numero} — {client}',
   'compta.libelle.impaye': 'Impayé {numero} — {client}',
+  // (1.361.0) La traite reçue avant son échéance (0212) : le jour où on la reçoit, puis le jour où la banque l'encaisse.
+  'compta.libelle.effet_recu': 'Effet reçu {numero} — {client}, échéance {echeance}',
+  'compta.libelle.effet_encaisse': 'Effet encaissé {numero} — {client}',
   'compta.libelle.retenue_subie': 'Retenue à la source subie {numero}',
   'compta.libelle.gain_change': 'Gain de change — {libelle}',
   'compta.libelle.perte_change': 'Perte de change — {libelle}',
@@ -65,6 +68,9 @@ declarerTextes({
   'compta.libelle.reglement_fournisseur': 'Règlement fournisseur {numero} — {fournisseur}',
   'compta.libelle.reglement_fournisseur_poche': 'Règlement fournisseur {numero} — {fournisseur} (avancé par le gérant)',
   'compta.libelle.remboursement_fournisseur': 'Remboursement {numero} — {fournisseur}',
+  // (1.361.0) La traite remise au fournisseur avant son échéance (0212) : le jour où on la remet, puis son paiement.
+  'compta.libelle.effet_remis': 'Effet remis {numero} — {fournisseur}, échéance {echeance}',
+  'compta.libelle.effet_paye': 'Effet payé {numero} — {fournisseur}',
   'compta.libelle.retenue_operee': 'Retenue à la source opérée {numero}',
   'compta.libelle.paie': 'Salaires {periode}',
   'compta.libelle.salaires_verses': 'Salaires versés — {periode}',

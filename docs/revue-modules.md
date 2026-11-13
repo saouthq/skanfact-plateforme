@@ -3527,3 +3527,49 @@ des 8 530 DT de la facture. Ce qui était faux, et ce qui ne l'est plus :
   l'export qui n'est pas un oubli) et `tests/web/export-euros-1360-1.test.ts` (l'émission par le serveur d'une pièce à
   19 % scellée sans TVA et rangée à 0 %, la facture tapée à l'écran, le règlement à un autre taux, la liste des clients,
   et l'écriture au Cabinet) ; douze preuves « export 1.360.1 ».
+
+### 1.361.0 : un client règle par traite (bout en bout 24)
+
+Joué à la souris dans l'environnement de test : l'Hôtel Mouradi Gammarth règle une facture de 477 DT par une traite
+reçue le 13 novembre, à échéance du 15 janvier 2027. Côté achats, la pâtisserie remet une traite à la Minoterie du
+Sahel pour une facture de farine de 1 190 DT, à échéance du 31 janvier. Ce qui était faux, et ce qui ne l'est plus :
+- **Deux chemins, deux chiffres, pendant deux mois** (argent faux chez le comptable). Dans SkanFact, la facture est
+  « payée » le jour où la traite est reçue : c'est vrai, la créance a changé de forme. Mais le serveur ne gardait que
+  l'échéance, et le comptable ne voyait rien avant elle. Son lettrage disait que l'hôtel devait encore 477 DT au 411,
+  pendant que l'entreprise disait la facture réglée. Si l'échéance tombe après le 31 décembre, le bilan de l'année
+  portait la mauvaise créance.
+- **Le règlement garde le jour de la traite.** Ce jour-là, une écriture d'opérations diverses fait passer la créance du
+  client (411) aux effets à recevoir (413). À l'échéance, l'encaissement solde le 413 par la banque, et non plus le
+  411. Au 31 décembre, l'hôtel ne doit plus rien au 411 ; la traite attend au 413. Côté achats, la dette passe du
+  fournisseur (401) aux effets à payer (403) le jour où on remet la traite, et le paiement à l'échéance solde le 403.
+- **Une traite notée sans le jour de sa réception, puis complétée,** est suivie par le serveur : le jour s'enregistre,
+  et la famille d'écritures se réécrit.
+- **La facture dit quand la banque bougera.** La boîte du geste disait « Réglée : plus rien n'est dû. » Elle dit
+  maintenant « Réglée par traite : la banque l'encaisse le 15/01/2027. » La frise dit « par traite · à la banque le
+  15/01/2027 ». La ligne du paiement montre le jour où la traite a été reçue (13/11/2026), et dessous « à la banque
+  le 15/01/2027 » ; c'était l'échéance seule. Même chose pour la traite remise au fournisseur, dont la frise disait
+  « Réglée · 31/01 · traite » : une date future sous une étape cochée. Elle dit « par traite · à la banque le
+  31/01/2027 ».
+- **Les listes ne disent plus « payée le 15/01 », une date à venir.** La liste des factures et celle des achats disent
+  « traite au 15/01 » (« au 31/01 » pour la minoterie), et la phrase entière au survol.
+- **La fenêtre du règlement nomme ses deux dates.** À côté de « Échéance de l'effet », la date s'appelle « Reçue le »
+  (une facture) ou « Remise le » (un achat) ; elle disait « Date ». Elle redevient « Date » pour un virement.
+- **Vu au passage** : en modifiant un règlement fournisseur, la ligne du haut disait « déjà réglé 1 190,000 DT · reste
+  1 190,000 DT » sur une facture de 1 190 DT : elle comptait deux fois le règlement qu'on modifie. Elle dit « déjà réglé
+  0,000 DT ».
+- **« Le chèque (la traite) est revenu impayé » n'est plus proposé avant l'échéance.** Une traite ne revient impayée
+  qu'une fois présentée à la banque. Le serveur refuse aussi un rejet daté avant le paiement qu'il annule, et le refus
+  le dit.
+- Les traites déjà saisies retrouvent le jour de leur réception (il était dans la pièce du dossier). Leur écriture du
+  jour de réception suit à la prochaine modification de la pièce : sa famille d'écritures se réécrit alors.
+- À VÉRIFIER avec le comptable : les comptes 413 (effets à recevoir) et 403 (effets à payer), et le journal des
+  opérations diverses pour l'écriture du jour de la traite. La retenue à la source d'un règlement par traite naît à
+  l'échéance, quand l'argent arrive : elle reste au 411 (au 401) jusque-là. Est-ce juste, ou naît-elle le jour de la
+  traite ? La balance âgée du Cabinet lit le 413 avec l'échéance de la facture, pas celle de la traite. Une traite
+  remise à l'escompte (la banque avance l'argent avant l'échéance) n'est pas dans ce geste.
+- Tests : `tests/moteur/effet-1361.test.ts` (le plan 413/403, l'effet reçu puis encaissé, la retenue qui reste au
+  client, la traite en euros et l'écart de change, la traite remise au fournisseur, l'avoir sans traite) et
+  `tests/web/traite-1361.test.ts` (la traite notée puis complétée au serveur, le rejet daté avant l'échéance refusé, les
+  quatre écritures et les soldes au 31 décembre, l'écran de la facture et celui de l'achat, les deux fenêtres de
+  règlement et les deux listes) ; vingt-cinq preuves
+  « traite 1.361.0 ».

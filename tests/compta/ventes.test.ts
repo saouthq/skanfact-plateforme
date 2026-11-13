@@ -113,10 +113,12 @@ describe('les écritures des ventes, tenues par le serveur, contre la v10', () =
   it('le plan comptable par défaut est celui de la v10, rôle pour rôle', () => {
     // La FODEC (1.155.0), les ventes de marchandises et de produits fabriqués (1.318.0) sont des rôles nés sur la plateforme,
     // que la v10 figée n'a pas : ceux de l'écran de la plateforme. De même les intérêts d'une échéance d'emprunt (1.357.7).
-    const { fodec, ventesMarchandises, ventesProduits, interets, ...communs } = PLAN_PAR_DEFAUT;
+    // Et les effets à recevoir et à payer (1.361.0), la traite reçue avant son échéance.
+    const { fodec, ventesMarchandises, ventesProduits, interets, effetsARecevoir, effetsAPayer, ...communs } = PLAN_PAR_DEFAUT;
     expect(communs).toEqual(core.DEFAULT_ACCOUNTS);
     const plateforme = (ecranDeLaPlateforme('core.js') as { DEFAULT_ACCOUNTS: Record<string, string> }).DEFAULT_ACCOUNTS;
-    expect([fodec, ventesMarchandises, ventesProduits, interets]).toEqual([plateforme.fodec, plateforme.ventesMarchandises, plateforme.ventesProduits, plateforme.interets]);
+    expect([fodec, ventesMarchandises, ventesProduits, interets, effetsARecevoir, effetsAPayer])
+      .toEqual([plateforme.fodec, plateforme.ventesMarchandises, plateforme.ventesProduits, plateforme.interets, plateforme.effetsARecevoir, plateforme.effetsAPayer]);
   });
 
   it('chaque facture, chaque avoir et chaque encaissement de l\'exemple s\'écrit au serveur comme la v10 l\'écrit : journal, date, compte, millime, ordre', async () => {

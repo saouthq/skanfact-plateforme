@@ -7,18 +7,19 @@
 
 import { TND, type Devise } from '../../moteur/argent.ts';
 import {
-  calculerAchat, ecritureDAchat, ecritureDeReglementFournisseur, ecritureDImputationAcompte, imputationAchat,
+  calculerAchat, ecritureDAchat, ecritureDEffetRemis, ecritureDeReglementFournisseur, ecritureDImputationAcompte, imputationAchat,
   type Achat, type ComptesAchat, type Destination, type NatureAchat, type TotauxAchat,
 } from '../../moteur/achats.ts';
 import type { LigneEcriture } from '../../moteur/ecritures.ts';
 import { retenueAuFil, type PieceLiee, type Reglement, type RetenueAuFil } from '../../moteur/reglements.ts';
 import { requetes, type Transaction } from '../base.ts';
-import { ecrireFamille, libelle, type EcritureAEcrire, type LigneAEcrire } from './ecrire.ts';
+import { ecrireFamille, jourEcrit, libelle, type EcritureAEcrire, type LigneAEcrire } from './ecrire.ts';
 import { compteFournisseur, journalDeCompte, lirePlan, POCHE, type PlanDuDossier } from './plan.ts';
 
 type Membre = {
   id: string; nature: NatureAchat; fournisseur: string | null; numero: string | null; date: string; nom: string;
-  achat: Achat; totaux: TotauxAchat; reglements: { id: string; date: string; montant: bigint; cours: bigint | null; mode: string; compte: string | null; rang: number }[];
+  achat: Achat; totaux: TotauxAchat;
+  reglements: { id: string; date: string; montant: bigint; cours: bigint | null; mode: string; compte: string | null; rang: number; effetRecuLe: string | null }[];
 };
 
 const regles = (m: Membre): Reglement[] => m.reglements.map((r) => ({ cle: r.id, date: r.date, montant: r.montant, cours: r.cours ?? undefined }));
@@ -37,7 +38,7 @@ async function lireMembres(tx: Transaction, entreprise: string, racine: string):
   const ids = pieces.map((p) => p.id);
   const lignes = await db.selectFrom('achats.ligne').select(['piece', 'quantite', 'prix_unitaire', 'taux_tva', 'destination', 'non_deductible'])
     .where('piece', 'in', ids).orderBy('piece').orderBy('rang').execute();
-  const reglements = await db.selectFrom('achats.reglement').select(['id', 'piece', 'date_reglement', 'montant', 'cours', 'mode', 'compte', 'rang'])
+  const reglements = await db.selectFrom('achats.reglement').select(['id', 'piece', 'date_reglement', 'montant', 'cours', 'mode', 'compte', 'rang', 'effet_recu_le', 'rejet_de'])
     .where('entreprise', '=', entreprise).where('piece', 'in', ids).orderBy('rang').execute();
   const membres = pieces.map((p): Membre => {
     const devise: Devise = { code: p.devise, decimales: p.decimales };
@@ -50,7 +51,9 @@ async function lireMembres(tx: Transaction, entreprise: string, racine: string):
     return {
       id: p.id, nature: achat.nature, fournisseur: p.fournisseur, numero: p.numero_fournisseur, date: p.date_piece, nom: p.raison_sociale ?? '—',
       achat, totaux: calculerAchat(achat, TND),
-      reglements: reglements.filter((r) => r.piece === p.id).map((r) => ({ id: r.id, date: r.date_reglement, montant: r.montant, cours: r.cours, mode: r.mode, compte: r.compte, rang: r.rang })),
+      reglements: reglements.filter((r) => r.piece === p.id).map((r) => ({ id: r.id, date: r.date_reglement, montant: r.montant, cours: r.cours, mode: r.mode, compte: r.compte, rang: r.rang,
+        // (1.361.0) La traite remise avant son échéance (0212) ; jamais pour un rejet.
+        effetRecuLe: r.rejet_de ? null : r.effet_recu_le })),
     };
   });
   return [membres.find((m) => m.id === racine) as Membre, ...membres.filter((m) => m.id !== racine)];
@@ -145,14 +148,27 @@ export async function ecrituresDeLaFamilleDAchat(tx: Transaction, entreprise: st
     // À date égale, dans l'ordre où ils ont été saisis.
     for (const r of [...m.reglements].sort((x, y) => x.rang - y.rang)) {
       const j = journalDeCompte(plan, r.compte, r.mode, r.date);
+      const piece = { devise: m.achat.devise, cours: m.achat.cours, nature: m.nature };
+      const reglement = { cle: r.id, date: r.date, montant: r.montant, cours: r.cours ?? undefined };
+      // (1.361.0) Une traite remise au fournisseur avant son échéance (0212) : le jour où on la remet, la dette passe du
+      // fournisseur aux effets à payer ; le paiement, à l'échéance, solde ce compte-là. Un avoir n'en a pas.
+      const effet = r.effetRecuLe && m.nature !== 'avoir' && r.montant > 0n ? r.effetRecuLe : null;
+      if (effet) {
+        const entreeE = libelle('compta.libelle.effet_remis', { numero, fournisseur: m.nom, echeance: jourEcrit(r.date) });
+        const a = ecritureDEffetRemis(piece, reglement, TND, { fournisseurs: compteFournisseur(plan, m.fournisseur), effets: P.effetsAPayer });
+        datees.push({ date: effet, ordre: ordre++, e: {
+          journal: 'OD', date: effet, origineType: 'effet', origine: r.id, piece: m.numero, tiers: m.fournisseur, libelle: entreeE,
+          lignes: lignesDeReglement(a.lignes, entreeE, numero),
+        } });
+      }
       // Un règlement porté par un avoir est un remboursement : l'argent entre.
       // (1.358.0) Payé de la poche du gérant : le même mot que la v10 (`journalEntries`), le comptable lit qui a avancé.
       const cle = m.nature === 'avoir' || r.montant < 0n ? 'compta.libelle.remboursement_fournisseur'
-        : r.compte === POCHE ? 'compta.libelle.reglement_fournisseur_poche' : 'compta.libelle.reglement_fournisseur';
+        : r.compte === POCHE ? 'compta.libelle.reglement_fournisseur_poche' : effet ? 'compta.libelle.effet_paye' : 'compta.libelle.reglement_fournisseur';
       const entree = libelle(cle, { numero, fournisseur: m.nom });
-      const e = ecritureDeReglementFournisseur({ devise: m.achat.devise, cours: m.achat.cours, nature: m.nature },
-        { cle: r.id, date: r.date, montant: r.montant, cours: r.cours ?? undefined }, fil.parts.get(r.id) ?? 0n, TND,
-        { fournisseurs: compteFournisseur(plan, m.fournisseur), tresorerie: j.compte, retenueOperee: P.rsOperee, gainsChange: P.gainsChange, pertesChange: P.pertesChange });
+      const e = ecritureDeReglementFournisseur(piece, reglement, fil.parts.get(r.id) ?? 0n, TND,
+        { fournisseurs: compteFournisseur(plan, m.fournisseur), tresorerie: j.compte, retenueOperee: P.rsOperee, gainsChange: P.gainsChange, pertesChange: P.pertesChange,
+          ...(effet ? { effets: P.effetsAPayer } : {}) });
       datees.push({ date: r.date, ordre: ordre++, e: {
         journal: j.journal, date: r.date, origineType: 'reglement_fournisseur', origine: r.id, piece: m.numero, tiers: m.fournisseur, libelle: entree,
         lignes: lignesDeReglement(e.lignes, entree, numero),

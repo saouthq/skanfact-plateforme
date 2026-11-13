@@ -90,6 +90,9 @@ export function lirePaiements(paiements: unknown, numero: string, decimales: num
       ref: p.id, rang, date: p.date, montant, cours,
       mode: texteOuNul(p.method, 40) ?? 'inconnu', compte: texteOuNul(p.accountId, 200), reference: texteOuNul(p.reference, 200), note: texteOuNul(p.note, 1000),
       rejetDe: texteOuNul(p.rejetDe, 200),
+      // (1.361.0) Une traite (un chèque à échéance) reçue avant son échéance : le jour de sa réception. Un jour qui n'est pas
+      // AVANT l'échéance n'en est pas un (la traite est alors encaissée le jour même) : rien n'est gardé.
+      effetRecuLe: montant > 0n && estObjet(p.effet) && estJour(p.effet.recuLe) && String(p.effet.recuLe) < p.date ? String(p.effet.recuLe) : null,
     };
   });
   // (1.359.0) Le rejet d'un chèque ou d'un effet (0211) désigne un paiement REÇU de la même pièce, en reprend le montant
@@ -98,7 +101,8 @@ export function lirePaiements(paiements: unknown, numero: string, decimales: num
   for (const r of lus) {
     if (!r.rejetDe) continue;
     const vise = lus.find((x) => x.ref === r.rejetDe && !x.rejetDe);
-    if (!vise || vise.montant <= 0n || r.montant !== -vise.montant || rejetes.has(r.rejetDe)) throw new Refus(`${refus}_rejet`, { valeurs: { numero } });
+    // (1.361.0) Et jamais avant le paiement qu'il annule : un effet ne revient impayé qu'une fois présenté, à son échéance.
+    if (!vise || vise.montant <= 0n || r.montant !== -vise.montant || rejetes.has(r.rejetDe) || r.date < vise.date) throw new Refus(`${refus}_rejet`, { valeurs: { numero } });
     rejetes.add(r.rejetDe);
   }
   return lus;

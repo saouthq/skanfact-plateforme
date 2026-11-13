@@ -14,6 +14,9 @@ export type ReglementSaisi = {
   mode: string; compte: string | null; reference: string | null; note: string | null;
   // (1.359.0) Le paiement que ce règlement négatif annule : un chèque ou un effet revenu impayé (0211).
   rejetDe?: string | null;
+  // (1.361.0) Le jour où la traite a été reçue (remise), avant son échéance (0212) : la créance (la dette) change de forme
+  // ce jour-là, chez le comptable aussi.
+  effetRecuLe?: string | null;
 };
 
 // Chaque côté a sa table et ses gestes (la trace dit lequel).
@@ -23,6 +26,7 @@ export const REGLEMENTS_ACHATS: CoteReglements = { table: 'achats.reglement', tr
 
 const champs = (r: ReglementSaisi) => ({
   rang: r.rang, date_reglement: r.date, montant: r.montant, cours: r.cours, mode: r.mode, compte: r.compte, reference: r.reference, note: r.note, rejet_de: r.rejetDe ?? null,
+  effet_recu_le: r.effetRecuLe ?? null,
 });
 const pourTrace = (r: { date: string; montant: bigint; mode: string }) => ({ date: r.date, montant: r.montant.toString(), mode: r.mode });
 
@@ -50,7 +54,8 @@ export async function tenirReglements(tx: Transaction, cote: CoteReglements, ent
     }
     const avant = { date: a.date_reglement, montant: a.montant, cours: a.cours, mode: a.mode, compte: a.compte, reference: a.reference, note: a.note, rang: a.rang };
     const change = avant.date !== r.date || avant.montant !== r.montant || avant.cours !== r.cours || avant.mode !== r.mode
-      || avant.compte !== r.compte || avant.reference !== r.reference || avant.note !== r.note || (a.rejet_de ?? null) !== (r.rejetDe ?? null);
+      || avant.compte !== r.compte || avant.reference !== r.reference || avant.note !== r.note || (a.rejet_de ?? null) !== (r.rejetDe ?? null)
+      || (a.effet_recu_le ?? null) !== (r.effetRecuLe ?? null);
     if (change) {
       await db.updateTable(table).set((eb) => ({ ...champs(r), modifie_par: utilisateur, modifie_le: new Date(), revision: eb('revision', '+', 1n) }))
         .where('id', '=', a.id).execute();

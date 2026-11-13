@@ -5110,6 +5110,8 @@
   // d'El Fatoora demande.
   function lfEcheance(d, st, etat) {
     if (d.type === 'avoir') { const f = d.creditOf && docById(d.creditOf); return `<span class="mu">${f && f.number ? `sur ${h(f.number)}` : '—'}</span>`; }
+    // (1.361.0) Une traite que la banque n'a pas encore encaissée : « payée le 15/01 », c'était une date future.
+    if (st === 'payée' && effetEnAttente(d)) return effetCourt(effetEnAttente(d));
     if (st === 'payée') { const le = (d.payments || []).map(p => p.date).filter(Boolean).sort().pop(); return `<span class="mu">${le ? `payée le ${lfJm(le)}` : 'payée'}</span>`; }
     if (st === 'annulée') { const a = balance(d).credits.map(x => x.number).filter(Boolean); return `<span class="mu">${a.length ? `par ${h(a.join(', '))}` : 'annulée'}</span>`; }
     if (!d.dueDate) return '<span class="mu">—</span>';
@@ -6044,7 +6046,7 @@
       const recu = bal ? C.round3(bal.paid + bal.credited) : 0;
       const situation = !bal ? '' : bal.annulee ? 'Annulée : plus rien n\'est dû.'
         : bal.remaining < -0.0005 ? `Payée en trop : ${C.money(-bal.remaining, cur)} à rendre au client.`
-        : bal.remaining <= 0.0005 ? 'Réglée : plus rien n\'est dû.'
+        : bal.remaining <= 0.0005 ? (effetEnAttente(doc) ? `Réglée ${parEffet(effetEnAttente(doc))} : la banque l'encaisse le ${C.fmtDate(effetEnAttente(doc).date)}.` : 'Réglée : plus rien n\'est dû.')
         : recu ? `Payée en partie : ${argentLu(recu, cur)} sur ${argentLu(t.netToPay, cur)}, reste <b>${argentLu(bal.remaining, cur)}</b>.`
         : `Rien de reçu : reste <b>${C.money(bal.remaining, cur)}</b>.`;
       // (1.165.0, revue des écarts 1.162.0, maquette « Affaire d'une facture émise ») Émise, la pièce ne change plus ;
@@ -6503,6 +6505,7 @@
       const etat = !bal ? (isAv ? `Avoir émis${doc.creditOfNumber ? ` sur ${h(doc.creditOfNumber)}` : ''} : il diminue ce que le client doit.` : '')
         : bal.annulee || doc.status === 'annulée' || (stored && effStatus(stored) === 'annulée') ? `Annulée${bal.credits.length ? ` par ${bal.credits.map(a => h(a.number)).join(', ')}` : ''} : plus rien n'est dû.`
         : bal.remaining < -0.0005 ? `Payée en trop : ${C.money(-bal.remaining, cur)} à rendre au client (« Paiements et situation »).`
+        : effetEnAttente(doc) ? `Réglée ${parEffet(effetEnAttente(doc))} : la banque l'encaisse le <span class="nw">${C.fmtDate(effetEnAttente(doc).date)}</span>.`
         : 'Réglée : plus rien n\'est dû.';
       return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}${etat ? `<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>${etat}</span></p>` : ''}${tous}</div>`;
     };
@@ -6529,7 +6532,7 @@
           d: C.estDemo(data) ? 'jamais : entreprise d\'essai' : e === 'acceptee' ? `acceptée${ttn.reference ? ` · ${h(ttn.reference)}` : ''}` : e === 'refusee' ? 'refusée : le motif est dans « Fichier pour El Fatoora »' : e === 'retenue' ? 'retenue : à reprendre' : e === 'deposee' ? 'déposée, en attente' : e === 'a_envoyer' || e === 'signee' ? 'en route' : 'partira après la signature' },
         { t: 'Envoyée', k: 'envoyee', fait: !!dernier, d: dernier ? `<span${dernier.to ? ` title="envoyée à ${h(dernier.to)}"` : ''}>${dernier.date ? lfJm(dernier.date) : ''}${dernier.canal === 'whatsapp' ? ' · par WhatsApp' : ''}</span>` : `<span class="ed-fr-adr" title="${h(cl.email || '')}">à ${h(cl.email || 'ton client')}</span>`,
           g: dernier ? '' : '<button type="button" class="btn btn-sm" data-frise="email">Envoyer</button>' },
-        { t: annuleeF ? 'Annulée' : !paye && recu > 0.0005 ? 'Payée en partie' : 'Payée', fait: !!paye && !annuleeF, alerte: annuleeF, partiel: !paye && recu > 0.0005, d: annuleeF ? (b && b.credits.length ? `par ${b.credits.map(a => h(a.number)).join(', ')}` : 'plus rien n\'est dû') : b && b.remaining < -0.0005 ? `${argentLu(-b.remaining, cur)} à son crédit` : paye ? 'plus rien n\'est dû' : recu > 0.0005 ? `${C.money(recu, null, C.decimalsFor(cur))} sur ${argentLu(duApresAvoirs, cur)}` : b && b.credited > 0.0005 ? `rien de reçu · reste ${argentLu(b.remaining, cur)}` : `rien de reçu${doc.dueDate ? ` · échéance ${lfJm(doc.dueDate)}` : ''}` },
+        { t: annuleeF ? 'Annulée' : !paye && recu > 0.0005 ? 'Payée en partie' : 'Payée', fait: !!paye && !annuleeF, alerte: annuleeF, partiel: !paye && recu > 0.0005, d: annuleeF ? (b && b.credits.length ? `par ${b.credits.map(a => h(a.number)).join(', ')}` : 'plus rien n\'est dû') : b && b.remaining < -0.0005 ? `${argentLu(-b.remaining, cur)} à son crédit` : paye && effetEnAttente(doc) ? `${parEffet(effetEnAttente(doc))} · à la banque <span class="nw">le ${lfJmA(effetEnAttente(doc).date)}</span>` : paye ? 'plus rien n\'est dû' : recu > 0.0005 ? `${C.money(recu, null, C.decimalsFor(cur))} sur ${argentLu(duApresAvoirs, cur)}` : b && b.credited > 0.0005 ? `rien de reçu · reste ${argentLu(b.remaining, cur)}` : `rien de reçu${doc.dueDate ? ` · échéance ${lfJm(doc.dueDate)}` : ''}` },
       ];
       return friseHtml(etapes);
     };
@@ -8520,7 +8523,7 @@
               : `<div><div class="k-label">${charte ? 'Reste' : 'Reste à payer'}</div><div class="v ${b.remaining > 0.0005 ? 'due' : 'ok'}">${mo(Math.max(0, b.remaining))}</div></div>`}
         </div>
         ${rows.length ? `<table class="list compact${charte ? ' ed-paie-t' : ''}"><thead><tr><th>Date</th><th>Mode</th>${plusieursComptes ? '<th>Compte</th>' : ''}<th>Référence</th><th class="r">Montant</th><th></th></tr></thead><tbody>
-          ${rows.map(p => { const rj = C.rejetDuPaiement(s, p); return `<tr><td>${C.fmtDate(p.date)}</td><td>${h(C.estRejet(p) ? C.libelleImpaye(p.method) : methodLabel(p.method))}</td>${plusieursComptes ? `<td>${h(accountLabel(p.accountId, p.method))}</td>` : ''}<td>${h(p.reference || '')}${p.note ? `<div class="small muted">${h(p.note)}</div>` : ''}${rj ? `<div class="small warn-text">revenu impayé le ${C.fmtDate(rj.date)}</div>` : ''}</td><td class="r">${mo(p.amount)}${reglementEnDinars(s, p)}${C.estRemboursement(p) ? '<div class="small muted">rendu au client</div>' : ''}${C.estRejet(p) ? '<div class="small muted">redevient dû</div>' : ''}${rsParts[p.id] ? `<div class="small muted">${rsParts[p.id] > 0 ? `+ ${C.money(rsParts[p.id], cur)} retenus par le client` : `retenue défaite : ${C.money(-rsParts[p.id], cur)}`}</div>` : ''}</td>${menuP(p.id)}</tr>`; }).join('')}
+          ${rows.map(p => { const rj = C.rejetDuPaiement(s, p); return `<tr><td>${dateDuReglement(p)}</td><td>${h(C.estRejet(p) ? C.libelleImpaye(p.method) : methodLabel(p.method))}</td>${plusieursComptes ? `<td>${h(accountLabel(p.accountId, p.method))}</td>` : ''}<td>${h(p.reference || '')}${p.note ? `<div class="small muted">${h(p.note)}</div>` : ''}${rj ? `<div class="small warn-text">revenu impayé le ${C.fmtDate(rj.date)}</div>` : ''}</td><td class="r">${mo(p.amount)}${reglementEnDinars(s, p)}${C.estRemboursement(p) ? '<div class="small muted">rendu au client</div>' : ''}${C.estRejet(p) ? '<div class="small muted">redevient dû</div>' : ''}${rsParts[p.id] ? `<div class="small muted">${rsParts[p.id] > 0 ? `+ ${C.money(rsParts[p.id], cur)} retenus par le client` : `retenue défaite : ${C.money(-rsParts[p.id], cur)}`}</div>` : ''}</td>${menuP(p.id)}</tr>`; }).join('')}
         </tbody></table>` : `<p class="small muted">Aucun paiement enregistré.</p>`}
         <div class="inline mt">
           ${s.status !== 'annulée' && b.remaining > 0.0005
@@ -8559,7 +8562,8 @@
           } },
         ];
         const rjDe = C.rejetDuPaiement(s, p);
-        const rejetable = !rjDe && Number(p.amount) > 0 && (p.method === 'cheque' || p.method === 'traite');
+        // (1.361.0) Un effet ne revient impayé qu'une fois présenté, à son échéance : avant, la banque ne l'a pas encore.
+        const rejetable = !rjDe && Number(p.amount) > 0 && (p.method === 'cheque' || p.method === 'traite') && !(p.effet && p.date > C.today());
         return [
           ...(rejetable ? [{ icon: 'non', label: p.method === 'traite' ? 'L\'effet est revenu impayé…' : 'Le chèque est revenu impayé…', hint: 'La facture redevient due ; ce paiement reste dans l\'historique', run: () => rejetForm(s, p, () => render()) }] : []),
           { icon: 'modifier', label: C.estRemboursement(p) ? 'Modifier ce remboursement' : 'Modifier ce paiement', hint: (s.currency || company().currency) === company().currency ? 'Date, montant, mode, compte' : 'Date, montant, taux du jour, mode, compte', run: () => paymentForm(s, () => render(), p) },
@@ -10310,13 +10314,33 @@
   // de son échéance. Le règlement est daté de l'échéance (la trésorerie et le journal de banque lisent cette date), la date
   // de réception est gardée dans `effet.recuLe`. Le champ garde sa place quand le mode n'est pas un effet : rien ne bouge.
   const estEffet = m => m === 'cheque' || m === 'traite';
+  // (1.361.0, bout en bout 24) La traite reçue (ou le chèque remis à échéance) que la banque n'a pas encore encaissée : la
+  // pièce est réglée — la créance a changé de forme —, mais l'argent arrive à l'échéance, et c'est ce qu'on dit. Le dernier
+  // effet en attente, ou null.
+  function effetEnAttente(piece) {
+    const t = C.today();
+    const ps = C.paiementsTenus(piece).filter(p => p.effet && p.date > t && (Number(p.amount) || 0) > 0).sort((a, b) => b.date.localeCompare(a.date));
+    return ps[0] || null;
+  }
+  const parEffet = p => (p.method === 'traite' ? 'par traite' : p.method === 'cheque' ? 'par chèque à échéance' : 'par effet');
+  // La case « Échéance » d'une liste est étroite : « traite au 31/01 », la phrase entière au survol.
+  const effetCourt = p => `<span class="mu" title="Réglée ${parEffet(p)} : à la banque le ${C.fmtDate(p.date)}">${p.method === 'traite' ? 'traite' : p.method === 'cheque' ? 'chèque' : 'effet'} au ${lfJm(p.date)}</span>`;
+  // La date d'un règlement dans sa liste : le jour où l'effet a été reçu, et son échéance dessous.
+  const dateDuReglement = p => p.effet && p.effet.recuLe
+    ? `${C.fmtDate(p.effet.recuLe)}<div class="small muted">${p.date > C.today() ? 'à la banque le' : 'échéance du'} <span class="nw">${C.fmtDate(p.date)}</span></div>`
+    : C.fmtDate(p.date);
   const champEffetHtml = (p0, aide) => `<div class="pf-effet" data-effet>${dateFieldHtml(lbl('Échéance de l\'effet', aide || 'tre.effet'), 'echeance', p0 && p0.effet ? p0.date : '', {})}</div>`;
-  function brancherEffet(root) {
+  // (1.361.0) `mot` : le nom de la date quand c'est un effet (« Reçue le », « Remise le »). Deux dates côte à côte, « Date » et
+  // « Échéance de l'effet », ne disent pas laquelle est le jour où la traite change de main.
+  function brancherEffet(root, mot) {
     const box = $('[data-effet]', root); if (!box) return;
+    const motDate = $('[data-mot-date]', root);
+    const avant = motDate ? motDate.textContent : '';
     const maj = () => {
       const on = estEffet(($('[name=method]', root) || {}).value);
       box.classList.toggle('pf-effet-off', !on);
       $$('input', box).forEach(i => { i.disabled = !on; });
+      if (motDate && mot) motDate.textContent = on ? mot : avant;
     };
     root.addEventListener('click', () => setTimeout(maj, 0));
     root.addEventListener('change', maj);
@@ -10352,7 +10376,7 @@
       <form id="pf2" class="pf-charte" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field">${lbl(rend ? 'Montant rendu' : 'Montant reçu', 'ed.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(p0 ? Math.abs(Number(p0.amount) || 0) : (rend ? aRendre : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label>
           ${!rend && !p0 ? '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>' : ''}</div>
-        ${rangeeDateCompteTaux(inv, p0, 'ed.payRate', dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true }), accountFieldHtml(p0 && p0.accountId))}
+        ${rangeeDateCompteTaux(inv, p0, 'ed.payRate', dateFieldHtml(lbl('<span data-mot-date>Date</span>', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true }), accountFieldHtml(p0 && p0.accountId))}
         <div class="choix-t pf-modes" role="group" aria-label="Mode de paiement">${C.PAYMENT_METHODS.map(m => `<button type="button" data-mode="${h(m[0])}" class="${m[0] === modeur ? 'on' : ''}">${h(m[1])}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
         <div class="pf-deux"><label class="field">${lbl('Référence', 'ed.payReference')}<input type="text" name="reference" value="${h(p0 ? p0.reference || '' : '')}" placeholder="n° du virement, du chèque…"></label>${rend ? '' : champEffetHtml(p0)}</div>
@@ -10362,7 +10386,7 @@
     modal(`${charteP ? formeCharte() : `<h2>${titre}</h2><p class="small muted">${sous}</p>
       ${rend ? '<p class="small">L\'argent sort de ton compte : la Trésorerie le verra partir, et l\'écriture du comptable passe au débit du client. Ce remboursement se rattache à cette facture, qui redevient simplement réglée.</p>' : ''}
       <form id="pf2" class="grid-2" data-devise="${h(cur)}">
-        ${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true })}
+        ${dateFieldHtml(lbl('<span data-mot-date>Date</span>', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true })}
         ${obligatoire(field(lbl(`${rend ? 'Montant rendu' : 'Montant'} (${h(cur)})`, 'ed.payAmount'), 'amount', p0 ? Math.abs(Number(p0.amount) || 0) : (rend ? aRendre : reste), 'number', 'step="0.001" min="0" class="num"'))}
         ${champTauxReglement(inv, p0, 'ed.payRate')}
         <label class="field">${lbl('Mode', 'ed.payMethod')}<select name="method">${C.PAYMENT_METHODS.map(m => `<option value="${m[0]}" ${p0 && p0.method === m[0] ? 'selected' : ''}>${m[1]}</option>`).join('')}</select></label>
@@ -10381,7 +10405,7 @@
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${rend ? 'Enregistrer le remboursement' : 'Enregistrer'}</button></div>`,
       (root, close) => {
         brancherTauxReglement(root, inv, !rend, rend ? 'Rendu' : 'Reçu');
-        brancherEffet(root);
+        brancherEffet(root, 'Reçue le');
         const majValideP = () => { const x = valideDuPaiement(formValues($('#pf2', root)), majValideP); majAvertValide($('#pf-valide', root), x.d, x.nouvelle, sujetPaiement); };
         $('#pf2', root).addEventListener('input', majValideP);
         $('#pf2', root).addEventListener('change', majValideP);
@@ -16842,6 +16866,8 @@
   // L'échéance d'une pièce, comme la maquette la dit : payée le…, n jours de retard, dans n jours, aujourd'hui.
   function laEcheance(p, st) {
     if (!p.dueDate || C.PURCHASE_LIES.includes(p.kind)) return '<span class="mu">—</span>';
+    // (1.361.0) Une traite remise que la banque n'a pas encore payée : le jumeau de la liste des factures.
+    if (st === 'payée' && effetEnAttente(p)) return effetCourt(effetEnAttente(p));
     if (st === 'payée') { const le = (p.payments || []).map(x => x.date).filter(Boolean).sort().pop(); return `<span class="mu">${le ? `payée le ${lfJm(le)}` : 'payée'}</span>`; }
     const auj = C.today(), j = C.daysBetween(auj, p.dueDate);
     if (p.dueDate < auj) return `${C.fmtDate(p.dueDate)}<small class="rouge">${pl(C.daysBetween(p.dueDate, auj), 'jour')} de retard</small>`;
@@ -17261,6 +17287,9 @@
     const resteHors = b.remaining - (r0 ? effet(r0) : 0);
     const reste = Math.max(0, resteHors);
     const aRecuperer = C.round3(Math.max(0, -resteHors));
+    // (1.361.0) « Déjà réglé » sans le règlement qu'on corrige, comme le reste : « déjà réglé 1 190 · reste 1 190 » sur une
+    // facture de 1 190 comptait ce règlement deux fois.
+    const dejaHors = C.round3(Math.max(0, b.paid + (r0 ? effet(r0) : 0)));
     const avecRs = !rend && Number(p.withholdingRate) > 0;
     // Une attestation d'exonération se juge au jour du PAIEMENT (10.15.0, H7) : c'est là que la
     // retenue naît (10.14.0), donc c'est ici que l'écart se dit — jamais corrigé en silence.
@@ -17281,11 +17310,11 @@
     modal(`<h2>${rend ? (r0 ? 'Modifier le remboursement' : `Remboursement de ${h(p.number || 'cet achat')}`) : r0 ? 'Modifier le règlement' : `Enregistrer un règlement · ${h(p.number || 'cet achat')}`}</h2>
       <p class="small muted">${h(supplierName(p.supplierId))} · ${rend
         ? `${p.kind === 'avoir' ? `avoir de ${C.money(b.totals.netToPay, cur)}` : `payé ${C.money(b.paid, cur)} pour ${C.money(b.totals.netToPay, cur)}`} · à récupérer ${C.money(aRecuperer, cur)}`
-        : `net à payer\u00a0${C.money(b.totals.netToPay, cur)} · déjà réglé\u00a0${C.money(b.paid, cur)}${b.impute ? ` · ${b.liees.length > 1 ? 'avoirs et acomptes imputés' : (b.liees[0].kind === 'acompte' ? 'acompte imputé' : 'avoir imputé')}\u00a0${C.money(b.impute, cur)}` : ''} · reste\u00a0${C.money(reste, cur)}`}</p>
+        : `net à payer\u00a0${C.money(b.totals.netToPay, cur)} · déjà réglé\u00a0${C.money(dejaHors, cur)}${b.impute ? ` · ${b.liees.length > 1 ? 'avoirs et acomptes imputés' : (b.liees[0].kind === 'acompte' ? 'acompte imputé' : 'avoir imputé')}\u00a0${C.money(b.impute, cur)}` : ''} · reste\u00a0${C.money(reste, cur)}`}</p>
       <form id="spf" class="pf-charte" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field obligatoire">${lbl(rend ? 'Montant reçu' : 'Montant payé', 'buy.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label>
           ${r0 ? '' : '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>'}</div>
-        ${rangeeDateCompteTaux(p, r0, 'buy.payRate', dateFieldHtml(lbl(rend ? 'Date du remboursement' : 'Date', 'buy.payDate'), 'date', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true }), accountFieldHtml(r0 ? r0.accountId || '' : '', { poche: !rend }))}
+        ${rangeeDateCompteTaux(p, r0, 'buy.payRate', dateFieldHtml(lbl(rend ? 'Date du remboursement' : '<span data-mot-date>Date</span>', 'buy.payDate'), 'date', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true }), accountFieldHtml(r0 ? r0.accountId || '' : '', { poche: !rend }))}
         <div class="choix-t pf-modes" role="group" aria-label="Mode de règlement">${C.PAYMENT_METHODS.map(([v, l]) => `<button type="button" data-mode="${h(v)}" class="${v === modeur ? 'on' : ''}">${h(l)}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
         <div class="pf-deux"><label class="field">${lbl('Référence', 'buy.payReference')}<input type="text" name="reference" value="${h(r0 ? r0.reference || '' : '')}" placeholder="${rend ? 'VIR reçu, n° de chèque…' : 'n° du virement, du chèque…'}"></label>
@@ -17296,7 +17325,7 @@
       ${avertValideHtml('spf-valide')}
       ${avertValideHtml('spf-avant')}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
-      (root, close) => { brancherTauxReglement(root, p, rend, rend ? 'Reçu' : 'Payé'); brancherEffet(root);
+      (root, close) => { brancherTauxReglement(root, p, rend, rend ? 'Reçu' : 'Payé'); brancherEffet(root, 'Remise le');
       const majValideS = () => { const x = valideDuReglement(formValues($('#spf', root)), majValideS); majAvertValide($('#spf-valide', root), x.d, x.nouvelle, sujetReglement); };
       $('#spf', root).addEventListener('input', majValideS);
       $('#spf', root).addEventListener('change', majValideS);
@@ -17926,6 +17955,8 @@
       const venue = !premier ? '' : /\.xml$/i.test(premier.name || premier.file) ? 'par El Fatoora' : /\.pdf$/i.test(premier.name || premier.file) ? 'PDF' : 'photo';
       const saisieLe = stored.createdAt ? new Date(stored.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' }) : '';
       const dernierReglement = (stored.payments || []).slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || ''))).pop();
+      // (1.361.0) Une traite remise que la banque n'a pas encore payée : l'étape « Réglée » dit quand l'argent sortira, et non
+      // la date future de l'échéance comme si la pièce avait été réglée ce jour-là (le jumeau de la frise d'une vente).
       // (1.155.13, maquette « Avoir à se faire rembourser ») Un avoir a sa frise : reçu, saisi, justificatif, puis déduit
       // d'une facture ou remboursé.
       const av = p.kind === 'avoir', L = av && p.achatLie ? purchaseById(p.achatLie) : null;
@@ -17943,7 +17974,7 @@
         { t: av ? 'Reçu' : p.kind === 'depense' ? 'Faite' : 'Reçue', fait: true, d: [lfJm(p.date), p.kind === 'depense' && String(p.subject || '').trim() ? h(p.subject) : venue].filter(Boolean).join(' · ') },
         { t: av ? 'Saisi' : 'Saisie', fait: true, d: [saisieLe || (av ? 'enregistré' : 'enregistrée'), par ? `par ${h(par)}` : ''].filter(Boolean).join(' · ') },
         { t: 'Justificatif', fait: pj > 0 || !!stored.justifCabinet, ko: !pj && !stored.justifCabinet, d: pj ? quelJustif : stored.justifCabinet ? `joint par ${stored.justifCabinet.cabinet}` : 'manque', g: pj || stored.justifCabinet || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
-        av ? quatrieme : { t: enPartie ? 'Réglée en partie' : 'Réglée', fait: !!regle, ko: !!enRetard, partiel: enPartie && !enRetard, afaire: !regle && !enRetard && !enPartie, d: regle ? (dernierReglement ? `${lfJm(dernierReglement.date)} · ${modeReglement(dernierReglement).toLowerCase()}` : 'plus rien n\'est dû') : enRetard ? `échue le ${lfJm(p.dueDate)}${enPartie ? ` · reste ${C.money(solde.remaining, cur)}` : ''}` : enPartie ? (solde.paid > 0.0005 ? `${C.money(solde.paid, null, C.decimalsFor(cur))} sur ${C.money(C.round3(solde.remaining + solde.paid), cur)}` : `reste ${C.money(solde.remaining, cur)}`) : p.dueDate ? `échéance ${lfJm(p.dueDate)}` : `reste ${C.money(solde ? solde.remaining : 0, cur)}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
+        av ? quatrieme : { t: enPartie ? 'Réglée en partie' : 'Réglée', fait: !!regle, ko: !!enRetard, partiel: enPartie && !enRetard, afaire: !regle && !enRetard && !enPartie, d: regle ? (effetEnAttente(stored) ? `${parEffet(effetEnAttente(stored))} · à la banque <span class="nw">le ${lfJmA(effetEnAttente(stored).date)}</span>` : dernierReglement ? `${lfJm(dernierReglement.date)} · ${modeReglement(dernierReglement).toLowerCase()}` : 'plus rien n\'est dû') : enRetard ? `échue le ${lfJm(p.dueDate)}${enPartie ? ` · reste ${C.money(solde.remaining, cur)}` : ''}` : enPartie ? (solde.paid > 0.0005 ? `${C.money(solde.paid, null, C.decimalsFor(cur))} sur ${C.money(C.round3(solde.remaining + solde.paid), cur)}` : `reste ${C.money(solde.remaining, cur)}`) : p.dueDate ? `échéance ${lfJm(p.dueDate)}` : `reste ${C.money(solde ? solde.remaining : 0, cur)}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
         ...(avecCabinet() ? [{ t: 'Au cabinet', fait: false, d: `<span id="ed-fr-cabinet">${av ? 'quand il le verra' : !pj ? (p.kind === 'depense' ? 'attend le ticket' : 'attend le justificatif') : 'quand il la validera'}</span>`, id: 'ed-fr-cab' }] : []),
       ]);
     };
@@ -19748,7 +19779,7 @@
               + (b.remaining < -0.0005 ? tuile('À récupérer', -b.remaining, 'pg-attire') : tuile('Reste dû', Math.max(0, b.remaining), b.remaining > 0.0005 ? (s2.dueDate && s2.dueDate < C.today() ? 'pg-alerte' : 'pg-attire') : ''))}
         </div>
         ${rows.length ? `<table class="list compact ac-paie-t"><thead><tr><th>Date</th><th>Mode</th><th>Compte</th><th>Référence</th><th class="r">Montant</th><th></th></tr></thead><tbody>
-          ${rows.map(x => `<tr><td>${C.fmtDate(x.date)}</td><td>${h(methodLabel(x.method))}</td><td>${h(accountLabel(x.accountId, x.method))}</td><td>${C.estRemboursementAchat(s2, x) ? '<span class="badge">remboursement reçu</span> ' : ''}${h(x.reference || '') || (C.estRemboursementAchat(s2, x) ? '' : '—')}${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}</td><td class="r"><b>${C.money(Math.abs(Number(x.amount) || 0), null, C.decimalsFor(cur))}</b>${reglementEnDinars(s2, x)}${partRs(x) ? `<div class="small muted">${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : `retenue défaite : ${C.money(-partRs(x), cur)}`}</div>` : ''}</td>${menuR(x.id)}</tr>`).join('')}
+          ${rows.map(x => `<tr><td>${dateDuReglement(x)}</td><td>${h(methodLabel(x.method))}</td><td>${h(accountLabel(x.accountId, x.method))}</td><td>${C.estRemboursementAchat(s2, x) ? '<span class="badge">remboursement reçu</span> ' : ''}${h(x.reference || '') || (C.estRemboursementAchat(s2, x) ? '' : '—')}${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}</td><td class="r"><b>${C.money(Math.abs(Number(x.amount) || 0), null, C.decimalsFor(cur))}</b>${reglementEnDinars(s2, x)}${partRs(x) ? `<div class="small muted">${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : `retenue défaite : ${C.money(-partRs(x), cur)}`}</div>` : ''}</td>${menuR(x.id)}</tr>`).join('')}
         </tbody></table>` : `<p class="note-v ac-rien">${lfIc('horloge', 14, 2)}<span>${av ? (b.remaining < -0.0005 ? `Tant qu'il n'est ni déduit d'une facture, ni remboursé, ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit.` : lieTrop ? `Il est déduit de ${h(lieTrop.L.number || 'la facture rattachée')}, que tu avais déjà réglée : sur cette facture, ${h(sup2 ? sup2.name : 'le fournisseur')} te doit ${C.money(lieTrop.montant, lieTrop.cur)}. Le remboursement s'enregistre sur la facture.` : s2.achatLie ? 'Il est déduit de la facture rattachée : plus rien à récupérer.' : 'Plus rien à récupérer.')
           : `Rien de réglé.${t.withholding ? ` La retenue (${C.money(rsOp2.due, cur)}) s'opérera quand tu paieras : tu remettras alors l'attestation au fournisseur. ${info('buy.certificate')}` : ''}`}</span></p>`}
         ${rows.length && av && b.remaining < -0.0005 ? `<p class="note-v">${lfIc('horloge', 14, 2)}<span>Le reste (${C.money(-b.remaining, cur)}) n'est ni déduit d'une facture, ni remboursé : ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit encore.</span></p>` : ''}
@@ -19865,7 +19896,7 @@
       // de demander plutôt que refuser, et trois chemins — la voir, ne pas enregistrer, enregistrer quand même.
       const b = C.purchaseBalance(jumeau, company(), data);
       const derP = (jumeau.payments || []).slice().sort((x, y) => String(x.date || '').localeCompare(String(y.date || ''))).pop();
-      const ou = b.remaining <= 0.0005 ? (derP ? `réglée le ${lfJm(derP.date)}` : 'réglée') : (jumeau.payments || []).length ? `reste ${C.money(b.remaining, jumeau.currency || company().currency)}` : 'pas encore réglée';
+      const ou = b.remaining <= 0.0005 ? (effetEnAttente(jumeau) ? `réglée ${parEffet(effetEnAttente(jumeau))}, à la banque le ${lfJm(effetEnAttente(jumeau).date)}` : derP ? `réglée le ${lfJm(derP.date)}` : 'réglée') : (jumeau.payments || []).length ? `reste ${C.money(b.remaining, jumeau.currency || company().currency)}` : 'pas encore réglée';
       return await new Promise(resolve => {
         let dit = false; const fin = v => { if (!dit) { dit = true; resolve(v); } };
         modal(`<h2>Cette facture est déjà saisie</h2>

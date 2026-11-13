@@ -7,10 +7,10 @@
 import { TND, versTexte, type Devise } from '../../moteur/argent.ts';
 import { ecritureDeVente, type LigneEcriture } from '../../moteur/ecritures.ts';
 import type { BaseDeTaux } from '../../moteur/piece.ts';
-import { ecritureDEncaissement, retenueAuFil, type PieceLiee, type Reglement } from '../../moteur/reglements.ts';
+import { ecritureDEffetRecu, ecritureDEncaissement, retenueAuFil, type PieceLiee, type Reglement } from '../../moteur/reglements.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { lirePieceBrute, type PieceLue } from '../ventes/pieces.ts';
-import { ecrireFamille, libelle, type EcritureAEcrire, type LigneAEcrire } from './ecrire.ts';
+import { ecrireFamille, jourEcrit, libelle, type EcritureAEcrire, type LigneAEcrire } from './ecrire.ts';
 import { compteClient, journalDeCompte, lirePlan, type PlanDuDossier } from './plan.ts';
 // Un taux à six décimales (19 % = 190 000), dit comme la v10 l'écrit : « 19 », « 13,5 ».
 const tauxEnTexte = (taux: bigint) => versTexte(taux, 4).replace(/\.?0+$/, '');
@@ -115,11 +115,22 @@ export async function ecrituresDeLaFamille(tx: Transaction, entreprise: string, 
   const parDate = [...reglements].sort((x, y) => (x.date_reglement < y.date_reglement ? -1 : x.date_reglement > y.date_reglement ? 1 : x.rang - y.rang));
   for (const r of parDate) {
     const j = journalDeCompte(plan, r.compte, r.mode, r.date_reglement);
+    const reglement: Reglement = { cle: r.id, date: r.date_reglement, montant: r.montant, cours: r.cours ?? undefined };
+    // (1.361.0) Une traite reçue avant son échéance (0212) : le jour où on la reçoit, la créance passe du client aux effets à
+    // recevoir ; l'encaissement, à l'échéance, solde ce compte-là. Sans cette écriture, le comptable voyait le client devoir
+    // la facture jusqu'à l'échéance, pendant que l'entreprise la disait réglée.
+    const effet = r.effet_recu_le && !r.rejet_de && r.montant > 0n ? r.effet_recu_le : null;
+    if (effet) {
+      const entreeE = libelle('compta.libelle.effet_recu', { numero: numeroF, client: nomF, echeance: jourEcrit(r.date_reglement) });
+      const a = ecritureDEffetRecu(enDevise(f), reglement, TND, { clients: client, effets: plan.plan.effetsARecevoir });
+      ecritures.push({ journal: 'OD', date: effet, origineType: 'effet', origine: r.id, piece: numeroF, tiers: f.tiers, libelle: entreeE, lignes: lignesDEncaissement(a.lignes, entreeE, numeroF) });
+    }
     const cle = r.rejet_de ? (r.mode === 'cheque' ? 'compta.libelle.cheque_impaye' : r.mode === 'traite' ? 'compta.libelle.effet_impaye' : 'compta.libelle.impaye')
-      : r.montant < 0n ? 'compta.libelle.remboursement' : 'compta.libelle.reglement';
+      : r.montant < 0n ? 'compta.libelle.remboursement' : effet ? 'compta.libelle.effet_encaisse' : 'compta.libelle.reglement';
     const entree = libelle(cle, { numero: numeroF, client: nomF });
-    const e = ecritureDEncaissement(enDevise(f), { cle: r.id, date: r.date_reglement, montant: r.montant, cours: r.cours ?? undefined }, fil.parts.get(r.id) ?? 0n, TND,
-      { clients: client, tresorerie: j.compte, retenueSubie: plan.plan.rsSubie, gainsChange: plan.plan.gainsChange, pertesChange: plan.plan.pertesChange });
+    const e = ecritureDEncaissement(enDevise(f), reglement, fil.parts.get(r.id) ?? 0n, TND,
+      { clients: client, tresorerie: j.compte, retenueSubie: plan.plan.rsSubie, gainsChange: plan.plan.gainsChange, pertesChange: plan.plan.pertesChange,
+        ...(effet ? { effets: plan.plan.effetsARecevoir } : {}) });
     ecritures.push({
       journal: j.journal, date: r.date_reglement, origineType: 'encaissement', origine: r.id, piece: numeroF, tiers: f.tiers, libelle: entree,
       lignes: lignesDEncaissement(e.lignes, entree, numeroF),

@@ -921,7 +921,7 @@ prouver "une perte de change au paiement écrite en gain" $MA \
   "  if (ecart > 0n) poser(comptes.pertesChange, 'change', ecart, 'debit');" "  if (ecart > 0n) poser(comptes.gainsChange, 'change', ecart, 'debit');" \
   "la banque paie au cours du jour"
 prouver "la retenue opérée oubliée sur le compte du fournisseur" $MA \
-  "  poser(comptes.fournisseurs, 'fournisseur', soldeTiers + retenue, 'debit');" "  poser(comptes.fournisseurs, 'fournisseur', soldeTiers, 'debit');" \
+  "} else poser(comptes.fournisseurs, 'fournisseur', soldeTiers + retenue, 'debit');" "} else poser(comptes.fournisseurs, 'fournisseur', soldeTiers, 'debit');" \
   "c'est ici qu'elle naît"
 prouver "un avoir imputé compté encore comme un crédit" $MA \
   "reste: rattache ? 0n : paye - t.netAPayer" "reste: paye - t.netAPayer" \
@@ -1690,7 +1690,7 @@ prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts
 # définition EN VIGUEUR (une preuve qui vise une définition remplacée reste verte : code mort).
 # La contrainte des origines est redéfinie par 0021 : ses preuves visent la définition EN VIGUEUR.
 # La liste des origines est redéfinie par 0037 (la reprise de la v10) : ces trois preuves visent la dernière.
-prouver "la base qui refuse l'origine d'une imputation" base/migrations/0194_operations_diverses_du_client.sql \
+prouver "la base qui refuse l'origine d'une imputation" base/migrations/0212_effet_recu.sql \
   "'achat', 'imputation', 'reglement_fournisseur', 'paie'" "'achat', 'reglement_fournisseur', 'paie'" \
   "$LAC"
 
@@ -1735,7 +1735,7 @@ prouver "la paie réécrite par qui ne la voit pas" $CPA \
 prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
   "    await reecrireLaPaie(tx, entreprise);" "" \
   "$PP"
-prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0194_operations_diverses_du_client.sql \
+prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0212_effet_recu.sql \
   "'reglement_fournisseur', 'paie', 'salaires', 'avance'," "'reglement_fournisseur', 'salaires', 'avance'," \
   "$PE"
 
@@ -1937,7 +1937,7 @@ S4="contre-passer et extourner une écriture saisie : le miroir validé, jamais 
 S5="lettrer une facture et son règlement : la somme fait zéro, sinon l'écart est dit ; un brouillard ne se lettre pas ; délettrer"
 S6="les mois du portefeuille disent ce que disent les livres : écritures, brouillards, chiffre d'affaires (deux chemins, un chiffre)"
 W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
-prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0194_operations_diverses_du_client.sql \
+prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0212_effet_recu.sql \
   "'contre_passation', 'saisie', 'extourne', 'reprise_v10'," "'contre_passation', 'extourne', 'reprise_v10'," \
   "$S1"
 prouver "une saisie déséquilibrée qui entre" $M210 \
@@ -23233,7 +23233,7 @@ prouver 'paie 10.1-3 h : un versement de saisie retiré qui reste dans les livre
 prouver 'paie 10.1-3 i : un plan changé qui oublie le mois des déclarations payées' serveur/compta/paie.ts \
   "    if (lisible(f)) mois.push(moisDe(f.date));" "" \
   "$LPP"
-prouver 'paie 10.1-3 j : la base qui refuse l'"'"'origine d'"'"'une déclaration payée' base/migrations/0194_operations_diverses_du_client.sql \
+prouver 'paie 10.1-3 j : la base qui refuse l'"'"'origine d'"'"'une déclaration payée' base/migrations/0212_effet_recu.sql \
   "'reprise_v10', 'declaration_sociale', 'saisie_salaire'," "'reprise_v10', 'saisie_salaire'," \
   "$LPP"
 prouver 'paie 10.1-3 k : une déclaration payée illisible acceptée' serveur/v10/paie.ts \
@@ -25241,8 +25241,8 @@ prouver 'l'\''opération écrite sans son numéro de pièce' "$OPS" \
 prouver 'la question au client : le curseur posé en retard défait la sélection de la comptable' modules/socle/ecrans/cabinet/app-1.js \
   'setTimeout(() => { if (document.activeElement === txt) return; txt.focus();' 'setTimeout(() => { txt.focus();' \
   "la révision se tient à la souris et se garde au serveur ; une question part au client à l'envoi, et sa réponse revient"
-prouver 'la base refuse l'\''origine des opérations diverses du client' base/migrations/0194_operations_diverses_du_client.sql \
-  "                          'operation_diverse'));" "                          'saisie_salaire'));" \
+prouver 'la base refuse l'\''origine des opérations diverses du client' base/migrations/0212_effet_recu.sql \
+  "                          'operation_diverse', 'effet'));" "                          'effet'));" \
   "$T303S"
 
 # (1.304.0) La période validée par le cabinet dite aussi dans la trésorerie (le mouvement qu'on saisit, qu'on corrige), et
@@ -28672,8 +28672,8 @@ prouver 'poche 1.358.0 e : le serveur écrit la poche à la banque' serveur/comp
   $'' \
   'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
 prouver 'poche 1.358.0 f : le Cabinet ne lit pas qui a avancé' serveur/compta/achats.ts \
-  $'        : r.compte === POCHE ? \'compta.libelle.reglement_fournisseur_poche\' : \'compta.libelle.reglement_fournisseur\';' \
-  $'        : \'compta.libelle.reglement_fournisseur\';' \
+  $'        : r.compte === POCHE ? \'compta.libelle.reglement_fournisseur_poche\' : effet ? \'compta.libelle.effet_paye\' : \'compta.libelle.reglement_fournisseur\';' \
+  $'        : effet ? \'compta.libelle.effet_paye\' : \'compta.libelle.reglement_fournisseur\';' \
   'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
 prouver 'poche 1.358.0 g : la dépense ne propose pas la poche' modules/socle/ecrans/entreprise/app-1.js \
   $'[\'poche\', \'de ta poche : l\\\'entreprise te le doit\'], ' \
@@ -28720,8 +28720,8 @@ prouver $'achat en euros 1.358.1 f : « Passer à 0 % » ne fait rien' modules/s
   $'' \
   'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
 prouver $'achat en euros 1.358.1 g : le règlement d\'un achat en devise reprend l\'ancienne grille (montant écrasé)' modules/socle/ecrans/entreprise/app-1.js \
-  $'        ${rangeeDateCompteTaux(p, r0, \'buy.payRate\', dateFieldHtml(lbl(rend ? \'Date du remboursement\' : \'Date\', \'buy.payDate\'), \'date\', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true }), accountFieldHtml(r0 ? r0.accountId || \'\' : \'\', { poche: !rend }))}\n' \
-  $'        <div class="pf-deux">${dateFieldHtml(lbl(rend ? \'Date du remboursement\' : \'Date\', \'buy.payDate\'), \'date\', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || \'\' : \'\', { poche: !rend })}</div>\n        ${champTauxReglement(p, r0, \'buy.payRate\')}\n' \
+  $'        ${rangeeDateCompteTaux(p, r0, \'buy.payRate\', dateFieldHtml(lbl(rend ? \'Date du remboursement\' : \'<span data-mot-date>Date</span>\', \'buy.payDate\'), \'date\', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true }), accountFieldHtml(r0 ? r0.accountId || \'\' : \'\', { poche: !rend }))}\n' \
+  $'        <div class="pf-deux">${dateFieldHtml(lbl(rend ? \'Date du remboursement\' : \'<span data-mot-date>Date</span>\', \'buy.payDate\'), \'date\', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || \'\' : \'\', { poche: !rend })}</div>\n        ${champTauxReglement(p, r0, \'buy.payRate\')}\n' \
   'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
 prouver $'achat en euros 1.358.1 h : le taux garde le nom « pour 1 DT » après le choix de l\'euro' modules/socle/ecrans/entreprise/app-1.js \
   $' const tx = $(\'[name=exchangeRate]\', rf); if (tx) tx.setAttribute(\'aria-label\', `Taux de change : combien de ${company().currency} pour 1 ${cur}`); }' \
@@ -28816,8 +28816,8 @@ prouver $'chèque impayé 1.359.0 d : la relance ne dit pas que le chèque est r
   $'body: corps };' \
   'la relance le dit après la salutation, sans toucher au reste du modèle ; en anglais aussi'
 prouver $'chèque impayé 1.359.0 e : un rejet qui ne reprend pas le montant du paiement est accepté' serveur/v10/lecture.ts \
-  $'if (!vise || vise.montant <= 0n || r.montant !== -vise.montant || rejetes.has(r.rejetDe)) throw' \
-  $'if (!vise) throw' \
+  $'if (!vise || vise.montant <= 0n || r.montant !== -vise.montant || rejetes.has(r.rejetDe) || r.date < vise.date) throw' \
+  $'if (!vise || r.date < vise.date) throw' \
   'le chèque de l'"'"'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
 prouver $'chèque impayé 1.359.0 f : le serveur ne garde pas le paiement que le rejet annule' serveur/reglements.ts \
   $'note: r.note, rejet_de: r.rejetDe ?? null,' \
@@ -28963,6 +28963,106 @@ prouver $'export 1.360.1 l : la liste des clients dit « 0 facture » d\'un clie
   $'r.brouillons ? `${pl(r.brouillons, \'brouillon\')} à émettre` : `aucune facture en ${r.an}`' \
   $'`aucune facture en ${r.an}`' \
   $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'traite 1.361.0 a : l\'effet reçu débite le client au lieu du 413' moteur/reglements.ts \
+  $'    { compte: comptes.effets, nature: \'client\', debit: montant, credit: 0n },' \
+  $'    { compte: comptes.clients, nature: \'client\', debit: montant, credit: 0n },' \
+  $'le jour de la traite, la créance passe du 411 au 413 ; à l\'échéance, la banque solde le 413'
+prouver $'traite 1.361.0 b : l\'encaissement d\'un effet solde le 411' moteur/reglements.ts \
+  $'  if (comptes.effets) {\n    poser(comptes.effets' \
+  $'  if (false && comptes.effets) {\n    poser(comptes.effets' \
+  $'le jour de la traite, la créance passe du 411 au 413 ; à l\'échéance, la banque solde le 413'
+prouver $'traite 1.361.0 c : la retenue part au 413 avec l\'effet' moteur/reglements.ts \
+  $'    poser(comptes.effets, \'client\', solde, \'credit\');\n    poser(comptes.clients, \'client\', retenue, \'credit\');' \
+  $'    poser(comptes.effets, \'client\', solde + retenue, \'credit\');' \
+  $'la retenue de ce règlement reste au client : elle naît au règlement, pas à la traite'
+prouver $'traite 1.361.0 d : le paiement d\'un effet remis solde le 401' moteur/achats.ts \
+  $'  if (comptes.effets && sens > 0n) {' \
+  $'  if (false && comptes.effets && sens > 0n) {' \
+  $'le jour de la traite, la dette passe du 401 au 403 ; à l\'échéance, la banque solde le 403'
+prouver $'traite 1.361.0 e : la retenue opérée part au 403' moteur/achats.ts \
+  $'    poser(comptes.effets, \'fournisseur\', soldeTiers, \'debit\');\n    poser(comptes.fournisseurs, \'fournisseur\', retenue, \'debit\');' \
+  $'    poser(comptes.effets, \'fournisseur\', soldeTiers + retenue, \'debit\');' \
+  $'la retenue opérée reste au fournisseur ; un avoir n\'a pas de traite'
+prouver $'traite 1.361.0 f : un avoir fournisseur reçoit une traite' moteur/achats.ts \
+  $'  if (achat.nature === \'avoir\' || montant <= 0n) return { lignes: [] };' \
+  $'  if (montant <= 0n) return { lignes: [] };' \
+  $'la retenue opérée reste au fournisseur ; un avoir n\'a pas de traite'
+prouver $'traite 1.361.0 g : le plan n\'a pas d\'effets à recevoir' moteur/comptes.ts \
+  $'  effetsARecevoir: \'413\',' \
+  $'  effetsARecevoir: \'411\',' \
+  $'le plan propose 413 et 403 (À VÉRIFIER avec le comptable)'
+prouver $'traite 1.361.0 h : le serveur ne lit pas le jour de la traite' serveur/v10/lecture.ts \
+  $'effetRecuLe: montant > 0n && estObjet(p.effet) && estJour(p.effet.recuLe) && String(p.effet.recuLe) < p.date ? String(p.effet.recuLe) : null,' \
+  $'effetRecuLe: null,' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 i : le serveur n\'enregistre pas le jour de la traite' serveur/reglements.ts \
+  $'  effet_recu_le: r.effetRecuLe ?? null,\n' \
+  $'' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 j : ajouter la traite à un paiement déjà enregistré ne change rien' serveur/reglements.ts \
+  $'\n      || (a.effet_recu_le ?? null) !== (r.effetRecuLe ?? null);' \
+  $';' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 k : la vente n\'écrit pas l\'effet reçu' serveur/compta/ventes.ts \
+  $'const effet = r.effet_recu_le && !r.rejet_de && r.montant > 0n ? r.effet_recu_le : null;' \
+  $'const effet = null;' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 l : l\'achat n\'écrit pas l\'effet remis' serveur/compta/achats.ts \
+  $'const effet = r.effetRecuLe && m.nature !== \'avoir\' && r.montant > 0n ? r.effetRecuLe : null;' \
+  $'const effet = null;' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 m : un impayé daté avant l\'échéance de la traite passe' serveur/v10/lecture.ts \
+  $' || rejetes.has(r.rejetDe) || r.date < vise.date) throw' \
+  $' || rejetes.has(r.rejetDe)) throw' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 n : la facture se dit « plus rien n\'est dû » sans dire la traite' modules/socle/ecrans/entreprise/app-1.js \
+  $'        : effetEnAttente(doc) ? `Réglée ${parEffet(effetEnAttente(doc))} : la banque l\'encaisse le <span class="nw">${C.fmtDate(effetEnAttente(doc).date)}</span>.`\n' \
+  $'' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 o : la frise ne dit pas quand la banque encaisse' modules/socle/ecrans/entreprise/app-1.js \
+  $'paye && effetEnAttente(doc) ? `${parEffet(effetEnAttente(doc))} · à la banque <span class="nw">le ${lfJmA(effetEnAttente(doc).date)}</span>` : paye' \
+  $'paye' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 p : le paiement ne montre que l\'échéance' modules/socle/ecrans/entreprise/app-1.js \
+  $'return `<tr><td>${dateDuReglement(p)}</td>' \
+  $'return `<tr><td>${C.fmtDate(p.date)}</td>' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 q : « revenu impayé » proposé avant l\'échéance' modules/socle/ecrans/entreprise/app-1.js \
+  $' && !(p.effet && p.date > C.today());' \
+  $';' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 r : le règlement fournisseur ne montre que l\'échéance' modules/socle/ecrans/entreprise/app-1.js \
+  $'${rows.map(x => `<tr><td>${dateDuReglement(x)}</td>' \
+  $'${rows.map(x => `<tr><td>${C.fmtDate(x.date)}</td>' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 s : la base refuse l\'origine d\'un effet' base/migrations/0212_effet_recu.sql \
+  $'                          \'operation_diverse\', \'effet\'));' \
+  $'                          \'operation_diverse\'));' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 t : la frise de l\'achat dit l\'échéance de la traite comme jour du règlement' modules/socle/ecrans/entreprise/app-1.js \
+  $'d: regle ? (effetEnAttente(stored) ? `${parEffet(effetEnAttente(stored))} · à la banque <span class="nw">le ${lfJmA(effetEnAttente(stored).date)}</span>` : dernierReglement' \
+  $'d: regle ? (dernierReglement' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 u : la fenêtre du paiement dit « Date » à côté de l\'échéance de la traite' modules/socle/ecrans/entreprise/app-1.js \
+  $'brancherEffet(root, \'Reçue le\');' \
+  $'brancherEffet(root);' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 v : la fenêtre du règlement fournisseur dit « Date » à côté de l\'échéance' modules/socle/ecrans/entreprise/app-1.js \
+  $'brancherEffet(root, \'Remise le\');' \
+  $'brancherEffet(root);' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 w : la liste des factures dit « payée le » d\'une date à venir' modules/socle/ecrans/entreprise/app-1.js \
+  $'    if (st === \'payée\' && effetEnAttente(d)) return effetCourt(effetEnAttente(d));\n' \
+  $'' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 x : la liste des achats dit « payée le » d\'une date à venir' modules/socle/ecrans/entreprise/app-1.js \
+  $'    if (st === \'payée\' && effetEnAttente(p)) return effetCourt(effetEnAttente(p));\n' \
+  $'' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'traite 1.361.0 y : « déjà réglé » compte le règlement qu\'on modifie' modules/socle/ecrans/entreprise/app-1.js \
+  $'déjà réglé\\u00a0${C.money(dejaHors, cur)}' \
+  $'déjà réglé\\u00a0${C.money(b.paid, cur)}' \
+  $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

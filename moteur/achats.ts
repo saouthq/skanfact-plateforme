@@ -245,7 +245,10 @@ export function statutAchat(nature: NatureAchat, rattache: boolean, solde: Solde
   return 'a_payer';
 }
 
-export type ComptesReglementFournisseur = { fournisseurs: string; tresorerie: string; retenueOperee: string; gainsChange: string; pertesChange: string };
+// `effets` (1.361.0) : un règlement par traite remise au fournisseur avant son échéance. Le jour de la traite, la dette est
+// déjà passée du fournisseur aux effets à payer (`ecritureDEffetRemis`) : le paiement, à l'échéance, solde ce compte-là, et le
+// fournisseur ne garde que la retenue de ce règlement (elle naît au règlement, 10.14.0).
+export type ComptesReglementFournisseur = { fournisseurs: string; tresorerie: string; retenueOperee: string; gainsChange: string; pertesChange: string; effets?: string };
 // L'écriture d'un règlement fournisseur (la partie « règlements » de `journalEntries`), dans la
 // devise de la comptabilité :
 //   D fournisseur     ce qu'on lui verse PLUS la retenue qu'on garde pour l'État (au cours de la
@@ -264,7 +267,10 @@ export function ecritureDeReglementFournisseur(
   const retenue = sens * versLaBase(partRetenue, achat.devise, achat.cours, base);
   const lignes: LigneEcriture[] = [];
   const poser = poseur(lignes);
-  poser(comptes.fournisseurs, 'fournisseur', soldeTiers + retenue, 'debit');
+  if (comptes.effets && sens > 0n) {
+    poser(comptes.effets, 'fournisseur', soldeTiers, 'debit');
+    poser(comptes.fournisseurs, 'fournisseur', retenue, 'debit');
+  } else poser(comptes.fournisseurs, 'fournisseur', soldeTiers + retenue, 'debit');
   poser(comptes.tresorerie, 'tresorerie', verse, 'credit');
   poser(comptes.retenueOperee, 'retenue', retenue, 'credit');
   const ecart = verse - soldeTiers;
@@ -272,4 +278,20 @@ export function ecritureDeReglementFournisseur(
   else if (ecart < 0n) poser(comptes.gainsChange, 'change', -ecart, 'credit');
   if (solde(lignes) !== 0n) throw new Error('écriture de règlement déséquilibrée');
   return { lignes };
+}
+
+// (1.361.0) La traite remise au fournisseur avant son échéance, le jour où on la remet : la dette change de forme.
+//   D fournisseur       le montant de la traite, au cours de la pièce (le 401 se solde au cours auquel il a été crédité)
+//   C effets à payer    le même montant
+// La banque ne bouge qu'à l'échéance (`ecritureDeReglementFournisseur` avec `effets`). Un avoir n'en a pas : l'argent y
+// entre, ce n'est pas une traite qu'on remet.
+export function ecritureDEffetRemis(
+  achat: EnDevise & { nature: NatureAchat }, reglement: Reglement, base: Devise, comptes: { fournisseurs: string; effets: string },
+): { lignes: LigneEcriture[] } {
+  const montant = versLaBase(reglement.montant, achat.devise, achat.cours, base);
+  if (achat.nature === 'avoir' || montant <= 0n) return { lignes: [] };
+  return { lignes: [
+    { compte: comptes.fournisseurs, nature: 'fournisseur', debit: montant, credit: 0n },
+    { compte: comptes.effets, nature: 'fournisseur', debit: 0n, credit: montant },
+  ] };
 }

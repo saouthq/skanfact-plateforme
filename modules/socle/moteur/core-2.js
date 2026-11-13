@@ -2364,7 +2364,11 @@
     // diminue : le client doit ce qu'il doit dans SA devise, et le 411 le porte au taux de la
     // facture ; la différence est un gain ou une perte de change (À VÉRIFIER).
     pertesChange: '655',         // Pertes de change
-    gainsChange: '755'           // Gains de change
+    gainsChange: '755',          // Gains de change
+    // (1.361.0) La traite reçue d'un client, ou remise à un fournisseur, avant son échéance : la créance (la dette)
+    // quitte le 411 (le 401) le jour de la traite ; la banque solde le 413 (le 403) à l'échéance — À VÉRIFIER.
+    effetsARecevoir: '413',      // Clients — effets à recevoir
+    effetsAPayer: '403'          // Fournisseurs — effets à payer
   };
   const ACCOUNT_LABELS = {
     clients: 'Clients', fournisseurs: 'Fournisseurs', ventes: 'Ventes (prestations de services)',
@@ -2384,7 +2388,8 @@
     produitsCession: 'Produits des cessions d\'immobilisations', taxesSalaires: 'TFP et FOPROLOS (charge)', tfpFoprolos: 'TFP et FOPROLOS à payer',
     stocks: 'Stocks', variationStocks: 'Variation des stocks',
     subventions: 'Subventions d\'investissement', repriseSubventions: 'Quote-part de subvention reprise',
-    pertesChange: 'Pertes de change', gainsChange: 'Gains de change'
+    pertesChange: 'Pertes de change', gainsChange: 'Gains de change',
+    effetsARecevoir: 'Clients — effets à recevoir', effetsAPayer: 'Fournisseurs — effets à payer'
   };
   // Un mouvement libre de trésorerie (3.3.0) porte une NATURE ; la 8.9.0 lui donne sa contrepartie.
   // La nature décide par défaut ; un mouvement peut porter son propre `compte` (la TVA du mois
