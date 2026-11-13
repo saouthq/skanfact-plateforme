@@ -5021,9 +5021,10 @@
       try {
         const r = await api.lettrageAuto({ dossierId: dossier.id, annee: s.annee, compte: s.compte || '411' });
         s.livre = r.livre;
+        const brl = r.auBrouillard > 0 ? ` ${pl(r.auBrouillard, 'ligne au brouillard', 'lignes au brouillard')} ne se lettre${r.auBrouillard > 1 ? 'nt' : ''} qu'une fois validée${r.auBrouillard > 1 ? 's' : ''}.` : '';
         toast(r.poses.length
-          ? `${pl(r.poses.length, 'lettre posée', 'lettres posées')} ; ${pl(r.restent, 'ligne reste ouverte', 'lignes restent ouvertes')}.`
-          : `Rien à lettrer d'office : ${pl(r.restent, 'ligne ouverte', 'lignes ouvertes')}, aucune paire qui se solde sans ambiguïté.`);
+          ? `${pl(r.poses.length, 'lettre posée', 'lettres posées')} ; ${pl(r.restent, 'ligne validée reste ouverte', 'lignes validées restent ouvertes')}.${brl}`
+          : `Rien à lettrer d'office : ${pl(r.restent, 'ligne validée ouverte', 'lignes validées ouvertes')}, aucune paire qui se solde sans ambiguïté.${brl}`);
         redraw();
       } catch (e) { toast(plainError(e), 'error'); au.disabled = false; }
     };

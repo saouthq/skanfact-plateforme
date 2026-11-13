@@ -8002,7 +8002,7 @@ prouver 'la retenue émise en texte, telle que la liste l'\''écrit' modules/soc
 ' '' \
   "$FDW"
 prouver '« une retenue subie de août »' modules/socle/ecrans/entreprise/app-1.js \
-  'retenue subie ${/^[aeiou]/i.test(moisRs)' 'retenue subie ${/^$/i.test(moisRs)' \
+  $'const subie = `retenue subie ${/^[aeiou]/i.test(moisRs)' $'const subie = `retenue subie ${/^$/i.test(moisRs)' \
   "$FDW"
 prouver 'le menu qui promet un PDF joint au message' modules/socle/ecrans/entreprise/app-1.js \
   'email: !bridge.ajouterLien ? '\''Le PDF est joint au message'\'' :' 'email: true ? '\''Le PDF est joint au message'\'' :' \
@@ -25191,7 +25191,7 @@ prouver 'le règlement n'\''offre pas de le dire au comptable' "$A1E" \
   'const dvS = valideDuReglement(v).d;' 'const dvS = null;' \
   "$T303W"
 prouver 'le virement qui règle plusieurs achats dans la période validée, sans un mot avant' "$A1E" \
-  'dateDansLaPeriodeValidee([v.date], annoncer), v.date,' 'null, v.date,' \
+  $'$(\'#rge-valide\', root), dateDansLaPeriodeValidee([v.date], annoncer), v.date,' $'$(\'#rge-valide\', root), null, v.date,' \
   "$T303W"
 prouver 'le virement qui règle plusieurs achats n'\''offre pas de le dire au comptable' "$A1E" \
   'const dvR = dateDansLaPeriodeValidee([v.date]);' 'const dvR = null;' \
@@ -28867,6 +28867,54 @@ prouver $'relance première 1.359.1 g : retirer un rejet sans dire que ses frais
   $'${fraisR ? ` Les frais de rejet (' \
   $'${false ? ` Les frais de rejet (' \
   $'le chèque de l\'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
+prouver $'paiement groupé 1.360.0 a : un paiement plus grand que le reste ne propose pas de régler les autres factures' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (autresF.length) {' \
+  $'if (false && autresF.length) {' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 b : la plus récente d\'abord' modules/socle/ecrans/entreprise/app-1.js \
+  $'const l = facturesAEncaisser(clientId).sort((a, b) => quand(a).localeCompare(quand(b))' \
+  $'const l = facturesAEncaisser(clientId).sort((a, b) => quand(b).localeCompare(quand(a))' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 c : la facture d\'où l\'on vient se décoche' modules/socle/ecrans/entreprise/app-1.js \
+  $'x.checked = true; x.disabled = true;' \
+  $'x.checked = true; x.disabled = false;' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 d : un montant au-dessus des factures cochées passe' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (montant > tc + 0.0005) return refus(mE,' \
+  $'if (false) return refus(mE,' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 e : la note ne nomme pas les factures réglées' modules/socle/ecrans/entreprise/app-1.js \
+  $'pour ${pl(parts.length, \'facture\')} : ${parts.map(([d]) => d.number).join(\', \')}`;' \
+  $'pour ${pl(parts.length, \'facture\')}`;' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 f : la fiche du client ne propose pas le geste groupé' modules/socle/ecrans/entreprise/app-1.js \
+  $'aEncaisserC.length > 1 && !enLecture(\'documents\') ?' \
+  $'false ?' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 g : le bouton ne dit pas ce qui reste dû' modules/socle/ecrans/entreprise/app-1.js \
+  $'montant < tc - 0.0005 ? ` · reste dû ${C.money(C.round3(tc - montant), cur)}`' \
+  $'montant < tc - 0.0005 ? \'\'' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 h : « Une partie » s\'allume au-dessus du reste' modules/socle/ecrans/entreprise/app-1.js \
+  $'v < reste ? \'partie\' : \'\'' \
+  $'\'partie\'' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 i : le brouillard n\'est pas compté' modules/socle/moteur/compta-1.js \
+  $'if (e.statut === \'brouillard\') { auBrouillard += (e.lignes || []).filter(l => txt(l.compte) === n && !txt(l.lettre)).length; return; }' \
+  $'if (e.statut === \'brouillard\') { return; }' \
+  $'une paire validée se lettre ; les lignes au brouillard ne sont ni lettrées ni comptées ouvertes'
+prouver $'paiement groupé 1.360.0 j : une ligne déjà lettrée au brouillard est comptée' modules/socle/moteur/compta-1.js \
+  $'auBrouillard += (e.lignes || []).filter(l => txt(l.compte) === n && !txt(l.lettre)).length' \
+  $'auBrouillard += (e.lignes || []).filter(l => txt(l.compte) === n).length' \
+  $'une paire validée se lettre ; les lignes au brouillard ne sont ni lettrées ni comptées ouvertes'
+prouver $'paiement groupé 1.360.0 k : le pont perd le compte du brouillard' web/public/plateforme/pont-cabinet.js \
+  $'auBrouillard: r.auBrouillard' \
+  $'auBrouillard: 0' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement groupé 1.360.0 l : le compte rendu du lettrage tait le brouillard' modules/socle/ecrans/cabinet/app-2.js \
+  $'const brl = r.auBrouillard > 0 ?' \
+  $'const brl = false ?' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

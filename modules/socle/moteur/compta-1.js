@@ -3111,8 +3111,11 @@
     const jours = o.jours == null ? 90 : Math.max(0, Number(o.jours) || 0);
     const n = txt(compte);
     const ouvertes = [];
+    // (1.360.0) Ce qui attend au brouillard ne se lettre pas d'office, et le compte rendu le DIT : « 3 lignes ouvertes »
+    // sous un tableau qui en montre quatre (le brouillard compté) faisait chercher la quatrième.
+    let auBrouillard = 0;
     (livre.ecritures || []).forEach(e => {
-      if (e.statut === 'brouillard') return;
+      if (e.statut === 'brouillard') { auBrouillard += (e.lignes || []).filter(l => txt(l.compte) === n && !txt(l.lettre)).length; return; }
       (e.lignes || []).forEach(l => {
         if (txt(l.compte) !== n || txt(l.lettre)) return;
         ouvertes.push({ id: e.id, date: e.date, piece: txt(e.piece), tiersId: txt(l.tiersId), montant: round3(num(l.debit) - num(l.credit)) });
@@ -3137,7 +3140,7 @@
       utilises.add(d.id); utilises.add(choisi.id);
       poses.push({ lettre: r.lettre, ecritures: [d.id, choisi.id], montant: d.montant });
     });
-    return { ok: true, poses, restent: ouvertes.length - utilises.size };
+    return { ok: true, poses, restent: ouvertes.length - utilises.size, auBrouillard };
   }
 
   // Les tranches d'âge, en UN seul endroit. Elles vivaient dans core.js depuis la 2.5.0 ; le

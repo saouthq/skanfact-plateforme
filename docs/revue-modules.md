@@ -3454,3 +3454,39 @@ n'avait jamais été relancée.
 - Tests : `tests/moteur/relance-premiere-1359-1.test.ts` (première relance ou non, en français et en anglais, note
   d'honoraires, modèle réécrit), `tests/web/relance-premiere-1359-1.test.ts` (la fenêtre de relance d'un client sans
   adresse) et `tests/web/cheque-impaye-1359.test.ts` (les frais) ; sept preuves « relance première 1.359.1 ».
+
+### 1.360.0 : un client règle plusieurs factures d'un seul virement (bout en bout 22)
+
+Joué à la souris dans l'environnement de test : l'Hôtel Mouradi Gammarth doit trois factures au traiteur (1 191 DT de
+septembre, 596 DT d'octobre, 239 DT de novembre). Son comptable envoie un seul virement de 1 787 DT, qui règle les deux
+plus anciennes. Avant cette version, la gérante ouvrait la facture d'octobre et tapait 1 787 : SkanFact proposait
+seulement d'enregistrer un trop-perçu de 1 191 DT sur octobre, et septembre restait « en retard » à côté. Il fallait
+deviner qu'on devait couper le virement en deux à la main.
+- **« Plus que le reste de cette facture »** : quand le montant reçu dépasse le reste et que le client doit d'autres
+  factures, la fenêtre le dit (« Hôtel Mouradi Gammarth doit encore 1 430,000 DT sur 2 autres factures ») et propose
+  « Répartir sur ses factures », « Laisser un trop-perçu » ou « Corriger le montant ».
+- **La fenêtre du paiement groupé** reprend le montant, la date, le compte, le mode et la référence déjà tapés. Elle
+  liste les factures à encaisser de ce client, la plus ancienne d'abord, et montre ce que chacune reçoit pendant la
+  frappe. La facture d'où l'on vient reste cochée. Le bouton dit ce qui suivra (« Enregistrer sur 2 factures · reste dû
+  239,000 DT »). Un montant plus grand que ce que doivent les factures cochées est refusé, et le refus dit pourquoi.
+- **Le même geste depuis la fiche du client** : « Un paiement pour plusieurs factures… » dans le menu Actions, dès que
+  deux factures au moins sont à encaisser (« 3 factures à encaisser, 2 026,000 DT »).
+- **Un règlement par facture**, chacun avec la même référence et une note qui dit le virement entier (« Un virement de
+  1 787,000 DT pour 2 factures : FAC-2026-001, FAC-2026-002 »). Chez le comptable, deux écritures « Règlement
+  FAC-2026-00x », chacune sur sa facture. Une fois validées, le lettrage automatique pose les deux lettres. La facture
+  de novembre reste ouverte de 239 DT, comme chez le client : deux chemins, un chiffre.
+- **Le lettrage automatique dit ce qui attend au brouillard.** Il disait « 3 lignes ouvertes » sous un tableau qui en
+  montre cinq (le brouillard compté). Il dit maintenant « 3 lignes validées ouvertes… 2 lignes au brouillard ne se
+  lettrent qu'une fois validées ».
+- **Vu au passage** : au-dessus du reste, la fenêtre d'un paiement allumait « Une partie ». Ni « Tout le reste » ni
+  « Une partie » ne s'allume plus quand le montant dépasse le reste.
+- À VÉRIFIER avec le comptable : un paiement groupé à un client qui garde une retenue à la source. SkanFact la calcule
+  facture par facture, au prorata de ce que chacune reçoit. La fenêtre l'annonce avant d'enregistrer. Est-ce ainsi
+  que le client la déclare ? Les factures dans une autre devise, et le paiement par traite, ne sont pas dans ce geste
+  groupé : ils se règlent encore facture par facture.
+- Tests : `tests/moteur/lettrage-brouillard-1360.test.ts` (le brouillard compté à part, une ligne déjà lettrée non
+  comptée) et `tests/web/paiement-groupe-1360.test.ts` (la fiche du client, le refus au-dessus du total, le surplus
+  réparti depuis la facture, les règlements au serveur, puis le lettrage au Cabinet avant et après validation) ; douze
+  preuves « paiement groupé 1.360.0 ».
+  Deux preuves anciennes visaient une ligne que ce geste reprend du paiement groupé des achats : leurs motifs désignent
+  maintenant ce seul endroit.

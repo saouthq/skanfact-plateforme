@@ -2759,7 +2759,7 @@
         const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: p.ecritures });
         poses.push({ ...p, lettre: l.lettre });
       }
-      return { ok: true, poses, restent: r.restent, livre: await livreDe(o.dossierId, o.annee) };
+      return { ok: true, poses, restent: r.restent, auBrouillard: r.auBrouillard, livre: await livreDe(o.dossierId, o.annee) };
     },
     lettrer: async (/** @type {any} */ o) => {
       if (o.delettrer) {

@@ -10391,7 +10391,7 @@
             if (rend) return;
             const v = lireMontant(m.value), apres = C.round3(reste - v);
             ok.innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${v > 0 ? apres > 0.0005 ? ` · reste ${C.money(apres, cur)}` : apres < -0.0005 ? ' · un trop-perçu' : ' · la facture sera payée' : ''}`;
-            $$('[data-vite]', root).forEach(x => x.classList.toggle('on', x.dataset.vite === (Math.abs(v - reste) < 0.0005 ? 'tout' : 'partie')));
+            $$('[data-vite]', root).forEach(x => x.classList.toggle('on', x.dataset.vite === (Math.abs(v - reste) < 0.0005 ? 'tout' : v < reste ? 'partie' : '')));
           };
           f.addEventListener('input', dire); dire();
           setTimeout(() => { if (!p0) { m.focus(); m.select(); } }, 0);
@@ -10435,7 +10435,18 @@
         // Rendre plus que le trop-perçu ferait DEVOIR le client de nouveau : c'est presque toujours
         // une faute de frappe. On prévient, on n'interdit pas (7.6.0).
         if (rend && Number(v.amount) > aRendre + 0.0005 && !await confirmDialog(`Le montant rendu (${C.money(v.amount, cur)}) dépasse le trop-perçu (${C.money(aRendre, cur)}). La facture redeviendrait due de la différence. Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: 'Rendre plus que le trop-perçu ?' })) return;
-        if (!rend && Number(v.amount) > reste + 0.0005 && !await confirmDialog(`Le montant (${C.money(v.amount, cur)}) dépasse le reste à payer (${C.money(reste, cur)}). La facture apparaîtra avec un trop-perçu. Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: 'Plus que le reste à payer' })) return;
+        // (1.360.0) Un paiement plus grand que le reste, d'un client qui doit d'autres factures : c'est presque toujours un
+        // virement qui en règle plusieurs. Le surplus peut les solder, la plus ancienne d'abord, au lieu de laisser un
+        // trop-perçu ici et des factures « en retard » à côté.
+        if (!rend && Number(v.amount) > reste + 0.0005) {
+          const autresF = !p0 && !ech && docCur(inv) === company().currency ? facturesAEncaisser(inv.clientId).filter(d => d.id !== inv.id) : [];
+          if (autresF.length) {
+            const dues = C.round3(autresF.reduce((a, d) => a + balance(d).remaining, 0));
+            const choix = await choiceDialog('Plus que le reste de cette facture', `Le montant (${C.money(v.amount, cur)}) dépasse le reste de ${inv.number} (${C.money(reste, cur)}). ${clientName(inv.clientId)} doit encore ${C.money(dues, cur)} sur ${pl(autresF.length, 'autre facture', 'autres factures')} : le surplus peut les régler, la plus ancienne d'abord.`, 'Répartir sur ses factures', 'Laisser un trop-perçu', 'Corriger le montant');
+            if (!choix) return;
+            if (choix === 'a') { close(); encaisserEnsemble(inv.clientId, { amount: C.round3(Number(v.amount)), date: v.date, method: v.method, accountId: v.accountId || '', reference: v.reference || '', exige: inv.id }, done); return; }
+          } else if (!await confirmDialog(`Le montant (${C.money(v.amount, cur)}) dépasse le reste à payer (${C.money(reste, cur)}). La facture apparaîtra avec un trop-perçu. Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: 'Plus que le reste à payer' })) return;
+        }
         // Modifier la date d'un paiement le sort d'un mois peut-être déjà déclaré : l'ancienne date
         // compte autant que la nouvelle, comme pour un document.
         if (closedBlock(p0 ? [p0.date, ech || v.date] : ech || v.date, rend ? 'Ce remboursement' : 'Ce paiement')) return;
@@ -10459,6 +10470,101 @@
         } else toast(ditP);
         if (done) done();
       }; });
+  }
+
+  // (1.360.0, bout en bout 22) Un client qui règle plusieurs factures d'un seul virement (ou d'un seul chèque) : le jumeau
+  // de « Régler en un seul virement » des fournisseurs (1.203.0). Il fallait ouvrir chaque facture et y taper sa part, et
+  // un montant plus grand que le reste d'une facture la mettait en trop-perçu au lieu de solder la suivante. Ici, un
+  // paiement par facture, à la même date et avec la même référence ; le montant se répartit sur les factures cochées, la
+  // plus ancienne d'abord, chacune recevant au plus ce qui lui reste. Le relevé de la banque rapproche déjà une ligne de
+  // plusieurs paiements (une remise). Une traite a une échéance par effet, et une facture dans une autre devise son taux
+  // du jour : elles se règlent une par une.
+  function facturesAEncaisser(clientId) {
+    const cur = company().currency;
+    return (data.documents || []).filter(d => d.type === 'facture' && d.clientId === clientId && C.isLocked(d) && effStatus(d) !== 'annulée'
+      && docCur(d) === cur && balance(d).remaining > 0.0005);
+  }
+  function encaisserEnsemble(clientId, o, done) {
+    o = o || {};
+    const cur = company().currency;
+    const quand = d => d.dueDate || d.date || '';
+    const l = facturesAEncaisser(clientId).sort((a, b) => quand(a).localeCompare(quand(b)) || String(a.date || '').localeCompare(String(b.date || '')) || String(a.number || '').localeCompare(String(b.number || '')));
+    if (l.length < 2) return;
+    const reste = d => C.round3(Math.max(0, balance(d).remaining));
+    const nom = clientName(clientId);
+    const modes = C.PAYMENT_METHODS.filter(m => m[0] !== 'traite');
+    const modeur = modes.some(m => m[0] === o.method) ? o.method : 'virement';
+    const echeance = d => !d.dueDate ? '<span class="muted">—</span>' : d.dueDate < C.today() ? `${C.fmtDate(d.dueDate)}<div class="small warn-text">${pl(C.daysBetween(d.dueDate, C.today()), 'jour')} de retard</div>` : C.fmtDate(d.dueDate);
+    const total0 = C.round3(l.reduce((a, d) => a + reste(d), 0));
+    modal(`<h2>${h(nom)} règle plusieurs factures en un paiement</h2>
+      <p class="small muted">Chaque facture cochée reçoit ce qui lui reste, la plus ancienne d'abord ; un montant plus petit laisse les dernières « payées en partie ».</p>
+      <table class="list compact" id="ee-l"><thead><tr><th aria-label="Comptée"></th><th>Facture</th><th>Échéance</th><th class="r">Reste</th><th class="r">Ce paiement</th></tr></thead><tbody>
+        ${l.map(d => `<tr data-id="${h(d.id)}"><td><input type="checkbox" data-coche="${h(d.id)}" checked aria-label="${h(`Compter ${d.number}`)}"></td><td><b>${h(d.number)}</b>${d.subject ? `<div class="small muted">${h(d.subject)}</div>` : ''}</td><td class="nw">${echeance(d)}</td><td class="r nw">${C.money(reste(d), cur)}</td><td class="r nw" data-part></td></tr>`).join('')}
+      </tbody></table>
+      <form id="ee" class="pf-charte mt" data-devise="${h(cur)}">
+        <div class="pf-montant"><label class="field obligatoire">${lbl('Montant reçu', 'ed.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(o.amount > 0 ? o.amount : total0, null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span class="pf-dev">${h(cur)}</span></span></label></div>
+        <div class="pf-deux">${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', o.date || C.today(), { obligatoire: true })}${accountFieldHtml(o.accountId || '')}</div>
+        <div class="choix-t pf-modes" role="group" aria-label="Mode de paiement">${modes.map(([v, lb]) => `<button type="button" data-mode="${h(v)}" class="${v === modeur ? 'on' : ''}">${h(lb)}</button>`).join('')}</div>
+        <input type="hidden" name="method" value="${h(modeur)}">
+        <div class="pf-deux"><label class="field">${lbl('Référence', 'ed.payReference')}<input type="text" name="reference" value="${h(o.reference || '')}" placeholder="n° du virement, du chèque…"></label></div>
+        <div class="pf-rs-boite annonce-stable" id="ee-rs" aria-live="polite"></div>
+      </form>
+      ${avertValideHtml('ee-valide')}
+      ${avertValideHtml('ee-avant')}
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+    (root, close) => {
+      const fE = $('#ee', root), mE = $('[name=amount]', root);
+      const suivreE = compteSuitLeMode(fE, false);
+      if (o.exige) { const x = $(`[data-coche="${o.exige}"]`, root); if (x) { x.checked = true; x.disabled = true; x.title = 'La facture d\'où tu viens'; } }
+      const cochees = () => l.filter(d => { const x = $(`[data-coche="${d.id}"]`, root); return x && x.checked; });
+      const totalC = () => C.round3(cochees().reduce((a, d) => a + reste(d), 0));
+      const repartir = v => { let x = C.round3(v); return cochees().map(d => { const m = C.round3(Math.min(reste(d), Math.max(0, x))); x = C.round3(x - m); return [d, m]; }); };
+      $$('[data-mode]', root).forEach(b => b.onclick = () => { $('[name=method]', fE).value = b.dataset.mode; $$('[data-mode]', root).forEach(x => x.classList.toggle('on', x === b)); suivreE(b.dataset.mode); annoncer(); });
+      function annoncer() {
+        const v = formValues(fE), montant = lireMontant(mE.value), parts = repartir(montant), d0 = v.date || C.today();
+        const part = new Map(parts);
+        l.forEach(d => { const td = $(`#ee-l tr[data-id="${d.id}"] [data-part]`, root); if (!td) return; const m = part.get(d); td.innerHTML = m > 0.0005 ? `<b>${C.money(m, cur)}</b>${m < reste(d) - 0.0005 ? '<div class="small muted">en partie</div>' : ''}` : '<span class="muted">—</span>'; });
+        const rs = parts.reduce((a, [d, m]) => {
+          if (!(m > 0.0005) || !(Number(d.withholdingRate) > 0)) return a;
+          const essai = { ...d, payments: (d.payments || []).concat([{ id: '__essai', date: d0, amount: m }]) };
+          return a + (C.retenueSubie(essai, data, company()).parts.__essai || 0);
+        }, 0);
+        const moisRs = C.MONTHS_FR[Number(d0.slice(5, 7)) - 1];
+        $('#ee-rs', root).innerHTML = rs > 0.0005 ? `<div class="bandeau gris">${lfIc('aide', 16, 2)}<span class="txt"><b>Le client garde ${C.money(rs, cur)} de retenue à la source</b> : une retenue subie ${/^[aeiou]/i.test(moisRs) ? 'd\'' : 'de '}${moisRs} ${d0.slice(0, 4)}, qu'il doit te justifier par une attestation.</span></div>` : '';
+        const nb = parts.filter(([, m]) => m > 0.0005).length, tc = totalC();
+        $('#ok', root).innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${montant > 0 && nb ? ` sur ${pl(nb, 'facture')}${montant > tc + 0.0005 ? '' : montant < tc - 0.0005 ? ` · reste dû ${C.money(C.round3(tc - montant), cur)}` : ' · toutes soldées'}` : ''}`;
+        majAvertValide($('#ee-valide', root), dateDansLaPeriodeValidee([v.date], annoncer), v.date, { sujet: 'Ce paiement', fem: false, neuve: true, geste: 'En l\'enregistrant' });
+      }
+      $$('[data-coche]', root).forEach(x => x.onchange = () => { mE.value = C.money(totalC(), null, C.decimalsFor(cur)); annoncer(); });
+      fE.addEventListener('input', annoncer); fE.addEventListener('change', annoncer); annoncer();
+      brancherAvantDepart(fE, $('#ee-avant', root), 'ce paiement');
+      setTimeout(() => { mE.focus(); mE.select(); }, 0);
+      $('#ok', root).onclick = async () => {
+        const v = formValues(fE), montant = C.round3(lireMontant(mE.value));
+        if (enLecture('documents')) return refus(mE, refusLecture('documents'));
+        if (!cochees().length) return refus($('[data-coche]', root), 'Coche au moins une facture que ce paiement règle.');
+        if (!(montant > 0)) return refus(mE, 'Écris le montant reçu en chiffres, plus grand que zéro : par exemple 250,500.');
+        if ((String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus(mE, `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
+        const tc = totalC();
+        if (montant > tc + 0.0005) return refus(mE, `Les factures cochées ne doivent plus que ${C.money(tc, cur)} : coche une facture de plus, ou enregistre le surplus sur la facture qu'il règle, pour dire à laquelle il va.`);
+        if (!v.date) return refus($('[name=date]', root), 'Date obligatoire.');
+        if (v.date > C.today() && !await confirmDialog(`La date du paiement (${C.fmtDate(v.date)}) est dans le futur. Un paiement s'enregistre quand l'argent arrive. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un paiement daté dans le futur' })) return;
+        if (closedBlock(v.date, 'Ce paiement')) return;
+        const parts = repartir(montant).filter(([, m]) => m > 0.0005);
+        const note = `${v.method === 'cheque' ? 'Un chèque' : v.method === 'virement' ? 'Un virement' : 'Un paiement'} de ${C.money(montant, cur)} pour ${pl(parts.length, 'facture')} : ${parts.map(([d]) => d.number).join(', ')}`;
+        for (const [d, m] of parts) {
+          const stored = docById(d.id) || d;
+          stored.payments = (stored.payments || []).concat([{ id: C.uid(), date: v.date, amount: m, method: v.method, accountId: v.accountId || '', reference: v.reference || '', note }]);
+        }
+        const dvE = dateDansLaPeriodeValidee([v.date]);
+        save(true); close();
+        const soldees = parts.filter(([d]) => effStatus(docById(d.id) || d) === 'payée').length;
+        const ditE = `Paiement de ${C.money(montant, cur)} enregistré sur ${pl(parts.length, 'facture')}${soldees ? ` · ${soldees === parts.length ? (soldees > 1 ? 'toutes soldées' : 'soldée') : `${pl(soldees, 'soldée')}`}` : ''}`;
+        if (dvE) direAuComptableApres(ditE, { fait: 'd\'enregistrer', fem: false, quoi: `un paiement daté du ${C.fmtDate(dvE)} (${nom}, ${parts.map(([d]) => d.number).join(', ')}, ${C.money(montant, cur)})` });
+        else toast(ditE);
+        if (done) done();
+      };
+    });
   }
 
   // (1.359.0, bout en bout 21) Le chèque ou l'effet revenu impayé. Seul « Supprimer ce paiement » s'offrait : la trace du
@@ -11803,6 +11909,7 @@
       const rv = C.releveClient(data, c.id, co, { natif: true });
       const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);
       const docsLies = data.documents.filter(d => d.clientId === c.id).length;
+      const aEncaisserC = facturesAEncaisser(c.id);
       return [
         ...(peutEcrire ? [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Coordonnées, conditions, retenue', run: () => clientForm(c, refaire) }] : []),
         ...groupe('Lui écrire', [
@@ -11816,7 +11923,9 @@
           ...(peutEcrire ? [{ icon: 'contrat', label: 'Nouveau contrat récurrent', hint: 'Un brouillon préparé à chaque période', run: () => recurrenceForm(Object.assign(contratNeuf(), { clientId: c.id }), refaire) },
             { icon: 'nouveau', label: 'Nouvelle affaire', hint: 'Pour suivre ce qu\'un chantier rapporte', run: () => projectForm(null, refaire, { clientId: c.id }) }] : [])] : []),
         ...groupe('Ses documents', [{ icon: 'pdf', label: 'Relevé de compte…',
-          hint: rv.total > 0.0005 ? `${C.money(rv.total, rv.currency)} encore dû` : rv.total < -0.0005 ? `${C.money(-rv.total, rv.currency)} en sa faveur` : 'Le compte est soldé', run: () => releveForm(c.id) }]),
+          hint: rv.total > 0.0005 ? `${C.money(rv.total, rv.currency)} encore dû` : rv.total < -0.0005 ? `${C.money(-rv.total, rv.currency)} en sa faveur` : 'Le compte est soldé', run: () => releveForm(c.id) },
+          // (1.360.0) Un paiement qui règle plusieurs de ses factures : là où l'on voit ce qu'il doit.
+          ...(aEncaisserC.length > 1 && !enLecture('documents') ? [{ icon: 'argent', label: 'Un paiement pour plusieurs factures…', hint: `${pl(aEncaisserC.length, 'facture')} à encaisser, ${C.money(C.round3(aEncaisserC.reduce((a, d) => a + balance(d).remaining, 0)), company().currency)}`, run: () => encaisserEnsemble(c.id, {}, refaire) }] : [])]),
         ...(peutEcrire ? [{ sep: true },
           c.archived ? { icon: 'restaurer', label: 'Le remettre dans la liste', hint: 'Il revient dans la liste et dans les choix d\'une pièce', run: () => desarchiverClient(c, refaire) }
             : { icon: 'dossier', label: 'Archiver', hint: 'Il sort de la liste et des choix ; ses documents restent', run: () => archiverClient(c, refaire) },

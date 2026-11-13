@@ -139,8 +139,9 @@ describe('la fiche d\'un client, telle que la maquette', () => {
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     // Le menu ⋯ : ce qui ne mérite pas un bouton ; un client qui a des documents ne se supprime pas, il s'archive.
+    // (1.360.0) Deux factures à encaisser : le paiement qui les règle ensemble se propose ici.
     await p.locator('#view .cf-tete [data-rowmenu]').click();
-    expect(net(await p.locator('.row-menu').innerText())).toBe('Hôtel du Lac Modifier la fiche Coordonnées, conditions, retenue LUI ÉCRIRE Par e-mail technique@hotel-lac.tn Par WhatsApp 74 225 700 CRÉER POUR LUI Nouveau devis Pour Hôtel du Lac Nouvelle facture Elle reprend sa fiche Nouveau contrat récurrent Un brouillon préparé à chaque période Nouvelle affaire Pour suivre ce qu\'un chantier rapporte SES DOCUMENTS Relevé de compte… 1 249,541 DT encore dû Archiver Il sort de la liste et des choix ; ses documents restent Supprimer ce client impossible : 2 documents liés ; archive-le plutôt');
+    expect(net(await p.locator('.row-menu').innerText())).toBe('Hôtel du Lac Modifier la fiche Coordonnées, conditions, retenue LUI ÉCRIRE Par e-mail technique@hotel-lac.tn Par WhatsApp 74 225 700 CRÉER POUR LUI Nouveau devis Pour Hôtel du Lac Nouvelle facture Elle reprend sa fiche Nouveau contrat récurrent Un brouillon préparé à chaque période Nouvelle affaire Pour suivre ce qu\'un chantier rapporte SES DOCUMENTS Relevé de compte… 1 249,541 DT encore dû Un paiement pour plusieurs factures… 2 factures à encaisser, 1 249,541 DT Archiver Il sort de la liste et des choix ; ses documents restent Supprimer ce client impossible : 2 documents liés ; archive-le plutôt');
     await p.keyboard.press('Escape');
 
     // 2. L'école : deux factures en retard, ni matricule ni e-mail.
